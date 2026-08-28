@@ -237,7 +237,7 @@ typedef struct {
 static spn_err_t dag_warm_exec(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs) {
   spn_dag_warm_ctx_t* warm = (spn_dag_warm_ctx_t*)user_data;
   spn_dag_artifact_t* stamp = spn_dag_find_artifact(g, action->produces[0]);
-  if (spn_warm_stub_run(warm->build, &warm->stub, warm->name, stamp->path, outputs[0])) {
+  if (spn_warm_stub_run(warm->build, &warm->stub, warm->name, stamp->path, outputs[0], env)) {
     return SPN_ERR_DAG_ACTION;
   }
   return SPN_OK;

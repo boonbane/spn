@@ -20,6 +20,7 @@ typedef struct {
 typedef struct {
   bool advanced;
   u64 packets;
+  u64 ticks;
   node_t nodes [ZIG_TEST_MAX_NODES];
 } expect_t;
 
@@ -71,15 +72,18 @@ static const test_t frame_tests [] = {
       { .nodes = {
         { 1, 0, SPN_ZIG_PROGRESS_ROOT, "A" },
         { 2, 5, 0, "B" },
+        { 5, 9, 0, "C" },
         { 0, 0, SPN_ZIG_PROGRESS_UNUSED, "" },
       } },
     },
     .expect = {
       .advanced = true,
       .packets = 1,
+      .ticks = 7,
       .nodes = {
         { 1, 0, SPN_ZIG_PROGRESS_ROOT, "A" },
         { 2, 5, 0, "B" },
+        { 5, 9, 0, "C" },
         { 0, 0, SPN_ZIG_PROGRESS_UNUSED, "" },
       },
     },
@@ -159,6 +163,7 @@ sp_test_each(zig_decode, frames, test_t, frame_tests) {
   bool advanced = spn_zig_progress_feed(progress, stream, len - it->hold);
   sp_expect_eq(t, advanced, it->expect.advanced);
   sp_expect_eq(t, progress->packets, it->expect.packets);
+  sp_expect_eq(t, spn_zig_progress_ticks(progress), it->expect.ticks);
 
   u32 expected = 0;
   sp_carr_detect_len(it->expect.nodes, expected, it->expect.nodes[expected].name);

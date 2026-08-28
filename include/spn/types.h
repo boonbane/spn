@@ -105,6 +105,7 @@ typedef struct {
   u32 completed;
   u32 hits;
   u32 misses;
+  u64 warm;
 } spn_progress_t;
 
 typedef struct {
