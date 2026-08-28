@@ -140,7 +140,7 @@ static const test_t frame_tests [] = {
   },
 };
 
-sp_test_each(zig, frames, test_t, frame_tests) {
+sp_test_each(zig_decode, frames, test_t, frame_tests) {
   sp_mem_t mem = sp_test_arena(t);
   spn_zig_progress_t* progress = sp_alloc_type(mem, spn_zig_progress_t);
   spn_zig_progress_init(progress);
@@ -175,7 +175,7 @@ sp_test_each(zig, frames, test_t, frame_tests) {
   return SP_OK;
 }
 
-sp_test(zig, split) {
+sp_test(zig_decode, split) {
   sp_mem_t mem = sp_test_arena(t);
 
   node_t a [] = {

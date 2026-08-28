@@ -172,6 +172,7 @@ source = [
   "test/core/schema/schema.c",
   "test/core/toml/*.c",
   "test/core/thread_pool/*.c",
+  "test/core/zig/*.c",
   "tools/jtd.c",
   "tools/gen/lower.c",
   "tools/install/render.c",

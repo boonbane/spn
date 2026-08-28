@@ -17,7 +17,8 @@ add_executable(core
   triple.c
   version.c
   when.c
-  zig.c
+  zig/decode.c
+  zig/stubs.c
   closure/harness.c
   closure/closure.c
   closure/dep_kind.c

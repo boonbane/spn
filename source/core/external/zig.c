@@ -70,3 +70,57 @@ bool spn_zig_progress_feed(spn_zig_progress_t* progress, const u8* bytes, u64 le
   }
   return advanced;
 }
+
+static bool stub_equal(const spn_zig_stub_t* a, const spn_zig_stub_t* b) {
+  if (a->kind != b->kind || a->lang != b->lang) return false;
+  if (sp_da_size(a->system_libs) != sp_da_size(b->system_libs)) return false;
+  sp_da_for(a->system_libs, it) {
+    if (!sp_str_equal(a->system_libs[it], b->system_libs[it])) return false;
+  }
+  return true;
+}
+
+static sp_da(sp_str_t) canonical_libs(sp_mem_t mem, sp_da(sp_str_t) libs) {
+  sp_da(sp_str_t) sorted = sp_da_new(mem, sp_str_t);
+  sp_da_reserve(sorted, sp_da_size(libs));
+  sp_da_for(libs, it) {
+    sp_da_push(sorted, libs[it]);
+  }
+  sp_da_sort(sorted, sp_str_sort_kernel_alphabetical);
+
+  sp_da(sp_str_t) unique = sp_da_new(mem, sp_str_t);
+  sp_da_for(sorted, it) {
+    if (it && sp_str_equal(sorted[it], sorted[it - 1])) continue;
+    sp_da_push(unique, sorted[it]);
+  }
+  return unique;
+}
+
+sp_da(spn_zig_stub_t) spn_zig_stubs(sp_mem_t mem, spn_os_t os, sp_da(spn_zig_stub_t) links) {
+  sp_da(spn_zig_stub_t) stubs = sp_da_new(mem, spn_zig_stub_t);
+  sp_da_for(links, it) {
+    sp_assert(links[it].kind != SPN_CC_OUTPUT_OBJECT);
+    sp_assert(links[it].kind != SPN_CC_OUTPUT_STATIC_LIB);
+    sp_assert(links[it].lang != SPN_LANG_ASM);
+
+    spn_zig_stub_t stub = {
+      .kind = links[it].kind,
+      .lang = links[it].lang,
+    };
+    if (os == SPN_OS_WINDOWS) {
+      stub.system_libs = canonical_libs(mem, links[it].system_libs);
+    }
+
+    bool seen = false;
+    sp_da_for(stubs, jt) {
+      if (stub_equal(&stubs[jt], &stub)) {
+        seen = true;
+        break;
+      }
+    }
+    if (!seen) {
+      sp_da_push(stubs, stub);
+    }
+  }
+  return stubs;
+}
