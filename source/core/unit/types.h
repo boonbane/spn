@@ -193,6 +193,7 @@ struct spn_toolchain_unit_t {
   spn_toolchain_info_t* info;
   spn_cc_t cc;
   sp_hash_t identity;
+  sp_hash_t generation;
   sp_str_t version;
 };
 

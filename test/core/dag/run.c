@@ -23,6 +23,8 @@ typedef struct {
   spn_err_t expect_err;
   const c8* expect_diag_path;
   u32 expect_runs;
+  u32 expect_hits;
+  u32 expect_misses;
 } build_t;
 
 typedef struct {
@@ -129,6 +131,17 @@ static const test_t tests [] = {
     },
     .builds = {
       { .sources = { { "S", "A" } }, .expect_err = SPN_ERR_DAG_ACTION },
+    }
+  },
+  {
+    .name = "counts_by_kind",
+    .actions = {
+      { .identity = "I", .inputs = { "S" }, .output = "X" },
+      { .identity = "J", .inputs = { "S" }, .output = "Y", .kind = SPN_DAG_ACTION_UNCACHEABLE },
+    },
+    .builds = {
+      { .sources = { { "S", "A" } }, .expect_runs = 2, .expect_misses = 1 },
+      { .sources = { { "S", "A" } }, .expect_runs = 3, .expect_hits = 1 },
     }
   },
   {
@@ -276,6 +289,7 @@ sp_test_each(dag_run, builds, test_t, tests) {
     }
 
     spn_dag_file_cache_invalidate_all(&env.files);
+    sp_mem_zero(&env.progress, sizeof(env.progress));
     sp_carr_for(build->sources, si) {
       if (!build->sources[si].path) {
         break;
@@ -325,6 +339,10 @@ sp_test_each(dag_run, builds, test_t, tests) {
       sp_expect_str_eq(t, env.env.diag.path, spn_path_str(&env.roots, env.mem, dag_test_env_rooted(&env, sp_str_view(build->expect_diag_path))));
     }
     sp_expect_eq(t, build->expect_runs, env.runs);
+    if (build->expect_hits || build->expect_misses) {
+      sp_expect_eq(t, build->expect_hits, (u32)sp_atomic_s32_load(&env.progress.hits, SP_ATOMIC_SEQ_CST));
+      sp_expect_eq(t, build->expect_misses, (u32)sp_atomic_s32_load(&env.progress.misses, SP_ATOMIC_SEQ_CST));
+    }
   }
 
   return SP_OK;

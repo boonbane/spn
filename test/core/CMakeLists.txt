@@ -27,6 +27,7 @@ add_executable(core
   compiler/invocation.c
   compiler/compile.c
   compiler/depfile.c
+  compiler/env.c
   compiler/exports/format.c
   compiler/exports/render.c
   compiler/exports/wasm.c
@@ -35,6 +36,7 @@ add_executable(core
   compiler/rsp/gnu.c
   compiler/rsp/style.c
   compiler/rsp/windows.c
+  compiler/run.c
   compiler/toc.c
   config/config.c
   external/obj.c
@@ -128,6 +130,7 @@ add_executable(core
   toolchain/select.c
   toolchain/sha256.c
   toolchain/toolchain.c
+  toolchain/zig.c
   unit/harness.c
   unit/walk.c
   unit/link_plan.c
@@ -135,6 +138,8 @@ add_executable(core
   unit/paths.c
   unit/fingerprint.c
   unit/clone.c
+  zig/decode.c
+  zig/stubs.c
   ${CMAKE_SOURCE_DIR}/tools/jtd.c
   ${CMAKE_SOURCE_DIR}/tools/gen/lower.c
   ${CMAKE_SOURCE_DIR}/tools/install/render.c
@@ -175,6 +180,7 @@ add_executable(core
   ${SRC}/external/obj.c
   ${SRC}/external/tom.c
   ${SRC}/external/wasm/script.c
+  ${SRC}/external/zig.c
   ${SRC}/filter/filter.c
   ${SRC}/git/cache.c
   ${SRC}/git/key.c
@@ -292,6 +298,7 @@ set_source_files_properties(
   toolchain/select.c
   toolchain/sha256.c
   toolchain/toolchain.c
+  toolchain/zig.c
   PROPERTIES COMPILE_DEFINITIONS "TOOLCHAINS_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/toolchain/toolchains\"")
 target_link_libraries(core PRIVATE yyjson vmlib blake3)
 add_dependencies(core spn_embed spn_codegen_gen)

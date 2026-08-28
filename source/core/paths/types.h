@@ -46,8 +46,14 @@ typedef struct {
 } spn_arg_t;
 
 typedef struct {
+  spn_path_t dir;
+  spn_path_t external;
+} spn_toolchain_paths_t;
+
+typedef struct {
   spn_path_t patches;
   spn_path_t config;
+  spn_toolchain_paths_t toolchain;
 } spn_system_paths_t;
 
 #endif

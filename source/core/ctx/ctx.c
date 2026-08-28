@@ -22,6 +22,7 @@ bool spn_ctx_progress(spn_ctx_t* ctx, spn_progress_t* progress) {
     .completed = (u32)sp_atomic_s32_load(&dag->completed, SP_ATOMIC_SEQ_CST),
     .hits = (u32)sp_atomic_s32_load(&dag->hits, SP_ATOMIC_SEQ_CST),
     .misses = (u32)sp_atomic_s32_load(&dag->misses, SP_ATOMIC_SEQ_CST),
+    .warm = sp_atomic_u64_load(&dag->warm, SP_ATOMIC_SEQ_CST),
   };
   return true;
 }

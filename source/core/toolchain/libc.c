@@ -47,12 +47,12 @@ static sp_str_t render(sp_mem_t mem, const spn_path_roots_t* roots, libc_t libc)
   return sp_io_dyn_mem_writer_take_str(&w);
 }
 
-static spn_path_t file_path(sp_mem_t mem, sp_str_t content) {
+static spn_path_t file_path(sp_mem_t mem, spn_path_t external, sp_str_t content) {
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch_for(mem);
   u8 digest [32] = sp_zero;
   spn_digest(SPN_DIGEST_BLAKE3, content.data, content.len, digest);
-  sp_str_t name = sp_fmt(scratch.mem, "libc/{}.txt", sp_fmt_str(spn_digest_hex(scratch.mem, digest))).value;
-  spn_path_t path = spn_path_join(mem, spn_path_from_root(SPN_PATH_ROOT_CACHE), name);
+  sp_str_t name = sp_fmt(scratch.mem, "zig/libc/{}.txt", sp_fmt_str(spn_digest_hex(scratch.mem, digest))).value;
+  spn_path_t path = spn_path_join(mem, external, name);
   sp_mem_end_scratch(scratch);
   return path;
 }
@@ -70,13 +70,13 @@ static spn_err_t write_file(sp_mem_t mem, const spn_path_roots_t* roots, spn_pat
   return SPN_OK;
 }
 
-static spn_err_t emit(sp_mem_t mem, const spn_path_roots_t* roots, libc_t libc, spn_path_t* file) {
+static spn_err_t emit(sp_mem_t mem, const spn_path_roots_t* roots, spn_path_t external, libc_t libc, spn_path_t* file) {
   sp_str_t content = render(mem, roots, libc);
-  *file = file_path(mem, content);
+  *file = file_path(mem, external, content);
   return write_file(mem, roots, *file, content);
 }
 
-spn_err_t spn_libc_write(sp_mem_t mem, const spn_path_roots_t* roots, const spn_sdk_t* sdk, spn_path_t* file) {
+spn_err_t spn_libc_write(sp_mem_t mem, const spn_path_roots_t* roots, spn_path_t external, const spn_sdk_t* sdk, spn_path_t* file) {
   switch (sdk->kind) {
     case SPN_SDK_NONE:
     case SPN_SDK_SYSROOT: {
@@ -84,10 +84,10 @@ spn_err_t spn_libc_write(sp_mem_t mem, const spn_path_roots_t* roots, const spn_
       return SPN_OK;
     }
     case SPN_SDK_MACOS: {
-      return emit(mem, roots, macos_layout(sdk), file);
+      return emit(mem, roots, external, macos_layout(sdk), file);
     }
     case SPN_SDK_MSVC: {
-      return emit(mem, roots, msvc_layout(sdk), file);
+      return emit(mem, roots, external, msvc_layout(sdk), file);
     }
   }
   sp_unreachable_return(SPN_ERROR);

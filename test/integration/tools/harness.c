@@ -887,6 +887,15 @@ sp_err_t run_actions(sp_test_t* t, fixture_t* fixture, const action_t* actions) 
         expect_no_path(t, fixture, path);
         break;
       }
+      case ACTION_CLEAR_WARM: {
+        sp_str_t caches = sp_fs_join_path(mem, fixture->paths.toolchain, sp_str_lit("external/zig/cache"));
+        sp_fs_it_t walk = sp_fs_it_new(mem, caches);
+        while (sp_fs_it_next(&walk)) {
+          sp_fs_remove_file(sp_fs_join_path(mem, sp_fs_join_path(mem, caches, walk.entry.name), sp_str_lit("spn/generation")));
+        }
+        sp_fs_it_deinit(&walk);
+        break;
+      }
       case ACTION_RUN_CLI: {
         const c8* args[SPN_TEST_COMMAND_MAX_ARGS] = { action.cli.cmd };
         sp_carr_for(action.cli.args, it) {

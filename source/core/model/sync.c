@@ -10,6 +10,7 @@
 #include "event/event.h"
 #include "core/types.h"
 #include "git/cache.h"
+#include "hash/digest/digest.h"
 #include "intern/intern.h"
 #include "lazy/lazy.h"
 #include "op/op.h"
@@ -101,6 +102,7 @@ static spn_err_t setup_artifact(spn_toolchain_store_t* store, spn_toolchain_unit
     cxx = spn_toolchain_launcher_with_root(spn.mem, toolchain->cxx, root);
   }
   unit->version = toolchain->version;
+  unit->identity = spn_digest_hash_str(artifact.sha256);
   unit->cc = cc_toolchain(
     toolchain,
     spn_toolchain_launcher_with_root(spn.mem, toolchain->compiler, root),
@@ -142,6 +144,12 @@ static spn_err_t setup_toolchain_unit(spn_toolchain_store_t* store, spn_toolchai
   }
 
   unit->cc.wasi = spn_toolchain_wasi_spelling(store->roots, spn.mem, unit->info);
+  if (unit->info->driver == SPN_CC_DRIVER_ZIG) {
+    sp_assert(unit->identity);
+    sp_str_t id = sp_fmt(spn.mem, "{:0>16x}", sp_fmt_uint(unit->identity)).value;
+    unit->cc.cache = spn_path_join(spn.mem, spn.paths.toolchain.external, sp_fmt(spn.mem, "zig/cache/{}", sp_fmt_str(id)).value);
+    spn_try(spn_toolchain_generation(spn.mem, store->roots, unit->cc.cache, &unit->generation));
+  }
   return SPN_OK;
 }
 

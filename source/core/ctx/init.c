@@ -64,6 +64,7 @@ static spn_err_t extract(spn_ctx_t* ctx, sp_mem_t mem, sp_str_t stamp) {
 
   sp_glob_set_t* glob = sp_glob_set_new(mem);
   sp_glob_set_add(glob, "include/*");
+  sp_glob_set_add(glob, "zig/*");
   sp_glob_set_build(glob);
 
   sp_carr_for(spn_embed_manifest, it) {
@@ -167,7 +168,9 @@ static spn_err_t open_roots(spn_ctx_t* ctx, spn_open_request_t request) {
   spn_try(create_root(ctx, SPN_PATH_ROOT_STORE, cache_path("store")));
   spn_try(create_root(ctx, SPN_PATH_ROOT_BUILD, cache_path("build")));
   spn_try(create_root(ctx, SPN_PATH_ROOT_CHECKOUT, cache_path("source/checkouts")));
-  spn_try(create_root(ctx, SPN_PATH_ROOT_TOOLCHAIN, sp_str_empty(toolchain) ? cache_path("toolchain") : (spn_path_t) { .sub = toolchain }));
+  spn_try(create_root(ctx, SPN_PATH_ROOT_TOOLCHAIN, spn_path_join(ctx->heap, sp_str_empty(toolchain) ? cache_path("toolchain") : (spn_path_t) { .sub = toolchain }, sp_str_lit("store"))));
+  ctx->paths.toolchain.dir = spn_path_make(&ctx->roots, sp_fs_parent_path(ctx->roots.dirs[SPN_PATH_ROOT_TOOLCHAIN]));
+  ctx->paths.toolchain.external = spn_path_join(ctx->heap, ctx->paths.toolchain.dir, sp_str_lit("external"));
   if (spn_path_roots_set(&ctx->roots, ctx->heap, SPN_PATH_ROOT_PROJECT, sp_path_from_str(project))) {
     return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_NO_MANIFEST, .no_manifest = { .path = sp_str_copy(ctx->heap, project) } });
   }
@@ -189,7 +192,7 @@ static spn_err_t open_ctx(spn_ctx_t* ctx, spn_open_request_t request) {
     .mirror = sp_env_get(ctx->env, sp_str_lit("SPN_MIRROR")),
     .fetch = spn_fetch_curl,
   };
-  spn_probe_cache_load(&ctx->caches.toolchains.probes, &ctx->roots, (spn_path_t) { .root = SPN_PATH_ROOT_TOOLCHAIN, .sub = sp_str_lit("probe.cache") }, ctx->mem);
+  spn_probe_cache_load(&ctx->caches.toolchains.probes, &ctx->roots, spn_path_join(ctx->heap, ctx->paths.toolchain.dir, sp_str_lit("probe.cache")), ctx->mem);
 
   spn_try(extract_runtime(ctx));
   spn_try(create_root(ctx, SPN_PATH_ROOT_RUNTIME, storage_path("runtime")));

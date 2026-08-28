@@ -54,9 +54,10 @@ add_custom_command(
     ${CMAKE_SOURCE_DIR}/include/spn/core.h=include/spn/core.h
     ${GEN_INCLUDE}/spn/err.h=include/spn/err.h
     ${CMAKE_SOURCE_DIR}/source/core/toolchain/toolchains.toml=toolchains.toml
+    ${CMAKE_SOURCE_DIR}/assets/zig/stub.c=zig/stub.c
     ${CMAKE_SOURCE_DIR}/assets/init=init
     ${CMAKE_SOURCE_DIR}/docs/content=docs
-  DEPENDS embed ${CMAKE_SOURCE_DIR}/include/spn.h ${CMAKE_SOURCE_DIR}/include/spn/core.h ${GEN_INCLUDE}/spn/err.h ${CMAKE_SOURCE_DIR}/source/core/toolchain/toolchains.toml ${SPN_INIT_TEMPLATES} ${SPN_DOCS}
+  DEPENDS embed ${CMAKE_SOURCE_DIR}/include/spn.h ${CMAKE_SOURCE_DIR}/include/spn/core.h ${GEN_INCLUDE}/spn/err.h ${CMAKE_SOURCE_DIR}/source/core/toolchain/toolchains.toml ${CMAKE_SOURCE_DIR}/assets/zig/stub.c ${SPN_INIT_TEMPLATES} ${SPN_DOCS}
   COMMENT "spn.embed.o"
   VERBATIM)
 add_custom_target(spn_embed ALL DEPENDS ${EMBED_OBJ} ${EMBED_HDR})
