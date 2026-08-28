@@ -28,6 +28,7 @@ add_executable(core
   compiler/invocation.c
   compiler/compile.c
   compiler/depfile.c
+  compiler/env.c
   compiler/exports/format.c
   compiler/exports/render.c
   compiler/exports/wasm.c

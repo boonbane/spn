@@ -109,6 +109,9 @@ static spn_err_t setup_artifact(spn_toolchain_store_t* store, spn_toolchain_unit
     cxx,
     spn_toolchain_launcher_with_root(spn.mem, toolchain->archiver, root)
   );
+  if (toolchain->driver == SPN_CC_DRIVER_ZIG) {
+    unit->cc.cache = spn_toolchain_zig_cache_dir(spn.mem, root);
+  }
 
   spn_event_buffer_push(spn.events, (spn_event_t) {
     .kind = SPN_EVENT_SYNC_PACKAGE,
