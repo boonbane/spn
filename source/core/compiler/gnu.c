@@ -223,7 +223,16 @@ static void add_sdk_link(sp_mem_t mem, const spn_cc_t* toolchain, const spn_prof
   }
 }
 
+static void add_cache(sp_mem_t mem, const spn_cc_t* toolchain, spn_invocation_t* invocation) {
+  if (spn_path_empty(toolchain->cache)) {
+    return;
+  }
+  spn_cc_push_env(mem, invocation, SPN_ENV_ZIG_GLOBAL_CACHE_DIR, spn_arg_path(toolchain->cache));
+  spn_cc_push_env(mem, invocation, SPN_ENV_ZIG_LOCAL_CACHE_DIR, spn_arg_path(toolchain->cache));
+}
+
 static void add_launcher(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, spn_lang_t lang, spn_invocation_t* invocation) {
+  add_cache(mem, toolchain, invocation);
   spn_toolchain_launcher_t launcher = lang == SPN_LANG_CXX ? toolchain->cxx : toolchain->compiler;
   sp_assert(!spn_arg_empty(launcher.program));
   invocation->program = launcher.program;
@@ -420,11 +429,16 @@ static void add_static_runtime(sp_mem_t mem, spn_os_t os, spn_invocation_t* invo
   }
 }
 
+// zig only builds a static libc when the executable asks for one; the stub that
+// warms its cache has to make the same call
+bool spn_gnu_link_static(const spn_profile_info_t* profile, spn_cc_output_kind_t kind) {
+  return kind == SPN_CC_OUTPUT_EXE && profile->linking.libc == SPN_RUNTIME_STATIC && spn_os_to_native_object_format(profile->os) == SPN_OBJ_ELF;
+}
+
 void spn_gnu_render_link(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, const spn_cc_link_t* link, sp_da(spn_arg_t) objects, spn_path_t output, spn_path_t implib, spn_invocation_t* invocation) {
   spn_triple_t triple = spn_profile_triple(profile);
   spn_obj_format_t format = spn_os_to_native_object_format(profile->os);
   spn_ld_dialect_t dialect = spn_ld_dialect(triple);
-  bool is_static_libc = profile->linking.libc == SPN_RUNTIME_STATIC && format == SPN_OBJ_ELF;
   bool is_gnu_runtime_static = profile->linking.runtime == SPN_RUNTIME_STATIC && triple.abi != SPN_ABI_MSVC && spn_cc_has(toolchain, SPN_CC_CAP_GNU_RUNTIME);
 
   add_launcher(mem, toolchain, profile, link->lang, invocation);
@@ -461,7 +475,7 @@ void spn_gnu_render_link(sp_mem_t mem, const spn_cc_t* toolchain, const spn_prof
       break;
     }
     case SPN_CC_OUTPUT_EXE: {
-      if (is_static_libc) {
+      if (spn_gnu_link_static(profile, link->kind)) {
         spn_cc_push_c(mem, invocation, "-static");
       }
       else if (is_gnu_runtime_static) {
@@ -523,6 +537,7 @@ sp_da(spn_arg_t) spn_gnu_render_exports(sp_mem_t mem, sp_da(sp_str_t) symbols) {
 }
 
 void spn_gnu_render_archive(sp_mem_t mem, const spn_cc_t* toolchain, sp_da(spn_arg_t) objects, spn_path_t output, spn_invocation_t* invocation) {
+  add_cache(mem, toolchain, invocation);
   invocation->program = toolchain->archiver.program;
   spn_cc_push_strs(mem, invocation, toolchain->archiver.args);
   spn_cc_push_c(mem, invocation, "rcs");

@@ -18,6 +18,7 @@
 #include "enum/enum.h"
 #include "event/event.h"
 #include "external/wasm/wasm.h"
+#include "external/zig.h"
 #include "op/op.h"
 #include "paths/paths.h"
 #include "str/str.h"
@@ -229,6 +230,64 @@ static spn_path_t embed_artifact_path(sp_mem_t mem, spn_target_unit_t* unit, con
   return path;
 }
 
+static spn_err_t dag_add_warm(spn_dag_build_t* b, spn_target_unit_t* target, const spn_target_plan_t* plan, spn_dag_id_t link_action) {
+  spn_dag_t* g = b->graph;
+  spn_build_unit_t* build = target->pkg->build;
+  spn_toolchain_unit_t* toolchain = build->toolchain;
+  sp_assert(!(g->roots->pinned & spn_path_root_mask(toolchain->cc.cache.root)));
+
+  spn_cc_link_t link = {
+    .kind = target->kind,
+    .lang = plan->link.cc.lang,
+    .system_libs = plan->link.cc.system_libs,
+  };
+  spn_zig_stub_t stub = spn_zig_stub(b->mem, &build->profile, &link);
+
+  spn_digest_ctx_t digest = sp_zero;
+  spn_digest_init_blake3(&digest);
+  spn_dag_hash_str(&digest, sp_str_lit("spn.build.warm.v1"));
+  spn_dag_hash_u64(&digest, toolchain->identity);
+  spn_dag_hash_u64(&digest, toolchain->generation);
+  spn_dag_hash_u8(&digest, (u8)stub.triple.arch);
+  spn_dag_hash_u8(&digest, (u8)stub.triple.os);
+  spn_dag_hash_u8(&digest, (u8)stub.triple.abi);
+  spn_dag_hash_u8(&digest, (u8)stub.kind);
+  spn_dag_hash_u8(&digest, (u8)stub.lang);
+  spn_dag_hash_u8(&digest, (u8)stub.is_static);
+  spn_dag_hash_u64(&digest, stub.sanitizers);
+  spn_dag_hash_u64(&digest, stub.sdk);
+  spn_dag_hash_strs(&digest, stub.system_libs);
+  spn_dag_digest_t identity = spn_dag_hash_final(&digest);
+
+  spn_dag_id_t stamp = sp_zero;
+  spn_dag_id_t* existing = sp_ht_getp(b->ids.warm, identity);
+  if (existing) {
+    stamp = *existing;
+  }
+  else {
+    sp_str_t name = spn_zig_stub_name(b->mem, &stub);
+    spn_dag_warm_ctx_t* warm = sp_alloc_type(b->mem, spn_dag_warm_ctx_t);
+    *warm = (spn_dag_warm_ctx_t) {
+      .build = build,
+      .link = link,
+      .name = name,
+      .triple = spn_triple_to_str(b->mem, stub.triple),
+    };
+
+    spn_dag_id_t action = spn_dag_add_action(g, (spn_dag_action_config_t) {
+      .identity = identity,
+      .execute = spn_dag_exec_warm,
+      .user_data = warm,
+    });
+    spn_dag_action_add_input(g, action, spn_dag_add_file(g, spn_path_join(b->mem, spn_path_from_root(SPN_PATH_ROOT_RUNTIME), sp_str_lit("zig/stub.c"))));
+    stamp = spn_dag_add_output(g, name);
+    spn_try(spn_dag_action_add_output(g, action, stamp));
+    sp_ht_insert(b->ids.warm, identity, stamp);
+  }
+  spn_dag_action_add_input(g, link_action, stamp);
+  return SPN_OK;
+}
+
 spn_err_t spn_dag_build_add_target(spn_dag_build_t* b, spn_target_unit_t* target, const spn_target_plan_t* plan) {
   spn_dag_t* g = b->graph;
   spn_toolchain_unit_t* toolchain = target->pkg->build->toolchain;
@@ -435,6 +494,21 @@ spn_err_t spn_dag_build_add_target(spn_dag_build_t* b, spn_target_unit_t* target
     }
     case SPN_CC_OUTPUT_OBJECT: {
       sp_unreachable_case();
+    }
+  }
+
+  switch (target->kind) {
+    case SPN_CC_OUTPUT_EXE:
+    case SPN_CC_OUTPUT_SHARED_LIB:
+    case SPN_CC_OUTPUT_REACTOR: {
+      if (target->pkg->build->toolchain->cc.driver == SPN_CC_DRIVER_ZIG) {
+        spn_try(dag_add_warm(b, target, plan, ids.action));
+      }
+      break;
+    }
+    case SPN_CC_OUTPUT_OBJECT:
+    case SPN_CC_OUTPUT_STATIC_LIB: {
+      break;
     }
   }
 
@@ -887,6 +961,7 @@ spn_dag_build_t* spn_dag_build_new(spn_op_t* op) {
   sp_ht_set_fns(b->ids.stamps, spn_path_on_hash, spn_path_on_compare);
   sp_ht_init(b->mem, b->ids.targets);
   sp_ht_init(b->mem, b->ids.objects);
+  sp_ht_init(b->mem, b->ids.warm);
 
   spn_path_t root = spn_path_anchor(session->mem, roots, spn_path_join(session->mem, spn_path_from_root(SPN_PATH_ROOT_CACHE), sp_str_lit("dag")));
   spn_path_t tmp = spn_path_join(session->mem, root, sp_str_lit("tmp"));
