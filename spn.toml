@@ -206,6 +206,7 @@ source = [
   "source/core/external/obj.c",
   "source/core/external/tom.c",
   "source/core/external/wasm/script.c",
+  "source/core/external/zig.c",
   "source/core/filter/filter.c",
   "source/core/git/cache.c",
   "source/core/git/key.c",
