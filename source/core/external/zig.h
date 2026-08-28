@@ -3,6 +3,7 @@
 
 #include "sp.h"
 #include "spn/core.h"
+#include "compiler/types.h"
 
 #define SPN_ZIG_PROGRESS_ROOT 255
 #define SPN_ZIG_PROGRESS_UNUSED 254
@@ -30,5 +31,13 @@ typedef struct {
 
 void spn_zig_progress_init(spn_zig_progress_t* progress);
 bool spn_zig_progress_feed(spn_zig_progress_t* progress, const u8* bytes, u64 len);
+
+typedef struct {
+  spn_cc_output_kind_t kind;
+  spn_lang_t lang;
+  sp_da(sp_str_t) system_libs;
+} spn_zig_stub_t;
+
+sp_da(spn_zig_stub_t) spn_zig_stubs(sp_mem_t mem, spn_os_t os, sp_da(spn_zig_stub_t) links);
 
 #endif
