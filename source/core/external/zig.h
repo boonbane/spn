@@ -31,6 +31,7 @@ typedef struct {
 
 void spn_zig_progress_init(spn_zig_progress_t* progress);
 bool spn_zig_progress_feed(spn_zig_progress_t* progress, const u8* bytes, u64 len);
+u64  spn_zig_progress_ticks(const spn_zig_progress_t* progress);
 
 typedef struct {
   spn_cc_output_kind_t kind;

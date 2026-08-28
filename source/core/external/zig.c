@@ -59,6 +59,18 @@ void spn_zig_progress_init(spn_zig_progress_t* progress) {
   *progress = sp_zero_s(spn_zig_progress_t);
 }
 
+u64 spn_zig_progress_ticks(const spn_zig_progress_t* progress) {
+  u64 ticks = 0;
+  sp_for(it, progress->count) {
+    const spn_zig_node_t* node = &progress->nodes[it];
+    if (node->total == SPN_ZIG_PROGRESS_IPC) continue;
+    if (node->parent >= progress->count) continue;
+    if (progress->nodes[node->parent].parent != SPN_ZIG_PROGRESS_ROOT) continue;
+    ticks += node->completed;
+  }
+  return ticks;
+}
+
 bool spn_zig_progress_feed(spn_zig_progress_t* progress, const u8* bytes, u64 len) {
   bool advanced = false;
   while (len) {

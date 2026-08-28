@@ -198,6 +198,7 @@ typedef struct {
   sp_atomic_s32_t completed;
   sp_atomic_s32_t hits;
   sp_atomic_s32_t misses;
+  sp_atomic_u64_t warm;
 } spn_dag_progress_t;
 
 typedef enum {

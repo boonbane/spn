@@ -171,7 +171,7 @@ static spn_err_t dag_link_exec(spn_dag_t* g, spn_dag_action_t* action, void* use
 static spn_err_t dag_warm_exec(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, sp_mem_t mem, sp_da(spn_dag_obs_t)* obs) {
   spn_dag_warm_ctx_t* warm = (spn_dag_warm_ctx_t*)user_data;
   spn_dag_artifact_t* stamp = spn_dag_find_artifact(g, action->produces[0]);
-  if (spn_warm_stub_run(warm->build, &warm->stub, warm->name, stamp->path, stamp->materialized)) {
+  if (spn_warm_stub_run(warm->build, &warm->stub, warm->name, stamp->path, stamp->materialized, env)) {
     return SPN_ERR_DAG_ACTION;
   }
   return SPN_OK;

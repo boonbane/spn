@@ -2145,17 +2145,19 @@ static void prompt_pump(spn_tui_t* tui, bool building, spn_progress_t progress) 
   }
 
   if (!tui->prompt.on) {
-    if (!building || !progress.misses) return;
+    if (!building || (!progress.misses && !progress.warm)) return;
     prompt_start(tui);
     if (!tui->prompt.on) return;
   }
 
-  if (building && (progress.completed != tui->prompt.last.completed || progress.total != tui->prompt.last.total)) {
+  if (building && (progress.completed != tui->prompt.last.completed || progress.total != tui->prompt.last.total || progress.warm != tui->prompt.last.warm)) {
     tui->prompt.last = progress;
 
     sp_mem_arena_marker_t s = sp_mem_begin_scratch();
-    sp_prompt_send_status_str(tui->prompt.ctx, sp_fmt(s.mem,
-      "{}/{} units", sp_fmt_uint(progress.completed), sp_fmt_uint(progress.total)).value);
+    sp_str_t status = progress.warm
+      ? sp_fmt(s.mem, "{}/{} units, libc {}", sp_fmt_uint(progress.completed), sp_fmt_uint(progress.total), sp_fmt_uint(progress.warm)).value
+      : sp_fmt(s.mem, "{}/{} units", sp_fmt_uint(progress.completed), sp_fmt_uint(progress.total)).value;
+    sp_prompt_send_status_str(tui->prompt.ctx, status);
     sp_mem_end_scratch(s);
 
     f32 value = progress.total ? (f32)progress.completed / (f32)progress.total : 0.f;
