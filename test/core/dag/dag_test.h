@@ -37,6 +37,7 @@ typedef struct {
   spn_dag_obs_table_t discovery;
   spn_dag_env_t env;
   spn_dag_stats_t stats;
+  spn_dag_progress_t progress;
   u32 runs;
 } dag_test_env_t;
 

@@ -549,6 +549,14 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
       sp_tty_fmt(&w, "could not compile {.cyan}", sp_fmt_str(contextual_path(mem, event->target_failed.source_file)));
       break;
     }
+    case SPN_EVENT_WARM_START: {
+      sp_tty_fmt(&w, "{.yellow}", sp_fmt_str(event->warm.triple));
+      break;
+    }
+    case SPN_EVENT_WARM_FAILED: {
+      sp_tty_fmt(&w, "could not warm libc for {.yellow}", sp_fmt_str(event->warm_failed.triple));
+      break;
+    }
     case SPN_EVENT_NODE_FAILED: {
       if (sp_str_empty(event->node_failed.path)) {
         sp_io_write_str(w.io, event->node_failed.message, SP_NULLPTR);
@@ -1675,6 +1683,10 @@ static void render_event_extra(sp_tty_t* w, spn_event_t* event) {
       sp_io_write_str(w->io, event->target_failed.err, SP_NULLPTR);
       break;
     }
+    case SPN_EVENT_WARM_FAILED: {
+      sp_io_write_str(w->io, event->warm_failed.out, SP_NULLPTR);
+      break;
+    }
     case SPN_EVENT_LINK_FAILED: {
       sp_io_write_str(w->io, event->link_failed.out, SP_NULLPTR);
       sp_io_write_str(w->io, event->link_failed.err, SP_NULLPTR);
@@ -1879,6 +1891,11 @@ void spn_tui_log_event(spn_tui_t* tui, spn_event_t* event) {
 
     case SPN_EVENT_TEST_PASSED: {
       write_event(tty, verb, sp_fmt_style_green, event->test_passed.name, render_event_detail(tui, mem, event));
+      break;
+    }
+
+    case SPN_EVENT_WARM_START: {
+      write_event(tty, verb, sp_fmt_style_green, sp_str_lit("libc"), render_event_detail(tui, mem, event));
       break;
     }
 
@@ -2173,17 +2190,19 @@ static void prompt_pump(spn_tui_t* tui, bool building, spn_progress_t progress) 
   }
 
   if (!tui->prompt.on) {
-    if (!building || !progress.misses) return;
+    if (!building || (!progress.misses && !progress.warm)) return;
     prompt_start(tui);
     if (!tui->prompt.on) return;
   }
 
-  if (building && (progress.completed != tui->prompt.last.completed || progress.total != tui->prompt.last.total)) {
+  if (building && (progress.completed != tui->prompt.last.completed || progress.total != tui->prompt.last.total || progress.warm != tui->prompt.last.warm)) {
     tui->prompt.last = progress;
 
     sp_mem_arena_marker_t s = sp_mem_begin_scratch();
-    sp_prompt_send_status_str(tui->prompt.ctx, sp_fmt(s.mem,
-      "{}/{} units", sp_fmt_uint(progress.completed), sp_fmt_uint(progress.total)).value);
+    sp_str_t status = progress.warm
+      ? sp_fmt(s.mem, "{}/{} units, libc {}", sp_fmt_uint(progress.completed), sp_fmt_uint(progress.total), sp_fmt_uint(progress.warm)).value
+      : sp_fmt(s.mem, "{}/{} units", sp_fmt_uint(progress.completed), sp_fmt_uint(progress.total)).value;
+    sp_prompt_send_status_str(tui->prompt.ctx, status);
     sp_mem_end_scratch(s);
 
     f32 value = progress.total ? (f32)progress.completed / (f32)progress.total : 0.f;

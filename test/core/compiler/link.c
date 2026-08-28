@@ -444,6 +444,35 @@ static const link_test_t tests [] = {
     },
   },
   {
+    .name = "zig_windows_gnu_static_libc_stays_dynamic",
+    .driver = SPN_CC_DRIVER_ZIG,
+    .profile = {
+      .arch = SPN_ARCH_X64,
+      .os = SPN_OS_WINDOWS,
+      .abi = SPN_ABI_GNU,
+      .linking.libc = SPN_RUNTIME_STATIC,
+    },
+    .kind = SPN_CC_OUTPUT_EXE,
+    .expect = {
+      .command = "cc",
+      .args = { "--target=x86_64-windows-gnu", "main.o", "-o", "main" },
+    },
+  },
+  {
+    .name = "zig_macos_static_libc_stays_dynamic",
+    .driver = SPN_CC_DRIVER_ZIG,
+    .profile = {
+      .arch = SPN_ARCH_ARM64,
+      .os = SPN_OS_MACOS,
+      .linking.libc = SPN_RUNTIME_STATIC,
+    },
+    .kind = SPN_CC_OUTPUT_EXE,
+    .expect = {
+      .command = "cc",
+      .args = { "--target=aarch64-macos", "main.o", "-Wl,-rpath,@loader_path", "-o", "main" },
+    },
+  },
+  {
     .name = "macos_static_linkage_suppressed",
     .driver = SPN_CC_DRIVER_CLANG,
     .profile = {

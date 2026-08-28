@@ -29,7 +29,6 @@ typedef struct {
     sp_hash_t cc;
     sp_hash_t cxx;
     sp_hash_t ar;
-    sp_hash_t url;
     sp_hash_t identity;
     spn_ld_family_t ld;
     sp_hash_t link_args;
@@ -150,9 +149,6 @@ sp_hash_t spn_unit_fingerprint(spn_session_t* session, spn_build_unit_t* build, 
   fingerprint.toolchain.ld = build->profile.linker;
   fingerprint.toolchain.link_args = hash_strs(toolchain->link_args);
   fingerprint.toolchain.identity = build->toolchain->identity;
-  if (toolchain->support.kind == SPN_TOOLCHAIN_SUPPORT_ARTIFACT) {
-    fingerprint.toolchain.url = spn_digest_hash_str(toolchain->support.artifact.sha256);
-  }
 
   sp_hash_t hash = spn_digest_hash(&fingerprint, sizeof(fingerprint));
   sp_ht_insert(session->fingerprints, uid, hash);
