@@ -38,6 +38,7 @@ typedef struct {
   sp_da(sp_str_t) system_libs;
 } spn_zig_stub_t;
 
-sp_da(spn_zig_stub_t) spn_zig_stubs(sp_mem_t mem, spn_os_t os, sp_da(spn_zig_stub_t) links);
+spn_zig_stub_t spn_zig_stub_canonical(sp_mem_t mem, spn_os_t os, spn_zig_stub_t link);
+sp_str_t       spn_zig_stub_name(sp_mem_t mem, sp_str_t triple, spn_sanitizer_set_t sanitizers, const spn_zig_stub_t* stub);
 
 #endif

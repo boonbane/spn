@@ -228,6 +228,61 @@ static spn_path_t embed_artifact_path(sp_mem_t mem, spn_target_unit_t* unit, con
   return path;
 }
 
+typedef struct {
+  spn_build_unit_t* build;
+  spn_zig_stub_t stub;
+  sp_str_t name;
+} spn_dag_warm_ctx_t;
+
+static spn_err_t dag_warm_exec(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs) {
+  spn_dag_warm_ctx_t* warm = (spn_dag_warm_ctx_t*)user_data;
+  spn_dag_artifact_t* stamp = spn_dag_find_artifact(g, action->produces[0]);
+  if (spn_warm_stub_run(warm->build, &warm->stub, warm->name, stamp->path, outputs[0])) {
+    return SPN_ERR_DAG_ACTION;
+  }
+  return SPN_OK;
+}
+
+static spn_err_t dag_add_warm(spn_dag_build_t* b, spn_target_unit_t* target, const spn_target_plan_t* plan, spn_dag_id_t link_action) {
+  spn_dag_t* g = b->graph;
+  spn_build_unit_t* build = target->pkg->build;
+  spn_cc_t* cc = &build->toolchain->cc;
+  if (spn_path_empty(cc->cache)) {
+    return SPN_OK;
+  }
+
+  spn_zig_stub_t stub = spn_zig_stub_canonical(b->mem, build->profile.os, (spn_zig_stub_t) {
+    .kind = target->kind,
+    .lang = plan->link.cc.lang,
+    .system_libs = plan->link.cc.system_libs,
+  });
+  spn_triple_t triple = spn_profile_triple(&build->profile);
+  sp_str_t name = spn_zig_stub_name(b->mem, spn_triple_to_str(b->mem, triple), build->profile.sanitizers, &stub);
+  spn_path_t dir = spn_path_join(b->mem, cc->cache, sp_str_lit("spn"));
+  spn_path_t path = spn_path_join(b->mem, dir, name);
+
+  spn_dag_id_t stamp = spn_dag_add_file(g, path);
+  if (!spn_dag_find_artifact(g, stamp)->producer.occupied) {
+    spn_dag_warm_ctx_t* warm = sp_alloc_type(b->mem, spn_dag_warm_ctx_t);
+    *warm = (spn_dag_warm_ctx_t) { .build = build, .stub = stub, .name = name };
+
+    spn_digest_ctx_t ctx = sp_zero;
+    spn_digest_init_blake3(&ctx);
+    spn_dag_hash_str(&ctx, sp_str_lit("spn.build.warm.v1"));
+    spn_dag_hash_path(&ctx, path);
+
+    spn_dag_id_t action = spn_dag_add_action(g, (spn_dag_action_config_t) {
+      .kind = SPN_DAG_ACTION_UNCACHEABLE,
+      .identity = spn_dag_hash_final(&ctx),
+      .execute = dag_warm_exec,
+      .user_data = warm,
+    });
+    spn_try(spn_dag_action_add_output(g, action, stamp));
+  }
+  spn_dag_action_add_input(g, link_action, stamp);
+  return SPN_OK;
+}
+
 spn_err_t spn_dag_build_add_target(spn_dag_build_t* b, spn_target_unit_t* target, const spn_target_plan_t* plan) {
   spn_dag_t* g = b->graph;
   spn_toolchain_unit_t* toolchain = target->pkg->build->toolchain;
@@ -434,6 +489,19 @@ spn_err_t spn_dag_build_add_target(spn_dag_build_t* b, spn_target_unit_t* target
     }
     case SPN_CC_OUTPUT_OBJECT: {
       sp_unreachable_case();
+    }
+  }
+
+  switch (target->kind) {
+    case SPN_CC_OUTPUT_EXE:
+    case SPN_CC_OUTPUT_SHARED_LIB:
+    case SPN_CC_OUTPUT_REACTOR: {
+      spn_try(dag_add_warm(b, target, plan, ids.action));
+      break;
+    }
+    case SPN_CC_OUTPUT_OBJECT:
+    case SPN_CC_OUTPUT_STATIC_LIB: {
+      break;
     }
   }
 

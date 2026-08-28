@@ -1,5 +1,7 @@
 #include "external/zig.h"
 
+#include "enum/enum.h"
+
 static u64 packet_size(u32 count) {
   return 1 + ((u64)count * (SPN_ZIG_PROGRESS_NODE_SIZE + 1));
 }
@@ -71,15 +73,6 @@ bool spn_zig_progress_feed(spn_zig_progress_t* progress, const u8* bytes, u64 le
   return advanced;
 }
 
-static bool stub_equal(const spn_zig_stub_t* a, const spn_zig_stub_t* b) {
-  if (a->kind != b->kind || a->lang != b->lang) return false;
-  if (sp_da_size(a->system_libs) != sp_da_size(b->system_libs)) return false;
-  sp_da_for(a->system_libs, it) {
-    if (!sp_str_equal(a->system_libs[it], b->system_libs[it])) return false;
-  }
-  return true;
-}
-
 static sp_da(sp_str_t) canonical_libs(sp_mem_t mem, sp_da(sp_str_t) libs) {
   sp_da(sp_str_t) sorted = sp_da_new(mem, sp_str_t);
   sp_da_reserve(sorted, sp_da_size(libs));
@@ -96,31 +89,47 @@ static sp_da(sp_str_t) canonical_libs(sp_mem_t mem, sp_da(sp_str_t) libs) {
   return unique;
 }
 
-sp_da(spn_zig_stub_t) spn_zig_stubs(sp_mem_t mem, spn_os_t os, sp_da(spn_zig_stub_t) links) {
-  sp_da(spn_zig_stub_t) stubs = sp_da_new(mem, spn_zig_stub_t);
-  sp_da_for(links, it) {
-    sp_assert(links[it].kind != SPN_CC_OUTPUT_OBJECT);
-    sp_assert(links[it].kind != SPN_CC_OUTPUT_STATIC_LIB);
-    sp_assert(links[it].lang != SPN_LANG_ASM);
+spn_zig_stub_t spn_zig_stub_canonical(sp_mem_t mem, spn_os_t os, spn_zig_stub_t link) {
+  sp_assert(link.kind != SPN_CC_OUTPUT_OBJECT);
+  sp_assert(link.kind != SPN_CC_OUTPUT_STATIC_LIB);
+  sp_assert(link.lang != SPN_LANG_ASM);
 
-    spn_zig_stub_t stub = {
-      .kind = links[it].kind,
-      .lang = links[it].lang,
-    };
-    if (os == SPN_OS_WINDOWS) {
-      stub.system_libs = canonical_libs(mem, links[it].system_libs);
-    }
+  spn_zig_stub_t stub = {
+    .kind = link.kind,
+    .lang = link.lang,
+  };
+  if (os == SPN_OS_WINDOWS) {
+    stub.system_libs = canonical_libs(mem, link.system_libs);
+  }
+  return stub;
+}
 
-    bool seen = false;
-    sp_da_for(stubs, jt) {
-      if (stub_equal(&stubs[jt], &stub)) {
-        seen = true;
-        break;
-      }
-    }
-    if (!seen) {
-      sp_da_push(stubs, stub);
+static sp_str_t stub_kind_label(spn_cc_output_kind_t kind) {
+  switch (kind) {
+    case SPN_CC_OUTPUT_EXE: return sp_str_lit("exe");
+    case SPN_CC_OUTPUT_SHARED_LIB: return sp_str_lit("shared");
+    case SPN_CC_OUTPUT_REACTOR: return sp_str_lit("reactor");
+    case SPN_CC_OUTPUT_OBJECT:
+    case SPN_CC_OUTPUT_STATIC_LIB: {
+      sp_unreachable_case();
     }
   }
-  return stubs;
+  SP_UNREACHABLE_RETURN(sp_str_lit(""));
+}
+
+sp_str_t spn_zig_stub_name(sp_mem_t mem, sp_str_t triple, spn_sanitizer_set_t sanitizers, const spn_zig_stub_t* stub) {
+  sp_mem_arena_marker_t s = sp_mem_begin_scratch_for(mem);
+  sp_da(sp_str_t) parts = sp_da_new(s.mem, sp_str_t);
+  sp_da_push(parts, triple);
+  sp_da_push(parts, stub_kind_label(stub->kind));
+  sp_da_push(parts, stub->lang == SPN_LANG_CXX ? sp_str_lit("cxx") : sp_str_lit("c"));
+  if (sanitizers) {
+    sp_da_push(parts, spn_sanitizer_set_to_str(s.mem, sanitizers));
+  }
+  sp_da_for(stub->system_libs, it) {
+    sp_da_push(parts, stub->system_libs[it]);
+  }
+  sp_str_t name = sp_str_join_n(mem, parts, sp_da_size(parts), sp_str_lit("."));
+  sp_mem_end_scratch(s);
+  return name;
 }

@@ -6,6 +6,7 @@
 #include "sp.h"
 #include "spn/core.h"
 #include "external/cc.h"
+#include "external/zig.h"
 #include "core/types.h"
 #include "unit/types.h"
 
@@ -34,5 +35,6 @@ spn_err_t spn_dag_exec_embed(spn_dag_t* g, spn_dag_action_t* action, void* user_
 spn_err_t spn_dag_exec_user(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs);
 spn_err_t spn_dag_exec_tree(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs);
 spn_err_t spn_dag_exec_compile_commands(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs);
+s32 spn_warm_stub_run(spn_build_unit_t* build, const spn_zig_stub_t* stub, sp_str_t name, spn_path_t stamp, spn_path_t output);
 
 #endif

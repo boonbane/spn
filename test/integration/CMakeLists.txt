@@ -61,6 +61,7 @@ add_executable(integration
   target.c
   units.c
   upstream.c
+  warm.c
   worlds.c
   ${TEST_TOOLS}/caps.c
   ${TEST_TOOLS}/lanes.c
