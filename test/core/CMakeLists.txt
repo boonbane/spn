@@ -17,8 +17,6 @@ add_executable(core
   triple.c
   version.c
   when.c
-  zig/decode.c
-  zig/stubs.c
   closure/harness.c
   closure/closure.c
   closure/dep_kind.c
@@ -135,6 +133,8 @@ add_executable(core
   unit/paths.c
   unit/fingerprint.c
   unit/clone.c
+  zig/decode.c
+  zig/stubs.c
   ${CMAKE_SOURCE_DIR}/tools/jtd.c
   ${CMAKE_SOURCE_DIR}/tools/gen/lower.c
   ${CMAKE_SOURCE_DIR}/tools/install/render.c

@@ -79,6 +79,7 @@ set(SPN_SOURCES
   core/graph/nodes/embed.c
   core/graph/nodes/link.c
   core/graph/nodes/object.c
+  core/graph/nodes/warm.c
   core/model/configure.c
   core/model/model.c
   core/model/resolve.c

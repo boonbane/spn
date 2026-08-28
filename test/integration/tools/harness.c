@@ -857,6 +857,17 @@ sp_err_t run_actions(sp_test_t* t, fixture_t* fixture, const action_t* actions) 
         expect_no_path(t, fixture, path);
         break;
       }
+      case ACTION_CLEAR_WARM: {
+        sp_da(sp_fs_entry_t) entries = sp_zero;
+        sp_must_eq(t, SP_OK, sp_fs_collect(mem, fixture->paths.toolchain, &entries));
+        sp_da_for(entries, it) {
+          if (entries[it].kind != SP_FS_KIND_DIR || !sp_str_ends_with(entries[it].name, sp_str_lit(".cache"))) {
+            continue;
+          }
+          sp_fs_remove_dir(sp_fs_join_path(mem, entries[it].path, sp_str_lit("spn")));
+        }
+        break;
+      }
       case ACTION_RUN_CLI: {
         const c8* args[SPN_TEST_COMMAND_MAX_ARGS] = { action.cli.cmd };
         sp_carr_for(action.cli.args, it) {

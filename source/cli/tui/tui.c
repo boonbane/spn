@@ -545,6 +545,14 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
       sp_tty_fmt(&w, "could not compile {.cyan}", sp_fmt_str(get_contextual_path(ctx, mem, event->target_failed.source_file)));
       break;
     }
+    case SPN_EVENT_WARM_START: {
+      sp_tty_fmt(&w, "{.yellow}", sp_fmt_str(event->warm.triple));
+      break;
+    }
+    case SPN_EVENT_WARM_FAILED: {
+      sp_tty_fmt(&w, "{} failed to warm {.yellow}", sp_fmt_str(event->warm_failed.toolchain), sp_fmt_str(event->warm_failed.triple));
+      break;
+    }
     case SPN_EVENT_NODE_FAILED: {
       if (sp_str_empty(event->node_failed.path)) {
         sp_io_write_str(w.io, event->node_failed.message, SP_NULLPTR);
@@ -1628,6 +1636,10 @@ static void render_event_extra(sp_tty_t* w, spn_event_t* event) {
       sp_io_write_str(w->io, event->target_failed.err, SP_NULLPTR);
       break;
     }
+    case SPN_EVENT_WARM_FAILED: {
+      sp_io_write_str(w->io, event->warm_failed.out, SP_NULLPTR);
+      break;
+    }
     case SPN_EVENT_LINK_FAILED: {
       sp_io_write_str(w->io, event->link_failed.out, SP_NULLPTR);
       sp_io_write_str(w->io, event->link_failed.err, SP_NULLPTR);
@@ -1832,6 +1844,11 @@ void spn_tui_log_event(spn_tui_t* tui, spn_event_t* event) {
 
     case SPN_EVENT_TEST_PASSED: {
       write_event(tty, verb, sp_fmt_style_green, event->test_passed.name, render_event_detail(tui, mem, event));
+      break;
+    }
+
+    case SPN_EVENT_WARM_START: {
+      write_event(tty, verb, sp_fmt_style_green, sp_str_lit("libc"), render_event_detail(tui, mem, event));
       break;
     }
 

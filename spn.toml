@@ -444,6 +444,7 @@ source = [
   "test/integration/target.c",
   "test/integration/units.c",
   "test/integration/upstream.c",
+  "test/integration/warm.c",
   "test/integration/worlds.c",
   "test/integration/tools/harness.c",
   "test/tools/caps.c",

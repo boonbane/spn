@@ -64,6 +64,8 @@
         "version": { "type": "string" }
       }
     },
+    "warm_start": { "metadata": { "verb": "Building" }, "ref": "warm" },
+    "warm_failed": { "metadata": { "severity": "error" }, "ref": "warm_failed" },
     "target_build_passed": { "metadata": { "verb": "Compiled", "verbosity": "debug" }, "ref": "target_passed" },
     "target_build_failed": { "metadata": { "verb": "Failed", "severity": "error" }, "ref": "target_failed" },
     "target_run": {
@@ -290,6 +292,23 @@
         "out": { "type": "string" },
         "err": { "type": "string" },
         "time_ns": { "type": "uint64", "metadata": { "field": "time" } }
+      }
+    },
+    "warm": {
+      "properties": {
+        "toolchain": { "type": "string" },
+        "triple": { "type": "string" },
+        "stub": { "type": "string" }
+      }
+    },
+    "warm_failed": {
+      "properties": {
+        "toolchain": { "type": "string" },
+        "triple": { "type": "string" },
+        "stub": { "type": "string" },
+        "rc": { "type": "int32" },
+        "command": { "type": "string" },
+        "out": { "type": "string" }
       }
     },
     "graph_init": {
