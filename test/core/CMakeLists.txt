@@ -127,6 +127,7 @@ add_executable(core
   toolchain/select.c
   toolchain/sha256.c
   toolchain/toolchain.c
+  toolchain/zig.c
   unit/harness.c
   unit/walk.c
   unit/link_plan.c
@@ -293,6 +294,7 @@ set_source_files_properties(
   toolchain/select.c
   toolchain/sha256.c
   toolchain/toolchain.c
+  toolchain/zig.c
   PROPERTIES COMPILE_DEFINITIONS "TOOLCHAINS_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/toolchain/toolchains\"")
 target_link_libraries(core PRIVATE yyjson vmlib blake3)
 add_dependencies(core spn_embed spn_codegen_gen)
