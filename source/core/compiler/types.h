@@ -43,6 +43,7 @@ typedef struct {
   sp_da(sp_str_t) link_args;
   spn_ar_driver_t archiver_driver;
   spn_wasi_spelling_t wasi;
+  spn_path_t cache;
 } spn_cc_toolchain_t;
 
 typedef struct {
@@ -106,6 +107,8 @@ typedef enum {
   SPN_ENV_INCLUDE,
   SPN_ENV_LIB,
   SPN_ENV_ZIG_LIBC,
+  SPN_ENV_ZIG_GLOBAL_CACHE_DIR,
+  SPN_ENV_ZIG_LOCAL_CACHE_DIR,
 } spn_env_key_t;
 
 typedef struct {

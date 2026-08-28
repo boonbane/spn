@@ -158,6 +158,8 @@ static env_key_t env_key(spn_env_key_t key) {
     case SPN_ENV_INCLUDE: return (env_key_t) { sp_str_lit("INCLUDE"), sp_str_lit(";") };
     case SPN_ENV_LIB: return (env_key_t) { sp_str_lit("LIB"), sp_str_lit(";") };
     case SPN_ENV_ZIG_LIBC: return (env_key_t) { sp_str_lit("ZIG_LIBC"), sp_str_lit("") };
+    case SPN_ENV_ZIG_GLOBAL_CACHE_DIR: return (env_key_t) { sp_str_lit("ZIG_GLOBAL_CACHE_DIR"), sp_str_lit("") };
+    case SPN_ENV_ZIG_LOCAL_CACHE_DIR: return (env_key_t) { sp_str_lit("ZIG_LOCAL_CACHE_DIR"), sp_str_lit("") };
   }
   sp_unreachable_return(sp_zero_struct(env_key_t));
 }

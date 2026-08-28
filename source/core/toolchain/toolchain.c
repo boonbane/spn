@@ -18,6 +18,10 @@ spn_toolchain_launcher_t spn_toolchain_launcher_with_root(sp_mem_t mem, spn_tool
   return result;
 }
 
+spn_path_t spn_toolchain_zig_cache_dir(sp_mem_t mem, spn_path_t root) {
+  return spn_path_suffix(mem, root, sp_str_lit(".cache"));
+}
+
 static bool pathless(sp_str_t program) {
   sp_for(it, program.len) {
     if (sp_fs_is_sep(program.data[it])) {

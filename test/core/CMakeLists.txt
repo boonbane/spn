@@ -30,6 +30,7 @@ add_executable(core
   compiler/archive.c
   compiler/compile.c
   compiler/depfile.c
+  compiler/env.c
   compiler/exports/format.c
   compiler/exports/render.c
   compiler/flags.c

@@ -223,7 +223,16 @@ static void add_sdk_link(sp_mem_t mem, const spn_cc_toolchain_t* toolchain, cons
   }
 }
 
+static void add_cache(sp_mem_t mem, const spn_cc_toolchain_t* toolchain, spn_invocation_t* invocation) {
+  if (spn_path_empty(toolchain->cache)) {
+    return;
+  }
+  spn_cc_push_env(mem, invocation, SPN_ENV_ZIG_GLOBAL_CACHE_DIR, spn_arg_path(toolchain->cache));
+  spn_cc_push_env(mem, invocation, SPN_ENV_ZIG_LOCAL_CACHE_DIR, spn_arg_path(toolchain->cache));
+}
+
 static void add_launcher(sp_mem_t mem, const spn_cc_toolchain_t* toolchain, const spn_profile_info_t* profile, spn_lang_t lang, spn_invocation_t* invocation) {
+  add_cache(mem, toolchain, invocation);
   spn_toolchain_launcher_t launcher = lang == SPN_LANG_CXX ? toolchain->cxx : toolchain->compiler;
   sp_assert(!spn_arg_empty(launcher.program));
   invocation->program = launcher.program;
@@ -516,6 +525,7 @@ void spn_gnu_render_link(sp_mem_t mem, const spn_cc_toolchain_t* toolchain, cons
 }
 
 void spn_gnu_render_archive(sp_mem_t mem, const spn_cc_toolchain_t* toolchain, const spn_cc_archive_files_t* files, spn_invocation_t* invocation) {
+  add_cache(mem, toolchain, invocation);
   invocation->program = toolchain->archiver.program;
   spn_cc_push_strs(mem, invocation, toolchain->archiver.args);
   invocation->launcher = sp_da_size(invocation->args);
