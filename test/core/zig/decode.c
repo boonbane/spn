@@ -100,6 +100,28 @@ static const test_t frame_tests [] = {
     },
   },
   {
+    .name = "ticks_skip_ipc_and_deep",
+    .packets = {
+      { .nodes = {
+        { 1, 0, SPN_ZIG_PROGRESS_ROOT, "A" },
+        { 2, 5, 0, "B" },
+        { 7, SPN_ZIG_PROGRESS_IPC, 0, "I" },
+        { 9, 9, 1, "D" },
+      } },
+    },
+    .expect = {
+      .advanced = true,
+      .packets = 1,
+      .ticks = 2,
+      .nodes = {
+        { 1, 0, SPN_ZIG_PROGRESS_ROOT, "A" },
+        { 2, 5, 0, "B" },
+        { 7, SPN_ZIG_PROGRESS_IPC, 0, "I" },
+        { 9, 9, 1, "D" },
+      },
+    },
+  },
+  {
     .name = "last_wins",
     .packets = {
       { .nodes = { { 1, 4, SPN_ZIG_PROGRESS_ROOT, "A" } } },

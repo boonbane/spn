@@ -214,6 +214,7 @@ sp_ps_config_t spn_invocation_ps(const spn_invocation_t* invocation, sp_mem_t me
     .cwd = cwd,
     .io = {
       .in.mode = SP_PS_IO_MODE_NULL,
+      .out.mode = SP_PS_IO_MODE_CREATE,
       .err.mode = SP_PS_IO_MODE_REDIRECT,
     }
   };

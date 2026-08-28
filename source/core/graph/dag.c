@@ -523,14 +523,8 @@ static spn_err_t dag_add_warm(spn_dag_build_t* b, spn_target_unit_t* target, spn
     spn_dag_warm_ctx_t* warm = sp_alloc_type(b->mem, spn_dag_warm_ctx_t);
     *warm = (spn_dag_warm_ctx_t) { .build = build, .stub = stub, .name = name };
 
-    spn_digest_ctx_t ctx = sp_zero;
-    spn_digest_init_blake3(&ctx);
-    spn_dag_hash_str(&ctx, sp_str_lit("spn.build.warm.v1"));
-    spn_dag_hash_path(&ctx, path);
-
     spn_dag_id_t action = spn_dag_add_action(g, (spn_dag_action_config_t) {
       .kind = SPN_DAG_ACTION_UNCACHEABLE,
-      .identity = spn_dag_hash_final(&ctx),
       .execute = dag_warm_exec,
       .user_data = warm,
     });

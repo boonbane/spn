@@ -45,9 +45,9 @@ static const test_t tests [] = {
   {
     .name = "sanitizers",
     .os = SPN_OS_LINUX,
-    .sanitizers = SPN_SANITIZER_ADDRESS | SPN_SANITIZER_UNDEFINED,
+    .sanitizers = SPN_SANITIZER_THREAD | SPN_SANITIZER_UNDEFINED,
     .link = { SPN_CC_OUTPUT_EXE, SPN_LANG_C },
-    .expect = { .name = "T.exe.c.address,undefined" },
+    .expect = { .name = "T.exe.c.thread,undefined" },
   },
   {
     .name = "windows_libs_sorted",

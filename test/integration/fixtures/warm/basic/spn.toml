@@ -5,3 +5,7 @@ version = "0.1.0"
 [[bin]]
 name = "A"
 source = ["main.c"]
+
+[[bin]]
+name = "B"
+source = ["b.c"]
