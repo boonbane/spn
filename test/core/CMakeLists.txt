@@ -16,6 +16,7 @@ add_executable(core
   triple.c
   version.c
   when.c
+  zig.c
   closure/harness.c
   closure/closure.c
   closure/dep_kind.c
@@ -170,6 +171,7 @@ add_executable(core
   ${SRC}/external/obj.c
   ${SRC}/external/tom.c
   ${SRC}/external/wasm/script.c
+  ${SRC}/external/zig.c
   ${SRC}/filter/filter.c
   ${SRC}/git/cache.c
   ${SRC}/git/key.c
