@@ -653,7 +653,9 @@ spn_err_t spn_dag_build_add_target(spn_dag_build_t* b, spn_target_unit_t* target
     case SPN_CC_OUTPUT_EXE:
     case SPN_CC_OUTPUT_SHARED_LIB:
     case SPN_CC_OUTPUT_REACTOR: {
-      spn_try(dag_add_warm(b, target, ids.action));
+      if (target->pkg->build->toolchain->cc.driver == SPN_CC_DRIVER_ZIG) {
+        spn_try(dag_add_warm(b, target, ids.action));
+      }
       break;
     }
     case SPN_CC_OUTPUT_OBJECT:
