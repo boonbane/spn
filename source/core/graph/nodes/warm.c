@@ -15,7 +15,7 @@ static void pump(sp_sys_fd_t fd, spn_dag_env_t* env, sp_mem_t mem) {
   spn_zig_progress_init(progress);
 
   u64 last = 0;
-  u8 buf [4096];
+  u8 buf [4096] = sp_zero;
   while (true) {
     u64 bytes = 0;
     if (sp_sys_read(fd, buf, sizeof(buf), &bytes) || !bytes) {

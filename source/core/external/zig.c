@@ -63,9 +63,9 @@ u64 spn_zig_progress_ticks(const spn_zig_progress_t* progress) {
   u64 ticks = 0;
   sp_for(it, progress->count) {
     const spn_zig_node_t* node = &progress->nodes[it];
-    if (node->total == SPN_ZIG_PROGRESS_IPC) continue;
-    if (node->parent >= progress->count) continue;
-    if (progress->nodes[node->parent].parent != SPN_ZIG_PROGRESS_ROOT) continue;
+    if (node->total == SPN_ZIG_PROGRESS_IPC) { continue; }
+    if (node->parent >= progress->count) { continue; }
+    if (progress->nodes[node->parent].parent != SPN_ZIG_PROGRESS_ROOT) { continue; }
     ticks += node->completed;
   }
   return ticks;
@@ -95,7 +95,7 @@ static sp_da(sp_str_t) canonical_libs(sp_mem_t mem, sp_da(sp_str_t) libs) {
 
   sp_da(sp_str_t) unique = sp_da_new(mem, sp_str_t);
   sp_da_for(sorted, it) {
-    if (it && sp_str_equal(sorted[it], sorted[it - 1])) continue;
+    if (it && sp_str_equal(sorted[it], sorted[it - 1])) { continue; }
     sp_da_push(unique, sorted[it]);
   }
   return unique;
@@ -110,6 +110,9 @@ spn_zig_stub_t spn_zig_stub_canonical(sp_mem_t mem, spn_os_t os, spn_zig_stub_t 
     .kind = link.kind,
     .lang = link.lang,
   };
+  if (link.kind == SPN_CC_OUTPUT_EXE && link.linkage == SPN_LIB_KIND_STATIC && os != SPN_OS_MACOS) {
+    stub.linkage = link.linkage;
+  }
   if (os == SPN_OS_WINDOWS) {
     stub.system_libs = canonical_libs(mem, link.system_libs);
   }
@@ -135,6 +138,9 @@ sp_str_t spn_zig_stub_name(sp_mem_t mem, sp_str_t triple, spn_sanitizer_set_t sa
   sp_da_push(parts, triple);
   sp_da_push(parts, stub_kind_label(stub->kind));
   sp_da_push(parts, stub->lang == SPN_LANG_CXX ? sp_str_lit("cxx") : sp_str_lit("c"));
+  if (stub->linkage == SPN_LIB_KIND_STATIC) {
+    sp_da_push(parts, sp_str_lit("static"));
+  }
   if (sanitizers) {
     sp_da_push(parts, spn_sanitizer_set_to_str(s.mem, sanitizers));
   }

@@ -254,6 +254,7 @@ static spn_err_t dag_add_warm(spn_dag_build_t* b, spn_target_unit_t* target, con
   spn_zig_stub_t stub = spn_zig_stub_canonical(b->mem, build->profile.os, (spn_zig_stub_t) {
     .kind = target->kind,
     .lang = plan->link.cc.lang,
+    .linkage = build->profile.linking.libc == SPN_RUNTIME_STATIC ? SPN_LIB_KIND_STATIC : SPN_LIB_KIND_NONE,
     .system_libs = plan->link.cc.system_libs,
   });
   spn_triple_t triple = spn_profile_triple(&build->profile);
