@@ -134,6 +134,56 @@ static const test_t frame_tests [] = {
     },
   },
   {
+    .name = "ticks_survive_ended_node",
+    .packets = {
+      { .nodes = {
+        { 1, 0, SPN_ZIG_PROGRESS_ROOT, "A" },
+        { 1000, 0, 0, "B" },
+        { 1, 0, 0, "C" },
+      } },
+      { .nodes = {
+        { 1, 0, SPN_ZIG_PROGRESS_ROOT, "A" },
+        { 1, 0, 0, "C" },
+      } },
+      { .nodes = {
+        { 1, 0, SPN_ZIG_PROGRESS_ROOT, "A" },
+        { 3, 0, 0, "C" },
+      } },
+    },
+    .expect = {
+      .advanced = true,
+      .packets = 3,
+      .ticks = 1003,
+      .nodes = {
+        { 1, 0, SPN_ZIG_PROGRESS_ROOT, "A" },
+        { 3, 0, 0, "C" },
+      },
+    },
+  },
+  {
+    .name = "ticks_count_every_packet",
+    .packets = {
+      { .nodes = {
+        { 1, 0, SPN_ZIG_PROGRESS_ROOT, "A" },
+        { 1000, 0, 0, "B" },
+      } },
+      { .nodes = { { 1, 0, SPN_ZIG_PROGRESS_ROOT, "A" } } },
+      { .nodes = {
+        { 1, 0, SPN_ZIG_PROGRESS_ROOT, "A" },
+        { 400, 0, 0, "D" },
+      } },
+    },
+    .expect = {
+      .advanced = true,
+      .packets = 3,
+      .ticks = 1400,
+      .nodes = {
+        { 1, 0, SPN_ZIG_PROGRESS_ROOT, "A" },
+        { 400, 0, 0, "D" },
+      },
+    },
+  },
+  {
     .name = "partial_tail",
     .packets = {
       { .nodes = { { 1, 4, SPN_ZIG_PROGRESS_ROOT, "A" } } },
@@ -231,6 +281,7 @@ sp_test(zig_decode, split) {
     sp_must_eq(t, progress->count, 1);
     sp_expect_str_eq_c(t, progress->nodes[0].name, "C");
     sp_expect_eq(t, progress->nodes[0].completed, 3);
+    sp_expect_eq(t, spn_zig_progress_ticks(progress), 2);
   }
 
   spn_zig_progress_init(progress);
@@ -239,6 +290,7 @@ sp_test(zig_decode, split) {
   }
   sp_must_eq(t, progress->packets, 3);
   sp_expect_str_eq_c(t, progress->nodes[0].name, "C");
+  sp_expect_eq(t, spn_zig_progress_ticks(progress), 2);
 
   node_t full [SPN_ZIG_PROGRESS_MAX_NODES];
   full[0] = (node_t) { 0, 0, SPN_ZIG_PROGRESS_ROOT, "A" };

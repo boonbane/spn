@@ -27,6 +27,8 @@ typedef struct {
   spn_zig_node_t nodes [SPN_ZIG_PROGRESS_MAX_NODES];
   u32 count;
   u64 packets;
+  u64 live;
+  u64 ticks;
 } spn_zig_progress_t;
 
 void spn_zig_progress_init(spn_zig_progress_t* progress);
