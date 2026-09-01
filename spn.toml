@@ -104,6 +104,10 @@ deps = ["spn"]
 flags = []
 embed = [{ path = "docs/content", dir = true, dest = "docs" }]
 
+[[bin]]
+name = "fakezig"
+source = ["test/tools/fakezig.c"]
+
 [[script]]
 name = "installer"
 source = ["tools/install/main.c", "tools/install/render.c"]

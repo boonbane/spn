@@ -15,6 +15,11 @@ function(spn_test_binary target)
   add_dependencies(${target} headers)
 endfunction()
 
+add_executable(fakezig ${TEST_TOOLS}/fakezig.c)
+target_include_directories(fakezig PRIVATE ${STORE}/include)
+target_link_libraries(fakezig PRIVATE m)
+add_dependencies(fakezig headers)
+
 add_subdirectory(core)
 add_subdirectory(fuzz)
 add_subdirectory(integration)

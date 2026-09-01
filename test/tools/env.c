@@ -448,6 +448,16 @@ static const c8* toolchain_arg(fixture_t* fixture) {
   return test_lane_toolchain_arg();
 }
 
+static sp_str_t search_path(sp_mem_t mem, fixture_t* fixture) {
+  spn_search_rules_t rules = spn_search_rules(spn_triple_host().os);
+  // Test tools like fakezig are built beside spn; they resolve ahead of anything on the host's PATH
+  sp_str_t path = spn_search_prepend(rules, mem, sp_fs_parent_path(fixture->paths.spn), sp_os_env_get(sp_str_lit("PATH")));
+  if (fixture->path) {
+    path = spn_search_prepend(rules, mem, fixture_path(fixture, sp_cstr_as_str(fixture->path)), path);
+  }
+  return path;
+}
+
 static sp_ps_output_t run_spn_ex(sp_test_t* t, fixture_t* fixture, const c8* format, const c8* const* args, const c8* const* env) {
   sp_mem_t mem = fixture->mem;
   sp_ps_config_t config = {
@@ -463,6 +473,7 @@ static sp_ps_output_t run_spn_ex(sp_test_t* t, fixture_t* fixture, const c8* for
         { sp_str_lit("SPN_TOOLCHAIN_DIR"), fixture->paths.toolchain },
         { sp_str_lit("SPN_CONFIG_DIR"), fixture->paths.config },
         { sp_str_lit("SPN_PATCH_DIR"), fixture->paths.patches },
+        { sp_str_lit("PATH"), search_path(mem, fixture) },
       },
     },
   };
@@ -470,10 +481,6 @@ static sp_ps_output_t run_spn_ex(sp_test_t* t, fixture_t* fixture, const c8* for
   u32 env_slot = 0;
   while (env_slot < sp_carr_len(config.env.extra) && !sp_str_empty(config.env.extra[env_slot].key)) {
     env_slot++;
-  }
-  if (fixture->path) {
-    sp_str_t prefixed = spn_search_prepend(spn_search_rules(spn_triple_host().os), mem, fixture_path(fixture, sp_cstr_as_str(fixture->path)), sp_os_env_get(sp_str_lit("PATH")));
-    config.env.extra[env_slot++] = (sp_env_var_t) { .key = sp_str_lit("PATH"), .value = prefixed };
   }
   if (env) {
     sp_for(it, SPN_TEST_COMMAND_MAX_ENV) {
