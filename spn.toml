@@ -103,6 +103,10 @@ include = ["include", "source/cli", "source/util"] # @spader removed the core in
 deps = ["spn"]
 flags = []
 
+[[bin]]
+name = "fakezig"
+source = ["test/tools/fakezig.c"]
+
 [[script]]
 name = "installer"
 source = ["tools/install/main.c", "tools/install/render.c"]

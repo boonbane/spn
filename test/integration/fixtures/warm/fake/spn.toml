@@ -1,0 +1,22 @@
+[package]
+name = "A"
+version = "0.1.0"
+
+[[toolchain]]
+name = "Z"
+driver = "zig"
+compiler = "fakezig"
+archiver = "fakezig"
+
+[[toolchain]]
+name = "F"
+driver = "zig"
+compiler = "fakezig --fail"
+archiver = "fakezig --fail"
+
+[profile.default]
+toolchain = "Z"
+
+[[bin]]
+name = "A"
+source = ["main.c"]
