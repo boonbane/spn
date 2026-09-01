@@ -10,6 +10,7 @@
 #include "triple/triple.h"
 #include "graph/nodes/nodes.h"
 
+#if !defined(SP_WIN32)
 static void pump(sp_sys_fd_t fd, spn_dag_env_t* env, sp_mem_t mem) {
   spn_zig_progress_t* progress = sp_alloc_type(mem, spn_zig_progress_t);
   spn_zig_progress_init(progress);
@@ -40,11 +41,19 @@ static void pump(sp_sys_fd_t fd, spn_dag_env_t* env, sp_mem_t mem) {
     }
   }
 }
+#endif
 
 static sp_ps_output_t stub_exec(spn_invocation_t* invocation, sp_str_t dir, spn_dag_env_t* env, sp_mem_t mem) {
+#if defined(SP_WIN32)
+  (void)dir;
+  (void)env;
+  return spn_invocation_run(invocation).result;
+#else
+  sp_ps_output_t failed = { .status = { .state = SP_PS_STATE_DONE, .exit_code = -1 } };
+
   sp_sys_pipe_t pipe = sp_zero;
   if (sp_sys_pipe(&pipe, (sp_sys_pipe_desc_t) { .w = SP_SYS_INHERITED })) {
-    return spn_invocation_run(invocation).result;
+    return failed;
   }
 
   sp_str_t log = sp_fs_join_path(mem, dir, sp_str_lit("log"));
@@ -52,7 +61,7 @@ static sp_ps_output_t stub_exec(spn_invocation_t* invocation, sp_str_t dir, spn_
   if (sp_sys_open_s(sp_sys_get_root(0), log, SP_SYS_OPEN_MODE_WO, SP_SYS_OPEN_CREATE | SP_SYS_OPEN_TRUNCATE, &sink)) {
     sp_sys_close(pipe.r);
     sp_sys_close(pipe.w);
-    return spn_invocation_run(invocation).result;
+    return failed;
   }
 
   sp_ps_config_t ps = spn_invocation_ps(invocation, mem);
@@ -71,7 +80,7 @@ static sp_ps_output_t stub_exec(spn_invocation_t* invocation, sp_str_t dir, spn_
   if (!child.os) {
     sp_sys_close(pipe.r);
     sp_sys_close(sink);
-    return (sp_ps_output_t) { .status = { .state = SP_PS_STATE_DONE, .exit_code = -1 } };
+    return failed;
   }
 
   pump(pipe.r, env, mem);
@@ -86,20 +95,7 @@ static sp_ps_output_t stub_exec(spn_invocation_t* invocation, sp_str_t dir, spn_
     sp_io_read_file(spn.mem, log, &output.out);
   }
   return output;
-}
-
-static void warm_failed(spn_cc_toolchain_t* cc, sp_str_t triple, sp_str_t name, s32 rc, sp_str_t command, sp_str_t out) {
-  spn_event_buffer_push(spn.events, (spn_event_t) {
-    .kind = SPN_EVENT_WARM_FAILED,
-    .warm_failed = {
-      .toolchain = cc->name,
-      .triple = triple,
-      .stub = name,
-      .rc = rc,
-      .command = command,
-      .out = out,
-    },
-  });
+#endif
 }
 
 static s32 run_stub(spn_build_unit_t* build, const spn_zig_stub_t* stub, sp_str_t name, sp_str_t triple, sp_str_t dir, spn_dag_env_t* env, sp_mem_t mem) {
@@ -116,7 +112,13 @@ static s32 run_stub(spn_build_unit_t* build, const spn_zig_stub_t* stub, sp_str_
 
   sp_str_t source = sp_fs_join_path(mem, dir, sp_str_lit("stub.c"));
   if (sp_fs_create_file_str(source, sp_str_lit("int main(void) { return 0; }\n"))) {
-    warm_failed(cc, triple, name, 1, sp_str_lit(""), sp_fmt(spn.mem, "failed to write {}", sp_fmt_str(source)).value);
+    spn_event_buffer_push(spn.events, (spn_event_t) {
+      .kind = SPN_EVENT_NODE_FAILED,
+      .node_failed = {
+        .path = sp_str_copy(spn.mem, source),
+        .message = sp_str_lit("could not be written"),
+      },
+    });
     return 1;
   }
 
@@ -139,7 +141,17 @@ static s32 run_stub(spn_build_unit_t* build, const spn_zig_stub_t* stub, sp_str_
 
   sp_ps_output_t run = stub_exec(&invocation, dir, env, mem);
   if (run.status.exit_code) {
-    warm_failed(cc, triple, name, run.status.exit_code, spn_invocation_to_str(spn.mem, &invocation), run.out);
+    spn_event_buffer_push(spn.events, (spn_event_t) {
+      .kind = SPN_EVENT_WARM_FAILED,
+      .warm_failed = {
+        .toolchain = cc->name,
+        .triple = triple,
+        .stub = name,
+        .rc = run.status.exit_code,
+        .command = spn_invocation_to_str(spn.mem, &invocation),
+        .out = run.out,
+      },
+    });
   }
   return run.status.exit_code;
 }
@@ -150,15 +162,20 @@ s32 spn_warm_stub_run(spn_build_unit_t* build, const spn_zig_stub_t* stub, sp_st
 
   spn_profile_info_t* profile = &build->profile;
   spn_triple_t triple = { profile->arch, profile->os, profile->abi };
-  sp_str_t triple_str = spn_triple_to_str(spn.mem, triple);
 
   sp_str_t out = spn_path_str(&spn.roots, mem, output);
   s32 rc = 0;
   if (!sp_fs_exists(spn_path_str(&spn.roots, mem, stamp))) {
-    rc = run_stub(build, stub, name, triple_str, sp_fs_parent_path(out), env, mem);
+    rc = run_stub(build, stub, name, spn_triple_to_str(spn.mem, triple), sp_fs_parent_path(out), env, mem);
   }
   if (!rc && sp_fs_create_file_str(out, name)) {
-    warm_failed(&build->toolchain->cc, triple_str, name, 1, sp_str_lit(""), sp_fmt(spn.mem, "failed to write {}", sp_fmt_str(out)).value);
+    spn_event_buffer_push(spn.events, (spn_event_t) {
+      .kind = SPN_EVENT_NODE_FAILED,
+      .node_failed = {
+        .path = sp_str_copy(spn.mem, out),
+        .message = sp_str_lit("could not be written"),
+      },
+    });
     rc = 1;
   }
 
