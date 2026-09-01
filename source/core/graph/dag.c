@@ -504,14 +504,11 @@ static spn_err_t dag_add_warm(spn_dag_build_t* b, spn_target_unit_t* target, spn
   spn_dag_t* g = b->graph;
   spn_build_unit_t* build = target->pkg->build;
   spn_cc_toolchain_t* cc = &build->toolchain->cc;
-  if (spn_path_empty(cc->cache)) {
-    return SPN_OK;
-  }
+  sp_assert(!spn_path_empty(cc->cache));
 
-  spn_zig_stub_t stub = spn_zig_stub_canonical(b->mem, build->profile.os, (spn_zig_stub_t) {
+  spn_zig_stub_t stub = spn_zig_stub_canonical(b->mem, &build->profile, (spn_zig_stub_t) {
     .kind = target->kind,
     .lang = target->link.cc.lang,
-    .linkage = build->profile.linking.libc == SPN_RUNTIME_STATIC ? SPN_LIB_KIND_STATIC : SPN_LIB_KIND_NONE,
     .system_libs = target->link.cc.system_libs,
   });
   spn_triple_t triple = spn_profile_triple(&build->profile);

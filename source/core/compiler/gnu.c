@@ -430,11 +430,16 @@ static void add_static_runtime(sp_mem_t mem, spn_os_t os, spn_invocation_t* invo
   }
 }
 
+// zig only builds a static libc when the executable asks for one; the stub that
+// warms its cache has to make the same call
+bool spn_gnu_link_static(const spn_profile_info_t* profile, spn_cc_output_kind_t kind) {
+  return kind == SPN_CC_OUTPUT_EXE && profile->linking.libc == SPN_RUNTIME_STATIC && spn_os_format(profile->os) == SPN_FORMAT_ELF;
+}
+
 void spn_gnu_render_link(sp_mem_t mem, const spn_cc_toolchain_t* toolchain, const spn_profile_info_t* profile, const spn_cc_link_t* link, const spn_cc_link_files_t* files, spn_invocation_t* invocation) {
   spn_triple_t triple = spn_profile_triple(profile);
   spn_format_t format = spn_os_format(profile->os);
   spn_ld_dialect_t dialect = spn_ld_dialect(triple);
-  bool is_static_libc = profile->linking.libc == SPN_RUNTIME_STATIC && format == SPN_FORMAT_ELF;
   bool is_gnu_runtime_static = profile->linking.runtime == SPN_RUNTIME_STATIC && triple.abi != SPN_ABI_MSVC && spn_cc_has(toolchain, SPN_CC_CAP_GNU_RUNTIME);
 
   add_launcher(mem, toolchain, profile, link->lang, invocation);
@@ -471,7 +476,7 @@ void spn_gnu_render_link(sp_mem_t mem, const spn_cc_toolchain_t* toolchain, cons
       break;
     }
     case SPN_CC_OUTPUT_EXE: {
-      if (is_static_libc) {
+      if (spn_gnu_link_static(profile, link->kind)) {
         spn_cc_push_c(mem, invocation, "-static");
       }
       else if (is_gnu_runtime_static) {
