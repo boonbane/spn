@@ -65,7 +65,7 @@
       }
     },
     "warm_start": { "metadata": { "verb": "Building" }, "ref": "warm" },
-    "warm_failed": { "metadata": { "severity": "error" }, "ref": "warm_failed" },
+    "warm_failed": { "metadata": { "verb": "Failed", "severity": "error" }, "ref": "warm_failed" },
     "target_build_passed": { "metadata": { "verb": "Compiled", "verbosity": "debug" }, "ref": "target_passed" },
     "target_build_failed": { "metadata": { "verb": "Failed", "severity": "error" }, "ref": "target_failed" },
     "target_run": {

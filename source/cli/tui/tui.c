@@ -550,7 +550,7 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
       break;
     }
     case SPN_EVENT_WARM_FAILED: {
-      sp_tty_fmt(&w, "{} failed to warm {.yellow}", sp_fmt_str(event->warm_failed.toolchain), sp_fmt_str(event->warm_failed.triple));
+      sp_tty_fmt(&w, "could not warm libc for {.yellow}", sp_fmt_str(event->warm_failed.triple));
       break;
     }
     case SPN_EVENT_NODE_FAILED: {
