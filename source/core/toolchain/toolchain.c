@@ -18,6 +18,11 @@ spn_toolchain_launcher_t spn_toolchain_launcher_with_root(sp_mem_t mem, spn_tool
   return result;
 }
 
+// Local toolchains have no artifact to name a store entry after; their probed identity stands in
+spn_path_t spn_toolchain_local_root(sp_mem_t mem, sp_hash_t identity) {
+  return (spn_path_t) { .root = SPN_PATH_ROOT_TOOLCHAIN, .sub = sp_fmt(mem, "{:0>16x}", sp_fmt_uint(identity)).value };
+}
+
 spn_path_t spn_toolchain_zig_cache_dir(sp_mem_t mem, spn_path_t root) {
   return spn_path_suffix(mem, root, sp_str_lit(".cache"));
 }

@@ -21,6 +21,7 @@ bool                     spn_toolchain_driver_composes(spn_cc_driver_t driver, s
 spn_abi_t                spn_default_abi(spn_cc_driver_t driver, spn_os_t os);
 spn_path_t               spn_toolchain_artifact_root(spn_artifact_t artifact);
 spn_toolchain_launcher_t spn_toolchain_launcher_with_root(sp_mem_t mem, spn_toolchain_launcher_t launcher, spn_path_t root);
+spn_path_t               spn_toolchain_local_root(sp_mem_t mem, sp_hash_t identity);
 spn_path_t               spn_toolchain_zig_cache_dir(sp_mem_t mem, spn_path_t root);
 bool                     spn_toolchain_has_cxx(spn_toolchain_info_t* toolchain);
 spn_wasi_spelling_t      spn_toolchain_wasi_spelling(const spn_path_roots_t* roots, sp_mem_t mem, const spn_toolchain_info_t* toolchain);
