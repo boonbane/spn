@@ -3,6 +3,7 @@
 #include "compiler/driver.h"
 #include "enum/enum.h"
 #include "hash/digest/digest.h"
+#include "toolchain/sdk.h"
 
 static u64 packet_size(u32 count) {
   return 1 + ((u64)count * (SPN_ZIG_PROGRESS_NODE_SIZE + 1));
@@ -104,7 +105,7 @@ static sp_da(sp_str_t) canonical_libs(sp_mem_t mem, sp_da(sp_str_t) libs) {
   return unique;
 }
 
-spn_zig_stub_t spn_zig_stub_canonical(sp_mem_t mem, spn_os_t os, spn_zig_stub_t link) {
+spn_zig_stub_t spn_zig_stub_canonical(sp_mem_t mem, const spn_profile_info_t* profile, spn_zig_stub_t link) {
   sp_assert(link.kind != SPN_CC_OUTPUT_OBJECT);
   sp_assert(link.kind != SPN_CC_OUTPUT_STATIC_LIB);
   sp_assert(link.lang != SPN_LANG_ASM);
@@ -113,12 +114,13 @@ spn_zig_stub_t spn_zig_stub_canonical(sp_mem_t mem, spn_os_t os, spn_zig_stub_t 
     .kind = link.kind,
     .lang = link.lang,
   };
-  if (link.kind == SPN_CC_OUTPUT_EXE && link.linkage == SPN_LIB_KIND_STATIC && os != SPN_OS_MACOS) {
-    stub.linkage = link.linkage;
+  if (spn_gnu_link_static(profile, link.kind)) {
+    stub.linkage = SPN_LIB_KIND_STATIC;
   }
-  if (os == SPN_OS_WINDOWS) {
+  if (profile->os == SPN_OS_WINDOWS) {
     stub.system_libs = canonical_libs(mem, link.system_libs);
   }
+  stub.sdk = spn_sdk_hash(&profile->sdk);
   return stub;
 }
 
@@ -147,8 +149,12 @@ sp_str_t spn_zig_stub_name(sp_mem_t mem, sp_str_t triple, spn_sanitizer_set_t sa
   if (sanitizers) {
     sp_da_push(parts, spn_sanitizer_set_to_str(s.mem, sanitizers));
   }
-  sp_da_for(stub->system_libs, it) {
-    sp_da_push(parts, stub->system_libs[it]);
+  if (stub->sdk) {
+    sp_da_push(parts, sp_fmt(s.mem, "{:0>16x}", sp_fmt_uint(stub->sdk)).value);
+  }
+  if (sp_da_size(stub->system_libs)) {
+    sp_str_t libs = sp_str_join_n(s.mem, stub->system_libs, sp_da_size(stub->system_libs), sp_str_lit(","));
+    sp_da_push(parts, sp_fmt(s.mem, "{:0>16x}", sp_fmt_uint(spn_digest_hash_str(libs))).value);
   }
   sp_str_t name = sp_str_join_n(mem, parts, sp_da_size(parts), sp_str_lit("."));
   sp_mem_end_scratch(s);

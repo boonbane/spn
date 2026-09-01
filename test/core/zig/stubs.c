@@ -1,13 +1,14 @@
 #include "spn_test.h"
 
 #include "external/zig.h"
+#include "toolchain/sdk.h"
 
 #define STUB_TEST_MAX_LIBS 4
 
 typedef struct {
   spn_cc_output_kind_t kind;
   spn_lang_t lang;
-  spn_linkage_t linkage;
+  spn_runtime_t libc;
   const c8* libs [STUB_TEST_MAX_LIBS];
 } link_t;
 
@@ -21,6 +22,7 @@ typedef struct {
   const c8* name;
   spn_os_t os;
   spn_sanitizer_set_t sanitizers;
+  const c8* sdk;
   link_t link;
   expect_t expect;
 } test_t;
@@ -54,38 +56,51 @@ static const test_t tests [] = {
   {
     .name = "static_exe",
     .os = SPN_OS_LINUX,
-    .link = { SPN_CC_OUTPUT_EXE, SPN_LANG_C, SPN_LIB_KIND_STATIC },
+    .link = { SPN_CC_OUTPUT_EXE, SPN_LANG_C, SPN_RUNTIME_STATIC },
     .expect = { .linkage = SPN_LIB_KIND_STATIC, .name = "T.exe.c.static" },
   },
   {
     .name = "static_dropped_for_shared",
     .os = SPN_OS_LINUX,
-    .link = { SPN_CC_OUTPUT_SHARED_LIB, SPN_LANG_C, SPN_LIB_KIND_STATIC },
+    .link = { SPN_CC_OUTPUT_SHARED_LIB, SPN_LANG_C, SPN_RUNTIME_STATIC },
     .expect = { .name = "T.shared.c" },
   },
   {
     .name = "static_dropped_on_macos",
     .os = SPN_OS_MACOS,
-    .link = { SPN_CC_OUTPUT_EXE, SPN_LANG_C, SPN_LIB_KIND_STATIC },
+    .link = { SPN_CC_OUTPUT_EXE, SPN_LANG_C, SPN_RUNTIME_STATIC },
     .expect = { .name = "T.exe.c" },
+  },
+  {
+    .name = "static_dropped_on_windows",
+    .os = SPN_OS_WINDOWS,
+    .link = { SPN_CC_OUTPUT_EXE, SPN_LANG_C, SPN_RUNTIME_STATIC },
+    .expect = { .name = "T.exe.c" },
+  },
+  {
+    .name = "sysroot_keyed",
+    .os = SPN_OS_LINUX,
+    .sdk = "/sdk",
+    .link = { SPN_CC_OUTPUT_EXE, SPN_LANG_C },
+    .expect = { .name = "T.exe.c.e8f7d229bd748280" },
   },
   {
     .name = "windows_libs_sorted",
     .os = SPN_OS_WINDOWS,
     .link = { SPN_CC_OUTPUT_EXE, SPN_LANG_C, .libs = { "B", "A" } },
-    .expect = { .libs = { "A", "B" }, .name = "T.exe.c.A.B" },
+    .expect = { .libs = { "A", "B" }, .name = "T.exe.c.3ebc00ede8f15f3f" },
   },
   {
     .name = "windows_libs_deduped",
     .os = SPN_OS_WINDOWS,
     .link = { SPN_CC_OUTPUT_EXE, SPN_LANG_C, .libs = { "A", "A", "B" } },
-    .expect = { .libs = { "A", "B" }, .name = "T.exe.c.A.B" },
+    .expect = { .libs = { "A", "B" }, .name = "T.exe.c.3ebc00ede8f15f3f" },
   },
   {
     .name = "windows_lib_subset_distinct",
     .os = SPN_OS_WINDOWS,
     .link = { SPN_CC_OUTPUT_EXE, SPN_LANG_C, .libs = { "A" } },
-    .expect = { .libs = { "A" }, .name = "T.exe.c.A" },
+    .expect = { .libs = { "A" }, .name = "T.exe.c.4dc8c028fa4b6832" },
   },
   {
     .name = "libs_dropped_elsewhere",
@@ -98,10 +113,16 @@ static const test_t tests [] = {
 sp_test_each(zig_stubs, canonical, test_t, tests) {
   sp_mem_t mem = sp_test_arena(t);
 
+  spn_profile_info_t profile = {
+    .os = it->os,
+    .linking.libc = it->link.libc,
+  };
+  if (it->sdk) {
+    profile.sdk = spn_sdk_at(mem, (spn_triple_t) { SPN_ARCH_X64, it->os, SPN_ABI_GNU }, (spn_path_t) { .sub = sp_cstr_as_str(it->sdk) });
+  }
   spn_zig_stub_t link = {
     .kind = it->link.kind,
     .lang = it->link.lang,
-    .linkage = it->link.linkage,
     .system_libs = sp_da_new(mem, sp_str_t),
   };
   u32 libs = 0;
@@ -110,7 +131,7 @@ sp_test_each(zig_stubs, canonical, test_t, tests) {
     sp_da_push(link.system_libs, sp_cstr_as_str(it->link.libs[b]));
   }
 
-  spn_zig_stub_t stub = spn_zig_stub_canonical(mem, it->os, link);
+  spn_zig_stub_t stub = spn_zig_stub_canonical(mem, &profile, link);
   sp_expect_eq(t, stub.kind, it->link.kind);
   sp_expect_eq(t, stub.lang, it->link.lang);
   sp_expect_eq(t, stub.linkage, it->expect.linkage);
