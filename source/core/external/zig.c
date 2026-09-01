@@ -1,9 +1,23 @@
 #include "external/zig.h"
 
+#include "compiler/driver.h"
 #include "enum/enum.h"
+#include "hash/digest/digest.h"
 
 static u64 packet_size(u32 count) {
   return 1 + ((u64)count * (SPN_ZIG_PROGRESS_NODE_SIZE + 1));
+}
+
+static u64 live_ticks(const spn_zig_progress_t* progress) {
+  u64 ticks = 0;
+  sp_for(it, progress->count) {
+    const spn_zig_node_t* node = &progress->nodes[it];
+    if (node->total == SPN_ZIG_PROGRESS_IPC) { continue; }
+    if (node->parent >= progress->count) { continue; }
+    if (progress->nodes[node->parent].parent != SPN_ZIG_PROGRESS_ROOT) { continue; }
+    ticks += node->completed;
+  }
+  return ticks;
 }
 
 static void decode(spn_zig_progress_t* progress, const u8* packet) {
@@ -25,34 +39,31 @@ static void decode(spn_zig_progress_t* progress, const u8* packet) {
     const c8* name = (const c8*)(base + (2 * sizeof(u32)));
     node->name = sp_str(name, sp_cstr_len_n(name, SPN_ZIG_PROGRESS_NAME_CAP));
   }
+
+  u64 live = live_ticks(progress);
+  if (live > progress->live) {
+    progress->ticks += live - progress->live;
+  }
+  progress->live = live;
+  progress->packets++;
 }
 
 static bool drain(spn_zig_progress_t* progress) {
   u64 offset = 0;
-  u64 last = 0;
-  bool complete = false;
-
   while (progress->fill - offset > 0) {
     u64 need = packet_size(progress->pending[offset]);
     if (progress->fill - offset < need) {
       break;
     }
-
-    last = offset;
-    complete = true;
-    progress->packets++;
+    decode(progress, progress->pending + offset);
     offset += need;
-  }
-
-  if (complete) {
-    decode(progress, progress->pending + last);
   }
 
   progress->fill -= offset;
   if (offset && progress->fill) {
     sp_mem_move(progress->pending, progress->pending + offset, progress->fill);
   }
-  return complete;
+  return offset > 0;
 }
 
 void spn_zig_progress_init(spn_zig_progress_t* progress) {
@@ -60,15 +71,7 @@ void spn_zig_progress_init(spn_zig_progress_t* progress) {
 }
 
 u64 spn_zig_progress_ticks(const spn_zig_progress_t* progress) {
-  u64 ticks = 0;
-  sp_for(it, progress->count) {
-    const spn_zig_node_t* node = &progress->nodes[it];
-    if (node->total == SPN_ZIG_PROGRESS_IPC) { continue; }
-    if (node->parent >= progress->count) { continue; }
-    if (progress->nodes[node->parent].parent != SPN_ZIG_PROGRESS_ROOT) { continue; }
-    ticks += node->completed;
-  }
-  return ticks;
+  return progress->ticks;
 }
 
 bool spn_zig_progress_feed(spn_zig_progress_t* progress, const u8* bytes, u64 len) {
