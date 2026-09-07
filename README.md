@@ -16,6 +16,8 @@
   </a>
 </p>
 
+# About
+
 `spn` is the missing everything tool for writing and building C code:
 - An extremely fast build system with a built-in object cache that's designed for CI
 - TOML manifests for defining projects
@@ -109,16 +111,6 @@ spn build --target aarch64-macos
 spn build --target aarch64-freestanding-none
 ```
 
-A kernel image needs its own memory layout. Give the target a linker script and any raw flags the link needs:
-
-```toml
-[[bin]]
-name = "kernel"
-source = ["kernel.c", "start.S"]
-linker_script = ["kernel.ld"]
-link_flags = ["-Wl,--build-id=none", "-Wl,-n"]
-```
-
 Congratulations! You now have a C program which:
 - Can be compiled to any OS, architecture, and ABI
 - Builds extremely quickly and incrementally
@@ -166,11 +158,15 @@ system_deps = ['m']
 
 A `[[bin]]` and a `[[script]]`, for instance, are both executables, but their difference isn't strictly cosmetic. `[[bin]]` entries are taken to be *exports* of your package, able to be pulled in by consumers. `[[script]]` entries aren't. `[[test]]` entries are executed in `spn test`, and compiled to `test/` instead of `bin/`.
 
+## Paths
+
+Paths may not contain relative components like `.` and `..`, with the exception of the literal `"."`.
+
 ## Target fields
 
 ### source
 
-### include and headers
+### include and publish
 
 ### define and flags
 
@@ -278,7 +274,7 @@ windows = { subsystem = "windows" }
 
 ## Embedding files
 
-`spn` can embed arbitrary files and bytes (from build scripts) in your binary by creating an object file and header that anything can link to trivially. For example, this configuration:
+`spn` can embed arbitrary files and bytes in your binary by creating an object file and header that anything can link to trivially. Each entry names a file (or, with `dir = true`, every file under a directory) and the path it is embedded as; the symbol is that path with `/`, `\\`, `.`, and `-` replaced by `_`. For example, this configuration:
 
 ```toml
 [[bin]]
@@ -286,7 +282,7 @@ name = "whatever"
 source = ["main.c"]
 embed = [
   "asset/fonts/inconsolata.ttf",
-  { path = "asset/data.json", symbol = "data_json", data_type = "u8", size_type = "u64" },
+  { path = "asset/data.json", dest = "data.json", data_type = "u8", size_type = "u64" },
   { path = "asset/shaders", dir = true, dest = "shaders" },
 ]
 ```
@@ -381,7 +377,7 @@ kind = "shared"
 
 ## Patching
 
-What if you need to patch `foo`? You don't want to go back to the technology of the ancients, like submodules or vendoring. You want a specific commit with just a few changes. Do this in your `spn.toml`:
+What if you need to patch `foo`? You don't want to go back to the technology of the ancients, vendoring or submoduling entire repositories just to change a few lines. You want a specific commit with just a few changes. Do this in your `spn.toml`:
 
 ```toml
 [deps.package]
@@ -394,6 +390,43 @@ files = ["patches/foo.patch"]
 That's it! Patches fold into the build system like everything else. If you change the contents of a patch, add or remove patches, you'll still get a correct, incremental build.
 
 Your dependencies can't patch. If you ask for a given commit, you get exactly that commit.
+
+## System dependencies
+
+A *system dependency* is a mirage. It's possible to build against system dependencies reliably on *some* system, but to encompass the quirks and patches of every distro (just to speak of Linux) is a fool's errand.
+
+But you didn't come here for a lecture! Sometimes, you just need to link to something on your damn system.
+
+When people talk about *system dependencies*, they mean two separate things:
+1. Linking to a shared library which is resolved at runtime. This is totally fine.
+2. Compiling against whatever headers happen to be lying around. This is bad.
+
+The first case is sometimes not just acceptable, but *principled*, regardless of whether you want to. You might link to the system `libcurl.so` to pull in security patches, for example. Or to benefit from bugfixes long after you abandon your program to pursue a career in professional bass fishing. Therefore, you can specify `system_deps` in your manifest:
+
+```toml
+[package]
+name = "foo"
+system_deps = [
+  { lib = "pthread", when = { os = "linux" } },
+  { lib = "shell32", when = { os = "windows" } }
+]
+
+[[lib]]
+name = "bar"
+system_deps = ["m"]
+```
+
+This does what you'd expect, e.g. `-lpthread`. Linking to whatever's on the system comes with plenty of problems, but it's an important tool in your toolbelt.
+
+The second case, however, is almost always bad. Linking to the system makes you unpredictable at *runtime*, but compiling against the system makes you unpredictable at *compile time*. An object file compiled against slightly different versions of `curl.h` are completely different. Your build cache dies. And, at best, you compiled against a header which is ABI compatible with the `libcurl.so` on someone else's machine.
+
+There I go lecturing again! I don't mean to tell anyone that the way they work is wrong. Not everyone needs truly hermetic builds. All I mean to say is that after all the the insane distro wrangling and ABI mess that comes with discovering system headers, `spn` would *still* produce a binary that's fundamentally broken more often than not. If your constraints tolerate this, you can always do this:
+
+```toml
+[package]
+name = "foo"
+include = ["/usr/include"]
+```
 
 ## The lockfile
 
@@ -443,7 +476,7 @@ build/debug/
 
 ### Profiles
 
-Packages are compiled against a profile, which contains the target triple, toolchain, build mode, optimization level, sanitizers, etc.
+Packages are compiled against a profile, which contains the target triple, toolchain, build mode, optimization level, sanitizers, etc. `spn` bakes in two profiles, `debug` and `release`, and reserves `[profile.default]` as the base fields which every profile uses unless overridden.
 
 ```toml
 [profile.default]
@@ -451,7 +484,72 @@ toolchain = "zig"
 linkage = "static"
 standard = "c11"
 mode = "debug"
+
+[profile.debug]
+opt = "2"
+
+[profile.foo]
+abi = { value = "gnu", when = { os = "linux" } }
+toolchain = [
+  { value = "clang", when = { os = "macos" } },
+  { value = "gcc" },
+]
 ```
+
+Here, `debug` applies optimization on top of the default profile, and `foo` overrides the toolchain and ABI. Lists are tried in order such that the first match wins and an ungated entry is the fallback.
+
+When building:
+- `spn build` uses `debug`
+- `spn build --mode release` uses `release`
+- `spn build --profile NAME` uses the named `[[profile]]`
+
+### Target triples
+
+`spn` has two goals when it comes to what you specify in your build:
+1. Either produce a correct binary or fail (i.e. no footguns). Never guess.
+2. Be very ergonomic for common cases
+
+Because of (1), you must give a full triple (e.g. `x86_64-linux-gnu`) when cross compiling. We never infer facts about a cross compile from the host that builds it, because we have no information as to which ABI is preferred. Silently picking GNU over musl, for example, has no basis.
+
+Because of (2), you can omit the ABI when you aren't crossing. This has some really useful properties:
+- By default, `spn build` always produces a binary that runs on the host
+- Statically linked executables choose musl for a true self contained binary, regardless of your host
+- You don't need Visual Studio installed to use `spn`!
+
+### Linkage
+
+By default, `spn build` produces the most self contained binary that it can. There are three things that programs link to that affect their portability[^1]:
+
+| Field | What it links | How it can break |
+|---|---|---|
+| `linkage` | Your dependencies (e.g `libcurl`)| If a program links to the system's `libcurl.so`, then it won't run on a system without it|
+| `runtime` | Runtime support libraries (e.g. `libstdc++`, `libgcc`, or the CRT on Windows)| The ubiquitous "redistributables" problem on Windows, `libstdc++` on old Ubuntu, Yocto/Buildroot minimal systems |
+| `libc` | The C standard library | The mess of distributing Linux binaries that spawned entire ecosystems of tools like AppImage or Snap |
+
+Specify them like this:
+
+```toml
+[profile.whatver]
+linkage = "static"
+runtime = "static"
+libc = "shared"
+```
+
+Different platforms have different stances on some or all of these knobs, and there's a huge variety in what's needed across different kinds of C programs. `spn` allows you to toggle each between `static` and `shared`, plus toggle individual dependencies. Where the platform or toolchain doesn't support one of these, `spn` errors appropriately. For example:
+- macOS forces you to link dynamically to `libSystem.dylib` (i.e. libc)
+- GNU's libc is famously antagonistic to static linkage, so `libc = "static"` requires (and infers) musl
+- Some sanitizers require the loader to be available, and produce an error otherwise
+
+Generally, though, we aim to allow you to express any build you might need. Let's look at some examples:
+
+| Build | Dependencies | Runtime | Libc | ABI | |
+|---|---|---|---|---|---|
+| A Linux binary that runs anywhere | `static` | `static` | `static` | `musl`| This is a completely self contained binary that will run on any Linux system you'll find in the wild; `spn` does this by default |
+| A portable Linux video game       | any | `static` | `shared` | `gnu`| Games need Vulkan or OpenGL, which must be used from a shared library, but otherwise bundle everything else they need inside the binary |
+| A Windows binary which doesn't need redistributables | any | `static` | `static` | `msvc` | Like `/MT`; The UCRT, vcruntime, and the C++ STL all live inside the executable |
+| A plugin that gets loaded by a DAW | `shared` | `shared` | `shared` |  | You *want* to share the host's runtime, so that an e.g. `std::string` can cross between your DLL and the host cleanly |
+| A fully sanitized build (ASan, TSan, MSan)|  |  | `shared` | any | These sanitizers don't work without a loader |
+
 
 ### Modes and optimization
 
@@ -530,9 +628,72 @@ This is the exact principle behind Bazel, BuildXL, and Nix, and it's the fundame
 
 ### JSON event stream
 
-# Build scripts
+[^1]: There are more, of course, like the mess of versioned symbols in glibc. But for our purposes, three is fine.
 
-You need to run code in your build. Most people solve this by writing brittle scripts in Bash or Powershell, or, at best, a language like Python. `spn` solves this with WebAssembly[^wasm]. It embeds a WASM runtime, and will automatically compile arbitrary C programs to WASM modules that run in the build graph. You do not write code against a subset of C, or against a DSL. You write regular code, in the language you were using anyway.
+# Metaprograms
+
+You need to run code in your build. Most people solve this by writing brittle scripts in Bash or Powershell, or, at best, a language like Python. In `spn`, these scripts (*metaprograms*) are regular C programs. A *build* script runs inside your build, alongside things like compilation and linking:
+
+```c
+#include "spn.h"
+#include "sqlite3.h"
+
+SPN_EXPORT s32 seed_database(spn_t* spn) {
+  const c8* schema = spn_io_read_file(spn, "/source/schema.sql");
+
+  sqlite3* db;
+  c8* error;
+  sqlite3_open("/work/seed.db", &db);
+  if (sqlite3_exec(db, schema, NULL, NULL, &error)) {
+    spn_log(spn, error);
+    return 1;
+  }
+
+  sqlite3_close(db);
+  return 0;
+}
+```
+
+A *configure* script runs before your build, and can mutate the build itself:
+
+```c
+// configure.c
+#include "spn.h"
+
+SPN_EXPORT spn_err_t configure(spn_t* spn, spn_config_t* config) {
+  // Add a library on Windows
+  if (spn_profile_get_os(spn_get_profile(spn)) == SPN_OS_WINDOWS) {
+    spn_add_system_dep(config, "ws2_32");
+  }
+
+  // Run a piece of code in the build which outputs version.h
+  spn_node_t* node = spn_add_node(config, "version");
+  spn_node_set_fn(node, "gen_version");
+  spn_node_add_output(node, SPN_DIR_WORK, "version.h");
+
+  // Add an include directory
+  spn_add_include(config, spn_get_dir(spn, SPN_DIR_WORK));
+  return SPN_OK;
+}
+```
+
+These are regular C programs, not a DSL or some subset of C. Metaprograms are regular code in the same language as your project, with access to the same dependencies and ecosystem. That's how it ought to be! In the [words of the great Matklad](https://matklad.github.io/2024/03/22/basic-things.html#Build-CI):
+
+> A common anti-pattern is to write these sorts of automations in bash and Python, but that’s almost pure technical debt. These ecosystems are extremely finnicky in and of themselves, and, crucially (unless your project itself is written in bash or Python), they are a second ecosystem to what you already have in your project for “normal” code.
+>
+> But releasing software is also just code, which you can write in your primarly language. The right tool for the job is often the tool you are already using. It pays off to explicitly attack the problem of glue from the start, and to pick/write a library that makes writing subprocess wrangling logic easy.
+
+## Sandboxing
+
+Despite being arbitrary C code, `spn` does *not* allow metaprograms to run arbitrary, untrusted native code. Instead, it embeds a WebAssembly[^1] runtime, and will automatically compile arbitrary C programs to WASM modules that run in the build graph.
+
+Metaprograms have access to a guest API (as opposed to the [host API](#libspn) you'd use when you use `spn` as a library).
+
+## Dependencies
+
+Build scripts can have arbitrary dependencies. They can link to SQLite, parse JSON, read and write files, and so on. They're linked to wasi-libc, a version of musl libc.
+
+Packages must be compilable as WASM to be linked into a metaprogram. In practice
 
 ## Phases
 
@@ -562,7 +723,7 @@ If you're porting over an existing build, you can continue to use what you have.
 
 ## Example: code generation
 
-[^wasm]: WebAssembly is a platform agnostic binary target; instead of compiling code for x86_64 or ARM64 machine code and running it with your CPU, you compile it to WASM bytecode and run it inside a regular program.
+[^1]: WebAssembly is a platform agnostic binary target; instead of compiling code for x86_64 or ARM64 machine code and running it with your CPU, you compile it to WASM bytecode and run it inside a regular program.
 
 # Toolchains
 
@@ -702,7 +863,7 @@ Here's some of the packages which have native, high quality `spn` manifests. The
 - [Tracy](https://github.com/wolfpld/tracy)
 - [yyjson](https://github.com/ibireme/yyjson)
 
-# Embedding `spn`
+# libspn
 
 ## There's a stable C ABI
 
@@ -733,6 +894,69 @@ takes quite a bit of rigor and care that most folks who are actually making and 
 `spn` has *zero* dependencies. It is exactly one binary. Builds are hermetic and sandboxed by default, and it's as easy to pin the exact commits of your dependencies as it is to use packages from the index.
 
 [^grass]: And if you did, you'd probably spend it running your hands through the soft day-warmed grass of some shaded grove, those whom you love most by your side, feeling the beams of the sun against your face and basking in the simple pleasure of being alive.
+
+# FAQ
+
+## What about `compile_commands.json`?
+
+`spn` emits it on every build, at your project's top level. If you were to run:
+
+```bash
+spn build
+spn build --target=x86_64-windows-gnu
+```
+
+Then your `compile_commands.json` would point to MinGW stuff.
+
+## Does it work with MSVC / Xcode?
+
+Yes.
+
+## Why wouldn't I just use...
+
+### ...CMake?
+
+Here we go. The big boy. CMake is as close to a standard as C and C++ have ever had. It's not that bad these days, almost in spite of itself. How could something with a wacky DSL, `CMAKE_MINIMUM_REQUIRED`, no actual build system, and a package manager which is roughly "whatever the hell your distro ships" become the standard option? Well, because it works[^1].
+
+Well, why wouldn't you use something that works? Even if it's flawed, a flawed ecosystem that works is always better than one that fixes the warts but is fragmented or broken. In other words, it's not enough to simply fix CMake's quirks. Nobody cares that you have to write stuff like this:
+
+```cmake
+target_link_libraries(app PRIVATE libwhatever)
+```
+
+If writing that lets you *compile the fucking program*. That's all people want!
+
+People want this so badly that even *new features* aren't enough to switch. For example, Meson lets you programmatically manipulate `meson.build`. You can hook it into an IDE and get first class support for all kinds of stuff. And nobody cares, because the whole world uses CMake and people just want to compile the program.
+
+People only switch off of things like CMake when the new thing solves entire classes of problems for them. Meson[^2] has a lot of nice stuff, but it's still a generator. You cannot succeed writing a generator, no matter how nice, because the sum total of all that niceness is still less than CMake's inertia.
+
+This is why `spn` is fundamentally different than every other tool in this space.
+
+### ?
+- Generators. These are programs that generate inputs to another program which actually compiles your code.
+- Package managers. These are programs that know how to produce named packages. Sometimes they build them, sometimes they serve binaries.
+- Executors. These are the programs that actually invoke the compiler.
+
+| Tool          | Generator | Package manager | Executor |
+|---------------|-----------|-----------------|----------|
+| meson         | yes       | kind of         |          |
+| xmake         | sometimes | yes             | yes      |
+| premake       | yes       |                 |          |
+| cmake         | yes       |                 |          |
+| conan         |           | yes             |          |
+| vcpkg         |           | yes             |          |
+| ninja         |           |                 | yes      |
+| make          |           |                 | yes      |
+| msbuild       |           |                 | yes      |
+| xcodebuild    |           |                 | yes      |
+
+### ...Conan?
+
+Conan is a package manager, not a build system. Conan packages are Python scripts which usually just orchestrate the project's native build, which means that compilation is a black box.
+
+[^1]: The aforementioned are *not* knocks on the folks who make CMake, who have willed their product to success through an unbelievable amount of the kind of raw, dirty engineering that nobody wants to do. CMake may be good in spite of itself, but it's good *because* of its maintainers.
+
+[^2]: If you work on Meson, I'm sorry that I'm picking on you. You have a good solution to the problem you picked and a thoughtfully written tool. I'm just arguing that it's not the right problem to begin with.
 
 # Can this replace...
 

@@ -16,6 +16,8 @@
   </a>
 </p>
 
+# About
+
 `spn` is the missing everything tool for writing and building C code:
 - An extremely fast build system with a built-in object cache that's designed for CI
 - TOML manifests for defining projects

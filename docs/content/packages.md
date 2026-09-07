@@ -1,6 +1,5 @@
 ---
 title: Packages
-order: 3
 ---
 
 Packages are defined by TOML manifests.
@@ -27,6 +26,10 @@ system_deps = ['m']
 ```
 
 A `[[bin]]` and a `[[script]]`, for instance, are both executables, but their difference isn't strictly cosmetic. `[[bin]]` entries are taken to be *exports* of your package, able to be pulled in by consumers. `[[script]]` entries aren't. `[[test]]` entries are executed in `spn test`, and compiled to `test/` instead of `bin/`.
+
+## Paths
+
+Paths may not contain relative components like `.` and `..`, with the exception of the literal `"."`.
 
 ## Target fields
 
@@ -138,9 +141,15 @@ When linking, your binary's `min_os` is the max across everything in it. If a de
 windows = { subsystem = "windows" }
 ```
 
-## Embedding files
+## Embedding files in binaries
 
-`spn` can embed arbitrary files and bytes in your binary by creating an object file and header that anything can link to trivially. Each entry names a file (or, with `dir = true`, every file under a directory) and the path it is embedded as; the symbol is that path with `/`, `\\`, `.`, and `-` replaced by `_`. For example, this configuration:
+`spn` can embed arbitrary files and bytes in your binary. This is a very common way to ship a program with fonts, shaders, assets, etc. without depending on a filesystem at runtime.
+
+Embedded files are specified in TOML. `spn` creates:
+- An object file containing the literal bytes
+- A header file with metadata for use in your program
+
+Each entry names a file (or, with `dir = true`, every file under a directory) and the path it is embedded as; the symbol is that path with `/`, `\\`, `.`, and `-` replaced by `_`. For example, this configuration:
 
 ```toml
 [[bin]]
