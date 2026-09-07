@@ -1,5 +1,5 @@
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs'
-import { basename, join } from 'node:path'
+import { join } from 'node:path'
 import { parseFrontmatter } from '@astrojs/markdown-remark'
 import GithubSlugger from 'github-slugger'
 import type { Link } from 'mdast'
@@ -9,7 +9,9 @@ import remarkParse from 'remark-parse'
 import { unified } from 'unified'
 import { visit } from 'unist-util-visit'
 import { targets } from '@spn/docs/data/install'
+import { named, resolve } from '@spn/docs/lib/link'
 import { Page } from '@spn/docs/lib/page'
+import { position } from '@spn/docs/lib/order'
 
 const DOCS = join(import.meta.dir, '..')
 const CONTENT = join(DOCS, 'content')
@@ -79,22 +81,23 @@ function anchors(intro: string, sections: Section[]): Map<string, string> {
 }
 
 function rewrite(markdown: string, map: Map<string, string>): string {
-  const internal = links(markdown).filter((link) => link.url.startsWith('/docs/'))
-  return internal.reduceRight((text, link) => {
-    const anchor = map.get(link.url)
-    if (!anchor) throw new Error(`unresolved link ${link.url}`)
+  const rewritten = links(markdown).filter((link) => link.url.startsWith('/docs/') || named(link.url))
+  return rewritten.reduceRight((text, link) => {
+    const url = named(link.url) ? resolve(link.url) : map.get(link.url)
+    if (!url) throw new Error(`unresolved link ${link.url}`)
     const end = link.position!.end.offset! - 1
     const start = end - link.url.length
     if (text.slice(start, end) !== link.url) throw new Error(`unexpected link syntax at ${link.position!.start.line}`)
-    return text.slice(0, start) + anchor + text.slice(end)
+    return text.slice(0, start) + url + text.slice(end)
   }, markdown)
 }
 
 const intro = readFileSync(INTRO, 'utf8').trim()
 const sections = readdirSync(CONTENT)
+  .filter((name) => /\.mdx?$/.test(name))
   .map(load)
   .filter((section) => section.page.readme)
-  .sort((a, b) => a.page.order - b.page.order)
+  .sort((a, b) => position(a.id) - position(b.id))
 const map = anchors(intro, sections)
 const parts = [rewrite(intro, map), ...sections.map((section) => `# ${section.page.title}\n\n${rewrite(section.body, map)}`)]
 writeFileSync(README, `${parts.join('\n\n')}\n`)

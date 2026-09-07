@@ -1,6 +1,5 @@
 ---
 title: Building
-order: 5
 ---
 
 `spn build` compiles your project and all dependencies. Compilation targets a *triple* (e.g. `x86_64-windows-gnu`) and uses a *profile* (e.g. release, O2, statically linked).
@@ -23,21 +22,23 @@ build/
     └── debug/
 ```
 
-Inside a given build, each executable is placed at the top level beside the shared libraries it needs, so it runs from there and the directory ships as-is. Tests and examples get the same treatment under `test/` and `example/`. Every package, including your dependencies, has its own prefix under `store/` holding the headers, libraries, and binaries it produced. Finally, a JSONL file with a detailed trace of the build is in `.spn/build.jsonl`
+Inside a given build, each executable is placed at the top level. The shared libraries it needs (itself or transitively) are staged next to it. The executable is relocatable.
+
+Tests and examples get the same treatment under `test/` and `example/`. Every package, including your dependencies, has its own prefix under `store/` holding the headers, libraries, and binaries it produced. Finally, a JSONL file with a detailed trace of the build is in `.spn/build.jsonl`
 
 ```
 build/debug/
-├── main.exe
-├── whatever.dll
+├── foo.exe
+├── bar.dll
 ├── store/
-│   ├── my-package/
+│   ├── foo/
 │   │   └── bin/
-│   │       └── main.exe
-│   └── whatever/
+│   │       └── foo.exe
+│   └── bar/
 │       ├── lib/
-│       │   └── whatever.dll
+│       │   └── bar.dll
 │       └── include/
-│           ├── whatever.h
+│           ├── bar.h
 │           └── ...
 └── .spn/
     └── build.jsonl
@@ -77,7 +78,7 @@ When building:
 ### Target triples
 
 `spn` has two goals when it comes to what you specify in your build:
-1. Either produce a correct binary or fail (i.e. no footguns). Never guess.
+1. Either produce a correct binary or fail
 2. Be very ergonomic for common cases
 
 Because of (1), you must give a full triple (e.g. `x86_64-linux-gnu`) when cross compiling. We never infer facts about a cross compile from the host that builds it, because we have no information as to which ABI is preferred. Silently picking GNU over musl, for example, has no basis.
@@ -89,24 +90,27 @@ Because of (2), you can omit the ABI when you aren't crossing. This has some rea
 
 ### Linkage
 
-By default, `spn build` produces the most self contained binary that it can. There are three things that programs link to that affect their portability[^1]:
+By default, `spn build` produces the most self contained binary that it can. There are three things that programs control that affect their portability[^1]:
 
 | Field | What it links | How it can break |
 |---|---|---|
-| `static_deps` | Your dependencies (e.g `libcurl`)| If a program links to the system's `libcurl.so`, then it won't run on a system without it|
+| `static_deps` | Force dependencies to link statically unless explicitly asked | If a program links to the system's `libcurl.so`, then it won't run on a system without it |
 | `runtime` | Runtime support libraries (e.g. `libstdc++`, `libgcc`, or the CRT on Windows)| The ubiquitous "redistributables" problem on Windows, `libstdc++` on old Ubuntu, Yocto/Buildroot minimal systems |
 | `libc` | The C standard library | The mess of distributing Linux binaries that spawned entire ecosystems of tools like AppImage or Snap |
 
 Specify them like this:
 
 ```toml
-[profile.whatver]
+[profile.whatever]
 static_deps = true
 runtime = "static"
 libc = "shared"
 ```
 
-Different platforms have different stances on some or all of these knobs, and there's a huge variety in what's needed across different kinds of C programs. `spn` allows you to toggle `runtime` and `libc` between `static` and `shared`, plus toggle individual dependencies. Where the platform or toolchain doesn't support one of these, `spn` errors appropriately. For example:
+
+`spn` allows you to toggle `runtime` and `libc` between `static` and `shared`, plus toggle individual dependencies.
+
+Different platforms have different stances on some or all of these knobs. Where the platform or toolchain doesn't support one of these, `spn` errors appropriately. For example:
 - macOS forces you to link dynamically to `libSystem.dylib` (i.e. libc)
 - GNU's libc is famously antagonistic to static linkage, so `libc = "static"` requires (and infers) musl
 - Some sanitizers require the loader to be available, and produce an error otherwise
@@ -125,7 +129,6 @@ Generally, though, we aim to allow you to express any build you might need. Let'
 | A Windows binary which doesn't need redistributables | any | `static` | `static` | `msvc` | Like `/MT`; The UCRT, vcruntime, and the C++ STL all live inside the executable |
 | A plugin that gets loaded by a DAW | any | `shared` | `shared` |  | You *want* to share the host's runtime, so that an e.g. `std::string` can cross between your DLL and the host cleanly |
 | A fully sanitized build (ASan, TSan, MSan)|  |  | `shared` | any | These sanitizers don't work without a loader |
-
 
 ### Modes and optimization
 

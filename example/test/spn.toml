@@ -10,10 +10,10 @@ publish.include = [{ from = "calc.h" }]
 
 [[bin]]
 name = "main"
-source = ["main.c"]
+source = ["source/main.c"]
 deps = ["calc"]
 
 [[test]]
 name = "calc_test"
-source = ["test.c"]
+source = ["source/test.c"]
 deps = ["calc"]

@@ -1,0 +1,7 @@
+export const links = {
+  email: 'mailto:admin@spader.zone',
+  discord: {
+    public: 'https://discord.gg/7v4C5Kwsp7',
+    beta: 'https://spn.spader.zone/discord/beta',
+  },
+}

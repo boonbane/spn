@@ -1,0 +1,29 @@
+.narrow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-7);
+  max-width: 60ch;
+  margin-inline: auto;
+  padding-block: var(--s-11) var(--s-12);
+
+  @media (max-width: 480px) {
+    padding-block: var(--s-9) var(--s-10);
+  }
+
+  h1 {
+    font-size: var(--text-3xl);
+    font-weight: var(--weight-heavy);
+    line-height: var(--leading-tight);
+    letter-spacing: var(--tracking-tighter);
+    text-wrap: balance;
+
+    @media (max-width: 480px) {
+      font-size: var(--text-2xl);
+    }
+  }
+
+  .fine {
+    font-size: var(--text-sm);
+    color: var(--text-faint);
+  }
+}

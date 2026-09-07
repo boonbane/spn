@@ -32,9 +32,11 @@ compile_commands.json
 /.sp
 /test/render/.out
 /example/*/build
+/example/third_party/*/build
 /example/*/generated
-/example/*/imgui.ini
+/example/third_party/*/imgui.ini
 /example/*/spn.lock
+/example/third_party/*/spn.lock
 /docs/node_modules
 /docs/.astro
 /docs/dist
