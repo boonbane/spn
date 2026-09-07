@@ -1,15 +1,47 @@
 ---
 title: Quickstart
-order: 1
 ---
 
 import Install from '@spn/docs/components/Install.astro'
 
 ## Install
 
+`spn` doesn't provide any packages for OS package managers at the moment. Install by grabbing and running the latest install script, which you [can and should read](/docs/quickstart#installer):
+
 <Install />
 
-## Create a project
+This launches a short, interactive installer which will put `spn` on your `PATH` and configure your shell(s). Set `SPN_INSTALL_AUTO` for unattended installation. By default, it is installed to `$HOME/.spn/bin` everywhere.
+
+## Hello, world!
+
+To create a project:
+
+```sh
+spn init
+```
+
+This will create three files, `spn.toml`, `main.c`, and `.gitignore`, failing if any already exist. The command prompts you for a name, and creates a manifest like this:
+
+```toml
+[package]
+name = "hello"
+version = "0.1.0"
+
+[[bin]]
+name = "hello"
+source = ["main.c"]
+```
+
+Build your project:
+
+```sh
+spn build
+./build/debug/hello
+```
+
+By default, builds go in `build/$profile`, uses the `debug`, and compiles all libraries, executables, tests, and examples. Pass the name of a target to just build that target, or e.g. `--test` for just tests. Next, we'll look at how to use a dependency.
+
+## Dependencies
 
 Let's use the following program, which needs to link to Lua, as an example:
 
@@ -30,54 +62,61 @@ int main(void) {
 }
 ```
 
-## Add a dependency
-
-First, initialize your project. We'll pull Lua from [the default package index](https://github.com/tspader/spandex) for now; later, we'll talk about making your own packages.
+Since C, unlike many languages, has no central package registry, you need to choose where your Lua package comes from. Out of the box, you can use [spam](https://github.com/boonbane/spam)[^1], which has packages for many common C libraries written and maintained alongside `spn`. Add it, and then add Lua:
 
 ```sh
-spn init
+spn index add https://github.com/boonbane/spam.git
 spn add lua
 ```
 
-Those commands create a project manifest, `spn.toml`, which defines a single `[[bin]]` executable.
+This adds an entry to your manifest's `[deps.package]`. Packages can be vendored, or come from self-contained directories locally, or properly published to an index of releases; they can come from public or private repositories. You can read more about packaging [here](/docs/packages).
 
-```toml
-[package]
-name = "demo"
-version = "0.1.0"
-
-[[bin]]
-name = "demo"
-source = ["main.c"]
-
-[deps.package]
-lua = "5.4.6"
-
-```
-
-## Build and run
-
-Then, after copying the source code into `main.c`:
+With your new `main`, build:
 
 ```sh
 spn build
-./build/debug/demo
+./build/debug/hello
 ```
 
-## Cross compile
+## Cross compilation
 
-Cross compiling works out of the box. The following commands produce `build/x86_64-windows-gnu/debug/main.exe`, `build/aarch64-macos/debug/main`, and a bare metal `build/aarch64-freestanding-none/debug/main.elf` with no libc or startup files:
+Cross compilation is first class in `spn`. You can cross compile the same Lua example trivially:
 
 ```sh
 spn build --target x86_64-windows-gnu
 spn build --target aarch64-macos
-spn build --target aarch64-freestanding-none
+spn build --target x86_64-linux-gnu
 ```
 
-Congratulations! You now have a C program which:
-- Can be compiled to any OS, architecture, and ABI
-- Builds extremely quickly and incrementally
+When you explicitly pass a target, the build goes in `build/$target/$profile`. The above commands produce:
+- `build/x86_64-windows-gnu/debug/demo.exe`
+- `build/aarch64-macos-apple/debug/demo`
+- `build/x86_64-linux-gnu/debug/demo`
 
-## Editor setup
+## Build directory
 
-`spn` generates `compile_commands.json` out of the box, with no instrumentation needed.
+In addition to executables, the build directory for a given profile (e.g. `build/x86_64-windows-gnu/debug`) also contains:
+
+- `test/`, your test executables
+- `store/$pkg`, an insall prefix for every package in your workspace
+- `.spn/`, build metadata and work directories for metaprograms
+- `.spn/build.jsonl`, a rich, structured JSONL event stream from your build (equivalent to `--json` output)
+
+
+## compile_commands.json
+
+`spn` generates `compile_commands.json` out of the box, no configuration needed.
+
+
+## What's next?
+
+[](https://github.com/boonbane/spn/tree/main/example)
+
+
+## Installer
+
+The installer comes as either a [shell script](https://github.com/boonbane/spn/blob/main/tools/install/install.sh) or a [PowerShell script](https://github.com/boonbane/spn/blob/main/tools/install/install.ps1). Both of these scripts are extremely thin programs which mostly just download and verify the appropriate `spn` executable. Any logic is implemented in `spn` itself, and exposed via `spn self`.
+
+The entry point for that code is [here](https://github.com/boonbane/spn/blob/main/source/cli/commands/self.c), roughly. I encourage you (or your helpful digital assistant) to read these sources. If you find anything in the installer difficult, insecure, or in any way wrong, I'd be happy to hear from you on [our Discord](link:discord.public) or personally over [email](link:email).
+
+[^1]: spn's package manifests

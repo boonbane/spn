@@ -16,6 +16,8 @@
   </a>
 </p>
 
+# About
+
 `spn` is the missing everything tool for writing and building C code:
 - An extremely fast build system with a built-in object cache that's designed for CI
 - TOML manifests for defining projects
@@ -26,4 +28,4 @@ It ships as a single file static executable, or an embeddable library with a sta
 
 If any part of your build pipeline would benefit from fast, cached, reproducible compilation of C code backed by tools that are obsessed with making your life easier, then you're in the right place!
 
-**spn is in alpha**. Join [our Discord](https://discord.gg/7v4C5Kwsp7) if you'd like to chat, need help, or want to scream into the void that I'm wasting my life.
+**spn is in alpha**. Join [our Discord](link:discord.public) if you'd like to chat, need help, or want to scream into the void that I'm wasting my life.

@@ -1,0 +1,71 @@
+---
+title: Task runner
+readme: false
+---
+
+import Stub from '@spn/docs/components/Stub.astro'
+
+## Running tests
+
+<Stub />
+
+- `spn test` builds every `[[test]]` target and runs each one; `spn test NAME...` runs only the ones you name.
+- A test passes when it exits `0`.
+- Each test runs from the package's source directory, with no arguments and no stdin.
+- Output is shown only for a test that fails.
+- Every test runs even after one fails, and `spn test` exits `1` if any did.
+- To pass arguments to a test, run its binary yourself from `test/` in the build directory.
+- `spn test` takes `-p`, `-m`, `--opt`, `--sanitize`, `--toolchain`, and `--locked`, but not `--target`, so it can't run a cross compiled test.
+- `spn build` compiles tests without running them.
+
+## spn run and spn env
+
+<Stub />
+
+- `spn run CMD ARGS...` runs any command with the profile's toolchain on `PATH`.
+- It doesn't build or run your program; run your binary by its path.
+- `spn env` prints the same environment for a shell, as in `eval "$(spn env)"`.
+- `spn env --format` picks `sh` or `powershell`.
+- Both take `-p`, `--toolchain`, and `--target` to choose whose toolchain.
+
+## Tool targets
+
+<Stub />
+
+- A `[[tool]]` is a native program that `spn` builds on request and never runs.
+- Plain `spn build` skips tools; `spn build NAME` or `spn build --tool` builds them.
+- A tool lands at the top of the build directory, like a `[[bin]]`.
+- You run it yourself.
+- A dependency's tools are never built.
+
+## Tool dependencies
+
+<Stub />
+
+- A tool links `[deps.tool]`, plus the libraries of its own package that it lists in `deps`.
+- It doesn't see `[deps.package]`, so including a package dependency's header fails.
+- `spn add --tool NAME` writes to `[deps.tool]`.
+- `[deps.tool]` is read only from the root manifest, and resolves separately from `[deps.package]`.
+- A tool dependency can be a package with no targets, fetched only so the tool can read its source.
+
+## spn path
+
+<Stub />
+
+- `spn path` prints one absolute path, for use in scripts.
+- `spn path NAME` prints the source tree of your package or one of its package dependencies, without building anything.
+- For a package with `[package.upstream]`, that's the upstream checkout.
+- `spn path --tool-dep NAME` prints a tool dependency's source tree.
+- `spn path --tool NAME` builds the tool and prints its executable.
+
+## Vendoring
+
+<Stub />
+
+- For a generator that can't run in the [sandbox](/docs/metaprograms#sandboxing), generate out of band and commit the output.
+- Write a `[[tool]]` that finds its inputs with `spn path`, runs the generator, and writes into a folder beside `spn.toml`.
+- Commit that folder.
+- Point targets and `[package.publish]` at it with `tree = "manifest"`.
+- Rerun the tool yourself whenever upstream changes; `spn` never will, and stale output is a silent wrong result.
+- Pin with `=` any dependency the output was generated from, since a bare version floats.
+- Dependents never fetch or build your tools or your `[deps.tool]`.

@@ -1,0 +1,13 @@
+---
+title: Roadmap
+readme: false
+---
+
+import Stub from '@spn/docs/components/Stub.astro'
+
+## Linking
+
+<Stub />
+
+- A static library can't ask whatever links it for linker flags. Only libraries and frameworks travel with it, through `system_deps`; anything else, like `-Wl,-E` or whole-archive, has to be repeated in each dependent's `link_flags`.
+- A static library has no link step, so it can't be prelinked with `ld -r` or hide its internal symbols.

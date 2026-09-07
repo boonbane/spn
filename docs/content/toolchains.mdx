@@ -1,0 +1,99 @@
+---
+title: Toolchains
+readme: false
+---
+
+import Stub from '@spn/docs/components/Stub.astro'
+
+## Choosing a toolchain
+
+<Stub />
+
+- With no choice made, `spn` takes the first toolchain that can build the target with the requested sanitizers.
+- The builtin order is `zig`, `msvc`, `clang`, `llvm`, `gcc`, `wasi-sdk`.
+- `--toolchain NAME` or `toolchain` in a profile forces one.
+- A profile's `toolchain` can be a list gated by `os` and `arch`.
+- A project's `[[toolchain]]` wins over a user config one of the same name, and either replaces a builtin of that name.
+
+## System toolchains
+
+<Stub />
+
+- `clang`, `llvm`, `gcc`, and `msvc` are builtin names for compilers already on the machine.
+- `clang` and `gcc` are found on `PATH`.
+- `llvm` is `clang` with `lld` and `llvm-ar`.
+- `clang` and `gcc` build only for the machine they run on; `llvm` also targets the MSVC ABI.
+- [`host_deps`](/docs/dependencies#system-dependencies) need one of these, building for the host.
+- Their default sanitizer support is in [Availability](/docs/building#availability).
+
+## Zig
+
+<Stub />
+
+- `zig` is the default toolchain, at a pinned version.
+- `spn` downloads it into its toolchain directory on the first build and checks its checksum, so no compiler has to be installed.
+- It targets Linux (`gnu` and `musl`), Windows (`gnu` and `msvc`), macOS, WASI, and freestanding.
+- Metaprograms are always compiled with it, so a build with a metaprogram downloads it even under `--toolchain gcc`.
+- A build with another toolchain and no metaprogram doesn't fetch it.
+- An offline machine needs a filled `SPN_TOOLCHAIN_DIR`, or a `SPN_MIRROR` it can reach.
+
+## Probing
+
+<Stub />
+
+- `spn` never runs a compiler to find out what it supports.
+- What a toolchain can target, and with which sanitizers, comes from its declaration.
+- The builtin system toolchains carry default declarations, which can't match every install.
+- If yours differs, redeclare it under the same name.
+
+## Custom toolchains
+
+### [[toolchain]]
+
+<Stub />
+
+- Declare one in the project manifest or the user config.
+- `name`, `driver`, `compiler`, and `archiver` are required.
+- `driver` is the command line the compiler speaks: `gcc`, `clang`, `msvc`, or `zig`.
+- `cxx`, `linker`, and `link_args` are optional.
+- Reusing a builtin name replaces the builtin.
+
+```toml
+[[toolchain]]
+name = "aarch64-gnu"
+driver = "gcc"
+compiler = "aarch64-linux-gnu-gcc"
+archiver = "aarch64-linux-gnu-ar"
+target = [{ arch = "aarch64", os = "linux", abi = "gnu" }]
+```
+
+### Hosted artifacts
+
+<Stub />
+
+- `host` maps a host like `x86_64-linux` to an archive's `url` and `sha256`, and `spn` downloads and verifies it.
+- `compiler`, `archiver`, and `cxx` are then paths inside the archive.
+- An empty entry (`x86_64-linux = {}`) says the toolchain runs on that host and is already installed.
+- `mirrors` is the URL of a list of mirrors.
+
+### Target support
+
+<Stub />
+
+- `target` lists what the toolchain can build for; without it, only the host.
+- A row is `{ arch, os, abi }`, or the string `"host"`.
+- `sdk` is the path to the sysroot or SDK for that row.
+- `sanitizers` lists the sanitizers the toolchain has for that row; anything unlisted is refused.
+- `spelling` is the triple to pass the compiler when it isn't `spn`'s.
+
+## MSVC
+
+<Stub />
+
+- On Windows, the default build is `zig` with the MinGW ABI, and needs no Visual Studio.
+- `--abi msvc` builds for the MSVC ABI, and `--toolchain msvc` uses `cl.exe`.
+- The MSVC ABI needs Visual Studio's libraries and the Windows SDK.
+- `spn` finds them itself; no Developer Command Prompt is needed.
+- `msvc = { toolset = "v143", sdk = "10.0.22621" }` in a profile picks versions.
+- `spn msvc` prints the MSVC environment, or runs a command in it.
+- From another host, the SDK has to be declared with `sdk` on a [target row](/docs/toolchains#target-support).

@@ -1,24 +1,69 @@
 {
   "metadata": { "format": "toml" },
   "optionalProperties": {
-    "index": { "elements": { "ref": "index" } },
-    "toolchain": { "elements": { "ref": "toolchain_decl" } },
+    "index": {
+      "elements": { "ref": "index" },
+      "metadata": {
+        "doc": "Package indexes for every project, searched after the project's own"
+      }
+    },
+    "toolchain": {
+      "elements": { "ref": "toolchain_decl" },
+      "metadata": {
+        "doc": "Toolchains for every project. A project's toolchain of the same name wins"
+      }
+    },
     "net": { "ref": "net" },
     "cache": { "ref": "cache" }
   },
   "definitions": {
     "net": {
       "optionalProperties": {
-        "timeout": { "type": "uint64" },
-        "ca_bundle": { "type": "string" },
-        "system_git": { "type": "boolean" }
+        "timeout": {
+          "type": "uint64",
+          "metadata": {
+            "default": "30",
+            "doc": "Seconds to wait to connect to a server, and for a stalled transfer to make progress, before giving up. It must be at least `1`; values above `65535` are treated as `65535`"
+          }
+        },
+        "ca_bundle": {
+          "type": "string",
+          "metadata": {
+            "doc": "Path to a PEM file of trusted root certificates"
+          }
+        },
+        "system_git": {
+          "type": "boolean",
+          "metadata": {
+            "default": false,
+            "doc": "Clone and fetch every index and Git dependency with the `git` on your `PATH`, not only the ones that need your credentials"
+          }
+        }
       }
     },
     "cache": {
       "optionalProperties": {
-        "max_size": { "type": "uint64" },
-        "min_age": { "type": "uint64" },
-        "sweep_interval": { "type": "uint64" }
+        "max_size": {
+          "type": "uint64",
+          "metadata": {
+            "default": "10",
+            "doc": "Size in GiB the build cache may reach before `spn` evicts from it. `0` means no limit, and nothing is evicted automatically"
+          }
+        },
+        "min_age": {
+          "type": "uint64",
+          "metadata": {
+            "default": "3600",
+            "doc": "Seconds an entry is kept after its last use, whatever the size of the cache. Values below `600` are treated as `600`"
+          }
+        },
+        "sweep_interval": {
+          "type": "uint64",
+          "metadata": {
+            "default": "600",
+            "doc": "Seconds between checks of the size of the cache"
+          }
+        }
       }
     }
   }

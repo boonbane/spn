@@ -1,7 +1,7 @@
 ---
 title: Workspaces
-order: 11
 site: false
+readme: false
 ---
 
 ## `spn` is a task runner

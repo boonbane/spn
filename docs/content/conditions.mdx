@@ -1,0 +1,117 @@
+---
+title: Conditional compilation
+readme: false
+---
+
+import Stub from '@spn/docs/components/Stub.astro'
+
+Any field in your package can be keyed on any fact of the build (target OS, architecture, ABI, build mode, optimization level, sanitizer settings). Clauses are structured data, not a DSL, and an entry with multiple clauses gets them ANDed together. Here's some common examples:
+
+```toml
+source = [
+  { path = "source/backend/win32.c", when = { os = "windows" } },
+  { path = "source/backend/posix.c", when = { os = { not = "windows" } } },
+]
+flags = [
+  { value = "-mfpu=neon", when = { os = "linux", arch = "aarch64" } },
+]
+define = [
+  { value = "USE_DEBUG_ALLOC", when = { mode = "debug", sanitize_address = false } },
+]
+system_deps = [
+  { value = "pthread", when = { os = { not = "windows" } } },
+]
+deps = [
+  { pkg = "tracy", when = { mode = "debug" } },
+]
+```
+
+## when clauses
+
+<Stub />
+
+- `when` is a table on an entry, and the entry applies only when every key in it matches.
+- A value is a string, a bool, or `{ not = value }`.
+- There is no "or": repeat the entry once per condition.
+- A source that matches twice that way compiles once.
+- Keys are [build facts](/docs/conditions#fact-keys) or this package's own options; a dependency's options aren't visible.
+- It works on entries in `source`, `include`, `define`, `flags`, `link_flags`, `system_deps`, `host_deps`, `embed`, target `deps`, `[package.publish]`, and `[deps.*]`.
+- A target has no `when`; gate each of its sources.
+- In a profile, a `when` accepts only `os` and `arch`.
+- In `[package.configure]` and `[package.build]`, a `when` accepts facts but not options.
+
+## Fact keys
+
+<Stub />
+
+- `os`: `linux`, `macos`, `windows`, `wasi`, `freestanding`
+- `arch`: `x86_64`, `aarch64`, `wasm32`
+- `abi`: `gnu`, `musl`, `msvc`, `apple`, `none`, `elf`
+- `driver`: `gcc`, `clang`, `msvc`, `zig`
+- `linker`: `gnu`, `lld`, `ld64`, `msvc`
+- `mode`: `debug`, `release`
+- `opt`: `0`, `1`, `2`, `3`, `s`, `z`
+- `sanitize_address`, `sanitize_thread`, `sanitize_undefined`, `sanitize_memory`, `sanitize_leak`: `true` or `false`
+- Facts describe the target being built, not the machine doing the build.
+- The bundled zig is `driver = "zig"`, so `driver = "clang"` doesn't match it.
+
+## Options
+
+Packages provide options. Options can be enumerations or booleans; enums are mutually exclusive, and an unresolvable conflict is a build error. Booleans are additive. For example:
+
+```toml
+[options.tls]
+type = "enum"
+values = ["schannel", "openssl", "off"]
+default = [
+  { when = { os = "windows" }, value = "schannel" },
+  { when = { os = { not = "wasi" } }, value = "openssl" },
+  { value = "off" },
+]
+
+[options.zstd]
+type = "bool"
+default = false
+```
+
+Consumers can then [set these options](/docs/dependencies#options)
+
+### Options as keys
+
+Options declared in the manifest work as keys, too, so a feature flag can gate sources and dependencies together:
+
+```toml
+[options.freetype]
+type = "bool"
+default = true
+define = "UI_FREETYPE"
+
+[[lib]]
+name = "ui"
+source = [
+  { path = "source/text_freetype.c", when = { freetype = true } },
+]
+deps = [
+  { pkg = "freetype", when = { freetype = true } },
+]
+```
+
+### Setting options
+
+<Stub />
+
+- Your own package's options are set in a profile's `options` table; there is no command line flag.
+- A dependency's options are set in `[config.foo] options` in the root manifest, which wins over everything.
+- `options` on a dependency entry is a request, and every package that asks has to agree.
+- `[config]` and `[profile]` are read only from the root, so a package that needs an option on its own dependency asks on the entry.
+
+```toml
+[profile.default]
+options = { freetype = false }
+
+[config.foo]
+options = { tls = "openssl" }
+
+[deps.package]
+foo = { version = "6.9.0", options = { zstd = true } }
+```

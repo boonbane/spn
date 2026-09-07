@@ -1,0 +1,14 @@
+[package]
+name = "qr"
+version = "0.1.0"
+
+[[bin]]
+name = "main"
+source = ["main.c"]
+
+[[index]]
+name = "spam"
+url = "https://github.com/boonbane/spam.git"
+
+[deps.package]
+qrcodegen = "1.8.0"

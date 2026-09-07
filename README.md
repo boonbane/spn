@@ -16,6 +16,8 @@
   </a>
 </p>
 
+# About
+
 `spn` is the missing everything tool for writing and building C code:
 - An extremely fast build system with a built-in object cache that's designed for CI
 - TOML manifests for defining projects
@@ -32,19 +34,52 @@ If any part of your build pipeline would benefit from fast, cached, reproducible
 
 ## Install
 
+`spn` doesn't provide any packages for OS package managers at the moment. Install by grabbing and running the latest install script, which you [can and should read](#installer):
+
 ### macOS & Linux
 
 ```sh
-curl -fsSL https://spn.spader.zone/install | sh
+curl -fsSL https://github.com/boonbane/spn/releases/latest/download/install.sh | sh
 ```
 
 ### Windows
 
 ```powershell
-irm https://spn.spader.zone/install.ps1 | iex
+irm https://github.com/boonbane/spn/releases/latest/download/install.ps1 | iex
 ```
 
-## Create a project
+This launches a short, interactive installer which will put `spn` on your `PATH` and configure your shell(s). Set `SPN_INSTALL_AUTO` for unattended installation. By default, it is installed to `$HOME/.spn/bin` everywhere.
+
+## Hello, world!
+
+To create a project:
+
+```sh
+spn init
+```
+
+This will create three files, `spn.toml`, `main.c`, and `.gitignore`, failing if any already exist. The command prompts you for a name, and creates a manifest like this:
+
+```toml
+[package]
+name = "hello"
+version = "0.1.0"
+
+[[bin]]
+name = "hello"
+source = ["main.c"]
+```
+
+Build your project:
+
+```sh
+spn build
+./build/debug/hello
+```
+
+By default, builds go in `build/$profile`, uses the `debug`, and compiles all libraries, executables, tests, and examples. Pass the name of a target to just build that target, or e.g. `--test` for just tests. Next, we'll look at how to use a dependency.
+
+## Dependencies
 
 Let's use the following program, which needs to link to Lua, as an example:
 
@@ -65,67 +100,64 @@ int main(void) {
 }
 ```
 
-## Add a dependency
-
-First, initialize your project. We'll pull Lua from [the default package index](https://github.com/tspader/spandex) for now; later, we'll talk about making your own packages.
+Since C, unlike many languages, has no central package registry, you need to choose where your Lua package comes from. Out of the box, you can use [spam](https://github.com/boonbane/spam)[^1], which has packages for many common C libraries written and maintained alongside `spn`. Add it, and then add Lua:
 
 ```sh
-spn init
+spn index add https://github.com/boonbane/spam.git
 spn add lua
 ```
 
-Those commands create a project manifest, `spn.toml`, which defines a single `[[bin]]` executable.
+This adds an entry to your manifest's `[deps.package]`. Packages can be vendored, or come from self-contained directories locally, or properly published to an index of releases; they can come from public or private repositories. You can read more about packaging [here](#packages).
 
-```toml
-[package]
-name = "demo"
-version = "0.1.0"
-
-[[bin]]
-name = "demo"
-source = ["main.c"]
-
-[deps.package]
-lua = "5.4.6"
-
-```
-
-## Build and run
-
-Then, after copying the source code into `main.c`:
+With your new `main`, build:
 
 ```sh
 spn build
-./build/debug/demo
+./build/debug/hello
 ```
 
-## Cross compile
+## Cross compilation
 
-Cross compiling works out of the box. The following commands produce `build/x86_64-windows-gnu/debug/main.exe`, `build/aarch64-macos/debug/main`, and a bare metal `build/aarch64-freestanding-none/debug/main.elf` with no libc or startup files:
+Cross compilation is first class in `spn`. You can cross compile the same Lua example trivially:
 
 ```sh
 spn build --target x86_64-windows-gnu
 spn build --target aarch64-macos
-spn build --target aarch64-freestanding-none
+spn build --target x86_64-linux-gnu
 ```
 
-A kernel image needs its own memory layout. Give the target a linker script and any raw flags the link needs:
+When you explicitly pass a target, the build goes in `build/$target/$profile`. The above commands produce:
+- `build/x86_64-windows-gnu/debug/demo.exe`
+- `build/aarch64-macos-apple/debug/demo`
+- `build/x86_64-linux-gnu/debug/demo`
 
-```toml
-[[bin]]
-name = "kernel"
-source = ["kernel.c", "start.S"]
-linker_script = ["kernel.ld"]
-link_flags = ["-Wl,--build-id=none", "-Wl,-n"]
-```
+## Build directory
 
-Congratulations! You now have a C program which:
-- Can be compiled to any OS, architecture, and ABI
-- Builds extremely quickly and incrementally
+In addition to executables, the build directory for a given profile (e.g. `build/x86_64-windows-gnu/debug`) also contains:
 
-## Editor setup
+- `test/`, your test executables
+- `store/$pkg`, an insall prefix for every package in your workspace
+- `.spn/`, build metadata and work directories for metaprograms
+- `.spn/build.jsonl`, a rich, structured JSONL event stream from your build (equivalent to `--json` output)
 
-`spn` generates `compile_commands.json` out of the box, with no instrumentation needed.
+
+## compile_commands.json
+
+`spn` generates `compile_commands.json` out of the box, no configuration needed.
+
+
+## What's next?
+
+[](https://github.com/boonbane/spn/tree/main/example)
+
+
+## Installer
+
+The installer comes as either a [shell script](https://github.com/boonbane/spn/blob/main/tools/install/install.sh) or a [PowerShell script](https://github.com/boonbane/spn/blob/main/tools/install/install.ps1). Both of these scripts are extremely thin programs which mostly just download and verify the appropriate `spn` executable. Any logic is implemented in `spn` itself, and exposed via `spn self`.
+
+The entry point for that code is [here](https://github.com/boonbane/spn/blob/main/source/cli/commands/self.c), roughly. I encourage you (or your helpful digital assistant) to read these sources. If you find anything in the installer difficult, insecure, or in any way wrong, I'd be happy to hear from you on [our Discord](https://discord.gg/7v4C5Kwsp7) or personally over [email](mailto:admin@spader.zone).
+
+[^1]: spn's package manifests
 
 # Overview
 
@@ -141,120 +173,303 @@ Let's take a look at everything it can do in more detail!
 
 # Packages
 
-Packages are defined by TOML manifests.
+A *package* is a collection of executables and libraries, tests, and examples, called *targets*. Targets have fields like `source`, or `include`, or `system_deps`, and most fields can be configured at the package level for all targets or for an individual target.
+
+We'll cover conditional compilation on [the next page](https://spn.spader.zone/docs/conditions), but for now it's enough to know that nearly every field can be set conditionally with a `when` clause:
+
+```toml
+[[lib]]
+system_deps = {
+  { lib = "advapi32", when = { os = "windows" } },
+}
+source = [
+  { path = "src/audio/pipewire/*.c", when = { os = "linux", pipewire = true } },
+]
+```
 
 ## Targets
 
-A package can define as many executables, libraries, tests, and examples as it would like. These are called *targets*. They have fields like `source`, or `include`, or `system_deps`, and most fields can be configured at the package level for all targets or for an individual target.
+There are five kinds of targets, as shown in the example above.
 
 ```toml
 [package]
+name = "foo"
 include = ['common']
 
 [[lib]]
+name = "foo"
 source = ['source/lib.c']
 include = ['source/lib']
 
 [[example]]
-source = ['example/foo/main.c']
+name = "kram"
+source = ['example/kram.c']
 
 [[test]]
+name = "unit"
 source = ['test/main.c', 'test/foo.c']
-define = ['SOMETHING']
+define = ['BAR', 'BAZ=69']
 system_deps = ['m']
+
+[[tool]]
+name = "serve"
+source = ['tools/server.c']
+deps = ['foo']
 ```
 
-A `[[bin]]` and a `[[tool]]`, for instance, are both executables, but their difference isn't strictly cosmetic. `[[bin]]` entries are taken to be *exports* of your package, able to be pulled in by consumers. `[[tool]]` entries aren't. `[[test]]` entries are executed in `spn test`, and compiled to `test/` instead of `bin/`.
+### Executables
 
-## Target fields
+`[[bin]]`. These are executables which are exported by your package. They're placed at your build's top level, `$build`.
 
-### source
+### Libraries
 
-### include and headers
+`[[lib]]`. These are libraries which are exported by your package. Every `[[lib]]` declared by a dependency is compiled unconditionally, and no executables are compiled.
 
-### define and flags
+A library declares the linkages it supports with the `kinds` field. For example, a library that can't work when compiled statically:
+
+```toml
+[[lib]]
+kinds = ["shared"]
+```
+
+### Examples
+
+``[[example]]`. These are examples, placed in `$build/example/`
+
+### Tests
+
+`[[test]]`. These are tests, for some definition of the word test. `spn` has no test framework or integration with one. Instead, `[[test]]` executables are reguler executables which:
+- Are not exported
+- Have their own dependencies in `[deps.test]`.
+
+`spn test` runs all such executables and treats a nonzero exit code as failure. For more information, read about [the task runner features](https://spn.spader.zone/docs/task) of `spn`.
+
+### Tools
+
+`[[tool]]`. These are executables that aren't exported by your package. They're used like `scripts` in a `package.json`, (usually) simple, native tools that you run locally. They have their own dependencies in `[deps.tool]`.
+
+### Metaprograms
+
+`[package.configure]` and `[package.build]`. Metaprograms are just like any other executable, except that they're compiled to WebAssembly and run inside a sandbox in your build. For more information, check out the [documentation on metaprograms](https://spn.spader.zone/docs/metaprograms).
+
+Unlike other targets, metaprograms are restricted to one per package (i.e. one configure metaprogram, one build metaprogram).
+
+## Shared fields
+
+Several target fields can also be declared at the package's top level (`include`, `define`, `system_deps`, `host_deps`, and `macos`). These are merged in to each target. For example, the following executable would get `common/` and `special/` as its include directories:
+
+```toml
+[package]
+include = ["common"]
+
+[[bin]]
+include = ["special"]
+```
+
+For a full list of fields, see [the manifest reference](https://spn.spader.zone/docs/manifest).
+
+
+## Sources
+
+The `source` field lists a target's sources. Each entry is either a plain string, for common files and globs, or a table, when the entry is conditional or not in the repository (more on these in a bit).
+
+Paths are always relative, must use forward slashes, and cannot contain `.` or `..` segments. Code outside the package's directory
+
+Finally, language is inferred from the entry's extension:
+- `.cpp`, `.cc`, `.cxx`, `.c++`, and `.C` compile as C++
+- `.s`, `.S`, and `.asm` compile as assembly
+- Everything else compiles as C (e.g. `.m` files)
+
+### Globs
+
+Paths can be written as globs. `spn` implements shell-style globs, plus `**`. That means you can use `*`, `**`, `?`, `[a-z]`, `[!a-z]`, `[^a-z]`, and `{a,b}`. Wildcards also match directory components. It differs from how the shell usually works in a few ways:
+- `*` matches dotfiles
+- `**` matches at any depth
+- `*` and `?` never cross a separator
+- There's no escaping. `\` is just rewritten to `/`
+- Matching is byte-exact on every OS, so e.g. `*.c` doesn't match `FOO.C`
+- Unlike `.gitignore`, where `foo/` matches `a/b/foo`, our patterns are checked from the top level
+
+### Trees
+
+Sometimes, a file doesn't live in your repository:
+- Files generated by a [metaprogram](https://spn.spader.zone/docs/metaprograms#using-generated-files)
+- Source-relative files when [packaging an upstream repository](https://spn.spader.zone/docs/packaging#starting-a-package) (e.g. you want to refer to `example/foo.c` from `libfoo`, but your repository only contains a manifest)
+
+To this end, you can specify which tree a path is relative to by using the table form:
+
+```toml
+[[example]]
+source = [
+  { path = "example/foo.c", tree = "source" },
+  { path = "src/whatever.c", tree = "manifest" },
+  "example/common/*.c" # Implicitly source-rooted
+]
+```
+
+This lets you mix between files *you* wrote (`whatever.c`) and files that *upstream* wrote (`foo.c`), without forking or patching.
+
+
+## Headers
+
+`[package.include]` is to include directories as `source` is to sources; they can be single entries or globs, and they can be plain strings or tables. Unlike sources, `.` is allowed as a special case to mean the top level.
+
+```toml
+[package]
+include = [
+  ".",
+  "common/"
+  { path = "include/", tree = "source" },
+  { path = "my_special_includes/", tree = "manifest" },
+  { path = "generated/", tree = "work" },
+]
+```
+
+Paths listed under `[package.include]` are not exported, just shared between your targets. If you're looking to publish headers to packages that consume you, [see here](#exports).
+
+## Preprocessor
+
+`[package.define]` is an array of entries of the form `NAME` or `NAME=VALUE`. Each definition is private to this package's compilation. To publish preprocessor definitions to consumers, [see here](#publishing-defines).
+
+## Flags
+
+You can forward custom flags verbatim to the compiler and linker with `flags` and `link_flags`, respectively. Use `when` clauses with `driver` as the predicate to limit the flags to where they're needed.
+
+`link_flags` only apply to the target's own link. They aren't added to a consumer's link line. Moreover, since static libraries are not linked, merely archives, these flags only apply to shared libraries.
+
+## C standard
+
+C is compiled as strict C11 (`-std=c11`) by default. `spn` supports the following: `c89`, `c99`, `c11`, `gnu89`, `gnu99`, `gnu11`. Until newer standards are added, pass them as `flags`.
+
+Many functions which one might assume are standard parts of C, like `strdup` or `clock_gettime`, are actually POSIX or GNU extensions. `spn` doesn't yet have a way for packages to communicate the standard they require to their consumers, so fix this by defining the corresponding feature macro (e.g. `_GNU_SOURCE` or `_POSIX_C_SOURCE=200809L`) until then.
+
+## C++
+
+The `cxx` field on a target controls C++ settings. `spn` exposes `standard`, `exceptions`, and `rtti`; for a full list of values and defaults, see [the manifest reference](https://spn.spader.zone/docs/manifest#cxx_options).
+
+C programs that link a static library containing C++ get the C++ runtime automatically.
+
+### Exceptions
+
+Under WASM, exceptions are off by default. They're also enabled at the toolchain level, since driver support is spotty and differs between the same driver across different toolchains.
+
+## Dependencies
+
+Each kind of executable (`bin`, `test`, `example`, `tool`, plus metaprogram) can have its own dependencies. An executable's `deps` name other packages or targets within your own package. When a package is named, the executable links to every library in that package.
 
 ### system_deps
 
-### deps
-
-### kinds
-
-### cxx
-
-## System dependencies
-
-
-
-## Conditional configuration
-
-Any field in your package can be keyed on any fact of the build (target OS, architecture, ABI, build mode, optimization level, sanitizer settings). Clauses are structured data, not a DSL, and an entry with multiple clauses gets them ANDed together. Here's some common examples:
+`system_deps` are libraries provided by the *target*, like `m`, or `ws2_32`, or macOS frameworks like `Cocoa`. They are always spelled as a table:
 
 ```toml
-source = [
-  { path = "source/backend/win32.c", when = { os = "windows" } },
-  { path = "source/backend/posix.c", when = { os = { not = "windows" } } },
-]
-flags = [
-  { value = "-mfpu=neon", when = { os = "linux", arch = "aarch64" } },
-]
-define = [
-  { value = "USE_DEBUG_ALLOC", when = { mode = "debug", sanitize_address = false } },
-]
+[package]
 system_deps = [
-  { value = "pthread", when = { os = { not = "windows" } } },
-]
-deps = [
-  { pkg = "tracy", when = { mode = "debug" } },
+  { lib = "advapi32", when = { os = "windows" } },
+  { lib = "m", when = { os = "linux" } },
+  { framework = "Cocoa" },
 ]
 ```
 
-### when clauses
+These can of course be specified as raw `link_flags`, but `system_deps` will automatically spell them for the linker in use. Since `system_deps` are by definition platform specific, you'll usually use them with a `when` clause (except `framework`, which is automatically ignored when not targeting macOS).
 
-### Fact keys
+A static library's `system_deps` follow it to whatever links it. You don't need to re-declare your dependencies' `system_deps`.
 
-### Options as keys
+### host_deps
 
-Options declared in the manifest work as keys, too, so a feature flag can gate sources and dependencies together:
+`host_deps` are libraries provided by the *host* i.e. the build machine. They are [discouraged](https://spn.spader.zone/docs/dependencies#system-dependencies), and they disable cross compilation. However, tools exist to serve, not to artificially restrict or get in the way, so when you just want to link to something on the build machine this field is available.
+
+
+## Exports
+
+`[package.publish]`
+
+Let's say that you have these headers:
+
+```
+foo/
+  bar/
+    b.h
+  baz/
+    qux/
+      c.h
+    spum/
+      d.h
+  a.h
+```
+
+And you publish them like so, flattening out `baz` and otherwise treating `foo` as the top level:
 
 ```toml
-[options.freetype]
-type = "bool"
-default = true
-define = "UI_FREETYPE"
-
-[[lib]]
-name = "ui"
-source = [
-  { path = "source/text_freetype.c", when = { freetype = true } },
-]
-deps = [
-  { pkg = "freetype", when = { freetype = true } },
+[package.publish]
+include = [
+  { from = "foo/*.h"},
+  { from = "foo/bar/*.h", to = "bar" },
+  { from = "baz/**/.*.h", to = "baz" },
 ]
 ```
 
-## Options
+You'd end up with this:
 
-Packages provide options. Options can be enumerations or booleans; enums are mutually exclusive, and an unresolvable conflict is a build error. Booleans are additive. For example:
+```
+include/
+  a.h
+  bar/
+    b.h
+  baz/
+    c.h
+    d.h
+```
+
+### Publishing defines
+
+> This section is a stub.
+
+- `[package.publish] define` lists macros that dependents compile with.
+- A bool [option](https://spn.spader.zone/docs/conditions#options) with `define` and `public = true` does the same while the option is on.
+- Publish any macro that changes your public headers, like a static linking switch or one that changes a struct layout.
+- Without it, the package and its dependents silently compile the same header differently.
+- `[package.publish] system_deps` lists system libraries that dependents link.
+
+### Library kinds
+
+> This section is a stub.
+
+- `kinds` is `static`, `shared`, or both, and `["static"]` when omitted.
+- Offer `shared` only when upstream supports a shared build.
+- A dependent links the static kind when the library offers it, unless the root sets [`[config.foo] kind`](https://spn.spader.zone/docs/dependencies#linkage).
+- Which kinds are built for your own package is the profile's [`emit`](#libraries-1).
+
+Targets declare what kinds of linkage they support:
+- `static`
+- `shared`
+- `object`, which skips the linker and directly publishes object files to `lib/`
+- `source`, which means that the component object files are compiled directly into your program
+
+These kinds are opt-in; there's no default, and you must declare what you support. A target can also set `link = false` to simply compile the sources without linking them[^1].
+
+`kinds` lists what a library can be built as. The default is `["static"]`.
+
+| Kind | Output |
+|---|---|
+| `static` | An archive (`libfoo.a`, or `foo.lib` for MSVC) |
+| `shared` | `libfoo.so`, `libfoo.dylib`, or `foo.dll` with `foo.dll.lib` to link against. On WebAssembly, a module (`foo.wasm`) that exports the library's functions |
+
+A WebAssembly module can't be linked against, so a library that other targets link needs `static` there.
+
+### Header-only packages
+
+`spn` is perfectly happy with header only packages. That includes single header libraries, like `sokol`, as well as packages that provide headers for a system library like X11 or PulseAudio.
+
+For true header only libraries, you don't need a `[[lib]]` target. Such a library is just:
 
 ```toml
-[options.tls]
-type = "enum"
-values = ["schannel", "openssl", "off"]
-default = [
-  { when = { os = "windows" }, value = "schannel" },
-  { when = { os = { not = "wasi" } }, value = "openssl" },
-  { value = "off" },
-]
-
-[options.zstd]
-type = "bool"
-default = false
+[package.publish]
+include = [...]
 ```
 
-Consumers can then [set these options](#options-1)
+With no library to carry them, the package's `system_deps` and `define` don't reach dependents; put them in `[package.publish]`.
 
-## Platforms
+## Platform specific
 
 ### macOS
 
@@ -276,9 +491,15 @@ When linking, your binary's `min_os` is the max across everything in it. If a de
 windows = { subsystem = "windows" }
 ```
 
-## Embedding files
+## Embedding files in binaries
 
-`spn` can embed arbitrary files and bytes (from build scripts) in your binary by creating an object file and header that anything can link to trivially. For example, this configuration:
+`spn` can embed arbitrary files and bytes in your binary. This is a very common way to ship a program with fonts, shaders, assets, etc. without depending on a filesystem at runtime.
+
+Embedded files are specified in TOML. `spn` creates:
+- An object file containing the literal bytes
+- A header file with metadata for use in your program
+
+Each entry names a file (or, with `dir = true`, every file under a directory) and the path it is embedded as; the symbol is that path with `/`, `\\`, `.`, and `-` replaced by `_`. For example, this configuration:
 
 ```toml
 [[bin]]
@@ -286,7 +507,7 @@ name = "whatever"
 source = ["main.c"]
 embed = [
   "asset/fonts/inconsolata.ttf",
-  { path = "asset/data.json", symbol = "data_json", data_type = "u8", size_type = "u64" },
+  { path = "asset/data.json", dest = "data.json", data_type = "u8", size_type = "u64" },
   { path = "asset/shaders", dir = true, dest = "shaders" },
 ]
 ```
@@ -320,82 +541,7 @@ static const spn_embed_entry_t spn_embed_manifest[] = {
 };
 ```
 
-# Dependencies
-
-`spn` is a real package manager, built specifically for C and C++.
-
-## Local dependencies
-
-The simplest dependency is a path to a directory with an `spn.toml`:
-
-```toml
-[deps.package]
-foo = { path = "packages/foo" }
-```
-
-And this is what the package might look like:
-
-```toml
-[package]
-name = "foo"
-version = "6.9.0"
-
-[[lib]]
-name = "foo"
-source = ["foo.c"] # Relative to foo's manifest
-```
-
-This is just an old fashioned vendored dependency. You could download LLVM, check in the entire source tree, and have an `spn.toml` that builds this local copy. If you then regained your sanity, you can point the exact same manifest at Git and `spn` will manage the checkout for you *exactly* as if it were an "official" package:
-
-```toml
-[package.upstream]
-url = "https://github.com/tspader/foo.git"
-commit = "6937fa02243da7b693c5692cea84a696950d4669"
-```
-
-## Conditional and private dependencies
-
-## Configuration
-
-### Options
-
-Packages can [provide options](#options), either as an enumeration or a boolean. Options for `foo` are set in `[config.foo]`, like this:
-
-```toml
-[config.foo]
-tls = "openssl"
-zstd = true
-```
-
-### Linkage
-
-Libraries declare the linkages they support:
-- `shared`
-- `static`
-- `source`, which compiles the package's sources directly into your target as if they were your own files.
-
-```toml
-[config.foo]
-kind = "shared"
-```
-
-## Patching
-
-What if you need to patch `foo`? You don't want to go back to the technology of the ancients, like submodules or vendoring. You want a specific commit with just a few changes. Do this in your `spn.toml`:
-
-```toml
-[deps.package]
-foo = "6.9.0"
-
-[patch.foo]
-files = ["patches/foo.patch"]
-```
-
-That's it! Patches fold into the build system like everything else. If you change the contents of a patch, add or remove patches, you'll still get a correct, incremental build.
-
-Your dependencies can't patch. If you ask for a given commit, you get exactly that commit.
-
-## The lockfile
+[^1]: For example, `tinycc` wants to compile `libtcc1.a`, which is the compiler's runtime library that it links into programs it compiles. It's not linked into the `tcc` binary itself; think of it like an asset that `tcc` wants available at runtime. It's a binary produced from C and Assembly code, so `spn` should damn well be able to build is as part of its build, but it doesn't get *linked* into anything, and it doesn't get *published*, so `object` isn't appropriate either.
 
 # Building
 
@@ -419,31 +565,32 @@ build/
     └── debug/
 ```
 
-Inside a given build, each executable is placed at the top level beside the shared libraries it needs, so it runs from there and the directory ships as-is. Tests and examples get the same treatment under `test/` and `example/`. Every package, including your dependencies, has its own prefix under `store/` holding the headers, libraries, and binaries it produced. Finally, a JSONL file with a detailed trace of the build is in `.spn/build.jsonl`
+Inside a given build, each executable is placed at the top level. The shared libraries it needs (itself or transitively) are staged next to it. The executable is relocatable.
+
+Tests and examples get the same treatment under `test/` and `example/`. Every package, including your dependencies, has its own prefix under `store/` holding the headers, libraries, and binaries it produced. Finally, a [JSONL file with a detailed trace of the build](#json-event-stream) is in `.spn/build.jsonl`
 
 ```
 build/debug/
-├── main.exe
-├── whatever.dll
+├── foo.exe
+├── bar.dll
 ├── store/
-│   ├── my-package/
+│   ├── foo/
 │   │   └── bin/
-│   │       └── main.exe
-│   └── whatever/
+│   │       └── foo.exe
+│   └── bar/
 │       ├── lib/
-│       │   └── whatever.dll
+│       │   └── bar.dll
 │       └── include/
-│           ├── whatever.h
+│           ├── bar.h
 │           └── ...
 └── .spn/
     └── build.jsonl
 ```
 
-## Selecting targets
 
-### Profiles
+## Profiles
 
-Packages are compiled against a profile, which contains the target triple, toolchain, build mode, optimization level, sanitizers, etc.
+Packages are compiled against a profile, which contains the target triple, toolchain, build mode, optimization level, sanitizers, etc. `spn` bakes in two profiles, `debug` and `release`, and reserves `[profile.default]` as the base fields which every profile uses unless overridden.
 
 ```toml
 [profile.default]
@@ -451,378 +598,270 @@ toolchain = "zig"
 static_deps = true
 standard = "c11"
 mode = "debug"
+
+[profile.debug]
+opt = "2"
+
+[profile.foo]
+abi = { value = "gnu", when = { os = "linux" } }
+toolchain = [
+  { value = "clang", when = { os = "macos" } },
+  { value = "gcc" },
+]
 ```
 
-### Modes and optimization
+Here, `debug` applies optimization on top of the default profile, and `foo` overrides the toolchain and ABI. Lists are tried in order such that the first match wins and an ungated entry is the fallback.
 
-### Sanitizers
+When building:
+- `spn build` uses `debug`
+- `spn build --mode release` uses `release`
+- `spn build --profile NAME` uses the named `[[profile]]`
+
+### Optimization
+
+`opt` in the profile overrides the mode's default, and can be `0`, `1`, `2`, `3`, `s`, or `z`. When provided by the toolchain, `s` optimizes for size, and `z` does so more aggressively.
+
+### Stripping
+
+`strip` controls what is stripped from binaries: `none` does nothing, `debuginfo` strips debug information but otherwise nothing, and `symbols` also strips unused symbols (which may be undesirable for some kinds of libraries)
+
+### Build modes
+
+`mode` is a field of the profile which controls whether you build a `debug` or `release` binary. By default, it is `debug`. The field determines whether your binary contains debug info and whether `NDEBUG` is defined, plus defaults for optimization and stripping:
+
+| Mode | Debug info? | `NDEBUG` | Optimization | Strip |
+|---|---|---|---|---|
+| `debug` | yes | not defined | `-O0` | `none` |
+| `release` | no | defined | `-O2` | `debuginfo` |
+
+## Sanitizers
+
+`spn` has first class support for sanitized builds. It supports `address`, `thread`, `undefined`, `memory`, and `leak`.
+
+```toml
+[profile.safe]
+sanitize = ["address", "undefined"]
+```
+
+```sh
+spn build --sanitize thread,leak
+
+# --sanitize always overrides the profile
+spn build --sanitize thread,leak --profile safe
+spn build --sanitize none --profile safe
+```
+
+### Availability
+
+`spn` doesn't bundle sanitizers. It uses what's provided by the toolchain. `spn` never probes to discover what a toolchain supports, but rather expects it to be declared. We therefore provide a reasonable default support matrix for [system toolchains](https://spn.spader.zone/docs/toolchains#system-toolchains).
+
+| Toolchain | Linux | macOS | Windows |
+|---|---|---|---|
+| `zig` | `undefined`, `thread` | `undefined`, `thread` | `undefined` |
+| `clang`, `llvm` | `address`, `thread`, `undefined`, `memory`, `leak` | `address`, `thread`, `undefined`, `leak` | none |
+| `gcc` | `address`, `thread`, `undefined`, `leak`[^3] | `address`, `thread`, `undefined` | none |
+| `msvc`, `llvm` | | | `address`[^5] |
+
+Of course, without brittle probing, `spn` can't provide a default that covers every real toolchain installed on a user's machine. If your system's toolchain is different, or if you're pinning to an external toolchain, [it's easy to declare what sanitizers it supports](https://spn.spader.zone/docs/toolchains#custom-toolchains).
+
+### Toolchain selection
+
+When you don't explicitly pass a toolchain, `spn` may pick a toolchain that can support the sanitizers you asked for. For example, `--sanitize address` can't be satisfied by the default Zig toolchain, so `spn` might fall back to your system `clang`. If this is undesirable, pass a toolchain explicitly.
+
+Everything except `undefined` needs a dynamic loader. A native Linux build switches from static musl to glibc, and `libc = "static"` is an error.
+
+### Errata
+
+The built in Zig toolchain enables UBSan in debug builds by default. Thank you, Zig!
+
 
 ## Cross compilation
 
-### Target triples
+Cross compilation is one of the fundamental principles of `spn`, and setting aside draconian practices like *copyrighting your platform's headers*[^6] there's no reason that any piece of software shouldn't be able to be cross compiled.
 
-### --os, --arch, --abi
+To cross compile, pass `--target $triple`. A triple is of the format `$arch-$os-$abi`, and the ABI can be omitted when the OS only supports one ABI (like `macos` and `apple`). The following values are supported:
+- arch: `x86_64`, `aarch64`, `wasm32`
+- os: `linux`, `macos`, `windows`, `wasi`, `freestanding`
+- abi: `gnu`, `musl`, `msvc`, `apple`, `none`, `elf`
 
-## CI
+Here are a few sample triples of note:
+| Triple | Notes |
+|---|---|
+| `aarch64-macos` | Equal to `aarch64-macos-apple` |
+| `wasm32-wasi` | Equal to `wasm32-wasi-musl` |
+| `wasm32-freestanding` | Equal to `wasm32-wasi-none` |
+| `x86_64-freestanding-none` | Raw machine code, like a kernel |
+| `x86_64-linux-none` | Raw ELF binary, no libc |
+| `x86_64-windows-gnu` | MinGW |
 
-`spn` was built for CI from day one:
-- The build cache is designed to scale to your entire team
-- First class cross compilation destroys your insane matrix of runners
-- Out of the box, zero configuration integrations with GitHub Actions
-- The CLI can output a structured JSONL stream. You never have to scrape an error message
-- If it doesn't work how you want, write your own CLI that links to `libspn` instead
-- @spader Are these weak? People care about fast builds mostly but we got that elsewhere...
+You must give a full triple (e.g. `x86_64-linux-gnu`) when cross compiling. We never infer facts about a cross compile from the host that builds it, because we have no information as to which ABI is preferred.
 
-## Caching
+### zig cc
 
-spn has a built in build cache which caches any intermediate artifact that your build creates, like `ccache` or `sccache`. Builds are incremental by default. That doesn't mean "incremental on my machine". That means *incremental*. Build `foo.exe` on one machine, and the cache is designed such that *any* subsequent machine building `foo.exe` can see a fully cached build.
+Out of the box, `spn` uses the Zig toolchain, which means that it can cross compile your code to Linux, Windows, macOS, and WebAssembly from any host, with no external tools or compilers needed. This is largely thanks to the truly, truly excellent `zig cc`, which does the work of bundling together and unkinking countless toolchains and provides a build of `clang` that's preconfigured to use them[^7].
 
-That's because, at its core, `spn` is a *content addressed DAG*. If you've never seen the terms, let's take a ride!
+### macOS
 
-### Incremental builds
+A macOS program that links frameworks needs a macOS SDK, and Apple's licensing prevents us (or anyone) from redistributing the headers and `.tbd` stubs needed to compile and link from a non-macOS host[^8].
 
-This means that everything in your build is turned into nodes in a graph. If something in the middle of the graph changes, we know exactly what needs to be rebuilt and in what order. This is like every other incremental build system that has ever existed.
+- `--os`, `--arch`, and `--abi` set one part each. `os`, `arch`, and `abi` in a profile make the target permanent.
+- The bundled zig cross compiles to Linux, Windows (MinGW), macOS, and WebAssembly from any host, with nothing else installed.
+- System gcc, clang, and MSVC only build for the machine they run on, unless you declare a cross [toolchain](https://spn.spader.zone/docs/toolchains).
 
-### Content addressing
+### Windows
 
-If you use CMake, you've probably encountered this:
+Because the bundled Zig toolchain ships with MinGW sources, Windows builds by default target MinGW. MSVC has first class support, and `spn` will detect your Visual Studio installations and Windows SDKs automatically; just pass `--toolchain msvc`, or see [the toolchain docs](https://spn.spader.zone/docs/toolchains#msvc) for how to pick between installations or use e.g. `xwin`.
 
-```sh
-# Build once. After this, builds are incremental. You are happy.
-make
+## Runtime and libc
 
-# Ah, but you gotta check out another branch
-git checkout whatever
-git checkout main
+Besides their dependencies, there are two things that programs control that affect their portability[^1]:
+- `runtime`. Libraries linked by the compiler, like the unwinder, low level math routines, the C++ standard library (e.g. `libstdc++`, `libgcc`, `winpthreads`)
+- `libc`. The C standard library (e.g. `libc.so`, `libSystem.dylib`, the UCRT)
 
-# This is a full rebuild, because Git touched every file and made it
-# appear to have been edited since the last build. You are sad.
-make
-```
-
-That's because CMake, and in fact most build systems, lie to you. They tell you that they know when `foo.c` changed. But they have no god damn idea! None whatsoever! Now, they have *proxies* which in practice are...fine. Like, for example, a file's mtime. Last build was at 3:00, `foo.c` says 3:05, let's rebuild it.
-
-But files get touched *all the time*! For no reason! Sometimes, they even go *backwards*, like when you decompress an archive, and then your build is wrong instead of just slow. This is the first problem: Traditional build systems have trouble knowing when something changed.
-
-There's a beautiful solution to both of these things at once! If you're having trouble giving everything a unique identity, and you're having trouble figuring out when a given thing changed, *make their identity be their content*. When we build `foo.o`, we hash its bytes. Let's say that hash comes out to, miraculously, `0x69`. Now, there's no such thing as `foo.o`; there's just a file called `0x69` in the cache.
-
-That's great, but the next build still needs to be able to know that, ah, yes, we need the cache entry keyed at `0x69`. To do this, we look at all of the inputs to `foo.o`:
-- `foo.c`, of course
-- Let's say that the compiler reported that `stdint.h` was used, too
-
-We hash their content too, and get `0x420` and `0x5F3759DF`. Then, all we do is write down a fact:
-
-> If the inputs to the compiler are `0x420` and `0x5F3759DF`, then the output will be `0x69`
-
-Next time, when we're ready to build `foo.o`, we have all of its inputs ready to go. Take those inputs, and ask the fact machine if it knows the answer for that set of inputs. If `foo.c` was edited, the inputs are no longer (`0x420`, `0x5F3759DF`). If `spum.h` got added to the build, then there are now three inputs rather than two. And, if the inputs are the same but `0x69` isn't in the cache, all you have to do is rebuild!
-
-This is beautiful. Identity is content; content is identity. A file doesn't have a name. It simply *is*. There are, of course, many kinks to work out in such a system, but they're all tractable.
-
-This is the exact principle behind Bazel, BuildXL, and Nix, and it's the fundamental reason why `spn` is so good at caching your builds across machines.
-
-### --force
-
-## Running tests
-
-## Output
-
-### compile_commands.json
-
-### JSON event stream
-
-# Build scripts
-
-You need to run code in your build. Most people solve this by writing brittle scripts in Bash or Powershell, or, at best, a language like Python. `spn` solves this with WebAssembly[^wasm]. It embeds a WASM runtime, and will automatically compile arbitrary C programs to WASM modules that run in the build graph. You do not write code against a subset of C, or against a DSL. You write regular code, in the language you were using anyway.
-
-## Phases
-
-### configure
-
-### build
-
-## Writing a script
-
-## The sandbox
-
-## Script dependencies
-
-## API
-
-If you're porting over an existing build, you can continue to use what you have.
-
-### Targets
-
-### Files and directories
-
-### Custom nodes
-
-### Embedding files
-
-### Logging
-
-## Example: code generation
-
-[^wasm]: WebAssembly is a platform agnostic binary target; instead of compiling code for x86_64 or ARM64 machine code and running it with your CPU, you compile it to WASM bytecode and run it inside a regular program.
-
-# Toolchains
-
-## Defaults
-
-## Zig
-
-## Probing
-
-## Bring your own
-
-### [[toolchain]]
-
-### Hosted artifacts
-
-### Target support
-
-## MSVC
-
-# Package indexes
-
-When you run `spn add lua`, a version appears from the mist. Where does it come from? And what happens when I want to maintain my own versions of Lua, or some private package?
-
-## Directory indexes
-
-A *package index* is just metadata about what packages exist, and what versions are available. The simplest possible index is just a directory of packages:
-
-```
-packages
-├── flecs
-│   └── spn.toml
-├── fmt
-│   └── spn.toml
-├── imgui
-│   └── spn.toml
-├── sdl2
-│   ├── spn.c
-│   └── spn.toml
-├── sdl2_mixer
-│   └── spn.toml
-└── tracy
-    └── spn.toml
-```
-
-Point your build at it like this, or enable it globally in `~/.config/spn/spn.toml`:
+Specify them like this; both fields can be `static` or `shared`:
 
 ```toml
-[[index]]
-name = "randy"
-path = "./packages"
+[profile.whatever]
+runtime = "static"
+libc = "shared"
 ```
 
-If you only care about one version existing at a time, this is all you need. If you just want to build your personal libraries, or use some common packages in different projects, you're done.
+### Defaults
 
-## Git indexes
+Different platforms have different stances on some or all of these knobs, but by default  `spn build` produces the most self contained binary that it can. Here's the values that get picked for different combinations of target:
 
-Let's say you have a project that uses `sqlite==3.51.0`. You like it. But then, Richard Hipp returns from an ayahuasca retreat having had a vision: `4.0`. You can prompt an LLM from *inside* a query, to say the least.
+| OS | ABI | `runtime` | `libc` | Notes |
+|---|---|---|---|---|
+| `linux` | `musl` | `static` | `static` | The default on any Linux box |
+| `linux` | `gnu` | `shared` | `shared` | `spn` will implicitly switch to `gnu` when shared libraries are allowed and some dependency or sanitizer runtime cannot be statically linked |
+| `macos` | `apple` | `shared` | `shared` | macOS forces programs to link dynamically to `libSystem.dylib` (i.e. libc) |
+| `windows` | `gnu` | `static` | `shared` | MinGW does not provide a `libc` to statically link, and regardless `ucrtbase.dll` ships with Windows |
+| `windows` | `msvc` | `static` | `static` | Avoid requiring Visual C++ Redistributables, by default[^9] |
 
-You want to start a new project and use it, but you still need `3.51.0`. You've graduated to a second directory. This time, it's a directory of JSONL metadata:
+### Dependencies
 
+By default, dependencies are linked statically, and if a package doesn't support static linkage it will be linked dynamically when your target supports it. For example, if you're building against glibc and producing a dynamically linked binary, `spn` will build and link to `libfoo.so` if `libfoo` can't be compiled statically. But if you're building a statically linked musl binary, it will fail.
+
+If you don't want this fallback to dynamic linkage, setting `static_deps` on your profile will fail when static linkage isn't available[^2]:
+
+```toml
+[profile.whatever]
+static_deps = true
 ```
-.spn
-└── index
-    └── sqlite.jsonl
+
+This isn't an *override*. Rather, it's a *check*. It tells the build system "Unless I explicitly asked for a shared library, do not allow one". You can control how individual dependencies link in the `[config]` section:
+
+```toml
+[config.foo]
+kind = "shared"
 ```
 
-Each JSONL entry is a release specifying the version, where the source code is, where the manifest is, etc.
+Taking the two snippets above, here's what would happen with three hypothetical dependencies:
+
+| Library | Supports | Result |
+|---|---|---|
+| `libfoo` | `static`, `shared` | `libfoo.so`, because you explicitly asked for it |
+| `libbar` | `static`, `shared` | `libbar.a`, because dependencies link statically by default |
+| `libqux` | `shared` | Failure, because you told `spn` not to fall back to dynamic linkage |
+
+### Libraries
+
+When you build the package itself, a library is built as `static` when it offers it. A profile's `emit` lists the kinds to build instead:
+
+```toml
+[profile.release]
+emit = ["static", "shared"]
+```
+
+`emit` only chooses for a library that offers both kinds. An archive that an executable in the same build links is built either way.
+
+A `shared` kind needs a dynamic loader, so asking for one moves the default Linux build off its static libc, and executables in that build link libc dynamically too. Where there is no loader, as with `libc = "static"`, the `shared` kind is skipped.
+
+### WASM
+
+WASM has no concept of a shared library in the same sense as a traditional OS. When compiling a target for WASM:
+- If it's your top level target, `shared` means to link it as a module, `foo.wasm`. On WASI, that's a reactor.
+- If it's a dependency, `shared` and `static` are equivalent, and it's just a regular static archive
+
+### Portability
+
+`runtime` and `linkage` are what most often produce unportable binaries. If you're experienced with C/++, feel free to skip these examples. If you aren't, I've provided them to show why these knobs aren't arbitrary.
+
+#### Gotcha: Why doesn't my program work on Ubuntu?
+
+`linux` + `gnu` + `shared` libc
+
+*The* classic Linux trap. Compile on a machine with, say, glibc `2.69`, and unknowingly pull in some function that was just added. Ubuntu is known for having a slow, fixed release cycle[^11], which means it might come with, say, glibc `2.34`, which doesn't have that function. Your program crashes because it can't load the function it needs.
+
+#### Gotcha: Why can't I open a window?
+
+`linux` + `static` libc
+
+Static linkage means libc is *inside* your binary. You ask the user's machine for nothing. But, by definition, it means there's no loader for shared libraries[^10], so if you need to load a graphics driver, X, Wayland, or any kind of plugin, you're F'd.
+
+#### Gotcha: What the heck is a redistributable?
+
+`windows` + `msvc` + `shared` runtime and libc
+
+Probably *the* classic Windows trap, and fundamentally the same as its Linux counterpart, except instead of versioning individual symbols the version is for the entire binary. The user therefore needs the correct version binary at runtime, and if they don't they get the dreaded `VCRUNTIME140.dll not found`.
+
+#### Gotcha: Freeing a `std::string` crashed my program
+
+`windows` + `msvc` + `static` runtime/libc
+
+If you've ever freed a `std::string` allocated in a DLL and crashed your program, it's because `static` gives everyone their own heap and CRT state. It's as if you tried to free a string that was allocated by `taskmgr.exe`.
+
+#### Gotcha: Nothing I build with MinGW works
+
+`windows` + `gnu` + `shared` runtime
+
+`shared` by definition means "load at runtime", which means the library must *exist* at runtime. For MSVC, that's usually OK, because redistributables are commonly installed. But here, you're requiring the user to have e.g. `libstdc++-6.dll` installed, which here's a secret: They don't.
+
+#### Gotcha: macOS
+
+Joke's on you. There are no gotchas on macOS here. A walled garden has its perks, eh?
+
+
+### Cheat Sheet
+
+Here are a few examples of useful combinations of these knobs. This is, of course, not exhaustive. If you need help understanding any of these options, or if you know what you want but aren't sure how to tell `spn` to do it, stop by [our Discord](https://discord.gg/7v4C5Kwsp7) or [send me an email](mailto:admin@spader.zone).
+
+| Build | Deps | Runtime | Libc | ABI | |
+|---|---|---|---|---|---|
+| A Linux binary that runs anywhere | `static` | `static` | `static` | `musl`| This is a completely self contained binary that will run on any Linux system you'll find in the wild; `spn` does this by default |
+| A portable Linux video game       | any | `static` | `shared` | `gnu`| Games need Vulkan or OpenGL, which must be used from a shared library, but otherwise bundle everything else they need inside the binary |
+| A Windows binary which doesn't need redistributables | any | `static` | `static` | `msvc` | Like `/MT`; The UCRT, vcruntime, and the C++ STL all live inside the executable |
+| A plugin that gets loaded by a DAW | any | `shared` | `shared` |  | You *want* to share the host's runtime, so that an e.g. `std::string` can cross between your DLL and the host cleanly |
+| A fully sanitized build (ASan, TSan, MSan)|  |  | `shared` | any | These sanitizers don't work without a loader |
+
+
+## JSON event stream
+
+When given `--json`, every command writes the JSONL event stream instead of normal, human readable output. `.spn/build.jsonl` contains the last build's events, regardless of whether you passed the flag.
+
+Each event in the stream is a tagged union:
 
 ```json
 {
-  "name": "sqlite",
-  "version": "4.0.0",
-  "yanked": false,
-  "source": {
-    "url": "https://github.com/sqlite/sqllm.git",
-    "rev": "a1de0694c693a5d741b2b424e5dfea45eaa30e69"
-  },
-  "manifest": {
-    "url": "https://github.com/you/manifests.git",
-    "rev": "c7faa527fd",
-    "dir": "sqlite"
-  },
-  "paths": {
-    "manifest": "spn.toml",
-    "script": "spn.c"
-  }
+  "event": "target_build_passed",
+  "level": "debug",
+  "data": { ... }
 }
 ```
 
-Note the `manifest` field. If `sqllm` decided that `spn` is the tool of the future, and decided to have a *first party* manifest that lives in their repo, this field would point to `sqlite/sqllm.git`. But since we're writing a package for a third party library that doesn't know we exist, we point it at a repository that *we* own. These entries are created with `spn publish`, not by hand.
+For a full list of events emitted and their shape, see the [schema on GitHub](https://github.com/boonbane/spn/blob/main/source/core/codegen/schema/events.jtd.json), but some useful data emitted in this event stream is:
+- Every invocation of the compiler or linker, with full command line and timing
+- Every call to the guest API
+- Every package resolve and download, with URL and timing
 
-Use the index the same way as the simpler one:
+The event stream is a simple rendering of the events delivered to any in process consumer of [libspn](https://spn.spader.zone/docs/embedding).
 
-```toml
-[[index]]
-name = "randy"
-url = "git@github.com:you/index.git"
-```
-
-Let's dig into that a little more, because it's important: **Package indexes are just Git repositories**. You're going to *really* like this:
-  - Commits are transactional, reversible, and everything else Git does for your source code
-  - It comes with provenance and auth that you already have set up
-  - Every god damn developer on the planet knows how to use it
-
-If you've ever used Homebrew and waited multiple tens of seconds for kegs to be sterilized, you may balk at this. "Spader," you might say, "Git doesn't scale for package indexes". And you'd be right! But you'd also be wrong:
-- `spn` isn't tied to Git. Index backends are just interfaces; there's a stubbed out HTTP backend in there already if you want to host it on Cloudflare or whatever
-- C is not JS. It's not a distro, it's not Rust. Nobody uses packages in C because there are no good package managers for all its special little quirks. We're talking orders (plural) of magnitude less scale.
-
-## Global configuration
-
-`[[index]]` entries in the [user config file](#configuration-1) apply to every project on the machine. They take the same fields as `[[index]]` in a manifest.
-
-To find a package, `spn` checks each index in turn and takes every version of it from the first index that has it. The order is:
-1. The project manifest's indexes, in the order they're declared
-2. The user config's indexes, in the order they're declared
-3. `core`, the default index, which is `https://github.com/tspader/spandex.git`
-
-A user config index with the same name as one of the project's is ignored. An index named `core` in either file replaces the default. `spn index list` prints the indexes in this order.
-
-## Publishing
-
-### spn publish
-
-## The ecosystem
-
-Here's some of the packages which have native, high quality `spn` manifests. The full list is in [the package manifest repository](https://github.com/tspader/spam). If a package is on this list, it has full support. That means you can cross compile it, pull in its optional dependencies, build its examples, and so on. Everything.
-- [Clay](https://github.com/nicbarker/clay)
-- [Dear ImGui](https://github.com/ocornut/imgui)
-- [flecs](https://github.com/SanderMertens/flecs)
-- [fmt](https://github.com/fmtlib/fmt)
-- [FreeType](https://github.com/freetype/freetype)
-- [Lua](https://github.com/lua/lua)
-- [mbedtls](https://github.com/Mbed-TLS/mbedtls)
-- [ninja](https://github.com/ninja-build/ninja)
-- [raylib](https://github.com/raysan5/raylib)
-- [SDL2](https://github.com/libsdl-org/SDL)
-- [SDL2_mixer](https://github.com/libsdl-org/SDL_mixer)
-- [SDL3](https://github.com/libsdl-org/SDL)
-- [SDL3_image](https://github.com/libsdl-org/SDL_image)
-- [SDL3_shadercross](https://github.com/libsdl-org/SDL_shadercross)
-- [SDL3_ttf](https://github.com/libsdl-org/SDL_ttf)
-- [sp.h](https://github.com/tspader/sp) :^)
-- [SPIRV-Cross](https://github.com/KhronosGroup/SPIRV-Cross)
-- [stb](https://github.com/nothings/stb)
-- [Tracy](https://github.com/wolfpld/tracy)
-- [yyjson](https://github.com/ibireme/yyjson)
-
-# Configuration
-
-Settings that belong to a machine rather than a project live in the user config file, `spn/spn.toml` under the config directory:
-- Linux and macOS: `$XDG_CONFIG_HOME`, or `~/.config` if it isn't set
-- Windows: `%APPDATA%`
-
-The file is optional. It holds [`[[index]]`](#global-configuration) entries, `[[toolchain]]` entries, and `[net]`.
-
-## [net]
-
-```toml
-[net]
-timeout = 30
-ca_bundle = "/etc/ssl/certs/ca-certificates.crt"
-system_git = false
-```
-
-| Field | Type | Default | Meaning |
-|---|---|---|---|
-| `timeout` | integer | `30` | Seconds to wait to connect to a server, and for a stalled transfer to make progress, before giving up. It must be at least `1`; values above `65535` are treated as `65535` |
-| `ca_bundle` | string | | Path to a PEM file of trusted root certificates |
-| `system_git` | bool | `false` | Clone and fetch every index and Git dependency with the `git` on your `PATH`, not only the ones that need your credentials |
-
-These apply to Git, which `spn` uses for indexes and Git dependencies, and to downloads, which it uses for toolchains like Zig.
-
-### Certificates
-
-On Linux and macOS, `spn` verifies HTTPS servers against a single PEM file, chosen in this order:
-1. `SSL_CERT_FILE`, if it's set
-2. `ca_bundle`, if it's set
-3. The first of these that exists: `/etc/ssl/certs/ca-certificates.crt`, `/etc/pki/tls/certs/ca-bundle.crt`, `/etc/ssl/ca-bundle.pem`, `/etc/pki/tls/cacert.pem`, `/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem`, `/etc/ssl/cert.pem`
-
-Only the chosen file is trusted. A configured bundle replaces the system one rather than adding to it, so a file that holds nothing but a company's root certificate can't verify any other server; append the extra root to a copy of the system bundle and point `ca_bundle` at that.
-
-On Windows, `spn` uses the system certificate store, and `ca_bundle` and `SSL_CERT_FILE` have no effect.
-
-### Proxies
-
-The built in Git client and downloads both read:
-- `https_proxy` or `HTTPS_PROXY` for `https://` URLs
-- `http_proxy` for `http://` URLs
-- `no_proxy` or `NO_PROXY` for hosts to reach directly
-
-The built in Git client also reads git's proxy settings (`http.proxy`), which take precedence over the environment, and accepts `HTTP_PROXY`. Downloads also fall back to `all_proxy` or `ALL_PROXY`.
-
-### system_git
-
-`spn` has a built in Git client, and uses it for anything it can fetch anonymously over HTTPS. Your keys and saved logins belong to `git`, so `spn` runs the `git` on your `PATH` when a fetch needs them:
-
-- An SSH URL is always fetched with `git`
-- An HTTPS repository that asks for a login is fetched again with `git`
-- `spn publish` always pushes with `git`
-
-Nothing needs configuring for a private repository beyond what `git clone` of the same URL already needs.
-
-With `system_git = true`, `spn` runs `git` for every index and Git dependency. Use it when `git` is set up for a proxy or a certificate authority that `spn` isn't.
-
-`git` runs with your environment, and `spn` doesn't pass it `timeout` or `ca_bundle`. It can't prompt: `spn` sets `GIT_TERMINAL_PROMPT=0` and `GCM_INTERACTIVE=never` unless you've set them yourself. Downloads are unaffected.
-
-## Environment variables
-
-| Variable | Meaning |
-|---|---|
-| `SPN_CONFIG_DIR` | Replaces the config directory. `SPN_CONFIG_DIR=/tmp/a` reads `/tmp/a/spn/spn.toml` |
-| `SPN_STORAGE_DIR` | Where `spn` keeps index checkouts, Git dependencies, and its build cache. Defaults to `spn` under `$XDG_DATA_HOME` (or `~/.local/share`) on Linux and macOS, and under `%LOCALAPPDATA%` on Windows |
-| `SPN_TOOLCHAIN_DIR` | Where `spn` keeps the toolchains it downloads. Defaults to `toolchain` under the storage directory |
-| `SPN_MIRROR` | Base URL to download toolchains from. `spn` appends the archive's file name, tries only that URL, and still checks the archive against its checksum |
-| `SPN_INDEX_REFRESH_SECONDS` | How long a synced Git index counts as fresh. Defaults to `600`. Once it's older, `spn add` fetches it again, and so does a build that can't resolve a dependency from the cached copy. Indexes pinned to a `rev` aren't refreshed, and `spn index sync` refreshes regardless |
-| `SSL_CERT_FILE` | See [Certificates](#certificates) |
-| `https_proxy`, `http_proxy`, `no_proxy` | See [Proxies](#proxies) |
-
-# Embedding `spn`
-
-## There's a stable C ABI
-
-## It works with any event loop
-
-## It's so much better at hotloading than your crappy script
-
-# Workspaces
-
-## `spn` is a task runner
-
-## `spn` is a test runner
-
-# Why do I care?
-
-## "My CI isn't absurdly fast with zero configuration"
-
-Look. I get it. Setting up the mess of tooling and integrations needed to cache an object file reliably is hard. It's so much easier to just sink into that warm abyss of twenty minute builds (twenty minutes is normal, right?) and tell yourself it doesn't matter.
-
-Twenty minutes is not normal! An hour is not normal! 90% of your builds in CI should be so fast that you have to double check that it actually happened.
-
-If this isn't the case for whatever you work on, [send me an email right god damn now](mailto:admin@spader.zone)! Building native code is an *extremely well understood* problem. The problem's not that we don't know how, it's that we know how, and, well, it's pretty fucking hard unless you spend a *lot* of time on it. You, person who are presumably making and/or selling something other than an obscure meta-tool, don't have that much spare time[^grass].
-
-takes quite a bit of rigor and care that most folks who are actually making and selling things can't spare.
-
-## "My company doesn't approve tools with dependencies (e.g. Python or JS)"
-
-`spn` has *zero* dependencies. It is exactly one binary. Builds are hermetic and sandboxed by default, and it's as easy to pin the exact commits of your dependencies as it is to use packages from the index.
-
-[^grass]: And if you did, you'd probably spend it running your hands through the soft day-warmed grass of some shaded grove, those whom you love most by your side, feeling the beams of the sun against your face and basking in the simple pleasure of being alive.
-
-# Can this replace...
-
-## ...bear, compiledb?
-
-Yes. `spn` generates `compile_commands.json` out of the box, with no instrumentation needed.
-
-# Development
-
-## Building
-
-## Testing
-
-## PRs
+[^1]: There are more, of course, like the mess of versioned symbols in glibc. But for our purposes, three is fine.
+[^2]: It is often desirable to statically link to all of your dependencies while linking dynamically to libc. For example, a program which wants to be hermetic against the versions of libraries on the user's machine, but which wants to load plugins at runtime. To this end, you'd like to compile your dependencies statically or fail the build.
+[^3]: Only for the `gnu` ABI; stock GCC's sanitizer runtimes are generally incompatible with musl. These are broad defaults. They are *not* intended to model arbitrary, unknown systems. They're meant to make the common case of downloading `spn` and using it against whatever you have installed work reasonably well, with no configuration or probing. If they don't work for you, simply write down what your toolchain can do and `spn` will happily oblige.
+[^5]: x86_64 only.
+[^6]: Get bent, Apple. Seriously.
+[^7]: `spn` wouldn't exist without Zig. Part of that is the massive amount of work and care taken to create `zig cc` and gift it to the world, gratis. And part of it is the attitude that simply refuses to accept the status quo of systems programming, the love and care they put into fixing it, and the simple existence proof that you can build software like this. Thank you, Zig!
+[^8]: From my research, this isn't exactly correct. Many such headers are released under Apple's open source license, and from my understanding could be bundled with `spn`. However, it's an incomplete set, and more importantly they *differ* from the actual headers you might find in a real SDK. Even though it's incomplete, it's not *trivial*. But, most importantly, it doesn't cover Cocoa which is Objective-C. It is more complicated than that, since you can write C headers against `libobjc`, but very few upstream libraries actually compile against such an interface and in general I have no idea how feasible that is[^6]. I'm sure my research is scattershot compared to someone who actually understands all of this, so if you *are* that person, hit me up on [Discord](https://discord.gg/7v4C5Kwsp7) or [send me an email](mailto:admin@spader.zone).
+[^10]: If there were, you'd need to ensure that the libraries it loads are ABI compatible with your binary, which means you need to be using the same libc, which means you need to dynamically link to it!
+[^11]: I don't mean to pick on Ubuntu; this is a univeral problem in the Linux world. Folks may be more familiar with it on Ubuntu given its popularity and release cadence.

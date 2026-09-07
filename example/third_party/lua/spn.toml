@@ -1,0 +1,15 @@
+[package]
+name = "script"
+version = "0.1.0"
+
+[[bin]]
+name = "main"
+source = ["main.c"]
+
+[[index]]
+name = "spam"
+url = "https://github.com/boonbane/spam.git"
+
+[deps.package]
+lua = "5.4.6"
+sp = "5.0.0"

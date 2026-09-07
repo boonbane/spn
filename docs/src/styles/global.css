@@ -37,14 +37,14 @@
   --font-mono: 'Inconsolata Variable', ui-monospace, monospace;
   --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 
-  --text-xs: 12px;
-  --text-sm: 14px;
-  --text-md: 16px;
-  --text-lg: 18px;
-  --text-xl: 20px;
-  --text-2xl: 24px;
-  --text-3xl: 34px;
-  --text-4xl: 42px;
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-md: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  --text-3xl: 2.125rem;
+  --text-4xl: 2.625rem;
 
   --weight-medium: 500;
   --weight-semibold: 600;
@@ -59,19 +59,19 @@
   --tracking-tight: -0.02em;
   --tracking-tighter: -0.03em;
 
-  --s-0: 2px;
-  --s-1: 4px;
-  --s-2: 6px;
-  --s-3: 8px;
-  --s-4: 12px;
-  --s-5: 16px;
-  --s-6: 20px;
-  --s-7: 24px;
-  --s-8: 32px;
-  --s-9: 48px;
-  --s-10: 56px;
-  --s-11: 72px;
-  --s-12: 96px;
+  --s-0: 0.125rem;
+  --s-1: 0.25rem;
+  --s-2: 0.375rem;
+  --s-3: 0.5rem;
+  --s-4: 0.75rem;
+  --s-5: 1rem;
+  --s-6: 1.25rem;
+  --s-7: 1.5rem;
+  --s-8: 2rem;
+  --s-9: 3rem;
+  --s-10: 3.5rem;
+  --s-11: 4.5rem;
+  --s-12: 6rem;
 
   --r-sm: 4px;
   --r-md: 6px;
@@ -150,7 +150,9 @@ ul {
 }
 
 .link,
-.prose a {
+.prose a,
+.footnotes a,
+[data-footnote-ref] {
   color: var(--accent-bright);
   text-decoration: underline;
   text-decoration-color: var(--accent-veil);
@@ -159,7 +161,9 @@ ul {
 }
 
 .link:hover,
-.prose a:hover {
+.prose a:hover,
+.footnotes a:hover,
+[data-footnote-ref]:hover {
   color: var(--accent-hover);
   text-decoration-color: currentcolor;
 }
@@ -200,8 +204,8 @@ ul {
 .code-copy {
   display: grid;
   place-items: center;
-  width: 28px;
-  height: 28px;
+  width: 1.75rem;
+  height: 1.75rem;
   border: none;
   border-radius: var(--r-md);
   background: none;
@@ -215,8 +219,8 @@ ul {
 
 .code-copy::before {
   content: '';
-  width: 14px;
-  height: 14px;
+  width: 0.875rem;
+  height: 0.875rem;
   background: currentcolor;
   mask: var(--icon-copy) center / contain no-repeat;
 }
@@ -245,15 +249,14 @@ ul {
 }
 
 .prose {
-  line-height: var(--leading-loose);
+  color: var(--text-dim);
 }
 
-.prose p {
-  margin-block: var(--s-3);
+.prose :is(p, ul, ol) {
+  margin-block: var(--s-5);
 }
 
 .prose :is(ul, ol) {
-  margin-block: var(--s-5);
   padding-left: var(--s-8);
 }
 
@@ -265,18 +268,29 @@ ul {
   margin-block: 0;
 }
 
-.prose h2 {
-  padding-top: var(--s-7);
-  font-size: var(--text-2xl);
-  font-weight: var(--weight-bold);
+.prose :is(h2, h3, strong, th) {
+  font-weight: inherit;
+  color: var(--text);
+}
+
+.prose :is(h2, h3) {
+  line-height: var(--leading-tight);
   letter-spacing: var(--tracking-tight);
 }
 
+.prose h2 {
+  padding-top: var(--s-7);
+  font-size: var(--text-2xl);
+}
+
 .prose h3 {
-  margin-block: var(--s-5);
+  margin-block: var(--s-1);
+  padding-top: var(--s-5);
   font-size: var(--text-xl);
-  font-weight: var(--weight-semibold);
-  letter-spacing: var(--tracking-tight);
+}
+
+.prose h2 + h3 {
+  padding-top: 0;
 }
 
 .prose :not(pre) > code {
@@ -284,9 +298,13 @@ ul {
   font-family: var(--font-mono);
   font-weight: var(--weight-medium);
   font-size: 0.875em;
-  background: var(--bg-inset);
-  border: var(--border);
+  color: var(--text);
+  background: var(--code-bg);
   border-radius: var(--r-sm);
+}
+
+.prose a code {
+  color: inherit;
 }
 
 .prose :is(.code-block, .tabs) {
@@ -301,7 +319,7 @@ ul {
   margin-block: var(--s-5);
   padding: var(--s-1) var(--s-5);
   border-left: 3px solid var(--line-strong);
-  color: var(--text-dim);
+  color: var(--text-mute);
 }
 
 .prose table {
@@ -319,5 +337,4 @@ ul {
 
 .prose th {
   background: var(--bg-card);
-  font-weight: var(--weight-semibold);
 }

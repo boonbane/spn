@@ -1,0 +1,218 @@
+---
+title: Dependencies
+readme: false
+---
+
+import Stub from '@spn/docs/components/Stub.astro'
+
+`spn` is a real package manager, built specifically for C and C++.
+
+## Local dependencies
+
+The simplest dependency is a path to a directory with an `spn.toml`:
+
+```toml
+[deps.package]
+foo = { path = "packages/foo" }
+```
+
+And this is what the package might look like:
+
+```toml
+[package]
+name = "foo"
+version = "6.9.0"
+
+[[lib]]
+name = "foo"
+source = ["foo.c"] # Relative to foo's manifest
+```
+
+This is just an old fashioned vendored dependency. You could download LLVM, check in the entire source tree, and have an `spn.toml` that builds this local copy. If you then regained your sanity, you can point the exact same manifest at Git and `spn` will manage the checkout for you *exactly* as if it were an "official" package:
+
+```toml
+[package.upstream]
+url = "https://github.com/tspader/foo.git"
+commit = "6937fa02243da7b693c5692cea84a696950d4669"
+```
+
+## Index dependencies
+
+<Stub />
+
+- A dependency with a version is looked up in your [indexes](/docs/indexes).
+- `spn add foo` writes the newest version of `foo` to `[deps.package]`, and `spn add foo@1.2.0` writes the one you name.
+- `--test`, `--build`, and `--tool` write to the other tables.
+- It only edits `spn.toml`; nothing is fetched or locked until the next build.
+- It only knows index packages, so path dependencies, `public`, and `options` are written by hand.
+- An entry takes `version` or `path`, never both.
+
+### Version requirements
+
+<Stub />
+
+- A bare version means "compatible with": `"1.4.2"` allows `>=1.4.2, <2.0.0`, and `"0.3.1"` allows `>=0.3.1, <0.4.0`.
+- `"=1.4.2"` pins exactly.
+- `^`, `~`, `>`, `>=`, `<`, `<=`, and `*` work too.
+- Only one comparator is allowed, so `">=1.2, <1.5"` is an error.
+
+## What you get
+
+<Stub />
+
+- Its published headers are on your include path.
+- Its published defines, and those of its public options, are in your compiles.
+- Every one of its libraries is linked in, along with their static dependencies and system libraries.
+- Nothing else of it is built: no binaries, tests, examples, or tools.
+- None of this needs configuring; the package decides it in [What dependents get](/docs/packages#exports).
+
+## Dependency tables
+
+<Stub />
+
+- `[deps.package]` is seen by libraries, binaries, examples, and tests.
+- `[deps.test]` is seen by tests only, on top of `[deps.package]`.
+- `[deps.build]` is seen only by the [build metaprogram](/docs/metaprograms#declaring-a-metaprogram).
+- `[deps.tool]` is seen only by [tools](/docs/task#tool-dependencies), which don't see `[deps.package]`.
+- `[deps.test]` and `[deps.tool]` are read only from the root manifest.
+- The same package can be in `[deps.build]` and `[deps.package]` at different versions.
+
+## Conditional and public dependencies
+
+<Stub />
+
+- A dependency entry takes [`when`](/docs/conditions#when-clauses), keyed on build facts or this package's options.
+- A dependency whose condition is off isn't fetched, resolved, or locked, so different profiles and targets can have different dependencies.
+- Dependencies are private: your dependents don't see a dependency's headers or defines.
+- `public = true` passes them on.
+- Mark a dependency public when your published headers include its headers, or every dependent fails on a missing header.
+- A dependent sees through a chain only if every link in it is public; linking is transitive either way.
+
+```toml
+[deps.package]
+foo = { version = "6.9.0", public = true }
+bar = { version = "1.0.0", when = { os = "linux" } }
+```
+
+## Configuration
+
+### Options
+
+Packages can [provide options](/docs/conditions#options), either as an enumeration or a boolean. Options for `foo` are set in `[config.foo]`, like this:
+
+```toml
+[config.foo]
+tls = "openssl"
+zstd = true
+```
+
+### Linkage
+
+Libraries declare the linkages they support:
+- `shared`
+- `static`
+- `source`, which compiles the package's sources directly into your target as if they were your own files.
+
+```toml
+[config.foo]
+kind = "shared"
+```
+
+Anything that links the library uses one kind: `static` when the library offers it, unless the root manifest sets `[config.foo] kind = "shared"`.
+
+## Patching
+
+What if you need to patch `foo`? You don't want to go back to the technology of the ancients, vendoring or submoduling entire repositories just to change a few lines. You want a specific commit with just a few changes. Do this in your `spn.toml`:
+
+```toml
+[deps.package]
+foo = "6.9.0"
+
+[patch.foo]
+files = ["patches/foo.patch"]
+```
+
+That's it! Patches fold into the build system like everything else. If you change the contents of a patch, add or remove patches, you'll still get a correct, incremental build.
+
+Your dependencies can't patch. If you ask for a given commit, you get exactly that commit.
+
+## Root-only tables
+
+<Stub />
+
+- `[config]`, `[profile]`, `[[toolchain]]`, `[[index]]`, `[stage]`, `[deps.test]`, and `[deps.tool]` take effect only in the project being built.
+- In a dependency they are ignored without a warning.
+- `[patch]` is root-only too, and is an error in a dependency.
+- So a package can use `[profile.default]` and `[config]` to build its own examples, but its dependents silently get the defaults.
+
+## Version resolution
+
+<Stub />
+
+- Each package gets one version across the whole graph: the newest that satisfies every requirement, preferring what `spn.lock` holds.
+- `[deps.test]` shares that graph, so a test dependency can hold back a package dependency's version.
+- When no version satisfies everyone, the build fails with `X is already selected at 2.0.0, but Y 1.0.0 requires ^1.0.0`.
+- There is no override; the only fix is changing a requirement.
+- `[deps.build]` and `[deps.tool]` resolve separately, so the same package can appear there at another version.
+- Two versions of a package are never linked into one binary.
+- A name comes from one place per build: the same package from a path and an index, or from two paths, is an error.
+- So you can't swap an index dependency for a local copy; [patch](/docs/dependencies#patching) it.
+
+## The lockfile
+
+<Stub />
+
+- `spn.lock` sits next to `spn.toml`, and is written by `spn build`, `spn test`, and `spn path`.
+- It records the exact version and commit of every index dependency, build and tool dependencies included.
+- Path dependencies aren't recorded.
+- Commit it.
+- Locked versions are sticky: a build keeps a locked version when newer releases appear, or when you widen the requirement.
+- Builds only add entries; removing a dependency leaves its entry in place.
+- If a locked version no longer fits the manifest, the build picks a new one and adds it.
+- For a [repository of manifests](/docs/indexes#manifests-in-a-repository), it records the index's commit too.
+
+### spn update
+
+<Stub />
+
+- `spn update` re-resolves everything to the newest versions the manifest allows, and prints what changed.
+- It also drops entries that nothing uses any more.
+- `spn update foo bar` moves only those packages, which must already be locked.
+- It refreshes every index first, so it needs the network.
+
+### --locked
+
+<Stub />
+
+- `--locked` on `spn build`, `spn test`, and `spn path` fails instead of writing `spn.lock`.
+- It fails when the file is missing, too.
+- A profile or target with conditional dependencies that were never locked fails with "spn.lock is out of date".
+- So build each profile and target that CI uses once without `--locked`, and commit the result.
+
+## System dependencies
+
+A *system dependency* is a mirage. It's possible to build against system dependencies reliably on *some* system, but to encompass the quirks and patches of every distro (just to speak of Linux) is a fool's errand.
+
+But you didn't come here for a lecture! Sometimes, you just need to link to something on your damn system.
+
+When people talk about *system dependencies*, they mean two separate things:
+1. Linking to a shared library which is resolved at runtime. This is totally fine.
+2. Compiling against whatever headers happen to be lying around. This is bad.
+
+The first case is sometimes not just acceptable, but *principled*, regardless of whether you want to. You might link to the system `libcurl.so` to pull in security patches, for example. Or to benefit from bugfixes long after you abandon your program to pursue a career in professional bass fishing. Therefore, you can specify `system_deps` in your manifest:
+
+```toml
+[package]
+name = "foo"
+system_deps = [
+  { lib = "pthread", when = { os = "linux" } },
+  { lib = "shell32", when = { os = "windows" } }
+]
+
+[[lib]]
+name = "bar"
+system_deps = ["m"]
+```
+
+This does what you'd expect, e.g. `-lpthread`. Linking to whatever's on the system comes with plenty of problems, but it's an important tool in your toolbelt.
+

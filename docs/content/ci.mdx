@@ -1,0 +1,31 @@
+---
+title: CI and releases
+group: Guides
+readme: false
+---
+
+import Stub from '@spn/docs/components/Stub.astro'
+
+## CI
+
+<Stub />
+
+- Install with the same one-line [installer](/docs/quickstart#install); with no terminal it never prompts.
+- On GitHub Actions, `spn` is on `PATH` from the next step.
+- Cache `spn`'s [storage directory](/docs/configuration#storage) between runs; it holds the toolchain, fetched dependencies, and the build cache.
+- Setting `SPN_STORAGE_DIR` to a path inside the workspace makes that easy.
+- Commit `spn.lock`, and run `spn build --locked` and `spn test --locked`.
+- [`--locked`](/docs/dependencies#--locked) fails for a profile or target that was never locked, so build each one CI uses once without it.
+- `spn` exits `0` on success and `1` on any failure, failed tests included.
+- A private repository needs `git` installed and authenticated without prompting.
+
+## Release binaries
+
+<Stub />
+
+- Build once per platform with `spn build --mode release --locked --target TRIPLE`.
+- One Linux runner covers Linux (`gnu` and `musl`), Windows with MinGW, WASI, and macOS programs that link no frameworks.
+- A macOS program that links frameworks needs a Mac runner, and the MSVC ABI needs a Windows runner.
+- Archive the executable and the shared libraries next to it, from `build/TRIPLE/release/`.
+- Don't archive `store/` or `.spn/`.
+- System libraries, and the toolchain's runtime DLLs when `runtime = "shared"`, aren't copied next to the executable.

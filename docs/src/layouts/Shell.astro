@@ -19,6 +19,10 @@ const { title } = Astro.props
   <body>
     <slot />
     <script>
+      import { send } from '@spn/docs/lib/events'
+
+      send('view')
+
       document.addEventListener('click', async (event) => {
         const button = (event.target as Element).closest<HTMLElement>('.code-copy')
         if (!button) return

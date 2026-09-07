@@ -6,6 +6,7 @@
 typedef struct {
   const c8* schema;
   const c8* out;
+  const c8* title;
 } args_t;
 
 typedef struct {
@@ -44,18 +45,40 @@ static void docs_note_extern(docs_t* d, sp_str_t name) {
   sp_da_push(d->externs, name);
 }
 
-static void docs_type_cell(docs_t* d, jtd_schema_t* schema) {
+static bool docs_type_single(docs_t* d, jtd_schema_t* schema) {
+  switch (schema->form) {
+    case JTD_FORM_ENUM: {
+      return sp_da_size(schema->as.enumeration.values) == 1;
+    }
+    case JTD_FORM_REF: {
+      jtd_schema_t* target = jtd_resolve(d->jtd, schema);
+      return target->form == JTD_FORM_PROPERTIES || docs_type_single(d, target);
+    }
+    case JTD_FORM_ELEMENTS:
+    case JTD_FORM_VALUES: {
+      return false;
+    }
+    default: {
+      return true;
+    }
+  }
+}
+
+// suffix lands inside the code span, so an array of `foo` reads `foo[]`
+static void docs_type_cell(docs_t* d, jtd_schema_t* schema, const c8* suffix) {
   sp_io_writer_t* w = &d->out.base;
   switch (schema->form) {
     case JTD_FORM_TYPE: {
+      const c8* name = "integer";
       switch (schema->as.type) {
-        case JTD_TYPE_BOOLEAN:   put(w, sp_str_lit("`bool`")); break;
-        case JTD_TYPE_STRING:    put(w, sp_str_lit("`string`")); break;
+        case JTD_TYPE_BOOLEAN:   name = "bool"; break;
+        case JTD_TYPE_STRING:    name = "string"; break;
         case JTD_TYPE_FLOAT32:
-        case JTD_TYPE_FLOAT64:   put(w, sp_str_lit("`float`")); break;
-        case JTD_TYPE_TIMESTAMP: put(w, sp_str_lit("`timestamp`")); break;
-        default:                 put(w, sp_str_lit("`integer`")); break;
+        case JTD_TYPE_FLOAT64:   name = "float"; break;
+        case JTD_TYPE_TIMESTAMP: name = "timestamp"; break;
+        default:                 break;
       }
+      sp_fmt_io(w, "`{}{}`", sp_fmt_cstr(name), sp_fmt_cstr(suffix));
       break;
     }
     case JTD_FORM_ENUM: {
@@ -63,7 +86,7 @@ static void docs_type_cell(docs_t* d, jtd_schema_t* schema) {
         if (it) {
           put(w, sp_str_lit(" \\| "));
         }
-        sp_fmt_io(w, "`{}`", sp_fmt_str(schema->as.enumeration.values[it]));
+        sp_fmt_io(w, "`{}{}`", sp_fmt_str(schema->as.enumeration.values[it]), sp_fmt_cstr(suffix));
       }
       break;
     }
@@ -72,23 +95,30 @@ static void docs_type_cell(docs_t* d, jtd_schema_t* schema) {
       if (target->form == JTD_FORM_PROPERTIES) {
         sp_str_t name = schema->as.ref.name;
         docs_queue(d, name, target);
-        sp_fmt_io(w, "[`{}`](#{})", sp_fmt_str(name), sp_fmt_str(name));
+        sp_fmt_io(w, "[`{}{}`](#{})", sp_fmt_str(name), sp_fmt_cstr(suffix), sp_fmt_str(name));
       } else {
-        docs_type_cell(d, target);
+        docs_type_cell(d, target, suffix);
       }
       break;
     }
     case JTD_FORM_ELEMENTS: {
-      put(w, sp_str_lit("array of "));
-      docs_type_cell(d, schema->as.elements.schema);
-      if (jtd_metadata_has(schema, "shorthand")) {
+      jtd_schema_t* element = schema->as.elements.schema;
+      bool shorthand = jtd_metadata_has(schema, "shorthand");
+      if (!shorthand && docs_type_single(d, element)) {
+        docs_type_cell(d, element, "[]");
+        break;
+      }
+      put(w, sp_str_lit("("));
+      docs_type_cell(d, element, "");
+      if (shorthand) {
         put(w, sp_str_lit(" \\| `string`"));
       }
+      put(w, sp_str_lit(")`[]`"));
       break;
     }
     case JTD_FORM_VALUES: {
       put(w, sp_str_lit("map of "));
-      docs_type_cell(d, schema->as.values.schema);
+      docs_type_cell(d, schema->as.values.schema, "");
       if (jtd_metadata_has(schema, "shorthand")) {
         put(w, sp_str_lit(" \\| `string`"));
       }
@@ -98,57 +128,108 @@ static void docs_type_cell(docs_t* d, jtd_schema_t* schema) {
       sp_str_t external = jtd_metadata(schema, "extern");
       if (!sp_str_empty(external)) {
         docs_note_extern(d, external);
-        sp_fmt_io(w, "[`{}`](#extern-types)", sp_fmt_str(external));
+        sp_fmt_io(w, "[`{}{}`](#extern-types)", sp_fmt_str(external), sp_fmt_cstr(suffix));
       } else {
-        put(w, sp_str_lit("`any`"));
+        sp_fmt_io(w, "`any{}`", sp_fmt_cstr(suffix));
       }
       break;
     }
     default: {
-      put(w, sp_str_lit("`any`"));
+      sp_fmt_io(w, "`any{}`", sp_fmt_cstr(suffix));
       break;
     }
   }
 }
 
-static void docs_root(docs_t* d) {
+// `doc` and `default` are free text; a literal pipe would end the cell
+static void docs_cell(docs_t* d, sp_str_t text) {
   sp_io_writer_t* w = &d->out.base;
-  jtd_schema_t* root = d->jtd->root;
-  put(w, sp_str_lit("## Top level\n\n| Table | Contents |\n|---|---|\n"));
-  sp_da_for(root->as.properties.all, it) {
-    jtd_property_t* prop = &root->as.properties.all[it];
-    switch (prop->schema->form) {
-      case JTD_FORM_ELEMENTS: sp_fmt_io(w, "| `[[{}]]` | ", sp_fmt_str(prop->key)); break;
-      case JTD_FORM_VALUES:   sp_fmt_io(w, "| `[{}.<name>]` | ", sp_fmt_str(prop->key)); break;
-      default:                sp_fmt_io(w, "| `[{}]` | ", sp_fmt_str(prop->key)); break;
-    }
-    docs_type_cell(d, prop->schema);
-    if (prop->required) {
-      put(w, sp_str_lit(" — required"));
-    }
-    put(w, sp_str_lit(" |\n"));
+  if (sp_str_empty(text)) {
+    put(w, sp_str_lit(" |"));
+    return;
   }
+  put(w, sp_str_lit(" "));
+  sp_da(sp_str_t) parts = sp_str_split_c8(d->mem, text, '|');
+  sp_da_for(parts, it) {
+    if (it) {
+      put(w, sp_str_lit("\\|"));
+    }
+    put(w, parts[it]);
+  }
+  put(w, sp_str_lit(" |"));
+}
+
+static bool docs_any(jtd_schema_t* schema, const c8* key) {
+  sp_da_for(schema->as.properties.all, it) {
+    if (jtd_metadata_has(schema->as.properties.all[it].schema, key)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+static void docs_table(docs_t* d, jtd_schema_t* schema, bool root) {
+  sp_io_writer_t* w = &d->out.base;
+  bool required = sp_da_size(schema->as.properties.required) > 0;
+  bool defaulted = docs_any(schema, "default");
+  bool described = docs_any(schema, "doc");
+  u32 columns = 2 + required + defaulted + described;
+  put(w, root ? sp_str_lit("| Table | Contents |") : sp_str_lit("| Field | Type |"));
+  if (required) {
+    put(w, sp_str_lit(" Required |"));
+  }
+  if (defaulted) {
+    put(w, sp_str_lit(" Default |"));
+  }
+  if (described) {
+    put(w, sp_str_lit(" Description |"));
+  }
+  put(w, sp_str_lit("\n|"));
+  sp_for(it, columns) {
+    put(w, sp_str_lit("---|"));
+  }
+  put(w, sp_str_lit("\n"));
+
+  sp_da_for(schema->as.properties.all, it) {
+    jtd_property_t* prop = &schema->as.properties.all[it];
+    if (!root) {
+      sp_fmt_io(w, "| `{}` | ", sp_fmt_str(prop->key));
+    } else {
+      switch (prop->schema->form) {
+        case JTD_FORM_ELEMENTS: sp_fmt_io(w, "| `[[{}]]` | ", sp_fmt_str(prop->key)); break;
+        case JTD_FORM_VALUES:   sp_fmt_io(w, "| `[{}.<name>]` | ", sp_fmt_str(prop->key)); break;
+        default:                sp_fmt_io(w, "| `[{}]` | ", sp_fmt_str(prop->key)); break;
+      }
+    }
+    docs_type_cell(d, prop->schema, "");
+    put(w, sp_str_lit(" |"));
+    if (required) {
+      docs_cell(d, prop->required ? sp_str_lit("yes") : sp_str_lit(""));
+    }
+    if (defaulted) {
+      sp_str_t value = jtd_metadata(prop->schema, "default");
+      docs_cell(d, sp_str_empty(value) ? value : sp_fmt(d->mem, "`{}`", sp_fmt_str(value)).value);
+    }
+    if (described) {
+      docs_cell(d, jtd_metadata(prop->schema, "doc"));
+    }
+    put(w, sp_str_lit("\n"));
+  }
+}
+
+static void docs_root(docs_t* d) {
+  put(&d->out.base, sp_str_lit("## Top level\n\n"));
+  docs_table(d, d->jtd->root, true);
 }
 
 static void docs_section(docs_t* d, sp_str_t name, jtd_schema_t* schema) {
   sp_io_writer_t* w = &d->out.base;
   sp_fmt_io(w, "\n## {}\n\n", sp_fmt_str(name));
-  bool any_required = sp_da_size(schema->as.properties.required) > 0;
-  if (any_required) {
-    put(w, sp_str_lit("| Field | Type | Required |\n|---|---|---|\n"));
-  } else {
-    put(w, sp_str_lit("| Field | Type |\n|---|---|\n"));
+  sp_str_t doc = jtd_metadata(schema, "doc");
+  if (!sp_str_empty(doc)) {
+    sp_fmt_io(w, "{}\n\n", sp_fmt_str(doc));
   }
-  sp_da_for(schema->as.properties.all, it) {
-    jtd_property_t* prop = &schema->as.properties.all[it];
-    sp_fmt_io(w, "| `{}` | ", sp_fmt_str(prop->key));
-    docs_type_cell(d, prop->schema);
-    if (any_required) {
-      put(w, prop->required ? sp_str_lit(" | yes |\n") : sp_str_lit(" | |\n"));
-    } else {
-      put(w, sp_str_lit(" |\n"));
-    }
-  }
+  docs_table(d, schema, false);
 }
 
 static sp_cli_result_t run_cli(sp_cli_t* cli) {
@@ -176,17 +257,16 @@ static sp_cli_result_t run_cli(sp_cli_t* cli) {
   docs.externs = sp_da_new(mem, sp_str_t);
 
   sp_io_writer_t* w = &docs.out.base;
-  put(w, sp_str_lit(
+  sp_fmt_io(w,
     "---\n"
-    "title: Manifest reference\n"
+    "title: {}\n"
     "group: Reference\n"
-    "order: 9\n"
     "readme: false\n"
     "---\n"
     "\n"
     "<!-- Generated by `spn build --tool docs`. Do not edit by hand. -->\n"
-    "\n"
-  ));
+    "\n",
+    sp_fmt_cstr(args->title));
 
   docs_root(&docs);
   for (u64 it = 0; it < sp_da_size(docs.types); it++) {
@@ -219,7 +299,7 @@ s32 main(s32 num_args, const c8** args) {
 
   sp_cli_cmd_t root = {
     .name = "docs",
-    .summary = "Generate a markdown manifest reference from a merged JTD schema",
+    .summary = "Generate a markdown reference page from a merged JTD schema",
     .args = {
       {
         .name = "schema",
@@ -230,6 +310,11 @@ s32 main(s32 num_args, const c8** args) {
         .name = "out",
         .summary = "Path to write the markdown file to",
         .ptr = &parsed.out,
+      },
+      {
+        .name = "title",
+        .summary = "Title of the page",
+        .ptr = &parsed.title,
       },
     },
     .handler = run_cli,

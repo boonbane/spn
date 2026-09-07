@@ -2,17 +2,20 @@
 import { getCollection, render } from 'astro:content'
 import Nav from '@spn/docs/components/Nav.astro'
 import Shell from '@spn/docs/layouts/Shell.astro'
+import { position } from '@spn/docs/lib/order'
 
 export async function getStaticPaths() {
-  const docs = (await getCollection('docs', (doc) => doc.data.site)).sort((a, b) => a.data.order - b.data.order)
+  const docs = (await getCollection('docs', (doc) => doc.data.site)).sort((a, b) => position(a.id) - position(b.id))
   return docs.map((doc) => ({ params: { slug: doc.id }, props: { doc, docs } }))
 }
 
 const { doc, docs } = Astro.props
-const { Content, headings } = await render(doc)
+const { Content } = await render(doc)
 
 const groups = Map.groupBy(docs, (doc) => doc.data.group)
-const toc = headings.filter((heading) => heading.depth === 2 || heading.depth === 3)
+// remark-gfm's footnotes section carries a visually hidden "Footnotes" h2, which doesn't belong in the outline.
+const outline = async (entry: typeof doc) => (await render(entry)).headings.filter((heading) => (heading.depth === 2 || heading.depth === 3) && heading.slug !== 'footnote-label')
+const outlines = new Map(await Promise.all(docs.map(async (entry) => [entry.id, await outline(entry)] as const)))
 ---
 
 <Shell title={`${doc.data.title} · spn`}>
@@ -25,24 +28,42 @@ const toc = headings.filter((heading) => heading.depth === 2 || heading.depth ==
             <div class="label">{group}</div>
             <ul>
               {docs.map((entry) => (
-                <li><a href={`/docs/${entry.id}`} aria-current={entry.id === doc.id ? 'page' : undefined}>{entry.data.title}</a></li>
+                <li>
+                  <a href={`/docs/${entry.id}`} aria-current={entry.id === doc.id ? 'page' : undefined}>{entry.data.title}</a>
+                  <div class:list={['fold', { open: entry.id === doc.id }]}>
+                    <ul class="outline">
+                      {outlines.get(entry.id)!.map((heading) => (
+                        <li class={`depth-${heading.depth}`}><a href={`/docs/${entry.id}#${heading.slug}`}>{heading.text}</a></li>
+                      ))}
+                    </ul>
+                  </div>
+                </li>
               ))}
             </ul>
           </section>
         ))}
       </nav>
+      <script is:inline>
+        // Arriving from another doc, start with its outline open and ours shut, then let the fold play.
+        {
+          const from = document.referrer ? new URL(document.referrer) : undefined
+          const path = from?.origin === location.origin ? from.pathname.replace(/\/$/, '') : ''
+          const prev = document.querySelector(`.sidebar a[href="${CSS.escape(path)}"]:not([aria-current]) + .fold`)
+          const next = document.querySelector('.fold.open')
+          const fresh = performance.getEntriesByType('navigation')[0]?.type === 'navigate'
+          if (prev && next && fresh && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            const flip = () => [prev, next].forEach((fold) => fold.classList.toggle('open'))
+            const hold = (value) => [prev, next].forEach((fold) => (fold.style.transition = value))
+            hold('none')
+            flip()
+            requestAnimationFrame(() => requestAnimationFrame(() => (hold(''), flip())))
+          }
+        }
+      </script>
       <main class="doc">
         <h1>{doc.data.title}</h1>
         <article class="prose"><Content /></article>
       </main>
-      <aside class="toc">
-        <div class="label">on this page</div>
-        <ul>
-          {toc.map((heading) => (
-            <li class={`depth-${heading.depth}`}><a href={`#${heading.slug}`}>{heading.text}</a></li>
-          ))}
-        </ul>
-      </aside>
     </div>
   </div>
 </Shell>
@@ -60,41 +81,29 @@ const toc = headings.filter((heading) => heading.depth === 2 || heading.depth ==
     align-items: center;
     height: var(--topbar-h);
     padding-inline: var(--s-7);
-    border-bottom: var(--border);
     background: var(--bg);
   }
 
   .layout {
     display: grid;
-    grid-template-columns: 15rem minmax(0, 44rem) 14rem;
+    grid-template-columns: 12rem minmax(0, 44rem);
+    justify-content: center;
     gap: var(--s-9);
-    max-width: 84rem;
-    margin-inline: auto;
     padding-inline: var(--s-7);
-
-    @media (max-width: 72rem) {
-      grid-template-columns: 15rem minmax(0, 1fr);
-    }
 
     @media (max-width: 48rem) {
       grid-template-columns: minmax(0, 1fr);
     }
   }
 
-  .sidebar,
-  .toc {
+  .sidebar {
     position: sticky;
     top: var(--topbar-h);
     align-self: start;
     max-height: calc(100vh - var(--topbar-h));
     overflow-y: auto;
     padding-block: var(--s-7);
-  }
-
-  .sidebar {
-    height: calc(100vh - var(--topbar-h));
-    border-right: var(--border);
-    font-size: var(--text-md);
+    font-size: var(--text-sm);
 
     @media (max-width: 48rem) {
       display: none;
@@ -115,23 +124,41 @@ const toc = headings.filter((heading) => heading.depth === 2 || heading.depth ==
 
       &[aria-current='page'] {
         color: var(--accent-bright);
-        font-weight: var(--weight-medium);
       }
     }
   }
 
-  .toc {
-    @media (max-width: 72rem) {
-      display: none;
+  .fold {
+    display: grid;
+    grid-template-rows: 0fr;
+    opacity: 0;
+    visibility: hidden;
+    transition: var(--transition) ease-out;
+    transition-property: grid-template-rows, opacity, visibility;
+
+    &.open {
+      grid-template-rows: 1fr;
+      opacity: 1;
+      visibility: visible;
     }
 
+    @media (prefers-reduced-motion: reduce) {
+      transition: none;
+    }
+  }
+
+  .outline {
+    min-height: 0;
+    overflow: hidden;
+    padding-left: var(--s-4);
+    font-size: var(--text-xs);
+
     a {
-      display: block;
       padding-block: var(--s-0);
       color: var(--text-mute);
 
-      &:hover {
-        color: var(--text);
+      &:focus-visible {
+        outline-offset: -2px;
       }
     }
 
@@ -142,7 +169,7 @@ const toc = headings.filter((heading) => heading.depth === 2 || heading.depth ==
 
   .label {
     margin-bottom: var(--s-3);
-    font-size: var(--text-xl);
+    font-size: var(--text-md);
   }
 
   .doc {
@@ -152,13 +179,13 @@ const toc = headings.filter((heading) => heading.depth === 2 || heading.depth ==
     h1 {
       margin-bottom: var(--s-8);
       font-size: var(--text-3xl);
-      font-weight: var(--weight-semibold);
+      font-weight: inherit;
       line-height: var(--leading-tight);
       letter-spacing: var(--tracking-tight);
     }
+  }
 
-    :global(:is(h2, h3)) {
-      scroll-margin-top: calc(var(--topbar-h) + var(--s-5));
-    }
+  .doc :global(:is(h2, h3)) {
+    scroll-margin-top: calc(var(--topbar-h) + var(--s-5));
   }
 </style>

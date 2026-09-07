@@ -1,0 +1,285 @@
+---
+title: Metaprograms
+readme: false
+---
+
+import Stub from '@spn/docs/components/Stub.astro'
+
+You need to run code in your build. Most people solve this by writing brittle scripts in Bash or Powershell, or, at best, a language like Python. In `spn`, these scripts (*metaprograms*) are regular C programs. They come in two forms:
+- *Configure*, which add steps to your build before any compilation happens
+- *Build*, which do actual work inside your build's execution, alongside compilation
+
+On this page, we'll walk through a basic example and then look at the finer points of how `spn` sandboxes metaprogram execution and what that means for you, the programmer.
+
+## Declaring a metaprogram
+
+Metaprograms are defined under the keys `package.build` and `package.configure`, using the `source`, `include`, `define`, and `flags` fields of any other target. Build metaprograms can have arbitrary dependencies, listed under `deps.build`, which are linked into the metaprogram only. Configure metaprograms can't have dependencies.
+
+```toml
+[package.configure]
+source = ["tools/configure.c"]
+
+[package.build]
+source = ["tools/build.c"]
+
+[deps.build]
+yyjson = "0.14.0"
+
+# Build dependencies are resolved separately from and can coexist with
+# conflicting versions of package dependencies
+[deps.package]
+yyjson = "69.0.0"
+```
+
+## Writing a metaprogram
+
+The most basic metaprogram includes `spn.h` and exports a function named `configure` with the correct signature:
+
+```c
+#include "spn.h"
+
+SPN_EXPORT spn_err_t configure(spn_t* spn, spn_config_t* config) {
+  return SPN_OK;
+}
+```
+
+`spn.h` is the *guest API*; it declares types and functions to be used from metaprograms run inside the host `spn`[^2]. `spn` embeds all the headers it needs to compile metaprograms inside the binary itself, so you never need to worry about the availability or compatibility of `spn.h`. It'll automatically point to the correct header.
+
+`spn_t` and `spn_config_t` are opaque handles used by the API; the former for APIs that are callable at both configure time and build time, the latter for APIs that only `configure` can call.
+
+`SPN_EXPORT` is a preprocessor definition which ensures `configure` is exported in the binary. You'll also use this to export functions from your build metaprogram. Let's write a build metaprogram that generates a header, and then we'll fill in `configure` to tell the build to call it.
+
+## Build time
+
+A *build* metaprogram runs inside your build, alongside things like compilation and linking. You might generate some C code from JSON schemas, or seed a database for your tests. Build metaprograms may be complex or perform a lot of compute (but are usually still simple).
+
+Here's an example of a build metaprogram that links to `yyjson` and `libc` and generates a header, `config.h`, based on the value of `config.json`:
+
+```c
+#include "spn.h"
+
+#include "yyjson.h"
+#include <stdio.h>
+
+SPN_EXPORT spn_err_t generate_config(spn_t* spn) {
+  yyjson_doc* doc = yyjson_read_file("/source/config.json", 0, NULL, NULL);
+  if (!doc) return SPN_ERROR;
+
+  yyjson_val* foo = yyjson_obj_get(yyjson_doc_get_root(doc), "foo");
+
+  FILE* header = fopen("/work/config.h", "w");
+  if (!header) return SPN_ERROR;
+  fprintf(header, "#define CONFIG_FOO %d\n", yyjson_get_int(foo));
+  fclose(header);
+
+  return SPN_OK;
+}
+```
+
+Take note of the paths. Metaprograms are sandboxed, and are given access to the following paths:
+- `/source`, the project (or, for a dependency, a clean checkout of the project)
+- `/work`, the output directory, and the only one you can write to
+- `/manifest`, the directory that holds `spn.toml`. This is usually `/source`. It differs when the manifest lives apart from the code (e.g. a `sqlite` package that obviously doesn't live in the actual SQLite repository)
+
+Every call to an exported function is run in its own sandbox. `static` data isn't shared. There's no need to free memory, either.
+
+## Configure time
+
+Now that we have `generate_config`, we need to tell `spn` to call it. A *node* is one step in your build: a function to call, and the files it writes. Add a node, give it the function by name, and declare its output.
+
+```c
+SPN_EXPORT spn_err_t configure(spn_t* spn, spn_config_t* config) {
+  spn_root_t work = 0;
+  spn_try(spn_get_root_work(spn, &work));
+
+  spn_node_t* gen = spn_add_node(config, "config");
+  spn_try(spn_node_set_fn(gen, "generate_config"));
+  spn_try(spn_node_add_output(gen, work, "config.h"));
+  return SPN_OK;
+}
+```
+
+Now, there's the question of ordering. If `foo.c` can't compile until `config.h` exists, there's nothing to do: every node in a package runs before any of that package's sources compile.
+
+The header lands in `/work`, which isn't on the include path. Add it in the manifest:
+
+```toml
+[[bin]]
+name = "foo"
+source = ["foo.c"]
+include = [{ path = ".", tree = "work" }]
+```
+
+## Sandboxing
+
+Metaprograms are cross compiled to WebAssembly modules using the builtin `zig` toolchain, and executed inside a sandboxed runtime in process scheduled alongside the rest of your build. They're linked to `wasi-libc`, and they have the following mounts:
+
+| Mount | Points at | Writable |
+|---|---|---|
+| `/work` | Scratch for this package build | yes |
+| `/source` | The package's source tree | no |
+| `/manifest` | The directory holding `spn.toml` | no |
+
+`spn` does not support running metaprograms as native code. If a part of your build can't run inside the sandbox (e.g. a Python script that you won't rewrite), you can call it from a [tool](/docs/task#vendoring) before the build and refer to the generated files from your build script. Since metaprograms can link to most C libraries, read and write files, etc., this is usually only needed for projects that use a bespoke build system in an interpreted language.
+
+### Limits
+
+<Stub />
+
+- Ordinary C file I/O works.
+- There are no threads, sockets, subprocesses, environment variables, or command line arguments.
+- Metaprograms are C, not C++.
+- Only declared outputs are cached, so an undeclared file in `/work` exists after a fresh run and is gone when the node is restored from the cache.
+
+## When to use a metaprogram
+
+<Stub />
+
+- Use a metaprogram to generate files inside every build, including when your package is built as someone's dependency.
+- Use a [tool](/docs/task#vendoring) whose output you commit for anything that needs Python, subprocesses, or the network.
+- Use [`embed`](/docs/packages#embedding-files-in-binaries) when all you need is a file's bytes in a binary.
+- Generated files can't be published: `[package.publish]` rejects `tree = "work"`.
+- So a generated public header has to be committed and published with `tree = "manifest"`.
+
+## Nodes
+
+Functions that run in your build graph are called *nodes*:
+
+```c
+spn_node_t* a = spn_add_node(config, "your_name_here");
+spn_try(spn_node_set_fn(a, "your_fn_here"));
+```
+
+- Nodes with no link between them have no defined order.
+- Before a node runs, `spn` deletes its declared outputs and creates their parent directories.
+- A node must write every output it declared.
+- Outputs go under the work root. Declaring one under source or manifest fails.
+- A directory output is everything under that directory. The node creates the directory itself.
+- Outputs can't nest inside each other, and one node's outputs need distinct file names.
+- A node whose metaprogram and [inputs](#inputs) haven't changed doesn't run. Its outputs come from the cache.
+- `configure` isn't cached. It runs on every build.
+
+To order two nodes, link them:
+
+```c
+spn_node_t* a = spn_add_node(config, "a");
+spn_try(spn_node_set_fn(a, "generate_a"));
+spn_try(spn_node_add_output(a, work, "a.txt"));
+
+spn_node_t* b = spn_add_node(config, "b");
+spn_try(spn_node_set_fn(b, "generate_b"));
+spn_try(spn_node_add_output_dir(b, work, "b"));
+
+spn_try(spn_node_link(a, b));
+```
+
+`b` runs after `a`, can read `/work/a.txt`, and reruns when it changes.
+
+## Inputs
+
+Nodes don't declare inputs. The sandbox records every path a node opens, stats, or lists under `/source` and `/manifest`, including paths that don't exist, and reruns the node when any of them changes. To read another node's output, [link](#nodes) the two.
+
+## Using generated files
+
+Manifest entries take `tree = "work"` to point at node outputs:
+
+```toml
+[[bin]]
+name = "foo"
+source = ["foo.c", { path = "gen/table.c", tree = "work" }]
+include = [{ path = "gen", tree = "work" }]
+embed = [{ path = "gen/table.bin", tree = "work" }]
+```
+
+- A `source` entry in `work` must be a literal path, not a glob.
+- `publish` and `linker_script` can't use `work`.
+
+## Paths
+
+| Tree | Mount | Handle | Writable |
+|---|---|---|---|
+| source | `/source` | `spn_get_root_source` | no |
+| manifest | `/manifest` | `spn_get_root_manifest` | no |
+| work | `/work` | `spn_get_root_work` | yes |
+
+A handle is an open directory. Use it with `openat`, or use the mount path:
+
+```c
+spn_root_t source = 0;
+spn_try(spn_get_root_source(spn, &source));
+s32 fd = openat(source, "config.json", O_RDONLY);
+```
+
+- Output paths are relative to their root, use `/`, and can't contain `..`.
+- A write outside `/work` fails the node.
+- `configure` has no filesystem. Handles are valid for declaring outputs, but `fopen` fails.
+- For your own project, `/work` is `.spn/<package>` inside the build directory.
+
+## Reading the profile
+
+```c
+spn_os_t os = SPN_OS_NONE;
+spn_try(spn_profile_get_os(spn_get_profile(spn), &os));
+const c8* backend = os == SPN_OS_WINDOWS ? "win32" : "posix";
+```
+
+This works at configure time and build time. The profile is the one being built, so a cross build reports the target.
+
+## Logging and errors
+
+```c
+spn_log(spn, spn_fmt("wrote {} from {}", "config.h", "config.json"));
+```
+
+- `spn_log` output is hidden unless the build fails or you pass `--verbose`.
+- `spn_fmt` substitutes up to four strings into `{}` and returns `NULL` if a placeholder has no argument.
+- Returning anything but `SPN_OK` from `configure` or a node fails the build. `spn_try(expr)` returns early on an error.
+
+## Staging
+
+`[stage]` copies node outputs out of `/work` and into your project after a successful build:
+
+```toml
+[stage]
+copy = [{ from = "config.h", to = "generated/config.h" }]
+```
+
+- `from` is a node output, either a file or a directory. `to` is relative to the project.
+- Only the root package's `[stage]` runs.
+- Staged files are outputs only. A build that reads one fails.
+- `spn` won't overwrite a file it didn't stage. It removes staged files when the entry goes away, and on `spn clean`.
+
+## API reference
+
+| Function | Where | |
+|---|---|---|
+| `spn_get_root_source(spn, &root)` | both | Handle to `/source` |
+| `spn_get_root_manifest(spn, &root)` | both | Handle to `/manifest` |
+| `spn_get_root_work(spn, &root)` | both | Handle to `/work` |
+| `spn_add_node(config, tag)` | configure | Adds a node. `tag` can't contain `/` |
+| `spn_node_set_fn(node, fn)` | configure | The exported function the node calls. Needs `[package.build]` |
+| `spn_node_add_output(node, root, sub)` | configure | Declares a file output |
+| `spn_node_add_output_dir(node, root, sub)` | configure | Declares a directory output |
+| `spn_node_link(from, to)` | configure | Runs `to` after `from`. `from` needs outputs |
+| `spn_get_profile(spn)` | both | The profile being built |
+| `spn_profile_get_os(profile, &os)` | both | `spn_os_t` |
+| `spn_profile_get_mode(profile, &mode)` | both | `spn_mode_t` |
+| `spn_profile_get_opt(profile, &opt)` | both | `spn_opt_level_t` |
+| `spn_profile_get_sanitizers(profile, &set)` | both | Bitset of `spn_sanitizer_t` |
+| `spn_log(spn, message)` | both | Logs a line |
+| `spn_fmt(fmt, ...)` | both | Formats up to four strings |
+| `spn_try(expr)` | both | Returns `expr`'s error, if any |
+
+## Writing build scripts in C is awesome
+
+These are regular C programs, not a DSL or some subset of C. Metaprograms are regular code in the same language as your project, with access to the same dependencies and ecosystem. That's how it ought to be! In the [words of the great Matklad](https://matklad.github.io/2024/03/22/basic-things.html#Build-CI):
+
+> A common anti-pattern is to write these sorts of automations in bash and Python, but that’s almost pure technical debt. These ecosystems are extremely finnicky in and of themselves, and, crucially (unless your project itself is written in bash or Python), they are a second ecosystem to what you already have in your project for “normal” code.
+>
+> But releasing software is also just code, which you can write in your primarly language. The right tool for the job is often the tool you are already using. It pays off to explicitly attack the problem of glue from the start, and to pick/write a library that makes writing subprocess wrangling logic easy.
+
+Writing build scripts in C has traditionally been painful almost entirely because libc is not a suitable interface for any program, let alone high level programs like build scripts. Even if you spurn [modern, portable, ergonomic alternatives to the C standard library](https://github.com/tspader/sp) in favor of this self-flagellation, I urge the thoughtful reader to consider the benefits of throwing away the quirks of Bash, the nonportability of Powershell, the deployment nightmare of Python, and the fuzzy type systems of all of the above in favor of something simple, close to the OS, and statically typed!
+
+[^1]: WebAssembly is a platform agnostic binary target; instead of compiling code for x86_64 or ARM64 machine code and running it with your CPU, you compile it to WASM bytecode and run it inside another program.
+
+[^2]: If you'd like to link to `libspn` and drive the core yourself, that's a [separate *host* API](/docs/embedding).
