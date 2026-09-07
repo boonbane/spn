@@ -6,7 +6,9 @@ export interface Target {
   command: string
 }
 
+const releases = 'https://github.com/boonbane/spn/releases/latest/download'
+
 export const targets: Target[] = [
-  { id: 'posix', label: 'macOS & Linux', lang: 'sh', prompt: '$', command: 'curl -fsSL https://spn.spader.zone/install | sh' },
-  { id: 'windows', label: 'Windows', lang: 'powershell', prompt: '>', command: 'irm https://spn.spader.zone/install.ps1 | iex' },
+  { id: 'posix', label: 'macOS & Linux', lang: 'sh', prompt: '$', command: `curl -fsSL ${releases}/install.sh | sh` },
+  { id: 'windows', label: 'Windows', lang: 'powershell', prompt: '>', command: `irm ${releases}/install.ps1 | iex` },
 ]

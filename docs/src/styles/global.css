@@ -150,7 +150,9 @@ ul {
 }
 
 .link,
-.prose a {
+.prose a,
+.footnotes a,
+[data-footnote-ref] {
   color: var(--accent-bright);
   text-decoration: underline;
   text-decoration-color: var(--accent-veil);
@@ -159,7 +161,9 @@ ul {
 }
 
 .link:hover,
-.prose a:hover {
+.prose a:hover,
+.footnotes a:hover,
+[data-footnote-ref]:hover {
   color: var(--accent-hover);
   text-decoration-color: currentcolor;
 }
@@ -253,7 +257,6 @@ ul {
 }
 
 .prose :is(ul, ol) {
-  margin-block: var(--s-5);
   padding-left: var(--s-8);
 }
 
@@ -273,9 +276,9 @@ ul {
 }
 
 .prose h3 {
-  margin-block: var(--s-5);
+  margin-block: var(--s-1);
   font-size: var(--text-xl);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-bold);
   letter-spacing: var(--tracking-tight);
 }
 

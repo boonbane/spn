@@ -1,9 +1,12 @@
+import Discord from '@spn/docs/components/Discord.astro'
+import Footer from '@spn/docs/components/Footer.astro'
 import Install from '@spn/docs/components/Install.astro'
 import Nav from '@spn/docs/components/Nav.astro'
 import Pillar from '@spn/docs/components/Pillar.astro'
 import Reel from '@spn/docs/components/Reel.astro'
 import Showcase from '@spn/docs/components/Showcase.astro'
 import Subscribe from '@spn/docs/components/Subscribe.astro'
+import { links } from '@spn/docs/data/links'
 import Shell from '@spn/docs/layouts/Shell.astro'
 import '@spn/docs/styles/landing.css'
 
@@ -18,12 +21,11 @@ import '@spn/docs/styles/landing.css'
       <div class="prose">
 A modern package manager, build system, and build cache in one static binary. Write packages in TOML, not an arcane language, and get reproducible, sandboxed builds that are as fast in CI as on your machine.
 
-Install the latest alpha, then [build an example](https://github.com/boonbane/spn/tree/main/example) to get started. Sign up for the mailing list for updates, [send me an email](mailto:newsletter@spader.zone), or [join the Discord server](https://discord.gg/7v4C5Kwsp7).
+Install the latest alpha, then [build an example](https://github.com/boonbane/spn/tree/main/example) to get started. [Sign up for the mailing list](/mail) for updates, <a href={links.discord.public}>join the Discord server</a>, or <a href={links.email}>send me an email</a>.
       </div>
-      <div class="actions">
-        <Install />
-        <Subscribe />
-      </div>
+    </div>
+    <div class="actions">
+      <Install />
     </div>
     <Reel />
   </section>
@@ -107,13 +109,10 @@ yyjson = "0.14.0"
   <section class="cta container">
     <div class="actions">
       <Install />
-      <div class="card"><Subscribe><p>sign up for updates. good stuff only!</p></Subscribe></div>
+      <Subscribe />
+      <Discord invite="public" />
     </div>
   </section>
 
-  <footer class="footer">
-    <div class="container">
-      <span><a href="/docs/quickstart">docs</a> · <a href="https://github.com/tspader/spam">packages</a> · <a href="https://github.com/boonbane/spn">github</a></span>
-    </div>
-  </footer>
+  <Footer />
 </Shell>

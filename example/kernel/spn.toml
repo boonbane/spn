@@ -5,11 +5,14 @@ version = "0.1.0"
 [[bin]]
 name = "main"
 source = [
-  "main.c",
-  { path = "start/x86_64.S", when = { arch = "x86_64" } },
-  { path = "start/aarch64.S", when = { arch = "aarch64" } },
+  { path = "source/start/x86_64.S", when = { arch = "x86_64" } },
+  { path = "source/start/aarch64.S", when = { arch = "aarch64" } },
+  "source/main.c",
 ]
-linker_script = ["kernel.ld"]
+linker_script = [
+  { path = "source/start/x86_64.ld", when = { arch = "x86_64" } },
+  { path = "source/start/aarch64.ld", when = { arch = "aarch64" } },
+]
 link_flags = ["-Wl,--build-id=none"]
 
 [profile.default]

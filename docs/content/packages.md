@@ -1,48 +1,97 @@
 ---
 title: Packages
-order: 3
 ---
+
+A *package* is a collection of executables and libraries, tests, and examples, called *targets*.
 
 Packages are defined by TOML manifests.
 
 ## Targets
 
-A package can define as many executables, libraries, tests, and examples as it would like. These are called *targets*. They have fields like `source`, or `include`, or `system_deps`, and most fields can be configured at the package level for all targets or for an individual target.
+ They have fields like `source`, or `include`, or `system_deps`, and most fields can be configured at the package level for all targets or for an individual target.
 
 ```toml
 [package]
+name = "foo"
 include = ['common']
 
 [[lib]]
+name = "foo"
 source = ['source/lib.c']
 include = ['source/lib']
 
 [[example]]
+name = "frobnicate"
 source = ['example/foo/main.c']
 
 [[test]]
+name = "unit"
 source = ['test/main.c', 'test/foo.c']
-define = ['SOMETHING']
+define = ['BAR', 'BAZ=69']
 system_deps = ['m']
 ```
 
 A `[[bin]]` and a `[[script]]`, for instance, are both executables, but their difference isn't strictly cosmetic. `[[bin]]` entries are taken to be *exports* of your package, able to be pulled in by consumers. `[[script]]` entries aren't. `[[test]]` entries are executed in `spn test`, and compiled to `test/` instead of `bin/`.
 
-## Target fields
+### Publishing headers
 
-### source
+Let's say that you have these headers:
 
-### include and publish
+```
+foo/
+  bar/
+    b.h
+  baz/
+    qux/
+      c.h
+    spum/
+      d.h
+  a.h
+```
+
+And you publish them like so, flattening out `baz` and otherwise treating `foo` as the top level:
+
+```toml
+[package.publish]
+include = [
+  { from = "foo/*.h"},
+  { from = "foo/bar/*.h", to = "bar" },
+  { from = "baz/**/.*.h", to = "baz" },
+]
+```
+
+You'd end up with this:
+
+```
+include/
+  a.h
+  bar/
+    b.h
+  baz/
+    c.h
+    d.h
+```
+
+### Linkage
+
+Targets declare what kinds of linkage they support:
+- `static`
+- `shared`
+- `object`, which skips the linker and directly publishes object files to `lib/`
+- `source`, which means that the component object files are compiled directly into your program
+
+These kinds are opt-in; there's no default, and you must declare what you support. A target can also set `link = false` to simply compile the sources without linking them[^1].
+
+### Dependencies
 
 ### define and flags
 
 ### system_deps
 
-### deps
-
-### kinds
 
 ### cxx
+
+
 
 ## System dependencies
 
@@ -138,9 +187,15 @@ When linking, your binary's `min_os` is the max across everything in it. If a de
 windows = { subsystem = "windows" }
 ```
 
-## Embedding files
+## Embedding files in binaries
 
-`spn` can embed arbitrary files and bytes in your binary by creating an object file and header that anything can link to trivially. Each entry names a file (or, with `dir = true`, every file under a directory) and the path it is embedded as; the symbol is that path with `/`, `\\`, `.`, and `-` replaced by `_`. For example, this configuration:
+`spn` can embed arbitrary files and bytes in your binary. This is a very common way to ship a program with fonts, shaders, assets, etc. without depending on a filesystem at runtime.
+
+Embedded files are specified in TOML. `spn` creates:
+- An object file containing the literal bytes
+- A header file with metadata for use in your program
+
+Each entry names a file (or, with `dir = true`, every file under a directory) and the path it is embedded as; the symbol is that path with `/`, `\\`, `.`, and `-` replaced by `_`. For example, this configuration:
 
 ```toml
 [[bin]]
@@ -181,3 +236,5 @@ static const spn_embed_entry_t spn_embed_manifest[] = {
   { "shaders/quad.vert", shaders_quad_vert, 287 },
 };
 ```
+
+[^1]: For example, `tinycc` wants to compile `libtcc1.a`, which is the compiler's runtime library that it links into programs it compiles. It's not linked into the `tcc` binary itself; think of it like an asset that `tcc` wants available at runtime. It's a binary produced from C and Assembly code, so `spn` should damn well be able to build is as part of its build, but it doesn't get *linked* into anything, and it doesn't get *published*, so `object` isn't appropriate either.

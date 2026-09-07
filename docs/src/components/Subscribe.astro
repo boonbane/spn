@@ -1,15 +1,28 @@
 ---
+interface Props {
+  tag?: string
+}
+
+const { tag } = Astro.props
 const source = `spn${Astro.url.pathname.replace(/\/$/, '')}`
 ---
 
 <form class="subscribe" action="https://buttondown.com/api/emails/embed-subscribe/spader" method="post">
   <input type="hidden" name="tag" value="spn" />
+  {tag && <input type="hidden" name="tag" value={tag} />}
   <input type="hidden" name="metadata__source" value={source} />
-  <span class="label">mailing list</span>
-  <slot />
+  <span class="title">Sign up for our mailing list</span>
   <input type="email" name="email" placeholder="your@email.com" required />
   <button type="submit">subscribe</button>
 </form>
+
+<script>
+  import { send } from '@spn/docs/lib/events'
+
+  document.addEventListener('submit', (event) => {
+    if ((event.target as Element).matches('.subscribe')) send('subscribe')
+  })
+</script>
 
 <style>
   .subscribe {
@@ -17,12 +30,16 @@ const source = `spn${Astro.url.pathname.replace(/\/$/, '')}`
     flex-wrap: wrap;
     align-items: center;
     gap: var(--s-3) var(--s-4);
+    padding: var(--s-5) var(--s-6);
+    background: var(--bg-inset);
+    border: var(--border-strong);
+    border-radius: var(--r-lg);
     font-size: var(--text-sm);
   }
 
-  .subscribe :global(p) {
+  .title {
     flex-basis: 100%;
-    color: var(--text-dim);
+    font-size: var(--text-md);
   }
 
   input[type='email'] {

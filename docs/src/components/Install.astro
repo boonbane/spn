@@ -5,10 +5,21 @@ import { targets } from '@spn/docs/data/install'
 
 <Tabs group="install" tabs={targets}>
   <figure class="code-block install">
-    {targets.map((target, i) => <pre role="tabpanel" data-tab={target.id} data-prompt={target.prompt} hidden={i !== 0}>{target.command}</pre>)}
-    <button class="code-copy" type="button">copy</button>
+    {targets.map((target, i) => <pre role="tabpanel" data-tab={target.id} data-prompt={target.prompt} hidden={i !== 0} set:html={target.command.replaceAll('/', '/<wbr>')} />)}
+    <button class="code-copy" type="button" aria-label="copy" title="copy"></button>
   </figure>
 </Tabs>
+
+<script>
+  import { send } from '@spn/docs/lib/events'
+
+  document.addEventListener('click', (event) => {
+    const button = (event.target as Element).closest<HTMLElement>('.install .code-copy')
+    if (!button) return
+    const pre = button.parentElement!.querySelector<HTMLElement>(':scope > pre:not([hidden])')!
+    send('copy', pre.dataset.tab)
+  })
+</script>
 
 <style>
   :global([data-tabs='install']) {
@@ -36,8 +47,7 @@ import { targets } from '@spn/docs/data/install'
     padding: 0;
     font: inherit;
     font-family: var(--font-mono);
-    white-space: nowrap;
-    scrollbar-width: none;
+    white-space: normal;
 
     &[hidden] {
       display: block;
@@ -47,25 +57,6 @@ import { targets } from '@spn/docs/data/install'
     &::before {
       content: attr(data-prompt) ' ';
       color: var(--accent);
-    }
-  }
-
-  .install .code-copy {
-    width: auto;
-    height: auto;
-    /* the label has no ascenders; bias padding down so it sits optically centered */
-    padding: calc(var(--s-1) - 2px) var(--s-3) calc(var(--s-1) + 2px);
-    border: var(--border-strong);
-    color: var(--text-mute);
-    font-size: var(--text-xs);
-
-    &::before {
-      content: none;
-    }
-
-    &:hover {
-      color: var(--text);
-      border-color: var(--line-hover);
     }
   }
 </style>

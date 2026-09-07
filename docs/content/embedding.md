@@ -1,7 +1,5 @@
 ---
-title: Embedding `spn`
-order: 10
-site: false
+title: libspn
 ---
 
 ## There's a stable C ABI

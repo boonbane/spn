@@ -12,6 +12,10 @@ _start:
   adrp x0, stack_top
   add x0, x0, :lo12:stack_top
   mov sp, x0
-  bl kmain
+  bl main
+  movz x0, #0x0008
+  movk x0, #0x8400, lsl #16
+  hvc #0
 1:
+  wfi
   b 1b

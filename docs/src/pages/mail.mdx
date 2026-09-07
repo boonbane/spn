@@ -1,0 +1,25 @@
+import Footer from '@spn/docs/components/Footer.astro'
+import Nav from '@spn/docs/components/Nav.astro'
+import Subscribe from '@spn/docs/components/Subscribe.astro'
+import { links } from '@spn/docs/data/links'
+import Shell from '@spn/docs/layouts/Shell.astro'
+import '@spn/docs/styles/landing.css'
+import '@spn/docs/styles/narrow.css'
+
+<Shell title="spn | Mail">
+  <header class="container"><Nav /></header>
+
+  <main class="container">
+    <div class="narrow">
+# Mail
+      <div class="prose">
+Bugs, questions, feature requests. Anything. <a href={links.email}>Send me an email</a>.
+
+Release notes and breaking changes go out on the mailing list, as they happen.
+      </div>
+      <Subscribe />
+    </div>
+  </main>
+
+  <Footer />
+</Shell>

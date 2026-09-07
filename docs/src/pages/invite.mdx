@@ -1,0 +1,48 @@
+import Discord from '@spn/docs/components/Discord.astro'
+import Footer from '@spn/docs/components/Footer.astro'
+import Install from '@spn/docs/components/Install.astro'
+import Nav from '@spn/docs/components/Nav.astro'
+import Subscribe from '@spn/docs/components/Subscribe.astro'
+import Shell from '@spn/docs/layouts/Shell.astro'
+import '@spn/docs/styles/landing.css'
+import '@spn/docs/styles/narrow.css'
+
+<Shell title="spn | You are invited">
+  <meta slot="head" name="robots" content="noindex" />
+
+  <header class="container"><Nav /></header>
+
+  <main class="container">
+    <div class="narrow">
+# You are invited[^1]
+By god, if you're a real human and you're reading this then...it's alive! `spn`! It's the real set of tools that every other language has out of the box, written for the unique hell that writing and compiling C/++ often leaves us in. [Read more about it on the front page](https://spn.spader.zone), but if you've gotten this special, private invitation then you probably know the deal.
+
+Don't share this link with randoms on the internet, but you can give it to your friends.
+
+## Install
+Since the thing is open source, you can download it like the pleb that you are. That's not the special part.
+
+<Install />
+
+Read the [quickstart](/docs/quickstart) to get set up, then [build an example](https://github.com/boonbane/spn/tree/main/example). Everything else is in the [docs](/docs/overview).
+
+## Join the Discord
+
+Now this, this is special. This is just for you. Get on in here. Bugs, questions, feature requests. Anything. Tell me about your mother-in-law if you want. [^2]
+
+<Discord invite="beta" />
+
+## Mailing List
+
+We got one of those too. This one's also for the plebs, but there'll be good stuff here.
+      <Subscribe tag="spn-beta" />
+      <Footnotes />
+    </div>
+  </main>
+
+  <Footer />
+</Shell>
+
+[^1]: [BY ANYYYYYONE, TO DO ANYTHING!](https://www.youtube.com/watch?v=SrOb-KMzWHo) Like, for example, scream at me until all of your problems which involve compiling C/++ code either disappear or consume you so completely with impotent rage that you swear off me, or software, or both. Or just hang out.
+
+[^2]: Look, I'll square with you. Maybe you know me personally, maybe you don't. I'm just some guy. I don't fully understand why I want to write this software so badly, but I do, and I'll do just about anything to help make `spn` solve your problems. What am I getting at? Am I just lonely? We're approaching what could only generously be called *winded* for an invite. Probably yes, but that's beside the point. What I'm getting at is that whether I know you well or not, I'm just like you. I want software to be better, I want to help people writing it, I want to make friends. Hit me up at any time for anything.
