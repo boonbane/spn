@@ -13,8 +13,8 @@ system_deps = [
 ]
 
 [package.configure]
-source = ["tools/spn/configure.c", "tools/spn/wasi.c"]
-include = ["include", "tools"]
+source = ["tools/spn/configure.c"]
+include = ["include"]
 
 [package.build]
 source = [
