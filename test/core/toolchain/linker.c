@@ -23,24 +23,6 @@ sp_test_each(linker, dialect, dialect_t, dialect_tests) {
 
 typedef struct {
   const c8* name;
-  spn_ld_dialect_t dialect;
-  bool expect;
-} static_t;
-
-static const static_t static_tests [] = {
-  { "gnu",    SPN_LD_DIALECT_GNU,    true },
-  { "link",   SPN_LD_DIALECT_LINK,   false },
-  { "darwin", SPN_LD_DIALECT_DARWIN, false },
-  { "wasm",   SPN_LD_DIALECT_WASM,   false },
-};
-
-sp_test_each(linker, static, static_t, static_tests) {
-  sp_expect_eq(t, it->expect, spn_ld_static(it->dialect));
-  return SP_OK;
-}
-
-typedef struct {
-  const c8* name;
   spn_triple_t target;
   spn_runtime_t libc;
   bool expect;

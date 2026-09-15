@@ -425,7 +425,7 @@ void spn_gnu_render_link(sp_mem_t mem, const spn_cc_toolchain_t* toolchain, cons
   spn_triple_t triple = spn_profile_triple(profile);
   spn_format_t format = spn_os_format(profile->os);
   spn_ld_dialect_t dialect = spn_ld_dialect(triple);
-  bool is_full_static = profile->linking.linkage == SPN_LIB_KIND_STATIC && profile->linking.runtime == SPN_RUNTIME_STATIC;
+  bool is_static_libc = profile->linking.libc == SPN_RUNTIME_STATIC && format == SPN_FORMAT_ELF;
   bool is_gnu_runtime_static = profile->linking.runtime == SPN_RUNTIME_STATIC && triple.abi != SPN_ABI_MSVC && spn_cc_has(toolchain, SPN_CC_CAP_GNU_RUNTIME);
 
   add_launcher(mem, toolchain, profile, link->lang, invocation);
@@ -462,7 +462,7 @@ void spn_gnu_render_link(sp_mem_t mem, const spn_cc_toolchain_t* toolchain, cons
       break;
     }
     case SPN_CC_OUTPUT_EXE: {
-      if (is_full_static && spn_ld_static(dialect)) {
+      if (is_static_libc) {
         spn_cc_push_c(mem, invocation, "-static");
       }
       else if (is_gnu_runtime_static) {

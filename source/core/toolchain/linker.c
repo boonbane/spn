@@ -136,17 +136,6 @@ spn_ld_dialect_t spn_ld_dialect(spn_triple_t target) {
   SP_UNREACHABLE_RETURN(SPN_LD_DIALECT_GNU);
 }
 
-bool spn_ld_static(spn_ld_dialect_t dialect) {
-  switch (dialect) {
-    case SPN_LD_DIALECT_GNU: return true;
-    case SPN_LD_DIALECT_LINK:
-    case SPN_LD_DIALECT_DARWIN:
-    case SPN_LD_DIALECT_WASM: return false;
-    case SPN_LD_DIALECT_COUNT: sp_unreachable_case();
-  }
-  SP_UNREACHABLE_RETURN(false);
-}
-
 bool spn_ld_scripts(spn_ld_family_t family, spn_format_t format) {
   switch (family) {
     case SPN_LD_FAMILY_GNU: return format == SPN_FORMAT_ELF || format == SPN_FORMAT_COFF;
