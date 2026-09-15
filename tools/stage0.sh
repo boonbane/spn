@@ -9,7 +9,11 @@ if [ "${1:-}" = "--version" ]; then
 fi
 
 if [ -n "${SPN_STAGE0:-}" ]; then
-  printf '%s\n' "$SPN_STAGE0"
+  SPN="$SPN_STAGE0"
+  if command -v cygpath >/dev/null 2>&1; then
+    SPN="$(cygpath -m "$SPN")"
+  fi
+  printf '%s\n' "$SPN"
   exit 0
 fi
 
