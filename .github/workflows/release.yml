@@ -28,10 +28,7 @@ jobs:
       - run: |
           version="$(sed -n 's/^version = "\(.*\)"$/\1/p' spn.toml)"
           test "v${version}" = "${TAG}"
-      - run: |
-          for workflow in ci bootstrap; do
-            sh tools/greenlit.sh "${workflow}" ${{ github.sha }}
-          done
+      - run: sh tools/greenlit.sh ci ${{ github.sha }}
 
   package:
     needs: [check]
