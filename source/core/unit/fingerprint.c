@@ -18,6 +18,7 @@ typedef struct {
   spn_opt_level_t opt;
   spn_sanitizer_set_t sanitizers;
   spn_linkage_t linkage;
+  spn_runtime_t runtime;
   spn_c_standard_t standard;
   spn_arch_t arch;
   spn_os_t os;
@@ -134,6 +135,7 @@ sp_hash_t spn_unit_fingerprint(spn_session_t* session, spn_build_unit_t* build, 
   fingerprint.opt = build->profile.opt;
   fingerprint.sanitizers = build->profile.sanitizers;
   fingerprint.linkage = config.some ? config.value : build->profile.linkage;
+  fingerprint.runtime = build->profile.runtime;
   fingerprint.standard = build->profile.standard;
   fingerprint.arch = build->profile.arch;
   fingerprint.os = build->profile.os;
