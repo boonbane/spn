@@ -9,7 +9,7 @@ $ProgressPreference = "SilentlyContinue"
 # >>> spn release data
 $Version = "0.0.0"
 $Tag = "v0.0.0"
-$Repo = "tspader/spn"
+$Repo = "boonbane/spn"
 $Targets = @{}
 # <<< spn release data
 

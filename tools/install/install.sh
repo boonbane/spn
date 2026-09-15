@@ -4,7 +4,7 @@ set -eu
 # >>> spn release data
 VERSION="0.0.0"
 TAG="v0.0.0"
-REPO="tspader/spn"
+REPO="boonbane/spn"
 TARGETS=""
 # <<< spn release data
 

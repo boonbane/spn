@@ -10,7 +10,7 @@ VERSION="${1#v}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 STAGE0="$ROOT/tools/stage0.sh"
 
-ASSETS="$(gh api "repos/tspader/spn/releases/tags/v$VERSION" --jq '.assets[] | "\(.name) \(.digest)"')"
+ASSETS="$(gh api "repos/boonbane/spn/releases/tags/v$VERSION" --jq '.assets[] | "\(.name) \(.digest)"')"
 
 digest() {
   SHA="$(printf '%s\n' "$ASSETS" | sed -n "s/^$1 sha256://p")"
