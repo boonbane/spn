@@ -18,6 +18,7 @@ spn_dag_id_t        spn_dag_add_output(spn_dag_t* g, sp_str_t name);
 spn_dag_id_t        spn_dag_add_action(spn_dag_t* g, spn_dag_action_config_t config);
 void                spn_dag_action_add_input(spn_dag_t* g, spn_dag_id_t action, spn_dag_id_t artifact);
 spn_err_t           spn_dag_action_add_output(spn_dag_t* g, spn_dag_id_t action, spn_dag_id_t artifact);
+spn_dag_violation_t spn_dag_validate(spn_dag_t* g);
 
 void                spn_dag_hash_bytes(spn_digest_ctx_t* ctx, const void* data, u64 len);
 void                spn_dag_hash_u8(spn_digest_ctx_t* ctx, u8 value);

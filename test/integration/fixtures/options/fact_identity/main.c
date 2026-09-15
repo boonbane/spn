@@ -1,5 +1,3 @@
-#include "gen.h"
-
 int main() {
-  return GEN_VALUE;
+  return 0;
 }

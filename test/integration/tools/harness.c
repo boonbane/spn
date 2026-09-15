@@ -615,6 +615,10 @@ sp_err_t run_command(sp_test_t* t, fixture_t* fixture, command_test_t test) {
     expect_event(t, fixture, expected.event, expected.key, expected.value, !expected.absent, __FILE__, __LINE__);
   }
 
+  if (test.expect.err) {
+    expect_event(t, fixture, SPN_EVENT_ERR, "kind", sp_str_to_cstr(fixture->mem, spn_err_to_str(test.expect.err)), true, __FILE__, __LINE__);
+  }
+
   sp_carr_for(test.expect.cc, it) {
     if (!test.expect.cc[it].args[0]) {
       break;

@@ -130,6 +130,7 @@ typedef struct {
 
 typedef struct {
   s32 rc;
+  spn_err_t err;
   command_bin_t bin;
   const c8* contains [SPN_TEST_COMMAND_MAX_CONTAINS];
   const c8* excludes [SPN_TEST_COMMAND_MAX_CONTAINS];

@@ -966,7 +966,6 @@ static spn_err_t seed_sources(spn_dag_t* g, spn_dag_env_t* env) {
     spn_dag_artifact_t* artifact = &g->artifacts[it];
     switch (artifact->kind) {
       case SPN_DAG_ARTIFACT_KIND_TREE: {
-        sp_assert(artifact->producer.occupied);
         break;
       }
       case SPN_DAG_ARTIFACT_KIND_FILE: {
@@ -1151,7 +1150,14 @@ spn_err_t spn_dag_run_executor(spn_dag_t* g, spn_dag_env_t* env, spn_thread_pool
   if (run.err) {
     diag_set(&env->diag, run.err, (spn_dag_id_t) sp_zero, sp_str_lit(""));
   }
-  else {
+  if (!run.err) {
+    spn_dag_violation_t violation = spn_dag_validate(g);
+    run.err = violation.err;
+    if (violation.err) {
+      diag_set(&env->diag, violation.err, (spn_dag_id_t) sp_zero, artifact_render(g, violation.path));
+    }
+  }
+  if (!run.err) {
     run.err = seed_sources(g, env);
   }
 

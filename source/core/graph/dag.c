@@ -199,15 +199,6 @@ static spn_err_t generate_embedding(spn_dag_t* g, spn_dag_action_t* action, void
   return SPN_OK;
 }
 
-static sp_err_t user_output_copy(spn_dag_artifact_kind_t kind, sp_str_t declared, sp_str_t target) {
-  switch (kind) {
-    case SPN_DAG_ARTIFACT_KIND_FILE: return sp_fs_copy_file(declared, target, SP_FS_ATOMIC_REPLACE);
-    case SPN_DAG_ARTIFACT_KIND_TREE: return sp_fs_copy_tree(declared, target, SP_FS_ATOMIC_REPLACE);
-    case SPN_DAG_ARTIFACT_KIND_VALUE: break;
-  }
-  SP_UNREACHABLE_RETURN(SP_ERR_SYS_UNSUPPORTED);
-}
-
 static spn_err_t dag_user_exec(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, sp_mem_t mem, sp_da(spn_dag_obs_t)* obs) {
   spn_dag_user_ctx_t* ctx = (spn_dag_user_ctx_t*)user_data;
   spn_user_node_t* node = ctx->node;
@@ -270,7 +261,13 @@ static spn_err_t dag_user_exec(spn_dag_t* g, spn_dag_action_t* action, void* use
       });
       return SPN_ERR_DAG_ACTION;
     }
-    if (user_output_copy(artifact->kind, declared, target)) {
+    sp_err_t err = SP_OK;
+    switch (artifact->kind) {
+      case SPN_DAG_ARTIFACT_KIND_FILE:  err = sp_fs_copy_file(declared, target, SP_FS_ATOMIC_REPLACE); break;
+      case SPN_DAG_ARTIFACT_KIND_TREE:  err = sp_fs_copy_tree(declared, target, SP_FS_ATOMIC_REPLACE); break;
+      case SPN_DAG_ARTIFACT_KIND_VALUE: sp_unreachable_case();
+    }
+    if (err) {
       spn_event_buffer_push(spn.events, (spn_event_t) {
         .kind = SPN_EVENT_NODE_FAILED,
         .pkg = pkg->info->name,
@@ -338,37 +335,6 @@ spn_err_t spn_build_publish_copies(spn_pkg_unit_t* unit, sp_str_t root, sp_mem_t
   return SPN_OK;
 }
 
-static spn_err_t user_output_unpublished(spn_pkg_unit_t* unit, spn_user_node_t* node, spn_path_t path) {
-  spn_event_buffer_push(spn.events, (spn_event_t) {
-    .kind = SPN_EVENT_NODE_FAILED,
-    .pkg = unit->info->name,
-    .node_failed = {
-      .path = spn_path_str(&spn.roots, spn.mem, path),
-      .message = sp_fmt(spn.mem, "output of node {} could not be published to the package store", sp_fmt_str(node->tag)).value,
-    },
-  });
-  return SPN_ERROR;
-}
-
-static spn_err_t dag_tree_copy_user_outputs(spn_pkg_unit_t* unit, sp_str_t root) {
-  sp_da_for(unit->user_nodes, it) {
-    spn_user_node_t* node = &unit->user_nodes[it];
-    sp_da_for(node->outputs, ot) {
-      spn_user_output_t* out = &node->outputs[ot];
-      if (out->dir != SPN_DIR_INCLUDE) {
-        continue;
-      }
-      sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-      sp_err_t err = user_output_copy(out->kind, spn_path_str(&spn.roots, scratch.mem, out->path), sp_fs_join_path(scratch.mem, root, out->sub));
-      sp_mem_end_scratch(scratch);
-      if (err) {
-        return user_output_unpublished(unit, node, out->path);
-      }
-    }
-  }
-  return SPN_OK;
-}
-
 static spn_err_t dag_tree_exec(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, sp_mem_t mem, sp_da(spn_dag_obs_t)* obs) {
   spn_pkg_unit_t* unit = (spn_pkg_unit_t*)user_data;
 
@@ -379,9 +345,6 @@ static spn_err_t dag_tree_exec(spn_dag_t* g, spn_dag_action_t* action, void* use
   }
 
   if (spn_build_publish_copies(unit, root, mem, obs)) {
-    return SPN_ERR_DAG_ACTION;
-  }
-  if (dag_tree_copy_user_outputs(unit, root)) {
     return SPN_ERR_DAG_ACTION;
   }
 
@@ -707,20 +670,7 @@ static bool dag_pkg_publishes(spn_pkg_unit_t* unit) {
     }
   }
 
-  if (!sp_da_empty(unit->info->publish.copy)) {
-    return true;
-  }
-
-  sp_da_for(unit->user_nodes, it) {
-    spn_user_node_t* node = &unit->user_nodes[it];
-    sp_da_for(node->outputs, ot) {
-      if (node->outputs[ot].dir == SPN_DIR_INCLUDE) {
-        return true;
-      }
-    }
-  }
-
-  return false;
+  return !sp_da_empty(unit->info->publish.copy);
 }
 
 static spn_err_t dag_add_tree(spn_dag_build_t* b, spn_pkg_unit_t* unit, spn_dag_pkg_ids_t* pkg) {
@@ -748,10 +698,6 @@ static spn_err_t dag_add_tree(spn_dag_build_t* b, spn_pkg_unit_t* unit, spn_dag_
         spn_dag_action_add_input(g, action, spn_dag_add_file(g, target->headers[ht]));
       }
     }
-  }
-
-  sp_da_for(pkg->user_outputs, it) {
-    spn_dag_action_add_input(g, action, pkg->user_outputs[it]);
   }
 
   return SPN_OK;

@@ -34,10 +34,9 @@ sp_test(script, package_discovery) {
 sp_test(script, tree_output) {
   return run_command_test(t, (command_test_t) {
     .project = "test/integration/fixtures/script/tree_output",
-    .copy = { "packages/*" },
     .args = { "build" },
     .expect = {
-      .exists = { store_file("K/include/G/a.h"), store_file("K/include/G/b/c.h"), exe("M") },
+      .exists = { work_file("M/gen/G/a.h"), work_file("M/gen/G/b/c.h"), exe("M") },
     },
   });
 }
@@ -45,7 +44,6 @@ sp_test(script, tree_output) {
 sp_test(script, tree_output_cached) {
   return run_rebuild_test(t, (rebuild_test_t) {
     .project = "test/integration/fixtures/script/tree_output",
-    .copy = { "packages/*" },
     .first = {
       .args = { "build" },
       .expect.events = { { .event = SPN_EVENT_SCRIPT_USER_FN } },
@@ -59,7 +57,7 @@ sp_test(script, tree_output_cached) {
       },
     },
     .watches = {
-      { .file = store_file("K/include/G/a.h"), .mtime = REBUILD_MTIME_UNCHANGED },
+      { .file = work_file("M/gen/G/a.h"), .mtime = REBUILD_MTIME_UNCHANGED },
     },
   });
 }
@@ -67,19 +65,19 @@ sp_test(script, tree_output_cached) {
 sp_test(script, tree_output_rerun_drops_file) {
   return run_rebuild_test(t, (rebuild_test_t) {
     .project = "test/integration/fixtures/script/tree_output_drop",
-    .copy = { "packages/*" },
+    .copy = { "H" },
     .first = {
       .args = { "build" },
-      .expect.exists = { store_file("K/include/G/a.h"), store_file("K/include/G/d.h") },
+      .expect.exists = { work_file("M/gen/G/a.h"), work_file("M/gen/G/d.h") },
     },
     .rebuilds = {
       {
-        .change.remove_files = { sp_str_lit("packages/K/H/d.h") },
+        .change.remove_files = { sp_str_lit("H/d.h") },
         .command = {
           .args = { "build" },
           .expect = {
-            .exists = { store_file("K/include/G/a.h") },
-            .missing = { store_file("K/include/G/d.h") },
+            .exists = { work_file("M/gen/G/a.h") },
+            .missing = { work_file("M/gen/G/d.h") },
           },
         },
       },
@@ -87,25 +85,26 @@ sp_test(script, tree_output_rerun_drops_file) {
   });
 }
 
-sp_test(script, node_output_root) {
-  return run_command_test(t, (command_test_t) {
-    .project = "test/integration/fixtures/script/node_output_root",
-    .args = { "build" },
-    .expect = {
-      .rc = 1,
-      .events = { { .event = SPN_EVENT_ERR, .key = "kind", .value = "wasm_module_call_failed" } },
-    },
-  });
-}
+typedef struct {
+  const c8* name;
+  spn_err_t err;
+} failure_t;
 
-sp_test(script, node_output_source) {
+static const failure_t failures [] = {
+  { .name = "node_output_root", .err = SPN_ERR_WASM_MODULE_CALL_FAILED },
+  { .name = "node_output_source", .err = SPN_ERR_WASM_MODULE_CALL_FAILED },
+  { .name = "node_output_include", .err = SPN_ERR_WASM_MODULE_CALL_FAILED },
+  { .name = "node_output_unnamed", .err = SPN_ERR_WASM_MODULE_CALL_FAILED },
+  { .name = "relative_path", .err = SPN_ERR_WASM_MODULE_CALL_FAILED },
+  { .name = "nested_output", .err = SPN_ERR_DAG_NESTED_OUTPUT },
+  { .name = "configure_missing_source", .err = SPN_ERR_CONFIGURE_SOURCE_MISSING },
+};
+
+sp_test_each(script, failure, failure_t, failures) {
   return run_command_test(t, (command_test_t) {
-    .project = "test/integration/fixtures/script/node_output_source",
+    .project = sp_str_to_cstr(sp_test_arena(t), sp_fmt(sp_test_arena(t), "test/integration/fixtures/script/{}", sp_fmt_cstr(it->name)).value),
     .args = { "build" },
-    .expect = {
-      .rc = 1,
-      .events = { { .event = SPN_EVENT_ERR, .key = "kind", .value = "wasm_module_call_failed" } },
-    },
+    .expect = { .rc = 1, .err = it->err },
   });
 }
 
@@ -115,17 +114,6 @@ sp_test(script, node_output_bin) {
     .args = { "build" },
     .expect = {
       .exists = { store_file("bin/R") },
-    },
-  });
-}
-
-sp_test(script, node_output_unnamed) {
-  return run_command_test(t, (command_test_t) {
-    .project = "test/integration/fixtures/script/node_output_unnamed",
-    .args = { "build" },
-    .expect = {
-      .rc = 1,
-      .events = { { .event = SPN_EVENT_ERR, .key = "kind", .value = "wasm_module_call_failed" } },
     },
   });
 }
@@ -159,16 +147,6 @@ sp_test(script, abi_discovery) {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
       { .kind = ACTION_VERIFY_FILE_CONTAINS, .verify_file_contains = { .file = store_file("misc/data/E.txt"), .needle = sp_str_lit("C") } },
       { .kind = ACTION_VERIFY_FILE_CONTAINS, .verify_file_contains = { .file = store_file("misc/witness"), .needle = sp_str_lit("RRR") } },
-    },
-  });
-}
-
-sp_test(script, relative_path_rejected) {
-  return run_test(t, (test_t) {
-    .project = "test/integration/fixtures/script/relative_path",
-    .actions = {
-      { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build", .rc = 1 } },
-      { .kind = ACTION_VERIFY_EVENT, .verify_event = { .event = SPN_EVENT_ERR, .key = "kind", .value = "wasm_module_call_failed" } },
     },
   });
 }
@@ -310,16 +288,6 @@ sp_test(script, configure_dead_glob) {
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build", .rc = 1 } },
       { .kind = ACTION_VERIFY_RESULT, .verify_result = { .err = SPN_ERR_CONFIGURE_SOURCE_GLOB } },
-    },
-  });
-}
-
-sp_test(script, configure_missing_source) {
-  return run_test(t, (test_t) {
-    .project = "test/integration/fixtures/script/configure_missing_source",
-    .actions = {
-      { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build", .rc = 1 } },
-      { .kind = ACTION_VERIFY_RESULT, .verify_result = { .err = SPN_ERR_CONFIGURE_SOURCE_MISSING } },
     },
   });
 }

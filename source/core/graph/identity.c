@@ -52,7 +52,7 @@ static void identity_hash_copies(spn_digest_ctx_t* ctx, sp_da(spn_publish_copy_t
 spn_dag_digest_t spn_build_tree_identity(spn_pkg_unit_t* unit, const spn_build_source_pin_t* pin) {
   spn_digest_ctx_t ctx = sp_zero;
   spn_digest_init_blake3(&ctx);
-  spn_dag_hash_str(&ctx, sp_str_lit("spn.build.tree.v10"));
+  spn_dag_hash_str(&ctx, sp_str_lit("spn.build.tree.v11"));
   spn_dag_hash_str(&ctx, unit->info->qualified);
   identity_hash_pin(&ctx, pin);
 
@@ -64,17 +64,6 @@ spn_dag_digest_t spn_build_tree_identity(spn_pkg_unit_t* unit, const spn_build_s
   }
 
   identity_hash_copies(&ctx, unit->info->publish.copy);
-
-  sp_da_for(unit->user_nodes, it) {
-    spn_user_node_t* node = &unit->user_nodes[it];
-    sp_da_for(node->outputs, ot) {
-      if (node->outputs[ot].dir != SPN_DIR_INCLUDE) {
-        continue;
-      }
-      spn_dag_hash_str(&ctx, node->outputs[ot].sub);
-      spn_dag_hash_u8(&ctx, (u8)node->outputs[ot].kind);
-    }
-  }
 
   return spn_dag_hash_final(&ctx);
 }

@@ -1450,6 +1450,26 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           sp_tty_fmt(&w, "{.cyan} is declared as a build action output, but it is inside an immutable cache directory", sp_fmt_str(get_contextual_path(ctx, mem, event->err.dag.path)));
           break;
         }
+        case SPN_ERR_DAG_PATH_KIND: {
+          sp_tty_fmt(&w, "{.cyan} is declared as both a file and a directory", sp_fmt_str(get_contextual_path(ctx, mem, event->err.dag.path)));
+          break;
+        }
+        case SPN_ERR_DAG_TREE_ROOT: {
+          sp_tty_fmt(&w, "{.cyan} is declared as a directory output, but it contains a build root", sp_fmt_str(get_contextual_path(ctx, mem, event->err.dag.path)));
+          break;
+        }
+        case SPN_ERR_DAG_TREE_INPUT: {
+          sp_tty_fmt(&w, "{.cyan} is a directory, but no build action produces it", sp_fmt_str(get_contextual_path(ctx, mem, event->err.dag.path)));
+          break;
+        }
+        case SPN_ERR_DAG_NESTED_OUTPUT: {
+          sp_tty_fmt(&w, "{.cyan} is a build action output, but it is inside a directory that is itself a build action output", sp_fmt_str(get_contextual_path(ctx, mem, event->err.dag.path)));
+          break;
+        }
+        case SPN_ERR_DAG_NESTED_INPUT: {
+          sp_tty_fmt(&w, "{.cyan} is a build input, but it is inside a directory produced by a build action", sp_fmt_str(get_contextual_path(ctx, mem, event->err.dag.path)));
+          break;
+        }
         case SPN_ERR_DAG_MISSING_INPUT: {
           sp_tty_fmt(&w, "{.cyan} doesn't exist, but is listed as an input", sp_fmt_str(get_contextual_path(ctx, mem, event->err.dag.path)));
           break;

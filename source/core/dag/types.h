@@ -230,6 +230,11 @@ typedef struct {
   sp_str_t path;
 } spn_dag_diag_t;
 
+typedef struct {
+  spn_err_t err;
+  spn_path_t path;
+} spn_dag_violation_t;
+
 struct spn_dag_env_t {
   spn_dag_file_cache_t* files;
   spn_dag_action_cache_t* cache;
