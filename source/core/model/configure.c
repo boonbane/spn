@@ -84,25 +84,6 @@ static void add_configure_edges(spn_dag_build_t* b, spn_pkg_unit_t* unit) {
   }
 }
 
-static void add_reactor_edges(spn_dag_build_t* b, spn_target_unit_t* reactor) {
-  spn_dag_t* g = b->graph;
-
-  sp_da_for(reactor->pkg->deps, it) {
-    if (!spn_dep_kind_applies(reactor->pkg->deps[it].kind, reactor->info->kind)) {
-      continue;
-    }
-    spn_dag_pkg_ids_t* dep = sp_ht_getp(b->ids.packages, reactor->pkg->deps[it].unit);
-    sp_assert(dep);
-    spn_dag_id_t stamp = dep->stamp;
-
-    sp_da_for(reactor->objects, ot) {
-      spn_dag_object_ids_t* object = sp_ht_getp(b->ids.objects, reactor->objects[ot]);
-      sp_assert(object);
-      spn_dag_action_add_input(g, object->action, stamp);
-    }
-  }
-}
-
 spn_err_t configure(spn_op_t* op) {
   spn_session_t* s = op->session;
   if (spn_wasm_init()) {
@@ -142,13 +123,6 @@ spn_err_t configure(spn_op_t* op) {
       continue;
     }
     add_configure_edges(dag, unit);
-  }
-
-  sp_da_for(s->units.metaprogram->packages, it) {
-    spn_target_unit_t* configure = s->units.metaprogram->packages[it]->scripts.configure;
-    if (configure) {
-      add_reactor_edges(dag, configure);
-    }
   }
 
   return spn_dag_build_run(dag, spn_cpu_count());
