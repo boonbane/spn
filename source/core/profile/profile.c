@@ -150,14 +150,20 @@ static spn_abi_list_t abi_order(const spn_profile_info_t* profile, spn_triple_t 
     return list;
   }
 
-  bool native = profile->arch == host.arch && profile->os == host.os;
-  if (!native) {
+  // @spader If you're crossing, we never want to infer. You're already crossing, just
+  // be explicit about what you're crossing for.
+  if (profile->arch != host.arch || profile->os != host.os) {
     return list;
   }
+
   if (profile->os == SPN_OS_LINUX) {
-    bool ship_anywhere = profile->linking.linkage != SPN_LIB_KIND_SHARED && profile->linking.runtime != SPN_RUNTIME_SHARED;
-    push_abi(&list, ship_anywhere ? SPN_ABI_MUSL : host.abi);
+    if (profile->linking.linkage != SPN_LIB_KIND_SHARED && profile->linking.runtime != SPN_RUNTIME_SHARED) {
+      push_abi(&list, SPN_ABI_MUSL);
+    } else {
+      push_abi(&list, host.abi);
+    }
   }
+
   const spn_abi_t* abis = SP_NULLPTR;
   u32 count = spn_os_completions(profile->os, &abis);
   sp_for(it, count) {
