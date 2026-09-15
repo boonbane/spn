@@ -6,7 +6,6 @@
 #include <string.h>
 
 #define SPN_CODEGEN_MAX_UNITS 8
-#define SPN_CODEGEN_MAX_DIRS 2
 #define SPN_CODEGEN_MAX_FILES 1
 #define SPN_CODEGEN_MAX_OUTPUTS 4
 #define SPN_CODEGEN_PATH_MAX 512
@@ -22,7 +21,6 @@ typedef struct {
   const c8* tag;
   const c8* schema;
   const c8* out;
-  const c8* dirs [SPN_CODEGEN_MAX_DIRS];
   const c8* files [SPN_CODEGEN_MAX_FILES];
   const c8* outputs [SPN_CODEGEN_MAX_OUTPUTS];
   const consumer_t* consumers;
@@ -58,7 +56,6 @@ static const codegen_t codegens [] = {
     .tag = "codegen",
     .schema = "/source/source/core/codegen/schema",
     .out = "codegen/gen",
-    .dirs = { "/source/source/core/codegen/schema", "/source/tools/gen/templates" },
     .outputs = {
       "gen/codegen/gen/common.gen.h",
       "gen/codegen/gen/abi.gen.h",
@@ -72,7 +69,6 @@ static const codegen_t codegens [] = {
     .tag = "codegen_test",
     .schema = "/source/test/tools/schema",
     .out = "codegen/test",
-    .dirs = { "/source/test/tools/schema", "/source/tools/gen/templates" },
     .files = { "/source/source/core/codegen/schema/common.jtd.json" },
     .consumers = test_consumers,
     .num_consumers = countof(test_consumers),
@@ -109,50 +105,6 @@ static void add_output(spn_node_t* node, const c8* dir, const c8* name, const c8
   spn_node_add_output(node, SPN_DIR_WORK, path);
 }
 
-// Must match the union formats dispatched in tools/gen/run.c; union schemas
-// render their public header into gen/include/spn/ instead of the node's gen dir.
-static void add_schema_outputs(spn_node_t* node, const c8* schema, const c8* out) {
-  const c8* suffix = ".jtd.json";
-  struct dirent** entries = NULL;
-  s32 count = scandir(schema, &entries, visible, alphasort);
-  for (s32 it = 0; it < count; it++) {
-    const c8* file = entries[it]->d_name;
-    u32 len = strlen(file);
-    if (len <= strlen(suffix) || strcmp(file + len - strlen(suffix), suffix) || !strcmp(file, "common.jtd.json")) {
-      free(entries[it]);
-      continue;
-    }
-    c8 name [SPN_CODEGEN_PATH_MAX];
-    snprintf(name, sizeof(name), "%.*s", (s32)(len - strlen(suffix)), file);
-
-    add_output(node, out, name, ".gen.c");
-    if (!strcmp(name, "errors") || !strcmp(name, "events")) {
-      add_output(node, "include/spn", name, ".h");
-    } else {
-      add_output(node, out, name, ".gen.h");
-      add_output(node, out, name, ".jtd.json");
-    }
-    free(entries[it]);
-  }
-  free(entries);
-}
-
-static void add_consumers(spn_t* spn, const c8* out, const consumer_t* consumers, u32 count) {
-  c8 path [SPN_CODEGEN_PATH_MAX];
-  snprintf(path, sizeof(path), "gen/%s", out);
-  const c8* include = spn_get_subdir(spn, SPN_DIR_WORK, path);
-
-  for (u32 it = 0; it < count; it++) {
-    const consumer_t* consumer = &consumers[it];
-    spn_target_t* target = spn_get_target(spn, consumer->target);
-    spn_target_add_include(target, include);
-    for (u32 ut = 0; ut < SPN_CODEGEN_MAX_UNITS && consumer->units[ut]; ut++) {
-      snprintf(path, sizeof(path), "gen/%s/%s.gen.c", out, consumer->units[ut]);
-      spn_target_add_source(target, spn_get_subdir(spn, SPN_DIR_WORK, path));
-    }
-  }
-}
-
 SPN_EXPORT
 spn_err_t configure(spn_t* spn, spn_config_t* config) {
   spn_target_t* target = spn_get_target(spn, "spn");
@@ -168,17 +120,54 @@ spn_err_t configure(spn_t* spn, spn_config_t* config) {
     const codegen_t* codegen = &codegens[it];
     spn_node_t* node = spn_add_node(config, codegen->tag);
     spn_node_set_fn(node, codegen->tag);
-    for (u32 dt = 0; dt < SPN_CODEGEN_MAX_DIRS && codegen->dirs[dt]; dt++) {
-      add_inputs(spn, node, codegen->dirs[dt]);
-    }
+
+    add_inputs(spn, node, codegen->schema);
+    add_inputs(spn, node, "/source/tools/gen/templates");
     for (u32 ft = 0; ft < SPN_CODEGEN_MAX_FILES && codegen->files[ft]; ft++) {
       spn_node_add_input(node, host_source(spn, codegen->files[ft]));
     }
     for (u32 ot = 0; ot < SPN_CODEGEN_MAX_OUTPUTS && codegen->outputs[ot]; ot++) {
       spn_node_add_output(node, SPN_DIR_WORK, codegen->outputs[ot]);
     }
-    add_schema_outputs(node, codegen->schema, codegen->out);
-    add_consumers(spn, codegen->out, codegen->consumers, codegen->num_consumers);
+
+    // Must match the union formats dispatched in tools/gen/run.c; union schemas
+    // render their public header into gen/include/spn/ instead of the node's gen dir.
+    const c8* suffix = ".jtd.json";
+    struct dirent** schemas = NULL;
+    s32 count = scandir(codegen->schema, &schemas, visible, alphasort);
+    for (s32 st = 0; st < count; st++) {
+      const c8* file = schemas[st]->d_name;
+      u32 len = strlen(file);
+      if (len <= strlen(suffix) || strcmp(file + len - strlen(suffix), suffix) || !strcmp(file, "common.jtd.json")) {
+        free(schemas[st]);
+        continue;
+      }
+      c8 name [SPN_CODEGEN_PATH_MAX];
+      snprintf(name, sizeof(name), "%.*s", (s32)(len - strlen(suffix)), file);
+
+      add_output(node, codegen->out, name, ".gen.c");
+      if (!strcmp(name, "errors") || !strcmp(name, "events")) {
+        add_output(node, "include/spn", name, ".h");
+      } else {
+        add_output(node, codegen->out, name, ".gen.h");
+        add_output(node, codegen->out, name, ".jtd.json");
+      }
+      free(schemas[st]);
+    }
+    free(schemas);
+
+    c8 path [SPN_CODEGEN_PATH_MAX];
+    snprintf(path, sizeof(path), "gen/%s", codegen->out);
+    const c8* include = spn_get_subdir(spn, SPN_DIR_WORK, path);
+    for (u32 ct = 0; ct < codegen->num_consumers; ct++) {
+      const consumer_t* consumer = &codegen->consumers[ct];
+      spn_target_t* consumer_target = spn_get_target(spn, consumer->target);
+      spn_target_add_include(consumer_target, include);
+      for (u32 ut = 0; ut < SPN_CODEGEN_MAX_UNITS && consumer->units[ut]; ut++) {
+        snprintf(path, sizeof(path), "gen/%s/%s.gen.c", codegen->out, consumer->units[ut]);
+        spn_target_add_source(consumer_target, spn_get_subdir(spn, SPN_DIR_WORK, path));
+      }
+    }
   }
 
   const c8* gen = spn_get_subdir(spn, SPN_DIR_WORK, "gen/codegen/gen");

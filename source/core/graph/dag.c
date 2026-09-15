@@ -303,7 +303,7 @@ static spn_err_t publish_copy(spn_tree_roots_t trees, sp_str_t root, spn_publish
   return copy_matches(glob.matches, root, copy->dest);
 }
 
-static spn_err_t publish_copy_failed(spn_pkg_unit_t* unit, spn_publish_copy_t* copy) {
+static void publish_copy_failed(spn_pkg_unit_t* unit, spn_publish_copy_t* copy) {
   spn_event_buffer_push(spn.events, (spn_event_t) {
     .kind = SPN_EVENT_NODE_FAILED,
     .pkg = unit->info->name,
@@ -312,17 +312,6 @@ static spn_err_t publish_copy_failed(spn_pkg_unit_t* unit, spn_publish_copy_t* c
       .message = sp_fmt(spn.mem, "could not be published to {}", sp_fmt_str(sp_fs_join_path(spn.mem, sp_str_lit("include"), copy->dest))).value,
     },
   });
-  return SPN_ERROR;
-}
-
-static spn_err_t publish_copies(spn_pkg_unit_t* unit, sp_str_t root, sp_mem_t mem, sp_da(spn_dag_obs_t)* obs) {
-  sp_da_for(unit->info->publish.copy, it) {
-    spn_publish_copy_t* copy = &unit->info->publish.copy[it];
-    if (publish_copy(unit->paths.roots, root, copy, mem, obs)) {
-      return publish_copy_failed(unit, copy);
-    }
-  }
-  return SPN_OK;
 }
 
 static spn_err_t dag_tree_exec(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, sp_mem_t mem, sp_da(spn_dag_obs_t)* obs) {
@@ -334,8 +323,12 @@ static spn_err_t dag_tree_exec(spn_dag_t* g, spn_dag_action_t* action, void* use
     return SPN_ERR_DAG_ACTION;
   }
 
-  if (publish_copies(unit, root, mem, obs)) {
-    return SPN_ERR_DAG_ACTION;
+  sp_da_for(unit->info->publish.copy, it) {
+    spn_publish_copy_t* copy = &unit->info->publish.copy[it];
+    if (publish_copy(unit->paths.roots, root, copy, mem, obs)) {
+      publish_copy_failed(unit, copy);
+      return SPN_ERR_DAG_ACTION;
+    }
   }
 
   return SPN_OK;

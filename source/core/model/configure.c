@@ -1,6 +1,5 @@
 #include "sp.h"
 #include "macro/macro.h"
-#include "ctx/types.h"
 #include "spn/errors.h"
 #include "core/types.h"
 #include "pkg/types.h"
@@ -9,7 +8,6 @@
 #include "unit/types.h"
 
 #include "cpu/cpu.h"
-#include "dag/dag.h"
 #include "error/error.h"
 #include "external/wasm/wasm.h"
 #include "graph/dag.h"

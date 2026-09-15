@@ -929,14 +929,6 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           );
           break;
         }
-        case SPN_ERR_BUILD_GRAPH: {
-          sp_tty_fmt(
-            &w,
-            "Failed to construct the build graph at {.cyan}",
-            sp_fmt_str(get_contextual_path(ctx, mem, event->err.build_graph.file))
-          );
-          break;
-        }
         case SPN_ERR_FS_READ: {
           sp_tty_fmt(
             &w,

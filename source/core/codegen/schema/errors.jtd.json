@@ -8,7 +8,6 @@
     "not_git_repo": { "ref": "not_git_repo" },
     "git": { "ref": "git" },
     "version_exists": { "ref": "version_exists" },
-    "build_graph": { "ref": "build_graph" },
     "toolchain_unknown": { "ref": "toolchain" },
     "toolchain_none": { "ref": "toolchain" },
     "toolchain_target": { "ref": "toolchain" },
@@ -185,11 +184,6 @@
     "version_invalid": {
       "properties": {
         "requested": { "type": "string" }
-      }
-    },
-    "build_graph": {
-      "properties": {
-        "file": { "type": "string" }
       }
     },
     "toolchain": {
