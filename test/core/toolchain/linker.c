@@ -47,12 +47,12 @@ typedef struct {
 } loader_t;
 
 static const loader_t loader_tests [] = {
-  { "gnu_shared_libc",  HOST_X64_LINUX,  SPN_RUNTIME_SHARED, true },
-  { "gnu_static_libc",  HOST_X64_LINUX,  SPN_RUNTIME_STATIC, false },
-  { "msvc_static_libc", TARGET_WIN_MSVC, SPN_RUNTIME_STATIC, true },
-  { "macos",            HOST_ARM_MACOS,  SPN_RUNTIME_SHARED, true },
-  { "wasi",             TARGET_WASM,     SPN_RUNTIME_STATIC, false },
-  { "bare",             TARGET_X64_BARE, SPN_RUNTIME_STATIC, false },
+  { "gnu_shared_libc",  HOST_X64_LINUX,      SPN_RUNTIME_SHARED, true },
+  { "musl_static_libc", HOST_X64_LINUX_MUSL, SPN_RUNTIME_STATIC, false },
+  { "msvc_static_libc", TARGET_WIN_MSVC,     SPN_RUNTIME_STATIC, true },
+  { "macos",            HOST_ARM_MACOS,      SPN_RUNTIME_SHARED, true },
+  { "wasi",             TARGET_WASM,         SPN_RUNTIME_STATIC, false },
+  { "bare",             TARGET_X64_BARE,     SPN_RUNTIME_STATIC, false },
 };
 
 sp_test_each(linker, loader, loader_t, loader_tests) {
@@ -86,20 +86,20 @@ static const linking_t linking_tests [] = {
   { "musl_shared_runtime_takes_a_loader",     HOST_X64_LINUX_MUSL, .request = { .runtime = SPN_RUNTIME_SHARED },                                  .expect = { .linking = { SPN_LIB_KIND_SHARED, SPN_RUNTIME_SHARED, SPN_RUNTIME_SHARED } } },
   { "gnu_static_runtime_keeps_shared_libc",   HOST_X64_LINUX,      .request = { .runtime = SPN_RUNTIME_STATIC },                                  .expect = { .linking = { SPN_LIB_KIND_SHARED, SPN_RUNTIME_STATIC, SPN_RUNTIME_SHARED } } },
   { "gnu_static_deps_and_runtime_keep_libc",  HOST_X64_LINUX,      .request = { .linkage = SPN_LIB_KIND_STATIC, .runtime = SPN_RUNTIME_STATIC }, .expect = { .linking = { SPN_LIB_KIND_STATIC, SPN_RUNTIME_STATIC, SPN_RUNTIME_SHARED } } },
-  { "gnu_static_libc_derives_the_rest",       HOST_X64_LINUX,      .request = { .libc = SPN_RUNTIME_STATIC },                                     .expect = { .linking = { SPN_LIB_KIND_STATIC, SPN_RUNTIME_STATIC, SPN_RUNTIME_STATIC } } },
+  { "musl_static_libc_derives_the_rest",      HOST_X64_LINUX_MUSL, .request = { .libc = SPN_RUNTIME_STATIC },                                     .expect = { .linking = { SPN_LIB_KIND_STATIC, SPN_RUNTIME_STATIC, SPN_RUNTIME_STATIC } } },
   { "msvc_static_libc_keeps_a_loader",        TARGET_WIN_MSVC,     .request = { .libc = SPN_RUNTIME_STATIC },                                     .expect = { .linking = { SPN_LIB_KIND_SHARED, SPN_RUNTIME_STATIC, SPN_RUNTIME_STATIC } } },
   { "msvc_shared_deps_with_static_runtime",   TARGET_WIN_MSVC,     .request = { .linkage = SPN_LIB_KIND_SHARED, .runtime = SPN_RUNTIME_STATIC }, .expect = { .linking = { SPN_LIB_KIND_SHARED, SPN_RUNTIME_STATIC, SPN_RUNTIME_STATIC } } },
 
-  { "gnu_static_libc_shared_runtime",  HOST_X64_LINUX,      .request = { .runtime = SPN_RUNTIME_SHARED, .libc = SPN_RUNTIME_STATIC }, .expect = { .refusal = SPN_LINKING_REFUSAL_SHARED_RUNTIME } },
   { "musl_static_libc_shared_runtime", HOST_X64_LINUX_MUSL, .request = { .runtime = SPN_RUNTIME_SHARED, .libc = SPN_RUNTIME_STATIC }, .expect = { .refusal = SPN_LINKING_REFUSAL_SHARED_RUNTIME } },
 
   { "no_loader",                     TARGET_WASM,     .request = { .linkage = SPN_LIB_KIND_SHARED },                                .expect = { .refusal = SPN_LINKING_REFUSAL_NO_LOADER } },
-  { "os_libc",                       TARGET_WIN_GNU,  .request = { .libc = SPN_RUNTIME_STATIC },                                    .expect = { .refusal = SPN_LINKING_REFUSAL_OS_LIBC } },
+  { "os_libc",                       HOST_X64_LINUX,  .request = { .libc = SPN_RUNTIME_STATIC },                                    .expect = { .refusal = SPN_LINKING_REFUSAL_OS_LIBC } },
   { "os_runtime",                    HOST_ARM_MACOS,  .request = { .runtime = SPN_RUNTIME_STATIC },                                 .expect = { .refusal = SPN_LINKING_REFUSAL_OS_RUNTIME } },
   { "hybrid_crt",                    TARGET_WIN_MSVC, .request = { .runtime = SPN_RUNTIME_STATIC, .libc = SPN_RUNTIME_SHARED },     .expect = { .refusal = SPN_LINKING_REFUSAL_HYBRID_CRT } },
-  { "shared_deps",                   HOST_X64_LINUX,  .request = { .linkage = SPN_LIB_KIND_SHARED, .libc = SPN_RUNTIME_STATIC },    .expect = { .refusal = SPN_LINKING_REFUSAL_SHARED_DEPS } },
+  { "shared_deps",                   HOST_X64_LINUX_MUSL, .request = { .linkage = SPN_LIB_KIND_SHARED, .libc = SPN_RUNTIME_STATIC }, .expect = { .refusal = SPN_LINKING_REFUSAL_SHARED_DEPS } },
   { "no_loader_before_shared_runtime", TARGET_WASM,   .request = { .runtime = SPN_RUNTIME_SHARED, .libc = SPN_RUNTIME_STATIC },     .expect = { .refusal = SPN_LINKING_REFUSAL_NO_LOADER } },
   { "os_libc_before_os_runtime",     HOST_ARM_MACOS,  .request = { .runtime = SPN_RUNTIME_STATIC, .libc = SPN_RUNTIME_STATIC },     .expect = { .refusal = SPN_LINKING_REFUSAL_OS_LIBC } },
+  { "os_libc_before_shared_runtime", HOST_X64_LINUX,  .request = { .runtime = SPN_RUNTIME_SHARED, .libc = SPN_RUNTIME_STATIC },     .expect = { .refusal = SPN_LINKING_REFUSAL_OS_LIBC } },
   { "msvc_static_libc_shared_runtime_before_hybrid_crt", TARGET_WIN_MSVC, .request = { .runtime = SPN_RUNTIME_SHARED, .libc = SPN_RUNTIME_STATIC }, .expect = { .refusal = SPN_LINKING_REFUSAL_SHARED_RUNTIME } },
 };
 

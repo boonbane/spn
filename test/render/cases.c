@@ -341,7 +341,7 @@ static cell_t cells [] = {
   {
     .name = "err_profile_linking_shared_runtime",
     .project = "test/render/fixtures/errors/linking",
-    .args = { "build", "-p", "shared_runtime", "--target", "x86_64-linux-gnu" },
+    .args = { "build", "-p", "shared_runtime", "--target", "x86_64-linux-musl" },
   },
   {
     .name = "err_profile_linking_hybrid_crt",
@@ -351,7 +351,7 @@ static cell_t cells [] = {
   {
     .name = "err_profile_linking_shared_deps",
     .project = "test/render/fixtures/errors/linking",
-    .args = { "build", "-p", "shared_deps", "--target", "x86_64-linux-gnu" },
+    .args = { "build", "-p", "shared_deps", "--target", "x86_64-linux-musl" },
   },
   {
     .name = "err_profile_linking_every_abi",

@@ -35,7 +35,6 @@ spn_linking_refusal_t spn_ld_linking(spn_triple_t target, spn_linking_t request,
   static const spn_linking_t linux_gnu [] = {
     { .runtime = SPN_RUNTIME_SHARED, .libc = SPN_RUNTIME_SHARED },
     { .runtime = SPN_RUNTIME_STATIC, .libc = SPN_RUNTIME_SHARED },
-    { .runtime = SPN_RUNTIME_STATIC, .libc = SPN_RUNTIME_STATIC },
   };
   static const spn_linking_t linux_musl [] = {
     { .runtime = SPN_RUNTIME_STATIC, .libc = SPN_RUNTIME_STATIC },

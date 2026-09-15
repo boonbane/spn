@@ -528,7 +528,7 @@ static const test_t tests [] = {
     .derived = {
       .name = "fast",
       .toolchain = { { "gcc", { { "os", "linux" } } } },
-      .abi = { { "gnu", { { "os", "linux" } } } },
+      .abi = { { "musl", { { "os", "linux" } } } },
       .linkage = { { "static", { { "os", "linux" } } } },
       .runtime = { { "static", { { "os", "linux" } } } },
       .libc = { { "static", { { "os", "linux" } } } },
@@ -540,7 +540,7 @@ static const test_t tests [] = {
     .host = PROFILE_HOST_LINUX_GNU,
     .expect = {
       .name = "fast",
-      .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU },
+      .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_MUSL },
       .linking.linkage = SPN_LIB_KIND_STATIC,
       .linking.runtime = SPN_RUNTIME_STATIC,
       .linking.libc = SPN_RUNTIME_STATIC,
@@ -656,11 +656,11 @@ static const query_test_t query_tests [] = {
     .expect = { .abis = { SPN_ABI_GNU, SPN_ABI_MUSL }, .linking = { LINKING_SHARED, { SPN_LIB_KIND_SHARED, SPN_RUNTIME_STATIC, SPN_RUNTIME_SHARED } } },
   },
   {
-    .name = "native_static_libc_prefers_musl",
+    .name = "native_static_libc_drops_gnu",
     .target = { SPN_ARCH_X64, SPN_OS_LINUX },
     .linking.libc = SPN_RUNTIME_STATIC,
     .host = PROFILE_HOST_LINUX_GNU,
-    .expect = { .abis = { SPN_ABI_MUSL, SPN_ABI_GNU }, .linking = { LINKING_STATIC, LINKING_STATIC } },
+    .expect = { .abis = { SPN_ABI_MUSL }, .linking = { LINKING_STATIC } },
   },
   {
     .name = "native_shared_demand_prefers_host_libc",
@@ -675,7 +675,7 @@ static const query_test_t query_tests [] = {
     .linking.libc = SPN_RUNTIME_STATIC,
     .demand = SPN_LIB_KIND_SHARED,
     .host = PROFILE_HOST_LINUX_GNU,
-    .expect = { .abis = { SPN_ABI_MUSL, SPN_ABI_GNU }, .linking = { LINKING_STATIC, LINKING_STATIC } },
+    .expect = { .abis = { SPN_ABI_MUSL }, .linking = { LINKING_STATIC } },
   },
   {
     .name = "native_windows_drops_a_refusing_abi",
@@ -758,7 +758,7 @@ static const query_test_t query_tests [] = {
     .target = { SPN_ARCH_X64, SPN_OS_LINUX },
     .linking = { .runtime = SPN_RUNTIME_SHARED, .libc = SPN_RUNTIME_STATIC },
     .host = PROFILE_HOST_LINUX_GNU,
-    .expect = { .err = SPN_ERR_PROFILE_LINKING, .refusals = { { SPN_ABI_GNU, SPN_LINKING_REFUSAL_SHARED_RUNTIME }, { SPN_ABI_MUSL, SPN_LINKING_REFUSAL_SHARED_RUNTIME } } },
+    .expect = { .err = SPN_ERR_PROFILE_LINKING, .refusals = { { SPN_ABI_GNU, SPN_LINKING_REFUSAL_OS_LIBC }, { SPN_ABI_MUSL, SPN_LINKING_REFUSAL_SHARED_RUNTIME } } },
   },
   {
     .name = "shared_demand_never_refuses",
