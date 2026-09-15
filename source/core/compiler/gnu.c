@@ -118,7 +118,7 @@ static sp_str_t ms_runtime_flag(spn_runtime_t runtime) {
 
 void spn_gnu_render_flags(sp_mem_t mem, const spn_cc_toolchain_t* toolchain, const spn_profile_info_t* profile, spn_cc_flags_t* flags) {
   if (profile->abi == SPN_ABI_MSVC && spn_cc_has(toolchain, SPN_CC_CAP_CLANG_FRONTEND)) {
-    sp_str_t crt = ms_runtime_flag(profile->runtime);
+    sp_str_t crt = ms_runtime_flag(profile->linking.runtime);
     sp_da_push(flags->compile, crt);
     sp_da_push(flags->link, crt);
   }
@@ -148,8 +148,8 @@ void spn_gnu_render_flags(sp_mem_t mem, const spn_cc_toolchain_t* toolchain, con
 }
 
 static void add_libc(sp_mem_t mem, const spn_profile_info_t* profile, spn_invocation_t* invocation) {
-  sp_assert(!spn_path_empty(profile->libc));
-  spn_cc_push_env(mem, invocation, SPN_ENV_ZIG_LIBC, spn_arg_path(profile->libc));
+  sp_assert(!spn_path_empty(profile->libc_file));
+  spn_cc_push_env(mem, invocation, SPN_ENV_ZIG_LIBC, spn_arg_path(profile->libc_file));
 }
 
 static void add_sdk_compile(sp_mem_t mem, const spn_cc_toolchain_t* toolchain, const spn_profile_info_t* profile, spn_invocation_t* invocation) {
@@ -425,8 +425,8 @@ void spn_gnu_render_link(sp_mem_t mem, const spn_cc_toolchain_t* toolchain, cons
   spn_triple_t triple = spn_profile_triple(profile);
   spn_format_t format = spn_os_format(profile->os);
   spn_ld_dialect_t dialect = spn_ld_dialect(triple);
-  bool is_full_static = profile->linkage == SPN_LIB_KIND_STATIC && profile->runtime == SPN_RUNTIME_STATIC;
-  bool is_gnu_runtime_static = profile->runtime == SPN_RUNTIME_STATIC && triple.abi != SPN_ABI_MSVC && spn_cc_has(toolchain, SPN_CC_CAP_GNU_RUNTIME);
+  bool is_full_static = profile->linking.linkage == SPN_LIB_KIND_STATIC && profile->linking.runtime == SPN_RUNTIME_STATIC;
+  bool is_gnu_runtime_static = profile->linking.runtime == SPN_RUNTIME_STATIC && triple.abi != SPN_ABI_MSVC && spn_cc_has(toolchain, SPN_CC_CAP_GNU_RUNTIME);
 
   add_launcher(mem, toolchain, profile, link->lang, invocation);
   spn_cc_push_strs(mem, invocation, toolchain->link_args);

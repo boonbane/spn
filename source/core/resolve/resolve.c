@@ -240,7 +240,7 @@ static bool find_forced(spn_resolve_run_t* run, sp_intern_id_t name, spn_semver_
 }
 
 static spn_kind_query_t kind_query(spn_resolver_t* resolver, sp_str_t pkg_name) {
-  spn_kind_query_t query = { .linkage = resolver->profile.linkage };
+  spn_kind_query_t query = { .linkage = resolver->profile.linking.linkage };
   spn_pkg_config_t* config = spn_pkg_config_find(resolver->config, pkg_name);
   if (config && !sp_opt_is_null(config->kind)) {
     sp_opt_set(query.config, config->kind.value);

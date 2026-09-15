@@ -109,7 +109,7 @@ static spn_err_t set_target_kind(spn_session_t* s, spn_target_unit_t* target) {
       else {
         spn_kind_query_t query = {
           .config = spn_session_config_kind(s, target->pkg->info->name),
-          .linkage = target->pkg->build->profile.linkage,
+          .linkage = target->pkg->build->profile.linking.linkage,
         };
 
         if (spn_target_select_lib_kind(info, query, &target->lib_kind)) {

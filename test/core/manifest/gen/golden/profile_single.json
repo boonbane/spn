@@ -11,6 +11,9 @@
       "runtime": [
         "static"
       ],
+      "libc": [
+        "static"
+      ],
       "standard": [
         "c11"
       ],

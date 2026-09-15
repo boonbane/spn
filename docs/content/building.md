@@ -70,6 +70,41 @@ When building:
 - `spn build --mode release` uses `release`
 - `spn build --profile NAME` uses the named `[[profile]]`
 
+### Linking
+
+An executable links three things, and a profile names each one:
+
+| Field | What it links | Values |
+|---|---|---|
+| `linkage` | your dependencies, and the kind every `[[lib]]` builds as | `static`, `shared` |
+| `runtime` | the C/C++ runtime: `libgcc` and `libstdc++`, or `vcruntime` and the STL on MSVC | `static`, `shared` |
+| `libc` | the C library | `static`, `shared` |
+
+```toml
+[profile.ship]
+linkage = "static"
+runtime = "static"
+libc = "shared"
+```
+
+Each axis is optional. Whatever you leave unset derives from the target, which admits only some `(runtime, libc)` pairs and prefers the first:
+
+| Target | `(runtime, libc)` |
+|---|---|
+| `linux-gnu` | `(shared, shared)`, `(static, shared)`, `(static, static)` |
+| `linux-musl` | `(static, static)`, `(static, shared)`, `(shared, shared)` |
+| `windows-msvc` | `(static, static)`, `(shared, shared)` |
+| `windows-gnu` | `(static, shared)`, `(shared, shared)` |
+| `macos` | `(shared, shared)` |
+| `wasi`, `freestanding`, `linux-none` | `(static, static)` |
+
+The rules behind the table:
+- A static `libc` on an ELF target removes the dynamic loader, so nothing shared can be linked and `linkage` derives to `static`. A static `libc` on Windows (`/MT`) still loads DLLs.
+- `linkage` defaults to `shared` when the target has a loader and `static` when it does not.
+- A static `libc` with a shared `runtime` is refused everywhere.
+- On `windows-msvc` the C library is part of the runtime, so `libc` must equal `runtime`.
+- On `windows-gnu` the C library is always shared; a static `runtime` links `libgcc`, `libstdc++` and `winpthread` statically.
+
 ### Modes and optimization
 
 ### Sanitizers

@@ -175,6 +175,7 @@
       "optionalProperties": {
         "linkage": { "elements": { "ref": "value_entry" }, "metadata": { "shorthand": "value" } },
         "runtime": { "elements": { "ref": "value_entry" }, "metadata": { "shorthand": "value" } },
+        "libc": { "elements": { "ref": "value_entry" }, "metadata": { "shorthand": "value" } },
         "standard": { "elements": { "ref": "value_entry" }, "metadata": { "shorthand": "value" } },
         "toolchain": { "elements": { "ref": "value_entry" }, "metadata": { "shorthand": "value" } },
         "mode": { "elements": { "ref": "value_entry" }, "metadata": { "shorthand": "value" } },

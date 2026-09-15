@@ -22,11 +22,14 @@ static void overlay_profile(spn_profile_info_t* to, const spn_profile_info_t* fr
   if (from->toolchain.kind) {
     to->toolchain = from->toolchain;
   }
-  if (from->linkage) {
-    to->linkage = from->linkage;
+  if (from->linking.linkage) {
+    to->linking.linkage = from->linking.linkage;
   }
-  if (from->runtime) {
-    to->runtime = from->runtime;
+  if (from->linking.runtime) {
+    to->linking.runtime = from->linking.runtime;
+  }
+  if (from->linking.libc) {
+    to->linking.libc = from->linking.libc;
   }
   if (from->standard) {
     to->standard = from->standard;
@@ -104,8 +107,11 @@ static spn_profile_info_t evaluate(const spn_profile_decl_t* decl, spn_when_env_
     .os = decl->os,
     .arch = decl->arch,
     .abi = spn_abi_from_str(pick(decl->abi, env)),
-    .linkage = spn_linkage_from_str(pick(decl->linkage, env)),
-    .runtime = spn_runtime_from_str(pick(decl->runtime, env)),
+    .linking = {
+      .linkage = spn_linkage_from_str(pick(decl->linkage, env)),
+      .runtime = spn_runtime_from_str(pick(decl->runtime, env)),
+      .libc = spn_runtime_from_str(pick(decl->libc, env)),
+    },
     .standard = spn_c_standard_from_str(pick(decl->standard, env)),
     .mode = spn_mode_from_str(pick(decl->mode, env)),
     .opt = spn_opt_level_from_str(pick(decl->opt, env)),
@@ -149,7 +155,7 @@ static spn_abi_list_t abi_order(const spn_profile_info_t* profile, spn_triple_t 
     return list;
   }
   if (profile->os == SPN_OS_LINUX) {
-    bool ship_anywhere = profile->linkage != SPN_LIB_KIND_SHARED && profile->runtime != SPN_RUNTIME_SHARED;
+    bool ship_anywhere = profile->linking.linkage != SPN_LIB_KIND_SHARED && profile->linking.runtime != SPN_RUNTIME_SHARED;
     push_abi(&list, ship_anywhere ? SPN_ABI_MUSL : host.abi);
   }
   const spn_abi_t* abis = SP_NULLPTR;
@@ -166,8 +172,8 @@ spn_toolchain_query_t spn_profile_query(const spn_profile_info_t* profile, spn_t
     .target = spn_profile_triple(profile),
     .abis = abi_order(profile, host),
     .sanitizers = profile->sanitizers,
-    .linkage = profile->linkage,
-    .runtime = profile->runtime,
+    .linkage = profile->linking.linkage,
+    .runtime = profile->linking.runtime,
   };
 }
 
@@ -176,8 +182,8 @@ void spn_profile_finalize(spn_profile_info_t* profile, const spn_toolchain_selec
   profile->driver = selection->toolchain->driver;
   profile->linker = selection->toolchain->lld ? SPN_LD_FAMILY_LLD : spn_ld_native(selection->toolchain->driver, selection->row.triple);
   profile->sdk = selection->row.sdk;
-  profile->linkage = selection->linkage;
-  profile->runtime = selection->runtime;
+  profile->linking.linkage = selection->linkage;
+  profile->linking.runtime = selection->runtime;
 }
 
 static bool shared_demand(const spn_pkg_info_t* pkg) {
@@ -298,19 +304,19 @@ spn_err_t spn_profile_resolve(const spn_profile_override_t* override, spn_triple
       sp_unreachable_case();
     }
   }
-  if (merged.linkage == SPN_LIB_KIND_SHARED && !spn_triple_dynamic(pinned)) {
+  if (merged.linking.linkage == SPN_LIB_KIND_SHARED && !spn_triple_dynamic(pinned)) {
     return spn_err_emit(&spn, (spn_err_union_t) {
       .kind = SPN_ERR_PROFILE_LINKAGE,
       .profile = { .name = name, .target = pinned },
     });
   }
-  if (merged.runtime == SPN_RUNTIME_STATIC && !spn_triple_runtime_static(pinned)) {
+  if (merged.linking.runtime == SPN_RUNTIME_STATIC && !spn_triple_runtime_static(pinned)) {
     return spn_err_emit(&spn, (spn_err_union_t) {
       .kind = SPN_ERR_PROFILE_RUNTIME_STATIC,
       .profile = { .name = name, .target = pinned },
     });
   }
-  if (merged.runtime == SPN_RUNTIME_SHARED && !spn_triple_dynamic(pinned)) {
+  if (merged.linking.runtime == SPN_RUNTIME_SHARED && !spn_triple_dynamic(pinned)) {
     return spn_err_emit(&spn, (spn_err_union_t) {
       .kind = SPN_ERR_PROFILE_RUNTIME_SHARED,
       .profile = { .name = name, .target = pinned },
@@ -323,8 +329,11 @@ spn_err_t spn_profile_resolve(const spn_profile_override_t* override, spn_triple
     .os         = pinned.os,
     .arch       = pinned.arch,
     .abi        = pinned.abi,
-    .linkage    = resolve_linkage(merged.linkage, pinned, pkg),
-    .runtime    = merged.runtime,
+    .linking    = {
+      .linkage = resolve_linkage(merged.linking.linkage, pinned, pkg),
+      .runtime = merged.linking.runtime,
+      .libc    = merged.linking.libc,
+    },
     .standard   = merged.standard,
     .mode       = merged.mode,
     .opt        = merged.opt,
@@ -345,8 +354,7 @@ spn_profile_info_t spn_profile_metaprogram(void) {
     .mode = SPN_MODE_DEBUG,
     .opt = SPN_OPT_LEVEL_2,
     .standard = SPN_C99,
-    .linkage = SPN_LIB_KIND_STATIC,
-    .runtime = SPN_RUNTIME_STATIC,
+    .linking = { .linkage = SPN_LIB_KIND_STATIC, .runtime = SPN_RUNTIME_STATIC, .libc = SPN_RUNTIME_STATIC },
   };
 }
 

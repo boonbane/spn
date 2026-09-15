@@ -290,6 +290,7 @@ static spn_profile_decl_t lower_profile(spn_toml_loader_t* ctx, sp_str_t name, c
     .abi = lower_gated_values(ctx, p->abi),
     .linkage = lower_gated_values(ctx, p->linkage),
     .runtime = lower_gated_values(ctx, p->runtime),
+    .libc = lower_gated_values(ctx, p->libc),
     .standard = lower_gated_values(ctx, p->standard),
     .mode = lower_gated_values(ctx, p->mode),
     .opt = lower_gated_values(ctx, p->opt),
@@ -861,6 +862,7 @@ static void validate_profiles(spn_toml_loader_t* ctx, const spn_cg_manifest_t* c
     }
     validate_candidates(ctx, "linkage", p->linkage);
     validate_candidates(ctx, "runtime", p->runtime);
+    validate_candidates(ctx, "libc", p->libc);
     validate_candidates(ctx, "standard", p->standard);
     validate_candidates(ctx, "toolchain", p->toolchain);
     validate_candidates(ctx, "mode", p->mode);
@@ -874,6 +876,11 @@ static void validate_profiles(spn_toml_loader_t* ctx, const spn_cg_manifest_t* c
     sp_da_for(p->runtime, ct) {
       if (spn_runtime_from_str(p->runtime[ct].value) == SPN_RUNTIME_NONE) {
         issue_candidate_value(ctx, "runtime", ct);
+      }
+    }
+    sp_da_for(p->libc, ct) {
+      if (spn_runtime_from_str(p->libc[ct].value) == SPN_RUNTIME_NONE) {
+        issue_candidate_value(ctx, "libc", ct);
       }
     }
     sp_da_for(p->standard, ct) {

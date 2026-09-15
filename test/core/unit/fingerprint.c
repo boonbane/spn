@@ -6,6 +6,7 @@ typedef struct {
   const c8* sdk;
   const c8* sha256;
   spn_runtime_t runtime;
+  spn_runtime_t libc;
 } side_t;
 
 typedef struct {
@@ -27,10 +28,11 @@ static const test_t tests [] = {
   { .name = "macos_sdk_changes_fingerprint", .a = { SPN_OS_MACOS, .sdk = "/S" },                .b = { SPN_OS_MACOS, .sdk = "/T" } },
   { .name = "artifact_sha_changes_fingerprint",  .a = { .sha256 = "A" },                             .b = { .sha256 = "B" } },
   { .name = "runtime_changes_fingerprint",  .a = { SPN_OS_WINDOWS, SPN_ABI_MSVC, .runtime = SPN_RUNTIME_STATIC }, .b = { SPN_OS_WINDOWS, SPN_ABI_MSVC, .runtime = SPN_RUNTIME_SHARED } },
+  { .name = "libc_changes_fingerprint",     .a = { SPN_OS_LINUX, .libc = SPN_RUNTIME_STATIC },                .b = { SPN_OS_LINUX, .libc = SPN_RUNTIME_SHARED } },
 };
 
 static sp_hash_t fingerprint(sp_mem_t mem, side_t side) {
-  unit_graph_test_t graph = { .os = side.os, .abi = side.abi, .sdk = side.sdk, .sha256 = side.sha256, .runtime = side.runtime, .pkgs = { { .name = "A" } } };
+  unit_graph_test_t graph = { .os = side.os, .abi = side.abi, .sdk = side.sdk, .sha256 = side.sha256, .runtime = side.runtime, .libc = side.libc, .pkgs = { { .name = "A" } } };
   spn_session_t* s = build_session(mem, &graph);
   return spn_unit_fingerprint(s, s->units.target, find_pkg_id(s, &graph, "A"));
 }
