@@ -90,12 +90,10 @@ static void add_schema_outputs(sp_mem_t mem, spn_node_t* node, sp_str_t dir, con
 }
 
 static void add_consumers(spn_t* spn, sp_mem_t mem, const c8* out, const consumer_t* consumers, u32 count) {
-  const c8* include = spn_get_subdir(spn, SPN_DIR_WORK, "gen/include");
   const c8* gen = spn_get_subdir(spn, SPN_DIR_WORK, sp_fmt_mem_cstr(mem, "gen/{}", sp_fmt_cstr(out)));
   sp_for(it, count) {
     const consumer_t* consumer = &consumers[it];
     spn_target_t* target = spn_get_target(spn, consumer->target);
-    spn_target_add_include(target, include);
     spn_target_add_include(target, gen);
     sp_carr_for(consumer->units, ut) {
       if (!consumer->units[ut]) {
@@ -144,12 +142,13 @@ static void add_codegen_test(spn_t* spn, spn_config_t* config) {
 SPN_EXPORT
 spn_err_t configure(spn_t* spn, spn_config_t* config) {
   spn_target_t* target = spn_get_target(spn, "spn");
-  spn_target_embed_file_ex(target, "include/spn.h", "include_spn_h", "u8", "u64");
-  spn_target_embed_file_ex(target, "include/spn/core.h", "include_spn_core_h", "u8", "u64");
-  spn_target_embed_file_ex(target, spn_get_subdir(spn, SPN_DIR_WORK, "gen/include/spn/err.h"), "include_spn_err_h", "u8", "u64");
-  spn_target_embed_file_ex(target, "source/core/toolchain/toolchains.toml", "toolchains_toml", "u8", "u64");
+  spn_target_embed_file_ex(target, "include/spn.h", "include/spn.h", "u8", "u64");
+  spn_target_embed_file_ex(target, "include/spn/core.h", "include/spn/core.h", "u8", "u64");
+  spn_target_embed_file_ex(target, spn_get_subdir(spn, SPN_DIR_WORK, "gen/include/spn/err.h"), "include/spn/err.h", "u8", "u64");
+  spn_target_embed_file_ex(target, "source/core/toolchain/toolchains.toml", "toolchains.toml", "u8", "u64");
   spn_target_embed_dir_ex(target, "assets/init", "init", "u8", "u64");
 
+  spn_add_include(config, spn_get_subdir(spn, SPN_DIR_WORK, "gen/include"));
   add_codegen(spn, config);
   add_codegen_test(spn, config);
   return SPN_OK;

@@ -12,7 +12,6 @@
 #include "pkg/pkg.h"
 #include "semver/convert.h"
 #include "session/session.h"
-#include "target/target.h"
 #include "unit/types.h"
 #include "unit/unit.h"
 

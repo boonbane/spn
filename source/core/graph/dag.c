@@ -71,7 +71,7 @@ static sp_da(spn_path_t) dag_declared_paths(sp_mem_t mem, spn_dag_t* g, sp_da(sp
 static spn_dag_digest_t hash_embedding(spn_target_unit_t* target) {
   spn_digest_ctx_t ctx = sp_zero;
   spn_digest_init_blake3(&ctx);
-  spn_dag_hash_str(&ctx, sp_str_lit("spn.build.embed.v8"));
+  spn_dag_hash_str(&ctx, sp_str_lit("spn.build.embed.v9"));
   spn_dag_hash_str(&ctx, target->pkg->info->qualified);
   spn_dag_hash_str(&ctx, target->info->name);
   spn_dag_hash_u8(&ctx, (u8)target->info->kind);
@@ -82,20 +82,10 @@ static spn_dag_digest_t hash_embedding(spn_target_unit_t* target) {
   sp_da_for(target->info->embed, it) {
     spn_embed_t* embed = &target->info->embed[it];
     spn_dag_hash_u8(&ctx, (u8)embed->kind);
-    spn_dag_hash_str(&ctx, embed->symbol);
+    spn_dag_hash_path(&ctx, embed->path);
+    spn_dag_hash_str(&ctx, embed->dest);
     spn_dag_hash_str(&ctx, embed->types.data);
     spn_dag_hash_str(&ctx, embed->types.size);
-    switch (embed->kind) {
-      case SPN_EMBED_FILE: {
-        spn_dag_hash_path(&ctx, embed->file.path);
-        break;
-      }
-      case SPN_EMBED_DIR: {
-        spn_dag_hash_path(&ctx, embed->dir.path);
-        spn_dag_hash_str(&ctx, embed->dir.dest);
-        break;
-      }
-    }
   }
   return spn_dag_hash_final(&ctx);
 }
@@ -587,7 +577,7 @@ spn_err_t spn_dag_build_add_target(spn_dag_build_t* b, spn_target_unit_t* target
     sp_da_for(target->info->embed, it) {
       spn_embed_t* entry = &target->info->embed[it];
       if (entry->kind == SPN_EMBED_FILE) {
-        spn_dag_action_add_input(g, ids.embed.action, spn_dag_add_file(g, entry->file.path));
+        spn_dag_action_add_input(g, ids.embed.action, spn_dag_add_file(g, entry->path));
       }
     }
 
@@ -832,7 +822,7 @@ static void dag_add_target_edges(spn_dag_build_t* b, spn_target_unit_t* target) 
       }
       sp_da_for(unit->deps, dt) {
         spn_pkg_dep_t* dep = &unit->deps[dt];
-        if (!spn_path_within(dep->unit->paths.store, embed->dir.path).within) {
+        if (!spn_path_within(dep->unit->paths.store, embed->path).within) {
           continue;
         }
         spn_dag_pkg_ids_t* dep_ids = sp_ht_getp(b->ids.packages, dep->unit);

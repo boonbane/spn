@@ -124,7 +124,6 @@ set(SPN_SOURCES
   util/str/str.c
   core/target/mutate.c
   core/target/select.c
-  core/target/target.c
   util/thread_pool/thread_pool.c
   core/toml/edit.c
   core/pkg/load.c
@@ -151,13 +150,13 @@ set(SPN_SOURCES
 )
 
 add_executable(spn ${SPN_SOURCES}
-  ${SRC}/codegen/gen/config.gen.c
-  ${SRC}/codegen/gen/errors.gen.c
-  ${SRC}/codegen/gen/events.gen.c
-  ${SRC}/codegen/gen/manifest.gen.c
-  ${SRC}/codegen/gen/release.gen.c
-  ${SRC}/codegen/gen/source_deps.gen.c
-  ${SRC}/codegen/gen/abi.gen.c
+  ${GEN_DIR}/config.gen.c
+  ${GEN_DIR}/errors.gen.c
+  ${GEN_DIR}/events.gen.c
+  ${GEN_DIR}/manifest.gen.c
+  ${GEN_DIR}/release.gen.c
+  ${GEN_DIR}/source_deps.gen.c
+  ${GEN_DIR}/abi.gen.c
   )
 target_include_directories(spn PRIVATE
   ${SRC}
@@ -165,7 +164,8 @@ target_include_directories(spn PRIVATE
   ${SRC}/external
   ${CMAKE_CURRENT_SOURCE_DIR}/cli
   ${CMAKE_SOURCE_DIR}/include
-  ${SRC}/codegen/gen
+  ${GEN_INCLUDE}
+  ${GEN_DIR}
   ${STORE}/include
 )
 add_library(spn_version STATIC util/version/version.c)

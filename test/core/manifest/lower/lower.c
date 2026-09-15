@@ -32,6 +32,16 @@ typedef struct {
 } copy_t;
 
 typedef struct {
+  const c8* path;
+  const c8* dest;
+  const c8* data_type;
+  const c8* size_type;
+  const c8* when;
+  spn_tree_t tree;
+  bool dir;
+} embed_t;
+
+typedef struct {
   const c8* name;
   spn_linkage_set_t linkages;
   bool no_link;
@@ -45,6 +55,7 @@ typedef struct {
   gated_t system_deps [4];
   gated_t deps [4];
   gated_t frameworks [4];
+  embed_t embed [4];
   spn_cxx_options_t cxx;
 } target_t;
 
@@ -789,6 +800,20 @@ static const test_t tests [] = {
     }
   },
   {
+    .name = "target_embed",
+    .manifest = "target_embed",
+    .exes = {
+      {
+        .name = "t",
+        .embed = {
+          { "a.txt", .dest = "a.txt" },
+          { "b.txt", .dest = "c/b.txt", .tree = SPN_TREE_MANIFEST, .data_type = "u8", .size_type = "u64", .when = "os = \"linux\"" },
+          { "d", .dest = "e", .dir = true },
+        },
+      }
+    }
+  },
+  {
     .name = "validate_tree_invalid",
     .manifest = "validate_tree_invalid",
     .include = { { "inc", .tree_none = true } },
@@ -797,6 +822,7 @@ static const test_t tests [] = {
       { SPN_ERR_CODEGEN_INVALID, "lib[0].source[0].tree" },
       { SPN_ERR_CODEGEN_INVALID, "lib[0].headers[0].tree" },
       { SPN_ERR_CODEGEN_INVALID, "lib[0].linker_script[0].tree" },
+      { SPN_ERR_CODEGEN_INVALID, "lib[0].embed[0].tree" },
       { SPN_ERR_CODEGEN_INVALID, "package.include[0].tree" },
       { SPN_ERR_CODEGEN_INVALID, "package.build.source[0].tree" },
       { SPN_ERR_CODEGEN_INVALID, "package.configure.include[0].tree" },
@@ -1532,6 +1558,22 @@ static sp_err_t check_targets(sp_test_t* t, spn_target_map_t om, const target_t*
     check_gated(t, info->gated.deps, arr[i].deps);
     sp_expect_eq(t, (u32)0, (u32)sp_da_size(info->macos.frameworks));
     check_gated(t, info->gated.frameworks, arr[i].frameworks);
+    u32 num_embeds = 0;
+    sp_carr_detect_len(arr[i].embed, num_embeds, arr[i].embed[num_embeds].path);
+    sp_expect_eq(t, (u32)0, (u32)sp_da_size(info->embed));
+    sp_must_eq(t, num_embeds, (u32)sp_da_size(info->gated.embed));
+    sp_for(e, num_embeds) {
+      const embed_t* expected = &arr[i].embed[e];
+      spn_gated_embed_t* actual = &info->gated.embed[e];
+      spn_tree_t tree = expected->tree ? expected->tree : SPN_TREE_SOURCE;
+      sp_expect_eq(t, (u32)(expected->dir ? SPN_EMBED_DIR : SPN_EMBED_FILE), (u32)actual->kind);
+      sp_expect_str_eq_c(t, actual->path, expected->path);
+      sp_expect_eq(t, (u32)tree, (u32)actual->tree);
+      sp_expect_str_eq_c(t, actual->dest, expected->dest);
+      sp_expect_str_eq_c(t, actual->types.data, expected->data_type ? expected->data_type : "");
+      sp_expect_str_eq_c(t, actual->types.size, expected->size_type ? expected->size_type : "");
+      sp_expect_str_eq_c(t, spn_when_to_str(sp_test_arena(t), &actual->when), expected->when ? expected->when : "always");
+    }
     sp_expect_eq(t, (u32)arr[i].cxx.standard, (u32)info->cxx.standard);
     sp_expect_eq(t, arr[i].cxx.no_exceptions, info->cxx.no_exceptions);
     sp_expect_eq(t, arr[i].cxx.no_rtti, info->cxx.no_rtti);

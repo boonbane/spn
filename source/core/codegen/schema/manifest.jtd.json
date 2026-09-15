@@ -78,6 +78,20 @@
       }
     },
 
+    "embed_entry": {
+      "properties": {
+        "path": { "type": "string" }
+      },
+      "optionalProperties": {
+        "tree": { "ref": "tree" },
+        "dir": { "type": "boolean" },
+        "dest": { "type": "string" },
+        "data_type": { "type": "string" },
+        "size_type": { "type": "string" },
+        "when": { "metadata": { "extern": "when", "include": "when/types.h" } }
+      }
+    },
+
     "system_dep_entry": {
       "properties": {
         "lib": { "type": "string" }
@@ -156,6 +170,7 @@
         "linker_script": { "elements": { "ref": "source_entry" }, "metadata": { "shorthand": "path" } },
         "system_deps": { "elements": { "ref": "value_entry" }, "metadata": { "shorthand": "value" } },
         "deps": { "elements": { "ref": "target_dep_entry" }, "metadata": { "shorthand": "pkg" } },
+        "embed": { "elements": { "ref": "embed_entry" }, "metadata": { "shorthand": "path" } },
         "link": { "type": "boolean" },
         "cxx": { "ref": "cxx_options" },
         "macos": { "ref": "platform_macos" },

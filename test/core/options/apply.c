@@ -652,3 +652,69 @@ sp_test_each(options_apply, publish_copies, apply_copy_test_t, copy_tests) {
   }
   return SP_OK;
 }
+
+typedef struct {
+  const c8* dest;
+  apply_clause_t when [2];
+} apply_embed_t;
+
+typedef struct {
+  const c8* name;
+  spn_when_facts_t facts;
+  apply_embed_t embeds [4];
+  const c8* expect [4];
+} apply_embed_test_t;
+
+static const apply_embed_test_t embed_tests [] = {
+  {
+    .name = "target_embeds",
+    .facts = { .os = SPN_OS_LINUX },
+    .embeds = {
+      { .dest = "A", .when = { { "os", "linux" } } },
+      { .dest = "B", .when = { { "os", "windows" } } },
+      { .dest = "C" },
+    },
+    .expect = { "A", "C" },
+  },
+};
+
+sp_test_each(options_apply, target_embeds, apply_embed_test_t, embed_tests, .setup = spn_test_ctx_setup) {
+  sp_mem_t mem = sp_test_arena(t);
+  spn_pkg_info_t info = sp_zero;
+  sp_str_om_insert(info.exes, sp_str_lit("main"), sp_zero_s(spn_target_info_t));
+  spn_target_info_t* exe = sp_str_om_at(info.exes, 0);
+  sp_da_init(mem, exe->embed);
+  sp_da_init(mem, exe->gated.embed);
+  sp_carr_for(it->embeds, et) {
+    if (!it->embeds[et].dest) {
+      break;
+    }
+    sp_da_push(exe->gated.embed, ((spn_gated_embed_t) {
+      .kind = SPN_EMBED_DIR,
+      .path = sp_cstr_as_str(it->embeds[et].dest),
+      .tree = SPN_TREE_SOURCE,
+      .dest = sp_cstr_as_str(it->embeds[et].dest),
+      .types = { .data = sp_str_lit("u8"), .size = sp_str_lit("u64") },
+      .when = make_apply_when(mem, it->embeds[et].when, sp_carr_len(it->embeds[et].when)),
+    }));
+  }
+
+  spn_when_env_t env = sp_zero;
+  spn_when_env_init(mem, &env);
+  spn_when_env_set_facts(&env, it->facts);
+  spn_path_roots_t roots = sp_zero;
+  spn_tree_roots_t trees = sp_zero;
+  spn_pkg_apply_options(mem, &info, &roots, trees, &env);
+
+  u32 expected = 0;
+  sp_carr_detect_len(it->expect, expected, it->expect[expected]);
+  sp_must_eq(t, expected, (u32)sp_da_size(exe->embed));
+  sp_for(et, expected) {
+    sp_expect_str_eq_c(t, exe->embed[et].dest, it->expect[et]);
+    sp_expect_str_eq_c(t, exe->embed[et].path.sub, it->expect[et]);
+    sp_expect_eq(t, (u32)SPN_EMBED_DIR, (u32)exe->embed[et].kind);
+    sp_expect_str_eq_c(t, exe->embed[et].types.data, "u8");
+    sp_expect_str_eq_c(t, exe->embed[et].types.size, "u64");
+  }
+  return SP_OK;
+}

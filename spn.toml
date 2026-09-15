@@ -683,7 +683,6 @@ source = [
   "source/core/session/session.c",
   "source/core/target/mutate.c",
   "source/core/target/select.c",
-  "source/core/target/target.c",
   "source/core/toolchain/catalog.c",
   "source/core/toolchain/select.c",
   "source/core/toolchain/search.c",

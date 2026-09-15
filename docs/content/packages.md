@@ -140,7 +140,7 @@ windows = { subsystem = "windows" }
 
 ## Embedding files
 
-`spn` can embed arbitrary files and bytes (from build scripts) in your binary by creating an object file and header that anything can link to trivially. For example, this configuration:
+`spn` can embed arbitrary files and bytes in your binary by creating an object file and header that anything can link to trivially. Each entry names a file (or, with `dir = true`, every file under a directory) and the path it is embedded as; the symbol is that path with `/`, `\\`, `.`, and `-` replaced by `_`. For example, this configuration:
 
 ```toml
 [[bin]]
@@ -148,7 +148,7 @@ name = "whatever"
 source = ["main.c"]
 embed = [
   "asset/fonts/inconsolata.ttf",
-  { path = "asset/data.json", symbol = "data_json", data_type = "u8", size_type = "u64" },
+  { path = "asset/data.json", dest = "data.json", data_type = "u8", size_type = "u64" },
   { path = "asset/shaders", dir = true, dest = "shaders" },
 ]
 ```

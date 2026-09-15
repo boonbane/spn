@@ -25,11 +25,11 @@ add_executable(resolver
   ${SRC}/when/when.c
   ${SRC}/toolchain/catalog.c
   ${SRC}/toolchain/linker.c
-  ${SRC}/codegen/gen/config.gen.c
-  ${SRC}/codegen/gen/errors.gen.c
-  ${SRC}/codegen/gen/events.gen.c
-  ${SRC}/codegen/gen/manifest.gen.c
-  ${SRC}/codegen/gen/release.gen.c
+  ${GEN_DIR}/config.gen.c
+  ${GEN_DIR}/errors.gen.c
+  ${GEN_DIR}/events.gen.c
+  ${GEN_DIR}/manifest.gen.c
+  ${GEN_DIR}/release.gen.c
   ${SRC}/index/cache.c
   ${SRC}/index/dir.c
   ${SRC}/index/release.c
@@ -48,7 +48,7 @@ add_executable(resolver
   ${SRC}/elf/elf.c
   ${SRC}/resolve/resolve.c
   dump.c
-  ${TEST_TOOLS}/gen/resolve.gen.c
+  ${TEST_GEN_DIR}/resolve.gen.c
   ${UTIL}/str/str.c
   ${SRC}/semver/compare.c
   ${SRC}/semver/convert.c
@@ -63,7 +63,7 @@ add_executable(resolver
   ${TEST_TOOLS}/toml.c
 )
 spn_test_binary(resolver)
-target_include_directories(resolver PRIVATE ${SRC}/codegen/gen ${TEST_TOOLS}/gen)
+target_include_directories(resolver PRIVATE ${GEN_DIR} ${TEST_GEN_DIR})
 target_link_libraries(resolver PRIVATE yyjson blake3)
 add_dependencies(resolver spn_codegen_gen spn_codegen_test_gen)
 add_test(NAME resolver COMMAND "$<TARGET_FILE:resolver>" WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")

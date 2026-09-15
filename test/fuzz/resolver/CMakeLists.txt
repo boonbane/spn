@@ -25,11 +25,11 @@ add_executable(fuzz_resolver
   ${SRC}/when/when.c
   ${SRC}/toolchain/catalog.c
   ${SRC}/toolchain/linker.c
-  ${SRC}/codegen/gen/config.gen.c
-  ${SRC}/codegen/gen/errors.gen.c
-  ${SRC}/codegen/gen/events.gen.c
-  ${SRC}/codegen/gen/manifest.gen.c
-  ${SRC}/codegen/gen/release.gen.c
+  ${GEN_DIR}/config.gen.c
+  ${GEN_DIR}/errors.gen.c
+  ${GEN_DIR}/events.gen.c
+  ${GEN_DIR}/manifest.gen.c
+  ${GEN_DIR}/release.gen.c
   ${SRC}/index/dir.c
   ${SRC}/index/release.c
   ${SRC}/index/index.c
@@ -65,7 +65,7 @@ add_executable(fuzz_resolver
   ${TEST_TOOLS}/toml.c
 )
 spn_test_binary(fuzz_resolver)
-target_include_directories(fuzz_resolver PRIVATE ${SRC}/codegen/gen ${CMAKE_SOURCE_DIR}/tools ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(fuzz_resolver PRIVATE ${GEN_DIR} ${CMAKE_SOURCE_DIR}/tools ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(fuzz_resolver PRIVATE yyjson blake3)
 add_dependencies(fuzz_resolver spn_codegen_gen)
 add_test(NAME fuzz_resolver COMMAND "$<TARGET_FILE:fuzz_resolver>" WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")

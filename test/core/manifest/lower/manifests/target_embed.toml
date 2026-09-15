@@ -1,0 +1,11 @@
+[package]
+name = "p"
+version = "1.0.0"
+
+[[bin]]
+name = "t"
+embed = [
+  "a.txt",
+  { path = "b.txt", dest = "c/b.txt", tree = "manifest", data_type = "u8", size_type = "u64", when = { os = "linux" } },
+  { path = "d", dir = true, dest = "e" },
+]

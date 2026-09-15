@@ -287,3 +287,14 @@ sp_test(target, cross_exe) {
     .expect = { .exists = { target_exe("main", triple) } },
   });
 }
+
+sp_test(target, embed) {
+  return run_test(t, (test_t) {
+    .project = "test/integration/fixtures/target/embed",
+    .copy = { "A.txt" },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
+      { .kind = ACTION_RUN_BIN, .bin.name = "main" },
+    },
+  });
+}

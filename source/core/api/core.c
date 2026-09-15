@@ -24,7 +24,6 @@
 #include "pkg/pkg.h"
 #include "session/session.h"
 #include "io/io.h"
-#include "target/target.h"
 
 spn_pkg_unit_t* spn_api_unit(const void* opaque) {
   return (spn_pkg_unit_t*)opaque;
@@ -282,24 +281,56 @@ void spn_target_add_flag(spn_target_t* target, const c8* flag) {
   sp_da_push(target->info->flags, spn_intern_cstr(flag));
 }
 
-// Channel a little bit of Arthur himself to get these wrappers to fit on one line on my editor
-#define view(_str) sp_str_view(_str)
-#define DATA_T SP_EMBED_DEFAULT_DATA_T_S
-#define SIZE_T SP_EMBED_DEFAULT_SIZE_T_S
+static bool embed_dest_rejected(spn_pkg_unit_t* unit, const c8* fn, sp_str_t dest) {
+  if (!sp_str_empty(dest) && !sp_fs_is_absolute(dest) && spn_path_normal(dest)) {
+    return false;
+  }
+  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+  sp_str_t message = sp_fmt(scratch.mem, "{}: {} must be a relative, non-empty path without '.' or '..' components", SP_FMT_CSTR(fn), SP_FMT_STR(dest)).value;
+  if (!spn_wasm_trap_active(unit, message)) {
+    spn_err_emit(unit->session->ctx, (spn_err_union_t) {
+      .kind = SPN_ERR_PATH_COMPONENT,
+      .fs = { .path = sp_str_copy(spn.mem, dest) },
+    });
+  }
+  sp_mem_end_scratch(scratch);
+  return true;
+}
+
 void spn_target_embed_file(spn_target_t* t, const c8* file) {
   spn_path_t made = api_path(t->unit, "spn_target_embed_file", file);
-  if (spn_path_empty(made)) return;
-  spn_target_embed_file_ex_s(t->info, made, SP_EMBED_DEFAULT_SYMBOL_S, DATA_T, SIZE_T);
+  if (spn_path_empty(made) || embed_dest_rejected(t->unit, "spn_target_embed_file", sp_str_view(file))) {
+    return;
+  }
+  spn_target_add_embed(t->info, (spn_embed_t) {
+    .kind = SPN_EMBED_FILE,
+    .path = made,
+    .dest = sp_str_view(file),
+  });
 }
 
-void spn_target_embed_file_ex(spn_target_t* t, const c8* f, const c8* s, const c8* d_t, const c8* s_t) {
-  spn_path_t made = api_path(t->unit, "spn_target_embed_file_ex", f);
-  if (spn_path_empty(made)) return;
-  spn_target_embed_file_ex_s(t->info, made, view(s), view(d_t), view(s_t));
+void spn_target_embed_file_ex(spn_target_t* t, const c8* file, const c8* dest, const c8* data_type, const c8* size_type) {
+  spn_path_t made = api_path(t->unit, "spn_target_embed_file_ex", file);
+  if (spn_path_empty(made) || embed_dest_rejected(t->unit, "spn_target_embed_file_ex", sp_str_view(dest))) {
+    return;
+  }
+  spn_target_add_embed(t->info, (spn_embed_t) {
+    .kind = SPN_EMBED_FILE,
+    .path = made,
+    .dest = sp_str_view(dest),
+    .types = { .data = sp_str_view(data_type), .size = sp_str_view(size_type) },
+  });
 }
 
-void spn_target_embed_dir_ex(spn_target_t* t, const c8* d, const c8* dest, const c8* d_t, const c8* s_t) {
-  spn_path_t made = api_path(t->unit, "spn_target_embed_dir_ex", d);
-  if (spn_path_empty(made) || spn_api_path_rejected(t->unit, "spn_target_embed_dir_ex", view(dest))) return;
-  spn_target_embed_dir_ex_s(t->info, made, view(dest), view(d_t), view(s_t));
+void spn_target_embed_dir_ex(spn_target_t* t, const c8* dir, const c8* dest, const c8* data_type, const c8* size_type) {
+  spn_path_t made = api_path(t->unit, "spn_target_embed_dir_ex", dir);
+  if (spn_path_empty(made) || embed_dest_rejected(t->unit, "spn_target_embed_dir_ex", sp_str_view(dest))) {
+    return;
+  }
+  spn_target_add_embed(t->info, (spn_embed_t) {
+    .kind = SPN_EMBED_DIR,
+    .path = made,
+    .dest = sp_str_view(dest),
+    .types = { .data = sp_str_view(data_type), .size = sp_str_view(size_type) },
+  });
 }

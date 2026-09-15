@@ -164,12 +164,12 @@ add_executable(core
   ${SRC}/codegen/toolchain.c
   ${SRC}/codegen/options.c
   ${SRC}/codegen/when.c
-  ${SRC}/codegen/gen/config.gen.c
-  ${SRC}/codegen/gen/errors.gen.c
-  ${SRC}/codegen/gen/events.gen.c
-  ${SRC}/codegen/gen/manifest.gen.c
-  ${SRC}/codegen/gen/release.gen.c
-  ${SRC}/codegen/gen/source_deps.gen.c
+  ${GEN_DIR}/config.gen.c
+  ${GEN_DIR}/errors.gen.c
+  ${GEN_DIR}/events.gen.c
+  ${GEN_DIR}/manifest.gen.c
+  ${GEN_DIR}/release.gen.c
+  ${GEN_DIR}/source_deps.gen.c
   ${SRC}/compiler/driver.c
   ${SRC}/compiler/exports.c
   ${SRC}/compiler/gnu.c
@@ -276,7 +276,7 @@ target_include_directories(core PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${CLI}
   ${CMAKE_CURRENT_SOURCE_DIR}/tools
-  ${SRC}/codegen/gen
+  ${GEN_DIR}
   ${SRC}/external
   ${SOURCE_ROOT}/wamr/core/iwasm/include
   ${CMAKE_SOURCE_DIR}/tools
@@ -285,7 +285,7 @@ target_include_directories(core PRIVATE
   ${STORE}/include/sp
 )
 set_source_files_properties(schema/schema.c PROPERTIES COMPILE_DEFINITIONS
-  "SCHEMA_GEN_DIR=\"source/core/codegen/gen\";SCHEMA_DIR=\"source/core/codegen/schema\"")
+  "SCHEMA_GEN_DIR=\"${GEN_DIR}\";SCHEMA_DIR=\"source/core/codegen/schema\"")
 set_source_files_properties(jtd/harness.c jtd/conformance.c PROPERTIES COMPILE_DEFINITIONS
   "JTD_TEST_JSON_DIR=\"test/core/jtd/json\"")
 set_source_files_properties(manifest/lower/lower.c PROPERTIES COMPILE_DEFINITIONS

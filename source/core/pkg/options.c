@@ -3,6 +3,7 @@
 #include "paths/paths.h"
 #include "profile/profile.h"
 #include "resolve/types.h"
+#include "target/mutate.h"
 #include "when/when.h"
 
 spn_pkg_config_t* spn_pkg_config_find(sp_da(spn_pkg_config_entry_t) config, sp_str_t name) {
@@ -271,6 +272,19 @@ static void apply_target(apply_ctx_t* ctx, spn_target_info_t* target) {
   apply_gated(ctx, &target->system_deps, target->gated.system_deps);
   apply_gated(ctx, &target->deps, target->gated.deps);
   apply_gated(ctx, &target->macos.frameworks, target->gated.frameworks);
+  sp_da_for(target->gated.embed, it) {
+    spn_gated_embed_t* embed = &target->gated.embed[it];
+    if (!spn_when_eval(&embed->when, ctx->env)) {
+      continue;
+    }
+    spn_path_t path = spn_tree_path(ctx->mem, ctx->roots, ctx->trees, embed->tree, embed->path);
+    spn_target_add_embed(target, (spn_embed_t) {
+      .kind = embed->kind,
+      .path = spn_path_canonicalize(ctx->mem, ctx->roots, path),
+      .dest = embed->dest,
+      .types = embed->types,
+    });
+  }
 }
 
 void spn_pkg_apply_options(
