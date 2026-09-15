@@ -3,6 +3,7 @@ name: ci
 on:
   workflow_dispatch:
   pull_request:
+    types: [opened, synchronize, reopened, labeled]
   push:
     branches: [main]
 
@@ -22,7 +23,35 @@ env:
   SELFHOST_EPOCH: 1
 
 jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      bootstrap: ${{ steps.plan.outputs.bootstrap }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - id: plan
+        env:
+          EVENT: ${{ github.event_name }}
+          LABELED: ${{ contains(github.event.pull_request.labels.*.name, 'bootstrap') }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          bootstrap=false
+          if [ "$EVENT" != "pull_request" ] || [ "$LABELED" = "true" ]; then
+            bootstrap=true
+          else
+            changed="$(git diff --name-only "$BASE...$HEAD")"
+            if grep -Eq '^(include/|source/core/codegen/schema/abi\.json$)' <<< "$changed"; then
+              bootstrap=true
+            fi
+          fi
+          echo "bootstrap=$bootstrap"
+          echo "bootstrap=$bootstrap" >> "$GITHUB_OUTPUT"
+
   build:
+    needs: [plan]
     strategy:
       fail-fast: false
       matrix:
@@ -45,8 +74,16 @@ jobs:
             build
           key: selfhost-e${{ env.SELFHOST_EPOCH }}-${{ matrix.id }}-${{ github.run_id }}
           restore-keys: selfhost-e${{ env.SELFHOST_EPOCH }}-${{ matrix.id }}-
+      - uses: actions/cache/restore@v4
+        id: driver
+        if: needs.plan.outputs.bootstrap != 'true'
+        with:
+          path: ${{ matrix.bin }}
+          key: driver-${{ matrix.id }}-${{ github.event.pull_request.base.sha }}
+          restore-keys: driver-${{ matrix.id }}-
 
       - run: make ci
+        if: needs.plan.outputs.bootstrap == 'true' || steps.driver.outputs.cache-matched-key == ''
 
       - run: tools/devenv.ps1
         if: runner.os == 'Windows'
@@ -67,7 +104,8 @@ jobs:
           key: driver-${{ matrix.id }}-${{ github.sha }}
 
   package:
-    needs: [build]
+    if: ${{ needs.plan.outputs.bootstrap == 'true' }}
+    needs: [plan, build]
     uses: ./.github/workflows/package.yml
     with:
       channel: canary
@@ -96,9 +134,9 @@ jobs:
   ci:
     name: ci
     if: ${{ !cancelled() }}
-    needs: [build, package, canary]
+    needs: [plan, build, package, canary]
     runs-on: ubuntu-latest
     steps:
       - env:
           NEEDS: ${{ toJson(needs) }}
-        run: jq --exit-status '(.build.result == "success") and (.package.result == "success") and (.canary.result == "success" or .canary.result == "skipped")' <<< "$NEEDS"
+        run: jq --exit-status '(.build.result == "success") and (.package.result == "success" or (.package.result == "skipped" and .plan.outputs.bootstrap != "true")) and (.canary.result == "success" or .canary.result == "skipped")' <<< "$NEEDS"
