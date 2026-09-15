@@ -90,3 +90,4 @@ sp_str_t sp_str_repeat(sp_mem_t mem, c8 c, u32 len) {
   sp_mem_fill(buffer, len, &c, sizeof(c8));
   return sp_str(buffer, len);
 }
+
