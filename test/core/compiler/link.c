@@ -371,7 +371,7 @@ static const link_test_t tests [] = {
       .arch = SPN_ARCH_X64,
       .os = SPN_OS_LINUX,
       .abi = SPN_ABI_MUSL,
-      .linking.linkage = SPN_LIB_KIND_SHARED,
+      .linking.linkage = SPN_LIB_KIND_STATIC,
       .linking.runtime = SPN_RUNTIME_STATIC,
       .linking.libc = SPN_RUNTIME_STATIC,
     },
