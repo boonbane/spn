@@ -70,7 +70,7 @@ s32 main(s32 num_args, const c8** args) {
       },
       {
         .name = "repo",
-        .summary = "GitHub repository the installers download from (e.g. tspader/spn)",
+        .summary = "GitHub repository the installers download from (e.g. boonbane/spn)",
         .ptr = &parsed.repo,
       },
     },

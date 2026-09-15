@@ -42,7 +42,7 @@ if [ ! -x "$SPN" ]; then
   TMP="$(mktemp -d "$CACHE/fetch.XXXXXX")"
   trap 'rm -rf "$TMP"' EXIT
   echo "stage0: fetching spn $VERSION ($ARCH-$OS)" >&2
-  curl -fsSL "https://github.com/tspader/spn/releases/download/v$VERSION/$ASSET" -o "$TMP/$ASSET"
+  curl -fsSL "https://github.com/boonbane/spn/releases/download/v$VERSION/$ASSET" -o "$TMP/$ASSET"
   if command -v sha256sum >/dev/null 2>&1; then
     GOT="$(sha256sum "$TMP/$ASSET" | cut -d' ' -f1)"
   else

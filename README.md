@@ -11,8 +11,8 @@
   <a href="https://discord.gg/7v4C5Kwsp7">
     <img src="https://img.shields.io/discord/957469344974143508?style=flat-square&label=discord" />
   </a>
-  <a href="https://github.com/tspader/spn/actions/workflows/ci.yml">
-    <img src="https://img.shields.io/github/actions/workflow/status/tspader/spn/ci.yml?style=flat-square&branch=main" />
+  <a href="https://github.com/boonbane/spn/actions/workflows/ci.yml">
+    <img src="https://img.shields.io/github/actions/workflow/status/boonbane/spn/ci.yml?style=flat-square&branch=main" />
   </a>
 </p>
 
