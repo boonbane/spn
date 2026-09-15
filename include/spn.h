@@ -69,3 +69,4 @@ spn_opt_level_t  spn_profile_get_opt(spn_profile_t* profile);
 spn_sanitizer_set_t spn_profile_get_sanitizers(spn_profile_t* profile);
 
 #endif
+
