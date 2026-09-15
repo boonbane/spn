@@ -137,6 +137,23 @@ sp_str_t spn_ld_family_to_str(spn_ld_family_t family) {
   SP_UNREACHABLE_RETURN(sp_str_lit(""));
 }
 
+spn_toolchain_detect_t spn_toolchain_detect_from_str(sp_str_t str) {
+  if (sp_str_equal_cstr(str, "msvc")) {
+    return SPN_TOOLCHAIN_DETECT_MSVC;
+  }
+
+  return SPN_TOOLCHAIN_DETECT_NONE;
+}
+
+sp_str_t spn_toolchain_detect_to_str(spn_toolchain_detect_t detect) {
+  switch (detect) {
+    case SPN_TOOLCHAIN_DETECT_NONE: return sp_str_lit("");
+    case SPN_TOOLCHAIN_DETECT_MSVC: return sp_str_lit("msvc");
+  }
+
+  SP_UNREACHABLE_RETURN(sp_str_lit(""));
+}
+
 sp_str_t spn_ld_dialect_to_str(spn_ld_dialect_t dialect) {
   switch (dialect) {
     case SPN_LD_DIALECT_GNU:    return sp_str_lit("gnu");
@@ -575,6 +592,31 @@ sp_str_t spn_linkage_to_str(spn_linkage_t kind) {
       return sp_str_lit("object");
     }
     case SPN_LIB_KIND_NONE: sp_unreachable_case();
+  }
+
+  SP_UNREACHABLE_RETURN(sp_str_lit(""));
+}
+
+spn_runtime_t spn_runtime_from_str(sp_str_t str) {
+  if (sp_str_equal_cstr(str, "static")) {
+    return SPN_RUNTIME_STATIC;
+  }
+  if (sp_str_equal_cstr(str, "shared")) {
+    return SPN_RUNTIME_SHARED;
+  }
+
+  return SPN_RUNTIME_NONE;
+}
+
+sp_str_t spn_runtime_to_str(spn_runtime_t runtime) {
+  switch (runtime) {
+    case SPN_RUNTIME_STATIC: {
+      return sp_str_lit("static");
+    }
+    case SPN_RUNTIME_SHARED: {
+      return sp_str_lit("shared");
+    }
+    case SPN_RUNTIME_NONE: sp_unreachable_case();
   }
 
   SP_UNREACHABLE_RETURN(sp_str_lit(""));

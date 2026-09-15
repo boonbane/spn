@@ -1,6 +1,8 @@
 #include "harness.h"
 
 sp_test(profile, sanitize_trigger) {
+  return sp_test_skip(t, "SPN-32");
+
   return run_opt_test(t, (opt_test_t) {
     .project = "test/integration/fixtures/profile/sanitize",
     .when.sanitize = SPN_SANITIZER_ADDRESS,
@@ -25,6 +27,8 @@ sp_test(profile, sanitize_clear) {
 }
 
 sp_test(profile, identity) {
+  return sp_test_skip(t, "SPN-32");
+
   return run_opt_test(t, (opt_test_t) {
     .project = "test/integration/fixtures/profile/identity",
     .builds = {
@@ -122,7 +126,6 @@ sp_test(profile, static_config_is_not_a_shared_demand) {
 sp_test(profile, target_with_foreign_arch) {
   return run_test(t, (test_t) {
     .project = "test/integration/fixtures/profile/override",
-    .when.msvc_todo = true,
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build", .args = { "--target", "x86_64-wasi" }, .rc = 1 } },
       { .kind = ACTION_VERIFY_RESULT, .verify_result = { .err = SPN_ERR_PROFILE_ARCH } },

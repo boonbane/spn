@@ -7,6 +7,7 @@
 #include "event/event.h"
 #include "profile/profile.h"
 #include "paths/paths.h"
+#include "spn/err.h"
 #include "toolchain/catalog.h"
 #include "toolchain/linker.h"
 #include "toolchain/search.h"
@@ -21,6 +22,7 @@ static spn_toolchain_catalog_t catalog;
 static lanes_t builtin;
 static lanes_t lanes;
 static sp_str_t toml;
+static sp_str_t probes;
 
 static void read_lanes(sp_mem_t mem, const c8* rel, lanes_t* lanes) {
   switch (lanes_read(mem, test_repo_path(mem, sp_cstr_as_str(rel)), lanes)) {
@@ -140,25 +142,6 @@ static bool present(spn_arg_t program) {
   return found;
 }
 
-static sp_str_t toolchain_dir(sp_mem_t mem, const spn_toolchain_info_t* info) {
-  return sp_fs_parent_path(program_existing(mem, info->compiler.program));
-}
-
-sp_str_t test_toolchain_path(sp_mem_t mem) {
-  const spn_toolchain_info_t* info = test_toolchain()->info;
-  sp_str_t path = sp_os_env_get(sp_str_lit("PATH"));
-  switch (info->support.kind) {
-    case SPN_TOOLCHAIN_SUPPORT_LOCAL: {
-      return spn_search_prepend(host_rules(), mem, toolchain_dir(mem, info), path);
-    }
-    case SPN_TOOLCHAIN_SUPPORT_ARTIFACT:
-    case SPN_TOOLCHAIN_SUPPORT_NONE: {
-      return path;
-    }
-  }
-  sp_unreachable_return(path);
-}
-
 typedef struct {
   const c8* lane;
   spn_ld_dialect_t dialect;
@@ -212,12 +195,29 @@ static sp_str_t missing_toolchain_program(sp_mem_t mem, const spn_toolchain_info
   return missing_lane_program(mem, info);
 }
 
+static const c8* select_reason(spn_err_t err) {
+  switch (err) {
+    case SPN_ERR_TOOLCHAIN_NONE: return "no toolchain can";
+    case SPN_ERR_TOOLCHAIN_UNAVAILABLE_FOR_HOST: return "doesn't run on this host";
+    case SPN_ERR_TOOLCHAIN_NOT_INSTALLED: return "isn't installed";
+    case SPN_ERR_TOOLCHAIN_TARGET: return "doesn't target it";
+    case SPN_ERR_TOOLCHAIN_SYSROOT: return "needs a sysroot";
+    case SPN_ERR_TOOLCHAIN_SDK_MACOS: return "needs the macOS SDK";
+    case SPN_ERR_TOOLCHAIN_SDK_MSVC: return "needs the MSVC SDK";
+    case SPN_ERR_TARGET_ABI: return "needs an abi";
+    case SPN_ERR_SANITIZER_UNSUPPORTED: return "doesn't ship those sanitizers";
+    case SPN_ERR_SANITIZER_STATIC: return "links it statically";
+    default: return "can't select it";
+  }
+}
+
 static sp_str_t lane_broken(sp_mem_t mem, const spn_toolchain_info_t* info) {
   switch (info->support.kind) {
     case SPN_TOOLCHAIN_SUPPORT_NONE: {
-      return sp_fmt(mem, "doesn't support {}", sp_fmt_str(spn_triple_to_str(mem, spn_triple_host()))).value;
+      return sp_cstr_as_str(select_reason(info->support.err));
     }
-    case SPN_TOOLCHAIN_SUPPORT_ARTIFACT: {
+    case SPN_TOOLCHAIN_SUPPORT_ARTIFACT:
+    case SPN_TOOLCHAIN_SUPPORT_DETECTED: {
       return sp_str_lit("");
     }
     case SPN_TOOLCHAIN_SUPPORT_LOCAL: {
@@ -278,6 +278,7 @@ static sp_err_t load_lanes(void* user) {
     sp_sys_exit(1);
   }
   toml = lanes_text(&lanes, name);
+  probes = sp_str_copy(mem, sp_os_env_get(sp_str_lit("SPN_BARE_PROBES")));
   cached = (test_toolchain_t) { .name = sp_str_to_cstr(mem, info->name), .info = info };
   return SP_OK;
 }
@@ -287,24 +288,14 @@ const test_toolchain_t* test_toolchain(void) {
   return &cached;
 }
 
+sp_str_t test_probes(void) {
+  sp_test_once(&once, load_lanes, SP_NULLPTR);
+  return probes;
+}
+
 const c8* test_lane_toolchain_arg(void) {
   const test_toolchain_t* toolchain = test_toolchain();
   return sp_cstr_equal(toolchain->name, "zig") ? SP_NULLPTR : toolchain->name;
-}
-
-static const c8* select_reason(spn_err_t err) {
-  switch (err) {
-    case SPN_ERR_TOOLCHAIN_NONE: return "no toolchain can";
-    case SPN_ERR_TOOLCHAIN_HOST: return "doesn't run on this host";
-    case SPN_ERR_TOOLCHAIN_TARGET: return "doesn't target it";
-    case SPN_ERR_TOOLCHAIN_SYSROOT: return "needs a sysroot";
-    case SPN_ERR_TOOLCHAIN_SDK_MACOS: return "needs the macOS SDK";
-    case SPN_ERR_TOOLCHAIN_SDK_MSVC: return "needs the MSVC SDK";
-    case SPN_ERR_TARGET_ABI: return "needs an abi";
-    case SPN_ERR_SANITIZER_UNSUPPORTED: return "doesn't ship those sanitizers";
-    case SPN_ERR_SANITIZER_STATIC: return "links it statically";
-    default: return "can't select it";
-  }
 }
 
 static spn_err_t lane_selects(sp_mem_t mem, const test_when_t* when, spn_triple_t target, spn_profile_info_t* profile, spn_toolchain_selection_t* selection) {
@@ -325,7 +316,7 @@ static spn_err_t lane_selects(sp_mem_t mem, const test_when_t* when, spn_triple_
   return err;
 }
 
-static sp_str_t not_in_lanes(sp_mem_t mem, const test_toolchain_t* toolchain, const c8* const* names, u32 count) {
+static sp_str_t not_in_lanes(sp_mem_t mem, const test_toolchain_t* toolchain, const c8** names, u32 count) {
   sp_for(it, count) {
     if (!declared(sp_cstr_as_str(names[it]))) {
       sp_log("unknown lane {.red}", sp_fmt_cstr(names[it]));
@@ -365,10 +356,6 @@ sp_str_t test_when_blocked(test_when_t when) {
       sp_fmt_str(spn_os_to_str(when.host))).value;
   }
 
-  if (when.shell && host.os == SPN_OS_WINDOWS) {
-    return sp_str_lit("fixture needs a posix shell");
-  }
-
   sp_carr_for(when.programs, it) {
     if (!when.programs[it]) {
       break;
@@ -402,6 +389,12 @@ sp_str_t test_when_blocked(test_when_t when) {
       sp_fmt_str(spn_ld_family_to_str(profile.linker)),
       sp_fmt_str(spn_ld_family_to_str(when.linker))).value;
   }
+  if (when.linker_not && when.linker_not == profile.linker) {
+    return sp_fmt(mem, "{} links {} with {}, test needs another family",
+      sp_fmt_cstr(toolchain->name),
+      sp_fmt_str(spn_triple_to_str(mem, target)),
+      sp_fmt_str(spn_ld_family_to_str(profile.linker))).value;
+  }
   sp_str_t broken = lane_broken(mem, selection.toolchain);
   if (!sp_str_empty(broken)) {
     return sp_fmt(mem, "{} {}", sp_fmt_str(selection.toolchain->name), sp_fmt_str(broken)).value;
@@ -420,10 +413,6 @@ sp_str_t test_when_blocked(test_when_t when) {
   if (when.deterministic && !toolchain_deterministic_objects(toolchain)) {
     return sp_fmt(mem, "{} does not recompile objects byte-identically",
       sp_fmt_cstr(toolchain->name)).value;
-  }
-
-  if (when.msvc_todo && toolchain->info->driver == SPN_CC_DRIVER_MSVC) {
-    return sp_str_lit("not yet implemented for the msvc toolchain");
   }
 
   return sp_str_lit("");

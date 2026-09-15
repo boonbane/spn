@@ -69,6 +69,11 @@ typedef enum {
 } spn_ld_family_t;
 
 typedef enum {
+  SPN_TOOLCHAIN_DETECT_NONE,
+  SPN_TOOLCHAIN_DETECT_MSVC,
+} spn_toolchain_detect_t;
+
+typedef enum {
   SPN_FORMAT_ELF,
   SPN_FORMAT_COFF,
   SPN_FORMAT_MACHO,
@@ -89,7 +94,6 @@ typedef struct {
 } spn_semver_t;
 
 typedef enum {
-  SPN_CC_FEATURE_COMPILE,
   SPN_CC_FEATURE_LINK_EXE,
   SPN_CC_FEATURE_LINK_SHARED,
   SPN_CC_FEATURE_LINK_REACTOR,
@@ -146,6 +150,12 @@ typedef enum {
   SPN_LIB_KIND_SOURCE,
   SPN_LIB_KIND_OBJECT,
 } spn_linkage_t;
+
+typedef enum {
+  SPN_RUNTIME_NONE,
+  SPN_RUNTIME_STATIC,
+  SPN_RUNTIME_SHARED,
+} spn_runtime_t;
 
 typedef enum {
   SPN_TARGET_KIND_LIB,

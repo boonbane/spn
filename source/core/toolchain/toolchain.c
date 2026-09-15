@@ -28,7 +28,12 @@ static bool pathless(sp_str_t program) {
 }
 
 static bool searched(spn_toolchain_source_t source, sp_str_t program) {
-  return source != SPN_TOOLCHAIN_SOURCE_DISTRIBUTION && pathless(program);
+  switch (source) {
+    case SPN_TOOLCHAIN_SOURCE_LOCAL: return pathless(program);
+    case SPN_TOOLCHAIN_SOURCE_DISTRIBUTION:
+    case SPN_TOOLCHAIN_SOURCE_DETECTED: return false;
+  }
+  SP_UNREACHABLE_RETURN(false);
 }
 
 spn_path_check_t spn_toolchain_path(spn_toolchain_source_t source, spn_path_root_t base, sp_str_t str, spn_path_t* path) {
@@ -38,15 +43,15 @@ spn_path_check_t spn_toolchain_path(spn_toolchain_source_t source, spn_path_root
 
   bool absolute = sp_fs_is_absolute(str);
   switch (source) {
-    case SPN_TOOLCHAIN_SOURCE_DISTRIBUTION: {
+    case SPN_TOOLCHAIN_SOURCE_DISTRIBUTION:
+    case SPN_TOOLCHAIN_SOURCE_DETECTED: {
       if (absolute) {
         return SPN_PATH_ABSOLUTE;
       }
       *path = (spn_path_t) { .sub = str };
       return SPN_PATH_OK;
     }
-    case SPN_TOOLCHAIN_SOURCE_LOCAL:
-    case SPN_TOOLCHAIN_SOURCE_MIXED: {
+    case SPN_TOOLCHAIN_SOURCE_LOCAL: {
       if (absolute) {
         *path = (spn_path_t) { .sub = str };
         return SPN_PATH_OK;
@@ -112,8 +117,8 @@ spn_toolchain_ref_t spn_toolchain_ref_from_str(sp_str_t str) {
 
 spn_cc_cap_set_t spn_toolchain_driver_caps(spn_cc_driver_t driver) {
   switch (driver) {
-    case SPN_CC_DRIVER_GCC: return SPN_CC_CAP_FUSE_LD | SPN_CC_CAP_BARE;
-    case SPN_CC_DRIVER_CLANG: return SPN_CC_CAP_TARGET_TRIPLE | SPN_CC_CAP_LLVM_TRIPLE | SPN_CC_CAP_CLANG_FRONTEND | SPN_CC_CAP_FUSE_LD;
+    case SPN_CC_DRIVER_GCC: return SPN_CC_CAP_FUSE_LD | SPN_CC_CAP_BARE | SPN_CC_CAP_GNU_RUNTIME;
+    case SPN_CC_DRIVER_CLANG: return SPN_CC_CAP_TARGET_TRIPLE | SPN_CC_CAP_LLVM_TRIPLE | SPN_CC_CAP_CLANG_FRONTEND | SPN_CC_CAP_FUSE_LD | SPN_CC_CAP_GNU_RUNTIME;
     case SPN_CC_DRIVER_ZIG: return SPN_CC_CAP_TARGET_TRIPLE | SPN_CC_CAP_CLANG_FRONTEND | SPN_CC_CAP_CODEVIEW | SPN_CC_CAP_LIBC_FILE | SPN_CC_CAP_DEFAULT_UBSAN | SPN_CC_CAP_BARE;
     case SPN_CC_DRIVER_MSVC: return 0;
     case SPN_CC_DRIVER_NONE: sp_unreachable_case();
@@ -174,6 +179,18 @@ spn_linkage_t spn_abi_linkage(spn_abi_t abi) {
   SP_UNREACHABLE_RETURN(SPN_LIB_KIND_NONE);
 }
 
+spn_runtime_t spn_triple_runtime(spn_triple_t triple) {
+  switch (triple.os) {
+    case SPN_OS_LINUX: return triple.abi == SPN_ABI_GNU ? SPN_RUNTIME_SHARED : SPN_RUNTIME_STATIC;
+    case SPN_OS_MACOS: return SPN_RUNTIME_SHARED;
+    case SPN_OS_WINDOWS:
+    case SPN_OS_WASI:
+    case SPN_OS_FREESTANDING: return SPN_RUNTIME_STATIC;
+    case SPN_OS_NONE: sp_unreachable_case();
+  }
+  SP_UNREACHABLE_RETURN(SPN_RUNTIME_NONE);
+}
+
 spn_abi_t spn_default_abi(spn_cc_driver_t driver, spn_os_t os) {
   switch (os) {
     case SPN_OS_LINUX:
@@ -204,20 +221,4 @@ bool spn_toolchain_driver_composes(spn_cc_driver_t driver, spn_ld_dialect_t dial
     case SPN_CC_DRIVER_NONE: sp_unreachable_case();
   }
   SP_UNREACHABLE_RETURN(false);
-}
-
-sp_str_t spn_toolchain_launcher_to_str(const spn_path_roots_t* roots, sp_mem_t mem, spn_toolchain_launcher_t launcher) {
-  sp_str_t program = spn_arg_str(roots, mem, launcher.program);
-  if (sp_da_empty(launcher.args)) {
-    return program;
-  }
-
-  sp_io_dyn_mem_writer_t w;
-  sp_io_dyn_mem_writer_init(mem, &w);
-  sp_io_write_str(&w.base, program, SP_NULLPTR);
-  sp_da_for(launcher.args, i) {
-    sp_io_write_c8(&w.base, ' ');
-    sp_io_write_str(&w.base, launcher.args[i], SP_NULLPTR);
-  }
-  return sp_io_dyn_mem_writer_take_str(&w);
 }

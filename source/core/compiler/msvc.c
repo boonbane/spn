@@ -46,7 +46,17 @@ static sp_str_t cxx_standard_switch(spn_cxx_standard_t standard) {
   SP_UNREACHABLE_RETURN(sp_str_lit(""));
 }
 
+static sp_str_t crt_switch(spn_runtime_t runtime) {
+  switch (runtime) {
+    case SPN_RUNTIME_SHARED: return sp_str_lit("/MD");
+    case SPN_RUNTIME_STATIC: return sp_str_lit("/MT");
+    case SPN_RUNTIME_NONE: sp_unreachable_case();
+  }
+  SP_UNREACHABLE_RETURN(sp_str_lit(""));
+}
+
 void spn_msvc_render_flags(sp_mem_t mem, const spn_profile_info_t* profile, spn_cc_flags_t* flags) {
+  sp_da_push(flags->compile, crt_switch(profile->runtime));
   if (profile->mode == SPN_MODE_DEBUG) {
     // /Z7 embeds debug info in the object; /Zi would funnel every parallel
     // cl in a package's work directory into one vc140.pdb (C1041)
@@ -230,6 +240,9 @@ void spn_msvc_render_link(sp_mem_t mem, const spn_cc_toolchain_t* toolchain, con
   }
   if (!spn_path_empty(files->exports.path)) {
     sp_da_push(linker, spn_arg_glue(sp_str_lit("/DEF:"), files->exports.path));
+  }
+  if (!spn_path_empty(files->implib)) {
+    sp_da_push(linker, spn_arg_glue(sp_str_lit("/IMPLIB:"), files->implib));
   }
   sp_da_for(files->whole_archives, it) {
     sp_da_push(linker, spn_arg_glue(sp_str_lit("/WHOLEARCHIVE:"), files->whole_archives[it]));

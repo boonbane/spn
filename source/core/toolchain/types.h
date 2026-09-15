@@ -17,6 +17,7 @@ typedef enum {
   SPN_CC_CAP_LIBC_FILE      = 1 << 5,
   SPN_CC_CAP_DEFAULT_UBSAN  = 1 << 6,
   SPN_CC_CAP_BARE           = 1 << 7,
+  SPN_CC_CAP_GNU_RUNTIME    = 1 << 8,
 } spn_cc_cap_t;
 
 typedef u32 spn_cc_cap_set_t;
@@ -43,6 +44,7 @@ typedef enum {
 
 typedef struct {
   spn_arch_t arch;
+  sp_str_t version;
   spn_path_t bin;
   struct {
     spn_path_t vc;
@@ -115,18 +117,22 @@ typedef struct {
 typedef enum {
   SPN_TOOLCHAIN_SOURCE_LOCAL,
   SPN_TOOLCHAIN_SOURCE_DISTRIBUTION,
-  SPN_TOOLCHAIN_SOURCE_MIXED,
+  SPN_TOOLCHAIN_SOURCE_DETECTED,
 } spn_toolchain_source_t;
 
 typedef enum {
   SPN_TOOLCHAIN_SUPPORT_NONE,
   SPN_TOOLCHAIN_SUPPORT_LOCAL,
   SPN_TOOLCHAIN_SUPPORT_ARTIFACT,
+  SPN_TOOLCHAIN_SUPPORT_DETECTED,
 } spn_toolchain_support_kind_t;
 
 typedef struct {
   spn_toolchain_support_kind_t kind;
-  spn_artifact_t artifact;
+  union {
+    spn_artifact_t artifact;
+    spn_err_t err;
+  };
 } spn_toolchain_support_t;
 
 typedef struct {
@@ -139,7 +145,10 @@ typedef struct {
   bool lld;
   sp_da(sp_str_t) link_args;
   spn_toolchain_source_t source;
-  sp_da(spn_toolchain_host_t) hosts;
+  union {
+    spn_toolchain_detect_t detect;
+    sp_da(spn_toolchain_host_t) hosts;
+  };
   sp_da(spn_toolchain_target_t) targets;
   bool host_row;
 } spn_toolchain_decl_t;
@@ -188,11 +197,14 @@ typedef struct {
   spn_abi_list_t abis;
   spn_sanitizer_set_t sanitizers;
   spn_linkage_t linkage;
+  spn_runtime_t runtime;
 } spn_toolchain_query_t;
 
 typedef struct {
   spn_toolchain_info_t* toolchain;
   spn_toolchain_row_t row;
+  spn_linkage_t linkage;
+  spn_runtime_t runtime;
 } spn_toolchain_selection_t;
 
 typedef struct spn_toolchain_store spn_toolchain_store_t;

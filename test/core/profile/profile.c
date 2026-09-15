@@ -36,6 +36,7 @@ typedef struct {
   candidate_t toolchain [2];
   candidate_t abi [2];
   candidate_t linkage [2];
+  candidate_t runtime [2];
   candidate_t standard [2];
   candidate_t mode [2];
   candidate_t opt [2];
@@ -55,6 +56,7 @@ typedef struct {
   const c8* name;
   spn_triple_t target;
   spn_linkage_t linkage;
+  spn_runtime_t runtime;
   const c8* toolchain;
   spn_c_standard_t standard;
   spn_mode_t mode;
@@ -526,6 +528,7 @@ static const test_t tests [] = {
       .toolchain = { { "gcc", { { "os", "linux" } } } },
       .abi = { { "gnu", { { "os", "linux" } } } },
       .linkage = { { "static", { { "os", "linux" } } } },
+      .runtime = { { "static", { { "os", "linux" } } } },
       .standard = { { "c99", { { "os", "linux" } } } },
       .mode = { { "release", { { "os", "linux" } } } },
       .opt = { { "3", { { "os", "linux" } } } },
@@ -536,6 +539,7 @@ static const test_t tests [] = {
       .name = "fast",
       .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU },
       .linkage = SPN_LIB_KIND_STATIC,
+      .runtime = SPN_RUNTIME_STATIC,
       .toolchain = "gcc",
       .standard = SPN_C99,
       .mode = SPN_MODE_RELEASE,
@@ -569,6 +573,31 @@ static const test_t tests [] = {
     .expect = { .err = SPN_ERR_PROFILE_LINKAGE },
   },
   {
+    .name = "explicit_static_runtime_on_macos_is_rejected",
+    .profile = { .name = "default", .runtime = { { "static" } } },
+    .overrides = { .arch = SPN_ARCH_ARM64, .os = SPN_OS_MACOS },
+    .host = PROFILE_HOST_LINUX_GNU,
+    .expect = { .err = SPN_ERR_PROFILE_RUNTIME_STATIC },
+  },
+  {
+    .name = "explicit_shared_runtime_on_wasi_is_rejected",
+    .profile = { .name = "default", .runtime = { { "shared" } } },
+    .overrides = { .arch = SPN_ARCH_WASM32, .os = SPN_OS_WASI },
+    .host = PROFILE_HOST_LINUX_GNU,
+    .expect = { .err = SPN_ERR_PROFILE_RUNTIME_SHARED },
+  },
+  {
+    .name = "explicit_shared_runtime_survives",
+    .profile = { .name = "default", .runtime = { { "shared" } } },
+    .host = PROFILE_HOST_LINUX_GNU,
+    .abi = SPN_ABI_GNU,
+    .expect = {
+      .target = { SPN_ARCH_X64, SPN_OS_LINUX },
+      .linkage = SPN_LIB_KIND_SHARED,
+      .runtime = SPN_RUNTIME_SHARED,
+    },
+  },
+  {
     .name = "manifest_foreign_abi_is_rejected",
     .profile = { .name = "default", .arch = SPN_ARCH_WASM32, .os = SPN_OS_WASI, .abi = { { "gnu" } } },
     .host = PROFILE_HOST_LINUX_GNU,
@@ -584,6 +613,7 @@ typedef struct {
   const c8* name;
   spn_triple_t target;
   spn_linkage_t linkage;
+  spn_runtime_t runtime;
   spn_sanitizer_set_t sanitizers;
   spn_triple_t host;
   query_expect_t expect;
@@ -609,6 +639,20 @@ static const query_test_t query_tests [] = {
     .linkage = SPN_LIB_KIND_SHARED,
     .host = PROFILE_HOST_LINUX_GNU,
     .expect = { .abis = { SPN_ABI_GNU, SPN_ABI_MUSL } },
+  },
+  {
+    .name = "native_shared_runtime_prefers_host_libc",
+    .target = { SPN_ARCH_X64, SPN_OS_LINUX },
+    .runtime = SPN_RUNTIME_SHARED,
+    .host = PROFILE_HOST_LINUX_GNU,
+    .expect = { .abis = { SPN_ABI_GNU, SPN_ABI_MUSL } },
+  },
+  {
+    .name = "native_static_runtime_prefers_musl",
+    .target = { SPN_ARCH_X64, SPN_OS_LINUX },
+    .runtime = SPN_RUNTIME_STATIC,
+    .host = PROFILE_HOST_LINUX_GNU,
+    .expect = { .abis = { SPN_ABI_MUSL, SPN_ABI_GNU } },
   },
   {
     .name = "request_carries_sanitizers_and_linkage",
@@ -671,6 +715,7 @@ static const query_test_t query_tests [] = {
 
 typedef struct {
   spn_linkage_t linkage;
+  spn_runtime_t runtime;
   spn_cc_driver_t driver;
   spn_ld_family_t linker;
 } finalize_expect_t;
@@ -678,20 +723,20 @@ typedef struct {
 typedef struct {
   const c8* name;
   spn_triple_t target;
+  spn_linkage_t linkage;
+  spn_runtime_t runtime;
   spn_cc_driver_t driver;
   bool lld;
   finalize_expect_t expect;
 } finalize_test_t;
 
 static const finalize_test_t finalize_tests [] = {
-  { .name = "gnu_is_shared",   .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU },          .driver = SPN_CC_DRIVER_GCC,   .expect = { .linkage = SPN_LIB_KIND_SHARED, .driver = SPN_CC_DRIVER_GCC,   .linker = SPN_LD_FAMILY_GNU } },
-  { .name = "musl_is_static",  .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_MUSL },         .driver = SPN_CC_DRIVER_GCC,   .expect = { .linkage = SPN_LIB_KIND_STATIC, .driver = SPN_CC_DRIVER_GCC,   .linker = SPN_LD_FAMILY_GNU } },
-  { .name = "msvc_is_shared",  .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC },       .driver = SPN_CC_DRIVER_MSVC,  .expect = { .linkage = SPN_LIB_KIND_SHARED, .driver = SPN_CC_DRIVER_MSVC,  .linker = SPN_LD_FAMILY_MSVC } },
-  { .name = "apple_is_shared", .target = { SPN_ARCH_ARM64, SPN_OS_MACOS, SPN_ABI_APPLE },      .driver = SPN_CC_DRIVER_CLANG, .expect = { .linkage = SPN_LIB_KIND_SHARED, .driver = SPN_CC_DRIVER_CLANG, .linker = SPN_LD_FAMILY_LD64 } },
-  { .name = "bare_is_static",  .target = { SPN_ARCH_X64, SPN_OS_FREESTANDING, SPN_ABI_BARE },  .driver = SPN_CC_DRIVER_GCC,   .expect = { .linkage = SPN_LIB_KIND_STATIC, .driver = SPN_CC_DRIVER_GCC,   .linker = SPN_LD_FAMILY_GNU } },
-  { .name = "elf_is_static",   .target = { SPN_ARCH_ARM64, SPN_OS_FREESTANDING, SPN_ABI_ELF }, .driver = SPN_CC_DRIVER_GCC,   .expect = { .linkage = SPN_LIB_KIND_STATIC, .driver = SPN_CC_DRIVER_GCC,   .linker = SPN_LD_FAMILY_GNU } },
-  { .name = "records_driver",  .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU },          .driver = SPN_CC_DRIVER_ZIG,   .expect = { .linkage = SPN_LIB_KIND_SHARED, .driver = SPN_CC_DRIVER_ZIG,   .linker = SPN_LD_FAMILY_LLD } },
-  { .name = "records_linker",  .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU },          .driver = SPN_CC_DRIVER_GCC,   .lld = true, .expect = { .linkage = SPN_LIB_KIND_SHARED, .driver = SPN_CC_DRIVER_GCC, .linker = SPN_LD_FAMILY_LLD } },
+  { .name = "copies_selection_axes", .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU },      .linkage = SPN_LIB_KIND_STATIC, .runtime = SPN_RUNTIME_SHARED, .driver = SPN_CC_DRIVER_GCC,   .expect = { .linkage = SPN_LIB_KIND_STATIC, .runtime = SPN_RUNTIME_SHARED, .driver = SPN_CC_DRIVER_GCC,   .linker = SPN_LD_FAMILY_GNU } },
+  { .name = "gnu_links_with_ld",     .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU },      .linkage = SPN_LIB_KIND_SHARED, .runtime = SPN_RUNTIME_SHARED, .driver = SPN_CC_DRIVER_GCC,   .expect = { .linkage = SPN_LIB_KIND_SHARED, .runtime = SPN_RUNTIME_SHARED, .driver = SPN_CC_DRIVER_GCC,   .linker = SPN_LD_FAMILY_GNU } },
+  { .name = "msvc_links_with_link",  .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC },   .linkage = SPN_LIB_KIND_SHARED, .runtime = SPN_RUNTIME_STATIC, .driver = SPN_CC_DRIVER_MSVC,  .expect = { .linkage = SPN_LIB_KIND_SHARED, .runtime = SPN_RUNTIME_STATIC, .driver = SPN_CC_DRIVER_MSVC,  .linker = SPN_LD_FAMILY_MSVC } },
+  { .name = "apple_links_with_ld64", .target = { SPN_ARCH_ARM64, SPN_OS_MACOS, SPN_ABI_APPLE },  .linkage = SPN_LIB_KIND_SHARED, .runtime = SPN_RUNTIME_SHARED, .driver = SPN_CC_DRIVER_CLANG, .expect = { .linkage = SPN_LIB_KIND_SHARED, .runtime = SPN_RUNTIME_SHARED, .driver = SPN_CC_DRIVER_CLANG, .linker = SPN_LD_FAMILY_LD64 } },
+  { .name = "records_driver",        .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU },      .linkage = SPN_LIB_KIND_SHARED, .runtime = SPN_RUNTIME_SHARED, .driver = SPN_CC_DRIVER_ZIG,   .expect = { .linkage = SPN_LIB_KIND_SHARED, .runtime = SPN_RUNTIME_SHARED, .driver = SPN_CC_DRIVER_ZIG,   .linker = SPN_LD_FAMILY_LLD } },
+  { .name = "records_linker",        .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU },      .linkage = SPN_LIB_KIND_SHARED, .runtime = SPN_RUNTIME_SHARED, .driver = SPN_CC_DRIVER_GCC,   .lld = true, .expect = { .linkage = SPN_LIB_KIND_SHARED, .runtime = SPN_RUNTIME_SHARED, .driver = SPN_CC_DRIVER_GCC, .linker = SPN_LD_FAMILY_LLD } },
 };
 
 static spn_when_t clauses_to_when(sp_mem_t mem, const clause_t* clauses, u32 count) {
@@ -732,6 +777,7 @@ static spn_profile_decl_t desc_to_decl(sp_mem_t mem, const decl_t* d) {
     .toolchain = candidates(mem, d->toolchain),
     .abi = candidates(mem, d->abi),
     .linkage = candidates(mem, d->linkage),
+    .runtime = candidates(mem, d->runtime),
     .standard = candidates(mem, d->standard),
     .mode = candidates(mem, d->mode),
     .opt = candidates(mem, d->opt),
@@ -797,9 +843,18 @@ sp_test_each(profile, resolve, test_t, tests, .setup = spn_test_ctx_setup) {
   }
 
   spn_toolchain_info_t info = { .driver = SPN_CC_DRIVER_ZIG };
-  spn_toolchain_selection_t selection = { .toolchain = &info, .row.triple = { result.arch, result.os, it->abi ? it->abi : result.abi } };
+  spn_triple_t selected = { result.arch, result.os, it->abi ? it->abi : result.abi };
+  spn_toolchain_selection_t selection = {
+    .toolchain = &info,
+    .row.triple = selected,
+    .linkage = result.linkage ? result.linkage : spn_abi_linkage(selected.abi),
+    .runtime = result.runtime ? result.runtime : spn_triple_runtime(selected),
+  };
   spn_profile_finalize(&result, &selection);
   sp_expect_eq(t, (u32)it->expect.linkage, (u32)result.linkage);
+  if (it->expect.runtime) {
+    sp_expect_eq(t, (u32)it->expect.runtime, (u32)result.runtime);
+  }
   return SP_OK;
 }
 
@@ -810,6 +865,7 @@ sp_test_each(profile, query, query_test_t, query_tests) {
     .os = it->target.os,
     .abi = it->target.abi,
     .linkage = it->linkage,
+    .runtime = it->runtime,
     .sanitizers = it->sanitizers,
   };
 
@@ -819,6 +875,7 @@ sp_test_each(profile, query, query_test_t, query_tests) {
   sp_expect(t, spn_triple_equal(query.target, it->target));
   sp_expect_eq(t, query.sanitizers, it->sanitizers);
   sp_expect_eq(t, (u32)query.linkage, (u32)it->linkage);
+  sp_expect_eq(t, (u32)query.runtime, (u32)it->runtime);
 
   u32 abis = 0;
   sp_carr_detect_len(it->expect.abis, abis, it->expect.abis[abis]);
@@ -832,9 +889,10 @@ sp_test_each(profile, query, query_test_t, query_tests) {
 sp_test_each(profile, finalize, finalize_test_t, finalize_tests) {
   spn_profile_info_t profile = sp_zero;
   spn_toolchain_info_t info = { .driver = it->driver, .lld = it->lld };
-  spn_toolchain_selection_t selection = { .toolchain = &info, .row.triple = it->target };
+  spn_toolchain_selection_t selection = { .toolchain = &info, .row.triple = it->target, .linkage = it->linkage, .runtime = it->runtime };
   spn_profile_finalize(&profile, &selection);
   sp_expect_eq(t, (u32)it->expect.linkage, (u32)profile.linkage);
+  sp_expect_eq(t, (u32)it->expect.runtime, (u32)profile.runtime);
   sp_expect_eq(t, (u32)it->expect.driver, (u32)profile.driver);
   sp_expect_eq(t, (u32)it->expect.linker, (u32)profile.linker);
   return SP_OK;

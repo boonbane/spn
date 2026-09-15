@@ -1,5 +1,6 @@
 #include "harness.h"
 #include "elf/elf.h"
+#include "probe.gen.h"
 #include "error/error.h"
 #include "triple/triple.h"
 #include "yyjson.h"
@@ -465,7 +466,6 @@ static sp_ps_output_t run_fixture_bin(fixture_t* fixture, sp_str_t path) {
     .cwd = fixture->root,
     .env = {
       .extra = {
-        { sp_str_lit("PATH"), test_toolchain_path(fixture->mem) },
         { sp_str_lit("ASAN_OPTIONS"), sp_str_lit("abort_on_error=0:exitcode=1") },
         { sp_str_lit("UBSAN_OPTIONS"), sp_str_lit("halt_on_error=1:abort_on_error=0:exitcode=1") },
       },
@@ -742,6 +742,27 @@ sp_err_t run_rebuild_test(sp_test_t* t, rebuild_test_t test) {
   return SP_OK;
 }
 
+static sp_str_t bare_expect_token(bare_expect_t expect) {
+  switch (expect) {
+    case BARE_EXPECT_RUNS: return sp_str_lit("runs");
+    case BARE_EXPECT_NOT_LOADABLE: return sp_str_lit("not_loadable");
+  }
+  sp_unreachable_return(sp_str_lit("runs"));
+}
+
+static sp_err_t stage_bare_run(sp_test_t* t, fixture_t* fixture, action_t action) {
+  sp_mem_t mem = fixture->mem;
+  sp_str_t lane = sp_fs_join_path(mem, test_probes(), sp_cstr_as_str(test_toolchain()->name));
+  sp_str_t dir = sp_fs_join_path(mem, lane, sp_test_get_name(t));
+  sp_try(sp_fs_create_dir(dir));
+
+  sp_str_t exe_name = sp_fs_get_name(exe(action.bare.name));
+  sp_try(sp_fs_copy_file(fixture_path(fixture, exe(action.bare.name)), sp_fs_join_path(mem, dir, exe_name)));
+
+  spn_cg_probe_t probe = { .exe = exe_name, .expect = bare_expect_token(action.bare.expect) };
+  return sp_fs_create_file_str(sp_fs_join_path(mem, dir, sp_str_lit("probe.json")), spn_probe_write(mem, &probe));
+}
+
 sp_err_t run_actions(sp_test_t* t, fixture_t* fixture, const action_t* actions) {
   sp_mem_t mem = fixture->mem;
 
@@ -772,6 +793,10 @@ sp_err_t run_actions(sp_test_t* t, fixture_t* fixture, const action_t* actions) 
         sp_test_kv(t, "command", bin);
         sp_test_kv(t, "output", output.out);
         sp_expect_eq(t, action.bin.rc, output.status.exit_code);
+        break;
+      }
+      case ACTION_STAGE_BARE_RUN: {
+        sp_try(stage_bare_run(t, fixture, action));
         break;
       }
       case ACTION_VERIFY_EXISTS: {
@@ -909,18 +934,32 @@ sp_err_t run_test(sp_test_t* t, test_t test) {
   sp_try(begin_test(t, &fixture, test.when));
   fixture.toolchain = test.toolchain;
 
-  if (!test_when_runs(&test.when)) {
-    u32 kept = 0;
-    sp_carr_for(test.actions, it) {
-      action_t action = test.actions[it];
-      if (action.kind == ACTION_RUN_BIN || action.kind == ACTION_RUN_TEST) {
-        continue;
+  bool runs = test_when_runs(&test.when);
+  bool stages = !sp_str_empty(test_probes());
+  u32 kept = 0;
+  sp_carr_for(test.actions, it) {
+    action_t action = test.actions[it];
+    bool keep = true;
+    switch (action.kind) {
+      case ACTION_RUN_BIN:
+      case ACTION_RUN_TEST: {
+        keep = runs;
+        break;
       }
+      case ACTION_STAGE_BARE_RUN: {
+        keep = stages;
+        break;
+      }
+      default: {
+        break;
+      }
+    }
+    if (keep) {
       test.actions[kept++] = action;
     }
-    while (kept < SPN_TEST_MAX_ACTIONS) {
-      test.actions[kept++] = (action_t) { .kind = ACTION_NONE };
-    }
+  }
+  while (kept < SPN_TEST_MAX_ACTIONS) {
+    test.actions[kept++] = (action_t) { .kind = ACTION_NONE };
   }
 
   sp_try(prepare_test(t, &fixture, test.project, test.copy));

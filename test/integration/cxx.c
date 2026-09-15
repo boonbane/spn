@@ -16,7 +16,7 @@ sp_test(cxx, static_lib) {
 sp_test(cxx, shared_lib) {
   return run_test(t, (test_t) {
     .project = "test/integration/fixtures/cxx/shared_lib",
-    .when = { .cxx = true, .msvc_todo = true },
+    .when.cxx = true,
     .copy = { "packages/*" },
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
@@ -77,7 +77,7 @@ sp_test(cxx, rtti_off) {
 sp_test(cxx, static_into_shared) {
   return run_test(t, (test_t) {
     .project = "test/integration/fixtures/cxx/static_into_shared",
-    .when = { .cxx = true, .msvc_todo = true },
+    .when.cxx = true,
     .copy = { "packages/*" },
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
@@ -120,6 +120,33 @@ sp_test(cxx, bin) {
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
       { .kind = ACTION_RUN_BIN, .bin.name = "main" },
+      { .kind = ACTION_STAGE_BARE_RUN, .bare = { .name = "main", .expect = BARE_EXPECT_RUNS } },
+    },
+  });
+}
+
+sp_test(cxx, runtime_shared) {
+  return run_test(t, (test_t) {
+    .project = "test/integration/fixtures/cxx/runtime_shared",
+    .copy = { "main.cpp" },
+    .when = { .cxx = true, .lanes = { "clang64", "mingw64", "ucrt64", "msvc" } },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
+      { .kind = ACTION_STAGE_BARE_RUN, .bare = { .name = "main", .expect = BARE_EXPECT_NOT_LOADABLE } },
+    },
+  });
+}
+
+sp_test(cxx, bare_threads) {
+  return run_test(t, (test_t) {
+    .project = "test/integration/fixtures/cxx/bare_threads",
+    .copy = { "main.cpp" },
+    .when.cxx = true,
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
+      { .kind = ACTION_RUN_BIN, .bin.name = "main" },
+      { .kind = ACTION_STAGE_BARE_RUN, .bare = { .name = "main", .expect = BARE_EXPECT_RUNS } },
     },
   });
 }
@@ -140,7 +167,7 @@ sp_test(cxx, toolchain_missing) {
   return run_test(t, (test_t) {
     .project = "test/integration/fixtures/cxx/toolchain_missing",
     .toolchain = "conly",
-    .when = { .programs = { "cc", "ar" }, .msvc_todo = true },
+    .when.programs = { "cc", "ar" },
     .copy = { "packages/*" },
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build", .rc = 1 } },
