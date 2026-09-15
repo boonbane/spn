@@ -315,7 +315,7 @@ static spn_err_t publish_copy_failed(spn_pkg_unit_t* unit, spn_publish_copy_t* c
   return SPN_ERROR;
 }
 
-spn_err_t spn_build_publish_copies(spn_pkg_unit_t* unit, sp_str_t root, sp_mem_t mem, sp_da(spn_dag_obs_t)* obs) {
+static spn_err_t publish_copies(spn_pkg_unit_t* unit, sp_str_t root, sp_mem_t mem, sp_da(spn_dag_obs_t)* obs) {
   sp_da_for(unit->info->publish.copy, it) {
     spn_publish_copy_t* copy = &unit->info->publish.copy[it];
     if (publish_copy(unit->paths.roots, root, copy, mem, obs)) {
@@ -334,7 +334,7 @@ static spn_err_t dag_tree_exec(spn_dag_t* g, spn_dag_action_t* action, void* use
     return SPN_ERR_DAG_ACTION;
   }
 
-  if (spn_build_publish_copies(unit, root, mem, obs)) {
+  if (publish_copies(unit, root, mem, obs)) {
     return SPN_ERR_DAG_ACTION;
   }
 

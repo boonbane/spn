@@ -102,51 +102,28 @@ static spn_err_t stage_target_headers(spn_pkg_unit_t* unit, sp_str_t root, spn_t
   return SPN_OK;
 }
 
-static spn_err_t stage_headers(spn_pkg_unit_t* unit, sp_str_t root, sp_mem_t mem, sp_da(staged_header_t)* staged) {
-  staged_header_set_t seen;
-  sp_str_ht_init(mem, seen);
-
-  spn_pkg_unit_header_maps_t published = spn_pkg_unit_header_maps(unit);
-  sp_for(it, published.count) {
-    spn_try(stage_target_headers(unit, root, published.maps[it], mem, &seen, staged));
-  }
-  return SPN_OK;
-}
-
-static spn_err_t copy_header(spn_pkg_unit_t* unit, const staged_header_t* header) {
-  sp_fs_create_dir(sp_fs_parent_path(header->to));
-  if (spn_fs_update_file(header->from, header->to)) {
-    return header_copy_failed(unit, header->name);
-  }
-  return SPN_OK;
-}
-
 spn_err_t spn_pkg_unit_publish_headers(spn_pkg_unit_t* unit, sp_str_t root) {
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   sp_da(staged_header_t) staged = sp_da_new(scratch.mem, staged_header_t);
-  spn_err_t err = stage_headers(unit, root, scratch.mem, &staged);
-  sp_da_for(staged, it) {
-    if (err) {
-      break;
-    }
-    err = copy_header(unit, &staged[it]);
-  }
-  sp_mem_end_scratch(scratch);
-  return err;
-}
+  staged_header_set_t seen;
+  sp_str_ht_init(scratch.mem, seen);
 
-spn_err_t spn_pkg_unit_publish_existing_headers(spn_pkg_unit_t* unit, sp_str_t root) {
-  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  sp_da(staged_header_t) staged = sp_da_new(scratch.mem, staged_header_t);
-  spn_err_t err = stage_headers(unit, root, scratch.mem, &staged);
+  spn_err_t err = SPN_OK;
+  spn_pkg_unit_header_maps_t published = spn_pkg_unit_header_maps(unit);
+  sp_for(it, published.count) {
+    if (err) {
+      break;
+    }
+    err = stage_target_headers(unit, root, published.maps[it], scratch.mem, &seen, &staged);
+  }
   sp_da_for(staged, it) {
     if (err) {
       break;
     }
-    if (!sp_fs_exists(staged[it].from)) {
-      continue;
+    sp_fs_create_dir(sp_fs_parent_path(staged[it].to));
+    if (spn_fs_update_file(staged[it].from, staged[it].to)) {
+      err = header_copy_failed(unit, staged[it].name);
     }
-    err = copy_header(unit, &staged[it]);
   }
   sp_mem_end_scratch(scratch);
   return err;

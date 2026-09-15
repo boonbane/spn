@@ -22,6 +22,5 @@ spn_user_output_t  spn_pkg_unit_node_stamp(spn_pkg_unit_t* ctx, spn_user_node_t*
 void               spn_pkg_unit_announce_compile(spn_pkg_unit_t* ctx);
 void               spn_pkg_unit_create_layout(spn_pkg_unit_t* unit);
 spn_err_t          spn_pkg_unit_publish_headers(spn_pkg_unit_t* ctx, sp_str_t root);
-spn_err_t          spn_pkg_unit_publish_existing_headers(spn_pkg_unit_t* ctx, sp_str_t root);
 
 #endif

@@ -64,6 +64,5 @@ void spn_unit_paths_init(spn_pkg_unit_t* unit, spn_loaded_pkg_t* loaded) {
   unit->paths.object = spn_path_join(mem, unit->paths.work, SP_LIT("object"));
 
   unit->paths.stamp.dir = spn_path_join(mem, unit->paths.work, SP_LIT("stamp"));
-  unit->paths.stamp.configure = spn_path_join(mem, unit->paths.stamp.dir, SP_LIT("configure.stamp"));
   unit->paths.stamp.package = spn_path_join(mem, unit->paths.stamp.dir, SP_LIT("package.stamp"));
 }

@@ -149,7 +149,6 @@ struct spn_pkg_unit_t {
   struct {
     struct {
       spn_path_t dir;
-      spn_path_t configure;
       spn_path_t package;
     } stamp;
 

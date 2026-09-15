@@ -30,7 +30,7 @@ static const test_t tests [] = {
   {
     .name = "build",
     .kind = SPN_DEP_KIND_BUILD,
-    .expect = { .configure = true, .build = true },
+    .expect = { .build = true },
   },
 };
 
