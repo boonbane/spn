@@ -70,40 +70,53 @@ When building:
 - `spn build --mode release` uses `release`
 - `spn build --profile NAME` uses the named `[[profile]]`
 
-### Linking
+### Target triples
 
-An executable links three things, and a profile names each one:
+`spn` has two goals when it comes to what you specify in your build:
+1. Either produce a correct binary or fail (i.e. no footguns). Never guess.
+2. Be very ergonomic for common cases
 
-| Field | What it links | Values |
+Because of (1), you must give a full triple (e.g. `x86_64-linux-gnu`) when cross compiling. We never infer facts about a cross compile from the host that builds it, because we have no information as to which ABI is preferred. Silently picking GNU over musl, for example, has no basis.
+
+Because of (2), you can omit the ABI when you aren't crossing. This has some really useful properties:
+- By default, `spn build` always produces a binary that runs on the host
+- Statically linked executables choose musl for a true self contained binary, regardless of your host
+- You don't need Visual Studio installed to use `spn`!
+
+### Linkage
+
+By default, `spn build` produces the most self contained binary that it can. There are three things that programs link to that affect their portability[^1]:
+
+| Field | What it links | How it can break |
 |---|---|---|
-| `linkage` | your dependencies, and the kind every `[[lib]]` builds as | `static`, `shared` |
-| `runtime` | the C/C++ runtime: `libgcc` and `libstdc++`, or `vcruntime` and the STL on MSVC | `static`, `shared` |
-| `libc` | the C library | `static`, `shared` |
+| `linkage` | Your dependencies (e.g `libcurl`)| If a program links to the system's `libcurl.so`, then it won't run on a system without it|
+| `runtime` | Runtime support libraries (e.g. `libstdc++`, `libgcc`, or the CRT on Windows)| The ubiquitous "redistributables" problem on Windows, `libstdc++` on old Ubuntu, Yocto/Buildroot minimal systems |
+| `libc` | The C standard library | The mess of distributing Linux binaries that spawned entire ecosystems of tools like AppImage or Snap |
+
+Specify them like this:
 
 ```toml
-[profile.ship]
+[profile.whatver]
 linkage = "static"
 runtime = "static"
 libc = "shared"
 ```
 
-Each axis is optional. Whatever you leave unset derives from the target, which admits only some `(runtime, libc)` pairs and prefers the first:
+Different platforms have different stances on some or all of these knobs, and there's a huge variety in what's needed across different kinds of C programs. `spn` allows you to toggle each between `static` and `shared`, plus toggle individual dependencies. Where the platform or toolchain doesn't support one of these, `spn` errors appropriately. For example:
+- macOS forces you to link dynamically to `libSystem.dylib` (i.e. libc)
+- GNU's libc is famously antagonistic to static linkage, so `libc = "static"` requires (and infers) musl
+- Some sanitizers require the loader to be available, and produce an error otherwise
 
-| Target | `(runtime, libc)` |
-|---|---|
-| `linux-gnu` | `(shared, shared)`, `(static, shared)`, `(static, static)` |
-| `linux-musl` | `(static, static)`, `(static, shared)`, `(shared, shared)` |
-| `windows-msvc` | `(static, static)`, `(shared, shared)` |
-| `windows-gnu` | `(static, shared)`, `(shared, shared)` |
-| `macos` | `(shared, shared)` |
-| `wasi`, `freestanding`, `linux-none` | `(static, static)` |
+Generally, though, we aim to allow you to express any build you might need. Let's look at some examples:
 
-The rules behind the table:
-- A static `libc` on an ELF target removes the dynamic loader, so nothing shared can be linked and `linkage` derives to `static`. A static `libc` on Windows (`/MT`) still loads DLLs.
-- `linkage` defaults to `shared` when the target has a loader and `static` when it does not.
-- A static `libc` with a shared `runtime` is refused everywhere.
-- On `windows-msvc` the C library is part of the runtime, so `libc` must equal `runtime`.
-- On `windows-gnu` the C library is always shared; a static `runtime` links `libgcc`, `libstdc++` and `winpthread` statically.
+| Build | Dependencies | Runtime | Libc | ABI | |
+|---|---|---|---|---|---|
+| A Linux binary that runs anywhere | `static` | `static` | `static` | `musl`| This is a completely self contained binary that will run on any Linux system you'll find in the wild; `spn` does this by default |
+| A portable Linux video game       | any | `static` | `shared` | `gnu`| Games need Vulkan or OpenGL, which must be used from a shared library, but otherwise bundle everything else they need inside the binary |
+| A Windows binary which doesn't need redistributables | any | `static` | `static` | `msvc` | Like `/MT`; The UCRT, vcruntime, and the C++ STL all live inside the executable |
+| A plugin that gets loaded by a DAW | `shared` | `shared` | `shared` |  | You *want* to share the host's runtime, so that an e.g. `std::string` can cross between your DLL and the host cleanly |
+| A fully sanitized build (ASan, TSan, MSan)|  |  | `shared` | any | These sanitizers don't work without a loader |
+
 
 ### Modes and optimization
 
@@ -181,3 +194,5 @@ This is the exact principle behind Bazel, BuildXL, and Nix, and it's the fundame
 ### compile_commands.json
 
 ### JSON event stream
+
+[^1]: There are more, of course, like the mess of versioned symbols in glibc. But for our purposes, three is fine.
