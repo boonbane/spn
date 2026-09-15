@@ -16,7 +16,7 @@
     "toolchain_sdk_macos": { "ref": "toolchain" },
     "toolchain_sdk_msvc": { "ref": "toolchain" },
     "toolchain_msvc_linker_host": { "ref": "toolchain" },
-    "target_abi": { "ref": "completion" },
+    "target_abi": { "ref": "profile" },
     "toolchain_unavailable_for_host": { "ref": "toolchain" },
     "toolchain_not_installed": { "ref": "toolchain" },
     "toolchain_fetch": { "ref": "artifact" },
@@ -56,9 +56,7 @@
     "profile_undefined": { "ref": "profile" },
     "profile_arch": { "ref": "profile" },
     "profile_abi": { "ref": "profile" },
-    "profile_linkage": { "ref": "profile" },
-    "profile_runtime_static": { "ref": "profile" },
-    "profile_runtime_shared": { "ref": "profile" },
+    "profile_linking": { "ref": "profile" },
     "sanitizer_unsupported": { "ref": "sanitizer" },
     "sanitizer_static": { "ref": "sanitizer" },
     "compiler_feature_unsupported": { "ref": "compiler" },
@@ -200,13 +198,6 @@
         "query": { "metadata": { "extern": "triple" } }
       }
     },
-    "completion": {
-      "properties": {
-        "target": { "metadata": { "extern": "triple" } },
-        "host": { "metadata": { "extern": "triple" } },
-        "candidates": { "elements": { "metadata": { "extern": "abi" } } }
-      }
-    },
     "program": {
       "properties": {
         "name": { "type": "string" },
@@ -214,7 +205,14 @@
       }
     },
     "cc_feature": { "enum": ["link_exe", "link_shared", "link_reactor", "archive", "frameworks", "linker_script"] },
-    "linkage_requester": { "enum": ["profile", "root_manifest"] },
+    "linkage_requester": { "enum": ["profile", "root_manifest", "libc"] },
+    "linking_refusal": { "enum": ["none", "no_loader", "os_libc", "os_runtime", "shared_runtime", "hybrid_crt", "shared_deps"] },
+    "refusal": {
+      "properties": {
+        "triple": { "metadata": { "extern": "triple" } },
+        "reason": { "ref": "linking_refusal" }
+      }
+    },
     "artifact": {
       "properties": {
         "name": { "type": "string" },
@@ -235,7 +233,8 @@
       "properties": {
         "name": { "type": "string" },
         "target": { "metadata": { "extern": "triple" } },
-        "targets": { "elements": { "metadata": { "extern": "triple" } } }
+        "targets": { "elements": { "metadata": { "extern": "triple" } } },
+        "refusals": { "elements": { "ref": "refusal" } }
       }
     },
     "sanitizer": {

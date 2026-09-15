@@ -1,0 +1,28 @@
+[package]
+name = "A"
+version = "0.1.0"
+
+[[bin]]
+name = "A"
+source = ["main.c"]
+
+[profile.no_loader]
+linkage = "shared"
+
+[profile.os_libc]
+libc = "static"
+
+[profile.os_runtime]
+runtime = "static"
+
+[profile.shared_runtime]
+runtime = "shared"
+libc = "static"
+
+[profile.hybrid_crt]
+runtime = "static"
+libc = "shared"
+
+[profile.shared_deps]
+linkage = "shared"
+libc = "static"

@@ -107,19 +107,21 @@ static spn_err_t set_target_kind(spn_session_t* s, spn_target_unit_t* target) {
         target->lib_kind = spn_linkage_set_default(info->linkages);
       }
       else {
+        const spn_profile_info_t* profile = &target->pkg->build->profile;
         spn_kind_query_t query = {
           .config = spn_session_config_kind(s, target->pkg->info->name),
-          .linkage = target->pkg->build->profile.linking.linkage,
+          .linkage = profile->linking.linkage,
         };
 
         if (spn_target_select_lib_kind(info, query, &target->lib_kind)) {
+          spn_linkage_requester_t requester = profile->request.linkage ? SPN_LINKAGE_REQUESTER_PROFILE : SPN_LINKAGE_REQUESTER_LIBC;
           return spn_err_emit(s->ctx, (spn_err_union_t) {
             .kind = SPN_ERR_TARGET_LINKAGE,
             .target = {
               .pkg = target->pkg->info->name,
               .name = info->name,
               .requested = spn_linkage_to_str(query.config.some ? query.config.value : query.linkage),
-              .requester = query.config.some ? SPN_LINKAGE_REQUESTER_ROOT_MANIFEST : SPN_LINKAGE_REQUESTER_PROFILE,
+              .requester = query.config.some ? SPN_LINKAGE_REQUESTER_ROOT_MANIFEST : requester,
               .supported = linkage_list(s->mem, info->linkages),
             },
           });

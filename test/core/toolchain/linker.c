@@ -69,7 +69,6 @@ typedef struct {
   const c8* name;
   spn_triple_t target;
   spn_linking_t request;
-  spn_linkage_t demand;
   expect_t expect;
 } linking_t;
 
@@ -90,8 +89,6 @@ static const linking_t linking_tests [] = {
   { "gnu_static_libc_derives_the_rest",       HOST_X64_LINUX,      .request = { .libc = SPN_RUNTIME_STATIC },                                     .expect = { .linking = { SPN_LIB_KIND_STATIC, SPN_RUNTIME_STATIC, SPN_RUNTIME_STATIC } } },
   { "msvc_static_libc_keeps_a_loader",        TARGET_WIN_MSVC,     .request = { .libc = SPN_RUNTIME_STATIC },                                     .expect = { .linking = { SPN_LIB_KIND_SHARED, SPN_RUNTIME_STATIC, SPN_RUNTIME_STATIC } } },
   { "msvc_shared_deps_with_static_runtime",   TARGET_WIN_MSVC,     .request = { .linkage = SPN_LIB_KIND_SHARED, .runtime = SPN_RUNTIME_STATIC }, .expect = { .linking = { SPN_LIB_KIND_SHARED, SPN_RUNTIME_STATIC, SPN_RUNTIME_STATIC } } },
-  { "musl_shared_demand_takes_a_loader",      HOST_X64_LINUX_MUSL, .demand = SPN_LIB_KIND_SHARED,                                                 .expect = { .linking = { SPN_LIB_KIND_SHARED, SPN_RUNTIME_STATIC, SPN_RUNTIME_SHARED } } },
-  { "musl_static_libc_outranks_demand",       HOST_X64_LINUX_MUSL, .request = { .libc = SPN_RUNTIME_STATIC }, .demand = SPN_LIB_KIND_SHARED,      .expect = { .linking = { SPN_LIB_KIND_STATIC, SPN_RUNTIME_STATIC, SPN_RUNTIME_STATIC } } },
 
   { "gnu_static_libc_shared_runtime",  HOST_X64_LINUX,      .request = { .runtime = SPN_RUNTIME_SHARED, .libc = SPN_RUNTIME_STATIC }, .expect = { .refusal = SPN_LINKING_REFUSAL_SHARED_RUNTIME } },
   { "musl_static_libc_shared_runtime", HOST_X64_LINUX_MUSL, .request = { .runtime = SPN_RUNTIME_SHARED, .libc = SPN_RUNTIME_STATIC }, .expect = { .refusal = SPN_LINKING_REFUSAL_SHARED_RUNTIME } },
@@ -108,7 +105,7 @@ static const linking_t linking_tests [] = {
 
 sp_test_each(linker, linking, linking_t, linking_tests) {
   spn_linking_t linking = sp_zero;
-  sp_must_eq(t, (u32)it->expect.refusal, (u32)spn_ld_linking(it->target, it->request, it->demand, &linking));
+  sp_must_eq(t, (u32)it->expect.refusal, (u32)spn_ld_linking(it->target, it->request, &linking));
   sp_expect_eq(t, (u32)it->expect.linking.linkage, (u32)linking.linkage);
   sp_expect_eq(t, (u32)it->expect.linking.runtime, (u32)linking.runtime);
   sp_expect_eq(t, (u32)it->expect.linking.libc, (u32)linking.libc);

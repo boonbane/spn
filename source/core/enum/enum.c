@@ -549,6 +549,36 @@ sp_str_t spn_linkage_requester_to_str(spn_linkage_requester_t requester) {
     case SPN_LINKAGE_REQUESTER_ROOT_MANIFEST: {
       return sp_str_lit("root_manifest");
     }
+    case SPN_LINKAGE_REQUESTER_LIBC: {
+      return sp_str_lit("libc");
+    }
+  }
+  SP_UNREACHABLE_RETURN(sp_str_lit(""));
+}
+
+sp_str_t spn_linking_refusal_to_str(spn_linking_refusal_t refusal) {
+  switch (refusal) {
+    case SPN_LINKING_REFUSAL_NONE: {
+      return sp_str_lit("none");
+    }
+    case SPN_LINKING_REFUSAL_NO_LOADER: {
+      return sp_str_lit("no_loader");
+    }
+    case SPN_LINKING_REFUSAL_OS_LIBC: {
+      return sp_str_lit("os_libc");
+    }
+    case SPN_LINKING_REFUSAL_OS_RUNTIME: {
+      return sp_str_lit("os_runtime");
+    }
+    case SPN_LINKING_REFUSAL_SHARED_RUNTIME: {
+      return sp_str_lit("shared_runtime");
+    }
+    case SPN_LINKING_REFUSAL_HYBRID_CRT: {
+      return sp_str_lit("hybrid_crt");
+    }
+    case SPN_LINKING_REFUSAL_SHARED_DEPS: {
+      return sp_str_lit("shared_deps");
+    }
   }
   SP_UNREACHABLE_RETURN(sp_str_lit(""));
 }

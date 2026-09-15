@@ -114,6 +114,7 @@ typedef enum {
 typedef enum {
   SPN_LINKAGE_REQUESTER_PROFILE,
   SPN_LINKAGE_REQUESTER_ROOT_MANIFEST,
+  SPN_LINKAGE_REQUESTER_LIBC,
 } spn_linkage_requester_t;
 
 typedef enum {

@@ -165,32 +165,6 @@ spn_sanitizer_set_t spn_toolchain_stock_sanitizers(spn_cc_driver_t driver, spn_t
   SP_UNREACHABLE_RETURN(0);
 }
 
-spn_linkage_t spn_abi_linkage(spn_abi_t abi) {
-  switch (abi) {
-    case SPN_ABI_GNU:
-    case SPN_ABI_MSVC:
-    case SPN_ABI_APPLE: return SPN_LIB_KIND_SHARED;
-    case SPN_ABI_MUSL:
-    case SPN_ABI_BARE:
-    case SPN_ABI_ELF: return SPN_LIB_KIND_STATIC;
-    case SPN_ABI_NONE:
-    case SPN_ABI_COUNT: sp_unreachable_case();
-  }
-  SP_UNREACHABLE_RETURN(SPN_LIB_KIND_NONE);
-}
-
-spn_runtime_t spn_triple_runtime(spn_triple_t triple) {
-  switch (triple.os) {
-    case SPN_OS_LINUX: return triple.abi == SPN_ABI_GNU ? SPN_RUNTIME_SHARED : SPN_RUNTIME_STATIC;
-    case SPN_OS_MACOS: return SPN_RUNTIME_SHARED;
-    case SPN_OS_WINDOWS:
-    case SPN_OS_WASI:
-    case SPN_OS_FREESTANDING: return SPN_RUNTIME_STATIC;
-    case SPN_OS_NONE: sp_unreachable_case();
-  }
-  SP_UNREACHABLE_RETURN(SPN_RUNTIME_NONE);
-}
-
 spn_abi_t spn_default_abi(spn_cc_driver_t driver, spn_os_t os) {
   switch (os) {
     case SPN_OS_LINUX:

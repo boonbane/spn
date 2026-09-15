@@ -13,6 +13,8 @@ struct spn_profile_info {
   spn_os_t os;
   spn_arch_t arch;
   spn_abi_t abi;
+  spn_linking_t request;
+  spn_linkage_t demand;
   spn_linking_t linking;
   spn_c_standard_t standard;
   spn_mode_t mode;

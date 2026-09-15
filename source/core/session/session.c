@@ -92,17 +92,17 @@ spn_err_t spn_session_init(spn_session_t* s, spn_ctx_t* ctx, sp_mem_t mem, spn_p
 
   spn_try(spn_profile_resolve(&config.profile, host, root, &s->profile));
 
-  spn_toolchain_query_t query = spn_profile_query(&s->profile, host);
-  if (!query.abis.count) {
-    return spn_toolchain_incomplete(&ctx->catalog, query);
-  }
+  spn_toolchain_query_t query = sp_zero;
+  spn_try(spn_profile_query(&s->profile, host, &query));
   spn_toolchain_selection_t target = sp_zero;
   spn_try(spn_toolchain_select(&ctx->catalog, query, &target));
   spn_try(finalize_profile(s, &s->profile, &target));
 
   spn_profile_info_t metaprogram = spn_profile_metaprogram();
+  spn_toolchain_query_t metaprogram_query = sp_zero;
+  spn_try(spn_profile_query(&metaprogram, host, &metaprogram_query));
   spn_toolchain_selection_t script = sp_zero;
-  spn_try(spn_toolchain_select(&ctx->catalog, spn_profile_query(&metaprogram, host), &script));
+  spn_try(spn_toolchain_select(&ctx->catalog, metaprogram_query, &script));
   spn_try(finalize_profile(s, &metaprogram, &script));
 
   spn_path_t target_root = spn_path_join(s->mem, s->paths.build, spn_profile_build_dir(s->mem, &s->profile));

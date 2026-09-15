@@ -185,6 +185,7 @@ static sp_str_t requester_to_str(spn_linkage_requester_t requester) {
   switch (requester) {
     case SPN_LINKAGE_REQUESTER_PROFILE: return sp_str_lit("the profile");
     case SPN_LINKAGE_REQUESTER_ROOT_MANIFEST: return sp_str_lit("the root manifest");
+    case SPN_LINKAGE_REQUESTER_LIBC: return sp_str_lit("libc = \"static\"");
   }
   SP_UNREACHABLE_RETURN(sp_str_lit(""));
 }
@@ -283,6 +284,39 @@ static void write_supported_targets(sp_tty_t* w, sp_da(spn_triple_t) triples) {
   }
   list_end(&list);
   sp_mem_end_scratch(scratch);
+}
+
+static void write_refusal(sp_tty_t* w, sp_mem_t mem, spn_triple_t target, spn_linking_refusal_t reason) {
+  sp_str_t triple = spn_triple_to_str(mem, target);
+  switch (reason) {
+    case SPN_LINKING_REFUSAL_NO_LOADER: {
+      sp_tty_fmt(w, "Target {.yellow} can't link anything shared; {} has no dynamic loader", sp_fmt_str(triple), sp_fmt_str(spn_os_to_str(target.os)));
+      break;
+    }
+    case SPN_LINKING_REFUSAL_OS_LIBC: {
+      sp_tty_fmt(w, "Target {.yellow} can't use {.red}; its libc is only shared", sp_fmt_str(triple), sp_fmt_str(sp_str_lit("libc = \"static\"")));
+      break;
+    }
+    case SPN_LINKING_REFUSAL_OS_RUNTIME: {
+      sp_tty_fmt(w, "Target {.yellow} can't use {.red}; its runtime is only shared", sp_fmt_str(triple), sp_fmt_str(sp_str_lit("runtime = \"static\"")));
+      break;
+    }
+    case SPN_LINKING_REFUSAL_SHARED_RUNTIME: {
+      sp_tty_fmt(w, "Target {.yellow} can't use {.red} with {.red}; a static libc needs a static runtime", sp_fmt_str(triple), sp_fmt_str(sp_str_lit("libc = \"static\"")), sp_fmt_str(sp_str_lit("runtime = \"shared\"")));
+      break;
+    }
+    case SPN_LINKING_REFUSAL_HYBRID_CRT: {
+      sp_tty_fmt(w, "Target {.yellow} can't split {.red} from {.red}; the msvc C library is part of the runtime", sp_fmt_str(triple), sp_fmt_str(sp_str_lit("libc")), sp_fmt_str(sp_str_lit("runtime")));
+      break;
+    }
+    case SPN_LINKING_REFUSAL_SHARED_DEPS: {
+      sp_tty_fmt(w, "Target {.yellow} can't use {.red} with {.red}; a static libc removes the dynamic loader", sp_fmt_str(triple), sp_fmt_str(sp_str_lit("linkage = \"shared\"")), sp_fmt_str(sp_str_lit("libc = \"static\"")));
+      break;
+    }
+    case SPN_LINKING_REFUSAL_NONE: {
+      sp_unreachable_case();
+    }
+  }
 }
 
 static void write_toolchain_candidates(sp_tty_t* w, const spn_err_toolchain_t* err) {
@@ -792,34 +826,19 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           sp_tty_fmt(&w, "{.yellow} isn't a valid target", sp_fmt_str(spn_triple_to_str(mem, event->err.profile.target)));
           break;
         }
-        case SPN_ERR_PROFILE_LINKAGE: {
-          sp_tty_fmt(
-            &w,
-            "Target {.yellow} can't use {.red}; {} has no dynamic loader",
-            sp_fmt_str(spn_triple_to_str(mem, event->err.profile.target)),
-            sp_fmt_str(sp_str_lit("linkage = \"shared\"")),
-            sp_fmt_str(spn_os_to_str(event->err.profile.target.os))
-          );
-          break;
-        }
-        case SPN_ERR_PROFILE_RUNTIME_STATIC: {
-          sp_tty_fmt(
-            &w,
-            "Target {.yellow} can't use {.red}; {} ships no static runtime",
-            sp_fmt_str(spn_triple_to_str(mem, event->err.profile.target)),
-            sp_fmt_str(sp_str_lit("runtime = \"static\"")),
-            sp_fmt_str(spn_os_to_str(event->err.profile.target.os))
-          );
-          break;
-        }
-        case SPN_ERR_PROFILE_RUNTIME_SHARED: {
-          sp_tty_fmt(
-            &w,
-            "Target {.yellow} can't use {.red}; {} has no dynamic loader",
-            sp_fmt_str(spn_triple_to_str(mem, event->err.profile.target)),
-            sp_fmt_str(sp_str_lit("runtime = \"shared\"")),
-            sp_fmt_str(spn_os_to_str(event->err.profile.target.os))
-          );
+        case SPN_ERR_PROFILE_LINKING: {
+          spn_err_profile_t* err = &event->err.profile;
+          if (sp_da_size(err->refusals) == 1) {
+            write_refusal(&w, mem, err->refusals[0].triple, err->refusals[0].reason);
+          }
+          else {
+            sp_tty_fmt(
+              &w,
+              "No abi of {.yellow} can link profile {.cyan}",
+              sp_fmt_str(spn_triple_to_str(mem, err->target)),
+              sp_fmt_str(err->name)
+            );
+          }
           break;
         }
         case SPN_ERR_SANITIZER_UNSUPPORTED: {
@@ -1198,7 +1217,7 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           sp_tty_fmt(
             &w,
             "{.yellow} is missing an abi. Pass {.cyan}",
-            sp_fmt_str(spn_triple_to_str(mem, event->err.completion.target)),
+            sp_fmt_str(spn_triple_to_str(mem, event->err.profile.target)),
             sp_fmt_str(sp_str_lit("--abi"))
           );
           break;
@@ -1666,11 +1685,7 @@ static void render_event_extra(sp_tty_t* w, spn_event_t* event) {
           break;
         }
         case SPN_ERR_TARGET_ABI: {
-          list_t list = { .w = w, .label = sp_str_lit("supported abis"), .style = sp_fmt_style_green };
-          sp_da_for(event->err.completion.candidates, it) {
-            list_item(&list, spn_abi_to_str(event->err.completion.candidates[it]));
-          }
-          list_end(&list);
+          write_supported_targets(w, event->err.profile.targets);
           break;
         }
         case SPN_ERR_TARGET_LINKAGE: {
@@ -1684,6 +1699,19 @@ static void render_event_extra(sp_tty_t* w, spn_event_t* event) {
         case SPN_ERR_PROFILE_ARCH:
         case SPN_ERR_PROFILE_ABI: {
           write_supported_targets(w, event->err.profile.targets);
+          break;
+        }
+        case SPN_ERR_PROFILE_LINKING: {
+          spn_err_profile_t* err = &event->err.profile;
+          if (sp_da_size(err->refusals) > 1) {
+            sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+            sp_da_for(err->refusals, it) {
+              sp_io_write_str(w->io, sp_str_lit("  - "), SP_NULLPTR);
+              write_refusal(w, scratch.mem, err->refusals[it].triple, err->refusals[it].reason);
+              sp_io_write_c8(w->io, '\n');
+            }
+            sp_mem_end_scratch(scratch);
+          }
           break;
         }
         default: {

@@ -6,12 +6,7 @@
 #include "triple/triple.h"
 
 typedef struct {
-  spn_runtime_t runtime;
-  spn_runtime_t libc;
-} row_t;
-
-typedef struct {
-  const row_t* items;
+  const spn_linking_t* items;
   u32 count;
 } rows_t;
 
@@ -21,7 +16,7 @@ bool spn_ld_loader(spn_triple_t target, spn_linking_t linking) {
 
 static u32 first(spn_triple_t target, rows_t table, spn_linking_t request) {
   sp_for(it, table.count) {
-    spn_linking_t row = { .runtime = table.items[it].runtime, .libc = table.items[it].libc };
+    spn_linking_t row = table.items[it];
     if (request.runtime && row.runtime != request.runtime) {
       continue;
     }
@@ -36,29 +31,29 @@ static u32 first(spn_triple_t target, rows_t table, spn_linking_t request) {
   return table.count;
 }
 
-spn_linking_refusal_t spn_ld_linking(spn_triple_t target, spn_linking_t request, spn_linkage_t demand, spn_linking_t* linking) {
-  static const row_t linux_gnu [] = {
+spn_linking_refusal_t spn_ld_linking(spn_triple_t target, spn_linking_t request, spn_linking_t* linking) {
+  static const spn_linking_t linux_gnu [] = {
     { .runtime = SPN_RUNTIME_SHARED, .libc = SPN_RUNTIME_SHARED },
     { .runtime = SPN_RUNTIME_STATIC, .libc = SPN_RUNTIME_SHARED },
     { .runtime = SPN_RUNTIME_STATIC, .libc = SPN_RUNTIME_STATIC },
   };
-  static const row_t linux_musl [] = {
+  static const spn_linking_t linux_musl [] = {
     { .runtime = SPN_RUNTIME_STATIC, .libc = SPN_RUNTIME_STATIC },
     { .runtime = SPN_RUNTIME_STATIC, .libc = SPN_RUNTIME_SHARED },
     { .runtime = SPN_RUNTIME_SHARED, .libc = SPN_RUNTIME_SHARED },
   };
-  static const row_t windows_msvc [] = {
+  static const spn_linking_t windows_msvc [] = {
     { .runtime = SPN_RUNTIME_STATIC, .libc = SPN_RUNTIME_STATIC },
     { .runtime = SPN_RUNTIME_SHARED, .libc = SPN_RUNTIME_SHARED },
   };
-  static const row_t windows_gnu [] = {
+  static const spn_linking_t windows_gnu [] = {
     { .runtime = SPN_RUNTIME_STATIC, .libc = SPN_RUNTIME_SHARED },
     { .runtime = SPN_RUNTIME_SHARED, .libc = SPN_RUNTIME_SHARED },
   };
-  static const row_t macos [] = {
+  static const spn_linking_t macos [] = {
     { .runtime = SPN_RUNTIME_SHARED, .libc = SPN_RUNTIME_SHARED },
   };
-  static const row_t loaderless [] = {
+  static const spn_linking_t loaderless [] = {
     { .runtime = SPN_RUNTIME_STATIC, .libc = SPN_RUNTIME_STATIC },
   };
 
@@ -96,12 +91,7 @@ spn_linking_refusal_t spn_ld_linking(spn_triple_t target, spn_linking_t request,
     case SPN_OS_NONE: sp_unreachable_case();
   }
 
-  spn_linking_t demanded = request;
-  demanded.linkage = request.linkage ? request.linkage : demand;
-  u32 index = first(target, table, demanded);
-  if (index == table.count) {
-    index = first(target, table, request);
-  }
+  u32 index = first(target, table, request);
   if (index == table.count) {
     if (first(target, table, (spn_linking_t) { .linkage = SPN_LIB_KIND_SHARED }) == table.count) {
       return SPN_LINKING_REFUSAL_NO_LOADER;
@@ -120,7 +110,8 @@ spn_linking_refusal_t spn_ld_linking(spn_triple_t target, spn_linking_t request,
     }
     return SPN_LINKING_REFUSAL_SHARED_DEPS;
   }
-  spn_linking_t resolved = { .linkage = request.linkage, .runtime = table.items[index].runtime, .libc = table.items[index].libc };
+  spn_linking_t resolved = table.items[index];
+  resolved.linkage = request.linkage;
   if (!resolved.linkage) {
     resolved.linkage = spn_ld_loader(target, resolved) ? SPN_LIB_KIND_SHARED : SPN_LIB_KIND_STATIC;
   }

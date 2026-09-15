@@ -22,14 +22,14 @@ static void overlay_profile(spn_profile_info_t* to, const spn_profile_info_t* fr
   if (from->toolchain.kind) {
     to->toolchain = from->toolchain;
   }
-  if (from->linking.linkage) {
-    to->linking.linkage = from->linking.linkage;
+  if (from->request.linkage) {
+    to->request.linkage = from->request.linkage;
   }
-  if (from->linking.runtime) {
-    to->linking.runtime = from->linking.runtime;
+  if (from->request.runtime) {
+    to->request.runtime = from->request.runtime;
   }
-  if (from->linking.libc) {
-    to->linking.libc = from->linking.libc;
+  if (from->request.libc) {
+    to->request.libc = from->request.libc;
   }
   if (from->standard) {
     to->standard = from->standard;
@@ -107,7 +107,7 @@ static spn_profile_info_t evaluate(const spn_profile_decl_t* decl, spn_when_env_
     .os = decl->os,
     .arch = decl->arch,
     .abi = spn_abi_from_str(pick(decl->abi, env)),
-    .linking = {
+    .request = {
       .linkage = spn_linkage_from_str(pick(decl->linkage, env)),
       .runtime = spn_runtime_from_str(pick(decl->runtime, env)),
       .libc = spn_runtime_from_str(pick(decl->libc, env)),
@@ -143,44 +143,76 @@ static void push_abi(spn_abi_list_t* list, spn_abi_t abi) {
   list->items[list->count++] = abi;
 }
 
-static spn_abi_list_t abi_order(const spn_profile_info_t* profile, spn_triple_t host) {
-  spn_abi_list_t list = sp_zero;
+spn_err_t spn_profile_query(const spn_profile_info_t* profile, spn_triple_t host, spn_toolchain_query_t* query) {
+  *query = (spn_toolchain_query_t) {
+    .toolchain = profile->toolchain,
+    .target = spn_profile_triple(profile),
+    .sanitizers = profile->sanitizers,
+  };
+
+  spn_abi_list_t abis = sp_zero;
   if (profile->abi) {
-    push_abi(&list, profile->abi);
-    return list;
+    push_abi(&abis, profile->abi);
   }
-
-  // @spader If you're crossing, we never want to infer. You're already crossing, just
-  // be explicit about what you're crossing for.
-  if (profile->arch != host.arch || profile->os != host.os) {
-    return list;
-  }
-
-  if (profile->os == SPN_OS_LINUX) {
-    if (profile->linking.linkage != SPN_LIB_KIND_SHARED && profile->linking.runtime != SPN_RUNTIME_SHARED) {
-      push_abi(&list, SPN_ABI_MUSL);
-    } else {
-      push_abi(&list, host.abi);
+  else {
+    sp_assert(profile->arch == host.arch && profile->os == host.os);
+    if (profile->os == SPN_OS_LINUX) {
+      push_abi(&abis, host.abi);
+    }
+    const spn_abi_t* completions = SP_NULLPTR;
+    u32 count = spn_os_completions(profile->os, &completions);
+    sp_for(it, count) {
+      push_abi(&abis, completions[it]);
     }
   }
 
-  const spn_abi_t* abis = SP_NULLPTR;
-  u32 count = spn_os_completions(profile->os, &abis);
-  sp_for(it, count) {
-    push_abi(&list, abis[it]);
-  }
-  return list;
-}
+  spn_linking_t request = profile->request;
+  spn_linking_t demanded = request;
+  demanded.linkage = request.linkage ? request.linkage : profile->demand;
 
-spn_toolchain_query_t spn_profile_query(const spn_profile_info_t* profile, spn_triple_t host) {
-  return (spn_toolchain_query_t) {
-    .toolchain = profile->toolchain,
-    .target = spn_profile_triple(profile),
-    .abis = abi_order(profile, host),
-    .sanitizers = profile->sanitizers,
-    .linkage = profile->linking.linkage,
-    .runtime = profile->linking.runtime,
-  };
+  spn_err_refusal_t refused [SPN_ABI_COUNT] = sp_zero;
+  u32 refusals = 0;
+  sp_for(it, abis.count) {
+    spn_toolchain_candidate_t candidate = { .triple = { profile->arch, profile->os, abis.items[it] } };
+    spn_linking_refusal_t refusal = spn_ld_linking(candidate.triple, demanded, &candidate.linking);
+    if (refusal && demanded.linkage != request.linkage) {
+      refusal = spn_ld_linking(candidate.triple, request, &candidate.linking);
+    }
+    if (refusal) {
+      refused[refusals++] = (spn_err_refusal_t) { .triple = candidate.triple, .reason = refusal };
+      continue;
+    }
+    query->candidates.items[query->candidates.count++] = candidate;
+  }
+
+  if (!query->candidates.count) {
+    sp_da(spn_err_refusal_t) list = sp_da_new(spn.mem, spn_err_refusal_t);
+    sp_for(it, refusals) {
+      sp_da_push(list, refused[it]);
+    }
+    return spn_err_emit(&spn, (spn_err_union_t) {
+      .kind = SPN_ERR_PROFILE_LINKING,
+      .profile = { .name = profile->name, .target = spn_profile_triple(profile), .refusals = list },
+    });
+  }
+
+  if (profile->os == SPN_OS_LINUX) {
+    spn_toolchain_candidates_t ordered = sp_zero;
+    sp_for(it, query->candidates.count) {
+      spn_toolchain_candidate_t candidate = query->candidates.items[it];
+      if (candidate.triple.abi == SPN_ABI_MUSL && candidate.linking.libc == SPN_RUNTIME_STATIC) {
+        ordered.items[ordered.count++] = candidate;
+      }
+    }
+    sp_for(it, query->candidates.count) {
+      spn_toolchain_candidate_t candidate = query->candidates.items[it];
+      if (candidate.triple.abi != SPN_ABI_MUSL || candidate.linking.libc != SPN_RUNTIME_STATIC) {
+        ordered.items[ordered.count++] = candidate;
+      }
+    }
+    query->candidates = ordered;
+  }
+  return SPN_OK;
 }
 
 void spn_profile_finalize(spn_profile_info_t* profile, const spn_toolchain_selection_t* selection) {
@@ -188,8 +220,7 @@ void spn_profile_finalize(spn_profile_info_t* profile, const spn_toolchain_selec
   profile->driver = selection->toolchain->driver;
   profile->linker = selection->toolchain->lld ? SPN_LD_FAMILY_LLD : spn_ld_native(selection->toolchain->driver, selection->row.triple);
   profile->sdk = selection->row.sdk;
-  profile->linking.linkage = selection->linkage;
-  profile->linking.runtime = selection->runtime;
+  profile->linking = selection->linking;
 }
 
 static bool shared_demand(const spn_pkg_info_t* pkg) {
@@ -206,19 +237,6 @@ static bool shared_demand(const spn_pkg_info_t* pkg) {
     }
   }
   return false;
-}
-
-static spn_linkage_t resolve_linkage(spn_linkage_t linkage, spn_triple_t target, const spn_pkg_info_t* pkg) {
-  if (linkage) {
-    return linkage;
-  }
-  if (!spn_triple_dynamic(target)) {
-    return SPN_LIB_KIND_STATIC;
-  }
-  if (shared_demand(pkg)) {
-    return SPN_LIB_KIND_SHARED;
-  }
-  return SPN_LIB_KIND_NONE;
 }
 
 spn_err_t spn_profile_resolve(const spn_profile_override_t* override, spn_triple_t host, const spn_pkg_info_t* pkg, spn_profile_info_t* result) {
@@ -291,6 +309,14 @@ spn_err_t spn_profile_resolve(const spn_profile_override_t* override, spn_triple
       break;
     }
     case SPN_TRIPLE_ENTRY_MISSING_ABI: {
+      // @spader If you're crossing, we never want to infer. You're already crossing, just
+      // be explicit about what you're crossing for.
+      if (pinned.arch != host.arch || pinned.os != host.os) {
+        return spn_err_emit(&spn, (spn_err_union_t) {
+          .kind = SPN_ERR_TARGET_ABI,
+          .profile = { .name = name, .target = pinned, .targets = spn_os_triples(spn.mem, pinned.arch, pinned.os) },
+        });
+      }
       break;
     }
     case SPN_TRIPLE_ENTRY_FOREIGN_ARCH: {
@@ -310,42 +336,21 @@ spn_err_t spn_profile_resolve(const spn_profile_override_t* override, spn_triple
       sp_unreachable_case();
     }
   }
-  if (merged.linking.linkage == SPN_LIB_KIND_SHARED && !spn_triple_dynamic(pinned)) {
-    return spn_err_emit(&spn, (spn_err_union_t) {
-      .kind = SPN_ERR_PROFILE_LINKAGE,
-      .profile = { .name = name, .target = pinned },
-    });
-  }
-  if (merged.linking.runtime == SPN_RUNTIME_STATIC && !spn_triple_runtime_static(pinned)) {
-    return spn_err_emit(&spn, (spn_err_union_t) {
-      .kind = SPN_ERR_PROFILE_RUNTIME_STATIC,
-      .profile = { .name = name, .target = pinned },
-    });
-  }
-  if (merged.linking.runtime == SPN_RUNTIME_SHARED && !spn_triple_dynamic(pinned)) {
-    return spn_err_emit(&spn, (spn_err_union_t) {
-      .kind = SPN_ERR_PROFILE_RUNTIME_SHARED,
-      .profile = { .name = name, .target = pinned },
-    });
-  }
 
   *result = (spn_profile_info_t) {
-    .name       = name,
-    .toolchain  = merged.toolchain,
-    .os         = pinned.os,
-    .arch       = pinned.arch,
-    .abi        = pinned.abi,
-    .linking    = {
-      .linkage = resolve_linkage(merged.linking.linkage, pinned, pkg),
-      .runtime = merged.linking.runtime,
-      .libc    = merged.linking.libc,
-    },
-    .standard   = merged.standard,
-    .mode       = merged.mode,
-    .opt        = merged.opt,
-    .sanitizers = merged.sanitizers,
-    .options    = merged.options,
-    .targeted   = targeted,
+    .name        = name,
+    .toolchain   = merged.toolchain,
+    .os          = pinned.os,
+    .arch        = pinned.arch,
+    .abi         = pinned.abi,
+    .request     = merged.request,
+    .demand      = shared_demand(pkg) ? SPN_LIB_KIND_SHARED : SPN_LIB_KIND_NONE,
+    .standard    = merged.standard,
+    .mode        = merged.mode,
+    .opt         = merged.opt,
+    .sanitizers  = merged.sanitizers,
+    .options     = merged.options,
+    .targeted    = targeted,
   };
   return SPN_OK;
 }
@@ -360,7 +365,7 @@ spn_profile_info_t spn_profile_metaprogram(void) {
     .mode = SPN_MODE_DEBUG,
     .opt = SPN_OPT_LEVEL_2,
     .standard = SPN_C99,
-    .linking = { .linkage = SPN_LIB_KIND_STATIC, .runtime = SPN_RUNTIME_STATIC, .libc = SPN_RUNTIME_STATIC },
+    .request = { .linkage = SPN_LIB_KIND_STATIC, .runtime = SPN_RUNTIME_STATIC, .libc = SPN_RUNTIME_STATIC },
   };
 }
 
