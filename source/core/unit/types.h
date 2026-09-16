@@ -102,6 +102,7 @@ struct spn_user_node_t {
   sp_da(spn_path_t) inputs;
   sp_da(spn_user_output_t) outputs;
   sp_da(spn_node_ref_t) deps;
+  bool stamp;
 };
 
 typedef struct {
@@ -132,6 +133,7 @@ struct spn_target_unit {
   sp_da(spn_compile_unit_t*) objects;
   sp_da(spn_target_unit_t*) deps;
 
+  sp_da(spn_path_t) include;
   spn_link_plan_t link;
 };
 

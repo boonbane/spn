@@ -21,11 +21,6 @@ typedef struct {
   } embed;
 } spn_dag_target_ids_t;
 
-typedef struct {
-  spn_dag_id_t stamp;
-  sp_da(spn_dag_id_t) user_outputs;
-} spn_dag_pkg_ids_t;
-
 struct spn_dag_build_t {
   spn_session_t* session;
   sp_mem_t mem;
@@ -37,7 +32,8 @@ struct spn_dag_build_t {
   // touch these: sp_ht mutates scratch state even on lookup, so executors
   // take ids through action->produces or their ctx instead.
   struct {
-    sp_ht(spn_pkg_unit_t*, spn_dag_pkg_ids_t) packages;
+    sp_ht(spn_pkg_unit_t*, sp_da(spn_dag_id_t)) user_outputs;
+    sp_ht(spn_path_t, spn_dag_id_t) stamps;
     sp_ht(spn_target_unit_t*, spn_dag_target_ids_t) targets;
     sp_ht(spn_compile_unit_t*, spn_dag_object_ids_t) objects;
   } ids;

@@ -305,6 +305,41 @@ static void push_unique(link_str_set_t* seen, sp_da(sp_str_t)* result, sp_da(sp_
   }
 }
 
+static sp_da(spn_path_t) include_plan(sp_mem_t mem, spn_target_unit_t* target) {
+  spn_pkg_unit_t* pkg = target->pkg;
+  sp_da(spn_path_t) include = sp_da_new(mem, spn_path_t);
+
+  sp_da_for(target->info->configured.include, it) {
+    sp_da_push(include, target->info->configured.include[it]);
+  }
+  sp_da_for(pkg->info->configured.include, it) {
+    sp_da_push(include, pkg->info->configured.include[it]);
+  }
+  sp_da_for(pkg->build->include, it) {
+    sp_da_push(include, pkg->build->include[it]);
+  }
+  sp_da_for(pkg->info->include, it) {
+    sp_da_push(include, pkg->info->include[it]);
+  }
+  sp_da_for(target->info->include, it) {
+    sp_da_push(include, target->info->include[it]);
+  }
+  if (target->info->kind == SPN_TARGET_KIND_EXAMPLE) {
+    sp_da_push(include, pkg->paths.include);
+  }
+  sp_da_for(pkg->deps, it) {
+    if (!spn_dep_kind_applies(pkg->deps[it].kind, target->info->kind)) {
+      continue;
+    }
+    sp_da_push(include, pkg->deps[it].unit->paths.include);
+  }
+  if (!sp_da_empty(target->info->embed)) {
+    sp_da_push(include, spn_target_unit_object_dir(mem, target));
+  }
+
+  return include;
+}
+
 static spn_err_t render_compile_bases(sp_mem_t mem, spn_target_unit_t* target) {
   sp_da_for(target->objects, it) {
     spn_compile_unit_t* unit = target->objects[it];
@@ -518,6 +553,7 @@ static spn_err_t build_target_plan(spn_target_unit_t* target) {
   spn_profile_info_t* profile = &pkg->build->profile;
   spn_cc_toolchain_t* toolchain = &pkg->build->toolchain->cc;
 
+  target->include = include_plan(pkg->session->mem, target);
   target->link = link_plan(target);
   spn_try(render_compile_bases(pkg->session->mem, target));
 

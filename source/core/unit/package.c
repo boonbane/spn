@@ -24,21 +24,6 @@ spn_user_output_t spn_pkg_unit_node_stamp(spn_pkg_unit_t* ctx, spn_user_node_t* 
   };
 }
 
-void spn_pkg_unit_create_layout(spn_pkg_unit_t* unit) {
-  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  spn_path_t dirs [] = {
-    unit->paths.work,
-    unit->paths.include,
-    unit->paths.lib,
-    unit->paths.bin,
-    unit->paths.vendor,
-  };
-  sp_carr_for(dirs, it) {
-    sp_fs_create_dir(spn_path_str(&spn.roots, scratch.mem, dirs[it]));
-  }
-  sp_mem_end_scratch(scratch);
-}
-
 typedef sp_str_ht(sp_str_t) staged_header_set_t;
 
 static spn_err_t header_collision(spn_pkg_unit_t* unit, sp_str_t path, sp_str_t first, sp_str_t second) {

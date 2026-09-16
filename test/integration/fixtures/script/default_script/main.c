@@ -1,7 +1,7 @@
 #include "version.h"
 
-int main(int num_args, const char** args) {
-  (void)num_args;
-  (void)args;
-  return DEFAULT_SCRIPT_VERSION == 42 ? 0 : 1;
+_Static_assert(DEFAULT_SCRIPT_VERSION == 42, "DEFAULT_SCRIPT_VERSION should be 42");
+
+int main(void) {
+  return 0;
 }

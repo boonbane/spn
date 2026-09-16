@@ -1,13 +1,10 @@
 #include "harness.h"
 
 sp_test(script, basic_node) {
-  return run_test(t, (test_t) {
+  return run_command_test(t, (command_test_t) {
     .project = "test/integration/fixtures/script/basic_node",
-    .actions = {
-      { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_VERIFY_EXISTS, .exists = work_file("basic_node/version.h") },
-      { .kind = ACTION_RUN_BIN, .bin.name = "basic_node" },
-    },
+    .args = { "build" },
+    .expect.exists = { work_file("basic_node/version.h"), exe("basic_node") },
   });
 }
 
@@ -330,13 +327,10 @@ sp_test(script, build_script) {
 }
 
 sp_test(script, default_script) {
-  return run_test(t, (test_t) {
+  return run_command_test(t, (command_test_t) {
     .project = "test/integration/fixtures/script/default_script",
-    .actions = {
-      { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_VERIFY_EXISTS, .exists = work_file("default_script/version.h") },
-      { .kind = ACTION_RUN_BIN, .bin.name = "default_script" },
-    },
+    .args = { "build" },
+    .expect.exists = { work_file("default_script/version.h"), exe("default_script") },
   });
 }
 

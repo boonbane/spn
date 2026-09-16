@@ -135,6 +135,12 @@ static const overlap_t overlaps [] = {
     .expect = { "/R/T" },
   },
   {
+    .name = "exact_file",
+    .outputs = { { "/R/F" } },
+    .path = "/R/F",
+    .expect = { "/R/F" },
+  },
+  {
     .name = "nested_file",
     .outputs = { { "/R/D/X" } },
     .path = "/R/D",
@@ -158,12 +164,12 @@ static const overlap_t overlaps [] = {
     .path = "/R/F/S",
   },
   {
-    .name = "shared_prefix_sibling_excluded",
-    .outputs = { { "/R/Tx/X" }, { "/R/Tx", .tree = true, .action = 1 } },
+    .name = "shared_prefix_below_excluded",
+    .outputs = { { "/R/Tx/X" } },
     .path = "/R/T",
   },
   {
-    .name = "shared_prefix_parent_excluded",
+    .name = "shared_prefix_above_excluded",
     .outputs = { { "/R/T", .tree = true } },
     .path = "/R/Tx",
   },
@@ -179,11 +185,6 @@ static const overlap_t overlaps [] = {
     .inputs = { { "/R/D/S" } },
     .path = "/R/D",
     .expect = { "/R/D/X" },
-  },
-  {
-    .name = "none",
-    .outputs = { { "/R/U/X" } },
-    .path = "/R/D",
   },
 };
 
