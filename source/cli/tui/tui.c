@@ -186,6 +186,7 @@ static sp_str_t requester_to_str(spn_linkage_requester_t requester) {
     case SPN_LINKAGE_REQUESTER_PROFILE: return sp_str_lit("the profile");
     case SPN_LINKAGE_REQUESTER_ROOT_MANIFEST: return sp_str_lit("the root manifest");
     case SPN_LINKAGE_REQUESTER_LIBC: return sp_str_lit("libc = \"static\"");
+    case SPN_LINKAGE_REQUESTER_TARGET: return sp_str_lit("the target");
   }
   SP_UNREACHABLE_RETURN(sp_str_lit(""));
 }
@@ -854,8 +855,9 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
         case SPN_ERR_SANITIZER_STATIC: {
           sp_tty_fmt(
             &w,
-            "Sanitizer(s) {} can't be linked statically. Use a profile with shared linkage, or disable the sanitizer(s)",
-            sp_fmt_str(colored_sanitizers(w.color, mem, sp_fmt_style_red, event->err.sanitizer.unsupported))
+            "Sanitizer(s) {} need a dynamic loader, which a static libc removes. Use {.cyan}, or disable the sanitizer(s)",
+            sp_fmt_str(colored_sanitizers(w.color, mem, sp_fmt_style_red, event->err.sanitizer.unsupported)),
+            sp_fmt_str(sp_str_lit("libc = \"shared\""))
           );
           break;
         }

@@ -114,7 +114,13 @@ static spn_err_t set_target_kind(spn_session_t* s, spn_target_unit_t* target) {
         };
 
         if (spn_target_select_lib_kind(info, query, &target->lib_kind)) {
-          spn_linkage_requester_t requester = profile->request.linkage ? SPN_LINKAGE_REQUESTER_PROFILE : SPN_LINKAGE_REQUESTER_LIBC;
+          spn_linkage_requester_t requester = SPN_LINKAGE_REQUESTER_TARGET;
+          if (profile->request.linkage) {
+            requester = SPN_LINKAGE_REQUESTER_PROFILE;
+          }
+          else if (profile->request.libc == SPN_RUNTIME_STATIC) {
+            requester = SPN_LINKAGE_REQUESTER_LIBC;
+          }
           return spn_err_emit(s->ctx, (spn_err_union_t) {
             .kind = SPN_ERR_TARGET_LINKAGE,
             .target = {

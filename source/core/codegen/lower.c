@@ -869,7 +869,8 @@ static void validate_profiles(spn_toml_loader_t* ctx, const spn_cg_manifest_t* c
     validate_candidates(ctx, "opt", p->opt);
     validate_candidates(ctx, "abi", p->abi);
     sp_da_for(p->linkage, ct) {
-      if (spn_linkage_from_str(p->linkage[ct].value) == SPN_LIB_KIND_NONE) {
+      spn_linkage_t linkage = spn_linkage_from_str(p->linkage[ct].value);
+      if (linkage == SPN_LIB_KIND_NONE || linkage == SPN_LIB_KIND_OBJECT) {
         issue_candidate_value(ctx, "linkage", ct);
       }
     }

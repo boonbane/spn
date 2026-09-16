@@ -552,6 +552,9 @@ sp_str_t spn_linkage_requester_to_str(spn_linkage_requester_t requester) {
     case SPN_LINKAGE_REQUESTER_LIBC: {
       return sp_str_lit("libc");
     }
+    case SPN_LINKAGE_REQUESTER_TARGET: {
+      return sp_str_lit("target");
+    }
   }
   SP_UNREACHABLE_RETURN(sp_str_lit(""));
 }
