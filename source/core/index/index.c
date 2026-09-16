@@ -170,13 +170,10 @@ static void index_append_release(spn_index_info_t* index, spn_index_release_t* r
 
   sp_sys_fd_t fd = SP_SYS_INVALID_FD;
   sp_sys_open_s(sp_sys_get_root(0), path, SP_SYS_OPEN_MODE_WO, SP_SYS_OPEN_CREATE | SP_SYS_OPEN_APPEND, &fd);
-  sp_io_file_writer_t io;
-  sp_io_file_writer_from_fd(&io, fd, SP_IO_CLOSE_MODE_AUTO);
-  // The writer pwrites at pos, which O_APPEND only overrides on Linux; start
-  // at EOF explicitly so the append works everywhere
-  io.pos = io.size;
+  sp_io_stream_writer_t io;
+  sp_io_stream_writer_from_fd(&io, fd, SP_IO_CLOSE_MODE_AUTO);
   sp_io_write_line(&io.base, json);
-  sp_io_file_writer_close(&io);
+  sp_io_stream_writer_close(&io);
 
   sp_mem_end_scratch(scratch);
 }

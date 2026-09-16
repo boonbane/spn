@@ -113,7 +113,7 @@ sp_test(script, node_output_bin) {
     .project = "test/integration/fixtures/script/node_output_bin",
     .args = { "build" },
     .expect = {
-      .exists = { pkg_store_file("B", "bin/R") },
+      .exists = { pkg_store_file("B", "bin/R.txt") },
     },
   });
 }
