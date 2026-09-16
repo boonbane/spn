@@ -33,3 +33,17 @@ keep_going = true
 iterations = 16
 sweep = true
 graph = { max_actions = 4, small_actions = 4, max_sources = 4, max_produces = 2, max_phantoms = 2, max_obs = 4 }
+
+[profile.deep]
+iterations = 200000
+keep_going = true
+
+[profile.sweep-wide]
+iterations = 512
+sweep = true
+graph = { max_actions = 4, small_actions = 4, max_sources = 4, max_produces = 3, max_phantoms = 2, max_obs = 4 }
+
+[profile.sweep-multi]
+iterations = 64
+sweep = true
+graph = { max_actions = 8, small_actions = 8, max_sources = 6, max_produces = 3, max_phantoms = 2, max_obs = 4 }

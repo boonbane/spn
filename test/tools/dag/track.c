@@ -1,4 +1,5 @@
 #include "track.h"
+#include "dag/dag.h"
 
 typedef struct {
   bool completed;
@@ -17,6 +18,7 @@ void sp_dag_track_init(sp_dag_track_t* track, sp_mem_t mem, sp_dag_track_persist
   sp_ht_init(mem, track->entries);
   sp_ht_init(mem, track->blobs);
   sp_ht_init(mem, track->pathsets);
+  sp_ht_init(mem, track->disk);
 }
 
 static sp_dag_track_slot_t query(sp_dag_track_table_t table, spn_dag_digest_t key) {
@@ -36,6 +38,33 @@ static void affirm(sp_dag_track_table_t* table, spn_dag_digest_t key, sp_dag_tra
     return;
   }
   sp_ht_insert(*table, key, state);
+}
+
+static void affirm_disk(sp_dag_track_t* track, u32 artifact, spn_dag_digest_t digest, sp_dag_track_state_t state) {
+  sp_mem_arena_marker_t s = sp_mem_begin_scratch();
+  sp_da(sp_dag_track_target_t) displaced = sp_da_new(s.mem, sp_dag_track_target_t);
+  sp_ht_for_kv(track->disk, it) {
+    if (it.key->artifact != artifact || spn_dag_digest_equal(it.key->digest, digest)) {
+      continue;
+    }
+    if (state == SP_DAG_TRACK_SURE) {
+      sp_da_push(displaced, *it.key);
+    }
+    else {
+      *it.val = SP_DAG_TRACK_UNKNOWN;
+    }
+  }
+  sp_da_for(displaced, it) {
+    sp_ht_erase(track->disk, displaced[it]);
+  }
+  sp_mem_end_scratch(s);
+
+  sp_dag_track_target_t key = { .artifact = artifact, .digest = digest };
+  sp_dag_track_state_t* existing = sp_ht_getp(track->disk, key);
+  if (existing && *existing < state) {
+    return;
+  }
+  sp_ht_insert(track->disk, key, state);
 }
 
 static void retract(sp_dag_track_table_t* table, spn_dag_digest_t key, bool certain) {
@@ -149,8 +178,10 @@ void sp_dag_track_run(sp_dag_track_t* track, const sp_dag_track_event_t* events,
         break;
       }
       case SPN_DAG_TRACE_SETTLE: {
-        if (action->completed || action->executed) {
-          affirm(&track->blobs, event->key, classify(events[it].sys, crash_at, false));
+        sp_dag_track_state_t state = classify(events[it].sys, crash_at, false);
+        affirm_disk(track, event->producer.index, event->key, state);
+        if (action->executed || !event->hit) {
+          affirm(&track->blobs, event->key, state);
         }
         break;
       }
@@ -197,6 +228,20 @@ void sp_dag_track_drop_blob(sp_dag_track_t* track, spn_dag_digest_t digest) {
   sp_ht_erase(track->blobs, digest);
 }
 
+void sp_dag_track_drop_disk(sp_dag_track_t* track, u32 artifact) {
+  sp_mem_arena_marker_t s = sp_mem_begin_scratch();
+  sp_da(sp_dag_track_target_t) dropped = sp_da_new(s.mem, sp_dag_track_target_t);
+  sp_ht_for_kv(track->disk, it) {
+    if (it.key->artifact == artifact) {
+      sp_da_push(dropped, *it.key);
+    }
+  }
+  sp_da_for(dropped, it) {
+    sp_ht_erase(track->disk, dropped[it]);
+  }
+  sp_mem_end_scratch(s);
+}
+
 sp_dag_track_slot_t sp_dag_track_entry(sp_dag_track_t* track, spn_dag_digest_t key) {
   return query(track->entries, key);
 }
@@ -207,4 +252,16 @@ sp_dag_track_slot_t sp_dag_track_blob(sp_dag_track_t* track, spn_dag_digest_t di
 
 sp_dag_track_slot_t sp_dag_track_pathset(sp_dag_track_t* track, spn_dag_digest_t weak) {
   return query(track->pathsets, weak);
+}
+
+sp_dag_track_slot_t sp_dag_track_disk(sp_dag_track_t* track, u32 artifact, spn_dag_digest_t digest) {
+  sp_dag_track_target_t key = { .artifact = artifact, .digest = digest };
+  sp_dag_track_state_t* state = sp_ht_getp(track->disk, key);
+  if (!state) {
+    return (sp_dag_track_slot_t) sp_zero;
+  }
+  return (sp_dag_track_slot_t) {
+    .present = true,
+    .sure = *state != SP_DAG_TRACK_UNKNOWN,
+  };
 }

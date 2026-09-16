@@ -164,3 +164,15 @@ sp_err_t sp_fs_set_readonly(sp_str_t path) {
 #endif
   return sp_sys_chmod_s(root, path, &meta);
 }
+
+sp_err_t sp_fs_set_writable(sp_str_t path) {
+  sp_sys_fd_t root = sp_sys_get_root(0);
+  sp_sys_file_meta_t meta = sp_zero;
+  sp_try(sp_sys_get_path_metadata_s(root, path, &meta));
+#if defined(SP_WIN32)
+  meta.raw_attrs &= ~(u32)FILE_ATTRIBUTE_READONLY;
+#else
+  meta.raw_attrs |= 0200;
+#endif
+  return sp_sys_chmod_s(root, path, &meta);
+}

@@ -16,6 +16,7 @@ typedef enum {
   TRACK_OP_RUN,
   TRACK_OP_DROP_ENTRY,
   TRACK_OP_DROP_BLOB,
+  TRACK_OP_DROP_DISK,
   TRACK_OP_REBOOT,
   TRACK_OP_RESET_ENTRIES,
   TRACK_OP_RESET_DISCOVERY,
@@ -24,6 +25,7 @@ typedef enum {
 typedef struct {
   op_kind_t kind;
   u32 action;
+  u32 artifact;
   const c8* key;
   bool present;
   bool hit;
@@ -36,10 +38,12 @@ typedef enum {
   SLOT_ENTRY,
   SLOT_BLOB,
   SLOT_PATHSET,
+  SLOT_DISK,
 } slot_kind_t;
 
 typedef struct {
   slot_kind_t kind;
+  u32 artifact;
   const c8* key;
   bool present;
   bool sure;
@@ -90,12 +94,24 @@ static const test_t tests [] = {
     },
   },
   {
-    .name = "settle_without_completion_ignored",
+    .name = "linked_settle_without_completion_records_both",
     .ops = {
       { .kind = TRACK_OP_SETTLE, .key = "D" },
       { .kind = TRACK_OP_RUN },
     },
     .checks = {
+      { .kind = SLOT_DISK, .key = "D", .present = true, .sure = true },
+      { .kind = SLOT_BLOB, .key = "D", .present = true, .sure = true },
+    },
+  },
+  {
+    .name = "settled_hit_without_completion_records_disk_only",
+    .ops = {
+      { .kind = TRACK_OP_SETTLE, .key = "D", .hit = true },
+      { .kind = TRACK_OP_RUN },
+    },
+    .checks = {
+      { .kind = SLOT_DISK, .key = "D", .present = true, .sure = true },
       { .kind = SLOT_BLOB, .key = "D" },
     },
   },
@@ -133,15 +149,138 @@ static const test_t tests [] = {
     },
   },
   {
-    .name = "settle_of_another_action_not_credited",
+    .name = "settled_hit_records_disk_not_blob",
     .ops = {
-      { .kind = TRACK_OP_SETTLE, .action = 1, .key = "D" },
+      { .kind = TRACK_OP_SETTLE, .key = "D", .hit = true },
+      { .kind = TRACK_OP_CACHE, .key = "K", .present = true, .hit = true },
+      { .kind = TRACK_OP_RUN },
+    },
+    .checks = {
+      { .kind = SLOT_DISK, .key = "D", .present = true, .sure = true },
+      { .kind = SLOT_BLOB, .key = "D" },
+    },
+  },
+  {
+    .name = "executed_settled_hit_records_blob",
+    .ops = {
+      { .kind = TRACK_OP_EXECUTE },
+      { .kind = TRACK_OP_SETTLE, .key = "D", .hit = true },
       { .kind = TRACK_OP_COMMIT, .key = "K", .hit = true },
       { .kind = TRACK_OP_RUN },
     },
     .checks = {
-      { .kind = SLOT_BLOB, .key = "D" },
-      { .kind = SLOT_ENTRY, .key = "K", .present = true, .sure = true },
+      { .kind = SLOT_DISK, .key = "D", .present = true, .sure = true },
+      { .kind = SLOT_BLOB, .key = "D", .present = true, .sure = true },
+    },
+  },
+  {
+    .name = "linked_settle_records_disk_and_blob",
+    .ops = {
+      { .kind = TRACK_OP_SETTLE, .key = "D" },
+      { .kind = TRACK_OP_COMMIT, .key = "K", .hit = true },
+      { .kind = TRACK_OP_RUN },
+    },
+    .checks = {
+      { .kind = SLOT_DISK, .key = "D", .present = true, .sure = true },
+      { .kind = SLOT_BLOB, .key = "D", .present = true, .sure = true },
+    },
+  },
+  {
+    .name = "disk_holds_latest_digest",
+    .ops = {
+      { .kind = TRACK_OP_SETTLE, .key = "D" },
+      { .kind = TRACK_OP_COMMIT, .key = "K", .hit = true },
+      { .kind = TRACK_OP_RUN },
+      { .kind = TRACK_OP_SETTLE, .key = "E" },
+      { .kind = TRACK_OP_COMMIT, .key = "L", .hit = true },
+      { .kind = TRACK_OP_RUN },
+    },
+    .checks = {
+      { .kind = SLOT_DISK, .key = "D" },
+      { .kind = SLOT_DISK, .key = "E", .present = true, .sure = true },
+    },
+  },
+  {
+    .name = "disk_is_per_artifact",
+    .ops = {
+      { .kind = TRACK_OP_SETTLE, .artifact = 1, .key = "D" },
+      { .kind = TRACK_OP_COMMIT, .key = "K", .hit = true },
+      { .kind = TRACK_OP_RUN },
+    },
+    .checks = {
+      { .kind = SLOT_DISK, .artifact = 1, .key = "D", .present = true, .sure = true },
+      { .kind = SLOT_DISK, .key = "D" },
+    },
+  },
+  {
+    .name = "crashed_relink_keeps_old_digest_unsure",
+    .ops = {
+      { .kind = TRACK_OP_SETTLE, .key = "D" },
+      { .kind = TRACK_OP_COMMIT, .key = "K", .hit = true },
+      { .kind = TRACK_OP_RUN },
+      { .kind = TRACK_OP_SETTLE, .key = "E", .sys = 6 },
+      { .kind = TRACK_OP_COMMIT, .key = "L", .hit = true, .sys = 7 },
+      { .kind = TRACK_OP_RUN, .crash_at = 5 },
+    },
+    .checks = {
+      { .kind = SLOT_DISK, .key = "D", .present = true },
+      { .kind = SLOT_DISK, .key = "E", .present = true },
+    },
+  },
+  {
+    .name = "sure_relink_after_crash_forgets_old_digest",
+    .ops = {
+      { .kind = TRACK_OP_SETTLE, .key = "D" },
+      { .kind = TRACK_OP_COMMIT, .key = "K", .hit = true },
+      { .kind = TRACK_OP_RUN },
+      { .kind = TRACK_OP_SETTLE, .key = "E", .sys = 6 },
+      { .kind = TRACK_OP_COMMIT, .key = "L", .hit = true, .sys = 7 },
+      { .kind = TRACK_OP_RUN, .crash_at = 5 },
+      { .kind = TRACK_OP_SETTLE, .key = "E" },
+      { .kind = TRACK_OP_COMMIT, .key = "L", .hit = true },
+      { .kind = TRACK_OP_RUN },
+    },
+    .checks = {
+      { .kind = SLOT_DISK, .key = "D" },
+      { .kind = SLOT_DISK, .key = "E", .present = true, .sure = true },
+    },
+  },
+  {
+    .name = "settle_after_crash_disk_unsure",
+    .ops = {
+      { .kind = TRACK_OP_SETTLE, .key = "D", .sys = 6 },
+      { .kind = TRACK_OP_COMMIT, .key = "K", .hit = true, .sys = 7 },
+      { .kind = TRACK_OP_RUN, .crash_at = 5 },
+    },
+    .checks = {
+      { .kind = SLOT_DISK, .key = "D", .present = true },
+    },
+  },
+  {
+    .name = "settled_hit_confirms_unsure_disk",
+    .ops = {
+      { .kind = TRACK_OP_SETTLE, .key = "D", .sys = 6 },
+      { .kind = TRACK_OP_COMMIT, .key = "K", .hit = true, .sys = 7 },
+      { .kind = TRACK_OP_RUN, .crash_at = 5 },
+      { .kind = TRACK_OP_SETTLE, .key = "D", .hit = true },
+      { .kind = TRACK_OP_CACHE, .key = "K", .present = true, .hit = true },
+      { .kind = TRACK_OP_RUN },
+    },
+    .checks = {
+      { .kind = SLOT_DISK, .key = "D", .present = true, .sure = true },
+    },
+  },
+  {
+    .name = "drop_disk_removes",
+    .ops = {
+      { .kind = TRACK_OP_SETTLE, .key = "D" },
+      { .kind = TRACK_OP_COMMIT, .key = "K", .hit = true },
+      { .kind = TRACK_OP_RUN },
+      { .kind = TRACK_OP_DROP_DISK },
+    },
+    .checks = {
+      { .kind = SLOT_DISK, .key = "D" },
+      { .kind = SLOT_BLOB, .key = "D", .present = true, .sure = true },
     },
   },
   {
@@ -647,6 +786,7 @@ sp_test_each(dag_track, ops, test_t, tests) {
           .event = {
             .kind = event_kind(op->kind),
             .action = { .index = op->action, .occupied = true },
+            .producer = { .index = op->artifact, .occupied = true },
             .key = op->key ? dag_test_digest(op->key) : (spn_dag_digest_t) sp_zero,
             .present = op->present,
             .hit = op->hit,
@@ -666,6 +806,10 @@ sp_test_each(dag_track, ops, test_t, tests) {
       }
       case TRACK_OP_DROP_BLOB: {
         sp_dag_track_drop_blob(&track, dag_test_digest(op->key));
+        break;
+      }
+      case TRACK_OP_DROP_DISK: {
+        sp_dag_track_drop_disk(&track, op->artifact);
         break;
       }
       case TRACK_OP_REBOOT: {
@@ -702,6 +846,10 @@ sp_test_each(dag_track, ops, test_t, tests) {
       }
       case SLOT_PATHSET: {
         slot = sp_dag_track_pathset(&track, dag_test_digest(check->key));
+        break;
+      }
+      case SLOT_DISK: {
+        slot = sp_dag_track_disk(&track, check->artifact, dag_test_digest(check->key));
         break;
       }
     }

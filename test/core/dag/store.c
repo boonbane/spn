@@ -6,14 +6,12 @@ typedef enum {
   STORE_OP_PUT,
   STORE_OP_PUT_FILE,
   STORE_OP_GET,
-  STORE_OP_HAS,
   STORE_OP_MATERIALIZE,
   STORE_OP_WRITE,
 } store_op_kind_t;
 
 typedef struct {
   spn_err_t err;
-  bool has;
 } store_expect_t;
 
 typedef struct {
@@ -34,7 +32,6 @@ static const store_test_t store_tests [] = {
     .name = "put_then_get",
     .ops = {
       { .kind = STORE_OP_PUT, .blob = "A" },
-      { .kind = STORE_OP_HAS, .blob = "A", .expect = { .has = true } },
       { .kind = STORE_OP_GET, .blob = "A" },
     }
   },
@@ -56,7 +53,6 @@ static const store_test_t store_tests [] = {
   {
     .name = "missing_digest",
     .ops = {
-      { .kind = STORE_OP_HAS, .blob = "A" },
       { .kind = STORE_OP_GET, .blob = "A", .expect = { .err = SPN_ERR_DAG_STORE_MISSING } },
       { .kind = STORE_OP_MATERIALIZE, .blob = "A", .path = "a.bin", .expect = { .err = SPN_ERR_DAG_STORE_MISSING } },
     }
@@ -74,7 +70,6 @@ static const store_test_t store_tests [] = {
     .ops = {
       { .kind = STORE_OP_FILE, .blob = "A", .path = ".gitignore" },
       { .kind = STORE_OP_PUT_FILE, .blob = "A", .path = ".gitignore" },
-      { .kind = STORE_OP_HAS, .blob = "A", .name = ".gitignore", .expect = { .has = true } },
       { .kind = STORE_OP_GET, .blob = "A", .name = ".gitignore" },
     }
   },
@@ -83,7 +78,6 @@ static const store_test_t store_tests [] = {
     .ops = {
       { .kind = STORE_OP_FILE, .blob = "B", .path = ".b.123.4.tmp" },
       { .kind = STORE_OP_PUT_FILE, .blob = "B", .path = ".b.123.4.tmp" },
-      { .kind = STORE_OP_HAS, .blob = "B", .name = ".b.123.4.tmp", .expect = { .has = true } },
       { .kind = STORE_OP_GET, .blob = "B", .name = ".b.123.4.tmp" },
     }
   },
@@ -171,10 +165,6 @@ static sp_err_t store_run_ops(sp_test_t* t, spn_dag_store_kind_t kind, const sto
         if (!op.expect.err) {
           sp_expect_str_eq_c(t, sp_str((const c8*)fetched.data, (u32)fetched.len), op.blob);
         }
-        break;
-      }
-      case STORE_OP_HAS: {
-        sp_expect_eq(t, op.expect.has, spn_dag_store_has(&env.store, digest, name));
         break;
       }
       case STORE_OP_MATERIALIZE: {

@@ -6,7 +6,6 @@ typedef enum {
   FILE_CACHE_OP_WRITE,
   FILE_CACHE_OP_REFRESH,
   FILE_CACHE_OP_INVALIDATE,
-  FILE_CACHE_OP_INVALIDATE_DIR,
   FILE_CACHE_OP_DIGEST,
   FILE_CACHE_OP_SEED,
 } file_cache_op_kind_t;
@@ -63,26 +62,6 @@ static const file_cache_test_t file_cache_tests [] = {
     }
   },
   {
-    .name = "invalidate_dir_unpins_subtree",
-    .ops = {
-      { .kind = FILE_CACHE_OP_FILE, .path = "D/F", .blob = "A" },
-      { .kind = FILE_CACHE_OP_DIGEST, .path = "D/F", .blob = "A" },
-      { .kind = FILE_CACHE_OP_WRITE, .path = "D/F", .blob = "BB" },
-      { .kind = FILE_CACHE_OP_INVALIDATE_DIR, .path = "D" },
-      { .kind = FILE_CACHE_OP_DIGEST, .path = "D/F", .blob = "BB" },
-    }
-  },
-  {
-    .name = "invalidate_dir_spares_siblings",
-    .ops = {
-      { .kind = FILE_CACHE_OP_FILE, .path = "E/G", .blob = "C" },
-      { .kind = FILE_CACHE_OP_DIGEST, .path = "E/G", .blob = "C" },
-      { .kind = FILE_CACHE_OP_WRITE, .path = "E/G", .blob = "DD" },
-      { .kind = FILE_CACHE_OP_INVALIDATE_DIR, .path = "D" },
-      { .kind = FILE_CACHE_OP_DIGEST, .path = "E/G", .blob = "C" },
-    }
-  },
-  {
     .name = "seeded_digest_trusted_without_hash",
     .ops = {
       { .kind = FILE_CACHE_OP_FILE, .path = "a.c", .blob = "A" },
@@ -135,10 +114,6 @@ sp_test_each(dag_file_cache, ops, file_cache_test_t, file_cache_tests) {
         spn_dag_file_cache_invalidate(c, path);
         break;
       }
-      case FILE_CACHE_OP_INVALIDATE_DIR: {
-        spn_dag_file_cache_invalidate_dir(c, path);
-        break;
-      }
       case FILE_CACHE_OP_DIGEST: {
         spn_dag_digest_t digest = sp_zero;
         sp_expect_eq(t, op.expect.err, spn_dag_file_cache_digest(c, path, &digest));
@@ -148,14 +123,7 @@ sp_test_each(dag_file_cache, ops, file_cache_test_t, file_cache_tests) {
         break;
       }
       case FILE_CACHE_OP_SEED: {
-        sp_sys_file_meta_t sys = sp_zero;
-        sp_must_eq(t, SPN_OK, spn_dag_file_cache_stat(c, path, &sys));
-        spn_dag_file_cache_seed(c, (spn_dag_file_meta_t) {
-          .id = { .device = sys.device, .inode = sys.id },
-          .mtime = sys.mtime,
-          .size = sys.size,
-          .digest = dag_test_digest(op.blob)
-        });
+        sp_expect_eq(t, SPN_OK, spn_dag_file_cache_seed(c, path, dag_test_digest(op.blob)));
         break;
       }
     }

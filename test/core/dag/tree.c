@@ -1,268 +1,119 @@
 #include "dag_test.h"
+#include "fs/fs.h"
 
 typedef struct {
   const c8* path;
   const c8* content;
 } tree_file_t;
 
-typedef enum {
-  TREE_OP_DONE,
-  TREE_OP_PUT,
-  TREE_OP_HAS,
-  TREE_OP_MATERIALIZE,
-  TREE_OP_WRITE,
-} tree_op_kind_t;
-
 typedef struct {
-  bool hit;
-  spn_err_t err;
+  u32 runs;
+  u32 hashes;
   tree_file_t files [DAG_TEST_MAX_OUTPUTS];
   const c8* absent [DAG_TEST_MAX_OUTPUTS];
   const c8* kept [DAG_TEST_MAX_OUTPUTS];
 } tree_expect_t;
 
 typedef struct {
-  tree_op_kind_t kind;
+  const c8* identity;
   tree_file_t files [DAG_TEST_MAX_OUTPUTS];
+  bool remove_target;
+  tree_file_t write [DAG_TEST_MAX_OUTPUTS];
+  tree_file_t poison;
   tree_expect_t expect;
-} tree_op_t;
+} tree_run_t;
 
 typedef struct {
   const c8* name;
-  tree_op_t ops [DAG_TEST_MAX_OPS];
-} tree_store_test_t;
+  tree_run_t runs [DAG_TEST_MAX_OPS];
+} tree_test_t;
 
-static const tree_store_test_t tree_store_tests [] = {
+typedef struct {
+  dag_test_env_t dag;
+  const tree_run_t* run;
+} tree_env_t;
+
+static const tree_test_t tree_tests [] = {
   {
-    .name = "roundtrip",
-    .ops = {
-      { .kind = TREE_OP_PUT, .files = { { "X.h", "A" }, { "B/Y.h", "B" } } },
-      { .kind = TREE_OP_HAS, .expect = { .hit = true } },
-      { .kind = TREE_OP_MATERIALIZE, .expect = { .files = { { "X.h", "A" }, { "B/Y.h", "B" } } } },
+    .name = "cold_hashes_once_per_entry",
+    .runs = {
+      { .identity = "I", .files = { { "X.h", "A" }, { "B/Y.h", "B" } }, .expect = { .runs = 1, .hashes = 2, .files = { { "X.h", "A" }, { "B/Y.h", "B" } } } },
     }
   },
   {
-    .name = "has_missing",
-    .ops = {
-      { .kind = TREE_OP_HAS },
+    .name = "hit_is_free",
+    .runs = {
+      { .identity = "I", .files = { { "X.h", "A" } }, .expect = { .runs = 1, .hashes = 1 } },
+      { .identity = "I", .files = { { "X.h", "A" } }, .expect = { .runs = 1, .kept = { "X.h" } } },
     }
   },
   {
-    .name = "materialize_missing_fails",
-    .ops = {
-      { .kind = TREE_OP_MATERIALIZE, .expect = { .err = SPN_ERR_DAG_STORE_MISSING } },
+    .name = "deleted_target_relinked",
+    .runs = {
+      { .identity = "I", .files = { { "X.h", "A" } }, .expect = { .runs = 1, .hashes = 1 } },
+      { .identity = "I", .files = { { "X.h", "A" } }, .remove_target = true, .expect = { .runs = 1, .files = { { "X.h", "A" } } } },
     }
   },
   {
-    .name = "stale_files_removed",
-    .ops = {
-      { .kind = TREE_OP_PUT, .files = { { "X.h", "A" } } },
-      { .kind = TREE_OP_WRITE, .files = { { "Z.h", "S" } } },
-      { .kind = TREE_OP_MATERIALIZE, .expect = { .files = { { "X.h", "A" } }, .absent = { "Z.h" } } },
+    .name = "identity_change_reruns",
+    .runs = {
+      { .identity = "I", .files = { { "X.h", "A" } }, .expect = { .runs = 1, .hashes = 1 } },
+      { .identity = "J", .files = { { "X.h", "B" } }, .expect = { .runs = 2, .hashes = 1, .files = { { "X.h", "B" } } } },
     }
   },
   {
-    .name = "stale_subdir_removed",
-    .ops = {
-      { .kind = TREE_OP_PUT, .files = { { "X.h", "A" } } },
-      { .kind = TREE_OP_WRITE, .files = { { "Z/W.h", "S" } } },
-      { .kind = TREE_OP_MATERIALIZE, .expect = { .files = { { "X.h", "A" } }, .absent = { "Z" } } },
+    .name = "replaced_entry_hashed_once_and_relinked",
+    .runs = {
+      { .identity = "I", .files = { { "X.h", "A" }, { "B/Y.h", "B" } }, .expect = { .runs = 1, .hashes = 2 } },
+      { .identity = "I", .files = { { "X.h", "A" }, { "B/Y.h", "B" } }, .write = { { "X.h", "T" } }, .expect = { .runs = 1, .hashes = 1, .files = { { "X.h", "A" } }, .kept = { "B/Y.h" } } },
     }
   },
   {
-    .name = "settled_entry_kept",
-    .ops = {
-      { .kind = TREE_OP_PUT, .files = { { "X.h", "A" } } },
-      { .kind = TREE_OP_MATERIALIZE },
-      { .kind = TREE_OP_WRITE, .files = { { "X.h", "A" } } },
-      { .kind = TREE_OP_MATERIALIZE, .expect = { .files = { { "X.h", "A" } }, .kept = { "X.h" } } },
+    .name = "stray_file_pruned",
+    .runs = {
+      { .identity = "I", .files = { { "X.h", "A" } }, .expect = { .runs = 1, .hashes = 1 } },
+      { .identity = "I", .files = { { "X.h", "A" } }, .write = { { "Z.h", "S" } }, .expect = { .runs = 1, .absent = { "Z.h" }, .kept = { "X.h" } } },
     }
   },
   {
-    .name = "changed_entry_relinked",
-    .ops = {
-      { .kind = TREE_OP_PUT, .files = { { "X.h", "A" } } },
-      { .kind = TREE_OP_MATERIALIZE },
-      { .kind = TREE_OP_WRITE, .files = { { "X.h", "T" } } },
-      { .kind = TREE_OP_MATERIALIZE, .expect = { .files = { { "X.h", "A" } } } },
+    .name = "stray_subdir_pruned",
+    .runs = {
+      { .identity = "I", .files = { { "X.h", "A" } }, .expect = { .runs = 1, .hashes = 1 } },
+      { .identity = "I", .files = { { "X.h", "A" } }, .write = { { "Z/W.h", "S" } }, .expect = { .runs = 1, .absent = { "Z" }, .kept = { "X.h" } } },
     }
   },
   {
     .name = "dir_replaces_file",
-    .ops = {
-      { .kind = TREE_OP_PUT, .files = { { "B/Y.h", "B" } } },
-      { .kind = TREE_OP_WRITE, .files = { { "B", "S" } } },
-      { .kind = TREE_OP_MATERIALIZE, .expect = { .files = { { "B/Y.h", "B" } } } },
+    .runs = {
+      { .identity = "I", .files = { { "B/Y.h", "B" } }, .expect = { .runs = 1, .hashes = 1 } },
+      { .identity = "I", .files = { { "B/Y.h", "B" } }, .remove_target = true, .write = { { "B", "S" } }, .expect = { .runs = 1, .files = { { "B/Y.h", "B" } } } },
     }
   },
   {
     .name = "file_replaces_dir",
-    .ops = {
-      { .kind = TREE_OP_PUT, .files = { { "X.h", "A" } } },
-      { .kind = TREE_OP_WRITE, .files = { { "X.h/W", "S" } } },
-      { .kind = TREE_OP_MATERIALIZE, .expect = { .files = { { "X.h", "A" } }, .absent = { "X.h/W" } } },
+    .runs = {
+      { .identity = "I", .files = { { "X.h", "A" } }, .expect = { .runs = 1, .hashes = 1 } },
+      { .identity = "I", .files = { { "X.h", "A" } }, .remove_target = true, .write = { { "X.h/W", "S" } }, .expect = { .runs = 1, .files = { { "X.h", "A" } }, .absent = { "X.h/W" } } },
     }
   },
   {
-    .name = "empty_tree",
-    .ops = {
-      { .kind = TREE_OP_PUT },
-      { .kind = TREE_OP_HAS, .expect = { .hit = true } },
-      { .kind = TREE_OP_MATERIALIZE },
+    .name = "poisoned_blob_dropped_and_rerun",
+    .runs = {
+      { .identity = "I", .files = { { "X.h", "A" } }, .expect = { .runs = 1, .hashes = 1 } },
+      { .identity = "I", .files = { { "X.h", "A" } }, .poison = { "X.h", "T" }, .expect = { .runs = 2, .hashes = 2, .files = { { "X.h", "A" } } } },
+    }
+  },
+  {
+    .name = "empty_tree_has_a_directory",
+    .runs = {
+      { .identity = "I", .expect = { .runs = 1 } },
+      { .identity = "I", .remove_target = true, .expect = { .runs = 1 } },
     }
   },
 };
 
-static sp_err_t tree_run_store_ops(sp_test_t* t, spn_dag_store_kind_t kind, const tree_store_test_t* test) {
-  sp_test_kv_c(t, "store", dag_test_store_name(kind));
-
-  dag_test_env_t env;
-  dag_test_env_init(&env, t, (dag_test_env_config_t) {
-    .sub = dag_test_store_name(kind),
-    .store = kind
-  });
-  sp_str_t src = dag_test_env_path(&env, sp_str_lit("src"));
-  sp_str_t dst = dag_test_env_path(&env, sp_str_lit("dst"));
-  spn_dag_digest_t digest = sp_zero;
-
-  sp_carr_for(test->ops, it) {
-    tree_op_t op = test->ops[it];
-    if (op.kind == TREE_OP_DONE) {
-      break;
-    }
-
-    switch (op.kind) {
-      case TREE_OP_DONE: {
-        break;
-      }
-      case TREE_OP_PUT: {
-        sp_fs_create_dir(src);
-        sp_carr_for(op.files, fi) {
-          if (!op.files[fi].path) {
-            break;
-          }
-          dag_test_create(sp_fs_join_path(env.mem, src, sp_cstr_as_str(op.files[fi].path)), sp_str_view(op.files[fi].content));
-        }
-        sp_expect_eq(t, op.expect.err, spn_dag_store_put_tree(&env.store, src, &digest));
-        break;
-      }
-      case TREE_OP_HAS: {
-        sp_expect_eq(t, op.expect.hit, spn_dag_store_has_tree(&env.store, digest));
-        break;
-      }
-      case TREE_OP_MATERIALIZE: {
-        sp_sys_file_meta_t before [DAG_TEST_MAX_OUTPUTS] = sp_zero;
-        sp_carr_for(op.expect.kept, ki) {
-          if (!op.expect.kept[ki]) {
-            break;
-          }
-          sp_must_ok(t, sp_sys_get_path_metadata_s(sp_sys_get_root(0), sp_fs_join_path(env.mem, dst, sp_cstr_as_str(op.expect.kept[ki])), &before[ki]));
-        }
-        sp_expect_eq(t, op.expect.err, spn_dag_store_materialize_tree(&env.store, digest, dst));
-        if (op.expect.err) {
-          break;
-        }
-        sp_carr_for(op.expect.kept, ki) {
-          if (!op.expect.kept[ki]) {
-            break;
-          }
-          sp_sys_file_meta_t after = sp_zero;
-          sp_must_ok(t, sp_sys_get_path_metadata_s(sp_sys_get_root(0), sp_fs_join_path(env.mem, dst, sp_cstr_as_str(op.expect.kept[ki])), &after));
-          sp_expect_eq(t, before[ki].id, after.id);
-        }
-        sp_carr_for(op.expect.files, fi) {
-          if (!op.expect.files[fi].path) {
-            break;
-          }
-          sp_err_t err = dag_test_expect_file(t, env.mem, sp_fs_join_path(env.mem, dst, sp_cstr_as_str(op.expect.files[fi].path)), op.expect.files[fi].content);
-          if (err) {
-            return err;
-          }
-        }
-        sp_carr_for(op.expect.absent, fi) {
-          if (!op.expect.absent[fi]) {
-            break;
-          }
-          sp_expect(t, !sp_fs_exists(sp_fs_join_path(env.mem, dst, sp_cstr_as_str(op.expect.absent[fi]))));
-        }
-        break;
-      }
-      case TREE_OP_WRITE: {
-        sp_carr_for(op.files, fi) {
-          if (!op.files[fi].path) {
-            break;
-          }
-          dag_test_create(sp_fs_join_path(env.mem, dst, sp_cstr_as_str(op.files[fi].path)), sp_str_view(op.files[fi].content));
-        }
-        break;
-      }
-    }
-  }
-
-  return SP_OK;
-}
-
-sp_test_each(dag_tree, store, tree_store_test_t, tree_store_tests) {
-  sp_carr_for(dag_test_store_kinds, kind) {
-    sp_err_t err = tree_run_store_ops(t, dag_test_store_kinds[kind], it);
-    if (err) {
-      return err;
-    }
-  }
-  return SP_OK;
-}
-
-typedef struct {
-  const c8* identity;
-  tree_file_t files [DAG_TEST_MAX_OUTPUTS];
-  bool remove_target;
-  tree_file_t tamper;
-  u32 expect_runs;
-  tree_file_t expect_files [DAG_TEST_MAX_OUTPUTS];
-} tree_exec_run_t;
-
-typedef struct {
-  const c8* name;
-  tree_exec_run_t runs [DAG_TEST_MAX_OPS];
-} tree_exec_test_t;
-
-typedef struct {
-  dag_test_env_t dag;
-  const tree_exec_run_t* run;
-} tree_exec_env_t;
-
-static const tree_exec_test_t tree_exec_tests [] = {
-  {
-    .name = "exec_materializes_target",
-    .runs = {
-      { .identity = "I", .files = { { "X.h", "A" }, { "B/Y.h", "B" } }, .expect_runs = 1, .expect_files = { { "X.h", "A" }, { "B/Y.h", "B" } } },
-    }
-  },
-  {
-    .name = "exec_restores_deleted_target",
-    .runs = {
-      { .identity = "I", .files = { { "X.h", "A" } }, .expect_runs = 1 },
-      { .identity = "I", .files = { { "X.h", "A" } }, .remove_target = true, .expect_runs = 1, .expect_files = { { "X.h", "A" } } },
-    }
-  },
-  {
-    .name = "exec_identity_change_reruns",
-    .runs = {
-      { .identity = "I", .files = { { "X.h", "A" } }, .expect_runs = 1 },
-      { .identity = "J", .files = { { "X.h", "B" } }, .expect_runs = 2, .expect_files = { { "X.h", "B" } } },
-    }
-  },
-  {
-    .name = "exec_tampered_target_restored",
-    .runs = {
-      { .identity = "I", .files = { { "X.h", "A" } }, .expect_runs = 1 },
-      { .identity = "I", .files = { { "X.h", "A" } }, .tamper = { "X.h", "T" }, .expect_runs = 1, .expect_files = { { "X.h", "A" } } },
-    }
-  },
-};
-
-static spn_err_t tree_exec_fn(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* dag_env, sp_mem_t mem, sp_da(spn_dag_obs_t)* obs) {
-  tree_exec_env_t* env = (tree_exec_env_t*)user_data;
+static spn_err_t tree_exec(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* dag_env, sp_mem_t mem, sp_da(spn_dag_obs_t)* obs) {
+  tree_env_t* env = (tree_env_t*)user_data;
   env->dag.runs++;
   spn_dag_artifact_t* out = spn_dag_find_artifact(env->dag.g, action->produces[0]);
   sp_fs_create_dir(dag_test_render(&env->dag, out->materialized));
@@ -270,57 +121,89 @@ static spn_err_t tree_exec_fn(spn_dag_t* g, spn_dag_action_t* action, void* user
     if (!env->run->files[it].path) {
       break;
     }
-    sp_str_t path = dag_test_render(&env->dag, spn_path_join(env->dag.mem, out->materialized, sp_str_view(env->run->files[it].path)));
+    sp_str_t path = dag_test_render(&env->dag, spn_path_join(env->dag.mem, out->materialized, sp_cstr_as_str(env->run->files[it].path)));
     sp_fs_create_dir(sp_fs_parent_path(path));
-    if (sp_fs_create_file_str(path, sp_str_view(env->run->files[it].content))) {
+    if (sp_fs_create_file_str(path, sp_cstr_as_str(env->run->files[it].content))) {
       return SPN_ERR_DAG_ACTION;
     }
   }
   return SPN_OK;
 }
 
-sp_test_each(dag_tree, exec, tree_exec_test_t, tree_exec_tests) {
-  tree_exec_env_t env = sp_zero;
+sp_test_each(dag_tree, exec, tree_test_t, tree_tests) {
+  tree_env_t env = sp_zero;
   dag_test_env_init(&env.dag, t, (dag_test_env_config_t) { .store = SPN_DAG_STORE_FILESYSTEM });
+  sp_mem_t mem = env.dag.mem;
   sp_str_t target = dag_test_env_path(&env.dag, sp_str_lit("install"));
   spn_path_t tree = dag_test_env_rooted(&env.dag, sp_str_lit("install"));
 
   sp_carr_for(it->runs, r) {
-    const tree_exec_run_t* run = &it->runs[r];
-    if (!run->expect_runs) {
+    const tree_run_t* run = &it->runs[r];
+    if (!run->expect.runs) {
       break;
     }
 
     env.run = run;
-    spn_dag_file_cache_invalidate_all(&env.dag.files);
+    dag_test_env_cold(&env.dag);
     if (run->remove_target) {
       sp_fs_remove_dir(target);
     }
-    if (run->tamper.path) {
-      sp_str_t path = sp_fs_join_path(env.dag.mem, target, sp_str_view(run->tamper.path));
-      sp_fs_remove_file(path);
-      sp_fs_create_file_str(path, sp_str_view(run->tamper.content));
+    sp_carr_for(run->write, wt) {
+      if (!run->write[wt].path) {
+        break;
+      }
+      dag_test_create(sp_fs_join_path(mem, target, sp_cstr_as_str(run->write[wt].path)), sp_cstr_as_str(run->write[wt].content));
     }
+    if (run->poison.path) {
+      sp_str_t path = sp_fs_join_path(mem, target, sp_cstr_as_str(run->poison.path));
+      sp_must_ok(t, sp_fs_set_writable(path));
+      sp_must_ok(t, sp_fs_create_file_str(path, sp_cstr_as_str(run->poison.content)));
+    }
+
+    sp_sys_file_meta_t before [DAG_TEST_MAX_OUTPUTS] = sp_zero;
+    sp_carr_for(run->expect.kept, kt) {
+      if (!run->expect.kept[kt]) {
+        break;
+      }
+      sp_must_ok(t, sp_sys_get_path_metadata_s(sp_sys_get_root(0), sp_fs_join_path(mem, target, sp_cstr_as_str(run->expect.kept[kt])), &before[kt]));
+    }
+    u32 hashed = dag_test_hashed(&env.dag);
 
     spn_dag_t* g = dag_test_env_graph(&env.dag);
     spn_dag_id_t action = spn_dag_add_action(g, (spn_dag_action_config_t) {
       .identity = dag_test_digest(run->identity),
-      .execute = tree_exec_fn,
+      .execute = tree_exec,
       .user_data = &env
     });
     sp_must_eq(t, SPN_OK, spn_dag_action_add_output(g, action, spn_dag_add_tree(g, tree)));
 
     sp_expect_eq(t, SPN_OK, spn_dag_execute(g, action, &env.dag.env));
-    sp_expect_eq(t, run->expect_runs, env.dag.runs);
+    sp_expect_eq(t, run->expect.runs, env.dag.runs);
+    sp_expect_eq(t, run->expect.hashes, dag_test_hashed(&env.dag) - hashed);
+    sp_expect(t, sp_fs_is_dir(target));
 
-    sp_carr_for(run->expect_files, ft) {
-      if (!run->expect_files[ft].path) {
+    sp_carr_for(run->expect.files, ft) {
+      if (!run->expect.files[ft].path) {
         break;
       }
-      sp_err_t err = dag_test_expect_file(t, env.dag.mem, sp_fs_join_path(env.dag.mem, target, sp_str_view(run->expect_files[ft].path)), run->expect_files[ft].content);
+      sp_err_t err = dag_test_expect_file(t, mem, sp_fs_join_path(mem, target, sp_cstr_as_str(run->expect.files[ft].path)), run->expect.files[ft].content);
       if (err) {
         return err;
       }
+    }
+    sp_carr_for(run->expect.absent, at) {
+      if (!run->expect.absent[at]) {
+        break;
+      }
+      sp_expect(t, !sp_fs_exists(sp_fs_join_path(mem, target, sp_cstr_as_str(run->expect.absent[at]))));
+    }
+    sp_carr_for(run->expect.kept, kt) {
+      if (!run->expect.kept[kt]) {
+        break;
+      }
+      sp_sys_file_meta_t after = sp_zero;
+      sp_must_ok(t, sp_sys_get_path_metadata_s(sp_sys_get_root(0), sp_fs_join_path(mem, target, sp_cstr_as_str(run->expect.kept[kt])), &after));
+      sp_expect_eq(t, before[kt].id, after.id);
     }
   }
 

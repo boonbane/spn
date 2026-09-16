@@ -36,6 +36,7 @@ typedef struct {
   spn_dag_action_cache_t cache;
   spn_dag_obs_table_t discovery;
   spn_dag_env_t env;
+  spn_dag_stats_t stats;
   u32 runs;
 } dag_test_env_t;
 
@@ -50,6 +51,7 @@ spn_path_t       dag_test_env_rooted(dag_test_env_t* env, sp_str_t rel);
 sp_str_t         dag_test_render(dag_test_env_t* env, spn_path_t path);
 void             dag_test_env_create(dag_test_env_t* env, sp_str_t rel, sp_str_t content);
 void             dag_test_create(sp_str_t path, sp_str_t content);
+u32              dag_test_hashed(dag_test_env_t* env);
 spn_dag_digest_t dag_test_digest(const c8* data);
 u32              dag_test_obs_build(const dag_test_obs_t* specs, u32 cap, spn_dag_obs_t* out, spn_dag_digest_t* digests);
 spn_err_t        dag_test_exec_noop(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, sp_mem_t mem, sp_da(spn_dag_obs_t)* obs);
