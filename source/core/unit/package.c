@@ -20,7 +20,7 @@ spn_user_output_t spn_pkg_unit_node_stamp(spn_pkg_unit_t* ctx, spn_user_node_t* 
     .dir = SPN_DIR_WORK,
     .sub = sp_fs_join_path(spn.mem, sp_str_lit("stamp"), node->tag),
     .kind = SPN_DAG_ARTIFACT_KIND_FILE,
-    .path = spn_path_join(spn.mem, ctx->paths.stamp.dir, node->tag),
+    .path = spn_path_join(spn.mem, ctx->paths.stamp, node->tag),
   };
 }
 
@@ -127,12 +127,6 @@ spn_err_t spn_pkg_unit_publish_headers(spn_pkg_unit_t* unit, sp_str_t root) {
   }
   sp_mem_end_scratch(scratch);
   return err;
-}
-
-void spn_pkg_unit_write_stamp(spn_pkg_unit_t* unit, spn_path_t path) {
-  sp_mem_arena_marker_t s = sp_mem_begin_scratch();
-  sp_fs_create_file_str(spn_path_str(&spn.roots, s.mem, path), unit->info->name);
-  sp_mem_end_scratch(s);
 }
 
 // @spader I think this is wrong; it's called in four places and deduplicated with an atomic,

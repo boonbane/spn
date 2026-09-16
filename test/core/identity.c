@@ -202,34 +202,6 @@ sp_test_each(identity, tree, identity_pkg_test_t, tree_tests) {
   return identity_expect_distinct(t, a, b, &it->expect);
 }
 
-static const identity_pkg_test_t package_tests [] = {
-  {
-    .name = "identical_units_agree",
-    .a = { .qualified = "A", .rev = "1" },
-    .b = { .qualified = "A", .rev = "1" },
-  },
-  {
-    .name = "publish_copy_ignored",
-    .a = { .qualified = "A", .rev = "1", .copies = { { "H", "" } } },
-    .b = { .qualified = "A", .rev = "1", .copies = { { "I", "" } } },
-  },
-  {
-    .name = "distinct_pinned_source",
-    .a = { .qualified = "A", .rev = "1" },
-    .b = { .qualified = "A", .rev = "2" },
-    .expect = { .distinct = true }
-  },
-};
-
-sp_test_each(identity, package, identity_pkg_test_t, package_tests) {
-  sp_mem_t mem = sp_test_arena(t);
-  spn_build_source_pin_t pin_a = identity_pin(&it->a);
-  spn_build_source_pin_t pin_b = identity_pin(&it->b);
-  spn_dag_digest_t a = spn_build_package_identity(identity_unit(mem, &it->a), &pin_a);
-  spn_dag_digest_t b = spn_build_package_identity(identity_unit(mem, &it->b), &pin_b);
-  return identity_expect_distinct(t, a, b, &it->expect);
-}
-
 static const identity_node_test_t user_tests [] = {
   {
     .name = "identical_nodes_agree",

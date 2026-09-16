@@ -22,11 +22,8 @@ typedef struct {
 } spn_dag_target_ids_t;
 
 typedef struct {
-  spn_dag_id_t action;
   spn_dag_id_t stamp;
-  spn_dag_id_t tree;
   sp_da(spn_dag_id_t) user_outputs;
-  sp_da(spn_dag_id_t) user_actions;
 } spn_dag_pkg_ids_t;
 
 struct spn_dag_build_t {

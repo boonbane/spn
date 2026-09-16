@@ -113,7 +113,7 @@ static const case_t cases [] = {
               tkv(url, "git@github.com:A/B.git") "\n"
               tkv(commit, "R") "\n"
             },
-            { "spn.c", "void package() {}" },
+            { "spn.c", "void build() {}" },
           },
         },
       },
@@ -226,7 +226,7 @@ static const case_t cases [] = {
           .message = "add toml wrapper",
           .files = {
             { "toml/spn.toml" },
-            { "toml/spn.c", "void package() {}" },
+            { "toml/spn.c", "void build() {}" },
           },
         },
       },
@@ -266,7 +266,7 @@ static const case_t cases [] = {
           .message = "add wrapper",
           .files = {
             { "spn.toml" },
-            { "spn.c", "void package() {}" },
+            { "spn.c", "void build() {}" },
           },
         },
       },

@@ -49,11 +49,6 @@ static sp_color_t name_to_color(sp_str_t name) {
 }
 
 static void write_name_color(sp_tty_t* tty, sp_str_t name) {
-  if (sp_str_equal_cstr(name, "package")) {
-    sp_tty_sgr(tty, SP_ANSI_FG_WHITE_U8);
-    return;
-  }
-
   sp_color_t rgb = name_to_color(name);
   sp_tty_rgb(tty, (u8)(rgb.r * 255.0f), (u8)(rgb.g * 255.0f), (u8)(rgb.b * 255.0f));
 }
@@ -401,12 +396,6 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
     }
     case SPN_EVENT_SCRIPT_USER_FN: {
       sp_tty_fmt(&w, "{}", sp_fmt_str(event->script_user_fn.tag));
-      break;
-    }
-    case SPN_EVENT_PACKAGE_OK: {
-      c8 buffer [64] = sp_zero;
-      sp_fmt_write_duration_buf(buffer, sizeof(buffer), event->package_ok.time);
-      sp_tty_fmt(&w, "in {.gray}", sp_fmt_cstr(buffer));
       break;
     }
     case SPN_EVENT_TARGET_BUILD_PASSED: {

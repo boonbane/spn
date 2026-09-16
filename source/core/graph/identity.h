@@ -14,7 +14,6 @@ typedef struct {
 
 spn_build_source_pin_t spn_build_source_pin(spn_pkg_unit_t* unit);
 spn_dag_digest_t       spn_build_tree_identity(spn_pkg_unit_t* unit, const spn_build_source_pin_t* pin);
-spn_dag_digest_t       spn_build_package_identity(spn_pkg_unit_t* unit, const spn_build_source_pin_t* pin);
 spn_dag_digest_t       spn_build_user_identity(spn_user_node_t* node, const spn_build_source_pin_t* pin);
 spn_dag_digest_t       spn_build_compile_identity(const spn_compile_unit_t* unit);
 spn_dag_digest_t       spn_build_compile_commands_identity(const spn_path_roots_t* roots, spn_pkg_unit_t* unit, sp_da(spn_compile_unit_t*) objects);

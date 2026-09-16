@@ -158,14 +158,10 @@ struct spn_pkg_unit_t {
   sp_da(spn_user_node_t) user_nodes;
 
   struct {
-    struct {
-      spn_path_t dir;
-      spn_path_t package;
-    } stamp;
-
     spn_tree_roots_t roots;
     spn_path_t work;
     spn_path_t object;
+    spn_path_t stamp;
     spn_path_t store;
     spn_path_t include;
     spn_path_t lib;
@@ -177,7 +173,6 @@ struct spn_pkg_unit_t {
     u64 compile;
     u64 configure;
     u64 build;
-    u64 package;
     u64 total;
   } time;
 

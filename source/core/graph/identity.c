@@ -68,15 +68,6 @@ spn_dag_digest_t spn_build_tree_identity(spn_pkg_unit_t* unit, const spn_build_s
   return spn_dag_hash_final(&ctx);
 }
 
-spn_dag_digest_t spn_build_package_identity(spn_pkg_unit_t* unit, const spn_build_source_pin_t* pin) {
-  spn_digest_ctx_t ctx = sp_zero;
-  spn_digest_init_blake3(&ctx);
-  spn_dag_hash_str(&ctx, sp_str_lit("spn.build.package.v4"));
-  spn_dag_hash_str(&ctx, unit->info->qualified);
-  identity_hash_pin(&ctx, pin);
-  return spn_dag_hash_final(&ctx);
-}
-
 spn_dag_digest_t spn_build_user_identity(spn_user_node_t* node, const spn_build_source_pin_t* pin) {
   spn_digest_ctx_t ctx = sp_zero;
   spn_digest_init_blake3(&ctx);
