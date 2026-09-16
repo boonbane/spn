@@ -80,7 +80,7 @@ sp_test(freshness, touch_without_change) {
 sp_test(freshness, staged_lib_noop) {
   return run_rebuild_test(t, (rebuild_test_t) {
     .project = "test/integration/fixtures/freshness/shared",
-    .copy = { "packages/*" },
+    .copy = { "packages/*", "t.c" },
     .first = {
       .args = { "build" },
       .expect.exists = { exe("main"), staged_lib("B") },
@@ -102,7 +102,7 @@ sp_test(freshness, staged_lib_noop) {
 sp_test(freshness, staged_lib_change) {
   return run_rebuild_test(t, (rebuild_test_t) {
     .project = "test/integration/fixtures/freshness/shared",
-    .copy = { "packages/*" },
+    .copy = { "packages/*", "t.c" },
     .first = {
       .args = { "build" },
       .expect.exists = { exe("main"), staged_lib("B") },

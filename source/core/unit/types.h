@@ -66,10 +66,15 @@ typedef struct {
 } spn_stage_entry_t;
 
 typedef struct {
+  spn_stage_entry_t exe;
+  sp_da(spn_stage_entry_t) libs;
+} spn_stage_closure_t;
+
+typedef struct {
   spn_build_unit_t* build;
   spn_target_selection_t selection;
   sp_da(spn_target_unit_id_t) roots;
-  sp_str_om(spn_stage_entry_t) staged;
+  sp_da(spn_stage_closure_t) staged;
 } spn_build_plan_t;
 
 typedef struct {

@@ -60,6 +60,54 @@ sp_test(layout, staged_collision) {
   });
 }
 
+sp_test(layout, staged_prune) {
+  return run_rebuild_test(t, (rebuild_test_t) {
+    .project = "test/integration/fixtures/freshness/shared",
+    .copy = { "packages/*", "t.c", "spn.nodep.toml", "main.nodep.c" },
+    .first = {
+      .args = { "build" },
+      .expect.exists = { exe("main"), staged_lib("B") },
+    },
+    .rebuilds = {
+      {
+        .change = {
+          .moves = {
+            { .from = sp_str_lit("spn.nodep.toml"), .to = sp_str_lit("spn.toml") },
+            { .from = sp_str_lit("main.nodep.c"), .to = sp_str_lit("main.c") },
+          },
+          .writes = { { .file = sp_str_lit("build/debug/user.txt"), .content = sp_str_lit("U") } },
+        },
+        .command = {
+          .args = { "build" },
+          .expect = {
+            .exists = { exe("main"), sp_str_lit("build/debug/user.txt") },
+            .missing = { staged_lib("B") },
+          },
+        },
+      },
+    },
+  });
+}
+
+sp_test(layout, staged_selection_keeps_others) {
+  return run_rebuild_test(t, (rebuild_test_t) {
+    .project = "test/integration/fixtures/freshness/shared",
+    .copy = { "packages/*", "t.c" },
+    .first = {
+      .args = { "build" },
+      .expect.exists = { exe("main"), staged_lib("B") },
+    },
+    .rebuilds = {
+      {
+        .command = {
+          .args = { "build", "--test" },
+          .expect.exists = { exe("main"), staged_lib("B"), test_exe("T") },
+        },
+      },
+    },
+  });
+}
+
 sp_test(layout, staged_script) {
   return run_command_test(t, (command_test_t) {
     .project = "test/integration/fixtures/script/staged",

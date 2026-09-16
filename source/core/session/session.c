@@ -127,6 +127,7 @@ spn_err_t spn_session_init(spn_session_t* s, spn_ctx_t* ctx, sp_mem_t mem, spn_p
     .selection = config.selection,
   };
   sp_da_init(s->mem, plan.roots);
+  sp_da_init(s->mem, plan.staged);
   sp_da_push(s->plans, plan);
 
   return SPN_OK;
