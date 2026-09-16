@@ -64,6 +64,11 @@ target_include_directories(vmlib INTERFACE ${WAMR_ROOT_DIR}/core/iwasm/include)
 
 if(MSVC)
   target_compile_definitions(vmlib PUBLIC WASM_RUNTIME_API_EXTERN=)
+  # C4152 is casting C function pointers to void*.
+  # C4100 is unreferenced param.
+  # C4189 is initialized but unused locals
+  # WAMR has terrible hygiene, just suppress this shit on msvc
+  target_compile_options(vmlib PRIVATE "$<$<COMPILE_LANGUAGE:C,CXX>:/wd4100;/wd4189;/wd4152>")
 endif()
 set_target_properties(vmlib PROPERTIES ARCHIVE_OUTPUT_DIRECTORY ${STORE}/lib)
 

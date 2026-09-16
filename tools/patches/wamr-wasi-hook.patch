@@ -21,7 +21,7 @@ index 7eebf12..1fb6249 100644
 +    wasi_errno_t err = wasmtime_ssp_fd_close(exec_env, curfds, prestats, fd);
 +
 +    if (spn_wasi_hook)
-+        spn_wasi_hook(exec_env, 3, fd, NULL, 0, err, 0, 0, 0);
++        spn_wasi_hook(exec_env, 3, fd, NULL, 0, (uint16)err, 0, 0, 0);
 +
 +    return err;
  }
@@ -36,7 +36,7 @@ index 7eebf12..1fb6249 100644
 +        wasmtime_ssp_fd_renumber(exec_env, curfds, prestats, from, to);
 +
 +    if (spn_wasi_hook)
-+        spn_wasi_hook(exec_env, 4, from, NULL, 0, err, to, 0, 0);
++        spn_wasi_hook(exec_env, 4, from, NULL, 0, (uint16)err, to, 0, 0);
 +
 +    return err;
  }
@@ -47,8 +47,8 @@ index 7eebf12..1fb6249 100644
                                   fs_rights_inheriting, fs_flags, &fd);
  
 +    if (spn_wasi_hook)
-+        spn_wasi_hook(exec_env, 0, dirfd, path, path_len, err, fd, oflags,
-+                      fs_rights_base);
++        spn_wasi_hook(exec_env, 0, dirfd, path, path_len, (uint16)err, fd,
++                      oflags, fs_rights_base);
 +
      *fd_app = fd;
      return err;
@@ -59,7 +59,7 @@ index 7eebf12..1fb6249 100644
                                    &bufused);
 +
 +    if (spn_wasi_hook)
-+        spn_wasi_hook(exec_env, 2, fd, NULL, 0, err, 0, 0, 0);
++        spn_wasi_hook(exec_env, 2, fd, NULL, 0, (uint16)err, 0, 0, 0);
 +
      if (err)
          return err;
@@ -75,7 +75,7 @@ index 7eebf12..1fb6249 100644
 +                                                      filestat);
 +
 +    if (spn_wasi_hook)
-+        spn_wasi_hook(exec_env, 1, fd, path, path_len, err, 0, 0, 0);
++        spn_wasi_hook(exec_env, 1, fd, path, path_len, (uint16)err, 0, 0, 0);
 +
 +    return err;
  }
