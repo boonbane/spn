@@ -549,6 +549,46 @@ sp_test(script, embed) {
   });
 }
 
+sp_test(script, embed_dir) {
+  return run_rebuild_test(t, (rebuild_test_t) {
+    .project = "test/integration/fixtures/script/embed_dir",
+    .copy = { "H" },
+    .first = {
+      .args = { "build" },
+      .expect = {
+        .events = { { .event = SPN_EVENT_SCRIPT_USER_FN } },
+        .exists = { exe("M") },
+      },
+    },
+    .rebuilds = {
+      {
+        .command = {
+          .args = { "build" },
+          .expect.events = {
+            { .event = SPN_EVENT_SCRIPT_USER_FN, .absent = true },
+            { .event = SPN_EVENT_TARGET_BUILD_PASSED, .absent = true },
+          },
+        },
+      },
+      {
+        .change.moves = {
+          { .from = sp_str_lit("H/a.change.h"), .to = sp_str_lit("H/a.h") },
+        },
+        .command = {
+          .args = { "build" },
+          .expect.events = {
+            { .event = SPN_EVENT_SCRIPT_USER_FN },
+            { .event = SPN_EVENT_TARGET_BUILD_PASSED },
+          },
+        },
+      },
+    },
+    .watches = {
+      { .file = exe("M"), .mtime = REBUILD_MTIME_CHANGED },
+    },
+  });
+}
+
 sp_test(script, embed_cross_linux_aarch64) {
   return run_command_test(t, (command_test_t) {
     .project = "test/integration/fixtures/script/embed",
