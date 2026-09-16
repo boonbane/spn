@@ -192,19 +192,26 @@ typedef struct {
 } spn_toolchain_ref_t;
 
 typedef struct {
+  spn_triple_t triple;
+  spn_linking_t linking;
+} spn_toolchain_candidate_t;
+
+typedef struct {
+  spn_toolchain_candidate_t items [SPN_ABI_COUNT];
+  u32 count;
+} spn_toolchain_candidates_t;
+
+typedef struct {
   spn_toolchain_ref_t toolchain;
   spn_triple_t target;
-  spn_abi_list_t abis;
+  spn_toolchain_candidates_t candidates;
   spn_sanitizer_set_t sanitizers;
-  spn_linkage_t linkage;
-  spn_runtime_t runtime;
 } spn_toolchain_query_t;
 
 typedef struct {
   spn_toolchain_info_t* toolchain;
   spn_toolchain_row_t row;
-  spn_linkage_t linkage;
-  spn_runtime_t runtime;
+  spn_linking_t linking;
 } spn_toolchain_selection_t;
 
 typedef struct spn_toolchain_store spn_toolchain_store_t;

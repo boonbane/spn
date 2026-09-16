@@ -42,15 +42,14 @@ typedef struct {
   spn_arch_t arch;
   spn_os_t os;
   spn_abi_t abi;
-  spn_linkage_t linkage;
-  spn_runtime_t runtime;
+  spn_linking_t linking;
   spn_c_standard_t standard;
   spn_mode_t mode;
   spn_opt_level_t opt;
   spn_sanitizer_set_t sanitizers;
   const c8* sdk;
   const c8* bin;
-  const c8* libc;
+  const c8* libc_file;
 } test_profile_t;
 
 spn_path_t         test_arg_path(const c8* value);

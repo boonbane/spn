@@ -114,6 +114,7 @@ typedef enum {
 typedef enum {
   SPN_LINKAGE_REQUESTER_PROFILE,
   SPN_LINKAGE_REQUESTER_ROOT_MANIFEST,
+  SPN_LINKAGE_REQUESTER_LIBC,
 } spn_linkage_requester_t;
 
 typedef enum {
@@ -156,6 +157,22 @@ typedef enum {
   SPN_RUNTIME_STATIC,
   SPN_RUNTIME_SHARED,
 } spn_runtime_t;
+
+typedef struct {
+  spn_linkage_t linkage;
+  spn_runtime_t runtime;
+  spn_runtime_t libc;
+} spn_linking_t;
+
+typedef enum {
+  SPN_LINKING_REFUSAL_NONE,
+  SPN_LINKING_REFUSAL_NO_LOADER,
+  SPN_LINKING_REFUSAL_OS_LIBC,
+  SPN_LINKING_REFUSAL_OS_RUNTIME,
+  SPN_LINKING_REFUSAL_SHARED_RUNTIME,
+  SPN_LINKING_REFUSAL_HYBRID_CRT,
+  SPN_LINKING_REFUSAL_SHARED_DEPS,
+} spn_linking_refusal_t;
 
 typedef enum {
   SPN_TARGET_KIND_LIB,

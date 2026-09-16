@@ -231,7 +231,7 @@ static fz_result_t fz_execute(sp_mem_t mem, fz_universe_t* u, sp_intern_t* inter
   }
 
   spn_resolver_t resolver = sp_zero;
-  spn_resolver_init(&resolver, mem, intern, &cache, &registry, (spn_profile_info_t) { .linkage = u->profile.linkage }, config, u->profile.budget);
+  spn_resolver_init(&resolver, mem, intern, &cache, &registry, (spn_profile_info_t) { .linking.linkage = u->profile.linkage }, config, u->profile.budget);
 
   fz_result_t result = sp_zero_s(fz_result_t);
   result.intern = intern;

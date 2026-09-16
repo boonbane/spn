@@ -324,19 +324,39 @@ static cell_t cells [] = {
     .args = { "build", "--abi", "msvc" },
   },
   {
-    .name = "err_profile_linkage",
-    .project = "test/render/fixtures/errors/shared",
-    .args = { "build", "--target", "wasm32-wasi-musl" },
+    .name = "err_profile_linking_no_loader",
+    .project = "test/render/fixtures/errors/linking",
+    .args = { "build", "-p", "no_loader", "--target", "wasm32-wasi-musl" },
   },
   {
-    .name = "err_profile_runtime_static",
-    .project = "test/render/fixtures/errors/static_runtime",
-    .args = { "build", "--target", "aarch64-macos-apple" },
+    .name = "err_profile_linking_os_libc",
+    .project = "test/render/fixtures/errors/linking",
+    .args = { "build", "-p", "os_libc", "--target", "x86_64-windows-gnu" },
   },
   {
-    .name = "err_profile_runtime_shared",
-    .project = "test/render/fixtures/errors/shared_runtime",
-    .args = { "build", "--target", "wasm32-wasi-musl" },
+    .name = "err_profile_linking_os_runtime",
+    .project = "test/render/fixtures/errors/linking",
+    .args = { "build", "-p", "os_runtime", "--target", "aarch64-macos-apple" },
+  },
+  {
+    .name = "err_profile_linking_shared_runtime",
+    .project = "test/render/fixtures/errors/linking",
+    .args = { "build", "-p", "shared_runtime", "--target", "x86_64-linux-musl" },
+  },
+  {
+    .name = "err_profile_linking_hybrid_crt",
+    .project = "test/render/fixtures/errors/linking",
+    .args = { "build", "-p", "hybrid_crt", "--target", "x86_64-windows-msvc" },
+  },
+  {
+    .name = "err_profile_linking_shared_deps",
+    .project = "test/render/fixtures/errors/linking",
+    .args = { "build", "-p", "shared_deps", "--target", "x86_64-linux-musl" },
+  },
+  {
+    .name = "err_profile_linking_every_abi",
+    .project = "test/render/fixtures/errors/linking",
+    .args = { "build", "-p", "shared_runtime" },
   },
   {
     .name = "err_issue_unrooted_relative",

@@ -114,6 +114,8 @@ spn_session_t* build_session(sp_mem_t mem, unit_graph_test_t* g) {
     .os = g->os ? g->os : SPN_OS_LINUX,
     .arch = SPN_ARCH_X64,
     .abi = g->abi ? g->abi : (g->os == SPN_OS_MACOS ? SPN_ABI_NONE : SPN_ABI_GNU),
+    .linking.runtime = g->runtime,
+    .linking.libc = g->libc,
   };
   profile.linker = spn_ld_native(profile.driver, (spn_triple_t) { profile.arch, profile.os, profile.abi });
   if (g->sdk) {

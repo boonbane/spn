@@ -56,7 +56,7 @@ static sp_str_t crt_switch(spn_runtime_t runtime) {
 }
 
 void spn_msvc_render_flags(sp_mem_t mem, const spn_profile_info_t* profile, spn_cc_flags_t* flags) {
-  sp_da_push(flags->compile, crt_switch(profile->runtime));
+  sp_da_push(flags->compile, crt_switch(profile->linking.runtime));
   if (profile->mode == SPN_MODE_DEBUG) {
     // /Z7 embeds debug info in the object; /Zi would funnel every parallel
     // cl in a package's work directory into one vc140.pdb (C1041)

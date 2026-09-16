@@ -11,7 +11,7 @@
 spn_when_facts_t      spn_profile_facts(const spn_profile_info_t* profile);
 spn_profile_info_t    spn_profile_metaprogram(void);
 spn_err_t             spn_profile_resolve(const spn_profile_override_t* override, spn_triple_t host, const spn_pkg_info_t* pkg, spn_profile_info_t* result);
-spn_toolchain_query_t spn_profile_query(const spn_profile_info_t* profile, spn_triple_t host);
+spn_err_t             spn_profile_query(const spn_profile_info_t* profile, spn_triple_t host, spn_toolchain_query_t* query);
 void                  spn_profile_finalize(spn_profile_info_t* profile, const spn_toolchain_selection_t* selection);
 sp_str_t              spn_profile_build_dir(sp_mem_t mem, const spn_profile_info_t* profile);
 

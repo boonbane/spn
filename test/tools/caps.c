@@ -207,6 +207,7 @@ static const c8* select_reason(spn_err_t err) {
     case SPN_ERR_TARGET_ABI: return "needs an abi";
     case SPN_ERR_SANITIZER_UNSUPPORTED: return "doesn't ship those sanitizers";
     case SPN_ERR_SANITIZER_STATIC: return "links it statically";
+    case SPN_ERR_PROFILE_LINKING: return "can't link it";
     default: return "can't select it";
   }
 }
@@ -307,8 +308,11 @@ static spn_err_t lane_selects(sp_mem_t mem, const test_when_t* when, spn_triple_
     .abi = when->target ? target.abi : SPN_ABI_NONE,
     .sanitizers = when->sanitize,
   };
-  spn_toolchain_query_t query = spn_profile_query(profile, spn_triple_host());
-  spn_err_t err = query.abis.count ? spn_toolchain_select(&catalog, query, selection) : spn_toolchain_incomplete(&catalog, query);
+  spn_toolchain_query_t query = sp_zero;
+  spn_err_t err = spn_profile_query(profile, spn_triple_host(), &query);
+  if (!err) {
+    err = spn_toolchain_select(&catalog, query, selection);
+  }
   spn_event_buffer_drain(mem, spn.events);
   if (!err) {
     spn_profile_finalize(profile, selection);

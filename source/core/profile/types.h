@@ -13,8 +13,9 @@ struct spn_profile_info {
   spn_os_t os;
   spn_arch_t arch;
   spn_abi_t abi;
-  spn_linkage_t linkage;
-  spn_runtime_t runtime;
+  spn_linking_t request;
+  spn_linkage_t demand;
+  spn_linking_t linking;
   spn_c_standard_t standard;
   spn_mode_t mode;
   spn_opt_level_t opt;
@@ -23,7 +24,7 @@ struct spn_profile_info {
   spn_when_t options;
   bool targeted;
   spn_sdk_t sdk;
-  spn_path_t libc;
+  spn_path_t libc_file;
 };
 
 typedef struct {
@@ -34,6 +35,7 @@ typedef struct {
   spn_gated_list_t abi;
   spn_gated_list_t linkage;
   spn_gated_list_t runtime;
+  spn_gated_list_t libc;
   spn_gated_list_t standard;
   spn_gated_list_t mode;
   spn_gated_list_t opt;
