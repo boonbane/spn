@@ -1,0 +1,10 @@
+[package]
+name = "publish_replay"
+version = "0.1.0"
+
+[deps.package]
+kit = { path = "packages/kit" }
+
+[[bin]]
+name = "main"
+source = ["main.c"]

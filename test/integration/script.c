@@ -62,6 +62,35 @@ sp_test(script, tree_output_cached) {
   });
 }
 
+sp_test(script, publish_replay) {
+  return run_rebuild_test(t, (rebuild_test_t) {
+    .project = "test/integration/fixtures/script/publish_replay",
+    .copy = { "packages/*" },
+    .first = {
+      .args = { "build" },
+      .expect = {
+        .events = { { .event = SPN_EVENT_SCRIPT_USER_FN } },
+        .exists = { pkg_store_file("kit", "include/kit.h"), exe("main") },
+      },
+    },
+    .rebuilds = {
+      {
+        .change.remove_dirs = { sp_str_lit("build") },
+        .command = {
+          .args = { "build" },
+          .expect = {
+            .events = {
+              { .event = SPN_EVENT_SCRIPT_USER_FN, .absent = true },
+              { .event = SPN_EVENT_TARGET_BUILD_PASSED, .absent = true },
+            },
+            .exists = { pkg_store_file("kit", "include/kit.h"), exe("main") },
+          },
+        },
+      },
+    },
+  });
+}
+
 sp_test(script, tree_output_rerun_drops_file) {
   return run_rebuild_test(t, (rebuild_test_t) {
     .project = "test/integration/fixtures/script/tree_output_drop",
@@ -373,6 +402,28 @@ sp_test(script, build_deps) {
       { .kind = ACTION_VERIFY_DIR_COUNT, .verify_dir_count = { .dir = ".home/storage/cache/store/core/spum", .count = 1 } },
       { .kind = ACTION_VERIFY_EVENT_COUNT, .verify_event_count = { .event = SPN_EVENT_USER_LOG, .key = "message", .value = "spum configure", .count = 0 } },
       { .kind = ACTION_RUN_BIN, .bin.name = "build_deps" },
+    },
+  });
+}
+
+sp_test(script, build_deps_replay) {
+  return run_rebuild_test(t, (rebuild_test_t) {
+    .project = "test/integration/fixtures/script/build_deps",
+    .first = {
+      .args = { "build" },
+      .expect.exists = { exe("build_deps") },
+    },
+    .rebuilds = {
+      {
+        .change.remove_dirs = { sp_str_lit("build") },
+        .command = {
+          .args = { "build" },
+          .expect = {
+            .events = { { .event = SPN_EVENT_TARGET_BUILD_PASSED, .absent = true } },
+            .exists = { exe("build_deps") },
+          },
+        },
+      },
     },
   });
 }
