@@ -5,7 +5,7 @@ sp_test(script, basic_node) {
     .project = "test/integration/fixtures/script/basic_node",
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_VERIFY_INCLUDE, .verify_include.file = sp_str_lit("version.h") },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = pkg_store_file("basic_node", "include/version.h") },
       { .kind = ACTION_RUN_BIN, .bin.name = "basic_node" },
     },
   });
@@ -19,14 +19,14 @@ sp_test(script, package_discovery) {
     .copy = { "data.txt" },
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_VERIFY_FILE_CONTAINS, .verify_file_contains = { .file = store_file("misc/data"), .needle = sp_str_lit("A") } },
-      { .kind = ACTION_VERIFY_FILE_CONTAINS, .verify_file_contains = { .file = store_file("misc/witness"), .needle = sp_str_lit("R") } },
+      { .kind = ACTION_VERIFY_FILE_CONTAINS, .verify_file_contains = { .file = pkg_store_file("package_discovery", "misc/data"), .needle = sp_str_lit("A") } },
+      { .kind = ACTION_VERIFY_FILE_CONTAINS, .verify_file_contains = { .file = pkg_store_file("package_discovery", "misc/witness"), .needle = sp_str_lit("R") } },
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_VERIFY_FILE_NOT_CONTAINS, .verify_file_not_contains = { .file = store_file("misc/witness"), .needle = sp_str_lit("RR") } },
+      { .kind = ACTION_VERIFY_FILE_NOT_CONTAINS, .verify_file_not_contains = { .file = pkg_store_file("package_discovery", "misc/witness"), .needle = sp_str_lit("RR") } },
       { .kind = ACTION_CREATE_FILE, .create = { .file = sp_str_lit("data.txt"), .content = sp_str_lit("B") } },
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_VERIFY_FILE_CONTAINS, .verify_file_contains = { .file = store_file("misc/data"), .needle = sp_str_lit("B") } },
-      { .kind = ACTION_VERIFY_FILE_CONTAINS, .verify_file_contains = { .file = store_file("misc/witness"), .needle = sp_str_lit("RR") } },
+      { .kind = ACTION_VERIFY_FILE_CONTAINS, .verify_file_contains = { .file = pkg_store_file("package_discovery", "misc/data"), .needle = sp_str_lit("B") } },
+      { .kind = ACTION_VERIFY_FILE_CONTAINS, .verify_file_contains = { .file = pkg_store_file("package_discovery", "misc/witness"), .needle = sp_str_lit("RR") } },
     },
   });
 }
@@ -113,7 +113,7 @@ sp_test(script, node_output_bin) {
     .project = "test/integration/fixtures/script/node_output_bin",
     .args = { "build" },
     .expect = {
-      .exists = { store_file("bin/R") },
+      .exists = { pkg_store_file("B", "bin/R") },
     },
   });
 }
@@ -124,7 +124,7 @@ sp_test(script, copy_dir) {
     .copy = { "data" },
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_VERIFY_EXISTS, .exists = store_file("misc/D/X.txt") },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = pkg_store_file("copy_dir", "misc/D/X.txt") },
     },
   });
 }
@@ -135,18 +135,18 @@ sp_test(script, abi_discovery) {
     .copy = { "data" },
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_VERIFY_FILE_CONTAINS, .verify_file_contains = { .file = store_file("misc/data/D.txt"), .needle = sp_str_lit("A") } },
-      { .kind = ACTION_VERIFY_FILE_CONTAINS, .verify_file_contains = { .file = store_file("misc/witness"), .needle = sp_str_lit("R") } },
+      { .kind = ACTION_VERIFY_FILE_CONTAINS, .verify_file_contains = { .file = pkg_store_file("abi_discovery", "misc/data/D.txt"), .needle = sp_str_lit("A") } },
+      { .kind = ACTION_VERIFY_FILE_CONTAINS, .verify_file_contains = { .file = pkg_store_file("abi_discovery", "misc/witness"), .needle = sp_str_lit("R") } },
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_VERIFY_FILE_NOT_CONTAINS, .verify_file_not_contains = { .file = store_file("misc/witness"), .needle = sp_str_lit("RR") } },
+      { .kind = ACTION_VERIFY_FILE_NOT_CONTAINS, .verify_file_not_contains = { .file = pkg_store_file("abi_discovery", "misc/witness"), .needle = sp_str_lit("RR") } },
       { .kind = ACTION_CREATE_FILE, .create = { .file = sp_str_lit("data/D.txt"), .content = sp_str_lit("B") } },
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_VERIFY_FILE_CONTAINS, .verify_file_contains = { .file = store_file("misc/data/D.txt"), .needle = sp_str_lit("B") } },
-      { .kind = ACTION_VERIFY_FILE_CONTAINS, .verify_file_contains = { .file = store_file("misc/witness"), .needle = sp_str_lit("RR") } },
+      { .kind = ACTION_VERIFY_FILE_CONTAINS, .verify_file_contains = { .file = pkg_store_file("abi_discovery", "misc/data/D.txt"), .needle = sp_str_lit("B") } },
+      { .kind = ACTION_VERIFY_FILE_CONTAINS, .verify_file_contains = { .file = pkg_store_file("abi_discovery", "misc/witness"), .needle = sp_str_lit("RR") } },
       { .kind = ACTION_CREATE_FILE, .create = { .file = sp_str_lit("data/E.txt"), .content = sp_str_lit("C") } },
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_VERIFY_FILE_CONTAINS, .verify_file_contains = { .file = store_file("misc/data/E.txt"), .needle = sp_str_lit("C") } },
-      { .kind = ACTION_VERIFY_FILE_CONTAINS, .verify_file_contains = { .file = store_file("misc/witness"), .needle = sp_str_lit("RRR") } },
+      { .kind = ACTION_VERIFY_FILE_CONTAINS, .verify_file_contains = { .file = pkg_store_file("abi_discovery", "misc/data/E.txt"), .needle = sp_str_lit("C") } },
+      { .kind = ACTION_VERIFY_FILE_CONTAINS, .verify_file_contains = { .file = pkg_store_file("abi_discovery", "misc/witness"), .needle = sp_str_lit("RRR") } },
     },
   });
 }
@@ -209,11 +209,11 @@ sp_test(script, object_lib) {
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
       // object libs publish their objects to lib/, preserving source-relative paths
-      { .kind = ACTION_VERIFY_EXISTS, .exists = store_file("lib/manifest/rt/extra.c.o") },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = pkg_store_file("spum", "lib/manifest/rt/extra.c.o") },
       // ditto for an object lib declared from the build script instead of the manifest
-      { .kind = ACTION_VERIFY_EXISTS, .exists = store_file("lib/manifest/rt/extra2.c.o") },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = pkg_store_file("spum", "lib/manifest/rt/extra2.c.o") },
       // an unlinked archive still builds and installs
-      { .kind = ACTION_VERIFY_EXISTS, .exists = static_lib("blob") },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = pkg_static_lib("spum", "blob") },
       { .kind = ACTION_RUN_BIN, .bin.name = "object_lib" },
     },
   });
@@ -337,7 +337,7 @@ sp_test(script, build_script) {
         .exists = {
           sp_str_lit("build/wasm32-wasi-musl/.spn/build_script/object/build/build/manifest/tools/a/main.c.o"),
           sp_str_lit("build/wasm32-wasi-musl/.spn/build_script/object/build/build/manifest/tools/b/main.c.o"),
-          store_file("include/version.h"),
+          pkg_store_file("build_script", "include/version.h"),
         },
       },
     },
@@ -358,7 +358,7 @@ sp_test(script, default_script) {
     .project = "test/integration/fixtures/script/default_script",
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_VERIFY_INCLUDE, .verify_include.file = sp_str_lit("version.h") },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = pkg_store_file("default_script", "include/version.h") },
       { .kind = ACTION_RUN_BIN, .bin.name = "default_script" },
     },
   });
@@ -372,7 +372,6 @@ sp_test(script, build_deps) {
       { .kind = ACTION_VERIFY_PKG_LOCKED, .verify_locked.name = "core/spum" },
       { .kind = ACTION_VERIFY_DIR_COUNT, .verify_dir_count = { .dir = ".home/storage/cache/store/core/spum", .count = 1 } },
       { .kind = ACTION_VERIFY_EVENT_COUNT, .verify_event_count = { .event = SPN_EVENT_USER_LOG, .key = "message", .value = "spum configure", .count = 0 } },
-      { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = sp_str_lit("build/debug/store/include/spum.h") },
       { .kind = ACTION_RUN_BIN, .bin.name = "build_deps" },
     },
   });
@@ -421,7 +420,6 @@ sp_test(script, build_dep_static) {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
       { .kind = ACTION_VERIFY_PKG_LOCKED, .verify_locked.name = "core/spum" },
       { .kind = ACTION_VERIFY_DIR_COUNT, .verify_dir_count = { .dir = ".home/storage/cache/store/core/spum", .count = 1 } },
-      { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = sp_str_lit("build/debug/store/include/spum.h") },
     },
   });
 }

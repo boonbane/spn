@@ -6,7 +6,7 @@ sp_test(upstream, root_lib) {
     .copy = { "example", "cfg.h" },
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_VERIFY_EXISTS, .exists = static_lib("A") },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = pkg_static_lib("A", "A") },
     },
   });
 }
@@ -50,8 +50,8 @@ sp_test(upstream, recipe_tree_headers) {
     .copy = { "example", "cfg.h" },
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_VERIFY_INCLUDE, .verify_include.file = sp_str_lit("a.h") },
-      { .kind = ACTION_VERIFY_INCLUDE, .verify_include.file = sp_str_lit("cfg.h") },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = pkg_store_file("A", "include/a.h") },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = pkg_store_file("A", "include/cfg.h") },
     },
   });
 }

@@ -7,7 +7,7 @@ sp_test(layout, staged_bin) {
     .args = { "build" },
     .expect = {
       .bin.name = "main",
-      .exists = { exe("main"), staged_lib("spum"), store_file("bin/main") },
+      .exists = { exe("main"), staged_lib("spum") },
     },
   });
 }
@@ -93,7 +93,7 @@ sp_test(layout, target_triple) {
     .copy = { "check.c", "packages/*" },
     .args = { "build", "--target", triple },
     .expect = {
-      .exists = { target_exe("main", triple), target_store_file("bin/main", triple) },
+      .exists = { target_exe("main", triple) },
       .missing = { sp_str_lit("build/debug") },
     },
   });

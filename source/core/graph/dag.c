@@ -904,63 +904,6 @@ static spn_err_t prepare_graph(spn_dag_build_t* b) {
 /////////
 // RUN //
 /////////
-typedef sp_ht(spn_path_t, u8) dag_staged_t;
-
-static void dag_stage_link(spn_dag_build_t* b, dag_staged_t* staged, spn_path_t from, spn_path_t to) {
-  if (spn_path_empty(to) || sp_ht_getp(*staged, to)) {
-    return;
-  }
-  sp_ht_insert(*staged, spn_path_copy(b->mem, to), (u8)true);
-
-  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  sp_str_t source = spn_path_str(b->graph->roots, scratch.mem, from);
-  sp_str_t target = spn_path_str(b->graph->roots, scratch.mem, to);
-
-  sp_fs_create_dir(sp_fs_parent_path(target));
-  sp_fs_remove_file(target);
-  if (sp_fs_link(source, target, SP_FS_LINK_HARD)) {
-    sp_fs_copy_file(source, target, SP_FS_ATOMIC_REPLACE);
-  }
-  sp_mem_end_scratch(scratch);
-
-  spn_dag_file_cache_invalidate(&b->files, to);
-}
-
-static void dag_stage_dir(spn_dag_build_t* b, dag_staged_t* staged, spn_path_t from, spn_path_t to) {
-  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  sp_da(sp_fs_entry_t) entries = sp_zero;
-  sp_fs_collect(scratch.mem, spn_path_str(b->graph->roots, scratch.mem, from), &entries);
-  sp_da_for(entries, it) {
-    sp_str_t name = entries[it].name;
-    spn_path_t source = spn_path_join(scratch.mem, from, name);
-    spn_path_t target = spn_path_join(scratch.mem, to, name);
-    if (entries[it].kind == SP_FS_KIND_DIR) {
-      dag_stage_dir(b, staged, source, target);
-    }
-    else {
-      dag_stage_link(b, staged, source, target);
-    }
-  }
-  sp_mem_end_scratch(scratch);
-}
-
-static void dag_stage_pkg_store(spn_dag_build_t* b, dag_staged_t* staged, spn_pkg_unit_t* unit, spn_path_t root) {
-  if (!unit) {
-    return;
-  }
-  switch (unit->source) {
-    case SPN_PKG_SOURCE_ROOT:
-    case SPN_PKG_SOURCE_FILE: {
-      break;
-    }
-    case SPN_PKG_SOURCE_INDEX: {
-      return;
-    }
-  }
-
-  dag_stage_dir(b, staged, unit->paths.store, root);
-}
-
 static void dag_stage(spn_dag_build_t* b) {
   spn_session_t* session = b->session;
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
@@ -989,18 +932,6 @@ static void dag_stage(spn_dag_build_t* b) {
       sp_fs_create_dir(sp_fs_parent_path(target));
       sp_fs_copy_file(source, target, SP_FS_ATOMIC_REPLACE);
       spn_dag_file_cache_invalidate(&b->files, entry->path);
-    }
-  }
-
-  dag_staged_t staged = SP_NULLPTR;
-  sp_ht_init(b->mem, staged);
-  sp_ht_set_fns(staged, spn_path_on_hash, spn_path_on_compare);
-  sp_da_for(session->plans, it) {
-    spn_build_unit_t* build = session->plans[it].build;
-    spn_path_t root = spn_path_join(scratch.mem, build->paths.root, sp_str_lit("store"));
-    dag_stage_pkg_store(b, &staged, spn_session_find_pkg_unit(session, build, spn_session_root_pkg(session)), root);
-    sp_da_for(build->packages, jt) {
-      dag_stage_pkg_store(b, &staged, build->packages[jt], root);
     }
   }
 

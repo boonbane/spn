@@ -155,7 +155,7 @@ sp_test(deps_index, binary_static) {
       { .kind = ACTION_RUN_CLI, .cli = { "build" } },
       { .kind = ACTION_VERIFY_LOCKED },
       { .kind = ACTION_VERIFY_PKG_LOCKED, .verify_locked = { .name = "core/spum" } },
-      { .kind = ACTION_VERIFY_EXISTS, .exists = store_file("bin/main") },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
     },
   });
 }
@@ -167,7 +167,7 @@ sp_test(deps_index, binary_shared) {
       { .kind = ACTION_RUN_CLI, .cli = { "build" } },
       { .kind = ACTION_VERIFY_LOCKED },
       { .kind = ACTION_VERIFY_PKG_LOCKED, .verify_locked = { .name = "core/spum" } },
-      { .kind = ACTION_VERIFY_EXISTS, .exists = store_file("bin/main") },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
     },
   });
 }

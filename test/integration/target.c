@@ -6,7 +6,7 @@ sp_test(target, static_lib) {
     .copy = { "mylib.c" },
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_VERIFY_EXISTS, .exists = static_lib("mylib") },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = pkg_static_lib("static_lib", "mylib") },
     },
   });
 }
@@ -17,7 +17,7 @@ sp_test(target, shared_lib) {
     .copy = { "spum.c" },
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_VERIFY_EXISTS, .exists = shared_lib("spum") },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = pkg_shared_lib("test", "spum") },
     },
   });
 }
@@ -48,8 +48,8 @@ sp_test(target, multiple_roots) {
     .project = "test/integration/fixtures/target/shared_source",
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { "build", .args = { "main", "test" } } },
-      { .kind = ACTION_VERIFY_EXISTS, .exists = static_lib("spum") },
-      { .kind = ACTION_VERIFY_EXISTS, .exists = store_file("bin/main") },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = pkg_static_lib("test", "spum") },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
       { .kind = ACTION_VERIFY_EXISTS, .exists = test_exe("test") },
     },
   });
@@ -60,8 +60,8 @@ sp_test(target, same_name) {
     .project = "test/integration/fixtures/target/same_name",
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_VERIFY_EXISTS, .exists = static_lib("A") },
-      { .kind = ACTION_VERIFY_EXISTS, .exists = store_file("bin/A") },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = pkg_static_lib("test", "A") },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = exe("A") },
       { .kind = ACTION_VERIFY_EXISTS, .exists = test_exe("T") },
     },
   });
@@ -73,11 +73,11 @@ sp_test(target, selection_default) {
     .copy = { "spum.c", "script.c", "x.c" },
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_VERIFY_EXISTS, .exists = static_lib("spum") },
-      { .kind = ACTION_VERIFY_EXISTS, .exists = store_file("bin/main") },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = pkg_static_lib("test", "spum") },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
       { .kind = ACTION_VERIFY_EXISTS, .exists = test_exe("test") },
       { .kind = ACTION_VERIFY_EXISTS, .exists = example_exe("x") },
-      { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = store_file("bin/script") },
+      { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = pkg_store_file("test", "bin/script") },
     },
   });
 }
@@ -89,9 +89,9 @@ sp_test(target, selection_example) {
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { "build", .args = { "--example" } } },
       { .kind = ACTION_VERIFY_EXISTS, .exists = example_exe("x") },
-      { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = store_file("bin/main") },
+      { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = pkg_store_file("test", "bin/main") },
       { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = test_exe("test") },
-      { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = store_file("bin/script") },
+      { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = pkg_store_file("test", "bin/script") },
     },
   });
 }
@@ -102,8 +102,8 @@ sp_test(target, selection_named_library) {
     .copy = { "one.c", "two.c" },
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { "build", .args = { "one" } } },
-      { .kind = ACTION_VERIFY_EXISTS, .exists = static_lib("one") },
-      { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = static_lib("two") },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = pkg_static_lib("selection_libs", "one") },
+      { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = pkg_static_lib("selection_libs", "two") },
     },
   });
 }
@@ -115,9 +115,9 @@ sp_test(target, selection_multiple_kinds) {
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { "build", .args = { "--bin", "--test" } } },
       { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
-      { .kind = ACTION_VERIFY_EXISTS, .exists = static_lib("spum") },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = pkg_static_lib("test", "spum") },
       { .kind = ACTION_VERIFY_EXISTS, .exists = test_exe("test") },
-      { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = store_file("bin/script") },
+      { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = pkg_store_file("test", "bin/script") },
       { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = example_exe("x") },
     },
   });
@@ -130,7 +130,7 @@ sp_test(target, selection_name_respects_kind) {
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { "build", .args = { "--lib", "main" }, .rc = 1 } },
       { .kind = ACTION_VERIFY_RESULT, .verify_result = { .err = SPN_ERR_TARGET_SELECTION } },
-      { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = store_file("bin/main") },
+      { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = pkg_store_file("test", "bin/main") },
     },
   });
 }
@@ -142,9 +142,9 @@ sp_test(target, selection_test_command) {
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { "test", .args = { "test" } } },
       { .kind = ACTION_VERIFY_EXISTS, .exists = test_exe("test") },
-      { .kind = ACTION_VERIFY_EXISTS, .exists = static_lib("spum") },
-      { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = store_file("bin/main") },
-      { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = store_file("bin/script") },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = pkg_static_lib("test", "spum") },
+      { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = pkg_store_file("test", "bin/main") },
+      { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = pkg_store_file("test", "bin/script") },
     },
   });
 }
@@ -155,8 +155,8 @@ sp_test(target, selection_named_script) {
     .copy = { "spum.c", "script.c" },
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { "build", .args = { "script" } } },
-      { .kind = ACTION_VERIFY_EXISTS, .exists = store_file("bin/script") },
-      { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = store_file("bin/main") },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = exe("script") },
+      { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = pkg_store_file("test", "bin/main") },
       { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = test_exe("test") },
     },
   });
@@ -193,7 +193,7 @@ sp_test(target, example) {
     .copy = { "a.c", "a.h", "example" },
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_VERIFY_EXISTS, .exists = static_lib("A") },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = pkg_static_lib("A", "A") },
       { .kind = ACTION_VERIFY_EXISTS, .exists = example_exe("E") },
     },
   });
@@ -216,13 +216,13 @@ sp_test(target, publish) {
     .copy = { "packages/*" },
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_VERIFY_INCLUDE, .verify_include.file = sp_str_lit("kit.h") },
-      { .kind = ACTION_VERIFY_INCLUDE, .verify_include.file = sp_str_lit("kit/a.h") },
-      { .kind = ACTION_VERIFY_INCLUDE, .verify_include.file = sp_str_lit("kit/b.h") },
-      { .kind = ACTION_VERIFY_INCLUDE, .verify_include.file = sp_str_lit("kit/deep/x/y.h") },
-      { .kind = ACTION_VERIFY_INCLUDE, .verify_include.file = sp_str_lit("lit/kit.h") },
-      { .kind = ACTION_VERIFY_INCLUDE, .verify_include.file = sp_str_lit("kit/on.h") },
-      { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = store_file("include/kit/off.h") },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = pkg_store_file("kit", "include/kit.h") },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = pkg_store_file("kit", "include/kit/a.h") },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = pkg_store_file("kit", "include/kit/b.h") },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = pkg_store_file("kit", "include/kit/deep/x/y.h") },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = pkg_store_file("kit", "include/lit/kit.h") },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = pkg_store_file("kit", "include/kit/on.h") },
+      { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = pkg_store_file("kit", "include/kit/off.h") },
       { .kind = ACTION_VERIFY_EXISTS, .exists = exe("publish") },
     },
   });

@@ -130,7 +130,7 @@ sp_test(freshness, dep_source_change) {
     .copy = { "packages/*" },
     .first = {
       .args = { "build", "-p", "debug" },
-      .expect.exists = { static_lib("spum"), store_file("bin/main") },
+      .expect.exists = { pkg_static_lib("spum", "spum"), pkg_store_file("test", "bin/main") },
     },
     .rebuilds = {
       {
@@ -150,8 +150,8 @@ sp_test(freshness, dep_source_change) {
       },
     },
     .watches = {
-      { .file = static_lib("spum"), .mtime = REBUILD_MTIME_CHANGED },
-      { .file = store_file("bin/main"), .mtime = REBUILD_MTIME_CHANGED },
+      { .file = pkg_static_lib("spum", "spum"), .mtime = REBUILD_MTIME_CHANGED },
+      { .file = pkg_store_file("test", "bin/main"), .mtime = REBUILD_MTIME_CHANGED },
     },
   });
 }
@@ -163,7 +163,7 @@ sp_test(freshness, dep_header_inert) {
     .when.deterministic = true,
     .first = {
       .args = { "build", "-p", "debug" },
-      .expect.exists = { store_file("bin/main") },
+      .expect.exists = { pkg_store_file("test", "bin/main") },
     },
     .rebuilds = {
       {
@@ -177,7 +177,7 @@ sp_test(freshness, dep_header_inert) {
       },
     },
     .watches = {
-      { .file = store_file("bin/main"), .mtime = REBUILD_MTIME_UNCHANGED },
+      { .file = pkg_store_file("test", "bin/main"), .mtime = REBUILD_MTIME_UNCHANGED },
     },
   });
 }
@@ -188,7 +188,7 @@ sp_test(freshness, dep_header_change) {
     .copy = { "packages/*", "main.code.c" },
     .first = {
       .args = { "build", "-p", "debug" },
-      .expect.exists = { store_file("bin/main") },
+      .expect.exists = { pkg_store_file("test", "bin/main") },
     },
     .rebuilds = {
       {
@@ -212,7 +212,7 @@ sp_test(freshness, dep_header_change) {
       },
     },
     .watches = {
-      { .file = store_file("bin/main"), .mtime = REBUILD_MTIME_CHANGED },
+      { .file = pkg_store_file("test", "bin/main"), .mtime = REBUILD_MTIME_CHANGED },
     },
   });
 }

@@ -23,18 +23,22 @@ build/
     └── debug/
 ```
 
-Inside a given build, executables are placed at the top level for easy running. All other artifacts (headers, libraries, your dependencies' artifacts) are placed in `store/` in the usual way. Finally, a JSONL file with a detailed trace of the build is in `.spn/build.jsonl`
+Inside a given build, each executable is placed at the top level beside the shared libraries it needs, so it runs from there and the directory ships as-is. Tests and examples get the same treatment under `test/` and `example/`. Every package, including your dependencies, has its own prefix under `store/` holding the headers, libraries, and binaries it produced. Finally, a JSONL file with a detailed trace of the build is in `.spn/build.jsonl`
 
 ```
 build/debug/
+├── main.exe
+├── whatever.dll
 ├── store/
-│   ├── bin/
-│   │   ├── main.exe
-│   ├── lib/
-│   │   ├── libwhatever.a
-│   ├── include/
-│   │   ├── whatever.h
-│   │   └── ...
+│   ├── my-package/
+│   │   └── bin/
+│   │       └── main.exe
+│   └── whatever/
+│       ├── lib/
+│       │   └── whatever.dll
+│       └── include/
+│           ├── whatever.h
+│           └── ...
 └── .spn/
     └── build.jsonl
 ```

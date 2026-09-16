@@ -37,22 +37,21 @@ static const c8* shared_lib_file(const c8* name) {
   return sp_str_to_cstr(mem, spn_triple_lib_file_name(mem, test_host(), sp_str_view(name), SP_OS_LIB_SHARED));
 }
 
-sp_str_t shared_lib(const c8* name) {
+static const c8* static_lib_file(const c8* name) {
   sp_mem_t mem = harness_mem();
-  return store_file(sp_str_to_cstr(mem, sp_fs_join_path(mem, sp_str_lit("lib"), sp_str_view(shared_lib_file(name)))));
+  return sp_str_to_cstr(mem, spn_triple_lib_file_name(mem, test_host(), sp_cstr_as_str(name), SP_OS_LIB_STATIC));
 }
 
-sp_str_t profile_static_lib(const c8* profile, const c8* name) {
-  sp_mem_t mem = harness_mem();
-  return sp_fmt(mem,
-    "build/{}/store/lib/{}",
-    sp_fmt_cstr(profile),
-    sp_fmt_str(spn_triple_lib_file_name(mem, test_host(), sp_cstr_as_str(name), SP_OS_LIB_STATIC))
-  ).value;
+sp_str_t pkg_shared_lib(const c8* pkg, const c8* name) {
+  return pkg_store_file(pkg, sp_str_to_cstr(harness_mem(), layout_sub("lib", shared_lib_file(name))));
 }
 
-sp_str_t static_lib(const c8* name) {
-  return profile_static_lib("debug", name);
+sp_str_t pkg_profile_static_lib(const c8* profile, const c8* pkg, const c8* name) {
+  return pkg_profile_store_file(profile, pkg, sp_str_to_cstr(harness_mem(), layout_sub("lib", static_lib_file(name))));
+}
+
+sp_str_t pkg_static_lib(const c8* pkg, const c8* name) {
+  return pkg_profile_static_lib("debug", pkg, name);
 }
 
 sp_str_t staged_lib(const c8* name) {
@@ -76,19 +75,15 @@ static sp_str_t exe_file_name(const c8* name, const c8* triple) {
   return spn_triple_exe_file_name(harness_mem(), target, sp_str_view(name));
 }
 
-static sp_str_t profile_exe(const c8* profile, const c8* name) {
+sp_str_t profile_exe(const c8* profile, const c8* name) {
   return layout_path(SP_NULLPTR, profile, exe_file_name(name, SP_NULLPTR));
 }
 
-static const c8* store_rest(const c8* rest, const c8* triple) {
-  if (sp_str_starts_with(sp_str_view(rest), sp_str_lit("bin/"))) {
-    return sp_str_to_cstr(harness_mem(), exe_file_name(rest, triple));
+sp_str_t pkg_profile_store_file(const c8* profile, const c8* pkg, const c8* rest) {
+  if (sp_str_starts_with(sp_cstr_as_str(rest), sp_str_lit("bin/"))) {
+    rest = sp_str_to_cstr(harness_mem(), exe_file_name(rest, SP_NULLPTR));
   }
-  return rest;
-}
-
-sp_str_t profile_store_file(const c8* profile, const c8* rest) {
-  return layout_path(SP_NULLPTR, profile, layout_sub("store", store_rest(rest, SP_NULLPTR)));
+  return layout_path(SP_NULLPTR, profile, layout_sub("store", sp_str_to_cstr(harness_mem(), layout_sub(pkg, rest))));
 }
 
 sp_str_t exe(const c8* name) {
@@ -109,16 +104,12 @@ sp_str_t target_exe(const c8* name, const c8* triple) {
   return layout_path(triple, "debug", exe_file_name(name, triple));
 }
 
-sp_str_t store_file(const c8* rest) {
-  return profile_store_file("debug", rest);
+sp_str_t pkg_store_file(const c8* pkg, const c8* rest) {
+  return pkg_profile_store_file("debug", pkg, rest);
 }
 
 sp_str_t work_file(const c8* rest) {
   return layout_path(SP_NULLPTR, "debug", layout_sub(".spn", rest));
-}
-
-sp_str_t target_store_file(const c8* rest, const c8* triple) {
-  return layout_path(triple, "debug", layout_sub("store", store_rest(rest, triple)));
 }
 
 static sp_str_t display_path(fixture_t* fixture, sp_str_t path) {
@@ -840,14 +831,6 @@ sp_err_t run_actions(sp_test_t* t, fixture_t* fixture, const action_t* actions) 
         }
         sp_test_kv(t, "path", path);
         sp_expect_eq(t, action.verify_dir_count.count, dirs);
-        break;
-      }
-      case ACTION_VERIFY_INCLUDE: {
-        sp_str_t path = fixture_path(
-          fixture,
-          sp_fs_join_path(mem, store_file("include"), action.verify_include.file)
-        );
-        expect_path(t, fixture, path);
         break;
       }
       case ACTION_VERIFY_FILE_CONTAINS: {

@@ -18,12 +18,12 @@ sp_test(offline, store_only) {
     .project = "test/integration/fixtures/deps/index/binary_static",
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { "build" } },
-      { .kind = ACTION_VERIFY_EXISTS, .exists = store_file("bin/main") },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
       { .kind = ACTION_REMOVE_DIR, .rm = { .dir = "remote/spum" } },
       { .kind = ACTION_REMOVE_DIR, .rm = { .dir = "build" } },
       { .kind = ACTION_RUN_CLI, .cli = { "build" } },
       { .kind = ACTION_VERIFY_NO_EVENT, .verify_event = { .event = SPN_EVENT_SYNC_FAILED } },
-      { .kind = ACTION_VERIFY_EXISTS, .exists = store_file("bin/main") },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
     },
   });
 }
@@ -33,7 +33,7 @@ sp_test(offline, store_only_unlocked) {
     .project = "test/integration/fixtures/deps/index/binary_static",
     .first = {
       .args = { "build" },
-      .expect.exists = { store_file("bin/main") },
+      .expect.exists = { exe("main") },
     },
     .rebuilds = {
       {
@@ -45,7 +45,7 @@ sp_test(offline, store_only_unlocked) {
           .args = { "build" },
           .expect = {
             .events = { { .event = SPN_EVENT_SYNC_FAILED, .absent = true } },
-            .exists = { store_file("bin/main") },
+            .exists = { exe("main") },
             .packages = { "core/spum" },
           },
         },
@@ -65,7 +65,7 @@ sp_test(offline, no_source_cache) {
       { .kind = ACTION_REMOVE_DIR, .rm = { .dir = ".home/storage/cache/source" } },
       { .kind = ACTION_REMOVE_DIR, .rm = { .dir = "build" } },
       { .kind = ACTION_RUN_CLI, .cli = { "build" } },
-      { .kind = ACTION_VERIFY_EXISTS, .exists = store_file("bin/main") },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
     },
   });
 }
@@ -83,7 +83,7 @@ sp_test(offline, shared_store) {
 
   sp_try(run_actions(t, &fixture, (action_t[]) {
     { .kind = ACTION_RUN_CLI, .cli = { "build" } },
-    { .kind = ACTION_VERIFY_EXISTS, .exists = store_file("bin/main") },
+    { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
     { .kind = ACTION_REMOVE_DIR, .rm = { .dir = "remote/spum" } },
     { .kind = ACTION_NONE },
   }));
@@ -119,7 +119,7 @@ sp_test(offline, shared_store) {
   sp_test_kv(t, "output", output.out);
   sp_expect_eq(t, 0, output.status.exit_code);
 
-  sp_str_t second_bin = fixture_path(&fixture, sp_fs_join_path(mem, sp_str_lit("second"), store_file("bin/main")));
+  sp_str_t second_bin = fixture_path(&fixture, sp_fs_join_path(mem, sp_str_lit("second"), exe("main")));
   expect_exists(t, &fixture, second_bin, true, __FILE__, __LINE__);
 
   sp_expect_eq(t, entries, count_store_dirs(&fixture, ".home/storage/cache/store/core/spum"));

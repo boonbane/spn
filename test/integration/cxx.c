@@ -7,7 +7,7 @@ sp_test(cxx, static_lib) {
     .when.cxx = true,
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_VERIFY_EXISTS, .exists = static_lib("spum") },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = pkg_static_lib("spum", "spum") },
       { .kind = ACTION_RUN_BIN, .bin.name = "main" },
     },
   });
@@ -20,7 +20,7 @@ sp_test(cxx, shared_lib) {
     .copy = { "packages/*" },
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_VERIFY_EXISTS, .exists = shared_lib("spum") },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = pkg_shared_lib("spum", "spum") },
       { .kind = ACTION_RUN_BIN, .bin.name = "main" },
     },
   });
@@ -81,7 +81,7 @@ sp_test(cxx, static_into_shared) {
     .copy = { "packages/*" },
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_VERIFY_EXISTS, .exists = shared_lib("spum") },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = pkg_shared_lib("spum", "spum") },
       { .kind = ACTION_RUN_BIN, .bin.name = "main" },
     },
   });

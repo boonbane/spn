@@ -108,8 +108,8 @@ sp_test(cli, clean) {
   return run_test(t, (test_t) {
     .project = "test/integration/fixtures/cli/add",
     .actions = {
-      { .kind = ACTION_CREATE_FILE, .create = { .file = store_file("bin/main"), .content = sp_str_lit("x") } },
-      { .kind = ACTION_CREATE_FILE, .create = { .file = profile_store_file("release", "bin/main"), .content = sp_str_lit("x") } },
+      { .kind = ACTION_CREATE_FILE, .create = { .file = sp_str_lit("build/debug/marker"), .content = sp_str_lit("x") } },
+      { .kind = ACTION_CREATE_FILE, .create = { .file = sp_str_lit("build/release/marker"), .content = sp_str_lit("x") } },
       { .kind = ACTION_RUN_CLI, .cli = { .cmd = "clean", .args = { "-p", "debug" } } },
       { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = sp_str_lit("build/debug") },
       { .kind = ACTION_VERIFY_EXISTS, .exists = sp_str_lit("build/release") },
