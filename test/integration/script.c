@@ -5,28 +5,8 @@ sp_test(script, basic_node) {
     .project = "test/integration/fixtures/script/basic_node",
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_VERIFY_EXISTS, .exists = pkg_store_file("basic_node", "include/version.h") },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = work_file("basic_node/version.h") },
       { .kind = ACTION_RUN_BIN, .bin.name = "basic_node" },
-    },
-  });
-}
-
-sp_test(script, package_discovery) {
-  return sp_test_skip(t, "I disabled WASI hooks until I figure out how to cleanly patch WAMR");
-
-  return run_test(t, (test_t) {
-    .project = "test/integration/fixtures/script/package_discovery",
-    .copy = { "data.txt" },
-    .actions = {
-      { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_VERIFY_FILE_CONTAINS, .verify_file_contains = { .file = pkg_store_file("package_discovery", "misc/data"), .needle = sp_str_lit("A") } },
-      { .kind = ACTION_VERIFY_FILE_CONTAINS, .verify_file_contains = { .file = pkg_store_file("package_discovery", "misc/witness"), .needle = sp_str_lit("R") } },
-      { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_VERIFY_FILE_NOT_CONTAINS, .verify_file_not_contains = { .file = pkg_store_file("package_discovery", "misc/witness"), .needle = sp_str_lit("RR") } },
-      { .kind = ACTION_CREATE_FILE, .create = { .file = sp_str_lit("data.txt"), .content = sp_str_lit("B") } },
-      { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_VERIFY_FILE_CONTAINS, .verify_file_contains = { .file = pkg_store_file("package_discovery", "misc/data"), .needle = sp_str_lit("B") } },
-      { .kind = ACTION_VERIFY_FILE_CONTAINS, .verify_file_contains = { .file = pkg_store_file("package_discovery", "misc/witness"), .needle = sp_str_lit("RR") } },
     },
   });
 }
@@ -143,39 +123,6 @@ sp_test(script, node_output_bin) {
     .args = { "build" },
     .expect = {
       .exists = { pkg_store_file("B", "bin/R.txt") },
-    },
-  });
-}
-
-sp_test(script, copy_dir) {
-  return run_test(t, (test_t) {
-    .project = "test/integration/fixtures/script/copy_dir",
-    .copy = { "data" },
-    .actions = {
-      { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_VERIFY_EXISTS, .exists = pkg_store_file("copy_dir", "misc/D/X.txt") },
-    },
-  });
-}
-
-sp_test(script, abi_discovery) {
-  return run_test(t, (test_t) {
-    .project = "test/integration/fixtures/script/abi_discovery",
-    .copy = { "data" },
-    .actions = {
-      { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_VERIFY_FILE_CONTAINS, .verify_file_contains = { .file = pkg_store_file("abi_discovery", "misc/data/D.txt"), .needle = sp_str_lit("A") } },
-      { .kind = ACTION_VERIFY_FILE_CONTAINS, .verify_file_contains = { .file = pkg_store_file("abi_discovery", "misc/witness"), .needle = sp_str_lit("R") } },
-      { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_VERIFY_FILE_NOT_CONTAINS, .verify_file_not_contains = { .file = pkg_store_file("abi_discovery", "misc/witness"), .needle = sp_str_lit("RR") } },
-      { .kind = ACTION_CREATE_FILE, .create = { .file = sp_str_lit("data/D.txt"), .content = sp_str_lit("B") } },
-      { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_VERIFY_FILE_CONTAINS, .verify_file_contains = { .file = pkg_store_file("abi_discovery", "misc/data/D.txt"), .needle = sp_str_lit("B") } },
-      { .kind = ACTION_VERIFY_FILE_CONTAINS, .verify_file_contains = { .file = pkg_store_file("abi_discovery", "misc/witness"), .needle = sp_str_lit("RR") } },
-      { .kind = ACTION_CREATE_FILE, .create = { .file = sp_str_lit("data/E.txt"), .content = sp_str_lit("C") } },
-      { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_VERIFY_FILE_CONTAINS, .verify_file_contains = { .file = pkg_store_file("abi_discovery", "misc/data/E.txt"), .needle = sp_str_lit("C") } },
-      { .kind = ACTION_VERIFY_FILE_CONTAINS, .verify_file_contains = { .file = pkg_store_file("abi_discovery", "misc/witness"), .needle = sp_str_lit("RRR") } },
     },
   });
 }
@@ -366,7 +313,7 @@ sp_test(script, build_script) {
         .exists = {
           sp_str_lit("build/wasm32-wasi-musl/.spn/build_script/object/build/build/manifest/tools/a/main.c.o"),
           sp_str_lit("build/wasm32-wasi-musl/.spn/build_script/object/build/build/manifest/tools/b/main.c.o"),
-          pkg_store_file("build_script", "include/version.h"),
+          work_file("build_script/version.h"),
         },
       },
     },
@@ -387,7 +334,7 @@ sp_test(script, default_script) {
     .project = "test/integration/fixtures/script/default_script",
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_VERIFY_EXISTS, .exists = pkg_store_file("default_script", "include/version.h") },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = work_file("default_script/version.h") },
       { .kind = ACTION_RUN_BIN, .bin.name = "default_script" },
     },
   });

@@ -24,9 +24,3 @@ spn_err_t configure(spn_t* spn, spn_config_t* config) {
   spn_node_add_output(gen, SPN_DIR_WORK, "version.h");
   return SPN_OK;
 }
-
-SPN_EXPORT
-s32 package(spn_t* spn) {
-  spn_fs_copy("/work/version.h", "/store/include");
-  return 0;
-}

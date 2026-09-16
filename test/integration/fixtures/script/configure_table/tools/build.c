@@ -1,6 +1,6 @@
 #include "spn.h"
 
-__attribute__((export_name("package")))
-s32 package(spn_t* spn) {
+__attribute__((export_name("build")))
+s32 build(spn_t* spn) {
   return 0;
 }
