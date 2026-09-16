@@ -77,6 +77,53 @@ sp_test(freshness, touch_without_change) {
   });
 }
 
+sp_test(freshness, staged_lib_noop) {
+  return run_rebuild_test(t, (rebuild_test_t) {
+    .project = "test/integration/fixtures/freshness/shared",
+    .copy = { "packages/*" },
+    .first = {
+      .args = { "build" },
+      .expect.exists = { exe("main"), staged_lib("B") },
+    },
+    .rebuilds = {
+      {
+        .command = {
+          .args = { "build" },
+          .expect.events = { { .event = SPN_EVENT_TARGET_BUILD_PASSED, .absent = true } },
+        },
+      },
+    },
+    .watches = {
+      { .file = staged_lib("B"), .mtime = REBUILD_MTIME_UNCHANGED },
+    },
+  });
+}
+
+sp_test(freshness, staged_lib_change) {
+  return run_rebuild_test(t, (rebuild_test_t) {
+    .project = "test/integration/fixtures/freshness/shared",
+    .copy = { "packages/*" },
+    .first = {
+      .args = { "build" },
+      .expect.exists = { exe("main"), staged_lib("B") },
+    },
+    .rebuilds = {
+      {
+        .change.moves = {
+          { .from = sp_str_lit("packages/B/b.change.c"), .to = sp_str_lit("packages/B/b.c") },
+        },
+        .command = {
+          .args = { "build" },
+          .expect.events = { { .event = SPN_EVENT_TARGET_BUILD_PASSED } },
+        },
+      },
+    },
+    .watches = {
+      { .file = staged_lib("B"), .mtime = REBUILD_MTIME_CHANGED },
+    },
+  });
+}
+
 sp_test(freshness, dep_source_change) {
   return run_rebuild_test(t, (rebuild_test_t) {
     .project = "test/integration/fixtures/freshness/dep",

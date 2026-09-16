@@ -1367,6 +1367,17 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           );
           break;
         }
+        case SPN_ERR_TARGET_COLLISION: {
+          sp_tty_fmt(
+            &w,
+            "{.cyan} and {.cyan} both produce {.yellow}; they cannot be staged beside {.cyan}",
+            sp_fmt_str(event->err.collision.pkg),
+            sp_fmt_str(event->err.collision.other),
+            sp_fmt_str(event->err.collision.name),
+            sp_fmt_str(event->err.collision.exe)
+          );
+          break;
+        }
         case SPN_ERR_TARGET_DEP: {
           sp_tty_fmt(
             &w,

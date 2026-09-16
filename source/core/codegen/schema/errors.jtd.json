@@ -109,6 +109,7 @@
     "target_reserved": { "ref": "target" },
     "target_dep": { "ref": "target" },
     "target_selection": { "ref": "target" },
+    "target_collision": { "ref": "collision" },
     "script_missing": { "ref": "script" },
     "script_failed": { "ref": "script" },
     "triple_invalid": { "properties": {} },
@@ -345,6 +346,14 @@
     "too_complex": {
       "properties": {
         "id": { "ref": "pkg_name" }
+      }
+    },
+    "collision": {
+      "properties": {
+        "exe": { "type": "string" },
+        "pkg": { "type": "string" },
+        "other": { "type": "string" },
+        "name": { "type": "string" }
       }
     },
     "target": {

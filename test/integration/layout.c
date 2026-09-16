@@ -38,7 +38,7 @@ sp_test(layout, staged_identity) {
     .expect.exists = { exe("main"), test_exe("check") },
   }));
 
-  sp_str_t staged[] = { exe("main"), test_exe("check") };
+  sp_str_t staged[] = { exe("main"), staged_lib("spum"), test_exe("check"), test_lib("spum") };
   sp_carr_for(staged, it) {
     sp_str_t path = fixture_path(&fixture, staged[it]);
     sp_sys_file_meta_t meta = sp_zero;
@@ -47,6 +47,17 @@ sp_test(layout, staged_identity) {
     sp_expect_eq(t, (u64)1, meta.nlink);
   }
   return SP_OK;
+}
+
+sp_test(layout, staged_collision) {
+  return run_test(t, (test_t) {
+    .project = "test/integration/fixtures/layout/staged_collision",
+    .copy = { "packages/*" },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { "build", .rc = 1 } },
+      { .kind = ACTION_VERIFY_RESULT, .verify_result = { .err = SPN_ERR_TARGET_COLLISION } },
+    },
+  });
 }
 
 sp_test(layout, staged_script) {

@@ -824,6 +824,42 @@ static spn_err_t add_target_build_targets(spn_session_t* s) {
   sp_da_for(targets, it) {
     spn_try(build_target_plan(targets[it]));
   }
+
+  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+  sp_da_for(s->plans, it) {
+    spn_build_plan_t* plan = &s->plans[it];
+    sp_da_for(plan->roots, jt) {
+      spn_target_unit_t* root = spn_session_get_target_unit(s, plan->roots[jt]);
+      if (root->kind != SPN_CC_OUTPUT_EXE) {
+        continue;
+      }
+      spn_path_t staged = spn_target_unit_staged_path(s->mem, root);
+      sp_str_om_insert(plan->staged, staged.sub, ((spn_stage_entry_t) { .target = root, .path = staged }));
+
+      spn_path_t dir = spn_path_parent(staged);
+      sp_da(spn_target_unit_t*) libs = spn_target_runtime_libs(scratch.mem, root);
+      sp_da_for(libs, lt) {
+        spn_target_unit_t* lib = libs[lt];
+        sp_str_t name = sp_fs_get_name(spn_target_output_path(scratch.mem, lib).sub);
+        spn_path_t path = spn_path_join(s->mem, dir, name);
+        spn_stage_entry_t** existing = sp_str_om_getp(plan->staged, path.sub);
+        if (existing && (*existing)->target != lib) {
+          sp_mem_end_scratch(scratch);
+          return spn_err_emit(s->ctx, (spn_err_union_t) {
+            .kind = SPN_ERR_TARGET_COLLISION,
+            .collision = {
+              .exe = root->info->name,
+              .pkg = (*existing)->target->pkg->info->name,
+              .other = lib->pkg->info->name,
+              .name = name,
+            },
+          });
+        }
+        sp_str_om_insert(plan->staged, path.sub, ((spn_stage_entry_t) { .target = lib, .path = path }));
+      }
+    }
+  }
+  sp_mem_end_scratch(scratch);
   return SPN_OK;
 }
 
