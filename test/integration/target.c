@@ -228,6 +228,31 @@ sp_test(target, publish) {
   });
 }
 
+sp_test(target, publish_prune) {
+  return run_rebuild_test(t, (rebuild_test_t) {
+    .project = "test/integration/fixtures/target/publish",
+    .copy = { "packages/*" },
+    .first = {
+      .args = { "build" },
+      .expect.exists = { pkg_store_file("kit", "include/lit/kit.h") },
+    },
+    .rebuilds = {
+      {
+        .change.moves = {
+          { .from = sp_str_lit("packages/kit/spn.fewer.toml"), .to = sp_str_lit("packages/kit/spn.toml") },
+        },
+        .command = {
+          .args = { "build" },
+          .expect = {
+            .exists = { pkg_store_file("kit", "include/kit.h") },
+            .missing = { pkg_store_file("kit", "include/lit/kit.h") },
+          },
+        },
+      },
+    },
+  });
+}
+
 sp_test(target, publish_absent) {
   return run_test(t, (test_t) {
     .project = "test/integration/fixtures/target/publish_absent",

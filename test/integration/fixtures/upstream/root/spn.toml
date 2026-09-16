@@ -6,6 +6,9 @@ version = "0.1.0"
 url = "@A.url@"
 commit = "@A.commit@"
 
+[publish]
+copy = [{ from = "manifest/pub.h", to = "include" }]
+
 [[lib]]
 name = "A"
 kinds = ["static"]
