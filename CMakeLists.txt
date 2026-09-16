@@ -44,11 +44,12 @@ project(spn LANGUAGES C CXX)
 if(MSVC)
   add_library(m INTERFACE)
   link_libraries(ws2_32)
-  # cl.exe needs this to serialize PDB access
-  add_compile_options(/FS)
+  # cl.exe needs this to serialize PDB access. These are C/C++ only; ml64.exe
+  # warns on both
+  add_compile_options($<$<COMPILE_LANGUAGE:C,CXX>:/FS>)
   # cl.exe defaults the source and execution charsets to the system ANSI
   # codepage; non-ASCII string literals are mangled without this
-  add_compile_options(/utf-8)
+  add_compile_options($<$<COMPILE_LANGUAGE:C,CXX>:/utf-8>)
 endif()
 
 # @spader Zig crashes when given --dependency-file
