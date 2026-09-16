@@ -18,6 +18,7 @@
 #include "external/wasm/wasm.h"
 #include "op/op.h"
 #include "paths/paths.h"
+#include "session/invocation.h"
 #include "session/session.h"
 #include "thread_pool/thread_pool.h"
 #include "unit/unit.h"
@@ -367,6 +368,27 @@ static spn_err_t dag_package_exec(spn_dag_t* g, spn_dag_action_t* action, void* 
   spn_dag_artifact_t* stamp = spn_dag_find_artifact(g, action->produces[0]);
   spn_pkg_unit_write_stamp(unit, stamp->materialized);
 
+  return SPN_OK;
+}
+
+static spn_err_t dag_compile_commands_exec(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, sp_mem_t mem, sp_da(spn_dag_obs_t)* obs) {
+  spn_pkg_unit_t* unit = (spn_pkg_unit_t*)user_data;
+
+  if (spn_pkg_unit_write_compile_commands(g->roots, unit, dag_artifact_str(g, mem, action->produces[0]))) {
+    return SPN_ERR_DAG_OUTPUT_WRITE;
+  }
+  return SPN_OK;
+}
+
+static spn_err_t dag_compile_commands_merge_exec(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, sp_mem_t mem, sp_da(spn_dag_obs_t)* obs) {
+  sp_da(sp_str_t) fragments = sp_da_new(mem, sp_str_t);
+  sp_da_for(action->consumes, it) {
+    sp_da_push(fragments, dag_artifact_str(g, mem, action->consumes[it]));
+  }
+  if (spn_compile_commands_merge(fragments, dag_artifact_str(g, mem, action->produces[0]))) {
+    return SPN_ERR_DAG_OUTPUT_WRITE;
+  }
+  sp_fs_create_file(dag_artifact_str(g, mem, action->produces[1]));
   return SPN_OK;
 }
 
@@ -865,6 +887,48 @@ static void dag_add_unit_target_edges(spn_dag_build_t* b, sp_da(spn_pkg_unit_t*)
   }
 }
 
+static spn_err_t dag_add_compile_commands(spn_dag_build_t* b) {
+  spn_dag_t* g = b->graph;
+  spn_session_t* session = b->session;
+
+  sp_str_t tag = sp_str_lit("spn.build.compile_commands.merge.v1");
+  spn_dag_id_t merge = spn_dag_add_action(g, (spn_dag_action_config_t) {
+    .identity = spn_dag_digest(tag.data, tag.len),
+    .execute = dag_compile_commands_merge_exec,
+  });
+  b->compile_commands = spn_dag_add_output(g, sp_str_lit("compile_commands.json"));
+  spn_dag_id_t stamp = spn_dag_add_output(g, sp_str_lit("compile_commands.stamp"));
+  spn_try(spn_dag_action_add_output(g, merge, b->compile_commands));
+  spn_try(spn_dag_action_add_output(g, merge, stamp));
+
+  sp_om_for(session->units.packages, it) {
+    spn_pkg_unit_t* unit = sp_om_at(session->units.packages, it);
+
+    sp_mem_arena_marker_t s = sp_mem_begin_scratch();
+    sp_da(spn_compile_unit_t*) objects = spn_pkg_unit_objects(s.mem, unit);
+    if (sp_da_empty(objects)) {
+      sp_mem_end_scratch(s);
+      continue;
+    }
+    spn_dag_id_t action = spn_dag_add_action(g, (spn_dag_action_config_t) {
+      .identity = spn_build_compile_commands_identity(g->roots, unit, objects),
+      .execute = dag_compile_commands_exec,
+      .user_data = unit,
+    });
+    sp_mem_end_scratch(s);
+
+    spn_dag_id_t fragment = spn_dag_add_file(g, spn_path_join(b->mem, unit->paths.work, sp_str_lit("compile_commands.json")));
+    spn_try(spn_dag_action_add_output(g, action, fragment));
+    spn_dag_action_add_input(g, merge, fragment);
+  }
+
+  sp_ht_for_kv(b->ids.objects, it) {
+    spn_dag_action_add_input(g, it.val->action, stamp);
+  }
+
+  return SPN_OK;
+}
+
 static spn_err_t prepare_graph(spn_dag_build_t* b) {
   spn_session_t* session = b->session;
 
@@ -897,6 +961,8 @@ static spn_err_t prepare_graph(spn_dag_build_t* b) {
       spn_try(dag_add_edges(b, build->packages[jt]));
     }
   }
+
+  spn_try(dag_add_compile_commands(b));
 
   return SPN_OK;
 }
@@ -1195,6 +1261,11 @@ spn_err_t spn_dag_build_session(spn_op_t* op) {
     return result;
   }
 
+  if (spn_dag_digest_valid(spn_dag_find_artifact(b->graph, b->compile_commands)->digest)) {
+    sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+    dag_stage_copy(b, b->compile_commands, spn_path_join(scratch.mem, session->paths.root, sp_str_lit("compile_commands.json")));
+    sp_mem_end_scratch(scratch);
+  }
   if (!result) {
     if (!project->lock.some) {
       spn_try(spn_project_update_lock(session->ctx, project, session->resolve));

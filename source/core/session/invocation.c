@@ -95,36 +95,37 @@ spn_err_t spn_build_render_compile(sp_mem_t mem, spn_compile_unit_t* unit, spn_i
   return SPN_OK;
 }
 
-spn_err_t spn_session_write_compile_commands(spn_session_t* session, sp_str_t path) {
+spn_err_t spn_pkg_unit_write_compile_commands(const spn_path_roots_t* roots, spn_pkg_unit_t* unit, sp_str_t path) {
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+  sp_mem_t mem = scratch.mem;
 
   sp_io_dyn_mem_writer_t buf;
-  sp_io_dyn_mem_writer_init(scratch.mem, &buf);
+  sp_io_dyn_mem_writer_init(mem, &buf);
   sp_io_writer_t* io = &buf.base;
 
   sp_io_write_cstr(io, "[", SP_NULLPTR);
-  const spn_path_roots_t* roots = &spn.roots;
-  u32 count = 0;
-  sp_om_for(session->units.objects, it) {
-    spn_compile_unit_t* unit = sp_om_at(session->units.objects, it);
+  sp_da(spn_compile_unit_t*) objects = spn_pkg_unit_objects(mem, unit);
+  sp_da_for(objects, it) {
+    spn_compile_unit_t* object = objects[it];
+    spn_build_unit_t* build = object->target->pkg->build;
     spn_cc_compile_files_t files = {
-      .source = unit->paths.file,
-      .output = unit->paths.object,
+      .source = object->paths.file,
+      .output = object->paths.object,
     };
-    spn_invocation_t invocation = spn_cc_render_compile_command(scratch.mem, &unit->target->pkg->build->toolchain->cc, &unit->target->pkg->build->profile, &unit->invocation, &files);
-    sp_da(sp_str_t) args = spn_invocation_args(roots, scratch.mem, &invocation);
+    spn_invocation_t invocation = spn_cc_render_compile_command(mem, &build->toolchain->cc, &build->profile, &object->invocation, &files);
+    sp_da(sp_str_t) args = spn_invocation_args(roots, mem, &invocation);
 
-    if (count++) {
+    if (it) {
       sp_io_write_c8(io, ',');
     }
     sp_io_write_cstr(io, "\n  { \"directory\": ", SP_NULLPTR);
-    spn_codegen_json_str(io, spn_path_str(roots, scratch.mem, invocation.cwd));
+    spn_codegen_json_str(io, spn_path_str(roots, mem, invocation.cwd));
     sp_io_write_cstr(io, ", \"file\": ", SP_NULLPTR);
-    spn_codegen_json_str(io, spn_path_str(roots, scratch.mem, files.source));
+    spn_codegen_json_str(io, spn_path_str(roots, mem, files.source));
     sp_io_write_cstr(io, ", \"output\": ", SP_NULLPTR);
-    spn_codegen_json_str(io, spn_path_str(roots, scratch.mem, files.output));
+    spn_codegen_json_str(io, spn_path_str(roots, mem, files.output));
     sp_io_write_cstr(io, ", \"arguments\": [", SP_NULLPTR);
-    spn_codegen_json_str(io, spn_arg_str(roots, scratch.mem, invocation.program));
+    spn_codegen_json_str(io, spn_arg_str(roots, mem, invocation.program));
     sp_da_for(args, arg) {
       sp_io_write_cstr(io, ", ", SP_NULLPTR);
       spn_codegen_json_str(io, args[arg]);
@@ -133,23 +134,39 @@ spn_err_t spn_session_write_compile_commands(spn_session_t* session, sp_str_t pa
   }
   sp_io_write_cstr(io, "\n]\n", SP_NULLPTR);
 
-  sp_str_t content = sp_io_dyn_mem_writer_take_str(&buf);
-
-  sp_io_file_writer_t writer = sp_zero;
-  if (sp_io_file_writer_from_path(&writer, path) != SP_OK) {
-    sp_mem_end_scratch(scratch);
-    return SPN_ERROR;
-  }
-  sp_io_write_str(&writer.base, content, SP_NULLPTR);
-  sp_io_file_writer_close(&writer);
-
+  spn_err_t err = sp_fs_create_file_str(path, sp_io_dyn_mem_writer_as_str(&buf)) ? SPN_ERROR : SPN_OK;
   sp_mem_end_scratch(scratch);
-  return SPN_OK;
+  return err;
 }
 
-sp_str_t spn_session_compile_commands_path(spn_session_t* session) {
-  spn_path_t path = spn_path_join(session->mem, session->paths.root, sp_str_lit("compile_commands.json"));
-  return spn_path_str(&spn.roots, session->mem, path);
+spn_err_t spn_compile_commands_merge(sp_da(sp_str_t) fragments, sp_str_t path) {
+  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+
+  sp_io_dyn_mem_writer_t buf;
+  sp_io_dyn_mem_writer_init(scratch.mem, &buf);
+  sp_io_writer_t* io = &buf.base;
+
+  spn_err_t err = SPN_OK;
+  sp_io_write_cstr(io, "[", SP_NULLPTR);
+  sp_da_for(fragments, it) {
+    sp_str_t content = sp_zero;
+    if (sp_io_read_file(scratch.mem, fragments[it], &content)) {
+      err = SPN_ERROR;
+      break;
+    }
+    sp_assert(sp_str_starts_with(content, sp_str_lit("[")) && sp_str_ends_with(content, sp_str_lit("\n]\n")));
+    if (it) {
+      sp_io_write_c8(io, ',');
+    }
+    sp_io_write_str(io, sp_str_sub(content, 1, (s32)content.len - 4), SP_NULLPTR);
+  }
+  sp_io_write_cstr(io, "\n]\n", SP_NULLPTR);
+
+  if (!err && sp_fs_create_file_str(path, sp_io_dyn_mem_writer_as_str(&buf))) {
+    err = SPN_ERROR;
+  }
+  sp_mem_end_scratch(scratch);
+  return err;
 }
 
 sp_da(sp_str_t) spn_invocation_args(const spn_path_roots_t* roots, sp_mem_t mem, const spn_invocation_t* invocation) {

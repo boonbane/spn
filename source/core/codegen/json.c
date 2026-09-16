@@ -101,19 +101,23 @@ void spn_codegen_json_key(sp_io_writer_t* out, bool* first, sp_str_t key) {
 void spn_codegen_json_str(sp_io_writer_t* out, sp_str_t value) {
   static const c8 hex[] = "0123456789abcdef";
   sp_io_write_c8(out, '"');
+  u32 run = 0;
   sp_for(it, value.len) {
     c8 c = value.data[it];
+    if (c != '"' && c != '\\' && (u8)c >= 0x20) {
+      continue;
+    }
+    sp_io_write_str(out, sp_str(value.data + run, it - run), SP_NULLPTR);
+    run = it + 1;
     if (c == '"' || c == '\\') {
-      sp_io_write_c8(out, '\\');
-      sp_io_write_c8(out, c);
-    } else if ((u8)c < 0x20) {
-      sp_io_write_str(out, sp_str_lit("\\u00"), SP_NULLPTR);
-      sp_io_write_c8(out, hex[((u8)c >> 4) & 0xf]);
-      sp_io_write_c8(out, hex[(u8)c & 0xf]);
+      c8 escaped [] = { '\\', c };
+      sp_io_write_str(out, sp_str(escaped, 2), SP_NULLPTR);
     } else {
-      sp_io_write_c8(out, c);
+      c8 escaped [] = { '\\', 'u', '0', '0', hex[((u8)c >> 4) & 0xf], hex[(u8)c & 0xf] };
+      sp_io_write_str(out, sp_str(escaped, 6), SP_NULLPTR);
     }
   }
+  sp_io_write_str(out, sp_str(value.data + run, value.len - run), SP_NULLPTR);
   sp_io_write_c8(out, '"');
 }
 

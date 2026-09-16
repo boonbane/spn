@@ -876,3 +876,14 @@ spn_err_t spn_units_add_targets(spn_session_t* s, spn_unit_scope_t scope) {
   }
   sp_unreachable_return(SPN_ERROR);
 }
+
+sp_da(spn_compile_unit_t*) spn_pkg_unit_objects(sp_mem_t mem, spn_pkg_unit_t* unit) {
+  sp_da(spn_compile_unit_t*) objects = sp_da_new(mem, spn_compile_unit_t*);
+  sp_om_for(unit->session->units.objects, it) {
+    spn_compile_unit_t* object = sp_om_at(unit->session->units.objects, it);
+    if (object->target->pkg == unit) {
+      sp_da_push(objects, object);
+    }
+  }
+  return objects;
+}

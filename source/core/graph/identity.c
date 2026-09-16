@@ -113,6 +113,22 @@ spn_dag_digest_t spn_build_compile_identity(const spn_compile_unit_t* unit) {
   return spn_dag_hash_final(&ctx);
 }
 
+spn_dag_digest_t spn_build_compile_commands_identity(const spn_path_roots_t* roots, spn_pkg_unit_t* unit, sp_da(spn_compile_unit_t*) objects) {
+  spn_digest_ctx_t ctx = sp_zero;
+  spn_digest_init_blake3(&ctx);
+  spn_dag_hash_str(&ctx, sp_str_lit("spn.build.compile_commands.v1"));
+  spn_dag_hash_str(&ctx, unit->info->qualified);
+  sp_for(it, SPN_PATH_ROOT_COUNT) {
+    spn_dag_hash_str(&ctx, roots->dirs[it]);
+  }
+  spn_dag_hash_u64(&ctx, sp_da_size(objects));
+  sp_da_for(objects, it) {
+    spn_dag_hash_digest(&ctx, spn_build_compile_identity(objects[it]));
+    spn_dag_hash_path(&ctx, objects[it]->paths.object);
+  }
+  return spn_dag_hash_final(&ctx);
+}
+
 spn_err_t spn_build_link_identity(sp_mem_t mem, spn_target_unit_t* target, const spn_cc_link_files_t* files, spn_dag_digest_t* identity) {
   spn_invocation_t invocation = sp_zero;
   spn_try(spn_target_link_invocation(mem, target, files, &invocation));

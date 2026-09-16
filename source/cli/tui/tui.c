@@ -1493,6 +1493,10 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           sp_tty_fmt(&w, "{.cyan} could not be written to the content store", sp_fmt_str(get_contextual_path(ctx, mem, event->err.dag.path)));
           break;
         }
+        case SPN_ERR_DAG_OUTPUT_WRITE: {
+          sp_tty_fmt(&w, "{.cyan} could not be written", sp_fmt_str(get_contextual_path(ctx, mem, event->err.dag.path)));
+          break;
+        }
         case SPN_ERR_DAG_SCRATCH: {
           sp_io_write_str(w.io, sp_str_lit("Failed to create a scratch directory for the build"), SP_NULLPTR);
           break;
