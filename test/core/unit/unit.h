@@ -54,6 +54,8 @@ typedef struct {
   spn_abi_t abi; // zero selects the os default
   const c8* sdk;
   const c8* sha256;
+  spn_linking_t request;
+  spn_linkage_t linkage;
   spn_runtime_t runtime;
   spn_runtime_t libc;
   unit_pkg_t pkgs [UNIT_TEST_MAX_PKGS]; // pkgs[0] is the root package

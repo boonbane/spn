@@ -243,7 +243,7 @@ static cell_t cells [] = {
     .toolchain = "zig",
     .args = { "build", "--sanitize", "address" },
   },
-  // error: address can't be linked statically; set linkage = "shared" in the profile
+  // error: address needs a dynamic loader, which a static libc removes; set libc = "shared" in the profile
   //
   // Not "address", "ASan" or "address sanitizer"
   {

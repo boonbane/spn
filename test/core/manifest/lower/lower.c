@@ -159,7 +159,7 @@ typedef struct {
   gated_t system_deps [8];
   gated_t frameworks [4];
   copy_t publish [4];
-  issue_t issues [7];
+  issue_t issues [8];
   target_t libs [8];
   target_t exes [8];
   target_t scripts [8];
@@ -943,6 +943,7 @@ static const test_t tests [] = {
     .manifest = "validate_profile_candidate_value",
     .issues = {
       { SPN_ERR_CODEGEN_INVALID, "profile[0].linkage[0].value" },
+      { SPN_ERR_CODEGEN_INVALID, "profile[0].linkage[1].value" },
       { SPN_ERR_CODEGEN_INVALID, "profile[0].runtime[0].value" },
       { SPN_ERR_CODEGEN_INVALID, "profile[0].libc[0].value" },
       { SPN_ERR_CODEGEN_INVALID, "profile[0].standard[0].value" },

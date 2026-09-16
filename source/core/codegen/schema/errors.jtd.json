@@ -205,7 +205,7 @@
       }
     },
     "cc_feature": { "enum": ["link_exe", "link_shared", "link_reactor", "archive", "frameworks", "linker_script"] },
-    "linkage_requester": { "enum": ["profile", "root_manifest", "libc"] },
+    "linkage_requester": { "enum": ["profile", "root_manifest", "libc", "target"] },
     "linking_refusal": { "enum": ["none", "no_loader", "os_libc", "os_runtime", "shared_runtime", "hybrid_crt", "shared_deps"] },
     "refusal": {
       "properties": {
