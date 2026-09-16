@@ -182,6 +182,31 @@ sp_test(freshness, dep_header_inert) {
   });
 }
 
+sp_test(freshness, dep_unincluded_header_change) {
+  return run_rebuild_test(t, (rebuild_test_t) {
+    .project = "test/integration/fixtures/freshness/dep",
+    .copy = { "packages/*" },
+    .first = {
+      .args = { "build", "-p", "debug" },
+      .expect.exists = { pkg_store_file("spum", "include/extra.h"), pkg_store_file("test", "bin/main") },
+    },
+    .rebuilds = {
+      {
+        .change.moves = {
+          { .from = sp_str_lit("packages/spum/extra.change.h"), .to = sp_str_lit("packages/spum/extra.h") },
+        },
+        .command = {
+          .args = { "build", "-p", "debug" },
+          .expect.events = { { .event = SPN_EVENT_TARGET_BUILD_PASSED, .absent = true } },
+        },
+      },
+    },
+    .watches = {
+      { .file = pkg_store_file("test", "bin/main"), .mtime = REBUILD_MTIME_UNCHANGED },
+    },
+  });
+}
+
 sp_test(freshness, dep_header_change) {
   return run_rebuild_test(t, (rebuild_test_t) {
     .project = "test/integration/fixtures/freshness/dep",
