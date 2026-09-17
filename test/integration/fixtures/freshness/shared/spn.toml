@@ -1,0 +1,17 @@
+[package]
+name = "A"
+version = "0.1.0"
+
+[deps.package]
+B = { path = "packages/B" }
+
+[profile.default]
+linkage = "shared"
+
+[[bin]]
+name = "main"
+source = ["main.c"]
+
+[[test]]
+name = "T"
+source = ["t.c"]

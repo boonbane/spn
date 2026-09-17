@@ -25,7 +25,7 @@ static const paths_test_t tests [] = {
     .store =   { .sub = "/build/debug/store/A" },
     .include = { .sub = "/build/debug/store/A/include" },
     .object =  { .sub = "/build/debug/.spn/A/object" },
-    .stamp =   { .sub = "/build/debug/.spn/A/stamp/configure.stamp" },
+    .stamp =   { .sub = "/build/debug/.spn/A/stamp" },
   },
   {
     .name = "file_package_lives_under_the_build_root",
@@ -34,7 +34,7 @@ static const paths_test_t tests [] = {
     .store =   { .sub = "/build/debug/store/A" },
     .include = { .sub = "/build/debug/store/A/include" },
     .object =  { .sub = "/build/debug/.spn/A/object" },
-    .stamp =   { .sub = "/build/debug/.spn/A/stamp/configure.stamp" },
+    .stamp =   { .sub = "/build/debug/.spn/A/stamp" },
   },
   {
     .name = "index_package_lives_under_the_build_and_store_roots",
@@ -43,7 +43,7 @@ static const paths_test_t tests [] = {
     .store =   { .root = SPN_PATH_ROOT_STORE, .prefix = "A/" },
     .include = { .root = SPN_PATH_ROOT_STORE, .prefix = "A/", .suffix = "/include" },
     .object =  { .root = SPN_PATH_ROOT_BUILD, .prefix = "A/", .suffix = "/object" },
-    .stamp =   { .root = SPN_PATH_ROOT_BUILD, .prefix = "A/", .suffix = "/stamp/configure.stamp" },
+    .stamp =   { .root = SPN_PATH_ROOT_BUILD, .prefix = "A/", .suffix = "/stamp" },
   },
 };
 
@@ -81,7 +81,7 @@ sp_test_each(unit_paths, init, paths_test_t, tests, .setup = spn_test_ctx_setup)
   sp_try(expect_path(t, unit.paths.store, &it->store));
   sp_try(expect_path(t, unit.paths.include, &it->include));
   sp_try(expect_path(t, unit.paths.object, &it->object));
-  sp_try(expect_path(t, unit.paths.stamp.configure, &it->stamp));
+  sp_try(expect_path(t, unit.paths.stamp, &it->stamp));
 
   return SP_OK;
 }

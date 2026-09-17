@@ -61,7 +61,7 @@ jobs:
           - { id: x86_64-windows, os: windows-latest, bin: .build/store/x86_64-windows-msvc/bin/spn.exe }
     name: ${{ matrix.id }}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 45
+    timeout-minutes: 60
     env:
       SPN_STAGE0: ${{ github.workspace }}/${{ matrix.bin }}
     steps:

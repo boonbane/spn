@@ -29,6 +29,7 @@ typedef struct {
 typedef struct {
   spn_err_t err;
   u32 runs;
+  u32 hashes;
   const c8* contents [DAG_TEST_MAX_OUTPUTS];
 } exec_expect_t;
 
@@ -63,15 +64,23 @@ static const exec_test_t exec_tests [] = {
     .name = "miss_executes_action",
     .action = { .identity = "I", .inputs = { "A" }, .outputs = { "O" }, .write = { "V" } },
     .ops = {
-      { .kind = EXEC_OP_RUN, .expect = { .runs = 1, .contents = { "V1" } } },
+      { .kind = EXEC_OP_RUN, .expect = { .runs = 1, .hashes = 1, .contents = { "V1" } } },
     }
   },
   {
     .name = "hit_restores_deleted_output",
     .action = { .identity = "I", .inputs = { "A" }, .outputs = { "O" }, .write = { "V" } },
     .ops = {
-      { .kind = EXEC_OP_RUN, .expect = { .runs = 1 } },
+      { .kind = EXEC_OP_RUN, .expect = { .runs = 1, .hashes = 1 } },
       { .kind = EXEC_OP_REMOVE_OUTPUTS },
+      { .kind = EXEC_OP_RUN, .expect = { .runs = 1, .contents = { "V1" } } },
+    }
+  },
+  {
+    .name = "settled_hit_hashes_nothing",
+    .action = { .identity = "I", .inputs = { "A" }, .outputs = { "O" }, .write = { "V" } },
+    .ops = {
+      { .kind = EXEC_OP_RUN, .expect = { .runs = 1, .hashes = 1 } },
       { .kind = EXEC_OP_RUN, .expect = { .runs = 1, .contents = { "V1" } } },
     }
   },
@@ -79,32 +88,32 @@ static const exec_test_t exec_tests [] = {
     .name = "input_change_reruns",
     .action = { .identity = "I", .inputs = { "A" }, .outputs = { "O" }, .write = { "V" } },
     .ops = {
-      { .kind = EXEC_OP_RUN, .expect = { .runs = 1 } },
-      { .kind = EXEC_OP_RUN, .change = { .inputs = { "B" } }, .expect = { .runs = 2, .contents = { "V2" } } },
+      { .kind = EXEC_OP_RUN, .expect = { .runs = 1, .hashes = 1 } },
+      { .kind = EXEC_OP_RUN, .change = { .inputs = { "B" } }, .expect = { .runs = 2, .hashes = 1, .contents = { "V2" } } },
     }
   },
   {
     .name = "identity_change_reruns",
     .action = { .identity = "I", .inputs = { "A" }, .outputs = { "O" }, .write = { "V" } },
     .ops = {
-      { .kind = EXEC_OP_RUN, .expect = { .runs = 1 } },
-      { .kind = EXEC_OP_RUN, .change = { .identity = "J" }, .expect = { .runs = 2, .contents = { "V2" } } },
+      { .kind = EXEC_OP_RUN, .expect = { .runs = 1, .hashes = 1 } },
+      { .kind = EXEC_OP_RUN, .change = { .identity = "J" }, .expect = { .runs = 2, .hashes = 1, .contents = { "V2" } } },
     }
   },
   {
     .name = "output_path_change_reruns",
     .action = { .identity = "I", .inputs = { "A" }, .outputs = { "O" }, .write = { "V" } },
     .ops = {
-      { .kind = EXEC_OP_RUN, .expect = { .runs = 1 } },
-      { .kind = EXEC_OP_RUN, .change = { .outputs = { "P" } }, .expect = { .runs = 2, .contents = { "V2" } } },
+      { .kind = EXEC_OP_RUN, .expect = { .runs = 1, .hashes = 1 } },
+      { .kind = EXEC_OP_RUN, .change = { .outputs = { "P" } }, .expect = { .runs = 2, .hashes = 1, .contents = { "V2" } } },
     }
   },
   {
     .name = "reverted_input_hits_prior_entry",
     .action = { .identity = "I", .inputs = { "A" }, .outputs = { "O" }, .write = { "V" } },
     .ops = {
-      { .kind = EXEC_OP_RUN, .expect = { .runs = 1 } },
-      { .kind = EXEC_OP_RUN, .change = { .inputs = { "B" } }, .expect = { .runs = 2 } },
+      { .kind = EXEC_OP_RUN, .expect = { .runs = 1, .hashes = 1 } },
+      { .kind = EXEC_OP_RUN, .change = { .inputs = { "B" } }, .expect = { .runs = 2, .hashes = 1 } },
       { .kind = EXEC_OP_RUN, .change = { .inputs = { "A" } }, .expect = { .runs = 2, .contents = { "V1" } } },
     }
   },
@@ -112,7 +121,7 @@ static const exec_test_t exec_tests [] = {
     .name = "multiple_outputs_restored",
     .action = { .identity = "I", .inputs = { "A" }, .outputs = { "O", "P" }, .write = { "V", "W" } },
     .ops = {
-      { .kind = EXEC_OP_RUN, .expect = { .runs = 1 } },
+      { .kind = EXEC_OP_RUN, .expect = { .runs = 1, .hashes = 2 } },
       { .kind = EXEC_OP_REMOVE_OUTPUTS },
       { .kind = EXEC_OP_RUN, .expect = { .runs = 1, .contents = { "V1", "W1" } } },
     }
@@ -122,30 +131,30 @@ static const exec_test_t exec_tests [] = {
     .action = { .identity = "I", .inputs = { "A" }, .outputs = { "O" }, .write = { "V" } },
     .ops = {
       { .kind = EXEC_OP_RUN, .behavior = EXEC_BEHAVIOR_FAIL, .expect = { .err = SPN_ERR_DAG_ACTION } },
-      { .kind = EXEC_OP_RUN, .expect = { .runs = 1, .contents = { "V1" } } },
+      { .kind = EXEC_OP_RUN, .expect = { .runs = 1, .hashes = 1, .contents = { "V1" } } },
     }
   },
   {
     .name = "missing_output_not_cached",
     .action = { .identity = "I", .inputs = { "A" }, .outputs = { "O", "P" }, .write = { "V", "W" } },
     .ops = {
-      { .kind = EXEC_OP_RUN, .behavior = EXEC_BEHAVIOR_SKIP_LAST_OUTPUT, .expect = { .err = SPN_ERR_DAG_MISSING_OUTPUT, .runs = 1 } },
-      { .kind = EXEC_OP_RUN, .expect = { .runs = 2, .contents = { "V2", "W2" } } },
+      { .kind = EXEC_OP_RUN, .behavior = EXEC_BEHAVIOR_SKIP_LAST_OUTPUT, .expect = { .err = SPN_ERR_DAG_MISSING_OUTPUT, .runs = 1, .hashes = 1 } },
+      { .kind = EXEC_OP_RUN, .expect = { .runs = 2, .hashes = 2, .contents = { "V2", "W2" } } },
     }
   },
   {
     .name = "uncacheable_always_executes",
     .action = { .identity = "I", .inputs = { "A" }, .outputs = { "O" }, .write = { "V" }, .kind = SPN_DAG_ACTION_UNCACHEABLE },
     .ops = {
-      { .kind = EXEC_OP_RUN, .expect = { .runs = 1, .contents = { "V1" } } },
-      { .kind = EXEC_OP_RUN, .expect = { .runs = 2, .contents = { "V2" } } },
+      { .kind = EXEC_OP_RUN, .expect = { .runs = 1, .hashes = 1, .contents = { "V1" } } },
+      { .kind = EXEC_OP_RUN, .expect = { .runs = 2, .hashes = 1, .contents = { "V2" } } },
     }
   },
   {
     .name = "unavailable_cached_output_reruns_then_hits",
     .action = { .identity = "I", .inputs = { "A" }, .outputs = { "O" }, .write = { "V" } },
     .ops = {
-      { .kind = EXEC_OP_RUN, .unavailable = { "U" }, .expect = { .runs = 1, .contents = { "V1" } } },
+      { .kind = EXEC_OP_RUN, .unavailable = { "U" }, .expect = { .runs = 1, .hashes = 1, .contents = { "V1" } } },
       { .kind = EXEC_OP_RUN, .expect = { .runs = 1, .contents = { "V1" } } },
     }
   },
@@ -238,6 +247,7 @@ static sp_err_t exec_action_run(sp_test_t* t, exec_env_t* env, const exec_action
     spn_dag_action_cache_put(&env->dag.cache, spn_dag_weak_key(g, action), outputs, count);
   }
 
+  u32 hashed = dag_test_hashed(&env->dag);
   env->err = spn_dag_execute(g, action, &env->dag.env);
   sp_expect_eq(t, op->expect.err, env->err);
   if (env->err != op->expect.err) {
@@ -245,6 +255,7 @@ static sp_err_t exec_action_run(sp_test_t* t, exec_env_t* env, const exec_action
   }
 
   sp_expect_eq(t, op->expect.runs, env->dag.runs);
+  sp_expect_eq(t, op->expect.hashes, dag_test_hashed(&env->dag) - hashed);
   if (env->err) {
     return SP_OK;
   }

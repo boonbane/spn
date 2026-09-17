@@ -14,11 +14,15 @@ static inline sp_str_t test_read_file(sp_mem_t mem, sp_str_t path) {
 }
 
 sp_ps_output_t git_repo_run(sp_str_t repo, const sp_str_t* args, u32 count);
+sp_ps_output_t git_repo_run_cstr(sp_str_t repo, const c8** args, u32 count);
 #define git_repo_git(repo, ...) git_repo_run(repo, (sp_str_t[]) { __VA_ARGS__ }, sp_carr_len(((sp_str_t[]) { __VA_ARGS__ })))
+#define git(repo, ...) git_repo_run_cstr(repo, (const c8*[]) { __VA_ARGS__ }, sp_carr_len(((const c8*[]) { __VA_ARGS__ })))
 void     git_repo_init(sp_str_t repo);
 void     git_repo_stage_all(sp_str_t repo);
 void     git_repo_commit(sp_str_t repo, sp_str_t message);
 void     git_repo_commit_from_dir(sp_str_t source, sp_str_t repo, sp_str_t message);
+void     git_repo_push(sp_str_t repo, sp_str_t remote, const c8* refspec);
+void     git_repo_pull(sp_str_t repo, sp_str_t remote, const c8* branch);
 sp_str_t git_repo_head(sp_str_t repo);
 
 typedef struct {

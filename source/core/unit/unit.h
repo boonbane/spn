@@ -28,6 +28,7 @@ bool spn_dep_kind_applies(spn_dep_kind_t dep, spn_target_kind_t target);
 
 void spn_unit_paths_init(spn_pkg_unit_t* unit, spn_loaded_pkg_t* loaded);
 spn_path_t spn_target_unit_object_dir(sp_mem_t mem, spn_target_unit_t* target);
+sp_da(spn_compile_unit_t*) spn_pkg_unit_objects(sp_mem_t mem, spn_pkg_unit_t* unit);
 
 // A script host exists in the metaprogram build only to compile its package's
 // scripts; it is not consumed there, so it configures and packages nothing

@@ -1,64 +1,125 @@
 #include "harness.h"
 
 sp_test(script, basic_node) {
-  return run_test(t, (test_t) {
+  return run_command_test(t, (command_test_t) {
     .project = "test/integration/fixtures/script/basic_node",
-    .actions = {
-      { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_VERIFY_INCLUDE, .verify_include.file = sp_str_lit("version.h") },
-      { .kind = ACTION_RUN_BIN, .bin.name = "basic_node" },
+    .args = { "build" },
+    .expect.exists = { work_file("basic_node/version.h"), exe("basic_node") },
+  });
+}
+
+sp_test(script, tree_output) {
+  return run_command_test(t, (command_test_t) {
+    .project = "test/integration/fixtures/script/tree_output",
+    .args = { "build" },
+    .expect = {
+      .exists = { work_file("M/gen/G/a.h"), work_file("M/gen/G/b/c.h"), exe("M") },
     },
   });
 }
 
-sp_test(script, package_discovery) {
-  return sp_test_skip(t, "I disabled WASI hooks until I figure out how to cleanly patch WAMR");
-
-  return run_test(t, (test_t) {
-    .project = "test/integration/fixtures/script/package_discovery",
-    .copy = { "data.txt" },
-    .actions = {
-      { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_VERIFY_FILE_CONTAINS, .verify_file_contains = { .file = store_file("misc/data"), .needle = sp_str_lit("A") } },
-      { .kind = ACTION_VERIFY_FILE_CONTAINS, .verify_file_contains = { .file = store_file("misc/witness"), .needle = sp_str_lit("R") } },
-      { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_VERIFY_FILE_NOT_CONTAINS, .verify_file_not_contains = { .file = store_file("misc/witness"), .needle = sp_str_lit("RR") } },
-      { .kind = ACTION_CREATE_FILE, .create = { .file = sp_str_lit("data.txt"), .content = sp_str_lit("B") } },
-      { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_VERIFY_FILE_CONTAINS, .verify_file_contains = { .file = store_file("misc/data"), .needle = sp_str_lit("B") } },
-      { .kind = ACTION_VERIFY_FILE_CONTAINS, .verify_file_contains = { .file = store_file("misc/witness"), .needle = sp_str_lit("RR") } },
+sp_test(script, tree_output_cached) {
+  return run_rebuild_test(t, (rebuild_test_t) {
+    .project = "test/integration/fixtures/script/tree_output",
+    .first = {
+      .args = { "build" },
+      .expect.events = { { .event = SPN_EVENT_SCRIPT_USER_FN } },
+    },
+    .rebuilds = {
+      {
+        .command = {
+          .args = { "build" },
+          .expect.events = { { .event = SPN_EVENT_SCRIPT_USER_FN, .absent = true } },
+        },
+      },
+    },
+    .watches = {
+      { .file = work_file("M/gen/G/a.h"), .mtime = REBUILD_MTIME_UNCHANGED },
     },
   });
 }
 
-sp_test(script, abi_discovery) {
-  return run_test(t, (test_t) {
-    .project = "test/integration/fixtures/script/abi_discovery",
-    .copy = { "data" },
-    .actions = {
-      { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_VERIFY_FILE_CONTAINS, .verify_file_contains = { .file = store_file("misc/data/D.txt"), .needle = sp_str_lit("A") } },
-      { .kind = ACTION_VERIFY_FILE_CONTAINS, .verify_file_contains = { .file = store_file("misc/witness"), .needle = sp_str_lit("R") } },
-      { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_VERIFY_FILE_NOT_CONTAINS, .verify_file_not_contains = { .file = store_file("misc/witness"), .needle = sp_str_lit("RR") } },
-      { .kind = ACTION_CREATE_FILE, .create = { .file = sp_str_lit("data/D.txt"), .content = sp_str_lit("B") } },
-      { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_VERIFY_FILE_CONTAINS, .verify_file_contains = { .file = store_file("misc/data/D.txt"), .needle = sp_str_lit("B") } },
-      { .kind = ACTION_VERIFY_FILE_CONTAINS, .verify_file_contains = { .file = store_file("misc/witness"), .needle = sp_str_lit("RR") } },
-      { .kind = ACTION_CREATE_FILE, .create = { .file = sp_str_lit("data/E.txt"), .content = sp_str_lit("C") } },
-      { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_VERIFY_FILE_CONTAINS, .verify_file_contains = { .file = store_file("misc/data/E.txt"), .needle = sp_str_lit("C") } },
-      { .kind = ACTION_VERIFY_FILE_CONTAINS, .verify_file_contains = { .file = store_file("misc/witness"), .needle = sp_str_lit("RRR") } },
+sp_test(script, publish_replay) {
+  return run_rebuild_test(t, (rebuild_test_t) {
+    .project = "test/integration/fixtures/script/publish_replay",
+    .copy = { "packages/*" },
+    .first = {
+      .args = { "build" },
+      .expect = {
+        .events = { { .event = SPN_EVENT_SCRIPT_USER_FN } },
+        .exists = { pkg_store_file("kit", "include/kit.h"), exe("main") },
+      },
+    },
+    .rebuilds = {
+      {
+        .change.remove_dirs = { sp_str_lit("build") },
+        .command = {
+          .args = { "build" },
+          .expect = {
+            .events = {
+              { .event = SPN_EVENT_SCRIPT_USER_FN, .absent = true },
+              { .event = SPN_EVENT_TARGET_BUILD_PASSED, .absent = true },
+            },
+            .exists = { pkg_store_file("kit", "include/kit.h"), exe("main") },
+          },
+        },
+      },
     },
   });
 }
 
-sp_test(script, relative_path_rejected) {
-  return run_test(t, (test_t) {
-    .project = "test/integration/fixtures/script/relative_path",
-    .actions = {
-      { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build", .rc = 1 } },
-      { .kind = ACTION_VERIFY_EVENT, .verify_event = { .event = SPN_EVENT_ERR, .key = "kind", .value = "wasm_module_call_failed" } },
+sp_test(script, tree_output_rerun_drops_file) {
+  return run_rebuild_test(t, (rebuild_test_t) {
+    .project = "test/integration/fixtures/script/tree_output_drop",
+    .copy = { "H" },
+    .first = {
+      .args = { "build" },
+      .expect.exists = { work_file("M/gen/G/a.h"), work_file("M/gen/G/d.h") },
+    },
+    .rebuilds = {
+      {
+        .change.remove_files = { sp_str_lit("H/d.h") },
+        .command = {
+          .args = { "build" },
+          .expect = {
+            .exists = { work_file("M/gen/G/a.h") },
+            .missing = { work_file("M/gen/G/d.h") },
+          },
+        },
+      },
+    },
+  });
+}
+
+typedef struct {
+  const c8* name;
+  spn_err_t err;
+} failure_t;
+
+static const failure_t failures [] = {
+  { .name = "node_output_root", .err = SPN_ERR_WASM_MODULE_CALL_FAILED },
+  { .name = "node_output_source", .err = SPN_ERR_WASM_MODULE_CALL_FAILED },
+  { .name = "node_output_include", .err = SPN_ERR_WASM_MODULE_CALL_FAILED },
+  { .name = "node_output_unnamed", .err = SPN_ERR_WASM_MODULE_CALL_FAILED },
+  { .name = "relative_path", .err = SPN_ERR_WASM_MODULE_CALL_FAILED },
+  { .name = "nested_output", .err = SPN_ERR_DAG_NESTED_OUTPUT },
+  { .name = "configure_missing_source", .err = SPN_ERR_CONFIGURE_SOURCE_MISSING },
+};
+
+sp_test_each(script, failure, failure_t, failures) {
+  return run_command_test(t, (command_test_t) {
+    .project = sp_str_to_cstr(sp_test_arena(t), sp_fmt(sp_test_arena(t), "test/integration/fixtures/script/{}", sp_fmt_cstr(it->name)).value),
+    .args = { "build" },
+    .expect = { .rc = 1, .err = it->err },
+  });
+}
+
+sp_test(script, node_output_bin) {
+  return run_command_test(t, (command_test_t) {
+    .project = "test/integration/fixtures/script/node_output_bin",
+    .args = { "build" },
+    .expect = {
+      .exists = { pkg_store_file("B", "bin/R.txt") },
     },
   });
 }
@@ -121,11 +182,11 @@ sp_test(script, object_lib) {
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
       // object libs publish their objects to lib/, preserving source-relative paths
-      { .kind = ACTION_VERIFY_EXISTS, .exists = store_file("lib/manifest/rt/extra.c.o") },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = pkg_store_file("spum", "lib/manifest/rt/extra.c.o") },
       // ditto for an object lib declared from the build script instead of the manifest
-      { .kind = ACTION_VERIFY_EXISTS, .exists = store_file("lib/manifest/rt/extra2.c.o") },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = pkg_store_file("spum", "lib/manifest/rt/extra2.c.o") },
       // an unlinked archive still builds and installs
-      { .kind = ACTION_VERIFY_EXISTS, .exists = static_lib("blob") },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = pkg_static_lib("spum", "blob") },
       { .kind = ACTION_RUN_BIN, .bin.name = "object_lib" },
     },
   });
@@ -204,16 +265,6 @@ sp_test(script, configure_dead_glob) {
   });
 }
 
-sp_test(script, configure_missing_source) {
-  return run_test(t, (test_t) {
-    .project = "test/integration/fixtures/script/configure_missing_source",
-    .actions = {
-      { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build", .rc = 1 } },
-      { .kind = ACTION_VERIFY_RESULT, .verify_result = { .err = SPN_ERR_CONFIGURE_SOURCE_MISSING } },
-    },
-  });
-}
-
 sp_test(script, configure_error) {
   return run_test(t, (test_t) {
     .project = "test/integration/fixtures/script/configure_error",
@@ -259,7 +310,7 @@ sp_test(script, build_script) {
         .exists = {
           sp_str_lit("build/wasm32-wasi-musl/.spn/build_script/object/build/build/manifest/tools/a/main.c.o"),
           sp_str_lit("build/wasm32-wasi-musl/.spn/build_script/object/build/build/manifest/tools/b/main.c.o"),
-          store_file("include/version.h"),
+          work_file("build_script/version.h"),
         },
       },
     },
@@ -276,13 +327,10 @@ sp_test(script, build_script) {
 }
 
 sp_test(script, default_script) {
-  return run_test(t, (test_t) {
+  return run_command_test(t, (command_test_t) {
     .project = "test/integration/fixtures/script/default_script",
-    .actions = {
-      { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_VERIFY_INCLUDE, .verify_include.file = sp_str_lit("version.h") },
-      { .kind = ACTION_RUN_BIN, .bin.name = "default_script" },
-    },
+    .args = { "build" },
+    .expect.exists = { work_file("default_script/version.h"), exe("default_script") },
   });
 }
 
@@ -293,9 +341,30 @@ sp_test(script, build_deps) {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
       { .kind = ACTION_VERIFY_PKG_LOCKED, .verify_locked.name = "core/spum" },
       { .kind = ACTION_VERIFY_DIR_COUNT, .verify_dir_count = { .dir = ".home/storage/cache/store/core/spum", .count = 1 } },
-      { .kind = ACTION_VERIFY_EVENT_COUNT, .verify_event_count = { .event = SPN_EVENT_USER_LOG, .key = "message", .value = "spum configure", .count = 1 } },
-      { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = sp_str_lit("build/debug/store/include/spum.h") },
+      { .kind = ACTION_VERIFY_EVENT_COUNT, .verify_event_count = { .event = SPN_EVENT_USER_LOG, .key = "message", .value = "spum configure", .count = 0 } },
       { .kind = ACTION_RUN_BIN, .bin.name = "build_deps" },
+    },
+  });
+}
+
+sp_test(script, build_deps_replay) {
+  return run_rebuild_test(t, (rebuild_test_t) {
+    .project = "test/integration/fixtures/script/build_deps",
+    .first = {
+      .args = { "build" },
+      .expect.exists = { exe("build_deps") },
+    },
+    .rebuilds = {
+      {
+        .change.remove_dirs = { sp_str_lit("build") },
+        .command = {
+          .args = { "build" },
+          .expect = {
+            .events = { { .event = SPN_EVENT_TARGET_BUILD_PASSED, .absent = true } },
+            .exists = { exe("build_deps") },
+          },
+        },
+      },
     },
   });
 }
@@ -305,11 +374,11 @@ sp_test(script, dual_ctx) {
     .project = "test/integration/fixtures/script/dual_ctx",
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_VERIFY_EVENT_COUNT, .verify_event_count = { .event = SPN_EVENT_USER_LOG, .key = "message", .value = "gamma configure", .count = 2 } },
+      { .kind = ACTION_VERIFY_EVENT_COUNT, .verify_event_count = { .event = SPN_EVENT_USER_LOG, .key = "message", .value = "gamma configure", .count = 1 } },
       { .kind = ACTION_VERIFY_DIR_COUNT, .verify_dir_count = { .dir = ".home/storage/cache/store/core/gamma", .count = 2 } },
       { .kind = ACTION_RUN_BIN, .bin.name = "dual_ctx" },
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_VERIFY_EVENT_COUNT, .verify_event_count = { .event = SPN_EVENT_USER_LOG, .key = "message", .value = "gamma configure", .count = 2 } },
+      { .kind = ACTION_VERIFY_EVENT_COUNT, .verify_event_count = { .event = SPN_EVENT_USER_LOG, .key = "message", .value = "gamma configure", .count = 1 } },
     },
   });
 }
@@ -343,7 +412,6 @@ sp_test(script, build_dep_static) {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
       { .kind = ACTION_VERIFY_PKG_LOCKED, .verify_locked.name = "core/spum" },
       { .kind = ACTION_VERIFY_DIR_COUNT, .verify_dir_count = { .dir = ".home/storage/cache/store/core/spum", .count = 1 } },
-      { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = sp_str_lit("build/debug/store/include/spum.h") },
     },
   });
 }
@@ -422,6 +490,46 @@ sp_test(script, embed) {
   });
 }
 
+sp_test(script, embed_dir) {
+  return run_rebuild_test(t, (rebuild_test_t) {
+    .project = "test/integration/fixtures/script/embed_dir",
+    .copy = { "H" },
+    .first = {
+      .args = { "build" },
+      .expect = {
+        .events = { { .event = SPN_EVENT_SCRIPT_USER_FN } },
+        .exists = { exe("M") },
+      },
+    },
+    .rebuilds = {
+      {
+        .command = {
+          .args = { "build" },
+          .expect.events = {
+            { .event = SPN_EVENT_SCRIPT_USER_FN, .absent = true },
+            { .event = SPN_EVENT_TARGET_BUILD_PASSED, .absent = true },
+          },
+        },
+      },
+      {
+        .change.moves = {
+          { .from = sp_str_lit("H/a.change.h"), .to = sp_str_lit("H/a.h") },
+        },
+        .command = {
+          .args = { "build" },
+          .expect.events = {
+            { .event = SPN_EVENT_SCRIPT_USER_FN },
+            { .event = SPN_EVENT_TARGET_BUILD_PASSED },
+          },
+        },
+      },
+    },
+    .watches = {
+      { .file = exe("M"), .mtime = REBUILD_MTIME_CHANGED },
+    },
+  });
+}
+
 sp_test(script, embed_cross_linux_aarch64) {
   return run_command_test(t, (command_test_t) {
     .project = "test/integration/fixtures/script/embed",
@@ -473,8 +581,6 @@ sp_test(script, input_order) {
 }
 
 sp_test(script, generated_source) {
-  return sp_test_skip(t, "pending: union declared node outputs into source-glob expansion");
-
   return run_command_test(t, (command_test_t) {
     .project = "test/integration/fixtures/script/generated_source",
     .args = { "build" },

@@ -4,14 +4,14 @@ add_executable(integration
   ${SRC}/compiler/msvc.c
   ${SRC}/compiler/occ.c
   ${SRC}/reflect/json.c
-  ${SRC}/codegen/gen/errors.gen.c
-  ${SRC}/codegen/gen/events.gen.c
-  ${SRC}/codegen/gen/source_deps.gen.c
+  ${GEN_DIR}/errors.gen.c
+  ${GEN_DIR}/events.gen.c
+  ${GEN_DIR}/source_deps.gen.c
   ${SRC}/codegen/json.c
   ${SRC}/codegen/loader.c
   ${SRC}/codegen/toolchain.c
-  ${SRC}/codegen/gen/config.gen.c
-  ${TEST_TOOLS}/gen/probe.gen.c
+  ${GEN_DIR}/config.gen.c
+  ${TEST_GEN_DIR}/probe.gen.c
   ${SRC}/core/core.c
   ${UTIL}/io/io.c
   ${SRC}/ctx/ctx.c
@@ -71,8 +71,8 @@ add_executable(integration
 )
 spn_test_binary(integration)
 target_include_directories(integration PRIVATE
-  ${SRC}/codegen/gen
-  ${TEST_TOOLS}/gen
+  ${GEN_DIR}
+  ${TEST_GEN_DIR}
   ${SRC}/external
   ${CMAKE_CURRENT_SOURCE_DIR}/tools
 )

@@ -6,6 +6,7 @@ function(spn_test_binary target)
     ${SRC}
     ${UTIL}
     ${CMAKE_SOURCE_DIR}/include
+    ${GEN_INCLUDE}
     ${TEST_TOOLS}
     ${SOURCE_ROOT}/sp/tools
     ${STORE}/include

@@ -41,7 +41,6 @@ typedef enum {
   ACTION_VERIFY_NO_INTERP,
   ACTION_VERIFY_ELF_ENTRY,
   ACTION_VERIFY_ELF_NO_SYMBOL,
-  ACTION_VERIFY_INCLUDE,
   ACTION_VERIFY_FILE_CONTAINS,
   ACTION_VERIFY_FILE_NOT_CONTAINS,
   ACTION_VERIFY_CC_ARG,
@@ -69,7 +68,6 @@ typedef struct {
     sp_str_t verify_no_interp;
     struct { sp_str_t file; u64 entry; } verify_elf_entry;
     struct { sp_str_t file; const c8* prefix; } verify_elf_no_symbol;
-    struct { sp_str_t file; } verify_include;
     struct { sp_str_t file; sp_str_t needle; } verify_file_contains;
     struct { sp_str_t file; sp_str_t needle; } verify_file_not_contains;
     const c8* verify_cc_arg [4];
@@ -130,6 +128,7 @@ typedef struct {
 
 typedef struct {
   s32 rc;
+  spn_err_t err;
   command_bin_t bin;
   const c8* contains [SPN_TEST_COMMAND_MAX_CONTAINS];
   const c8* excludes [SPN_TEST_COMMAND_MAX_CONTAINS];
@@ -216,19 +215,19 @@ typedef struct {
   opt_build_t builds [3];
 } opt_test_t;
 
-sp_str_t shared_lib(const c8* name);
-sp_str_t static_lib(const c8* name);
-sp_str_t profile_static_lib(const c8* profile, const c8* name);
+sp_str_t pkg_shared_lib(const c8* pkg, const c8* name);
+sp_str_t pkg_static_lib(const c8* pkg, const c8* name);
+sp_str_t pkg_profile_static_lib(const c8* profile, const c8* pkg, const c8* name);
 sp_str_t staged_lib(const c8* name);
 sp_str_t test_lib(const c8* name);
 sp_str_t exe(const c8* name);
+sp_str_t profile_exe(const c8* profile, const c8* name);
 sp_str_t test_exe(const c8* name);
 sp_str_t example_exe(const c8* name);
 sp_str_t target_exe(const c8* name, const c8* triple);
-sp_str_t store_file(const c8* rest);
+sp_str_t pkg_store_file(const c8* pkg, const c8* rest);
 sp_str_t work_file(const c8* rest);
-sp_str_t profile_store_file(const c8* profile, const c8* rest);
-sp_str_t target_store_file(const c8* rest, const c8* triple);
+sp_str_t pkg_profile_store_file(const c8* profile, const c8* pkg, const c8* rest);
 
 sp_err_t expect_exists(sp_test_t* t, fixture_t* fixture, sp_str_t path, bool expected, const c8* file, u32 line);
 

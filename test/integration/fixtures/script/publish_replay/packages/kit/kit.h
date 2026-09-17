@@ -1,0 +1,1 @@
+int kit(void);

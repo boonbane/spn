@@ -3,6 +3,7 @@
 
 #include "core/types.h"
 #include "compiler/types.h"
+#include "dag/types.h"
 #include "paths/types.h"
 #include "sp.h"
 #include "spn/core.h"
@@ -60,9 +61,20 @@ _Static_assert(
 );
 
 typedef struct {
+  spn_target_unit_t* target;
+  spn_path_t path;
+} spn_stage_entry_t;
+
+typedef struct {
+  spn_stage_entry_t exe;
+  sp_da(spn_stage_entry_t) libs;
+} spn_stage_closure_t;
+
+typedef struct {
   spn_build_unit_t* build;
   spn_target_selection_t selection;
   sp_da(spn_target_unit_id_t) roots;
+  sp_da(spn_stage_closure_t) staged;
 } spn_build_plan_t;
 
 typedef struct {
@@ -76,12 +88,20 @@ typedef struct {
   u32 index;
 } spn_node_ref_t;
 
+typedef struct {
+  spn_dir_t dir;
+  sp_str_t sub;
+  spn_dag_artifact_kind_t kind;
+  spn_path_t path;
+  bool stamp;
+} spn_user_output_t;
+
 struct spn_user_node_t {
   spn_pkg_unit_t* pkg;
   sp_str_t tag;
   sp_str_t fn;
   sp_da(spn_path_t) inputs;
-  sp_da(spn_path_t) outputs;
+  sp_da(spn_user_output_t) outputs;
   sp_da(spn_node_ref_t) deps;
 };
 
@@ -113,6 +133,7 @@ struct spn_target_unit {
   sp_da(spn_compile_unit_t*) objects;
   sp_da(spn_target_unit_t*) deps;
 
+  sp_da(spn_path_t) include;
   spn_link_plan_t link;
 };
 
@@ -123,6 +144,7 @@ struct spn_pkg_unit_t {
   spn_pkg_info_t* info;
   spn_pkg_source_t source;
   u32 kinds;
+  sp_hash_t fingerprint;
 
   // The unit whose scripts are this package's: its unit in the metaprogram
   // build (itself, there), or null when the package has none
@@ -138,15 +160,10 @@ struct spn_pkg_unit_t {
   sp_da(spn_user_node_t) user_nodes;
 
   struct {
-    struct {
-      spn_path_t dir;
-      spn_path_t configure;
-      spn_path_t package;
-    } stamp;
-
     spn_tree_roots_t roots;
     spn_path_t work;
     spn_path_t object;
+    spn_path_t stamp;
     spn_path_t store;
     spn_path_t include;
     spn_path_t lib;
@@ -158,7 +175,6 @@ struct spn_pkg_unit_t {
     u64 compile;
     u64 configure;
     u64 build;
-    u64 package;
     u64 total;
   } time;
 

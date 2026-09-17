@@ -24,7 +24,7 @@ void spn_cc_embed_ctx_free(spn_cc_embed_ctx_t* ctx) {
   *ctx = sp_zero_s(spn_cc_embed_ctx_t);
 }
 
-spn_err_t spn_cc_embed_ctx_add(
+void spn_cc_embed_ctx_add(
   spn_cc_embed_ctx_t* ctx,
   sp_mem_buffer_t data,
   sp_str_t symbol,
@@ -46,8 +46,6 @@ spn_err_t spn_cc_embed_ctx_add(
       .data = sp_str_copy(ctx->mem, data_type),
     }
   }));
-
-  return SPN_OK;
 }
 
 spn_err_t spn_cc_embed_ctx_write(spn_cc_embed_ctx_t* ctx, sp_str_t object, sp_str_t header) {

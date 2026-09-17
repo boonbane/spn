@@ -29,11 +29,17 @@ typedef enum {
 typedef sp_ht(spn_dag_digest_t, sp_dag_track_state_t) sp_dag_track_table_t;
 
 typedef struct {
+  u32 artifact;
+  spn_dag_digest_t digest;
+} sp_dag_track_target_t;
+
+typedef struct {
   sp_mem_t mem;
   sp_dag_track_persist_t persist;
   sp_dag_track_table_t entries;
   sp_dag_track_table_t blobs;
   sp_dag_track_table_t pathsets;
+  sp_ht(sp_dag_track_target_t, sp_dag_track_state_t) disk;
 } sp_dag_track_t;
 
 void                sp_dag_track_init(sp_dag_track_t* track, sp_mem_t mem, sp_dag_track_persist_t persist);
@@ -43,8 +49,10 @@ void                sp_dag_track_reset_entries(sp_dag_track_t* track);
 void                sp_dag_track_reset_discovery(sp_dag_track_t* track);
 void                sp_dag_track_drop_entry(sp_dag_track_t* track, spn_dag_digest_t key);
 void                sp_dag_track_drop_blob(sp_dag_track_t* track, spn_dag_digest_t digest);
+void                sp_dag_track_drop_disk(sp_dag_track_t* track, u32 artifact);
 sp_dag_track_slot_t sp_dag_track_entry(sp_dag_track_t* track, spn_dag_digest_t key);
 sp_dag_track_slot_t sp_dag_track_blob(sp_dag_track_t* track, spn_dag_digest_t digest);
+sp_dag_track_slot_t sp_dag_track_disk(sp_dag_track_t* track, u32 artifact, spn_dag_digest_t digest);
 sp_dag_track_slot_t sp_dag_track_pathset(sp_dag_track_t* track, spn_dag_digest_t weak);
 
 #endif

@@ -51,18 +51,6 @@
     "script_compile_failed": { "metadata": { "severity": "fatal" }, "ref": "compile_failed" },
     "configure": { "metadata": { "verb": "Configuring", "verbosity": "debug" }, "properties": {} },
     "configure_ok": { "metadata": { "verb": "Configured", "verbosity": "debug" }, "ref": "configure" },
-    "script_package": {
-      "metadata": { "verb": "Packaging", "verbosity": "debug" },
-      "properties": {
-        "time_ns": { "type": "uint64", "metadata": { "field": "time" } }
-      }
-    },
-    "package_ok": {
-      "metadata": { "verb": "Packaged", "verbosity": "debug" },
-      "properties": {
-        "time_ns": { "type": "uint64", "metadata": { "field": "time" } }
-      }
-    },
     "script_crashed": { "metadata": { "severity": "fatal" }, "ref": "crashed" },
     "script_user_fn": {
       "metadata": { "verb": "Running", "verbosity": "debug" },

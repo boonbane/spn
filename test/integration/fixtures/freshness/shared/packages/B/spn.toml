@@ -1,0 +1,9 @@
+[package]
+name = "B"
+version = "1.0.0"
+
+[[lib]]
+name = "B"
+kinds = ["shared"]
+source = ["b.c"]
+headers = ["b.h"]

@@ -21,11 +21,6 @@ compile_commands.json
 /HANDOFF.md
 /PORT_CHANGELOG.md
 /build_errs.log
-/source/core/codegen/gen
-/test/tools/gen
-/include/spn/err.h
-/include/spn/errors.h
-/include/spn/events.h
 .claude
 .mcp.json
 /.clangd

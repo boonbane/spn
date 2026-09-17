@@ -44,7 +44,7 @@ void spn_unit_paths_init(spn_pkg_unit_t* unit, spn_loaded_pkg_t* loaded) {
       break;
     }
     case SPN_PKG_SOURCE_INDEX: {
-      sp_str_t fingerprint = spn_unit_fingerprint_str(mem, spn_unit_fingerprint(s, build, unit->id.pkg));
+      sp_str_t fingerprint = spn_unit_fingerprint_str(mem, unit->fingerprint);
       spn_path_t work = spn_path_join(mem, spn_path_from_root(SPN_PATH_ROOT_BUILD), loaded->info->qualified);
       spn_path_t store = spn_path_join(mem, spn_path_from_root(SPN_PATH_ROOT_STORE), loaded->info->qualified);
       unit->paths.work = spn_path_join(mem, work, fingerprint);
@@ -63,7 +63,5 @@ void spn_unit_paths_init(spn_pkg_unit_t* unit, spn_loaded_pkg_t* loaded) {
 
   unit->paths.object = spn_path_join(mem, unit->paths.work, SP_LIT("object"));
 
-  unit->paths.stamp.dir = spn_path_join(mem, unit->paths.work, SP_LIT("stamp"));
-  unit->paths.stamp.configure = spn_path_join(mem, unit->paths.stamp.dir, SP_LIT("configure.stamp"));
-  unit->paths.stamp.package = spn_path_join(mem, unit->paths.stamp.dir, SP_LIT("package.stamp"));
+  unit->paths.stamp = spn_path_join(mem, unit->paths.work, SP_LIT("stamp"));
 }

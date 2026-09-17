@@ -9,10 +9,6 @@
 #include "paths/types.h"
 #include "when/types.h"
 
-#define SP_EMBED_DEFAULT_SYMBOL_S sp_str_lit("")
-#define SP_EMBED_DEFAULT_DATA_T_S sp_str_lit("")
-#define SP_EMBED_DEFAULT_SIZE_T_S sp_str_lit("")
-
 typedef enum {
   SPN_EMBED_FILE,
   SPN_EMBED_DIR,
@@ -25,13 +21,19 @@ typedef struct {
 
 typedef struct {
   spn_embed_kind_t kind;
-  sp_str_t symbol;
+  spn_path_t path;
+  sp_str_t dest;
   spn_embed_types_t types;
-  union {
-    struct { spn_path_t path; } file;
-    struct { spn_path_t path; sp_str_t dest; } dir;
-  };
 } spn_embed_t;
+
+typedef struct {
+  spn_embed_kind_t kind;
+  sp_str_t path;
+  spn_tree_t tree;
+  sp_str_t dest;
+  spn_embed_types_t types;
+  spn_when_t when;
+} spn_gated_embed_t;
 
 
 typedef struct {
@@ -75,6 +77,9 @@ struct spn_target_info {
   sp_da(spn_embed_t) embed;
   spn_cxx_options_t cxx;
   struct {
+    sp_da(spn_path_t) include;
+  } configured;
+  struct {
     sp_da(sp_str_t) frameworks;
     spn_os_version_t min_os;
   } macos;
@@ -92,6 +97,7 @@ struct spn_target_info {
     spn_gated_list_t system_deps;
     spn_gated_list_t deps;
     spn_gated_list_t frameworks;
+    sp_da(spn_gated_embed_t) embed;
   } gated;
 };
 

@@ -12,6 +12,9 @@ sp_str_t test_repo_root(sp_mem_t mem) {
 }
 
 sp_str_t test_repo_path(sp_mem_t mem, sp_str_t rel) {
+  if (sp_fs_is_absolute(rel)) {
+    return sp_str_copy(mem, rel);
+  }
   return sp_fs_join_path(mem, test_repo_root(mem), rel);
 }
 
@@ -30,6 +33,15 @@ sp_ps_output_t git_repo_run(sp_str_t repo, const sp_str_t* args, u32 count) {
   return output;
 }
 
+sp_ps_output_t git_repo_run_cstr(sp_str_t repo, const c8** args, u32 count) {
+  sp_str_t strs [SP_PS_MAX_ARGS];
+  SP_ASSERT(count <= SP_PS_MAX_ARGS - 2);
+  sp_for(it, count) {
+    strs[it] = sp_str_view(args[it]);
+  }
+  return git_repo_run(repo, strs, count);
+}
+
 static void git_repo_copy_dir(sp_str_t source, sp_str_t repo) {
   sp_mem_t mem = sp_mem_os_new();
   sp_da(sp_fs_entry_t) entries = sp_zero;
@@ -43,8 +55,7 @@ static void git_repo_copy_dir(sp_str_t source, sp_str_t repo) {
     sp_str_t relative = sp_str_strip_left(entry->path, source);
     relative = sp_str_strip_left(relative, sp_str_lit("/"));
     sp_str_t target = sp_fs_join_path(mem, repo, relative);
-    sp_fs_create_dir(sp_fs_parent_path(target));
-    sp_fs_copy_file(entry->path, target);
+    sp_fs_copy_file(entry->path, target, SP_FS_ATOMIC_REPLACE);
   }
 }
 
@@ -52,17 +63,25 @@ void git_repo_init(sp_str_t repo) {
   sp_fs_create_dir(sp_fs_parent_path(repo));
   sp_fs_create_dir(repo);
 
-  git_repo_git(repo, sp_str_lit("init"), sp_str_lit("--quiet"));
-  git_repo_git(repo, sp_str_lit("config"), sp_str_lit("user.name"), sp_str_lit("spn-test"));
-  git_repo_git(repo, sp_str_lit("config"), sp_str_lit("user.email"), sp_str_lit("spn-test@local"));
+  git(repo, "init", "--quiet");
+  git(repo, "config", "user.name", "spn-test");
+  git(repo, "config", "user.email", "spn-test@local");
 }
 
 void git_repo_stage_all(sp_str_t repo) {
-  git_repo_git(repo, sp_str_lit("add"), sp_str_lit("."));
+  git(repo, "add", ".");
 }
 
 void git_repo_commit(sp_str_t repo, sp_str_t message) {
   git_repo_git(repo, sp_str_lit("commit"), sp_str_lit("-m"), message, sp_str_lit("--quiet"), sp_str_lit("--allow-empty"));
+}
+
+void git_repo_push(sp_str_t repo, sp_str_t remote, const c8* refspec) {
+  git_repo_git(repo, sp_str_lit("push"), sp_str_lit("--quiet"), remote, sp_str_view(refspec));
+}
+
+void git_repo_pull(sp_str_t repo, sp_str_t remote, const c8* branch) {
+  git_repo_git(repo, sp_str_lit("pull"), sp_str_lit("--quiet"), remote, sp_str_view(branch));
 }
 
 void git_repo_commit_from_dir(sp_str_t source, sp_str_t repo, sp_str_t message) {
@@ -71,7 +90,7 @@ void git_repo_commit_from_dir(sp_str_t source, sp_str_t repo, sp_str_t message) 
   SP_ASSERT(sp_fs_exists(repo));
   SP_ASSERT(sp_fs_is_dir(repo));
 
-  git_repo_git(repo, sp_str_lit("rm"), sp_str_lit("-r"), sp_str_lit("--quiet"), sp_str_lit("--ignore-unmatch"), sp_str_lit("."));
+  git(repo, "rm", "-r", "--quiet", "--ignore-unmatch", ".");
 
   git_repo_copy_dir(source, repo);
   git_repo_stage_all(repo);
@@ -79,7 +98,7 @@ void git_repo_commit_from_dir(sp_str_t source, sp_str_t repo, sp_str_t message) 
 }
 
 sp_str_t git_repo_head(sp_str_t repo) {
-  sp_ps_output_t output = git_repo_git(repo, sp_str_lit("rev-parse"), sp_str_lit("--short=12"), sp_str_lit("HEAD"));
+  sp_ps_output_t output = git(repo, "rev-parse", "--short=12", "HEAD");
   return sp_str_trim_right(output.out);
 }
 
@@ -99,9 +118,7 @@ git_repo_result_t git_repo_build_at(sp_str_t dir, const c8* name, git_repo_fixtu
     git_repo_commit_t* commit = &fixture->commits[c];
     if (!commit->message) break;
 
-    git_repo_git(result.path,
-      sp_str_lit("rm"), sp_str_lit("-r"), sp_str_lit("--quiet"),
-      sp_str_lit("--ignore-unmatch"), sp_str_lit("."));
+    git(result.path, "rm", "-r", "--quiet", "--ignore-unmatch", ".");
 
     sp_carr_for(commit->files, f) {
       git_repo_file_t* file = &commit->files[f];

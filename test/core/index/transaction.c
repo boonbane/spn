@@ -194,32 +194,23 @@ sp_test_each(index_transaction, publish, txn_test_t, tests, .setup = spn_test_ct
   }
 
   if (it->remote.empty) {
-    git_repo_git(tmp, sp_str_lit("init"), sp_str_lit("--quiet"), sp_str_lit("--bare"), sp_str_lit("remote.git"));
+    git(tmp, "init", "--quiet", "--bare", "remote.git");
   }
   else {
     sp_fs_create_dir(seed);
     git_repo_init(seed);
-    git_repo_git(seed, sp_str_lit("symbolic-ref"), sp_str_lit("HEAD"), sp_str_lit("refs/heads/main"));
+    git(seed, "symbolic-ref", "HEAD", "refs/heads/main");
     sp_fs_create_file_str(sp_fs_join_path(mem, seed, sp_str_lit("README.md")), sp_str_lit("index\n"));
     git_repo_stage_all(seed);
     git_repo_commit(seed, sp_str_lit("init"));
-    git_repo_git(tmp, sp_str_lit("clone"), sp_str_lit("--quiet"), sp_str_lit("--bare"), sp_str_lit("seed"), sp_str_lit("remote.git"));
+    git(tmp, "clone", "--quiet", "--bare", "seed", "remote.git");
   }
 
   if (it->remote.reject_push) {
-    sp_str_t hook = sp_fs_join_path(mem, remote, sp_str_lit("hooks/pre-receive"));
-    sp_fs_create_file_str(hook, sp_str_lit(
-      "#!/bin/sh\n"
-      "if [ ! -f \"$GIT_DIR/rejected-once\" ]; then\n"
-      "  touch \"$GIT_DIR/rejected-once\"\n"
-      "  exit 1\n"
-      "fi\n"
-      "exit 0\n"));
-    sp_ps_output_t chmod = sp_ps_run(mem, (sp_ps_config_t) {
-      .command = SP_LIT("chmod"),
-      .args = { SP_LIT("+x"), hook },
-    });
-    sp_must_eq(t, 0, chmod.status.exit_code);
+    sp_must_ok(t, sp_fs_copy_file(
+      test_repo_path(mem, sp_str_lit("test/core/index/hooks/reject_once")),
+      sp_fs_join_path(mem, remote, sp_str_lit("hooks/pre-receive")),
+      SP_FS_ATOMIC_REPLACE));
   }
 
   sp_carr_for(it->actions, at) {
@@ -251,13 +242,13 @@ sp_test_each(index_transaction, publish, txn_test_t, tests, .setup = spn_test_ct
         break;
       }
       case TXN_ACTION_ADVANCE_REMOTE: {
-        git_repo_git(seed, sp_str_lit("pull"), sp_str_lit("--quiet"), remote, sp_str_lit("main"));
+        git_repo_pull(seed, remote, "main");
         sp_str_t file = sp_fs_join_path(mem, seed, sp_str_view(action.write.file));
         sp_fs_create_dir(sp_fs_parent_path(file));
         sp_fs_create_file_str(file, sp_fmt(mem, "{}\n", sp_fmt_cstr(action.write.line)).value);
         git_repo_stage_all(seed);
         git_repo_commit(seed, sp_str_lit("advance"));
-        git_repo_git(seed, sp_str_lit("push"), sp_str_lit("--quiet"), remote, sp_str_lit("HEAD:refs/heads/main"));
+        git_repo_push(seed, remote, "HEAD:refs/heads/main");
         break;
       }
       case TXN_ACTION_APPEND_CLONE_FILE: {

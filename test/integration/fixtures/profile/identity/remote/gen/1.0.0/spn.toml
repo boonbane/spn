@@ -1,3 +1,12 @@
 [package]
 name = "gen"
 version = "1.0.0"
+
+[[lib]]
+name = "gen"
+kinds = ["static"]
+source = ["gen.c"]
+define = [
+  { value = "EXPECT_GEN=2", when = { opt = "2" } },
+  { value = "EXPECT_GEN=3", when = { sanitize_address = true } },
+]

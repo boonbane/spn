@@ -1,0 +1,8 @@
+[package]
+name = "A"
+version = "0.1.0"
+
+[[bin]]
+name = "main"
+source = ["main.c"]
+embed = ["A.txt", { path = "A.txt", dest = "B/A.txt" }]

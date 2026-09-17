@@ -194,6 +194,7 @@ spn_session_t* build_session(sp_mem_t mem, unit_graph_test_t* g) {
 
   spn_build_plan_t plan = { .build = s->units.target };
   sp_da_init(mem, plan.roots);
+  sp_da_init(mem, plan.staged);
   sp_da_push(s->plans, plan);
 
   return s;

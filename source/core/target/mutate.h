@@ -15,6 +15,7 @@ static inline void spn_target_info_init(sp_mem_t mem, spn_target_info_t* target)
   if (!target->system_deps)     sp_da_init(mem, target->system_deps);
   if (!target->deps)            sp_da_init(mem, target->deps);
   if (!target->embed)           sp_da_init(mem, target->embed);
+  if (!target->configured.include) sp_da_init(mem, target->configured.include);
   if (!target->macos.frameworks) sp_da_init(mem, target->macos.frameworks);
   if (!target->gated.source)        sp_da_init(mem, target->gated.source);
   if (!target->gated.headers)       sp_da_init(mem, target->gated.headers);
@@ -26,7 +27,9 @@ static inline void spn_target_info_init(sp_mem_t mem, spn_target_info_t* target)
   if (!target->gated.system_deps)   sp_da_init(mem, target->gated.system_deps);
   if (!target->gated.deps)          sp_da_init(mem, target->gated.deps);
   if (!target->gated.frameworks)    sp_da_init(mem, target->gated.frameworks);
+  if (!target->gated.embed)         sp_da_init(mem, target->gated.embed);
 }
+void spn_target_add_embed(spn_target_info_t* target, spn_embed_t embed);
 void spn_target_add_define_ex(spn_target_info_t* target, sp_str_t define);
 void spn_target_add_flag_ex(spn_target_info_t* target, sp_str_t flag);
 void spn_target_add_dep(spn_target_info_t* target, const c8* dep);

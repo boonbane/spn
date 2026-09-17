@@ -12,8 +12,9 @@
 #define IDENTITY_TEST_MAX_OBJECTS 3
 
 typedef struct {
-  const c8* from;
-  const c8* to;
+  const c8* pattern;
+  const c8* dest;
+  spn_tree_t tree;
 } identity_copy_t;
 
 typedef struct {
@@ -24,16 +25,23 @@ typedef struct {
 typedef struct {
   const c8* qualified;
   const c8* rev;
+  sp_hash_t fingerprint;
   identity_copy_t copies [IDENTITY_TEST_MAX_COPIES];
   identity_path_t headers [IDENTITY_TEST_MAX_HEADERS];
 } identity_pkg_t;
+
+typedef struct {
+  spn_dir_t dir;
+  const c8* sub;
+  spn_dag_artifact_kind_t kind;
+} identity_output_t;
 
 typedef struct {
   identity_pkg_t pkg;
   const c8* tag;
   const c8* fn;
   identity_path_t inputs [IDENTITY_TEST_MAX_PATHS];
-  identity_path_t outputs [IDENTITY_TEST_MAX_PATHS];
+  identity_output_t outputs [IDENTITY_TEST_MAX_PATHS];
 } identity_node_t;
 
 typedef struct {
@@ -63,12 +71,13 @@ static spn_pkg_unit_t* identity_unit(sp_mem_t mem, const identity_pkg_t* spec) {
   info->qualified = sp_str_view(spec->qualified);
   sp_da_init(mem, info->publish.copy);
   sp_carr_for(spec->copies, it) {
-    if (!spec->copies[it].from) {
+    if (!spec->copies[it].pattern) {
       break;
     }
     sp_da_push(info->publish.copy, ((spn_publish_copy_t) {
-      .from = sp_str_view(spec->copies[it].from),
-      .to = sp_str_view(spec->copies[it].to),
+      .tree = spec->copies[it].tree ? spec->copies[it].tree : SPN_TREE_SOURCE,
+      .pattern = sp_str_view(spec->copies[it].pattern),
+      .dest = sp_str_view(spec->copies[it].dest),
     }));
   }
 
@@ -86,6 +95,7 @@ static spn_pkg_unit_t* identity_unit(sp_mem_t mem, const identity_pkg_t* spec) {
   spn_pkg_unit_t* unit = sp_alloc_type(mem, spn_pkg_unit_t);
   unit->info = info;
   unit->source = SPN_PKG_SOURCE_INDEX;
+  unit->fingerprint = spec->fingerprint;
   sp_da_init(mem, unit->user_nodes);
   return unit;
 }
@@ -114,7 +124,11 @@ static spn_user_node_t* identity_node(sp_mem_t mem, const identity_node_t* spec)
     if (!spec->outputs[it].sub) {
       break;
     }
-    sp_da_push(node->outputs, identity_path(&spec->outputs[it]));
+    sp_da_push(node->outputs, ((spn_user_output_t) {
+      .dir = spec->outputs[it].dir,
+      .sub = sp_cstr_as_str(spec->outputs[it].sub),
+      .kind = spec->outputs[it].kind ? spec->outputs[it].kind : SPN_DAG_ARTIFACT_KIND_FILE,
+    }));
   }
   return node;
 }
@@ -127,8 +141,8 @@ static sp_err_t identity_expect_distinct(sp_test_t* t, spn_dag_digest_t a, spn_d
 static const identity_pkg_test_t tree_tests [] = {
   {
     .name = "identical_units_agree",
-    .a = { .qualified = "A", .rev = "1", .copies = { { "source/H", "include" } } },
-    .b = { .qualified = "A", .rev = "1", .copies = { { "source/H", "include" } } },
+    .a = { .qualified = "A", .rev = "1", .copies = { { "H", "" } } },
+    .b = { .qualified = "A", .rev = "1", .copies = { { "H", "" } } },
   },
   {
     .name = "distinct_qualified",
@@ -138,14 +152,26 @@ static const identity_pkg_test_t tree_tests [] = {
   },
   {
     .name = "distinct_publish_copy",
-    .a = { .qualified = "A", .rev = "1", .copies = { { "source/H", "include" } } },
-    .b = { .qualified = "A", .rev = "1", .copies = { { "source/I", "include" } } },
+    .a = { .qualified = "A", .rev = "1", .copies = { { "H", "" } } },
+    .b = { .qualified = "A", .rev = "1", .copies = { { "I", "" } } },
+    .expect = { .distinct = true }
+  },
+  {
+    .name = "distinct_publish_dest",
+    .a = { .qualified = "A", .rev = "1", .copies = { { "H", "" } } },
+    .b = { .qualified = "A", .rev = "1", .copies = { { "H", "D" } } },
+    .expect = { .distinct = true }
+  },
+  {
+    .name = "distinct_publish_tree",
+    .a = { .qualified = "A", .rev = "1", .copies = { { "H", "", SPN_TREE_SOURCE } } },
+    .b = { .qualified = "A", .rev = "1", .copies = { { "H", "", SPN_TREE_MANIFEST } } },
     .expect = { .distinct = true }
   },
   {
     .name = "distinct_pinned_source",
-    .a = { .qualified = "A", .rev = "1", .copies = { { "source/H", "include" } } },
-    .b = { .qualified = "A", .rev = "2", .copies = { { "source/H", "include" } } },
+    .a = { .qualified = "A", .rev = "1", .copies = { { "H", "" } } },
+    .b = { .qualified = "A", .rev = "2", .copies = { { "H", "" } } },
     .expect = { .distinct = true }
   },
   {
@@ -176,35 +202,6 @@ sp_test_each(identity, tree, identity_pkg_test_t, tree_tests) {
   return identity_expect_distinct(t, a, b, &it->expect);
 }
 
-static const identity_pkg_test_t package_tests [] = {
-  {
-    .name = "identical_units_agree",
-    .a = { .qualified = "A", .rev = "1", .copies = { { "source/H", "store/H" } } },
-    .b = { .qualified = "A", .rev = "1", .copies = { { "source/H", "store/H" } } },
-  },
-  {
-    .name = "distinct_publish_copy",
-    .a = { .qualified = "A", .rev = "1", .copies = { { "source/H", "store/H" } } },
-    .b = { .qualified = "A", .rev = "1", .copies = { { "source/I", "store/I" } } },
-    .expect = { .distinct = true }
-  },
-  {
-    .name = "distinct_pinned_source",
-    .a = { .qualified = "A", .rev = "1", .copies = { { "source/H", "store/H" } } },
-    .b = { .qualified = "A", .rev = "2", .copies = { { "source/H", "store/H" } } },
-    .expect = { .distinct = true }
-  },
-};
-
-sp_test_each(identity, package, identity_pkg_test_t, package_tests) {
-  sp_mem_t mem = sp_test_arena(t);
-  spn_build_source_pin_t pin_a = identity_pin(&it->a);
-  spn_build_source_pin_t pin_b = identity_pin(&it->b);
-  spn_dag_digest_t a = spn_build_package_identity(identity_unit(mem, &it->a), &pin_a);
-  spn_dag_digest_t b = spn_build_package_identity(identity_unit(mem, &it->b), &pin_b);
-  return identity_expect_distinct(t, a, b, &it->expect);
-}
-
 static const identity_node_test_t user_tests [] = {
   {
     .name = "identical_nodes_agree",
@@ -225,14 +222,32 @@ static const identity_node_test_t user_tests [] = {
   },
   {
     .name = "distinct_outputs",
-    .a = { .pkg = { .qualified = "A", .rev = "1" }, .tag = "N", .fn = "F", .outputs = { { "A-1/H", SPN_PATH_ROOT_BUILD } } },
-    .b = { .pkg = { .qualified = "A", .rev = "1" }, .tag = "N", .fn = "F", .outputs = { { "A-1/I", SPN_PATH_ROOT_BUILD } } },
+    .a = { .pkg = { .qualified = "A", .rev = "1" }, .tag = "N", .fn = "F", .outputs = { { SPN_DIR_WORK, "H" } } },
+    .b = { .pkg = { .qualified = "A", .rev = "1" }, .tag = "N", .fn = "F", .outputs = { { SPN_DIR_WORK, "I" } } },
+    .expect = { .distinct = true }
+  },
+  {
+    .name = "distinct_output_dir",
+    .a = { .pkg = { .qualified = "A", .rev = "1" }, .tag = "N", .fn = "F", .outputs = { { SPN_DIR_WORK, "H" } } },
+    .b = { .pkg = { .qualified = "A", .rev = "1" }, .tag = "N", .fn = "F", .outputs = { { SPN_DIR_INCLUDE, "H" } } },
+    .expect = { .distinct = true }
+  },
+  {
+    .name = "distinct_output_kind",
+    .a = { .pkg = { .qualified = "A", .rev = "1" }, .tag = "N", .fn = "F", .outputs = { { SPN_DIR_WORK, "H" } } },
+    .b = { .pkg = { .qualified = "A", .rev = "1" }, .tag = "N", .fn = "F", .outputs = { { SPN_DIR_WORK, "H", SPN_DAG_ARTIFACT_KIND_TREE } } },
     .expect = { .distinct = true }
   },
   {
     .name = "distinct_pinned_source",
     .a = { .pkg = { .qualified = "A", .rev = "1" }, .tag = "N", .fn = "F" },
     .b = { .pkg = { .qualified = "A", .rev = "2" }, .tag = "N", .fn = "F" },
+    .expect = { .distinct = true }
+  },
+  {
+    .name = "distinct_fingerprint",
+    .a = { .pkg = { .qualified = "A", .rev = "1" }, .tag = "N", .fn = "F" },
+    .b = { .pkg = { .qualified = "A", .rev = "1", .fingerprint = 1 }, .tag = "N", .fn = "F" },
     .expect = { .distinct = true }
   },
 };

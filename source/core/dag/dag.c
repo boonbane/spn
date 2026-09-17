@@ -48,19 +48,11 @@ static spn_dag_id_t add_artifact(spn_dag_t* g, spn_dag_artifact_t artifact) {
   return artifact.id;
 }
 
-static spn_dag_id_t add_path(spn_dag_t* g, spn_path_t path, spn_dag_artifact_kind_t kind) {
+spn_dag_id_t spn_dag_add_path(spn_dag_t* g, spn_path_t path, spn_dag_artifact_kind_t kind) {
   sp_assert(!spn_path_empty(path));
   spn_dag_id_t* existing = sp_ht_getp(g->paths, path);
-  if (existing) {
-    sp_assert(spn_dag_find_artifact(g, *existing)->kind == kind);
+  if (existing && spn_dag_find_artifact(g, *existing)->kind == kind) {
     return *existing;
-  }
-
-  if (kind == SPN_DAG_ARTIFACT_KIND_TREE) {
-    sp_mem_arena_marker_t s = sp_mem_begin_scratch();
-    sp_str_t dir = spn_path_str(g->roots, s.mem, path);
-    sp_assert(!spn_path_roots_intersect(g->roots, dir));
-    sp_mem_end_scratch(s);
   }
 
   spn_path_t key = { .root = path.root, .sub = sp_str_copy(g->mem, path.sub) };
@@ -68,7 +60,9 @@ static spn_dag_id_t add_path(spn_dag_t* g, spn_path_t path, spn_dag_artifact_kin
     .kind = kind,
     .path = key,
   });
-  sp_ht_insert(g->paths, key, id);
+  if (!existing) {
+    sp_ht_insert(g->paths, key, id);
+  }
   return id;
 }
 
@@ -80,11 +74,11 @@ spn_dag_id_t spn_dag_add_value(spn_dag_t* g, const void* data, u64 len) {
 }
 
 spn_dag_id_t spn_dag_add_file(spn_dag_t* g, spn_path_t path) {
-  return add_path(g, path, SPN_DAG_ARTIFACT_KIND_FILE);
+  return spn_dag_add_path(g, path, SPN_DAG_ARTIFACT_KIND_FILE);
 }
 
 spn_dag_id_t spn_dag_add_tree(spn_dag_t* g, spn_path_t path) {
-  return add_path(g, path, SPN_DAG_ARTIFACT_KIND_TREE);
+  return spn_dag_add_path(g, path, SPN_DAG_ARTIFACT_KIND_TREE);
 }
 
 spn_dag_id_t spn_dag_add_output(spn_dag_t* g, sp_str_t name) {
@@ -149,6 +143,54 @@ spn_err_t spn_dag_action_add_output(spn_dag_t* g, spn_dag_id_t action_id, spn_da
   artifact->producer = action_id;
   sp_da_push(action->produces, artifact_id);
   return SPN_OK;
+}
+
+bool spn_dag_output_overlaps(spn_dag_artifact_t* artifact, spn_path_t path) {
+  if (!artifact->producer.occupied) {
+    return false;
+  }
+  bool below = spn_path_within(path, artifact->path).within;
+  bool above = artifact->kind == SPN_DAG_ARTIFACT_KIND_TREE && spn_path_within(artifact->path, path).within;
+  return below || above;
+}
+
+spn_dag_violation_t spn_dag_validate(spn_dag_t* g) {
+  sp_mem_arena_marker_t s = sp_mem_begin_scratch();
+  spn_dag_violation_t violation = sp_zero;
+  sp_da_for(g->artifacts, it) {
+    spn_dag_artifact_t* artifact = &g->artifacts[it];
+    if (spn_path_empty(artifact->path)) {
+      continue;
+    }
+
+    spn_err_t err = SPN_OK;
+    bool tree = artifact->kind == SPN_DAG_ARTIFACT_KIND_TREE;
+    if (sp_ht_getp(g->paths, artifact->path)->index != artifact->id.index) {
+      err = SPN_ERR_DAG_PATH_KIND;
+    }
+    else if (tree && !artifact->producer.occupied) {
+      err = SPN_ERR_DAG_TREE_INPUT;
+    }
+    else if (tree && spn_path_roots_intersect(g->roots, spn_path_str(g->roots, s.mem, artifact->path))) {
+      err = SPN_ERR_DAG_TREE_ROOT;
+    }
+    else if (artifact->path.root != SPN_PATH_ROOT_NONE) {
+      for (spn_path_t dir = spn_path_parent(artifact->path); !sp_str_empty(dir.sub); dir = spn_path_parent(dir)) {
+        spn_dag_id_t* above = sp_ht_getp(g->paths, dir);
+        if (above && spn_dag_find_artifact(g, *above)->kind == SPN_DAG_ARTIFACT_KIND_TREE) {
+          err = artifact->producer.occupied ? SPN_ERR_DAG_NESTED_OUTPUT : SPN_ERR_DAG_NESTED_INPUT;
+          break;
+        }
+      }
+    }
+
+    if (err) {
+      violation = (spn_dag_violation_t) { .err = err, .path = artifact->path };
+      break;
+    }
+  }
+  sp_mem_end_scratch(s);
+  return violation;
 }
 
 void spn_dag_hash_bytes(spn_digest_ctx_t* ctx, const void* data, u64 len) {

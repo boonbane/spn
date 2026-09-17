@@ -15,6 +15,7 @@ typedef enum {
   FENCE_OP_TICK,
   FENCE_OP_REFRESH,
   FENCE_OP_DIGEST,
+  FENCE_OP_SEED,
 } op_kind_t;
 
 typedef struct {
@@ -102,6 +103,27 @@ static const test_t tests [] = {
     }
   },
   {
+    .name = "seed_in_open_quantum_not_recorded",
+    .ops = {
+      { .kind = FENCE_OP_DIR },
+      { .kind = FENCE_OP_FILE, .path = "F", .blob = "A" },
+      { .kind = FENCE_OP_SEED, .path = "F", .blob = "B" },
+      { .kind = FENCE_OP_REFRESH },
+      { .kind = FENCE_OP_DIGEST, .path = "F", .expect = { .blob = "A" } },
+    }
+  },
+  {
+    .name = "seed_after_tick_recorded",
+    .ops = {
+      { .kind = FENCE_OP_DIR },
+      { .kind = FENCE_OP_FILE, .path = "F", .blob = "A" },
+      { .kind = FENCE_OP_TICK },
+      { .kind = FENCE_OP_SEED, .path = "F", .blob = "B" },
+      { .kind = FENCE_OP_REFRESH },
+      { .kind = FENCE_OP_DIGEST, .path = "F", .expect = { .blob = "B" } },
+    }
+  },
+  {
     .name = "trip_refresh_skips_open_quantum",
     .ops = {
       { .kind = FENCE_OP_DIR },
@@ -174,6 +196,10 @@ sp_test_each(dag_fence, ops, test_t, tests) {
         spn_dag_digest_t digest = sp_zero;
         sp_expect_eq(t, SPN_OK, spn_dag_file_cache_digest(&files, spn_path_make(&roots, rendered), &digest));
         sp_expect(t, spn_dag_digest_equal(digest, dag_test_digest(op->expect.blob)));
+        break;
+      }
+      case FENCE_OP_SEED: {
+        sp_expect_eq(t, SPN_OK, spn_dag_file_cache_seed(&files, spn_path_make(&roots, rendered), dag_test_digest(op->blob)));
         break;
       }
     }

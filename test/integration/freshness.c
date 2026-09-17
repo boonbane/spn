@@ -77,13 +77,60 @@ sp_test(freshness, touch_without_change) {
   });
 }
 
+sp_test(freshness, staged_lib_noop) {
+  return run_rebuild_test(t, (rebuild_test_t) {
+    .project = "test/integration/fixtures/freshness/shared",
+    .copy = { "packages/*", "t.c" },
+    .first = {
+      .args = { "build" },
+      .expect.exists = { exe("main"), staged_lib("B") },
+    },
+    .rebuilds = {
+      {
+        .command = {
+          .args = { "build" },
+          .expect.events = { { .event = SPN_EVENT_TARGET_BUILD_PASSED, .absent = true } },
+        },
+      },
+    },
+    .watches = {
+      { .file = staged_lib("B"), .mtime = REBUILD_MTIME_UNCHANGED },
+    },
+  });
+}
+
+sp_test(freshness, staged_lib_change) {
+  return run_rebuild_test(t, (rebuild_test_t) {
+    .project = "test/integration/fixtures/freshness/shared",
+    .copy = { "packages/*", "t.c" },
+    .first = {
+      .args = { "build" },
+      .expect.exists = { exe("main"), staged_lib("B") },
+    },
+    .rebuilds = {
+      {
+        .change.moves = {
+          { .from = sp_str_lit("packages/B/b.change.c"), .to = sp_str_lit("packages/B/b.c") },
+        },
+        .command = {
+          .args = { "build" },
+          .expect.events = { { .event = SPN_EVENT_TARGET_BUILD_PASSED } },
+        },
+      },
+    },
+    .watches = {
+      { .file = staged_lib("B"), .mtime = REBUILD_MTIME_CHANGED },
+    },
+  });
+}
+
 sp_test(freshness, dep_source_change) {
   return run_rebuild_test(t, (rebuild_test_t) {
     .project = "test/integration/fixtures/freshness/dep",
     .copy = { "packages/*" },
     .first = {
       .args = { "build", "-p", "debug" },
-      .expect.exists = { static_lib("spum"), store_file("bin/main") },
+      .expect.exists = { pkg_static_lib("spum", "spum"), pkg_store_file("test", "bin/main") },
     },
     .rebuilds = {
       {
@@ -103,8 +150,8 @@ sp_test(freshness, dep_source_change) {
       },
     },
     .watches = {
-      { .file = static_lib("spum"), .mtime = REBUILD_MTIME_CHANGED },
-      { .file = store_file("bin/main"), .mtime = REBUILD_MTIME_CHANGED },
+      { .file = pkg_static_lib("spum", "spum"), .mtime = REBUILD_MTIME_CHANGED },
+      { .file = pkg_store_file("test", "bin/main"), .mtime = REBUILD_MTIME_CHANGED },
     },
   });
 }
@@ -116,7 +163,7 @@ sp_test(freshness, dep_header_inert) {
     .when.deterministic = true,
     .first = {
       .args = { "build", "-p", "debug" },
-      .expect.exists = { store_file("bin/main") },
+      .expect.exists = { pkg_store_file("test", "bin/main") },
     },
     .rebuilds = {
       {
@@ -130,7 +177,32 @@ sp_test(freshness, dep_header_inert) {
       },
     },
     .watches = {
-      { .file = store_file("bin/main"), .mtime = REBUILD_MTIME_UNCHANGED },
+      { .file = pkg_store_file("test", "bin/main"), .mtime = REBUILD_MTIME_UNCHANGED },
+    },
+  });
+}
+
+sp_test(freshness, dep_unincluded_header_change) {
+  return run_rebuild_test(t, (rebuild_test_t) {
+    .project = "test/integration/fixtures/freshness/dep",
+    .copy = { "packages/*" },
+    .first = {
+      .args = { "build", "-p", "debug" },
+      .expect.exists = { pkg_store_file("spum", "include/extra.h"), pkg_store_file("test", "bin/main") },
+    },
+    .rebuilds = {
+      {
+        .change.moves = {
+          { .from = sp_str_lit("packages/spum/extra.change.h"), .to = sp_str_lit("packages/spum/extra.h") },
+        },
+        .command = {
+          .args = { "build", "-p", "debug" },
+          .expect.events = { { .event = SPN_EVENT_TARGET_BUILD_PASSED, .absent = true } },
+        },
+      },
+    },
+    .watches = {
+      { .file = pkg_store_file("test", "bin/main"), .mtime = REBUILD_MTIME_UNCHANGED },
     },
   });
 }
@@ -141,7 +213,7 @@ sp_test(freshness, dep_header_change) {
     .copy = { "packages/*", "main.code.c" },
     .first = {
       .args = { "build", "-p", "debug" },
-      .expect.exists = { store_file("bin/main") },
+      .expect.exists = { pkg_store_file("test", "bin/main") },
     },
     .rebuilds = {
       {
@@ -165,7 +237,7 @@ sp_test(freshness, dep_header_change) {
       },
     },
     .watches = {
-      { .file = store_file("bin/main"), .mtime = REBUILD_MTIME_CHANGED },
+      { .file = pkg_store_file("test", "bin/main"), .mtime = REBUILD_MTIME_CHANGED },
     },
   });
 }

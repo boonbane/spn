@@ -49,11 +49,6 @@ static sp_color_t name_to_color(sp_str_t name) {
 }
 
 static void write_name_color(sp_tty_t* tty, sp_str_t name) {
-  if (sp_str_equal_cstr(name, "package")) {
-    sp_tty_sgr(tty, SP_ANSI_FG_WHITE_U8);
-    return;
-  }
-
   sp_color_t rgb = name_to_color(name);
   sp_tty_rgb(tty, (u8)(rgb.r * 255.0f), (u8)(rgb.g * 255.0f), (u8)(rgb.b * 255.0f));
 }
@@ -401,12 +396,6 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
     }
     case SPN_EVENT_SCRIPT_USER_FN: {
       sp_tty_fmt(&w, "{}", sp_fmt_str(event->script_user_fn.tag));
-      break;
-    }
-    case SPN_EVENT_PACKAGE_OK: {
-      c8 buffer [64] = sp_zero;
-      sp_fmt_write_duration_buf(buffer, sizeof(buffer), event->package_ok.time);
-      sp_tty_fmt(&w, "in {.gray}", sp_fmt_cstr(buffer));
       break;
     }
     case SPN_EVENT_TARGET_BUILD_PASSED: {
@@ -929,14 +918,6 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           );
           break;
         }
-        case SPN_ERR_BUILD_GRAPH: {
-          sp_tty_fmt(
-            &w,
-            "Failed to construct the build graph at {.cyan}",
-            sp_fmt_str(get_contextual_path(ctx, mem, event->err.build_graph.file))
-          );
-          break;
-        }
         case SPN_ERR_FS_READ: {
           sp_tty_fmt(
             &w,
@@ -1375,6 +1356,17 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           );
           break;
         }
+        case SPN_ERR_TARGET_COLLISION: {
+          sp_tty_fmt(
+            &w,
+            "{.cyan} and {.cyan} both produce {.yellow}; they cannot be staged beside {.cyan}",
+            sp_fmt_str(event->err.collision.pkg),
+            sp_fmt_str(event->err.collision.other),
+            sp_fmt_str(event->err.collision.name),
+            sp_fmt_str(event->err.collision.exe)
+          );
+          break;
+        }
         case SPN_ERR_TARGET_DEP: {
           sp_tty_fmt(
             &w,
@@ -1450,6 +1442,26 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           sp_tty_fmt(&w, "{.cyan} is declared as a build action output, but it is inside an immutable cache directory", sp_fmt_str(get_contextual_path(ctx, mem, event->err.dag.path)));
           break;
         }
+        case SPN_ERR_DAG_PATH_KIND: {
+          sp_tty_fmt(&w, "{.cyan} is declared as both a file and a directory", sp_fmt_str(get_contextual_path(ctx, mem, event->err.dag.path)));
+          break;
+        }
+        case SPN_ERR_DAG_TREE_ROOT: {
+          sp_tty_fmt(&w, "{.cyan} is declared as a directory output, but it contains a build root", sp_fmt_str(get_contextual_path(ctx, mem, event->err.dag.path)));
+          break;
+        }
+        case SPN_ERR_DAG_TREE_INPUT: {
+          sp_tty_fmt(&w, "{.cyan} is a directory, but no build action produces it", sp_fmt_str(get_contextual_path(ctx, mem, event->err.dag.path)));
+          break;
+        }
+        case SPN_ERR_DAG_NESTED_OUTPUT: {
+          sp_tty_fmt(&w, "{.cyan} is a build action output, but it is inside a directory that is itself a build action output", sp_fmt_str(get_contextual_path(ctx, mem, event->err.dag.path)));
+          break;
+        }
+        case SPN_ERR_DAG_NESTED_INPUT: {
+          sp_tty_fmt(&w, "{.cyan} is a build input, but it is inside a directory produced by a build action", sp_fmt_str(get_contextual_path(ctx, mem, event->err.dag.path)));
+          break;
+        }
         case SPN_ERR_DAG_MISSING_INPUT: {
           sp_tty_fmt(&w, "{.cyan} doesn't exist, but is listed as an input", sp_fmt_str(get_contextual_path(ctx, mem, event->err.dag.path)));
           break;
@@ -1468,6 +1480,10 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
         }
         case SPN_ERR_DAG_STORE_WRITE: {
           sp_tty_fmt(&w, "{.cyan} could not be written to the content store", sp_fmt_str(get_contextual_path(ctx, mem, event->err.dag.path)));
+          break;
+        }
+        case SPN_ERR_DAG_OUTPUT_WRITE: {
+          sp_tty_fmt(&w, "{.cyan} could not be written", sp_fmt_str(get_contextual_path(ctx, mem, event->err.dag.path)));
           break;
         }
         case SPN_ERR_DAG_SCRATCH: {

@@ -11,12 +11,15 @@ spn_dag_t*          spn_dag_new(sp_mem_t mem, const spn_path_roots_t* roots);
 spn_dag_artifact_t* spn_dag_find_artifact(spn_dag_t* g, spn_dag_id_t id);
 spn_dag_action_t*   spn_dag_find_action(spn_dag_t* g, spn_dag_id_t id);
 spn_dag_id_t        spn_dag_add_value(spn_dag_t* g, const void* data, u64 len);
+spn_dag_id_t        spn_dag_add_path(spn_dag_t* g, spn_path_t path, spn_dag_artifact_kind_t kind);
 spn_dag_id_t        spn_dag_add_file(spn_dag_t* g, spn_path_t path);
 spn_dag_id_t        spn_dag_add_tree(spn_dag_t* g, spn_path_t path);
 spn_dag_id_t        spn_dag_add_output(spn_dag_t* g, sp_str_t name);
 spn_dag_id_t        spn_dag_add_action(spn_dag_t* g, spn_dag_action_config_t config);
 void                spn_dag_action_add_input(spn_dag_t* g, spn_dag_id_t action, spn_dag_id_t artifact);
 spn_err_t           spn_dag_action_add_output(spn_dag_t* g, spn_dag_id_t action, spn_dag_id_t artifact);
+bool                spn_dag_output_overlaps(spn_dag_artifact_t* artifact, spn_path_t path);
+spn_dag_violation_t spn_dag_validate(spn_dag_t* g);
 
 void                spn_dag_hash_bytes(spn_digest_ctx_t* ctx, const void* data, u64 len);
 void                spn_dag_hash_u8(spn_digest_ctx_t* ctx, u8 value);
@@ -41,18 +44,17 @@ bool                spn_dag_digest_valid(spn_dag_digest_t digest);
 sp_str_t            spn_dag_digest_hex(sp_mem_t mem, spn_dag_digest_t digest);
 bool                spn_dag_digest_parse(sp_str_t hex, spn_dag_digest_t* out);
 
-spn_err_t           spn_dag_glob(sp_mem_t mem, const spn_path_roots_t* roots, spn_path_t pattern, sp_da(spn_dag_obs_t)* obs, sp_da(spn_path_t)* matches);
+spn_err_t           spn_dag_glob(sp_mem_t mem, const spn_path_roots_t* roots, spn_path_t pattern, spn_dag_glob_result_t* result);
 
 void                spn_dag_store_init(spn_dag_store_t* store, spn_dag_store_config_t config);
 spn_err_t           spn_dag_store_put(spn_dag_store_t* store, const void* data, u64 len, sp_str_t name, spn_dag_digest_t* digest);
 spn_err_t           spn_dag_store_put_file(spn_dag_store_t* store, sp_str_t path, sp_str_t name, spn_dag_digest_t* digest);
 spn_err_t           spn_dag_store_put_tree(spn_dag_store_t* store, sp_str_t dir, spn_dag_digest_t* digest);
-bool                spn_dag_store_has(spn_dag_store_t* store, spn_dag_digest_t digest, sp_str_t name);
-bool                spn_dag_store_has_tree(spn_dag_store_t* store, spn_dag_digest_t digest);
-spn_path_t          spn_dag_store_path(spn_dag_store_t* store, sp_mem_t mem, spn_dag_digest_t digest, sp_str_t name);
+spn_err_t           spn_dag_store_locate(spn_dag_store_t* store, sp_mem_t mem, spn_dag_digest_t digest, sp_str_t name, spn_path_t* path);
+bool                spn_dag_store_owns(spn_dag_store_t* store, spn_dag_digest_t digest, sp_str_t name, sp_sys_file_meta_t file);
+void                spn_dag_store_drop(spn_dag_store_t* store, spn_dag_digest_t digest, sp_str_t name);
 spn_err_t           spn_dag_store_get(spn_dag_store_t* store, spn_dag_digest_t digest, sp_str_t name, sp_mem_t mem, sp_mem_slice_t* data);
 spn_err_t           spn_dag_store_materialize(spn_dag_store_t* store, spn_dag_digest_t digest, sp_str_t name, sp_str_t path);
-spn_err_t           spn_dag_store_materialize_tree(spn_dag_store_t* store, spn_dag_digest_t digest, sp_str_t dir);
 spn_err_t           spn_dag_tree_entries(spn_dag_store_t* store, spn_dag_digest_t digest, sp_mem_t mem, sp_da(spn_dag_action_output_t)* out);
 
 void                spn_dag_action_cache_init(spn_dag_action_cache_t* c, sp_mem_t mem, sp_str_t dir);
@@ -69,9 +71,8 @@ void                spn_dag_file_cache_fence(spn_dag_file_cache_t* c, sp_sys_tim
 spn_err_t           spn_dag_file_cache_fence_dir(spn_dag_file_cache_t* c, sp_str_t dir);
 void                spn_dag_file_cache_load(spn_dag_file_cache_t* c, sp_str_t path);
 void                spn_dag_file_cache_flush(spn_dag_file_cache_t* c, sp_str_t path);
-void                spn_dag_file_cache_seed(spn_dag_file_cache_t* c, spn_dag_file_meta_t meta);
+spn_err_t           spn_dag_file_cache_seed(spn_dag_file_cache_t* c, spn_path_t path, spn_dag_digest_t digest);
 void                spn_dag_file_cache_invalidate(spn_dag_file_cache_t* c, spn_path_t path);
-void                spn_dag_file_cache_invalidate_dir(spn_dag_file_cache_t* c, spn_path_t dir);
 void                spn_dag_file_cache_invalidate_all(spn_dag_file_cache_t* c);
 spn_err_t           spn_dag_file_cache_stat(spn_dag_file_cache_t* c, spn_path_t path, sp_sys_file_meta_t* meta);
 spn_err_t           spn_dag_file_cache_digest(spn_dag_file_cache_t* c, spn_path_t path, spn_dag_digest_t* digest);

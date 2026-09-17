@@ -51,10 +51,10 @@ add_custom_command(
     ${EMBED_OBJ}
     ${CMAKE_SOURCE_DIR}/include/spn.h=include/spn.h
     ${CMAKE_SOURCE_DIR}/include/spn/core.h=include/spn/core.h
-    ${CMAKE_SOURCE_DIR}/include/spn/err.h=include/spn/err.h
+    ${GEN_INCLUDE}/spn/err.h=include/spn/err.h
     ${CMAKE_SOURCE_DIR}/source/core/toolchain/toolchains.toml=toolchains.toml
     ${CMAKE_SOURCE_DIR}/assets/init=init
-  DEPENDS embed ${CMAKE_SOURCE_DIR}/include/spn.h ${CMAKE_SOURCE_DIR}/include/spn/core.h ${CMAKE_SOURCE_DIR}/include/spn/err.h ${CMAKE_SOURCE_DIR}/source/core/toolchain/toolchains.toml ${SPN_INIT_TEMPLATES}
+  DEPENDS embed ${CMAKE_SOURCE_DIR}/include/spn.h ${CMAKE_SOURCE_DIR}/include/spn/core.h ${GEN_INCLUDE}/spn/err.h ${CMAKE_SOURCE_DIR}/source/core/toolchain/toolchains.toml ${SPN_INIT_TEMPLATES}
   COMMENT "spn.embed.o"
   VERBATIM)
 add_custom_target(spn_embed ALL DEPENDS ${EMBED_OBJ} ${EMBED_HDR})
@@ -65,11 +65,8 @@ target_include_directories(toolchain PRIVATE ${STORE}/include ${UTIL})
 target_link_libraries(toolchain PRIVATE m)
 add_dependencies(toolchain headers)
 
-set(GEN_DIR ${CMAKE_SOURCE_DIR}/source/core/codegen/gen)
-file(MAKE_DIRECTORY ${GEN_DIR})
-
 set(SCHEMA_DIR ${CMAKE_SOURCE_DIR}/source/core/codegen/schema)
-set(INCLUDE_DIR ${CMAKE_SOURCE_DIR}/include/spn)
+set(INCLUDE_DIR ${GEN_INCLUDE}/spn)
 set(GEN_FILES
   ${GEN_DIR}/common.gen.h
   ${GEN_DIR}/config.gen.h
@@ -95,20 +92,17 @@ file(GLOB JTD_GEN_SCHEMAS CONFIGURE_DEPENDS ${SCHEMA_DIR}/*.json)
 file(GLOB_RECURSE JTD_GEN_TEMPLATES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/gen/templates/*.tmpl)
 add_custom_command(
   OUTPUT ${GEN_FILES}
-  COMMAND ${CMAKE_COMMAND} -E make_directory ${GEN_DIR}
+  COMMAND ${CMAKE_COMMAND} -E make_directory ${GEN_DIR} ${INCLUDE_DIR}
   COMMAND $<TARGET_FILE:jtd_gen>
     ${SCHEMA_DIR}
     ${GEN_DIR}
     ${INCLUDE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/gen/templates
   DEPENDS jtd_gen ${JTD_GEN_SCHEMAS} ${JTD_GEN_TEMPLATES}
-  COMMENT "codegen: source/core/codegen/gen/*.gen.{h,c}, include/spn/{err,errors,events}.h"
+  COMMENT "codegen: gen/core/*.gen.{h,c}, gen/include/spn/{err,errors,events}.h"
   VERBATIM)
 add_custom_target(spn_codegen_gen ALL DEPENDS ${GEN_FILES})
 add_dependencies(spn_embed spn_codegen_gen)
-
-set(TEST_GEN_DIR ${CMAKE_SOURCE_DIR}/test/tools/gen)
-file(MAKE_DIRECTORY ${TEST_GEN_DIR})
 
 set(TEST_SCHEMA_DIR ${CMAKE_SOURCE_DIR}/test/tools/schema)
 set(TEST_GEN_FILES
@@ -124,7 +118,7 @@ set(TEST_GEN_FILES
 file(GLOB JTD_TEST_GEN_SCHEMAS CONFIGURE_DEPENDS ${TEST_SCHEMA_DIR}/*.json)
 add_custom_command(
   OUTPUT ${TEST_GEN_FILES}
-  COMMAND ${CMAKE_COMMAND} -E make_directory ${TEST_GEN_DIR}
+  COMMAND ${CMAKE_COMMAND} -E make_directory ${TEST_GEN_DIR} ${INCLUDE_DIR}
   COMMAND $<TARGET_FILE:jtd_gen>
     --common ${SCHEMA_DIR}
     ${TEST_SCHEMA_DIR}
@@ -132,6 +126,6 @@ add_custom_command(
     ${INCLUDE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/gen/templates
   DEPENDS jtd_gen ${SCHEMA_DIR}/common.jtd.json ${JTD_TEST_GEN_SCHEMAS} ${JTD_GEN_TEMPLATES}
-  COMMENT "codegen: test/tools/gen/*.gen.{h,c}"
+  COMMENT "codegen: gen/test/*.gen.{h,c}"
   VERBATIM)
 add_custom_target(spn_codegen_test_gen ALL DEPENDS ${TEST_GEN_FILES})

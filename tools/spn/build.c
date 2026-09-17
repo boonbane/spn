@@ -1,6 +1,5 @@
 #define SP_IMPLEMENTATION
 #include "sp.h"
-#include "atomic_file/atomic_file.h"
 #include "spn.h"
 #include "codegen.h"
 
@@ -30,8 +29,8 @@ SPN_EXPORT
 spn_err_t codegen(spn_t* spn) {
   return generate(spn, (codegen_paths_t) {
     .schema = sp_str_lit("/source/source/core/codegen/schema"),
-    .out = sp_str_lit("/source/source/core/codegen/gen"),
-    .include = sp_str_lit("/source/include/spn"),
+    .out = sp_str_lit("/work/gen/codegen/gen"),
+    .include = sp_str_lit("/work/gen/include/spn"),
     .templates = sp_str_lit("/source/tools/gen/templates"),
   });
 }
@@ -41,8 +40,8 @@ spn_err_t codegen_test(spn_t* spn) {
   return generate(spn, (codegen_paths_t) {
     .schema = sp_str_lit("/source/test/tools/schema"),
     .common = sp_str_lit("/source/source/core/codegen/schema"),
-    .out = sp_str_lit("/source/test/tools/gen"),
-    .include = sp_str_lit("/source/include/spn"),
+    .out = sp_str_lit("/work/gen/codegen/test"),
+    .include = sp_str_lit("/work/gen/include/spn"),
     .templates = sp_str_lit("/source/tools/gen/templates"),
   });
 }

@@ -1,6 +1,5 @@
 #include "sp.h"
 #include "macro/macro.h"
-#include "sp/sp_glob.h"
 #include "spn.h"
 
 #include "api/api.h"
@@ -25,7 +24,6 @@
 #include "pkg/pkg.h"
 #include "session/session.h"
 #include "io/io.h"
-#include "target/target.h"
 
 spn_pkg_unit_t* spn_api_unit(const void* opaque) {
   return (spn_pkg_unit_t*)opaque;
@@ -44,6 +42,7 @@ spn_path_t spn_api_dir_path(spn_pkg_unit_t* unit, spn_dir_t dir) {
     case SPN_DIR_WORK:     return unit->paths.work;
     case SPN_DIR_PROJECT:  return unit->session->paths.root;
     case SPN_DIR_MANIFEST: return unit->paths.roots.recipe;
+    case SPN_DIR_BIN:      return unit->paths.bin;
   }
 
   SP_UNREACHABLE_RETURN(sp_zero_struct(spn_path_t));
@@ -193,55 +192,17 @@ void spn_write_file(spn_t* s, const c8* path, const c8* content) {
 }
 
 s32 spn_api_copy(sp_str_t from, sp_str_t to) {
-  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-
-  s32 err = SPN_OK;
-
-  // sp_fs_copy only understands a bare "*" or an exact name; expand real glob
-  // patterns (e.g. "lib/*.o") ourselves against the source directory.
-  sp_str_t pattern = sp_fs_get_name(from);
   if (sp_fs_is_glob(from)) {
-    sp_str_t dir = sp_fs_parent_path(from);
-    if (!sp_fs_is_dir(dir)) {
-      err = SPN_ERROR;
-    }
-    else if (sp_str_equal(pattern, sp_str_lit("*"))) {
-      err = sp_fs_copy(from, to);
-    }
-    else {
-      sp_fs_create_dir(to);
-
-      sp_glob_set_t* glob = sp_glob_set_new(scratch.mem);
-      sp_glob_set_add(glob, sp_str_to_cstr(scratch.mem, pattern));
-      sp_glob_set_build(glob);
-
-      sp_da(sp_fs_entry_t) entries = sp_zero;
-      sp_fs_collect(scratch.mem, dir, &entries);
-      sp_da_for(entries, it) {
-        if (sp_glob_set_match(glob, entries[it].name)) {
-          spn_fs_update_file(sp_fs_join_path(scratch.mem, dir, entries[it].name), to);
-        }
-      }
-    }
+    return spn_fs_update_glob(from, to);
   }
-  else if (!sp_fs_exists(from)) {
-    err = SPN_ERROR;
+  if (sp_fs_is_dir(from)) {
+    return sp_fs_copy_into(from, to) ? SPN_ERROR : SPN_OK;
   }
-  else if (sp_fs_is_dir(from)) {
-    sp_fs_create_dir(to);
-    err = sp_fs_copy(from, to);
+  if (!sp_fs_is_dir(to)) {
+    return spn_fs_update_file(from, to);
   }
-  else {
-    // @spader This bit me so I just patched it over like this, but
-    // I need to think about how this should work
-    sp_str_t parent = sp_fs_parent_path(to);
-    if (!sp_str_empty(parent)) {
-      sp_fs_create_dir(parent);
-    }
-
-    err = spn_fs_update_file(from, to);
-  }
-
+  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+  s32 err = spn_fs_update_file(from, sp_fs_join_path(scratch.mem, to, sp_fs_get_name(from)));
   sp_mem_end_scratch(scratch);
   return err;
 }
@@ -309,7 +270,7 @@ void spn_target_add_include(spn_target_t* target, const c8* include) {
   if (spn_path_empty(made)) {
     return;
   }
-  sp_da_push(target->info->include, made);
+  sp_da_push(target->info->configured.include, made);
 }
 
 void spn_target_add_define(spn_target_t* target, const c8* define) {
@@ -320,24 +281,56 @@ void spn_target_add_flag(spn_target_t* target, const c8* flag) {
   sp_da_push(target->info->flags, spn_intern_cstr(flag));
 }
 
-// Channel a little bit of Arthur himself to get these wrappers to fit on one line on my editor
-#define view(_str) sp_str_view(_str)
-#define DATA_T SP_EMBED_DEFAULT_DATA_T_S
-#define SIZE_T SP_EMBED_DEFAULT_SIZE_T_S
+static bool embed_dest_rejected(spn_pkg_unit_t* unit, const c8* fn, sp_str_t dest) {
+  if (!sp_str_empty(dest) && !sp_fs_is_absolute(dest) && spn_path_normal(dest)) {
+    return false;
+  }
+  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+  sp_str_t message = sp_fmt(scratch.mem, "{}: {} must be a relative, non-empty path without '.' or '..' components", SP_FMT_CSTR(fn), SP_FMT_STR(dest)).value;
+  if (!spn_wasm_trap_active(unit, message)) {
+    spn_err_emit(unit->session->ctx, (spn_err_union_t) {
+      .kind = SPN_ERR_PATH_COMPONENT,
+      .fs = { .path = sp_str_copy(spn.mem, dest) },
+    });
+  }
+  sp_mem_end_scratch(scratch);
+  return true;
+}
+
 void spn_target_embed_file(spn_target_t* t, const c8* file) {
   spn_path_t made = api_path(t->unit, "spn_target_embed_file", file);
-  if (spn_path_empty(made)) return;
-  spn_target_embed_file_ex_s(t->info, made, SP_EMBED_DEFAULT_SYMBOL_S, DATA_T, SIZE_T);
+  if (spn_path_empty(made) || embed_dest_rejected(t->unit, "spn_target_embed_file", sp_str_view(file))) {
+    return;
+  }
+  spn_target_add_embed(t->info, (spn_embed_t) {
+    .kind = SPN_EMBED_FILE,
+    .path = made,
+    .dest = sp_str_view(file),
+  });
 }
 
-void spn_target_embed_file_ex(spn_target_t* t, const c8* f, const c8* s, const c8* d_t, const c8* s_t) {
-  spn_path_t made = api_path(t->unit, "spn_target_embed_file_ex", f);
-  if (spn_path_empty(made)) return;
-  spn_target_embed_file_ex_s(t->info, made, view(s), view(d_t), view(s_t));
+void spn_target_embed_file_ex(spn_target_t* t, const c8* file, const c8* dest, const c8* data_type, const c8* size_type) {
+  spn_path_t made = api_path(t->unit, "spn_target_embed_file_ex", file);
+  if (spn_path_empty(made) || embed_dest_rejected(t->unit, "spn_target_embed_file_ex", sp_str_view(dest))) {
+    return;
+  }
+  spn_target_add_embed(t->info, (spn_embed_t) {
+    .kind = SPN_EMBED_FILE,
+    .path = made,
+    .dest = sp_str_view(dest),
+    .types = { .data = sp_str_view(data_type), .size = sp_str_view(size_type) },
+  });
 }
 
-void spn_target_embed_dir_ex(spn_target_t* t, const c8* d, const c8* dest, const c8* d_t, const c8* s_t) {
-  spn_path_t made = api_path(t->unit, "spn_target_embed_dir_ex", d);
-  if (spn_path_empty(made) || spn_api_path_rejected(t->unit, "spn_target_embed_dir_ex", view(dest))) return;
-  spn_target_embed_dir_ex_s(t->info, made, view(dest), view(d_t), view(s_t));
+void spn_target_embed_dir_ex(spn_target_t* t, const c8* dir, const c8* dest, const c8* data_type, const c8* size_type) {
+  spn_path_t made = api_path(t->unit, "spn_target_embed_dir_ex", dir);
+  if (spn_path_empty(made) || embed_dest_rejected(t->unit, "spn_target_embed_dir_ex", sp_str_view(dest))) {
+    return;
+  }
+  spn_target_add_embed(t->info, (spn_embed_t) {
+    .kind = SPN_EMBED_DIR,
+    .path = made,
+    .dest = sp_str_view(dest),
+    .types = { .data = sp_str_view(data_type), .size = sp_str_view(size_type) },
+  });
 }

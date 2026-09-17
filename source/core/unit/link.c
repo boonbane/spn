@@ -40,7 +40,7 @@ bool spn_dep_kind_applies(spn_dep_kind_t dep, spn_target_kind_t target) {
   switch (dep) {
     case SPN_DEP_KIND_PACKAGE: return !metaprogram;
     case SPN_DEP_KIND_TEST:    return target == SPN_TARGET_KIND_TEST;
-    case SPN_DEP_KIND_BUILD:   return metaprogram;
+    case SPN_DEP_KIND_BUILD:   return target == SPN_TARGET_KIND_BUILD_METAPROGRAM;
   }
   sp_unreachable_return(false);
 }

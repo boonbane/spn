@@ -1,0 +1,16 @@
+[package]
+name = "kit"
+version = "1.0.0"
+
+[publish]
+copy = [
+  { from = "source/kit.h", to = "include" },
+  { from = "source/sub/*", to = "include/kit" },
+  { from = "source/deep/**", to = "include/kit/deep" },
+  { from = "source/on.h", to = "include/kit", when = { mode = "debug" } },
+  { from = "source/off.h", to = "include/kit", when = { mode = "release" } },
+]
+
+[[lib]]
+name = "kit"
+kinds = ["source"]

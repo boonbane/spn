@@ -113,7 +113,7 @@ static const case_t cases [] = {
               tkv(url, "git@github.com:A/B.git") "\n"
               tkv(commit, "R") "\n"
             },
-            { "spn.c", "void package() {}" },
+            { "spn.c", "void build() {}" },
           },
         },
       },
@@ -226,7 +226,7 @@ static const case_t cases [] = {
           .message = "add toml wrapper",
           .files = {
             { "toml/spn.toml" },
-            { "toml/spn.c", "void package() {}" },
+            { "toml/spn.c", "void build() {}" },
           },
         },
       },
@@ -266,7 +266,7 @@ static const case_t cases [] = {
           .message = "add wrapper",
           .files = {
             { "spn.toml" },
-            { "spn.c", "void package() {}" },
+            { "spn.c", "void build() {}" },
           },
         },
       },
@@ -331,8 +331,8 @@ sp_test_each(cmd_publish, publish, case_t, cases, .setup = spn_test_ctx_setup) {
   sp_str_t index_root = sp_fs_join_path(mem, sp_test_dir(t), sp_str_lit("index"));
   sp_fs_create_dir(index_root);
   git_repo_init(index_root);
-  git_repo_git(index_root, sp_str_lit("symbolic-ref"), sp_str_lit("HEAD"), sp_str_lit("refs/heads/main"));
-  git_repo_git(index_root, sp_str_lit("config"), sp_str_lit("receive.denyCurrentBranch"), sp_str_lit("updateInstead"));
+  git(index_root, "symbolic-ref", "HEAD", "refs/heads/main");
+  git(index_root, "config", "receive.denyCurrentBranch", "updateInstead");
   git_repo_commit(index_root, sp_str_lit("seed"));
 
   spn_index_info_t index = {

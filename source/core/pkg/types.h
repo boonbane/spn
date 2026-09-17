@@ -133,8 +133,9 @@ typedef struct {
 } spn_pkg_config_entry_t;
 
 typedef struct {
-  sp_str_t from;
-  sp_str_t to;
+  spn_tree_t tree;
+  sp_str_t pattern;
+  sp_str_t dest;
   spn_when_t when;
 } spn_publish_copy_t;
 
@@ -176,6 +177,9 @@ struct spn_pkg_info {
   sp_da(sp_str_t) define;
   sp_da(sp_str_t) public_define;
   sp_da(sp_str_t) system_deps;
+  struct {
+    sp_da(spn_path_t) include;
+  } configured;
   struct {
     sp_da(sp_str_t) frameworks;
     spn_os_version_t min_os;

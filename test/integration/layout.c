@@ -7,7 +7,7 @@ sp_test(layout, staged_bin) {
     .args = { "build" },
     .expect = {
       .bin.name = "main",
-      .exists = { exe("main"), staged_lib("spum"), store_file("bin/main") },
+      .exists = { exe("main"), staged_lib("spum") },
     },
   });
 }
@@ -38,7 +38,7 @@ sp_test(layout, staged_identity) {
     .expect.exists = { exe("main"), test_exe("check") },
   }));
 
-  sp_str_t staged[] = { exe("main"), test_exe("check") };
+  sp_str_t staged[] = { exe("main"), staged_lib("spum"), test_exe("check"), test_lib("spum") };
   sp_carr_for(staged, it) {
     sp_str_t path = fixture_path(&fixture, staged[it]);
     sp_sys_file_meta_t meta = sp_zero;
@@ -47,6 +47,65 @@ sp_test(layout, staged_identity) {
     sp_expect_eq(t, (u64)1, meta.nlink);
   }
   return SP_OK;
+}
+
+sp_test(layout, staged_collision) {
+  return run_test(t, (test_t) {
+    .project = "test/integration/fixtures/layout/staged_collision",
+    .copy = { "packages/*" },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { "build", .rc = 1 } },
+      { .kind = ACTION_VERIFY_RESULT, .verify_result = { .err = SPN_ERR_TARGET_COLLISION } },
+    },
+  });
+}
+
+sp_test(layout, staged_prune) {
+  return run_rebuild_test(t, (rebuild_test_t) {
+    .project = "test/integration/fixtures/freshness/shared",
+    .copy = { "packages/*", "t.c", "spn.nodep.toml", "main.nodep.c" },
+    .first = {
+      .args = { "build" },
+      .expect.exists = { exe("main"), staged_lib("B") },
+    },
+    .rebuilds = {
+      {
+        .change = {
+          .moves = {
+            { .from = sp_str_lit("spn.nodep.toml"), .to = sp_str_lit("spn.toml") },
+            { .from = sp_str_lit("main.nodep.c"), .to = sp_str_lit("main.c") },
+          },
+          .writes = { { .file = sp_str_lit("build/debug/user.txt"), .content = sp_str_lit("U") } },
+        },
+        .command = {
+          .args = { "build" },
+          .expect = {
+            .exists = { exe("main"), sp_str_lit("build/debug/user.txt") },
+            .missing = { staged_lib("B") },
+          },
+        },
+      },
+    },
+  });
+}
+
+sp_test(layout, staged_selection_keeps_others) {
+  return run_rebuild_test(t, (rebuild_test_t) {
+    .project = "test/integration/fixtures/freshness/shared",
+    .copy = { "packages/*", "t.c" },
+    .first = {
+      .args = { "build" },
+      .expect.exists = { exe("main"), staged_lib("B") },
+    },
+    .rebuilds = {
+      {
+        .command = {
+          .args = { "build", "--test" },
+          .expect.exists = { exe("main"), staged_lib("B"), test_exe("T") },
+        },
+      },
+    },
+  });
 }
 
 sp_test(layout, staged_script) {
@@ -82,7 +141,7 @@ sp_test(layout, target_triple) {
     .copy = { "check.c", "packages/*" },
     .args = { "build", "--target", triple },
     .expect = {
-      .exists = { target_exe("main", triple), target_store_file("bin/main", triple) },
+      .exists = { target_exe("main", triple) },
       .missing = { sp_str_lit("build/debug") },
     },
   });

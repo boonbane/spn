@@ -8,7 +8,7 @@
 #include "sp.h"
 #include "core.h"
 #include "types.h"
-#include "events.h"
+#include "spn/events.h"
 
 SP_BEGIN_EXTERN_C()
 

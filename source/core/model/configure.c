@@ -1,6 +1,5 @@
 #include "sp.h"
 #include "macro/macro.h"
-#include "ctx/types.h"
 #include "spn/errors.h"
 #include "core/types.h"
 #include "pkg/types.h"
@@ -9,93 +8,25 @@
 #include "unit/types.h"
 
 #include "cpu/cpu.h"
-#include "dag/dag.h"
 #include "error/error.h"
 #include "external/wasm/wasm.h"
-#include "graph/build.h"
 #include "graph/dag.h"
 #include "op/types.h"
-#include "paths/paths.h"
-#include "session/session.h"
-#include "unit/package.h"
 #include "unit/unit.h"
 
-static spn_err_t configure_package(spn_dag_t* g, spn_dag_action_t* action, spn_pkg_unit_t* unit) {
-  spn_pkg_unit_create_layout(unit);
-  spn_wasm_script_t* configure = &unit->wasm.configure;
-  if (configure->state != SPN_WASM_SCRIPT_NONE) {
-    spn_try(spn_wasm_script_open(configure, unit));
-    if (spn_wasm_script_exports(configure, sp_str_lit("configure"))) {
-      spn_try(spn_wasm_script_call(configure, unit, sp_str_lit("configure"), SPN_ABI_KIND_CONFIG, unit));
-    }
+static spn_err_t on_configure(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, sp_mem_t mem, sp_da(spn_dag_obs_t)* obs) {
+  spn_pkg_unit_t* unit = (spn_pkg_unit_t*)user_data;
+  spn_wasm_script_t* script = &unit->wasm.configure;
+  if (spn_wasm_script_open(script, unit)) {
+    return SPN_ERR_DAG_ACTION;
   }
-  sp_str_t include = spn_path_str(g->roots, spn.mem, unit->paths.include);
-  spn_try(spn_pkg_unit_publish_existing_headers(unit, include));
-  spn_try(spn_build_publish_existing_copies(unit, include));
-  spn_pkg_unit_write_stamp(unit, spn_dag_find_artifact(g, action->produces[0])->materialized);
-  return SPN_OK;
-}
-
-static spn_err_t on_configure_package(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, sp_mem_t mem, sp_da(spn_dag_obs_t)* obs) {
-  if (configure_package(g, action, (spn_pkg_unit_t*)user_data)) {
+  if (!spn_wasm_script_exports(script, sp_str_lit("configure"))) {
+    return SPN_OK;
+  }
+  if (spn_wasm_script_call(script, unit, sp_str_lit("configure"), SPN_ABI_KIND_CONFIG, unit)) {
     return SPN_ERR_DAG_ACTION;
   }
   return SPN_OK;
-}
-
-static spn_err_t add_configure_action(spn_dag_build_t* b, spn_pkg_unit_t* unit) {
-  spn_dag_t* g = b->graph;
-
-  spn_dag_pkg_ids_t ids = sp_zero;
-  ids.action = spn_dag_add_action(g, (spn_dag_action_config_t) {
-    .kind = SPN_DAG_ACTION_UNCACHEABLE,
-    .execute = on_configure_package,
-    .user_data = unit,
-  });
-  ids.stamp = spn_dag_add_file(g, unit->paths.stamp.configure);
-  spn_try(spn_dag_action_add_output(g, ids.action, ids.stamp));
-
-  sp_ht_insert(b->ids.packages, unit, ids);
-  return SPN_OK;
-}
-
-static void add_configure_edges(spn_dag_build_t* b, spn_pkg_unit_t* unit) {
-  spn_dag_t* g = b->graph;
-
-  spn_dag_pkg_ids_t* unit_ids = sp_ht_getp(b->ids.packages, unit);
-  sp_assert(unit_ids);
-  spn_dag_id_t action = unit_ids->action;
-
-  sp_da_for(unit->deps, it) {
-    spn_dag_pkg_ids_t* dep = sp_ht_getp(b->ids.packages, unit->deps[it].unit);
-    sp_assert(dep);
-    spn_dag_action_add_input(g, action, dep->stamp);
-  }
-
-  if (unit->metaprogram && unit->metaprogram->scripts.configure) {
-    spn_dag_target_ids_t* ids = sp_ht_getp(b->ids.targets, unit->metaprogram->scripts.configure);
-    sp_assert(ids);
-    spn_dag_action_add_input(g, action, ids->output);
-  }
-}
-
-static void add_reactor_edges(spn_dag_build_t* b, spn_target_unit_t* reactor) {
-  spn_dag_t* g = b->graph;
-
-  sp_da_for(reactor->pkg->deps, it) {
-    if (!spn_dep_kind_applies(reactor->pkg->deps[it].kind, reactor->info->kind)) {
-      continue;
-    }
-    spn_dag_pkg_ids_t* dep = sp_ht_getp(b->ids.packages, reactor->pkg->deps[it].unit);
-    sp_assert(dep);
-    spn_dag_id_t stamp = dep->stamp;
-
-    sp_da_for(reactor->objects, ot) {
-      spn_dag_object_ids_t* object = sp_ht_getp(b->ids.objects, reactor->objects[ot]);
-      sp_assert(object);
-      spn_dag_action_add_input(g, object->action, stamp);
-    }
-  }
 }
 
 spn_err_t configure(spn_op_t* op) {
@@ -109,40 +40,31 @@ spn_err_t configure(spn_op_t* op) {
 
   spn_dag_build_t* dag = spn_dag_build_new(op);
   s->dag.configure = dag;
+  spn_dag_t* g = dag->graph;
 
   sp_da_for(s->units.metaprogram->packages, it) {
-    spn_target_unit_t* configure = s->units.metaprogram->packages[it]->scripts.configure;
-    if (!configure) {
+    spn_target_unit_t* reactor = s->units.metaprogram->packages[it]->scripts.configure;
+    if (!reactor) {
       continue;
     }
-    spn_try(spn_dag_build_add_target(dag, configure));
+    spn_try(spn_dag_build_add_target(dag, reactor));
   }
 
-  sp_om_for(s->units.packages, it) {
-    spn_pkg_unit_t* unit = sp_om_at(s->units.packages, it);
-    if (spn_pkg_unit_is_script_host(unit)) {
-      continue;
-    }
-    if (add_configure_action(dag, unit)) {
-      return spn_err_emit(s->ctx, (spn_err_union_t) {
-        .kind = SPN_ERR_BUILD_GRAPH,
-        .build_graph = { .file = spn_path_str(&spn.roots, s->mem, unit->paths.stamp.configure) },
+  sp_da_for(s->plans, pt) {
+    sp_da_for(s->plans[pt].build->packages, it) {
+      spn_pkg_unit_t* unit = s->plans[pt].build->packages[it];
+      spn_target_unit_t* reactor = unit->metaprogram ? unit->metaprogram->scripts.configure : SP_NULLPTR;
+      if (!reactor) {
+        continue;
+      }
+      spn_dag_target_ids_t* ids = sp_ht_getp(dag->ids.targets, reactor);
+      sp_assert(ids);
+      spn_dag_id_t action = spn_dag_add_action(g, (spn_dag_action_config_t) {
+        .kind = SPN_DAG_ACTION_UNCACHEABLE,
+        .execute = on_configure,
+        .user_data = unit,
       });
-    }
-  }
-
-  sp_om_for(s->units.packages, it) {
-    spn_pkg_unit_t* unit = sp_om_at(s->units.packages, it);
-    if (spn_pkg_unit_is_script_host(unit)) {
-      continue;
-    }
-    add_configure_edges(dag, unit);
-  }
-
-  sp_da_for(s->units.metaprogram->packages, it) {
-    spn_target_unit_t* configure = s->units.metaprogram->packages[it]->scripts.configure;
-    if (configure) {
-      add_reactor_edges(dag, configure);
+      spn_dag_action_add_input(g, action, ids->output);
     }
   }
 

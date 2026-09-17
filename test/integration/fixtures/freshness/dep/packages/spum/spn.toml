@@ -2,6 +2,9 @@
 name = "spum"
 version = "1.0.0"
 
+[publish]
+copy = [{ from = "source/extra.h", to = "include" }]
+
 [[lib]]
 name = "spum"
 kinds = ["static"]

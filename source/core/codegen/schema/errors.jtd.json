@@ -8,7 +8,6 @@
     "not_git_repo": { "ref": "not_git_repo" },
     "git": { "ref": "git" },
     "version_exists": { "ref": "version_exists" },
-    "build_graph": { "ref": "build_graph" },
     "toolchain_unknown": { "ref": "toolchain" },
     "toolchain_none": { "ref": "toolchain" },
     "toolchain_target": { "ref": "toolchain" },
@@ -86,6 +85,11 @@
     "dag_output_name": { "properties": {} },
     "dag_duplicate_output": { "properties": {} },
     "dag_pinned_output": { "ref": "dag" },
+    "dag_path_kind": { "ref": "dag" },
+    "dag_tree_root": { "ref": "dag" },
+    "dag_tree_input": { "ref": "dag" },
+    "dag_nested_output": { "ref": "dag" },
+    "dag_nested_input": { "ref": "dag" },
     "dag_stat": { "properties": {} },
     "dag_missing_input": { "ref": "dag" },
     "dag_missing_output": { "ref": "dag" },
@@ -94,6 +98,7 @@
     "dag_depfile": { "ref": "dag" },
     "dag_store_read": { "ref": "dag" },
     "dag_store_write": { "ref": "dag" },
+    "dag_output_write": { "ref": "dag" },
     "dag_store_missing": { "properties": {} },
     "dag_tree": { "properties": {} },
     "dag_stalled": { "properties": {} },
@@ -105,6 +110,7 @@
     "target_reserved": { "ref": "target" },
     "target_dep": { "ref": "target" },
     "target_selection": { "ref": "target" },
+    "target_collision": { "ref": "collision" },
     "script_missing": { "ref": "script" },
     "script_failed": { "ref": "script" },
     "triple_invalid": { "properties": {} },
@@ -180,11 +186,6 @@
     "version_invalid": {
       "properties": {
         "requested": { "type": "string" }
-      }
-    },
-    "build_graph": {
-      "properties": {
-        "file": { "type": "string" }
       }
     },
     "toolchain": {
@@ -346,6 +347,14 @@
     "too_complex": {
       "properties": {
         "id": { "ref": "pkg_name" }
+      }
+    },
+    "collision": {
+      "properties": {
+        "exe": { "type": "string" },
+        "pkg": { "type": "string" },
+        "other": { "type": "string" },
+        "name": { "type": "string" }
       }
     },
     "target": {

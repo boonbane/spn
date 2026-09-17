@@ -88,10 +88,15 @@ static spn_err_t script_open(spn_wasm_script_t* script, spn_pkg_unit_t* unit) {
     });
   }
 
-  spn_pkg_unit_create_layout(unit);
   const spn_path_roots_t* roots = &spn.roots;
   sp_str_t work = spn_path_str(roots, spn.mem, unit->paths.work);
   sp_str_t store = spn_path_str(roots, spn.mem, unit->paths.store);
+  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+  spn_path_t dirs [] = { unit->paths.work, unit->paths.lib, unit->paths.bin, unit->paths.vendor };
+  sp_carr_for(dirs, it) {
+    sp_fs_create_dir(spn_path_str(roots, scratch.mem, dirs[it]));
+  }
+  sp_mem_end_scratch(scratch);
   sp_str_t source = spn_path_str(roots, spn.mem, unit->paths.roots.source);
   sp_str_t manifest = spn_path_str(roots, spn.mem, unit->paths.roots.recipe);
   script->preopens = (spn_wasm_preopens_t) {
@@ -237,7 +242,7 @@ static spn_err_t script_call_invoke(spn_wasm_script_t* script, spn_pkg_unit_t* u
   return SPN_OK;
 }
 
-spn_err_t spn_wasm_script_call_ex(spn_wasm_script_t* script, spn_pkg_unit_t* unit, sp_str_t name, spn_abi_kind_t kind, void* arg, spn_wasm_obs_t obs) {
+static spn_err_t script_call_ex(spn_wasm_script_t* script, spn_pkg_unit_t* unit, sp_str_t name, spn_abi_kind_t kind, void* arg, spn_wasm_obs_t obs) {
   if (!wasm_runtime_init_thread_env()) {
     return script_fail(unit, SPN_ERR_WASM_THREAD_ENV_FAILED, (spn_err_wasm_t) { .path = script->path });
   }
@@ -258,16 +263,12 @@ spn_err_t spn_wasm_script_call_ex(spn_wasm_script_t* script, spn_pkg_unit_t* uni
     });
   }
   else {
-    if (obs.out) {
-      spn_dag_wasi_begin(script->wasi, obs.mem, obs.out);
-    }
+    spn_dag_wasi_begin(script->wasi, obs.mem, obs.out);
     spn_wasm_script_t* previous = unit->wasm.active;
     unit->wasm.active = script;
     err = script_call_invoke(script, unit, fn, kind, arg);
     unit->wasm.active = previous;
-    if (obs.out) {
-      spn_dag_wasi_end(script->wasi);
-    }
+    spn_dag_wasi_end(script->wasi);
   }
 
   sp_mutex_unlock(&script->mutex);
@@ -275,7 +276,7 @@ spn_err_t spn_wasm_script_call_ex(spn_wasm_script_t* script, spn_pkg_unit_t* uni
 }
 
 spn_err_t spn_wasm_script_call(spn_wasm_script_t* script, spn_pkg_unit_t* unit, sp_str_t name, spn_abi_kind_t kind, void* arg) {
-  return spn_wasm_script_call_ex(script, unit, name, kind, arg, sp_zero_s(spn_wasm_obs_t));
+  return script_call_ex(script, unit, name, kind, arg, sp_zero_s(spn_wasm_obs_t));
 }
 
 bool spn_wasm_trap_active(spn_pkg_unit_t* unit, sp_str_t message) {
@@ -289,9 +290,8 @@ bool spn_wasm_trap_active(spn_pkg_unit_t* unit, sp_str_t message) {
   return true;
 }
 
-spn_err_t spn_wasm_find_export(spn_pkg_unit_t* unit, sp_str_t name, spn_wasm_script_t** script) {
-  *script = SP_NULLPTR;
-
+spn_err_t spn_wasm_call_export_ex(spn_pkg_unit_t* unit, sp_str_t name, spn_abi_kind_t kind, void* arg, spn_wasm_obs_t obs) {
+  spn_wasm_script_t* script = SP_NULLPTR;
   spn_wasm_script_t* candidates [] = { &unit->wasm.build, &unit->wasm.configure };
   sp_carr_for(candidates, it) {
     spn_wasm_script_t* candidate = candidates[it];
@@ -299,17 +299,10 @@ spn_err_t spn_wasm_find_export(spn_pkg_unit_t* unit, sp_str_t name, spn_wasm_scr
 
     spn_try(spn_wasm_script_open(candidate, unit));
     if (spn_wasm_script_exports(candidate, name)) {
-      *script = candidate;
-      return SPN_OK;
+      script = candidate;
+      break;
     }
   }
-
-  return SPN_OK;
-}
-
-spn_err_t spn_wasm_call_export_ex(spn_pkg_unit_t* unit, sp_str_t name, spn_abi_kind_t kind, void* arg, spn_wasm_obs_t obs) {
-  spn_wasm_script_t* script = SP_NULLPTR;
-  spn_try(spn_wasm_find_export(unit, name, &script));
 
   if (!script) {
     if (unit->wasm.build.state != SPN_WASM_SCRIPT_NONE) {
@@ -327,7 +320,7 @@ spn_err_t spn_wasm_call_export_ex(spn_pkg_unit_t* unit, sp_str_t name, spn_abi_k
     return script_fail(unit, SPN_ERR_WASM_NO_SCRIPT, (spn_err_wasm_t) { .error = name });
   }
 
-  return spn_wasm_script_call_ex(script, unit, name, kind, arg, obs);
+  return script_call_ex(script, unit, name, kind, arg, obs);
 }
 
 spn_err_t spn_wasm_call_export(spn_pkg_unit_t* unit, sp_str_t name, spn_abi_kind_t kind, void* arg) {

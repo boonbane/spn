@@ -13,8 +13,8 @@ system_deps = [
 ]
 
 [package.configure]
-source = ["tools/spn/configure.c", "tools/spn/wasi.c"]
-include = ["include", "tools"]
+source = ["tools/spn/configure.c"]
+include = ["include"]
 
 [package.build]
 source = [
@@ -45,7 +45,6 @@ yyjson = "0.14.0"
 files = [
   "tools/patches/sp-test-num-cpus.patch",
   "tools/patches/sp-prompt-external-wake.patch",
-  "tools/patches/sp-env-host-keys.patch",
 ]
 
 [patch.wamr]
@@ -94,15 +93,8 @@ kinds = ["static"]
 source = [
   "source/core/**/*.c",
   "source/util/**/*.c",
-  "source/core/codegen/gen/abi.gen.c",
-  "source/core/codegen/gen/config.gen.c",
-  "source/core/codegen/gen/errors.gen.c",
-  "source/core/codegen/gen/events.gen.c",
-  "source/core/codegen/gen/manifest.gen.c",
-  "source/core/codegen/gen/release.gen.c",
-  "source/core/codegen/gen/source_deps.gen.c",
 ]
-include = ["include", "source/core", "source/util", "source/core/external", "source/core/codegen/gen"]
+include = ["include", "source/core", "source/util", "source/core/external"]
 
 [[bin]]
 name = "spn"
@@ -130,7 +122,7 @@ source = [
   "tools/docker/source/variant/variant.c",
   "test/tools/lanes.c",
 ]
-include = ["include", "source/core", "source/util", "source/core/codegen/gen", "test/tools", "tools/docker/source"]
+include = ["include", "source/core", "source/util", "test/tools", "tools/docker/source"]
 deps = ["spn"]
 
 [[script]]
@@ -140,9 +132,8 @@ source = [
   "tools/windows/source/winvm/winvm.c",
   "tools/windows/source/variant/variant.c",
   "tools/docker/source/tail/tail.c",
-  "test/tools/gen/probe.gen.c",
 ]
-include = ["include", "source/core", "source/util", "source/core/codegen/gen", "test/tools/gen", "tools/windows/source", "tools/docker/source"]
+include = ["include", "source/core", "source/util", "tools/windows/source", "tools/docker/source"]
 deps = ["spn"]
 
 [[script]]
@@ -192,12 +183,6 @@ source = [
   "source/core/codegen/toolchain.c",
   "source/core/codegen/options.c",
   "source/core/codegen/when.c",
-  "source/core/codegen/gen/config.gen.c",
-  "source/core/codegen/gen/errors.gen.c",
-  "source/core/codegen/gen/events.gen.c",
-  "source/core/codegen/gen/manifest.gen.c",
-  "source/core/codegen/gen/release.gen.c",
-  "source/core/codegen/gen/source_deps.gen.c",
   "source/core/compiler/driver.c",
   "source/core/compiler/exports.c",
   "source/core/compiler/gnu.c",
@@ -259,7 +244,6 @@ source = [
   "source/core/session/session.c",
   "source/core/hash/digest/digest.c",
   "source/core/hash/sha256/sha256.c",
-  "source/util/atomic_file/atomic_file.c",
   "source/util/coff/coff.c",
   "source/util/macho/macho.c",
   "source/util/sp_elf/sp_elf.c",
@@ -301,9 +285,8 @@ source = [
   "test/tools/dag/track.c",
   "test/tools/toml.c",
 ]
-include = ["include", "source/core", "source/util", "source/core/codegen/gen", "source/core/external", "source/cli", "test/core", "test/core/tools", "test/tools", "tools", "tools/gen", "tools/install"]
+include = ["include", "source/core", "source/util", "source/core/external", "source/cli", "test/core", "test/core/tools", "test/tools", "tools", "tools/gen", "tools/install"]
 flags = [
-  '-DSCHEMA_GEN_DIR="source/core/codegen/gen"',
   '-DSCHEMA_DIR="source/core/codegen/schema"',
   '-DJTD_TEST_JSON_DIR="test/core/jtd/json"',
   '-DMANIFEST_DIR="test/core/manifest/lower/manifests"',
@@ -339,11 +322,6 @@ source = [
   "source/core/hash/sha256/sha256.c",
   "source/core/when/when.c",
   "source/core/toolchain/catalog.c",
-  "source/core/codegen/gen/config.gen.c",
-  "source/core/codegen/gen/errors.gen.c",
-  "source/core/codegen/gen/events.gen.c",
-  "source/core/codegen/gen/manifest.gen.c",
-  "source/core/codegen/gen/release.gen.c",
   "source/core/index/cache.c",
   "source/core/index/dir.c",
   "source/core/index/index.c",
@@ -362,7 +340,6 @@ source = [
   "source/core/elf/elf.c",
   "source/core/resolve/resolve.c",
   "test/core/resolver/dump.c",
-  "test/tools/gen/resolve.gen.c",
   "source/util/str/str.c",
   "source/core/semver/compare.c",
   "source/core/semver/convert.c",
@@ -377,7 +354,7 @@ source = [
   "test/tools/fixture.c",
   "test/tools/toml.c",
 ]
-include = ["include", "source/core", "source/util", "source/core/codegen/gen", "test/tools", "test/tools/gen"]
+include = ["include", "source/core", "source/util", "test/tools"]
 flags = []
 
 [[test]]
@@ -388,14 +365,9 @@ source = [
   "source/core/compiler/msvc.c",
   "source/core/compiler/occ.c",
   "source/core/reflect/json.c",
-  "source/core/codegen/gen/errors.gen.c",
-  "source/core/codegen/gen/events.gen.c",
-  "source/core/codegen/gen/source_deps.gen.c",
   "source/core/codegen/json.c",
   "source/core/codegen/loader.c",
   "source/core/codegen/toolchain.c",
-  "source/core/codegen/gen/config.gen.c",
-  "test/tools/gen/probe.gen.c",
   "source/core/core/core.c",
   "source/core/ctx/ctx.c",
   "source/core/enum/enum.c",
@@ -453,7 +425,7 @@ source = [
   "test/tools/lanes.c",
   "test/tools/toml.c",
 ]
-include = ["include", "source/core", "source/util", "source/core/codegen/gen", "source/core/external", "test/integration/tools", "test/tools", "test/tools/gen"]
+include = ["include", "source/core", "source/util", "source/core/external", "test/integration/tools", "test/tools"]
 flags = []
 
 [[test]]
@@ -464,13 +436,9 @@ source = [
   "source/core/compiler/msvc.c",
   "source/core/compiler/occ.c",
   "source/core/reflect/json.c",
-  "source/core/codegen/gen/errors.gen.c",
-  "source/core/codegen/gen/events.gen.c",
-  "source/core/codegen/gen/source_deps.gen.c",
   "source/core/codegen/json.c",
   "source/core/codegen/loader.c",
   "source/core/codegen/toolchain.c",
-  "source/core/codegen/gen/config.gen.c",
   "source/core/core/core.c",
   "source/core/ctx/ctx.c",
   "source/core/enum/enum.c",
@@ -502,7 +470,7 @@ source = [
   "test/tools/lanes.c",
   "test/tools/toml.c",
 ]
-include = ["include", "source/core", "source/util", "source/core/codegen/gen", "source/core/external", "test/render", "test/tools"]
+include = ["include", "source/core", "source/util", "source/core/external", "test/render", "test/tools"]
 flags = []
 
 [[test]]
@@ -517,7 +485,6 @@ source = [
   "source/util/thread_pool/thread_pool.c",
   "source/core/codegen/json.c",
   "source/core/codegen/loader.c",
-  "test/tools/gen/fuzz.gen.c",
   "source/core/external/tom.c",
   "source/core/hash/digest/digest.c",
   "source/core/hash/sha256/sha256.c",
@@ -538,7 +505,7 @@ source = [
   "test/tools/fuzz/fuzz.c",
   "test/tools/toml.c",
 ]
-include = ["include", "source/core", "source/util", "source/core/codegen/gen", "test/fuzz/dag", "test/tools", "test/tools/gen"]
+include = ["include", "source/core", "source/util", "test/fuzz/dag", "test/tools"]
 flags = []
 
 [[test]]
@@ -569,11 +536,6 @@ source = [
   "source/core/hash/sha256/sha256.c",
   "source/core/when/when.c",
   "source/core/toolchain/catalog.c",
-  "source/core/codegen/gen/config.gen.c",
-  "source/core/codegen/gen/errors.gen.c",
-  "source/core/codegen/gen/events.gen.c",
-  "source/core/codegen/gen/manifest.gen.c",
-  "source/core/codegen/gen/release.gen.c",
   "source/core/index/dir.c",
   "source/core/index/index.c",
   "source/core/index/json.c",
@@ -609,7 +571,7 @@ source = [
   "test/tools/fuzz/fuzz.c",
   "test/tools/toml.c",
 ]
-include = ["include", "source/core", "source/util", "source/core/codegen/gen", "test/fuzz/resolver", "test/tools"]
+include = ["include", "source/core", "source/util", "test/fuzz/resolver", "test/tools"]
 flags = []
 
 [[test]]
@@ -650,9 +612,6 @@ source = [
   "source/core/elf/elf.c",
   "source/core/hash/digest/digest.c",
   "source/core/hash/sha256/sha256.c",
-  "source/core/codegen/gen/events.gen.c",
-  "source/core/codegen/gen/errors.gen.c",
-  "source/core/codegen/gen/config.gen.c",
   "source/core/codegen/json.c",
   "source/core/codegen/loader.c",
   "source/core/codegen/toolchain.c",
@@ -666,7 +625,6 @@ source = [
   "source/core/ctx/ctx.c",
   "source/core/core/core.c",
   "source/util/lazy/lazy.c",
-  "source/util/atomic_file/atomic_file.c",
   "source/util/fs/fs.c",
   "source/util/io/io.c",
   "source/util/str/str.c",
@@ -674,7 +632,7 @@ source = [
   "test/tools/fixture.c",
   "test/core/tools/main/unit.c",
 ]
-include = ["include", "source/core", "source/util", "source/core/codegen/gen", "test/core", "test/core/tools", "test/tools"]
+include = ["include", "source/core", "source/util", "test/core", "test/core/tools", "test/tools"]
 flags = ['-DTOOLCHAINS_DIR="test/core/toolchain/toolchains"']
 
 [[test]]
@@ -691,15 +649,11 @@ source = [
   "source/core/external/cc.c",
   "source/core/external/obj.c",
   "source/core/graph/build.c",
-  "source/core/codegen/gen/errors.gen.c",
-  "source/core/codegen/gen/events.gen.c",
   "source/core/codegen/json.c",
   "source/core/codegen/loader.c",
   "source/core/codegen/toolchain.c",
-  "source/core/codegen/gen/config.gen.c",
   "source/core/external/tom.c",
   "test/tools/toml.c",
-  "source/core/codegen/gen/source_deps.gen.c",
   "source/core/reflect/json.c",
   "source/core/compiler/driver.c",
   "source/core/compiler/gnu.c",
@@ -729,7 +683,6 @@ source = [
   "source/core/session/session.c",
   "source/core/target/mutate.c",
   "source/core/target/select.c",
-  "source/core/target/target.c",
   "source/core/toolchain/catalog.c",
   "source/core/toolchain/select.c",
   "source/core/toolchain/search.c",
@@ -743,7 +696,6 @@ source = [
   "source/core/elf/elf.c",
   "source/core/when/when.c",
   "source/util/coff/coff.c",
-  "source/util/atomic_file/atomic_file.c",
   "source/util/fs/fs.c",
   "source/util/macho/macho.c",
   "source/util/sp_elf/sp_elf.c",
@@ -754,4 +706,4 @@ source = [
   "test/tools/fixture.c",
   "test/core/tools/main/unit.c",
 ]
-include = ["include", "source/core", "source/util", "source/core/codegen/gen", "source/core/external", "test/core", "test/core/tools", "test/tools"]
+include = ["include", "source/core", "source/util", "source/core/external", "test/core", "test/core/tools", "test/tools"]

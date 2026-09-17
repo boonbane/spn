@@ -276,11 +276,15 @@ static const memo_t* predict_restore(world_t* w, fz_universe_t* u, fz_predict_ro
   bool missing = false;
   bool unsure = false;
   sp_da_for(u->actions[row->action].produces, pt) {
+    u64 out = u->actions[row->action].produces[pt];
     sp_str_t bytes = memo->bytes[pt];
     spn_dag_digest_t digest = spn_dag_digest(bytes.data, bytes.len);
     sp_dag_track_slot_t blob = sp_dag_track_blob(&w->track, digest);
-    missing = missing || !blob.present;
-    unsure = unsure || (blob.present && !blob.sure);
+    sp_dag_track_slot_t disk = sp_dag_track_disk(&w->track, (u32)out, digest);
+    bool restorable = blob.present || disk.present;
+    bool surely = (blob.present && blob.sure) || (disk.present && disk.sure);
+    missing = missing || !restorable;
+    unsure = unsure || (restorable && !surely);
   }
   if (missing) {
     return SP_NULLPTR;
@@ -594,7 +598,7 @@ static u64 key_rows(world_t* w, sp_mem_t mem, const fz_predict_row_t* predict, c
         if (w->tainted[event->producer.index]) {
           continue;
         }
-        if (fired && !settle_final(w, et)) {
+        if (!settle_final(w, et)) {
           continue;
         }
         sp_str_t bytes = disk_bytes[event->producer.index];
@@ -764,9 +768,9 @@ static fz_err_t trace_check_run(sp_mem_t mem, fz_universe_t* u, world_t* w, fz_s
       }
     }
     spn_dag_digest_t want = spn_dag_digest(actual_disk[id].data, actual_disk[id].len);
-    spn_path_t blob = spn_dag_store_path(&w->store, mem, want, path);
+    spn_path_t blob = sp_zero;
     sp_str_t blob_bytes = sp_zero;
-    bool blob_read = !spn_path_empty(blob) && !sp_io_read_file(mem, spn_path_str(&w->roots, mem, blob), &blob_bytes);
+    bool blob_read = !spn_dag_store_locate(&w->store, mem, want, path, &blob) && !sp_io_read_file(mem, spn_path_str(&w->roots, mem, blob), &blob_bytes);
     fz_journal_blob(w->j, id, actual_disk[id], blob_read ? blob_bytes : sp_str_lit("missing"));
   }
 
@@ -838,6 +842,7 @@ static fz_err_t trace_body(sp_mem_t mem, sp_sim_t* sim, fz_universe_t* u, fz_tra
       }
       case FZ_STEP_DELETE: {
         sp_fs_remove_file(fz_artifact_sim_path(mem, u, step->artifact));
+        sp_dag_track_drop_disk(&w.track, (u32)step->artifact);
         break;
       }
       case FZ_STEP_PHANTOM: {

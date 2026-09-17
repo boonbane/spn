@@ -38,9 +38,7 @@ s32 spn_embed_write(spn_target_unit_t* unit, spn_path_t object, spn_path_t heade
 
   sp_da_for(info->embed, it) {
     spn_embed_t embed = info->embed[it];
-    sp_str_t symbol = embed.symbol;
     spn_embed_types_t types = embed.types;
-    sp_mem_buffer_t data = sp_zero;
 
     if (sp_str_empty(types.data)) {
       types.data = sp_str_lit("unsigned char");
@@ -52,8 +50,8 @@ s32 spn_embed_write(spn_target_unit_t* unit, spn_path_t object, spn_path_t heade
 
     switch (embed.kind) {
       case SPN_EMBED_FILE: {
-        embed_obs(obs, SPN_DAG_OBS_FILE, embed.file.path);
-        sp_str_t file = spn_path_str(&spn.roots, embedder.mem, embed.file.path);
+        embed_obs(obs, SPN_DAG_OBS_FILE, embed.path);
+        sp_str_t file = spn_path_str(&spn.roots, embedder.mem, embed.path);
         sp_str_t content = sp_zero;
         if (sp_io_read_file(embedder.mem, file, &content) != SP_OK) {
           spn_event_buffer_push(spn.events, (spn_event_t) {
@@ -64,20 +62,19 @@ s32 spn_embed_write(spn_target_unit_t* unit, spn_path_t object, spn_path_t heade
           return SPN_ERROR;
         }
 
-        data = (sp_mem_buffer_t) {
+        sp_mem_buffer_t data = {
           .data = (u8*)(uintptr_t)content.data,
           .len = content.len,
           .capacity = content.len,
         };
-
-        if (sp_str_empty(symbol)) {
-          symbol = spn_cc_symbol_from_embedded_file(embedder.mem, spn_tree_rel(unit->pkg->paths.roots, embed.file.path).sub);
-        }
+        sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+        spn_cc_embed_ctx_add(&embedder, data, spn_cc_symbol_from_embedded_file(scratch.mem, embed.dest), embed.dest, types.data, types.size);
+        sp_mem_end_scratch(scratch);
         break;
       }
       case SPN_EMBED_DIR: {
         sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-        spn_path_t root = embed.dir.path;
+        spn_path_t root = embed.path;
         sp_str_t dir = spn_path_str(&spn.roots, scratch.mem, root);
         embed_obs(obs, SPN_DAG_OBS_ENUMERATION, root);
         sp_da(sp_fs_entry_t) entries = sp_zero;
@@ -90,44 +87,27 @@ s32 spn_embed_write(spn_target_unit_t* unit, spn_path_t object, spn_path_t heade
           }
           if (!sp_fs_is_file(entries[e].path)) continue;
           embed_obs(obs, SPN_DAG_OBS_FILE, spn_path_join(obs_mem, root, rel));
-          if (!sp_str_empty(embed.dir.dest)) {
-            rel = sp_fs_join_path(embedder.mem, embed.dir.dest, rel);
-          }
           sp_str_t content = sp_zero;
-          spn_err_t err = SPN_OK;
           if (sp_io_read_file(embedder.mem, entries[e].path, &content) != SP_OK) {
-            err = SPN_ERROR;
-          } else {
-            sp_mem_buffer_t entry_data = {
-              .data = (u8*)(uintptr_t)content.data,
-              .len = content.len,
-              .capacity = content.len,
-            };
-            err = spn_cc_embed_ctx_add(&embedder, entry_data, spn_cc_symbol_from_embedded_file(embedder.mem, rel), rel, types.data, types.size);
-          }
-          if (err) {
             spn_event_buffer_push(spn.events, (spn_event_t) {
               .kind = SPN_EVENT_EMBED_FAILED,
               .pkg = unit->pkg->info->name,
-              .embed_failed = { .target = info->name, .path = sp_str_copy(spn.mem, entries[e].path), .error = sp_str_lit("embed add failed") },
+              .embed_failed = { .target = info->name, .path = sp_str_copy(spn.mem, entries[e].path), .error = sp_str_lit("file not found") },
             });
             sp_mem_end_scratch(scratch);
             return SPN_ERROR;
           }
+          sp_mem_buffer_t entry_data = {
+            .data = (u8*)(uintptr_t)content.data,
+            .len = content.len,
+            .capacity = content.len,
+          };
+          sp_str_t dest = sp_fs_join_path(scratch.mem, embed.dest, rel);
+          spn_cc_embed_ctx_add(&embedder, entry_data, spn_cc_symbol_from_embedded_file(scratch.mem, dest), dest, types.data, types.size);
         }
         sp_mem_end_scratch(scratch);
-        continue;
+        break;
       }
-    }
-
-    sp_str_t path = embed.kind == SPN_EMBED_FILE ? spn_tree_rel(unit->pkg->paths.roots, embed.file.path).sub : sp_str_lit("");
-    if (spn_cc_embed_ctx_add(&embedder, data, symbol, path, types.data, types.size)) {
-      spn_event_buffer_push(spn.events, (spn_event_t) {
-        .kind = SPN_EVENT_EMBED_FAILED,
-        .pkg = unit->pkg->info->name,
-        .embed_failed = { .target = info->name, .error = sp_str_lit("embed add failed") },
-      });
-      return SPN_ERROR;
     }
   }
 

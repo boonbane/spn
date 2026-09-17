@@ -10,8 +10,9 @@ void write_file(sp_str_t path, sp_str_t content) {
     sp_fs_create_dir(parent);
   }
 
+  sp_fs_remove_file(path);
   sp_io_file_writer_t f = sp_zero;
-  sp_io_file_writer_from_path(&f, path);
+  sp_assert(!sp_io_file_writer_from_path(&f, path));
   sp_io_write_str(&f.base, content, SP_NULLPTR);
   sp_io_file_writer_close(&f);
 }
@@ -52,22 +53,14 @@ void fixture_create(fixture_t* fixture, sp_str_t relative, sp_str_t content) {
 
 static sp_err_t copy_project_path(sp_test_t* t, fixture_t* fixture, sp_str_t project, sp_str_t relative) {
   sp_str_t from = sp_fs_join_path(fixture->mem, project, relative);
-
-  if (sp_fs_is_glob(from)) {
-    sp_must(t, sp_fs_exists(sp_fs_parent_path(from)));
-  } else {
-    sp_must(t, sp_fs_exists(from));
-  }
-
-  sp_str_t to = fixture->root;
-
   sp_str_t parent = sp_fs_parent_path(relative);
-  if (!sp_str_empty(parent)) {
-    to = fixture_path(fixture, parent);
-    sp_fs_create_dir(to);
-  }
+  sp_str_t to = sp_str_empty(parent) ? fixture->root : fixture_path(fixture, parent);
 
-  sp_fs_copy(from, to);
+  if (sp_str_equal(sp_fs_get_name(relative), sp_str_lit("*"))) {
+    sp_must_ok(t, sp_fs_copy_tree(sp_fs_parent_path(from), to, SP_FS_ATOMIC_REPLACE));
+  } else {
+    sp_must_ok(t, sp_fs_copy_into(from, to));
+  }
   return SP_OK;
 }
 
@@ -384,7 +377,7 @@ static sp_err_t fixture_copy_project(sp_test_t* t, fixture_t* fixture, sp_str_t 
   sp_carr_for(defaults, it) {
     sp_str_t from = sp_fs_join_path(fixture->mem, project, sp_str_view(defaults[it]));
     if (sp_fs_exists(from)) {
-      sp_fs_copy(from, fixture->root);
+      sp_fs_copy_into(from, fixture->root);
     }
   }
 
@@ -421,17 +414,16 @@ sp_err_t prepare_test(sp_test_t* t, fixture_t* fixture, const c8* project, const
   sp_fs_create_dir(fixture->paths.include);
   sp_fs_create_dir(fixture->paths.index);
   git_repo_init(fixture->paths.index);
-  git_repo_git(fixture->paths.index, sp_str_lit("symbolic-ref"), sp_str_lit("HEAD"), sp_str_lit("refs/heads/main"));
-  git_repo_git(fixture->paths.index, sp_str_lit("config"), sp_str_lit("receive.denyCurrentBranch"), sp_str_lit("updateInstead"));
+  git(fixture->paths.index, "symbolic-ref", "HEAD", "refs/heads/main");
+  git(fixture->paths.index, "config", "receive.denyCurrentBranch", "updateInstead");
   git_repo_commit(fixture->paths.index, sp_str_lit("init"));
   setup_fixture_envrc(fixture, fixture->paths.storage, fixture->paths.toolchain, fixture->paths.config);
   setup_fixture_config(fixture, fixture->paths.index, fixture->paths.root);
 
-  sp_fs_copy(sp_fs_join_path(mem, fixture->paths.root, sp_str_lit("include/spn.h")), fixture->paths.include);
+  sp_fs_copy_into(sp_fs_join_path(mem, fixture->paths.root, sp_str_lit("include/spn.h")), fixture->paths.include);
   sp_str_t include_spn = sp_fs_join_path(mem, fixture->paths.include, sp_str_lit("spn"));
-  sp_fs_create_dir(include_spn);
-  sp_fs_copy(sp_fs_join_path(mem, fixture->paths.root, sp_str_lit("include/spn/core.h")), include_spn);
-  sp_fs_copy(sp_fs_join_path(mem, fixture->paths.root, sp_str_lit("include/spn/err.h")), include_spn);
+  sp_fs_copy_into(sp_fs_join_path(mem, fixture->paths.root, sp_str_lit("include/spn/core.h")), include_spn);
+  sp_fs_copy_into(sp_fs_join_path(mem, fixture->paths.root, sp_str_lit("include/spn/err.h")), include_spn);
 
   if (project) {
     sp_str_t path = sp_fs_join_path(mem, fixture->paths.root, sp_str_view(project));
