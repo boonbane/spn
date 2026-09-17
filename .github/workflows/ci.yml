@@ -20,7 +20,7 @@ defaults:
 
 env:
   SPN_STORAGE_DIR: ${{ github.workspace }}/.cache/spn
-  SELFHOST_EPOCH: 1
+  SELFHOST_EPOCH: 2
 
 jobs:
   plan:
