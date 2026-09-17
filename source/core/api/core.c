@@ -81,7 +81,7 @@ static spn_path_t api_path(spn_pkg_unit_t* unit, const c8* fn, const c8* path) {
   if (spn_path_empty(made)) {
     return made;
   }
-  return spn_path_canonicalize(spn.mem, &spn.roots, made);
+  return made;
 }
 
 static spn_target_t* wrap(spn_pkg_unit_t* unit, spn_target_info_t* info) {

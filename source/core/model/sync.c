@@ -205,7 +205,7 @@ static sp_da(spn_path_t) resolve_paths(const spn_path_roots_t* roots, spn_gated_
       continue;
     }
     spn_path_t path = spn_tree_path(spn.mem, roots, loaded->roots, entries[it].tree, entries[it].path);
-    sp_da_push(resolved, spn_path_canonicalize(spn.mem, roots, path));
+    sp_da_push(resolved, path);
   }
   return resolved;
 }
@@ -238,7 +238,7 @@ static spn_err_t resolve_configure_source(spn_ctx_t* ctx, sp_str_t name, spn_gat
             .source = declared[it].path,
           }});
       }
-      sp_da_push(resolved, spn_path_canonicalize(spn.mem, &ctx->roots, path));
+      sp_da_push(resolved, path);
       continue;
     }
 
@@ -252,7 +252,7 @@ static spn_err_t resolve_configure_source(spn_ctx_t* ctx, sp_str_t name, spn_gat
         }});
     }
     sp_da_for(glob.matches, jt) {
-      sp_da_push(resolved, spn_path_canonicalize(spn.mem, &ctx->roots, glob.matches[jt].path));
+      sp_da_push(resolved, glob.matches[jt].path);
     }
   }
   *source = resolved;
@@ -265,7 +265,7 @@ static sp_da(spn_path_t) detect_configure_source(const spn_path_roots_t* roots, 
   sp_carr_for(candidates, it) {
     spn_path_t path = spn_tree_path(spn.mem, roots, loaded->roots, SPN_TREE_MANIFEST, candidates[it]);
     if (sp_fs_is_target_file(spn_path_str(roots, spn.mem, path))) {
-      sp_da_push(source, spn_path_canonicalize(spn.mem, roots, path));
+      sp_da_push(source, path);
       break;
     }
   }
@@ -414,10 +414,10 @@ static spn_err_t load_package(spn_session_t* session, spn_resolved_pkg_t* pkg, s
     spn_path_t candidate = spn_tree_path(spn.mem, roots, loaded->roots, SPN_TREE_MANIFEST, sp_str_lit("build.c"));
     spn_path_t script = spn_tree_path(spn.mem, roots, loaded->roots, SPN_TREE_MANIFEST, pkg->origin.paths.script);
     if (sp_fs_is_target_file(spn_path_str(roots, spn.mem, candidate))) {
-      sp_da_push(loaded->build.source, spn_path_canonicalize(spn.mem, roots, candidate));
+      sp_da_push(loaded->build.source, candidate);
     }
     else if (package_has_build_deps(pkg) && sp_fs_is_target_file(spn_path_str(roots, spn.mem, script))) {
-      sp_da_push(loaded->build.source, spn_path_canonicalize(spn.mem, roots, script));
+      sp_da_push(loaded->build.source, script);
     }
   }
 
