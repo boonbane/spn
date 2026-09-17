@@ -1,7 +1,7 @@
 add_executable(core
   tools/ctx.c
   tools/elf_emit.c
-  tools/main/sim.c
+  tools/main/unit.c
   drain.c
   elf.c
   fs.c
@@ -39,29 +39,6 @@ add_executable(core
   compiler/rsp/windows.c
   compiler/toc.c
   config/config.c
-  dag/harness.c
-  dag/action_cache.c
-  dag/canonicalize.c
-  dag/digest.c
-  dag/discovery.c
-  dag/discover_exec.c
-  dag/enumeration.c
-  dag/exec.c
-  dag/fence.c
-  dag/file_cache.c
-  dag/glob.c
-  dag/graph.c
-  dag/hints.c
-  dag/key.c
-  dag/parallel.c
-  dag/pinned.c
-  dag/run.c
-  dag/stamp.c
-  dag/store.c
-  dag/strong_key.c
-  dag/tree.c
-  dag/track.c
-  dag/wasm.c
   external/obj.c
   gen/lower.c
   gen/reader.c
@@ -265,9 +242,7 @@ add_executable(core
   ${TEST_TOOLS}/fixture.c
   ${TEST_TOOLS}/path_roots.c
   ${TEST_TOOLS}/sim/sim.c
-  ${TEST_TOOLS}/dag/track.c
   ${TEST_TOOLS}/toml.c
-  tools/wasm_emit.c
   ${EMBED_OBJ}
 )
 set_source_files_properties(${EMBED_OBJ} PROPERTIES EXTERNAL_OBJECT TRUE GENERATED TRUE)
@@ -318,7 +293,45 @@ set_source_files_properties(
 target_link_libraries(core PRIVATE yyjson vmlib blake3)
 add_dependencies(core spn_embed spn_codegen_gen)
 add_test(NAME core COMMAND "$<TARGET_FILE:core>" WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
-add_test(NAME core_sim COMMAND "$<TARGET_FILE:core>" --filter "dag_*" WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
-set_tests_properties(core_sim PROPERTIES ENVIRONMENT "SPN_TEST_SIM=1")
+
+# DAG tests: dag/*.c run in both binaries; dag/sim needs the sim's deterministic mtimes, dag/os needs a real filesystem.
+set(DAG_TEST_SOURCES
+  ${SRC}/core/core.c
+  ${SRC}/dag/dag.c
+  ${SRC}/dag/glob.c
+  ${SRC}/dag/run.c
+  ${SRC}/dag/stamp.c
+  ${SRC}/dag/store.c
+  ${SRC}/dag/wasi.c
+  ${SRC}/dag/wasi/canonicalize.c
+  ${SRC}/hash/digest/digest.c
+  ${SRC}/hash/sha256/sha256.c
+  ${SRC}/paths/paths.c
+  ${UTIL}/fs/fs.c
+  ${UTIL}/io/io.c
+  ${UTIL}/thread_pool/thread_pool.c
+  ${TEST_TOOLS}/dag/track.c
+  ${TEST_TOOLS}/sim/sim.c
+  ${TEST_TOOLS}/path_roots.c
+)
+file(GLOB DAG_TESTS CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/dag/*.c)
+file(GLOB DAG_SIM_TESTS CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/dag/sim/*.c)
+file(GLOB DAG_OS_TESTS CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/dag/os/*.c)
+add_executable(dag ${DAG_TESTS} ${DAG_SIM_TESTS} ${DAG_TEST_SOURCES} tools/main/dag.c)
+add_executable(dag_os ${DAG_TESTS} ${DAG_OS_TESTS} ${DAG_TEST_SOURCES} tools/wasm_emit.c tools/main/unit.c)
+foreach(target dag dag_os)
+  spn_test_binary(${target})
+  target_include_directories(${target} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/tools
+    ${GEN_DIR}
+    ${SRC}/external
+    ${SOURCE_ROOT}/wamr/core/iwasm/include
+    ${STORE}/include/sp
+  )
+  target_link_libraries(${target} PRIVATE yyjson vmlib blake3)
+  add_dependencies(${target} spn_codegen_gen)
+  add_test(NAME ${target} COMMAND "$<TARGET_FILE:${target}>" WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
+endforeach()
 
 add_subdirectory(resolver)

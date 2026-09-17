@@ -1,4 +1,4 @@
-#include "dag_test.h"
+#include "dag/dag_test.h"
 
 typedef enum {
   STORE_OP_DONE,
@@ -8,26 +8,26 @@ typedef enum {
   STORE_OP_GET,
   STORE_OP_MATERIALIZE,
   STORE_OP_WRITE,
-} store_op_kind_t;
+} op_kind_t;
 
 typedef struct {
   spn_err_t err;
-} store_expect_t;
+} expect_t;
 
 typedef struct {
-  store_op_kind_t kind;
+  op_kind_t kind;
   const c8* blob;
   const c8* path;
   const c8* name;
-  store_expect_t expect;
-} store_op_t;
+  expect_t expect;
+} op_t;
 
 typedef struct {
   const c8* name;
-  store_op_t ops [DAG_TEST_MAX_OPS];
-} store_test_t;
+  op_t ops [DAG_TEST_MAX_OPS];
+} test_t;
 
-static const store_test_t store_tests [] = {
+static const test_t tests [] = {
   {
     .name = "put_then_get",
     .ops = {
@@ -114,7 +114,7 @@ static const store_test_t store_tests [] = {
   },
 };
 
-static sp_err_t store_run_ops(sp_test_t* t, spn_dag_store_kind_t kind, const store_test_t* test) {
+static sp_err_t run_ops(sp_test_t* t, spn_dag_store_kind_t kind, const test_t* test) {
   sp_test_kv_c(t, "store", dag_test_store_name(kind));
 
   dag_test_env_t env;
@@ -125,7 +125,7 @@ static sp_err_t store_run_ops(sp_test_t* t, spn_dag_store_kind_t kind, const sto
   sp_mem_t mem = env.mem;
 
   sp_carr_for(test->ops, it) {
-    store_op_t op = test->ops[it];
+    op_t op = test->ops[it];
     if (op.kind == STORE_OP_DONE) {
       break;
     }
@@ -192,9 +192,9 @@ static sp_err_t store_run_ops(sp_test_t* t, spn_dag_store_kind_t kind, const sto
   return SP_OK;
 }
 
-sp_test_each(dag_store, ops, store_test_t, store_tests) {
+sp_test_each(dag_store, ops, test_t, tests) {
   sp_carr_for(dag_test_store_kinds, kind) {
-    sp_err_t err = store_run_ops(t, dag_test_store_kinds[kind], it);
+    sp_err_t err = run_ops(t, dag_test_store_kinds[kind], it);
     if (err) {
       return err;
     }

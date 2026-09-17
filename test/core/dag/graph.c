@@ -1,4 +1,4 @@
-#include "dag_test.h"
+#include "dag/dag_test.h"
 
 sp_test(dag_graph, second_producer_rejected) {
   spn_path_roots_t storage = sp_zero;

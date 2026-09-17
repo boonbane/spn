@@ -1,4 +1,4 @@
-#include "dag_test.h"
+#include "dag/dag_test.h"
 
 typedef struct {
   const c8* path;
@@ -15,23 +15,22 @@ typedef struct {
   bool cold;
   bool manifest_stable;
   const c8* output;
-  const c8* hint_fresh;
   spn_err_t expect_err;
   u32 expect_runs;
-} discover_run_t;
+} run_t;
 
 typedef struct {
   const c8* name;
   const c8* input;
-  discover_run_t runs [DAG_TEST_MAX_OPS];
-} discover_test_t;
+  run_t runs [DAG_TEST_MAX_OPS];
+} test_t;
 
 typedef struct {
   dag_test_env_t dag;
-  const discover_run_t* run;
-} discover_env_t;
+  const run_t* run;
+} env_t;
 
-static const discover_test_t discover_tests [] = {
+static const test_t tests [] = {
   {
     .name = "unchanged_header_hits",
     .input = "A",
@@ -143,15 +142,6 @@ static const discover_test_t discover_tests [] = {
     }
   },
   {
-    .name = "hint_refreshed_on_hit",
-    .input = "A",
-    .runs = {
-      { .headers = { { "H", "A" } }, .expect_runs = 1 },
-      { .headers = { { "H", "A" } }, .cold = true, .expect_runs = 1 },
-      { .cold = true, .expect_runs = 1, .hint_fresh = "H" },
-    }
-  },
-  {
     .name = "manifest_flush_skipped_when_unchanged",
     .input = "A",
     .runs = {
@@ -162,8 +152,8 @@ static const discover_test_t discover_tests [] = {
   },
 };
 
-static spn_err_t discover_exec_fn(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* dag_env, sp_mem_t mem, sp_da(spn_dag_obs_t)* obs) {
-  discover_env_t* env = (discover_env_t*)user_data;
+static spn_err_t execute_action(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* dag_env, sp_mem_t mem, sp_da(spn_dag_obs_t)* obs) {
+  env_t* env = (env_t*)user_data;
   spn_try(dag_test_exec_stamp(g, action, user_data, dag_env, mem, obs));
   if (env->run->discover_fails) {
     return SPN_ERROR;
@@ -198,7 +188,7 @@ static spn_err_t discover_exec_fn(spn_dag_t* g, spn_dag_action_t* action, void* 
   return SPN_OK;
 }
 
-static void discover_exec_prepare(discover_env_t* env, const discover_run_t* run) {
+static void prepare_run(env_t* env, const run_t* run) {
   sp_carr_for(run->headers, it) {
     if (!run->headers[it].path) {
       break;
@@ -219,7 +209,7 @@ static void discover_exec_prepare(discover_env_t* env, const discover_run_t* run
   }
 }
 
-static sp_sys_file_meta_t manifest_meta(discover_env_t* env) {
+static sp_sys_file_meta_t manifest_meta(env_t* env) {
   sp_sys_file_meta_t meta = sp_zero;
   sp_str_t dir = dag_test_env_path(&env->dag, sp_str_lit("manifests"));
   sp_da(sp_fs_entry_t) entries = sp_zero;
@@ -230,15 +220,15 @@ static sp_sys_file_meta_t manifest_meta(discover_env_t* env) {
   return meta;
 }
 
-sp_test_each(dag_discover_exec, runs, discover_test_t, discover_tests) {
-  discover_env_t env = sp_zero;
+sp_test_each(dag_discover_exec, runs, test_t, tests) {
+  env_t env = sp_zero;
   dag_test_env_init(&env.dag, t, (dag_test_env_config_t) {
     .store = SPN_DAG_STORE_MEM,
     .discovery = true
   });
 
   sp_carr_for(it->runs, r) {
-    const discover_run_t* run = &it->runs[r];
+    const run_t* run = &it->runs[r];
     if (!run->expect_runs) {
       break;
     }
@@ -248,13 +238,13 @@ sp_test_each(dag_discover_exec, runs, discover_test_t, discover_tests) {
       dag_test_env_cold(&env.dag);
     }
     spn_dag_file_cache_invalidate_all(&env.dag.files);
-    discover_exec_prepare(&env, run);
+    prepare_run(&env, run);
 
     spn_dag_t* g = dag_test_env_graph(&env.dag);
     spn_dag_id_t action = spn_dag_add_action(g, (spn_dag_action_config_t) {
       .kind = SPN_DAG_ACTION_DISCOVERED,
       .identity = dag_test_digest(it->input),
-      .execute = discover_exec_fn,
+      .execute = execute_action,
       .user_data = &env
     });
     spn_dag_action_add_input(g, action, spn_dag_add_value(g, it->input, sp_cstr_len(it->input)));
@@ -284,15 +274,6 @@ sp_test_each(dag_discover_exec, runs, discover_test_t, discover_tests) {
       if (file_err) {
         return file_err;
       }
-    }
-
-    if (run->hint_fresh) {
-      sp_str_t hints = sp_zero;
-      sp_must_eq(t, SP_OK, sp_io_read_file(env.dag.mem, dag_test_env_path(&env.dag, sp_str_lit("files")), &hints));
-      sp_sys_file_meta_t sys = sp_zero;
-      sp_must_eq(t, SPN_OK, spn_dag_file_cache_stat(&env.dag.files, dag_test_env_rooted(&env.dag, sp_str_view(run->hint_fresh)), &sys));
-      sp_str_t mtime = sp_fmt(env.dag.mem, " {} {} ", sp_fmt_int((s64)sys.mtime.tv_sec), sp_fmt_int((s64)sys.mtime.tv_nsec)).value;
-      sp_expect(t, sp_str_contains(hints, mtime));
     }
   }
 

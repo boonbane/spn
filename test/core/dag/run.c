@@ -1,9 +1,9 @@
-#include "dag_test.h"
+#include "dag/dag_test.h"
 
 typedef struct {
   const c8* path;
   const c8* content;
-} run_source_t;
+} source_t;
 
 typedef struct {
   const c8* identity;
@@ -15,30 +15,30 @@ typedef struct {
   bool fails;
   bool skips_output;
   spn_dag_action_kind_t kind;
-} run_action_t;
+} action_t;
 
 typedef struct {
-  run_source_t sources [DAG_TEST_MAX_INPUTS];
+  source_t sources [DAG_TEST_MAX_INPUTS];
   const c8* remove_dirs [DAG_TEST_MAX_INPUTS];
   spn_err_t expect_err;
   const c8* expect_diag_path;
   u32 expect_runs;
-} run_build_t;
+} build_t;
 
 typedef struct {
   const c8* name;
   bool discovery;
-  run_action_t actions [DAG_TEST_MAX_OPS];
-  run_build_t builds [DAG_TEST_MAX_OPS];
-} run_test_t;
+  action_t actions [DAG_TEST_MAX_OPS];
+  build_t builds [DAG_TEST_MAX_OPS];
+} test_t;
 
 typedef struct {
   dag_test_env_t* env;
   spn_dag_t* g;
-  const run_action_t* spec;
-} run_ctx_t;
+  const action_t* spec;
+} ctx_t;
 
-static const run_test_t run_tests [] = {
+static const test_t tests [] = {
   {
     .name = "chain_runs_in_dependency_order",
     .actions = {
@@ -192,8 +192,8 @@ static const run_test_t run_tests [] = {
   },
 };
 
-static spn_err_t run_on_exec(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, sp_mem_t mem, sp_da(spn_dag_obs_t)* obs) {
-  run_ctx_t* ctx = (run_ctx_t*)user_data;
+static spn_err_t execute_action(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, sp_mem_t mem, sp_da(spn_dag_obs_t)* obs) {
+  ctx_t* ctx = (ctx_t*)user_data;
   if (ctx->spec->fails) {
     return SPN_ERR_DAG_ACTION;
   }
@@ -230,14 +230,14 @@ static spn_err_t run_on_exec(spn_dag_t* g, spn_dag_action_t* action, void* user_
   return sp_fs_create_file_str(dag_test_render(ctx->env, out->materialized), content) ? SPN_ERR_DAG_ACTION : SPN_OK;
 }
 
-static sp_err_t run_build_dag(sp_test_t* t, dag_test_env_t* env, spn_dag_t* g, const run_test_t* test) {
+static sp_err_t build_graph(sp_test_t* t, dag_test_env_t* env, spn_dag_t* g, const test_t* test) {
   sp_carr_for(test->actions, ai) {
-    const run_action_t* spec = &test->actions[ai];
+    const action_t* spec = &test->actions[ai];
     if (!spec->identity) {
       break;
     }
 
-    run_ctx_t* ctx = sp_alloc_type(env->mem, run_ctx_t);
+    ctx_t* ctx = sp_alloc_type(env->mem, ctx_t);
     ctx->env = env;
     ctx->g = g;
     ctx->spec = spec;
@@ -245,7 +245,7 @@ static sp_err_t run_build_dag(sp_test_t* t, dag_test_env_t* env, spn_dag_t* g, c
     spn_dag_id_t action = spn_dag_add_action(g, (spn_dag_action_config_t) {
       .kind = spec->discovers[0] ? SPN_DAG_ACTION_DISCOVERED : spec->kind,
       .identity = dag_test_digest(spec->identity),
-      .execute = run_on_exec,
+      .execute = execute_action,
       .user_data = ctx
     });
     sp_carr_for(spec->inputs, ii) {
@@ -262,7 +262,7 @@ static sp_err_t run_build_dag(sp_test_t* t, dag_test_env_t* env, spn_dag_t* g, c
   return SP_OK;
 }
 
-sp_test_each(dag_run, builds, run_test_t, run_tests) {
+sp_test_each(dag_run, builds, test_t, tests) {
   dag_test_env_t env;
   dag_test_env_init(&env, t, (dag_test_env_config_t) {
     .store = SPN_DAG_STORE_MEM,
@@ -270,7 +270,7 @@ sp_test_each(dag_run, builds, run_test_t, run_tests) {
   });
 
   sp_carr_for(it->builds, b) {
-    const run_build_t* build = &it->builds[b];
+    const build_t* build = &it->builds[b];
     if (!build->expect_runs && !build->expect_err) {
       break;
     }
@@ -290,13 +290,36 @@ sp_test_each(dag_run, builds, run_test_t, run_tests) {
     }
 
     spn_dag_t* g = dag_test_env_graph(&env);
-    sp_err_t err = run_build_dag(t, &env, g, it);
-    if (err) {
-      return err;
+    sp_carr_for(it->actions, ai) {
+      const action_t* spec = &it->actions[ai];
+      if (!spec->identity) {
+        break;
+      }
+
+      ctx_t* ctx = sp_alloc_type(env.mem, ctx_t);
+      ctx->env = &env;
+      ctx->g = g;
+      ctx->spec = spec;
+
+      spn_dag_id_t action = spn_dag_add_action(g, (spn_dag_action_config_t) {
+        .kind = spec->discovers[0] ? SPN_DAG_ACTION_DISCOVERED : spec->kind,
+        .identity = dag_test_digest(spec->identity),
+        .execute = execute_action,
+        .user_data = ctx
+      });
+      sp_carr_for(spec->inputs, ii) {
+        if (!spec->inputs[ii]) {
+          break;
+        }
+        spn_dag_action_add_input(g, action, spn_dag_add_file(g, dag_test_env_rooted(&env, sp_str_view(spec->inputs[ii]))));
+      }
+      spn_path_t output = dag_test_env_rooted(&env, sp_str_view(spec->output));
+      spn_dag_id_t out_id = spec->tree ? spn_dag_add_tree(g, output) : spn_dag_add_file(g, output);
+      sp_must_eq(t, SPN_OK, spn_dag_action_add_output(g, action, out_id));
     }
 
-    spn_err_t run_err = spn_dag_run(g, &env.env);
-    sp_expect_eq(t, build->expect_err, run_err);
+    spn_err_t err = spn_dag_run(g, &env.env);
+    sp_expect_eq(t, build->expect_err, err);
     sp_expect_eq(t, build->expect_err, env.env.diag.err);
     if (build->expect_diag_path) {
       sp_expect_str_eq(t, env.env.diag.path, dag_test_env_path(&env, sp_str_view(build->expect_diag_path)));

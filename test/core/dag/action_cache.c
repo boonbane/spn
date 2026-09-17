@@ -1,9 +1,9 @@
-#include "dag_test.h"
+#include "dag/dag_test.h"
 
 typedef struct {
   const c8* name;
   const c8* blob;
-} cache_output_t;
+} output_t;
 
 typedef enum {
   CACHE_OP_DONE,
@@ -12,25 +12,25 @@ typedef enum {
   CACHE_OP_REMOVE,
   CACHE_OP_RELOAD,
   CACHE_OP_CORRUPT,
-} cache_op_kind_t;
+} op_kind_t;
 
 typedef struct {
   bool hit;
-} cache_expect_t;
+} expect_t;
 
 typedef struct {
-  cache_op_kind_t kind;
+  op_kind_t kind;
   const c8* key;
-  cache_output_t outputs [DAG_TEST_MAX_OUTPUTS];
-  cache_expect_t expect;
-} cache_op_t;
+  output_t outputs [DAG_TEST_MAX_OUTPUTS];
+  expect_t expect;
+} op_t;
 
 typedef struct {
   const c8* name;
-  cache_op_t ops [DAG_TEST_MAX_OPS];
-} cache_test_t;
+  op_t ops [DAG_TEST_MAX_OPS];
+} test_t;
 
-static const cache_test_t cache_tests [] = {
+static const test_t tests [] = {
   {
     .name = "get_missing",
     .ops = {
@@ -120,7 +120,7 @@ static const cache_test_t cache_tests [] = {
   },
 };
 
-static void get_output_count(const cache_op_t* op, u32* count) {
+static void get_output_count(const op_t* op, u32* count) {
   *count = 0;
   sp_carr_for(op->outputs, it) {
     if (!op->outputs[it].name) {
@@ -135,7 +135,7 @@ static sp_str_t get_path(sp_mem_t mem, sp_str_t dir, const c8* key) {
   return sp_fs_join_path(mem, dir, sp_fmt(mem, "{}.txt", sp_fmt_str(hex)).value);
 }
 
-sp_test_each(dag_action_cache, ops, cache_test_t, cache_tests) {
+sp_test_each(dag_action_cache, ops, test_t, tests) {
   sp_mem_t mem = sp_test_arena(t);
   sp_str_t dir = sp_fs_join_path(mem, sp_test_dir(t), sp_str_lit("strong"));
 
@@ -143,7 +143,7 @@ sp_test_each(dag_action_cache, ops, cache_test_t, cache_tests) {
   spn_dag_action_cache_init(&c, mem, dir);
 
   sp_carr_for(it->ops, ot) {
-    cache_op_t op = it->ops[ot];
+    op_t op = it->ops[ot];
     if (op.kind == CACHE_OP_DONE) {
       break;
     }

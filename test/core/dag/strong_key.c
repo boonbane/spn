@@ -1,23 +1,23 @@
-#include "dag_test.h"
+#include "dag/dag_test.h"
 
 typedef struct {
   const c8* prelim;
   const c8* pinned;
   dag_test_obs_t obs [DAG_TEST_MAX_INPUTS];
-} strong_key_action_t;
+} action_t;
 
 typedef struct {
   bool equal;
-} strong_key_expect_t;
+} expect_t;
 
 typedef struct {
   const c8* name;
-  strong_key_action_t a;
-  strong_key_action_t b;
-  strong_key_expect_t expect;
-} strong_key_test_t;
+  action_t a;
+  action_t b;
+  expect_t expect;
+} test_t;
 
-static const strong_key_test_t strong_key_tests [] = {
+static const test_t tests [] = {
   {
     .name = "identical_folds_match",
     .a = { .prelim = "cc main.c", .obs = { { "sp.h", "SP" }, { "io.h", "IO" } } },
@@ -92,16 +92,16 @@ static const strong_key_test_t strong_key_tests [] = {
   },
 };
 
-static spn_dag_digest_t build_strong_key(const strong_key_action_t* spec) {
+static spn_dag_digest_t build_key(const action_t* spec) {
   spn_dag_obs_t obs [DAG_TEST_MAX_INPUTS] = sp_zero;
   spn_dag_digest_t digests [DAG_TEST_MAX_INPUTS] = sp_zero;
   u32 count = dag_test_obs_build(spec->obs, DAG_TEST_MAX_INPUTS, obs, digests);
   return spn_dag_strong_key(dag_test_digest(spec->prelim), dag_test_digest(spec->pinned), obs, digests, count);
 }
 
-sp_test_each(dag_strong_key, fold, strong_key_test_t, strong_key_tests) {
-  spn_dag_digest_t a = build_strong_key(&it->a);
-  spn_dag_digest_t b = build_strong_key(&it->b);
+sp_test_each(dag_strong_key, fold, test_t, tests) {
+  spn_dag_digest_t a = build_key(&it->a);
+  spn_dag_digest_t b = build_key(&it->b);
   sp_expect_eq(t, it->expect.equal, spn_dag_digest_equal(a, b));
   return SP_OK;
 }

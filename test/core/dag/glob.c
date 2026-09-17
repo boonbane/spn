@@ -1,21 +1,21 @@
-#include "dag_test.h"
+#include "dag/dag_test.h"
 
 typedef struct {
   const c8* dir;
   const c8* filter;
-} glob_enum_t;
+} enum_t;
 
 typedef struct {
   const c8* path;
   const c8* rel;
-} glob_match_t;
+} match_t;
 
 typedef struct {
-  glob_enum_t enums [DAG_TEST_MAX_INPUTS];
-  glob_match_t matches [DAG_TEST_MAX_INPUTS];
+  enum_t enums [DAG_TEST_MAX_INPUTS];
+  match_t matches [DAG_TEST_MAX_INPUTS];
   const c8* absent [DAG_TEST_MAX_INPUTS];
   spn_err_t err;
-} glob_expect_t;
+} expect_t;
 
 typedef struct {
   const c8* name;
@@ -23,10 +23,10 @@ typedef struct {
   const c8* dirs [DAG_TEST_MAX_INPUTS];
   const c8* nested_root;
   const c8* pattern;
-  glob_expect_t expect;
-} glob_test_t;
+  expect_t expect;
+} test_t;
 
-static const glob_test_t glob_tests [] = {
+static const test_t tests [] = {
   {
     .name = "root_pattern",
     .files = { "X.h", "Y.c" },
@@ -112,11 +112,11 @@ typedef struct {
   sp_str_t filter;
   spn_dag_obs_kind_t kind;
   spn_path_root_t root;
-} glob_seen_t;
+} seen_t;
 
-static s32 glob_obs_order(const void* a, const void* b) {
-  const glob_seen_t* oa = (const glob_seen_t*)a;
-  const glob_seen_t* ob = (const glob_seen_t*)b;
+static s32 obs_order(const void* a, const void* b) {
+  const seen_t* oa = (const seen_t*)a;
+  const seen_t* ob = (const seen_t*)b;
   s32 order = sp_str_compare_alphabetical(oa->path, ob->path);
   if (order) {
     return order;
@@ -124,7 +124,7 @@ static s32 glob_obs_order(const void* a, const void* b) {
   return sp_str_compare_alphabetical(oa->filter, ob->filter);
 }
 
-sp_test_each(dag_glob, observe, glob_test_t, glob_tests) {
+sp_test_each(dag_glob, observe, test_t, tests) {
   sp_mem_t mem = sp_test_arena(t);
   sp_str_t root = sp_fs_join_path(mem, sp_test_dir(t), sp_str_lit("R"));
   sp_fs_create_dir(root);
@@ -157,11 +157,11 @@ sp_test_each(dag_glob, observe, glob_test_t, glob_tests) {
     return SP_OK;
   }
 
-  sp_da(glob_seen_t) enums = sp_da_new(mem, glob_seen_t);
-  sp_da(glob_seen_t) file_obs = sp_da_new(mem, glob_seen_t);
-  sp_da(glob_seen_t) absent_obs = sp_da_new(mem, glob_seen_t);
+  sp_da(seen_t) enums = sp_da_new(mem, seen_t);
+  sp_da(seen_t) file_obs = sp_da_new(mem, seen_t);
+  sp_da(seen_t) absent_obs = sp_da_new(mem, seen_t);
   sp_da_for(glob.obs, ot) {
-    glob_seen_t seen = {
+    seen_t seen = {
       .path = spn_path_str(roots, mem, glob.obs[ot].path),
       .filter = glob.obs[ot].filter,
       .kind = glob.obs[ot].kind,
@@ -173,9 +173,9 @@ sp_test_each(dag_glob, observe, glob_test_t, glob_tests) {
       case SPN_DAG_OBS_ABSENT:      sp_da_push(absent_obs, seen); break;
     }
   }
-  sp_da_sort(enums, glob_obs_order);
-  sp_da_sort(file_obs, glob_obs_order);
-  sp_da_sort(absent_obs, glob_obs_order);
+  sp_da_sort(enums, obs_order);
+  sp_da_sort(file_obs, obs_order);
+  sp_da_sort(absent_obs, obs_order);
 
   u32 expect_enums = 0;
   sp_carr_for(it->expect.enums, et) {
@@ -232,26 +232,26 @@ sp_test_each(dag_glob, observe, glob_test_t, glob_tests) {
 typedef struct {
   const c8* path;
   const c8* content;
-} glob_exec_file_t;
+} file_t;
 
 typedef struct {
-  glob_exec_file_t files [DAG_TEST_MAX_INPUTS];
+  file_t files [DAG_TEST_MAX_INPUTS];
   u32 expect_runs;
-} glob_exec_run_t;
+} run_t;
 
 typedef struct {
   const c8* name;
   const c8* pattern;
-  glob_exec_run_t runs [DAG_TEST_MAX_OPS];
-} glob_exec_test_t;
+  run_t runs [DAG_TEST_MAX_OPS];
+} exec_test_t;
 
 typedef struct {
   dag_test_env_t dag;
   sp_str_t root;
   spn_path_t pattern;
-} glob_exec_env_t;
+} env_t;
 
-static const glob_exec_test_t glob_exec_tests [] = {
+static const exec_test_t exec_tests [] = {
   {
     .name = "discovered_content_change_reruns",
     .pattern = "*.h",
@@ -264,8 +264,8 @@ static const glob_exec_test_t glob_exec_tests [] = {
   },
 };
 
-static spn_err_t glob_exec_fn(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* dag_env, sp_mem_t mem, sp_da(spn_dag_obs_t)* obs) {
-  glob_exec_env_t* env = (glob_exec_env_t*)user_data;
+static spn_err_t execute_action(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* dag_env, sp_mem_t mem, sp_da(spn_dag_obs_t)* obs) {
+  env_t* env = (env_t*)user_data;
   spn_try(dag_test_exec_stamp(g, action, user_data, dag_env, mem, obs));
   spn_dag_glob_result_t glob = sp_zero;
   spn_try(spn_dag_glob(mem, g->roots, env->pattern, &glob));
@@ -275,8 +275,8 @@ static spn_err_t glob_exec_fn(spn_dag_t* g, spn_dag_action_t* action, void* user
   return SPN_OK;
 }
 
-sp_test_each(dag_glob, exec, glob_exec_test_t, glob_exec_tests) {
-  glob_exec_env_t env = sp_zero;
+sp_test_each(dag_glob, exec, exec_test_t, exec_tests) {
+  env_t env = sp_zero;
   dag_test_env_init(&env.dag, t, (dag_test_env_config_t) {
     .store = SPN_DAG_STORE_MEM,
     .discovery = true
@@ -286,7 +286,7 @@ sp_test_each(dag_glob, exec, glob_exec_test_t, glob_exec_tests) {
   sp_fs_create_dir(env.root);
 
   sp_carr_for(it->runs, r) {
-    const glob_exec_run_t* run = &it->runs[r];
+    const run_t* run = &it->runs[r];
     if (!run->expect_runs) {
       break;
     }
@@ -303,7 +303,7 @@ sp_test_each(dag_glob, exec, glob_exec_test_t, glob_exec_tests) {
     spn_dag_id_t action = spn_dag_add_action(g, (spn_dag_action_config_t) {
       .kind = SPN_DAG_ACTION_DISCOVERED,
       .identity = dag_test_digest(it->name),
-      .execute = glob_exec_fn,
+      .execute = execute_action,
       .user_data = &env
     });
     sp_must_eq(t, SPN_OK, spn_dag_action_add_output(g, action, spn_dag_add_output(g, sp_str_lit("O"))));

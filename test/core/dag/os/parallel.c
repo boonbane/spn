@@ -1,10 +1,10 @@
-#include "dag_test.h"
+#include "dag/dag_test.h"
 #include "thread_pool/thread_pool.h"
 
 typedef struct {
   const c8* path;
   const c8* content;
-} par_source_t;
+} source_t;
 
 typedef struct {
   const c8* identity;
@@ -13,38 +13,38 @@ typedef struct {
   const c8* output;
   bool tree;
   bool fails;
-} par_action_t;
+} action_t;
 
 typedef struct {
-  par_source_t sources [DAG_TEST_MAX_INPUTS];
+  source_t sources [DAG_TEST_MAX_INPUTS];
   const c8* remove_dirs [DAG_TEST_MAX_INPUTS];
   spn_err_t expect_err;
   u32 expect_runs;
   u32 expect_requeues;
-} par_build_t;
+} build_t;
 
 typedef struct {
   const c8* name;
   u32 workers;
   bool discovery;
-  par_action_t actions [DAG_TEST_MAX_OPS];
-  par_build_t builds [DAG_TEST_MAX_OPS];
-} par_test_t;
+  action_t actions [DAG_TEST_MAX_OPS];
+  build_t builds [DAG_TEST_MAX_OPS];
+} test_t;
 
 typedef struct {
   dag_test_env_t dag;
   sp_atomic_s32_t runs;
-} par_env_t;
+} env_t;
 
 typedef struct {
-  par_env_t* env;
+  env_t* env;
   spn_dag_t* g;
-  const par_action_t* spec;
-} par_ctx_t;
+  const action_t* spec;
+} ctx_t;
 
 sp_test_suite(dag_parallel, .serial = true);
 
-static const par_test_t par_tests [] = {
+static const test_t tests [] = {
   {
     .name = "independent_actions_all_run",
     .actions = {
@@ -155,8 +155,8 @@ static const par_test_t par_tests [] = {
   },
 };
 
-static spn_err_t par_exec(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, sp_mem_t mem, sp_da(spn_dag_obs_t)* obs) {
-  par_ctx_t* ctx = (par_ctx_t*)user_data;
+static spn_err_t execute_graph(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, sp_mem_t mem, sp_da(spn_dag_obs_t)* obs) {
+  ctx_t* ctx = (ctx_t*)user_data;
   if (ctx->spec->fails) {
     return SPN_ERR_DAG_ACTION;
   }
@@ -167,7 +167,7 @@ static spn_err_t par_exec(spn_dag_t* g, spn_dag_action_t* action, void* user_dat
     }
     sp_da_push(*obs, ((spn_dag_obs_t) {
       .kind = SPN_DAG_OBS_FILE,
-      .path = spn_path_make(g->roots, sp_fs_join_path(mem, ctx->env->dag.root, sp_str_view(ctx->spec->discovers[it])))
+      .path = spn_path_make(g->roots, sp_fs_join_path(mem, ctx->env->dag.root, sp_cstr_as_str(ctx->spec->discovers[it])))
     }));
   }
 
@@ -184,7 +184,7 @@ static spn_err_t par_exec(spn_dag_t* g, spn_dag_action_t* action, void* user_dat
 
   sp_atomic_s32_add(&ctx->env->runs, 1, SP_ATOMIC_SEQ_CST);
   spn_dag_artifact_t* out = spn_dag_find_artifact(ctx->g, action->produces[0]);
-  sp_str_t content = sp_str_view(ctx->spec->identity);
+  sp_str_t content = sp_cstr_as_str(ctx->spec->identity);
   spn_path_t target = out->kind == SPN_DAG_ARTIFACT_KIND_TREE
     ? spn_path_join(s.mem, out->materialized, sp_str_lit("H"))
     : out->materialized;
@@ -193,14 +193,14 @@ static spn_err_t par_exec(spn_dag_t* g, spn_dag_action_t* action, void* user_dat
   return err ? SPN_ERR_DAG_ACTION : SPN_OK;
 }
 
-static sp_err_t par_build_graph(sp_test_t* t, par_env_t* env, spn_dag_t* g, const par_test_t* test) {
+static sp_err_t build_graph(sp_test_t* t, env_t* env, spn_dag_t* g, const test_t* test) {
   sp_carr_for(test->actions, ai) {
-    const par_action_t* spec = &test->actions[ai];
+    const action_t* spec = &test->actions[ai];
     if (!spec->identity) {
       break;
     }
 
-    par_ctx_t* ctx = sp_alloc_type(env->dag.mem, par_ctx_t);
+    ctx_t* ctx = sp_alloc_type(env->dag.mem, ctx_t);
     ctx->env = env;
     ctx->g = g;
     ctx->spec = spec;
@@ -208,16 +208,16 @@ static sp_err_t par_build_graph(sp_test_t* t, par_env_t* env, spn_dag_t* g, cons
     spn_dag_id_t action = spn_dag_add_action(g, (spn_dag_action_config_t) {
       .kind = spec->discovers[0] ? SPN_DAG_ACTION_DISCOVERED : SPN_DAG_ACTION_STATIC,
       .identity = dag_test_digest(spec->identity),
-      .execute = par_exec,
+      .execute = execute_graph,
       .user_data = ctx
     });
     sp_carr_for(spec->inputs, ii) {
       if (!spec->inputs[ii]) {
         break;
       }
-      spn_dag_action_add_input(g, action, spn_dag_add_file(g, dag_test_env_rooted(&env->dag, sp_str_view(spec->inputs[ii]))));
+      spn_dag_action_add_input(g, action, spn_dag_add_file(g, dag_test_env_rooted(&env->dag, sp_cstr_as_str(spec->inputs[ii]))));
     }
-    spn_path_t output = dag_test_env_rooted(&env->dag, sp_str_view(spec->output));
+    spn_path_t output = dag_test_env_rooted(&env->dag, sp_cstr_as_str(spec->output));
     spn_dag_id_t out = spec->tree ? spn_dag_add_tree(g, output) : spn_dag_add_file(g, output);
     sp_must_eq(t, SPN_OK, spn_dag_action_add_output(g, action, out));
   }
@@ -225,13 +225,13 @@ static sp_err_t par_build_graph(sp_test_t* t, par_env_t* env, spn_dag_t* g, cons
   return SP_OK;
 }
 
-static sp_err_t par_expect_outputs(sp_test_t* t, par_env_t* env, const par_test_t* test) {
+static sp_err_t check_expectations(sp_test_t* t, env_t* env, const test_t* test) {
   sp_carr_for(test->actions, ai) {
-    const par_action_t* spec = &test->actions[ai];
+    const action_t* spec = &test->actions[ai];
     if (!spec->identity) {
       break;
     }
-    sp_str_t path = dag_test_env_path(&env->dag, sp_str_view(spec->output));
+    sp_str_t path = dag_test_env_path(&env->dag, sp_cstr_as_str(spec->output));
     if (spec->tree) {
       path = sp_fs_join_path(env->dag.mem, path, sp_str_lit("H"));
     }
@@ -243,10 +243,10 @@ static sp_err_t par_expect_outputs(sp_test_t* t, par_env_t* env, const par_test_
   return SP_OK;
 }
 
-static sp_err_t par_run_builds(sp_test_t* t, spn_dag_store_kind_t kind, const par_test_t* test) {
+static sp_err_t build_all(sp_test_t* t, spn_dag_store_kind_t kind, const test_t* test) {
   sp_test_kv_c(t, "store", dag_test_store_name(kind));
 
-  par_env_t env = sp_zero;
+  env_t env = sp_zero;
   dag_test_env_init(&env.dag, t, (dag_test_env_config_t) {
     .sub = dag_test_store_name(kind),
     .store = kind,
@@ -260,7 +260,7 @@ static sp_err_t par_run_builds(sp_test_t* t, spn_dag_store_kind_t kind, const pa
 
   sp_err_t result = SP_OK;
   sp_carr_for(test->builds, b) {
-    const par_build_t* build = &test->builds[b];
+    const build_t* build = &test->builds[b];
     if (!build->expect_runs && !build->expect_err) {
       break;
     }
@@ -270,17 +270,17 @@ static sp_err_t par_run_builds(sp_test_t* t, spn_dag_store_kind_t kind, const pa
       if (!build->sources[si].path) {
         break;
       }
-      dag_test_env_create(&env.dag, sp_str_view(build->sources[si].path), sp_str_view(build->sources[si].content));
+      dag_test_env_create(&env.dag, sp_cstr_as_str(build->sources[si].path), sp_cstr_as_str(build->sources[si].content));
     }
     sp_carr_for(build->remove_dirs, si) {
       if (!build->remove_dirs[si]) {
         break;
       }
-      sp_fs_remove_dir(dag_test_env_path(&env.dag, sp_str_view(build->remove_dirs[si])));
+      sp_fs_remove_dir(dag_test_env_path(&env.dag, sp_cstr_as_str(build->remove_dirs[si])));
     }
 
     spn_dag_t* g = dag_test_env_graph(&env.dag);
-    result = par_build_graph(t, &env, g, test);
+    result = build_graph(t, &env, g, test);
     if (result) {
       break;
     }
@@ -292,7 +292,7 @@ static sp_err_t par_run_builds(sp_test_t* t, spn_dag_store_kind_t kind, const pa
     sp_expect_le(t, runs, (s32)(build->expect_runs + build->expect_requeues));
 
     if (!err && !build->expect_err) {
-      result = par_expect_outputs(t, &env, test);
+      result = check_expectations(t, &env, test);
       if (result) {
         break;
       }
@@ -303,13 +303,9 @@ static sp_err_t par_run_builds(sp_test_t* t, spn_dag_store_kind_t kind, const pa
   return result;
 }
 
-sp_test_each(dag_parallel, builds, par_test_t, par_tests) {
-  if (!sp_str_empty(sp_os_env_get(sp_str_lit("SPN_TEST_SIM")))) {
-    return sp_test_skip(t, "threaded executor is incompatible with the single-threaded sim");
-  }
-
+sp_test_each(dag_parallel, builds, test_t, tests) {
   sp_carr_for(dag_test_store_kinds, kind) {
-    sp_err_t err = par_run_builds(t, dag_test_store_kinds[kind], it);
+    sp_err_t err = build_all(t, dag_test_store_kinds[kind], it);
     if (err) {
       return err;
     }

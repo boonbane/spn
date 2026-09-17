@@ -1,12 +1,12 @@
-#include "dag_test.h"
+#include "dag/dag_test.h"
 
 typedef struct {
   const c8* name;
   const c8* data;
   const c8* hex;
-} digest_test_t;
+} test_t;
 
-static const digest_test_t digest_tests [] = {
+static const test_t tests [] = {
   {
     .name = "empty",
     .data = "",
@@ -19,7 +19,7 @@ static const digest_test_t digest_tests [] = {
   },
 };
 
-sp_test_each(dag_digest, hash, digest_test_t, digest_tests) {
+sp_test_each(dag_digest, hash, test_t, tests) {
   sp_str_t data = sp_str_view(it->data);
   spn_dag_digest_t digest = spn_dag_digest(data.data, data.len);
   sp_expect(t, spn_dag_digest_valid(digest));

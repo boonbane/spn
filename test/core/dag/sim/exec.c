@@ -1,16 +1,16 @@
-#include "dag_test.h"
+#include "dag/dag_test.h"
 
 typedef enum {
   EXEC_BEHAVIOR_WRITE,
   EXEC_BEHAVIOR_FAIL,
   EXEC_BEHAVIOR_SKIP_LAST_OUTPUT,
-} exec_behavior_t;
+} behavior_t;
 
 typedef enum {
   EXEC_OP_DONE,
   EXEC_OP_RUN,
   EXEC_OP_REMOVE_OUTPUTS,
-} exec_op_kind_t;
+} op_kind_t;
 
 typedef struct {
   const c8* identity;
@@ -18,48 +18,48 @@ typedef struct {
   const c8* outputs [DAG_TEST_MAX_OUTPUTS];
   const c8* write [DAG_TEST_MAX_OUTPUTS];
   spn_dag_action_kind_t kind;
-} exec_action_t;
+} action_t;
 
 typedef struct {
   const c8* identity;
   const c8* inputs [DAG_TEST_MAX_INPUTS];
   const c8* outputs [DAG_TEST_MAX_OUTPUTS];
-} exec_change_t;
+} change_t;
 
 typedef struct {
   spn_err_t err;
   u32 runs;
   u32 hashes;
   const c8* contents [DAG_TEST_MAX_OUTPUTS];
-} exec_expect_t;
+} expect_t;
 
 typedef struct {
-  exec_op_kind_t kind;
-  exec_behavior_t behavior;
-  exec_change_t change;
+  op_kind_t kind;
+  behavior_t behavior;
+  change_t change;
   const c8* unavailable [DAG_TEST_MAX_OUTPUTS];
-  exec_expect_t expect;
-} exec_op_t;
+  expect_t expect;
+} op_t;
 
 typedef struct {
   const c8* name;
-  exec_action_t action;
-  exec_op_t ops [DAG_TEST_MAX_OPS];
-} exec_test_t;
+  action_t action;
+  op_t ops [DAG_TEST_MAX_OPS];
+} test_t;
 
 typedef struct {
   dag_test_env_t dag;
   spn_err_t err;
-} exec_env_t;
+} env_t;
 
 typedef struct {
   spn_dag_t* g;
-  const exec_action_t* spec;
-  exec_behavior_t behavior;
-  exec_env_t* env;
-} exec_fn_ctx_t;
+  const action_t* spec;
+  behavior_t behavior;
+  env_t* env;
+} ctx_t;
 
-static const exec_test_t exec_tests [] = {
+static const test_t tests [] = {
   {
     .name = "miss_executes_action",
     .action = { .identity = "I", .inputs = { "A" }, .outputs = { "O" }, .write = { "V" } },
@@ -160,8 +160,8 @@ static const exec_test_t exec_tests [] = {
   },
 };
 
-static spn_err_t exec_test_fn(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, sp_mem_t mem, sp_da(spn_dag_obs_t)* obs) {
-  exec_fn_ctx_t* ctx = (exec_fn_ctx_t*)user_data;
+static spn_err_t execute_action(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, sp_mem_t mem, sp_da(spn_dag_obs_t)* obs) {
+  ctx_t* ctx = (ctx_t*)user_data;
   if (ctx->behavior == EXEC_BEHAVIOR_FAIL) {
     return SPN_ERR_DAG_ACTION;
   }
@@ -181,7 +181,7 @@ static spn_err_t exec_test_fn(spn_dag_t* g, spn_dag_action_t* action, void* user
   return SPN_OK;
 }
 
-static void exec_action_change(exec_action_t* action, exec_change_t change) {
+static void apply_change(action_t* action, change_t change) {
   if (change.identity) {
     action->identity = change.identity;
   }
@@ -197,9 +197,9 @@ static void exec_action_change(exec_action_t* action, exec_change_t change) {
   }
 }
 
-static sp_err_t exec_action_run(sp_test_t* t, exec_env_t* env, const exec_action_t* spec, const exec_op_t* op) {
+static sp_err_t run_action(sp_test_t* t, env_t* env, const action_t* spec, const op_t* op) {
   spn_dag_t* g = dag_test_env_graph(&env->dag);
-  exec_fn_ctx_t ctx = {
+  ctx_t ctx = {
     .g = g,
     .spec = spec,
     .behavior = op->behavior,
@@ -209,7 +209,7 @@ static sp_err_t exec_action_run(sp_test_t* t, exec_env_t* env, const exec_action
   spn_dag_id_t action = spn_dag_add_action(g, (spn_dag_action_config_t) {
     .kind = spec->kind,
     .identity = dag_test_digest(spec->identity),
-    .execute = exec_test_fn,
+    .execute = execute_action,
     .user_data = &ctx
   });
 
@@ -278,7 +278,7 @@ static sp_err_t exec_action_run(sp_test_t* t, exec_env_t* env, const exec_action
   return SP_OK;
 }
 
-static sp_err_t exec_remove_outputs(sp_test_t* t, exec_env_t* env, const exec_action_t* action) {
+static sp_err_t remove_outputs(sp_test_t* t, env_t* env, const action_t* action) {
   sp_carr_for(action->outputs, it) {
     if (!action->outputs[it]) {
       break;
@@ -296,18 +296,18 @@ static sp_err_t exec_remove_outputs(sp_test_t* t, exec_env_t* env, const exec_ac
   return SP_OK;
 }
 
-static sp_err_t exec_run_ops(sp_test_t* t, spn_dag_store_kind_t kind, const exec_test_t* test) {
+static sp_err_t run_ops(sp_test_t* t, spn_dag_store_kind_t kind, const test_t* test) {
   sp_test_kv_c(t, "store", dag_test_store_name(kind));
 
-  exec_env_t env = sp_zero;
+  env_t env = sp_zero;
   dag_test_env_init(&env.dag, t, (dag_test_env_config_t) {
     .sub = dag_test_store_name(kind),
     .store = kind
   });
-  exec_action_t action = test->action;
+  action_t action = test->action;
 
   sp_carr_for(test->ops, it) {
-    exec_op_t op = test->ops[it];
+    op_t op = test->ops[it];
     if (op.kind == EXEC_OP_DONE) {
       break;
     }
@@ -318,12 +318,12 @@ static sp_err_t exec_run_ops(sp_test_t* t, spn_dag_store_kind_t kind, const exec
         break;
       }
       case EXEC_OP_RUN: {
-        exec_action_change(&action, op.change);
-        err = exec_action_run(t, &env, &action, &op);
+        apply_change(&action, op.change);
+        err = run_action(t, &env, &action, &op);
         break;
       }
       case EXEC_OP_REMOVE_OUTPUTS: {
-        err = exec_remove_outputs(t, &env, &action);
+        err = remove_outputs(t, &env, &action);
         break;
       }
     }
@@ -339,9 +339,9 @@ static sp_err_t exec_run_ops(sp_test_t* t, spn_dag_store_kind_t kind, const exec
   return SP_OK;
 }
 
-sp_test_each(dag_exec, ops, exec_test_t, exec_tests) {
+sp_test_each(dag_exec, ops, test_t, tests) {
   sp_carr_for(dag_test_store_kinds, kind) {
-    sp_err_t err = exec_run_ops(t, dag_test_store_kinds[kind], it);
+    sp_err_t err = run_ops(t, dag_test_store_kinds[kind], it);
     if (err) {
       return err;
     }
