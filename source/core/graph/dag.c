@@ -230,7 +230,7 @@ static spn_err_t dag_user_exec(spn_dag_t* g, spn_dag_action_t* action, void* use
   sp_da_for(action->produces, it) {
     spn_dag_artifact_t* artifact = spn_dag_find_artifact(g, action->produces[it]);
     sp_str_t target = spn_path_str(g->roots, spn.mem, artifact->materialized);
-    if (node->stamp) {
+    if (node->outputs[it].stamp) {
       sp_fs_create_file(target);
       continue;
     }
@@ -354,19 +354,6 @@ static spn_err_t dag_compile_commands_merge_exec(spn_dag_t* g, spn_dag_action_t*
 //////////////////
 // CONSTRUCTION //
 //////////////////
-static spn_err_t dag_add_user_output(spn_dag_build_t* b, sp_da(spn_dag_id_t)* outputs, spn_dag_id_t action, spn_dag_id_t artifact, spn_path_t path) {
-  spn_err_t err = spn_dag_action_add_output(b->graph, action, artifact);
-  if (err) {
-    b->env.diag = (spn_dag_diag_t) {
-      .err = err,
-      .path = spn_path_str(b->graph->roots, b->mem, path)
-    };
-    return err;
-  }
-  sp_da_push(*outputs, artifact);
-  return SPN_OK;
-}
-
 static spn_err_t dag_add_user_nodes(spn_dag_build_t* b, spn_pkg_unit_t* unit, sp_da(spn_dag_id_t)* outputs) {
   spn_dag_t* g = b->graph;
   spn_build_source_pin_t pin = spn_build_source_pin(unit);
@@ -385,8 +372,7 @@ static spn_err_t dag_add_user_nodes(spn_dag_build_t* b, spn_pkg_unit_t* unit, sp
 
   sp_da_for(unit->user_nodes, it) {
     spn_user_node_t* node = &unit->user_nodes[it];
-    node->stamp = sp_da_empty(node->outputs);
-    if (node->stamp) {
+    if (sp_da_empty(node->outputs)) {
       sp_da_push(node->outputs, spn_pkg_unit_node_stamp(unit, node));
     }
   }
@@ -419,7 +405,16 @@ static spn_err_t dag_add_user_nodes(spn_dag_build_t* b, spn_pkg_unit_t* unit, sp
 
     sp_da_for(node->outputs, ot) {
       spn_user_output_t* out = &node->outputs[ot];
-      spn_try(dag_add_user_output(b, outputs, action, spn_dag_add_path(g, out->path, out->kind), out->path));
+      spn_dag_id_t artifact = spn_dag_add_path(g, out->path, out->kind);
+      spn_err_t err = spn_dag_action_add_output(g, action, artifact);
+      if (err) {
+        b->env.diag = (spn_dag_diag_t) {
+          .err = err,
+          .path = spn_path_str(g->roots, b->mem, out->path)
+        };
+        return err;
+      }
+      sp_da_push(*outputs, artifact);
     }
   }
 
@@ -723,9 +718,11 @@ static void dag_add_target_edges(spn_dag_build_t* b, spn_target_unit_t* target) 
       if (embed->kind != SPN_EMBED_DIR) {
         continue;
       }
-      sp_da(spn_dag_id_t) outputs = spn_dag_outputs_overlapping(g, s.mem, embed->path);
-      sp_da_for(outputs, it) {
-        spn_dag_action_add_input(g, target_ids.embed.action, outputs[it]);
+      sp_da_for(g->artifacts, at) {
+        spn_dag_artifact_t* artifact = &g->artifacts[at];
+        if (spn_dag_output_overlaps(artifact, embed->path)) {
+          spn_dag_action_add_input(g, target_ids.embed.action, artifact->id);
+        }
       }
     }
   }

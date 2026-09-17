@@ -21,6 +21,7 @@ spn_user_output_t spn_pkg_unit_node_stamp(spn_pkg_unit_t* ctx, spn_user_node_t* 
     .sub = sp_fs_join_path(spn.mem, sp_str_lit("stamp"), node->tag),
     .kind = SPN_DAG_ARTIFACT_KIND_FILE,
     .path = spn_path_join(spn.mem, ctx->paths.stamp, node->tag),
+    .stamp = true,
   };
 }
 

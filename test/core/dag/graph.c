@@ -188,7 +188,7 @@ static const overlap_t overlaps [] = {
   },
 };
 
-sp_test_each(dag_graph, outputs_overlapping, overlap_t, overlaps) {
+sp_test_each(dag_graph, output_overlaps, overlap_t, overlaps) {
   sp_mem_t mem = sp_test_arena(t);
   spn_path_roots_t storage = sp_zero;
   const spn_path_roots_t* roots = paths_test_roots_build((paths_test_roots_t) { .project = "/R" }, &storage);
@@ -213,13 +213,19 @@ sp_test_each(dag_graph, outputs_overlapping, overlap_t, overlaps) {
     spn_dag_action_add_input(g, actions[0], spn_dag_add_file(g, spn_path_make(roots, sp_str_view(decl->path))));
   }
 
-  sp_da(spn_dag_id_t) found = spn_dag_outputs_overlapping(g, mem, spn_path_make(roots, sp_str_view(it->path)));
-
   u32 expected = 0;
   sp_carr_detect_len(it->expect, expected, it->expect[expected]);
-  sp_must_eq(t, expected, sp_da_size(found));
-  sp_for(ft, expected) {
-    sp_expect_str_eq_c(t, spn_path_str(roots, mem, spn_dag_find_artifact(g, found[ft])->path), it->expect[ft]);
+  spn_path_t path = spn_path_make(roots, sp_cstr_as_str(it->path));
+  u32 found = 0;
+  sp_da_for(g->artifacts, at) {
+    spn_dag_artifact_t* artifact = &g->artifacts[at];
+    if (!spn_dag_output_overlaps(artifact, path)) {
+      continue;
+    }
+    sp_must(t, found < expected);
+    sp_expect_str_eq_c(t, spn_path_str(roots, mem, artifact->path), it->expect[found]);
+    found++;
   }
+  sp_must_eq(t, expected, found);
   return SP_OK;
 }

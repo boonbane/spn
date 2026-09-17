@@ -145,20 +145,13 @@ spn_err_t spn_dag_action_add_output(spn_dag_t* g, spn_dag_id_t action_id, spn_da
   return SPN_OK;
 }
 
-sp_da(spn_dag_id_t) spn_dag_outputs_overlapping(spn_dag_t* g, sp_mem_t mem, spn_path_t path) {
-  sp_da(spn_dag_id_t) ids = sp_da_new(mem, spn_dag_id_t);
-  sp_da_for(g->artifacts, it) {
-    spn_dag_artifact_t* artifact = &g->artifacts[it];
-    if (!artifact->producer.occupied) {
-      continue;
-    }
-    bool below = spn_path_within(path, artifact->path).within;
-    bool above = artifact->kind == SPN_DAG_ARTIFACT_KIND_TREE && spn_path_within(artifact->path, path).within;
-    if (below || above) {
-      sp_da_push(ids, artifact->id);
-    }
+bool spn_dag_output_overlaps(spn_dag_artifact_t* artifact, spn_path_t path) {
+  if (!artifact->producer.occupied) {
+    return false;
   }
-  return ids;
+  bool below = spn_path_within(path, artifact->path).within;
+  bool above = artifact->kind == SPN_DAG_ARTIFACT_KIND_TREE && spn_path_within(artifact->path, path).within;
+  return below || above;
 }
 
 spn_dag_violation_t spn_dag_validate(spn_dag_t* g) {

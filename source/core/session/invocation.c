@@ -27,13 +27,9 @@ static spn_cc_compile_t compile_desc(sp_mem_t mem, spn_compile_unit_t* unit) {
   if (build->profile.os == SPN_OS_MACOS) {
     compile.min_os = unit->target->link.cc.min_os;
   }
-  sp_da_init(mem, compile.include);
+  compile.include = unit->target->include;
   sp_da_init(mem, compile.define);
   sp_da_init(mem, compile.args);
-
-  sp_da_for(unit->target->include, it) {
-    sp_da_push(compile.include, unit->target->include[it]);
-  }
 
   sp_da_for(build->define, it) {
     sp_da_push(compile.define, build->define[it]);

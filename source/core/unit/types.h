@@ -93,6 +93,7 @@ typedef struct {
   sp_str_t sub;
   spn_dag_artifact_kind_t kind;
   spn_path_t path;
+  bool stamp;
 } spn_user_output_t;
 
 struct spn_user_node_t {
@@ -102,7 +103,6 @@ struct spn_user_node_t {
   sp_da(spn_path_t) inputs;
   sp_da(spn_user_output_t) outputs;
   sp_da(spn_node_ref_t) deps;
-  bool stamp;
 };
 
 typedef struct {
