@@ -260,23 +260,6 @@ static void save_outputs(sp_str_t dir, spn_dag_digest_t key, const spn_dag_actio
   sp_mem_end_scratch(s);
 }
 
-static bool load_obs(spn_dag_obs_table_t* d, spn_dag_digest_t key, spn_dag_pathset_t* set) {
-  sp_mem_arena_marker_t s = sp_mem_begin_scratch();
-
-  sp_str_t path = entry_path(d->dir, s.mem, key);
-  sp_str_t content = sp_zero;
-  bool ok = false;
-  if (!sp_io_read_file(d->mem, path, &content)) {
-    ok = parse_obs(content, set);
-    if (!ok) {
-      sp_fs_remove_file(path);
-    }
-  }
-
-  sp_mem_end_scratch(s);
-  return ok;
-}
-
 static void save_obs(spn_dag_obs_table_t* d, spn_dag_digest_t key, const spn_dag_pathset_t* set) {
   sp_mem_arena_marker_t s = sp_mem_begin_scratch();
 
@@ -398,26 +381,39 @@ bool spn_dag_obs_table_get(spn_dag_obs_table_t* d, spn_dag_digest_t weak, spn_da
     return true;
   }
 
+  sp_mutex_unlock(&d->mutex);
+
   if (sp_str_empty(d->dir)) {
-    sp_mutex_unlock(&d->mutex);
     return false;
   }
 
+  sp_mem_arena_marker_t s = sp_mem_begin_scratch();
+  sp_str_t path = entry_path(d->dir, s.mem, weak);
+  sp_str_t content = sp_zero;
+  if (sp_io_read_file(s.mem, path, &content)) {
+    sp_mem_end_scratch(s);
+    return false;
+  }
+
+  sp_mutex_lock(&d->mutex);
   spn_dag_pathset_t loaded = sp_zero;
   sp_da_init(d->mem, loaded.obs);
-  if (!load_obs(d, weak, &loaded)) {
-    sp_mutex_unlock(&d->mutex);
-    return false;
+  bool ok = parse_obs(sp_str_copy(d->mem, content), &loaded);
+  if (ok) {
+    if (d->stats) {
+      sp_atomic_u32_add(&d->stats->cache_reads, 1, SP_ATOMIC_RELAXED);
+      sp_atomic_u32_add(&d->stats->obs_rows, (u32)sp_da_size(loaded.obs), SP_ATOMIC_RELAXED);
+    }
+    sp_ht_insert(d->entries, weak, loaded);
+    *set = loaded;
   }
-  if (d->stats) {
-    sp_atomic_u32_add(&d->stats->cache_reads, 1, SP_ATOMIC_RELAXED);
-    sp_atomic_u32_add(&d->stats->obs_rows, (u32)sp_da_size(loaded.obs), SP_ATOMIC_RELAXED);
-  }
-
-  sp_ht_insert(d->entries, weak, loaded);
-  *set = loaded;
   sp_mutex_unlock(&d->mutex);
-  return true;
+
+  if (!ok) {
+    sp_fs_remove_file(path);
+  }
+  sp_mem_end_scratch(s);
+  return ok;
 }
 
 spn_dag_pathset_t spn_dag_obs_table_put(spn_dag_obs_table_t* d, spn_dag_digest_t weak, const spn_dag_obs_t* obs, u32 count) {
@@ -435,11 +431,11 @@ spn_dag_pathset_t spn_dag_obs_table_put(spn_dag_obs_table_t* d, spn_dag_digest_t
     sp_da_push(set.obs, copy);
   }
   sp_ht_insert(d->entries, weak, set);
+  sp_mutex_unlock(&d->mutex);
 
   if (!sp_str_empty(d->dir)) {
     save_obs(d, weak, &set);
   }
-  sp_mutex_unlock(&d->mutex);
   return set;
 }
 
