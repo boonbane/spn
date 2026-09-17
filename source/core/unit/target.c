@@ -181,7 +181,7 @@ static void collect_source_glob(sp_mem_t mem, spn_path_t pattern, sp_da(spn_path
   spn_dag_glob(mem, &spn.roots, pattern, &glob);
 
   sp_da_for(glob.matches, it) {
-    spn_path_t match = spn_path_canonicalize(mem, &spn.roots, glob.matches[it].path);
+    spn_path_t match = glob.matches[it].path;
     if (has_source_file(*source, match)) {
       continue;
     }
