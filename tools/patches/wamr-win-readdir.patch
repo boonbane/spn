@@ -1,30 +1,44 @@
 diff --git a/core/shared/platform/windows/platform_internal.h b/core/shared/platform/windows/platform_internal.h
-index 1111111..2222222 100644
+index f77e1ad..af78555 100644
 --- a/core/shared/platform/windows/platform_internal.h
 +++ b/core/shared/platform/windows/platform_internal.h
-@@ -171,5 +171,6 @@ typedef struct windows_dir_stream {
+@@ -171,6 +171,8 @@ typedef struct windows_dir_stream {
      // An offset into info_buf to read the next entry from
      DWORD cursor;
      int cookie;
 +    bool at_end;
++    __wasi_inode_t self_ino;
      windows_handle *handle;
  } windows_dir_stream;
+ 
 diff --git a/core/shared/platform/windows/win_file.c b/core/shared/platform/windows/win_file.c
-index 3333333..4444444 100644
+index 878d6aa..d3f6722 100644
 --- a/core/shared/platform/windows/win_file.c
 +++ b/core/shared/platform/windows/win_file.c
-@@ -219,4 +219,5 @@ init_dir_stream(os_dir_stream dir_stream, os_file_handle handle)
+@@ -219,6 +219,14 @@ init_dir_stream(os_dir_stream dir_stream, os_file_handle handle)
      dir_stream->cursor = 0;
      dir_stream->handle = handle;
      dir_stream->cookie = 0;
 +    dir_stream->at_end = false;
++
++    BY_HANDLE_FILE_INFORMATION info;
++    if (GetFileInformationByHandle(handle->raw.handle, &info))
++        dir_stream->self_ino =
++            ((__wasi_inode_t)info.nFileIndexHigh << 32) | info.nFileIndexLow;
++    else
++        dir_stream->self_ino = 1;
  }
-@@ -227,3 +228,4 @@ reset_dir_stream(os_dir_stream dir_stream)
+ 
+ static void
+@@ -226,6 +234,7 @@ reset_dir_stream(os_dir_stream dir_stream)
+ {
      dir_stream->cursor = 0;
      dir_stream->cookie = 0;
 +    dir_stream->at_end = false;
  }
-@@ -233,6 +235,12 @@ reset_dir_stream(os_dir_stream dir_stream)
+ 
+ // Advances to the next directory entry and optionally reads into to the
+@@ -233,6 +242,12 @@ reset_dir_stream(os_dir_stream dir_stream)
  static __wasi_errno_t
  read_next_dir_entry(os_dir_stream dir_stream, FILE_ID_BOTH_DIR_INFO **out_entry)
  {
@@ -37,7 +51,7 @@ index 3333333..4444444 100644
      FILE_INFO_BY_HANDLE_CLASS file_info_class;
  
      if (dir_stream->cookie == 0)
-@@ -249,7 +257,7 @@ read_next_dir_entry(os_dir_stream dir_stream, FILE_ID_BOTH_DIR_INFO **out_entry)
+@@ -249,7 +264,7 @@ read_next_dir_entry(os_dir_stream dir_stream, FILE_ID_BOTH_DIR_INFO **out_entry)
          DWORD win_error = GetLastError();
          // We've reached the end of the directory - return success
          if (win_error == ERROR_NO_MORE_FILES) {
@@ -46,8 +60,7 @@ index 3333333..4444444 100644
              dir_stream->cursor = 0;
              return __WASI_ESUCCESS;
          }
-@@ -1714,8 +1722,8 @@ os_seekdir(os_dir_stream dir_stream, __wasi_dircookie_t position)
-         if (error != __WASI_ESUCCESS)
+@@ -1715,7 +1730,7 @@ os_seekdir(os_dir_stream dir_stream, __wasi_dircookie_t position)
              return error;
  
          // We've reached the end of the directory.
@@ -56,4 +69,12 @@ index 3333333..4444444 100644
              break;
          }
      }
+@@ -1737,6 +1752,8 @@ os_readdir(os_dir_stream dir_stream, __wasi_dirent_t *entry,
+         return error;
  
+     entry->d_ino = (__wasi_inode_t)file_id_both_dir_info->FileId.QuadPart;
++    if (entry->d_ino == 0)
++        entry->d_ino = dir_stream->self_ino;
+     entry->d_namlen = (__wasi_dirnamlen_t)(file_id_both_dir_info->FileNameLength
+                                            / (sizeof(wchar_t) / sizeof(char)));
+     entry->d_next = (__wasi_dircookie_t)dir_stream->cookie;
