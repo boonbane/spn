@@ -20,7 +20,6 @@ defaults:
 
 env:
   SPN_STORAGE_DIR: ${{ github.workspace }}/.cache/spn
-  SELFHOST_EPOCH: 2
 
 jobs:
   plan:
@@ -69,11 +68,9 @@ jobs:
       - uses: actions/cache/restore@v4
         id: state
         with:
-          path: |
-            .cache
-            build
-          key: selfhost-e${{ env.SELFHOST_EPOCH }}-${{ matrix.id }}-${{ github.run_id }}
-          restore-keys: selfhost-e${{ env.SELFHOST_EPOCH }}-${{ matrix.id }}-
+          path: .cache
+          key: storage-${{ matrix.id }}-${{ github.sha }}
+          restore-keys: storage-${{ matrix.id }}-
       - uses: actions/cache/restore@v4
         id: driver
         if: needs.plan.outputs.bootstrap != 'true'
@@ -92,10 +89,9 @@ jobs:
       - run: make ci-selfhost
 
       - uses: actions/cache/save@v4
+        if: github.event_name == 'push'
         with:
-          path: |
-            .cache
-            build
+          path: .cache
           key: ${{ steps.state.outputs.cache-primary-key }}
       - uses: actions/cache/save@v4
         if: github.event_name == 'push'
