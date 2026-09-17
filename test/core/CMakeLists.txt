@@ -317,7 +317,7 @@ set(DAG_TEST_SOURCES
 file(GLOB DAG_TESTS CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/dag/*.c)
 file(GLOB DAG_SIM_TESTS CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/dag/sim/*.c)
 file(GLOB DAG_OS_TESTS CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/dag/os/*.c)
-add_executable(dag ${DAG_TESTS} ${DAG_SIM_TESTS} ${DAG_TEST_SOURCES} tools/main/dag.c)
+add_executable(dag ${DAG_TESTS} ${DAG_SIM_TESTS} ${DAG_TEST_SOURCES} tools/main/sim.c)
 add_executable(dag_os ${DAG_TESTS} ${DAG_OS_TESTS} ${DAG_TEST_SOURCES} tools/wasm_emit.c tools/main/unit.c)
 foreach(target dag dag_os)
   spn_test_binary(${target})
