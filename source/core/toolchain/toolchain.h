@@ -23,6 +23,7 @@ spn_path_t               spn_toolchain_artifact_root(spn_artifact_t artifact);
 spn_toolchain_launcher_t spn_toolchain_launcher_with_root(sp_mem_t mem, spn_toolchain_launcher_t launcher, spn_path_t root);
 spn_path_t               spn_toolchain_local_root(sp_mem_t mem, sp_hash_t identity);
 spn_path_t               spn_toolchain_zig_cache_dir(sp_mem_t mem, spn_path_t root);
+spn_path_t               spn_toolchain_warm_dir(sp_mem_t mem, sp_str_t id);
 bool                     spn_toolchain_has_cxx(spn_toolchain_info_t* toolchain);
 spn_wasi_spelling_t      spn_toolchain_wasi_spelling(const spn_path_roots_t* roots, sp_mem_t mem, const spn_toolchain_info_t* toolchain);
 spn_toolchain_ref_t      spn_toolchain_ref_from_str(sp_str_t str);

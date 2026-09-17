@@ -27,6 +27,11 @@ spn_path_t spn_toolchain_zig_cache_dir(sp_mem_t mem, spn_path_t root) {
   return spn_path_suffix(mem, root, sp_str_lit(".cache"));
 }
 
+// The toolchain root is pinned, so the stamps that record a warmed cache live in the cache root
+spn_path_t spn_toolchain_warm_dir(sp_mem_t mem, sp_str_t id) {
+  return spn_path_join(mem, spn_path_from_root(SPN_PATH_ROOT_CACHE), sp_fmt(mem, "warm/{}", sp_fmt_str(id)).value);
+}
+
 static bool pathless(sp_str_t program) {
   sp_for(it, program.len) {
     if (sp_fs_is_sep(program.data[it])) {

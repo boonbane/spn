@@ -503,8 +503,8 @@ static spn_err_t dag_add_exports(spn_dag_build_t* b, spn_dag_link_ctx_t* link) {
 static spn_err_t dag_add_warm(spn_dag_build_t* b, spn_target_unit_t* target, spn_dag_id_t link_action) {
   spn_dag_t* g = b->graph;
   spn_build_unit_t* build = target->pkg->build;
-  spn_cc_toolchain_t* cc = &build->toolchain->cc;
-  sp_assert(!spn_path_empty(cc->cache));
+  spn_toolchain_unit_t* toolchain = build->toolchain;
+  sp_assert(!spn_path_empty(toolchain->warm));
 
   spn_zig_stub_t stub = spn_zig_stub_canonical(b->mem, &build->profile, (spn_zig_stub_t) {
     .kind = target->kind,
@@ -513,8 +513,7 @@ static spn_err_t dag_add_warm(spn_dag_build_t* b, spn_target_unit_t* target, spn
   });
   spn_triple_t triple = spn_profile_triple(&build->profile);
   sp_str_t name = spn_zig_stub_name(b->mem, spn_triple_to_str(b->mem, triple), build->profile.sanitizers, &stub);
-  spn_path_t dir = spn_path_join(b->mem, cc->cache, sp_str_lit("spn"));
-  spn_path_t path = spn_path_join(b->mem, dir, name);
+  spn_path_t path = spn_path_join(b->mem, toolchain->warm, name);
 
   spn_dag_id_t stamp = spn_dag_add_file(g, path);
   if (!spn_dag_find_artifact(g, stamp)->producer.occupied) {

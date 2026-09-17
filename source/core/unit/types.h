@@ -190,6 +190,7 @@ struct spn_pkg_unit_t {
 struct spn_toolchain_unit_t {
   spn_toolchain_info_t* info;
   spn_cc_toolchain_t cc;
+  spn_path_t warm;
   sp_hash_t identity;
   sp_str_t version;
 };
