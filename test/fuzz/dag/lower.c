@@ -8,7 +8,7 @@ typedef struct {
   u64 action;
 } fz_exec_ctx_t;
 
-static spn_err_t fz_exec(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, sp_mem_t mem, spn_dag_obs_set_t* obs) {
+static spn_err_t fz_exec(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, sp_mem_t mem, const spn_path_t* outputs, spn_dag_obs_set_t* obs) {
   fz_exec_ctx_t* ctx = (fz_exec_ctx_t*)user_data;
   fz_lowered_t* low = ctx->low;
   fz_action_t* fz = &low->u->actions[ctx->action];
@@ -71,7 +71,7 @@ static spn_err_t fz_exec(spn_dag_t* g, spn_dag_action_t* action, void* user_data
   sp_da_for(action->produces, it) {
     spn_dag_artifact_t* out = spn_dag_find_artifact(low->g, action->produces[it]);
     sp_str_t content = fz_output_content(mem, low->u->actions[ctx->action].identity, inputs, count, out->name);
-    if (sp_fs_create_file_str(spn_path_str(low->roots, mem, out->materialized), content)) {
+    if (sp_fs_create_file_str(spn_path_str(low->roots, mem, outputs[it]), content)) {
       return SPN_ERR_DAG_ACTION;
     }
   }

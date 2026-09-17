@@ -50,7 +50,7 @@ typedef struct {
 typedef struct spn_dag_env_t spn_dag_env_t;
 typedef struct spn_dag_obs_set_t spn_dag_obs_set_t;
 
-SP_TYPEDEF_FN(spn_err_t, spn_dag_exec_fn_t, spn_dag_t*, spn_dag_action_t*, void*, spn_dag_env_t*, sp_mem_t, spn_dag_obs_set_t*);
+SP_TYPEDEF_FN(spn_err_t, spn_dag_exec_fn_t, spn_dag_t*, spn_dag_action_t*, void*, spn_dag_env_t*, sp_mem_t, const spn_path_t*, spn_dag_obs_set_t*);
 
 typedef struct {
   u32 index;

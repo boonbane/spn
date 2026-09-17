@@ -192,7 +192,7 @@ static const test_t tests [] = {
   },
 };
 
-static spn_err_t execute_action(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, sp_mem_t mem, spn_dag_obs_set_t* obs) {
+static spn_err_t execute_action(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, sp_mem_t mem, const spn_path_t* outputs, spn_dag_obs_set_t* obs) {
   ctx_t* ctx = (ctx_t*)user_data;
   if (ctx->spec->fails) {
     return SPN_ERR_DAG_ACTION;
@@ -224,10 +224,10 @@ static spn_err_t execute_action(spn_dag_t* g, spn_dag_action_t* action, void* us
     ? sp_str_view(ctx->spec->writes)
     : sp_fmt(ctx->env->mem, "{}", sp_fmt_uint(ctx->env->runs)).value;
   if (out->kind == SPN_DAG_ARTIFACT_KIND_TREE) {
-    spn_path_t inside = spn_path_join(ctx->env->mem, out->materialized, sp_str_lit("H"));
+    spn_path_t inside = spn_path_join(ctx->env->mem, outputs[0], sp_str_lit("H"));
     return sp_fs_create_file_str(dag_test_render(ctx->env, inside), sp_str_lit("T")) ? SPN_ERR_DAG_ACTION : SPN_OK;
   }
-  return sp_fs_create_file_str(dag_test_render(ctx->env, out->materialized), content) ? SPN_ERR_DAG_ACTION : SPN_OK;
+  return sp_fs_create_file_str(dag_test_render(ctx->env, outputs[0]), content) ? SPN_ERR_DAG_ACTION : SPN_OK;
 }
 
 static sp_err_t build_graph(sp_test_t* t, dag_test_env_t* env, spn_dag_t* g, const test_t* test) {

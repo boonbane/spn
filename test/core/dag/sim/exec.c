@@ -160,7 +160,7 @@ static const test_t tests [] = {
   },
 };
 
-static spn_err_t execute_action(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, sp_mem_t mem, spn_dag_obs_set_t* obs) {
+static spn_err_t execute_action(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, sp_mem_t mem, const spn_path_t* outputs, spn_dag_obs_set_t* obs) {
   ctx_t* ctx = (ctx_t*)user_data;
   if (ctx->behavior == EXEC_BEHAVIOR_FAIL) {
     return SPN_ERR_DAG_ACTION;
@@ -172,9 +172,8 @@ static spn_err_t execute_action(spn_dag_t* g, spn_dag_action_t* action, void* us
     if (ctx->behavior == EXEC_BEHAVIOR_SKIP_LAST_OUTPUT && it + 1 == count) {
       continue;
     }
-    spn_dag_artifact_t* artifact = spn_dag_find_artifact(ctx->g, action->produces[it]);
     sp_str_t content = sp_fmt(ctx->env->dag.mem, "{}{}", sp_fmt_cstr(ctx->spec->write[it]), sp_fmt_uint(ctx->env->dag.runs)).value;
-    if (sp_fs_create_file_str(dag_test_render(&ctx->env->dag, artifact->materialized), content)) {
+    if (sp_fs_create_file_str(dag_test_render(&ctx->env->dag, outputs[it]), content)) {
       return SPN_ERR_DAG_ACTION;
     }
   }

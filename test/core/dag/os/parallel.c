@@ -155,7 +155,7 @@ static const test_t tests [] = {
   },
 };
 
-static spn_err_t execute_graph(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, sp_mem_t mem, spn_dag_obs_set_t* obs) {
+static spn_err_t execute_graph(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, sp_mem_t mem, const spn_path_t* outputs, spn_dag_obs_set_t* obs) {
   ctx_t* ctx = (ctx_t*)user_data;
   if (ctx->spec->fails) {
     return SPN_ERR_DAG_ACTION;
@@ -186,8 +186,8 @@ static spn_err_t execute_graph(spn_dag_t* g, spn_dag_action_t* action, void* use
   spn_dag_artifact_t* out = spn_dag_find_artifact(ctx->g, action->produces[0]);
   sp_str_t content = sp_cstr_as_str(ctx->spec->identity);
   spn_path_t target = out->kind == SPN_DAG_ARTIFACT_KIND_TREE
-    ? spn_path_join(s.mem, out->materialized, sp_str_lit("H"))
-    : out->materialized;
+    ? spn_path_join(s.mem, outputs[0], sp_str_lit("H"))
+    : outputs[0];
   sp_err_t err = sp_fs_create_file_str(spn_path_str(roots, s.mem, target), content);
   sp_mem_end_scratch(s);
   return err ? SPN_ERR_DAG_ACTION : SPN_OK;
