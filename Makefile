@@ -116,8 +116,6 @@ endif
 .PHONY: ci
 ci: export SPN_CONFIG_DIR := $(BUILD)/ci-config
 ci: $(addprefix ci-,$(CI_TRIPLES))
-	$(BIN) build
-	$(BIN) test
 
 ci-%:
 	@$(MAKE) all test TRIPLE=$*
