@@ -38,6 +38,7 @@
     { "name": "spn_target_add_source", "args": ["target", "str"] },
     { "name": "spn_target_add_include", "args": ["target", "str"] },
     { "name": "spn_target_add_define", "args": ["target", "str"] },
+    { "name": "spn_target_add_define_path", "args": ["target", "str", "s32", "str"] },
     { "name": "spn_target_add_flag", "args": ["target", "str"] },
     { "name": "spn_target_embed_file", "args": ["target", "str"] },
     { "name": "spn_target_embed_file_ex", "args": ["target", "str", "str", "str", "str"] },
