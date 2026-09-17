@@ -147,8 +147,8 @@ sp_test_each(index_publish, publish, publish_test_t, tests, .setup = spn_test_ct
   sp_str_t index_root = sp_fs_join_path(mem, sp_test_dir(t), sp_str_lit("index"));
   sp_fs_create_dir(index_root);
   git_repo_init(index_root);
-  git_repo_git(index_root, sp_str_lit("symbolic-ref"), sp_str_lit("HEAD"), sp_str_lit("refs/heads/main"));
-  git_repo_git(index_root, sp_str_lit("config"), sp_str_lit("receive.denyCurrentBranch"), sp_str_lit("updateInstead"));
+  git(index_root, "symbolic-ref", "HEAD", "refs/heads/main");
+  git(index_root, "config", "receive.denyCurrentBranch", "updateInstead");
 
   write_publish_fixtures(mem, index_root, it->fixture.files);
   git_repo_stage_all(index_root);

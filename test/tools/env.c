@@ -414,8 +414,8 @@ sp_err_t prepare_test(sp_test_t* t, fixture_t* fixture, const c8* project, const
   sp_fs_create_dir(fixture->paths.include);
   sp_fs_create_dir(fixture->paths.index);
   git_repo_init(fixture->paths.index);
-  git_repo_git(fixture->paths.index, sp_str_lit("symbolic-ref"), sp_str_lit("HEAD"), sp_str_lit("refs/heads/main"));
-  git_repo_git(fixture->paths.index, sp_str_lit("config"), sp_str_lit("receive.denyCurrentBranch"), sp_str_lit("updateInstead"));
+  git(fixture->paths.index, "symbolic-ref", "HEAD", "refs/heads/main");
+  git(fixture->paths.index, "config", "receive.denyCurrentBranch", "updateInstead");
   git_repo_commit(fixture->paths.index, sp_str_lit("init"));
   setup_fixture_envrc(fixture, fixture->paths.storage, fixture->paths.toolchain, fixture->paths.config);
   setup_fixture_config(fixture, fixture->paths.index, fixture->paths.root);

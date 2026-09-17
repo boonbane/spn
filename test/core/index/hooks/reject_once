@@ -1,0 +1,6 @@
+#!/bin/sh
+if [ ! -f "$GIT_DIR/rejected-once" ]; then
+  touch "$GIT_DIR/rejected-once"
+  exit 1
+fi
+exit 0
