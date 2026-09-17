@@ -38,10 +38,8 @@ struct spn_dag_build_t {
     sp_ht(spn_compile_unit_t*, spn_dag_object_ids_t) objects;
   } ids;
   spn_dag_id_t compile_commands;
-  spn_dag_file_cache_t files;
   spn_dag_action_cache_t actions;
   spn_dag_obs_table_t discovery;
-  sp_str_t files_path;
   spn_dag_store_t store;
   spn_thread_pool_t pool;
   spn_dag_env_t env;

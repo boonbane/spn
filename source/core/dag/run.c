@@ -203,13 +203,9 @@ spn_err_t spn_dag_file_cache_seed(spn_dag_file_cache_t* c, spn_path_t path, spn_
   meta.digest = digest;
 
   sp_mutex_lock(&c->mutex);
-  bool record = false;
-  spn_err_t admitted = spn_dag_stamp_admit(&c->stamp, meta.mtime, &record);
-  if (!admitted && record) {
-    file_cache_record(c, path, meta);
-  }
+  file_cache_record(c, path, meta);
   sp_mutex_unlock(&c->mutex);
-  return admitted;
+  return SPN_OK;
 }
 
 static void diag_set(spn_dag_diag_t* diag, spn_err_t err, spn_dag_id_t action, sp_str_t path) {

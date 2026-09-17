@@ -825,8 +825,8 @@ static spn_err_t dag_stage_copy(spn_dag_build_t* b, spn_dag_id_t id, spn_path_t 
 
   sp_sys_file_meta_t staged_meta = sp_zero;
   spn_dag_digest_t staged_digest = sp_zero;
-  if (!spn_dag_file_cache_stat(&b->files, to, &staged_meta) && staged_meta.nlink == 1 &&
-      !spn_dag_file_cache_digest(&b->files, to, &staged_digest) &&
+  if (!spn_dag_file_cache_stat(b->env.files, to, &staged_meta) && staged_meta.nlink == 1 &&
+      !spn_dag_file_cache_digest(b->env.files, to, &staged_digest) &&
       spn_dag_digest_equal(staged_digest, artifact->digest)) {
     return SPN_OK;
   }
@@ -838,9 +838,9 @@ static spn_err_t dag_stage_copy(spn_dag_build_t* b, spn_dag_id_t id, spn_path_t 
   sp_err_t copied = sp_fs_copy_file(source, target, SP_FS_ATOMIC_REPLACE);
   sp_mem_end_scratch(scratch);
 
-  spn_err_t err = copied ? SPN_ERR_DAG_OUTPUT_WRITE : spn_dag_file_cache_seed(&b->files, to, artifact->digest);
+  spn_err_t err = copied ? SPN_ERR_DAG_OUTPUT_WRITE : spn_dag_file_cache_seed(b->env.files, to, artifact->digest);
   if (err) {
-    spn_dag_file_cache_invalidate(&b->files, to);
+    spn_dag_file_cache_invalidate(b->env.files, to);
     return spn_err_emit(b->session->ctx, (spn_err_union_t) {
       .kind = err,
       .dag = { .path = spn_path_str(b->graph->roots, b->mem, to) },
@@ -906,7 +906,7 @@ static spn_err_t dag_stage(spn_dag_build_t* b) {
       }
       spn_path_t path = { .root = root.root, .sub = previous[jt].entry };
       sp_fs_remove_file(spn_path_str(b->graph->roots, scratch.mem, path));
-      spn_dag_file_cache_invalidate(&b->files, path);
+      spn_dag_file_cache_invalidate(b->env.files, path);
     }
     sp_fs_create_dir(sp_fs_parent_path(manifest));
     sp_fs_write_atomic(manifest, sp_io_dyn_mem_writer_as_str(&sink));
@@ -1057,18 +1057,15 @@ spn_dag_build_t* spn_dag_build_new(spn_op_t* op) {
     .roots = &spn.roots,
     .dir = spn_path_join(session->mem, root, sp_str_lit("store")),
   });
-  spn_dag_file_cache_init(&b->files, spn.mem, &spn.roots);
   spn_dag_action_cache_init(&b->actions, spn.mem, sp_fs_join_path(session->mem, dir, sp_str_lit("strong")));
   spn_dag_obs_table_init(&b->discovery, spn.mem, &spn.roots, sp_fs_join_path(session->mem, dir, sp_str_lit("weak")));
-  b->files.stats = &b->stats;
+  session->dag.files.stats = &b->stats;
   b->actions.stats = &b->stats;
   b->discovery.stats = &b->stats;
   b->store.stats = &b->stats;
-  b->files_path = sp_fs_join_path(session->mem, dir, sp_str_lit("files"));
-  spn_dag_file_cache_load(&b->files, b->files_path);
 
   b->env = (spn_dag_env_t) {
-    .files = &b->files,
+    .files = &session->dag.files,
     .cache = &b->actions,
     .store = &b->store,
     .discovery = &b->discovery,
@@ -1089,9 +1086,10 @@ spn_err_t spn_dag_build_run(spn_dag_build_t* b, u32 workers) {
   });
 
   b->timer = sp_tm_start_timer();
+  spn_dag_file_cache_invalidate_all(b->env.files);
   b->result = spn_dag_run_executor(b->graph, &b->env, &b->pool.executor);
   spn_thread_pool_deinit(&b->pool);
-  spn_dag_file_cache_flush(&b->files, b->files_path);
+  spn_dag_file_cache_flush(b->env.files, b->session->dag.files_path);
   return dag_result(b);
 }
 
@@ -1143,7 +1141,7 @@ spn_err_t spn_dag_build_session(spn_op_t* op) {
       spn_try(spn_project_update_lock(session->ctx, project, session->resolve));
     }
     result = dag_stage(b);
-    spn_dag_file_cache_flush(&b->files, b->files_path);
+    spn_dag_file_cache_flush(b->env.files, session->dag.files_path);
   }
   if (!b->result) {
     b->result = result;
