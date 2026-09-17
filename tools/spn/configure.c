@@ -1,6 +1,7 @@
 #include "spn.h"
 
 #include <dirent.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -83,20 +84,34 @@ static const c8* host_source(spn_t* spn, const c8* guest) {
   return spn_get_subdir(spn, SPN_DIR_SOURCE, guest + strlen("/source/"));
 }
 
-static void add_inputs(spn_t* spn, spn_node_t* node, const c8* dir) {
+static s32 scan(spn_t* spn, const c8* dir, struct dirent*** entries) {
+  s32 count = scandir(dir, entries, visible, alphasort);
+  if (count < 0) {
+    c8 message [SPN_CODEGEN_PATH_MAX + 64];
+    snprintf(message, sizeof(message), "scandir(%s): %s", dir, strerror(errno));
+    spn_log(spn, message);
+  }
+  return count;
+}
+
+static spn_err_t add_inputs(spn_t* spn, spn_node_t* node, const c8* dir) {
   struct dirent** entries = NULL;
-  s32 count = scandir(dir, &entries, visible, alphasort);
+  s32 count = scan(spn, dir, &entries);
+  if (count < 0) return SPN_ERROR;
+
+  spn_err_t err = SPN_OK;
   for (s32 it = 0; it < count; it++) {
     c8 path [SPN_CODEGEN_PATH_MAX];
     snprintf(path, sizeof(path), "%s/%s", dir, entries[it]->d_name);
     if (entries[it]->d_type == DT_DIR) {
-      add_inputs(spn, node, path);
+      if (add_inputs(spn, node, path)) err = SPN_ERROR;
     } else {
       spn_node_add_input(node, host_source(spn, path));
     }
     free(entries[it]);
   }
   free(entries);
+  return err;
 }
 
 static void add_output(spn_node_t* node, const c8* dir, const c8* name, const c8* suffix) {
@@ -121,8 +136,8 @@ spn_err_t configure(spn_t* spn, spn_config_t* config) {
     spn_node_t* node = spn_add_node(config, codegen->tag);
     spn_node_set_fn(node, codegen->tag);
 
-    add_inputs(spn, node, codegen->schema);
-    add_inputs(spn, node, "/source/tools/gen/templates");
+    if (add_inputs(spn, node, codegen->schema)) return SPN_ERROR;
+    if (add_inputs(spn, node, "/source/tools/gen/templates")) return SPN_ERROR;
     for (u32 ft = 0; ft < SPN_CODEGEN_MAX_FILES && codegen->files[ft]; ft++) {
       spn_node_add_input(node, host_source(spn, codegen->files[ft]));
     }
@@ -134,7 +149,8 @@ spn_err_t configure(spn_t* spn, spn_config_t* config) {
     // render their public header into gen/include/spn/ instead of the node's gen dir.
     const c8* suffix = ".jtd.json";
     struct dirent** schemas = NULL;
-    s32 count = scandir(codegen->schema, &schemas, visible, alphasort);
+    s32 count = scan(spn, codegen->schema, &schemas);
+    if (count < 0) return SPN_ERROR;
     for (s32 st = 0; st < count; st++) {
       const c8* file = schemas[st]->d_name;
       u32 len = strlen(file);

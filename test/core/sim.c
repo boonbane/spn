@@ -97,10 +97,6 @@ static const test_t tests [] = {
 };
 
 sp_test_each(sim_fault, ops, test_t, tests) {
-  if (!sp_str_empty(sp_os_env_get(sp_str_lit("SPN_TEST_SIM")))) {
-    return sp_test_skip(t, "drives a local sim");
-  }
-
   sp_mem_t mem = sp_test_arena(t);
   sp_sim_t sim = sp_zero;
   sp_sim_init(&sim, mem);

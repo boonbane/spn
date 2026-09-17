@@ -20,17 +20,15 @@ static s64 sim_get_cwd_path(c8* buf, u64 size) {
 }
 
 static s64 sim_get_exe_path(c8* buf, u64 size) {
-  return sim_path(buf, size, sp_str_lit("/sim/core"));
+  return sim_path(buf, size, sp_str_lit("/sim/executable"));
 }
 
 s32 main(s32 argc, const c8** argv) {
-  if (!sp_str_empty(sp_os_env_get(sp_str_lit("SPN_TEST_SIM")))) {
-    sp_sim_init(&sim, sp_mem_os_new());
-    sp_sim_install(&sim);
-    sim_vtable = *sp_rt.vt;
-    sim_vtable.get_cwd_path = sim_get_cwd_path;
-    sim_vtable.get_exe_path = sim_get_exe_path;
-    sp_sys_set_vtable(&sim_vtable);
-  }
+  sp_sim_init(&sim, sp_mem_os_new());
+  sp_sim_install(&sim);
+  sim_vtable = *sp_rt.vt;
+  sim_vtable.get_cwd_path = sim_get_cwd_path;
+  sim_vtable.get_exe_path = sim_get_exe_path;
+  sp_sys_set_vtable(&sim_vtable);
   return sp_test_main(argc, argv, SP_NULLPTR);
 }

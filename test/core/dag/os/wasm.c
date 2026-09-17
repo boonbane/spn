@@ -1,4 +1,4 @@
-#include "dag_test.h"
+#include "dag/dag_test.h"
 #include "dag/wasi.h"
 #include "wasm_emit.h"
 
@@ -14,33 +14,33 @@
 
 typedef struct {
   const c8* path;
-} wasm_file_t;
+} file_t;
 
 typedef struct {
   spn_dag_obs_kind_t kind;
   const c8* path;
-} wasm_obs_t;
+} obs_t;
 
 typedef struct {
   s32 rc;
-  wasm_obs_t obs [DAG_WASM_MAX_OBS];
-} wasm_expect_t;
+  obs_t obs [DAG_WASM_MAX_OBS];
+} expect_t;
 
 typedef struct {
   const c8* fn;
   wasm_emit_op_t ops [DAG_WASM_MAX_OPS];
-  wasm_expect_t expect;
-} wasm_call_t;
+  expect_t expect;
+} call_t;
 
 typedef struct {
   const c8* name;
-  wasm_file_t files [DAG_WASM_MAX_FILES];
-  wasm_call_t calls [DAG_WASM_MAX_CALLS];
-} wasm_test_t;
+  file_t files [DAG_WASM_MAX_FILES];
+  call_t calls [DAG_WASM_MAX_CALLS];
+} test_t;
 
 sp_test_suite(dag_wasm, .serial = true);
 
-static const wasm_test_t wasm_tests [] = {
+static const test_t tests [] = {
   {
     .name = "open_read",
     .files = { { "work/H" } },
@@ -229,9 +229,9 @@ static const wasm_test_t wasm_tests [] = {
   },
 };
 
-static sp_test_once_t wasm_runtime_once;
+static sp_test_once_t runtime_once;
 
-static sp_err_t wasm_runtime_bring_up(void* user) {
+static sp_err_t bring_up_runtime(void* user) {
   SP_UNUSED(user);
   if (!wasm_runtime_init()) {
     return SP_ERR;
@@ -242,11 +242,11 @@ static sp_err_t wasm_runtime_bring_up(void* user) {
   return SP_OK;
 }
 
-static void expect_obs(sp_test_t* t, sp_mem_t mem, const spn_path_roots_t* roots, sp_str_t root, const wasm_expect_t* expect, sp_da(spn_dag_obs_t) obs) {
+static void expect_obs(sp_test_t* t, sp_mem_t mem, const spn_path_roots_t* roots, sp_str_t root, const expect_t* expect, sp_da(spn_dag_obs_t) obs) {
   u32 expected = 0;
   sp_carr_detect_len(expect->obs, expected, expect->obs[expected].path);
   sp_for(it, expected) {
-    const wasm_obs_t* e = &expect->obs[it];
+    const obs_t* e = &expect->obs[it];
     sp_str_t host = sp_fs_join_path(mem, root, sp_str_view(e->path));
     bool found = false;
     sp_da_for(obs, ot) {
@@ -260,12 +260,8 @@ static void expect_obs(sp_test_t* t, sp_mem_t mem, const spn_path_roots_t* roots
   sp_expect_eq(t, expected, (u32)sp_da_size(obs));
 }
 
-sp_test_each(dag_wasm, wasi, wasm_test_t, wasm_tests) {
-  if (!sp_str_empty(sp_os_env_get(sp_str_lit("SPN_TEST_SIM")))) {
-    return sp_test_skip(t, "wamr syscalls bypass the sim filesystem");
-  }
-
-  sp_must_ok(t, sp_test_once(&wasm_runtime_once, wasm_runtime_bring_up, SP_NULLPTR));
+sp_test_each(dag_wasm, wasi, test_t, tests) {
+  sp_must_ok(t, sp_test_once(&runtime_once, bring_up_runtime, SP_NULLPTR));
 
   sp_mem_t mem = sp_test_arena(t);
   sp_str_t root = sp_test_dir(t);
@@ -291,7 +287,7 @@ sp_test_each(dag_wasm, wasi, wasm_test_t, wasm_tests) {
   wasm_emit_fn_t fns [DAG_WASM_MAX_CALLS] = sp_zero;
   u32 num_fns = 0;
   sp_carr_for(it->calls, ct) {
-    wasm_call_t* call = &it->calls[ct];
+    call_t* call = &it->calls[ct];
     if (!call->fn) {
       break;
     }
@@ -330,7 +326,7 @@ sp_test_each(dag_wasm, wasi, wasm_test_t, wasm_tests) {
   sp_must(t, env != SP_NULLPTR);
 
   sp_carr_for(it->calls, ct) {
-    wasm_call_t* call = &it->calls[ct];
+    call_t* call = &it->calls[ct];
     if (!call->fn) {
       break;
     }

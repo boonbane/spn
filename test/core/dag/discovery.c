@@ -1,31 +1,31 @@
-#include "dag_test.h"
+#include "dag/dag_test.h"
 
 typedef struct {
   const c8* key;
   dag_test_obs_t obs [DAG_TEST_MAX_INPUTS];
-} discovery_entry_t;
+} entry_t;
 
 typedef struct {
   bool hit;
   dag_test_obs_t obs [DAG_TEST_MAX_INPUTS];
-} discovery_expect_t;
+} expect_t;
 
 typedef struct {
   const c8* key;
   const c8* content;
-} discovery_plant_t;
+} plant_t;
 
 typedef struct {
   const c8* name;
   spn_path_root_set_t pinned;
-  discovery_entry_t entries [DAG_TEST_MAX_OPS];
-  discovery_plant_t plant;
+  entry_t entries [DAG_TEST_MAX_OPS];
+  plant_t plant;
   bool reload;
   const c8* key;
-  discovery_expect_t expect;
-} discovery_test_t;
+  expect_t expect;
+} test_t;
 
-static const discovery_test_t discovery_tests [] = {
+static const test_t tests [] = {
   {
     .name = "missing_key_misses",
     .key = "K"
@@ -183,13 +183,13 @@ static const discovery_test_t discovery_tests [] = {
   },
 };
 
-static void discovery_put(spn_dag_obs_table_t* discovery, const discovery_entry_t* entry) {
+static void put_entry(spn_dag_obs_table_t* discovery, const entry_t* entry) {
   spn_dag_obs_t obs [DAG_TEST_MAX_INPUTS] = sp_zero;
   u32 count = dag_test_obs_build(entry->obs, DAG_TEST_MAX_INPUTS, obs, SP_NULLPTR);
   spn_dag_obs_table_put(discovery, dag_test_digest(entry->key), obs, count);
 }
 
-static sp_err_t discovery_expect_obs(sp_test_t* t, const spn_dag_pathset_t* set, const dag_test_obs_t* expect) {
+static sp_err_t expect_obs(sp_test_t* t, const spn_dag_pathset_t* set, const dag_test_obs_t* expect) {
   spn_dag_obs_t obs [DAG_TEST_MAX_INPUTS] = sp_zero;
   u32 count = dag_test_obs_build(expect, DAG_TEST_MAX_INPUTS, obs, SP_NULLPTR);
   sp_must_eq(t, count, (u32)sp_da_size(set->obs));
@@ -201,7 +201,7 @@ static sp_err_t discovery_expect_obs(sp_test_t* t, const spn_dag_pathset_t* set,
   return SP_OK;
 }
 
-static sp_err_t discovery_expect(sp_test_t* t, spn_dag_obs_table_t* discovery, const discovery_test_t* test) {
+static sp_err_t check_expectations(sp_test_t* t, spn_dag_obs_table_t* discovery, const test_t* test) {
   spn_dag_pathset_t set = sp_zero;
   bool present = spn_dag_obs_table_get(discovery, dag_test_digest(test->key), &set);
   sp_must_eq(t, test->expect.hit, present);
@@ -209,7 +209,7 @@ static sp_err_t discovery_expect(sp_test_t* t, spn_dag_obs_table_t* discovery, c
     return SP_OK;
   }
 
-  const discovery_entry_t* stored = SP_NULLPTR;
+  const entry_t* stored = SP_NULLPTR;
   sp_carr_for(test->entries, et) {
     if (test->entries[et].key && sp_cstr_equal(test->entries[et].key, test->key)) {
       stored = &test->entries[et];
@@ -221,10 +221,10 @@ static sp_err_t discovery_expect(sp_test_t* t, spn_dag_obs_table_t* discovery, c
   spn_dag_digest_t pinned = spn_dag_pinned_digest(test->pinned, obs, count);
   sp_expect(t, spn_dag_digest_equal(pinned, set.pinned));
 
-  return discovery_expect_obs(t, &set, test->expect.obs);
+  return expect_obs(t, &set, test->expect.obs);
 }
 
-sp_test_each(dag_discovery, table, discovery_test_t, discovery_tests) {
+sp_test_each(dag_discovery, table, test_t, tests) {
   sp_mem_t mem = sp_test_arena(t);
   sp_str_t dir = sp_fs_join_path(mem, sp_test_dir(t), sp_str_lit("manifests"));
   spn_path_roots_t roots = sp_zero;
@@ -237,7 +237,7 @@ sp_test_each(dag_discovery, table, discovery_test_t, discovery_tests) {
     if (!it->entries[et].key) {
       break;
     }
-    discovery_put(&discovery, &it->entries[et]);
+    put_entry(&discovery, &it->entries[et]);
   }
 
   if (it->plant.key) {
@@ -250,5 +250,5 @@ sp_test_each(dag_discovery, table, discovery_test_t, discovery_tests) {
     spn_dag_obs_table_init(&discovery, mem, &roots, dir);
   }
 
-  return discovery_expect(t, &discovery, it);
+  return check_expectations(t, &discovery, it);
 }

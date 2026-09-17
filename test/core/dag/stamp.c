@@ -1,4 +1,4 @@
-#include "dag_test.h"
+#include "dag/dag_test.h"
 #include "dag/stamp.h"
 
 typedef struct {

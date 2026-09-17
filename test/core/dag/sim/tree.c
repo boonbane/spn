@@ -1,39 +1,39 @@
-#include "dag_test.h"
+#include "dag/dag_test.h"
 #include "fs/fs.h"
 
 typedef struct {
   const c8* path;
   const c8* content;
-} tree_file_t;
+} file_t;
 
 typedef struct {
   u32 runs;
   u32 hashes;
-  tree_file_t files [DAG_TEST_MAX_OUTPUTS];
+  file_t files [DAG_TEST_MAX_OUTPUTS];
   const c8* absent [DAG_TEST_MAX_OUTPUTS];
   const c8* kept [DAG_TEST_MAX_OUTPUTS];
-} tree_expect_t;
+} expect_t;
 
 typedef struct {
   const c8* identity;
-  tree_file_t files [DAG_TEST_MAX_OUTPUTS];
+  file_t files [DAG_TEST_MAX_OUTPUTS];
   bool remove_target;
-  tree_file_t write [DAG_TEST_MAX_OUTPUTS];
-  tree_file_t poison;
-  tree_expect_t expect;
-} tree_run_t;
+  file_t write [DAG_TEST_MAX_OUTPUTS];
+  file_t poison;
+  expect_t expect;
+} run_t;
 
 typedef struct {
   const c8* name;
-  tree_run_t runs [DAG_TEST_MAX_OPS];
-} tree_test_t;
+  run_t runs [DAG_TEST_MAX_OPS];
+} test_t;
 
 typedef struct {
   dag_test_env_t dag;
-  const tree_run_t* run;
-} tree_env_t;
+  const run_t* run;
+} env_t;
 
-static const tree_test_t tree_tests [] = {
+static const test_t tests [] = {
   {
     .name = "cold_hashes_once_per_entry",
     .runs = {
@@ -112,8 +112,8 @@ static const tree_test_t tree_tests [] = {
   },
 };
 
-static spn_err_t tree_exec(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* dag_env, sp_mem_t mem, sp_da(spn_dag_obs_t)* obs) {
-  tree_env_t* env = (tree_env_t*)user_data;
+static spn_err_t execute_action(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* dag_env, sp_mem_t mem, sp_da(spn_dag_obs_t)* obs) {
+  env_t* env = (env_t*)user_data;
   env->dag.runs++;
   spn_dag_artifact_t* out = spn_dag_find_artifact(env->dag.g, action->produces[0]);
   sp_fs_create_dir(dag_test_render(&env->dag, out->materialized));
@@ -130,15 +130,15 @@ static spn_err_t tree_exec(spn_dag_t* g, spn_dag_action_t* action, void* user_da
   return SPN_OK;
 }
 
-sp_test_each(dag_tree, exec, tree_test_t, tree_tests) {
-  tree_env_t env = sp_zero;
+sp_test_each(dag_tree, exec, test_t, tests) {
+  env_t env = sp_zero;
   dag_test_env_init(&env.dag, t, (dag_test_env_config_t) { .store = SPN_DAG_STORE_FILESYSTEM });
   sp_mem_t mem = env.dag.mem;
   sp_str_t target = dag_test_env_path(&env.dag, sp_str_lit("install"));
   spn_path_t tree = dag_test_env_rooted(&env.dag, sp_str_lit("install"));
 
   sp_carr_for(it->runs, r) {
-    const tree_run_t* run = &it->runs[r];
+    const run_t* run = &it->runs[r];
     if (!run->expect.runs) {
       break;
     }
@@ -172,7 +172,7 @@ sp_test_each(dag_tree, exec, tree_test_t, tree_tests) {
     spn_dag_t* g = dag_test_env_graph(&env.dag);
     spn_dag_id_t action = spn_dag_add_action(g, (spn_dag_action_config_t) {
       .identity = dag_test_digest(run->identity),
-      .execute = tree_exec,
+      .execute = execute_action,
       .user_data = &env
     });
     sp_must_eq(t, SPN_OK, spn_dag_action_add_output(g, action, spn_dag_add_tree(g, tree)));

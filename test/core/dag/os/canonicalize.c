@@ -8,13 +8,13 @@ typedef enum {
   CANON_SETUP_FILE,
   CANON_SETUP_DIR,
   CANON_SETUP_SYMLINK,
-} canon_setup_kind_t;
+} setup_kind_t;
 
 typedef struct {
   const c8* path;
-  canon_setup_kind_t kind;
+  setup_kind_t kind;
   const c8* target;
-} canon_setup_t;
+} setup_t;
 
 typedef struct {
   bool set;
@@ -22,18 +22,18 @@ typedef struct {
   const c8* parent;
   const c8* leaf;
   bool exists;
-} canon_expect_t;
+} expect_t;
 
 typedef struct {
   const c8* name;
-  canon_setup_t setup [CANON_MAX_SETUP];
+  setup_t setup [CANON_MAX_SETUP];
   bool symlinks;
   const c8* input;
-  canon_expect_t expect;
-  canon_expect_t windows;
-} canon_test_t;
+  expect_t expect;
+  expect_t windows;
+} test_t;
 
-static const canon_test_t canon_tests [] = {
+static const test_t tests [] = {
   {
     .name = "existing_file",
     .setup = {
@@ -183,7 +183,7 @@ static bool symlinks_available(sp_test_t* t) {
   return sp_test_once(&symlink_once, symlink_probe, &dir) == SP_OK;
 }
 
-sp_test_each(wasi_canonicalize, probe, canon_test_t, canon_tests) {
+sp_test_each(wasi_canonicalize, probe, test_t, tests) {
   if (it->symlinks && !symlinks_available(t)) {
     return sp_test_skip(t, "symlinks not available");
   }
@@ -197,7 +197,7 @@ sp_test_each(wasi_canonicalize, probe, canon_test_t, canon_tests) {
   if (count) {
     sandbox = sp_test_dir(t);
     sp_for(at, count) {
-      const canon_setup_t* s = &it->setup[at];
+      const setup_t* s = &it->setup[at];
       sp_str_t path = sp_fs_join_path(mem, sandbox, sp_str_view(s->path));
       switch (s->kind) {
         case CANON_SETUP_FILE: {
@@ -217,7 +217,7 @@ sp_test_each(wasi_canonicalize, probe, canon_test_t, canon_tests) {
     input = sp_fs_join_path(mem, sandbox, input);
   }
 
-  const canon_expect_t* expect = &it->expect;
+  const expect_t* expect = &it->expect;
 #if defined(SP_WIN32)
   if (it->windows.set) {
     expect = &it->windows;

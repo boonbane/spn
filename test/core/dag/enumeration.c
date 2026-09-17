@@ -1,9 +1,9 @@
-#include "dag_test.h"
+#include "dag/dag_test.h"
 
 typedef struct {
   const c8* dir;
   const c8* filter;
-} enum_obs_t;
+} obs_t;
 
 typedef struct {
   const c8* files [DAG_TEST_MAX_INPUTS];
@@ -11,20 +11,20 @@ typedef struct {
   const c8* removed [DAG_TEST_MAX_INPUTS];
   bool cold;
   u32 expect_runs;
-} enum_run_t;
+} run_t;
 
 typedef struct {
   const c8* name;
-  enum_obs_t obs [DAG_TEST_MAX_INPUTS];
-  enum_run_t runs [DAG_TEST_MAX_OPS];
-} enum_test_t;
+  obs_t obs [DAG_TEST_MAX_INPUTS];
+  run_t runs [DAG_TEST_MAX_OPS];
+} test_t;
 
 typedef struct {
   dag_test_env_t dag;
-  const enum_test_t* test;
-} enum_env_t;
+  const test_t* test;
+} env_t;
 
-static const enum_test_t enum_tests [] = {
+static const test_t tests [] = {
   {
     .name = "unchanged_membership_hits",
     .obs = { { "A", "*.h" } },
@@ -127,8 +127,8 @@ static const enum_test_t enum_tests [] = {
   },
 };
 
-static spn_err_t enum_exec(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* dag_env, sp_mem_t mem, sp_da(spn_dag_obs_t)* obs) {
-  enum_env_t* env = (enum_env_t*)user_data;
+static spn_err_t execute_action(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* dag_env, sp_mem_t mem, sp_da(spn_dag_obs_t)* obs) {
+  env_t* env = (env_t*)user_data;
   spn_try(dag_test_exec_stamp(g, action, user_data, dag_env, mem, obs));
   sp_carr_for(env->test->obs, it) {
     if (!env->test->obs[it].dir) {
@@ -143,7 +143,7 @@ static spn_err_t enum_exec(spn_dag_t* g, spn_dag_action_t* action, void* user_da
   return SPN_OK;
 }
 
-static void enum_prepare(enum_env_t* env, const enum_run_t* run) {
+static void prepare_run(env_t* env, const run_t* run) {
   sp_carr_for(run->removed, it) {
     if (!run->removed[it]) {
       break;
@@ -169,8 +169,8 @@ static void enum_prepare(enum_env_t* env, const enum_run_t* run) {
   }
 }
 
-sp_test_each(dag_enumeration, runs, enum_test_t, enum_tests) {
-  enum_env_t env = sp_zero;
+sp_test_each(dag_enumeration, runs, test_t, tests) {
+  env_t env = sp_zero;
   env.test = it;
   dag_test_env_init(&env.dag, t, (dag_test_env_config_t) {
     .store = SPN_DAG_STORE_MEM,
@@ -178,7 +178,7 @@ sp_test_each(dag_enumeration, runs, enum_test_t, enum_tests) {
   });
 
   sp_carr_for(it->runs, r) {
-    const enum_run_t* run = &it->runs[r];
+    const run_t* run = &it->runs[r];
     if (!run->expect_runs) {
       break;
     }
@@ -187,13 +187,13 @@ sp_test_each(dag_enumeration, runs, enum_test_t, enum_tests) {
       dag_test_env_cold(&env.dag);
     }
     spn_dag_file_cache_invalidate_all(&env.dag.files);
-    enum_prepare(&env, run);
+    prepare_run(&env, run);
 
     spn_dag_t* g = dag_test_env_graph(&env.dag);
     spn_dag_id_t action = spn_dag_add_action(g, (spn_dag_action_config_t) {
       .kind = SPN_DAG_ACTION_DISCOVERED,
       .identity = dag_test_digest(it->name),
-      .execute = enum_exec,
+      .execute = execute_action,
       .user_data = &env
     });
     sp_must_eq(t, SPN_OK, spn_dag_action_add_output(g, action, spn_dag_add_output(g, sp_str_lit("O"))));
