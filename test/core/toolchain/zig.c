@@ -45,3 +45,11 @@ sp_test_each(toolchain_zig, local, local_test_t, local_tests) {
   sp_expect_str_eq_c(t, root.sub, it->expect);
   return SP_OK;
 }
+
+sp_test(toolchain_zig, warm_dir) {
+  sp_mem_t mem = sp_test_arena(t);
+  spn_path_t warm = spn_toolchain_warm_dir(mem, sp_str_lit("A"));
+  sp_expect_eq(t, warm.root, SPN_PATH_ROOT_CACHE);
+  sp_expect_str_eq_c(t, warm.sub, "warm/A");
+  return SP_OK;
+}

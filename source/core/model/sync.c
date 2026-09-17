@@ -69,7 +69,9 @@ static spn_err_t setup_local(spn_toolchain_store_t* store, spn_toolchain_unit_t*
   spn_try(spn_toolchain_probe(&unit->cc, &spn.roots, spn_search_rules(spn.host.os), sp_env_get(spn.env, sp_str_lit("PATH")), &store->probes, spn.mem, &unit->identity));
   spn_probe_cache_flush(&store->probes);
   if (toolchain->driver == SPN_CC_DRIVER_ZIG) {
-    unit->cc.cache = spn_toolchain_zig_cache_dir(spn.mem, spn_toolchain_local_root(spn.mem, unit->identity));
+    spn_path_t root = spn_toolchain_local_root(spn.mem, unit->identity);
+    unit->cc.cache = spn_toolchain_zig_cache_dir(spn.mem, root);
+    unit->warm = spn_toolchain_warm_dir(spn.mem, root.sub);
   }
 
   spn_event_buffer_push(spn.events, (spn_event_t) {
@@ -114,6 +116,7 @@ static spn_err_t setup_artifact(spn_toolchain_store_t* store, spn_toolchain_unit
   );
   if (toolchain->driver == SPN_CC_DRIVER_ZIG) {
     unit->cc.cache = spn_toolchain_zig_cache_dir(spn.mem, root);
+    unit->warm = spn_toolchain_warm_dir(spn.mem, artifact.sha256);
   }
 
   spn_event_buffer_push(spn.events, (spn_event_t) {

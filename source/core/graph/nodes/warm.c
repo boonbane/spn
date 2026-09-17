@@ -161,12 +161,17 @@ s32 spn_warm_stub_run(spn_build_unit_t* build, const spn_zig_stub_t* stub, sp_st
   sp_mem_t mem = scratch.mem;
 
   spn_profile_info_t* profile = &build->profile;
-  spn_triple_t triple = { profile->arch, profile->os, profile->abi };
+  spn_triple_t triple = spn_profile_triple(profile);
 
   sp_str_t out = spn_path_str(&spn.roots, mem, output);
+  sp_str_t dir = sp_fs_parent_path(out);
   s32 rc = 0;
-  if (!sp_fs_exists(spn_path_str(&spn.roots, mem, stamp))) {
-    rc = run_stub(build, stub, name, spn_triple_to_str(spn.mem, triple), sp_fs_parent_path(out), env, mem);
+  // A stamp only vouches for a cache that still exists; wiping the zig cache dir makes every stub cold again
+  bool warm = sp_fs_exists(spn_path_str(&spn.roots, mem, stamp)) && sp_fs_is_dir(spn_path_str(&spn.roots, mem, build->toolchain->cc.cache));
+  if (!warm) {
+    sp_fs_create_dir(spn_path_str(&spn.roots, mem, build->toolchain->cc.cache));
+    sp_fs_create_dir(dir);
+    rc = run_stub(build, stub, name, spn_triple_to_str(spn.mem, triple), dir, env, mem);
   }
   if (!rc && sp_fs_create_file_str(out, name)) {
     spn_event_buffer_push(spn.events, (spn_event_t) {
