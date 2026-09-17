@@ -104,6 +104,7 @@ static const failure_t failures [] = {
   { .name = "relative_path", .err = SPN_ERR_WASM_MODULE_CALL_FAILED },
   { .name = "nested_output", .err = SPN_ERR_DAG_NESTED_OUTPUT },
   { .name = "configure_missing_source", .err = SPN_ERR_CONFIGURE_SOURCE_MISSING },
+  { .name = "add_define_path_outside", .err = SPN_ERR_WASM_MODULE_CALL_FAILED },
 };
 
 sp_test_each(script, failure, failure_t, failures) {
@@ -435,6 +436,14 @@ sp_test(script, add_define) {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
       { .kind = ACTION_RUN_BIN, .bin.name = "main" },
     },
+  });
+}
+
+sp_test(script, add_define_path) {
+  return run_command_test(t, (command_test_t) {
+    .project = "test/integration/fixtures/script/add_define_path",
+    .args = { "build" },
+    .expect.cc = { { .args = { "-DG=\"build/debug/.spn/A/gen\"", "/DG=\"build/debug/.spn/A/gen\"" } } },
   });
 }
 
