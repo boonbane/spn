@@ -8,6 +8,7 @@
 
 #include "compiler/types.h"
 #include "core/types.h"
+#include "dag/types.h"
 #include "profile/types.h"
 #include "resolve/types.h"
 #include "session/registry/types.h"
@@ -63,6 +64,8 @@ struct spn_session_t {
   struct {
     spn_dag_build_t* configure;
     spn_dag_build_t* build;
+    spn_dag_file_cache_t files;
+    sp_str_t files_path;
   } dag;
 };
 

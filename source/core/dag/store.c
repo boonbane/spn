@@ -500,9 +500,6 @@ void spn_dag_file_cache_load(spn_dag_file_cache_t* c, sp_str_t path) {
   if (sp_io_read_file(c->mem, path, &content)) {
     return;
   }
-  if (c->stats) {
-    sp_atomic_u32_add(&c->stats->cache_reads, 1, SP_ATOMIC_RELAXED);
-  }
 
   sp_str_t cursor = content;
   if (!row_header(&cursor, '3')) {
@@ -539,11 +536,9 @@ void spn_dag_file_cache_flush(spn_dag_file_cache_t* c, sp_str_t path) {
     err = write_hint_row(&sink.base, s.mem, *it.key, it.val);
   }
   if (!err) {
+    sp_fs_create_dir(sp_fs_parent_path(path));
     sp_fs_write_atomic(path, sp_io_dyn_mem_writer_as_str(&sink));
     c->hints_dirty = false;
-    if (c->stats) {
-      sp_atomic_u32_add(&c->stats->cache_writes, 1, SP_ATOMIC_RELAXED);
-    }
   }
 
   sp_mem_end_scratch(s);

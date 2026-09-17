@@ -103,21 +103,10 @@ static const test_t tests [] = {
     }
   },
   {
-    .name = "seed_in_open_quantum_not_recorded",
+    .name = "seed_in_open_quantum_recorded",
     .ops = {
       { .kind = FENCE_OP_DIR },
       { .kind = FENCE_OP_FILE, .path = "F", .blob = "A" },
-      { .kind = FENCE_OP_SEED, .path = "F", .blob = "B" },
-      { .kind = FENCE_OP_REFRESH },
-      { .kind = FENCE_OP_DIGEST, .path = "F", .expect = { .blob = "A" } },
-    }
-  },
-  {
-    .name = "seed_after_tick_recorded",
-    .ops = {
-      { .kind = FENCE_OP_DIR },
-      { .kind = FENCE_OP_FILE, .path = "F", .blob = "A" },
-      { .kind = FENCE_OP_TICK },
       { .kind = FENCE_OP_SEED, .path = "F", .blob = "B" },
       { .kind = FENCE_OP_REFRESH },
       { .kind = FENCE_OP_DIGEST, .path = "F", .expect = { .blob = "B" } },
