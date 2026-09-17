@@ -124,11 +124,11 @@ u32 dag_test_obs_build(const dag_test_obs_t* specs, u32 cap, spn_dag_obs_t* out,
   return count;
 }
 
-spn_err_t dag_test_exec_noop(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* dag_env, sp_mem_t mem, const spn_path_t* outputs, spn_dag_obs_set_t* obs) {
+spn_err_t dag_test_exec_noop(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* dag_env, const spn_path_t* outputs, spn_dag_obs_set_t* obs) {
   return SPN_OK;
 }
 
-spn_err_t dag_test_exec_stamp(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* dag_env, sp_mem_t mem, const spn_path_t* outputs, spn_dag_obs_set_t* obs) {
+spn_err_t dag_test_exec_stamp(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* dag_env, const spn_path_t* outputs, spn_dag_obs_set_t* obs) {
   dag_test_env_t* env = (dag_test_env_t*)user_data;
   env->runs++;
   sp_str_t content = sp_fmt(env->mem, "{}", sp_fmt_uint(env->runs)).value;

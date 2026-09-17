@@ -155,11 +155,14 @@ static const test_t tests [] = {
   },
 };
 
-static spn_err_t execute_graph(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, sp_mem_t mem, const spn_path_t* outputs, spn_dag_obs_set_t* obs) {
+static spn_err_t execute_graph(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs) {
   ctx_t* ctx = (ctx_t*)user_data;
   if (ctx->spec->fails) {
     return SPN_ERR_DAG_ACTION;
   }
+
+  sp_mem_arena_marker_t s = sp_mem_begin_scratch();
+  const spn_path_roots_t* roots = &ctx->env->dag.roots;
 
   sp_carr_for(ctx->spec->discovers, it) {
     if (!ctx->spec->discovers[it]) {
@@ -167,12 +170,9 @@ static spn_err_t execute_graph(spn_dag_t* g, spn_dag_action_t* action, void* use
     }
     spn_dag_observe(obs, (spn_dag_obs_t) {
       .kind = SPN_DAG_OBS_FILE,
-      .path = spn_path_make(g->roots, sp_fs_join_path(mem, ctx->env->dag.root, sp_cstr_as_str(ctx->spec->discovers[it])))
+      .path = spn_path_make(g->roots, sp_fs_join_path(s.mem, ctx->env->dag.root, sp_cstr_as_str(ctx->spec->discovers[it])))
     });
   }
-
-  sp_mem_arena_marker_t s = sp_mem_begin_scratch();
-  const spn_path_roots_t* roots = &ctx->env->dag.roots;
 
   sp_da_for(action->consumes, it) {
     spn_dag_artifact_t* in = spn_dag_find_artifact(ctx->g, action->consumes[it]);

@@ -264,15 +264,17 @@ static const exec_test_t exec_tests [] = {
   },
 };
 
-static spn_err_t execute_action(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* dag_env, sp_mem_t mem, const spn_path_t* outputs, spn_dag_obs_set_t* obs) {
+static spn_err_t execute_action(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* dag_env, const spn_path_t* outputs, spn_dag_obs_set_t* obs) {
   env_t* env = (env_t*)user_data;
-  spn_try(dag_test_exec_stamp(g, action, user_data, dag_env, mem, outputs, obs));
+  spn_try(dag_test_exec_stamp(g, action, user_data, dag_env, outputs, obs));
+  sp_mem_arena_marker_t s = sp_mem_begin_scratch();
   spn_dag_glob_result_t glob = sp_zero;
-  spn_try(spn_dag_glob(mem, g->roots, env->pattern, &glob));
+  spn_err_t err = spn_dag_glob(s.mem, g->roots, env->pattern, &glob);
   sp_da_for(glob.obs, it) {
     spn_dag_observe(obs, glob.obs[it]);
   }
-  return SPN_OK;
+  sp_mem_end_scratch(s);
+  return err;
 }
 
 sp_test_each(dag_glob, exec, exec_test_t, exec_tests) {

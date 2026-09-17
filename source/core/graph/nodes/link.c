@@ -190,7 +190,7 @@ static spn_err_t read_export_symbols(sp_mem_t mem, sp_str_t path, sp_da(sp_str_t
   return SPN_OK;
 }
 
-spn_err_t spn_link_target_run(sp_mem_t mem, spn_target_unit_t* target, spn_cc_link_files_t files) {
+spn_err_t spn_link_target_run(spn_target_unit_t* target, spn_cc_link_files_t files) {
   spn_pkg_unit_announce_compile(target->pkg);
 
   spn_event_buffer_push(spn.events, (spn_event_t) {
@@ -201,14 +201,19 @@ spn_err_t spn_link_target_run(sp_mem_t mem, spn_target_unit_t* target, spn_cc_li
     }
   });
 
+  spn_invocation_t* invocation = sp_alloc_type(spn.mem, spn_invocation_t);
+  sp_mem_arena_marker_t s = sp_mem_begin_scratch();
+  spn_err_t err = SPN_OK;
   if (target->kind == SPN_CC_OUTPUT_REACTOR) {
-    sp_da_init(mem, files.exports.symbols);
-    spn_try(read_export_symbols(mem, spn_path_str(&spn.roots, mem, files.exports.path), &files.exports.symbols));
+    sp_da_init(s.mem, files.exports.symbols);
+    err = read_export_symbols(s.mem, spn_path_str(&spn.roots, s.mem, files.exports.path), &files.exports.symbols);
     files.exports.path = (spn_path_t) sp_zero;
   }
-
-  spn_invocation_t* invocation = sp_alloc_type(spn.mem, spn_invocation_t);
-  spn_try(spn_target_link_invocation(spn.mem, target, &files, invocation));
+  if (!err) {
+    err = spn_target_link_invocation(spn.mem, target, &files, invocation);
+  }
+  sp_mem_end_scratch(s);
+  spn_try(err);
 
   spn_invocation_result_t run = sp_zero;
   spn_try(run_link(target, invocation, "link.rsp", &run));
