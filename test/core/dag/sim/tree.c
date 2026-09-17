@@ -112,7 +112,7 @@ static const test_t tests [] = {
   },
 };
 
-static spn_err_t execute_action(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* dag_env, sp_mem_t mem, sp_da(spn_dag_obs_t)* obs) {
+static spn_err_t execute_action(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* dag_env, sp_mem_t mem, spn_dag_obs_set_t* obs) {
   env_t* env = (env_t*)user_data;
   env->dag.runs++;
   spn_dag_artifact_t* out = spn_dag_find_artifact(env->dag.g, action->produces[0]);

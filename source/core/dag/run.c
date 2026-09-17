@@ -656,14 +656,13 @@ typedef struct {
   sp_mem_arena_t* arena;
   sp_mem_t mem;
   spn_dag_digest_t* digests;
-  sp_da(spn_dag_obs_t) obs;
+  spn_dag_obs_set_t obs;
   spn_dag_diag_t diag;
 } spn_dag_attempt_t;
 
 static void attempt_open(spn_dag_attempt_t* attempt) {
   attempt->arena = sp_mem_arena_new(sp_mem_os_new());
   attempt->mem = sp_mem_arena_as_allocator(attempt->arena);
-  sp_da_init(attempt->mem, attempt->obs);
 }
 
 static void attempt_free(spn_dag_t* g, spn_dag_attempt_t* attempt) {
@@ -764,12 +763,12 @@ static spn_err_t execute(spn_dag_t* g, spn_dag_attempt_t* attempt, spn_dag_env_t
   }
   switch (action->kind) {
     case SPN_DAG_ACTION_DISCOVERED: {
-      spn_dag_obs_canonicalize(attempt->obs);
+      spn_dag_obs_canonicalize(attempt->obs.rows);
       break;
     }
     case SPN_DAG_ACTION_STATIC:
     case SPN_DAG_ACTION_UNCACHEABLE: {
-      sp_assert(sp_da_empty(attempt->obs));
+      sp_assert(sp_da_empty(attempt->obs.rows));
       break;
     }
   }
@@ -815,7 +814,7 @@ static spn_err_t commit(spn_dag_t* g, spn_dag_attempt_t* attempt, spn_dag_env_t*
       return SPN_OK;
     }
     case SPN_DAG_ACTION_DISCOVERED: {
-      spn_dag_pathset_t set = spn_dag_obs_table_put(env->discovery, attempt->key, attempt->obs, (u32)sp_da_size(attempt->obs));
+      spn_dag_pathset_t set = spn_dag_obs_table_put(env->discovery, attempt->key, &attempt->obs);
       sp_mem_arena_marker_t s = sp_mem_begin_scratch();
       u32 count = (u32)sp_da_size(set.obs);
       spn_dag_digest_t* digests = sp_alloc_n(s.mem, spn_dag_digest_t, count);
@@ -842,7 +841,10 @@ static spn_err_t exec_action(spn_dag_t* g, spn_dag_action_t* action, spn_dag_env
   sp_mem_arena_marker_t s = sp_mem_begin_scratch();
   env->diag = (spn_dag_diag_t) sp_zero;
 
-  spn_dag_attempt_t attempt = { .digests = sp_alloc_n(s.mem, spn_dag_digest_t, sp_da_size(action->produces)) };
+  spn_dag_attempt_t attempt = {
+    .digests = sp_alloc_n(s.mem, spn_dag_digest_t, sp_da_size(action->produces)),
+    .obs.table = env->discovery,
+  };
   lookup(g, action, env, &attempt);
   spn_err_t err = SPN_OK;
   if (!attempt.hit) {
@@ -1121,7 +1123,7 @@ static void run_dispatch(spn_dag_run_t* run, spn_dag_id_t id) {
 
   if (state->parked) {
     bool requeue = false;
-    if (defer_observations(run, action, flight->attempt.obs, flight->epoch, &requeue)) {
+    if (defer_observations(run, action, flight->attempt.obs.rows, flight->epoch, &requeue)) {
       return;
     }
     state->parked = false;
@@ -1144,7 +1146,10 @@ static void run_dispatch(spn_dag_run_t* run, spn_dag_id_t id) {
   }
 
   flight->err = SPN_OK;
-  flight->attempt = (spn_dag_attempt_t) { .digests = flight->attempt.digests };
+  flight->attempt = (spn_dag_attempt_t) {
+    .digests = flight->attempt.digests,
+    .obs.table = run->env->discovery,
+  };
 
   spn_thread_pool_submit(run->ex, (spn_thread_pool_job_t) { .fn = flight_run, .data = flight });
   run->in_flight++;
@@ -1171,7 +1176,7 @@ static void run_complete(spn_dag_run_t* run, spn_dag_flight_t* flight) {
 
   if (action->kind == SPN_DAG_ACTION_DISCOVERED) {
     bool requeue = false;
-    if (defer_observations(run, action, attempt->obs, flight->epoch, &requeue)) {
+    if (defer_observations(run, action, attempt->obs.rows, flight->epoch, &requeue)) {
       run->states[action->id.index].parked = true;
       return;
     }

@@ -155,7 +155,7 @@ static const test_t tests [] = {
   },
 };
 
-static spn_err_t execute_graph(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, sp_mem_t mem, sp_da(spn_dag_obs_t)* obs) {
+static spn_err_t execute_graph(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, sp_mem_t mem, spn_dag_obs_set_t* obs) {
   ctx_t* ctx = (ctx_t*)user_data;
   if (ctx->spec->fails) {
     return SPN_ERR_DAG_ACTION;
@@ -165,10 +165,10 @@ static spn_err_t execute_graph(spn_dag_t* g, spn_dag_action_t* action, void* use
     if (!ctx->spec->discovers[it]) {
       break;
     }
-    sp_da_push(*obs, ((spn_dag_obs_t) {
+    spn_dag_observe(obs, (spn_dag_obs_t) {
       .kind = SPN_DAG_OBS_FILE,
       .path = spn_path_make(g->roots, sp_fs_join_path(mem, ctx->env->dag.root, sp_cstr_as_str(ctx->spec->discovers[it])))
-    }));
+    });
   }
 
   sp_mem_arena_marker_t s = sp_mem_begin_scratch();

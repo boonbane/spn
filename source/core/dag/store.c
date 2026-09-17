@@ -416,27 +416,42 @@ bool spn_dag_obs_table_get(spn_dag_obs_table_t* d, spn_dag_digest_t weak, spn_da
   return ok;
 }
 
-spn_dag_pathset_t spn_dag_obs_table_put(spn_dag_obs_table_t* d, spn_dag_digest_t weak, const spn_dag_obs_t* obs, u32 count) {
+void spn_dag_observe(spn_dag_obs_set_t* set, spn_dag_obs_t obs) {
+  spn_dag_obs_table_t* d = set->table;
   sp_mutex_lock(&d->mutex);
-  spn_dag_pathset_t set = sp_zero;
-  set.pinned = spn_dag_pinned_digest(d->roots->pinned, obs, count);
-  sp_da_init(d->mem, set.obs);
-  sp_for(it, count) {
-    if (d->roots->pinned & spn_path_root_mask(obs[it].path.root)) {
-      continue;
-    }
-    spn_dag_obs_t copy = obs[it];
-    copy.path.sub = sp_str_copy(d->mem, obs[it].path.sub);
-    copy.filter = sp_str_copy(d->mem, obs[it].filter);
-    sp_da_push(set.obs, copy);
+  if (!set->rows) {
+    sp_da_init(d->mem, set->rows);
   }
-  sp_ht_insert(d->entries, weak, set);
+  obs.path.sub = sp_str_copy(d->mem, obs.path.sub);
+  obs.filter = sp_str_copy(d->mem, obs.filter);
+  sp_da_push(set->rows, obs);
+  sp_mutex_unlock(&d->mutex);
+}
+
+spn_dag_pathset_t spn_dag_obs_table_put(spn_dag_obs_table_t* d, spn_dag_digest_t weak, spn_dag_obs_set_t* set) {
+  sp_assert(set->table == d);
+  spn_dag_pathset_t stored = {
+    .pinned = spn_dag_pinned_digest(d->roots->pinned, set->rows, (u32)sp_da_size(set->rows)),
+    .obs = set->rows,
+  };
+  u64 kept = 0;
+  sp_da_for(set->rows, it) {
+    if (!(d->roots->pinned & spn_path_root_mask(set->rows[it].path.root))) {
+      set->rows[kept++] = set->rows[it];
+    }
+  }
+  if (kept < sp_da_size(set->rows)) {
+    sp_da_head(set->rows)->size = kept;
+  }
+
+  sp_mutex_lock(&d->mutex);
+  sp_ht_insert(d->entries, weak, stored);
   sp_mutex_unlock(&d->mutex);
 
   if (!sp_str_empty(d->dir)) {
-    save_obs(d, weak, &set);
+    save_obs(d, weak, &stored);
   }
-  return set;
+  return stored;
 }
 
 static spn_err_t write_hint_row(sp_io_writer_t* io, sp_mem_t mem, spn_path_t path, const spn_dag_file_meta_t* meta) {

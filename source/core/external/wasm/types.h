@@ -20,11 +20,6 @@ typedef struct WASMExecEnv spn_wasm_exec_env_t;
 typedef struct spn_wasm_handles_t spn_wasm_handles_t;
 typedef struct spn_dag_wasi_t spn_dag_wasi_t;
 
-typedef struct {
-  sp_mem_t mem;
-  sp_da(spn_dag_obs_t)* out;
-} spn_wasm_obs_t;
-
 typedef union {
   struct {
     const c8* work;

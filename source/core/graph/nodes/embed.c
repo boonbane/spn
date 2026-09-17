@@ -14,11 +14,7 @@
 #include "unit/package.h"
 #include "unit/unit.h"
 
-static void embed_obs(sp_da(spn_dag_obs_t)* obs, spn_dag_obs_kind_t kind, spn_path_t path) {
-  sp_da_push(*obs, ((spn_dag_obs_t) { .kind = kind, .path = path }));
-}
-
-s32 spn_embed_write(spn_target_unit_t* unit, spn_path_t object, spn_path_t header, sp_mem_t obs_mem, sp_da(spn_dag_obs_t)* obs) {
+s32 spn_embed_write(spn_target_unit_t* unit, spn_path_t object, spn_path_t header, spn_dag_obs_set_t* obs) {
   spn_target_info_t* info = unit->info;
   sp_str_t obj = spn_path_str(&spn.roots, spn.mem, object);
   sp_str_t hdr = spn_path_str(&spn.roots, spn.mem, header);
@@ -50,7 +46,7 @@ s32 spn_embed_write(spn_target_unit_t* unit, spn_path_t object, spn_path_t heade
 
     switch (embed.kind) {
       case SPN_EMBED_FILE: {
-        embed_obs(obs, SPN_DAG_OBS_FILE, embed.path);
+        spn_dag_observe(obs, (spn_dag_obs_t) { .kind = SPN_DAG_OBS_FILE, .path = embed.path });
         sp_str_t file = spn_path_str(&spn.roots, embedder.mem, embed.path);
         sp_str_t content = sp_zero;
         if (sp_io_read_file(embedder.mem, file, &content) != SP_OK) {
@@ -76,17 +72,17 @@ s32 spn_embed_write(spn_target_unit_t* unit, spn_path_t object, spn_path_t heade
         sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
         spn_path_t root = embed.path;
         sp_str_t dir = spn_path_str(&spn.roots, scratch.mem, root);
-        embed_obs(obs, SPN_DAG_OBS_ENUMERATION, root);
+        spn_dag_observe(obs, (spn_dag_obs_t) { .kind = SPN_DAG_OBS_ENUMERATION, .path = root });
         sp_da(sp_fs_entry_t) entries = sp_zero;
         sp_fs_collect_recursive(scratch.mem, dir, &entries);
         sp_da_for(entries, e) {
           sp_str_t rel = sp_str_suffix(entries[e].path, entries[e].path.len - dir.len - 1);
           if (entries[e].kind == SP_FS_KIND_DIR) {
-            embed_obs(obs, SPN_DAG_OBS_ENUMERATION, spn_path_join(obs_mem, root, rel));
+            spn_dag_observe(obs, (spn_dag_obs_t) { .kind = SPN_DAG_OBS_ENUMERATION, .path = spn_path_join(scratch.mem, root, rel) });
             continue;
           }
           if (!sp_fs_is_file(entries[e].path)) continue;
-          embed_obs(obs, SPN_DAG_OBS_FILE, spn_path_join(obs_mem, root, rel));
+          spn_dag_observe(obs, (spn_dag_obs_t) { .kind = SPN_DAG_OBS_FILE, .path = spn_path_join(scratch.mem, root, rel) });
           sp_str_t content = sp_zero;
           if (sp_io_read_file(embedder.mem, entries[e].path, &content) != SP_OK) {
             spn_event_buffer_push(spn.events, (spn_event_t) {

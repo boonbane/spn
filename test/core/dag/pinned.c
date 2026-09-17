@@ -91,7 +91,7 @@ static sp_str_t root_path(env_t* env, sp_str_t rel) {
   return sp_fs_join_path(env->dag.mem, env->dag.roots.dirs[env->root], rel);
 }
 
-static spn_err_t execute_action(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* dag_env, sp_mem_t mem, sp_da(spn_dag_obs_t)* obs) {
+static spn_err_t execute_action(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* dag_env, sp_mem_t mem, spn_dag_obs_set_t* obs) {
   env_t* env = (env_t*)user_data;
   spn_try(dag_test_exec_stamp(g, action, &env->dag, dag_env, mem, obs));
   sp_carr_for(env->run->obs, it) {
@@ -99,11 +99,11 @@ static spn_err_t execute_action(spn_dag_t* g, spn_dag_action_t* action, void* us
     if (!spec->path) {
       break;
     }
-    sp_da_push(*obs, ((spn_dag_obs_t) {
+    spn_dag_observe(obs, (spn_dag_obs_t) {
       .kind = spec->kind,
       .path = { .root = env->root, .sub = sp_str_view(spec->path) },
       .filter = spec->filter ? sp_str_view(spec->filter) : sp_str_lit("")
-    }));
+    });
   }
   return SPN_OK;
 }

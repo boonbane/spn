@@ -64,7 +64,8 @@ bool                spn_dag_action_cache_remove(spn_dag_action_cache_t* c, spn_d
 
 void                spn_dag_obs_table_init(spn_dag_obs_table_t* t, sp_mem_t mem, const spn_path_roots_t* roots, sp_str_t dir);
 bool                spn_dag_obs_table_get(spn_dag_obs_table_t* t, spn_dag_digest_t key, spn_dag_pathset_t* set);
-spn_dag_pathset_t   spn_dag_obs_table_put(spn_dag_obs_table_t* t, spn_dag_digest_t key, const spn_dag_obs_t* obs, u32 count);
+spn_dag_pathset_t   spn_dag_obs_table_put(spn_dag_obs_table_t* t, spn_dag_digest_t key, spn_dag_obs_set_t* set);
+void                spn_dag_observe(spn_dag_obs_set_t* set, spn_dag_obs_t obs);
 
 void                spn_dag_file_cache_init(spn_dag_file_cache_t* c, sp_mem_t mem, const spn_path_roots_t* roots);
 void                spn_dag_file_cache_fence(spn_dag_file_cache_t* c, sp_sys_timespec_t fence);

@@ -8,7 +8,7 @@ typedef struct {
   u64 action;
 } fz_exec_ctx_t;
 
-static spn_err_t fz_exec(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, sp_mem_t mem, sp_da(spn_dag_obs_t)* obs) {
+static spn_err_t fz_exec(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, sp_mem_t mem, spn_dag_obs_set_t* obs) {
   fz_exec_ctx_t* ctx = (fz_exec_ctx_t*)user_data;
   fz_lowered_t* low = ctx->low;
   fz_action_t* fz = &low->u->actions[ctx->action];
@@ -85,16 +85,16 @@ static spn_err_t fz_exec(spn_dag_t* g, spn_dag_action_t* action, void* user_data
       if (err && err != SP_ERR_SYS_NOT_FOUND) {
         return SPN_ERR_DAG_ACTION;
       }
-      sp_da_push(*obs, ((spn_dag_obs_t) {
+      spn_dag_observe(obs, (spn_dag_obs_t) {
         .kind = !err && meta.kind == SP_FS_KIND_FILE ? SPN_DAG_OBS_FILE : SPN_DAG_OBS_ABSENT,
         .path = spn_path_make(g->roots, path),
-      }));
+      });
     }
     else {
-      sp_da_push(*obs, ((spn_dag_obs_t) {
+      spn_dag_observe(obs, (spn_dag_obs_t) {
         .kind = SPN_DAG_OBS_FILE,
         .path = spn_path_make(g->roots, fz_artifact_sim_path(mem, low->u, fo.artifact)),
-      }));
+      });
     }
   }
   return SPN_OK;

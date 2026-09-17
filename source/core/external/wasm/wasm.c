@@ -242,7 +242,7 @@ static spn_err_t script_call_invoke(spn_wasm_script_t* script, spn_pkg_unit_t* u
   return SPN_OK;
 }
 
-static spn_err_t script_call_ex(spn_wasm_script_t* script, spn_pkg_unit_t* unit, sp_str_t name, spn_abi_kind_t kind, void* arg, spn_wasm_obs_t obs) {
+static spn_err_t script_call_ex(spn_wasm_script_t* script, spn_pkg_unit_t* unit, sp_str_t name, spn_abi_kind_t kind, void* arg, spn_dag_obs_set_t* obs) {
   if (!wasm_runtime_init_thread_env()) {
     return script_fail(unit, SPN_ERR_WASM_THREAD_ENV_FAILED, (spn_err_wasm_t) { .path = script->path });
   }
@@ -263,7 +263,7 @@ static spn_err_t script_call_ex(spn_wasm_script_t* script, spn_pkg_unit_t* unit,
     });
   }
   else {
-    spn_dag_wasi_begin(script->wasi, obs.mem, obs.out);
+    spn_dag_wasi_begin(script->wasi, obs);
     spn_wasm_script_t* previous = unit->wasm.active;
     unit->wasm.active = script;
     err = script_call_invoke(script, unit, fn, kind, arg);
@@ -276,7 +276,7 @@ static spn_err_t script_call_ex(spn_wasm_script_t* script, spn_pkg_unit_t* unit,
 }
 
 spn_err_t spn_wasm_script_call(spn_wasm_script_t* script, spn_pkg_unit_t* unit, sp_str_t name, spn_abi_kind_t kind, void* arg) {
-  return script_call_ex(script, unit, name, kind, arg, sp_zero_s(spn_wasm_obs_t));
+  return script_call_ex(script, unit, name, kind, arg, SP_NULLPTR);
 }
 
 bool spn_wasm_trap_active(spn_pkg_unit_t* unit, sp_str_t message) {
@@ -290,7 +290,7 @@ bool spn_wasm_trap_active(spn_pkg_unit_t* unit, sp_str_t message) {
   return true;
 }
 
-spn_err_t spn_wasm_call_export_ex(spn_pkg_unit_t* unit, sp_str_t name, spn_abi_kind_t kind, void* arg, spn_wasm_obs_t obs) {
+spn_err_t spn_wasm_call_export_ex(spn_pkg_unit_t* unit, sp_str_t name, spn_abi_kind_t kind, void* arg, spn_dag_obs_set_t* obs) {
   spn_wasm_script_t* script = SP_NULLPTR;
   spn_wasm_script_t* candidates [] = { &unit->wasm.build, &unit->wasm.configure };
   sp_carr_for(candidates, it) {
@@ -324,5 +324,5 @@ spn_err_t spn_wasm_call_export_ex(spn_pkg_unit_t* unit, sp_str_t name, spn_abi_k
 }
 
 spn_err_t spn_wasm_call_export(spn_pkg_unit_t* unit, sp_str_t name, spn_abi_kind_t kind, void* arg) {
-  return spn_wasm_call_export_ex(unit, name, kind, arg, (spn_wasm_obs_t) sp_zero);
+  return spn_wasm_call_export_ex(unit, name, kind, arg, SP_NULLPTR);
 }
