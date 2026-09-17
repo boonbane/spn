@@ -135,7 +135,8 @@
     "patch_unused": { "ref": "patch" },
     "patch_not_git": { "ref": "patch" },
     "header_collision": { "ref": "header_collision" },
-    "path_component": { "ref": "fs" }
+    "path_component": { "ref": "fs" },
+    "path_outside_project": { "ref": "fs" }
   },
   "definitions": {
     "manifest_parse": {

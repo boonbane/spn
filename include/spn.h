@@ -57,6 +57,7 @@ void          spn_node_set_fn(spn_node_t* node, const c8* fn);
 void          spn_target_add_source(spn_target_t* target, const c8* source);
 void          spn_target_add_include(spn_target_t* target, const c8* include);
 void          spn_target_add_define(spn_target_t* target, const c8* define);
+void          spn_target_add_define_path(spn_target_t* target, const c8* name, spn_dir_t dir, const c8* path);
 void          spn_target_add_flag(spn_target_t* target, const c8* flag);
 void          spn_target_embed_file(spn_target_t* target, const c8* file);
 void          spn_target_embed_file_ex(spn_target_t* target, const c8* file, const c8* dest, const c8* data_type, const c8* size_type);

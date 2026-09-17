@@ -277,6 +277,30 @@ void spn_target_add_define(spn_target_t* target, const c8* define) {
   sp_da_push(target->info->define, spn_intern_cstr(define));
 }
 
+void spn_target_add_define_path(spn_target_t* target, const c8* name, spn_dir_t dir, const c8* path) {
+  spn_pkg_unit_t* unit = target->unit;
+  if (spn_api_path_rejected(unit, "spn_target_add_define_path", sp_str_view(path))) {
+    return;
+  }
+  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+  spn_path_t joined = spn_path_join(scratch.mem, spn_api_dir_path(unit, dir), sp_str_view(path));
+  spn_path_rel_t rel = spn_path_within(unit->session->paths.root, joined);
+  if (rel.within) {
+    sp_da_push(target->info->define, spn_intern(sp_fmt(scratch.mem, "{}=\"{}\"", SP_FMT_CSTR(name), SP_FMT_STR(rel.sub)).value));
+  }
+  else {
+    sp_str_t full = spn_path_str(&spn.roots, scratch.mem, joined);
+    sp_str_t message = sp_fmt(scratch.mem, "spn_target_add_define_path: {} is not inside the project", SP_FMT_STR(full)).value;
+    if (!spn_wasm_trap_active(unit, message)) {
+      spn_err_emit(unit->session->ctx, (spn_err_union_t) {
+        .kind = SPN_ERR_PATH_OUTSIDE_PROJECT,
+        .fs = { .path = sp_str_copy(spn.mem, full) },
+      });
+    }
+  }
+  sp_mem_end_scratch(scratch);
+}
+
 void spn_target_add_flag(spn_target_t* target, const c8* flag) {
   sp_da_push(target->info->flags, spn_intern_cstr(flag));
 }
