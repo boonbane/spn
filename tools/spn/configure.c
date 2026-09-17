@@ -186,10 +186,7 @@ spn_err_t configure(spn_t* spn, spn_config_t* config) {
     }
   }
 
-  const c8* gen = spn_get_subdir(spn, SPN_DIR_WORK, "gen/codegen/gen");
-  c8 flag [SPN_CODEGEN_PATH_MAX];
-  snprintf(flag, sizeof(flag), "-DSCHEMA_GEN_DIR=\"%s\"", gen);
-  spn_target_add_flag(spn_get_target(spn, "core"), flag);
+  spn_target_add_define_path(spn_get_target(spn, "core"), "SCHEMA_GEN_DIR", SPN_DIR_WORK, "gen/codegen/gen");
 
   return SPN_OK;
 }
