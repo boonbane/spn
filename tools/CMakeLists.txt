@@ -42,6 +42,7 @@ endif()
 string(REGEX MATCH "^[^-]+" EMBED_ARCH ${TRIPLE})
 
 file(GLOB SPN_INIT_TEMPLATES CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/assets/init/*)
+file(GLOB SPN_DOCS CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/docs/content/*)
 add_custom_command(
   OUTPUT ${EMBED_OBJ} ${EMBED_HDR}
   COMMAND $<TARGET_FILE:embed>
@@ -54,7 +55,8 @@ add_custom_command(
     ${GEN_INCLUDE}/spn/err.h=include/spn/err.h
     ${CMAKE_SOURCE_DIR}/source/core/toolchain/toolchains.toml=toolchains.toml
     ${CMAKE_SOURCE_DIR}/assets/init=init
-  DEPENDS embed ${CMAKE_SOURCE_DIR}/include/spn.h ${CMAKE_SOURCE_DIR}/include/spn/core.h ${GEN_INCLUDE}/spn/err.h ${CMAKE_SOURCE_DIR}/source/core/toolchain/toolchains.toml ${SPN_INIT_TEMPLATES}
+    ${CMAKE_SOURCE_DIR}/docs/content=docs
+  DEPENDS embed ${CMAKE_SOURCE_DIR}/include/spn.h ${CMAKE_SOURCE_DIR}/include/spn/core.h ${GEN_INCLUDE}/spn/err.h ${CMAKE_SOURCE_DIR}/source/core/toolchain/toolchains.toml ${SPN_INIT_TEMPLATES} ${SPN_DOCS}
   COMMENT "spn.embed.o"
   VERBATIM)
 add_custom_target(spn_embed ALL DEPENDS ${EMBED_OBJ} ${EMBED_HDR})
