@@ -47,6 +47,7 @@ add_executable(fuzz_resolver
   ${SRC}/elf/elf.c
   ${SRC}/resolve/resolve.c
   ${UTIL}/str/str.c
+  ${UTIL}/glob/glob.c
   ${SRC}/semver/compare.c
   ${SRC}/semver/convert.c
   ${SRC}/semver/parser.c

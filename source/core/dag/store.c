@@ -5,6 +5,7 @@
 #include "spn/core.h"
 #include "fs/fs.h"
 #include "io/io.h"
+#include "str/str.h"
 
 
 static c8 format_obs_kind(spn_dag_obs_kind_t kind) {
@@ -584,9 +585,8 @@ void spn_dag_store_init(spn_dag_store_t* store, spn_dag_store_config_t config) {
       break;
     }
     case SPN_DAG_STORE_FILESYSTEM: {
-      sp_mem_arena_marker_t s = sp_mem_begin_scratch();
-      sp_fs_create_dir(spn_path_str(store->roots, s.mem, store->dir));
-      sp_mem_end_scratch(s);
+      sp_str_buf_t buf = sp_zero;
+      sp_fs_create_dir(spn_path_str(store->roots, sp_str_buf_as_mem(&buf), store->dir));
       break;
     }
   }
@@ -614,7 +614,8 @@ spn_err_t spn_dag_store_put(spn_dag_store_t* store, const void* data, u64 len, s
       spn_err_t err = SPN_OK;
       sp_str_t blob = get_blob_path(store, s.mem, *digest, name);
       if (!sp_fs_is_file(blob)) {
-        sp_fs_create_dir(spn_path_str(store->roots, s.mem, get_blob_dir(store, s.mem, *digest)));
+        sp_str_buf_t buf = sp_zero;
+        sp_fs_create_dir(spn_path_str(store->roots, sp_str_buf_as_mem(&buf), get_blob_dir(store, s.mem, *digest)));
         if (sp_fs_write_atomic_slice(blob, sp_mem_slice((u8*)data, len)) || sp_fs_set_readonly(blob)) {
           err = SPN_ERR_DAG_STORE_WRITE;
         }
@@ -658,7 +659,8 @@ spn_err_t spn_dag_store_put_file(spn_dag_store_t* store, sp_str_t path, sp_str_t
       spn_err_t err = SPN_OK;
       sp_str_t blob = get_blob_path(store, s.mem, *digest, name);
       if (!sp_fs_is_file(blob)) {
-        sp_fs_create_dir(spn_path_str(store->roots, s.mem, get_blob_dir(store, s.mem, *digest)));
+        sp_str_buf_t buf = sp_zero;
+        sp_fs_create_dir(spn_path_str(store->roots, sp_str_buf_as_mem(&buf), get_blob_dir(store, s.mem, *digest)));
         if (sp_fs_link(path, blob, SP_FS_LINK_HARD) && sp_fs_copy_file(path, blob, SP_FS_ATOMIC_REPLACE)) {
           err = SPN_ERR_DAG_STORE_WRITE;
         }
@@ -682,11 +684,9 @@ spn_err_t spn_dag_store_locate(spn_dag_store_t* store, sp_mem_t mem, spn_dag_dig
       return find_blob(store, digest, &blob) ? SPN_OK : SPN_ERR_DAG_STORE_MISSING;
     }
     case SPN_DAG_STORE_FILESYSTEM: {
-      sp_mem_arena_marker_t s = sp_mem_begin_scratch();
       spn_path_t blob = get_blob(store, mem, digest, name);
-      bool present = sp_fs_is_file(spn_path_str(store->roots, s.mem, blob));
-      sp_mem_end_scratch(s);
-      if (!present) {
+      sp_sys_file_meta_t meta = sp_zero;
+      if (spn_get_path_metadata(store->roots, blob, &meta) || meta.kind != SP_FS_KIND_FILE) {
         return SPN_ERR_DAG_STORE_MISSING;
       }
       *path = blob;
@@ -723,9 +723,9 @@ void spn_dag_store_drop(spn_dag_store_t* store, spn_dag_digest_t digest, sp_str_
       break;
     }
     case SPN_DAG_STORE_FILESYSTEM: {
-      sp_mem_arena_marker_t s = sp_mem_begin_scratch();
-      sp_fs_remove_dir(spn_path_str(store->roots, s.mem, get_blob_dir(store, s.mem, digest)));
-      sp_mem_end_scratch(s);
+      sp_str_buf_t buf = sp_zero;
+      sp_mem_t mem = sp_str_buf_as_mem(&buf);
+      sp_fs_remove_dir(spn_path_str(store->roots, mem, get_blob_dir(store, mem, digest)));
       break;
     }
   }
@@ -818,20 +818,23 @@ spn_err_t spn_dag_store_put_tree(spn_dag_store_t* store, sp_str_t dir, spn_dag_d
   spn_err_t err = SPN_OK;
 
   sp_da(spn_dag_action_output_t) entries = sp_da_new(s.mem, spn_dag_action_output_t);
-  sp_da(sp_fs_entry_t) files = sp_zero;
-  sp_fs_collect_recursive(s.mem, dir, &files);
-  sp_da_for(files, it) {
-    if (files[it].kind == SP_FS_KIND_DIR) {
+  u32 start = dir.len + 1;
+  sp_fs_it_t walk = sp_fs_it_new_recursive(s.mem, dir);
+  while (!err && sp_fs_it_next(&walk)) {
+    if (walk.entry.kind == SP_FS_KIND_DIR) {
       continue;
     }
     spn_dag_action_output_t entry = {
-      .name = sp_str_strip_left(sp_str_strip_left(files[it].path, dir), sp_str_lit("/"))
+      .name = sp_str_copy(s.mem, sp_str_suffix(walk.entry.path, (s32)(walk.entry.path.len - start)))
     };
-    err = spn_dag_store_put_file(store, files[it].path, entry.name, &entry.digest);
-    if (err) {
-      goto done;
+    err = spn_dag_store_put_file(store, walk.entry.path, entry.name, &entry.digest);
+    if (!err) {
+      sp_da_push(entries, entry);
     }
-    sp_da_push(entries, entry);
+  }
+  sp_fs_it_deinit(&walk);
+  if (err) {
+    goto done;
   }
   sp_da_sort(entries, tree_entry_order);
 

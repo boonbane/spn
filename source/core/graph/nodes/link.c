@@ -19,6 +19,7 @@
 #include "graph/build.h"
 #include "graph/nodes/nodes.h"
 #include "unit/package.h"
+#include "str/str.h"
 #include "unit/unit.h"
 
 static spn_err_t emit_link_passed(spn_target_unit_t* unit, spn_invocation_t* invocation, sp_str_t output, sp_str_t out, u64 elapsed) {
@@ -54,7 +55,7 @@ static spn_err_t emit_link_failed(spn_target_unit_t* unit, spn_invocation_t* inv
 static spn_err_t write_rsp(sp_str_t path, sp_str_t content) {
   sp_io_file_writer_t writer = sp_zero;
   if (sp_io_file_writer_from_path(&writer, path) != SP_OK) {
-    return spn_err_emit(&spn, (spn_err_union_t) { .kind = SPN_ERR_FS_WRITE, .fs.path = path });
+    return spn_err_emit(&spn, (spn_err_union_t) { .kind = SPN_ERR_FS_WRITE, .fs.path = sp_str_copy(spn.mem, path) });
   }
   sp_io_write_str(&writer.base, content, SP_NULLPTR);
   sp_io_file_writer_close(&writer);
@@ -62,12 +63,10 @@ static spn_err_t write_rsp(sp_str_t path, sp_str_t content) {
 }
 
 static spn_path_t rsp_path(spn_target_unit_t* target, const c8* name) {
-  sp_mem_arena_marker_t s = sp_mem_begin_scratch();
+  sp_str_buf_t buf = sp_zero;
   spn_path_t dir = spn_target_unit_object_dir(spn.mem, target);
-  sp_fs_create_dir(spn_path_str(&spn.roots, s.mem, dir));
-  spn_path_t path = spn_path_join(spn.mem, dir, sp_cstr_as_str(name));
-  sp_mem_end_scratch(s);
-  return path;
+  sp_fs_create_dir(spn_path_str(&spn.roots, sp_str_buf_as_mem(&buf), dir));
+  return spn_path_join(spn.mem, dir, sp_cstr_as_str(name));
 }
 
 static spn_err_t run_link(spn_target_unit_t* target, spn_invocation_t* invocation, const c8* name, spn_invocation_result_t* run) {
@@ -75,7 +74,10 @@ static spn_err_t run_link(spn_target_unit_t* target, spn_invocation_t* invocatio
     spn_path_t file = rsp_path(target, name);
     spn_rsp_style_t style = spn_rsp_style(target->pkg->build->toolchain->cc.driver);
     spn_rsp_t rsp = spn_rsp_render(spn.mem, &spn.roots, invocation, style, file);
-    spn_try(write_rsp(spn_path_str(&spn.roots, spn.mem, file), rsp.content));
+
+    sp_str_buf_t buf = sp_zero;
+    sp_str_t path = spn_path_str(&spn.roots, sp_str_buf_as_mem(&buf), file);
+    spn_try(write_rsp(path, rsp.content));
     *invocation = rsp.invocation;
   }
   *run = spn_invocation_run(invocation);
@@ -87,7 +89,7 @@ typedef sp_str_ht(u8) spn_symbol_set_t;
 static spn_err_t read_archive_symbols(sp_str_t path, sp_da(sp_str_t)* symbols, spn_symbol_set_t* seen) {
   sp_io_file_reader_t reader = sp_zero;
   if (sp_io_file_reader_from_path(&reader, path)) {
-    return spn_err_emit(&spn, (spn_err_union_t) { .kind = SPN_ERR_FS_READ, .fs.path = path });
+    return spn_err_emit(&spn, (spn_err_union_t) { .kind = SPN_ERR_FS_READ, .fs.path = sp_str_copy(spn.mem, path) });
   }
 
   spn_toc_parser_t toc;
@@ -108,12 +110,12 @@ static spn_err_t read_archive_symbols(sp_str_t path, sp_da(sp_str_t)* symbols, s
 
   sp_io_file_reader_close(&reader);
   if (err) {
-    return spn_err_emit(&spn, (spn_err_union_t) { .kind = err, .fs.path = path });
+    return spn_err_emit(&spn, (spn_err_union_t) { .kind = err, .fs.path = sp_str_copy(spn.mem, path) });
   }
   return SPN_OK;
 }
 
-static spn_err_t link_exports_exec(sp_mem_t scratch, spn_target_unit_t* target, sp_da(spn_path_t) objects, spn_path_t output) {
+static spn_err_t link_exports_exec(sp_mem_t s, spn_target_unit_t* target, sp_da(spn_path_t) objects, spn_path_t output) {
   spn_pkg_unit_t* pkg = target->pkg;
   spn_profile_info_t* profile = &pkg->build->profile;
   spn_cc_toolchain_t* toolchain = &pkg->build->toolchain->cc;
@@ -132,18 +134,22 @@ static spn_err_t link_exports_exec(sp_mem_t scratch, spn_target_unit_t* target, 
     return emit_link_failed(target, invocation, run.result.status.exit_code, run.result.out, run.result.err);
   }
 
+  sp_str_buf_t buf = sp_zero;
   spn_symbol_set_t seen;
-  sp_str_ht_init(scratch, seen);
-  sp_da(sp_str_t) symbols = sp_da_new(scratch, sp_str_t);
-  spn_try(read_archive_symbols(spn_path_str(&spn.roots, scratch, files.output), &symbols, &seen));
+  sp_str_ht_init(s, seen);
+  sp_da(sp_str_t) symbols = sp_da_new(s, sp_str_t);
+
+  // @spader I hate that everything bottoms out in absolute strings
+  spn_try(read_archive_symbols(spn_path_str(&spn.roots, sp_str_buf_as_mem(&buf), files.output), &symbols, &seen));
   sp_da_for(target->link.archives, it) {
-    spn_try(read_archive_symbols(spn_path_str(&spn.roots, scratch, target->link.archives[it]), &symbols, &seen));
+    spn_try(read_archive_symbols(spn_path_str(&spn.roots, sp_str_buf_as_mem(&buf), target->link.archives[it]), &symbols, &seen));
   }
 
-  sp_str_t path = spn_path_str(&spn.roots, scratch, output);
+  sp_str_t path = spn_path_str(&spn.roots, sp_str_buf_as_mem(&buf), output);
   sp_io_file_writer_t writer = sp_zero;
   if (sp_io_file_writer_from_path(&writer, path) != SP_OK) {
-    return spn_err_emit(&spn, (spn_err_union_t) { .kind = SPN_ERR_FS_WRITE, .fs.path = path });
+    // @spader I hate this error. Ultimately useless.
+    return spn_err_emit(&spn, (spn_err_union_t) { .kind = SPN_ERR_FS_WRITE, .fs.path = sp_str_copy(spn.mem, path) });
   }
 
   switch (spn_target_exports_format(target)) {

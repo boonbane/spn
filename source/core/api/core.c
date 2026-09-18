@@ -18,8 +18,10 @@
 #include "error/error.h"
 #include "event/event.h"
 #include "external/wasm/wasm.h"
+#include "glob/glob.h"
 #include "intern/intern.h"
 #include "pkg/id.h"
+#include "str/str.h"
 #include "pkg/mutate.h"
 #include "target/mutate.h"
 #include "pkg/pkg.h"
@@ -180,20 +182,20 @@ void spn_write_file(spn_t* s, const c8* path, const c8* content) {
   }
   SPN_API_LOG(unit, "spn_write_file", "{}", SP_FMT_CSTR(path));
 
-  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  spn_path_t joined = spn_path_join(scratch.mem, unit->paths.work, sp_str_view(path));
-  sp_str_t full_path = spn_path_str(&spn.roots, scratch.mem, joined);
+  sp_str_buf_t buf = sp_zero;
+  sp_mem_t mem = sp_str_buf_as_mem(&buf);
+  spn_path_t joined = spn_path_join(mem, unit->paths.work, sp_str_view(path));
+  sp_str_t full_path = spn_path_str(&spn.roots, mem, joined);
   sp_str_t parent = sp_fs_parent_path(full_path);
   if (!sp_str_empty(parent)) {
     sp_fs_create_dir(parent);
   }
 
   spn_fs_update_file_str(full_path, sp_str_view(content));
-  sp_mem_end_scratch(scratch);
 }
 
 s32 spn_api_copy(sp_str_t from, sp_str_t to) {
-  if (sp_fs_is_glob(from)) {
+  if (!sp_glob_parse_meta(from).literal) {
     return spn_fs_update_glob(from, to);
   }
   if (sp_fs_is_dir(from)) {
@@ -264,7 +266,7 @@ void spn_target_add_source(spn_target_t* target, const c8* source) {
     return;
   }
   sp_da_push(target->info->source, ((spn_source_t) {
-    .kind = spn_source_kind_from_path(sp_cstr_as_str(source)),
+    .kind = sp_glob_parse_meta(sp_cstr_as_str(source)).literal ? SPN_SOURCE_FILE : SPN_SOURCE_GLOB,
     .path = made,
   }));
 }

@@ -5,6 +5,7 @@
 #include "manifest.gen.h"
 #include "paths/paths.h"
 #include "enum/enum.h"
+#include "glob/glob.h"
 #include "git/patch.h"
 #include "semver/convert.h"
 #include "semver/parser.h"
@@ -91,7 +92,7 @@ static sp_da(spn_gated_source_t) lower_gated_sources(spn_toml_loader_t* ctx, sp_
       continue;
     }
     sp_da_push(values, ((spn_gated_source_t) {
-      .kind = spn_source_kind_from_path(entries[it].path),
+      .kind = sp_glob_parse_meta(entries[it].path).literal ? SPN_SOURCE_FILE : SPN_SOURCE_GLOB,
       .path = entries[it].path,
       .tree = sp_opt_is_null(entries[it].tree) ? SPN_TREE_SOURCE : sp_opt_get(entries[it].tree),
       .when = entries[it].when,

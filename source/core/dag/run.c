@@ -6,9 +6,11 @@
 #include "thread_pool/thread_pool.h"
 #include "hash/digest/digest.h"
 #include "sp.h"
+#include "macro/macro.h"
 #include "spn/core.h"
 #include "fs/fs.h"
 #include "sp/sp_glob.h"
+#include "str/str.h"
 
 
 static bool is_timespec_equal(sp_sys_timespec_t a, sp_sys_timespec_t b) {
@@ -115,11 +117,8 @@ spn_err_t spn_dag_file_cache_stat(spn_dag_file_cache_t* c, spn_path_t path, sp_s
   if (c->stats) {
     sp_atomic_u32_add(&c->stats->stats, 1, SP_ATOMIC_RELAXED);
   }
-  sp_mem_arena_marker_t s = sp_mem_begin_scratch();
   sp_sys_file_meta_t sys = sp_zero;
-  sp_err_t rc = sp_sys_get_path_metadata_s(sp_sys_get_root(0), spn_path_str(c->roots, s.mem, path), &sys);
-  sp_mem_end_scratch(s);
-  if (rc) {
+  if (spn_get_path_metadata(c->roots, path, &sys)) {
     return SPN_ERR_DAG_STAT;
   }
 
@@ -175,11 +174,9 @@ spn_err_t spn_dag_file_cache_digest(spn_dag_file_cache_t* c, spn_path_t path, sp
   sp_mutex_unlock(&c->mutex);
   spn_try(admitted);
 
-  sp_mem_arena_marker_t s = sp_mem_begin_scratch();
+  sp_str_buf_t buf = sp_zero;
   u64 size = 0;
-  spn_err_t err = spn_digest_file(SPN_DIGEST_BLAKE3, spn_path_str(c->roots, s.mem, path), digest->bytes, &size);
-  sp_mem_end_scratch(s);
-  spn_try(err);
+  spn_try(spn_digest_file(SPN_DIGEST_BLAKE3, spn_path_str(c->roots, sp_str_buf_as_mem(&buf), path), digest->bytes, &size));
   if (c->stats) {
     sp_atomic_u32_add(&c->stats->hashed_files, 1, SP_ATOMIC_RELAXED);
     sp_atomic_u64_add(&c->stats->hashed_bytes, size, SP_ATOMIC_RELAXED);
@@ -298,10 +295,8 @@ static target_state_t target_state(spn_dag_env_t* env, spn_path_t path, sp_str_t
 }
 
 static spn_err_t link_target(spn_dag_env_t* env, spn_path_t path, sp_str_t name, spn_dag_digest_t digest) {
-  sp_mem_arena_marker_t s = sp_mem_begin_scratch();
-  spn_err_t err = spn_dag_store_materialize(env->store, digest, name, spn_path_str(env->files->roots, s.mem, path));
-  sp_mem_end_scratch(s);
-  spn_try(err);
+  sp_str_buf_t buf = sp_zero;
+  spn_try(spn_dag_store_materialize(env->store, digest, name, spn_path_str(env->files->roots, sp_str_buf_as_mem(&buf), path)));
   return spn_dag_file_cache_seed(env->files, path, digest);
 }
 
@@ -321,19 +316,40 @@ static spn_err_t settle_tree(spn_dag_t* g, spn_dag_action_t* action, spn_dag_art
   }
 
   sp_str_t dir = spn_path_str(g->roots, s.mem, artifact->path);
-  bool exists = sp_fs_is_dir(dir);
-  sp_da(sp_fs_entry_t) present = sp_zero;
+  sp_sys_file_meta_t meta = sp_zero;
+  bool exists = !spn_get_path_metadata(g->roots, artifact->path, &meta) && meta.kind == SP_FS_KIND_DIR;
+  sp_da(sp_fs_entry_t) extra = sp_da_new(s.mem, sp_fs_entry_t);
   sp_da(u32) stale = sp_da_new(s.mem, u32);
   sp_da(u32) poisoned = sp_da_new(s.mem, u32);
   u64 files = 0;
   if (exists) {
-    if (sp_fs_collect_recursive(s.mem, dir, &present)) {
+    sp_str_ht(bool) keep_files = SP_NULLPTR;
+    sp_str_ht(bool) keep_dirs = SP_NULLPTR;
+    sp_str_ht_init(s.mem, keep_files);
+    sp_str_ht_init(s.mem, keep_dirs);
+    sp_da_for(entries, it) {
+      sp_str_ht_insert(keep_files, entries[it].name, true);
+      for (sp_str_t parent = sp_fs_parent_path(entries[it].name); !sp_str_empty(parent); parent = sp_fs_parent_path(parent)) {
+        sp_str_ht_insert(keep_dirs, parent, true);
+      }
+    }
+
+    sp_fs_it_t walk = sp_fs_it_new_recursive(s.mem, dir);
+    while (sp_fs_it_next(&walk)) {
+      sp_fs_entry_t entry = walk.entry;
+      sp_str_t name = sp_str_suffix(entry.path, (s32)(entry.path.len - dir.len - 1));
+      files += entry.kind != SP_FS_KIND_DIR;
+      if (entry.kind == SP_FS_KIND_DIR ? sp_str_ht_exists(keep_dirs, name) : sp_str_ht_exists(keep_files, name)) {
+        continue;
+      }
+      sp_str_t path = sp_str_copy(s.mem, entry.path);
+      sp_da_push(extra, ((sp_fs_entry_t) { .path = path, .name = sp_str_suffix(path, (s32)entry.name.len), .kind = entry.kind }));
+    }
+    sp_fs_it_deinit(&walk);
+    if (walk.err) {
       err = SPN_ERR_DAG_STORE_READ;
       diag_set(diag, err, action->id, dir);
       goto done;
-    }
-    sp_da_for(present, it) {
-      files += present[it].kind != SP_FS_KIND_DIR;
     }
     sp_da_for(entries, it) {
       switch (target_state(env, paths[it], entries[it].name, entries[it].digest)) {
@@ -369,43 +385,15 @@ static spn_err_t settle_tree(spn_dag_t* g, spn_dag_action_t* action, spn_dag_art
     goto done;
   }
 
-  sp_str_ht(bool) keep_files = SP_NULLPTR;
-  sp_str_ht(bool) keep_dirs = SP_NULLPTR;
-  sp_str_ht_init(s.mem, keep_files);
-  sp_str_ht_init(s.mem, keep_dirs);
-  sp_da_for(entries, it) {
-    sp_str_ht_insert(keep_files, entries[it].name, true);
-    for (sp_str_t parent = sp_fs_parent_path(entries[it].name); !sp_str_empty(parent); parent = sp_fs_parent_path(parent)) {
-      sp_str_ht_insert(keep_dirs, parent, true);
-    }
-  }
-  sp_da_rfor(present, it) {
-    sp_fs_entry_t* entry = &present[it];
-    sp_str_t name = sp_str_strip_left(sp_str_strip_left(entry->path, dir), sp_str_lit("/"));
-    sp_err_t removed = SP_OK;
-    switch (entry->kind) {
-      case SP_FS_KIND_DIR: {
-        if (sp_str_ht_get(keep_dirs, name)) {
-          continue;
-        }
-        removed = sp_fs_remove_dir(entry->path);
-        break;
-      }
-      case SP_FS_KIND_FILE:
-      case SP_FS_KIND_SYMLINK:
-      case SP_FS_KIND_NONE: {
-        if (sp_str_ht_get(keep_files, name)) {
-          continue;
-        }
-        removed = sp_fs_remove_file(entry->path);
-        break;
-      }
-    }
+  sp_da_rfor(extra, it) {
+    sp_fs_entry_t* entry = &extra[it];
+    sp_err_t removed = entry->kind == SP_FS_KIND_DIR ? sp_fs_remove_dir(entry->path) : sp_fs_remove_file(entry->path);
     if (removed) {
       err = SPN_ERR_DAG_STORE_WRITE;
       diag_set(diag, err, action->id, entry->path);
       goto done;
     }
+    sp_str_t name = sp_str_suffix(entry->path, (s32)(entry->path.len - dir.len - 1));
     spn_dag_file_cache_invalidate(env->files, spn_path_join(s.mem, artifact->path, name));
   }
 
@@ -558,14 +546,14 @@ static spn_err_t membership_digest(sp_str_t dir, sp_str_t filter, spn_dag_digest
   }
 
   sp_da(sp_fs_entry_t) members = sp_da_new(s.mem, sp_fs_entry_t);
-  sp_da(sp_fs_entry_t) entries = sp_zero;
-  sp_fs_collect(s.mem, dir, &entries);
-  sp_da_for(entries, it) {
-    if (entries[it].kind != SP_FS_KIND_DIR && glob && !sp_glob_match(glob, entries[it].name)) {
+  sp_fs_it_t walk = sp_fs_it_new(s.mem, dir);
+  while (sp_fs_it_next(&walk)) {
+    if (walk.entry.kind != SP_FS_KIND_DIR && glob && !sp_glob_match(glob, walk.entry.name)) {
       continue;
     }
-    sp_da_push(members, entries[it]);
+    sp_da_push(members, ((sp_fs_entry_t) { .name = sp_str_copy(s.mem, walk.entry.name), .kind = walk.entry.kind }));
   }
+  sp_fs_it_deinit(&walk);
   sp_da_sort(members, member_order);
 
   spn_digest_ctx_t ctx = sp_zero;
@@ -591,7 +579,7 @@ static spn_err_t resolve_one(spn_dag_file_cache_t* files, const spn_dag_obs_t* o
     }
     case SPN_DAG_OBS_ABSENT: {
       sp_sys_file_meta_t sys = sp_zero;
-      sp_err_t rc = sp_sys_get_path_metadata_s(sp_sys_get_root(0), spn_path_str(files->roots, mem, o->path), &sys);
+      sp_err_t rc = spn_get_path_metadata(files->roots, o->path, &sys);
       if (rc == SP_ERR_SYS_NOT_FOUND) {
         return SPN_OK;
       }
@@ -658,9 +646,9 @@ static spn_path_t scratch_dir(sp_mem_t mem, spn_dag_env_t* env, spn_dag_action_t
 }
 
 static void attempt_discard(spn_dag_t* g, spn_dag_env_t* env, spn_dag_attempt_t* attempt) {
-  sp_mem_arena_marker_t s = sp_mem_begin_scratch();
-  sp_fs_remove_dir(spn_path_str(g->roots, s.mem, scratch_dir(s.mem, env, attempt->action)));
-  sp_mem_end_scratch(s);
+  sp_str_buf_t buf = sp_zero;
+  sp_mem_t mem = sp_str_buf_as_mem(&buf);
+  sp_fs_remove_dir(spn_path_str(g->roots, mem, scratch_dir(mem, env, attempt->action)));
 }
 
 static void diag_flush(spn_dag_env_t* env, spn_dag_attempt_t* attempt, spn_err_t err) {
@@ -1190,7 +1178,8 @@ spn_err_t spn_dag_run_executor(spn_dag_t* g, spn_dag_env_t* env, spn_thread_pool
   sp_mem_arena_marker_t s = sp_mem_begin_scratch();
   env->diag = (spn_dag_diag_t) sp_zero;
 
-  sp_str_t scratch = spn_path_str(g->roots, s.mem, spn_path_join(s.mem, env->scratch, sp_str_lit("scratch")));
+  sp_str_buf_t buf = sp_zero;
+  sp_str_t scratch = spn_path_str(g->roots, sp_str_buf_as_mem(&buf), spn_path_join(s.mem, env->scratch, sp_str_lit("scratch")));
   sp_fs_create_dir(scratch);
   spn_dag_run_t run = {
     .g = g,

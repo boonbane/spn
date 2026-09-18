@@ -56,16 +56,13 @@ spn_err_t spn_fs_update_glob(sp_str_t from, sp_str_t to) {
   sp_glob_set_add(glob, sp_str_to_cstr(s.mem, sp_fs_get_name(from)));
   sp_glob_set_build(glob);
 
-  sp_da(sp_fs_entry_t) entries = sp_zero;
-  if (sp_fs_collect(s.mem, sp_fs_parent_path(from), &entries) || sp_fs_create_dir(to)) {
+  sp_fs_it_t walk = sp_fs_it_new(s.mem, sp_fs_parent_path(from));
+  if (walk.err || sp_fs_create_dir(to)) {
     err = SPN_ERROR;
   }
 
-  sp_da_for(entries, it) {
-    sp_fs_entry_t* entry = &entries[it];
-    if (err) {
-      break;
-    }
+  while (!err && sp_fs_it_next(&walk)) {
+    sp_fs_entry_t* entry = &walk.entry;
     if (!sp_glob_set_match(glob, entry->name)) {
       continue;
     }
@@ -87,6 +84,10 @@ spn_err_t spn_fs_update_glob(sp_str_t from, sp_str_t to) {
         break;
       }
     }
+  }
+  sp_fs_it_deinit(&walk);
+  if (walk.err) {
+    err = SPN_ERROR;
   }
 
   sp_mem_end_scratch(s);

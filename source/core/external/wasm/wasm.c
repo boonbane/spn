@@ -14,6 +14,7 @@
 #include "dag/dag.h"
 #include "dag/wasi.h"
 #include "paths/paths.h"
+#include "str/str.h"
 
 #define SPN_WASM_STACK_SIZE (8 * 1024 * 1024)
 #define SPN_WASM_HEAP_SIZE  (16 * 1024 * 1024)
@@ -91,12 +92,11 @@ static spn_err_t script_open(spn_wasm_script_t* script, spn_pkg_unit_t* unit) {
   const spn_path_roots_t* roots = &spn.roots;
   sp_str_t work = spn_path_str(roots, spn.mem, unit->paths.work);
   sp_str_t store = spn_path_str(roots, spn.mem, unit->paths.store);
-  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+  sp_str_buf_t buf = sp_zero;
   spn_path_t dirs [] = { unit->paths.work, unit->paths.lib, unit->paths.bin, unit->paths.vendor };
   sp_carr_for(dirs, it) {
-    sp_fs_create_dir(spn_path_str(roots, scratch.mem, dirs[it]));
+    sp_fs_create_dir(spn_path_str(roots, sp_str_buf_as_mem(&buf), dirs[it]));
   }
-  sp_mem_end_scratch(scratch);
   sp_str_t source = spn_path_str(roots, spn.mem, unit->paths.roots.source);
   sp_str_t manifest = spn_path_str(roots, spn.mem, unit->paths.roots.recipe);
   script->preopens = (spn_wasm_preopens_t) {

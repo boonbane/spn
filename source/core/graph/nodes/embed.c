@@ -10,6 +10,7 @@
 #include "intern/intern.h"
 #include "graph/build.h"
 #include "paths/paths.h"
+#include "str/str.h"
 #include "triple/triple.h"
 #include "unit/package.h"
 #include "unit/unit.h"
@@ -47,13 +48,14 @@ s32 spn_embed_write(spn_target_unit_t* unit, spn_path_t object, spn_path_t heade
     switch (embed.kind) {
       case SPN_EMBED_FILE: {
         spn_dag_observe(obs, (spn_dag_obs_t) { .kind = SPN_DAG_OBS_FILE, .path = embed.path });
-        sp_str_t file = spn_path_str(&spn.roots, embedder.mem, embed.path);
+        sp_str_buf_t buf = sp_zero;
+        sp_str_t file = spn_path_str(&spn.roots, sp_str_buf_as_mem(&buf), embed.path);
         sp_str_t content = sp_zero;
         if (sp_io_read_file(embedder.mem, file, &content) != SP_OK) {
           spn_event_buffer_push(spn.events, (spn_event_t) {
             .kind = SPN_EVENT_EMBED_FAILED,
             .pkg = unit->pkg->info->name,
-            .embed_failed = { .target = info->name, .path = file, .error = sp_str_lit("file not found") },
+            .embed_failed = { .target = info->name, .path = sp_str_copy(spn.mem, file), .error = sp_str_lit("file not found") },
           });
           return SPN_ERROR;
         }
@@ -71,25 +73,28 @@ s32 spn_embed_write(spn_target_unit_t* unit, spn_path_t object, spn_path_t heade
       case SPN_EMBED_DIR: {
         sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
         spn_path_t root = embed.path;
-        sp_str_t dir = spn_path_str(&spn.roots, scratch.mem, root);
+        sp_str_buf_t buf = sp_zero;
+        sp_str_t dir = spn_path_str(&spn.roots, sp_str_buf_as_mem(&buf), root);
         spn_dag_observe(obs, (spn_dag_obs_t) { .kind = SPN_DAG_OBS_ENUMERATION, .path = root });
-        sp_da(sp_fs_entry_t) entries = sp_zero;
-        sp_fs_collect_recursive(scratch.mem, dir, &entries);
-        sp_da_for(entries, e) {
-          sp_str_t rel = sp_str_suffix(entries[e].path, entries[e].path.len - dir.len - 1);
-          if (entries[e].kind == SP_FS_KIND_DIR) {
+        u32 start = dir.len + 1;
+        sp_fs_it_t walk = sp_fs_it_new_recursive(scratch.mem, dir);
+        while (sp_fs_it_next(&walk)) {
+          sp_fs_entry_t entry = walk.entry;
+          sp_str_t rel = sp_str_suffix(entry.path, (s32)(entry.path.len - start));
+          if (entry.kind == SP_FS_KIND_DIR) {
             spn_dag_observe(obs, (spn_dag_obs_t) { .kind = SPN_DAG_OBS_ENUMERATION, .path = spn_path_join(scratch.mem, root, rel) });
             continue;
           }
-          if (!sp_fs_is_file(entries[e].path)) continue;
+          if (!sp_fs_is_file(entry.path)) continue;
           spn_dag_observe(obs, (spn_dag_obs_t) { .kind = SPN_DAG_OBS_FILE, .path = spn_path_join(scratch.mem, root, rel) });
           sp_str_t content = sp_zero;
-          if (sp_io_read_file(embedder.mem, entries[e].path, &content) != SP_OK) {
+          if (sp_io_read_file(embedder.mem, entry.path, &content) != SP_OK) {
             spn_event_buffer_push(spn.events, (spn_event_t) {
               .kind = SPN_EVENT_EMBED_FAILED,
               .pkg = unit->pkg->info->name,
-              .embed_failed = { .target = info->name, .path = sp_str_copy(spn.mem, entries[e].path), .error = sp_str_lit("file not found") },
+              .embed_failed = { .target = info->name, .path = sp_str_copy(spn.mem, entry.path), .error = sp_str_lit("file not found") },
             });
+            sp_fs_it_deinit(&walk);
             sp_mem_end_scratch(scratch);
             return SPN_ERROR;
           }
@@ -101,6 +106,7 @@ s32 spn_embed_write(spn_target_unit_t* unit, spn_path_t object, spn_path_t heade
           sp_str_t dest = sp_fs_join_path(scratch.mem, embed.dest, rel);
           spn_cc_embed_ctx_add(&embedder, entry_data, spn_cc_symbol_from_embedded_file(scratch.mem, dest), dest, types.data, types.size);
         }
+        sp_fs_it_deinit(&walk);
         sp_mem_end_scratch(scratch);
         break;
       }
