@@ -127,11 +127,19 @@ else ifeq ($(OS),Windows_NT)
   SELFHOST_PROFILES := msvc mingw
 endif
 
-STAGE0 = $(shell sh $(ROOT)/tools/stage0.sh)
+ifdef SPN_STAGE0
+  ifeq ($(OS),Windows_NT)
+    STAGE0 := $(shell cygpath -m "$(SPN_STAGE0)" 2>/dev/null || echo "$(SPN_STAGE0)")
+  else
+    STAGE0 := $(SPN_STAGE0)
+  endif
+else
+  STAGE0 := $(BIN)
+endif
 
 .PHONY: stage0 ci-selfhost
 stage0:
-	@sh $(ROOT)/tools/stage0.sh
+	@test -x "$(STAGE0)" || { echo "stage0: $(STAGE0) is missing; run make to bootstrap it or set SPN_STAGE0" >&2; exit 1; }
 
 ci-selfhost: export SPN_CONFIG_DIR := $(BUILD)/ci-config
 ci-selfhost: stage0 $(addprefix selfhost-,$(SELFHOST_PROFILES))
