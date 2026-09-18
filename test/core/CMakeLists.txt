@@ -33,7 +33,6 @@ add_executable(core
   compiler/exports/render.c
   compiler/flags.c
   compiler/link.c
-  compiler/rsp/cmdline.c
   compiler/rsp/gnu.c
   compiler/rsp/style.c
   compiler/rsp/windows.c

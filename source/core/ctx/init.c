@@ -173,6 +173,7 @@ static spn_err_t open_ctx(spn_ctx_t* ctx, spn_open_request_t request) {
   spn_probe_cache_load(&ctx->caches.toolchains.probes, join_path(ctx, ctx->paths.toolchain, "probe.cache"), ctx->mem);
 
   spn_try(extract_runtime(ctx));
+  spn_path_roots_set(&ctx->roots, ctx->heap, SPN_PATH_ROOT_RUNTIME, ctx->paths.runtime);
 
   spn_event_buffer_push(ctx->events, (spn_event_t) {
     .kind = SPN_EVENT_OPEN,
@@ -278,7 +279,6 @@ spn_ctx_t* spn_ctx_new(spn_wake_fn_t wake, void* wake_data) {
   spn_path_roots_set(&ctx->roots, ctx->heap, SPN_PATH_ROOT_BUILD, ctx->paths.caches.build.dir);
   spn_path_roots_set(&ctx->roots, ctx->heap, SPN_PATH_ROOT_CHECKOUT, ctx->paths.caches.git.checkouts);
   spn_path_roots_set(&ctx->roots, ctx->heap, SPN_PATH_ROOT_INDEX, ctx->paths.index);
-  spn_path_roots_set(&ctx->roots, ctx->heap, SPN_PATH_ROOT_RUNTIME, ctx->paths.runtime);
   ctx->paths.toolchain = spn_path_roots_set(&ctx->roots, ctx->heap, SPN_PATH_ROOT_TOOLCHAIN, env_or(ctx, "SPN_TOOLCHAIN_DIR", join_path(ctx, ctx->paths.caches.dir, "toolchain")));
 
   spn_toolchain_catalog_init(&ctx->catalog, ctx->host, spn_sdk_detect(ctx->heap, &ctx->roots, ctx->env, ctx->host), ctx->heap);
@@ -335,4 +335,5 @@ void spn_ctx_close(spn_ctx_t* ctx, bool ok) {
   ctx->session = SP_NULLPTR;
 
   spn_lazy_log_close(&ctx->events->log);
+  spn_path_roots_close(&ctx->roots);
 }

@@ -19,7 +19,8 @@ typedef enum {
 } spn_unit_scope_t;
 spn_err_t spn_units_add_targets(spn_session_t* session, spn_unit_scope_t scope);
 
-spn_err_t spn_target_link_invocation(sp_mem_t mem, spn_target_unit_t* target, const spn_cc_link_files_t* files, spn_invocation_t* invocation);
+spn_invocation_t spn_target_archive_invocation(sp_mem_t mem, spn_target_unit_t* target, const spn_cc_archive_files_t* files);
+spn_invocation_t spn_target_link_invocation(sp_mem_t mem, spn_target_unit_t* target, const spn_cc_link_files_t* files);
 
 sp_da(spn_closure_entry_t) spn_target_link_closure(sp_mem_t mem, spn_target_unit_t* root);
 sp_da(spn_target_unit_t*)  spn_target_runtime_libs(sp_mem_t mem, spn_target_unit_t* root);
@@ -27,7 +28,6 @@ sp_da(spn_link_lib_t)      spn_closure_get_linked_libs(sp_mem_t mem, sp_da(spn_c
 bool spn_dep_kind_applies(spn_dep_kind_t dep, spn_target_kind_t target);
 
 void spn_unit_paths_init(spn_pkg_unit_t* unit, spn_loaded_pkg_t* loaded);
-spn_path_t spn_target_unit_object_dir(sp_mem_t mem, spn_target_unit_t* target);
 sp_da(spn_compile_unit_t*) spn_pkg_unit_objects(sp_mem_t mem, spn_pkg_unit_t* unit);
 
 // A script host exists in the metaprogram build only to compile its package's

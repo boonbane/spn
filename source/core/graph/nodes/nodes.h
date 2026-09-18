@@ -9,9 +9,30 @@
 #include "core/types.h"
 #include "unit/types.h"
 
-s32 spn_compile_object_run(spn_compile_unit_t* unit, spn_path_t object, spn_path_t depfile);
-spn_err_t spn_link_target(spn_target_unit_t* target, spn_cc_link_files_t files);
-spn_err_t spn_link_exports_run(spn_target_unit_t* target, sp_da(spn_path_t) objects, spn_path_t output);
-s32 spn_embed_write(spn_target_unit_t* unit, spn_path_t obj, spn_path_t hdr, spn_dag_obs_set_t* obs);
+typedef struct {
+  spn_target_unit_t* target;
+  spn_cc_archive_files_t files;
+} spn_dag_archive_ctx_t;
+
+typedef struct {
+  spn_target_unit_t* target;
+  spn_cc_link_files_t files;
+} spn_dag_link_ctx_t;
+
+typedef struct {
+  spn_rsp_style_t style;
+  sp_da(spn_arg_t) args;
+} spn_dag_rsp_ctx_t;
+
+spn_err_t on_compile_object(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs);
+spn_err_t on_archive_target(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs);
+spn_err_t on_link_target(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs);
+spn_err_t on_render_exports(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs);
+spn_err_t on_render_rsp(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs);
+spn_err_t on_build_embedding(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs);
+spn_err_t spn_dag_exec_user(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs);
+spn_err_t on_publish_tree(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs);
+spn_err_t on_render_compdb(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs);
+spn_err_t spn_dag_exec_compile_commands_merge(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs);
 
 #endif

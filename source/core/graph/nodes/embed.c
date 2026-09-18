@@ -9,13 +9,17 @@
 #include "event/event.h"
 #include "intern/intern.h"
 #include "graph/build.h"
+#include "graph/nodes/nodes.h"
 #include "paths/paths.h"
 #include "str/str.h"
 #include "triple/triple.h"
 #include "unit/package.h"
 #include "unit/unit.h"
 
-s32 spn_embed_write(spn_target_unit_t* unit, spn_path_t object, spn_path_t header, spn_dag_obs_set_t* obs) {
+spn_err_t on_build_embedding(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs) {
+  spn_target_unit_t* unit = (spn_target_unit_t*)user_data;
+  spn_path_t object = outputs[0];
+  spn_path_t header = outputs[1];
   spn_target_info_t* info = unit->info;
   sp_str_t obj = spn_path_str(&spn.roots, spn.mem, object);
   sp_str_t hdr = spn_path_str(&spn.roots, spn.mem, header);
@@ -57,7 +61,7 @@ s32 spn_embed_write(spn_target_unit_t* unit, spn_path_t object, spn_path_t heade
             .pkg = unit->pkg->info->name,
             .embed_failed = { .target = info->name, .path = sp_str_copy(spn.mem, file), .error = sp_str_lit("file not found") },
           });
-          return SPN_ERROR;
+          return SPN_ERR_DAG_ACTION;
         }
 
         sp_mem_buffer_t data = {
@@ -96,7 +100,7 @@ s32 spn_embed_write(spn_target_unit_t* unit, spn_path_t object, spn_path_t heade
             });
             sp_fs_it_deinit(&walk);
             sp_mem_end_scratch(scratch);
-            return SPN_ERROR;
+            return SPN_ERR_DAG_ACTION;
           }
           sp_mem_buffer_t entry_data = {
             .data = (u8*)(uintptr_t)content.data,
@@ -121,7 +125,7 @@ s32 spn_embed_write(spn_target_unit_t* unit, spn_path_t object, spn_path_t heade
       .pkg = unit->pkg->info->name,
       .embed_failed = { .target = info->name, .error = sp_str_lit("embed write failed") },
     });
-    return SPN_ERROR;
+    return SPN_ERR_DAG_ACTION;
   }
 
   u64 elapsed = sp_tm_read_timer(&timer);
