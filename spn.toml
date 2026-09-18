@@ -102,6 +102,7 @@ source = ["source/cli/**/*.c"]
 include = ["include", "source/cli", "source/util"] # @spader removed the core include
 deps = ["spn"]
 flags = []
+embed = [{ path = "docs/content", dir = true, dest = "docs" }]
 
 [[script]]
 name = "installer"

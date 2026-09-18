@@ -10,6 +10,7 @@ set(SPN_SOURCES
   cli/commands/build.c
   cli/commands/clean.c
   cli/commands/commands.c
+  cli/commands/docs.c
   cli/commands/index.c
   cli/commands/init.c
   cli/commands/profile.c

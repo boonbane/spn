@@ -10,6 +10,7 @@ extern sp_cli_cmd_t spn_cmd_test;
 extern sp_cli_cmd_t spn_cmd_publish;
 extern sp_cli_cmd_t spn_cmd_index;
 extern sp_cli_cmd_t spn_cmd_self;
+extern sp_cli_cmd_t spn_cmd_docs;
 
 static sp_cli_cmd_t root = {
   .name = "spn",
@@ -82,6 +83,7 @@ static sp_cli_cmd_t root = {
     &spn_cmd_publish,
     &spn_cmd_index,
     &spn_cmd_self,
+    &spn_cmd_docs,
   },
 };
 
