@@ -45,6 +45,9 @@ sp_str_t            spn_dag_digest_hex(sp_mem_t mem, spn_dag_digest_t digest);
 bool                spn_dag_digest_parse(sp_str_t hex, spn_dag_digest_t* out);
 
 spn_err_t           spn_dag_glob(sp_mem_t mem, const spn_path_roots_t* roots, spn_path_t pattern, spn_dag_glob_result_t* result);
+spn_dag_glob_it_t   spn_dag_glob_it_new(sp_mem_t mem, const spn_path_roots_t* roots, spn_path_t pattern);
+bool                spn_dag_glob_it_next(spn_dag_glob_it_t* it);
+void                spn_dag_glob_it_deinit(spn_dag_glob_it_t* it);
 
 void                spn_dag_store_init(spn_dag_store_t* store, spn_dag_store_config_t config);
 spn_err_t           spn_dag_store_put(spn_dag_store_t* store, const void* data, u64 len, sp_str_t name, spn_dag_digest_t* digest);
@@ -64,7 +67,8 @@ bool                spn_dag_action_cache_remove(spn_dag_action_cache_t* c, spn_d
 
 void                spn_dag_obs_table_init(spn_dag_obs_table_t* t, sp_mem_t mem, const spn_path_roots_t* roots, sp_str_t dir);
 bool                spn_dag_obs_table_get(spn_dag_obs_table_t* t, spn_dag_digest_t key, spn_dag_pathset_t* set);
-spn_dag_pathset_t   spn_dag_obs_table_put(spn_dag_obs_table_t* t, spn_dag_digest_t key, const spn_dag_obs_t* obs, u32 count);
+void                spn_dag_observe(spn_dag_obs_set_t* set, spn_dag_obs_t obs);
+spn_dag_pathset_t   spn_dag_obs_set_put(spn_dag_obs_set_t* set, spn_dag_digest_t key);
 
 void                spn_dag_file_cache_init(spn_dag_file_cache_t* c, sp_mem_t mem, const spn_path_roots_t* roots);
 void                spn_dag_file_cache_fence(spn_dag_file_cache_t* c, sp_sys_timespec_t fence);

@@ -14,11 +14,14 @@
 #include "target/types.h"
 #include "unit/types.h"
 
+#include "enum/enum.h"
 #include "error/error.h"
 #include "event/event.h"
 #include "external/wasm/wasm.h"
+#include "glob/glob.h"
 #include "intern/intern.h"
 #include "pkg/id.h"
+#include "str/str.h"
 #include "pkg/mutate.h"
 #include "target/mutate.h"
 #include "pkg/pkg.h"
@@ -81,7 +84,7 @@ static spn_path_t api_path(spn_pkg_unit_t* unit, const c8* fn, const c8* path) {
   if (spn_path_empty(made)) {
     return made;
   }
-  return spn_path_canonicalize(spn.mem, &spn.roots, made);
+  return made;
 }
 
 static spn_target_t* wrap(spn_pkg_unit_t* unit, spn_target_info_t* info) {
@@ -179,20 +182,20 @@ void spn_write_file(spn_t* s, const c8* path, const c8* content) {
   }
   SPN_API_LOG(unit, "spn_write_file", "{}", SP_FMT_CSTR(path));
 
-  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  spn_path_t joined = spn_path_join(scratch.mem, unit->paths.work, sp_str_view(path));
-  sp_str_t full_path = spn_path_str(&spn.roots, scratch.mem, joined);
+  sp_str_buf_t buf = sp_zero;
+  sp_mem_t mem = sp_str_buf_as_mem(&buf);
+  spn_path_t joined = spn_path_join(mem, unit->paths.work, sp_str_view(path));
+  sp_str_t full_path = spn_path_str(&spn.roots, mem, joined);
   sp_str_t parent = sp_fs_parent_path(full_path);
   if (!sp_str_empty(parent)) {
     sp_fs_create_dir(parent);
   }
 
   spn_fs_update_file_str(full_path, sp_str_view(content));
-  sp_mem_end_scratch(scratch);
 }
 
 s32 spn_api_copy(sp_str_t from, sp_str_t to) {
-  if (sp_fs_is_glob(from)) {
+  if (!sp_glob_parse_meta(from).literal) {
     return spn_fs_update_glob(from, to);
   }
   if (sp_fs_is_dir(from)) {
@@ -262,7 +265,10 @@ void spn_target_add_source(spn_target_t* target, const c8* source) {
   if (spn_path_empty(made)) {
     return;
   }
-  sp_da_push(target->info->source, made);
+  sp_da_push(target->info->source, ((spn_source_t) {
+    .kind = sp_glob_parse_meta(sp_cstr_as_str(source)).literal ? SPN_SOURCE_FILE : SPN_SOURCE_GLOB,
+    .path = made,
+  }));
 }
 
 void spn_target_add_include(spn_target_t* target, const c8* include) {
@@ -275,6 +281,30 @@ void spn_target_add_include(spn_target_t* target, const c8* include) {
 
 void spn_target_add_define(spn_target_t* target, const c8* define) {
   sp_da_push(target->info->define, spn_intern_cstr(define));
+}
+
+void spn_target_add_define_path(spn_target_t* target, const c8* name, spn_dir_t dir, const c8* path) {
+  spn_pkg_unit_t* unit = target->unit;
+  if (spn_api_path_rejected(unit, "spn_target_add_define_path", sp_str_view(path))) {
+    return;
+  }
+  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+  spn_path_t joined = spn_path_join(scratch.mem, spn_api_dir_path(unit, dir), sp_str_view(path));
+  spn_path_rel_t rel = spn_path_within(unit->session->paths.root, joined);
+  if (rel.within) {
+    sp_da_push(target->info->define, spn_intern(sp_fmt(scratch.mem, "{}=\"{}\"", SP_FMT_CSTR(name), SP_FMT_STR(rel.sub)).value));
+  }
+  else {
+    sp_str_t full = spn_path_str(&spn.roots, scratch.mem, joined);
+    sp_str_t message = sp_fmt(scratch.mem, "spn_target_add_define_path: {} is not inside the project", SP_FMT_STR(full)).value;
+    if (!spn_wasm_trap_active(unit, message)) {
+      spn_err_emit(unit->session->ctx, (spn_err_union_t) {
+        .kind = SPN_ERR_PATH_OUTSIDE_PROJECT,
+        .fs = { .path = sp_str_copy(spn.mem, full) },
+      });
+    }
+  }
+  sp_mem_end_scratch(scratch);
 }
 
 void spn_target_add_flag(spn_target_t* target, const c8* flag) {

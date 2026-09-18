@@ -28,6 +28,20 @@ sp_da(spn_path_t) test_path_list(sp_mem_t mem, spn_tree_roots_t trees, const c8*
   return list;
 }
 
+sp_da(spn_source_t) test_source_list(sp_mem_t mem, spn_tree_roots_t trees, const c8* const* items, u32 max) {
+  sp_da(spn_source_t) list = sp_da_new(mem, spn_source_t);
+  sp_for(it, max) {
+    if (!items[it]) {
+      break;
+    }
+    sp_da_push(list, ((spn_source_t) {
+      .kind = SPN_SOURCE_FILE,
+      .path = spn_tree_path(mem, &spn.roots, trees, SPN_TREE_SOURCE, sp_cstr_as_str(items[it])),
+    }));
+  }
+  return list;
+}
+
 spn_pkg_id_t find_pkg_id(spn_session_t* s, unit_graph_test_t* g, const c8* name) {
   sp_carr_for(g->pkgs, it) {
     if (!g->pkgs[it].name) {
@@ -49,7 +63,7 @@ static spn_target_info_t lib_info(sp_mem_t mem, spn_tree_roots_t trees, const un
   info.kind = SPN_TARGET_KIND_LIB;
   info.linkages = spec->linkages;
   info.no_link = spec->no_link;
-  info.source = test_path_list(mem, trees, spec->source, UNIT_TEST_MAX_STRS);
+  info.source = test_source_list(mem, trees, spec->source, UNIT_TEST_MAX_STRS);
   info.deps = test_str_list(mem, spec->deps, UNIT_TEST_MAX_STRS);
   info.system_deps = test_str_list(mem, spec->system_deps, UNIT_TEST_MAX_STRS);
   info.macos.frameworks = test_str_list(mem, spec->frameworks, UNIT_TEST_MAX_STRS);
@@ -168,7 +182,10 @@ spn_session_t* build_session(sp_mem_t mem, unit_graph_test_t* g) {
     };
     if (pkg->scripts) {
       sp_da_init(mem, loaded.configure.source);
-      sp_da_push(loaded.configure.source, spn_tree_path(mem, &spn.roots, trees, SPN_TREE_MANIFEST, sp_str_lit("configure.c")));
+      sp_da_push(loaded.configure.source, ((spn_source_t) {
+        .kind = SPN_SOURCE_FILE,
+        .path = spn_tree_path(mem, &spn.roots, trees, SPN_TREE_MANIFEST, sp_str_lit("configure.c")),
+      }));
     }
     sp_ht_insert(s->packages, id, loaded);
 

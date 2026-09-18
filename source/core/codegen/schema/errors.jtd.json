@@ -111,6 +111,7 @@
     "target_dep": { "ref": "target" },
     "target_selection": { "ref": "target" },
     "target_collision": { "ref": "collision" },
+    "target_source_glob": { "ref": "target_source" },
     "script_missing": { "ref": "script" },
     "script_failed": { "ref": "script" },
     "triple_invalid": { "properties": {} },
@@ -135,7 +136,8 @@
     "patch_unused": { "ref": "patch" },
     "patch_not_git": { "ref": "patch" },
     "header_collision": { "ref": "header_collision" },
-    "path_component": { "ref": "fs" }
+    "path_component": { "ref": "fs" },
+    "path_outside_project": { "ref": "fs" }
   },
   "definitions": {
     "manifest_parse": {
@@ -395,6 +397,13 @@
     },
     "configure_source": {
       "properties": {
+        "name": { "type": "string" },
+        "source": { "type": "string" }
+      }
+    },
+    "target_source": {
+      "properties": {
+        "pkg": { "type": "string" },
         "name": { "type": "string" },
         "source": { "type": "string" }
       }

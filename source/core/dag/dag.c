@@ -4,6 +4,7 @@
 #include "sp.h"
 #include "macro/macro.h"
 #include "spn/core.h"
+#include "str/str.h"
 
 
 static sp_atomic_s32_t spn_dag_next_id;
@@ -155,7 +156,7 @@ bool spn_dag_output_overlaps(spn_dag_artifact_t* artifact, spn_path_t path) {
 }
 
 spn_dag_violation_t spn_dag_validate(spn_dag_t* g) {
-  sp_mem_arena_marker_t s = sp_mem_begin_scratch();
+  sp_str_buf_t buf = sp_zero;
   spn_dag_violation_t violation = sp_zero;
   sp_da_for(g->artifacts, it) {
     spn_dag_artifact_t* artifact = &g->artifacts[it];
@@ -171,7 +172,7 @@ spn_dag_violation_t spn_dag_validate(spn_dag_t* g) {
     else if (tree && !artifact->producer.occupied) {
       err = SPN_ERR_DAG_TREE_INPUT;
     }
-    else if (tree && spn_path_roots_intersect(g->roots, spn_path_str(g->roots, s.mem, artifact->path))) {
+    else if (tree && spn_path_roots_intersect(g->roots, spn_path_str(g->roots, sp_str_buf_as_mem(&buf), artifact->path))) {
       err = SPN_ERR_DAG_TREE_ROOT;
     }
     else if (artifact->path.root != SPN_PATH_ROOT_NONE) {
@@ -189,7 +190,6 @@ spn_dag_violation_t spn_dag_validate(spn_dag_t* g) {
       break;
     }
   }
-  sp_mem_end_scratch(s);
   return violation;
 }
 

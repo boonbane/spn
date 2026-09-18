@@ -184,7 +184,7 @@ static sp_err_t wasi_open_dir(sp_sys_fd_t fd, const c8* path, u32 len, sp_sys_fd
   return SP_OK;
 }
 
-static sp_err_t wasi_mkdir(sp_sys_fd_t fd, const c8* path, u32 len, s32 mode) {
+static sp_err_t wasi_mkdir(sp_sys_fd_t fd, const c8* path, u32 len, sp_sys_file_perms_t perms) {
   c8 buf [SP_PATH_MAX] = sp_zero;
   __wasi_fd_t at;
   if (!resolve(fd, path, len, buf, &at)) return SP_ERR_SYS_NOT_FOUND;

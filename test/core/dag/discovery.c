@@ -186,7 +186,11 @@ static const test_t tests [] = {
 static void put_entry(spn_dag_obs_table_t* discovery, const entry_t* entry) {
   spn_dag_obs_t obs [DAG_TEST_MAX_INPUTS] = sp_zero;
   u32 count = dag_test_obs_build(entry->obs, DAG_TEST_MAX_INPUTS, obs, SP_NULLPTR);
-  spn_dag_obs_table_put(discovery, dag_test_digest(entry->key), obs, count);
+  spn_dag_obs_set_t set = { .table = discovery };
+  sp_for(it, count) {
+    spn_dag_observe(&set, obs[it]);
+  }
+  spn_dag_obs_set_put(&set, dag_test_digest(entry->key));
 }
 
 static sp_err_t expect_obs(sp_test_t* t, const spn_dag_pathset_t* set, const dag_test_obs_t* expect) {

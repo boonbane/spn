@@ -8,6 +8,7 @@
 #include "ctx/types.h"
 #include "event/types.h"
 #include "event/event.h"
+#include "glob/glob.h"
 
 #define SPN_GUEST_FMT_ARGS 4
 
@@ -58,7 +59,7 @@ static void guest_copy(spn_wasm_ctx_t* abi, const c8* name, const c8* from, cons
     .api_call = { .fn = sp_cstr_as_str(name), .args = sp_fmt(spn.mem, "{} -> {}", SP_FMT_STR(from_path), SP_FMT_STR(to_path)).value },
   });
 
-  if (sp_fs_is_glob(from_path)) {
+  if (!sp_glob_parse_meta(from_path).literal) {
     spn_dag_wasi_observe_glob(abi->instance, sp_fs_parent_path(from_path), sp_fs_get_name(from_path));
   }
   else {

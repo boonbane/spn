@@ -193,6 +193,7 @@ source = [
   "source/core/ctx/ctx.c",
   "source/core/dag/dag.c",
   "source/core/dag/glob.c",
+  "source/util/glob/glob.c",
   "source/core/dag/run.c",
   "source/core/dag/stamp.c",
   "source/core/dag/store.c",
@@ -366,6 +367,7 @@ source = [
   "source/core/resolve/resolve.c",
   "test/core/resolver/dump.c",
   "source/util/str/str.c",
+  "source/util/glob/glob.c",
   "source/core/semver/compare.c",
   "source/core/semver/convert.c",
   "source/core/semver/parser.c",
@@ -506,6 +508,7 @@ source = [
   "source/core/dag/store.c",
   "source/core/dag/run.c",
   "source/core/dag/glob.c",
+  "source/util/glob/glob.c",
   "source/core/dag/stamp.c",
   "source/util/thread_pool/thread_pool.c",
   "source/core/codegen/json.c",
@@ -517,6 +520,7 @@ source = [
   "source/util/io/io.c",
   "source/core/intern/intern.c",
   "source/core/paths/paths.c",
+  "source/util/str/str.c",
   "test/fuzz/dag/main.c",
   "test/fuzz/dag/cli.c",
   "test/fuzz/dag/generator.c",
@@ -578,6 +582,7 @@ source = [
   "source/core/elf/elf.c",
   "source/core/resolve/resolve.c",
   "source/util/str/str.c",
+  "source/util/glob/glob.c",
   "source/core/semver/compare.c",
   "source/core/semver/convert.c",
   "source/core/semver/parser.c",
@@ -609,10 +614,20 @@ source = [
 include = ["source/util", "test/core/tools"]
 
 [[test]]
+name = "glob"
+source = [
+  "test/core/glob/*.c",
+  "source/util/glob/glob.c",
+  "test/core/tools/main/unit.c",
+]
+include = ["source/util", "test/core/tools"]
+
+[[test]]
 name = "paths"
 source = [
   "test/core/paths/*.c",
   "source/core/paths/paths.c",
+  "source/util/str/str.c",
   "test/tools/path_roots.c",
   "test/core/tools/main/unit.c",
 ]
@@ -687,6 +702,7 @@ source = [
   "source/core/core/core.c",
   "source/core/ctx/ctx.c",
   "source/core/dag/glob.c",
+  "source/util/glob/glob.c",
   "source/core/enum/enum.c",
   "source/core/error/error.c",
   "source/core/error/json.c",

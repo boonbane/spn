@@ -2,6 +2,7 @@
 #include "dag/dag.h"
 #include "dag/wasi/canonicalize.h"
 #include "paths/paths.h"
+#include "str/str.h"
 
 #define SPN_WASI_OP_PATH_OPEN 0
 #define SPN_WASI_OP_PATH_FILESTAT_GET 1
@@ -39,8 +40,7 @@ struct spn_dag_wasi_t {
   sp_ht(u32, sp_str_t) dirs;
   sp_mem_arena_t* call;
   sp_str_ht(u8) writes;
-  sp_mem_t obs_mem;
-  sp_da(spn_dag_obs_t)* obs;
+  spn_dag_obs_set_t* obs;
 };
 
 static sp_str_t wasi_guest_path(spn_dag_wasi_t* w, sp_mem_t mem, u32 fd, const c8* path, u32 path_len) {
@@ -78,11 +78,11 @@ static void wasi_push(spn_dag_wasi_t* w, spn_dag_obs_kind_t kind, sp_str_t host,
   if (!w->obs || sp_str_empty(host)) {
     return;
   }
-  sp_da_push(*w->obs, ((spn_dag_obs_t) {
+  spn_dag_observe(w->obs, (spn_dag_obs_t) {
     .kind = kind,
-    .path = spn_path_copy(w->obs_mem, spn_path_make(w->roots, host)),
-    .filter = sp_str_copy(w->obs_mem, filter)
-  }));
+    .path = spn_path_make(w->roots, host),
+    .filter = filter
+  });
 }
 
 static void wasi_push_obs(spn_dag_wasi_t* w, spn_dag_obs_kind_t kind, sp_str_t host) {
@@ -251,7 +251,6 @@ spn_dag_wasi_t* spn_dag_wasi_new(sp_mem_t mem, const spn_path_roots_t* roots, co
   spn_dag_wasi_t* w = sp_alloc_type(mem, spn_dag_wasi_t);
   w->mem = mem;
   w->roots = roots;
-  w->obs_mem = (sp_mem_t) sp_zero;
   w->obs = SP_NULLPTR;
   sp_da_init(mem, w->mounts);
   sp_ht_init(mem, w->dirs);
@@ -273,10 +272,9 @@ void spn_dag_wasi_bind(spn_dag_wasi_t* w, wasm_module_inst_t instance) {
   wasm_runtime_set_custom_data(instance, w);
 }
 
-void spn_dag_wasi_begin(spn_dag_wasi_t* w, sp_mem_t mem, sp_da(spn_dag_obs_t)* obs) {
+void spn_dag_wasi_begin(spn_dag_wasi_t* w, spn_dag_obs_set_t* obs) {
   sp_mem_arena_clear(w->call);
   sp_str_ht_init(sp_mem_arena_as_allocator(w->call), w->writes);
-  w->obs_mem = mem;
   w->obs = obs;
 }
 
@@ -292,13 +290,11 @@ static void wasi_observe_dir(spn_dag_wasi_t* w, sp_str_t dir) {
   wasi_push_obs(w, SPN_DAG_OBS_ENUMERATION, dir);
 
   sp_mem_arena_marker_t s = sp_mem_begin_scratch();
-  sp_da(sp_fs_entry_t) entries = sp_zero;
-  sp_fs_collect_recursive(s.mem, dir, &entries);
-  sp_da_for(entries, it) {
-    if (wasi_written(w, entries[it].path)) {
+  sp_fs_for_recursive(s.mem, dir, it) {
+    if (wasi_written(w, it.entry.path)) {
       continue;
     }
-    wasi_push_obs(w, entries[it].kind == SP_FS_KIND_DIR ? SPN_DAG_OBS_ENUMERATION : SPN_DAG_OBS_FILE, entries[it].path);
+    wasi_push_obs(w, it.entry.kind == SP_FS_KIND_DIR ? SPN_DAG_OBS_ENUMERATION : SPN_DAG_OBS_FILE, it.entry.path);
   }
   sp_mem_end_scratch(s);
 }
@@ -346,17 +342,13 @@ void spn_dag_wasi_observe_glob(wasm_module_inst_t instance, sp_str_t dir, sp_str
   spn_dag_glob_result_t glob = sp_zero;
   spn_path_t resolved = spn_path_join(s.mem, spn_path_make(w->roots, dir), pattern);
   if (!spn_dag_glob(s.mem, w->roots, resolved, &glob)) {
+    sp_str_buf_t buf = sp_zero;
     sp_da_for(glob.obs, it) {
-      spn_dag_obs_t* obs = &glob.obs[it];
-      sp_str_t host = spn_path_str(w->roots, s.mem, obs->path);
+      sp_str_t host = spn_path_str(w->roots, sp_str_buf_as_mem(&buf), glob.obs[it].path);
       if (wasi_written(w, host)) {
         continue;
       }
-      sp_da_push(*w->obs, ((spn_dag_obs_t) {
-        .kind = obs->kind,
-        .path = { .root = obs->path.root, .sub = sp_str_copy(w->obs_mem, obs->path.sub) },
-        .filter = sp_str_copy(w->obs_mem, obs->filter)
-      }));
+      spn_dag_observe(w->obs, glob.obs[it]);
     }
   }
   sp_mem_end_scratch(s);

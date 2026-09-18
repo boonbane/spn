@@ -110,14 +110,14 @@ sp_str_t sp_fs_staging_path(sp_mem_t mem, sp_str_t path, sp_str_t extension) {
   return sp_fmt(mem, "{}.{}.{}", sp_fmt_str(path), sp_fmt_uint(stamp), sp_fmt_str(extension)).value;
 }
 
-sp_err_t sp_fs_staging_dir_name(sp_mem_t mem, sp_str_t path, sp_str_t extension, sp_str_t* name) {
-  *name = sp_str_lit("");
+sp_err_t sp_fs_staging_dir(sp_mem_t mem, sp_str_t path, sp_str_t extension, sp_str_t* dir) {
+  *dir = sp_str_lit("");
   sp_try(sp_fs_create_dir(sp_fs_parent_path(path)));
 
   sp_for(attempt, 16) {
     sp_str_t candidate = sp_fs_staging_path(mem, path, extension);
-    if (sp_sys_mkdir_s(sp_sys_get_root(0), candidate, 0755) == 0) {
-      *name = sp_fs_get_name(candidate);
+    if (sp_sys_mkdir_s(sp_sys_get_root(0), candidate, sp_sys_default_dir_perms) == 0) {
+      *dir = candidate;
       return SP_OK;
     }
     if (!sp_fs_exists(candidate)) {
@@ -125,14 +125,6 @@ sp_err_t sp_fs_staging_dir_name(sp_mem_t mem, sp_str_t path, sp_str_t extension,
     }
   }
   return SP_ERR_SYS;
-}
-
-sp_err_t sp_fs_staging_dir(sp_mem_t mem, sp_str_t path, sp_str_t extension, sp_str_t* dir) {
-  sp_str_t name = sp_zero;
-  *dir = sp_str_lit("");
-  sp_try(sp_fs_staging_dir_name(mem, path, extension, &name));
-  *dir = sp_fs_join_path(mem, sp_fs_parent_path(path), name);
-  return SP_OK;
 }
 
 sp_err_t sp_fs_append(sp_str_t path, sp_str_t str) {
@@ -154,22 +146,14 @@ sp_err_t sp_fs_set_readonly(sp_str_t path) {
   sp_sys_fd_t root = sp_sys_get_root(0);
   sp_sys_file_meta_t meta = sp_zero;
   sp_try(sp_sys_get_path_metadata_s(root, path, &meta));
-#if defined(SP_WIN32)
-  meta.raw_attrs |= FILE_ATTRIBUTE_READONLY;
-#else
-  meta.raw_attrs &= ~(u32)0222;
-#endif
-  return sp_sys_chmod_s(root, path, &meta);
+  sp_sys_set_read_only(&meta.perms, true);
+  return sp_sys_set_file_perms_s(root, path, meta.perms);
 }
 
 sp_err_t sp_fs_set_writable(sp_str_t path) {
   sp_sys_fd_t root = sp_sys_get_root(0);
   sp_sys_file_meta_t meta = sp_zero;
   sp_try(sp_sys_get_path_metadata_s(root, path, &meta));
-#if defined(SP_WIN32)
-  meta.raw_attrs &= ~(u32)FILE_ATTRIBUTE_READONLY;
-#else
-  meta.raw_attrs |= 0200;
-#endif
-  return sp_sys_chmod_s(root, path, &meta);
+  sp_sys_set_read_only(&meta.perms, false);
+  return sp_sys_set_file_perms_s(root, path, meta.perms);
 }

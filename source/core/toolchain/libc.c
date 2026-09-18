@@ -4,6 +4,7 @@
 #include "error/error.h"
 #include "hash/digest/digest.h"
 #include "paths/paths.h"
+#include "str/str.h"
 
 typedef struct {
   spn_path_t include;
@@ -56,17 +57,17 @@ static spn_path_t file_path(sp_mem_t mem, sp_str_t content) {
 }
 
 static spn_err_t write_file(sp_mem_t mem, const spn_path_roots_t* roots, spn_path_t file, sp_str_t content) {
-  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch_for(mem);
-  sp_str_t path = spn_path_str(roots, scratch.mem, file);
-  spn_err_t err = SPN_OK;
-  if (!sp_fs_is_file(path)) {
-    sp_fs_create_dir(sp_fs_parent_path(path));
-    if (sp_fs_write_atomic(path, content)) {
-      err = spn_err_emit(&spn, (spn_err_union_t) { .kind = SPN_ERR_FS_WRITE, .fs = { .path = sp_str_copy(mem, path) } });
-    }
+  sp_sys_file_meta_t meta = sp_zero;
+  if (!spn_get_path_metadata(roots, file, &meta) && meta.kind == SP_FS_KIND_FILE) {
+    return SPN_OK;
   }
-  sp_mem_end_scratch(scratch);
-  return err;
+  sp_str_buf_t buf = sp_zero;
+  sp_str_t path = spn_path_str(roots, sp_str_buf_as_mem(&buf), file);
+  sp_fs_create_dir(sp_fs_parent_path(path));
+  if (sp_fs_write_atomic(path, content)) {
+    return spn_err_emit(&spn, (spn_err_union_t) { .kind = SPN_ERR_FS_WRITE, .fs = { .path = sp_str_copy(mem, path) } });
+  }
+  return SPN_OK;
 }
 
 static spn_err_t emit(sp_mem_t mem, const spn_path_roots_t* roots, libc_t libc, spn_path_t* file) {

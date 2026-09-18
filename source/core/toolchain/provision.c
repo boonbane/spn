@@ -119,9 +119,9 @@ static spn_err_t fill(spn_toolchain_store_t* store, sp_str_t name, spn_artifact_
 
   sp_fs_remove_file(tarball);
 
-  sp_da(sp_fs_entry_t) extracted = sp_zero;
-  sp_fs_collect(store->mem, work, &extracted);
-  bool empty = sp_da_empty(extracted);
+  sp_fs_it_t extracted = sp_fs_it_new(store->mem, work);
+  bool empty = !sp_fs_it_next(&extracted);
+  sp_fs_it_deinit(&extracted);
   if (extract.status.exit_code || empty) {
     sp_fs_remove_dir(work);
     return spn_err_emit(&spn, (spn_err_union_t) {

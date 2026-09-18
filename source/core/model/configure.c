@@ -14,7 +14,7 @@
 #include "op/types.h"
 #include "unit/unit.h"
 
-static spn_err_t on_configure(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, sp_mem_t mem, sp_da(spn_dag_obs_t)* obs) {
+static spn_err_t on_configure(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs) {
   spn_pkg_unit_t* unit = (spn_pkg_unit_t*)user_data;
   spn_wasm_script_t* script = &unit->wasm.configure;
   if (spn_wasm_script_open(script, unit)) {

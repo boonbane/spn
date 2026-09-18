@@ -71,7 +71,7 @@ sp_test_each(target_kind, kind, test_t, tests, .setup = spn_test_ctx_setup) {
   spn_target_info_t app = {
     .name = sp_str_lit("app"),
     .kind = SPN_TARGET_KIND_EXE,
-    .source = test_path_list(mem, loaded->roots, source, sp_carr_len(source)),
+    .source = test_source_list(mem, loaded->roots, source, sp_carr_len(source)),
   };
   sp_str_om_insert(s->pkg->exes, app.name, app);
 

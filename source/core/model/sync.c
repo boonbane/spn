@@ -205,7 +205,7 @@ static sp_da(spn_path_t) resolve_paths(const spn_path_roots_t* roots, spn_gated_
       continue;
     }
     spn_path_t path = spn_tree_path(spn.mem, roots, loaded->roots, entries[it].tree, entries[it].path);
-    sp_da_push(resolved, spn_path_canonicalize(spn.mem, roots, path));
+    sp_da_push(resolved, path);
   }
   return resolved;
 }
@@ -221,51 +221,60 @@ static sp_da(sp_str_t) resolve_values(spn_gated_list_t entries, spn_when_env_t* 
   return resolved;
 }
 
-static spn_err_t resolve_configure_source(spn_ctx_t* ctx, sp_str_t name, spn_gated_path_list_t declared, spn_loaded_pkg_t* loaded, spn_when_env_t* env, sp_da(spn_path_t)* source) {
-  sp_da(spn_path_t) resolved = sp_da_new(spn.mem, spn_path_t);
+static spn_err_t resolve_configure_source(spn_ctx_t* ctx, sp_str_t name, sp_da(spn_gated_source_t) declared, spn_loaded_pkg_t* loaded, spn_when_env_t* env, sp_da(spn_source_t)* source) {
+  sp_da(spn_source_t) resolved = sp_da_new(spn.mem, spn_source_t);
   sp_da_for(declared, it) {
     if (!spn_when_eval(&declared[it].when, env)) {
       continue;
     }
     spn_path_t path = spn_tree_path(spn.mem, &ctx->roots, loaded->roots, declared[it].tree, declared[it].path);
-    spn_tree_rel_t rel = spn_tree_rel(loaded->roots, path);
-    if (rel.tree == SPN_TREE_NONE || !sp_fs_is_glob(rel.sub)) {
-      if (!sp_fs_is_target_file(spn_path_str(&ctx->roots, spn.mem, path))) {
-        return spn_err_emit(ctx, (spn_err_union_t) {
-          .kind = SPN_ERR_CONFIGURE_SOURCE_MISSING,
-          .configure_source = {
-            .name = name,
-            .source = declared[it].path,
-          }});
+    switch (declared[it].kind) {
+      case SPN_SOURCE_FILE: {
+        sp_sys_file_meta_t meta = sp_zero;
+        if (spn_get_path_metadata(&ctx->roots, path, &meta) || meta.kind != SP_FS_KIND_FILE) {
+          return spn_err_emit(ctx, (spn_err_union_t) {
+            .kind = SPN_ERR_CONFIGURE_SOURCE_MISSING,
+            .configure_source = {
+              .name = name,
+              .source = declared[it].path,
+            }});
+        }
+        break;
       }
-      sp_da_push(resolved, spn_path_canonicalize(spn.mem, &ctx->roots, path));
-      continue;
+      case SPN_SOURCE_GLOB: {
+        sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+        spn_dag_glob_it_t glob = spn_dag_glob_it_new(scratch.mem, &ctx->roots, path);
+        bool matched = false;
+        while (!matched && spn_dag_glob_it_next(&glob)) {
+          matched = glob.entry.kind != SP_FS_KIND_DIR;
+        }
+        spn_dag_glob_it_deinit(&glob);
+        sp_mem_end_scratch(scratch);
+        if (!matched) {
+          return spn_err_emit(ctx, (spn_err_union_t) {
+            .kind = SPN_ERR_CONFIGURE_SOURCE_GLOB,
+            .configure_source = {
+              .name = name,
+              .source = declared[it].path,
+            }});
+        }
+        break;
+      }
     }
-
-    spn_dag_glob_result_t glob = sp_zero;
-    if (spn_dag_glob(spn.mem, &ctx->roots, path, &glob) || sp_da_empty(glob.matches)) {
-      return spn_err_emit(ctx, (spn_err_union_t) {
-        .kind = SPN_ERR_CONFIGURE_SOURCE_GLOB,
-        .configure_source = {
-          .name = name,
-          .source = declared[it].path,
-        }});
-    }
-    sp_da_for(glob.matches, jt) {
-      sp_da_push(resolved, spn_path_canonicalize(spn.mem, &ctx->roots, glob.matches[jt].path));
-    }
+    sp_da_push(resolved, ((spn_source_t) { .kind = declared[it].kind, .path = path }));
   }
   *source = resolved;
   return SPN_OK;
 }
 
-static sp_da(spn_path_t) detect_configure_source(const spn_path_roots_t* roots, spn_loaded_pkg_t* loaded, sp_str_t script) {
-  sp_da(spn_path_t) source = sp_da_new(spn.mem, spn_path_t);
+static sp_da(spn_source_t) detect_configure_source(const spn_path_roots_t* roots, spn_loaded_pkg_t* loaded, sp_str_t script) {
+  sp_da(spn_source_t) source = sp_da_new(spn.mem, spn_source_t);
   sp_str_t candidates [] = { sp_str_lit("configure.c"), script };
   sp_carr_for(candidates, it) {
     spn_path_t path = spn_tree_path(spn.mem, roots, loaded->roots, SPN_TREE_MANIFEST, candidates[it]);
-    if (sp_fs_is_target_file(spn_path_str(roots, spn.mem, path))) {
-      sp_da_push(source, spn_path_canonicalize(spn.mem, roots, path));
+    sp_sys_file_meta_t meta = sp_zero;
+    if (!spn_get_path_metadata(roots, path, &meta) && meta.kind == SP_FS_KIND_FILE) {
+      sp_da_push(source, ((spn_source_t) { .kind = SPN_SOURCE_FILE, .path = path }));
       break;
     }
   }
@@ -377,7 +386,17 @@ static spn_err_t load_package(spn_session_t* session, spn_resolved_pkg_t* pkg, s
   spn_when_env_from_profile(spn.mem, &session->profile, &facts);
 
   loaded->build = loaded->info->build;
-  loaded->build.source = resolve_paths(roots, loaded->info->build.gated.source, loaded, &facts);
+  loaded->build.source = sp_da_new(spn.mem, spn_source_t);
+  sp_da_for(loaded->info->build.gated.source, it) {
+    spn_gated_source_t* source = &loaded->info->build.gated.source[it];
+    if (!spn_when_eval(&source->when, &facts)) {
+      continue;
+    }
+    sp_da_push(loaded->build.source, ((spn_source_t) {
+      .kind = source->kind,
+      .path = spn_tree_path(spn.mem, roots, loaded->roots, source->tree, source->path),
+    }));
+  }
   loaded->build.include = resolve_paths(roots, loaded->info->build.gated.include, loaded, &facts);
   loaded->build.define = resolve_values(loaded->info->build.gated.define, &facts);
   loaded->build.flags = resolve_values(loaded->info->build.gated.flags, &facts);
@@ -413,11 +432,12 @@ static spn_err_t load_package(spn_session_t* session, spn_resolved_pkg_t* pkg, s
   if (sp_da_empty(loaded->build.source)) {
     spn_path_t candidate = spn_tree_path(spn.mem, roots, loaded->roots, SPN_TREE_MANIFEST, sp_str_lit("build.c"));
     spn_path_t script = spn_tree_path(spn.mem, roots, loaded->roots, SPN_TREE_MANIFEST, pkg->origin.paths.script);
-    if (sp_fs_is_target_file(spn_path_str(roots, spn.mem, candidate))) {
-      sp_da_push(loaded->build.source, spn_path_canonicalize(spn.mem, roots, candidate));
+    sp_sys_file_meta_t meta = sp_zero;
+    if (!spn_get_path_metadata(roots, candidate, &meta) && meta.kind == SP_FS_KIND_FILE) {
+      sp_da_push(loaded->build.source, ((spn_source_t) { .kind = SPN_SOURCE_FILE, .path = candidate }));
     }
-    else if (package_has_build_deps(pkg) && sp_fs_is_target_file(spn_path_str(roots, spn.mem, script))) {
-      sp_da_push(loaded->build.source, spn_path_canonicalize(spn.mem, roots, script));
+    else if (package_has_build_deps(pkg) && !spn_get_path_metadata(roots, script, &meta) && meta.kind == SP_FS_KIND_FILE) {
+      sp_da_push(loaded->build.source, ((spn_source_t) { .kind = SPN_SOURCE_FILE, .path = script }));
     }
   }
 

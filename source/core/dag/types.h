@@ -47,9 +47,25 @@ typedef struct {
   sp_da(spn_dag_glob_match_t) matches;
 } spn_dag_glob_result_t;
 
-typedef struct spn_dag_env_t spn_dag_env_t;
+typedef struct {
+  sp_str_t rel;
+  sp_fs_kind_t kind;
+} spn_dag_glob_entry_t;
 
-SP_TYPEDEF_FN(spn_err_t, spn_dag_exec_fn_t, spn_dag_t*, spn_dag_action_t*, void*, spn_dag_env_t*, sp_mem_t, sp_da(spn_dag_obs_t)*);
+typedef struct {
+  struct sp_glob_t* glob;
+  spn_path_t base;
+  u32 start;
+  bool recursive;
+  sp_fs_it_t fs;
+  spn_dag_glob_entry_t entry;
+  spn_err_t err;
+} spn_dag_glob_it_t;
+
+typedef struct spn_dag_env_t spn_dag_env_t;
+typedef struct spn_dag_obs_set_t spn_dag_obs_set_t;
+
+SP_TYPEDEF_FN(spn_err_t, spn_dag_exec_fn_t, spn_dag_t*, spn_dag_action_t*, void*, spn_dag_env_t*, const spn_path_t*, spn_dag_obs_set_t*);
 
 typedef struct {
   u32 index;
@@ -169,6 +185,11 @@ typedef struct {
   sp_ht(spn_dag_digest_t, spn_dag_pathset_t) entries;
   spn_dag_stats_t* stats;
 } spn_dag_obs_table_t;
+
+struct spn_dag_obs_set_t {
+  spn_dag_obs_table_t* table;
+  sp_da(spn_dag_obs_t) rows;
+};
 
 typedef enum {
   SPN_DAG_STORE_MEM,

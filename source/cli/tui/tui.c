@@ -982,6 +982,14 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           );
           break;
         }
+        case SPN_ERR_PATH_OUTSIDE_PROJECT: {
+          sp_tty_fmt(
+            &w,
+            "Path {.yellow} is not inside the project",
+            sp_fmt_str(event->err.fs.path)
+          );
+          break;
+        }
         case SPN_ERR_INDEX_UNKNOWN: {
           sp_tty_fmt(
             &w,
@@ -1372,6 +1380,16 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
             &w,
             "Failed to find {.cyan} as a package or target",
             sp_fmt_str(event->err.target.name)
+          );
+          break;
+        }
+        case SPN_ERR_TARGET_SOURCE_GLOB: {
+          sp_tty_fmt(
+            &w,
+            "{.cyan} declares a source {.yellow} for {.yellow}, which could not be expanded",
+            sp_fmt_str(event->err.target_source.pkg),
+            sp_fmt_str(event->err.target_source.source),
+            sp_fmt_str(event->err.target_source.name)
           );
           break;
         }

@@ -244,7 +244,7 @@ static void apply_gated_paths(apply_ctx_t* ctx, sp_da(spn_path_t)* plain, spn_ga
       continue;
     }
     spn_path_t path = spn_tree_path(ctx->mem, ctx->roots, ctx->trees, gated[it].tree, gated[it].path);
-    sp_da_push(*plain, spn_path_canonicalize(ctx->mem, ctx->roots, path));
+    sp_da_push(*plain, path);
   }
 }
 
@@ -262,7 +262,16 @@ static void apply_copies(apply_ctx_t* ctx, sp_da(spn_publish_copy_t)* plain, sp_
 }
 
 static void apply_target(apply_ctx_t* ctx, spn_target_info_t* target) {
-  apply_gated_paths(ctx, &target->source, target->gated.source);
+  sp_da_for(target->gated.source, it) {
+    spn_gated_source_t* source = &target->gated.source[it];
+    if (!spn_when_eval(&source->when, ctx->env)) {
+      continue;
+    }
+    sp_da_push(target->source, ((spn_source_t) {
+      .kind = source->kind,
+      .path = spn_tree_path(ctx->mem, ctx->roots, ctx->trees, source->tree, source->path),
+    }));
+  }
   apply_gated_paths(ctx, &target->headers, target->gated.headers);
   apply_gated_paths(ctx, &target->include, target->gated.include);
   apply_gated(ctx, &target->define, target->gated.define);
@@ -280,7 +289,7 @@ static void apply_target(apply_ctx_t* ctx, spn_target_info_t* target) {
     spn_path_t path = spn_tree_path(ctx->mem, ctx->roots, ctx->trees, embed->tree, embed->path);
     spn_target_add_embed(target, (spn_embed_t) {
       .kind = embed->kind,
-      .path = spn_path_canonicalize(ctx->mem, ctx->roots, path),
+      .path = path,
       .dest = embed->dest,
       .types = embed->types,
     });

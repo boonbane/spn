@@ -325,6 +325,9 @@ sp_test_each(dag_wasm, wasi, test_t, tests) {
   wasm_exec_env_t env = wasm_runtime_create_exec_env(instance, DAG_WASM_STACK_SIZE);
   sp_must(t, env != SP_NULLPTR);
 
+  spn_dag_obs_table_t table = sp_zero;
+  spn_dag_obs_table_init(&table, mem, &roots, sp_str_lit(""));
+
   sp_carr_for(it->calls, ct) {
     call_t* call = &it->calls[ct];
     if (!call->fn) {
@@ -334,8 +337,8 @@ sp_test_each(dag_wasm, wasi, test_t, tests) {
     wasm_function_inst_t fn = wasm_runtime_lookup_function(instance, call->fn);
     sp_must(t, fn != SP_NULLPTR);
 
-    sp_da(spn_dag_obs_t) obs = sp_da_new(mem, spn_dag_obs_t);
-    spn_dag_wasi_begin(w, mem, &obs);
+    spn_dag_obs_set_t obs = { .table = &table };
+    spn_dag_wasi_begin(w, &obs);
 
     wasm_val_t results [1] = sp_zero;
     bool called = wasm_runtime_call_wasm_a(env, fn, 1, results, 0, SP_NULLPTR);
@@ -343,7 +346,7 @@ sp_test_each(dag_wasm, wasi, test_t, tests) {
 
     sp_must(t, called);
     sp_expect_eq(t, call->expect.rc, results[0].of.i32);
-    expect_obs(t, mem, &roots, root, &call->expect, obs);
+    expect_obs(t, mem, &roots, root, &call->expect, obs.rows);
   }
 
   wasm_runtime_destroy_exec_env(env);

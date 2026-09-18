@@ -3,6 +3,13 @@
 #include "sp.h"
 #include "macro/macro.h"
 #include "spn/core.h"
+#include "str/str.h"
+
+sp_err_t spn_get_path_metadata(const spn_path_roots_t* roots, spn_path_t path, sp_sys_file_meta_t* meta) {
+  sp_str_buf_t buf = sp_zero;
+  sp_str_t str = spn_path_str(roots, sp_str_buf_as_mem(&buf), path);
+  return sp_sys_get_path_metadata_s(sp_sys_get_root(0), str, meta);
+}
 
 static sp_str_t canonical_dir(sp_mem_t mem, sp_str_t dir) {
   sp_fs_create_dir(dir);

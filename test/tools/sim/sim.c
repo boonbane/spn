@@ -7,13 +7,13 @@ struct sp_sim_inode {
   u64 id;
   sp_fs_kind_t kind;
   u64 nlink;
-  u32 mode;
+  sp_sys_file_perms_t perms;
   sp_sys_timespec_t mtime;
   sp_da(u8) bytes;
 };
 
-#define SP_SIM_MODE_FILE 0644
-#define SP_SIM_MODE_DIR 0755
+#define SP_SIM_PERMS_FILE ((sp_sys_file_perms_t) { .value = 0644 })
+#define SP_SIM_PERMS_DIR ((sp_sys_file_perms_t) { .value = 0755 })
 
 struct sp_sim_fd {
   sp_sim_inode_t* node;
@@ -46,7 +46,7 @@ static void sp_sim_snapshot(sp_sim_t* sim) {
         .id = node->id,
         .kind = node->kind,
         .nlink = node->nlink,
-        .mode = node->mode,
+        .perms = node->perms,
         .mtime = node->mtime,
         .bytes = sp_da_new(sim->mem, u8),
       };
@@ -179,7 +179,7 @@ static sp_sim_inode_t* sp_sim_inode(sp_fs_kind_t kind) {
     .id = sim->ids++,
     .kind = kind,
     .nlink = 1,
-    .mode = kind == SP_FS_KIND_DIR ? SP_SIM_MODE_DIR : SP_SIM_MODE_FILE,
+    .perms = kind == SP_FS_KIND_DIR ? SP_SIM_PERMS_DIR : SP_SIM_PERMS_FILE,
     .bytes = sp_da_new(sim->mem, u8),
   };
   sp_sim_stamp(node);
@@ -218,16 +218,8 @@ static void sp_sim_meta(sp_sim_inode_t* node, sp_sys_file_meta_t* st) {
     .id = node->id,
     .device = 1,
     .nlink = node->nlink,
-    .raw_attrs = node->mode,
+    .perms = node->perms,
   };
-}
-
-static bool sp_sim_readonly(sp_sim_inode_t* node) {
-#if defined(SP_WIN32)
-  return node->mode & FILE_ATTRIBUTE_READONLY;
-#else
-  return !(node->mode & 0222);
-#endif
 }
 
 static void sp_sim_file_reserve(sp_sim_inode_t* node, u64 size) {
@@ -419,7 +411,7 @@ static sp_err_t sp_sim_sys_open(sp_sys_fd_t fd, const c8* path, u32 len, sp_sys_
   if (node->kind == SP_FS_KIND_DIR && mode != SP_SYS_OPEN_MODE_RO) {
     return SP_ERR_SYS;
   }
-  if (node->kind == SP_FS_KIND_FILE && mode != SP_SYS_OPEN_MODE_RO && sp_sim_readonly(node)) {
+  if (node->kind == SP_FS_KIND_FILE && mode != SP_SYS_OPEN_MODE_RO && sp_sys_is_read_only(node->perms)) {
     return SP_ERR_SYS_ACCESS_DENIED;
   }
 
@@ -494,7 +486,7 @@ static sp_err_t sp_sim_sys_pipe(sp_sys_pipe_t* pipe, sp_sys_pipe_desc_t desc) {
   return SP_ERR_SYS;
 }
 
-static sp_err_t sp_sim_sys_mkdir(sp_sys_fd_t fd, const c8* path, u32 len, s32 mode) {
+static sp_err_t sp_sim_sys_mkdir(sp_sys_fd_t fd, const c8* path, u32 len, sp_sys_file_perms_t perms) {
   sp_sim_syscall_at(fd);
   if (sp_sim_fail()) {
     return SP_ERR_SYS;
@@ -701,7 +693,7 @@ static sp_err_t sp_sim_sys_get_file_metadata(sp_sys_fd_t fd, sp_sys_file_meta_t*
   return SP_OK;
 }
 
-static sp_err_t sp_sim_sys_chmod(sp_sys_fd_t fd, const c8* path, u32 len, const sp_sys_file_meta_t* st) {
+static sp_err_t sp_sim_sys_set_file_perms(sp_sys_fd_t fd, const c8* path, u32 len, sp_sys_file_perms_t perms) {
   sp_sim_syscall_at(fd);
 
   c8 buf [SP_PATH_MAX];
@@ -709,7 +701,7 @@ static sp_err_t sp_sim_sys_chmod(sp_sys_fd_t fd, const c8* path, u32 len, const 
   if (!node) {
     return SP_ERR_SYS_NOT_FOUND;
   }
-  node->mode = st->raw_attrs;
+  node->perms = perms;
   return SP_OK;
 }
 
@@ -960,7 +952,7 @@ static const sp_sys_vtable_t sp_sim_vtable = {
   .get_path_metadata      = sp_sim_sys_get_path_metadata,
   .get_link_metadata      = sp_sim_sys_get_path_metadata,
   .get_file_metadata      = sp_sim_sys_get_file_metadata,
-  .chmod                  = sp_sim_sys_chmod,
+  .set_file_perms         = sp_sim_sys_set_file_perms,
   .set_times              = sp_sim_sys_set_times,
   .clock_gettime          = sp_sim_sys_clock_gettime,
   .nanosleep              = sp_sim_sys_nanosleep,
@@ -1029,7 +1021,7 @@ void sp_sim_init(sp_sim_t* sim, sp_mem_t mem) {
     .id = sim->ids++,
     .kind = SP_FS_KIND_DIR,
     .nlink = 1,
-    .mode = SP_SIM_MODE_DIR,
+    .perms = SP_SIM_PERMS_DIR,
     .mtime = sim->clock,
     .bytes = sp_da_new(mem, u8),
   };
