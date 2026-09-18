@@ -14,6 +14,7 @@
 #include "target/types.h"
 #include "unit/types.h"
 
+#include "enum/enum.h"
 #include "error/error.h"
 #include "event/event.h"
 #include "external/wasm/wasm.h"
@@ -262,7 +263,10 @@ void spn_target_add_source(spn_target_t* target, const c8* source) {
   if (spn_path_empty(made)) {
     return;
   }
-  sp_da_push(target->info->source, made);
+  sp_da_push(target->info->source, ((spn_source_t) {
+    .kind = spn_source_kind_from_path(sp_cstr_as_str(source)),
+    .path = made,
+  }));
 }
 
 void spn_target_add_include(spn_target_t* target, const c8* include) {

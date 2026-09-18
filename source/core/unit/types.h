@@ -43,7 +43,7 @@ typedef struct {
 
 typedef struct {
   spn_target_unit_id_t target;
-  sp_intern_id_t source;
+  spn_path_id_t source;
 } spn_compile_unit_id_t;
 SPN_PACK_POP
 
@@ -56,7 +56,7 @@ _Static_assert(
   "spn_target_unit_id_t is byte-hashed as a key; it must have no padding"
 );
 _Static_assert(
-  sizeof(spn_compile_unit_id_t) == sizeof(spn_target_unit_id_t) + sizeof(sp_intern_id_t),
+  sizeof(spn_compile_unit_id_t) == sizeof(spn_target_unit_id_t) + sizeof(spn_path_id_t),
   "spn_compile_unit_id_t is byte-hashed as a key; it must have no padding"
 );
 

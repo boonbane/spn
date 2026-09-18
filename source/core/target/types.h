@@ -35,6 +35,23 @@ typedef struct {
   spn_when_t when;
 } spn_gated_embed_t;
 
+typedef enum {
+  SPN_SOURCE_FILE,
+  SPN_SOURCE_GLOB,
+} spn_source_kind_t;
+
+typedef struct {
+  spn_source_kind_t kind;
+  spn_path_t path;
+} spn_source_t;
+
+typedef struct {
+  spn_source_kind_t kind;
+  sp_str_t path;
+  spn_tree_t tree;
+  spn_when_t when;
+} spn_gated_source_t;
+
 
 typedef struct {
   spn_pkg_unit_t* pkg;
@@ -65,7 +82,7 @@ struct spn_target_info {
   spn_target_kind_t kind;
   spn_linkage_set_t linkages;
   bool no_link; // @spader A hack for libtcc1.a (building an unlinked library)
-  sp_da(spn_path_t) source;
+  sp_da(spn_source_t) source;
   sp_da(spn_path_t) headers;
   sp_da(spn_path_t) include;
   sp_da(sp_str_t) define;
@@ -87,7 +104,7 @@ struct spn_target_info {
     spn_win_subsystem_t subsystem;
   } windows;
   struct {
-    spn_gated_path_list_t source;
+    sp_da(spn_gated_source_t) source;
     spn_gated_path_list_t headers;
     spn_gated_path_list_t include;
     spn_gated_list_t define;

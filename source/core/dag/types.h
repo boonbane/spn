@@ -47,6 +47,21 @@ typedef struct {
   sp_da(spn_dag_glob_match_t) matches;
 } spn_dag_glob_result_t;
 
+typedef struct {
+  sp_str_t rel;
+  sp_fs_kind_t kind;
+} spn_dag_glob_entry_t;
+
+typedef struct {
+  struct sp_glob_t* glob;
+  spn_path_t base;
+  u32 start;
+  bool recursive;
+  sp_fs_it_t fs;
+  spn_dag_glob_entry_t entry;
+  spn_err_t err;
+} spn_dag_glob_it_t;
+
 typedef struct spn_dag_env_t spn_dag_env_t;
 typedef struct spn_dag_obs_set_t spn_dag_obs_set_t;
 

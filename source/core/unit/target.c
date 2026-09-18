@@ -167,99 +167,70 @@ static spn_err_t ensure_target(spn_session_t* s, spn_pkg_unit_t* pkg, spn_target
   return SPN_OK;
 }
 
-static bool has_source_file(sp_da(spn_path_t) source, spn_path_t path) {
-  sp_da_for(source, it) {
-    if (spn_path_equal(source[it], path)) {
-      return true;
-    }
-  }
-  return false;
+static s32 compare_objects(const void* a, const void* b) {
+  return sp_str_compare_alphabetical((*(spn_compile_unit_t* const*)a)->paths.file.sub, (*(spn_compile_unit_t* const*)b)->paths.file.sub);
 }
 
-static void collect_source_glob(sp_mem_t mem, spn_path_t pattern, sp_da(spn_path_t)* source) {
-  spn_dag_glob_result_t glob = sp_zero;
-  spn_dag_glob(mem, &spn.roots, pattern, &glob);
-
-  sp_da_for(glob.matches, it) {
-    spn_path_t match = glob.matches[it].path;
-    if (has_source_file(*source, match)) {
-      continue;
-    }
-    sp_da_push(*source, match);
+static void add_object(spn_session_t* s, spn_target_unit_t* target, spn_path_t dir, spn_path_t file) {
+  spn_compile_unit_id_t id = {
+    .target = target->id,
+    .source = { .root = file.root, .sub = sp_intern_get_or_insert(s->ctx->intern, file.sub) },
+  };
+  if (sp_om_has(s->units.objects, id)) {
+    return;
   }
+
+  spn_tree_rel_t rel = spn_tree_rel(target->pkg->paths.roots, file);
+  sp_str_t prefix = rel.tree == SPN_TREE_NONE ? spn_path_root_label(file.root) : spn_tree_to_str(rel.tree);
+  sp_om_insert(s->units.objects, id, ((spn_compile_unit_t) {
+    .id = id,
+    .target = target,
+    .lang = spn_lang_from_path(rel.sub),
+    .paths = {
+      .file = { .root = file.root, .sub = sp_intern_str_from_id(s->ctx->intern, id.source.sub) },
+      .object = { .root = dir.root, .sub = sp_fmt(s->mem, "{}/{}/{}.o", sp_fmt_str(dir.sub), sp_fmt_str(prefix), sp_fmt_str(rel.sub)).value },
+    },
+  }));
+  sp_da_push(target->objects, sp_om_back(s->units.objects));
 }
 
-static sp_da(spn_path_t) collect_target_source(sp_mem_t mem, spn_pkg_unit_t* pkg, spn_target_unit_t* target) {
-  sp_da(spn_path_t) source = sp_da_new(mem, spn_path_t);
+static spn_err_t create_target_objects(spn_session_t* s, spn_target_unit_t* target) {
+  spn_path_t dir = spn_target_unit_object_dir(s->mem, target);
 
   sp_da_for(target->info->source, it) {
-    spn_path_t path = target->info->source[it];
-    spn_tree_rel_t rel = spn_tree_rel(pkg->paths.roots, path);
-    if (rel.tree != SPN_TREE_NONE && sp_fs_is_glob(rel.sub)) {
-      collect_source_glob(mem, path, &source);
-      continue;
+    spn_source_t source = target->info->source[it];
+    switch (source.kind) {
+      case SPN_SOURCE_FILE: {
+        add_object(s, target, dir, source.path);
+        break;
+      }
+      case SPN_SOURCE_GLOB: {
+        u64 first = sp_da_size(target->objects);
+        sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+        spn_dag_glob_it_t glob = spn_dag_glob_it_new(scratch.mem, &spn.roots, source.path);
+        while (spn_dag_glob_it_next(&glob)) {
+          if (glob.entry.kind != SP_FS_KIND_DIR) {
+            add_object(s, target, dir, spn_path_join(scratch.mem, glob.base, glob.entry.rel));
+          }
+        }
+        spn_dag_glob_it_deinit(&glob);
+        sp_mem_end_scratch(scratch);
+        if (glob.err) {
+          return spn_err_emit(s->ctx, (spn_err_union_t) {
+            .kind = SPN_ERR_TARGET_SOURCE_GLOB,
+            .target_source = {
+              .pkg = target->pkg->info->name,
+              .name = target->info->name,
+              .source = spn_path_str(&spn.roots, s->mem, source.path),
+            },
+          });
+        }
+        sp_os_qsort(target->objects + first, sp_da_size(target->objects) - first, sizeof(*target->objects), compare_objects);
+        break;
+      }
     }
-    if (has_source_file(source, path)) {
-      continue;
-    }
-    sp_da_push(source, path);
   }
-
-  return source;
-}
-
-typedef struct {
-  sp_str_t prefix;
-  sp_str_t path;
-} object_name_t;
-
-static object_name_t object_name(spn_tree_roots_t roots, spn_path_t path) {
-  spn_tree_rel_t rel = spn_tree_rel(roots, path);
-  switch (rel.tree) {
-    case SPN_TREE_MANIFEST: return (object_name_t) { .prefix = sp_str_lit("manifest"), .path = rel.sub };
-    case SPN_TREE_SOURCE:   return (object_name_t) { .prefix = sp_str_lit("source"), .path = rel.sub };
-    case SPN_TREE_NONE:     return (object_name_t) { .prefix = spn_path_root_label(path.root), .path = rel.sub };
-  }
-
-  sp_unreachable_return(sp_zero_struct(object_name_t));
-}
-
-static void create_target_objects(spn_session_t* s, spn_target_unit_t* target) {
-  spn_pkg_unit_t* pkg = target->pkg;
-
-  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  sp_da(spn_path_t) source = collect_target_source(scratch.mem, pkg, target);
-  spn_path_t target_dir = spn_target_unit_object_dir(s->mem, target);
-
-  sp_da_for(source, it) {
-    spn_path_t file = spn_path_copy(s->mem, source[it]);
-    object_name_t name = object_name(pkg->paths.roots, file);
-
-    spn_lang_t lang = spn_lang_from_path(name.path);
-
-    spn_path_t object_dir = spn_path_join(s->mem, target_dir, name.prefix);
-    spn_path_t object_path = spn_path_join(s->mem, object_dir, sp_fmt(scratch.mem, "{}.o", SP_FMT_STR(name.path)).value);
-    spn_compile_unit_id_t id = {
-      .target = target->id,
-      .source = sp_intern_get_or_insert(s->ctx->intern, spn_path_str(&spn.roots, scratch.mem, file)),
-    };
-
-    if (!sp_om_has(s->units.objects, id)) {
-      sp_om_insert(s->units.objects, id, ((spn_compile_unit_t) {
-        .id = id,
-        .target = target,
-        .lang = lang,
-        .paths = {
-          .object = object_path,
-          .file = file,
-        },
-      }));
-    }
-
-    spn_compile_unit_t* object = sp_om_get(s->units.objects, id);
-    sp_da_push(target->objects, object);
-  }
-  sp_mem_end_scratch(scratch);
+  return SPN_OK;
 }
 
 static bool is_os_version_lt(spn_os_version_t a, spn_os_version_t b) {
@@ -686,12 +657,12 @@ static spn_err_t add_metaprogram_targets(spn_session_t* s) {
     if (targets[it]->lib_kind == SPN_LIB_KIND_SOURCE) {
       continue;
     }
-    create_target_objects(s, targets[it]);
+    spn_try(create_target_objects(s, targets[it]));
   }
   sp_da_for(world->packages, it) {
     spn_target_unit_t* configure = world->packages[it]->scripts.configure;
     if (configure) {
-      create_target_objects(s, configure);
+      spn_try(create_target_objects(s, configure));
       sp_assert(!sp_da_empty(configure->objects));
     }
   }
@@ -839,7 +810,7 @@ static spn_err_t add_target_build_targets(spn_session_t* s) {
     if (targets[it]->lib_kind == SPN_LIB_KIND_SOURCE) {
       continue;
     }
-    create_target_objects(s, targets[it]);
+    spn_try(create_target_objects(s, targets[it]));
   }
 
   sp_om_for(s->units.objects, it) {
