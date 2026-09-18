@@ -791,6 +791,10 @@ spn_lang_t spn_lang_from_path(sp_str_t path) {
   return SPN_LANG_C;
 }
 
+spn_source_kind_t spn_source_kind_from_path(sp_str_t path) {
+  return sp_fs_is_glob(path) ? SPN_SOURCE_GLOB : SPN_SOURCE_FILE;
+}
+
 spn_c_standard_t spn_c_standard_from_str(sp_str_t str) {
   if (sp_str_equal_cstr(str, "c89")) {
     return SPN_C89;

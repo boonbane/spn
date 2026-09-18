@@ -109,6 +109,7 @@ set(SPN_SOURCES
   core/hash/sha256/sha256.c
   util/coff/coff.c
   util/fs/fs.c
+  util/glob/glob.c
   util/io/io.c
   util/macho/macho.c
   util/os/os.c

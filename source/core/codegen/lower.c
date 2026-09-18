@@ -84,6 +84,22 @@ static spn_gated_path_list_t lower_gated_paths(spn_toml_loader_t* ctx, sp_da(spn
   return values;
 }
 
+static sp_da(spn_gated_source_t) lower_gated_sources(spn_toml_loader_t* ctx, sp_da(spn_cg_source_entry_t) entries) {
+  sp_da(spn_gated_source_t) values = sp_da_new(ctx->mem, spn_gated_source_t);
+  sp_da_for(entries, it) {
+    if (!lower_path_ok(ctx, entries[it].path)) {
+      continue;
+    }
+    sp_da_push(values, ((spn_gated_source_t) {
+      .kind = spn_source_kind_from_path(entries[it].path),
+      .path = entries[it].path,
+      .tree = sp_opt_is_null(entries[it].tree) ? SPN_TREE_SOURCE : sp_opt_get(entries[it].tree),
+      .when = entries[it].when,
+    }));
+  }
+  return values;
+}
+
 static spn_gated_path_list_t lower_gated_dirs(spn_toml_loader_t* ctx, sp_da(spn_cg_source_entry_t) entries) {
   spn_gated_path_list_t values = sp_da_new(ctx->mem, spn_gated_path_t);
   sp_da_for(entries, it) {
@@ -121,7 +137,7 @@ static spn_target_info_t lower_target(spn_toml_loader_t* ctx, const spn_cg_targe
       .subsystem = sp_opt_is_null(cg->windows.subsystem) ? SPN_WIN_SUBSYSTEM_NONE : sp_opt_get(cg->windows.subsystem),
     },
     .gated = {
-      .source = lower_gated_paths(ctx, cg->source),
+      .source = lower_gated_sources(ctx, cg->source),
       .headers = lower_gated_paths(ctx, cg->headers),
       .include = lower_gated_dirs(ctx, cg->include),
       .define = lower_gated_values(ctx, cg->define),
@@ -173,7 +189,7 @@ static spn_target_info_t lower_metaprogram(spn_toml_loader_t* ctx, const spn_cg_
     .name = name,
     .kind = kind,
     .gated = {
-      .source = lower_gated_paths(ctx, cg->source),
+      .source = lower_gated_sources(ctx, cg->source),
       .include = lower_gated_dirs(ctx, cg->include),
       .define = lower_gated_values(ctx, cg->define),
       .flags = lower_gated_values(ctx, cg->flags),

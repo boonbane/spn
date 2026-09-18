@@ -25,6 +25,14 @@ typedef struct {
 } gated_t;
 
 typedef struct {
+  const c8* value;
+  const c8* when;
+  spn_tree_t tree;
+  bool tree_none;
+  spn_source_kind_t kind;
+} source_t;
+
+typedef struct {
   const c8* pattern;
   const c8* dest;
   const c8* when;
@@ -45,7 +53,7 @@ typedef struct {
   const c8* name;
   spn_linkage_set_t linkages;
   bool no_link;
-  gated_t source [4];
+  source_t source [4];
   gated_t headers [4];
   gated_t include [4];
   gated_t define [4];
@@ -163,7 +171,7 @@ typedef struct {
   spn_semver_t version;
   const c8* commit;
   gated_t include [4];
-  gated_t build_source [4];
+  source_t build_source [4];
   gated_t build_include [4];
   gated_t build_define [4];
   gated_t build_flags [4];
@@ -211,6 +219,13 @@ static const test_t tests [] = {
     .manifest = "source_static",
     .libs = {
       { .name = "t", .linkages = { .source = true, .static_lib = true } }
+    }
+  },
+  {
+    .name = "lib_source_glob",
+    .manifest = "source_glob",
+    .libs = {
+      { .name = "t", .linkages = { .static_lib = true }, .source = { { "a.c" }, { "src/*.c", .kind = SPN_SOURCE_GLOB } } }
     }
   },
   {
@@ -1521,10 +1536,28 @@ static sp_err_t check_gated_path_list(sp_test_t* t, spn_gated_path_list_t actual
   sp_try(check_gated_list(t, actual, expected, num_gated)); \
 } while (0)
 
+static sp_err_t check_gated_source_list(sp_test_t* t, sp_da(spn_gated_source_t) actual, const source_t* expected, u32 n) {
+  sp_must_eq(t, n, (u32)sp_da_size(actual));
+  sp_for(it, n) {
+    spn_tree_t tree = expected[it].tree_none ? SPN_TREE_NONE : expected[it].tree ? expected[it].tree : SPN_TREE_SOURCE;
+    sp_expect_eq(t, (u32)expected[it].kind, (u32)actual[it].kind);
+    sp_expect_str_eq_c(t, actual[it].path, expected[it].value);
+    sp_expect_eq(t, (u32)tree, (u32)actual[it].tree);
+    sp_expect_str_eq_c(t, spn_when_to_str(sp_test_arena(t), &actual[it].when), expected[it].when ? expected[it].when : "always");
+  }
+  return SP_OK;
+}
+
 #define check_gated_paths(t, actual, expected) do { \
   u32 num_gated = 0; \
   sp_carr_detect_len(expected, num_gated, (expected)[num_gated].value); \
   sp_try(check_gated_path_list(t, actual, expected, num_gated)); \
+} while (0)
+
+#define check_gated_sources(t, actual, expected) do { \
+  u32 num_gated = 0; \
+  sp_carr_detect_len(expected, num_gated, (expected)[num_gated].value); \
+  sp_try(check_gated_source_list(t, actual, expected, num_gated)); \
 } while (0)
 
 static sp_err_t check_targets(sp_test_t* t, spn_target_map_t om, const target_t* arr, u32 n, spn_target_kind_t kind) {
@@ -1546,7 +1579,7 @@ static sp_err_t check_targets(sp_test_t* t, spn_target_map_t om, const target_t*
     sp_expect_eq(t, (u32)0, (u32)sp_da_size(info->linker_script));
     sp_expect_eq(t, (u32)0, (u32)sp_da_size(info->system_deps));
     sp_expect_eq(t, (u32)0, (u32)sp_da_size(info->deps));
-    check_gated_paths(t, info->gated.source, arr[i].source);
+    check_gated_sources(t, info->gated.source, arr[i].source);
     sp_expect_eq(t, (u32)0, (u32)sp_da_size(info->headers));
     check_gated_paths(t, info->gated.headers, arr[i].headers);
     check_gated_paths(t, info->gated.include, arr[i].include);
@@ -1646,7 +1679,7 @@ sp_test_each(lower, cases, test_t, tests) {
   sp_try(check_copy_list(t, pkg.gated.publish.copy, it->publish, num_copies));
   sp_expect_eq(t, (u32)0, (u32)sp_da_size(pkg.include));
   check_gated_paths(t, pkg.gated.include, it->include);
-  check_gated_paths(t, pkg.build.gated.source, it->build_source);
+  check_gated_sources(t, pkg.build.gated.source, it->build_source);
   check_gated_paths(t, pkg.build.gated.include, it->build_include);
   sp_expect_eq(t, (u32)0, (u32)sp_da_size(pkg.build.define));
   sp_expect_eq(t, (u32)0, (u32)sp_da_size(pkg.build.flags));

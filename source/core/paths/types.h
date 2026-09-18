@@ -4,9 +4,23 @@
 #include "sp.h"
 #include "spn/core.h"
 #include "spn/types.h"
+#include "intern/types.h"
 
 typedef u32 spn_path_root_set_t;
 
+typedef struct {
+  spn_path_root_t root;
+  sp_intern_id_t sub;
+} spn_path_id_t;
+
+_Static_assert(
+  sizeof(spn_path_id_t) == sizeof(spn_path_root_t) + sizeof(sp_intern_id_t),
+  "spn_path_id_t is byte-hashed as a key; it must have no padding"
+);
+
+// @spader
+// It's embarrassing that this doesn't keep a file descriptor so we can also
+// use _at syscalls instead of copying a path every time
 typedef struct {
   sp_str_t dirs [SPN_PATH_ROOT_COUNT];
   sp_str_t storage;

@@ -83,8 +83,17 @@ static const test_t tests [] = {
     .files = { "A/X.h", "A/B/Y.c" },
     .pattern = "A/**",
     .expect = {
-      .enums = { { "A", "" }, { "A/B", "" } },
+      .enums = { { "A", "**" }, { "A/B", "**" } },
       .matches = { { "A/B/Y.c", "B/Y.c" }, { "A/X.h", "X.h" } },
+    }
+  },
+  {
+    .name = "alternates_span_dirs_unfiltered",
+    .files = { "A/B/X.c", "A/Y.c" },
+    .pattern = "A/{B/X,Y}.c",
+    .expect = {
+      .enums = { { "A", "" }, { "A/B", "" } },
+      .matches = { { "A/B/X.c", "B/X.c" }, { "A/Y.c", "Y.c" } },
     }
   },
   {
@@ -226,6 +235,86 @@ sp_test_each(dag_glob, observe, test_t, tests) {
     sp_expect_eq(t, SPN_PATH_ROOT_PROJECT, absent_obs[at].root);
   }
 
+  return SP_OK;
+}
+
+typedef struct {
+  const c8* name;
+  const c8* files [DAG_TEST_MAX_INPUTS];
+  const c8* pattern;
+  const c8* expect [DAG_TEST_MAX_INPUTS];
+} iterate_test_t;
+
+static const iterate_test_t iterate_tests [] = {
+  {
+    .name = "recursive_pattern_yields_every_match",
+    .files = { "A/Z.c", "A/B/Y.c", "A/B.c", "A/C/X.c" },
+    .pattern = "A/**/*.c",
+    .expect = { "A/B.c", "A/B/Y.c", "A/C/X.c", "A/Z.c" },
+  },
+  {
+    .name = "flat_pattern_skips_subdirs",
+    .files = { "A/Z.c", "A/B/Y.c", "A/X.h" },
+    .pattern = "A/*.c",
+    .expect = { "A/Z.c" },
+  },
+  {
+    .name = "literal_pattern_yields_the_file",
+    .files = { "A/X.c" },
+    .pattern = "A/X.c",
+    .expect = { "A/X.c" },
+  },
+  {
+    .name = "missing_dir_yields_nothing",
+    .files = { "X.c" },
+    .pattern = "B/*.c",
+  },
+  {
+    .name = "alternates_may_span_directories",
+    .files = { "A/B/X.c", "A/Y.c", "A/Z.c" },
+    .pattern = "A/{B/X,Y}.c",
+    .expect = { "A/B/X.c", "A/Y.c" },
+  },
+};
+
+static s32 path_order(const void* a, const void* b) {
+  return sp_str_compare_alphabetical(*(const sp_str_t*)a, *(const sp_str_t*)b);
+}
+
+sp_test_each(dag_glob, iterate, iterate_test_t, iterate_tests) {
+  sp_mem_t mem = sp_test_arena(t);
+  sp_str_t root = sp_fs_join_path(mem, sp_test_dir(t), sp_str_lit("R"));
+  sp_fs_create_dir(root);
+
+  spn_path_roots_t roots = sp_zero;
+  roots.dirs[SPN_PATH_ROOT_PROJECT] = root;
+
+  sp_carr_for(it->files, ft) {
+    if (!it->files[ft]) {
+      break;
+    }
+    dag_test_create(sp_fs_join_path(mem, root, sp_cstr_as_str(it->files[ft])), sp_str_lit("S"));
+  }
+
+  u32 count = 0;
+  sp_carr_detect_len(it->expect, count, it->expect[count]);
+
+  sp_da(sp_str_t) seen = sp_da_new(mem, sp_str_t);
+  spn_path_t pattern = { .root = SPN_PATH_ROOT_PROJECT, .sub = sp_cstr_as_str(it->pattern) };
+  spn_dag_glob_it_t glob = spn_dag_glob_it_new(mem, &roots, pattern);
+  while (spn_dag_glob_it_next(&glob)) {
+    if (glob.entry.kind != SP_FS_KIND_DIR) {
+      sp_da_push(seen, spn_path_join(mem, glob.base, glob.entry.rel).sub);
+    }
+  }
+  spn_dag_glob_it_deinit(&glob);
+  sp_expect_eq(t, SPN_OK, glob.err);
+  sp_da_sort(seen, path_order);
+
+  sp_must_eq(t, count, (u32)sp_da_size(seen));
+  sp_for(st, count) {
+    sp_expect_str_eq_c(t, seen[st], it->expect[st]);
+  }
   return SP_OK;
 }
 

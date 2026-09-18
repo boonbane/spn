@@ -41,7 +41,10 @@ static sp_da(spn_path_t) clone_path_list(sp_mem_t mem, sp_da(spn_path_t) source)
 
 static spn_target_info_t clone_target_info(sp_mem_t mem, spn_target_info_t* source) {
   spn_target_info_t target = *source;
-  target.source = clone_path_list(mem, source->source);
+  target.source = sp_da_new(mem, spn_source_t);
+  sp_da_for(source->source, it) {
+    sp_da_push(target.source, source->source[it]);
+  }
   target.headers = clone_path_list(mem, source->headers);
   target.include = clone_path_list(mem, source->include);
   target.define = clone_str_list(mem, source->define);

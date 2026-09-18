@@ -158,6 +158,7 @@ add_executable(core
   ${SRC}/ctx/ctx.c
   ${SRC}/dag/dag.c
   ${SRC}/dag/glob.c
+  ${UTIL}/glob/glob.c
   ${SRC}/dag/run.c
   ${SRC}/dag/stamp.c
   ${SRC}/dag/store.c
@@ -299,6 +300,7 @@ set(DAG_TEST_SOURCES
   ${SRC}/core/core.c
   ${SRC}/dag/dag.c
   ${SRC}/dag/glob.c
+  ${UTIL}/glob/glob.c
   ${SRC}/dag/run.c
   ${SRC}/dag/stamp.c
   ${SRC}/dag/store.c
@@ -307,6 +309,7 @@ set(DAG_TEST_SOURCES
   ${SRC}/hash/digest/digest.c
   ${SRC}/hash/sha256/sha256.c
   ${SRC}/paths/paths.c
+  ${UTIL}/str/str.c
   ${UTIL}/fs/fs.c
   ${UTIL}/io/io.c
   ${UTIL}/thread_pool/thread_pool.c
@@ -333,5 +336,10 @@ foreach(target dag dag_os)
   add_dependencies(${target} spn_codegen_gen)
   add_test(NAME ${target} COMMAND "$<TARGET_FILE:${target}>" WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
 endforeach()
+
+add_executable(glob glob/shape.c ${UTIL}/glob/glob.c tools/main/unit.c)
+spn_test_binary(glob)
+target_include_directories(glob PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/tools ${STORE}/include/sp)
+add_test(NAME glob COMMAND "$<TARGET_FILE:glob>" WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
 
 add_subdirectory(resolver)
