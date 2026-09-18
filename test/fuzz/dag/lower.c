@@ -8,36 +8,23 @@ typedef struct {
   u64 action;
 } fz_exec_ctx_t;
 
-static spn_err_t fz_exec(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs) {
-  fz_exec_ctx_t* ctx = (fz_exec_ctx_t*)user_data;
+static spn_err_t fz_produce(sp_mem_t scratch, spn_dag_t* g, spn_dag_action_t* action, fz_exec_ctx_t* ctx, const spn_path_t* outputs, spn_dag_obs_set_t* obs) {
   fz_lowered_t* low = ctx->low;
   fz_action_t* fz = &low->u->actions[ctx->action];
-  low->execs[ctx->action]++;
-  fz_journal_exec(low->journal, ctx->action);
-  if (low->ex) {
-    sp_da_push(low->ex->log, ((fz_flight_t) {
-      .action = ctx->action,
-      .started = low->ex->sim->syscalls,
-    }));
-  }
-
-  sp_mem_arena_marker_t s = sp_mem_begin_scratch();
-  spn_err_t err = SPN_OK;
 
   u64 consumed = sp_da_size(action->consumes);
   u64 count = consumed + sp_da_size(fz->obs);
-  sp_str_t* inputs = sp_alloc_n(s.mem, sp_str_t, count ? count : 1);
+  sp_str_t* inputs = sp_alloc_n(scratch, sp_str_t, count ? count : 1);
   sp_da_for(action->consumes, it) {
     spn_dag_artifact_t* in = spn_dag_find_artifact(low->g, action->consumes[it]);
     switch (in->kind) {
       case SPN_DAG_ARTIFACT_KIND_VALUE: {
-        inputs[it] = fz_content(s.mem, low->u->artifacts[in->id.index].content);
+        inputs[it] = fz_content(scratch, low->u->artifacts[in->id.index].content);
         break;
       }
       case SPN_DAG_ARTIFACT_KIND_FILE: {
-        if (sp_io_read_file(s.mem, spn_path_str(low->roots, s.mem, in->materialized), &inputs[it])) {
-          err = SPN_ERR_DAG_ACTION;
-          goto done;
+        if (sp_io_read_file(scratch, spn_path_str(low->roots, scratch, in->materialized), &inputs[it])) {
+          return SPN_ERR_DAG_ACTION;
         }
         break;
       }
@@ -50,49 +37,44 @@ static spn_err_t fz_exec(spn_dag_t* g, spn_dag_action_t* action, void* user_data
   sp_da_for(fz->obs, ot) {
     fz_obs_t fo = fz->obs[ot];
     sp_str_t path = fo.probe
-      ? fz_phantom_sim_path(s.mem, fo.phantom)
-      : fz_artifact_sim_path(s.mem, low->u, fo.artifact);
+      ? fz_phantom_sim_path(scratch, fo.phantom)
+      : fz_artifact_sim_path(scratch, low->u, fo.artifact);
     sp_str_t bytes = sp_zero;
-    sp_err_t read = sp_io_read_file(s.mem, path, &bytes);
+    sp_err_t read = sp_io_read_file(scratch, path, &bytes);
     if (!read) {
       inputs[consumed + ot] = bytes;
       continue;
     }
     if (read != SP_ERR_SYS_NOT_FOUND) {
-      err = SPN_ERR_DAG_ACTION;
-      goto done;
+      return SPN_ERR_DAG_ACTION;
     }
     if (fo.probe) {
       if (low->state->phantoms[fo.phantom].present) {
-        err = SPN_ERR_DAG_ACTION;
-        goto done;
+        return SPN_ERR_DAG_ACTION;
       }
     }
     else if (spn_dag_digest_valid(spn_dag_find_artifact(low->g, low->ids[fo.artifact])->digest)) {
-      err = SPN_ERR_DAG_ACTION;
-      goto done;
+      return SPN_ERR_DAG_ACTION;
     }
     inputs[consumed + ot] = sp_str_lit("absent");
   }
 
   sp_da_for(action->produces, it) {
     spn_dag_artifact_t* out = spn_dag_find_artifact(low->g, action->produces[it]);
-    sp_str_t content = fz_output_content(s.mem, low->u->actions[ctx->action].identity, inputs, count, out->name);
-    if (sp_fs_create_file_str(spn_path_str(low->roots, s.mem, outputs[it]), content)) {
-      err = SPN_ERR_DAG_ACTION;
-      goto done;
+    sp_str_t content = fz_output_content(scratch, low->u->actions[ctx->action].identity, inputs, count, out->name);
+    if (sp_fs_create_file_str(spn_path_str(low->roots, scratch, outputs[it]), content)) {
+      return SPN_ERR_DAG_ACTION;
     }
   }
 
   sp_da_for(fz->obs, ot) {
     fz_obs_t fo = fz->obs[ot];
     if (fo.probe) {
-      sp_str_t path = fz_phantom_sim_path(s.mem, fo.phantom);
+      sp_str_t path = fz_phantom_sim_path(scratch, fo.phantom);
       sp_sys_file_meta_t meta = sp_zero;
       sp_err_t stat = sp_sys_get_path_metadata_s(sp_sys_get_root(0), path, &meta);
       if (stat && stat != SP_ERR_SYS_NOT_FOUND) {
-        err = SPN_ERR_DAG_ACTION;
-        goto done;
+        return SPN_ERR_DAG_ACTION;
       }
       spn_dag_observe(obs, (spn_dag_obs_t) {
         .kind = !stat && meta.kind == SP_FS_KIND_FILE ? SPN_DAG_OBS_FILE : SPN_DAG_OBS_ABSENT,
@@ -102,12 +84,27 @@ static spn_err_t fz_exec(spn_dag_t* g, spn_dag_action_t* action, void* user_data
     else {
       spn_dag_observe(obs, (spn_dag_obs_t) {
         .kind = SPN_DAG_OBS_FILE,
-        .path = spn_path_make(g->roots, fz_artifact_sim_path(s.mem, low->u, fo.artifact)),
+        .path = spn_path_make(g->roots, fz_artifact_sim_path(scratch, low->u, fo.artifact)),
       });
     }
   }
+  return SPN_OK;
+}
 
-done:
+static spn_err_t fz_exec(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs) {
+  fz_exec_ctx_t* ctx = (fz_exec_ctx_t*)user_data;
+  fz_lowered_t* low = ctx->low;
+  low->execs[ctx->action]++;
+  fz_journal_exec(low->journal, ctx->action);
+  if (low->ex) {
+    sp_da_push(low->ex->log, ((fz_flight_t) {
+      .action = ctx->action,
+      .started = low->ex->sim->syscalls,
+    }));
+  }
+
+  sp_mem_arena_marker_t s = sp_mem_begin_scratch();
+  spn_err_t err = fz_produce(s.mem, g, action, ctx, outputs, obs);
   sp_mem_end_scratch(s);
   return err;
 }

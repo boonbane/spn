@@ -723,35 +723,31 @@ static void lookup(spn_dag_t* g, spn_dag_action_t* action, spn_dag_env_t* env, s
   }
 }
 
-static spn_err_t execute(spn_dag_t* g, spn_dag_attempt_t* attempt, spn_dag_env_t* env) {
+static spn_err_t execute_attempt(sp_mem_t mem, spn_dag_t* g, spn_dag_attempt_t* attempt, spn_dag_env_t* env) {
   spn_dag_action_t* action = attempt->action;
-  sp_assert(!spn_path_empty(env->scratch));
-  sp_mem_arena_marker_t s = sp_mem_begin_scratch();
-  spn_err_t err = SPN_OK;
 
-  spn_path_t scratch = scratch_dir(s.mem, env, action);
-  sp_str_t dir = spn_path_str(g->roots, s.mem, scratch);
+  spn_path_t staging = scratch_dir(mem, env, action);
+  sp_str_t dir = spn_path_str(g->roots, mem, staging);
   sp_fs_remove_dir(dir);
   if (sp_fs_create_dir(dir)) {
-    err = SPN_ERR_DAG_SCRATCH;
-    goto done;
+    return SPN_ERR_DAG_SCRATCH;
   }
 
-  spn_path_t* outputs = sp_alloc_n(s.mem, spn_path_t, sp_da_size(action->produces));
+  spn_path_t* outputs = sp_alloc_n(mem, spn_path_t, sp_da_size(action->produces));
   sp_da_for(action->produces, it) {
     spn_dag_artifact_t* artifact = spn_dag_find_artifact(g, action->produces[it]);
-    outputs[it] = spn_path_join(s.mem, scratch, artifact->name);
+    outputs[it] = spn_path_join(mem, staging, artifact->name);
     if (artifact->kind == SPN_DAG_ARTIFACT_KIND_TREE) {
-      sp_fs_create_dir(spn_path_str(g->roots, s.mem, outputs[it]));
+      sp_fs_create_dir(spn_path_str(g->roots, mem, outputs[it]));
     }
   }
 
   trace_emit(env, (spn_dag_trace_event_t) { .kind = SPN_DAG_TRACE_EXECUTE, .action = action->id, .key = attempt->key });
 
-  err = action->execute(g, action, action->user_data, env, outputs, &attempt->obs);
+  spn_err_t err = action->execute(g, action, action->user_data, env, outputs, &attempt->obs);
   if (err) {
     diag_set(&attempt->diag, err, action->id, sp_str_lit(""));
-    goto done;
+    return err;
   }
   switch (action->kind) {
     case SPN_DAG_ACTION_DISCOVERED: {
@@ -767,20 +763,34 @@ static spn_err_t execute(spn_dag_t* g, spn_dag_attempt_t* attempt, spn_dag_env_t
 
   sp_da_for(action->produces, it) {
     spn_dag_artifact_t* artifact = spn_dag_find_artifact(g, action->produces[it]);
-    sp_str_t produced = spn_path_str(g->roots, s.mem, outputs[it]);
+    sp_str_t produced = spn_path_str(g->roots, mem, outputs[it]);
     err = SPN_ERR_DAG_MISSING_OUTPUT;
     if (sp_fs_exists(produced)) {
-      err = artifact->kind == SPN_DAG_ARTIFACT_KIND_TREE
-        ? spn_dag_store_put_tree(env->store, produced, &attempt->digests[it])
-        : spn_dag_store_put_file(env->store, produced, artifact->name, &attempt->digests[it]);
+      switch (artifact->kind) {
+        case SPN_DAG_ARTIFACT_KIND_TREE: {
+          err = spn_dag_store_put_tree(env->store, produced, &attempt->digests[it]);
+          break;
+        }
+        case SPN_DAG_ARTIFACT_KIND_VALUE:
+        case SPN_DAG_ARTIFACT_KIND_FILE: {
+          err = spn_dag_store_put_file(env->store, produced, artifact->name, &attempt->digests[it]);
+          break;
+        }
+      }
     }
     if (err) {
       diag_set(&attempt->diag, err, action->id, artifact_location(g, artifact));
-      goto done;
+      return err;
     }
   }
 
-done:
+  return SPN_OK;
+}
+
+static spn_err_t execute(spn_dag_t* g, spn_dag_attempt_t* attempt, spn_dag_env_t* env) {
+  sp_assert(!spn_path_empty(env->scratch));
+  sp_mem_arena_marker_t s = sp_mem_begin_scratch();
+  spn_err_t err = execute_attempt(s.mem, g, attempt, env);
   sp_mem_end_scratch(s);
   return err;
 }
@@ -806,7 +816,7 @@ static spn_err_t commit(spn_dag_t* g, spn_dag_attempt_t* attempt, spn_dag_env_t*
       return SPN_OK;
     }
     case SPN_DAG_ACTION_DISCOVERED: {
-      spn_dag_pathset_t set = spn_dag_obs_table_put(env->discovery, attempt->key, &attempt->obs);
+      spn_dag_pathset_t set = spn_dag_obs_set_put(&attempt->obs, attempt->key);
       sp_mem_arena_marker_t s = sp_mem_begin_scratch();
       u32 count = (u32)sp_da_size(set.obs);
       spn_dag_digest_t* digests = sp_alloc_n(s.mem, spn_dag_digest_t, count);

@@ -190,7 +190,7 @@ static void put_entry(spn_dag_obs_table_t* discovery, const entry_t* entry) {
   sp_for(it, count) {
     spn_dag_observe(&set, obs[it]);
   }
-  spn_dag_obs_table_put(discovery, dag_test_digest(entry->key), &set);
+  spn_dag_obs_set_put(&set, dag_test_digest(entry->key));
 }
 
 static sp_err_t expect_obs(sp_test_t* t, const spn_dag_pathset_t* set, const dag_test_obs_t* expect) {
