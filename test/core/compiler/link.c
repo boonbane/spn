@@ -1063,7 +1063,7 @@ sp_test_each(render_link, render, link_test_t, tests, .setup = spn_test_ctx_setu
   sp_da_init(mem, files.objects);
   sp_da_init(mem, files.whole_archives);
   sp_da_init(mem, files.exports.symbols);
-  sp_da_push(files.objects, test_arg_path("main.o"));
+  sp_da_push(files.objects, spn_arg_path(test_arg_path("main.o")));
   if (it->exports) {
     files.exports.path = test_arg_path(it->exports);
   }
@@ -1098,8 +1098,7 @@ sp_test_each(render_link, render, link_test_t, tests, .setup = spn_test_ctx_setu
 
   spn_profile_info_t profile = test_profile(it->profile);
   profile.linker = it->lld ? SPN_LD_FAMILY_LLD : spn_ld_native(it->driver, triple);
-  spn_invocation_t invocation = sp_zero;
-  spn_err_t err = spn_cc_render_link(mem, &toolchain, it->host, &profile, &link, &files, &invocation);
+  spn_err_t err = spn_cc_validate_link(&toolchain, it->host, &profile, &link);
   sp_expect_eq(t, err, it->expect.err);
   if (it->expect.err) {
     sp_da(spn_event_t) errs = spn_test_drain_errs(mem);
@@ -1122,5 +1121,6 @@ sp_test_each(render_link, render, link_test_t, tests, .setup = spn_test_ctx_setu
     }
     return SP_OK;
   }
+  spn_invocation_t invocation = spn_cc_render_link(mem, &toolchain, &profile, &link, &files);
   return expect_args(t, &invocation, it->expect);
 }

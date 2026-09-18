@@ -106,8 +106,10 @@ static bool sp_sim_fail(void) {
   return true;
 }
 
+static sp_sim_fd_t* sp_sim_fd(sp_sys_fd_t fd);
+
 static sp_sim_t* sp_sim_syscall_at(sp_sys_fd_t fd) {
-  SP_ASSERT(fd == SP_SIM_ROOT);
+  SP_ASSERT(fd == SP_SIM_ROOT || sp_sim_fd(fd)->node->kind == SP_FS_KIND_DIR);
   return sp_sim_syscall();
 }
 
@@ -206,6 +208,19 @@ static sp_sim_fd_t* sp_sim_fd(sp_sys_fd_t fd) {
     sp_fatal("sp_sim: bad fd {}", sp_fmt_uint((u64)fd));
   }
   return &sim->fds[idx];
+}
+
+static sp_str_t sp_sim_resolve(sp_sys_fd_t fd, const c8* path, u32 len, c8* buf) {
+  if (fd == SP_SIM_ROOT || (len && path[0] == '/')) {
+    return sp_sim_norm(path, len, buf);
+  }
+  sp_str_t dir = sp_sim_fd(fd)->path;
+  c8 joined [SP_PATH_MAX];
+  SP_ASSERT(dir.len + 1 + len < SP_PATH_MAX);
+  sp_sys_memcpy(joined, dir.data, dir.len);
+  joined[dir.len] = '/';
+  sp_sys_memcpy(joined + dir.len + 1, path, len);
+  return sp_sim_norm(joined, dir.len + 1 + len, buf);
 }
 
 static void sp_sim_meta(sp_sim_inode_t* node, sp_sys_file_meta_t* st) {
@@ -388,7 +403,7 @@ static sp_err_t sp_sim_sys_open(sp_sys_fd_t fd, const c8* path, u32 len, sp_sys_
   }
 
   c8 buf [SP_PATH_MAX];
-  sp_str_t norm = sp_sim_norm(path, len, buf);
+  sp_str_t norm = sp_sim_resolve(fd, path, len, buf);
   sp_sim_inode_t* node = sp_sim_find(norm);
 
   if (node && (flags & SP_SYS_OPEN_CREATE) && (flags & SP_SYS_OPEN_EXCLUSIVE)) {
@@ -440,7 +455,7 @@ static sp_err_t sp_sim_sys_open_dir(sp_sys_fd_t fd, const c8* path, u32 len, sp_
   }
 
   c8 norm_buf [SP_PATH_MAX];
-  sp_str_t norm = sp_sim_norm(path, len, norm_buf);
+  sp_str_t norm = sp_sim_resolve(fd, path, len, norm_buf);
   sp_sim_inode_t* node = sp_sim_find(norm);
   if (!node) {
     return SP_ERR_SYS_NOT_FOUND;
@@ -493,7 +508,7 @@ static sp_err_t sp_sim_sys_mkdir(sp_sys_fd_t fd, const c8* path, u32 len, sp_sys
   }
 
   c8 buf [SP_PATH_MAX];
-  sp_str_t norm = sp_sim_norm(path, len, buf);
+  sp_str_t norm = sp_sim_resolve(fd, path, len, buf);
   if (sp_sim_find(norm)) {
     return SP_ERR_SYS;
   }
@@ -514,7 +529,7 @@ static sp_err_t sp_sim_sys_rmdir(sp_sys_fd_t fd, const c8* path, u32 len) {
   }
 
   c8 buf [SP_PATH_MAX];
-  sp_str_t norm = sp_sim_norm(path, len, buf);
+  sp_str_t norm = sp_sim_resolve(fd, path, len, buf);
   sp_sim_inode_t* node = sp_sim_find(norm);
   if (!node) {
     return SP_ERR_SYS_NOT_FOUND;
@@ -541,7 +556,7 @@ static sp_err_t sp_sim_sys_unlink(sp_sys_fd_t fd, const c8* path, u32 len) {
   }
 
   c8 buf [SP_PATH_MAX];
-  sp_str_t norm = sp_sim_norm(path, len, buf);
+  sp_str_t norm = sp_sim_resolve(fd, path, len, buf);
   sp_sim_inode_t* node = sp_sim_find(norm);
   if (!node) {
     return SP_ERR_SYS_NOT_FOUND;
@@ -556,7 +571,6 @@ static sp_err_t sp_sim_sys_unlink(sp_sys_fd_t fd, const c8* path, u32 len) {
 }
 
 static sp_err_t sp_sim_sys_rename(sp_sys_fd_t from_fd, const c8* from, u32 from_len, sp_sys_fd_t to_fd, const c8* to, u32 to_len) {
-  SP_ASSERT(to_fd == SP_SIM_ROOT);
   sp_sim_t* sim = sp_sim_syscall_at(from_fd);
   if (sp_sim_fail()) {
     return SP_ERR_SYS;
@@ -564,8 +578,8 @@ static sp_err_t sp_sim_sys_rename(sp_sys_fd_t from_fd, const c8* from, u32 from_
 
   c8 from_buf [SP_PATH_MAX];
   c8 to_buf [SP_PATH_MAX];
-  sp_str_t from_norm = sp_sim_norm(from, from_len, from_buf);
-  sp_str_t to_norm = sp_sim_norm(to, to_len, to_buf);
+  sp_str_t from_norm = sp_sim_resolve(from_fd, from, from_len, from_buf);
+  sp_str_t to_norm = sp_sim_resolve(to_fd, to, to_len, to_buf);
 
   sp_sim_inode_t* src = sp_sim_find(from_norm);
   if (!src) {
@@ -626,7 +640,6 @@ static sp_err_t sp_sim_sys_rename(sp_sys_fd_t from_fd, const c8* from, u32 from_
 }
 
 static sp_err_t sp_sim_sys_link(sp_sys_fd_t from_fd, const c8* existing, u32 existing_len, sp_sys_fd_t to_fd, const c8* alias, u32 alias_len) {
-  SP_ASSERT(to_fd == SP_SIM_ROOT);
   sp_sim_syscall_at(from_fd);
   if (sp_sim_fail()) {
     return SP_ERR_SYS;
@@ -634,8 +647,8 @@ static sp_err_t sp_sim_sys_link(sp_sys_fd_t from_fd, const c8* existing, u32 exi
 
   c8 existing_buf [SP_PATH_MAX];
   c8 alias_buf [SP_PATH_MAX];
-  sp_str_t existing_norm = sp_sim_norm(existing, existing_len, existing_buf);
-  sp_str_t alias_norm = sp_sim_norm(alias, alias_len, alias_buf);
+  sp_str_t existing_norm = sp_sim_resolve(from_fd, existing, existing_len, existing_buf);
+  sp_str_t alias_norm = sp_sim_resolve(to_fd, alias, alias_len, alias_buf);
 
   sp_sim_inode_t* src = sp_sim_find(existing_norm);
   if (!src) {
@@ -676,7 +689,7 @@ static sp_err_t sp_sim_sys_get_path_metadata(sp_sys_fd_t fd, const c8* path, u32
   }
 
   c8 buf [SP_PATH_MAX];
-  sp_sim_inode_t* node = sp_sim_find(sp_sim_norm(path, len, buf));
+  sp_sim_inode_t* node = sp_sim_find(sp_sim_resolve(fd, path, len, buf));
   if (!node) {
     return SP_ERR_SYS_NOT_FOUND;
   }
@@ -697,7 +710,7 @@ static sp_err_t sp_sim_sys_set_file_perms(sp_sys_fd_t fd, const c8* path, u32 le
   sp_sim_syscall_at(fd);
 
   c8 buf [SP_PATH_MAX];
-  sp_sim_inode_t* node = sp_sim_find(sp_sim_norm(path, len, buf));
+  sp_sim_inode_t* node = sp_sim_find(sp_sim_resolve(fd, path, len, buf));
   if (!node) {
     return SP_ERR_SYS_NOT_FOUND;
   }

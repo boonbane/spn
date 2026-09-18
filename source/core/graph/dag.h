@@ -19,6 +19,7 @@ typedef struct {
     spn_dag_id_t object;
     spn_dag_id_t header;
   } embed;
+  spn_dag_id_t exports;
 } spn_dag_target_ids_t;
 
 struct spn_dag_build_t {

@@ -1,5 +1,6 @@
 #include "spn_test.h"
 
+#include "compiler/driver.h"
 #include "compiler/push.h"
 #include "dag/dag.h"
 #include "graph/identity.h"
@@ -256,8 +257,8 @@ sp_test_each(identity, user, identity_node_test_t, user_tests) {
   sp_mem_t mem = sp_test_arena(t);
   spn_build_source_pin_t pin_a = identity_pin(&it->a.pkg);
   spn_build_source_pin_t pin_b = identity_pin(&it->b.pkg);
-  spn_dag_digest_t a = spn_build_user_identity(identity_node(mem, &it->a), &pin_a);
-  spn_dag_digest_t b = spn_build_user_identity(identity_node(mem, &it->b), &pin_b);
+  spn_dag_digest_t a = hash_user_node(identity_node(mem, &it->a), &pin_a);
+  spn_dag_digest_t b = hash_user_node(identity_node(mem, &it->b), &pin_b);
   return identity_expect_distinct(t, a, b, &it->expect);
 }
 
@@ -305,7 +306,7 @@ static const identity_link_test_t link_tests [] = {
   },
 };
 
-static sp_err_t identity_link_digest(sp_test_t* t, sp_mem_t mem, const identity_link_t* spec, spn_dag_digest_t* digest) {
+static spn_dag_digest_t identity_link_digest(sp_mem_t mem, const identity_link_t* spec) {
   spn_toolchain_unit_t toolchain = {
     .cc = {
       .name = sp_str_lit("T"),
@@ -313,38 +314,149 @@ static sp_err_t identity_link_digest(sp_test_t* t, sp_mem_t mem, const identity_
       .compiler = { .program = spn_arg_lit(sp_str_lit("cc")) },
     },
   };
-  spn_build_unit_t build = {
-    .toolchain = &toolchain,
-    .profile = { .arch = SPN_ARCH_X64, .os = SPN_OS_LINUX, .abi = SPN_ABI_GNU },
-  };
-  spn_pkg_unit_t pkg = { .build = &build };
-  pkg.paths.work = (spn_path_t) { .root = SPN_PATH_ROOT_BUILD, .sub = sp_str_lit("W") };
-  spn_target_unit_t target = {
-    .pkg = &pkg,
-    .kind = SPN_CC_OUTPUT_EXE,
-    .link = { .cc = { .lang = SPN_LANG_C, .kind = SPN_CC_OUTPUT_EXE } },
-  };
+  spn_profile_info_t profile = { .arch = SPN_ARCH_X64, .os = SPN_OS_LINUX, .abi = SPN_ABI_GNU };
+  spn_cc_link_t link = { .lang = SPN_LANG_C, .kind = SPN_CC_OUTPUT_EXE };
 
-  sp_da(spn_path_t) objects = sp_da_new(mem, spn_path_t);
+  sp_da(spn_arg_t) objects = sp_da_new(mem, spn_arg_t);
   sp_carr_for(spec->objects, it) {
     if (!spec->objects[it].sub) {
       break;
     }
-    sp_da_push(objects, identity_path(&spec->objects[it]));
+    sp_da_push(objects, spn_arg_path(identity_path(&spec->objects[it])));
   }
 
   spn_cc_link_files_t files = { .output = identity_path(&spec->output), .objects = objects };
-  sp_must_eq(t, SPN_OK, spn_build_link_identity(mem, &target, &files, digest));
-  return SP_OK;
+  spn_invocation_t invocation = spn_cc_render_link(mem, &toolchain.cc, &profile, &link, &files);
+  invocation.cwd = (spn_path_t) { .root = SPN_PATH_ROOT_BUILD, .sub = sp_str_lit("W") };
+  return hash_link(toolchain.identity, &invocation);
 }
 
 sp_test_each(identity, link, identity_link_test_t, link_tests) {
   sp_mem_t mem = sp_test_arena(t);
-  spn_dag_digest_t a = sp_zero;
-  spn_dag_digest_t b = sp_zero;
-  sp_try(identity_link_digest(t, mem, &it->a, &a));
-  sp_try(identity_link_digest(t, mem, &it->b, &b));
-  return identity_expect_distinct(t, a, b, &it->expect);
+  return identity_expect_distinct(t, identity_link_digest(mem, &it->a), identity_link_digest(mem, &it->b), &it->expect);
+}
+
+typedef struct {
+  spn_rsp_style_t style;
+  const c8* build;
+  identity_path_t args [IDENTITY_TEST_MAX_OBJECTS];
+} identity_rsp_t;
+
+typedef struct {
+  const c8* name;
+  identity_rsp_t a;
+  identity_rsp_t b;
+  identity_expect_t expect;
+} identity_rsp_test_t;
+
+static const identity_rsp_test_t rsp_tests [] = {
+  {
+    .name = "identical_args_agree",
+    .a = { .build = "/A", .args = { { "A.o", SPN_PATH_ROOT_BUILD }, { "B.o", SPN_PATH_ROOT_BUILD } } },
+    .b = { .build = "/A", .args = { { "A.o", SPN_PATH_ROOT_BUILD }, { "B.o", SPN_PATH_ROOT_BUILD } } },
+  },
+  {
+    .name = "distinct_arg_sub",
+    .a = { .build = "/A", .args = { { "A.o", SPN_PATH_ROOT_BUILD } } },
+    .b = { .build = "/A", .args = { { "B.o", SPN_PATH_ROOT_BUILD } } },
+    .expect = { .distinct = true }
+  },
+  {
+    .name = "distinct_arg_root",
+    .a = { .build = "/A", .args = { { "A.o", SPN_PATH_ROOT_BUILD } } },
+    .b = { .build = "/A", .args = { { "A.o", SPN_PATH_ROOT_CACHE } } },
+    .expect = { .distinct = true }
+  },
+  {
+    .name = "extra_arg",
+    .a = { .build = "/A", .args = { { "A.o", SPN_PATH_ROOT_BUILD } } },
+    .b = { .build = "/A", .args = { { "A.o", SPN_PATH_ROOT_BUILD }, { "B.o", SPN_PATH_ROOT_BUILD } } },
+    .expect = { .distinct = true }
+  },
+  {
+    .name = "reordered_args",
+    .a = { .build = "/A", .args = { { "A.o", SPN_PATH_ROOT_BUILD }, { "B.o", SPN_PATH_ROOT_BUILD } } },
+    .b = { .build = "/A", .args = { { "B.o", SPN_PATH_ROOT_BUILD }, { "A.o", SPN_PATH_ROOT_BUILD } } },
+    .expect = { .distinct = true }
+  },
+  {
+    .name = "distinct_style",
+    .a = { .style = SPN_RSP_STYLE_WINDOWS, .build = "/A", .args = { { "A.o", SPN_PATH_ROOT_BUILD } } },
+    .b = { .style = SPN_RSP_STYLE_GNU, .build = "/A", .args = { { "A.o", SPN_PATH_ROOT_BUILD } } },
+    .expect = { .distinct = true }
+  },
+  {
+    .name = "distinct_root_dir",
+    .a = { .build = "/A", .args = { { "A.o", SPN_PATH_ROOT_BUILD } } },
+    .b = { .build = "/B", .args = { { "A.o", SPN_PATH_ROOT_BUILD } } },
+    .expect = { .distinct = true }
+  },
+};
+
+static spn_dag_digest_t identity_rsp_digest(sp_mem_t mem, const identity_rsp_t* spec) {
+  spn_path_roots_t roots = sp_zero;
+  roots.dirs[SPN_PATH_ROOT_BUILD] = sp_cstr_as_str(spec->build);
+
+  sp_da(spn_arg_t) args = sp_da_new(mem, spn_arg_t);
+  sp_carr_for(spec->args, it) {
+    if (!spec->args[it].sub) {
+      break;
+    }
+    sp_da_push(args, spn_arg_path(identity_path(&spec->args[it])));
+  }
+  return hash_rsp(&roots, spec->style, args);
+}
+
+sp_test_each(identity, rsp, identity_rsp_test_t, rsp_tests) {
+  sp_mem_t mem = sp_test_arena(t);
+  return identity_expect_distinct(t, identity_rsp_digest(mem, &it->a), identity_rsp_digest(mem, &it->b), &it->expect);
+}
+
+typedef struct {
+  sp_hash_t toolchain;
+  spn_cc_exports_format_t format;
+  const c8* name;
+} identity_exports_t;
+
+typedef struct {
+  const c8* name;
+  identity_exports_t a;
+  identity_exports_t b;
+  identity_expect_t expect;
+} identity_exports_test_t;
+
+static const identity_exports_test_t exports_tests [] = {
+  {
+    .name = "identical_exports_agree",
+    .a = { .toolchain = 1, .format = SPN_CC_EXPORTS_DEF, .name = "A" },
+    .b = { .toolchain = 1, .format = SPN_CC_EXPORTS_DEF, .name = "A" },
+  },
+  {
+    .name = "distinct_toolchain",
+    .a = { .toolchain = 1, .format = SPN_CC_EXPORTS_DEF, .name = "A" },
+    .b = { .toolchain = 2, .format = SPN_CC_EXPORTS_DEF, .name = "A" },
+    .expect = { .distinct = true }
+  },
+  {
+    .name = "distinct_format",
+    .a = { .toolchain = 1, .format = SPN_CC_EXPORTS_DEF, .name = "A" },
+    .b = { .toolchain = 1, .format = SPN_CC_EXPORTS_VERSION_SCRIPT, .name = "A" },
+    .expect = { .distinct = true }
+  },
+  {
+    .name = "distinct_name",
+    .a = { .toolchain = 1, .format = SPN_CC_EXPORTS_DEF, .name = "A" },
+    .b = { .toolchain = 1, .format = SPN_CC_EXPORTS_DEF, .name = "B" },
+    .expect = { .distinct = true }
+  },
+};
+
+static spn_dag_digest_t identity_exports_digest(const identity_exports_t* spec) {
+  return hash_exports(spec->toolchain, spec->format, sp_cstr_as_str(spec->name));
+}
+
+sp_test_each(identity, exports, identity_exports_test_t, exports_tests) {
+  return identity_expect_distinct(t, identity_exports_digest(&it->a), identity_exports_digest(&it->b), &it->expect);
 }
 
 typedef struct {
@@ -412,7 +524,7 @@ static spn_dag_digest_t identity_compile_digest(sp_mem_t mem, const identity_com
     }
     spn_cc_push_env(mem, &unit.invocation, spec->env[it].key, spn_arg_path((spn_path_t) { .root = SPN_PATH_ROOT_CACHE, .sub = sp_cstr_as_str(spec->env[it].value) }));
   }
-  return spn_build_compile_identity(&unit);
+  return hash_compile_unit(&unit);
 }
 
 sp_test_each(identity, compile, identity_compile_test_t, compile_tests) {

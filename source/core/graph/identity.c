@@ -32,23 +32,6 @@ spn_build_source_pin_t spn_build_source_pin(spn_pkg_unit_t* unit) {
   return pin;
 }
 
-static void identity_hash_outputs(spn_digest_ctx_t* ctx, sp_da(spn_user_output_t) outputs) {
-  spn_dag_hash_u64(ctx, sp_da_size(outputs));
-  sp_da_for(outputs, it) {
-    spn_dag_hash_u8(ctx, (u8)outputs[it].dir);
-    spn_dag_hash_str(ctx, outputs[it].sub);
-    spn_dag_hash_u8(ctx, (u8)outputs[it].kind);
-  }
-}
-
-static void identity_hash_copies(spn_digest_ctx_t* ctx, sp_da(spn_publish_copy_t) copies) {
-  sp_da_for(copies, it) {
-    spn_dag_hash_u8(ctx, (u8)copies[it].tree);
-    spn_dag_hash_str(ctx, copies[it].pattern);
-    spn_dag_hash_str(ctx, copies[it].dest);
-  }
-}
-
 spn_dag_digest_t spn_build_tree_identity(spn_pkg_unit_t* unit, const spn_build_source_pin_t* pin) {
   spn_digest_ctx_t ctx = sp_zero;
   spn_digest_init_blake3(&ctx);
@@ -63,12 +46,17 @@ spn_dag_digest_t spn_build_tree_identity(spn_pkg_unit_t* unit, const spn_build_s
     }
   }
 
-  identity_hash_copies(&ctx, unit->info->publish.copy);
+  sp_da(spn_publish_copy_t) copies = unit->info->publish.copy;
+  sp_da_for(copies, it) {
+    spn_dag_hash_u8(&ctx, (u8)copies[it].tree);
+    spn_dag_hash_str(&ctx, copies[it].pattern);
+    spn_dag_hash_str(&ctx, copies[it].dest);
+  }
 
   return spn_dag_hash_final(&ctx);
 }
 
-spn_dag_digest_t spn_build_user_identity(spn_user_node_t* node, const spn_build_source_pin_t* pin) {
+spn_dag_digest_t hash_user_node(spn_user_node_t* node, const spn_build_source_pin_t* pin) {
   spn_digest_ctx_t ctx = sp_zero;
   spn_digest_init_blake3(&ctx);
   spn_dag_hash_str(&ctx, sp_str_lit("spn.build.user.v8"));
@@ -78,33 +66,39 @@ spn_dag_digest_t spn_build_user_identity(spn_user_node_t* node, const spn_build_
   spn_dag_hash_str(&ctx, node->tag);
   spn_dag_hash_str(&ctx, node->fn);
   spn_dag_hash_paths(&ctx, node->inputs);
-  identity_hash_outputs(&ctx, node->outputs);
+  spn_dag_hash_u64(&ctx, sp_da_size(node->outputs));
+  sp_da_for(node->outputs, it) {
+    spn_dag_hash_u64(&ctx, node->outputs[it].dir);
+    spn_dag_hash_str(&ctx, node->outputs[it].sub);
+    spn_dag_hash_u64(&ctx, node->outputs[it].kind);
+  }
+
   return spn_dag_hash_final(&ctx);
 }
 
-static void identity_hash_invocation(spn_digest_ctx_t* ctx, const spn_toolchain_unit_t* toolchain, const spn_invocation_t* invocation) {
-  spn_dag_hash_u64(ctx, toolchain->identity);
+static void hash_invocation(spn_digest_ctx_t* ctx, sp_hash_t toolchain, const spn_invocation_t* invocation) {
+  spn_dag_hash_u64(ctx, toolchain);
   spn_dag_hash_arg(ctx, invocation->program);
   spn_dag_hash_path(ctx, invocation->cwd);
   spn_dag_hash_args(ctx, invocation->args);
   spn_dag_hash_u64(ctx, sp_da_size(invocation->env));
   sp_da_for(invocation->env, it) {
-    spn_dag_hash_u64(ctx, (u64)invocation->env[it].key);
+    spn_dag_hash_u64(ctx, invocation->env[it].key);
     spn_dag_hash_args(ctx, invocation->env[it].values);
   }
 }
 
-spn_dag_digest_t spn_build_compile_identity(const spn_compile_unit_t* unit) {
+spn_dag_digest_t hash_compile_unit(const spn_compile_unit_t* unit) {
   sp_assert(!spn_arg_empty(unit->invocation.program));
   spn_digest_ctx_t ctx = sp_zero;
   spn_digest_init_blake3(&ctx);
   spn_dag_hash_str(&ctx, sp_str_lit("spn.build.compile.v6"));
-  identity_hash_invocation(&ctx, unit->target->pkg->build->toolchain, &unit->invocation);
+  hash_invocation(&ctx, unit->target->pkg->build->toolchain->identity, &unit->invocation);
   spn_dag_hash_path(&ctx, unit->paths.file);
   return spn_dag_hash_final(&ctx);
 }
 
-spn_dag_digest_t spn_build_compile_commands_identity(const spn_path_roots_t* roots, spn_pkg_unit_t* unit, sp_da(spn_compile_unit_t*) objects) {
+spn_dag_digest_t hash_compile_commands(const spn_path_roots_t* roots, spn_pkg_unit_t* unit, sp_da(spn_compile_unit_t*) objects) {
   spn_digest_ctx_t ctx = sp_zero;
   spn_digest_init_blake3(&ctx);
   spn_dag_hash_str(&ctx, sp_str_lit("spn.build.compile_commands.v1"));
@@ -114,42 +108,38 @@ spn_dag_digest_t spn_build_compile_commands_identity(const spn_path_roots_t* roo
   }
   spn_dag_hash_u64(&ctx, sp_da_size(objects));
   sp_da_for(objects, it) {
-    spn_dag_hash_digest(&ctx, spn_build_compile_identity(objects[it]));
+    spn_dag_hash_digest(&ctx, hash_compile_unit(objects[it]));
     spn_dag_hash_path(&ctx, objects[it]->paths.object);
   }
   return spn_dag_hash_final(&ctx);
 }
 
-spn_err_t spn_build_link_identity(sp_mem_t mem, spn_target_unit_t* target, const spn_cc_link_files_t* files, spn_dag_digest_t* identity) {
-  spn_invocation_t invocation = sp_zero;
-  spn_try(spn_target_link_invocation(mem, target, files, &invocation));
-
+spn_dag_digest_t hash_link(sp_hash_t toolchain, const spn_invocation_t* invocation) {
   spn_digest_ctx_t ctx = sp_zero;
   spn_digest_init_blake3(&ctx);
   spn_dag_hash_str(&ctx, sp_str_lit("spn.build.link.v6"));
-  identity_hash_invocation(&ctx, target->pkg->build->toolchain, &invocation);
-  *identity = spn_dag_hash_final(&ctx);
-  return SPN_OK;
+  hash_invocation(&ctx, toolchain, invocation);
+  return spn_dag_hash_final(&ctx);
 }
 
-spn_err_t spn_build_exports_identity(sp_mem_t mem, spn_target_unit_t* target, spn_path_t output, sp_da(spn_path_t) objects, spn_dag_digest_t* identity) {
-  spn_build_unit_t* build = target->pkg->build;
-  spn_cc_archive_files_t files = {
-    .output = spn_target_exports_archive(mem, output),
-    .objects = objects,
-  };
-
-  spn_invocation_t invocation = sp_zero;
-  spn_try(spn_cc_render_archive(mem, &build->toolchain->cc, &build->profile, &files, &invocation));
-  invocation.cwd = target->pkg->paths.work;
-
+spn_dag_digest_t hash_exports(sp_hash_t toolchain, spn_cc_exports_format_t format, sp_str_t name) {
   spn_digest_ctx_t ctx = sp_zero;
   spn_digest_init_blake3(&ctx);
-  spn_dag_hash_str(&ctx, sp_str_lit("spn.build.exports.v4"));
-  identity_hash_invocation(&ctx, build->toolchain, &invocation);
-  spn_dag_hash_u8(&ctx, (u8)target->kind);
-  spn_dag_hash_u8(&ctx, (u8)build->profile.os);
-  spn_dag_hash_paths(&ctx, target->link.archives);
-  *identity = spn_dag_hash_final(&ctx);
-  return SPN_OK;
+  spn_dag_hash_str(&ctx, sp_str_lit("spn.build.exports.v5"));
+  spn_dag_hash_u64(&ctx, toolchain);
+  spn_dag_hash_u8(&ctx, (u8)format);
+  spn_dag_hash_str(&ctx, name);
+  return spn_dag_hash_final(&ctx);
+}
+
+spn_dag_digest_t hash_rsp(const spn_path_roots_t* roots, spn_rsp_style_t style, sp_da(spn_arg_t) args) {
+  spn_digest_ctx_t ctx = sp_zero;
+  spn_digest_init_blake3(&ctx);
+  spn_dag_hash_str(&ctx, sp_str_lit("spn.build.rsp.v1"));
+  spn_dag_hash_u8(&ctx, (u8)style);
+  sp_for(it, SPN_PATH_ROOT_COUNT) {
+    spn_dag_hash_str(&ctx, roots->dirs[it]);
+  }
+  spn_dag_hash_args(&ctx, args);
+  return spn_dag_hash_final(&ctx);
 }

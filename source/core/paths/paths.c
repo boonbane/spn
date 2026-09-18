@@ -3,12 +3,89 @@
 #include "sp.h"
 #include "macro/macro.h"
 #include "spn/core.h"
-#include "str/str.h"
+
+spn_path_at_t spn_path_at(const spn_path_roots_t* roots, spn_path_t path) {
+  if (path.root == SPN_PATH_ROOT_NONE) {
+    return (spn_path_at_t) { .fd = sp_sys_get_root(0), .sub = path.sub };
+  }
+  sp_assert(roots->opened & spn_path_root_mask(path.root));
+  return (spn_path_at_t) {
+    .fd = roots->fds[path.root],
+    .sub = sp_str_empty(path.sub) ? sp_str_lit(".") : path.sub,
+  };
+}
 
 sp_err_t spn_get_path_metadata(const spn_path_roots_t* roots, spn_path_t path, sp_sys_file_meta_t* meta) {
-  sp_str_buf_t buf = sp_zero;
-  sp_str_t str = spn_path_str(roots, sp_str_buf_as_mem(&buf), path);
-  return sp_sys_get_path_metadata_s(sp_sys_get_root(0), str, meta);
+  spn_path_at_t at = spn_path_at(roots, path);
+  return sp_sys_get_path_metadata_s(at.fd, at.sub, meta);
+}
+
+static sp_err_t mkdir_at(sp_sys_fd_t fd, sp_str_t path) {
+  sp_err_t err = sp_sys_mkdir_s(fd, path, sp_sys_default_dir_perms);
+  if (!err || err == SP_ERR_SYS_NOT_FOUND) {
+    return err;
+  }
+  sp_sys_file_meta_t meta = sp_zero;
+  if (sp_sys_get_path_metadata_s(fd, path, &meta)) {
+    return err;
+  }
+  return meta.kind == SP_FS_KIND_DIR ? SP_OK : err;
+}
+
+static sp_err_t create_dir_at(sp_sys_fd_t fd, sp_str_t path) {
+  sp_err_t err = mkdir_at(fd, path);
+  if (err != SP_ERR_SYS_NOT_FOUND) {
+    return err;
+  }
+  sp_str_t parent = sp_fs_parent_path(path);
+  if (sp_str_empty(parent)) {
+    return err;
+  }
+  err = create_dir_at(fd, parent);
+  if (err) {
+    return err == SP_ERR_SYS_EXISTS ? SP_ERR_SYS_NOT_DIR : err;
+  }
+  return mkdir_at(fd, path);
+}
+
+sp_err_t spn_path_create_dir(const spn_path_roots_t* roots, spn_path_t path) {
+  spn_path_at_t at = spn_path_at(roots, path);
+  return create_dir_at(at.fd, at.sub);
+}
+
+sp_err_t spn_path_open_reader(const spn_path_roots_t* roots, spn_path_t path, sp_io_file_reader_t* reader) {
+  spn_path_at_t at = spn_path_at(roots, path);
+  sp_sys_fd_t fd = SP_SYS_INVALID_FD;
+  sp_try(sp_sys_open_s(at.fd, at.sub, SP_SYS_OPEN_MODE_RO, 0, &fd));
+  return sp_io_file_reader_from_file(reader, fd, SP_IO_CLOSE_MODE_AUTO);
+}
+
+sp_err_t spn_path_open_writer(const spn_path_roots_t* roots, spn_path_t path, sp_io_file_writer_t* writer) {
+  spn_path_at_t at = spn_path_at(roots, path);
+  sp_sys_fd_t fd = SP_SYS_INVALID_FD;
+  sp_try(sp_sys_open_s(at.fd, at.sub, SP_SYS_OPEN_MODE_WO, SP_SYS_OPEN_CREATE | SP_SYS_OPEN_TRUNCATE, &fd));
+  sp_try(sp_io_file_writer_from_fd(writer, fd, SP_IO_CLOSE_MODE_AUTO));
+  writer->size_known = true;
+  return SP_OK;
+}
+
+sp_err_t spn_path_read(const spn_path_roots_t* roots, sp_mem_t mem, spn_path_t path, sp_str_t* content) {
+  sp_io_file_reader_t reader = sp_zero;
+  sp_try(spn_path_open_reader(roots, path, &reader));
+
+  u64 size = 0;
+  sp_err_t err = sp_io_file_reader_size(&reader, &size);
+  if (!err && size) {
+    c8* buffer = sp_alloc_n(mem, c8, size);
+    u64 read = 0;
+    err = sp_io_read_all(&reader.base, buffer, size, &read);
+    if (err == SP_ERR_IO_EOF) {
+      err = SP_OK;
+    }
+    *content = sp_str(buffer, (u32)read);
+  }
+  sp_io_file_reader_close(&reader);
+  return err;
 }
 
 static sp_str_t canonical_dir(sp_mem_t mem, sp_str_t dir) {
@@ -23,8 +100,23 @@ sp_str_t spn_path_roots_init(spn_path_roots_t* roots, sp_mem_t mem, sp_str_t sto
 }
 
 sp_str_t spn_path_roots_set(spn_path_roots_t* roots, sp_mem_t mem, spn_path_root_t kind, sp_str_t dir) {
+  spn_path_root_set_t mask = spn_path_root_mask(kind);
+  sp_assert(!(roots->opened & mask));
   roots->dirs[kind] = canonical_dir(mem, dir);
+  roots->fds[kind] = SP_SYS_INVALID_FD;
+  if (!sp_sys_open_dir_s(sp_sys_get_root(0), roots->dirs[kind], &roots->fds[kind])) {
+    roots->opened |= mask;
+  }
   return roots->dirs[kind];
+}
+
+void spn_path_roots_close(spn_path_roots_t* roots) {
+  for (u32 it = SPN_PATH_ROOT_NONE + 1; it < SPN_PATH_ROOT_COUNT; it++) {
+    if (roots->opened & spn_path_root_mask((spn_path_root_t)it)) {
+      sp_sys_close(roots->fds[it]);
+    }
+  }
+  roots->opened = 0;
 }
 
 static bool root_match(sp_str_t dir, sp_str_t path) {

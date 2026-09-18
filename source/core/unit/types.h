@@ -135,6 +135,10 @@ struct spn_target_unit {
 
   sp_da(spn_path_t) include;
   spn_link_plan_t link;
+
+  struct {
+    spn_path_t object;
+  } paths;
 };
 
 struct spn_pkg_unit_t {

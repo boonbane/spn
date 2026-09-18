@@ -103,7 +103,6 @@ static void add_launcher(sp_mem_t mem, const spn_cc_toolchain_t* toolchain, cons
   spn_toolchain_launcher_t launcher = lang == SPN_LANG_CXX ? toolchain->cxx : toolchain->compiler;
   invocation->program = program(mem, profile, launcher, sp_str_lit("cl.exe"));
   spn_cc_push_strs(mem, invocation, launcher.args);
-  invocation->launcher = sp_da_size(invocation->args);
   spn_cc_push_c(mem, invocation, "/nologo");
 }
 
@@ -218,7 +217,7 @@ void spn_msvc_render_link(sp_mem_t mem, const spn_cc_toolchain_t* toolchain, con
       sp_unreachable_case();
     }
   }
-  spn_cc_push_paths(mem, invocation, files->objects);
+  spn_cc_push_args(mem, invocation, files->objects);
 
   sp_da_for(link->private_libs, it) {
     spn_cc_push_fmt(mem, invocation, "{}.lib", sp_fmt_str(link->private_libs[it]));
@@ -270,8 +269,7 @@ void spn_msvc_render_link(sp_mem_t mem, const spn_cc_toolchain_t* toolchain, con
 void spn_msvc_render_archive(sp_mem_t mem, const spn_cc_toolchain_t* toolchain, const spn_profile_info_t* profile, const spn_cc_archive_files_t* files, spn_invocation_t* invocation) {
   invocation->program = program(mem, profile, toolchain->archiver, sp_str_lit("lib.exe"));
   spn_cc_push_strs(mem, invocation, toolchain->archiver.args);
-  invocation->launcher = sp_da_size(invocation->args);
   spn_cc_push_c(mem, invocation, "/nologo");
   spn_cc_push_glued(mem, invocation, "/OUT:", files->output);
-  spn_cc_push_paths(mem, invocation, files->objects);
+  spn_cc_push_args(mem, invocation, files->objects);
 }

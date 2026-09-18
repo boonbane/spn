@@ -148,6 +148,19 @@ static spn_err_t set_target_kind(spn_session_t* s, spn_target_unit_t* target) {
   SP_UNREACHABLE_RETURN(SPN_ERROR);
 }
 
+static sp_str_t target_kind_dir(spn_target_kind_t kind) {
+  switch (kind) {
+    case SPN_TARGET_KIND_LIB:                   return sp_str_lit("lib");
+    case SPN_TARGET_KIND_EXE:                   return sp_str_lit("exe");
+    case SPN_TARGET_KIND_SCRIPT:                return sp_str_lit("script");
+    case SPN_TARGET_KIND_TEST:                  return sp_str_lit("test");
+    case SPN_TARGET_KIND_EXAMPLE:               return sp_str_lit("example");
+    case SPN_TARGET_KIND_CONFIGURE_METAPROGRAM: return sp_str_lit("configure");
+    case SPN_TARGET_KIND_BUILD_METAPROGRAM:     return sp_str_lit("build");
+  }
+  sp_unreachable_return(sp_str_lit(""));
+}
+
 static spn_err_t ensure_target(spn_session_t* s, spn_pkg_unit_t* pkg, spn_target_info_t* info, spn_target_unit_t** result) {
   spn_target_unit_t* target = spn_session_find_target_in_pkg(s, pkg, info->name, info->kind);
   if (target && target->info != info) {
@@ -162,6 +175,15 @@ static spn_err_t ensure_target(spn_session_t* s, spn_pkg_unit_t* pkg, spn_target
   if (!target) {
     target = add_target(s, pkg, info);
     spn_try(set_target_kind(s, target));
+
+    if (target->lib_kind == SPN_LIB_KIND_OBJECT) {
+      target->paths.object = pkg->paths.lib;
+    }
+    else {
+      sp_str_buf_t buf = sp_zero;
+      spn_path_t kind = spn_path_join(sp_str_buf_as_mem(&buf), pkg->paths.object, target_kind_dir(info->kind));
+      target->paths.object = spn_path_join(s->mem, kind, info->name);
+    }
   }
   if (result) *result = target;
   return SPN_OK;
@@ -171,7 +193,7 @@ static s32 compare_objects(const void* a, const void* b) {
   return sp_str_compare_alphabetical((*(spn_compile_unit_t* const*)a)->paths.file.sub, (*(spn_compile_unit_t* const*)b)->paths.file.sub);
 }
 
-static void add_object(spn_session_t* s, spn_target_unit_t* target, spn_path_t dir, spn_path_t file) {
+static void add_object(spn_session_t* s, spn_target_unit_t* target, spn_path_t file) {
   spn_compile_unit_id_t id = {
     .target = target->id,
     .source = { .root = file.root, .sub = sp_intern_get_or_insert(s->ctx->intern, file.sub) },
@@ -180,6 +202,7 @@ static void add_object(spn_session_t* s, spn_target_unit_t* target, spn_path_t d
     return;
   }
 
+  spn_path_t dir = target->paths.object;
   spn_tree_rel_t rel = spn_tree_rel(target->pkg->paths.roots, file);
   sp_str_t prefix = rel.tree == SPN_TREE_NONE ? spn_path_root_label(file.root) : spn_tree_to_str(rel.tree);
   sp_om_insert(s->units.objects, id, ((spn_compile_unit_t) {
@@ -195,13 +218,11 @@ static void add_object(spn_session_t* s, spn_target_unit_t* target, spn_path_t d
 }
 
 static spn_err_t create_target_objects(spn_session_t* s, spn_target_unit_t* target) {
-  spn_path_t dir = spn_target_unit_object_dir(s->mem, target);
-
   sp_da_for(target->info->source, it) {
     spn_source_t source = target->info->source[it];
     switch (source.kind) {
       case SPN_SOURCE_FILE: {
-        add_object(s, target, dir, source.path);
+        add_object(s, target, source.path);
         break;
       }
       case SPN_SOURCE_GLOB: {
@@ -210,7 +231,7 @@ static spn_err_t create_target_objects(spn_session_t* s, spn_target_unit_t* targ
         spn_dag_glob_it_t glob = spn_dag_glob_it_new(scratch.mem, &spn.roots, source.path);
         while (spn_dag_glob_it_next(&glob)) {
           if (glob.entry.kind != SP_FS_KIND_DIR) {
-            add_object(s, target, dir, spn_path_join(scratch.mem, glob.base, glob.entry.rel));
+            add_object(s, target, spn_path_join(scratch.mem, glob.base, glob.entry.rel));
           }
         }
         spn_dag_glob_it_deinit(&glob);
@@ -454,34 +475,18 @@ static spn_link_plan_t link_plan(spn_target_unit_t* target) {
   return plan;
 }
 
-spn_err_t spn_target_link_invocation(sp_mem_t mem, spn_target_unit_t* target, const spn_cc_link_files_t* files, spn_invocation_t* invocation) {
-  spn_profile_info_t* profile = &target->pkg->build->profile;
-  spn_cc_toolchain_t* toolchain = &target->pkg->build->toolchain->cc;
+spn_invocation_t spn_target_archive_invocation(sp_mem_t mem, spn_target_unit_t* target, const spn_cc_archive_files_t* files) {
+  spn_build_unit_t* build = target->pkg->build;
+  spn_invocation_t invocation = spn_cc_render_archive(mem, &build->toolchain->cc, &build->profile, files);
+  invocation.cwd = target->pkg->paths.work;
+  return invocation;
+}
 
-  switch (target->kind) {
-    case SPN_CC_OUTPUT_STATIC_LIB: {
-      spn_cc_archive_files_t archive_files = {
-        .output = files->output,
-        .objects = files->objects,
-      };
-      spn_try(spn_cc_render_archive(mem, toolchain, profile, &archive_files, invocation));
-      break;
-    }
-    case SPN_CC_OUTPUT_EXE:
-    case SPN_CC_OUTPUT_SHARED_LIB:
-    case SPN_CC_OUTPUT_REACTOR: {
-      spn_cc_link_files_t linked = *files;
-      linked.whole_archives = target->link.archives;
-      spn_try(spn_cc_render_link(mem, toolchain, spn.host, profile, &target->link.cc, &linked, invocation));
-      break;
-    }
-    case SPN_CC_OUTPUT_OBJECT: {
-      sp_unreachable_case();
-    }
-  }
-
-  invocation->cwd = target->pkg->paths.work;
-  return SPN_OK;
+spn_invocation_t spn_target_link_invocation(sp_mem_t mem, spn_target_unit_t* target, const spn_cc_link_files_t* files) {
+  spn_build_unit_t* build = target->pkg->build;
+  spn_invocation_t invocation = spn_cc_render_link(mem, &build->toolchain->cc, &build->profile, &target->link.cc, files);
+  invocation.cwd = target->pkg->paths.work;
+  return invocation;
 }
 
 static spn_err_t build_target_plan(spn_target_unit_t* target) {
@@ -516,24 +521,19 @@ static spn_err_t build_target_plan(spn_target_unit_t* target) {
     sp_da_push(target->include, pkg->deps[it].unit->paths.include);
   }
   if (!sp_da_empty(target->info->embed)) {
-    sp_da_push(target->include, spn_target_unit_object_dir(mem, target));
+    sp_da_push(target->include, target->paths.object);
   }
 
   target->link = link_plan(target);
   spn_try(render_compile_bases(mem, target));
 
   switch (target->kind) {
-    case SPN_CC_OUTPUT_STATIC_LIB: {
-      return spn_cc_validate_archive(toolchain, profile);
-    }
+    case SPN_CC_OUTPUT_EXE:
     case SPN_CC_OUTPUT_SHARED_LIB:
     case SPN_CC_OUTPUT_REACTOR: {
-      spn_try(spn_cc_validate_archive(toolchain, profile));
       return spn_cc_validate_link(toolchain, spn.host, profile, &target->link.cc);
     }
-    case SPN_CC_OUTPUT_EXE: {
-      return spn_cc_validate_link(toolchain, spn.host, profile, &target->link.cc);
-    }
+    case SPN_CC_OUTPUT_STATIC_LIB:
     case SPN_CC_OUTPUT_OBJECT: {
       return SPN_OK;
     }

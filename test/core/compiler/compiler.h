@@ -26,16 +26,9 @@ typedef struct {
 } render_expect_t;
 
 typedef struct {
-  const c8* content;
-  const c8* args [render_args_max];
-} rsp_expect_t;
-
-typedef struct {
   const c8* name;
-  const c8* program;
-  u32 launcher;
   const c8* args [rsp_args_max];
-  rsp_expect_t expect;
+  const c8* expect;
 } rsp_test_t;
 
 typedef struct {

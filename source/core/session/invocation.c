@@ -205,8 +205,8 @@ spn_invocation_result_t spn_invocation_run(spn_invocation_t* invocation) {
   const spn_path_roots_t* roots = &spn.roots;
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
 
+  spn_path_create_dir(roots, invocation->cwd);
   sp_str_t cwd = spn_path_str(roots, scratch.mem, invocation->cwd);
-  sp_fs_create_dir(cwd);
 
   sp_ps_config_t ps = {
     .command = spn_arg_str(roots, scratch.mem, invocation->program),

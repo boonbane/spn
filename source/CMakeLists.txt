@@ -76,9 +76,13 @@ set(SPN_SOURCES
   core/graph/build.c
   core/graph/dag.c
   core/graph/identity.c
+  core/graph/nodes/compile_commands.c
   core/graph/nodes/embed.c
   core/graph/nodes/link.c
   core/graph/nodes/object.c
+  core/graph/nodes/rsp.c
+  core/graph/nodes/tree.c
+  core/graph/nodes/user.c
   core/model/configure.c
   core/model/model.c
   core/model/resolve.c

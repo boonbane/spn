@@ -198,7 +198,6 @@ spn_invocation_t spn_cc_render_compile_command(sp_mem_t mem, const spn_cc_toolch
 
   spn_invocation_t invocation = {
     .program = base->program,
-    .launcher = base->launcher,
     .cwd = base->cwd,
     .env = base->env,
   };
@@ -248,49 +247,42 @@ spn_err_t spn_cc_validate_link(const spn_cc_toolchain_t* toolchain, spn_triple_t
   return SPN_OK;
 }
 
-spn_err_t spn_cc_render_link(sp_mem_t mem, const spn_cc_toolchain_t* toolchain, spn_triple_t host, const spn_profile_info_t* profile, const spn_cc_link_t* link, const spn_cc_link_files_t* files, spn_invocation_t* invocation) {
+spn_invocation_t spn_cc_render_link(sp_mem_t mem, const spn_cc_toolchain_t* toolchain, const spn_profile_info_t* profile, const spn_cc_link_t* link, const spn_cc_link_files_t* files) {
   sp_assert(!spn_path_empty(files->output));
   if (!spn_path_empty(files->exports.path)) sp_assert(sp_da_empty(files->exports.symbols));
-  spn_try(spn_cc_validate_link(toolchain, host, profile, link));
-  *invocation = sp_zero_s(spn_invocation_t);
+  spn_invocation_t invocation = sp_zero;
   switch (toolchain->driver) {
     case SPN_CC_DRIVER_GCC:
     case SPN_CC_DRIVER_CLANG:
     case SPN_CC_DRIVER_ZIG: {
-      spn_gnu_render_link(mem, toolchain, profile, link, files, invocation);
-      return SPN_OK;
+      spn_gnu_render_link(mem, toolchain, profile, link, files, &invocation);
+      break;
     }
     case SPN_CC_DRIVER_MSVC: {
-      spn_msvc_render_link(mem, toolchain, profile, link, files, invocation);
-      return SPN_OK;
+      spn_msvc_render_link(mem, toolchain, profile, link, files, &invocation);
+      break;
     }
     case SPN_CC_DRIVER_NONE: {
       sp_unreachable_case();
     }
   }
-  SP_UNREACHABLE_RETURN(SPN_ERROR);
+  return invocation;
 }
 
-spn_err_t spn_cc_validate_archive(const spn_cc_toolchain_t* toolchain, const spn_profile_info_t* profile) {
-  return SPN_OK;
-}
-
-spn_err_t spn_cc_render_archive(sp_mem_t mem, const spn_cc_toolchain_t* toolchain, const spn_profile_info_t* profile, const spn_cc_archive_files_t* files, spn_invocation_t* invocation) {
+spn_invocation_t spn_cc_render_archive(sp_mem_t mem, const spn_cc_toolchain_t* toolchain, const spn_profile_info_t* profile, const spn_cc_archive_files_t* files) {
   sp_assert(!spn_path_empty(files->output));
-  spn_try(spn_cc_validate_archive(toolchain, profile));
-  *invocation = sp_zero_s(spn_invocation_t);
-
+  spn_invocation_t invocation = sp_zero;
   switch (toolchain->archiver_driver) {
     case SPN_AR_DRIVER_GNU: {
-      spn_gnu_render_archive(mem, toolchain, files, invocation);
-      return SPN_OK;
+      spn_gnu_render_archive(mem, toolchain, files, &invocation);
+      break;
     }
     case SPN_AR_DRIVER_MSVC: {
-      spn_msvc_render_archive(mem, toolchain, profile, files, invocation);
-      return SPN_OK;
+      spn_msvc_render_archive(mem, toolchain, profile, files, &invocation);
+      break;
     }
   }
-  SP_UNREACHABLE_RETURN(SPN_ERROR);
+  return invocation;
 }
 
 spn_cc_exports_format_t spn_cc_exports_format(spn_cc_output_kind_t kind, spn_format_t format) {
