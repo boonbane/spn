@@ -60,7 +60,7 @@ static sp_str_t read_stamp(sp_mem_t mem, spn_ctx_t* ctx) {
 static spn_err_t extract(spn_ctx_t* ctx, sp_mem_t mem, sp_str_t stamp) {
   sp_str_t staging = sp_zero;
   if (sp_fs_staging_dir(mem, ctx->paths.runtime, sp_str_lit("tmp"), &staging) != SP_OK) {
-    return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_FS_WRITE, .fs = { .path = ctx->paths.runtime } });
+    return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_FS_WRITE, .fs = { .path = { .sub = ctx->paths.runtime } } });
   }
 
   sp_glob_set_t* glob = sp_glob_set_new(mem);
@@ -77,21 +77,21 @@ static spn_err_t extract(spn_ctx_t* ctx, sp_mem_t mem, sp_str_t stamp) {
     sp_fs_create_dir(sp_fs_parent_path(path));
     if (!write_file(path, entry.data, entry.size)) {
       sp_fs_remove_dir(staging);
-      return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_FS_WRITE, .fs = { .path = sp_str_copy(ctx->heap, path) } });
+      return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_FS_WRITE, .fs = { .path = { .sub = sp_str_copy(ctx->heap, path) } } });
     }
   }
 
   sp_str_t stamp_path = sp_fs_join_path(mem, staging, sp_str_lit("version.stamp"));
   if (!write_file(stamp_path, stamp.data, stamp.len)) {
     sp_fs_remove_dir(staging);
-    return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_FS_WRITE, .fs = { .path = sp_str_copy(ctx->heap, stamp_path) } });
+    return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_FS_WRITE, .fs = { .path = { .sub = sp_str_copy(ctx->heap, stamp_path) } } });
   }
 
   sp_fs_remove_dir(ctx->paths.runtime);
   sp_sys_fd_t root = sp_sys_get_root(0);
   if (sp_sys_rename_s(root, staging, root, ctx->paths.runtime)) {
     sp_fs_remove_dir(staging);
-    return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_FS_WRITE, .fs = { .path = ctx->paths.runtime } });
+    return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_FS_WRITE, .fs = { .path = { .sub = ctx->paths.runtime } } });
   }
 
   return SPN_OK;
@@ -119,7 +119,7 @@ static spn_err_t extract_runtime(spn_ctx_t* ctx) {
     sp_fs_lock_t lock = sp_zero;
     sp_str_t lock_path = sp_fs_join_path(scratch.mem, ctx->paths.storage, sp_str_lit("runtime.lock"));
     if (sp_fs_lock_acquire(&lock, lock_path) != SP_OK) {
-      result = spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_FS_WRITE, .fs = { .path = sp_str_copy(ctx->heap, lock_path) } });
+      result = spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_FS_WRITE, .fs = { .path = { .sub = sp_str_copy(ctx->heap, lock_path) } } });
     }
     else {
       if (!sp_str_equal(read_stamp(scratch.mem, ctx), stamp)) {
@@ -157,7 +157,7 @@ static spn_err_t open_ctx(spn_ctx_t* ctx, spn_open_request_t request) {
     if (sp_fs_create_dir(dirs[it])) {
       return spn_err_emit(ctx, (spn_err_union_t) {
         .kind = SPN_ERR_FS_CREATE_DIR,
-        .fs = { .path = dirs[it] }
+        .fs = { .path = { .sub = dirs[it] } }
       });
     }
   }

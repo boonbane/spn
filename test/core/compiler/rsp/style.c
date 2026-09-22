@@ -8,7 +8,7 @@ typedef struct {
 
 static const test_t tests [] = {
   { .name = "gcc", .driver = SPN_CC_DRIVER_GCC, .expect = SPN_RSP_STYLE_GNU },
-  { .name = "clang", .driver = SPN_CC_DRIVER_CLANG, .expect = SPN_RSP_STYLE_WINDOWS },
+  { .name = "clang", .driver = SPN_CC_DRIVER_CLANG, .expect = SPN_RSP_STYLE_GNU },
   { .name = "zig", .driver = SPN_CC_DRIVER_ZIG, .expect = SPN_RSP_STYLE_WINDOWS },
   { .name = "msvc", .driver = SPN_CC_DRIVER_MSVC, .expect = SPN_RSP_STYLE_WINDOWS },
 };

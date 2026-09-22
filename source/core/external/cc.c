@@ -12,7 +12,7 @@ sp_str_t spn_cc_symbol_from_embedded_file(sp_mem_t mem, sp_str_t file_path) {
   return sp_str(data, file_path.len);
 }
 
-void spn_cc_embed_ctx_init(spn_cc_embed_ctx_t* c, sp_mem_t mem, spn_format_t format, spn_arch_t arch) {
+void spn_cc_embed_ctx_init(spn_cc_embed_ctx_t* c, sp_mem_t mem, spn_obj_format_t format, spn_arch_t arch) {
   c->arena = sp_mem_arena_new(mem);
   c->mem = sp_mem_arena_as_allocator(c->arena);
   sp_da_init(c->mem, c->entries);

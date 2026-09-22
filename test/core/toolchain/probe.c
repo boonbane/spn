@@ -273,7 +273,7 @@ static test_arg_t resolved_arg(sp_mem_t mem, sp_str_t root, resolved_t resolved)
   return (test_arg_t) { .path = sp_str_to_cstr(mem, sub), .root = resolved.root };
 }
 
-static spn_arg_t missing_program(const spn_cc_toolchain_t* cc, program_slot_t slot) {
+static spn_arg_t missing_program(const spn_cc_t* cc, program_slot_t slot) {
   switch (slot) {
     case PROBE_PROGRAM_COMPILER: return cc->compiler.program;
     case PROBE_PROGRAM_ARCHIVER: return cc->archiver.program;
@@ -314,8 +314,8 @@ static sp_str_t search_path(sp_mem_t mem, sp_str_t root, const c8* const* dirs) 
   return sp_str_join_n(mem, result, sp_da_size(result), sp_str(&sep, 1));
 }
 
-static spn_cc_toolchain_t make_cc(sp_mem_t mem, sp_str_t root, const test_t* it) {
-  spn_cc_toolchain_t cc = {
+static spn_cc_t make_cc(sp_mem_t mem, sp_str_t root, const test_t* it) {
+  spn_cc_t cc = {
     .name = sp_str_lit("A"),
     .driver = SPN_CC_DRIVER_CLANG,
     .compiler = launcher(mem, root, it->programs.compiler, "cc"),
@@ -383,8 +383,8 @@ sp_test_each(probe, resolve, test_t, tests, .setup = spn_test_ctx_setup) {
         break;
       }
       case PROBE_ACTION_PROBE: {
-        spn_cc_toolchain_t declared = make_cc(mem, root, it);
-        spn_cc_toolchain_t cc = declared;
+        spn_cc_t declared = make_cc(mem, root, it);
+        spn_cc_t cc = declared;
         sp_hash_t identity = sp_zero;
         spn_err_t err = spn_toolchain_probe(&cc, &roots, spn_search_rules(spn_triple_host().os), search_path(mem, root, action.probe.dirs), &cache, mem, &identity);
         sp_must_eq(t, (u32)action.probe.err, (u32)err);

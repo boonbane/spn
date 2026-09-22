@@ -1,4 +1,5 @@
 #include "unit.h"
+#include "session/session.h"
 
 sp_test_suite(link_plan, .serial = true);
 
@@ -276,11 +277,11 @@ sp_test_each(link_plan, plan, plan_test_t, tests, .setup = spn_test_ctx_setup) {
   spn_target_unit_t* app = spn_session_find_target_in_pkg(s, root, sp_str_lit("app"), it->target.kind);
   sp_must(t, app != SP_NULLPTR);
 
-  spn_link_plan_t* plan = &app->link;
+  spn_link_plan_t* plan = &spn_session_get_target_plan(s, app->id)->link;
   sp_must_strs_eq(t, plan->cc.libs, sp_da_size(plan->cc.libs), it->expect.libs);
   u32 num_whole_archives = 0;
   sp_carr_detect_len(it->expect.whole_archives, num_whole_archives, it->expect.whole_archives[num_whole_archives]);
-  sp_try(expect_path_suffixes(t, plan->archives, it->expect.whole_archives, num_whole_archives));
+  sp_try(expect_path_suffixes(t, plan->cc.whole_archives, it->expect.whole_archives, num_whole_archives));
   sp_must_strs_eq(t, plan->cc.private_libs, sp_da_size(plan->cc.private_libs), it->expect.private_libs);
   sp_must_strs_eq(t, plan->cc.system_libs, sp_da_size(plan->cc.system_libs), it->expect.system_libs);
   sp_must_strs_eq(t, plan->cc.frameworks, sp_da_size(plan->cc.frameworks), it->expect.frameworks);

@@ -74,10 +74,10 @@ static void write_arg(sp_io_writer_t* io, spn_rsp_style_t style, sp_str_t arg) {
 
 spn_rsp_style_t spn_rsp_style(spn_cc_driver_t driver) {
   switch (driver) {
-    case SPN_CC_DRIVER_GCC: {
+    case SPN_CC_DRIVER_GCC:
+    case SPN_CC_DRIVER_CLANG: {
       return SPN_RSP_STYLE_GNU;
     }
-    case SPN_CC_DRIVER_CLANG:
     case SPN_CC_DRIVER_ZIG:
     case SPN_CC_DRIVER_MSVC:
     case SPN_CC_DRIVER_NONE: {

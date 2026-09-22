@@ -227,7 +227,6 @@ source = [
   "source/core/lock/lock.c",
   "source/util/lazy/lazy.c",
   "source/core/graph/build.c",
-  "source/core/graph/identity.c",
   "source/core/paths/paths.c",
   "source/core/pkg/id.c",
   "source/core/pkg/load.c",

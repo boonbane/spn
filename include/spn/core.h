@@ -74,12 +74,11 @@ typedef enum {
 } spn_toolchain_detect_t;
 
 typedef enum {
-  SPN_FORMAT_ELF,
-  SPN_FORMAT_COFF,
-  SPN_FORMAT_MACHO,
-  SPN_FORMAT_WASM,
-  SPN_FORMAT_COUNT,
-} spn_format_t;
+  SPN_OBJ_ELF,
+  SPN_OBJ_COFF,
+  SPN_OBJ_MACHO,
+  SPN_OBJ_WASM,
+} spn_obj_format_t;
 
 typedef struct {
   u16 major;

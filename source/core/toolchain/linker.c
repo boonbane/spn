@@ -11,7 +11,7 @@ typedef struct {
 } rows_t;
 
 bool spn_ld_loader(spn_triple_t target, spn_linking_t linking) {
-  return spn_triple_dynamic(target) && !(spn_os_format(target.os) == SPN_FORMAT_ELF && linking.libc == SPN_RUNTIME_STATIC);
+  return spn_triple_dynamic(target) && !(spn_os_to_native_object_format(target.os) == SPN_OBJ_ELF && linking.libc == SPN_RUNTIME_STATIC);
 }
 
 static u32 first(spn_triple_t target, rows_t table, spn_linking_t request) {
@@ -136,10 +136,10 @@ spn_ld_dialect_t spn_ld_dialect(spn_triple_t target) {
   SP_UNREACHABLE_RETURN(SPN_LD_DIALECT_GNU);
 }
 
-bool spn_ld_scripts(spn_ld_family_t family, spn_format_t format) {
+bool spn_ld_scripts(spn_ld_family_t family, spn_obj_format_t format) {
   switch (family) {
-    case SPN_LD_FAMILY_GNU: return format == SPN_FORMAT_ELF || format == SPN_FORMAT_COFF;
-    case SPN_LD_FAMILY_LLD: return format == SPN_FORMAT_ELF;
+    case SPN_LD_FAMILY_GNU: return format == SPN_OBJ_ELF || format == SPN_OBJ_COFF;
+    case SPN_LD_FAMILY_LLD: return format == SPN_OBJ_ELF;
     case SPN_LD_FAMILY_LD64:
     case SPN_LD_FAMILY_MSVC: return false;
     case SPN_LD_FAMILY_NONE: sp_unreachable_case();

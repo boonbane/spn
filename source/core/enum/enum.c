@@ -165,13 +165,12 @@ sp_str_t spn_ld_dialect_to_str(spn_ld_dialect_t dialect) {
   SP_UNREACHABLE_RETURN(sp_str_lit(""));
 }
 
-sp_str_t spn_format_to_str(spn_format_t format) {
+sp_str_t spn_format_to_str(spn_obj_format_t format) {
   switch (format) {
-    case SPN_FORMAT_ELF:   return sp_str_lit("elf");
-    case SPN_FORMAT_COFF:  return sp_str_lit("coff");
-    case SPN_FORMAT_MACHO: return sp_str_lit("macho");
-    case SPN_FORMAT_WASM:  return sp_str_lit("wasm");
-    case SPN_FORMAT_COUNT: sp_unreachable_case();
+    case SPN_OBJ_ELF:   return sp_str_lit("elf");
+    case SPN_OBJ_COFF:  return sp_str_lit("coff");
+    case SPN_OBJ_MACHO: return sp_str_lit("macho");
+    case SPN_OBJ_WASM:  return sp_str_lit("wasm");
   }
 
   SP_UNREACHABLE_RETURN(sp_str_lit(""));

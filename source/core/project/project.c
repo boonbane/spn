@@ -58,7 +58,7 @@ spn_err_t spn_project_update_lock(spn_ctx_t* ctx, spn_project_t* project, spn_re
   sp_mem_end_scratch(scratch);
 
   if (written != SP_OK) {
-    return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_FS_WRITE, .fs = { .path = project->paths.lock } });
+    return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_FS_WRITE, .fs = { .path = { .sub = project->paths.lock } } });
   }
   return SPN_OK;
 }

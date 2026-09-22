@@ -83,12 +83,15 @@ spn_err_t spn_session_init(spn_session_t* s, spn_ctx_t* ctx, sp_mem_t mem, spn_p
   sp_ht_init(s->mem, s->packages);
   sp_ht_init(s->mem, s->options);
   sp_ht_init(s->mem, s->fingerprints);
-  sp_da_init(s->mem, s->plans);
+  sp_da_init(s->mem, s->plans.build);
   sp_da_init(s->mem, s->units.toolchains);
   sp_om_new(s->units.builds);
   sp_om_new(s->units.packages);
   sp_om_new(s->units.targets);
   sp_om_new(s->units.objects);
+  sp_om_new(s->plans.targets);
+  sp_om_new(s->plans.objects);
+  sp_om_new(s->dag.objects);
 
   spn_try(spn_profile_resolve(&config.profile, host, root, &s->profile));
 
@@ -118,7 +121,7 @@ spn_err_t spn_session_init(spn_session_t* s, spn_ctx_t* ctx, sp_mem_t mem, spn_p
   if (spn_event_log_open(ctx->events, log)) {
     return spn_err_emit(ctx, (spn_err_union_t) {
       .kind = SPN_ERR_FS_WRITE,
-      .fs = { .path = log },
+      .fs = { .path = log_path },
     });
   }
 
@@ -128,7 +131,7 @@ spn_err_t spn_session_init(spn_session_t* s, spn_ctx_t* ctx, sp_mem_t mem, spn_p
   };
   sp_da_init(s->mem, plan.roots);
   sp_da_init(s->mem, plan.staged);
-  sp_da_push(s->plans, plan);
+  sp_da_push(s->plans.build, plan);
 
   return SPN_OK;
 }
@@ -190,5 +193,15 @@ spn_target_unit_t* spn_session_find_target_in_pkg(spn_session_t* session, spn_pk
 spn_target_unit_t* spn_session_get_target_unit(spn_session_t* session, spn_target_unit_id_t id) {
   sp_assert(sp_om_has(session->units.targets, id));
   return sp_om_get(session->units.targets, id);
+}
+
+spn_target_plan_t* spn_session_get_target_plan(spn_session_t* session, spn_target_unit_id_t id) {
+  sp_assert(sp_om_has(session->plans.targets, id));
+  return sp_om_get(session->plans.targets, id);
+}
+
+spn_compile_plan_t* spn_session_get_object_plan(spn_session_t* session, spn_compile_unit_id_t id) {
+  sp_assert(sp_om_has(session->plans.objects, id));
+  return sp_om_get(session->plans.objects, id);
 }
 

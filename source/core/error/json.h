@@ -3,6 +3,7 @@
 
 #include "sp.h"
 #include "spn/core.h"
+#include "spn/types.h"
 
 void spn_codegen_write_err(sp_io_writer_t* out, const spn_err_t* err);
 void spn_codegen_write_semver(sp_io_writer_t* out, const spn_semver_t* version);
@@ -11,5 +12,6 @@ void spn_codegen_write_triple(sp_io_writer_t* out, const spn_triple_t* triple);
 void spn_codegen_write_abi(sp_io_writer_t* out, const spn_abi_t* abi);
 void spn_codegen_write_sanitizer_set(sp_io_writer_t* out, const spn_sanitizer_set_t* set);
 void spn_codegen_write_linkage(sp_io_writer_t* out, const spn_linkage_t* kind);
+void spn_codegen_write_path(sp_io_writer_t* out, const spn_path_t* path);
 
 #endif

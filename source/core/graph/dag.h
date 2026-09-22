@@ -27,11 +27,6 @@ struct spn_dag_build_t {
   sp_mem_t mem;
   spn_dag_t* graph;
 
-  // This graph's ids for session-lifetime units, keyed by unit pointer.
-  // Entries are inserted whole once a unit is fully added, so presence means
-  // every id inside is valid. Only the thread constructing the graph may
-  // touch these: sp_ht mutates scratch state even on lookup, so executors
-  // take ids through action->produces or their ctx instead.
   struct {
     sp_ht(spn_pkg_unit_t*, sp_da(spn_dag_id_t)) user_outputs;
     sp_ht(spn_path_t, spn_dag_id_t) stamps;
@@ -53,6 +48,6 @@ struct spn_dag_build_t {
 spn_err_t        spn_dag_build_session(spn_op_t* op);
 spn_dag_build_t* spn_dag_build_new(spn_op_t* op);
 spn_err_t        spn_dag_build_run(spn_dag_build_t* b, u32 workers);
-spn_err_t        spn_dag_build_add_target(spn_dag_build_t* b, spn_target_unit_t* target);
+spn_err_t        spn_dag_build_add_target(spn_dag_build_t* b, spn_target_unit_t* target, const spn_target_plan_t* plan);
 
 #endif

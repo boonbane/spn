@@ -9,7 +9,6 @@ add_executable(core
   filter.c
   wake.c
   sim.c
-  identity.c
   intern.c
   lazy.c
   stable_map.c
@@ -26,11 +25,11 @@ add_executable(core
   closure/siblings.c
   compiler/harness.c
   compiler/invocation.c
-  compiler/archive.c
   compiler/compile.c
   compiler/depfile.c
   compiler/exports/format.c
   compiler/exports/render.c
+  compiler/exports/wasm.c
   compiler/flags.c
   compiler/link.c
   compiler/rsp/gnu.c
@@ -189,7 +188,6 @@ add_executable(core
   ${SRC}/lock/lock.c
   ${UTIL}/lazy/lazy.c
   ${SRC}/graph/build.c
-  ${SRC}/graph/identity.c
   ${SRC}/paths/paths.c
   ${SRC}/pkg/id.c
   ${SRC}/pkg/mutate.c

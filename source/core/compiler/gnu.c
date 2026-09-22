@@ -70,7 +70,7 @@ static bool is_os_version_present(spn_os_version_t version) {
 // clang writes CodeView for the msvc abi and DWARF for mingw; zig writes
 // CodeView for every Windows target. Only CodeView records the command line
 // and object name, and only clang 15 and later knows the flag that drops them
-static bool codeview(const spn_cc_toolchain_t* toolchain, const spn_profile_info_t* profile) {
+static bool codeview(const spn_cc_t* toolchain, const spn_profile_info_t* profile) {
   if (profile->os != SPN_OS_WINDOWS || !spn_cc_has(toolchain, SPN_CC_CAP_CLANG_FRONTEND)) {
     return false;
   }
@@ -85,7 +85,7 @@ static sp_str_t render_wasi(spn_wasi_spelling_t spelling) {
   sp_unreachable_return(sp_str_lit(""));
 }
 
-static sp_str_t render_target(sp_mem_t mem, const spn_cc_toolchain_t* toolchain, spn_triple_t triple) {
+static sp_str_t render_target(sp_mem_t mem, const spn_cc_t* toolchain, spn_triple_t triple) {
   switch (triple.os) {
     case SPN_OS_MACOS: {
       triple.abi = SPN_ABI_NONE;
@@ -116,7 +116,7 @@ static sp_str_t ms_runtime_flag(spn_runtime_t runtime) {
   SP_UNREACHABLE_RETURN(sp_str_lit(""));
 }
 
-void spn_gnu_render_flags(sp_mem_t mem, const spn_cc_toolchain_t* toolchain, const spn_profile_info_t* profile, spn_cc_flags_t* flags) {
+void spn_gnu_render_flags(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, spn_cc_flags_t* flags) {
   if (profile->abi == SPN_ABI_MSVC && spn_cc_has(toolchain, SPN_CC_CAP_CLANG_FRONTEND)) {
     sp_str_t crt = ms_runtime_flag(profile->linking.runtime);
     sp_da_push(flags->compile, crt);
@@ -152,7 +152,7 @@ static void add_libc(sp_mem_t mem, const spn_profile_info_t* profile, spn_invoca
   spn_cc_push_env(mem, invocation, SPN_ENV_ZIG_LIBC, spn_arg_path(profile->libc_file));
 }
 
-static void add_sdk_compile(sp_mem_t mem, const spn_cc_toolchain_t* toolchain, const spn_profile_info_t* profile, spn_invocation_t* invocation) {
+static void add_sdk_compile(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, spn_invocation_t* invocation) {
   const spn_sdk_t* sdk = &profile->sdk;
   switch (sdk->kind) {
     case SPN_SDK_NONE: {
@@ -190,7 +190,7 @@ static void add_sdk_compile(sp_mem_t mem, const spn_cc_toolchain_t* toolchain, c
   }
 }
 
-static void add_sdk_link(sp_mem_t mem, const spn_cc_toolchain_t* toolchain, const spn_profile_info_t* profile, spn_invocation_t* invocation) {
+static void add_sdk_link(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, spn_invocation_t* invocation) {
   const spn_sdk_t* sdk = &profile->sdk;
   switch (sdk->kind) {
     case SPN_SDK_NONE: {
@@ -223,7 +223,7 @@ static void add_sdk_link(sp_mem_t mem, const spn_cc_toolchain_t* toolchain, cons
   }
 }
 
-static void add_launcher(sp_mem_t mem, const spn_cc_toolchain_t* toolchain, const spn_profile_info_t* profile, spn_lang_t lang, spn_invocation_t* invocation) {
+static void add_launcher(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, spn_lang_t lang, spn_invocation_t* invocation) {
   spn_toolchain_launcher_t launcher = lang == SPN_LANG_CXX ? toolchain->cxx : toolchain->compiler;
   sp_assert(!spn_arg_empty(launcher.program));
   invocation->program = launcher.program;
@@ -236,7 +236,7 @@ static void add_launcher(sp_mem_t mem, const spn_cc_toolchain_t* toolchain, cons
   }
 }
 
-void spn_gnu_render_compile(sp_mem_t mem, const spn_cc_toolchain_t* toolchain, const spn_profile_info_t* profile, const spn_cc_compile_t* compile, spn_invocation_t* invocation) {
+void spn_gnu_render_compile(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, const spn_cc_compile_t* compile, spn_invocation_t* invocation) {
   add_launcher(mem, toolchain, profile, compile->lang, invocation);
   spn_cc_flags_t flags = sp_zero;
   sp_da_init(mem, flags.compile);
@@ -277,7 +277,7 @@ void spn_gnu_render_compile(sp_mem_t mem, const spn_cc_toolchain_t* toolchain, c
   spn_cc_push_c(mem, invocation, "-Werror=return-type");
 }
 
-void spn_gnu_render_compile_files(sp_mem_t mem, const spn_cc_toolchain_t* toolchain, const spn_profile_info_t* profile, const spn_cc_compile_files_t* files, spn_invocation_t* invocation) {
+void spn_gnu_render_compile_files(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, const spn_cc_compile_files_t* files, spn_invocation_t* invocation) {
   spn_cc_push_path(mem, invocation, files->source);
   if (!spn_path_empty(files->depfile)) {
     spn_cc_push_c(mem, invocation, "-MD");
@@ -322,23 +322,23 @@ static void add_def(sp_mem_t mem, spn_ld_dialect_t dialect, spn_path_t def, spn_
   }
 }
 
-static void add_exports(sp_mem_t mem, spn_format_t format, spn_ld_dialect_t dialect, spn_path_t exports, spn_invocation_t* invocation) {
+static void add_exports(sp_mem_t mem, spn_obj_format_t format, spn_ld_dialect_t dialect, spn_path_t exports, spn_invocation_t* invocation) {
   switch (format) {
-    case SPN_FORMAT_ELF: {
+    case SPN_OBJ_ELF: {
       spn_cc_push_glued(mem, invocation, "-Wl,--version-script,", exports);
       break;
     }
-    case SPN_FORMAT_COFF: {
+    case SPN_OBJ_COFF: {
       add_def(mem, dialect, exports, invocation);
       break;
     }
-    case SPN_FORMAT_MACHO: {
+    case SPN_OBJ_MACHO: {
       spn_cc_push_glued(mem, invocation, "-Wl,-exported_symbols_list,", exports);
       break;
     }
-    case SPN_FORMAT_WASM:
-    case SPN_FORMAT_COUNT: {
-      sp_unreachable_case();
+    case SPN_OBJ_WASM: {
+      spn_cc_push_glued(mem, invocation, "@", exports);
+      break;
     }
   }
 }
@@ -420,11 +420,11 @@ static void add_static_runtime(sp_mem_t mem, spn_os_t os, spn_invocation_t* invo
   }
 }
 
-void spn_gnu_render_link(sp_mem_t mem, const spn_cc_toolchain_t* toolchain, const spn_profile_info_t* profile, const spn_cc_link_t* link, const spn_cc_link_files_t* files, spn_invocation_t* invocation) {
+void spn_gnu_render_link(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, const spn_cc_link_t* link, sp_da(spn_arg_t) objects, spn_path_t output, spn_path_t implib, spn_invocation_t* invocation) {
   spn_triple_t triple = spn_profile_triple(profile);
-  spn_format_t format = spn_os_format(profile->os);
+  spn_obj_format_t format = spn_os_to_native_object_format(profile->os);
   spn_ld_dialect_t dialect = spn_ld_dialect(triple);
-  bool is_static_libc = profile->linking.libc == SPN_RUNTIME_STATIC && format == SPN_FORMAT_ELF;
+  bool is_static_libc = profile->linking.libc == SPN_RUNTIME_STATIC && format == SPN_OBJ_ELF;
   bool is_gnu_runtime_static = profile->linking.runtime == SPN_RUNTIME_STATIC && triple.abi != SPN_ABI_MSVC && spn_cc_has(toolchain, SPN_CC_CAP_GNU_RUNTIME);
 
   add_launcher(mem, toolchain, profile, link->lang, invocation);
@@ -439,24 +439,24 @@ void spn_gnu_render_link(sp_mem_t mem, const spn_cc_toolchain_t* toolchain, cons
       spn_cc_push_c(mem, invocation, "-mexec-model=reactor");
       spn_cc_push_c(mem, invocation, "-Wl,--no-entry");
       spn_cc_push_c(mem, invocation, "-Wl,--import-symbols");
-      sp_da_for(files->exports.symbols, it) {
-        spn_cc_push_fmt(mem, invocation, "-Wl,--export={}", sp_fmt_str(files->exports.symbols[it]));
+      if (!spn_path_empty(link->exports)) {
+        add_exports(mem, format, dialect, link->exports, invocation);
       }
       break;
     }
     case SPN_CC_OUTPUT_SHARED_LIB: {
       spn_cc_push_c(mem, invocation, "-shared");
-      if (format == SPN_FORMAT_MACHO) {
-        spn_cc_push_fmt(mem, invocation, "-Wl,-install_name,@rpath/{}", sp_fmt_str(sp_fs_get_name(files->output.sub)));
+      if (format == SPN_OBJ_MACHO) {
+        spn_cc_push_fmt(mem, invocation, "-Wl,-install_name,@rpath/{}", sp_fmt_str(sp_fs_get_name(output.sub)));
       }
       if (is_gnu_runtime_static) {
         add_static_runtime(mem, profile->os, invocation);
       }
-      if (!spn_path_empty(files->exports.path)) {
-        add_exports(mem, format, dialect, files->exports.path, invocation);
+      if (!spn_path_empty(link->exports)) {
+        add_exports(mem, format, dialect, link->exports, invocation);
       }
-      if (!spn_path_empty(files->implib)) {
-        spn_cc_push_glued(mem, invocation, "-Wl,/IMPLIB:", files->implib);
+      if (!spn_path_empty(implib)) {
+        spn_cc_push_glued(mem, invocation, "-Wl,/IMPLIB:", implib);
       }
       break;
     }
@@ -467,7 +467,7 @@ void spn_gnu_render_link(sp_mem_t mem, const spn_cc_toolchain_t* toolchain, cons
       else if (is_gnu_runtime_static) {
         add_static_runtime(mem, profile->os, invocation);
       }
-      if (link->subsystem == SPN_WIN_SUBSYSTEM_WINDOWS && format == SPN_FORMAT_COFF) {
+      if (link->subsystem == SPN_WIN_SUBSYSTEM_WINDOWS && format == SPN_OBJ_COFF) {
         add_subsystem(mem, dialect, invocation);
       }
       break;
@@ -481,9 +481,9 @@ void spn_gnu_render_link(sp_mem_t mem, const spn_cc_toolchain_t* toolchain, cons
     spn_cc_push_glued(mem, invocation, "-Wl,-T,", link->scripts[it]);
   }
   spn_cc_push_strs(mem, invocation, link->args);
-  spn_cc_push_args(mem, invocation, files->objects);
-  if (!sp_da_empty(files->whole_archives)) {
-    add_whole_archives(mem, dialect, files->whole_archives, invocation);
+  spn_cc_push_args(mem, invocation, objects);
+  if (!sp_da_empty(link->whole_archives)) {
+    add_whole_archives(mem, dialect, link->whole_archives, invocation);
   }
   sp_da_for(link->lib_dirs, it) {
     spn_cc_push_glued(mem, invocation, "-L", link->lib_dirs[it]);
@@ -511,13 +511,21 @@ void spn_gnu_render_link(sp_mem_t mem, const spn_cc_toolchain_t* toolchain, cons
     add_rpath(mem, profile->os, invocation);
   }
   spn_cc_push_c(mem, invocation, "-o");
-  spn_cc_push_path(mem, invocation, files->output);
+  spn_cc_push_path(mem, invocation, output);
 }
 
-void spn_gnu_render_archive(sp_mem_t mem, const spn_cc_toolchain_t* toolchain, const spn_cc_archive_files_t* files, spn_invocation_t* invocation) {
+sp_da(spn_arg_t) spn_gnu_render_exports(sp_mem_t mem, sp_da(sp_str_t) symbols) {
+  sp_da(spn_arg_t) args = sp_da_new(mem, spn_arg_t);
+  sp_da_for(symbols, it) {
+    sp_da_push(args, spn_arg_lit(sp_fmt(mem, "-Wl,--export={}", sp_fmt_str(symbols[it])).value));
+  }
+  return args;
+}
+
+void spn_gnu_render_archive(sp_mem_t mem, const spn_cc_t* toolchain, sp_da(spn_arg_t) objects, spn_path_t output, spn_invocation_t* invocation) {
   invocation->program = toolchain->archiver.program;
   spn_cc_push_strs(mem, invocation, toolchain->archiver.args);
   spn_cc_push_c(mem, invocation, "rcs");
-  spn_cc_push_path(mem, invocation, files->output);
-  spn_cc_push_args(mem, invocation, files->objects);
+  spn_cc_push_path(mem, invocation, output);
+  spn_cc_push_args(mem, invocation, objects);
 }

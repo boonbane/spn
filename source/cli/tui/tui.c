@@ -226,15 +226,18 @@ static sp_str_t root_label(spn_path_root_t root) {
   return sp_str_lit("");
 }
 
+static sp_str_t contextual_path(sp_mem_t mem, spn_path_t path) {
+  if (path.root == SPN_PATH_ROOT_NONE) {
+    return path.sub;
+  }
+  if (sp_str_empty(path.sub)) {
+    return root_label(path.root);
+  }
+  return sp_fmt(mem, "{}/{}", sp_fmt_str(root_label(path.root)), sp_fmt_str(path.sub)).value;
+}
+
 static sp_str_t get_contextual_path(spn_ctx_t* ctx, sp_mem_t mem, sp_str_t path) {
-  spn_path_t collapsed = spn_ctx_collapse_path(ctx, path);
-  if (collapsed.root == SPN_PATH_ROOT_NONE) {
-    return collapsed.sub;
-  }
-  if (sp_str_empty(collapsed.sub)) {
-    return root_label(collapsed.root);
-  }
-  return sp_fmt(mem, "{}/{}", sp_fmt_str(root_label(collapsed.root)), sp_fmt_str(collapsed.sub)).value;
+  return contextual_path(mem, spn_ctx_collapse_path(ctx, path));
 }
 
 #define SPN_TUI_LIST_CAP 6
@@ -402,7 +405,7 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
       c8 buffer [64] = sp_zero;
       sp_fmt_write_duration_buf(buffer, sizeof(buffer), event->target_passed.time);
       sp_tty_fmt(&w, "{.gray} in {.gray}",
-        sp_fmt_str(event->target_passed.source_file),
+        sp_fmt_str(contextual_path(mem, event->target_passed.source_file)),
         sp_fmt_cstr(buffer)
       );
       break;
@@ -411,7 +414,7 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
       c8 buffer [64] = sp_zero;
       sp_fmt_write_duration_buf(buffer, sizeof(buffer), event->link_passed.time);
       sp_tty_fmt(&w, "{.gray} in {.gray}",
-        sp_fmt_str(event->link_passed.output_path),
+        sp_fmt_str(contextual_path(mem, event->link_passed.output_path)),
         sp_fmt_cstr(buffer)
       );
       break;
@@ -424,7 +427,7 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
       c8 buffer [64] = sp_zero;
       sp_fmt_write_duration_buf(buffer, sizeof(buffer), event->embed_passed.time);
       sp_tty_fmt(&w, "{.gray} in {.gray}",
-        sp_fmt_str(event->embed_passed.object_path),
+        sp_fmt_str(contextual_path(mem, event->embed_passed.object_path)),
         sp_fmt_cstr(buffer)
       );
       break;
@@ -542,7 +545,7 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
       break;
     }
     case SPN_EVENT_TARGET_BUILD_FAILED: {
-      sp_tty_fmt(&w, "could not compile {.cyan}", sp_fmt_str(get_contextual_path(ctx, mem, event->target_failed.source_file)));
+      sp_tty_fmt(&w, "could not compile {.cyan}", sp_fmt_str(contextual_path(mem, event->target_failed.source_file)));
       break;
     }
     case SPN_EVENT_NODE_FAILED: {
@@ -892,7 +895,7 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           sp_tty_fmt(
             &w,
             "Failed to remove {.cyan}",
-            sp_fmt_str(get_contextual_path(ctx, mem, event->err.fs.path))
+            sp_fmt_str(contextual_path(mem, event->err.fs.path))
           );
           break;
         }
@@ -922,7 +925,7 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           sp_tty_fmt(
             &w,
             "Failed to read {.cyan}",
-            sp_fmt_str(get_contextual_path(ctx, mem, event->err.fs.path))
+            sp_fmt_str(contextual_path(mem, event->err.fs.path))
           );
           break;
         }
@@ -930,7 +933,7 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           sp_tty_fmt(
             &w,
             "{.cyan} is not a static archive",
-            sp_fmt_str(get_contextual_path(ctx, mem, event->err.fs.path))
+            sp_fmt_str(contextual_path(mem, event->err.fs.path))
           );
           break;
         }
@@ -938,7 +941,7 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           sp_tty_fmt(
             &w,
             "The symbol table in {.cyan} is truncated",
-            sp_fmt_str(get_contextual_path(ctx, mem, event->err.fs.path))
+            sp_fmt_str(contextual_path(mem, event->err.fs.path))
           );
           break;
         }
@@ -946,7 +949,7 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           sp_tty_fmt(
             &w,
             "{.cyan} has no symbol table",
-            sp_fmt_str(get_contextual_path(ctx, mem, event->err.fs.path))
+            sp_fmt_str(contextual_path(mem, event->err.fs.path))
           );
           break;
         }
@@ -954,7 +957,7 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           sp_tty_fmt(
             &w,
             "Failed to render the template for {.cyan}",
-            sp_fmt_str(get_contextual_path(ctx, mem, event->err.fs.path))
+            sp_fmt_str(contextual_path(mem, event->err.fs.path))
           );
           break;
         }
@@ -962,7 +965,7 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           sp_tty_fmt(
             &w,
             "Failed to create directory {.cyan}",
-            sp_fmt_str(get_contextual_path(ctx, mem, event->err.fs.path))
+            sp_fmt_str(contextual_path(mem, event->err.fs.path))
           );
           break;
         }
@@ -970,7 +973,7 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           sp_tty_fmt(
             &w,
             "Failed to write {.cyan}",
-            sp_fmt_str(get_contextual_path(ctx, mem, event->err.fs.path))
+            sp_fmt_str(contextual_path(mem, event->err.fs.path))
           );
           break;
         }
@@ -978,7 +981,7 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           sp_tty_fmt(
             &w,
             "Path {.yellow} must not contain '.', '..', or empty components",
-            sp_fmt_str(event->err.fs.path)
+            sp_fmt_str(contextual_path(mem, event->err.fs.path))
           );
           break;
         }
@@ -986,7 +989,7 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           sp_tty_fmt(
             &w,
             "Path {.yellow} is not inside the project",
-            sp_fmt_str(event->err.fs.path)
+            sp_fmt_str(contextual_path(mem, event->err.fs.path))
           );
           break;
         }
@@ -1405,7 +1408,7 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           sp_tty_fmt(
             &w,
             "{.cyan} already exists",
-            sp_fmt_str(get_contextual_path(ctx, mem, event->err.fs.path))
+            sp_fmt_str(contextual_path(mem, event->err.fs.path))
           );
           break;
         }
@@ -1565,7 +1568,7 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
     }
     case SPN_EVENT_EMBED_FAILED: {
       sp_tty_fmt(&w, "{}: {}",
-        sp_fmt_str(get_contextual_path(ctx, mem, event->embed_failed.path)),
+        sp_fmt_str(contextual_path(mem, event->embed_failed.path)),
         sp_fmt_str(event->embed_failed.error)
       );
       break;

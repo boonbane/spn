@@ -66,7 +66,7 @@ sp_test_each(depfile, parse, depfile_test_t, tests) {
   sp_str_t content = sp_zero;
   sp_must(t, !sp_io_read_file(mem, path, &content));
 
-  spn_cc_toolchain_t toolchain = test_toolchain(it->driver);
+  spn_cc_t toolchain = test_toolchain(it->driver);
   sp_da(sp_str_t) prereqs = sp_zero;
   spn_err_t err = spn_cc_parse_depfile(mem, &toolchain, content, &prereqs);
 

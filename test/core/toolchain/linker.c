@@ -97,19 +97,19 @@ sp_test_each(linker, linking, linking_t, linking_tests) {
 typedef struct {
   const c8* name;
   spn_ld_family_t family;
-  spn_format_t format;
+  spn_obj_format_t format;
   bool expect;
 } scripts_t;
 
 static const scripts_t scripts_tests [] = {
-  { "gnu_elf",    SPN_LD_FAMILY_GNU,  SPN_FORMAT_ELF,   true },
-  { "gnu_coff",   SPN_LD_FAMILY_GNU,  SPN_FORMAT_COFF,  true },
-  { "lld_elf",    SPN_LD_FAMILY_LLD,  SPN_FORMAT_ELF,   true },
-  { "lld_coff",   SPN_LD_FAMILY_LLD,  SPN_FORMAT_COFF,  false },
-  { "lld_macho",  SPN_LD_FAMILY_LLD,  SPN_FORMAT_MACHO, false },
-  { "lld_wasm",   SPN_LD_FAMILY_LLD,  SPN_FORMAT_WASM,  false },
-  { "ld64_macho", SPN_LD_FAMILY_LD64, SPN_FORMAT_MACHO, false },
-  { "msvc_coff",  SPN_LD_FAMILY_MSVC, SPN_FORMAT_COFF,  false },
+  { "gnu_elf",    SPN_LD_FAMILY_GNU,  SPN_OBJ_ELF,   true },
+  { "gnu_coff",   SPN_LD_FAMILY_GNU,  SPN_OBJ_COFF,  true },
+  { "lld_elf",    SPN_LD_FAMILY_LLD,  SPN_OBJ_ELF,   true },
+  { "lld_coff",   SPN_LD_FAMILY_LLD,  SPN_OBJ_COFF,  false },
+  { "lld_macho",  SPN_LD_FAMILY_LLD,  SPN_OBJ_MACHO, false },
+  { "lld_wasm",   SPN_LD_FAMILY_LLD,  SPN_OBJ_WASM,  false },
+  { "ld64_macho", SPN_LD_FAMILY_LD64, SPN_OBJ_MACHO, false },
+  { "msvc_coff",  SPN_LD_FAMILY_MSVC, SPN_OBJ_COFF,  false },
 };
 
 sp_test_each(linker, scripts, scripts_t, scripts_tests) {

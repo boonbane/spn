@@ -109,7 +109,6 @@ typedef struct {
   spn_compile_unit_id_t id;
   spn_target_unit_t* target;
   spn_lang_t lang;
-  spn_invocation_t invocation;
 
   struct {
     spn_path_t file;
@@ -118,10 +117,18 @@ typedef struct {
 } spn_compile_unit_t;
 
 typedef struct {
+  spn_invocation_t invocation;
+} spn_compile_plan_t;
+
+typedef struct {
   spn_cc_link_t cc;
-  sp_da(spn_path_t) archives;
   sp_da(spn_link_lib_t) libs;
 } spn_link_plan_t;
+
+typedef struct {
+  sp_da(spn_path_t) include;
+  spn_link_plan_t link;
+} spn_target_plan_t;
 
 struct spn_target_unit {
   spn_target_unit_id_t id;
@@ -129,16 +136,13 @@ struct spn_target_unit {
   spn_target_info_t* info;
   spn_cc_output_kind_t kind;
   spn_linkage_t lib_kind;
+  struct {
+    spn_path_t object;
+    spn_path_t output;
+  } paths;
 
   sp_da(spn_compile_unit_t*) objects;
   sp_da(spn_target_unit_t*) deps;
-
-  sp_da(spn_path_t) include;
-  spn_link_plan_t link;
-
-  struct {
-    spn_path_t object;
-  } paths;
 };
 
 struct spn_pkg_unit_t {
@@ -150,8 +154,6 @@ struct spn_pkg_unit_t {
   u32 kinds;
   sp_hash_t fingerprint;
 
-  // The unit whose scripts are this package's: its unit in the metaprogram
-  // build (itself, there), or null when the package has none
   spn_pkg_unit_t* metaprogram;
   struct {
     spn_target_unit_t* configure;
@@ -193,7 +195,7 @@ struct spn_pkg_unit_t {
 
 struct spn_toolchain_unit_t {
   spn_toolchain_info_t* info;
-  spn_cc_toolchain_t cc;
+  spn_cc_t cc;
   sp_hash_t identity;
   sp_str_t version;
 };

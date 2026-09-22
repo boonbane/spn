@@ -24,7 +24,7 @@ u32 spn_os_completions(spn_os_t os, const spn_abi_t** abis);
 u32 spn_os_archs(spn_os_t os, const spn_arch_t** archs);
 sp_da(spn_triple_t) spn_os_triples(sp_mem_t mem, spn_arch_t arch, spn_os_t os);
 sp_da(spn_triple_t) spn_arch_triples(sp_mem_t mem, spn_arch_t arch);
-spn_format_t spn_os_format(spn_os_t os);
+spn_obj_format_t spn_os_to_native_object_format(spn_os_t os);
 bool spn_triple_dynamic(spn_triple_t triple);
 bool spn_triple_pic(spn_triple_t triple);
 spn_triple_entry_t spn_triple_entry(spn_triple_t partial, spn_triple_t* full);

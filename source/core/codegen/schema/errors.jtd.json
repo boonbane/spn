@@ -260,7 +260,7 @@
     },
     "fs": {
       "properties": {
-        "path": { "type": "string" }
+        "path": { "metadata": { "extern": "path" } }
       }
     },
     "index": {

@@ -28,6 +28,7 @@ void                spn_dag_hash_str(spn_digest_ctx_t* ctx, sp_str_t str);
 void                spn_dag_hash_digest(spn_digest_ctx_t* ctx, spn_dag_digest_t digest);
 void                spn_dag_hash_path(spn_digest_ctx_t* ctx, spn_path_t path);
 void                spn_dag_hash_paths(spn_digest_ctx_t* ctx, sp_da(spn_path_t) paths);
+void                spn_dag_hash_strs(spn_digest_ctx_t* ctx, sp_da(sp_str_t) strs);
 void                spn_dag_hash_arg(spn_digest_ctx_t* ctx, spn_arg_t arg);
 void                spn_dag_hash_args(spn_digest_ctx_t* ctx, sp_da(spn_arg_t) args);
 spn_dag_digest_t    spn_dag_hash_final(spn_digest_ctx_t* ctx);
