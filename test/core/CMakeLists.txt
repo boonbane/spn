@@ -80,6 +80,7 @@ add_executable(core
   options/session.c
   paths/anchor.c
   paths/canonicalize.c
+  paths/head.c
   paths/label.c
   paths/normal.c
   paths/path.c
@@ -161,7 +162,6 @@ add_executable(core
   ${SRC}/dag/stamp.c
   ${SRC}/dag/store.c
   ${SRC}/dag/wasi.c
-  ${SRC}/dag/wasi/canonicalize.c
   ${SRC}/enum/enum.c
   ${SRC}/error/error.c
   ${SRC}/error/json.c
@@ -302,7 +302,6 @@ set(DAG_TEST_SOURCES
   ${SRC}/dag/stamp.c
   ${SRC}/dag/store.c
   ${SRC}/dag/wasi.c
-  ${SRC}/dag/wasi/canonicalize.c
   ${SRC}/hash/digest/digest.c
   ${SRC}/hash/sha256/sha256.c
   ${SRC}/paths/paths.c

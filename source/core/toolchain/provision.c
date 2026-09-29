@@ -71,7 +71,7 @@ static spn_err_t fill(spn_toolchain_store_t* store, sp_str_t name, spn_artifact_
   }
 
   sp_str_t actual = sp_zero;
-  if (spn_digest_file_hex(SPN_DIGEST_SHA256, store->mem, tarball, &actual)) {
+  if (spn_digest_file_hex(SPN_DIGEST_SHA256, store->mem, sp_path_resolve(tarball), &actual)) {
     sp_fs_remove_file(tarball);
     return spn_err_emit(&spn, (spn_err_union_t) {
       .kind = SPN_ERR_TOOLCHAIN_READ,

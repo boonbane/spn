@@ -188,32 +188,20 @@ void spn_write_file(spn_t* s, const c8* path, const c8* content) {
   sp_mem_end_scratch(scratch);
 }
 
-s32 spn_api_copy(sp_str_t from, sp_str_t to) {
-  if (!sp_glob_parse_meta(from).literal) {
-    return spn_fs_update_glob(sp_path_resolve(from), sp_path_resolve(to));
+s32 spn_api_copy(spn_path_t from, spn_path_t to) {
+  sp_path_t source = spn_path_at(&spn.roots, from);
+  sp_path_t dest = spn_path_at(&spn.roots, to);
+  if (!sp_glob_parse_meta(from.sub).literal) {
+    return spn_fs_update_glob(source, dest);
   }
-  if (sp_fs_is_dir(from)) {
-    sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-    sp_err_t err = sp_fs_copy_at(sp_path_resolve(from), sp_path_resolve(sp_fs_join_path(scratch.mem, to, sp_fs_get_name(from))), SP_FS_ATOMIC_REPLACE);
-    sp_mem_end_scratch(scratch);
-    return err ? SPN_ERROR : SPN_OK;
-  }
-  if (!sp_fs_is_dir(to)) {
-    return spn_fs_update_file(sp_path_resolve(from), sp_path_resolve(to));
+  if (!sp_fs_is_dir_at(source) && !sp_fs_is_dir_at(dest)) {
+    return spn_fs_update_file(source, dest);
   }
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  s32 err = spn_fs_update_file(sp_path_resolve(from), sp_path_resolve(sp_fs_join_path(scratch.mem, to, sp_fs_get_name(from))));
-  sp_mem_end_scratch(scratch);
-  return err;
-}
-
-s32 spn_api_copy_rooted(spn_pkg_unit_t* unit, spn_dir_t from_dir, sp_str_t from_path, spn_dir_t to_dir, sp_str_t to_path) {
-  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  sp_str_t from = sp_fs_join_path(scratch.mem, spn_api_dir(unit, from_dir), from_path);
-  sp_str_t to = sp_fs_join_path(scratch.mem, spn_api_dir(unit, to_dir), to_path);
-  SPN_API_LOG(unit, "spn_copy", "{} -> {}", SP_FMT_STR(from), SP_FMT_STR(to));
-
-  s32 err = spn_api_copy(from, to);
+  sp_path_t into = spn_path_at(&spn.roots, spn_path_join(scratch.mem, to, sp_fs_get_name(from.sub)));
+  s32 err = sp_fs_is_dir_at(source)
+    ? (sp_fs_copy_at(source, into, SP_FS_ATOMIC_REPLACE) ? SPN_ERROR : SPN_OK)
+    : spn_fs_update_file(source, into);
   sp_mem_end_scratch(scratch);
   return err;
 }
@@ -223,7 +211,14 @@ s32 spn_copy(spn_t* s, spn_dir_t from_dir, const c8* from_path, spn_dir_t to_dir
   if (spn_api_path_rejected(unit, "spn_copy", sp_str_view(from_path)) || spn_api_path_rejected(unit, "spn_copy", sp_str_view(to_path))) {
     return SPN_ERROR;
   }
-  return spn_api_copy_rooted(unit, from_dir, sp_cstr_as_str(from_path), to_dir, sp_cstr_as_str(to_path));
+  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+  spn_path_t from = spn_path_join(scratch.mem, spn_api_dir_path(unit, from_dir), sp_cstr_as_str(from_path));
+  spn_path_t to = spn_path_join(scratch.mem, spn_api_dir_path(unit, to_dir), sp_cstr_as_str(to_path));
+  SPN_API_LOG(unit, "spn_copy", "{} -> {}", SP_FMT_STR(spn_path_str(&spn.roots, scratch.mem, from)), SP_FMT_STR(spn_path_str(&spn.roots, scratch.mem, to)));
+
+  s32 err = spn_api_copy(from, to);
+  sp_mem_end_scratch(scratch);
+  return err;
 }
 
 spn_profile_t* spn_get_profile(spn_t* s) {

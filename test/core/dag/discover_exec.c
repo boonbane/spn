@@ -164,7 +164,7 @@ static spn_err_t execute_action(spn_dag_t* g, spn_dag_action_t* action, void* us
     }
     spn_dag_observe(obs, (spn_dag_obs_t) {
       .kind = SPN_DAG_OBS_FILE,
-      .path = spn_path_make(g->roots, dag_test_env_path(&env->dag, sp_str_view(env->run->headers[it].path)))
+      .path = dag_test_env_rooted(&env->dag, sp_str_view(env->run->headers[it].path))
     });
   }
   sp_carr_for(env->run->missing, it) {
@@ -173,7 +173,7 @@ static spn_err_t execute_action(spn_dag_t* g, spn_dag_action_t* action, void* us
     }
     spn_dag_observe(obs, (spn_dag_obs_t) {
       .kind = SPN_DAG_OBS_FILE,
-      .path = spn_path_make(g->roots, dag_test_env_path(&env->dag, sp_str_view(env->run->missing[it])))
+      .path = dag_test_env_rooted(&env->dag, sp_str_view(env->run->missing[it]))
     });
   }
   sp_carr_for(env->run->probes, it) {
@@ -182,7 +182,7 @@ static spn_err_t execute_action(spn_dag_t* g, spn_dag_action_t* action, void* us
     }
     spn_dag_observe(obs, (spn_dag_obs_t) {
       .kind = SPN_DAG_OBS_ABSENT,
-      .path = spn_path_make(g->roots, dag_test_env_path(&env->dag, sp_str_view(env->run->probes[it])))
+      .path = dag_test_env_rooted(&env->dag, sp_str_view(env->run->probes[it]))
     });
   }
   return SPN_OK;
@@ -199,7 +199,7 @@ static void prepare_run(env_t* env, const run_t* run) {
     if (!run->removed[it]) {
       break;
     }
-    sp_fs_remove_file(dag_test_env_path(&env->dag, sp_str_view(run->removed[it])));
+    sp_fs_remove_file_at(dag_test_env_path(&env->dag, sp_str_view(run->removed[it])));
   }
   sp_carr_for(run->created, it) {
     if (!run->created[it]) {
@@ -211,13 +211,14 @@ static void prepare_run(env_t* env, const run_t* run) {
 
 static sp_sys_file_meta_t manifest_meta(env_t* env) {
   sp_sys_file_meta_t meta = sp_zero;
-  sp_str_t dir = dag_test_env_path(&env->dag, sp_str_lit("manifests"));
-  sp_da(sp_fs_entry_t) entries = sp_zero;
-  sp_fs_collect(env->dag.mem, dir, &entries);
-  if (sp_da_size(entries) == 1) {
-    sp_sys_get_path_metadata_s(sp_sys_get_root(0), entries[0].path, &meta);
+  u32 count = 0;
+  sp_fs_it_t it = sp_fs_it_new_at(env->dag.mem, dag_test_env_path(&env->dag, sp_str_lit("manifests")), 0);
+  while (sp_fs_it_next(&it)) {
+    count++;
+    sp_sys_get_path_metadata_s(it.at.dir, it.at.sub, &meta);
   }
-  return meta;
+  sp_fs_it_deinit(&it);
+  return count == 1 ? meta : (sp_sys_file_meta_t) sp_zero;
 }
 
 sp_test_each(dag_discover_exec, runs, test_t, tests) {

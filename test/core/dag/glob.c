@@ -135,27 +135,27 @@ static s32 obs_order(const void* a, const void* b) {
 
 sp_test_each(dag_glob, observe, test_t, tests) {
   sp_mem_t mem = sp_test_arena(t);
-  sp_str_t root = sp_fs_join_path(mem, test_dir_str(t), sp_str_lit("R"));
+  sp_path_t sandbox = sp_path_join(mem, sp_test_dir(t), sp_str_lit("R"));
 
   spn_path_roots_t storage = sp_zero;
-  spn_path_roots_set(&storage, mem, SPN_PATH_ROOT_PROJECT, sp_path_resolve(root));
-  root = storage.dirs[SPN_PATH_ROOT_PROJECT];
+  spn_path_roots_set(&storage, mem, SPN_PATH_ROOT_PROJECT, sandbox);
+  sp_str_t root = storage.dirs[SPN_PATH_ROOT_PROJECT];
   const spn_path_roots_t* roots = &storage;
 
   sp_carr_for(it->files, ft) {
     if (!it->files[ft]) {
       break;
     }
-    dag_test_create(sp_fs_join_path(mem, root, sp_cstr_as_str(it->files[ft])), sp_str_lit("S"));
+    dag_test_create(sp_path_join(mem, sandbox, sp_cstr_as_str(it->files[ft])), sp_str_lit("S"));
   }
   sp_carr_for(it->dirs, dt) {
     if (!it->dirs[dt]) {
       break;
     }
-    sp_fs_create_dir(sp_fs_join_path(mem, root, sp_cstr_as_str(it->dirs[dt])));
+    sp_fs_create_dir_at(sp_path_join(mem, sandbox, sp_cstr_as_str(it->dirs[dt])));
   }
   if (it->nested_root) {
-    spn_path_roots_set(&storage, mem, SPN_PATH_ROOT_STORE, sp_path_resolve(sp_fs_join_path(mem, root, sp_cstr_as_str(it->nested_root))));
+    spn_path_roots_set(&storage, mem, SPN_PATH_ROOT_STORE, sp_path_join(mem, sandbox, sp_cstr_as_str(it->nested_root)));
   }
 
   spn_dag_glob_result_t glob = sp_zero;
@@ -283,17 +283,16 @@ static s32 path_order(const void* a, const void* b) {
 
 sp_test_each(dag_glob, iterate, iterate_test_t, iterate_tests) {
   sp_mem_t mem = sp_test_arena(t);
-  sp_str_t root = sp_fs_join_path(mem, test_dir_str(t), sp_str_lit("R"));
+  sp_path_t sandbox = sp_path_join(mem, sp_test_dir(t), sp_str_lit("R"));
 
   spn_path_roots_t roots = sp_zero;
-  spn_path_roots_set(&roots, mem, SPN_PATH_ROOT_PROJECT, sp_path_resolve(root));
-  root = roots.dirs[SPN_PATH_ROOT_PROJECT];
+  spn_path_roots_set(&roots, mem, SPN_PATH_ROOT_PROJECT, sandbox);
 
   sp_carr_for(it->files, ft) {
     if (!it->files[ft]) {
       break;
     }
-    dag_test_create(sp_fs_join_path(mem, root, sp_cstr_as_str(it->files[ft])), sp_str_lit("S"));
+    dag_test_create(sp_path_join(mem, sandbox, sp_cstr_as_str(it->files[ft])), sp_str_lit("S"));
   }
 
   u32 count = 0;
@@ -336,7 +335,7 @@ typedef struct {
 
 typedef struct {
   dag_test_env_t dag;
-  sp_str_t root;
+  sp_path_t root;
   spn_path_t pattern;
 } env_t;
 
@@ -379,7 +378,7 @@ sp_test_each(dag_glob, exec, exec_test_t, exec_tests) {
   });
   env.root = dag_test_env_path(&env.dag, sp_str_lit("R"));
   env.pattern = spn_path_join(env.dag.mem, dag_test_env_rooted(&env.dag, sp_str_lit("R")), sp_str_view(it->pattern));
-  sp_fs_create_dir(env.root);
+  sp_fs_create_dir_at(env.root);
 
   sp_carr_for(it->runs, r) {
     const run_t* run = &it->runs[r];
@@ -392,7 +391,7 @@ sp_test_each(dag_glob, exec, exec_test_t, exec_tests) {
       if (!run->files[ft].path) {
         break;
       }
-      dag_test_create(sp_fs_join_path(env.dag.mem, env.root, sp_cstr_as_str(run->files[ft].path)), sp_str_view(run->files[ft].content));
+      dag_test_create(sp_path_join(env.dag.mem, env.root, sp_cstr_as_str(run->files[ft].path)), sp_str_view(run->files[ft].content));
     }
 
     spn_dag_t* g = dag_test_env_graph(&env.dag);

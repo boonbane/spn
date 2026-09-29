@@ -230,9 +230,11 @@ static sp_err_t check_expectations(sp_test_t* t, spn_dag_obs_table_t* discovery,
 
 sp_test_each(dag_discovery, table, test_t, tests) {
   sp_mem_t mem = sp_test_arena(t);
-  sp_str_t dir = sp_fs_join_path(mem, test_dir_str(t), sp_str_lit("manifests"));
+  sp_path_t sandbox = sp_test_dir(t);
   spn_path_roots_t roots = sp_zero;
+  spn_path_roots_set(&roots, mem, SPN_PATH_ROOT_PROJECT, sandbox);
   roots.pinned = it->pinned;
+  spn_path_t dir = { .root = SPN_PATH_ROOT_PROJECT, .sub = sp_str_lit("manifests") };
 
   spn_dag_obs_table_t discovery = sp_zero;
   spn_dag_obs_table_init(&discovery, mem, &roots, dir);
@@ -246,13 +248,15 @@ sp_test_each(dag_discovery, table, test_t, tests) {
 
   if (it->plant.key) {
     sp_str_t hex = spn_dag_digest_hex(mem, dag_test_digest(it->plant.key));
-    sp_str_t path = sp_fs_join_path(mem, dir, sp_fmt(mem, "{}.txt", sp_fmt_str(hex)).value);
-    sp_must_eq(t, SP_OK, sp_fs_create_file_cstr(path, it->plant.content));
+    sp_path_t path = sp_path_join(mem, sandbox, sp_fmt(mem, "manifests/{}.txt", sp_fmt_str(hex)).value);
+    sp_must_eq(t, SP_OK, sp_fs_create_file_cstr_at(path, it->plant.content));
   }
 
   if (it->reload) {
     spn_dag_obs_table_init(&discovery, mem, &roots, dir);
   }
 
-  return check_expectations(t, &discovery, it);
+  sp_err_t err = check_expectations(t, &discovery, it);
+  spn_path_roots_close(&roots);
+  return err;
 }

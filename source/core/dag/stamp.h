@@ -8,7 +8,7 @@
 #define SPN_DAG_STAMP_TRUST_ALL ((sp_sys_timespec_t) { .tv_sec = SP_LIMIT_S64_MAX })
 
 bool      spn_dag_stamp_fenced(sp_sys_timespec_t fence, sp_sys_timespec_t mtime);
-spn_err_t spn_dag_stamp_probe(sp_str_t dir, sp_sys_timespec_t* fence);
-spn_err_t spn_dag_stamp_admit(spn_dag_stamp_t* stamp, sp_sys_timespec_t mtime, bool* admit);
+spn_err_t spn_dag_stamp_probe(sp_path_t dir, sp_sys_timespec_t* fence);
+spn_err_t spn_dag_stamp_admit(spn_dag_stamp_t* stamp, const spn_path_roots_t* roots, sp_sys_timespec_t mtime, bool* admit);
 
 #endif

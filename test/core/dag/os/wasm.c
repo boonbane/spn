@@ -264,24 +264,25 @@ sp_test_each(dag_wasm, wasi, test_t, tests) {
   sp_must_ok(t, sp_test_once(&runtime_once, bring_up_runtime, SP_NULLPTR));
 
   sp_mem_t mem = sp_test_arena(t);
-  sp_str_t root = test_dir_str(t);
+  sp_path_t sandbox = sp_test_dir(t);
 
   spn_path_roots_t roots = sp_zero;
-  roots.dirs[SPN_PATH_ROOT_PROJECT] = root;
+  spn_path_roots_set(&roots, mem, SPN_PATH_ROOT_PROJECT, sandbox);
+  sp_str_t root = roots.dirs[SPN_PATH_ROOT_PROJECT];
 
   spn_dag_wasi_mount_t mounts [] = {
-    { .guest = "/work",   .host = sp_fs_join_path(mem, root, sp_str_lit("work")) },
-    { .guest = "/source", .host = sp_fs_join_path(mem, root, sp_str_lit("source")) },
-    { .guest = "/store",  .host = sp_fs_join_path(mem, root, sp_str_lit("store")) },
+    { .guest = "/work",   .host = { .root = SPN_PATH_ROOT_PROJECT, .sub = sp_str_lit("work") } },
+    { .guest = "/source", .host = { .root = SPN_PATH_ROOT_PROJECT, .sub = sp_str_lit("source") } },
+    { .guest = "/store",  .host = { .root = SPN_PATH_ROOT_PROJECT, .sub = sp_str_lit("store") } },
   };
   sp_carr_for(mounts, mt) {
-    sp_fs_create_dir(mounts[mt].host);
+    sp_fs_create_dir_at(spn_path_at(&roots, mounts[mt].host));
   }
   sp_carr_for(it->files, ft) {
     if (!it->files[ft].path) {
       break;
     }
-    dag_test_create(sp_fs_join_path(mem, root, sp_str_view(it->files[ft].path)), sp_str_lit("A"));
+    dag_test_create(sp_path_join(mem, sandbox, sp_str_view(it->files[ft].path)), sp_str_lit("A"));
   }
 
   wasm_emit_fn_t fns [DAG_WASM_MAX_CALLS] = sp_zero;
@@ -312,7 +313,7 @@ sp_test_each(dag_wasm, wasi, test_t, tests) {
 
   const c8* preopens [sp_carr_len(mounts)] = sp_zero;
   sp_carr_for(mounts, mt) {
-    preopens[mt] = sp_fmt_mem_cstr(mem, "{}::{}", sp_fmt_cstr(mounts[mt].guest), sp_fmt_str(mounts[mt].host));
+    preopens[mt] = sp_fmt_mem_cstr(mem, "{}::{}", sp_fmt_cstr(mounts[mt].guest), sp_fmt_str(spn_path_str(&roots, mem, mounts[mt].host)));
   }
   wasm_runtime_set_wasi_args(module, SP_NULLPTR, 0, preopens, sp_carr_len(preopens), SP_NULLPTR, 0, SP_NULLPTR, 0);
 
@@ -326,7 +327,7 @@ sp_test_each(dag_wasm, wasi, test_t, tests) {
   sp_must(t, env != SP_NULLPTR);
 
   spn_dag_obs_table_t table = sp_zero;
-  spn_dag_obs_table_init(&table, mem, &roots, sp_str_lit(""));
+  spn_dag_obs_table_init(&table, mem, &roots, sp_zero_struct(spn_path_t));
 
   sp_carr_for(it->calls, ct) {
     call_t* call = &it->calls[ct];

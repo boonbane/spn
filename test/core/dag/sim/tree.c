@@ -115,14 +115,14 @@ static const test_t tests [] = {
 static spn_err_t execute_action(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* dag_env, const spn_path_t* outputs, spn_dag_obs_set_t* obs) {
   env_t* env = (env_t*)user_data;
   env->dag.runs++;
-  sp_fs_create_dir(dag_test_render(&env->dag, outputs[0]));
+  sp_fs_create_dir_at(dag_test_at(&env->dag, outputs[0]));
   sp_carr_for(env->run->files, it) {
     if (!env->run->files[it].path) {
       break;
     }
-    sp_str_t path = dag_test_render(&env->dag, spn_path_join(env->dag.mem, outputs[0], sp_cstr_as_str(env->run->files[it].path)));
-    sp_fs_create_dir(sp_fs_parent_path(path));
-    if (sp_fs_create_file_str(path, sp_cstr_as_str(env->run->files[it].content))) {
+    sp_path_t path = dag_test_at(&env->dag, spn_path_join(env->dag.mem, outputs[0], sp_cstr_as_str(env->run->files[it].path)));
+    sp_fs_create_dir_at(sp_path_at(path.dir, sp_fs_parent_path(path.sub)));
+    if (sp_fs_create_file_str_at(path, sp_cstr_as_str(env->run->files[it].content))) {
       return SPN_ERR_DAG_ACTION;
     }
   }
@@ -133,7 +133,7 @@ sp_test_each(dag_tree, exec, test_t, tests) {
   env_t env = sp_zero;
   dag_test_env_init(&env.dag, t, (dag_test_env_config_t) { .store = SPN_DAG_STORE_FILESYSTEM });
   sp_mem_t mem = env.dag.mem;
-  sp_str_t target = dag_test_env_path(&env.dag, sp_str_lit("install"));
+  sp_path_t target = dag_test_env_path(&env.dag, sp_str_lit("install"));
   spn_path_t tree = dag_test_env_rooted(&env.dag, sp_str_lit("install"));
 
   sp_carr_for(it->runs, r) {
@@ -145,18 +145,18 @@ sp_test_each(dag_tree, exec, test_t, tests) {
     env.run = run;
     dag_test_env_cold(&env.dag);
     if (run->remove_target) {
-      sp_fs_remove_dir(target);
+      sp_fs_remove_dir_at(target);
     }
     sp_carr_for(run->write, wt) {
       if (!run->write[wt].path) {
         break;
       }
-      dag_test_create(sp_fs_join_path(mem, target, sp_cstr_as_str(run->write[wt].path)), sp_cstr_as_str(run->write[wt].content));
+      dag_test_create(sp_path_join(mem, target, sp_cstr_as_str(run->write[wt].path)), sp_cstr_as_str(run->write[wt].content));
     }
     if (run->poison.path) {
-      sp_str_t path = sp_fs_join_path(mem, target, sp_cstr_as_str(run->poison.path));
-      sp_must_ok(t, sp_fs_set_writable(sp_path_resolve(path)));
-      sp_must_ok(t, sp_fs_create_file_str(path, sp_cstr_as_str(run->poison.content)));
+      sp_path_t path = sp_path_join(mem, target, sp_cstr_as_str(run->poison.path));
+      sp_must_ok(t, sp_fs_set_writable(path));
+      sp_must_ok(t, sp_fs_create_file_str_at(path, sp_cstr_as_str(run->poison.content)));
     }
 
     sp_sys_file_meta_t before [DAG_TEST_MAX_OUTPUTS] = sp_zero;
@@ -164,7 +164,8 @@ sp_test_each(dag_tree, exec, test_t, tests) {
       if (!run->expect.kept[kt]) {
         break;
       }
-      sp_must_ok(t, sp_sys_get_path_metadata_s(sp_sys_get_root(0), sp_fs_join_path(mem, target, sp_cstr_as_str(run->expect.kept[kt])), &before[kt]));
+      sp_path_t kept = sp_path_join(mem, target, sp_cstr_as_str(run->expect.kept[kt]));
+      sp_must_ok(t, sp_sys_get_path_metadata_s(kept.dir, kept.sub, &before[kt]));
     }
     u32 hashed = dag_test_hashed(&env.dag);
 
@@ -179,13 +180,13 @@ sp_test_each(dag_tree, exec, test_t, tests) {
     sp_expect_eq(t, SPN_OK, spn_dag_execute(g, action, &env.dag.env));
     sp_expect_eq(t, run->expect.runs, env.dag.runs);
     sp_expect_eq(t, run->expect.hashes, dag_test_hashed(&env.dag) - hashed);
-    sp_expect(t, sp_fs_is_dir(target));
+    sp_expect(t, sp_fs_is_dir_at(target));
 
     sp_carr_for(run->expect.files, ft) {
       if (!run->expect.files[ft].path) {
         break;
       }
-      sp_err_t err = dag_test_expect_file(t, mem, sp_fs_join_path(mem, target, sp_cstr_as_str(run->expect.files[ft].path)), run->expect.files[ft].content);
+      sp_err_t err = dag_test_expect_file(t, mem, sp_path_join(mem, target, sp_cstr_as_str(run->expect.files[ft].path)), run->expect.files[ft].content);
       if (err) {
         return err;
       }
@@ -194,14 +195,15 @@ sp_test_each(dag_tree, exec, test_t, tests) {
       if (!run->expect.absent[at]) {
         break;
       }
-      sp_expect(t, !sp_fs_exists(sp_fs_join_path(mem, target, sp_cstr_as_str(run->expect.absent[at]))));
+      sp_expect(t, !sp_fs_exists_at(sp_path_join(mem, target, sp_cstr_as_str(run->expect.absent[at]))));
     }
     sp_carr_for(run->expect.kept, kt) {
       if (!run->expect.kept[kt]) {
         break;
       }
       sp_sys_file_meta_t after = sp_zero;
-      sp_must_ok(t, sp_sys_get_path_metadata_s(sp_sys_get_root(0), sp_fs_join_path(mem, target, sp_cstr_as_str(run->expect.kept[kt])), &after));
+      sp_path_t kept = sp_path_join(mem, target, sp_cstr_as_str(run->expect.kept[kt]));
+      sp_must_ok(t, sp_sys_get_path_metadata_s(kept.dir, kept.sub, &after));
       sp_expect_eq(t, before[kt].id, after.id);
     }
   }

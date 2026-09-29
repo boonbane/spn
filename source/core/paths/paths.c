@@ -125,33 +125,58 @@ spn_path_t spn_path_anchor(sp_mem_t mem, const spn_path_roots_t* roots, spn_path
   return path;
 }
 
-spn_path_t spn_path_canonicalize(sp_mem_t mem, const spn_path_roots_t* roots, spn_path_t path) {
-  sp_mem_arena_marker_t s = sp_mem_begin_scratch_for(mem);
+typedef struct {
+  sp_str_t canonical;
+  sp_str_t tail;
+} canonical_split_t;
+
+static canonical_split_t canonical_split(sp_mem_t mem, const spn_path_roots_t* roots, spn_path_t path) {
   sp_path_t at = spn_path_at(roots, path);
   sp_str_t sub = sp_fs_trim_path(at.sub);
-  sp_str_t tail = sp_str_lit("");
-  sp_str_t canonical = sp_zero;
+  canonical_split_t split = { .tail = sp_str_lit("") };
   while (true) {
-    canonical = sp_fs_canonicalize_path_at(s.mem, sp_path_at(at.dir, sub));
-    if (!sp_str_empty(canonical)) {
+    split.canonical = sp_fs_canonicalize_path_at(mem, sp_path_at(at.dir, sub));
+    if (!sp_str_empty(split.canonical)) {
       break;
     }
     sp_str_t parent = sp_fs_parent_path(sub);
     if (sp_str_equal(parent, sub)) {
       break;
     }
-    tail = sp_fs_join_path(s.mem, sp_fs_get_name(sub), tail);
+    split.tail = sp_fs_join_path(mem, sp_fs_get_name(sub), split.tail);
     sub = parent;
   }
+  return split;
+}
 
-  spn_path_t result = path;
-  if (!sp_str_empty(canonical)) {
-    sp_str_t full = sp_fs_join_path(s.mem, canonical, tail);
-    if (spn_path_normal(full)) {
-      result = spn_path_make(roots, full);
-    }
+static spn_path_t canonical_join(sp_mem_t mem, sp_mem_t scratch, const spn_path_roots_t* roots, spn_path_t path, sp_str_t canonical, sp_str_t tail) {
+  if (sp_str_empty(canonical)) {
+    return spn_path_copy(mem, path);
   }
-  result = spn_path_copy(mem, result);
+  sp_str_t full = sp_fs_join_path(scratch, canonical, tail);
+  if (!spn_path_normal(full)) {
+    return spn_path_copy(mem, path);
+  }
+  return spn_path_copy(mem, spn_path_make(roots, full));
+}
+
+spn_path_t spn_path_canonicalize(sp_mem_t mem, const spn_path_roots_t* roots, spn_path_t path) {
+  sp_mem_arena_marker_t s = sp_mem_begin_scratch_for(mem);
+  canonical_split_t split = canonical_split(s.mem, roots, path);
+  spn_path_t result = canonical_join(mem, s.mem, roots, path, split.canonical, split.tail);
+  sp_mem_end_scratch(s);
+  return result;
+}
+
+spn_path_t spn_path_canonicalize_head(sp_mem_t mem, const spn_path_roots_t* roots, spn_path_t path) {
+  sp_mem_arena_marker_t s = sp_mem_begin_scratch_for(mem);
+  canonical_split_t split = canonical_split(s.mem, roots, path);
+  s32 sep = sp_str_find_c8(split.tail, '/');
+  sp_str_t head = sep == SP_STR_NO_MATCH ? split.tail : sp_str_prefix(split.tail, sep);
+  if (!seg_normal(head)) {
+    head = sp_str_lit("");
+  }
+  spn_path_t result = canonical_join(mem, s.mem, roots, path, split.canonical, head);
   sp_mem_end_scratch(s);
   return result;
 }

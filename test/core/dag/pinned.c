@@ -87,8 +87,8 @@ static const test_t tests [] = {
   },
 };
 
-static sp_str_t root_path(env_t* env, sp_str_t rel) {
-  return sp_fs_join_path(env->dag.mem, env->dag.roots.dirs[env->root], rel);
+static sp_path_t root_path(env_t* env, sp_str_t rel) {
+  return spn_path_at(&env->dag.roots, (spn_path_t) { .root = env->root, .sub = rel });
 }
 
 static spn_err_t execute_action(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* dag_env, const spn_path_t* outputs, spn_dag_obs_set_t* obs) {
@@ -127,7 +127,7 @@ static void prepare_run(env_t* env, const run_t* run) {
     if (!run->removed[it]) {
       break;
     }
-    sp_fs_remove_file(root_path(env, sp_str_view(run->removed[it])));
+    sp_fs_remove_file_at(root_path(env, sp_str_view(run->removed[it])));
   }
 }
 

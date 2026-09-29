@@ -90,21 +90,19 @@ static spn_err_t script_open(spn_wasm_script_t* script, spn_pkg_unit_t* unit) {
   }
 
   const spn_path_roots_t* roots = &spn.roots;
-  sp_str_t work = spn_path_str(roots, spn.mem, unit->paths.work);
-  sp_str_t store = spn_path_str(roots, spn.mem, unit->paths.store);
-  sp_str_buf_t buf = sp_zero;
   spn_path_t dirs [] = { unit->paths.work, unit->paths.lib, unit->paths.bin, unit->paths.vendor };
   sp_carr_for(dirs, it) {
-    sp_fs_create_dir(spn_path_str(roots, sp_str_buf_as_mem(&buf), dirs[it]));
+    sp_fs_create_dir_at(spn_path_at(roots, dirs[it]));
   }
-  sp_str_t source = spn_path_str(roots, spn.mem, unit->paths.roots.source);
-  sp_str_t manifest = spn_path_str(roots, spn.mem, unit->paths.roots.recipe);
-  script->preopens = (spn_wasm_preopens_t) {
-    .work = preopen("/work", work),
-    .source = preopen("/source", source),
-    .manifest = preopen("/manifest", manifest),
-    .store = preopen("/store", store),
+  spn_dag_wasi_mount_t mounts [] = {
+    { .guest = "/work",     .host = unit->paths.work },
+    { .guest = "/source",   .host = unit->paths.roots.source },
+    { .guest = "/manifest", .host = unit->paths.roots.recipe },
+    { .guest = "/store",    .host = unit->paths.store },
   };
+  sp_carr_for(mounts, it) {
+    script->preopens.array[it] = preopen(mounts[it].guest, spn_path_str(roots, spn.mem, mounts[it].host));
+  }
   wasm_runtime_set_wasi_args(
     script->module,
     SPN_WASM_NO_DIRS, SPN_WASM_NO_DIRS,
@@ -138,12 +136,6 @@ static spn_err_t script_open(spn_wasm_script_t* script, spn_pkg_unit_t* unit) {
   script->ctx = spn_wasm_add_handle(script->handles, unit, SPN_ABI_KIND_CTX);
   wasm_runtime_set_user_data(script->env, script->handles);
 
-  spn_dag_wasi_mount_t mounts [] = {
-    { .guest = "/work",     .host = work },
-    { .guest = "/source",   .host = source },
-    { .guest = "/manifest", .host = manifest },
-    { .guest = "/store",    .host = store },
-  };
   script->wasi = spn_dag_wasi_new(spn.mem, roots, mounts, sp_carr_len(mounts));
   spn_dag_wasi_bind(script->wasi, script->instance);
 

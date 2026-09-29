@@ -170,13 +170,13 @@ static spn_err_t execute_graph(spn_dag_t* g, spn_dag_action_t* action, void* use
     }
     spn_dag_observe(obs, (spn_dag_obs_t) {
       .kind = SPN_DAG_OBS_FILE,
-      .path = spn_path_make(g->roots, sp_fs_join_path(s.mem, ctx->env->dag.root, sp_cstr_as_str(ctx->spec->discovers[it])))
+      .path = dag_test_env_rooted(&ctx->env->dag, sp_cstr_as_str(ctx->spec->discovers[it]))
     });
   }
 
   sp_da_for(action->consumes, it) {
     spn_dag_artifact_t* in = spn_dag_find_artifact(ctx->g, action->consumes[it]);
-    if (in->kind == SPN_DAG_ARTIFACT_KIND_FILE && !sp_fs_exists(spn_path_str(roots, s.mem, in->materialized))) {
+    if (in->kind == SPN_DAG_ARTIFACT_KIND_FILE && !sp_fs_exists_at(spn_path_at(roots, in->materialized))) {
       sp_mem_end_scratch(s);
       return SPN_ERR_DAG_ACTION;
     }
@@ -188,7 +188,7 @@ static spn_err_t execute_graph(spn_dag_t* g, spn_dag_action_t* action, void* use
   spn_path_t target = out->kind == SPN_DAG_ARTIFACT_KIND_TREE
     ? spn_path_join(s.mem, outputs[0], sp_str_lit("H"))
     : outputs[0];
-  sp_err_t err = sp_fs_create_file_str(spn_path_str(roots, s.mem, target), content);
+  sp_err_t err = sp_fs_create_file_str_at(spn_path_at(roots, target), content);
   sp_mem_end_scratch(s);
   return err ? SPN_ERR_DAG_ACTION : SPN_OK;
 }
@@ -231,9 +231,9 @@ static sp_err_t check_expectations(sp_test_t* t, env_t* env, const test_t* test)
     if (!spec->identity) {
       break;
     }
-    sp_str_t path = dag_test_env_path(&env->dag, sp_cstr_as_str(spec->output));
+    sp_path_t path = dag_test_env_path(&env->dag, sp_cstr_as_str(spec->output));
     if (spec->tree) {
-      path = sp_fs_join_path(env->dag.mem, path, sp_str_lit("H"));
+      path = sp_path_join(env->dag.mem, path, sp_str_lit("H"));
     }
     sp_err_t err = dag_test_expect_file(t, env->dag.mem, path, spec->identity);
     if (err) {
@@ -276,7 +276,7 @@ static sp_err_t build_all(sp_test_t* t, spn_dag_store_kind_t kind, const test_t*
       if (!build->remove_dirs[si]) {
         break;
       }
-      sp_fs_remove_dir(dag_test_env_path(&env.dag, sp_cstr_as_str(build->remove_dirs[si])));
+      sp_fs_remove_dir_at(dag_test_env_path(&env.dag, sp_cstr_as_str(build->remove_dirs[si])));
     }
 
     spn_dag_t* g = dag_test_env_graph(&env.dag);

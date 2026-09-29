@@ -23,7 +23,7 @@ static spn_err_t fz_produce(sp_mem_t scratch, spn_dag_t* g, spn_dag_action_t* ac
         break;
       }
       case SPN_DAG_ARTIFACT_KIND_FILE: {
-        if (sp_io_read_file(scratch, spn_path_str(low->roots, scratch, in->materialized), &inputs[it])) {
+        if (sp_io_read_file_at(scratch, spn_path_at(low->roots, in->materialized), &inputs[it])) {
           return SPN_ERR_DAG_ACTION;
         }
         break;
@@ -62,7 +62,7 @@ static spn_err_t fz_produce(sp_mem_t scratch, spn_dag_t* g, spn_dag_action_t* ac
   sp_da_for(action->produces, it) {
     spn_dag_artifact_t* out = spn_dag_find_artifact(low->g, action->produces[it]);
     sp_str_t content = fz_output_content(scratch, low->u->actions[ctx->action].identity, inputs, count, out->name);
-    if (sp_fs_create_file_str(spn_path_str(low->roots, scratch, outputs[it]), content)) {
+    if (sp_fs_create_file_str_at(spn_path_at(low->roots, outputs[it]), content)) {
       return SPN_ERR_DAG_ACTION;
     }
   }

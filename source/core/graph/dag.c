@@ -671,12 +671,9 @@ static spn_err_t dag_stage_copy(spn_dag_build_t* b, spn_dag_id_t id, spn_path_t 
     return SPN_OK;
   }
 
-  sp_str_buf_t source_buf = sp_zero;
-  sp_str_buf_t target_buf = sp_zero;
-  sp_str_t source = spn_path_str(b->graph->roots, sp_str_buf_as_mem(&source_buf), artifact->materialized);
-  sp_str_t target = spn_path_str(b->graph->roots, sp_str_buf_as_mem(&target_buf), to);
-  sp_fs_create_dir(sp_fs_parent_path(target));
-  sp_err_t copied = sp_fs_copy_file_at(sp_path_at_cwd(source), sp_path_at_cwd(target), SP_FS_ATOMIC_REPLACE);
+  const spn_path_roots_t* roots = b->graph->roots;
+  sp_fs_create_dir_at(spn_path_at(roots, spn_path_parent(to)));
+  sp_err_t copied = sp_fs_copy_file_at(spn_path_at(roots, artifact->materialized), spn_path_at(roots, to), SP_FS_ATOMIC_REPLACE);
 
   spn_err_t err = copied ? SPN_ERR_DAG_OUTPUT_WRITE : spn_dag_file_cache_seed(b->env.files, to, artifact->digest);
   if (err) {
@@ -699,12 +696,11 @@ static spn_err_t dag_stage(spn_dag_build_t* b) {
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   spn_err_t err = SPN_OK;
 
-  sp_str_buf_t manifest_buf = sp_zero;
-  sp_str_buf_t entry_buf = sp_zero;
+  const spn_path_roots_t* roots = b->graph->roots;
   sp_da_for(session->plans.build, i) {
     spn_build_plan_t* plan = &session->plans.build[i];
     spn_path_t root = plan->build->paths.root;
-    sp_str_t manifest = spn_path_str(b->graph->roots, sp_str_buf_as_mem(&manifest_buf), spn_path_join(scratch.mem, root, sp_str_lit(".spn/staged")));
+    spn_path_t manifest = spn_path_join(scratch.mem, root, sp_str_lit(".spn/staged"));
 
     sp_str_ht(bool) exes = SP_NULLPTR;
     sp_str_ht_init(scratch.mem, exes);
@@ -719,7 +715,7 @@ static spn_err_t dag_stage(spn_dag_build_t* b) {
     }
 
     sp_str_t content = sp_zero;
-    sp_io_read_file(scratch.mem, manifest, &content);
+    sp_io_read_file_at(scratch.mem, spn_path_at(roots, manifest), &content);
     sp_da(sp_str_t) lines = sp_str_split_c8(scratch.mem, content, '\n');
     sp_da(dag_staged_t) previous = sp_da_new(scratch.mem, dag_staged_t);
     sp_da_for(lines, j) {
@@ -747,11 +743,11 @@ static spn_err_t dag_stage(spn_dag_build_t* b) {
         continue;
       }
       spn_path_t path = { .root = root.root, .sub = previous[j].entry };
-      sp_fs_remove_file(spn_path_str(b->graph->roots, sp_str_buf_as_mem(&entry_buf), path));
+      sp_fs_remove_file_at(spn_path_at(roots, path));
       spn_dag_file_cache_invalidate(b->env.files, path);
     }
-    sp_fs_create_dir(sp_fs_parent_path(manifest));
-    sp_fs_write_atomic(manifest, sp_io_dyn_mem_writer_as_str(&sink));
+    sp_fs_create_dir_at(spn_path_at(roots, spn_path_parent(manifest)));
+    sp_fs_write_atomic_at(spn_path_at(roots, manifest), sp_io_dyn_mem_writer_as_str(&sink));
 
     sp_str_ht(bool) copied = SP_NULLPTR;
     sp_str_ht_init(scratch.mem, copied);
@@ -889,9 +885,7 @@ spn_dag_build_t* spn_dag_build_new(spn_op_t* op) {
 
   spn_path_t root = spn_path_anchor(session->mem, &spn.roots, spn_path_join(session->mem, spn_path_from_root(SPN_PATH_ROOT_CACHE), sp_str_lit("dag")));
   spn_path_t tmp = spn_path_join(session->mem, root, sp_str_lit("tmp"));
-  sp_str_t dir = spn_path_str(&spn.roots, session->mem, root);
-  sp_fs_create_dir(dir);
-  sp_fs_create_dir(spn_path_str(&spn.roots, session->mem, tmp));
+  sp_fs_create_dir_at(spn_path_at(&spn.roots, tmp));
 
   spn_dag_store_init(&b->store, (spn_dag_store_config_t) {
     .kind = SPN_DAG_STORE_FILESYSTEM,
@@ -899,8 +893,8 @@ spn_dag_build_t* spn_dag_build_new(spn_op_t* op) {
     .roots = &spn.roots,
     .dir = spn_path_join(session->mem, root, sp_str_lit("store")),
   });
-  spn_dag_action_cache_init(&b->actions, spn.mem, sp_fs_join_path(session->mem, dir, sp_str_lit("strong")));
-  spn_dag_obs_table_init(&b->discovery, spn.mem, &spn.roots, sp_fs_join_path(session->mem, dir, sp_str_lit("weak")));
+  spn_dag_action_cache_init(&b->actions, spn.mem, &spn.roots, spn_path_join(session->mem, root, sp_str_lit("strong")));
+  spn_dag_obs_table_init(&b->discovery, spn.mem, &spn.roots, spn_path_join(session->mem, root, sp_str_lit("weak")));
   session->dag.files.stats = &b->stats;
   b->actions.stats = &b->stats;
   b->discovery.stats = &b->stats;

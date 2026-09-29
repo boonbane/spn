@@ -68,9 +68,9 @@ sp_str_t spn_digest_hex(sp_mem_t mem, const u8 digest [32]) {
   return sp_str(buffer, 64);
 }
 
-spn_err_t spn_digest_file(spn_digest_kind_t kind, sp_str_t path, u8 digest [32], u64* size) {
+spn_err_t spn_digest_file(spn_digest_kind_t kind, sp_path_t path, u8 digest [32], u64* size) {
   sp_io_file_reader_t reader = sp_zero;
-  if (sp_io_file_reader_from_path(&reader, path)) {
+  if (sp_io_file_reader_from_path_at(&reader, path)) {
     return SPN_ERROR;
   }
 
@@ -103,7 +103,7 @@ spn_err_t spn_digest_file(spn_digest_kind_t kind, sp_str_t path, u8 digest [32],
   return SPN_OK;
 }
 
-spn_err_t spn_digest_file_hex(spn_digest_kind_t kind, sp_mem_t mem, sp_str_t path, sp_str_t* hex) {
+spn_err_t spn_digest_file_hex(spn_digest_kind_t kind, sp_mem_t mem, sp_path_t path, sp_str_t* hex) {
   u8 digest [32];
   u64 size = 0;
   if (spn_digest_file(kind, path, digest, &size)) {

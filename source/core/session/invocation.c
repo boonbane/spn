@@ -12,7 +12,7 @@
 #include "unit/unit.h"
 #include "toolchain/search.h"
 
-spn_err_t spn_session_write_compile_commands(const spn_path_roots_t* roots, spn_session_t* session, sp_str_t path) {
+spn_err_t spn_session_write_compile_commands(const spn_path_roots_t* roots, spn_session_t* session, spn_path_t path) {
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   sp_mem_t mem = scratch.mem;
 
@@ -50,7 +50,7 @@ spn_err_t spn_session_write_compile_commands(const spn_path_roots_t* roots, spn_
   }
   sp_io_write_cstr(io, "\n]\n", SP_NULLPTR);
 
-  spn_err_t err = sp_fs_create_file_str(path, sp_io_dyn_mem_writer_as_str(&buf)) ? SPN_ERROR : SPN_OK;
+  spn_err_t err = sp_fs_create_file_str_at(spn_path_at(roots, path), sp_io_dyn_mem_writer_as_str(&buf)) ? SPN_ERROR : SPN_OK;
   sp_mem_end_scratch(scratch);
   return err;
 }

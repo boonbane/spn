@@ -23,8 +23,8 @@ typedef struct {
   spn_dag_file_cache_t files;
   spn_dag_action_cache_t cache;
   spn_dag_obs_table_t discovery;
-  sp_str_t disco_dir;
-  sp_str_t cache_dir;
+  spn_path_t disco_dir;
+  spn_path_t cache_dir;
   spn_path_roots_t roots;
   spn_dag_env_t env;
   fz_executor_t ex;
@@ -143,7 +143,7 @@ static u64 action_requeues(fz_universe_t* u, world_t* w, sp_mem_t mem, u64 log_s
 static void reset_discovery(world_t* w) {
   spn_dag_obs_table_init(&w->discovery, w->mem, &w->roots, w->disco_dir);
   sp_dag_track_reset_discovery(&w->track);
-  if (sp_str_empty(w->disco_dir)) {
+  if (spn_path_empty(w->disco_dir)) {
     sp_ht_clear(w->shapes);
   }
 }
@@ -164,7 +164,7 @@ static void reboot_world(world_t* w, fz_universe_t* u) {
     .dir = { .root = SPN_PATH_ROOT_NONE, .sub = sp_str_lit("/store") },
   });
   spn_dag_file_cache_init(&w->files, w->mem, &w->roots);
-  spn_dag_action_cache_init(&w->cache, w->mem, w->cache_dir);
+  spn_dag_action_cache_init(&w->cache, w->mem, &w->roots, w->cache_dir);
   reset_discovery(w);
   sp_dag_track_reboot(&w->track);
   degrade_memo(w);
@@ -194,8 +194,8 @@ static void init_world(world_t* w, sp_mem_t mem, sp_sim_t* sim, fz_universe_t* u
   w->sim = sim;
   spn_path_roots_set(&w->roots, mem, SPN_PATH_ROOT_PROJECT, sp_path_resolve(sp_str_lit("/out")));
   spn_path_roots_set(&w->roots, mem, SPN_PATH_ROOT_STORE, sp_path_resolve(sp_str_lit("/src")));
-  w->cache_dir = u->profile.cache_fs ? sp_str_lit("/cache") : sp_str_lit("");
-  w->disco_dir = u->profile.disco_fs ? sp_str_lit("/manifests") : sp_str_lit("");
+  w->cache_dir = (spn_path_t) { .sub = u->profile.cache_fs ? sp_str_lit("/cache") : sp_str_lit("") };
+  w->disco_dir = (spn_path_t) { .sub = u->profile.disco_fs ? sp_str_lit("/manifests") : sp_str_lit("") };
   sp_ht_init(mem, w->shapes);
   sp_ht_init(mem, w->memo);
   sp_da_init(mem, w->events);
@@ -771,7 +771,7 @@ static fz_err_t trace_check_run(sp_mem_t mem, fz_universe_t* u, world_t* w, fz_s
     spn_dag_digest_t want = spn_dag_digest(actual_disk[id].data, actual_disk[id].len);
     spn_path_t blob = sp_zero;
     sp_str_t blob_bytes = sp_zero;
-    bool blob_read = !spn_dag_store_locate(&w->store, mem, want, path, &blob) && !sp_io_read_file(mem, spn_path_str(&w->roots, mem, blob), &blob_bytes);
+    bool blob_read = !spn_dag_store_locate(&w->store, mem, want, path, &blob) && !sp_io_read_file_at(mem, spn_path_at(&w->roots, blob), &blob_bytes);
     fz_journal_blob(w->j, id, actual_disk[id], blob_read ? blob_bytes : sp_str_lit("missing"));
   }
 
@@ -892,9 +892,9 @@ static fz_err_t trace_body(sp_mem_t mem, sp_sim_t* sim, fz_universe_t* u, fz_tra
           break;
         }
         spn_dag_digest_t key = keys[step->entropy % sp_da_size(keys)];
-        sp_str_t evicted = sp_fs_join_path(mem, w.cache_dir, sp_fmt(mem, "{}.txt", sp_fmt_str(spn_dag_digest_hex(mem, key))).value);
+        sp_str_t evicted = sp_fs_join_path(mem, w.cache_dir.sub, sp_fmt(mem, "{}.txt", sp_fmt_str(spn_dag_digest_hex(mem, key))).value);
         sp_fs_remove_file(evicted);
-        spn_dag_action_cache_init(&w.cache, mem, w.cache_dir);
+        spn_dag_action_cache_init(&w.cache, mem, &w.roots, w.cache_dir);
         sp_dag_track_reset_entries(&w.track);
         degrade_memo(&w);
         sp_dag_track_drop_entry(&w.track, key);

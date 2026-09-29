@@ -153,7 +153,7 @@ static sp_err_t run_ops(sp_test_t* t, spn_dag_store_kind_t kind, const test_t* t
       case STORE_OP_PUT_FILE: {
         spn_dag_digest_t returned = sp_zero;
         sp_str_t file_name = op.name ? sp_str_view(op.name) : sp_str_view(op.path);
-        sp_expect_eq(t, op.expect.err, spn_dag_store_put_file(&env.store, dag_test_env_path(&env, sp_str_view(op.path)), file_name, &returned));
+        sp_expect_eq(t, op.expect.err, spn_dag_store_put_file(&env.store, dag_test_env_rooted(&env, sp_str_view(op.path)), file_name, &returned));
         if (!op.expect.err) {
           sp_expect(t, spn_dag_digest_equal(digest, returned));
         }
@@ -168,10 +168,10 @@ static sp_err_t run_ops(sp_test_t* t, spn_dag_store_kind_t kind, const test_t* t
         break;
       }
       case STORE_OP_MATERIALIZE: {
-        sp_str_t path = dag_test_env_path(&env, sp_str_view(op.path));
+        spn_path_t path = dag_test_env_rooted(&env, sp_str_view(op.path));
         sp_expect_eq(t, op.expect.err, spn_dag_store_materialize(&env.store, digest, name, path));
         if (!op.expect.err) {
-          sp_err_t err = dag_test_expect_file(t, mem, path, op.blob);
+          sp_err_t err = dag_test_expect_file(t, mem, dag_test_at(&env, path), op.blob);
           if (err) {
             return err;
           }
@@ -180,7 +180,7 @@ static sp_err_t run_ops(sp_test_t* t, spn_dag_store_kind_t kind, const test_t* t
       }
       case STORE_OP_WRITE: {
         sp_io_file_writer_t writer = sp_zero;
-        if (!sp_io_file_writer_from_path(&writer, dag_test_env_path(&env, sp_str_view(op.path)))) {
+        if (!sp_io_file_writer_from_path_at(&writer, dag_test_env_path(&env, sp_str_view(op.path)))) {
           sp_io_write(&writer.base, blob.data, blob.len, SP_NULLPTR);
           sp_io_file_writer_close(&writer);
         }

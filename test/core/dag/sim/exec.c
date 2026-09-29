@@ -173,7 +173,7 @@ static spn_err_t execute_action(spn_dag_t* g, spn_dag_action_t* action, void* us
       continue;
     }
     sp_str_t content = sp_fmt(ctx->env->dag.mem, "{}{}", sp_fmt_cstr(ctx->spec->write[it]), sp_fmt_uint(ctx->env->dag.runs)).value;
-    if (sp_fs_create_file_str(dag_test_render(&ctx->env->dag, outputs[it]), content)) {
+    if (sp_fs_create_file_str_at(dag_test_at(&ctx->env->dag, outputs[it]), content)) {
       return SPN_ERR_DAG_ACTION;
     }
   }
@@ -283,14 +283,14 @@ static sp_err_t remove_outputs(sp_test_t* t, env_t* env, const action_t* action)
       break;
     }
     spn_path_t rooted = dag_test_env_rooted(&env->dag, sp_str_view(action->outputs[it]));
-    sp_str_t path = dag_test_render(&env->dag, rooted);
-    env->err = sp_fs_remove_file(path) ? SPN_ERROR : SPN_OK;
+    sp_path_t path = dag_test_at(&env->dag, rooted);
+    env->err = sp_fs_remove_file_at(path) ? SPN_ERROR : SPN_OK;
     sp_expect_eq(t, SPN_OK, env->err);
     if (env->err) {
       return SP_OK;
     }
     spn_dag_file_cache_invalidate(&env->dag.files, rooted);
-    sp_expect(t, !sp_fs_exists(path));
+    sp_expect(t, !sp_fs_exists_at(path));
   }
   return SP_OK;
 }

@@ -29,6 +29,6 @@ sp_str_t         spn_cc_symbol_from_embedded_file(sp_mem_t mem, sp_str_t file_pa
 void             spn_cc_embed_ctx_init(spn_cc_embed_ctx_t* ctx, sp_mem_t mem, spn_obj_format_t format, spn_arch_t arch);
 void             spn_cc_embed_ctx_free(spn_cc_embed_ctx_t* ctx);
 void             spn_cc_embed_ctx_add(spn_cc_embed_ctx_t* ctx, sp_mem_buffer_t data, sp_str_t symbol, sp_str_t path, sp_str_t data_type, sp_str_t size_type);
-spn_err_t        spn_cc_embed_ctx_write(spn_cc_embed_ctx_t* ctx, sp_str_t object, sp_str_t header);
+spn_err_t        spn_cc_embed_ctx_write(spn_cc_embed_ctx_t* ctx, sp_path_t object, sp_path_t header);
 
 #endif
