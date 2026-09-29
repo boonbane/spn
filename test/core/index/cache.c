@@ -92,7 +92,7 @@ sp_test_each(index_cache, get_package, cache_test_t, tests, .setup = spn_test_ct
     }
 
     spn_index_info_t index = {
-      .location = location,
+      .location = { .sub = location },
       .protocol = it->indexes[slot].protocol,
     };
     sp_da_push(indexes, index);

@@ -59,7 +59,7 @@ sp_test_each(index_query, get_package, query_test_t, tests, .setup = spn_test_ct
   }
 
   spn_index_info_t index = {
-    .location = location,
+    .location = { .sub = location },
   };
 
   spn_index_pkg_t* pkg = SP_NULLPTR;

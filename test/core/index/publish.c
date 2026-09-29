@@ -156,7 +156,7 @@ sp_test_each(index_publish, publish, publish_test_t, tests, .setup = spn_test_ct
 
   spn_index_info_t index = {
     .git = { .url = index_root },
-    .location = sp_fs_join_path(mem, test_dir_str(t), sp_str_lit("clone")),
+    .location = { .sub = sp_fs_join_path(mem, test_dir_str(t), sp_str_lit("clone")) },
   };
 
   spn_index_release_t rel = {
@@ -227,7 +227,7 @@ sp_test_each(index_publish, protocol, protocol_test_t, protocol_tests, .setup = 
   sp_fs_create_dir(location);
 
   spn_index_info_t index = {
-    .location = location,
+    .location = { .sub = location },
     .protocol = it->protocol,
   };
 

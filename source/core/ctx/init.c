@@ -136,15 +136,15 @@ static spn_err_t open_ctx(spn_ctx_t* ctx, spn_open_request_t request) {
   sp_path_t project = sp_str_valid(request.dir) ? sp_path_resolve(request.dir) : sp_path_at_cwd(sp_str_lit("."));
   spn_path_roots_set(&ctx->roots, ctx->heap, SPN_PATH_ROOT_PROJECT, project);
 
-  spn_git_cache_init(&ctx->caches.git, ctx->mem, ctx->intern, sp_fs_join_path(ctx->heap, ctx->roots.dirs[SPN_PATH_ROOT_CACHE], sp_str_lit("source")));
+  spn_git_cache_init(&ctx->caches.git, ctx->mem, ctx->intern, &ctx->roots, (spn_path_t) { .root = SPN_PATH_ROOT_CACHE, .sub = sp_str_lit("source") });
 
   ctx->caches.toolchains = (spn_toolchain_store_t) {
     .mem = ctx->mem,
-    .dir = ctx->roots.dirs[SPN_PATH_ROOT_TOOLCHAIN],
+    .roots = &ctx->roots,
     .mirror = sp_env_get(ctx->env, sp_str_lit("SPN_MIRROR")),
     .fetch = spn_fetch_curl,
   };
-  spn_probe_cache_load(&ctx->caches.toolchains.probes, sp_fs_join_path(ctx->heap, ctx->roots.dirs[SPN_PATH_ROOT_TOOLCHAIN], sp_str_lit("probe.cache")), ctx->mem);
+  spn_probe_cache_load(&ctx->caches.toolchains.probes, &ctx->roots, (spn_path_t) { .root = SPN_PATH_ROOT_TOOLCHAIN, .sub = sp_str_lit("probe.cache") }, ctx->mem);
 
   spn_try(extract_runtime(ctx));
   spn_path_roots_set(&ctx->roots, ctx->heap, SPN_PATH_ROOT_RUNTIME, spn_path_at(&ctx->roots, storage_path("runtime")));
@@ -199,7 +199,7 @@ static spn_err_t open_ctx(spn_ctx_t* ctx, spn_open_request_t request) {
 
   sp_da_for(ctx->indexes, it) {
     spn_index_info_t* index = &ctx->indexes[it];
-    index->location = spn_index_location(index, ctx->heap, ctx->roots.dirs[SPN_PATH_ROOT_INDEX]);
+    index->location = spn_index_location(index, ctx->heap, spn_path_from_root(SPN_PATH_ROOT_INDEX));
     if (!index->refresh) {
       index->refresh = request.index_refresh_seconds ? request.index_refresh_seconds : SPN_INDEX_DEFAULT_REFRESH;
     }

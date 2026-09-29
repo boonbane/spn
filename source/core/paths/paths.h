@@ -10,6 +10,7 @@ void spn_path_roots_set(spn_path_roots_t* roots, sp_mem_t mem, spn_path_root_t k
 void spn_path_roots_close(spn_path_roots_t* roots);
 bool spn_path_roots_intersect(const spn_path_roots_t* roots, sp_str_t dir);
 bool spn_path_normal(sp_str_t path);
+spn_path_t spn_path_classify(sp_mem_t mem, const spn_path_roots_t* roots, spn_path_t path);
 spn_path_t spn_path_anchor(sp_mem_t mem, const spn_path_roots_t* roots, spn_path_t path);
 spn_path_t spn_path_canonicalize(sp_mem_t mem, const spn_path_roots_t* roots, spn_path_t path);
 spn_path_t spn_path_canonicalize_head(sp_mem_t mem, const spn_path_roots_t* roots, spn_path_t path);

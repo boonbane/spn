@@ -187,7 +187,7 @@ sp_test_each(index_transaction, publish, txn_test_t, tests, .setup = spn_test_ct
     .name = sp_str_lit("test"),
     .protocol = SPN_INDEX_PROTOCOL_GIT,
     .git = { .url = remote },
-    .location = sp_fs_join_path(mem, tmp, sp_str_lit("clone")),
+    .location = { .sub = sp_fs_join_path(mem, tmp, sp_str_lit("clone")) },
   };
   if (it->remote.pin) {
     index.git.rev = sp_str_view(it->remote.pin);
@@ -252,22 +252,22 @@ sp_test_each(index_transaction, publish, txn_test_t, tests, .setup = spn_test_ct
         break;
       }
       case TXN_ACTION_APPEND_CLONE_FILE: {
-        sp_str_t file = sp_fs_join_path(mem, index.location, sp_str_view(action.write.file));
+        sp_str_t file = sp_fs_join_path(mem, index.location.sub, sp_str_view(action.write.file));
         sp_fs_create_file_str(file, sp_fmt(mem, "{}{}\n",
           sp_fmt_str(test_read_file(mem, file)),
           sp_fmt_cstr(action.write.line)).value);
         break;
       }
       case TXN_ACTION_CREATE_CLONE_FILE: {
-        sp_str_t file = sp_fs_join_path(mem, index.location, sp_str_view(action.write.file));
+        sp_str_t file = sp_fs_join_path(mem, index.location.sub, sp_str_view(action.write.file));
         sp_fs_create_dir(sp_fs_parent_path(file));
         sp_fs_create_file_str(file, sp_fmt(mem, "{}\n", sp_fmt_cstr(action.write.line)).value);
         break;
       }
       case TXN_ACTION_DETACH_HEAD: {
         sp_str_t head = sp_zero;
-        sp_expect_eq(t, SPN_OK, spn_git_get_commit_full(mem, index.location, sp_str_lit("HEAD"), &head));
-        sp_expect_eq(t, SPN_OK, spn_git_checkout(index.location, head));
+        sp_expect_eq(t, SPN_OK, spn_git_get_commit_full(mem, index.location.sub, sp_str_lit("HEAD"), &head));
+        sp_expect_eq(t, SPN_OK, spn_git_checkout(index.location.sub, head));
         break;
       }
       case TXN_ACTION_NONE: {
@@ -286,8 +286,8 @@ sp_test_each(index_transaction, publish, txn_test_t, tests, .setup = spn_test_ct
   if (it->expect.head) {
     sp_expect_str_eq(t, remote_head_message(mem, remote), sp_str_view(it->expect.head));
   }
-  if (sp_fs_is_dir(index.location)) {
-    sp_expect(t, !spn_git_is_dirty(index.location, index.location));
+  if (sp_fs_is_dir(index.location.sub)) {
+    sp_expect(t, !spn_git_is_dirty(index.location.sub, index.location.sub));
   }
 
   return SP_OK;

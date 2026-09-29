@@ -2,6 +2,7 @@
 #define SPN_INDEX_TYPES_H
 
 #include "codegen/types.h"
+#include "paths/types.h"
 #include "core/types.h"
 #include "spn/types.h"
 #include "sp_om/sp_om.h"
@@ -80,7 +81,7 @@ struct spn_index_info {
       sp_str_t path;
     } dir;
   };
-  sp_str_t location;
+  spn_path_t location;
   u32 refresh;
 };
 

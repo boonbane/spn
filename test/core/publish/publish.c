@@ -337,7 +337,7 @@ sp_test_each(cmd_publish, publish, case_t, cases, .setup = spn_test_ctx_setup) {
 
   spn_index_info_t index = {
     .git = { .url = index_root },
-    .location = sp_fs_join_path(mem, test_dir_str(t), sp_str_lit("index_clone")),
+    .location = { .sub = sp_fs_join_path(mem, test_dir_str(t), sp_str_lit("index_clone")) },
   };
 
   sp_str_t cwd = repo.path;

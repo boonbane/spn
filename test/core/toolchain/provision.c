@@ -27,7 +27,6 @@ typedef struct {
   bool fetch_fail;
   bool fetch_vanish;
   const c8* fail_url_containing;
-  const c8* store_dir;
   bool dest_file;
   provision_expect_t expect;
 } provision_test_t;
@@ -144,14 +143,6 @@ static const provision_test_t tests [] = {
       .calls = 1,
     },
   },
-  {
-    .name = "missing_store_dir_is_created",
-    .store_dir = "store/nested/deeper",
-    .expect = {
-      .calls = 1,
-      .extracted = true,
-    },
-  },
 };
 
 static const resolve_test_t resolve_tests [] = {
@@ -189,7 +180,7 @@ static spn_err_t fetch_stub(spn_toolchain_store_t* store, sp_str_t url, sp_str_t
   if (stub->fail) return SPN_ERROR;
   if (!sp_str_empty(stub->fail_url_containing) && sp_str_contains(url, stub->fail_url_containing)) return SPN_ERROR;
   if (stub->vanish) return SPN_OK;
-  if (sp_fs_copy_file_at(sp_path_at_cwd(stub->tarball), sp_path_at_cwd(dest), SP_FS_ATOMIC_REPLACE)) return SPN_ERROR;
+  if (sp_fs_copy_file_at(sp_path_resolve(stub->tarball), sp_path_resolve(dest), SP_FS_ATOMIC_REPLACE)) return SPN_ERROR;
   return SPN_OK;
 }
 
@@ -252,17 +243,16 @@ sp_test_each(provision, store, provision_test_t, tests, .setup = spn_test_ctx_se
   sp_must_eq(t, (u32)SPN_OK, (u32)spn_digest_file_hex(SPN_DIGEST_SHA256, mem, sp_path_resolve(stub.tarball), &sha));
   sp_must_eq(t, 64u, sha.len);
 
+  spn_path_roots_t roots = sp_zero;
+  spn_path_roots_set(&roots, mem, SPN_PATH_ROOT_TOOLCHAIN, sp_path_join(mem, sp_test_dir(t), sp_str_lit("store")));
   spn_toolchain_store_t store = {
     .mem = mem,
-    .dir = sp_fs_join_path(mem, dir, sp_str_view(it->store_dir ? it->store_dir : "store")),
+    .roots = &roots,
     .fetch = fetch_stub,
     .fetch_user_data = &stub,
   };
   if (it->mirror) {
     store.mirror = sp_str_view(it->mirror);
-  }
-  if (!it->store_dir) {
-    sp_fs_create_dir(store.dir);
   }
 
   spn_artifact_t artifact = {
@@ -271,7 +261,7 @@ sp_test_each(provision, store, provision_test_t, tests, .setup = spn_test_ctx_se
   };
 
   if (it->dest_file) {
-    sp_fs_create_file_str(sp_fs_join_path(mem, store.dir, artifact.sha256), sp_str_lit("A"));
+    sp_fs_create_file_str_at(spn_path_at(&roots, spn_toolchain_artifact_root(artifact)), sp_str_lit("A"));
   }
 
   spn_err_union_t payload = sp_zero;
@@ -302,18 +292,23 @@ sp_test_each(provision, store, provision_test_t, tests, .setup = spn_test_ctx_se
     sp_expect_str_eq_c(t, stub.last_url, it->expect.last_url);
   }
   if (it->expect.extracted) {
-    sp_str_t root = spn_toolchain_store_path(&store, artifact);
-    sp_expect(t, sp_fs_is_dir(root));
-    sp_expect(t, sp_fs_is_file(sp_fs_join_path(mem, root, sp_str_lit("B"))));
-    sp_expect(t, sp_fs_is_file(sp_fs_join_path(mem, root, sp_str_lit("lib/C"))));
+    sp_path_t root = spn_path_at(&roots, spn_toolchain_artifact_root(artifact));
+    sp_expect(t, sp_fs_is_dir_at(root));
+    sp_expect(t, sp_fs_is_file_at(sp_path_join(mem, root, sp_str_lit("B"))));
+    sp_expect(t, sp_fs_is_file_at(sp_path_join(mem, root, sp_str_lit("lib/C"))));
   }
   if (it->expect.store_clean) {
     sp_str_t lock = sp_fmt(mem, "{}.lock", sp_fmt_str(artifact.sha256)).value;
-    sp_da(sp_fs_entry_t) entries = sp_zero;
-    sp_fs_collect(mem, store.dir, &entries);
-    sp_must_eq(t, 1u, (u32)sp_da_size(entries));
-    sp_expect_str_eq(t, entries[0].name, lock);
+    u32 entries = 0;
+    sp_fs_it_t walk = sp_fs_it_new_at(mem, spn_path_at(&roots, spn_path_from_root(SPN_PATH_ROOT_TOOLCHAIN)), 0);
+    while (sp_fs_it_next(&walk)) {
+      entries++;
+      sp_expect_str_eq(t, walk.entry.name, lock);
+    }
+    sp_fs_it_deinit(&walk);
+    sp_must_eq(t, 1u, entries);
   }
+  spn_path_roots_close(&roots);
   if (it->expect.err_reports_sha) {
     sp_expect_str_eq(t, payload.artifact.expected, artifact.sha256);
     sp_expect_str_eq(t, payload.artifact.actual, sha);
@@ -337,10 +332,3 @@ sp_test_each(provision, resolve_url, resolve_test_t, resolve_tests) {
   return SP_OK;
 }
 
-sp_test(provision, store_path_is_content_addressed) {
-  sp_mem_t mem = sp_test_arena(t);
-  spn_toolchain_store_t store = { .mem = mem, .dir = sp_str_lit("/store") };
-  spn_artifact_t artifact = { .url = sp_str_lit("https://x/y.tar.gz"), .sha256 = sp_str_lit("cafe") };
-  sp_expect_str_eq(t, spn_toolchain_store_path(&store, artifact), sp_fs_join_path(mem, store.dir, sp_str_lit("cafe")));
-  return SP_OK;
-}

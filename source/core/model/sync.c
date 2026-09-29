@@ -85,8 +85,8 @@ static spn_err_t setup_artifact(spn_toolchain_store_t* store, spn_toolchain_unit
   sp_tm_timer_t timer = sp_tm_start_timer();
 
   sp_str_t url = spn_artifact_resolve_url(spn.mem, artifact, store->mirror);
-  sp_str_t dest = spn_toolchain_store_path(store, artifact);
-  bool cached = sp_fs_is_dir(dest);
+  spn_path_t root = spn_toolchain_artifact_root(artifact);
+  bool cached = sp_fs_is_dir_at(spn_path_at(&spn.roots, root));
   if (!cached) {
     spn_event_buffer_push(spn.events, (spn_event_t) {
       .kind = SPN_EVENT_SYNC,
@@ -97,7 +97,6 @@ static spn_err_t setup_artifact(spn_toolchain_store_t* store, spn_toolchain_unit
     spn_try(spn_toolchain_provision(store, toolchain->name, artifact));
   }
 
-  spn_path_t root = spn_toolchain_artifact_root(artifact);
   spn_toolchain_launcher_t cxx = toolchain->cxx;
   if (spn_toolchain_has_cxx(toolchain)) {
     cxx = spn_toolchain_launcher_with_root(spn.mem, toolchain->cxx, root);
@@ -115,7 +114,7 @@ static spn_err_t setup_artifact(spn_toolchain_store_t* store, spn_toolchain_unit
     .sync_pkg = {
       .name = toolchain->name,
       .url = url,
-      .source_path = dest,
+      .source_path = spn_path_str(&spn.roots, spn.mem, root),
       .time = sp_tm_read_timer(&timer),
       .fetched = !cached,
     }
@@ -147,7 +146,7 @@ static spn_err_t setup_toolchain_unit(spn_toolchain_store_t* store, spn_toolchai
 static spn_err_t materialize_tree(spn_session_t* session, sp_str_t name, spn_pkg_root_t tree, spn_path_t* root, bool* fetched) {
   switch (tree.kind) {
     case SPN_PKG_ROOT_LOCAL: {
-      sp_str_t canonical = sp_fs_canonicalize_path(spn.mem, tree.local);
+      sp_str_t canonical = sp_fs_canonicalize_path_at(spn.mem, sp_path_resolve(tree.local));
       if (sp_str_empty(canonical)) {
         return spn_err_emit(session->ctx, (spn_err_union_t) {
           .kind = SPN_ERR_NO_MANIFEST,
@@ -185,7 +184,7 @@ static spn_err_t materialize_tree(spn_session_t* session, sp_str_t name, spn_pkg
         return SPN_ERROR;
       }
 
-      *root = spn_path_make(&spn.roots, checkout->path);
+      *root = checkout->path;
       *fetched |= checkout->fetched;
       return SPN_OK;
     }

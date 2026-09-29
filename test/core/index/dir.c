@@ -166,7 +166,7 @@ sp_test_each(index_dir, get_package, dir_test_t, tests, .setup = spn_test_ctx_se
   }
 
   spn_index_info_t index = {
-    .location = location,
+    .location = { .sub = location },
     .protocol = SPN_INDEX_PROTOCOL_DIR,
   };
 

@@ -15,6 +15,7 @@
 #include "external/wasm/wasm.h"
 #include "index/index.h"
 #include "op/op.h"
+#include "paths/paths.h"
 #include "thread_pool/thread_pool.h"
 
 typedef struct {
@@ -92,7 +93,7 @@ static spn_err_t sync_indexes(spn_op_t* op) {
       continue;
     }
 
-    if (!job->force && sp_fs_exists(job->index->location)) {
+    if (!job->force && sp_fs_exists_at(spn_path_at(&ctx->roots, job->index->location))) {
       spn_event_buffer_push(ctx->events, (spn_event_t) {
         .kind = SPN_EVENT_SYNC_STALE,
         .sync = {

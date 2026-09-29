@@ -5,21 +5,22 @@
 #include "external/git.h"
 #include "git/key.h"
 #include "fs/fs.h"
+#include "paths/paths.h"
 
-void spn_git_cache_init(spn_git_cache_t* cache, sp_mem_t mem, sp_intern_t* intern, sp_str_t root) {
+void spn_git_cache_init(spn_git_cache_t* cache, sp_mem_t mem, sp_intern_t* intern, const spn_path_roots_t* roots, spn_path_t root) {
   *cache = (spn_git_cache_t) {
     .mem = mem,
     .intern = intern,
-    .root = root,
-    .db.dir = sp_fs_join_path(mem, root, SP_LIT("db")),
-    .checkouts.dir = sp_fs_join_path(mem, root, SP_LIT("checkouts")),
+    .roots = roots,
+    .db.dir = spn_path_classify(mem, roots, spn_path_join(mem, root, SP_LIT("db"))),
+    .checkouts.dir = spn_path_classify(mem, roots, spn_path_join(mem, root, SP_LIT("checkouts"))),
   };
 
   sp_str_ht_init(mem, cache->db.entries);
   sp_str_om_init(cache->checkouts.entries);
 
-  sp_fs_create_dir(cache->db.dir);
-  sp_fs_create_dir(cache->checkouts.dir);
+  sp_fs_create_dir_at(spn_path_at(roots, cache->db.dir));
+  sp_fs_create_dir_at(spn_path_at(roots, cache->checkouts.dir));
 }
 
 static spn_git_db_t* spn_git_cache_db_entry(spn_git_cache_t* cache, sp_str_t url) {
@@ -31,7 +32,7 @@ static spn_git_db_t* spn_git_cache_db_entry(spn_git_cache_t* cache, sp_str_t url
   if (!db) {
     db = sp_alloc_type(cache->mem, spn_git_db_t);
     db->url = url;
-    db->path = sp_fs_join_path(cache->mem, cache->db.dir, key);
+    db->path = spn_path_join(cache->mem, cache->db.dir, key);
     sp_str_ht_insert(cache->db.entries, key, db);
   }
 
@@ -47,7 +48,7 @@ spn_err_t spn_git_cache_ensure_db(spn_git_cache_t* cache, sp_str_t url, spn_git_
   if (!entry->ready) {
     entry->ready = true;
 
-    if (!sp_fs_is_dir(entry->path)) {
+    if (!sp_fs_is_dir_at(spn_path_at(cache->roots, entry->path))) {
       sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
       sp_ps_output_t result = sp_ps_run(scratch.mem, (sp_ps_config_t) {
         .command = SP_LIT("git"),
@@ -55,7 +56,7 @@ spn_err_t spn_git_cache_ensure_db(spn_git_cache_t* cache, sp_str_t url, spn_git_
           SP_LIT("clone"), SP_LIT("--bare"), SP_LIT("--quiet"),
           SP_LIT("-c"), SP_LIT("core.autocrlf=false"),
           url,
-          entry->path
+          spn_path_str(cache->roots, scratch.mem, entry->path)
         },
         .io.err.mode = SP_PS_IO_MODE_REDIRECT,
       });
@@ -72,14 +73,15 @@ spn_err_t spn_git_cache_ensure_db(spn_git_cache_t* cache, sp_str_t url, spn_git_
   return entry->err;
 }
 
-spn_err_t spn_git_db_ensure_rev(spn_git_db_t* db, sp_str_t rev) {
+spn_err_t spn_git_db_ensure_rev(spn_git_cache_t* cache, spn_git_db_t* db, sp_str_t rev) {
   sp_mutex_lock(&db->mutex);
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+  sp_str_t path = spn_path_str(cache->roots, scratch.mem, db->path);
 
   sp_ps_config_t cat_file = {
     .command = SP_LIT("git"),
     .args = {
-      SP_LIT("-C"), db->path,
+      SP_LIT("-C"), path,
       SP_LIT("cat-file"), SP_LIT("-t"), rev
     },
     .io.err.mode = SP_PS_IO_MODE_NULL,
@@ -94,7 +96,7 @@ spn_err_t spn_git_db_ensure_rev(spn_git_db_t* db, sp_str_t rev) {
     result = sp_ps_run(scratch.mem, (sp_ps_config_t) {
       .command = SP_LIT("git"),
       .args = {
-        SP_LIT("-C"), db->path,
+        SP_LIT("-C"), path,
         SP_LIT("fetch"), SP_LIT("--quiet"), SP_LIT("origin"), rev
       },
       .io.err.mode = SP_PS_IO_MODE_NULL,
@@ -104,7 +106,7 @@ spn_err_t spn_git_db_ensure_rev(spn_git_db_t* db, sp_str_t rev) {
       result = sp_ps_run(scratch.mem, (sp_ps_config_t) {
         .command = SP_LIT("git"),
         .args = {
-          SP_LIT("-C"), db->path,
+          SP_LIT("-C"), path,
           SP_LIT("fetch"), SP_LIT("--quiet"), SP_LIT("origin"),
           SP_LIT("+refs/heads/*:refs/heads/*"), SP_LIT("+refs/tags/*:refs/tags/*")
         },
@@ -122,8 +124,9 @@ spn_err_t spn_git_db_ensure_rev(spn_git_db_t* db, sp_str_t rev) {
   return result.status.exit_code ? SPN_ERROR : SPN_OK;
 }
 
-static spn_err_t spn_git_cache_fill_checkout(spn_git_cache_t* cache, spn_git_checkout_t* entry, spn_git_db_t* db, sp_str_t work) {
+static spn_err_t spn_git_cache_fill_checkout(spn_git_cache_t* cache, spn_git_checkout_t* entry, spn_git_db_t* db, spn_path_t staged) {
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+  sp_str_t work = spn_path_str(cache->roots, cache->mem, staged);
   // Checkouts must be byte-identical to the committed content no matter
   // what the machine's autocrlf is; hashes and golden comparisons depend
   // on it. -c on clone persists into the new repo's config.
@@ -132,7 +135,7 @@ static spn_err_t spn_git_cache_fill_checkout(spn_git_cache_t* cache, spn_git_che
     .args = {
       SP_LIT("clone"), SP_LIT("--shared"), SP_LIT("--quiet"),
       SP_LIT("-c"), SP_LIT("core.autocrlf=false"),
-      db->path,
+      spn_path_str(cache->roots, scratch.mem, db->path),
       work
     },
     .io.err.mode = SP_PS_IO_MODE_REDIRECT,
@@ -172,41 +175,41 @@ static spn_err_t spn_git_cache_materialize_checkout(spn_git_cache_t* cache, spn_
     return SPN_ERROR;
   }
 
-  if (spn_git_db_ensure_rev(db, entry->id.rev)) {
+  if (spn_git_db_ensure_rev(cache, db, entry->id.rev)) {
     entry->error = sp_fmt(cache->mem, "{} has no rev {}", sp_fmt_str(entry->id.url), sp_fmt_str(entry->id.rev)).value;
     return SPN_ERROR;
   }
 
-  if (!sp_fs_is_dir(entry->path)) {
+  sp_path_t dest = spn_path_at(cache->roots, entry->path);
+  if (!sp_fs_is_dir_at(dest)) {
     entry->fetched = true;
 
     // Fill a claimed staging dir and rename into place, so a crash never
     // leaves a partial tree that later runs mistake for a finished checkout
-    sp_path_t staged = sp_zero;
-    if (sp_fs_staging_dir(cache->mem, sp_path_resolve(entry->path), sp_str_lit("tmp"), &staged)) {
-      entry->error = sp_fmt(cache->mem, "failed to stage checkout at {}", sp_fmt_str(entry->path)).value;
+    sp_path_t work = sp_zero;
+    if (sp_fs_staging_dir(cache->mem, dest, sp_str_lit("tmp"), &work)) {
+      entry->error = sp_fmt(cache->mem, "failed to stage checkout at {}", sp_fmt_str(spn_path_str(cache->roots, cache->mem, entry->path))).value;
       return SPN_ERROR;
     }
 
-    sp_str_t work = staged.sub;
-    if (spn_git_cache_fill_checkout(cache, entry, db, work)) {
-      sp_fs_remove_dir(work);
+    spn_path_t staged = { .root = entry->path.root, .sub = work.sub };
+    if (spn_git_cache_fill_checkout(cache, entry, db, staged)) {
+      sp_fs_remove_dir_at(work);
       return SPN_ERROR;
     }
 
-    sp_sys_fd_t cwd = sp_sys_get_root(0);
-    if (sp_sys_rename_s(cwd, work, cwd, entry->path)) {
-      sp_fs_remove_dir(work);
-      if (!sp_fs_is_dir(entry->path)) {
-        entry->error = sp_fmt(cache->mem, "failed to place checkout at {}", sp_fmt_str(entry->path)).value;
+    if (sp_sys_rename_s(work.dir, work.sub, dest.dir, dest.sub)) {
+      sp_fs_remove_dir_at(work);
+      if (!sp_fs_is_dir_at(dest)) {
+        entry->error = sp_fmt(cache->mem, "failed to place checkout at {}", sp_fmt_str(spn_path_str(cache->roots, cache->mem, entry->path))).value;
         return SPN_ERROR;
       }
     }
   }
 
   if (!sp_str_empty(entry->id.dir)) {
-    sp_str_t subdir = sp_fs_join_path(cache->mem, entry->path, entry->id.dir);
-    if (!sp_fs_is_dir(subdir)) {
+    spn_path_t subdir = spn_path_join(cache->mem, entry->path, entry->id.dir);
+    if (!sp_fs_is_dir_at(spn_path_at(cache->roots, subdir))) {
       entry->error = sp_fmt(cache->mem, "{} does not exist in {}", sp_fmt_str(entry->id.dir), sp_fmt_str(entry->id.url)).value;
       return SPN_ERROR;
     }
@@ -227,7 +230,7 @@ spn_err_t spn_git_cache_ensure_checkout(spn_git_cache_t* cache, spn_git_checkout
     sp_str_t owned = sp_str_copy(cache->mem, key);
     entry = sp_alloc_type(cache->mem, spn_git_checkout_t);
     entry->id = id;
-    entry->path = sp_fs_join_path(cache->mem, cache->checkouts.dir, owned);
+    entry->path = spn_path_join(cache->mem, cache->checkouts.dir, owned);
     sp_str_om_insert(cache->checkouts.entries, owned, entry);
   }
 
@@ -248,7 +251,7 @@ spn_err_t spn_git_cache_ensure_checkout(spn_git_cache_t* cache, spn_git_checkout
 bool spn_git_cache_is_checkout_cached(spn_git_cache_t* cache, spn_git_checkout_id_t id) {
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   sp_str_t key = spn_git_checkout_key(scratch.mem, id);
-  bool cached = sp_fs_is_dir(sp_fs_join_path(scratch.mem, cache->checkouts.dir, key));
+  bool cached = sp_fs_is_dir_at(spn_path_at(cache->roots, spn_path_join(scratch.mem, cache->checkouts.dir, key)));
   sp_mem_end_scratch(scratch);
   return cached;
 }

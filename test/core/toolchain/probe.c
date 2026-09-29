@@ -343,9 +343,9 @@ sp_test_each(probe, resolve, test_t, tests, .setup = spn_test_ctx_setup) {
     write_file(mem, root, it->files[at]);
   }
 
-  sp_str_t cache_file = sp_fs_join_path(mem, root, sp_str_lit("probe.cache"));
+  spn_path_t cache_file = { .sub = sp_fs_join_path(mem, root, sp_str_lit("probe.cache")) };
   spn_probe_cache_t cache = sp_zero;
-  spn_probe_cache_load(&cache, cache_file, mem);
+  spn_probe_cache_load(&cache, &roots, cache_file, mem);
 
   sp_hash_t slots [PROBE_MAX_SLOTS + 1] = sp_zero;
 
@@ -375,11 +375,11 @@ sp_test_each(probe, resolve, test_t, tests, .setup = spn_test_ctx_setup) {
         break;
       }
       case PROBE_ACTION_RELOAD: {
-        spn_probe_cache_load(&cache, cache_file, mem);
+        spn_probe_cache_load(&cache, &roots, cache_file, mem);
         break;
       }
       case PROBE_ACTION_CORRUPT: {
-        sp_fs_create_file_str(cache_file, sp_str_lit("not a cache"));
+        sp_fs_create_file_str(cache_file.sub, sp_str_lit("not a cache"));
         break;
       }
       case PROBE_ACTION_PROBE: {

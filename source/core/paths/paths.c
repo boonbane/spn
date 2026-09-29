@@ -100,7 +100,7 @@ bool spn_path_normal(sp_str_t path) {
   return seg_normal(sp_str(path.data + start, it - start));
 }
 
-static spn_path_t classify(sp_mem_t mem, const spn_path_roots_t* roots, spn_path_t path) {
+spn_path_t spn_path_classify(sp_mem_t mem, const spn_path_roots_t* roots, spn_path_t path) {
   if (path.root != SPN_PATH_ROOT_NONE && sp_str_empty(roots->dirs[path.root])) {
     return spn_path_copy(mem, path);
   }
@@ -116,7 +116,7 @@ static spn_path_t classify(sp_mem_t mem, const spn_path_roots_t* roots, spn_path
 }
 
 spn_path_t spn_path_anchor(sp_mem_t mem, const spn_path_roots_t* roots, spn_path_t path) {
-  path = classify(mem, roots, path);
+  path = spn_path_classify(mem, roots, path);
   if (path.root == SPN_PATH_ROOT_NONE || !sp_str_empty(roots->dirs[path.root])) {
     sp_mem_arena_marker_t s = sp_mem_begin_scratch_for(mem);
     sp_assert(!spn_path_roots_intersect(roots, spn_path_str(roots, s.mem, path)));
@@ -341,7 +341,7 @@ spn_path_t spn_tree_path(sp_mem_t mem, const spn_path_roots_t* roots, spn_tree_r
   }
   sp_assert(spn_path_normal(str));
   sp_mem_arena_marker_t s = sp_mem_begin_scratch_for(mem);
-  spn_path_t result = classify(mem, roots, spn_path_join(s.mem, spn_tree_root(tree, decl), str));
+  spn_path_t result = spn_path_classify(mem, roots, spn_path_join(s.mem, spn_tree_root(tree, decl), str));
   sp_mem_end_scratch(s);
   return result;
 }
