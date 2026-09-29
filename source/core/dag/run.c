@@ -747,16 +747,17 @@ static spn_err_t execute_attempt(sp_mem_t mem, spn_dag_t* g, spn_dag_attempt_t* 
 
   sp_da_for(action->produces, it) {
     spn_dag_artifact_t* artifact = spn_dag_find_artifact(g, action->produces[it]);
+    sp_path_t output = spn_path_at(g->roots, outputs[it]);
     err = SPN_ERR_DAG_MISSING_OUTPUT;
-    if (sp_fs_exists_at(spn_path_at(g->roots, outputs[it]))) {
+    if (sp_fs_exists_at(output)) {
       switch (artifact->kind) {
         case SPN_DAG_ARTIFACT_KIND_TREE: {
-          err = spn_dag_store_put_tree(env->store, outputs[it], &attempt->digests[it]);
+          err = spn_dag_store_put_tree(env->store, output, &attempt->digests[it]);
           break;
         }
         case SPN_DAG_ARTIFACT_KIND_VALUE:
         case SPN_DAG_ARTIFACT_KIND_FILE: {
-          err = spn_dag_store_put_file(env->store, outputs[it], artifact->name, &attempt->digests[it]);
+          err = spn_dag_store_put_file(env->store, output, artifact->name, &attempt->digests[it]);
           break;
         }
       }

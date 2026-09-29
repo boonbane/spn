@@ -153,7 +153,7 @@ static sp_err_t run_ops(sp_test_t* t, spn_dag_store_kind_t kind, const test_t* t
       case STORE_OP_PUT_FILE: {
         spn_dag_digest_t returned = sp_zero;
         sp_str_t file_name = op.name ? sp_str_view(op.name) : sp_str_view(op.path);
-        sp_expect_eq(t, op.expect.err, spn_dag_store_put_file(&env.store, dag_test_env_rooted(&env, sp_str_view(op.path)), file_name, &returned));
+        sp_expect_eq(t, op.expect.err, spn_dag_store_put_file(&env.store, dag_test_env_path(&env, sp_str_view(op.path)), file_name, &returned));
         if (!op.expect.err) {
           sp_expect(t, spn_dag_digest_equal(digest, returned));
         }
