@@ -1,6 +1,7 @@
 #include "spn_test.h"
 
 #include "fs/fs.h"
+#include "os/os.h"
 
 
 #define FS_LOCK_MAX_SLOTS 4
@@ -224,5 +225,63 @@ sp_test(fs_copy_file, busy) {
   sp_str_t content = sp_zero;
   sp_must_ok(t, sp_io_read_file_at(mem, target, &content));
   sp_expect_str_eq_c(t, content, "N");
+  return SP_OK;
+}
+
+typedef enum {
+  FS_REMOVE_MISSING,
+  FS_REMOVE_FILE,
+  FS_REMOVE_DIR,
+  FS_REMOVE_LINK_TO_DIR,
+} fs_remove_kind_t;
+
+typedef struct {
+  const c8* name;
+  fs_remove_kind_t kind;
+  bool symlinks;
+} fs_remove_test_t;
+
+static const fs_remove_test_t fs_remove_tests [] = {
+  { .name = "missing_is_ok",                   .kind = FS_REMOVE_MISSING },
+  { .name = "file",                            .kind = FS_REMOVE_FILE },
+  { .name = "dir_with_contents",               .kind = FS_REMOVE_DIR },
+  { .name = "link_to_dir_drops_the_link_only", .kind = FS_REMOVE_LINK_TO_DIR, .symlinks = true },
+};
+
+sp_test_each(fs_remove, kinds, fs_remove_test_t, fs_remove_tests) {
+  if (it->symlinks) {
+    sp_test_skip_without_symlinks();
+  }
+
+  sp_mem_t mem = sp_test_arena(t);
+  sp_path_t dir = sp_test_dir(t);
+  sp_path_t path = sp_path_join(mem, dir, sp_str_lit("X"));
+  sp_path_t target = sp_path_join(mem, dir, sp_str_lit("T"));
+  sp_path_t inside = sp_path_join(mem, target, sp_str_lit("F"));
+
+  switch (it->kind) {
+    case FS_REMOVE_MISSING: {
+      break;
+    }
+    case FS_REMOVE_FILE: {
+      sp_must_ok(t, sp_fs_create_file_at(path));
+      break;
+    }
+    case FS_REMOVE_DIR: {
+      sp_must_ok(t, sp_fs_create_dir_at(path));
+      sp_must_ok(t, sp_fs_create_file_at(sp_path_join(mem, path, sp_str_lit("F"))));
+      break;
+    }
+    case FS_REMOVE_LINK_TO_DIR: {
+      sp_must_ok(t, sp_fs_create_dir_at(target));
+      sp_must_ok(t, sp_fs_create_file_at(inside));
+      sp_must_ok(t, sp_fs_create_sym_link_at(sp_str_lit("T"), path, SP_FS_KIND_DIR));
+      break;
+    }
+  }
+
+  sp_must_ok(t, sp_fs_remove(path));
+  sp_expect_eq(t, sp_fs_get_kind_at(path), SP_FS_KIND_NONE);
+  sp_expect_eq(t, sp_fs_is_file_at(inside), it->kind == FS_REMOVE_LINK_TO_DIR);
   return SP_OK;
 }

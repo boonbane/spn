@@ -461,3 +461,18 @@ sp_test_each(git_cache, ensure, cache_test_t, tests) {
 
   return SP_OK;
 }
+
+sp_test(git_cache, checkouts_classify_into_the_checkout_root) {
+  sp_mem_t mem = sp_test_arena(t);
+  spn_path_roots_t roots = sp_zero;
+  sp_must(t, spn_path_roots_set(&roots, mem, SPN_PATH_ROOT_CACHE, sp_test_dir(t)) == SPN_OK);
+  spn_path_t checkouts = { .root = SPN_PATH_ROOT_CACHE, .sub = sp_str_lit("source/checkouts") };
+  sp_must(t, spn_path_roots_set(&roots, mem, SPN_PATH_ROOT_CHECKOUT, spn_path_at(&roots, checkouts)) == SPN_OK);
+
+  spn_git_cache_t cache = sp_zero;
+  spn_git_cache_init(&cache, mem, SP_NULLPTR, &roots, (spn_path_t) { .root = SPN_PATH_ROOT_CACHE, .sub = sp_str_lit("source") });
+  sp_expect(t, spn_path_equal(cache.checkouts.dir, spn_path_from_root(SPN_PATH_ROOT_CHECKOUT)));
+  sp_expect(t, spn_path_equal(cache.db.dir, (spn_path_t) { .root = SPN_PATH_ROOT_CACHE, .sub = sp_str_lit("source/db") }));
+  spn_path_roots_close(&roots);
+  return SP_OK;
+}

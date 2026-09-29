@@ -47,6 +47,7 @@ add_executable(core
   git/url.c
   index/cache.c
   index/dir.c
+  index/location.c
   index/package.c
   index/query.c
   index/publish.c
