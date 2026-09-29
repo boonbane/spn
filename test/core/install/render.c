@@ -160,7 +160,7 @@ sp_test_each(installer, render, render_test_t, tests) {
   installer_result_t result = installer_render(mem, (installer_config_t) {
     .shasums = sp_cstr_as_str(it->shasums),
     .scripts = test_repo_path(mem, sp_str_lit("tools/install")),
-    .out = sp_test_dir(t),
+    .out = test_dir_str(t),
     .version = sp_str_lit("0.0.0"),
     .tag = sp_str_lit("v0.0.0"),
     .repo = sp_str_lit("A/B"),
@@ -172,7 +172,7 @@ sp_test_each(installer, render, render_test_t, tests) {
   }
 
   const c8* golden = it->expect.golden ? it->expect.golden : it->name;
-  expect_rendered(t, mem, sp_test_dir(t), "install.sh", sp_test_format(t, "golden/{}.sh", sp_fmt_cstr(golden)));
-  expect_rendered(t, mem, sp_test_dir(t), "install.ps1", sp_test_format(t, "golden/{}.ps1", sp_fmt_cstr(golden)));
+  expect_rendered(t, mem, test_dir_str(t), "install.sh", sp_test_format(t, "golden/{}.sh", sp_fmt_cstr(golden)));
+  expect_rendered(t, mem, test_dir_str(t), "install.ps1", sp_test_format(t, "golden/{}.ps1", sp_fmt_cstr(golden)));
   return SP_OK;
 }

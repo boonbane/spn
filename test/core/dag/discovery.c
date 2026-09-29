@@ -230,7 +230,7 @@ static sp_err_t check_expectations(sp_test_t* t, spn_dag_obs_table_t* discovery,
 
 sp_test_each(dag_discovery, table, test_t, tests) {
   sp_mem_t mem = sp_test_arena(t);
-  sp_str_t dir = sp_fs_join_path(mem, sp_test_dir(t), sp_str_lit("manifests"));
+  sp_str_t dir = sp_fs_join_path(mem, test_dir_str(t), sp_str_lit("manifests"));
   spn_path_roots_t roots = sp_zero;
   roots.pinned = it->pinned;
 

@@ -199,7 +199,10 @@ s32 spn_api_copy(sp_str_t from, sp_str_t to) {
     return spn_fs_update_glob(from, to);
   }
   if (sp_fs_is_dir(from)) {
-    return sp_fs_copy_into(from, to) ? SPN_ERROR : SPN_OK;
+    sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+    sp_err_t err = sp_fs_copy_at(sp_path_at_cwd(from), sp_path_at_cwd(sp_fs_join_path(scratch.mem, to, sp_fs_get_name(from))), SP_FS_ATOMIC_REPLACE);
+    sp_mem_end_scratch(scratch);
+    return err ? SPN_ERROR : SPN_OK;
   }
   if (!sp_fs_is_dir(to)) {
     return spn_fs_update_file(from, to);

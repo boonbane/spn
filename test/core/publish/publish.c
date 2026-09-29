@@ -291,7 +291,7 @@ sp_test_each(cmd_publish, publish, case_t, cases, .setup = spn_test_ctx_setup) {
 
   git_repo_result_t source_repo = sp_zero;
   if (c.source_repo.name) {
-    source_repo = git_repo_build_at(sp_test_dir(t), c.source_repo.name, &c.source_repo);
+    source_repo = git_repo_build_at(test_dir_str(t), c.source_repo.name, &c.source_repo);
   }
 
   if (c.generated_manifest) {
@@ -326,9 +326,9 @@ sp_test_each(cmd_publish, publish, case_t, cases, .setup = spn_test_ctx_setup) {
     manifest->content = sp_str_to_cstr(mem, content);
   }
 
-  git_repo_result_t repo = git_repo_build_at(sp_test_dir(t), c.repo.name, &c.repo);
+  git_repo_result_t repo = git_repo_build_at(test_dir_str(t), c.repo.name, &c.repo);
 
-  sp_str_t index_root = sp_fs_join_path(mem, sp_test_dir(t), sp_str_lit("index"));
+  sp_str_t index_root = sp_fs_join_path(mem, test_dir_str(t), sp_str_lit("index"));
   sp_fs_create_dir(index_root);
   git_repo_init(index_root);
   git(index_root, "symbolic-ref", "HEAD", "refs/heads/main");
@@ -337,7 +337,7 @@ sp_test_each(cmd_publish, publish, case_t, cases, .setup = spn_test_ctx_setup) {
 
   spn_index_info_t index = {
     .git = { .url = index_root },
-    .location = sp_fs_join_path(mem, sp_test_dir(t), sp_str_lit("index_clone")),
+    .location = sp_fs_join_path(mem, test_dir_str(t), sp_str_lit("index_clone")),
   };
 
   sp_str_t cwd = repo.path;

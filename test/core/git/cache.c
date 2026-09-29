@@ -366,7 +366,7 @@ static spn_git_checkout_id_t build_id(sp_test_t* t, git_repo_result_t* repo, con
       sp_str_t text = sp_fmt(mem, "--- a/{}\n+++ b/{}\n@@ -1 +1 @@\n-{}+{}",
         sp_fmt_cstr(edit->file), sp_fmt_cstr(edit->file),
         sp_fmt_cstr(edit->from), sp_fmt_cstr(edit->to)).value;
-      sp_str_t path = sp_fs_join_path(mem, sp_test_dir(t),
+      sp_str_t path = sp_fs_join_path(mem, test_dir_str(t),
         sp_fmt(mem, "patch_{}_{}.patch", sp_fmt_uint(index), sp_fmt_uint(jt)).value);
       sp_fs_create_file_str(path, text);
       sp_da_push(files, path);
@@ -383,9 +383,9 @@ sp_test_each(git_cache, ensure, cache_test_t, tests) {
   sp_mem_t mem = sp_test_arena(t);
 
   // build git repo fixture as "remote"
-  git_repo_result_t repo = git_repo_build_at(sp_test_dir(t), "R", &it->repo);
+  git_repo_result_t repo = git_repo_build_at(test_dir_str(t), "R", &it->repo);
 
-  sp_str_t cache_root = sp_fs_join_path(mem, sp_test_dir(t), sp_str_lit("cache"));
+  sp_str_t cache_root = sp_fs_join_path(mem, test_dir_str(t), sp_str_lit("cache"));
   sp_fs_create_dir(cache_root);
 
   spn_git_cache_t cache = sp_zero;

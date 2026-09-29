@@ -197,7 +197,7 @@ static sp_err_t build_fixture(sp_test_t* t, const test_t* it, fixture_t* fx) {
   sp_carr_for(tools, at) {
     sp_str_t real = which(mem, tools[at]);
     if (!sp_str_empty(real)) {
-      sp_fs_create_sym_link(real, sp_fs_join_path(mem, fx->bin, sp_cstr_as_str(tools[at])));
+      sp_fs_create_sym_link(real, sp_fs_join_path(mem, fx->bin, sp_cstr_as_str(tools[at])), SP_FS_KIND_FILE);
     }
   }
 
@@ -213,10 +213,10 @@ static sp_err_t build_fixture(sp_test_t* t, const test_t* it, fixture_t* fx) {
   sp_must_eq(t, 0, tar.status.exit_code);
 
   sp_str_t asset = sp_fs_join_path(mem, fx->fix, sp_str_lit(SHIM_LINUX_ASSET));
-  sp_must_eq(t, (u32)SP_OK, (u32)sp_fs_copy_file(asset, sp_fs_join_path(mem, fx->fix, sp_str_lit(SHIM_MACOS_ASSET)), SP_FS_ATOMIC_REPLACE));
+  sp_must_eq(t, (u32)SP_OK, (u32)sp_fs_copy_file_at(sp_path_at_cwd(asset), sp_path_at_cwd(sp_fs_join_path(mem, fx->fix, sp_str_lit(SHIM_MACOS_ASSET))), SP_FS_ATOMIC_REPLACE));
 
   sp_str_t corrupt = sp_fs_join_path(mem, bad, sp_str_lit(SHIM_LINUX_ASSET));
-  sp_must_eq(t, (u32)SP_OK, (u32)sp_fs_copy_file(asset, corrupt, SP_FS_ATOMIC_REPLACE));
+  sp_must_eq(t, (u32)SP_OK, (u32)sp_fs_copy_file_at(sp_path_at_cwd(asset), sp_path_at_cwd(corrupt), SP_FS_ATOMIC_REPLACE));
   sp_str_t bytes = sp_zero;
   sp_must_eq(t, (u32)SP_OK, (u32)sp_io_read_file(mem, corrupt, &bytes));
   sp_must_eq(t, (u32)SP_OK, (u32)sp_fs_create_file_str(corrupt, sp_str_concat(mem, bytes, sp_str_lit("x"))));
@@ -315,7 +315,7 @@ sp_test_each(install_shim, cases, test_t, tests) {
 
   fixture_t fx = {
     .mem = sp_test_arena(t),
-    .dir = sp_test_dir(t),
+    .dir = test_dir_str(t),
   };
   sp_try(build_fixture(t, it, &fx));
 

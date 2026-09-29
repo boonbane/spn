@@ -148,7 +148,7 @@ static const dir_test_t tests [] = {
 sp_test_each(index_dir, get_package, dir_test_t, tests, .setup = spn_test_ctx_setup) {
   sp_mem_t mem = sp_test_arena(t);
 
-  sp_str_t location = sp_fs_join_path(mem, sp_test_dir(t), sp_str_lit("index"));
+  sp_str_t location = sp_fs_join_path(mem, test_dir_str(t), sp_str_lit("index"));
   sp_fs_create_dir(location);
 
   sp_str_t package = sp_zero;

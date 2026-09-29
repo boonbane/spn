@@ -40,8 +40,11 @@ spn_err_t spn_fs_update_file(sp_str_t from, sp_str_t to) {
   }
 
   spn_err_t err = SPN_OK;
-  if (!matches && sp_fs_copy_file(from, to, SP_FS_ATOMIC_REPLACE)) {
-    err = SPN_ERROR;
+  if (!matches) {
+    sp_fs_create_dir(sp_fs_parent_path(to));
+    if (sp_fs_copy_file_at(sp_path_at_cwd(from), sp_path_at_cwd(to), SP_FS_ATOMIC_REPLACE)) {
+      err = SPN_ERROR;
+    }
   }
 
   sp_mem_end_scratch(s);
@@ -75,7 +78,7 @@ spn_err_t spn_fs_update_glob(sp_str_t from, sp_str_t to) {
         break;
       }
       case SP_FS_KIND_DIR: {
-        err = sp_fs_copy_tree(entry->path, dest, SP_FS_ATOMIC_REPLACE) ? SPN_ERROR : SPN_OK;
+        err = sp_fs_copy_tree_at(sp_path_at_cwd(entry->path), sp_path_at_cwd(dest), SP_FS_ATOMIC_REPLACE) ? SPN_ERROR : SPN_OK;
         break;
       }
       case SP_FS_KIND_SYMLINK:

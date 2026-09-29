@@ -131,8 +131,14 @@ static spn_install_facts_t probe_facts(sp_mem_t mem, spn_install_layout_t* layou
 static sp_err_t apply(spn_install_action_t* action) {
   switch (action->kind) {
     case SPN_INSTALL_ACTION_NONE: return SP_ERR;
-    case SPN_INSTALL_ACTION_INSTALL_EXE: return sp_fs_copy_file(action->src, action->path, SP_FS_ATOMIC_REPLACE);
-    case SPN_INSTALL_ACTION_WRITE_FILE: return sp_fs_write_atomic(action->path, action->text);
+    case SPN_INSTALL_ACTION_INSTALL_EXE: {
+      sp_try(sp_fs_create_dir(sp_fs_parent_path(action->path)));
+      return sp_fs_copy_file_at(sp_path_at_cwd(action->src), sp_path_at_cwd(action->path), SP_FS_ATOMIC_REPLACE);
+    }
+    case SPN_INSTALL_ACTION_WRITE_FILE: {
+      sp_try(sp_fs_create_dir(sp_fs_parent_path(action->path)));
+      return sp_fs_write_atomic(action->path, action->text);
+    }
     case SPN_INSTALL_ACTION_APPEND_LINE: return sp_fs_append(action->path, action->text);
     case SPN_INSTALL_ACTION_SET_USER_PATH: return set_user_path(action);
   }

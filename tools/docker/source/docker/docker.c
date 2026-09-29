@@ -11,7 +11,7 @@
 #define cfmt(mem, ...) sp_str_to_cstr(mem, sp_fmt(mem, __VA_ARGS__).value)
 
 static sp_str_t find_repo(sp_mem_t mem) {
-  sp_str_t dir = sp_fs_get_cwd(mem);
+  sp_str_t dir = sp_fs_get_cwd_path(mem);
   while (!sp_fs_is_root(dir)) {
     if (sp_fs_is_dir(sp_fs_join_path(mem, dir, sp_str_lit("vendor/sp")))) {
       return dir;

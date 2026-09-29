@@ -144,7 +144,7 @@ static void write_publish_fixtures(sp_mem_t mem, sp_str_t index_root, const publ
 sp_test_each(index_publish, publish, publish_test_t, tests, .setup = spn_test_ctx_setup) {
   sp_mem_t mem = sp_test_arena(t);
 
-  sp_str_t index_root = sp_fs_join_path(mem, sp_test_dir(t), sp_str_lit("index"));
+  sp_str_t index_root = sp_fs_join_path(mem, test_dir_str(t), sp_str_lit("index"));
   sp_fs_create_dir(index_root);
   git_repo_init(index_root);
   git(index_root, "symbolic-ref", "HEAD", "refs/heads/main");
@@ -156,7 +156,7 @@ sp_test_each(index_publish, publish, publish_test_t, tests, .setup = spn_test_ct
 
   spn_index_info_t index = {
     .git = { .url = index_root },
-    .location = sp_fs_join_path(mem, sp_test_dir(t), sp_str_lit("clone")),
+    .location = sp_fs_join_path(mem, test_dir_str(t), sp_str_lit("clone")),
   };
 
   spn_index_release_t rel = {
@@ -223,7 +223,7 @@ static const protocol_test_t protocol_tests [] = {
 sp_test_each(index_publish, protocol, protocol_test_t, protocol_tests, .setup = spn_test_ctx_setup) {
   sp_mem_t mem = sp_test_arena(t);
 
-  sp_str_t location = sp_fs_join_path(mem, sp_test_dir(t), sp_str_lit("index"));
+  sp_str_t location = sp_fs_join_path(mem, test_dir_str(t), sp_str_lit("index"));
   sp_fs_create_dir(location);
 
   spn_index_info_t index = {

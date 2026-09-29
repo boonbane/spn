@@ -264,7 +264,7 @@ sp_test_each(dag_wasm, wasi, test_t, tests) {
   sp_must_ok(t, sp_test_once(&runtime_once, bring_up_runtime, SP_NULLPTR));
 
   sp_mem_t mem = sp_test_arena(t);
-  sp_str_t root = sp_test_dir(t);
+  sp_str_t root = test_dir_str(t);
 
   spn_path_roots_t roots = sp_zero;
   roots.dirs[SPN_PATH_ROOT_PROJECT] = root;

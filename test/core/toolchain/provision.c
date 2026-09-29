@@ -189,7 +189,7 @@ static spn_err_t fetch_stub(spn_toolchain_store_t* store, sp_str_t url, sp_str_t
   if (stub->fail) return SPN_ERROR;
   if (!sp_str_empty(stub->fail_url_containing) && sp_str_contains(url, stub->fail_url_containing)) return SPN_ERROR;
   if (stub->vanish) return SPN_OK;
-  if (sp_fs_copy_file(stub->tarball, dest, SP_FS_ATOMIC_REPLACE)) return SPN_ERROR;
+  if (sp_fs_copy_file_at(sp_path_at_cwd(stub->tarball), sp_path_at_cwd(dest), SP_FS_ATOMIC_REPLACE)) return SPN_ERROR;
   return SPN_OK;
 }
 
@@ -201,7 +201,7 @@ static void provision_create(sp_mem_t mem, sp_str_t dir, const c8* rel, const c8
 
 sp_test_each(provision, store, provision_test_t, tests, .setup = spn_test_ctx_setup) {
   sp_mem_t mem = sp_test_arena(t);
-  sp_str_t dir = sp_test_dir(t);
+  sp_str_t dir = test_dir_str(t);
 
   fetch_stub_t stub = sp_zero;
   stub.mem = mem;

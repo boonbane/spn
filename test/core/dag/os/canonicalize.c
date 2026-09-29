@@ -171,7 +171,7 @@ static sp_err_t symlink_probe(void* user) {
   sp_str_t target = sp_fs_join_path(s.mem, dir, sp_str_lit("T"));
   sp_str_t link = sp_fs_join_path(s.mem, dir, sp_str_lit("L"));
   sp_fs_create_file(target);
-  sp_err_t err = sp_fs_create_sym_link(target, link);
+  sp_err_t err = sp_fs_create_sym_link(target, link, SP_FS_KIND_FILE);
   if (!err) sp_fs_remove_file(link);
   sp_fs_remove_file(target);
   sp_mem_end_scratch(s);
@@ -179,7 +179,7 @@ static sp_err_t symlink_probe(void* user) {
 }
 
 static bool symlinks_available(sp_test_t* t) {
-  sp_str_t dir = sp_test_dir(t);
+  sp_str_t dir = test_dir_str(t);
   return sp_test_once(&symlink_once, symlink_probe, &dir) == SP_OK;
 }
 
@@ -195,7 +195,7 @@ sp_test_each(wasi_canonicalize, probe, test_t, tests) {
   u32 count = 0;
   sp_carr_detect_len(it->setup, count, it->setup[count].path);
   if (count) {
-    sandbox = sp_test_dir(t);
+    sandbox = test_dir_str(t);
     sp_for(at, count) {
       const setup_t* s = &it->setup[at];
       sp_str_t path = sp_fs_join_path(mem, sandbox, sp_str_view(s->path));
@@ -209,7 +209,8 @@ sp_test_each(wasi_canonicalize, probe, test_t, tests) {
           break;
         }
         case CANON_SETUP_SYMLINK: {
-          sp_fs_create_sym_link(sp_fs_join_path(mem, sandbox, sp_str_view(s->target)), path);
+          sp_str_t target = sp_fs_join_path(mem, sandbox, sp_str_view(s->target));
+          sp_fs_create_sym_link(target, path, sp_fs_is_target_dir(target) ? SP_FS_KIND_DIR : SP_FS_KIND_FILE);
           break;
         }
       }

@@ -329,13 +329,13 @@ static spn_err_t settle_tree(spn_dag_t* g, spn_dag_action_t* action, spn_dag_art
     sp_str_ht_init(s.mem, keep_dirs);
     sp_da_for(entries, it) {
       sp_str_ht_insert(keep_files, entries[it].name, true);
-      for (sp_str_t parent = sp_fs_parent_path(entries[it].name); !sp_str_empty(parent); parent = sp_fs_parent_path(parent)) {
+      for (sp_str_t parent = sp_fs_parent_path(entries[it].name); !sp_str_empty(parent) && !sp_str_equal(parent, sp_str_lit(".")); parent = sp_fs_parent_path(parent)) {
         sp_str_ht_insert(keep_dirs, parent, true);
       }
     }
 
-    sp_fs_it_t walk = sp_fs_it_new_recursive(s.mem, dir);
-    while (sp_fs_it_next(&walk)) {
+    sp_fs_it_t walk = sp_fs_it_new(s.mem, dir);
+    while (sp_fs_it_walk(&walk)) {
       sp_fs_entry_t entry = walk.entry;
       sp_str_t name = sp_str_suffix(entry.path, (s32)(entry.path.len - dir.len - 1));
       files += entry.kind != SP_FS_KIND_DIR;

@@ -35,6 +35,7 @@ static bool render_one(codegen_t* c, sp_str_t path, gen_render_t render) {
   }
 
   sp_fs_atomic_t file = sp_zero;
+  sp_fs_create_dir(sp_fs_parent_path(path));
   if (sp_fs_atomic_open(&file, path)) {
     return fail(c, sp_fmt(c->mem, "failed to open {}", sp_fmt_str(path)).value);
   }
@@ -57,6 +58,7 @@ static bool render_one(codegen_t* c, sp_str_t path, gen_render_t render) {
 }
 
 static bool write_file(codegen_t* c, sp_str_t path, sp_str_t contents) {
+  sp_fs_create_dir(sp_fs_parent_path(path));
   if (sp_fs_write_atomic(path, contents)) {
     return fail(c, sp_fmt(c->mem, "failed to write {}", sp_fmt_str(path)).value);
   }

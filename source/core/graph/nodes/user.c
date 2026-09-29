@@ -62,8 +62,8 @@ spn_err_t spn_dag_exec_user(spn_dag_t* g, spn_dag_action_t* action, void* user_d
     }
     else {
       switch (artifact->kind) {
-        case SPN_DAG_ARTIFACT_KIND_FILE:  err = sp_fs_copy_file(declared, target, SP_FS_ATOMIC_REPLACE); break;
-        case SPN_DAG_ARTIFACT_KIND_TREE:  err = sp_fs_copy_tree(declared, target, SP_FS_ATOMIC_REPLACE); break;
+        case SPN_DAG_ARTIFACT_KIND_FILE:  err = sp_fs_copy_file_at(sp_path_at_cwd(declared), sp_path_at_cwd(target), SP_FS_ATOMIC_REPLACE); break;
+        case SPN_DAG_ARTIFACT_KIND_TREE:  err = sp_fs_copy_tree_at(sp_path_at_cwd(declared), sp_path_at_cwd(target), SP_FS_ATOMIC_REPLACE); break;
         case SPN_DAG_ARTIFACT_KIND_VALUE: sp_unreachable_case();
       }
     }

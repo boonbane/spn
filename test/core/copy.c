@@ -167,7 +167,7 @@ sp_test_each(fs_update, cases, test_t, tests) {
   }
 
   sp_mem_t mem = sp_test_arena(t);
-  sp_str_t root = sp_test_dir(t);
+  sp_str_t root = test_dir_str(t);
 
   u32 dirs = 0;
   sp_carr_detect_len(it->setup.dirs, dirs, it->setup.dirs[dirs]);
@@ -188,7 +188,8 @@ sp_test_each(fs_update, cases, test_t, tests) {
   sp_carr_detect_len(it->setup.symlinks, symlinks, it->setup.symlinks[symlinks].path);
   sp_for(i, symlinks) {
     link_t link = it->setup.symlinks[i];
-    sp_must_ok(t, sp_fs_create_sym_link(sp_fs_join_path(mem, root, sp_cstr_as_str(link.target)), sp_fs_join_path(mem, root, sp_cstr_as_str(link.path))));
+    sp_str_t target = sp_fs_join_path(mem, root, sp_cstr_as_str(link.target));
+    sp_must_ok(t, sp_fs_create_sym_link(target, sp_fs_join_path(mem, root, sp_cstr_as_str(link.path)), sp_fs_is_target_dir(target) ? SP_FS_KIND_DIR : SP_FS_KIND_FILE));
   }
 
   u32 hardlinks = 0;

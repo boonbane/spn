@@ -167,7 +167,7 @@ static sp_err_t wasi_open(sp_sys_fd_t fd, const c8* path, u32 len, sp_sys_open_m
   return SP_OK;
 }
 
-static sp_err_t wasi_open_dir(sp_sys_fd_t fd, const c8* path, u32 len, sp_sys_fd_t* out) {
+static sp_err_t wasi_open_dir(sp_sys_fd_t fd, const c8* path, u32 len, u32 flags, sp_sys_fd_t* out) {
   *out = SP_SYS_INVALID_FD;
   c8 buf [SP_PATH_MAX] = sp_zero;
   __wasi_fd_t at;
@@ -178,7 +178,8 @@ static sp_err_t wasi_open_dir(sp_sys_fd_t fd, const c8* path, u32 len, sp_sys_fd
     __WASI_RIGHTS_PATH_OPEN | __WASI_RIGHTS_PATH_FILESTAT_GET;
 
   __wasi_fd_t result = (__wasi_fd_t)-1;
-  __wasi_errno_t err = __wasi_path_open(at, __WASI_LOOKUPFLAGS_SYMLINK_FOLLOW, buf, __WASI_OFLAGS_DIRECTORY, rights, rights, 0, &result);
+  __wasi_lookupflags_t lookup = (flags & SP_SYS_OPEN_DIR_NO_FOLLOW) ? 0 : __WASI_LOOKUPFLAGS_SYMLINK_FOLLOW;
+  __wasi_errno_t err = __wasi_path_open(at, lookup, buf, __WASI_OFLAGS_DIRECTORY, rights, rights, 0, &result);
   if (err) return err_from_wasi(err);
   *out = (sp_sys_fd_t)result;
   return SP_OK;
@@ -225,7 +226,7 @@ static sp_err_t wasi_link(sp_sys_fd_t from_fd, const c8* existing, u32 existing_
   return err_from_wasi(__wasi_path_link(existing_at, __WASI_LOOKUPFLAGS_SYMLINK_FOLLOW, existing_buf, alias_at, alias_buf));
 }
 
-static sp_err_t wasi_symlink(const c8* existing, u32 existing_len, sp_sys_fd_t to_fd, const c8* alias, u32 alias_len) {
+static sp_err_t wasi_symlink(const c8* existing, u32 existing_len, sp_sys_fd_t to_fd, const c8* alias, u32 alias_len, sp_fs_kind_t kind) {
   c8 existing_buf [SP_PATH_MAX] = sp_zero;
   c8 alias_buf [SP_PATH_MAX] = sp_zero;
   __wasi_fd_t alias_at;
@@ -266,16 +267,16 @@ static sp_err_t wasi_get_file_metadata(sp_sys_fd_t fd, sp_sys_file_meta_t* st) {
   return SP_OK;
 }
 
-static sp_err_t wasi_dir_from_fd(sp_sys_fd_t fd, sp_sys_dir_t* dir) {
-  *dir = sp_zero_s(sp_sys_dir_t);
-  dir->handle = (s64)fd;
+static sp_err_t wasi_dir_it_open(sp_sys_fd_t fd, sp_sys_dir_it_t* dir) {
+  *dir = sp_zero_s(sp_sys_dir_it_t);
+  dir->fd = fd;
   return SP_OK;
 }
 
-static sp_err_t wasi_dir_read(sp_sys_dir_t* dir, sp_mem_buffer_t* buf) {
+static sp_err_t wasi_dir_it_read(sp_sys_dir_it_t* dir, sp_mem_buffer_t* buf) {
   buf->len = 0;
   __wasi_size_t used = 0;
-  __wasi_errno_t err = __wasi_fd_readdir((__wasi_fd_t)dir->handle, buf->data, (__wasi_size_t)buf->capacity, dir->cookie, &used);
+  __wasi_errno_t err = __wasi_fd_readdir((__wasi_fd_t)dir->fd, buf->data, (__wasi_size_t)buf->capacity, (__wasi_dircookie_t)dir->state, &used);
   if (err) {
     return err_from_wasi(err);
   }
@@ -284,7 +285,7 @@ static sp_err_t wasi_dir_read(sp_sys_dir_t* dir, sp_mem_buffer_t* buf) {
   }
 
   u64 end = 0;
-  __wasi_dircookie_t next = dir->cookie;
+  __wasi_dircookie_t next = (__wasi_dircookie_t)dir->state;
   while (true) {
     __wasi_dirent_t d;
     if (end + sizeof(d) > used) {
@@ -301,12 +302,12 @@ static sp_err_t wasi_dir_read(sp_sys_dir_t* dir, sp_mem_buffer_t* buf) {
     return SP_ERR_SYS_INVALID;
   }
 
-  dir->cookie = next;
+  dir->state = (s64)next;
   buf->len = end;
   return SP_OK;
 }
 
-static sp_err_t wasi_dir_parse(sp_sys_dir_t* dir, sp_mem_buffer_t* buf, u64* cursor, sp_sys_dir_entry_t* entry) {
+static sp_err_t wasi_dir_it_parse(sp_sys_dir_it_t* dir, sp_mem_buffer_t* buf, u64* cursor, sp_sys_dir_entry_t* entry) {
   *entry = sp_zero_s(sp_sys_dir_entry_t);
 
   __wasi_dirent_t d;
@@ -321,15 +322,15 @@ static sp_err_t wasi_dir_parse(sp_sys_dir_t* dir, sp_mem_buffer_t* buf, u64* cur
     c8 cstr [SP_PATH_MAX] = sp_zero;
     sp_cstr_copy_to_n(name, d.d_namlen, cstr, SP_PATH_MAX);
     __wasi_filestat_t st;
-    if (!__wasi_path_filestat_get((__wasi_fd_t)dir->handle, 0, cstr, &st)) {
+    if (!__wasi_path_filestat_get((__wasi_fd_t)dir->fd, 0, cstr, &st)) {
       entry->kind = kind_from_wasi(st.filetype);
     }
   }
   return SP_OK;
 }
 
-static sp_err_t wasi_dir_close(sp_sys_dir_t* dir) {
-  return sp_sys_close((sp_sys_fd_t)dir->handle);
+static sp_err_t wasi_dir_it_close(sp_sys_dir_it_t* dir) {
+  return sp_sys_close(dir->fd);
 }
 
 static sp_sys_vtable_t vtable;
@@ -348,9 +349,9 @@ static void install() {
   vtable.get_path_metadata = wasi_get_path_metadata;
   vtable.get_link_metadata = wasi_get_link_metadata;
   vtable.get_file_metadata = wasi_get_file_metadata;
-  vtable.dir_from_fd = wasi_dir_from_fd;
-  vtable.dir_read = wasi_dir_read;
-  vtable.dir_parse = wasi_dir_parse;
-  vtable.dir_close = wasi_dir_close;
+  vtable.dir_it_open = wasi_dir_it_open;
+  vtable.dir_it_read = wasi_dir_it_read;
+  vtable.dir_it_parse = wasi_dir_it_parse;
+  vtable.dir_it_close = wasi_dir_it_close;
   sp_sys_set_vtable(&vtable);
 }

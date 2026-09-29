@@ -676,7 +676,7 @@ static spn_err_t dag_stage_copy(spn_dag_build_t* b, spn_dag_id_t id, spn_path_t 
   sp_str_t source = spn_path_str(b->graph->roots, sp_str_buf_as_mem(&source_buf), artifact->materialized);
   sp_str_t target = spn_path_str(b->graph->roots, sp_str_buf_as_mem(&target_buf), to);
   sp_fs_create_dir(sp_fs_parent_path(target));
-  sp_err_t copied = sp_fs_copy_file(source, target, SP_FS_ATOMIC_REPLACE);
+  sp_err_t copied = sp_fs_copy_file_at(sp_path_at_cwd(source), sp_path_at_cwd(target), SP_FS_ATOMIC_REPLACE);
 
   spn_err_t err = copied ? SPN_ERR_DAG_OUTPUT_WRITE : spn_dag_file_cache_seed(b->env.files, to, artifact->digest);
   if (err) {

@@ -53,7 +53,7 @@ static sp_da(sp_str_t) write_patch_files(sp_test_t* t, const c8* tag, const c8* 
     if (!contents[i]) {
       break;
     }
-    sp_str_t path = sp_fs_join_path(mem, sp_test_dir(t),
+    sp_str_t path = sp_fs_join_path(mem, test_dir_str(t),
       sp_fmt(mem, "{}_{}.patch", sp_fmt_cstr(tag), sp_fmt_uint(i)).value);
     sp_fs_create_file_cstr(path, contents[i]);
     sp_da_push(files, path);
@@ -66,7 +66,7 @@ sp_test_each(git_patch, set_hash, patch_load_t, tests) {
 
   sp_da(sp_str_t) files = write_patch_files(t, "a", it->files, PATCH_TEST_MAX_FILES);
   if (it->expect.missing) {
-    sp_da_push(files, sp_fs_join_path(mem, sp_test_dir(t), sp_str_view(it->expect.missing)));
+    sp_da_push(files, sp_fs_join_path(mem, test_dir_str(t), sp_str_view(it->expect.missing)));
   }
 
   spn_git_patch_set_t set = { .files = files };

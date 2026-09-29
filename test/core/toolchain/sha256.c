@@ -59,7 +59,7 @@ sp_test_each(sha256, digest, sha256_test_t, tests) {
 
     if (c.missing) {
       sp_str_t hex = sp_zero;
-      sp_expect_eq(t, (u32)SPN_ERROR, (u32)spn_digest_file_hex(SPN_DIGEST_SHA256, mem, sp_fs_join_path(mem, sp_test_dir(t), sp_str_lit("missing.bin")), &hex));
+      sp_expect_eq(t, (u32)SPN_ERROR, (u32)spn_digest_file_hex(SPN_DIGEST_SHA256, mem, sp_fs_join_path(mem, test_dir_str(t), sp_str_lit("missing.bin")), &hex));
       continue;
     }
 
@@ -77,7 +77,7 @@ sp_test_each(sha256, digest, sha256_test_t, tests) {
     sp_expect_str_eq_c(t, spn_digest_hex(mem, digest), c.expect);
 
     if (c.file) {
-      sp_str_t path = sp_fs_join_path(mem, sp_test_dir(t), sp_fmt(mem, "{}.bin", sp_fmt_uint(at)).value);
+      sp_str_t path = sp_fs_join_path(mem, test_dir_str(t), sp_fmt(mem, "{}.bin", sp_fmt_uint(at)).value);
       sp_fs_create_file_str(path, data);
       sp_str_t hex = sp_zero;
       sp_must_eq(t, (u32)SPN_OK, (u32)spn_digest_file_hex(SPN_DIGEST_SHA256, mem, path, &hex));

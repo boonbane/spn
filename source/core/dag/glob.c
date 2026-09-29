@@ -28,7 +28,7 @@ spn_dag_glob_it_t spn_dag_glob_it_new(sp_mem_t mem, const spn_path_roots_t* root
   sp_str_buf_t str = sp_zero;
   sp_str_t path = spn_path_str(roots, sp_str_buf_as_mem(&str), it.base);
   it.start = path.len + 1;
-  it.fs = meta.deep ? sp_fs_it_new_recursive(mem, path) : sp_fs_it_new(mem, path);
+  it.fs = sp_fs_it_new(mem, path);
   if (it.fs.err == SP_ERR_SYS_NOT_FOUND) {
     it.fs.err = SP_OK;
   }
@@ -39,7 +39,7 @@ bool spn_dag_glob_it_next(spn_dag_glob_it_t* it) {
   if (it->err) {
     return false;
   }
-  while (sp_fs_it_next(&it->fs)) {
+  while (it->recursive ? sp_fs_it_walk(&it->fs) : sp_fs_it_next(&it->fs)) {
     sp_fs_entry_t entry = it->fs.entry;
     sp_str_t rel = sp_str_suffix(entry.path, (s32)(entry.path.len - it->start));
     if (entry.kind == SP_FS_KIND_DIR && !it->recursive) {

@@ -60,7 +60,7 @@ sp_test_each(unit_objects, create, objects_test_t, tests, .setup = spn_test_ctx_
   spn_pkg_id_t id = find_pkg_id(s, &graph, "A");
   spn_loaded_pkg_t* loaded = sp_ht_getp(s->packages, id);
 
-  sp_str_t root = sp_fs_join_path(mem, sp_test_dir(t), sp_str_lit("R"));
+  sp_str_t root = sp_fs_join_path(mem, test_dir_str(t), sp_str_lit("R"));
   sp_fs_create_dir(root);
   spn_path_t tree = spn_path_make(&spn.roots, root);
   loaded->roots = (spn_tree_roots_t) { .recipe = tree, .source = tree };

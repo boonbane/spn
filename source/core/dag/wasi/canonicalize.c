@@ -14,7 +14,7 @@ sp_str_t spn_dag_wasi_canonicalize(sp_mem_t mem, sp_str_t path) {
   sp_str_t prefix = sp_fs_trim_path(path);
   sp_str_t canon = sp_zero;
   while (sp_str_empty(canon)) {
-    sp_str_t parent = sp_fs_parent_path(prefix);
+    sp_str_t parent = sp_str_find_c8(prefix, '/') == SP_STR_NO_MATCH ? sp_str_lit("") : sp_fs_parent_path(prefix);
     if (sp_str_empty(parent) && sp_fs_is_absolute(prefix)) {
       parent = sp_str_lit("/");
     }

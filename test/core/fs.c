@@ -79,7 +79,7 @@ static const fs_lock_test_t fs_lock_tests [] = {
 
 sp_test_each(fs_lock, ops, fs_lock_test_t, fs_lock_tests) {
   sp_mem_t mem = sp_test_arena(t);
-  sp_str_t sandbox = sp_test_dir(t);
+  sp_str_t sandbox = test_dir_str(t);
 
   sp_fs_lock_t slots [FS_LOCK_MAX_SLOTS] = sp_zero;
 
@@ -143,7 +143,7 @@ static s32 fs_lock_waiter_fn(void* user_data) {
 
 sp_test(fs_lock, acquire_blocks_until_release, .serial = true) {
   fs_lock_waiter_t waiter = {
-    .path = sp_fs_join_path(sp_test_arena(t), sp_test_dir(t), sp_str_lit("a.lock")),
+    .path = sp_fs_join_path(sp_test_arena(t), test_dir_str(t), sp_str_lit("a.lock")),
   };
 
   sp_fs_lock_t lock = sp_zero;
@@ -164,7 +164,7 @@ sp_test(fs_lock, acquire_blocks_until_release, .serial = true) {
 
 sp_test(fs_staging, claims_distinct_dirs) {
   sp_mem_t mem = sp_test_arena(t);
-  sp_str_t path = sp_fs_join_path(mem, sp_test_dir(t), sp_str_lit("checkout"));
+  sp_str_t path = sp_fs_join_path(mem, test_dir_str(t), sp_str_lit("checkout"));
 
   sp_str_t a = sp_zero;
   sp_str_t b = sp_zero;
@@ -181,7 +181,7 @@ sp_test(fs_staging, claims_distinct_dirs) {
 
 sp_test(fs_staging, creates_parent) {
   sp_mem_t mem = sp_test_arena(t);
-  sp_str_t path = sp_fs_join_path(mem, sp_fs_join_path(mem, sp_test_dir(t), sp_str_lit("nested")), sp_str_lit("checkout"));
+  sp_str_t path = sp_fs_join_path(mem, sp_fs_join_path(mem, test_dir_str(t), sp_str_lit("nested")), sp_str_lit("checkout"));
 
   sp_str_t dir = sp_zero;
   sp_must_ok(t, sp_fs_staging_dir(mem, path, sp_str_lit("tmp"), &dir));
@@ -192,7 +192,7 @@ sp_test(fs_staging, creates_parent) {
 
 sp_test(fs_staging, fails_when_parent_is_file) {
   sp_mem_t mem = sp_test_arena(t);
-  sp_str_t file = sp_fs_join_path(mem, sp_test_dir(t), sp_str_lit("occupied"));
+  sp_str_t file = sp_fs_join_path(mem, test_dir_str(t), sp_str_lit("occupied"));
   sp_fs_create_file_str(file, sp_str_lit("x"));
   sp_str_t path = sp_fs_join_path(mem, file, sp_str_lit("checkout"));
 
@@ -205,7 +205,7 @@ sp_test(fs_staging, fails_when_parent_is_file) {
 
 sp_test(fs_append, creates) {
   sp_mem_t mem = sp_test_arena(t);
-  sp_str_t path = sp_fs_join_path(mem, sp_test_dir(t), sp_str_lit("rc"));
+  sp_str_t path = sp_fs_join_path(mem, test_dir_str(t), sp_str_lit("rc"));
 
   sp_must_ok(t, sp_fs_append(path, sp_str_lit("\nL\n")));
 
@@ -217,7 +217,7 @@ sp_test(fs_append, creates) {
 
 sp_test(fs_append, appends) {
   sp_mem_t mem = sp_test_arena(t);
-  sp_str_t path = sp_fs_join_path(mem, sp_test_dir(t), sp_str_lit("rc"));
+  sp_str_t path = sp_fs_join_path(mem, test_dir_str(t), sp_str_lit("rc"));
   sp_must_ok(t, sp_fs_create_file_cstr(path, "A\n"));
 
   sp_must_ok(t, sp_fs_append(path, sp_str_lit("\nL\n")));
@@ -232,7 +232,7 @@ sp_test(fs_copy_file, busy) {
   sp_test_skip_on_win32();
 
   sp_mem_t mem = sp_test_arena(t);
-  sp_str_t dir = sp_test_dir(t);
+  sp_str_t dir = test_dir_str(t);
 
   sp_ps_output_t which = sp_ps_run(mem, (sp_ps_config_t) {
     .command = sp_str_lit("sh"),
@@ -242,7 +242,8 @@ sp_test(fs_copy_file, busy) {
   sp_str_t sleep_bin = sp_str_trim_right(which.out);
 
   sp_str_t target = sp_fs_join_path(mem, dir, sp_str_lit("bin/spn"));
-  sp_must_ok(t, sp_fs_copy_file(sleep_bin, target, SP_FS_ATOMIC_REPLACE));
+  sp_must_ok(t, sp_fs_create_dir(sp_fs_parent_path(target)));
+  sp_must_ok(t, sp_fs_copy_file_at(sp_path_at_cwd(sleep_bin), sp_path_at_cwd(target), SP_FS_ATOMIC_REPLACE));
 
   sp_ps_t running = sp_ps_create(mem, (sp_ps_config_t) {
     .command = target,
@@ -254,7 +255,7 @@ sp_test(fs_copy_file, busy) {
   sp_str_t source = sp_fs_join_path(mem, dir, sp_str_lit("src"));
   sp_must_ok(t, sp_fs_create_file_cstr(source, "N"));
 
-  sp_err_t err = sp_fs_copy_file(source, target, SP_FS_ATOMIC_REPLACE);
+  sp_err_t err = sp_fs_copy_file_at(sp_path_at_cwd(source), sp_path_at_cwd(target), SP_FS_ATOMIC_REPLACE);
 
   sp_ps_kill(&running);
   sp_ps_wait(&running);

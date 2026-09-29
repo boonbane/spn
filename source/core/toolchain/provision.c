@@ -30,7 +30,8 @@ sp_str_t spn_toolchain_store_path(spn_toolchain_store_t* store, spn_artifact_t a
 sp_str_t spn_artifact_resolve_url(sp_mem_t mem, spn_artifact_t artifact, sp_str_t mirror) {
   if (sp_str_empty(mirror)) return artifact.url;
 
-  sp_str_t name = sp_fs_get_name(artifact.url);
+  s32 slash = sp_str_find_c8_reverse(artifact.url, '/');
+  sp_str_t name = sp_str_suffix(artifact.url, (s32)artifact.url.len - slash - 1);
   if (sp_str_empty(name)) return artifact.url;
 
   while (mirror.len && mirror.data[mirror.len - 1] == '/') {

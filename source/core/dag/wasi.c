@@ -290,7 +290,7 @@ static void wasi_observe_dir(spn_dag_wasi_t* w, sp_str_t dir) {
   wasi_push_obs(w, SPN_DAG_OBS_ENUMERATION, dir);
 
   sp_mem_arena_marker_t s = sp_mem_begin_scratch();
-  sp_fs_for_recursive(s.mem, dir, it) {
+  sp_fs_for_recursive(s.mem, sp_path_at_cwd(dir), it) {
     if (wasi_written(w, it.entry.path)) {
       continue;
     }

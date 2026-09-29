@@ -1,7 +1,7 @@
 #include "harness.h"
 
 sp_test(harness, dir) {
-  sp_str_t dir = sp_test_dir(t);
+  sp_str_t dir = test_dir_str(t);
   sp_must(t, sp_fs_exists(dir));
   sp_must(t, sp_str_contains(dir, sp_test_get_name(t)));
 
@@ -16,7 +16,7 @@ sp_test(harness, dir) {
 }
 
 sp_test(harness, dir_distinct) {
-  sp_str_t dir = sp_test_dir(t);
+  sp_str_t dir = test_dir_str(t);
   sp_must(t, sp_fs_exists(dir));
   sp_must(t, sp_str_contains(dir, sp_test_get_name(t)));
 

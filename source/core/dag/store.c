@@ -661,7 +661,7 @@ spn_err_t spn_dag_store_put_file(spn_dag_store_t* store, sp_str_t path, sp_str_t
       if (!sp_fs_is_file(blob)) {
         sp_str_buf_t buf = sp_zero;
         sp_fs_create_dir(spn_path_str(store->roots, sp_str_buf_as_mem(&buf), get_blob_dir(store, s.mem, *digest)));
-        if (sp_fs_link(path, blob, SP_FS_LINK_HARD) && sp_fs_copy_file(path, blob, SP_FS_ATOMIC_REPLACE)) {
+        if (sp_fs_create_hard_link(path, blob) && sp_fs_copy_file_at(sp_path_at_cwd(path), sp_path_at_cwd(blob), SP_FS_ATOMIC_REPLACE)) {
           err = SPN_ERR_DAG_STORE_WRITE;
         }
         if (!err && sp_fs_set_readonly(blob)) {
@@ -770,9 +770,9 @@ spn_err_t spn_dag_store_materialize(spn_dag_store_t* store, spn_dag_digest_t dig
       sp_str_t stored = get_blob_path(store, s.mem, digest, name);
       sp_str_t staged = sp_fmt(s.mem, "{}.tmp", sp_fmt_str(path)).value;
       sp_fs_create_dir(sp_fs_parent_path(path));
-      sp_err_t rc = sp_fs_link(stored, staged, SP_FS_LINK_HARD);
+      sp_err_t rc = sp_fs_create_hard_link(stored, staged);
       if (rc) {
-        rc = sp_fs_copy_file(stored, path, SP_FS_ATOMIC_REPLACE);
+        rc = sp_fs_copy_file_at(sp_path_at_cwd(stored), sp_path_at_cwd(path), SP_FS_ATOMIC_REPLACE);
       }
       else {
         rc = sp_sys_rename_s(sp_sys_get_root(0), staged, sp_sys_get_root(0), path);
@@ -819,8 +819,8 @@ spn_err_t spn_dag_store_put_tree(spn_dag_store_t* store, sp_str_t dir, spn_dag_d
 
   sp_da(spn_dag_action_output_t) entries = sp_da_new(s.mem, spn_dag_action_output_t);
   u32 start = dir.len + 1;
-  sp_fs_it_t walk = sp_fs_it_new_recursive(s.mem, dir);
-  while (!err && sp_fs_it_next(&walk)) {
+  sp_fs_it_t walk = sp_fs_it_new(s.mem, dir);
+  while (!err && sp_fs_it_walk(&walk)) {
     if (walk.entry.kind == SP_FS_KIND_DIR) {
       continue;
     }

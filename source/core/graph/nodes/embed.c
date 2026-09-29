@@ -81,8 +81,8 @@ spn_err_t spn_dag_exec_embed(spn_dag_t* g, spn_dag_action_t* action, void* user_
         sp_str_t dir = spn_path_str(&spn.roots, sp_str_buf_as_mem(&buf), root);
         spn_dag_observe(obs, (spn_dag_obs_t) { .kind = SPN_DAG_OBS_ENUMERATION, .path = root });
         u32 start = dir.len + 1;
-        sp_fs_it_t walk = sp_fs_it_new_recursive(scratch.mem, dir);
-        while (sp_fs_it_next(&walk)) {
+        sp_fs_it_t walk = sp_fs_it_new(scratch.mem, dir);
+        while (sp_fs_it_walk(&walk)) {
           sp_fs_entry_t entry = walk.entry;
           sp_str_t rel = sp_str_suffix(entry.path, (s32)(entry.path.len - start));
           if (entry.kind == SP_FS_KIND_DIR) {

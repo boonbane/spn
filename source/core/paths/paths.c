@@ -85,7 +85,7 @@ sp_str_t spn_path_roots_set(spn_path_roots_t* roots, sp_mem_t mem, spn_path_root
   sp_assert(!(roots->opened & mask));
   roots->dirs[kind] = canonical_dir(mem, dir);
   roots->fds[kind] = SP_SYS_INVALID_FD;
-  if (!sp_sys_open_dir_s(sp_sys_get_root(0), roots->dirs[kind], &roots->fds[kind])) {
+  if (!sp_sys_open_dir_s(sp_sys_get_root(0), roots->dirs[kind], 0, &roots->fds[kind])) {
     roots->opened |= mask;
   }
   return roots->dirs[kind];
@@ -234,7 +234,8 @@ spn_path_t spn_path_join(sp_mem_t mem, spn_path_t base, sp_str_t sub) {
 }
 
 spn_path_t spn_path_parent(spn_path_t path) {
-  return (spn_path_t) { .root = path.root, .sub = sp_fs_parent_path(path.sub) };
+  sp_str_t parent = sp_fs_parent_path(path.sub);
+  return (spn_path_t) { .root = path.root, .sub = sp_str_equal(parent, sp_str_lit(".")) ? sp_str_lit("") : parent };
 }
 
 spn_path_t spn_path_suffix(sp_mem_t mem, spn_path_t path, sp_str_t suffix) {

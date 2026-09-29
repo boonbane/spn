@@ -178,7 +178,7 @@ static sp_str_t remote_head_message(sp_mem_t mem, sp_str_t remote) {
 
 sp_test_each(index_transaction, publish, txn_test_t, tests, .setup = spn_test_ctx_setup) {
   sp_mem_t mem = sp_test_arena(t);
-  sp_str_t tmp = sp_test_dir(t);
+  sp_str_t tmp = test_dir_str(t);
 
   sp_str_t seed = sp_fs_join_path(mem, tmp, sp_str_lit("seed"));
   sp_str_t remote = sp_fs_join_path(mem, tmp, sp_str_lit("remote.git"));
@@ -207,9 +207,9 @@ sp_test_each(index_transaction, publish, txn_test_t, tests, .setup = spn_test_ct
   }
 
   if (it->remote.reject_push) {
-    sp_must_ok(t, sp_fs_copy_file(
-      test_repo_path(mem, sp_str_lit("test/core/index/hooks/reject_once")),
-      sp_fs_join_path(mem, remote, sp_str_lit("hooks/pre-receive")),
+    sp_must_ok(t, sp_fs_copy_file_at(
+      sp_path_at_cwd(test_repo_path(mem, sp_str_lit("test/core/index/hooks/reject_once"))),
+      sp_path_at_cwd(sp_fs_join_path(mem, remote, sp_str_lit("hooks/pre-receive"))),
       SP_FS_ATOMIC_REPLACE));
   }
 

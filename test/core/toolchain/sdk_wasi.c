@@ -20,7 +20,7 @@ static const test_t tests [] = {
 
 sp_test_each(sdk_wasi, spelling, test_t, tests) {
   sp_mem_t mem = sp_test_arena(t);
-  sp_str_t root = sp_test_dir(t);
+  sp_str_t root = test_dir_str(t);
   if (it->dir) {
     sp_fs_create_dir(sp_fs_join_path(mem, root, sp_cstr_as_str(it->dir)));
   }

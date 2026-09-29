@@ -87,7 +87,7 @@ sp_test_each(index_cache, get_package, cache_test_t, tests, .setup = spn_test_ct
     if (it->indexes[slot].fixture) {
       location = test_repo_path(mem, sp_test_format(t, "test/core/index/indexes/{}", sp_fmt_cstr(it->indexes[slot].fixture)));
     } else {
-      location = sp_fs_join_path(mem, sp_test_dir(t), sp_test_format(t, "{}", sp_fmt_uint(slot)));
+      location = sp_fs_join_path(mem, test_dir_str(t), sp_test_format(t, "{}", sp_fmt_uint(slot)));
       sp_fs_create_dir(location);
     }
 

@@ -45,7 +45,7 @@ static const test_t tests [] = {
 
 sp_test_each(lazy_log, write, test_t, tests) {
   sp_mem_t mem = sp_test_arena(t);
-  sp_str_t path = sp_fs_join_path(mem, sp_test_dir(t), sp_str_lit("x.log"));
+  sp_str_t path = sp_fs_join_path(mem, test_dir_str(t), sp_str_lit("x.log"));
   if (it->seed) {
     sp_fs_create_file_str(path, sp_str_view(it->seed));
   }
@@ -72,7 +72,7 @@ sp_test_each(lazy_log, write, test_t, tests) {
 
 sp_test(lazy_log, close_latches) {
   sp_mem_t mem = sp_test_arena(t);
-  sp_str_t path = sp_fs_join_path(mem, sp_test_dir(t), sp_str_lit("x.log"));
+  sp_str_t path = sp_fs_join_path(mem, test_dir_str(t), sp_str_lit("x.log"));
 
   spn_lazy_log_t log;
   spn_lazy_log_init(&log, path);
@@ -87,7 +87,7 @@ sp_test(lazy_log, close_latches) {
 
 sp_test(lazy_log, close_unopened_latches) {
   sp_mem_t mem = sp_test_arena(t);
-  sp_str_t path = sp_fs_join_path(mem, sp_test_dir(t), sp_str_lit("x.log"));
+  sp_str_t path = sp_fs_join_path(mem, test_dir_str(t), sp_str_lit("x.log"));
 
   spn_lazy_log_t log;
   spn_lazy_log_init(&log, path);
@@ -101,7 +101,7 @@ sp_test(lazy_log, close_unopened_latches) {
 
 sp_test(lazy_log, failed_open_latches) {
   spn_lazy_log_t log;
-  spn_lazy_log_init(&log, sp_test_dir(t));
+  spn_lazy_log_init(&log, test_dir_str(t));
 
   sp_expect_eq(t, sp_io_write_str(&log.writer, sp_str_lit("x"), SP_NULLPTR), SP_ERR_IO);
   sp_expect_eq(t, sp_io_write_str(&log.writer, sp_str_lit("x"), SP_NULLPTR), SP_ERR_IO);

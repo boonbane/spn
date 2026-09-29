@@ -27,7 +27,7 @@ s32 main(s32 num_args, const c8** args) {
   sp_mem_t mem = sp_mem_os_new();
 
   sp_fs_create_dir(sp_str_lit("/usr/local/bin"));
-  sp_fs_create_sym_link(sp_str_lit(CONTAINER_SPN), sp_str_lit("/usr/local/bin/spn"));
+  sp_fs_create_sym_link(sp_str_lit(CONTAINER_SPN), sp_str_lit("/usr/local/bin/spn"), SP_FS_KIND_FILE);
 
   execute(mem, (sp_ps_config_cstr_t) {
     .command = CONTAINER_SPN,

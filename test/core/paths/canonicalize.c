@@ -1,4 +1,5 @@
 #include "paths/paths_test.h"
+#include "fixture.h"
 
 #define CANONICALIZE_MAX_SETUP 8
 
@@ -130,7 +131,7 @@ static spn_path_t canonicalize_ref(sp_mem_t mem, sp_str_t sandbox, canonicalize_
 
 sp_test_each(paths_canonicalize, resolve, canonicalize_test_t, canonicalize_tests) {
   sp_mem_t mem = sp_test_arena(t);
-  sp_str_t sandbox = sp_fs_canonicalize_path(mem, sp_test_dir(t));
+  sp_str_t sandbox = sp_fs_canonicalize_path(mem, test_dir_str(t));
   sp_expect_gt(t, sandbox.len, 0u);
 
   u32 count = 0;
@@ -148,7 +149,8 @@ sp_test_each(paths_canonicalize, resolve, canonicalize_test_t, canonicalize_test
         break;
       }
       case CANONICALIZE_SETUP_SYMLINK: {
-        if (sp_fs_create_sym_link(sp_fs_join_path(mem, sandbox, sp_str_view(s->target)), path)) {
+        sp_str_t target = sp_fs_join_path(mem, sandbox, sp_str_view(s->target));
+        if (sp_fs_create_sym_link(target, path, sp_fs_is_target_dir(target) ? SP_FS_KIND_DIR : SP_FS_KIND_FILE)) {
           return sp_test_skip(t, "symlinks not available");
         }
         break;

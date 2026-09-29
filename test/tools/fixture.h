@@ -2,10 +2,20 @@
 #define SPN_FIXTURE_H
 
 #include "sp.h"
+#include "sp/sp_test.h"
 #include "macro/macro.h"
 
 sp_str_t test_repo_root(sp_mem_t mem);
 sp_str_t test_repo_path(sp_mem_t mem, sp_str_t rel);
+
+static inline sp_str_t test_dir_str(sp_test_t* t) {
+  sp_path_t dir = sp_test_dir(t);
+  if (sp_fs_is_absolute(dir.sub)) {
+    return dir.sub;
+  }
+  sp_mem_t mem = sp_test_arena(t);
+  return sp_fs_join_path(mem, sp_fs_get_cwd_path(mem), dir.sub);
+}
 
 static inline sp_str_t test_read_file(sp_mem_t mem, sp_str_t path) {
   sp_str_t content = sp_zero;

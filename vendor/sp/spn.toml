@@ -10,7 +10,7 @@ system_deps = [
 
 [package.upstream]
 url = "https://github.com/tspader/sp.git"
-commit = "36a2176e82c1f8da27bc94584e98d213caa9d6ad"
+commit = "a898dadc71683aed99963b1542c17dc7435d5a7f"
 
 [[lib]]
 name = "sp"
