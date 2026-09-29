@@ -136,6 +136,7 @@ static s32 obs_order(const void* a, const void* b) {
 sp_test_each(dag_glob, observe, test_t, tests) {
   sp_mem_t mem = sp_test_arena(t);
   sp_path_t sandbox = sp_path_join(mem, sp_test_dir(t), sp_str_lit("R"));
+  sp_must_ok(t, sp_fs_create_dir_at(sandbox));
 
   spn_path_roots_t storage = sp_zero;
   spn_path_roots_set(&storage, mem, SPN_PATH_ROOT_PROJECT, sandbox);
@@ -284,6 +285,7 @@ static s32 path_order(const void* a, const void* b) {
 sp_test_each(dag_glob, iterate, iterate_test_t, iterate_tests) {
   sp_mem_t mem = sp_test_arena(t);
   sp_path_t sandbox = sp_path_join(mem, sp_test_dir(t), sp_str_lit("R"));
+  sp_must_ok(t, sp_fs_create_dir_at(sandbox));
 
   spn_path_roots_t roots = sp_zero;
   spn_path_roots_set(&roots, mem, SPN_PATH_ROOT_PROJECT, sandbox);

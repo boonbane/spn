@@ -310,8 +310,9 @@ void spn_dag_wasi_observe_read(wasm_module_inst_t instance, spn_path_t host) {
   sp_mem_arena_marker_t s = sp_mem_begin_scratch();
   host = spn_path_canonicalize_head(s.mem, w->roots, host);
   if (!wasi_written(w, host)) {
+    sp_path_t at = spn_path_at(w->roots, host);
     sp_sys_file_meta_t meta = sp_zero;
-    if (spn_get_path_metadata(w->roots, host, &meta)) {
+    if (sp_sys_get_path_metadata_s(at.dir, at.sub, &meta)) {
       wasi_push_obs(w, SPN_DAG_OBS_ABSENT, host);
     }
     else if (meta.kind == SP_FS_KIND_DIR) {

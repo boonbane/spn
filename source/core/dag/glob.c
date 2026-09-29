@@ -68,8 +68,9 @@ spn_err_t spn_dag_glob(sp_mem_t mem, const spn_path_roots_t* roots, spn_path_t p
   if (glob.literal) {
     spn_dag_obs_t observation = sp_zero;
 
+    sp_path_t at = spn_path_at(roots, pattern);
     sp_sys_file_meta_t file = sp_zero;
-    switch (spn_get_path_metadata(roots, pattern, &file)) {
+    switch (sp_sys_get_path_metadata_s(at.dir, at.sub, &file)) {
       case SP_OK: observation.kind = SPN_DAG_OBS_FILE; break;
       case SP_ERR_SYS_NOT_FOUND: observation.kind = SPN_DAG_OBS_ABSENT; break;
       default: return SPN_ERR_DAG_GLOB;

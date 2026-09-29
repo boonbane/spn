@@ -7,13 +7,13 @@
 #include "fs/fs.h"
 #include "paths/paths.h"
 
-void spn_git_cache_init(spn_git_cache_t* cache, sp_mem_t mem, sp_intern_t* intern, const spn_path_roots_t* roots, spn_path_t root) {
+void spn_git_cache_init(spn_git_cache_t* cache, sp_mem_t mem, sp_intern_t* intern, const spn_path_roots_t* roots, spn_path_t db, spn_path_t checkouts) {
   *cache = (spn_git_cache_t) {
     .mem = mem,
     .intern = intern,
     .roots = roots,
-    .db.dir = spn_path_classify(mem, roots, spn_path_join(mem, root, SP_LIT("db"))),
-    .checkouts.dir = spn_path_classify(mem, roots, spn_path_join(mem, root, SP_LIT("checkouts"))),
+    .db.dir = spn_path_copy(mem, db),
+    .checkouts.dir = spn_path_copy(mem, checkouts),
   };
 
   sp_str_ht_init(mem, cache->db.entries);

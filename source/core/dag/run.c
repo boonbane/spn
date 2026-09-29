@@ -113,8 +113,9 @@ spn_err_t spn_dag_file_cache_stat(spn_dag_file_cache_t* c, spn_path_t path, sp_s
   if (c->stats) {
     sp_atomic_u32_add(&c->stats->stats, 1, SP_ATOMIC_RELAXED);
   }
+  sp_path_t at = spn_path_at(c->roots, path);
   sp_sys_file_meta_t sys = sp_zero;
-  if (spn_get_path_metadata(c->roots, path, &sys)) {
+  if (sp_sys_get_path_metadata_s(at.dir, at.sub, &sys)) {
     return SPN_ERR_DAG_STAT;
   }
 
@@ -577,8 +578,9 @@ static spn_err_t resolve_one(spn_dag_file_cache_t* files, const spn_dag_obs_t* o
       return membership_digest(spn_path_at(files->roots, o->path), o->filter, digest);
     }
     case SPN_DAG_OBS_ABSENT: {
+      sp_path_t at = spn_path_at(files->roots, o->path);
       sp_sys_file_meta_t sys = sp_zero;
-      sp_err_t rc = spn_get_path_metadata(files->roots, o->path, &sys);
+      sp_err_t rc = sp_sys_get_path_metadata_s(at.dir, at.sub, &sys);
       if (rc == SP_ERR_SYS_NOT_FOUND) {
         return SPN_OK;
       }

@@ -12,14 +12,8 @@ sp_path_t spn_path_at(const spn_path_roots_t* roots, spn_path_t path) {
   return sp_path_at(roots->fds[path.root], sp_str_empty(path.sub) ? sp_str_lit(".") : path.sub);
 }
 
-sp_err_t spn_get_path_metadata(const spn_path_roots_t* roots, spn_path_t path, sp_sys_file_meta_t* meta) {
-  sp_path_t at = spn_path_at(roots, path);
-  return sp_sys_get_path_metadata_s(at.dir, at.sub, meta);
-}
-
 spn_err_t spn_path_roots_set(spn_path_roots_t* roots, sp_mem_t mem, spn_path_root_t kind, sp_path_t dir) {
   sp_assert(!(roots->opened & spn_path_root_mask(kind)));
-  sp_try_as(sp_fs_create_dir_at(dir), SPN_ERROR);
   sp_str_t canonical = sp_fs_canonicalize_path_at(mem, dir);
   if (sp_str_empty(canonical)) {
     return SPN_ERROR;
@@ -104,7 +98,7 @@ bool spn_path_normal(sp_str_t path) {
   return seg_normal(sp_str(path.data + start, it - start));
 }
 
-spn_path_t spn_path_classify(sp_mem_t mem, const spn_path_roots_t* roots, spn_path_t path) {
+static spn_path_t classify(sp_mem_t mem, const spn_path_roots_t* roots, spn_path_t path) {
   if (path.root != SPN_PATH_ROOT_NONE && sp_str_empty(roots->dirs[path.root])) {
     return spn_path_copy(mem, path);
   }
@@ -120,7 +114,7 @@ spn_path_t spn_path_classify(sp_mem_t mem, const spn_path_roots_t* roots, spn_pa
 }
 
 spn_path_t spn_path_anchor(sp_mem_t mem, const spn_path_roots_t* roots, spn_path_t path) {
-  path = spn_path_classify(mem, roots, path);
+  path = classify(mem, roots, path);
   if (path.root == SPN_PATH_ROOT_NONE || !sp_str_empty(roots->dirs[path.root])) {
     sp_mem_arena_marker_t s = sp_mem_begin_scratch_for(mem);
     sp_assert(!spn_path_roots_intersect(roots, spn_path_str(roots, s.mem, path)));
@@ -241,6 +235,7 @@ spn_path_t spn_path_staging(sp_mem_t mem, spn_path_t path, sp_str_t extension) {
 }
 
 spn_err_t spn_path_stage_dir(sp_mem_t mem, const spn_path_roots_t* roots, spn_path_t path, sp_str_t extension, spn_path_t* dir) {
+  sp_try_as(sp_fs_create_dir_at(spn_path_at(roots, spn_path_parent(path))), SPN_ERROR);
   sp_for(attempt, 16) {
     spn_path_t candidate = spn_path_staging(mem, path, extension);
     sp_path_t at = spn_path_at(roots, candidate);
@@ -380,7 +375,7 @@ spn_path_t spn_tree_path(sp_mem_t mem, const spn_path_roots_t* roots, spn_tree_r
   }
   sp_assert(spn_path_normal(str));
   sp_mem_arena_marker_t s = sp_mem_begin_scratch_for(mem);
-  spn_path_t result = spn_path_classify(mem, roots, spn_path_join(s.mem, spn_tree_root(tree, decl), str));
+  spn_path_t result = classify(mem, roots, spn_path_join(s.mem, spn_tree_root(tree, decl), str));
   sp_mem_end_scratch(s);
   return result;
 }

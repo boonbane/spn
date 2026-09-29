@@ -330,11 +330,11 @@ static spn_cc_t make_cc(sp_mem_t mem, sp_str_t root, const test_t* it) {
 sp_test_each(probe, resolve, test_t, tests, .setup = spn_test_ctx_setup) {
   sp_mem_t mem = sp_test_arena(t);
   sp_str_t root = test_dir_str(t);
-  spn_path_roots_t roots = sp_zero;
-  spn_path_roots_set(&roots, mem, SPN_PATH_ROOT_PROJECT, sp_path_resolve(sp_fs_join_path(mem, root, sp_str_lit("P"))));
   sp_fs_create_dir(sp_fs_join_path(mem, root, sp_str_lit("A")));
   sp_fs_create_dir(sp_fs_join_path(mem, root, sp_str_lit("B")));
   sp_fs_create_dir(sp_fs_join_path(mem, root, sp_str_lit("P/B")));
+  spn_path_roots_t roots = sp_zero;
+  spn_path_roots_set(&roots, mem, SPN_PATH_ROOT_PROJECT, sp_path_resolve(sp_fs_join_path(mem, root, sp_str_lit("P"))));
 
   sp_carr_for(it->files, at) {
     if (!it->files[at].path) {

@@ -229,8 +229,9 @@ static spn_err_t resolve_configure_source(spn_ctx_t* ctx, sp_str_t name, sp_da(s
     spn_path_t path = spn_tree_path(spn.mem, &ctx->roots, loaded->roots, declared[it].tree, declared[it].path);
     switch (declared[it].kind) {
       case SPN_SOURCE_FILE: {
+        sp_path_t at = spn_path_at(&ctx->roots, path);
         sp_sys_file_meta_t meta = sp_zero;
-        if (spn_get_path_metadata(&ctx->roots, path, &meta) || meta.kind != SP_FS_KIND_FILE) {
+        if (sp_sys_get_path_metadata_s(at.dir, at.sub, &meta) || meta.kind != SP_FS_KIND_FILE) {
           return spn_err_emit(ctx, (spn_err_union_t) {
             .kind = SPN_ERR_CONFIGURE_SOURCE_MISSING,
             .configure_source = {
@@ -271,8 +272,9 @@ static sp_da(spn_source_t) detect_configure_source(const spn_path_roots_t* roots
   sp_str_t candidates [] = { sp_str_lit("configure.c"), script };
   sp_carr_for(candidates, it) {
     spn_path_t path = spn_tree_path(spn.mem, roots, loaded->roots, SPN_TREE_MANIFEST, candidates[it]);
+    sp_path_t at = spn_path_at(roots, path);
     sp_sys_file_meta_t meta = sp_zero;
-    if (!spn_get_path_metadata(roots, path, &meta) && meta.kind == SP_FS_KIND_FILE) {
+    if (!sp_sys_get_path_metadata_s(at.dir, at.sub, &meta) && meta.kind == SP_FS_KIND_FILE) {
       sp_da_push(source, ((spn_source_t) { .kind = SPN_SOURCE_FILE, .path = path }));
       break;
     }
@@ -431,11 +433,13 @@ static spn_err_t load_package(spn_session_t* session, spn_resolved_pkg_t* pkg, s
   if (sp_da_empty(loaded->build.source)) {
     spn_path_t candidate = spn_tree_path(spn.mem, roots, loaded->roots, SPN_TREE_MANIFEST, sp_str_lit("build.c"));
     spn_path_t script = spn_tree_path(spn.mem, roots, loaded->roots, SPN_TREE_MANIFEST, pkg->origin.paths.script);
+    sp_path_t candidate_at = spn_path_at(roots, candidate);
+    sp_path_t script_at = spn_path_at(roots, script);
     sp_sys_file_meta_t meta = sp_zero;
-    if (!spn_get_path_metadata(roots, candidate, &meta) && meta.kind == SP_FS_KIND_FILE) {
+    if (!sp_sys_get_path_metadata_s(candidate_at.dir, candidate_at.sub, &meta) && meta.kind == SP_FS_KIND_FILE) {
       sp_da_push(loaded->build.source, ((spn_source_t) { .kind = SPN_SOURCE_FILE, .path = candidate }));
     }
-    else if (package_has_build_deps(pkg) && !spn_get_path_metadata(roots, script, &meta) && meta.kind == SP_FS_KIND_FILE) {
+    else if (package_has_build_deps(pkg) && !sp_sys_get_path_metadata_s(script_at.dir, script_at.sub, &meta) && meta.kind == SP_FS_KIND_FILE) {
       sp_da_push(loaded->build.source, ((spn_source_t) { .kind = SPN_SOURCE_FILE, .path = script }));
     }
   }

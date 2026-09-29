@@ -2,6 +2,7 @@
 
 typedef enum {
   SET_SETUP_NONE,
+  SET_SETUP_DIR,
   SET_SETUP_ALIAS,
   SET_SETUP_FILE,
 } set_setup_t;
@@ -19,10 +20,11 @@ typedef struct {
 } set_test_t;
 
 static const set_test_t set_tests [] = {
-  { .name = "missing_nested_dir_is_created",   .path = "A/B", .expect = { .dir = "A/B" } },
-  { .name = "existing_dir_is_reused",          .path = "",    .expect = { .dir = "" } },
-  { .name = "alias_stores_the_physical_dir",   .setup = SET_SETUP_ALIAS, .path = "L", .expect = { .dir = "A" } },
-  { .name = "file_in_the_way_fails",           .setup = SET_SETUP_FILE,  .path = "F", .expect = { .err = true } },
+  { .name = "sandbox_itself",                .path = "",  .expect = { .dir = "" } },
+  { .name = "existing_dir_is_opened",        .setup = SET_SETUP_DIR,   .path = "A", .expect = { .dir = "A" } },
+  { .name = "missing_dir_is_not_created",    .path = "A", .expect = { .err = true } },
+  { .name = "alias_stores_the_physical_dir", .setup = SET_SETUP_ALIAS, .path = "L", .expect = { .dir = "A" } },
+  { .name = "file_in_the_way_fails",         .setup = SET_SETUP_FILE,  .path = "F", .expect = { .err = true } },
 };
 
 sp_test_each(paths_set, root, set_test_t, set_tests) {
@@ -32,6 +34,10 @@ sp_test_each(paths_set, root, set_test_t, set_tests) {
 
   switch (it->setup) {
     case SET_SETUP_NONE: {
+      break;
+    }
+    case SET_SETUP_DIR: {
+      sp_must_ok(t, sp_fs_create_dir_at(sp_path_join(mem, sandbox, sp_str_lit("A"))));
       break;
     }
     case SET_SETUP_ALIAS: {
@@ -46,11 +52,13 @@ sp_test_each(paths_set, root, set_test_t, set_tests) {
     }
   }
 
+  sp_path_t dir = sp_path_join(mem, sandbox, sp_cstr_as_str(it->path));
   spn_path_roots_t roots = sp_zero;
-  spn_err_t err = spn_path_roots_set(&roots, mem, SPN_PATH_ROOT_PROJECT, sp_path_join(mem, sandbox, sp_cstr_as_str(it->path)));
+  spn_err_t err = spn_path_roots_set(&roots, mem, SPN_PATH_ROOT_PROJECT, dir);
   sp_expect_eq(t, err != SPN_OK, it->expect.err);
   if (it->expect.err) {
     sp_expect_eq(t, roots.opened, 0u);
+    sp_expect(t, !sp_fs_is_dir_at(dir));
     return SP_OK;
   }
 

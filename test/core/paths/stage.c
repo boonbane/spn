@@ -14,8 +14,8 @@ typedef struct {
 
 static const stage_test_t stage_tests [] = {
   { .name = "claims_a_sibling_of_the_target" },
-  { .name = "missing_parent_is_not_created", .parent = STAGE_PARENT_MISSING, .err = true },
-  { .name = "file_as_parent_fails",          .parent = STAGE_PARENT_FILE,    .err = true },
+  { .name = "missing_parent_is_created", .parent = STAGE_PARENT_MISSING },
+  { .name = "file_as_parent_fails",      .parent = STAGE_PARENT_FILE, .err = true },
 };
 
 sp_test_each(paths_stage, dir, stage_test_t, stage_tests) {
@@ -43,7 +43,6 @@ sp_test_each(paths_stage, dir, stage_test_t, stage_tests) {
   sp_expect_eq(t, err != SPN_OK, it->err);
   if (it->err) {
     sp_expect(t, spn_path_empty(staged));
-    sp_expect(t, !sp_fs_exists_at(spn_path_at(&roots, spn_path_parent(target))) || it->parent == STAGE_PARENT_FILE);
     return SP_OK;
   }
 

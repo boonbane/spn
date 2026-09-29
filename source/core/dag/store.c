@@ -685,8 +685,9 @@ spn_err_t spn_dag_store_locate(spn_dag_store_t* store, sp_mem_t mem, spn_dag_dig
     }
     case SPN_DAG_STORE_FILESYSTEM: {
       spn_path_t blob = get_blob(store, mem, digest, name);
+      sp_path_t at = spn_path_at(store->roots, blob);
       sp_sys_file_meta_t meta = sp_zero;
-      if (spn_get_path_metadata(store->roots, blob, &meta) || meta.kind != SP_FS_KIND_FILE) {
+      if (sp_sys_get_path_metadata_s(at.dir, at.sub, &meta) || meta.kind != SP_FS_KIND_FILE) {
         return SPN_ERR_DAG_STORE_MISSING;
       }
       *path = blob;
@@ -704,8 +705,9 @@ bool spn_dag_store_owns(spn_dag_store_t* store, spn_dag_digest_t digest, sp_str_
     }
     case SPN_DAG_STORE_FILESYSTEM: {
       sp_mem_arena_marker_t s = sp_mem_begin_scratch();
+      sp_path_t at = get_blob_at(store, s.mem, digest, name);
       sp_sys_file_meta_t blob = sp_zero;
-      sp_err_t rc = spn_get_path_metadata(store->roots, get_blob(store, s.mem, digest, name), &blob);
+      sp_err_t rc = sp_sys_get_path_metadata_s(at.dir, at.sub, &blob);
       sp_mem_end_scratch(s);
       return !rc && blob.device == file.device && blob.id == file.id;
     }

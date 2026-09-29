@@ -243,8 +243,10 @@ sp_test_each(provision, store, provision_test_t, tests, .setup = spn_test_ctx_se
   sp_must_eq(t, (u32)SPN_OK, (u32)spn_digest_file_hex(SPN_DIGEST_SHA256, mem, sp_path_resolve(stub.tarball), &sha));
   sp_must_eq(t, 64u, sha.len);
 
+  sp_path_t store_dir = sp_path_join(mem, sp_test_dir(t), sp_str_lit("store"));
+  sp_must_ok(t, sp_fs_create_dir_at(store_dir));
   spn_path_roots_t roots = sp_zero;
-  spn_path_roots_set(&roots, mem, SPN_PATH_ROOT_TOOLCHAIN, sp_path_join(mem, sp_test_dir(t), sp_str_lit("store")));
+  spn_path_roots_set(&roots, mem, SPN_PATH_ROOT_TOOLCHAIN, store_dir);
   spn_toolchain_store_t store = {
     .mem = mem,
     .roots = &roots,
