@@ -1,5 +1,6 @@
 #include "spn_test.h"
 #include "core/core.h"
+#include "fs/fs.h"
 
 #define COPY_TEST_MAX_ENTRIES 8
 
@@ -181,7 +182,7 @@ sp_test_each(fs_update, cases, test_t, tests) {
   sp_for(i, files) {
     file_t file = it->setup.files[i];
     sp_path_t path = sp_path_join(mem, root, sp_cstr_as_str(file.path));
-    sp_must_ok(t, sp_fs_create_dir_at(sp_path_parent(mem, path)));
+    sp_must_ok(t, sp_fs_create_parent(path));
     sp_must_ok(t, sp_fs_create_file_cstr_at(path, file.content));
   }
 

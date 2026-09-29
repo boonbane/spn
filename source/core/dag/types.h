@@ -146,7 +146,7 @@ typedef struct {
   sp_ht(spn_dag_file_id_t, spn_dag_file_meta_t) entries;
   sp_ht(spn_path_t, sp_sys_file_meta_t) metadata;
   sp_ht(spn_path_t, spn_dag_file_meta_t) hints;
-  sp_ht(sp_str_t, spn_path_t) canonical;
+  sp_ht(spn_path_t, spn_path_t) canonical;
   bool hints_dirty;
   spn_dag_stamp_t stamp;
   spn_dag_stats_t* stats;

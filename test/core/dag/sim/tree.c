@@ -121,7 +121,7 @@ static spn_err_t execute_action(spn_dag_t* g, spn_dag_action_t* action, void* us
       break;
     }
     sp_path_t path = dag_test_at(&env->dag, spn_path_join(env->dag.mem, outputs[0], sp_cstr_as_str(env->run->files[it].path)));
-    sp_fs_create_dir_at(sp_path_at(path.dir, sp_fs_parent_path(path.sub)));
+    sp_fs_create_parent(path);
     if (sp_fs_create_file_str_at(path, sp_cstr_as_str(env->run->files[it].content))) {
       return SPN_ERR_DAG_ACTION;
     }

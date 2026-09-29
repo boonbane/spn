@@ -162,36 +162,6 @@ sp_test(fs_lock, acquire_blocks_until_release, .serial = true) {
   return SP_OK;
 }
 
-sp_test(fs_staging, claims_distinct_dirs) {
-  sp_mem_t mem = sp_test_arena(t);
-  sp_path_t path = sp_path_join(mem, sp_test_dir(t), sp_str_lit("checkout"));
-
-  sp_path_t a = sp_zero;
-  sp_path_t b = sp_zero;
-  sp_must_ok(t, sp_fs_staging_dir(mem, path, sp_str_lit("tmp"), &a));
-  sp_must_ok(t, sp_fs_staging_dir(mem, path, sp_str_lit("tmp"), &b));
-  sp_expect(t, !sp_str_equal(a.sub, b.sub));
-  sp_expect(t, sp_fs_is_dir_at(a));
-  sp_expect(t, sp_fs_is_dir_at(b));
-  sp_expect(t, sp_str_starts_with(a.sub, path.sub));
-  sp_expect(t, sp_str_ends_with(a.sub, sp_str_lit("tmp")));
-
-  return SP_OK;
-}
-
-sp_test(fs_staging, fails_when_parent_is_file) {
-  sp_mem_t mem = sp_test_arena(t);
-  sp_path_t file = sp_path_join(mem, sp_test_dir(t), sp_str_lit("occupied"));
-  sp_fs_create_file_str_at(file, sp_str_lit("x"));
-  sp_path_t path = sp_path_join(mem, file, sp_str_lit("checkout"));
-
-  sp_path_t dir = sp_zero;
-  sp_expect_ne(t, sp_fs_staging_dir(mem, path, sp_str_lit("tmp"), &dir), SP_OK);
-  sp_expect(t, sp_str_empty(dir.sub));
-
-  return SP_OK;
-}
-
 sp_test(fs_append, creates) {
   sp_mem_t mem = sp_test_arena(t);
   sp_path_t path = sp_path_join(mem, sp_test_dir(t), sp_str_lit("rc"));

@@ -82,7 +82,7 @@ void                spn_dag_file_cache_invalidate_all(spn_dag_file_cache_t* c);
 spn_err_t           spn_dag_file_cache_stat(spn_dag_file_cache_t* c, spn_path_t path, sp_sys_file_meta_t* meta);
 spn_err_t           spn_dag_file_cache_digest(spn_dag_file_cache_t* c, spn_path_t path, spn_dag_digest_t* digest);
 bool                spn_dag_file_cache_recorded(spn_dag_file_cache_t* c, spn_path_t path);
-spn_path_t          spn_dag_file_cache_canonical(spn_dag_file_cache_t* c, sp_str_t path);
+spn_path_t          spn_dag_file_cache_canonical(spn_dag_file_cache_t* c, spn_path_t path);
 
 spn_err_t           spn_dag_execute(spn_dag_t* g, spn_dag_id_t action, spn_dag_env_t* env);
 spn_err_t           spn_dag_run(spn_dag_t* g, spn_dag_env_t* env);

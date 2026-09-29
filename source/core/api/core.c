@@ -80,11 +80,7 @@ spn_path_t spn_api_tree_path(spn_pkg_unit_t* unit, const c8* fn, const c8* path)
 }
 
 static spn_path_t api_path(spn_pkg_unit_t* unit, const c8* fn, const c8* path) {
-  spn_path_t made = spn_api_tree_path(unit, fn, path);
-  if (spn_path_empty(made)) {
-    return made;
-  }
-  return made;
+  return spn_api_tree_path(unit, fn, path);
 }
 
 static spn_target_t* wrap(spn_pkg_unit_t* unit, spn_target_info_t* info) {
@@ -194,12 +190,13 @@ s32 spn_api_copy(spn_path_t from, spn_path_t to) {
   if (!sp_glob_parse_meta(from.sub).literal) {
     return spn_fs_update_glob(source, dest);
   }
-  if (!sp_fs_is_dir_at(source) && !sp_fs_is_dir_at(dest)) {
+  bool source_is_dir = sp_fs_is_dir_at(source);
+  if (!source_is_dir && !sp_fs_is_dir_at(dest)) {
     return spn_fs_update_file(source, dest);
   }
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   sp_path_t into = spn_path_at(&spn.roots, spn_path_join(scratch.mem, to, sp_fs_get_name(from.sub)));
-  s32 err = sp_fs_is_dir_at(source)
+  s32 err = source_is_dir
     ? (sp_fs_copy_at(source, into, SP_FS_ATOMIC_REPLACE) ? SPN_ERROR : SPN_OK)
     : spn_fs_update_file(source, into);
   sp_mem_end_scratch(scratch);

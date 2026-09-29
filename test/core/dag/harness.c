@@ -1,4 +1,5 @@
 #include "dag/dag_test.h"
+#include "fs/fs.h"
 
 const spn_dag_store_kind_t dag_test_store_kinds [2] = {
   SPN_DAG_STORE_MEM,
@@ -83,7 +84,7 @@ void dag_test_env_create(dag_test_env_t* env, sp_str_t rel, sp_str_t content) {
 }
 
 void dag_test_create(sp_path_t path, sp_str_t content) {
-  sp_fs_create_dir_at(sp_path_at(path.dir, sp_fs_parent_path(path.sub)));
+  sp_fs_create_parent(path);
   sp_fs_remove_file_at(path);
 
   sp_io_file_writer_t f = sp_zero;

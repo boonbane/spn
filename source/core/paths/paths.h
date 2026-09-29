@@ -20,6 +20,8 @@ spn_path_t spn_path_copy(sp_mem_t mem, spn_path_t path);
 spn_path_t spn_path_join(sp_mem_t mem, spn_path_t base, sp_str_t sub);
 spn_path_t spn_path_parent(spn_path_t path);
 spn_path_t spn_path_suffix(sp_mem_t mem, spn_path_t path, sp_str_t suffix);
+spn_path_t spn_path_staging(sp_mem_t mem, spn_path_t path, sp_str_t extension);
+spn_err_t spn_path_stage_dir(sp_mem_t mem, const spn_path_roots_t* roots, spn_path_t path, sp_str_t extension, spn_path_t* dir);
 sp_str_t spn_path_str(const spn_path_roots_t* roots, sp_mem_t mem, spn_path_t path);
 bool spn_path_empty(spn_path_t path);
 bool spn_path_equal(spn_path_t a, spn_path_t b);

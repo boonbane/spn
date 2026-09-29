@@ -283,15 +283,15 @@ static sp_da(spn_source_t) detect_configure_source(const spn_path_roots_t* roots
 static spn_err_t load_manifest(spn_session_t* session, sp_str_t name, spn_path_t manifest, spn_pkg_info_t** info) {
   spn_pkg_info_t* parsed = sp_alloc_type(spn.mem, spn_pkg_info_t);
   spn_codegen_issues_t issues = sp_zero;
-  sp_str_t path = spn_path_str(&spn.roots, spn.mem, manifest);
   spn_err_t loaded = spn_pkg_load(spn.mem, session->ctx->intern, spn_path_at(&spn.roots, manifest), SPN_MANIFEST_DEP, parsed, &issues);
-  if (loaded == SPN_ERR_NO_MANIFEST) {
-    return spn_err_emit(session->ctx, (spn_err_union_t) {
-      .kind = SPN_ERR_NO_MANIFEST,
-      .no_manifest = { .path = path },
-    });
-  }
   if (loaded) {
+    sp_str_t path = spn_path_str(&spn.roots, spn.mem, manifest);
+    if (loaded == SPN_ERR_NO_MANIFEST) {
+      return spn_err_emit(session->ctx, (spn_err_union_t) {
+        .kind = SPN_ERR_NO_MANIFEST,
+        .no_manifest = { .path = path },
+      });
+    }
     return spn_err_emit(session->ctx, (spn_err_union_t) {
       .kind = SPN_ERR_MANIFEST_ISSUES,
       .manifest = { .name = name, .path = path, .issues = spn_codegen_issues_to_err(spn.mem, issues) },
@@ -304,7 +304,7 @@ static spn_err_t load_manifest(spn_session_t* session, sp_str_t name, spn_path_t
   if (!sp_str_equal(parsed->name, requested)) {
     return spn_err_emit(session->ctx, (spn_err_union_t) {
       .kind = SPN_ERR_PKG_MISMATCH,
-      .mismatch = { .path = path, .declared = parsed->name, .requested = name },
+      .mismatch = { .path = spn_path_str(&spn.roots, spn.mem, manifest), .declared = parsed->name, .requested = name },
     });
   }
 

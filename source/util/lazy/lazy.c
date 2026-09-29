@@ -1,4 +1,5 @@
 #include "lazy/lazy.h"
+#include "fs/fs.h"
 
 static sp_err_t lazy_write(sp_io_writer_t* w, const void* ptr, u64 size, u64* bytes_written) {
   spn_lazy_log_t* log = (spn_lazy_log_t*)w;
@@ -7,7 +8,7 @@ static sp_err_t lazy_write(sp_io_writer_t* w, const void* ptr, u64 size, u64* by
   }
   if (!log->opened) {
     log->opened = true;
-    sp_fs_create_dir_at(sp_path_at(log->path.dir, sp_fs_parent_path(log->path.sub)));
+    sp_fs_create_parent(log->path);
     if (sp_io_file_writer_from_path_at(&log->file, log->path) != SP_OK) {
       log->failed = true;
       return SP_ERR_IO;

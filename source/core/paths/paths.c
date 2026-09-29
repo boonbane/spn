@@ -229,6 +229,32 @@ spn_path_t spn_path_suffix(sp_mem_t mem, spn_path_t path, sp_str_t suffix) {
   };
 }
 
+static sp_str_t staging_name(sp_mem_t mem, sp_str_t path, sp_str_t extension) {
+  static sp_atomic_s32_t sequence;
+  sp_tm_epoch_t now = sp_tm_now_epoch();
+  u64 stamp = (((u64)now.s << 20) ^ (u64)now.ns) ^ ((u64)(u32)sp_atomic_s32_add(&sequence, 1, SP_ATOMIC_SEQ_CST) << 48);
+  return sp_fmt(mem, "{}.{}.{}", sp_fmt_str(path), sp_fmt_uint(stamp), sp_fmt_str(extension)).value;
+}
+
+spn_path_t spn_path_staging(sp_mem_t mem, spn_path_t path, sp_str_t extension) {
+  return (spn_path_t) { .root = path.root, .sub = staging_name(mem, path.sub, extension) };
+}
+
+spn_err_t spn_path_stage_dir(sp_mem_t mem, const spn_path_roots_t* roots, spn_path_t path, sp_str_t extension, spn_path_t* dir) {
+  sp_for(attempt, 16) {
+    spn_path_t candidate = spn_path_staging(mem, path, extension);
+    sp_path_t at = spn_path_at(roots, candidate);
+    if (sp_sys_mkdir_s(at.dir, at.sub, sp_sys_default_dir_perms) == SP_OK) {
+      *dir = candidate;
+      return SPN_OK;
+    }
+    if (!sp_fs_exists_at(at)) {
+      return SPN_ERROR;
+    }
+  }
+  return SPN_ERROR;
+}
+
 sp_str_t spn_path_str(const spn_path_roots_t* roots, sp_mem_t mem, spn_path_t path) {
   if (path.root == SPN_PATH_ROOT_NONE) {
     return sp_str_copy(mem, path.sub);

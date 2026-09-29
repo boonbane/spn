@@ -44,10 +44,11 @@ void spn_dag_file_cache_init(spn_dag_file_cache_t* c, sp_mem_t mem, const spn_pa
   sp_ht_set_fns(c->metadata, spn_path_on_hash, spn_path_on_compare);
   sp_ht_init(c->mem, c->hints);
   sp_ht_set_fns(c->hints, spn_path_on_hash, spn_path_on_compare);
-  sp_str_ht_init(c->mem, c->canonical);
+  sp_ht_init(c->mem, c->canonical);
+  sp_ht_set_fns(c->canonical, spn_path_on_hash, spn_path_on_compare);
 }
 
-spn_path_t spn_dag_file_cache_canonical(spn_dag_file_cache_t* c, sp_str_t path) {
+spn_path_t spn_dag_file_cache_canonical(spn_dag_file_cache_t* c, spn_path_t path) {
   sp_mutex_lock(&c->mutex);
   spn_path_t* cached = sp_ht_getp(c->canonical, path);
   if (cached) {
@@ -58,11 +59,11 @@ spn_path_t spn_dag_file_cache_canonical(spn_dag_file_cache_t* c, sp_str_t path) 
   sp_mutex_unlock(&c->mutex);
 
   sp_mem_arena_marker_t s = sp_mem_begin_scratch();
-  spn_path_t canonical = spn_path_canonicalize_head(s.mem, c->roots, (spn_path_t) { .sub = path });
+  spn_path_t canonical = spn_path_canonicalize_head(s.mem, c->roots, path);
 
   sp_mutex_lock(&c->mutex);
   canonical = spn_path_copy(c->mem, canonical);
-  sp_ht_insert(c->canonical, sp_str_copy(c->mem, path), canonical);
+  sp_ht_insert(c->canonical, spn_path_copy(c->mem, path), canonical);
   sp_mutex_unlock(&c->mutex);
   sp_mem_end_scratch(s);
   return canonical;

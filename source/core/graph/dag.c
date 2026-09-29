@@ -1,6 +1,7 @@
 #include "compiler/types.h"
 #include "sp.h"
 #include "io/io.h"
+#include "fs/fs.h"
 #include "macro/macro.h"
 #include "project/project.h"
 #include "ctx/types.h"
@@ -672,7 +673,7 @@ static spn_err_t dag_stage_copy(spn_dag_build_t* b, spn_dag_id_t id, spn_path_t 
   }
 
   const spn_path_roots_t* roots = b->graph->roots;
-  sp_fs_create_dir_at(spn_path_at(roots, spn_path_parent(to)));
+  sp_fs_create_parent(spn_path_at(roots, to));
   sp_err_t copied = sp_fs_copy_file_at(spn_path_at(roots, artifact->materialized), spn_path_at(roots, to), SP_FS_ATOMIC_REPLACE);
 
   spn_err_t err = copied ? SPN_ERR_DAG_OUTPUT_WRITE : spn_dag_file_cache_seed(b->env.files, to, artifact->digest);
@@ -746,7 +747,7 @@ static spn_err_t dag_stage(spn_dag_build_t* b) {
       sp_fs_remove_file_at(spn_path_at(roots, path));
       spn_dag_file_cache_invalidate(b->env.files, path);
     }
-    sp_fs_create_dir_at(spn_path_at(roots, spn_path_parent(manifest)));
+    sp_fs_create_parent(spn_path_at(roots, manifest));
     sp_fs_write_atomic_at(spn_path_at(roots, manifest), sp_io_dyn_mem_writer_as_str(&sink));
 
     sp_str_ht(bool) copied = SP_NULLPTR;

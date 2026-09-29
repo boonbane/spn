@@ -56,10 +56,11 @@ static sp_str_t read_stamp(sp_mem_t mem, spn_ctx_t* ctx) {
 
 static spn_err_t extract(spn_ctx_t* ctx, sp_mem_t mem, sp_str_t stamp) {
   spn_path_t runtime = storage_path("runtime");
-  sp_path_t staging = sp_zero;
-  if (sp_fs_staging_dir(mem, spn_path_at(&ctx->roots, runtime), sp_str_lit("tmp"), &staging) != SP_OK) {
+  spn_path_t staging = sp_zero;
+  if (spn_path_stage_dir(mem, &ctx->roots, runtime, sp_str_lit("tmp"), &staging)) {
     return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_FS_WRITE, .fs = { .path = runtime } });
   }
+  sp_path_t staging_at = spn_path_at(&ctx->roots, staging);
 
   sp_glob_set_t* glob = sp_glob_set_new(mem);
   sp_glob_set_add(glob, "include/*");
@@ -71,23 +72,25 @@ static spn_err_t extract(spn_ctx_t* ctx, sp_mem_t mem, sp_str_t stamp) {
     if (!sp_glob_set_match(glob, rel)) {
       continue;
     }
-    sp_path_t path = sp_path_join(mem, staging, rel);
-    sp_fs_create_dir_at(sp_path_parent(mem, path));
-    if (!write_file(path, entry.data, entry.size)) {
-      sp_fs_remove_dir_at(staging);
-      return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_FS_WRITE, .fs = { .path = { .root = SPN_PATH_ROOT_STORAGE, .sub = sp_str_copy(ctx->heap, path.sub) } } });
+    spn_path_t path = spn_path_join(mem, staging, rel);
+    sp_path_t at = spn_path_at(&ctx->roots, path);
+    sp_fs_create_parent(at);
+    if (!write_file(at, entry.data, entry.size)) {
+      sp_fs_remove_dir_at(staging_at);
+      return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_FS_WRITE, .fs = { .path = spn_path_copy(ctx->heap, path) } });
     }
   }
 
-  sp_path_t stamp_path = sp_path_join(mem, staging, sp_str_lit("version.stamp"));
-  if (!write_file(stamp_path, stamp.data, stamp.len)) {
-    sp_fs_remove_dir_at(staging);
-    return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_FS_WRITE, .fs = { .path = { .root = SPN_PATH_ROOT_STORAGE, .sub = sp_str_copy(ctx->heap, stamp_path.sub) } } });
+  spn_path_t stamp_path = spn_path_join(mem, staging, sp_str_lit("version.stamp"));
+  if (!write_file(spn_path_at(&ctx->roots, stamp_path), stamp.data, stamp.len)) {
+    sp_fs_remove_dir_at(staging_at);
+    return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_FS_WRITE, .fs = { .path = spn_path_copy(ctx->heap, stamp_path) } });
   }
 
-  sp_fs_remove_dir_at(spn_path_at(&ctx->roots, runtime));
-  if (sp_sys_rename_s(staging.dir, staging.sub, staging.dir, runtime.sub)) {
-    sp_fs_remove_dir_at(staging);
+  sp_path_t runtime_at = spn_path_at(&ctx->roots, runtime);
+  sp_fs_remove_dir_at(runtime_at);
+  if (sp_sys_rename_s(staging_at.dir, staging_at.sub, runtime_at.dir, runtime_at.sub)) {
+    sp_fs_remove_dir_at(staging_at);
     return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_FS_WRITE, .fs = { .path = runtime } });
   }
 

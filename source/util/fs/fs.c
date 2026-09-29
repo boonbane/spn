@@ -103,29 +103,6 @@ sp_err_t sp_fs_lock_release(sp_fs_lock_t* lock) {
   return SP_OK;
 }
 
-sp_str_t sp_fs_staging_path(sp_mem_t mem, sp_str_t path, sp_str_t extension) {
-  static sp_atomic_s32_t sequence;
-  sp_tm_epoch_t now = sp_tm_now_epoch();
-  u64 stamp = (((u64)now.s << 20) ^ (u64)now.ns) ^ ((u64)(u32)sp_atomic_s32_add(&sequence, 1, SP_ATOMIC_SEQ_CST) << 48);
-  return sp_fmt(mem, "{}.{}.{}", sp_fmt_str(path), sp_fmt_uint(stamp), sp_fmt_str(extension)).value;
-}
-
-sp_err_t sp_fs_staging_dir(sp_mem_t mem, sp_path_t path, sp_str_t extension, sp_path_t* dir) {
-  *dir = sp_path_at(path.dir, sp_str_lit(""));
-
-  sp_for(attempt, 16) {
-    sp_path_t candidate = sp_path_at(path.dir, sp_fs_staging_path(mem, path.sub, extension));
-    if (sp_sys_mkdir_s(candidate.dir, candidate.sub, sp_sys_default_dir_perms) == 0) {
-      *dir = candidate;
-      return SP_OK;
-    }
-    if (!sp_fs_exists_at(candidate)) {
-      return SP_ERR_SYS;
-    }
-  }
-  return SP_ERR_SYS;
-}
-
 sp_err_t sp_fs_create_parent(sp_path_t path) {
   sp_mem_arena_marker_t s = sp_mem_begin_scratch();
   sp_err_t err = sp_fs_create_dir_at(sp_path_parent(s.mem, path));
