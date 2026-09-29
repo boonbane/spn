@@ -48,7 +48,7 @@ void spn_codegen_write_os_version(sp_io_writer_t* out, const spn_os_version_t* i
 bool spn_codegen_os_version_present(const spn_os_version_t* in);
 
 const c8* spn_codegen_err_name(spn_err_t code);
-toml_table_t* spn_codegen_parse(spn_toml_loader_t* t, sp_path_t path);
+toml_table_t* spn_codegen_parse(spn_toml_loader_t* t, const spn_path_roots_t* roots, spn_path_t path);
 toml_table_t* spn_codegen_parse_str(spn_toml_loader_t* t, sp_str_t content);
 
 typedef struct {

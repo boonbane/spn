@@ -14,7 +14,7 @@ spn_err_t spn_index_dir_get_package(spn_index_info_t* index, sp_mem_t mem, sp_in
 
   spn_pkg_info_t* info = sp_alloc_type(mem, spn_pkg_info_t);
   spn_codegen_issues_t issues = sp_zero;
-  spn_err_t loaded = spn_pkg_load(mem, intern, spn_path_at(&spn.roots, manifest), SPN_MANIFEST_DEP, info, &issues);
+  spn_err_t loaded = spn_pkg_load(mem, intern, &spn.roots, manifest, SPN_MANIFEST_DEP, info, &issues);
   if (loaded == SPN_ERR_NO_MANIFEST) {
     return SPN_OK;
   }
@@ -33,7 +33,7 @@ spn_err_t spn_index_dir_get_package(spn_index_info_t* index, sp_mem_t mem, sp_in
     return SPN_OK;
   }
 
-  spn_pkg_root_t published = { .kind = SPN_PKG_ROOT_LOCAL, .local = spn_path_str(&spn.roots, mem, dir) };
+  spn_pkg_root_t published = { .kind = SPN_PKG_ROOT_LOCAL, .local = dir };
 
   spn_index_release_t release = sp_zero;
   sp_str_t dep = sp_zero;

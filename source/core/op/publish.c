@@ -39,7 +39,7 @@ static spn_err_t publish(spn_ctx_t* ctx, spn_publish_request_t request, spn_inde
     .name = spn_pkg_name_to_qualified(release->id),
     .version = spn_semver_to_str(ctx->mem, release->version),
     .index = index->name,
-    .url = spn_index_publish_target(index),
+    .url = spn_index_publish_target(ctx->mem, index),
   };
 
   spn_event_buffer_push(ctx->events, (spn_event_t) {

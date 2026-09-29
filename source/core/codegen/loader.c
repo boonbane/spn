@@ -1,4 +1,5 @@
 #include "codegen/codegen.h"
+#include "paths/paths.h"
 #include "external/tom.h"
 #include "intern/intern.h"
 #include "sp.h"
@@ -255,14 +256,18 @@ sp_da(spn_err_issue_t) spn_codegen_issues_to_err(sp_mem_t mem, sp_da(spn_codegen
   return projected;
 }
 
-toml_table_t* spn_codegen_parse(spn_toml_loader_t* ctx, sp_path_t path) {
-  if (!sp_fs_is_target_file_at(path)) {
+toml_table_t* spn_codegen_parse(spn_toml_loader_t* ctx, const spn_path_roots_t* roots, spn_path_t path) {
+  ctx->roots = roots;
+  ctx->dir = spn_path_parent(path);
+
+  sp_path_t at = spn_path_at(roots, path);
+  if (!sp_fs_is_target_file_at(at)) {
     spn_toml_loader_issue_at(ctx, SPN_ERR_CODEGEN_FILE_MISSING, sp_str_lit("missing file"));
     return SP_NULLPTR;
   }
 
   sp_str_t diag = sp_zero;
-  toml_table_t* table = spn_toml_parse_diag(ctx->mem, path, &diag);
+  toml_table_t* table = spn_toml_parse_diag(ctx->mem, at, &diag);
   if (!table) {
     spn_toml_loader_issue_at(ctx, SPN_ERR_CODEGEN_PARSE, diag);
   }

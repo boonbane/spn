@@ -23,7 +23,7 @@ spn_err_t spn_publish_build(spn_publish_opts_t* opts, spn_index_release_t* built
 
   spn_pkg_info_t info = sp_zero;
   spn_codegen_issues_t issues = sp_zero;
-  spn_err_t loaded = spn_pkg_load(opts->mem, opts->intern, sp_path_resolve(manifest_path), SPN_MANIFEST_DEP, &info, &issues);
+  spn_err_t loaded = spn_pkg_load(opts->mem, opts->intern, &spn.roots, (spn_path_t) { .sub = manifest_path }, SPN_MANIFEST_DEP, &info, &issues);
   if (loaded == SPN_ERR_NO_MANIFEST) {
     return spn_err_emit(&spn, (spn_err_union_t) {
       .kind = SPN_ERR_NO_MANIFEST,

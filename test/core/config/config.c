@@ -100,8 +100,9 @@ sp_test_each(config, lower, test_t, tests) {
 
   sp_str_t file = sp_fmt(mem, "{}.toml", sp_fmt_cstr(it->config)).value;
   sp_str_t path = sp_fs_join_path(mem, test_repo_path(mem, sp_str_lit(CONFIG_DIR)), file);
+  spn_path_roots_t roots = sp_zero;
   spn_cg_config_t cg = sp_zero;
-  spn_codegen_load_config(&ctx, sp_path_resolve(path), &cg);
+  spn_codegen_load_config(&ctx, &roots, (spn_path_t) { .sub = path }, &cg);
 
   sp_da(spn_toolchain_decl_t) toolchains = spn_toolchains_lower_list(&ctx, SPN_PATH_ROOT_NONE, cg.toolchain);
 

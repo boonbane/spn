@@ -194,7 +194,7 @@ static spn_err_t publish_git(spn_index_info_t* index, sp_mem_t mem, spn_index_re
     sp_fmt_str(rel->id.namespace),
     sp_fmt_str(rel->id.name),
     sp_fmt_str(spn_semver_to_str(scratch.mem, rel->version))).value;
-  sp_str_t url = spn_index_publish_target(index);
+  sp_str_t url = spn_index_publish_target(mem, index);
   sp_str_t dir = location(scratch.mem, index);
 
   spn_err_t result = SPN_OK;
@@ -308,7 +308,7 @@ spn_err_t spn_index_publish(spn_index_info_t* index, sp_mem_t mem, spn_index_rel
     case SPN_INDEX_PROTOCOL_DIR: {
       return spn_err_emit(&spn, (spn_err_union_t) {
         .kind = SPN_ERR_INDEX_PUBLISH_PROTOCOL,
-        .index = { .name = index->name, .url = spn_index_source(index) },
+        .index = { .name = index->name, .url = spn_index_source(mem, index) },
       });
     }
   }
@@ -325,7 +325,7 @@ spn_path_t spn_index_location(spn_index_info_t* index, sp_mem_t mem, spn_path_t 
       return spn_path_join(mem, root, spn_git_db_key(mem, index->http.url));
     }
     case SPN_INDEX_PROTOCOL_DIR: {
-      return (spn_path_t) { .sub = index->dir.path };
+      return index->dir.path;
     }
   }
   sp_unreachable_return(sp_zero_struct(spn_path_t));
@@ -365,14 +365,14 @@ void spn_index_assemble(sp_mem_t mem, spn_index_map_t* workspace, sp_da(spn_inde
   }
 }
 
-sp_str_t spn_index_publish_target(spn_index_info_t* index) {
+sp_str_t spn_index_publish_target(sp_mem_t mem, spn_index_info_t* index) {
   if (index->protocol == SPN_INDEX_PROTOCOL_GIT && !sp_str_empty(index->git.publish_url)) {
     return index->git.publish_url;
   }
-  return spn_index_source(index);
+  return spn_index_source(mem, index);
 }
 
-sp_str_t spn_index_source(spn_index_info_t* index) {
+sp_str_t spn_index_source(sp_mem_t mem, spn_index_info_t* index) {
   switch (index->protocol) {
     case SPN_INDEX_PROTOCOL_GIT: {
       return index->git.url;
@@ -381,7 +381,7 @@ sp_str_t spn_index_source(spn_index_info_t* index) {
       return index->http.url;
     }
     case SPN_INDEX_PROTOCOL_DIR: {
-      return index->dir.path;
+      return spn_path_str(&spn.roots, mem, index->dir.path);
     }
   }
   sp_unreachable_return(sp_str_lit(""));

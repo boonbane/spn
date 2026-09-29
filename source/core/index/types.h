@@ -78,7 +78,7 @@ struct spn_index_info {
       sp_str_t url;
     } http;
     struct {
-      sp_str_t path;
+      spn_path_t path;
     } dir;
   };
   spn_path_t location;

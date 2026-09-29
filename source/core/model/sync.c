@@ -146,14 +146,14 @@ static spn_err_t setup_toolchain_unit(spn_toolchain_store_t* store, spn_toolchai
 static spn_err_t materialize_tree(spn_session_t* session, sp_str_t name, spn_pkg_root_t tree, spn_path_t* root, bool* fetched) {
   switch (tree.kind) {
     case SPN_PKG_ROOT_LOCAL: {
-      sp_str_t canonical = sp_fs_canonicalize_path_at(spn.mem, sp_path_resolve(tree.local));
-      if (sp_str_empty(canonical)) {
+      spn_path_t canonical = spn_path_canonicalize(spn.mem, &spn.roots, tree.local);
+      if (!sp_fs_exists_at(spn_path_at(&spn.roots, canonical))) {
         return spn_err_emit(session->ctx, (spn_err_union_t) {
           .kind = SPN_ERR_NO_MANIFEST,
-          .no_manifest = { .path = tree.local },
+          .no_manifest = { .path = spn_path_str(&spn.roots, spn.mem, tree.local) },
         });
       }
-      *root = spn_path_make(&spn.roots, canonical);
+      *root = canonical;
       return SPN_OK;
     }
     case SPN_PKG_ROOT_GIT: {
@@ -283,7 +283,7 @@ static sp_da(spn_source_t) detect_configure_source(const spn_path_roots_t* roots
 static spn_err_t load_manifest(spn_session_t* session, sp_str_t name, spn_path_t manifest, spn_pkg_info_t** info) {
   spn_pkg_info_t* parsed = sp_alloc_type(spn.mem, spn_pkg_info_t);
   spn_codegen_issues_t issues = sp_zero;
-  spn_err_t loaded = spn_pkg_load(spn.mem, session->ctx->intern, spn_path_at(&spn.roots, manifest), SPN_MANIFEST_DEP, parsed, &issues);
+  spn_err_t loaded = spn_pkg_load(spn.mem, session->ctx->intern, &spn.roots, manifest, SPN_MANIFEST_DEP, parsed, &issues);
   if (loaded) {
     sp_str_t path = spn_path_str(&spn.roots, spn.mem, manifest);
     if (loaded == SPN_ERR_NO_MANIFEST) {

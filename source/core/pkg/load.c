@@ -1,11 +1,12 @@
 #include "pkg/load.h"
 
 #include "codegen/lower.h"
+#include "paths/paths.h"
 #include "toml/loader.h"
 
-spn_err_t spn_pkg_load(sp_mem_t mem, sp_intern_t* intern, sp_path_t path, spn_manifest_role_t role, spn_pkg_info_t* pkg, spn_codegen_issues_t* issues) {
+spn_err_t spn_pkg_load(sp_mem_t mem, sp_intern_t* intern, const spn_path_roots_t* roots, spn_path_t path, spn_manifest_role_t role, spn_pkg_info_t* pkg, spn_codegen_issues_t* issues) {
   *issues = SP_NULLPTR;
-  if (!sp_fs_exists_at(path)) {
+  if (!sp_fs_exists_at(spn_path_at(roots, path))) {
     return SPN_ERR_NO_MANIFEST;
   }
 
@@ -13,7 +14,7 @@ spn_err_t spn_pkg_load(sp_mem_t mem, sp_intern_t* intern, sp_path_t path, spn_ma
   spn_toml_loader_init(&t, mem, intern);
   t.strict = true;
 
-  spn_err_t err = spn_codegen_load_pkg(&t, path, pkg);
+  spn_err_t err = spn_codegen_load_pkg(&t, roots, path, pkg);
   if (!err) {
     err = role == SPN_MANIFEST_ROOT ? spn_pkg_lower_patch_hashes(&t, pkg) : spn_pkg_reject_patches(&t, pkg);
   }

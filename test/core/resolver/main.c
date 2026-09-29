@@ -119,7 +119,8 @@ static sp_err_t load_manifest(sp_test_t* t, sp_mem_t mem, sp_str_t dir, spn_pkg_
 
   spn_toml_loader_t loader = sp_zero;
   spn_toml_loader_init(&loader, mem, spn.intern);
-  sp_must_eq(t, SPN_OK, spn_codegen_load_pkg(&loader, sp_path_resolve(manifest), root));
+  spn_path_roots_t roots = sp_zero;
+  sp_must_eq(t, SPN_OK, spn_codegen_load_pkg(&loader, &roots, (spn_path_t) { .sub = manifest }, root));
   sp_must_eq(t, 0, sp_da_size(loader.issues));
   return SP_OK;
 }

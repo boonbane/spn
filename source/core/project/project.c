@@ -20,7 +20,7 @@ spn_err_t spn_project_load(spn_ctx_t* ctx, spn_project_t** project) {
   loaded->paths.lock = (spn_path_t) { .root = SPN_PATH_ROOT_PROJECT, .sub = sp_str_lit("spn.lock") };
 
   spn_codegen_issues_t issues = sp_zero;
-  spn_err_t parsed = spn_pkg_load(ctx->heap, ctx->intern, spn_path_at(&ctx->roots, manifest), SPN_MANIFEST_ROOT, &loaded->package, &issues);
+  spn_err_t parsed = spn_pkg_load(ctx->heap, ctx->intern, &ctx->roots, manifest, SPN_MANIFEST_ROOT, &loaded->package, &issues);
   if (parsed == SPN_ERR_NO_MANIFEST) {
     return spn_err_emit(ctx, (spn_err_union_t) {
       .kind = SPN_ERR_NO_MANIFEST,

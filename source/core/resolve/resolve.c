@@ -2,6 +2,7 @@
 #include "git/types.h"
 #include "index/types.h"
 #include "pkg/types.h"
+#include "paths/paths.h"
 #include "resolve/types.h"
 #include "semver/types.h"
 #include "session/registry/types.h"
@@ -198,17 +199,18 @@ static spn_err_union_t load_file_pkg(spn_resolver_t* resolver, spn_requested_dep
 
   spn_pkg_info_t* info = sp_alloc_type(resolver->mem, spn_pkg_info_t);
   spn_codegen_issues_t issues = sp_zero;
-  spn_err_t loaded = spn_pkg_load(resolver->mem, resolver->intern, sp_path_resolve(request->file.path), SPN_MANIFEST_DEP, info, &issues);
-  if (loaded == SPN_ERR_NO_MANIFEST) {
-    return (spn_err_union_t) {
-      .kind = SPN_ERR_NO_MANIFEST,
-      .no_manifest = { .path = request->file.path },
-    };
-  }
+  spn_err_t loaded = spn_pkg_load(resolver->mem, resolver->intern, resolver->roots, request->file.path, SPN_MANIFEST_DEP, info, &issues);
   if (loaded) {
+    sp_str_t path = spn_path_str(resolver->roots, resolver->mem, request->file.path);
+    if (loaded == SPN_ERR_NO_MANIFEST) {
+      return (spn_err_union_t) {
+        .kind = SPN_ERR_NO_MANIFEST,
+        .no_manifest = { .path = path },
+      };
+    }
     return (spn_err_union_t) {
       .kind = SPN_ERR_MANIFEST_ISSUES,
-      .manifest = { .name = request->qualified, .path = request->file.path, .issues = spn_codegen_issues_to_err(resolver->mem, issues) },
+      .manifest = { .name = request->qualified, .path = path, .issues = spn_codegen_issues_to_err(resolver->mem, issues) },
     };
   }
 
@@ -217,7 +219,7 @@ static spn_err_union_t load_file_pkg(spn_resolver_t* resolver, spn_requested_dep
   if (!sp_str_equal(info->qualified, request->qualified)) {
     return (spn_err_union_t) {
       .kind = SPN_ERR_PKG_MISMATCH,
-      .mismatch = { .path = request->file.path, .declared = info->qualified, .requested = request->qualified },
+      .mismatch = { .path = spn_path_str(resolver->roots, resolver->mem, request->file.path), .declared = info->qualified, .requested = request->qualified },
     };
   }
 
@@ -382,7 +384,7 @@ static s32 sort_req_canonical(const void* a, const void* b) {
       return 0;
     }
     case SPN_PKG_SOURCE_FILE: {
-      return sp_str_compare_alphabetical(lhs->file.path, rhs->file.path);
+      return spn_path_compare(lhs->file.path, rhs->file.path);
     }
     case SPN_PKG_SOURCE_ROOT: {
       return 0;
@@ -484,11 +486,11 @@ static spn_err_union_t resolve_local_package(spn_resolver_t* resolver, spn_resol
     .origin = {
       .recipe = {
         .kind = SPN_PKG_ROOT_LOCAL,
-        .local = sp_fs_parent_path(pkg->manifest)
+        .local = spn_path_parent(pkg->manifest)
       },
       .source = spn_pkg_upstream(pkg->info),
       .paths = {
-        .manifest = sp_fs_get_name(pkg->manifest),
+        .manifest = sp_fs_get_name(pkg->manifest.sub),
         .script = sp_str_lit("spn.c")
       },
       .info = pkg->info,

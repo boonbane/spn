@@ -57,7 +57,7 @@ static spn_err_t sync_indexes(spn_op_t* op) {
         .kind = SPN_EVENT_SYNC,
         .sync = {
           .name = index->name,
-          .url = spn_index_source(index),
+          .url = spn_index_source(ctx->mem, index),
         }});
     }
 
@@ -98,7 +98,7 @@ static spn_err_t sync_indexes(spn_op_t* op) {
         .kind = SPN_EVENT_SYNC_STALE,
         .sync = {
           .name = job->index->name,
-          .url = spn_index_source(job->index),
+          .url = spn_index_source(ctx->mem, job->index),
         }});
       continue;
     }
@@ -107,7 +107,7 @@ static spn_err_t sync_indexes(spn_op_t* op) {
       .kind = SPN_ERR_INDEX_SYNC,
       .index = {
         .name = job->index->name,
-        .url = spn_index_source(job->index),
+        .url = spn_index_source(ctx->mem, job->index),
       }});
   }
 

@@ -51,7 +51,7 @@ static spn_err_t apply_patch_overrides(spn_session_t* session, spn_resolve_query
     sp_str_t name = sp_intern_str_from_id(session->ctx->intern, pkg->id.qualified);
     spn_pkg_info_t* info = sp_alloc_type(spn.mem, spn_pkg_info_t);
     spn_codegen_issues_t issues = sp_zero;
-    spn_err_t loaded = spn_pkg_load(spn.mem, session->ctx->intern, sp_path_resolve(manifest), SPN_MANIFEST_DEP, info, &issues);
+    spn_err_t loaded = spn_pkg_load(spn.mem, session->ctx->intern, &spn.roots, (spn_path_t) { .sub = manifest }, SPN_MANIFEST_DEP, info, &issues);
     if (loaded == SPN_ERR_NO_MANIFEST) {
       result = spn_err_emit(session->ctx, (spn_err_union_t) {
         .kind = SPN_ERR_NO_MANIFEST,
@@ -67,7 +67,7 @@ static spn_err_t apply_patch_overrides(spn_session_t* session, spn_resolve_query
       continue;
     }
 
-    pkg->origin.recipe = (spn_pkg_root_t) { .kind = SPN_PKG_ROOT_LOCAL, .local = patch };
+    pkg->origin.recipe = (spn_pkg_root_t) { .kind = SPN_PKG_ROOT_LOCAL, .local = { .sub = patch } };
     pkg->origin.source = spn_pkg_upstream(info);
     pkg->origin.info = info;
     pkg->name = info->name;
@@ -113,7 +113,7 @@ spn_err_t resolve(spn_op_t* op) {
   sp_ht_insert(session->registry, spn_pkg_id(session->ctx->intern, session->pkg->qualified), ((spn_registry_pkg_t) {
     .source = SPN_PKG_SOURCE_ROOT,
     .info = session->pkg,
-    .manifest = spn_path_str(&spn.roots, spn.mem, session->project->paths.manifest),
+    .manifest = session->project->paths.manifest,
   }));
 
   spn_index_cache_t index = sp_zero;
@@ -121,6 +121,7 @@ spn_err_t resolve(spn_op_t* op) {
 
   spn_resolver_t resolver = sp_zero;
   spn_resolver_init(&resolver, spn.mem, session->ctx->intern, &index, &session->registry, session->profile, session->pkg->config, 0);
+  resolver.roots = &spn.roots;
   resolver.seeds = session->gates.seeds;
 
   spn_resolve_query_t query = sp_zero_initialize();

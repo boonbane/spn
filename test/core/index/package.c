@@ -58,7 +58,7 @@ static const test_t tests [] = {
 
 static spn_pkg_root_t build(root_t root) {
   if (root.local) {
-    return (spn_pkg_root_t) { .kind = SPN_PKG_ROOT_LOCAL, .local = sp_cstr_as_str(root.local) };
+    return (spn_pkg_root_t) { .kind = SPN_PKG_ROOT_LOCAL, .local = { .sub = sp_cstr_as_str(root.local) } };
   }
   return (spn_pkg_root_t) {
     .kind = SPN_PKG_ROOT_GIT,
@@ -73,7 +73,7 @@ static spn_pkg_root_t build(root_t root) {
 static sp_err_t check(sp_test_t* t, root_t expect, spn_pkg_root_t root) {
   if (expect.local) {
     sp_must_eq(t, SPN_PKG_ROOT_LOCAL, root.kind);
-    sp_expect_str_eq_c(t, root.local, expect.local);
+    sp_expect_str_eq_c(t, root.local.sub, expect.local);
   } else if (expect.url) {
     sp_must_eq(t, SPN_PKG_ROOT_GIT, root.kind);
     sp_expect_str_eq_c(t, root.git.url, expect.url);

@@ -1624,10 +1624,9 @@ sp_test_each(lower, cases, test_t, tests) {
   sp_str_t file = sp_fmt(mem, "{}.toml", sp_fmt_cstr(it->manifest)).value;
   sp_str_t path = sp_fs_join_path(mem, test_repo_path(mem, sp_str_lit(MANIFEST_DIR)), file);
 
-  ctx.dir = test_repo_path(mem, sp_str_lit(MANIFEST_DIR));
-
+  spn_path_roots_t roots = sp_zero;
   spn_cg_manifest_t cg = sp_zero;
-  spn_codegen_load(&ctx, sp_path_resolve(path), &cg);
+  spn_codegen_load(&ctx, &roots, (spn_path_t) { .sub = path }, &cg);
 
   spn_pkg_info_t pkg = sp_zero;
   spn_pkg_lower(&ctx, &cg, &pkg);
@@ -1711,7 +1710,7 @@ sp_test_each(lower, cases, test_t, tests) {
     sp_expect_eq(t, (u32)expected.source, (u32)req->source);
     sp_expect_eq(t, expected.private != 0, req->private);
 
-    if (expected.file) sp_expect(t, sp_str_ends_with(req->file.path, sp_str_view(expected.file)));
+    if (expected.file) sp_expect(t, sp_str_ends_with(req->file.path.sub, sp_str_view(expected.file)));
     if (expected.when) sp_expect_str_eq_c(t, spn_when_to_str(mem, &req->when), expected.when);
     if (expected.options) sp_expect_str_eq_c(t, spn_when_to_str(mem, &req->options), expected.options);
   }
@@ -1810,7 +1809,7 @@ sp_test_each(lower, cases, test_t, tests) {
     spn_index_info_t* idx = sp_str_om_get(pkg.indexes, sp_str_view(expected.name));
     sp_must(t, idx);
     if (expected.url) sp_expect_str_eq_c(t, idx->protocol == SPN_INDEX_PROTOCOL_HTTP ? idx->http.url : idx->git.url, expected.url);
-    if (expected.path) sp_expect_str_eq(t, idx->dir.path, sp_fs_join_path(mem, ctx.dir, sp_cstr_as_str(expected.path)));
+    if (expected.path) sp_expect_str_eq(t, idx->dir.path.sub, sp_fs_join_path(mem, ctx.dir.sub, sp_cstr_as_str(expected.path)));
     sp_expect_eq(t, (u32)expected.protocol, (u32)idx->protocol);
     sp_expect_eq(t, (u32)expected.kind, (u32)idx->kind);
   }

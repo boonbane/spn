@@ -11,7 +11,7 @@ static spn_index_desc_t describe_index(sp_mem_t mem, spn_ctx_t* ctx, spn_index_i
     .name = index->name,
     .kind = index->kind,
     .protocol = index->protocol,
-    .source = spn_index_source(index),
+    .source = spn_index_source(mem, index),
     .location = spn_path_str(&ctx->roots, mem, index->location),
   };
 }

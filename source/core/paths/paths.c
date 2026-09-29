@@ -272,6 +272,13 @@ bool spn_path_equal(spn_path_t a, spn_path_t b) {
   return a.root == b.root && sp_str_equal(a.sub, b.sub);
 }
 
+s32 spn_path_compare(spn_path_t a, spn_path_t b) {
+  if (a.root != b.root) {
+    return a.root < b.root ? -1 : 1;
+  }
+  return sp_str_compare_alphabetical(a.sub, b.sub);
+}
+
 spn_path_rel_t spn_path_within(spn_path_t base, spn_path_t path) {
   if (base.root != path.root) {
     return sp_zero_struct(spn_path_rel_t);

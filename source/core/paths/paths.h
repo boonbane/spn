@@ -25,6 +25,7 @@ spn_err_t spn_path_stage_dir(sp_mem_t mem, const spn_path_roots_t* roots, spn_pa
 sp_str_t spn_path_str(const spn_path_roots_t* roots, sp_mem_t mem, spn_path_t path);
 bool spn_path_empty(spn_path_t path);
 bool spn_path_equal(spn_path_t a, spn_path_t b);
+s32 spn_path_compare(spn_path_t a, spn_path_t b);
 spn_path_rel_t spn_path_within(spn_path_t base, spn_path_t path);
 sp_hash_t spn_path_hash(spn_path_t path);
 sp_hash_t spn_path_on_hash(void* key, u64 size);

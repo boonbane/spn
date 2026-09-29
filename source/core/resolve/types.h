@@ -56,6 +56,7 @@ typedef struct {
 typedef struct spn_resolver_t {
   sp_mem_t mem;
   sp_intern_t* intern;
+  const spn_path_roots_t* roots;
   spn_index_cache_t* index;
   spn_pkg_registry_t* registry;
   spn_profile_info_t profile;
