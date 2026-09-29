@@ -79,7 +79,7 @@ static sp_str_t manifest_render(sp_mem_t mem, sp_str_t path) {
   spn_toml_loader_t ctx = loader_new(mem);
 
   spn_cg_manifest_t manifest = sp_zero;
-  if (spn_codegen_load(&ctx, path, &manifest)) {
+  if (spn_codegen_load(&ctx, sp_path_resolve(path), &manifest)) {
     return spn_codegen_issues_to_str(mem, ctx.issues);
   }
 
@@ -100,7 +100,7 @@ sp_test(manifest_gen, missing_file) {
   spn_toml_loader_t ctx = loader_new(mem);
 
   spn_cg_manifest_t manifest = sp_zero;
-  sp_must(t, spn_codegen_load(&ctx, sp_str_lit("/nonexistent/missing.toml"), &manifest));
+  sp_must(t, spn_codegen_load(&ctx, sp_path_resolve(sp_str_lit("/nonexistent/missing.toml")), &manifest));
   sp_must_eq(t, 1, sp_da_size(ctx.issues));
   sp_expect_eq(t, SPN_ERR_CODEGEN_FILE_MISSING, ctx.issues[0].code);
   sp_expect_str_eq_c(t, ctx.issues[0].detail, "missing file");

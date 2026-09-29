@@ -117,8 +117,7 @@ spn_err_t spn_session_init(spn_session_t* s, spn_ctx_t* ctx, sp_mem_t mem, spn_p
   sp_da_push(s->units.metaprogram->include, spn_path_join(s->mem, spn_path_from_root(SPN_PATH_ROOT_RUNTIME), sp_str_lit("include")));
 
   spn_path_t log_path = spn_path_join(s->mem, s->units.target->paths.root, sp_str_lit(".spn/build.jsonl"));
-  sp_str_t log = spn_path_str(&ctx->roots, s->mem, log_path);
-  if (spn_event_log_open(ctx->events, log)) {
+  if (spn_event_log_open(ctx->events, spn_path_at(&ctx->roots, log_path))) {
     return spn_err_emit(ctx, (spn_err_union_t) {
       .kind = SPN_ERR_FS_WRITE,
       .fs = { .path = log_path },

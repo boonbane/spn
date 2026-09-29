@@ -17,7 +17,7 @@ static spn_index_desc_t describe_index(spn_index_info_t* index) {
 }
 
 sp_str_t spn_ctx_project_dir(spn_ctx_t* ctx) {
-  return ctx->paths.project;
+  return ctx->roots.dirs[SPN_PATH_ROOT_PROJECT];
 }
 
 spn_path_t spn_ctx_collapse_path(spn_ctx_t* ctx, sp_str_t path) {

@@ -3,9 +3,9 @@
 #include "codegen/lower.h"
 #include "toml/loader.h"
 
-spn_err_t spn_pkg_load(sp_mem_t mem, sp_intern_t* intern, sp_str_t path, spn_manifest_role_t role, spn_pkg_info_t* pkg, spn_codegen_issues_t* issues) {
+spn_err_t spn_pkg_load(sp_mem_t mem, sp_intern_t* intern, sp_path_t path, spn_manifest_role_t role, spn_pkg_info_t* pkg, spn_codegen_issues_t* issues) {
   *issues = SP_NULLPTR;
-  if (!sp_fs_exists(path)) {
+  if (!sp_fs_exists_at(path)) {
     return SPN_ERR_NO_MANIFEST;
   }
 

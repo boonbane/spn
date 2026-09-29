@@ -12,7 +12,7 @@ spn_err_t spn_index_dir_get_package(spn_index_info_t* index, sp_mem_t mem, sp_in
 
   spn_pkg_info_t* info = sp_alloc_type(mem, spn_pkg_info_t);
   spn_codegen_issues_t issues = sp_zero;
-  spn_err_t loaded = spn_pkg_load(mem, intern, manifest, SPN_MANIFEST_DEP, info, &issues);
+  spn_err_t loaded = spn_pkg_load(mem, intern, sp_path_resolve(manifest), SPN_MANIFEST_DEP, info, &issues);
   if (loaded == SPN_ERR_NO_MANIFEST) {
     return SPN_OK;
   }

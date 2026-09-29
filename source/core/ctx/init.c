@@ -29,18 +29,14 @@
 #include "triple/triple.h"
 #include "version/version.h"
 
-static sp_str_t join_path(spn_ctx_t* ctx, sp_str_t base, const c8* dir) {
-  return sp_fs_join_path(ctx->heap, base, sp_cstr_as_str(dir));
-}
-
 static sp_str_t env_or(spn_ctx_t* ctx, const c8* env, sp_str_t fallback) {
   sp_str_t path = sp_env_get(ctx->env, sp_cstr_as_str(env));
   return sp_str_empty(path) ? fallback : path;
 }
 
-static bool write_file(sp_str_t path, const void* data, u64 size) {
+static bool write_file(sp_path_t path, const void* data, u64 size) {
   sp_io_file_writer_t io = sp_zero;
-  if (sp_io_file_writer_from_path(&io, path) != SP_OK) {
+  if (sp_io_file_writer_from_path_at(&io, path) != SP_OK) {
     return false;
   }
   sp_err_t written = sp_io_write(&io.base, data, size, SP_NULLPTR);
@@ -48,22 +44,23 @@ static bool write_file(sp_str_t path, const void* data, u64 size) {
   return written == SP_OK && closed == SP_OK;
 }
 
+static spn_path_t storage_path(const c8* sub) {
+  return (spn_path_t) { .root = SPN_PATH_ROOT_STORAGE, .sub = sp_cstr_as_str(sub) };
+}
+
 static sp_str_t read_stamp(sp_mem_t mem, spn_ctx_t* ctx) {
   sp_str_t version = sp_zero;
-  if (sp_fs_exists(ctx->paths.version)) {
-    sp_io_read_file(mem, ctx->paths.version, &version);
-    version = sp_str_trim(version);
-  }
-  return version;
+  sp_io_read_file_at(mem, spn_path_at(&ctx->roots, storage_path("runtime/version.stamp")), &version);
+  return sp_str_trim(version);
 }
 
 static spn_err_t extract(spn_ctx_t* ctx, sp_mem_t mem, sp_str_t stamp) {
-  sp_path_t staged = sp_zero;
-  if (sp_fs_staging_dir(mem, sp_path_resolve(ctx->paths.runtime), sp_str_lit("tmp"), &staged) != SP_OK) {
-    return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_FS_WRITE, .fs = { .path = { .sub = ctx->paths.runtime } } });
+  spn_path_t runtime = storage_path("runtime");
+  sp_path_t staging = sp_zero;
+  if (sp_fs_staging_dir(mem, spn_path_at(&ctx->roots, runtime), sp_str_lit("tmp"), &staging) != SP_OK) {
+    return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_FS_WRITE, .fs = { .path = runtime } });
   }
 
-  sp_str_t staging = staged.sub;
   sp_glob_set_t* glob = sp_glob_set_new(mem);
   sp_glob_set_add(glob, "include/*");
   sp_glob_set_build(glob);
@@ -74,25 +71,24 @@ static spn_err_t extract(spn_ctx_t* ctx, sp_mem_t mem, sp_str_t stamp) {
     if (!sp_glob_set_match(glob, rel)) {
       continue;
     }
-    sp_str_t path = sp_fs_join_path(mem, staging, rel);
-    sp_fs_create_dir(sp_fs_parent_path(path));
+    sp_path_t path = sp_path_join(mem, staging, rel);
+    sp_fs_create_dir_at(sp_path_parent(mem, path));
     if (!write_file(path, entry.data, entry.size)) {
-      sp_fs_remove_dir(staging);
-      return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_FS_WRITE, .fs = { .path = { .sub = sp_str_copy(ctx->heap, path) } } });
+      sp_fs_remove_dir_at(staging);
+      return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_FS_WRITE, .fs = { .path = { .root = SPN_PATH_ROOT_STORAGE, .sub = sp_str_copy(ctx->heap, path.sub) } } });
     }
   }
 
-  sp_str_t stamp_path = sp_fs_join_path(mem, staging, sp_str_lit("version.stamp"));
+  sp_path_t stamp_path = sp_path_join(mem, staging, sp_str_lit("version.stamp"));
   if (!write_file(stamp_path, stamp.data, stamp.len)) {
-    sp_fs_remove_dir(staging);
-    return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_FS_WRITE, .fs = { .path = { .sub = sp_str_copy(ctx->heap, stamp_path) } } });
+    sp_fs_remove_dir_at(staging);
+    return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_FS_WRITE, .fs = { .path = { .root = SPN_PATH_ROOT_STORAGE, .sub = sp_str_copy(ctx->heap, stamp_path.sub) } } });
   }
 
-  sp_fs_remove_dir(ctx->paths.runtime);
-  sp_sys_fd_t root = sp_sys_get_root(0);
-  if (sp_sys_rename_s(root, staging, root, ctx->paths.runtime)) {
-    sp_fs_remove_dir(staging);
-    return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_FS_WRITE, .fs = { .path = { .sub = ctx->paths.runtime } } });
+  sp_fs_remove_dir_at(spn_path_at(&ctx->roots, runtime));
+  if (sp_sys_rename_s(staging.dir, staging.sub, staging.dir, runtime.sub)) {
+    sp_fs_remove_dir_at(staging);
+    return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_FS_WRITE, .fs = { .path = runtime } });
   }
 
   return SPN_OK;
@@ -118,9 +114,9 @@ static spn_err_t extract_runtime(spn_ctx_t* ctx) {
 
   if (!sp_str_equal(read_stamp(scratch.mem, ctx), stamp)) {
     sp_fs_lock_t lock = sp_zero;
-    sp_str_t lock_path = sp_fs_join_path(scratch.mem, ctx->paths.storage, sp_str_lit("runtime.lock"));
-    if (sp_fs_lock_acquire(&lock, sp_path_resolve(lock_path)) != SP_OK) {
-      result = spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_FS_WRITE, .fs = { .path = { .sub = sp_str_copy(ctx->heap, lock_path) } } });
+    spn_path_t lock_path = storage_path("runtime.lock");
+    if (sp_fs_lock_acquire(&lock, spn_path_at(&ctx->roots, lock_path)) != SP_OK) {
+      result = spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_FS_WRITE, .fs = { .path = lock_path } });
     }
     else {
       if (!sp_str_equal(read_stamp(scratch.mem, ctx), stamp)) {
@@ -137,63 +133,40 @@ static spn_err_t extract_runtime(spn_ctx_t* ctx) {
 static spn_err_t open_ctx(spn_ctx_t* ctx, spn_open_request_t request) {
   sp_assert(!ctx->config.indexes);
 
-  if (sp_str_valid(request.dir)) {
-    ctx->paths.project = sp_fs_canonicalize_path(ctx->heap, request.dir);
-  }
-  else {
-    ctx->paths.project = ctx->paths.cwd;
-  }
-  spn_path_roots_set(&ctx->roots, ctx->heap, SPN_PATH_ROOT_PROJECT, sp_path_resolve(ctx->paths.project));
-  ctx->paths.project = ctx->roots.dirs[SPN_PATH_ROOT_PROJECT];
+  sp_path_t project = sp_str_valid(request.dir) ? sp_path_resolve(request.dir) : sp_path_at_cwd(sp_str_lit("."));
+  spn_path_roots_set(&ctx->roots, ctx->heap, SPN_PATH_ROOT_PROJECT, project);
 
-  // Make sure any per-machine directories we need exist
-  sp_str_t dirs [] = {
-    ctx->paths.caches.dir,
-    ctx->paths.caches.git.dir,
-    ctx->paths.caches.build.dir,
-    ctx->paths.caches.store.dir,
-    ctx->paths.index,
-    ctx->paths.toolchain,
-  };
-  sp_carr_for(dirs, it) {
-    if (sp_fs_create_dir(dirs[it])) {
-      return spn_err_emit(ctx, (spn_err_union_t) {
-        .kind = SPN_ERR_FS_CREATE_DIR,
-        .fs = { .path = { .sub = dirs[it] } }
-      });
-    }
-  }
-
-  spn_git_cache_init(&ctx->caches.git, ctx->mem, ctx->intern, ctx->paths.caches.git.dir);
+  spn_git_cache_init(&ctx->caches.git, ctx->mem, ctx->intern, sp_fs_join_path(ctx->heap, ctx->roots.dirs[SPN_PATH_ROOT_CACHE], sp_str_lit("source")));
 
   ctx->caches.toolchains = (spn_toolchain_store_t) {
     .mem = ctx->mem,
-    .dir = ctx->paths.toolchain,
+    .dir = ctx->roots.dirs[SPN_PATH_ROOT_TOOLCHAIN],
     .mirror = sp_env_get(ctx->env, sp_str_lit("SPN_MIRROR")),
     .fetch = spn_fetch_curl,
   };
-  spn_probe_cache_load(&ctx->caches.toolchains.probes, join_path(ctx, ctx->paths.toolchain, "probe.cache"), ctx->mem);
+  spn_probe_cache_load(&ctx->caches.toolchains.probes, sp_fs_join_path(ctx->heap, ctx->roots.dirs[SPN_PATH_ROOT_TOOLCHAIN], sp_str_lit("probe.cache")), ctx->mem);
 
   spn_try(extract_runtime(ctx));
-  spn_path_roots_set(&ctx->roots, ctx->heap, SPN_PATH_ROOT_RUNTIME, sp_path_resolve(ctx->paths.runtime));
+  spn_path_roots_set(&ctx->roots, ctx->heap, SPN_PATH_ROOT_RUNTIME, spn_path_at(&ctx->roots, storage_path("runtime")));
 
   spn_event_buffer_push(ctx->events, (spn_event_t) {
     .kind = SPN_EVENT_OPEN,
     .open = {
       .version = sp_cstr_as_str(SPN_VERSION),
-      .project = ctx->paths.project,
+      .project = ctx->roots.dirs[SPN_PATH_ROOT_PROJECT],
     },
   });
 
   // Load the per-machine config file
   ctx->config.indexes = sp_da_new(ctx->heap, spn_index_info_t);
-  if (sp_fs_exists(ctx->paths.config.toml)) {
+  sp_path_t config_toml = sp_path_resolve(ctx->paths.config.toml);
+  if (sp_fs_exists_at(config_toml)) {
     spn_cg_config_t config = sp_zero;
     spn_toml_loader_t loader = sp_zero;
     spn_toml_loader_init(&loader, ctx->mem, ctx->intern);
     sp_da(spn_index_info_t) indexes = sp_da_new(ctx->heap, spn_index_info_t);
     sp_da(spn_toolchain_decl_t) toolchains = SP_NULLPTR;
-    if (spn_codegen_load_config(&loader, ctx->paths.config.toml, &config) == SPN_OK) {
+    if (spn_codegen_load_config(&loader, config_toml, &config) == SPN_OK) {
       sp_da_for(config.index, it) {
         sp_da_push(indexes, spn_index_lower(&loader, it, SPN_INDEX_KIND_USER, &config.index[it]));
       }
@@ -211,7 +184,7 @@ static spn_err_t open_ctx(spn_ctx_t* ctx, spn_open_request_t request) {
     }
   }
 
-  spn_try(spn_project_load(ctx, ctx->paths.project, &ctx->project));
+  spn_try(spn_project_load(ctx, &ctx->project));
   if (!request.project_optional) {
     spn_try(spn_ctx_require_project(ctx));
   }
@@ -226,7 +199,7 @@ static spn_err_t open_ctx(spn_ctx_t* ctx, spn_open_request_t request) {
 
   sp_da_for(ctx->indexes, it) {
     spn_index_info_t* index = &ctx->indexes[it];
-    index->location = spn_index_location(index, ctx->heap, ctx->paths.index);
+    index->location = spn_index_location(index, ctx->heap, ctx->roots.dirs[SPN_PATH_ROOT_INDEX]);
     if (!index->refresh) {
       index->refresh = request.index_refresh_seconds ? request.index_refresh_seconds : SPN_INDEX_DEFAULT_REFRESH;
     }
@@ -243,6 +216,11 @@ static void load_builtins(spn_ctx_t* ctx) {
   sp_da_for(decls, it) {
     spn_toolchain_catalog_add(&ctx->catalog, decls[it]);
   }
+}
+
+static void set_root(spn_ctx_t* ctx, spn_path_root_t kind, spn_path_root_t base, const c8* sub) {
+  spn_path_t dir = { .root = base, .sub = sp_cstr_as_str(sub) };
+  spn_path_roots_set(&ctx->roots, ctx->heap, kind, spn_path_at(&ctx->roots, dir));
 }
 
 spn_ctx_t* spn_ctx_new(spn_wake_fn_t wake, void* wake_data) {
@@ -262,28 +240,24 @@ spn_ctx_t* spn_ctx_new(spn_wake_fn_t wake, void* wake_data) {
 
   ctx->host = spn_triple_host();
 
-  ctx->paths.cwd = sp_fs_get_cwd_path(ctx->heap);
   ctx->paths.patches = sp_env_get(ctx->env, sp_str_lit("SPN_PATCH_DIR"));
-  ctx->paths.config.dir = join_path(ctx, env_or(ctx, "SPN_CONFIG_DIR", sp_fs_get_config_path(ctx->heap)), "spn");
-    ctx->paths.config.toml = sp_fs_join_path(ctx->heap, ctx->paths.config.dir, sp_str_lit("spn.toml"));
-  spn_path_roots_set(&ctx->roots, ctx->heap, SPN_PATH_ROOT_STORAGE, sp_path_resolve(env_or(ctx, "SPN_STORAGE_DIR", join_path(ctx, sp_fs_get_storage_path(ctx->heap), "spn"))));
-  ctx->paths.storage = ctx->roots.dirs[SPN_PATH_ROOT_STORAGE];
-    ctx->paths.caches.dir = join_path(ctx, ctx->paths.storage, "cache");
-      ctx->paths.caches.git.dir = join_path(ctx, ctx->paths.caches.dir, "source");
-        ctx->paths.caches.git.checkouts = join_path(ctx, ctx->paths.caches.git.dir, "checkouts");
-      ctx->paths.caches.store.dir = join_path(ctx, ctx->paths.caches.dir, "store");
-      ctx->paths.caches.build.dir = join_path(ctx, ctx->paths.caches.dir, "build");
-    ctx->paths.index = join_path(ctx, ctx->paths.storage, "index");
-    ctx->paths.runtime = join_path(ctx, ctx->paths.storage, "runtime");
-      ctx->paths.version = join_path(ctx, ctx->paths.runtime, "version.stamp");
+  ctx->paths.config.dir = sp_fs_join_path(ctx->heap, env_or(ctx, "SPN_CONFIG_DIR", sp_fs_get_config_path(ctx->heap)), sp_str_lit("spn"));
+  ctx->paths.config.toml = sp_fs_join_path(ctx->heap, ctx->paths.config.dir, sp_str_lit("spn.toml"));
 
-  spn_path_roots_set(&ctx->roots, ctx->heap, SPN_PATH_ROOT_CACHE, sp_path_resolve(ctx->paths.caches.dir));
-  spn_path_roots_set(&ctx->roots, ctx->heap, SPN_PATH_ROOT_STORE, sp_path_resolve(ctx->paths.caches.store.dir));
-  spn_path_roots_set(&ctx->roots, ctx->heap, SPN_PATH_ROOT_BUILD, sp_path_resolve(ctx->paths.caches.build.dir));
-  spn_path_roots_set(&ctx->roots, ctx->heap, SPN_PATH_ROOT_CHECKOUT, sp_path_resolve(ctx->paths.caches.git.checkouts));
-  spn_path_roots_set(&ctx->roots, ctx->heap, SPN_PATH_ROOT_INDEX, sp_path_resolve(ctx->paths.index));
-  spn_path_roots_set(&ctx->roots, ctx->heap, SPN_PATH_ROOT_TOOLCHAIN, sp_path_resolve(env_or(ctx, "SPN_TOOLCHAIN_DIR", join_path(ctx, ctx->paths.caches.dir, "toolchain"))));
-  ctx->paths.toolchain = ctx->roots.dirs[SPN_PATH_ROOT_TOOLCHAIN];
+  sp_str_t storage = env_or(ctx, "SPN_STORAGE_DIR", sp_fs_join_path(ctx->heap, sp_fs_get_storage_path(ctx->heap), sp_str_lit("spn")));
+  spn_path_roots_set(&ctx->roots, ctx->heap, SPN_PATH_ROOT_STORAGE, sp_path_resolve(storage));
+  set_root(ctx, SPN_PATH_ROOT_CACHE, SPN_PATH_ROOT_STORAGE, "cache");
+  set_root(ctx, SPN_PATH_ROOT_INDEX, SPN_PATH_ROOT_STORAGE, "index");
+  set_root(ctx, SPN_PATH_ROOT_STORE, SPN_PATH_ROOT_CACHE, "store");
+  set_root(ctx, SPN_PATH_ROOT_BUILD, SPN_PATH_ROOT_CACHE, "build");
+  set_root(ctx, SPN_PATH_ROOT_CHECKOUT, SPN_PATH_ROOT_CACHE, "source/checkouts");
+  sp_str_t toolchain = sp_env_get(ctx->env, sp_str_lit("SPN_TOOLCHAIN_DIR"));
+  if (sp_str_empty(toolchain)) {
+    set_root(ctx, SPN_PATH_ROOT_TOOLCHAIN, SPN_PATH_ROOT_CACHE, "toolchain");
+  }
+  else {
+    spn_path_roots_set(&ctx->roots, ctx->heap, SPN_PATH_ROOT_TOOLCHAIN, sp_path_resolve(toolchain));
+  }
 
   spn_toolchain_catalog_init(&ctx->catalog, ctx->host, spn_sdk_detect(ctx->heap, &ctx->roots, ctx->env, ctx->host), ctx->heap);
   load_builtins(ctx);

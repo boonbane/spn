@@ -281,10 +281,11 @@ static sp_da(spn_source_t) detect_configure_source(const spn_path_roots_t* roots
   return source;
 }
 
-static spn_err_t load_manifest(spn_session_t* session, sp_str_t name, sp_str_t path, spn_pkg_info_t** info) {
+static spn_err_t load_manifest(spn_session_t* session, sp_str_t name, spn_path_t manifest, spn_pkg_info_t** info) {
   spn_pkg_info_t* parsed = sp_alloc_type(spn.mem, spn_pkg_info_t);
   spn_codegen_issues_t issues = sp_zero;
-  spn_err_t loaded = spn_pkg_load(spn.mem, session->ctx->intern, path, SPN_MANIFEST_DEP, parsed, &issues);
+  sp_str_t path = spn_path_str(&spn.roots, spn.mem, manifest);
+  spn_err_t loaded = spn_pkg_load(spn.mem, session->ctx->intern, spn_path_at(&spn.roots, manifest), SPN_MANIFEST_DEP, parsed, &issues);
   if (loaded == SPN_ERR_NO_MANIFEST) {
     return spn_err_emit(session->ctx, (spn_err_union_t) {
       .kind = SPN_ERR_NO_MANIFEST,
@@ -372,8 +373,7 @@ static spn_err_t load_package(spn_session_t* session, spn_resolved_pkg_t* pkg, s
   const spn_path_roots_t* roots = &spn.roots;
   loaded->info = pkg->origin.info;
   if (!loaded->info) {
-    spn_path_t manifest = spn_path_join(spn.mem, loaded->roots.recipe, pkg->origin.paths.manifest);
-    spn_try(load_manifest(session, qualified, spn_path_str(roots, spn.mem, manifest), &loaded->info));
+    spn_try(load_manifest(session, qualified, spn_path_join(spn.mem, loaded->roots.recipe, pkg->origin.paths.manifest), &loaded->info));
   }
 
   if (pkg->origin.source.kind == SPN_PKG_ROOT_NONE) {

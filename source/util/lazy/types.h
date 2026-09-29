@@ -6,7 +6,7 @@
 typedef struct {
   sp_io_writer_t      writer;
   sp_io_file_writer_t file;
-  sp_str_t            path;
+  sp_path_t           path;
   bool                opened;
   bool                failed;
 } spn_lazy_log_t;

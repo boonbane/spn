@@ -1627,7 +1627,7 @@ sp_test_each(lower, cases, test_t, tests) {
   ctx.dir = test_repo_path(mem, sp_str_lit(MANIFEST_DIR));
 
   spn_cg_manifest_t cg = sp_zero;
-  spn_codegen_load(&ctx, path, &cg);
+  spn_codegen_load(&ctx, sp_path_resolve(path), &cg);
 
   spn_pkg_info_t pkg = sp_zero;
   spn_pkg_lower(&ctx, &cg, &pkg);

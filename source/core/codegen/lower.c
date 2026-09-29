@@ -1211,8 +1211,8 @@ spn_err_t spn_pkg_lower(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, spn
   return sp_da_empty(ctx->issues) ? SPN_OK : SPN_ERROR;
 }
 
-spn_err_t spn_codegen_load_pkg(spn_toml_loader_t* ctx, sp_str_t manifest, spn_pkg_info_t* out) {
-  ctx->dir = sp_fs_parent_path(manifest);
+spn_err_t spn_codegen_load_pkg(spn_toml_loader_t* ctx, sp_path_t manifest, spn_pkg_info_t* out) {
+  ctx->dir = sp_fs_canonicalize_path_at(ctx->mem, sp_path_parent(ctx->mem, manifest));
 
   spn_cg_manifest_t cg = sp_zero;
   spn_err_t err = spn_codegen_load(ctx, manifest, &cg);

@@ -30,7 +30,7 @@ spn_err_t spn_ctx_require_project(spn_ctx_t* ctx) {
   if (!ctx->project) {
     return spn_err_emit(ctx, (spn_err_union_t) {
       .kind = SPN_ERR_NO_MANIFEST,
-      .no_manifest = { .path = ctx->paths.project },
+      .no_manifest = { .path = ctx->roots.dirs[SPN_PATH_ROOT_PROJECT] },
     });
   }
   return SPN_OK;

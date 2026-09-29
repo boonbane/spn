@@ -255,8 +255,8 @@ sp_da(spn_err_issue_t) spn_codegen_issues_to_err(sp_mem_t mem, sp_da(spn_codegen
   return projected;
 }
 
-toml_table_t* spn_codegen_parse(spn_toml_loader_t* ctx, sp_str_t path) {
-  if (!sp_fs_is_target_file(path)) {
+toml_table_t* spn_codegen_parse(spn_toml_loader_t* ctx, sp_path_t path) {
+  if (!sp_fs_is_target_file_at(path)) {
     spn_toml_loader_issue_at(ctx, SPN_ERR_CODEGEN_FILE_MISSING, sp_str_lit("missing file"));
     return SP_NULLPTR;
   }

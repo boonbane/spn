@@ -24,7 +24,7 @@ static spn_err_t publish_build(spn_ctx_t* ctx, spn_publish_request_t request, sp
   spn_publish_opts_t opts = {
     .mem = ctx->mem,
     .intern = ctx->intern,
-    .cwd = ctx->paths.project,
+    .cwd = ctx->roots.dirs[SPN_PATH_ROOT_PROJECT],
     .url = request.url,
     .revision = request.revision,
     .allow_dirty = request.allow_dirty,

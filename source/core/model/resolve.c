@@ -12,6 +12,7 @@
 #include "intern/intern.h"
 #include "pkg/id.h"
 #include "pkg/load.h"
+#include "paths/paths.h"
 #include "toml/issue.h"
 #include "pkg/pkg.h"
 #include "resolve/resolve.h"
@@ -26,7 +27,7 @@ static sp_str_t patch_dir(sp_mem_t mem, spn_index_release_t* release) {
 
   sp_str_t dir = sp_fs_join_path(mem, spn.paths.patches, release->id.name);
   sp_str_t manifest = sp_fs_join_path(mem, dir, release->paths.manifest);
-  if (!sp_fs_exists(manifest)) {
+  if (!sp_fs_exists_at(sp_path_resolve(manifest))) {
     return sp_str_lit("");
   }
 
@@ -50,7 +51,7 @@ static spn_err_t apply_patch_overrides(spn_session_t* session, spn_resolve_query
     sp_str_t name = sp_intern_str_from_id(session->ctx->intern, pkg->id.qualified);
     spn_pkg_info_t* info = sp_alloc_type(spn.mem, spn_pkg_info_t);
     spn_codegen_issues_t issues = sp_zero;
-    spn_err_t loaded = spn_pkg_load(spn.mem, session->ctx->intern, manifest, SPN_MANIFEST_DEP, info, &issues);
+    spn_err_t loaded = spn_pkg_load(spn.mem, session->ctx->intern, sp_path_resolve(manifest), SPN_MANIFEST_DEP, info, &issues);
     if (loaded == SPN_ERR_NO_MANIFEST) {
       result = spn_err_emit(session->ctx, (spn_err_union_t) {
         .kind = SPN_ERR_NO_MANIFEST,
@@ -112,7 +113,7 @@ spn_err_t resolve(spn_op_t* op) {
   sp_ht_insert(session->registry, spn_pkg_id(session->ctx->intern, session->pkg->qualified), ((spn_registry_pkg_t) {
     .source = SPN_PKG_SOURCE_ROOT,
     .info = session->pkg,
-    .manifest = session->project->paths.manifest,
+    .manifest = spn_path_str(&spn.roots, spn.mem, session->project->paths.manifest),
   }));
 
   spn_index_cache_t index = sp_zero;

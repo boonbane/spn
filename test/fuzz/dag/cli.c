@@ -184,7 +184,7 @@ static sp_cli_result_t load_config(sp_cli_t* cli, sp_mem_t mem, cli_t* config, s
   spn_toml_loader_init(&loader, mem, sp_intern_new(mem));
   loader.strict = true;
 
-  toml_table_t* table = spn_codegen_parse(&loader, sp_cstr_as_str(config->config));
+  toml_table_t* table = spn_codegen_parse(&loader, sp_path_resolve(sp_cstr_as_str(config->config)));
   if (table) {
     spn_fuzz_read(&loader, table, out);
     toml_free(table);

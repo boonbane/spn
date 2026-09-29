@@ -198,7 +198,7 @@ static spn_err_union_t load_file_pkg(spn_resolver_t* resolver, spn_requested_dep
 
   spn_pkg_info_t* info = sp_alloc_type(resolver->mem, spn_pkg_info_t);
   spn_codegen_issues_t issues = sp_zero;
-  spn_err_t loaded = spn_pkg_load(resolver->mem, resolver->intern, request->file.path, SPN_MANIFEST_DEP, info, &issues);
+  spn_err_t loaded = spn_pkg_load(resolver->mem, resolver->intern, sp_path_resolve(request->file.path), SPN_MANIFEST_DEP, info, &issues);
   if (loaded == SPN_ERR_NO_MANIFEST) {
     return (spn_err_union_t) {
       .kind = SPN_ERR_NO_MANIFEST,

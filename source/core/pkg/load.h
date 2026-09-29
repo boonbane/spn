@@ -6,6 +6,6 @@
 #include "spn/core.h"
 #include "pkg/types.h"
 
-spn_err_t spn_pkg_load(sp_mem_t mem, sp_intern_t* intern, sp_str_t path, spn_manifest_role_t role, spn_pkg_info_t* pkg, spn_codegen_issues_t* issues);
+spn_err_t spn_pkg_load(sp_mem_t mem, sp_intern_t* intern, sp_path_t path, spn_manifest_role_t role, spn_pkg_info_t* pkg, spn_codegen_issues_t* issues);
 
 #endif
