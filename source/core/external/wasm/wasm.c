@@ -56,7 +56,7 @@ void spn_wasm_thread_exit(void) {
 }
 
 static spn_err_t script_fail(spn_pkg_unit_t* unit, spn_err_t err, spn_err_wasm_t wasm) {
-  wasm.path = sp_str_copy(spn.mem, wasm.path);
+  wasm.path = spn_path_copy(spn.mem, wasm.path);
   wasm.error = sp_str_copy(spn.mem, wasm.error);
   spn_event_buffer_push(spn.events, (spn_event_t) {
     .kind = SPN_EVENT_ERR,
@@ -76,7 +76,7 @@ static spn_err_t script_open(spn_wasm_script_t* script, spn_pkg_unit_t* unit) {
   }
 
   sp_str_t blob = sp_zero;
-  if (sp_io_read_file(spn.mem, script->path, &blob)) {
+  if (sp_io_read_file_at(spn.mem, spn_path_at(&spn.roots, script->path), &blob)) {
     return script_fail(unit, SPN_ERR_WASM_READ_FAILED, (spn_err_wasm_t) { .path = script->path });
   }
 

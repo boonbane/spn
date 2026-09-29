@@ -1262,7 +1262,7 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           sp_tty_fmt(
             &w,
             "Failed to read build script {.cyan}",
-            sp_fmt_str(get_contextual_path(ctx, mem, event->err.wasm.path))
+            sp_fmt_str(contextual_path(mem, event->err.wasm.path))
           );
           break;
         }
@@ -1270,7 +1270,7 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           sp_tty_fmt(
             &w,
             "Failed to load build script {.cyan}: {.red}",
-            sp_fmt_str(get_contextual_path(ctx, mem, event->err.wasm.path)),
+            sp_fmt_str(contextual_path(mem, event->err.wasm.path)),
             sp_fmt_str(event->err.wasm.error)
           );
           break;
@@ -1279,7 +1279,7 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           sp_tty_fmt(
             &w,
             "Failed to instantiate build script {.cyan}: {.red}",
-            sp_fmt_str(get_contextual_path(ctx, mem, event->err.wasm.path)),
+            sp_fmt_str(contextual_path(mem, event->err.wasm.path)),
             sp_fmt_str(event->err.wasm.error)
           );
           break;
@@ -1288,7 +1288,7 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           sp_tty_fmt(
             &w,
             "Failed to init wasm thread env for build script {.cyan}",
-            sp_fmt_str(get_contextual_path(ctx, mem, event->err.wasm.path))
+            sp_fmt_str(contextual_path(mem, event->err.wasm.path))
           );
           break;
         }
@@ -1296,7 +1296,7 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           sp_tty_fmt(
             &w,
             "Failed to create wasm context for build script {.cyan}",
-            sp_fmt_str(get_contextual_path(ctx, mem, event->err.wasm.path))
+            sp_fmt_str(contextual_path(mem, event->err.wasm.path))
           );
           break;
         }
@@ -1304,7 +1304,7 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           sp_tty_fmt(
             &w,
             "Build script {.cyan} crashed: {.red}",
-            sp_fmt_str(get_contextual_path(ctx, mem, event->err.wasm.path)),
+            sp_fmt_str(contextual_path(mem, event->err.wasm.path)),
             sp_fmt_str(event->err.wasm.error)
           );
           break;
@@ -1313,7 +1313,7 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           sp_tty_fmt(
             &w,
             "Build script {.cyan} returned {.red}",
-            sp_fmt_str(get_contextual_path(ctx, mem, event->err.wasm.path)),
+            sp_fmt_str(contextual_path(mem, event->err.wasm.path)),
             sp_fmt_int(event->err.wasm.rc)
           );
           break;
@@ -1327,7 +1327,7 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
             &w,
             "Referenced symbol {.yellow} was not found in {.cyan}",
             sp_fmt_str(event->err.wasm.error),
-            sp_fmt_str(get_contextual_path(ctx, mem, event->err.wasm.path))
+            sp_fmt_str(contextual_path(mem, event->err.wasm.path))
           );
           break;
         }

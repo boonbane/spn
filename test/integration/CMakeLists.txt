@@ -13,6 +13,7 @@ add_executable(integration
   ${GEN_DIR}/config.gen.c
   ${TEST_GEN_DIR}/probe.gen.c
   ${SRC}/core/core.c
+  ${UTIL}/fs/fs.c
   ${UTIL}/io/io.c
   ${SRC}/ctx/ctx.c
   ${SRC}/enum/enum.c

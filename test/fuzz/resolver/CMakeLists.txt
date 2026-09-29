@@ -35,6 +35,7 @@ add_executable(fuzz_resolver
   ${SRC}/index/index.c
   ${SRC}/index/jsonl.c
   ${SRC}/index/json.c
+  ${UTIL}/fs/fs.c
   ${UTIL}/io/io.c
   ${SRC}/paths/paths.c
   ${SRC}/pkg/id.c

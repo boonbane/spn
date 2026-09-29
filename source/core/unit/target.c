@@ -678,12 +678,11 @@ static void init_wasm_scripts(spn_session_t* s) {
     if (!unit->metaprogram) {
       continue;
     }
-    const spn_path_roots_t* roots = &spn.roots;
     if (unit->metaprogram->scripts.configure) {
-      spn_wasm_script_init(&unit->wasm.configure, spn_path_str(roots, s->mem, unit->metaprogram->scripts.configure->paths.output));
+      spn_wasm_script_init(&unit->wasm.configure, unit->metaprogram->scripts.configure->paths.output);
     }
     if (unit->metaprogram->scripts.build) {
-      spn_wasm_script_init(&unit->wasm.build, spn_path_str(roots, s->mem, unit->metaprogram->scripts.build->paths.output));
+      spn_wasm_script_init(&unit->wasm.build, unit->metaprogram->scripts.build->paths.output);
     }
   }
 }

@@ -126,6 +126,13 @@ sp_err_t sp_fs_staging_dir(sp_mem_t mem, sp_path_t path, sp_str_t extension, sp_
   return SP_ERR_SYS;
 }
 
+sp_err_t sp_fs_create_parent(sp_path_t path) {
+  sp_mem_arena_marker_t s = sp_mem_begin_scratch();
+  sp_err_t err = sp_fs_create_dir_at(sp_path_parent(s.mem, path));
+  sp_mem_end_scratch(s);
+  return err;
+}
+
 sp_err_t sp_fs_append(sp_path_t path, sp_str_t str) {
   sp_sys_fd_t fd = SP_SYS_INVALID_FD;
   sp_try(sp_sys_open_s(path.dir, path.sub, SP_SYS_OPEN_MODE_WO, SP_SYS_OPEN_CREATE | SP_SYS_OPEN_APPEND, &fd));

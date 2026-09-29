@@ -7,7 +7,7 @@
 
 spn_err_t spn_wasm_init();
 void      spn_wasm_thread_exit(void);
-void      spn_wasm_script_init(spn_wasm_script_t* script, sp_str_t module);
+void      spn_wasm_script_init(spn_wasm_script_t* script, spn_path_t module);
 spn_err_t spn_wasm_script_open(spn_wasm_script_t* script, spn_pkg_unit_t* unit);
 void      spn_wasm_script_close(spn_wasm_script_t* script);
 bool      spn_wasm_script_exports(spn_wasm_script_t* script, sp_str_t name);
