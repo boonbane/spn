@@ -39,7 +39,7 @@ spn_path_t spn_api_dir_path(spn_pkg_unit_t* unit, spn_dir_t dir) {
     case SPN_DIR_CACHE:    return unit->paths.store;
     case SPN_DIR_STORE:    return unit->paths.store;
     case SPN_DIR_INCLUDE:  return unit->paths.include;
-    case SPN_DIR_VENDOR:   return unit->paths.vendor;
+    case SPN_DIR_SHARE:    return unit->paths.share;
     case SPN_DIR_LIB:      return unit->paths.lib;
     case SPN_DIR_SOURCE:   return unit->paths.roots.source;
     case SPN_DIR_WORK:     return unit->paths.work;

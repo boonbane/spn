@@ -343,4 +343,9 @@ spn_test_binary(glob)
 target_include_directories(glob PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/tools ${STORE}/include/sp)
 add_test(NAME glob COMMAND "$<TARGET_FILE:glob>" WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
 
+add_executable(stage stage/plan.c ${SRC}/stage/stage.c ${UTIL}/str/str.c tools/main/unit.c)
+spn_test_binary(stage)
+target_include_directories(stage PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/tools ${STORE}/include/sp)
+add_test(NAME stage COMMAND "$<TARGET_FILE:stage>" WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
+
 add_subdirectory(resolver)

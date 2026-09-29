@@ -90,7 +90,7 @@ static spn_err_t script_open(spn_wasm_script_t* script, spn_pkg_unit_t* unit) {
     });
   }
 
-  spn_path_t dirs []= { unit->paths.work, unit->paths.lib, unit->paths.bin, unit->paths.vendor };
+  spn_path_t dirs []= { unit->paths.work, unit->paths.lib, unit->paths.bin, unit->paths.share };
   sp_carr_for(dirs, it) {
     sp_fs_create_dir_at(spn_path_at(roots, dirs[it]));
   }

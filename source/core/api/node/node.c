@@ -64,7 +64,7 @@ static output_problem_t output_problem(spn_dir_t dir, sp_str_t sub) {
     return OUTPUT_UNNAMED;
   }
   switch (dir) {
-    case SPN_DIR_VENDOR:
+    case SPN_DIR_SHARE:
     case SPN_DIR_LIB:
     case SPN_DIR_BIN:
     case SPN_DIR_WORK:     return OUTPUT_OK;
@@ -83,7 +83,7 @@ static sp_str_t output_problem_str(output_problem_t problem) {
   switch (problem) {
     case OUTPUT_OK:       return sp_str_lit("");
     case OUTPUT_UNNAMED:  return sp_str_lit("must name a path under its root");
-    case OUTPUT_ROOT:     return sp_str_lit("must be rooted at vendor, lib, bin, or work");
+    case OUTPUT_ROOT:     return sp_str_lit("must be rooted at share, lib, bin, or work");
   }
   SP_UNREACHABLE_RETURN(sp_str_lit(""));
 }

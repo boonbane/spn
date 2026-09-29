@@ -106,6 +106,37 @@ sp_test(script, publish_replay) {
   });
 }
 
+sp_test(script, share_dep_replay) {
+  return run_rebuild_test(t, (rebuild_test_t) {
+    .project = "test/integration/fixtures/script/share_dep",
+    .copy = { "packages/*" },
+    .first = {
+      .args = { "build" },
+      .expect = {
+        .bin.name = "main",
+        .events = { { .event = SPN_EVENT_SCRIPT_USER_FN } },
+        .exists = { pkg_store_file("kit", "share/kit_gen.h"), exe("main") },
+      },
+    },
+    .rebuilds = {
+      {
+        .change.remove_dirs = { sp_str_lit("build") },
+        .command = {
+          .args = { "build" },
+          .expect = {
+            .bin.name = "main",
+            .events = {
+              { .event = SPN_EVENT_SCRIPT_USER_FN, .absent = true },
+              { .event = SPN_EVENT_TARGET_BUILD_PASSED, .absent = true },
+            },
+            .exists = { pkg_store_file("kit", "share/kit_gen.h"), exe("main") },
+          },
+        },
+      },
+    },
+  });
+}
+
 sp_test(script, tree_output_rerun_drops_file) {
   return run_rebuild_test(t, (rebuild_test_t) {
     .project = "test/integration/fixtures/script/tree_output_drop",
@@ -172,6 +203,16 @@ sp_test(script, node_output_bin) {
     .args = { "build" },
     .expect = {
       .exists = { pkg_store_file("B", "bin/R.txt") },
+    },
+  });
+}
+
+sp_test(script, node_output_share) {
+  return run_command_test(t, (command_test_t) {
+    .project = "test/integration/fixtures/script/node_output_share",
+    .args = { "build" },
+    .expect = {
+      .exists = { pkg_store_file("H", "share/R.txt") },
     },
   });
 }

@@ -631,6 +631,16 @@ source = [
 include = ["source/util", "test/core/tools"]
 
 [[test]]
+name = "stage"
+source = [
+  "test/core/stage/*.c",
+  "source/core/stage/stage.c",
+  "source/util/str/str.c",
+  "test/core/tools/main/unit.c",
+]
+include = ["source/core", "source/util", "test/core/tools"]
+
+[[test]]
 name = "paths"
 source = [
   "test/core/paths/*.c",

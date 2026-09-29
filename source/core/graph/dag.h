@@ -12,6 +12,11 @@ typedef struct {
 } spn_dag_object_ids_t;
 
 typedef struct {
+  sp_da(spn_dag_id_t) outputs;
+  sp_da(spn_dag_id_t) shared;
+} spn_dag_pkg_ids_t;
+
+typedef struct {
   spn_dag_id_t action;
   spn_dag_id_t output;
   struct {
@@ -28,7 +33,7 @@ struct spn_dag_build_t {
   spn_dag_t* graph;
 
   struct {
-    sp_ht(spn_pkg_unit_t*, sp_da(spn_dag_id_t)) user_outputs;
+    sp_ht(spn_pkg_unit_t*, spn_dag_pkg_ids_t) packages;
     sp_ht(spn_path_t, spn_dag_id_t) stamps;
     sp_ht(spn_target_unit_t*, spn_dag_target_ids_t) targets;
     sp_ht(spn_compile_unit_t*, spn_dag_object_ids_t) objects;

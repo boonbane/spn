@@ -385,7 +385,7 @@ sp_str_t spn_dir_to_str(spn_dir_t dir) {
     case SPN_DIR_CACHE:    return sp_str_lit("cache");
     case SPN_DIR_STORE:    return sp_str_lit("store");
     case SPN_DIR_INCLUDE:  return sp_str_lit("include");
-    case SPN_DIR_VENDOR:   return sp_str_lit("vendor");
+    case SPN_DIR_SHARE:    return sp_str_lit("share");
     case SPN_DIR_LIB:      return sp_str_lit("lib");
     case SPN_DIR_SOURCE:   return sp_str_lit("source");
     case SPN_DIR_WORK:     return sp_str_lit("work");
