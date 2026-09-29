@@ -3,66 +3,38 @@
 static const rsp_test_t tests [] = {
   {
     .name = "plain_unquoted",
-    .program = "gcc",
     .args = { "-o", "A/B.exe", "C.o" },
-    .expect = {
-      .content = "-o\nA/B.exe\nC.o\n",
-      .args = { "@A.rsp" },
-    },
+    .expect = "-o\nA/B.exe\nC.o\n",
   },
   {
     .name = "whitespace_quoted",
-    .program = "gcc",
     .args = { "A B" },
-    .expect = {
-      .content = "\"A B\"\n",
-      .args = { "@A.rsp" },
-    },
+    .expect = "\"A B\"\n",
   },
   {
     .name = "apostrophe_quoted",
-    .program = "gcc",
     .args = { "A'B" },
-    .expect = {
-      .content = "\"A'B\"\n",
-      .args = { "@A.rsp" },
-    },
+    .expect = "\"A'B\"\n",
   },
   {
     .name = "quote_escaped",
-    .program = "gcc",
     .args = { "A\"B" },
-    .expect = {
-      .content = "\"A\\\"B\"\n",
-      .args = { "@A.rsp" },
-    },
+    .expect = "\"A\\\"B\"\n",
   },
   {
     .name = "backslash_quoted_and_escaped",
-    .program = "gcc",
     .args = { "A\\B" },
-    .expect = {
-      .content = "\"A\\\\B\"\n",
-      .args = { "@A.rsp" },
-    },
+    .expect = "\"A\\\\B\"\n",
   },
   {
     .name = "trailing_backslash_escaped",
-    .program = "gcc",
     .args = { "A\\" },
-    .expect = {
-      .content = "\"A\\\\\"\n",
-      .args = { "@A.rsp" },
-    },
+    .expect = "\"A\\\\\"\n",
   },
   {
     .name = "backslash_before_quote_both_escaped",
-    .program = "gcc",
     .args = { "A\\\"B" },
-    .expect = {
-      .content = "\"A\\\\\\\"B\"\n",
-      .args = { "@A.rsp" },
-    },
+    .expect = "\"A\\\\\\\"B\"\n",
   },
 };
 

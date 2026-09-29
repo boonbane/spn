@@ -93,7 +93,7 @@ static spn_build_unit_t* add_build(spn_session_t* s, spn_build_id_t id, const c8
 
   spn_toolchain_unit_t* toolchain = sp_alloc_type(s->mem, spn_toolchain_unit_t);
   toolchain->info = info;
-  toolchain->cc = (spn_cc_toolchain_t) {
+  toolchain->cc = (spn_cc_t) {
     .name = info->name,
     .driver = SPN_CC_DRIVER_GCC,
     .compiler = info->compiler,
@@ -113,11 +113,13 @@ spn_session_t* build_session(sp_mem_t mem, unit_graph_test_t* g) {
   sp_ht_init(mem, s->packages);
   sp_ht_init(mem, s->options);
   sp_ht_init(mem, s->fingerprints);
-  sp_da_init(mem, s->plans);
+  sp_da_init(mem, s->plans.build);
   sp_om_new(s->units.builds);
   sp_om_new(s->units.packages);
   sp_om_new(s->units.targets);
   sp_om_new(s->units.objects);
+  sp_om_new(s->plans.targets);
+  sp_om_new(s->plans.objects);
 
   spn_profile_info_t profile = {
     .name = sp_str_lit("debug"),
@@ -212,7 +214,7 @@ spn_session_t* build_session(sp_mem_t mem, unit_graph_test_t* g) {
   spn_build_plan_t plan = { .build = s->units.target };
   sp_da_init(mem, plan.roots);
   sp_da_init(mem, plan.staged);
-  sp_da_push(s->plans, plan);
+  sp_da_push(s->plans.build, plan);
 
   return s;
 }

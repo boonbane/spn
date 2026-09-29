@@ -45,7 +45,12 @@ struct spn_session_t {
     u32 resolves;
   } gates;
 
-  sp_da(spn_build_plan_t) plans;
+  struct {
+    sp_da(spn_build_plan_t) build;
+    sp_om(spn_target_unit_id_t, spn_target_plan_t) targets;
+    sp_om(spn_compile_unit_id_t, spn_invocation_t) objects;
+  } plans;
+
   struct {
     sp_om(spn_build_id_t, spn_build_unit_t) builds;
     spn_build_unit_t* target;
@@ -64,6 +69,7 @@ struct spn_session_t {
   struct {
     spn_dag_build_t* configure;
     spn_dag_build_t* build;
+    sp_om(spn_compile_unit_id_t, spn_dag_digest_t) objects;
     spn_dag_file_cache_t files;
     sp_str_t files_path;
   } dag;

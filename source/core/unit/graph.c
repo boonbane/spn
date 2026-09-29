@@ -171,8 +171,8 @@ spn_err_t spn_units_add_packages(spn_session_t* s) {
   sp_da(spn_pkg_unit_t*) pending = sp_da_new(scratch.mem, spn_pkg_unit_t*);
 
   spn_pkg_id_t root = spn_session_root_pkg(s);
-  sp_da_for(s->plans, it) {
-    add_unit(s, s->plans[it].build, root, kind_bits(SPN_DEP_KIND_PACKAGE) | kind_bits(SPN_DEP_KIND_TEST), &pending);
+  sp_da_for(s->plans.build, it) {
+    add_unit(s, s->plans.build[it].build, root, kind_bits(SPN_DEP_KIND_PACKAGE) | kind_bits(SPN_DEP_KIND_TEST), &pending);
   }
   drain(s, &pending);
 

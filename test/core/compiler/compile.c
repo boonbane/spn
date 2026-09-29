@@ -620,7 +620,7 @@ static const compile_test_t tests [] = {
 
 sp_test_each(render_compile, render, compile_test_t, tests, .setup = spn_test_ctx_setup) {
   sp_mem_t mem = sp_test_arena(t);
-  spn_cc_toolchain_t toolchain = test_toolchain(it->driver);
+  spn_cc_t toolchain = test_toolchain(it->driver);
   toolchain.wasi = it->wasi;
   if (it->compiler) {
     toolchain.compiler.program = spn_arg_path(test_arg_path(it->compiler));
@@ -663,7 +663,7 @@ sp_test_each(render_compile, render, compile_test_t, tests, .setup = spn_test_ct
 
 sp_test(render_compile, base_shared_across_commands, .setup = spn_test_ctx_setup) {
   sp_mem_t mem = sp_test_arena(t);
-  spn_cc_toolchain_t toolchain = test_toolchain(SPN_CC_DRIVER_GCC);
+  spn_cc_t toolchain = test_toolchain(SPN_CC_DRIVER_GCC);
   spn_cc_compile_t compile = {
     .lang = SPN_LANG_C,
   };

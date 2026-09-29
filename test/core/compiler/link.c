@@ -11,7 +11,6 @@ typedef struct {
   test_profile_t profile;
   spn_cc_output_kind_t kind;
   const c8* exports;
-  const c8* export_symbols [2];
   const c8* lib;
   const c8* whole_archive;
   const c8* private_lib;
@@ -730,14 +729,14 @@ static const link_test_t tests [] = {
       .os = SPN_OS_WASI,
     },
     .kind = SPN_CC_OUTPUT_REACTOR,
-    .export_symbols = { "A", "B" },
+    .exports = "S.rsp",
     .expect = {
       .command = "cc",
       .args = {
         "--target=wasm32-wasi",
         "-mexec-model=reactor",
         "-Wl,--no-entry", "-Wl,--import-symbols",
-        "-Wl,--export=A", "-Wl,--export=B",
+        "@S.rsp",
         "main.o", "-o", "main"
       },
     },
@@ -1035,7 +1034,7 @@ static const link_test_t tests [] = {
 
 sp_test_each(render_link, render, link_test_t, tests, .setup = spn_test_ctx_setup) {
   sp_mem_t mem = sp_test_arena(t);
-  spn_cc_toolchain_t toolchain = test_toolchain(it->driver);
+  spn_cc_t toolchain = test_toolchain(it->driver);
   toolchain.wasi = it->wasi;
   spn_triple_t triple = { it->profile.arch, it->profile.os, it->profile.abi };
   toolchain.link_args = sp_da_new(mem, sp_str_t);
@@ -1056,26 +1055,18 @@ sp_test_each(render_link, render, link_test_t, tests, .setup = spn_test_ctx_setu
   sp_da_init(mem, link.frameworks);
   sp_da_init(mem, link.args);
   sp_da_init(mem, link.scripts);
+  sp_da_init(mem, link.whole_archives);
 
-  spn_cc_link_files_t files = {
-    .output = test_arg_path("main"),
-  };
-  sp_da_init(mem, files.objects);
-  sp_da_init(mem, files.whole_archives);
-  sp_da_init(mem, files.exports.symbols);
-  sp_da_push(files.objects, test_arg_path("main.o"));
+  sp_da(spn_arg_t) objects = sp_da_new(mem, spn_arg_t);
+  sp_da_push(objects, spn_arg_path(test_arg_path("main.o")));
   if (it->exports) {
-    files.exports.path = test_arg_path(it->exports);
-  }
-  sp_carr_for(it->export_symbols, s) {
-    if (!it->export_symbols[s]) break;
-    sp_da_push(files.exports.symbols, sp_str_from_cstr(mem, it->export_symbols[s]));
+    link.exports = test_arg_path(it->exports);
   }
   if (it->lib) {
     sp_da_push(link.libs, sp_str_from_cstr(mem, it->lib));
   }
   if (it->whole_archive) {
-    sp_da_push(files.whole_archives, test_arg_path(it->whole_archive));
+    sp_da_push(link.whole_archives, test_arg_path(it->whole_archive));
   }
   if (it->private_lib) {
     sp_da_push(link.private_libs, sp_str_from_cstr(mem, it->private_lib));
@@ -1098,8 +1089,7 @@ sp_test_each(render_link, render, link_test_t, tests, .setup = spn_test_ctx_setu
 
   spn_profile_info_t profile = test_profile(it->profile);
   profile.linker = it->lld ? SPN_LD_FAMILY_LLD : spn_ld_native(it->driver, triple);
-  spn_invocation_t invocation = sp_zero;
-  spn_err_t err = spn_cc_render_link(mem, &toolchain, it->host, &profile, &link, &files, &invocation);
+  spn_err_t err = spn_cc_validate_link(&toolchain, it->host, &profile, &link);
   sp_expect_eq(t, err, it->expect.err);
   if (it->expect.err) {
     sp_da(spn_event_t) errs = spn_test_drain_errs(mem);
@@ -1121,6 +1111,23 @@ sp_test_each(render_link, render, link_test_t, tests, .setup = spn_test_ctx_setu
       }
     }
     return SP_OK;
+  }
+  spn_path_t output = test_arg_path("main");
+  spn_invocation_t invocation = sp_zero;
+  switch (it->driver) {
+    case SPN_CC_DRIVER_GCC:
+    case SPN_CC_DRIVER_CLANG:
+    case SPN_CC_DRIVER_ZIG: {
+      spn_gnu_render_link(mem, &toolchain, &profile, &link, objects, output, sp_zero_struct(spn_path_t), &invocation);
+      break;
+    }
+    case SPN_CC_DRIVER_MSVC: {
+      spn_msvc_render_link(mem, &toolchain, &profile, &link, objects, output, sp_zero_struct(spn_path_t), &invocation);
+      break;
+    }
+    case SPN_CC_DRIVER_NONE: {
+      sp_unreachable_case();
+    }
   }
   return expect_args(t, &invocation, it->expect);
 }

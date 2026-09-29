@@ -124,7 +124,7 @@ static spn_err_t add(spn_ctx_t* ctx, spn_add_request_t request, spn_semver_range
   sp_str_t source = sp_zero;
   sp_str_t manifest = ctx->project->paths.manifest;
   if (sp_io_read_file(s.mem, manifest, &source) != SP_OK) {
-    result = spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_FS_READ, .fs = { .path = manifest } });
+    result = spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_FS_READ, .fs = { .path = { .sub = manifest } } });
     goto cleanup;
   }
 
@@ -149,7 +149,7 @@ static spn_err_t add(spn_ctx_t* ctx, spn_add_request_t request, spn_semver_range
 
   sp_str_t updated = spn_toml_edit_render(&edit, s.mem);
   if (sp_fs_write_atomic(manifest, updated) != SP_OK) {
-    result = spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_FS_WRITE, .fs = { .path = manifest } });
+    result = spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_FS_WRITE, .fs = { .path = { .sub = manifest } } });
     goto cleanup;
   }
 

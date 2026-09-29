@@ -1,7 +1,9 @@
 #include "error/json.h"
 
 #include "codegen/codegen.h"
+#include "ctx/types.h"
 #include "enum/enum.h"
+#include "paths/paths.h"
 #include "triple/triple.h"
 
 void spn_codegen_write_err(sp_io_writer_t* out, const spn_err_t* err) {
@@ -42,4 +44,10 @@ void spn_codegen_write_sanitizer_set(sp_io_writer_t* out, const spn_sanitizer_se
 
 void spn_codegen_write_linkage(sp_io_writer_t* out, const spn_linkage_t* kind) {
   spn_codegen_json_str(out, spn_linkage_to_str(*kind));
+}
+
+void spn_codegen_write_path(sp_io_writer_t* out, const spn_path_t* path) {
+  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+  spn_codegen_json_str(out, spn_path_str(&spn.roots, scratch.mem, *path));
+  sp_mem_end_scratch(scratch);
 }

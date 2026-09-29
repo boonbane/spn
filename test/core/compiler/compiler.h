@@ -26,16 +26,9 @@ typedef struct {
 } render_expect_t;
 
 typedef struct {
-  const c8* content;
-  const c8* args [render_args_max];
-} rsp_expect_t;
-
-typedef struct {
   const c8* name;
-  const c8* program;
-  u32 launcher;
   const c8* args [rsp_args_max];
-  rsp_expect_t expect;
+  const c8* expect;
 } rsp_test_t;
 
 typedef struct {
@@ -55,5 +48,5 @@ typedef struct {
 spn_path_t         test_arg_path(const c8* value);
 sp_err_t           expect_args(sp_test_t* t, spn_invocation_t* invocation, render_expect_t expect);
 sp_err_t           expect_rsp(sp_test_t* t, const rsp_test_t* it, spn_rsp_style_t style);
-spn_cc_toolchain_t test_toolchain(spn_cc_driver_t driver);
+spn_cc_t test_toolchain(spn_cc_driver_t driver);
 spn_profile_info_t test_profile(test_profile_t desc);

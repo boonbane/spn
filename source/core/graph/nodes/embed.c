@@ -9,16 +9,20 @@
 #include "event/event.h"
 #include "intern/intern.h"
 #include "graph/build.h"
+#include "graph/nodes/nodes.h"
 #include "paths/paths.h"
 #include "str/str.h"
 #include "triple/triple.h"
 #include "unit/package.h"
 #include "unit/unit.h"
 
-s32 spn_embed_write(spn_target_unit_t* unit, spn_path_t object, spn_path_t header, spn_dag_obs_set_t* obs) {
+spn_err_t spn_dag_exec_embed(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs) {
+  spn_target_unit_t* unit = (spn_target_unit_t*)user_data;
   spn_target_info_t* info = unit->info;
-  sp_str_t obj = spn_path_str(&spn.roots, spn.mem, object);
-  sp_str_t hdr = spn_path_str(&spn.roots, spn.mem, header);
+  sp_str_buf_t obj_buf = sp_zero;
+  sp_str_buf_t hdr_buf = sp_zero;
+  sp_str_t obj = spn_path_str(&spn.roots, sp_str_buf_as_mem(&obj_buf), outputs[0]);
+  sp_str_t hdr = spn_path_str(&spn.roots, sp_str_buf_as_mem(&hdr_buf), outputs[1]);
 
   spn_pkg_unit_announce_compile(unit->pkg);
 
@@ -31,7 +35,7 @@ s32 spn_embed_write(spn_target_unit_t* unit, spn_path_t object, spn_path_t heade
   sp_tm_timer_t timer = sp_tm_start_timer();
 
   spn_cc_embed_ctx_t embedder = sp_zero;
-  spn_cc_embed_ctx_init(&embedder, spn.mem, spn_os_format(unit->pkg->build->profile.os), unit->pkg->build->profile.arch);
+  spn_cc_embed_ctx_init(&embedder, spn.mem, spn_os_to_native_object_format(unit->pkg->build->profile.os), unit->pkg->build->profile.arch);
 
   sp_da_for(info->embed, it) {
     spn_embed_t embed = info->embed[it];
@@ -55,9 +59,9 @@ s32 spn_embed_write(spn_target_unit_t* unit, spn_path_t object, spn_path_t heade
           spn_event_buffer_push(spn.events, (spn_event_t) {
             .kind = SPN_EVENT_EMBED_FAILED,
             .pkg = unit->pkg->info->name,
-            .embed_failed = { .target = info->name, .path = sp_str_copy(spn.mem, file), .error = sp_str_lit("file not found") },
+            .embed_failed = { .target = info->name, .path = embed.path, .error = sp_str_lit("file not found") },
           });
-          return SPN_ERROR;
+          return SPN_ERR_DAG_ACTION;
         }
 
         sp_mem_buffer_t data = {
@@ -86,17 +90,18 @@ s32 spn_embed_write(spn_target_unit_t* unit, spn_path_t object, spn_path_t heade
             continue;
           }
           if (!sp_fs_is_file(entry.path)) continue;
-          spn_dag_observe(obs, (spn_dag_obs_t) { .kind = SPN_DAG_OBS_FILE, .path = spn_path_join(scratch.mem, root, rel) });
+          spn_path_t file = spn_path_join(scratch.mem, root, rel);
+          spn_dag_observe(obs, (spn_dag_obs_t) { .kind = SPN_DAG_OBS_FILE, .path = file });
           sp_str_t content = sp_zero;
           if (sp_io_read_file(embedder.mem, entry.path, &content) != SP_OK) {
             spn_event_buffer_push(spn.events, (spn_event_t) {
               .kind = SPN_EVENT_EMBED_FAILED,
               .pkg = unit->pkg->info->name,
-              .embed_failed = { .target = info->name, .path = sp_str_copy(spn.mem, entry.path), .error = sp_str_lit("file not found") },
+              .embed_failed = { .target = info->name, .path = spn_path_copy(spn.mem, file), .error = sp_str_lit("file not found") },
             });
             sp_fs_it_deinit(&walk);
             sp_mem_end_scratch(scratch);
-            return SPN_ERROR;
+            return SPN_ERR_DAG_ACTION;
           }
           sp_mem_buffer_t entry_data = {
             .data = (u8*)(uintptr_t)content.data,
@@ -121,14 +126,19 @@ s32 spn_embed_write(spn_target_unit_t* unit, spn_path_t object, spn_path_t heade
       .pkg = unit->pkg->info->name,
       .embed_failed = { .target = info->name, .error = sp_str_lit("embed write failed") },
     });
-    return SPN_ERROR;
+    return SPN_ERR_DAG_ACTION;
   }
 
   u64 elapsed = sp_tm_read_timer(&timer);
   spn_event_buffer_push(spn.events, (spn_event_t) {
     .kind = SPN_EVENT_EMBED_PASSED,
     .pkg = unit->pkg->info->name,
-    .embed_passed = { .target = info->name, .object_path = obj, .header_path = hdr, .time = elapsed },
+    .embed_passed = {
+      .target = info->name,
+      .object_path = spn_dag_find_artifact(g, action->produces[0])->path,
+      .header_path = spn_dag_find_artifact(g, action->produces[1])->path,
+      .time = elapsed,
+    },
   });
 
   return SPN_OK;

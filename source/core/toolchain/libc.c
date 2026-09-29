@@ -65,7 +65,7 @@ static spn_err_t write_file(sp_mem_t mem, const spn_path_roots_t* roots, spn_pat
   sp_str_t path = spn_path_str(roots, sp_str_buf_as_mem(&buf), file);
   sp_fs_create_dir(sp_fs_parent_path(path));
   if (sp_fs_write_atomic(path, content)) {
-    return spn_err_emit(&spn, (spn_err_union_t) { .kind = SPN_ERR_FS_WRITE, .fs = { .path = sp_str_copy(mem, path) } });
+    return spn_err_emit(&spn, (spn_err_union_t) { .kind = SPN_ERR_FS_WRITE, .fs = { .path = spn_path_copy(mem, file) } });
   }
   return SPN_OK;
 }

@@ -171,7 +171,7 @@ static const flags_test_t tests [] = {
 
 sp_test_each(render_flags, resolve, flags_test_t, tests) {
   sp_mem_t mem = sp_test_arena(t);
-  spn_cc_toolchain_t toolchain = test_toolchain(it->driver);
+  spn_cc_t toolchain = test_toolchain(it->driver);
 
   spn_cc_flags_t flags = sp_zero;
   spn_cc_render_flags(mem, &toolchain, &it->profile, &flags);

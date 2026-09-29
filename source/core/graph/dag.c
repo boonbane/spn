@@ -1,3 +1,4 @@
+#include "compiler/types.h"
 #include "sp.h"
 #include "io/io.h"
 #include "macro/macro.h"
@@ -10,49 +11,26 @@
 #include "unit/types.h"
 
 #include "compiler/driver.h"
+#include "compiler/rsp.h"
 #include "core/core.h"
 #include "cpu/cpu.h"
-#include "dag/wasi/canonicalize.h"
 #include "enum/enum.h"
 #include "event/event.h"
 #include "external/wasm/wasm.h"
 #include "op/op.h"
 #include "paths/paths.h"
-#include "session/invocation.h"
 #include "str/str.h"
 #include "session/session.h"
 #include "thread_pool/thread_pool.h"
 #include "unit/unit.h"
 #include "graph/build.h"
-#include "toolchain/linker.h"
 #include "graph/dag.h"
-#include "graph/identity.h"
 #include "graph/nodes/nodes.h"
 #include "triple/triple.h"
 #include "unit/package.h"
 
-typedef struct {
-  spn_target_unit_t* target;
-  sp_da(spn_dag_id_t) objects;
-  spn_dag_id_t exports;
-  bool implib;
-} spn_dag_link_ctx_t;
-
-static spn_path_t dag_artifact_path(spn_dag_t* g, spn_dag_id_t id) {
-  return spn_dag_find_artifact(g, id)->materialized;
-}
-
 static spn_path_t dag_artifact_declared(spn_dag_t* g, spn_dag_id_t id) {
   return spn_dag_find_artifact(g, id)->path;
-}
-
-static sp_da(spn_path_t) dag_declared_paths(sp_mem_t mem, spn_dag_t* g, sp_da(spn_dag_id_t) ids) {
-  sp_da(spn_path_t) paths = sp_da_new(mem, spn_path_t);
-  sp_da_reserve(paths, sp_da_size(ids));
-  sp_da_for(ids, it) {
-    sp_da_push(paths, dag_artifact_declared(g, ids[it]));
-  }
-  return paths;
 }
 
 static spn_dag_digest_t hash_embedding(spn_target_unit_t* target) {
@@ -77,245 +55,31 @@ static spn_dag_digest_t hash_embedding(spn_target_unit_t* target) {
   return spn_dag_hash_final(&ctx);
 }
 
-static spn_err_t compile_object(sp_mem_t scratch, spn_dag_t* g, spn_compile_unit_t* unit, spn_dag_env_t* env, spn_path_t object, spn_dag_obs_set_t* obs) {
-  const spn_cc_toolchain_t* toolchain = &unit->target->pkg->build->toolchain->cc;
+typedef struct {
+  spn_pkg_root_kind_t kind;
+  sp_str_t rev;
+  sp_str_t dir;
+  sp_hash_t patches;
+} source_pin_t;
 
-  spn_cc_depfile_t mode = spn_cc_depfile(toolchain, unit->lang);
-  if (mode == SPN_CC_DEPFILE_NONE) {
-    return spn_compile_object_run(unit, object, (spn_path_t) sp_zero) ? SPN_ERR_DAG_ACTION : SPN_OK;
+static source_pin_t source_pin(spn_pkg_unit_t* unit) {
+  source_pin_t pin = sp_zero;
+  spn_resolved_pkg_t* resolved = sp_ht_getp(unit->session->resolve, unit->id.pkg);
+  if (!resolved || resolved->origin.source.kind != SPN_PKG_ROOT_GIT) {
+    return pin;
   }
-
-  spn_path_t depfile = spn_path_suffix(scratch, object, sp_str_lit(".d"));
-  if (spn_compile_object_run(unit, object, depfile)) {
-    return SPN_ERR_DAG_ACTION;
-  }
-
-  sp_str_t dep = spn_path_str(g->roots, scratch, depfile);
-  if (!sp_fs_exists(dep)) {
-    return mode == SPN_CC_DEPFILE_REQUIRED ? SPN_ERR_DAG_DEPFILE : SPN_OK;
-  }
-  sp_str_t content = sp_zero;
-  sp_da(sp_str_t) prereqs = sp_zero;
-  if (sp_io_read_file(scratch, dep, &content) || spn_cc_parse_depfile(scratch, toolchain, content, &prereqs)) {
-    return SPN_ERR_DAG_DEPFILE;
-  }
-  sp_da_for(prereqs, it) {
-    sp_str_t path = prereqs[it];
-    if (!sp_fs_is_absolute(path)) {
-      path = spn_path_str(g->roots, scratch, spn_path_join(scratch, unit->target->pkg->paths.work, path));
-    }
-    sp_str_t canonical = spn_dag_file_cache_canonical(env->files, path);
-    if (sp_str_empty(canonical)) {
-      canonical = spn_dag_wasi_canonicalize(scratch, path);
-    }
-    sp_assert(!sp_str_empty(canonical));
-    spn_dag_observe(obs, (spn_dag_obs_t) {
-      .kind = SPN_DAG_OBS_FILE,
-      .path = spn_path_make(g->roots, canonical),
-    });
-  }
-  return SPN_OK;
+  pin.kind = resolved->origin.source.kind;
+  pin.rev = resolved->origin.source.git.rev;
+  pin.dir = resolved->origin.source.git.dir;
+  pin.patches = resolved->origin.source.git.patches.hash;
+  return pin;
 }
 
-static spn_err_t on_compile_object(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs) {
-  sp_mem_arena_marker_t s = sp_mem_begin_scratch();
-  spn_err_t err = compile_object(s.mem, g, (spn_compile_unit_t*)user_data, env, outputs[0], obs);
-  sp_mem_end_scratch(s);
-  return err;
-}
-
-
-static spn_err_t on_link_target(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs) {
-  spn_dag_link_ctx_t* link = (spn_dag_link_ctx_t*)user_data;
-
-  sp_mem_arena_marker_t s = sp_mem_begin_scratch();
-  sp_da(spn_path_t) objects = sp_da_new(s.mem, spn_path_t);
-  sp_da_for(link->objects, it) {
-    sp_da_push(objects, dag_artifact_path(g, link->objects[it]));
-  }
-  spn_cc_link_files_t files = {
-    .output = outputs[0],
-    .objects = objects,
-    .exports.path = link->exports.occupied ? dag_artifact_path(g, link->exports) : (spn_path_t) sp_zero,
-    .implib = link->implib ? outputs[1] : (spn_path_t) sp_zero,
-  };
-  spn_err_t err = spn_link_target(link->target, files);
-  sp_mem_end_scratch(s);
-  return err ? SPN_ERR_DAG_ACTION : SPN_OK;
-}
-
-static spn_err_t dag_exports_exec(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs) {
-  spn_dag_link_ctx_t* link = (spn_dag_link_ctx_t*)user_data;
-
-  sp_mem_arena_marker_t s = sp_mem_begin_scratch();
-  sp_da(spn_path_t) objects = sp_da_new(s.mem, spn_path_t);
-  sp_da_for(link->objects, it) {
-    sp_da_push(objects, dag_artifact_path(g, link->objects[it]));
-  }
-  spn_err_t err = spn_link_exports_run(link->target, objects, outputs[0]);
-  sp_mem_end_scratch(s);
-  return err ? SPN_ERR_DAG_ACTION : SPN_OK;
-}
-
-static spn_err_t generate_embedding(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs) {
-  spn_target_unit_t* target = (spn_target_unit_t*)user_data;
-
-  if (spn_embed_write(target, outputs[0], outputs[1], obs)) {
-    return SPN_ERR_DAG_ACTION;
-  }
-  return SPN_OK;
-}
-
-static spn_err_t dag_user_exec(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs) {
-  spn_user_node_t* node = (spn_user_node_t*)user_data;
-  spn_pkg_unit_t* pkg = node->pkg;
-
-  spn_pkg_unit_announce_compile(pkg);
-
-  spn_event_buffer_push(spn.events, (spn_event_t) {
-    .kind = SPN_EVENT_SCRIPT_USER_FN,
-    .pkg = pkg->info->name,
-    .script_user_fn = { .tag = node->tag }
-  });
-
-  sp_str_buf_t declared_buf = sp_zero;
-  sp_da_for(action->produces, it) {
-    spn_dag_artifact_t* artifact = spn_dag_find_artifact(g, action->produces[it]);
-    sp_str_t declared = spn_path_str(g->roots, sp_str_buf_as_mem(&declared_buf), artifact->path);
-    sp_err_t err = SP_OK;
-    switch (artifact->kind) {
-      case SPN_DAG_ARTIFACT_KIND_FILE:  err = sp_fs_remove_file(declared); break;
-      case SPN_DAG_ARTIFACT_KIND_TREE:  err = sp_fs_remove_dir(declared); break;
-      case SPN_DAG_ARTIFACT_KIND_VALUE: sp_unreachable_case();
-    }
-    if (err && err != SP_ERR_SYS_NOT_FOUND) {
-      spn_event_buffer_push(spn.events, (spn_event_t) {
-        .kind = SPN_EVENT_NODE_FAILED,
-        .pkg = pkg->info->name,
-        .node_failed = {
-          .path = spn_path_str(g->roots, spn.mem, artifact->path),
-          .message = sp_fmt(spn.mem, "could not be removed before node {} ran", sp_fmt_str(node->tag)).value,
-        },
-      });
-      return SPN_ERR_DAG_ACTION;
-    }
-  }
-
-  if (!sp_str_empty(node->fn)) {
-    if (spn_wasm_call_export_ex(pkg, node->fn, SPN_ABI_KIND_NONE, SP_NULLPTR, obs)) {
-      return SPN_ERR_DAG_ACTION;
-    }
-  }
-
-  sp_str_buf_t target_buf = sp_zero;
-  sp_da_for(action->produces, it) {
-    spn_dag_artifact_t* artifact = spn_dag_find_artifact(g, action->produces[it]);
-    sp_str_t target = spn_path_str(g->roots, sp_str_buf_as_mem(&target_buf), outputs[it]);
-    sp_str_t declared = spn_path_str(g->roots, sp_str_buf_as_mem(&declared_buf), artifact->path);
-    sp_err_t err = SP_OK;
-    if (node->outputs[it].stamp) {
-      sp_fs_create_file(target);
-    }
-    else {
-      switch (artifact->kind) {
-        case SPN_DAG_ARTIFACT_KIND_FILE:  err = sp_fs_copy_file(declared, target, SP_FS_ATOMIC_REPLACE); break;
-        case SPN_DAG_ARTIFACT_KIND_TREE:  err = sp_fs_copy_tree(declared, target, SP_FS_ATOMIC_REPLACE); break;
-        case SPN_DAG_ARTIFACT_KIND_VALUE: sp_unreachable_case();
-      }
-    }
-    if (err) {
-      spn_event_buffer_push(spn.events, (spn_event_t) {
-        .kind = SPN_EVENT_NODE_FAILED,
-        .pkg = pkg->info->name,
-        .node_failed = {
-          .path = spn_path_str(g->roots, spn.mem, artifact->path),
-          .message = err == SP_ERR_SYS_NOT_FOUND
-            ? sp_fmt(spn.mem, "was declared as an output of node {} but was not produced", sp_fmt_str(node->tag)).value
-            : sp_fmt(spn.mem, "output of node {} could not be copied into the build", sp_fmt_str(node->tag)).value,
-        },
-      });
-      return SPN_ERR_DAG_ACTION;
-    }
-  }
-
-  return SPN_OK;
-}
-
-static spn_err_t publish_copy(sp_mem_t scratch, spn_tree_roots_t trees, sp_str_t root, spn_publish_copy_t* copy, spn_dag_obs_set_t* obs) {
-  spn_path_t pattern = spn_path_join(scratch, spn_tree_root(trees, copy->tree), copy->pattern);
-  spn_dag_glob_result_t glob = sp_zero;
-  spn_try(spn_dag_glob(scratch, &spn.roots, pattern, &glob));
-  sp_da_for(glob.obs, it) {
-    spn_dag_observe(obs, glob.obs[it]);
-  }
-  if (sp_da_empty(glob.matches)) {
-    return SPN_ERROR;
-  }
-
-  sp_str_t dir = sp_fs_join_path(scratch, root, copy->dest);
-  sp_str_buf_t buf = sp_zero;
-  sp_da_for(glob.matches, it) {
-    spn_try(spn_fs_update_file(
-      spn_path_str(&spn.roots, sp_str_buf_as_mem(&buf), glob.matches[it].path),
-      sp_fs_join_path(scratch, dir, glob.matches[it].rel)
-    ));
-  }
-  return SPN_OK;
-}
-
-static spn_err_t publish_tree(sp_mem_t scratch, spn_dag_t* g, spn_pkg_unit_t* unit, spn_path_t include, spn_path_t stamp, spn_dag_obs_set_t* obs) {
-  sp_str_t root = spn_path_str(g->roots, scratch, include);
-  if (spn_pkg_unit_publish_headers(unit, root)) {
-    return SPN_ERR_DAG_ACTION;
-  }
-
-  sp_da_for(unit->info->publish.copy, it) {
-    spn_publish_copy_t* copy = &unit->info->publish.copy[it];
-    if (publish_copy(scratch, unit->paths.roots, root, copy, obs)) {
-      spn_event_buffer_push(spn.events, (spn_event_t) {
-        .kind = SPN_EVENT_NODE_FAILED,
-        .pkg = unit->info->name,
-        .node_failed = {
-          .path = sp_fs_join_path(spn.mem, spn_tree_to_str(copy->tree), copy->pattern),
-          .message = sp_fmt(spn.mem, "could not be published to {}", sp_fmt_str(sp_fs_join_path(spn.mem, sp_str_lit("include"), copy->dest))).value,
-        },
-      });
-      return SPN_ERR_DAG_ACTION;
-    }
-  }
-
-  sp_fs_create_file(spn_path_str(g->roots, scratch, stamp));
-  return SPN_OK;
-}
-
-static spn_err_t dag_tree_exec(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs) {
-  sp_mem_arena_marker_t s = sp_mem_begin_scratch();
-  spn_err_t err = publish_tree(s.mem, g, (spn_pkg_unit_t*)user_data, outputs[0], outputs[1], obs);
-  sp_mem_end_scratch(s);
-  return err;
-}
-
-static spn_err_t dag_compile_commands_exec(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs) {
-  spn_pkg_unit_t* unit = (spn_pkg_unit_t*)user_data;
-
-  sp_mem_arena_marker_t s = sp_mem_begin_scratch();
-  spn_err_t err = spn_pkg_unit_write_compile_commands(g->roots, unit, spn_path_str(g->roots, s.mem, outputs[0]));
-  sp_mem_end_scratch(s);
-  return err ? SPN_ERR_DAG_OUTPUT_WRITE : SPN_OK;
-}
-
-static spn_err_t dag_compile_commands_merge_exec(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs) {
-  sp_mem_arena_marker_t s = sp_mem_begin_scratch();
-  sp_da(sp_str_t) fragments = sp_da_new(s.mem, sp_str_t);
-  sp_da_for(action->consumes, it) {
-    sp_da_push(fragments, spn_path_str(g->roots, s.mem, dag_artifact_path(g, action->consumes[it])));
-  }
-  spn_err_t err = spn_compile_commands_merge(fragments, spn_path_str(g->roots, s.mem, outputs[0]));
-  if (!err) {
-    sp_fs_create_file(spn_path_str(g->roots, s.mem, outputs[1]));
-  }
-  sp_mem_end_scratch(s);
-  return err ? SPN_ERR_DAG_OUTPUT_WRITE : SPN_OK;
+static void hash_pin(spn_digest_ctx_t* ctx, const source_pin_t* pin) {
+  spn_dag_hash_u8(ctx, (u8)pin->kind);
+  spn_dag_hash_str(ctx, pin->rev);
+  spn_dag_hash_str(ctx, pin->dir);
+  spn_dag_hash_u64(ctx, pin->patches);
 }
 
 //////////////////
@@ -323,11 +87,11 @@ static spn_err_t dag_compile_commands_merge_exec(spn_dag_t* g, spn_dag_action_t*
 //////////////////
 static spn_err_t dag_add_user_nodes(spn_dag_build_t* b, spn_pkg_unit_t* unit, sp_da(spn_dag_id_t)* outputs) {
   spn_dag_t* g = b->graph;
-  spn_build_source_pin_t pin = spn_build_source_pin(unit);
+  source_pin_t pin = source_pin(unit);
 
   spn_dag_id_t configure = sp_zero;
   if (unit->metaprogram && unit->metaprogram->scripts.configure) {
-    configure = spn_dag_add_file(g, spn_target_output_path(b->mem, unit->metaprogram->scripts.configure));
+    configure = spn_dag_add_file(g, unit->metaprogram->scripts.configure->paths.output);
   }
   spn_dag_id_t metaprogram = sp_zero;
   if (unit->metaprogram && unit->metaprogram->scripts.build) {
@@ -347,10 +111,26 @@ static spn_err_t dag_add_user_nodes(spn_dag_build_t* b, spn_pkg_unit_t* unit, sp
   sp_da_for(unit->user_nodes, it) {
     spn_user_node_t* node = &unit->user_nodes[it];
 
+    spn_digest_ctx_t digest = sp_zero;
+    spn_digest_init_blake3(&digest);
+    spn_dag_hash_str(&digest, sp_str_lit("spn.build.user.v8"));
+    spn_dag_hash_str(&digest, node->pkg->info->qualified);
+    spn_dag_hash_u64(&digest, node->pkg->fingerprint);
+    hash_pin(&digest, &pin);
+    spn_dag_hash_str(&digest, node->tag);
+    spn_dag_hash_str(&digest, node->fn);
+    spn_dag_hash_paths(&digest, node->inputs);
+    spn_dag_hash_u64(&digest, sp_da_size(node->outputs));
+    sp_da_for(node->outputs, ot) {
+      spn_dag_hash_u64(&digest, node->outputs[ot].dir);
+      spn_dag_hash_str(&digest, node->outputs[ot].sub);
+      spn_dag_hash_u64(&digest, node->outputs[ot].kind);
+    }
+
     spn_dag_id_t action = spn_dag_add_action(g, (spn_dag_action_config_t) {
       .kind = SPN_DAG_ACTION_DISCOVERED,
-      .identity = spn_build_user_identity(node, &pin),
-      .execute = dag_user_exec,
+      .identity = spn_dag_hash_final(&digest),
+      .execute = spn_dag_exec_user,
       .user_data = node,
     });
 
@@ -390,17 +170,41 @@ static spn_err_t dag_add_user_nodes(spn_dag_build_t* b, spn_pkg_unit_t* unit, sp
 
 static spn_err_t add_object_compilation(spn_dag_build_t* b, spn_target_unit_t* target) {
   spn_dag_t* g = b->graph;
+  spn_session_t* session = b->session;
+  spn_toolchain_unit_t* toolchain = target->pkg->build->toolchain;
 
   sp_da_for(target->objects, it) {
     spn_compile_unit_t* unit = target->objects[it];
-    bool exists = sp_ht_getp(b->ids.objects, unit);
-    sp_assert(!exists);
+    spn_invocation_t* invocation = spn_session_get_object_plan(session, unit->id);
 
+    spn_dag_digest_t* identity = SP_NULLPTR;
+    sp_om_emplace(session->dag.objects, unit->id, identity);
+
+    spn_digest_ctx_t digest = sp_zero;
+    spn_digest_init_blake3(&digest);
+    spn_dag_hash_str(&digest, sp_str_lit("spn.build.compile.v6"));
+    spn_dag_hash_u64(&digest, toolchain->identity);
+    spn_dag_hash_arg(&digest, invocation->program);
+    spn_dag_hash_path(&digest, invocation->cwd);
+    spn_dag_hash_args(&digest, invocation->args);
+    spn_dag_hash_u64(&digest, sp_da_size(invocation->env));
+    sp_da_for(invocation->env, et) {
+      spn_dag_hash_u64(&digest, invocation->env[et].key);
+      spn_dag_hash_args(&digest, invocation->env[et].values);
+    }
+    spn_dag_hash_path(&digest, unit->paths.file);
+    *identity = spn_dag_hash_final(&digest);
+
+    spn_dag_object_ctx_t* ctx = sp_alloc_type(b->mem, spn_dag_object_ctx_t);
+    *ctx = (spn_dag_object_ctx_t) {
+      .unit = unit,
+      .invocation = invocation,
+    };
     spn_dag_action_config_t config = {
       .kind = SPN_DAG_ACTION_DISCOVERED,
-      .identity = spn_build_compile_identity(unit),
-      .execute = on_compile_object,
-      .user_data = unit,
+      .identity = *identity,
+      .execute = spn_dag_exec_object,
+      .user_data = ctx,
     };
 
     spn_dag_object_ids_t ids = sp_zero;
@@ -419,41 +223,14 @@ static spn_err_t add_object_compilation(spn_dag_build_t* b, spn_target_unit_t* t
 static spn_path_t embed_artifact_path(sp_mem_t mem, spn_target_unit_t* unit, const c8* extension) {
   sp_mem_arena_marker_t s = sp_mem_begin_scratch_for(mem);
   sp_str_t name = sp_fmt(s.mem, "{}.embed.{}", sp_fmt_str(unit->info->name), sp_fmt_cstr(extension)).value;
-  spn_path_t path = spn_path_join(mem, spn_target_unit_object_dir(s.mem, unit), name);
+  spn_path_t path = spn_path_join(mem, unit->paths.object, name);
   sp_mem_end_scratch(s);
   return path;
 }
 
-static spn_err_t dag_add_exports(spn_dag_build_t* b, spn_dag_link_ctx_t* link) {
+spn_err_t spn_dag_build_add_target(spn_dag_build_t* b, spn_target_unit_t* target, const spn_target_plan_t* plan) {
   spn_dag_t* g = b->graph;
-  spn_target_unit_t* target = link->target;
-
-  spn_path_t output = spn_target_exports_path(b->mem, target);
-  spn_dag_digest_t identity = sp_zero;
-  sp_mem_arena_marker_t s = sp_mem_begin_scratch();
-  spn_err_t err = spn_build_exports_identity(s.mem, target, output, dag_declared_paths(s.mem, g, link->objects), &identity);
-  sp_mem_end_scratch(s);
-  spn_try(err);
-
-  spn_dag_id_t action = spn_dag_add_action(g, (spn_dag_action_config_t) {
-    .identity = identity,
-    .execute = dag_exports_exec,
-    .user_data = link,
-  });
-  link->exports = spn_dag_add_file(g, output);
-  spn_try(spn_dag_action_add_output(g, action, link->exports));
-
-  sp_da_for(link->objects, it) {
-    spn_dag_action_add_input(g, action, link->objects[it]);
-  }
-  sp_da_for(target->link.archives, it) {
-    spn_dag_action_add_input(g, action, spn_dag_add_file(g, target->link.archives[it]));
-  }
-  return SPN_OK;
-}
-
-spn_err_t spn_dag_build_add_target(spn_dag_build_t* b, spn_target_unit_t* target) {
-  spn_dag_t* g = b->graph;
+  spn_toolchain_unit_t* toolchain = target->pkg->build->toolchain;
 
   switch (target->lib_kind) {
     case SPN_LIB_KIND_SOURCE: {
@@ -485,7 +262,7 @@ spn_err_t spn_dag_build_add_target(spn_dag_build_t* b, spn_target_unit_t* target
     ids.embed.action = spn_dag_add_action(g, (spn_dag_action_config_t) {
       .kind = SPN_DAG_ACTION_DISCOVERED,
       .identity = hash_embedding(target),
-      .execute = generate_embedding,
+      .execute = spn_dag_exec_embed,
       .user_data = target,
     });
     ids.embed.object = spn_dag_add_file(g, embed_artifact_path(b->mem, target, "o"));
@@ -507,60 +284,157 @@ spn_err_t spn_dag_build_add_target(spn_dag_build_t* b, spn_target_unit_t* target
     }
   }
 
-  spn_dag_link_ctx_t* link = sp_alloc_type(b->mem, spn_dag_link_ctx_t);
-  link->target = target;
-  sp_da_init(b->mem, link->objects);
+  sp_da(spn_dag_id_t) inputs = sp_da_new(b->mem, spn_dag_id_t);
+  sp_da(spn_arg_t) objects = sp_da_new(b->mem, spn_arg_t);
   sp_da_for(target->objects, it) {
     spn_dag_object_ids_t* object = sp_ht_getp(b->ids.objects, target->objects[it]);
     sp_assert(object);
-    sp_da_push(link->objects, object->object);
+    sp_da_push(inputs, object->object);
+    sp_da_push(objects, spn_arg_path(dag_artifact_declared(g, object->object)));
   }
   if (ids.embed.object.occupied) {
-    sp_da_push(link->objects, ids.embed.object);
+    sp_da_push(inputs, ids.embed.object);
+    sp_da_push(objects, spn_arg_path(dag_artifact_declared(g, ids.embed.object)));
   }
 
-  if (target->kind == SPN_CC_OUTPUT_SHARED_LIB || target->kind == SPN_CC_OUTPUT_REACTOR) {
-    spn_try(dag_add_exports(b, link));
+  if (spn.host.os == SPN_OS_WINDOWS) {
+    spn_dag_rsp_ctx_t* rsp = sp_alloc_type(b->mem, spn_dag_rsp_ctx_t);
+    rsp->style = spn_rsp_style(toolchain->cc.driver);
+    rsp->args = objects;
+
+    spn_path_t path = spn_path_join(b->mem, target->paths.object, sp_str_lit("objects.rsp"));
+
+    spn_digest_ctx_t digest = sp_zero;
+    spn_digest_init_blake3(&digest);
+    spn_dag_hash_str(&digest, sp_str_lit("spn.build.rsp.v1"));
+    spn_dag_hash_u8(&digest, (u8)rsp->style);
+    sp_for(it, SPN_PATH_ROOT_COUNT) {
+      spn_dag_hash_str(&digest, g->roots->dirs[it]);
+    }
+    spn_dag_hash_args(&digest, rsp->args);
+
+    spn_dag_id_t action = spn_dag_add_action(g, (spn_dag_action_config_t) {
+      .identity = spn_dag_hash_final(&digest),
+      .execute = spn_dag_exec_rsp,
+      .user_data = rsp,
+    });
+    spn_dag_id_t file = spn_dag_add_file(g, path);
+    spn_try(spn_dag_action_add_output(g, action, file));
+
+    sp_da_push(inputs, file);
+    objects = sp_da_new(b->mem, spn_arg_t);
+    sp_da_push(objects, spn_arg_glue(sp_str_lit("@"), path));
   }
 
-  spn_triple_t triple = spn_profile_triple(&target->pkg->build->profile);
-  link->implib = target->kind == SPN_CC_OUTPUT_SHARED_LIB && spn_ld_dialect(triple) == SPN_LD_DIALECT_LINK;
-  spn_cc_link_files_t files = {
-    .output = spn_target_output_path(b->mem, target),
-    .exports.path = link->exports.occupied ? dag_artifact_declared(g, link->exports) : (spn_path_t) sp_zero,
+  spn_dag_target_ctx_t* ctx = sp_alloc_type(b->mem, spn_dag_target_ctx_t);
+  *ctx = (spn_dag_target_ctx_t) {
+    .target = target,
+    .link = &plan->link.cc,
+    .objects = objects,
   };
-  if (link->implib) {
-    sp_mem_arena_marker_t s = sp_mem_begin_scratch();
-    sp_str_t file_name = spn_triple_lib_file_name(s.mem, triple, target->info->name, SP_OS_LIB_STATIC);
-    files.implib = spn_path_join(b->mem, target->pkg->paths.lib, file_name);
-    sp_mem_end_scratch(s);
+
+  switch (target->kind) {
+    case SPN_CC_OUTPUT_REACTOR:
+    case SPN_CC_OUTPUT_SHARED_LIB: {
+      spn_cc_exports_format_t format = spn_cc_exports_format(target->kind, spn_os_to_native_object_format(target->pkg->build->profile.os));
+      spn_digest_ctx_t digest = sp_zero;
+      spn_digest_init_blake3(&digest);
+      spn_dag_hash_str(&digest, sp_str_lit("spn.build.exports.v6"));
+      spn_dag_hash_u64(&digest, toolchain->identity);
+      spn_dag_hash_u8(&digest, (u8)format);
+      spn_dag_hash_u8(&digest, (u8)spn_rsp_style(toolchain->cc.driver));
+      spn_dag_hash_str(&digest, target->info->name);
+      spn_dag_id_t action = spn_dag_add_action(g, (spn_dag_action_config_t) {
+        .identity = spn_dag_hash_final(&digest),
+        .execute = spn_dag_exec_exports,
+        .user_data = ctx,
+      });
+      ids.exports = spn_dag_add_file(g, plan->link.cc.exports);
+      spn_try(spn_dag_action_add_output(g, action, ids.exports));
+
+      sp_da_for(inputs, it) {
+        spn_dag_action_add_input(g, action, inputs[it]);
+      }
+      sp_da_for(plan->link.cc.whole_archives, it) {
+        spn_dag_action_add_input(g, action, spn_dag_add_file(g, plan->link.cc.whole_archives[it]));
+      }
+      break;
+    }
+    case SPN_CC_OUTPUT_EXE:
+    case SPN_CC_OUTPUT_STATIC_LIB: {
+      break;
+    }
+    case SPN_CC_OUTPUT_OBJECT: {
+      sp_unreachable_case();
+    }
   }
 
-  spn_dag_digest_t identity = sp_zero;
-  sp_mem_arena_marker_t s = sp_mem_begin_scratch();
-  files.objects = dag_declared_paths(s.mem, g, link->objects);
-  spn_err_t err = spn_build_link_identity(s.mem, target, &files, &identity);
-  sp_mem_end_scratch(s);
-  spn_try(err);
-
-  ids.action = spn_dag_add_action(g, (spn_dag_action_config_t) {
-    .identity = identity,
-    .execute = on_link_target,
-    .user_data = link,
-  });
-  sp_da_for(link->objects, it) {
-    spn_dag_action_add_input(g, ids.action, link->objects[it]);
-  }
-  sp_da_for(target->link.cc.scripts, it) {
-    spn_dag_action_add_input(g, ids.action, spn_dag_add_file(g, target->link.cc.scripts[it]));
-  }
-  if (link->exports.occupied) {
-    spn_dag_action_add_input(g, ids.action, link->exports);
-  }
-  ids.output = spn_dag_add_file(g, files.output);
-  spn_try(spn_dag_action_add_output(g, ids.action, ids.output));
-  if (link->implib) {
-    spn_try(spn_dag_action_add_output(g, ids.action, spn_dag_add_file(g, files.implib)));
+  spn_path_t output = target->paths.output;
+  switch (target->kind) {
+    case SPN_CC_OUTPUT_STATIC_LIB: {
+      spn_digest_ctx_t digest = sp_zero;
+      spn_digest_init_blake3(&digest);
+      spn_dag_hash_str(&digest, sp_str_lit("spn.build.archive.v1"));
+      spn_dag_hash_u64(&digest, target->pkg->fingerprint);
+      spn_dag_hash_str(&digest, target->pkg->info->name);
+      spn_dag_hash_str(&digest, target->info->name);
+      ids.action = spn_dag_add_action(g, (spn_dag_action_config_t) {
+        .identity = spn_dag_hash_final(&digest),
+        .execute = spn_dag_exec_archive,
+        .user_data = ctx,
+      });
+      sp_da_for(inputs, it) {
+        spn_dag_action_add_input(g, ids.action, inputs[it]);
+      }
+      ids.output = spn_dag_add_file(g, output);
+      spn_try(spn_dag_action_add_output(g, ids.action, ids.output));
+      break;
+    }
+    case SPN_CC_OUTPUT_EXE:
+    case SPN_CC_OUTPUT_SHARED_LIB:
+    case SPN_CC_OUTPUT_REACTOR: {
+      spn_digest_ctx_t digest = sp_zero;
+      spn_digest_init_blake3(&digest);
+      spn_dag_hash_str(&digest, sp_str_lit("spn.build.link.v7"));
+      spn_dag_hash_u64(&digest, target->pkg->fingerprint);
+      spn_dag_hash_str(&digest, ctx->link->pkg);
+      spn_dag_hash_str(&digest, ctx->link->name);
+      spn_dag_hash_u8(&digest, (u8)ctx->link->lang);
+      spn_dag_hash_u8(&digest, (u8)ctx->link->kind);
+      spn_dag_hash_strs(&digest, ctx->link->libs);
+      spn_dag_hash_strs(&digest, ctx->link->private_libs);
+      spn_dag_hash_strs(&digest, ctx->link->system_libs);
+      spn_dag_hash_paths(&digest, ctx->link->lib_dirs);
+      spn_dag_hash_strs(&digest, ctx->link->frameworks);
+      spn_dag_hash_strs(&digest, ctx->link->args);
+      spn_dag_hash_paths(&digest, ctx->link->scripts);
+      spn_dag_hash_u64(&digest, ctx->link->min_os.major);
+      spn_dag_hash_u64(&digest, ctx->link->min_os.minor);
+      spn_dag_hash_u8(&digest, (u8)ctx->link->subsystem);
+      ids.action = spn_dag_add_action(g, (spn_dag_action_config_t) {
+        .identity = spn_dag_hash_final(&digest),
+        .execute = spn_dag_exec_link,
+        .user_data = ctx,
+      });
+      sp_da_for(inputs, it) {
+        spn_dag_action_add_input(g, ids.action, inputs[it]);
+      }
+      sp_da_for(plan->link.cc.scripts, it) {
+        spn_dag_action_add_input(g, ids.action, spn_dag_add_file(g, plan->link.cc.scripts[it]));
+      }
+      if (ids.exports.occupied) {
+        spn_dag_action_add_input(g, ids.action, ids.exports);
+      }
+      ids.output = spn_dag_add_file(g, output);
+      spn_try(spn_dag_action_add_output(g, ids.action, ids.output));
+      if (!spn_path_empty(plan->link.cc.implib)) {
+        spn_try(spn_dag_action_add_output(g, ids.action, spn_dag_add_file(g, plan->link.cc.implib)));
+      }
+      break;
+    }
+    case SPN_CC_OUTPUT_OBJECT: {
+      sp_unreachable_case();
+    }
   }
 
   sp_ht_insert(b->ids.targets, target, ids);
@@ -587,11 +461,29 @@ static spn_err_t dag_add_tree(spn_dag_build_t* b, spn_pkg_unit_t* unit) {
     return SPN_OK;
   }
 
-  spn_build_source_pin_t pin = spn_build_source_pin(unit);
+  source_pin_t pin = source_pin(unit);
+  spn_pkg_unit_header_maps_t published = spn_pkg_unit_header_maps(unit);
+
+  spn_digest_ctx_t digest = sp_zero;
+  spn_digest_init_blake3(&digest);
+  spn_dag_hash_str(&digest, sp_str_lit("spn.build.tree.v11"));
+  spn_dag_hash_str(&digest, unit->info->qualified);
+  hash_pin(&digest, &pin);
+  sp_for(mt, published.count) {
+    sp_om_for(published.maps[mt], it) {
+      spn_dag_hash_paths(&digest, sp_str_om_at(published.maps[mt], it)->headers);
+    }
+  }
+  sp_da_for(unit->info->publish.copy, it) {
+    spn_dag_hash_u8(&digest, (u8)unit->info->publish.copy[it].tree);
+    spn_dag_hash_str(&digest, unit->info->publish.copy[it].pattern);
+    spn_dag_hash_str(&digest, unit->info->publish.copy[it].dest);
+  }
+
   spn_dag_id_t action = spn_dag_add_action(g, (spn_dag_action_config_t) {
     .kind = SPN_DAG_ACTION_DISCOVERED,
-    .identity = spn_build_tree_identity(unit, &pin),
-    .execute = dag_tree_exec,
+    .identity = spn_dag_hash_final(&digest),
+    .execute = spn_dag_exec_tree,
     .user_data = unit,
   });
   spn_try(spn_dag_action_add_output(g, action, spn_dag_add_tree(g, unit->paths.include)));
@@ -599,7 +491,6 @@ static spn_err_t dag_add_tree(spn_dag_build_t* b, spn_pkg_unit_t* unit) {
   spn_try(spn_dag_action_add_output(g, action, stamp));
   sp_ht_insert(b->ids.stamps, unit->paths.include, stamp);
 
-  spn_pkg_unit_header_maps_t published = spn_pkg_unit_header_maps(unit);
   sp_for(mt, published.count) {
     sp_om_for(published.maps[mt], it) {
       spn_target_info_t* target = sp_str_om_at(published.maps[mt], it);
@@ -621,18 +512,18 @@ static spn_err_t dag_add_package(spn_dag_build_t* b, spn_pkg_unit_t* unit) {
   return SPN_OK;
 }
 
-static void dag_add_link_deps(spn_dag_build_t* b, spn_target_unit_t* target, spn_dag_id_t action) {
+static void dag_add_link_deps(spn_dag_build_t* b, const spn_target_plan_t* plan, spn_dag_id_t action) {
   spn_dag_t* g = b->graph;
 
-  sp_da_for(target->link.libs, it) {
-    spn_dag_target_ids_t* dep = sp_ht_getp(b->ids.targets, target->link.libs[it].lib);
+  sp_da_for(plan->link.libs, it) {
+    spn_dag_target_ids_t* dep = sp_ht_getp(b->ids.targets, plan->link.libs[it].lib);
     if (dep) {
       spn_dag_action_add_input(g, action, dep->output);
     }
   }
 }
 
-static void dag_add_target_edges(spn_dag_build_t* b, spn_target_unit_t* target) {
+static void dag_add_target_edges(spn_dag_build_t* b, spn_target_unit_t* target, const spn_target_plan_t* plan) {
   spn_dag_t* g = b->graph;
   spn_pkg_unit_t* unit = target->pkg;
 
@@ -649,8 +540,8 @@ static void dag_add_target_edges(spn_dag_build_t* b, spn_target_unit_t* target) 
       sp_da_push(inputs, (*user_outputs)[it]);
     }
   }
-  sp_da_for(target->include, it) {
-    spn_dag_id_t* stamp = sp_ht_getp(b->ids.stamps, target->include[it]);
+  sp_da_for(plan->include, it) {
+    spn_dag_id_t* stamp = sp_ht_getp(b->ids.stamps, plan->include[it]);
     if (stamp) {
       sp_da_push(inputs, *stamp);
     }
@@ -670,7 +561,7 @@ static void dag_add_target_edges(spn_dag_build_t* b, spn_target_unit_t* target) 
   spn_dag_target_ids_t target_ids = found ? *found : (spn_dag_target_ids_t) sp_zero;
 
   if (target_ids.action.occupied) {
-    dag_add_link_deps(b, target, target_ids.action);
+    dag_add_link_deps(b, plan, target_ids.action);
   }
 
   if (target_ids.embed.action.occupied) {
@@ -691,57 +582,33 @@ static void dag_add_target_edges(spn_dag_build_t* b, spn_target_unit_t* target) 
   sp_mem_end_scratch(s);
 }
 
-static spn_err_t dag_add_unit_targets(spn_dag_build_t* b, sp_da(spn_pkg_unit_t*) units) {
-  sp_da_for(units, it) {
-    sp_da_for(units[it]->targets, jt) {
-      spn_try(spn_dag_build_add_target(b, units[it]->targets[jt]));
-    }
-  }
-  return SPN_OK;
-}
-
-static void dag_add_unit_target_edges(spn_dag_build_t* b, sp_da(spn_pkg_unit_t*) units) {
-  sp_da_for(units, it) {
-    sp_da_for(units[it]->targets, jt) {
-      dag_add_target_edges(b, units[it]->targets[jt]);
-    }
-  }
-}
-
-static spn_err_t dag_add_compile_commands(spn_dag_build_t* b) {
+static spn_err_t add_compile_commands(spn_dag_build_t* b) {
   spn_dag_t* g = b->graph;
   spn_session_t* session = b->session;
 
-  sp_str_t tag = sp_str_lit("spn.build.compile_commands.merge.v1");
-  spn_dag_id_t merge = spn_dag_add_action(g, (spn_dag_action_config_t) {
-    .identity = spn_dag_digest(tag.data, tag.len),
-    .execute = dag_compile_commands_merge_exec,
+  spn_digest_ctx_t digest = sp_zero;
+  spn_digest_init_blake3(&digest);
+  spn_dag_hash_str(&digest, sp_str_lit("spn.build.compile_commands.v2"));
+  sp_for(it, SPN_PATH_ROOT_COUNT) {
+    spn_dag_hash_str(&digest, g->roots->dirs[it]);
+  }
+  spn_dag_hash_u64(&digest, sp_om_size(session->units.objects));
+  sp_assert(sp_om_size(session->dag.objects) == sp_om_size(session->units.objects));
+  sp_om_for(session->units.objects, it) {
+    spn_compile_unit_t* unit = sp_om_at(session->units.objects, it);
+    spn_dag_hash_digest(&digest, *sp_om_get(session->dag.objects, unit->id));
+    spn_dag_hash_path(&digest, unit->paths.object);
+  }
+
+  spn_dag_id_t action = spn_dag_add_action(g, (spn_dag_action_config_t) {
+    .identity = spn_dag_hash_final(&digest),
+    .execute = spn_dag_exec_compile_commands,
+    .user_data = session,
   });
   b->compile_commands = spn_dag_add_output(g, sp_str_lit("compile_commands.json"));
   spn_dag_id_t stamp = spn_dag_add_output(g, sp_str_lit("compile_commands.stamp"));
-  spn_try(spn_dag_action_add_output(g, merge, b->compile_commands));
-  spn_try(spn_dag_action_add_output(g, merge, stamp));
-
-  sp_om_for(session->units.packages, it) {
-    spn_pkg_unit_t* unit = sp_om_at(session->units.packages, it);
-
-    sp_mem_arena_marker_t s = sp_mem_begin_scratch();
-    sp_da(spn_compile_unit_t*) objects = spn_pkg_unit_objects(s.mem, unit);
-    if (sp_da_empty(objects)) {
-      sp_mem_end_scratch(s);
-      continue;
-    }
-    spn_dag_id_t action = spn_dag_add_action(g, (spn_dag_action_config_t) {
-      .identity = spn_build_compile_commands_identity(g->roots, unit, objects),
-      .execute = dag_compile_commands_exec,
-      .user_data = unit,
-    });
-    sp_mem_end_scratch(s);
-
-    spn_dag_id_t fragment = spn_dag_add_file(g, spn_path_join(b->mem, unit->paths.work, sp_str_lit("compile_commands.json")));
-    spn_try(spn_dag_action_add_output(g, action, fragment));
-    spn_dag_action_add_input(g, merge, fragment);
-  }
+  spn_try(spn_dag_action_add_output(g, action, b->compile_commands));
+  spn_try(spn_dag_action_add_output(g, action, stamp));
 
   sp_ht_for_kv(b->ids.objects, it) {
     spn_dag_action_add_input(g, it.val->action, stamp);
@@ -753,9 +620,15 @@ static spn_err_t dag_add_compile_commands(spn_dag_build_t* b) {
 static spn_err_t prepare_graph(spn_dag_build_t* b) {
   spn_session_t* session = b->session;
 
-  sp_om_for(session->units.builds, it) {
-    spn_build_unit_t* build = sp_om_at(session->units.builds, it);
-    spn_try(dag_add_unit_targets(b, build->packages));
+  sp_om_for(session->units.builds, i) {
+    spn_build_unit_t* build = sp_om_at(session->units.builds, i);
+    sp_da_for(build->packages, j) {
+      spn_pkg_unit_t* package = build->packages[j];
+      sp_da_for(package->targets, k) {
+        spn_target_unit_t* target = package->targets[k];
+        spn_try(spn_dag_build_add_target(b, target, spn_session_get_target_plan(session, target->id)));
+      }
+    }
   }
 
   sp_om_for(session->units.builds, it) {
@@ -768,12 +641,18 @@ static spn_err_t prepare_graph(spn_dag_build_t* b) {
     }
   }
 
-  sp_om_for(session->units.builds, it) {
-    spn_build_unit_t* build = sp_om_at(session->units.builds, it);
-    dag_add_unit_target_edges(b, build->packages);
+  sp_om_for(session->units.builds, i) {
+    spn_build_unit_t* build = sp_om_at(session->units.builds, i);
+    sp_da_for(build->packages, j) {
+      spn_pkg_unit_t* package = build->packages[j];
+      sp_da_for(package->targets, k) {
+        spn_target_unit_t* target = package->targets[k];
+        dag_add_target_edges(b, target, spn_session_get_target_plan(session, target->id));
+      }
+    }
   }
 
-  spn_try(dag_add_compile_commands(b));
+  spn_try(add_compile_commands(b));
 
   return SPN_OK;
 }
@@ -822,16 +701,16 @@ static spn_err_t dag_stage(spn_dag_build_t* b) {
 
   sp_str_buf_t manifest_buf = sp_zero;
   sp_str_buf_t entry_buf = sp_zero;
-  sp_da_for(session->plans, it) {
-    spn_build_plan_t* plan = &session->plans[it];
+  sp_da_for(session->plans.build, i) {
+    spn_build_plan_t* plan = &session->plans.build[i];
     spn_path_t root = plan->build->paths.root;
     sp_str_t manifest = spn_path_str(b->graph->roots, sp_str_buf_as_mem(&manifest_buf), spn_path_join(scratch.mem, root, sp_str_lit(".spn/staged")));
 
     sp_str_ht(bool) exes = SP_NULLPTR;
     sp_str_ht_init(scratch.mem, exes);
     sp_da(dag_staged_t) next = sp_da_new(scratch.mem, dag_staged_t);
-    sp_da_for(plan->staged, jt) {
-      spn_stage_closure_t* closure = &plan->staged[jt];
+    sp_da_for(plan->staged, j) {
+      spn_stage_closure_t* closure = &plan->staged[j];
       sp_str_ht_insert(exes, closure->exe.path.sub, true);
       sp_da_push(next, ((dag_staged_t) { .exe = closure->exe.path.sub, .entry = closure->exe.path.sub }));
       sp_da_for(closure->libs, lt) {
@@ -843,12 +722,12 @@ static spn_err_t dag_stage(spn_dag_build_t* b) {
     sp_io_read_file(scratch.mem, manifest, &content);
     sp_da(sp_str_t) lines = sp_str_split_c8(scratch.mem, content, '\n');
     sp_da(dag_staged_t) previous = sp_da_new(scratch.mem, dag_staged_t);
-    sp_da_for(lines, jt) {
-      s32 tab = sp_str_find_c8(lines[jt], '\t');
+    sp_da_for(lines, j) {
+      s32 tab = sp_str_find_c8(lines[j], '\t');
       if (tab == SP_STR_NO_MATCH) {
         continue;
       }
-      dag_staged_t staged = { .exe = sp_str_prefix(lines[jt], tab), .entry = sp_str_suffix(lines[jt], lines[jt].len - tab - 1) };
+      dag_staged_t staged = { .exe = sp_str_prefix(lines[j], tab), .entry = sp_str_suffix(lines[j], lines[j].len - tab - 1) };
       sp_da_push(previous, staged);
       if (!sp_str_ht_get(exes, staged.exe)) {
         sp_da_push(next, staged);
@@ -859,15 +738,15 @@ static spn_err_t dag_stage(spn_dag_build_t* b) {
     sp_str_ht_init(scratch.mem, live);
     sp_io_dyn_mem_writer_t sink = sp_zero;
     sp_io_dyn_mem_writer_init(scratch.mem, &sink);
-    sp_da_for(next, jt) {
-      sp_str_ht_insert(live, next[jt].entry, true);
-      sp_fmt_io(&sink.base, "{}\t{}\n", sp_fmt_str(next[jt].exe), sp_fmt_str(next[jt].entry));
+    sp_da_for(next, j) {
+      sp_str_ht_insert(live, next[j].entry, true);
+      sp_fmt_io(&sink.base, "{}\t{}\n", sp_fmt_str(next[j].exe), sp_fmt_str(next[j].entry));
     }
-    sp_da_for(previous, jt) {
-      if (sp_str_ht_get(live, previous[jt].entry)) {
+    sp_da_for(previous, j) {
+      if (sp_str_ht_get(live, previous[j].entry)) {
         continue;
       }
-      spn_path_t path = { .root = root.root, .sub = previous[jt].entry };
+      spn_path_t path = { .root = root.root, .sub = previous[j].entry };
       sp_fs_remove_file(spn_path_str(b->graph->roots, sp_str_buf_as_mem(&entry_buf), path));
       spn_dag_file_cache_invalidate(b->env.files, path);
     }
@@ -876,8 +755,8 @@ static spn_err_t dag_stage(spn_dag_build_t* b) {
 
     sp_str_ht(bool) copied = SP_NULLPTR;
     sp_str_ht_init(scratch.mem, copied);
-    sp_da_for(plan->staged, jt) {
-      spn_stage_closure_t* closure = &plan->staged[jt];
+    sp_da_for(plan->staged, j) {
+      spn_stage_closure_t* closure = &plan->staged[j];
       spn_dag_target_ids_t* ids = sp_ht_getp(b->ids.targets, closure->exe.target);
       if (!ids) {
         continue;
@@ -886,8 +765,8 @@ static spn_err_t dag_stage(spn_dag_build_t* b) {
       if (err) {
         goto done;
       }
-      sp_da_for(closure->libs, lt) {
-        spn_stage_entry_t* lib = &closure->libs[lt];
+      sp_da_for(closure->libs, k) {
+        spn_stage_entry_t* lib = &closure->libs[k];
         spn_dag_target_ids_t* lib_ids = sp_ht_getp(b->ids.targets, lib->target);
         if (!lib_ids || sp_str_ht_get(copied, lib->path.sub)) {
           continue;
@@ -945,8 +824,8 @@ static void dag_emit_reports(spn_dag_build_t* b, u64 elapsed) {
   u32 hits = (u32)sp_atomic_s32_load(&b->progress.hits, SP_ATOMIC_SEQ_CST);
   u32 misses = (u32)sp_atomic_s32_load(&b->progress.misses, SP_ATOMIC_SEQ_CST);
 
-  sp_da_for(session->plans, it) {
-    spn_build_unit_t* build = session->plans[it].build;
+  sp_da_for(session->plans.build, it) {
+    spn_build_unit_t* build = session->plans.build[it].build;
     spn_pkg_unit_t* root = spn_session_find_pkg_unit(session, build, spn_session_root_pkg(session));
     spn_pkg_info_t* pkg = root ? root->info : session->pkg;
     spn_profile_info_t* profile = &build->profile;

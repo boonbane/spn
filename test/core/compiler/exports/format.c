@@ -9,7 +9,7 @@ typedef struct {
 typedef struct {
   const c8* name;
   spn_cc_output_kind_t kind;
-  spn_format_t format;
+  spn_obj_format_t format;
   format_expect_t expect;
 } format_test_t;
 
@@ -17,32 +17,26 @@ static const format_test_t tests [] = {
   {
     .name = "elf_shared",
     .kind = SPN_CC_OUTPUT_SHARED_LIB,
-    .format = SPN_FORMAT_ELF,
-    .expect = { .format = SPN_CC_EXPORTS_VERSION_SCRIPT, .extension = "map" },
-  },
-  {
-    .name = "wasm_shared",
-    .kind = SPN_CC_OUTPUT_SHARED_LIB,
-    .format = SPN_FORMAT_WASM,
+    .format = SPN_OBJ_ELF,
     .expect = { .format = SPN_CC_EXPORTS_VERSION_SCRIPT, .extension = "map" },
   },
   {
     .name = "macho_shared",
     .kind = SPN_CC_OUTPUT_SHARED_LIB,
-    .format = SPN_FORMAT_MACHO,
+    .format = SPN_OBJ_MACHO,
     .expect = { .format = SPN_CC_EXPORTS_SYMBOL_LIST, .extension = "exp" },
   },
   {
     .name = "coff_shared",
     .kind = SPN_CC_OUTPUT_SHARED_LIB,
-    .format = SPN_FORMAT_COFF,
+    .format = SPN_OBJ_COFF,
     .expect = { .format = SPN_CC_EXPORTS_DEF, .extension = "def" },
   },
   {
     .name = "wasm_reactor",
     .kind = SPN_CC_OUTPUT_REACTOR,
-    .format = SPN_FORMAT_WASM,
-    .expect = { .format = SPN_CC_EXPORTS_WASM, .extension = "sym" },
+    .format = SPN_OBJ_WASM,
+    .expect = { .format = SPN_CC_EXPORTS_WASM, .extension = "rsp" },
   },
 };
 

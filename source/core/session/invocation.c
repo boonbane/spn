@@ -10,62 +10,9 @@
 #include "session/invocation.h"
 #include "session/session.h"
 #include "unit/unit.h"
-#include "graph/build.h"
 #include "toolchain/search.h"
-#include "triple/triple.h"
 
-static spn_cc_compile_t compile_desc(sp_mem_t mem, spn_compile_unit_t* unit) {
-  spn_pkg_unit_t* pkg = unit->target->pkg;
-  spn_build_unit_t* build = pkg->build;
-
-  spn_triple_t target = spn_profile_triple(&build->profile);
-  spn_cc_compile_t compile = {
-    .lang = unit->lang,
-    .cxx = unit->target->info->cxx,
-    .pic = unit->target->info->kind == SPN_TARGET_KIND_LIB && spn_triple_pic(target),
-  };
-  if (build->profile.os == SPN_OS_MACOS) {
-    compile.min_os = unit->target->link.cc.min_os;
-  }
-  compile.include = unit->target->include;
-  sp_da_init(mem, compile.define);
-  sp_da_init(mem, compile.args);
-
-  sp_da_for(build->define, it) {
-    sp_da_push(compile.define, build->define[it]);
-  }
-  sp_da_for(pkg->info->define, it) {
-    sp_da_push(compile.define, pkg->info->define[it]);
-  }
-  sp_da_for(unit->target->info->define, it) {
-    sp_da_push(compile.define, unit->target->info->define[it]);
-  }
-  sp_da_for(unit->target->info->flags, it) {
-    sp_da_push(compile.args, unit->target->info->flags[it]);
-  }
-  sp_da_for(pkg->deps, it) {
-    if (!spn_dep_kind_applies(pkg->deps[it].kind, unit->target->info->kind)) {
-      continue;
-    }
-    sp_da_for(pkg->deps[it].unit->info->public_define, jt) {
-      sp_da_push(compile.define, pkg->deps[it].unit->info->public_define[jt]);
-    }
-  }
-
-  return compile;
-}
-
-spn_err_t spn_build_render_compile(sp_mem_t mem, spn_compile_unit_t* unit, spn_invocation_t* invocation) {
-  spn_pkg_unit_t* pkg = unit->target->pkg;
-  spn_build_unit_t* build = pkg->build;
-
-  spn_cc_compile_t compile = compile_desc(mem, unit);
-  spn_cc_render_compile(mem, &build->toolchain->cc, &build->profile, &compile, invocation);
-  invocation->cwd = pkg->paths.work;
-  return SPN_OK;
-}
-
-spn_err_t spn_pkg_unit_write_compile_commands(const spn_path_roots_t* roots, spn_pkg_unit_t* unit, sp_str_t path) {
+spn_err_t spn_session_write_compile_commands(const spn_path_roots_t* roots, spn_session_t* session, sp_str_t path) {
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   sp_mem_t mem = scratch.mem;
 
@@ -74,15 +21,14 @@ spn_err_t spn_pkg_unit_write_compile_commands(const spn_path_roots_t* roots, spn
   sp_io_writer_t* io = &buf.base;
 
   sp_io_write_cstr(io, "[", SP_NULLPTR);
-  sp_da(spn_compile_unit_t*) objects = spn_pkg_unit_objects(mem, unit);
-  sp_da_for(objects, it) {
-    spn_compile_unit_t* object = objects[it];
-    spn_build_unit_t* build = object->target->pkg->build;
+  sp_om_for(session->units.objects, it) {
+    spn_compile_unit_t* unit = sp_om_at(session->units.objects, it);
+    spn_build_unit_t* build = unit->target->pkg->build;
     spn_cc_compile_files_t files = {
-      .source = object->paths.file,
-      .output = object->paths.object,
+      .source = unit->paths.file,
+      .output = unit->paths.object,
     };
-    spn_invocation_t invocation = spn_cc_render_compile_command(mem, &build->toolchain->cc, &build->profile, &object->invocation, &files);
+    spn_invocation_t invocation = spn_cc_render_compile_command(mem, &build->toolchain->cc, &build->profile, spn_session_get_object_plan(session, unit->id), &files);
     sp_da(sp_str_t) args = spn_invocation_args(roots, mem, &invocation);
 
     if (it) {
@@ -105,36 +51,6 @@ spn_err_t spn_pkg_unit_write_compile_commands(const spn_path_roots_t* roots, spn
   sp_io_write_cstr(io, "\n]\n", SP_NULLPTR);
 
   spn_err_t err = sp_fs_create_file_str(path, sp_io_dyn_mem_writer_as_str(&buf)) ? SPN_ERROR : SPN_OK;
-  sp_mem_end_scratch(scratch);
-  return err;
-}
-
-spn_err_t spn_compile_commands_merge(sp_da(sp_str_t) fragments, sp_str_t path) {
-  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-
-  sp_io_dyn_mem_writer_t buf;
-  sp_io_dyn_mem_writer_init(scratch.mem, &buf);
-  sp_io_writer_t* io = &buf.base;
-
-  spn_err_t err = SPN_OK;
-  sp_io_write_cstr(io, "[", SP_NULLPTR);
-  sp_da_for(fragments, it) {
-    sp_str_t content = sp_zero;
-    if (sp_io_read_file(scratch.mem, fragments[it], &content)) {
-      err = SPN_ERROR;
-      break;
-    }
-    sp_assert(sp_str_starts_with(content, sp_str_lit("[")) && sp_str_ends_with(content, sp_str_lit("\n]\n")));
-    if (it) {
-      sp_io_write_c8(io, ',');
-    }
-    sp_io_write_str(io, sp_str_sub(content, 1, (s32)content.len - 4), SP_NULLPTR);
-  }
-  sp_io_write_cstr(io, "\n]\n", SP_NULLPTR);
-
-  if (!err && sp_fs_create_file_str(path, sp_io_dyn_mem_writer_as_str(&buf))) {
-    err = SPN_ERROR;
-  }
   sp_mem_end_scratch(scratch);
   return err;
 }
@@ -205,8 +121,8 @@ spn_invocation_result_t spn_invocation_run(spn_invocation_t* invocation) {
   const spn_path_roots_t* roots = &spn.roots;
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
 
+  spn_path_create_dir(roots, invocation->cwd);
   sp_str_t cwd = spn_path_str(roots, scratch.mem, invocation->cwd);
-  sp_fs_create_dir(cwd);
 
   sp_ps_config_t ps = {
     .command = spn_arg_str(roots, scratch.mem, invocation->program),

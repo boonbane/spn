@@ -199,16 +199,16 @@ sp_da(spn_triple_t) spn_arch_triples(sp_mem_t mem, spn_arch_t arch) {
   return triples;
 }
 
-spn_format_t spn_os_format(spn_os_t os) {
+spn_obj_format_t spn_os_to_native_object_format(spn_os_t os) {
   switch (os) {
     case SPN_OS_LINUX:
-    case SPN_OS_FREESTANDING: return SPN_FORMAT_ELF;
-    case SPN_OS_WINDOWS: return SPN_FORMAT_COFF;
-    case SPN_OS_MACOS: return SPN_FORMAT_MACHO;
-    case SPN_OS_WASI: return SPN_FORMAT_WASM;
+    case SPN_OS_FREESTANDING: return SPN_OBJ_ELF;
+    case SPN_OS_WINDOWS: return SPN_OBJ_COFF;
+    case SPN_OS_MACOS: return SPN_OBJ_MACHO;
+    case SPN_OS_WASI: return SPN_OBJ_WASM;
     case SPN_OS_NONE: sp_unreachable_case();
   }
-  SP_UNREACHABLE_RETURN(SPN_FORMAT_ELF);
+  SP_UNREACHABLE_RETURN(SPN_OBJ_ELF);
 }
 
 bool spn_triple_dynamic(spn_triple_t triple) {
@@ -231,7 +231,7 @@ bool spn_triple_dynamic(spn_triple_t triple) {
 }
 
 bool spn_triple_pic(spn_triple_t triple) {
-  return spn_triple_dynamic(triple) && spn_os_format(triple.os) != SPN_FORMAT_COFF;
+  return spn_triple_dynamic(triple) && spn_os_to_native_object_format(triple.os) != SPN_OBJ_COFF;
 }
 
 spn_triple_entry_t spn_triple_entry(spn_triple_t partial, spn_triple_t* full) {

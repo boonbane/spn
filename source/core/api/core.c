@@ -64,7 +64,7 @@ bool spn_api_path_rejected(spn_pkg_unit_t* unit, const c8* fn, sp_str_t path) {
   if (!spn_wasm_trap_active(unit, message)) {
     spn_err_emit(unit->session->ctx, (spn_err_union_t) {
       .kind = SPN_ERR_PATH_COMPONENT,
-      .fs = { .path = sp_str_copy(spn.mem, path) },
+      .fs = { .path = { .sub = sp_str_copy(spn.mem, path) } },
     });
   }
   sp_mem_end_scratch(scratch);
@@ -300,7 +300,7 @@ void spn_target_add_define_path(spn_target_t* target, const c8* name, spn_dir_t 
     if (!spn_wasm_trap_active(unit, message)) {
       spn_err_emit(unit->session->ctx, (spn_err_union_t) {
         .kind = SPN_ERR_PATH_OUTSIDE_PROJECT,
-        .fs = { .path = sp_str_copy(spn.mem, full) },
+        .fs = { .path = spn_path_copy(spn.mem, joined) },
       });
     }
   }
@@ -320,7 +320,7 @@ static bool embed_dest_rejected(spn_pkg_unit_t* unit, const c8* fn, sp_str_t des
   if (!spn_wasm_trap_active(unit, message)) {
     spn_err_emit(unit->session->ctx, (spn_err_union_t) {
       .kind = SPN_ERR_PATH_COMPONENT,
-      .fs = { .path = sp_str_copy(spn.mem, dest) },
+      .fs = { .path = { .sub = sp_str_copy(spn.mem, dest) } },
     });
   }
   sp_mem_end_scratch(scratch);

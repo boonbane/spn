@@ -136,10 +136,9 @@ static s32 obs_order(const void* a, const void* b) {
 sp_test_each(dag_glob, observe, test_t, tests) {
   sp_mem_t mem = sp_test_arena(t);
   sp_str_t root = sp_fs_join_path(mem, sp_test_dir(t), sp_str_lit("R"));
-  sp_fs_create_dir(root);
 
   spn_path_roots_t storage = sp_zero;
-  storage.dirs[SPN_PATH_ROOT_PROJECT] = root;
+  root = spn_path_roots_set(&storage, mem, SPN_PATH_ROOT_PROJECT, root);
   const spn_path_roots_t* roots = &storage;
 
   sp_carr_for(it->files, ft) {
@@ -155,7 +154,7 @@ sp_test_each(dag_glob, observe, test_t, tests) {
     sp_fs_create_dir(sp_fs_join_path(mem, root, sp_cstr_as_str(it->dirs[dt])));
   }
   if (it->nested_root) {
-    storage.dirs[SPN_PATH_ROOT_STORE] = sp_fs_join_path(mem, root, sp_cstr_as_str(it->nested_root));
+    spn_path_roots_set(&storage, mem, SPN_PATH_ROOT_STORE, sp_fs_join_path(mem, root, sp_cstr_as_str(it->nested_root)));
   }
 
   spn_dag_glob_result_t glob = sp_zero;
@@ -284,10 +283,9 @@ static s32 path_order(const void* a, const void* b) {
 sp_test_each(dag_glob, iterate, iterate_test_t, iterate_tests) {
   sp_mem_t mem = sp_test_arena(t);
   sp_str_t root = sp_fs_join_path(mem, sp_test_dir(t), sp_str_lit("R"));
-  sp_fs_create_dir(root);
 
   spn_path_roots_t roots = sp_zero;
-  roots.dirs[SPN_PATH_ROOT_PROJECT] = root;
+  root = spn_path_roots_set(&roots, mem, SPN_PATH_ROOT_PROJECT, root);
 
   sp_carr_for(it->files, ft) {
     if (!it->files[ft]) {

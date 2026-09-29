@@ -11,7 +11,7 @@
 
 static spn_err_t remove_path(spn_ctx_t* ctx, sp_str_t path) {
   if (sp_fs_remove(path) != SP_OK) {
-    return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_FS_REMOVE, .fs = { .path = path } });
+    return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_FS_REMOVE, .fs = { .path = { .sub = path } } });
   }
 
   return SPN_OK;

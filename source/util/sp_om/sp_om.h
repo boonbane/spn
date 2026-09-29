@@ -55,6 +55,17 @@
     sp_ht_insert((sm)->index, (sm)->index->tmp_key, (sm)->temp);              \
   } while (0)
 
+#define sp_om_emplace(sm, key, out)                                            \
+  do {                                                                         \
+    sp_om_ensure(sm);                                                          \
+    sp_assert(sp_ht_getp((sm)->index, (key)) == SP_NULLPTR);                   \
+    (sm)->temp = sp_om_alloc_entry(sm);                                        \
+    sp_mem_zero((sm)->temp, sizeof(*(sm)->temp));                              \
+    sp_da_push((sm)->order, (sm)->temp);                                       \
+    sp_ht_insert((sm)->index, (sm)->index->tmp_key, (sm)->temp);              \
+    (out) = (sm)->temp;                                                        \
+  } while (0)
+
 #define sp_om_free(sm)                                                         \
   do {                                                                         \
     if ((sm)) {                                                                \

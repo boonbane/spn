@@ -48,8 +48,8 @@ typedef struct {
   spn_err_t err;
 } toolchain_job_t;
 
-static spn_cc_toolchain_t cc_toolchain(spn_toolchain_info_t* toolchain, spn_toolchain_launcher_t compiler, spn_toolchain_launcher_t cxx, spn_toolchain_launcher_t archiver) {
-  return (spn_cc_toolchain_t) {
+static spn_cc_t cc_toolchain(spn_toolchain_info_t* toolchain, spn_toolchain_launcher_t compiler, spn_toolchain_launcher_t cxx, spn_toolchain_launcher_t archiver) {
+  return (spn_cc_t) {
     .name = toolchain->name,
     .driver = toolchain->driver,
     .compiler = compiler,

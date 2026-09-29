@@ -13,6 +13,7 @@
 #include "graph/dag.h"
 #include "op/types.h"
 #include "unit/unit.h"
+#include "session/session.h"
 
 static spn_err_t on_configure(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs) {
   spn_pkg_unit_t* unit = (spn_pkg_unit_t*)user_data;
@@ -47,12 +48,12 @@ spn_err_t configure(spn_op_t* op) {
     if (!reactor) {
       continue;
     }
-    spn_try(spn_dag_build_add_target(dag, reactor));
+    spn_try(spn_dag_build_add_target(dag, reactor, spn_session_get_target_plan(s, reactor->id)));
   }
 
-  sp_da_for(s->plans, pt) {
-    sp_da_for(s->plans[pt].build->packages, it) {
-      spn_pkg_unit_t* unit = s->plans[pt].build->packages[it];
+  sp_da_for(s->plans.build, pt) {
+    sp_da_for(s->plans.build[pt].build->packages, it) {
+      spn_pkg_unit_t* unit = s->plans.build[pt].build->packages[it];
       spn_target_unit_t* reactor = unit->metaprogram ? unit->metaprogram->scripts.configure : SP_NULLPTR;
       if (!reactor) {
         continue;

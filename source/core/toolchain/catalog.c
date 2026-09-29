@@ -86,7 +86,7 @@ static void push_hosted(sp_da(spn_toolchain_row_t)* rows, spn_toolchain_catalog_
 }
 
 static void push_bare(sp_da(spn_toolchain_row_t)* rows, spn_cc_driver_t driver, spn_triple_t host) {
-  if (!(spn_toolchain_driver_caps(driver) & SPN_CC_CAP_BARE) || spn_os_format(host.os) != SPN_FORMAT_ELF) {
+  if (!(spn_toolchain_driver_caps(driver) & SPN_CC_CAP_BARE) || spn_os_to_native_object_format(host.os) != SPN_OBJ_ELF) {
     return;
   }
   push_row(rows, (spn_toolchain_row_t) { .triple = { host.arch, SPN_OS_FREESTANDING, SPN_ABI_BARE } });

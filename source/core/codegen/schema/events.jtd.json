@@ -108,7 +108,7 @@
       "metadata": { "verb": "Linked", "verbosity": "debug" },
       "properties": {
         "target": { "type": "string" },
-        "output_path": { "type": "string" },
+        "output_path": { "metadata": { "extern": "path" } },
         "command": { "type": "string" },
         "time_ns": { "type": "uint64", "metadata": { "field": "time" } }
       },
@@ -137,8 +137,8 @@
       "metadata": { "verb": "Embedded", "verbosity": "debug" },
       "properties": {
         "target": { "type": "string" },
-        "object_path": { "type": "string" },
-        "header_path": { "type": "string" },
+        "object_path": { "metadata": { "extern": "path" } },
+        "header_path": { "metadata": { "extern": "path" } },
         "time_ns": { "type": "uint64", "metadata": { "field": "time" } }
       }
     },
@@ -146,7 +146,7 @@
       "metadata": { "verb": "Failed", "severity": "error" },
       "properties": {
         "target": { "type": "string" },
-        "path": { "type": "string" },
+        "path": { "metadata": { "extern": "path" } },
         "error": { "type": "string" }
       }
     },
@@ -271,8 +271,8 @@
     "target_passed": {
       "properties": {
         "target": { "type": "string" },
-        "source_file": { "type": "string" },
-        "object_file": { "type": "string" },
+        "source_file": { "metadata": { "extern": "path" } },
+        "object_file": { "metadata": { "extern": "path" } },
         "command": { "type": "string" },
         "time_ns": { "type": "uint64", "metadata": { "field": "time" } }
       },
@@ -283,8 +283,8 @@
     "target_failed": {
       "properties": {
         "target": { "type": "string" },
-        "source_file": { "type": "string" },
-        "object_file": { "type": "string" },
+        "source_file": { "metadata": { "extern": "path" } },
+        "object_file": { "metadata": { "extern": "path" } },
         "rc": { "type": "int32" },
         "command": { "type": "string" },
         "out": { "type": "string" },

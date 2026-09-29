@@ -20,10 +20,6 @@ sp_str_t spn_ctx_project_dir(spn_ctx_t* ctx) {
   return ctx->paths.project;
 }
 
-sp_str_t spn_ctx_cache_dir(spn_ctx_t* ctx) {
-  return ctx->paths.caches.dir;
-}
-
 spn_path_t spn_ctx_collapse_path(spn_ctx_t* ctx, sp_str_t path) {
   if (!sp_fs_is_absolute(path) || !spn_path_normal(path)) {
     return (spn_path_t) { .sub = path };
