@@ -5,11 +5,7 @@
 #include "triple/triple.h"
 
 void write_file(sp_str_t path, sp_str_t content) {
-  sp_str_t parent = sp_fs_parent_path(path);
-  if (!sp_str_empty(parent)) {
-    sp_fs_create_dir(parent);
-  }
-
+  sp_fs_create_dir(sp_fs_parent_path(path));
   sp_fs_remove_file(path);
   sp_io_file_writer_t f = sp_zero;
   sp_assert(!sp_io_file_writer_from_path(&f, path));
@@ -19,8 +15,9 @@ void write_file(sp_str_t path, sp_str_t content) {
 
 static sp_err_t copy_into(sp_str_t from, sp_str_t dir) {
   sp_mem_arena_marker_t s = sp_mem_begin_scratch();
-  sp_fs_create_dir(dir);
-  sp_err_t err = sp_fs_copy_at(sp_path_at_cwd(from), sp_path_at_cwd(sp_fs_join_path(s.mem, dir, sp_fs_get_name(from))), SP_FS_ATOMIC_REPLACE);
+  sp_path_t into = sp_path_resolve(dir);
+  sp_fs_create_dir_at(into);
+  sp_err_t err = sp_fs_copy_at(sp_path_resolve(from), sp_path_join(s.mem, into, sp_fs_get_name(from)), SP_FS_ATOMIC_REPLACE);
   sp_mem_end_scratch(s);
   return err;
 }
@@ -61,11 +58,10 @@ void fixture_create(fixture_t* fixture, sp_str_t relative, sp_str_t content) {
 
 static sp_err_t copy_project_path(sp_test_t* t, fixture_t* fixture, sp_str_t project, sp_str_t relative) {
   sp_str_t from = sp_fs_join_path(fixture->mem, project, relative);
-  sp_str_t parent = sp_fs_parent_path(relative);
-  sp_str_t to = sp_str_empty(parent) || sp_str_equal(parent, sp_str_lit(".")) ? fixture->root : fixture_path(fixture, parent);
+  sp_str_t to = fixture_path(fixture, sp_fs_parent_path(relative));
 
   if (sp_str_equal(sp_fs_get_name(relative), sp_str_lit("*"))) {
-    sp_must_ok(t, sp_fs_copy_tree_at(sp_path_at_cwd(sp_fs_parent_path(from)), sp_path_at_cwd(to), SP_FS_ATOMIC_REPLACE));
+    sp_must_ok(t, sp_fs_copy_tree_at(sp_path_resolve(sp_fs_parent_path(from)), sp_path_resolve(to), SP_FS_ATOMIC_REPLACE));
   } else {
     sp_must_ok(t, copy_into(from, to));
   }

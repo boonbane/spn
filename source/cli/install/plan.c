@@ -12,8 +12,16 @@ static bool path_equal(spn_install_os_t os, sp_str_t a, sp_str_t b) {
   return false;
 }
 
-static sp_str_t normalize_path(sp_mem_t mem, sp_str_t path) {
-  return sp_fs_normalize_path_for(mem, path, SP_FS_PATH_WINDOWS);
+static sp_fs_path_kind_t path_kind(spn_install_os_t os) {
+  switch (os) {
+    case SPN_INSTALL_OS_UNIX: return SP_FS_PATH_POSIX;
+    case SPN_INSTALL_OS_WINDOWS: return SP_FS_PATH_WINDOWS;
+  }
+  return SP_FS_PATH_POSIX;
+}
+
+static sp_str_t normalize_path(sp_mem_t mem, spn_install_os_t os, sp_str_t path) {
+  return sp_fs_normalize_path_for(mem, path, path_kind(os));
 }
 
 // @spader sp_fs_normalize_path?
@@ -21,7 +29,7 @@ static sp_str_t get_home_path(sp_mem_t mem, spn_install_os_t os, sp_env_t* env) 
   switch (os) {
     case SPN_INSTALL_OS_UNIX: {
       sp_str_t home = sp_env_get(env, sp_str_lit("HOME"));
-      return sp_str_empty(home) ? home : normalize_path(mem, home);
+      return sp_str_empty(home) ? home : normalize_path(mem, os, home);
     }
     case SPN_INSTALL_OS_WINDOWS: {
       // @spader simpler?
@@ -31,12 +39,12 @@ static sp_str_t get_home_path(sp_mem_t mem, spn_install_os_t os, sp_env_t* env) 
         sp_env_get_c(env, "HOMEPATH"),
       };
       if (!sp_str_empty(e.profile)) {
-        return normalize_path(mem, e.profile);
+        return normalize_path(mem, os, e.profile);
       }
       if (sp_str_empty(e.drive) || sp_str_empty(e.path)) {
         return sp_zero_s(sp_str_t);
       }
-      return sp_str_concat(mem, e.drive, normalize_path(mem, e.path));
+      return sp_str_concat(mem, e.drive, normalize_path(mem, os, e.path));
     }
   }
   return sp_zero_s(sp_str_t);
@@ -83,12 +91,12 @@ static void resolve_shells(sp_mem_t mem, sp_env_t* env, sp_str_t home, spn_insta
   // hook goes. Almost nobody has one though; .zshrc is the file that tells us
   // zsh is in use, and the file an older spn would have written into
   sp_str_t zdotdir = sp_env_get(env, sp_str_lit("ZDOTDIR"));
-  zdotdir = sp_str_empty(zdotdir) ? home : normalize_path(mem, zdotdir);
+  zdotdir = sp_str_empty(zdotdir) ? home : normalize_path(mem, layout->os, zdotdir);
   layout->rc[layout->num_rc++] = (spn_install_rc_t) { .path = sp_fs_join_path(mem, zdotdir, sp_str_lit(".zshenv")), .role = SPN_INSTALL_RC_HOOK_ALWAYS, .shell = SPN_INSTALL_SHELL_ZSH };
   layout->rc[layout->num_rc++] = (spn_install_rc_t) { .path = sp_fs_join_path(mem, zdotdir, sp_str_lit(".zshrc")), .role = SPN_INSTALL_RC_PROBE, .shell = SPN_INSTALL_SHELL_ZSH };
 
   sp_str_t config = sp_env_get(env, sp_str_lit("XDG_CONFIG_HOME"));
-  config = sp_str_empty(config) ? sp_fs_join_path(mem, home, sp_str_lit(".config")) : normalize_path(mem, config);
+  config = sp_str_empty(config) ? sp_fs_join_path(mem, home, sp_str_lit(".config")) : normalize_path(mem, layout->os, config);
   layout->fish_dir = sp_fs_join_path(mem, config, sp_str_lit("fish"));
   layout->fish_conf = sp_fs_join_path(mem, layout->fish_dir, sp_str_lit("conf.d/spn.fish"));
 }
@@ -99,7 +107,7 @@ static void resolve_path(sp_mem_t mem, spn_install_os_t os, sp_env_t* env, spn_i
 
   layout->shadows = sp_da_new(mem, sp_str_t);
   sp_str_for_word(sp_env_get(env, sp_str_lit("PATH")), sep, it) {
-    sp_str_t entry = normalize_path(mem, it.entry);
+    sp_str_t entry = normalize_path(mem, os, it.entry);
     if (path_equal(os, entry, layout->bin)) {
       layout->on_path = true;
       break;
@@ -130,7 +138,7 @@ spn_install_layout_t spn_install_resolve(sp_mem_t mem, spn_install_os_t os, sp_e
   resolve_path(mem, os, env, &layout);
 
   sp_str_t github = sp_env_get(env, sp_str_lit("GITHUB_PATH"));
-  layout.github_path = sp_str_empty(github) ? github : normalize_path(mem, github);
+  layout.github_path = sp_str_empty(github) ? github : normalize_path(mem, os, github);
   layout.no_modify_path = !sp_str_empty(sp_env_get(env, sp_str_lit("SPN_INSTALL_NO_MODIFY_PATH")));
 
   return layout;
