@@ -1203,9 +1203,9 @@ spn_err_t spn_pkg_lower(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, spn
   return sp_da_empty(ctx->issues) ? SPN_OK : SPN_ERROR;
 }
 
-spn_err_t spn_codegen_load_pkg(spn_toml_loader_t* ctx, const spn_path_roots_t* roots, spn_path_t manifest, spn_pkg_info_t* out) {
+spn_err_t spn_codegen_load_pkg(spn_toml_loader_t* ctx, spn_path_t manifest, spn_pkg_info_t* out) {
   spn_cg_manifest_t cg = sp_zero;
-  spn_err_t err = spn_codegen_load(ctx, roots, manifest, &cg);
+  spn_err_t err = spn_codegen_load(ctx, manifest, &cg);
   if (err) {
     return err;
   }

@@ -6,6 +6,7 @@
 #include "git/key.h"
 #include "fs/fs.h"
 #include "paths/paths.h"
+#include "str/str.h"
 
 void spn_git_cache_init(spn_git_cache_t* cache, sp_mem_t mem, sp_intern_t* intern, const spn_path_roots_t* roots, spn_path_t db, spn_path_t checkouts) {
   *cache = (spn_git_cache_t) {
@@ -20,7 +21,6 @@ void spn_git_cache_init(spn_git_cache_t* cache, sp_mem_t mem, sp_intern_t* inter
   sp_str_om_init(cache->checkouts.entries);
 
   sp_fs_create_dir_at(spn_path_at(roots, cache->db.dir));
-  sp_fs_create_dir_at(spn_path_at(roots, cache->checkouts.dir));
 }
 
 static spn_git_db_t* spn_git_cache_db_entry(spn_git_cache_t* cache, sp_str_t url) {
@@ -132,11 +132,12 @@ static sp_str_t checkout_error(spn_git_cache_t* cache, const c8* what, spn_path_
 }
 
 static spn_err_t spn_git_cache_fill_checkout(spn_git_cache_t* cache, spn_git_checkout_t* entry, spn_git_db_t* db, spn_path_t staged) {
-  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  sp_str_t work = spn_path_str(cache->roots, scratch.mem, staged);
+  sp_str_buf_t buf = sp_zero;
+  sp_str_t work = spn_path_str(cache->roots, sp_str_buf_as_mem(&buf), staged);
   // Checkouts must be byte-identical to the committed content no matter
   // what the machine's autocrlf is; hashes and golden comparisons depend
   // on it. -c on clone persists into the new repo's config.
+  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   sp_ps_output_t result = sp_ps_run(scratch.mem, (sp_ps_config_t) {
     .command = SP_LIT("git"),
     .args = {
@@ -147,29 +148,35 @@ static spn_err_t spn_git_cache_fill_checkout(spn_git_cache_t* cache, spn_git_che
     },
     .io.err.mode = SP_PS_IO_MODE_REDIRECT,
   });
-
-  spn_err_t err = SPN_OK;
-  if (result.status.exit_code) {
+  spn_err_t clone = result.status.exit_code ? SPN_ERROR : SPN_OK;
+  if (clone) {
     entry->error = sp_str_copy(cache->mem, sp_str_trim_right(result.out));
-    err = SPN_ERROR;
-  }
-  if (!err && spn_git_checkout(work, entry->id.rev)) {
-    entry->error = sp_fmt(cache->mem, "failed to check out {}", sp_fmt_str(entry->id.rev)).value;
-    err = SPN_ERROR;
-  }
-  sp_da_for(entry->id.patches.files, it) {
-    if (err) {
-      break;
-    }
-    sp_str_t error = sp_zero;
-    if (spn_git_apply(scratch.mem, work, entry->id.patches.files[it], &error)) {
-      entry->error = sp_fmt(cache->mem, "failed to apply {}: {}",
-        sp_fmt_str(entry->id.patches.files[it]), sp_fmt_str(error)).value;
-      err = SPN_ERROR;
-    }
   }
   sp_mem_end_scratch(scratch);
-  return err;
+  if (clone) {
+    return clone;
+  }
+
+  if (spn_git_checkout(work, entry->id.rev)) {
+    entry->error = sp_fmt(cache->mem, "failed to check out {}", sp_fmt_str(entry->id.rev)).value;
+    return SPN_ERROR;
+  }
+
+  sp_da_for(entry->id.patches.files, it) {
+    sp_mem_arena_marker_t s = sp_mem_begin_scratch();
+    sp_str_t error = sp_zero;
+    spn_err_t applied = spn_git_apply(s.mem, work, entry->id.patches.files[it], &error);
+    if (applied) {
+      entry->error = sp_fmt(cache->mem, "failed to apply {}: {}",
+        sp_fmt_str(entry->id.patches.files[it]), sp_fmt_str(error)).value;
+    }
+    sp_mem_end_scratch(s);
+    if (applied) {
+      return applied;
+    }
+  }
+
+  return SPN_OK;
 }
 
 static spn_err_t spn_git_cache_materialize_checkout(spn_git_cache_t* cache, spn_git_checkout_t* entry) {

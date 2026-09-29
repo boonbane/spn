@@ -10,7 +10,7 @@ lanes_read_t lanes_read(sp_mem_t mem, sp_str_t path, lanes_t* lanes) {
     return LANES_READ_UNREADABLE;
   }
   spn_toml_loader_t loader = sp_zero;
-  spn_toml_loader_init(&loader, mem, lanes->intern);
+  spn_toml_loader_init(&loader, mem, lanes->intern, SP_NULLPTR);
   bool parsed = spn_toolchains_parse(&loader, lanes->text, &lanes->config);
   lanes->issues = loader.issues;
   return parsed ? LANES_READ_OK : LANES_READ_PARSE;
@@ -33,7 +33,7 @@ const spn_cg_toolchain_decl_t* lanes_find(const lanes_t* lanes, sp_str_t name) {
 
 sp_da(spn_codegen_issue_t) lanes_lower(const lanes_t* lanes, u32 at, spn_path_root_t base, spn_toolchain_decl_t* decl) {
   spn_toml_loader_t loader = sp_zero;
-  spn_toml_loader_init(&loader, lanes->mem, lanes->intern);
+  spn_toml_loader_init(&loader, lanes->mem, lanes->intern, SP_NULLPTR);
   sp_da_for(lanes->issues, it) {
     if (issue_in_entry(&lanes->issues[it], at)) {
       sp_da_push(loader.issues, lanes->issues[it]);

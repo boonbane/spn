@@ -78,9 +78,6 @@ bool spn_path_normal(sp_str_t path) {
   if (path.len && path.data[0] == '/') {
     it = 1;
   }
-  else if (path.len >= 3 && path.data[1] == ':' && path.data[2] == '/') {
-    it = 3;
-  }
   if (it == path.len) {
     return true;
   }

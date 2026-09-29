@@ -19,6 +19,7 @@
 #include "semver/convert.h"
 #include "io/io.h"
 #include "paths/paths.h"
+#include "str/str.h"
 
 static sp_str_t location(sp_mem_t mem, spn_index_info_t* index) {
   return spn_path_str(&spn.roots, mem, index->location);
@@ -79,29 +80,24 @@ spn_err_t spn_index_sync(spn_index_info_t* index, bool force) {
   switch (index->protocol) {
     case SPN_INDEX_PROTOCOL_GIT: {
       bool pinned = !sp_str_empty(index->git.rev);
-      sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-      sp_str_t dir = location(scratch.mem, index);
-      spn_err_t err = SPN_OK;
+      sp_str_buf_t buf = sp_zero;
+      sp_str_t dir = location(sp_str_buf_as_mem(&buf), index);
 
       if (sp_fs_exists_at(at)) {
         if (pinned) {
-          err = force ? spn_git_fetch(dir) : SPN_OK;
-          if (!err) {
-            err = spn_git_checkout(dir, index->git.rev);
+          if (force) {
+            spn_try(spn_git_fetch(dir));
           }
+          return spn_git_checkout(dir, index->git.rev);
         }
-        else if (force || git_index_stale(index)) {
-          err = git_index_freshen(index);
+        if (force || git_index_stale(index)) {
+          return git_index_freshen(index);
         }
+        return SPN_OK;
       }
-      else {
-        err = spn_git_clone(index->git.url, dir);
-        if (!err && pinned) {
-          err = spn_git_checkout(dir, index->git.rev);
-        }
-      }
-      sp_mem_end_scratch(scratch);
-      return err;
+
+      spn_try(spn_git_clone(index->git.url, dir));
+      return pinned ? spn_git_checkout(dir, index->git.rev) : SPN_OK;
     }
     case SPN_INDEX_PROTOCOL_HTTP: {
       return SPN_ERROR;

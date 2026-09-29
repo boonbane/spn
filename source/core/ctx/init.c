@@ -135,7 +135,7 @@ static spn_err_t extract_runtime(spn_ctx_t* ctx) {
 
 static void load_builtins(spn_ctx_t* ctx) {
   spn_toml_loader_t loader = sp_zero;
-  spn_toml_loader_init(&loader, ctx->mem, ctx->intern);
+  spn_toml_loader_init(&loader, ctx->mem, ctx->intern, SP_NULLPTR);
   sp_da(spn_toolchain_decl_t) decls = spn_toolchains_lower(&loader, sp_str((const c8*)toolchains_toml, toolchains_toml_size), SPN_PATH_ROOT_NONE);
   sp_assert(sp_da_empty(loader.issues));
   sp_da_for(decls, it) {
@@ -206,10 +206,10 @@ static spn_err_t open_ctx(spn_ctx_t* ctx, spn_open_request_t request) {
   if (sp_fs_exists_at(spn_path_at(&ctx->roots, config_toml))) {
     spn_cg_config_t config = sp_zero;
     spn_toml_loader_t loader = sp_zero;
-    spn_toml_loader_init(&loader, ctx->mem, ctx->intern);
+    spn_toml_loader_init(&loader, ctx->mem, ctx->intern, &ctx->roots);
     sp_da(spn_index_info_t) indexes = sp_da_new(ctx->heap, spn_index_info_t);
     sp_da(spn_toolchain_decl_t) toolchains = SP_NULLPTR;
-    if (spn_codegen_load_config(&loader, &ctx->roots, config_toml, &config) == SPN_OK) {
+    if (spn_codegen_load_config(&loader, config_toml, &config) == SPN_OK) {
       sp_da_for(config.index, it) {
         sp_da_push(indexes, spn_index_lower(&loader, it, SPN_INDEX_KIND_USER, &config.index[it]));
       }

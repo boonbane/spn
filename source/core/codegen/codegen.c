@@ -1,4 +1,5 @@
 #include "codegen/codegen.h"
+#include "paths/paths.h"
 #include "config.gen.h"
 #include "external/tom.h"
 #include "intern/intern.h"
@@ -47,8 +48,9 @@ bool spn_codegen_os_version_present(const spn_os_version_t* in) {
   return in->major || in->minor;
 }
 
-spn_err_t spn_codegen_load(spn_toml_loader_t* ctx, const spn_path_roots_t* roots, spn_path_t path, spn_cg_manifest_t* out) {
-  toml_table_t* table = spn_codegen_parse(ctx, roots, path);
+spn_err_t spn_codegen_load(spn_toml_loader_t* ctx, spn_path_t path, spn_cg_manifest_t* out) {
+  ctx->dir = spn_path_parent(path);
+  toml_table_t* table = spn_codegen_parse(ctx, path);
   if (table) {
     spn_manifest_read(ctx, table, out);
     toml_free(table);
@@ -56,8 +58,9 @@ spn_err_t spn_codegen_load(spn_toml_loader_t* ctx, const spn_path_roots_t* roots
   return (sp_da_empty(ctx->issues)) ? SPN_OK : SPN_ERROR;
 }
 
-spn_err_t spn_codegen_load_config(spn_toml_loader_t* ctx, const spn_path_roots_t* roots, spn_path_t path, spn_cg_config_t* out) {
-  toml_table_t* table = spn_codegen_parse(ctx, roots, path);
+spn_err_t spn_codegen_load_config(spn_toml_loader_t* ctx, spn_path_t path, spn_cg_config_t* out) {
+  ctx->dir = spn_path_parent(path);
+  toml_table_t* table = spn_codegen_parse(ctx, path);
   if (table) {
     spn_config_read(ctx, table, out);
     toml_free(table);

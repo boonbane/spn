@@ -1618,15 +1618,15 @@ sp_test_each(lower, cases, test_t, tests) {
   sp_mem_t mem = sp_test_arena(t);
   sp_intern_t* interner = sp_intern_new(mem);
 
+  spn_path_roots_t roots = sp_zero;
   spn_toml_loader_t ctx = sp_zero;
-  spn_toml_loader_init(&ctx, mem, interner);
+  spn_toml_loader_init(&ctx, mem, interner, &roots);
 
   sp_str_t file = sp_fmt(mem, "{}.toml", sp_fmt_cstr(it->manifest)).value;
   sp_str_t path = sp_fs_join_path(mem, test_repo_path(mem, sp_str_lit(MANIFEST_DIR)), file);
 
-  spn_path_roots_t roots = sp_zero;
   spn_cg_manifest_t cg = sp_zero;
-  spn_codegen_load(&ctx, &roots, (spn_path_t) { .sub = path }, &cg);
+  spn_codegen_load(&ctx, (spn_path_t) { .sub = path }, &cg);
 
   spn_pkg_info_t pkg = sp_zero;
   spn_pkg_lower(&ctx, &cg, &pkg);

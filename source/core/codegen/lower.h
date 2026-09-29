@@ -18,6 +18,6 @@ spn_err_t spn_pkg_lower_patch_hashes(spn_toml_loader_t* ctx, spn_pkg_info_t* out
 spn_err_t spn_pkg_reject_patches(spn_toml_loader_t* ctx, spn_pkg_info_t* out);
 spn_index_info_t spn_index_lower(spn_toml_loader_t* ctx, u32 at, spn_index_kind_t kind, const spn_cg_index_t* decl);
 
-spn_err_t spn_codegen_load_pkg(spn_toml_loader_t* ctx, const spn_path_roots_t* roots, spn_path_t manifest, spn_pkg_info_t* out);
+spn_err_t spn_codegen_load_pkg(spn_toml_loader_t* ctx, spn_path_t manifest, spn_pkg_info_t* out);
 
 #endif

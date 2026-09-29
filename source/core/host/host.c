@@ -41,11 +41,11 @@ spn_index_arr_t spn_get_indexes(sp_mem_t mem, spn_ctx_t* ctx) {
   return indexes;
 }
 
-bool spn_get_index(spn_ctx_t* ctx, sp_str_t name, spn_index_desc_t* index) {
+bool spn_get_index(sp_mem_t mem, spn_ctx_t* ctx, sp_str_t name, spn_index_desc_t* index) {
   spn_index_info_t* info = spn_find_index(ctx, name);
   if (!info) {
     return false;
   }
-  *index = describe_index(ctx->heap, ctx, info);
+  *index = describe_index(mem, ctx, info);
   return true;
 }
