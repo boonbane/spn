@@ -27,8 +27,6 @@ sp_str_t sp_fs_staging_path(sp_mem_t mem, sp_str_t path, sp_str_t extension);
 
 sp_err_t sp_fs_staging_dir(sp_mem_t mem, sp_path_t path, sp_str_t extension, sp_path_t* dir);
 
-// sp's writers do not make missing directories; a caller landing a file
-// somewhere it did not create asks for the parent here
 sp_err_t sp_fs_create_parent(sp_path_t path);
 sp_err_t sp_fs_append(sp_path_t path, sp_str_t str);
 sp_err_t sp_fs_set_readonly(sp_path_t path);
