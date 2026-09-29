@@ -21,6 +21,7 @@ _Static_assert(
 typedef struct {
   sp_str_t dirs [SPN_PATH_ROOT_COUNT];
   sp_sys_fd_t fds [SPN_PATH_ROOT_COUNT];
+  spn_path_root_set_t opened;
   spn_path_root_set_t pinned;
 } spn_path_roots_t;
 

@@ -862,11 +862,12 @@ typedef struct {
 } spn_dag_targets_t;
 
 static bool path_parent(spn_path_t* path) {
-  if (sp_str_empty(path->sub)) {
+  spn_path_t parent = spn_path_parent(*path);
+  if (spn_path_equal(parent, *path) || spn_path_empty(parent)) {
     return false;
   }
-  *path = spn_path_parent(*path);
-  return !sp_str_empty(path->sub) || path->root != SPN_PATH_ROOT_NONE;
+  *path = parent;
+  return true;
 }
 
 static void targets_init(spn_dag_targets_t* targets, spn_dag_t* g, sp_mem_t mem) {

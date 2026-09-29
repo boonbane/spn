@@ -130,11 +130,47 @@ static spn_err_t extract_runtime(spn_ctx_t* ctx) {
   return result;
 }
 
+static void load_builtins(spn_ctx_t* ctx) {
+  spn_toml_loader_t loader = sp_zero;
+  spn_toml_loader_init(&loader, ctx->mem, ctx->intern);
+  sp_da(spn_toolchain_decl_t) decls = spn_toolchains_lower(&loader, sp_str((const c8*)toolchains_toml, toolchains_toml_size), SPN_PATH_ROOT_NONE);
+  sp_assert(sp_da_empty(loader.issues));
+  sp_da_for(decls, it) {
+    spn_toolchain_catalog_add(&ctx->catalog, decls[it]);
+  }
+}
+
+static spn_err_t open_root(spn_ctx_t* ctx, spn_path_root_t kind, spn_path_t dir) {
+  if (spn_path_roots_set(&ctx->roots, ctx->heap, kind, spn_path_at(&ctx->roots, dir))) {
+    return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_FS_CREATE_DIR, .fs = { .path = spn_path_copy(ctx->heap, dir) } });
+  }
+  return SPN_OK;
+}
+
+static spn_path_t cache_path(const c8* sub) {
+  return (spn_path_t) { .root = SPN_PATH_ROOT_CACHE, .sub = sp_cstr_as_str(sub) };
+}
+
+static spn_err_t open_roots(spn_ctx_t* ctx, spn_open_request_t request) {
+  sp_str_t storage = env_or(ctx, "SPN_STORAGE_DIR", sp_fs_join_path(ctx->heap, sp_fs_get_storage_path(ctx->heap), sp_str_lit("spn")));
+  sp_str_t toolchain = sp_env_get(ctx->env, sp_str_lit("SPN_TOOLCHAIN_DIR"));
+  spn_try(open_root(ctx, SPN_PATH_ROOT_STORAGE, (spn_path_t) { .sub = storage }));
+  spn_try(open_root(ctx, SPN_PATH_ROOT_CACHE, storage_path("cache")));
+  spn_try(open_root(ctx, SPN_PATH_ROOT_INDEX, storage_path("index")));
+  spn_try(open_root(ctx, SPN_PATH_ROOT_STORE, cache_path("store")));
+  spn_try(open_root(ctx, SPN_PATH_ROOT_BUILD, cache_path("build")));
+  spn_try(open_root(ctx, SPN_PATH_ROOT_CHECKOUT, cache_path("source/checkouts")));
+  spn_try(open_root(ctx, SPN_PATH_ROOT_TOOLCHAIN, sp_str_empty(toolchain) ? cache_path("toolchain") : (spn_path_t) { .sub = toolchain }));
+  spn_try(open_root(ctx, SPN_PATH_ROOT_PROJECT, (spn_path_t) { .sub = sp_str_valid(request.dir) ? request.dir : sp_str_lit(".") }));
+  return SPN_OK;
+}
+
 static spn_err_t open_ctx(spn_ctx_t* ctx, spn_open_request_t request) {
   sp_assert(!ctx->config.indexes);
 
-  sp_path_t project = sp_str_valid(request.dir) ? sp_path_resolve(request.dir) : sp_path_at_cwd(sp_str_lit("."));
-  spn_path_roots_set(&ctx->roots, ctx->heap, SPN_PATH_ROOT_PROJECT, project);
+  spn_try(open_roots(ctx, request));
+  spn_toolchain_catalog_init(&ctx->catalog, ctx->host, spn_sdk_detect(ctx->heap, &ctx->roots, ctx->env, ctx->host), ctx->heap);
+  load_builtins(ctx);
 
   spn_git_cache_init(&ctx->caches.git, ctx->mem, ctx->intern, &ctx->roots, (spn_path_t) { .root = SPN_PATH_ROOT_CACHE, .sub = sp_str_lit("source") });
 
@@ -147,7 +183,7 @@ static spn_err_t open_ctx(spn_ctx_t* ctx, spn_open_request_t request) {
   spn_probe_cache_load(&ctx->caches.toolchains.probes, &ctx->roots, (spn_path_t) { .root = SPN_PATH_ROOT_TOOLCHAIN, .sub = sp_str_lit("probe.cache") }, ctx->mem);
 
   spn_try(extract_runtime(ctx));
-  spn_path_roots_set(&ctx->roots, ctx->heap, SPN_PATH_ROOT_RUNTIME, spn_path_at(&ctx->roots, storage_path("runtime")));
+  spn_try(open_root(ctx, SPN_PATH_ROOT_RUNTIME, storage_path("runtime")));
 
   spn_event_buffer_push(ctx->events, (spn_event_t) {
     .kind = SPN_EVENT_OPEN,
@@ -208,21 +244,6 @@ static spn_err_t open_ctx(spn_ctx_t* ctx, spn_open_request_t request) {
   return SPN_OK;
 }
 
-static void load_builtins(spn_ctx_t* ctx) {
-  spn_toml_loader_t loader = sp_zero;
-  spn_toml_loader_init(&loader, ctx->mem, ctx->intern);
-  sp_da(spn_toolchain_decl_t) decls = spn_toolchains_lower(&loader, sp_str((const c8*)toolchains_toml, toolchains_toml_size), SPN_PATH_ROOT_NONE);
-  sp_assert(sp_da_empty(loader.issues));
-  sp_da_for(decls, it) {
-    spn_toolchain_catalog_add(&ctx->catalog, decls[it]);
-  }
-}
-
-static void set_root(spn_ctx_t* ctx, spn_path_root_t kind, spn_path_root_t base, const c8* sub) {
-  spn_path_t dir = { .root = base, .sub = sp_cstr_as_str(sub) };
-  spn_path_roots_set(&ctx->roots, ctx->heap, kind, spn_path_at(&ctx->roots, dir));
-}
-
 spn_ctx_t* spn_ctx_new(spn_wake_fn_t wake, void* wake_data) {
   sp_assert(!spn.arena);
   spn_ctx_t* ctx = &spn;
@@ -244,23 +265,6 @@ spn_ctx_t* spn_ctx_new(spn_wake_fn_t wake, void* wake_data) {
   ctx->paths.config.dir = sp_fs_join_path(ctx->heap, env_or(ctx, "SPN_CONFIG_DIR", sp_fs_get_config_path(ctx->heap)), sp_str_lit("spn"));
   ctx->paths.config.toml = sp_fs_join_path(ctx->heap, ctx->paths.config.dir, sp_str_lit("spn.toml"));
 
-  sp_str_t storage = env_or(ctx, "SPN_STORAGE_DIR", sp_fs_join_path(ctx->heap, sp_fs_get_storage_path(ctx->heap), sp_str_lit("spn")));
-  spn_path_roots_set(&ctx->roots, ctx->heap, SPN_PATH_ROOT_STORAGE, sp_path_resolve(storage));
-  set_root(ctx, SPN_PATH_ROOT_CACHE, SPN_PATH_ROOT_STORAGE, "cache");
-  set_root(ctx, SPN_PATH_ROOT_INDEX, SPN_PATH_ROOT_STORAGE, "index");
-  set_root(ctx, SPN_PATH_ROOT_STORE, SPN_PATH_ROOT_CACHE, "store");
-  set_root(ctx, SPN_PATH_ROOT_BUILD, SPN_PATH_ROOT_CACHE, "build");
-  set_root(ctx, SPN_PATH_ROOT_CHECKOUT, SPN_PATH_ROOT_CACHE, "source/checkouts");
-  sp_str_t toolchain = sp_env_get(ctx->env, sp_str_lit("SPN_TOOLCHAIN_DIR"));
-  if (sp_str_empty(toolchain)) {
-    set_root(ctx, SPN_PATH_ROOT_TOOLCHAIN, SPN_PATH_ROOT_CACHE, "toolchain");
-  }
-  else {
-    spn_path_roots_set(&ctx->roots, ctx->heap, SPN_PATH_ROOT_TOOLCHAIN, sp_path_resolve(toolchain));
-  }
-
-  spn_toolchain_catalog_init(&ctx->catalog, ctx->host, spn_sdk_detect(ctx->heap, &ctx->roots, ctx->env, ctx->host), ctx->heap);
-  load_builtins(ctx);
   ctx->roots.pinned = spn_path_pinned_roots();
 
   spn_op_thread_start(ctx);

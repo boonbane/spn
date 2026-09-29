@@ -8,7 +8,7 @@ sp_path_t spn_path_at(const spn_path_roots_t* roots, spn_path_t path) {
   if (path.root == SPN_PATH_ROOT_NONE) {
     return sp_path_resolve(path.sub);
   }
-  sp_assert(!sp_str_empty(roots->dirs[path.root]));
+  sp_assert(roots->opened & spn_path_root_mask(path.root));
   return sp_path_at(roots->fds[path.root], sp_str_empty(path.sub) ? sp_str_lit(".") : path.sub);
 }
 
@@ -17,22 +17,27 @@ sp_err_t spn_get_path_metadata(const spn_path_roots_t* roots, spn_path_t path, s
   return sp_sys_get_path_metadata_s(at.dir, at.sub, meta);
 }
 
-void spn_path_roots_set(spn_path_roots_t* roots, sp_mem_t mem, spn_path_root_t kind, sp_path_t dir) {
-  sp_assert(sp_str_empty(roots->dirs[kind]));
-  sp_fs_create_dir_at(dir);
-  roots->dirs[kind] = sp_fs_canonicalize_path_at(mem, dir);
-  sp_assert(!sp_str_empty(roots->dirs[kind]));
-  sp_err_t opened = sp_fs_open_dir_at(dir, &roots->fds[kind]);
-  sp_assert(!opened);
+spn_err_t spn_path_roots_set(spn_path_roots_t* roots, sp_mem_t mem, spn_path_root_t kind, sp_path_t dir) {
+  sp_assert(!(roots->opened & spn_path_root_mask(kind)));
+  sp_try_as(sp_fs_create_dir_at(dir), SPN_ERROR);
+  sp_str_t canonical = sp_fs_canonicalize_path_at(mem, dir);
+  if (sp_str_empty(canonical)) {
+    return SPN_ERROR;
+  }
+  sp_try_as(sp_fs_open_dir_at(dir, &roots->fds[kind]), SPN_ERROR);
+  roots->dirs[kind] = canonical;
+  roots->opened |= spn_path_root_mask(kind);
+  return SPN_OK;
 }
 
 void spn_path_roots_close(spn_path_roots_t* roots) {
   sp_for(it, SPN_PATH_ROOT_COUNT) {
-    if (!sp_str_empty(roots->dirs[it])) {
+    if (roots->opened & spn_path_root_mask((spn_path_root_t)it)) {
       sp_sys_close(roots->fds[it]);
     }
     roots->dirs[it] = sp_str_lit("");
   }
+  roots->opened = 0;
 }
 
 static bool root_match(sp_str_t dir, sp_str_t path) {
@@ -76,10 +81,10 @@ static bool seg_normal(sp_str_t seg) {
 
 bool spn_path_normal(sp_str_t path) {
   u32 it = 0;
-  if (path.len && (path.data[0] == '/' || path.data[0] == '\\')) {
+  if (path.len && path.data[0] == '/') {
     it = 1;
   }
-  else if (path.len >= 3 && path.data[1] == ':' && (path.data[2] == '/' || path.data[2] == '\\')) {
+  else if (path.len >= 3 && path.data[1] == ':' && path.data[2] == '/') {
     it = 3;
   }
   if (it == path.len) {
@@ -88,8 +93,7 @@ bool spn_path_normal(sp_str_t path) {
 
   u32 start = it;
   for (; it < path.len; it++) {
-    c8 c = path.data[it];
-    if (c != '/' && c != '\\') {
+    if (path.data[it] != '/') {
       continue;
     }
     if (!seg_normal(sp_str(path.data + start, it - start))) {
@@ -149,34 +153,38 @@ static canonical_split_t canonical_split(sp_mem_t mem, const spn_path_roots_t* r
   return split;
 }
 
-static spn_path_t canonical_join(sp_mem_t mem, sp_mem_t scratch, const spn_path_roots_t* roots, spn_path_t path, sp_str_t canonical, sp_str_t tail) {
-  if (sp_str_empty(canonical)) {
-    return spn_path_copy(mem, path);
-  }
-  sp_str_t full = sp_fs_join_path(scratch, canonical, tail);
-  if (!spn_path_normal(full)) {
-    return spn_path_copy(mem, path);
-  }
-  return spn_path_copy(mem, spn_path_make(roots, full));
+static sp_str_t head_segment(sp_str_t tail) {
+  s32 sep = sp_str_find_c8(tail, '/');
+  sp_str_t head = sep == SP_STR_NO_MATCH ? tail : sp_str_prefix(tail, sep);
+  return seg_normal(head) ? head : sp_str_lit("");
 }
 
 spn_path_t spn_path_canonicalize(sp_mem_t mem, const spn_path_roots_t* roots, spn_path_t path) {
   sp_mem_arena_marker_t s = sp_mem_begin_scratch_for(mem);
-  canonical_split_t split = canonical_split(s.mem, roots, path);
-  spn_path_t result = canonical_join(mem, s.mem, roots, path, split.canonical, split.tail);
+  spn_path_t result = path;
+  sp_str_t canonical = sp_fs_canonicalize_path_at(s.mem, spn_path_at(roots, path));
+  if (sp_str_empty(canonical)) {
+    canonical = spn_path_str(roots, s.mem, path);
+  }
+  if (sp_fs_is_absolute(canonical) && spn_path_normal(canonical)) {
+    result = spn_path_make(roots, canonical);
+  }
+  result = spn_path_copy(mem, result);
   sp_mem_end_scratch(s);
   return result;
 }
 
 spn_path_t spn_path_canonicalize_head(sp_mem_t mem, const spn_path_roots_t* roots, spn_path_t path) {
   sp_mem_arena_marker_t s = sp_mem_begin_scratch_for(mem);
+  spn_path_t result = path;
   canonical_split_t split = canonical_split(s.mem, roots, path);
-  s32 sep = sp_str_find_c8(split.tail, '/');
-  sp_str_t head = sep == SP_STR_NO_MATCH ? split.tail : sp_str_prefix(split.tail, sep);
-  if (!seg_normal(head)) {
-    head = sp_str_lit("");
+  if (!sp_str_empty(split.canonical)) {
+    sp_str_t full = sp_fs_join_path(s.mem, split.canonical, head_segment(split.tail));
+    if (spn_path_normal(full)) {
+      result = spn_path_make(roots, full);
+    }
   }
-  spn_path_t result = canonical_join(mem, s.mem, roots, path, split.canonical, head);
+  result = spn_path_copy(mem, result);
   sp_mem_end_scratch(s);
   return result;
 }
@@ -210,10 +218,8 @@ spn_path_t spn_path_join(sp_mem_t mem, spn_path_t base, sp_str_t sub) {
 
 spn_path_t spn_path_parent(spn_path_t path) {
   s32 sep = sp_str_find_c8_reverse(path.sub, '/');
-  return (spn_path_t) {
-    .root = path.root,
-    .sub = sep == SP_STR_NO_MATCH ? sp_str_lit("") : sp_str_prefix(path.sub, sep),
-  };
+  u32 len = sep == SP_STR_NO_MATCH ? 0 : sep == 0 ? 1 : (u32)sep;
+  return (spn_path_t) { .root = path.root, .sub = sp_str_prefix(path.sub, len) };
 }
 
 spn_path_t spn_path_suffix(sp_mem_t mem, spn_path_t path, sp_str_t suffix) {

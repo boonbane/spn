@@ -58,3 +58,27 @@ sp_test_each(paths_path, construct, path_test_t, path_tests) {
   sp_expect_str_eq_c(t, spn_path_str(roots, mem, path), it->expect);
   return SP_OK;
 }
+
+typedef struct {
+  const c8* name;
+  spn_path_root_t root;
+  const c8* sub;
+  const c8* expect;
+} parent_test_t;
+
+static const parent_test_t parent_tests [] = {
+  { .name = "nested_drops_the_leaf",           .root = SPN_PATH_ROOT_PROJECT, .sub = "D/H", .expect = "D" },
+  { .name = "top_level_is_the_root",           .root = SPN_PATH_ROOT_PROJECT, .sub = "H",   .expect = "" },
+  { .name = "root_is_its_own_parent",          .root = SPN_PATH_ROOT_PROJECT, .sub = "",    .expect = "" },
+  { .name = "absolute_drops_the_leaf",         .sub = "/A/H", .expect = "/A" },
+  { .name = "absolute_top_level_is_the_slash", .sub = "/H",   .expect = "/" },
+  { .name = "slash_is_its_own_parent",         .sub = "/",    .expect = "/" },
+  { .name = "relative_top_level_is_empty",     .sub = "H",    .expect = "" },
+};
+
+sp_test_each(paths_path, parent, parent_test_t, parent_tests) {
+  spn_path_t parent = spn_path_parent((spn_path_t) { .root = it->root, .sub = sp_cstr_as_str(it->sub) });
+  sp_expect_eq(t, parent.root, it->root);
+  sp_expect_str_eq_c(t, parent.sub, it->expect);
+  return SP_OK;
+}

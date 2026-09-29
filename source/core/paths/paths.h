@@ -6,7 +6,7 @@
 #include "spn/types.h"
 #include "paths/types.h"
 
-void spn_path_roots_set(spn_path_roots_t* roots, sp_mem_t mem, spn_path_root_t kind, sp_path_t dir);
+spn_err_t spn_path_roots_set(spn_path_roots_t* roots, sp_mem_t mem, spn_path_root_t kind, sp_path_t dir);
 void spn_path_roots_close(spn_path_roots_t* roots);
 bool spn_path_roots_intersect(const spn_path_roots_t* roots, sp_str_t dir);
 bool spn_path_normal(sp_str_t path);

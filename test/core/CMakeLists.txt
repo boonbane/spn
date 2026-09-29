@@ -85,6 +85,7 @@ add_executable(core
   paths/normal.c
   paths/path.c
   paths/roots.c
+  paths/set.c
   paths/tree_path.c
   paths/tree_rel.c
   pkg/pkg.c
