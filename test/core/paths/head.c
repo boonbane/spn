@@ -31,6 +31,11 @@ typedef struct {
 
 static const head_test_t head_tests [] = {
   {
+    .name = "root_itself",
+    .input = "",
+    .expect = { .sub = "", .exists = true },
+  },
+  {
     .name = "existing_file",
     .setup = {
       { "A", HEAD_SETUP_DIR },

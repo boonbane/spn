@@ -17,7 +17,7 @@ static sp_fs_path_kind_t path_kind(spn_install_os_t os) {
     case SPN_INSTALL_OS_UNIX: return SP_FS_PATH_POSIX;
     case SPN_INSTALL_OS_WINDOWS: return SP_FS_PATH_WINDOWS;
   }
-  return SP_FS_PATH_POSIX;
+  sp_unreachable_return(SP_FS_PATH_POSIX);
 }
 
 static sp_str_t normalize_path(sp_mem_t mem, spn_install_os_t os, sp_str_t path) {
