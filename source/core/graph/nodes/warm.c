@@ -8,188 +8,82 @@
 #include "external/zig.h"
 #include "paths/paths.h"
 #include "session/invocation.h"
-#include "triple/triple.h"
 #include "graph/nodes/nodes.h"
 
-#if !defined(SP_WIN32)
-static void pump(sp_sys_fd_t fd, spn_dag_env_t* env, sp_mem_t mem) {
-  spn_zig_progress_t* progress = sp_alloc_type(mem, spn_zig_progress_t);
-  spn_zig_progress_init(progress);
+typedef struct {
+  sp_io_writer_t base;
+  spn_zig_progress_t progress;
+  spn_dag_env_t* env;
+  u64 last;
+} progress_writer_t;
 
-  u64 last = 0;
-  u8 buf [4096] = sp_zero;
-  while (true) {
-    u64 bytes = 0;
-    if (sp_sys_read(fd, buf, sizeof(buf), &bytes) || !bytes) {
-      break;
-    }
-    if (!spn_zig_progress_feed(progress, buf, bytes) || !env->progress) {
-      continue;
-    }
-
-    u64 ticks = spn_zig_progress_ticks(progress);
-    sp_atomic_u64_add(&env->progress->warm, ticks - last, SP_ATOMIC_SEQ_CST);
-    last = ticks;
-    if (env->wake) {
-      spn_wake_ring(env->wake);
-    }
+static sp_err_t progress_write(sp_io_writer_t* writer, const void* bytes, u64 len, u64* written) {
+  progress_writer_t* w = (progress_writer_t*)writer;
+  *written = len;
+  if (!spn_zig_progress_feed(&w->progress, bytes, len) || !w->env->progress) {
+    return SP_OK;
   }
-
-  if (env->progress && last) {
-    sp_atomic_u64_add(&env->progress->warm, 0 - last, SP_ATOMIC_SEQ_CST);
-    if (env->wake) {
-      spn_wake_ring(env->wake);
-    }
+  u64 ticks = spn_zig_progress_ticks(&w->progress);
+  sp_atomic_u64_add(&w->env->progress->warm, ticks - w->last, SP_ATOMIC_SEQ_CST);
+  w->last = ticks;
+  if (w->env->wake) {
+    spn_wake_ring(w->env->wake);
   }
-}
-#endif
-
-static sp_ps_output_t stub_exec(spn_invocation_t* invocation, sp_str_t dir, spn_dag_env_t* env, sp_mem_t mem) {
-#if defined(SP_WIN32)
-  (void)dir;
-  (void)env;
-  return spn_invocation_run(invocation).result;
-#else
-  sp_ps_output_t failed = { .status = { .state = SP_PS_STATE_DONE, .exit_code = -1 } };
-
-  sp_sys_pipe_t pipe = sp_zero;
-  if (sp_sys_pipe(&pipe, (sp_sys_pipe_desc_t) { .w = SP_SYS_INHERITED })) {
-    return failed;
-  }
-
-  sp_str_t log = sp_fs_join_path(mem, dir, sp_str_lit("log"));
-  sp_sys_fd_t sink = sp_zero;
-  if (sp_sys_open_s(sp_sys_get_root(0), log, SP_SYS_OPEN_MODE_WO, SP_SYS_OPEN_CREATE | SP_SYS_OPEN_TRUNCATE, &sink)) {
-    sp_sys_close(pipe.r);
-    sp_sys_close(pipe.w);
-    return failed;
-  }
-
-  sp_ps_config_t ps = spn_invocation_ps(invocation, mem);
-  ps.io.out = (sp_ps_io_out_config_t) { .mode = SP_PS_IO_MODE_EXISTING, .fd = sink };
-
-  // spn_invocation_ps fills the invocation's env and then PATH; the progress fd goes after both
-  u64 vars = sp_da_size(invocation->env) + 1;
-  sp_assert(vars + 1 <= SP_PS_MAX_ENV);
-  ps.env.extra[vars] = (sp_env_var_t) {
-    .key = sp_str_lit("ZIG_PROGRESS"),
-    .value = sp_fmt(mem, "{}", sp_fmt_uint((u64)pipe.w)).value,
-  };
-
-  sp_ps_t child = sp_ps_create(spn.mem, ps);
-  sp_sys_close(pipe.w);
-  if (!child.os) {
-    sp_sys_close(pipe.r);
-    sp_sys_close(sink);
-    return failed;
-  }
-
-  pump(pipe.r, env, mem);
-  sp_sys_close(pipe.r);
-
-  sp_ps_status_t status = sp_ps_wait(&child);
-  sp_ps_free(&child);
-  sp_sys_close(sink);
-
-  sp_ps_output_t output = { .status = status };
-  if (status.exit_code) {
-    sp_io_read_file(spn.mem, log, &output.out);
-  }
-  return output;
-#endif
+  return SP_OK;
 }
 
-static s32 run_stub(spn_build_unit_t* build, const spn_zig_stub_t* stub, sp_str_t name, sp_str_t triple, sp_str_t dir, spn_dag_env_t* env, sp_mem_t mem) {
-  spn_cc_t* cc = &build->toolchain->cc;
+spn_err_t spn_dag_exec_warm(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs) {
+  spn_dag_warm_ctx_t* warm = (spn_dag_warm_ctx_t*)user_data;
+  spn_cc_t* cc = &warm->build->toolchain->cc;
+  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+  sp_mem_t mem = scratch.mem;
 
   spn_event_buffer_push(spn.events, (spn_event_t) {
     .kind = SPN_EVENT_WARM_START,
     .warm = {
       .toolchain = cc->name,
-      .triple = triple,
-      .stub = name,
+      .triple = warm->triple,
+      .stub = warm->name,
     },
   });
 
-  sp_str_t source = sp_fs_join_path(mem, dir, sp_str_lit("stub.c"));
-  if (sp_fs_create_file_str(source, sp_str_lit("int main(void) { return 0; }\n"))) {
-    spn_event_buffer_push(spn.events, (spn_event_t) {
-      .kind = SPN_EVENT_NODE_FAILED,
-      .node_failed = {
-        .path = sp_str_copy(spn.mem, source),
-        .message = sp_str_lit("could not be written"),
-      },
-    });
-    return 1;
-  }
-
-  spn_cc_link_t link = {
-    .lang = stub->lang,
-    .kind = stub->kind,
-    .system_libs = stub->system_libs,
-  };
+  spn_path_t staging = spn_path_parent(outputs[0]);
   sp_da(spn_arg_t) objects = sp_da_new(mem, spn_arg_t);
-  sp_da_push(objects, spn_arg_path(spn_path_make(&spn.roots, source)));
-  spn_path_t output = spn_path_make(&spn.roots, sp_fs_join_path(mem, dir, sp_str_lit("stub.bin")));
+  sp_da_push(objects, spn_arg_path(spn_path_join(mem, spn_path_from_root(SPN_PATH_ROOT_RUNTIME), sp_str_lit("zig/stub.c"))));
 
   spn_invocation_t invocation = sp_zero;
-  spn_gnu_render_link(mem, cc, &build->profile, &link, objects, output, sp_zero_struct(spn_path_t), &invocation);
-  invocation.cwd = spn_path_make(&spn.roots, dir);
+  spn_gnu_render_link(mem, cc, &warm->build->profile, &warm->link, objects, spn_path_join(mem, staging, sp_str_lit("stub.bin")), sp_zero_struct(spn_path_t), &invocation);
+  invocation.cwd = staging;
 
-  sp_ps_output_t run = stub_exec(&invocation, dir, env, mem);
-  if (run.status.exit_code) {
+  progress_writer_t* progress = sp_alloc_type(mem, progress_writer_t);
+  *progress = (progress_writer_t) { .base = { .write = progress_write }, .env = env };
+  spn_invocation_result_t run = spn_invocation_run_progress(&invocation, spn_path_join(mem, staging, sp_str_lit("log")), &progress->base);
+  if (env->progress && progress->last) {
+    sp_atomic_u64_add(&env->progress->warm, 0 - progress->last, SP_ATOMIC_SEQ_CST);
+    if (env->wake) {
+      spn_wake_ring(env->wake);
+    }
+  }
+
+  spn_err_t err = SPN_OK;
+  if (run.result.status.exit_code) {
     spn_event_buffer_push(spn.events, (spn_event_t) {
       .kind = SPN_EVENT_WARM_FAILED,
       .warm_failed = {
         .toolchain = cc->name,
-        .triple = triple,
-        .stub = name,
-        .rc = run.status.exit_code,
+        .triple = warm->triple,
+        .stub = warm->name,
+        .rc = run.result.status.exit_code,
         .command = spn_invocation_to_str(spn.mem, &invocation),
-        .out = run.out,
+        .out = run.result.out,
       },
     });
+    err = SPN_ERR_DAG_ACTION;
   }
-  return run.status.exit_code;
-}
-
-static s32 warm_stub(spn_build_unit_t* build, const spn_zig_stub_t* stub, sp_str_t name, spn_path_t stamp, spn_path_t output, spn_dag_env_t* env) {
-  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  sp_mem_t mem = scratch.mem;
-
-  spn_profile_info_t* profile = &build->profile;
-  spn_triple_t triple = spn_profile_triple(profile);
-
-  sp_str_t out = spn_path_str(&spn.roots, mem, output);
-  sp_str_t dir = sp_fs_parent_path(out);
-  s32 rc = 0;
-  // A stamp only vouches for a cache that still exists; wiping the zig cache dir makes every stub cold again
-  bool warm = sp_fs_exists(spn_path_str(&spn.roots, mem, stamp)) && sp_fs_is_dir(spn_path_str(&spn.roots, mem, build->toolchain->cc.cache));
-  if (!warm) {
-    sp_fs_create_dir(spn_path_str(&spn.roots, mem, build->toolchain->cc.cache));
-    sp_fs_create_dir(dir);
-    rc = run_stub(build, stub, name, spn_triple_to_str(spn.mem, triple), dir, env, mem);
-  }
-  if (!rc && sp_fs_create_file_str(out, name)) {
-    spn_event_buffer_push(spn.events, (spn_event_t) {
-      .kind = SPN_EVENT_NODE_FAILED,
-      .node_failed = {
-        .path = sp_str_copy(spn.mem, out),
-        .message = sp_str_lit("could not be written"),
-      },
-    });
-    rc = 1;
+  else if (sp_fs_create_file(spn_path_str(g->roots, mem, outputs[0]))) {
+    err = SPN_ERR_DAG_OUTPUT_WRITE;
   }
 
   sp_mem_end_scratch(scratch);
-  return rc;
-}
-
-spn_err_t spn_dag_exec_warm(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs) {
-  spn_dag_warm_ctx_t* warm = (spn_dag_warm_ctx_t*)user_data;
-  spn_dag_artifact_t* stamp = spn_dag_find_artifact(g, action->produces[0]);
-  if (warm_stub(warm->build, &warm->stub, warm->name, stamp->path, outputs[0], env)) {
-    return SPN_ERR_DAG_ACTION;
-  }
-  return SPN_OK;
+  return err;
 }

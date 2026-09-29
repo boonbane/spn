@@ -44,6 +44,7 @@ void dag_test_env_init(dag_test_env_t* env, sp_test_t* t, dag_test_env_config_t 
     .store = &env->store,
     .discovery = config.discovery ? &env->discovery : SP_NULLPTR,
     .stats = &env->stats,
+    .progress = &env->progress,
     .scratch = dag_test_env_rooted(env, sp_str_lit("scratch"))
   };
 }

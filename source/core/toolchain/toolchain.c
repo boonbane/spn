@@ -1,7 +1,23 @@
 #include "sp.h"
+#include "ctx/types.h"
+#include "error/error.h"
 #include "macro/macro.h"
 #include "paths/paths.h"
 #include "toolchain/toolchain.h"
+
+#define SPN_GENERATION_ATTEMPTS 100
+
+typedef enum {
+  GENERATION_READ,
+  GENERATION_EMPTY,
+  GENERATION_GONE,
+  GENERATION_INVALID,
+} generation_read_t;
+
+typedef struct {
+  spn_err_t kind;
+  spn_path_t path;
+} generation_err_t;
 
 spn_path_t spn_toolchain_artifact_root(spn_artifact_t artifact) {
   return (spn_path_t) { .root = SPN_PATH_ROOT_TOOLCHAIN, .sub = artifact.sha256 };
@@ -18,18 +34,91 @@ spn_toolchain_launcher_t spn_toolchain_launcher_with_root(sp_mem_t mem, spn_tool
   return result;
 }
 
-// Local toolchains have no artifact to name a store entry after; their probed identity stands in
-spn_path_t spn_toolchain_local_root(sp_mem_t mem, sp_hash_t identity) {
-  return (spn_path_t) { .root = SPN_PATH_ROOT_TOOLCHAIN, .sub = sp_fmt(mem, "{:0>16x}", sp_fmt_uint(identity)).value };
+static sp_hash_t nonce(void) {
+  sp_tm_epoch_t now = sp_tm_now_epoch();
+  return sp_hash_bytes(&now, sizeof(now), 0);
 }
 
-spn_path_t spn_toolchain_zig_cache_dir(sp_mem_t mem, spn_path_t root) {
-  return spn_path_suffix(mem, root, sp_str_lit(".cache"));
+static generation_err_t create_generation(const spn_path_roots_t* roots, sp_mem_t mem, spn_path_t file, sp_hash_t* generation, bool* created) {
+  spn_path_at_t at = spn_path_at(roots, file);
+  sp_sys_fd_t fd = SP_SYS_INVALID_FD;
+  sp_err_t err = sp_sys_open_s(at.fd, at.sub, SP_SYS_OPEN_MODE_WO, SP_SYS_OPEN_CREATE | SP_SYS_OPEN_EXCLUSIVE, &fd);
+  if (err == SP_ERR_SYS_EXISTS) {
+    *created = false;
+    return sp_zero_struct(generation_err_t);
+  }
+  if (err) {
+    return (generation_err_t) { SPN_ERR_FS_WRITE, file };
+  }
+
+  *created = true;
+  *generation = nonce();
+  sp_str_t text = sp_fmt(mem, "{}\n", sp_fmt_uint(*generation)).value;
+  u64 written = 0;
+  err = sp_sys_write(fd, text.data, text.len, &written);
+  sp_sys_close(fd);
+  if (err || written != text.len) {
+    sp_fs_remove_file(spn_path_str(roots, mem, file));
+    return (generation_err_t) { SPN_ERR_FS_WRITE, file };
+  }
+  return sp_zero_struct(generation_err_t);
 }
 
-// The toolchain root is pinned, so the stamps that record a warmed cache live in the cache root
-spn_path_t spn_toolchain_warm_dir(sp_mem_t mem, sp_str_t id) {
-  return spn_path_join(mem, spn_path_from_root(SPN_PATH_ROOT_CACHE), sp_fmt(mem, "warm/{}", sp_fmt_str(id)).value);
+static generation_read_t read_generation(const spn_path_roots_t* roots, sp_mem_t mem, spn_path_t file, sp_hash_t* generation) {
+  sp_str_t content = sp_zero;
+  if (sp_io_read_file(mem, spn_path_str(roots, mem, file), &content)) {
+    return GENERATION_GONE;
+  }
+  content = sp_str_trim(content);
+  if (sp_str_empty(content)) {
+    return GENERATION_EMPTY;
+  }
+  return sp_parse_u64_ex(content, generation) ? GENERATION_READ : GENERATION_INVALID;
+}
+
+static generation_err_t claim_generation(const spn_path_roots_t* roots, sp_mem_t mem, spn_path_t dir, spn_path_t file, sp_hash_t* generation) {
+  sp_for(attempt, SPN_GENERATION_ATTEMPTS) {
+    if (spn_path_create_dir(roots, dir)) {
+      return (generation_err_t) { SPN_ERR_FS_CREATE_DIR, dir };
+    }
+    bool created = false;
+    generation_err_t err = create_generation(roots, mem, file, generation, &created);
+    if (err.kind) {
+      return err;
+    }
+    if (created) {
+      return sp_zero_struct(generation_err_t);
+    }
+    switch (read_generation(roots, mem, file, generation)) {
+      case GENERATION_READ: {
+        return sp_zero_struct(generation_err_t);
+      }
+      case GENERATION_EMPTY: {
+        sp_os_sleep_ms(1);
+        break;
+      }
+      case GENERATION_GONE: {
+        break;
+      }
+      case GENERATION_INVALID: {
+        return (generation_err_t) { SPN_ERR_FS_READ, file };
+      }
+    }
+  }
+  return (generation_err_t) { SPN_ERR_FS_READ, file };
+}
+
+spn_err_t spn_toolchain_generation(sp_mem_t mem, const spn_path_roots_t* roots, spn_path_t cache, sp_hash_t* generation) {
+  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch_for(mem);
+  spn_path_t dir = spn_path_join(scratch.mem, cache, sp_str_lit("spn"));
+  spn_path_t file = spn_path_join(scratch.mem, dir, sp_str_lit("generation"));
+  generation_err_t err = claim_generation(roots, scratch.mem, dir, file, generation);
+  spn_err_t result = SPN_OK;
+  if (err.kind) {
+    result = spn_err_emit(&spn, (spn_err_union_t) { .kind = err.kind, .fs = { .path = spn_path_copy(mem, err.path) } });
+  }
+  sp_mem_end_scratch(scratch);
+  return result;
 }
 
 static bool pathless(sp_str_t program) {

@@ -119,32 +119,39 @@ static sp_env_var_t path_var(sp_mem_t mem, sp_str_t program) {
   };
 }
 
-sp_ps_config_t spn_invocation_ps(const spn_invocation_t* invocation, sp_mem_t mem) {
+static void ps_env_push(sp_ps_config_t* ps, sp_env_var_t var) {
+  u32 slot = 0;
+  while (slot < SP_PS_MAX_ENV && !sp_str_empty(ps->env.extra[slot].key)) {
+    slot++;
+  }
+  sp_assert(slot < SP_PS_MAX_ENV);
+  ps->env.extra[slot] = var;
+}
+
+static sp_ps_config_t invocation_ps(const spn_invocation_t* invocation, sp_mem_t mem) {
   const spn_path_roots_t* roots = &spn.roots;
   spn_path_create_dir(roots, invocation->cwd);
-  sp_str_t cwd = spn_path_str(roots, mem, invocation->cwd);
 
   sp_ps_config_t ps = {
     .command = spn_arg_str(roots, mem, invocation->program),
     .dyn_args = spn_invocation_args(roots, mem, invocation),
-    .cwd = cwd,
+    .cwd = spn_path_str(roots, mem, invocation->cwd),
     .io = {
       .in.mode = SP_PS_IO_MODE_NULL,
       .out.mode = SP_PS_IO_MODE_CREATE,
       .err.mode = SP_PS_IO_MODE_REDIRECT,
     }
   };
-  sp_assert(sp_da_size(invocation->env) < SP_PS_MAX_ENV);
   sp_da_for(invocation->env, it) {
-    ps.env.extra[it] = spn_invocation_env_var(roots, mem, invocation->env[it]);
+    ps_env_push(&ps, spn_invocation_env_var(roots, mem, invocation->env[it]));
   }
-  ps.env.extra[sp_da_size(invocation->env)] = path_var(mem, ps.command);
+  ps_env_push(&ps, path_var(mem, ps.command));
   return ps;
 }
 
 spn_invocation_result_t spn_invocation_run(spn_invocation_t* invocation) {
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  sp_ps_config_t ps = spn_invocation_ps(invocation, scratch.mem);
+  sp_ps_config_t ps = invocation_ps(invocation, scratch.mem);
 
   sp_tm_timer_t timer = sp_tm_start_timer();
   sp_ps_output_t result = sp_ps_run(spn.mem, ps);
@@ -155,4 +162,67 @@ spn_invocation_result_t spn_invocation_run(spn_invocation_t* invocation) {
     .result = result,
     .elapsed = elapsed,
   };
+}
+
+spn_invocation_result_t spn_invocation_run_progress(spn_invocation_t* invocation, spn_path_t log, sp_io_writer_t* progress) {
+#if defined(SP_WIN32)
+  return spn_invocation_run(invocation);
+#else
+  spn_invocation_result_t failed = { .result = { .status = { .state = SP_PS_STATE_DONE, .exit_code = -1 } } };
+
+  sp_sys_pipe_t pipe = sp_zero;
+  if (sp_sys_pipe(&pipe, (sp_sys_pipe_desc_t) { .w = SP_SYS_INHERITED })) {
+    return failed;
+  }
+
+  spn_path_at_t at = spn_path_at(&spn.roots, log);
+  sp_sys_fd_t sink = SP_SYS_INVALID_FD;
+  if (sp_sys_open_s(at.fd, at.sub, SP_SYS_OPEN_MODE_WO, SP_SYS_OPEN_CREATE | SP_SYS_OPEN_TRUNCATE, &sink)) {
+    sp_sys_close(pipe.r);
+    sp_sys_close(pipe.w);
+    return failed;
+  }
+
+  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+  sp_ps_config_t ps = invocation_ps(invocation, scratch.mem);
+  ps.io.out = (sp_ps_io_out_config_t) { .mode = SP_PS_IO_MODE_EXISTING, .fd = sink };
+  ps_env_push(&ps, (sp_env_var_t) {
+    .key = sp_str_lit("ZIG_PROGRESS"),
+    .value = sp_fmt(scratch.mem, "{}", sp_fmt_uint((u64)pipe.w)).value,
+  });
+
+  sp_tm_timer_t timer = sp_tm_start_timer();
+  sp_ps_t child = sp_ps_create(spn.mem, ps);
+  sp_sys_close(pipe.w);
+  if (!child.os) {
+    sp_sys_close(pipe.r);
+    sp_sys_close(sink);
+    sp_mem_end_scratch(scratch);
+    return failed;
+  }
+
+  u8 buf [4096];
+  while (true) {
+    u64 bytes = 0;
+    if (sp_sys_read(pipe.r, buf, sizeof(buf), &bytes) || !bytes) {
+      break;
+    }
+    sp_io_write(progress, buf, bytes, SP_NULLPTR);
+  }
+  sp_sys_close(pipe.r);
+
+  sp_ps_output_t output = { .status = sp_ps_wait(&child) };
+  u64 elapsed = sp_tm_read_timer(&timer);
+  sp_ps_free(&child);
+  sp_sys_close(sink);
+  if (output.status.exit_code) {
+    sp_io_read_file(spn.mem, spn_path_str(&spn.roots, scratch.mem, log), &output.out);
+  }
+  sp_mem_end_scratch(scratch);
+
+  return (spn_invocation_result_t) {
+    .result = output,
+    .elapsed = elapsed,
+  };
+#endif
 }

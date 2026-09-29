@@ -1,5 +1,6 @@
 #include "unit.h"
 
+#include "hash/digest/digest.h"
 #include "paths/paths.h"
 #include "profile/profile.h"
 #include "toolchain/toolchain.h"
@@ -101,6 +102,9 @@ static spn_build_unit_t* add_build(spn_session_t* s, spn_build_id_t id, const c8
     .archiver = info->archiver,
     .archiver_driver = SPN_AR_DRIVER_GNU,
   };
+  if (support.kind == SPN_TOOLCHAIN_SUPPORT_ARTIFACT) {
+    toolchain->identity = spn_digest_hash_str(support.artifact.sha256);
+  }
   build->toolchain = toolchain;
   return build;
 }

@@ -65,6 +65,7 @@ static spn_err_t extract(spn_ctx_t* ctx, sp_mem_t mem, sp_str_t stamp) {
 
   sp_glob_set_t* glob = sp_glob_set_new(mem);
   sp_glob_set_add(glob, "include/*");
+  sp_glob_set_add(glob, "zig/*");
   sp_glob_set_build(glob);
 
   sp_carr_for(spn_embed_manifest, it) {
@@ -151,7 +152,7 @@ static spn_err_t open_ctx(spn_ctx_t* ctx, spn_open_request_t request) {
     ctx->paths.caches.build.dir,
     ctx->paths.caches.store.dir,
     ctx->paths.index,
-    ctx->paths.toolchain,
+    ctx->paths.toolchain.dir,
   };
   sp_carr_for(dirs, it) {
     if (sp_fs_create_dir(dirs[it])) {
@@ -166,11 +167,11 @@ static spn_err_t open_ctx(spn_ctx_t* ctx, spn_open_request_t request) {
 
   ctx->caches.toolchains = (spn_toolchain_store_t) {
     .mem = ctx->mem,
-    .dir = ctx->paths.toolchain,
+    .dir = ctx->paths.toolchain.store,
     .mirror = sp_env_get(ctx->env, sp_str_lit("SPN_MIRROR")),
     .fetch = spn_fetch_curl,
   };
-  spn_probe_cache_load(&ctx->caches.toolchains.probes, join_path(ctx, ctx->paths.toolchain, "probe.cache"), ctx->mem);
+  spn_probe_cache_load(&ctx->caches.toolchains.probes, join_path(ctx, ctx->paths.toolchain.dir, "probe.cache"), ctx->mem);
 
   spn_try(extract_runtime(ctx));
   spn_path_roots_set(&ctx->roots, ctx->heap, SPN_PATH_ROOT_RUNTIME, ctx->paths.runtime);
@@ -279,7 +280,9 @@ spn_ctx_t* spn_ctx_new(spn_wake_fn_t wake, void* wake_data) {
   spn_path_roots_set(&ctx->roots, ctx->heap, SPN_PATH_ROOT_BUILD, ctx->paths.caches.build.dir);
   spn_path_roots_set(&ctx->roots, ctx->heap, SPN_PATH_ROOT_CHECKOUT, ctx->paths.caches.git.checkouts);
   spn_path_roots_set(&ctx->roots, ctx->heap, SPN_PATH_ROOT_INDEX, ctx->paths.index);
-  ctx->paths.toolchain = spn_path_roots_set(&ctx->roots, ctx->heap, SPN_PATH_ROOT_TOOLCHAIN, env_or(ctx, "SPN_TOOLCHAIN_DIR", join_path(ctx, ctx->paths.caches.dir, "toolchain")));
+  ctx->paths.toolchain.dir = spn_path_canonical_dir(ctx->heap, env_or(ctx, "SPN_TOOLCHAIN_DIR", join_path(ctx, ctx->paths.caches.dir, "toolchain")));
+    ctx->paths.toolchain.store = spn_path_roots_set(&ctx->roots, ctx->heap, SPN_PATH_ROOT_TOOLCHAIN, join_path(ctx, ctx->paths.toolchain.dir, "store"));
+    ctx->paths.toolchain.external = spn_path_make(&ctx->roots, join_path(ctx, ctx->paths.toolchain.dir, "external"));
 
   spn_toolchain_catalog_init(&ctx->catalog, ctx->host, spn_sdk_detect(ctx->heap, &ctx->roots, ctx->env, ctx->host), ctx->heap);
   load_builtins(ctx);

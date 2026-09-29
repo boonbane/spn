@@ -6,6 +6,7 @@
 #include "spn/types.h"
 #include "paths/types.h"
 
+sp_str_t spn_path_canonical_dir(sp_mem_t mem, sp_str_t dir);
 sp_str_t spn_path_roots_init(spn_path_roots_t* roots, sp_mem_t mem, sp_str_t storage);
 sp_str_t spn_path_roots_set(spn_path_roots_t* roots, sp_mem_t mem, spn_path_root_t kind, sp_str_t dir);
 void spn_path_roots_close(spn_path_roots_t* roots);

@@ -127,6 +127,7 @@ spn_err_t configure(spn_t* spn, spn_config_t* config) {
   spn_target_embed_file_ex(target, "include/spn/core.h", "include/spn/core.h", "u8", "u64");
   spn_target_embed_file_ex(target, spn_get_subdir(spn, SPN_DIR_WORK, "gen/include/spn/err.h"), "include/spn/err.h", "u8", "u64");
   spn_target_embed_file_ex(target, "source/core/toolchain/toolchains.toml", "toolchains.toml", "u8", "u64");
+  spn_target_embed_file_ex(target, "assets/zig/stub.c", "zig/stub.c", "u8", "u64");
   spn_target_embed_dir_ex(target, "assets/init", "init", "u8", "u64");
 
   spn_add_include(config, spn_get_subdir(spn, SPN_DIR_WORK, "gen/include"));

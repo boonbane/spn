@@ -36,6 +36,7 @@ add_executable(core
   compiler/rsp/gnu.c
   compiler/rsp/style.c
   compiler/rsp/windows.c
+  compiler/run.c
   compiler/toc.c
   config/config.c
   external/obj.c

@@ -72,12 +72,18 @@ typedef struct {
 } spn_cache_paths_t;
 
 typedef struct {
+  sp_str_t dir;
+  sp_str_t store;
+  spn_path_t external;
+} spn_toolchain_paths_t;
+
+typedef struct {
   sp_str_t cwd;
   sp_str_t project;
   sp_str_t index;
   sp_str_t runtime;
   sp_str_t version;
-  sp_str_t toolchain;
+  spn_toolchain_paths_t toolchain;
   sp_str_t patches;
   sp_str_t storage;
   struct {

@@ -219,7 +219,7 @@ static const test_t frame_tests [] = {
 sp_test_each(zig_decode, frames, test_t, frame_tests) {
   sp_mem_t mem = sp_test_arena(t);
   spn_zig_progress_t* progress = sp_alloc_type(mem, spn_zig_progress_t);
-  spn_zig_progress_init(progress);
+  sp_mem_zero(progress, sizeof(*progress));
 
   u8 stream [ZIG_TEST_STREAM_CAP];
   u64 len = 0;
@@ -271,7 +271,7 @@ sp_test(zig_decode, split) {
 
   spn_zig_progress_t* progress = sp_alloc_type(mem, spn_zig_progress_t);
   sp_for(split, len) {
-    spn_zig_progress_init(progress);
+    sp_mem_zero(progress, sizeof(*progress));
 
     sp_test_kv(t, "split", sp_fmt(mem, "{}", sp_fmt_uint(split)).value);
     spn_zig_progress_feed(progress, stream, split);
@@ -284,7 +284,7 @@ sp_test(zig_decode, split) {
     sp_expect_eq(t, spn_zig_progress_ticks(progress), 2);
   }
 
-  spn_zig_progress_init(progress);
+  sp_mem_zero(progress, sizeof(*progress));
   sp_for(byte, len) {
     spn_zig_progress_feed(progress, stream + byte, 1);
   }
@@ -306,7 +306,7 @@ sp_test(zig_decode, split) {
   }
   sp_expect(t, big_len > sizeof(progress->pending));
 
-  spn_zig_progress_init(progress);
+  sp_mem_zero(progress, sizeof(*progress));
   sp_expect(t, spn_zig_progress_feed(progress, big, big_len));
   sp_must_eq(t, progress->packets, 3);
   sp_must_eq(t, progress->count, SPN_ZIG_PROGRESS_MAX_NODES);

@@ -69,21 +69,21 @@ sp_err_t spn_path_open_writer(const spn_path_roots_t* roots, spn_path_t path, sp
   return SP_OK;
 }
 
-static sp_str_t canonical_dir(sp_mem_t mem, sp_str_t dir) {
+sp_str_t spn_path_canonical_dir(sp_mem_t mem, sp_str_t dir) {
   sp_fs_create_dir(dir);
   sp_str_t canonical = sp_fs_canonicalize_path(mem, dir);
   return sp_str_empty(canonical) ? dir : canonical;
 }
 
 sp_str_t spn_path_roots_init(spn_path_roots_t* roots, sp_mem_t mem, sp_str_t storage) {
-  roots->storage = canonical_dir(mem, storage);
+  roots->storage = spn_path_canonical_dir(mem, storage);
   return roots->storage;
 }
 
 sp_str_t spn_path_roots_set(spn_path_roots_t* roots, sp_mem_t mem, spn_path_root_t kind, sp_str_t dir) {
   spn_path_root_set_t mask = spn_path_root_mask(kind);
   sp_assert(!(roots->opened & mask));
-  roots->dirs[kind] = canonical_dir(mem, dir);
+  roots->dirs[kind] = spn_path_canonical_dir(mem, dir);
   roots->fds[kind] = SP_SYS_INVALID_FD;
   if (!sp_sys_open_dir_s(sp_sys_get_root(0), roots->dirs[kind], &roots->fds[kind])) {
     roots->opened |= mask;

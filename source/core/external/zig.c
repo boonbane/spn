@@ -4,6 +4,7 @@
 #include "enum/enum.h"
 #include "hash/digest/digest.h"
 #include "toolchain/sdk.h"
+#include "triple/triple.h"
 
 static u64 packet_size(u32 count) {
   return 1 + ((u64)count * (SPN_ZIG_PROGRESS_NODE_SIZE + 1));
@@ -67,10 +68,6 @@ static bool drain(spn_zig_progress_t* progress) {
   return offset > 0;
 }
 
-void spn_zig_progress_init(spn_zig_progress_t* progress) {
-  *progress = sp_zero_s(spn_zig_progress_t);
-}
-
 u64 spn_zig_progress_ticks(const spn_zig_progress_t* progress) {
   return progress->ticks;
 }
@@ -105,22 +102,18 @@ static sp_da(sp_str_t) canonical_libs(sp_mem_t mem, sp_da(sp_str_t) libs) {
   return unique;
 }
 
-spn_zig_stub_t spn_zig_stub_canonical(sp_mem_t mem, const spn_profile_info_t* profile, spn_zig_stub_t link) {
-  sp_assert(link.kind != SPN_CC_OUTPUT_OBJECT);
-  sp_assert(link.kind != SPN_CC_OUTPUT_STATIC_LIB);
-  sp_assert(link.lang != SPN_LANG_ASM);
-
+spn_zig_stub_t spn_zig_stub(sp_mem_t mem, const spn_profile_info_t* profile, const spn_cc_link_t* link) {
   spn_zig_stub_t stub = {
-    .kind = link.kind,
-    .lang = link.lang,
+    .triple = spn_profile_triple(profile),
+    .kind = link->kind,
+    .lang = link->lang,
+    .is_static = spn_gnu_link_static(profile, link->kind),
+    .sanitizers = profile->sanitizers,
+    .sdk = spn_sdk_hash(&profile->sdk),
   };
-  if (spn_gnu_link_static(profile, link.kind)) {
-    stub.linkage = SPN_LIB_KIND_STATIC;
-  }
   if (profile->os == SPN_OS_WINDOWS) {
-    stub.system_libs = canonical_libs(mem, link.system_libs);
+    stub.system_libs = canonical_libs(mem, link->system_libs);
   }
-  stub.sdk = spn_sdk_hash(&profile->sdk);
   return stub;
 }
 
@@ -137,17 +130,17 @@ static sp_str_t stub_kind_label(spn_cc_output_kind_t kind) {
   SP_UNREACHABLE_RETURN(sp_str_lit(""));
 }
 
-sp_str_t spn_zig_stub_name(sp_mem_t mem, sp_str_t triple, spn_sanitizer_set_t sanitizers, const spn_zig_stub_t* stub) {
+sp_str_t spn_zig_stub_name(sp_mem_t mem, const spn_zig_stub_t* stub) {
   sp_mem_arena_marker_t s = sp_mem_begin_scratch_for(mem);
   sp_da(sp_str_t) parts = sp_da_new(s.mem, sp_str_t);
-  sp_da_push(parts, triple);
+  sp_da_push(parts, spn_triple_to_str(s.mem, stub->triple));
   sp_da_push(parts, stub_kind_label(stub->kind));
   sp_da_push(parts, stub->lang == SPN_LANG_CXX ? sp_str_lit("cxx") : sp_str_lit("c"));
-  if (stub->linkage == SPN_LIB_KIND_STATIC) {
+  if (stub->is_static) {
     sp_da_push(parts, sp_str_lit("static"));
   }
-  if (sanitizers) {
-    sp_da_push(parts, spn_sanitizer_set_to_str(s.mem, sanitizers));
+  if (stub->sanitizers) {
+    sp_da_push(parts, spn_sanitizer_set_to_str(s.mem, stub->sanitizers));
   }
   if (stub->sdk) {
     sp_da_push(parts, sp_fmt(s.mem, "{:0>16x}", sp_fmt_uint(stub->sdk)).value);

@@ -6,7 +6,6 @@
 #include "sp.h"
 #include "spn/core.h"
 #include "external/cc.h"
-#include "external/zig.h"
 #include "core/types.h"
 #include "unit/types.h"
 
@@ -28,8 +27,9 @@ typedef struct {
 
 typedef struct {
   spn_build_unit_t* build;
-  spn_zig_stub_t stub;
+  spn_cc_link_t link;
   sp_str_t name;
+  sp_str_t triple;
 } spn_dag_warm_ctx_t;
 
 spn_err_t spn_dag_exec_object(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs);

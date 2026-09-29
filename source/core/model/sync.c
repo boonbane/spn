@@ -10,6 +10,7 @@
 #include "event/event.h"
 #include "core/types.h"
 #include "git/cache.h"
+#include "hash/digest/digest.h"
 #include "intern/intern.h"
 #include "lazy/lazy.h"
 #include "op/op.h"
@@ -68,11 +69,6 @@ static spn_err_t setup_local(spn_toolchain_store_t* store, spn_toolchain_unit_t*
   unit->cc = cc_toolchain(toolchain, toolchain->compiler, toolchain->cxx, toolchain->archiver);
   spn_try(spn_toolchain_probe(&unit->cc, &spn.roots, spn_search_rules(spn.host.os), sp_env_get(spn.env, sp_str_lit("PATH")), &store->probes, spn.mem, &unit->identity));
   spn_probe_cache_flush(&store->probes);
-  if (toolchain->driver == SPN_CC_DRIVER_ZIG) {
-    spn_path_t root = spn_toolchain_local_root(spn.mem, unit->identity);
-    unit->cc.cache = spn_toolchain_zig_cache_dir(spn.mem, root);
-    unit->warm = spn_toolchain_warm_dir(spn.mem, root.sub);
-  }
 
   spn_event_buffer_push(spn.events, (spn_event_t) {
     .kind = SPN_EVENT_SYNC_PACKAGE,
@@ -108,16 +104,13 @@ static spn_err_t setup_artifact(spn_toolchain_store_t* store, spn_toolchain_unit
     cxx = spn_toolchain_launcher_with_root(spn.mem, toolchain->cxx, root);
   }
   unit->version = toolchain->version;
+  unit->identity = spn_digest_hash_str(artifact.sha256);
   unit->cc = cc_toolchain(
     toolchain,
     spn_toolchain_launcher_with_root(spn.mem, toolchain->compiler, root),
     cxx,
     spn_toolchain_launcher_with_root(spn.mem, toolchain->archiver, root)
   );
-  if (toolchain->driver == SPN_CC_DRIVER_ZIG) {
-    unit->cc.cache = spn_toolchain_zig_cache_dir(spn.mem, root);
-    unit->warm = spn_toolchain_warm_dir(spn.mem, artifact.sha256);
-  }
 
   spn_event_buffer_push(spn.events, (spn_event_t) {
     .kind = SPN_EVENT_SYNC_PACKAGE,
@@ -135,22 +128,30 @@ static spn_err_t setup_artifact(spn_toolchain_store_t* store, spn_toolchain_unit
 static spn_err_t setup_toolchain_unit(spn_toolchain_store_t* store, spn_toolchain_unit_t* unit) {
   switch (unit->info->support.kind) {
     case SPN_TOOLCHAIN_SUPPORT_LOCAL: {
-      return setup_local(store, unit);
+      spn_try(setup_local(store, unit));
+      break;
     }
     case SPN_TOOLCHAIN_SUPPORT_ARTIFACT: {
-      return setup_artifact(store, unit);
+      spn_try(setup_artifact(store, unit));
+      break;
     }
     case SPN_TOOLCHAIN_SUPPORT_DETECTED: {
       spn_toolchain_info_t* toolchain = unit->info;
       unit->cc = cc_toolchain(toolchain, toolchain->compiler, toolchain->cxx, toolchain->archiver);
-      return SPN_OK;
+      break;
     }
     case SPN_TOOLCHAIN_SUPPORT_NONE: {
       sp_unreachable_case();
     }
   }
 
-  sp_unreachable_return(SPN_ERROR);
+  if (unit->info->driver == SPN_CC_DRIVER_ZIG) {
+    sp_assert(unit->identity);
+    sp_str_t id = sp_fmt(spn.mem, "{:0>16x}", sp_fmt_uint(unit->identity)).value;
+    unit->cc.cache = spn_path_join(spn.mem, spn.paths.toolchain.external, sp_fmt(spn.mem, "zig/cache/{}", sp_fmt_str(id)).value);
+    spn_try(spn_toolchain_generation(spn.mem, &spn.roots, unit->cc.cache, &unit->generation));
+  }
+  return SPN_OK;
 }
 
 static spn_err_t materialize_tree(spn_session_t* session, sp_str_t name, spn_pkg_root_t tree, spn_path_t* root, bool* fetched) {

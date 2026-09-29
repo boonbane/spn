@@ -32,6 +32,7 @@ struct spn_dag_build_t {
     sp_ht(spn_path_t, spn_dag_id_t) stamps;
     sp_ht(spn_target_unit_t*, spn_dag_target_ids_t) targets;
     sp_ht(spn_compile_unit_t*, spn_dag_object_ids_t) objects;
+    sp_ht(spn_dag_digest_t, spn_dag_id_t) warm;
   } ids;
   spn_dag_id_t compile_commands;
   spn_dag_action_cache_t actions;
