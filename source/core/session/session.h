@@ -18,6 +18,6 @@ spn_pkg_unit_t* spn_session_find_dep(spn_session_t* session, spn_pkg_unit_t* pkg
 spn_target_unit_t* spn_session_find_target_in_pkg(spn_session_t* session, spn_pkg_unit_t* pkg, sp_str_t name, spn_target_kind_t kind);
 spn_target_unit_t* spn_session_get_target_unit(spn_session_t* session, spn_target_unit_id_t id);
 spn_target_plan_t* spn_session_get_target_plan(spn_session_t* session, spn_target_unit_id_t id);
-spn_compile_plan_t* spn_session_get_object_plan(spn_session_t* session, spn_compile_unit_id_t id);
+spn_invocation_t* spn_session_get_object_plan(spn_session_t* session, spn_compile_unit_id_t id);
 
 #endif

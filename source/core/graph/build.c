@@ -21,16 +21,8 @@
 #include "profile/types.h"
 #include "triple/triple.h"
 
-static spn_triple_t target_triple(spn_target_unit_t* target) {
-  return spn_profile_triple(&target->pkg->build->profile);
-}
-
-spn_cc_exports_format_t spn_target_exports_format(spn_target_unit_t* target) {
-  return spn_cc_exports_format(target->kind, spn_os_to_native_object_format(target->pkg->build->profile.os));
-}
-
 spn_path_t spn_target_exports_path(sp_mem_t mem, spn_target_unit_t* target) {
-  spn_cc_exports_format_t format = spn_target_exports_format(target);
+  spn_cc_exports_format_t format = spn_cc_exports_format(target->kind, spn_os_to_native_object_format(target->pkg->build->profile.os));
 
   sp_mem_arena_marker_t s = sp_mem_begin_scratch_for(mem);
   sp_str_t file_name = sp_fmt(s.mem, "{}.{}", sp_fmt_str(target->info->name), sp_fmt_cstr(spn_cc_exports_extension(format))).value;
@@ -43,7 +35,7 @@ spn_path_t spn_target_unit_staged_path(sp_mem_t mem, spn_target_unit_t* target) 
   if (target->kind != SPN_CC_OUTPUT_EXE) return sp_zero_s(spn_path_t);
 
   sp_mem_arena_marker_t s = sp_mem_begin_scratch_for(mem);
-  sp_str_t file_name = spn_triple_exe_file_name(s.mem, target_triple(target), target->info->name);
+  sp_str_t file_name = spn_triple_exe_file_name(s.mem, spn_profile_triple(&target->pkg->build->profile), target->info->name);
   spn_path_t root = target->pkg->build->paths.root;
 
   spn_path_t path = sp_zero;

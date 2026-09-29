@@ -69,25 +69,6 @@ sp_err_t spn_path_open_writer(const spn_path_roots_t* roots, spn_path_t path, sp
   return SP_OK;
 }
 
-sp_err_t spn_path_read(const spn_path_roots_t* roots, sp_mem_t mem, spn_path_t path, sp_str_t* content) {
-  sp_io_file_reader_t reader = sp_zero;
-  sp_try(spn_path_open_reader(roots, path, &reader));
-
-  u64 size = 0;
-  sp_err_t err = sp_io_file_reader_size(&reader, &size);
-  if (!err && size) {
-    c8* buffer = sp_alloc_n(mem, c8, size);
-    u64 read = 0;
-    err = sp_io_read_all(&reader.base, buffer, size, &read);
-    if (err == SP_ERR_IO_EOF) {
-      err = SP_OK;
-    }
-    *content = sp_str(buffer, (u32)read);
-  }
-  sp_io_file_reader_close(&reader);
-  return err;
-}
-
 static sp_str_t canonical_dir(sp_mem_t mem, sp_str_t dir) {
   sp_fs_create_dir(dir);
   sp_str_t canonical = sp_fs_canonicalize_path(mem, dir);
@@ -111,7 +92,7 @@ sp_str_t spn_path_roots_set(spn_path_roots_t* roots, sp_mem_t mem, spn_path_root
 }
 
 void spn_path_roots_close(spn_path_roots_t* roots) {
-  for (u32 it = SPN_PATH_ROOT_NONE + 1; it < SPN_PATH_ROOT_COUNT; it++) {
+  sp_for(it, SPN_PATH_ROOT_COUNT) {
     if (roots->opened & spn_path_root_mask((spn_path_root_t)it)) {
       sp_sys_close(roots->fds[it]);
     }
@@ -129,7 +110,7 @@ static bool root_match(sp_str_t dir, sp_str_t path) {
 spn_path_root_t spn_path_root_longest(const spn_path_roots_t* roots, sp_str_t str) {
   spn_path_root_t best = SPN_PATH_ROOT_NONE;
   u32 longest = 0;
-  for (u32 it = SPN_PATH_ROOT_NONE + 1; it < SPN_PATH_ROOT_COUNT; it++) {
+  sp_for(it, SPN_PATH_ROOT_COUNT) {
     sp_str_t dir = roots->dirs[it];
     if (dir.len > longest && root_match(dir, str)) {
       longest = dir.len;

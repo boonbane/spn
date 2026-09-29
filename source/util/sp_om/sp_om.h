@@ -55,7 +55,6 @@
     sp_ht_insert((sm)->index, (sm)->index->tmp_key, (sm)->temp);              \
   } while (0)
 
-// Insert a zeroed entry for a key that must not already be present
 #define sp_om_emplace(sm, key, out)                                            \
   do {                                                                         \
     sp_om_ensure(sm);                                                          \

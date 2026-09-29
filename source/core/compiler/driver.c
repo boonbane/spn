@@ -256,8 +256,8 @@ spn_cc_exports_format_t spn_cc_exports_format(spn_cc_output_kind_t kind, spn_obj
       switch (format) {
         case SPN_OBJ_MACHO: return SPN_CC_EXPORTS_SYMBOL_LIST;
         case SPN_OBJ_COFF: return SPN_CC_EXPORTS_DEF;
-        case SPN_OBJ_ELF:
-        case SPN_OBJ_WASM: return SPN_CC_EXPORTS_VERSION_SCRIPT;
+        case SPN_OBJ_ELF: return SPN_CC_EXPORTS_VERSION_SCRIPT;
+        case SPN_OBJ_WASM: sp_unreachable_case();
       }
       SP_UNREACHABLE_RETURN(SPN_CC_EXPORTS_VERSION_SCRIPT);
     }

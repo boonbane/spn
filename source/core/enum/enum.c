@@ -165,17 +165,6 @@ sp_str_t spn_ld_dialect_to_str(spn_ld_dialect_t dialect) {
   SP_UNREACHABLE_RETURN(sp_str_lit(""));
 }
 
-sp_str_t spn_format_to_str(spn_obj_format_t format) {
-  switch (format) {
-    case SPN_OBJ_ELF:   return sp_str_lit("elf");
-    case SPN_OBJ_COFF:  return sp_str_lit("coff");
-    case SPN_OBJ_MACHO: return sp_str_lit("macho");
-    case SPN_OBJ_WASM:  return sp_str_lit("wasm");
-  }
-
-  SP_UNREACHABLE_RETURN(sp_str_lit(""));
-}
-
 spn_abi_t spn_abi_from_str(sp_str_t str) {
   if (sp_str_equal_cstr(str, "gnu")) {
     return SPN_ABI_GNU;

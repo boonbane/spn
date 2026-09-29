@@ -117,10 +117,6 @@ typedef struct {
 } spn_compile_unit_t;
 
 typedef struct {
-  spn_invocation_t invocation;
-} spn_compile_plan_t;
-
-typedef struct {
   spn_cc_link_t cc;
   sp_da(spn_link_lib_t) libs;
 } spn_link_plan_t;

@@ -21,12 +21,6 @@ static const format_test_t tests [] = {
     .expect = { .format = SPN_CC_EXPORTS_VERSION_SCRIPT, .extension = "map" },
   },
   {
-    .name = "wasm_shared",
-    .kind = SPN_CC_OUTPUT_SHARED_LIB,
-    .format = SPN_OBJ_WASM,
-    .expect = { .format = SPN_CC_EXPORTS_VERSION_SCRIPT, .extension = "map" },
-  },
-  {
     .name = "macho_shared",
     .kind = SPN_CC_OUTPUT_SHARED_LIB,
     .format = SPN_OBJ_MACHO,

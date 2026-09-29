@@ -200,7 +200,7 @@ spn_target_plan_t* spn_session_get_target_plan(spn_session_t* session, spn_targe
   return sp_om_get(session->plans.targets, id);
 }
 
-spn_compile_plan_t* spn_session_get_object_plan(spn_session_t* session, spn_compile_unit_id_t id) {
+spn_invocation_t* spn_session_get_object_plan(spn_session_t* session, spn_compile_unit_id_t id) {
   sp_assert(sp_om_has(session->plans.objects, id));
   return sp_om_get(session->plans.objects, id);
 }

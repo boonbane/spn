@@ -26,7 +26,6 @@
 #include "toolchain/linker.h"
 #include "toolchain/toolchain.h"
 #include "triple/triple.h"
-#include "triple/triple.h"
 
 static spn_target_unit_t* add_target(spn_session_t* s, spn_pkg_unit_t* pkg, spn_target_info_t* info) {
   spn_target_unit_id_t id = {
@@ -330,8 +329,9 @@ static void render_compile_bases(sp_mem_t mem, spn_target_unit_t* target, const 
   if (build->profile.os == SPN_OS_MACOS) {
     compile.min_os = plan->link.cc.min_os;
   }
-  sp_da_init(mem, compile.define);
-  sp_da_init(mem, compile.args);
+  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+  sp_da_init(scratch.mem, compile.define);
+  sp_da_init(scratch.mem, compile.args);
   sp_da_for(build->define, it) {
     sp_da_push(compile.define, build->define[it]);
   }
@@ -355,13 +355,14 @@ static void render_compile_bases(sp_mem_t mem, spn_target_unit_t* target, const 
 
   sp_da_for(target->objects, it) {
     spn_compile_unit_t* unit = target->objects[it];
-    spn_compile_plan_t* object;
-    sp_om_emplace(s->plans.objects, unit->id, object);
+    spn_invocation_t* invocation = SP_NULLPTR;
+    sp_om_emplace(s->plans.objects, unit->id, invocation);
 
     compile.lang = unit->lang;
-    spn_cc_render_compile(mem, &build->toolchain->cc, &build->profile, &compile, &object->invocation);
-    object->invocation.cwd = pkg->paths.work;
+    spn_cc_render_compile(mem, &build->toolchain->cc, &build->profile, &compile, invocation);
+    invocation->cwd = pkg->paths.work;
   }
+  sp_mem_end_scratch(scratch);
 }
 
 typedef enum {
@@ -555,7 +556,7 @@ static spn_err_t build_target_plan(spn_target_unit_t* target) {
   spn_cc_t* toolchain = &pkg->build->toolchain->cc;
   sp_mem_t mem = s->mem;
 
-  spn_target_plan_t* plan;
+  spn_target_plan_t* plan = SP_NULLPTR;
   sp_om_emplace(s->plans.targets, target->id, plan);
 
   plan->include = sp_da_new(mem, spn_path_t);

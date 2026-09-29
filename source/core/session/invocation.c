@@ -12,30 +12,6 @@
 #include "unit/unit.h"
 #include "toolchain/search.h"
 
-static void write_compile_command(sp_io_writer_t* io, const spn_path_roots_t* roots, sp_mem_t mem, spn_compile_unit_t* object, const spn_invocation_t* base) {
-  spn_build_unit_t* build = object->target->pkg->build;
-  spn_cc_compile_files_t files = {
-    .source = object->paths.file,
-    .output = object->paths.object,
-  };
-  spn_invocation_t invocation = spn_cc_render_compile_command(mem, &build->toolchain->cc, &build->profile, base, &files);
-  sp_da(sp_str_t) args = spn_invocation_args(roots, mem, &invocation);
-
-  sp_io_write_cstr(io, "\n  { \"directory\": ", SP_NULLPTR);
-  spn_codegen_json_str(io, spn_path_str(roots, mem, invocation.cwd));
-  sp_io_write_cstr(io, ", \"file\": ", SP_NULLPTR);
-  spn_codegen_json_str(io, spn_path_str(roots, mem, files.source));
-  sp_io_write_cstr(io, ", \"output\": ", SP_NULLPTR);
-  spn_codegen_json_str(io, spn_path_str(roots, mem, files.output));
-  sp_io_write_cstr(io, ", \"arguments\": [", SP_NULLPTR);
-  spn_codegen_json_str(io, spn_arg_str(roots, mem, invocation.program));
-  sp_da_for(args, arg) {
-    sp_io_write_cstr(io, ", ", SP_NULLPTR);
-    spn_codegen_json_str(io, args[arg]);
-  }
-  sp_io_write_cstr(io, "] }", SP_NULLPTR);
-}
-
 spn_err_t spn_session_write_compile_commands(const spn_path_roots_t* roots, spn_session_t* session, sp_str_t path) {
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   sp_mem_t mem = scratch.mem;
@@ -47,10 +23,30 @@ spn_err_t spn_session_write_compile_commands(const spn_path_roots_t* roots, spn_
   sp_io_write_cstr(io, "[", SP_NULLPTR);
   sp_om_for(session->units.objects, it) {
     spn_compile_unit_t* unit = sp_om_at(session->units.objects, it);
+    spn_build_unit_t* build = unit->target->pkg->build;
+    spn_cc_compile_files_t files = {
+      .source = unit->paths.file,
+      .output = unit->paths.object,
+    };
+    spn_invocation_t invocation = spn_cc_render_compile_command(mem, &build->toolchain->cc, &build->profile, spn_session_get_object_plan(session, unit->id), &files);
+    sp_da(sp_str_t) args = spn_invocation_args(roots, mem, &invocation);
+
     if (it) {
       sp_io_write_c8(io, ',');
     }
-    write_compile_command(io, roots, mem, unit, &spn_session_get_object_plan(session, unit->id)->invocation);
+    sp_io_write_cstr(io, "\n  { \"directory\": ", SP_NULLPTR);
+    spn_codegen_json_str(io, spn_path_str(roots, mem, invocation.cwd));
+    sp_io_write_cstr(io, ", \"file\": ", SP_NULLPTR);
+    spn_codegen_json_str(io, spn_path_str(roots, mem, files.source));
+    sp_io_write_cstr(io, ", \"output\": ", SP_NULLPTR);
+    spn_codegen_json_str(io, spn_path_str(roots, mem, files.output));
+    sp_io_write_cstr(io, ", \"arguments\": [", SP_NULLPTR);
+    spn_codegen_json_str(io, spn_arg_str(roots, mem, invocation.program));
+    sp_da_for(args, arg) {
+      sp_io_write_cstr(io, ", ", SP_NULLPTR);
+      spn_codegen_json_str(io, args[arg]);
+    }
+    sp_io_write_cstr(io, "] }", SP_NULLPTR);
   }
   sp_io_write_cstr(io, "\n]\n", SP_NULLPTR);
 

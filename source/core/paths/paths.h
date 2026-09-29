@@ -47,5 +47,4 @@ sp_err_t spn_get_path_metadata(const spn_path_roots_t* roots, spn_path_t path, s
 sp_err_t spn_path_create_dir(const spn_path_roots_t* roots, spn_path_t path);
 sp_err_t spn_path_open_reader(const spn_path_roots_t* roots, spn_path_t path, sp_io_file_reader_t* reader);
 sp_err_t spn_path_open_writer(const spn_path_roots_t* roots, spn_path_t path, sp_io_file_writer_t* writer);
-sp_err_t spn_path_read(const spn_path_roots_t* roots, sp_mem_t mem, spn_path_t path, sp_str_t* content);
 #endif
