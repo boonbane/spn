@@ -63,7 +63,7 @@ static spn_err_t write_file(sp_mem_t mem, const spn_path_roots_t* roots, spn_pat
   if (!sp_sys_get_path_metadata_s(at.dir, at.sub, &meta) && meta.kind == SP_FS_KIND_FILE) {
     return SPN_OK;
   }
-  sp_fs_create_parent(at);
+  sp_fs_create_parent_at(at);
   if (sp_fs_write_atomic_at(at, content)) {
     return spn_err_emit(&spn, (spn_err_union_t) { .kind = SPN_ERR_FS_WRITE, .fs = { .path = spn_path_copy(mem, file) } });
   }

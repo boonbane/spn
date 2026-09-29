@@ -42,7 +42,7 @@ spn_err_t spn_fs_update_file(sp_path_t from, sp_path_t to) {
 
   spn_err_t err = SPN_OK;
   if (!matches) {
-    sp_fs_create_parent(to);
+    sp_fs_create_parent_at(to);
     if (sp_fs_copy_file_at(from, to, SP_FS_ATOMIC_REPLACE)) {
       err = SPN_ERROR;
     }
@@ -103,7 +103,7 @@ spn_err_t spn_fs_update_file_str(sp_path_t path, sp_str_t content) {
     return SPN_OK;
   }
 
-  sp_fs_create_parent(path);
+  sp_fs_create_parent_at(path);
 
   sp_io_file_writer_t writer = sp_zero;
   if (sp_io_file_writer_from_path_at(&writer, path)) {

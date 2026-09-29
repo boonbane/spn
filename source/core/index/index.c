@@ -172,7 +172,7 @@ static void index_append_release(spn_index_info_t* index, spn_index_release_t* r
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
 
   sp_path_t path = spn_path_at(&spn.roots, spn_index_jsonl_path(scratch.mem, index, rel->id));
-  sp_fs_create_parent(path);
+  sp_fs_create_parent_at(path);
 
   sp_str_t json = spn_index_release_to_json(scratch.mem, rel);
 

@@ -103,7 +103,7 @@ void spn_abi_io_write(spn_wasm_ctx_t* abi, const c8* path, const c8* contents) {
   sp_str_t dst_str = spn_path_str(&spn.roots, scratch.mem, dst);
   SPN_API_LOG(unit, "spn_io_write", "{}", SP_FMT_STR(dst_str));
 
-  sp_fs_create_parent(spn_path_at(&spn.roots, dst));
+  sp_fs_create_parent_at(spn_path_at(&spn.roots, dst));
 
   sp_io_file_writer_t writer = sp_zero;
   if (sp_io_file_writer_from_path_at(&writer, spn_path_at(&spn.roots, dst))) {

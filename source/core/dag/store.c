@@ -539,7 +539,7 @@ void spn_dag_file_cache_flush(spn_dag_file_cache_t* c, spn_path_t path) {
     err = write_hint_row(&sink.base, s.mem, *it.key, it.val);
   }
   if (!err) {
-    sp_fs_create_parent(spn_path_at(c->roots, path));
+    sp_fs_create_parent_at(spn_path_at(c->roots, path));
     sp_fs_write_atomic_at(spn_path_at(c->roots, path), sp_io_dyn_mem_writer_as_str(&sink));
     c->hints_dirty = false;
   }
@@ -767,14 +767,14 @@ spn_err_t spn_dag_store_materialize(spn_dag_store_t* store, spn_dag_digest_t dig
       if (!find_blob(store, digest, &blob)) {
         return SPN_ERR_DAG_STORE_MISSING;
       }
-      sp_fs_create_parent(spn_path_at(store->roots, path));
+      sp_fs_create_parent_at(spn_path_at(store->roots, path));
       return sp_fs_write_atomic_slice_at(target, blob) ? SPN_ERR_DAG_STORE_WRITE : SPN_OK;
     }
     case SPN_DAG_STORE_FILESYSTEM: {
       sp_mem_arena_marker_t s = sp_mem_begin_scratch();
       sp_path_t stored = get_blob_at(store, s.mem, digest, name);
       sp_path_t staged = spn_path_at(store->roots, spn_path_suffix(s.mem, path, sp_str_lit(".tmp")));
-      sp_fs_create_parent(spn_path_at(store->roots, path));
+      sp_fs_create_parent_at(spn_path_at(store->roots, path));
       sp_err_t rc = sp_fs_create_hard_link_at(stored, staged);
       if (rc) {
         rc = sp_fs_copy_file_at(stored, target, SP_FS_ATOMIC_REPLACE);

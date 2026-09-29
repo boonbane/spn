@@ -8,7 +8,7 @@ static sp_err_t lazy_write(sp_io_writer_t* w, const void* ptr, u64 size, u64* by
   }
   if (!log->opened) {
     log->opened = true;
-    sp_fs_create_parent(log->path);
+    sp_fs_create_parent_at(log->path);
     if (sp_io_file_writer_from_path_at(&log->file, log->path) != SP_OK) {
       log->failed = true;
       return SP_ERR_IO;

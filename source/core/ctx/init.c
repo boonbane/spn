@@ -74,7 +74,7 @@ static spn_err_t extract(spn_ctx_t* ctx, sp_mem_t mem, sp_str_t stamp) {
     }
     spn_path_t path = spn_path_join(mem, staging, rel);
     sp_path_t at = spn_path_at(&ctx->roots, path);
-    sp_fs_create_parent(at);
+    sp_fs_create_parent_at(at);
     if (!write_file(at, entry.data, entry.size)) {
       sp_fs_remove_dir_at(staging_at);
       return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_FS_WRITE, .fs = { .path = spn_path_copy(ctx->heap, path) } });

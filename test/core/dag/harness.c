@@ -87,7 +87,7 @@ void dag_test_env_create(dag_test_env_t* env, sp_str_t rel, sp_str_t content) {
 }
 
 void dag_test_create(sp_path_t path, sp_str_t content) {
-  sp_fs_create_parent(path);
+  sp_fs_create_parent_at(path);
   sp_fs_remove_file_at(path);
 
   sp_io_file_writer_t f = sp_zero;
