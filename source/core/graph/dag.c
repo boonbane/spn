@@ -228,21 +228,6 @@ static spn_path_t embed_artifact_path(sp_mem_t mem, spn_target_unit_t* unit, con
   return path;
 }
 
-typedef struct {
-  spn_build_unit_t* build;
-  spn_zig_stub_t stub;
-  sp_str_t name;
-} spn_dag_warm_ctx_t;
-
-static spn_err_t dag_warm_exec(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs) {
-  spn_dag_warm_ctx_t* warm = (spn_dag_warm_ctx_t*)user_data;
-  spn_dag_artifact_t* stamp = spn_dag_find_artifact(g, action->produces[0]);
-  if (spn_warm_stub_run(warm->build, &warm->stub, warm->name, stamp->path, outputs[0], env)) {
-    return SPN_ERR_DAG_ACTION;
-  }
-  return SPN_OK;
-}
-
 static spn_err_t dag_add_warm(spn_dag_build_t* b, spn_target_unit_t* target, const spn_target_plan_t* plan, spn_dag_id_t link_action) {
   spn_dag_t* g = b->graph;
   spn_build_unit_t* build = target->pkg->build;
@@ -265,7 +250,7 @@ static spn_err_t dag_add_warm(spn_dag_build_t* b, spn_target_unit_t* target, con
 
     spn_dag_id_t action = spn_dag_add_action(g, (spn_dag_action_config_t) {
       .kind = SPN_DAG_ACTION_UNCACHEABLE,
-      .execute = dag_warm_exec,
+      .execute = spn_dag_exec_warm,
       .user_data = warm,
     });
     spn_try(spn_dag_action_add_output(g, action, stamp));

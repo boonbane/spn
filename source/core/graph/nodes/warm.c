@@ -4,6 +4,7 @@
 #include "unit/types.h"
 
 #include "compiler/driver.h"
+#include "dag/dag.h"
 #include "external/zig.h"
 #include "paths/paths.h"
 #include "session/invocation.h"
@@ -99,7 +100,7 @@ static sp_ps_output_t stub_exec(spn_invocation_t* invocation, sp_str_t dir, spn_
 }
 
 static s32 run_stub(spn_build_unit_t* build, const spn_zig_stub_t* stub, sp_str_t name, sp_str_t triple, sp_str_t dir, spn_dag_env_t* env, sp_mem_t mem) {
-  spn_cc_toolchain_t* cc = &build->toolchain->cc;
+  spn_cc_t* cc = &build->toolchain->cc;
 
   spn_event_buffer_push(spn.events, (spn_event_t) {
     .kind = SPN_EVENT_WARM_START,
@@ -127,16 +128,12 @@ static s32 run_stub(spn_build_unit_t* build, const spn_zig_stub_t* stub, sp_str_
     .kind = stub->kind,
     .system_libs = stub->system_libs,
   };
-  spn_cc_link_files_t files = {
-    .output = spn_path_make(&spn.roots, sp_fs_join_path(mem, dir, sp_str_lit("stub.bin"))),
-  };
-  sp_da_init(mem, files.objects);
-  sp_da_push(files.objects, spn_path_make(&spn.roots, source));
+  sp_da(spn_arg_t) objects = sp_da_new(mem, spn_arg_t);
+  sp_da_push(objects, spn_arg_path(spn_path_make(&spn.roots, source)));
+  spn_path_t output = spn_path_make(&spn.roots, sp_fs_join_path(mem, dir, sp_str_lit("stub.bin")));
 
   spn_invocation_t invocation = sp_zero;
-  if (spn_cc_render_link(mem, cc, spn.host, &build->profile, &link, &files, &invocation)) {
-    return 1;
-  }
+  spn_gnu_render_link(mem, cc, &build->profile, &link, objects, output, sp_zero_struct(spn_path_t), &invocation);
   invocation.cwd = spn_path_make(&spn.roots, dir);
 
   sp_ps_output_t run = stub_exec(&invocation, dir, env, mem);
@@ -156,7 +153,7 @@ static s32 run_stub(spn_build_unit_t* build, const spn_zig_stub_t* stub, sp_str_
   return run.status.exit_code;
 }
 
-s32 spn_warm_stub_run(spn_build_unit_t* build, const spn_zig_stub_t* stub, sp_str_t name, spn_path_t stamp, spn_path_t output, spn_dag_env_t* env) {
+static s32 warm_stub(spn_build_unit_t* build, const spn_zig_stub_t* stub, sp_str_t name, spn_path_t stamp, spn_path_t output, spn_dag_env_t* env) {
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   sp_mem_t mem = scratch.mem;
 
@@ -186,4 +183,13 @@ s32 spn_warm_stub_run(spn_build_unit_t* build, const spn_zig_stub_t* stub, sp_st
 
   sp_mem_end_scratch(scratch);
   return rc;
+}
+
+spn_err_t spn_dag_exec_warm(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs) {
+  spn_dag_warm_ctx_t* warm = (spn_dag_warm_ctx_t*)user_data;
+  spn_dag_artifact_t* stamp = spn_dag_find_artifact(g, action->produces[0]);
+  if (warm_stub(warm->build, &warm->stub, warm->name, stamp->path, outputs[0], env)) {
+    return SPN_ERR_DAG_ACTION;
+  }
+  return SPN_OK;
 }

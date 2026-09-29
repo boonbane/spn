@@ -26,6 +26,12 @@ typedef struct {
   sp_da(spn_arg_t) args;
 } spn_dag_rsp_ctx_t;
 
+typedef struct {
+  spn_build_unit_t* build;
+  spn_zig_stub_t stub;
+  sp_str_t name;
+} spn_dag_warm_ctx_t;
+
 spn_err_t spn_dag_exec_object(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs);
 spn_err_t spn_dag_exec_archive(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs);
 spn_err_t spn_dag_exec_link(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs);
@@ -35,6 +41,6 @@ spn_err_t spn_dag_exec_embed(spn_dag_t* g, spn_dag_action_t* action, void* user_
 spn_err_t spn_dag_exec_user(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs);
 spn_err_t spn_dag_exec_tree(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs);
 spn_err_t spn_dag_exec_compile_commands(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs);
-s32 spn_warm_stub_run(spn_build_unit_t* build, const spn_zig_stub_t* stub, sp_str_t name, spn_path_t stamp, spn_path_t output, spn_dag_env_t* env);
+spn_err_t spn_dag_exec_warm(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs);
 
 #endif

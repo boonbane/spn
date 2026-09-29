@@ -24,7 +24,7 @@ static const env_test_t tests [] = {
 
 sp_test_each(render_env, render, env_test_t, tests, .setup = spn_test_ctx_setup) {
   sp_mem_t mem = sp_test_arena(t);
-  spn_cc_toolchain_t toolchain = test_toolchain(SPN_CC_DRIVER_ZIG);
+  spn_cc_t toolchain = test_toolchain(SPN_CC_DRIVER_ZIG);
   if (it->cache) {
     toolchain.cache = test_arg_path(it->cache);
   }
@@ -56,17 +56,15 @@ sp_test_each(render_env, render, env_test_t, tests, .setup = spn_test_ctx_setup)
     }
     case RENDER_LINK: {
       spn_cc_link_t link = { .lang = SPN_LANG_C, .kind = SPN_CC_OUTPUT_EXE };
-      spn_cc_link_files_t files = { .output = test_arg_path("main") };
-      sp_da_init(mem, files.objects);
-      sp_da_push(files.objects, test_arg_path("main.o"));
-      sp_must_eq(t, spn_cc_render_link(mem, &toolchain, spn_triple_host(), &profile, &link, &files, &invocation), SPN_OK);
+      sp_da(spn_arg_t) objects = sp_da_new(mem, spn_arg_t);
+      sp_da_push(objects, spn_arg_path(test_arg_path("main.o")));
+      spn_gnu_render_link(mem, &toolchain, &profile, &link, objects, test_arg_path("main"), sp_zero_struct(spn_path_t), &invocation);
       break;
     }
     case RENDER_ARCHIVE: {
-      spn_cc_archive_files_t files = { .output = test_arg_path("libmain.a") };
-      sp_da_init(mem, files.objects);
-      sp_da_push(files.objects, test_arg_path("main.o"));
-      sp_must_eq(t, spn_cc_render_archive(mem, &toolchain, &profile, &files, &invocation), SPN_OK);
+      sp_da(spn_arg_t) objects = sp_da_new(mem, spn_arg_t);
+      sp_da_push(objects, spn_arg_path(test_arg_path("main.o")));
+      spn_gnu_render_archive(mem, &toolchain, objects, test_arg_path("libmain.a"), &invocation);
       break;
     }
   }
