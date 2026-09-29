@@ -4,100 +4,35 @@
 #include "macro/macro.h"
 #include "spn/core.h"
 
-spn_path_at_t spn_path_at(const spn_path_roots_t* roots, spn_path_t path) {
+sp_path_t spn_path_at(const spn_path_roots_t* roots, spn_path_t path) {
   if (path.root == SPN_PATH_ROOT_NONE) {
-    return (spn_path_at_t) { .fd = sp_sys_get_root(0), .sub = path.sub };
+    return sp_path_resolve(path.sub);
   }
-  sp_assert(roots->opened & spn_path_root_mask(path.root));
-  return (spn_path_at_t) {
-    .fd = roots->fds[path.root],
-    .sub = sp_str_empty(path.sub) ? sp_str_lit(".") : path.sub,
-  };
+  sp_assert(!sp_str_empty(roots->dirs[path.root]));
+  return sp_path_at(roots->fds[path.root], sp_str_empty(path.sub) ? sp_str_lit(".") : path.sub);
 }
 
 sp_err_t spn_get_path_metadata(const spn_path_roots_t* roots, spn_path_t path, sp_sys_file_meta_t* meta) {
-  spn_path_at_t at = spn_path_at(roots, path);
-  return sp_sys_get_path_metadata_s(at.fd, at.sub, meta);
+  sp_path_t at = spn_path_at(roots, path);
+  return sp_sys_get_path_metadata_s(at.dir, at.sub, meta);
 }
 
-static sp_err_t mkdir_at(sp_sys_fd_t fd, sp_str_t path) {
-  sp_err_t err = sp_sys_mkdir_s(fd, path, sp_sys_default_dir_perms);
-  if (!err || err == SP_ERR_SYS_NOT_FOUND) {
-    return err;
-  }
-  sp_sys_file_meta_t meta = sp_zero;
-  if (sp_sys_get_path_metadata_s(fd, path, &meta)) {
-    return err;
-  }
-  return meta.kind == SP_FS_KIND_DIR ? SP_OK : err;
-}
-
-static sp_err_t create_dir_at(sp_sys_fd_t fd, sp_str_t path) {
-  sp_err_t err = mkdir_at(fd, path);
-  if (err != SP_ERR_SYS_NOT_FOUND) {
-    return err;
-  }
-  sp_str_t parent = sp_fs_parent_path(path);
-  if (sp_str_empty(parent)) {
-    return err;
-  }
-  err = create_dir_at(fd, parent);
-  if (err) {
-    return err == SP_ERR_SYS_EXISTS ? SP_ERR_SYS_NOT_DIR : err;
-  }
-  return mkdir_at(fd, path);
-}
-
-sp_err_t spn_path_create_dir(const spn_path_roots_t* roots, spn_path_t path) {
-  spn_path_at_t at = spn_path_at(roots, path);
-  return create_dir_at(at.fd, at.sub);
-}
-
-sp_err_t spn_path_open_reader(const spn_path_roots_t* roots, spn_path_t path, sp_io_file_reader_t* reader) {
-  spn_path_at_t at = spn_path_at(roots, path);
-  sp_sys_fd_t fd = SP_SYS_INVALID_FD;
-  sp_try(sp_sys_open_s(at.fd, at.sub, SP_SYS_OPEN_MODE_RO, 0, &fd));
-  return sp_io_file_reader_from_file(reader, fd, SP_IO_CLOSE_MODE_AUTO);
-}
-
-sp_err_t spn_path_open_writer(const spn_path_roots_t* roots, spn_path_t path, sp_io_file_writer_t* writer) {
-  spn_path_at_t at = spn_path_at(roots, path);
-  sp_sys_fd_t fd = SP_SYS_INVALID_FD;
-  sp_try(sp_sys_open_s(at.fd, at.sub, SP_SYS_OPEN_MODE_WO, SP_SYS_OPEN_CREATE | SP_SYS_OPEN_TRUNCATE, &fd));
-  sp_try(sp_io_file_writer_from_fd(writer, fd, SP_IO_CLOSE_MODE_AUTO));
-  writer->size_known = true;
-  return SP_OK;
-}
-
-static sp_str_t canonical_dir(sp_mem_t mem, sp_str_t dir) {
-  sp_fs_create_dir(dir);
-  sp_str_t canonical = sp_fs_canonicalize_path(mem, dir);
-  return sp_str_empty(canonical) ? dir : canonical;
-}
-
-sp_str_t spn_path_roots_init(spn_path_roots_t* roots, sp_mem_t mem, sp_str_t storage) {
-  roots->storage = canonical_dir(mem, storage);
-  return roots->storage;
-}
-
-sp_str_t spn_path_roots_set(spn_path_roots_t* roots, sp_mem_t mem, spn_path_root_t kind, sp_str_t dir) {
-  spn_path_root_set_t mask = spn_path_root_mask(kind);
-  sp_assert(!(roots->opened & mask));
-  roots->dirs[kind] = canonical_dir(mem, dir);
-  roots->fds[kind] = SP_SYS_INVALID_FD;
-  if (!sp_sys_open_dir_s(sp_sys_get_root(0), roots->dirs[kind], 0, &roots->fds[kind])) {
-    roots->opened |= mask;
-  }
-  return roots->dirs[kind];
+void spn_path_roots_set(spn_path_roots_t* roots, sp_mem_t mem, spn_path_root_t kind, sp_path_t dir) {
+  sp_assert(sp_str_empty(roots->dirs[kind]));
+  sp_fs_create_dir_at(dir);
+  roots->dirs[kind] = sp_fs_canonicalize_path_at(mem, dir);
+  sp_assert(!sp_str_empty(roots->dirs[kind]));
+  sp_err_t opened = sp_fs_open_dir_at(dir, &roots->fds[kind]);
+  sp_assert(!opened);
 }
 
 void spn_path_roots_close(spn_path_roots_t* roots) {
   sp_for(it, SPN_PATH_ROOT_COUNT) {
-    if (roots->opened & spn_path_root_mask((spn_path_root_t)it)) {
+    if (!sp_str_empty(roots->dirs[it])) {
       sp_sys_close(roots->fds[it]);
     }
+    roots->dirs[it] = sp_str_lit("");
   }
-  roots->opened = 0;
 }
 
 static bool root_match(sp_str_t dir, sp_str_t path) {
@@ -107,7 +42,7 @@ static bool root_match(sp_str_t dir, sp_str_t path) {
   return path.len == dir.len || path.data[dir.len] == '/';
 }
 
-spn_path_root_t spn_path_root_longest(const spn_path_roots_t* roots, sp_str_t str) {
+static spn_path_root_t root_longest(const spn_path_roots_t* roots, sp_str_t str) {
   spn_path_root_t best = SPN_PATH_ROOT_NONE;
   u32 longest = 0;
   sp_for(it, SPN_PATH_ROOT_COUNT) {
@@ -192,15 +127,31 @@ spn_path_t spn_path_anchor(sp_mem_t mem, const spn_path_roots_t* roots, spn_path
 
 spn_path_t spn_path_canonicalize(sp_mem_t mem, const spn_path_roots_t* roots, spn_path_t path) {
   sp_mem_arena_marker_t s = sp_mem_begin_scratch_for(mem);
+  sp_path_t at = spn_path_at(roots, path);
+  sp_str_t sub = sp_fs_trim_path(at.sub);
+  sp_str_t tail = sp_str_lit("");
+  sp_str_t canonical = sp_zero;
+  while (true) {
+    canonical = sp_fs_canonicalize_path_at(s.mem, sp_path_at(at.dir, sub));
+    if (!sp_str_empty(canonical)) {
+      break;
+    }
+    sp_str_t parent = sp_fs_parent_path(sub);
+    if (sp_str_equal(parent, sub)) {
+      break;
+    }
+    tail = sp_fs_join_path(s.mem, sp_fs_get_name(sub), tail);
+    sub = parent;
+  }
+
   spn_path_t result = path;
-  sp_str_t full = spn_path_str(roots, s.mem, path);
-  sp_str_t canonical = sp_fs_canonicalize_path(s.mem, full);
-  if (sp_str_empty(canonical)) {
-    canonical = full;
+  if (!sp_str_empty(canonical)) {
+    sp_str_t full = sp_fs_join_path(s.mem, canonical, tail);
+    if (spn_path_normal(full)) {
+      result = spn_path_make(roots, full);
+    }
   }
-  if (sp_fs_is_absolute(canonical) && spn_path_normal(canonical)) {
-    result = spn_path_copy(mem, spn_path_make(roots, canonical));
-  }
+  result = spn_path_copy(mem, result);
   sp_mem_end_scratch(s);
   return result;
 }
@@ -208,9 +159,8 @@ spn_path_t spn_path_canonicalize(sp_mem_t mem, const spn_path_roots_t* roots, sp
 spn_path_t spn_path_make(const spn_path_roots_t* roots, sp_str_t path) {
   sp_assert(sp_fs_is_absolute(path));
   sp_assert(spn_path_normal(path));
-  spn_path_root_t root = spn_path_root_longest(roots, path);
+  spn_path_root_t root = root_longest(roots, path);
   if (root == SPN_PATH_ROOT_NONE) {
-    sp_assert(sp_str_empty(roots->storage) || !root_match(roots->storage, path));
     return (spn_path_t) { .root = SPN_PATH_ROOT_NONE, .sub = path };
   }
   u32 len = roots->dirs[root].len;
@@ -234,8 +184,11 @@ spn_path_t spn_path_join(sp_mem_t mem, spn_path_t base, sp_str_t sub) {
 }
 
 spn_path_t spn_path_parent(spn_path_t path) {
-  sp_str_t parent = sp_fs_parent_path(path.sub);
-  return (spn_path_t) { .root = path.root, .sub = sp_str_equal(parent, sp_str_lit(".")) ? sp_str_lit("") : parent };
+  s32 sep = sp_str_find_c8_reverse(path.sub, '/');
+  return (spn_path_t) {
+    .root = path.root,
+    .sub = sep == SP_STR_NO_MATCH ? sp_str_lit("") : sp_str_prefix(path.sub, sep),
+  };
 }
 
 spn_path_t spn_path_suffix(sp_mem_t mem, spn_path_t path, sp_str_t suffix) {
@@ -342,6 +295,7 @@ sp_str_t spn_path_root_label(spn_path_root_t root) {
     case SPN_PATH_ROOT_INDEX:     return sp_str_lit("index");
     case SPN_PATH_ROOT_RUNTIME:   return sp_str_lit("runtime");
     case SPN_PATH_ROOT_CACHE:     return sp_str_lit("cache");
+    case SPN_PATH_ROOT_STORAGE:   return sp_str_lit("storage");
     case SPN_PATH_ROOT_COUNT:     break;
   }
   sp_unreachable_return(sp_str_lit(""));

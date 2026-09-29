@@ -54,9 +54,9 @@ s32 sp_sys_flock(sp_sys_fd_t fd, s32 op) {
 #endif
 }
 
-static sp_err_t sp_fs_lock_open(sp_fs_lock_t* lock, sp_str_t path) {
+static sp_err_t sp_fs_lock_open(sp_fs_lock_t* lock, sp_path_t path) {
   *lock = sp_zero_s(sp_fs_lock_t);
-  if (sp_sys_open_s(sp_sys_get_root(0), path, SP_SYS_OPEN_MODE_RW, SP_SYS_OPEN_CREATE, &lock->fd)) {
+  if (sp_sys_open_s(path.dir, path.sub, SP_SYS_OPEN_MODE_RW, SP_SYS_OPEN_CREATE, &lock->fd)) {
     return SP_ERR_SYS;
   }
   return SP_OK;
@@ -67,7 +67,7 @@ static void sp_fs_lock_drop(sp_fs_lock_t* lock) {
   *lock = sp_zero_s(sp_fs_lock_t);
 }
 
-sp_err_t sp_fs_lock_acquire(sp_fs_lock_t* lock, sp_str_t path) {
+sp_err_t sp_fs_lock_acquire(sp_fs_lock_t* lock, sp_path_t path) {
   sp_try(sp_fs_lock_open(lock, path));
 
   if (sp_sys_flock(lock->fd, SP_LOCK_EX)) {
@@ -79,7 +79,7 @@ sp_err_t sp_fs_lock_acquire(sp_fs_lock_t* lock, sp_str_t path) {
   return SP_OK;
 }
 
-sp_err_t sp_fs_lock_try_acquire(sp_fs_lock_t* lock, sp_str_t path, bool* acquired) {
+sp_err_t sp_fs_lock_try_acquire(sp_fs_lock_t* lock, sp_path_t path, bool* acquired) {
   *acquired = false;
   sp_try(sp_fs_lock_open(lock, path));
 
@@ -110,31 +110,25 @@ sp_str_t sp_fs_staging_path(sp_mem_t mem, sp_str_t path, sp_str_t extension) {
   return sp_fmt(mem, "{}.{}.{}", sp_fmt_str(path), sp_fmt_uint(stamp), sp_fmt_str(extension)).value;
 }
 
-sp_err_t sp_fs_staging_dir(sp_mem_t mem, sp_str_t path, sp_str_t extension, sp_str_t* dir) {
-  *dir = sp_str_lit("");
-  sp_try(sp_fs_create_dir(sp_fs_parent_path(path)));
+sp_err_t sp_fs_staging_dir(sp_mem_t mem, sp_path_t path, sp_str_t extension, sp_path_t* dir) {
+  *dir = sp_path_at(path.dir, sp_str_lit(""));
 
   sp_for(attempt, 16) {
-    sp_str_t candidate = sp_fs_staging_path(mem, path, extension);
-    if (sp_sys_mkdir_s(sp_sys_get_root(0), candidate, sp_sys_default_dir_perms) == 0) {
+    sp_path_t candidate = sp_path_at(path.dir, sp_fs_staging_path(mem, path.sub, extension));
+    if (sp_sys_mkdir_s(candidate.dir, candidate.sub, sp_sys_default_dir_perms) == 0) {
       *dir = candidate;
       return SP_OK;
     }
-    if (!sp_fs_exists(candidate)) {
+    if (!sp_fs_exists_at(candidate)) {
       return SP_ERR_SYS;
     }
   }
   return SP_ERR_SYS;
 }
 
-sp_err_t sp_fs_append(sp_str_t path, sp_str_t str) {
-  sp_str_t parent = sp_fs_parent_path(path);
-  if (!sp_str_empty(parent) && !sp_fs_exists(parent)) {
-    sp_try(sp_fs_create_dir(parent));
-  }
-
+sp_err_t sp_fs_append(sp_path_t path, sp_str_t str) {
   sp_sys_fd_t fd = SP_SYS_INVALID_FD;
-  sp_try(sp_sys_open_s(sp_sys_get_root(0), path, SP_SYS_OPEN_MODE_WO, SP_SYS_OPEN_CREATE | SP_SYS_OPEN_APPEND, &fd));
+  sp_try(sp_sys_open_s(path.dir, path.sub, SP_SYS_OPEN_MODE_WO, SP_SYS_OPEN_CREATE | SP_SYS_OPEN_APPEND, &fd));
   sp_io_stream_writer_t io = sp_zero;
   sp_io_stream_writer_from_fd(&io, fd, SP_IO_CLOSE_MODE_AUTO);
   sp_err_t written = sp_io_write_all(&io.base, str.data, str.len, SP_NULLPTR);
@@ -142,18 +136,16 @@ sp_err_t sp_fs_append(sp_str_t path, sp_str_t str) {
   return written ? written : closed;
 }
 
-sp_err_t sp_fs_set_readonly(sp_str_t path) {
-  sp_sys_fd_t root = sp_sys_get_root(0);
+sp_err_t sp_fs_set_readonly(sp_path_t path) {
   sp_sys_file_meta_t meta = sp_zero;
-  sp_try(sp_sys_get_path_metadata_s(root, path, &meta));
+  sp_try(sp_sys_get_path_metadata_s(path.dir, path.sub, &meta));
   sp_sys_set_read_only(&meta.perms, true);
-  return sp_sys_set_file_perms_s(root, path, meta.perms);
+  return sp_sys_set_file_perms_s(path.dir, path.sub, meta.perms);
 }
 
-sp_err_t sp_fs_set_writable(sp_str_t path) {
-  sp_sys_fd_t root = sp_sys_get_root(0);
+sp_err_t sp_fs_set_writable(sp_path_t path) {
   sp_sys_file_meta_t meta = sp_zero;
-  sp_try(sp_sys_get_path_metadata_s(root, path, &meta));
+  sp_try(sp_sys_get_path_metadata_s(path.dir, path.sub, &meta));
   sp_sys_set_read_only(&meta.perms, false);
-  return sp_sys_set_file_perms_s(root, path, meta.perms);
+  return sp_sys_set_file_perms_s(path.dir, path.sub, meta.perms);
 }

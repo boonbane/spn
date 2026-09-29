@@ -155,7 +155,7 @@ sp_test_each(dag_tree, exec, test_t, tests) {
     }
     if (run->poison.path) {
       sp_str_t path = sp_fs_join_path(mem, target, sp_cstr_as_str(run->poison.path));
-      sp_must_ok(t, sp_fs_set_writable(path));
+      sp_must_ok(t, sp_fs_set_writable(sp_path_resolve(path)));
       sp_must_ok(t, sp_fs_create_file_str(path, sp_cstr_as_str(run->poison.content)));
     }
 

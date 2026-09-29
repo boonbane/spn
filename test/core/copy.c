@@ -163,47 +163,49 @@ static const test_t tests [] = {
 
 sp_test_each(fs_update, cases, test_t, tests) {
   if (it->setup.symlinks[0].path) {
-    sp_test_skip_on_win32();
+    sp_test_skip_without_symlinks();
   }
 
   sp_mem_t mem = sp_test_arena(t);
-  sp_str_t root = test_dir_str(t);
+  sp_path_t root = sp_test_dir(t);
+  sp_str_t absolute = sp_fs_canonicalize_path_at(mem, root);
 
   u32 dirs = 0;
   sp_carr_detect_len(it->setup.dirs, dirs, it->setup.dirs[dirs]);
   sp_for(i, dirs) {
-    sp_must_ok(t, sp_fs_create_dir(sp_fs_join_path(mem, root, sp_cstr_as_str(it->setup.dirs[i]))));
+    sp_must_ok(t, sp_fs_create_dir_at(sp_path_join(mem, root, sp_cstr_as_str(it->setup.dirs[i]))));
   }
 
   u32 files = 0;
   sp_carr_detect_len(it->setup.files, files, it->setup.files[files].path);
   sp_for(i, files) {
     file_t file = it->setup.files[i];
-    sp_str_t path = sp_fs_join_path(mem, root, sp_cstr_as_str(file.path));
-    sp_must_ok(t, sp_fs_create_dir(sp_fs_parent_path(path)));
-    sp_must_ok(t, sp_fs_create_file_cstr(path, file.content));
+    sp_path_t path = sp_path_join(mem, root, sp_cstr_as_str(file.path));
+    sp_must_ok(t, sp_fs_create_dir_at(sp_path_parent(mem, path)));
+    sp_must_ok(t, sp_fs_create_file_cstr_at(path, file.content));
   }
 
   u32 symlinks = 0;
   sp_carr_detect_len(it->setup.symlinks, symlinks, it->setup.symlinks[symlinks].path);
   sp_for(i, symlinks) {
     link_t link = it->setup.symlinks[i];
-    sp_str_t target = sp_fs_join_path(mem, root, sp_cstr_as_str(link.target));
-    sp_must_ok(t, sp_fs_create_sym_link(target, sp_fs_join_path(mem, root, sp_cstr_as_str(link.path)), sp_fs_is_target_dir(target) ? SP_FS_KIND_DIR : SP_FS_KIND_FILE));
+    sp_str_t target = sp_fs_join_path(mem, absolute, sp_cstr_as_str(link.target));
+    sp_fs_kind_t kind = sp_fs_is_target_dir(target) ? SP_FS_KIND_DIR : SP_FS_KIND_FILE;
+    sp_must_ok(t, sp_fs_create_sym_link_at(target, sp_path_join(mem, root, sp_cstr_as_str(link.path)), kind));
   }
 
   u32 hardlinks = 0;
   sp_carr_detect_len(it->setup.hardlinks, hardlinks, it->setup.hardlinks[hardlinks].path);
   sp_for(i, hardlinks) {
     link_t link = it->setup.hardlinks[i];
-    sp_must_ok(t, sp_fs_create_hard_link(sp_fs_join_path(mem, root, sp_cstr_as_str(link.target)), sp_fs_join_path(mem, root, sp_cstr_as_str(link.path))));
+    sp_must_ok(t, sp_fs_create_hard_link_at(sp_path_join(mem, root, sp_cstr_as_str(link.target)), sp_path_join(mem, root, sp_cstr_as_str(link.path))));
   }
 
-  sp_str_t from = sp_fs_join_path(mem, root, sp_cstr_as_str(it->from));
-  sp_str_t to = sp_fs_join_path(mem, root, sp_cstr_as_str(it->to));
+  sp_path_t from = sp_path_join(mem, root, sp_cstr_as_str(it->from));
+  sp_path_t to = sp_path_join(mem, root, sp_cstr_as_str(it->to));
 
   sp_sys_file_meta_t before = sp_zero;
-  sp_sys_get_path_metadata_s(sp_sys_get_root(0), to, &before);
+  sp_sys_get_path_metadata_s(to.dir, to.sub, &before);
 
   bool failed = false;
   switch (it->op) {
@@ -223,25 +225,25 @@ sp_test_each(fs_update, cases, test_t, tests) {
   sp_for(i, expected) {
     file_t file = it->expect.files[i];
     sp_str_t content = sp_zero;
-    sp_must_ok(t, sp_io_read_file(mem, sp_fs_join_path(mem, root, sp_cstr_as_str(file.path)), &content));
+    sp_must_ok(t, sp_io_read_file_at(mem, sp_path_join(mem, root, sp_cstr_as_str(file.path)), &content));
     sp_expect_str_eq_c(t, content, file.content);
   }
 
   u32 expected_dirs = 0;
   sp_carr_detect_len(it->expect.dirs, expected_dirs, it->expect.dirs[expected_dirs]);
   sp_for(i, expected_dirs) {
-    sp_expect(t, sp_fs_is_dir(sp_fs_join_path(mem, root, sp_cstr_as_str(it->expect.dirs[i]))));
+    sp_expect(t, sp_fs_is_dir_at(sp_path_join(mem, root, sp_cstr_as_str(it->expect.dirs[i]))));
   }
 
   u32 absent = 0;
   sp_carr_detect_len(it->expect.absent, absent, it->expect.absent[absent]);
   sp_for(i, absent) {
-    sp_expect(t, !sp_fs_exists(sp_fs_join_path(mem, root, sp_cstr_as_str(it->expect.absent[i]))));
+    sp_expect(t, !sp_fs_exists_at(sp_path_join(mem, root, sp_cstr_as_str(it->expect.absent[i]))));
   }
 
   if (it->expect.untouched) {
     sp_sys_file_meta_t after = sp_zero;
-    sp_must_ok(t, sp_sys_get_path_metadata_s(sp_sys_get_root(0), to, &after));
+    sp_must_ok(t, sp_sys_get_path_metadata_s(to.dir, to.sub, &after));
     sp_expect_eq(t, before.id, after.id);
   }
 

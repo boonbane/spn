@@ -107,7 +107,7 @@ static const canonicalize_test_t canonicalize_tests [] = {
   },
 };
 
-static spn_path_roots_t canonicalize_roots(sp_mem_t mem, sp_str_t sandbox, paths_test_roots_t spec) {
+static spn_path_roots_t canonicalize_roots(sp_mem_t mem, sp_path_t sandbox, paths_test_roots_t spec) {
   spn_path_roots_t rel = sp_zero;
   paths_test_roots_build(spec, &rel);
 
@@ -116,53 +116,59 @@ static spn_path_roots_t canonicalize_roots(sp_mem_t mem, sp_str_t sandbox, paths
     if (sp_str_empty(rel.dirs[it])) {
       continue;
     }
-    roots.dirs[it] = sp_str_equal(rel.dirs[it], sp_str_lit(".")) ? sandbox : sp_fs_join_path(mem, sandbox, rel.dirs[it]);
+    sp_path_t dir = sp_str_equal(rel.dirs[it], sp_str_lit(".")) ? sandbox : sp_path_join(mem, sandbox, rel.dirs[it]);
+    spn_path_roots_set(&roots, mem, (spn_path_root_t)it, dir);
   }
   return roots;
 }
 
-static spn_path_t canonicalize_ref(sp_mem_t mem, sp_str_t sandbox, canonicalize_ref_t ref) {
+static spn_path_t canonicalize_ref(sp_mem_t mem, sp_str_t absolute, canonicalize_ref_t ref) {
   sp_str_t sub = ref.sub ? sp_str_view(ref.sub) : sp_str_lit("");
   if (ref.root == SPN_PATH_ROOT_NONE) {
-    return (spn_path_t) { .sub = sp_fs_join_path(mem, sandbox, sub) };
+    return (spn_path_t) { .sub = sp_fs_join_path(mem, absolute, sub) };
   }
   return (spn_path_t) { .root = ref.root, .sub = sub };
 }
 
 sp_test_each(paths_canonicalize, resolve, canonicalize_test_t, canonicalize_tests) {
+  if (it->symlinks) {
+    sp_test_skip_without_symlinks();
+  }
+
   sp_mem_t mem = sp_test_arena(t);
-  sp_str_t sandbox = sp_fs_canonicalize_path(mem, test_dir_str(t));
-  sp_expect_gt(t, sandbox.len, 0u);
+  sp_path_t sandbox = sp_test_dir(t);
+  sp_str_t absolute = sp_fs_canonicalize_path_at(mem, sandbox);
+  sp_expect_gt(t, absolute.len, 0u);
 
   u32 count = 0;
   sp_carr_detect_len(it->setup, count, it->setup[count].path);
   sp_for(at, count) {
     const canonicalize_setup_t* s = &it->setup[at];
-    sp_str_t path = sp_fs_join_path(mem, sandbox, sp_str_view(s->path));
+    sp_path_t path = sp_path_join(mem, sandbox, sp_str_view(s->path));
     switch (s->kind) {
       case CANONICALIZE_SETUP_FILE: {
-        sp_fs_create_file(path);
+        sp_fs_create_file_at(path);
         break;
       }
       case CANONICALIZE_SETUP_DIR: {
-        sp_fs_create_dir(path);
+        sp_fs_create_dir_at(path);
         break;
       }
       case CANONICALIZE_SETUP_SYMLINK: {
-        sp_str_t target = sp_fs_join_path(mem, sandbox, sp_str_view(s->target));
-        if (sp_fs_create_sym_link(target, path, sp_fs_is_target_dir(target) ? SP_FS_KIND_DIR : SP_FS_KIND_FILE)) {
-          return sp_test_skip(t, "symlinks not available");
-        }
+        sp_path_t target = sp_path_join(mem, sandbox, sp_str_view(s->target));
+        sp_fs_kind_t kind = sp_fs_is_target_dir_at(target) ? SP_FS_KIND_DIR : SP_FS_KIND_FILE;
+        sp_must_ok(t, sp_fs_create_sym_link_at(sp_str_view(s->target), path, kind));
         break;
       }
     }
   }
 
   spn_path_roots_t roots = canonicalize_roots(mem, sandbox, it->roots);
-  spn_path_t input = canonicalize_ref(mem, sandbox, it->input);
-  spn_path_t expect = canonicalize_ref(mem, sandbox, it->expect);
+  spn_path_t input = canonicalize_ref(mem, absolute, it->input);
+  spn_path_t expect = canonicalize_ref(mem, absolute, it->expect);
 
   spn_path_t canonical = spn_path_canonicalize(mem, &roots, input);
+  spn_path_roots_close(&roots);
   sp_expect_eq(t, canonical.root, expect.root);
   sp_expect_str_eq(t, canonical.sub, expect.sub);
   return SP_OK;

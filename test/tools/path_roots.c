@@ -10,6 +10,7 @@ const spn_path_roots_t* paths_test_roots_build(paths_test_roots_t spec, spn_path
     [SPN_PATH_ROOT_INDEX] = spec.index,
     [SPN_PATH_ROOT_RUNTIME] = spec.runtime,
     [SPN_PATH_ROOT_CACHE] = spec.cache,
+    [SPN_PATH_ROOT_STORAGE] = spec.storage,
   };
 
   *storage = (spn_path_roots_t) sp_zero;

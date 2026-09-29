@@ -17,6 +17,7 @@ typedef struct {
   const c8* index;
   const c8* runtime;
   const c8* cache;
+  const c8* storage;
 } paths_test_roots_t;
 
 const spn_path_roots_t* paths_test_roots_build(paths_test_roots_t spec, spn_path_roots_t* storage);

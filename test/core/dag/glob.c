@@ -138,7 +138,8 @@ sp_test_each(dag_glob, observe, test_t, tests) {
   sp_str_t root = sp_fs_join_path(mem, test_dir_str(t), sp_str_lit("R"));
 
   spn_path_roots_t storage = sp_zero;
-  root = spn_path_roots_set(&storage, mem, SPN_PATH_ROOT_PROJECT, root);
+  spn_path_roots_set(&storage, mem, SPN_PATH_ROOT_PROJECT, sp_path_resolve(root));
+  root = storage.dirs[SPN_PATH_ROOT_PROJECT];
   const spn_path_roots_t* roots = &storage;
 
   sp_carr_for(it->files, ft) {
@@ -154,7 +155,7 @@ sp_test_each(dag_glob, observe, test_t, tests) {
     sp_fs_create_dir(sp_fs_join_path(mem, root, sp_cstr_as_str(it->dirs[dt])));
   }
   if (it->nested_root) {
-    spn_path_roots_set(&storage, mem, SPN_PATH_ROOT_STORE, sp_fs_join_path(mem, root, sp_cstr_as_str(it->nested_root)));
+    spn_path_roots_set(&storage, mem, SPN_PATH_ROOT_STORE, sp_path_resolve(sp_fs_join_path(mem, root, sp_cstr_as_str(it->nested_root))));
   }
 
   spn_dag_glob_result_t glob = sp_zero;
@@ -285,7 +286,8 @@ sp_test_each(dag_glob, iterate, iterate_test_t, iterate_tests) {
   sp_str_t root = sp_fs_join_path(mem, test_dir_str(t), sp_str_lit("R"));
 
   spn_path_roots_t roots = sp_zero;
-  root = spn_path_roots_set(&roots, mem, SPN_PATH_ROOT_PROJECT, root);
+  spn_path_roots_set(&roots, mem, SPN_PATH_ROOT_PROJECT, sp_path_resolve(root));
+  root = roots.dirs[SPN_PATH_ROOT_PROJECT];
 
   sp_carr_for(it->files, ft) {
     if (!it->files[ft]) {

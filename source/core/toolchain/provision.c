@@ -94,8 +94,8 @@ static spn_err_t fill(spn_toolchain_store_t* store, sp_str_t name, spn_artifact_
     });
   }
 
-  sp_str_t work = sp_zero;
-  if (sp_fs_staging_dir(store->mem, dest, sp_str_lit("tmp"), &work)) {
+  sp_path_t staged = sp_zero;
+  if (sp_fs_staging_dir(store->mem, sp_path_resolve(dest), sp_str_lit("tmp"), &staged)) {
     sp_fs_remove_file(tarball);
     return spn_err_emit(&spn, (spn_err_union_t) {
       .kind = SPN_ERR_TOOLCHAIN_EXTRACT,
@@ -106,6 +106,7 @@ static spn_err_t fill(spn_toolchain_store_t* store, sp_str_t name, spn_artifact_
     });
   }
 
+  sp_str_t work = staged.sub;
   sp_ps_output_t extract = sp_ps_run(store->mem, (sp_ps_config_t) {
     .command = sp_str_lit("tar"),
     .args = {
@@ -158,7 +159,7 @@ spn_err_t spn_toolchain_provision(spn_toolchain_store_t* store, sp_str_t name, s
 
   sp_fs_lock_t lock = sp_zero;
   sp_str_t lock_path = sp_fmt(store->mem, "{}.lock", sp_fmt_str(dest)).value;
-  bool locked = sp_fs_lock_acquire(&lock, lock_path) == SP_OK;
+  bool locked = sp_fs_lock_acquire(&lock, sp_path_resolve(lock_path)) == SP_OK;
 
   if (locked && sp_fs_is_dir(dest)) {
     sp_fs_lock_release(&lock);

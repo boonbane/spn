@@ -73,7 +73,7 @@ typedef sp_str_ht(u8) spn_symbol_set_t;
 
 static spn_err_t read_archive_symbols(spn_path_t path, sp_da(sp_str_t)* symbols, spn_symbol_set_t* seen) {
   sp_io_file_reader_t reader = sp_zero;
-  if (spn_path_open_reader(&spn.roots, path, &reader)) {
+  if (sp_io_file_reader_from_path_at(&reader, spn_path_at(&spn.roots, path))) {
     return spn_err_emit(&spn, (spn_err_union_t) { .kind = SPN_ERR_FS_READ, .fs.path = spn_path_copy(spn.mem, path) });
   }
 
@@ -175,7 +175,7 @@ static spn_err_t write_exports(sp_mem_t mem, spn_target_unit_t* target, const sp
   }
 
   sp_io_file_writer_t writer = sp_zero;
-  if (spn_path_open_writer(&spn.roots, output, &writer)) {
+  if (sp_io_file_writer_from_path_at(&writer, spn_path_at(&spn.roots, output))) {
     // @spader I hate this error. Ultimately useless.
     return spn_err_emit(&spn, (spn_err_union_t) {
       .kind = SPN_ERR_FS_WRITE,

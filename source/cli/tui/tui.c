@@ -220,6 +220,7 @@ static sp_str_t root_label(spn_path_root_t root) {
     case SPN_PATH_ROOT_INDEX:     return sp_str_lit("$SPN_INDEX");
     case SPN_PATH_ROOT_RUNTIME:   return sp_str_lit("$SPN_RUNTIME");
     case SPN_PATH_ROOT_CACHE:     return sp_str_lit("$SPN_CACHE");
+    case SPN_PATH_ROOT_STORAGE:   return sp_str_lit("$SPN_STORAGE");
     case SPN_PATH_ROOT_NONE:
     case SPN_PATH_ROOT_COUNT:     break;
   }

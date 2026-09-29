@@ -182,12 +182,13 @@ static spn_err_t spn_git_cache_materialize_checkout(spn_git_cache_t* cache, spn_
 
     // Fill a claimed staging dir and rename into place, so a crash never
     // leaves a partial tree that later runs mistake for a finished checkout
-    sp_str_t work = sp_zero;
-    if (sp_fs_staging_dir(cache->mem, entry->path, sp_str_lit("tmp"), &work)) {
+    sp_path_t staged = sp_zero;
+    if (sp_fs_staging_dir(cache->mem, sp_path_resolve(entry->path), sp_str_lit("tmp"), &staged)) {
       entry->error = sp_fmt(cache->mem, "failed to stage checkout at {}", sp_fmt_str(entry->path)).value;
       return SPN_ERROR;
     }
 
+    sp_str_t work = staged.sub;
     if (spn_git_cache_fill_checkout(cache, entry, db, work)) {
       sp_fs_remove_dir(work);
       return SPN_ERROR;

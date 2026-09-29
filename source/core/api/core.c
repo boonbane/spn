@@ -182,33 +182,27 @@ void spn_write_file(spn_t* s, const c8* path, const c8* content) {
   }
   SPN_API_LOG(unit, "spn_write_file", "{}", SP_FMT_CSTR(path));
 
-  sp_str_buf_t buf = sp_zero;
-  sp_mem_t mem = sp_str_buf_as_mem(&buf);
-  spn_path_t joined = spn_path_join(mem, unit->paths.work, sp_str_view(path));
-  sp_str_t full_path = spn_path_str(&spn.roots, mem, joined);
-  sp_str_t parent = sp_fs_parent_path(full_path);
-  if (!sp_str_empty(parent)) {
-    sp_fs_create_dir(parent);
-  }
-
-  spn_fs_update_file_str(full_path, sp_str_view(content));
+  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+  spn_path_t joined = spn_path_join(scratch.mem, unit->paths.work, sp_str_view(path));
+  spn_fs_update_file_str(spn_path_at(&spn.roots, joined), sp_str_view(content));
+  sp_mem_end_scratch(scratch);
 }
 
 s32 spn_api_copy(sp_str_t from, sp_str_t to) {
   if (!sp_glob_parse_meta(from).literal) {
-    return spn_fs_update_glob(from, to);
+    return spn_fs_update_glob(sp_path_resolve(from), sp_path_resolve(to));
   }
   if (sp_fs_is_dir(from)) {
     sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-    sp_err_t err = sp_fs_copy_at(sp_path_at_cwd(from), sp_path_at_cwd(sp_fs_join_path(scratch.mem, to, sp_fs_get_name(from))), SP_FS_ATOMIC_REPLACE);
+    sp_err_t err = sp_fs_copy_at(sp_path_resolve(from), sp_path_resolve(sp_fs_join_path(scratch.mem, to, sp_fs_get_name(from))), SP_FS_ATOMIC_REPLACE);
     sp_mem_end_scratch(scratch);
     return err ? SPN_ERROR : SPN_OK;
   }
   if (!sp_fs_is_dir(to)) {
-    return spn_fs_update_file(from, to);
+    return spn_fs_update_file(sp_path_resolve(from), sp_path_resolve(to));
   }
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  s32 err = spn_fs_update_file(from, sp_fs_join_path(scratch.mem, to, sp_fs_get_name(from)));
+  s32 err = spn_fs_update_file(sp_path_resolve(from), sp_path_resolve(sp_fs_join_path(scratch.mem, to, sp_fs_get_name(from))));
   sp_mem_end_scratch(scratch);
   return err;
 }

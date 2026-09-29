@@ -58,11 +58,12 @@ static sp_str_t read_stamp(sp_mem_t mem, spn_ctx_t* ctx) {
 }
 
 static spn_err_t extract(spn_ctx_t* ctx, sp_mem_t mem, sp_str_t stamp) {
-  sp_str_t staging = sp_zero;
-  if (sp_fs_staging_dir(mem, ctx->paths.runtime, sp_str_lit("tmp"), &staging) != SP_OK) {
+  sp_path_t staged = sp_zero;
+  if (sp_fs_staging_dir(mem, sp_path_resolve(ctx->paths.runtime), sp_str_lit("tmp"), &staged) != SP_OK) {
     return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_FS_WRITE, .fs = { .path = { .sub = ctx->paths.runtime } } });
   }
 
+  sp_str_t staging = staged.sub;
   sp_glob_set_t* glob = sp_glob_set_new(mem);
   sp_glob_set_add(glob, "include/*");
   sp_glob_set_build(glob);
@@ -118,7 +119,7 @@ static spn_err_t extract_runtime(spn_ctx_t* ctx) {
   if (!sp_str_equal(read_stamp(scratch.mem, ctx), stamp)) {
     sp_fs_lock_t lock = sp_zero;
     sp_str_t lock_path = sp_fs_join_path(scratch.mem, ctx->paths.storage, sp_str_lit("runtime.lock"));
-    if (sp_fs_lock_acquire(&lock, lock_path) != SP_OK) {
+    if (sp_fs_lock_acquire(&lock, sp_path_resolve(lock_path)) != SP_OK) {
       result = spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_FS_WRITE, .fs = { .path = { .sub = sp_str_copy(ctx->heap, lock_path) } } });
     }
     else {
@@ -142,7 +143,8 @@ static spn_err_t open_ctx(spn_ctx_t* ctx, spn_open_request_t request) {
   else {
     ctx->paths.project = ctx->paths.cwd;
   }
-  ctx->paths.project = spn_path_roots_set(&ctx->roots, ctx->heap, SPN_PATH_ROOT_PROJECT, ctx->paths.project);
+  spn_path_roots_set(&ctx->roots, ctx->heap, SPN_PATH_ROOT_PROJECT, sp_path_resolve(ctx->paths.project));
+  ctx->paths.project = ctx->roots.dirs[SPN_PATH_ROOT_PROJECT];
 
   // Make sure any per-machine directories we need exist
   sp_str_t dirs [] = {
@@ -173,7 +175,7 @@ static spn_err_t open_ctx(spn_ctx_t* ctx, spn_open_request_t request) {
   spn_probe_cache_load(&ctx->caches.toolchains.probes, join_path(ctx, ctx->paths.toolchain, "probe.cache"), ctx->mem);
 
   spn_try(extract_runtime(ctx));
-  spn_path_roots_set(&ctx->roots, ctx->heap, SPN_PATH_ROOT_RUNTIME, ctx->paths.runtime);
+  spn_path_roots_set(&ctx->roots, ctx->heap, SPN_PATH_ROOT_RUNTIME, sp_path_resolve(ctx->paths.runtime));
 
   spn_event_buffer_push(ctx->events, (spn_event_t) {
     .kind = SPN_EVENT_OPEN,
@@ -264,7 +266,8 @@ spn_ctx_t* spn_ctx_new(spn_wake_fn_t wake, void* wake_data) {
   ctx->paths.patches = sp_env_get(ctx->env, sp_str_lit("SPN_PATCH_DIR"));
   ctx->paths.config.dir = join_path(ctx, env_or(ctx, "SPN_CONFIG_DIR", sp_fs_get_config_path(ctx->heap)), "spn");
     ctx->paths.config.toml = sp_fs_join_path(ctx->heap, ctx->paths.config.dir, sp_str_lit("spn.toml"));
-  ctx->paths.storage = spn_path_roots_init(&ctx->roots, ctx->heap, env_or(ctx, "SPN_STORAGE_DIR", join_path(ctx, sp_fs_get_storage_path(ctx->heap), "spn")));
+  spn_path_roots_set(&ctx->roots, ctx->heap, SPN_PATH_ROOT_STORAGE, sp_path_resolve(env_or(ctx, "SPN_STORAGE_DIR", join_path(ctx, sp_fs_get_storage_path(ctx->heap), "spn"))));
+  ctx->paths.storage = ctx->roots.dirs[SPN_PATH_ROOT_STORAGE];
     ctx->paths.caches.dir = join_path(ctx, ctx->paths.storage, "cache");
       ctx->paths.caches.git.dir = join_path(ctx, ctx->paths.caches.dir, "source");
         ctx->paths.caches.git.checkouts = join_path(ctx, ctx->paths.caches.git.dir, "checkouts");
@@ -274,12 +277,13 @@ spn_ctx_t* spn_ctx_new(spn_wake_fn_t wake, void* wake_data) {
     ctx->paths.runtime = join_path(ctx, ctx->paths.storage, "runtime");
       ctx->paths.version = join_path(ctx, ctx->paths.runtime, "version.stamp");
 
-  spn_path_roots_set(&ctx->roots, ctx->heap, SPN_PATH_ROOT_CACHE, ctx->paths.caches.dir);
-  spn_path_roots_set(&ctx->roots, ctx->heap, SPN_PATH_ROOT_STORE, ctx->paths.caches.store.dir);
-  spn_path_roots_set(&ctx->roots, ctx->heap, SPN_PATH_ROOT_BUILD, ctx->paths.caches.build.dir);
-  spn_path_roots_set(&ctx->roots, ctx->heap, SPN_PATH_ROOT_CHECKOUT, ctx->paths.caches.git.checkouts);
-  spn_path_roots_set(&ctx->roots, ctx->heap, SPN_PATH_ROOT_INDEX, ctx->paths.index);
-  ctx->paths.toolchain = spn_path_roots_set(&ctx->roots, ctx->heap, SPN_PATH_ROOT_TOOLCHAIN, env_or(ctx, "SPN_TOOLCHAIN_DIR", join_path(ctx, ctx->paths.caches.dir, "toolchain")));
+  spn_path_roots_set(&ctx->roots, ctx->heap, SPN_PATH_ROOT_CACHE, sp_path_resolve(ctx->paths.caches.dir));
+  spn_path_roots_set(&ctx->roots, ctx->heap, SPN_PATH_ROOT_STORE, sp_path_resolve(ctx->paths.caches.store.dir));
+  spn_path_roots_set(&ctx->roots, ctx->heap, SPN_PATH_ROOT_BUILD, sp_path_resolve(ctx->paths.caches.build.dir));
+  spn_path_roots_set(&ctx->roots, ctx->heap, SPN_PATH_ROOT_CHECKOUT, sp_path_resolve(ctx->paths.caches.git.checkouts));
+  spn_path_roots_set(&ctx->roots, ctx->heap, SPN_PATH_ROOT_INDEX, sp_path_resolve(ctx->paths.index));
+  spn_path_roots_set(&ctx->roots, ctx->heap, SPN_PATH_ROOT_TOOLCHAIN, sp_path_resolve(env_or(ctx, "SPN_TOOLCHAIN_DIR", join_path(ctx, ctx->paths.caches.dir, "toolchain"))));
+  ctx->paths.toolchain = ctx->roots.dirs[SPN_PATH_ROOT_TOOLCHAIN];
 
   spn_toolchain_catalog_init(&ctx->catalog, ctx->host, spn_sdk_detect(ctx->heap, &ctx->roots, ctx->env, ctx->host), ctx->heap);
   load_builtins(ctx);

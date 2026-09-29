@@ -11,7 +11,7 @@
 #include "str/str.h"
 #include "unit/package.h"
 
-static spn_err_t publish_copy(sp_mem_t scratch, spn_tree_roots_t trees, sp_str_t root, spn_publish_copy_t* copy, spn_dag_obs_set_t* obs) {
+static spn_err_t publish_copy(sp_mem_t scratch, spn_tree_roots_t trees, spn_path_t include, spn_publish_copy_t* copy, spn_dag_obs_set_t* obs) {
   spn_path_t pattern = spn_path_join(scratch, spn_tree_root(trees, copy->tree), copy->pattern);
   spn_dag_glob_result_t glob = sp_zero;
   spn_try(spn_dag_glob(scratch, &spn.roots, pattern, &glob));
@@ -22,26 +22,24 @@ static spn_err_t publish_copy(sp_mem_t scratch, spn_tree_roots_t trees, sp_str_t
     return SPN_ERROR;
   }
 
-  sp_str_t dir = sp_fs_join_path(scratch, root, copy->dest);
-  sp_str_buf_t buf = sp_zero;
+  spn_path_t dir = spn_path_join(scratch, include, copy->dest);
   sp_da_for(glob.matches, it) {
     spn_try(spn_fs_update_file(
-      spn_path_str(&spn.roots, sp_str_buf_as_mem(&buf), glob.matches[it].path),
-      sp_fs_join_path(scratch, dir, glob.matches[it].rel)
+      spn_path_at(&spn.roots, glob.matches[it].path),
+      spn_path_at(&spn.roots, spn_path_join(scratch, dir, glob.matches[it].rel))
     ));
   }
   return SPN_OK;
 }
 
 static spn_err_t publish_tree(sp_mem_t scratch, spn_dag_t* g, spn_pkg_unit_t* unit, spn_path_t include, spn_path_t stamp, spn_dag_obs_set_t* obs) {
-  sp_str_t root = spn_path_str(g->roots, scratch, include);
-  if (spn_pkg_unit_publish_headers(unit, root)) {
+  if (spn_pkg_unit_publish_headers(unit, include)) {
     return SPN_ERR_DAG_ACTION;
   }
 
   sp_da_for(unit->info->publish.copy, it) {
     spn_publish_copy_t* copy = &unit->info->publish.copy[it];
-    if (publish_copy(scratch, unit->paths.roots, root, copy, obs)) {
+    if (publish_copy(scratch, unit->paths.roots, include, copy, obs)) {
       spn_event_buffer_push(spn.events, (spn_event_t) {
         .kind = SPN_EVENT_NODE_FAILED,
         .pkg = unit->info->name,
@@ -54,7 +52,7 @@ static spn_err_t publish_tree(sp_mem_t scratch, spn_dag_t* g, spn_pkg_unit_t* un
     }
   }
 
-  sp_fs_create_file(spn_path_str(g->roots, scratch, stamp));
+  sp_fs_create_file_at(spn_path_at(g->roots, stamp));
   return SPN_OK;
 }
 

@@ -139,7 +139,7 @@ static sp_err_t apply(spn_install_action_t* action) {
       sp_try(sp_fs_create_dir(sp_fs_parent_path(action->path)));
       return sp_fs_write_atomic(action->path, action->text);
     }
-    case SPN_INSTALL_ACTION_APPEND_LINE: return sp_fs_append(action->path, action->text);
+    case SPN_INSTALL_ACTION_APPEND_LINE: return sp_fs_append(sp_path_resolve(action->path), action->text);
     case SPN_INSTALL_ACTION_SET_USER_PATH: return set_user_path(action);
   }
   return SP_ERR;
