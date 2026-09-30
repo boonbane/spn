@@ -45,8 +45,8 @@ typedef enum {
   ACTION_VERIFY_FILE_NOT_CONTAINS,
   ACTION_VERIFY_CC_ARG,
   ACTION_VERIFY_NO_CC_ARG,
-  ACTION_VERIFY_LOCKED,
   ACTION_VERIFY_PKG_LOCKED,
+  ACTION_VERIFY_STORE,
   ACTION_VERIFY_EVENT,
   ACTION_VERIFY_NO_EVENT,
   ACTION_VERIFY_RESULT,
@@ -71,12 +71,13 @@ typedef struct {
     struct { sp_str_t file; sp_str_t needle; } verify_file_contains;
     struct { sp_str_t file; sp_str_t needle; } verify_file_not_contains;
     const c8* verify_cc_arg [4];
-    struct { const c8* name; } verify_locked;
+    struct { const c8* name; const c8* version; } verify_locked;
+    struct { const c8* pkg; u32 count; } verify_store;
     struct { spn_event_kind_t event; const c8* key; const c8* value; } verify_event;
     struct { spn_err_t err; } verify_result;
     struct { const c8* dir; u32 count; } verify_dir_count;
     struct { spn_event_kind_t event; const c8* key; const c8* value; u32 count; } verify_event_count;
-    struct { const c8* cmd; const c8* args [8]; const c8* env [4]; const c8* path; s32 rc; } cli;
+    struct { const c8* cmd; const c8* args [8]; const c8* env [4]; const c8* path; const c8* cwd; s32 rc; } cli;
   };
 } action_t;
 
@@ -127,6 +128,11 @@ typedef struct {
 } command_cc_t;
 
 typedef struct {
+  const c8* name;
+  const c8* version;
+} command_lock_t;
+
+typedef struct {
   s32 rc;
   spn_err_t err;
   command_bin_t bin;
@@ -137,8 +143,7 @@ typedef struct {
   command_cc_t cc [SPN_TEST_COMMAND_MAX_CC];
   sp_str_t exists [SPN_TEST_COMMAND_MAX_PATHS];
   sp_str_t missing [SPN_TEST_COMMAND_MAX_PATHS];
-  bool lock;
-  const c8* packages [SPN_TEST_COMMAND_MAX_PACKAGES];
+  command_lock_t locked [SPN_TEST_COMMAND_MAX_PACKAGES];
 } command_expect_t;
 
 typedef struct {
@@ -157,7 +162,6 @@ typedef struct {
 
 typedef enum {
   REBUILD_MTIME_NONE,
-  REBUILD_MTIME_UNCHANGED,
   REBUILD_MTIME_CHANGED,
 } rebuild_mtime_t;
 
@@ -227,6 +231,7 @@ sp_str_t example_exe(const c8* name);
 sp_str_t target_exe(const c8* name, const c8* triple);
 sp_str_t pkg_store_file(const c8* pkg, const c8* rest);
 sp_str_t work_file(const c8* rest);
+sp_str_t in_dir(const c8* dir, sp_str_t path);
 sp_str_t pkg_profile_store_file(const c8* profile, const c8* pkg, const c8* rest);
 
 sp_err_t expect_exists(sp_test_t* t, fixture_t* fixture, sp_str_t path, bool expected, const c8* file, u32 line);

@@ -1,9 +1,10 @@
 #include "foo.h"
 #include "gfx.h"
 
+#if FOO_VERSION != 20
+  #error "the root must compile against foo 2.0.0"
+#endif
+
 int main() {
-  if (FOO_VERSION != 20) return 1;
-  if (foo_version() != 20) return 2;
-  if (gfx_foo_version() != 10) return 3;
-  return 0;
+  return gfx_foo_version();
 }

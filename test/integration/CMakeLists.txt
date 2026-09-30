@@ -35,6 +35,11 @@ add_executable(integration
   ${SRC}/toolchain/search.c
   ${SRC}/triple/triple.c
   ${SRC}/elf/elf.c
+  ${SRC}/lock/lock.c
+  ${SRC}/semver/compare.c
+  ${SRC}/semver/convert.c
+  ${SRC}/semver/parser.c
+  ${SRC}/../util/version/version.c
   main.c
   cli.c
   compile_commands.c
