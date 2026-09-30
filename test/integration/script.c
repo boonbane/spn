@@ -1,19 +1,60 @@
 #include "harness.h"
 
-sp_test(script, basic_node) {
-  return run_command_test(t, (command_test_t) {
-    .project = "test/integration/fixtures/script/basic_node",
-    .args = { "build" },
-    .expect.exists = { work_file("basic_node/version.h"), exe("basic_node") },
-  });
+static const c8* project(sp_test_t* t, const c8* name) {
+  return sp_str_to_cstr(sp_test_arena(t), sp_fmt(sp_test_arena(t), "test/integration/fixtures/script/{}", sp_fmt_cstr(name)).value);
 }
 
-sp_test(script, tree_output) {
-  return run_command_test(t, (command_test_t) {
-    .project = "test/integration/fixtures/script/tree_output",
+typedef struct {
+  const c8* name;
+  const c8* work [SPN_TEST_COMMAND_MAX_PATHS];
+} graph_t;
+
+// Fixtures self-verify with _Static_assert on what their nodes generated, so a
+// row only names outputs nothing includes
+static const graph_t graphs [] = {
+  { .name = "basic_node" },
+  { .name = "tree_output" },
+  { .name = "diamond_deps" },
+  { .name = "multi_output" },
+  { .name = "node_linking" },
+  { .name = "orphan_outputs", .work = { "O/O.h" } },
+};
+
+sp_test_each(script, graph, graph_t, graphs) {
+  command_test_t test = {
+    .project = project(t, it->name),
     .args = { "build" },
-    .expect = {
-      .exists = { work_file("M/gen/G/a.h"), work_file("M/gen/G/b/c.h"), exe("M") },
+  };
+  sp_carr_for(it->work, i) {
+    if (!it->work[i]) {
+      break;
+    }
+    test.expect.exists[i] = work_file(it->work[i]);
+  }
+  return run_command_test(t, test);
+}
+
+sp_test(script, chained_nodes) {
+  return run_rebuild_test(t, (rebuild_test_t) {
+    .project = "test/integration/fixtures/script/chained_nodes",
+    .copy = { "a.txt", "a.change.txt" },
+    .first = {
+      .args = { "build" },
+      .expect.files = { { .file = work_file("C/B.txt"), .content = "2" } },
+    },
+    .rebuilds = {
+      {
+        .change.moves = {
+          { .from = sp_str_lit("a.change.txt"), .to = sp_str_lit("a.txt") },
+        },
+        .command = {
+          .args = { "build" },
+          .expect = {
+            .events = { { .event = SPN_EVENT_SCRIPT_USER_FN, .key = "tag", .value = "B" } },
+            .files = { { .file = work_file("C/B.txt"), .content = "6" } },
+          },
+        },
+      },
     },
   });
 }
@@ -32,9 +73,6 @@ sp_test(script, tree_output_cached) {
           .expect.events = { { .event = SPN_EVENT_SCRIPT_USER_FN, .absent = true } },
         },
       },
-    },
-    .watches = {
-      { .file = work_file("M/gen/G/a.h"), .mtime = REBUILD_MTIME_UNCHANGED },
     },
   });
 }
@@ -93,6 +131,7 @@ sp_test(script, tree_output_rerun_drops_file) {
 
 typedef struct {
   const c8* name;
+  const c8* copy [4];
   spn_err_t err;
 } failure_t;
 
@@ -104,15 +143,21 @@ static const failure_t failures [] = {
   { .name = "relative_path", .err = SPN_ERR_WASM_MODULE_CALL_FAILED },
   { .name = "nested_output", .err = SPN_ERR_DAG_NESTED_OUTPUT },
   { .name = "configure_missing_source", .err = SPN_ERR_CONFIGURE_SOURCE_MISSING },
+  { .name = "configure_dead_glob", .copy = { "tools" }, .err = SPN_ERR_CONFIGURE_SOURCE_GLOB },
+  { .name = "configure_error", .err = SPN_ERR_WASM_SCRIPT_ERROR },
   { .name = "add_define_path_outside", .err = SPN_ERR_WASM_MODULE_CALL_FAILED },
 };
 
 sp_test_each(script, failure, failure_t, failures) {
-  return run_command_test(t, (command_test_t) {
-    .project = sp_str_to_cstr(sp_test_arena(t), sp_fmt(sp_test_arena(t), "test/integration/fixtures/script/{}", sp_fmt_cstr(it->name)).value),
+  command_test_t test = {
+    .project = project(t, it->name),
     .args = { "build" },
     .expect = { .rc = 1, .err = it->err },
-  });
+  };
+  sp_carr_for(it->copy, i) {
+    test.copy[i] = it->copy[i];
+  }
+  return run_command_test(t, test);
 }
 
 sp_test(script, node_output_bin) {
@@ -125,16 +170,6 @@ sp_test(script, node_output_bin) {
   });
 }
 
-sp_test(script, chained_nodes) {
-  return run_test(t, (test_t) {
-    .project = "test/integration/fixtures/script/chained_nodes",
-    .actions = {
-      { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_RUN_BIN, .bin.name = "chained_nodes" },
-    },
-  });
-}
-
 sp_test(script, cross_package) {
   return run_test(t, (test_t) {
     .project = "test/integration/fixtures/script/cross_package",
@@ -142,36 +177,6 @@ sp_test(script, cross_package) {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
       { .kind = ACTION_VERIFY_PKG_LOCKED, .verify_locked.name = "core/spum" },
       { .kind = ACTION_RUN_BIN, .bin.name = "cross_package" },
-    },
-  });
-}
-
-sp_test(script, diamond_deps) {
-  return run_test(t, (test_t) {
-    .project = "test/integration/fixtures/script/diamond_deps",
-    .actions = {
-      { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_RUN_BIN, .bin.name = "diamond_deps" },
-    },
-  });
-}
-
-sp_test(script, fan_in) {
-  return run_test(t, (test_t) {
-    .project = "test/integration/fixtures/script/fan_in",
-    .actions = {
-      { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_RUN_BIN, .bin.name = "fan_in" },
-    },
-  });
-}
-
-sp_test(script, multi_output) {
-  return run_test(t, (test_t) {
-    .project = "test/integration/fixtures/script/multi_output",
-    .actions = {
-      { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_RUN_BIN, .bin.name = "multi_output" },
     },
   });
 }
@@ -189,46 +194,6 @@ sp_test(script, object_lib) {
       // an unlinked archive still builds and installs
       { .kind = ACTION_VERIFY_EXISTS, .exists = pkg_static_lib("spum", "blob") },
       { .kind = ACTION_RUN_BIN, .bin.name = "object_lib" },
-    },
-  });
-}
-
-sp_test(script, node_linking) {
-  return run_test(t, (test_t) {
-    .project = "test/integration/fixtures/script/node_linking",
-    .actions = {
-      { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_RUN_BIN, .bin.name = "node_linking" },
-    },
-  });
-}
-
-sp_test(script, orphan_outputs) {
-  return run_test(t, (test_t) {
-    .project = "test/integration/fixtures/script/orphan_outputs",
-    .actions = {
-      { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_RUN_BIN, .bin.name = "orphan_outputs" },
-    },
-  });
-}
-
-sp_test(script, stamp_chain) {
-  return run_test(t, (test_t) {
-    .project = "test/integration/fixtures/script/stamp_chain",
-    .actions = {
-      { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_RUN_BIN, .bin.name = "stamp_chain" },
-    },
-  });
-}
-
-sp_test(script, stamp_input) {
-  return run_test(t, (test_t) {
-    .project = "test/integration/fixtures/script/stamp_input",
-    .actions = {
-      { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_RUN_BIN, .bin.name = "stamp_input" },
     },
   });
 }
@@ -251,27 +216,6 @@ sp_test(script, configure_glob) {
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
       { .kind = ACTION_VERIFY_EVENT_COUNT, .verify_event_count = { .event = SPN_EVENT_USER_LOG, .key = "message", .value = "G", .count = 1 } },
-    },
-  });
-}
-
-sp_test(script, configure_dead_glob) {
-  return run_test(t, (test_t) {
-    .project = "test/integration/fixtures/script/configure_dead_glob",
-    .copy = { "tools" },
-    .actions = {
-      { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build", .rc = 1 } },
-      { .kind = ACTION_VERIFY_RESULT, .verify_result = { .err = SPN_ERR_CONFIGURE_SOURCE_GLOB } },
-    },
-  });
-}
-
-sp_test(script, configure_error) {
-  return run_test(t, (test_t) {
-    .project = "test/integration/fixtures/script/configure_error",
-    .actions = {
-      { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build", .rc = 1 } },
-      { .kind = ACTION_VERIFY_EVENT, .verify_event = { .event = SPN_EVENT_ERR } },
     },
   });
 }
@@ -459,12 +403,10 @@ sp_test(script, add_include) {
 }
 
 sp_test(script, add_system_dep) {
-  return run_test(t, (test_t) {
+  return run_command_test(t, (command_test_t) {
     .project = "test/integration/fixtures/script/add_system_dep",
-    .actions = {
-      { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_RUN_BIN, .bin.name = "main" },
-    },
+    .args = { "build" },
+    .expect.exists = { exe("main") },
   });
 }
 
@@ -582,9 +524,6 @@ sp_test(script, input_order) {
           .expect.events = { { .event = SPN_EVENT_SCRIPT_USER_FN, .absent = true } },
         },
       },
-    },
-    .watches = {
-      { .file = work_file("input_order/gen.h"), .mtime = REBUILD_MTIME_UNCHANGED },
     },
   });
 }

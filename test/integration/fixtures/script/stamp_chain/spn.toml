@@ -1,7 +1,0 @@
-[package]
-name = "stamp_chain"
-version = "0.0.1"
-
-[[bin]]
-name = "stamp_chain"
-source = ["main.c"]

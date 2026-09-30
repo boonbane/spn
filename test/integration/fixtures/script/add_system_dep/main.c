@@ -4,12 +4,10 @@
 #endif
 
 int main(void) {
-  volatile double x = sqrt(2.0);
-  (void)x;
+  volatile double x = 1.0;
 #ifdef _WIN32
-  if (GetSystemMetrics(SM_CXSCREEN) < 0) {
-    return 1;
-  }
+  return GetSystemMetrics(SM_CXSCREEN) < 0;
+#else
+  return sin(x) > 2.0;
 #endif
-  return 0;
 }
