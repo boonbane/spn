@@ -6,8 +6,7 @@ sp_test(deps_file, basic) {
     .copy = { "packages/*" },
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { "build", .args = { "--force" } } },
-      { .kind = ACTION_VERIFY_LOCKED },
-      { .kind = ACTION_VERIFY_PKG_LOCKED, .verify_locked = { .name = "core/spum" } },
+      { .kind = ACTION_VERIFY_PKG_LOCKED, .verify_locked = { .name = "core/spum", .version = "1.0.0" } },
     },
   });
 }
@@ -52,8 +51,7 @@ sp_test(deps_file, remote_source) {
     .copy = { "vendor/spum/spn.toml" },
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { "build" } },
-      { .kind = ACTION_VERIFY_LOCKED },
-      { .kind = ACTION_VERIFY_PKG_LOCKED, .verify_locked = { .name = "core/spum" } },
+      { .kind = ACTION_VERIFY_PKG_LOCKED, .verify_locked = { .name = "core/spum", .version = "1.0.0" } },
       { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
     },
   });
@@ -81,8 +79,7 @@ sp_test(deps_file, editable) {
           .args = { "build" },
           .expect = {
             .exists = { exe("editable_package") },
-            .lock = true,
-            .packages = { "core/spum" },
+            .locked = { { .name = "core/spum", .version = "1.0.0" } },
           },
         },
       },
@@ -96,8 +93,7 @@ sp_test(deps_index, basic) {
     .first = {
       .args = { "build" },
       .expect = {
-        .lock = true,
-        .packages = { "core/spum" },
+        .locked = { { .name = "core/spum", .version = "1.0.0" } },
       },
     },
     .rebuilds = {
@@ -106,8 +102,7 @@ sp_test(deps_index, basic) {
         .command = {
           .args = { "build" },
           .expect = {
-            .lock = true,
-            .packages = { "core/spum" },
+            .locked = { { .name = "core/spum", .version = "1.0.0" } },
           },
         },
       },
@@ -141,8 +136,7 @@ sp_test(deps_index, without_source) {
     .project = "test/integration/fixtures/deps/index/without_source",
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { "build" } },
-      { .kind = ACTION_VERIFY_LOCKED },
-      { .kind = ACTION_VERIFY_PKG_LOCKED, .verify_locked = { .name = "core/spum" } },
+      { .kind = ACTION_VERIFY_PKG_LOCKED, .verify_locked = { .name = "core/spum", .version = "1.0.0" } },
       { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
     },
   });
@@ -153,8 +147,7 @@ sp_test(deps_index, binary_static) {
     .project = "test/integration/fixtures/deps/index/binary_static",
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { "build" } },
-      { .kind = ACTION_VERIFY_LOCKED },
-      { .kind = ACTION_VERIFY_PKG_LOCKED, .verify_locked = { .name = "core/spum" } },
+      { .kind = ACTION_VERIFY_PKG_LOCKED, .verify_locked = { .name = "core/spum", .version = "1.0.0" } },
       { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
     },
   });
@@ -165,8 +158,7 @@ sp_test(deps_index, binary_shared) {
     .project = "test/integration/fixtures/deps/index/binary_shared",
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { "build" } },
-      { .kind = ACTION_VERIFY_LOCKED },
-      { .kind = ACTION_VERIFY_PKG_LOCKED, .verify_locked = { .name = "core/spum" } },
+      { .kind = ACTION_VERIFY_PKG_LOCKED, .verify_locked = { .name = "core/spum", .version = "1.0.0" } },
       { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
     },
   });
@@ -177,7 +169,7 @@ sp_test(deps_index, split_recipe) {
     .project = "test/integration/fixtures/deps/index/split_recipe",
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { "build" } },
-      { .kind = ACTION_VERIFY_PKG_LOCKED, .verify_locked = { .name = "core/spum" } },
+      { .kind = ACTION_VERIFY_PKG_LOCKED, .verify_locked = { .name = "core/spum", .version = "1.0.0" } },
       { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
     },
   });

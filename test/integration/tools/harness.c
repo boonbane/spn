@@ -2,6 +2,8 @@
 #include "elf/elf.h"
 #include "probe.gen.h"
 #include "error/error.h"
+#include "lock/lock.h"
+#include "semver/convert.h"
 #include "triple/triple.h"
 #include "yyjson.h"
 
@@ -110,6 +112,10 @@ sp_str_t pkg_store_file(const c8* pkg, const c8* rest) {
 
 sp_str_t work_file(const c8* rest) {
   return layout_path(SP_NULLPTR, "debug", layout_sub(".spn", rest));
+}
+
+sp_str_t in_dir(const c8* dir, sp_str_t path) {
+  return sp_fs_join_path(harness_mem(), sp_str_view(dir), path);
 }
 
 static sp_str_t display_path(fixture_t* fixture, sp_str_t path) {
@@ -532,23 +538,50 @@ static void expect_command_file(sp_test_t* t, fixture_t* fixture, command_file_t
   }
 }
 
-static void expect_command_lock(sp_test_t* t, fixture_t* fixture, command_expect_t expected) {
+static sp_err_t expect_locked(sp_test_t* t, fixture_t* fixture, spn_lock_file_t* lock, const c8* name, const c8* version, const c8* file, u32 line) {
+  sp_str_t key = sp_str_view(name);
+  spn_lock_entry_t* entry = sp_ht_getp(lock->entries, key);
+  sp_test_kv(t, "package", key);
+  if (!entry) {
+    sp_test_record(t, (sp_test_failure_t) {
+      .file = sp_cstr_as_str(file),
+      .line = line,
+      .expected = sp_cstr_as_str("package locked"),
+      .actual = sp_cstr_as_str("it is not"),
+    });
+    return SP_ERR;
+  }
+  if (version) {
+    sp_str_t actual = spn_semver_to_str(fixture->mem, entry->version);
+    sp_test_kv(t, "version", actual);
+    sp_expect(t, sp_str_equal_cstr(actual, version));
+  }
+  return SP_OK;
+}
+
+static spn_lock_file_t load_lock(sp_test_t* t, fixture_t* fixture) {
   sp_str_t path = fixture_path(fixture, sp_str_lit("spn.lock"));
   expect_path(t, fixture, path);
-  sp_str_t lock = test_read_file(fixture->mem, path);
-  if (expected.lock) {
-    sp_test_kv(t, "lock", lock);
-    sp_expect(t, sp_str_contains(lock, sp_str_lit("[[dep]]")));
+  spn_lock_file_t lock = sp_zero;
+  spn_lock_file_init(fixture->mem, &lock);
+  if (sp_fs_exists(path)) {
+    lock = spn_lock_file_load(fixture->mem, path, SP_NULLPTR);
   }
-  sp_carr_for(expected.packages, it) {
-    if (!expected.packages[it]) {
+  return lock;
+}
+
+// The lock holds exactly the expected packages
+static void expect_command_lock(sp_test_t* t, fixture_t* fixture, command_expect_t expected) {
+  spn_lock_file_t lock = load_lock(t, fixture);
+  u32 num = 0;
+  sp_carr_for(expected.locked, it) {
+    if (!expected.locked[it].name) {
       break;
     }
-    sp_str_t needle = sp_fmt(fixture->mem, "name = \"{}\"", sp_fmt_cstr(expected.packages[it])).value;
-    sp_test_kv(t, "needle", needle);
-    sp_test_kv(t, "lock", lock);
-    sp_expect(t, sp_str_contains(lock, needle));
+    num++;
+    expect_locked(t, fixture, &lock, expected.locked[it].name, expected.locked[it].version, __FILE__, __LINE__);
   }
+  sp_expect_eq(t, num, (u32)sp_ht_size(lock.entries));
 }
 
 sp_err_t test_when(sp_test_t* t, test_when_t when) {
@@ -633,7 +666,7 @@ sp_err_t run_command(sp_test_t* t, fixture_t* fixture, command_test_t test) {
     expect_no_path(t, fixture, path);
   }
 
-  if (test.expect.lock || test.expect.packages[0]) {
+  if (test.expect.locked[0].name) {
     expect_command_lock(t, fixture, test.expect);
   }
 
@@ -863,8 +896,10 @@ sp_err_t run_actions(sp_test_t* t, fixture_t* fixture, const action_t* actions) 
           args[it + 1] = action.cli.args[it];
         }
         fixture->path = action.cli.path;
+        fixture->cwd = action.cli.cwd;
         sp_ps_output_t output = run_spn_json(t, fixture, args, action.cli.env);
         fixture->path = SP_NULLPTR;
+        fixture->cwd = SP_NULLPTR;
         sp_expect_eq(t, action.cli.rc, output.status.exit_code);
         break;
       }
@@ -888,24 +923,23 @@ sp_err_t run_actions(sp_test_t* t, fixture_t* fixture, const action_t* actions) 
         sp_expect_eq(t, action.verify_event_count.count, count);
         break;
       }
-      case ACTION_VERIFY_LOCKED: {
-        sp_str_t path = fixture_path(fixture, sp_str_lit("spn.lock"));
-        expect_path(t, fixture, path);
-
-        sp_str_t lock = test_read_file(mem, path);
-        sp_test_kv(t, "lock", lock);
-        sp_expect(t, sp_str_contains(lock, sp_str_lit("[[dep]]")));
+      case ACTION_VERIFY_PKG_LOCKED: {
+        spn_lock_file_t lock = load_lock(t, fixture);
+        expect_locked(t, fixture, &lock, action.verify_locked.name, action.verify_locked.version, __FILE__, __LINE__);
         break;
       }
-      case ACTION_VERIFY_PKG_LOCKED: {
-        sp_str_t path = fixture_path(fixture, sp_str_lit("spn.lock"));
-        expect_path(t, fixture, path);
-
-        sp_str_t lock = test_read_file(mem, path);
-        sp_str_t needle = sp_fmt(mem, "name = \"{}\"", sp_fmt_cstr(action.verify_locked.name)).value;
-        sp_test_kv(t, "needle", needle);
-        sp_test_kv(t, "lock", lock);
-        sp_expect(t, sp_str_contains(lock, needle));
+      case ACTION_VERIFY_STORE: {
+        sp_str_t path = sp_fs_join_path(mem, fixture->paths.storage, sp_fmt(mem, "cache/store/{}", sp_fmt_cstr(action.verify_store.pkg)).value);
+        sp_da(sp_fs_entry_t) entries = sp_zero;
+        sp_fs_collect(mem, path, &entries);
+        u32 dirs = 0;
+        sp_da_for(entries, et) {
+          if (entries[et].kind == SP_FS_KIND_DIR) {
+            dirs++;
+          }
+        }
+        sp_test_kv(t, "path", path);
+        sp_expect_eq(t, action.verify_store.count, dirs);
         break;
       }
     }

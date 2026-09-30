@@ -452,7 +452,7 @@ static sp_ps_output_t run_spn_ex(sp_test_t* t, fixture_t* fixture, const c8* for
   sp_mem_t mem = fixture->mem;
   sp_ps_config_t config = {
     .command = fixture->paths.spn,
-    .cwd = fixture->root,
+    .cwd = fixture->cwd ? fixture_path(fixture, sp_cstr_as_str(fixture->cwd)) : fixture->root,
     .io = {
       .in.mode = SP_PS_IO_MODE_NULL,
       .err.mode = SP_PS_IO_MODE_CREATE,

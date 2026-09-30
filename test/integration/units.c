@@ -1,20 +1,18 @@
 #include "harness.h"
 
 sp_test(units, build_dep_conflict) {
-  return run_test(t, (test_t) {
+  return run_command_test(t, (command_test_t) {
     .project = "test/integration/fixtures/units/build_dep_conflict",
-    .actions = {
-      { .kind = ACTION_RUN_CLI, .cli = { "build" } },
-    },
+    .args = { "build" },
+    .expect.exists = { exe("main") },
   });
 }
 
 sp_test(units, build_dep_transitive_conflict) {
-  return run_test(t, (test_t) {
+  return run_command_test(t, (command_test_t) {
     .project = "test/integration/fixtures/units/build_dep_transitive_conflict",
-    .actions = {
-      { .kind = ACTION_RUN_CLI, .cli = { "build" } },
-    },
+    .args = { "build" },
+    .expect.exists = { exe("main") },
   });
 }
 
@@ -29,11 +27,10 @@ sp_test(units, shared_conflict) {
 }
 
 sp_test(units, shared_private) {
-  return run_test(t, (test_t) {
+  return run_command_test(t, (command_test_t) {
     .project = "test/integration/fixtures/units/shared_private",
-    .actions = {
-      { .kind = ACTION_RUN_CLI, .cli = { "build" } },
-    },
+    .args = { "build" },
+    .expect.exists = { exe("main") },
   });
 }
 
