@@ -20,10 +20,12 @@ static const test_t tests [] = {
   { "local_absolute",              SPN_TOOLCHAIN_SOURCE_LOCAL,        SPN_PATH_ROOT_NONE,    "/A/B", .expect = { .arg = { .path = "/A/B" } } },
   { "local_relative_under_base",   SPN_TOOLCHAIN_SOURCE_LOCAL,        SPN_PATH_ROOT_PROJECT, "A/B",  .expect = { .arg = { .path = "A/B", .root = SPN_PATH_ROOT_PROJECT } } },
   { "local_relative_without_base", SPN_TOOLCHAIN_SOURCE_LOCAL,        SPN_PATH_ROOT_NONE,    "A/B",  .expect = { .check = SPN_PATH_UNROOTED } },
-  { "distribution_name",           SPN_TOOLCHAIN_SOURCE_DISTRIBUTION, SPN_PATH_ROOT_NONE,    "A",    .expect = { .arg = { .path = "A" } } },
-  { "distribution_relative",       SPN_TOOLCHAIN_SOURCE_DISTRIBUTION, SPN_PATH_ROOT_NONE,    "A/B",  .expect = { .arg = { .path = "A/B" } } },
+  { "distribution_name",           SPN_TOOLCHAIN_SOURCE_DISTRIBUTION, SPN_PATH_ROOT_NONE,    "A",    .expect = { .arg = { .name = "A" } } },
+  { "distribution_relative",       SPN_TOOLCHAIN_SOURCE_DISTRIBUTION, SPN_PATH_ROOT_NONE,    "A/B",  .expect = { .arg = { .name = "A/B" } } },
+  { "distribution_relative_ignores_base", SPN_TOOLCHAIN_SOURCE_DISTRIBUTION, SPN_PATH_ROOT_PROJECT, "A/B", .expect = { .arg = { .name = "A/B" } } },
   { "distribution_absolute",       SPN_TOOLCHAIN_SOURCE_DISTRIBUTION, SPN_PATH_ROOT_NONE,    "/A",   .expect = { .check = SPN_PATH_ABSOLUTE } },
-  { "detected_name",               SPN_TOOLCHAIN_SOURCE_DETECTED,     SPN_PATH_ROOT_NONE,    "A",    .expect = { .arg = { .path = "A" } } },
+  { "distribution_malformed",      SPN_TOOLCHAIN_SOURCE_DISTRIBUTION, SPN_PATH_ROOT_NONE,    "A/../B", .expect = { .check = SPN_PATH_MALFORMED } },
+  { "detected_name",               SPN_TOOLCHAIN_SOURCE_DETECTED,     SPN_PATH_ROOT_NONE,    "A",    .expect = { .arg = { .name = "A" } } },
 };
 
 sp_test_each(program, classify, test_t, tests) {

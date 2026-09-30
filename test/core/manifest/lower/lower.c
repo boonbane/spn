@@ -95,7 +95,7 @@ typedef struct {
 
 typedef struct {
   spn_triple_t triple;
-  test_path_t sdk;
+  test_arg_t sdk;
   spn_sanitizer_set_t sanitizers;
 } toolchain_target_t;
 
@@ -586,8 +586,8 @@ static const test_t tests [] = {
     .toolchains = {
       {
         .name = "T",
-        .compiler = { .path = "bin/cc" },
-        .archiver = { .path = "bin/ar" },
+        .compiler = { .name = "bin/cc" },
+        .archiver = { .name = "bin/ar" },
         .driver = SPN_CC_DRIVER_GCC,
         .url = "https://tc",
         .sha256 = "deadbeef",
@@ -603,12 +603,12 @@ static const test_t tests [] = {
         .compiler = { .name = "cc" },
         .archiver = { .name = "ar" },
         .driver = SPN_CC_DRIVER_GCC,
-        .targets = { { .triple = { SPN_ARCH_ARM64, SPN_OS_LINUX, SPN_ABI_GNU }, .sdk = { "S", SPN_PATH_ROOT_PROJECT } } },
+        .targets = { { .triple = { SPN_ARCH_ARM64, SPN_OS_LINUX, SPN_ABI_GNU }, .sdk = { .path = "S", .root = SPN_PATH_ROOT_PROJECT } } },
       },
       {
         .name = "D",
-        .compiler = { .path = "cc" },
-        .archiver = { .path = "ar" },
+        .compiler = { .name = "cc" },
+        .archiver = { .name = "ar" },
         .driver = SPN_CC_DRIVER_CLANG,
         .url = "https://tc",
         .sha256 = "deadbeef",
@@ -628,7 +628,7 @@ static const test_t tests [] = {
         .compiler = { .name = "clang" },
         .archiver = { .name = "ar" },
         .driver = SPN_CC_DRIVER_CLANG,
-        .targets = { { .triple = { SPN_ARCH_X64, SPN_OS_FREESTANDING, SPN_ABI_ELF }, .sdk = { "/S" } } },
+        .targets = { { .triple = { SPN_ARCH_X64, SPN_OS_FREESTANDING, SPN_ABI_ELF }, .sdk = { .path = "/S" } } },
       },
     },
   },
@@ -931,9 +931,9 @@ static const test_t tests [] = {
         .url = "https://tc",
         .sha256 = "deadbeef",
         .mirrors = "https://mirrors",
-        .compiler = { .path = "zig" },
+        .compiler = { .name = "zig" },
         .args = { "cc", "-target", "x86_64-linux-gnu" },
-        .archiver = { .path = "ar" },
+        .archiver = { .name = "ar" },
         .driver = SPN_CC_DRIVER_CLANG,
         .lld = true,
         .targets = { { SPN_ARCH_ARM64, SPN_OS_MACOS, SPN_ABI_APPLE } },
@@ -1767,7 +1767,8 @@ sp_test_each(lower, cases, test_t, tests) {
       sp_must(t, r < sp_da_size(tc->targets));
       sp_expect(t, spn_triple_equal(target.triple, tc->targets[r].triple));
       sp_expect_eq(t, target.sanitizers, tc->targets[r].sanitizers);
-      if (test_check_path(t, tc->targets[r].sdk, target.sdk)) return SP_ERR;
+      if (!target.sdk.name && !target.sdk.path) sp_expect(t, spn_arg_empty(tc->targets[r].sdk));
+      if (test_check_arg(t, tc->targets[r].sdk, target.sdk)) return SP_ERR;
     }
 
     sp_carr_for(expected.hosts, r) {

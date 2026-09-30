@@ -110,7 +110,6 @@ add_executable(core
   toolchain/driver.c
   toolchain/linker.c
   toolchain/parse.c
-  toolchain/path.c
   toolchain/probe.c
   toolchain/program.c
   toolchain/provision.c
@@ -119,6 +118,7 @@ add_executable(core
   toolchain/sdk_hash.c
   toolchain/sdk_libc.c
   toolchain/sdk_msvc.c
+  toolchain/sdk_path.c
   toolchain/sdk_root.c
   toolchain/sdk_serve.c
   toolchain/sdk_wasi.c
@@ -274,7 +274,6 @@ set_source_files_properties(
   toolchain/driver.c
   toolchain/linker.c
   toolchain/parse.c
-  toolchain/path.c
   toolchain/probe.c
   toolchain/program.c
   toolchain/sdk.c
@@ -282,6 +281,7 @@ set_source_files_properties(
   toolchain/sdk_hash.c
   toolchain/sdk_libc.c
   toolchain/sdk_msvc.c
+  toolchain/sdk_path.c
   toolchain/sdk_root.c
   toolchain/sdk_serve.c
   toolchain/sdk_wasi.c

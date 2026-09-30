@@ -8,7 +8,8 @@ spn_path_t spn_toolchain_artifact_root(spn_artifact_t artifact) {
 }
 
 spn_toolchain_launcher_t spn_toolchain_launcher_with_root(sp_mem_t mem, spn_toolchain_launcher_t launcher, spn_path_t root) {
-  sp_str_t name = launcher.program.path.sub;
+  sp_assert(spn_path_empty(launcher.program.path));
+  sp_str_t name = launcher.program.prefix;
 #if defined(SP_WIN32)
   name = sp_fmt(mem, "{}.exe", sp_fmt_str(name)).value;
 #endif
@@ -18,78 +19,57 @@ spn_toolchain_launcher_t spn_toolchain_launcher_with_root(sp_mem_t mem, spn_tool
   return result;
 }
 
-static bool pathless(sp_str_t program) {
-  sp_for(it, program.len) {
-    if (sp_fs_is_sep(program.data[it])) {
-      return false;
-    }
+static spn_path_check_t local_arg(spn_path_root_t base, sp_str_t str, spn_arg_t* arg) {
+  if (sp_fs_is_absolute(str)) {
+    *arg = spn_arg_path((spn_path_t) { .sub = str });
+    return SPN_PATH_OK;
   }
-  return true;
+  if (base == SPN_PATH_ROOT_NONE) {
+    return SPN_PATH_UNROOTED;
+  }
+  *arg = spn_arg_path((spn_path_t) { .root = base, .sub = str });
+  return SPN_PATH_OK;
 }
 
-static bool searched(spn_toolchain_source_t source, sp_str_t program) {
-  switch (source) {
-    case SPN_TOOLCHAIN_SOURCE_LOCAL: return pathless(program);
-    case SPN_TOOLCHAIN_SOURCE_DISTRIBUTION:
-    case SPN_TOOLCHAIN_SOURCE_DETECTED: return false;
-  }
-  SP_UNREACHABLE_RETURN(false);
-}
-
-spn_path_check_t spn_toolchain_path(spn_toolchain_source_t source, spn_path_root_t base, sp_str_t str, spn_path_t* path) {
+spn_path_check_t spn_toolchain_sdk_path(spn_toolchain_source_t source, spn_path_root_t base, sp_str_t str, spn_arg_t* sdk) {
   if (!spn_path_normal(str)) {
     return SPN_PATH_MALFORMED;
   }
-
-  bool absolute = sp_fs_is_absolute(str);
   switch (source) {
+    case SPN_TOOLCHAIN_SOURCE_LOCAL: {
+      return local_arg(base, str, sdk);
+    }
     case SPN_TOOLCHAIN_SOURCE_DISTRIBUTION:
     case SPN_TOOLCHAIN_SOURCE_DETECTED: {
-      if (absolute) {
-        return SPN_PATH_ABSOLUTE;
-      }
-      *path = (spn_path_t) { .sub = str };
-      return SPN_PATH_OK;
-    }
-    case SPN_TOOLCHAIN_SOURCE_LOCAL: {
-      if (absolute) {
-        *path = (spn_path_t) { .sub = str };
-        return SPN_PATH_OK;
-      }
-      if (base == SPN_PATH_ROOT_NONE) {
-        return SPN_PATH_UNROOTED;
-      }
-      *path = (spn_path_t) { .root = base, .sub = str };
+      *sdk = sp_fs_is_absolute(str) ? spn_arg_path((spn_path_t) { .sub = str }) : spn_arg_lit(str);
       return SPN_PATH_OK;
     }
   }
   SP_UNREACHABLE_RETURN(SPN_PATH_MALFORMED);
 }
 
-spn_path_check_t spn_toolchain_sdk_path(spn_toolchain_source_t source, spn_path_root_t base, sp_str_t str, spn_path_t* path) {
-  if (spn_path_normal(str) && sp_fs_is_absolute(str)) {
-    *path = (spn_path_t) { .sub = str };
-    return SPN_PATH_OK;
-  }
-  return spn_toolchain_path(source, base, str, path);
-}
-
 spn_path_check_t spn_toolchain_program(spn_toolchain_source_t source, spn_path_root_t base, sp_str_t program, spn_arg_t* arg) {
   if (!spn_path_normal(program)) {
     return SPN_PATH_MALFORMED;
   }
-  if (searched(source, program)) {
-    *arg = spn_arg_lit(program);
-    return SPN_PATH_OK;
+  switch (source) {
+    case SPN_TOOLCHAIN_SOURCE_LOCAL: {
+      if (sp_fs_get_name(program).len == program.len) {
+        *arg = spn_arg_lit(program);
+        return SPN_PATH_OK;
+      }
+      return local_arg(base, program, arg);
+    }
+    case SPN_TOOLCHAIN_SOURCE_DISTRIBUTION:
+    case SPN_TOOLCHAIN_SOURCE_DETECTED: {
+      if (sp_fs_is_absolute(program)) {
+        return SPN_PATH_ABSOLUTE;
+      }
+      *arg = spn_arg_lit(program);
+      return SPN_PATH_OK;
+    }
   }
-
-  spn_path_t path = sp_zero;
-  spn_path_check_t check = spn_toolchain_path(source, base, program, &path);
-  if (check != SPN_PATH_OK) {
-    return check;
-  }
-  *arg = spn_arg_path(path);
-  return SPN_PATH_OK;
+  SP_UNREACHABLE_RETURN(SPN_PATH_MALFORMED);
 }
 
 spn_wasi_spelling_t spn_toolchain_wasi_spelling(const spn_path_roots_t* roots, sp_mem_t mem, const spn_toolchain_info_t* toolchain) {

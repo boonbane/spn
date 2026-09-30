@@ -104,7 +104,7 @@ typedef struct {
 
 typedef struct {
   spn_triple_t triple;
-  spn_path_t sdk;
+  spn_arg_t sdk;
   spn_sanitizer_set_t sanitizers;
 } spn_toolchain_target_t;
 

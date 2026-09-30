@@ -15,7 +15,7 @@ typedef struct {
 static const launcher_test_t tests [] = {
   {
     .name = "root_prefixes_program",
-    .launcher = { .path = "B/A", .args = { "C" } },
+    .launcher = { .name = "B/A", .args = { "C" } },
     .root = "/R",
     .expect = { .program = "/R/B/A", .program_win = "/R/B/A.exe" },
   },

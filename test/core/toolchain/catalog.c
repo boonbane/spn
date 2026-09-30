@@ -194,7 +194,7 @@ static const bind_test_t bind_tests [] = {
     .driver = SPN_CC_DRIVER_GCC,
     .host = HOST_ARM_MACOS,
     .sdks = { .macos = { "/H" } },
-    .targets = { { HOST_ARM_MACOS, { "/E" } } },
+    .targets = { { HOST_ARM_MACOS, { .path = "/E" } } },
     .expect = { .rows = { { HOST_ARM_MACOS, { SPN_SDK_MACOS, { "/E" } } } } },
   },
   {
@@ -307,7 +307,7 @@ static const bind_test_t bind_tests [] = {
     .driver = SPN_CC_DRIVER_GCC,
     .host_row = true,
     .host = HOST_X64_LINUX,
-    .targets = { { HOST_X64_LINUX, { "/S" } } },
+    .targets = { { HOST_X64_LINUX, { .path = "/S" } } },
     .expect = { .rows = { { HOST_X64_LINUX, { SPN_SDK_SYSROOT, { "/S" } } }, { TARGET_X64_BARE }, { TARGET_X64_LINUX_NONE } } },
   },
   {
