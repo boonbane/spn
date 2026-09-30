@@ -141,6 +141,8 @@ static const failure_t failures [] = {
   { .name = "node_output_include", .err = SPN_ERR_WASM_MODULE_CALL_FAILED },
   { .name = "node_output_unnamed", .err = SPN_ERR_WASM_MODULE_CALL_FAILED },
   { .name = "relative_path", .err = SPN_ERR_WASM_MODULE_CALL_FAILED },
+  { .name = "foreign_path", .err = SPN_ERR_WASM_MODULE_CALL_FAILED },
+  { .name = "node_output_absolute", .err = SPN_ERR_WASM_MODULE_CALL_FAILED },
   { .name = "nested_output", .err = SPN_ERR_DAG_NESTED_OUTPUT },
   { .name = "configure_missing_source", .err = SPN_ERR_CONFIGURE_SOURCE_MISSING },
   { .name = "configure_dead_glob", .copy = { "tools" }, .err = SPN_ERR_CONFIGURE_SOURCE_GLOB },

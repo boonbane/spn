@@ -55,28 +55,63 @@ sp_str_t spn_api_dir(spn_pkg_unit_t* unit, spn_dir_t dir) {
   return spn_path_str(&spn.roots, spn.mem, spn_api_dir_path(unit, dir));
 }
 
-bool spn_api_path_rejected(spn_pkg_unit_t* unit, const c8* fn, sp_str_t path) {
-  if (spn_path_normal(path)) {
-    return false;
+static void reject(spn_pkg_unit_t* unit, const c8* fn, sp_str_t path, spn_err_t kind) {
+  sp_str_t reason = sp_zero;
+  switch (kind) {
+    case SPN_ERR_PATH_COMPONENT: reason = sp_str_lit("must not contain '.', '..', or empty components"); break;
+    case SPN_ERR_PATH_ABSOLUTE:  reason = sp_str_lit("must be relative"); break;
+    case SPN_ERR_PATH_FOREIGN:   reason = sp_str_lit("is outside every directory spn manages"); break;
+    default: sp_unreachable_case();
   }
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  sp_str_t message = sp_fmt(scratch.mem, "{}: {} must not contain '.', '..', or empty components", SP_FMT_CSTR(fn), SP_FMT_STR(path)).value;
+  sp_str_t message = sp_fmt(scratch.mem, "{}: {} {}", SP_FMT_CSTR(fn), SP_FMT_STR(path), SP_FMT_STR(reason)).value;
   if (!spn_wasm_trap_active(unit, message)) {
     spn_err_emit(unit->session->ctx, (spn_err_union_t) {
-      .kind = SPN_ERR_PATH_COMPONENT,
+      .kind = kind,
       .fs = { .path = { .sub = sp_str_copy(spn.mem, path) } },
     });
   }
   sp_mem_end_scratch(scratch);
+}
+
+bool spn_api_path_rejected(spn_pkg_unit_t* unit, const c8* fn, sp_str_t path) {
+  if (!spn_path_normal(path)) {
+    reject(unit, fn, path, SPN_ERR_PATH_COMPONENT);
+    return true;
+  }
+  if (sp_fs_is_absolute(path)) {
+    reject(unit, fn, path, SPN_ERR_PATH_ABSOLUTE);
+    return true;
+  }
+  return false;
+}
+
+static bool foreign(spn_pkg_unit_t* unit, spn_path_t path) {
+  if (path.root != SPN_PATH_ROOT_NONE || spn_tree_rel(unit->paths.roots, path).tree != SPN_TREE_NONE) {
+    return false;
+  }
+  sp_da_for(unit->info->deps, it) {
+    spn_requested_dep_t* dep = &unit->info->deps[it];
+    spn_pkg_unit_t* dep_unit = spn_session_find_dep(unit->session, unit, dep->qualified, dep->kind);
+    if (dep_unit && spn_tree_rel(dep_unit->paths.roots, path).tree != SPN_TREE_NONE) {
+      return false;
+    }
+  }
   return true;
 }
 
 spn_path_t spn_api_tree_path(spn_pkg_unit_t* unit, const c8* fn, const c8* path) {
   sp_str_t str = sp_str_view(path);
-  if (spn_api_path_rejected(unit, fn, str)) {
+  if (!spn_path_normal(str)) {
+    reject(unit, fn, str, SPN_ERR_PATH_COMPONENT);
     return sp_zero_struct(spn_path_t);
   }
-  return spn_tree_path(spn.mem, &spn.roots, unit->paths.roots, SPN_TREE_SOURCE, str);
+  spn_path_t tree = spn_tree_path(spn.mem, &spn.roots, unit->paths.roots, SPN_TREE_SOURCE, str);
+  if (sp_fs_is_absolute(str) && foreign(unit, tree)) {
+    reject(unit, fn, str, SPN_ERR_PATH_FOREIGN);
+    return sp_zero_struct(spn_path_t);
+  }
+  return tree;
 }
 
 static spn_path_t api_path(spn_pkg_unit_t* unit, const c8* fn, const c8* path) {

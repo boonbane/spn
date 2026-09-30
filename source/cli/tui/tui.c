@@ -159,7 +159,7 @@ static void write_issue(sp_tty_t* w, const spn_err_issue_t* issue) {
       sp_tty_fmt(w, "Relative path {.red} at {.cyan} has no base directory; use an absolute path", SP_FMT_STR(issue->detail), SP_FMT_STR(field));
       break;
     case SPN_ERR_CODEGEN_ABSOLUTE:
-      sp_tty_fmt(w, "Path {.red} at {.cyan} must be relative to the downloaded toolchain", SP_FMT_STR(issue->detail), SP_FMT_STR(field));
+      sp_tty_fmt(w, "Path {.red} at {.cyan} must be relative", SP_FMT_STR(issue->detail), SP_FMT_STR(field));
       break;
     default:
       sp_unreachable_case();
@@ -982,6 +982,22 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           sp_tty_fmt(
             &w,
             "Path {.yellow} must not contain '.', '..', or empty components",
+            sp_fmt_str(contextual_path(mem, event->err.fs.path))
+          );
+          break;
+        }
+        case SPN_ERR_PATH_ABSOLUTE: {
+          sp_tty_fmt(
+            &w,
+            "Path {.yellow} must be relative",
+            sp_fmt_str(contextual_path(mem, event->err.fs.path))
+          );
+          break;
+        }
+        case SPN_ERR_PATH_FOREIGN: {
+          sp_tty_fmt(
+            &w,
+            "Path {.yellow} is outside every directory spn manages",
             sp_fmt_str(contextual_path(mem, event->err.fs.path))
           );
           break;

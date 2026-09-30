@@ -55,16 +55,12 @@ void spn_node_add_input(spn_node_t* node, const c8* input) {
 typedef enum {
   OUTPUT_OK,
   OUTPUT_UNNAMED,
-  OUTPUT_ABSOLUTE,
   OUTPUT_ROOT,
 } output_problem_t;
 
 static output_problem_t output_problem(spn_dir_t dir, sp_str_t sub) {
   if (sp_str_empty(sub)) {
     return OUTPUT_UNNAMED;
-  }
-  if (sp_fs_is_absolute(sub)) {
-    return OUTPUT_ABSOLUTE;
   }
   switch (dir) {
     case SPN_DIR_VENDOR:
@@ -86,7 +82,6 @@ static sp_str_t output_problem_str(output_problem_t problem) {
   switch (problem) {
     case OUTPUT_OK:       return sp_str_lit("");
     case OUTPUT_UNNAMED:  return sp_str_lit("must name a path under its root");
-    case OUTPUT_ABSOLUTE: return sp_str_lit("must be relative to its root");
     case OUTPUT_ROOT:     return sp_str_lit("must be rooted at vendor, lib, bin, or work");
   }
   SP_UNREACHABLE_RETURN(sp_str_lit(""));

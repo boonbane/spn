@@ -1,0 +1,7 @@
+[package]
+name = "node_output_absolute"
+version = "0.0.1"
+
+[[bin]]
+name = "node_output_absolute"
+source = ["main.c"]

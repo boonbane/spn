@@ -55,11 +55,15 @@ static spn_cxx_options_t lower_cxx_options(const spn_cg_cxx_options_t* cg) {
 }
 
 static bool lower_path_ok(spn_toml_loader_t* ctx, sp_str_t path) {
-  if (!sp_str_empty(path) && spn_path_normal(path)) {
-    return true;
+  if (sp_str_empty(path) || !spn_path_normal(path)) {
+    spn_toml_loader_issue_at(ctx, SPN_ERR_CODEGEN_PATH, path);
+    return false;
   }
-  spn_toml_loader_issue_at(ctx, SPN_ERR_CODEGEN_PATH, path);
-  return false;
+  if (sp_fs_is_absolute(path)) {
+    spn_toml_loader_issue_at(ctx, SPN_ERR_CODEGEN_ABSOLUTE, path);
+    return false;
+  }
+  return true;
 }
 
 static void push_gated_path(spn_gated_path_list_t* values, const spn_cg_source_entry_t* entry, sp_str_t path) {
@@ -154,10 +158,6 @@ static spn_target_info_t lower_target(spn_toml_loader_t* ctx, const spn_cg_targe
     const spn_cg_embed_entry_t* entry = &cg->embed[it];
     sp_str_t dest = sp_str_empty(entry->dest) ? entry->path : entry->dest;
     if (!lower_path_ok(ctx, entry->path) || !lower_path_ok(ctx, dest)) {
-      continue;
-    }
-    if (sp_fs_is_absolute(dest)) {
-      spn_toml_loader_issue_at(ctx, SPN_ERR_CODEGEN_ABSOLUTE, dest);
       continue;
     }
     sp_da_push(target.gated.embed, ((spn_gated_embed_t) {

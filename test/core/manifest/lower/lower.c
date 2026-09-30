@@ -391,6 +391,20 @@ static const test_t tests [] = {
     }
   },
   {
+    .name = "validate_absolute_path",
+    .manifest = "validate_absolute_path",
+    .issues = {
+      { SPN_ERR_CODEGEN_ABSOLUTE },
+      { SPN_ERR_CODEGEN_ABSOLUTE },
+    },
+    .exes = {
+      {
+        .name = "t",
+        .source = { { "c.c" } },
+      }
+    }
+  },
+  {
     .name = "validate_root_source",
     .manifest = "validate_root_source",
     .issues = {
