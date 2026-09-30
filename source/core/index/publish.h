@@ -11,7 +11,7 @@
 typedef struct {
   sp_mem_t mem;
   sp_intern_t* intern;
-  sp_str_t cwd;
+  spn_path_t dir;
   sp_str_t url;
   sp_str_t revision;
   bool allow_dirty;

@@ -351,7 +351,7 @@ sp_test_each(cmd_publish, publish, case_t, cases, .setup = spn_test_ctx_setup) {
   spn_publish_opts_t opts = {
     .mem = mem,
     .intern = spn.intern,
-    .cwd = cwd,
+    .dir = { .sub = cwd },
     .url = c.opts.url ? sp_cstr_as_str(c.opts.url) : repo.path,
     .revision = repo.commits[rev_idx],
   };

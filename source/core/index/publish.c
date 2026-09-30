@@ -8,6 +8,7 @@
 #include "git/url.h"
 #include "index/release.h"
 #include "index/publish.h"
+#include "paths/paths.h"
 #include "pkg/load.h"
 #include "toml/issue.h"
 
@@ -19,11 +20,13 @@ static spn_pkg_root_t web_root(sp_mem_t mem, spn_pkg_root_t root) {
 }
 
 spn_err_t spn_publish_build(spn_publish_opts_t* opts, spn_index_release_t* built) {
-  sp_str_t manifest_path = sp_fs_join_path(opts->mem, opts->cwd, sp_str_lit("spn.toml"));
+  spn_path_t manifest = spn_path_join(opts->mem, opts->dir, sp_str_lit("spn.toml"));
+  sp_str_t manifest_path = spn_path_str(&spn.roots, opts->mem, manifest);
+  sp_str_t cwd = spn_path_str(&spn.roots, opts->mem, opts->dir);
 
   spn_pkg_info_t info = sp_zero;
   spn_codegen_issues_t issues = sp_zero;
-  spn_err_t loaded = spn_pkg_load(opts->mem, opts->intern, &spn.roots, (spn_path_t) { .sub = manifest_path }, SPN_MANIFEST_DEP, &info, &issues);
+  spn_err_t loaded = spn_pkg_load(opts->mem, opts->intern, &spn.roots, manifest, SPN_MANIFEST_DEP, &info, &issues);
   if (loaded == SPN_ERR_NO_MANIFEST) {
     return spn_err_emit(&spn, (spn_err_union_t) {
       .kind = SPN_ERR_NO_MANIFEST,
@@ -38,10 +41,10 @@ spn_err_t spn_publish_build(spn_publish_opts_t* opts, spn_index_release_t* built
   }
 
   sp_str_t repo = sp_zero;
-  if (spn_git_get_root(opts->mem, opts->cwd, &repo)) {
+  if (spn_git_get_root(opts->mem, cwd, &repo)) {
     return spn_err_emit(&spn, (spn_err_union_t) {
       .kind = SPN_ERR_NOT_GIT_REPO,
-      .not_git_repo.path = opts->cwd,
+      .not_git_repo.path = cwd,
     });
   }
 
@@ -57,7 +60,7 @@ spn_err_t spn_publish_build(spn_publish_opts_t* opts, spn_index_release_t* built
 
   sp_str_t revision = opts->revision;
   if (sp_str_empty(revision)) {
-    if (!opts->allow_dirty && spn_git_is_dirty(repo, opts->cwd)) {
+    if (!opts->allow_dirty && spn_git_is_dirty(repo, cwd)) {
       return spn_err_emit(&spn, (spn_err_union_t) {
         .kind = SPN_ERR_PUBLISH_DIRTY,
         .publish.path = repo,
@@ -78,8 +81,8 @@ spn_err_t spn_publish_build(spn_publish_opts_t* opts, spn_index_release_t* built
   }
 
   sp_str_t subdir = sp_str_lit("");
-  if (!sp_str_equal(opts->cwd, repo) && sp_str_starts_with(opts->cwd, repo)) {
-    subdir = sp_str_suffix(opts->cwd, opts->cwd.len - repo.len - 1);
+  if (!sp_str_equal(cwd, repo) && sp_str_starts_with(cwd, repo)) {
+    subdir = sp_str_suffix(cwd, cwd.len - repo.len - 1);
   }
 
   spn_pkg_root_t published = {
