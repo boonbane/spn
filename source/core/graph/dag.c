@@ -703,12 +703,13 @@ static spn_err_t dag_stage(spn_dag_build_t* b) {
     spn_path_t root = plan->build->paths.root;
     spn_path_t manifest = spn_path_join(scratch.mem, root, sp_str_lit(".spn/staged"));
 
-    sp_str_ht(bool) exes = SP_NULLPTR;
-    sp_str_ht_init(scratch.mem, exes);
+    sp_ht(spn_path_t, bool) exes = SP_NULLPTR;
+    sp_ht_init(scratch.mem, exes);
+    sp_ht_set_fns(exes, spn_path_on_hash, spn_path_on_compare);
     sp_da(dag_staged_t) next = sp_da_new(scratch.mem, dag_staged_t);
     sp_da_for(plan->staged, j) {
       spn_stage_closure_t* closure = &plan->staged[j];
-      sp_str_ht_insert(exes, closure->exe.path.sub, true);
+      sp_ht_insert(exes, closure->exe.path, true);
       sp_da_push(next, ((dag_staged_t) { .exe = closure->exe.path.sub, .entry = closure->exe.path.sub }));
       sp_da_for(closure->libs, lt) {
         sp_da_push(next, ((dag_staged_t) { .exe = closure->exe.path.sub, .entry = closure->libs[lt].path.sub }));
@@ -726,7 +727,8 @@ static spn_err_t dag_stage(spn_dag_build_t* b) {
       }
       dag_staged_t staged = { .exe = sp_str_prefix(lines[j], tab), .entry = sp_str_suffix(lines[j], lines[j].len - tab - 1) };
       sp_da_push(previous, staged);
-      if (!sp_str_ht_get(exes, staged.exe)) {
+      spn_path_t exe = { .root = root.root, .sub = staged.exe };
+      if (!sp_ht_getp(exes, exe)) {
         sp_da_push(next, staged);
       }
     }
@@ -750,8 +752,9 @@ static spn_err_t dag_stage(spn_dag_build_t* b) {
     sp_fs_create_parent_at(spn_path_at(roots, manifest));
     sp_fs_write_atomic_at(spn_path_at(roots, manifest), sp_io_dyn_mem_writer_as_str(&sink));
 
-    sp_str_ht(bool) copied = SP_NULLPTR;
-    sp_str_ht_init(scratch.mem, copied);
+    sp_ht(spn_path_t, bool) copied = SP_NULLPTR;
+    sp_ht_init(scratch.mem, copied);
+    sp_ht_set_fns(copied, spn_path_on_hash, spn_path_on_compare);
     sp_da_for(plan->staged, j) {
       spn_stage_closure_t* closure = &plan->staged[j];
       spn_dag_target_ids_t* ids = sp_ht_getp(b->ids.targets, closure->exe.target);
@@ -765,10 +768,10 @@ static spn_err_t dag_stage(spn_dag_build_t* b) {
       sp_da_for(closure->libs, k) {
         spn_stage_entry_t* lib = &closure->libs[k];
         spn_dag_target_ids_t* lib_ids = sp_ht_getp(b->ids.targets, lib->target);
-        if (!lib_ids || sp_str_ht_get(copied, lib->path.sub)) {
+        if (!lib_ids || sp_ht_getp(copied, lib->path)) {
           continue;
         }
-        sp_str_ht_insert(copied, lib->path.sub, true);
+        sp_ht_insert(copied, lib->path, true);
         err = dag_stage_copy(b, lib_ids->output, lib->path);
         if (err) {
           goto done;

@@ -892,8 +892,9 @@ static spn_err_t add_target_build_targets(spn_session_t* s) {
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   sp_da_for(s->plans.build, it) {
     spn_build_plan_t* plan = &s->plans.build[it];
-    sp_str_ht(spn_target_unit_t*) claimed = SP_NULLPTR;
-    sp_str_ht_init(scratch.mem, claimed);
+    sp_ht(spn_path_t, spn_target_unit_t*) claimed = SP_NULLPTR;
+    sp_ht_init(scratch.mem, claimed);
+    sp_ht_set_fns(claimed, spn_path_on_hash, spn_path_on_compare);
     sp_da_for(plan->roots, jt) {
       spn_target_unit_t* root = spn_session_get_target_unit(s, plan->roots[jt]);
       if (root->kind != SPN_CC_OUTPUT_EXE) {
@@ -910,7 +911,7 @@ static spn_err_t add_target_build_targets(spn_session_t* s) {
         spn_target_unit_t* lib = libs[lt];
         sp_str_t name = sp_fs_get_name(lib->paths.output.sub);
         spn_path_t path = spn_path_join(s->mem, dir, name);
-        spn_target_unit_t** owner = sp_str_ht_get(claimed, path.sub);
+        spn_target_unit_t** owner = sp_ht_getp(claimed, path);
         if (owner && *owner != lib) {
           sp_mem_end_scratch(scratch);
           return spn_err_emit(s->ctx, (spn_err_union_t) {
@@ -923,7 +924,7 @@ static spn_err_t add_target_build_targets(spn_session_t* s) {
             },
           });
         }
-        sp_str_ht_insert(claimed, path.sub, lib);
+        sp_ht_insert(claimed, path, lib);
         sp_da_push(closure.libs, ((spn_stage_entry_t) { .target = lib, .path = path }));
       }
       sp_da_push(plan->staged, closure);
