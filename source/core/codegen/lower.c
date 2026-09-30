@@ -46,10 +46,6 @@ static spn_linkage_set_t lower_linkages(sp_da(sp_str_t) kinds) {
   return set;
 }
 
-static bool is_path_absolute(sp_str_t path) {
-  return path.len && (path.data[0] == '/' || (path.len >= 2 && path.data[1] == ':'));
-}
-
 static spn_cxx_options_t lower_cxx_options(const spn_cg_cxx_options_t* cg) {
   return (spn_cxx_options_t) {
     .standard = sp_opt_is_null(cg->standard) ? SPN_CXX_STANDARD_NONE : sp_opt_get(cg->standard),
@@ -216,7 +212,7 @@ static void lower_dep(spn_toml_loader_t* ctx, sp_str_t name, const spn_cg_dep_t*
       spn_toml_loader_pop(ctx);
       return;
     }
-    spn_path_t dir = is_path_absolute(cg->path) ? (spn_path_t) { .sub = cg->path } : spn_path_join(ctx->mem, ctx->dir, cg->path);
+    spn_path_t dir = sp_fs_is_absolute(cg->path) ? (spn_path_t) { .sub = cg->path } : spn_path_join(ctx->mem, ctx->dir, cg->path);
     req.source = SPN_PKG_SOURCE_FILE;
     req.file.path = spn_path_join(ctx->mem, spn_path_canonicalize(ctx->mem, ctx->roots, dir), sp_str_lit("spn.toml"));
   } else {
@@ -424,7 +420,7 @@ spn_index_info_t spn_index_lower(spn_toml_loader_t* ctx, u32 at, spn_index_kind_
       if (!has_path) {
         spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_MISSING_KEY, "path");
       } else {
-        spn_path_t dir = is_path_absolute(decl->path) ? (spn_path_t) { .sub = decl->path } : spn_path_join(ctx->mem, ctx->dir, decl->path);
+        spn_path_t dir = sp_fs_is_absolute(decl->path) ? (spn_path_t) { .sub = decl->path } : spn_path_join(ctx->mem, ctx->dir, decl->path);
         info.dir.path = spn_path_canonicalize(ctx->mem, ctx->roots, dir);
       }
       break;
@@ -507,7 +503,7 @@ static void lower_patches(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, s
     };
     sp_da_for(cg->patch[it].value.files, jt) {
       sp_str_t path = cg->patch[it].value.files[jt];
-      if (!is_path_absolute(path)) {
+      if (!sp_fs_is_absolute(path)) {
         path = spn_path_str(ctx->roots, ctx->mem, spn_path_join(ctx->mem, ctx->dir, path));
       }
       sp_da_push(patch.set.files, sp_fs_normalize_path(ctx->mem, path));
