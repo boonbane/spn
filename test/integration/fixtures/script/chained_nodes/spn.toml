@@ -1,7 +1,7 @@
 [package]
-name = "chained_nodes"
+name = "C"
 version = "0.0.1"
 
 [[bin]]
-name = "chained_nodes"
+name = "C"
 source = ["main.c"]

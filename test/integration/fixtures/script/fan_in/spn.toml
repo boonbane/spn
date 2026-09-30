@@ -1,7 +1,0 @@
-[package]
-name = "fan_in"
-version = "0.0.1"
-
-[[bin]]
-name = "fan_in"
-source = ["main.c"]
