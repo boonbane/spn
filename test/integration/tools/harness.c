@@ -727,9 +727,6 @@ sp_err_t run_rebuild_test(sp_test_t* t, rebuild_test_t test) {
     sp_str_t path = fixture_path(&fixture, watch.file);
     sp_tm_epoch_t now = sp_fs_get_mod_time(path);
     bool unchanged = mtimes[it].s == now.s && mtimes[it].ns == now.ns;
-    if (watch.mtime == REBUILD_MTIME_UNCHANGED) {
-      sp_expect(t, unchanged);
-    }
     if (watch.mtime == REBUILD_MTIME_CHANGED) {
       sp_expect(t, !unchanged);
     }

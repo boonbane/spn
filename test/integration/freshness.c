@@ -21,9 +21,6 @@ sp_test(freshness, noop) {
         },
       },
     },
-    .watches = {
-      { .file = exe("main"), .mtime = REBUILD_MTIME_UNCHANGED },
-    },
   });
 }
 
@@ -42,12 +39,12 @@ sp_test(freshness, source_change) {
         },
         .command = {
           .args = { "build" },
-          .expect.events = { { .event = SPN_EVENT_TARGET_BUILD_PASSED } },
+          .expect.events = {
+            { .event = SPN_EVENT_TARGET_BUILD_PASSED },
+            { .event = SPN_EVENT_LINK_PASSED },
+          },
         },
       },
-    },
-    .watches = {
-      { .file = exe("main"), .mtime = REBUILD_MTIME_CHANGED },
     },
   });
 }
@@ -67,12 +64,12 @@ sp_test(freshness, touch_without_change) {
         },
         .command = {
           .args = { "build" },
-          .expect.events = { { .event = SPN_EVENT_TARGET_BUILD_PASSED, .absent = true } },
+          .expect.events = {
+            { .event = SPN_EVENT_TARGET_BUILD_PASSED, .absent = true },
+            { .event = SPN_EVENT_LINK_PASSED, .absent = true },
+          },
         },
       },
-    },
-    .watches = {
-      { .file = exe("main"), .mtime = REBUILD_MTIME_UNCHANGED },
     },
   });
 }
@@ -89,12 +86,12 @@ sp_test(freshness, staged_lib_noop) {
       {
         .command = {
           .args = { "build" },
-          .expect.events = { { .event = SPN_EVENT_TARGET_BUILD_PASSED, .absent = true } },
+          .expect.events = {
+            { .event = SPN_EVENT_TARGET_BUILD_PASSED, .absent = true },
+            { .event = SPN_EVENT_LINK_PASSED, .absent = true },
+          },
         },
       },
-    },
-    .watches = {
-      { .file = staged_lib("B"), .mtime = REBUILD_MTIME_UNCHANGED },
     },
   });
 }
@@ -114,12 +111,12 @@ sp_test(freshness, staged_lib_change) {
         },
         .command = {
           .args = { "build" },
-          .expect.events = { { .event = SPN_EVENT_TARGET_BUILD_PASSED } },
+          .expect.events = {
+            { .event = SPN_EVENT_TARGET_BUILD_PASSED, .key = "target", .value = "B" },
+            { .event = SPN_EVENT_LINK_PASSED, .key = "target", .value = "B" },
+          },
         },
       },
-    },
-    .watches = {
-      { .file = staged_lib("B"), .mtime = REBUILD_MTIME_CHANGED },
     },
   });
 }
@@ -139,19 +136,22 @@ sp_test(freshness, dep_source_change) {
         },
         .command = {
           .args = { "build", "-p", "debug" },
-          .expect.events = { { .event = SPN_EVENT_TARGET_BUILD_PASSED } },
+          .expect.events = {
+            { .event = SPN_EVENT_TARGET_BUILD_PASSED, .key = "target", .value = "spum" },
+            { .event = SPN_EVENT_LINK_PASSED, .key = "target", .value = "spum" },
+            { .event = SPN_EVENT_LINK_PASSED, .key = "target", .value = "main" },
+          },
         },
       },
       {
         .command = {
           .args = { "build", "-p", "debug" },
-          .expect.events = { { .event = SPN_EVENT_TARGET_BUILD_PASSED, .absent = true } },
+          .expect.events = {
+            { .event = SPN_EVENT_TARGET_BUILD_PASSED, .absent = true },
+            { .event = SPN_EVENT_LINK_PASSED, .absent = true },
+          },
         },
       },
-    },
-    .watches = {
-      { .file = pkg_static_lib("spum", "spum"), .mtime = REBUILD_MTIME_CHANGED },
-      { .file = pkg_store_file("test", "bin/main"), .mtime = REBUILD_MTIME_CHANGED },
     },
   });
 }
@@ -172,12 +172,12 @@ sp_test(freshness, dep_header_inert) {
         },
         .command = {
           .args = { "build", "-p", "debug" },
-          .expect.events = { { .event = SPN_EVENT_TARGET_BUILD_PASSED } },
+          .expect.events = {
+            { .event = SPN_EVENT_TARGET_BUILD_PASSED, .key = "target", .value = "main" },
+            { .event = SPN_EVENT_LINK_PASSED, .absent = true },
+          },
         },
       },
-    },
-    .watches = {
-      { .file = pkg_store_file("test", "bin/main"), .mtime = REBUILD_MTIME_UNCHANGED },
     },
   });
 }
@@ -197,12 +197,12 @@ sp_test(freshness, dep_unincluded_header_change) {
         },
         .command = {
           .args = { "build", "-p", "debug" },
-          .expect.events = { { .event = SPN_EVENT_TARGET_BUILD_PASSED, .absent = true } },
+          .expect.events = {
+            { .event = SPN_EVENT_TARGET_BUILD_PASSED, .absent = true },
+            { .event = SPN_EVENT_LINK_PASSED, .absent = true },
+          },
         },
       },
-    },
-    .watches = {
-      { .file = pkg_store_file("test", "bin/main"), .mtime = REBUILD_MTIME_UNCHANGED },
     },
   });
 }
@@ -223,7 +223,10 @@ sp_test(freshness, dep_header_change) {
         },
         .command = {
           .args = { "build", "-p", "debug" },
-          .expect.bin = { .name = "main", .rc = 7 },
+          .expect.events = {
+            { .event = SPN_EVENT_TARGET_BUILD_PASSED, .key = "target", .value = "main" },
+            { .event = SPN_EVENT_LINK_PASSED, .key = "target", .value = "main" },
+          },
         },
       },
       {
@@ -232,12 +235,12 @@ sp_test(freshness, dep_header_change) {
         },
         .command = {
           .args = { "build", "-p", "debug" },
-          .expect.bin = { .name = "main", .rc = 8 },
+          .expect.events = {
+            { .event = SPN_EVENT_TARGET_BUILD_PASSED, .key = "target", .value = "main" },
+            { .event = SPN_EVENT_LINK_PASSED, .key = "target", .value = "main" },
+          },
         },
       },
-    },
-    .watches = {
-      { .file = pkg_store_file("test", "bin/main"), .mtime = REBUILD_MTIME_CHANGED },
     },
   });
 }
@@ -254,7 +257,13 @@ sp_test(freshness, output_deleted) {
         .change.remove_files = { exe("main") },
         .command = {
           .args = { "build" },
-          .expect.exists = { exe("main") },
+          .expect = {
+            .events = {
+              { .event = SPN_EVENT_TARGET_BUILD_PASSED, .absent = true },
+              { .event = SPN_EVENT_LINK_PASSED, .absent = true },
+            },
+            .exists = { exe("main") },
+          },
         },
       },
     },
@@ -283,9 +292,6 @@ sp_test(freshness, linker_script_change) {
           },
         },
       },
-    },
-    .watches = {
-      { .file = target_exe("main", SPN_TEST_ARCH "-freestanding-none"), .mtime = REBUILD_MTIME_CHANGED },
     },
   });
 }

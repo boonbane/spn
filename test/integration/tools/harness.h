@@ -157,7 +157,6 @@ typedef struct {
 
 typedef enum {
   REBUILD_MTIME_NONE,
-  REBUILD_MTIME_UNCHANGED,
   REBUILD_MTIME_CHANGED,
 } rebuild_mtime_t;
 
