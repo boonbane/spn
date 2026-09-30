@@ -255,7 +255,7 @@ static spn_err_t create_target_objects(spn_session_t* s, spn_target_unit_t* targ
       case SPN_SOURCE_GLOB: {
         u64 first = sp_da_size(target->objects);
         sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-        spn_dag_glob_it_t glob = spn_dag_glob_it_new(scratch.mem, &spn.roots, source.path);
+        spn_dag_glob_it_t glob = spn_dag_glob_it_new(scratch.mem, &s->ctx->roots, source.path);
         while (spn_dag_glob_it_next(&glob)) {
           if (glob.entry.kind != SP_FS_KIND_DIR) {
             add_object(s, target, spn_path_join(scratch.mem, glob.base, glob.entry.rel));
@@ -269,7 +269,7 @@ static spn_err_t create_target_objects(spn_session_t* s, spn_target_unit_t* targ
             .target_source = {
               .pkg = target->pkg->info->name,
               .name = target->info->name,
-              .source = spn_path_str(&spn.roots, s->mem, source.path),
+              .source = spn_path_str(&s->ctx->roots, s->mem, source.path),
             },
           });
         }

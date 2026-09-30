@@ -52,7 +52,7 @@ spn_path_t spn_api_dir_path(spn_pkg_unit_t* unit, spn_dir_t dir) {
 }
 
 sp_str_t spn_api_dir(spn_pkg_unit_t* unit, spn_dir_t dir) {
-  return spn_path_str(&spn.roots, spn.mem, spn_api_dir_path(unit, dir));
+  return spn_path_str(&unit->session->ctx->roots, spn.mem, spn_api_dir_path(unit, dir));
 }
 
 static void reject(spn_pkg_unit_t* unit, const c8* fn, sp_str_t path, spn_err_t kind) {
@@ -106,7 +106,7 @@ spn_path_t spn_api_tree_path(spn_pkg_unit_t* unit, const c8* fn, const c8* path)
     reject(unit, fn, str, SPN_ERR_PATH_COMPONENT);
     return sp_zero_struct(spn_path_t);
   }
-  spn_path_t tree = spn_tree_path(spn.mem, &spn.roots, unit->paths.roots, SPN_TREE_SOURCE, str);
+  spn_path_t tree = spn_tree_path(spn.mem, &unit->session->ctx->roots, unit->paths.roots, SPN_TREE_SOURCE, str);
   if (sp_fs_is_absolute(str) && foreign(unit, tree)) {
     reject(unit, fn, str, SPN_ERR_PATH_FOREIGN);
     return sp_zero_struct(spn_path_t);
@@ -215,7 +215,7 @@ void spn_write_file(spn_t* s, const c8* path, const c8* content) {
 
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   spn_path_t joined = spn_path_join(scratch.mem, unit->paths.work, sp_str_view(path));
-  spn_fs_update_file_str(spn_path_at(&spn.roots, joined), sp_str_view(content));
+  spn_fs_update_file_str(spn_path_at(&unit->session->ctx->roots, joined), sp_str_view(content));
   sp_mem_end_scratch(scratch);
 }
 
@@ -246,7 +246,7 @@ s32 spn_copy(spn_t* s, spn_dir_t from_dir, const c8* from_path, spn_dir_t to_dir
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   spn_path_t from = spn_path_join(scratch.mem, spn_api_dir_path(unit, from_dir), sp_cstr_as_str(from_path));
   spn_path_t to = spn_path_join(scratch.mem, spn_api_dir_path(unit, to_dir), sp_cstr_as_str(to_path));
-  SPN_API_LOG(unit, "spn_copy", "{} -> {}", SP_FMT_STR(spn_path_str(&spn.roots, scratch.mem, from)), SP_FMT_STR(spn_path_str(&spn.roots, scratch.mem, to)));
+  SPN_API_LOG(unit, "spn_copy", "{} -> {}", SP_FMT_STR(spn_path_str(&unit->session->ctx->roots, scratch.mem, from)), SP_FMT_STR(spn_path_str(&unit->session->ctx->roots, scratch.mem, to)));
 
   s32 err = spn_api_copy(from, to);
   sp_mem_end_scratch(scratch);
@@ -319,7 +319,7 @@ void spn_target_add_define_path(spn_target_t* target, const c8* name, spn_dir_t 
     sp_da_push(target->info->define, spn_intern(sp_fmt(scratch.mem, "{}=\"{}\"", SP_FMT_CSTR(name), SP_FMT_STR(rel.sub)).value));
   }
   else {
-    sp_str_t full = spn_path_str(&spn.roots, scratch.mem, joined);
+    sp_str_t full = spn_path_str(&unit->session->ctx->roots, scratch.mem, joined);
     sp_str_t message = sp_fmt(scratch.mem, "spn_target_add_define_path: {} is not inside the project", SP_FMT_STR(full)).value;
     if (!spn_wasm_trap_active(unit, message)) {
       spn_err_emit(unit->session->ctx, (spn_err_union_t) {

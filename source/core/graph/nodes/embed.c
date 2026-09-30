@@ -49,7 +49,7 @@ spn_err_t spn_dag_exec_embed(spn_dag_t* g, spn_dag_action_t* action, void* user_
       case SPN_EMBED_FILE: {
         spn_dag_observe(obs, (spn_dag_obs_t) { .kind = SPN_DAG_OBS_FILE, .path = embed.path });
         sp_str_t content = sp_zero;
-        if (sp_io_read_file_at(embedder.mem, spn_path_at(&spn.roots, embed.path), &content) != SP_OK) {
+        if (sp_io_read_file_at(embedder.mem, spn_path_at(g->roots, embed.path), &content) != SP_OK) {
           spn_event_buffer_push(spn.events, (spn_event_t) {
             .kind = SPN_EVENT_EMBED_FAILED,
             .pkg = unit->pkg->info->name,
@@ -72,7 +72,7 @@ spn_err_t spn_dag_exec_embed(spn_dag_t* g, spn_dag_action_t* action, void* user_
         sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
         spn_path_t root = embed.path;
         spn_dag_observe(obs, (spn_dag_obs_t) { .kind = SPN_DAG_OBS_ENUMERATION, .path = root });
-        sp_fs_it_t walk = sp_fs_it_new_at(scratch.mem, spn_path_at(&spn.roots, root), 0);
+        sp_fs_it_t walk = sp_fs_it_new_at(scratch.mem, spn_path_at(g->roots, root), 0);
         while (sp_fs_it_walk(&walk)) {
           sp_fs_entry_t entry = walk.entry;
           sp_str_t rel = entry.rel;
@@ -109,7 +109,7 @@ spn_err_t spn_dag_exec_embed(spn_dag_t* g, spn_dag_action_t* action, void* user_
     }
   }
 
-  spn_err_t write_err = spn_cc_embed_ctx_write(&embedder, spn_path_at(&spn.roots, outputs[0]), spn_path_at(&spn.roots, outputs[1]));
+  spn_err_t write_err = spn_cc_embed_ctx_write(&embedder, spn_path_at(g->roots, outputs[0]), spn_path_at(g->roots, outputs[1]));
   spn_cc_embed_ctx_free(&embedder);
   if (write_err) {
     spn_event_buffer_push(spn.events, (spn_event_t) {

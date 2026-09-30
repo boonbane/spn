@@ -35,8 +35,8 @@ static spn_err_t header_collision(spn_pkg_unit_t* unit, sp_str_t path, spn_path_
       .kind = SPN_ERR_HEADER_COLLISION,
       .header_collision = {
         .path = path,
-        .first = spn_path_str(&spn.roots, spn.mem, first),
-        .second = spn_path_str(&spn.roots, spn.mem, second),
+        .first = spn_path_str(&unit->session->ctx->roots, spn.mem, first),
+        .second = spn_path_str(&unit->session->ctx->roots, spn.mem, second),
       },
     },
   });
@@ -105,7 +105,7 @@ spn_err_t spn_pkg_unit_publish_headers(spn_pkg_unit_t* unit, spn_path_t root) {
     if (err) {
       break;
     }
-    if (spn_fs_update_file(spn_path_at(&spn.roots, staged[it].from), spn_path_at(&spn.roots, staged[it].to))) {
+    if (spn_fs_update_file(spn_path_at(&unit->session->ctx->roots, staged[it].from), spn_path_at(&unit->session->ctx->roots, staged[it].to))) {
       err = header_copy_failed(unit, staged[it].name);
     }
   }

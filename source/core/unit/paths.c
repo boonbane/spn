@@ -29,8 +29,8 @@ void spn_unit_paths_init(spn_pkg_unit_t* unit, spn_loaded_pkg_t* loaded) {
     }
   }
 
-  unit->paths.work = spn_path_anchor(mem, &spn.roots, unit->paths.work);
-  unit->paths.store = spn_path_anchor(mem, &spn.roots, unit->paths.store);
+  unit->paths.work = spn_path_anchor(mem, &s->ctx->roots, unit->paths.work);
+  unit->paths.store = spn_path_anchor(mem, &s->ctx->roots, unit->paths.store);
 
   unit->paths.include = spn_path_join(mem, unit->paths.store, SP_LIT("include"));
   unit->paths.bin = spn_path_join(mem, unit->paths.store, SP_LIT("bin"));

@@ -66,7 +66,7 @@ static spn_err_t setup_local(spn_toolchain_store_t* store, spn_toolchain_unit_t*
   sp_tm_timer_t timer = sp_tm_start_timer();
 
   unit->cc = cc_toolchain(toolchain, toolchain->compiler, toolchain->cxx, toolchain->archiver);
-  spn_try(spn_toolchain_probe(&unit->cc, &spn.roots, spn_search_rules(spn.host.os), sp_env_get(spn.env, sp_str_lit("PATH")), &store->probes, spn.mem, &unit->identity));
+  spn_try(spn_toolchain_probe(&unit->cc, store->roots, spn_search_rules(spn.host.os), sp_env_get(spn.env, sp_str_lit("PATH")), &store->probes, spn.mem, &unit->identity));
   spn_probe_cache_flush(&store->probes);
 
   spn_event_buffer_push(spn.events, (spn_event_t) {
@@ -86,7 +86,7 @@ static spn_err_t setup_artifact(spn_toolchain_store_t* store, spn_toolchain_unit
 
   sp_str_t url = spn_artifact_resolve_url(spn.mem, artifact, store->mirror);
   spn_path_t root = spn_toolchain_artifact_root(artifact);
-  bool cached = sp_fs_is_dir_at(spn_path_at(&spn.roots, root));
+  bool cached = sp_fs_is_dir_at(spn_path_at(store->roots, root));
   if (!cached) {
     spn_event_buffer_push(spn.events, (spn_event_t) {
       .kind = SPN_EVENT_SYNC,
@@ -114,7 +114,7 @@ static spn_err_t setup_artifact(spn_toolchain_store_t* store, spn_toolchain_unit
     .sync_pkg = {
       .name = toolchain->name,
       .url = url,
-      .source_path = spn_path_str(&spn.roots, spn.mem, root),
+      .source_path = spn_path_str(store->roots, spn.mem, root),
       .time = sp_tm_read_timer(&timer),
       .fetched = !cached,
     }
@@ -146,11 +146,11 @@ static spn_err_t setup_toolchain_unit(spn_toolchain_store_t* store, spn_toolchai
 static spn_err_t materialize_tree(spn_session_t* session, sp_str_t name, spn_pkg_root_t tree, spn_path_t* root, bool* fetched) {
   switch (tree.kind) {
     case SPN_PKG_ROOT_LOCAL: {
-      spn_path_t canonical = spn_path_canonicalize(spn.mem, &spn.roots, tree.local);
-      if (!sp_fs_exists_at(spn_path_at(&spn.roots, canonical))) {
+      spn_path_t canonical = spn_path_canonicalize(spn.mem, &session->ctx->roots, tree.local);
+      if (!sp_fs_exists_at(spn_path_at(&session->ctx->roots, canonical))) {
         return spn_err_emit(session->ctx, (spn_err_union_t) {
           .kind = SPN_ERR_NO_MANIFEST,
-          .no_manifest = { .path = spn_path_str(&spn.roots, spn.mem, tree.local) },
+          .no_manifest = { .path = spn_path_str(&session->ctx->roots, spn.mem, tree.local) },
         });
       }
       *root = canonical;
@@ -285,9 +285,9 @@ static sp_da(spn_source_t) detect_configure_source(const spn_path_roots_t* roots
 static spn_err_t load_manifest(spn_session_t* session, sp_str_t name, spn_path_t manifest, spn_pkg_info_t** info) {
   spn_pkg_info_t* parsed = sp_alloc_type(spn.mem, spn_pkg_info_t);
   spn_codegen_issues_t issues = sp_zero;
-  spn_err_t loaded = spn_pkg_load(spn.mem, session->ctx->intern, &spn.roots, manifest, SPN_MANIFEST_DEP, parsed, &issues);
+  spn_err_t loaded = spn_pkg_load(spn.mem, session->ctx->intern, &session->ctx->roots, manifest, SPN_MANIFEST_DEP, parsed, &issues);
   if (loaded) {
-    sp_str_t path = spn_path_str(&spn.roots, spn.mem, manifest);
+    sp_str_t path = spn_path_str(&session->ctx->roots, spn.mem, manifest);
     if (loaded == SPN_ERR_NO_MANIFEST) {
       return spn_err_emit(session->ctx, (spn_err_union_t) {
         .kind = SPN_ERR_NO_MANIFEST,
@@ -306,7 +306,7 @@ static spn_err_t load_manifest(spn_session_t* session, sp_str_t name, spn_path_t
   if (!sp_str_equal(parsed->name, requested)) {
     return spn_err_emit(session->ctx, (spn_err_union_t) {
       .kind = SPN_ERR_PKG_MISMATCH,
-      .mismatch = { .path = spn_path_str(&spn.roots, spn.mem, manifest), .declared = parsed->name, .requested = name },
+      .mismatch = { .path = spn_path_str(&session->ctx->roots, spn.mem, manifest), .declared = parsed->name, .requested = name },
     });
   }
 
@@ -371,7 +371,7 @@ static spn_err_t load_package(spn_session_t* session, spn_resolved_pkg_t* pkg, s
 
   spn_try(materialize_tree(session, qualified, pkg->origin.recipe, &loaded->roots.recipe, &fetched));
 
-  const spn_path_roots_t* roots = &spn.roots;
+  const spn_path_roots_t* roots = &session->ctx->roots;
   loaded->info = pkg->origin.info;
   if (!loaded->info) {
     spn_try(load_manifest(session, qualified, spn_path_join(spn.mem, loaded->roots.recipe, pkg->origin.paths.manifest), &loaded->info));

@@ -876,29 +876,30 @@ static void dag_emit_reports(spn_dag_build_t* b, u64 elapsed) {
 
 spn_dag_build_t* spn_dag_build_new(spn_op_t* op) {
   spn_session_t* session = op->session;
+  const spn_path_roots_t* roots = &op->ctx->roots;
   spn_dag_build_t* b = sp_alloc_type(session->mem, spn_dag_build_t);
   sp_mem_zero(b, sizeof(spn_dag_build_t));
   b->session = session;
   b->mem = spn.mem;
-  b->graph = spn_dag_new(spn.mem, &spn.roots);
+  b->graph = spn_dag_new(spn.mem, roots);
   sp_ht_init(b->mem, b->ids.user_outputs);
   sp_ht_init(b->mem, b->ids.stamps);
   sp_ht_set_fns(b->ids.stamps, spn_path_on_hash, spn_path_on_compare);
   sp_ht_init(b->mem, b->ids.targets);
   sp_ht_init(b->mem, b->ids.objects);
 
-  spn_path_t root = spn_path_anchor(session->mem, &spn.roots, spn_path_join(session->mem, spn_path_from_root(SPN_PATH_ROOT_CACHE), sp_str_lit("dag")));
+  spn_path_t root = spn_path_anchor(session->mem, roots, spn_path_join(session->mem, spn_path_from_root(SPN_PATH_ROOT_CACHE), sp_str_lit("dag")));
   spn_path_t tmp = spn_path_join(session->mem, root, sp_str_lit("tmp"));
-  sp_fs_create_dir_at(spn_path_at(&spn.roots, tmp));
+  sp_fs_create_dir_at(spn_path_at(roots, tmp));
 
   spn_dag_store_init(&b->store, (spn_dag_store_config_t) {
     .kind = SPN_DAG_STORE_FILESYSTEM,
     .mem = spn.mem,
-    .roots = &spn.roots,
+    .roots = roots,
     .dir = spn_path_join(session->mem, root, sp_str_lit("store")),
   });
-  spn_dag_action_cache_init(&b->actions, spn.mem, &spn.roots, spn_path_join(session->mem, root, sp_str_lit("strong")));
-  spn_dag_obs_table_init(&b->discovery, spn.mem, &spn.roots, spn_path_join(session->mem, root, sp_str_lit("weak")));
+  spn_dag_action_cache_init(&b->actions, spn.mem, roots, spn_path_join(session->mem, root, sp_str_lit("strong")));
+  spn_dag_obs_table_init(&b->discovery, spn.mem, roots, spn_path_join(session->mem, root, sp_str_lit("weak")));
   session->dag.files.stats = &b->stats;
   b->actions.stats = &b->stats;
   b->discovery.stats = &b->stats;

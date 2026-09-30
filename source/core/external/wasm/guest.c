@@ -40,8 +40,8 @@ static void guest_copy(spn_wasm_ctx_t* abi, const c8* name, const c8* from, cons
     return;
   }
 
-  sp_str_t from_str = spn_path_str(&spn.roots, scratch.mem, from_path);
-  sp_str_t to_str = spn_path_str(&spn.roots, scratch.mem, to_path);
+  sp_str_t from_str = spn_path_str(&unit->session->ctx->roots, scratch.mem, from_path);
+  sp_str_t to_str = spn_path_str(&unit->session->ctx->roots, scratch.mem, to_path);
   spn_event_buffer_push(spn.events, (spn_event_t) {
     .kind = SPN_EVENT_API_CALL,
     .pkg = unit->info->name,
@@ -80,10 +80,10 @@ void spn_abi_fs_create_dir(spn_wasm_ctx_t* abi, const c8* path) {
     sp_mem_end_scratch(scratch);
     return;
   }
-  sp_str_t dir_str = spn_path_str(&spn.roots, scratch.mem, dir);
+  sp_str_t dir_str = spn_path_str(&unit->session->ctx->roots, scratch.mem, dir);
   SPN_API_LOG(unit, "spn_fs_create_dir", "{}", SP_FMT_STR(dir_str));
 
-  if (sp_fs_create_dir_at(spn_path_at(&spn.roots, dir))) {
+  if (sp_fs_create_dir_at(spn_path_at(&unit->session->ctx->roots, dir))) {
     wasm_runtime_set_exception(abi->instance, sp_fmt_mem_cstr(scratch.mem, "spn_fs_create_dir: {}", SP_FMT_STR(dir_str)));
   }
   else {
@@ -100,13 +100,13 @@ void spn_abi_io_write(spn_wasm_ctx_t* abi, const c8* path, const c8* contents) {
     sp_mem_end_scratch(scratch);
     return;
   }
-  sp_str_t dst_str = spn_path_str(&spn.roots, scratch.mem, dst);
+  sp_str_t dst_str = spn_path_str(&unit->session->ctx->roots, scratch.mem, dst);
   SPN_API_LOG(unit, "spn_io_write", "{}", SP_FMT_STR(dst_str));
 
-  sp_fs_create_parent_at(spn_path_at(&spn.roots, dst));
+  sp_fs_create_parent_at(spn_path_at(&unit->session->ctx->roots, dst));
 
   sp_io_file_writer_t writer = sp_zero;
-  if (sp_io_file_writer_from_path_at(&writer, spn_path_at(&spn.roots, dst))) {
+  if (sp_io_file_writer_from_path_at(&writer, spn_path_at(&unit->session->ctx->roots, dst))) {
     wasm_runtime_set_exception(abi->instance, sp_fmt_mem_cstr(scratch.mem, "spn_io_write: {}", SP_FMT_STR(dst_str)));
     sp_mem_end_scratch(scratch);
     return;

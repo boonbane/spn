@@ -96,7 +96,7 @@ static spn_pkg_info_t* clone_pkg_info(spn_session_t* s, spn_pkg_id_t id, spn_bui
   if (options) {
     spn_when_env_add_options(&env, options);
   }
-  spn_pkg_apply_options(mem, info, &spn.roots, loaded->roots, &env);
+  spn_pkg_apply_options(mem, info, &s->ctx->roots, loaded->roots, &env);
   return info;
 }
 

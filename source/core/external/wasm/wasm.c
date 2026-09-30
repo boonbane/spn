@@ -75,8 +75,9 @@ static spn_err_t script_open(spn_wasm_script_t* script, spn_pkg_unit_t* unit) {
     return script_fail(unit, SPN_ERR_WASM_THREAD_ENV_FAILED, (spn_err_wasm_t) { .path = script->path });
   }
 
+  const spn_path_roots_t* roots = &unit->session->ctx->roots;
   sp_str_t blob = sp_zero;
-  if (sp_io_read_file_at(spn.mem, spn_path_at(&spn.roots, script->path), &blob)) {
+  if (sp_io_read_file_at(spn.mem, spn_path_at(roots, script->path), &blob)) {
     return script_fail(unit, SPN_ERR_WASM_READ_FAILED, (spn_err_wasm_t) { .path = script->path });
   }
 
@@ -89,8 +90,7 @@ static spn_err_t script_open(spn_wasm_script_t* script, spn_pkg_unit_t* unit) {
     });
   }
 
-  const spn_path_roots_t* roots = &spn.roots;
-  spn_path_t dirs [] = { unit->paths.work, unit->paths.lib, unit->paths.bin, unit->paths.vendor };
+  spn_path_t dirs []= { unit->paths.work, unit->paths.lib, unit->paths.bin, unit->paths.vendor };
   sp_carr_for(dirs, it) {
     sp_fs_create_dir_at(spn_path_at(roots, dirs[it]));
   }

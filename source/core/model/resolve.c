@@ -51,7 +51,7 @@ static spn_err_t apply_patch_overrides(spn_session_t* session, spn_resolve_query
     sp_str_t name = sp_intern_str_from_id(session->ctx->intern, pkg->id.qualified);
     spn_pkg_info_t* info = sp_alloc_type(spn.mem, spn_pkg_info_t);
     spn_codegen_issues_t issues = sp_zero;
-    spn_err_t loaded = spn_pkg_load(spn.mem, session->ctx->intern, &spn.roots, (spn_path_t) { .sub = manifest }, SPN_MANIFEST_DEP, info, &issues);
+    spn_err_t loaded = spn_pkg_load(spn.mem, session->ctx->intern, &session->ctx->roots, (spn_path_t) { .sub = manifest }, SPN_MANIFEST_DEP, info, &issues);
     if (loaded == SPN_ERR_NO_MANIFEST) {
       result = spn_err_emit(session->ctx, (spn_err_union_t) {
         .kind = SPN_ERR_NO_MANIFEST,
@@ -121,7 +121,7 @@ spn_err_t resolve(spn_op_t* op) {
 
   spn_resolver_t resolver = sp_zero;
   spn_resolver_init(&resolver, spn.mem, session->ctx->intern, &index, &session->registry, session->profile, session->pkg->config, 0);
-  resolver.roots = &spn.roots;
+  resolver.roots = &session->ctx->roots;
   resolver.seeds = session->gates.seeds;
 
   spn_resolve_query_t query = sp_zero_initialize();
