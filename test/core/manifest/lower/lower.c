@@ -436,6 +436,40 @@ static const test_t tests [] = {
     },
   },
   {
+    .name = "validate_name_package",
+    .manifest = "validate_name_package",
+    .issues = {
+      { SPN_ERR_CODEGEN_INVALID, "package.name" },
+      { SPN_ERR_CODEGEN_INVALID, "package.namespace" },
+    },
+  },
+  {
+    .name = "validate_name_target",
+    .manifest = "validate_name_target",
+    .issues = {
+      { SPN_ERR_CODEGEN_INVALID, "lib[0].name" },
+      { SPN_ERR_CODEGEN_INVALID, "bin[0].name" },
+      { SPN_ERR_CODEGEN_INVALID, "script[0].name" },
+      { SPN_ERR_CODEGEN_INVALID, "test[0].name" },
+      { SPN_ERR_CODEGEN_INVALID, "example[0].name" },
+    },
+  },
+  {
+    .name = "validate_name_profile",
+    .manifest = "validate_name_profile",
+    .issues = {
+      { SPN_ERR_CODEGEN_INVALID, "profile.A/B" },
+    },
+  },
+  {
+    .name = "validate_name_key",
+    .manifest = "validate_name_key",
+    .issues = {
+      { SPN_ERR_CODEGEN_INVALID, "A/B/C" },
+      { SPN_ERR_CODEGEN_INVALID, "patch.A//B" },
+    },
+  },
+  {
     .name = "validate_cxx_source_on_build_script",
     .manifest = "validate_cxx_source_on_build_script",
     .build_source = { { "tools/build.cpp" } },

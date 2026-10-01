@@ -1,0 +1,4 @@
+[package]
+name = "A/B"
+namespace = "C/D"
+version = "1.0.0"

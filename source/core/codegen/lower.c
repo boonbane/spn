@@ -19,6 +19,12 @@
 #include "toml/loader.h"
 #include "when/when.h"
 
+static void validate_name(spn_toml_loader_t* ctx, sp_str_t key, sp_str_t name) {
+  if (sp_str_contains(name, sp_str_lit("/"))) {
+    spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, sp_str_to_cstr(ctx->mem, key));
+  }
+}
+
 static sp_str_t lower_qualify(spn_toml_loader_t* ctx, sp_str_t namespace, sp_str_t name) {
   if (sp_str_empty(name)) return name;
   sp_str_t ns = sp_str_empty(namespace) ? sp_str_lit("core") : namespace;
@@ -28,7 +34,11 @@ static sp_str_t lower_qualify(spn_toml_loader_t* ctx, sp_str_t namespace, sp_str
 static sp_str_t lower_canonicalize(spn_toml_loader_t* ctx, sp_str_t name) {
   if (sp_str_empty(name)) return name;
   sp_str_pair_t pair = sp_str_cleave_c8(name, '/');
-  if (sp_str_empty(pair.second)) return lower_qualify(ctx, sp_str_lit("core"), name);
+  if (sp_str_empty(pair.second)) {
+    validate_name(ctx, name, name);
+    return lower_qualify(ctx, sp_str_lit("core"), name);
+  }
+  validate_name(ctx, name, pair.second);
   return lower_qualify(ctx, pair.first, pair.second);
 }
 
@@ -1168,6 +1178,33 @@ static void validate_unique_targets(spn_toml_loader_t* ctx, spn_pkg_info_t* out)
   }
 }
 
+static void validate_collection_names(spn_toml_loader_t* ctx, spn_cg_target_om_t cg, const c8* key) {
+  spn_toml_loader_push_key(ctx, key);
+  sp_om_for(cg, it) {
+    spn_toml_loader_push_index(ctx, it);
+    validate_name(ctx, sp_str_lit("name"), sp_str_om_at(cg, it)->name);
+    spn_toml_loader_pop(ctx);
+  }
+  spn_toml_loader_pop(ctx);
+}
+
+static void validate_names(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg) {
+  spn_toml_loader_push_key(ctx, "package");
+  validate_name(ctx, sp_str_lit("name"), cg->package.name);
+  validate_name(ctx, sp_str_lit("namespace"), cg->package.namespace);
+  spn_toml_loader_pop(ctx);
+  validate_collection_names(ctx, cg->lib, "lib");
+  validate_collection_names(ctx, cg->bin, "bin");
+  validate_collection_names(ctx, cg->script, "script");
+  validate_collection_names(ctx, cg->test, "test");
+  validate_collection_names(ctx, cg->example, "example");
+  spn_toml_loader_push_key(ctx, "profile");
+  sp_da_for(cg->profile, it) {
+    validate_name(ctx, cg->profile[it].key, cg->profile[it].key);
+  }
+  spn_toml_loader_pop(ctx);
+}
+
 spn_err_t spn_pkg_lower(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, spn_pkg_info_t* out) {
   out->arena = sp_mem_arena_new(ctx->mem);
 
@@ -1182,6 +1219,7 @@ spn_err_t spn_pkg_lower(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, spn
   lower_config(ctx, cg, out);
   lower_patches(ctx, cg, out);
 
+  validate_names(ctx, cg);
   validate_profiles(ctx, cg);
   validate_lib_linkages(ctx, out);
   validate_trees(ctx, cg);

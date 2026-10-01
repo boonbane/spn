@@ -51,7 +51,7 @@ static bool is_name_valid(sp_str_t name) {
   }
   sp_str_for(name, it) {
     c8 c = name.data[it];
-    if (c == '"' || c == '\\' || c == '\n' || c == '\r' || c == '\t' || c == ' ') {
+    if (c == '"' || c == '\\' || c == '\n' || c == '\r' || c == '\t' || c == ' ' || c == '/') {
       return false;
     }
   }
