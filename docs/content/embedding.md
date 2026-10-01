@@ -1,6 +1,5 @@
 ---
-title: Embedding `spn`
-site: false
+title: libspn
 ---
 
 ## There's a stable C ABI
