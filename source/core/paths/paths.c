@@ -100,12 +100,7 @@ static spn_path_t classify(sp_mem_t mem, const spn_path_roots_t* roots, spn_path
     return spn_path_copy(mem, path);
   }
   sp_mem_arena_marker_t s = sp_mem_begin_scratch_for(mem);
-  spn_path_t result = path;
-  sp_str_t full = spn_path_str(roots, s.mem, path);
-  if (sp_fs_is_absolute(full)) {
-    result = spn_path_make(roots, full);
-  }
-  result = spn_path_copy(mem, result);
+  spn_path_t result = spn_path_copy(mem, spn_path_make(roots, spn_path_str(roots, s.mem, path)));
   sp_mem_end_scratch(s);
   return result;
 }
