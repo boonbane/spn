@@ -152,7 +152,7 @@ spn_path_t spn_path_canonicalize(sp_mem_t mem, const spn_path_roots_t* roots, sp
   if (sp_str_empty(canonical)) {
     canonical = spn_path_str(roots, s.mem, path);
   }
-  if (sp_fs_is_absolute(canonical) && spn_path_normal(canonical)) {
+  if (spn_path_normal(canonical)) {
     result = spn_path_make(roots, canonical);
   }
   result = spn_path_copy(mem, result);
