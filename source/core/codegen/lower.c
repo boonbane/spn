@@ -222,7 +222,13 @@ static void lower_dep(spn_toml_loader_t* ctx, sp_str_t name, const spn_cg_dep_t*
       spn_toml_loader_pop(ctx);
       return;
     }
-    spn_path_t dir = spn_path_resolve(ctx->mem, ctx->dir, cg->path);
+    if (sp_fs_is_absolute(cg->path)) {
+      spn_toml_loader_push_key(ctx, sp_str_to_cstr(ctx->mem, name));
+      spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_ABSOLUTE, "path");
+      spn_toml_loader_pop(ctx);
+      return;
+    }
+    spn_path_t dir = spn_path_join(ctx->mem, ctx->dir, cg->path);
     req.source = SPN_PKG_SOURCE_FILE;
     req.file.path = spn_path_join(ctx->mem, spn_path_canonicalize(ctx->mem, ctx->roots, dir), sp_str_lit("spn.toml"));
   } else {
@@ -512,7 +518,16 @@ static void lower_patches(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, s
       .set.files = sp_da_new(ctx->mem, sp_str_t),
     };
     sp_da_for(cg->patch[it].value.files, jt) {
-      spn_path_t path = spn_path_resolve(ctx->mem, ctx->dir, cg->patch[it].value.files[jt]);
+      sp_str_t file = cg->patch[it].value.files[jt];
+      if (sp_fs_is_absolute(file)) {
+        spn_toml_loader_push_key(ctx, sp_str_to_cstr(ctx->mem, cg->patch[it].key));
+        spn_toml_loader_push_index(ctx, jt);
+        spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_ABSOLUTE, "files");
+        spn_toml_loader_pop(ctx);
+        spn_toml_loader_pop(ctx);
+        continue;
+      }
+      spn_path_t path = spn_path_join(ctx->mem, ctx->dir, file);
       sp_da_push(patch.set.files, sp_fs_normalize_path(ctx->mem, spn_path_str(ctx->roots, ctx->mem, path)));
     }
     sp_da_push(out->patches, patch);

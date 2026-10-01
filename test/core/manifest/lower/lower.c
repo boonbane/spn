@@ -296,11 +296,11 @@ static const test_t tests [] = {
     }
   },
   {
-    .name = "dep_file",
-    .manifest = "dep_file",
-    .deps = {
-      { .name = "core/foo", .source = SPN_PKG_SOURCE_FILE, .file = "/abs/foo/spn.toml" }
-    }
+    .name = "validate_dep_absolute",
+    .manifest = "validate_dep_absolute",
+    .issues = {
+      { SPN_ERR_CODEGEN_ABSOLUTE, "foo.path" },
+    },
   },
   {
     .name = "dep_file_relative",
@@ -1524,6 +1524,13 @@ static const test_t tests [] = {
     .manifest = "validate_patch_files_empty",
     .issues = {
       { SPN_ERR_CODEGEN_MISSING_KEY, "patch.q.files" },
+    },
+  },
+  {
+    .name = "validate_patch_absolute",
+    .manifest = "validate_patch_absolute",
+    .issues = {
+      { SPN_ERR_CODEGEN_ABSOLUTE, "patch.q[0].files" },
     },
   },
   {
