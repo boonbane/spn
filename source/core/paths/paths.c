@@ -207,6 +207,13 @@ spn_path_t spn_path_join(sp_mem_t mem, spn_path_t base, sp_str_t sub) {
   };
 }
 
+spn_path_t spn_path_resolve(sp_mem_t mem, spn_path_t base, sp_str_t str) {
+  if (sp_fs_is_absolute(str)) {
+    return (spn_path_t) { .root = SPN_PATH_ROOT_NONE, .sub = sp_str_copy(mem, str) };
+  }
+  return spn_path_join(mem, base, str);
+}
+
 spn_path_t spn_path_parent(spn_path_t path) {
   s32 sep = sp_str_find_c8_reverse(path.sub, '/');
   u32 len = sep == SP_STR_NO_MATCH ? 0 : sep == 0 ? 1 : (u32)sep;

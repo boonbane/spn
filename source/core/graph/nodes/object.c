@@ -84,9 +84,7 @@ static spn_err_t compile_object(sp_mem_t scratch, spn_dag_t* g, spn_dag_object_c
     return SPN_ERR_DAG_DEPFILE;
   }
   sp_da_for(prereqs, it) {
-    spn_path_t path = sp_fs_is_absolute(prereqs[it])
-      ? (spn_path_t) { .sub = prereqs[it] }
-      : spn_path_join(scratch, unit->target->pkg->paths.work, prereqs[it]);
+    spn_path_t path = spn_path_resolve(scratch, unit->target->pkg->paths.work, prereqs[it]);
     spn_dag_observe(obs, (spn_dag_obs_t) {
       .kind = SPN_DAG_OBS_FILE,
       .path = spn_dag_file_cache_canonical(env->files, path),

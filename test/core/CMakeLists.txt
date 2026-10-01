@@ -85,6 +85,7 @@ add_executable(core
   paths/label.c
   paths/normal.c
   paths/path.c
+  paths/resolve.c
   paths/roots.c
   paths/set.c
   paths/stage.c
