@@ -25,6 +25,7 @@ static spn_err_t publish_build(spn_ctx_t* ctx, spn_publish_request_t request, sp
   spn_publish_opts_t opts = {
     .mem = ctx->mem,
     .intern = ctx->intern,
+    .roots = &ctx->roots,
     .dir = spn_path_from_root(SPN_PATH_ROOT_PROJECT),
     .url = request.url,
     .revision = request.revision,
@@ -40,7 +41,7 @@ static spn_err_t publish(spn_ctx_t* ctx, spn_publish_request_t request, spn_inde
     .name = spn_pkg_name_to_qualified(release->id),
     .version = spn_semver_to_str(ctx->mem, release->version),
     .index = index->name,
-    .url = spn_index_publish_target(ctx->mem, index),
+    .url = spn_index_publish_target(index),
   };
 
   spn_event_buffer_push(ctx->events, (spn_event_t) {

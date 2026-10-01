@@ -166,8 +166,8 @@ sp_test_each(index_dir, get_package, dir_test_t, tests, .setup = spn_test_ctx_se
   }
 
   spn_index_info_t index = {
-    .location = { .sub = location },
     .protocol = SPN_INDEX_PROTOCOL_DIR,
+    .dir = { .path = { .sub = location } },
   };
 
   spn_pkg_name_t request = {
@@ -177,7 +177,7 @@ sp_test_each(index_dir, get_package, dir_test_t, tests, .setup = spn_test_ctx_se
 
   spn_index_pkg_t* pkg = SP_NULLPTR;
   spn_index_diag_t diag = sp_zero;
-  spn_err_t err = spn_index_get_package(&index, mem, spn.intern, request, &pkg, &diag);
+  spn_err_t err = spn_index_get_package(&index, mem, spn.intern, &spn.roots, request, &pkg, &diag);
 
   sp_expect_eq(t, it->expect.err, err);
   sp_must_eq(t, it->expect.exists, pkg != SP_NULLPTR);

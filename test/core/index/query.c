@@ -59,12 +59,12 @@ sp_test_each(index_query, get_package, query_test_t, tests, .setup = spn_test_ct
   }
 
   spn_index_info_t index = {
-    .location = { .sub = location },
+    .location = { .at = sp_path_resolve(location), .dir = location },
   };
 
   spn_index_pkg_t* pkg = SP_NULLPTR;
   spn_index_diag_t diag = sp_zero;
-  spn_err_t err = spn_index_get_package(&index, mem, spn.intern, (spn_pkg_name_t) {
+  spn_err_t err = spn_index_get_package(&index, mem, spn.intern, &spn.roots, (spn_pkg_name_t) {
     .namespace = sp_str_lit("core"),
     .name = sp_str_lit("spum"),
   }, &pkg, &diag);

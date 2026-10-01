@@ -81,7 +81,7 @@ static spn_err_t add(spn_ctx_t* ctx, spn_add_request_t request, spn_semver_range
   spn_pkg_name_t name = spn_pkg_name_from_qualified(request.name);
 
   spn_index_cache_t cache = sp_zero;
-  spn_index_cache_init(&cache, ctx->heap, ctx->intern, &ctx->indexes);
+  spn_index_cache_init(&cache, ctx->heap, ctx->intern, &ctx->roots, &ctx->indexes);
 
   spn_index_pkg_t* pkg = SP_NULLPTR;
   spn_index_diag_t diag = sp_zero;

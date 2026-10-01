@@ -242,7 +242,9 @@ static spn_err_t open_ctx(spn_ctx_t* ctx, spn_open_request_t request) {
 
   sp_da_for(ctx->indexes, it) {
     spn_index_info_t* index = &ctx->indexes[it];
-    index->location = spn_index_location(index, ctx->heap, spn_path_from_root(SPN_PATH_ROOT_INDEX));
+    spn_path_t location = spn_index_location(index, ctx->heap, spn_path_from_root(SPN_PATH_ROOT_INDEX));
+    index->location.at = spn_path_at(&ctx->roots, location);
+    index->location.dir = spn_path_str(&ctx->roots, ctx->heap, location);
     if (!index->refresh) {
       index->refresh = request.index_refresh_seconds ? request.index_refresh_seconds : SPN_INDEX_DEFAULT_REFRESH;
     }

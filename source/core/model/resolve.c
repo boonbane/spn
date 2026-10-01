@@ -117,7 +117,7 @@ spn_err_t resolve(spn_op_t* op) {
   }));
 
   spn_index_cache_t index = sp_zero;
-  spn_index_cache_init(&index, session->mem, session->ctx->intern, &spn.indexes);
+  spn_index_cache_init(&index, session->mem, session->ctx->intern, &session->ctx->roots, &spn.indexes);
 
   spn_resolver_t resolver = sp_zero;
   spn_resolver_init(&resolver, spn.mem, session->ctx->intern, &index, &session->registry, session->profile, session->pkg->config, 0);

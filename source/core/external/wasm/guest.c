@@ -40,8 +40,9 @@ static void guest_copy(spn_wasm_ctx_t* abi, const c8* name, const c8* from, cons
     return;
   }
 
-  sp_str_t from_str = spn_path_str(&unit->session->ctx->roots, scratch.mem, from_path);
-  sp_str_t to_str = spn_path_str(&unit->session->ctx->roots, scratch.mem, to_path);
+  const spn_path_roots_t* roots = &unit->session->ctx->roots;
+  sp_str_t from_str = spn_path_str(roots, scratch.mem, from_path);
+  sp_str_t to_str = spn_path_str(roots, scratch.mem, to_path);
   spn_event_buffer_push(spn.events, (spn_event_t) {
     .kind = SPN_EVENT_API_CALL,
     .pkg = unit->info->name,
@@ -55,7 +56,7 @@ static void guest_copy(spn_wasm_ctx_t* abi, const c8* name, const c8* from, cons
     spn_dag_wasi_observe_read(abi->instance, from_path);
   }
 
-  if (spn_api_copy(from_path, to_path)) {
+  if (spn_api_copy(spn_path_at(roots, from_path), spn_path_at(roots, to_path))) {
     wasm_runtime_set_exception(abi->instance, sp_fmt_mem_cstr(scratch.mem, "{}: {} -> {}", SP_FMT_CSTR(name), SP_FMT_STR(from_str), SP_FMT_STR(to_str)));
   }
   else {
@@ -81,7 +82,6 @@ void spn_abi_fs_create_dir(spn_wasm_ctx_t* abi, const c8* path) {
     return;
   }
   sp_str_t dir_str = spn_path_str(&unit->session->ctx->roots, scratch.mem, dir);
-  SPN_API_LOG(unit, "spn_fs_create_dir", "{}", SP_FMT_STR(dir_str));
 
   if (sp_fs_create_dir_at(spn_path_at(&unit->session->ctx->roots, dir))) {
     wasm_runtime_set_exception(abi->instance, sp_fmt_mem_cstr(scratch.mem, "spn_fs_create_dir: {}", SP_FMT_STR(dir_str)));
@@ -101,7 +101,6 @@ void spn_abi_io_write(spn_wasm_ctx_t* abi, const c8* path, const c8* contents) {
     return;
   }
   sp_str_t dst_str = spn_path_str(&unit->session->ctx->roots, scratch.mem, dst);
-  SPN_API_LOG(unit, "spn_io_write", "{}", SP_FMT_STR(dst_str));
 
   sp_fs_create_parent_at(spn_path_at(&unit->session->ctx->roots, dst));
 

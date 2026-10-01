@@ -48,6 +48,6 @@ sp_test_each(invocation, to_str, test_t, tests, .setup = spn_test_ctx_setup) {
     }
     spn_cc_push_env_paths(mem, &invocation, it->env[at].key, values, count);
   }
-  sp_expect_str_eq_c(t, spn_invocation_to_str(mem, &invocation), it->expect.str);
+  sp_expect_str_eq_c(t, spn_invocation_to_str(&spn.roots, mem, &invocation), it->expect.str);
   return SP_OK;
 }

@@ -42,17 +42,18 @@ static resolve_result_t execute_fixture(const fx_config_t* config, const spn_pkg
   sp_str_t dir_index_location = sp_fs_join_path(mem, dir, sp_str_lit("index"));
   if (sp_fs_is_dir(dir_index_location)) {
     sp_da_push(indexes, ((spn_index_info_t) {
-      .location = { .sub = dir_index_location },
       .protocol = SPN_INDEX_PROTOCOL_DIR,
+      .dir = { .path = { .sub = dir_index_location } },
     }));
   }
 
   sp_da_push(indexes, ((spn_index_info_t) {
-    .location = { .sub = dir },
+    .location = { .at = sp_path_resolve(dir), .dir = dir },
   }));
 
+  spn_path_roots_t roots = sp_zero;
   spn_index_cache_t cache = sp_zero;
-  spn_index_cache_init(&cache, mem, intern, &indexes);
+  spn_index_cache_init(&cache, mem, intern, &roots, &indexes);
 
   spn_pkg_registry_t registry = sp_zero;
   sp_ht_init(mem, registry);

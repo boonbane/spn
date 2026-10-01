@@ -335,9 +335,10 @@ sp_test_each(cmd_publish, publish, case_t, cases, .setup = spn_test_ctx_setup) {
   git(index_root, "config", "receive.denyCurrentBranch", "updateInstead");
   git_repo_commit(index_root, sp_str_lit("seed"));
 
+  sp_str_t clone = sp_fs_join_path(mem, test_dir_str(t), sp_str_lit("index_clone"));
   spn_index_info_t index = {
     .git = { .url = index_root },
-    .location = { .sub = sp_fs_join_path(mem, test_dir_str(t), sp_str_lit("index_clone")) },
+    .location = { .at = sp_path_resolve(clone), .dir = clone },
   };
 
   sp_str_t cwd = repo.path;
@@ -351,6 +352,7 @@ sp_test_each(cmd_publish, publish, case_t, cases, .setup = spn_test_ctx_setup) {
   spn_publish_opts_t opts = {
     .mem = mem,
     .intern = spn.intern,
+    .roots = &spn.roots,
     .dir = { .sub = cwd },
     .url = c.opts.url ? sp_cstr_as_str(c.opts.url) : repo.path,
     .revision = repo.commits[rev_idx],
@@ -366,7 +368,7 @@ sp_test_each(cmd_publish, publish, case_t, cases, .setup = spn_test_ctx_setup) {
   if (c.expect.namespace && result == SPN_OK) {
     spn_index_pkg_t* pkg = SP_NULLPTR;
     spn_index_diag_t diag = sp_zero;
-    spn_index_get_package(&index, mem, spn.intern, (spn_pkg_name_t) {
+    spn_index_get_package(&index, mem, spn.intern, &spn.roots, (spn_pkg_name_t) {
       .namespace = sp_str_view(c.expect.namespace),
       .name = sp_str_view(c.expect.name),
     }, &pkg, &diag);

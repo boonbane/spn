@@ -211,7 +211,6 @@ void spn_write_file(spn_t* s, const c8* path, const c8* content) {
   if (spn_api_path_rejected(unit, "spn_write_file", sp_str_view(path))) {
     return;
   }
-  SPN_API_LOG(unit, "spn_write_file", "{}", SP_FMT_CSTR(path));
 
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   spn_path_t joined = spn_path_join(scratch.mem, unit->paths.work, sp_str_view(path));
@@ -219,21 +218,19 @@ void spn_write_file(spn_t* s, const c8* path, const c8* content) {
   sp_mem_end_scratch(scratch);
 }
 
-s32 spn_api_copy(spn_path_t from, spn_path_t to) {
-  sp_path_t source = spn_path_at(&spn.roots, from);
-  sp_path_t dest = spn_path_at(&spn.roots, to);
+s32 spn_api_copy(sp_path_t from, sp_path_t to) {
   if (!sp_glob_parse_meta(from.sub).literal) {
-    return spn_fs_update_glob(source, dest);
+    return spn_fs_update_glob(from, to);
   }
-  bool source_is_dir = sp_fs_is_dir_at(source);
-  if (!source_is_dir && !sp_fs_is_dir_at(dest)) {
-    return spn_fs_update_file(source, dest);
+  bool from_is_dir = sp_fs_is_dir_at(from);
+  if (!from_is_dir && !sp_fs_is_dir_at(to)) {
+    return spn_fs_update_file(from, to);
   }
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  sp_path_t into = spn_path_at(&spn.roots, spn_path_join(scratch.mem, to, sp_fs_get_name(from.sub)));
-  s32 err = source_is_dir
-    ? (sp_fs_copy_at(source, into, SP_FS_ATOMIC_REPLACE) ? SPN_ERROR : SPN_OK)
-    : spn_fs_update_file(source, into);
+  sp_path_t into = sp_path_join(scratch.mem, to, sp_fs_get_name(from.sub));
+  s32 err = from_is_dir
+    ? (sp_fs_copy_at(from, into, SP_FS_ATOMIC_REPLACE) ? SPN_ERROR : SPN_OK)
+    : spn_fs_update_file(from, into);
   sp_mem_end_scratch(scratch);
   return err;
 }
@@ -243,12 +240,13 @@ s32 spn_copy(spn_t* s, spn_dir_t from_dir, const c8* from_path, spn_dir_t to_dir
   if (spn_api_path_rejected(unit, "spn_copy", sp_str_view(from_path)) || spn_api_path_rejected(unit, "spn_copy", sp_str_view(to_path))) {
     return SPN_ERROR;
   }
+
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   spn_path_t from = spn_path_join(scratch.mem, spn_api_dir_path(unit, from_dir), sp_cstr_as_str(from_path));
   spn_path_t to = spn_path_join(scratch.mem, spn_api_dir_path(unit, to_dir), sp_cstr_as_str(to_path));
-  SPN_API_LOG(unit, "spn_copy", "{} -> {}", SP_FMT_STR(spn_path_str(&unit->session->ctx->roots, scratch.mem, from)), SP_FMT_STR(spn_path_str(&unit->session->ctx->roots, scratch.mem, to)));
+  const spn_path_roots_t* roots = &unit->session->ctx->roots;
 
-  s32 err = spn_api_copy(from, to);
+  s32 err = spn_api_copy(spn_path_at(roots, from), spn_path_at(roots, to));
   sp_mem_end_scratch(scratch);
   return err;
 }

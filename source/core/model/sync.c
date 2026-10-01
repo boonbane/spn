@@ -57,7 +57,6 @@ static spn_cc_t cc_toolchain(spn_toolchain_info_t* toolchain, spn_toolchain_laun
     .archiver = archiver,
     .link_args = toolchain->link_args,
     .archiver_driver = toolchain->driver == SPN_CC_DRIVER_MSVC ? SPN_AR_DRIVER_MSVC : SPN_AR_DRIVER_GNU,
-    .wasi = spn_toolchain_wasi_spelling(&spn.roots, spn.mem, toolchain),
   };
 }
 
@@ -125,22 +124,25 @@ static spn_err_t setup_artifact(spn_toolchain_store_t* store, spn_toolchain_unit
 static spn_err_t setup_toolchain_unit(spn_toolchain_store_t* store, spn_toolchain_unit_t* unit) {
   switch (unit->info->support.kind) {
     case SPN_TOOLCHAIN_SUPPORT_LOCAL: {
-      return setup_local(store, unit);
+      spn_try(setup_local(store, unit));
+      break;
     }
     case SPN_TOOLCHAIN_SUPPORT_ARTIFACT: {
-      return setup_artifact(store, unit);
+      spn_try(setup_artifact(store, unit));
+      break;
     }
     case SPN_TOOLCHAIN_SUPPORT_DETECTED: {
       spn_toolchain_info_t* toolchain = unit->info;
       unit->cc = cc_toolchain(toolchain, toolchain->compiler, toolchain->cxx, toolchain->archiver);
-      return SPN_OK;
+      break;
     }
     case SPN_TOOLCHAIN_SUPPORT_NONE: {
       sp_unreachable_case();
     }
   }
 
-  sp_unreachable_return(SPN_ERROR);
+  unit->cc.wasi = spn_toolchain_wasi_spelling(store->roots, spn.mem, unit->info);
+  return SPN_OK;
 }
 
 static spn_err_t materialize_tree(spn_session_t* session, sp_str_t name, spn_pkg_root_t tree, spn_path_t* root, bool* fetched) {

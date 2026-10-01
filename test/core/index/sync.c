@@ -76,7 +76,7 @@ sp_test_each(index_sync, dir, dir_sync_test_t, dir_tests) {
   }
 
   spn_index_info_t index = {
-    .location = { .sub = location },
+    .location = { .at = sp_path_resolve(location), .dir = location },
     .protocol = SPN_INDEX_PROTOCOL_DIR,
   };
 
@@ -103,7 +103,7 @@ sp_test_each(index_sync, sync, sync_test_t, tests) {
     .name = sp_str_lit("test"),
     .protocol = it->protocol,
     .git = { .url = remote },
-    .location = { .sub = cache },
+    .location = { .at = sp_path_resolve(cache), .dir = cache },
   };
 
   if (it->cloned) {

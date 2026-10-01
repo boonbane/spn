@@ -6,13 +6,13 @@
 #include "index/types.h"
 #include "paths/paths.h"
 
-static spn_index_desc_t describe_index(sp_mem_t mem, spn_ctx_t* ctx, spn_index_info_t* index) {
+static spn_index_desc_t describe_index(sp_mem_t mem, spn_index_info_t* index) {
   return (spn_index_desc_t) {
     .name = index->name,
     .kind = index->kind,
     .protocol = index->protocol,
-    .source = spn_index_source(mem, index),
-    .location = spn_path_str(&ctx->roots, mem, index->location),
+    .source = spn_index_source(index),
+    .location = sp_str_copy(mem, index->location.dir),
   };
 }
 
@@ -33,7 +33,7 @@ spn_index_arr_t spn_get_indexes(sp_mem_t mem, spn_ctx_t* ctx) {
     .count = (u32)sp_da_size(ctx->indexes),
   };
   sp_da_for(ctx->indexes, it) {
-    spn_index_desc_t desc = describe_index(mem, ctx, &ctx->indexes[it]);
+    spn_index_desc_t desc = describe_index(mem, &ctx->indexes[it]);
     desc.name = sp_str_copy(mem, desc.name);
     desc.source = sp_str_copy(mem, desc.source);
     indexes.items[it] = desc;
@@ -46,6 +46,6 @@ bool spn_get_index(sp_mem_t mem, spn_ctx_t* ctx, sp_str_t name, spn_index_desc_t
   if (!info) {
     return false;
   }
-  *index = describe_index(mem, ctx, info);
+  *index = describe_index(mem, info);
   return true;
 }

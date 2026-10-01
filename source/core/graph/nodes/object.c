@@ -13,7 +13,7 @@
 #include "graph/nodes/nodes.h"
 #include "unit/package.h"
 
-static s32 run_compiler(spn_compile_unit_t* unit, const spn_invocation_t* base, spn_path_t object, spn_path_t depfile) {
+static s32 run_compiler(const spn_path_roots_t* roots, spn_compile_unit_t* unit, const spn_invocation_t* base, spn_path_t object, spn_path_t depfile) {
   spn_pkg_unit_t* pkg = unit->target->pkg;
   spn_session_t* session = pkg->session;
 
@@ -25,8 +25,8 @@ static s32 run_compiler(spn_compile_unit_t* unit, const spn_invocation_t* base, 
     .depfile = depfile,
   };
   spn_invocation_t invocation = spn_cc_render_compile_command(spn.mem, &pkg->build->toolchain->cc, &pkg->build->profile, base, &files);
-  spn_invocation_result_t run = spn_invocation_run(&invocation);
-  sp_str_t command = spn_invocation_to_str(spn.mem, &invocation);
+  spn_invocation_result_t run = spn_invocation_run(roots, &invocation);
+  sp_str_t command = spn_invocation_to_str(roots, spn.mem, &invocation);
 
   if (run.result.status.exit_code) {
     spn_event_buffer_push(session->ctx->events, (spn_event_t) {
@@ -66,11 +66,11 @@ static spn_err_t compile_object(sp_mem_t scratch, spn_dag_t* g, spn_dag_object_c
 
   spn_cc_depfile_t mode = spn_cc_depfile(toolchain, unit->lang);
   if (mode == SPN_CC_DEPFILE_NONE) {
-    return run_compiler(unit, ctx->invocation, object, (spn_path_t) sp_zero) ? SPN_ERR_DAG_ACTION : SPN_OK;
+    return run_compiler(g->roots, unit, ctx->invocation, object, (spn_path_t) sp_zero) ? SPN_ERR_DAG_ACTION : SPN_OK;
   }
 
   spn_path_t depfile = spn_path_suffix(scratch, object, sp_str_lit(".d"));
-  if (run_compiler(unit, ctx->invocation, object, depfile)) {
+  if (run_compiler(g->roots, unit, ctx->invocation, object, depfile)) {
     return SPN_ERR_DAG_ACTION;
   }
 

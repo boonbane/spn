@@ -21,12 +21,12 @@ static spn_pkg_root_t web_root(sp_mem_t mem, spn_pkg_root_t root) {
 
 spn_err_t spn_publish_build(spn_publish_opts_t* opts, spn_index_release_t* built) {
   spn_path_t manifest = spn_path_join(opts->mem, opts->dir, sp_str_lit("spn.toml"));
-  sp_str_t manifest_path = spn_path_str(&spn.roots, opts->mem, manifest);
-  sp_str_t cwd = spn_path_str(&spn.roots, opts->mem, opts->dir);
+  sp_str_t manifest_path = spn_path_str(opts->roots, opts->mem, manifest);
+  sp_str_t cwd = spn_path_str(opts->roots, opts->mem, opts->dir);
 
   spn_pkg_info_t info = sp_zero;
   spn_codegen_issues_t issues = sp_zero;
-  spn_err_t loaded = spn_pkg_load(opts->mem, opts->intern, &spn.roots, manifest, SPN_MANIFEST_DEP, &info, &issues);
+  spn_err_t loaded = spn_pkg_load(opts->mem, opts->intern, opts->roots, manifest, SPN_MANIFEST_DEP, &info, &issues);
   if (loaded == SPN_ERR_NO_MANIFEST) {
     return spn_err_emit(&spn, (spn_err_union_t) {
       .kind = SPN_ERR_NO_MANIFEST,

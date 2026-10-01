@@ -81,7 +81,10 @@ struct spn_index_info {
       spn_path_t path;
     } dir;
   };
-  spn_path_t location;
+  struct {
+    sp_path_t at;
+    sp_str_t dir;
+  } location;
   u32 refresh;
 };
 
@@ -90,6 +93,7 @@ struct spn_index_info {
 typedef struct {
   sp_mem_t mem;
   sp_intern_t* intern;
+  const spn_path_roots_t* roots;
   sp_da(spn_index_info_t)* indexes;
   sp_str_om(spn_index_pkg_t*) packages;
 } spn_index_cache_t;
