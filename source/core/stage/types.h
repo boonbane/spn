@@ -2,6 +2,7 @@
 #define SPN_STAGE_TYPES_H
 
 #include "sp.h"
+#include "str/str.h"
 
 typedef struct {
   sp_str_t owner;
@@ -9,8 +10,8 @@ typedef struct {
 } spn_stage_record_t;
 
 typedef struct {
-  sp_da(spn_stage_record_t) records;
-  sp_da(sp_str_t) dropped;
-} spn_stage_plan_t;
+  sp_str_line_it_t line;
+  spn_stage_record_t record;
+} spn_stage_it_t;
 
 #endif
