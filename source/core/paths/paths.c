@@ -374,9 +374,7 @@ spn_path_t spn_tree_root(spn_tree_roots_t roots, spn_tree_t tree) {
 }
 
 spn_path_t spn_tree_path(sp_mem_t mem, const spn_path_roots_t* roots, spn_tree_roots_t tree, spn_tree_t decl, sp_str_t str) {
-  if (sp_fs_is_absolute(str)) {
-    return spn_path_copy(mem, spn_path_make(roots, str));
-  }
+  sp_assert(!sp_fs_is_absolute(str));
   sp_assert(spn_path_normal(str));
   sp_mem_arena_marker_t s = sp_mem_begin_scratch_for(mem);
   spn_path_t result = classify(mem, roots, spn_path_join(s.mem, spn_tree_root(tree, decl), str));

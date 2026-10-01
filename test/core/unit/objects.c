@@ -35,7 +35,7 @@ static const objects_test_t tests [] = {
   },
   {
     .name = "outside_tree_files_keep_a_root_label",
-    .source = { { "manifest/x.c", SPN_TREE_SOURCE }, { "/manifest/x.c", SPN_TREE_SOURCE } },
+    .source = { { "manifest/x.c", SPN_TREE_SOURCE }, { "/manifest/x.c" } },
     .expect = { .objects = { "object/exe/app/manifest/manifest/x.c.o", "object/exe/app/absolute/manifest/x.c.o" } },
   },
   {
@@ -77,9 +77,12 @@ sp_test_each(unit_objects, create, objects_test_t, tests, .setup = spn_test_ctx_
     if (!it->source[st].path) {
       break;
     }
+    sp_str_t path = sp_cstr_as_str(it->source[st].path);
     sp_da_push(app.source, ((spn_source_t) {
       .kind = it->source[st].kind,
-      .path = spn_tree_path(mem, &spn.roots, loaded->roots, it->source[st].tree, sp_cstr_as_str(it->source[st].path)),
+      .path = it->source[st].tree == SPN_TREE_NONE
+        ? spn_path_make(&spn.roots, path)
+        : spn_tree_path(mem, &spn.roots, loaded->roots, it->source[st].tree, path),
     }));
   }
   sp_str_om_insert(s->pkg->exes, app.name, app);

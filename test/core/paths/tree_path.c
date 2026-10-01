@@ -39,27 +39,6 @@ static const tree_path_test_t tree_path_tests [] = {
     .expect = { .root = SPN_PATH_ROOT_PROJECT, .sub = "S", .resolved = "/A/S" }
   },
   {
-    .name = "absolute_ignores_the_declared_tree",
-    .roots = { .project = "/A" },
-    .recipe = "/A/R", .source = "/A/S",
-    .decl = SPN_TREE_MANIFEST, .path = "/A/S/Y.c",
-    .expect = { .root = SPN_PATH_ROOT_PROJECT, .sub = "S/Y.c", .resolved = "/A/S/Y.c" }
-  },
-  {
-    .name = "absolute_outside_the_trees_keeps_its_root",
-    .roots = { .project = "/P", .store = "/P/T" },
-    .recipe = "/P/R", .source = "/P/T/S",
-    .decl = SPN_TREE_SOURCE, .path = "/P/T/O/H.c",
-    .expect = { .root = SPN_PATH_ROOT_STORE, .sub = "O/H.c", .resolved = "/P/T/O/H.c" }
-  },
-  {
-    .name = "absolute_outside_the_roots_is_unrooted",
-    .roots = { .project = "/A" },
-    .recipe = "/A/R", .source = "/A/S",
-    .decl = SPN_TREE_SOURCE, .path = "/B/Z.c",
-    .expect = { .sub = "/B/Z.c", .resolved = "/B/Z.c" }
-  },
-  {
     .name = "unset_trees_leave_a_relative_declaration_relative",
     .decl = SPN_TREE_SOURCE, .path = "M.c",
     .expect = { .sub = "M.c", .resolved = "M.c" }
