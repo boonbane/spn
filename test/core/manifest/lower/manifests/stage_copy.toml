@@ -1,0 +1,11 @@
+[package]
+name = "p"
+version = "1.0.0"
+
+[stage]
+copy = [
+  { from = "work/gen/web/proto.ts", to = "src/web/gen/proto.ts" },
+  { from = "share/examples/a.c", to = "examples/a.c" },
+  { from = "lib/libp.a", to = "out/libp.a" },
+  { from = "bin/p", to = "tools/p" },
+]

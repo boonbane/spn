@@ -40,6 +40,12 @@ typedef struct {
 } copy_t;
 
 typedef struct {
+  spn_dir_t dir;
+  const c8* sub;
+  const c8* to;
+} stage_t;
+
+typedef struct {
   const c8* path;
   const c8* dest;
   const c8* data_type;
@@ -179,6 +185,7 @@ typedef struct {
   gated_t system_deps [8];
   gated_t frameworks [4];
   copy_t publish [4];
+  stage_t stage [4];
   issue_t issues [8];
   target_t libs [8];
   target_t exes [8];
@@ -1346,6 +1353,67 @@ static const test_t tests [] = {
     },
   },
   {
+    .name = "stage_copy",
+    .manifest = "stage_copy",
+    .stage = {
+      { SPN_DIR_WORK, "gen/web/proto.ts", "src/web/gen/proto.ts" },
+      { SPN_DIR_SHARE, "examples/a.c", "examples/a.c" },
+      { SPN_DIR_LIB, "libp.a", "out/libp.a" },
+      { SPN_DIR_BIN, "p", "tools/p" },
+    },
+  },
+  {
+    .name = "validate_stage_paths",
+    .manifest = "validate_stage_paths",
+    .issues = {
+      { SPN_ERR_CODEGEN_PATH, "stage.copy[0].from" },
+      { SPN_ERR_CODEGEN_PATH, "stage.copy[0].to" },
+      { SPN_ERR_CODEGEN_ABSOLUTE, "stage.copy[1].from" },
+      { SPN_ERR_CODEGEN_ABSOLUTE, "stage.copy[1].to" },
+      { SPN_ERR_CODEGEN_PATH, "stage.copy[2].from" },
+      { SPN_ERR_CODEGEN_PATH, "stage.copy[2].to" },
+    },
+  },
+  {
+    .name = "validate_stage_from_dir",
+    .manifest = "validate_stage_from_dir",
+    .issues = {
+      { SPN_ERR_CODEGEN_INVALID, "stage.copy[0].from" },
+      { SPN_ERR_CODEGEN_INVALID, "stage.copy[1].from" },
+    },
+  },
+  {
+    .name = "validate_stage_from_empty",
+    .manifest = "validate_stage_from_empty",
+    .issues = {
+      { SPN_ERR_CODEGEN_PATH, "stage.copy[0].from" },
+    },
+  },
+  {
+    .name = "validate_stage_from_glob",
+    .manifest = "validate_stage_from_glob",
+    .issues = {
+      { SPN_ERR_CODEGEN_INVALID, "stage.copy[0].from" },
+    },
+  },
+  {
+    .name = "validate_stage_to_build",
+    .manifest = "validate_stage_to_build",
+    .stage = { { SPN_DIR_WORK, "c", "builds/c" } },
+    .issues = {
+      { SPN_ERR_CODEGEN_INVALID, "stage.copy[0].to" },
+      { SPN_ERR_CODEGEN_INVALID, "stage.copy[1].to" },
+    },
+  },
+  {
+    .name = "validate_stage_to_duplicate",
+    .manifest = "validate_stage_to_duplicate",
+    .stage = { { SPN_DIR_WORK, "a", "src/a" } },
+    .issues = {
+      { SPN_ERR_CODEGEN_DUPLICATE_KEY, "stage.copy[1].to" },
+    },
+  },
+  {
     .name = "validate_package_define_when_unknown_key",
     .manifest = "validate_package_define_when_unknown_key",
     .define = { { "A" }, { "B", "simd = \"avx2\"" } },
@@ -1731,6 +1799,14 @@ sp_test_each(lower, cases, test_t, tests) {
   u32 num_copies = 0;
   sp_carr_detect_len(it->publish, num_copies, it->publish[num_copies].pattern);
   sp_try(check_copy_list(t, pkg.gated.publish.copy, it->publish, num_copies));
+  u32 num_stages = 0;
+  sp_carr_detect_len(it->stage, num_stages, it->stage[num_stages].to);
+  sp_must_eq(t, num_stages, (u32)sp_da_size(pkg.stage.copy));
+  sp_for(st, num_stages) {
+    sp_expect_eq(t, (u32)it->stage[st].dir, (u32)pkg.stage.copy[st].dir);
+    sp_expect_str_eq_c(t, pkg.stage.copy[st].sub, it->stage[st].sub);
+    sp_expect_str_eq_c(t, pkg.stage.copy[st].to, it->stage[st].to);
+  }
   sp_expect_eq(t, (u32)0, (u32)sp_da_size(pkg.include));
   check_gated_paths(t, pkg.gated.include, it->include);
   check_gated_sources(t, pkg.build.gated.source, it->build_source);

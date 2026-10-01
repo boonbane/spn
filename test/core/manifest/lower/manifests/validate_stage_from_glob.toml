@@ -1,0 +1,8 @@
+[package]
+name = "p"
+version = "1.0.0"
+
+[stage]
+copy = [
+  { from = "work/gen/*.ts", to = "src/gen" },
+]

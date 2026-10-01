@@ -340,6 +340,55 @@ static void lower_publish(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, s
   spn_toml_loader_pop(ctx);
 }
 
+static void lower_stage(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, spn_pkg_info_t* out) {
+  spn_toml_loader_push_key(ctx, "stage");
+  spn_toml_loader_push_key(ctx, "copy");
+  out->stage.copy = sp_da_new(ctx->mem, spn_stage_copy_t);
+  sp_da_for(cg->stage.copy, it) {
+    const spn_cg_stage_copy_t* entry = &cg->stage.copy[it];
+    sp_str_pair_t from = sp_str_cleave_c8(entry->from, '/');
+    spn_stage_copy_t copy = {
+      .dir = spn_dir_from_str(from.first),
+      .sub = from.second,
+      .to = entry->to,
+    };
+    bool produced = copy.dir == SPN_DIR_WORK || copy.dir == SPN_DIR_SHARE || copy.dir == SPN_DIR_LIB || copy.dir == SPN_DIR_BIN;
+    bool duplicate = false;
+    sp_for(jt, it) {
+      duplicate = duplicate || sp_str_equal(cg->stage.copy[jt].to, entry->to);
+    }
+
+    u64 issues = sp_da_size(ctx->issues);
+    spn_toml_loader_push_index(ctx, it);
+    spn_toml_loader_push_key(ctx, "from");
+    if (lower_path_ok(ctx, entry->from)) {
+      if (!produced) {
+        spn_toml_loader_issue_at(ctx, SPN_ERR_CODEGEN_INVALID, entry->from);
+      } else if (sp_str_empty(copy.sub)) {
+        spn_toml_loader_issue_at(ctx, SPN_ERR_CODEGEN_PATH, entry->from);
+      } else if (!sp_glob_parse_meta(copy.sub).literal) {
+        spn_toml_loader_issue_at(ctx, SPN_ERR_CODEGEN_INVALID, entry->from);
+      }
+    }
+    spn_toml_loader_pop(ctx);
+    spn_toml_loader_push_key(ctx, "to");
+    if (lower_path_ok(ctx, entry->to)) {
+      if (sp_str_equal_cstr(sp_str_cleave_c8(entry->to, '/').first, "build")) {
+        spn_toml_loader_issue_at(ctx, SPN_ERR_CODEGEN_INVALID, entry->to);
+      } else if (duplicate) {
+        spn_toml_loader_issue_at(ctx, SPN_ERR_CODEGEN_DUPLICATE_KEY, entry->to);
+      }
+    }
+    spn_toml_loader_pop(ctx);
+    spn_toml_loader_pop(ctx);
+    if (sp_da_size(ctx->issues) == issues) {
+      sp_da_push(out->stage.copy, copy);
+    }
+  }
+  spn_toml_loader_pop(ctx);
+  spn_toml_loader_pop(ctx);
+}
+
 static void lower_targets(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, spn_pkg_info_t* out) {
   lower_collection(ctx, cg->lib, &out->libs, SPN_TARGET_KIND_LIB);
   lower_collection(ctx, cg->bin, &out->exes, SPN_TARGET_KIND_EXE);
@@ -1225,6 +1274,7 @@ spn_err_t spn_pkg_lower(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, spn
 
   lower_package(ctx, cg, out);
   lower_publish(ctx, cg, out);
+  lower_stage(ctx, cg, out);
   lower_targets(ctx, cg, out);
   lower_toolchains(ctx, cg, out);
   lower_profiles(ctx, cg, out);

@@ -379,6 +379,41 @@ sp_str_t spn_tree_to_str(spn_tree_t tree) {
   SP_UNREACHABLE_RETURN(sp_str_lit(""));
 }
 
+spn_dir_t spn_dir_from_str(sp_str_t str) {
+  if (sp_str_equal_cstr(str, "cache")) {
+    return SPN_DIR_CACHE;
+  }
+  if (sp_str_equal_cstr(str, "store")) {
+    return SPN_DIR_STORE;
+  }
+  if (sp_str_equal_cstr(str, "include")) {
+    return SPN_DIR_INCLUDE;
+  }
+  if (sp_str_equal_cstr(str, "share")) {
+    return SPN_DIR_SHARE;
+  }
+  if (sp_str_equal_cstr(str, "lib")) {
+    return SPN_DIR_LIB;
+  }
+  if (sp_str_equal_cstr(str, "source")) {
+    return SPN_DIR_SOURCE;
+  }
+  if (sp_str_equal_cstr(str, "work")) {
+    return SPN_DIR_WORK;
+  }
+  if (sp_str_equal_cstr(str, "project")) {
+    return SPN_DIR_PROJECT;
+  }
+  if (sp_str_equal_cstr(str, "manifest")) {
+    return SPN_DIR_MANIFEST;
+  }
+  if (sp_str_equal_cstr(str, "bin")) {
+    return SPN_DIR_BIN;
+  }
+
+  return SPN_DIR_NONE;
+}
+
 sp_str_t spn_dir_to_str(spn_dir_t dir) {
   switch (dir) {
     case SPN_DIR_NONE:     return sp_str_lit("");
