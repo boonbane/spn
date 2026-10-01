@@ -101,17 +101,20 @@ static bool foreign(spn_pkg_unit_t* unit, spn_path_t path) {
 }
 
 spn_path_t spn_api_tree_path(spn_pkg_unit_t* unit, const c8* fn, const c8* path) {
-  sp_str_t str = sp_str_view(path);
+  sp_str_t str = sp_cstr_as_str(path);
   if (!spn_path_normal(str)) {
     reject(unit, fn, str, SPN_ERR_PATH_COMPONENT);
     return sp_zero_struct(spn_path_t);
   }
-  spn_path_t tree = spn_tree_path(spn.mem, &unit->session->ctx->roots, unit->paths.roots, SPN_TREE_SOURCE, str);
-  if (sp_fs_is_absolute(str) && foreign(unit, tree)) {
+  if (!sp_fs_is_absolute(str)) {
+    return spn_tree_path(spn.mem, &unit->session->ctx->roots, unit->paths.roots, SPN_TREE_SOURCE, str);
+  }
+  spn_path_t absolute = spn_path_make(&unit->session->ctx->roots, str);
+  if (foreign(unit, absolute)) {
     reject(unit, fn, str, SPN_ERR_PATH_FOREIGN);
     return sp_zero_struct(spn_path_t);
   }
-  return tree;
+  return spn_path_copy(spn.mem, absolute);
 }
 
 static spn_path_t api_path(spn_pkg_unit_t* unit, const c8* fn, const c8* path) {
