@@ -196,6 +196,7 @@ spn_path_t spn_path_copy(sp_mem_t mem, spn_path_t path) {
 }
 
 spn_path_t spn_path_join(sp_mem_t mem, spn_path_t base, sp_str_t sub) {
+  sp_assert(!sp_fs_is_absolute(sub));
   return (spn_path_t) {
     .root = base.root,
     .sub = sp_str_empty(base.sub) ? sp_str_copy(mem, sub) : sp_fs_join_path(mem, base.sub, sub),
