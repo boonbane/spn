@@ -1,7 +1,0 @@
-[package]
-name = "kit"
-version = "1.0.0"
-
-[[lib]]
-name = "kit"
-kinds = ["source"]

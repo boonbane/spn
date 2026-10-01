@@ -87,7 +87,7 @@ static void hash_pin(spn_digest_ctx_t* ctx, const source_pin_t* pin) {
 //////////////////
 // CONSTRUCTION //
 //////////////////
-static spn_err_t dag_add_user_nodes(spn_dag_build_t* b, spn_pkg_unit_t* unit, spn_dag_pkg_ids_t* ids) {
+static spn_err_t dag_add_user_nodes(spn_dag_build_t* b, spn_pkg_unit_t* unit, sp_da(spn_dag_id_t)* outputs) {
   spn_dag_t* g = b->graph;
   source_pin_t pin = source_pin(unit);
 
@@ -163,10 +163,7 @@ static spn_err_t dag_add_user_nodes(spn_dag_build_t* b, spn_pkg_unit_t* unit, sp
         };
         return err;
       }
-      sp_da_push(ids->outputs, artifact);
-      if (out->dir == SPN_DIR_SHARE) {
-        sp_da_push(ids->shared, artifact);
-      }
+      sp_da_push(*outputs, artifact);
     }
   }
 
@@ -509,12 +506,10 @@ static spn_err_t dag_add_tree(spn_dag_build_t* b, spn_pkg_unit_t* unit) {
 }
 
 static spn_err_t dag_add_package(spn_dag_build_t* b, spn_pkg_unit_t* unit) {
-  spn_dag_pkg_ids_t ids = sp_zero;
-  sp_da_init(b->mem, ids.outputs);
-  sp_da_init(b->mem, ids.shared);
-  spn_try(dag_add_user_nodes(b, unit, &ids));
+  sp_da(spn_dag_id_t) user_outputs = sp_da_new(b->mem, spn_dag_id_t);
+  spn_try(dag_add_user_nodes(b, unit, &user_outputs));
   spn_try(dag_add_tree(b, unit));
-  sp_ht_insert(b->ids.packages, unit, ids);
+  sp_ht_insert(b->ids.user_outputs, unit, user_outputs);
 
   return SPN_OK;
 }
@@ -541,19 +536,10 @@ static void dag_add_target_edges(spn_dag_build_t* b, spn_target_unit_t* target, 
   sp_mem_arena_marker_t s = sp_mem_begin_scratch();
 
   sp_da(spn_dag_id_t) inputs = sp_da_new(s.mem, spn_dag_id_t);
-  spn_dag_pkg_ids_t* pkg = sp_ht_getp(b->ids.packages, unit);
-  if (pkg) {
-    sp_da_for(pkg->outputs, it) {
-      sp_da_push(inputs, pkg->outputs[it]);
-    }
-  }
-  sp_da_for(unit->deps, dt) {
-    spn_dag_pkg_ids_t* dep = sp_ht_getp(b->ids.packages, unit->deps[dt].unit);
-    if (!dep || !spn_dep_kind_applies(unit->deps[dt].kind, target->info->kind)) {
-      continue;
-    }
-    sp_da_for(dep->shared, it) {
-      sp_da_push(inputs, dep->shared[it]);
+  sp_da(spn_dag_id_t)* user_outputs = sp_ht_getp(b->ids.user_outputs, unit);
+  if (user_outputs) {
+    sp_da_for(*user_outputs, it) {
+      sp_da_push(inputs, (*user_outputs)[it]);
     }
   }
   sp_da_for(plan->include, it) {
@@ -873,7 +859,7 @@ spn_dag_build_t* spn_dag_build_new(spn_op_t* op) {
   b->session = session;
   b->mem = spn.mem;
   b->graph = spn_dag_new(spn.mem, roots);
-  sp_ht_init(b->mem, b->ids.packages);
+  sp_ht_init(b->mem, b->ids.user_outputs);
   sp_ht_init(b->mem, b->ids.stamps);
   sp_ht_set_fns(b->ids.stamps, spn_path_on_hash, spn_path_on_compare);
   sp_ht_init(b->mem, b->ids.targets);
