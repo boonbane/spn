@@ -704,6 +704,10 @@ static spn_err_t read_stage_manifest(spn_dag_build_t* b, sp_mem_t mem, spn_path_
 }
 
 static spn_err_t write_stage_manifest(spn_dag_build_t* b, spn_path_t manifest, sp_str_t previous, sp_str_t next) {
+  if (sp_str_equal(previous, next)) {
+    return SPN_OK;
+  }
+
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   const spn_path_roots_t* roots = b->graph->roots;
   spn_err_t err = SPN_OK;
@@ -735,6 +739,19 @@ static spn_err_t write_stage_manifest(spn_dag_build_t* b, spn_path_t manifest, s
 done:
   sp_mem_end_scratch(scratch);
   return err;
+}
+
+// What spn owns in the checkout follows from what is declared, not from how the build went
+static spn_err_t claim_project_stages(spn_dag_build_t* b, sp_mem_t mem, spn_path_t compile_commands) {
+  spn_path_t manifest = spn_path_join(mem, b->session->paths.build, sp_str_lit(".spn/staged"));
+
+  sp_io_dyn_mem_writer_t io = sp_zero;
+  sp_io_dyn_mem_writer_init(mem, &io);
+  spn_stage_write(&io.base, compile_commands.sub, compile_commands.sub);
+
+  sp_str_t previous = sp_zero;
+  spn_try(read_stage_manifest(b, mem, manifest, &previous));
+  return write_stage_manifest(b, manifest, previous, sp_io_dyn_mem_writer_as_str(&io));
 }
 
 static spn_err_t stage_files(spn_dag_build_t* b) {
@@ -996,28 +1013,15 @@ spn_err_t spn_dag_build_session(spn_op_t* op) {
     return result;
   }
 
-  if (spn_dag_digest_valid(spn_dag_find_artifact(b->graph, b->compile_commands)->digest)) {
-    sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-    spn_path_t to = spn_path_join(scratch.mem, session->paths.root, sp_str_lit("compile_commands.json"));
-    spn_path_t manifest = spn_path_join(scratch.mem, session->paths.build, sp_str_lit(".spn/staged"));
-
-    sp_str_buf_t buf = sp_zero;
-    sp_io_dyn_mem_writer_t next = sp_zero;
-    sp_io_dyn_mem_writer_init(sp_str_buf_as_mem(&buf), &next);
-    spn_stage_write(&next.base, to.sub, to.sub);
-
-    sp_str_t previous = sp_zero;
-    spn_err_t staged = read_stage_manifest(b, scratch.mem, manifest, &previous);
-    if (!staged) {
-      staged = write_stage_manifest(b, manifest, previous, sp_io_dyn_mem_writer_as_str(&next));
-    }
-    if (!staged) {
-      staged = stage_output(b, b->compile_commands, to);
-    }
-    sp_mem_end_scratch(scratch);
-    if (!result) {
-      result = staged;
-    }
+  sp_mem_arena_marker_t s = sp_mem_begin_scratch();
+  spn_path_t compile_commands = spn_path_join(s.mem, session->paths.root, sp_str_lit("compile_commands.json"));
+  spn_err_t staged = claim_project_stages(b, s.mem, compile_commands);
+  if (!staged && spn_dag_digest_valid(spn_dag_find_artifact(b->graph, b->compile_commands)->digest)) {
+    staged = stage_output(b, b->compile_commands, compile_commands);
+  }
+  sp_mem_end_scratch(s);
+  if (!result) {
+    result = staged;
   }
   if (!result) {
     if (!project->lock.some) {
