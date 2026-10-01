@@ -2,6 +2,7 @@
 
 #include "ctx/types.h"
 #include "paths/paths.h"
+#include "pkg/id.h"
 
 void spn_unit_paths_init(spn_pkg_unit_t* unit, spn_loaded_pkg_t* loaded) {
   spn_session_t* s = unit->session;
@@ -21,10 +22,11 @@ void spn_unit_paths_init(spn_pkg_unit_t* unit, spn_loaded_pkg_t* loaded) {
     }
     case SPN_PKG_SOURCE_INDEX: {
       sp_str_t fingerprint = spn_unit_fingerprint_str(mem, unit->fingerprint);
-      spn_path_t work = spn_path_join(mem, spn_path_from_root(SPN_PATH_ROOT_BUILD), loaded->info->qualified);
-      spn_path_t store = spn_path_join(mem, spn_path_from_root(SPN_PATH_ROOT_STORE), loaded->info->qualified);
-      unit->paths.work = spn_path_join(mem, work, fingerprint);
-      unit->paths.store = spn_path_join(mem, store, fingerprint);
+      spn_pkg_name_t id = spn_pkg_name_from_qualified(loaded->info->qualified);
+      spn_path_t work = spn_path_join(mem, spn_path_from_root(SPN_PATH_ROOT_BUILD), id.namespace);
+      spn_path_t store = spn_path_join(mem, spn_path_from_root(SPN_PATH_ROOT_STORE), id.namespace);
+      unit->paths.work = spn_path_join(mem, spn_path_join(mem, work, id.name), fingerprint);
+      unit->paths.store = spn_path_join(mem, spn_path_join(mem, store, id.name), fingerprint);
       break;
     }
   }
