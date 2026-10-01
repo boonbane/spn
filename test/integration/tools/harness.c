@@ -565,7 +565,7 @@ static spn_lock_file_t load_lock(sp_test_t* t, fixture_t* fixture) {
   spn_lock_file_t lock = sp_zero;
   spn_lock_file_init(fixture->mem, &lock);
   if (sp_fs_exists(path)) {
-    lock = spn_lock_file_load(fixture->mem, sp_path_at_cwd(path), SP_NULLPTR);
+    lock = spn_lock_file_load(fixture->mem, sp_path_cwd(path), SP_NULLPTR);
   }
   return lock;
 }
@@ -782,7 +782,7 @@ static sp_err_t stage_bare_run(sp_test_t* t, fixture_t* fixture, action_t action
   sp_try(sp_fs_create_dir(dir));
 
   sp_str_t exe_name = sp_fs_get_name(exe(action.bare.name));
-  sp_try(sp_fs_copy_file_at(sp_path_at_cwd(fixture_path(fixture, exe(action.bare.name))), sp_path_at_cwd(sp_fs_join_path(mem, dir, exe_name)), SP_FS_ATOMIC_REPLACE));
+  sp_try(sp_fs_copy_file_at(sp_path_cwd(fixture_path(fixture, exe(action.bare.name))), sp_path_cwd(sp_fs_join_path(mem, dir, exe_name)), SP_FS_ATOMIC_REPLACE));
 
   spn_cg_probe_t probe = { .exe = exe_name, .expect = bare_expect_token(action.bare.expect) };
   return sp_fs_create_file_str(sp_fs_join_path(mem, dir, sp_str_lit("probe.json")), spn_probe_write(mem, &probe));

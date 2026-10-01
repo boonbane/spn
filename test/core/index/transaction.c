@@ -188,7 +188,7 @@ sp_test_each(index_transaction, publish, txn_test_t, tests, .setup = spn_test_ct
     .name = sp_str_lit("test"),
     .protocol = SPN_INDEX_PROTOCOL_GIT,
     .git = { .url = remote },
-    .location = { .at = sp_path_resolve(clone), .dir = clone },
+    .location = { .at = sp_path_from_str(clone), .dir = clone },
   };
   if (it->remote.pin) {
     index.git.rev = sp_str_view(it->remote.pin);
@@ -209,8 +209,8 @@ sp_test_each(index_transaction, publish, txn_test_t, tests, .setup = spn_test_ct
 
   if (it->remote.reject_push) {
     sp_must_ok(t, sp_fs_copy_file_at(
-      sp_path_at_cwd(test_repo_path(mem, sp_str_lit("test/core/index/hooks/reject_once"))),
-      sp_path_at_cwd(sp_fs_join_path(mem, remote, sp_str_lit("hooks/pre-receive"))),
+      sp_path_cwd(test_repo_path(mem, sp_str_lit("test/core/index/hooks/reject_once"))),
+      sp_path_cwd(sp_fs_join_path(mem, remote, sp_str_lit("hooks/pre-receive"))),
       SP_FS_ATOMIC_REPLACE));
   }
 

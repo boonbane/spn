@@ -247,7 +247,9 @@ static sp_str_t expand_path(sp_mem_t mem, sp_str_t path, sp_str_t home) {
   if (sp_fs_is_absolute(path)) {
     return path;
   }
-  return sp_fs_join_path(mem, sp_fs_get_cwd_path(mem), path);
+  sp_str_t cwd = sp_zero;
+  sp_fs_get_cwd_path(mem, &cwd);
+  return sp_fs_join_path(mem, cwd, path);
 }
 
 static spn_install_path_choice_t custom_file(sp_prompt_ctx_t* prompt, sp_mem_t mem, spn_install_layout_t* layout, sp_str_t current) {

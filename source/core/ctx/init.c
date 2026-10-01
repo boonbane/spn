@@ -156,7 +156,9 @@ static spn_path_t cache_path(const c8* sub) {
 }
 
 static spn_err_t open_roots(spn_ctx_t* ctx, spn_open_request_t request) {
-  sp_str_t storage = env_or(ctx, "SPN_STORAGE_DIR", sp_fs_join_path(ctx->heap, sp_fs_get_storage_path(ctx->heap), sp_str_lit("spn")));
+  sp_str_t home = sp_zero;
+  sp_fs_get_storage_path(ctx->heap, &home);
+  sp_str_t storage = env_or(ctx, "SPN_STORAGE_DIR", sp_fs_join_path(ctx->heap, home, sp_str_lit("spn")));
   sp_str_t toolchain = sp_env_get(ctx->env, sp_str_lit("SPN_TOOLCHAIN_DIR"));
   sp_str_t project = sp_str_valid(request.dir) ? request.dir : sp_str_lit(".");
   spn_try(create_root(ctx, SPN_PATH_ROOT_STORAGE, (spn_path_t) { .sub = storage }));
@@ -166,7 +168,7 @@ static spn_err_t open_roots(spn_ctx_t* ctx, spn_open_request_t request) {
   spn_try(create_root(ctx, SPN_PATH_ROOT_BUILD, cache_path("build")));
   spn_try(create_root(ctx, SPN_PATH_ROOT_CHECKOUT, cache_path("source/checkouts")));
   spn_try(create_root(ctx, SPN_PATH_ROOT_TOOLCHAIN, sp_str_empty(toolchain) ? cache_path("toolchain") : (spn_path_t) { .sub = toolchain }));
-  if (spn_path_roots_set(&ctx->roots, ctx->heap, SPN_PATH_ROOT_PROJECT, sp_path_resolve(project))) {
+  if (spn_path_roots_set(&ctx->roots, ctx->heap, SPN_PATH_ROOT_PROJECT, sp_path_from_str(project))) {
     return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_NO_MANIFEST, .no_manifest = { .path = sp_str_copy(ctx->heap, project) } });
   }
   return SPN_OK;
@@ -206,7 +208,9 @@ static spn_err_t open_ctx(spn_ctx_t* ctx, spn_open_request_t request) {
   }
 
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  ctx->paths.config = spn_path_join(ctx->heap, spn_path_from_cwd(scratch.mem, &ctx->roots, env_or(ctx, "SPN_CONFIG_DIR", sp_fs_get_config_path(scratch.mem))), sp_str_lit("spn/spn.toml"));
+  sp_str_t home = sp_zero;
+  sp_fs_get_config_path(scratch.mem, &home);
+  ctx->paths.config = spn_path_join(ctx->heap, spn_path_from_cwd(scratch.mem, &ctx->roots, env_or(ctx, "SPN_CONFIG_DIR", home)), sp_str_lit("spn/spn.toml"));
   sp_mem_end_scratch(scratch);
 
   // Load the per-machine config file

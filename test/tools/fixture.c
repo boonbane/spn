@@ -1,7 +1,8 @@
 #include "fixture.h"
 
 sp_str_t test_repo_root(sp_mem_t mem) {
-  sp_str_t path = sp_fs_get_exe_path(mem);
+  sp_str_t path = sp_zero;
+  sp_fs_get_exe_path(mem, &path);
   while (true) {
     sp_assert(!sp_str_empty(path));
     if (sp_fs_exists(sp_fs_join_path(mem, path, strl("spn.toml")))) {
@@ -74,7 +75,7 @@ void git_repo_commit_from_dir(sp_str_t source, sp_str_t repo, sp_str_t message) 
 
   git(repo, "rm", "-r", "--quiet", "--ignore-unmatch", ".");
 
-  SP_ASSERT(!sp_fs_copy_tree_at(sp_path_resolve(source), sp_path_resolve(repo), SP_FS_ATOMIC_REPLACE));
+  SP_ASSERT(!sp_fs_copy_tree_at(sp_path_from_str(source), sp_path_from_str(repo), SP_FS_ATOMIC_REPLACE));
   git_repo_stage_all(repo);
   git_repo_commit(repo, message);
 }

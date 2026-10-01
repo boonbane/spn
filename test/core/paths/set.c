@@ -30,7 +30,8 @@ static const set_test_t set_tests [] = {
 sp_test_each(paths_set, root, set_test_t, set_tests) {
   sp_mem_t mem = sp_test_arena(t);
   sp_path_t sandbox = sp_test_dir(t);
-  sp_str_t absolute = sp_fs_canonicalize_path_at(mem, sandbox);
+  sp_str_t absolute = sp_zero;
+  sp_must_ok(t, sp_fs_canonicalize_path_at(mem, sandbox, &absolute));
 
   switch (it->setup) {
     case SET_SETUP_NONE: {

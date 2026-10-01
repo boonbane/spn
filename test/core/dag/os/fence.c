@@ -157,7 +157,7 @@ sp_test_each(dag_fence, ops, test_t, tests) {
       }
       case FENCE_OP_PROBE: {
         sp_sys_timespec_t fence = sp_zero;
-        sp_expect_eq(t, SPN_OK, spn_dag_stamp_probe(sp_path_resolve(sp_str_lit("/w")), &fence));
+        sp_expect_eq(t, SPN_OK, spn_dag_stamp_probe(sp_path_from_str(sp_str_lit("/w")), &fence));
         spn_dag_file_cache_fence(&files, fence);
         break;
       }

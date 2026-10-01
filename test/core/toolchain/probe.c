@@ -334,7 +334,7 @@ sp_test_each(probe, resolve, test_t, tests, .setup = spn_test_ctx_setup) {
   sp_fs_create_dir(sp_fs_join_path(mem, root, sp_str_lit("B")));
   sp_fs_create_dir(sp_fs_join_path(mem, root, sp_str_lit("P/B")));
   spn_path_roots_t roots = sp_zero;
-  spn_path_roots_set(&roots, mem, SPN_PATH_ROOT_PROJECT, sp_path_resolve(sp_fs_join_path(mem, root, sp_str_lit("P"))));
+  spn_path_roots_set(&roots, mem, SPN_PATH_ROOT_PROJECT, sp_path_from_str(sp_fs_join_path(mem, root, sp_str_lit("P"))));
 
   sp_carr_for(it->files, at) {
     if (!it->files[at].path) {

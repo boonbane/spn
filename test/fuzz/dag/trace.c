@@ -192,8 +192,8 @@ static void init_world(world_t* w, sp_mem_t mem, sp_sim_t* sim, fz_universe_t* u
 
   w->mem = mem;
   w->sim = sim;
-  spn_path_roots_set(&w->roots, mem, SPN_PATH_ROOT_PROJECT, sp_path_resolve(sp_str_lit("/out")));
-  spn_path_roots_set(&w->roots, mem, SPN_PATH_ROOT_STORE, sp_path_resolve(sp_str_lit("/src")));
+  spn_path_roots_set(&w->roots, mem, SPN_PATH_ROOT_PROJECT, sp_path_from_str(sp_str_lit("/out")));
+  spn_path_roots_set(&w->roots, mem, SPN_PATH_ROOT_STORE, sp_path_from_str(sp_str_lit("/src")));
   w->cache_dir = (spn_path_t) { .sub = u->profile.cache_fs ? sp_str_lit("/cache") : sp_str_lit("") };
   w->disco_dir = (spn_path_t) { .sub = u->profile.disco_fs ? sp_str_lit("/manifests") : sp_str_lit("") };
   sp_ht_init(mem, w->shapes);

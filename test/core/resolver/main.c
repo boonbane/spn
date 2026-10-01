@@ -48,7 +48,7 @@ static resolve_result_t execute_fixture(const fx_config_t* config, const spn_pkg
   }
 
   sp_da_push(indexes, ((spn_index_info_t) {
-    .location = { .at = sp_path_resolve(dir), .dir = dir },
+    .location = { .at = sp_path_from_str(dir), .dir = dir },
   }));
 
   spn_path_roots_t roots = sp_zero;
@@ -99,7 +99,7 @@ static sp_err_t load_config(sp_test_t* t, sp_mem_t mem, sp_str_t dir, fx_config_
     return SP_OK;
   }
 
-  toml_table_t* table = spn_toml_parse(sp_path_resolve(path));
+  toml_table_t* table = spn_toml_parse(sp_path_from_str(path));
   sp_must(t, table != SP_NULLPTR);
 
   config->skip = spn_toml_str_opt(mem, table, "skip", "");
