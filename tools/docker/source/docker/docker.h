@@ -11,6 +11,7 @@
 typedef enum {
   DOCKER_INIT_OK,
   DOCKER_INIT_ERR_REPO,
+  DOCKER_INIT_ERR_STORE,
   DOCKER_INIT_ERR_BINARY,
   DOCKER_INIT_ERR_TEMPLATES,
   DOCKER_INIT_ERR_LANES,
@@ -45,6 +46,7 @@ typedef struct {
   lanes_t lanes;
   sp_da(spn_codegen_issue_t) issues [LANE_COUNT];
   spn_toolchain_catalog_t catalog;
+  spn_path_roots_t roots;
   spn_toolchain_store_t store;
   sp_str_t host;
   struct {
@@ -53,6 +55,7 @@ typedef struct {
     sp_str_t tools;
     sp_str_t tests;
     sp_str_t zig;
+    sp_str_t toolchain;
     sp_str_t home;
     sp_str_t dockerfiles;
     sp_str_t templates;
