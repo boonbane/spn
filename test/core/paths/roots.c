@@ -79,6 +79,18 @@ static const roots_test_t roots_tests [] = {
     .expect = { .root = SPN_PATH_ROOT_CACHE, .sub = "dag/H" }
   },
   {
+    .name = "cache_wins_inside_storage",
+    .roots = { .storage = "/S", .cache = "/S/cache" },
+    .path = "/S/cache/dag/H",
+    .expect = { .root = SPN_PATH_ROOT_CACHE, .sub = "dag/H" }
+  },
+  {
+    .name = "storage_keeps_siblings_of_cache",
+    .roots = { .storage = "/S", .cache = "/S/cache" },
+    .path = "/S/runtime/H",
+    .expect = { .root = SPN_PATH_ROOT_STORAGE, .sub = "runtime/H" }
+  },
+  {
     .name = "toolchain_store_collapses",
     .roots = { .cache = "/S/C", .toolchain = "/S/C/toolchain" },
     .path = "/S/C/toolchain/D/bin/cc",

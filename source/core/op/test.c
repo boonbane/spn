@@ -13,7 +13,8 @@
 
 static spn_err_t run_test(spn_session_t* session, spn_target_unit_t* unit, bool* passed) {
   spn_ctx_t* ctx = session->ctx;
-  sp_str_t command = spn_path_str(&ctx->roots, session->mem, spn_target_unit_staged_path(session->mem, unit));
+  spn_path_t staged = spn_target_unit_staged_path(session->mem, unit);
+  sp_str_t command = spn_path_str(&ctx->roots, session->mem, staged);
 
   spn_event_buffer_push(ctx->events, (spn_event_t) {
     .kind = SPN_EVENT_TARGET_RUN,
@@ -24,7 +25,7 @@ static spn_err_t run_test(spn_session_t* session, spn_target_unit_t* unit, bool*
     },
   });
 
-  if (!sp_fs_exists(command)) {
+  if (!sp_fs_exists_at(spn_path_at(&ctx->roots, staged))) {
     return spn_err_emit(ctx, (spn_err_union_t) {
       .kind = SPN_ERR_TEST_MISSING,
       .script = { .name = unit->info->name, .path = command },

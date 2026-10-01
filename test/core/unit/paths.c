@@ -39,11 +39,11 @@ static const paths_test_t tests [] = {
   {
     .name = "index_package_lives_under_the_build_and_store_roots",
     .source = SPN_PKG_SOURCE_INDEX,
-    .work =    { .root = SPN_PATH_ROOT_BUILD, .prefix = "A/" },
-    .store =   { .root = SPN_PATH_ROOT_STORE, .prefix = "A/" },
-    .include = { .root = SPN_PATH_ROOT_STORE, .prefix = "A/", .suffix = "/include" },
-    .object =  { .root = SPN_PATH_ROOT_BUILD, .prefix = "A/", .suffix = "/object" },
-    .stamp =   { .root = SPN_PATH_ROOT_BUILD, .prefix = "A/", .suffix = "/stamp" },
+    .work =    { .root = SPN_PATH_ROOT_BUILD, .prefix = "core/A/" },
+    .store =   { .root = SPN_PATH_ROOT_STORE, .prefix = "core/A/" },
+    .include = { .root = SPN_PATH_ROOT_STORE, .prefix = "core/A/", .suffix = "/include" },
+    .object =  { .root = SPN_PATH_ROOT_BUILD, .prefix = "core/A/", .suffix = "/object" },
+    .stamp =   { .root = SPN_PATH_ROOT_BUILD, .prefix = "core/A/", .suffix = "/stamp" },
   },
 };
 

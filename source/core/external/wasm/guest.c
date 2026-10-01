@@ -1,6 +1,7 @@
 #include "sp.h"
 #include "dag/dag.h"
 #include "dag/wasi.h"
+#include "fs/fs.h"
 #include "paths/paths.h"
 #include "external/wasm/abi.h"
 #include "unit/types.h"
@@ -16,58 +17,47 @@ static spn_pkg_unit_t* guest_unit(spn_wasm_ctx_t* abi) {
   return spn_api_unit(abi->handles->ctx);
 }
 
-static sp_str_t guest_path(spn_wasm_ctx_t* abi, sp_mem_t mem, spn_pkg_unit_t* unit, const c8* path) {
-  if (!spn_path_normal(sp_str_view(path))) {
+static bool guest_path(spn_wasm_ctx_t* abi, sp_mem_t mem, const c8* path, spn_path_t* host) {
+  sp_str_t str = sp_cstr_as_str(path);
+  if (!spn_path_normal(str)) {
     wasm_runtime_set_exception(abi->instance, sp_fmt_mem_cstr(mem, "{} must not contain '.', '..', or empty components", sp_fmt_cstr(path)));
-    return sp_str_lit("");
+    return false;
   }
-
-  const spn_path_roots_t* roots = &spn.roots;
-  struct { sp_str_t guest; sp_str_t host; } dirs [] = {
-    { sp_str_lit("/work"),     spn_path_str(roots, mem, unit->paths.work) },
-    { sp_str_lit("/source"),   spn_path_str(roots, mem, unit->paths.roots.source) },
-    { sp_str_lit("/manifest"), spn_path_str(roots, mem, unit->paths.roots.recipe) },
-    { sp_str_lit("/store"),    spn_path_str(roots, mem, unit->paths.store) },
-  };
-
-  sp_str_t str = sp_str_view(path);
-  sp_carr_for(dirs, it) {
-    sp_str_t guest = dirs[it].guest;
-    if (!sp_str_starts_with(str, guest)) continue;
-    if (str.len == guest.len) return dirs[it].host;
-    if (str.data[guest.len] != '/') continue;
-    return sp_fmt(mem, "{}{}", sp_fmt_str(dirs[it].host), sp_fmt_str(sp_str_sub(str, guest.len, str.len - guest.len))).value;
+  if (!spn_dag_wasi_resolve(abi->instance, mem, str, host)) {
+    wasm_runtime_set_exception(abi->instance, sp_fmt_mem_cstr(mem, "{} is not under /work, /source, /manifest, or /store", sp_fmt_cstr(path)));
+    return false;
   }
-
-  wasm_runtime_set_exception(abi->instance, sp_fmt_mem_cstr(mem, "{} is not under /work, /source, or /store", sp_fmt_cstr(path)));
-  return sp_str_lit("");
+  return true;
 }
 
 static void guest_copy(spn_wasm_ctx_t* abi, const c8* name, const c8* from, const c8* to) {
   spn_pkg_unit_t* unit = guest_unit(abi);
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  sp_str_t from_path = guest_path(abi, scratch.mem, unit, from);
-  sp_str_t to_path = guest_path(abi, scratch.mem, unit, to);
-  if (sp_str_empty(from_path) || sp_str_empty(to_path)) {
+  spn_path_t from_path = sp_zero;
+  spn_path_t to_path = sp_zero;
+  if (!guest_path(abi, scratch.mem, from, &from_path) || !guest_path(abi, scratch.mem, to, &to_path)) {
     sp_mem_end_scratch(scratch);
     return;
   }
 
+  const spn_path_roots_t* roots = &unit->session->ctx->roots;
+  sp_str_t from_str = spn_path_str(roots, scratch.mem, from_path);
+  sp_str_t to_str = spn_path_str(roots, scratch.mem, to_path);
   spn_event_buffer_push(spn.events, (spn_event_t) {
     .kind = SPN_EVENT_API_CALL,
     .pkg = unit->info->name,
-    .api_call = { .fn = sp_cstr_as_str(name), .args = sp_fmt(spn.mem, "{} -> {}", SP_FMT_STR(from_path), SP_FMT_STR(to_path)).value },
+    .api_call = { .fn = sp_cstr_as_str(name), .args = sp_fmt(spn.mem, "{} -> {}", SP_FMT_STR(from_str), SP_FMT_STR(to_str)).value },
   });
 
-  if (!sp_glob_parse_meta(from_path).literal) {
-    spn_dag_wasi_observe_glob(abi->instance, sp_fs_parent_path(from_path), sp_fs_get_name(from_path));
+  if (!sp_glob_parse_meta(from_path.sub).literal) {
+    spn_dag_wasi_observe_glob(abi->instance, spn_path_parent(from_path), sp_fs_get_name(from_path.sub));
   }
   else {
     spn_dag_wasi_observe_read(abi->instance, from_path);
   }
 
-  if (spn_api_copy(from_path, to_path)) {
-    wasm_runtime_set_exception(abi->instance, sp_fmt_mem_cstr(scratch.mem, "{}: {} -> {}", SP_FMT_CSTR(name), SP_FMT_STR(from_path), SP_FMT_STR(to_path)));
+  if (spn_api_copy(spn_path_at(roots, from_path), spn_path_at(roots, to_path))) {
+    wasm_runtime_set_exception(abi->instance, sp_fmt_mem_cstr(scratch.mem, "{}: {} -> {}", SP_FMT_CSTR(name), SP_FMT_STR(from_str), SP_FMT_STR(to_str)));
   }
   else {
     spn_dag_wasi_observe_write(abi->instance, to_path);
@@ -86,15 +76,15 @@ void spn_abi_fs_copy_glob(spn_wasm_ctx_t* abi, const c8* glob, const c8* dir) {
 void spn_abi_fs_create_dir(spn_wasm_ctx_t* abi, const c8* path) {
   spn_pkg_unit_t* unit = guest_unit(abi);
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  sp_str_t dir = guest_path(abi, scratch.mem, unit, path);
-  if (sp_str_empty(dir)) {
+  spn_path_t dir = sp_zero;
+  if (!guest_path(abi, scratch.mem, path, &dir)) {
     sp_mem_end_scratch(scratch);
     return;
   }
-  SPN_API_LOG(unit, "spn_fs_create_dir", "{}", SP_FMT_STR(dir));
+  sp_str_t dir_str = spn_path_str(&unit->session->ctx->roots, scratch.mem, dir);
 
-  if (sp_fs_create_dir(dir)) {
-    wasm_runtime_set_exception(abi->instance, sp_fmt_mem_cstr(scratch.mem, "spn_fs_create_dir: {}", SP_FMT_STR(dir)));
+  if (sp_fs_create_dir_at(spn_path_at(&unit->session->ctx->roots, dir))) {
+    wasm_runtime_set_exception(abi->instance, sp_fmt_mem_cstr(scratch.mem, "spn_fs_create_dir: {}", SP_FMT_STR(dir_str)));
   }
   else {
     spn_dag_wasi_observe_write(abi->instance, dir);
@@ -105,21 +95,18 @@ void spn_abi_fs_create_dir(spn_wasm_ctx_t* abi, const c8* path) {
 void spn_abi_io_write(spn_wasm_ctx_t* abi, const c8* path, const c8* contents) {
   spn_pkg_unit_t* unit = guest_unit(abi);
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  sp_str_t dst = guest_path(abi, scratch.mem, unit, path);
-  if (sp_str_empty(dst)) {
+  spn_path_t dst = sp_zero;
+  if (!guest_path(abi, scratch.mem, path, &dst)) {
     sp_mem_end_scratch(scratch);
     return;
   }
-  SPN_API_LOG(unit, "spn_io_write", "{}", SP_FMT_STR(dst));
+  sp_str_t dst_str = spn_path_str(&unit->session->ctx->roots, scratch.mem, dst);
 
-  sp_str_t parent = sp_fs_parent_path(dst);
-  if (!sp_str_empty(parent)) {
-    sp_fs_create_dir(parent);
-  }
+  sp_fs_create_parent_at(spn_path_at(&unit->session->ctx->roots, dst));
 
   sp_io_file_writer_t writer = sp_zero;
-  if (sp_io_file_writer_from_path(&writer, dst)) {
-    wasm_runtime_set_exception(abi->instance, sp_fmt_mem_cstr(scratch.mem, "spn_io_write: {}", SP_FMT_STR(dst)));
+  if (sp_io_file_writer_from_path_at(&writer, spn_path_at(&unit->session->ctx->roots, dst))) {
+    wasm_runtime_set_exception(abi->instance, sp_fmt_mem_cstr(scratch.mem, "spn_io_write: {}", SP_FMT_STR(dst_str)));
     sp_mem_end_scratch(scratch);
     return;
   }

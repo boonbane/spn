@@ -78,12 +78,12 @@ sp_test_each(dag_file_cache, ops, test_t, tests) {
         break;
       }
       case FILE_CACHE_OP_FILE: {
-        dag_test_create(dag_test_render(&env, path), sp_cstr_as_str(op.blob));
+        dag_test_create(dag_test_at(&env, path), sp_cstr_as_str(op.blob));
         spn_dag_file_cache_invalidate_all(c);
         break;
       }
       case FILE_CACHE_OP_WRITE: {
-        dag_test_create(dag_test_render(&env, path), sp_cstr_as_str(op.blob));
+        dag_test_create(dag_test_at(&env, path), sp_cstr_as_str(op.blob));
         break;
       }
       case FILE_CACHE_OP_INVALIDATE: {

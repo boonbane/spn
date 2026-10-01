@@ -130,17 +130,15 @@ static void get_output_count(const op_t* op, u32* count) {
   }
 }
 
-static sp_str_t get_path(sp_mem_t mem, sp_str_t dir, const c8* key) {
-  sp_str_t hex = spn_dag_digest_hex(mem, dag_test_digest(key));
-  return sp_fs_join_path(mem, dir, sp_fmt(mem, "{}.txt", sp_fmt_str(hex)).value);
-}
-
 sp_test_each(dag_action_cache, ops, test_t, tests) {
   sp_mem_t mem = sp_test_arena(t);
-  sp_str_t dir = sp_fs_join_path(mem, sp_test_dir(t), sp_str_lit("strong"));
+  sp_path_t sandbox = sp_test_dir(t);
+  spn_path_roots_t roots = sp_zero;
+  spn_path_roots_set(&roots, mem, SPN_PATH_ROOT_PROJECT, sandbox);
+  spn_path_t dir = { .root = SPN_PATH_ROOT_PROJECT, .sub = sp_str_lit("strong") };
 
   spn_dag_action_cache_t c = sp_zero;
-  spn_dag_action_cache_init(&c, mem, dir);
+  spn_dag_action_cache_init(&c, mem, &roots, dir);
 
   sp_carr_for(it->ops, ot) {
     op_t op = it->ops[ot];
@@ -190,15 +188,17 @@ sp_test_each(dag_action_cache, ops, test_t, tests) {
         break;
       }
       case CACHE_OP_RELOAD: {
-        spn_dag_action_cache_init(&c, mem, dir);
+        spn_dag_action_cache_init(&c, mem, &roots, dir);
         break;
       }
       case CACHE_OP_CORRUPT: {
-        sp_must_eq(t, SP_OK, sp_fs_create_file_cstr(get_path(mem, dir, op.key), "not json\n"));
+        sp_str_t hex = spn_dag_digest_hex(mem, dag_test_digest(op.key));
+        sp_must_eq(t, SP_OK, sp_fs_create_file_cstr_at(sp_path_join(mem, sandbox, sp_fmt(mem, "strong/{}.txt", sp_fmt_str(hex)).value), "not json\n"));
         break;
       }
     }
   }
 
+  spn_path_roots_close(&roots);
   return SP_OK;
 }

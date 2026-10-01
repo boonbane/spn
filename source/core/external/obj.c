@@ -91,7 +91,7 @@ void spn_obj_add_symbol(spn_obj_builder_t* obj, sp_str_t name, const void* data,
   }
 }
 
-spn_err_t spn_obj_write(spn_obj_builder_t* obj, sp_str_t path) {
+spn_err_t spn_obj_write(spn_obj_builder_t* obj, sp_path_t path) {
   sp_err_t err = SP_OK;
   switch (obj->kind) {
     case SPN_OBJ_COFF:  err = sp_coff_write_to_file(obj->coff.coff, path); break;

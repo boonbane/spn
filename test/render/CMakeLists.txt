@@ -12,6 +12,7 @@ add_executable(render
   ${SRC}/codegen/toolchain.c
   ${GEN_DIR}/config.gen.c
   ${SRC}/core/core.c
+  ${UTIL}/fs/fs.c
   ${UTIL}/io/io.c
   ${SRC}/ctx/ctx.c
   ${SRC}/enum/enum.c

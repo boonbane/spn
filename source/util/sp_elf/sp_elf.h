@@ -192,9 +192,9 @@ SP_API u32                sp_elf_find_symbol(sp_elf_t* elf, sp_str_t name);
 SP_API u32                sp_elf_num_symbols(sp_elf_t* elf);
 SP_API void               sp_elf_add_reloc(sp_elf_t* elf, u32 section, sp_elf_reloc_t reloc);
 SP_API sp_err_t           sp_elf_write(sp_elf_t* elf, sp_io_writer_t* out);
-SP_API sp_err_t           sp_elf_write_to_file(sp_elf_t* elf, sp_str_t path);
+SP_API sp_err_t           sp_elf_write_to_file(sp_elf_t* elf, sp_path_t path);
 SP_API sp_err_t           sp_elf_read(sp_mem_t mem, const u8* data, u64 size, sp_elf_t** out);
-SP_API sp_err_t           sp_elf_read_from_file(sp_mem_t mem, sp_str_t path, sp_elf_t** out);
+SP_API sp_err_t           sp_elf_read_from_file(sp_mem_t mem, sp_path_t path, sp_elf_t** out);
 
 #endif
 
@@ -540,9 +540,9 @@ sp_err_t sp_elf_write(sp_elf_t* elf, sp_io_writer_t* out) {
   return err;
 }
 
-sp_err_t sp_elf_write_to_file(sp_elf_t* elf, sp_str_t path) {
+sp_err_t sp_elf_write_to_file(sp_elf_t* elf, sp_path_t path) {
   sp_io_file_writer_t f = sp_zero;
-  sp_try(sp_io_file_writer_from_path(&f, path));
+  sp_try(sp_io_file_writer_from_path_at(&f, path));
   sp_err_t err = sp_elf_write(elf, &f.base);
   sp_io_file_writer_close(&f);
   return err;
@@ -744,10 +744,10 @@ sp_err_t sp_elf_read(sp_mem_t mem, const u8* data, u64 size, sp_elf_t** out) {
   return SP_OK;
 }
 
-sp_err_t sp_elf_read_from_file(sp_mem_t mem, sp_str_t path, sp_elf_t** out) {
+sp_err_t sp_elf_read_from_file(sp_mem_t mem, sp_path_t path, sp_elf_t** out) {
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch_for(mem);
   sp_str_t bytes = sp_zero;
-  sp_err_t err = sp_io_read_file(scratch.mem, path, &bytes);
+  sp_err_t err = sp_io_read_file_at(scratch.mem, path, &bytes);
   if (err == SP_OK) {
     err = sp_elf_read(mem, (const u8*)bytes.data, bytes.len, out);
   }

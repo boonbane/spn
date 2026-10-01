@@ -25,10 +25,7 @@ spn_dag_glob_it_t spn_dag_glob_it_new(sp_mem_t mem, const spn_path_roots_t* root
     it.err = SPN_ERR_DAG_GLOB;
   }
 
-  sp_str_buf_t str = sp_zero;
-  sp_str_t path = spn_path_str(roots, sp_str_buf_as_mem(&str), it.base);
-  it.start = path.len + 1;
-  it.fs = meta.deep ? sp_fs_it_new_recursive(mem, path) : sp_fs_it_new(mem, path);
+  it.fs = sp_fs_it_new_at(mem, spn_path_at(roots, it.base), 0);
   if (it.fs.err == SP_ERR_SYS_NOT_FOUND) {
     it.fs.err = SP_OK;
   }
@@ -39,9 +36,9 @@ bool spn_dag_glob_it_next(spn_dag_glob_it_t* it) {
   if (it->err) {
     return false;
   }
-  while (sp_fs_it_next(&it->fs)) {
+  while (it->recursive ? sp_fs_it_walk(&it->fs) : sp_fs_it_next(&it->fs)) {
     sp_fs_entry_t entry = it->fs.entry;
-    sp_str_t rel = sp_str_suffix(entry.path, (s32)(entry.path.len - it->start));
+    sp_str_t rel = entry.rel;
     if (entry.kind == SP_FS_KIND_DIR && !it->recursive) {
       continue;
     }
@@ -71,8 +68,9 @@ spn_err_t spn_dag_glob(sp_mem_t mem, const spn_path_roots_t* roots, spn_path_t p
   if (glob.literal) {
     spn_dag_obs_t observation = sp_zero;
 
+    sp_path_t at = spn_path_at(roots, pattern);
     sp_sys_file_meta_t file = sp_zero;
-    switch (spn_get_path_metadata(roots, pattern, &file)) {
+    switch (sp_sys_get_path_metadata_s(at.dir, at.sub, &file)) {
       case SP_OK: observation.kind = SPN_DAG_OBS_FILE; break;
       case SP_ERR_SYS_NOT_FOUND: observation.kind = SPN_DAG_OBS_ABSENT; break;
       default: return SPN_ERR_DAG_GLOB;

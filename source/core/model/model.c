@@ -20,7 +20,7 @@ spn_err_t spn_model_establish(spn_op_t* op) {
   } while (reresolve);
 
   sp_mem_arena_marker_t s = sp_mem_begin_scratch();
-  session->dag.files_path = spn_path_str(&session->ctx->roots, session->mem, spn_path_join(s.mem, session->paths.build, sp_str_lit(".spn/files")));
+  session->dag.files_path = spn_path_join(session->mem, session->paths.build, sp_str_lit(".spn/files"));
   sp_mem_end_scratch(s);
   spn_dag_file_cache_init(&session->dag.files, session->mem, &session->ctx->roots);
   spn_dag_file_cache_load(&session->dag.files, session->dag.files_path);

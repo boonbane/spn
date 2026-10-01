@@ -5,16 +5,21 @@
 #include "triple/triple.h"
 
 void write_file(sp_str_t path, sp_str_t content) {
-  sp_str_t parent = sp_fs_parent_path(path);
-  if (!sp_str_empty(parent)) {
-    sp_fs_create_dir(parent);
-  }
-
+  sp_fs_create_dir(sp_fs_parent_path(path));
   sp_fs_remove_file(path);
   sp_io_file_writer_t f = sp_zero;
   sp_assert(!sp_io_file_writer_from_path(&f, path));
   sp_io_write_str(&f.base, content, SP_NULLPTR);
   sp_io_file_writer_close(&f);
+}
+
+static sp_err_t copy_into(sp_str_t from, sp_str_t dir) {
+  sp_mem_arena_marker_t s = sp_mem_begin_scratch();
+  sp_path_t into = sp_path_resolve(dir);
+  sp_fs_create_dir_at(into);
+  sp_err_t err = sp_fs_copy_at(sp_path_resolve(from), sp_path_join(s.mem, into, sp_fs_get_name(from)), SP_FS_ATOMIC_REPLACE);
+  sp_mem_end_scratch(s);
+  return err;
 }
 
 static void fixture_setup_paths(fixture_t* fixture) {
@@ -31,7 +36,7 @@ static void fixture_setup_paths(fixture_t* fixture) {
 fixture_t fixture_new(sp_test_t* t) {
   fixture_t fixture = {
     .mem = sp_test_arena(t),
-    .root = sp_test_dir(t),
+    .root = test_dir_str(t),
   };
   fixture_setup_paths(&fixture);
   return fixture;
@@ -53,13 +58,12 @@ void fixture_create(fixture_t* fixture, sp_str_t relative, sp_str_t content) {
 
 static sp_err_t copy_project_path(sp_test_t* t, fixture_t* fixture, sp_str_t project, sp_str_t relative) {
   sp_str_t from = sp_fs_join_path(fixture->mem, project, relative);
-  sp_str_t parent = sp_fs_parent_path(relative);
-  sp_str_t to = sp_str_empty(parent) ? fixture->root : fixture_path(fixture, parent);
+  sp_str_t to = fixture_path(fixture, sp_fs_parent_path(relative));
 
   if (sp_str_equal(sp_fs_get_name(relative), sp_str_lit("*"))) {
-    sp_must_ok(t, sp_fs_copy_tree(sp_fs_parent_path(from), to, SP_FS_ATOMIC_REPLACE));
+    sp_must_ok(t, sp_fs_copy_tree_at(sp_path_resolve(sp_fs_parent_path(from)), sp_path_resolve(to), SP_FS_ATOMIC_REPLACE));
   } else {
-    sp_must_ok(t, sp_fs_copy_into(from, to));
+    sp_must_ok(t, copy_into(from, to));
   }
   return SP_OK;
 }
@@ -377,7 +381,7 @@ static sp_err_t fixture_copy_project(sp_test_t* t, fixture_t* fixture, sp_str_t 
   sp_carr_for(defaults, it) {
     sp_str_t from = sp_fs_join_path(fixture->mem, project, sp_str_view(defaults[it]));
     if (sp_fs_exists(from)) {
-      sp_fs_copy_into(from, fixture->root);
+      copy_into(from, fixture->root);
     }
   }
 
@@ -420,10 +424,10 @@ sp_err_t prepare_test(sp_test_t* t, fixture_t* fixture, const c8* project, const
   setup_fixture_envrc(fixture, fixture->paths.storage, fixture->paths.toolchain, fixture->paths.config);
   setup_fixture_config(fixture, fixture->paths.index, fixture->paths.root);
 
-  sp_fs_copy_into(sp_fs_join_path(mem, fixture->paths.root, sp_str_lit("include/spn.h")), fixture->paths.include);
+  copy_into(sp_fs_join_path(mem, fixture->paths.root, sp_str_lit("include/spn.h")), fixture->paths.include);
   sp_str_t include_spn = sp_fs_join_path(mem, fixture->paths.include, sp_str_lit("spn"));
-  sp_fs_copy_into(sp_fs_join_path(mem, fixture->paths.root, sp_str_lit("include/spn/core.h")), include_spn);
-  sp_fs_copy_into(sp_fs_join_path(mem, fixture->paths.root, sp_str_lit("include/spn/err.h")), include_spn);
+  copy_into(sp_fs_join_path(mem, fixture->paths.root, sp_str_lit("include/spn/core.h")), include_spn);
+  copy_into(sp_fs_join_path(mem, fixture->paths.root, sp_str_lit("include/spn/err.h")), include_spn);
 
   if (project) {
     sp_str_t path = sp_fs_join_path(mem, fixture->paths.root, sp_str_view(project));

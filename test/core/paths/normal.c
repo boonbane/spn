@@ -27,7 +27,7 @@ static const normal_test_t normal_tests [] = {
   { .name = "absolute_dotdot",   .path = "/a/../b",  .normal = false },
   { .name = "double_slash",      .path = "a//b",     .normal = false },
   { .name = "trailing_slash",    .path = "a/",       .normal = false },
-  { .name = "backslash_dotdot",  .path = "a\\..\\b", .normal = false },
+  { .name = "backslash_is_a_name", .path = "a\\..\\b", .normal = true },
 };
 
 sp_test_each(paths_normal, check, normal_test_t, normal_tests) {

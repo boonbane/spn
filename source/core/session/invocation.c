@@ -12,7 +12,7 @@
 #include "unit/unit.h"
 #include "toolchain/search.h"
 
-spn_err_t spn_session_write_compile_commands(const spn_path_roots_t* roots, spn_session_t* session, sp_str_t path) {
+spn_err_t spn_session_write_compile_commands(const spn_path_roots_t* roots, spn_session_t* session, spn_path_t path) {
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   sp_mem_t mem = scratch.mem;
 
@@ -50,7 +50,7 @@ spn_err_t spn_session_write_compile_commands(const spn_path_roots_t* roots, spn_
   }
   sp_io_write_cstr(io, "\n]\n", SP_NULLPTR);
 
-  spn_err_t err = sp_fs_create_file_str(path, sp_io_dyn_mem_writer_as_str(&buf)) ? SPN_ERROR : SPN_OK;
+  spn_err_t err = sp_fs_create_file_str_at(spn_path_at(roots, path), sp_io_dyn_mem_writer_as_str(&buf)) ? SPN_ERROR : SPN_OK;
   sp_mem_end_scratch(scratch);
   return err;
 }
@@ -90,16 +90,16 @@ sp_env_var_t spn_invocation_env_var(const spn_path_roots_t* roots, sp_mem_t mem,
   return (sp_env_var_t) { .key = key.name, .value = value };
 }
 
-sp_str_t spn_invocation_to_str(sp_mem_t mem, const spn_invocation_t* invocation) {
+sp_str_t spn_invocation_to_str(const spn_path_roots_t* roots, sp_mem_t mem, const spn_invocation_t* invocation) {
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch_for(mem);
   sp_da(sp_str_t) parts = sp_da_new(scratch.mem, sp_str_t);
   sp_da_for(invocation->env, it) {
-    sp_env_var_t var = spn_invocation_env_var(&spn.roots, scratch.mem, invocation->env[it]);
+    sp_env_var_t var = spn_invocation_env_var(roots, scratch.mem, invocation->env[it]);
     sp_da_push(parts, sp_fmt(scratch.mem, "{}={}", sp_fmt_str(var.key), sp_fmt_str(var.value)).value);
   }
-  sp_da_push(parts, spn_arg_str(&spn.roots, scratch.mem, invocation->program));
+  sp_da_push(parts, spn_arg_str(roots, scratch.mem, invocation->program));
   sp_da_for(invocation->args, it) {
-    sp_da_push(parts, spn_arg_str(&spn.roots, scratch.mem, invocation->args[it]));
+    sp_da_push(parts, spn_arg_str(roots, scratch.mem, invocation->args[it]));
   }
 
   sp_str_t command = sp_str_join_n(mem, parts, sp_da_size(parts), sp_str_lit(" "));
@@ -117,11 +117,10 @@ static sp_env_var_t path_var(sp_mem_t mem, sp_str_t program) {
   };
 }
 
-spn_invocation_result_t spn_invocation_run(spn_invocation_t* invocation) {
-  const spn_path_roots_t* roots = &spn.roots;
+spn_invocation_result_t spn_invocation_run(const spn_path_roots_t* roots, spn_invocation_t* invocation) {
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
 
-  spn_path_create_dir(roots, invocation->cwd);
+  sp_fs_create_dir_at(spn_path_at(roots, invocation->cwd));
   sp_str_t cwd = spn_path_str(roots, scratch.mem, invocation->cwd);
 
   sp_ps_config_t ps = {

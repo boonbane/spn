@@ -104,7 +104,7 @@ typedef struct {
 
 typedef struct {
   spn_triple_t triple;
-  spn_path_t sdk;
+  spn_arg_t sdk;
   spn_sanitizer_set_t sanitizers;
 } spn_toolchain_target_t;
 
@@ -226,13 +226,14 @@ typedef struct {
 
 typedef struct {
   sp_mem_t mem;
-  sp_str_t file;
+  const spn_path_roots_t* roots;
+  spn_path_t file;
   sp_str_om(spn_probe_entry_t) entries;
 } spn_probe_cache_t;
 
 struct spn_toolchain_store {
   sp_mem_t mem;
-  sp_str_t dir;
+  const spn_path_roots_t* roots;
   sp_str_t mirror;
   spn_fetch_fn fetch;
   void* fetch_user_data;

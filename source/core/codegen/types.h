@@ -4,6 +4,7 @@
 #include "sp.h"
 #include "spn/core.h"
 #include "intern/types.h"
+#include "paths/types.h"
 
 #define SPN_CODEGEN_PATH_MAX 32
 
@@ -42,7 +43,8 @@ typedef struct {
 typedef struct {
   sp_mem_t mem;
   sp_intern_t* intern;
-  sp_str_t dir;
+  const spn_path_roots_t* roots;
+  spn_path_t dir;
   bool strict;
   spn_codegen_path_seg_t path [SPN_CODEGEN_PATH_MAX];
   u32 depth;

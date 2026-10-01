@@ -148,7 +148,7 @@ static const dir_test_t tests [] = {
 sp_test_each(index_dir, get_package, dir_test_t, tests, .setup = spn_test_ctx_setup) {
   sp_mem_t mem = sp_test_arena(t);
 
-  sp_str_t location = sp_fs_join_path(mem, sp_test_dir(t), sp_str_lit("index"));
+  sp_str_t location = sp_fs_join_path(mem, test_dir_str(t), sp_str_lit("index"));
   sp_fs_create_dir(location);
 
   sp_str_t package = sp_zero;
@@ -166,8 +166,8 @@ sp_test_each(index_dir, get_package, dir_test_t, tests, .setup = spn_test_ctx_se
   }
 
   spn_index_info_t index = {
-    .location = location,
     .protocol = SPN_INDEX_PROTOCOL_DIR,
+    .dir = { .path = { .sub = location } },
   };
 
   spn_pkg_name_t request = {
@@ -177,7 +177,7 @@ sp_test_each(index_dir, get_package, dir_test_t, tests, .setup = spn_test_ctx_se
 
   spn_index_pkg_t* pkg = SP_NULLPTR;
   spn_index_diag_t diag = sp_zero;
-  spn_err_t err = spn_index_get_package(&index, mem, spn.intern, request, &pkg, &diag);
+  spn_err_t err = spn_index_get_package(&index, mem, spn.intern, &spn.roots, request, &pkg, &diag);
 
   sp_expect_eq(t, it->expect.err, err);
   sp_must_eq(t, it->expect.exists, pkg != SP_NULLPTR);
@@ -211,7 +211,7 @@ sp_test_each(index_dir, get_package, dir_test_t, tests, .setup = spn_test_ctx_se
     sp_expect_str_eq_c(t, release->paths.script, "spn.c");
 
     sp_must_eq(t, SPN_PKG_ROOT_LOCAL, release->source.kind);
-    sp_expect_str_eq(t, release->source.local, package);
+    sp_expect_str_eq(t, release->source.local.sub, package);
 
     u32 deps = 0;
     sp_carr_detect_len(it->expect.deps, deps, it->expect.deps[deps].name);

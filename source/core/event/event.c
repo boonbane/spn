@@ -31,7 +31,7 @@ spn_event_buffer_t* spn_event_buffer_new(sp_mem_t mem) {
   return events;
 }
 
-spn_err_t spn_event_log_open(spn_event_buffer_t* events, sp_str_t path) {
+spn_err_t spn_event_log_open(spn_event_buffer_t* events, sp_path_t path) {
   sp_mutex_lock(&events->mutex);
   if (!events->log.writer.write) {
     spn_lazy_log_init(&events->log, path);

@@ -133,7 +133,7 @@ static const git_repo_fixture_t tests [] = {
 
 sp_test_each(git_fixture, build, git_repo_fixture_t, tests) {
   // build repo from fixture
-  git_repo_result_t repo = git_repo_build_at(sp_test_dir(t), it->name, it);
+  git_repo_result_t repo = git_repo_build_at(test_dir_str(t), it->name, it);
 
   // assert commit count
   sp_must_eq(t, repo.commit_count, it->expect.num_commits);

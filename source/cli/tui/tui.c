@@ -159,7 +159,7 @@ static void write_issue(sp_tty_t* w, const spn_err_issue_t* issue) {
       sp_tty_fmt(w, "Relative path {.red} at {.cyan} has no base directory; use an absolute path", SP_FMT_STR(issue->detail), SP_FMT_STR(field));
       break;
     case SPN_ERR_CODEGEN_ABSOLUTE:
-      sp_tty_fmt(w, "Path {.red} at {.cyan} must be relative to the downloaded toolchain", SP_FMT_STR(issue->detail), SP_FMT_STR(field));
+      sp_tty_fmt(w, "Path {.red} at {.cyan} must be relative", SP_FMT_STR(issue->detail), SP_FMT_STR(field));
       break;
     default:
       sp_unreachable_case();
@@ -220,6 +220,7 @@ static sp_str_t root_label(spn_path_root_t root) {
     case SPN_PATH_ROOT_INDEX:     return sp_str_lit("$SPN_INDEX");
     case SPN_PATH_ROOT_RUNTIME:   return sp_str_lit("$SPN_RUNTIME");
     case SPN_PATH_ROOT_CACHE:     return sp_str_lit("$SPN_CACHE");
+    case SPN_PATH_ROOT_STORAGE:   return sp_str_lit("$SPN_STORAGE");
     case SPN_PATH_ROOT_NONE:
     case SPN_PATH_ROOT_COUNT:     break;
   }
@@ -985,11 +986,36 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           );
           break;
         }
+        case SPN_ERR_PATH_ABSOLUTE: {
+          sp_tty_fmt(
+            &w,
+            "Path {.yellow} must be relative",
+            sp_fmt_str(contextual_path(mem, event->err.fs.path))
+          );
+          break;
+        }
+        case SPN_ERR_PATH_FOREIGN: {
+          sp_tty_fmt(
+            &w,
+            "Path {.yellow} is outside every directory spn manages",
+            sp_fmt_str(contextual_path(mem, event->err.fs.path))
+          );
+          break;
+        }
         case SPN_ERR_PATH_OUTSIDE_PROJECT: {
           sp_tty_fmt(
             &w,
             "Path {.yellow} is not inside the project",
             sp_fmt_str(contextual_path(mem, event->err.fs.path))
+          );
+          break;
+        }
+        case SPN_ERR_NAME_SEPARATOR: {
+          sp_tty_fmt(
+            &w,
+            "{.cyan} names {.yellow}, but names may not contain '/'",
+            sp_fmt_str(event->err.target.pkg),
+            sp_fmt_str(event->err.target.name)
           );
           break;
         }
@@ -1261,7 +1287,7 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           sp_tty_fmt(
             &w,
             "Failed to read build script {.cyan}",
-            sp_fmt_str(get_contextual_path(ctx, mem, event->err.wasm.path))
+            sp_fmt_str(contextual_path(mem, event->err.wasm.path))
           );
           break;
         }
@@ -1269,7 +1295,7 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           sp_tty_fmt(
             &w,
             "Failed to load build script {.cyan}: {.red}",
-            sp_fmt_str(get_contextual_path(ctx, mem, event->err.wasm.path)),
+            sp_fmt_str(contextual_path(mem, event->err.wasm.path)),
             sp_fmt_str(event->err.wasm.error)
           );
           break;
@@ -1278,7 +1304,7 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           sp_tty_fmt(
             &w,
             "Failed to instantiate build script {.cyan}: {.red}",
-            sp_fmt_str(get_contextual_path(ctx, mem, event->err.wasm.path)),
+            sp_fmt_str(contextual_path(mem, event->err.wasm.path)),
             sp_fmt_str(event->err.wasm.error)
           );
           break;
@@ -1287,7 +1313,7 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           sp_tty_fmt(
             &w,
             "Failed to init wasm thread env for build script {.cyan}",
-            sp_fmt_str(get_contextual_path(ctx, mem, event->err.wasm.path))
+            sp_fmt_str(contextual_path(mem, event->err.wasm.path))
           );
           break;
         }
@@ -1295,7 +1321,7 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           sp_tty_fmt(
             &w,
             "Failed to create wasm context for build script {.cyan}",
-            sp_fmt_str(get_contextual_path(ctx, mem, event->err.wasm.path))
+            sp_fmt_str(contextual_path(mem, event->err.wasm.path))
           );
           break;
         }
@@ -1303,7 +1329,7 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           sp_tty_fmt(
             &w,
             "Build script {.cyan} crashed: {.red}",
-            sp_fmt_str(get_contextual_path(ctx, mem, event->err.wasm.path)),
+            sp_fmt_str(contextual_path(mem, event->err.wasm.path)),
             sp_fmt_str(event->err.wasm.error)
           );
           break;
@@ -1312,7 +1338,7 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           sp_tty_fmt(
             &w,
             "Build script {.cyan} returned {.red}",
-            sp_fmt_str(get_contextual_path(ctx, mem, event->err.wasm.path)),
+            sp_fmt_str(contextual_path(mem, event->err.wasm.path)),
             sp_fmt_int(event->err.wasm.rc)
           );
           break;
@@ -1326,7 +1352,7 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
             &w,
             "Referenced symbol {.yellow} was not found in {.cyan}",
             sp_fmt_str(event->err.wasm.error),
-            sp_fmt_str(get_contextual_path(ctx, mem, event->err.wasm.path))
+            sp_fmt_str(contextual_path(mem, event->err.wasm.path))
           );
           break;
         }

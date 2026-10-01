@@ -38,7 +38,7 @@ typedef struct {
 
 typedef struct {
   spn_triple_t triple;
-  test_path_t sdk;
+  test_arg_t sdk;
   spn_sanitizer_set_t sanitizers;
 } fixture_target_t;
 
@@ -160,8 +160,18 @@ static sp_err_t fixture_check_sdk(sp_test_t* t, spn_sdk_t sdk, fixture_sdk_expec
   sp_unreachable_return(SP_ERR);
 }
 
+static spn_arg_t fixture_sdk_arg(test_arg_t sdk) {
+  if (sdk.path) {
+    return spn_arg_path((spn_path_t) { .root = sdk.root, .sub = sp_cstr_as_str(sdk.path) });
+  }
+  if (sdk.name) {
+    return spn_arg_lit(sp_cstr_as_str(sdk.name));
+  }
+  return sp_zero_struct(spn_arg_t);
+}
+
 static spn_toolchain_target_t fixture_target(fixture_target_t target) {
-  return (spn_toolchain_target_t) { .triple = target.triple, .sdk = fixture_path(target.sdk), .sanitizers = target.sanitizers };
+  return (spn_toolchain_target_t) { .triple = target.triple, .sdk = fixture_sdk_arg(target.sdk), .sanitizers = target.sanitizers };
 }
 
 static sp_err_t fixture_check_launcher(sp_test_t* t, spn_toolchain_launcher_t launcher, fixture_launcher_t expect) {
@@ -205,7 +215,10 @@ static sp_err_t fixture_check_targets(sp_test_t* t, sp_da(spn_toolchain_target_t
     spn_toolchain_target_t want = fixture_target(expect[it]);
     sp_expect(t, spn_triple_equal(want.triple, targets[it].triple));
     sp_expect_eq(t, want.sanitizers, targets[it].sanitizers);
-    if (test_check_path(t, targets[it].sdk, expect[it].sdk)) {
+    if (!expect[it].sdk.name && !expect[it].sdk.path) {
+      sp_expect(t, spn_arg_empty(targets[it].sdk));
+    }
+    if (test_check_arg(t, targets[it].sdk, expect[it].sdk)) {
       return SP_ERR;
     }
   }

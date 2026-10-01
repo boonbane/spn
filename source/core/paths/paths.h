@@ -6,23 +6,27 @@
 #include "spn/types.h"
 #include "paths/types.h"
 
-sp_str_t spn_path_roots_init(spn_path_roots_t* roots, sp_mem_t mem, sp_str_t storage);
-sp_str_t spn_path_roots_set(spn_path_roots_t* roots, sp_mem_t mem, spn_path_root_t kind, sp_str_t dir);
+spn_err_t spn_path_roots_set(spn_path_roots_t* roots, sp_mem_t mem, spn_path_root_t kind, sp_path_t dir);
 void spn_path_roots_close(spn_path_roots_t* roots);
 bool spn_path_roots_intersect(const spn_path_roots_t* roots, sp_str_t dir);
-spn_path_root_t spn_path_root_longest(const spn_path_roots_t* roots, sp_str_t str);
 bool spn_path_normal(sp_str_t path);
 spn_path_t spn_path_anchor(sp_mem_t mem, const spn_path_roots_t* roots, spn_path_t path);
 spn_path_t spn_path_canonicalize(sp_mem_t mem, const spn_path_roots_t* roots, spn_path_t path);
+spn_path_t spn_path_canonicalize_head(sp_mem_t mem, const spn_path_roots_t* roots, spn_path_t path);
+spn_path_t spn_path_from_cwd(sp_mem_t mem, const spn_path_roots_t* roots, sp_str_t str);
 spn_path_t spn_path_make(const spn_path_roots_t* roots, sp_str_t path);
 spn_path_t spn_path_from_root(spn_path_root_t root);
 spn_path_t spn_path_copy(sp_mem_t mem, spn_path_t path);
 spn_path_t spn_path_join(sp_mem_t mem, spn_path_t base, sp_str_t sub);
+spn_path_t spn_path_resolve(sp_mem_t mem, spn_path_t base, sp_str_t str);
 spn_path_t spn_path_parent(spn_path_t path);
 spn_path_t spn_path_suffix(sp_mem_t mem, spn_path_t path, sp_str_t suffix);
+spn_path_t spn_path_staging(sp_mem_t mem, spn_path_t path, sp_str_t extension);
+spn_err_t spn_path_stage_dir(sp_mem_t mem, const spn_path_roots_t* roots, spn_path_t path, sp_str_t extension, spn_path_t* dir);
 sp_str_t spn_path_str(const spn_path_roots_t* roots, sp_mem_t mem, spn_path_t path);
 bool spn_path_empty(spn_path_t path);
 bool spn_path_equal(spn_path_t a, spn_path_t b);
+s32 spn_path_compare(spn_path_t a, spn_path_t b);
 spn_path_rel_t spn_path_within(spn_path_t base, spn_path_t path);
 sp_hash_t spn_path_hash(spn_path_t path);
 sp_hash_t spn_path_on_hash(void* key, u64 size);
@@ -42,9 +46,5 @@ spn_path_t spn_tree_root(spn_tree_roots_t roots, spn_tree_t tree);
 spn_path_t spn_tree_path(sp_mem_t mem, const spn_path_roots_t* roots, spn_tree_roots_t tree, spn_tree_t decl, sp_str_t str);
 spn_tree_rel_t  spn_tree_rel(spn_tree_roots_t roots, spn_path_t path);
 
-spn_path_at_t spn_path_at(const spn_path_roots_t* roots, spn_path_t path);
-sp_err_t spn_get_path_metadata(const spn_path_roots_t* roots, spn_path_t path, sp_sys_file_meta_t* meta);
-sp_err_t spn_path_create_dir(const spn_path_roots_t* roots, spn_path_t path);
-sp_err_t spn_path_open_reader(const spn_path_roots_t* roots, spn_path_t path, sp_io_file_reader_t* reader);
-sp_err_t spn_path_open_writer(const spn_path_roots_t* roots, spn_path_t path, sp_io_file_writer_t* writer);
+sp_path_t spn_path_at(const spn_path_roots_t* roots, spn_path_t path);
 #endif

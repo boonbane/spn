@@ -1,13 +1,15 @@
 #include "codegen/codegen.h"
+#include "paths/paths.h"
 #include "external/tom.h"
 #include "intern/intern.h"
 #include "sp.h"
 #include "macro/macro.h"
 #include "spn/errors.h"
 
-void spn_toml_loader_init(spn_toml_loader_t* ctx, sp_mem_t mem, sp_intern_t* intern) {
+void spn_toml_loader_init(spn_toml_loader_t* ctx, sp_mem_t mem, sp_intern_t* intern, const spn_path_roots_t* roots) {
   ctx->mem = mem;
   ctx->intern = intern;
+  ctx->roots = roots;
   ctx->depth = 0;
   ctx->scope = sp_zero_s(spn_codegen_scope_t);
   ctx->issues = sp_da_new(mem, spn_codegen_issue_t);
@@ -255,14 +257,15 @@ sp_da(spn_err_issue_t) spn_codegen_issues_to_err(sp_mem_t mem, sp_da(spn_codegen
   return projected;
 }
 
-toml_table_t* spn_codegen_parse(spn_toml_loader_t* ctx, sp_str_t path) {
-  if (!sp_fs_is_target_file(path)) {
+toml_table_t* spn_codegen_parse(spn_toml_loader_t* ctx, spn_path_t path) {
+  sp_path_t at = spn_path_at(ctx->roots, path);
+  if (!sp_fs_is_target_file_at(at)) {
     spn_toml_loader_issue_at(ctx, SPN_ERR_CODEGEN_FILE_MISSING, sp_str_lit("missing file"));
     return SP_NULLPTR;
   }
 
   sp_str_t diag = sp_zero;
-  toml_table_t* table = spn_toml_parse_diag(ctx->mem, path, &diag);
+  toml_table_t* table = spn_toml_parse_diag(ctx->mem, at, &diag);
   if (!table) {
     spn_toml_loader_issue_at(ctx, SPN_ERR_CODEGEN_PARSE, diag);
   }

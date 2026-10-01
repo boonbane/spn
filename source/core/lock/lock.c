@@ -146,11 +146,10 @@ spn_lock_file_t spn_lock_file_parse(sp_mem_t mem, sp_str_t toml, spn_event_buffe
   return lock;
 }
 
-spn_lock_file_t spn_lock_file_load(sp_mem_t mem, sp_str_t path, spn_event_buffer_t* events) {
-  SP_ASSERT(sp_fs_exists(path));
+spn_lock_file_t spn_lock_file_load(sp_mem_t mem, sp_path_t path, spn_event_buffer_t* events) {
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch_for(mem);
   sp_str_t contents = sp_zero;
-  sp_io_read_file(scratch.mem, path, &contents);
+  sp_io_read_file_at(scratch.mem, path, &contents);
   spn_lock_file_t lock = spn_lock_file_parse(mem, contents, events);
   sp_mem_end_scratch(scratch);
   return lock;

@@ -30,7 +30,7 @@ void sp_io_write_s16(sp_io_writer_t* io, s16 value) {
 }
 
 
-sp_err_t sp_io_read_file_slice(sp_mem_t mem, sp_str_t path, sp_mem_slice_t* content) {
+sp_err_t sp_io_read_file_slice(sp_mem_t mem, sp_path_t path, sp_mem_slice_t* content) {
   sp_assert(content);
   sp_err_t err = SP_OK;
   u8* buffer = SP_NULLPTR;
@@ -38,7 +38,7 @@ sp_err_t sp_io_read_file_slice(sp_mem_t mem, sp_str_t path, sp_mem_slice_t* cont
   u64 bytes_read = 0;
 
   sp_io_file_reader_t reader = sp_zero;
-  sp_try(sp_io_file_reader_from_path(&reader, path));
+  sp_try(sp_io_file_reader_from_path_at(&reader, path));
 
   sp_try_goto(sp_io_file_reader_size(&reader, &size), err, cleanup);
   if (!size) goto cleanup;

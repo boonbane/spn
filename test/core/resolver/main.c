@@ -42,17 +42,18 @@ static resolve_result_t execute_fixture(const fx_config_t* config, const spn_pkg
   sp_str_t dir_index_location = sp_fs_join_path(mem, dir, sp_str_lit("index"));
   if (sp_fs_is_dir(dir_index_location)) {
     sp_da_push(indexes, ((spn_index_info_t) {
-      .location = dir_index_location,
       .protocol = SPN_INDEX_PROTOCOL_DIR,
+      .dir = { .path = { .sub = dir_index_location } },
     }));
   }
 
   sp_da_push(indexes, ((spn_index_info_t) {
-    .location = dir,
+    .location = { .at = sp_path_resolve(dir), .dir = dir },
   }));
 
+  spn_path_roots_t roots = sp_zero;
   spn_index_cache_t cache = sp_zero;
-  spn_index_cache_init(&cache, mem, intern, &indexes);
+  spn_index_cache_init(&cache, mem, intern, &roots, &indexes);
 
   spn_pkg_registry_t registry = sp_zero;
   sp_ht_init(mem, registry);
@@ -98,7 +99,7 @@ static sp_err_t load_config(sp_test_t* t, sp_mem_t mem, sp_str_t dir, fx_config_
     return SP_OK;
   }
 
-  toml_table_t* table = spn_toml_parse(path);
+  toml_table_t* table = spn_toml_parse(sp_path_resolve(path));
   sp_must(t, table != SP_NULLPTR);
 
   config->skip = spn_toml_str_opt(mem, table, "skip", "");
@@ -117,9 +118,10 @@ static sp_err_t load_manifest(sp_test_t* t, sp_mem_t mem, sp_str_t dir, spn_pkg_
   sp_str_t manifest = sp_fs_join_path(mem, dir, sp_str_lit("spn.toml"));
   sp_must(t, sp_fs_is_target_file(manifest));
 
+  spn_path_roots_t roots = sp_zero;
   spn_toml_loader_t loader = sp_zero;
-  spn_toml_loader_init(&loader, mem, spn.intern);
-  sp_must_eq(t, SPN_OK, spn_codegen_load_pkg(&loader, manifest, root));
+  spn_toml_loader_init(&loader, mem, spn.intern, &roots);
+  sp_must_eq(t, SPN_OK, spn_codegen_load_pkg(&loader, (spn_path_t) { .sub = manifest }, root));
   sp_must_eq(t, 0, sp_da_size(loader.issues));
   return SP_OK;
 }

@@ -9,8 +9,8 @@
 
 struct spn_project_t {
   struct {
-    sp_str_t manifest;
-    sp_str_t lock;
+    spn_path_t manifest;
+    spn_path_t lock;
   } paths;
   spn_pkg_info_t package;
   sp_opt(spn_lock_file_t) lock;

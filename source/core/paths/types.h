@@ -22,14 +22,8 @@ typedef struct {
   sp_str_t dirs [SPN_PATH_ROOT_COUNT];
   sp_sys_fd_t fds [SPN_PATH_ROOT_COUNT];
   spn_path_root_set_t opened;
-  sp_str_t storage;
   spn_path_root_set_t pinned;
 } spn_path_roots_t;
-
-typedef struct {
-  sp_sys_fd_t fd;
-  sp_str_t sub;
-} spn_path_at_t;
 
 typedef struct {
   bool within;
@@ -52,39 +46,8 @@ typedef struct {
 } spn_arg_t;
 
 typedef struct {
-  sp_str_t dir;
-  sp_str_t checkouts;
-} spn_git_cache_paths_t;
-
-typedef struct {
-  sp_str_t dir;
-} spn_store_cache_paths_t;
-
-typedef struct {
-  sp_str_t dir;
-} spn_build_cache_paths_t;
-
-typedef struct {
-  sp_str_t dir;
-  spn_git_cache_paths_t git;
-  spn_store_cache_paths_t store;
-  spn_build_cache_paths_t build;
-} spn_cache_paths_t;
-
-typedef struct {
-  sp_str_t cwd;
-  sp_str_t project;
-  sp_str_t index;
-  sp_str_t runtime;
-  sp_str_t version;
-  sp_str_t toolchain;
-  sp_str_t patches;
-  sp_str_t storage;
-  struct {
-    sp_str_t dir;
-    sp_str_t toml;
-  } config;
-  spn_cache_paths_t caches;
+  spn_path_t patches;
+  spn_path_t config;
 } spn_system_paths_t;
 
 #endif

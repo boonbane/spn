@@ -6,6 +6,7 @@
 #include "index/cache.h"
 #include "index/types.h"
 #include "op/op.h"
+#include "paths/paths.h"
 #include "spn/host.h"
 #include "pkg/id.h"
 #include "pkg/types.h"
@@ -80,7 +81,7 @@ static spn_err_t add(spn_ctx_t* ctx, spn_add_request_t request, spn_semver_range
   spn_pkg_name_t name = spn_pkg_name_from_qualified(request.name);
 
   spn_index_cache_t cache = sp_zero;
-  spn_index_cache_init(&cache, ctx->heap, ctx->intern, &ctx->indexes);
+  spn_index_cache_init(&cache, ctx->heap, ctx->intern, &ctx->roots, &ctx->indexes);
 
   spn_index_pkg_t* pkg = SP_NULLPTR;
   spn_index_diag_t diag = sp_zero;
@@ -122,15 +123,15 @@ static spn_err_t add(spn_ctx_t* ctx, spn_add_request_t request, spn_semver_range
   sp_mem_arena_marker_t s = sp_mem_begin_scratch();
 
   sp_str_t source = sp_zero;
-  sp_str_t manifest = ctx->project->paths.manifest;
-  if (sp_io_read_file(s.mem, manifest, &source) != SP_OK) {
-    result = spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_FS_READ, .fs = { .path = { .sub = manifest } } });
+  spn_path_t manifest = ctx->project->paths.manifest;
+  if (sp_io_read_file_at(s.mem, spn_path_at(&ctx->roots, manifest), &source) != SP_OK) {
+    result = spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_FS_READ, .fs = { .path = manifest } });
     goto cleanup;
   }
 
   spn_toml_edit_t edit = sp_zero;
   if (spn_toml_edit_init(&edit, s.mem, source)) {
-    result = spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_MANIFEST_PARSE, .manifest_parse = { .path = manifest } });
+    result = spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_MANIFEST_PARSE, .manifest_parse = { .path = spn_path_str(&ctx->roots, ctx->heap, manifest) } });
     goto cleanup;
   }
 
@@ -143,13 +144,13 @@ static spn_err_t add(spn_ctx_t* ctx, spn_add_request_t request, spn_semver_range
 
   site_t site = find_site(&edit, s.mem, sp_cstr_as_str(table), request.name, spn_pkg_name_to_qualified(name));
   if (spn_toml_edit_set_str(&edit, site.path, site.num_segments, version)) {
-    result = spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_MANIFEST_EDIT, .manifest_parse = { .path = manifest } });
+    result = spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_MANIFEST_EDIT, .manifest_parse = { .path = spn_path_str(&ctx->roots, ctx->heap, manifest) } });
     goto cleanup;
   }
 
   sp_str_t updated = spn_toml_edit_render(&edit, s.mem);
-  if (sp_fs_write_atomic(manifest, updated) != SP_OK) {
-    result = spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_FS_WRITE, .fs = { .path = { .sub = manifest } } });
+  if (sp_fs_write_atomic_at(spn_path_at(&ctx->roots, manifest), updated) != SP_OK) {
+    result = spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_FS_WRITE, .fs = { .path = manifest } });
     goto cleanup;
   }
 

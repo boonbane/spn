@@ -10,11 +10,11 @@ u32 spn_toml_array_len(toml_array_t* array) {
   return toml_array_len(array);
 }
 
-toml_table_t* spn_toml_parse(sp_str_t path) {
+toml_table_t* spn_toml_parse(sp_path_t path) {
   return spn_toml_parse_ex(path, SP_NULLPTR);
 }
 
-toml_table_t* spn_toml_parse_ex(sp_str_t path, bool* parse_error) {
+toml_table_t* spn_toml_parse_ex(sp_path_t path, bool* parse_error) {
   if (parse_error) {
     *parse_error = false;
   }
@@ -27,14 +27,13 @@ toml_table_t* spn_toml_parse_ex(sp_str_t path, bool* parse_error) {
   return toml;
 }
 
-toml_table_t* spn_toml_parse_diag(sp_mem_t mem, sp_str_t path, sp_str_t* diag) {
-  if (!sp_fs_exists(path)) {
-    return SP_NULLPTR;
-  }
-
+toml_table_t* spn_toml_parse_diag(sp_mem_t mem, sp_path_t path, sp_str_t* diag) {
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   sp_str_t file = sp_zero;
-  sp_io_read_file(scratch.mem, path, &file);
+  if (sp_io_read_file_at(scratch.mem, path, &file)) {
+    sp_mem_end_scratch(scratch);
+    return SP_NULLPTR;
+  }
   toml_table_t* toml = spn_toml_parse_str_diag(mem, file, diag);
   sp_mem_end_scratch(scratch);
   return toml;

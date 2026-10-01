@@ -137,7 +137,10 @@
     "patch_not_git": { "ref": "patch" },
     "header_collision": { "ref": "header_collision" },
     "path_component": { "ref": "fs" },
-    "path_outside_project": { "ref": "fs" }
+    "path_absolute": { "ref": "fs" },
+    "path_foreign": { "ref": "fs" },
+    "path_outside_project": { "ref": "fs" },
+    "name_separator": { "ref": "target" }
   },
   "definitions": {
     "manifest_parse": {
@@ -227,7 +230,7 @@
     },
     "wasm": {
       "properties": {
-        "path": { "type": "string" },
+        "path": { "metadata": { "extern": "path" } },
         "error": { "type": "string" },
         "rc": { "type": "int32" }
       }

@@ -45,9 +45,9 @@ static const test_t tests [] = {
 
 sp_test_each(lazy_log, write, test_t, tests) {
   sp_mem_t mem = sp_test_arena(t);
-  sp_str_t path = sp_fs_join_path(mem, sp_test_dir(t), sp_str_lit("x.log"));
+  sp_path_t path = sp_path_join(mem, sp_test_dir(t), sp_str_lit("x.log"));
   if (it->seed) {
-    sp_fs_create_file_str(path, sp_str_view(it->seed));
+    sp_fs_create_file_str_at(path, sp_str_view(it->seed));
   }
 
   spn_lazy_log_t log;
@@ -60,11 +60,12 @@ sp_test_each(lazy_log, write, test_t, tests) {
 
   spn_lazy_log_close(&log);
 
+  sp_str_t content = sp_zero;
   if (it->expect.content) {
-    sp_expect(t, sp_fs_exists(path));
-    sp_expect_str_eq_c(t, test_read_file(mem, path), it->expect.content);
+    sp_must_ok(t, sp_io_read_file_at(mem, path, &content));
+    sp_expect_str_eq_c(t, content, it->expect.content);
   } else {
-    sp_expect(t, !sp_fs_exists(path));
+    sp_expect(t, !sp_fs_exists_at(path));
   }
 
   return SP_OK;
@@ -72,7 +73,7 @@ sp_test_each(lazy_log, write, test_t, tests) {
 
 sp_test(lazy_log, close_latches) {
   sp_mem_t mem = sp_test_arena(t);
-  sp_str_t path = sp_fs_join_path(mem, sp_test_dir(t), sp_str_lit("x.log"));
+  sp_path_t path = sp_path_join(mem, sp_test_dir(t), sp_str_lit("x.log"));
 
   spn_lazy_log_t log;
   spn_lazy_log_init(&log, path);
@@ -80,21 +81,23 @@ sp_test(lazy_log, close_latches) {
   spn_lazy_log_close(&log);
 
   sp_expect_eq(t, sp_io_write_str(&log.writer, sp_str_lit("late"), SP_NULLPTR), SP_ERR_IO);
-  sp_expect_str_eq_c(t, test_read_file(mem, path), "kept");
+  sp_str_t content = sp_zero;
+  sp_must_ok(t, sp_io_read_file_at(mem, path, &content));
+  sp_expect_str_eq_c(t, content, "kept");
 
   return SP_OK;
 }
 
 sp_test(lazy_log, close_unopened_latches) {
   sp_mem_t mem = sp_test_arena(t);
-  sp_str_t path = sp_fs_join_path(mem, sp_test_dir(t), sp_str_lit("x.log"));
+  sp_path_t path = sp_path_join(mem, sp_test_dir(t), sp_str_lit("x.log"));
 
   spn_lazy_log_t log;
   spn_lazy_log_init(&log, path);
   spn_lazy_log_close(&log);
 
   sp_expect_eq(t, sp_io_write_str(&log.writer, sp_str_lit("late"), SP_NULLPTR), SP_ERR_IO);
-  sp_expect(t, !sp_fs_exists(path));
+  sp_expect(t, !sp_fs_exists_at(path));
 
   return SP_OK;
 }

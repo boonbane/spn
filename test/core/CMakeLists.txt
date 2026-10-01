@@ -47,6 +47,7 @@ add_executable(core
   git/url.c
   index/cache.c
   index/dir.c
+  index/location.c
   index/package.c
   index/query.c
   index/publish.c
@@ -80,10 +81,15 @@ add_executable(core
   options/session.c
   paths/anchor.c
   paths/canonicalize.c
+  paths/cwd.c
+  paths/head.c
   paths/label.c
   paths/normal.c
   paths/path.c
+  paths/resolve.c
   paths/roots.c
+  paths/set.c
+  paths/stage.c
   paths/tree_path.c
   paths/tree_rel.c
   pkg/pkg.c
@@ -106,7 +112,6 @@ add_executable(core
   toolchain/driver.c
   toolchain/linker.c
   toolchain/parse.c
-  toolchain/path.c
   toolchain/probe.c
   toolchain/program.c
   toolchain/provision.c
@@ -115,6 +120,7 @@ add_executable(core
   toolchain/sdk_hash.c
   toolchain/sdk_libc.c
   toolchain/sdk_msvc.c
+  toolchain/sdk_path.c
   toolchain/sdk_root.c
   toolchain/sdk_serve.c
   toolchain/sdk_wasi.c
@@ -161,7 +167,6 @@ add_executable(core
   ${SRC}/dag/stamp.c
   ${SRC}/dag/store.c
   ${SRC}/dag/wasi.c
-  ${SRC}/dag/wasi/canonicalize.c
   ${SRC}/enum/enum.c
   ${SRC}/error/error.c
   ${SRC}/error/json.c
@@ -271,7 +276,6 @@ set_source_files_properties(
   toolchain/driver.c
   toolchain/linker.c
   toolchain/parse.c
-  toolchain/path.c
   toolchain/probe.c
   toolchain/program.c
   toolchain/sdk.c
@@ -279,6 +283,7 @@ set_source_files_properties(
   toolchain/sdk_hash.c
   toolchain/sdk_libc.c
   toolchain/sdk_msvc.c
+  toolchain/sdk_path.c
   toolchain/sdk_root.c
   toolchain/sdk_serve.c
   toolchain/sdk_wasi.c
@@ -302,7 +307,6 @@ set(DAG_TEST_SOURCES
   ${SRC}/dag/stamp.c
   ${SRC}/dag/store.c
   ${SRC}/dag/wasi.c
-  ${SRC}/dag/wasi/canonicalize.c
   ${SRC}/hash/digest/digest.c
   ${SRC}/hash/sha256/sha256.c
   ${SRC}/paths/paths.c

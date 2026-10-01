@@ -55,7 +55,6 @@ typedef struct {
 typedef struct {
   struct sp_glob_t* glob;
   spn_path_t base;
-  u32 start;
   bool recursive;
   sp_fs_it_t fs;
   spn_dag_glob_entry_t entry;
@@ -136,7 +135,7 @@ typedef struct {
 
 typedef struct {
   sp_sys_timespec_t fence;
-  sp_str_t dir;
+  spn_path_t dir;
 } spn_dag_stamp_t;
 
 typedef struct {
@@ -147,7 +146,7 @@ typedef struct {
   sp_ht(spn_dag_file_id_t, spn_dag_file_meta_t) entries;
   sp_ht(spn_path_t, sp_sys_file_meta_t) metadata;
   sp_ht(spn_path_t, spn_dag_file_meta_t) hints;
-  sp_ht(sp_str_t, sp_str_t) canonical;
+  sp_ht(spn_path_t, spn_path_t) canonical;
   bool hints_dirty;
   spn_dag_stamp_t stamp;
   spn_dag_stats_t* stats;
@@ -166,7 +165,8 @@ typedef struct {
   sp_mem_arena_t* arena;
   sp_mem_t mem;
   sp_mutex_t mutex;
-  sp_str_t dir;
+  const spn_path_roots_t* roots;
+  spn_path_t dir;
   sp_ht(spn_dag_digest_t, spn_dag_action_entry_t) entries;
   spn_dag_stats_t* stats;
 } spn_dag_action_cache_t;
@@ -181,7 +181,7 @@ typedef struct {
   sp_mem_t mem;
   sp_mutex_t mutex;
   const spn_path_roots_t* roots;
-  sp_str_t dir;
+  spn_path_t dir;
   sp_ht(spn_dag_digest_t, spn_dag_pathset_t) entries;
   spn_dag_stats_t* stats;
 } spn_dag_obs_table_t;

@@ -28,17 +28,17 @@ static spn_arg_t lower_program(spn_toml_loader_t* ctx, const c8* key, spn_toolch
   return sp_zero_struct(spn_arg_t);
 }
 
-static spn_path_t lower_sdk_path(spn_toml_loader_t* ctx, spn_toolchain_source_t source, spn_path_root_t base, sp_str_t sdk) {
-  spn_path_t path = sp_zero;
+static spn_arg_t lower_sdk_path(spn_toml_loader_t* ctx, spn_toolchain_source_t source, spn_path_root_t base, sp_str_t sdk) {
+  spn_arg_t arg = sp_zero;
   sdk = spn_toml_loader_intern(ctx, sp_fs_normalize_path(ctx->mem, sdk));
-  spn_path_check_t check = spn_toolchain_sdk_path(source, base, sdk, &path);
+  spn_path_check_t check = spn_toolchain_sdk_path(source, base, sdk, &arg);
   if (check == SPN_PATH_OK) {
-    return path;
+    return arg;
   }
   spn_toml_loader_push_key(ctx, "sdk");
   spn_toml_loader_issue_at(ctx, path_issue(check), sdk);
   spn_toml_loader_pop(ctx);
-  return sp_zero_struct(spn_path_t);
+  return sp_zero_struct(spn_arg_t);
 }
 
 static bool sanitizable(spn_triple_t triple) {

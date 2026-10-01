@@ -34,7 +34,7 @@ typedef enum {
 typedef struct {
   spn_pkg_root_kind_t kind;
   union {
-    sp_str_t local;
+    spn_path_t local;
     spn_git_checkout_id_t git;
   };
 } spn_pkg_root_t;
@@ -67,7 +67,7 @@ typedef struct {
   spn_when_t options;
   union {
     struct { spn_semver_range_t range; } index;
-    struct { sp_str_t path; } file;
+    struct { spn_path_t path; } file;
   };
 } spn_requested_dep_t;
 

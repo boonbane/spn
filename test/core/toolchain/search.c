@@ -73,7 +73,7 @@ sp_test_each(search, dirs, dirs_t, dirs_tests) {
 
 sp_test_each(search, program, program_t, program_tests) {
   sp_mem_t mem = sp_test_arena(t);
-  sp_str_t root = sp_test_dir(t);
+  sp_str_t root = test_dir_str(t);
   sp_fs_create_dir(sp_fs_join_path(mem, root, sp_str_lit("X")));
   sp_fs_create_dir(sp_fs_join_path(mem, root, sp_str_lit("Y")));
   sp_carr_for_until(it->files, at, it->files[at]) {

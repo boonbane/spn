@@ -92,7 +92,7 @@ static spn_err_t sync_indexes(spn_op_t* op) {
       continue;
     }
 
-    if (!job->force && sp_fs_exists(job->index->location)) {
+    if (!job->force && sp_fs_exists_at(job->index->location.at)) {
       spn_event_buffer_push(ctx->events, (spn_event_t) {
         .kind = SPN_EVENT_SYNC_STALE,
         .sync = {

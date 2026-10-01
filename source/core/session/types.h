@@ -71,7 +71,7 @@ struct spn_session_t {
     spn_dag_build_t* build;
     sp_om(spn_compile_unit_id_t, spn_dag_digest_t) objects;
     spn_dag_file_cache_t files;
-    sp_str_t files_path;
+    spn_path_t files_path;
   } dag;
 };
 

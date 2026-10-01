@@ -62,7 +62,7 @@ typedef struct {
 
 static fz_state_t fz_state;
 
-void spn_index_cache_init(spn_index_cache_t* cache, sp_mem_t mem, sp_intern_t* intern, sp_da(spn_index_info_t)* indexes) {
+void spn_index_cache_init(spn_index_cache_t* cache, sp_mem_t mem, sp_intern_t* intern, const spn_path_roots_t* roots, sp_da(spn_index_info_t)* indexes) {
 
 }
 
@@ -95,7 +95,7 @@ static spn_requested_dep_t fz_req(sp_mem_t mem, fz_universe_t* u, fz_dep_t dep) 
   };
   if (u->pkgs[dep.pkg].local) {
     req.source = SPN_PKG_SOURCE_FILE;
-    req.file.path = sp_fmt(mem, "fz://{}", sp_fmt_str(fz_pkg_name(dep.pkg))).value;
+    req.file.path = (spn_path_t) { .sub = sp_fmt(mem, "fz://{}", sp_fmt_str(fz_pkg_name(dep.pkg))).value };
   }
   else {
     req.source = SPN_PKG_SOURCE_INDEX;

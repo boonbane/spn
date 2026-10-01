@@ -40,7 +40,7 @@ typedef enum {
 typedef struct {
   spn_wasm_script_state_t state;
   spn_err_t err;
-  sp_str_t path;
+  spn_path_t path;
   sp_mutex_t mutex;
   spn_wasm_module_t* module;
   spn_wasm_instance_t* instance;

@@ -1,0 +1,18 @@
+[package]
+name = "A"
+version = "1.0.0"
+
+[[lib]]
+name = "A/B"
+
+[[bin]]
+name = "C/D"
+
+[[script]]
+name = "E/F"
+
+[[test]]
+name = "G/H"
+
+[[example]]
+name = "I/J"

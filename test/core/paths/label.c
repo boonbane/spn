@@ -15,6 +15,7 @@ static const label_test_t label_tests [] = {
   { SPN_PATH_ROOT_INDEX,     "index" },
   { SPN_PATH_ROOT_RUNTIME,   "runtime" },
   { SPN_PATH_ROOT_CACHE,     "cache" },
+  { SPN_PATH_ROOT_STORAGE,   "storage" },
 };
 
 sp_test(paths_root_label, is_injective) {

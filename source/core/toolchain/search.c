@@ -32,7 +32,7 @@ spn_search_rules_t spn_search_rules(spn_os_t os) {
 sp_da(sp_str_t) spn_search_dirs(spn_search_rules_t rules, sp_mem_t mem, sp_str_t path) {
   sp_da(sp_str_t) dirs = sp_da_new(mem, sp_str_t);
   sp_str_for_word(path, rules.sep, it) {
-    sp_str_t dir = sp_fs_normalize_path(mem, sp_fs_trim_path(it.entry));
+    sp_str_t dir = sp_fs_normalize_path_for(mem, sp_fs_trim_path_for(it.entry, rules.kind), rules.kind);
     if (sp_fs_is_absolute_for(dir, rules.kind) && spn_path_normal(dir)) {
       sp_da_push(dirs, dir);
     }
@@ -43,7 +43,7 @@ sp_da(sp_str_t) spn_search_dirs(spn_search_rules_t rules, sp_mem_t mem, sp_str_t
 static sp_str_t existing(spn_search_rules_t rules, sp_mem_t mem, sp_str_t stem) {
   sp_carr_for_until(rules.suffix, it, rules.suffix[it]) {
     sp_str_t candidate = sp_str_concat(mem, stem, sp_cstr_as_str(rules.suffix[it]));
-    if (sp_fs_is_target_file(candidate)) {
+    if (sp_fs_is_target_file_at(sp_path_resolve(candidate))) {
       return candidate;
     }
   }

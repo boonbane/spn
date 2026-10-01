@@ -5,10 +5,10 @@
 #include "sp.h"
 #include "spn/core.h"
 
-void      spn_git_cache_init(spn_git_cache_t* cache, sp_mem_t mem, sp_intern_t* intern, sp_str_t root);
+void      spn_git_cache_init(spn_git_cache_t* cache, sp_mem_t mem, sp_intern_t* intern, const spn_path_roots_t* roots, spn_path_t db, spn_path_t checkouts);
 spn_err_t spn_git_cache_ensure_db(spn_git_cache_t* cache, sp_str_t url, spn_git_db_t** db);
 spn_err_t spn_git_cache_ensure_checkout(spn_git_cache_t* cache, spn_git_checkout_id_t id, spn_git_checkout_t** checkout);
 bool      spn_git_cache_is_checkout_cached(spn_git_cache_t* cache, spn_git_checkout_id_t id);
-spn_err_t spn_git_db_ensure_rev(spn_git_db_t* db, sp_str_t rev);
+spn_err_t spn_git_db_ensure_rev(spn_git_cache_t* cache, spn_git_db_t* db, sp_str_t rev);
 
 #endif

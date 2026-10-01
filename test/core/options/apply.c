@@ -1,5 +1,7 @@
 #include "options.h"
 
+#include "paths/paths.h"
+
 typedef struct {
   const c8* key;
   const c8* value;
@@ -494,7 +496,7 @@ sp_test_each(options_apply, lists, apply_test_t, list_tests) {
   spn_when_env_init(mem, &env);
   spn_when_env_set_facts(&env, it->facts);
   spn_path_roots_t roots = sp_zero;
-  spn_tree_roots_t trees = sp_zero;
+  spn_tree_roots_t trees = { .source = spn_path_from_root(SPN_PATH_ROOT_PROJECT) };
   spn_pkg_apply_options(mem, &info, &roots, trees, &env);
   if (it->reapply) {
     spn_when_env_t reapply = sp_zero;
@@ -757,7 +759,7 @@ sp_test_each(options_apply, target_embeds, apply_embed_test_t, embed_tests, .set
   spn_when_env_init(mem, &env);
   spn_when_env_set_facts(&env, it->facts);
   spn_path_roots_t roots = sp_zero;
-  spn_tree_roots_t trees = sp_zero;
+  spn_tree_roots_t trees = { .source = spn_path_from_root(SPN_PATH_ROOT_PROJECT) };
   spn_pkg_apply_options(mem, &info, &roots, trees, &env);
 
   u32 expected = 0;

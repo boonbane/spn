@@ -94,7 +94,7 @@ sp_test_each(sdk_libc, write, test_t, tests) {
   }
   sp_expect_eq(t, (u32)SPN_PATH_ROOT_CACHE, (u32)file.root);
   sp_str_t content = sp_zero;
-  sp_must_ok(t, sp_io_read_file(mem, spn_path_str(&roots, mem, file), &content));
+  sp_must_ok(t, sp_io_read_file_at(mem, spn_path_at(&roots, file), &content));
   sp_expect_str_eq_c(t, content, it->expect.content);
   return SP_OK;
 }

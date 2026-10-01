@@ -6,7 +6,6 @@
 
 #include "compiler/driver.h"
 #include "dag/dag.h"
-#include "dag/wasi/canonicalize.h"
 #include "paths/paths.h"
 #include "session/invocation.h"
 #include "session/session.h"
@@ -14,7 +13,7 @@
 #include "graph/nodes/nodes.h"
 #include "unit/package.h"
 
-static s32 run_compiler(spn_compile_unit_t* unit, const spn_invocation_t* base, spn_path_t object, spn_path_t depfile) {
+static s32 run_compiler(const spn_path_roots_t* roots, spn_compile_unit_t* unit, const spn_invocation_t* base, spn_path_t object, spn_path_t depfile) {
   spn_pkg_unit_t* pkg = unit->target->pkg;
   spn_session_t* session = pkg->session;
 
@@ -26,8 +25,8 @@ static s32 run_compiler(spn_compile_unit_t* unit, const spn_invocation_t* base, 
     .depfile = depfile,
   };
   spn_invocation_t invocation = spn_cc_render_compile_command(spn.mem, &pkg->build->toolchain->cc, &pkg->build->profile, base, &files);
-  spn_invocation_result_t run = spn_invocation_run(&invocation);
-  sp_str_t command = spn_invocation_to_str(spn.mem, &invocation);
+  spn_invocation_result_t run = spn_invocation_run(roots, &invocation);
+  sp_str_t command = spn_invocation_to_str(roots, spn.mem, &invocation);
 
   if (run.result.status.exit_code) {
     spn_event_buffer_push(session->ctx->events, (spn_event_t) {
@@ -67,36 +66,28 @@ static spn_err_t compile_object(sp_mem_t scratch, spn_dag_t* g, spn_dag_object_c
 
   spn_cc_depfile_t mode = spn_cc_depfile(toolchain, unit->lang);
   if (mode == SPN_CC_DEPFILE_NONE) {
-    return run_compiler(unit, ctx->invocation, object, (spn_path_t) sp_zero) ? SPN_ERR_DAG_ACTION : SPN_OK;
+    return run_compiler(g->roots, unit, ctx->invocation, object, (spn_path_t) sp_zero) ? SPN_ERR_DAG_ACTION : SPN_OK;
   }
 
   spn_path_t depfile = spn_path_suffix(scratch, object, sp_str_lit(".d"));
-  if (run_compiler(unit, ctx->invocation, object, depfile)) {
+  if (run_compiler(g->roots, unit, ctx->invocation, object, depfile)) {
     return SPN_ERR_DAG_ACTION;
   }
 
-  sp_str_t dep = spn_path_str(g->roots, scratch, depfile);
-  if (!sp_fs_exists(dep)) {
+  sp_path_t dep = spn_path_at(g->roots, depfile);
+  if (!sp_fs_exists_at(dep)) {
     return mode == SPN_CC_DEPFILE_REQUIRED ? SPN_ERR_DAG_DEPFILE : SPN_OK;
   }
   sp_str_t content = sp_zero;
   sp_da(sp_str_t) prereqs = sp_zero;
-  if (sp_io_read_file(scratch, dep, &content) || spn_cc_parse_depfile(scratch, toolchain, content, &prereqs)) {
+  if (sp_io_read_file_at(scratch, dep, &content) || spn_cc_parse_depfile(scratch, toolchain, content, &prereqs)) {
     return SPN_ERR_DAG_DEPFILE;
   }
   sp_da_for(prereqs, it) {
-    sp_str_t path = prereqs[it];
-    if (!sp_fs_is_absolute(path)) {
-      path = spn_path_str(g->roots, scratch, spn_path_join(scratch, unit->target->pkg->paths.work, path));
-    }
-    sp_str_t canonical = spn_dag_file_cache_canonical(env->files, path);
-    if (sp_str_empty(canonical)) {
-      canonical = spn_dag_wasi_canonicalize(scratch, path);
-    }
-    sp_assert(!sp_str_empty(canonical));
+    spn_path_t path = spn_path_resolve(scratch, unit->target->pkg->paths.work, prereqs[it]);
     spn_dag_observe(obs, (spn_dag_obs_t) {
       .kind = SPN_DAG_OBS_FILE,
-      .path = spn_path_make(g->roots, canonical),
+      .path = spn_dag_file_cache_canonical(env->files, path),
     });
   }
   return SPN_OK;

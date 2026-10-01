@@ -2,6 +2,7 @@
 
 #include "ctx/types.h"
 #include "error/error.h"
+#include "fs/fs.h"
 #include "hash/digest/digest.h"
 #include "paths/paths.h"
 #include "str/str.h"
@@ -57,14 +58,13 @@ static spn_path_t file_path(sp_mem_t mem, sp_str_t content) {
 }
 
 static spn_err_t write_file(sp_mem_t mem, const spn_path_roots_t* roots, spn_path_t file, sp_str_t content) {
+  sp_path_t at = spn_path_at(roots, file);
   sp_sys_file_meta_t meta = sp_zero;
-  if (!spn_get_path_metadata(roots, file, &meta) && meta.kind == SP_FS_KIND_FILE) {
+  if (!sp_sys_get_path_metadata_s(at.dir, at.sub, &meta) && meta.kind == SP_FS_KIND_FILE) {
     return SPN_OK;
   }
-  sp_str_buf_t buf = sp_zero;
-  sp_str_t path = spn_path_str(roots, sp_str_buf_as_mem(&buf), file);
-  sp_fs_create_dir(sp_fs_parent_path(path));
-  if (sp_fs_write_atomic(path, content)) {
+  sp_fs_create_parent_at(at);
+  if (sp_fs_write_atomic_at(at, content)) {
     return spn_err_emit(&spn, (spn_err_union_t) { .kind = SPN_ERR_FS_WRITE, .fs = { .path = spn_path_copy(mem, file) } });
   }
   return SPN_OK;

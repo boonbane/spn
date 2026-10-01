@@ -48,11 +48,11 @@ void spn_cc_embed_ctx_add(
   }));
 }
 
-spn_err_t spn_cc_embed_ctx_write(spn_cc_embed_ctx_t* ctx, sp_str_t object, sp_str_t header) {
+spn_err_t spn_cc_embed_ctx_write(spn_cc_embed_ctx_t* ctx, sp_path_t object, sp_path_t header) {
   spn_try(spn_obj_write(&ctx->obj, object));
 
   sp_io_file_writer_t writer = sp_zero;
-  if (sp_io_file_writer_from_path(&writer, header)) {
+  if (sp_io_file_writer_from_path_at(&writer, header)) {
     return SPN_ERROR;
   }
   sp_io_writer_t* io = &writer.base;

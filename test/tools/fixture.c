@@ -42,25 +42,7 @@ sp_ps_output_t git_repo_run_cstr(sp_str_t repo, const c8** args, u32 count) {
   return git_repo_run(repo, strs, count);
 }
 
-static void git_repo_copy_dir(sp_str_t source, sp_str_t repo) {
-  sp_mem_t mem = sp_mem_os_new();
-  sp_da(sp_fs_entry_t) entries = sp_zero;
-  sp_fs_collect_recursive(mem, source, &entries);
-  sp_da_for(entries, it) {
-    sp_fs_entry_t* entry = &entries[it];
-    if (sp_fs_is_dir(entry->path)) {
-      continue;
-    }
-
-    sp_str_t relative = sp_str_strip_left(entry->path, source);
-    relative = sp_str_strip_left(relative, sp_str_lit("/"));
-    sp_str_t target = sp_fs_join_path(mem, repo, relative);
-    sp_fs_copy_file(entry->path, target, SP_FS_ATOMIC_REPLACE);
-  }
-}
-
 void git_repo_init(sp_str_t repo) {
-  sp_fs_create_dir(sp_fs_parent_path(repo));
   sp_fs_create_dir(repo);
 
   git(repo, "init", "--quiet");
@@ -92,7 +74,7 @@ void git_repo_commit_from_dir(sp_str_t source, sp_str_t repo, sp_str_t message) 
 
   git(repo, "rm", "-r", "--quiet", "--ignore-unmatch", ".");
 
-  git_repo_copy_dir(source, repo);
+  SP_ASSERT(!sp_fs_copy_tree_at(sp_path_resolve(source), sp_path_resolve(repo), SP_FS_ATOMIC_REPLACE));
   git_repo_stage_all(repo);
   git_repo_commit(repo, message);
 }

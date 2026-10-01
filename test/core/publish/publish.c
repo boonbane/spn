@@ -291,7 +291,7 @@ sp_test_each(cmd_publish, publish, case_t, cases, .setup = spn_test_ctx_setup) {
 
   git_repo_result_t source_repo = sp_zero;
   if (c.source_repo.name) {
-    source_repo = git_repo_build_at(sp_test_dir(t), c.source_repo.name, &c.source_repo);
+    source_repo = git_repo_build_at(test_dir_str(t), c.source_repo.name, &c.source_repo);
   }
 
   if (c.generated_manifest) {
@@ -326,18 +326,19 @@ sp_test_each(cmd_publish, publish, case_t, cases, .setup = spn_test_ctx_setup) {
     manifest->content = sp_str_to_cstr(mem, content);
   }
 
-  git_repo_result_t repo = git_repo_build_at(sp_test_dir(t), c.repo.name, &c.repo);
+  git_repo_result_t repo = git_repo_build_at(test_dir_str(t), c.repo.name, &c.repo);
 
-  sp_str_t index_root = sp_fs_join_path(mem, sp_test_dir(t), sp_str_lit("index"));
+  sp_str_t index_root = sp_fs_join_path(mem, test_dir_str(t), sp_str_lit("index"));
   sp_fs_create_dir(index_root);
   git_repo_init(index_root);
   git(index_root, "symbolic-ref", "HEAD", "refs/heads/main");
   git(index_root, "config", "receive.denyCurrentBranch", "updateInstead");
   git_repo_commit(index_root, sp_str_lit("seed"));
 
+  sp_str_t clone = sp_fs_join_path(mem, test_dir_str(t), sp_str_lit("index_clone"));
   spn_index_info_t index = {
     .git = { .url = index_root },
-    .location = sp_fs_join_path(mem, sp_test_dir(t), sp_str_lit("index_clone")),
+    .location = { .at = sp_path_resolve(clone), .dir = clone },
   };
 
   sp_str_t cwd = repo.path;
@@ -351,7 +352,8 @@ sp_test_each(cmd_publish, publish, case_t, cases, .setup = spn_test_ctx_setup) {
   spn_publish_opts_t opts = {
     .mem = mem,
     .intern = spn.intern,
-    .cwd = cwd,
+    .roots = &spn.roots,
+    .dir = { .sub = cwd },
     .url = c.opts.url ? sp_cstr_as_str(c.opts.url) : repo.path,
     .revision = repo.commits[rev_idx],
   };
@@ -366,7 +368,7 @@ sp_test_each(cmd_publish, publish, case_t, cases, .setup = spn_test_ctx_setup) {
   if (c.expect.namespace && result == SPN_OK) {
     spn_index_pkg_t* pkg = SP_NULLPTR;
     spn_index_diag_t diag = sp_zero;
-    spn_index_get_package(&index, mem, spn.intern, (spn_pkg_name_t) {
+    spn_index_get_package(&index, mem, spn.intern, &spn.roots, (spn_pkg_name_t) {
       .namespace = sp_str_view(c.expect.namespace),
       .name = sp_str_view(c.expect.name),
     }, &pkg, &diag);

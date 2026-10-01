@@ -4,6 +4,8 @@
 #include "error/error.h"
 #include "hash/digest/digest.h"
 #include "fs/fs.h"
+#include "paths/paths.h"
+#include "toolchain/toolchain.h"
 
 spn_err_t spn_fetch_curl(spn_toolchain_store_t* store, sp_str_t url, sp_str_t dest, sp_str_t* output) {
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
@@ -23,14 +25,11 @@ spn_err_t spn_fetch_curl(spn_toolchain_store_t* store, sp_str_t url, sp_str_t de
   return result.status.exit_code ? SPN_ERROR : SPN_OK;
 }
 
-sp_str_t spn_toolchain_store_path(spn_toolchain_store_t* store, spn_artifact_t artifact) {
-  return sp_fs_join_path(store->mem, store->dir, artifact.sha256);
-}
-
 sp_str_t spn_artifact_resolve_url(sp_mem_t mem, spn_artifact_t artifact, sp_str_t mirror) {
   if (sp_str_empty(mirror)) return artifact.url;
 
-  sp_str_t name = sp_fs_get_name(artifact.url);
+  s32 slash = sp_str_find_c8_reverse(artifact.url, '/');
+  sp_str_t name = sp_str_suffix(artifact.url, (s32)artifact.url.len - slash - 1);
   if (sp_str_empty(name)) return artifact.url;
 
   while (mirror.len && mirror.data[mirror.len - 1] == '/') {
@@ -52,13 +51,14 @@ static spn_err_t fetch(spn_toolchain_store_t* store, spn_artifact_t artifact, sp
   return store->fetch(store, *url, dest, output);
 }
 
-static spn_err_t fill(spn_toolchain_store_t* store, sp_str_t name, spn_artifact_t artifact, sp_str_t dest) {
-  sp_str_t tarball = sp_fs_staging_path(store->mem, dest, sp_str_lit("download"));
+static spn_err_t fill(spn_toolchain_store_t* store, sp_mem_t scratch, sp_str_t name, spn_artifact_t artifact, spn_path_t dest) {
+  spn_path_t tarball = spn_path_staging(scratch, dest, sp_str_lit("download"));
+  sp_path_t tarball_at = spn_path_at(store->roots, tarball);
 
   sp_str_t url = sp_zero;
   sp_str_t output = sp_zero;
-  if (fetch(store, artifact, tarball, &url, &output)) {
-    sp_fs_remove_file(tarball);
+  if (fetch(store, artifact, spn_path_str(store->roots, scratch, tarball), &url, &output)) {
+    sp_fs_remove_file_at(tarball_at);
     return spn_err_emit(&spn, (spn_err_union_t) {
       .kind = SPN_ERR_TOOLCHAIN_FETCH,
       .artifact = {
@@ -70,8 +70,8 @@ static spn_err_t fill(spn_toolchain_store_t* store, sp_str_t name, spn_artifact_
   }
 
   sp_str_t actual = sp_zero;
-  if (spn_digest_file_hex(SPN_DIGEST_SHA256, store->mem, tarball, &actual)) {
-    sp_fs_remove_file(tarball);
+  if (spn_digest_file_hex(SPN_DIGEST_SHA256, store->mem, tarball_at, &actual)) {
+    sp_fs_remove_file_at(tarball_at);
     return spn_err_emit(&spn, (spn_err_union_t) {
       .kind = SPN_ERR_TOOLCHAIN_READ,
       .artifact = {
@@ -81,7 +81,7 @@ static spn_err_t fill(spn_toolchain_store_t* store, sp_str_t name, spn_artifact_
     });
   }
   if (!sp_str_equal(actual, artifact.sha256)) {
-    sp_fs_remove_file(tarball);
+    sp_fs_remove_file_at(tarball_at);
     return spn_err_emit(&spn, (spn_err_union_t) {
       .kind = SPN_ERR_TOOLCHAIN_SHA,
       .artifact = {
@@ -93,9 +93,9 @@ static spn_err_t fill(spn_toolchain_store_t* store, sp_str_t name, spn_artifact_
     });
   }
 
-  sp_str_t work = sp_zero;
-  if (sp_fs_staging_dir(store->mem, dest, sp_str_lit("tmp"), &work)) {
-    sp_fs_remove_file(tarball);
+  spn_path_t staged = sp_zero;
+  if (spn_path_stage_dir(scratch, store->roots, dest, sp_str_lit("tmp"), &staged)) {
+    sp_fs_remove_file_at(tarball_at);
     return spn_err_emit(&spn, (spn_err_union_t) {
       .kind = SPN_ERR_TOOLCHAIN_EXTRACT,
       .artifact = {
@@ -105,39 +105,40 @@ static spn_err_t fill(spn_toolchain_store_t* store, sp_str_t name, spn_artifact_
     });
   }
 
-  sp_ps_output_t extract = sp_ps_run(store->mem, (sp_ps_config_t) {
+  sp_path_t work = spn_path_at(store->roots, staged);
+  sp_ps_output_t extract = sp_ps_run(scratch, (sp_ps_config_t) {
     .command = sp_str_lit("tar"),
     .args = {
-      sp_str_lit("xf"), tarball,
+      sp_str_lit("xf"), spn_path_str(store->roots, scratch, tarball),
       sp_str_lit("--strip-components=1"),
-      sp_str_lit("-C"), work,
+      sp_str_lit("-C"), spn_path_str(store->roots, scratch, staged),
     },
     .io = {
       .err = { .mode = SP_PS_IO_MODE_CREATE },
     },
   });
 
-  sp_fs_remove_file(tarball);
+  sp_fs_remove_file_at(tarball_at);
 
-  sp_fs_it_t extracted = sp_fs_it_new(store->mem, work);
+  sp_fs_it_t extracted = sp_fs_it_new_at(scratch, work, 0);
   bool empty = !sp_fs_it_next(&extracted);
   sp_fs_it_deinit(&extracted);
   if (extract.status.exit_code || empty) {
-    sp_fs_remove_dir(work);
+    sp_fs_remove_dir_at(work);
     return spn_err_emit(&spn, (spn_err_union_t) {
       .kind = SPN_ERR_TOOLCHAIN_EXTRACT,
       .artifact = {
         .name = name,
         .url = url,
-        .output = sp_str_trim(extract.err),
+        .output = sp_str_copy(store->mem, sp_str_trim(extract.err)),
       },
     });
   }
 
-  sp_sys_fd_t cwd = sp_sys_get_root(0);
-  if (sp_sys_rename_s(cwd, work, cwd, dest)) {
-    sp_fs_remove_dir(work);
-    if (!sp_fs_is_dir(dest)) {
+  sp_path_t target = spn_path_at(store->roots, dest);
+  if (sp_sys_rename_s(work.dir, work.sub, target.dir, target.sub)) {
+    sp_fs_remove_dir_at(work);
+    if (!sp_fs_is_dir_at(target)) {
       return spn_err_emit(&spn, (spn_err_union_t) {
         .kind = SPN_ERR_TOOLCHAIN_EXTRACT,
         .artifact = {
@@ -152,19 +153,17 @@ static spn_err_t fill(spn_toolchain_store_t* store, sp_str_t name, spn_artifact_
 }
 
 spn_err_t spn_toolchain_provision(spn_toolchain_store_t* store, sp_str_t name, spn_artifact_t artifact) {
-  sp_str_t dest = spn_toolchain_store_path(store, artifact);
-  sp_fs_create_dir(store->dir);
+  spn_path_t dest = spn_toolchain_artifact_root(artifact);
+  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
 
   sp_fs_lock_t lock = sp_zero;
-  sp_str_t lock_path = sp_fmt(store->mem, "{}.lock", sp_fmt_str(dest)).value;
-  bool locked = sp_fs_lock_acquire(&lock, lock_path) == SP_OK;
+  bool locked = sp_fs_lock_acquire(&lock, spn_path_at(store->roots, spn_path_suffix(scratch.mem, dest, sp_str_lit(".lock")))) == SP_OK;
 
-  if (locked && sp_fs_is_dir(dest)) {
-    sp_fs_lock_release(&lock);
-    return SPN_OK;
+  spn_err_t result = SPN_OK;
+  if (!locked || !sp_fs_is_dir_at(spn_path_at(store->roots, dest))) {
+    result = fill(store, scratch.mem, name, artifact, dest);
   }
-
-  spn_err_t result = fill(store, name, artifact, dest);
   sp_fs_lock_release(&lock);
+  sp_mem_end_scratch(scratch);
   return result;
 }

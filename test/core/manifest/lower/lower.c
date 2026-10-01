@@ -95,7 +95,7 @@ typedef struct {
 
 typedef struct {
   spn_triple_t triple;
-  test_path_t sdk;
+  test_arg_t sdk;
   spn_sanitizer_set_t sanitizers;
 } toolchain_target_t;
 
@@ -391,6 +391,20 @@ static const test_t tests [] = {
     }
   },
   {
+    .name = "validate_absolute_path",
+    .manifest = "validate_absolute_path",
+    .issues = {
+      { SPN_ERR_CODEGEN_ABSOLUTE },
+      { SPN_ERR_CODEGEN_ABSOLUTE },
+    },
+    .exes = {
+      {
+        .name = "t",
+        .source = { { "c.c" } },
+      }
+    }
+  },
+  {
     .name = "validate_root_source",
     .manifest = "validate_root_source",
     .issues = {
@@ -419,6 +433,40 @@ static const test_t tests [] = {
     .manifest = "validate_empty_path",
     .issues = {
       { SPN_ERR_CODEGEN_PATH },
+    },
+  },
+  {
+    .name = "validate_name_package",
+    .manifest = "validate_name_package",
+    .issues = {
+      { SPN_ERR_CODEGEN_INVALID, "package.name" },
+      { SPN_ERR_CODEGEN_INVALID, "package.namespace" },
+    },
+  },
+  {
+    .name = "validate_name_target",
+    .manifest = "validate_name_target",
+    .issues = {
+      { SPN_ERR_CODEGEN_INVALID, "lib[0].name" },
+      { SPN_ERR_CODEGEN_INVALID, "bin[0].name" },
+      { SPN_ERR_CODEGEN_INVALID, "script[0].name" },
+      { SPN_ERR_CODEGEN_INVALID, "test[0].name" },
+      { SPN_ERR_CODEGEN_INVALID, "example[0].name" },
+    },
+  },
+  {
+    .name = "validate_name_profile",
+    .manifest = "validate_name_profile",
+    .issues = {
+      { SPN_ERR_CODEGEN_INVALID, "profile.A/B" },
+    },
+  },
+  {
+    .name = "validate_name_key",
+    .manifest = "validate_name_key",
+    .issues = {
+      { SPN_ERR_CODEGEN_INVALID, "A/B/C" },
+      { SPN_ERR_CODEGEN_INVALID, "patch.A//B" },
     },
   },
   {
@@ -586,8 +634,8 @@ static const test_t tests [] = {
     .toolchains = {
       {
         .name = "T",
-        .compiler = { .path = "bin/cc" },
-        .archiver = { .path = "bin/ar" },
+        .compiler = { .name = "bin/cc" },
+        .archiver = { .name = "bin/ar" },
         .driver = SPN_CC_DRIVER_GCC,
         .url = "https://tc",
         .sha256 = "deadbeef",
@@ -603,12 +651,12 @@ static const test_t tests [] = {
         .compiler = { .name = "cc" },
         .archiver = { .name = "ar" },
         .driver = SPN_CC_DRIVER_GCC,
-        .targets = { { .triple = { SPN_ARCH_ARM64, SPN_OS_LINUX, SPN_ABI_GNU }, .sdk = { "S", SPN_PATH_ROOT_PROJECT } } },
+        .targets = { { .triple = { SPN_ARCH_ARM64, SPN_OS_LINUX, SPN_ABI_GNU }, .sdk = { .path = "S", .root = SPN_PATH_ROOT_PROJECT } } },
       },
       {
         .name = "D",
-        .compiler = { .path = "cc" },
-        .archiver = { .path = "ar" },
+        .compiler = { .name = "cc" },
+        .archiver = { .name = "ar" },
         .driver = SPN_CC_DRIVER_CLANG,
         .url = "https://tc",
         .sha256 = "deadbeef",
@@ -628,7 +676,7 @@ static const test_t tests [] = {
         .compiler = { .name = "clang" },
         .archiver = { .name = "ar" },
         .driver = SPN_CC_DRIVER_CLANG,
-        .targets = { { .triple = { SPN_ARCH_X64, SPN_OS_FREESTANDING, SPN_ABI_ELF }, .sdk = { "/S" } } },
+        .targets = { { .triple = { SPN_ARCH_X64, SPN_OS_FREESTANDING, SPN_ABI_ELF }, .sdk = { .path = "/S" } } },
       },
     },
   },
@@ -931,9 +979,9 @@ static const test_t tests [] = {
         .url = "https://tc",
         .sha256 = "deadbeef",
         .mirrors = "https://mirrors",
-        .compiler = { .path = "zig" },
+        .compiler = { .name = "zig" },
         .args = { "cc", "-target", "x86_64-linux-gnu" },
-        .archiver = { .path = "ar" },
+        .archiver = { .name = "ar" },
         .driver = SPN_CC_DRIVER_CLANG,
         .lld = true,
         .targets = { { SPN_ARCH_ARM64, SPN_OS_MACOS, SPN_ABI_APPLE } },
@@ -1618,16 +1666,15 @@ sp_test_each(lower, cases, test_t, tests) {
   sp_mem_t mem = sp_test_arena(t);
   sp_intern_t* interner = sp_intern_new(mem);
 
+  spn_path_roots_t roots = sp_zero;
   spn_toml_loader_t ctx = sp_zero;
-  spn_toml_loader_init(&ctx, mem, interner);
+  spn_toml_loader_init(&ctx, mem, interner, &roots);
 
   sp_str_t file = sp_fmt(mem, "{}.toml", sp_fmt_cstr(it->manifest)).value;
   sp_str_t path = sp_fs_join_path(mem, test_repo_path(mem, sp_str_lit(MANIFEST_DIR)), file);
 
-  ctx.dir = test_repo_path(mem, sp_str_lit(MANIFEST_DIR));
-
   spn_cg_manifest_t cg = sp_zero;
-  spn_codegen_load(&ctx, path, &cg);
+  spn_codegen_load(&ctx, (spn_path_t) { .sub = path }, &cg);
 
   spn_pkg_info_t pkg = sp_zero;
   spn_pkg_lower(&ctx, &cg, &pkg);
@@ -1711,7 +1758,7 @@ sp_test_each(lower, cases, test_t, tests) {
     sp_expect_eq(t, (u32)expected.source, (u32)req->source);
     sp_expect_eq(t, expected.private != 0, req->private);
 
-    if (expected.file) sp_expect(t, sp_str_ends_with(req->file.path, sp_str_view(expected.file)));
+    if (expected.file) sp_expect(t, sp_str_ends_with(req->file.path.sub, sp_str_view(expected.file)));
     if (expected.when) sp_expect_str_eq_c(t, spn_when_to_str(mem, &req->when), expected.when);
     if (expected.options) sp_expect_str_eq_c(t, spn_when_to_str(mem, &req->options), expected.options);
   }
@@ -1768,7 +1815,8 @@ sp_test_each(lower, cases, test_t, tests) {
       sp_must(t, r < sp_da_size(tc->targets));
       sp_expect(t, spn_triple_equal(target.triple, tc->targets[r].triple));
       sp_expect_eq(t, target.sanitizers, tc->targets[r].sanitizers);
-      if (test_check_path(t, tc->targets[r].sdk, target.sdk)) return SP_ERR;
+      if (!target.sdk.name && !target.sdk.path) sp_expect(t, spn_arg_empty(tc->targets[r].sdk));
+      if (test_check_arg(t, tc->targets[r].sdk, target.sdk)) return SP_ERR;
     }
 
     sp_carr_for(expected.hosts, r) {
@@ -1810,7 +1858,7 @@ sp_test_each(lower, cases, test_t, tests) {
     spn_index_info_t* idx = sp_str_om_get(pkg.indexes, sp_str_view(expected.name));
     sp_must(t, idx);
     if (expected.url) sp_expect_str_eq_c(t, idx->protocol == SPN_INDEX_PROTOCOL_HTTP ? idx->http.url : idx->git.url, expected.url);
-    if (expected.path) sp_expect_str_eq(t, idx->dir.path, sp_fs_join_path(mem, ctx.dir, sp_cstr_as_str(expected.path)));
+    if (expected.path) sp_expect_str_eq(t, idx->dir.path.sub, sp_fs_join_path(mem, ctx.dir.sub, sp_cstr_as_str(expected.path)));
     sp_expect_eq(t, (u32)expected.protocol, (u32)idx->protocol);
     sp_expect_eq(t, (u32)expected.kind, (u32)idx->kind);
   }

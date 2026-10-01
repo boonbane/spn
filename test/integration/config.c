@@ -38,3 +38,13 @@ sp_test(config, project_toolchain_wins) {
     },
   });
 }
+
+sp_test(config, storage_dir_not_a_dir) {
+  return run_test(t, (test_t) {
+    .actions = {
+      { .kind = ACTION_CREATE_FILE, .create = { .file = sp_str_lit("S"), .content = sp_str_lit("A") } },
+      { .kind = ACTION_RUN_CLI, .cli = { .cmd = "init", .env = { "SPN_STORAGE_DIR=S" }, .rc = 1 } },
+      { .kind = ACTION_VERIFY_RESULT, .verify_result = { .err = SPN_ERR_FS_CREATE_DIR } },
+    },
+  });
+}

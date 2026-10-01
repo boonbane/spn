@@ -1,6 +1,7 @@
 #include "spn_test.h"
 
 #include "fs/fs.h"
+#include "os/os.h"
 
 
 #define FS_LOCK_MAX_SLOTS 4
@@ -79,7 +80,7 @@ static const fs_lock_test_t fs_lock_tests [] = {
 
 sp_test_each(fs_lock, ops, fs_lock_test_t, fs_lock_tests) {
   sp_mem_t mem = sp_test_arena(t);
-  sp_str_t sandbox = sp_test_dir(t);
+  sp_path_t sandbox = sp_test_dir(t);
 
   sp_fs_lock_t slots [FS_LOCK_MAX_SLOTS] = sp_zero;
 
@@ -90,9 +91,9 @@ sp_test_each(fs_lock, ops, fs_lock_test_t, fs_lock_tests) {
     }
 
     sp_fs_lock_t* lock = &slots[op.slot];
-    sp_str_t path = op.path
-      ? sp_fs_join_path(mem, sandbox, sp_cstr_as_str(op.path))
-      : sp_str_lit("");
+    sp_path_t path = op.path
+      ? sp_path_join(mem, sandbox, sp_cstr_as_str(op.path))
+      : sp_zero_struct(sp_path_t);
 
     switch (op.kind) {
       case FS_LOCK_OP_NONE: sp_unreachable_case();
@@ -124,7 +125,7 @@ sp_test_each(fs_lock, ops, fs_lock_test_t, fs_lock_tests) {
 }
 
 typedef struct {
-  sp_str_t path;
+  sp_path_t path;
   sp_atomic_s32_t acquired;
 } fs_lock_waiter_t;
 
@@ -143,7 +144,7 @@ static s32 fs_lock_waiter_fn(void* user_data) {
 
 sp_test(fs_lock, acquire_blocks_until_release, .serial = true) {
   fs_lock_waiter_t waiter = {
-    .path = sp_fs_join_path(sp_test_arena(t), sp_test_dir(t), sp_str_lit("a.lock")),
+    .path = sp_path_join(sp_test_arena(t), sp_test_dir(t), sp_str_lit("a.lock")),
   };
 
   sp_fs_lock_t lock = sp_zero;
@@ -162,68 +163,27 @@ sp_test(fs_lock, acquire_blocks_until_release, .serial = true) {
   return SP_OK;
 }
 
-sp_test(fs_staging, claims_distinct_dirs) {
-  sp_mem_t mem = sp_test_arena(t);
-  sp_str_t path = sp_fs_join_path(mem, sp_test_dir(t), sp_str_lit("checkout"));
-
-  sp_str_t a = sp_zero;
-  sp_str_t b = sp_zero;
-  sp_must_ok(t, sp_fs_staging_dir(mem, path, sp_str_lit("tmp"), &a));
-  sp_must_ok(t, sp_fs_staging_dir(mem, path, sp_str_lit("tmp"), &b));
-  sp_expect(t, !sp_str_equal(a, b));
-  sp_expect(t, sp_fs_is_dir(a));
-  sp_expect(t, sp_fs_is_dir(b));
-  sp_expect(t, sp_str_starts_with(a, path));
-  sp_expect(t, sp_str_ends_with(a, sp_str_lit("tmp")));
-
-  return SP_OK;
-}
-
-sp_test(fs_staging, creates_parent) {
-  sp_mem_t mem = sp_test_arena(t);
-  sp_str_t path = sp_fs_join_path(mem, sp_fs_join_path(mem, sp_test_dir(t), sp_str_lit("nested")), sp_str_lit("checkout"));
-
-  sp_str_t dir = sp_zero;
-  sp_must_ok(t, sp_fs_staging_dir(mem, path, sp_str_lit("tmp"), &dir));
-  sp_expect(t, sp_fs_is_dir(dir));
-
-  return SP_OK;
-}
-
-sp_test(fs_staging, fails_when_parent_is_file) {
-  sp_mem_t mem = sp_test_arena(t);
-  sp_str_t file = sp_fs_join_path(mem, sp_test_dir(t), sp_str_lit("occupied"));
-  sp_fs_create_file_str(file, sp_str_lit("x"));
-  sp_str_t path = sp_fs_join_path(mem, file, sp_str_lit("checkout"));
-
-  sp_str_t dir = sp_zero;
-  sp_expect_ne(t, sp_fs_staging_dir(mem, path, sp_str_lit("tmp"), &dir), SP_OK);
-  sp_expect(t, sp_str_empty(dir));
-
-  return SP_OK;
-}
-
 sp_test(fs_append, creates) {
   sp_mem_t mem = sp_test_arena(t);
-  sp_str_t path = sp_fs_join_path(mem, sp_test_dir(t), sp_str_lit("rc"));
+  sp_path_t path = sp_path_join(mem, sp_test_dir(t), sp_str_lit("rc"));
 
   sp_must_ok(t, sp_fs_append(path, sp_str_lit("\nL\n")));
 
   sp_str_t content = sp_zero;
-  sp_must_ok(t, sp_io_read_file(mem, path, &content));
+  sp_must_ok(t, sp_io_read_file_at(mem, path, &content));
   sp_expect_str_eq_c(t, content, "\nL\n");
   return SP_OK;
 }
 
 sp_test(fs_append, appends) {
   sp_mem_t mem = sp_test_arena(t);
-  sp_str_t path = sp_fs_join_path(mem, sp_test_dir(t), sp_str_lit("rc"));
-  sp_must_ok(t, sp_fs_create_file_cstr(path, "A\n"));
+  sp_path_t path = sp_path_join(mem, sp_test_dir(t), sp_str_lit("rc"));
+  sp_must_ok(t, sp_fs_create_file_cstr_at(path, "A\n"));
 
   sp_must_ok(t, sp_fs_append(path, sp_str_lit("\nL\n")));
 
   sp_str_t content = sp_zero;
-  sp_must_ok(t, sp_io_read_file(mem, path, &content));
+  sp_must_ok(t, sp_io_read_file_at(mem, path, &content));
   sp_expect_str_eq_c(t, content, "A\n\nL\n");
   return SP_OK;
 }
@@ -232,7 +192,7 @@ sp_test(fs_copy_file, busy) {
   sp_test_skip_on_win32();
 
   sp_mem_t mem = sp_test_arena(t);
-  sp_str_t dir = sp_test_dir(t);
+  sp_path_t dir = sp_test_dir(t);
 
   sp_ps_output_t which = sp_ps_run(mem, (sp_ps_config_t) {
     .command = sp_str_lit("sh"),
@@ -241,20 +201,21 @@ sp_test(fs_copy_file, busy) {
   sp_must_eq(t, 0, which.status.exit_code);
   sp_str_t sleep_bin = sp_str_trim_right(which.out);
 
-  sp_str_t target = sp_fs_join_path(mem, dir, sp_str_lit("bin/spn"));
-  sp_must_ok(t, sp_fs_copy_file(sleep_bin, target, SP_FS_ATOMIC_REPLACE));
+  sp_path_t target = sp_path_join(mem, dir, sp_str_lit("bin/spn"));
+  sp_must_ok(t, sp_fs_create_dir_at(sp_path_join(mem, dir, sp_str_lit("bin"))));
+  sp_must_ok(t, sp_fs_copy_file_at(sp_path_resolve(sleep_bin), target, SP_FS_ATOMIC_REPLACE));
 
   sp_ps_t running = sp_ps_create(mem, (sp_ps_config_t) {
-    .command = target,
+    .command = target.sub,
     .args = { sp_str_lit("30") },
     .io = SP_PS_NO_STDIO,
   });
   sp_must(t, running.os);
 
-  sp_str_t source = sp_fs_join_path(mem, dir, sp_str_lit("src"));
-  sp_must_ok(t, sp_fs_create_file_cstr(source, "N"));
+  sp_path_t source = sp_path_join(mem, dir, sp_str_lit("src"));
+  sp_must_ok(t, sp_fs_create_file_cstr_at(source, "N"));
 
-  sp_err_t err = sp_fs_copy_file(source, target, SP_FS_ATOMIC_REPLACE);
+  sp_err_t err = sp_fs_copy_file_at(source, target, SP_FS_ATOMIC_REPLACE);
 
   sp_ps_kill(&running);
   sp_ps_wait(&running);
@@ -262,7 +223,65 @@ sp_test(fs_copy_file, busy) {
 
   sp_must_ok(t, err);
   sp_str_t content = sp_zero;
-  sp_must_ok(t, sp_io_read_file(mem, target, &content));
+  sp_must_ok(t, sp_io_read_file_at(mem, target, &content));
   sp_expect_str_eq_c(t, content, "N");
+  return SP_OK;
+}
+
+typedef enum {
+  FS_REMOVE_MISSING,
+  FS_REMOVE_FILE,
+  FS_REMOVE_DIR,
+  FS_REMOVE_LINK_TO_DIR,
+} fs_remove_kind_t;
+
+typedef struct {
+  const c8* name;
+  fs_remove_kind_t kind;
+  bool symlinks;
+} fs_remove_test_t;
+
+static const fs_remove_test_t fs_remove_tests [] = {
+  { .name = "missing_is_ok",                   .kind = FS_REMOVE_MISSING },
+  { .name = "file",                            .kind = FS_REMOVE_FILE },
+  { .name = "dir_with_contents",               .kind = FS_REMOVE_DIR },
+  { .name = "link_to_dir_drops_the_link_only", .kind = FS_REMOVE_LINK_TO_DIR, .symlinks = true },
+};
+
+sp_test_each(fs_remove, kinds, fs_remove_test_t, fs_remove_tests) {
+  if (it->symlinks) {
+    sp_test_skip_without_symlinks();
+  }
+
+  sp_mem_t mem = sp_test_arena(t);
+  sp_path_t dir = sp_test_dir(t);
+  sp_path_t path = sp_path_join(mem, dir, sp_str_lit("X"));
+  sp_path_t target = sp_path_join(mem, dir, sp_str_lit("T"));
+  sp_path_t inside = sp_path_join(mem, target, sp_str_lit("F"));
+
+  switch (it->kind) {
+    case FS_REMOVE_MISSING: {
+      break;
+    }
+    case FS_REMOVE_FILE: {
+      sp_must_ok(t, sp_fs_create_file_at(path));
+      break;
+    }
+    case FS_REMOVE_DIR: {
+      sp_must_ok(t, sp_fs_create_dir_at(path));
+      sp_must_ok(t, sp_fs_create_file_at(sp_path_join(mem, path, sp_str_lit("F"))));
+      break;
+    }
+    case FS_REMOVE_LINK_TO_DIR: {
+      sp_must_ok(t, sp_fs_create_dir_at(target));
+      sp_must_ok(t, sp_fs_create_file_at(inside));
+      sp_must_ok(t, sp_fs_create_sym_link_at(sp_str_lit("T"), path, SP_FS_KIND_DIR));
+      break;
+    }
+  }
+
+  sp_must_ok(t, sp_fs_remove(path));
+  sp_expect_eq(t, sp_fs_get_kind_at(path), SP_FS_KIND_NONE);
+  sp_expect_eq(t, sp_fs_is_file_at(inside), it->kind == FS_REMOVE_LINK_TO_DIR);
   return SP_OK;
 }

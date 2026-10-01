@@ -18,6 +18,6 @@ typedef struct {
 
 void           spn_obj_init(spn_obj_builder_t* obj, sp_mem_t mem, spn_obj_format_t kind, spn_arch_t arch);
 void           spn_obj_add_symbol(spn_obj_builder_t* obj, sp_str_t name, const void* data, u64 size);
-spn_err_t      spn_obj_write(spn_obj_builder_t* obj, sp_str_t path);
+spn_err_t      spn_obj_write(spn_obj_builder_t* obj, sp_path_t path);
 
 #endif

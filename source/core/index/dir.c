@@ -1,29 +1,30 @@
 #include "index/dir.h"
 
 #include "index/release.h"
+#include "paths/paths.h"
 #include "pkg/id.h"
 #include "pkg/load.h"
 
-spn_err_t spn_index_dir_get_package(spn_index_info_t* index, sp_mem_t mem, sp_intern_t* intern, spn_pkg_name_t id, spn_index_pkg_t** pkg, spn_index_diag_t* diag) {
+spn_err_t spn_index_dir_get_package(spn_index_info_t* index, sp_mem_t mem, sp_intern_t* intern, const spn_path_roots_t* roots, spn_pkg_name_t id, spn_index_pkg_t** pkg, spn_index_diag_t* diag) {
   *pkg = SP_NULLPTR;
 
-  sp_str_t dir = sp_fs_join_path(mem, index->location, id.name);
-  sp_str_t manifest = sp_fs_join_path(mem, dir, sp_str_lit("spn.toml"));
+  spn_path_t dir = spn_path_join(mem, index->dir.path, id.name);
+  spn_path_t manifest = spn_path_join(mem, dir, sp_str_lit("spn.toml"));
 
   spn_pkg_info_t* info = sp_alloc_type(mem, spn_pkg_info_t);
   spn_codegen_issues_t issues = sp_zero;
-  spn_err_t loaded = spn_pkg_load(mem, intern, manifest, SPN_MANIFEST_DEP, info, &issues);
+  spn_err_t loaded = spn_pkg_load(mem, intern, roots, manifest, SPN_MANIFEST_DEP, info, &issues);
   if (loaded == SPN_ERR_NO_MANIFEST) {
     return SPN_OK;
   }
   if (loaded) {
-    diag->path = manifest;
+    diag->path = spn_path_str(roots, mem, manifest);
     diag->issues = issues;
     return loaded;
   }
 
   if (!sp_str_equal(info->name, id.name)) {
-    diag->path = manifest;
+    diag->path = spn_path_str(roots, mem, manifest);
     return SPN_ERR_INDEX_CORRUPT;
   }
 

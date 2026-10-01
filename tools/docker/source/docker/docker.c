@@ -4,14 +4,16 @@
 #include "ctx/types.h"
 #include "enum/enum.h"
 #include "event/event.h"
+#include "paths/paths.h"
 #include "toolchain/catalog.h"
 #include "toolchain/provision.h"
+#include "toolchain/toolchain.h"
 #include "triple/triple.h"
 
 #define cfmt(mem, ...) sp_str_to_cstr(mem, sp_fmt(mem, __VA_ARGS__).value)
 
 static sp_str_t find_repo(sp_mem_t mem) {
-  sp_str_t dir = sp_fs_get_cwd(mem);
+  sp_str_t dir = sp_fs_get_cwd_path(mem);
   while (!sp_fs_is_root(dir)) {
     if (sp_fs_is_dir(sp_fs_join_path(mem, dir, sp_str_lit("vendor/sp")))) {
       return dir;
@@ -187,12 +189,18 @@ docker_init_err_t docker_init(docker_t* docker, sp_mem_t mem, spn_fetch_fn fetch
   sp_str_t cache = sp_fs_join_path(mem, sp_fs_get_storage_path(mem), sp_str_lit("spn/cache"));
   docker->paths.xwin.cache = sp_fs_join_path(mem, cache, sp_str_lit("xwin/cache"));
   docker->paths.xwin.splat = sp_fs_join_path(mem, cache, sp_str_lit("xwin/splat"));
+  docker->paths.toolchain = sp_fs_join_path(mem, cache, sp_str_lit("toolchain"));
+
+  sp_fs_create_dir(docker->paths.toolchain);
+  if (spn_path_roots_set(&docker->roots, mem, SPN_PATH_ROOT_TOOLCHAIN, sp_path_resolve(docker->paths.toolchain))) {
+    return DOCKER_INIT_ERR_STORE;
+  }
 
   spn.mem = mem;
   spn.events = spn_event_buffer_new(mem);
   docker->store = (spn_toolchain_store_t) {
     .mem = mem,
-    .dir = sp_fs_join_path(mem, cache, sp_str_lit("toolchain")),
+    .roots = &docker->roots,
     .fetch = fetch,
     .fetch_user_data = user,
   };
@@ -256,7 +264,6 @@ docker_tests_err_t docker_tests_init(docker_t* docker) {
   docker->paths.home = sp_os_env_get(sp_str_lit("HOME"));
   docker->paths.tests = sp_fs_join_path(mem, docker->paths.repo, sp_str_lit("build/debug/test/integration"));
   docker->paths.zig = sp_fs_join_path(mem, docker->paths.home, sp_str_lit(".cache/zig"));
-  sp_fs_create_dir(docker->store.dir);
   sp_fs_create_dir(docker->paths.zig);
 
   if (missing(docker, sp_fs_join_path(mem, spn_dir(docker, SPN_MUSL), sp_str_lit("spn")), spn_hint(SPN_MUSL))) {
@@ -385,7 +392,7 @@ static sp_str_t artifact_dir(docker_t* docker, const sysroot_t* sysroot) {
   spn_artifact_t artifact = sp_zero;
   bool provisioned = sysroot_artifact(docker, sysroot, &artifact);
   sp_assert(provisioned);
-  return spn_toolchain_store_path(&docker->store, artifact);
+  return spn_path_str(&docker->roots, docker->mem, spn_toolchain_artifact_root(artifact));
 }
 
 static void context(docker_t* docker, sp_ps_config_t* config, const sysroot_t* sysroot, sp_str_t dir) {
@@ -483,7 +490,7 @@ sp_ps_config_t docker_test(docker_t* docker, const variant_t* variant, lane_t la
   arg_c(docker, &config, "-v");
   arg(docker, &config, mirror(docker, docker->paths.git));
   arg_c(docker, &config, "-v");
-  arg(docker, &config, mirror(docker, docker->store.dir));
+  arg(docker, &config, mirror(docker, docker->paths.toolchain));
   arg_c(docker, &config, "-v");
   arg(docker, &config, mirror(docker, docker->paths.zig));
   arg_c(docker, &config, "-w");

@@ -269,7 +269,7 @@ static const complete_test_t complete_tests [] = {
   {
     .name = "listed_sysroot_reaches_selection",
     .driver = SPN_CC_DRIVER_CLANG,
-    .targets = { { .triple = HOST_ARM_LINUX, .sdk = { "/S" } } },
+    .targets = { { .triple = HOST_ARM_LINUX, .sdk = { .path = "/S" } } },
     .checks = {
       { .target = ARM_LINUX, .abis = { SPN_ABI_GNU }, .expect = { .triple = HOST_ARM_LINUX, .sdk = { SPN_SDK_SYSROOT, { "/S" } } } },
       { .target = ARM_LINUX, .abis = { SPN_ABI_MUSL }, .expect = { .err = SPN_ERR_TOOLCHAIN_SYSROOT, .triple = TARGET_ARM_LINUX_MUSL, .targets = { HOST_ARM_LINUX } } },
@@ -278,7 +278,7 @@ static const complete_test_t complete_tests [] = {
   {
     .name = "listed_sdk_reaches_msvc",
     .driver = SPN_CC_DRIVER_CLANG,
-    .targets = { { .triple = TARGET_WIN_MSVC, .sdk = { "/X" } } },
+    .targets = { { .triple = TARGET_WIN_MSVC, .sdk = { .path = "/X" } } },
     .checks = {
       { .target = X64_WINDOWS, .abis = { SPN_ABI_MSVC }, .expect = { .triple = TARGET_WIN_MSVC, .sdk = { SPN_SDK_MSVC, .vc = { "/X/crt/lib/x86_64" } } } },
     },

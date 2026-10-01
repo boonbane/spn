@@ -282,7 +282,7 @@ spn_triple_t spn_triple_host() {
   #endif
 
   sp_io_file_reader_t file = sp_zero;
-  if (!sp_io_file_reader_from_path(&file, sp_str_lit("/bin/sh"))) {
+  if (!sp_io_file_reader_from_path_at(&file, sp_path_resolve(sp_str_lit("/bin/sh")))) {
     sp_io_seeking_reader_t elf = sp_zero;
     sp_io_seeking_reader_from_file_reader(&elf, &file);
     sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();

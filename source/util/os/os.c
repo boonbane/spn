@@ -17,15 +17,12 @@ sp_str_t sp_fs_get_home_path(sp_mem_t mem) {
 }
 #endif
 
-sp_err_t sp_fs_remove(sp_str_t path) {
-  if (sp_fs_is_symlink(path)) {
-    return sp_fs_remove_file(path);
+sp_err_t sp_fs_remove(sp_path_t path) {
+  switch (sp_fs_get_kind_at(path)) {
+    case SP_FS_KIND_DIR:     return sp_fs_remove_dir_at(path);
+    case SP_FS_KIND_FILE:
+    case SP_FS_KIND_SYMLINK: return sp_fs_remove_file_at(path);
+    case SP_FS_KIND_NONE:    return SP_OK;
   }
-  if (sp_fs_is_dir(path)) {
-    return sp_fs_remove_dir(path);
-  }
-  if (sp_fs_exists(path)) {
-    return sp_fs_remove_file(path);
-  }
-  return SP_OK;
+  sp_unreachable_return(SP_OK);
 }

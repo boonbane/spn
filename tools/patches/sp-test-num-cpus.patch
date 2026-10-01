@@ -1,8 +1,8 @@
 diff --git a/sp/sp_test.h b/sp/sp_test.h
-index d126ab7..08caf75 100644
+index 12ad7bf..7b690df 100644
 --- a/sp/sp_test.h
 +++ b/sp/sp_test.h
-@@ -1570,6 +1570,13 @@ static u32 sp_test_num_cpus(void) {
+@@ -1679,6 +1679,13 @@ static u32 sp_test_num_cpus(void) {
      }
    }
    return count ? count : 1;

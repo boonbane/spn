@@ -61,7 +61,7 @@ sp_coff_section_t*  sp_coff_add_section(sp_coff_t* coff, sp_str_t name, u32 flag
 sp_coff_section_t*  sp_coff_find_section(sp_coff_t* coff, sp_str_t name);
 void                sp_coff_add_symbol(sp_coff_t* coff, sp_str_t name, u32 value, s16 section_number, u8 storage_class);
 sp_err_t            sp_coff_write(sp_coff_t* coff, sp_io_writer_t* out);
-sp_err_t            sp_coff_write_to_file(sp_coff_t* coff, sp_str_t path);
+sp_err_t            sp_coff_write_to_file(sp_coff_t* coff, sp_path_t path);
 
 #endif // SP_COFF_H
 
@@ -245,9 +245,9 @@ sp_err_t sp_coff_write(sp_coff_t* coff, sp_io_writer_t* out) {
   return SP_OK;
 }
 
-sp_err_t sp_coff_write_to_file(sp_coff_t* coff, sp_str_t path) {
+sp_err_t sp_coff_write_to_file(sp_coff_t* coff, sp_path_t path) {
   sp_io_file_writer_t f = sp_zero;
-  sp_err_t err = sp_io_file_writer_from_path(&f, path);
+  sp_err_t err = sp_io_file_writer_from_path_at(&f, path);
   if (err != SP_OK) return err;
   err = sp_coff_write(coff, &f.base);
   sp_io_file_writer_close(&f);

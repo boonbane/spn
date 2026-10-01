@@ -70,13 +70,13 @@ static const dir_sync_test_t dir_tests [] = {
 sp_test_each(index_sync, dir, dir_sync_test_t, dir_tests) {
   sp_mem_t mem = sp_test_arena(t);
 
-  sp_str_t location = sp_fs_join_path(mem, sp_test_dir(t), sp_str_lit("index"));
+  sp_str_t location = sp_fs_join_path(mem, test_dir_str(t), sp_str_lit("index"));
   if (it->exists) {
     sp_fs_create_dir(location);
   }
 
   spn_index_info_t index = {
-    .location = location,
+    .location = { .at = sp_path_resolve(location), .dir = location },
     .protocol = SPN_INDEX_PROTOCOL_DIR,
   };
 
@@ -90,7 +90,7 @@ sp_test_each(index_sync, dir, dir_sync_test_t, dir_tests) {
 
 sp_test_each(index_sync, sync, sync_test_t, tests) {
   sp_mem_t mem = sp_test_arena(t);
-  sp_str_t tmp = sp_test_dir(t);
+  sp_str_t tmp = test_dir_str(t);
 
   sp_str_t remote = sp_fs_join_path(mem, tmp, sp_str_lit("remote/index"));
   sp_str_t cache = sp_fs_join_path(mem, tmp, sp_str_lit("cache/index"));
@@ -103,7 +103,7 @@ sp_test_each(index_sync, sync, sync_test_t, tests) {
     .name = sp_str_lit("test"),
     .protocol = it->protocol,
     .git = { .url = remote },
-    .location = cache,
+    .location = { .at = sp_path_resolve(cache), .dir = cache },
   };
 
   if (it->cloned) {

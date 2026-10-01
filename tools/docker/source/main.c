@@ -65,6 +65,9 @@ static sp_cli_result_t init(sp_cli_t* cli, smoke_t* smoke) {
     case DOCKER_INIT_ERR_REPO: {
       return sp_cli_set_error_c(cli, "not inside the spn repo");
     }
+    case DOCKER_INIT_ERR_STORE: {
+      return sp_cli_set_error(cli, sp_fmt(mem, "failed to open the toolchain store at {.cyan}", sp_fmt_str(smoke->docker.paths.toolchain)).value);
+    }
     case DOCKER_INIT_ERR_BINARY: {
       return sp_cli_set_error(cli, sp_fmt(mem, "missing {.cyan}; run {.cyan}", sp_fmt_str(smoke->docker.err.binary.path), sp_fmt_cstr(smoke->docker.err.binary.hint)).value);
     }

@@ -1,4 +1,5 @@
 #include "dag/dag_test.h"
+#include "fs/fs.h"
 
 const spn_dag_store_kind_t dag_test_store_kinds [2] = {
   SPN_DAG_STORE_MEM,
@@ -17,12 +18,15 @@ void dag_test_env_init(dag_test_env_t* env, sp_test_t* t, dag_test_env_config_t 
   sp_mem_zero(env, sizeof(*env));
   env->mem = sp_test_arena(t);
   env->root = config.sub
-    ? sp_fs_join_path(env->mem, sp_test_dir(t), sp_str_view(config.sub))
+    ? sp_path_join(env->mem, sp_test_dir(t), sp_str_view(config.sub))
     : sp_test_dir(t);
   env->roots.pinned = config.pinned;
-  env->root = spn_path_roots_set(&env->roots, env->mem, SPN_PATH_ROOT_PROJECT, env->root);
+  sp_fs_create_dir_at(env->root);
+  spn_path_roots_set(&env->roots, env->mem, SPN_PATH_ROOT_PROJECT, env->root);
   if (config.checkout) {
-    spn_path_roots_set(&env->roots, env->mem, SPN_PATH_ROOT_CHECKOUT, dag_test_env_path(env, sp_str_view(config.checkout)));
+    sp_path_t checkout = dag_test_env_path(env, sp_str_view(config.checkout));
+    sp_fs_create_dir_at(checkout);
+    spn_path_roots_set(&env->roots, env->mem, SPN_PATH_ROOT_CHECKOUT, checkout);
   }
   spn_dag_store_init(&env->store, (spn_dag_store_config_t) {
     .kind = config.store,
@@ -32,12 +36,12 @@ void dag_test_env_init(dag_test_env_t* env, sp_test_t* t, dag_test_env_config_t 
   });
   env->store.stats = &env->stats;
   spn_dag_file_cache_init(&env->files, env->mem, &env->roots);
-  sp_fs_create_dir(dag_test_env_path(env, sp_str_lit("fence")));
-  spn_dag_file_cache_fence_dir(&env->files, dag_test_env_path(env, sp_str_lit("fence")));
-  spn_dag_file_cache_load(&env->files, dag_test_env_path(env, sp_str_lit("files")));
+  sp_fs_create_dir_at(dag_test_env_path(env, sp_str_lit("fence")));
+  spn_dag_file_cache_fence_dir(&env->files, dag_test_env_rooted(env, sp_str_lit("fence")));
+  spn_dag_file_cache_load(&env->files, dag_test_env_rooted(env, sp_str_lit("files")));
   env->files.stats = &env->stats;
-  spn_dag_action_cache_init(&env->cache, env->mem, sp_str_lit(""));
-  spn_dag_obs_table_init(&env->discovery, env->mem, &env->roots, dag_test_env_path(env, sp_str_lit("manifests")));
+  spn_dag_action_cache_init(&env->cache, env->mem, &env->roots, sp_zero_struct(spn_path_t));
+  spn_dag_obs_table_init(&env->discovery, env->mem, &env->roots, dag_test_env_rooted(env, sp_str_lit("manifests")));
   env->env = (spn_dag_env_t) {
     .files = &env->files,
     .cache = &env->cache,
@@ -49,12 +53,12 @@ void dag_test_env_init(dag_test_env_t* env, sp_test_t* t, dag_test_env_config_t 
 }
 
 void dag_test_env_cold(dag_test_env_t* env) {
-  spn_dag_file_cache_flush(&env->files, dag_test_env_path(env, sp_str_lit("files")));
+  spn_dag_file_cache_flush(&env->files, dag_test_env_rooted(env, sp_str_lit("files")));
   spn_dag_file_cache_init(&env->files, env->mem, &env->roots);
-  spn_dag_file_cache_fence_dir(&env->files, dag_test_env_path(env, sp_str_lit("fence")));
-  spn_dag_file_cache_load(&env->files, dag_test_env_path(env, sp_str_lit("files")));
+  spn_dag_file_cache_fence_dir(&env->files, dag_test_env_rooted(env, sp_str_lit("fence")));
+  spn_dag_file_cache_load(&env->files, dag_test_env_rooted(env, sp_str_lit("files")));
   env->files.stats = &env->stats;
-  spn_dag_obs_table_init(&env->discovery, env->mem, &env->roots, dag_test_env_path(env, sp_str_lit("manifests")));
+  spn_dag_obs_table_init(&env->discovery, env->mem, &env->roots, dag_test_env_rooted(env, sp_str_lit("manifests")));
 }
 
 u32 dag_test_hashed(dag_test_env_t* env) {
@@ -66,28 +70,28 @@ spn_dag_t* dag_test_env_graph(dag_test_env_t* env) {
   return env->g;
 }
 
-sp_str_t dag_test_env_path(dag_test_env_t* env, sp_str_t rel) {
-  return sp_fs_join_path(env->mem, env->root, rel);
+sp_path_t dag_test_env_path(dag_test_env_t* env, sp_str_t rel) {
+  return sp_path_join(env->mem, env->root, rel);
 }
 
 spn_path_t dag_test_env_rooted(dag_test_env_t* env, sp_str_t rel) {
   return spn_path_join(env->mem, spn_path_from_root(SPN_PATH_ROOT_PROJECT), rel);
 }
 
-sp_str_t dag_test_render(dag_test_env_t* env, spn_path_t path) {
-  return spn_path_str(&env->roots, env->mem, path);
+sp_path_t dag_test_at(dag_test_env_t* env, spn_path_t path) {
+  return spn_path_at(&env->roots, path);
 }
 
 void dag_test_env_create(dag_test_env_t* env, sp_str_t rel, sp_str_t content) {
   dag_test_create(dag_test_env_path(env, rel), content);
 }
 
-void dag_test_create(sp_str_t path, sp_str_t content) {
-  sp_fs_create_dir(sp_fs_parent_path(path));
-  sp_fs_remove_file(path);
+void dag_test_create(sp_path_t path, sp_str_t content) {
+  sp_fs_create_parent_at(path);
+  sp_fs_remove_file_at(path);
 
   sp_io_file_writer_t f = sp_zero;
-  sp_io_file_writer_from_path(&f, path);
+  sp_io_file_writer_from_path_at(&f, path);
   if (!sp_str_empty(content)) {
     sp_io_write(&f.base, content.data, content.len, SP_NULLPTR);
   }
@@ -129,12 +133,12 @@ spn_err_t dag_test_exec_stamp(spn_dag_t* g, spn_dag_action_t* action, void* user
   dag_test_env_t* env = (dag_test_env_t*)user_data;
   env->runs++;
   sp_str_t content = sp_fmt(env->mem, "{}", sp_fmt_uint(env->runs)).value;
-  return sp_fs_create_file_str(dag_test_render(env, outputs[0]), content) ? SPN_ERR_DAG_ACTION : SPN_OK;
+  return sp_fs_create_file_str_at(dag_test_at(env, outputs[0]), content) ? SPN_ERR_DAG_ACTION : SPN_OK;
 }
 
-sp_err_t dag_test_expect_file(sp_test_t* t, sp_mem_t mem, sp_str_t path, const c8* expected) {
+sp_err_t dag_test_expect_file(sp_test_t* t, sp_mem_t mem, sp_path_t path, const c8* expected) {
   sp_str_t from_disk = sp_zero;
-  sp_must_eq(t, SP_OK, sp_io_read_file(mem, path, &from_disk));
+  sp_must_eq(t, SP_OK, sp_io_read_file_at(mem, path, &from_disk));
   sp_expect_str_eq_c(t, from_disk, expected);
   return SP_OK;
 }

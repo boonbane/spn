@@ -189,7 +189,7 @@ spn_sdk_host_t spn_sdk_detect(sp_mem_t mem, const spn_path_roots_t* roots, sp_en
     macos = xcrun_sdk(mem);
   }
   if (!sp_str_empty(macos)) {
-    sdks.macos = macos_layout(mem, spn_path_canonicalize(mem, roots, absolute(macos)));
+    sdks.macos = macos_layout(mem, spn_path_from_cwd(mem, roots, macos));
   }
   if (host.os == SPN_OS_WINDOWS) {
     detect_msvc(mem, &sdks.msvc);
@@ -202,8 +202,7 @@ spn_wasi_spelling_t spn_sdk_wasi_spelling(const spn_path_roots_t* roots, sp_mem_
     return SPN_WASI_SPELLING_WASI;
   }
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch_for(mem);
-  sp_str_t root = spn_path_str(roots, scratch.mem, sdk->root);
-  bool p1 = sp_fs_is_dir(sp_fs_join_path(scratch.mem, root, sp_str_lit("lib/wasm32-wasip1")));
+  bool p1 = sp_fs_is_dir_at(spn_path_at(roots, spn_path_join(scratch.mem, sdk->root, sp_str_lit("lib/wasm32-wasip1"))));
   sp_mem_end_scratch(scratch);
   return p1 ? SPN_WASI_SPELLING_WASIP1 : SPN_WASI_SPELLING_WASI;
 }
