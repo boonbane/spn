@@ -18,6 +18,9 @@
 
 spn_node_t* spn_add_node(spn_config_t* config, const c8* tag) {
   spn_pkg_unit_t* unit = spn_api_unit(config);
+  if (spn_api_name_rejected(unit, "spn_add_node", tag)) {
+    return SP_NULLPTR;
+  }
 
   sp_mem_t mem = spn.mem;
   u32 index = sp_da_size(unit->user_nodes);

@@ -1010,6 +1010,15 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           );
           break;
         }
+        case SPN_ERR_NAME_SEPARATOR: {
+          sp_tty_fmt(
+            &w,
+            "{.cyan} names {.yellow}, but names may not contain '/'",
+            sp_fmt_str(event->err.target.pkg),
+            sp_fmt_str(event->err.target.name)
+          );
+          break;
+        }
         case SPN_ERR_INDEX_UNKNOWN: {
           sp_tty_fmt(
             &w,

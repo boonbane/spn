@@ -134,8 +134,28 @@ spn_target_t* spn_get_target(spn_t* spn, const c8* name) {
   return info ? wrap(unit, info) : SP_NULLPTR;
 }
 
+bool spn_api_name_rejected(spn_pkg_unit_t* unit, const c8* fn, const c8* name) {
+  sp_str_t str = sp_cstr_as_str(name);
+  if (!sp_str_contains(str, sp_str_lit("/"))) {
+    return false;
+  }
+  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+  sp_str_t message = sp_fmt(scratch.mem, "{}: {} may not contain '/'", SP_FMT_CSTR(fn), SP_FMT_STR(str)).value;
+  if (!spn_wasm_trap_active(unit, message)) {
+    spn_err_emit(unit->session->ctx, (spn_err_union_t) {
+      .kind = SPN_ERR_NAME_SEPARATOR,
+      .target = { .pkg = unit->info->name, .name = sp_str_copy(spn.mem, str) },
+    });
+  }
+  sp_mem_end_scratch(scratch);
+  return true;
+}
+
 spn_target_t* spn_add_exe(spn_config_t* config, const c8* name) {
   spn_pkg_unit_t* unit = spn_api_unit(config);
+  if (spn_api_name_rejected(unit, "spn_add_exe", name)) {
+    return SP_NULLPTR;
+  }
   return wrap(unit, spn_pkg_add_exe(unit->info, name));
 }
 
@@ -143,11 +163,17 @@ spn_target_t* spn_add_lib(spn_config_t* config, const c8* name, spn_linkage_t ki
   spn_linkage_set_t linkages = sp_zero;
   spn_linkage_set_add(&linkages, kind);
   spn_pkg_unit_t* unit = spn_api_unit(config);
+  if (spn_api_name_rejected(unit, "spn_add_lib", name)) {
+    return SP_NULLPTR;
+  }
   return wrap(unit, spn_pkg_add_lib_ex(unit->info, spn_intern_cstr(name), linkages));
 }
 
 spn_target_t* spn_add_test(spn_config_t* config, const c8* name) {
   spn_pkg_unit_t* unit = spn_api_unit(config);
+  if (spn_api_name_rejected(unit, "spn_add_test", name)) {
+    return SP_NULLPTR;
+  }
   return wrap(unit, spn_pkg_add_test(unit->info, name));
 }
 
