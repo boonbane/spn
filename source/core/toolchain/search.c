@@ -43,7 +43,7 @@ sp_da(sp_str_t) spn_search_dirs(spn_search_rules_t rules, sp_mem_t mem, sp_str_t
 static sp_str_t existing(spn_search_rules_t rules, sp_mem_t mem, sp_str_t stem) {
   sp_carr_for_until(rules.suffix, it, rules.suffix[it]) {
     sp_str_t candidate = sp_str_concat(mem, stem, sp_cstr_as_str(rules.suffix[it]));
-    if (sp_fs_is_target_file_at(sp_path_resolve(candidate))) {
+    if (sp_fs_is_target_file_at(sp_path_from_str(candidate))) {
       return candidate;
     }
   }

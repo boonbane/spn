@@ -153,8 +153,12 @@ bool spn_git_is_repo_root(sp_str_t repo) {
 
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   sp_str_t root = sp_zero;
+  sp_str_t lhs = sp_zero;
+  sp_str_t rhs = sp_zero;
   bool ok = !spn_git_get_root(scratch.mem, repo, &root) &&
-    sp_str_equal(sp_fs_canonicalize_path(scratch.mem, root), sp_fs_canonicalize_path(scratch.mem, repo));
+    !sp_fs_canonicalize_path(scratch.mem, root, &lhs) &&
+    !sp_fs_canonicalize_path(scratch.mem, repo, &rhs) &&
+    sp_str_equal(lhs, rhs);
   sp_mem_end_scratch(scratch);
   return ok;
 }

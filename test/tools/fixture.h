@@ -9,7 +9,9 @@ sp_str_t test_repo_root(sp_mem_t mem);
 sp_str_t test_repo_path(sp_mem_t mem, sp_str_t rel);
 
 static inline sp_str_t test_dir_str(sp_test_t* t) {
-  return sp_fs_canonicalize_path_at(sp_test_arena(t), sp_test_dir(t));
+  sp_str_t dir = sp_zero;
+  sp_expect_ok(t, sp_fs_canonicalize_path_at(sp_test_arena(t), sp_test_dir(t), &dir));
+  return dir;
 }
 
 static inline sp_str_t test_read_file(sp_mem_t mem, sp_str_t path) {

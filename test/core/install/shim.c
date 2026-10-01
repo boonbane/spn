@@ -213,16 +213,16 @@ static sp_err_t build_fixture(sp_test_t* t, const test_t* it, fixture_t* fx) {
   sp_must_eq(t, 0, tar.status.exit_code);
 
   sp_str_t asset = sp_fs_join_path(mem, fx->fix, sp_str_lit(SHIM_LINUX_ASSET));
-  sp_must_eq(t, (u32)SP_OK, (u32)sp_fs_copy_file_at(sp_path_at_cwd(asset), sp_path_at_cwd(sp_fs_join_path(mem, fx->fix, sp_str_lit(SHIM_MACOS_ASSET))), SP_FS_ATOMIC_REPLACE));
+  sp_must_eq(t, (u32)SP_OK, (u32)sp_fs_copy_file_at(sp_path_cwd(asset), sp_path_cwd(sp_fs_join_path(mem, fx->fix, sp_str_lit(SHIM_MACOS_ASSET))), SP_FS_ATOMIC_REPLACE));
 
   sp_str_t corrupt = sp_fs_join_path(mem, bad, sp_str_lit(SHIM_LINUX_ASSET));
-  sp_must_eq(t, (u32)SP_OK, (u32)sp_fs_copy_file_at(sp_path_at_cwd(asset), sp_path_at_cwd(corrupt), SP_FS_ATOMIC_REPLACE));
+  sp_must_eq(t, (u32)SP_OK, (u32)sp_fs_copy_file_at(sp_path_cwd(asset), sp_path_cwd(corrupt), SP_FS_ATOMIC_REPLACE));
   sp_str_t bytes = sp_zero;
   sp_must_eq(t, (u32)SP_OK, (u32)sp_io_read_file(mem, corrupt, &bytes));
   sp_must_eq(t, (u32)SP_OK, (u32)sp_fs_create_file_str(corrupt, sp_str_concat(mem, bytes, sp_str_lit("x"))));
 
-  sp_must_eq(t, (u32)SPN_OK, (u32)spn_digest_file_hex(SPN_DIGEST_SHA256, mem, sp_path_resolve(asset), &fx->good_sha));
-  sp_must_eq(t, (u32)SPN_OK, (u32)spn_digest_file_hex(SPN_DIGEST_SHA256, mem, sp_path_resolve(corrupt), &fx->bad_sha));
+  sp_must_eq(t, (u32)SPN_OK, (u32)spn_digest_file_hex(SPN_DIGEST_SHA256, mem, sp_path_from_str(asset), &fx->good_sha));
+  sp_must_eq(t, (u32)SPN_OK, (u32)spn_digest_file_hex(SPN_DIGEST_SHA256, mem, sp_path_from_str(corrupt), &fx->bad_sha));
 
   sp_str_t shasums = sp_fmt(mem, "{}  {}\n{}  {}\n",
     sp_fmt_str(fx->good_sha), sp_fmt_cstr(SHIM_LINUX_ASSET),

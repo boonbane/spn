@@ -6,18 +6,16 @@
 
 sp_path_t spn_path_at(const spn_path_roots_t* roots, spn_path_t path) {
   if (path.root == SPN_PATH_ROOT_NONE) {
-    return sp_path_resolve(path.sub);
+    return sp_path_from_str(path.sub);
   }
   sp_assert(roots->opened & spn_path_root_mask(path.root));
-  return sp_path_at(roots->fds[path.root], sp_str_empty(path.sub) ? sp_str_lit(".") : path.sub);
+  return sp_path(roots->fds[path.root], sp_str_empty(path.sub) ? sp_str_lit(".") : path.sub);
 }
 
 spn_err_t spn_path_roots_set(spn_path_roots_t* roots, sp_mem_t mem, spn_path_root_t kind, sp_path_t dir) {
   sp_assert(!(roots->opened & spn_path_root_mask(kind)));
-  sp_str_t canonical = sp_fs_canonicalize_path_at(mem, dir);
-  if (sp_str_empty(canonical)) {
-    return SPN_ERROR;
-  }
+  sp_str_t canonical = sp_zero;
+  sp_try_as(sp_fs_canonicalize_path_at(mem, dir, &canonical), SPN_ERROR);
   sp_try_as(sp_fs_open_dir_at(dir, &roots->fds[kind]), SPN_ERROR);
   roots->dirs[kind] = canonical;
   roots->opened |= spn_path_root_mask(kind);
@@ -125,8 +123,7 @@ static canonical_split_t canonical_split(sp_mem_t mem, const spn_path_roots_t* r
   sp_str_t sub = sp_fs_trim_path(at.sub);
   canonical_split_t split = { .tail = sp_str_lit("") };
   while (true) {
-    split.canonical = sp_fs_canonicalize_path_at(mem, sp_path_at(at.dir, sub));
-    if (!sp_str_empty(split.canonical)) {
+    if (!sp_fs_canonicalize_path_at(mem, sp_path(at.dir, sub), &split.canonical)) {
       break;
     }
     sp_str_t parent = sp_fs_parent_path(sub);
@@ -148,8 +145,8 @@ static sp_str_t head_segment(sp_str_t tail) {
 spn_path_t spn_path_canonicalize(sp_mem_t mem, const spn_path_roots_t* roots, spn_path_t path) {
   sp_mem_arena_marker_t s = sp_mem_begin_scratch_for(mem);
   spn_path_t result = path;
-  sp_str_t canonical = sp_fs_canonicalize_path_at(s.mem, spn_path_at(roots, path));
-  if (sp_str_empty(canonical)) {
+  sp_str_t canonical = sp_zero;
+  if (sp_fs_canonicalize_path_at(s.mem, spn_path_at(roots, path), &canonical)) {
     canonical = spn_path_str(roots, s.mem, path);
   }
   if (spn_path_normal(canonical)) {
@@ -177,7 +174,8 @@ spn_path_t spn_path_canonicalize_head(sp_mem_t mem, const spn_path_roots_t* root
 
 spn_path_t spn_path_from_cwd(sp_mem_t mem, const spn_path_roots_t* roots, sp_str_t str) {
   sp_mem_arena_marker_t s = sp_mem_begin_scratch_for(mem);
-  spn_path_t cwd = { .sub = sp_fs_get_cwd_path(s.mem) };
+  spn_path_t cwd = sp_zero;
+  sp_fs_get_cwd_path(s.mem, &cwd.sub);
   spn_path_t result = spn_path_canonicalize(mem, roots, spn_path_resolve(s.mem, cwd, str));
   sp_mem_end_scratch(s);
   return result;

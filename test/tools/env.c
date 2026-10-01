@@ -15,9 +15,9 @@ void write_file(sp_str_t path, sp_str_t content) {
 
 static sp_err_t copy_into(sp_str_t from, sp_str_t dir) {
   sp_mem_arena_marker_t s = sp_mem_begin_scratch();
-  sp_path_t into = sp_path_resolve(dir);
+  sp_path_t into = sp_path_from_str(dir);
   sp_fs_create_dir_at(into);
-  sp_err_t err = sp_fs_copy_at(sp_path_resolve(from), sp_path_join(s.mem, into, sp_fs_get_name(from)), SP_FS_ATOMIC_REPLACE);
+  sp_err_t err = sp_fs_copy_at(sp_path_from_str(from), sp_path_join(s.mem, into, sp_fs_get_name(from)), SP_FS_ATOMIC_REPLACE);
   sp_mem_end_scratch(s);
   return err;
 }
@@ -28,7 +28,9 @@ static void fixture_setup_paths(fixture_t* fixture) {
 #if defined(SPN_TEST_BIN)
   fixture->paths.spn = test_repo_path(mem, sp_str_lit(SPN_TEST_BIN));
 #else
-  sp_str_t test_dir = sp_fs_parent_path(sp_fs_get_exe_path(mem));
+  sp_str_t exe = sp_zero;
+  sp_fs_get_exe_path(mem, &exe);
+  sp_str_t test_dir = sp_fs_parent_path(exe);
   fixture->paths.spn = sp_fs_join_path(mem, sp_fs_parent_path(test_dir), spn_triple_exe_file_name(mem, test_host(), sp_str_lit("spn")));
 #endif
 }
@@ -61,7 +63,7 @@ static sp_err_t copy_project_path(sp_test_t* t, fixture_t* fixture, sp_str_t pro
   sp_str_t to = fixture_path(fixture, sp_fs_parent_path(relative));
 
   if (sp_str_equal(sp_fs_get_name(relative), sp_str_lit("*"))) {
-    sp_must_ok(t, sp_fs_copy_tree_at(sp_path_resolve(sp_fs_parent_path(from)), sp_path_resolve(to), SP_FS_ATOMIC_REPLACE));
+    sp_must_ok(t, sp_fs_copy_tree_at(sp_path_from_str(sp_fs_parent_path(from)), sp_path_from_str(to), SP_FS_ATOMIC_REPLACE));
   } else {
     sp_must_ok(t, copy_into(from, to));
   }
@@ -362,7 +364,9 @@ static void setup_fixture_config(fixture_t* fixture, sp_str_t index_dir, sp_str_
 }
 
 static sp_str_t pick_shared_toolchain_dir(sp_mem_t mem, sp_str_t root) {
-  sp_str_t global = sp_fs_join_path(mem, sp_fs_get_storage_path(mem), sp_str_lit("spn/cache/toolchain"));
+  sp_str_t storage = sp_zero;
+  sp_fs_get_storage_path(mem, &storage);
+  sp_str_t global = sp_fs_join_path(mem, storage, sp_str_lit("spn/cache/toolchain"));
   if (sp_fs_exists(global)) return global;
   return sp_fs_join_path(mem, root, sp_str_lit(".cache/toolchain"));
 }

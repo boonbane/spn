@@ -137,8 +137,8 @@ sp_test_each(paths_canonicalize, resolve, canonicalize_test_t, canonicalize_test
 
   sp_mem_t mem = sp_test_arena(t);
   sp_path_t sandbox = sp_test_dir(t);
-  sp_str_t absolute = sp_fs_canonicalize_path_at(mem, sandbox);
-  sp_expect_gt(t, absolute.len, 0u);
+  sp_str_t absolute = sp_zero;
+  sp_must_ok(t, sp_fs_canonicalize_path_at(mem, sandbox, &absolute));
 
   u32 count = 0;
   sp_carr_detect_len(it->setup, count, it->setup[count].path);

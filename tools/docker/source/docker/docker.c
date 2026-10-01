@@ -13,7 +13,10 @@
 #define cfmt(mem, ...) sp_str_to_cstr(mem, sp_fmt(mem, __VA_ARGS__).value)
 
 static sp_str_t find_repo(sp_mem_t mem) {
-  sp_str_t dir = sp_fs_get_cwd_path(mem);
+  sp_str_t dir = sp_zero;
+  if (sp_fs_get_cwd_path(mem, &dir)) {
+    return sp_str_lit("");
+  }
   while (!sp_fs_is_root(dir)) {
     if (sp_fs_is_dir(sp_fs_join_path(mem, dir, sp_str_lit("vendor/sp")))) {
       return dir;
@@ -186,13 +189,17 @@ docker_init_err_t docker_init(docker_t* docker, sp_mem_t mem, spn_fetch_fn fetch
   docker->paths.config = sp_fs_join_path(mem, docker->paths.dockerfiles, sp_str_lit("config"));
   docker->paths.logs = sp_fs_join_path(mem, docker->paths.dockerfiles, sp_str_lit("logs"));
 
-  sp_str_t cache = sp_fs_join_path(mem, sp_fs_get_storage_path(mem), sp_str_lit("spn/cache"));
+  sp_str_t storage = sp_zero;
+  if (sp_fs_get_storage_path(mem, &storage)) {
+    return DOCKER_INIT_ERR_STORE;
+  }
+  sp_str_t cache = sp_fs_join_path(mem, storage, sp_str_lit("spn/cache"));
   docker->paths.xwin.cache = sp_fs_join_path(mem, cache, sp_str_lit("xwin/cache"));
   docker->paths.xwin.splat = sp_fs_join_path(mem, cache, sp_str_lit("xwin/splat"));
   docker->paths.toolchain = sp_fs_join_path(mem, cache, sp_str_lit("toolchain"));
 
   sp_fs_create_dir(docker->paths.toolchain);
-  if (spn_path_roots_set(&docker->roots, mem, SPN_PATH_ROOT_TOOLCHAIN, sp_path_resolve(docker->paths.toolchain))) {
+  if (spn_path_roots_set(&docker->roots, mem, SPN_PATH_ROOT_TOOLCHAIN, sp_path_from_str(docker->paths.toolchain))) {
     return DOCKER_INIT_ERR_STORE;
   }
 

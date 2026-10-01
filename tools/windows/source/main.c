@@ -415,7 +415,9 @@ static sp_str_t spn_bin(sp_mem_t mem) {
   if (!sp_str_empty(env)) {
     return env;
   }
-  return sp_fs_join_path(mem, sp_fs_parent_path(sp_fs_get_exe_path(mem)), sp_str_lit("spn"));
+  sp_str_t exe = sp_zero;
+  sp_fs_get_exe_path(mem, &exe);
+  return sp_fs_join_path(mem, sp_fs_parent_path(exe), sp_str_lit("spn"));
 }
 
 static sp_ps_config_t host_config(sp_mem_t mem, sp_str_t repo, sp_str_t command, const c8* const* rest) {
@@ -679,11 +681,12 @@ static sp_cli_result_t run_test(sp_cli_t* cli) {
   try(built(cli, &app, winvm_bare));
 
   sp_str_t spn = spn_bin(mem);
-  if (!sp_fs_is_file(spn)) {
+  sp_str_t canonical = sp_zero;
+  if (!sp_fs_is_file(spn) || sp_fs_canonicalize_path(mem, spn, &canonical)) {
     return sp_cli_set_error(cli, sp_fmt(mem, "no spn at {.cyan}; run spn build spn, or point SPN_BIN at one", sp_fmt_str(spn)).value);
   }
   suite_t suite = {
-    .spn = sp_fs_canonicalize_path(mem, spn),
+    .spn = canonical,
     .src = sp_fs_join_path(mem, vm->paths.repo, sp_str_lit("build/winvm/spn-src.tar.gz")),
     .bins = sp_fs_join_path(mem, vm->paths.repo, sp_str_lit("build/winvm/spn-bins.tar.gz")),
     .wintest = sp_fs_join_path(mem, vm->paths.recipes, sp_str_lit("wintest.ps1")),

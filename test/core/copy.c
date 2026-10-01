@@ -169,7 +169,8 @@ sp_test_each(fs_update, cases, test_t, tests) {
 
   sp_mem_t mem = sp_test_arena(t);
   sp_path_t root = sp_test_dir(t);
-  sp_str_t absolute = sp_fs_canonicalize_path_at(mem, root);
+  sp_str_t absolute = sp_zero;
+  sp_must_ok(t, sp_fs_canonicalize_path_at(mem, root, &absolute));
 
   u32 dirs = 0;
   sp_carr_detect_len(it->setup.dirs, dirs, it->setup.dirs[dirs]);

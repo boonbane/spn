@@ -92,7 +92,7 @@ sp_test_each(index_cache, get_package, cache_test_t, tests, .setup = spn_test_ct
     }
 
     spn_index_info_t index = {
-      .location = { .at = sp_path_resolve(location), .dir = location },
+      .location = { .at = sp_path_from_str(location), .dir = location },
       .protocol = it->indexes[slot].protocol,
     };
     if (index.protocol == SPN_INDEX_PROTOCOL_DIR) {

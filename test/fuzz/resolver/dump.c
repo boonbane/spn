@@ -6,7 +6,8 @@
 #include "sp_template/sp_template.h"
 
 static sp_str_t fz_repo_root(sp_mem_t mem) {
-  sp_str_t path = sp_fs_get_exe_path(mem);
+  sp_str_t path = sp_zero;
+  sp_fs_get_exe_path(mem, &path);
   while (true) {
     sp_assert(!sp_str_empty(path));
     if (sp_str_equal(sp_fs_get_stem(path), sp_str_lit("spn"))) {

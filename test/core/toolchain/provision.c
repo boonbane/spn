@@ -180,7 +180,7 @@ static spn_err_t fetch_stub(spn_toolchain_store_t* store, sp_str_t url, sp_str_t
   if (stub->fail) return SPN_ERROR;
   if (!sp_str_empty(stub->fail_url_containing) && sp_str_contains(url, stub->fail_url_containing)) return SPN_ERROR;
   if (stub->vanish) return SPN_OK;
-  if (sp_fs_copy_file_at(sp_path_resolve(stub->tarball), sp_path_resolve(dest), SP_FS_ATOMIC_REPLACE)) return SPN_ERROR;
+  if (sp_fs_copy_file_at(sp_path_from_str(stub->tarball), sp_path_from_str(dest), SP_FS_ATOMIC_REPLACE)) return SPN_ERROR;
   return SPN_OK;
 }
 
@@ -240,7 +240,7 @@ sp_test_each(provision, store, provision_test_t, tests, .setup = spn_test_ctx_se
   }
 
   sp_str_t sha = sp_zero;
-  sp_must_eq(t, (u32)SPN_OK, (u32)spn_digest_file_hex(SPN_DIGEST_SHA256, mem, sp_path_resolve(stub.tarball), &sha));
+  sp_must_eq(t, (u32)SPN_OK, (u32)spn_digest_file_hex(SPN_DIGEST_SHA256, mem, sp_path_from_str(stub.tarball), &sha));
   sp_must_eq(t, 64u, sha.len);
 
   sp_path_t store_dir = sp_path_join(mem, sp_test_dir(t), sp_str_lit("store"));

@@ -17,8 +17,8 @@ static sp_str_t get_dir(sp_mem_t mem, sp_str_t project) {
     dir = sp_fs_is_absolute(args.path) ? args.path : sp_fs_join_path(s.mem, project, args.path);
   }
 
-  sp_str_t canonical = sp_fs_canonicalize_path(s.mem, dir);
-  if (sp_str_empty(canonical)) {
+  sp_str_t canonical = sp_zero;
+  if (sp_fs_canonicalize_path(s.mem, dir, &canonical)) {
     canonical = sp_fs_normalize_path(s.mem, dir);
   }
 

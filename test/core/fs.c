@@ -203,7 +203,7 @@ sp_test(fs_copy_file, busy) {
 
   sp_path_t target = sp_path_join(mem, dir, sp_str_lit("bin/spn"));
   sp_must_ok(t, sp_fs_create_dir_at(sp_path_join(mem, dir, sp_str_lit("bin"))));
-  sp_must_ok(t, sp_fs_copy_file_at(sp_path_resolve(sleep_bin), target, SP_FS_ATOMIC_REPLACE));
+  sp_must_ok(t, sp_fs_copy_file_at(sp_path_from_str(sleep_bin), target, SP_FS_ATOMIC_REPLACE));
 
   sp_ps_t running = sp_ps_create(mem, (sp_ps_config_t) {
     .command = target.sub,

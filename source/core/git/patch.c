@@ -8,7 +8,7 @@ spn_err_t spn_git_patch_set_hash(spn_git_patch_set_t* set, u32* missing) {
   set->hash = 0;
   sp_da_for(set->files, it) {
     sp_str_t content = sp_zero;
-    if (sp_io_read_file_at(scratch.mem, sp_path_resolve(set->files[it]), &content)) {
+    if (sp_io_read_file_at(scratch.mem, sp_path_from_str(set->files[it]), &content)) {
       *missing = (u32)it;
       set->hash = 0;
       sp_mem_end_scratch(scratch);

@@ -90,7 +90,7 @@ spn_err_t spn_probe_cache_flush(spn_probe_cache_t* cache) {
 }
 
 SP_PRIVATE spn_err_t probe_hash(spn_probe_cache_t* cache, sp_str_t path, sp_hash_t* hash) {
-  sp_path_t at = sp_path_resolve(path);
+  sp_path_t at = sp_path_from_str(path);
   sp_sys_file_meta_t meta = sp_zero;
   if (sp_sys_get_path_metadata_s(at.dir, at.sub, &meta)) {
     return SPN_ERROR;
