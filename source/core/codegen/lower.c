@@ -353,9 +353,13 @@ static void lower_stage(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, spn
       .to = entry->to,
     };
     bool produced = copy.dir == SPN_DIR_WORK || copy.dir == SPN_DIR_SHARE || copy.dir == SPN_DIR_LIB || copy.dir == SPN_DIR_BIN;
+    spn_path_t to = { .root = SPN_PATH_ROOT_PROJECT, .sub = entry->to };
     bool duplicate = false;
+    bool nested = false;
     sp_for(jt, it) {
-      duplicate = duplicate || sp_str_equal(cg->stage.copy[jt].to, entry->to);
+      spn_path_t other = { .root = SPN_PATH_ROOT_PROJECT, .sub = cg->stage.copy[jt].to };
+      duplicate = duplicate || spn_path_equal(other, to);
+      nested = nested || spn_path_within(other, to).within || spn_path_within(to, other).within;
     }
 
     u64 issues = sp_da_size(ctx->issues);
@@ -373,10 +377,12 @@ static void lower_stage(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, spn
     spn_toml_loader_pop(ctx);
     spn_toml_loader_push_key(ctx, "to");
     if (lower_path_ok(ctx, entry->to)) {
-      if (sp_str_equal_cstr(sp_str_cleave_c8(entry->to, '/').first, "build")) {
+      if (sp_str_equal_cstr(sp_str_cleave_c8(entry->to, '/').first, "build") || sp_str_equal_cstr(entry->to, "compile_commands.json")) {
         spn_toml_loader_issue_at(ctx, SPN_ERR_CODEGEN_INVALID, entry->to);
       } else if (duplicate) {
         spn_toml_loader_issue_at(ctx, SPN_ERR_CODEGEN_DUPLICATE_KEY, entry->to);
+      } else if (nested) {
+        spn_toml_loader_issue_at(ctx, SPN_ERR_CODEGEN_INVALID, entry->to);
       }
     }
     spn_toml_loader_pop(ctx);

@@ -25,6 +25,7 @@
 #include "session/session.h"
 #include "thread_pool/thread_pool.h"
 #include "unit/unit.h"
+#include "api/api.h"
 #include "graph/build.h"
 #include "graph/dag.h"
 #include "graph/nodes/nodes.h"
@@ -619,6 +620,45 @@ static spn_err_t add_compile_commands(spn_dag_build_t* b) {
   return SPN_OK;
 }
 
+static spn_err_t add_stages(spn_dag_build_t* b) {
+  spn_dag_t* g = b->graph;
+  spn_session_t* session = b->session;
+  spn_pkg_unit_t* root = spn_session_find_pkg_unit(session, session->units.target, spn_session_root_pkg(session));
+
+  sp_da_for(root->info->stage.copy, it) {
+    spn_stage_copy_t* copy = &root->info->stage.copy[it];
+    spn_path_t from = spn_path_join(b->mem, spn_api_dir_path(root, copy->dir), copy->sub);
+    spn_dag_id_t* id = sp_ht_getp(g->paths, from);
+    if (!id || !spn_dag_find_artifact(g, *id)->producer.occupied) {
+      b->env.diag = (spn_dag_diag_t) {
+        .err = SPN_ERR_STAGE_UNPRODUCED,
+        .path = spn_path_str(g->roots, b->mem, from),
+      };
+      return SPN_ERR_STAGE_UNPRODUCED;
+    }
+    sp_da_push(b->stages, ((spn_dag_stage_t) {
+      .from = *id,
+      .to = spn_path_join(b->mem, session->paths.root, copy->to),
+    }));
+  }
+
+  sp_da_for(b->stages, it) {
+    spn_path_t to = b->stages[it].to;
+    sp_da_for(g->artifacts, jt) {
+      spn_path_t path = g->artifacts[jt].path;
+      if (spn_path_within(to, path).within || spn_path_within(path, to).within) {
+        b->env.diag = (spn_dag_diag_t) {
+          .err = SPN_ERR_STAGE_OVERLAP,
+          .path = spn_path_str(g->roots, b->mem, to),
+        };
+        return SPN_ERR_STAGE_OVERLAP;
+      }
+    }
+  }
+
+  return SPN_OK;
+}
+
 static spn_err_t prepare_graph(spn_dag_build_t* b) {
   spn_session_t* session = b->session;
 
@@ -655,6 +695,7 @@ static spn_err_t prepare_graph(spn_dag_build_t* b) {
   }
 
   spn_try(add_compile_commands(b));
+  spn_try(add_stages(b));
 
   return SPN_OK;
 }
@@ -662,22 +703,20 @@ static spn_err_t prepare_graph(spn_dag_build_t* b) {
 /////////
 // RUN //
 /////////
-static spn_err_t stage_output(spn_dag_build_t* b, spn_dag_id_t id, spn_path_t to) {
-  spn_dag_artifact_t* artifact = spn_dag_find_artifact(b->graph, id);
-
+static spn_err_t stage_output(spn_dag_build_t* b, spn_path_t from, spn_dag_digest_t digest, spn_path_t to) {
   sp_sys_file_meta_t staged_meta = sp_zero;
   spn_dag_digest_t staged_digest = sp_zero;
   if (!spn_dag_file_cache_stat(b->env.files, to, &staged_meta) && staged_meta.nlink == 1 &&
       !spn_dag_file_cache_digest(b->env.files, to, &staged_digest) &&
-      spn_dag_digest_equal(staged_digest, artifact->digest)) {
+      spn_dag_digest_equal(staged_digest, digest)) {
     return SPN_OK;
   }
 
   const spn_path_roots_t* roots = b->graph->roots;
   sp_fs_create_parent_at(spn_path_at(roots, to));
-  sp_err_t copied = sp_fs_copy_file_at(spn_path_at(roots, artifact->materialized), spn_path_at(roots, to), SP_FS_ATOMIC_REPLACE);
+  sp_err_t copied = sp_fs_copy_file_at(spn_path_at(roots, from), spn_path_at(roots, to), SP_FS_ATOMIC_REPLACE);
 
-  spn_err_t err = copied ? SPN_ERR_DAG_OUTPUT_WRITE : spn_dag_file_cache_seed(b->env.files, to, artifact->digest);
+  spn_err_t err = copied ? SPN_ERR_DAG_OUTPUT_WRITE : spn_dag_file_cache_seed(b->env.files, to, digest);
   if (err) {
     spn_dag_file_cache_invalidate(b->env.files, to);
     return spn_err_emit(b->session->ctx, (spn_err_union_t) {
@@ -729,6 +768,12 @@ static spn_err_t write_stage_manifest(spn_dag_build_t* b, spn_path_t manifest, s
       err = emit_staging_error(b, stale);
       goto done;
     }
+    for (spn_path_t dir = spn_path_parent(stale); !sp_str_empty(dir.sub); dir = spn_path_parent(dir)) {
+      sp_path_t at = spn_path_at(roots, dir);
+      if (sp_sys_rmdir_s(at.dir, at.sub)) {
+        break;
+      }
+    }
   }
 
   sp_fs_create_parent_at(spn_path_at(roots, manifest));
@@ -741,17 +786,81 @@ done:
   return err;
 }
 
-// What spn owns in the checkout follows from what is declared, not from how the build went
-static spn_err_t claim_project_stages(spn_dag_build_t* b, sp_mem_t mem, spn_path_t compile_commands) {
-  spn_path_t manifest = spn_path_join(mem, b->session->paths.build, sp_str_lit(".spn/staged"));
+typedef struct {
+  spn_path_t from;
+  spn_dag_digest_t digest;
+  spn_path_t to;
+} stage_copy_t;
 
-  sp_io_dyn_mem_writer_t io = sp_zero;
-  sp_io_dyn_mem_writer_init(mem, &io);
-  spn_stage_write(&io.base, compile_commands.sub, compile_commands.sub);
+static spn_err_t stage_project(spn_dag_build_t* b) {
+  spn_dag_t* g = b->graph;
+  sp_mem_arena_marker_t s = sp_mem_begin_scratch();
+  spn_err_t err = SPN_OK;
 
+  spn_path_t manifest = spn_path_join(s.mem, b->session->paths.build, sp_str_lit(".spn/staged"));
   sp_str_t previous = sp_zero;
-  spn_try(read_stage_manifest(b, mem, manifest, &previous));
-  return write_stage_manifest(b, manifest, previous, sp_io_dyn_mem_writer_as_str(&io));
+  err = read_stage_manifest(b, s.mem, manifest, &previous);
+  if (err) {
+    goto done;
+  }
+
+  sp_da(stage_copy_t) copies = sp_da_new(s.mem, stage_copy_t);
+  sp_io_dyn_mem_writer_t io = sp_zero;
+  sp_io_dyn_mem_writer_init(s.mem, &io);
+
+  sp_da_for(b->stages, it) {
+    spn_dag_stage_t* stage = &b->stages[it];
+    spn_dag_artifact_t* artifact = spn_dag_find_artifact(g, stage->from);
+    sp_str_t owner = stage->to.sub;
+
+    switch (artifact->kind) {
+      case SPN_DAG_ARTIFACT_KIND_FILE: {
+        spn_stage_write(&io.base, owner, owner);
+        sp_da_push(copies, ((stage_copy_t) { .from = artifact->materialized, .digest = artifact->digest, .to = stage->to }));
+        break;
+      }
+      case SPN_DAG_ARTIFACT_KIND_TREE: {
+        sp_da(spn_dag_action_output_t) entries = sp_zero;
+        spn_err_t listed = spn_dag_tree_entries(&b->store, artifact->digest, s.mem, &entries);
+        if (listed) {
+          err = spn_err_emit(b->session->ctx, (spn_err_union_t) {
+            .kind = listed,
+            .dag = { .path = spn_path_str(g->roots, b->mem, artifact->path) },
+          });
+          goto done;
+        }
+        sp_da_for(entries, jt) {
+          spn_path_t to = spn_path_join(s.mem, stage->to, entries[jt].name);
+          spn_stage_write(&io.base, owner, to.sub);
+          sp_da_push(copies, ((stage_copy_t) {
+            .from = spn_path_join(s.mem, artifact->materialized, entries[jt].name),
+            .digest = entries[jt].digest,
+            .to = to,
+          }));
+        }
+        break;
+      }
+      case SPN_DAG_ARTIFACT_KIND_VALUE: {
+        sp_unreachable_case();
+      }
+    }
+  }
+
+  err = write_stage_manifest(b, manifest, previous, sp_io_dyn_mem_writer_as_str(&io));
+  if (err) {
+    goto done;
+  }
+
+  sp_da_for(copies, it) {
+    err = stage_output(b, copies[it].from, copies[it].digest, copies[it].to);
+    if (err) {
+      goto done;
+    }
+  }
+
+done:
+  sp_mem_end_scratch(s);
+  return err;
 }
 
 static spn_err_t stage_files(spn_dag_build_t* b) {
@@ -805,7 +914,8 @@ static spn_err_t stage_files(spn_dag_build_t* b) {
       if (!ids) {
         continue;
       }
-      err = stage_output(b, ids->output, closure->exe.path);
+      spn_dag_artifact_t* exe = spn_dag_find_artifact(b->graph, ids->output);
+      err = stage_output(b, exe->materialized, exe->digest, closure->exe.path);
       if (err) {
         goto done;
       }
@@ -816,7 +926,8 @@ static spn_err_t stage_files(spn_dag_build_t* b) {
           continue;
         }
         sp_ht_insert(copied, lib->path, true);
-        err = stage_output(b, lib_ids->output, lib->path);
+        spn_dag_artifact_t* output = spn_dag_find_artifact(b->graph, lib_ids->output);
+        err = stage_output(b, output->materialized, output->digest, lib->path);
         if (err) {
           goto done;
         }
@@ -931,6 +1042,7 @@ spn_dag_build_t* spn_dag_build_new(spn_op_t* op) {
   sp_ht_set_fns(b->ids.stamps, spn_path_on_hash, spn_path_on_compare);
   sp_ht_init(b->mem, b->ids.targets);
   sp_ht_init(b->mem, b->ids.objects);
+  sp_da_init(b->mem, b->stages);
 
   spn_path_t root = spn_path_anchor(session->mem, roots, spn_path_join(session->mem, spn_path_from_root(SPN_PATH_ROOT_CACHE), sp_str_lit("dag")));
   spn_path_t tmp = spn_path_join(session->mem, root, sp_str_lit("tmp"));
@@ -1013,21 +1125,24 @@ spn_err_t spn_dag_build_session(spn_op_t* op) {
     return result;
   }
 
-  sp_mem_arena_marker_t s = sp_mem_begin_scratch();
-  spn_path_t compile_commands = spn_path_join(s.mem, session->paths.root, sp_str_lit("compile_commands.json"));
-  spn_err_t staged = claim_project_stages(b, s.mem, compile_commands);
-  if (!staged && spn_dag_digest_valid(spn_dag_find_artifact(b->graph, b->compile_commands)->digest)) {
-    staged = stage_output(b, b->compile_commands, compile_commands);
-  }
-  sp_mem_end_scratch(s);
-  if (!result) {
-    result = staged;
+  spn_dag_artifact_t* commands = spn_dag_find_artifact(b->graph, b->compile_commands);
+  if (spn_dag_digest_valid(commands->digest)) {
+    sp_mem_arena_marker_t s = sp_mem_begin_scratch();
+    spn_path_t to = spn_path_join(s.mem, session->paths.root, sp_str_lit("compile_commands.json"));
+    spn_err_t staged = stage_output(b, commands->materialized, commands->digest, to);
+    sp_mem_end_scratch(s);
+    if (!result) {
+      result = staged;
+    }
   }
   if (!result) {
     if (!project->lock.some) {
       spn_try(spn_project_update_lock(session->ctx, project, session->resolve));
     }
-    result = stage_files(b);
+    result = stage_project(b);
+    if (!result) {
+      result = stage_files(b);
+    }
     spn_dag_file_cache_flush(b->env.files, session->dag.files_path);
   }
   if (!b->result) {

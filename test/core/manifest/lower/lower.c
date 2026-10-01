@@ -1406,11 +1406,27 @@ static const test_t tests [] = {
     },
   },
   {
+    .name = "validate_stage_to_reserved",
+    .manifest = "validate_stage_to_reserved",
+    .issues = {
+      { SPN_ERR_CODEGEN_INVALID, "stage.copy[0].to" },
+    },
+  },
+  {
     .name = "validate_stage_to_duplicate",
     .manifest = "validate_stage_to_duplicate",
     .stage = { { SPN_DIR_WORK, "a", "src/a" } },
     .issues = {
       { SPN_ERR_CODEGEN_DUPLICATE_KEY, "stage.copy[1].to" },
+    },
+  },
+  {
+    .name = "validate_stage_to_nested",
+    .manifest = "validate_stage_to_nested",
+    .stage = { { SPN_DIR_WORK, "a", "src/a" } },
+    .issues = {
+      { SPN_ERR_CODEGEN_INVALID, "stage.copy[1].to" },
+      { SPN_ERR_CODEGEN_INVALID, "stage.copy[2].to" },
     },
   },
   {

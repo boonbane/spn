@@ -103,6 +103,8 @@
     "dag_tree": { "properties": {} },
     "dag_stalled": { "properties": {} },
     "dag_cancelled": { "properties": {} },
+    "stage_unproduced": { "ref": "dag" },
+    "stage_overlap": { "ref": "dag" },
     "dep_cycle": { "ref": "circular" },
     "unit_cycle": { "ref": "unit_cycle" },
     "target_linkage": { "ref": "target" },

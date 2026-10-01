@@ -1,0 +1,10 @@
+[package]
+name = "p"
+version = "1.0.0"
+
+[stage]
+copy = [
+  { from = "work/a", to = "src/a" },
+  { from = "work/b", to = "src/a/b" },
+  { from = "work/c", to = "src" },
+]

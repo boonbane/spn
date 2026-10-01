@@ -1,0 +1,11 @@
+[package]
+name = "D"
+version = "0.0.1"
+
+[[lib]]
+name = "D"
+kinds = ["static"]
+source = ["D.c"]
+
+[stage]
+copy = [{ from = "work/G.txt", to = "gen/G.txt" }]

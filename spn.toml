@@ -447,6 +447,7 @@ source = [
   "test/integration/profile.c",
   "test/integration/reexport.c",
   "test/integration/script.c",
+  "test/integration/stage.c",
   "test/integration/target.c",
   "test/integration/units.c",
   "test/integration/upstream.c",

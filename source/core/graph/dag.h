@@ -22,6 +22,11 @@ typedef struct {
   spn_dag_id_t exports;
 } spn_dag_target_ids_t;
 
+typedef struct {
+  spn_dag_id_t from;
+  spn_path_t to;
+} spn_dag_stage_t;
+
 struct spn_dag_build_t {
   spn_session_t* session;
   sp_mem_t mem;
@@ -34,6 +39,7 @@ struct spn_dag_build_t {
     sp_ht(spn_compile_unit_t*, spn_dag_object_ids_t) objects;
   } ids;
   spn_dag_id_t compile_commands;
+  sp_da(spn_dag_stage_t) stages;
   spn_dag_action_cache_t actions;
   spn_dag_obs_table_t discovery;
   spn_dag_store_t store;

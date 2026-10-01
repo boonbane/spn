@@ -10,16 +10,6 @@ sp_test(compile_commands, written_on_build) {
   });
 }
 
-sp_test(compile_commands, listed_in_stage_manifest) {
-  return run_command_test(t, (command_test_t) {
-    .project = "test/integration/fixtures/compile_commands/simple",
-    .args = { "build" },
-    .expect.files = {
-      { .file = sp_str_lit("build/.spn/staged"), .content = "compile_commands.json\tcompile_commands.json\n" },
-    },
-  });
-}
-
 sp_test(compile_commands, module_flags) {
   return run_command_test(t, (command_test_t) {
     .project = "test/integration/fixtures/script/build_dep_closure",
