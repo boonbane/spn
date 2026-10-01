@@ -20,20 +20,6 @@
 #include "session/session.h"
 #include "unit/types.h"
 
-static sp_str_t patch_dir(sp_mem_t mem, spn_index_release_t* release) {
-  if (sp_str_empty(spn.paths.patches)) {
-    return sp_str_lit("");
-  }
-
-  sp_str_t dir = sp_fs_join_path(mem, spn.paths.patches, release->id.name);
-  sp_str_t manifest = sp_fs_join_path(mem, dir, release->paths.manifest);
-  if (!sp_fs_exists_at(sp_path_resolve(manifest))) {
-    return sp_str_lit("");
-  }
-
-  return dir;
-}
-
 static spn_err_t apply_patch_overrides(spn_session_t* session, spn_resolve_query_t* query) {
   spn_err_t result = SPN_OK;
   sp_ht_for_kv(query->result, it) {
@@ -42,32 +28,32 @@ static spn_err_t apply_patch_overrides(spn_session_t* session, spn_resolve_query
       continue;
     }
 
-    sp_str_t patch = patch_dir(spn.mem, pkg->origin.release);
-    if (sp_str_empty(patch)) {
+    spn_path_t patch = spn_path_join(spn.mem, session->ctx->paths.patches, pkg->origin.release->id.name);
+    spn_path_t manifest = spn_path_join(spn.mem, patch, pkg->origin.paths.manifest);
+    if (!sp_fs_exists_at(spn_path_at(&session->ctx->roots, manifest))) {
       continue;
     }
 
-    sp_str_t manifest = sp_fs_join_path(spn.mem, patch, pkg->origin.paths.manifest);
     sp_str_t name = sp_intern_str_from_id(session->ctx->intern, pkg->id.qualified);
     spn_pkg_info_t* info = sp_alloc_type(spn.mem, spn_pkg_info_t);
     spn_codegen_issues_t issues = sp_zero;
-    spn_err_t loaded = spn_pkg_load(spn.mem, session->ctx->intern, &session->ctx->roots, (spn_path_t) { .sub = manifest }, SPN_MANIFEST_DEP, info, &issues);
+    spn_err_t loaded = spn_pkg_load(spn.mem, session->ctx->intern, &session->ctx->roots, manifest, SPN_MANIFEST_DEP, info, &issues);
     if (loaded == SPN_ERR_NO_MANIFEST) {
       result = spn_err_emit(session->ctx, (spn_err_union_t) {
         .kind = SPN_ERR_NO_MANIFEST,
-        .no_manifest = { .path = manifest },
+        .no_manifest = { .path = spn_path_str(&session->ctx->roots, spn.mem, manifest) },
       });
       continue;
     }
     if (loaded) {
       result = spn_err_emit(session->ctx, (spn_err_union_t) {
         .kind = SPN_ERR_MANIFEST_ISSUES,
-        .manifest = { .name = name, .path = manifest, .issues = spn_codegen_issues_to_err(spn.mem, issues) },
+        .manifest = { .name = name, .path = spn_path_str(&session->ctx->roots, spn.mem, manifest), .issues = spn_codegen_issues_to_err(spn.mem, issues) },
       });
       continue;
     }
 
-    pkg->origin.recipe = (spn_pkg_root_t) { .kind = SPN_PKG_ROOT_LOCAL, .local = { .sub = patch } };
+    pkg->origin.recipe = (spn_pkg_root_t) { .kind = SPN_PKG_ROOT_LOCAL, .local = patch };
     pkg->origin.source = spn_pkg_upstream(info);
     pkg->origin.info = info;
     pkg->name = info->name;
@@ -135,7 +121,9 @@ spn_err_t resolve(spn_op_t* op) {
     return query.errors[0].kind;
   }
 
-  spn_try(apply_patch_overrides(session, &query));
+  if (!spn_path_empty(session->ctx->paths.patches)) {
+    spn_try(apply_patch_overrides(session, &query));
+  }
   session->resolve = query.result;
 
   emit_resolved(session->mem, &query);

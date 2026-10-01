@@ -46,11 +46,8 @@ typedef struct {
 } spn_arg_t;
 
 typedef struct {
-  sp_str_t patches;
-  struct {
-    sp_str_t dir;
-    sp_str_t toml;
-  } config;
+  spn_path_t patches;
+  spn_path_t config;
 } spn_system_paths_t;
 
 #endif

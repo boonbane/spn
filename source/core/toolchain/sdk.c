@@ -189,7 +189,7 @@ spn_sdk_host_t spn_sdk_detect(sp_mem_t mem, const spn_path_roots_t* roots, sp_en
     macos = xcrun_sdk(mem);
   }
   if (!sp_str_empty(macos)) {
-    sdks.macos = macos_layout(mem, spn_path_canonicalize(mem, roots, absolute(macos)));
+    sdks.macos = macos_layout(mem, spn_path_from_cwd(mem, roots, macos));
   }
   if (host.os == SPN_OS_WINDOWS) {
     detect_msvc(mem, &sdks.msvc);

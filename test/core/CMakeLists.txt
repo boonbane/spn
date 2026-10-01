@@ -81,6 +81,7 @@ add_executable(core
   options/session.c
   paths/anchor.c
   paths/canonicalize.c
+  paths/cwd.c
   paths/head.c
   paths/label.c
   paths/normal.c

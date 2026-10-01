@@ -200,16 +200,24 @@ static spn_err_t open_ctx(spn_ctx_t* ctx, spn_open_request_t request) {
     },
   });
 
+  sp_str_t patches = sp_env_get(ctx->env, sp_str_lit("SPN_PATCH_DIR"));
+  if (!sp_str_empty(patches)) {
+    ctx->paths.patches = spn_path_from_cwd(ctx->heap, &ctx->roots, patches);
+  }
+
+  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+  ctx->paths.config = spn_path_join(ctx->heap, spn_path_from_cwd(scratch.mem, &ctx->roots, env_or(ctx, "SPN_CONFIG_DIR", sp_fs_get_config_path(scratch.mem))), sp_str_lit("spn/spn.toml"));
+  sp_mem_end_scratch(scratch);
+
   // Load the per-machine config file
   ctx->config.indexes = sp_da_new(ctx->heap, spn_index_info_t);
-  spn_path_t config_toml = { .sub = ctx->paths.config.toml };
-  if (sp_fs_exists_at(spn_path_at(&ctx->roots, config_toml))) {
+  if (sp_fs_exists_at(spn_path_at(&ctx->roots, ctx->paths.config))) {
     spn_cg_config_t config = sp_zero;
     spn_toml_loader_t loader = sp_zero;
     spn_toml_loader_init(&loader, ctx->mem, ctx->intern, &ctx->roots);
     sp_da(spn_index_info_t) indexes = sp_da_new(ctx->heap, spn_index_info_t);
     sp_da(spn_toolchain_decl_t) toolchains = SP_NULLPTR;
-    if (spn_codegen_load_config(&loader, config_toml, &config) == SPN_OK) {
+    if (spn_codegen_load_config(&loader, ctx->paths.config, &config) == SPN_OK) {
       sp_da_for(config.index, it) {
         sp_da_push(indexes, spn_index_lower(&loader, it, SPN_INDEX_KIND_USER, &config.index[it]));
       }
@@ -218,7 +226,7 @@ static spn_err_t open_ctx(spn_ctx_t* ctx, spn_open_request_t request) {
     if (!sp_da_empty(loader.issues)) {
       return spn_err_emit(ctx, (spn_err_union_t) {
         .kind = SPN_ERR_MANIFEST_ISSUES,
-        .manifest = { .path = ctx->paths.config.toml, .issues = spn_codegen_issues_to_err(ctx->mem, loader.issues) },
+        .manifest = { .path = spn_path_str(&ctx->roots, ctx->heap, ctx->paths.config), .issues = spn_codegen_issues_to_err(ctx->mem, loader.issues) },
       });
     }
     ctx->config.indexes = indexes;
@@ -269,10 +277,6 @@ spn_ctx_t* spn_ctx_new(spn_wake_fn_t wake, void* wake_data) {
   ctx->events->wake = &ctx->wake;
 
   ctx->host = spn_triple_host();
-
-  ctx->paths.patches = sp_env_get(ctx->env, sp_str_lit("SPN_PATCH_DIR"));
-  ctx->paths.config.dir = sp_fs_join_path(ctx->heap, env_or(ctx, "SPN_CONFIG_DIR", sp_fs_get_config_path(ctx->heap)), sp_str_lit("spn"));
-  ctx->paths.config.toml = sp_fs_join_path(ctx->heap, ctx->paths.config.dir, sp_str_lit("spn.toml"));
 
   ctx->roots.pinned = spn_path_pinned_roots();
 

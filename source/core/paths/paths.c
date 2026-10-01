@@ -175,6 +175,14 @@ spn_path_t spn_path_canonicalize_head(sp_mem_t mem, const spn_path_roots_t* root
   return result;
 }
 
+spn_path_t spn_path_from_cwd(sp_mem_t mem, const spn_path_roots_t* roots, sp_str_t str) {
+  sp_mem_arena_marker_t s = sp_mem_begin_scratch_for(mem);
+  spn_path_t cwd = { .sub = sp_fs_get_cwd_path(s.mem) };
+  spn_path_t result = spn_path_canonicalize(mem, roots, spn_path_resolve(s.mem, cwd, str));
+  sp_mem_end_scratch(s);
+  return result;
+}
+
 spn_path_t spn_path_make(const spn_path_roots_t* roots, sp_str_t path) {
   sp_assert(sp_fs_is_absolute(path));
   sp_assert(spn_path_normal(path));
