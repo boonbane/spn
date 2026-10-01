@@ -565,7 +565,7 @@ static spn_lock_file_t load_lock(sp_test_t* t, fixture_t* fixture) {
   spn_lock_file_t lock = sp_zero;
   spn_lock_file_init(fixture->mem, &lock);
   if (sp_fs_exists(path)) {
-    lock = spn_lock_file_load(fixture->mem, path, SP_NULLPTR);
+    lock = spn_lock_file_load(fixture->mem, sp_path_at_cwd(path), SP_NULLPTR);
   }
   return lock;
 }
