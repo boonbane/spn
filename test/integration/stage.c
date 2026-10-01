@@ -161,6 +161,33 @@ sp_test(stage, dep_ignored) {
   });
 }
 
+sp_test(stage, clean) {
+  return run_test(t, (test_t) {
+    .project = "test/integration/fixtures/stage/file",
+    .copy = { "I.txt" },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = sp_str_lit("gen/G.txt") },
+      { .kind = ACTION_RUN_CLI, .cli.cmd = "clean" },
+      { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = sp_str_lit("gen") },
+      { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = sp_str_lit("compile_commands.json") },
+      { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = sp_str_lit("build") },
+    },
+  });
+}
+
+sp_test(stage, clean_profile_keeps_stages) {
+  return run_test(t, (test_t) {
+    .project = "test/integration/fixtures/stage/file",
+    .copy = { "I.txt" },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
+      { .kind = ACTION_RUN_CLI, .cli = { .cmd = "clean", .args = { "-p", "debug" } } },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = sp_str_lit("gen/G.txt") },
+    },
+  });
+}
+
 typedef struct {
   const c8* name;
   spn_err_t err;

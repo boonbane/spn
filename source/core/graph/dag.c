@@ -762,17 +762,11 @@ static spn_err_t write_stage_manifest(spn_dag_build_t* b, spn_path_t manifest, s
       continue;
     }
     spn_path_t stale = { .root = manifest.root, .sub = it.record.path };
-    sp_err_t removed = sp_fs_remove_file_at(spn_path_at(roots, stale));
+    sp_err_t removed = spn_stage_remove(spn_path_at(roots, stale));
     spn_dag_file_cache_invalidate(b->env.files, stale);
-    if (removed && removed != SP_ERR_SYS_NOT_FOUND) {
+    if (removed) {
       err = emit_staging_error(b, stale);
       goto done;
-    }
-    for (spn_path_t dir = spn_path_parent(stale); !sp_str_empty(dir.sub); dir = spn_path_parent(dir)) {
-      sp_path_t at = spn_path_at(roots, dir);
-      if (sp_sys_rmdir_s(at.dir, at.sub)) {
-        break;
-      }
     }
   }
 

@@ -33,3 +33,18 @@ spn_stage_it_t spn_stage_it_begin(sp_str_t manifest) {
 void spn_stage_write(sp_io_writer_t* w, sp_str_t owner, sp_str_t path) {
   sp_fmt_io(w, "{}\t{}\n", sp_fmt_str(owner), sp_fmt_str(path));
 }
+
+sp_err_t spn_stage_remove(sp_path_t file) {
+  sp_err_t err = sp_fs_remove_file_at(file);
+  if (err && err != SP_ERR_SYS_NOT_FOUND) {
+    return err;
+  }
+  sp_str_t dir = file.sub;
+  for (s32 sep = sp_str_find_c8_reverse(dir, '/'); sep > 0; sep = sp_str_find_c8_reverse(dir, '/')) {
+    dir = sp_str_prefix(dir, sep);
+    if (sp_sys_rmdir_s(file.dir, dir)) {
+      break;
+    }
+  }
+  return SP_OK;
+}
