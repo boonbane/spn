@@ -747,41 +747,6 @@ static spn_err_t emit_staging_error(spn_dag_build_t* b, spn_path_t path) {
   });
 }
 
-static spn_err_t check_stage_observations(spn_dag_build_t* b) {
-  spn_dag_t* g = b->graph;
-
-  sp_da_for(b->stages, it) {
-    spn_dag_stage_t* entry = &b->stages[it];
-    if (entry->declarer != SPN_STAGE_DECLARER_STAGE) {
-      continue;
-    }
-    spn_dag_artifact_kind_t kind = entry->artifact.occupied ? spn_dag_find_artifact(g, entry->artifact)->kind : SPN_DAG_ARTIFACT_KIND_FILE;
-    sp_da_for(g->actions, jt) {
-      spn_dag_action_t* action = &g->actions[jt];
-      spn_dag_pathset_t set = sp_zero;
-      if (action->kind != SPN_DAG_ACTION_DISCOVERED || !spn_dag_obs_table_get(&b->discovery, spn_dag_weak_key(g, action->id), &set)) {
-        continue;
-      }
-      sp_da_for(set.obs, kt) {
-        spn_dag_obs_t* obs = &set.obs[kt];
-        bool changes = false;
-        spn_err_t err = spn_dag_write_changes(entry->to, kind, obs, &changes);
-        if (err) {
-          return spn_err_emit(b->session->ctx, (spn_err_union_t) { .kind = err });
-        }
-        if (changes) {
-          return spn_err_emit(b->session->ctx, (spn_err_union_t) {
-            .kind = SPN_ERR_STAGE_OBSERVED,
-            .dag = { .path = spn_path_str(g->roots, b->mem, obs->path) },
-          });
-        }
-      }
-    }
-  }
-
-  return SPN_OK;
-}
-
 typedef struct {
   spn_path_t from;
   spn_dag_digest_t digest;
@@ -1138,9 +1103,6 @@ spn_err_t spn_dag_build_session(spn_op_t* op) {
   }
 
   u32 declarers = spn_stage_declarer_bit(SPN_STAGE_DECLARER_COMPILE_COMMANDS);
-  if (!result) {
-    result = check_stage_observations(b);
-  }
   if (!result) {
     declarers |= spn_stage_declarer_bit(SPN_STAGE_DECLARER_STAGE) | spn_stage_declarer_bit(SPN_STAGE_DECLARER_EXE);
   }

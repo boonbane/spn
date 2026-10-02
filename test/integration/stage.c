@@ -282,6 +282,29 @@ sp_test(stage, source_glob) {
   });
 }
 
+sp_test(stage, observed_hit) {
+  return run_rebuild_test(t, (rebuild_test_t) {
+    .project = "test/integration/fixtures/stage/observed_hit",
+    .copy = { "gen", "spn.staged.toml" },
+    .first.args = { "build" },
+    .rebuilds = {
+      {
+        .change.moves = {
+          { .from = sp_str_lit("spn.staged.toml"), .to = sp_str_lit("spn.toml") },
+        },
+        .command = {
+          .args = { "build" },
+          .expect = {
+            .rc = 1,
+            .err = SPN_ERR_STAGE_OBSERVED,
+            .events = { { .event = SPN_EVENT_TARGET_BUILD_PASSED, .absent = true } },
+          },
+        },
+      },
+    },
+  });
+}
+
 typedef struct {
   const c8* name;
   const c8* copy;
@@ -294,6 +317,7 @@ static const failure_t failures [] = {
   { .name = "observed_node", .err = SPN_ERR_STAGE_OBSERVED },
   { .name = "observed_header", .copy = "gen", .err = SPN_ERR_STAGE_OBSERVED },
   { .name = "observed_listing", .copy = "H", .err = SPN_ERR_STAGE_OBSERVED },
+  { .name = "observed_commands", .err = SPN_ERR_STAGE_OBSERVED },
 };
 
 sp_test_each(stage, failure, failure_t, failures) {
