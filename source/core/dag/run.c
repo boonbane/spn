@@ -820,30 +820,23 @@ static bool path_parent(spn_path_t* path) {
   return true;
 }
 
-static void targets_init(spn_dag_targets_t* targets, spn_dag_t* g, sp_mem_t mem) {
-  sp_ht_init(mem, targets->by_path);
-  sp_ht_set_fns(targets->by_path, spn_path_on_hash, spn_path_on_compare);
-  sp_ht_init(mem, targets->below);
-  sp_ht_set_fns(targets->below, spn_path_on_hash, spn_path_on_compare);
+static void seed_below(spn_dag_run_t* run, sp_mem_t mem) {
+  sp_ht_init(mem, run->below);
+  sp_ht_set_fns(run->below, spn_path_on_hash, spn_path_on_compare);
 
-  sp_da_for(g->artifacts, it) {
-    spn_dag_artifact_t* artifact = &g->artifacts[it];
+  sp_da_for(run->g->artifacts, it) {
+    spn_dag_artifact_t* artifact = &run->g->artifacts[it];
     if (!artifact->producer.occupied || spn_path_empty(artifact->path)) {
       continue;
     }
 
-    sp_assert(!(g->roots->pinned & spn_path_root_mask(artifact->path.root)));
-    sp_assert(!sp_ht_getp(targets->by_path, artifact->path));
-    sp_ht_insert(targets->by_path, artifact->path, ((spn_dag_target_t) {
-      .producer = artifact->producer.index,
-      .kind = artifact->kind
-    }));
+    sp_assert(!(run->g->roots->pinned & spn_path_root_mask(artifact->path.root)));
 
     for (spn_path_t dir = artifact->path; path_parent(&dir);) {
-      sp_da(u32)* below = sp_ht_getp(targets->below, dir);
+      sp_da(u32)* below = sp_ht_getp(run->below, dir);
       if (!below) {
-        sp_ht_insert(targets->below, dir, sp_da_new(mem, u32));
-        below = sp_ht_getp(targets->below, dir);
+        sp_ht_insert(run->below, dir, sp_da_new(mem, u32));
+        below = sp_ht_getp(run->below, dir);
       }
       sp_da_push(*below, artifact->producer.index);
     }
@@ -892,20 +885,26 @@ static bool defer_observations(spn_dag_run_t* run, spn_dag_action_t* action, sp_
       continue;
     }
 
-    spn_dag_target_t* exact = sp_ht_getp(run->targets.by_path, o->path);
+    spn_dag_id_t* exact = sp_ht_getp(run->g->paths, o->path);
     if (exact) {
-      defer_producer(run, action, exact->producer, epoch, requeue);
+      spn_dag_id_t producer = spn_dag_find_artifact(run->g, *exact)->producer;
+      if (producer.occupied) {
+        defer_producer(run, action, producer.index, epoch, requeue);
+      }
     }
 
     for (spn_path_t dir = o->path; path_parent(&dir);) {
-      spn_dag_target_t* tree = sp_ht_getp(run->targets.by_path, dir);
-      if (tree && tree->kind == SPN_DAG_ARTIFACT_KIND_TREE) {
-        defer_producer(run, action, tree->producer, epoch, requeue);
+      spn_dag_id_t* above = sp_ht_getp(run->g->paths, dir);
+      if (above) {
+        spn_dag_artifact_t* tree = spn_dag_find_artifact(run->g, *above);
+        if (tree->kind == SPN_DAG_ARTIFACT_KIND_TREE) {
+          defer_producer(run, action, tree->producer.index, epoch, requeue);
+        }
       }
     }
 
     if (o->kind == SPN_DAG_OBS_ENUMERATION) {
-      sp_da(u32)* below = sp_ht_getp(run->targets.below, o->path);
+      sp_da(u32)* below = sp_ht_getp(run->below, o->path);
       if (below) {
         sp_da_for(*below, bi) {
           defer_producer(run, action, (*below)[bi], epoch, requeue);
@@ -972,7 +971,7 @@ static void seed_ready(spn_dag_run_t* run, sp_mem_t mem) {
     };
     digests += sp_da_size(action->produces);
     sp_da_for(action->consumes, ci) {
-      if (!spn_dag_digest_valid(spn_dag_find_artifact(run->g, action->consumes[ci])->digest)) {
+      if (spn_dag_find_artifact(run->g, action->consumes[ci])->producer.occupied) {
         run->states[ai].pending++;
       }
     }
@@ -991,11 +990,9 @@ static void finish_action(spn_dag_run_t* run, spn_dag_action_t* action) {
     spn_dag_artifact_t* produced = spn_dag_find_artifact(run->g, action->produces[pi]);
     sp_da_for(produced->consumers, cj) {
       spn_dag_run_state_t* consumer = &run->states[produced->consumers[cj].index];
-      if (consumer->pending) {
-        consumer->pending--;
-        if (!consumer->pending) {
-          sp_da_push(run->ready, produced->consumers[cj]);
-        }
+      consumer->pending--;
+      if (!consumer->pending) {
+        sp_da_push(run->ready, produced->consumers[cj]);
       }
     }
   }
@@ -1003,11 +1000,9 @@ static void finish_action(spn_dag_run_t* run, spn_dag_action_t* action) {
   sp_da_for(state->waiters, wi) {
     u32 index = state->waiters[wi];
     spn_dag_run_state_t* waiter = &run->states[index];
-    if (waiter->deferred) {
-      waiter->deferred--;
-      if (!waiter->deferred) {
-        sp_da_push(run->ready, run->g->actions[index].id);
-      }
+    waiter->deferred--;
+    if (!waiter->deferred) {
+      sp_da_push(run->ready, run->g->actions[index].id);
     }
   }
 }
@@ -1149,7 +1144,7 @@ void spn_dag_run_begin(spn_dag_run_t* run, sp_mem_t mem, spn_dag_t* g, spn_dag_e
 
   sp_atomic_s32_store(&run->progress.total, (s32)n, SP_ATOMIC_SEQ_CST);
   seed_ready(run, mem);
-  targets_init(&run->targets, g, mem);
+  seed_below(run, mem);
 }
 
 bool spn_dag_run_step(spn_dag_run_t* run) {

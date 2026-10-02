@@ -272,16 +272,6 @@ struct spn_dag_env_t {
   spn_path_t tmp;
 };
 
-typedef struct {
-  u32 producer;
-  spn_dag_artifact_kind_t kind;
-} spn_dag_target_t;
-
-typedef struct {
-  sp_ht(spn_path_t, spn_dag_target_t) by_path;
-  sp_ht(spn_path_t, sp_da(u32)) below;
-} spn_dag_targets_t;
-
 typedef struct spn_dag_run_state_t spn_dag_run_state_t;
 
 typedef struct {
@@ -291,7 +281,7 @@ typedef struct {
   spn_dag_progress_t progress;
   spn_dag_diag_t diag;
   spn_err_t err;
-  spn_dag_targets_t targets;
+  sp_ht(spn_path_t, sp_da(u32)) below;
   spn_dag_run_state_t* states;
   sp_da(spn_dag_id_t) ready;
   u32 in_flight;
