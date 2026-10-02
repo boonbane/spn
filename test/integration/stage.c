@@ -190,17 +190,21 @@ sp_test(stage, clean_profile_keeps_stages) {
 
 typedef struct {
   const c8* name;
+  const c8* copy;
   spn_err_t err;
 } failure_t;
 
 static const failure_t failures [] = {
   { .name = "unproduced", .err = SPN_ERR_STAGE_UNPRODUCED },
   { .name = "overlap", .err = SPN_ERR_STAGE_OVERLAP },
+  { .name = "observed_node", .err = SPN_ERR_STAGE_OBSERVED },
+  { .name = "observed_header", .copy = "gen", .err = SPN_ERR_STAGE_OBSERVED },
 };
 
 sp_test_each(stage, failure, failure_t, failures) {
   return run_command_test(t, (command_test_t) {
     .project = sp_str_to_cstr(sp_test_arena(t), sp_fmt(sp_test_arena(t), "test/integration/fixtures/stage/{}", sp_fmt_cstr(it->name)).value),
+    .copy = { it->copy },
     .args = { "build" },
     .expect = { .rc = 1, .err = it->err },
   });

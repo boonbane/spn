@@ -1202,7 +1202,6 @@ spn_err_t spn_dag_run_executor(spn_dag_t* g, spn_dag_env_t* env, spn_thread_pool
   }
 
   u64 n = sp_da_size(g->actions);
-  sp_assert(n < (1u << 30));
   if (!run.err) {
     progress_total(env, n);
     run.states = sp_alloc_n(s.mem, spn_dag_run_state_t, n ? n : 1);
@@ -1232,12 +1231,14 @@ spn_err_t spn_dag_run_executor(spn_dag_t* g, spn_dag_env_t* env, spn_thread_pool
         run_dispatch(&run, id);
         continue;
       }
+
       if (run.in_flight) {
         job = spn_thread_pool_poll(ex);
         run.in_flight--;
         run_complete(&run, (spn_dag_flight_t*)job.data);
         continue;
       }
+
       break;
     }
 
