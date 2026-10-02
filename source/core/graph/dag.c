@@ -734,10 +734,11 @@ static spn_err_t check_stage_observations(spn_dag_build_t* b) {
   spn_dag_t* g = b->graph;
 
   sp_da_for(b->stages, it) {
-    if (b->stages[it].declarer != SPN_STAGE_DECLARER_STAGE) {
+    spn_dag_stage_t* entry = &b->stages[it];
+    if (entry->declarer != SPN_STAGE_DECLARER_STAGE) {
       continue;
     }
-    spn_path_t to = b->stages[it].to;
+    spn_dag_artifact_kind_t kind = entry->artifact.occupied ? spn_dag_find_artifact(g, entry->artifact)->kind : SPN_DAG_ARTIFACT_KIND_FILE;
     sp_da_for(g->actions, jt) {
       spn_dag_action_t* action = &g->actions[jt];
       spn_dag_pathset_t set = sp_zero;
@@ -746,9 +747,12 @@ static spn_err_t check_stage_observations(spn_dag_build_t* b) {
       }
       sp_da_for(set.obs, kt) {
         spn_dag_obs_t* obs = &set.obs[kt];
-        bool inside = spn_path_within(to, obs->path).within;
-        bool created = obs->kind == SPN_DAG_OBS_ABSENT && spn_path_within(obs->path, to).within;
-        if (inside || created) {
+        bool changes = false;
+        spn_err_t err = spn_dag_write_changes(entry->to, kind, obs, &changes);
+        if (err) {
+          return spn_err_emit(b->session->ctx, (spn_err_union_t) { .kind = err });
+        }
+        if (changes) {
           return spn_err_emit(b->session->ctx, (spn_err_union_t) {
             .kind = SPN_ERR_STAGE_OBSERVED,
             .dag = { .path = spn_path_str(g->roots, b->mem, obs->path) },
