@@ -56,18 +56,15 @@ spn_err_t spn_fs_update_glob(sp_path_t from, sp_path_t to) {
   sp_mem_arena_marker_t s = sp_mem_begin_scratch();
   spn_err_t err = SPN_OK;
 
-  sp_glob_set_t* glob = sp_glob_set_new(s.mem);
-  sp_glob_set_add(glob, sp_str_to_cstr(s.mem, sp_fs_get_name(from.sub)));
-  sp_glob_set_build(glob);
-
+  sp_glob_t* glob = sp_glob_new_str(s.mem, sp_fs_get_name(from.sub));
   sp_fs_it_t walk = sp_fs_it_new_at(s.mem, sp_path_parent(s.mem, from), 0);
-  if (walk.err || sp_fs_create_dir_at(to)) {
+  if (!glob || walk.err || sp_fs_create_dir_at(to)) {
     err = SPN_ERROR;
   }
 
   while (!err && sp_fs_it_next(&walk)) {
     sp_fs_entry_t* entry = &walk.entry;
-    if (!sp_glob_set_match(glob, entry->name)) {
+    if (!sp_glob_match(glob, entry->name)) {
       continue;
     }
 

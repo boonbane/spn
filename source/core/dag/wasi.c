@@ -2,6 +2,7 @@
 #include "dag/dag.h"
 #include "paths/paths.h"
 #include "str/str.h"
+#include "sp/sp_glob.h"
 
 #define SPN_WASI_OP_PATH_OPEN 0
 #define SPN_WASI_OP_PATH_FILESTAT_GET 1
@@ -335,11 +336,7 @@ static void wasi_observe_dir(spn_dag_wasi_t* w, spn_path_t dir) {
   sp_mem_end_scratch(s);
 }
 
-void spn_dag_wasi_observe_read(wasm_module_inst_t instance, spn_path_t host) {
-  spn_dag_wasi_t* w = wasi_of(instance);
-  if (!w || !w->obs) {
-    return;
-  }
+static void observe(spn_dag_wasi_t* w, spn_path_t host) {
   sp_mem_arena_marker_t s = sp_mem_begin_scratch();
   host = spn_path_canonicalize_head(s.mem, w->roots, host);
   if (!wasi_written(w, host)) {
@@ -356,6 +353,14 @@ void spn_dag_wasi_observe_read(wasm_module_inst_t instance, spn_path_t host) {
     }
   }
   sp_mem_end_scratch(s);
+}
+
+void spn_dag_wasi_observe_read(wasm_module_inst_t instance, spn_path_t host) {
+  spn_dag_wasi_t* w = wasi_of(instance);
+  if (!w || !w->obs) {
+    return;
+  }
+  observe(w, host);
 }
 
 void spn_dag_wasi_observe_write(wasm_module_inst_t instance, spn_path_t host) {
@@ -375,13 +380,15 @@ void spn_dag_wasi_observe_glob(wasm_module_inst_t instance, spn_path_t dir, sp_s
   }
 
   sp_mem_arena_marker_t s = sp_mem_begin_scratch();
-  spn_dag_glob_result_t glob = sp_zero;
-  if (!spn_dag_glob(s.mem, w->roots, spn_path_join(s.mem, dir, pattern), &glob)) {
-    sp_da_for(glob.obs, it) {
-      if (wasi_written(w, glob.obs[it].path)) {
-        continue;
+  sp_glob_t* glob = sp_glob_new_str(s.mem, pattern);
+  if (glob) {
+    if (!wasi_written(w, dir)) {
+      wasi_push(w, SPN_DAG_OBS_ENUMERATION, dir, pattern);
+    }
+    sp_fs_for(s.mem, spn_path_at(w->roots, dir), it) {
+      if (sp_glob_match(glob, it.entry.name)) {
+        observe(w, spn_path_join(s.mem, dir, it.entry.name));
       }
-      spn_dag_observe(w->obs, glob.obs[it]);
     }
   }
   sp_mem_end_scratch(s);

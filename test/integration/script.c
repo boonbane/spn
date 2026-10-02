@@ -129,6 +129,29 @@ sp_test(script, tree_output_rerun_drops_file) {
   });
 }
 
+sp_test(script, copy_glob_dir_rerun) {
+  return run_rebuild_test(t, (rebuild_test_t) {
+    .project = "test/integration/fixtures/script/copy_glob_dir",
+    .copy = { "H" },
+    .first = {
+      .args = { "build" },
+      .expect.files = { { .file = work_file("M/gen/G/S/a.txt"), .content = "A" } },
+    },
+    .rebuilds = {
+      {
+        .change.writes = { { .file = sp_str_lit("H/S/a.txt"), .content = sp_str_lit("B") } },
+        .command = {
+          .args = { "build" },
+          .expect = {
+            .events = { { .event = SPN_EVENT_SCRIPT_USER_FN } },
+            .files = { { .file = work_file("M/gen/G/S/a.txt"), .content = "B" } },
+          },
+        },
+      },
+    },
+  });
+}
+
 typedef struct {
   const c8* name;
   const c8* copy [4];
