@@ -90,9 +90,9 @@ static spn_err_t script_open(spn_wasm_script_t* script, spn_pkg_unit_t* unit) {
     });
   }
 
-  spn_path_t dirs []= { unit->paths.work, unit->paths.lib, unit->paths.bin, unit->paths.share };
-  sp_carr_for(dirs, it) {
-    sp_fs_create_dir_at(spn_path_at(roots, dirs[it]));
+  spn_path_t writable [] = { unit->paths.work, unit->paths.lib, unit->paths.bin, unit->paths.share };
+  sp_carr_for(writable, it) {
+    sp_fs_create_dir_at(spn_path_at(roots, writable[it]));
   }
   spn_dag_wasi_mount_t mounts [] = {
     { .guest = "/work",     .host = unit->paths.work },
@@ -136,7 +136,7 @@ static spn_err_t script_open(spn_wasm_script_t* script, spn_pkg_unit_t* unit) {
   script->ctx = spn_wasm_add_handle(script->handles, unit, SPN_ABI_KIND_CTX);
   wasm_runtime_set_user_data(script->env, script->handles);
 
-  script->wasi = spn_dag_wasi_new(spn.mem, roots, mounts, sp_carr_len(mounts));
+  script->wasi = spn_dag_wasi_new(spn.mem, roots, mounts, sp_carr_len(mounts), writable, sp_carr_len(writable));
   spn_dag_wasi_bind(script->wasi, script->instance);
 
   return SPN_OK;
@@ -261,6 +261,16 @@ static spn_err_t script_call_ex(spn_wasm_script_t* script, spn_pkg_unit_t* unit,
     err = script_call_invoke(script, unit, fn, kind, arg);
     unit->wasm.active = previous;
     spn_dag_wasi_end(script->wasi);
+
+    spn_path_t stray = sp_zero;
+    if (!err && spn_dag_wasi_stray_write(script->wasi, &stray)) {
+      spn_event_buffer_push(spn.events, (spn_event_t) {
+        .kind = SPN_EVENT_ERR,
+        .pkg = unit->info->name,
+        .err = { .kind = SPN_ERR_WASM_WRITE_OUTSIDE, .fs = { .path = spn_path_copy(spn.mem, stray) } },
+      });
+      err = SPN_ERR_WASM_WRITE_OUTSIDE;
+    }
   }
 
   sp_mutex_unlock(&script->mutex);

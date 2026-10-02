@@ -1356,6 +1356,14 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           );
           break;
         }
+        case SPN_ERR_WASM_WRITE_OUTSIDE: {
+          sp_tty_fmt(
+            &w,
+            "Build script wrote {.yellow}, outside its work, lib, bin and share directories",
+            sp_fmt_str(contextual_path(mem, event->err.fs.path))
+          );
+          break;
+        }
         case SPN_ERR_TOOLCHAIN_NO_CXX: {
           sp_tty_fmt(
             &w,

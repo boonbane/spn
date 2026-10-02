@@ -51,6 +51,7 @@
     "wasm_script_error": { "ref": "wasm" },
     "wasm_no_script": { "ref": "wasm" },
     "wasm_export_not_found": { "ref": "wasm" },
+    "wasm_write_outside": { "ref": "fs" },
     "profile_invalid": { "ref": "profile" },
     "profile_undefined": { "ref": "profile" },
     "profile_arch": { "ref": "profile" },

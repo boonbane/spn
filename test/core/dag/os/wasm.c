@@ -24,11 +24,13 @@ typedef struct {
 typedef struct {
   s32 rc;
   obs_t obs [DAG_WASM_MAX_OBS];
+  const c8* stray;
 } expect_t;
 
 typedef struct {
   const c8* fn;
   wasm_emit_op_t ops [DAG_WASM_MAX_OPS];
+  const c8* host_write;
   expect_t expect;
 } call_t;
 
@@ -227,6 +229,23 @@ static const test_t tests [] = {
         .expect = { .rc = WASI_ENOTCAPABLE } },
     }
   },
+  {
+    .name = "stray_wasi_write",
+    .calls = {
+      { .fn = "run",
+        .ops = { { WASM_EMIT_OPEN_WRITE, "H", .mount = 1 } },
+        .expect = { .stray = "source/H" } },
+    }
+  },
+  {
+    .name = "stray_host_write",
+    .calls = {
+      { .fn = "run",
+        .ops = { { WASM_EMIT_MKDIR, "D" } },
+        .host_write = "source/H",
+        .expect = { .stray = "source/H" } },
+    }
+  },
 };
 
 static sp_test_once_t runtime_once;
@@ -320,7 +339,8 @@ sp_test_each(dag_wasm, wasi, test_t, tests) {
   wasm_module_inst_t instance = wasm_runtime_instantiate(module, DAG_WASM_STACK_SIZE, DAG_WASM_HEAP_SIZE, error, sizeof(error));
   sp_must(t, instance != SP_NULLPTR);
 
-  spn_dag_wasi_t* w = spn_dag_wasi_new(mem, &roots, mounts, sp_carr_len(mounts));
+  spn_path_t writable [] = { mounts[0].host };
+  spn_dag_wasi_t* w = spn_dag_wasi_new(mem, &roots, mounts, sp_carr_len(mounts), writable, sp_carr_len(writable));
   spn_dag_wasi_bind(w, instance);
 
   wasm_exec_env_t env = wasm_runtime_create_exec_env(instance, DAG_WASM_STACK_SIZE);
@@ -340,6 +360,9 @@ sp_test_each(dag_wasm, wasi, test_t, tests) {
 
     spn_dag_obs_set_t obs = { .table = &table };
     spn_dag_wasi_begin(w, &obs);
+    if (call->host_write) {
+      spn_dag_wasi_observe_write(instance, (spn_path_t) { .root = SPN_PATH_ROOT_PROJECT, .sub = sp_cstr_as_str(call->host_write) });
+    }
 
     wasm_val_t results [1] = sp_zero;
     bool called = wasm_runtime_call_wasm_a(env, fn, 1, results, 0, SP_NULLPTR);
@@ -348,6 +371,11 @@ sp_test_each(dag_wasm, wasi, test_t, tests) {
     sp_must(t, called);
     sp_expect_eq(t, call->expect.rc, results[0].of.i32);
     expect_obs(t, mem, &roots, root, &call->expect, obs.rows);
+
+    spn_path_t stray = sp_zero;
+    sp_str_t actual = spn_dag_wasi_stray_write(w, &stray) ? spn_path_str(&roots, mem, stray) : sp_str_lit("");
+    sp_str_t expected = call->expect.stray ? sp_fs_join_path(mem, root, sp_cstr_as_str(call->expect.stray)) : sp_str_lit("");
+    sp_expect_str_eq(t, actual, expected);
   }
 
   wasm_runtime_destroy_exec_env(env);

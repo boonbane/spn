@@ -133,6 +133,7 @@ typedef struct {
   const c8* name;
   const c8* copy [4];
   spn_err_t err;
+  const c8* missing;
 } failure_t;
 
 static const failure_t failures [] = {
@@ -152,13 +153,21 @@ static const failure_t failures [] = {
   { .name = "configure_dead_glob", .copy = { "tools" }, .err = SPN_ERR_CONFIGURE_SOURCE_GLOB },
   { .name = "configure_error", .err = SPN_ERR_WASM_SCRIPT_ERROR },
   { .name = "add_define_path_outside", .err = SPN_ERR_WASM_MODULE_CALL_FAILED },
+  { .name = "write_source", .err = SPN_ERR_WASM_WRITE_OUTSIDE },
+  { .name = "write_manifest", .err = SPN_ERR_WASM_WRITE_OUTSIDE },
+  { .name = "write_include", .err = SPN_ERR_WASM_WRITE_OUTSIDE },
+  { .name = "configure_write_source", .err = SPN_ERR_WASM_WRITE_OUTSIDE },
+  { .name = "dep_write_source", .copy = { "packages" }, .err = SPN_ERR_WASM_WRITE_OUTSIDE },
+  { .name = "io_write_source", .err = SPN_ERR_WASM_MODULE_CALL_FAILED, .missing = "X" },
+  { .name = "fs_copy_source", .err = SPN_ERR_WASM_MODULE_CALL_FAILED, .missing = "X" },
+  { .name = "create_dir_source", .err = SPN_ERR_WASM_MODULE_CALL_FAILED, .missing = "X" },
 };
 
 sp_test_each(script, failure, failure_t, failures) {
   command_test_t test = {
     .project = project(t, it->name),
     .args = { "build" },
-    .expect = { .rc = 1, .err = it->err },
+    .expect = { .rc = 1, .err = it->err, .missing = { sp_cstr_as_str(it->missing) } },
   };
   sp_carr_for(it->copy, i) {
     test.copy[i] = it->copy[i];

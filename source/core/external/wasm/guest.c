@@ -1,4 +1,5 @@
 #include "sp.h"
+#include "core/core.h"
 #include "dag/dag.h"
 #include "dag/wasi.h"
 #include "fs/fs.h"
@@ -30,12 +31,23 @@ static bool guest_path(spn_wasm_ctx_t* abi, sp_mem_t mem, const c8* path, spn_pa
   return true;
 }
 
+static bool dest_path(spn_wasm_ctx_t* abi, sp_mem_t mem, const c8* path, spn_path_t* host) {
+  if (!guest_path(abi, mem, path, host)) {
+    return false;
+  }
+  if (!spn_dag_wasi_writable(abi->instance, *host)) {
+    wasm_runtime_set_exception(abi->instance, sp_fmt_mem_cstr(mem, "{} is not under /work, /store/lib, /store/bin, or /store/share", sp_fmt_cstr(path)));
+    return false;
+  }
+  return true;
+}
+
 static void guest_copy(spn_wasm_ctx_t* abi, const c8* name, const c8* from, const c8* to) {
   spn_pkg_unit_t* unit = guest_unit(abi);
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   spn_path_t from_path = sp_zero;
   spn_path_t to_path = sp_zero;
-  if (!guest_path(abi, scratch.mem, from, &from_path) || !guest_path(abi, scratch.mem, to, &to_path)) {
+  if (!guest_path(abi, scratch.mem, from, &from_path) || !dest_path(abi, scratch.mem, to, &to_path)) {
     sp_mem_end_scratch(scratch);
     return;
   }
@@ -49,14 +61,21 @@ static void guest_copy(spn_wasm_ctx_t* abi, const c8* name, const c8* from, cons
     .api_call = { .fn = sp_cstr_as_str(name), .args = sp_fmt(spn.mem, "{} -> {}", SP_FMT_STR(from_str), SP_FMT_STR(to_str)).value },
   });
 
+  sp_path_t src = spn_path_at(roots, from_path);
+  sp_path_t dst = spn_path_at(roots, to_path);
+  spn_err_t err = SPN_OK;
   if (!sp_glob_parse_meta(from_path.sub).literal) {
     spn_dag_wasi_observe_glob(abi->instance, spn_path_parent(from_path), sp_fs_get_name(from_path.sub));
+    err = spn_fs_update_glob(src, dst);
   }
   else {
     spn_dag_wasi_observe_read(abi->instance, from_path);
+    bool tree = sp_fs_is_dir_at(src);
+    sp_path_t into = tree || sp_fs_is_dir_at(dst) ? sp_path_join(scratch.mem, dst, sp_fs_get_name(src.sub)) : dst;
+    err = tree ? (sp_fs_copy_at(src, into, SP_FS_ATOMIC_REPLACE) ? SPN_ERROR : SPN_OK) : spn_fs_update_file(src, into);
   }
 
-  if (spn_api_copy(spn_path_at(roots, from_path), spn_path_at(roots, to_path))) {
+  if (err) {
     wasm_runtime_set_exception(abi->instance, sp_fmt_mem_cstr(scratch.mem, "{}: {} -> {}", SP_FMT_CSTR(name), SP_FMT_STR(from_str), SP_FMT_STR(to_str)));
   }
   else {
@@ -77,7 +96,7 @@ void spn_abi_fs_create_dir(spn_wasm_ctx_t* abi, const c8* path) {
   spn_pkg_unit_t* unit = guest_unit(abi);
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   spn_path_t dir = sp_zero;
-  if (!guest_path(abi, scratch.mem, path, &dir)) {
+  if (!dest_path(abi, scratch.mem, path, &dir)) {
     sp_mem_end_scratch(scratch);
     return;
   }
@@ -96,7 +115,7 @@ void spn_abi_io_write(spn_wasm_ctx_t* abi, const c8* path, const c8* contents) {
   spn_pkg_unit_t* unit = guest_unit(abi);
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   spn_path_t dst = sp_zero;
-  if (!guest_path(abi, scratch.mem, path, &dst)) {
+  if (!dest_path(abi, scratch.mem, path, &dst)) {
     sp_mem_end_scratch(scratch);
     return;
   }
