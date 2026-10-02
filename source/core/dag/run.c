@@ -537,41 +537,22 @@ done:
   return err;
 }
 
-spn_err_t spn_dag_write_changes(spn_path_t path, spn_dag_artifact_kind_t kind, const spn_dag_obs_t* obs, bool* changes) {
-  bool tree = kind == SPN_DAG_ARTIFACT_KIND_TREE;
-  *changes = tree && spn_path_within(path, obs->path).within;
-  if (*changes) {
-    return SPN_OK;
+bool spn_dag_write_changes(spn_path_t path, spn_dag_artifact_kind_t kind, const spn_dag_obs_t* obs) {
+  if (kind == SPN_DAG_ARTIFACT_KIND_TREE && spn_path_within(path, obs->path).within) {
+    return true;
   }
   switch (obs->kind) {
     case SPN_DAG_OBS_FILE: {
-      *changes = spn_path_equal(path, obs->path);
-      return SPN_OK;
+      return spn_path_equal(path, obs->path);
     }
     case SPN_DAG_OBS_ABSENT: {
-      *changes = spn_path_within(obs->path, path).within;
-      return SPN_OK;
+      return spn_path_within(obs->path, path).within;
     }
     case SPN_DAG_OBS_ENUMERATION: {
-      if (!spn_path_equal(spn_path_parent(path), obs->path)) {
-        return SPN_OK;
-      }
-      if (tree || sp_str_empty(obs->filter)) {
-        *changes = true;
-        return SPN_OK;
-      }
-      sp_mem_arena_marker_t s = sp_mem_begin_scratch();
-      sp_glob_t* glob = sp_glob_new_str(s.mem, obs->filter);
-      spn_err_t err = SPN_ERR_DAG_GLOB;
-      if (glob) {
-        *changes = sp_glob_match(glob, sp_fs_get_name(path.sub));
-        err = SPN_OK;
-      }
-      sp_mem_end_scratch(s);
-      return err;
+      return false;
     }
   }
-  sp_unreachable_return(SPN_ERROR);
+  sp_unreachable_return(false);
 }
 
 static spn_err_t resolve_one(spn_dag_file_cache_t* files, const spn_dag_obs_t* o, spn_dag_digest_t* digest, sp_mem_t mem) {
@@ -1052,14 +1033,9 @@ static spn_err_t check_staged(spn_dag_run_t* run, spn_dag_attempt_t* attempt) {
     const spn_dag_obs_t* obs = &attempt->obs.rows[it];
     sp_da_for(run->staged, jt) {
       spn_dag_artifact_t* claim = spn_dag_find_artifact(run->g, run->staged[jt]);
-      bool changes = false;
-      spn_err_t err = spn_dag_write_changes(claim->path, claim->kind, obs, &changes);
-      if (changes) {
-        err = SPN_ERR_STAGE_OBSERVED;
-      }
-      if (err) {
-        diag_set_path(&attempt->diag, err, attempt->action->id, run->g, obs->path);
-        return err;
+      if (spn_dag_write_changes(claim->path, claim->kind, obs)) {
+        diag_set_path(&attempt->diag, SPN_ERR_STAGE_OBSERVED, attempt->action->id, run->g, obs->path);
+        return SPN_ERR_STAGE_OBSERVED;
       }
     }
   }

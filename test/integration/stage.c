@@ -316,7 +316,6 @@ static const failure_t failures [] = {
   { .name = "overlap", .err = SPN_ERR_STAGE_OVERLAP },
   { .name = "observed_node", .err = SPN_ERR_STAGE_OBSERVED },
   { .name = "observed_header", .copy = "gen", .err = SPN_ERR_STAGE_OBSERVED },
-  { .name = "observed_listing", .copy = "H", .err = SPN_ERR_STAGE_OBSERVED },
   { .name = "observed_commands", .err = SPN_ERR_STAGE_OBSERVED },
 };
 

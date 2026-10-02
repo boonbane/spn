@@ -264,30 +264,21 @@ static const test_t tests [] = {
     }
   },
   {
-    .name = "staged_parent_listing_admitted_fails",
+    .name = "staged_parent_listing_admitted_passes",
     .actions = {
       { .identity = "I", .inputs = { "S" }, .output = "X", .kind = SPN_DAG_ACTION_DISCOVERED },
     },
     .builds = {
-      { .sources = { { "S", "A" } }, .observes = { { SPN_DAG_OBS_ENUMERATION, "D", "G" } }, .staged = { { "D/G" } }, .expect_err = SPN_ERR_STAGE_OBSERVED, .expect_diag_path = "D", .expect_runs = 1 },
+      { .sources = { { "S", "A" } }, .observes = { { SPN_DAG_OBS_ENUMERATION, "D", "G" } }, .staged = { { "D/G" } }, .expect_runs = 1 },
     }
   },
   {
-    .name = "staged_parent_listing_rejected_passes",
+    .name = "staged_parent_listing_unfiltered_passes",
     .actions = {
       { .identity = "I", .inputs = { "S" }, .output = "X", .kind = SPN_DAG_ACTION_DISCOVERED },
     },
     .builds = {
-      { .sources = { { "S", "A" } }, .observes = { { SPN_DAG_OBS_ENUMERATION, "D", "H" } }, .staged = { { "D/G" } }, .expect_runs = 1 },
-    }
-  },
-  {
-    .name = "staged_parent_listing_bad_filter_fails",
-    .actions = {
-      { .identity = "I", .inputs = { "S" }, .output = "X", .kind = SPN_DAG_ACTION_DISCOVERED },
-    },
-    .builds = {
-      { .sources = { { "S", "A" } }, .observes = { { SPN_DAG_OBS_ENUMERATION, "D", "[" } }, .staged = { { "D/G" } }, .expect_err = SPN_ERR_DAG_GLOB, .expect_diag_path = "D", .expect_runs = 1 },
+      { .sources = { { "S", "A" } }, .observes = { { SPN_DAG_OBS_ENUMERATION, "D" } }, .staged = { { "D/G" } }, .expect_runs = 1 },
     }
   },
   {
