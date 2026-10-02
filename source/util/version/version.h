@@ -3,7 +3,7 @@
 
 #include "sp.h"
 
-#define SPN_VERSION "0.6.1"
+#define SPN_VERSION "0.6.2"
 
 extern const c8* spn_build_channel;
 extern const c8* spn_build_commit;
