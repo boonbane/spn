@@ -443,7 +443,9 @@ static spn_err_t dag_add_package(spn_dag_build_t* b, spn_pkg_unit_t* unit) {
         };
         return err;
       }
-      sp_da_push(user_outputs, artifact);
+      if (out->dir != SPN_DIR_SHARE) {
+        sp_da_push(user_outputs, artifact);
+      }
     }
   }
 

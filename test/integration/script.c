@@ -179,6 +179,7 @@ sp_test(script, node_output_bin) {
 sp_test(script, node_output_share) {
   return run_command_test(t, (command_test_t) {
     .project = "test/integration/fixtures/script/node_output_share",
+    .copy = { "I.txt" },
     .args = { "build" },
     .expect = {
       .exists = { pkg_store_file("H", "share/R.txt") },
@@ -189,6 +190,7 @@ sp_test(script, node_output_share) {
 sp_test(script, node_output_share_replay) {
   return run_rebuild_test(t, (rebuild_test_t) {
     .project = "test/integration/fixtures/script/node_output_share",
+    .copy = { "I.txt" },
     .first = {
       .args = { "build" },
       .expect.events = { { .event = SPN_EVENT_SCRIPT_USER_FN } },
@@ -201,6 +203,26 @@ sp_test(script, node_output_share_replay) {
           .expect = {
             .events = { { .event = SPN_EVENT_SCRIPT_USER_FN, .absent = true } },
             .exists = { pkg_store_file("H", "share/R.txt") },
+          },
+        },
+      },
+    },
+  });
+}
+
+sp_test(script, node_output_share_rerun) {
+  return run_rebuild_test(t, (rebuild_test_t) {
+    .project = "test/integration/fixtures/script/node_output_share",
+    .copy = { "I.txt" },
+    .first.args = { "build" },
+    .rebuilds = {
+      {
+        .change.writes = { { .file = sp_str_lit("I.txt"), .content = sp_str_lit("B") } },
+        .command = {
+          .args = { "build" },
+          .expect.events = {
+            { .event = SPN_EVENT_SCRIPT_USER_FN },
+            { .event = SPN_EVENT_TARGET_BUILD_PASSED, .absent = true },
           },
         },
       },
