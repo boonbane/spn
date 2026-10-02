@@ -40,6 +40,12 @@ typedef struct {
 } copy_t;
 
 typedef struct {
+  const c8* sub;
+  const c8* dest;
+  const c8* when;
+} output_t;
+
+typedef struct {
   spn_dir_t dir;
   const c8* sub;
   const c8* to;
@@ -185,6 +191,7 @@ typedef struct {
   gated_t system_deps [8];
   gated_t frameworks [4];
   copy_t publish [4];
+  output_t publish_outputs [4];
   stage_t stage [4];
   issue_t issues [8];
   target_t libs [8];
@@ -1295,8 +1302,23 @@ static const test_t tests [] = {
     .publish = { { "gen/a.h", "", .tree = SPN_TREE_MANIFEST } },
   },
   {
+    .name = "publish_work",
+    .manifest = "publish_work",
+    .publish_outputs = {
+      { "G.h", "D" },
+      { "T", "", "os = \"windows\"" },
+    },
+  },
+  {
     .name = "validate_publish_from_tree",
     .manifest = "validate_publish_from_tree",
+    .issues = {
+      { SPN_ERR_CODEGEN_INVALID, "publish.copy[0].from" },
+    },
+  },
+  {
+    .name = "validate_publish_from_work_glob",
+    .manifest = "validate_publish_from_work_glob",
     .issues = {
       { SPN_ERR_CODEGEN_INVALID, "publish.copy[0].from" },
     },
@@ -1313,6 +1335,7 @@ static const test_t tests [] = {
     .manifest = "validate_publish_from_empty",
     .issues = {
       { SPN_ERR_CODEGEN_PATH, "publish.copy[0].from" },
+      { SPN_ERR_CODEGEN_PATH, "publish.copy[1].from" },
     },
   },
   {
@@ -1817,6 +1840,16 @@ sp_test_each(lower, cases, test_t, tests) {
   u32 num_copies = 0;
   sp_carr_detect_len(it->publish, num_copies, it->publish[num_copies].pattern);
   sp_try(check_copy_list(t, pkg.gated.publish.copy, it->publish, num_copies));
+  sp_expect_eq(t, (u32)0, (u32)sp_da_size(pkg.publish.outputs));
+  u32 num_outputs = 0;
+  sp_carr_detect_len(it->publish_outputs, num_outputs, it->publish_outputs[num_outputs].sub);
+  sp_must_eq(t, num_outputs, (u32)sp_da_size(pkg.gated.publish.outputs));
+  sp_for(o, num_outputs) {
+    spn_publish_output_t* output = &pkg.gated.publish.outputs[o];
+    sp_expect_str_eq_c(t, output->sub, it->publish_outputs[o].sub);
+    sp_expect_str_eq_c(t, output->dest, it->publish_outputs[o].dest);
+    sp_expect_str_eq_c(t, spn_when_to_str(mem, &output->when), it->publish_outputs[o].when ? it->publish_outputs[o].when : "always");
+  }
   u32 num_stages = 0;
   sp_carr_detect_len(it->stage, num_stages, it->stage[num_stages].to);
   sp_must_eq(t, num_stages, (u32)sp_da_size(pkg.stage.copy));

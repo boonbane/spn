@@ -1,0 +1,9 @@
+[package]
+name = "p"
+version = "1.0.0"
+
+[publish]
+copy = [
+  { from = "work/G.h", to = "include/D" },
+  { from = "work/T", to = "include", when = { os = "windows" } },
+]

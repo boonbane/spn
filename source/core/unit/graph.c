@@ -89,6 +89,10 @@ static spn_pkg_info_t* clone_pkg_info(spn_session_t* s, spn_pkg_id_t id, spn_bui
   info->system_deps = clone_str_list(mem, source->system_deps);
   info->macos.frameworks = clone_str_list(mem, source->macos.frameworks);
   info->publish.copy = clone_copy_list(mem, source->publish.copy);
+  info->publish.outputs = sp_da_new(mem, spn_publish_output_t);
+  sp_da_for(source->publish.outputs, it) {
+    sp_da_push(info->publish.outputs, source->publish.outputs[it]);
+  }
 
   spn_when_env_t env;
   spn_when_env_from_profile(mem, &build->profile, &env);

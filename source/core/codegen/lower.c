@@ -276,64 +276,51 @@ static void lower_package(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, s
   info->configure = lower_metaprogram(ctx, &p->configure, sp_str_lit("configure"), SPN_TARGET_KIND_CONFIGURE_METAPROGRAM);
 }
 
-static bool lower_publish_from(spn_toml_loader_t* ctx, sp_str_t from, spn_publish_copy_t* copy) {
-  if (!lower_path_ok(ctx, from)) {
-    return false;
-  }
-  sp_str_pair_t split = sp_str_cleave_c8(from, '/');
-  copy->tree = spn_tree_from_str(split.first);
-  copy->pattern = split.second;
-  if (copy->tree == SPN_TREE_NONE) {
-    spn_toml_loader_issue_at(ctx, SPN_ERR_CODEGEN_INVALID, from);
-    return false;
-  }
-  if (sp_str_empty(copy->pattern)) {
-    spn_toml_loader_issue_at(ctx, SPN_ERR_CODEGEN_PATH, from);
-    return false;
-  }
-
-  // @spader This is stupid but I need to fix sp_glob.h
-  sp_mem_arena_marker_t s = sp_mem_begin_scratch();
-  bool ok = sp_glob_new_str(s.mem, copy->pattern) != SP_NULLPTR;
-  sp_mem_end_scratch(s);
-  if (!ok) {
-    spn_toml_loader_issue_at(ctx, SPN_ERR_CODEGEN_INVALID, from);
-    return false;
-  }
-  return true;
-}
-
-static bool lower_publish_to(spn_toml_loader_t* ctx, sp_str_t to, spn_publish_copy_t* copy) {
-  if (!lower_path_ok(ctx, to)) {
-    return false;
-  }
-  sp_str_pair_t split = sp_str_cleave_c8(to, '/');
-  if (!sp_str_equal_cstr(split.first, "include")) {
-    spn_toml_loader_issue_at(ctx, SPN_ERR_CODEGEN_INVALID, to);
-    return false;
-  }
-  copy->dest = split.second;
-  return true;
-}
-
 static void lower_publish(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, spn_pkg_info_t* out) {
   spn_toml_loader_push_key(ctx, "publish");
   spn_toml_loader_push_key(ctx, "copy");
   out->publish.copy = sp_da_new(ctx->mem, spn_publish_copy_t);
+  out->publish.outputs = sp_da_new(ctx->mem, spn_publish_output_t);
   out->gated.publish.copy = sp_da_new(ctx->mem, spn_publish_copy_t);
+  out->gated.publish.outputs = sp_da_new(ctx->mem, spn_publish_output_t);
   sp_da_for(cg->publish.copy, it) {
     const spn_cg_publish_copy_t* entry = &cg->publish.copy[it];
-    spn_publish_copy_t copy = { .when = entry->when };
+    sp_str_pair_t from = sp_str_cleave_c8(entry->from, '/');
+    sp_str_pair_t to = sp_str_cleave_c8(entry->to, '/');
+    spn_tree_t tree = spn_tree_from_str(from.first);
+    bool work = spn_dir_from_str(from.first) == SPN_DIR_WORK;
+
+    // @spader This is stupid but I need to fix sp_glob.h
+    sp_mem_arena_marker_t s = sp_mem_begin_scratch();
+    bool glob = sp_glob_new_str(s.mem, from.second) != SP_NULLPTR;
+    sp_mem_end_scratch(s);
+
+    u64 issues = sp_da_size(ctx->issues);
     spn_toml_loader_push_index(ctx, it);
     spn_toml_loader_push_key(ctx, "from");
-    bool from_ok = lower_publish_from(ctx, entry->from, &copy);
+    if (lower_path_ok(ctx, entry->from)) {
+      if (tree == SPN_TREE_NONE && !work) {
+        spn_toml_loader_issue_at(ctx, SPN_ERR_CODEGEN_INVALID, entry->from);
+      } else if (sp_str_empty(from.second)) {
+        spn_toml_loader_issue_at(ctx, SPN_ERR_CODEGEN_PATH, entry->from);
+      } else if (!glob || (work && !sp_glob_parse_meta(from.second).literal)) {
+        spn_toml_loader_issue_at(ctx, SPN_ERR_CODEGEN_INVALID, entry->from);
+      }
+    }
     spn_toml_loader_pop(ctx);
     spn_toml_loader_push_key(ctx, "to");
-    bool to_ok = lower_publish_to(ctx, entry->to, &copy);
+    if (lower_path_ok(ctx, entry->to) && !sp_str_equal_cstr(to.first, "include")) {
+      spn_toml_loader_issue_at(ctx, SPN_ERR_CODEGEN_INVALID, entry->to);
+    }
     spn_toml_loader_pop(ctx);
     spn_toml_loader_pop(ctx);
-    if (from_ok && to_ok) {
-      sp_da_push(out->gated.publish.copy, copy);
+    if (sp_da_size(ctx->issues) != issues) {
+      continue;
+    }
+    if (work) {
+      sp_da_push(out->gated.publish.outputs, ((spn_publish_output_t) { .sub = from.second, .dest = to.second, .when = entry->when }));
+    } else {
+      sp_da_push(out->gated.publish.copy, ((spn_publish_copy_t) { .tree = tree, .pattern = from.second, .dest = to.second, .when = entry->when }));
     }
   }
   spn_toml_loader_pop(ctx);

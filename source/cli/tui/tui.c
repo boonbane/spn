@@ -1561,6 +1561,10 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           sp_tty_fmt(&w, "{.cyan} is staged into the project, but a build action read it", sp_fmt_str(get_contextual_path(ctx, mem, event->err.dag.path)));
           break;
         }
+        case SPN_ERR_PUBLISH_UNPRODUCED: {
+          sp_tty_fmt(&w, "{.cyan} is published, but no build action produces it", sp_fmt_str(get_contextual_path(ctx, mem, event->err.dag.path)));
+          break;
+        }
         default: {
           sp_io_write_str(w.io, sp_str_lit("Unknown error"), SP_NULLPTR);
           break;

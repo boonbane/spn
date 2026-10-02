@@ -40,7 +40,9 @@ void spn_pkg_init(sp_mem_t mem, spn_pkg_info_t* pkg, sp_str_t name) {
   sp_da_init(a, pkg->gated.define);
   sp_da_init(a, pkg->gated.frameworks);
   sp_da_init(a, pkg->publish.copy);
+  sp_da_init(a, pkg->publish.outputs);
   sp_da_init(a, pkg->gated.publish.copy);
+  sp_da_init(a, pkg->gated.publish.outputs);
   sp_str_om_init(pkg->options);
 }
 

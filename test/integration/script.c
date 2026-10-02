@@ -6,6 +6,7 @@ static const c8* project(sp_test_t* t, const c8* name) {
 
 typedef struct {
   const c8* name;
+  const c8* copy [4];
   const c8* work [SPN_TEST_COMMAND_MAX_PATHS];
 } graph_t;
 
@@ -18,6 +19,8 @@ static const graph_t graphs [] = {
   { .name = "multi_output" },
   { .name = "node_linking" },
   { .name = "orphan_outputs", .work = { "O/O.h" } },
+  { .name = "publish_work", .copy = { "packages/*" } },
+  { .name = "publish_work_tree", .copy = { "packages/*" } },
 };
 
 sp_test_each(script, graph, graph_t, graphs) {
@@ -25,6 +28,9 @@ sp_test_each(script, graph, graph_t, graphs) {
     .project = project(t, it->name),
     .args = { "build" },
   };
+  sp_carr_for(it->copy, i) {
+    test.copy[i] = it->copy[i];
+  }
   sp_carr_for(it->work, i) {
     if (!it->work[i]) {
       break;
@@ -106,6 +112,51 @@ sp_test(script, publish_replay) {
   });
 }
 
+sp_test(script, publish_work_replay) {
+  return run_rebuild_test(t, (rebuild_test_t) {
+    .project = "test/integration/fixtures/script/publish_work",
+    .copy = { "packages/*" },
+    .first = {
+      .args = { "build" },
+      .expect.events = { { .event = SPN_EVENT_SCRIPT_USER_FN } },
+    },
+    .rebuilds = {
+      {
+        .change.remove_dirs = { sp_str_lit("build") },
+        .command = {
+          .args = { "build" },
+          .expect = {
+            .events = { { .event = SPN_EVENT_SCRIPT_USER_FN, .absent = true } },
+            .exists = { pkg_store_file("D", "include/D/G.h"), exe("M") },
+          },
+        },
+      },
+    },
+  });
+}
+
+sp_test(script, publish_work_rerun) {
+  return run_rebuild_test(t, (rebuild_test_t) {
+    .project = "test/integration/fixtures/script/publish_work",
+    .copy = { "packages/*" },
+    .first.args = { "build" },
+    .rebuilds = {
+      {
+        .change.moves = {
+          { .from = sp_str_lit("packages/D/I.change.h"), .to = sp_str_lit("packages/D/I.h") },
+        },
+        .command = {
+          .args = { "build" },
+          .expect.events = {
+            { .event = SPN_EVENT_SCRIPT_USER_FN },
+            { .event = SPN_EVENT_TARGET_BUILD_PASSED, .key = "target", .value = "M" },
+          },
+        },
+      },
+    },
+  });
+}
+
 sp_test(script, tree_output_rerun_drops_file) {
   return run_rebuild_test(t, (rebuild_test_t) {
     .project = "test/integration/fixtures/script/tree_output_drop",
@@ -172,6 +223,7 @@ static const failure_t failures [] = {
   { .name = "name_separator_test", .err = SPN_ERR_WASM_MODULE_CALL_FAILED },
   { .name = "name_separator_node", .err = SPN_ERR_WASM_MODULE_CALL_FAILED },
   { .name = "nested_output", .err = SPN_ERR_DAG_NESTED_OUTPUT },
+  { .name = "publish_unproduced", .err = SPN_ERR_PUBLISH_UNPRODUCED },
   { .name = "configure_missing_source", .err = SPN_ERR_CONFIGURE_SOURCE_MISSING },
   { .name = "configure_dead_glob", .copy = { "tools" }, .err = SPN_ERR_CONFIGURE_SOURCE_GLOB },
   { .name = "configure_error", .err = SPN_ERR_WASM_SCRIPT_ERROR },
