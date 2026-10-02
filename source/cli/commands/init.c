@@ -45,11 +45,10 @@ static void on_render_prompt(sp_prompt_ctx_t* ctx) {
   }
 }
 
-static spn_err_t run_prompt(sp_mem_t mem, sp_str_t dir, sp_str_t name) {
+static spn_err_t run_prompt(sp_prompt_ctx_t* prompt, sp_mem_t mem, sp_str_t dir, sp_str_t name) {
   sp_mem_arena_marker_t s = sp_mem_begin_scratch_for(mem);
   spn_err_t err = SPN_OK;
 
-  sp_prompt_ctx_t* prompt = sp_prompt_begin(mem);
   sp_prompt_intro(prompt, "spn init");
 
   const c8* entered = sp_prompt_text(prompt, "name", sp_str_to_cstr(s.mem, name));
@@ -87,7 +86,6 @@ static spn_err_t run_prompt(sp_mem_t mem, sp_str_t dir, sp_str_t name) {
   spn_op_free(op);
 
 cleanup:
-  sp_prompt_end(prompt);
   sp_mem_end_scratch(s);
   return err;
 }
@@ -125,7 +123,12 @@ static spn_err_t scaffold(sp_mem_t mem, sp_str_t project) {
 
   sp_str_t name = sp_fs_get_name(dir);
   if (tui.interactive && sp_str_empty(args.path)) {
-    return run_prompt(mem, dir, name);
+    sp_prompt_ctx_t* prompt = sp_prompt_begin(mem);
+    if (prompt) {
+      spn_err_t err = run_prompt(prompt, mem, dir, name);
+      sp_prompt_end(prompt);
+      return err;
+    }
   }
 
   return run_unattended(dir, name);

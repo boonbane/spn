@@ -2013,7 +2013,7 @@ void spn_tui_init(spn_tui_t* tui, spn_tui_desc_t desc) {
     tui->out->color = SP_TTY_COLOR_NONE;
     tui->err->color = SP_TTY_COLOR_NONE;
   }
-  tui->interactive = !desc.json && sp_sys_is_tty(sp_sys_stdout);
+  tui->interactive = !desc.json && sp_sys_is_tty(sp_sys_stderr) && sp_sys_is_tty(sp_sys_stdin);
 #ifdef SP_WIN32
   if (sp_sys_is_tty(sp_sys_stdout) || sp_sys_is_tty(sp_sys_stderr)) {
     SetConsoleCP(CP_UTF8);
@@ -2151,9 +2151,7 @@ static void prompt_start(spn_tui_t* tui) {
   tui->prompt.last = sp_zero_s(spn_progress_t);
   tui->prompt.on = true;
 
-  if (sp_sys_is_tty(sp_sys_stderr)) {
-    attach_prompt(tui, tui->prompt.ctx);
-  }
+  attach_prompt(tui, tui->prompt.ctx);
 }
 
 void spn_prompt_stop(spn_tui_t* tui, sp_prompt_state_t state) {

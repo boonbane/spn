@@ -458,9 +458,6 @@ static bool use_prompt() {
   if (!tui.interactive) {
     return false;
   }
-  if (!sp_sys_is_tty(sp_sys_stdout) || !sp_sys_is_tty(sp_sys_stdin)) {
-    return false;
-  }
 
   sp_mem_arena_marker_t s = sp_mem_begin_scratch();
   sp_env_t env = sp_env_capture(s.mem);

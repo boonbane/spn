@@ -427,10 +427,10 @@ static sp_cli_result_t cli_run(sp_cli_t* cli) {
     }
   }
 
-  bool was_tty = prompt.on || sp_sys_is_tty(sp_sys_stdout);
+  bool prompted = prompt.on;
   prompt_stop(&prompt, !failed && !config->status);
 
-  if (!was_tty && !failed && !config->status) {
+  if (!prompted && !failed && !config->status) {
     sp_fmt_io(out, "fuzz: {} iterations passed\n", sp_fmt_uint(done));
   }
 

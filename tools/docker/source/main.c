@@ -372,7 +372,7 @@ static sp_cli_result_t run_list(sp_cli_t* cli) {
   }
 
   sp_mem_t mem = sp_mem_os_new();
-  sp_prompt_ctx_t* prompt = sp_prompt_begin(mem);
+  sp_prompt_ctx_t* prompt = sp_sys_is_tty(sp_sys_stdout) ? sp_prompt_begin(mem) : SP_NULLPTR;
   if (!prompt) {
     sp_for(it, num_variants) {
       sp_log("{:<$ .yellow} {}", sp_fmt_uint(width), sp_fmt_cstr(variants[it].name), sp_fmt_str(variant_summary(mem, &variants[it])));
