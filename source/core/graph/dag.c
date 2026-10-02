@@ -722,6 +722,13 @@ static spn_err_t prepare_graph(spn_dag_build_t* b) {
     spn_dag_stage_t* entry = &b->stages[it];
     spn_dag_artifact_kind_t kind = entry->artifact.occupied ? spn_dag_find_artifact(b->graph, entry->artifact)->kind : SPN_DAG_ARTIFACT_KIND_FILE;
     spn_dag_add_staged(b->graph, entry->to, kind);
+    if (sp_fs_create_parent_at(spn_path_at(b->graph->roots, entry->to))) {
+      b->diag = (spn_dag_diag_t) {
+        .err = SPN_ERR_DAG_OUTPUT_WRITE,
+        .path = spn_path_str(b->graph->roots, b->mem, entry->to),
+      };
+      return SPN_ERR_DAG_OUTPUT_WRITE;
+    }
   }
 
   return SPN_OK;

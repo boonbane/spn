@@ -327,3 +327,37 @@ sp_test_each(stage, failure, failure_t, failures) {
     .expect = { .rc = 1, .err = it->err },
   });
 }
+
+typedef struct {
+  const c8* name;
+  const c8* copy;
+} parent_t;
+
+static const parent_t parents [] = {
+  { .name = "listing", .copy = "A" },
+  { .name = "probe" },
+};
+
+sp_test_each(stage, parent, parent_t, parents) {
+  return run_rebuild_test(t, (rebuild_test_t) {
+    .project = sp_str_to_cstr(sp_test_arena(t), sp_fmt(sp_test_arena(t), "test/integration/fixtures/stage/parent_{}", sp_fmt_cstr(it->name)).value),
+    .copy = { it->copy },
+    .first.args = { "build" },
+    .rebuilds = {
+      {
+        .command = {
+          .args = { "build" },
+          .expect.events = { { .event = SPN_EVENT_SCRIPT_USER_FN, .absent = true } },
+        },
+      },
+    },
+  });
+}
+
+sp_test(stage, parent_kept_when_build_fails) {
+  return run_command_test(t, (command_test_t) {
+    .project = "test/integration/fixtures/stage/parent_failure",
+    .args = { "build" },
+    .expect = { .rc = 1, .exists = { sp_str_lit("A/B") } },
+  });
+}
