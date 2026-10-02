@@ -89,6 +89,29 @@ sp_test(layout, staged_prune) {
   });
 }
 
+sp_test(layout, staged_unchanged_when_build_fails) {
+  return run_rebuild_test(t, (rebuild_test_t) {
+    .project = "test/integration/fixtures/layout/test_shared",
+    .copy = { "check.c", "packages/*" },
+    .first = {
+      .args = { "build" },
+      .expect.exists = { exe("main"), staged_lib("spum") },
+    },
+    .rebuilds = {
+      {
+        .change.writes = { { .file = sp_str_lit("main.c"), .content = sp_str_lit("int main( {") } },
+        .command = {
+          .args = { "build" },
+          .expect = {
+            .rc = 1,
+            .exists = { exe("main"), staged_lib("spum") },
+          },
+        },
+      },
+    },
+  });
+}
+
 sp_test(layout, staged_selection_keeps_others) {
   return run_rebuild_test(t, (rebuild_test_t) {
     .project = "test/integration/fixtures/freshness/shared",
