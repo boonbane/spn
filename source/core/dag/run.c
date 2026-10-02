@@ -834,38 +834,6 @@ spn_err_t spn_dag_execute(spn_dag_t* g, spn_dag_id_t action_id, spn_dag_env_t* e
   return err;
 }
 
-static bool path_parent(spn_path_t* path) {
-  spn_path_t parent = spn_path_parent(*path);
-  if (spn_path_equal(parent, *path) || spn_path_empty(parent)) {
-    return false;
-  }
-  *path = parent;
-  return true;
-}
-
-static void seed_below(spn_dag_run_t* run, sp_mem_t mem) {
-  sp_ht_init(mem, run->below);
-  sp_ht_set_fns(run->below, spn_path_on_hash, spn_path_on_compare);
-
-  sp_da_for(run->g->artifacts, it) {
-    spn_dag_artifact_t* artifact = &run->g->artifacts[it];
-    if (!artifact->producer.occupied || spn_path_empty(artifact->path)) {
-      continue;
-    }
-
-    sp_assert(!(run->g->roots->pinned & spn_path_root_mask(artifact->path.root)));
-
-    for (spn_path_t dir = artifact->path; path_parent(&dir);) {
-      sp_da(u32)* below = sp_ht_getp(run->below, dir);
-      if (!below) {
-        sp_ht_insert(run->below, dir, sp_da_new(mem, u32));
-        below = sp_ht_getp(run->below, dir);
-      }
-      sp_da_push(*below, artifact->producer.index);
-    }
-  }
-}
-
 typedef struct {
   spn_dag_run_t* run;
   spn_dag_action_t* action;
@@ -916,21 +884,12 @@ static bool defer_observations(spn_dag_run_t* run, spn_dag_action_t* action, sp_
       }
     }
 
-    for (spn_path_t dir = o->path; path_parent(&dir);) {
-      spn_dag_id_t* above = sp_ht_getp(run->g->paths, dir);
+    for (spn_path_t dir = o->path, parent = spn_path_parent(dir); !spn_path_equal(parent, dir) && !spn_path_empty(parent); dir = parent, parent = spn_path_parent(dir)) {
+      spn_dag_id_t* above = sp_ht_getp(run->g->paths, parent);
       if (above) {
         spn_dag_artifact_t* tree = spn_dag_find_artifact(run->g, *above);
         if (tree->kind == SPN_DAG_ARTIFACT_KIND_TREE && !tree->staged) {
           defer_producer(run, action, tree->producer.index, epoch, requeue);
-        }
-      }
-    }
-
-    if (o->kind == SPN_DAG_OBS_ENUMERATION) {
-      sp_da(u32)* below = sp_ht_getp(run->below, o->path);
-      if (below) {
-        sp_da_for(*below, bi) {
-          defer_producer(run, action, (*below)[bi], epoch, requeue);
         }
       }
     }
@@ -1183,7 +1142,6 @@ void spn_dag_run_begin(spn_dag_run_t* run, sp_mem_t mem, spn_dag_t* g, spn_dag_e
 
   sp_atomic_s32_store(&run->progress.total, (s32)n, SP_ATOMIC_SEQ_CST);
   seed_ready(run, mem);
-  seed_below(run, mem);
   sp_da_for(g->artifacts, it) {
     if (g->artifacts[it].staged) {
       sp_da_push(run->staged, g->artifacts[it].id);

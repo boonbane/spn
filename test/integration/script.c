@@ -121,6 +121,21 @@ sp_test(script, probe_shared_dir_rebuild) {
   });
 }
 
+sp_test(script, list_source_rebuild) {
+  return run_rebuild_test(t, (rebuild_test_t) {
+    .project = "test/integration/fixtures/script/list_source",
+    .first.args = { "build" },
+    .rebuilds = {
+      {
+        .command = {
+          .args = { "build" },
+          .expect.events = { { .event = SPN_EVENT_BUILD_SUMMARY, .key = "misses", .value = "0" } },
+        },
+      },
+    },
+  });
+}
+
 sp_test(script, node_output_mode) {
   return run_rebuild_test(t, (rebuild_test_t) {
     .project = "test/integration/fixtures/script/basic_node",

@@ -283,7 +283,6 @@ typedef struct {
   spn_dag_progress_t progress;
   spn_dag_diag_t diag;
   spn_err_t err;
-  sp_ht(spn_path_t, sp_da(u32)) below;
   sp_da(spn_dag_id_t) staged;
   spn_dag_run_state_t* states;
   sp_da(spn_dag_id_t) ready;
