@@ -32,6 +32,12 @@ typedef struct {
   sp_atomic_u32_t signaled;
 } spn_wake_t;
 
+typedef struct {
+  sp_fs_it_t fs;
+  spn_path_t dir;
+  sp_da(spn_path_t) owned;
+} spn_fs_it_t;
+
 typedef struct toml_table_t toml_table_t;
 
 #endif

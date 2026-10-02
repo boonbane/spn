@@ -275,7 +275,69 @@ sp_test(stage, source_glob) {
       {
         .command = {
           .args = { "build" },
-          .expect = { .rc = 1, .err = SPN_ERR_STAGE_OVERLAP },
+          .expect.cc = { { .args = { "gen/G.c" }, .absent = true } },
+        },
+      },
+    },
+  });
+}
+
+sp_test(stage, recursive_glob) {
+  return run_rebuild_test(t, (rebuild_test_t) {
+    .project = "test/integration/fixtures/stage/recursive_glob",
+    .first.args = { "build" },
+    .rebuilds = {
+      {
+        .command = {
+          .args = { "build" },
+          .expect.cc = { { .args = { "G.c" }, .absent = true } },
+        },
+      },
+    },
+  });
+}
+
+sp_test(stage, copy_glob_skips_staged) {
+  return run_rebuild_test(t, (rebuild_test_t) {
+    .project = "test/integration/fixtures/stage/observed_listing",
+    .copy = { "H" },
+    .first.args = { "build" },
+    .rebuilds = {
+      {
+        .change.writes = { { .file = sp_str_lit("H/B"), .content = sp_str_lit("B") } },
+        .command = {
+          .args = { "build" },
+          .expect = {
+            .exists = { sp_str_lit("H/S/B") },
+            .missing = { sp_str_lit("H/S/S") },
+          },
+        },
+      },
+    },
+  });
+}
+
+typedef struct {
+  const c8* name;
+  const c8* copy;
+} hit_t;
+
+static const hit_t hits [] = {
+  { .name = "observed_listing", .copy = "H" },
+  { .name = "readdir", .copy = "H" },
+  { .name = "stat" },
+};
+
+sp_test_each(stage, hits, hit_t, hits) {
+  return run_rebuild_test(t, (rebuild_test_t) {
+    .project = sp_str_to_cstr(sp_test_arena(t), sp_fmt(sp_test_arena(t), "test/integration/fixtures/stage/{}", sp_fmt_cstr(it->name)).value),
+    .copy = { it->copy },
+    .first.args = { "build" },
+    .rebuilds = {
+      {
+        .command = {
+          .args = { "build" },
+          .expect.events = { { .event = SPN_EVENT_BUILD_PASSED, .key = "misses", .value = "0" } },
         },
       },
     },
@@ -317,6 +379,7 @@ static const failure_t failures [] = {
   { .name = "observed_node", .err = SPN_ERR_STAGE_OBSERVED },
   { .name = "observed_header", .copy = "gen", .err = SPN_ERR_STAGE_OBSERVED },
   { .name = "observed_commands", .err = SPN_ERR_STAGE_OBSERVED },
+  { .name = "observed_lock", .err = SPN_ERR_STAGE_OBSERVED },
 };
 
 sp_test_each(stage, failure, failure_t, failures) {

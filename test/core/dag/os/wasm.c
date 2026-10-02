@@ -375,7 +375,7 @@ sp_test_each(dag_wasm, wasi, test_t, tests) {
   sp_must(t, instance != SP_NULLPTR);
 
   spn_path_t writable [] = { mounts[0].host };
-  spn_dag_wasi_t* w = spn_dag_wasi_new(mem, &roots, mounts, sp_carr_len(mounts), writable, sp_carr_len(writable));
+  spn_dag_wasi_t* w = spn_dag_wasi_new(mem, &roots, SP_NULLPTR, mounts, sp_carr_len(mounts), writable, sp_carr_len(writable));
   spn_dag_wasi_bind(w, instance);
 
   wasm_exec_env_t env = wasm_runtime_create_exec_env(instance, DAG_WASM_STACK_SIZE);

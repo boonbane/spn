@@ -609,11 +609,10 @@ static spn_err_t add_compile_commands(spn_dag_build_t* b) {
     spn_dag_action_add_input(g, it.val->action, stamp);
   }
 
-  spn_path_t to = spn_path_join(b->mem, session->paths.root, sp_str_lit("compile_commands.json"));
   sp_da_push(b->stages, ((spn_dag_stage_t) {
     .artifact = commands,
-    .to = to,
-    .owner = to,
+    .to = session->paths.commands,
+    .owner = session->paths.commands,
     .declarer = SPN_STAGE_DECLARER_COMPILE_COMMANDS,
   }));
 
@@ -730,6 +729,7 @@ static spn_err_t prepare_graph(spn_dag_build_t* b) {
       return SPN_ERR_DAG_OUTPUT_WRITE;
     }
   }
+  spn_dag_add_staged(b->graph, session->project->paths.lock, SPN_DAG_ARTIFACT_KIND_FILE);
 
   return SPN_OK;
 }
@@ -1033,6 +1033,7 @@ spn_dag_build_t* spn_dag_build_new(spn_op_t* op) {
     .store = &b->store,
     .discovery = &b->discovery,
     .tmp = paths.tmp,
+    .owned = s->paths.owned,
   };
 
   return b;

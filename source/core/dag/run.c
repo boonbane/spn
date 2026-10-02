@@ -498,7 +498,7 @@ static s32 member_order(const void* a, const void* b) {
   return sp_str_compare_alphabetical(((const sp_fs_entry_t*)a)->name, ((const sp_fs_entry_t*)b)->name);
 }
 
-static spn_err_t membership_digest(sp_path_t dir, sp_str_t filter, spn_dag_digest_t* digest) {
+static spn_err_t membership_digest(spn_dag_env_t* env, spn_path_t dir, sp_str_t filter, spn_dag_digest_t* digest) {
   sp_mem_arena_marker_t s = sp_mem_begin_scratch();
   spn_err_t err = SPN_OK;
 
@@ -512,14 +512,15 @@ static spn_err_t membership_digest(sp_path_t dir, sp_str_t filter, spn_dag_diges
   }
 
   sp_da(sp_fs_entry_t) members = sp_da_new(s.mem, sp_fs_entry_t);
-  sp_fs_it_t walk = sp_fs_it_new_at(s.mem, dir, 0);
-  while (sp_fs_it_next(&walk)) {
-    if (walk.entry.kind != SP_FS_KIND_DIR && glob && !sp_glob_match(glob, walk.entry.name)) {
+  spn_fs_it_t walk = spn_fs_it_new(s.mem, env->files->roots, env->owned, dir);
+  while (spn_fs_it_next(&walk)) {
+    sp_fs_entry_t entry = walk.fs.entry;
+    if (entry.kind != SP_FS_KIND_DIR && glob && !sp_glob_match(glob, entry.name)) {
       continue;
     }
-    sp_da_push(members, ((sp_fs_entry_t) { .name = sp_str_copy(s.mem, walk.entry.name), .kind = walk.entry.kind }));
+    sp_da_push(members, ((sp_fs_entry_t) { .name = sp_str_copy(s.mem, entry.name), .kind = entry.kind }));
   }
-  sp_fs_it_deinit(&walk);
+  spn_fs_it_deinit(&walk);
   sp_da_sort(members, member_order);
 
   spn_digest_ctx_t ctx = sp_zero;
@@ -555,11 +556,12 @@ bool spn_dag_write_changes(spn_path_t path, spn_dag_artifact_kind_t kind, const 
   sp_unreachable_return(false);
 }
 
-static spn_err_t resolve_one(spn_dag_file_cache_t* files, const spn_dag_obs_t* o, spn_dag_digest_t* digest, sp_mem_t mem) {
+static spn_err_t resolve_one(spn_dag_env_t* env, const spn_dag_obs_t* o, spn_dag_digest_t* digest, sp_mem_t mem) {
+  spn_dag_file_cache_t* files = env->files;
   *digest = (spn_dag_digest_t) sp_zero;
   switch (o->kind) {
     case SPN_DAG_OBS_ENUMERATION: {
-      return membership_digest(spn_path_at(files->roots, o->path), o->filter, digest);
+      return membership_digest(env, o->path, o->filter, digest);
     }
     case SPN_DAG_OBS_ABSENT: {
       sp_path_t at = spn_path_at(files->roots, o->path);
@@ -582,17 +584,17 @@ static spn_err_t resolve_one(spn_dag_file_cache_t* files, const spn_dag_obs_t* o
   spn_try(spn_dag_file_cache_stat(files, o->path, &sys));
 
   if (sys.kind == SP_FS_KIND_DIR) {
-    return membership_digest(spn_path_at(files->roots, o->path), sp_str_lit(""), digest);
+    return membership_digest(env, o->path, sp_str_lit(""), digest);
   }
 
   return spn_dag_file_cache_digest(files, o->path, digest);
 }
 
-static spn_err_t resolve_observations(spn_dag_file_cache_t* files, const spn_dag_obs_t* obs, u32 count, spn_dag_digest_t* digests) {
+static spn_err_t resolve_observations(spn_dag_env_t* env, const spn_dag_obs_t* obs, u32 count, spn_dag_digest_t* digests) {
   sp_mem_arena_marker_t s = sp_mem_begin_scratch();
   spn_err_t err = SPN_OK;
   sp_for(it, count) {
-    err = resolve_one(files, &obs[it], &digests[it], s.mem);
+    err = resolve_one(env, &obs[it], &digests[it], s.mem);
     if (err) {
       break;
     }
@@ -674,7 +676,7 @@ static void lookup(spn_dag_t* g, spn_dag_action_t* action, spn_dag_env_t* env, s
       sp_mem_arena_marker_t s = sp_mem_begin_scratch();
       u32 count = (u32)sp_da_size(set.obs);
       spn_dag_digest_t* digests = sp_alloc_n(s.mem, spn_dag_digest_t, count);
-      bool resolved = !resolve_observations(env->files, set.obs, count, digests);
+      bool resolved = !resolve_observations(env, set.obs, count, digests);
       spn_dag_digest_t strong = resolved ? spn_dag_strong_key(attempt->key, set.pinned, set.obs, digests, count) : attempt->key;
       sp_mem_end_scratch(s);
       trace_resolve(env, action->id, resolved);
@@ -791,7 +793,7 @@ static spn_err_t commit(spn_dag_t* g, spn_dag_attempt_t* attempt, spn_dag_env_t*
       sp_mem_arena_marker_t s = sp_mem_begin_scratch();
       u32 count = (u32)sp_da_size(set.obs);
       spn_dag_digest_t* digests = sp_alloc_n(s.mem, spn_dag_digest_t, count);
-      bool resolved = !resolve_observations(env->files, set.obs, count, digests);
+      bool resolved = !resolve_observations(env, set.obs, count, digests);
       spn_dag_digest_t key = resolved ? spn_dag_strong_key(attempt->key, set.pinned, set.obs, digests, count) : attempt->key;
       sp_mem_end_scratch(s);
       trace_resolve(env, action->id, resolved);

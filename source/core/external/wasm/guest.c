@@ -61,18 +61,19 @@ static void guest_copy(spn_wasm_ctx_t* abi, const c8* name, const c8* from, cons
     .api_call = { .fn = sp_cstr_as_str(name), .args = sp_fmt(spn.mem, "{} -> {}", SP_FMT_STR(from_str), SP_FMT_STR(to_str)).value },
   });
 
+  sp_da(spn_path_t) owned = unit->session->paths.owned;
   sp_path_t src = spn_path_at(roots, from_path);
   sp_path_t dst = spn_path_at(roots, to_path);
   spn_err_t err = SPN_OK;
   if (!sp_glob_parse_meta(from_path.sub).literal) {
     spn_dag_wasi_observe_glob(abi->instance, spn_path_parent(from_path), sp_fs_get_name(from_path.sub));
-    err = spn_fs_update_glob(src, dst);
+    err = spn_fs_update_glob(roots, owned, from_path, dst);
   }
   else {
     spn_dag_wasi_observe_read(abi->instance, from_path);
     bool tree = sp_fs_is_dir_at(src);
     sp_path_t into = tree || sp_fs_is_dir_at(dst) ? sp_path_join(scratch.mem, dst, sp_fs_get_name(src.sub)) : dst;
-    err = tree ? (sp_fs_copy_at(src, into, SP_FS_ATOMIC_REPLACE) ? SPN_ERROR : SPN_OK) : spn_fs_update_file(src, into);
+    err = tree ? spn_fs_update_tree(roots, owned, from_path, into) : spn_fs_update_file(src, into);
   }
 
   if (err) {

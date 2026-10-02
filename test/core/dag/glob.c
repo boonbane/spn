@@ -161,7 +161,7 @@ sp_test_each(dag_glob, observe, test_t, tests) {
 
   spn_dag_glob_result_t glob = sp_zero;
   spn_path_t pattern = { .root = SPN_PATH_ROOT_PROJECT, .sub = sp_str_view(it->pattern) };
-  spn_err_t err = spn_dag_glob(mem, roots, pattern, &glob);
+  spn_err_t err = spn_dag_glob(mem, roots, SP_NULLPTR, pattern, &glob);
   sp_expect_eq(t, it->expect.err, err);
   if (err) {
     return SP_OK;
@@ -242,6 +242,7 @@ sp_test_each(dag_glob, observe, test_t, tests) {
 typedef struct {
   const c8* name;
   const c8* files [DAG_TEST_MAX_INPUTS];
+  const c8* owned [DAG_TEST_MAX_INPUTS];
   const c8* pattern;
   const c8* expect [DAG_TEST_MAX_INPUTS];
 } iterate_test_t;
@@ -276,6 +277,20 @@ static const iterate_test_t iterate_tests [] = {
     .pattern = "A/{B/X,Y}.c",
     .expect = { "A/B/X.c", "A/Y.c" },
   },
+  {
+    .name = "owned_name_skipped",
+    .files = { "A/X.c", "A/S.c" },
+    .owned = { "A/S.c" },
+    .pattern = "A/*.c",
+    .expect = { "A/X.c" },
+  },
+  {
+    .name = "owned_dir_not_entered",
+    .files = { "A/X.c", "A/B/Y.c" },
+    .owned = { "A/B" },
+    .pattern = "A/**/*.c",
+    .expect = { "A/X.c" },
+  },
 };
 
 static s32 path_order(const void* a, const void* b) {
@@ -297,12 +312,20 @@ sp_test_each(dag_glob, iterate, iterate_test_t, iterate_tests) {
     dag_test_create(sp_path_join(mem, sandbox, sp_cstr_as_str(it->files[ft])), sp_str_lit("S"));
   }
 
+  sp_da(spn_path_t) owned = sp_da_new(mem, spn_path_t);
+  sp_carr_for(it->owned, ot) {
+    if (!it->owned[ot]) {
+      break;
+    }
+    sp_da_push(owned, ((spn_path_t) { .root = SPN_PATH_ROOT_PROJECT, .sub = sp_cstr_as_str(it->owned[ot]) }));
+  }
+
   u32 count = 0;
   sp_carr_detect_len(it->expect, count, it->expect[count]);
 
   sp_da(sp_str_t) seen = sp_da_new(mem, sp_str_t);
   spn_path_t pattern = { .root = SPN_PATH_ROOT_PROJECT, .sub = sp_cstr_as_str(it->pattern) };
-  spn_dag_glob_it_t glob = spn_dag_glob_it_new(mem, &roots, pattern);
+  spn_dag_glob_it_t glob = spn_dag_glob_it_new(mem, &roots, owned, pattern);
   while (spn_dag_glob_it_next(&glob)) {
     if (glob.entry.kind != SP_FS_KIND_DIR) {
       sp_da_push(seen, spn_path_join(mem, glob.base, glob.entry.rel).sub);
@@ -356,7 +379,7 @@ static const exec_test_t exec_tests [] = {
 
 static spn_err_t glob_observe(sp_mem_t scratch, spn_dag_t* g, env_t* env, spn_dag_obs_set_t* obs) {
   spn_dag_glob_result_t glob = sp_zero;
-  spn_try(spn_dag_glob(scratch, g->roots, env->pattern, &glob));
+  spn_try(spn_dag_glob(scratch, g->roots, SP_NULLPTR, env->pattern, &glob));
   sp_da_for(glob.obs, it) {
     spn_dag_observe(obs, glob.obs[it]);
   }

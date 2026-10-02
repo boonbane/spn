@@ -1,5 +1,6 @@
 #include "dag/dag.h"
 #include "dag/types.h"
+#include "core/core.h"
 #include "glob/glob.h"
 #include "paths/paths.h"
 #include "sp.h"
@@ -13,7 +14,7 @@ static s32 compare_matches(const void* a, const void* b) {
   return sp_str_compare_alphabetical(pa->path.sub, pb->path.sub);
 }
 
-spn_dag_glob_it_t spn_dag_glob_it_new(sp_mem_t mem, const spn_path_roots_t* roots, spn_path_t pattern) {
+spn_dag_glob_it_t spn_dag_glob_it_new(sp_mem_t mem, const spn_path_roots_t* roots, sp_da(spn_path_t) owned, spn_path_t pattern) {
   sp_glob_meta_t meta = sp_glob_parse_meta(pattern.sub);
 
   spn_dag_glob_it_t it = {
@@ -25,9 +26,9 @@ spn_dag_glob_it_t spn_dag_glob_it_new(sp_mem_t mem, const spn_path_roots_t* root
     it.err = SPN_ERR_DAG_GLOB;
   }
 
-  it.fs = sp_fs_it_new_at(mem, spn_path_at(roots, it.base), 0);
-  if (it.fs.err == SP_ERR_SYS_NOT_FOUND) {
-    it.fs.err = SP_OK;
+  it.walk = spn_fs_it_new(mem, roots, owned, it.base);
+  if (it.walk.fs.err == SP_ERR_SYS_NOT_FOUND) {
+    it.walk.fs.err = SP_OK;
   }
   return it;
 }
@@ -36,8 +37,8 @@ bool spn_dag_glob_it_next(spn_dag_glob_it_t* it) {
   if (it->err) {
     return false;
   }
-  while (it->recursive ? sp_fs_it_walk(&it->fs) : sp_fs_it_next(&it->fs)) {
-    sp_fs_entry_t entry = it->fs.entry;
+  while (it->recursive ? spn_fs_it_walk(&it->walk) : spn_fs_it_next(&it->walk)) {
+    sp_fs_entry_t entry = it->walk.fs.entry;
     sp_str_t rel = entry.rel;
     if (entry.kind == SP_FS_KIND_DIR && !it->recursive) {
       continue;
@@ -48,19 +49,19 @@ bool spn_dag_glob_it_next(spn_dag_glob_it_t* it) {
     it->entry = (spn_dag_glob_entry_t) { .rel = rel, .kind = entry.kind };
     return true;
   }
-  if (it->fs.err) {
+  if (it->walk.fs.err) {
     it->err = SPN_ERR_DAG_GLOB;
   }
   return false;
 }
 
 void spn_dag_glob_it_deinit(spn_dag_glob_it_t* it) {
-  sp_fs_it_deinit(&it->fs);
+  spn_fs_it_deinit(&it->walk);
   sp_glob_free(it->glob);
 }
 
 
-spn_err_t spn_dag_glob(sp_mem_t mem, const spn_path_roots_t* roots, spn_path_t pattern, spn_dag_glob_result_t* result) {
+spn_err_t spn_dag_glob(sp_mem_t mem, const spn_path_roots_t* roots, sp_da(spn_path_t) owned, spn_path_t pattern, spn_dag_glob_result_t* result) {
   result->obs = sp_da_new(mem, spn_dag_obs_t);
   result->matches = sp_da_new(mem, spn_dag_glob_match_t);
 
@@ -88,7 +89,7 @@ spn_err_t spn_dag_glob(sp_mem_t mem, const spn_path_roots_t* roots, spn_path_t p
     return SPN_OK;
   }
 
-  spn_dag_glob_it_t it = spn_dag_glob_it_new(mem, roots, pattern);
+  spn_dag_glob_it_t it = spn_dag_glob_it_new(mem, roots, owned, pattern);
   sp_da_push(result->obs, ((spn_dag_obs_t) {
     .kind = SPN_DAG_OBS_ENUMERATION,
     .path = spn_path_copy(mem, it.base),

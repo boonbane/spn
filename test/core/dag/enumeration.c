@@ -16,6 +16,7 @@ typedef struct {
 typedef struct {
   const c8* name;
   obs_t obs [DAG_TEST_MAX_INPUTS];
+  const c8* owned [DAG_TEST_MAX_INPUTS];
   run_t runs [DAG_TEST_MAX_OPS];
 } test_t;
 
@@ -125,6 +126,24 @@ static const test_t tests [] = {
       { .cold = true, .files = { "A/Y.h" }, .expect_runs = 2 },
     }
   },
+  {
+    .name = "owned_member_hits",
+    .obs = { { "A", "*.h" } },
+    .owned = { "A/S.h" },
+    .runs = {
+      { .files = { "A/X.h" }, .expect_runs = 1 },
+      { .files = { "A/S.h" }, .expect_runs = 1 },
+    }
+  },
+  {
+    .name = "owned_descendant_keeps_parent",
+    .obs = { { "A", "*.h" } },
+    .owned = { "A/B/S.h" },
+    .runs = {
+      { .files = { "A/X.h" }, .expect_runs = 1 },
+      { .dirs = { "A/B" }, .expect_runs = 2 },
+    }
+  },
 };
 
 static spn_err_t execute_action(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* dag_env, const spn_path_t* outputs, spn_dag_obs_set_t* obs) {
@@ -175,6 +194,13 @@ sp_test_each(dag_enumeration, runs, test_t, tests) {
   dag_test_env_init(&env.dag, t, (dag_test_env_config_t) {
     .store = SPN_DAG_STORE_MEM
   });
+  env.dag.env.owned = sp_da_new(env.dag.mem, spn_path_t);
+  sp_carr_for(it->owned, o) {
+    if (!it->owned[o]) {
+      break;
+    }
+    sp_da_push(env.dag.env.owned, dag_test_env_rooted(&env.dag, sp_cstr_as_str(it->owned[o])));
+  }
 
   sp_carr_for(it->runs, r) {
     const run_t* run = &it->runs[r];

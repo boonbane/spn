@@ -64,6 +64,8 @@ struct spn_session_t {
   struct {
     spn_path_t root;
     spn_path_t build;
+    spn_path_t commands;
+    sp_da(spn_path_t) owned;
   } paths;
 
   struct {

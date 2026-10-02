@@ -77,6 +77,14 @@ spn_err_t spn_session_init(spn_session_t* s, spn_ctx_t* ctx, sp_mem_t mem, spn_p
   s->config = config;
   s->paths.root = spn_path_from_root(SPN_PATH_ROOT_PROJECT);
   s->paths.build = spn_path_join(s->mem, s->paths.root, sp_str_lit("build"));
+  s->paths.commands = spn_path_join(s->mem, s->paths.root, sp_str_lit("compile_commands.json"));
+  s->paths.owned = sp_da_new(s->mem, spn_path_t);
+  sp_da_push(s->paths.owned, s->paths.build);
+  sp_da_push(s->paths.owned, s->paths.commands);
+  sp_da_push(s->paths.owned, project->paths.lock);
+  sp_da_for(root->stage.copy, it) {
+    sp_da_push(s->paths.owned, spn_path_join(s->mem, s->paths.root, root->stage.copy[it].to));
+  }
   spn_triple_t host = ctx->host;
 
   sp_ht_init(s->mem, s->registry);

@@ -222,7 +222,7 @@ static sp_da(sp_str_t) resolve_values(spn_gated_list_t entries, spn_when_env_t* 
   return resolved;
 }
 
-static spn_err_t resolve_configure_source(spn_ctx_t* ctx, sp_str_t name, sp_da(spn_gated_source_t) declared, spn_loaded_pkg_t* loaded, spn_when_env_t* env, sp_da(spn_source_t)* source) {
+static spn_err_t resolve_configure_source(spn_ctx_t* ctx, sp_da(spn_path_t) owned, sp_str_t name, sp_da(spn_gated_source_t) declared, spn_loaded_pkg_t* loaded, spn_when_env_t* env, sp_da(spn_source_t)* source) {
   sp_da(spn_source_t) resolved = sp_da_new(spn.mem, spn_source_t);
   sp_da_for(declared, it) {
     if (!spn_when_eval(&declared[it].when, env)) {
@@ -245,7 +245,7 @@ static spn_err_t resolve_configure_source(spn_ctx_t* ctx, sp_str_t name, sp_da(s
       }
       case SPN_SOURCE_GLOB: {
         sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-        spn_dag_glob_it_t glob = spn_dag_glob_it_new(scratch.mem, &ctx->roots, path);
+        spn_dag_glob_it_t glob = spn_dag_glob_it_new(scratch.mem, &ctx->roots, owned, path);
         bool matched = false;
         while (!matched && spn_dag_glob_it_next(&glob)) {
           matched = glob.entry.kind != SP_FS_KIND_DIR;
@@ -429,7 +429,7 @@ static spn_err_t load_package(spn_session_t* session, spn_resolved_pkg_t* pkg, s
     // [package.configure] then you don't have a configure script. Simple.
     loaded->configure.source = detect_configure_source(roots, loaded, pkg->origin.paths.script);
   } else {
-    spn_try(resolve_configure_source(session->ctx, qualified, loaded->info->configure.gated.source, loaded, &facts, &loaded->configure.source));
+    spn_try(resolve_configure_source(session->ctx, session->paths.owned, qualified, loaded->info->configure.gated.source, loaded, &facts, &loaded->configure.source));
   }
 
   if (sp_da_empty(loaded->build.source)) {

@@ -11,10 +11,10 @@
 #include "str/str.h"
 #include "unit/package.h"
 
-static spn_err_t publish_copy(sp_mem_t scratch, const spn_path_roots_t* roots, spn_tree_roots_t trees, spn_path_t include, spn_publish_copy_t* copy, spn_dag_obs_set_t* obs) {
+static spn_err_t publish_copy(sp_mem_t scratch, const spn_path_roots_t* roots, sp_da(spn_path_t) owned, spn_tree_roots_t trees, spn_path_t include, spn_publish_copy_t* copy, spn_dag_obs_set_t* obs) {
   spn_path_t pattern = spn_path_join(scratch, spn_tree_root(trees, copy->tree), copy->pattern);
   spn_dag_glob_result_t glob = sp_zero;
-  spn_try(spn_dag_glob(scratch, roots, pattern, &glob));
+  spn_try(spn_dag_glob(scratch, roots, owned, pattern, &glob));
   sp_da_for(glob.obs, it) {
     spn_dag_observe(obs, glob.obs[it]);
   }
@@ -44,7 +44,7 @@ static spn_err_t publish_failed(spn_pkg_unit_t* unit, sp_str_t path, sp_str_t de
   return SPN_ERR_DAG_ACTION;
 }
 
-static spn_err_t publish_tree(sp_mem_t scratch, spn_dag_t* g, spn_dag_tree_ctx_t* ctx, spn_path_t include, spn_path_t stamp, spn_dag_obs_set_t* obs) {
+static spn_err_t publish_tree(sp_mem_t scratch, spn_dag_t* g, sp_da(spn_path_t) owned, spn_dag_tree_ctx_t* ctx, spn_path_t include, spn_path_t stamp, spn_dag_obs_set_t* obs) {
   spn_pkg_unit_t* unit = ctx->unit;
   if (spn_pkg_unit_publish_headers(unit, include)) {
     return SPN_ERR_DAG_ACTION;
@@ -52,7 +52,7 @@ static spn_err_t publish_tree(sp_mem_t scratch, spn_dag_t* g, spn_dag_tree_ctx_t
 
   sp_da_for(unit->info->publish.copy, it) {
     spn_publish_copy_t* copy = &unit->info->publish.copy[it];
-    if (publish_copy(scratch, g->roots, unit->paths.roots, include, copy, obs)) {
+    if (publish_copy(scratch, g->roots, owned, unit->paths.roots, include, copy, obs)) {
       return publish_failed(unit, sp_fs_join_path(spn.mem, spn_tree_to_str(copy->tree), copy->pattern), copy->dest);
     }
   }
@@ -74,7 +74,7 @@ static spn_err_t publish_tree(sp_mem_t scratch, spn_dag_t* g, spn_dag_tree_ctx_t
 
 spn_err_t spn_dag_exec_tree(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs) {
   sp_mem_arena_marker_t s = sp_mem_begin_scratch();
-  spn_err_t err = publish_tree(s.mem, g, (spn_dag_tree_ctx_t*)user_data, outputs[0], outputs[1], obs);
+  spn_err_t err = publish_tree(s.mem, g, env->owned, (spn_dag_tree_ctx_t*)user_data, outputs[0], outputs[1], obs);
   sp_mem_end_scratch(s);
   return err;
 }

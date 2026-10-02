@@ -57,7 +57,7 @@ typedef struct {
   struct sp_glob_t* glob;
   spn_path_t base;
   bool recursive;
-  sp_fs_it_t fs;
+  spn_fs_it_t walk;
   spn_dag_glob_entry_t entry;
   spn_err_t err;
 } spn_dag_glob_it_t;
@@ -271,6 +271,7 @@ struct spn_dag_env_t {
   spn_dag_trace_fn_t trace;
   void* trace_data;
   spn_path_t tmp;
+  sp_da(spn_path_t) owned;
 };
 
 typedef struct spn_dag_run_state_t spn_dag_run_state_t;

@@ -1,5 +1,6 @@
 #include "dag/wasi.h"
 #include "dag/dag.h"
+#include "core/core.h"
 #include "paths/paths.h"
 #include "str/str.h"
 #include "sp/sp_glob.h"
@@ -36,6 +37,7 @@ typedef struct {
 struct spn_dag_wasi_t {
   sp_mem_t mem;
   const spn_path_roots_t* roots;
+  sp_da(spn_path_t) owned;
   sp_da(spn_dag_wasi_dir_t) mounts;
   sp_da(spn_path_t) writable;
   sp_da(spn_path_t) private;
@@ -158,7 +160,7 @@ static void wasi_on_stat(spn_dag_wasi_t* w, u32 fd, const c8* path, u32 path_len
 
   sp_mem_arena_marker_t s = sp_mem_begin_scratch();
   spn_path_t host = sp_zero;
-  if (wasi_resolve(w, s.mem, wasi_guest_path(w, s.mem, fd, path, path_len), &host) && !wasi_written(w, host)) {
+  if (wasi_resolve(w, s.mem, wasi_guest_path(w, s.mem, fd, path, path_len), &host) && !wasi_written(w, host) && !spn_fs_owned(w->owned, spn_path_parent(host), sp_fs_get_name(host.sub))) {
     wasi_push_obs(w, error ? SPN_DAG_OBS_ABSENT : SPN_DAG_OBS_FILE, host);
   }
   sp_mem_end_scratch(s);
@@ -255,10 +257,11 @@ spn_err_t spn_dag_wasi_install(void) {
   return SPN_OK;
 }
 
-spn_dag_wasi_t* spn_dag_wasi_new(sp_mem_t mem, const spn_path_roots_t* roots, const spn_dag_wasi_mount_t* mounts, u32 num_mounts, const spn_path_t* writable, u32 num_writable) {
+spn_dag_wasi_t* spn_dag_wasi_new(sp_mem_t mem, const spn_path_roots_t* roots, sp_da(spn_path_t) owned, const spn_dag_wasi_mount_t* mounts, u32 num_mounts, const spn_path_t* writable, u32 num_writable) {
   spn_dag_wasi_t* w = sp_alloc_type(mem, spn_dag_wasi_t);
   w->mem = mem;
   w->roots = roots;
+  w->owned = owned;
   w->obs = SP_NULLPTR;
   sp_da_init(mem, w->mounts);
   sp_da_init(mem, w->writable);
@@ -331,13 +334,15 @@ static void wasi_observe_dir(spn_dag_wasi_t* w, spn_path_t dir) {
   wasi_push_obs(w, SPN_DAG_OBS_ENUMERATION, dir);
 
   sp_mem_arena_marker_t s = sp_mem_begin_scratch();
-  sp_fs_for_recursive(s.mem, spn_path_at(w->roots, dir), it) {
-    spn_path_t path = spn_path_join(s.mem, dir, it.entry.rel);
+  spn_fs_it_t walk = spn_fs_it_new(s.mem, w->roots, w->owned, dir);
+  while (spn_fs_it_walk(&walk)) {
+    spn_path_t path = spn_path_join(s.mem, dir, walk.fs.entry.rel);
     if (wasi_written(w, path)) {
       continue;
     }
-    wasi_push_obs(w, it.entry.kind == SP_FS_KIND_DIR ? SPN_DAG_OBS_ENUMERATION : SPN_DAG_OBS_FILE, path);
+    wasi_push_obs(w, walk.fs.entry.kind == SP_FS_KIND_DIR ? SPN_DAG_OBS_ENUMERATION : SPN_DAG_OBS_FILE, path);
   }
+  spn_fs_it_deinit(&walk);
   sp_mem_end_scratch(s);
 }
 
@@ -390,11 +395,13 @@ void spn_dag_wasi_observe_glob(wasm_module_inst_t instance, spn_path_t dir, sp_s
     if (!wasi_written(w, dir)) {
       wasi_push(w, SPN_DAG_OBS_ENUMERATION, dir, pattern);
     }
-    sp_fs_for(s.mem, spn_path_at(w->roots, dir), it) {
-      if (sp_glob_match(glob, it.entry.name)) {
-        observe(w, spn_path_join(s.mem, dir, it.entry.name));
+    spn_fs_it_t walk = spn_fs_it_new(s.mem, w->roots, w->owned, dir);
+    while (spn_fs_it_next(&walk)) {
+      if (sp_glob_match(glob, walk.fs.entry.name)) {
+        observe(w, spn_path_join(s.mem, dir, walk.fs.entry.name));
       }
     }
+    spn_fs_it_deinit(&walk);
   }
   sp_mem_end_scratch(s);
 }

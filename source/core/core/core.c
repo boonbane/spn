@@ -1,7 +1,52 @@
 #include "core/core.h"
 #include "fs/fs.h"
 #include "io/io.h"
+#include "paths/paths.h"
 #include "sp/sp_glob.h"
+
+spn_fs_it_t spn_fs_it_new(sp_mem_t mem, const spn_path_roots_t* roots, sp_da(spn_path_t) owned, spn_path_t dir) {
+  return (spn_fs_it_t) {
+    .fs = sp_fs_it_new_at(mem, spn_path_at(roots, dir), 0),
+    .dir = dir,
+    .owned = owned,
+  };
+}
+
+bool spn_fs_owned(sp_da(spn_path_t) owned, spn_path_t dir, sp_str_t rel) {
+  sp_da_for(owned, it) {
+    spn_path_rel_t within = spn_path_within(dir, owned[it]);
+    if (within.within && sp_str_equal(within.sub, rel)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool spn_fs_it_next(spn_fs_it_t* it) {
+  while (sp_fs_it_next(&it->fs)) {
+    if (!spn_fs_owned(it->owned, it->dir, it->fs.entry.rel)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool spn_fs_it_walk(spn_fs_it_t* it) {
+  while (sp_fs_it_next(&it->fs)) {
+    if (it->fs.yield == SP_FS_IT_LEAVE || spn_fs_owned(it->owned, it->dir, it->fs.entry.rel)) {
+      continue;
+    }
+    if (it->fs.entry.kind == SP_FS_KIND_DIR) {
+      it->fs.err = sp_fs_it_enter(&it->fs);
+    }
+    return !it->fs.err;
+  }
+  return false;
+}
+
+void spn_fs_it_deinit(spn_fs_it_t* it) {
+  sp_fs_it_deinit(&it->fs);
+}
 
 spn_err_t spn_fs_update_file(sp_path_t from, sp_path_t to) {
   sp_sys_file_meta_t source = sp_zero;
@@ -36,31 +81,72 @@ spn_err_t spn_fs_update_file(sp_path_t from, sp_path_t to) {
   return err;
 }
 
-spn_err_t spn_fs_update_glob(sp_path_t from, sp_path_t to) {
+spn_err_t spn_fs_update_tree(const spn_path_roots_t* roots, sp_da(spn_path_t) owned, spn_path_t from, sp_path_t to) {
   sp_mem_arena_marker_t s = sp_mem_begin_scratch();
-  spn_err_t err = SPN_OK;
+  spn_fs_it_t walk = spn_fs_it_new(s.mem, roots, owned, from);
 
-  sp_glob_t* glob = sp_glob_new_str(s.mem, sp_fs_get_name(from.sub));
-  sp_fs_it_t walk = sp_fs_it_new_at(s.mem, sp_path_parent(s.mem, from), 0);
-  if (!glob || walk.err || sp_fs_create_dir_at(to)) {
+  sp_sys_fd_t fd = SP_SYS_INVALID_FD;
+  spn_err_t err = SPN_OK;
+  if (walk.fs.err || sp_fs_create_dir_at(to) || sp_fs_open_dir_at(to, &fd)) {
     err = SPN_ERROR;
   }
 
-  while (!err && sp_fs_it_next(&walk)) {
-    sp_fs_entry_t* entry = &walk.entry;
+  while (!err && spn_fs_it_walk(&walk)) {
+    sp_path_t dest = sp_path(fd, walk.fs.entry.rel);
+    switch (walk.fs.entry.kind) {
+      case SP_FS_KIND_DIR: {
+        err = sp_fs_create_dir_at(dest) ? SPN_ERROR : SPN_OK;
+        break;
+      }
+      case SP_FS_KIND_FILE: {
+        err = spn_fs_update_file(walk.fs.at, dest);
+        break;
+      }
+      case SP_FS_KIND_SYMLINK:
+      case SP_FS_KIND_NONE: {
+        err = sp_fs_copy_at(walk.fs.at, dest, SP_FS_ATOMIC_REPLACE) ? SPN_ERROR : SPN_OK;
+        break;
+      }
+    }
+  }
+  spn_fs_it_deinit(&walk);
+  if (walk.fs.err) {
+    err = SPN_ERROR;
+  }
+
+  if (fd != SP_SYS_INVALID_FD) {
+    sp_sys_close(fd);
+  }
+  sp_mem_end_scratch(s);
+  return err;
+}
+
+spn_err_t spn_fs_update_glob(const spn_path_roots_t* roots, sp_da(spn_path_t) owned, spn_path_t from, sp_path_t to) {
+  sp_mem_arena_marker_t s = sp_mem_begin_scratch();
+  spn_err_t err = SPN_OK;
+
+  spn_path_t dir = spn_path_parent(from);
+  sp_glob_t* glob = sp_glob_new_str(s.mem, sp_fs_get_name(from.sub));
+  spn_fs_it_t walk = spn_fs_it_new(s.mem, roots, owned, dir);
+  if (!glob || walk.fs.err || sp_fs_create_dir_at(to)) {
+    err = SPN_ERROR;
+  }
+
+  while (!err && spn_fs_it_next(&walk)) {
+    sp_fs_entry_t* entry = &walk.fs.entry;
     if (!sp_glob_match(glob, entry->name)) {
       continue;
     }
 
     sp_path_t dest = sp_path_join(s.mem, to, entry->name);
-    sp_fs_kind_t kind = entry->kind == SP_FS_KIND_SYMLINK ? sp_fs_get_target_kind_at(walk.at) : entry->kind;
+    sp_fs_kind_t kind = entry->kind == SP_FS_KIND_SYMLINK ? sp_fs_get_target_kind_at(walk.fs.at) : entry->kind;
     switch (kind) {
       case SP_FS_KIND_FILE: {
-        err = spn_fs_update_file(walk.at, dest);
+        err = spn_fs_update_file(walk.fs.at, dest);
         break;
       }
       case SP_FS_KIND_DIR: {
-        err = sp_fs_copy_tree_at(walk.at, dest, SP_FS_ATOMIC_REPLACE) ? SPN_ERROR : SPN_OK;
+        err = spn_fs_update_tree(roots, owned, spn_path_join(s.mem, dir, entry->name), dest);
         break;
       }
       case SP_FS_KIND_SYMLINK:
@@ -70,8 +156,8 @@ spn_err_t spn_fs_update_glob(sp_path_t from, sp_path_t to) {
       }
     }
   }
-  sp_fs_it_deinit(&walk);
-  if (walk.err) {
+  spn_fs_it_deinit(&walk);
+  if (walk.fs.err) {
     err = SPN_ERROR;
   }
 

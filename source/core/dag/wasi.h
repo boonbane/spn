@@ -15,7 +15,7 @@ typedef struct {
 typedef struct spn_dag_wasi_t spn_dag_wasi_t;
 
 spn_err_t       spn_dag_wasi_install(void);
-spn_dag_wasi_t* spn_dag_wasi_new(sp_mem_t mem, const spn_path_roots_t* roots, const spn_dag_wasi_mount_t* mounts, u32 num_mounts, const spn_path_t* writable, u32 num_writable);
+spn_dag_wasi_t* spn_dag_wasi_new(sp_mem_t mem, const spn_path_roots_t* roots, sp_da(spn_path_t) owned, const spn_dag_wasi_mount_t* mounts, u32 num_mounts, const spn_path_t* writable, u32 num_writable);
 void            spn_dag_wasi_bind(spn_dag_wasi_t* w, wasm_module_inst_t instance);
 void            spn_dag_wasi_begin(spn_dag_wasi_t* w, spn_dag_obs_set_t* obs);
 void            spn_dag_wasi_end(spn_dag_wasi_t* w);

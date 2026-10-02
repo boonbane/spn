@@ -1,0 +1,10 @@
+[package]
+name = "R"
+version = "0.0.1"
+
+[[bin]]
+name = "R"
+source = ["main.c"]
+
+[stage]
+copy = [{ from = "work/G", to = "H/S" }]

@@ -1,12 +1,14 @@
 #include "spn_test.h"
 #include "core/core.h"
 #include "fs/fs.h"
+#include "paths/paths.h"
 
 #define COPY_TEST_MAX_ENTRIES 8
 
 typedef enum {
   OP_UPDATE_FILE,
   OP_UPDATE_GLOB,
+  OP_UPDATE_TREE,
 } op_t;
 
 typedef struct {
@@ -38,6 +40,7 @@ typedef struct {
   const c8* name;
   op_t op;
   setup_t setup;
+  const c8* owned [COPY_TEST_MAX_ENTRIES];
   const c8* from;
   const c8* to;
   expect_t expect;
@@ -160,6 +163,27 @@ static const test_t tests [] = {
     .expect.err = true,
     .expect.absent = { "D" },
   },
+  {
+    .name = "glob_skips_owned",
+    .op = OP_UPDATE_GLOB,
+    .setup.files = { { "A/X", "1" }, { "A/S", "2" } },
+    .owned = { "A/S" },
+    .from = "A/*",
+    .to = "D",
+    .expect.files = { { "D/X", "1" } },
+    .expect.absent = { "D/S" },
+  },
+  {
+    .name = "tree_skips_owned",
+    .op = OP_UPDATE_TREE,
+    .setup.files = { { "A/X", "1" }, { "A/B/S", "2" } },
+    .owned = { "A/B/S" },
+    .from = "A",
+    .to = "D",
+    .expect.files = { { "D/X", "1" } },
+    .expect.dirs = { "D/B" },
+    .expect.absent = { "D/B/S" },
+  },
 };
 
 sp_test_each(fs_update, cases, test_t, tests) {
@@ -203,6 +227,16 @@ sp_test_each(fs_update, cases, test_t, tests) {
     sp_must_ok(t, sp_fs_create_hard_link_at(sp_path_join(mem, root, sp_cstr_as_str(link.target)), sp_path_join(mem, root, sp_cstr_as_str(link.path))));
   }
 
+  spn_path_roots_t roots = sp_zero;
+  sp_must_ok(t, spn_path_roots_set(&roots, mem, SPN_PATH_ROOT_PROJECT, root));
+  sp_da(spn_path_t) owned = sp_da_new(mem, spn_path_t);
+  u32 num_owned = 0;
+  sp_carr_detect_len(it->owned, num_owned, it->owned[num_owned]);
+  sp_for(i, num_owned) {
+    sp_da_push(owned, ((spn_path_t) { .root = SPN_PATH_ROOT_PROJECT, .sub = sp_cstr_as_str(it->owned[i]) }));
+  }
+
+  spn_path_t source = { .root = SPN_PATH_ROOT_PROJECT, .sub = sp_cstr_as_str(it->from) };
   sp_path_t from = sp_path_join(mem, root, sp_cstr_as_str(it->from));
   sp_path_t to = sp_path_join(mem, root, sp_cstr_as_str(it->to));
 
@@ -216,7 +250,11 @@ sp_test_each(fs_update, cases, test_t, tests) {
       break;
     }
     case OP_UPDATE_GLOB: {
-      failed = spn_fs_update_glob(from, to) != SPN_OK;
+      failed = spn_fs_update_glob(&roots, owned, source, to) != SPN_OK;
+      break;
+    }
+    case OP_UPDATE_TREE: {
+      failed = spn_fs_update_tree(&roots, owned, source, to) != SPN_OK;
       break;
     }
   }

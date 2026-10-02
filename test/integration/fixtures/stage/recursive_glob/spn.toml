@@ -1,0 +1,7 @@
+[package]
+name = "W"
+version = "0.0.1"
+
+[[bin]]
+name = "W"
+source = ["main.c", "**/W/G.c"]

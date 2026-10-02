@@ -1,0 +1,10 @@
+[package]
+name = "T"
+version = "0.0.1"
+
+[[bin]]
+name = "T"
+source = ["main.c"]
+
+[stage]
+copy = [{ from = "work/G", to = "S" }]
