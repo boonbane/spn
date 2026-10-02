@@ -9,6 +9,7 @@
 typedef struct {
   const c8* guest;
   spn_path_t host;
+  bool private;
 } spn_dag_wasi_mount_t;
 
 typedef struct spn_dag_wasi_t spn_dag_wasi_t;

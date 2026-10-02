@@ -30,6 +30,20 @@ typedef union {
   const c8* array [4];
 } spn_wasm_preopens_t;
 
+typedef struct {
+  spn_path_t root;
+  spn_path_t store;
+  union {
+    struct {
+      spn_path_t work;
+      spn_path_t lib;
+      spn_path_t bin;
+      spn_path_t share;
+    };
+    spn_path_t writable [4];
+  };
+} spn_wasm_private_t;
+
 typedef enum {
   SPN_WASM_SCRIPT_NONE = 0,
   SPN_WASM_SCRIPT_CLOSED,
@@ -49,6 +63,7 @@ typedef struct {
   spn_dag_wasi_t* wasi;
   u32 ctx;
   spn_wasm_preopens_t preopens;
+  spn_wasm_private_t private;
 } spn_wasm_script_t;
 
 #endif

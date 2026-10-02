@@ -39,6 +39,107 @@ sp_test_each(script, graph, graph_t, graphs) {
   return run_command_test(t, test);
 }
 
+typedef struct {
+  const c8* name;
+  struct {
+    const c8* exists [SPN_TEST_COMMAND_MAX_PATHS];
+    const c8* missing [SPN_TEST_COMMAND_MAX_PATHS];
+  } expect;
+} isolation_t;
+
+static const isolation_t isolations [] = {
+  { .name = "list_work" },
+  { .name = "shared_dir", .expect.exists = { "A/gen/a.txt", "A/gen/b.txt" } },
+  { .name = "undeclared_write", .expect = { .exists = { "A/gen/a.txt" }, .missing = { "A/gen/b.txt" } } },
+  { .name = "configure_write_work", .expect.missing = { "A/X" } },
+};
+
+sp_test_each(script, isolation, isolation_t, isolations) {
+  command_test_t test = {
+    .project = project(t, it->name),
+    .args = { "build" },
+  };
+  sp_carr_for(it->expect.exists, i) {
+    if (!it->expect.exists[i]) {
+      break;
+    }
+    test.expect.exists[i] = work_file(it->expect.exists[i]);
+  }
+  sp_carr_for(it->expect.missing, i) {
+    if (!it->expect.missing[i]) {
+      break;
+    }
+    test.expect.missing[i] = work_file(it->expect.missing[i]);
+  }
+  return run_command_test(t, test);
+}
+
+sp_test(script, list_own_output_replay) {
+  return run_rebuild_test(t, (rebuild_test_t) {
+    .project = "test/integration/fixtures/script/list_own_output",
+    .first = {
+      .args = { "build" },
+      .expect.events = { { .event = SPN_EVENT_SCRIPT_USER_FN } },
+    },
+    .rebuilds = {
+      {
+        .change.remove_dirs = { sp_str_lit("build") },
+        .command = {
+          .args = { "build" },
+          .expect.events = { { .event = SPN_EVENT_BUILD_SUMMARY, .key = "misses", .value = "0" } },
+        },
+      },
+    },
+  });
+}
+
+sp_test(script, probe_shared_dir_rebuild) {
+  return run_rebuild_test(t, (rebuild_test_t) {
+    .project = "test/integration/fixtures/script/probe_shared_dir",
+    .first.args = { "build" },
+    .rebuilds = {
+      {
+        .command = {
+          .args = { "build" },
+          .expect.events = { { .event = SPN_EVENT_BUILD_SUMMARY, .key = "misses", .value = "0" } },
+        },
+      },
+      {
+        .command = {
+          .args = { "build" },
+          .expect.events = { { .event = SPN_EVENT_BUILD_SUMMARY, .key = "misses", .value = "0" } },
+        },
+      },
+      {
+        .change.remove_dirs = { sp_str_lit("build") },
+        .command = {
+          .args = { "build" },
+          .expect.events = { { .event = SPN_EVENT_BUILD_SUMMARY, .key = "misses", .value = "0" } },
+        },
+      },
+    },
+  });
+}
+
+sp_test(script, node_output_mode) {
+  return run_rebuild_test(t, (rebuild_test_t) {
+    .project = "test/integration/fixtures/script/basic_node",
+    .first.args = { "build" },
+    .rebuilds = {
+      {
+        .change.remove_dirs = { sp_str_lit("build") },
+        .command = {
+          .args = { "build" },
+          .expect.events = { { .event = SPN_EVENT_SCRIPT_USER_FN, .absent = true } },
+        },
+      },
+    },
+    .watches = {
+      { .file = work_file("basic_node/version.h"), .mode = REBUILD_MODE_UNCHANGED },
+    },
+  });
+}
+
 sp_test(script, tree_output_cached) {
   return run_rebuild_test(t, (rebuild_test_t) {
     .project = "test/integration/fixtures/script/tree_output",
@@ -192,6 +293,7 @@ static const failure_t failures [] = {
   { .name = "relative_path", .err = SPN_ERR_WASM_MODULE_CALL_FAILED },
   { .name = "foreign_path", .err = SPN_ERR_WASM_MODULE_CALL_FAILED },
   { .name = "node_input_work", .err = SPN_ERR_WASM_MODULE_CALL_FAILED },
+  { .name = "read_other_output", .err = SPN_ERR_WASM_SCRIPT_ERROR },
   { .name = "node_output_absolute", .err = SPN_ERR_WASM_MODULE_CALL_FAILED },
   { .name = "name_separator_exe", .err = SPN_ERR_WASM_MODULE_CALL_FAILED },
   { .name = "name_separator_lib", .err = SPN_ERR_WASM_MODULE_CALL_FAILED },

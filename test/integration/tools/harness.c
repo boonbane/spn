@@ -726,6 +726,13 @@ static sp_err_t apply_rebuild_change(sp_test_t* t, fixture_t* fixture, rebuild_c
   return SP_OK;
 }
 
+static sp_sys_file_perms_t file_perms(sp_str_t path) {
+  sp_path_t at = sp_path_cwd(path);
+  sp_sys_file_meta_t meta = sp_zero;
+  sp_sys_get_path_metadata_s(at.dir, at.sub, &meta);
+  return meta.perms;
+}
+
 sp_err_t run_rebuild_test(sp_test_t* t, rebuild_test_t test) {
   fixture_t fixture = sp_zero;
   sp_try(begin_test(t, &fixture, test.when));
@@ -735,6 +742,7 @@ sp_err_t run_rebuild_test(sp_test_t* t, rebuild_test_t test) {
   sp_try(run_command(t, &fixture, test.first));
 
   sp_tm_epoch_t mtimes[SPN_TEST_REBUILD_MAX_WATCHES] = sp_zero;
+  sp_sys_file_perms_t perms [SPN_TEST_REBUILD_MAX_WATCHES] = sp_zero;
   sp_carr_for(test.watches, it) {
     if (sp_str_empty(test.watches[it].file)) {
       break;
@@ -742,6 +750,7 @@ sp_err_t run_rebuild_test(sp_test_t* t, rebuild_test_t test) {
     sp_str_t path = fixture_path(&fixture, test.watches[it].file);
     expect_path(t, &fixture, path);
     mtimes[it] = sp_fs_get_mod_time(path);
+    perms[it] = file_perms(path);
   }
 
   sp_carr_for(test.rebuilds, it) {
@@ -762,6 +771,10 @@ sp_err_t run_rebuild_test(sp_test_t* t, rebuild_test_t test) {
     bool unchanged = mtimes[it].s == now.s && mtimes[it].ns == now.ns;
     if (watch.mtime == REBUILD_MTIME_CHANGED) {
       sp_expect(t, !unchanged);
+    }
+    if (watch.mode == REBUILD_MODE_UNCHANGED) {
+      sp_test_kv(t, "path", path);
+      sp_expect_eq(t, perms[it].value, file_perms(path).value);
     }
   }
   return SP_OK;

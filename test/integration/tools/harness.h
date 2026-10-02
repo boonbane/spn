@@ -165,6 +165,11 @@ typedef enum {
   REBUILD_MTIME_CHANGED,
 } rebuild_mtime_t;
 
+typedef enum {
+  REBUILD_MODE_NONE,
+  REBUILD_MODE_UNCHANGED,
+} rebuild_mode_t;
+
 typedef struct {
   sp_str_t file;
   sp_str_t content;
@@ -190,6 +195,7 @@ typedef struct {
 typedef struct {
   sp_str_t file;
   rebuild_mtime_t mtime;
+  rebuild_mode_t mode;
 } rebuild_watch_t;
 
 typedef struct {
