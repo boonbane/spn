@@ -31,7 +31,6 @@ typedef struct {
 typedef struct {
   struct {
     sp_str_t project_dir;
-    sp_str_t project_file;
     bool json;
     bool no_color;
     bool verbose;

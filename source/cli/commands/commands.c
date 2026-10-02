@@ -25,14 +25,6 @@ static sp_cli_cmd_t root = {
       .ptr = &host.args.project_dir,
     },
     {
-      .brief = 'f',
-      .name = "file",
-      .kind = SP_CLI_OPT_STR,
-      .summary = "Specify the project file path",
-      .placeholder = "FILE",
-      .ptr = &host.args.project_file,
-    },
-    {
       .name = "json",
       .kind = SP_CLI_OPT_BOOLEAN,
       .summary = "Write events to stdout as JSONL",
