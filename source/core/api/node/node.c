@@ -30,7 +30,6 @@ spn_node_t* spn_add_node(spn_config_t* config, const c8* tag) {
   };
   sp_da_init(mem, node.inputs);
   sp_da_init(mem, node.outputs);
-  sp_da_init(mem, node.deps);
   sp_da_push(unit->user_nodes, node);
 
   spn_node_t* out = sp_alloc_type(mem, spn_node_t);
@@ -46,9 +45,22 @@ spn_node_t* spn_add_node(spn_config_t* config, const c8* tag) {
 
 void spn_node_add_input(spn_node_t* node, const c8* input) {
   spn_user_node_t* info = spn_node_deref(node->ref);
-  spn_path_t made = spn_api_tree_path(node->ref.pkg, "spn_node_add_input", input);
+  spn_pkg_unit_t* unit = node->ref.pkg;
+  spn_path_t made = spn_api_tree_path(unit, "spn_node_add_input", input);
   if (spn_path_empty(made)) {
     return;
+  }
+  spn_dir_t built [] = { SPN_DIR_WORK, SPN_DIR_STORE };
+  sp_carr_for(built, it) {
+    spn_path_rel_t rel = spn_path_within(spn_api_dir_path(unit, built[it]), made);
+    if (rel.within) {
+      sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+      sp_str_t message = sp_fmt(scratch.mem, "spn_node_add_input: {}/{} must be a source or manifest file", SP_FMT_STR(spn_dir_to_str(built[it])), SP_FMT_STR(rel.sub)).value;
+      bool trapped = spn_wasm_trap_active(unit, message);
+      sp_mem_end_scratch(scratch);
+      sp_assert(trapped);
+      return;
+    }
   }
   sp_da_push(info->inputs, made);
 }
@@ -118,11 +130,6 @@ void spn_node_add_output(spn_node_t* node, spn_dir_t dir, const c8* path) {
 
 void spn_node_add_output_dir(spn_node_t* node, spn_dir_t dir, const c8* path) {
   add_output(node, "spn_node_add_output_dir", dir, path, SPN_DAG_ARTIFACT_KIND_TREE);
-}
-
-void spn_node_link(spn_node_t* from, spn_node_t* to) {
-  spn_user_node_t* info = spn_node_deref(to->ref);
-  sp_da_push(info->deps, from->ref);
 }
 
 void spn_node_set_fn(spn_node_t* node, const c8* fn) {

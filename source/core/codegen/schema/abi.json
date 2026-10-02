@@ -48,7 +48,6 @@
     { "name": "spn_node_add_input", "args": ["node", "str"] },
     { "name": "spn_node_add_output", "args": ["node", "s32", "str"] },
     { "name": "spn_node_add_output_dir", "args": ["node", "s32", "str"] },
-    { "name": "spn_node_link", "args": ["node", "node"] },
     { "name": "spn_fs_copy", "args": ["str", "str"], "host": "spn_abi_fs_copy", "wasm_ctx": true },
     { "name": "spn_fs_copy_glob", "args": ["str", "str"], "host": "spn_abi_fs_copy_glob", "wasm_ctx": true },
     { "name": "spn_fs_create_dir", "args": ["str"], "host": "spn_abi_fs_create_dir", "wasm_ctx": true },

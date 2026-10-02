@@ -49,7 +49,6 @@ spn_node_t*   spn_add_node(spn_config_t* config, const c8* tag);
 void          spn_node_add_input(spn_node_t* node, const c8* input);
 void          spn_node_add_output(spn_node_t* node, spn_dir_t dir, const c8* path);
 void          spn_node_add_output_dir(spn_node_t* node, spn_dir_t dir, const c8* path);
-void          spn_node_link(spn_node_t* from, spn_node_t* to);
 void          spn_node_set_fn(spn_node_t* node, const c8* fn);
 
 void          spn_target_add_source(spn_target_t* target, const c8* source);

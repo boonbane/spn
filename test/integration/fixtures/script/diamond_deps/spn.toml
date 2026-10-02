@@ -1,7 +1,0 @@
-[package]
-name = "D"
-version = "0.0.1"
-
-[[bin]]
-name = "D"
-source = ["main.c"]

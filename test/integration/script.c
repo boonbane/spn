@@ -15,10 +15,9 @@ typedef struct {
 static const graph_t graphs [] = {
   { .name = "basic_node" },
   { .name = "tree_output" },
-  { .name = "diamond_deps" },
   { .name = "multi_output" },
-  { .name = "node_linking" },
   { .name = "orphan_outputs", .work = { "O/O.h" } },
+  { .name = "node_stamp", .work = { "S/stamp/S" } },
   { .name = "publish_work", .copy = { "packages/*" } },
   { .name = "publish_work_tree", .copy = { "packages/*" } },
 };
@@ -38,31 +37,6 @@ sp_test_each(script, graph, graph_t, graphs) {
     test.expect.exists[i] = work_file(it->work[i]);
   }
   return run_command_test(t, test);
-}
-
-sp_test(script, chained_nodes) {
-  return run_rebuild_test(t, (rebuild_test_t) {
-    .project = "test/integration/fixtures/script/chained_nodes",
-    .copy = { "a.txt", "a.change.txt" },
-    .first = {
-      .args = { "build" },
-      .expect.files = { { .file = work_file("C/B.txt"), .content = "2" } },
-    },
-    .rebuilds = {
-      {
-        .change.moves = {
-          { .from = sp_str_lit("a.change.txt"), .to = sp_str_lit("a.txt") },
-        },
-        .command = {
-          .args = { "build" },
-          .expect = {
-            .events = { { .event = SPN_EVENT_SCRIPT_USER_FN, .key = "tag", .value = "B" } },
-            .files = { { .file = work_file("C/B.txt"), .content = "6" } },
-          },
-        },
-      },
-    },
-  });
 }
 
 sp_test(script, tree_output_cached) {
@@ -217,6 +191,7 @@ static const failure_t failures [] = {
   { .name = "node_output_unnamed", .err = SPN_ERR_WASM_MODULE_CALL_FAILED },
   { .name = "relative_path", .err = SPN_ERR_WASM_MODULE_CALL_FAILED },
   { .name = "foreign_path", .err = SPN_ERR_WASM_MODULE_CALL_FAILED },
+  { .name = "node_input_work", .err = SPN_ERR_WASM_MODULE_CALL_FAILED },
   { .name = "node_output_absolute", .err = SPN_ERR_WASM_MODULE_CALL_FAILED },
   { .name = "name_separator_exe", .err = SPN_ERR_WASM_MODULE_CALL_FAILED },
   { .name = "name_separator_lib", .err = SPN_ERR_WASM_MODULE_CALL_FAILED },
