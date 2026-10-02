@@ -268,9 +268,7 @@ static void save_obs(spn_dag_obs_table_t* d, spn_dag_digest_t key, const spn_dag
   sp_io_dyn_mem_writer_init(s.mem, &sink);
   if (!write_obs(&sink.base, s.mem, set)) {
     sp_fs_write_atomic_at(spn_path_at(d->roots, entry_path(d->dir, s.mem, key)), sp_io_dyn_mem_writer_as_str(&sink));
-    if (d->stats) {
-      sp_atomic_u32_add(&d->stats->cache_writes, 1, SP_ATOMIC_RELAXED);
-    }
+    sp_atomic_u32_add(&d->count.writes, 1, SP_ATOMIC_RELAXED);
   }
 
   sp_mem_end_scratch(s);
@@ -308,9 +306,7 @@ bool spn_dag_action_cache_get(spn_dag_action_cache_t* c, spn_dag_digest_t key, s
     sp_mutex_unlock(&c->mutex);
     return false;
   }
-  if (c->stats) {
-    sp_atomic_u32_add(&c->stats->cache_reads, 1, SP_ATOMIC_RELAXED);
-  }
+  sp_atomic_u32_add(&c->count.reads, 1, SP_ATOMIC_RELAXED);
 
   sp_ht_insert(c->entries, key, entry);
   *out = entry;
@@ -332,9 +328,7 @@ void spn_dag_action_cache_put(spn_dag_action_cache_t* c, spn_dag_digest_t key, c
 
   if (!spn_path_empty(c->dir)) {
     save_outputs(c, key, entry.outputs, sp_da_size(entry.outputs));
-    if (c->stats) {
-      sp_atomic_u32_add(&c->stats->cache_writes, 1, SP_ATOMIC_RELAXED);
-    }
+    sp_atomic_u32_add(&c->count.writes, 1, SP_ATOMIC_RELAXED);
   }
   sp_mutex_unlock(&c->mutex);
 }
@@ -402,10 +396,8 @@ bool spn_dag_obs_table_get(spn_dag_obs_table_t* d, spn_dag_digest_t weak, spn_da
   sp_da_init(d->mem, loaded.obs);
   bool ok = parse_obs(sp_str_copy(d->mem, content), &loaded);
   if (ok) {
-    if (d->stats) {
-      sp_atomic_u32_add(&d->stats->cache_reads, 1, SP_ATOMIC_RELAXED);
-      sp_atomic_u32_add(&d->stats->obs_rows, (u32)sp_da_size(loaded.obs), SP_ATOMIC_RELAXED);
-    }
+    sp_atomic_u32_add(&d->count.reads, 1, SP_ATOMIC_RELAXED);
+    sp_atomic_u32_add(&d->count.rows, (u32)sp_da_size(loaded.obs), SP_ATOMIC_RELAXED);
     sp_ht_insert(d->entries, weak, loaded);
     *set = loaded;
   }
@@ -639,10 +631,8 @@ spn_err_t spn_dag_store_put_file(spn_dag_store_t* store, sp_path_t path, sp_str_
       }
       spn_err_t err = spn_dag_store_put(store, content.data, content.len, name, digest);
       sp_mem_end_scratch(s);
-      if (store->stats) {
-        sp_atomic_u32_add(&store->stats->hashed_files, 1, SP_ATOMIC_RELAXED);
-        sp_atomic_u64_add(&store->stats->hashed_bytes, content.len, SP_ATOMIC_RELAXED);
-      }
+      sp_atomic_u32_add(&store->count.hashed_files, 1, SP_ATOMIC_RELAXED);
+      sp_atomic_u64_add(&store->count.hashed_bytes, content.len, SP_ATOMIC_RELAXED);
       return err;
     }
     case SPN_DAG_STORE_FILESYSTEM: {
@@ -650,10 +640,8 @@ spn_err_t spn_dag_store_put_file(spn_dag_store_t* store, sp_path_t path, sp_str_
       if (spn_digest_file(SPN_DIGEST_BLAKE3, path, digest->bytes, &size)) {
         return SPN_ERR_DAG_STORE_READ;
       }
-      if (store->stats) {
-        sp_atomic_u32_add(&store->stats->hashed_files, 1, SP_ATOMIC_RELAXED);
-        sp_atomic_u64_add(&store->stats->hashed_bytes, size, SP_ATOMIC_RELAXED);
-      }
+      sp_atomic_u32_add(&store->count.hashed_files, 1, SP_ATOMIC_RELAXED);
+      sp_atomic_u64_add(&store->count.hashed_bytes, size, SP_ATOMIC_RELAXED);
 
       sp_mem_arena_marker_t s = sp_mem_begin_scratch();
       spn_err_t err = SPN_OK;

@@ -85,7 +85,9 @@ bool                spn_dag_file_cache_recorded(spn_dag_file_cache_t* c, spn_pat
 spn_path_t          spn_dag_file_cache_canonical(spn_dag_file_cache_t* c, spn_path_t path);
 
 spn_err_t           spn_dag_execute(spn_dag_t* g, spn_dag_id_t action, spn_dag_env_t* env);
-spn_err_t           spn_dag_run(spn_dag_t* g, spn_dag_env_t* env);
-spn_err_t           spn_dag_run_executor(spn_dag_t* g, spn_dag_env_t* env, spn_thread_pool_executor_t* executor);
+void                spn_dag_run_begin(spn_dag_run_t* run, sp_mem_t mem, spn_dag_t* g, spn_dag_env_t* env, spn_thread_pool_executor_t* ex);
+bool                spn_dag_run_step(spn_dag_run_t* run);
+void                spn_dag_run_cancel(spn_dag_run_t* run);
+spn_err_t           spn_dag_run_end(spn_dag_run_t* run);
 
 #endif

@@ -137,7 +137,6 @@ sp_test_each(dag_pinned, runs, test_t, tests) {
   dag_test_env_init(&env.dag, t, (dag_test_env_config_t) {
     .checkout = "checkout",
     .store = SPN_DAG_STORE_MEM,
-    .discovery = true,
     .pinned = it->pinned
   });
 
@@ -212,7 +211,7 @@ sp_test_each(dag_pinned, source, source_test_t, source_tests) {
     spn_dag_id_t obj = spn_dag_add_file(g, dag_test_env_rooted(&env.dag, sp_str_lit("O")));
     sp_must_eq(t, SPN_OK, spn_dag_action_add_output(g, action, obj));
 
-    sp_expect_eq(t, SPN_OK, spn_dag_run(g, &env.dag.env));
+    sp_expect_eq(t, SPN_OK, dag_test_env_run(&env.dag, g));
     sp_expect_eq(t, it->expect_runs[r], env.dag.runs);
   }
 

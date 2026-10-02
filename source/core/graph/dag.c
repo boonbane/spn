@@ -9,6 +9,7 @@
 #include "spn/errors.h"
 #include "event/types.h"
 #include "core/types.h"
+#include "spn/types.h"
 #include "unit/types.h"
 
 #include "compiler/driver.h"
@@ -158,7 +159,7 @@ static spn_err_t dag_add_user_nodes(spn_dag_build_t* b, spn_pkg_unit_t* unit, sp
       spn_dag_id_t artifact = spn_dag_add_path(g, out->path, out->kind);
       spn_err_t err = spn_dag_action_add_output(g, action, artifact);
       if (err) {
-        b->env.diag = (spn_dag_diag_t) {
+        b->diag = (spn_dag_diag_t) {
           .err = err,
           .path = spn_path_str(g->roots, b->mem, out->path)
         };
@@ -630,7 +631,7 @@ static spn_err_t add_stages(spn_dag_build_t* b) {
     spn_path_t from = spn_path_join(b->mem, spn_api_dir_path(root, copy->dir), copy->sub);
     spn_dag_id_t* id = sp_ht_getp(g->paths, from);
     if (!id || !spn_dag_find_artifact(g, *id)->producer.occupied) {
-      b->env.diag = (spn_dag_diag_t) {
+      b->diag = (spn_dag_diag_t) {
         .err = SPN_ERR_STAGE_UNPRODUCED,
         .path = spn_path_str(g->roots, b->mem, from),
       };
@@ -647,7 +648,7 @@ static spn_err_t add_stages(spn_dag_build_t* b) {
     sp_da_for(g->artifacts, jt) {
       spn_path_t path = g->artifacts[jt].path;
       if (spn_path_within(to, path).within || spn_path_within(path, to).within) {
-        b->env.diag = (spn_dag_diag_t) {
+        b->diag = (spn_dag_diag_t) {
           .err = SPN_ERR_STAGE_OVERLAP,
           .path = spn_path_str(g->roots, b->mem, to),
         };
@@ -963,7 +964,7 @@ done:
 }
 
 static spn_err_t dag_result(spn_dag_build_t* b) {
-  spn_dag_diag_t* diag = &b->env.diag;
+  spn_dag_diag_t* diag = &b->diag;
 
   switch (b->result) {
     case SPN_OK: {
@@ -998,8 +999,9 @@ static spn_err_t dag_result(spn_dag_build_t* b) {
 static void dag_emit_reports(spn_dag_build_t* b, u64 elapsed) {
   spn_session_t* session = b->session;
   bool failed = b->result != SPN_OK;
-  u32 hits = (u32)sp_atomic_s32_load(&b->progress.hits, SP_ATOMIC_SEQ_CST);
-  u32 misses = (u32)sp_atomic_s32_load(&b->progress.misses, SP_ATOMIC_SEQ_CST);
+  spn_dag_file_cache_t* files = b->env.files;
+  u32 hits = (u32)sp_atomic_s32_load(&b->run.progress.hits, SP_ATOMIC_SEQ_CST);
+  u32 misses = (u32)sp_atomic_s32_load(&b->run.progress.misses, SP_ATOMIC_SEQ_CST);
 
   sp_da_for(session->plans.build, it) {
     spn_build_unit_t* build = session->plans.build[it].build;
@@ -1040,23 +1042,25 @@ static void dag_emit_reports(spn_dag_build_t* b, u64 elapsed) {
         .total = (u32)sp_da_size(b->graph->actions),
         .time = elapsed,
         .profile = profile->name,
-        .hashed_files = sp_atomic_u32_load(&b->stats.hashed_files, SP_ATOMIC_SEQ_CST),
-        .hashed_bytes = sp_atomic_u64_load(&b->stats.hashed_bytes, SP_ATOMIC_SEQ_CST),
-        .stats = sp_atomic_u32_load(&b->stats.stats, SP_ATOMIC_SEQ_CST),
-        .obs_rows = sp_atomic_u32_load(&b->stats.obs_rows, SP_ATOMIC_SEQ_CST),
-        .cache_reads = sp_atomic_u32_load(&b->stats.cache_reads, SP_ATOMIC_SEQ_CST),
-        .cache_writes = sp_atomic_u32_load(&b->stats.cache_writes, SP_ATOMIC_SEQ_CST),
+        .hashed_files = sp_atomic_u32_load(&files->count.hashed_files, SP_ATOMIC_SEQ_CST) + sp_atomic_u32_load(&b->store.count.hashed_files, SP_ATOMIC_SEQ_CST),
+        .hashed_bytes = sp_atomic_u64_load(&files->count.hashed_bytes, SP_ATOMIC_SEQ_CST) + sp_atomic_u64_load(&b->store.count.hashed_bytes, SP_ATOMIC_SEQ_CST),
+        .stats = sp_atomic_u32_load(&files->count.stats, SP_ATOMIC_SEQ_CST),
+        .obs_rows = sp_atomic_u32_load(&b->discovery.count.rows, SP_ATOMIC_SEQ_CST),
+        .cache_reads = sp_atomic_u32_load(&b->actions.count.reads, SP_ATOMIC_SEQ_CST) + sp_atomic_u32_load(&b->discovery.count.reads, SP_ATOMIC_SEQ_CST),
+        .cache_writes = sp_atomic_u32_load(&b->actions.count.writes, SP_ATOMIC_SEQ_CST) + sp_atomic_u32_load(&b->discovery.count.writes, SP_ATOMIC_SEQ_CST),
       },
     });
   }
 }
 
 spn_dag_build_t* spn_dag_build_new(spn_op_t* op) {
-  spn_session_t* session = op->session;
+  spn_session_t* s = op->session;
   const spn_path_roots_t* roots = &op->ctx->roots;
-  spn_dag_build_t* b = sp_alloc_type(session->mem, spn_dag_build_t);
+
+  spn_dag_build_t* b = sp_alloc_type(s->mem, spn_dag_build_t);
   sp_mem_zero(b, sizeof(spn_dag_build_t));
-  b->session = session;
+  b->op = op;
+  b->session = s;
   b->mem = spn.mem;
   b->graph = spn_dag_new(spn.mem, roots);
   sp_ht_init(b->mem, b->ids.user_outputs);
@@ -1066,33 +1070,39 @@ spn_dag_build_t* spn_dag_build_new(spn_op_t* op) {
   sp_ht_init(b->mem, b->ids.objects);
   sp_da_init(b->mem, b->stages);
 
-  spn_path_t root = spn_path_anchor(session->mem, roots, spn_path_join(session->mem, spn_path_from_root(SPN_PATH_ROOT_CACHE), sp_str_lit("dag")));
-  spn_path_t tmp = spn_path_join(session->mem, root, sp_str_lit("tmp"));
-  sp_fs_create_dir_at(spn_path_at(roots, tmp));
+  struct {
+    spn_path_t cache;
+    spn_path_t dag;
+    spn_path_t store;
+    spn_path_t strong;
+    spn_path_t weak;
+    spn_path_t tmp;
+  } paths = sp_zero;
+  paths.cache = spn_path_from_root(SPN_PATH_ROOT_CACHE);
+  paths.dag = spn_path_join(s->mem, paths.cache, sp_str_lit("dag"));
+  paths.dag = spn_path_anchor(s->mem, roots, paths.dag);
+  paths.store = spn_path_join(s->mem, paths.dag, sp_str_lit("store"));
+  paths.strong = spn_path_join(s->mem, paths.dag, sp_str_lit("strong"));
+  paths.weak = spn_path_join(s->mem, paths.dag, sp_str_lit("weak"));
+  paths.tmp = spn_path_join(s->mem, paths.dag, sp_str_lit("tmp"));
 
   spn_dag_store_init(&b->store, (spn_dag_store_config_t) {
     .kind = SPN_DAG_STORE_FILESYSTEM,
     .mem = spn.mem,
     .roots = roots,
-    .dir = spn_path_join(session->mem, root, sp_str_lit("store")),
+    .dir = paths.store
   });
-  spn_dag_action_cache_init(&b->actions, spn.mem, roots, spn_path_join(session->mem, root, sp_str_lit("strong")));
-  spn_dag_obs_table_init(&b->discovery, spn.mem, roots, spn_path_join(session->mem, root, sp_str_lit("weak")));
-  session->dag.files.stats = &b->stats;
-  b->actions.stats = &b->stats;
-  b->discovery.stats = &b->stats;
-  b->store.stats = &b->stats;
+  spn_dag_action_cache_init(&b->actions, spn.mem, roots, paths.strong);
+  spn_dag_obs_table_init(&b->discovery, spn.mem, roots, paths.weak);
+  sp_fs_create_dir_at(spn_path_at(roots, paths.tmp));
+  sp_mem_zero(&s->dag.files.count, sizeof(s->dag.files.count));
 
   b->env = (spn_dag_env_t) {
-    .files = &session->dag.files,
+    .files = &s->dag.files,
     .cache = &b->actions,
     .store = &b->store,
     .discovery = &b->discovery,
-    .stats = &b->stats,
-    .progress = &b->progress,
-    .wake = &op->ctx->wake,
-    .cancel = &op->cancelled,
-    .scratch = tmp,
+    .tmp = paths.tmp,
   };
 
   return b;
@@ -1106,7 +1116,19 @@ spn_err_t spn_dag_build_run(spn_dag_build_t* b, u32 workers) {
 
   b->timer = sp_tm_start_timer();
   spn_dag_file_cache_invalidate_all(b->env.files);
-  b->result = spn_dag_run_executor(b->graph, &b->env, &b->pool.executor);
+
+  sp_mem_arena_marker_t s = sp_mem_begin_scratch();
+  spn_dag_run_begin(&b->run, s.mem, b->graph, &b->env, &b->pool.executor);
+  do {
+    if (spn_op_cancelled(b->op)) {
+      spn_dag_run_cancel(&b->run);
+    }
+    spn_wake_ring(&b->op->ctx->wake);
+  } while (spn_dag_run_step(&b->run));
+  b->result = spn_dag_run_end(&b->run);
+  b->diag = b->run.diag;
+  sp_mem_end_scratch(s);
+
   spn_thread_pool_deinit(&b->pool);
   spn_dag_file_cache_flush(b->env.files, b->session->dag.files_path);
   return dag_result(b);
@@ -1138,7 +1160,7 @@ spn_err_t spn_dag_build_session(spn_op_t* op) {
     }
   });
 
-  sp_atomic_ptr_store(&session->ctx->progress, &b->progress, SP_ATOMIC_SEQ_CST);
+  sp_atomic_ptr_store(&session->ctx->progress, &b->run.progress, SP_ATOMIC_SEQ_CST);
   spn_err_t result = spn_dag_build_run(b, spn_cpu_count());
   sp_atomic_ptr_store(&session->ctx->progress, SP_NULLPTR, SP_ATOMIC_SEQ_CST);
   u64 elapsed = sp_tm_read_timer(&b->timer);

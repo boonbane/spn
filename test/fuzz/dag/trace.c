@@ -3,6 +3,7 @@
 #include "dag/track.h"
 #include "paths/paths.h"
 #include "io/io.h"
+#include "thread_pool/thread_pool.h"
 
 typedef enum {
   MEMO_SURE,
@@ -224,7 +225,7 @@ static void init_world(world_t* w, sp_mem_t mem, sp_sim_t* sim, fz_universe_t* u
     .cache = &w->cache,
     .store = &w->store,
     .discovery = &w->discovery,
-    .scratch = { .root = SPN_PATH_ROOT_NONE, .sub = sp_str_lit("/scratch") },
+    .tmp = { .root = SPN_PATH_ROOT_NONE, .sub = sp_str_lit("/scratch") },
     .trace = world_trace_hook,
     .trace_data = w,
   };
@@ -235,11 +236,27 @@ static void init_world(world_t* w, sp_mem_t mem, sp_sim_t* sim, fz_universe_t* u
   fz_executor_init(&w->ex, mem, sim, schedule);
 }
 
+static spn_err_t run_graph(world_t* w, spn_dag_t* g, spn_thread_pool_executor_t* ex) {
+  sp_mem_arena_marker_t s = sp_mem_begin_scratch();
+  spn_dag_run_t run = sp_zero;
+  spn_dag_run_begin(&run, s.mem, g, &w->env, ex);
+  while (spn_dag_run_step(&run)) {
+  }
+  spn_err_t err = spn_dag_run_end(&run);
+  sp_mem_end_scratch(s);
+  return err;
+}
+
 static spn_err_t run_world(world_t* w, fz_universe_t* u, spn_dag_t* g) {
   if (u->profile.run_ex) {
-    return spn_dag_run_executor(g, &w->env, &w->ex.base);
+    return run_graph(w, g, &w->ex.base);
   }
-  return spn_dag_run(g, &w->env);
+
+  spn_thread_pool_t pool = sp_zero;
+  spn_thread_pool_init(&pool, g->mem, (spn_thread_pool_config_t) sp_zero);
+  spn_err_t err = run_graph(w, g, &pool.executor);
+  spn_thread_pool_deinit(&pool);
+  return err;
 }
 
 static void write_source(sp_mem_t mem, fz_universe_t* u, fz_state_t* state, u64 artifact) {

@@ -375,8 +375,7 @@ static spn_err_t execute_action(spn_dag_t* g, spn_dag_action_t* action, void* us
 sp_test_each(dag_glob, exec, exec_test_t, exec_tests) {
   env_t env = sp_zero;
   dag_test_env_init(&env.dag, t, (dag_test_env_config_t) {
-    .store = SPN_DAG_STORE_MEM,
-    .discovery = true
+    .store = SPN_DAG_STORE_MEM
   });
   env.root = dag_test_env_path(&env.dag, sp_str_lit("R"));
   env.pattern = spn_path_join(env.dag.mem, dag_test_env_rooted(&env.dag, sp_str_lit("R")), sp_str_view(it->pattern));
