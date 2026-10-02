@@ -630,23 +630,6 @@ static spn_err_t add_stages(spn_dag_build_t* b) {
     sp_da_push(b->stages, entry);
   }
 
-  sp_da_for(b->stages, it) {
-    if (b->stages[it].declarer != SPN_STAGE_DECLARER_STAGE) {
-      continue;
-    }
-    spn_path_t to = b->stages[it].to;
-    sp_da_for(g->artifacts, jt) {
-      spn_path_t path = g->artifacts[jt].path;
-      if (spn_path_within(to, path).within || spn_path_within(path, to).within) {
-        b->diag = (spn_dag_diag_t) {
-          .err = SPN_ERR_STAGE_OVERLAP,
-          .path = spn_path_str(g->roots, b->mem, to),
-        };
-        return SPN_ERR_STAGE_OVERLAP;
-      }
-    }
-  }
-
   return SPN_OK;
 }
 
@@ -716,6 +699,12 @@ static spn_err_t prepare_graph(spn_dag_build_t* b) {
 
   spn_try(add_compile_commands(b));
   spn_try(add_stages(b));
+
+  sp_da_for(b->stages, it) {
+    spn_dag_stage_t* entry = &b->stages[it];
+    spn_dag_artifact_kind_t kind = entry->artifact.occupied ? spn_dag_find_artifact(b->graph, entry->artifact)->kind : SPN_DAG_ARTIFACT_KIND_FILE;
+    spn_dag_add_staged(b->graph, entry->to, kind);
+  }
 
   return SPN_OK;
 }

@@ -353,6 +353,7 @@ static void lower_stage(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, spn
       .to = entry->to,
     };
     bool produced = copy.dir == SPN_DIR_WORK || copy.dir == SPN_DIR_SHARE || copy.dir == SPN_DIR_LIB || copy.dir == SPN_DIR_BIN;
+    bool reserved = sp_str_equal_cstr(sp_str_cleave_c8(entry->to, '/').first, "build") || sp_str_equal_cstr(entry->to, "compile_commands.json") || sp_str_equal_cstr(entry->to, "spn.toml") || sp_str_equal_cstr(entry->to, "spn.lock");
     spn_path_t to = { .root = SPN_PATH_ROOT_PROJECT, .sub = entry->to };
     bool duplicate = false;
     bool nested = false;
@@ -377,7 +378,7 @@ static void lower_stage(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, spn
     spn_toml_loader_pop(ctx);
     spn_toml_loader_push_key(ctx, "to");
     if (lower_path_ok(ctx, entry->to)) {
-      if (sp_str_equal_cstr(sp_str_cleave_c8(entry->to, '/').first, "build") || sp_str_equal_cstr(entry->to, "compile_commands.json")) {
+      if (reserved) {
         spn_toml_loader_issue_at(ctx, SPN_ERR_CODEGEN_INVALID, entry->to);
       } else if (duplicate) {
         spn_toml_loader_issue_at(ctx, SPN_ERR_CODEGEN_DUPLICATE_KEY, entry->to);

@@ -28,6 +28,7 @@ typedef struct {
 typedef struct {
   const c8* name;
   action_t actions [DAG_TEST_MAX_OPS];
+  const c8* staged [DAG_TEST_MAX_INPUTS];
   build_t builds [DAG_TEST_MAX_OPS];
 } test_t;
 
@@ -186,6 +187,16 @@ static const test_t tests [] = {
       { .sources = { { "M", "A" }, { "H", "C" } }, .expect_runs = 2 },
     }
   },
+  {
+    .name = "absent_staged_file_passes",
+    .actions = {
+      { .identity = "I", .inputs = { "S" }, .output = "X" },
+    },
+    .staged = { "G" },
+    .builds = {
+      { .sources = { { "S", "A" } }, .expect_runs = 1 },
+    }
+  },
 };
 
 static spn_err_t execute_action(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs) {
@@ -311,6 +322,12 @@ sp_test_each(dag_run, builds, test_t, tests) {
       spn_path_t output = dag_test_env_rooted(&env, sp_str_view(spec->output));
       spn_dag_id_t out_id = spec->tree ? spn_dag_add_tree(g, output) : spn_dag_add_file(g, output);
       sp_must_eq(t, SPN_OK, spn_dag_action_add_output(g, action, out_id));
+    }
+
+    u32 staged = 0;
+    sp_carr_detect_len(it->staged, staged, it->staged[staged]);
+    sp_for(st, staged) {
+      spn_dag_add_staged(g, dag_test_env_rooted(&env, sp_cstr_as_str(it->staged[st])), SPN_DAG_ARTIFACT_KIND_FILE);
     }
 
     spn_err_t err = dag_test_env_run(&env, g);

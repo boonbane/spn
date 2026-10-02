@@ -934,7 +934,7 @@ static bool defer_observations(spn_dag_run_t* run, spn_dag_action_t* action, sp_
       spn_dag_id_t* above = sp_ht_getp(run->g->paths, dir);
       if (above) {
         spn_dag_artifact_t* tree = spn_dag_find_artifact(run->g, *above);
-        if (tree->kind == SPN_DAG_ARTIFACT_KIND_TREE) {
+        if (tree->kind == SPN_DAG_ARTIFACT_KIND_TREE && !tree->staged) {
           defer_producer(run, action, tree->producer.index, epoch, requeue);
         }
       }
@@ -971,7 +971,7 @@ static spn_err_t seed_sources(spn_dag_t* g, spn_dag_env_t* env, spn_dag_diag_t* 
         break;
       }
       case SPN_DAG_ARTIFACT_KIND_FILE: {
-        if (!artifact->producer.occupied) {
+        if (!artifact->producer.occupied && !artifact->staged) {
           if (g->roots->pinned & spn_path_root_mask(artifact->path.root)) {
             artifact->materialized = artifact->path;
             artifact->digest = spn_dag_path_digest(artifact->path);

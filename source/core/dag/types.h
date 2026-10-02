@@ -82,6 +82,7 @@ typedef enum {
 typedef struct {
   spn_dag_id_t id;
   spn_dag_artifact_kind_t kind;
+  bool staged;
   sp_str_t name;
   spn_path_t path;
   spn_path_t materialized;

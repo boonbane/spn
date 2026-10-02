@@ -267,6 +267,21 @@ sp_test(stage, clean_profile_keeps_stages) {
   });
 }
 
+sp_test(stage, source_glob) {
+  return run_rebuild_test(t, (rebuild_test_t) {
+    .project = "test/integration/fixtures/stage/glob",
+    .first.args = { "build" },
+    .rebuilds = {
+      {
+        .command = {
+          .args = { "build" },
+          .expect = { .rc = 1, .err = SPN_ERR_STAGE_OVERLAP },
+        },
+      },
+    },
+  });
+}
+
 typedef struct {
   const c8* name;
   const c8* copy;

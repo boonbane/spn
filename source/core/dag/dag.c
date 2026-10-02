@@ -49,22 +49,35 @@ static spn_dag_id_t add_artifact(spn_dag_t* g, spn_dag_artifact_t artifact) {
   return artifact.id;
 }
 
-spn_dag_id_t spn_dag_add_path(spn_dag_t* g, spn_path_t path, spn_dag_artifact_kind_t kind) {
-  sp_assert(!spn_path_empty(path));
-  spn_dag_id_t* existing = sp_ht_getp(g->paths, path);
-  if (existing && spn_dag_find_artifact(g, *existing)->kind == kind) {
+static spn_dag_id_t add_claim(spn_dag_t* g, spn_dag_artifact_t claim) {
+  sp_assert(!spn_path_empty(claim.path));
+  spn_dag_id_t* existing = sp_ht_getp(g->paths, claim.path);
+  spn_dag_artifact_t* found = existing ? spn_dag_find_artifact(g, *existing) : SP_NULLPTR;
+  if (found && found->kind == claim.kind && found->staged == claim.staged) {
     return *existing;
   }
 
-  spn_path_t key = { .root = path.root, .sub = sp_str_copy(g->mem, path.sub) };
-  spn_dag_id_t id = add_artifact(g, (spn_dag_artifact_t) {
-    .kind = kind,
-    .path = key,
-  });
+  claim.path = (spn_path_t) { .root = claim.path.root, .sub = sp_str_copy(g->mem, claim.path.sub) };
+  spn_dag_id_t id = add_artifact(g, claim);
   if (!existing) {
-    sp_ht_insert(g->paths, key, id);
+    sp_ht_insert(g->paths, claim.path, id);
   }
   return id;
+}
+
+spn_dag_id_t spn_dag_add_path(spn_dag_t* g, spn_path_t path, spn_dag_artifact_kind_t kind) {
+  return add_claim(g, (spn_dag_artifact_t) {
+    .kind = kind,
+    .path = path,
+  });
+}
+
+spn_dag_id_t spn_dag_add_staged(spn_dag_t* g, spn_path_t path, spn_dag_artifact_kind_t kind) {
+  return add_claim(g, (spn_dag_artifact_t) {
+    .kind = kind,
+    .staged = true,
+    .path = path,
+  });
 }
 
 spn_dag_id_t spn_dag_add_value(spn_dag_t* g, const void* data, u64 len) {
@@ -165,11 +178,13 @@ spn_dag_violation_t spn_dag_validate(spn_dag_t* g) {
     }
 
     spn_err_t err = SPN_OK;
+    spn_path_t path = artifact->path;
     bool tree = artifact->kind == SPN_DAG_ARTIFACT_KIND_TREE;
-    if (sp_ht_getp(g->paths, artifact->path)->index != artifact->id.index) {
-      err = SPN_ERR_DAG_PATH_KIND;
+    spn_dag_artifact_t* claim = spn_dag_find_artifact(g, *sp_ht_getp(g->paths, artifact->path));
+    if (claim != artifact) {
+      err = claim->staged || artifact->staged ? SPN_ERR_STAGE_OVERLAP : SPN_ERR_DAG_PATH_KIND;
     }
-    else if (tree && !artifact->producer.occupied) {
+    else if (tree && !artifact->producer.occupied && !artifact->staged) {
       err = SPN_ERR_DAG_TREE_INPUT;
     }
     else if (tree && spn_path_roots_intersect(g->roots, spn_path_str(g->roots, sp_str_buf_as_mem(&buf), artifact->path))) {
@@ -177,16 +192,24 @@ spn_dag_violation_t spn_dag_validate(spn_dag_t* g) {
     }
     else if (artifact->path.root != SPN_PATH_ROOT_NONE) {
       for (spn_path_t dir = spn_path_parent(artifact->path); !sp_str_empty(dir.sub); dir = spn_path_parent(dir)) {
-        spn_dag_id_t* above = sp_ht_getp(g->paths, dir);
-        if (above && spn_dag_find_artifact(g, *above)->kind == SPN_DAG_ARTIFACT_KIND_TREE) {
-          err = artifact->producer.occupied ? SPN_ERR_DAG_NESTED_OUTPUT : SPN_ERR_DAG_NESTED_INPUT;
-          break;
+        spn_dag_id_t* id = sp_ht_getp(g->paths, dir);
+        spn_dag_artifact_t* above = id ? spn_dag_find_artifact(g, *id) : SP_NULLPTR;
+        if (!above || (above->kind != SPN_DAG_ARTIFACT_KIND_TREE && !above->staged)) {
+          continue;
         }
+        if (above->staged || artifact->staged) {
+          err = SPN_ERR_STAGE_OVERLAP;
+          path = above->staged ? above->path : artifact->path;
+        }
+        else {
+          err = artifact->producer.occupied ? SPN_ERR_DAG_NESTED_OUTPUT : SPN_ERR_DAG_NESTED_INPUT;
+        }
+        break;
       }
     }
 
     if (err) {
-      violation = (spn_dag_violation_t) { .err = err, .path = artifact->path };
+      violation = (spn_dag_violation_t) { .err = err, .path = path };
       break;
     }
   }

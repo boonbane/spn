@@ -1410,6 +1410,8 @@ static const test_t tests [] = {
     .manifest = "validate_stage_to_reserved",
     .issues = {
       { SPN_ERR_CODEGEN_INVALID, "stage.copy[0].to" },
+      { SPN_ERR_CODEGEN_INVALID, "stage.copy[1].to" },
+      { SPN_ERR_CODEGEN_INVALID, "stage.copy[2].to" },
     },
   },
   {
