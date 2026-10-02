@@ -298,6 +298,7 @@ typedef struct {
   const c8* copy [4];
   spn_err_t err;
   const c8* missing;
+  const c8* path;
 } failure_t;
 
 static const failure_t failures [] = {
@@ -328,18 +329,30 @@ static const failure_t failures [] = {
   { .name = "io_write_source", .err = SPN_ERR_WASM_MODULE_CALL_FAILED, .missing = "X" },
   { .name = "fs_copy_source", .err = SPN_ERR_WASM_MODULE_CALL_FAILED, .missing = "X" },
   { .name = "create_dir_source", .err = SPN_ERR_WASM_MODULE_CALL_FAILED, .missing = "X" },
+  { .name = "read_build", .copy = { "build" }, .err = SPN_ERR_WASM_READ_BUILD, .path = "build/X" },
+  { .name = "walk_source", .err = SPN_ERR_WASM_READ_BUILD },
 };
 
 sp_test_each(script, failure, failure_t, failures) {
+  fixture_t fixture = sp_zero;
+  sp_try(fixture_init(t, &fixture));
+  sp_try(test_when(t, sp_zero_s(test_when_t)));
   command_test_t test = {
     .project = project(t, it->name),
     .args = { "build" },
     .expect = { .rc = 1, .err = it->err, .missing = { sp_cstr_as_str(it->missing) } },
   };
+  if (it->path) {
+    test.expect.events[0] = (command_event_t) {
+      .event = SPN_EVENT_ERR,
+      .key = "path",
+      .value = sp_str_to_cstr(fixture.mem, fixture_path(&fixture, sp_cstr_as_str(it->path))),
+    };
+  }
   sp_carr_for(it->copy, i) {
     test.copy[i] = it->copy[i];
   }
-  return run_command_test(t, test);
+  return run_command(t, &fixture, test);
 }
 
 sp_test(script, node_output_bin) {

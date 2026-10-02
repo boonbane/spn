@@ -38,6 +38,10 @@ struct spn_dag_wasi_t {
   sp_mem_t mem;
   const spn_path_roots_t* roots;
   sp_da(spn_path_t) owned;
+  struct {
+    spn_path_t dir;
+    spn_path_t read;
+  } build;
   sp_da(spn_dag_wasi_dir_t) mounts;
   sp_da(spn_path_t) writable;
   sp_da(spn_path_t) private;
@@ -94,6 +98,12 @@ static bool is_within(sp_da(spn_path_t) dirs, spn_path_t host) {
 
 static void wasi_push(spn_dag_wasi_t* w, spn_dag_obs_kind_t kind, spn_path_t host, sp_str_t filter) {
   if (!w->obs || is_within(w->private, host)) {
+    return;
+  }
+  if (spn_path_within(w->build.dir, host).within) {
+    if (spn_path_empty(w->build.read)) {
+      w->build.read = spn_path_copy(sp_mem_arena_as_allocator(w->call), host);
+    }
     return;
   }
   spn_dag_observe(w->obs, (spn_dag_obs_t) {
@@ -257,11 +267,12 @@ spn_err_t spn_dag_wasi_install(void) {
   return SPN_OK;
 }
 
-spn_dag_wasi_t* spn_dag_wasi_new(sp_mem_t mem, const spn_path_roots_t* roots, sp_da(spn_path_t) owned, const spn_dag_wasi_mount_t* mounts, u32 num_mounts, const spn_path_t* writable, u32 num_writable) {
+spn_dag_wasi_t* spn_dag_wasi_new(sp_mem_t mem, const spn_path_roots_t* roots, sp_da(spn_path_t) owned, spn_path_t build, const spn_dag_wasi_mount_t* mounts, u32 num_mounts, const spn_path_t* writable, u32 num_writable) {
   spn_dag_wasi_t* w = sp_alloc_type(mem, spn_dag_wasi_t);
   w->mem = mem;
   w->roots = roots;
   w->owned = owned;
+  w->build.dir = spn_path_canonicalize(mem, roots, build);
   w->obs = SP_NULLPTR;
   sp_da_init(mem, w->mounts);
   sp_da_init(mem, w->writable);
@@ -297,6 +308,7 @@ void spn_dag_wasi_begin(spn_dag_wasi_t* w, spn_dag_obs_set_t* obs) {
   sp_mem_arena_clear(w->call);
   sp_ht_init(sp_mem_arena_as_allocator(w->call), w->writes);
   sp_ht_set_fns(w->writes, spn_path_on_hash, spn_path_on_compare);
+  w->build.read = sp_zero_s(spn_path_t);
   w->obs = obs;
 }
 
@@ -312,6 +324,11 @@ bool spn_dag_wasi_stray_write(spn_dag_wasi_t* w, spn_path_t* path) {
     }
   }
   return false;
+}
+
+bool spn_dag_wasi_build_read(spn_dag_wasi_t* w, spn_path_t* path) {
+  *path = w->build.read;
+  return !spn_path_empty(w->build.read);
 }
 
 static spn_dag_wasi_t* wasi_of(wasm_module_inst_t instance) {

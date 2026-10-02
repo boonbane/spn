@@ -153,7 +153,7 @@ static spn_err_t script_open(spn_wasm_script_t* script, spn_pkg_unit_t* unit) {
   script->ctx = spn_wasm_add_handle(script->handles, unit, SPN_ABI_KIND_CTX);
   wasm_runtime_set_user_data(script->env, script->handles);
 
-  script->wasi = spn_dag_wasi_new(spn.mem, roots, unit->session->paths.owned, mounts, sp_carr_len(mounts), script->private.writable, sp_carr_len(script->private.writable));
+  script->wasi = spn_dag_wasi_new(spn.mem, roots, unit->session->paths.owned, unit->session->paths.build, mounts, sp_carr_len(mounts), script->private.writable, sp_carr_len(script->private.writable));
   spn_dag_wasi_bind(script->wasi, script->instance);
 
   return SPN_OK;
@@ -349,6 +349,12 @@ static spn_err_t script_call_ex(spn_wasm_script_t* script, spn_pkg_unit_t* unit,
   spn_path_t stray = sp_zero;
   if (spn_dag_wasi_stray_write(script->wasi, &stray)) {
     err = fs_fail(unit, SPN_ERR_WASM_WRITE_OUTSIDE, stray);
+    goto done;
+  }
+
+  spn_path_t inside = sp_zero;
+  if (spn_dag_wasi_build_read(script->wasi, &inside)) {
+    err = fs_fail(unit, SPN_ERR_WASM_READ_BUILD, inside);
     goto done;
   }
 
