@@ -42,7 +42,7 @@ sp_test(relocate, compile_commands) {
 
 sp_test(relocate, storage) {
   return run_test(t, (test_t) {
-    .project = "test/integration/fixtures/relocate/storage",
+    .project = "test/integration/fixtures/relocate/dependency",
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { "build", .env = { "SPN_STORAGE_DIR=S" } } },
       { .kind = ACTION_MOVE_DIR, .move = { .from = "S", .to = "T" } },
@@ -55,13 +55,13 @@ sp_test(relocate, storage) {
 
 sp_test(relocate, dependency) {
   return run_test(t, (test_t) {
-    .project = "test/integration/fixtures/offline/shared_store",
-    .copy = { "second/*" },
+    .project = "test/integration/fixtures/relocate/dependency",
+    .copy = { "Q/*" },
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { "build" } },
-      { .kind = ACTION_VERIFY_EVENT, .verify_event = { .event = SPN_EVENT_TARGET_BUILD_PASSED, .key = "pkg", .value = "spum" } },
-      { .kind = ACTION_RUN_CLI, .cli = { "build", .cwd = "second" } },
-      { .kind = ACTION_VERIFY_NO_EVENT, .verify_event = { .event = SPN_EVENT_TARGET_BUILD_PASSED, .key = "pkg", .value = "spum" } },
+      { .kind = ACTION_VERIFY_EVENT, .verify_event = { .event = SPN_EVENT_TARGET_BUILD_PASSED, .key = "pkg", .value = "A" } },
+      { .kind = ACTION_RUN_CLI, .cli = { "build", .cwd = "Q" } },
+      { .kind = ACTION_VERIFY_NO_EVENT, .verify_event = { .event = SPN_EVENT_TARGET_BUILD_PASSED, .key = "pkg", .value = "A" } },
     },
   });
 }

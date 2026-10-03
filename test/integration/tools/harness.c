@@ -405,10 +405,12 @@ static sp_err_t expect_cc_file(sp_test_t* t, fixture_t* fixture, const action_t*
   yyjson_val* root = doc ? yyjson_doc_get_root(doc) : SP_NULLPTR;
 
   u32 num = (u32)yyjson_arr_size(root);
+  bool ok = num;
   sp_str_t offender = sp_zero;
   sp_for(it, num) {
     const c8* entry = yyjson_get_str(yyjson_obj_get(yyjson_arr_get(root, it), "file"));
     if (!entry || !sp_str_equal_cstr(source, entry)) {
+      ok = false;
       offender = entry ? sp_str_from_cstr(mem, entry) : sp_str_lit("(unknown)");
     }
   }
@@ -416,13 +418,13 @@ static sp_err_t expect_cc_file(sp_test_t* t, fixture_t* fixture, const action_t*
   if (doc) {
     yyjson_doc_free(doc);
   }
-  if (num && !offender.len) {
+  if (ok) {
     return SP_OK;
   }
 
   sp_test_kv(t, "path", path);
   sp_test_kv(t, "file", source);
-  if (offender.len) {
+  if (num) {
     sp_test_kv(t, "entry", offender);
   }
   sp_test_record(t, (sp_test_failure_t) {
@@ -937,7 +939,7 @@ sp_err_t run_actions(sp_test_t* t, fixture_t* fixture, const action_t* actions) 
       case ACTION_VERIFY_FIXTURE_PATH:
       case ACTION_VERIFY_NO_FIXTURE_PATH: {
         sp_str_t path = fixture_path(fixture, action.verify_fixture_path.file);
-        sp_str_t needle = fixture_path(fixture, sp_cstr_as_str(action.verify_fixture_path.dir));
+        sp_str_t needle = sp_str_concat(mem, fixture_path(fixture, sp_cstr_as_str(action.verify_fixture_path.dir)), sp_str_lit("/"));
         expect_path(t, fixture, path);
         sp_test_kv(t, "path", path);
         sp_test_kv(t, "needle", needle);

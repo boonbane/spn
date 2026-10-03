@@ -22,14 +22,18 @@ spn_err_t spn_path_roots_set(spn_path_roots_t* roots, sp_mem_t mem, spn_path_roo
   return SPN_OK;
 }
 
+void spn_path_roots_unset(spn_path_roots_t* roots, spn_path_root_t kind) {
+  if (roots->opened & spn_path_root_mask(kind)) {
+    sp_sys_close(roots->fds[kind]);
+  }
+  roots->dirs[kind] = sp_str_lit("");
+  roots->opened &= ~spn_path_root_mask(kind);
+}
+
 void spn_path_roots_close(spn_path_roots_t* roots) {
   sp_for(it, SPN_PATH_ROOT_COUNT) {
-    if (roots->opened & spn_path_root_mask((spn_path_root_t)it)) {
-      sp_sys_close(roots->fds[it]);
-    }
-    roots->dirs[it] = sp_str_lit("");
+    spn_path_roots_unset(roots, (spn_path_root_t)it);
   }
-  roots->opened = 0;
 }
 
 static bool root_match(sp_str_t dir, sp_str_t path) {

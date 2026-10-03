@@ -20,13 +20,13 @@ typedef struct {
 static const test_t tests [] = {
   {
     .name = "root_dir_changes_digest",
-    .a = { .roots = { .project = "/A", .store = "/C" }, .root = SPN_PATH_ROOT_STORE, .sub = "S" },
-    .b = { .roots = { .project = "/A", .store = "/D" }, .root = SPN_PATH_ROOT_STORE, .sub = "S" },
+    .a = { .roots = { .store = "/C" }, .root = SPN_PATH_ROOT_STORE, .sub = "S" },
+    .b = { .roots = { .store = "/D" }, .root = SPN_PATH_ROOT_STORE, .sub = "S" },
   },
   {
     .name = "sub_changes_digest",
-    .a = { .roots = { .project = "/A", .store = "/C" }, .root = SPN_PATH_ROOT_STORE, .sub = "S" },
-    .b = { .roots = { .project = "/A", .store = "/C" }, .root = SPN_PATH_ROOT_STORE, .sub = "T" },
+    .a = { .roots = { .store = "/C" }, .root = SPN_PATH_ROOT_STORE, .sub = "S" },
+    .b = { .roots = { .store = "/C" }, .root = SPN_PATH_ROOT_STORE, .sub = "T" },
   },
   {
     .name = "other_root_dir_keeps_digest",

@@ -110,6 +110,15 @@ static const test_t tests [] = {
     .key = "K"
   },
   {
+    .name = "unknown_pinned_root_misses",
+    .entries = {
+      { .key = "K", .obs = { { .path = "/A" } } }
+    },
+    .plant = { .key = "K", .content = r("8") r("0000000000000000000000000000000000000000000000000000000000000000 1024") },
+    .reload = true,
+    .key = "K"
+  },
+  {
     .name = "new_pathset_replaces_existing",
     .entries = {
       { .key = "K", .obs = { { .path = "/A" } } },
@@ -163,7 +172,7 @@ static const test_t tests [] = {
     }
   },
   {
-    .name = "reload_preserves_pinned_digest",
+    .name = "reload_preserves_pinned_summary",
     .pinned = 1u << SPN_PATH_ROOT_STORE,
     .entries = {
       {

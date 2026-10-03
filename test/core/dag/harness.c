@@ -51,10 +51,7 @@ void dag_test_env_init(dag_test_env_t* env, sp_test_t* t, dag_test_env_config_t 
 void dag_test_env_mount(dag_test_env_t* env, spn_path_root_t root, sp_str_t rel) {
   sp_path_t dir = dag_test_env_path(env, rel);
   sp_fs_create_dir_at(dir);
-  if (env->roots.opened & spn_path_root_mask(root)) {
-    sp_sys_close(env->roots.fds[root]);
-    env->roots.opened &= ~spn_path_root_mask(root);
-  }
+  spn_path_roots_unset(&env->roots, root);
   spn_path_roots_set(&env->roots, env->mem, root, dir);
 }
 

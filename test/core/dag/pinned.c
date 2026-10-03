@@ -62,6 +62,15 @@ static const test_t tests [] = {
     }
   },
   {
+    .name = "unobserved_pinned_root_moved_hits",
+    .pinned = 1u << SPN_PATH_ROOT_CHECKOUT,
+    .root = SPN_PATH_ROOT_PROJECT,
+    .runs = {
+      { .obs = { { "H", "A" } }, .expect_runs = 1 },
+      { .checkout = "moved", .obs = { { "H", "A" } }, .expect_runs = 1 },
+    }
+  },
+  {
     .name = "unpinned_change_reruns",
     .root = SPN_PATH_ROOT_CHECKOUT,
     .runs = {
