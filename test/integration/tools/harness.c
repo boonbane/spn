@@ -394,6 +394,46 @@ static sp_err_t expect_cc_arg(sp_test_t* t, fixture_t* fixture, const action_t* 
   return SP_ERR;
 }
 
+static sp_err_t expect_cc_file(sp_test_t* t, fixture_t* fixture, const action_t* action, const c8* file, u32 line) {
+  sp_mem_t mem = fixture->mem;
+  sp_str_t dir = fixture_path(fixture, sp_cstr_as_str(action->verify_cc_file.dir));
+  sp_str_t path = sp_fs_join_path(mem, dir, sp_str_lit("compile_commands.json"));
+  sp_str_t source = sp_fs_join_path(mem, dir, sp_cstr_as_str(action->verify_cc_file.file));
+  sp_str_t content = test_read_file(mem, path);
+
+  yyjson_doc* doc = yyjson_read(content.data, content.len, 0);
+  yyjson_val* root = doc ? yyjson_doc_get_root(doc) : SP_NULLPTR;
+
+  u32 num = (u32)yyjson_arr_size(root);
+  sp_str_t offender = sp_zero;
+  sp_for(it, num) {
+    const c8* entry = yyjson_get_str(yyjson_obj_get(yyjson_arr_get(root, it), "file"));
+    if (!entry || !sp_str_equal_cstr(source, entry)) {
+      offender = entry ? sp_str_from_cstr(mem, entry) : sp_str_lit("(unknown)");
+    }
+  }
+
+  if (doc) {
+    yyjson_doc_free(doc);
+  }
+  if (num && !offender.len) {
+    return SP_OK;
+  }
+
+  sp_test_kv(t, "path", path);
+  sp_test_kv(t, "file", source);
+  if (offender.len) {
+    sp_test_kv(t, "entry", offender);
+  }
+  sp_test_record(t, (sp_test_failure_t) {
+    .file = sp_cstr_as_str(file),
+    .line = line,
+    .expected = sp_cstr_as_str("every compile entry names the file"),
+    .actual = sp_cstr_as_str(num ? "an entry names another" : "no compile entries"),
+  });
+  return SP_ERR;
+}
+
 static sp_err_t expect_command_cc(sp_test_t* t, fixture_t* fixture, command_cc_t expected) {
   sp_mem_t mem = fixture->mem;
   sp_str_t path = fixture_path(fixture, sp_str_lit("compile_commands.json"));
@@ -894,13 +934,16 @@ sp_err_t run_actions(sp_test_t* t, fixture_t* fixture, const action_t* actions) 
         sp_expect(t, !sp_str_contains(content, action.verify_file_not_contains.needle));
         break;
       }
+      case ACTION_VERIFY_FIXTURE_PATH:
       case ACTION_VERIFY_NO_FIXTURE_PATH: {
-        sp_str_t path = fixture_path(fixture, action.verify_no_fixture_path.file);
-        sp_str_t needle = fixture_path(fixture, sp_str_view(action.verify_no_fixture_path.dir));
+        sp_str_t path = fixture_path(fixture, action.verify_fixture_path.file);
+        sp_str_t needle = fixture_path(fixture, sp_cstr_as_str(action.verify_fixture_path.dir));
         expect_path(t, fixture, path);
         sp_test_kv(t, "path", path);
         sp_test_kv(t, "needle", needle);
-        sp_expect_eq(t, SP_STR_NO_MATCH, sp_str_find(test_read_file(mem, path), needle));
+        bool expected = action.kind == ACTION_VERIFY_FIXTURE_PATH;
+        bool found = sp_str_contains(test_read_file(mem, path), needle);
+        sp_expect_eq(t, expected, found);
         break;
       }
       case ACTION_REMOVE_DIR: {
@@ -914,7 +957,7 @@ sp_err_t run_actions(sp_test_t* t, fixture_t* fixture, const action_t* actions) 
         sp_path_t to = sp_path_cwd(fixture_path(fixture, sp_cstr_as_str(action.move.to)));
         sp_test_kv(t, "from", from.sub);
         sp_test_kv(t, "to", to.sub);
-        sp_expect_ok(t, sp_sys_rename_s(from.dir, from.sub, to.dir, to.sub));
+        sp_must_ok(t, sp_sys_rename_s(from.dir, from.sub, to.dir, to.sub));
         break;
       }
       case ACTION_RUN_CLI: {
@@ -936,6 +979,10 @@ sp_err_t run_actions(sp_test_t* t, fixture_t* fixture, const action_t* actions) 
       case ACTION_VERIFY_CC_ARG:
       case ACTION_VERIFY_NO_CC_ARG: {
         expect_cc_arg(t, fixture, &action, __FILE__, __LINE__);
+        break;
+      }
+      case ACTION_VERIFY_CC_FILE: {
+        expect_cc_file(t, fixture, &action, __FILE__, __LINE__);
         break;
       }
       case ACTION_VERIFY_EVENT:

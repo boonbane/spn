@@ -43,6 +43,7 @@ extern const spn_dag_store_kind_t dag_test_store_kinds [2];
 
 const c8*        dag_test_store_name(spn_dag_store_kind_t kind);
 void             dag_test_env_init(dag_test_env_t* env, sp_test_t* t, dag_test_env_config_t config);
+void             dag_test_env_mount(dag_test_env_t* env, spn_path_root_t root, sp_str_t rel);
 void             dag_test_env_cold(dag_test_env_t* env);
 spn_dag_t*       dag_test_env_graph(dag_test_env_t* env);
 spn_err_t        dag_test_env_run(dag_test_env_t* env, spn_dag_t* g);

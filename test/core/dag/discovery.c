@@ -222,8 +222,9 @@ static sp_err_t check_expectations(sp_test_t* t, spn_dag_obs_table_t* discovery,
   sp_must(t, stored);
   spn_dag_obs_t obs [DAG_TEST_MAX_INPUTS] = sp_zero;
   u32 count = dag_test_obs_build(stored->obs, DAG_TEST_MAX_INPUTS, obs, SP_NULLPTR);
-  spn_dag_digest_t pinned = spn_dag_pinned_digest(discovery->roots, obs, count);
-  sp_expect(t, spn_dag_digest_equal(pinned, set.pinned));
+  spn_dag_pinned_t pinned = spn_dag_pinned_summary(test->pinned, obs, count);
+  sp_expect(t, spn_dag_digest_equal(pinned.digest, set.pinned.digest));
+  sp_expect_eq(t, pinned.roots, set.pinned.roots);
 
   return expect_obs(t, &set, test->expect.obs);
 }
@@ -232,10 +233,7 @@ sp_test_each(dag_discovery, table, test_t, tests) {
   sp_mem_t mem = sp_test_arena(t);
   sp_path_t sandbox = sp_test_dir(t);
   spn_path_roots_t roots = sp_zero;
-  sp_path_t store = sp_path_join(mem, sandbox, sp_str_lit("store"));
-  sp_fs_create_dir_at(store);
   spn_path_roots_set(&roots, mem, SPN_PATH_ROOT_PROJECT, sandbox);
-  spn_path_roots_set(&roots, mem, SPN_PATH_ROOT_STORE, store);
   roots.pinned = it->pinned;
   spn_path_t dir = { .root = SPN_PATH_ROOT_PROJECT, .sub = sp_str_lit("manifests") };
 

@@ -25,9 +25,7 @@ void dag_test_env_init(dag_test_env_t* env, sp_test_t* t, dag_test_env_config_t 
   sp_fs_create_dir_at(env->root);
   spn_path_roots_set(&env->roots, env->mem, SPN_PATH_ROOT_PROJECT, env->root);
   if (config.checkout) {
-    sp_path_t checkout = dag_test_env_path(env, sp_str_view(config.checkout));
-    sp_fs_create_dir_at(checkout);
-    spn_path_roots_set(&env->roots, env->mem, SPN_PATH_ROOT_CHECKOUT, checkout);
+    dag_test_env_mount(env, SPN_PATH_ROOT_CHECKOUT, sp_cstr_as_str(config.checkout));
   }
   spn_dag_store_init(&env->store, (spn_dag_store_config_t) {
     .kind = config.store,
@@ -48,6 +46,16 @@ void dag_test_env_init(dag_test_env_t* env, sp_test_t* t, dag_test_env_config_t 
     .discovery = &env->discovery,
     .tmp = dag_test_env_rooted(env, sp_str_lit("scratch"))
   };
+}
+
+void dag_test_env_mount(dag_test_env_t* env, spn_path_root_t root, sp_str_t rel) {
+  sp_path_t dir = dag_test_env_path(env, rel);
+  sp_fs_create_dir_at(dir);
+  if (env->roots.opened & spn_path_root_mask(root)) {
+    sp_sys_close(env->roots.fds[root]);
+    env->roots.opened &= ~spn_path_root_mask(root);
+  }
+  spn_path_roots_set(&env->roots, env->mem, root, dir);
 }
 
 void dag_test_env_cold(dag_test_env_t* env) {

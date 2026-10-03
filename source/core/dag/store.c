@@ -202,7 +202,7 @@ static bool parse_obs_row(sp_str_t* cursor, spn_dag_obs_t* out) {
 
 static spn_err_t write_obs(sp_io_writer_t* io, sp_mem_t mem, const spn_dag_pathset_t* set) {
   spn_try(write_header(io, obs_version));
-  if (sp_fmt_io(io, "{}\n", sp_fmt_str(spn_dag_digest_hex(mem, set->pinned)))) {
+  if (sp_fmt_io(io, "{}\n", sp_fmt_str(spn_dag_digest_hex(mem, set->pinned.digest)))) {
     return SPN_ERR_DAG_STORE_WRITE;
   }
   sp_da_for(set->obs, it) {
@@ -216,7 +216,7 @@ static bool parse_obs(sp_str_t content, spn_dag_pathset_t* set) {
   if (!row_header(&cursor, obs_version)) {
     return false;
   }
-  if (!row_digest(&cursor, &set->pinned)) {
+  if (!row_digest(&cursor, &set->pinned.digest)) {
     return false;
   }
   if (!row_lit(&cursor, '\n')) {
@@ -424,7 +424,7 @@ void spn_dag_observe(spn_dag_obs_set_t* set, spn_dag_obs_t obs) {
 
 spn_dag_pathset_t spn_dag_obs_set_put(spn_dag_obs_set_t* set, spn_dag_digest_t weak) {
   spn_dag_obs_table_t* d = set->table;
-  spn_dag_digest_t pinned = spn_dag_pinned_digest(d->roots, set->rows, (u32)sp_da_size(set->rows));
+  spn_dag_pinned_t pinned = spn_dag_pinned_summary(d->roots->pinned, set->rows, (u32)sp_da_size(set->rows));
   u64 kept = 0;
   sp_da_for(set->rows, it) {
     if (!(d->roots->pinned & spn_path_root_mask(set->rows[it].path.root))) {

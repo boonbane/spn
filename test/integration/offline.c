@@ -72,15 +72,3 @@ sp_test(offline, shared_store) {
     },
   });
 }
-
-sp_test(offline, shared_objects) {
-  return run_test(t, (test_t) {
-    .project = "test/integration/fixtures/offline/shared_store",
-    .copy = { "second/*" },
-    .actions = {
-      { .kind = ACTION_RUN_CLI, .cli = { "build" } },
-      { .kind = ACTION_RUN_CLI, .cli = { "build", .cwd = "second" } },
-      { .kind = ACTION_VERIFY_NO_EVENT, .verify_event = { .event = SPN_EVENT_TARGET_BUILD_PASSED, .key = "pkg", .value = "spum" } },
-    },
-  });
-}

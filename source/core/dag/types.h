@@ -172,7 +172,12 @@ typedef struct {
 } spn_dag_action_cache_t;
 
 typedef struct {
-  spn_dag_digest_t pinned;
+  spn_dag_digest_t digest;
+  spn_path_root_set_t roots;
+} spn_dag_pinned_t;
+
+typedef struct {
+  spn_dag_pinned_t pinned;
   sp_da(spn_dag_obs_t) obs;
 } spn_dag_pathset_t;
 

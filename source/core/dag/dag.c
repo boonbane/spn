@@ -301,32 +301,32 @@ spn_dag_digest_t spn_dag_weak_key(spn_dag_t* g, spn_dag_id_t action_id) {
   return spn_dag_hash_final(&ctx);
 }
 
-static void hash_obs_row(spn_digest_ctx_t* ctx, const spn_path_roots_t* roots, const spn_dag_obs_t* obs) {
+static void hash_obs_row(spn_digest_ctx_t* ctx, const spn_dag_obs_t* obs) {
   spn_dag_hash_u8(ctx, (u8)obs->kind);
   spn_dag_hash_u8(ctx, (u8)obs->path.root);
   spn_dag_hash_str(ctx, obs->path.sub);
   spn_dag_hash_str(ctx, obs->filter);
 }
 
-spn_dag_digest_t spn_dag_strong_key(const spn_path_roots_t* roots, spn_dag_digest_t weak, spn_dag_digest_t pinned, const spn_dag_obs_t* obs, const spn_dag_digest_t* digests, u32 count) {
+spn_dag_digest_t spn_dag_strong_key(const spn_path_roots_t* roots, spn_dag_digest_t weak, spn_dag_pinned_t pinned, const spn_dag_obs_t* obs, const spn_dag_digest_t* digests, u32 count) {
   spn_digest_ctx_t ctx = sp_zero;
   spn_digest_init_blake3(&ctx);
   spn_dag_hash_str(&ctx, sp_str_lit("spn.dag.strong.v8"));
   spn_dag_hash_digest(&ctx, weak);
-  spn_dag_hash_digest(&ctx, pinned);
+  spn_dag_hash_digest(&ctx, pinned.digest);
   spn_dag_hash_u64(&ctx, count);
   sp_for(it, count) {
-    hash_obs_row(&ctx, roots, &obs[it]);
+    hash_obs_row(&ctx, &obs[it]);
     spn_dag_hash_digest(&ctx, digests[it]);
   }
 
   return spn_dag_hash_final(&ctx);
 }
 
-spn_dag_digest_t spn_dag_pinned_digest(const spn_path_roots_t* roots, const spn_dag_obs_t* obs, u32 count) {
+spn_dag_pinned_t spn_dag_pinned_summary(spn_path_root_set_t pinned, const spn_dag_obs_t* obs, u32 count) {
   u64 rows = 0;
   sp_for(it, count) {
-    if (roots->pinned & spn_path_root_mask(obs[it].path.root)) {
+    if (pinned & spn_path_root_mask(obs[it].path.root)) {
       rows++;
     }
   }
@@ -336,11 +336,11 @@ spn_dag_digest_t spn_dag_pinned_digest(const spn_path_roots_t* roots, const spn_
   spn_dag_hash_str(&ctx, sp_str_lit("spn.dag.pinned.v1"));
   spn_dag_hash_u64(&ctx, rows);
   sp_for(it, count) {
-    if (roots->pinned & spn_path_root_mask(obs[it].path.root)) {
-      hash_obs_row(&ctx, roots, &obs[it]);
+    if (pinned & spn_path_root_mask(obs[it].path.root)) {
+      hash_obs_row(&ctx, &obs[it]);
     }
   }
-  return spn_dag_hash_final(&ctx);
+  return (spn_dag_pinned_t) { .digest = spn_dag_hash_final(&ctx) };
 }
 
 spn_dag_digest_t spn_dag_digest(const void* data, u64 len) {

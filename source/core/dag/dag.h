@@ -36,8 +36,8 @@ spn_dag_digest_t    spn_dag_hash_final(spn_digest_ctx_t* ctx);
 
 
 spn_dag_digest_t    spn_dag_weak_key(spn_dag_t* g, spn_dag_id_t action);
-spn_dag_digest_t    spn_dag_strong_key(const spn_path_roots_t* roots, spn_dag_digest_t weak, spn_dag_digest_t pinned, const spn_dag_obs_t* obs, const spn_dag_digest_t* digests, u32 count);
-spn_dag_digest_t    spn_dag_pinned_digest(const spn_path_roots_t* roots, const spn_dag_obs_t* obs, u32 count);
+spn_dag_digest_t    spn_dag_strong_key(const spn_path_roots_t* roots, spn_dag_digest_t weak, spn_dag_pinned_t pinned, const spn_dag_obs_t* obs, const spn_dag_digest_t* digests, u32 count);
+spn_dag_pinned_t    spn_dag_pinned_summary(spn_path_root_set_t pinned, const spn_dag_obs_t* obs, u32 count);
 void                spn_dag_obs_canonicalize(sp_da(spn_dag_obs_t) obs);
 bool                spn_dag_write_changes(spn_path_t path, spn_dag_artifact_kind_t kind, const spn_dag_obs_t* obs);
 spn_dag_digest_t    spn_dag_digest(const void* data, u64 len);

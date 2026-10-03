@@ -656,6 +656,28 @@ static spn_dag_digest_t weak_key_traced(spn_dag_t* g, spn_dag_action_t* action, 
   return key;
 }
 
+typedef struct {
+  bool resolved;
+  spn_dag_digest_t key;
+} spn_dag_strong_t;
+
+static spn_dag_strong_t strong_key_traced(spn_dag_t* g, spn_dag_action_t* action, spn_dag_env_t* env, spn_dag_digest_t weak, const spn_dag_pathset_t* set) {
+  sp_mem_arena_marker_t s = sp_mem_begin_scratch();
+  u32 count = (u32)sp_da_size(set->obs);
+  spn_dag_digest_t* digests = sp_alloc_n(s.mem, spn_dag_digest_t, count);
+  spn_dag_strong_t strong = { .resolved = !resolve_observations(env, set->obs, count, digests), .key = weak };
+  if (strong.resolved) {
+    strong.key = spn_dag_strong_key(g->roots, weak, set->pinned, set->obs, digests, count);
+  }
+  sp_mem_end_scratch(s);
+
+  trace_resolve(env, action->id, strong.resolved);
+  if (strong.resolved) {
+    trace_emit(env, (spn_dag_trace_event_t) { .kind = SPN_DAG_TRACE_STRONG, .action = action->id, .key = strong.key });
+  }
+  return strong;
+}
+
 static void lookup(spn_dag_t* g, spn_dag_action_t* action, spn_dag_env_t* env, spn_dag_attempt_t* attempt) {
   attempt->action = action;
 
@@ -673,18 +695,11 @@ static void lookup(spn_dag_t* g, spn_dag_action_t* action, spn_dag_env_t* env, s
       if (!present) {
         break;
       }
-      sp_mem_arena_marker_t s = sp_mem_begin_scratch();
-      u32 count = (u32)sp_da_size(set.obs);
-      spn_dag_digest_t* digests = sp_alloc_n(s.mem, spn_dag_digest_t, count);
-      bool resolved = !resolve_observations(env, set.obs, count, digests);
-      spn_dag_digest_t strong = resolved ? spn_dag_strong_key(g->roots, attempt->key, set.pinned, set.obs, digests, count) : attempt->key;
-      sp_mem_end_scratch(s);
-      trace_resolve(env, action->id, resolved);
-      if (!resolved) {
+      spn_dag_strong_t strong = strong_key_traced(g, action, env, attempt->key, &set);
+      if (!strong.resolved) {
         break;
       }
-      trace_emit(env, (spn_dag_trace_event_t) { .kind = SPN_DAG_TRACE_STRONG, .action = action->id, .key = strong });
-      attempt->hit = try_restore(g, action, strong, env);
+      attempt->hit = try_restore(g, action, strong.key, env);
       if (attempt->hit) {
         attempt->obs.rows = set.obs;
       }
@@ -790,21 +805,12 @@ static spn_err_t commit(spn_dag_t* g, spn_dag_attempt_t* attempt, spn_dag_env_t*
     }
     case SPN_DAG_ACTION_DISCOVERED: {
       spn_dag_pathset_t set = spn_dag_obs_set_put(&attempt->obs, attempt->key);
-      sp_mem_arena_marker_t s = sp_mem_begin_scratch();
-      u32 count = (u32)sp_da_size(set.obs);
-      spn_dag_digest_t* digests = sp_alloc_n(s.mem, spn_dag_digest_t, count);
-      bool resolved = !resolve_observations(env, set.obs, count, digests);
-      spn_dag_digest_t key = resolved ? spn_dag_strong_key(g->roots, attempt->key, set.pinned, set.obs, digests, count) : attempt->key;
-      sp_mem_end_scratch(s);
-      trace_resolve(env, action->id, resolved);
-      if (resolved) {
-        trace_emit(env, (spn_dag_trace_event_t) { .kind = SPN_DAG_TRACE_STRONG, .action = action->id, .key = key });
-      }
+      spn_dag_strong_t strong = strong_key_traced(g, action, env, attempt->key, &set);
       spn_try(settle(g, action, env, &attempt->diag));
-      if (resolved) {
-        record(g, action, key, env);
+      if (strong.resolved) {
+        record(g, action, strong.key, env);
       }
-      trace_emit(env, (spn_dag_trace_event_t) { .kind = SPN_DAG_TRACE_COMMIT, .action = action->id, .key = key, .hit = resolved });
+      trace_emit(env, (spn_dag_trace_event_t) { .kind = SPN_DAG_TRACE_COMMIT, .action = action->id, .key = strong.key, .hit = strong.resolved });
       return SPN_OK;
     }
   }

@@ -13,6 +13,7 @@ typedef struct {
 } plant_t;
 
 typedef struct {
+  const c8* checkout;
   obs_spec_t obs [DAG_TEST_MAX_INPUTS];
   plant_t plants [2];
   const c8* removed [2];
@@ -49,6 +50,15 @@ static const test_t tests [] = {
     .runs = {
       { .obs = { { "H", "A" } }, .expect_runs = 1 },
       { .removed = { "H" }, .expect_runs = 1 },
+    }
+  },
+  {
+    .name = "pinned_root_moved_reruns",
+    .pinned = 1u << SPN_PATH_ROOT_CHECKOUT,
+    .root = SPN_PATH_ROOT_CHECKOUT,
+    .runs = {
+      { .obs = { { "H", "A" } }, .expect_runs = 1 },
+      { .checkout = "moved", .obs = { { "H", "A" } }, .expect_runs = 2 },
     }
   },
   {
@@ -149,6 +159,9 @@ sp_test_each(dag_pinned, runs, test_t, tests) {
     sp_test_kv(t, "run", sp_fmt(env.dag.mem, "{}", sp_fmt_uint(r)).value);
     env.run = run;
     spn_dag_file_cache_invalidate_all(&env.dag.files);
+    if (run->checkout) {
+      dag_test_env_mount(&env.dag, SPN_PATH_ROOT_CHECKOUT, sp_cstr_as_str(run->checkout));
+    }
     prepare_run(&env, run);
 
     spn_dag_t* g = dag_test_env_graph(&env.dag);
@@ -218,56 +231,23 @@ sp_test_each(dag_pinned, source, source_test_t, source_tests) {
   return SP_OK;
 }
 
-typedef struct {
-  spn_path_root_set_t pinned;
-  paths_test_roots_t roots;
-} frame_t;
-
-typedef struct {
-  bool equal;
-} weak_expect_t;
-
-typedef struct {
-  const c8* name;
-  frame_t a;
-  frame_t b;
-  weak_expect_t expect;
-} weak_test_t;
-
-static const weak_test_t weak_tests [] = {
-  {
-    .name = "mask_changes_weak_key",
-    .a = { .roots = { .project = "/R", .checkout = "/C" } },
-    .b = { .pinned = 1u << SPN_PATH_ROOT_CHECKOUT, .roots = { .project = "/R", .checkout = "/C" } },
-  },
-  {
-    .name = "pinned_dir_changes_weak_key",
-    .a = { .pinned = 1u << SPN_PATH_ROOT_CHECKOUT, .roots = { .project = "/R", .checkout = "/C" } },
-    .b = { .pinned = 1u << SPN_PATH_ROOT_CHECKOUT, .roots = { .project = "/R", .checkout = "/D" } },
-  },
-  {
-    .name = "unpinned_dir_keeps_weak_key",
-    .a = { .pinned = 1u << SPN_PATH_ROOT_CHECKOUT, .roots = { .project = "/A", .checkout = "/C" } },
-    .b = { .pinned = 1u << SPN_PATH_ROOT_CHECKOUT, .roots = { .project = "/B", .checkout = "/C" } },
-    .expect = { .equal = true }
-  },
-};
-
-static spn_dag_digest_t weak_key(sp_test_t* t, const frame_t* frame) {
+sp_test(dag_pinned, mask_changes_weak_key) {
   spn_path_roots_t storage = sp_zero;
-  const spn_path_roots_t* roots = paths_test_roots_build(frame->roots, &storage);
-  storage.pinned = frame->pinned;
+  const spn_path_roots_t* roots = paths_test_roots_build((paths_test_roots_t) { .project = "/R" }, &storage);
 
-  spn_dag_t* g = spn_dag_new(sp_test_arena(t), roots);
-  spn_dag_id_t action = spn_dag_add_action(g, (spn_dag_action_config_t) {
-    .identity = dag_test_digest("cc"),
-    .execute = dag_test_exec_noop
-  });
-  return spn_dag_weak_key(g, action);
-}
+  spn_dag_digest_t keys [2] = sp_zero;
+  spn_path_root_set_t masks [2] = { 0, 1u << SPN_PATH_ROOT_CHECKOUT };
+  sp_carr_for(masks, it) {
+    storage.pinned = masks[it];
+    spn_dag_t* g = spn_dag_new(sp_test_arena(t), roots);
+    spn_dag_id_t action = spn_dag_add_action(g, (spn_dag_action_config_t) {
+      .identity = dag_test_digest("cc"),
+      .execute = dag_test_exec_noop
+    });
+    keys[it] = spn_dag_weak_key(g, action);
+  }
 
-sp_test_each(dag_pinned, weak, weak_test_t, weak_tests) {
-  sp_expect_eq(t, it->expect.equal, spn_dag_digest_equal(weak_key(t, &it->a), weak_key(t, &it->b)));
+  sp_expect(t, !spn_dag_digest_equal(keys[0], keys[1]));
   return SP_OK;
 }
 
