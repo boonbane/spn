@@ -347,7 +347,7 @@ static fz_predict_row_t model_action(world_t* w, fz_universe_t* u, sp_mem_t mem,
     spn_dag_obs_t* fresh_obs = SP_NULLPTR;
     spn_dag_digest_t* fresh_digests = SP_NULLPTR;
     u32 fresh_count = fz_model_obs(mem, u, &w->state, key_bytes, at, &fresh, &fresh_obs, &fresh_digests);
-    row.commit = spn_dag_strong_key(row.weak, spn_dag_pinned_digest(w->roots.pinned, fresh_obs, fresh_count), fresh_obs, fresh_digests, fresh_count);
+    row.commit = spn_dag_strong_key(&w->roots, row.weak, spn_dag_pinned_digest(&w->roots, fresh_obs, fresh_count), fresh_obs, fresh_digests, fresh_count);
 
     sp_dag_track_slot_t pathset = sp_dag_track_pathset(&w->track, row.weak);
     if (pathset.present && !pathset.sure) {
@@ -368,7 +368,7 @@ static fz_predict_row_t model_action(world_t* w, fz_universe_t* u, sp_mem_t mem,
         spn_dag_obs_t* stored_obs = SP_NULLPTR;
         spn_dag_digest_t* stored_digests = SP_NULLPTR;
         u32 stored_count = fz_model_obs(mem, u, &w->state, key_bytes, at, stored, &stored_obs, &stored_digests);
-        row.key = spn_dag_strong_key(row.weak, spn_dag_pinned_digest(w->roots.pinned, stored_obs, stored_count), stored_obs, stored_digests, stored_count);
+        row.key = spn_dag_strong_key(&w->roots, row.weak, spn_dag_pinned_digest(&w->roots, stored_obs, stored_count), stored_obs, stored_digests, stored_count);
       }
     }
   }

@@ -73,20 +73,14 @@ sp_test(offline, shared_store) {
   });
 }
 
-sp_test(offline, relocated_checkout) {
+sp_test(offline, shared_objects) {
   return run_test(t, (test_t) {
-    .project = "test/integration/fixtures/offline/relocated_checkout",
-    .copy = { "one/*", "two/*" },
-    .when.deterministic = true,
+    .project = "test/integration/fixtures/offline/shared_store",
+    .copy = { "second/*" },
     .actions = {
-      { .kind = ACTION_RUN_CLI, .cli = { "build", .cwd = "one" } },
-      { .kind = ACTION_VERIFY_EVENT, .verify_event = { .event = SPN_EVENT_TARGET_BUILD_PASSED, .key = "target", .value = "main" } },
-      { .kind = ACTION_RUN_CLI, .cli = { "build", .cwd = "two" } },
-      { .kind = ACTION_VERIFY_NO_EVENT, .verify_event = { .event = SPN_EVENT_TARGET_BUILD_PASSED } },
-      { .kind = ACTION_VERIFY_NO_FIXTURE_PATH, .verify_no_fixture_path = {
-        .file = in_dir("two", work_file("relocate/object/exe/main/manifest/main.c.o")),
-        .dir = "one",
-      } },
+      { .kind = ACTION_RUN_CLI, .cli = { "build" } },
+      { .kind = ACTION_RUN_CLI, .cli = { "build", .cwd = "second" } },
+      { .kind = ACTION_VERIFY_NO_EVENT, .verify_event = { .event = SPN_EVENT_TARGET_BUILD_PASSED, .key = "pkg", .value = "spum" } },
     },
   });
 }

@@ -27,21 +27,21 @@ void                spn_dag_hash_u8(spn_digest_ctx_t* ctx, u8 value);
 void                spn_dag_hash_u64(spn_digest_ctx_t* ctx, u64 value);
 void                spn_dag_hash_str(spn_digest_ctx_t* ctx, sp_str_t str);
 void                spn_dag_hash_digest(spn_digest_ctx_t* ctx, spn_dag_digest_t digest);
-void                spn_dag_hash_path(spn_digest_ctx_t* ctx, spn_path_t path);
-void                spn_dag_hash_paths(spn_digest_ctx_t* ctx, sp_da(spn_path_t) paths);
+void                spn_dag_hash_path(spn_digest_ctx_t* ctx, const spn_path_roots_t* roots, spn_path_t path);
+void                spn_dag_hash_paths(spn_digest_ctx_t* ctx, const spn_path_roots_t* roots, sp_da(spn_path_t) paths);
 void                spn_dag_hash_strs(spn_digest_ctx_t* ctx, sp_da(sp_str_t) strs);
-void                spn_dag_hash_arg(spn_digest_ctx_t* ctx, spn_arg_t arg);
-void                spn_dag_hash_args(spn_digest_ctx_t* ctx, sp_da(spn_arg_t) args);
+void                spn_dag_hash_arg(spn_digest_ctx_t* ctx, const spn_path_roots_t* roots, spn_arg_t arg);
+void                spn_dag_hash_args(spn_digest_ctx_t* ctx, const spn_path_roots_t* roots, sp_da(spn_arg_t) args);
 spn_dag_digest_t    spn_dag_hash_final(spn_digest_ctx_t* ctx);
 
 
 spn_dag_digest_t    spn_dag_weak_key(spn_dag_t* g, spn_dag_id_t action);
-spn_dag_digest_t    spn_dag_strong_key(spn_dag_digest_t weak, spn_dag_digest_t pinned, const spn_dag_obs_t* obs, const spn_dag_digest_t* digests, u32 count);
-spn_dag_digest_t    spn_dag_pinned_digest(spn_path_root_set_t pinned, const spn_dag_obs_t* obs, u32 count);
+spn_dag_digest_t    spn_dag_strong_key(const spn_path_roots_t* roots, spn_dag_digest_t weak, spn_dag_digest_t pinned, const spn_dag_obs_t* obs, const spn_dag_digest_t* digests, u32 count);
+spn_dag_digest_t    spn_dag_pinned_digest(const spn_path_roots_t* roots, const spn_dag_obs_t* obs, u32 count);
 void                spn_dag_obs_canonicalize(sp_da(spn_dag_obs_t) obs);
 bool                spn_dag_write_changes(spn_path_t path, spn_dag_artifact_kind_t kind, const spn_dag_obs_t* obs);
 spn_dag_digest_t    spn_dag_digest(const void* data, u64 len);
-spn_dag_digest_t    spn_dag_path_digest(spn_path_t path);
+spn_dag_digest_t    spn_dag_path_digest(const spn_path_roots_t* roots, spn_path_t path);
 bool                spn_dag_digest_equal(spn_dag_digest_t a, spn_dag_digest_t b);
 bool                spn_dag_digest_valid(spn_dag_digest_t digest);
 sp_str_t            spn_dag_digest_hex(sp_mem_t mem, spn_dag_digest_t digest);

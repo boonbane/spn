@@ -424,7 +424,7 @@ void spn_dag_observe(spn_dag_obs_set_t* set, spn_dag_obs_t obs) {
 
 spn_dag_pathset_t spn_dag_obs_set_put(spn_dag_obs_set_t* set, spn_dag_digest_t weak) {
   spn_dag_obs_table_t* d = set->table;
-  spn_dag_digest_t pinned = spn_dag_pinned_digest(d->roots->pinned, set->rows, (u32)sp_da_size(set->rows));
+  spn_dag_digest_t pinned = spn_dag_pinned_digest(d->roots, set->rows, (u32)sp_da_size(set->rows));
   u64 kept = 0;
   sp_da_for(set->rows, it) {
     if (!(d->roots->pinned & spn_path_root_mask(set->rows[it].path.root))) {

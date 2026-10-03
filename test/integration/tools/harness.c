@@ -909,6 +909,14 @@ sp_err_t run_actions(sp_test_t* t, fixture_t* fixture, const action_t* actions) 
         expect_no_path(t, fixture, path);
         break;
       }
+      case ACTION_MOVE_DIR: {
+        sp_path_t from = sp_path_cwd(fixture_path(fixture, sp_cstr_as_str(action.move.from)));
+        sp_path_t to = sp_path_cwd(fixture_path(fixture, sp_cstr_as_str(action.move.to)));
+        sp_test_kv(t, "from", from.sub);
+        sp_test_kv(t, "to", to.sub);
+        sp_expect_ok(t, sp_sys_rename_s(from.dir, from.sub, to.dir, to.sub));
+        break;
+      }
       case ACTION_RUN_CLI: {
         const c8* args[SPN_TEST_COMMAND_MAX_ARGS] = { action.cli.cmd };
         sp_carr_for(action.cli.args, it) {

@@ -63,6 +63,7 @@ add_executable(integration
   platform.c
   profile.c
   reexport.c
+  relocate.c
   script.c
   stage.c
   target.c

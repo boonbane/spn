@@ -34,6 +34,7 @@ typedef enum {
   ACTION_NONE,
   ACTION_CREATE_FILE,
   ACTION_REMOVE_DIR,
+  ACTION_MOVE_DIR,
   ACTION_RUN_BIN, // @spader See comment above; do not use this unless you're very confident you need to
   ACTION_RUN_TEST,
   ACTION_VERIFY_EXISTS,
@@ -63,6 +64,7 @@ typedef struct {
   union {
     struct { sp_str_t file; sp_str_t content; } create;
     struct { const c8* dir; } rm;
+    struct { const c8* from; const c8* to; } move;
     struct { const c8* name; s32 rc; } bin;
     struct { const c8* name; bare_expect_t expect; } bare;
     sp_str_t exists;
