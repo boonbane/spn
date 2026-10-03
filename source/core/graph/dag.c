@@ -228,7 +228,7 @@ spn_err_t spn_dag_build_add_target(spn_dag_build_t* b, spn_target_unit_t* target
 
     spn_digest_ctx_t digest = sp_zero;
     spn_digest_init_blake3(&digest);
-    spn_dag_hash_str(&digest, sp_str_lit("spn.build.rsp.v1"));
+    spn_dag_hash_str(&digest, sp_str_lit("spn.build.rsp.v2"));
     spn_dag_hash_u8(&digest, (u8)rsp->style);
     spn_dag_hash_args(&digest, g->roots, rsp->args);
 
@@ -580,7 +580,7 @@ static spn_err_t add_compile_commands(spn_dag_build_t* b) {
 
   spn_digest_ctx_t digest = sp_zero;
   spn_digest_init_blake3(&digest);
-  spn_dag_hash_str(&digest, sp_str_lit("spn.build.compile_commands.v2"));
+  spn_dag_hash_str(&digest, sp_str_lit("spn.build.compile_commands.v3"));
   spn_dag_hash_u64(&digest, sp_om_size(session->units.objects));
   sp_assert(sp_om_size(session->dag.objects) == sp_om_size(session->units.objects));
   sp_om_for(session->units.objects, it) {

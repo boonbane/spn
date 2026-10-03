@@ -198,11 +198,11 @@ static bool parse_obs_row(sp_str_t* cursor, spn_dag_obs_t* out) {
   return true;
 }
 
-#define obs_version '7'
+#define obs_version '8'
 
 static spn_err_t write_obs(sp_io_writer_t* io, sp_mem_t mem, const spn_dag_pathset_t* set) {
   spn_try(write_header(io, obs_version));
-  if (sp_fmt_io(io, "{}\n", sp_fmt_str(spn_dag_digest_hex(mem, set->pinned.digest)))) {
+  if (sp_fmt_io(io, "{} {}\n", sp_fmt_str(spn_dag_digest_hex(mem, set->pinned.digest)), sp_fmt_uint(set->pinned.roots))) {
     return SPN_ERR_DAG_STORE_WRITE;
   }
   sp_da_for(set->obs, it) {
@@ -216,12 +216,20 @@ static bool parse_obs(sp_str_t content, spn_dag_pathset_t* set) {
   if (!row_header(&cursor, obs_version)) {
     return false;
   }
+  u64 roots = 0;
   if (!row_digest(&cursor, &set->pinned.digest)) {
+    return false;
+  }
+  if (!row_lit(&cursor, ' ')) {
+    return false;
+  }
+  if (!row_u64(&cursor, &roots) || roots >> SPN_PATH_ROOT_COUNT) {
     return false;
   }
   if (!row_lit(&cursor, '\n')) {
     return false;
   }
+  set->pinned.roots = (spn_path_root_set_t)roots;
   while (cursor.len) {
     spn_dag_obs_t obs = sp_zero;
     if (!parse_obs_row(&cursor, &obs)) {
