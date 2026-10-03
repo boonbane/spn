@@ -43,6 +43,7 @@ typedef enum {
   ACTION_VERIFY_ELF_NO_SYMBOL,
   ACTION_VERIFY_FILE_CONTAINS,
   ACTION_VERIFY_FILE_NOT_CONTAINS,
+  ACTION_VERIFY_NO_FIXTURE_PATH,
   ACTION_VERIFY_CC_ARG,
   ACTION_VERIFY_NO_CC_ARG,
   ACTION_VERIFY_PKG_LOCKED,
@@ -70,6 +71,7 @@ typedef struct {
     struct { sp_str_t file; const c8* prefix; } verify_elf_no_symbol;
     struct { sp_str_t file; sp_str_t needle; } verify_file_contains;
     struct { sp_str_t file; sp_str_t needle; } verify_file_not_contains;
+    struct { sp_str_t file; const c8* dir; } verify_no_fixture_path;
     const c8* verify_cc_arg [4];
     struct { const c8* name; const c8* version; } verify_locked;
     struct { const c8* pkg; u32 count; } verify_store;
