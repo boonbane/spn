@@ -37,9 +37,6 @@ spn_profile_info_t test_profile(test_profile_t desc) {
     sp_assert(profile.sdk.kind == SPN_SDK_MSVC);
     profile.sdk.msvc.bin = test_arg_path(desc.bin);
   }
-  if (desc.libc_file) {
-    profile.libc_file = test_arg_path(desc.libc_file);
-  }
   return profile;
 }
 

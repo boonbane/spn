@@ -14,7 +14,7 @@
 #include "triple/triple.h"
 
 #define render_args_max 20
-#define render_env_max 3
+#define render_env_max 4
 #define rsp_args_max 8
 
 typedef struct {
@@ -42,7 +42,6 @@ typedef struct {
   spn_sanitizer_set_t sanitizers;
   const c8* sdk;
   const c8* bin;
-  const c8* libc_file;
 } test_profile_t;
 
 spn_path_t         test_arg_path(const c8* value);

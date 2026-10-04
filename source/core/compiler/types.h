@@ -60,6 +60,7 @@ typedef struct {
   spn_path_t source;
   spn_path_t output;
   spn_path_t depfile;
+  spn_path_t libc;
 } spn_cc_compile_files_t;
 
 typedef struct {

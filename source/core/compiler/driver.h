@@ -17,7 +17,7 @@ void spn_cc_render_flags(sp_mem_t mem, const spn_cc_t* toolchain, const spn_prof
 
 void spn_gnu_render_compile(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, const spn_cc_compile_t* compile, spn_invocation_t* invocation);
 void spn_gnu_render_compile_files(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, const spn_cc_compile_files_t* files, spn_invocation_t* invocation);
-void spn_gnu_render_link(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, const spn_cc_link_t* link, sp_da(spn_arg_t) objects, spn_path_t output, spn_path_t implib, spn_invocation_t* invocation);
+void spn_gnu_render_link(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, const spn_cc_link_t* link, sp_da(spn_arg_t) objects, spn_path_t output, spn_path_t implib, spn_path_t libc, spn_invocation_t* invocation);
 sp_da(spn_arg_t) spn_gnu_render_exports(sp_mem_t mem, sp_da(sp_str_t) symbols);
 void spn_gnu_render_archive(sp_mem_t mem, const spn_cc_t* toolchain, sp_da(spn_arg_t) objects, spn_path_t output, spn_invocation_t* invocation);
 void spn_gnu_render_flags(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, spn_cc_flags_t* flags);

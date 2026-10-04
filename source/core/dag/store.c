@@ -391,6 +391,9 @@ bool spn_dag_obs_table_get(spn_dag_obs_table_t* d, spn_dag_digest_t weak, spn_da
 
   sp_mem_arena_marker_t s = sp_mem_begin_scratch();
   sp_path_t path = spn_path_at(d->roots, entry_path(d->dir, s.mem, weak));
+
+  // @spader Read the file and immediately copy it so the IO happens outside
+  // of the mutex. I haven't measured this and it's probably stupid.
   sp_str_t content = sp_zero;
   if (sp_io_read_file_at(s.mem, path, &content)) {
     sp_mem_end_scratch(s);

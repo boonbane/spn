@@ -1,9 +1,5 @@
 #include "toolchain/libc.h"
 
-#include "ctx/types.h"
-#include "error/error.h"
-#include "fs/fs.h"
-#include "hash/digest/digest.h"
 #include "paths/paths.h"
 #include "str/str.h"
 
@@ -15,80 +11,41 @@ typedef struct {
   spn_path_t kernel32_lib;
 } libc_t;
 
-static libc_t macos_layout(const spn_sdk_t* sdk) {
-  return (libc_t) { .include = sdk->macos.include, .sys_include = sdk->macos.include };
+static void render_key(sp_io_writer_t* io, const spn_path_roots_t* roots, const c8* key, spn_path_t path) {
+  sp_str_buf_t buf = sp_zero;
+  sp_fmt_io(io, "{}={}\n", sp_fmt_cstr(key), sp_fmt_str(spn_path_str(roots, sp_str_buf_as_mem(&buf), path)));
 }
 
-static libc_t msvc_layout(const spn_sdk_t* sdk) {
-  return (libc_t) {
-    .include = sdk->msvc.include.ucrt,
-    .sys_include = sdk->msvc.include.vc,
-    .crt = sdk->msvc.lib.ucrt,
-    .msvc_lib = sdk->msvc.lib.vc,
-    .kernel32_lib = sdk->msvc.lib.um,
-  };
-}
-
-static void render_key(sp_io_writer_t* io, const spn_path_roots_t* roots, sp_mem_t mem, const c8* key, spn_path_t path) {
-  sp_fmt_io(io, "{}={}\n", sp_fmt_cstr(key), sp_fmt_str(spn_path_str(roots, mem, path)));
-}
-
-static sp_str_t render(sp_mem_t mem, const spn_path_roots_t* roots, libc_t libc) {
-  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch_for(mem);
-  sp_io_dyn_mem_writer_t w = sp_zero;
-  sp_io_dyn_mem_writer_init(mem, &w);
-  render_key(&w.base, roots, scratch.mem, "include_dir", libc.include);
-  render_key(&w.base, roots, scratch.mem, "sys_include_dir", libc.sys_include);
-  render_key(&w.base, roots, scratch.mem, "crt_dir", libc.crt);
-  render_key(&w.base, roots, scratch.mem, "msvc_lib_dir", libc.msvc_lib);
-  render_key(&w.base, roots, scratch.mem, "kernel32_lib_dir", libc.kernel32_lib);
-  render_key(&w.base, roots, scratch.mem, "gcc_dir", sp_zero_struct(spn_path_t));
-  sp_mem_end_scratch(scratch);
-  return sp_io_dyn_mem_writer_take_str(&w);
-}
-
-static spn_path_t file_path(sp_mem_t mem, sp_str_t content) {
-  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch_for(mem);
-  u8 digest [32] = sp_zero;
-  spn_digest(SPN_DIGEST_BLAKE3, content.data, content.len, digest);
-  sp_str_t name = sp_fmt(scratch.mem, "zig/libc/{}.txt", sp_fmt_str(spn_digest_hex(scratch.mem, digest))).value;
-  spn_path_t path = spn_path_s(mem, SPN_DIR_ID_TOOLCHAIN_EXTERNAL, name);
-  sp_mem_end_scratch(scratch);
-  return path;
-}
-
-static spn_err_t write_file(sp_mem_t mem, const spn_path_roots_t* roots, spn_path_t file, sp_str_t content) {
-  sp_path_t at = spn_path_at(roots, file);
-  sp_sys_file_meta_t meta = sp_zero;
-  if (!sp_sys_get_path_metadata_s(at.dir, at.sub, &meta) && meta.kind == SP_FS_KIND_FILE) {
-    return SPN_OK;
-  }
-  sp_fs_create_parent_at(at);
-  if (sp_fs_write_atomic_at(at, content)) {
-    return spn_err_emit(&spn, (spn_err_union_t) { .kind = SPN_ERR_FS_WRITE, .fs = { .path = spn_path_copy(mem, file) } });
-  }
-  return SPN_OK;
-}
-
-static spn_err_t emit(sp_mem_t mem, const spn_path_roots_t* roots, libc_t libc, spn_path_t* file) {
-  sp_str_t content = render(mem, roots, libc);
-  *file = file_path(mem, content);
-  return write_file(mem, roots, *file, content);
-}
-
-spn_err_t spn_libc_write(sp_mem_t mem, const spn_path_roots_t* roots, const spn_sdk_t* sdk, spn_path_t* file) {
+void spn_libc_render(sp_io_writer_t* io, const spn_path_roots_t* roots, const spn_sdk_t* sdk) {
+  libc_t libc = sp_zero;
   switch (sdk->kind) {
-    case SPN_SDK_NONE:
-    case SPN_SDK_SYSROOT: {
-      *file = sp_zero_struct(spn_path_t);
-      return SPN_OK;
-    }
     case SPN_SDK_MACOS: {
-      return emit(mem, roots, macos_layout(sdk), file);
+      libc = (libc_t) {
+        .include = sdk->macos.include,
+        .sys_include = sdk->macos.include,
+      };
+      break;
     }
     case SPN_SDK_MSVC: {
-      return emit(mem, roots, msvc_layout(sdk), file);
+      libc = (libc_t) {
+        .include = sdk->msvc.include.ucrt,
+        .sys_include = sdk->msvc.include.vc,
+        .crt = sdk->msvc.lib.ucrt,
+        .msvc_lib = sdk->msvc.lib.vc,
+        .kernel32_lib = sdk->msvc.lib.um,
+      };
+      break;
+    }
+    case SPN_SDK_NONE:
+    case SPN_SDK_SYSROOT: {
+      sp_unreachable_case();
     }
   }
-  sp_unreachable_return(SPN_ERROR);
+
+  render_key(io, roots, "include_dir", libc.include);
+  render_key(io, roots, "sys_include_dir", libc.sys_include);
+  render_key(io, roots, "crt_dir", libc.crt);
+  render_key(io, roots, "msvc_lib_dir", libc.msvc_lib);
+  render_key(io, roots, "kernel32_lib_dir", libc.kernel32_lib);
+  render_key(io, roots, "gcc_dir", (spn_path_t) sp_zero);
 }

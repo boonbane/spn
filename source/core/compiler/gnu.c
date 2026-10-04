@@ -147,11 +147,6 @@ void spn_gnu_render_flags(sp_mem_t mem, const spn_cc_t* toolchain, const spn_pro
   }
 }
 
-static void add_libc(sp_mem_t mem, const spn_profile_info_t* profile, spn_invocation_t* invocation) {
-  sp_assert(!spn_path_empty(profile->libc_file));
-  spn_cc_push_env(mem, invocation, SPN_ENV_ZIG_LIBC, spn_arg_path(profile->libc_file));
-}
-
 static void add_sdk_compile(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, spn_invocation_t* invocation) {
   const spn_sdk_t* sdk = &profile->sdk;
   switch (sdk->kind) {
@@ -163,18 +158,14 @@ static void add_sdk_compile(sp_mem_t mem, const spn_cc_t* toolchain, const spn_p
       break;
     }
     case SPN_SDK_MACOS: {
-      if (spn_cc_has(toolchain, SPN_CC_CAP_LIBC_FILE)) {
-        add_libc(mem, profile, invocation);
-      } else {
+      if (!spn_cc_has(toolchain, SPN_CC_CAP_LIBC_FILE)) {
         spn_cc_push_c(mem, invocation, "-isysroot");
         spn_cc_push_path(mem, invocation, sdk->macos.root);
       }
       break;
     }
     case SPN_SDK_MSVC: {
-      if (spn_cc_has(toolchain, SPN_CC_CAP_LIBC_FILE)) {
-        add_libc(mem, profile, invocation);
-      } else {
+      if (!spn_cc_has(toolchain, SPN_CC_CAP_LIBC_FILE)) {
         spn_cc_push_c(mem, invocation, "-nostdlibinc");
         spn_cc_push_c(mem, invocation, "-isystem");
         spn_cc_push_path(mem, invocation, sdk->msvc.include.vc);
@@ -202,7 +193,6 @@ static void add_sdk_link(sp_mem_t mem, const spn_cc_t* toolchain, const spn_prof
     }
     case SPN_SDK_MACOS: {
       if (spn_cc_has(toolchain, SPN_CC_CAP_LIBC_FILE)) {
-        add_libc(mem, profile, invocation);
         spn_cc_push_c(mem, invocation, "-F");
         spn_cc_push_path(mem, invocation, sdk->macos.frameworks);
       } else {
@@ -212,9 +202,7 @@ static void add_sdk_link(sp_mem_t mem, const spn_cc_t* toolchain, const spn_prof
       break;
     }
     case SPN_SDK_MSVC: {
-      if (spn_cc_has(toolchain, SPN_CC_CAP_LIBC_FILE)) {
-        add_libc(mem, profile, invocation);
-      } else {
+      if (!spn_cc_has(toolchain, SPN_CC_CAP_LIBC_FILE)) {
         spn_path_t libs [] = { sdk->msvc.lib.vc, sdk->msvc.lib.ucrt, sdk->msvc.lib.um };
         spn_cc_push_env_paths(mem, invocation, SPN_ENV_LIB, libs, sp_carr_len(libs));
       }
@@ -299,6 +287,9 @@ void spn_gnu_render_compile_files(sp_mem_t mem, const spn_cc_t* toolchain, const
   }
   spn_cc_push_c(mem, invocation, "-o");
   spn_cc_push_path(mem, invocation, files->output);
+  if (!spn_path_empty(files->libc)) {
+    spn_cc_push_env(mem, invocation, SPN_ENV_ZIG_LIBC, spn_arg_path(files->libc));
+  }
 }
 
 spn_err_t spn_gnu_parse_depfile(sp_mem_t mem, sp_str_t content, sp_da(sp_str_t)* prereqs) {
@@ -435,7 +426,7 @@ bool spn_gnu_link_static(const spn_profile_info_t* profile, spn_cc_output_kind_t
   return kind == SPN_CC_OUTPUT_EXE && profile->linking.libc == SPN_RUNTIME_STATIC && spn_os_to_native_object_format(profile->os) == SPN_OBJ_ELF;
 }
 
-void spn_gnu_render_link(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, const spn_cc_link_t* link, sp_da(spn_arg_t) objects, spn_path_t output, spn_path_t implib, spn_invocation_t* invocation) {
+void spn_gnu_render_link(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, const spn_cc_link_t* link, sp_da(spn_arg_t) objects, spn_path_t output, spn_path_t implib, spn_path_t libc, spn_invocation_t* invocation) {
   spn_triple_t triple = spn_profile_triple(profile);
   spn_obj_format_t format = spn_os_to_native_object_format(profile->os);
   spn_ld_dialect_t dialect = spn_ld_dialect(triple);
@@ -512,6 +503,9 @@ void spn_gnu_render_link(sp_mem_t mem, const spn_cc_t* toolchain, const spn_prof
     spn_cc_push_fmt(mem, invocation, "-l{}", sp_fmt_str(link->system_libs[it]));
   }
   add_sdk_link(mem, toolchain, profile, invocation);
+  if (!spn_path_empty(libc)) {
+    spn_cc_push_env(mem, invocation, SPN_ENV_ZIG_LIBC, spn_arg_path(libc));
+  }
   if (profile->os == SPN_OS_MACOS) {
     if (is_os_version_present(link->min_os)) {
       spn_cc_push_fmt(mem, invocation, "-mmacosx-version-min={}.{}", sp_fmt_uint(link->min_os.major), sp_fmt_uint(link->min_os.minor));

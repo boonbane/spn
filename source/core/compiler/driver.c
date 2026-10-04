@@ -199,12 +199,15 @@ spn_invocation_t spn_cc_render_compile_command(sp_mem_t mem, const spn_cc_t* too
   spn_invocation_t invocation = {
     .program = base->program,
     .cwd = base->cwd,
-    .env = base->env,
   };
   sp_da_init(mem, invocation.args);
   sp_da_reserve(invocation.args, sp_da_size(base->args));
   sp_da_for(base->args, it) {
     sp_da_push(invocation.args, base->args[it]);
+  }
+  sp_da_init(mem, invocation.env);
+  sp_da_for(base->env, it) {
+    sp_da_push(invocation.env, base->env[it]);
   }
 
   switch (toolchain->driver) {
