@@ -102,7 +102,6 @@ struct spn_user_node_t {
   sp_str_t fn;
   sp_da(spn_path_t) inputs;
   sp_da(spn_user_output_t) outputs;
-  sp_da(spn_node_ref_t) deps;
 };
 
 typedef struct {

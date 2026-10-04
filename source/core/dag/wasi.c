@@ -36,8 +36,13 @@ typedef struct {
 struct spn_dag_wasi_t {
   sp_mem_t mem;
   const spn_path_roots_t* roots;
+  struct {
+    spn_path_t dir;
+    spn_path_t read;
+  } build;
   sp_da(spn_dag_wasi_dir_t) mounts;
   sp_da(spn_path_t) writable;
+  sp_da(spn_path_t) private;
   sp_ht(u32, sp_str_t) dirs;
   sp_mem_arena_t* call;
   sp_ht(spn_path_t, u8) writes;
@@ -80,8 +85,23 @@ static void wasi_track_dir(spn_dag_wasi_t* w, u32 fd, sp_str_t guest) {
   sp_ht_insert(w->dirs, fd, sp_str_copy(w->mem, guest));
 }
 
+static bool is_within(sp_da(spn_path_t) dirs, spn_path_t host) {
+  sp_da_for(dirs, it) {
+    if (spn_path_within(dirs[it], host).within) {
+      return true;
+    }
+  }
+  return false;
+}
+
 static void wasi_push(spn_dag_wasi_t* w, spn_dag_obs_kind_t kind, spn_path_t host, sp_str_t filter) {
-  if (!w->obs) {
+  if (!w->obs || is_within(w->private, host)) {
+    return;
+  }
+  if (spn_path_within(w->build.dir, host).within) {
+    if (spn_path_empty(w->build.read)) {
+      w->build.read = spn_path_copy(sp_mem_arena_as_allocator(w->call), host);
+    }
     return;
   }
   spn_dag_observe(w->obs, (spn_dag_obs_t) {
@@ -97,15 +117,6 @@ static void wasi_push_obs(spn_dag_wasi_t* w, spn_dag_obs_kind_t kind, spn_path_t
 
 static bool wasi_written(spn_dag_wasi_t* w, spn_path_t host) {
   return sp_ht_getp(w->writes, host) != SP_NULLPTR;
-}
-
-static bool is_writable(spn_dag_wasi_t* w, spn_path_t host) {
-  sp_da_for(w->writable, it) {
-    if (spn_path_within(w->writable[it], host).within) {
-      return true;
-    }
-  }
-  return false;
 }
 
 static void wasi_record_write(spn_dag_wasi_t* w, spn_path_t host) {
@@ -254,13 +265,15 @@ spn_err_t spn_dag_wasi_install(void) {
   return SPN_OK;
 }
 
-spn_dag_wasi_t* spn_dag_wasi_new(sp_mem_t mem, const spn_path_roots_t* roots, const spn_dag_wasi_mount_t* mounts, u32 num_mounts, const spn_path_t* writable, u32 num_writable) {
+spn_dag_wasi_t* spn_dag_wasi_new(sp_mem_t mem, const spn_path_roots_t* roots, spn_path_t build, const spn_dag_wasi_mount_t* mounts, u32 num_mounts, const spn_path_t* writable, u32 num_writable) {
   spn_dag_wasi_t* w = sp_alloc_type(mem, spn_dag_wasi_t);
   w->mem = mem;
   w->roots = roots;
+  w->build.dir = spn_path_canonicalize(mem, roots, build);
   w->obs = SP_NULLPTR;
   sp_da_init(mem, w->mounts);
   sp_da_init(mem, w->writable);
+  sp_da_init(mem, w->private);
   sp_ht_init(mem, w->dirs);
   w->call = sp_mem_arena_new(mem);
   sp_ht_init(sp_mem_arena_as_allocator(w->call), w->writes);
@@ -272,6 +285,9 @@ spn_dag_wasi_t* spn_dag_wasi_new(sp_mem_t mem, const spn_path_roots_t* roots, co
       .host = spn_path_copy(mem, mounts[it].host)
     }));
     sp_ht_insert(w->dirs, SPN_WASI_PREOPEN_BASE_FD + it, w->mounts[it].guest);
+    if (mounts[it].private) {
+      sp_da_push(w->private, spn_path_canonicalize(mem, roots, mounts[it].host));
+    }
   }
 
   sp_for(it, num_writable) {
@@ -289,6 +305,7 @@ void spn_dag_wasi_begin(spn_dag_wasi_t* w, spn_dag_obs_set_t* obs) {
   sp_mem_arena_clear(w->call);
   sp_ht_init(sp_mem_arena_as_allocator(w->call), w->writes);
   sp_ht_set_fns(w->writes, spn_path_on_hash, spn_path_on_compare);
+  w->build.read = sp_zero_s(spn_path_t);
   w->obs = obs;
 }
 
@@ -298,12 +315,17 @@ void spn_dag_wasi_end(spn_dag_wasi_t* w) {
 
 bool spn_dag_wasi_stray_write(spn_dag_wasi_t* w, spn_path_t* path) {
   sp_ht_for_kv(w->writes, it) {
-    if (!is_writable(w, *it.key)) {
+    if (!is_within(w->writable, *it.key)) {
       *path = *it.key;
       return true;
     }
   }
   return false;
+}
+
+bool spn_dag_wasi_build_read(spn_dag_wasi_t* w, spn_path_t* path) {
+  *path = w->build.read;
+  return !spn_path_empty(w->build.read);
 }
 
 static spn_dag_wasi_t* wasi_of(wasm_module_inst_t instance) {
@@ -317,7 +339,7 @@ bool spn_dag_wasi_resolve(wasm_module_inst_t instance, sp_mem_t mem, sp_str_t gu
 bool spn_dag_wasi_writable(wasm_module_inst_t instance, spn_path_t host) {
   spn_dag_wasi_t* w = wasi_of(instance);
   sp_mem_arena_marker_t s = sp_mem_begin_scratch();
-  bool writable = is_writable(w, spn_path_canonicalize_head(s.mem, w->roots, host));
+  bool writable = is_within(w->writable, spn_path_canonicalize_head(s.mem, w->roots, host));
   sp_mem_end_scratch(s);
   return writable;
 }

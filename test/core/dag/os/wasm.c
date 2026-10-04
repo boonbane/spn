@@ -30,6 +30,7 @@ typedef struct {
 typedef struct {
   const c8* fn;
   wasm_emit_op_t ops [DAG_WASM_MAX_OPS];
+  const c8* host_read;
   const c8* host_write;
   expect_t expect;
 } call_t;
@@ -151,6 +152,39 @@ static const test_t tests [] = {
           { WASM_EMIT_OPEN_READ, "H", .mount = 2 },
         },
         .expect = { .obs = { { .path = "source/H" }, { .path = "store/H" } } } },
+    }
+  },
+  {
+    .name = "private",
+    .files = { { "private/D/H" } },
+    .calls = {
+      { .fn = "run",
+        .ops = {
+          { WASM_EMIT_READDIR, .mount = 3 },
+          { WASM_EMIT_STAT, "D", .mount = 3 },
+          { WASM_EMIT_OPEN_READ, "D/H", .mount = 3 },
+          { WASM_EMIT_OPEN_READ, "G", .mount = 3 },
+        },
+        .expect = { .rc = WASI_ENOENT } },
+    }
+  },
+  {
+    .name = "host_read",
+    .files = { { "work/H" } },
+    .calls = {
+      { .fn = "run",
+        .ops = { { WASM_EMIT_MKDIR, "D" } },
+        .host_read = "work/H",
+        .expect = { .obs = { { .path = "work/H" } } } },
+    }
+  },
+  {
+    .name = "private_host_read",
+    .files = { { "private/D/H" } },
+    .calls = {
+      { .fn = "run",
+        .ops = { { WASM_EMIT_MKDIR, "E" } },
+        .host_read = "private/D" },
     }
   },
   {
@@ -293,6 +327,7 @@ sp_test_each(dag_wasm, wasi, test_t, tests) {
     { .guest = "/work",   .host = { .root = SPN_PATH_ROOT_PROJECT, .sub = sp_str_lit("work") } },
     { .guest = "/source", .host = { .root = SPN_PATH_ROOT_PROJECT, .sub = sp_str_lit("source") } },
     { .guest = "/store",  .host = { .root = SPN_PATH_ROOT_PROJECT, .sub = sp_str_lit("store") } },
+    { .guest = "/private", .host = { .root = SPN_PATH_ROOT_PROJECT, .sub = sp_str_lit("private") }, .private = true },
   };
   sp_carr_for(mounts, mt) {
     sp_fs_create_dir_at(spn_path_at(&roots, mounts[mt].host));
@@ -340,7 +375,8 @@ sp_test_each(dag_wasm, wasi, test_t, tests) {
   sp_must(t, instance != SP_NULLPTR);
 
   spn_path_t writable [] = { mounts[0].host };
-  spn_dag_wasi_t* w = spn_dag_wasi_new(mem, &roots, mounts, sp_carr_len(mounts), writable, sp_carr_len(writable));
+  spn_path_t build = { .root = SPN_PATH_ROOT_PROJECT, .sub = sp_str_lit("source/build") };
+  spn_dag_wasi_t* w = spn_dag_wasi_new(mem, &roots, build, mounts, sp_carr_len(mounts), writable, sp_carr_len(writable));
   spn_dag_wasi_bind(w, instance);
 
   wasm_exec_env_t env = wasm_runtime_create_exec_env(instance, DAG_WASM_STACK_SIZE);
@@ -360,6 +396,9 @@ sp_test_each(dag_wasm, wasi, test_t, tests) {
 
     spn_dag_obs_set_t obs = { .table = &table };
     spn_dag_wasi_begin(w, &obs);
+    if (call->host_read) {
+      spn_dag_wasi_observe_read(instance, (spn_path_t) { .root = SPN_PATH_ROOT_PROJECT, .sub = sp_cstr_as_str(call->host_read) });
+    }
     if (call->host_write) {
       spn_dag_wasi_observe_write(instance, (spn_path_t) { .root = SPN_PATH_ROOT_PROJECT, .sub = sp_cstr_as_str(call->host_write) });
     }

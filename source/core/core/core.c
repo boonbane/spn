@@ -3,26 +3,6 @@
 #include "io/io.h"
 #include "sp/sp_glob.h"
 
-static bool content_matches(sp_mem_t mem, sp_path_t path, sp_mem_slice_t content) {
-  sp_mem_slice_t existing = sp_zero;
-  if (sp_io_read_file_slice(mem, path, &existing)) {
-    return false;
-  }
-  return existing.len == content.len && sp_mem_is_equal(existing.data, content.data, content.len);
-}
-
-static bool file_matches(sp_path_t path, sp_mem_slice_t content) {
-  sp_sys_file_meta_t meta = sp_zero;
-  if (sp_sys_get_path_metadata_s(path.dir, path.sub, &meta) || (u64)meta.size != content.len) {
-    return false;
-  }
-
-  sp_mem_arena_marker_t s = sp_mem_begin_scratch();
-  bool matches = content_matches(s.mem, path, content);
-  sp_mem_end_scratch(s);
-  return matches;
-}
-
 spn_err_t spn_fs_update_file(sp_path_t from, sp_path_t to) {
   sp_sys_file_meta_t source = sp_zero;
   if (sp_sys_get_path_metadata_s(from.dir, from.sub, &source)) {
@@ -37,7 +17,11 @@ spn_err_t spn_fs_update_file(sp_path_t from, sp_path_t to) {
   bool matches = false;
   if (dest.kind == SP_FS_KIND_FILE && dest.size == source.size) {
     sp_mem_slice_t content = sp_zero;
-    matches = !sp_io_read_file_slice(s.mem, from, &content) && content_matches(s.mem, to, content);
+    sp_mem_slice_t existing = sp_zero;
+    matches = !sp_io_read_file_slice(s.mem, from, &content)
+      && !sp_io_read_file_slice(s.mem, to, &existing)
+      && existing.len == content.len
+      && sp_mem_is_equal(existing.data, content.data, content.len);
   }
 
   spn_err_t err = SPN_OK;
@@ -93,22 +77,6 @@ spn_err_t spn_fs_update_glob(sp_path_t from, sp_path_t to) {
 
   sp_mem_end_scratch(s);
   return err;
-}
-
-spn_err_t spn_fs_update_file_str(sp_path_t path, sp_str_t content) {
-  if (file_matches(path, sp_mem_slice((u8*)content.data, content.len))) {
-    return SPN_OK;
-  }
-
-  sp_fs_create_parent_at(path);
-
-  sp_io_file_writer_t writer = sp_zero;
-  if (sp_io_file_writer_from_path_at(&writer, path)) {
-    return SPN_ERROR;
-  }
-  sp_err_t err = sp_io_write_all(&writer.base, content.data, content.len, SP_NULLPTR);
-  sp_io_file_writer_close(&writer);
-  return err ? SPN_ERROR : SPN_OK;
 }
 
 void spn_wake_ring(spn_wake_t* wake) {

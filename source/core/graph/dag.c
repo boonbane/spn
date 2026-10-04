@@ -387,10 +387,6 @@ static spn_err_t dag_add_package(spn_dag_build_t* b, spn_pkg_unit_t* unit) {
     if (sp_da_empty(node->outputs)) {
       sp_da_push(node->outputs, spn_pkg_unit_node_stamp(unit, node));
     }
-  }
-
-  sp_da_for(unit->user_nodes, it) {
-    spn_user_node_t* node = &unit->user_nodes[it];
 
     spn_digest_ctx_t digest = sp_zero;
     spn_digest_init_blake3(&digest);
@@ -424,12 +420,6 @@ static spn_err_t dag_add_package(spn_dag_build_t* b, spn_pkg_unit_t* unit) {
 
     sp_da_for(node->inputs, jt) {
       spn_dag_action_add_input(g, action, spn_dag_add_file(g, node->inputs[jt]));
-    }
-    sp_da_for(node->deps, jt) {
-      spn_user_node_t* dep = spn_node_deref(node->deps[jt]);
-      sp_da_for(dep->outputs, ot) {
-        spn_dag_action_add_input(g, action, spn_dag_add_path(g, dep->outputs[ot].path, dep->outputs[ot].kind));
-      }
     }
 
     sp_da_for(node->outputs, ot) {

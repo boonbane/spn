@@ -1364,6 +1364,14 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           );
           break;
         }
+        case SPN_ERR_WASM_READ_BUILD: {
+          sp_tty_fmt(
+            &w,
+            "Build script read {.yellow}, inside the build directory",
+            sp_fmt_str(contextual_path(mem, event->err.fs.path))
+          );
+          break;
+        }
         case SPN_ERR_TOOLCHAIN_NO_CXX: {
           sp_tty_fmt(
             &w,

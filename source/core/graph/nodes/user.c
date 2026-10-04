@@ -22,63 +22,40 @@ spn_err_t on_user_node(spn_dag_t* g, spn_dag_action_t* action, void* user_data, 
     .script_user_fn = { .tag = node->tag }
   });
 
-  sp_da_for(action->produces, it) {
-    spn_dag_artifact_t* artifact = spn_dag_find_artifact(g, action->produces[it]);
-    sp_path_t declared = spn_path_at(g->roots, artifact->path);
-    sp_err_t err = SP_OK;
-    switch (artifact->kind) {
-      case SPN_DAG_ARTIFACT_KIND_FILE:  err = sp_fs_remove_file_at(declared); break;
-      case SPN_DAG_ARTIFACT_KIND_TREE:  err = sp_fs_remove_dir_at(declared); break;
-      case SPN_DAG_ARTIFACT_KIND_VALUE: sp_unreachable_case();
-    }
-    if (err && err != SP_ERR_SYS_NOT_FOUND) {
-      spn_event_buffer_push(spn.events, (spn_event_t) {
-        .kind = SPN_EVENT_NODE_FAILED,
-        .pkg = pkg->info->name,
-        .node_failed = {
-          .path = spn_path_str(g->roots, spn.mem, artifact->path),
-          .message = sp_fmt(spn.mem, "could not be removed before node {} ran", sp_fmt_str(node->tag)).value,
-        },
-      });
-      return SPN_ERR_DAG_ACTION;
-    }
-  }
-
-  if (!sp_str_empty(node->fn)) {
-    if (spn_wasm_call_export_ex(pkg, node->fn, SPN_ABI_KIND_NONE, SP_NULLPTR, obs)) {
-      return SPN_ERR_DAG_ACTION;
-    }
-  }
-
-  sp_da_for(action->produces, it) {
-    spn_dag_artifact_t* artifact = spn_dag_find_artifact(g, action->produces[it]);
-    sp_path_t target = spn_path_at(g->roots, outputs[it]);
-    sp_path_t declared = spn_path_at(g->roots, artifact->path);
-    sp_err_t err = SP_OK;
+  sp_mem_arena_marker_t s = sp_mem_begin_scratch();
+  spn_wasm_output_t* harvest = sp_alloc_n(s.mem, spn_wasm_output_t, sp_da_size(node->outputs));
+  u32 num_harvest = 0;
+  sp_da_for(node->outputs, it) {
     if (node->outputs[it].stamp) {
-      sp_fs_create_file_at(target);
+      sp_fs_create_file_at(spn_path_at(g->roots, outputs[it]));
+      continue;
     }
-    else {
-      switch (artifact->kind) {
-        case SPN_DAG_ARTIFACT_KIND_FILE:  err = sp_fs_copy_file_at(declared, target, SP_FS_ATOMIC_REPLACE); break;
-        case SPN_DAG_ARTIFACT_KIND_TREE:  err = sp_fs_copy_tree_at(declared, target, SP_FS_ATOMIC_REPLACE); break;
-        case SPN_DAG_ARTIFACT_KIND_VALUE: sp_unreachable_case();
-      }
-    }
-    if (err) {
-      spn_event_buffer_push(spn.events, (spn_event_t) {
-        .kind = SPN_EVENT_NODE_FAILED,
-        .pkg = pkg->info->name,
-        .node_failed = {
-          .path = spn_path_str(g->roots, spn.mem, artifact->path),
-          .message = err == SP_ERR_SYS_NOT_FOUND
-            ? sp_fmt(spn.mem, "was declared as an output of node {} but was not produced", sp_fmt_str(node->tag)).value
-            : sp_fmt(spn.mem, "output of node {} could not be copied into the build", sp_fmt_str(node->tag)).value,
-        },
-      });
-      return SPN_ERR_DAG_ACTION;
-    }
+    harvest[num_harvest++] = (spn_wasm_output_t) { .declared = &node->outputs[it], .to = outputs[it] };
   }
 
-  return SPN_OK;
+  spn_err_t err = SPN_OK;
+  if (!sp_str_empty(node->fn) && spn_wasm_call_export_ex(pkg, node->fn, SPN_ABI_KIND_NONE, SP_NULLPTR, obs, harvest, num_harvest)) {
+    err = SPN_ERR_DAG_ACTION;
+  }
+
+  sp_for(it, num_harvest) {
+    if (!harvest[it].err) {
+      continue;
+    }
+    spn_event_buffer_push(spn.events, (spn_event_t) {
+      .kind = SPN_EVENT_NODE_FAILED,
+      .pkg = pkg->info->name,
+      .node_failed = {
+        .path = spn_path_str(g->roots, spn.mem, harvest[it].declared->path),
+        .message = harvest[it].err == SP_ERR_SYS_NOT_FOUND
+          ? sp_fmt(spn.mem, "was declared as an output of node {} but was not produced", sp_fmt_str(node->tag)).value
+          : sp_fmt(spn.mem, "output of node {} could not be copied into the build", sp_fmt_str(node->tag)).value,
+      },
+    });
+    err = SPN_ERR_DAG_ACTION;
+    break;
+  }
+
+  sp_mem_end_scratch(s);
+  return err;
 }

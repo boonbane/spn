@@ -327,8 +327,8 @@ void spn_ctx_close(spn_ctx_t* ctx, bool ok) {
   if (ctx->session) {
     sp_om_for(ctx->session->units.packages, it) {
       spn_pkg_unit_t* unit = sp_om_at(ctx->session->units.packages, it);
-      spn_wasm_script_close(&unit->wasm.configure);
-      spn_wasm_script_close(&unit->wasm.build);
+      spn_wasm_script_close(&unit->wasm.configure, unit);
+      spn_wasm_script_close(&unit->wasm.build, unit);
     }
   }
   ctx->session = SP_NULLPTR;

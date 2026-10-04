@@ -4,7 +4,6 @@
 
 #include "api/api.h"
 #include "api/types.h"
-#include "core/core.h"
 #include "core/types.h"
 #include "ctx/types.h"
 #include "event/types.h"
@@ -233,18 +232,6 @@ void spn_log(spn_t* s, const c8* message) {
     .pkg = unit->info->name,
     .user_log = { .message = sp_str_from_cstr(spn.mem, message) },
   });
-}
-
-void spn_write_file(spn_t* s, const c8* path, const c8* content) {
-  spn_pkg_unit_t* unit = spn_api_unit(s);
-  if (spn_api_path_rejected(unit, "spn_write_file", sp_str_view(path))) {
-    return;
-  }
-
-  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  spn_path_t joined = spn_path_join(scratch.mem, unit->paths.work, sp_str_view(path));
-  spn_fs_update_file_str(spn_path_at(&unit->session->ctx->roots, joined), sp_str_view(content));
-  sp_mem_end_scratch(scratch);
 }
 
 spn_profile_t* spn_get_profile(spn_t* s) {
