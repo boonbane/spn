@@ -16,6 +16,7 @@ spn_path_t spn_path_canonicalize_head(sp_mem_t mem, const spn_path_roots_t* root
 spn_path_t spn_path_from_cwd(sp_mem_t mem, const spn_path_roots_t* roots, sp_str_t str);
 spn_path_t spn_path_make(const spn_path_roots_t* roots, sp_str_t path);
 spn_path_t spn_path_from_root(spn_path_root_t root);
+spn_path_t spn_path_project_build();
 spn_path_t spn_path_copy(sp_mem_t mem, spn_path_t path);
 spn_path_t spn_path_join(sp_mem_t mem, spn_path_t base, sp_str_t sub);
 spn_path_t spn_path_resolve(sp_mem_t mem, spn_path_t base, sp_str_t str);

@@ -76,7 +76,7 @@ spn_err_t spn_session_init(spn_session_t* s, spn_ctx_t* ctx, sp_mem_t mem, spn_p
   config = copy_config(mem, config);
   s->config = config;
   s->paths.root = spn_path_from_root(SPN_PATH_ROOT_PROJECT);
-  s->paths.build = spn_path_join(s->mem, s->paths.root, sp_str_lit("build"));
+  s->paths.build = spn_path_project_build();
   spn_triple_t host = ctx->host;
 
   sp_ht_init(s->mem, s->registry);

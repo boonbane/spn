@@ -254,6 +254,18 @@ static const iterate_test_t iterate_tests [] = {
     .expect = { "A/B.c", "A/B/Y.c", "A/C/X.c", "A/Z.c" },
   },
   {
+    .name = "root_build_not_entered",
+    .files = { "X.c", "A/Y.c", "build/Z.c" },
+    .pattern = "**/*.c",
+    .expect = { "A/Y.c", "X.c" },
+  },
+  {
+    .name = "nested_build_entered",
+    .files = { "A/build/Z.c" },
+    .pattern = "A/**/*.c",
+    .expect = { "A/build/Z.c" },
+  },
+  {
     .name = "flat_pattern_skips_subdirs",
     .files = { "A/Z.c", "A/B/Y.c", "A/X.h" },
     .pattern = "A/*.c",

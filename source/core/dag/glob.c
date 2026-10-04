@@ -32,11 +32,30 @@ spn_dag_glob_it_t spn_dag_glob_it_new(sp_mem_t mem, const spn_path_roots_t* root
   return it;
 }
 
+static bool glob_walk(spn_dag_glob_it_t* it) {
+  spn_path_t build = spn_path_project_build();
+  bool root = it->base.root == build.root && sp_str_empty(it->base.sub);
+  while (sp_fs_it_next(&it->fs)) {
+    if (it->fs.yield == SP_FS_IT_LEAVE) {
+      continue;
+    }
+    if (it->fs.entry.kind != SP_FS_KIND_DIR) {
+      return true;
+    }
+    if (root && sp_str_equal(it->fs.entry.rel, build.sub)) {
+      continue;
+    }
+    it->fs.err = sp_fs_it_enter(&it->fs);
+    return !it->fs.err;
+  }
+  return false;
+}
+
 bool spn_dag_glob_it_next(spn_dag_glob_it_t* it) {
   if (it->err) {
     return false;
   }
-  while (it->recursive ? sp_fs_it_walk(&it->fs) : sp_fs_it_next(&it->fs)) {
+  while (it->recursive ? glob_walk(it) : sp_fs_it_next(&it->fs)) {
     sp_fs_entry_t entry = it->fs.entry;
     sp_str_t rel = entry.rel;
     if (entry.kind == SP_FS_KIND_DIR && !it->recursive) {
