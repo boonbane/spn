@@ -1356,6 +1356,14 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           );
           break;
         }
+        case SPN_ERR_WASM_WRITE_OUTSIDE: {
+          sp_tty_fmt(
+            &w,
+            "Build script wrote {.yellow}, outside its work, lib, bin and share directories",
+            sp_fmt_str(contextual_path(mem, event->err.fs.path))
+          );
+          break;
+        }
         case SPN_ERR_TOOLCHAIN_NO_CXX: {
           sp_tty_fmt(
             &w,
@@ -1551,6 +1559,10 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
         }
         case SPN_ERR_STAGE_OBSERVED: {
           sp_tty_fmt(&w, "{.cyan} is staged into the project, but a build action read it", sp_fmt_str(get_contextual_path(ctx, mem, event->err.dag.path)));
+          break;
+        }
+        case SPN_ERR_PUBLISH_UNPRODUCED: {
+          sp_tty_fmt(&w, "{.cyan} is published, but no build action produces it", sp_fmt_str(get_contextual_path(ctx, mem, event->err.dag.path)));
           break;
         }
         default: {

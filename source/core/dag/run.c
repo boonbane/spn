@@ -537,6 +537,24 @@ done:
   return err;
 }
 
+bool spn_dag_write_changes(spn_path_t path, spn_dag_artifact_kind_t kind, const spn_dag_obs_t* obs) {
+  if (kind == SPN_DAG_ARTIFACT_KIND_TREE && spn_path_within(path, obs->path).within) {
+    return true;
+  }
+  switch (obs->kind) {
+    case SPN_DAG_OBS_FILE: {
+      return spn_path_equal(path, obs->path);
+    }
+    case SPN_DAG_OBS_ABSENT: {
+      return spn_path_within(obs->path, path).within;
+    }
+    case SPN_DAG_OBS_ENUMERATION: {
+      return false;
+    }
+  }
+  sp_unreachable_return(false);
+}
+
 static spn_err_t resolve_one(spn_dag_file_cache_t* files, const spn_dag_obs_t* o, spn_dag_digest_t* digest, sp_mem_t mem) {
   *digest = (spn_dag_digest_t) sp_zero;
   switch (o->kind) {
@@ -665,6 +683,9 @@ static void lookup(spn_dag_t* g, spn_dag_action_t* action, spn_dag_env_t* env, s
       }
       trace_emit(env, (spn_dag_trace_event_t) { .kind = SPN_DAG_TRACE_STRONG, .action = action->id, .key = strong });
       attempt->hit = try_restore(g, action, strong, env);
+      if (attempt->hit) {
+        attempt->obs.rows = set.obs;
+      }
       break;
     }
     case SPN_DAG_ACTION_UNCACHEABLE: {
@@ -897,7 +918,7 @@ static bool defer_observations(spn_dag_run_t* run, spn_dag_action_t* action, sp_
       spn_dag_id_t* above = sp_ht_getp(run->g->paths, dir);
       if (above) {
         spn_dag_artifact_t* tree = spn_dag_find_artifact(run->g, *above);
-        if (tree->kind == SPN_DAG_ARTIFACT_KIND_TREE) {
+        if (tree->kind == SPN_DAG_ARTIFACT_KIND_TREE && !tree->staged) {
           defer_producer(run, action, tree->producer.index, epoch, requeue);
         }
       }
@@ -934,7 +955,7 @@ static spn_err_t seed_sources(spn_dag_t* g, spn_dag_env_t* env, spn_dag_diag_t* 
         break;
       }
       case SPN_DAG_ARTIFACT_KIND_FILE: {
-        if (!artifact->producer.occupied) {
+        if (!artifact->producer.occupied && !artifact->staged) {
           if (g->roots->pinned & spn_path_root_mask(artifact->path.root)) {
             artifact->materialized = artifact->path;
             artifact->digest = spn_dag_path_digest(artifact->path);
@@ -1007,18 +1028,33 @@ static void finish_action(spn_dag_run_t* run, spn_dag_action_t* action) {
   }
 }
 
+static spn_err_t check_staged(spn_dag_run_t* run, spn_dag_attempt_t* attempt) {
+  sp_da_for(attempt->obs.rows, it) {
+    const spn_dag_obs_t* obs = &attempt->obs.rows[it];
+    sp_da_for(run->staged, jt) {
+      spn_dag_artifact_t* claim = spn_dag_find_artifact(run->g, run->staged[jt]);
+      if (spn_dag_write_changes(claim->path, claim->kind, obs)) {
+        diag_set_path(&attempt->diag, SPN_ERR_STAGE_OBSERVED, attempt->action->id, run->g, obs->path);
+        return SPN_ERR_STAGE_OBSERVED;
+      }
+    }
+  }
+  return SPN_OK;
+}
+
 static void flight_run(void* data) {
   spn_dag_flight_t* flight = (spn_dag_flight_t*)data;
   spn_dag_run_t* run = flight->run;
   flight->epoch = (u64)sp_atomic_s32_load(&run->progress.completed, SP_ATOMIC_SEQ_CST);
   lookup(run->g, flight->action, run->env, &flight->attempt);
-  if (!flight->attempt.hit) {
-    flight->err = execute(run->g, &flight->attempt, run->env);
-  }
+  flight->err = flight->attempt.hit ? check_staged(run, &flight->attempt) : execute(run->g, &flight->attempt, run->env);
 }
 
 static void run_commit_flight(spn_dag_run_t* run, spn_dag_action_t* action, spn_dag_flight_t* flight) {
-  run->err = commit(run->g, &flight->attempt, run->env);
+  run->err = check_staged(run, &flight->attempt);
+  if (!run->err) {
+    run->err = commit(run->g, &flight->attempt, run->env);
+  }
   diag_flush(&run->diag, &flight->attempt, run->err);
   attempt_discard(run->g, run->env, &flight->attempt);
   if (run->err) {
@@ -1119,6 +1155,7 @@ void spn_dag_run_begin(spn_dag_run_t* run, sp_mem_t mem, spn_dag_t* g, spn_dag_e
     .ex = ex,
     .states = sp_alloc_n(mem, spn_dag_run_state_t, n ? n : 1),
     .ready = sp_da_new(mem, spn_dag_id_t),
+    .staged = sp_da_new(mem, spn_dag_id_t),
   };
 
   sp_str_buf_t buf = sp_zero;
@@ -1145,6 +1182,11 @@ void spn_dag_run_begin(spn_dag_run_t* run, sp_mem_t mem, spn_dag_t* g, spn_dag_e
   sp_atomic_s32_store(&run->progress.total, (s32)n, SP_ATOMIC_SEQ_CST);
   seed_ready(run, mem);
   seed_below(run, mem);
+  sp_da_for(g->artifacts, it) {
+    if (g->artifacts[it].staged) {
+      sp_da_push(run->staged, g->artifacts[it].id);
+    }
+  }
 }
 
 bool spn_dag_run_step(spn_dag_run_t* run) {

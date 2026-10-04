@@ -710,6 +710,62 @@ sp_test_each(options_apply, publish_copies, apply_copy_test_t, copy_tests) {
 }
 
 typedef struct {
+  const c8* sub;
+  apply_clause_t when [2];
+} output_t;
+
+typedef struct {
+  const c8* name;
+  spn_when_facts_t facts;
+  output_t outputs [4];
+  const c8* expect [4];
+} output_test_t;
+
+static const output_test_t output_tests [] = {
+  {
+    .name = "publish_outputs",
+    .facts = { .os = SPN_OS_LINUX },
+    .outputs = {
+      { .sub = "A", .when = { { "os", "linux" } } },
+      { .sub = "B", .when = { { "os", "windows" } } },
+      { .sub = "C" },
+    },
+    .expect = { "A", "C" },
+  },
+};
+
+sp_test_each(options_apply, publish_outputs, output_test_t, output_tests) {
+  sp_mem_t mem = sp_test_arena(t);
+  spn_pkg_info_t info = sp_zero;
+  sp_da_init(mem, info.publish.outputs);
+  sp_da_init(mem, info.gated.publish.outputs);
+  u32 outputs = 0;
+  sp_carr_detect_len(it->outputs, outputs, it->outputs[outputs].sub);
+  sp_for(ot, outputs) {
+    sp_da_push(info.gated.publish.outputs, ((spn_publish_output_t) {
+      .sub = sp_cstr_as_str(it->outputs[ot].sub),
+      .when = make_apply_when(mem, it->outputs[ot].when, sp_carr_len(it->outputs[ot].when)),
+    }));
+  }
+
+  spn_when_env_t env = sp_zero;
+  spn_when_env_init(mem, &env);
+  spn_when_env_set_facts(&env, it->facts);
+  spn_path_roots_t roots = sp_zero;
+  spn_tree_roots_t trees = sp_zero;
+  spn_pkg_apply_options(mem, &info, &roots, trees, &env);
+
+  sp_expect(t, info.applied);
+  u32 expected = 0;
+  sp_carr_detect_len(it->expect, expected, it->expect[expected]);
+  sp_must_eq(t, expected, (u32)sp_da_size(info.publish.outputs));
+  sp_for(ot, expected) {
+    sp_expect_str_eq_c(t, info.publish.outputs[ot].sub, it->expect[ot]);
+  }
+  return SP_OK;
+}
+
+typedef struct {
   const c8* dest;
   apply_clause_t when [2];
 } apply_embed_t;

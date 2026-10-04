@@ -6,9 +6,19 @@ typedef struct {
 } source_t;
 
 typedef struct {
+  spn_dag_obs_kind_t kind;
+  const c8* path;
+  const c8* filter;
+} obs_t;
+
+typedef struct {
+  const c8* path;
+  bool tree;
+} claim_t;
+
+typedef struct {
   const c8* identity;
   const c8* inputs [DAG_TEST_MAX_INPUTS];
-  const c8* discovers [DAG_TEST_MAX_INPUTS];
   const c8* output;
   const c8* writes;
   bool tree;
@@ -20,6 +30,8 @@ typedef struct {
 typedef struct {
   source_t sources [DAG_TEST_MAX_INPUTS];
   const c8* remove_dirs [DAG_TEST_MAX_INPUTS];
+  obs_t observes [DAG_TEST_MAX_INPUTS];
+  claim_t staged [DAG_TEST_MAX_INPUTS];
   spn_err_t expect_err;
   const c8* expect_diag_path;
   u32 expect_runs;
@@ -35,6 +47,7 @@ typedef struct {
   dag_test_env_t* env;
   spn_dag_t* g;
   const action_t* spec;
+  const build_t* build;
 } ctx_t;
 
 static const test_t tests [] = {
@@ -156,34 +169,145 @@ static const test_t tests [] = {
     .name = "discovered_generated_header_waits_for_producer",
     .actions = {
       { .identity = "I", .inputs = { "S" }, .output = "H" },
-      { .identity = "J", .inputs = { "M" }, .discovers = { "H" }, .output = "O" },
+      { .identity = "J", .inputs = { "M" }, .output = "O", .kind = SPN_DAG_ACTION_DISCOVERED },
     },
     .builds = {
-      { .sources = { { "S", "A" }, { "M", "B" } }, .expect_runs = 2 },
-      { .sources = { { "S", "A" }, { "M", "B" } }, .expect_runs = 2 },
-      { .sources = { { "S", "C" }, { "M", "B" } }, .expect_runs = 4 },
+      { .sources = { { "S", "A" }, { "M", "B" } }, .observes = { { SPN_DAG_OBS_FILE, "H" } }, .expect_runs = 2 },
+      { .sources = { { "S", "A" }, { "M", "B" } }, .observes = { { SPN_DAG_OBS_FILE, "H" } }, .expect_runs = 2 },
+      { .sources = { { "S", "C" }, { "M", "B" } }, .observes = { { SPN_DAG_OBS_FILE, "H" } }, .expect_runs = 4 },
     }
   },
   {
     .name = "discovered_tree_member_waits_for_producer",
     .actions = {
       { .identity = "I", .inputs = { "S" }, .output = "D", .tree = true },
-      { .identity = "J", .inputs = { "M" }, .discovers = { "D/H" }, .output = "O" },
+      { .identity = "J", .inputs = { "M" }, .output = "O", .kind = SPN_DAG_ACTION_DISCOVERED },
     },
     .builds = {
-      { .sources = { { "S", "A" }, { "M", "B" } }, .expect_runs = 2 },
-      { .sources = { { "S", "A" }, { "M", "B" } }, .remove_dirs = { "D" }, .expect_runs = 2 },
+      { .sources = { { "S", "A" }, { "M", "B" } }, .observes = { { SPN_DAG_OBS_FILE, "D/H" } }, .expect_runs = 2 },
+      { .sources = { { "S", "A" }, { "M", "B" } }, .observes = { { SPN_DAG_OBS_FILE, "D/H" } }, .remove_dirs = { "D" }, .expect_runs = 2 },
     }
   },
   {
     .name = "discovered_source_header_no_deferral",
     .actions = {
-      { .identity = "I", .inputs = { "M" }, .discovers = { "H" }, .output = "O" },
+      { .identity = "I", .inputs = { "M" }, .output = "O", .kind = SPN_DAG_ACTION_DISCOVERED },
     },
     .builds = {
-      { .sources = { { "M", "A" }, { "H", "B" } }, .expect_runs = 1 },
-      { .sources = { { "M", "A" }, { "H", "B" } }, .expect_runs = 1 },
-      { .sources = { { "M", "A" }, { "H", "C" } }, .expect_runs = 2 },
+      { .sources = { { "M", "A" }, { "H", "B" } }, .observes = { { SPN_DAG_OBS_FILE, "H" } }, .expect_runs = 1 },
+      { .sources = { { "M", "A" }, { "H", "B" } }, .observes = { { SPN_DAG_OBS_FILE, "H" } }, .expect_runs = 1 },
+      { .sources = { { "M", "A" }, { "H", "C" } }, .observes = { { SPN_DAG_OBS_FILE, "H" } }, .expect_runs = 2 },
+    }
+  },
+  {
+    .name = "absent_staged_file_passes",
+    .actions = {
+      { .identity = "I", .inputs = { "S" }, .output = "X" },
+    },
+    .builds = {
+      { .sources = { { "S", "A" } }, .staged = { { "G" } }, .expect_runs = 1 },
+    }
+  },
+  {
+    .name = "staged_file_read_fails_unrecorded",
+    .actions = {
+      { .identity = "I", .inputs = { "S" }, .output = "X", .kind = SPN_DAG_ACTION_DISCOVERED },
+    },
+    .builds = {
+      { .sources = { { "S", "A" }, { "G", "B" } }, .observes = { { SPN_DAG_OBS_FILE, "G" } }, .staged = { { "G" } }, .expect_err = SPN_ERR_STAGE_OBSERVED, .expect_diag_path = "G", .expect_runs = 1 },
+      { .observes = { { SPN_DAG_OBS_FILE, "G" } }, .expect_runs = 2 },
+    }
+  },
+  {
+    .name = "staged_file_probe_fails",
+    .actions = {
+      { .identity = "I", .inputs = { "S" }, .output = "X", .kind = SPN_DAG_ACTION_DISCOVERED },
+    },
+    .builds = {
+      { .sources = { { "S", "A" } }, .observes = { { SPN_DAG_OBS_ABSENT, "G" } }, .staged = { { "G" } }, .expect_err = SPN_ERR_STAGE_OBSERVED, .expect_diag_path = "G", .expect_runs = 1 },
+    }
+  },
+  {
+    .name = "staged_file_missing_parent_probe_fails",
+    .actions = {
+      { .identity = "I", .inputs = { "S" }, .output = "X", .kind = SPN_DAG_ACTION_DISCOVERED },
+    },
+    .builds = {
+      { .sources = { { "S", "A" } }, .observes = { { SPN_DAG_OBS_ABSENT, "D" } }, .staged = { { "D/G" } }, .expect_err = SPN_ERR_STAGE_OBSERVED, .expect_diag_path = "D", .expect_runs = 1 },
+    }
+  },
+  {
+    .name = "staged_dir_member_read_fails",
+    .actions = {
+      { .identity = "I", .inputs = { "S" }, .output = "X", .kind = SPN_DAG_ACTION_DISCOVERED },
+    },
+    .builds = {
+      { .sources = { { "S", "A" } }, .observes = { { SPN_DAG_OBS_FILE, "D/G" } }, .staged = { { "D", .tree = true } }, .expect_err = SPN_ERR_STAGE_OBSERVED, .expect_diag_path = "D/G", .expect_runs = 1 },
+    }
+  },
+  {
+    .name = "staged_dir_member_probe_fails",
+    .actions = {
+      { .identity = "I", .inputs = { "S" }, .output = "X", .kind = SPN_DAG_ACTION_DISCOVERED },
+    },
+    .builds = {
+      { .sources = { { "S", "A" } }, .observes = { { SPN_DAG_OBS_ABSENT, "D/G" } }, .staged = { { "D", .tree = true } }, .expect_err = SPN_ERR_STAGE_OBSERVED, .expect_diag_path = "D/G", .expect_runs = 1 },
+    }
+  },
+  {
+    .name = "staged_dir_member_listing_fails",
+    .actions = {
+      { .identity = "I", .inputs = { "S" }, .output = "X", .kind = SPN_DAG_ACTION_DISCOVERED },
+    },
+    .builds = {
+      { .sources = { { "S", "A" } }, .observes = { { SPN_DAG_OBS_ENUMERATION, "D/E" } }, .staged = { { "D", .tree = true } }, .expect_err = SPN_ERR_STAGE_OBSERVED, .expect_diag_path = "D/E", .expect_runs = 1 },
+    }
+  },
+  {
+    .name = "staged_parent_listing_admitted_passes",
+    .actions = {
+      { .identity = "I", .inputs = { "S" }, .output = "X", .kind = SPN_DAG_ACTION_DISCOVERED },
+    },
+    .builds = {
+      { .sources = { { "S", "A" } }, .observes = { { SPN_DAG_OBS_ENUMERATION, "D", "G" } }, .staged = { { "D/G" } }, .expect_runs = 1 },
+    }
+  },
+  {
+    .name = "staged_parent_listing_unfiltered_passes",
+    .actions = {
+      { .identity = "I", .inputs = { "S" }, .output = "X", .kind = SPN_DAG_ACTION_DISCOVERED },
+    },
+    .builds = {
+      { .sources = { { "S", "A" } }, .observes = { { SPN_DAG_OBS_ENUMERATION, "D" } }, .staged = { { "D/G" } }, .expect_runs = 1 },
+    }
+  },
+  {
+    .name = "staged_grandparent_listing_passes",
+    .actions = {
+      { .identity = "I", .inputs = { "S" }, .output = "X", .kind = SPN_DAG_ACTION_DISCOVERED },
+    },
+    .builds = {
+      { .sources = { { "S", "A" } }, .observes = { { SPN_DAG_OBS_ENUMERATION, "D" } }, .staged = { { "D/E/G" } }, .expect_runs = 1 },
+    }
+  },
+  {
+    .name = "staged_read_cache_hit_fails",
+    .actions = {
+      { .identity = "I", .inputs = { "S" }, .output = "X", .kind = SPN_DAG_ACTION_DISCOVERED },
+    },
+    .builds = {
+      { .sources = { { "S", "A" }, { "G", "B" } }, .observes = { { SPN_DAG_OBS_FILE, "G" } }, .expect_runs = 1 },
+      { .staged = { { "G" } }, .expect_err = SPN_ERR_STAGE_OBSERVED, .expect_diag_path = "G", .expect_runs = 1 },
+    }
+  },
+  {
+    .name = "staged_read_dropped_on_rerun_passes",
+    .actions = {
+      { .identity = "I", .inputs = { "S" }, .output = "X", .kind = SPN_DAG_ACTION_DISCOVERED },
+    },
+    .builds = {
+      { .sources = { { "S", "A" }, { "M", "B" }, { "G", "C" } }, .observes = { { SPN_DAG_OBS_FILE, "M" }, { SPN_DAG_OBS_FILE, "G" } }, .expect_runs = 1 },
+      { .sources = { { "M", "D" } }, .observes = { { SPN_DAG_OBS_FILE, "M" } }, .staged = { { "G" } }, .expect_runs = 2 },
     }
   },
 };
@@ -194,14 +318,17 @@ static spn_err_t execute_action(spn_dag_t* g, spn_dag_action_t* action, void* us
     return SPN_ERR_DAG_ACTION;
   }
 
-  sp_carr_for(ctx->spec->discovers, it) {
-    if (!ctx->spec->discovers[it]) {
-      break;
+  if (action->kind == SPN_DAG_ACTION_DISCOVERED) {
+    u32 observes = 0;
+    sp_carr_detect_len(ctx->build->observes, observes, ctx->build->observes[observes].path);
+    sp_for(it, observes) {
+      const obs_t* o = &ctx->build->observes[it];
+      spn_dag_observe(obs, (spn_dag_obs_t) {
+        .kind = o->kind,
+        .path = dag_test_env_rooted(ctx->env, sp_cstr_as_str(o->path)),
+        .filter = sp_cstr_as_str(o->filter),
+      });
     }
-    spn_dag_observe(obs, (spn_dag_obs_t) {
-      .kind = SPN_DAG_OBS_FILE,
-      .path = dag_test_env_rooted(ctx->env, sp_str_view(ctx->spec->discovers[it]))
-    });
   }
 
   if (ctx->spec->skips_output) {
@@ -224,38 +351,6 @@ static spn_err_t execute_action(spn_dag_t* g, spn_dag_action_t* action, void* us
     return sp_fs_create_file_str_at(dag_test_at(ctx->env, inside), sp_str_lit("T")) ? SPN_ERR_DAG_ACTION : SPN_OK;
   }
   return sp_fs_create_file_str_at(dag_test_at(ctx->env, outputs[0]), content) ? SPN_ERR_DAG_ACTION : SPN_OK;
-}
-
-static sp_err_t build_graph(sp_test_t* t, dag_test_env_t* env, spn_dag_t* g, const test_t* test) {
-  sp_carr_for(test->actions, ai) {
-    const action_t* spec = &test->actions[ai];
-    if (!spec->identity) {
-      break;
-    }
-
-    ctx_t* ctx = sp_alloc_type(env->mem, ctx_t);
-    ctx->env = env;
-    ctx->g = g;
-    ctx->spec = spec;
-
-    spn_dag_id_t action = spn_dag_add_action(g, (spn_dag_action_config_t) {
-      .kind = spec->discovers[0] ? SPN_DAG_ACTION_DISCOVERED : spec->kind,
-      .identity = dag_test_digest(spec->identity),
-      .execute = execute_action,
-      .user_data = ctx
-    });
-    sp_carr_for(spec->inputs, ii) {
-      if (!spec->inputs[ii]) {
-        break;
-      }
-      spn_dag_action_add_input(g, action, spn_dag_add_file(g, dag_test_env_rooted(env, sp_str_view(spec->inputs[ii]))));
-    }
-    spn_path_t output = dag_test_env_rooted(env, sp_str_view(spec->output));
-    spn_dag_id_t out_id = spec->tree ? spn_dag_add_tree(g, output) : spn_dag_add_file(g, output);
-    sp_must_eq(t, SPN_OK, spn_dag_action_add_output(g, action, out_id));
-  }
-
-  return SP_OK;
 }
 
 sp_test_each(dag_run, builds, test_t, tests) {
@@ -295,9 +390,10 @@ sp_test_each(dag_run, builds, test_t, tests) {
       ctx->env = &env;
       ctx->g = g;
       ctx->spec = spec;
+      ctx->build = build;
 
       spn_dag_id_t action = spn_dag_add_action(g, (spn_dag_action_config_t) {
-        .kind = spec->discovers[0] ? SPN_DAG_ACTION_DISCOVERED : spec->kind,
+        .kind = spec->kind,
         .identity = dag_test_digest(spec->identity),
         .execute = execute_action,
         .user_data = ctx
@@ -311,6 +407,13 @@ sp_test_each(dag_run, builds, test_t, tests) {
       spn_path_t output = dag_test_env_rooted(&env, sp_str_view(spec->output));
       spn_dag_id_t out_id = spec->tree ? spn_dag_add_tree(g, output) : spn_dag_add_file(g, output);
       sp_must_eq(t, SPN_OK, spn_dag_action_add_output(g, action, out_id));
+    }
+
+    u32 staged = 0;
+    sp_carr_detect_len(build->staged, staged, build->staged[staged].path);
+    sp_for(st, staged) {
+      const claim_t* claim = &build->staged[st];
+      spn_dag_add_staged(g, dag_test_env_rooted(&env, sp_cstr_as_str(claim->path)), claim->tree ? SPN_DAG_ARTIFACT_KIND_TREE : SPN_DAG_ARTIFACT_KIND_FILE);
     }
 
     spn_err_t err = dag_test_env_run(&env, g);

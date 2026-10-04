@@ -3,4 +3,8 @@ name = "p"
 version = "1.0.0"
 
 [stage]
-copy = [{ from = "work/a", to = "compile_commands.json" }]
+copy = [
+  { from = "work/a", to = "compile_commands.json" },
+  { from = "work/b", to = "spn.toml" },
+  { from = "work/c", to = "spn.lock" },
+]

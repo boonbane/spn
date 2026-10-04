@@ -32,7 +32,6 @@ spn_err_t spn_op_clean(spn_op_t* op) {
     }
   }
 
-  spn_try(remove_path(ctx, spn_path_join(ctx->heap, project, sp_str_lit("compile_commands.json"))));
   return remove_path(ctx, spn_path_join(ctx->heap, project, sp_str_lit("build")));
 }
 

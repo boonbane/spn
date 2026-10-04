@@ -1,0 +1,10 @@
+[package]
+name = "D"
+version = "0.0.1"
+
+[publish]
+copy = [{ from = "work/T", to = "include/D" }]
+
+[[lib]]
+name = "D"
+kinds = ["source"]

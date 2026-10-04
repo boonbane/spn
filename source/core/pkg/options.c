@@ -320,6 +320,16 @@ void spn_pkg_apply_options(
   apply_gated(&ctx, &info->define, info->gated.define);
   apply_gated(&ctx, &info->macos.frameworks, info->gated.frameworks);
   apply_copies(&ctx, &info->publish.copy, info->gated.publish.copy);
+  sp_da_for(info->gated.publish.outputs, it) {
+    spn_publish_output_t* output = &info->gated.publish.outputs[it];
+    if (!spn_when_eval(&output->when, env)) {
+      continue;
+    }
+    sp_da_push(info->publish.outputs, ((spn_publish_output_t) {
+      .sub = output->sub,
+      .dest = output->dest,
+    }));
+  }
 
   sp_str_om_for(info->options, it) {
     spn_option_info_t* option = sp_str_om_at(info->options, it);

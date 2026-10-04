@@ -34,6 +34,7 @@ typedef struct {
   const c8* name;
   decl_t outputs [4];
   decl_t inputs [4];
+  decl_t staged [4];
   expect_t expect;
 } test_t;
 
@@ -84,6 +85,38 @@ static const test_t tests [] = {
     .outputs = { { "/R/C", .tree = true } },
     .expect = { .err = SPN_ERR_DAG_TREE_ROOT, .path = "/R/C" },
   },
+  {
+    .name = "output_under_staged_tree_rejected",
+    .outputs = { { "/R/S/X" } },
+    .staged = { { "/R/S", .tree = true } },
+    .expect = { .err = SPN_ERR_STAGE_OVERLAP, .path = "/R/S" },
+  },
+  {
+    .name = "input_under_staged_tree_rejected",
+    .inputs = { { "/R/S/X" } },
+    .staged = { { "/R/S", .tree = true } },
+    .expect = { .err = SPN_ERR_STAGE_OVERLAP, .path = "/R/S" },
+  },
+  {
+    .name = "staged_under_tree_rejected",
+    .outputs = { { "/R/T", .tree = true } },
+    .staged = { { "/R/T/S" } },
+    .expect = { .err = SPN_ERR_STAGE_OVERLAP, .path = "/R/T/S" },
+  },
+  {
+    .name = "staged_at_artifact_rejected",
+    .outputs = { { "/R/F" } },
+    .staged = { { "/R/F" } },
+    .expect = { .err = SPN_ERR_STAGE_OVERLAP, .path = "/R/F" },
+  },
+  {
+    .name = "unproduced_staged_tree_ok",
+    .staged = { { "/R/S", .tree = true } },
+  },
+  {
+    .name = "same_staged_claim_twice_ok",
+    .staged = { { "/R/S" }, { "/R/S" } },
+  },
 };
 
 sp_test_each(dag_graph, validate, test_t, tests) {
@@ -109,6 +142,13 @@ sp_test_each(dag_graph, validate, test_t, tests) {
     const decl_t* decl = &it->inputs[in];
     spn_dag_id_t artifact = spn_dag_add_path(g, spn_path_make(roots, sp_str_view(decl->path)), decl->tree ? SPN_DAG_ARTIFACT_KIND_TREE : SPN_DAG_ARTIFACT_KIND_FILE);
     spn_dag_action_add_input(g, actions[0], artifact);
+  }
+
+  u32 staged = 0;
+  sp_carr_detect_len(it->staged, staged, it->staged[staged].path);
+  sp_for(st, staged) {
+    const decl_t* decl = &it->staged[st];
+    spn_dag_add_staged(g, spn_path_make(roots, sp_cstr_as_str(decl->path)), decl->tree ? SPN_DAG_ARTIFACT_KIND_TREE : SPN_DAG_ARTIFACT_KIND_FILE);
   }
 
   spn_dag_violation_t violation = spn_dag_validate(g);

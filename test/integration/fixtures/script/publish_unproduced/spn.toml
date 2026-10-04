@@ -1,0 +1,10 @@
+[package]
+name = "U"
+version = "0.0.1"
+
+[publish]
+copy = [{ from = "work/G.h", to = "include" }]
+
+[[bin]]
+name = "U"
+source = ["main.c"]

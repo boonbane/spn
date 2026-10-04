@@ -140,6 +140,12 @@ typedef struct {
 } spn_publish_copy_t;
 
 typedef struct {
+  sp_str_t sub;
+  sp_str_t dest;
+  spn_when_t when;
+} spn_publish_output_t;
+
+typedef struct {
   spn_dir_t dir;
   sp_str_t sub;
   sp_str_t to;
@@ -197,6 +203,7 @@ struct spn_pkg_info {
     spn_gated_list_t frameworks;
     struct {
       sp_da(spn_publish_copy_t) copy;
+      sp_da(spn_publish_output_t) outputs;
     } publish;
   } gated;
   spn_toolchain_map_t toolchains;
@@ -204,6 +211,7 @@ struct spn_pkg_info {
   spn_target_info_t configure;
   struct {
     sp_da(spn_publish_copy_t) copy;
+    sp_da(spn_publish_output_t) outputs;
   } publish;
   struct {
     sp_da(spn_stage_copy_t) copy;

@@ -4,5 +4,5 @@ version = "1.0.0"
 
 [publish]
 copy = [
-  { from = "work/a.h", to = "include" },
+  { from = "share/a.h", to = "include" },
 ]

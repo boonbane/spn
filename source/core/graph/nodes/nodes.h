@@ -25,6 +25,16 @@ typedef struct {
   sp_da(spn_arg_t) args;
 } spn_dag_rsp_ctx_t;
 
+typedef struct {
+  spn_dag_id_t artifact;
+  sp_str_t dest;
+} spn_dag_publish_t;
+
+typedef struct {
+  spn_pkg_unit_t* unit;
+  sp_da(spn_dag_publish_t) outputs;
+} spn_dag_tree_ctx_t;
+
 spn_err_t spn_dag_exec_object(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs);
 spn_err_t spn_dag_exec_archive(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs);
 spn_err_t spn_dag_exec_link(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs);

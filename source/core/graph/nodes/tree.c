@@ -32,7 +32,20 @@ static spn_err_t publish_copy(sp_mem_t scratch, const spn_path_roots_t* roots, s
   return SPN_OK;
 }
 
-static spn_err_t publish_tree(sp_mem_t scratch, spn_dag_t* g, spn_pkg_unit_t* unit, spn_path_t include, spn_path_t stamp, spn_dag_obs_set_t* obs) {
+static spn_err_t publish_failed(spn_pkg_unit_t* unit, sp_str_t path, sp_str_t dest) {
+  spn_event_buffer_push(spn.events, (spn_event_t) {
+    .kind = SPN_EVENT_NODE_FAILED,
+    .pkg = unit->info->name,
+    .node_failed = {
+      .path = path,
+      .message = sp_fmt(spn.mem, "could not be published to {}", sp_fmt_str(sp_fs_join_path(spn.mem, sp_str_lit("include"), dest))).value,
+    },
+  });
+  return SPN_ERR_DAG_ACTION;
+}
+
+static spn_err_t publish_tree(sp_mem_t scratch, spn_dag_t* g, spn_dag_tree_ctx_t* ctx, spn_path_t include, spn_path_t stamp, spn_dag_obs_set_t* obs) {
+  spn_pkg_unit_t* unit = ctx->unit;
   if (spn_pkg_unit_publish_headers(unit, include)) {
     return SPN_ERR_DAG_ACTION;
   }
@@ -40,15 +53,18 @@ static spn_err_t publish_tree(sp_mem_t scratch, spn_dag_t* g, spn_pkg_unit_t* un
   sp_da_for(unit->info->publish.copy, it) {
     spn_publish_copy_t* copy = &unit->info->publish.copy[it];
     if (publish_copy(scratch, g->roots, unit->paths.roots, include, copy, obs)) {
-      spn_event_buffer_push(spn.events, (spn_event_t) {
-        .kind = SPN_EVENT_NODE_FAILED,
-        .pkg = unit->info->name,
-        .node_failed = {
-          .path = sp_fs_join_path(spn.mem, spn_tree_to_str(copy->tree), copy->pattern),
-          .message = sp_fmt(spn.mem, "could not be published to {}", sp_fmt_str(sp_fs_join_path(spn.mem, sp_str_lit("include"), copy->dest))).value,
-        },
-      });
-      return SPN_ERR_DAG_ACTION;
+      return publish_failed(unit, sp_fs_join_path(spn.mem, spn_tree_to_str(copy->tree), copy->pattern), copy->dest);
+    }
+  }
+
+  sp_da_for(ctx->outputs, it) {
+    spn_dag_publish_t* output = &ctx->outputs[it];
+    spn_dag_artifact_t* artifact = spn_dag_find_artifact(g, output->artifact);
+    spn_path_t dir = spn_path_join(scratch, include, output->dest);
+    sp_path_t to = spn_path_at(g->roots, spn_path_join(scratch, dir, sp_fs_get_name(artifact->path.sub)));
+    sp_fs_create_parent_at(to);
+    if (sp_fs_copy_at(spn_path_at(g->roots, artifact->materialized), to, SP_FS_ATOMIC_REPLACE)) {
+      return publish_failed(unit, spn_path_str(g->roots, spn.mem, artifact->path), output->dest);
     }
   }
 
@@ -58,7 +74,7 @@ static spn_err_t publish_tree(sp_mem_t scratch, spn_dag_t* g, spn_pkg_unit_t* un
 
 spn_err_t spn_dag_exec_tree(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs) {
   sp_mem_arena_marker_t s = sp_mem_begin_scratch();
-  spn_err_t err = publish_tree(s.mem, g, (spn_pkg_unit_t*)user_data, outputs[0], outputs[1], obs);
+  spn_err_t err = publish_tree(s.mem, g, (spn_dag_tree_ctx_t*)user_data, outputs[0], outputs[1], obs);
   sp_mem_end_scratch(s);
   return err;
 }

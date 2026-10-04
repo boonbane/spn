@@ -82,6 +82,7 @@ typedef enum {
 typedef struct {
   spn_dag_id_t id;
   spn_dag_artifact_kind_t kind;
+  bool staged;
   sp_str_t name;
   spn_path_t path;
   spn_path_t materialized;
@@ -282,6 +283,7 @@ typedef struct {
   spn_dag_diag_t diag;
   spn_err_t err;
   sp_ht(spn_path_t, sp_da(u32)) below;
+  sp_da(spn_dag_id_t) staged;
   spn_dag_run_state_t* states;
   sp_da(spn_dag_id_t) ready;
   u32 in_flight;

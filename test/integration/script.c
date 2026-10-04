@@ -6,6 +6,7 @@ static const c8* project(sp_test_t* t, const c8* name) {
 
 typedef struct {
   const c8* name;
+  const c8* copy [4];
   const c8* work [SPN_TEST_COMMAND_MAX_PATHS];
 } graph_t;
 
@@ -18,6 +19,8 @@ static const graph_t graphs [] = {
   { .name = "multi_output" },
   { .name = "node_linking" },
   { .name = "orphan_outputs", .work = { "O/O.h" } },
+  { .name = "publish_work", .copy = { "packages/*" } },
+  { .name = "publish_work_tree", .copy = { "packages/*" } },
 };
 
 sp_test_each(script, graph, graph_t, graphs) {
@@ -25,6 +28,9 @@ sp_test_each(script, graph, graph_t, graphs) {
     .project = project(t, it->name),
     .args = { "build" },
   };
+  sp_carr_for(it->copy, i) {
+    test.copy[i] = it->copy[i];
+  }
   sp_carr_for(it->work, i) {
     if (!it->work[i]) {
       break;
@@ -106,6 +112,51 @@ sp_test(script, publish_replay) {
   });
 }
 
+sp_test(script, publish_work_replay) {
+  return run_rebuild_test(t, (rebuild_test_t) {
+    .project = "test/integration/fixtures/script/publish_work",
+    .copy = { "packages/*" },
+    .first = {
+      .args = { "build" },
+      .expect.events = { { .event = SPN_EVENT_SCRIPT_USER_FN } },
+    },
+    .rebuilds = {
+      {
+        .change.remove_dirs = { sp_str_lit("build") },
+        .command = {
+          .args = { "build" },
+          .expect = {
+            .events = { { .event = SPN_EVENT_SCRIPT_USER_FN, .absent = true } },
+            .exists = { pkg_store_file("D", "include/D/G.h"), exe("M") },
+          },
+        },
+      },
+    },
+  });
+}
+
+sp_test(script, publish_work_rerun) {
+  return run_rebuild_test(t, (rebuild_test_t) {
+    .project = "test/integration/fixtures/script/publish_work",
+    .copy = { "packages/*" },
+    .first.args = { "build" },
+    .rebuilds = {
+      {
+        .change.moves = {
+          { .from = sp_str_lit("packages/D/I.change.h"), .to = sp_str_lit("packages/D/I.h") },
+        },
+        .command = {
+          .args = { "build" },
+          .expect.events = {
+            { .event = SPN_EVENT_SCRIPT_USER_FN },
+            { .event = SPN_EVENT_TARGET_BUILD_PASSED, .key = "target", .value = "M" },
+          },
+        },
+      },
+    },
+  });
+}
+
 sp_test(script, tree_output_rerun_drops_file) {
   return run_rebuild_test(t, (rebuild_test_t) {
     .project = "test/integration/fixtures/script/tree_output_drop",
@@ -129,10 +180,34 @@ sp_test(script, tree_output_rerun_drops_file) {
   });
 }
 
+sp_test(script, copy_glob_dir_rerun) {
+  return run_rebuild_test(t, (rebuild_test_t) {
+    .project = "test/integration/fixtures/script/copy_glob_dir",
+    .copy = { "H" },
+    .first = {
+      .args = { "build" },
+      .expect.files = { { .file = work_file("M/gen/G/S/a.txt"), .content = "A" } },
+    },
+    .rebuilds = {
+      {
+        .change.writes = { { .file = sp_str_lit("H/S/a.txt"), .content = sp_str_lit("B") } },
+        .command = {
+          .args = { "build" },
+          .expect = {
+            .events = { { .event = SPN_EVENT_SCRIPT_USER_FN } },
+            .files = { { .file = work_file("M/gen/G/S/a.txt"), .content = "B" } },
+          },
+        },
+      },
+    },
+  });
+}
+
 typedef struct {
   const c8* name;
   const c8* copy [4];
   spn_err_t err;
+  const c8* missing;
 } failure_t;
 
 static const failure_t failures [] = {
@@ -148,17 +223,26 @@ static const failure_t failures [] = {
   { .name = "name_separator_test", .err = SPN_ERR_WASM_MODULE_CALL_FAILED },
   { .name = "name_separator_node", .err = SPN_ERR_WASM_MODULE_CALL_FAILED },
   { .name = "nested_output", .err = SPN_ERR_DAG_NESTED_OUTPUT },
+  { .name = "publish_unproduced", .err = SPN_ERR_PUBLISH_UNPRODUCED },
   { .name = "configure_missing_source", .err = SPN_ERR_CONFIGURE_SOURCE_MISSING },
   { .name = "configure_dead_glob", .copy = { "tools" }, .err = SPN_ERR_CONFIGURE_SOURCE_GLOB },
   { .name = "configure_error", .err = SPN_ERR_WASM_SCRIPT_ERROR },
   { .name = "add_define_path_outside", .err = SPN_ERR_WASM_MODULE_CALL_FAILED },
+  { .name = "write_source", .err = SPN_ERR_WASM_WRITE_OUTSIDE },
+  { .name = "write_manifest", .err = SPN_ERR_WASM_WRITE_OUTSIDE },
+  { .name = "write_include", .err = SPN_ERR_WASM_WRITE_OUTSIDE },
+  { .name = "configure_write_source", .err = SPN_ERR_WASM_WRITE_OUTSIDE },
+  { .name = "dep_write_source", .copy = { "packages" }, .err = SPN_ERR_WASM_WRITE_OUTSIDE },
+  { .name = "io_write_source", .err = SPN_ERR_WASM_MODULE_CALL_FAILED, .missing = "X" },
+  { .name = "fs_copy_source", .err = SPN_ERR_WASM_MODULE_CALL_FAILED, .missing = "X" },
+  { .name = "create_dir_source", .err = SPN_ERR_WASM_MODULE_CALL_FAILED, .missing = "X" },
 };
 
 sp_test_each(script, failure, failure_t, failures) {
   command_test_t test = {
     .project = project(t, it->name),
     .args = { "build" },
-    .expect = { .rc = 1, .err = it->err },
+    .expect = { .rc = 1, .err = it->err, .missing = { sp_cstr_as_str(it->missing) } },
   };
   sp_carr_for(it->copy, i) {
     test.copy[i] = it->copy[i];
@@ -179,6 +263,7 @@ sp_test(script, node_output_bin) {
 sp_test(script, node_output_share) {
   return run_command_test(t, (command_test_t) {
     .project = "test/integration/fixtures/script/node_output_share",
+    .copy = { "I.txt" },
     .args = { "build" },
     .expect = {
       .exists = { pkg_store_file("H", "share/R.txt") },
@@ -189,6 +274,7 @@ sp_test(script, node_output_share) {
 sp_test(script, node_output_share_replay) {
   return run_rebuild_test(t, (rebuild_test_t) {
     .project = "test/integration/fixtures/script/node_output_share",
+    .copy = { "I.txt" },
     .first = {
       .args = { "build" },
       .expect.events = { { .event = SPN_EVENT_SCRIPT_USER_FN } },
@@ -201,6 +287,26 @@ sp_test(script, node_output_share_replay) {
           .expect = {
             .events = { { .event = SPN_EVENT_SCRIPT_USER_FN, .absent = true } },
             .exists = { pkg_store_file("H", "share/R.txt") },
+          },
+        },
+      },
+    },
+  });
+}
+
+sp_test(script, node_output_share_rerun) {
+  return run_rebuild_test(t, (rebuild_test_t) {
+    .project = "test/integration/fixtures/script/node_output_share",
+    .copy = { "I.txt" },
+    .first.args = { "build" },
+    .rebuilds = {
+      {
+        .change.writes = { { .file = sp_str_lit("I.txt"), .content = sp_str_lit("B") } },
+        .command = {
+          .args = { "build" },
+          .expect.events = {
+            { .event = SPN_EVENT_SCRIPT_USER_FN },
+            { .event = SPN_EVENT_TARGET_BUILD_PASSED, .absent = true },
           },
         },
       },

@@ -3,6 +3,7 @@
 
 #include "dag/dag.h"
 #include "core/types.h"
+#include "stage/types.h"
 #include "thread_pool/types.h"
 #include "unit/types.h"
 
@@ -23,8 +24,10 @@ typedef struct {
 } spn_dag_target_ids_t;
 
 typedef struct {
-  spn_dag_id_t from;
+  spn_dag_id_t artifact;
   spn_path_t to;
+  spn_path_t owner;
+  spn_stage_declarer_t declarer;
 } spn_dag_stage_t;
 
 struct spn_dag_build_t {
@@ -39,7 +42,6 @@ struct spn_dag_build_t {
     sp_ht(spn_target_unit_t*, spn_dag_target_ids_t) targets;
     sp_ht(spn_compile_unit_t*, spn_dag_object_ids_t) objects;
   } ids;
-  spn_dag_id_t compile_commands;
   sp_da(spn_dag_stage_t) stages;
   spn_dag_action_cache_t actions;
   spn_dag_obs_table_t discovery;

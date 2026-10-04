@@ -1,0 +1,17 @@
+[package]
+name = "B"
+version = "0.0.1"
+
+[[bin]]
+name = "B"
+source = ["main.c"]
+
+[[test]]
+name = "T"
+source = ["t.c"]
+
+[stage]
+copy = [
+  { from = "bin/B", to = "B" },
+  { from = "bin/B.exe", to = "B.exe" },
+]
