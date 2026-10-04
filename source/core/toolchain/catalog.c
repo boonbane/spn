@@ -21,7 +21,7 @@ static void push_row(sp_da(spn_toolchain_row_t)* rows, spn_toolchain_row_t row) 
 
 static spn_path_t sdk_root(spn_toolchain_catalog_t* catalog, spn_toolchain_support_t support, spn_arg_t sdk) {
   switch (support.kind) {
-    case SPN_TOOLCHAIN_SUPPORT_ARTIFACT: return spn_path_empty(sdk.path) ? spn_path_join(catalog->mem, spn_toolchain_artifact_root(support.artifact), sdk.prefix) : sdk.path;
+    case SPN_TOOLCHAIN_SUPPORT_ARTIFACT: return spn_path_empty(sdk.path) ? spn_path_join(catalog->mem, spn_toolchain_artifact_root(catalog->mem, support.artifact), sdk.prefix) : sdk.path;
     case SPN_TOOLCHAIN_SUPPORT_DETECTED:
     case SPN_TOOLCHAIN_SUPPORT_LOCAL:
     case SPN_TOOLCHAIN_SUPPORT_NONE: return sdk.path;

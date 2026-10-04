@@ -111,7 +111,7 @@ static spn_err_t fz_exec(spn_dag_t* g, spn_dag_action_t* action, void* user_data
 
 void fz_roots_init(spn_path_roots_t* roots) {
   roots->dirs[SPN_PATH_ROOT_PROJECT] = sp_str_lit("/out");
-  roots->dirs[SPN_PATH_ROOT_STORE] = sp_str_lit("/src");
+  roots->dirs[SPN_PATH_ROOT_STORAGE] = sp_str_lit("/src");
 }
 
 void fz_lower(fz_lowered_t* low, sp_mem_t mem, fz_universe_t* u, const spn_path_roots_t* roots) {

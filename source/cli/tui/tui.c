@@ -213,14 +213,8 @@ static sp_str_t setter_to_str(spn_err_setter_t setter) {
 static sp_str_t root_label(spn_path_root_t root) {
   switch (root) {
     case SPN_PATH_ROOT_PROJECT:   return sp_str_lit(".");
-    case SPN_PATH_ROOT_STORE:     return sp_str_lit("$SPN_STORE");
-    case SPN_PATH_ROOT_BUILD:     return sp_str_lit("$SPN_BUILD");
-    case SPN_PATH_ROOT_CHECKOUT:  return sp_str_lit("$SPN_CHECKOUTS");
-    case SPN_PATH_ROOT_TOOLCHAIN: return sp_str_lit("$SPN_TOOLCHAIN");
-    case SPN_PATH_ROOT_INDEX:     return sp_str_lit("$SPN_INDEX");
-    case SPN_PATH_ROOT_RUNTIME:   return sp_str_lit("$SPN_RUNTIME");
-    case SPN_PATH_ROOT_CACHE:     return sp_str_lit("$SPN_CACHE");
     case SPN_PATH_ROOT_STORAGE:   return sp_str_lit("$SPN_STORAGE");
+    case SPN_PATH_ROOT_TOOLCHAIN: return sp_str_lit("$SPN_TOOLCHAIN");
     case SPN_PATH_ROOT_NONE:
     case SPN_PATH_ROOT_COUNT:     break;
   }
@@ -231,10 +225,11 @@ static sp_str_t contextual_path(sp_mem_t mem, spn_path_t path) {
   if (path.root == SPN_PATH_ROOT_NONE) {
     return path.sub;
   }
+  sp_str_t label = root_label(path.root);
   if (sp_str_empty(path.sub)) {
-    return root_label(path.root);
+    return label;
   }
-  return sp_fmt(mem, "{}/{}", sp_fmt_str(root_label(path.root)), sp_fmt_str(path.sub)).value;
+  return sp_fmt(mem, "{}/{}", sp_fmt_str(label), sp_fmt_str(path.sub)).value;
 }
 
 static sp_str_t get_contextual_path(spn_ctx_t* ctx, sp_mem_t mem, sp_str_t path) {
@@ -2195,6 +2190,7 @@ static void prompt_pump(spn_tui_t* tui, bool building, spn_progress_t progress) 
     if (!tui->prompt.on) return;
   }
 
+  // @spader wtf?
   if (building && (progress.completed != tui->prompt.last.completed || progress.total != tui->prompt.last.total || progress.warm != tui->prompt.last.warm)) {
     tui->prompt.last = progress;
 

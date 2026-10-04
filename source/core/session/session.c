@@ -26,7 +26,7 @@
 static spn_err_t finalize_profile(spn_session_t* s, spn_profile_info_t* profile, const spn_toolchain_selection_t* selection) {
   spn_profile_finalize(profile, selection);
   if (spn_toolchain_driver_caps(profile->driver) & SPN_CC_CAP_LIBC_FILE) {
-    spn_try(spn_libc_write(s->mem, &s->ctx->roots, s->ctx->paths.toolchain.external, &profile->sdk, &profile->libc_file));
+    spn_try(spn_libc_write(s->mem, &s->ctx->roots, &profile->sdk, &profile->libc_file));
   }
   return SPN_OK;
 }
@@ -114,7 +114,7 @@ spn_err_t spn_session_init(spn_session_t* s, spn_ctx_t* ctx, sp_mem_t mem, spn_p
   spn_triple_t metaprogram_triple = { metaprogram.arch, metaprogram.os, metaprogram.abi };
   spn_path_t metaprogram_root = spn_path_join(s->mem, s->paths.build, spn_triple_to_str(s->mem, metaprogram_triple));
   s->units.metaprogram = spn_build_add(s, metaprogram, metaprogram_root, script.toolchain);
-  sp_da_push(s->units.metaprogram->include, spn_path_join(s->mem, spn_path_from_root(SPN_PATH_ROOT_RUNTIME), sp_str_lit("include")));
+  sp_da_push(s->units.metaprogram->include, spn_path(s->mem, SPN_DIR_ID_RUNTIME, "include"));
 
   spn_path_t log_path = spn_path_join(s->mem, s->units.target->paths.root, sp_str_lit(".spn/build.jsonl"));
   if (spn_event_log_open(ctx->events, spn_path_at(&ctx->roots, log_path))) {

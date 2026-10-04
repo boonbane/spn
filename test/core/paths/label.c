@@ -8,14 +8,8 @@ typedef struct {
 static const label_test_t label_tests [] = {
   { SPN_PATH_ROOT_NONE,      "absolute" },
   { SPN_PATH_ROOT_PROJECT,   "project" },
-  { SPN_PATH_ROOT_STORE,     "store" },
-  { SPN_PATH_ROOT_BUILD,     "build" },
-  { SPN_PATH_ROOT_CHECKOUT,  "checkout" },
-  { SPN_PATH_ROOT_TOOLCHAIN, "toolchain" },
-  { SPN_PATH_ROOT_INDEX,     "index" },
-  { SPN_PATH_ROOT_RUNTIME,   "runtime" },
-  { SPN_PATH_ROOT_CACHE,     "cache" },
   { SPN_PATH_ROOT_STORAGE,   "storage" },
+  { SPN_PATH_ROOT_TOOLCHAIN, "toolchain" },
 };
 
 sp_test(paths_root_label, is_injective) {

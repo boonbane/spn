@@ -153,11 +153,11 @@ static spn_err_t fill(spn_toolchain_store_t* store, sp_mem_t scratch, sp_str_t n
 }
 
 spn_err_t spn_toolchain_provision(spn_toolchain_store_t* store, sp_str_t name, spn_artifact_t artifact) {
-  spn_path_t dest = spn_toolchain_artifact_root(artifact);
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+  spn_path_t dest = spn_toolchain_artifact_root(scratch.mem, artifact);
 
   sp_fs_lock_t lock = sp_zero;
-  bool locked = sp_fs_lock_acquire(&lock, spn_path_at(store->roots, spn_path_suffix(scratch.mem, dest, sp_str_lit(".lock")))) == SP_OK;
+  bool locked = sp_fs_lock_acquire(&lock, spn_path_at(store->roots, spn_path_concat(scratch.mem, dest, ".lock"))) == SP_OK;
 
   spn_err_t result = SPN_OK;
   if (!locked || !sp_fs_is_dir_at(spn_path_at(store->roots, dest))) {

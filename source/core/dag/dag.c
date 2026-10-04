@@ -123,7 +123,7 @@ spn_err_t spn_dag_action_add_output(spn_dag_t* g, spn_dag_id_t action_id, spn_da
   }
   if (!spn_path_empty(artifact->path)) {
     sp_assert(artifact->path.root != SPN_PATH_ROOT_NONE);
-    if (g->roots->pinned & spn_path_root_mask(artifact->path.root)) {
+    if (spn_path_pinned(g->roots, artifact->path)) {
       return SPN_ERR_DAG_PINNED_OUTPUT;
     }
   }
@@ -256,8 +256,8 @@ spn_dag_digest_t spn_dag_weak_key(spn_dag_t* g, spn_dag_id_t action_id) {
 
   spn_digest_ctx_t ctx = sp_zero;
   spn_digest_init_blake3(&ctx);
-  spn_dag_hash_str(&ctx, sp_str_lit("spn.dag.action.v4"));
-  spn_dag_hash_u64(&ctx, g->roots->pinned);
+  spn_dag_hash_str(&ctx, sp_str_lit("spn.dag.action.v5"));
+  spn_dag_hash_paths(&ctx, g->roots->pinned);
   spn_dag_hash_digest(&ctx, action->identity);
 
   spn_dag_hash_u64(&ctx, sp_da_size(action->consumes));
@@ -300,10 +300,10 @@ spn_dag_digest_t spn_dag_strong_key(spn_dag_digest_t weak, spn_dag_digest_t pinn
   return spn_dag_hash_final(&ctx);
 }
 
-spn_dag_digest_t spn_dag_pinned_digest(spn_path_root_set_t pinned, const spn_dag_obs_t* obs, u32 count) {
+spn_dag_digest_t spn_dag_pinned_digest(const spn_path_roots_t* roots, const spn_dag_obs_t* obs, u32 count) {
   u64 rows = 0;
   sp_for(it, count) {
-    if (pinned & spn_path_root_mask(obs[it].path.root)) {
+    if (spn_path_pinned(roots, obs[it].path)) {
       rows++;
     }
   }
@@ -313,7 +313,7 @@ spn_dag_digest_t spn_dag_pinned_digest(spn_path_root_set_t pinned, const spn_dag
   spn_dag_hash_str(&ctx, sp_str_lit("spn.dag.pinned.v1"));
   spn_dag_hash_u64(&ctx, rows);
   sp_for(it, count) {
-    if (pinned & spn_path_root_mask(obs[it].path.root)) {
+    if (spn_path_pinned(roots, obs[it].path)) {
       hash_obs_row(&ctx, &obs[it]);
     }
   }
