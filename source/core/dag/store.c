@@ -198,7 +198,7 @@ static bool parse_obs_row(sp_str_t* cursor, spn_dag_obs_t* out) {
   return true;
 }
 
-#define obs_version '7'
+#define obs_version '8'
 
 static spn_err_t write_obs(sp_io_writer_t* io, sp_mem_t mem, const spn_dag_pathset_t* set) {
   spn_try(write_header(io, obs_version));
@@ -432,10 +432,10 @@ void spn_dag_observe(spn_dag_obs_set_t* set, spn_dag_obs_t obs) {
 
 spn_dag_pathset_t spn_dag_obs_set_put(spn_dag_obs_set_t* set, spn_dag_digest_t weak) {
   spn_dag_obs_table_t* d = set->table;
-  spn_dag_digest_t pinned = spn_dag_pinned_digest(d->roots->pinned, set->rows, (u32)sp_da_size(set->rows));
+  spn_dag_digest_t pinned = spn_dag_pinned_digest(d->roots, set->rows, (u32)sp_da_size(set->rows));
   u64 kept = 0;
   sp_da_for(set->rows, it) {
-    if (!(d->roots->pinned & spn_path_root_mask(set->rows[it].path.root))) {
+    if (!spn_path_pinned(d->roots, set->rows[it].path)) {
       set->rows[kept++] = set->rows[it];
     }
   }
@@ -505,7 +505,7 @@ void spn_dag_file_cache_load(spn_dag_file_cache_t* c, spn_path_t path) {
   }
 
   sp_str_t cursor = content;
-  if (!row_header(&cursor, '3')) {
+  if (!row_header(&cursor, '4')) {
     sp_fs_remove_file_at(at);
     return;
   }
@@ -528,7 +528,7 @@ void spn_dag_file_cache_flush(spn_dag_file_cache_t* c, spn_path_t path) {
 
   sp_io_dyn_mem_writer_t sink = sp_zero;
   sp_io_dyn_mem_writer_init(s.mem, &sink);
-  spn_err_t err = write_header(&sink.base, '3');
+  spn_err_t err = write_header(&sink.base, '4');
   sp_ht_for_kv(c->hints, it) {
     if (err) {
       break;
@@ -772,7 +772,7 @@ spn_err_t spn_dag_store_materialize(spn_dag_store_t* store, spn_dag_digest_t dig
     case SPN_DAG_STORE_FILESYSTEM: {
       sp_mem_arena_marker_t s = sp_mem_begin_scratch();
       sp_path_t stored = get_blob_at(store, s.mem, digest, name);
-      sp_path_t staged = spn_path_at(store->roots, spn_path_suffix(s.mem, path, sp_str_lit(".tmp")));
+      sp_path_t staged = spn_path_at(store->roots, spn_path_concat(s.mem, path, ".tmp"));
       sp_fs_create_parent_at(spn_path_at(store->roots, path));
       sp_err_t rc = sp_fs_create_hard_link_at(stored, staged);
       if (rc) {

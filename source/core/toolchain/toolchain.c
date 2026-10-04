@@ -19,8 +19,8 @@ typedef struct {
   spn_path_t path;
 } generation_err_t;
 
-spn_path_t spn_toolchain_artifact_root(spn_artifact_t artifact) {
-  return (spn_path_t) { .root = SPN_PATH_ROOT_TOOLCHAIN, .sub = artifact.sha256 };
+spn_path_t spn_toolchain_artifact_root(sp_mem_t mem, spn_artifact_t artifact) {
+  return spn_path_s(mem, SPN_DIR_ID_TOOLCHAIN_STORE, artifact.sha256);
 }
 
 spn_toolchain_launcher_t spn_toolchain_launcher_with_root(sp_mem_t mem, spn_toolchain_launcher_t launcher, spn_path_t root) {

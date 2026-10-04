@@ -69,7 +69,7 @@ static spn_err_t compile_object(sp_mem_t scratch, spn_dag_t* g, spn_dag_object_c
     return run_compiler(g->roots, unit, ctx->invocation, object, (spn_path_t) sp_zero) ? SPN_ERR_DAG_ACTION : SPN_OK;
   }
 
-  spn_path_t depfile = spn_path_suffix(scratch, object, sp_str_lit(".d"));
+  spn_path_t depfile = spn_path_concat(scratch, object, ".d");
   if (run_compiler(g->roots, unit, ctx->invocation, object, depfile)) {
     return SPN_ERR_DAG_ACTION;
   }

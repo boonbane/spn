@@ -202,6 +202,9 @@ docker_init_err_t docker_init(docker_t* docker, sp_mem_t mem, spn_fetch_fn fetch
   if (spn_path_roots_set(&docker->roots, mem, SPN_PATH_ROOT_TOOLCHAIN, sp_path_from_str(docker->paths.toolchain))) {
     return DOCKER_INIT_ERR_STORE;
   }
+  if (sp_fs_create_dir_at(spn_path_at(&docker->roots, spn_path_from_id(SPN_DIR_ID_TOOLCHAIN_STORE)))) {
+    return DOCKER_INIT_ERR_STORE;
+  }
 
   spn.mem = mem;
   spn.events = spn_event_buffer_new(mem);
@@ -399,7 +402,7 @@ static sp_str_t artifact_dir(docker_t* docker, const sysroot_t* sysroot) {
   spn_artifact_t artifact = sp_zero;
   bool provisioned = sysroot_artifact(docker, sysroot, &artifact);
   sp_assert(provisioned);
-  return spn_path_str(&docker->roots, docker->mem, spn_toolchain_artifact_root(artifact));
+  return spn_path_str(&docker->roots, docker->mem, spn_toolchain_artifact_root(docker->mem, artifact));
 }
 
 static void context(docker_t* docker, sp_ps_config_t* config, const sysroot_t* sysroot, sp_str_t dir) {

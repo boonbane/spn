@@ -163,11 +163,11 @@ static const rows_test_t rows_tests [] = {
     .toolchain = "A",
     .expect = {
       .rows = {
-        { HOST_ARM_LINUX, { SPN_SDK_SYSROOT, { "aa/S/linux", SPN_PATH_ROOT_TOOLCHAIN } } },
-        { HOST_ARM_MACOS, { SPN_SDK_MACOS, { "aa/S/macos", SPN_PATH_ROOT_TOOLCHAIN } } },
-        { TARGET_WASM, { SPN_SDK_SYSROOT, { "aa/S/wasi", SPN_PATH_ROOT_TOOLCHAIN } } },
-        { TARGET_WIN_GNU, { SPN_SDK_SYSROOT, { "aa/S/windows", SPN_PATH_ROOT_TOOLCHAIN } } },
-        { TARGET_WIN_MSVC, { SPN_SDK_MSVC, .vc = { "aa/S/msvc/crt/lib/x86_64", SPN_PATH_ROOT_TOOLCHAIN } } },
+        { HOST_ARM_LINUX, { SPN_SDK_SYSROOT, { "store/aa/S/linux", SPN_PATH_ROOT_TOOLCHAIN } } },
+        { HOST_ARM_MACOS, { SPN_SDK_MACOS, { "store/aa/S/macos", SPN_PATH_ROOT_TOOLCHAIN } } },
+        { TARGET_WASM, { SPN_SDK_SYSROOT, { "store/aa/S/wasi", SPN_PATH_ROOT_TOOLCHAIN } } },
+        { TARGET_WIN_GNU, { SPN_SDK_SYSROOT, { "store/aa/S/windows", SPN_PATH_ROOT_TOOLCHAIN } } },
+        { TARGET_WIN_MSVC, { SPN_SDK_MSVC, .vc = { "store/aa/S/msvc/crt/lib/x86_64", SPN_PATH_ROOT_TOOLCHAIN } } },
         { HOST_X64_LINUX },
       },
     },

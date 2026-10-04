@@ -160,7 +160,7 @@ spn_err_t spn_dag_exec_link(spn_dag_t* g, spn_dag_action_t* action, void* user_d
 }
 
 static spn_err_t write_exports(sp_mem_t mem, const spn_path_roots_t* roots, spn_target_unit_t* target, const spn_cc_link_t* link, sp_da(spn_arg_t) objects, spn_path_t output) {
-  spn_path_t archive = spn_path_suffix(mem, output, sp_str_lit(".a"));
+  spn_path_t archive = spn_path_concat(mem, output, ".a");
   spn_invocation_t invocation = render_archive_invocation(mem, target, objects, archive);
 
   spn_invocation_result_t run = sp_zero;

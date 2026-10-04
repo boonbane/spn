@@ -234,7 +234,7 @@ static spn_err_t dag_add_warm(spn_dag_build_t* b, spn_target_unit_t* target, con
   spn_dag_t* g = b->graph;
   spn_build_unit_t* build = target->pkg->build;
   spn_toolchain_unit_t* toolchain = build->toolchain;
-  sp_assert(!(g->roots->pinned & spn_path_root_mask(toolchain->cc.cache.root)));
+  sp_assert(!spn_path_pinned(g->roots, toolchain->cc.cache));
 
   spn_cc_link_t link = {
     .kind = target->kind,
@@ -279,7 +279,7 @@ static spn_err_t dag_add_warm(spn_dag_build_t* b, spn_target_unit_t* target, con
       .execute = spn_dag_exec_warm,
       .user_data = warm,
     });
-    spn_dag_action_add_input(g, action, spn_dag_add_file(g, spn_path_join(b->mem, spn_path_from_root(SPN_PATH_ROOT_RUNTIME), sp_str_lit("zig/stub.c"))));
+    spn_dag_action_add_input(g, action, spn_dag_add_file(g, spn_path(b->mem, SPN_DIR_ID_RUNTIME, "zig/stub.c")));
     stamp = spn_dag_add_output(g, name);
     spn_try(spn_dag_action_add_output(g, action, stamp));
     sp_ht_insert(b->ids.warm, identity, stamp);
@@ -963,7 +963,7 @@ spn_dag_build_t* spn_dag_build_new(spn_op_t* op) {
   sp_ht_init(b->mem, b->ids.objects);
   sp_ht_init(b->mem, b->ids.warm);
 
-  spn_path_t root = spn_path_anchor(session->mem, roots, spn_path_join(session->mem, spn_path_from_root(SPN_PATH_ROOT_CACHE), sp_str_lit("dag")));
+  spn_path_t root = spn_path_anchor(session->mem, roots, spn_path_from_id(SPN_DIR_ID_DAG));
   spn_path_t tmp = spn_path_join(session->mem, root, sp_str_lit("tmp"));
   sp_fs_create_dir_at(spn_path_at(roots, tmp));
 

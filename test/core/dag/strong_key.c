@@ -32,7 +32,7 @@ static const test_t tests [] = {
   {
     .name = "root_kind_changes_key",
     .a = { .prelim = "cc main.c", .obs = { { "H", "SP", .root = SPN_PATH_ROOT_PROJECT } } },
-    .b = { .prelim = "cc main.c", .obs = { { "H", "SP", .root = SPN_PATH_ROOT_STORE } } },
+    .b = { .prelim = "cc main.c", .obs = { { "H", "SP", .root = SPN_PATH_ROOT_STORAGE } } },
   },
   {
     .name = "discovered_path_changes_key",

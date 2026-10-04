@@ -222,10 +222,10 @@ spn_path_t spn_path_parent(spn_path_t path) {
   return (spn_path_t) { .root = path.root, .sub = sp_str_prefix(path.sub, len) };
 }
 
-spn_path_t spn_path_suffix(sp_mem_t mem, spn_path_t path, sp_str_t suffix) {
+spn_path_t spn_path_concat(sp_mem_t mem, spn_path_t path, const c8* suffix) {
   return (spn_path_t) {
     .root = path.root,
-    .sub = sp_str_concat(mem, path.sub, suffix),
+    .sub = sp_str_concat(mem, path.sub, sp_str_view(suffix)),
   };
 }
 
@@ -312,9 +312,45 @@ spn_path_root_set_t spn_path_root_mask(spn_path_root_t root) {
   return 1u << root;
 }
 
-spn_path_root_set_t spn_path_pinned_roots() {
-  return spn_path_root_mask(SPN_PATH_ROOT_CHECKOUT)
-    | spn_path_root_mask(SPN_PATH_ROOT_TOOLCHAIN);
+bool spn_path_pinned(const spn_path_roots_t* roots, spn_path_t path) {
+  sp_da_for(roots->pinned, it) {
+    if (spn_path_within(roots->pinned[it], path).within) {
+      return true;
+    }
+  }
+  return false;
+}
+
+spn_path_t spn_path_from_id(spn_dir_id_t id) {
+  switch (id) {
+    case SPN_DIR_ID_STORE: return (spn_path_t) { SPN_PATH_ROOT_STORAGE,   sp_str_lit("cache/store") };
+    case SPN_DIR_ID_BUILD: return (spn_path_t) { SPN_PATH_ROOT_STORAGE,   sp_str_lit("cache/build") };
+    case SPN_DIR_ID_CHECKOUTS: return (spn_path_t) { SPN_PATH_ROOT_STORAGE,   sp_str_lit("cache/source/checkouts") };
+    case SPN_DIR_ID_GIT_DB: return (spn_path_t) { SPN_PATH_ROOT_STORAGE,   sp_str_lit("cache/source/db") };
+    case SPN_DIR_ID_DAG: return (spn_path_t) { SPN_PATH_ROOT_STORAGE,   sp_str_lit("cache/dag") };
+    case SPN_DIR_ID_INDEX: return (spn_path_t) { SPN_PATH_ROOT_STORAGE,   sp_str_lit("index") };
+    case SPN_DIR_ID_RUNTIME: return (spn_path_t) { SPN_PATH_ROOT_STORAGE,   sp_str_lit("runtime") };
+    case SPN_DIR_ID_TOOLCHAIN_STORE: return (spn_path_t) { SPN_PATH_ROOT_TOOLCHAIN, sp_str_lit("store") };
+    case SPN_DIR_ID_TOOLCHAIN_EXTERNAL: return (spn_path_t) { SPN_PATH_ROOT_TOOLCHAIN, sp_str_lit("external") };
+    case SPN_DIR_ID_NONE:
+    case SPN_DIR_ID_COUNT:              break;
+  }
+  sp_unreachable_return(sp_zero_struct(spn_path_t));
+}
+
+spn_path_t spn_path(sp_mem_t mem, spn_dir_id_t id, const c8* sub) {
+  return spn_path_s(mem, id, sp_str_view(sub));
+}
+
+spn_path_t spn_path_s(sp_mem_t mem, spn_dir_id_t id, sp_str_t sub) {
+  return spn_path_join(mem, spn_path_from_id(id), sub);
+}
+
+sp_da(spn_path_t) spn_layout_pinned(sp_mem_t mem) {
+  sp_da(spn_path_t) pinned = sp_da_new(mem, spn_path_t);
+  sp_da_push(pinned, spn_path_from_id(SPN_DIR_ID_CHECKOUTS));
+  sp_da_push(pinned, spn_path_from_id(SPN_DIR_ID_TOOLCHAIN_STORE));
+  return pinned;
 }
 
 sp_hash_t spn_path_on_hash(void* key, u64 size) {
@@ -353,14 +389,8 @@ sp_str_t spn_path_root_label(spn_path_root_t root) {
   switch (root) {
     case SPN_PATH_ROOT_NONE:      return sp_str_lit("absolute");
     case SPN_PATH_ROOT_PROJECT:   return sp_str_lit("project");
-    case SPN_PATH_ROOT_STORE:     return sp_str_lit("store");
-    case SPN_PATH_ROOT_BUILD:     return sp_str_lit("build");
-    case SPN_PATH_ROOT_CHECKOUT:  return sp_str_lit("checkout");
-    case SPN_PATH_ROOT_TOOLCHAIN: return sp_str_lit("toolchain");
-    case SPN_PATH_ROOT_INDEX:     return sp_str_lit("index");
-    case SPN_PATH_ROOT_RUNTIME:   return sp_str_lit("runtime");
-    case SPN_PATH_ROOT_CACHE:     return sp_str_lit("cache");
     case SPN_PATH_ROOT_STORAGE:   return sp_str_lit("storage");
+    case SPN_PATH_ROOT_TOOLCHAIN: return sp_str_lit("toolchain");
     case SPN_PATH_ROOT_COUNT:     break;
   }
   sp_unreachable_return(sp_str_lit(""));

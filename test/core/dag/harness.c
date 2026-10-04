@@ -20,13 +20,16 @@ void dag_test_env_init(dag_test_env_t* env, sp_test_t* t, dag_test_env_config_t 
   env->root = config.sub
     ? sp_path_join(env->mem, sp_test_dir(t), sp_str_view(config.sub))
     : sp_test_dir(t);
-  env->roots.pinned = config.pinned;
   sp_fs_create_dir_at(env->root);
   spn_path_roots_set(&env->roots, env->mem, SPN_PATH_ROOT_PROJECT, env->root);
-  if (config.checkout) {
-    sp_path_t checkout = dag_test_env_path(env, sp_str_view(config.checkout));
-    sp_fs_create_dir_at(checkout);
-    spn_path_roots_set(&env->roots, env->mem, SPN_PATH_ROOT_CHECKOUT, checkout);
+  if (config.storage) {
+    sp_path_t storage = dag_test_env_path(env, sp_str_view(config.storage));
+    sp_fs_create_dir_at(storage);
+    spn_path_roots_set(&env->roots, env->mem, SPN_PATH_ROOT_STORAGE, storage);
+  }
+  if (config.pinned) {
+    env->roots.pinned = sp_da_new(env->mem, spn_path_t);
+    sp_da_push(env->roots.pinned, ((spn_path_t) { .root = SPN_PATH_ROOT_STORAGE, .sub = sp_str_view(config.pinned) }));
   }
   spn_dag_store_init(&env->store, (spn_dag_store_config_t) {
     .kind = config.store,
