@@ -22,7 +22,7 @@ typedef struct {
   sp_str_t dirs [SPN_PATH_ROOT_COUNT];
   sp_sys_fd_t fds [SPN_PATH_ROOT_COUNT];
   spn_path_root_set_t opened;
-  spn_path_root_set_t pinned;
+  sp_da(spn_path_t) pinned;
 } spn_path_roots_t;
 
 typedef struct {
@@ -46,14 +46,8 @@ typedef struct {
 } spn_arg_t;
 
 typedef struct {
-  spn_path_t dir;
-  spn_path_t external;
-} spn_toolchain_paths_t;
-
-typedef struct {
   spn_path_t patches;
   spn_path_t config;
-  spn_toolchain_paths_t toolchain;
 } spn_system_paths_t;
 
 #endif

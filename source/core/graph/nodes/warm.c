@@ -49,7 +49,7 @@ spn_err_t spn_dag_exec_warm(spn_dag_t* g, spn_dag_action_t* action, void* user_d
 
   spn_path_t staging = spn_path_parent(outputs[0]);
   sp_da(spn_arg_t) objects = sp_da_new(mem, spn_arg_t);
-  sp_da_push(objects, spn_arg_path(spn_path_join(mem, spn_path_from_root(SPN_PATH_ROOT_RUNTIME), sp_str_lit("zig/stub.c"))));
+  sp_da_push(objects, spn_arg_path(spn_path(mem, SPN_DIR_ID_RUNTIME, "zig/stub.c")));
 
   spn_invocation_t invocation = sp_zero;
   spn_gnu_render_link(mem, cc, &warm->build->profile, &warm->link, objects, spn_path_join(mem, staging, sp_str_lit("stub.bin")), sp_zero_struct(spn_path_t), &invocation);

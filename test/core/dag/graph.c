@@ -88,7 +88,7 @@ static const test_t tests [] = {
 
 sp_test_each(dag_graph, validate, test_t, tests) {
   spn_path_roots_t storage = sp_zero;
-  const spn_path_roots_t* roots = paths_test_roots_build((paths_test_roots_t) { .project = "/R", .checkout = "/R/C/K" }, &storage);
+  const spn_path_roots_t* roots = paths_test_roots_build((paths_test_roots_t) { .project = "/R", .storage = "/R/C/K" }, &storage);
   spn_dag_t* g = spn_dag_new(sp_test_arena(t), roots);
   spn_dag_id_t actions [2] = {
     spn_dag_add_action(g, (spn_dag_action_config_t) { .execute = dag_test_exec_noop }),

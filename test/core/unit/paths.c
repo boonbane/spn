@@ -37,13 +37,13 @@ static const paths_test_t tests [] = {
     .stamp =   { .sub = "/build/debug/.spn/A/stamp" },
   },
   {
-    .name = "index_package_lives_under_the_build_and_store_roots",
+    .name = "index_package_lives_under_the_build_and_store_dirs",
     .source = SPN_PKG_SOURCE_INDEX,
-    .work =    { .root = SPN_PATH_ROOT_BUILD, .prefix = "core/A/" },
-    .store =   { .root = SPN_PATH_ROOT_STORE, .prefix = "core/A/" },
-    .include = { .root = SPN_PATH_ROOT_STORE, .prefix = "core/A/", .suffix = "/include" },
-    .object =  { .root = SPN_PATH_ROOT_BUILD, .prefix = "core/A/", .suffix = "/object" },
-    .stamp =   { .root = SPN_PATH_ROOT_BUILD, .prefix = "core/A/", .suffix = "/stamp" },
+    .work =    { .root = SPN_PATH_ROOT_STORAGE, .prefix = "cache/build/core/A/" },
+    .store =   { .root = SPN_PATH_ROOT_STORAGE, .prefix = "cache/store/core/A/" },
+    .include = { .root = SPN_PATH_ROOT_STORAGE, .prefix = "cache/store/core/A/", .suffix = "/include" },
+    .object =  { .root = SPN_PATH_ROOT_STORAGE, .prefix = "cache/build/core/A/", .suffix = "/object" },
+    .stamp =   { .root = SPN_PATH_ROOT_STORAGE, .prefix = "cache/build/core/A/", .suffix = "/stamp" },
   },
 };
 

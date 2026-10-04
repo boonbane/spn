@@ -156,7 +156,7 @@ sp_test_each(dag_glob, observe, test_t, tests) {
     sp_fs_create_dir_at(sp_path_join(mem, sandbox, sp_cstr_as_str(it->dirs[dt])));
   }
   if (it->nested_root) {
-    spn_path_roots_set(&storage, mem, SPN_PATH_ROOT_STORE, sp_path_join(mem, sandbox, sp_cstr_as_str(it->nested_root)));
+    spn_path_roots_set(&storage, mem, SPN_PATH_ROOT_STORAGE, sp_path_join(mem, sandbox, sp_cstr_as_str(it->nested_root)));
   }
 
   spn_dag_glob_result_t glob = sp_zero;

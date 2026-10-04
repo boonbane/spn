@@ -20,10 +20,10 @@ typedef struct {
 
 typedef struct {
   const c8* sub;
-  const c8* checkout;
+  const c8* storage;
   spn_dag_store_kind_t store;
   bool discovery;
-  spn_path_root_set_t pinned;
+  const c8* pinned;
 } dag_test_env_config_t;
 
 typedef struct {

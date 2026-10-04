@@ -52,14 +52,14 @@ static const tree_rel_test_t tree_rel_tests [] = {
   },
   {
     .name = "rooted_path_outside_the_trees_is_outside",
-    .roots = { .project = "/P", .store = "/P/T" },
+    .roots = { .project = "/P", .storage = "/P/T" },
     .recipe = "/P/R", .source = "/P/T/S",
     .path = "/P/T/O/H.c",
     .expect = { .sub = "O/H.c" }
   },
   {
     .name = "trees_under_distinct_roots_stay_distinct",
-    .roots = { .project = "/P", .store = "/P/T" },
+    .roots = { .project = "/P", .storage = "/P/T" },
     .recipe = "/P/R", .source = "/P/T/S",
     .path = "/P/T/S/H.c",
     .expect = { .tree = SPN_TREE_SOURCE, .sub = "H.c" }

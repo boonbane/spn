@@ -63,7 +63,7 @@ sp_test_each(dag_hints, roundtrip, test_t, tests) {
 
   sp_str_t content = sp_zero;
   sp_must_eq(t, SP_OK, sp_io_read_file_at(env.mem, dag_test_at(&env, path), &content));
-  sp_expect(t, sp_str_starts_with(content, sp_str_lit("3\n")));
+  sp_expect(t, sp_str_starts_with(content, sp_str_lit("4\n")));
   sp_for(f, count) {
     spn_path_t key = make_key(&env, &it->files[f]);
     sp_str_t row = sp_fmt(env.mem, " {} {}\n", sp_fmt_uint(key.root), sp_fmt_str(key.sub)).value;
@@ -159,13 +159,13 @@ sp_test(dag_hints, refreshed_on_hit) {
 sp_test(dag_hints, pinned_obs_not_recorded) {
   env_t env = sp_zero;
   dag_test_env_init(&env.dag, t, (dag_test_env_config_t) {
-    .checkout = "checkout",
+    .storage = "storage",
     .store = SPN_DAG_STORE_MEM,
     .discovery = true,
-    .pinned = 1u << SPN_PATH_ROOT_CHECKOUT
+    .pinned = "P"
   });
-  env.obs = (spn_path_t) { .root = SPN_PATH_ROOT_CHECKOUT, .sub = sp_str_lit("locked.h") };
-  dag_test_env_create(&env.dag, sp_str_lit("checkout/locked.h"), sp_str_lit("A"));
+  env.obs = (spn_path_t) { .root = SPN_PATH_ROOT_STORAGE, .sub = sp_str_lit("P/locked.h") };
+  dag_test_env_create(&env.dag, sp_str_lit("storage/P/locked.h"), sp_str_lit("A"));
 
   sp_err_t err = execute_observing(t, &env, "pinned");
   if (err) {

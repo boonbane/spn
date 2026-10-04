@@ -33,8 +33,8 @@ static const path_test_t path_tests [] = {
   },
   {
     .name = "join_keeps_multi_component_sub",
-    .roots = { .store = "/A/S" },
-    .root = SPN_PATH_ROOT_STORE,
+    .roots = { .storage = "/A/S" },
+    .root = SPN_PATH_ROOT_STORAGE,
     .subs = { "D/E" },
     .expect = "/A/S/D/E"
   },

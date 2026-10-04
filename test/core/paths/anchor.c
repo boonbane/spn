@@ -14,16 +14,16 @@ typedef struct {
 
 static const anchor_test_t anchor_tests [] = {
   {
-    .name = "store_relative_is_identity",
-    .roots = { .cache = "/S/cache", .store = "/S/cache/store", .build = "/S/cache/build" },
-    .path = { SPN_PATH_ROOT_STORE, "pkg/fp/include/a.h" },
-    .expect = { SPN_PATH_ROOT_STORE, "pkg/fp/include/a.h" }
+    .name = "storage_relative_is_identity",
+    .roots = { .storage = "/S" },
+    .path = { SPN_PATH_ROOT_STORAGE, "cache/store/pkg/fp/include/a.h" },
+    .expect = { SPN_PATH_ROOT_STORAGE, "cache/store/pkg/fp/include/a.h" }
   },
   {
-    .name = "cache_relative_is_identity_outside_nested_roots",
-    .roots = { .cache = "/S/cache", .store = "/S/cache/store" },
-    .path = { SPN_PATH_ROOT_CACHE, "dag" },
-    .expect = { SPN_PATH_ROOT_CACHE, "dag" }
+    .name = "storage_relative_is_identity_outside_nested_roots",
+    .roots = { .storage = "/S", .toolchain = "/S/cache/toolchain" },
+    .path = { SPN_PATH_ROOT_STORAGE, "cache/dag" },
+    .expect = { SPN_PATH_ROOT_STORAGE, "cache/dag" }
   },
   {
     .name = "sub_reaching_into_a_nested_root_takes_it",
@@ -46,8 +46,8 @@ static const anchor_test_t anchor_tests [] = {
   {
     .name = "unregistered_root_passes_through",
     .roots = { .project = "/A" },
-    .path = { SPN_PATH_ROOT_BUILD, "pkg/fp" },
-    .expect = { SPN_PATH_ROOT_BUILD, "pkg/fp" }
+    .path = { SPN_PATH_ROOT_STORAGE, "pkg/fp" },
+    .expect = { SPN_PATH_ROOT_STORAGE, "pkg/fp" }
   },
 };
 

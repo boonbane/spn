@@ -17,7 +17,7 @@ typedef struct {
 
 typedef struct {
   const c8* name;
-  spn_path_root_set_t pinned;
+  const c8* pinned;
   entry_t entries [DAG_TEST_MAX_OPS];
   plant_t plant;
   bool reload;
@@ -128,7 +128,7 @@ static const test_t tests [] = {
         .key = "K",
         .obs = {
           { .path = "H", .root = SPN_PATH_ROOT_PROJECT },
-          { .path = "P/H", .root = SPN_PATH_ROOT_STORE },
+          { .path = "P/H", .root = SPN_PATH_ROOT_STORAGE },
           { .path = "/X/H" }
         }
       }
@@ -139,20 +139,20 @@ static const test_t tests [] = {
       .hit = true,
       .obs = {
         { .path = "H", .root = SPN_PATH_ROOT_PROJECT },
-        { .path = "P/H", .root = SPN_PATH_ROOT_STORE },
+        { .path = "P/H", .root = SPN_PATH_ROOT_STORAGE },
         { .path = "/X/H" }
       }
     }
   },
   {
     .name = "pinned_rows_partitioned",
-    .pinned = 1u << SPN_PATH_ROOT_STORE,
+    .pinned = "P",
     .entries = {
       {
         .key = "K",
         .obs = {
           { .path = "H", .root = SPN_PATH_ROOT_PROJECT },
-          { .path = "P/H", .root = SPN_PATH_ROOT_STORE }
+          { .path = "P/H", .root = SPN_PATH_ROOT_STORAGE }
         }
       }
     },
@@ -163,14 +163,36 @@ static const test_t tests [] = {
     }
   },
   {
+    .name = "pinned_dir_keeps_its_siblings",
+    .pinned = "P",
+    .entries = {
+      {
+        .key = "K",
+        .obs = {
+          { .path = "P/H", .root = SPN_PATH_ROOT_STORAGE },
+          { .path = "Q/H", .root = SPN_PATH_ROOT_STORAGE },
+          { .path = "P/H", .root = SPN_PATH_ROOT_PROJECT }
+        }
+      }
+    },
+    .key = "K",
+    .expect = {
+      .hit = true,
+      .obs = {
+        { .path = "Q/H", .root = SPN_PATH_ROOT_STORAGE },
+        { .path = "P/H", .root = SPN_PATH_ROOT_PROJECT }
+      }
+    }
+  },
+  {
     .name = "reload_preserves_pinned_digest",
-    .pinned = 1u << SPN_PATH_ROOT_STORE,
+    .pinned = "P",
     .entries = {
       {
         .key = "K",
         .obs = {
           { .path = "H", .root = SPN_PATH_ROOT_PROJECT },
-          { .path = "P/H", .root = SPN_PATH_ROOT_STORE }
+          { .path = "P/H", .root = SPN_PATH_ROOT_STORAGE }
         }
       }
     },
@@ -205,7 +227,7 @@ static sp_err_t expect_obs(sp_test_t* t, const spn_dag_pathset_t* set, const dag
   return SP_OK;
 }
 
-static sp_err_t check_expectations(sp_test_t* t, spn_dag_obs_table_t* discovery, const test_t* test) {
+static sp_err_t check_expectations(sp_test_t* t, const spn_path_roots_t* roots, spn_dag_obs_table_t* discovery, const test_t* test) {
   spn_dag_pathset_t set = sp_zero;
   bool present = spn_dag_obs_table_get(discovery, dag_test_digest(test->key), &set);
   sp_must_eq(t, test->expect.hit, present);
@@ -222,7 +244,7 @@ static sp_err_t check_expectations(sp_test_t* t, spn_dag_obs_table_t* discovery,
   sp_must(t, stored);
   spn_dag_obs_t obs [DAG_TEST_MAX_INPUTS] = sp_zero;
   u32 count = dag_test_obs_build(stored->obs, DAG_TEST_MAX_INPUTS, obs, SP_NULLPTR);
-  spn_dag_digest_t pinned = spn_dag_pinned_digest(test->pinned, obs, count);
+  spn_dag_digest_t pinned = spn_dag_pinned_digest(roots, obs, count);
   sp_expect(t, spn_dag_digest_equal(pinned, set.pinned));
 
   return expect_obs(t, &set, test->expect.obs);
@@ -233,7 +255,10 @@ sp_test_each(dag_discovery, table, test_t, tests) {
   sp_path_t sandbox = sp_test_dir(t);
   spn_path_roots_t roots = sp_zero;
   spn_path_roots_set(&roots, mem, SPN_PATH_ROOT_PROJECT, sandbox);
-  roots.pinned = it->pinned;
+  if (it->pinned) {
+    roots.pinned = sp_da_new(mem, spn_path_t);
+    sp_da_push(roots.pinned, ((spn_path_t) { .root = SPN_PATH_ROOT_STORAGE, .sub = sp_str_view(it->pinned) }));
+  }
   spn_path_t dir = { .root = SPN_PATH_ROOT_PROJECT, .sub = sp_str_lit("manifests") };
 
   spn_dag_obs_table_t discovery = sp_zero;
@@ -256,7 +281,7 @@ sp_test_each(dag_discovery, table, test_t, tests) {
     spn_dag_obs_table_init(&discovery, mem, &roots, dir);
   }
 
-  sp_err_t err = check_expectations(t, &discovery, it);
+  sp_err_t err = check_expectations(t, &roots, &discovery, it);
   spn_path_roots_close(&roots);
   return err;
 }

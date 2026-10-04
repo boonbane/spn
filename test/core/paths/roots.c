@@ -38,9 +38,9 @@ static const roots_test_t roots_tests [] = {
   },
   {
     .name = "longest_root_wins",
-    .roots = { .project = "/A", .store = "/A/S" },
+    .roots = { .project = "/A", .storage = "/A/S" },
     .path = "/A/S/H",
-    .expect = { .root = SPN_PATH_ROOT_STORE, .sub = "H" }
+    .expect = { .root = SPN_PATH_ROOT_STORAGE, .sub = "H" }
   },
   {
     .name = "match_requires_component_boundary",
@@ -49,52 +49,28 @@ static const roots_test_t roots_tests [] = {
     .expect = { .sub = "/AB/H" }
   },
   {
-    .name = "index_collapses",
-    .roots = { .index = "/S/I" },
-    .path = "/S/I/P/M",
-    .expect = { .root = SPN_PATH_ROOT_INDEX, .sub = "P/M" }
+    .name = "storage_keeps_the_layout_prefix",
+    .roots = { .storage = "/S" },
+    .path = "/S/cache/dag/store/H",
+    .expect = { .root = SPN_PATH_ROOT_STORAGE, .sub = "cache/dag/store/H" }
   },
   {
-    .name = "runtime_collapses",
-    .roots = { .runtime = "/S/R" },
-    .path = "/S/R/include/H",
-    .expect = { .root = SPN_PATH_ROOT_RUNTIME, .sub = "include/H" }
+    .name = "toolchain_wins_inside_storage",
+    .roots = { .storage = "/S", .toolchain = "/S/cache/toolchain" },
+    .path = "/S/cache/toolchain/store/D/bin/cc",
+    .expect = { .root = SPN_PATH_ROOT_TOOLCHAIN, .sub = "store/D/bin/cc" }
   },
   {
-    .name = "cache_collapses",
-    .roots = { .cache = "/S/C" },
-    .path = "/S/C/dag/store/H",
-    .expect = { .root = SPN_PATH_ROOT_CACHE, .sub = "dag/store/H" }
-  },
-  {
-    .name = "store_wins_inside_cache",
-    .roots = { .cache = "/S/C", .store = "/S/C/store" },
-    .path = "/S/C/store/H",
-    .expect = { .root = SPN_PATH_ROOT_STORE, .sub = "H" }
-  },
-  {
-    .name = "cache_keeps_siblings_of_store",
-    .roots = { .cache = "/S/C", .store = "/S/C/store" },
-    .path = "/S/C/dag/H",
-    .expect = { .root = SPN_PATH_ROOT_CACHE, .sub = "dag/H" }
-  },
-  {
-    .name = "cache_wins_inside_storage",
-    .roots = { .storage = "/S", .cache = "/S/cache" },
+    .name = "storage_keeps_siblings_of_toolchain",
+    .roots = { .storage = "/S", .toolchain = "/S/cache/toolchain" },
     .path = "/S/cache/dag/H",
-    .expect = { .root = SPN_PATH_ROOT_CACHE, .sub = "dag/H" }
+    .expect = { .root = SPN_PATH_ROOT_STORAGE, .sub = "cache/dag/H" }
   },
   {
-    .name = "storage_keeps_siblings_of_cache",
-    .roots = { .storage = "/S", .cache = "/S/cache" },
-    .path = "/S/runtime/H",
-    .expect = { .root = SPN_PATH_ROOT_STORAGE, .sub = "runtime/H" }
-  },
-  {
-    .name = "toolchain_store_collapses",
-    .roots = { .cache = "/S/C", .toolchain = "/S/C/toolchain" },
-    .path = "/S/C/toolchain/D/bin/cc",
-    .expect = { .root = SPN_PATH_ROOT_TOOLCHAIN, .sub = "D/bin/cc" }
+    .name = "relocated_toolchain_collapses",
+    .roots = { .storage = "/S", .toolchain = "/T" },
+    .path = "/T/store/D/bin/cc",
+    .expect = { .root = SPN_PATH_ROOT_TOOLCHAIN, .sub = "store/D/bin/cc" }
   },
 };
 

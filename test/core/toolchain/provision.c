@@ -246,7 +246,7 @@ sp_test_each(provision, store, provision_test_t, tests, .setup = spn_test_ctx_se
   sp_path_t store_dir = sp_path_join(mem, sp_test_dir(t), sp_str_lit("store"));
   sp_must_ok(t, sp_fs_create_dir_at(store_dir));
   spn_path_roots_t roots = sp_zero;
-  spn_path_roots_set(&roots, mem, SPN_PATH_ROOT_TOOLCHAIN, store_dir);
+  spn_path_roots_set(&roots, mem, SPN_PATH_ROOT_TOOLCHAIN, sp_test_dir(t));
   spn_toolchain_store_t store = {
     .mem = mem,
     .roots = &roots,
@@ -263,7 +263,7 @@ sp_test_each(provision, store, provision_test_t, tests, .setup = spn_test_ctx_se
   };
 
   if (it->dest_file) {
-    sp_fs_create_file_str_at(spn_path_at(&roots, spn_toolchain_artifact_root(artifact)), sp_str_lit("A"));
+    sp_fs_create_file_str_at(spn_path_at(&roots, spn_toolchain_artifact_root(mem, artifact)), sp_str_lit("A"));
   }
 
   spn_err_union_t payload = sp_zero;
@@ -294,7 +294,7 @@ sp_test_each(provision, store, provision_test_t, tests, .setup = spn_test_ctx_se
     sp_expect_str_eq_c(t, stub.last_url, it->expect.last_url);
   }
   if (it->expect.extracted) {
-    sp_path_t root = spn_path_at(&roots, spn_toolchain_artifact_root(artifact));
+    sp_path_t root = spn_path_at(&roots, spn_toolchain_artifact_root(mem, artifact));
     sp_expect(t, sp_fs_is_dir_at(root));
     sp_expect(t, sp_fs_is_file_at(sp_path_join(mem, root, sp_str_lit("B"))));
     sp_expect(t, sp_fs_is_file_at(sp_path_join(mem, root, sp_str_lit("lib/C"))));
@@ -302,7 +302,7 @@ sp_test_each(provision, store, provision_test_t, tests, .setup = spn_test_ctx_se
   if (it->expect.store_clean) {
     sp_str_t lock = sp_fmt(mem, "{}.lock", sp_fmt_str(artifact.sha256)).value;
     u32 entries = 0;
-    sp_fs_it_t walk = sp_fs_it_new_at(mem, spn_path_at(&roots, spn_path_from_root(SPN_PATH_ROOT_TOOLCHAIN)), 0);
+    sp_fs_it_t walk = sp_fs_it_new_at(mem, spn_path_at(&roots, spn_path_from_id(SPN_DIR_ID_TOOLCHAIN_STORE)), 0);
     while (sp_fs_it_next(&walk)) {
       entries++;
       sp_expect_str_eq(t, walk.entry.name, lock);
