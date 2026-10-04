@@ -275,7 +275,9 @@ spn_ctx_t* spn_ctx_new(spn_wake_fn_t wake, void* wake_data) {
 
   ctx->host = spn_triple_host();
 
-  ctx->roots.pinned = spn_layout_pinned(ctx->heap);
+  ctx->roots.pinned = sp_da_new(ctx->heap, spn_path_t);
+  sp_da_push(ctx->roots.pinned, spn_path_from_id(SPN_DIR_ID_CHECKOUTS));
+  sp_da_push(ctx->roots.pinned, spn_path_from_id(SPN_DIR_ID_TOOLCHAIN_STORE));
 
   spn_op_thread_start(ctx);
   return ctx;

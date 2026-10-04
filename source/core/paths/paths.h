@@ -37,7 +37,6 @@ bool spn_path_pinned(const spn_path_roots_t* roots, spn_path_t path);
 spn_path_t spn_path_from_id(spn_dir_id_t id);
 spn_path_t spn_path(sp_mem_t mem, spn_dir_id_t id, const c8* sub);
 spn_path_t spn_path_s(sp_mem_t mem, spn_dir_id_t id, sp_str_t sub);
-sp_da(spn_path_t) spn_layout_pinned(sp_mem_t mem);
 
 spn_arg_t spn_arg_lit(sp_str_t value);
 spn_arg_t spn_arg_path(spn_path_t path);

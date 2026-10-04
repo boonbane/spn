@@ -86,7 +86,6 @@ add_executable(core
   paths/cwd.c
   paths/head.c
   paths/label.c
-  paths/layout.c
   paths/normal.c
   paths/path.c
   paths/resolve.c

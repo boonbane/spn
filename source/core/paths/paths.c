@@ -346,13 +346,6 @@ spn_path_t spn_path_s(sp_mem_t mem, spn_dir_id_t id, sp_str_t sub) {
   return spn_path_join(mem, spn_path_from_id(id), sub);
 }
 
-sp_da(spn_path_t) spn_layout_pinned(sp_mem_t mem) {
-  sp_da(spn_path_t) pinned = sp_da_new(mem, spn_path_t);
-  sp_da_push(pinned, spn_path_from_id(SPN_DIR_ID_CHECKOUTS));
-  sp_da_push(pinned, spn_path_from_id(SPN_DIR_ID_TOOLCHAIN_STORE));
-  return pinned;
-}
-
 sp_hash_t spn_path_on_hash(void* key, u64 size) {
   return spn_path_hash(*(spn_path_t*)key);
 }
