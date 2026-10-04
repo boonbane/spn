@@ -70,17 +70,15 @@ sp_test_each(dag_hints, roundtrip, test_t, tests) {
     sp_expect(t, sp_str_contains(content, row));
   }
 
-  spn_dag_stats_t stats = sp_zero;
   spn_dag_file_cache_t reloaded = sp_zero;
   spn_dag_file_cache_init(&reloaded, env.mem, &env.roots);
-  reloaded.stats = &stats;
   spn_dag_file_cache_load(&reloaded, path);
   sp_for(f, count) {
     spn_dag_digest_t digest = sp_zero;
     sp_must_eq(t, SPN_OK, spn_dag_file_cache_digest(&reloaded, make_key(&env, &it->files[f]), &digest));
     sp_expect(t, spn_dag_digest_equal(digest, hashed[f]));
   }
-  sp_expect_eq(t, 0u, sp_atomic_u32_load(&stats.hashed_files, SP_ATOMIC_SEQ_CST));
+  sp_expect_eq(t, 0u, sp_atomic_u32_load(&reloaded.count.hashed_files, SP_ATOMIC_SEQ_CST));
 
   return SP_OK;
 }
@@ -128,8 +126,7 @@ static sp_err_t execute_observing(sp_test_t* t, env_t* env, const c8* identity) 
 sp_test(dag_hints, refreshed_on_hit) {
   env_t env = sp_zero;
   dag_test_env_init(&env.dag, t, (dag_test_env_config_t) {
-    .store = SPN_DAG_STORE_MEM,
-    .discovery = true
+    .store = SPN_DAG_STORE_MEM
   });
   env.obs = dag_test_env_rooted(&env.dag, sp_str_lit("H"));
 
@@ -161,7 +158,6 @@ sp_test(dag_hints, pinned_obs_not_recorded) {
   dag_test_env_init(&env.dag, t, (dag_test_env_config_t) {
     .checkout = "checkout",
     .store = SPN_DAG_STORE_MEM,
-    .discovery = true,
     .pinned = 1u << SPN_PATH_ROOT_CHECKOUT
   });
   env.obs = (spn_path_t) { .root = SPN_PATH_ROOT_CHECKOUT, .sub = sp_str_lit("locked.h") };

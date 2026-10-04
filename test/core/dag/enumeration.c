@@ -173,8 +173,7 @@ sp_test_each(dag_enumeration, runs, test_t, tests) {
   env_t env = sp_zero;
   env.test = it;
   dag_test_env_init(&env.dag, t, (dag_test_env_config_t) {
-    .store = SPN_DAG_STORE_MEM,
-    .discovery = true
+    .store = SPN_DAG_STORE_MEM
   });
 
   sp_carr_for(it->runs, r) {

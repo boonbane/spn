@@ -209,7 +209,7 @@ typedef enum {
   SPN_DIR_CACHE = 1,
   SPN_DIR_STORE = 2,
   SPN_DIR_INCLUDE = 3,
-  SPN_DIR_VENDOR = 4,
+  SPN_DIR_SHARE = 4,
   SPN_DIR_LIB = 5,
   SPN_DIR_SOURCE = 6,
   SPN_DIR_WORK = 7,

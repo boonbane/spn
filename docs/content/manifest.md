@@ -25,6 +25,7 @@ readme: false
 | `[config.<name>]` | map of [`config_entry`](#config_entry) |
 | `[patch.<name>]` | map of [`patch_entry`](#patch_entry) |
 | `[publish]` | [`publish`](#publish) |
+| `[stage]` | [`stage`](#stage) |
 
 ## package
 
@@ -146,6 +147,12 @@ readme: false
 |---|---|
 | `copy` | array of [`publish_copy`](#publish_copy) |
 
+## stage
+
+| Field | Type |
+|---|---|
+| `copy` | array of [`stage_copy`](#stage_copy) |
+
 ## upstream
 
 | Field | Type | Required |
@@ -247,6 +254,13 @@ readme: false
 | `from` | `string` | yes |
 | `to` | `string` | yes |
 | `when` | [`when`](#extern-types) | |
+
+## stage_copy
+
+| Field | Type | Required |
+|---|---|---|
+| `from` | `string` | yes |
+| `to` | `string` | yes |
 
 ## Extern types
 

@@ -22,7 +22,13 @@ typedef struct {
   spn_dag_id_t exports;
 } spn_dag_target_ids_t;
 
+typedef struct {
+  spn_dag_id_t from;
+  spn_path_t to;
+} spn_dag_stage_t;
+
 struct spn_dag_build_t {
+  spn_op_t* op;
   spn_session_t* session;
   sp_mem_t mem;
   spn_dag_t* graph;
@@ -34,13 +40,14 @@ struct spn_dag_build_t {
     sp_ht(spn_compile_unit_t*, spn_dag_object_ids_t) objects;
   } ids;
   spn_dag_id_t compile_commands;
+  sp_da(spn_dag_stage_t) stages;
   spn_dag_action_cache_t actions;
   spn_dag_obs_table_t discovery;
   spn_dag_store_t store;
   spn_thread_pool_t pool;
   spn_dag_env_t env;
-  spn_dag_progress_t progress;
-  spn_dag_stats_t stats;
+  spn_dag_run_t run;
+  spn_dag_diag_t diag;
   spn_err_t result;
   sp_tm_timer_t timer;
 };

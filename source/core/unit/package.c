@@ -61,29 +61,30 @@ typedef struct {
   sp_str_t name;
 } staged_header_t;
 
-static spn_err_t stage_target_headers(spn_pkg_unit_t* unit, spn_path_t root, spn_target_map_t targets, sp_mem_t mem, staged_header_set_t* seen, sp_da(staged_header_t)* staged) {
-  sp_om_for(targets, it) {
-    spn_target_info_t* target = sp_str_om_at(targets, it);
+bool spn_pkg_unit_header_it_valid(const spn_pkg_unit_header_it_t* it) {
+  return it->map < it->count;
+}
 
-    sp_da_for(target->headers, ht) {
-      spn_path_t header = target->headers[ht];
-
-      sp_str_t sub = spn_tree_rel(unit->paths.roots, header).sub;
-      spn_path_t to = spn_path_join(mem, root, sub);
-
-      spn_path_t* first = sp_ht_getp(*seen, to);
-      if (first) {
-        if (!spn_path_equal(*first, header)) {
-          return header_collision(unit, sub, *first, header);
-        }
-        continue;
+void spn_pkg_unit_header_it_next(spn_pkg_unit_header_it_t* it) {
+  for (; it->map < it->count; it->map++, it->target = 0) {
+    spn_target_map_t targets = it->maps[it->map];
+    for (; it->target < sp_om_size(targets); it->target++, it->index = 0) {
+      spn_target_info_t* target = sp_str_om_at(targets, it->target);
+      if (it->index < sp_da_size(target->headers)) {
+        it->header = target->headers[it->index++];
+        return;
       }
-      sp_ht_insert(*seen, to, header);
-      sp_da_push(*staged, ((staged_header_t) { .from = header, .to = to, .name = sub }));
     }
   }
+}
 
-  return SPN_OK;
+spn_pkg_unit_header_it_t spn_pkg_unit_header_it_begin(spn_pkg_unit_t* unit) {
+  spn_pkg_unit_header_it_t it = {
+    .maps = { unit->info->libs, unit->info->exes, unit->info->scripts, unit->info->tests },
+    .count = unit->source == SPN_PKG_SOURCE_ROOT ? 4 : 1,
+  };
+  spn_pkg_unit_header_it_next(&it);
+  return it;
 }
 
 spn_err_t spn_pkg_unit_publish_headers(spn_pkg_unit_t* unit, spn_path_t root) {
@@ -94,12 +95,20 @@ spn_err_t spn_pkg_unit_publish_headers(spn_pkg_unit_t* unit, spn_path_t root) {
   sp_ht_set_fns(seen, spn_path_on_hash, spn_path_on_compare);
 
   spn_err_t err = SPN_OK;
-  spn_pkg_unit_header_maps_t published = spn_pkg_unit_header_maps(unit);
-  sp_for(it, published.count) {
-    if (err) {
-      break;
+  spn_pkg_unit_for_header(unit, it) {
+    sp_str_t sub = spn_tree_rel(unit->paths.roots, it.header).sub;
+    spn_path_t to = spn_path_join(scratch.mem, root, sub);
+
+    spn_path_t* first = sp_ht_getp(seen, to);
+    if (first) {
+      if (!spn_path_equal(*first, it.header)) {
+        err = header_collision(unit, sub, *first, it.header);
+        break;
+      }
+      continue;
     }
-    err = stage_target_headers(unit, root, published.maps[it], scratch.mem, &seen, &staged);
+    sp_ht_insert(seen, to, it.header);
+    sp_da_push(staged, ((staged_header_t) { .from = it.header, .to = to, .name = sub }));
   }
   sp_da_for(staged, it) {
     if (err) {

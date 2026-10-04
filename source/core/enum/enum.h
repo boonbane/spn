@@ -36,6 +36,7 @@ spn_win_subsystem_t spn_win_subsystem_from_str(sp_str_t str);
 sp_str_t spn_win_subsystem_to_str(spn_win_subsystem_t subsystem);
 spn_tree_t spn_tree_from_str(sp_str_t str);
 sp_str_t spn_tree_to_str(spn_tree_t tree);
+spn_dir_t spn_dir_from_str(sp_str_t str);
 sp_str_t spn_dir_to_str(spn_dir_t dir);
 spn_sanitizer_t spn_sanitizer_from_str(sp_str_t str);
 sp_str_t spn_sanitizer_to_str(spn_sanitizer_t sanitizer);

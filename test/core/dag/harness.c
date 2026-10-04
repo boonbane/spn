@@ -1,5 +1,6 @@
 #include "dag/dag_test.h"
 #include "fs/fs.h"
+#include "thread_pool/thread_pool.h"
 
 const spn_dag_store_kind_t dag_test_store_kinds [2] = {
   SPN_DAG_STORE_MEM,
@@ -34,21 +35,18 @@ void dag_test_env_init(dag_test_env_t* env, sp_test_t* t, dag_test_env_config_t 
     .roots = &env->roots,
     .dir = dag_test_env_rooted(env, sp_str_lit("store"))
   });
-  env->store.stats = &env->stats;
   spn_dag_file_cache_init(&env->files, env->mem, &env->roots);
   sp_fs_create_dir_at(dag_test_env_path(env, sp_str_lit("fence")));
   spn_dag_file_cache_fence_dir(&env->files, dag_test_env_rooted(env, sp_str_lit("fence")));
   spn_dag_file_cache_load(&env->files, dag_test_env_rooted(env, sp_str_lit("files")));
-  env->files.stats = &env->stats;
   spn_dag_action_cache_init(&env->cache, env->mem, &env->roots, sp_zero_struct(spn_path_t));
   spn_dag_obs_table_init(&env->discovery, env->mem, &env->roots, dag_test_env_rooted(env, sp_str_lit("manifests")));
   env->env = (spn_dag_env_t) {
     .files = &env->files,
     .cache = &env->cache,
     .store = &env->store,
-    .discovery = config.discovery ? &env->discovery : SP_NULLPTR,
-    .stats = &env->stats,
-    .scratch = dag_test_env_rooted(env, sp_str_lit("scratch"))
+    .discovery = &env->discovery,
+    .tmp = dag_test_env_rooted(env, sp_str_lit("scratch"))
   };
 }
 
@@ -57,17 +55,31 @@ void dag_test_env_cold(dag_test_env_t* env) {
   spn_dag_file_cache_init(&env->files, env->mem, &env->roots);
   spn_dag_file_cache_fence_dir(&env->files, dag_test_env_rooted(env, sp_str_lit("fence")));
   spn_dag_file_cache_load(&env->files, dag_test_env_rooted(env, sp_str_lit("files")));
-  env->files.stats = &env->stats;
   spn_dag_obs_table_init(&env->discovery, env->mem, &env->roots, dag_test_env_rooted(env, sp_str_lit("manifests")));
 }
 
 u32 dag_test_hashed(dag_test_env_t* env) {
-  return sp_atomic_u32_load(&env->stats.hashed_files, SP_ATOMIC_SEQ_CST);
+  return sp_atomic_u32_load(&env->files.count.hashed_files, SP_ATOMIC_SEQ_CST) + sp_atomic_u32_load(&env->store.count.hashed_files, SP_ATOMIC_SEQ_CST);
 }
 
 spn_dag_t* dag_test_env_graph(dag_test_env_t* env) {
   env->g = spn_dag_new(env->mem, &env->roots);
   return env->g;
+}
+
+spn_err_t dag_test_env_run(dag_test_env_t* env, spn_dag_t* g) {
+  spn_thread_pool_t pool = sp_zero;
+  spn_thread_pool_init(&pool, env->mem, (spn_thread_pool_config_t) sp_zero);
+
+  sp_mem_arena_marker_t s = sp_mem_begin_scratch();
+  spn_dag_run_begin(&env->run, s.mem, g, &env->env, &pool.executor);
+  while (spn_dag_run_step(&env->run)) {
+  }
+  spn_err_t err = spn_dag_run_end(&env->run);
+  sp_mem_end_scratch(s);
+
+  spn_thread_pool_deinit(&pool);
+  return err;
 }
 
 sp_path_t dag_test_env_path(dag_test_env_t* env, sp_str_t rel) {

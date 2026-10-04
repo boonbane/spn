@@ -8,14 +8,18 @@
 typedef struct {
   spn_target_map_t maps [4];
   u32 count;
-} spn_pkg_unit_header_maps_t;
+  u32 map;
+  u32 target;
+  u32 index;
+  spn_path_t header;
+} spn_pkg_unit_header_it_t;
 
-static inline spn_pkg_unit_header_maps_t spn_pkg_unit_header_maps(spn_pkg_unit_t* unit) {
-  return (spn_pkg_unit_header_maps_t) {
-    .maps = { unit->info->libs, unit->info->exes, unit->info->scripts, unit->info->tests },
-    .count = unit->source == SPN_PKG_SOURCE_ROOT ? 4 : 1,
-  };
-}
+bool                     spn_pkg_unit_header_it_valid(const spn_pkg_unit_header_it_t* it);
+void                     spn_pkg_unit_header_it_next(spn_pkg_unit_header_it_t* it);
+spn_pkg_unit_header_it_t spn_pkg_unit_header_it_begin(spn_pkg_unit_t* unit);
+
+#define spn_pkg_unit_for_header(unit, it) \
+  for (spn_pkg_unit_header_it_t it = spn_pkg_unit_header_it_begin((unit)); spn_pkg_unit_header_it_valid(&(it)); spn_pkg_unit_header_it_next(&(it)))
 
 spn_user_output_t  spn_pkg_unit_node_stamp(spn_pkg_unit_t* ctx, spn_user_node_t* node);
 void               spn_pkg_unit_announce_compile(spn_pkg_unit_t* ctx);

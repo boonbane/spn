@@ -1541,6 +1541,18 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           sp_io_write_str(w.io, sp_str_lit("The build graph stalled before completing"), SP_NULLPTR);
           break;
         }
+        case SPN_ERR_STAGE_UNPRODUCED: {
+          sp_tty_fmt(&w, "{.cyan} is staged, but no build action produces it", sp_fmt_str(get_contextual_path(ctx, mem, event->err.dag.path)));
+          break;
+        }
+        case SPN_ERR_STAGE_OVERLAP: {
+          sp_tty_fmt(&w, "{.cyan} is staged into the project, but the build reads or produces it", sp_fmt_str(get_contextual_path(ctx, mem, event->err.dag.path)));
+          break;
+        }
+        case SPN_ERR_STAGE_OBSERVED: {
+          sp_tty_fmt(&w, "{.cyan} is staged into the project, but a build action read it", sp_fmt_str(get_contextual_path(ctx, mem, event->err.dag.path)));
+          break;
+        }
         default: {
           sp_io_write_str(w.io, sp_str_lit("Unknown error"), SP_NULLPTR);
           break;

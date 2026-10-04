@@ -176,6 +176,38 @@ sp_test(script, node_output_bin) {
   });
 }
 
+sp_test(script, node_output_share) {
+  return run_command_test(t, (command_test_t) {
+    .project = "test/integration/fixtures/script/node_output_share",
+    .args = { "build" },
+    .expect = {
+      .exists = { pkg_store_file("H", "share/R.txt") },
+    },
+  });
+}
+
+sp_test(script, node_output_share_replay) {
+  return run_rebuild_test(t, (rebuild_test_t) {
+    .project = "test/integration/fixtures/script/node_output_share",
+    .first = {
+      .args = { "build" },
+      .expect.events = { { .event = SPN_EVENT_SCRIPT_USER_FN } },
+    },
+    .rebuilds = {
+      {
+        .change.remove_dirs = { sp_str_lit("build") },
+        .command = {
+          .args = { "build" },
+          .expect = {
+            .events = { { .event = SPN_EVENT_SCRIPT_USER_FN, .absent = true } },
+            .exists = { pkg_store_file("H", "share/R.txt") },
+          },
+        },
+      },
+    },
+  });
+}
+
 sp_test(script, cross_package) {
   return run_test(t, (test_t) {
     .project = "test/integration/fixtures/script/cross_package",

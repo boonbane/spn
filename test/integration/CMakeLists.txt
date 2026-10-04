@@ -64,6 +64,7 @@ add_executable(integration
   profile.c
   reexport.c
   script.c
+  stage.c
   target.c
   units.c
   upstream.c

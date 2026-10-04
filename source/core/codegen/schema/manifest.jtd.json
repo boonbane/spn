@@ -16,7 +16,8 @@
     "deps": { "ref": "deps" },
     "config": { "values": { "ref": "config_entry" } },
     "patch": { "values": { "ref": "patch_entry" } },
-    "publish": { "ref": "publish" }
+    "publish": { "ref": "publish" },
+    "stage": { "ref": "stage" }
   },
   "definitions": {
     "c_standard": { "enum": ["c89", "c99", "c11", "gnu89", "gnu99", "gnu11"] },
@@ -123,6 +124,19 @@
       },
       "optionalProperties": {
         "when": { "metadata": { "extern": "when", "include": "when/types.h" } }
+      }
+    },
+
+    "stage": {
+      "optionalProperties": {
+        "copy": { "elements": { "ref": "stage_copy" } }
+      }
+    },
+
+    "stage_copy": {
+      "properties": {
+        "from": { "type": "string" },
+        "to": { "type": "string" }
       }
     },
 

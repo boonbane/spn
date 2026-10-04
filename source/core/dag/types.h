@@ -5,6 +5,7 @@
 #include "spn/core.h"
 #include "core/types.h"
 #include "paths/types.h"
+#include "thread_pool/types.h"
 
 typedef struct spn_dag_action_t spn_dag_action_t;
 typedef struct spn_dag_t spn_dag_t;
@@ -125,15 +126,6 @@ struct spn_dag_t {
 };
 
 typedef struct {
-  sp_atomic_u32_t hashed_files;
-  sp_atomic_u64_t hashed_bytes;
-  sp_atomic_u32_t stats;
-  sp_atomic_u32_t obs_rows;
-  sp_atomic_u32_t cache_reads;
-  sp_atomic_u32_t cache_writes;
-} spn_dag_stats_t;
-
-typedef struct {
   sp_sys_timespec_t fence;
   spn_path_t dir;
 } spn_dag_stamp_t;
@@ -149,7 +141,11 @@ typedef struct {
   sp_ht(spn_path_t, spn_path_t) canonical;
   bool hints_dirty;
   spn_dag_stamp_t stamp;
-  spn_dag_stats_t* stats;
+  struct {
+    sp_atomic_u32_t stats;
+    sp_atomic_u32_t hashed_files;
+    sp_atomic_u64_t hashed_bytes;
+  } count;
 } spn_dag_file_cache_t;
 
 typedef struct {
@@ -168,7 +164,10 @@ typedef struct {
   const spn_path_roots_t* roots;
   spn_path_t dir;
   sp_ht(spn_dag_digest_t, spn_dag_action_entry_t) entries;
-  spn_dag_stats_t* stats;
+  struct {
+    sp_atomic_u32_t reads;
+    sp_atomic_u32_t writes;
+  } count;
 } spn_dag_action_cache_t;
 
 typedef struct {
@@ -183,7 +182,11 @@ typedef struct {
   const spn_path_roots_t* roots;
   spn_path_t dir;
   sp_ht(spn_dag_digest_t, spn_dag_pathset_t) entries;
-  spn_dag_stats_t* stats;
+  struct {
+    sp_atomic_u32_t reads;
+    sp_atomic_u32_t writes;
+    sp_atomic_u32_t rows;
+  } count;
 } spn_dag_obs_table_t;
 
 struct spn_dag_obs_set_t {
@@ -211,7 +214,10 @@ typedef struct {
   spn_path_t dir;
   sp_mutex_t mutex;
   sp_ht(spn_dag_digest_t, sp_mem_slice_t) blobs;
-  spn_dag_stats_t* stats;
+  struct {
+    sp_atomic_u32_t hashed_files;
+    sp_atomic_u64_t hashed_bytes;
+  } count;
 } spn_dag_store_t;
 
 typedef struct {
@@ -261,14 +267,25 @@ struct spn_dag_env_t {
   spn_dag_action_cache_t* cache;
   spn_dag_store_t* store;
   spn_dag_obs_table_t* discovery;
-  spn_dag_stats_t* stats;
-  spn_dag_progress_t* progress;
-  spn_wake_t* wake;
-  sp_atomic_s32_t* cancel;
   spn_dag_trace_fn_t trace;
   void* trace_data;
-  spn_path_t scratch;
-  spn_dag_diag_t diag;
+  spn_path_t tmp;
 };
+
+typedef struct spn_dag_run_state_t spn_dag_run_state_t;
+
+typedef struct {
+  spn_dag_t* g;
+  spn_dag_env_t* env;
+  spn_thread_pool_executor_t* ex;
+  spn_dag_progress_t progress;
+  spn_dag_diag_t diag;
+  spn_err_t err;
+  sp_ht(spn_path_t, sp_da(u32)) below;
+  spn_dag_run_state_t* states;
+  sp_da(spn_dag_id_t) ready;
+  u32 in_flight;
+  u64 turns;
+} spn_dag_run_t;
 
 #endif

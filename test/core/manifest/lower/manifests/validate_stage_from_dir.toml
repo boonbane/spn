@@ -1,0 +1,9 @@
+[package]
+name = "p"
+version = "1.0.0"
+
+[stage]
+copy = [
+  { from = "source/a.h", to = "a.h" },
+  { from = "gen/a.h", to = "b.h" },
+]
