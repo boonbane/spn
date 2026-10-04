@@ -1,6 +1,7 @@
 #include "dag/dag_test.h"
 
 typedef struct {
+  paths_test_roots_t roots;
   const c8* prelim;
   const c8* pinned;
   dag_test_obs_t obs [DAG_TEST_MAX_INPUTS];
@@ -30,9 +31,9 @@ static const test_t tests [] = {
     .b = { .prelim = "cc main.c", .obs = { { "sp.h", "v2" } } },
   },
   {
-    .name = "root_kind_changes_key",
-    .a = { .prelim = "cc main.c", .obs = { { "H", "SP", .root = SPN_PATH_ROOT_PROJECT } } },
-    .b = { .prelim = "cc main.c", .obs = { { "H", "SP", .root = SPN_PATH_ROOT_STORE } } },
+    .name = "root_dir_changes_key",
+    .a = { .roots = { .store = "/C" }, .prelim = "cc main.c", .obs = { { "H", "SP", .root = SPN_PATH_ROOT_STORE } } },
+    .b = { .roots = { .store = "/D" }, .prelim = "cc main.c", .obs = { { "H", "SP", .root = SPN_PATH_ROOT_STORE } } },
   },
   {
     .name = "discovered_path_changes_key",
@@ -93,10 +94,12 @@ static const test_t tests [] = {
 };
 
 static spn_dag_digest_t build_key(const action_t* spec) {
+  spn_path_roots_t storage = sp_zero;
+  const spn_path_roots_t* roots = paths_test_roots_build(spec->roots, &storage);
   spn_dag_obs_t obs [DAG_TEST_MAX_INPUTS] = sp_zero;
   spn_dag_digest_t digests [DAG_TEST_MAX_INPUTS] = sp_zero;
   u32 count = dag_test_obs_build(spec->obs, DAG_TEST_MAX_INPUTS, obs, digests);
-  return spn_dag_strong_key(dag_test_digest(spec->prelim), dag_test_digest(spec->pinned), obs, digests, count);
+  return spn_dag_strong_key(roots, dag_test_digest(spec->prelim), dag_test_digest(spec->pinned), obs, digests, count);
 }
 
 sp_test_each(dag_strong_key, fold, test_t, tests) {

@@ -675,7 +675,7 @@ static void lookup(spn_dag_t* g, spn_dag_action_t* action, spn_dag_env_t* env, s
       u32 count = (u32)sp_da_size(set.obs);
       spn_dag_digest_t* digests = sp_alloc_n(s.mem, spn_dag_digest_t, count);
       bool resolved = !resolve_observations(env->files, set.obs, count, digests);
-      spn_dag_digest_t strong = resolved ? spn_dag_strong_key(attempt->key, set.pinned, set.obs, digests, count) : attempt->key;
+      spn_dag_digest_t strong = resolved ? spn_dag_strong_key(g->roots, attempt->key, set.pinned, set.obs, digests, count) : attempt->key;
       sp_mem_end_scratch(s);
       trace_resolve(env, action->id, resolved);
       if (!resolved) {
@@ -792,7 +792,7 @@ static spn_err_t commit(spn_dag_t* g, spn_dag_attempt_t* attempt, spn_dag_env_t*
       u32 count = (u32)sp_da_size(set.obs);
       spn_dag_digest_t* digests = sp_alloc_n(s.mem, spn_dag_digest_t, count);
       bool resolved = !resolve_observations(env->files, set.obs, count, digests);
-      spn_dag_digest_t key = resolved ? spn_dag_strong_key(attempt->key, set.pinned, set.obs, digests, count) : attempt->key;
+      spn_dag_digest_t key = resolved ? spn_dag_strong_key(g->roots, attempt->key, set.pinned, set.obs, digests, count) : attempt->key;
       sp_mem_end_scratch(s);
       trace_resolve(env, action->id, resolved);
       if (resolved) {
@@ -917,7 +917,7 @@ static spn_err_t seed_sources(spn_dag_t* g, spn_dag_env_t* env, spn_dag_diag_t* 
         if (!artifact->producer.occupied && !artifact->staged) {
           if (g->roots->pinned & spn_path_root_mask(artifact->path.root)) {
             artifact->materialized = artifact->path;
-            artifact->digest = spn_dag_path_digest(artifact->path);
+            artifact->digest = spn_dag_path_digest(g->roots, artifact->path);
           }
           else if (seed_source(env, artifact)) {
             diag_set(diag, SPN_ERR_DAG_MISSING_INPUT, (spn_dag_id_t) sp_zero, artifact_render(g, artifact->path));

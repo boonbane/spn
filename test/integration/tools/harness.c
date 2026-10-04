@@ -894,6 +894,15 @@ sp_err_t run_actions(sp_test_t* t, fixture_t* fixture, const action_t* actions) 
         sp_expect(t, !sp_str_contains(content, action.verify_file_not_contains.needle));
         break;
       }
+      case ACTION_VERIFY_NO_FIXTURE_PATH: {
+        sp_str_t path = fixture_path(fixture, action.verify_no_fixture_path.file);
+        sp_str_t needle = fixture_path(fixture, sp_str_view(action.verify_no_fixture_path.dir));
+        expect_path(t, fixture, path);
+        sp_test_kv(t, "path", path);
+        sp_test_kv(t, "needle", needle);
+        sp_expect_eq(t, SP_STR_NO_MATCH, sp_str_find(test_read_file(mem, path), needle));
+        break;
+      }
       case ACTION_REMOVE_DIR: {
         sp_str_t path = fixture_path(fixture, sp_str_view(action.rm.dir));
         sp_fs_remove_dir(path);
