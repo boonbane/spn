@@ -24,7 +24,6 @@ struct spn_profile_info {
   spn_when_t options;
   bool targeted;
   spn_sdk_t sdk;
-  spn_path_t libc_file;
 };
 
 typedef struct {

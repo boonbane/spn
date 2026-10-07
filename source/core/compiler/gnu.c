@@ -147,15 +147,10 @@ void spn_gnu_render_flags(sp_mem_t mem, const spn_cc_t* toolchain, const spn_pro
   }
 }
 
-static void add_libc(sp_mem_t mem, const spn_profile_info_t* profile, spn_invocation_t* invocation) {
-  sp_assert(!spn_path_empty(profile->libc_file));
-  spn_cc_push_env(mem, invocation, SPN_ENV_ZIG_LIBC, spn_arg_path(profile->libc_file));
-}
-
-static void add_sdk_compile(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, spn_invocation_t* invocation) {
-  const spn_sdk_t* sdk = &profile->sdk;
+static void add_sdk_compile(sp_mem_t mem, const spn_sdk_t* sdk, spn_invocation_t* invocation) {
   switch (sdk->kind) {
-    case SPN_SDK_NONE: {
+    case SPN_SDK_NONE:
+    case SPN_SDK_LIBC: {
       break;
     }
     case SPN_SDK_SYSROOT: {
@@ -163,35 +158,26 @@ static void add_sdk_compile(sp_mem_t mem, const spn_cc_t* toolchain, const spn_p
       break;
     }
     case SPN_SDK_MACOS: {
-      if (spn_cc_has(toolchain, SPN_CC_CAP_LIBC_FILE)) {
-        add_libc(mem, profile, invocation);
-      } else {
-        spn_cc_push_c(mem, invocation, "-isysroot");
-        spn_cc_push_path(mem, invocation, sdk->macos.root);
-      }
+      spn_cc_push_c(mem, invocation, "-isysroot");
+      spn_cc_push_path(mem, invocation, sdk->macos.root);
       break;
     }
     case SPN_SDK_MSVC: {
-      if (spn_cc_has(toolchain, SPN_CC_CAP_LIBC_FILE)) {
-        add_libc(mem, profile, invocation);
-      } else {
-        spn_cc_push_c(mem, invocation, "-nostdlibinc");
-        spn_cc_push_c(mem, invocation, "-isystem");
-        spn_cc_push_path(mem, invocation, sdk->msvc.include.vc);
-        spn_cc_push_c(mem, invocation, "-isystem");
-        spn_cc_push_path(mem, invocation, sdk->msvc.include.ucrt);
-        spn_cc_push_c(mem, invocation, "-isystem");
-        spn_cc_push_path(mem, invocation, sdk->msvc.include.um);
-        spn_cc_push_c(mem, invocation, "-isystem");
-        spn_cc_push_path(mem, invocation, sdk->msvc.include.shared);
-      }
+      spn_cc_push_c(mem, invocation, "-nostdlibinc");
+      spn_cc_push_c(mem, invocation, "-isystem");
+      spn_cc_push_path(mem, invocation, sdk->msvc.include.vc);
+      spn_cc_push_c(mem, invocation, "-isystem");
+      spn_cc_push_path(mem, invocation, sdk->msvc.include.ucrt);
+      spn_cc_push_c(mem, invocation, "-isystem");
+      spn_cc_push_path(mem, invocation, sdk->msvc.include.um);
+      spn_cc_push_c(mem, invocation, "-isystem");
+      spn_cc_push_path(mem, invocation, sdk->msvc.include.shared);
       break;
     }
   }
 }
 
-static void add_sdk_link(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, spn_invocation_t* invocation) {
-  const spn_sdk_t* sdk = &profile->sdk;
+static void add_sdk_link(sp_mem_t mem, const spn_sdk_t* sdk, spn_invocation_t* invocation) {
   switch (sdk->kind) {
     case SPN_SDK_NONE: {
       break;
@@ -201,22 +187,21 @@ static void add_sdk_link(sp_mem_t mem, const spn_cc_t* toolchain, const spn_prof
       break;
     }
     case SPN_SDK_MACOS: {
-      if (spn_cc_has(toolchain, SPN_CC_CAP_LIBC_FILE)) {
-        add_libc(mem, profile, invocation);
-        spn_cc_push_c(mem, invocation, "-F");
-        spn_cc_push_path(mem, invocation, sdk->macos.frameworks);
-      } else {
-        spn_cc_push_c(mem, invocation, "-isysroot");
-        spn_cc_push_path(mem, invocation, sdk->macos.root);
-      }
+      spn_cc_push_c(mem, invocation, "-isysroot");
+      spn_cc_push_path(mem, invocation, sdk->macos.root);
       break;
     }
     case SPN_SDK_MSVC: {
-      if (spn_cc_has(toolchain, SPN_CC_CAP_LIBC_FILE)) {
-        add_libc(mem, profile, invocation);
-      } else {
-        spn_path_t libs [] = { sdk->msvc.lib.vc, sdk->msvc.lib.ucrt, sdk->msvc.lib.um };
-        spn_cc_push_env_paths(mem, invocation, SPN_ENV_LIB, libs, sp_carr_len(libs));
+      spn_path_t libs [] = { sdk->msvc.lib.vc, sdk->msvc.lib.ucrt, sdk->msvc.lib.um };
+      spn_cc_push_env_paths(mem, invocation, SPN_ENV_LIB, libs, sp_carr_len(libs));
+      break;
+    }
+    case SPN_SDK_LIBC: {
+      sp_assert(!spn_path_empty(sdk->libc.file));
+      spn_cc_push_env(mem, invocation, SPN_ENV_ZIG_LIBC, spn_arg_path(sdk->libc.file));
+      if (!spn_path_empty(sdk->libc.frameworks)) {
+        spn_cc_push_c(mem, invocation, "-F");
+        spn_cc_push_path(mem, invocation, sdk->libc.frameworks);
       }
       break;
     }
@@ -275,7 +260,7 @@ void spn_gnu_render_compile(sp_mem_t mem, const spn_cc_t* toolchain, const spn_p
   if (compile->pic) {
     spn_cc_push_c(mem, invocation, "-fPIC");
   }
-  add_sdk_compile(mem, toolchain, profile, invocation);
+  add_sdk_compile(mem, &profile->sdk, invocation);
   if (profile->os == SPN_OS_MACOS && is_os_version_present(compile->min_os)) {
     spn_cc_push_fmt(mem, invocation, "-mmacosx-version-min={}.{}", sp_fmt_uint(compile->min_os.major), sp_fmt_uint(compile->min_os.minor));
   }
@@ -299,6 +284,19 @@ void spn_gnu_render_compile_files(sp_mem_t mem, const spn_cc_t* toolchain, const
   }
   spn_cc_push_c(mem, invocation, "-o");
   spn_cc_push_path(mem, invocation, files->output);
+  switch (profile->sdk.kind) {
+    case SPN_SDK_NONE:
+    case SPN_SDK_SYSROOT:
+    case SPN_SDK_MACOS:
+    case SPN_SDK_MSVC: {
+      break;
+    }
+    case SPN_SDK_LIBC: {
+      sp_assert(!spn_path_empty(profile->sdk.libc.file));
+      spn_cc_push_env(mem, invocation, SPN_ENV_ZIG_LIBC, spn_arg_path(profile->sdk.libc.file));
+      break;
+    }
+  }
 }
 
 spn_err_t spn_gnu_parse_depfile(sp_mem_t mem, sp_str_t content, sp_da(sp_str_t)* prereqs) {
@@ -511,7 +509,7 @@ void spn_gnu_render_link(sp_mem_t mem, const spn_cc_t* toolchain, const spn_prof
   sp_da_for(link->system_libs, it) {
     spn_cc_push_fmt(mem, invocation, "-l{}", sp_fmt_str(link->system_libs[it]));
   }
-  add_sdk_link(mem, toolchain, profile, invocation);
+  add_sdk_link(mem, &profile->sdk, invocation);
   if (profile->os == SPN_OS_MACOS) {
     if (is_os_version_present(link->min_os)) {
       spn_cc_push_fmt(mem, invocation, "-mmacosx-version-min={}.{}", sp_fmt_uint(link->min_os.major), sp_fmt_uint(link->min_os.minor));

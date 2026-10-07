@@ -8,6 +8,7 @@
 #include "unit/types.h"
 
 #include "compiler/driver.h"
+#include "dag/dag.h"
 #include "enum/enum.h"
 #include "event/event.h"
 #include "filter/filter.h"
@@ -62,4 +63,21 @@ spn_path_t spn_target_unit_staged_path(sp_mem_t mem, spn_target_unit_t* target) 
 
   sp_mem_end_scratch(s);
   return path;
+}
+
+spn_profile_info_t spn_dag_build_profile(spn_dag_t* g, const spn_dag_build_ctx_t* build) {
+  spn_profile_info_t profile = build->unit->profile;
+  switch (profile.sdk.kind) {
+    case SPN_SDK_NONE:
+    case SPN_SDK_SYSROOT:
+    case SPN_SDK_MACOS:
+    case SPN_SDK_MSVC: {
+      break;
+    }
+    case SPN_SDK_LIBC: {
+      profile.sdk.libc.file = spn_dag_find_artifact(g, build->libc)->materialized;
+      break;
+    }
+  }
+  return profile;
 }

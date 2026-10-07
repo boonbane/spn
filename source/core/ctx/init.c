@@ -275,6 +275,10 @@ spn_ctx_t* spn_ctx_new(spn_wake_fn_t wake, void* wake_data) {
 
   ctx->host = spn_triple_host();
 
+  // @spader This has nothing to do with the context. It's data
+  // that the DAG needs and decides, and pinned is a dumb name. Really,
+  // it just means "does this live in a folder the DAG knows to be
+  // immutable"
   ctx->roots.pinned = sp_da_new(ctx->heap, spn_path_t);
   sp_da_push(ctx->roots.pinned, spn_path_from_id(SPN_DIR_ID_CHECKOUTS));
   sp_da_push(ctx->roots.pinned, spn_path_from_id(SPN_DIR_ID_TOOLCHAIN_STORE));

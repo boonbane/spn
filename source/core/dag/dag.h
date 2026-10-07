@@ -24,6 +24,8 @@ spn_dag_violation_t spn_dag_validate(spn_dag_t* g);
 void                spn_dag_hash_bytes(spn_digest_ctx_t* ctx, const void* data, u64 len);
 void                spn_dag_hash_u8(spn_digest_ctx_t* ctx, u8 value);
 void                spn_dag_hash_u64(spn_digest_ctx_t* ctx, u64 value);
+void                spn_dag_hash_s32(spn_digest_ctx_t* ctx, s32 value);
+void                spn_dag_hash_cstr(spn_digest_ctx_t* ctx, const c8* str);
 void                spn_dag_hash_str(spn_digest_ctx_t* ctx, sp_str_t str);
 void                spn_dag_hash_digest(spn_digest_ctx_t* ctx, spn_dag_digest_t digest);
 void                spn_dag_hash_path(spn_digest_ctx_t* ctx, spn_path_t path);

@@ -14,6 +14,7 @@ typedef struct {
   const c8* include;
   const c8* define;
   const c8* depfile;
+  const c8* libc;
   spn_os_version_t min_os;
   render_expect_t expect;
 } compile_test_t;
@@ -429,8 +430,8 @@ static const compile_test_t tests [] = {
       .abi = SPN_ABI_APPLE,
       .standard = SPN_C99,
       .sdk = "/sdk",
-      .libc_file = "/L",
     },
+    .libc = "/L",
     .expect = {
       .command = "cc",
       .args = { "--target=aarch64-macos", "-std=c99", "-c", "-Werror=return-type", "main.c", "-o", "main.o" },
@@ -471,8 +472,8 @@ static const compile_test_t tests [] = {
       .linking.runtime = SPN_RUNTIME_STATIC,
       .standard = SPN_C99,
       .sdk = "/X",
-      .libc_file = "/L",
     },
+    .libc = "/L",
     .expect = {
       .command = "cc",
       .args = { "--target=x86_64-windows-msvc", "-std=c99", "-fms-runtime-lib=static", "-c", "-gno-codeview-command-line", "-Werror=return-type", "main.c", "-Xclang", "-object-file-name=main.o", "-o", "main.o" },
@@ -649,6 +650,11 @@ sp_test_each(render_compile, render, compile_test_t, tests, .setup = spn_test_ct
   }
 
   spn_profile_info_t profile = test_profile(it->profile);
+  profile.sdk = spn_sdk_for_driver(spn_toolchain_driver_caps(it->driver), profile.sdk);
+  if (it->libc) {
+    sp_must_eq(t, (u32)SPN_SDK_LIBC, (u32)profile.sdk.kind);
+    profile.sdk.libc.file = test_arg_path(it->libc);
+  }
   spn_invocation_t base = sp_zero;
   spn_cc_render_compile(mem, &toolchain, &profile, &compile, &base);
 
@@ -663,23 +669,29 @@ sp_test_each(render_compile, render, compile_test_t, tests, .setup = spn_test_ct
 
 sp_test(render_compile, base_shared_across_commands, .setup = spn_test_ctx_setup) {
   sp_mem_t mem = sp_test_arena(t);
-  spn_cc_t toolchain = test_toolchain(SPN_CC_DRIVER_GCC);
+  spn_cc_t toolchain = test_toolchain(SPN_CC_DRIVER_ZIG);
+  toolchain.cache = test_arg_path("/C");
   spn_cc_compile_t compile = {
     .lang = SPN_LANG_C,
   };
   sp_da_init(mem, compile.include);
   sp_da_init(mem, compile.define);
   sp_da_init(mem, compile.args);
-  spn_profile_info_t profile = {
-    .arch = SPN_ARCH_X64,
-    .os = SPN_OS_LINUX,
-    .abi = SPN_ABI_GNU,
+  spn_profile_info_t profile = test_profile((test_profile_t) {
+    .arch = SPN_ARCH_ARM64,
+    .os = SPN_OS_MACOS,
+    .abi = SPN_ABI_APPLE,
     .standard = SPN_C99,
-  };
+    .sdk = "/sdk",
+  });
+  profile.sdk = spn_sdk_for_driver(spn_toolchain_driver_caps(SPN_CC_DRIVER_ZIG), profile.sdk);
+  sp_must_eq(t, (u32)SPN_SDK_LIBC, (u32)profile.sdk.kind);
+  profile.sdk.libc.file = test_arg_path("/L");
 
   spn_invocation_t base = sp_zero;
   spn_cc_render_compile(mem, &toolchain, &profile, &compile, &base);
   u64 args = sp_da_size(base.args);
+  u64 env = sp_da_size(base.env);
 
   spn_cc_compile_files_t first = {
     .source = test_arg_path("main.c"),
@@ -694,14 +706,17 @@ sp_test(render_compile, base_shared_across_commands, .setup = spn_test_ctx_setup
   spn_invocation_t b = spn_cc_render_compile_command(mem, &toolchain, &profile, &base, &second);
 
   sp_expect_eq(t, sp_da_size(base.args), args);
+  sp_expect_eq(t, sp_da_size(base.env), env);
   if (expect_args(t, &a, (render_expect_t) {
     .command = "cc",
-    .args = { "-std=c99", "-c", "-Werror=return-type", "main.c", "-o", "a.o" },
+    .args = { "--target=aarch64-macos", "-std=c99", "-c", "-Werror=return-type", "main.c", "-o", "a.o" },
+    .env = { "ZIG_GLOBAL_CACHE_DIR=/C", "ZIG_LOCAL_CACHE_DIR=/C", "ZIG_LIBC=/L" },
   })) {
     return SP_ERR;
   }
   return expect_args(t, &b, (render_expect_t) {
     .command = "cc",
-    .args = { "-std=c99", "-c", "-Werror=return-type", "main.c", "-MD", "-MF", "b.o.d", "-o", "b.o" },
+    .args = { "--target=aarch64-macos", "-std=c99", "-c", "-Werror=return-type", "main.c", "-MD", "-MF", "b.o.d", "-o", "b.o" },
+    .env = { "ZIG_GLOBAL_CACHE_DIR=/C", "ZIG_LOCAL_CACHE_DIR=/C", "ZIG_LIBC=/L" },
   });
 }
