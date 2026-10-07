@@ -184,6 +184,8 @@ typedef enum {
   SPN_TARGET_KIND_BUILD_METAPROGRAM,
 } spn_target_kind_t;
 
+#define spn_target_kind_bit(kind) (1u << (kind))
+
 typedef enum {
   SPN_WIN_SUBSYSTEM_NONE,
   SPN_WIN_SUBSYSTEM_CONSOLE,

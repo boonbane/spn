@@ -230,8 +230,12 @@ static bool shared_demand(const spn_pkg_info_t* pkg) {
       return true;
     }
   }
-  sp_str_om_for(pkg->libs, it) {
-    spn_linkage_set_t linkages = sp_str_om_at(pkg->libs, it)->linkages;
+  sp_om_for(pkg->targets, it) {
+    spn_target_info_t* target = sp_om_at(pkg->targets, it);
+    if (target->kind != SPN_TARGET_KIND_LIB) {
+      continue;
+    }
+    spn_linkage_set_t linkages = target->linkages;
     if (linkages.shared && !linkages.static_lib && !linkages.source) {
       return true;
     }

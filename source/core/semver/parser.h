@@ -1,9 +1,6 @@
 #ifndef SPN_SEMVER_PARSER_H
 #define SPN_SEMVER_PARSER_H
 
-#include "sp.h"
-#include "spn/core.h"
-
 #include "semver/types.h"
 
 typedef struct {

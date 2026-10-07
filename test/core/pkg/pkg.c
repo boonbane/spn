@@ -6,7 +6,6 @@
 #include "pkg/mutate.h"
 #include "pkg/patch.h"
 #include "profile/types.h"
-#include "target/mutate.h"
 #include "when/when.h"
 
 sp_test_suite(pkg, .serial = true);
@@ -16,14 +15,9 @@ static spn_pkg_info_t make_pkg(sp_mem_t mem) {
   pkg.macos.min_os = (spn_os_version_t) { .major = 12 };
   sp_da_push(pkg.gated.frameworks, ((spn_gated_str_t) { .value = sp_str_lit("A") }));
 
-  spn_target_info_t bin = {
-    .name = sp_str_lit("A"),
-    .kind = SPN_TARGET_KIND_EXE,
-  };
-  spn_target_info_init(mem, &bin);
-  sp_da_push(bin.gated.frameworks, ((spn_gated_str_t) { .value = sp_str_lit("B") }));
-  bin.windows.subsystem = SPN_WIN_SUBSYSTEM_WINDOWS;
-  sp_str_om_insert(pkg.exes, bin.name, bin);
+  spn_target_info_t* bin = spn_pkg_add_target(&pkg, sp_str_lit("A"), SPN_TARGET_KIND_EXE);
+  sp_da_push(bin->gated.frameworks, ((spn_gated_str_t) { .value = sp_str_lit("B") }));
+  bin->windows.subsystem = SPN_WIN_SUBSYSTEM_WINDOWS;
 
   return pkg;
 }
@@ -95,11 +89,11 @@ sp_test_each(pkg, hash_platform, hash_platform_test_t, hash_platform_tests, .set
       break;
     }
     case PKG_EDIT_TARGET_FRAMEWORK: {
-      sp_da_push(spn_pkg_get_target(&pkg, "A")->gated.frameworks, ((spn_gated_str_t) { .value = sp_str_lit("C") }));
+      sp_da_push(spn_pkg_get_target(&pkg, sp_str_lit("A"), SPN_TARGET_KIND_EXE)->gated.frameworks, ((spn_gated_str_t) { .value = sp_str_lit("C") }));
       break;
     }
     case PKG_EDIT_TARGET_SUBSYSTEM: {
-      spn_pkg_get_target(&pkg, "A")->windows.subsystem = SPN_WIN_SUBSYSTEM_CONSOLE;
+      spn_pkg_get_target(&pkg, sp_str_lit("A"), SPN_TARGET_KIND_EXE)->windows.subsystem = SPN_WIN_SUBSYSTEM_CONSOLE;
       break;
     }
   }

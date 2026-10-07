@@ -20,15 +20,6 @@ void                spn_pkg_add_define(spn_pkg_info_t* pkg, const c8* define);
 void                spn_pkg_add_define_ex(spn_pkg_info_t* pkg, sp_str_t define);
 void                spn_pkg_add_system_dep(spn_pkg_info_t* pkg, const c8* dep);
 void                spn_pkg_add_system_dep_ex(spn_pkg_info_t* pkg, sp_str_t dep);
-void                spn_pkg_add_linkage(spn_pkg_info_t* pkg, spn_linkage_t linkage);
-spn_target_info_t*  spn_pkg_add_exe(spn_pkg_info_t* pkg, const c8* name);
-spn_target_info_t*  spn_pkg_add_exe_ex(spn_pkg_info_t* pkg, sp_str_t name);
-spn_target_info_t*  spn_pkg_add_script(spn_pkg_info_t* pkg, const c8* name);
-spn_target_info_t*  spn_pkg_add_script_ex(spn_pkg_info_t* pkg, sp_str_t name);
-spn_target_info_t*  spn_pkg_add_test(spn_pkg_info_t* pkg, const c8* name);
-spn_target_info_t*  spn_pkg_add_test_ex(spn_pkg_info_t* pkg, sp_str_t name);
-spn_target_info_t*  spn_pkg_add_example(spn_pkg_info_t* pkg, const c8* name);
-spn_target_info_t*  spn_pkg_add_example_ex(spn_pkg_info_t* pkg, sp_str_t name);
-spn_target_info_t*  spn_pkg_add_lib_ex(spn_pkg_info_t* pkg, sp_str_t name, spn_linkage_set_t linkage);
+spn_target_info_t*  spn_pkg_add_target(spn_pkg_info_t* pkg, sp_str_t name, spn_target_kind_t kind);
 
 #endif

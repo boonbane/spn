@@ -7,10 +7,8 @@ static sp_cli_result_t test(sp_cli_t* cli) {
 
   spn_session_config_t config = {
     .selection = {
-      .test = {
-        .kind = names.count ? SPN_TARGET_RULE_NAMED : SPN_TARGET_RULE_ALL,
-        .names = names,
-      },
+      .kinds = spn_target_kind_bit(SPN_TARGET_KIND_TEST),
+      .names = names,
     },
   };
   try(spn_cli_refresh_indexes());

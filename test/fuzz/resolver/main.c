@@ -9,6 +9,7 @@
 #include "index/cache.h"
 #include "intern/intern.h"
 #include "pkg/id.h"
+#include "pkg/mutate.h"
 #include "resolve/resolve.h"
 #include "semver/parser.h"
 #include "spn/core.h"
@@ -190,10 +191,7 @@ static fz_result_t fz_execute(sp_mem_t mem, fz_universe_t* u, sp_intern_t* inter
     }
 
     if (fz_pkg_linked(local)) {
-      spn_target_info_t lib = sp_zero_s(spn_target_info_t);
-      lib.name = info->name;
-      lib.linkages = local->linkages;
-      sp_str_om_insert(info->libs, lib.name, lib);
+      spn_pkg_add_target(info, info->name, SPN_TARGET_KIND_LIB)->linkages = local->linkages;
     }
 
     sp_ht_insert(registry, spn_pkg_id(intern, info->qualified), ((spn_registry_pkg_t) {

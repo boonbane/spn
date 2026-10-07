@@ -1,5 +1,7 @@
 #include "unit.h"
 
+#include "pkg/mutate.h"
+
 sp_test_suite(target_kind, .serial = true);
 
 typedef struct {
@@ -68,12 +70,7 @@ sp_test_each(target_kind, kind, test_t, tests, .setup = spn_test_ctx_setup) {
 
   spn_loaded_pkg_t* loaded = sp_ht_getp(s->packages, find_pkg_id(s, &it->graph, it->graph.pkgs[0].name));
   const c8* source [] = { "app.c", SP_NULLPTR };
-  spn_target_info_t app = {
-    .name = sp_str_lit("app"),
-    .kind = SPN_TARGET_KIND_EXE,
-    .source = test_source_list(mem, loaded->roots, source, sp_carr_len(source)),
-  };
-  sp_str_om_insert(s->pkg->exes, app.name, app);
+  spn_pkg_add_target(s->pkg, sp_str_lit("app"), SPN_TARGET_KIND_EXE)->source = test_source_list(mem, loaded->roots, source, sp_carr_len(source));
 
   sp_must_eq(t, SPN_OK, spn_units_add_packages(s));
   spn_err_t err = spn_units_add_targets(s, SPN_UNIT_SCOPE_TARGET);

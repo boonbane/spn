@@ -22,28 +22,18 @@
 #include "toolchain/select.h"
 #include "triple/triple.h"
 
-static spn_target_rule_t copy_rule(sp_mem_t mem, spn_target_rule_t rule) {
-  spn_target_rule_t result = { .kind = rule.kind };
-  if (rule.kind == SPN_TARGET_RULE_NAMED) {
-    result.names = (spn_str_arr_t) {
-      .items = sp_alloc_n(mem, sp_str_t, rule.names.count),
-      .count = rule.names.count,
-    };
-    sp_for(it, rule.names.count) {
-      result.names.items[it] = sp_str_copy(mem, rule.names.items[it]);
-    }
-  }
-  return result;
-}
-
 static spn_session_config_t copy_config(sp_mem_t mem, spn_session_config_t config) {
+  spn_str_arr_t names = {
+    .items = sp_alloc_n(mem, sp_str_t, config.selection.names.count),
+    .count = config.selection.names.count,
+  };
+  sp_for(it, names.count) {
+    names.items[it] = sp_str_copy(mem, config.selection.names.items[it]);
+  }
   return (spn_session_config_t) {
     .selection = {
-      .bin = copy_rule(mem, config.selection.bin),
-      .lib = copy_rule(mem, config.selection.lib),
-      .test = copy_rule(mem, config.selection.test),
-      .script = copy_rule(mem, config.selection.script),
-      .example = copy_rule(mem, config.selection.example),
+      .kinds = config.selection.kinds,
+      .names = names,
     },
     .profile = {
       .name = sp_str_copy(mem, config.profile.name),
@@ -171,12 +161,8 @@ spn_pkg_unit_t* spn_session_find_dep(spn_session_t* session, spn_pkg_unit_t* pkg
   return SP_NULLPTR;
 }
 
-spn_target_unit_t* spn_session_find_target_in_pkg(spn_session_t* session, spn_pkg_unit_t* pkg, sp_str_t name, spn_target_kind_t kind) {
-  spn_target_unit_id_t id = {
-    .pkg = pkg->id,
-    .target = sp_intern_get_or_insert(session->ctx->intern, name),
-    .kind = kind,
-  };
+spn_target_unit_t* spn_session_find_target_in_pkg(spn_session_t* session, spn_pkg_unit_t* pkg, spn_target_key_t key) {
+  spn_target_unit_id_t id = { .pkg = pkg->id, .target = key };
   return sp_om_has(session->units.targets, id) ? sp_om_get(session->units.targets, id) : SP_NULLPTR;
 }
 

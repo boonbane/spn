@@ -12,11 +12,11 @@
 #include "error/error.h"
 #include "enum/enum.h"
 #include "external/wasm/wasm.h"
-#include "filter/filter.h"
 #include "intern/intern.h"
 #include "paths/paths.h"
 #include "pkg/id.h"
 #include "target/mutate.h"
+#include "target/target.h"
 #include "pkg/pkg.h"
 #include "session/invocation.h"
 #include "session/session.h"
@@ -28,11 +28,7 @@
 #include "triple/triple.h"
 
 static spn_target_unit_t* add_target(spn_session_t* s, spn_pkg_unit_t* pkg, spn_target_info_t* info) {
-  spn_target_unit_id_t id = {
-    .pkg = pkg->id,
-    .target = sp_intern_get_or_insert(s->ctx->intern, info->name),
-    .kind = info->kind,
-  };
+  spn_target_unit_id_t id = { .pkg = pkg->id, .target = spn_target_key(info->name, info->kind) };
 
   sp_om_insert(s->units.targets, id, SP_ZERO_STRUCT(spn_target_unit_t));
   spn_target_unit_t* target = sp_om_back(s->units.targets);
@@ -164,16 +160,7 @@ static sp_str_t target_kind_dir(spn_target_kind_t kind) {
 }
 
 static spn_err_t ensure_target(spn_session_t* s, spn_pkg_unit_t* pkg, spn_target_info_t* info, spn_target_unit_t** result) {
-  spn_target_unit_t* target = spn_session_find_target_in_pkg(s, pkg, info->name, info->kind);
-  if (target && target->info != info) {
-    return spn_err_emit(s->ctx, (spn_err_union_t) {
-      .kind = SPN_ERR_TARGET_DUPLICATE,
-      .target = {
-        .pkg = pkg->info->name,
-        .name = info->name,
-      },
-    });
-  }
+  spn_target_unit_t* target = spn_session_find_target_in_pkg(s, pkg, spn_target_key(info->name, info->kind));
   if (!target) {
     target = add_target(s, pkg, info);
     spn_try(set_target_kind(s, target));
@@ -641,14 +628,13 @@ static spn_err_t ensure_sibling_targets(spn_session_t* s, sp_da(spn_target_unit_
       if (find_dep_unit(s, unit->pkg, qualified)) {
         continue;
       }
-      if (spn_session_find_target_in_pkg(s, unit->pkg, unit->info->deps[jt], SPN_TARGET_KIND_LIB)) {
+      if (spn_session_find_target_in_pkg(s, unit->pkg, spn_target_key(unit->info->deps[jt], SPN_TARGET_KIND_LIB))) {
         continue;
       }
-      sp_str_t name = spn_intern(unit->info->deps[jt]);
-      if (!sp_str_om_has(unit->pkg->info->libs, name)) {
+      spn_target_info_t* info = spn_pkg_get_target(unit->pkg->info, unit->info->deps[jt], SPN_TARGET_KIND_LIB);
+      if (!info) {
         continue;
       }
-      spn_target_info_t* info = sp_str_om_get(unit->pkg->info->libs, name);
       spn_target_unit_t* target = SP_NULLPTR;
       spn_try(ensure_target(s, unit->pkg, info, &target));
       sp_da_push(*targets, target);
@@ -666,7 +652,7 @@ static spn_err_t resolve_target_deps(spn_session_t* s, sp_da(spn_target_unit_t*)
         continue;
       }
 
-      spn_target_unit_t* target = spn_session_find_target_in_pkg(s, unit->pkg, unit->info->deps[jt], SPN_TARGET_KIND_LIB);
+      spn_target_unit_t* target = spn_session_find_target_in_pkg(s, unit->pkg, spn_target_key(unit->info->deps[jt], SPN_TARGET_KIND_LIB));
       if (!target) {
         return spn_err_emit(s->ctx, (spn_err_union_t) {
           .kind = SPN_ERR_TARGET_DEP,
@@ -713,8 +699,12 @@ static spn_err_t add_metaprogram_targets(spn_session_t* s) {
     if (spn_pkg_unit_is_script_host(unit)) {
       continue;
     }
-    sp_str_om_for(unit->info->libs, jt) {
-      spn_try(ensure_target(s, unit, sp_str_om_at(unit->info->libs, jt), SP_NULLPTR));
+    sp_om_for(unit->info->targets, jt) {
+      spn_target_info_t* info = sp_om_at(unit->info->targets, jt);
+      if (info->kind != SPN_TARGET_KIND_LIB) {
+        continue;
+      }
+      spn_try(ensure_target(s, unit, info, SP_NULLPTR));
     }
   }
 
@@ -751,94 +741,6 @@ static spn_err_t add_metaprogram_targets(spn_session_t* s) {
   return SPN_OK;
 }
 
-static bool exe_name_reserved(sp_str_t name) {
-  return sp_str_equal_cstr(name, "store") || sp_str_equal_cstr(name, ".spn") || sp_str_equal_cstr(name, "test") || sp_str_equal_cstr(name, "example");
-}
-
-static bool is_root_target(spn_session_t* s, spn_build_plan_t* plan, spn_target_unit_t* target) {
-  sp_da_for(plan->roots, it) {
-    if (spn_session_get_target_unit(s, plan->roots[it]) == target) {
-      return true;
-    }
-  }
-  return false;
-}
-
-static bool target_rule_requests_name(const spn_target_rule_t* rule, sp_str_t name) {
-  if (rule->kind != SPN_TARGET_RULE_NAMED) {
-    return false;
-  }
-  sp_for(it, rule->names.count) {
-    if (sp_str_equal(rule->names.items[it], name)) {
-      return true;
-    }
-  }
-  return false;
-}
-
-static bool target_selection_matches_name(const spn_target_selection_t* selection, const spn_pkg_info_t* pkg, sp_str_t name) {
-  return
-    (target_rule_requests_name(&selection->lib, name) && sp_str_om_has(pkg->libs, name)) ||
-    (target_rule_requests_name(&selection->bin, name) && sp_str_om_has(pkg->exes, name)) ||
-    (target_rule_requests_name(&selection->test, name) && sp_str_om_has(pkg->tests, name)) ||
-    (target_rule_requests_name(&selection->script, name) && sp_str_om_has(pkg->scripts, name)) ||
-    (target_rule_requests_name(&selection->example, name) && sp_str_om_has(pkg->examples, name));
-}
-
-static spn_err_t validate_target_selection(spn_session_t* s, const spn_target_selection_t* selection, const spn_pkg_info_t* pkg) {
-  const spn_target_rule_t* rules [] = {
-    &selection->lib,
-    &selection->bin,
-    &selection->test,
-    &selection->script,
-    &selection->example,
-  };
-  sp_carr_for(rules, rt) {
-    const spn_target_rule_t* rule = rules[rt];
-    if (rule->kind != SPN_TARGET_RULE_NAMED) {
-      continue;
-    }
-    sp_for(it, rule->names.count) {
-      sp_str_t name = rule->names.items[it];
-      if (target_selection_matches_name(selection, pkg, name)) {
-        continue;
-      }
-      return spn_err_emit(s->ctx, (spn_err_union_t) {
-        .kind = SPN_ERR_TARGET_SELECTION,
-        .target = { .name = name },
-      });
-    }
-  }
-  return SPN_OK;
-}
-
-static spn_err_t add_plan_targets(spn_session_t* s, spn_build_plan_t* plan, spn_pkg_unit_t* pkg, spn_target_map_t targets) {
-  sp_str_om_for(targets, it) {
-    spn_target_info_t* info = sp_str_om_at(targets, it);
-    if (!spn_target_selection_pass(&plan->selection, info)) {
-      continue;
-    }
-
-    bool staged_at_root = info->kind == SPN_TARGET_KIND_EXE || info->kind == SPN_TARGET_KIND_SCRIPT;
-    if (staged_at_root && exe_name_reserved(info->name)) {
-      return spn_err_emit(s->ctx, (spn_err_union_t) {
-        .kind = SPN_ERR_TARGET_RESERVED,
-        .target = {
-          .pkg = pkg->info->name,
-          .name = info->name,
-        },
-      });
-    }
-
-    spn_target_unit_t* target = SP_NULLPTR;
-    spn_try(ensure_target(s, pkg, info, &target));
-    if (!is_root_target(s, plan, target)) {
-      sp_da_push(plan->roots, target->id);
-    }
-  }
-  return SPN_OK;
-}
-
 static spn_err_t add_plan_root_targets(spn_session_t* s) {
   spn_pkg_id_t root = spn_session_root_pkg(s);
 
@@ -849,19 +751,18 @@ static spn_err_t add_plan_root_targets(spn_session_t* s) {
       if (spn_pkg_id_eq(pkg->id.pkg, root)) {
         continue;
       }
-      sp_str_om_for(pkg->info->libs, kt) {
-        spn_try(ensure_target(s, pkg, sp_str_om_at(pkg->info->libs, kt), SP_NULLPTR));
+      sp_om_for(pkg->info->targets, kt) {
+        spn_target_info_t* info = sp_om_at(pkg->info->targets, kt);
+        if (info->kind != SPN_TARGET_KIND_LIB) {
+          continue;
+        }
+        spn_try(ensure_target(s, pkg, info, SP_NULLPTR));
       }
     }
 
     spn_pkg_unit_t* pkg = spn_session_find_pkg_unit(s, plan->build, root);
     sp_assert(pkg);
-    spn_try(validate_target_selection(s, &plan->selection, pkg->info));
-    spn_try(add_plan_targets(s, plan, pkg, pkg->info->libs));
-    spn_try(add_plan_targets(s, plan, pkg, pkg->info->exes));
-    spn_try(add_plan_targets(s, plan, pkg, pkg->info->scripts));
-    spn_try(add_plan_targets(s, plan, pkg, pkg->info->tests));
-    spn_try(add_plan_targets(s, plan, pkg, pkg->info->examples));
+    SP_UNIMPLEMENTED();
   }
   return SPN_OK;
 }

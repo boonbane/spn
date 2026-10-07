@@ -18,7 +18,7 @@
     }
   ],
   "exports": [
-    { "name": "spn_get_target", "ret": "target", "args": ["ctx", "str"] },
+    { "name": "spn_get_target", "ret": "target", "args": ["ctx", "str", "s32"] },
     { "name": "spn_get_dep", "ret": "ctx", "args": ["ctx", "str"] },
     { "name": "spn_get_dir", "ret": "str", "args": ["ctx", "s32"] },
     { "name": "spn_get_subdir", "ret": "str", "args": ["ctx", "s32", "str"] },

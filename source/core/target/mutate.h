@@ -4,31 +4,6 @@
 #include "core/types.h"
 #include "target/types.h"
 
-static inline void spn_target_info_init(sp_mem_t mem, spn_target_info_t* target) {
-  if (!target->source)          sp_da_init(mem, target->source);
-  if (!target->headers)         sp_da_init(mem, target->headers);
-  if (!target->include)         sp_da_init(mem, target->include);
-  if (!target->define)          sp_da_init(mem, target->define);
-  if (!target->flags)           sp_da_init(mem, target->flags);
-  if (!target->link_flags)      sp_da_init(mem, target->link_flags);
-  if (!target->linker_script)   sp_da_init(mem, target->linker_script);
-  if (!target->system_deps)     sp_da_init(mem, target->system_deps);
-  if (!target->deps)            sp_da_init(mem, target->deps);
-  if (!target->embed)           sp_da_init(mem, target->embed);
-  if (!target->configured.include) sp_da_init(mem, target->configured.include);
-  if (!target->macos.frameworks) sp_da_init(mem, target->macos.frameworks);
-  if (!target->gated.source)        sp_da_init(mem, target->gated.source);
-  if (!target->gated.headers)       sp_da_init(mem, target->gated.headers);
-  if (!target->gated.include)       sp_da_init(mem, target->gated.include);
-  if (!target->gated.define)        sp_da_init(mem, target->gated.define);
-  if (!target->gated.flags)         sp_da_init(mem, target->gated.flags);
-  if (!target->gated.link_flags)    sp_da_init(mem, target->gated.link_flags);
-  if (!target->gated.linker_script) sp_da_init(mem, target->gated.linker_script);
-  if (!target->gated.system_deps)   sp_da_init(mem, target->gated.system_deps);
-  if (!target->gated.deps)          sp_da_init(mem, target->gated.deps);
-  if (!target->gated.frameworks)    sp_da_init(mem, target->gated.frameworks);
-  if (!target->gated.embed)         sp_da_init(mem, target->gated.embed);
-}
 void spn_target_add_embed(spn_target_info_t* target, spn_embed_t embed);
 void spn_target_add_define_ex(spn_target_info_t* target, sp_str_t define);
 void spn_target_add_flag_ex(spn_target_info_t* target, sp_str_t flag);
@@ -37,6 +12,5 @@ void spn_target_add_dep_ex(spn_target_info_t* target, sp_str_t dep);
 void spn_linkage_set_add(spn_linkage_set_t* set, spn_linkage_t kind);
 bool spn_linkage_set_has(spn_linkage_set_t set, spn_linkage_t kind);
 spn_linkage_t spn_linkage_set_default(spn_linkage_set_t set);
-
 
 #endif
