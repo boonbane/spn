@@ -13,7 +13,7 @@
 #include "graph/nodes/nodes.h"
 #include "unit/package.h"
 
-static s32 run_compiler(const spn_path_roots_t* roots, spn_compile_unit_t* unit, const spn_invocation_t* base, spn_path_t object, spn_path_t depfile) {
+static s32 run_compiler(const spn_path_roots_t* roots, spn_compile_unit_t* unit, const spn_invocation_t* base, const spn_profile_info_t* profile, spn_path_t object, spn_path_t depfile) {
   spn_pkg_unit_t* pkg = unit->target->pkg;
   spn_session_t* session = pkg->session;
 
@@ -24,7 +24,7 @@ static s32 run_compiler(const spn_path_roots_t* roots, spn_compile_unit_t* unit,
     .output = object,
     .depfile = depfile,
   };
-  spn_invocation_t invocation = spn_cc_render_compile_command(spn.mem, &pkg->build->toolchain->cc, &pkg->build->profile, base, &files);
+  spn_invocation_t invocation = spn_cc_render_compile_command(spn.mem, &pkg->build->toolchain->cc, profile, base, &files);
   spn_invocation_result_t run = spn_invocation_run(roots, &invocation);
   sp_str_t command = spn_invocation_to_str(roots, spn.mem, &invocation);
 
@@ -63,14 +63,15 @@ static s32 run_compiler(const spn_path_roots_t* roots, spn_compile_unit_t* unit,
 static spn_err_t compile_object(sp_mem_t scratch, spn_dag_t* g, spn_dag_object_ctx_t* ctx, spn_dag_env_t* env, spn_path_t object, spn_dag_obs_set_t* obs) {
   spn_compile_unit_t* unit = ctx->unit;
   const spn_cc_t* toolchain = &unit->target->pkg->build->toolchain->cc;
+  spn_profile_info_t profile = spn_dag_build_profile(g, ctx->build);
 
   spn_cc_depfile_t mode = spn_cc_depfile(toolchain, unit->lang);
   if (mode == SPN_CC_DEPFILE_NONE) {
-    return run_compiler(g->roots, unit, ctx->invocation, object, (spn_path_t) sp_zero) ? SPN_ERR_DAG_ACTION : SPN_OK;
+    return run_compiler(g->roots, unit, ctx->invocation, &profile, object, (spn_path_t) sp_zero) ? SPN_ERR_DAG_ACTION : SPN_OK;
   }
 
   spn_path_t depfile = spn_path_concat(scratch, object, ".d");
-  if (run_compiler(g->roots, unit, ctx->invocation, object, depfile)) {
+  if (run_compiler(g->roots, unit, ctx->invocation, &profile, object, depfile)) {
     return SPN_ERR_DAG_ACTION;
   }
 
@@ -93,9 +94,12 @@ static spn_err_t compile_object(sp_mem_t scratch, spn_dag_t* g, spn_dag_object_c
   return SPN_OK;
 }
 
-spn_err_t spn_dag_exec_object(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs) {
+spn_err_t on_compile_object(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs) {
+  spn_dag_object_ctx_t* ctx = sp_ptr_cast(spn_dag_object_ctx_t*, user_data);
+  spn_path_t output = outputs[0];
+
   sp_mem_arena_marker_t s = sp_mem_begin_scratch();
-  spn_err_t err = compile_object(s.mem, g, (spn_dag_object_ctx_t*)user_data, env, outputs[0], obs);
+  spn_err_t err = compile_object(s.mem, g, ctx, env, output, obs);
   sp_mem_end_scratch(s);
   return err;
 }

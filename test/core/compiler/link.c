@@ -19,6 +19,7 @@ typedef struct {
   const c8* lib_dir;
   const c8* arg;
   const c8* script;
+  const c8* libc;
   spn_os_version_t min_os;
   spn_win_subsystem_t subsystem;
   render_expect_t expect;
@@ -230,9 +231,9 @@ static const link_test_t tests [] = {
       .arch = SPN_ARCH_ARM64,
       .os = SPN_OS_MACOS,
       .sdk = "/sdk",
-      .libc_file = "/L",
     },
     .kind = SPN_CC_OUTPUT_EXE,
+    .libc = "/L",
     .expect = {
       .command = "cc",
       .args = { "--target=aarch64-macos", "main.o", "-F", "/sdk/System/Library/Frameworks", "-Wl,-rpath,@loader_path", "-o", "main" },
@@ -1026,9 +1027,10 @@ static const link_test_t tests [] = {
     .name = "zig_msvc_libc_links_off_windows",
     .driver = SPN_CC_DRIVER_ZIG,
     .host = HOST_X64_LINUX,
-    .profile = { .arch = SPN_ARCH_X64, .os = SPN_OS_WINDOWS, .abi = SPN_ABI_MSVC, .linking.runtime = SPN_RUNTIME_STATIC, .sdk = "/X", .libc_file = "/L" },
+    .profile = { .arch = SPN_ARCH_X64, .os = SPN_OS_WINDOWS, .abi = SPN_ABI_MSVC, .linking.runtime = SPN_RUNTIME_STATIC, .sdk = "/X" },
     .kind = SPN_CC_OUTPUT_EXE,
     .system_lib = "user32",
+    .libc = "/L",
     .expect = {
       .command = "cc",
       .args = { "--target=x86_64-windows-msvc", "-fms-runtime-lib=static", "main.o", "-luser32", "-o", "main" },
@@ -1142,6 +1144,11 @@ sp_test_each(render_link, render, link_test_t, tests, .setup = spn_test_ctx_setu
     return SP_OK;
   }
   spn_path_t output = test_arg_path("main");
+  profile.sdk = spn_sdk_for_driver(spn_toolchain_driver_caps(it->driver), profile.sdk);
+  if (it->libc) {
+    sp_must_eq(t, (u32)SPN_SDK_LIBC, (u32)profile.sdk.kind);
+    profile.sdk.libc.file = test_arg_path(it->libc);
+  }
   spn_invocation_t invocation = sp_zero;
   switch (it->driver) {
     case SPN_CC_DRIVER_GCC:

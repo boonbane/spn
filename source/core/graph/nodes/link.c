@@ -135,6 +135,7 @@ spn_err_t spn_dag_exec_link(spn_dag_t* g, spn_dag_action_t* action, void* user_d
   spn_build_unit_t* build = target->pkg->build;
   spn_cc_t* cc = &build->toolchain->cc;
   spn_path_t implib = spn_path_empty(ctx->link->implib) ? sp_zero_struct(spn_path_t) : outputs[1];
+  spn_profile_info_t profile = spn_dag_build_profile(g, ctx->build);
 
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   spn_invocation_t invocation = sp_zero;
@@ -142,11 +143,11 @@ spn_err_t spn_dag_exec_link(spn_dag_t* g, spn_dag_action_t* action, void* user_d
     case SPN_CC_DRIVER_GCC:
     case SPN_CC_DRIVER_CLANG:
     case SPN_CC_DRIVER_ZIG: {
-      spn_gnu_render_link(scratch.mem, cc, &build->profile, ctx->link, ctx->objects, outputs[0], implib, &invocation);
+      spn_gnu_render_link(scratch.mem, cc, &profile, ctx->link, ctx->objects, outputs[0], implib, &invocation);
       break;
     }
     case SPN_CC_DRIVER_MSVC: {
-      spn_msvc_render_link(scratch.mem, cc, &build->profile, ctx->link, ctx->objects, outputs[0], implib, &invocation);
+      spn_msvc_render_link(scratch.mem, cc, &profile, ctx->link, ctx->objects, outputs[0], implib, &invocation);
       break;
     }
     case SPN_CC_DRIVER_NONE: {
@@ -208,13 +209,13 @@ static spn_err_t write_exports(sp_mem_t mem, const spn_path_roots_t* roots, spn_
   return SPN_OK;
 }
 
-spn_err_t spn_dag_exec_exports(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs) {
+spn_err_t on_write_exports(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs) {
   spn_dag_target_ctx_t* ctx = (spn_dag_target_ctx_t*)user_data;
 
   spn_pkg_unit_announce_compile(ctx->target->pkg);
 
-  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  spn_err_t result = write_exports(scratch.mem, g->roots, ctx->target, ctx->link, ctx->objects, outputs[0]);
-  sp_mem_end_scratch(scratch);
+  sp_mem_arena_marker_t s = sp_mem_begin_scratch();
+  spn_err_t result = write_exports(s.mem, g->roots, ctx->target, ctx->link, ctx->objects, outputs[0]);
+  sp_mem_end_scratch(s);
   return result ? SPN_ERR_DAG_ACTION : SPN_OK;
 }

@@ -219,7 +219,7 @@ void spn_profile_finalize(spn_profile_info_t* profile, const spn_toolchain_selec
   profile->abi = selection->row.triple.abi;
   profile->driver = selection->toolchain->driver;
   profile->linker = selection->toolchain->lld ? SPN_LD_FAMILY_LLD : spn_ld_native(selection->toolchain->driver, selection->row.triple);
-  profile->sdk = selection->row.sdk;
+  profile->sdk = spn_sdk_for_driver(spn_toolchain_driver_caps(profile->driver), selection->row.sdk);
   profile->linking = selection->linking;
 }
 

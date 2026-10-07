@@ -77,6 +77,7 @@ set(SPN_SOURCES
   core/graph/dag.c
   core/graph/nodes/compile_commands.c
   core/graph/nodes/embed.c
+  core/graph/nodes/libc.c
   core/graph/nodes/link.c
   core/graph/nodes/object.c
   core/graph/nodes/rsp.c
