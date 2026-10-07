@@ -10,7 +10,6 @@
 #include "session/invocation.h"
 #include "session/session.h"
 #include "graph/build.h"
-#include "graph/dag.h"
 #include "graph/nodes/nodes.h"
 #include "unit/package.h"
 

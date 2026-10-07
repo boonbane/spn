@@ -52,7 +52,6 @@ spn_err_t        spn_dag_build_session(spn_op_t* op);
 spn_dag_build_t* spn_dag_build_new(spn_op_t* op);
 spn_err_t        spn_dag_build_run(spn_dag_build_t* b, u32 workers);
 spn_err_t        spn_dag_build_add_build(spn_dag_build_t* b, spn_build_unit_t* build);
-spn_profile_info_t spn_dag_build_profile(spn_dag_t* g, const spn_dag_build_ctx_t* build);
 spn_err_t        spn_dag_build_add_target(spn_dag_build_t* b, spn_target_unit_t* target, const spn_target_plan_t* plan);
 
 #endif

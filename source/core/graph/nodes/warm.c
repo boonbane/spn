@@ -8,7 +8,7 @@
 #include "external/zig.h"
 #include "paths/paths.h"
 #include "session/invocation.h"
-#include "graph/dag.h"
+#include "graph/build.h"
 #include "graph/nodes/nodes.h"
 
 typedef struct {

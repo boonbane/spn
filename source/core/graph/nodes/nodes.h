@@ -7,12 +7,8 @@
 #include "spn/core.h"
 #include "external/cc.h"
 #include "core/types.h"
+#include "graph/build.h"
 #include "unit/types.h"
-
-typedef struct {
-  spn_build_unit_t* unit;
-  spn_dag_id_t libc;
-} spn_dag_build_ctx_t;
 
 typedef struct {
   spn_target_unit_t* target;

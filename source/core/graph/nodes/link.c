@@ -17,7 +17,6 @@
 #include "paths/paths.h"
 #include "session/invocation.h"
 #include "graph/build.h"
-#include "graph/dag.h"
 #include "graph/nodes/nodes.h"
 #include "unit/package.h"
 #include "triple/triple.h"

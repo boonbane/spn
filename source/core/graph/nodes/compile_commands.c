@@ -3,6 +3,7 @@
 #include "codegen/codegen.h"
 #include "compiler/driver.h"
 #include "dag/dag.h"
+#include "graph/build.h"
 #include "graph/dag.h"
 #include "graph/nodes/nodes.h"
 #include "paths/paths.h"
