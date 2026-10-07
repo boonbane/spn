@@ -52,8 +52,11 @@ spn_err_t spn_index_release_from_pkg(sp_mem_t mem, spn_pkg_info_t* info, spn_pkg
     }));
   }
 
-  sp_str_om_for(info->libs, it) {
-    spn_target_info_t* lib = sp_str_om_at(info->libs, it);
+  sp_om_for(info->targets, it) {
+    spn_target_info_t* lib = sp_om_at(info->targets, it);
+    if (lib->kind != SPN_TARGET_KIND_LIB) {
+      continue;
+    }
     spn_index_target_t target = { .name = lib->name };
     sp_da_init(mem, target.linkages);
 

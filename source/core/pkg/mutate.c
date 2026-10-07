@@ -8,7 +8,7 @@
 #include "enum/enum.h"
 #include "intern/intern.h"
 #include "pkg/mutate.h"
-#include "target/mutate.h"
+#include "target/target.h"
 
 static sp_mem_t spn_pkg_mem(spn_pkg_info_t* pkg) {
   return sp_mem_arena_as_allocator(pkg->arena);
@@ -19,11 +19,7 @@ void spn_pkg_init(sp_mem_t mem, spn_pkg_info_t* pkg, sp_str_t name) {
   pkg->name = spn_intern(name);
 
   sp_mem_t a = spn_pkg_mem(pkg);
-  sp_str_om_init(pkg->libs);
-  sp_str_om_init(pkg->exes);
-  sp_str_om_init(pkg->scripts);
-  sp_str_om_init(pkg->tests);
-  sp_str_om_init(pkg->examples);
+  sp_om_new(pkg->targets);
   sp_str_om_init(pkg->profiles);
   sp_str_om_init(pkg->indexes);
   sp_str_om_init(pkg->toolchains);
@@ -96,81 +92,10 @@ void spn_pkg_add_system_dep_ex(spn_pkg_info_t* pkg, sp_str_t dep) {
   sp_da_push(pkg->system_deps, sp_str_copy(spn_pkg_mem(pkg), dep));
 }
 
-void spn_pkg_add_linkage(spn_pkg_info_t* pkg, spn_linkage_t linkage) {
+spn_target_info_t* spn_pkg_add_target(spn_pkg_info_t* pkg, sp_str_t name, spn_target_kind_t kind) {
   (void)pkg;
-  (void)linkage;
+  (void)name;
+  (void)kind;
+  SP_UNIMPLEMENTED();
+  return SP_NULLPTR;
 }
-
-spn_target_info_t* spn_pkg_add_exe(spn_pkg_info_t* pkg, const c8* name) {
-  return spn_pkg_add_exe_ex(pkg, spn_intern_cstr(name));
-}
-
-spn_target_info_t* spn_pkg_add_exe_ex(spn_pkg_info_t* pkg, sp_str_t name) {
-  spn_target_info_t exe = {
-    .name = spn_intern(name),
-    .kind = SPN_TARGET_KIND_EXE,
-  };
-  sp_str_om_insert(pkg->exes, exe.name, exe);
-  spn_target_info_t* target = sp_str_om_get(pkg->exes, exe.name);
-  spn_target_info_init(spn_pkg_mem(pkg), target);
-  return target;
-}
-
-spn_target_info_t* spn_pkg_add_script(spn_pkg_info_t* pkg, const c8* name) {
-  return spn_pkg_add_script_ex(pkg, spn_intern_cstr(name));
-}
-
-spn_target_info_t* spn_pkg_add_script_ex(spn_pkg_info_t* pkg, sp_str_t name) {
-  spn_target_info_t script = {
-    .name = spn_intern(name),
-    .kind = SPN_TARGET_KIND_SCRIPT,
-  };
-  sp_str_om_insert(pkg->scripts, script.name, script);
-  spn_target_info_t* target = sp_str_om_get(pkg->scripts, script.name);
-  spn_target_info_init(spn_pkg_mem(pkg), target);
-  return target;
-}
-
-spn_target_info_t* spn_pkg_add_test(spn_pkg_info_t* pkg, const c8* name) {
-  return spn_pkg_add_test_ex(pkg, spn_intern_cstr(name));
-}
-
-spn_target_info_t* spn_pkg_add_test_ex(spn_pkg_info_t* pkg, sp_str_t name) {
-  spn_target_info_t test = {
-    .name = spn_intern(name),
-    .kind = SPN_TARGET_KIND_TEST,
-  };
-  sp_str_om_insert(pkg->tests, test.name, test);
-  spn_target_info_t* target = sp_str_om_get(pkg->tests, test.name);
-  spn_target_info_init(spn_pkg_mem(pkg), target);
-  return target;
-}
-
-spn_target_info_t* spn_pkg_add_example(spn_pkg_info_t* pkg, const c8* name) {
-  return spn_pkg_add_example_ex(pkg, spn_intern_cstr(name));
-}
-
-spn_target_info_t* spn_pkg_add_example_ex(spn_pkg_info_t* pkg, sp_str_t name) {
-  spn_target_info_t example = {
-    .name = spn_intern(name),
-    .kind = SPN_TARGET_KIND_EXAMPLE,
-  };
-  sp_str_om_insert(pkg->examples, example.name, example);
-  spn_target_info_t* target = sp_str_om_get(pkg->examples, example.name);
-  spn_target_info_init(spn_pkg_mem(pkg), target);
-  return target;
-}
-
-spn_target_info_t* spn_pkg_add_lib_ex(spn_pkg_info_t* pkg, sp_str_t name, spn_linkage_set_t linkage) {
-  spn_target_info_t lib = {
-    .name = spn_intern(name),
-    .kind = SPN_TARGET_KIND_LIB,
-    .linkages = linkage
-  };
-  sp_str_om_insert(pkg->libs, lib.name, lib);
-  spn_target_info_t* target = sp_str_om_get(pkg->libs, lib.name);
-  spn_target_info_init(spn_pkg_mem(pkg), target);
-  return target;
-}
-
-

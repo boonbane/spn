@@ -128,9 +128,9 @@ static spn_target_t* wrap(spn_pkg_unit_t* unit, spn_target_info_t* info) {
   return target;
 }
 
-spn_target_t* spn_get_target(spn_t* spn, const c8* name) {
+spn_target_t* spn_get_target(spn_t* spn, const c8* name, spn_target_kind_t kind) {
   spn_pkg_unit_t* unit = spn_api_unit(spn);
-  spn_target_info_t* info = spn_pkg_get_target(unit->info, name);
+  spn_target_info_t* info = spn_pkg_get_target(unit->info, sp_cstr_as_str(name), kind);
   return info ? wrap(unit, info) : SP_NULLPTR;
 }
 
@@ -156,7 +156,7 @@ spn_target_t* spn_add_exe(spn_config_t* config, const c8* name) {
   if (spn_api_name_rejected(unit, "spn_add_exe", name)) {
     return SP_NULLPTR;
   }
-  return wrap(unit, spn_pkg_add_exe(unit->info, name));
+  return wrap(unit, spn_pkg_add_target(unit->info, sp_cstr_as_str(name), SPN_TARGET_KIND_EXE));
 }
 
 spn_target_t* spn_add_lib(spn_config_t* config, const c8* name, spn_linkage_t kind) {
@@ -166,7 +166,9 @@ spn_target_t* spn_add_lib(spn_config_t* config, const c8* name, spn_linkage_t ki
   if (spn_api_name_rejected(unit, "spn_add_lib", name)) {
     return SP_NULLPTR;
   }
-  return wrap(unit, spn_pkg_add_lib_ex(unit->info, spn_intern_cstr(name), linkages));
+  spn_target_info_t* info = spn_pkg_add_target(unit->info, sp_cstr_as_str(name), SPN_TARGET_KIND_LIB);
+  info->linkages = linkages;
+  return wrap(unit, info);
 }
 
 spn_target_t* spn_add_test(spn_config_t* config, const c8* name) {
@@ -174,7 +176,7 @@ spn_target_t* spn_add_test(spn_config_t* config, const c8* name) {
   if (spn_api_name_rejected(unit, "spn_add_test", name)) {
     return SP_NULLPTR;
   }
-  return wrap(unit, spn_pkg_add_test(unit->info, name));
+  return wrap(unit, spn_pkg_add_target(unit->info, sp_cstr_as_str(name), SPN_TARGET_KIND_TEST));
 }
 
 void spn_add_include(spn_config_t* config, const c8* path) {

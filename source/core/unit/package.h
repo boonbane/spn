@@ -5,18 +5,7 @@
 #include "spn/core.h"
 #include "unit/types.h"
 
-typedef struct {
-  spn_target_map_t maps [4];
-  u32 count;
-} spn_pkg_unit_header_maps_t;
-
-static inline spn_pkg_unit_header_maps_t spn_pkg_unit_header_maps(spn_pkg_unit_t* unit) {
-  return (spn_pkg_unit_header_maps_t) {
-    .maps = { unit->info->libs, unit->info->exes, unit->info->scripts, unit->info->tests },
-    .count = unit->source == SPN_PKG_SOURCE_ROOT ? 4 : 1,
-  };
-}
-
+bool               spn_pkg_unit_publishes_target(spn_pkg_unit_t* unit, const spn_target_info_t* target);
 spn_user_output_t  spn_pkg_unit_node_stamp(spn_pkg_unit_t* ctx, spn_user_node_t* node);
 void               spn_pkg_unit_announce_compile(spn_pkg_unit_t* ctx);
 spn_err_t          spn_pkg_unit_publish_headers(spn_pkg_unit_t* ctx, spn_path_t root);

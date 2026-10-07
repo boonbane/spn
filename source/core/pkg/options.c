@@ -309,11 +309,9 @@ void spn_pkg_apply_options(
   info->applied = true;
 
   apply_ctx_t ctx = { .mem = mem, .roots = roots, .trees = trees, .env = env };
-  sp_str_om_for(info->libs, it) apply_target(&ctx, sp_str_om_at(info->libs, it));
-  sp_str_om_for(info->exes, it) apply_target(&ctx, sp_str_om_at(info->exes, it));
-  sp_str_om_for(info->scripts, it) apply_target(&ctx, sp_str_om_at(info->scripts, it));
-  sp_str_om_for(info->tests, it) apply_target(&ctx, sp_str_om_at(info->tests, it));
-  sp_str_om_for(info->examples, it) apply_target(&ctx, sp_str_om_at(info->examples, it));
+  sp_om_for(info->targets, it) {
+    apply_target(&ctx, sp_om_at(info->targets, it));
+  }
 
   apply_gated(&ctx, &info->system_deps, info->gated.system_deps);
   apply_gated_paths(&ctx, &info->include, info->gated.include);
