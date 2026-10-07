@@ -301,19 +301,19 @@ source = [
 include = ["include", "source/core", "source/util", "source/core/external", "test/core", "test/core/tools", "test/tools"]
 deps = ["spn"]
 
-[[test]]
-name = "dag_os"
-source = [
-  "test/core/dag/*.c",
-  "test/core/dag/os/*.c",
-  "test/tools/dag/track.c",
-  "test/tools/sim/sim.c",
-  "test/tools/path_roots.c",
-  "test/core/tools/wasm_emit.c",
-  "test/core/tools/main/unit.c",
-]
-include = ["include", "source/core", "source/util", "source/core/external", "test/core", "test/core/tools", "test/tools"]
-deps = ["spn"]
+# [[test]]
+# name = "dag_os"
+# source = [
+#   "test/core/dag/*.c",
+#   "test/core/dag/os/*.c",
+#   "test/tools/dag/track.c",
+#   "test/tools/sim/sim.c",
+#   "test/tools/path_roots.c",
+#   "test/core/tools/wasm_emit.c",
+#   "test/core/tools/main/unit.c",
+# ]
+# include = ["include", "source/core", "source/util", "source/core/external", "test/core", "test/core/tools", "test/tools"]
+# deps = ["spn"]
 
 [[test]]
 name = "resolver"

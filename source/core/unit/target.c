@@ -238,7 +238,14 @@ static void add_object(spn_session_t* s, spn_target_unit_t* target, spn_path_t f
     .lang = spn_lang_from_path(rel.sub),
     .paths = {
       .file = { .root = file.root, .sub = sp_intern_str_from_id(s->ctx->intern, id.source.sub) },
-      .object = { .root = dir.root, .sub = sp_fmt(s->mem, "{}/{}/{}.o", sp_fmt_str(dir.sub), sp_fmt_str(prefix), sp_fmt_str(rel.sub)).value },
+      .object = {
+        .root = dir.root,
+        .sub = sp_fmt(s->mem, "{}/{}/{}.o",
+          sp_fmt_str(dir.sub),
+          sp_fmt_str(prefix),
+          sp_fmt_str(rel.sub)
+        ).value
+      },
     },
   }));
   sp_da_push(target->objects, sp_om_back(s->units.objects));

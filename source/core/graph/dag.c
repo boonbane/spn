@@ -6,6 +6,7 @@
 #include "project/project.h"
 #include "ctx/types.h"
 #include "error/error.h"
+#include "spn/core.h"
 #include "spn/errors.h"
 #include "event/types.h"
 #include "core/types.h"
@@ -207,7 +208,7 @@ static spn_err_t add_object_compilation(spn_dag_build_t* b, spn_target_unit_t* t
     spn_dag_action_config_t config = {
       .kind = SPN_DAG_ACTION_DISCOVERED,
       .identity = *identity,
-      .execute = spn_dag_exec_object,
+      .execute = on_compile_object,
       .user_data = ctx,
     };
 
@@ -233,68 +234,6 @@ static spn_path_t embed_artifact_path(sp_mem_t mem, spn_target_unit_t* unit, con
   spn_path_t path = spn_path_join(mem, unit->paths.object, name);
   sp_mem_end_scratch(s);
   return path;
-}
-
-static spn_err_t dag_add_warm(spn_dag_build_t* b, spn_target_unit_t* target, const spn_target_plan_t* plan, spn_dag_id_t link_action, spn_dag_id_t libc) {
-  spn_dag_t* g = b->graph;
-  spn_build_unit_t* build = target->pkg->build;
-  spn_toolchain_unit_t* toolchain = build->toolchain;
-  sp_assert(!spn_path_pinned(g->roots, toolchain->cc.cache));
-
-  spn_cc_link_t link = {
-    .kind = target->kind,
-    .lang = plan->link.cc.lang,
-    .system_libs = plan->link.cc.system_libs,
-  };
-  spn_zig_stub_t stub = spn_zig_stub(b->mem, &build->profile, &link);
-
-  spn_digest_ctx_t digest = sp_zero;
-  spn_digest_init_blake3(&digest);
-  spn_dag_hash_str(&digest, sp_str_lit("spn.build.warm.v1"));
-  spn_dag_hash_u64(&digest, toolchain->identity);
-  spn_dag_hash_u64(&digest, toolchain->generation);
-  spn_dag_hash_u8(&digest, (u8)stub.triple.arch);
-  spn_dag_hash_u8(&digest, (u8)stub.triple.os);
-  spn_dag_hash_u8(&digest, (u8)stub.triple.abi);
-  spn_dag_hash_u8(&digest, (u8)stub.kind);
-  spn_dag_hash_u8(&digest, (u8)stub.lang);
-  spn_dag_hash_u8(&digest, (u8)stub.is_static);
-  spn_dag_hash_u64(&digest, stub.sanitizers);
-  spn_dag_hash_u64(&digest, stub.sdk);
-  spn_dag_hash_strs(&digest, stub.system_libs);
-  spn_dag_digest_t identity = spn_dag_hash_final(&digest);
-
-  spn_dag_id_t stamp = sp_zero;
-  spn_dag_id_t* existing = sp_ht_getp(b->ids.warm, identity);
-  if (existing) {
-    stamp = *existing;
-  }
-  else {
-    sp_str_t name = spn_zig_stub_name(b->mem, &stub);
-    spn_dag_warm_ctx_t* warm = sp_alloc_type(b->mem, spn_dag_warm_ctx_t);
-    *warm = (spn_dag_warm_ctx_t) {
-      .build = build,
-      .link = link,
-      .name = name,
-      .triple = spn_triple_to_str(b->mem, stub.triple),
-      .libc = libc,
-    };
-
-    spn_dag_id_t action = spn_dag_add_action(g, (spn_dag_action_config_t) {
-      .identity = identity,
-      .execute = spn_dag_exec_warm,
-      .user_data = warm,
-    });
-    spn_dag_action_add_input(g, action, spn_dag_add_file(g, spn_path(b->mem, SPN_DIR_ID_RUNTIME, "zig/stub.c")));
-    if (libc.occupied) {
-      spn_dag_action_add_input(g, action, libc);
-    }
-    stamp = spn_dag_add_output(g, name);
-    spn_try(spn_dag_action_add_output(g, action, stamp));
-    sp_ht_insert(b->ids.warm, identity, stamp);
-  }
-  spn_dag_action_add_input(g, link_action, stamp);
-  return SPN_OK;
 }
 
 spn_err_t spn_dag_build_add_target(spn_dag_build_t* b, spn_target_unit_t* target, const spn_target_plan_t* plan) {
@@ -327,7 +266,7 @@ spn_err_t spn_dag_build_add_target(spn_dag_build_t* b, spn_target_unit_t* target
         else {
           spn_dag_id_t action = spn_dag_add_action(g, (spn_dag_action_config_t) {
             .identity = identity,
-            .execute = spn_dag_exec_libc,
+            .execute = on_write_libc,
             .user_data = &build->profile.sdk,
           });
           libc = spn_dag_add_output(g, sp_str_lit("libc.txt"));
@@ -422,7 +361,7 @@ spn_err_t spn_dag_build_add_target(spn_dag_build_t* b, spn_target_unit_t* target
 
     spn_dag_id_t action = spn_dag_add_action(g, (spn_dag_action_config_t) {
       .identity = spn_dag_hash_final(&digest),
-      .execute = spn_dag_exec_rsp,
+      .execute = on_write_rsp,
       .user_data = rsp,
     });
     spn_dag_id_t file = spn_dag_add_file(g, path);
@@ -444,17 +383,23 @@ spn_err_t spn_dag_build_add_target(spn_dag_build_t* b, spn_target_unit_t* target
   switch (target->kind) {
     case SPN_CC_OUTPUT_REACTOR:
     case SPN_CC_OUTPUT_SHARED_LIB: {
-      spn_cc_exports_format_t format = spn_cc_exports_format(target->kind, spn_os_to_native_object_format(target->pkg->build->profile.os));
+      struct {
+        spn_obj_format_t object;
+        spn_cc_exports_format_t exports;
+      } format = sp_zero;
+      format.object = spn_os_to_native_object_format(build->profile.os);
+      format.exports = spn_cc_exports_format(target->kind, format.object);
+
       spn_digest_ctx_t digest = sp_zero;
       spn_digest_init_blake3(&digest);
-      spn_dag_hash_str(&digest, sp_str_lit("spn.build.exports.v6"));
+      spn_dag_hash_cstr(&digest, "spn.build.exports.v6");
       spn_dag_hash_u64(&digest, toolchain->identity);
-      spn_dag_hash_u8(&digest, (u8)format);
-      spn_dag_hash_u8(&digest, (u8)spn_rsp_style(toolchain->cc.driver));
+      spn_dag_hash_s32(&digest, format.exports);
+      spn_dag_hash_s32(&digest, spn_rsp_style(toolchain->cc.driver));
       spn_dag_hash_str(&digest, target->info->name);
       spn_dag_id_t action = spn_dag_add_action(g, (spn_dag_action_config_t) {
         .identity = spn_dag_hash_final(&digest),
-        .execute = spn_dag_exec_exports,
+        .execute = on_write_exports,
         .user_data = ctx,
       });
       ids.exports = spn_dag_add_file(g, plan->link.cc.exports);
@@ -553,7 +498,64 @@ spn_err_t spn_dag_build_add_target(spn_dag_build_t* b, spn_target_unit_t* target
     case SPN_CC_OUTPUT_SHARED_LIB:
     case SPN_CC_OUTPUT_REACTOR: {
       if (target->pkg->build->toolchain->cc.driver == SPN_CC_DRIVER_ZIG) {
-        spn_try(dag_add_warm(b, target, plan, ids.action, libc));
+        spn_dag_t* g = b->graph;
+        spn_build_unit_t* build = target->pkg->build;
+        spn_toolchain_unit_t* toolchain = build->toolchain;
+        sp_assert(!spn_path_pinned(g->roots, toolchain->cc.cache));
+
+        spn_cc_link_t link = {
+          .kind = target->kind,
+          .lang = plan->link.cc.lang,
+          .system_libs = plan->link.cc.system_libs,
+        };
+        spn_zig_stub_t stub = spn_zig_stub(b->mem, &build->profile, &link);
+
+        spn_digest_ctx_t digest = sp_zero;
+        spn_digest_init_blake3(&digest);
+        spn_dag_hash_str(&digest, sp_str_lit("spn.build.warm.v1"));
+        spn_dag_hash_u64(&digest, toolchain->identity);
+        spn_dag_hash_u64(&digest, toolchain->generation);
+        spn_dag_hash_u8(&digest, (u8)stub.triple.arch);
+        spn_dag_hash_u8(&digest, (u8)stub.triple.os);
+        spn_dag_hash_u8(&digest, (u8)stub.triple.abi);
+        spn_dag_hash_u8(&digest, (u8)stub.kind);
+        spn_dag_hash_u8(&digest, (u8)stub.lang);
+        spn_dag_hash_u8(&digest, (u8)stub.is_static);
+        spn_dag_hash_u64(&digest, stub.sanitizers);
+        spn_dag_hash_u64(&digest, stub.sdk);
+        spn_dag_hash_strs(&digest, stub.system_libs);
+        spn_dag_digest_t identity = spn_dag_hash_final(&digest);
+
+        spn_dag_id_t stamp = sp_zero;
+        spn_dag_id_t* existing = sp_ht_getp(b->ids.warm, identity);
+        if (existing) {
+          stamp = *existing;
+        }
+        else {
+          sp_str_t name = spn_zig_stub_name(b->mem, &stub);
+          spn_dag_warm_ctx_t* warm = sp_alloc_type(b->mem, spn_dag_warm_ctx_t);
+          *warm = (spn_dag_warm_ctx_t) {
+            .build = build,
+            .link = link,
+            .name = name,
+            .triple = spn_triple_to_str(b->mem, stub.triple),
+            .libc = libc,
+          };
+
+          spn_dag_id_t action = spn_dag_add_action(g, (spn_dag_action_config_t) {
+            .identity = identity,
+            .execute = spn_dag_exec_warm,
+            .user_data = warm,
+          });
+          spn_dag_action_add_input(g, action, spn_dag_add_file(g, spn_path(b->mem, SPN_DIR_ID_RUNTIME, "zig/stub.c")));
+          if (libc.occupied) {
+            spn_dag_action_add_input(g, action, libc);
+          }
+          stamp = spn_dag_add_output(g, name);
+          spn_try(spn_dag_action_add_output(g, action, stamp));
+          sp_ht_insert(b->ids.warm, identity, stamp);
+        }
+        spn_dag_action_add_input(g, ids.action, stamp);
       }
       break;
     }

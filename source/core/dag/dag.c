@@ -205,9 +205,17 @@ void spn_dag_hash_u64(spn_digest_ctx_t* ctx, u64 value) {
   spn_dag_hash_bytes(ctx, &value, sizeof(value));
 }
 
+void spn_dag_hash_s32(spn_digest_ctx_t* ctx, s32 value) {
+  spn_dag_hash_bytes(ctx, &value, sizeof(value));
+}
+
 void spn_dag_hash_str(spn_digest_ctx_t* ctx, sp_str_t str) {
   spn_dag_hash_u64(ctx, str.len);
   spn_dag_hash_bytes(ctx, str.data, str.len);
+}
+
+void spn_dag_hash_cstr(spn_digest_ctx_t* ctx, const c8* cstr) {
+  spn_dag_hash_str(ctx, sp_cstr_as_str(cstr));
 }
 
 void spn_dag_hash_digest(spn_digest_ctx_t* ctx, spn_dag_digest_t digest) {
