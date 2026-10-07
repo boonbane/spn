@@ -1144,13 +1144,17 @@ sp_test_each(render_link, render, link_test_t, tests, .setup = spn_test_ctx_setu
     return SP_OK;
   }
   spn_path_t output = test_arg_path("main");
-  spn_path_t libc = it->libc ? test_arg_path(it->libc) : sp_zero_struct(spn_path_t);
+  profile.sdk = spn_sdk_for_driver(spn_toolchain_driver_caps(it->driver), profile.sdk);
+  if (it->libc) {
+    sp_must_eq(t, (u32)SPN_SDK_LIBC, (u32)profile.sdk.kind);
+    profile.sdk.libc.file = test_arg_path(it->libc);
+  }
   spn_invocation_t invocation = sp_zero;
   switch (it->driver) {
     case SPN_CC_DRIVER_GCC:
     case SPN_CC_DRIVER_CLANG:
     case SPN_CC_DRIVER_ZIG: {
-      spn_gnu_render_link(mem, &toolchain, &profile, &link, objects, output, sp_zero_struct(spn_path_t), libc, &invocation);
+      spn_gnu_render_link(mem, &toolchain, &profile, &link, objects, output, sp_zero_struct(spn_path_t), &invocation);
       break;
     }
     case SPN_CC_DRIVER_MSVC: {

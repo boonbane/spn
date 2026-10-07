@@ -92,7 +92,8 @@ spn_sdk_t spn_sdk_at(sp_mem_t mem, spn_triple_t target, spn_path_t root) {
     case SPN_SDK_SYSROOT: return spn_sdk_sysroot(root);
     case SPN_SDK_MACOS: return spn_sdk_macos(mem, root);
     case SPN_SDK_MSVC: return spn_sdk_msvc(mem, root, target.arch);
-    case SPN_SDK_NONE: sp_unreachable_case();
+    case SPN_SDK_NONE:
+    case SPN_SDK_LIBC: sp_unreachable_case();
   }
   sp_unreachable_return(sp_zero_struct(spn_sdk_t));
 }
@@ -120,6 +121,9 @@ spn_sdk_t spn_sdk_from_host(const spn_sdk_host_t* host, spn_triple_t target) {
       const spn_sdk_msvc_t* msvc = msvc_for(host, target.arch);
       return msvc ? (spn_sdk_t) { .kind = SPN_SDK_MSVC, .msvc = *msvc } : none;
     }
+    case SPN_SDK_LIBC: {
+      sp_unreachable_case();
+    }
   }
   sp_unreachable_return(none);
 }
@@ -131,6 +135,7 @@ bool spn_sdk_default(const spn_sdk_host_t* sdks, spn_triple_t target, spn_sdk_t*
     case SPN_SDK_SYSROOT:
     case SPN_SDK_MACOS: return true;
     case SPN_SDK_MSVC: return sdk->kind != SPN_SDK_NONE;
+    case SPN_SDK_LIBC: sp_unreachable_case();
   }
   sp_unreachable_return(false);
 }
@@ -142,6 +147,7 @@ bool spn_sdk_served(const spn_sdk_host_t* sdks, spn_triple_t host, spn_triple_t 
     case SPN_SDK_SYSROOT: return spn_triple_equal(target, host);
     case SPN_SDK_MACOS:
     case SPN_SDK_MSVC: return sdk->kind != SPN_SDK_NONE;
+    case SPN_SDK_LIBC: sp_unreachable_case();
   }
   sp_unreachable_return(false);
 }
@@ -236,6 +242,56 @@ sp_hash_t spn_sdk_hash(const spn_sdk_t* sdk) {
       };
       return sp_hash_combine(parts, sp_carr_len(parts));
     }
+    case SPN_SDK_LIBC: {
+      sp_hash_t parts [] = {
+        (sp_hash_t)sdk->kind,
+        spn_path_hash(sdk->libc.include),
+        spn_path_hash(sdk->libc.sys_include),
+        spn_path_hash(sdk->libc.crt),
+        spn_path_hash(sdk->libc.msvc_lib),
+        spn_path_hash(sdk->libc.kernel32_lib),
+        spn_path_hash(sdk->libc.frameworks),
+      };
+      return sp_hash_combine(parts, sp_carr_len(parts));
+    }
   }
   sp_unreachable_return(0);
+}
+
+spn_sdk_t spn_sdk_for_driver(spn_cc_cap_set_t caps, spn_sdk_t sdk) {
+  if (!(caps & SPN_CC_CAP_LIBC_FILE)) {
+    return sdk;
+  }
+  switch (sdk.kind) {
+    case SPN_SDK_NONE:
+    case SPN_SDK_SYSROOT: {
+      return sdk;
+    }
+    case SPN_SDK_MACOS: {
+      return (spn_sdk_t) {
+        .kind = SPN_SDK_LIBC,
+        .libc = {
+          .include = sdk.macos.include,
+          .sys_include = sdk.macos.include,
+          .frameworks = sdk.macos.frameworks,
+        },
+      };
+    }
+    case SPN_SDK_MSVC: {
+      return (spn_sdk_t) {
+        .kind = SPN_SDK_LIBC,
+        .libc = {
+          .include = sdk.msvc.include.ucrt,
+          .sys_include = sdk.msvc.include.vc,
+          .crt = sdk.msvc.lib.ucrt,
+          .msvc_lib = sdk.msvc.lib.vc,
+          .kernel32_lib = sdk.msvc.lib.um,
+        },
+      };
+    }
+    case SPN_SDK_LIBC: {
+      sp_unreachable_case();
+    }
+  }
+  sp_unreachable_return(sp_zero_struct(spn_sdk_t));
 }

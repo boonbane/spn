@@ -43,6 +43,7 @@ spn_err_t configure(spn_op_t* op) {
   s->dag.configure = dag;
   spn_dag_t* g = dag->graph;
 
+  spn_try(spn_dag_build_add_build(dag, s->units.metaprogram));
   sp_da_for(s->units.metaprogram->packages, it) {
     spn_target_unit_t* reactor = s->units.metaprogram->packages[it]->scripts.configure;
     if (!reactor) {
@@ -51,9 +52,9 @@ spn_err_t configure(spn_op_t* op) {
     spn_try(spn_dag_build_add_target(dag, reactor, spn_session_get_target_plan(s, reactor->id)));
   }
 
-  sp_da_for(s->plans.build, pt) {
-    sp_da_for(s->plans.build[pt].build->packages, it) {
-      spn_pkg_unit_t* unit = s->plans.build[pt].build->packages[it];
+  sp_da_for(s->plans.build, i) {
+    sp_da_for(s->plans.build[i].build->packages, j) {
+      spn_pkg_unit_t* unit = s->plans.build[i].build->packages[j];
       spn_target_unit_t* reactor = unit->metaprogram ? unit->metaprogram->scripts.configure : SP_NULLPTR;
       if (!reactor) {
         continue;

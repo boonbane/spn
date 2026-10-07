@@ -17,6 +17,7 @@
 #include "paths/paths.h"
 #include "session/invocation.h"
 #include "graph/build.h"
+#include "graph/dag.h"
 #include "graph/nodes/nodes.h"
 #include "unit/package.h"
 #include "triple/triple.h"
@@ -135,7 +136,7 @@ spn_err_t spn_dag_exec_link(spn_dag_t* g, spn_dag_action_t* action, void* user_d
   spn_build_unit_t* build = target->pkg->build;
   spn_cc_t* cc = &build->toolchain->cc;
   spn_path_t implib = spn_path_empty(ctx->link->implib) ? sp_zero_struct(spn_path_t) : outputs[1];
-  spn_path_t libc = ctx->libc.occupied ? spn_dag_find_artifact(g, ctx->libc)->materialized : sp_zero_struct(spn_path_t);
+  spn_profile_info_t profile = spn_dag_build_profile(g, ctx->build);
 
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   spn_invocation_t invocation = sp_zero;
@@ -143,11 +144,11 @@ spn_err_t spn_dag_exec_link(spn_dag_t* g, spn_dag_action_t* action, void* user_d
     case SPN_CC_DRIVER_GCC:
     case SPN_CC_DRIVER_CLANG:
     case SPN_CC_DRIVER_ZIG: {
-      spn_gnu_render_link(scratch.mem, cc, &build->profile, ctx->link, ctx->objects, outputs[0], implib, libc, &invocation);
+      spn_gnu_render_link(scratch.mem, cc, &profile, ctx->link, ctx->objects, outputs[0], implib, &invocation);
       break;
     }
     case SPN_CC_DRIVER_MSVC: {
-      spn_msvc_render_link(scratch.mem, cc, &build->profile, ctx->link, ctx->objects, outputs[0], implib, &invocation);
+      spn_msvc_render_link(scratch.mem, cc, &profile, ctx->link, ctx->objects, outputs[0], implib, &invocation);
       break;
     }
     case SPN_CC_DRIVER_NONE: {

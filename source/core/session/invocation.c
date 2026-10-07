@@ -2,58 +2,12 @@
 #include "session/types.h"
 #include "unit/types.h"
 
-#include "codegen/codegen.h"
 #include "compiler/driver.h"
 #include "external/cc.h"
 #include "paths/paths.h"
 #include "profile/types.h"
 #include "session/invocation.h"
-#include "session/session.h"
-#include "unit/unit.h"
 #include "toolchain/search.h"
-
-spn_err_t spn_session_write_compile_commands(const spn_path_roots_t* roots, spn_session_t* session, spn_path_t path) {
-  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  sp_mem_t mem = scratch.mem;
-
-  sp_io_dyn_mem_writer_t buf;
-  sp_io_dyn_mem_writer_init(mem, &buf);
-  sp_io_writer_t* io = &buf.base;
-
-  sp_io_write_cstr(io, "[", SP_NULLPTR);
-  sp_om_for(session->units.objects, it) {
-    spn_compile_unit_t* unit = sp_om_at(session->units.objects, it);
-    spn_build_unit_t* build = unit->target->pkg->build;
-    spn_cc_compile_files_t files = {
-      .source = unit->paths.file,
-      .output = unit->paths.object,
-    };
-    spn_invocation_t invocation = spn_cc_render_compile_command(mem, &build->toolchain->cc, &build->profile, spn_session_get_object_plan(session, unit->id), &files);
-    sp_da(sp_str_t) args = spn_invocation_args(roots, mem, &invocation);
-
-    if (it) {
-      sp_io_write_c8(io, ',');
-    }
-    sp_io_write_cstr(io, "\n  { \"directory\": ", SP_NULLPTR);
-    spn_codegen_json_str(io, spn_path_str(roots, mem, invocation.cwd));
-    sp_io_write_cstr(io, ", \"file\": ", SP_NULLPTR);
-    spn_codegen_json_str(io, spn_path_str(roots, mem, files.source));
-    sp_io_write_cstr(io, ", \"output\": ", SP_NULLPTR);
-    spn_codegen_json_str(io, spn_path_str(roots, mem, files.output));
-    sp_io_write_cstr(io, ", \"arguments\": [", SP_NULLPTR);
-    spn_codegen_json_str(io, spn_arg_str(roots, mem, invocation.program));
-    sp_da_for(args, arg) {
-      sp_io_write_cstr(io, ", ", SP_NULLPTR);
-      spn_codegen_json_str(io, args[arg]);
-    }
-    sp_io_write_cstr(io, "] }", SP_NULLPTR);
-  }
-  sp_io_write_cstr(io, "\n]\n", SP_NULLPTR);
-
-  spn_err_t err = sp_fs_create_file_str_at(spn_path_at(roots, path), sp_io_dyn_mem_writer_as_str(&buf)) ? SPN_ERROR : SPN_OK;
-  sp_mem_end_scratch(scratch);
-  return err;
-}
 
 sp_da(sp_str_t) spn_invocation_args(const spn_path_roots_t* roots, sp_mem_t mem, const spn_invocation_t* invocation) {
   sp_da(sp_str_t) args = sp_da_new(mem, sp_str_t);

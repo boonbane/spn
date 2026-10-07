@@ -101,7 +101,8 @@ static spn_err_t sdk_refusal(spn_triple_t target) {
     case SPN_SDK_SYSROOT: return SPN_ERR_TOOLCHAIN_SYSROOT;
     case SPN_SDK_MACOS: return SPN_ERR_TOOLCHAIN_SDK_MACOS;
     case SPN_SDK_MSVC: return SPN_ERR_TOOLCHAIN_SDK_MSVC;
-    case SPN_SDK_NONE: sp_unreachable_case();
+    case SPN_SDK_NONE:
+    case SPN_SDK_LIBC: sp_unreachable_case();
   }
   sp_unreachable_return(SPN_ERR_TOOLCHAIN_TARGET);
 }

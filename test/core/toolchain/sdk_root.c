@@ -103,7 +103,8 @@ sp_test_each(sdk_root, layout, test_t, tests) {
     case SPN_SDK_MSVC: {
       return check_msvc(t, &sdk.msvc, &it->expect.msvc, it->sdk.arch);
     }
-    case SPN_SDK_NONE: {
+    case SPN_SDK_NONE:
+    case SPN_SDK_LIBC: {
       sp_unreachable_case();
     }
   }

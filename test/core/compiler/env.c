@@ -58,7 +58,7 @@ sp_test_each(render_env, render, env_test_t, tests, .setup = spn_test_ctx_setup)
       spn_cc_link_t link = { .lang = SPN_LANG_C, .kind = SPN_CC_OUTPUT_EXE };
       sp_da(spn_arg_t) objects = sp_da_new(mem, spn_arg_t);
       sp_da_push(objects, spn_arg_path(test_arg_path("main.o")));
-      spn_gnu_render_link(mem, &toolchain, &profile, &link, objects, test_arg_path("main"), sp_zero_struct(spn_path_t), sp_zero_struct(spn_path_t), &invocation);
+      spn_gnu_render_link(mem, &toolchain, &profile, &link, objects, test_arg_path("main"), sp_zero_struct(spn_path_t), &invocation);
       break;
     }
     case RENDER_ARCHIVE: {

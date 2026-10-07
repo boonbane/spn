@@ -8,6 +8,7 @@
 #include "external/zig.h"
 #include "paths/paths.h"
 #include "session/invocation.h"
+#include "graph/dag.h"
 #include "graph/nodes/nodes.h"
 
 typedef struct {
@@ -32,9 +33,10 @@ static sp_err_t progress_write(sp_io_writer_t* writer, const void* bytes, u64 le
   return SP_OK;
 }
 
-spn_err_t spn_dag_exec_warm(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs) {
+spn_err_t on_warm_zig(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs) {
   spn_dag_warm_ctx_t* warm = (spn_dag_warm_ctx_t*)user_data;
-  spn_cc_t* cc = &warm->build->toolchain->cc;
+  spn_build_unit_t* build = warm->build->unit;
+  spn_cc_t* cc = &build->toolchain->cc;
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   sp_mem_t mem = scratch.mem;
 
@@ -48,12 +50,12 @@ spn_err_t spn_dag_exec_warm(spn_dag_t* g, spn_dag_action_t* action, void* user_d
   });
 
   spn_path_t staging = spn_path_parent(outputs[0]);
-  spn_path_t libc = warm->libc.occupied ? spn_dag_find_artifact(g, warm->libc)->materialized : sp_zero_struct(spn_path_t);
+  spn_profile_info_t profile = spn_dag_build_profile(g, warm->build);
   sp_da(spn_arg_t) objects = sp_da_new(mem, spn_arg_t);
   sp_da_push(objects, spn_arg_path(spn_path(mem, SPN_DIR_ID_RUNTIME, "zig/stub.c")));
 
   spn_invocation_t invocation = sp_zero;
-  spn_gnu_render_link(mem, cc, &warm->build->profile, &warm->link, objects, spn_path_join(mem, staging, sp_str_lit("stub.bin")), sp_zero_struct(spn_path_t), libc, &invocation);
+  spn_gnu_render_link(mem, cc, &profile, &warm->link, objects, spn_path_join(mem, staging, sp_str_lit("stub.bin")), sp_zero_struct(spn_path_t), &invocation);
   invocation.cwd = staging;
 
   progress_writer_t* progress = sp_alloc_type(mem, progress_writer_t);
