@@ -1,6 +1,8 @@
 #include "options.h"
 
 #include "paths/paths.h"
+#include "pkg/mutate.h"
+#include "pkg/pkg.h"
 
 typedef struct {
   const c8* key;
@@ -433,18 +435,14 @@ static const apply_test_t list_tests [] = {
   },
 };
 
-sp_test_each(options_apply, lists, apply_test_t, list_tests) {
+sp_test_each(options_apply, lists, apply_test_t, list_tests, .setup = spn_test_ctx_setup) {
   sp_mem_t mem = sp_test_arena(t);
 
-  spn_pkg_info_t info = sp_zero;
-  sp_str_om_insert(info.libs, sp_str_lit("A"), sp_zero_s(spn_target_info_t));
-  sp_str_om_insert(info.exes, sp_str_lit("main"), sp_zero_s(spn_target_info_t));
-  sp_str_om_insert(info.scripts, sp_str_lit("B"), sp_zero_s(spn_target_info_t));
-  sp_str_om_insert(info.tests, sp_str_lit("C"), sp_zero_s(spn_target_info_t));
-  spn_target_info_t* lib = sp_str_om_at(info.libs, 0);
-  spn_target_info_t* exe = sp_str_om_at(info.exes, 0);
-  spn_target_info_t* script = sp_str_om_at(info.scripts, 0);
-  spn_target_info_t* unit_test = sp_str_om_at(info.tests, 0);
+  spn_pkg_info_t info = spn_pkg_new(mem, sp_str_lit("P"));
+  spn_target_info_t* lib = spn_pkg_add_target(&info, sp_str_lit("A"), SPN_TARGET_KIND_LIB);
+  spn_target_info_t* exe = spn_pkg_add_target(&info, sp_str_lit("main"), SPN_TARGET_KIND_EXE);
+  spn_target_info_t* script = spn_pkg_add_target(&info, sp_str_lit("B"), SPN_TARGET_KIND_SCRIPT);
+  spn_target_info_t* unit_test = spn_pkg_add_target(&info, sp_str_lit("C"), SPN_TARGET_KIND_TEST);
 
   struct {
     apply_list_t test;
@@ -736,11 +734,8 @@ static const apply_embed_test_t embed_tests [] = {
 
 sp_test_each(options_apply, target_embeds, apply_embed_test_t, embed_tests, .setup = spn_test_ctx_setup) {
   sp_mem_t mem = sp_test_arena(t);
-  spn_pkg_info_t info = sp_zero;
-  sp_str_om_insert(info.exes, sp_str_lit("main"), sp_zero_s(spn_target_info_t));
-  spn_target_info_t* exe = sp_str_om_at(info.exes, 0);
-  sp_da_init(mem, exe->embed);
-  sp_da_init(mem, exe->gated.embed);
+  spn_pkg_info_t info = spn_pkg_new(mem, sp_str_lit("P"));
+  spn_target_info_t* exe = spn_pkg_add_target(&info, sp_str_lit("main"), SPN_TARGET_KIND_EXE);
   sp_carr_for(it->embeds, et) {
     if (!it->embeds[et].dest) {
       break;

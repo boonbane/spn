@@ -5,6 +5,7 @@
 #include "pkg/options.h"
 #include "pkg/pkg.h"
 #include "session/session.h"
+#include "target/target.h"
 #include "when/when.h"
 
 static sp_da(sp_str_t) clone_str_list(sp_mem_t mem, sp_da(sp_str_t) source) {
@@ -60,10 +61,10 @@ static spn_target_info_t clone_target_info(sp_mem_t mem, spn_target_info_t* sour
 }
 
 static void clone_target_map(spn_target_map_t* result, spn_target_map_t source, sp_mem_t mem) {
-  sp_str_om_init(*result);
-  sp_str_om_for(source, it) {
-    spn_target_info_t target = clone_target_info(mem, sp_str_om_at(source, it));
-    sp_str_om_insert(*result, target.name, target);
+  sp_om_new(*result);
+  sp_om_for(source, it) {
+    spn_target_info_t target = clone_target_info(mem, sp_om_at(source, it));
+    sp_om_insert(*result, spn_target_key(target.name, target.kind), target);
   }
 }
 
@@ -77,11 +78,7 @@ static spn_pkg_info_t* clone_pkg_info(spn_session_t* s, spn_pkg_id_t id, spn_bui
   info->applied = false;
   sp_mem_t mem = sp_mem_arena_as_allocator(info->arena);
 
-  clone_target_map(&info->libs, source->libs, mem);
-  clone_target_map(&info->exes, source->exes, mem);
-  clone_target_map(&info->scripts, source->scripts, mem);
-  clone_target_map(&info->tests, source->tests, mem);
-  clone_target_map(&info->examples, source->examples, mem);
+  clone_target_map(&info->targets, source->targets, mem);
   info->include = clone_path_list(mem, source->include);
   info->configured.include = clone_path_list(mem, source->configured.include);
   info->define = clone_str_list(mem, source->define);

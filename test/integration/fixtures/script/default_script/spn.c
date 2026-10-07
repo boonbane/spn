@@ -8,7 +8,7 @@ s32 gen_version(spn_t* spn) {
 
 SPN_EXPORT
 spn_err_t configure(spn_t* spn, spn_config_t* config) {
-  spn_target_t* target = spn_get_target(spn, "default_script");
+  spn_target_t* target = spn_get_target(spn, "default_script", SPN_TARGET_KIND_EXE);
   spn_target_add_include(target, spn_get_dir(spn, SPN_DIR_WORK));
 
   spn_node_t* gen = spn_add_node(config, "gen_version");

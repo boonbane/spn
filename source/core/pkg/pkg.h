@@ -10,8 +10,7 @@ spn_pkg_info_t spn_pkg_new(sp_mem_t mem, sp_str_t name);
 spn_pkg_root_t spn_pkg_upstream(spn_pkg_info_t* info);
 
 bool spn_pkg_has_lib_kind(spn_pkg_info_t* pkg, spn_linkage_t kind);
-spn_target_info_t* spn_pkg_get_target(spn_pkg_info_t* pkg, const c8* name);
-spn_target_info_t* spn_pkg_get_target_ex(spn_pkg_info_t* pkg, sp_str_t name);
+spn_target_info_t* spn_pkg_get_target(spn_pkg_info_t* pkg, sp_str_t name, spn_target_kind_t kind);
 sp_hash_t spn_pkg_hash_platform(spn_pkg_info_t* pkg, const spn_profile_info_t* profile);
 
 #endif

@@ -144,7 +144,6 @@ typedef struct {
   spn_git_patch_set_t set;
 } spn_pkg_patch_t;
 
-typedef sp_str_om(spn_target_info_t)     spn_target_map_t;
 typedef sp_str_om(spn_profile_decl_t)    spn_profile_map_t;
 typedef sp_str_om(spn_index_info_t)      spn_index_map_t;
 typedef sp_str_om(spn_toolchain_decl_t) spn_toolchain_map_t;
@@ -162,11 +161,7 @@ struct spn_pkg_info {
     sp_str_t url;
     sp_str_t commit;
   } upstream;
-  spn_target_map_t libs;
-  spn_target_map_t exes;
-  spn_target_map_t scripts;
-  spn_target_map_t tests;
-  spn_target_map_t examples;
+  spn_target_map_t targets;
   spn_profile_map_t profiles;
   spn_index_map_t indexes;
   sp_da(spn_requested_dep_t) deps;

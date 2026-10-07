@@ -15,6 +15,7 @@
 
 typedef struct {
   const c8* target;
+  spn_target_kind_t kind;
   const c8* units [SPN_CODEGEN_MAX_UNITS];
 } consumer_t;
 
@@ -31,25 +32,25 @@ typedef struct {
 // Targets that compile units rendered from source/core/codegen/schema. A target
 // with no units only sees the generated include directories.
 static const consumer_t core_consumers [] = {
-  { "spn",           { "abi", "config", "errors", "events", "manifest", "release", "source_deps" } },
-  { "smoke" },
-  { "winvm" },
-  { "core",          { "config", "errors", "events", "manifest", "release", "source_deps" } },
-  { "resolver",      { "config", "errors", "events", "manifest", "release" } },
-  { "integration",   { "config", "errors", "events", "source_deps" } },
-  { "render",        { "config", "errors", "events", "source_deps" } },
-  { "fuzz_dag" },
-  { "fuzz_resolver", { "config", "errors", "events", "manifest", "release" } },
-  { "toolchain",     { "config", "errors", "events" } },
-  { "unit",          { "config", "errors", "events", "source_deps" } },
+  { "spn",           SPN_TARGET_KIND_LIB,    { "abi", "config", "errors", "events", "manifest", "release", "source_deps" } },
+  { "smoke",         SPN_TARGET_KIND_SCRIPT },
+  { "winvm",         SPN_TARGET_KIND_SCRIPT },
+  { "core",          SPN_TARGET_KIND_TEST,   { "config", "errors", "events", "manifest", "release", "source_deps" } },
+  { "resolver",      SPN_TARGET_KIND_TEST,   { "config", "errors", "events", "manifest", "release" } },
+  { "integration",   SPN_TARGET_KIND_TEST,   { "config", "errors", "events", "source_deps" } },
+  { "render",        SPN_TARGET_KIND_TEST,   { "config", "errors", "events", "source_deps" } },
+  { "fuzz_dag",      SPN_TARGET_KIND_TEST },
+  { "fuzz_resolver", SPN_TARGET_KIND_TEST,   { "config", "errors", "events", "manifest", "release" } },
+  { "toolchain",     SPN_TARGET_KIND_TEST,   { "config", "errors", "events" } },
+  { "unit",          SPN_TARGET_KIND_TEST,   { "config", "errors", "events", "source_deps" } },
 };
 
 // Targets that compile units rendered from test/tools/schema.
 static const consumer_t test_consumers [] = {
-  { "winvm",       { "probe" } },
-  { "resolver",    { "resolve" } },
-  { "integration", { "probe" } },
-  { "fuzz_dag",    { "fuzz" } },
+  { "winvm",       SPN_TARGET_KIND_SCRIPT, { "probe" } },
+  { "resolver",    SPN_TARGET_KIND_TEST,   { "resolve" } },
+  { "integration", SPN_TARGET_KIND_TEST,   { "probe" } },
+  { "fuzz_dag",    SPN_TARGET_KIND_TEST,   { "fuzz" } },
 };
 
 static const codegen_t codegens [] = {
@@ -122,7 +123,7 @@ static void add_output(spn_node_t* node, const c8* dir, const c8* name, const c8
 
 SPN_EXPORT
 spn_err_t configure(spn_t* spn, spn_config_t* config) {
-  spn_target_t* target = spn_get_target(spn, "spn");
+  spn_target_t* target = spn_get_target(spn, "spn", SPN_TARGET_KIND_LIB);
   spn_target_embed_file_ex(target, "include/spn.h", "include/spn.h", "u8", "u64");
   spn_target_embed_file_ex(target, "include/spn/core.h", "include/spn/core.h", "u8", "u64");
   spn_target_embed_file_ex(target, spn_get_subdir(spn, SPN_DIR_WORK, "gen/include/spn/err.h"), "include/spn/err.h", "u8", "u64");
@@ -178,7 +179,7 @@ spn_err_t configure(spn_t* spn, spn_config_t* config) {
     const c8* include = spn_get_subdir(spn, SPN_DIR_WORK, path);
     for (u32 ct = 0; ct < codegen->num_consumers; ct++) {
       const consumer_t* consumer = &codegen->consumers[ct];
-      spn_target_t* consumer_target = spn_get_target(spn, consumer->target);
+      spn_target_t* consumer_target = spn_get_target(spn, consumer->target, consumer->kind);
       spn_target_add_include(consumer_target, include);
       for (u32 ut = 0; ut < SPN_CODEGEN_MAX_UNITS && consumer->units[ut]; ut++) {
         snprintf(path, sizeof(path), "gen/%s/%s.gen.c", codegen->out, consumer->units[ut]);
@@ -187,7 +188,7 @@ spn_err_t configure(spn_t* spn, spn_config_t* config) {
     }
   }
 
-  spn_target_add_define_path(spn_get_target(spn, "core"), "SCHEMA_GEN_DIR", SPN_DIR_WORK, "gen/codegen/gen");
+  spn_target_add_define_path(spn_get_target(spn, "core", SPN_TARGET_KIND_TEST), "SCHEMA_GEN_DIR", SPN_DIR_WORK, "gen/codegen/gen");
 
   return SPN_OK;
 }

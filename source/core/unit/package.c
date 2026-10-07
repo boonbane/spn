@@ -25,92 +25,18 @@ spn_user_output_t spn_pkg_unit_node_stamp(spn_pkg_unit_t* ctx, spn_user_node_t* 
   };
 }
 
-typedef sp_ht(spn_path_t, spn_path_t) staged_header_set_t;
-
-static spn_err_t header_collision(spn_pkg_unit_t* unit, sp_str_t path, spn_path_t first, spn_path_t second) {
-  spn_event_buffer_push(spn.events, (spn_event_t) {
-    .kind = SPN_EVENT_ERR,
-    .pkg = unit->info->name,
-    .err = {
-      .kind = SPN_ERR_HEADER_COLLISION,
-      .header_collision = {
-        .path = path,
-        .first = spn_path_str(&unit->session->ctx->roots, spn.mem, first),
-        .second = spn_path_str(&unit->session->ctx->roots, spn.mem, second),
-      },
-    },
-  });
-  return SPN_ERROR;
-}
-
-static spn_err_t header_copy_failed(spn_pkg_unit_t* unit, sp_str_t path) {
-  spn_event_buffer_push(spn.events, (spn_event_t) {
-    .kind = SPN_EVENT_NODE_FAILED,
-    .pkg = unit->info->name,
-    .node_failed = {
-      .path = path,
-      .message = sp_str_lit("could not be published to the package store"),
-    },
-  });
-  return SPN_ERROR;
-}
-
-typedef struct {
-  spn_path_t from;
-  spn_path_t to;
-  sp_str_t name;
-} staged_header_t;
-
-static spn_err_t stage_target_headers(spn_pkg_unit_t* unit, spn_path_t root, spn_target_map_t targets, sp_mem_t mem, staged_header_set_t* seen, sp_da(staged_header_t)* staged) {
-  sp_om_for(targets, it) {
-    spn_target_info_t* target = sp_str_om_at(targets, it);
-
-    sp_da_for(target->headers, ht) {
-      spn_path_t header = target->headers[ht];
-
-      sp_str_t sub = spn_tree_rel(unit->paths.roots, header).sub;
-      spn_path_t to = spn_path_join(mem, root, sub);
-
-      spn_path_t* first = sp_ht_getp(*seen, to);
-      if (first) {
-        if (!spn_path_equal(*first, header)) {
-          return header_collision(unit, sub, *first, header);
-        }
-        continue;
-      }
-      sp_ht_insert(*seen, to, header);
-      sp_da_push(*staged, ((staged_header_t) { .from = header, .to = to, .name = sub }));
-    }
-  }
-
-  return SPN_OK;
+bool spn_pkg_unit_publishes_target(spn_pkg_unit_t* unit, const spn_target_info_t* target) {
+  (void)unit;
+  (void)target;
+  SP_UNIMPLEMENTED();
+  return false;
 }
 
 spn_err_t spn_pkg_unit_publish_headers(spn_pkg_unit_t* unit, spn_path_t root) {
-  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  sp_da(staged_header_t) staged = sp_da_new(scratch.mem, staged_header_t);
-  staged_header_set_t seen;
-  sp_ht_init(scratch.mem, seen);
-  sp_ht_set_fns(seen, spn_path_on_hash, spn_path_on_compare);
-
-  spn_err_t err = SPN_OK;
-  spn_pkg_unit_header_maps_t published = spn_pkg_unit_header_maps(unit);
-  sp_for(it, published.count) {
-    if (err) {
-      break;
-    }
-    err = stage_target_headers(unit, root, published.maps[it], scratch.mem, &seen, &staged);
-  }
-  sp_da_for(staged, it) {
-    if (err) {
-      break;
-    }
-    if (spn_fs_update_file(spn_path_at(&unit->session->ctx->roots, staged[it].from), spn_path_at(&unit->session->ctx->roots, staged[it].to))) {
-      err = header_copy_failed(unit, staged[it].name);
-    }
-  }
-  sp_mem_end_scratch(scratch);
-  return err;
+  (void)unit;
+  (void)root;
+  SP_UNIMPLEMENTED();
+  return SPN_ERROR;
 }
 
 // @spader I think this is wrong; it's called in four places and deduplicated with an atomic,

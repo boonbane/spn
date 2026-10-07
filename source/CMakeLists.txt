@@ -55,7 +55,6 @@ set(SPN_SOURCES
   core/external/wasm/guest.c
   core/external/wasm/script.c
   core/external/wasm/wasm.c
-  core/filter/filter.c
   core/git/cache.c
   core/git/key.c
   core/git/url.c
@@ -130,6 +129,7 @@ set(SPN_SOURCES
   util/sp_template/sp_template.c
   util/str/str.c
   core/target/mutate.c
+  core/target/target.c
   core/target/select.c
   util/thread_pool/thread_pool.c
   core/toml/edit.c

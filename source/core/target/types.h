@@ -6,7 +6,10 @@
 
 #include "core/types.h"
 #include "compiler/types.h"
+#include "intern/types.h"
+#include "macro/macro.h"
 #include "paths/types.h"
+#include "sp_om/sp_om.h"
 #include "when/types.h"
 
 typedef enum {
@@ -77,6 +80,18 @@ typedef struct {
 
 typedef sp_opt(spn_linkage_t) sp_opt_spn_linkage_t;
 
+SPN_PACK_PUSH
+typedef struct {
+  sp_intern_id_t name;
+  spn_target_kind_t kind;
+} spn_target_key_t;
+SPN_PACK_POP
+
+_Static_assert(
+  sizeof(spn_target_key_t) == sizeof(sp_intern_id_t) + sizeof(spn_target_kind_t),
+  "spn_target_key_t is byte-hashed as a key; it must have no padding"
+);
+
 struct spn_target_info {
   sp_str_t name;
   spn_target_kind_t kind;
@@ -117,5 +132,7 @@ struct spn_target_info {
     sp_da(spn_gated_embed_t) embed;
   } gated;
 };
+
+typedef sp_om(spn_target_key_t, spn_target_info_t) spn_target_map_t;
 
 #endif

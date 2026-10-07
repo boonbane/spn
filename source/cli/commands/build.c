@@ -11,31 +11,32 @@ static struct {
   } only;
 } args;
 
-static void set_rule(spn_target_rule_t* rule, bool selected, spn_str_arr_t names) {
-  if (!selected) {
-    rule->kind = SPN_TARGET_RULE_NONE;
-    return;
-  }
+static const u32 default_kinds =
+  spn_target_kind_bit(SPN_TARGET_KIND_LIB) |
+  spn_target_kind_bit(SPN_TARGET_KIND_EXE) |
+  spn_target_kind_bit(SPN_TARGET_KIND_TEST) |
+  spn_target_kind_bit(SPN_TARGET_KIND_EXAMPLE);
 
-  rule->kind = names.count ? SPN_TARGET_RULE_NAMED : SPN_TARGET_RULE_ALL;
-  rule->names = names;
-}
+static const u32 named_kinds = default_kinds | spn_target_kind_bit(SPN_TARGET_KIND_SCRIPT);
 
 static sp_cli_result_t build(sp_cli_t* cli) {
   try(spn_cli_open(false));
 
-  spn_session_config_t config = { .force = args.force };
   spn_str_arr_t names = spn_cli_rest_names(cli);
+  u32 only =
+    (args.only.bin     ? spn_target_kind_bit(SPN_TARGET_KIND_EXE)     : 0) |
+    (args.only.lib     ? spn_target_kind_bit(SPN_TARGET_KIND_LIB)     : 0) |
+    (args.only.test    ? spn_target_kind_bit(SPN_TARGET_KIND_TEST)    : 0) |
+    (args.only.script  ? spn_target_kind_bit(SPN_TARGET_KIND_SCRIPT)  : 0) |
+    (args.only.example ? spn_target_kind_bit(SPN_TARGET_KIND_EXAMPLE) : 0);
 
-  bool specific = args.only.bin || args.only.lib || args.only.test || args.only.script || args.only.example;
-  if (specific || names.count) {
-    bool all_kinds = !specific;
-    set_rule(&config.selection.bin, all_kinds || args.only.bin, names);
-    set_rule(&config.selection.lib, all_kinds || args.only.lib, names);
-    set_rule(&config.selection.test, all_kinds || args.only.test, names);
-    set_rule(&config.selection.script, all_kinds || args.only.script, names);
-    set_rule(&config.selection.example, all_kinds || args.only.example, names);
-  }
+  spn_session_config_t config = {
+    .selection = {
+      .kinds = only ? only : names.count ? named_kinds : default_kinds,
+      .names = names,
+    },
+    .force = args.force,
+  };
 
   try(spn_cli_refresh_indexes());
   try(spn_cli_session(config));

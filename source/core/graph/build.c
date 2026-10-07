@@ -11,7 +11,6 @@
 #include "dag/dag.h"
 #include "enum/enum.h"
 #include "event/event.h"
-#include "filter/filter.h"
 #include "paths/paths.h"
 #include "pkg/types.h"
 #include "session/invocation.h"

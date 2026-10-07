@@ -2,6 +2,7 @@
 
 #include "hash/digest/digest.h"
 #include "paths/paths.h"
+#include "pkg/mutate.h"
 #include "profile/profile.h"
 #include "toolchain/toolchain.h"
 #include "when/when.h"
@@ -58,20 +59,16 @@ spn_pkg_id_t find_pkg_id(spn_session_t* s, unit_graph_test_t* g, const c8* name)
   return sp_zero_struct(spn_pkg_id_t);
 }
 
-static spn_target_info_t lib_info(sp_mem_t mem, spn_tree_roots_t trees, const unit_lib_t* spec) {
-  spn_target_info_t info = sp_zero;
-  info.name = sp_str_view(spec->name);
-  info.kind = SPN_TARGET_KIND_LIB;
-  info.linkages = spec->linkages;
-  info.no_link = spec->no_link;
-  info.source = test_source_list(mem, trees, spec->source, UNIT_TEST_MAX_STRS);
-  info.deps = test_str_list(mem, spec->deps, UNIT_TEST_MAX_STRS);
-  info.system_deps = test_str_list(mem, spec->system_deps, UNIT_TEST_MAX_STRS);
-  info.macos.frameworks = test_str_list(mem, spec->frameworks, UNIT_TEST_MAX_STRS);
-  info.macos.min_os = spec->min_os;
-  info.link_flags = test_str_list(mem, spec->link_flags, UNIT_TEST_MAX_STRS);
-  info.linker_script = test_path_list(mem, trees, spec->linker_script, UNIT_TEST_MAX_STRS);
-  return info;
+static void lib_info(sp_mem_t mem, spn_tree_roots_t trees, const unit_lib_t* spec, spn_target_info_t* info) {
+  info->linkages = spec->linkages;
+  info->no_link = spec->no_link;
+  info->source = test_source_list(mem, trees, spec->source, UNIT_TEST_MAX_STRS);
+  info->deps = test_str_list(mem, spec->deps, UNIT_TEST_MAX_STRS);
+  info->system_deps = test_str_list(mem, spec->system_deps, UNIT_TEST_MAX_STRS);
+  info->macos.frameworks = test_str_list(mem, spec->frameworks, UNIT_TEST_MAX_STRS);
+  info->macos.min_os = spec->min_os;
+  info->link_flags = test_str_list(mem, spec->link_flags, UNIT_TEST_MAX_STRS);
+  info->linker_script = test_path_list(mem, trees, spec->linker_script, UNIT_TEST_MAX_STRS);
 }
 
 static spn_build_unit_t* add_build(spn_session_t* s, spn_build_id_t id, const c8* root, spn_profile_info_t profile, spn_toolchain_support_t support) {
@@ -160,7 +157,7 @@ spn_session_t* build_session(sp_mem_t mem, unit_graph_test_t* g) {
     spn_pkg_id_t id = find_pkg_id(s, g, pkg->name);
 
     spn_pkg_info_t* info = sp_alloc_type(mem, spn_pkg_info_t);
-    info->name = sp_str_view(pkg->name);
+    spn_pkg_init(mem, info, sp_str_view(pkg->name));
     info->qualified = sp_str_view(pkg->name);
     info->system_deps = test_str_list(mem, pkg->system_deps, UNIT_TEST_MAX_STRS);
     info->macos.frameworks = test_str_list(mem, pkg->frameworks, UNIT_TEST_MAX_STRS);
@@ -173,8 +170,7 @@ spn_session_t* build_session(sp_mem_t mem, unit_graph_test_t* g) {
       if (!pkg->libs[lt].name) {
         break;
       }
-      spn_target_info_t lib = lib_info(mem, trees, &pkg->libs[lt]);
-      sp_str_om_insert(info->libs, lib.name, lib);
+      lib_info(mem, trees, &pkg->libs[lt], spn_pkg_add_target(info, sp_str_view(pkg->libs[lt].name), SPN_TARGET_KIND_LIB));
     }
 
     if (it == 0) {

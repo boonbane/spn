@@ -1,7 +1,8 @@
 #include "unit.h"
 
 #include "paths/paths.h"
-#include "target/mutate.h"
+#include "pkg/mutate.h"
+#include "target/target.h"
 
 #define OBJECTS_TEST_MAX_SOURCE 4
 
@@ -71,28 +72,25 @@ sp_test_each(unit_objects, create, objects_test_t, tests, .setup = spn_test_ctx_
     sp_fs_create_file(sp_fs_join_path(mem, root, sp_cstr_as_str(it->files[ft])));
   }
 
-  spn_target_info_t app = { .name = sp_str_lit("app"), .kind = SPN_TARGET_KIND_EXE };
-  spn_target_info_init(mem, &app);
+  spn_target_info_t* app = spn_pkg_add_target(s->pkg, sp_str_lit("app"), SPN_TARGET_KIND_EXE);
   sp_carr_for(it->source, st) {
     if (!it->source[st].path) {
       break;
     }
     sp_str_t path = sp_cstr_as_str(it->source[st].path);
-    sp_da_push(app.source, ((spn_source_t) {
+    sp_da_push(app->source, ((spn_source_t) {
       .kind = it->source[st].kind,
       .path = it->source[st].tree == SPN_TREE_NONE
         ? spn_path_make(&spn.roots, path)
         : spn_tree_path(mem, &spn.roots, loaded->roots, it->source[st].tree, path),
     }));
   }
-  sp_str_om_insert(s->pkg->exes, app.name, app);
-
   sp_must_eq(t, SPN_OK, spn_units_add_packages(s));
   sp_must_eq(t, SPN_OK, spn_units_add_targets(s, SPN_UNIT_SCOPE_TARGET));
 
   spn_pkg_unit_t* pkg = spn_session_find_pkg_unit(s, s->units.target, id);
   sp_must(t, pkg != SP_NULLPTR);
-  spn_target_unit_t* target = spn_session_find_target_in_pkg(s, pkg, sp_str_lit("app"), SPN_TARGET_KIND_EXE);
+  spn_target_unit_t* target = spn_session_find_target_in_pkg(s, pkg, spn_target_key(sp_str_lit("app"), SPN_TARGET_KIND_EXE));
   sp_must(t, target != SP_NULLPTR);
 
   u32 count = 0;

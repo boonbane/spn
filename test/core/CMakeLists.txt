@@ -6,7 +6,6 @@ add_executable(core
   elf.c
   fs.c
   copy.c
-  filter.c
   wake.c
   sim.c
   intern.c
@@ -181,7 +180,6 @@ add_executable(core
   ${SRC}/external/tom.c
   ${SRC}/external/wasm/script.c
   ${SRC}/external/zig.c
-  ${SRC}/filter/filter.c
   ${SRC}/git/cache.c
   ${SRC}/git/key.c
   ${SRC}/git/url.c
@@ -224,6 +222,7 @@ add_executable(core
   ${UTIL}/queue/queue.c
   ${UTIL}/str/str.c
   ${SRC}/target/mutate.c
+  ${SRC}/target/target.c
   ${SRC}/target/select.c
   ${UTIL}/thread_pool/thread_pool.c
   ${SRC}/toml/edit.c

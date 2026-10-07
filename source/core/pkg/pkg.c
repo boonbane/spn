@@ -29,30 +29,24 @@ static sp_hash_t hash_gated(sp_hash_t hash, spn_gated_list_t list) {
 sp_hash_t spn_pkg_hash_platform(spn_pkg_info_t* pkg, const spn_profile_info_t* profile) {
   sp_hash_t hash = 0;
 
-  spn_target_map_t maps [] = { pkg->libs, pkg->exes, pkg->scripts, pkg->tests };
-
   switch (profile->os) {
     case SPN_OS_MACOS: {
       hash = hash_push(hash, spn_digest_hash(&pkg->macos.min_os, sizeof(pkg->macos.min_os)));
       hash = hash_gated(hash, pkg->gated.frameworks);
-      sp_carr_for(maps, mt) {
-        sp_om_for(maps[mt], it) {
-          spn_target_info_t* target = sp_str_om_at(maps[mt], it);
-          hash = hash_push(hash, spn_digest_hash_str(target->name));
-          hash = hash_push(hash, spn_digest_hash(&target->macos.min_os, sizeof(target->macos.min_os)));
-          hash = hash_gated(hash, target->gated.frameworks);
-        }
+      sp_om_for(pkg->targets, it) {
+        spn_target_info_t* target = sp_om_at(pkg->targets, it);
+        hash = hash_push(hash, spn_digest_hash_str(target->name));
+        hash = hash_push(hash, spn_digest_hash(&target->macos.min_os, sizeof(target->macos.min_os)));
+        hash = hash_gated(hash, target->gated.frameworks);
       }
       break;
     }
     case SPN_OS_WINDOWS: {
-      sp_carr_for(maps, mt) {
-        sp_om_for(maps[mt], it) {
-          spn_target_info_t* target = sp_str_om_at(maps[mt], it);
-          if (target->windows.subsystem == SPN_WIN_SUBSYSTEM_NONE) continue;
-          hash = hash_push(hash, spn_digest_hash_str(target->name));
-          hash = hash_push(hash, (sp_hash_t)target->windows.subsystem);
-        }
+      sp_om_for(pkg->targets, it) {
+        spn_target_info_t* target = sp_om_at(pkg->targets, it);
+        if (target->windows.subsystem == SPN_WIN_SUBSYSTEM_NONE) continue;
+        hash = hash_push(hash, spn_digest_hash_str(target->name));
+        hash = hash_push(hash, (sp_hash_t)target->windows.subsystem);
       }
       break;
     }
@@ -74,9 +68,12 @@ spn_pkg_info_t spn_pkg_new(sp_mem_t mem, sp_str_t name) {
 }
 
 bool spn_pkg_has_lib_kind(spn_pkg_info_t* pkg, spn_linkage_t kind) {
-  sp_str_om_for(pkg->libs, it) {
-    spn_target_info_t* lib = sp_str_om_at(pkg->libs, it);
-    if (spn_linkage_set_has(lib->linkages, kind)) {
+  sp_om_for(pkg->targets, it) {
+    spn_target_info_t* target = sp_om_at(pkg->targets, it);
+    if (target->kind != SPN_TARGET_KIND_LIB) {
+      continue;
+    }
+    if (spn_linkage_set_has(target->linkages, kind)) {
       return true;
     }
   }
@@ -84,33 +81,11 @@ bool spn_pkg_has_lib_kind(spn_pkg_info_t* pkg, spn_linkage_t kind) {
   return false;
 }
 
-spn_target_info_t* spn_pkg_get_target(spn_pkg_info_t* pkg, const c8* name) {
-  return spn_pkg_get_target_ex(pkg, sp_str_view(name));
-}
-
-// @spader
-// This doesn't look quite right. It's suspicious that we'd need to get a target without caring
-// where it came from specifically.
-spn_target_info_t* spn_pkg_get_target_ex(spn_pkg_info_t* pkg, sp_str_t name) {
-  // Target maps are keyed by interned names
-  name = spn_intern(name);
-
-  if (sp_str_om_has(pkg->libs, name)) {
-    return sp_str_om_get(pkg->libs, name);
-  }
-  if (sp_str_om_has(pkg->exes, name)) {
-    return sp_str_om_get(pkg->exes, name);
-  }
-  if (sp_str_om_has(pkg->scripts, name)) {
-    return sp_str_om_get(pkg->scripts, name);
-  }
-  if (sp_str_om_has(pkg->tests, name)) {
-    return sp_str_om_get(pkg->tests, name);
-  }
-  if (sp_str_om_has(pkg->examples, name)) {
-    return sp_str_om_get(pkg->examples, name);
-  }
-
+spn_target_info_t* spn_pkg_get_target(spn_pkg_info_t* pkg, sp_str_t name, spn_target_kind_t kind) {
+  (void)pkg;
+  (void)name;
+  (void)kind;
+  SP_UNIMPLEMENTED();
   return SP_NULLPTR;
 }
 

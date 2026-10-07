@@ -585,12 +585,10 @@ spn_err_t spn_dag_build_add_target(spn_dag_build_t* b, spn_target_unit_t* target
 }
 
 static bool dag_pkg_publishes(spn_pkg_unit_t* unit) {
-  spn_pkg_unit_header_maps_t published = spn_pkg_unit_header_maps(unit);
-  sp_for(mt, published.count) {
-    sp_om_for(published.maps[mt], it) {
-      if (!sp_da_empty(sp_str_om_at(published.maps[mt], it)->headers)) {
-        return true;
-      }
+  sp_om_for(unit->info->targets, it) {
+    spn_target_info_t* target = sp_om_at(unit->info->targets, it);
+    if (spn_pkg_unit_publishes_target(unit, target) && !sp_da_empty(target->headers)) {
+      return true;
     }
   }
 
@@ -605,17 +603,18 @@ static spn_err_t dag_add_tree(spn_dag_build_t* b, spn_pkg_unit_t* unit) {
   }
 
   source_pin_t pin = source_pin(unit);
-  spn_pkg_unit_header_maps_t published = spn_pkg_unit_header_maps(unit);
 
   spn_digest_ctx_t digest = sp_zero;
   spn_digest_init_blake3(&digest);
   spn_dag_hash_str(&digest, sp_str_lit("spn.build.tree.v11"));
   spn_dag_hash_str(&digest, unit->info->qualified);
   hash_pin(&digest, &pin);
-  sp_for(mt, published.count) {
-    sp_om_for(published.maps[mt], it) {
-      spn_dag_hash_paths(&digest, sp_str_om_at(published.maps[mt], it)->headers);
+  sp_om_for(unit->info->targets, it) {
+    spn_target_info_t* target = sp_om_at(unit->info->targets, it);
+    if (!spn_pkg_unit_publishes_target(unit, target)) {
+      continue;
     }
+    spn_dag_hash_paths(&digest, target->headers);
   }
   sp_da_for(unit->info->publish.copy, it) {
     spn_dag_hash_u8(&digest, (u8)unit->info->publish.copy[it].tree);
@@ -634,12 +633,13 @@ static spn_err_t dag_add_tree(spn_dag_build_t* b, spn_pkg_unit_t* unit) {
   spn_try(spn_dag_action_add_output(g, action, stamp));
   sp_ht_insert(b->ids.stamps, unit->paths.include, stamp);
 
-  sp_for(mt, published.count) {
-    sp_om_for(published.maps[mt], it) {
-      spn_target_info_t* target = sp_str_om_at(published.maps[mt], it);
-      sp_da_for(target->headers, ht) {
-        spn_dag_action_add_input(g, action, spn_dag_add_file(g, target->headers[ht]));
-      }
+  sp_om_for(unit->info->targets, it) {
+    spn_target_info_t* target = sp_om_at(unit->info->targets, it);
+    if (!spn_pkg_unit_publishes_target(unit, target)) {
+      continue;
+    }
+    sp_da_for(target->headers, ht) {
+      spn_dag_action_add_input(g, action, spn_dag_add_file(g, target->headers[ht]));
     }
   }
 

@@ -27,6 +27,6 @@ spn_err_t configure(spn_t* spn, spn_config_t* config) {
   spn_node_t* node = spn_add_node(config, "generate");
   spn_node_set_fn(node, "generate");
   spn_node_add_output(node, SPN_DIR_WORK, "generated/fibonacci.c");
-  spn_target_add_source(spn_get_target(spn, "main"), spn_get_subdir(spn, SPN_DIR_WORK, "generated/fibonacci.c"));
+  spn_target_add_source(spn_get_target(spn, "main", SPN_TARGET_KIND_EXE), spn_get_subdir(spn, SPN_DIR_WORK, "generated/fibonacci.c"));
   return SPN_OK;
 }

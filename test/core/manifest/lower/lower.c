@@ -4,6 +4,7 @@
 #include "codegen/codegen.h"
 #include "codegen/lower.h"
 #include "manifest.gen.h"
+#include "pkg/pkg.h"
 #include "target/types.h"
 #include "profile/types.h"
 #include "index/types.h"
@@ -1608,10 +1609,10 @@ static sp_err_t check_gated_source_list(sp_test_t* t, sp_da(spn_gated_source_t) 
   sp_try(check_gated_source_list(t, actual, expected, num_gated)); \
 } while (0)
 
-static sp_err_t check_targets(sp_test_t* t, spn_target_map_t om, const target_t* arr, u32 n, spn_target_kind_t kind) {
+static sp_err_t check_targets(sp_test_t* t, spn_pkg_info_t* pkg, const target_t* arr, u32 n, spn_target_kind_t kind) {
   for (u32 i = 0; i < n; i++) {
     if (!arr[i].name) break;
-    spn_target_info_t* info = sp_str_om_get(om, sp_str_view(arr[i].name));
+    spn_target_info_t* info = spn_pkg_get_target(pkg, sp_str_view(arr[i].name), kind);
     sp_must(t, info);
     sp_expect_eq(t, (u32)kind, (u32)info->kind);
     sp_expect_eq(t, arr[i].linkages.source, info->linkages.source);
@@ -1734,11 +1735,11 @@ sp_test_each(lower, cases, test_t, tests) {
   check_gated(t, pkg.build.gated.flags, it->build_flags);
 
   // Targets
-  sp_try(check_targets(t, pkg.libs,     it->libs,     SP_CARR_LEN(it->libs),     SPN_TARGET_KIND_LIB));
-  sp_try(check_targets(t, pkg.exes,     it->exes,     SP_CARR_LEN(it->exes),     SPN_TARGET_KIND_EXE));
-  sp_try(check_targets(t, pkg.scripts,  it->scripts,  SP_CARR_LEN(it->scripts),  SPN_TARGET_KIND_SCRIPT));
-  sp_try(check_targets(t, pkg.tests,    it->tests,    SP_CARR_LEN(it->tests),    SPN_TARGET_KIND_TEST));
-  sp_try(check_targets(t, pkg.examples, it->examples, SP_CARR_LEN(it->examples), SPN_TARGET_KIND_EXAMPLE));
+  sp_try(check_targets(t, &pkg, it->libs,     SP_CARR_LEN(it->libs),     SPN_TARGET_KIND_LIB));
+  sp_try(check_targets(t, &pkg, it->exes,     SP_CARR_LEN(it->exes),     SPN_TARGET_KIND_EXE));
+  sp_try(check_targets(t, &pkg, it->scripts,  SP_CARR_LEN(it->scripts),  SPN_TARGET_KIND_SCRIPT));
+  sp_try(check_targets(t, &pkg, it->tests,    SP_CARR_LEN(it->tests),    SPN_TARGET_KIND_TEST));
+  sp_try(check_targets(t, &pkg, it->examples, SP_CARR_LEN(it->examples), SPN_TARGET_KIND_EXAMPLE));
 
   // Deps
   sp_carr_for(it->deps, d) {

@@ -298,8 +298,12 @@ static bool node_is_shared(spn_resolver_t* resolver, spn_resolved_pkg_t* node) {
         return false;
       }
 
-      sp_str_om_for(pkg->info->libs, it) {
-        if (target_selects_shared(sp_str_om_at(pkg->info->libs, it), query)) {
+      sp_om_for(pkg->info->targets, it) {
+        spn_target_info_t* target = sp_om_at(pkg->info->targets, it);
+        if (target->kind != SPN_TARGET_KIND_LIB) {
+          continue;
+        }
+        if (target_selects_shared(target, query)) {
           return true;
         }
       }

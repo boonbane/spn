@@ -1,6 +1,6 @@
 #include "unit.h"
 
-#include "target/mutate.h"
+#include "pkg/pkg.h"
 
 typedef struct {
   const c8* name;
@@ -23,9 +23,8 @@ sp_test_each(unit, clone, clone_test_t, tests, .setup = spn_test_ctx_setup) {
   spn_session_t* s = build_session(mem, &it->graph);
   spn_pkg_id_t id = find_pkg_id(s, &it->graph, "R");
   spn_pkg_info_t* loaded = sp_ht_getp(s->packages, id)->info;
-  spn_target_info_t* loaded_lib = sp_str_om_get(loaded->libs, sp_str_lit("L"));
+  spn_target_info_t* loaded_lib = spn_pkg_get_target(loaded, sp_str_lit("L"), SPN_TARGET_KIND_LIB);
   sp_must(t, loaded_lib);
-  spn_target_info_init(mem, loaded_lib);
 
   sp_da_init(mem, loaded->define);
   sp_da_init(mem, loaded->include);
@@ -54,7 +53,7 @@ sp_test_each(unit, clone, clone_test_t, tests, .setup = spn_test_ctx_setup) {
     sp_expect_eq(t, (u32)1, (u32)sp_da_size(unit->info->include));
     sp_expect_eq(t, (u32)1, (u32)sp_da_size(unit->info->macos.frameworks));
     sp_expect_eq(t, (u32)1, (u32)sp_da_size(unit->info->publish.copy));
-    spn_target_info_t* lib = sp_str_om_get(unit->info->libs, sp_str_lit("L"));
+    spn_target_info_t* lib = spn_pkg_get_target(unit->info, sp_str_lit("L"), SPN_TARGET_KIND_LIB);
     sp_must(t, lib);
     sp_expect_eq(t, (u32)1, (u32)sp_da_size(lib->define));
     sp_expect_eq(t, (u32)1, (u32)sp_da_size(lib->macos.frameworks));

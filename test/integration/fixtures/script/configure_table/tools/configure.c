@@ -11,7 +11,7 @@
 
 __attribute__((export_name("configure")))
 spn_err_t configure(spn_t* spn, spn_config_t* config) {
-  spn_target_t* target = spn_get_target(spn, "configure_table");
+  spn_target_t* target = spn_get_target(spn, "configure_table", SPN_TARGET_KIND_EXE);
   if (!target) return SPN_ERROR;
   return SPN_OK;
 }
