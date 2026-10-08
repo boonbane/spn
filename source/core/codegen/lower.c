@@ -145,7 +145,7 @@ static void lower_target(spn_toml_loader_t* ctx, const spn_cg_target_t* cg, spn_
 
 static void lower_collection(spn_toml_loader_t* ctx, spn_cg_target_om_t cg, spn_pkg_info_t* out, spn_target_kind_t kind) {
   sp_om_for(cg, it) {
-    lower_target(ctx, sp_str_om_at(cg, it), spn_pkg_add_target(out, sp_str_om_at(cg, it)->name, kind));
+    lower_target(ctx, sp_str_om_at(cg, it), spn_pkg_add_target(ctx->mem, out, sp_str_om_at(cg, it)->name, kind));
   }
 }
 
@@ -1120,7 +1120,6 @@ static void validate_names(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg) 
 }
 
 spn_err_t spn_pkg_lower(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, spn_pkg_info_t* out) {
-  out->arena = sp_mem_arena_new(ctx->mem);
 
   lower_package(ctx, cg, out);
   lower_publish(ctx, cg, out);

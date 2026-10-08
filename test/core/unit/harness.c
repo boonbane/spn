@@ -157,7 +157,7 @@ spn_session_t* build_session(sp_mem_t mem, unit_graph_test_t* g) {
     spn_pkg_id_t id = find_pkg_id(s, g, pkg->name);
 
     spn_pkg_info_t* info = sp_alloc_type(mem, spn_pkg_info_t);
-    spn_pkg_init(mem, info, sp_str_view(pkg->name));
+    spn_pkg_init(info, sp_str_view(pkg->name));
     info->qualified = sp_str_view(pkg->name);
     info->system_deps = test_str_list(mem, pkg->system_deps, UNIT_TEST_MAX_STRS);
     info->macos.frameworks = test_str_list(mem, pkg->frameworks, UNIT_TEST_MAX_STRS);
@@ -170,7 +170,7 @@ spn_session_t* build_session(sp_mem_t mem, unit_graph_test_t* g) {
       if (!pkg->libs[lt].name) {
         break;
       }
-      lib_info(mem, trees, &pkg->libs[lt], spn_pkg_add_target(info, sp_str_view(pkg->libs[lt].name), SPN_TARGET_KIND_LIB));
+      lib_info(mem, trees, &pkg->libs[lt], spn_pkg_add_target(mem, info, sp_str_view(pkg->libs[lt].name), SPN_TARGET_KIND_LIB));
     }
 
     if (it == 0) {

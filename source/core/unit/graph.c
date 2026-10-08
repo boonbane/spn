@@ -47,9 +47,8 @@ static spn_pkg_info_t* clone_pkg_info(spn_session_t* s, spn_pkg_id_t id, spn_bui
   spn_pkg_info_t* source = loaded->info;
   spn_pkg_info_t* info = sp_alloc_type(s->mem, spn_pkg_info_t);
   *info = *source;
-  info->arena = sp_mem_arena_new(s->mem);
   info->applied = false;
-  sp_mem_t mem = sp_mem_arena_as_allocator(info->arena);
+  sp_mem_t mem = s->mem;
 
   clone_target_map(&info->targets, source->targets, mem);
   info->include = clone_path_list(mem, source->include);

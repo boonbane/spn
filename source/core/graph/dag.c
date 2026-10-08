@@ -21,7 +21,6 @@
 #include "external/wasm/wasm.h"
 #include "external/zig.h"
 #include "op/op.h"
-#include "pkg/pkg.h"
 #include "paths/paths.h"
 #include "str/str.h"
 #include "session/session.h"
@@ -108,7 +107,7 @@ static spn_err_t dag_add_user_nodes(spn_dag_build_t* b, spn_pkg_unit_t* unit, sp
   sp_da_for(unit->user_nodes, it) {
     spn_user_node_t* node = &unit->user_nodes[it];
     if (si_da_empty(node->outputs)) {
-      si_da_push(spn_pkg_mem(unit->info), node->outputs, spn_pkg_unit_node_stamp(unit, node));
+      si_da_push(unit->session->mem, node->outputs, spn_pkg_unit_node_stamp(unit, node));
     }
   }
 

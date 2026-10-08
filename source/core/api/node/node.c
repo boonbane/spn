@@ -13,7 +13,6 @@
 #include "event/event.h"
 #include "external/wasm/wasm.h"
 #include "paths/paths.h"
-#include "pkg/pkg.h"
 #include "unit/unit.h"
 #include "intern/intern.h"
 
@@ -48,7 +47,7 @@ void spn_node_add_input(spn_node_t* node, const c8* input) {
   if (spn_path_empty(made)) {
     return;
   }
-  si_da_push(spn_pkg_mem(node->ref.pkg->info), info->inputs, made);
+  si_da_push(node->ref.pkg->session->mem, info->inputs, made);
 }
 
 typedef enum {
@@ -102,7 +101,7 @@ static void add_output(spn_node_t* node, const c8* fn, spn_dir_t dir, const c8* 
     sp_assert(trapped);
     return;
   }
-  si_da_push(spn_pkg_mem(unit->info), info->outputs, ((spn_user_output_t) {
+  si_da_push(unit->session->mem, info->outputs, ((spn_user_output_t) {
     .dir = dir,
     .sub = sp_str_copy(spn.mem, sub),
     .kind = kind,
@@ -120,7 +119,7 @@ void spn_node_add_output_dir(spn_node_t* node, spn_dir_t dir, const c8* path) {
 
 void spn_node_link(spn_node_t* from, spn_node_t* to) {
   spn_user_node_t* info = spn_node_deref(to->ref);
-  si_da_push(spn_pkg_mem(to->ref.pkg->info), info->deps, from->ref);
+  si_da_push(to->ref.pkg->session->mem, info->deps, from->ref);
 }
 
 void spn_node_set_fn(spn_node_t* node, const c8* fn) {

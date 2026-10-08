@@ -190,7 +190,7 @@ static fz_result_t fz_execute(sp_mem_t mem, fz_universe_t* u, sp_intern_t* inter
     }
 
     if (fz_pkg_linked(local)) {
-      spn_pkg_add_target(info, info->name, SPN_TARGET_KIND_LIB)->linkages = local->linkages;
+      spn_pkg_add_target(mem, info, info->name, SPN_TARGET_KIND_LIB)->linkages = local->linkages;
     }
 
     sp_ht_insert(registry, spn_pkg_id(intern, info->qualified), ((spn_registry_pkg_t) {

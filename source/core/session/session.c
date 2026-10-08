@@ -52,9 +52,10 @@ spn_err_t spn_session_init(spn_session_t* s, spn_ctx_t* ctx, sp_mem_t mem, spn_p
   spn_pkg_info_t* root = &project->package;
   s->ctx = ctx;
   s->project = project;
-  s->mem = mem;
+  s->arena = sp_mem_arena_new(mem);
+  s->mem = sp_mem_arena_as_allocator(s->arena);
   s->pkg = root;
-  config = copy_config(mem, config);
+  config = copy_config(s->mem, config);
   s->config = config;
   s->paths.root = spn_path_from_root(SPN_PATH_ROOT_PROJECT);
   s->paths.build = spn_path_join(s->mem, s->paths.root, sp_str_lit("build"));

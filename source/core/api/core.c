@@ -156,7 +156,7 @@ spn_target_t* spn_add_exe(spn_config_t* config, const c8* name) {
   if (spn_api_name_rejected(unit, "spn_add_exe", name)) {
     return SP_NULLPTR;
   }
-  return wrap(unit, spn_pkg_add_target(unit->info, sp_cstr_as_str(name), SPN_TARGET_KIND_EXE));
+  return wrap(unit, spn_pkg_add_target(unit->session->mem, unit->info, sp_cstr_as_str(name), SPN_TARGET_KIND_EXE));
 }
 
 spn_target_t* spn_add_lib(spn_config_t* config, const c8* name, spn_linkage_t kind) {
@@ -166,7 +166,7 @@ spn_target_t* spn_add_lib(spn_config_t* config, const c8* name, spn_linkage_t ki
   if (spn_api_name_rejected(unit, "spn_add_lib", name)) {
     return SP_NULLPTR;
   }
-  spn_target_info_t* info = spn_pkg_add_target(unit->info, sp_cstr_as_str(name), SPN_TARGET_KIND_LIB);
+  spn_target_info_t* info = spn_pkg_add_target(unit->session->mem, unit->info, sp_cstr_as_str(name), SPN_TARGET_KIND_LIB);
   info->linkages = linkages;
   return wrap(unit, info);
 }
@@ -176,7 +176,7 @@ spn_target_t* spn_add_test(spn_config_t* config, const c8* name) {
   if (spn_api_name_rejected(unit, "spn_add_test", name)) {
     return SP_NULLPTR;
   }
-  return wrap(unit, spn_pkg_add_target(unit->info, sp_cstr_as_str(name), SPN_TARGET_KIND_TEST));
+  return wrap(unit, spn_pkg_add_target(unit->session->mem, unit->info, sp_cstr_as_str(name), SPN_TARGET_KIND_TEST));
 }
 
 void spn_add_include(spn_config_t* config, const c8* path) {
@@ -185,15 +185,17 @@ void spn_add_include(spn_config_t* config, const c8* path) {
   if (spn_path_empty(made)) {
     return;
   }
-  spn_pkg_add_include(unit->info, made);
+  spn_pkg_add_include(unit->session->mem, unit->info, made);
 }
 
 void spn_add_define(spn_config_t* config, const c8* define) {
-  spn_pkg_add_define(spn_api_unit(config)->info, define);
+  spn_pkg_unit_t* unit = spn_api_unit(config);
+  spn_pkg_add_define(unit->session->mem, unit->info, define);
 }
 
 void spn_add_system_dep(spn_config_t* config, const c8* dep) {
-  spn_pkg_add_system_dep(spn_api_unit(config)->info, dep);
+  spn_pkg_unit_t* unit = spn_api_unit(config);
+  spn_pkg_add_system_dep(unit->session->mem, unit->info, dep);
 }
 
 const spn_t* spn_get_dep(const spn_t* s, const c8* name) {
@@ -318,7 +320,7 @@ void spn_target_add_source(spn_target_t* target, const c8* source) {
   if (spn_path_empty(made)) {
     return;
   }
-  si_da_push(spn_pkg_mem(target->unit->info), target->info->source, ((spn_source_t) {
+  si_da_push(target->unit->session->mem, target->info->source, ((spn_source_t) {
     .kind = sp_glob_parse_meta(sp_cstr_as_str(source)).literal ? SPN_SOURCE_FILE : SPN_SOURCE_GLOB,
     .path = made,
   }));
@@ -329,11 +331,11 @@ void spn_target_add_include(spn_target_t* target, const c8* include) {
   if (spn_path_empty(made)) {
     return;
   }
-  si_da_push(spn_pkg_mem(target->unit->info), target->info->configured.include, made);
+  si_da_push(target->unit->session->mem, target->info->configured.include, made);
 }
 
 void spn_target_add_define(spn_target_t* target, const c8* define) {
-  si_da_push(spn_pkg_mem(target->unit->info), target->info->define, spn_intern_cstr(define));
+  si_da_push(target->unit->session->mem, target->info->define, spn_intern_cstr(define));
 }
 
 void spn_target_add_define_path(spn_target_t* target, const c8* name, spn_dir_t dir, const c8* path) {
@@ -345,7 +347,7 @@ void spn_target_add_define_path(spn_target_t* target, const c8* name, spn_dir_t 
   spn_path_t joined = spn_path_join(scratch.mem, spn_api_dir_path(unit, dir), sp_str_view(path));
   spn_path_rel_t rel = spn_path_within(unit->session->paths.root, joined);
   if (rel.within) {
-    si_da_push(spn_pkg_mem(unit->info), target->info->define, spn_intern(sp_fmt(scratch.mem, "{}=\"{}\"", SP_FMT_CSTR(name), SP_FMT_STR(rel.sub)).value));
+    si_da_push(unit->session->mem, target->info->define, spn_intern(sp_fmt(scratch.mem, "{}=\"{}\"", SP_FMT_CSTR(name), SP_FMT_STR(rel.sub)).value));
   }
   else {
     sp_str_t full = spn_path_str(&unit->session->ctx->roots, scratch.mem, joined);
@@ -361,7 +363,7 @@ void spn_target_add_define_path(spn_target_t* target, const c8* name, spn_dir_t 
 }
 
 void spn_target_add_flag(spn_target_t* target, const c8* flag) {
-  si_da_push(spn_pkg_mem(target->unit->info), target->info->flags, spn_intern_cstr(flag));
+  si_da_push(target->unit->session->mem, target->info->flags, spn_intern_cstr(flag));
 }
 
 static bool embed_dest_rejected(spn_pkg_unit_t* unit, const c8* fn, sp_str_t dest) {
@@ -385,7 +387,7 @@ void spn_target_embed_file(spn_target_t* t, const c8* file) {
   if (spn_path_empty(made) || embed_dest_rejected(t->unit, "spn_target_embed_file", sp_str_view(file))) {
     return;
   }
-  spn_target_add_embed(spn_pkg_mem(t->unit->info), t->info, (spn_embed_t) {
+  spn_target_add_embed(t->unit->session->mem, t->info, (spn_embed_t) {
     .kind = SPN_EMBED_FILE,
     .path = made,
     .dest = sp_str_view(file),
@@ -397,7 +399,7 @@ void spn_target_embed_file_ex(spn_target_t* t, const c8* file, const c8* dest, c
   if (spn_path_empty(made) || embed_dest_rejected(t->unit, "spn_target_embed_file_ex", sp_str_view(dest))) {
     return;
   }
-  spn_target_add_embed(spn_pkg_mem(t->unit->info), t->info, (spn_embed_t) {
+  spn_target_add_embed(t->unit->session->mem, t->info, (spn_embed_t) {
     .kind = SPN_EMBED_FILE,
     .path = made,
     .dest = sp_str_view(dest),
@@ -410,7 +412,7 @@ void spn_target_embed_dir_ex(spn_target_t* t, const c8* dir, const c8* dest, con
   if (spn_path_empty(made) || embed_dest_rejected(t->unit, "spn_target_embed_dir_ex", sp_str_view(dest))) {
     return;
   }
-  spn_target_add_embed(spn_pkg_mem(t->unit->info), t->info, (spn_embed_t) {
+  spn_target_add_embed(t->unit->session->mem, t->info, (spn_embed_t) {
     .kind = SPN_EMBED_DIR,
     .path = made,
     .dest = sp_str_view(dest),

@@ -293,9 +293,9 @@ static si_da(spn_source_t) detect_configure_source(const spn_path_roots_t* roots
 }
 
 static spn_err_t load_manifest(spn_session_t* session, sp_str_t name, spn_path_t manifest, spn_pkg_info_t** info) {
-  spn_pkg_info_t* parsed = sp_alloc_type(spn.mem, spn_pkg_info_t);
+  spn_pkg_info_t* parsed = sp_alloc_type(session->mem, spn_pkg_info_t);
   spn_codegen_issues_t issues = sp_zero;
-  spn_err_t loaded = spn_pkg_load(spn.mem, session->ctx->intern, &session->ctx->roots, manifest, SPN_MANIFEST_DEP, parsed, &issues);
+  spn_err_t loaded = spn_pkg_load(session->mem, session->ctx->intern, &session->ctx->roots, manifest, SPN_MANIFEST_DEP, parsed, &issues);
   if (loaded) {
     sp_str_t path = spn_path_str(&session->ctx->roots, spn.mem, manifest);
     if (loaded == SPN_ERR_NO_MANIFEST) {

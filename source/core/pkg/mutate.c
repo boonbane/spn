@@ -10,12 +10,7 @@
 #include "pkg/mutate.h"
 #include "target/target.h"
 
-sp_mem_t spn_pkg_mem(spn_pkg_info_t* pkg) {
-  return sp_mem_arena_as_allocator(pkg->arena);
-}
-
-void spn_pkg_init(sp_mem_t mem, spn_pkg_info_t* pkg, sp_str_t name) {
-  pkg->arena = sp_mem_arena_new(mem);
+void spn_pkg_init(spn_pkg_info_t* pkg, sp_str_t name) {
   pkg->name = spn_intern(name);
 }
 
@@ -27,51 +22,52 @@ void spn_pkg_set_name_ex(spn_pkg_info_t* pkg, sp_str_t name) {
   pkg->name = spn_intern(name);
 }
 
-void spn_pkg_set_repo(spn_pkg_info_t* pkg, const c8* repo) {
-  spn_pkg_set_repo_ex(pkg, sp_str_view(repo));
+void spn_pkg_set_repo(sp_mem_t mem, spn_pkg_info_t* pkg, const c8* repo) {
+  spn_pkg_set_repo_ex(mem, pkg, sp_str_view(repo));
 }
 
-void spn_pkg_set_repo_ex(spn_pkg_info_t* pkg, sp_str_t repo) {
-  pkg->repo = sp_str_copy(spn_pkg_mem(pkg), repo);
+void spn_pkg_set_repo_ex(sp_mem_t mem, spn_pkg_info_t* pkg, sp_str_t repo) {
+  pkg->repo = sp_str_copy(mem, repo);
 }
 
-void spn_pkg_set_author(spn_pkg_info_t* pkg, const c8* author) {
-  spn_pkg_set_author_ex(pkg, sp_str_view(author));
+void spn_pkg_set_author(sp_mem_t mem, spn_pkg_info_t* pkg, const c8* author) {
+  spn_pkg_set_author_ex(mem, pkg, sp_str_view(author));
 }
 
-void spn_pkg_set_author_ex(spn_pkg_info_t* pkg, sp_str_t author) {
-  pkg->author = sp_str_copy(spn_pkg_mem(pkg), author);
+void spn_pkg_set_author_ex(sp_mem_t mem, spn_pkg_info_t* pkg, sp_str_t author) {
+  pkg->author = sp_str_copy(mem, author);
 }
 
-void spn_pkg_set_maintainer(spn_pkg_info_t* pkg, const c8* maintainer) {
-  spn_pkg_set_maintainer_ex(pkg, sp_str_view(maintainer));
+void spn_pkg_set_maintainer(sp_mem_t mem, spn_pkg_info_t* pkg, const c8* maintainer) {
+  spn_pkg_set_maintainer_ex(mem, pkg, sp_str_view(maintainer));
 }
 
-void spn_pkg_set_maintainer_ex(spn_pkg_info_t* pkg, sp_str_t maintainer) {
-  pkg->maintainer = sp_str_copy(spn_pkg_mem(pkg), maintainer);
+void spn_pkg_set_maintainer_ex(sp_mem_t mem, spn_pkg_info_t* pkg, sp_str_t maintainer) {
+  pkg->maintainer = sp_str_copy(mem, maintainer);
 }
 
-void spn_pkg_add_include(spn_pkg_info_t* pkg, spn_path_t path) {
-  si_da_push(spn_pkg_mem(pkg), pkg->configured.include, path);
+void spn_pkg_add_include(sp_mem_t mem, spn_pkg_info_t* pkg, spn_path_t path) {
+  si_da_push(mem, pkg->configured.include, path);
 }
 
-void spn_pkg_add_define(spn_pkg_info_t* pkg, const c8* define) {
-  spn_pkg_add_define_ex(pkg, sp_str_view(define));
+void spn_pkg_add_define(sp_mem_t mem, spn_pkg_info_t* pkg, const c8* define) {
+  spn_pkg_add_define_ex(mem, pkg, sp_str_view(define));
 }
 
-void spn_pkg_add_define_ex(spn_pkg_info_t* pkg, sp_str_t define) {
-  si_da_push(spn_pkg_mem(pkg), pkg->define, sp_str_copy(spn_pkg_mem(pkg), define));
+void spn_pkg_add_define_ex(sp_mem_t mem, spn_pkg_info_t* pkg, sp_str_t define) {
+  si_da_push(mem, pkg->define, sp_str_copy(mem, define));
 }
 
-void spn_pkg_add_system_dep(spn_pkg_info_t* pkg, const c8* dep) {
-  spn_pkg_add_system_dep_ex(pkg, sp_str_view(dep));
+void spn_pkg_add_system_dep(sp_mem_t mem, spn_pkg_info_t* pkg, const c8* dep) {
+  spn_pkg_add_system_dep_ex(mem, pkg, sp_str_view(dep));
 }
 
-void spn_pkg_add_system_dep_ex(spn_pkg_info_t* pkg, sp_str_t dep) {
-  si_da_push(spn_pkg_mem(pkg), pkg->system_deps, sp_str_copy(spn_pkg_mem(pkg), dep));
+void spn_pkg_add_system_dep_ex(sp_mem_t mem, spn_pkg_info_t* pkg, sp_str_t dep) {
+  si_da_push(mem, pkg->system_deps, sp_str_copy(mem, dep));
 }
 
-spn_target_info_t* spn_pkg_add_target(spn_pkg_info_t* pkg, sp_str_t name, spn_target_kind_t kind) {
+spn_target_info_t* spn_pkg_add_target(sp_mem_t mem, spn_pkg_info_t* pkg, sp_str_t name, spn_target_kind_t kind) {
+  (void)mem;
   (void)pkg;
   (void)name;
   (void)kind;

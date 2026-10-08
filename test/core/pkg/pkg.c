@@ -11,11 +11,11 @@
 sp_test_suite(pkg, .serial = true);
 
 static spn_pkg_info_t make_pkg(sp_mem_t mem) {
-  spn_pkg_info_t pkg = spn_pkg_new(mem, sp_str_lit("A"));
+  spn_pkg_info_t pkg = spn_pkg_new(sp_str_lit("A"));
   pkg.macos.min_os = (spn_os_version_t) { .major = 12 };
   si_da_push(mem, pkg.gated.frameworks, ((spn_gated_str_t) { .value = sp_str_lit("A") }));
 
-  spn_target_info_t* bin = spn_pkg_add_target(&pkg, sp_str_lit("A"), SPN_TARGET_KIND_EXE);
+  spn_target_info_t* bin = spn_pkg_add_target(mem, &pkg, sp_str_lit("A"), SPN_TARGET_KIND_EXE);
   si_da_push(mem, bin->gated.frameworks, ((spn_gated_str_t) { .value = sp_str_lit("B") }));
   bin->windows.subsystem = SPN_WIN_SUBSYSTEM_WINDOWS;
 

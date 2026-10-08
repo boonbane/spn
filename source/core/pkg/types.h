@@ -197,7 +197,6 @@ struct spn_pkg_info {
   } publish;
 
   bool applied;
-  sp_mem_arena_t* arena;
 };
 
 #endif

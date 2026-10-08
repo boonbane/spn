@@ -130,7 +130,7 @@ struct spn_target_info {
     spn_gated_list_t system_deps;
     spn_gated_list_t deps;
     spn_gated_list_t frameworks;
-    sp_da(spn_gated_embed_t) embed;
+    si_da(spn_gated_embed_t) embed;
   } gated;
 };
 
