@@ -131,7 +131,6 @@ set(SPN_SOURCES
   util/array/array.c
   util/hash_table/hash_table.c
   core/target/mutate.c
-  core/target/target.c
   core/target/select.c
   util/thread_pool/thread_pool.c
   core/toml/edit.c

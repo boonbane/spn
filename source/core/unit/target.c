@@ -16,7 +16,6 @@
 #include "paths/paths.h"
 #include "pkg/id.h"
 #include "target/mutate.h"
-#include "target/target.h"
 #include "pkg/pkg.h"
 #include "session/invocation.h"
 #include "session/session.h"
@@ -27,9 +26,7 @@
 #include "toolchain/toolchain.h"
 #include "triple/triple.h"
 
-static spn_target_unit_t* add_target(spn_session_t* s, spn_pkg_unit_t* pkg, spn_target_info_t* info) {
-  spn_target_unit_id_t id = { .pkg = pkg->id, .target = spn_target_key(info->name, info->kind) };
-
+static spn_target_unit_t* add_target(spn_session_t* s, spn_pkg_unit_t* pkg, spn_target_unit_id_t id, spn_target_info_t* info) {
   sp_om_insert(s->units.targets, id, SP_ZERO_STRUCT(spn_target_unit_t));
   spn_target_unit_t* target = sp_om_back(s->units.targets);
   target->id = id;
@@ -160,9 +157,13 @@ static sp_str_t target_kind_dir(spn_target_kind_t kind) {
 }
 
 static spn_err_t ensure_target(spn_session_t* s, spn_pkg_unit_t* pkg, spn_target_info_t* info, spn_target_unit_t** result) {
-  spn_target_unit_t* target = spn_session_find_target_in_pkg(s, pkg, spn_target_key(info->name, info->kind));
+  spn_target_unit_id_t id = {
+    .pkg = pkg->id,
+    .target = { .name = spn_intern_id(info->name), .kind = info->kind },
+  };
+  spn_target_unit_t* target = spn_session_find_target_in_pkg(s, pkg, id.target);
   if (!target) {
-    target = add_target(s, pkg, info);
+    target = add_target(s, pkg, id, info);
     spn_try(set_target_kind(s, target));
 
     if (target->lib_kind == SPN_LIB_KIND_OBJECT) {
@@ -617,7 +618,7 @@ static spn_err_t ensure_sibling_targets(spn_session_t* s, sp_da(spn_target_unit_
       if (find_dep_unit(s, unit->pkg, qualified)) {
         continue;
       }
-      if (spn_session_find_target_in_pkg(s, unit->pkg, spn_target_key(unit->info->deps[jt], SPN_TARGET_KIND_LIB))) {
+      if (spn_session_find_target_in_pkg(s, unit->pkg, ((spn_target_key_t) { .name = spn_intern_id(unit->info->deps[jt]), .kind = SPN_TARGET_KIND_LIB }))) {
         continue;
       }
       spn_target_info_t* info = spn_pkg_get_target(unit->pkg->info, unit->info->deps[jt], SPN_TARGET_KIND_LIB);
@@ -641,7 +642,7 @@ static spn_err_t resolve_target_deps(spn_session_t* s, sp_da(spn_target_unit_t*)
         continue;
       }
 
-      spn_target_unit_t* target = spn_session_find_target_in_pkg(s, unit->pkg, spn_target_key(unit->info->deps[jt], SPN_TARGET_KIND_LIB));
+      spn_target_unit_t* target = spn_session_find_target_in_pkg(s, unit->pkg, ((spn_target_key_t) { .name = spn_intern_id(unit->info->deps[jt]), .kind = SPN_TARGET_KIND_LIB }));
       if (!target) {
         return spn_err_emit(s->ctx, (spn_err_union_t) {
           .kind = SPN_ERR_TARGET_DEP,

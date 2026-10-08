@@ -8,7 +8,6 @@
 #include "enum/enum.h"
 #include "intern/intern.h"
 #include "pkg/mutate.h"
-#include "target/target.h"
 
 void spn_pkg_init(spn_pkg_info_t* pkg, sp_str_t name) {
   pkg->name = spn_intern(name);

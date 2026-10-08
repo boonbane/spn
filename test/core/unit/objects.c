@@ -2,7 +2,6 @@
 
 #include "paths/paths.h"
 #include "pkg/mutate.h"
-#include "target/target.h"
 
 #define OBJECTS_TEST_MAX_SOURCE 4
 
@@ -90,7 +89,7 @@ sp_test_each(unit_objects, create, objects_test_t, tests, .setup = spn_test_ctx_
 
   spn_pkg_unit_t* pkg = spn_session_find_pkg_unit(s, s->units.target, id);
   sp_must(t, pkg != SP_NULLPTR);
-  spn_target_unit_t* target = spn_session_find_target_in_pkg(s, pkg, spn_target_key(sp_str_lit("app"), SPN_TARGET_KIND_EXE));
+  spn_target_unit_t* target = spn_session_find_target_in_pkg(s, pkg, ((spn_target_key_t) { .name = spn_intern_id(sp_str_lit("app")), .kind = SPN_TARGET_KIND_EXE }));
   sp_must(t, target != SP_NULLPTR);
 
   u32 count = 0;

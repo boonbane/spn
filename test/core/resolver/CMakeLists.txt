@@ -58,7 +58,6 @@ add_executable(resolver
   ${SRC}/target/mutate.c
   ${UTIL}/array/array.c
   ${UTIL}/hash_table/hash_table.c
-  ${SRC}/target/target.c
   ${SRC}/target/select.c
   ${SRC}/toolchain/toolchain.c
   ${SRC}/toolchain/sdk.c
