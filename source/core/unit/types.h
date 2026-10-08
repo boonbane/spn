@@ -3,6 +3,7 @@
 
 #include "core/types.h"
 #include "compiler/types.h"
+#include "array/array.h"
 #include "dag/types.h"
 #include "paths/types.h"
 #include "sp.h"
@@ -99,9 +100,9 @@ struct spn_user_node_t {
   spn_pkg_unit_t* pkg;
   sp_str_t tag;
   sp_str_t fn;
-  sp_da(spn_path_t) inputs;
-  sp_da(spn_user_output_t) outputs;
-  sp_da(spn_node_ref_t) deps;
+  si_da(spn_path_t) inputs;
+  si_da(spn_user_output_t) outputs;
+  si_da(spn_node_ref_t) deps;
 };
 
 typedef struct {
@@ -117,11 +118,11 @@ typedef struct {
 
 typedef struct {
   spn_cc_link_t cc;
-  sp_da(spn_link_lib_t) libs;
+  si_da(spn_link_lib_t) libs;
 } spn_link_plan_t;
 
 typedef struct {
-  sp_da(spn_path_t) include;
+  si_da(spn_path_t) include;
   spn_link_plan_t link;
 } spn_target_plan_t;
 

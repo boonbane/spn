@@ -169,3 +169,32 @@ sp_test(si_da, zeroed_struct_member) {
   si_da_free(mem, record.names);
   return SP_OK;
 }
+
+sp_test(si_da, copy) {
+  sp_mem_t mem = sp_test_arena(t);
+  si_da(s32) source = SP_NULLPTR;
+  si_da(s32) copy = SP_NULLPTR;
+
+  si_da_copy(mem, copy, source);
+  sp_must(t, copy == SP_NULLPTR);
+
+  sp_for(i, 10) {
+    si_da_push(mem, source, (s32)i);
+  }
+  si_da_copy(mem, copy, source);
+  sp_must(t, copy != source);
+  sp_must_eq(t, si_da_size(copy), 10);
+  si_da_for(copy, it) {
+    sp_must_eq(t, copy[it], source[it]);
+  }
+
+  copy[0] = -1;
+  si_da_push(mem, copy, 10);
+  sp_must_eq(t, source[0], 0);
+  sp_must_eq(t, si_da_size(source), 10);
+  sp_must_eq(t, si_da_size(copy), 11);
+
+  si_da_free(mem, copy);
+  si_da_free(mem, source);
+  return SP_OK;
+}

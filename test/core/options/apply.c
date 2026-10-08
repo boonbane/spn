@@ -3,6 +3,7 @@
 #include "paths/paths.h"
 #include "pkg/mutate.h"
 #include "pkg/pkg.h"
+#include "intern/intern.h"
 
 typedef struct {
   const c8* key;
@@ -596,7 +597,7 @@ static const apply_option_test_t option_tests [] = {
   },
 };
 
-sp_test_each(options_apply, option_defines, apply_option_test_t, option_tests) {
+sp_test_each(options_apply, option_defines, apply_option_test_t, option_tests, .setup = spn_test_ctx_setup) {
   sp_mem_t mem = sp_test_arena(t);
   spn_pkg_info_t info = sp_zero;
 
@@ -621,7 +622,7 @@ sp_test_each(options_apply, option_defines, apply_option_test_t, option_tests) {
       .public = it->options[ot].public,
       .define = sp_cstr_as_str(it->options[ot].define),
     };
-    sp_str_om_insert(info.options, option.name, option);
+    si_om_insert(mem, info.options, spn_intern_id(option.name), option);
   }
 
   spn_when_env_t env = sp_zero;

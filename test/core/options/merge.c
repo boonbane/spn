@@ -1,4 +1,5 @@
 #include "options.h"
+#include "intern/intern.h"
 
 typedef struct {
   const c8* str;
@@ -459,7 +460,7 @@ static const merge_test_t tests [] = {
   },
 };
 
-sp_test_each(options_merge, merge, merge_test_t, tests) {
+sp_test_each(options_merge, merge, merge_test_t, tests, .setup = spn_test_ctx_setup) {
   if (it->skip) {
     return sp_test_skip(t, "{}", sp_fmt_cstr(it->skip));
   }
@@ -493,7 +494,7 @@ sp_test_each(options_merge, merge, merge_test_t, tests) {
         .value = make_value(arm->value),
       }));
     }
-    sp_str_om_insert(pkg.options, option.name, option);
+    si_om_insert(mem, pkg.options, spn_intern_id(option.name), option);
   }
 
   spn_profile_info_t profile = {

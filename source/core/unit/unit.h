@@ -7,9 +7,11 @@
 #include "target/types.h"
 #include "unit/types.h"
 
-spn_build_id_t     spn_build_id(const spn_profile_info_t* profile);
-spn_build_unit_t*  spn_build_add(spn_session_t* session, spn_profile_info_t profile, spn_path_t root, spn_toolchain_info_t* toolchain);
+sp_da(spn_closure_entry_t) si_link_get_target_closure(sp_mem_t mem, spn_target_unit_t* root);
+sp_da(spn_target_unit_t*) si_link_get_target_runtime_libs(sp_mem_t mem, spn_target_unit_t* root);
+si_da(spn_link_lib_t) si_link_get_closure_libs(sp_mem_t mem, sp_da(spn_closure_entry_t) closure);
 
+spn_build_unit_t* spn_build_add(spn_session_t* session, spn_profile_info_t profile, spn_path_t root, spn_toolchain_info_t* toolchain);
 spn_err_t spn_units_add_packages(spn_session_t* session);
 
 // The metaprogram scope runs before the configure graph, the target scope after
@@ -19,9 +21,6 @@ typedef enum {
 } spn_unit_scope_t;
 spn_err_t spn_units_add_targets(spn_session_t* session, spn_unit_scope_t scope);
 
-sp_da(spn_closure_entry_t) spn_target_link_closure(sp_mem_t mem, spn_target_unit_t* root);
-sp_da(spn_target_unit_t*)  spn_target_runtime_libs(sp_mem_t mem, spn_target_unit_t* root);
-sp_da(spn_link_lib_t)      spn_closure_get_linked_libs(sp_mem_t mem, sp_da(spn_closure_entry_t) closure);
 bool spn_dep_kind_applies(spn_dep_kind_t dep, spn_target_kind_t target);
 
 void spn_unit_paths_init(spn_pkg_unit_t* unit, spn_loaded_pkg_t* loaded);

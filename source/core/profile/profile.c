@@ -84,7 +84,7 @@ static bool is_builtin(sp_str_t name) {
 }
 
 static const spn_profile_decl_t* find_decl(spn_profile_map_t profiles, sp_str_t name) {
-  spn_profile_decl_t** slot = sp_str_om_getp(profiles, name);
+  spn_profile_decl_t** slot = si_om_getp(profiles, spn_intern_id(name));
   return slot ? *slot : SP_NULLPTR;
 }
 

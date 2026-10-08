@@ -17,11 +17,6 @@ sp_mem_t spn_pkg_mem(spn_pkg_info_t* pkg) {
 void spn_pkg_init(sp_mem_t mem, spn_pkg_info_t* pkg, sp_str_t name) {
   pkg->arena = sp_mem_arena_new(mem);
   pkg->name = spn_intern(name);
-
-  sp_str_om_init(pkg->profiles);
-  sp_str_om_init(pkg->indexes);
-  sp_str_om_init(pkg->toolchains);
-  sp_str_om_init(pkg->options);
 }
 
 void spn_pkg_set_name(spn_pkg_info_t* pkg, const c8* name) {

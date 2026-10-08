@@ -150,13 +150,13 @@ void spn_msvc_render_compile(sp_mem_t mem, const spn_cc_t* toolchain, const spn_
   }
   spn_cc_push_strs(mem, invocation, flags.compile);
   spn_cc_push_c(mem, invocation, "/c");
-  sp_da_for(compile->include, it) {
+  si_da_for(compile->include, it) {
     spn_cc_push_glued(mem, invocation, "/I", compile->include[it]);
   }
   if (profile->sdk.kind == SPN_SDK_MSVC) {
     add_sdk_compile(mem, &profile->sdk.msvc, invocation);
   }
-  sp_da_for(compile->define, it) {
+  si_da_for(compile->define, it) {
     spn_cc_push_fmt(mem, invocation, "/D{}", sp_fmt_str(compile->define[it]));
   }
   if (compile->lang == SPN_LANG_CXX) {
@@ -167,7 +167,9 @@ void spn_msvc_render_compile(sp_mem_t mem, const spn_cc_t* toolchain, const spn_
       spn_cc_push_c(mem, invocation, "/GR-");
     }
   }
-  spn_cc_push_strs(mem, invocation, compile->args);
+  si_da_for(compile->args, it) {
+    spn_cc_push_str(mem, invocation, compile->args[it]);
+  }
   // Parity with -Werror=return-type: C4715 is "not all control paths
   // return a value"
   spn_cc_push_c(mem, invocation, "/we4715");
@@ -219,13 +221,13 @@ void spn_msvc_render_link(sp_mem_t mem, const spn_cc_t* toolchain, const spn_pro
   }
   spn_cc_push_args(mem, invocation, objects);
 
-  sp_da_for(link->private_libs, it) {
+  si_da_for(link->private_libs, it) {
     spn_cc_push_fmt(mem, invocation, "{}.lib", sp_fmt_str(link->private_libs[it]));
   }
-  sp_da_for(link->libs, it) {
+  si_da_for(link->libs, it) {
     spn_cc_push_fmt(mem, invocation, "{}.lib", sp_fmt_str(link->libs[it]));
   }
-  sp_da_for(link->system_libs, it) {
+  si_da_for(link->system_libs, it) {
     spn_cc_push_fmt(mem, invocation, "{}.lib", sp_fmt_str(link->system_libs[it]));
   }
   spn_cc_push_glued(mem, invocation, "/Fe", output);
@@ -243,10 +245,10 @@ void spn_msvc_render_link(sp_mem_t mem, const spn_cc_t* toolchain, const spn_pro
   if (!spn_path_empty(implib)) {
     sp_da_push(linker, spn_arg_glue(sp_str_lit("/IMPLIB:"), implib));
   }
-  sp_da_for(link->whole_archives, it) {
+  si_da_for(link->whole_archives, it) {
     sp_da_push(linker, spn_arg_glue(sp_str_lit("/WHOLEARCHIVE:"), link->whole_archives[it]));
   }
-  sp_da_for(link->lib_dirs, it) {
+  si_da_for(link->lib_dirs, it) {
     sp_da_push(linker, spn_arg_glue(sp_str_lit("/LIBPATH:"), link->lib_dirs[it]));
   }
   if (link->kind == SPN_CC_OUTPUT_EXE && link->subsystem == SPN_WIN_SUBSYSTEM_WINDOWS) {
@@ -256,7 +258,7 @@ void spn_msvc_render_link(sp_mem_t mem, const spn_cc_t* toolchain, const spn_pro
   sp_da_for(toolchain->link_args, it) {
     sp_da_push(linker, spn_arg_lit(toolchain->link_args[it]));
   }
-  sp_da_for(link->args, it) {
+  si_da_for(link->args, it) {
     sp_da_push(linker, spn_arg_lit(link->args[it]));
   }
 

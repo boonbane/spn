@@ -8,30 +8,6 @@
 #include "target/target.h"
 #include "when/when.h"
 
-static si_da(sp_str_t) clone_str_list(sp_mem_t mem, si_da(sp_str_t) source) {
-  si_da(sp_str_t) result = SP_NULLPTR;
-  si_da_for(source, it) {
-    si_da_push(mem, result, source[it]);
-  }
-  return result;
-}
-
-static si_da(spn_embed_t) clone_embed_list(sp_mem_t mem, si_da(spn_embed_t) source) {
-  si_da(spn_embed_t) result = SP_NULLPTR;
-  si_da_for(source, it) {
-    si_da_push(mem, result, source[it]);
-  }
-  return result;
-}
-
-static si_da(spn_publish_copy_t) clone_copy_list(sp_mem_t mem, si_da(spn_publish_copy_t) source) {
-  si_da(spn_publish_copy_t) result = SP_NULLPTR;
-  si_da_for(source, it) {
-    si_da_push(mem, result, source[it]);
-  }
-  return result;
-}
-
 static si_da(spn_path_t) clone_path_list(sp_mem_t mem, si_da(spn_path_t) source) {
   si_da(spn_path_t) result = SP_NULLPTR;
   si_da_for(source, it) {
@@ -42,21 +18,18 @@ static si_da(spn_path_t) clone_path_list(sp_mem_t mem, si_da(spn_path_t) source)
 
 static spn_target_info_t clone_target_info(sp_mem_t mem, spn_target_info_t* source) {
   spn_target_info_t target = *source;
-  target.source = SP_NULLPTR;
-  si_da_for(source->source, it) {
-    si_da_push(mem, target.source, source->source[it]);
-  }
+  si_da_copy(mem, target.source, source->source);
   target.headers = clone_path_list(mem, source->headers);
   target.include = clone_path_list(mem, source->include);
-  target.define = clone_str_list(mem, source->define);
-  target.flags = clone_str_list(mem, source->flags);
-  target.link_flags = clone_str_list(mem, source->link_flags);
+  si_da_copy(mem, target.define, source->define);
+  si_da_copy(mem, target.flags, source->flags);
+  si_da_copy(mem, target.link_flags, source->link_flags);
   target.linker_script = clone_path_list(mem, source->linker_script);
-  target.system_deps = clone_str_list(mem, source->system_deps);
-  target.deps = clone_str_list(mem, source->deps);
-  target.embed = clone_embed_list(mem, source->embed);
+  si_da_copy(mem, target.system_deps, source->system_deps);
+  si_da_copy(mem, target.deps, source->deps);
+  si_da_copy(mem, target.embed, source->embed);
   target.configured.include = clone_path_list(mem, source->configured.include);
-  target.macos.frameworks = clone_str_list(mem, source->macos.frameworks);
+  si_da_copy(mem, target.macos.frameworks, source->macos.frameworks);
   return target;
 }
 
@@ -81,11 +54,11 @@ static spn_pkg_info_t* clone_pkg_info(spn_session_t* s, spn_pkg_id_t id, spn_bui
   clone_target_map(&info->targets, source->targets, mem);
   info->include = clone_path_list(mem, source->include);
   info->configured.include = clone_path_list(mem, source->configured.include);
-  info->define = clone_str_list(mem, source->define);
-  info->public_define = clone_str_list(mem, source->public_define);
-  info->system_deps = clone_str_list(mem, source->system_deps);
-  info->macos.frameworks = clone_str_list(mem, source->macos.frameworks);
-  info->publish.copy = clone_copy_list(mem, source->publish.copy);
+  si_da_copy(mem, info->define, source->define);
+  si_da_copy(mem, info->public_define, source->public_define);
+  si_da_copy(mem, info->system_deps, source->system_deps);
+  si_da_copy(mem, info->macos.frameworks, source->macos.frameworks);
+  si_da_copy(mem, info->publish.copy, source->publish.copy);
 
   spn_when_env_t env;
   spn_when_env_from_profile(mem, &build->profile, &env);

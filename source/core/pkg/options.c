@@ -1,4 +1,5 @@
 #include "pkg/options.h"
+#include "intern/intern.h"
 
 #include "paths/paths.h"
 #include "profile/profile.h"
@@ -65,7 +66,7 @@ static void gather_claims(
 ) {
   sp_da_for(set->clauses, it) {
     const spn_when_clause_t* clause = &set->clauses[it];
-    spn_option_info_t** option = sp_str_om_getp(pkg->options, clause->key);
+    spn_option_info_t** option = si_om_getp(pkg->options, spn_intern_id(clause->key));
     if (!option) {
       sp_da_push(*violations, ((spn_option_violation_t) {
         .kind = SPN_OPTION_ERR_UNDECLARED,
@@ -121,8 +122,8 @@ void spn_pkg_options_merge(
   spn_when_env_t env;
   spn_when_env_from_profile(mem, profile, &env);
 
-  sp_str_om_for(pkg->options, it) {
-    spn_option_info_t* option = sp_str_om_at(pkg->options, it);
+  si_om_for(pkg->options, it) {
+    spn_option_info_t* option = si_om_at(pkg->options, it);
 
     spn_option_value_t fallback = sp_zero;
     if (!set.defaults_declined) {
@@ -319,8 +320,8 @@ void spn_pkg_apply_options(
   apply_gated(&ctx, &info->macos.frameworks, info->gated.frameworks);
   apply_copies(&ctx, &info->publish.copy, info->gated.publish.copy);
 
-  sp_str_om_for(info->options, it) {
-    spn_option_info_t* option = sp_str_om_at(info->options, it);
+  si_om_for(info->options, it) {
+    spn_option_info_t* option = si_om_at(info->options, it);
     if (sp_str_empty(option->define)) {
       continue;
     }

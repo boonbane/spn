@@ -171,7 +171,7 @@ static spn_err_t write_exports(sp_mem_t mem, const spn_path_roots_t* roots, spn_
   sp_str_ht_init(mem, seen);
   sp_da(sp_str_t) symbols = sp_da_new(mem, sp_str_t);
   spn_try(read_archive_symbols(roots, archive, &symbols, &seen));
-  sp_da_for(link->whole_archives, it) {
+  si_da_for(link->whole_archives, it) {
     spn_try(read_archive_symbols(roots, link->whole_archives[it], &symbols, &seen));
   }
 

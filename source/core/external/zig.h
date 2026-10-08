@@ -4,6 +4,7 @@
 #include "sp.h"
 #include "spn/core.h"
 #include "compiler/types.h"
+#include "array/array.h"
 
 #define SPN_ZIG_PROGRESS_ROOT 255
 #define SPN_ZIG_PROGRESS_UNUSED 254
@@ -41,7 +42,7 @@ typedef struct {
   bool is_static;
   spn_sanitizer_set_t sanitizers;
   sp_hash_t sdk;
-  sp_da(sp_str_t) system_libs;
+  si_da(sp_str_t) system_libs;
 } spn_zig_stub_t;
 
 spn_zig_stub_t spn_zig_stub(sp_mem_t mem, const spn_profile_info_t* profile, const spn_cc_link_t* link);

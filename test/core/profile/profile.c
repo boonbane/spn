@@ -858,11 +858,11 @@ sp_test_each(profile, resolve, test_t, tests, .setup = spn_test_ctx_setup) {
   spn_pkg_info_t pkg = spn_pkg_new(mem, sp_str_lit("P"));
   if (it->profile.name) {
     spn_profile_decl_t decl = desc_to_decl(mem, &it->profile);
-    sp_str_om_insert(pkg.profiles, decl.name, decl);
+    si_om_insert(mem, pkg.profiles, spn_intern_id(decl.name), decl);
   }
   if (it->derived.name) {
     spn_profile_decl_t decl = desc_to_decl(mem, &it->derived);
-    sp_str_om_insert(pkg.profiles, decl.name, decl);
+    si_om_insert(mem, pkg.profiles, spn_intern_id(decl.name), decl);
   }
   if (it->shared_demand) {
     spn_pkg_add_target(&pkg, sp_str_lit("L"), SPN_TARGET_KIND_LIB)->linkages = (spn_linkage_set_t) { .shared = true };

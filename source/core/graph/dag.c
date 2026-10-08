@@ -21,6 +21,7 @@
 #include "external/wasm/wasm.h"
 #include "external/zig.h"
 #include "op/op.h"
+#include "pkg/pkg.h"
 #include "paths/paths.h"
 #include "str/str.h"
 #include "session/session.h"
@@ -106,8 +107,8 @@ static spn_err_t dag_add_user_nodes(spn_dag_build_t* b, spn_pkg_unit_t* unit, sp
 
   sp_da_for(unit->user_nodes, it) {
     spn_user_node_t* node = &unit->user_nodes[it];
-    if (sp_da_empty(node->outputs)) {
-      sp_da_push(node->outputs, spn_pkg_unit_node_stamp(unit, node));
+    if (si_da_empty(node->outputs)) {
+      si_da_push(spn_pkg_mem(unit->info), node->outputs, spn_pkg_unit_node_stamp(unit, node));
     }
   }
 
@@ -123,8 +124,8 @@ static spn_err_t dag_add_user_nodes(spn_dag_build_t* b, spn_pkg_unit_t* unit, sp
     spn_dag_hash_str(&digest, node->tag);
     spn_dag_hash_str(&digest, node->fn);
     spn_dag_hash_paths(&digest, node->inputs);
-    spn_dag_hash_u64(&digest, sp_da_size(node->outputs));
-    sp_da_for(node->outputs, ot) {
+    spn_dag_hash_u64(&digest, si_da_size(node->outputs));
+    si_da_for(node->outputs, ot) {
       spn_dag_hash_u64(&digest, node->outputs[ot].dir);
       spn_dag_hash_str(&digest, node->outputs[ot].sub);
       spn_dag_hash_u64(&digest, node->outputs[ot].kind);
@@ -143,17 +144,17 @@ static spn_err_t dag_add_user_nodes(spn_dag_build_t* b, spn_pkg_unit_t* unit, sp
     if (configure.occupied) {
       spn_dag_action_add_input(g, action, configure);
     }
-    sp_da_for(node->inputs, jt) {
+    si_da_for(node->inputs, jt) {
       spn_dag_action_add_input(g, action, spn_dag_add_file(g, node->inputs[jt]));
     }
-    sp_da_for(node->deps, jt) {
+    si_da_for(node->deps, jt) {
       spn_user_node_t* dep = spn_node_deref(node->deps[jt]);
-      sp_da_for(dep->outputs, ot) {
+      si_da_for(dep->outputs, ot) {
         spn_dag_action_add_input(g, action, spn_dag_add_path(g, dep->outputs[ot].path, dep->outputs[ot].kind));
       }
     }
 
-    sp_da_for(node->outputs, ot) {
+    si_da_for(node->outputs, ot) {
       spn_user_output_t* out = &node->outputs[ot];
       spn_dag_id_t artifact = spn_dag_add_path(g, out->path, out->kind);
       spn_err_t err = spn_dag_action_add_output(g, action, artifact);
@@ -431,7 +432,7 @@ spn_err_t spn_dag_build_add_target(spn_dag_build_t* b, spn_target_unit_t* target
       sp_da_for(inputs, it) {
         spn_dag_action_add_input(g, action, inputs[it]);
       }
-      sp_da_for(plan->link.cc.whole_archives, it) {
+      si_da_for(plan->link.cc.whole_archives, it) {
         spn_dag_action_add_input(g, action, spn_dag_add_file(g, plan->link.cc.whole_archives[it]));
       }
       break;
@@ -495,7 +496,7 @@ spn_err_t spn_dag_build_add_target(spn_dag_build_t* b, spn_target_unit_t* target
       sp_da_for(inputs, it) {
         spn_dag_action_add_input(g, ids.action, inputs[it]);
       }
-      sp_da_for(plan->link.cc.scripts, it) {
+      si_da_for(plan->link.cc.scripts, it) {
         spn_dag_action_add_input(g, ids.action, spn_dag_add_file(g, plan->link.cc.scripts[it]));
       }
       if (ids.exports.occupied) {
@@ -658,7 +659,7 @@ static spn_err_t dag_add_package(spn_dag_build_t* b, spn_pkg_unit_t* unit) {
 static void dag_add_link_deps(spn_dag_build_t* b, const spn_target_plan_t* plan, spn_dag_id_t action) {
   spn_dag_t* g = b->graph;
 
-  sp_da_for(plan->link.libs, it) {
+  si_da_for(plan->link.libs, it) {
     spn_dag_target_ids_t* dep = sp_ht_getp(b->ids.targets, plan->link.libs[it].lib);
     if (dep) {
       spn_dag_action_add_input(g, action, dep->output);
@@ -683,7 +684,7 @@ static void dag_add_target_edges(spn_dag_build_t* b, spn_target_unit_t* target, 
       sp_da_push(inputs, (*user_outputs)[it]);
     }
   }
-  sp_da_for(plan->include, it) {
+  si_da_for(plan->include, it) {
     spn_dag_id_t* stamp = sp_ht_getp(b->ids.stamps, plan->include[it]);
     if (stamp) {
       sp_da_push(inputs, *stamp);

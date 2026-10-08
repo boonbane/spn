@@ -243,10 +243,10 @@ void spn_gnu_render_compile(sp_mem_t mem, const spn_cc_t* toolchain, const spn_p
   }
   spn_cc_push_strs(mem, invocation, flags.compile);
   spn_cc_push_c(mem, invocation, "-c");
-  sp_da_for(compile->include, it) {
+  si_da_for(compile->include, it) {
     spn_cc_push_glued(mem, invocation, "-I", compile->include[it]);
   }
-  sp_da_for(compile->define, it) {
+  si_da_for(compile->define, it) {
     spn_cc_push_str(mem, invocation, render_define(mem, compile->define[it]));
   }
   if (compile->lang == SPN_LANG_CXX) {
@@ -267,7 +267,9 @@ void spn_gnu_render_compile(sp_mem_t mem, const spn_cc_t* toolchain, const spn_p
   if (codeview(toolchain, profile)) {
     spn_cc_push_c(mem, invocation, "-gno-codeview-command-line");
   }
-  spn_cc_push_strs(mem, invocation, compile->args);
+  si_da_for(compile->args, it) {
+    spn_cc_push_str(mem, invocation, compile->args[it]);
+  }
   spn_cc_push_c(mem, invocation, "-Werror=return-type");
 }
 
@@ -350,23 +352,25 @@ static void add_exports(sp_mem_t mem, spn_obj_format_t format, spn_ld_dialect_t 
   }
 }
 
-static void add_whole_archives(sp_mem_t mem, spn_ld_dialect_t dialect, sp_da(spn_path_t) archives, spn_invocation_t* invocation) {
+static void add_whole_archives(sp_mem_t mem, spn_ld_dialect_t dialect, si_da(spn_path_t) archives, spn_invocation_t* invocation) {
   switch (dialect) {
     case SPN_LD_DIALECT_GNU:
     case SPN_LD_DIALECT_WASM: {
       spn_cc_push_c(mem, invocation, "-Wl,--whole-archive");
-      spn_cc_push_paths(mem, invocation, archives);
+      si_da_for(archives, it) {
+        spn_cc_push_path(mem, invocation, archives[it]);
+      }
       spn_cc_push_c(mem, invocation, "-Wl,--no-whole-archive");
       break;
     }
     case SPN_LD_DIALECT_LINK: {
-      sp_da_for(archives, it) {
+      si_da_for(archives, it) {
         spn_cc_push_glued(mem, invocation, "-Wl,/WHOLEARCHIVE:", archives[it]);
       }
       break;
     }
     case SPN_LD_DIALECT_DARWIN: {
-      sp_da_for(archives, it) {
+      si_da_for(archives, it) {
         spn_cc_push_glued(mem, invocation, "-Wl,-force_load,", archives[it]);
       }
       break;
@@ -489,24 +493,26 @@ void spn_gnu_render_link(sp_mem_t mem, const spn_cc_t* toolchain, const spn_prof
       sp_unreachable_case();
     }
   }
-  sp_da_for(link->scripts, it) {
+  si_da_for(link->scripts, it) {
     spn_cc_push_glued(mem, invocation, "-Wl,-T,", link->scripts[it]);
   }
-  spn_cc_push_strs(mem, invocation, link->args);
+  si_da_for(link->args, it) {
+    spn_cc_push_str(mem, invocation, link->args[it]);
+  }
   spn_cc_push_args(mem, invocation, objects);
-  if (!sp_da_empty(link->whole_archives)) {
+  if (!si_da_empty(link->whole_archives)) {
     add_whole_archives(mem, dialect, link->whole_archives, invocation);
   }
-  sp_da_for(link->lib_dirs, it) {
+  si_da_for(link->lib_dirs, it) {
     spn_cc_push_glued(mem, invocation, "-L", link->lib_dirs[it]);
   }
-  sp_da_for(link->private_libs, it) {
+  si_da_for(link->private_libs, it) {
     spn_cc_push_fmt(mem, invocation, "-l{}", sp_fmt_str(link->private_libs[it]));
   }
-  sp_da_for(link->libs, it) {
+  si_da_for(link->libs, it) {
     spn_cc_push_fmt(mem, invocation, "-l{}", sp_fmt_str(link->libs[it]));
   }
-  sp_da_for(link->system_libs, it) {
+  si_da_for(link->system_libs, it) {
     spn_cc_push_fmt(mem, invocation, "-l{}", sp_fmt_str(link->system_libs[it]));
   }
   add_sdk_link(mem, &profile->sdk, invocation);
@@ -514,7 +520,7 @@ void spn_gnu_render_link(sp_mem_t mem, const spn_cc_t* toolchain, const spn_prof
     if (is_os_version_present(link->min_os)) {
       spn_cc_push_fmt(mem, invocation, "-mmacosx-version-min={}.{}", sp_fmt_uint(link->min_os.major), sp_fmt_uint(link->min_os.minor));
     }
-    sp_da_for(link->frameworks, it) {
+    si_da_for(link->frameworks, it) {
       spn_cc_push_c(mem, invocation, "-framework");
       spn_cc_push_str(mem, invocation, link->frameworks[it]);
     }

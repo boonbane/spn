@@ -67,6 +67,9 @@ typedef struct SP_ALIGNED {
     }\
   } while (0)
 
+#define si_da_copy(__mem, __dst, __src)\
+  (*si_da_vp(__dst) = si_da_copy_ex((__mem), (__src), si_da_stride(__src)))
+
 #define si_da_pop(__ARR)\
   do {\
     if (__ARR && !si_da_empty(__ARR)) {\
@@ -81,6 +84,7 @@ typedef struct SP_ALIGNED {
 #define si_da_bounds_ok(arr, it) ((it) < si_da_size(arr))
 
 void* si_da_resize(sp_mem_t mem, void* arr, u32 stride, u64 cap);
+void* si_da_copy_ex(sp_mem_t mem, const void* arr, u32 stride);
 
 static inline void* si_da_grow_ex(sp_mem_t mem, void* arr, u32 stride, u64 n) {
   u64 required = si_da_size(arr) + n;

@@ -10,29 +10,6 @@
 #include "triple/triple.h"
 #include "when/when.h"
 
-spn_build_id_t spn_build_id(const spn_profile_info_t* profile) {
-  sp_hash_t parts [] = {
-    spn_digest_hash_str(profile->name),
-    (sp_hash_t)profile->toolchain.kind,
-    spn_digest_hash_str(profile->toolchain.name),
-    spn_sdk_hash(&profile->sdk),
-    (sp_hash_t)profile->os,
-    (sp_hash_t)profile->arch,
-    (sp_hash_t)profile->abi,
-    (sp_hash_t)profile->driver,
-    (sp_hash_t)profile->linker,
-    (sp_hash_t)profile->linking.linkage,
-    (sp_hash_t)profile->linking.runtime,
-    (sp_hash_t)profile->linking.libc,
-    (sp_hash_t)profile->standard,
-    (sp_hash_t)profile->mode,
-    (sp_hash_t)profile->opt,
-    (sp_hash_t)profile->targeted,
-    spn_digest_hash(&profile->sanitizers, sizeof(profile->sanitizers)),
-  };
-  return spn_digest_hash_combine(parts, sp_carr_len(parts));
-}
-
 static spn_toolchain_unit_t* bind_toolchain(spn_session_t* s, spn_toolchain_info_t* toolchain) {
   sp_da_for(s->units.toolchains, it) {
     spn_toolchain_unit_t* unit = s->units.toolchains[it];
@@ -48,7 +25,27 @@ static spn_toolchain_unit_t* bind_toolchain(spn_session_t* s, spn_toolchain_info
 }
 
 spn_build_unit_t* spn_build_add(spn_session_t* s, spn_profile_info_t profile, spn_path_t root, spn_toolchain_info_t* toolchain) {
-  spn_build_id_t id = spn_build_id(&profile);
+  sp_hash_t parts [] = {
+    spn_digest_hash_str(profile.name),
+    (sp_hash_t)profile.toolchain.kind,
+    spn_digest_hash_str(profile.toolchain.name),
+    spn_sdk_hash(&profile.sdk),
+    (sp_hash_t)profile.os,
+    (sp_hash_t)profile.arch,
+    (sp_hash_t)profile.abi,
+    (sp_hash_t)profile.driver,
+    (sp_hash_t)profile.linker,
+    (sp_hash_t)profile.linking.linkage,
+    (sp_hash_t)profile.linking.runtime,
+    (sp_hash_t)profile.linking.libc,
+    (sp_hash_t)profile.standard,
+    (sp_hash_t)profile.mode,
+    (sp_hash_t)profile.opt,
+    (sp_hash_t)profile.targeted,
+    spn_digest_hash(&profile.sanitizers, sizeof(profile.sanitizers)),
+  };
+  spn_build_id_t id = spn_digest_hash_combine(parts, sp_carr_len(parts));
+
   sp_assert(!sp_om_has(s->units.builds, id));
 
   sp_om_insert(s->units.builds, id, sp_zero_struct(spn_build_unit_t));

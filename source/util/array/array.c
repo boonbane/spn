@@ -23,3 +23,15 @@ void* si_da_resize(sp_mem_t mem, void* arr, u32 stride, u64 cap) {
   header->capacity = cap;
   return header + 1;
 }
+
+void* si_da_copy_ex(sp_mem_t mem, const void* arr, u32 stride) {
+  u64 size = si_da_size(arr);
+  if (!size) {
+    return SP_NULLPTR;
+  }
+
+  void* copy = init(mem, stride, size);
+  sp_mem_copy(copy, arr, size * stride);
+  si_da_head(copy)->size = size;
+  return copy;
+}

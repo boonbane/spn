@@ -335,8 +335,8 @@ void spn_index_assemble(sp_mem_t mem, spn_index_map_t* workspace, sp_da(spn_inde
   *indexes = sp_da_new(mem, spn_index_info_t);
 
   if (workspace) {
-    sp_str_om_for(*workspace, it) {
-      sp_da_push(*indexes, *sp_str_om_at(*workspace, it));
+    si_om_for(*workspace, it) {
+      sp_da_push(*indexes, *si_om_at(*workspace, it));
     }
   }
 

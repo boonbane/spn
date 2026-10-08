@@ -1,4 +1,5 @@
 #include "index.h"
+#include "intern/intern.h"
 
 #include "pkg/id.h"
 #include "when/when.h"
@@ -243,9 +244,9 @@ sp_test_each(index_dir, get_package, dir_test_t, tests, .setup = spn_test_ctx_se
 
     u32 options = 0;
     sp_carr_detect_len(it->expect.options, options, it->expect.options[options].name);
-    sp_must_eq(t, options, sp_str_om_size(release->options));
+    sp_must_eq(t, options, si_om_size(release->options));
     sp_for(at, options) {
-      spn_option_info_t* option = sp_str_om_get(release->options, sp_cstr_as_str(it->expect.options[at].name));
+      spn_option_info_t* option = si_om_get(release->options, spn_intern_id(sp_cstr_as_str(it->expect.options[at].name)));
       sp_must(t, option != SP_NULLPTR);
       sp_expect_eq(t, it->expect.options[at].type, option->type);
       sp_expect_eq(t, it->expect.options[at].defaults, sp_da_size(option->defaults));

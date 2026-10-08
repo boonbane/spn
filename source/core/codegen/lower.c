@@ -12,6 +12,7 @@
 #include "target/types.h"
 #include "target/mutate.h"
 #include "pkg/mutate.h"
+#include "intern/intern.h"
 #include "toolchain/catalog.h"
 #include "toolchain/toolchain.h"
 #include "triple/triple.h"
@@ -290,10 +291,9 @@ static void lower_targets(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, s
 }
 
 static void lower_toolchains(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, spn_pkg_info_t* out) {
-  sp_str_om_init(out->toolchains);
   sp_da(spn_toolchain_decl_t) toolchains = spn_toolchains_lower_list(ctx, SPN_PATH_ROOT_PROJECT, cg->toolchain);
   sp_da_for(toolchains, it) {
-    sp_str_om_insert(out->toolchains, toolchains[it].name, toolchains[it]);
+    si_om_insert(ctx->mem, out->toolchains, sp_intern_get_or_insert(ctx->intern, toolchains[it].name), toolchains[it]);
   }
 }
 
@@ -317,10 +317,9 @@ static spn_profile_decl_t lower_profile(spn_toml_loader_t* ctx, sp_str_t name, c
 }
 
 static void lower_profiles(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, spn_pkg_info_t* out) {
-  sp_str_om_init(out->profiles);
   sp_da_for(cg->profile, i) {
     spn_profile_decl_t decl = lower_profile(ctx, cg->profile[i].key, &cg->profile[i].value);
-    sp_str_om_insert(out->profiles, decl.name, decl);
+    si_om_insert(ctx->mem, out->profiles, sp_intern_get_or_insert(ctx->intern, decl.name), decl);
   }
 }
 
@@ -390,10 +389,9 @@ spn_index_info_t spn_index_lower(spn_toml_loader_t* ctx, u32 at, spn_index_kind_
 }
 
 static void lower_indexes(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, spn_pkg_info_t* out) {
-  sp_str_om_init(out->indexes);
   sp_da_for(cg->index, it) {
     spn_index_info_t info = spn_index_lower(ctx, it, SPN_INDEX_KIND_WORKSPACE, &cg->index[it]);
-    sp_str_om_insert(out->indexes, info.name, info);
+    si_om_insert(ctx->mem, out->indexes, sp_intern_get_or_insert(ctx->intern, info.name), info);
   }
 }
 
@@ -410,7 +408,6 @@ static void lower_deps(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, spn_
 }
 
 static void lower_options(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, spn_pkg_info_t* out) {
-  sp_str_om_init(out->options);
   sp_da_for(cg->options, it) {
     const spn_cg_manifest_options_entry_t* entry = &cg->options[it];
     spn_option_info_t option = {
@@ -422,7 +419,7 @@ static void lower_options(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, s
       .values = entry->value.values ? entry->value.values : sp_da_new(ctx->mem, sp_str_t),
       .defaults = entry->value.defaults ? entry->value.defaults : sp_da_new(ctx->mem, spn_option_default_t),
     };
-    sp_str_om_insert(out->options, option.name, option);
+    si_om_insert(ctx->mem, out->options, sp_intern_get_or_insert(ctx->intern, option.name), option);
   }
 }
 
@@ -563,7 +560,7 @@ static void validate_when(spn_toml_loader_t* ctx, const spn_when_t* when, spn_pk
       ok = when_fact_value_valid(clause->key, clause->value);
     }
     else {
-      spn_option_info_t** option = sp_str_om_getp(out->options, clause->key);
+      spn_option_info_t** option = si_om_getp(out->options, sp_intern_get_or_insert(ctx->intern, clause->key));
       ok = option && when_option_value_valid(*option, clause->value);
     }
     if (!ok) {
@@ -759,7 +756,7 @@ static void validate_option_sets(spn_toml_loader_t* ctx, const spn_cg_manifest_t
     spn_toml_loader_push_key(ctx, "options");
     sp_da_for(cg->profile[it].value.options.clauses, jt) {
       const spn_when_clause_t* clause = &cg->profile[it].value.options.clauses[jt];
-      spn_option_info_t** option = sp_str_om_getp(out->options, clause->key);
+      spn_option_info_t** option = si_om_getp(out->options, sp_intern_get_or_insert(ctx->intern, clause->key));
       if (!option || !when_option_value_valid(*option, clause->value)) {
         spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, clause->key.data);
       }
@@ -798,7 +795,7 @@ static void validate_options(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg
       spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "public");
     }
 
-    spn_option_info_t** lowered = sp_str_om_getp(out->options, cg->options[it].key);
+    spn_option_info_t** lowered = si_om_getp(out->options, sp_intern_get_or_insert(ctx->intern, cg->options[it].key));
     spn_toml_loader_push_key(ctx, "default");
     sp_da_for(option->defaults, jt) {
       const spn_option_default_t* entry = &option->defaults[jt];
