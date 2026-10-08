@@ -25,7 +25,7 @@ spn_err_t spn_dag_exec_embed(spn_dag_t* g, spn_dag_action_t* action, void* user_
   spn_event_buffer_push(spn.events, (spn_event_t) {
     .kind = SPN_EVENT_EMBED_START,
     .pkg = unit->pkg->info->name,
-    .embed_start = { .target = info->name, .num_files = sp_da_size(info->embed) },
+    .embed_start = { .target = info->name, .num_files = si_da_size(info->embed) },
   });
 
   sp_tm_timer_t timer = sp_tm_start_timer();
@@ -33,7 +33,7 @@ spn_err_t spn_dag_exec_embed(spn_dag_t* g, spn_dag_action_t* action, void* user_
   spn_cc_embed_ctx_t embedder = sp_zero;
   spn_cc_embed_ctx_init(&embedder, spn.mem, spn_os_to_native_object_format(unit->pkg->build->profile.os), unit->pkg->build->profile.arch);
 
-  sp_da_for(info->embed, it) {
+  si_da_for(info->embed, it) {
     spn_embed_t embed = info->embed[it];
     spn_embed_types_t types = embed.types;
 

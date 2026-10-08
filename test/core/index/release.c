@@ -390,7 +390,7 @@ static sp_err_t release_check(sp_test_t* t, sp_mem_t mem, const release_rel_t* e
   return SP_OK;
 }
 
-sp_test_each(index_release, parse, release_test_t, tests) {
+sp_test_each(index_release, parse, release_test_t, tests, .setup = spn_test_ctx_setup) {
   sp_mem_t mem = sp_test_arena(t);
   sp_str_t file = sp_test_format(t, "releases/{}.jsonl", sp_fmt_cstr(it->name));
   sp_str_t path = test_repo_path(mem, sp_test_format(t, "test/core/index/{}", sp_fmt_str(file)));

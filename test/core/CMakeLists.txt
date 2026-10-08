@@ -11,6 +11,9 @@ add_executable(core
   intern.c
   lazy.c
   stable_map.c
+  array.c
+  hash_table.c
+  ordered_map.c
   str.c
   triple.c
   version.c
@@ -221,6 +224,8 @@ add_executable(core
   ${UTIL}/os/os.c
   ${UTIL}/queue/queue.c
   ${UTIL}/str/str.c
+  ${UTIL}/array/array.c
+  ${UTIL}/hash_table/hash_table.c
   ${SRC}/target/mutate.c
   ${SRC}/target/target.c
   ${SRC}/target/select.c

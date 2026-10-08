@@ -23,6 +23,7 @@ u64            sp_intern_metadata_bytes(sp_intern_t* intern);
 sp_str_t       spn_intern(sp_str_t str);
 sp_str_t       spn_intern_cstr(const c8* cstr);
 sp_str_t       spn_intern_str(sp_intern_id_t id);
+sp_intern_id_t spn_intern_id(sp_str_t str);
 bool           spn_intern_is_equal(sp_str_t a, sp_str_t b);
 bool           spn_intern_is_equal_cstr(sp_str_t str, const c8* cstr);
 

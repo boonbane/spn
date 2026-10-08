@@ -1079,14 +1079,6 @@ sp_test_each(render_link, render, link_test_t, tests, .setup = spn_test_ctx_setu
     .min_os = it->min_os,
     .subsystem = it->subsystem,
   };
-  sp_da_init(mem, link.libs);
-  sp_da_init(mem, link.private_libs);
-  sp_da_init(mem, link.system_libs);
-  sp_da_init(mem, link.lib_dirs);
-  sp_da_init(mem, link.frameworks);
-  sp_da_init(mem, link.args);
-  sp_da_init(mem, link.scripts);
-  sp_da_init(mem, link.whole_archives);
 
   sp_da(spn_arg_t) objects = sp_da_new(mem, spn_arg_t);
   sp_da_push(objects, spn_arg_path(test_arg_path("main.o")));
@@ -1094,28 +1086,28 @@ sp_test_each(render_link, render, link_test_t, tests, .setup = spn_test_ctx_setu
     link.exports = test_arg_path(it->exports);
   }
   if (it->lib) {
-    sp_da_push(link.libs, sp_str_from_cstr(mem, it->lib));
+    si_da_push(mem, link.libs, sp_str_from_cstr(mem, it->lib));
   }
   if (it->whole_archive) {
-    sp_da_push(link.whole_archives, test_arg_path(it->whole_archive));
+    si_da_push(mem, link.whole_archives, test_arg_path(it->whole_archive));
   }
   if (it->private_lib) {
-    sp_da_push(link.private_libs, sp_str_from_cstr(mem, it->private_lib));
+    si_da_push(mem, link.private_libs, sp_str_from_cstr(mem, it->private_lib));
   }
   if (it->system_lib) {
-    sp_da_push(link.system_libs, sp_str_from_cstr(mem, it->system_lib));
+    si_da_push(mem, link.system_libs, sp_str_from_cstr(mem, it->system_lib));
   }
   if (it->framework) {
-    sp_da_push(link.frameworks, sp_str_from_cstr(mem, it->framework));
+    si_da_push(mem, link.frameworks, sp_str_from_cstr(mem, it->framework));
   }
   if (it->lib_dir) {
-    sp_da_push(link.lib_dirs, test_arg_path(it->lib_dir));
+    si_da_push(mem, link.lib_dirs, test_arg_path(it->lib_dir));
   }
   if (it->arg) {
-    sp_da_push(link.args, sp_str_from_cstr(mem, it->arg));
+    si_da_push(mem, link.args, sp_str_from_cstr(mem, it->arg));
   }
   if (it->script) {
-    sp_da_push(link.scripts, test_arg_path(it->script));
+    si_da_push(mem, link.scripts, test_arg_path(it->script));
   }
 
   spn_profile_info_t profile = test_profile(it->profile);

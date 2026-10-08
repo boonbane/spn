@@ -8,7 +8,8 @@
 #include "intern/types.h"
 #include "paths/types.h"
 #include "macro/macro.h"
-#include "sp_om/sp_om.h"
+#include "array/array.h"
+#include "ordered_map.h"
 #include "semver/types.h"
 #include "target/types.h"
 #include "toolchain/types.h"
@@ -144,10 +145,10 @@ typedef struct {
   spn_git_patch_set_t set;
 } spn_pkg_patch_t;
 
-typedef sp_str_om(spn_profile_decl_t)    spn_profile_map_t;
-typedef sp_str_om(spn_index_info_t)      spn_index_map_t;
-typedef sp_str_om(spn_toolchain_decl_t) spn_toolchain_map_t;
-typedef sp_str_om(spn_option_info_t)     spn_option_map_t;
+typedef si_om(sp_intern_id_t, spn_profile_decl_t)    spn_profile_map_t;
+typedef si_om(sp_intern_id_t, spn_index_info_t)      spn_index_map_t;
+typedef si_om(sp_intern_id_t, spn_toolchain_decl_t) spn_toolchain_map_t;
+typedef si_om(sp_intern_id_t, spn_option_info_t)     spn_option_map_t;
 
 struct spn_pkg_info {
   sp_str_t namespace;
@@ -164,19 +165,19 @@ struct spn_pkg_info {
   spn_target_map_t targets;
   spn_profile_map_t profiles;
   spn_index_map_t indexes;
-  sp_da(spn_requested_dep_t) deps;
-  sp_da(spn_pkg_config_entry_t) config;
-  sp_da(spn_pkg_patch_t) patches;
+  si_da(spn_requested_dep_t) deps;
+  si_da(spn_pkg_config_entry_t) config;
+  si_da(spn_pkg_patch_t) patches;
   spn_option_map_t options;
-  sp_da(spn_path_t) include;
-  sp_da(sp_str_t) define;
-  sp_da(sp_str_t) public_define;
-  sp_da(sp_str_t) system_deps;
+  si_da(spn_path_t) include;
+  si_da(sp_str_t) define;
+  si_da(sp_str_t) public_define;
+  si_da(sp_str_t) system_deps;
   struct {
-    sp_da(spn_path_t) include;
+    si_da(spn_path_t) include;
   } configured;
   struct {
-    sp_da(sp_str_t) frameworks;
+    si_da(sp_str_t) frameworks;
     spn_os_version_t min_os;
   } macos;
   struct {
@@ -185,18 +186,17 @@ struct spn_pkg_info {
     spn_gated_list_t define;
     spn_gated_list_t frameworks;
     struct {
-      sp_da(spn_publish_copy_t) copy;
+      si_da(spn_publish_copy_t) copy;
     } publish;
   } gated;
   spn_toolchain_map_t toolchains;
   spn_target_info_t build;
   spn_target_info_t configure;
   struct {
-    sp_da(spn_publish_copy_t) copy;
+    si_da(spn_publish_copy_t) copy;
   } publish;
 
   bool applied;
-  sp_mem_arena_t* arena;
 };
 
 #endif

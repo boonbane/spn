@@ -796,12 +796,12 @@ static const finalize_test_t finalize_tests [] = {
 };
 
 static spn_when_t clauses_to_when(sp_mem_t mem, const clause_t* clauses, u32 count) {
-  spn_when_t when = { .clauses = sp_da_new(mem, spn_when_clause_t) };
+  spn_when_t when = sp_zero;
   sp_for(it, count) {
     if (!clauses[it].key) {
       break;
     }
-    sp_da_push(when.clauses, ((spn_when_clause_t) {
+    si_da_push(mem, when.clauses, ((spn_when_clause_t) {
       .key = sp_cstr_as_str(clauses[it].key),
       .value = spn_option_value_str(sp_cstr_as_str(clauses[it].value)),
     }));
@@ -810,12 +810,12 @@ static spn_when_t clauses_to_when(sp_mem_t mem, const clause_t* clauses, u32 cou
 }
 
 static spn_gated_list_t candidates_to_list(sp_mem_t mem, const candidate_t* candidates, u32 count) {
-  spn_gated_list_t list = sp_da_new(mem, spn_gated_str_t);
+  spn_gated_list_t list = SP_NULLPTR;
   sp_for(it, count) {
     if (!candidates[it].value) {
       break;
     }
-    sp_da_push(list, ((spn_gated_str_t) {
+    si_da_push(mem, list, ((spn_gated_str_t) {
       .value = sp_cstr_as_str(candidates[it].value),
       .when = clauses_to_when(mem, candidates[it].when, sp_carr_len(candidates[it].when)),
     }));
@@ -855,17 +855,17 @@ sp_test_each(profile, resolve, test_t, tests, .setup = spn_test_ctx_setup) {
 
   spn_profile_override_t overrides = desc_to_override(&it->overrides);
 
-  spn_pkg_info_t pkg = spn_pkg_new(mem, sp_str_lit("P"));
+  spn_pkg_info_t pkg = spn_pkg_new(sp_str_lit("P"));
   if (it->profile.name) {
     spn_profile_decl_t decl = desc_to_decl(mem, &it->profile);
-    sp_str_om_insert(pkg.profiles, decl.name, decl);
+    si_om_insert(mem, pkg.profiles, spn_intern_id(decl.name), decl);
   }
   if (it->derived.name) {
     spn_profile_decl_t decl = desc_to_decl(mem, &it->derived);
-    sp_str_om_insert(pkg.profiles, decl.name, decl);
+    si_om_insert(mem, pkg.profiles, spn_intern_id(decl.name), decl);
   }
   if (it->shared_demand) {
-    spn_pkg_add_target(&pkg, sp_str_lit("L"), SPN_TARGET_KIND_LIB)->linkages = (spn_linkage_set_t) { .shared = true };
+    spn_pkg_add_target(mem, &pkg, sp_str_lit("L"), SPN_TARGET_KIND_LIB)->linkages = (spn_linkage_set_t) { .shared = true };
   }
 
   spn_profile_info_t result = sp_zero;

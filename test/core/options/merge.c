@@ -1,4 +1,5 @@
 #include "options.h"
+#include "intern/intern.h"
 
 typedef struct {
   const c8* str;
@@ -76,10 +77,10 @@ static spn_option_value_t make_value(value_lit_t lit) {
 }
 
 static spn_when_t make_when(sp_mem_t mem, const clause_lit_t* clauses, u64 count) {
-  spn_when_t when = { .clauses = sp_da_new(mem, spn_when_clause_t) };
+  spn_when_t when = sp_zero;
   for (u64 it = 0; it < count; it++) {
     if (!clauses[it].key) break;
-    sp_da_push(when.clauses, ((spn_when_clause_t) {
+    si_da_push(mem, when.clauses, ((spn_when_clause_t) {
       .key = sp_str_view(clauses[it].key),
       .negated = clauses[it].negated,
       .value = make_value((value_lit_t) { .str = clauses[it].str, .b = clauses[it].b, .is_bool = clauses[it].is_bool }),
@@ -459,7 +460,7 @@ static const merge_test_t tests [] = {
   },
 };
 
-sp_test_each(options_merge, merge, merge_test_t, tests) {
+sp_test_each(options_merge, merge, merge_test_t, tests, .setup = spn_test_ctx_setup) {
   if (it->skip) {
     return sp_test_skip(t, "{}", sp_fmt_cstr(it->skip));
   }
@@ -478,22 +479,20 @@ sp_test_each(options_merge, merge, merge_test_t, tests) {
       .name = sp_str_view(decl->name),
       .type = decl->type,
       .additive = decl->additive,
-      .values = sp_da_new(mem, sp_str_t),
-      .defaults = sp_da_new(mem, spn_option_default_t),
     };
     sp_carr_for(decl->values, vt) {
       if (!decl->values[vt]) break;
-      sp_da_push(option.values, sp_str_view(decl->values[vt]));
+      si_da_push(mem, option.values, sp_str_view(decl->values[vt]));
     }
     sp_carr_for(decl->defaults, dt) {
       default_lit_t* arm = &decl->defaults[dt];
       if (make_value(arm->value).kind == SPN_OPTION_VALUE_NONE) break;
-      sp_da_push(option.defaults, ((spn_option_default_t) {
+      si_da_push(mem, option.defaults, ((spn_option_default_t) {
         .when = make_when(mem, arm->when, SP_CARR_LEN(arm->when)),
         .value = make_value(arm->value),
       }));
     }
-    sp_str_om_insert(pkg.options, option.name, option);
+    si_om_insert(mem, pkg.options, spn_intern_id(option.name), option);
   }
 
   spn_profile_info_t profile = {
@@ -506,9 +505,9 @@ sp_test_each(options_merge, merge, merge_test_t, tests) {
     .options = make_when(mem, it->profile_options, SP_CARR_LEN(it->profile_options)),
   };
 
-  sp_da(spn_pkg_config_entry_t) config = sp_da_new(mem, spn_pkg_config_entry_t);
+  si_da(spn_pkg_config_entry_t) config = SP_NULLPTR;
   if (it->config[0].key || it->defaults_declined) {
-    sp_da_push(config, ((spn_pkg_config_entry_t) {
+    si_da_push(mem, config, ((spn_pkg_config_entry_t) {
       .key = sp_str_lit("p"),
       .value = {
         .options = make_when(mem, it->config, SP_CARR_LEN(it->config)),

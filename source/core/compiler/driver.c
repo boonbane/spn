@@ -238,10 +238,10 @@ spn_err_t spn_cc_validate_link(const spn_cc_t* toolchain, spn_triple_t host, con
   if (link->kind == SPN_CC_OUTPUT_SHARED_LIB && !spn_triple_dynamic(target)) {
     return feature_unsupported(toolchain, profile, link, feature);
   }
-  if (profile->os == SPN_OS_MACOS && !sp_da_empty(link->frameworks) && profile->sdk.kind == SPN_SDK_NONE) {
+  if (profile->os == SPN_OS_MACOS && !si_da_empty(link->frameworks) && profile->sdk.kind == SPN_SDK_NONE) {
     return feature_unsupported(toolchain, profile, link, SPN_CC_FEATURE_FRAMEWORKS);
   }
-  if (!sp_da_empty(link->scripts) && !spn_ld_scripts(profile->linker, spn_os_to_native_object_format(profile->os))) {
+  if (!si_da_empty(link->scripts) && !spn_ld_scripts(profile->linker, spn_os_to_native_object_format(profile->os))) {
     return feature_unsupported(toolchain, profile, link, SPN_CC_FEATURE_LINKER_SCRIPT);
   }
   if (profile->linker == SPN_LD_FAMILY_MSVC && host.os != SPN_OS_WINDOWS) {

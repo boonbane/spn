@@ -141,7 +141,7 @@ static sp_da(spn_target_unit_t*) sibling_link_targets(sp_mem_t mem, spn_target_u
   return targets;
 }
 
-sp_da(spn_closure_entry_t) spn_target_link_closure(sp_mem_t mem, spn_target_unit_t* root) {
+sp_da(spn_closure_entry_t) si_link_get_target_closure(sp_mem_t mem, spn_target_unit_t* root) {
   sp_da(spn_closure_entry_t) closure = sp_da_new(mem, spn_closure_entry_t);
   sp_da_push(closure, ((spn_closure_entry_t) {
     .pkg = root->pkg,
@@ -215,7 +215,7 @@ static void collect_runtime_siblings(target_set_t* seen, target_set_t* unique, s
   }
 }
 
-sp_da(spn_target_unit_t*) spn_target_runtime_libs(sp_mem_t mem, spn_target_unit_t* root) {
+sp_da(spn_target_unit_t*) si_link_get_target_runtime_libs(sp_mem_t mem, spn_target_unit_t* root) {
   sp_mem_arena_marker_t s = sp_mem_begin_scratch_for(mem);
 
   search_t search = {
@@ -240,8 +240,8 @@ sp_da(spn_target_unit_t*) spn_target_runtime_libs(sp_mem_t mem, spn_target_unit_
   return libs;
 }
 
-sp_da(spn_link_lib_t) spn_closure_get_linked_libs(sp_mem_t mem, sp_da(spn_closure_entry_t) closure) {
-  sp_da(spn_link_lib_t) libs = sp_da_new(mem, spn_link_lib_t);
+si_da(spn_link_lib_t) si_link_get_closure_libs(sp_mem_t mem, sp_da(spn_closure_entry_t) closure) {
+  si_da(spn_link_lib_t) libs = SP_NULLPTR;
 
   sp_da_for(closure, it) {
     spn_closure_entry_t* entry = &closure[it];
@@ -254,7 +254,7 @@ sp_da(spn_link_lib_t) spn_closure_get_linked_libs(sp_mem_t mem, sp_da(spn_closur
       switch (lib->lib_kind) {
         case SPN_LIB_KIND_STATIC:
         case SPN_LIB_KIND_SHARED: {
-          sp_da_push(libs, ((spn_link_lib_t) {
+          si_da_push(mem, libs, ((spn_link_lib_t) {
             .pkg = entry->pkg,
             .lib = lib,
             .private = entry->private,

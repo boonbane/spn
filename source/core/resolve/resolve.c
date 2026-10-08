@@ -298,8 +298,8 @@ static bool node_is_shared(spn_resolver_t* resolver, spn_resolved_pkg_t* node) {
         return false;
       }
 
-      sp_om_for(pkg->info->targets, it) {
-        spn_target_info_t* target = sp_om_at(pkg->info->targets, it);
+      si_om_for(pkg->info->targets, it) {
+        spn_target_info_t* target = si_om_at(pkg->info->targets, it);
         if (target->kind != SPN_TARGET_KIND_LIB) {
           continue;
         }
@@ -505,7 +505,7 @@ static spn_err_union_t resolve_local_package(spn_resolver_t* resolver, spn_resol
 
   spn_when_env_t env;
   node_options_env(resolver, &node, &env);
-  sp_da_for(pkg->info->deps, it) {
+  si_da_for(pkg->info->deps, it) {
     if (!spn_when_eval(&pkg->info->deps[it].when, &env)) {
       continue;
     }

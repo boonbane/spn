@@ -86,18 +86,15 @@ bool spn_zig_progress_feed(spn_zig_progress_t* progress, const u8* bytes, u64 le
   return advanced;
 }
 
-static sp_da(sp_str_t) canonical_libs(sp_mem_t mem, sp_da(sp_str_t) libs) {
-  sp_da(sp_str_t) sorted = sp_da_new(mem, sp_str_t);
-  sp_da_reserve(sorted, sp_da_size(libs));
-  sp_da_for(libs, it) {
-    sp_da_push(sorted, libs[it]);
-  }
-  sp_da_sort(sorted, sp_str_sort_kernel_alphabetical);
+static si_da(sp_str_t) canonical_libs(sp_mem_t mem, si_da(sp_str_t) libs) {
+  si_da(sp_str_t) sorted = SP_NULLPTR;
+  si_da_copy(mem, sorted, libs);
+  si_da_sort(sorted, sp_str_sort_kernel_alphabetical);
 
-  sp_da(sp_str_t) unique = sp_da_new(mem, sp_str_t);
-  sp_da_for(sorted, it) {
+  si_da(sp_str_t) unique = SP_NULLPTR;
+  si_da_for(sorted, it) {
     if (it && sp_str_equal(sorted[it], sorted[it - 1])) { continue; }
-    sp_da_push(unique, sorted[it]);
+    si_da_push(mem, unique, sorted[it]);
   }
   return unique;
 }
@@ -145,8 +142,8 @@ sp_str_t spn_zig_stub_name(sp_mem_t mem, const spn_zig_stub_t* stub) {
   if (stub->sdk) {
     sp_da_push(parts, sp_fmt(s.mem, "{:0>16x}", sp_fmt_uint(stub->sdk)).value);
   }
-  if (sp_da_size(stub->system_libs)) {
-    sp_str_t libs = sp_str_join_n(s.mem, stub->system_libs, sp_da_size(stub->system_libs), sp_str_lit(","));
+  if (si_da_size(stub->system_libs)) {
+    sp_str_t libs = sp_str_join_n(s.mem, stub->system_libs, si_da_size(stub->system_libs), sp_str_lit(","));
     sp_da_push(parts, sp_fmt(s.mem, "{:0>16x}", sp_fmt_uint(spn_digest_hash_str(libs))).value);
   }
   sp_str_t name = sp_str_join_n(mem, parts, sp_da_size(parts), sp_str_lit("."));

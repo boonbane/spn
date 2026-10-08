@@ -3,6 +3,7 @@
 
 #include "profile/types.h"
 #include "toolchain/types.h"
+#include "array/array.h"
 
 typedef struct {
   sp_da(sp_str_t) compile;
@@ -48,9 +49,9 @@ typedef struct {
 
 typedef struct {
   spn_lang_t lang;
-  sp_da(spn_path_t) include;
-  sp_da(sp_str_t) define;
-  sp_da(sp_str_t) args;
+  si_da(spn_path_t) include;
+  si_da(sp_str_t) define;
+  si_da(sp_str_t) args;
   spn_cxx_options_t cxx;
   bool pic;
   spn_os_version_t min_os;
@@ -67,14 +68,14 @@ typedef struct {
   sp_str_t name;
   spn_lang_t lang;
   spn_cc_output_kind_t kind;
-  sp_da(sp_str_t) libs;
-  sp_da(sp_str_t) private_libs;
-  sp_da(sp_str_t) system_libs;
-  sp_da(spn_path_t) lib_dirs;
-  sp_da(sp_str_t) frameworks;
-  sp_da(sp_str_t) args;
-  sp_da(spn_path_t) scripts;
-  sp_da(spn_path_t) whole_archives;
+  si_da(sp_str_t) libs;
+  si_da(sp_str_t) private_libs;
+  si_da(sp_str_t) system_libs;
+  si_da(spn_path_t) lib_dirs;
+  si_da(sp_str_t) frameworks;
+  si_da(sp_str_t) args;
+  si_da(spn_path_t) scripts;
+  si_da(spn_path_t) whole_archives;
   spn_path_t exports;
   spn_path_t implib;
   spn_os_version_t min_os;

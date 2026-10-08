@@ -1,5 +1,6 @@
 #include "macro/macro.h"
 #include "index/json.h"
+#include "intern/intern.h"
 
 #include "release.gen.h"
 #include "semver/compare.h"
@@ -73,10 +74,12 @@ static spn_err_t spn_index_parse_rel(sp_mem_t mem, spn_pkg_name_t id, sp_str_t j
       .name = entry->key,
       .type = entry->value.type,
       .additive = !sp_opt_is_null(entry->value.additive) && sp_opt_get(entry->value.additive),
-      .values = entry->value.values ? entry->value.values : sp_da_new(mem, sp_str_t),
-      .defaults = entry->value.defaults ? entry->value.defaults : sp_da_new(mem, spn_option_default_t),
+      .defaults = entry->value.defaults,
     };
-    sp_str_om_insert(release->options, option.name, option);
+    sp_da_for(entry->value.values, vt) {
+      si_da_push(mem, option.values, entry->value.values[vt]);
+    }
+    si_om_insert(mem, release->options, spn_intern_id(option.name), option);
   }
 
   return SPN_OK;
@@ -129,16 +132,19 @@ sp_str_t spn_index_release_to_json(sp_mem_t mem, spn_index_release_t* rel) {
     }));
   }
 
-  sp_str_om_for(rel->options, it) {
-    spn_option_info_t* option = sp_str_om_at(rel->options, it);
+  si_om_for(rel->options, it) {
+    spn_option_info_t* option = si_om_at(rel->options, it);
     spn_cg_release_options_entry_t entry = {
       .key = option->name,
       .value = {
         .type = option->type,
-        .values = option->values,
+        .values = sp_da_new(mem, sp_str_t),
         .defaults = option->defaults,
       },
     };
+    si_da_for(option->values, vt) {
+      sp_da_push(entry.value.values, option->values[vt]);
+    }
     if (option->additive) {
       sp_opt_set(entry.value.additive, true);
     }

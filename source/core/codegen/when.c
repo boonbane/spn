@@ -42,7 +42,6 @@ void spn_toml_loader_read_when(spn_toml_loader_t* ctx, toml_table_t* table, cons
     return;
   }
 
-  out->clauses = sp_da_new(ctx->mem, spn_when_clause_t);
   spn_toml_loader_push_key(ctx, key);
   sp_for(it, (u32)toml_table_len(child)) {
     s32 len = 0;
@@ -80,7 +79,7 @@ void spn_toml_loader_read_when(spn_toml_loader_t* ctx, toml_table_t* table, cons
       continue;
     }
 
-    sp_da_push(out->clauses, clause);
+    si_da_push(ctx->mem, out->clauses, clause);
   }
   spn_toml_loader_pop(ctx);
 }
@@ -104,7 +103,6 @@ void spn_json_read_when(yyjson_val* obj, const c8* key, spn_when_t* out, sp_mem_
     return;
   }
 
-  out->clauses = sp_da_new(mem, spn_when_clause_t);
   size_t idx, max;
   yyjson_val *name, *value;
   yyjson_obj_foreach(child, idx, max, name, value) {
@@ -122,13 +120,13 @@ void spn_json_read_when(yyjson_val* obj, const c8* key, spn_when_t* out, sp_mem_
     if (clause.value.kind == SPN_OPTION_VALUE_NONE) {
       continue;
     }
-    sp_da_push(out->clauses, clause);
+    si_da_push(mem, out->clauses, clause);
   }
 }
 
 void spn_codegen_write_when(sp_io_writer_t* out, const spn_when_t* in) {
   sp_io_write_c8(out, '{');
-  sp_da_for(in->clauses, it) {
+  si_da_for(in->clauses, it) {
     const spn_when_clause_t* clause = &in->clauses[it];
     if (it) {
       sp_io_write_c8(out, ',');
@@ -150,5 +148,5 @@ void spn_codegen_write_when(sp_io_writer_t* out, const spn_when_t* in) {
 }
 
 bool spn_codegen_when_present(const spn_when_t* in) {
-  return !sp_da_empty(in->clauses);
+  return !si_da_empty(in->clauses);
 }
