@@ -90,12 +90,12 @@ typedef struct {
 } apply_option_test_t;
 
 static spn_when_t make_apply_when(sp_mem_t mem, const apply_clause_t* clauses, u64 count) {
-  spn_when_t when = { .clauses = sp_da_new(mem, spn_when_clause_t) };
+  spn_when_t when = sp_zero;
   sp_for(it, count) {
     if (!clauses[it].key) {
       break;
     }
-    sp_da_push(when.clauses, ((spn_when_clause_t) {
+    si_da_push(mem, when.clauses, ((spn_when_clause_t) {
       .key = sp_cstr_as_str(clauses[it].key),
       .negated = clauses[it].negated,
       .value = spn_option_value_str(sp_cstr_as_str(clauses[it].value)),

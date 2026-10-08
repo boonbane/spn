@@ -29,7 +29,7 @@ static spn_option_value_t make_value(value_lit_t lit) {
 }
 
 static spn_when_t make_when(sp_mem_t mem, const clause_lit_t* clauses, u64 count) {
-  spn_when_t when = { .clauses = sp_da_new(mem, spn_when_clause_t) };
+  spn_when_t when = sp_zero;
   sp_for(it, count) {
     if (!clauses[it].key) break;
     spn_when_clause_t clause = {
@@ -37,7 +37,7 @@ static spn_when_t make_when(sp_mem_t mem, const clause_lit_t* clauses, u64 count
       .negated = clauses[it].negated,
       .value = make_value((value_lit_t) { .str = clauses[it].str, .b = clauses[it].b, .is_bool = clauses[it].is_bool }),
     };
-    sp_da_push(when.clauses, clause);
+    si_da_push(mem, when.clauses, clause);
   }
   return when;
 }
@@ -64,7 +64,6 @@ static spn_option_info_t make_option_zstd(sp_mem_t mem) {
   return (spn_option_info_t) {
     .name = sp_str_lit("zstd"),
     .type = SPN_OPTION_TYPE_BOOL,
-    .defaults = sp_da_new(mem, spn_option_default_t),
   };
 }
 
@@ -72,22 +71,20 @@ static spn_option_info_t make_option_tls(sp_mem_t mem) {
   spn_option_info_t option = {
     .name = sp_str_lit("tls"),
     .type = SPN_OPTION_TYPE_ENUM,
-    .values = sp_da_new(mem, sp_str_t),
-    .defaults = sp_da_new(mem, spn_option_default_t),
   };
-  sp_da_push(option.values, sp_str_lit("schannel"));
-  sp_da_push(option.values, sp_str_lit("openssl"));
-  sp_da_push(option.values, sp_str_lit("off"));
+  si_da_push(mem, option.values, sp_str_lit("schannel"));
+  si_da_push(mem, option.values, sp_str_lit("openssl"));
+  si_da_push(mem, option.values, sp_str_lit("off"));
 
-  sp_da_push(option.defaults, ((spn_option_default_t) {
+  si_da_push(mem, option.defaults, ((spn_option_default_t) {
     .when = make_when(mem, (clause_lit_t []) { { "os", "windows" } }, 1),
     .value = spn_option_value_str(sp_str_lit("schannel")),
   }));
-  sp_da_push(option.defaults, ((spn_option_default_t) {
+  si_da_push(mem, option.defaults, ((spn_option_default_t) {
     .when = make_when(mem, (clause_lit_t []) { { .key = "os", .str = "wasi", .negated = true } }, 1),
     .value = spn_option_value_str(sp_str_lit("openssl")),
   }));
-  sp_da_push(option.defaults, ((spn_option_default_t) {
+  si_da_push(mem, option.defaults, ((spn_option_default_t) {
     .value = spn_option_value_str(sp_str_lit("off")),
   }));
   return option;
@@ -387,7 +384,7 @@ sp_test(option, resolve_no_match) {
   spn_when_env_init(mem, &env);
 
   spn_option_info_t tls = make_option_tls(mem);
-  sp_da_pop(tls.defaults);
+  si_da_pop(tls.defaults);
   spn_option_value_t value = spn_option_resolve(&tls, &env);
   sp_expect_eq(t, value.kind, SPN_OPTION_VALUE_NONE);
   return SP_OK;

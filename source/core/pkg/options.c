@@ -64,7 +64,7 @@ static void gather_claims(
   sp_da(claim_t)* claims,
   spn_option_violations_t* violations
 ) {
-  sp_da_for(set->clauses, it) {
+  si_da_for(set->clauses, it) {
     const spn_when_clause_t* clause = &set->clauses[it];
     spn_option_info_t** option = si_om_getp(pkg->options, spn_intern_id(clause->key));
     if (!option) {

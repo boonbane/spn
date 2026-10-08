@@ -74,9 +74,11 @@ static spn_err_t spn_index_parse_rel(sp_mem_t mem, spn_pkg_name_t id, sp_str_t j
       .name = entry->key,
       .type = entry->value.type,
       .additive = !sp_opt_is_null(entry->value.additive) && sp_opt_get(entry->value.additive),
-      .values = entry->value.values ? entry->value.values : sp_da_new(mem, sp_str_t),
-      .defaults = entry->value.defaults ? entry->value.defaults : sp_da_new(mem, spn_option_default_t),
+      .defaults = entry->value.defaults,
     };
+    sp_da_for(entry->value.values, vt) {
+      si_da_push(mem, option.values, entry->value.values[vt]);
+    }
     si_om_insert(mem, release->options, spn_intern_id(option.name), option);
   }
 
@@ -136,10 +138,13 @@ sp_str_t spn_index_release_to_json(sp_mem_t mem, spn_index_release_t* rel) {
       .key = option->name,
       .value = {
         .type = option->type,
-        .values = option->values,
+        .values = sp_da_new(mem, sp_str_t),
         .defaults = option->defaults,
       },
     };
+    si_da_for(option->values, vt) {
+      sp_da_push(entry.value.values, option->values[vt]);
+    }
     if (option->additive) {
       sp_opt_set(entry.value.additive, true);
     }

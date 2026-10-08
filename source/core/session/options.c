@@ -156,7 +156,7 @@ spn_err_t spn_session_apply_options(spn_session_t* session, bool* reresolve) {
 
       si_da_for(loaded->info->deps, dt) {
         spn_requested_dep_t* dep = &loaded->info->deps[dt];
-        if (sp_da_empty(dep->options.clauses)) {
+        if (si_da_empty(dep->options.clauses)) {
           continue;
         }
         spn_resolved_dep_t* edge = node_find_edge(node, sp_intern_get_or_insert(session->ctx->intern, dep->qualified), dep->kind);
@@ -218,7 +218,7 @@ spn_err_t spn_session_apply_options(spn_session_t* session, bool* reresolve) {
 
       si_da_for(loaded->info->deps, dt) {
         spn_requested_dep_t* dep = &loaded->info->deps[dt];
-        if (sp_da_empty(dep->when.clauses)) {
+        if (si_da_empty(dep->when.clauses)) {
           continue;
         }
         spn_resolved_dep_t* edge = node_find_edge(node, sp_intern_get_or_insert(session->ctx->intern, dep->qualified), dep->kind);

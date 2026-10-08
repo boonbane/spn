@@ -1777,11 +1777,11 @@ sp_test_each(lower, cases, test_t, tests) {
     sp_expect_eq(t, expected.additive, option->additive);
     sp_expect_eq(t, expected.public, option->public);
     if (expected.define) sp_expect_str_eq_c(t, option->define, expected.define);
-    sp_must_strs_eq(t, option->values, sp_da_size(option->values), expected.values);
+    sp_must_strs_eq(t, option->values, si_da_size(option->values), expected.values);
 
     u32 num_defaults = 0;
     sp_carr_detect_len(expected.defaults, num_defaults, expected.defaults[num_defaults].value);
-    sp_must_eq(t, num_defaults, (u32)sp_da_size(option->defaults));
+    sp_must_eq(t, num_defaults, (u32)si_da_size(option->defaults));
     sp_for(j, num_defaults) {
       sp_expect_str_eq_c(t, spn_when_to_str(mem, &option->defaults[j].when), expected.defaults[j].when ? expected.defaults[j].when : "always");
       sp_expect_str_eq_c(t, spn_option_value_to_str(mem, option->defaults[j].value), expected.defaults[j].value);

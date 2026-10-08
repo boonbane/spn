@@ -79,8 +79,8 @@ sp_test_each(pkg, hash_platform, hash_platform_test_t, hash_platform_tests, .set
       break;
     }
     case PKG_EDIT_MACOS_FRAMEWORK_WHEN: {
-      spn_when_t when = { .clauses = sp_da_new(mem, spn_when_clause_t) };
-      sp_da_push(when.clauses, ((spn_when_clause_t) { .key = sp_str_lit("os"), .value = spn_option_value_str(sp_str_lit("macos")) }));
+      spn_when_t when = sp_zero;
+      si_da_push(mem, when.clauses, ((spn_when_clause_t) { .key = sp_str_lit("os"), .value = spn_option_value_str(sp_str_lit("macos")) }));
       pkg.gated.frameworks[0].when = when;
       break;
     }

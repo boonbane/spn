@@ -5,7 +5,6 @@
 void spn_toml_loader_read_option_defaults(spn_toml_loader_t* ctx, toml_table_t* table, const c8* key, spn_option_defaults_t* out) {
   toml_array_t* array = toml_table_array(table, key);
   if (array) {
-    *out = sp_da_new(ctx->mem, spn_option_default_t);
     spn_toml_loader_push_key(ctx, key);
     sp_for(it, (u32)toml_array_len(array)) {
       spn_toml_loader_push_index(ctx, it);
@@ -48,7 +47,7 @@ void spn_toml_loader_read_option_defaults(spn_toml_loader_t* ctx, toml_table_t* 
       }
 
       spn_toml_loader_read_when(ctx, element, "when", &entry.when);
-      sp_da_push(*out, entry);
+      si_da_push(ctx->mem, *out, entry);
       spn_toml_loader_pop(ctx);
     }
     spn_toml_loader_pop(ctx);
@@ -61,8 +60,7 @@ void spn_toml_loader_read_option_defaults(spn_toml_loader_t* ctx, toml_table_t* 
     spn_option_default_t entry = {
       .value = str.ok ? spn_toml_loader_value_str(ctx, str) : spn_toml_loader_value_bool(boolean),
     };
-    *out = sp_da_new(ctx->mem, spn_option_default_t);
-    sp_da_push(*out, entry);
+    si_da_push(ctx->mem, *out, entry);
     return;
   }
 
@@ -77,7 +75,6 @@ void spn_json_read_option_defaults(yyjson_val* obj, const c8* key, spn_option_de
     return;
   }
 
-  *out = sp_da_new(mem, spn_option_default_t);
   size_t idx, max;
   yyjson_val* element;
   yyjson_arr_foreach(array, idx, max, element) {
@@ -91,13 +88,13 @@ void spn_json_read_option_defaults(yyjson_val* obj, const c8* key, spn_option_de
       continue;
     }
     spn_json_read_when(element, "when", &entry.when, mem);
-    sp_da_push(*out, entry);
+    si_da_push(mem, *out, entry);
   }
 }
 
 void spn_codegen_write_option_defaults(sp_io_writer_t* out, const spn_option_defaults_t* in) {
   sp_io_write_c8(out, '[');
-  sp_da_for(*in, it) {
+  si_da_for(*in, it) {
     const spn_option_default_t* entry = &(*in)[it];
     if (it) {
       sp_io_write_c8(out, ',');
@@ -116,5 +113,5 @@ void spn_codegen_write_option_defaults(sp_io_writer_t* out, const spn_option_def
 }
 
 bool spn_codegen_option_defaults_present(const spn_option_defaults_t* in) {
-  return !sp_da_empty(*in);
+  return !si_da_empty(*in);
 }

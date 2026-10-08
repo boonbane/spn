@@ -416,9 +416,11 @@ static void lower_options(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, s
       .additive = sp_opt_is_null(entry->value.additive) ? false : sp_opt_get(entry->value.additive),
       .public = sp_opt_is_null(entry->value.public) ? false : sp_opt_get(entry->value.public),
       .define = entry->value.define,
-      .values = entry->value.values ? entry->value.values : sp_da_new(ctx->mem, sp_str_t),
-      .defaults = entry->value.defaults ? entry->value.defaults : sp_da_new(ctx->mem, spn_option_default_t),
+      .defaults = entry->value.defaults,
     };
+    sp_da_for(entry->value.values, vt) {
+      si_da_push(ctx->mem, option.values, entry->value.values[vt]);
+    }
     si_om_insert(ctx->mem, out->options, sp_intern_get_or_insert(ctx->intern, option.name), option);
   }
 }
@@ -545,7 +547,7 @@ static bool when_option_value_valid(const spn_option_info_t* option, spn_option_
   if (option->type == SPN_OPTION_TYPE_NONE) {
     return true;
   }
-  if (option->type == SPN_OPTION_TYPE_ENUM && sp_da_empty(option->values)) {
+  if (option->type == SPN_OPTION_TYPE_ENUM && si_da_empty(option->values)) {
     return value.kind == SPN_OPTION_VALUE_STR;
   }
   return spn_option_value_ok(option, value);
@@ -553,7 +555,7 @@ static bool when_option_value_valid(const spn_option_info_t* option, spn_option_
 
 static void validate_when(spn_toml_loader_t* ctx, const spn_when_t* when, spn_pkg_info_t* out) {
   spn_toml_loader_push_key(ctx, "when");
-  sp_da_for(when->clauses, it) {
+  si_da_for(when->clauses, it) {
     const spn_when_clause_t* clause = &when->clauses[it];
     bool ok = false;
     if (when_key_is_fact(clause->key)) {
@@ -680,7 +682,7 @@ static void validate_publish_whens(spn_toml_loader_t* ctx, const spn_cg_manifest
 static void validate_facts_only_when(spn_toml_loader_t* ctx, const spn_when_t* when, u32 index) {
   spn_toml_loader_push_index(ctx, index);
   spn_toml_loader_push_key(ctx, "when");
-  sp_da_for(when->clauses, it) {
+  si_da_for(when->clauses, it) {
     const spn_when_clause_t* clause = &when->clauses[it];
     if (!when_key_is_fact(clause->key) || !when_fact_value_valid(clause->key, clause->value)) {
       spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, clause->key.data);
@@ -729,7 +731,7 @@ static void validate_metaprogram_whens(spn_toml_loader_t* ctx, const spn_cg_mani
 
 static void validate_option_set(spn_toml_loader_t* ctx, const spn_when_t* set) {
   spn_toml_loader_push_key(ctx, "options");
-  sp_da_for(set->clauses, it) {
+  si_da_for(set->clauses, it) {
     if (set->clauses[it].negated) {
       spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, set->clauses[it].key.data);
     }
@@ -754,7 +756,7 @@ static void validate_option_sets(spn_toml_loader_t* ctx, const spn_cg_manifest_t
     spn_toml_loader_push_index(ctx, it);
     validate_option_set(ctx, &cg->profile[it].value.options);
     spn_toml_loader_push_key(ctx, "options");
-    sp_da_for(cg->profile[it].value.options.clauses, jt) {
+    si_da_for(cg->profile[it].value.options.clauses, jt) {
       const spn_when_clause_t* clause = &cg->profile[it].value.options.clauses[jt];
       spn_option_info_t** option = si_om_getp(out->options, sp_intern_get_or_insert(ctx->intern, clause->key));
       if (!option || !when_option_value_valid(*option, clause->value)) {
@@ -797,7 +799,7 @@ static void validate_options(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg
 
     spn_option_info_t** lowered = si_om_getp(out->options, sp_intern_get_or_insert(ctx->intern, cg->options[it].key));
     spn_toml_loader_push_key(ctx, "default");
-    sp_da_for(option->defaults, jt) {
+    si_da_for(option->defaults, jt) {
       const spn_option_default_t* entry = &option->defaults[jt];
       spn_toml_loader_push_index(ctx, jt);
       if (lowered && !when_option_value_valid(*lowered, entry->value)) {
@@ -832,7 +834,7 @@ static bool when_key_is_platform(sp_str_t key) {
 
 static void validate_platform_when(spn_toml_loader_t* ctx, const spn_when_t* when) {
   spn_toml_loader_push_key(ctx, "when");
-  sp_da_for(when->clauses, it) {
+  si_da_for(when->clauses, it) {
     const spn_when_clause_t* clause = &when->clauses[it];
     if (!when_key_is_platform(clause->key) || !when_fact_value_valid(clause->key, clause->value)) {
       spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, clause->key.data);

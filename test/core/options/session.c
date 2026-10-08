@@ -83,8 +83,7 @@ sp_test_each(options_session, apply, session_test_t, tests, .setup = spn_test_ct
       .kind = SPN_DEP_KIND_PACKAGE,
     };
     if (it->gated_dep) {
-      dep.when.clauses = sp_da_new(mem, spn_when_clause_t);
-      sp_da_push(dep.when.clauses, ((spn_when_clause_t) {
+      si_da_push(mem, dep.when.clauses, ((spn_when_clause_t) {
         .key = sp_str_lit("os"),
         .value = spn_option_value_str(sp_str_lit("linux")),
       }));

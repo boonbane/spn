@@ -54,7 +54,7 @@ static void overlay_profile(spn_profile_info_t* to, const spn_profile_info_t* fr
   if (from->arch) {
     to->arch = from->arch;
   }
-  if (!sp_da_empty(from->options.clauses)) to->options = from->options;
+  if (!si_da_empty(from->options.clauses)) to->options = from->options;
 }
 
 static sp_str_t select_name(const spn_profile_override_t* override) {

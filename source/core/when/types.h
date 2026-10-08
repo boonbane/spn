@@ -27,7 +27,7 @@ typedef struct {
 } spn_when_clause_t;
 
 typedef struct {
-  sp_da(spn_when_clause_t) clauses;
+  si_da(spn_when_clause_t) clauses;
 } spn_when_t;
 
 typedef sp_str_ht(spn_option_value_t) spn_when_env_t;
@@ -54,7 +54,7 @@ typedef struct {
   spn_option_value_t value;
 } spn_option_default_t;
 
-typedef sp_da(spn_option_default_t) spn_option_defaults_t;
+typedef si_da(spn_option_default_t) spn_option_defaults_t;
 
 typedef struct {
   sp_str_t name;
@@ -62,7 +62,7 @@ typedef struct {
   bool additive;
   bool public;
   sp_str_t define;
-  sp_da(sp_str_t) values;
+  si_da(sp_str_t) values;
   spn_option_defaults_t defaults;
 } spn_option_info_t;
 

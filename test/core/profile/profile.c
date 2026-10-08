@@ -796,12 +796,12 @@ static const finalize_test_t finalize_tests [] = {
 };
 
 static spn_when_t clauses_to_when(sp_mem_t mem, const clause_t* clauses, u32 count) {
-  spn_when_t when = { .clauses = sp_da_new(mem, spn_when_clause_t) };
+  spn_when_t when = sp_zero;
   sp_for(it, count) {
     if (!clauses[it].key) {
       break;
     }
-    sp_da_push(when.clauses, ((spn_when_clause_t) {
+    si_da_push(mem, when.clauses, ((spn_when_clause_t) {
       .key = sp_cstr_as_str(clauses[it].key),
       .value = spn_option_value_str(sp_cstr_as_str(clauses[it].value)),
     }));
