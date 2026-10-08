@@ -246,6 +246,8 @@ source = [
   "source/util/os/os.c",
   "source/util/queue/queue.c",
   "source/util/str/str.c",
+  "source/util/array/array.c",
+  "source/util/hash_table/hash_table.c",
   "source/core/target/mutate.c",
   "source/core/target/target.c",
   "source/core/target/select.c",
