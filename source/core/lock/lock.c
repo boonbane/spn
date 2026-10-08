@@ -7,7 +7,6 @@
 #include "intern/intern.h"
 #include "lock/lock.h"
 #include "semver/convert.h"
-#include "ht/ht.h"
 #include "version/version.h"
 
 static void spn_lock_build_dependents(spn_lock_file_t* lock) {
@@ -158,7 +157,9 @@ spn_lock_file_t spn_lock_file_load(sp_mem_t mem, sp_path_t path, spn_event_buffe
 sp_str_t spn_lock_file_to_str(sp_mem_t mem, spn_lock_file_t* lock) {
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch_for(mem);
   sp_da(sp_str_t) keys = sp_da_new(scratch.mem, sp_str_t);
-  sp_ht_collect_keys(lock->entries, keys);
+  sp_ht_for_kv(lock->entries, it) {
+    sp_da_push(keys, *it.key);
+  }
   sp_da_sort(keys, sp_str_sort_kernel_alphabetical);
 
   spn_toml_writer_t toml = spn_toml_writer_new(mem);
@@ -171,7 +172,9 @@ sp_str_t spn_lock_file_to_str(sp_mem_t mem, spn_lock_file_t* lock) {
   if (sp_ht_size(lock->system_deps)) {
     spn_toml_begin_table_cstr(&toml, "package");
     sp_da(sp_str_t) sys_deps = sp_da_new(scratch.mem, sp_str_t);
-    sp_ht_collect_keys(lock->system_deps, sys_deps);
+    sp_ht_for_kv(lock->system_deps, it) {
+      sp_da_push(sys_deps, *it.key);
+    }
     sp_da_sort(sys_deps, sp_str_sort_kernel_alphabetical);
     spn_toml_append_str_array_cstr(&toml, "system_deps", sys_deps);
     spn_toml_end_table(&toml);
