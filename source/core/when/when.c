@@ -101,7 +101,7 @@ bool spn_when_eval(const spn_when_t* when, spn_when_env_t* env) {
   if (!when) {
     return true;
   }
-  sp_da_for(when->clauses, it) {
+  si_da_for(when->clauses, it) {
     const spn_when_clause_t* clause = &when->clauses[it];
     spn_option_value_t* current = sp_str_ht_get(*env, clause->key);
     if (!current) {
@@ -115,12 +115,12 @@ bool spn_when_eval(const spn_when_t* when, spn_when_env_t* env) {
 }
 
 sp_str_t spn_when_to_str(sp_mem_t mem, const spn_when_t* when) {
-  if (!when || sp_da_empty(when->clauses)) {
+  if (!when || si_da_empty(when->clauses)) {
     return sp_str_lit("always");
   }
   sp_io_dyn_mem_writer_t out;
   sp_io_dyn_mem_writer_init(mem, &out);
-  sp_da_for(when->clauses, it) {
+  si_da_for(when->clauses, it) {
     const spn_when_clause_t* clause = &when->clauses[it];
     if (it) {
       sp_fmt_io(&out.base, ", ");
@@ -145,7 +145,7 @@ bool spn_option_value_ok(const spn_option_info_t* option, spn_option_value_t val
       if (value.kind != SPN_OPTION_VALUE_STR) {
         return false;
       }
-      sp_da_for(option->values, it) {
+      si_da_for(option->values, it) {
         if (sp_str_equal(option->values[it], value.str)) {
           return true;
         }
@@ -157,7 +157,7 @@ bool spn_option_value_ok(const spn_option_info_t* option, spn_option_value_t val
 }
 
 spn_option_value_t spn_option_resolve(const spn_option_info_t* option, spn_when_env_t* env) {
-  sp_da_for(option->defaults, it) {
+  si_da_for(option->defaults, it) {
     if (spn_when_eval(&option->defaults[it].when, env)) {
       return option->defaults[it].value;
     }

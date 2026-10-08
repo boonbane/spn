@@ -47,7 +47,7 @@ spn_err_t spn_project_update_lock(spn_ctx_t* ctx, spn_project_t* project, spn_re
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   spn_lock_file_t lock = spn_build_lock_file(scratch.mem, ctx->intern, resolve, &project->package);
 
-  sp_da_for(project->package.system_deps, it) {
+  si_da_for(project->package.system_deps, it) {
     sp_ht_insert(lock.system_deps, project->package.system_deps[it], true);
   }
 

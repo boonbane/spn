@@ -113,12 +113,11 @@ sp_test_each(zig_stubs, tuple, test_t, tests) {
   spn_cc_link_t link = {
     .kind = it->link.kind,
     .lang = it->link.lang,
-    .system_libs = sp_da_new(mem, sp_str_t),
   };
   u32 libs = 0;
   sp_carr_detect_len(it->link.libs, libs, it->link.libs[libs]);
   sp_for(b, libs) {
-    sp_da_push(link.system_libs, sp_cstr_as_str(it->link.libs[b]));
+    si_da_push(mem, link.system_libs, sp_cstr_as_str(it->link.libs[b]));
   }
 
   spn_zig_stub_t stub = spn_zig_stub(mem, &profile, &link);
@@ -131,7 +130,7 @@ sp_test_each(zig_stubs, tuple, test_t, tests) {
 
   u32 expected = 0;
   sp_carr_detect_len(it->expect.libs, expected, it->expect.libs[expected]);
-  sp_must_eq(t, sp_da_size(stub.system_libs), expected);
+  sp_must_eq(t, si_da_size(stub.system_libs), expected);
   sp_for(b, expected) {
     sp_test_kv(t, "lib", sp_fmt(mem, "{}", sp_fmt_uint(b)).value);
     sp_expect_str_eq_c(t, stub.system_libs[b], it->expect.libs[b]);

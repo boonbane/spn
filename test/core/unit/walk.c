@@ -162,7 +162,7 @@ sp_test_each(unit, walk, walk_test_t, tests, .setup = spn_test_ctx_setup) {
     sp_expect_eq(t, expect->host, spn_pkg_unit_is_script_host(unit));
 
     spn_loaded_pkg_t* loaded = sp_ht_getp(s->packages, id);
-    if (sp_da_empty(loaded->configure.source) && sp_da_empty(loaded->build.source)) {
+    if (si_da_empty(loaded->configure.source) && si_da_empty(loaded->build.source)) {
       sp_expect(t, unit->metaprogram == SP_NULLPTR);
     }
     else {

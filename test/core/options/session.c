@@ -71,11 +71,9 @@ sp_test_each(options_session, apply, session_test_t, tests, .setup = spn_test_ct
   spn_pkg_info_t root = {
     .name = sp_str_lit("test"),
     .qualified = sp_str_lit("core/test"),
-    .deps = sp_da_new(mem, spn_requested_dep_t),
-    .config = sp_da_new(mem, spn_pkg_config_entry_t),
   };
   if (it->config) {
-    sp_da_push(root.config, ((spn_pkg_config_entry_t) {
+    si_da_push(mem, root.config, ((spn_pkg_config_entry_t) {
       .key = sp_cstr_as_str(it->config),
     }));
   }
@@ -85,13 +83,12 @@ sp_test_each(options_session, apply, session_test_t, tests, .setup = spn_test_ct
       .kind = SPN_DEP_KIND_PACKAGE,
     };
     if (it->gated_dep) {
-      dep.when.clauses = sp_da_new(mem, spn_when_clause_t);
-      sp_da_push(dep.when.clauses, ((spn_when_clause_t) {
+      si_da_push(mem, dep.when.clauses, ((spn_when_clause_t) {
         .key = sp_str_lit("os"),
         .value = spn_option_value_str(sp_str_lit("linux")),
       }));
     }
-    sp_da_push(root.deps, dep);
+    si_da_push(mem, root.deps, dep);
   }
 
   spn_pkg_id_t root_id = make_id(intern, "core/test");
@@ -121,7 +118,6 @@ sp_test_each(options_session, apply, session_test_t, tests, .setup = spn_test_ct
   spn_pkg_info_t stale = {
     .name = sp_str_lit("spum"),
     .qualified = sp_str_lit("core/spum"),
-    .deps = sp_da_new(mem, spn_requested_dep_t),
   };
   if (it->stale_loaded) {
     spn_pkg_id_t stale_id = make_id(intern, "core/spum");

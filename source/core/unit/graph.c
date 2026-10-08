@@ -8,63 +8,36 @@
 #include "target/target.h"
 #include "when/when.h"
 
-static sp_da(sp_str_t) clone_str_list(sp_mem_t mem, sp_da(sp_str_t) source) {
-  sp_da(sp_str_t) result = sp_da_new(mem, sp_str_t);
-  sp_da_for(source, it) {
-    sp_da_push(result, source[it]);
-  }
-  return result;
-}
-
-static sp_da(spn_embed_t) clone_embed_list(sp_mem_t mem, sp_da(spn_embed_t) source) {
-  sp_da(spn_embed_t) result = sp_da_new(mem, spn_embed_t);
-  sp_da_for(source, it) {
-    sp_da_push(result, source[it]);
-  }
-  return result;
-}
-
-static sp_da(spn_publish_copy_t) clone_copy_list(sp_mem_t mem, sp_da(spn_publish_copy_t) source) {
-  sp_da(spn_publish_copy_t) result = sp_da_new(mem, spn_publish_copy_t);
-  sp_da_for(source, it) {
-    sp_da_push(result, source[it]);
-  }
-  return result;
-}
-
-static sp_da(spn_path_t) clone_path_list(sp_mem_t mem, sp_da(spn_path_t) source) {
-  sp_da(spn_path_t) result = sp_da_new(mem, spn_path_t);
-  sp_da_for(source, it) {
-    sp_da_push(result, spn_path_copy(mem, source[it]));
+static si_da(spn_path_t) clone_path_list(sp_mem_t mem, si_da(spn_path_t) source) {
+  si_da(spn_path_t) result = SP_NULLPTR;
+  si_da_for(source, it) {
+    si_da_push(mem, result, spn_path_copy(mem, source[it]));
   }
   return result;
 }
 
 static spn_target_info_t clone_target_info(sp_mem_t mem, spn_target_info_t* source) {
   spn_target_info_t target = *source;
-  target.source = sp_da_new(mem, spn_source_t);
-  sp_da_for(source->source, it) {
-    sp_da_push(target.source, source->source[it]);
-  }
+  si_da_copy(mem, target.source, source->source);
   target.headers = clone_path_list(mem, source->headers);
   target.include = clone_path_list(mem, source->include);
-  target.define = clone_str_list(mem, source->define);
-  target.flags = clone_str_list(mem, source->flags);
-  target.link_flags = clone_str_list(mem, source->link_flags);
+  si_da_copy(mem, target.define, source->define);
+  si_da_copy(mem, target.flags, source->flags);
+  si_da_copy(mem, target.link_flags, source->link_flags);
   target.linker_script = clone_path_list(mem, source->linker_script);
-  target.system_deps = clone_str_list(mem, source->system_deps);
-  target.deps = clone_str_list(mem, source->deps);
-  target.embed = clone_embed_list(mem, source->embed);
+  si_da_copy(mem, target.system_deps, source->system_deps);
+  si_da_copy(mem, target.deps, source->deps);
+  si_da_copy(mem, target.embed, source->embed);
   target.configured.include = clone_path_list(mem, source->configured.include);
-  target.macos.frameworks = clone_str_list(mem, source->macos.frameworks);
+  si_da_copy(mem, target.macos.frameworks, source->macos.frameworks);
   return target;
 }
 
 static void clone_target_map(spn_target_map_t* result, spn_target_map_t source, sp_mem_t mem) {
-  sp_om_new(*result);
-  sp_om_for(source, it) {
-    spn_target_info_t target = clone_target_info(mem, sp_om_at(source, it));
-    sp_om_insert(*result, spn_target_key(target.name, target.kind), target);
+  *result = sp_zero_struct(spn_target_map_t);
+  si_om_for(source, it) {
+    spn_target_info_t target = clone_target_info(mem, si_om_at(source, it));
+    si_om_insert(mem, *result, spn_target_key(target.name, target.kind), target);
   }
 }
 
@@ -74,18 +47,17 @@ static spn_pkg_info_t* clone_pkg_info(spn_session_t* s, spn_pkg_id_t id, spn_bui
   spn_pkg_info_t* source = loaded->info;
   spn_pkg_info_t* info = sp_alloc_type(s->mem, spn_pkg_info_t);
   *info = *source;
-  info->arena = sp_mem_arena_new(s->mem);
   info->applied = false;
-  sp_mem_t mem = sp_mem_arena_as_allocator(info->arena);
+  sp_mem_t mem = s->mem;
 
   clone_target_map(&info->targets, source->targets, mem);
   info->include = clone_path_list(mem, source->include);
   info->configured.include = clone_path_list(mem, source->configured.include);
-  info->define = clone_str_list(mem, source->define);
-  info->public_define = clone_str_list(mem, source->public_define);
-  info->system_deps = clone_str_list(mem, source->system_deps);
-  info->macos.frameworks = clone_str_list(mem, source->macos.frameworks);
-  info->publish.copy = clone_copy_list(mem, source->publish.copy);
+  si_da_copy(mem, info->define, source->define);
+  si_da_copy(mem, info->public_define, source->public_define);
+  si_da_copy(mem, info->system_deps, source->system_deps);
+  si_da_copy(mem, info->macos.frameworks, source->macos.frameworks);
+  si_da_copy(mem, info->publish.copy, source->publish.copy);
 
   spn_when_env_t env;
   spn_when_env_from_profile(mem, &build->profile, &env);
@@ -98,7 +70,7 @@ static spn_pkg_info_t* clone_pkg_info(spn_session_t* s, spn_pkg_id_t id, spn_bui
 }
 
 static bool pkg_has_scripts(spn_loaded_pkg_t* loaded) {
-  return !sp_da_empty(loaded->configure.source) || !sp_da_empty(loaded->build.source);
+  return !si_da_empty(loaded->configure.source) || !si_da_empty(loaded->build.source);
 }
 
 static u32 kind_bits(spn_dep_kind_t kind) {

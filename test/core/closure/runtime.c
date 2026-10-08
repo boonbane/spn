@@ -40,7 +40,7 @@ static const target_list_test_t tests [] = {
 sp_test_each(runtime_libs, collect, target_list_test_t, tests) {
   closure_graph_t g = build_graph(&it->graph);
 
-  sp_da(spn_target_unit_t*) libs = spn_target_runtime_libs(g.mem, g.root);
+  sp_da(spn_target_unit_t*) libs = si_link_get_target_runtime_libs(g.mem, g.root);
 
   return expect_target_names(t, libs, it->expect);
 }

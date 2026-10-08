@@ -128,6 +128,8 @@ set(SPN_SOURCES
   util/sp/sp_math.c
   util/sp_template/sp_template.c
   util/str/str.c
+  util/array/array.c
+  util/hash_table/hash_table.c
   core/target/mutate.c
   core/target/target.c
   core/target/select.c

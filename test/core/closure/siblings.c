@@ -60,7 +60,7 @@ static const target_list_test_t tests [] = {
 sp_test_each(siblings, collect, target_list_test_t, tests) {
   closure_graph_t g = build_graph(&it->graph);
 
-  sp_da(spn_closure_entry_t) closure = spn_target_link_closure(g.mem, g.root);
+  sp_da(spn_closure_entry_t) closure = si_link_get_target_closure(g.mem, g.root);
   sp_must_le(t, 1u, sp_da_size(closure));
   sp_expect(t, closure[0].pkg == g.root->pkg);
 

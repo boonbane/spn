@@ -39,7 +39,7 @@ static const test_t tests [] = {
 sp_test_each(links_code, mark, test_t, tests) {
   closure_graph_t g = build_graph(&it->graph);
 
-  sp_da(spn_closure_entry_t) closure = spn_target_link_closure(g.mem, g.root);
+  sp_da(spn_closure_entry_t) closure = si_link_get_target_closure(g.mem, g.root);
 
   u32 expected = 0;
   sp_carr_detect_len(it->expect, expected, it->expect[expected].pkg);

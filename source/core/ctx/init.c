@@ -238,8 +238,8 @@ static spn_err_t open_ctx(spn_ctx_t* ctx, spn_open_request_t request) {
   }
 
   if (ctx->project) {
-    sp_str_om_for(ctx->project->package.toolchains, it) {
-      spn_toolchain_catalog_add(&ctx->catalog, *sp_str_om_at(ctx->project->package.toolchains, it));
+    si_om_for(ctx->project->package.toolchains, it) {
+      spn_toolchain_catalog_add(&ctx->catalog, *si_om_at(ctx->project->package.toolchains, it));
     }
   }
 

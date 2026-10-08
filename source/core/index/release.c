@@ -35,7 +35,7 @@ spn_err_t spn_index_release_from_pkg(sp_mem_t mem, spn_pkg_info_t* info, spn_pkg
   sp_da_init(mem, release->deps);
   sp_da_init(mem, release->targets);
 
-  sp_da_for(info->deps, it) {
+  si_da_for(info->deps, it) {
     spn_requested_dep_t* req = &info->deps[it];
     if (req->source != SPN_PKG_SOURCE_INDEX) {
       *dep = req->qualified;
@@ -52,8 +52,8 @@ spn_err_t spn_index_release_from_pkg(sp_mem_t mem, spn_pkg_info_t* info, spn_pkg
     }));
   }
 
-  sp_om_for(info->targets, it) {
-    spn_target_info_t* lib = sp_om_at(info->targets, it);
+  si_om_for(info->targets, it) {
+    spn_target_info_t* lib = si_om_at(info->targets, it);
     if (lib->kind != SPN_TARGET_KIND_LIB) {
       continue;
     }

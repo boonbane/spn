@@ -28,6 +28,7 @@ typedef struct {
 struct spn_session_t {
   spn_ctx_t* ctx;
   spn_project_t* project;
+  sp_mem_arena_t* arena;
   sp_mem_t mem;
   spn_pkg_info_t* pkg;
 

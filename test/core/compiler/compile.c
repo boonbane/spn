@@ -632,21 +632,18 @@ sp_test_each(render_compile, render, compile_test_t, tests, .setup = spn_test_ct
     .pic = it->pic,
     .min_os = it->min_os,
   };
-  sp_da_init(mem, compile.include);
-  sp_da_init(mem, compile.define);
-  sp_da_init(mem, compile.args);
   sp_da_init(mem, toolchain.link_args);
   if (it->arg) {
-    sp_da_push(compile.args, sp_str_from_cstr(mem, it->arg));
+    si_da_push(mem, compile.args, sp_str_from_cstr(mem, it->arg));
   }
   if (it->link_arg) {
     sp_da_push(toolchain.link_args, sp_str_from_cstr(mem, it->link_arg));
   }
   if (it->include) {
-    sp_da_push(compile.include, test_arg_path(it->include));
+    si_da_push(mem, compile.include, test_arg_path(it->include));
   }
   if (it->define) {
-    sp_da_push(compile.define, sp_str_from_cstr(mem, it->define));
+    si_da_push(mem, compile.define, sp_str_from_cstr(mem, it->define));
   }
 
   spn_profile_info_t profile = test_profile(it->profile);
@@ -674,9 +671,6 @@ sp_test(render_compile, base_shared_across_commands, .setup = spn_test_ctx_setup
   spn_cc_compile_t compile = {
     .lang = SPN_LANG_C,
   };
-  sp_da_init(mem, compile.include);
-  sp_da_init(mem, compile.define);
-  sp_da_init(mem, compile.args);
   spn_profile_info_t profile = test_profile((test_profile_t) {
     .arch = SPN_ARCH_ARM64,
     .os = SPN_OS_MACOS,

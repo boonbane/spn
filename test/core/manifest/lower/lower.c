@@ -1620,16 +1620,16 @@ static sp_err_t check_targets(sp_test_t* t, spn_pkg_info_t* pkg, const target_t*
     sp_expect_eq(t, arr[i].linkages.static_lib, info->linkages.static_lib);
     sp_expect_eq(t, arr[i].linkages.object, info->linkages.object);
     sp_expect_eq(t, arr[i].no_link, info->no_link);
-    sp_expect_eq(t, (u32)0, (u32)sp_da_size(info->source));
-    sp_expect_eq(t, (u32)0, (u32)sp_da_size(info->include));
-    sp_expect_eq(t, (u32)0, (u32)sp_da_size(info->define));
-    sp_expect_eq(t, (u32)0, (u32)sp_da_size(info->flags));
-    sp_expect_eq(t, (u32)0, (u32)sp_da_size(info->link_flags));
-    sp_expect_eq(t, (u32)0, (u32)sp_da_size(info->linker_script));
-    sp_expect_eq(t, (u32)0, (u32)sp_da_size(info->system_deps));
-    sp_expect_eq(t, (u32)0, (u32)sp_da_size(info->deps));
+    sp_expect_eq(t, (u32)0, (u32)si_da_size(info->source));
+    sp_expect_eq(t, (u32)0, (u32)si_da_size(info->include));
+    sp_expect_eq(t, (u32)0, (u32)si_da_size(info->define));
+    sp_expect_eq(t, (u32)0, (u32)si_da_size(info->flags));
+    sp_expect_eq(t, (u32)0, (u32)si_da_size(info->link_flags));
+    sp_expect_eq(t, (u32)0, (u32)si_da_size(info->linker_script));
+    sp_expect_eq(t, (u32)0, (u32)si_da_size(info->system_deps));
+    sp_expect_eq(t, (u32)0, (u32)si_da_size(info->deps));
     check_gated_sources(t, info->gated.source, arr[i].source);
-    sp_expect_eq(t, (u32)0, (u32)sp_da_size(info->headers));
+    sp_expect_eq(t, (u32)0, (u32)si_da_size(info->headers));
     check_gated_paths(t, info->gated.headers, arr[i].headers);
     check_gated_paths(t, info->gated.include, arr[i].include);
     check_gated(t, info->gated.define, arr[i].define);
@@ -1638,12 +1638,12 @@ static sp_err_t check_targets(sp_test_t* t, spn_pkg_info_t* pkg, const target_t*
     check_gated_paths(t, info->gated.linker_script, arr[i].linker_script);
     check_gated(t, info->gated.system_deps, arr[i].system_deps);
     check_gated(t, info->gated.deps, arr[i].deps);
-    sp_expect_eq(t, (u32)0, (u32)sp_da_size(info->macos.frameworks));
+    sp_expect_eq(t, (u32)0, (u32)si_da_size(info->macos.frameworks));
     check_gated(t, info->gated.frameworks, arr[i].frameworks);
     u32 num_embeds = 0;
     sp_carr_detect_len(arr[i].embed, num_embeds, arr[i].embed[num_embeds].path);
-    sp_expect_eq(t, (u32)0, (u32)sp_da_size(info->embed));
-    sp_must_eq(t, num_embeds, (u32)sp_da_size(info->gated.embed));
+    sp_expect_eq(t, (u32)0, (u32)si_da_size(info->embed));
+    sp_must_eq(t, num_embeds, (u32)si_da_size(info->gated.embed));
     sp_for(e, num_embeds) {
       const embed_t* expected = &arr[i].embed[e];
       spn_gated_embed_t* actual = &info->gated.embed[e];
@@ -1716,21 +1716,21 @@ sp_test_each(lower, cases, test_t, tests) {
   }
 
   // Package arrays
-  sp_expect_eq(t, (u32)0, (u32)sp_da_size(pkg.define));
+  sp_expect_eq(t, (u32)0, (u32)si_da_size(pkg.define));
   check_gated(t, pkg.gated.define, it->define);
   check_gated(t, pkg.gated.system_deps, it->system_deps);
-  sp_expect_eq(t, (u32)0, (u32)sp_da_size(pkg.macos.frameworks));
+  sp_expect_eq(t, (u32)0, (u32)si_da_size(pkg.macos.frameworks));
   check_gated(t, pkg.gated.frameworks, it->frameworks);
-  sp_expect_eq(t, (u32)0, (u32)sp_da_size(pkg.publish.copy));
+  sp_expect_eq(t, (u32)0, (u32)si_da_size(pkg.publish.copy));
   u32 num_copies = 0;
   sp_carr_detect_len(it->publish, num_copies, it->publish[num_copies].pattern);
   sp_try(check_copy_list(t, pkg.gated.publish.copy, it->publish, num_copies));
-  sp_expect_eq(t, (u32)0, (u32)sp_da_size(pkg.include));
+  sp_expect_eq(t, (u32)0, (u32)si_da_size(pkg.include));
   check_gated_paths(t, pkg.gated.include, it->include);
   check_gated_sources(t, pkg.build.gated.source, it->build_source);
   check_gated_paths(t, pkg.build.gated.include, it->build_include);
-  sp_expect_eq(t, (u32)0, (u32)sp_da_size(pkg.build.define));
-  sp_expect_eq(t, (u32)0, (u32)sp_da_size(pkg.build.flags));
+  sp_expect_eq(t, (u32)0, (u32)si_da_size(pkg.build.define));
+  sp_expect_eq(t, (u32)0, (u32)si_da_size(pkg.build.flags));
   check_gated(t, pkg.build.gated.define, it->build_define);
   check_gated(t, pkg.build.gated.flags, it->build_flags);
 
@@ -1749,7 +1749,7 @@ sp_test_each(lower, cases, test_t, tests) {
     spn_dep_kind_t kind = expected.build ? SPN_DEP_KIND_BUILD : expected.test ? SPN_DEP_KIND_TEST : SPN_DEP_KIND_PACKAGE;
 
     spn_requested_dep_t* req = SP_NULLPTR;
-    sp_da_for(pkg.deps, j) {
+    si_da_for(pkg.deps, j) {
       if (sp_str_equal(pkg.deps[j].qualified, sp_str_view(expected.name)) && pkg.deps[j].kind == kind) {
         req = &pkg.deps[j];
         break;
@@ -1769,7 +1769,7 @@ sp_test_each(lower, cases, test_t, tests) {
     option_t expected = it->options[o];
     if (!expected.name) break;
 
-    spn_option_info_t** slot = sp_str_om_getp(pkg.options, sp_str_view(expected.name));
+    spn_option_info_t** slot = si_om_getp(pkg.options, sp_intern_get_or_insert(interner, sp_str_view(expected.name)));
     sp_must(t, slot);
     spn_option_info_t* option = *slot;
     sp_expect_str_eq_c(t, option->name, expected.name);
@@ -1777,11 +1777,11 @@ sp_test_each(lower, cases, test_t, tests) {
     sp_expect_eq(t, expected.additive, option->additive);
     sp_expect_eq(t, expected.public, option->public);
     if (expected.define) sp_expect_str_eq_c(t, option->define, expected.define);
-    sp_must_strs_eq(t, option->values, sp_da_size(option->values), expected.values);
+    sp_must_strs_eq(t, option->values, si_da_size(option->values), expected.values);
 
     u32 num_defaults = 0;
     sp_carr_detect_len(expected.defaults, num_defaults, expected.defaults[num_defaults].value);
-    sp_must_eq(t, num_defaults, (u32)sp_da_size(option->defaults));
+    sp_must_eq(t, num_defaults, (u32)si_da_size(option->defaults));
     sp_for(j, num_defaults) {
       sp_expect_str_eq_c(t, spn_when_to_str(mem, &option->defaults[j].when), expected.defaults[j].when ? expected.defaults[j].when : "always");
       sp_expect_str_eq_c(t, spn_option_value_to_str(mem, option->defaults[j].value), expected.defaults[j].value);
@@ -1793,7 +1793,7 @@ sp_test_each(lower, cases, test_t, tests) {
     toolchain_t expected = it->toolchains[c];
     if (!expected.name) break;
 
-    spn_toolchain_decl_t* tc = sp_str_om_get(pkg.toolchains, sp_str_view(expected.name));
+    spn_toolchain_decl_t* tc = si_om_get(pkg.toolchains, sp_intern_get_or_insert(interner, sp_str_view(expected.name)));
     sp_must(t, tc);
 
     if (expected.url)      sp_expect_str_eq_c(t, tc->hosts[0].artifact.url, expected.url);
@@ -1835,7 +1835,7 @@ sp_test_each(lower, cases, test_t, tests) {
     profile_t expected = it->profiles[pr];
     if (!expected.name) break;
 
-    spn_profile_decl_t* p = sp_str_om_get(pkg.profiles, sp_str_view(expected.name));
+    spn_profile_decl_t* p = si_om_get(pkg.profiles, sp_intern_get_or_insert(interner, sp_str_view(expected.name)));
     sp_must(t, p);
     sp_expect_str_eq_c(t, p->name, expected.name);
     check_gated(t, p->toolchain, expected.toolchain);
@@ -1856,7 +1856,7 @@ sp_test_each(lower, cases, test_t, tests) {
     index_t expected = it->indexes[x];
     if (!expected.name) break;
 
-    spn_index_info_t* idx = sp_str_om_get(pkg.indexes, sp_str_view(expected.name));
+    spn_index_info_t* idx = si_om_get(pkg.indexes, sp_intern_get_or_insert(interner, sp_str_view(expected.name)));
     sp_must(t, idx);
     if (expected.url) sp_expect_str_eq_c(t, idx->protocol == SPN_INDEX_PROTOCOL_HTTP ? idx->http.url : idx->git.url, expected.url);
     if (expected.path) sp_expect_str_eq(t, idx->dir.path.sub, sp_fs_join_path(mem, ctx.dir.sub, sp_cstr_as_str(expected.path)));
@@ -1870,7 +1870,7 @@ sp_test_each(lower, cases, test_t, tests) {
     if (!expected.name) break;
 
     spn_pkg_patch_t* patch = SP_NULLPTR;
-    sp_da_for(pkg.patches, j) {
+    si_da_for(pkg.patches, j) {
       if (sp_str_equal(pkg.patches[j].qualified, sp_str_view(expected.name))) {
         patch = &pkg.patches[j];
         break;
@@ -1895,7 +1895,7 @@ sp_test_each(lower, cases, test_t, tests) {
     if (!expected.key) break;
 
     spn_pkg_config_entry_t* entry = SP_NULLPTR;
-    sp_da_for(pkg.config, j) {
+    si_da_for(pkg.config, j) {
       if (sp_str_equal(pkg.config[j].key, sp_str_view(expected.key))) {
         entry = &pkg.config[j];
         break;
