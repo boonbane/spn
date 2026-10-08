@@ -20,6 +20,6 @@ void                spn_pkg_add_define(sp_mem_t mem, spn_pkg_info_t* pkg, const 
 void                spn_pkg_add_define_ex(sp_mem_t mem, spn_pkg_info_t* pkg, sp_str_t define);
 void                spn_pkg_add_system_dep(sp_mem_t mem, spn_pkg_info_t* pkg, const c8* dep);
 void                spn_pkg_add_system_dep_ex(sp_mem_t mem, spn_pkg_info_t* pkg, sp_str_t dep);
-spn_target_info_t*  spn_pkg_add_target(sp_mem_t mem, spn_pkg_info_t* pkg, sp_str_t name, spn_target_kind_t kind);
+spn_err_t           spn_pkg_add_target(sp_mem_t mem, spn_pkg_info_t* pkg, sp_str_t name, spn_target_kind_t kind, spn_target_info_t** out);
 
 #endif

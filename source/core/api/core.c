@@ -151,32 +151,47 @@ bool spn_api_name_rejected(spn_pkg_unit_t* unit, const c8* fn, const c8* name) {
   return true;
 }
 
-spn_target_t* spn_add_exe(spn_config_t* config, const c8* name) {
-  spn_pkg_unit_t* unit = spn_api_unit(config);
-  if (spn_api_name_rejected(unit, "spn_add_exe", name)) {
+// @spader This is wrong. This should return an error code, and so should all
+// the public APIs above it. But until we sort out public error codes a
+// little more, this is OK
+static spn_target_t* add_target(spn_pkg_unit_t* unit, const c8* fn, const c8* name, spn_target_kind_t kind) {
+  if (spn_api_name_rejected(unit, fn, name)) {
     return SP_NULLPTR;
   }
-  return wrap(unit, spn_pkg_add_target(unit->session->mem, unit->info, sp_cstr_as_str(name), SPN_TARGET_KIND_EXE));
-}
+  sp_str_t str = sp_cstr_as_str(name);
+  spn_target_info_t* info = SP_NULLPTR;
+  if (spn_pkg_add_target(unit->session->mem, unit->info, str, kind, &info)) {
+    sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+    sp_str_t message = sp_fmt(scratch.mem, "{}: {} is already a target", SP_FMT_CSTR(fn), SP_FMT_STR(str)).value;
 
-spn_target_t* spn_add_lib(spn_config_t* config, const c8* name, spn_linkage_t kind) {
-  spn_linkage_set_t linkages = sp_zero;
-  spn_linkage_set_add(&linkages, kind);
-  spn_pkg_unit_t* unit = spn_api_unit(config);
-  if (spn_api_name_rejected(unit, "spn_add_lib", name)) {
+    // @spader This smells like bullshit, but leaving for now. Not this one
+    // call site, the whole pattern.
+    if (!spn_wasm_trap_active(unit, message)) {
+      spn_err_emit(unit->session->ctx, (spn_err_union_t) {
+        .kind = SPN_ERR_TARGET_DUPLICATE,
+        .target = { .pkg = unit->info->name, .name = sp_str_copy(spn.mem, str) },
+      });
+    }
+    sp_mem_end_scratch(scratch);
     return SP_NULLPTR;
   }
-  spn_target_info_t* info = spn_pkg_add_target(unit->session->mem, unit->info, sp_cstr_as_str(name), SPN_TARGET_KIND_LIB);
-  info->linkages = linkages;
   return wrap(unit, info);
 }
 
-spn_target_t* spn_add_test(spn_config_t* config, const c8* name) {
-  spn_pkg_unit_t* unit = spn_api_unit(config);
-  if (spn_api_name_rejected(unit, "spn_add_test", name)) {
-    return SP_NULLPTR;
+spn_target_t* spn_add_exe(spn_config_t* config, const c8* name) {
+  return add_target(spn_api_unit(config), "spn_add_exe", name, SPN_TARGET_KIND_EXE);
+}
+
+spn_target_t* spn_add_lib(spn_config_t* config, const c8* name, spn_linkage_t kind) {
+  spn_target_t* target = add_target(spn_api_unit(config), "spn_add_lib", name, SPN_TARGET_KIND_LIB);
+  if (target) {
+    spn_linkage_set_add(&target->info->linkages, kind);
   }
-  return wrap(unit, spn_pkg_add_target(unit->session->mem, unit->info, sp_cstr_as_str(name), SPN_TARGET_KIND_TEST));
+  return target;
+}
+
+spn_target_t* spn_add_test(spn_config_t* config, const c8* name) {
+  return add_target(spn_api_unit(config), "spn_add_test", name, SPN_TARGET_KIND_TEST);
 }
 
 void spn_add_include(spn_config_t* config, const c8* path) {

@@ -260,7 +260,9 @@ sp_test_each(link_plan, plan, plan_test_t, tests, .setup = spn_test_ctx_setup) {
   spn_session_t* s = build_session(mem, &it->graph);
 
   spn_loaded_pkg_t* loaded = sp_ht_getp(s->packages, find_pkg_id(s, &it->graph, it->graph.pkgs[0].name));
-  target_info(mem, loaded->roots, &it->target, spn_pkg_add_target(s->mem, s->pkg, sp_str_lit("app"), it->target.kind));
+  spn_target_info_t* info = SP_NULLPTR;
+  sp_must_eq(t, SPN_OK, spn_pkg_add_target(s->mem, s->pkg, sp_str_lit("app"), it->target.kind, &info));
+  target_info(mem, loaded->roots, &it->target, info);
 
   sp_must_eq(t, SPN_OK, spn_units_add_packages(s));
   sp_must_eq(t, SPN_OK, spn_units_add_targets(s, SPN_UNIT_SCOPE_TARGET));

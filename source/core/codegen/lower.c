@@ -143,10 +143,20 @@ static void lower_target(spn_toml_loader_t* ctx, const spn_cg_target_t* cg, spn_
   SP_UNIMPLEMENTED();
 }
 
-static void lower_collection(spn_toml_loader_t* ctx, spn_cg_target_om_t cg, spn_pkg_info_t* out, spn_target_kind_t kind) {
+static void lower_collection(spn_toml_loader_t* ctx, spn_cg_target_om_t cg, const c8* key, spn_pkg_info_t* out, spn_target_kind_t kind) {
+  spn_toml_loader_push_key(ctx, key);
   sp_om_for(cg, it) {
-    lower_target(ctx, sp_str_om_at(cg, it), spn_pkg_add_target(ctx->mem, out, sp_str_om_at(cg, it)->name, kind));
+    const spn_cg_target_t* entry = sp_str_om_at(cg, it);
+    spn_target_info_t* target = SP_NULLPTR;
+    if (spn_pkg_add_target(ctx->mem, out, entry->name, kind, &target)) {
+      spn_toml_loader_push_index(ctx, it);
+      spn_toml_loader_issue_at(ctx, SPN_ERR_CODEGEN_DUPLICATE_KEY, entry->name);
+      spn_toml_loader_pop(ctx);
+      continue;
+    }
+    lower_target(ctx, entry, target);
   }
+  spn_toml_loader_pop(ctx);
 }
 
 static spn_target_info_t lower_metaprogram(spn_toml_loader_t* ctx, const spn_cg_build_script_t* cg, sp_str_t name, spn_target_kind_t kind) {
@@ -283,11 +293,11 @@ static void lower_publish(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, s
 }
 
 static void lower_targets(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, spn_pkg_info_t* out) {
-  lower_collection(ctx, cg->lib, out, SPN_TARGET_KIND_LIB);
-  lower_collection(ctx, cg->bin, out, SPN_TARGET_KIND_EXE);
-  lower_collection(ctx, cg->script, out, SPN_TARGET_KIND_SCRIPT);
-  lower_collection(ctx, cg->test, out, SPN_TARGET_KIND_TEST);
-  lower_collection(ctx, cg->example, out, SPN_TARGET_KIND_EXAMPLE);
+  lower_collection(ctx, cg->lib, "lib", out, SPN_TARGET_KIND_LIB);
+  lower_collection(ctx, cg->bin, "bin", out, SPN_TARGET_KIND_EXE);
+  lower_collection(ctx, cg->script, "script", out, SPN_TARGET_KIND_SCRIPT);
+  lower_collection(ctx, cg->test, "test", out, SPN_TARGET_KIND_TEST);
+  lower_collection(ctx, cg->example, "example", out, SPN_TARGET_KIND_EXAMPLE);
 }
 
 static void lower_toolchains(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, spn_pkg_info_t* out) {

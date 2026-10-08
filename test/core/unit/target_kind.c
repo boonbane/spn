@@ -70,7 +70,9 @@ sp_test_each(target_kind, kind, test_t, tests, .setup = spn_test_ctx_setup) {
 
   spn_loaded_pkg_t* loaded = sp_ht_getp(s->packages, find_pkg_id(s, &it->graph, it->graph.pkgs[0].name));
   const c8* source [] = { "app.c", SP_NULLPTR };
-  spn_pkg_add_target(s->mem, s->pkg, sp_str_lit("app"), SPN_TARGET_KIND_EXE)->source = test_source_list(mem, loaded->roots, source, sp_carr_len(source));
+  spn_target_info_t* app = SP_NULLPTR;
+  sp_must_eq(t, SPN_OK, spn_pkg_add_target(s->mem, s->pkg, sp_str_lit("app"), SPN_TARGET_KIND_EXE, &app));
+  app->source = test_source_list(mem, loaded->roots, source, sp_carr_len(source));
 
   sp_must_eq(t, SPN_OK, spn_units_add_packages(s));
   spn_err_t err = spn_units_add_targets(s, SPN_UNIT_SCOPE_TARGET);

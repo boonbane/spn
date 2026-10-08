@@ -71,7 +71,8 @@ sp_test_each(unit_objects, create, objects_test_t, tests, .setup = spn_test_ctx_
     sp_fs_create_file(sp_fs_join_path(mem, root, sp_cstr_as_str(it->files[ft])));
   }
 
-  spn_target_info_t* app = spn_pkg_add_target(s->mem, s->pkg, sp_str_lit("app"), SPN_TARGET_KIND_EXE);
+  spn_target_info_t* app = SP_NULLPTR;
+  sp_must_eq(t, SPN_OK, spn_pkg_add_target(s->mem, s->pkg, sp_str_lit("app"), SPN_TARGET_KIND_EXE, &app));
   sp_carr_for(it->source, st) {
     if (!it->source[st].path) {
       break;

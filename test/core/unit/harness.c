@@ -170,7 +170,9 @@ spn_session_t* build_session(sp_mem_t mem, unit_graph_test_t* g) {
       if (!pkg->libs[lt].name) {
         break;
       }
-      lib_info(mem, trees, &pkg->libs[lt], spn_pkg_add_target(mem, info, sp_str_view(pkg->libs[lt].name), SPN_TARGET_KIND_LIB));
+      spn_target_info_t* lib = SP_NULLPTR;
+      spn_pkg_add_target(mem, info, sp_str_view(pkg->libs[lt].name), SPN_TARGET_KIND_LIB, &lib);
+      lib_info(mem, trees, &pkg->libs[lt], lib);
     }
 
     if (it == 0) {
