@@ -83,7 +83,7 @@ typedef struct {
 #define si_ht_free(mem, ht)                                                       \
   do {                                                                            \
     if ((ht)) {                                                                   \
-      sp_assert((ht)->info.allocator.user_data == (mem).user_data);               \
+      sp_assert((ht)->info.allocator.on_alloc == (mem).on_alloc && (ht)->info.allocator.user_data == (mem).user_data);               \
       sp_free((mem), (ht)->data, (ht)->capacity * sizeof((ht)->data[0]));         \
       (ht)->data = SP_NULLPTR;                                                    \
       sp_free((mem), (ht), sizeof(*(ht)));                                        \
@@ -124,7 +124,7 @@ typedef struct {
     if (!(ht)) {                                                              \
       si_ht_init_ex((mem), ht, hash_fn, cmp_fn);                              \
     }                                                                         \
-    sp_assert((ht)->info.allocator.user_data == (mem).user_data);             \
+    sp_assert((ht)->info.allocator.on_alloc == (mem).on_alloc && (ht)->info.allocator.user_data == (mem).user_data);             \
     (ht)->tmp_key = (k);                                                      \
     (ht)->tmp_val = (v);                                                      \
     si_ht_insert_impl((mem), ht, &(ht)->tmp_key, &(ht)->tmp_val, (ht)->info); \

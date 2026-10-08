@@ -93,7 +93,7 @@ static spn_triple_t decl_platform(const spn_profile_decl_t* decl) {
 }
 
 static sp_str_t pick(spn_gated_list_t candidates, spn_when_env_t* env) {
-  sp_da_for(candidates, it) {
+  si_da_for(candidates, it) {
     if (spn_when_eval(&candidates[it].when, env)) {
       return candidates[it].value;
     }
@@ -224,14 +224,14 @@ void spn_profile_finalize(spn_profile_info_t* profile, const spn_toolchain_selec
 }
 
 static bool shared_demand(const spn_pkg_info_t* pkg) {
-  sp_da_for(pkg->config, it) {
+  si_da_for(pkg->config, it) {
     const spn_pkg_config_t* config = &pkg->config[it].value;
     if (!sp_opt_is_null(config->kind) && config->kind.value == SPN_LIB_KIND_SHARED) {
       return true;
     }
   }
-  sp_om_for(pkg->targets, it) {
-    spn_target_info_t* target = sp_om_at(pkg->targets, it);
+  si_om_for(pkg->targets, it) {
+    spn_target_info_t* target = si_om_at(pkg->targets, it);
     if (target->kind != SPN_TARGET_KIND_LIB) {
       continue;
     }

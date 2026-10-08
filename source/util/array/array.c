@@ -16,7 +16,7 @@ void* si_da_resize(sp_mem_t mem, void* arr, u32 stride, u64 cap) {
   }
 
   si_da_header_t* header = si_da_head(arr);
-  sp_assert(header->allocator.user_data == mem.user_data);
+  sp_assert(header->allocator.on_alloc == mem.on_alloc && header->allocator.user_data == mem.user_data);
 
   u64 old_size = header->capacity * stride + sizeof(si_da_header_t);
   header = sp_cast(si_da_header_t*, sp_realloc_uninitialized(mem, header, old_size, cap * stride + sizeof(si_da_header_t)));

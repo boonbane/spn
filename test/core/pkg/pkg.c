@@ -13,10 +13,10 @@ sp_test_suite(pkg, .serial = true);
 static spn_pkg_info_t make_pkg(sp_mem_t mem) {
   spn_pkg_info_t pkg = spn_pkg_new(mem, sp_str_lit("A"));
   pkg.macos.min_os = (spn_os_version_t) { .major = 12 };
-  sp_da_push(pkg.gated.frameworks, ((spn_gated_str_t) { .value = sp_str_lit("A") }));
+  si_da_push(mem, pkg.gated.frameworks, ((spn_gated_str_t) { .value = sp_str_lit("A") }));
 
   spn_target_info_t* bin = spn_pkg_add_target(&pkg, sp_str_lit("A"), SPN_TARGET_KIND_EXE);
-  sp_da_push(bin->gated.frameworks, ((spn_gated_str_t) { .value = sp_str_lit("B") }));
+  si_da_push(mem, bin->gated.frameworks, ((spn_gated_str_t) { .value = sp_str_lit("B") }));
   bin->windows.subsystem = SPN_WIN_SUBSYSTEM_WINDOWS;
 
   return pkg;
@@ -75,7 +75,7 @@ sp_test_each(pkg, hash_platform, hash_platform_test_t, hash_platform_tests, .set
       break;
     }
     case PKG_EDIT_MACOS_FRAMEWORK: {
-      sp_da_push(pkg.gated.frameworks, ((spn_gated_str_t) { .value = sp_str_lit("C") }));
+      si_da_push(mem, pkg.gated.frameworks, ((spn_gated_str_t) { .value = sp_str_lit("C") }));
       break;
     }
     case PKG_EDIT_MACOS_FRAMEWORK_WHEN: {
@@ -85,11 +85,11 @@ sp_test_each(pkg, hash_platform, hash_platform_test_t, hash_platform_tests, .set
       break;
     }
     case PKG_EDIT_PLAIN_FRAMEWORK: {
-      sp_da_push(pkg.macos.frameworks, sp_str_lit("C"));
+      si_da_push(mem, pkg.macos.frameworks, sp_str_lit("C"));
       break;
     }
     case PKG_EDIT_TARGET_FRAMEWORK: {
-      sp_da_push(spn_pkg_get_target(&pkg, sp_str_lit("A"), SPN_TARGET_KIND_EXE)->gated.frameworks, ((spn_gated_str_t) { .value = sp_str_lit("C") }));
+      si_da_push(mem, spn_pkg_get_target(&pkg, sp_str_lit("A"), SPN_TARGET_KIND_EXE)->gated.frameworks, ((spn_gated_str_t) { .value = sp_str_lit("C") }));
       break;
     }
     case PKG_EDIT_TARGET_SUBSYSTEM: {
@@ -127,10 +127,10 @@ static const stamp_test_t stamp_tests [] = {
 sp_test_each(pkg, patch_stamp, stamp_test_t, stamp_tests) {
   sp_mem_t mem = sp_test_arena(t);
 
-  sp_da(spn_pkg_patch_t) patches = sp_da_new(mem, spn_pkg_patch_t);
+  si_da(spn_pkg_patch_t) patches = SP_NULLPTR;
   sp_carr_for(it->patches, p) {
     if (!it->patches[p]) break;
-    sp_da_push(patches, ((spn_pkg_patch_t) {
+    si_da_push(mem, patches, ((spn_pkg_patch_t) {
       .qualified = sp_str_view(it->patches[p]),
       .set.hash = (sp_hash_t)(p + 1),
     }));

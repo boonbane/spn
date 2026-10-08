@@ -4,6 +4,8 @@
 #include "sp.h"
 #include "spn/core.h"
 
+#include "array/array.h"
+
 typedef enum {
   SPN_OPTION_VALUE_NONE,
   SPN_OPTION_VALUE_BOOL,
@@ -69,7 +71,7 @@ typedef struct {
   spn_when_t when;
 } spn_gated_str_t;
 
-typedef sp_da(spn_gated_str_t) spn_gated_list_t;
+typedef si_da(spn_gated_str_t) spn_gated_list_t;
 
 typedef struct {
   sp_str_t path;
@@ -77,6 +79,6 @@ typedef struct {
   spn_when_t when;
 } spn_gated_path_t;
 
-typedef sp_da(spn_gated_path_t) spn_gated_path_list_t;
+typedef si_da(spn_gated_path_t) spn_gated_path_list_t;
 
 #endif

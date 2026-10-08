@@ -810,12 +810,12 @@ static spn_when_t clauses_to_when(sp_mem_t mem, const clause_t* clauses, u32 cou
 }
 
 static spn_gated_list_t candidates_to_list(sp_mem_t mem, const candidate_t* candidates, u32 count) {
-  spn_gated_list_t list = sp_da_new(mem, spn_gated_str_t);
+  spn_gated_list_t list = SP_NULLPTR;
   sp_for(it, count) {
     if (!candidates[it].value) {
       break;
     }
-    sp_da_push(list, ((spn_gated_str_t) {
+    si_da_push(mem, list, ((spn_gated_str_t) {
       .value = sp_cstr_as_str(candidates[it].value),
       .when = clauses_to_when(mem, candidates[it].when, sp_carr_len(candidates[it].when)),
     }));

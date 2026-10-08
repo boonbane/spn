@@ -207,32 +207,32 @@ static spn_err_t materialize_tree(spn_session_t* session, sp_str_t name, spn_pkg
   sp_unreachable_return(SPN_ERROR);
 }
 
-static sp_da(spn_path_t) resolve_paths(const spn_path_roots_t* roots, spn_gated_path_list_t entries, spn_loaded_pkg_t* loaded, spn_when_env_t* env) {
-  sp_da(spn_path_t) resolved = sp_da_new(spn.mem, spn_path_t);
-  sp_da_for(entries, it) {
+static si_da(spn_path_t) resolve_paths(const spn_path_roots_t* roots, spn_gated_path_list_t entries, spn_loaded_pkg_t* loaded, spn_when_env_t* env) {
+  si_da(spn_path_t) resolved = SP_NULLPTR;
+  si_da_for(entries, it) {
     if (!spn_when_eval(&entries[it].when, env)) {
       continue;
     }
     spn_path_t path = spn_tree_path(spn.mem, roots, loaded->roots, entries[it].tree, entries[it].path);
-    sp_da_push(resolved, path);
+    si_da_push(spn.mem, resolved, path);
   }
   return resolved;
 }
 
-static sp_da(sp_str_t) resolve_values(spn_gated_list_t entries, spn_when_env_t* env) {
-  sp_da(sp_str_t) resolved = sp_da_new(spn.mem, sp_str_t);
-  sp_da_for(entries, it) {
+static si_da(sp_str_t) resolve_values(spn_gated_list_t entries, spn_when_env_t* env) {
+  si_da(sp_str_t) resolved = SP_NULLPTR;
+  si_da_for(entries, it) {
     if (!spn_when_eval(&entries[it].when, env)) {
       continue;
     }
-    sp_da_push(resolved, entries[it].value);
+    si_da_push(spn.mem, resolved, entries[it].value);
   }
   return resolved;
 }
 
-static spn_err_t resolve_configure_source(spn_ctx_t* ctx, sp_str_t name, sp_da(spn_gated_source_t) declared, spn_loaded_pkg_t* loaded, spn_when_env_t* env, sp_da(spn_source_t)* source) {
-  sp_da(spn_source_t) resolved = sp_da_new(spn.mem, spn_source_t);
-  sp_da_for(declared, it) {
+static spn_err_t resolve_configure_source(spn_ctx_t* ctx, sp_str_t name, si_da(spn_gated_source_t) declared, spn_loaded_pkg_t* loaded, spn_when_env_t* env, si_da(spn_source_t)* source) {
+  si_da(spn_source_t) resolved = SP_NULLPTR;
+  si_da_for(declared, it) {
     if (!spn_when_eval(&declared[it].when, env)) {
       continue;
     }
@@ -271,21 +271,21 @@ static spn_err_t resolve_configure_source(spn_ctx_t* ctx, sp_str_t name, sp_da(s
         break;
       }
     }
-    sp_da_push(resolved, ((spn_source_t) { .kind = declared[it].kind, .path = path }));
+    si_da_push(spn.mem, resolved, ((spn_source_t) { .kind = declared[it].kind, .path = path }));
   }
   *source = resolved;
   return SPN_OK;
 }
 
-static sp_da(spn_source_t) detect_configure_source(const spn_path_roots_t* roots, spn_loaded_pkg_t* loaded, sp_str_t script) {
-  sp_da(spn_source_t) source = sp_da_new(spn.mem, spn_source_t);
+static si_da(spn_source_t) detect_configure_source(const spn_path_roots_t* roots, spn_loaded_pkg_t* loaded, sp_str_t script) {
+  si_da(spn_source_t) source = SP_NULLPTR;
   sp_str_t candidates [] = { sp_str_lit("configure.c"), script };
   sp_carr_for(candidates, it) {
     spn_path_t path = spn_tree_path(spn.mem, roots, loaded->roots, SPN_TREE_MANIFEST, candidates[it]);
     sp_path_t at = spn_path_at(roots, path);
     sp_sys_file_meta_t meta = sp_zero;
     if (!sp_sys_get_path_metadata_s(at.dir, at.sub, &meta) && meta.kind == SP_FS_KIND_FILE) {
-      sp_da_push(source, ((spn_source_t) { .kind = SPN_SOURCE_FILE, .path = path }));
+      si_da_push(spn.mem, source, ((spn_source_t) { .kind = SPN_SOURCE_FILE, .path = path }));
       break;
     }
   }
@@ -397,13 +397,13 @@ static spn_err_t load_package(spn_session_t* session, spn_resolved_pkg_t* pkg, s
   spn_when_env_from_profile(spn.mem, &session->profile, &facts);
 
   loaded->build = loaded->info->build;
-  loaded->build.source = sp_da_new(spn.mem, spn_source_t);
-  sp_da_for(loaded->info->build.gated.source, it) {
+  loaded->build.source = SP_NULLPTR;
+  si_da_for(loaded->info->build.gated.source, it) {
     spn_gated_source_t* source = &loaded->info->build.gated.source[it];
     if (!spn_when_eval(&source->when, &facts)) {
       continue;
     }
-    sp_da_push(loaded->build.source, ((spn_source_t) {
+    si_da_push(spn.mem, loaded->build.source, ((spn_source_t) {
       .kind = source->kind,
       .path = spn_tree_path(spn.mem, roots, loaded->roots, source->tree, source->path),
     }));
@@ -431,7 +431,7 @@ static spn_err_t load_package(spn_session_t* session, spn_resolved_pkg_t* pkg, s
   // But...this isn't really the right place to do it. This code is supposed
   // to be more mechanical; "get the sources on disk, do basic validation". But
   // what I just described belongs in the graph layer.
-  if (sp_da_empty(loaded->info->configure.gated.source)) {
+  if (si_da_empty(loaded->info->configure.gated.source)) {
     // @spader We need to stop doing this and force people to be explicit.
     // Instead of this weird detection, just make if so if you don't have
     // [package.configure] then you don't have a configure script. Simple.
@@ -440,17 +440,17 @@ static spn_err_t load_package(spn_session_t* session, spn_resolved_pkg_t* pkg, s
     spn_try(resolve_configure_source(session->ctx, qualified, loaded->info->configure.gated.source, loaded, &facts, &loaded->configure.source));
   }
 
-  if (sp_da_empty(loaded->build.source)) {
+  if (si_da_empty(loaded->build.source)) {
     spn_path_t candidate = spn_tree_path(spn.mem, roots, loaded->roots, SPN_TREE_MANIFEST, sp_str_lit("build.c"));
     spn_path_t script = spn_tree_path(spn.mem, roots, loaded->roots, SPN_TREE_MANIFEST, pkg->origin.paths.script);
     sp_path_t candidate_at = spn_path_at(roots, candidate);
     sp_path_t script_at = spn_path_at(roots, script);
     sp_sys_file_meta_t meta = sp_zero;
     if (!sp_sys_get_path_metadata_s(candidate_at.dir, candidate_at.sub, &meta) && meta.kind == SP_FS_KIND_FILE) {
-      sp_da_push(loaded->build.source, ((spn_source_t) { .kind = SPN_SOURCE_FILE, .path = candidate }));
+      si_da_push(spn.mem, loaded->build.source, ((spn_source_t) { .kind = SPN_SOURCE_FILE, .path = candidate }));
     }
     else if (package_has_build_deps(pkg) && !sp_sys_get_path_metadata_s(script_at.dir, script_at.sub, &meta) && meta.kind == SP_FS_KIND_FILE) {
-      sp_da_push(loaded->build.source, ((spn_source_t) { .kind = SPN_SOURCE_FILE, .path = script }));
+      si_da_push(spn.mem, loaded->build.source, ((spn_source_t) { .kind = SPN_SOURCE_FILE, .path = script }));
     }
   }
 
@@ -495,7 +495,7 @@ static void sync_toolchain_node(void* data) {
 
 static spn_err_t check_unused_patches(spn_session_t* session) {
   spn_err_t err = SPN_OK;
-  sp_da_for(session->pkg->patches, it) {
+  si_da_for(session->pkg->patches, it) {
     sp_str_t qualified = session->pkg->patches[it].qualified;
 
     bool used = false;

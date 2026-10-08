@@ -45,7 +45,7 @@ typedef struct SP_ALIGNED {
 #define si_da_free(__mem, __arr)\
   do {\
     if (__arr) {\
-      sp_assert(si_da_head(__arr)->allocator.user_data == (__mem).user_data);\
+      sp_assert(si_da_head(__arr)->allocator.on_alloc == (__mem).on_alloc && si_da_head(__arr)->allocator.user_data == (__mem).user_data);\
       sp_free((__mem), si_da_head(__arr), si_da_capacity(__arr) * si_da_stride(__arr) + sizeof(si_da_header_t));\
       (__arr) = SP_NULLPTR;\
     }\
@@ -85,7 +85,7 @@ void* si_da_resize(sp_mem_t mem, void* arr, u32 stride, u64 cap);
 static inline void* si_da_grow_ex(sp_mem_t mem, void* arr, u32 stride, u64 n) {
   u64 required = si_da_size(arr) + n;
   if (arr && required <= si_da_capacity(arr)) {
-    sp_assert(si_da_head(arr)->allocator.user_data == mem.user_data);
+    sp_assert(si_da_head(arr)->allocator.on_alloc == mem.on_alloc && si_da_head(arr)->allocator.user_data == mem.user_data);
     return arr;
   }
   return si_da_resize(mem, arr, stride, sp_max(si_da_capacity(arr) * 2, required));

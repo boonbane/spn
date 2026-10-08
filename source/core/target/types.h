@@ -9,7 +9,8 @@
 #include "intern/types.h"
 #include "macro/macro.h"
 #include "paths/types.h"
-#include "sp_om/sp_om.h"
+#include "array/array.h"
+#include "ordered_map.h"
 #include "when/types.h"
 
 typedef enum {
@@ -97,29 +98,29 @@ struct spn_target_info {
   spn_target_kind_t kind;
   spn_linkage_set_t linkages;
   bool no_link; // @spader A hack for libtcc1.a (building an unlinked library)
-  sp_da(spn_source_t) source;
-  sp_da(spn_path_t) headers;
-  sp_da(spn_path_t) include;
-  sp_da(sp_str_t) define;
-  sp_da(sp_str_t) flags;
-  sp_da(sp_str_t) link_flags;
-  sp_da(spn_path_t) linker_script;
-  sp_da(sp_str_t) system_deps;
-  sp_da(sp_str_t) deps;
-  sp_da(spn_embed_t) embed;
+  si_da(spn_source_t) source;
+  si_da(spn_path_t) headers;
+  si_da(spn_path_t) include;
+  si_da(sp_str_t) define;
+  si_da(sp_str_t) flags;
+  si_da(sp_str_t) link_flags;
+  si_da(spn_path_t) linker_script;
+  si_da(sp_str_t) system_deps;
+  si_da(sp_str_t) deps;
+  si_da(spn_embed_t) embed;
   spn_cxx_options_t cxx;
   struct {
-    sp_da(spn_path_t) include;
+    si_da(spn_path_t) include;
   } configured;
   struct {
-    sp_da(sp_str_t) frameworks;
+    si_da(sp_str_t) frameworks;
     spn_os_version_t min_os;
   } macos;
   struct {
     spn_win_subsystem_t subsystem;
   } windows;
   struct {
-    sp_da(spn_gated_source_t) source;
+    si_da(spn_gated_source_t) source;
     spn_gated_path_list_t headers;
     spn_gated_path_list_t include;
     spn_gated_list_t define;
@@ -133,6 +134,6 @@ struct spn_target_info {
   } gated;
 };
 
-typedef sp_om(spn_target_key_t, spn_target_info_t) spn_target_map_t;
+typedef si_om(spn_target_key_t, spn_target_info_t) spn_target_map_t;
 
 #endif

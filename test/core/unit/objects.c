@@ -78,7 +78,7 @@ sp_test_each(unit_objects, create, objects_test_t, tests, .setup = spn_test_ctx_
       break;
     }
     sp_str_t path = sp_cstr_as_str(it->source[st].path);
-    sp_da_push(app->source, ((spn_source_t) {
+    si_da_push(mem, app->source, ((spn_source_t) {
       .kind = it->source[st].kind,
       .path = it->source[st].tree == SPN_TREE_NONE
         ? spn_path_make(&spn.roots, path)

@@ -8,35 +8,35 @@
 #include "when/when.h"
 
 
-sp_da(sp_str_t) test_str_list(sp_mem_t mem, const c8* const* items, u32 max) {
-  sp_da(sp_str_t) list = sp_da_new(mem, sp_str_t);
+si_da(sp_str_t) test_str_list(sp_mem_t mem, const c8* const* items, u32 max) {
+  si_da(sp_str_t) list = SP_NULLPTR;
   sp_for(it, max) {
     if (!items[it]) {
       break;
     }
-    sp_da_push(list, sp_str_view(items[it]));
+    si_da_push(mem, list, sp_str_view(items[it]));
   }
   return list;
 }
 
-sp_da(spn_path_t) test_path_list(sp_mem_t mem, spn_tree_roots_t trees, const c8* const* items, u32 max) {
-  sp_da(spn_path_t) list = sp_da_new(mem, spn_path_t);
+si_da(spn_path_t) test_path_list(sp_mem_t mem, spn_tree_roots_t trees, const c8* const* items, u32 max) {
+  si_da(spn_path_t) list = SP_NULLPTR;
   sp_for(it, max) {
     if (!items[it]) {
       break;
     }
-    sp_da_push(list, spn_tree_path(mem, &spn.roots, trees, SPN_TREE_SOURCE, sp_cstr_as_str(items[it])));
+    si_da_push(mem, list, spn_tree_path(mem, &spn.roots, trees, SPN_TREE_SOURCE, sp_cstr_as_str(items[it])));
   }
   return list;
 }
 
-sp_da(spn_source_t) test_source_list(sp_mem_t mem, spn_tree_roots_t trees, const c8* const* items, u32 max) {
-  sp_da(spn_source_t) list = sp_da_new(mem, spn_source_t);
+si_da(spn_source_t) test_source_list(sp_mem_t mem, spn_tree_roots_t trees, const c8* const* items, u32 max) {
+  si_da(spn_source_t) list = SP_NULLPTR;
   sp_for(it, max) {
     if (!items[it]) {
       break;
     }
-    sp_da_push(list, ((spn_source_t) {
+    si_da_push(mem, list, ((spn_source_t) {
       .kind = SPN_SOURCE_FILE,
       .path = spn_tree_path(mem, &spn.roots, trees, SPN_TREE_SOURCE, sp_cstr_as_str(items[it])),
     }));
@@ -183,8 +183,7 @@ spn_session_t* build_session(sp_mem_t mem, unit_graph_test_t* g) {
       .roots = trees,
     };
     if (pkg->scripts) {
-      sp_da_init(mem, loaded.configure.source);
-      sp_da_push(loaded.configure.source, ((spn_source_t) {
+      si_da_push(mem, loaded.configure.source, ((spn_source_t) {
         .kind = SPN_SOURCE_FILE,
         .path = spn_tree_path(mem, &spn.roots, trees, SPN_TREE_MANIFEST, sp_str_lit("configure.c")),
       }));

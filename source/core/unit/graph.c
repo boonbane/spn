@@ -8,43 +8,43 @@
 #include "target/target.h"
 #include "when/when.h"
 
-static sp_da(sp_str_t) clone_str_list(sp_mem_t mem, sp_da(sp_str_t) source) {
-  sp_da(sp_str_t) result = sp_da_new(mem, sp_str_t);
-  sp_da_for(source, it) {
-    sp_da_push(result, source[it]);
+static si_da(sp_str_t) clone_str_list(sp_mem_t mem, si_da(sp_str_t) source) {
+  si_da(sp_str_t) result = SP_NULLPTR;
+  si_da_for(source, it) {
+    si_da_push(mem, result, source[it]);
   }
   return result;
 }
 
-static sp_da(spn_embed_t) clone_embed_list(sp_mem_t mem, sp_da(spn_embed_t) source) {
-  sp_da(spn_embed_t) result = sp_da_new(mem, spn_embed_t);
-  sp_da_for(source, it) {
-    sp_da_push(result, source[it]);
+static si_da(spn_embed_t) clone_embed_list(sp_mem_t mem, si_da(spn_embed_t) source) {
+  si_da(spn_embed_t) result = SP_NULLPTR;
+  si_da_for(source, it) {
+    si_da_push(mem, result, source[it]);
   }
   return result;
 }
 
-static sp_da(spn_publish_copy_t) clone_copy_list(sp_mem_t mem, sp_da(spn_publish_copy_t) source) {
-  sp_da(spn_publish_copy_t) result = sp_da_new(mem, spn_publish_copy_t);
-  sp_da_for(source, it) {
-    sp_da_push(result, source[it]);
+static si_da(spn_publish_copy_t) clone_copy_list(sp_mem_t mem, si_da(spn_publish_copy_t) source) {
+  si_da(spn_publish_copy_t) result = SP_NULLPTR;
+  si_da_for(source, it) {
+    si_da_push(mem, result, source[it]);
   }
   return result;
 }
 
-static sp_da(spn_path_t) clone_path_list(sp_mem_t mem, sp_da(spn_path_t) source) {
-  sp_da(spn_path_t) result = sp_da_new(mem, spn_path_t);
-  sp_da_for(source, it) {
-    sp_da_push(result, spn_path_copy(mem, source[it]));
+static si_da(spn_path_t) clone_path_list(sp_mem_t mem, si_da(spn_path_t) source) {
+  si_da(spn_path_t) result = SP_NULLPTR;
+  si_da_for(source, it) {
+    si_da_push(mem, result, spn_path_copy(mem, source[it]));
   }
   return result;
 }
 
 static spn_target_info_t clone_target_info(sp_mem_t mem, spn_target_info_t* source) {
   spn_target_info_t target = *source;
-  target.source = sp_da_new(mem, spn_source_t);
-  sp_da_for(source->source, it) {
-    sp_da_push(target.source, source->source[it]);
+  target.source = SP_NULLPTR;
+  si_da_for(source->source, it) {
+    si_da_push(mem, target.source, source->source[it]);
   }
   target.headers = clone_path_list(mem, source->headers);
   target.include = clone_path_list(mem, source->include);
@@ -61,10 +61,10 @@ static spn_target_info_t clone_target_info(sp_mem_t mem, spn_target_info_t* sour
 }
 
 static void clone_target_map(spn_target_map_t* result, spn_target_map_t source, sp_mem_t mem) {
-  sp_om_new(*result);
-  sp_om_for(source, it) {
-    spn_target_info_t target = clone_target_info(mem, sp_om_at(source, it));
-    sp_om_insert(*result, spn_target_key(target.name, target.kind), target);
+  *result = sp_zero_struct(spn_target_map_t);
+  si_om_for(source, it) {
+    spn_target_info_t target = clone_target_info(mem, si_om_at(source, it));
+    si_om_insert(mem, *result, spn_target_key(target.name, target.kind), target);
   }
 }
 
@@ -98,7 +98,7 @@ static spn_pkg_info_t* clone_pkg_info(spn_session_t* s, spn_pkg_id_t id, spn_bui
 }
 
 static bool pkg_has_scripts(spn_loaded_pkg_t* loaded) {
-  return !sp_da_empty(loaded->configure.source) || !sp_da_empty(loaded->build.source);
+  return !si_da_empty(loaded->configure.source) || !si_da_empty(loaded->build.source);
 }
 
 static u32 kind_bits(spn_dep_kind_t kind) {

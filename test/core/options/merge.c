@@ -506,9 +506,9 @@ sp_test_each(options_merge, merge, merge_test_t, tests) {
     .options = make_when(mem, it->profile_options, SP_CARR_LEN(it->profile_options)),
   };
 
-  sp_da(spn_pkg_config_entry_t) config = sp_da_new(mem, spn_pkg_config_entry_t);
+  si_da(spn_pkg_config_entry_t) config = SP_NULLPTR;
   if (it->config[0].key || it->defaults_declined) {
-    sp_da_push(config, ((spn_pkg_config_entry_t) {
+    si_da_push(mem, config, ((spn_pkg_config_entry_t) {
       .key = sp_str_lit("p"),
       .value = {
         .options = make_when(mem, it->config, SP_CARR_LEN(it->config)),

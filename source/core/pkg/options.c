@@ -6,8 +6,8 @@
 #include "target/mutate.h"
 #include "when/when.h"
 
-spn_pkg_config_t* spn_pkg_config_find(sp_da(spn_pkg_config_entry_t) config, sp_str_t name) {
-  sp_da_for(config, it) {
+spn_pkg_config_t* spn_pkg_config_find(si_da(spn_pkg_config_entry_t) config, sp_str_t name) {
+  si_da_for(config, it) {
     if (sp_str_equal(config[it].key, name)) {
       return &config[it].value;
     }
@@ -35,7 +35,7 @@ typedef struct {
   bool defaults_declined;
 } option_set_t;
 
-static option_set_t find_set(const spn_resolved_pkg_t* pkg, const spn_profile_info_t* profile, sp_da(spn_pkg_config_entry_t) root_config) {
+static option_set_t find_set(const spn_resolved_pkg_t* pkg, const spn_profile_info_t* profile, si_da(spn_pkg_config_entry_t) root_config) {
   bool is_root = pkg->source == SPN_PKG_SOURCE_ROOT;
   spn_pkg_config_t* config = spn_pkg_config_find(root_config, pkg->name);
   return (option_set_t) {
@@ -101,7 +101,7 @@ void spn_pkg_options_merge(
   sp_mem_t mem,
   const spn_resolved_pkg_t* pkg,
   const spn_profile_info_t* profile,
-  sp_da(spn_pkg_config_entry_t) root_config,
+  si_da(spn_pkg_config_entry_t) root_config,
   spn_option_requests_t requests,
   spn_merged_options_t* merged
 ) {
@@ -212,7 +212,7 @@ void spn_pkg_options_env(
   sp_mem_t mem,
   const spn_resolved_pkg_t* pkg,
   const spn_profile_info_t* profile,
-  sp_da(spn_pkg_config_entry_t) root_config,
+  si_da(spn_pkg_config_entry_t) root_config,
   spn_option_requests_t requests,
   spn_when_env_t* env
 ) {
@@ -229,31 +229,31 @@ typedef struct {
   spn_when_env_t* env;
 } apply_ctx_t;
 
-static void apply_gated(apply_ctx_t* ctx, sp_da(sp_str_t)* plain, spn_gated_list_t gated) {
-  sp_da_for(gated, it) {
+static void apply_gated(apply_ctx_t* ctx, si_da(sp_str_t)* plain, spn_gated_list_t gated) {
+  si_da_for(gated, it) {
     if (!spn_when_eval(&gated[it].when, ctx->env)) {
       continue;
     }
-    sp_da_push(*plain, gated[it].value);
+    si_da_push(ctx->mem, *plain, gated[it].value);
   }
 }
 
-static void apply_gated_paths(apply_ctx_t* ctx, sp_da(spn_path_t)* plain, spn_gated_path_list_t gated) {
-  sp_da_for(gated, it) {
+static void apply_gated_paths(apply_ctx_t* ctx, si_da(spn_path_t)* plain, spn_gated_path_list_t gated) {
+  si_da_for(gated, it) {
     if (!spn_when_eval(&gated[it].when, ctx->env)) {
       continue;
     }
     spn_path_t path = spn_tree_path(ctx->mem, ctx->roots, ctx->trees, gated[it].tree, gated[it].path);
-    sp_da_push(*plain, path);
+    si_da_push(ctx->mem, *plain, path);
   }
 }
 
-static void apply_copies(apply_ctx_t* ctx, sp_da(spn_publish_copy_t)* plain, sp_da(spn_publish_copy_t) gated) {
-  sp_da_for(gated, it) {
+static void apply_copies(apply_ctx_t* ctx, si_da(spn_publish_copy_t)* plain, si_da(spn_publish_copy_t) gated) {
+  si_da_for(gated, it) {
     if (!spn_when_eval(&gated[it].when, ctx->env)) {
       continue;
     }
-    sp_da_push(*plain, ((spn_publish_copy_t) {
+    si_da_push(ctx->mem, *plain, ((spn_publish_copy_t) {
       .tree = gated[it].tree,
       .pattern = gated[it].pattern,
       .dest = gated[it].dest,
@@ -262,12 +262,12 @@ static void apply_copies(apply_ctx_t* ctx, sp_da(spn_publish_copy_t)* plain, sp_
 }
 
 static void apply_target(apply_ctx_t* ctx, spn_target_info_t* target) {
-  sp_da_for(target->gated.source, it) {
+  si_da_for(target->gated.source, it) {
     spn_gated_source_t* source = &target->gated.source[it];
     if (!spn_when_eval(&source->when, ctx->env)) {
       continue;
     }
-    sp_da_push(target->source, ((spn_source_t) {
+    si_da_push(ctx->mem, target->source, ((spn_source_t) {
       .kind = source->kind,
       .path = spn_tree_path(ctx->mem, ctx->roots, ctx->trees, source->tree, source->path),
     }));
@@ -281,13 +281,13 @@ static void apply_target(apply_ctx_t* ctx, spn_target_info_t* target) {
   apply_gated(ctx, &target->system_deps, target->gated.system_deps);
   apply_gated(ctx, &target->deps, target->gated.deps);
   apply_gated(ctx, &target->macos.frameworks, target->gated.frameworks);
-  sp_da_for(target->gated.embed, it) {
+  si_da_for(target->gated.embed, it) {
     spn_gated_embed_t* embed = &target->gated.embed[it];
     if (!spn_when_eval(&embed->when, ctx->env)) {
       continue;
     }
     spn_path_t path = spn_tree_path(ctx->mem, ctx->roots, ctx->trees, embed->tree, embed->path);
-    spn_target_add_embed(target, (spn_embed_t) {
+    spn_target_add_embed(ctx->mem, target, (spn_embed_t) {
       .kind = embed->kind,
       .path = path,
       .dest = embed->dest,
@@ -309,8 +309,8 @@ void spn_pkg_apply_options(
   info->applied = true;
 
   apply_ctx_t ctx = { .mem = mem, .roots = roots, .trees = trees, .env = env };
-  sp_om_for(info->targets, it) {
-    apply_target(&ctx, sp_om_at(info->targets, it));
+  si_om_for(info->targets, it) {
+    apply_target(&ctx, si_om_at(info->targets, it));
   }
 
   apply_gated(&ctx, &info->system_deps, info->gated.system_deps);
@@ -328,9 +328,9 @@ void spn_pkg_apply_options(
     if (!value || value->kind != SPN_OPTION_VALUE_BOOL || !value->b) {
       continue;
     }
-    sp_da_push(info->define, option->define);
+    si_da_push(mem, info->define, option->define);
     if (option->public) {
-      sp_da_push(info->public_define, option->define);
+      si_da_push(mem, info->public_define, option->define);
     }
   }
 }

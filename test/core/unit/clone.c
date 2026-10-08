@@ -26,21 +26,13 @@ sp_test_each(unit, clone, clone_test_t, tests, .setup = spn_test_ctx_setup) {
   spn_target_info_t* loaded_lib = spn_pkg_get_target(loaded, sp_str_lit("L"), SPN_TARGET_KIND_LIB);
   sp_must(t, loaded_lib);
 
-  sp_da_init(mem, loaded->define);
-  sp_da_init(mem, loaded->include);
-  sp_da_init(mem, loaded->publish.copy);
-  sp_da_init(mem, loaded->gated.define);
-  sp_da_init(mem, loaded->gated.system_deps);
-  sp_da_init(mem, loaded->gated.include);
-  sp_da_init(mem, loaded->gated.frameworks);
-  sp_da_init(mem, loaded->gated.publish.copy);
-  sp_da_push(loaded->gated.define, ((spn_gated_str_t) { .value = sp_str_lit("A") }));
-  sp_da_push(loaded->gated.system_deps, ((spn_gated_str_t) { .value = sp_str_lit("A") }));
-  sp_da_push(loaded->gated.frameworks, ((spn_gated_str_t) { .value = sp_str_lit("A") }));
-  sp_da_push(loaded->gated.include, ((spn_gated_path_t) { .path = sp_str_lit("A"), .tree = SPN_TREE_SOURCE }));
-  sp_da_push(loaded->gated.publish.copy, ((spn_publish_copy_t) { .tree = SPN_TREE_SOURCE, .pattern = sp_str_lit("A") }));
-  sp_da_push(loaded_lib->gated.define, ((spn_gated_str_t) { .value = sp_str_lit("A") }));
-  sp_da_push(loaded_lib->gated.frameworks, ((spn_gated_str_t) { .value = sp_str_lit("A") }));
+  si_da_push(mem, loaded->gated.define, ((spn_gated_str_t) { .value = sp_str_lit("A") }));
+  si_da_push(mem, loaded->gated.system_deps, ((spn_gated_str_t) { .value = sp_str_lit("A") }));
+  si_da_push(mem, loaded->gated.frameworks, ((spn_gated_str_t) { .value = sp_str_lit("A") }));
+  si_da_push(mem, loaded->gated.include, ((spn_gated_path_t) { .path = sp_str_lit("A"), .tree = SPN_TREE_SOURCE }));
+  si_da_push(mem, loaded->gated.publish.copy, ((spn_publish_copy_t) { .tree = SPN_TREE_SOURCE, .pattern = sp_str_lit("A") }));
+  si_da_push(mem, loaded_lib->gated.define, ((spn_gated_str_t) { .value = sp_str_lit("A") }));
+  si_da_push(mem, loaded_lib->gated.frameworks, ((spn_gated_str_t) { .value = sp_str_lit("A") }));
 
   sp_must_eq(t, SPN_OK, spn_units_add_packages(s));
 
@@ -48,23 +40,23 @@ sp_test_each(unit, clone, clone_test_t, tests, .setup = spn_test_ctx_setup) {
   sp_carr_for(builds, bt) {
     spn_pkg_unit_t* unit = spn_session_find_pkg_unit(s, builds[bt], id);
     sp_must(t, unit);
-    sp_expect_eq(t, (u32)1, (u32)sp_da_size(unit->info->define));
-    sp_expect_eq(t, (u32)1, (u32)sp_da_size(unit->info->system_deps));
-    sp_expect_eq(t, (u32)1, (u32)sp_da_size(unit->info->include));
-    sp_expect_eq(t, (u32)1, (u32)sp_da_size(unit->info->macos.frameworks));
-    sp_expect_eq(t, (u32)1, (u32)sp_da_size(unit->info->publish.copy));
+    sp_expect_eq(t, (u32)1, (u32)si_da_size(unit->info->define));
+    sp_expect_eq(t, (u32)1, (u32)si_da_size(unit->info->system_deps));
+    sp_expect_eq(t, (u32)1, (u32)si_da_size(unit->info->include));
+    sp_expect_eq(t, (u32)1, (u32)si_da_size(unit->info->macos.frameworks));
+    sp_expect_eq(t, (u32)1, (u32)si_da_size(unit->info->publish.copy));
     spn_target_info_t* lib = spn_pkg_get_target(unit->info, sp_str_lit("L"), SPN_TARGET_KIND_LIB);
     sp_must(t, lib);
-    sp_expect_eq(t, (u32)1, (u32)sp_da_size(lib->define));
-    sp_expect_eq(t, (u32)1, (u32)sp_da_size(lib->macos.frameworks));
+    sp_expect_eq(t, (u32)1, (u32)si_da_size(lib->define));
+    sp_expect_eq(t, (u32)1, (u32)si_da_size(lib->macos.frameworks));
   }
 
-  sp_expect_eq(t, (u32)0, (u32)sp_da_size(loaded->define));
-  sp_expect_eq(t, (u32)0, (u32)sp_da_size(loaded->system_deps));
-  sp_expect_eq(t, (u32)0, (u32)sp_da_size(loaded->include));
-  sp_expect_eq(t, (u32)0, (u32)sp_da_size(loaded->macos.frameworks));
-  sp_expect_eq(t, (u32)0, (u32)sp_da_size(loaded->publish.copy));
-  sp_expect_eq(t, (u32)0, (u32)sp_da_size(loaded_lib->define));
-  sp_expect_eq(t, (u32)0, (u32)sp_da_size(loaded_lib->macos.frameworks));
+  sp_expect_eq(t, (u32)0, (u32)si_da_size(loaded->define));
+  sp_expect_eq(t, (u32)0, (u32)si_da_size(loaded->system_deps));
+  sp_expect_eq(t, (u32)0, (u32)si_da_size(loaded->include));
+  sp_expect_eq(t, (u32)0, (u32)si_da_size(loaded->macos.frameworks));
+  sp_expect_eq(t, (u32)0, (u32)si_da_size(loaded->publish.copy));
+  sp_expect_eq(t, (u32)0, (u32)si_da_size(loaded_lib->define));
+  sp_expect_eq(t, (u32)0, (u32)si_da_size(loaded_lib->macos.frameworks));
   return SP_OK;
 }

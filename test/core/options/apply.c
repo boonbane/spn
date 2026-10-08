@@ -106,11 +106,11 @@ static spn_when_t make_apply_when(sp_mem_t mem, const apply_clause_t* clauses, u
 static void make_list(
   sp_mem_t mem,
   apply_list_t test,
-  sp_da(sp_str_t)* plain,
+  si_da(sp_str_t)* plain,
   spn_gated_list_t* gated
 ) {
-  *plain = sp_da_new(mem, sp_str_t);
-  *gated = sp_da_new(mem, spn_gated_str_t);
+  *plain = SP_NULLPTR;
+  *gated = SP_NULLPTR;
 
   sp_carr_for(test.values, it) {
     apply_value_t* value = &test.values[it];
@@ -118,10 +118,10 @@ static void make_list(
       break;
     }
     if (value->plain) {
-      sp_da_push(*plain, sp_cstr_as_str(value->value));
+      si_da_push(mem, *plain, sp_cstr_as_str(value->value));
       continue;
     }
-    sp_da_push(*gated, ((spn_gated_str_t) {
+    si_da_push(mem, *gated, ((spn_gated_str_t) {
       .value = sp_cstr_as_str(value->value),
       .when = make_apply_when(mem, value->when, SP_CARR_LEN(value->when)),
     }));
@@ -131,11 +131,11 @@ static void make_list(
 static void make_path_list(
   sp_mem_t mem,
   apply_list_t test,
-  sp_da(spn_path_t)* plain,
+  si_da(spn_path_t)* plain,
   spn_gated_path_list_t* gated
 ) {
-  *plain = sp_da_new(mem, spn_path_t);
-  *gated = sp_da_new(mem, spn_gated_path_t);
+  *plain = SP_NULLPTR;
+  *gated = SP_NULLPTR;
 
   sp_carr_for(test.values, it) {
     apply_value_t* value = &test.values[it];
@@ -143,10 +143,10 @@ static void make_path_list(
       break;
     }
     if (value->plain) {
-      sp_da_push(*plain, ((spn_path_t) { .sub = sp_cstr_as_str(value->value) }));
+      si_da_push(mem, *plain, ((spn_path_t) { .sub = sp_cstr_as_str(value->value) }));
       continue;
     }
-    sp_da_push(*gated, ((spn_gated_path_t) {
+    si_da_push(mem, *gated, ((spn_gated_path_t) {
       .path = sp_cstr_as_str(value->value),
       .tree = SPN_TREE_SOURCE,
       .when = make_apply_when(mem, value->when, SP_CARR_LEN(value->when)),
@@ -157,11 +157,11 @@ static void make_path_list(
 static void make_source_list(
   sp_mem_t mem,
   apply_list_t test,
-  sp_da(spn_source_t)* plain,
-  sp_da(spn_gated_source_t)* gated
+  si_da(spn_source_t)* plain,
+  si_da(spn_gated_source_t)* gated
 ) {
-  *plain = sp_da_new(mem, spn_source_t);
-  *gated = sp_da_new(mem, spn_gated_source_t);
+  *plain = SP_NULLPTR;
+  *gated = SP_NULLPTR;
 
   sp_carr_for(test.values, it) {
     apply_value_t* value = &test.values[it];
@@ -169,10 +169,10 @@ static void make_source_list(
       break;
     }
     if (value->plain) {
-      sp_da_push(*plain, ((spn_source_t) { .path = { .sub = sp_cstr_as_str(value->value) } }));
+      si_da_push(mem, *plain, ((spn_source_t) { .path = { .sub = sp_cstr_as_str(value->value) } }));
       continue;
     }
-    sp_da_push(*gated, ((spn_gated_source_t) {
+    si_da_push(mem, *gated, ((spn_gated_source_t) {
       .path = sp_cstr_as_str(value->value),
       .tree = SPN_TREE_SOURCE,
       .when = make_apply_when(mem, value->when, SP_CARR_LEN(value->when)),
@@ -180,45 +180,45 @@ static void make_source_list(
   }
 }
 
-static sp_err_t expect_list(sp_test_t* t, sp_da(sp_str_t) actual, const c8** expected) {
+static sp_err_t expect_list(sp_test_t* t, si_da(sp_str_t) actual, const c8** expected) {
   sp_for(et, 4) {
     if (!expected[et]) {
-      sp_must_eq(t, sp_da_size(actual), et);
+      sp_must_eq(t, si_da_size(actual), et);
       return SP_OK;
     }
     sp_test_kv_c(t, "value", expected[et]);
-    sp_must(t, et < sp_da_size(actual));
+    sp_must(t, et < si_da_size(actual));
     sp_expect_str_eq_c(t, actual[et], expected[et]);
   }
-  sp_must_eq(t, sp_da_size(actual), 4);
+  sp_must_eq(t, si_da_size(actual), 4);
   return SP_OK;
 }
 
-static sp_err_t expect_path_list(sp_test_t* t, sp_da(spn_path_t) actual, const c8** expected) {
+static sp_err_t expect_path_list(sp_test_t* t, si_da(spn_path_t) actual, const c8** expected) {
   sp_for(et, 4) {
     if (!expected[et]) {
-      sp_must_eq(t, sp_da_size(actual), et);
+      sp_must_eq(t, si_da_size(actual), et);
       return SP_OK;
     }
     sp_test_kv_c(t, "value", expected[et]);
-    sp_must(t, et < sp_da_size(actual));
+    sp_must(t, et < si_da_size(actual));
     sp_expect_str_eq_c(t, actual[et].sub, expected[et]);
   }
-  sp_must_eq(t, sp_da_size(actual), 4);
+  sp_must_eq(t, si_da_size(actual), 4);
   return SP_OK;
 }
 
-static sp_err_t expect_source_list(sp_test_t* t, sp_da(spn_source_t) actual, const c8** expected) {
+static sp_err_t expect_source_list(sp_test_t* t, si_da(spn_source_t) actual, const c8** expected) {
   sp_for(et, 4) {
     if (!expected[et]) {
-      sp_must_eq(t, sp_da_size(actual), et);
+      sp_must_eq(t, si_da_size(actual), et);
       return SP_OK;
     }
     sp_test_kv_c(t, "value", expected[et]);
-    sp_must(t, et < sp_da_size(actual));
+    sp_must(t, et < si_da_size(actual));
     sp_expect_str_eq_c(t, actual[et].path.sub, expected[et]);
   }
-  sp_must_eq(t, sp_da_size(actual), 4);
+  sp_must_eq(t, si_da_size(actual), 4);
   return SP_OK;
 }
 
@@ -446,8 +446,8 @@ sp_test_each(options_apply, lists, apply_test_t, list_tests, .setup = spn_test_c
 
   struct {
     apply_list_t test;
-    sp_da(spn_source_t)* plain;
-    sp_da(spn_gated_source_t)* gated;
+    si_da(spn_source_t)* plain;
+    si_da(spn_gated_source_t)* gated;
     const c8** expected;
   } source_lists [] = {
     { it->lib_source, &lib->source, &lib->gated.source, it->expect.lib_source },
@@ -457,7 +457,7 @@ sp_test_each(options_apply, lists, apply_test_t, list_tests, .setup = spn_test_c
   };
   struct {
     apply_list_t test;
-    sp_da(spn_path_t)* plain;
+    si_da(spn_path_t)* plain;
     spn_gated_path_list_t* gated;
     const c8** expected;
   } path_lists [] = {
@@ -466,7 +466,7 @@ sp_test_each(options_apply, lists, apply_test_t, list_tests, .setup = spn_test_c
   };
   struct {
     apply_list_t test;
-    sp_da(sp_str_t)* plain;
+    si_da(sp_str_t)* plain;
     spn_gated_list_t* gated;
     const c8** expected;
   } lists [] = {
@@ -598,22 +598,19 @@ static const apply_option_test_t option_tests [] = {
 
 sp_test_each(options_apply, option_defines, apply_option_test_t, option_tests) {
   sp_mem_t mem = sp_test_arena(t);
-  spn_pkg_info_t info = {
-    .define = sp_da_new(mem, sp_str_t),
-    .public_define = sp_da_new(mem, sp_str_t),
-  };
+  spn_pkg_info_t info = sp_zero;
 
   sp_carr_for(it->define, dt) {
     if (!it->define[dt]) {
       break;
     }
-    sp_da_push(info.define, sp_cstr_as_str(it->define[dt]));
+    si_da_push(mem, info.define, sp_cstr_as_str(it->define[dt]));
   }
   sp_carr_for(it->public_define, pt) {
     if (!it->public_define[pt]) {
       break;
     }
-    sp_da_push(info.public_define, sp_cstr_as_str(it->public_define[pt]));
+    si_da_push(mem, info.public_define, sp_cstr_as_str(it->public_define[pt]));
   }
   sp_carr_for(it->options, ot) {
     if (!it->options[ot].name) {
@@ -677,13 +674,11 @@ static const apply_copy_test_t copy_tests [] = {
 sp_test_each(options_apply, publish_copies, apply_copy_test_t, copy_tests) {
   sp_mem_t mem = sp_test_arena(t);
   spn_pkg_info_t info = sp_zero;
-  sp_da_init(mem, info.publish.copy);
-  sp_da_init(mem, info.gated.publish.copy);
   sp_carr_for(it->copies, ct) {
     if (!it->copies[ct].pattern) {
       break;
     }
-    sp_da_push(info.gated.publish.copy, ((spn_publish_copy_t) {
+    si_da_push(mem, info.gated.publish.copy, ((spn_publish_copy_t) {
       .tree = SPN_TREE_SOURCE,
       .pattern = sp_cstr_as_str(it->copies[ct].pattern),
       .when = make_apply_when(mem, it->copies[ct].when, sp_carr_len(it->copies[ct].when)),
@@ -700,7 +695,7 @@ sp_test_each(options_apply, publish_copies, apply_copy_test_t, copy_tests) {
   sp_expect(t, info.applied);
   u32 expected = 0;
   sp_carr_detect_len(it->expect, expected, it->expect[expected]);
-  sp_must_eq(t, expected, (u32)sp_da_size(info.publish.copy));
+  sp_must_eq(t, expected, (u32)si_da_size(info.publish.copy));
   sp_for(ct, expected) {
     sp_expect_str_eq_c(t, info.publish.copy[ct].pattern, it->expect[ct]);
   }
@@ -740,7 +735,7 @@ sp_test_each(options_apply, target_embeds, apply_embed_test_t, embed_tests, .set
     if (!it->embeds[et].dest) {
       break;
     }
-    sp_da_push(exe->gated.embed, ((spn_gated_embed_t) {
+    si_da_push(mem, exe->gated.embed, ((spn_gated_embed_t) {
       .kind = SPN_EMBED_DIR,
       .path = sp_cstr_as_str(it->embeds[et].dest),
       .tree = SPN_TREE_SOURCE,
@@ -759,7 +754,7 @@ sp_test_each(options_apply, target_embeds, apply_embed_test_t, embed_tests, .set
 
   u32 expected = 0;
   sp_carr_detect_len(it->expect, expected, it->expect[expected]);
-  sp_must_eq(t, expected, (u32)sp_da_size(exe->embed));
+  sp_must_eq(t, expected, (u32)si_da_size(exe->embed));
   sp_for(et, expected) {
     sp_expect_str_eq_c(t, exe->embed[et].dest, it->expect[et]);
     sp_expect_str_eq_c(t, exe->embed[et].path.sub, it->expect[et]);

@@ -37,7 +37,7 @@ static spn_err_t publish_tree(sp_mem_t scratch, spn_dag_t* g, spn_pkg_unit_t* un
     return SPN_ERR_DAG_ACTION;
   }
 
-  sp_da_for(unit->info->publish.copy, it) {
+  si_da_for(unit->info->publish.copy, it) {
     spn_publish_copy_t* copy = &unit->info->publish.copy[it];
     if (publish_copy(scratch, g->roots, unit->paths.roots, include, copy, obs)) {
       spn_event_buffer_push(spn.events, (spn_event_t) {

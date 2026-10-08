@@ -185,9 +185,8 @@ static fz_result_t fz_execute(sp_mem_t mem, fz_universe_t* u, sp_intern_t* inter
     info->name = fz_pkg_name((u32)it);
     info->qualified = spn_pkg_canonicalize_pair(sp_str_lit("spn"), fz_pkg_name((u32)it));
     info->version = release->version;
-    sp_da_init(mem, info->deps);
     sp_da_for(release->deps, dt) {
-      sp_da_push(info->deps, fz_req(mem, u, release->deps[dt]));
+      si_da_push(mem, info->deps, fz_req(mem, u, release->deps[dt]));
     }
 
     if (fz_pkg_linked(local)) {
@@ -206,10 +205,9 @@ static fz_result_t fz_execute(sp_mem_t mem, fz_universe_t* u, sp_intern_t* inter
   root->name = sp_str_lit("root");
   root->qualified = sp_str_view(fz_root_qualified);
   root->version = spn_semver_lit(0, 0, 1);
-  sp_da_init(mem, root->deps);
 
   sp_da_for(u->roots, it) {
-    sp_da_push(root->deps, fz_req(mem, u, u->roots[it]));
+    si_da_push(mem, root->deps, fz_req(mem, u, u->roots[it]));
   }
 
   sp_ht_insert(registry, spn_pkg_id(intern, root->qualified), ((spn_registry_pkg_t) {
@@ -219,14 +217,14 @@ static fz_result_t fz_execute(sp_mem_t mem, fz_universe_t* u, sp_intern_t* inter
 
   spn_index_cache_t cache = sp_zero;
 
-  sp_da(spn_pkg_config_entry_t) config = sp_da_new(mem, spn_pkg_config_entry_t);
+  si_da(spn_pkg_config_entry_t) config = SP_NULLPTR;
   sp_da_for(u->pkgs, it) {
     if (!u->pkgs[it].has_config) {
       continue;
     }
     spn_pkg_config_entry_t entry = { .key = fz_pkg_name((u32)it) };
     sp_opt_set(entry.value.kind, u->pkgs[it].config);
-    sp_da_push(config, entry);
+    si_da_push(mem, config, entry);
   }
 
   spn_resolver_t resolver = sp_zero;
