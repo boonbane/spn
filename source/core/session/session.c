@@ -128,7 +128,7 @@ sp_opt_spn_linkage_t spn_session_config_kind(spn_session_t* session, sp_str_t pk
   return requested;
 }
 
-spn_pkg_id_t spn_session_root_pkg(spn_session_t* session) {
+spn_pkg_id_t si_get_root_pkg(spn_session_t* session) {
   sp_ht_for_kv(session->resolve, it) {
     if (it.val->source == SPN_PKG_SOURCE_ROOT) {
       return it.val->id;
@@ -141,7 +141,7 @@ spn_pkg_unit_t* spn_session_find_pkg_unit_by_id(spn_session_t* session, spn_pkg_
   return sp_om_has(session->units.packages, id) ? sp_om_get(session->units.packages, id) : SP_NULLPTR;
 }
 
-spn_pkg_unit_t* spn_session_find_pkg_unit(spn_session_t* session, spn_build_unit_t* build, spn_pkg_id_t pkg) {
+spn_pkg_unit_t* si_get_pkg_unit(spn_session_t* session, spn_build_unit_t* build, spn_pkg_id_t pkg) {
   return spn_session_find_pkg_unit_by_id(session, (spn_pkg_unit_id_t) {
     .pkg = pkg,
     .build = build->id,

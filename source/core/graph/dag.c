@@ -956,7 +956,7 @@ static void dag_emit_reports(spn_dag_build_t* b, u64 elapsed) {
 
   sp_da_for(session->plans.build, it) {
     spn_build_unit_t* build = session->plans.build[it].build;
-    spn_pkg_unit_t* root = spn_session_find_pkg_unit(session, build, spn_session_root_pkg(session));
+    spn_pkg_unit_t* root = si_get_pkg_unit(session, build, si_get_root_pkg(session));
     spn_pkg_info_t* pkg = root ? root->info : session->pkg;
     spn_profile_info_t* profile = &build->profile;
 

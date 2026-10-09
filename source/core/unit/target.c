@@ -156,7 +156,7 @@ static sp_str_t target_kind_dir(spn_target_kind_t kind) {
   sp_unreachable_return(sp_str_lit(""));
 }
 
-static spn_err_t ensure_target(spn_session_t* s, spn_pkg_unit_t* pkg, spn_target_info_t* info, spn_target_unit_t** result) {
+static spn_err_t ensure_target_unit(spn_session_t* s, spn_pkg_unit_t* pkg, spn_target_info_t* info, spn_target_unit_t** result) {
   spn_target_unit_id_t id = {
     .pkg = pkg->id,
     .target = { .name = spn_intern(info->name).id, .kind = info->kind },
@@ -626,7 +626,7 @@ static spn_err_t ensure_sibling_targets(spn_session_t* s, sp_da(spn_target_unit_
         continue;
       }
       spn_target_unit_t* target = SP_NULLPTR;
-      spn_try(ensure_target(s, unit->pkg, info, &target));
+      spn_try(ensure_target_unit(s, unit->pkg, info, &target));
       sp_da_push(*targets, target);
     }
   }
@@ -677,10 +677,10 @@ static spn_err_t add_metaprogram_targets(spn_session_t* s) {
     spn_pkg_unit_t* unit = world->packages[it];
     spn_loaded_pkg_t* loaded = sp_ht_getp(s->packages, unit->id.pkg);
     if (!si_da_empty(loaded->configure.source)) {
-      spn_try(ensure_target(s, unit, &loaded->configure, SP_NULLPTR));
+      spn_try(ensure_target_unit(s, unit, &loaded->configure, SP_NULLPTR));
     }
     if (!si_da_empty(loaded->build.source)) {
-      spn_try(ensure_target(s, unit, &loaded->build, SP_NULLPTR));
+      spn_try(ensure_target_unit(s, unit, &loaded->build, SP_NULLPTR));
     }
   }
 
@@ -694,7 +694,7 @@ static spn_err_t add_metaprogram_targets(spn_session_t* s) {
       if (info->kind != SPN_TARGET_KIND_LIB) {
         continue;
       }
-      spn_try(ensure_target(s, unit, info, SP_NULLPTR));
+      spn_try(ensure_target_unit(s, unit, info, SP_NULLPTR));
     }
   }
 
@@ -732,7 +732,7 @@ static spn_err_t add_metaprogram_targets(spn_session_t* s) {
 }
 
 static spn_err_t add_plan_root_targets(spn_session_t* s) {
-  spn_pkg_id_t root = spn_session_root_pkg(s);
+  spn_pkg_id_t root = si_get_root_pkg(s);
 
   sp_da_for(s->plans.build, it) {
     spn_build_plan_t* plan = &s->plans.build[it];
@@ -746,19 +746,41 @@ static spn_err_t add_plan_root_targets(spn_session_t* s) {
         if (info->kind != SPN_TARGET_KIND_LIB) {
           continue;
         }
-        spn_try(ensure_target(s, pkg, info, SP_NULLPTR));
+        spn_try(ensure_target_unit(s, pkg, info, SP_NULLPTR));
       }
     }
 
-    spn_pkg_unit_t* pkg = spn_session_find_pkg_unit(s, plan->build, root);
+    spn_pkg_unit_t* pkg = si_get_pkg_unit(s, plan->build, root);
     sp_assert(pkg);
     SP_UNIMPLEMENTED();
   }
   return SPN_OK;
 }
 
-static spn_err_t add_target_build_targets(spn_session_t* s) {
-  spn_try(add_plan_root_targets(s));
+static spn_err_t add_target_units(spn_session_t* s) {
+  spn_pkg_id_t root = si_get_root_pkg(s);
+
+  sp_da_for(s->plans.build, i) {
+    spn_build_plan_t* plan = &s->plans.build[i];
+    sp_da_for(plan->build->packages, j) {
+      spn_pkg_unit_t* pkg = plan->build->packages[j];
+      if (spn_pkg_id_eq(pkg->id.pkg, root)) {
+        continue;
+      }
+      si_om_for(pkg->info->targets, k) {
+        spn_target_info_t* target = si_om_at(pkg->info->targets, k);
+        if (target->kind != SPN_TARGET_KIND_LIB) {
+          continue;
+        }
+        spn_try(ensure_target_unit(s, pkg, target, SP_NULLPTR));
+      }
+    }
+
+    spn_pkg_unit_t* pkg = si_get_pkg_unit(s, plan->build, root);
+    sp_assert(pkg);
+    SP_UNIMPLEMENTED();
+  }
+
 
   sp_da(spn_target_unit_t*) targets = sp_da_new(s->mem, spn_target_unit_t*);
   sp_da_for(s->plans.build, it) {
@@ -835,7 +857,7 @@ static spn_err_t add_target_build_targets(spn_session_t* s) {
 spn_err_t spn_units_add_targets(spn_session_t* s, spn_unit_scope_t scope) {
   switch (scope) {
     case SPN_UNIT_SCOPE_METAPROGRAM: return add_metaprogram_targets(s);
-    case SPN_UNIT_SCOPE_TARGET:      return add_target_build_targets(s);
+    case SPN_UNIT_SCOPE_TARGET:      return add_target_units(s);
   }
   sp_unreachable_return(SPN_ERROR);
 }

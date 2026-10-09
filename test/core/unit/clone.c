@@ -39,7 +39,7 @@ sp_test_each(unit, clone, clone_test_t, tests, .setup = spn_test_ctx_setup) {
 
   spn_build_unit_t* builds [] = { s->units.target, s->units.metaprogram };
   sp_carr_for(builds, bt) {
-    spn_pkg_unit_t* unit = spn_session_find_pkg_unit(s, builds[bt], id);
+    spn_pkg_unit_t* unit = si_get_pkg_unit(s, builds[bt], id);
     sp_must(t, unit);
     sp_expect_eq(t, (u32)1, (u32)si_da_size(unit->info->define));
     sp_expect_eq(t, (u32)1, (u32)si_da_size(unit->info->system_deps));
