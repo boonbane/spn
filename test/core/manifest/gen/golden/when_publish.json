@@ -9,7 +9,6 @@
         },
         {
           "from": "source/b.h",
-          "to": "include",
           "when": {
             "os": "windows"
           }

@@ -140,13 +140,6 @@ readme: false
 |---|---|---|
 | `files` | array of `string` | yes |
 
-## publish
-
-| Field | Type |
-|---|---|
-| `include` | array of [`publish_entry`](#publish_entry) |
-| `share` | array of [`publish_entry`](#publish_entry) |
-
 ## upstream
 
 | Field | Type | Required |
@@ -191,6 +184,13 @@ readme: false
 | `include` | array of [`source_entry`](#source_entry) \| `string` |
 | `define` | array of [`value_entry`](#value_entry) \| `string` |
 | `flags` | array of [`value_entry`](#value_entry) \| `string` |
+
+## publish
+
+| Field | Type |
+|---|---|
+| `include` | array of [`publish_entry`](#publish_entry) |
+| `share` | array of [`publish_entry`](#publish_entry) |
 
 ## target_dep_entry
 

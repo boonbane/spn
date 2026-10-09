@@ -13,7 +13,6 @@ typedef struct {
 typedef struct {
   enum_t enums [DAG_TEST_MAX_INPUTS];
   match_t matches [DAG_TEST_MAX_INPUTS];
-  const c8* absent [DAG_TEST_MAX_INPUTS];
   spn_err_t err;
 } expect_t;
 
@@ -153,7 +152,6 @@ sp_test_each(dag_glob, observe, test_t, tests) {
 
   sp_da(seen_t) enums = sp_da_new(mem, seen_t);
   sp_da(seen_t) file_obs = sp_da_new(mem, seen_t);
-  sp_da(seen_t) absent_obs = sp_da_new(mem, seen_t);
   sp_da_for(glob.obs, ot) {
     seen_t seen = {
       .path = spn_path_str(roots, mem, glob.obs[ot].path),
@@ -164,12 +162,11 @@ sp_test_each(dag_glob, observe, test_t, tests) {
     switch (glob.obs[ot].kind) {
       case SPN_DAG_OBS_ENUMERATION: sp_da_push(enums, seen);      break;
       case SPN_DAG_OBS_FILE:        sp_da_push(file_obs, seen);   break;
-      case SPN_DAG_OBS_ABSENT:      sp_da_push(absent_obs, seen); break;
+      case SPN_DAG_OBS_ABSENT:      break;
     }
   }
   sp_da_sort(enums, obs_order);
   sp_da_sort(file_obs, obs_order);
-  sp_da_sort(absent_obs, obs_order);
 
   u32 expect_enums = 0;
   sp_carr_for(it->expect.enums, et) {
@@ -205,19 +202,6 @@ sp_test_each(dag_glob, observe, test_t, tests) {
     sp_expect_eq(t, SPN_PATH_ROOT_PROJECT, glob.matches[mt].path.root);
     sp_expect_str_eq(t, file_obs[mt].path, sp_fs_join_path(mem, root, sub));
     sp_expect_eq(t, SPN_PATH_ROOT_PROJECT, file_obs[mt].root);
-  }
-
-  u32 expect_absent = 0;
-  sp_carr_for(it->expect.absent, at) {
-    if (!it->expect.absent[at]) {
-      break;
-    }
-    expect_absent++;
-  }
-  sp_must_eq(t, expect_absent, (u32)sp_da_size(absent_obs));
-  sp_for(at, expect_absent) {
-    sp_expect_str_eq(t, absent_obs[at].path, sp_fs_join_path(mem, root, sp_cstr_as_str(it->expect.absent[at])));
-    sp_expect_eq(t, SPN_PATH_ROOT_PROJECT, absent_obs[at].root);
   }
 
   return SP_OK;

@@ -653,14 +653,22 @@ sp_test_each(options_apply, option_defines, apply_option_test_t, option_tests, .
 
 typedef struct {
   const c8* pattern;
+  spn_publish_root_t root;
+  spn_source_kind_t kind;
   apply_clause_t when [2];
 } apply_publish_t;
+
+typedef struct {
+  const c8* pattern;
+  spn_publish_root_t root;
+  spn_source_kind_t kind;
+} apply_publish_expect_t;
 
 typedef struct {
   const c8* name;
   spn_when_facts_t facts;
   apply_publish_t entries [4];
-  const c8* expect [4];
+  apply_publish_expect_t expect [4];
 } apply_publish_test_t;
 
 static const apply_publish_test_t publish_tests [] = {
@@ -670,9 +678,12 @@ static const apply_publish_test_t publish_tests [] = {
     .entries = {
       { .pattern = "a.h", .when = { { "os", "linux" } } },
       { .pattern = "b.h", .when = { { "os", "windows" } } },
-      { .pattern = "c.h" },
+      { .pattern = "d/*", .root = SPN_PUBLISH_ROOT_SHARE, .kind = SPN_SOURCE_GLOB },
     },
-    .expect = { "a.h", "c.h" },
+    .expect = {
+      { "a.h" },
+      { "d/*", SPN_PUBLISH_ROOT_SHARE, SPN_SOURCE_GLOB },
+    },
   },
 };
 
@@ -684,7 +695,9 @@ sp_test_each(options_apply, publish, apply_publish_test_t, publish_tests) {
       break;
     }
     si_da_push(mem, info.gated.publish, ((spn_gated_publish_t) {
+      .root = it->entries[et].root,
       .source = {
+        .kind = it->entries[et].kind,
         .path = sp_cstr_as_str(it->entries[et].pattern),
         .tree = SPN_TREE_SOURCE,
         .when = make_apply_when(mem, it->entries[et].when, sp_carr_len(it->entries[et].when)),
@@ -701,10 +714,12 @@ sp_test_each(options_apply, publish, apply_publish_test_t, publish_tests) {
 
   sp_expect(t, info.applied);
   u32 expected = 0;
-  sp_carr_detect_len(it->expect, expected, it->expect[expected]);
+  sp_carr_detect_len(it->expect, expected, it->expect[expected].pattern);
   sp_must_eq(t, expected, (u32)si_da_size(info.publish));
   sp_for(et, expected) {
-    sp_expect_str_eq_c(t, info.publish[et].source.path.sub, it->expect[et]);
+    sp_expect_str_eq_c(t, info.publish[et].source.path.sub, it->expect[et].pattern);
+    sp_expect_eq(t, (u32)it->expect[et].root, (u32)info.publish[et].root);
+    sp_expect_eq(t, (u32)it->expect[et].kind, (u32)info.publish[et].source.kind);
   }
   return SP_OK;
 }

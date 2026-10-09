@@ -86,17 +86,6 @@ static void push_gated_path(sp_mem_t mem, spn_gated_path_list_t* values, const s
   }));
 }
 
-static spn_gated_path_list_t lower_gated_paths(spn_toml_loader_t* ctx, sp_da(spn_cg_source_entry_t) entries) {
-  spn_gated_path_list_t values = SP_NULLPTR;
-  sp_da_for(entries, it) {
-    if (!lower_path_ok(ctx, entries[it].path)) {
-      continue;
-    }
-    push_gated_path(ctx->mem, &values, &entries[it], entries[it].path);
-  }
-  return values;
-}
-
 static si_da(spn_gated_source_t) lower_gated_sources(spn_toml_loader_t* ctx, sp_da(spn_cg_source_entry_t) entries) {
   si_da(spn_gated_source_t) values = SP_NULLPTR;
   sp_da_for(entries, it) {
@@ -214,11 +203,15 @@ static void lower_target(spn_toml_loader_t* ctx, const spn_cg_target_t* cg, spn_
       .define = lower_gated_values(ctx, cg->define),
       .flags = lower_gated_values(ctx, cg->flags),
       .link_flags = lower_gated_values(ctx, cg->link_flags),
-      .linker_script = lower_gated_paths(ctx, cg->linker_script),
       .system_deps = lower_gated_values(ctx, cg->system_deps),
       .frameworks = lower_gated_values(ctx, cg->macos.frameworks),
     },
   };
+  sp_da_for(cg->linker_script, it) {
+    if (lower_path_ok(ctx, cg->linker_script[it].path)) {
+      push_gated_path(ctx->mem, &target->gated.linker_script, &cg->linker_script[it], cg->linker_script[it].path);
+    }
+  }
   sp_da_for(cg->deps, it) {
     si_da_push(ctx->mem, target->gated.deps, ((spn_gated_str_t) { .value = cg->deps[it].pkg, .when = cg->deps[it].when }));
   }

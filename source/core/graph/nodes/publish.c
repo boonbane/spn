@@ -10,7 +10,7 @@
 #include "paths/paths.h"
 #include "str/str.h"
 
-static spn_err_t publish(spn_dag_t* g, spn_pkg_unit_t* unit, spn_path_t root, spn_publish_t* publish, spn_dag_obs_set_t* obs) {
+static spn_err_t publish_entry(spn_dag_t* g, spn_pkg_unit_t* unit, spn_path_t root, spn_publish_t* publish, spn_dag_obs_set_t* obs) {
   const spn_path_roots_t* roots = g->roots;
   sp_mem_arena_marker_t s = sp_mem_begin_scratch();
   sp_path_t dir = spn_path_at(roots, spn_path_join(s.mem, root, publish->dest));
@@ -64,13 +64,13 @@ spn_err_t si_on_publish(spn_dag_t* g, spn_dag_action_t* action, void* user_data,
 
   si_da_for(unit->info->publish, it) {
     spn_publish_t* entry = &unit->info->publish[it];
-    spn_try(publish(g, unit, dirs[entry->root], entry, obs));
+    spn_try(publish_entry(g, unit, dirs[entry->root], entry, obs));
   }
   si_om_for(unit->info->targets, it) {
     spn_target_info_t* target = si_om_at(unit->info->targets, it);
     si_da_for(target->publish, jt) {
       spn_publish_t* entry = &target->publish[jt];
-      spn_try(publish(g, unit, dirs[entry->root], entry, obs));
+      spn_try(publish_entry(g, unit, dirs[entry->root], entry, obs));
     }
   }
 
