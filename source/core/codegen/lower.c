@@ -1154,6 +1154,19 @@ static void validate_collection_names(spn_toml_loader_t* ctx, spn_cg_target_om_t
   spn_toml_loader_pop(ctx);
 }
 
+static void validate_script_names(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg) {
+  spn_toml_loader_push_key(ctx, "script");
+  sp_om_for(cg->script, it) {
+    const spn_cg_target_t* script = sp_str_om_at(cg->script, it);
+    if (sp_str_om_has(cg->bin, script->name)) {
+      spn_toml_loader_push_index(ctx, it);
+      spn_toml_loader_issue_at(ctx, SPN_ERR_CODEGEN_DUPLICATE_KEY, script->name);
+      spn_toml_loader_pop(ctx);
+    }
+  }
+  spn_toml_loader_pop(ctx);
+}
+
 static void validate_names(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg) {
   spn_toml_loader_push_key(ctx, "package");
   validate_name(ctx, sp_str_lit("name"), cg->package.name);
@@ -1164,6 +1177,7 @@ static void validate_names(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg) 
   validate_collection_names(ctx, cg->script, "script");
   validate_collection_names(ctx, cg->test, "test");
   validate_collection_names(ctx, cg->example, "example");
+  validate_script_names(ctx, cg);
   spn_toml_loader_push_key(ctx, "profile");
   sp_da_for(cg->profile, it) {
     validate_name(ctx, cg->profile[it].key, cg->profile[it].key);
