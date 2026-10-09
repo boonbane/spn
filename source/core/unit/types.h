@@ -72,6 +72,7 @@ typedef struct {
 
 typedef struct {
   spn_build_unit_t* build;
+  spn_pkg_unit_t* root;
   spn_target_selection_t selection;
   sp_da(spn_target_unit_id_t) roots;
   sp_da(spn_stage_closure_t) staged;

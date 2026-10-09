@@ -850,8 +850,20 @@ static const test_t tests [] = {
   {
     .name = "validate_duplicate_name",
     .manifest = "validate_duplicate_name",
+    .exes = { { .name = "t" } },
+    .scripts = { { .name = "t" } },
     .issues = {
       { SPN_ERR_CODEGEN_DUPLICATE_KEY, "script[0]" }
+    }
+  },
+  {
+    .name = "validate_reserved_name",
+    .manifest = "validate_reserved_name",
+    .exes = { { .name = "test" } },
+    .scripts = { { .name = "store" } },
+    .issues = {
+      { SPN_ERR_CODEGEN_INVALID, "bin[0].name" },
+      { SPN_ERR_CODEGEN_INVALID, "script[0].name" },
     }
   },
   {

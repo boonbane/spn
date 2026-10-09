@@ -615,54 +615,60 @@ static spn_err_t add_metaprogram_targets(spn_session_t* s) {
   return SPN_OK;
 }
 
-static spn_err_t add_plan_root_targets(spn_session_t* s) {
-  spn_pkg_id_t root = si_get_root_pkg(s);
-
+static spn_err_t add_target_units(spn_session_t* s) {
   sp_da_for(s->plans.build, it) {
     spn_build_plan_t* plan = &s->plans.build[it];
     sp_da_for(plan->build->packages, jt) {
       spn_pkg_unit_t* pkg = plan->build->packages[jt];
-      if (spn_pkg_id_eq(pkg->id.pkg, root)) {
-        continue;
-      }
-      si_om_for(pkg->info->targets, kt) {
-        spn_target_info_t* info = si_om_at(pkg->info->targets, kt);
-        if (info->kind != SPN_TARGET_KIND_LIB) {
-          continue;
+
+      if (pkg == plan->root) {
+        spn_target_selection_t* selection = &plan->selection;
+        si_om_for(pkg->info->targets, kt) {
+          spn_target_info_t* info = si_om_at(pkg->info->targets, kt);
+          if (!(selection->kinds & spn_target_kind_bit(info->kind))) {
+            continue;
+          }
+          bool selected = !selection->names.count;
+          sp_for(lt, selection->names.count) {
+            if (sp_str_equal(selection->names.items[lt], info->name)) {
+              selected = true;
+              break;
+            }
+          }
+          if (!selected) {
+            continue;
+          }
+          spn_target_unit_t* target = SP_NULLPTR;
+          spn_try(ensure_target_unit(s, pkg, info, &target));
+          sp_da_push(plan->roots, target->id);
         }
-        spn_try(ensure_target_unit(s, pkg, info, SP_NULLPTR));
+
+        sp_for(kt, selection->names.count) {
+          sp_str_t name = selection->names.items[kt];
+          bool matched = false;
+          sp_da_for(plan->roots, lt) {
+            if (sp_str_equal(spn_session_get_target_unit(s, plan->roots[lt])->info->name, name)) {
+              matched = true;
+              break;
+            }
+          }
+          if (!matched) {
+            return spn_err_emit(s->ctx, (spn_err_union_t) {
+              .kind = SPN_ERR_TARGET_SELECTION,
+              .target = { .name = name },
+            });
+          }
+        }
+      } else {
+        si_om_for(pkg->info->targets, kt) {
+          spn_target_info_t* info = si_om_at(pkg->info->targets, kt);
+          if (info->kind != SPN_TARGET_KIND_LIB) {
+            continue;
+          }
+          spn_try(ensure_target_unit(s, pkg, info, SP_NULLPTR));
+        }
       }
     }
-
-    spn_pkg_unit_t* pkg = si_get_pkg_unit(s, plan->build, root);
-    sp_assert(pkg);
-    SP_UNIMPLEMENTED();
-  }
-  return SPN_OK;
-}
-
-static spn_err_t add_target_units(spn_session_t* s) {
-  spn_pkg_id_t root = si_get_root_pkg(s);
-
-  sp_da_for(s->plans.build, i) {
-    spn_build_plan_t* plan = &s->plans.build[i];
-    sp_da_for(plan->build->packages, j) {
-      spn_pkg_unit_t* pkg = plan->build->packages[j];
-      if (spn_pkg_id_eq(pkg->id.pkg, root)) {
-        continue;
-      }
-      si_om_for(pkg->info->targets, k) {
-        spn_target_info_t* target = si_om_at(pkg->info->targets, k);
-        if (target->kind != SPN_TARGET_KIND_LIB) {
-          continue;
-        }
-        spn_try(ensure_target_unit(s, pkg, target, SP_NULLPTR));
-      }
-    }
-
-    spn_pkg_unit_t* pkg = si_get_pkg_unit(s, plan->build, root);
-    sp_assert(pkg);
-    SP_UNIMPLEMENTED();
   }
 
   sp_da_for(s->plans.build, it) {
@@ -670,15 +676,28 @@ static spn_err_t add_target_units(spn_session_t* s) {
 
     sp_om_for(s->units.targets, jt) {
       spn_target_unit_t* target = sp_om_at(s->units.targets, jt);
+
+      // @spader
+      // This is a hack. All we're really asking here is whether the unit
+      // belongs to the metabuild or the build. The right fix is to stop
+      // treating the metabuild as a special case, but I'm punting.
       if (target->pkg->build != world) {
         continue;
       }
+
       si_da_for(target->info->deps, kt) {
         sp_str_t name = target->info->deps[kt];
+
+        // @review Fake defensive code or real?
+        // Even if a real program state, is our code factored correctly? Like,
+        // can we reorder the code so that any creation happens up front?
         if (find_dep_unit(s, target->pkg, spn_pkg_canonicalize_name(name))) {
           continue;
         }
+
         spn_target_info_t* info = spn_pkg_get_target(target->pkg->info, name, SPN_TARGET_KIND_LIB);
+
+        // @review Fake defensive code or real?
         if (!info) {
           return spn_err_emit(s->ctx, (spn_err_union_t) {
             .kind = SPN_ERR_TARGET_DEP,

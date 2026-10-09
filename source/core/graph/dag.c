@@ -955,9 +955,9 @@ static void dag_emit_reports(spn_dag_build_t* b, u64 elapsed) {
   u32 misses = (u32)sp_atomic_s32_load(&b->progress.misses, SP_ATOMIC_SEQ_CST);
 
   sp_da_for(session->plans.build, it) {
-    spn_build_unit_t* build = session->plans.build[it].build;
-    spn_pkg_unit_t* root = si_get_pkg_unit(session, build, si_get_root_pkg(session));
-    spn_pkg_info_t* pkg = root ? root->info : session->pkg;
+    spn_build_plan_t* plan = &session->plans.build[it];
+    spn_build_unit_t* build = plan->build;
+    spn_pkg_info_t* pkg = plan->root->info;
     spn_profile_info_t* profile = &build->profile;
 
     if (failed) {
