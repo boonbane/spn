@@ -9,4 +9,4 @@ codec = { version = "1.0.0", options = { audio = false, video = true } }
 name = "libb"
 kinds = ["static"]
 source = ["b.c"]
-headers = ["b.h"]
+publish.include = [{ from = "source/b.h" }]

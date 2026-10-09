@@ -9,4 +9,4 @@ sdl = { version = "1.0.0", private = true }
 name = "sdl_mixer"
 kinds = ["static"]
 source = ["sdl_mixer.c"]
-headers = ["sdl_mixer.h"]
+publish.include = [{ from = "source/sdl_mixer.h" }]

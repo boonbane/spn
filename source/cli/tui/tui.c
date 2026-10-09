@@ -601,16 +601,6 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           );
           break;
         }
-        case SPN_ERR_HEADER_COLLISION: {
-          sp_tty_fmt(
-            &w,
-            "Two headers are published to {.cyan}: {.gray} and {.gray}",
-            sp_fmt_str(event->err.header_collision.path),
-            sp_fmt_str(get_contextual_path(ctx, mem, event->err.header_collision.first)),
-            sp_fmt_str(get_contextual_path(ctx, mem, event->err.header_collision.second))
-          );
-          break;
-        }
         case SPN_ERR_OPTION_UNDECLARED: {
           sp_tty_fmt(
             &w,

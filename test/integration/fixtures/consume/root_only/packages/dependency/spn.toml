@@ -6,7 +6,7 @@ version = "1.0.0"
 name = "dependency"
 kinds = ["static"]
 source = ["dependency.c"]
-headers = ["dependency.h"]
+publish.include = [{ from = "source/dependency.h" }]
 
 [[bin]]
 name = "dependency-bin"

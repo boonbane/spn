@@ -6,4 +6,4 @@ version = "1.0.0"
 name = "num"
 kinds = ["static"]
 source = ["num.c"]
-headers = ["num.h"]
+publish.include = [{ from = "source/num.h" }]

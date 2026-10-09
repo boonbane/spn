@@ -10,7 +10,7 @@ commit = "@A.commit@"
 name = "A"
 kinds = ["static"]
 source = ["a.c"]
-headers = ["a.h"]
+publish.include = [{ from = "source/a.h" }]
 
 [[example]]
 name = "E"

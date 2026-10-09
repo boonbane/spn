@@ -2,5 +2,10 @@
 name = "p"
 version = "1.0.0"
 
-[publish]
-copy = [{ from = "source/a.h", to = "include", when = { simd = "avx2" } }]
+[package.publish]
+include = [{ from = "source/a.h", when = { simd = "avx2" } }]
+
+[[lib]]
+name = "t"
+kinds = ["static"]
+publish.share = [{ from = "source/data/*", when = { simd = "avx2" } }]

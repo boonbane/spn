@@ -19,7 +19,7 @@ static si_da(spn_path_t) clone_path_list(sp_mem_t mem, si_da(spn_path_t) source)
 static spn_target_info_t clone_target_info(sp_mem_t mem, spn_target_info_t* source) {
   spn_target_info_t target = *source;
   si_da_copy(mem, target.source, source->source);
-  target.headers = clone_path_list(mem, source->headers);
+  si_da_copy(mem, target.publish, source->publish);
   target.include = clone_path_list(mem, source->include);
   si_da_copy(mem, target.define, source->define);
   si_da_copy(mem, target.flags, source->flags);
@@ -57,7 +57,7 @@ static spn_pkg_info_t* clone_pkg_info(spn_session_t* s, spn_pkg_id_t id, spn_bui
   si_da_copy(mem, info->public_define, source->public_define);
   si_da_copy(mem, info->system_deps, source->system_deps);
   si_da_copy(mem, info->macos.frameworks, source->macos.frameworks);
-  si_da_copy(mem, info->publish.copy, source->publish.copy);
+  si_da_copy(mem, info->publish, source->publish);
 
   spn_when_env_t env;
   spn_when_env_from_profile(mem, &build->profile, &env);

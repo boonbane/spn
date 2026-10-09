@@ -249,15 +249,19 @@ static void apply_gated_paths(apply_ctx_t* ctx, si_da(spn_path_t)* plain, spn_ga
   }
 }
 
-static void apply_copies(apply_ctx_t* ctx, si_da(spn_publish_copy_t)* plain, si_da(spn_publish_copy_t) gated) {
+static void apply_publish(apply_ctx_t* ctx, si_da(spn_publish_t)* plain, si_da(spn_gated_publish_t) gated) {
   si_da_for(gated, it) {
-    if (!spn_when_eval(&gated[it].when, ctx->env)) {
+    spn_gated_publish_t* publish = &gated[it];
+    if (!spn_when_eval(&publish->source.when, ctx->env)) {
       continue;
     }
-    si_da_push(ctx->mem, *plain, ((spn_publish_copy_t) {
-      .tree = gated[it].tree,
-      .pattern = gated[it].pattern,
-      .dest = gated[it].dest,
+    si_da_push(ctx->mem, *plain, ((spn_publish_t) {
+      .root = publish->root,
+      .source = {
+        .kind = publish->source.kind,
+        .path = spn_tree_path(ctx->mem, ctx->roots, ctx->trees, publish->source.tree, publish->source.path),
+      },
+      .dest = publish->dest,
     }));
   }
 }
@@ -273,7 +277,7 @@ static void apply_target(apply_ctx_t* ctx, spn_target_info_t* target) {
       .path = spn_tree_path(ctx->mem, ctx->roots, ctx->trees, source->tree, source->path),
     }));
   }
-  apply_gated_paths(ctx, &target->headers, target->gated.headers);
+  apply_publish(ctx, &target->publish, target->gated.publish);
   apply_gated_paths(ctx, &target->include, target->gated.include);
   apply_gated(ctx, &target->define, target->gated.define);
   apply_gated(ctx, &target->flags, target->gated.flags);
@@ -318,7 +322,7 @@ void spn_pkg_apply_options(
   apply_gated_paths(&ctx, &info->include, info->gated.include);
   apply_gated(&ctx, &info->define, info->gated.define);
   apply_gated(&ctx, &info->macos.frameworks, info->gated.frameworks);
-  apply_copies(&ctx, &info->publish.copy, info->gated.publish.copy);
+  apply_publish(&ctx, &info->publish, info->gated.publish);
 
   si_om_for(info->options, it) {
     spn_option_info_t* option = si_om_at(info->options, it);

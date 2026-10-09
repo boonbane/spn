@@ -9,4 +9,4 @@ codec = { version = "1.0.0", options = { audio = true } }
 name = "liba"
 kinds = ["static"]
 source = ["a.c"]
-headers = ["a.h"]
+publish.include = [{ from = "source/a.h" }]

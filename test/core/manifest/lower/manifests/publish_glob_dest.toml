@@ -2,7 +2,7 @@
 name = "p"
 version = "1.0.0"
 
-[publish]
-copy = [
-  { from = "source/sub/*.h", to = "include/s" },
+[package.publish]
+include = [
+  { from = "source/sub/*.h", to = "s" },
 ]

@@ -78,18 +78,6 @@ sp_test(upstream, object_names_are_injective) {
   });
 }
 
-sp_test(upstream, header_collision) {
-  return run_test(t, (test_t) {
-    .project = "test/integration/fixtures/upstream/collide",
-    .copy = { "x.h" },
-    .actions = {
-      { .kind = ACTION_RUN_CLI, .cli = { "build", .rc = 1 } },
-      { .kind = ACTION_VERIFY_EVENT, .verify_event = { .event = SPN_EVENT_ERR, .key = "kind", .value = "header_collision" } },
-      { .kind = ACTION_VERIFY_EVENT, .verify_event = { .event = SPN_EVENT_ERR, .key = "path", .value = "x.h" } },
-    },
-  });
-}
-
 sp_test(upstream, file_dep) {
   return run_test(t, (test_t) {
     .project = "test/integration/fixtures/upstream/consume",
