@@ -16,7 +16,7 @@
 #include "unit/package.h"
 #include "unit/unit.h"
 
-spn_err_t spn_dag_exec_embed(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs) {
+spn_err_t si_on_embed(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs) {
   spn_target_unit_t* unit = (spn_target_unit_t*)user_data;
   spn_target_info_t* info = unit->info;
 

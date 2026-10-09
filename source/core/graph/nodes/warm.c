@@ -33,8 +33,8 @@ static sp_err_t progress_write(sp_io_writer_t* writer, const void* bytes, u64 le
   return SP_OK;
 }
 
-spn_err_t on_warm_zig(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs) {
-  spn_dag_warm_ctx_t* warm = (spn_dag_warm_ctx_t*)user_data;
+spn_err_t si_on_zig_warmup(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs) {
+  si_zig_warmup_t* warm = (si_zig_warmup_t*)user_data;
   spn_build_unit_t* build = warm->build->unit;
   spn_cc_t* cc = &build->toolchain->cc;
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();

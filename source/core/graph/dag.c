@@ -133,7 +133,7 @@ static spn_err_t dag_add_user_nodes(spn_dag_build_t* b, spn_pkg_unit_t* unit, sp
     spn_dag_id_t action = spn_dag_add_action(g, (spn_dag_action_config_t) {
       .kind = SPN_DAG_ACTION_DISCOVERED,
       .identity = spn_dag_hash_final(&digest),
-      .execute = spn_dag_exec_user,
+      .execute = si_on_user_node,
       .user_data = node,
     });
 
@@ -213,8 +213,8 @@ static spn_err_t add_object_compilation(spn_dag_build_t* b, spn_target_unit_t* t
     spn_dag_hash_path(&digest, unit->paths.file);
     *identity = spn_dag_hash_final(&digest);
 
-    spn_dag_object_ctx_t* ctx = sp_alloc_type(b->mem, spn_dag_object_ctx_t);
-    *ctx = (spn_dag_object_ctx_t) {
+    si_compile_t* ctx = sp_alloc_type(b->mem, si_compile_t);
+    *ctx = (si_compile_t) {
       .unit = unit,
       .invocation = invocation,
       .build = build,
@@ -222,7 +222,7 @@ static spn_err_t add_object_compilation(spn_dag_build_t* b, spn_target_unit_t* t
     spn_dag_action_config_t config = {
       .kind = SPN_DAG_ACTION_DISCOVERED,
       .identity = *identity,
-      .execute = on_compile_object,
+      .execute = si_on_compile,
       .user_data = ctx,
     };
 
@@ -279,7 +279,7 @@ spn_err_t spn_dag_build_add_build(spn_dag_build_t* b, spn_build_unit_t* build) {
 
       spn_dag_id_t action = spn_dag_add_action(g, (spn_dag_action_config_t) {
         .identity = spn_dag_hash_final(&digest),
-        .execute = on_write_libc,
+        .execute = si_on_write_libc,
         .user_data = libc,
       });
       ctx->libc = spn_dag_add_output(g, sp_str_lit("libc.txt"));
@@ -331,7 +331,7 @@ spn_err_t spn_dag_build_add_target(spn_dag_build_t* b, spn_target_unit_t* target
     ids.embed.action = spn_dag_add_action(g, (spn_dag_action_config_t) {
       .kind = SPN_DAG_ACTION_DISCOVERED,
       .identity = hash_embedding(target),
-      .execute = spn_dag_exec_embed,
+      .execute = si_on_embed,
       .user_data = target,
     });
     ids.embed.object = spn_dag_add_file(g, embed_artifact_path(b->mem, target, "o"));
@@ -367,7 +367,7 @@ spn_err_t spn_dag_build_add_target(spn_dag_build_t* b, spn_target_unit_t* target
   }
 
   if (spn.host.os == SPN_OS_WINDOWS) {
-    spn_dag_rsp_ctx_t* rsp = sp_alloc_type(b->mem, spn_dag_rsp_ctx_t);
+    si_rsp_t* rsp = sp_alloc_type(b->mem, si_rsp_t);
     rsp->style = spn_rsp_style(toolchain->cc.driver);
     rsp->args = objects;
 
@@ -384,7 +384,7 @@ spn_err_t spn_dag_build_add_target(spn_dag_build_t* b, spn_target_unit_t* target
 
     spn_dag_id_t action = spn_dag_add_action(g, (spn_dag_action_config_t) {
       .identity = spn_dag_hash_final(&digest),
-      .execute = on_write_rsp,
+      .execute = si_on_write_rsp,
       .user_data = rsp,
     });
     spn_dag_id_t file = spn_dag_add_file(g, path);
@@ -395,8 +395,8 @@ spn_err_t spn_dag_build_add_target(spn_dag_build_t* b, spn_target_unit_t* target
     sp_da_push(objects, spn_arg_glue(sp_str_lit("@"), path));
   }
 
-  spn_dag_target_ctx_t* ctx = sp_alloc_type(b->mem, spn_dag_target_ctx_t);
-  *ctx = (spn_dag_target_ctx_t) {
+  si_link_t* ctx = sp_alloc_type(b->mem, si_link_t);
+  *ctx = (si_link_t) {
     .target = target,
     .link = &plan->link.cc,
     .objects = objects,
@@ -422,7 +422,7 @@ spn_err_t spn_dag_build_add_target(spn_dag_build_t* b, spn_target_unit_t* target
       spn_dag_hash_str(&digest, target->info->name);
       spn_dag_id_t action = spn_dag_add_action(g, (spn_dag_action_config_t) {
         .identity = spn_dag_hash_final(&digest),
-        .execute = on_write_exports,
+        .execute = si_on_write_exports,
         .user_data = ctx,
       });
       ids.exports = spn_dag_add_file(g, plan->link.cc.exports);
@@ -456,7 +456,7 @@ spn_err_t spn_dag_build_add_target(spn_dag_build_t* b, spn_target_unit_t* target
       spn_dag_hash_str(&digest, target->info->name);
       ids.action = spn_dag_add_action(g, (spn_dag_action_config_t) {
         .identity = spn_dag_hash_final(&digest),
-        .execute = spn_dag_exec_archive,
+        .execute = si_on_archive,
         .user_data = ctx,
       });
       sp_da_for(inputs, it) {
@@ -489,7 +489,7 @@ spn_err_t spn_dag_build_add_target(spn_dag_build_t* b, spn_target_unit_t* target
       spn_dag_hash_u8(&digest, (u8)ctx->link->subsystem);
       ids.action = spn_dag_add_action(g, (spn_dag_action_config_t) {
         .identity = spn_dag_hash_final(&digest),
-        .execute = spn_dag_exec_link,
+        .execute = si_on_link,
         .user_data = ctx,
       });
       sp_da_for(inputs, it) {
@@ -551,8 +551,8 @@ spn_err_t spn_dag_build_add_target(spn_dag_build_t* b, spn_target_unit_t* target
         }
         else {
           sp_str_t name = spn_zig_stub_name(b->mem, &stub);
-          spn_dag_warm_ctx_t* warm = sp_alloc_type(b->mem, spn_dag_warm_ctx_t);
-          *warm = (spn_dag_warm_ctx_t) {
+          si_zig_warmup_t* warm = sp_alloc_type(b->mem, si_zig_warmup_t);
+          *warm = (si_zig_warmup_t) {
             .build = build_ctx,
             .link = link,
             .name = name,
@@ -561,7 +561,7 @@ spn_err_t spn_dag_build_add_target(spn_dag_build_t* b, spn_target_unit_t* target
 
           spn_dag_id_t action = spn_dag_add_action(g, (spn_dag_action_config_t) {
             .identity = identity,
-            .execute = on_warm_zig,
+            .execute = si_on_zig_warmup,
             .user_data = warm,
           });
           spn_dag_action_add_input(g, action, spn_dag_add_file(g, spn_path(b->mem, SPN_DIR_ID_RUNTIME, "zig/stub.c")));
@@ -625,7 +625,7 @@ static spn_err_t dag_add_tree(spn_dag_build_t* b, spn_pkg_unit_t* unit) {
   spn_dag_id_t action = spn_dag_add_action(g, (spn_dag_action_config_t) {
     .kind = SPN_DAG_ACTION_DISCOVERED,
     .identity = spn_dag_hash_final(&digest),
-    .execute = spn_dag_exec_tree,
+    .execute = si_on_publish,
     .user_data = unit,
   });
   spn_try(spn_dag_action_add_output(g, action, spn_dag_add_tree(g, unit->paths.include)));
@@ -745,7 +745,7 @@ static spn_err_t add_compile_commands(spn_dag_build_t* b) {
 
   spn_dag_id_t action = spn_dag_add_action(g, (spn_dag_action_config_t) {
     .identity = spn_dag_hash_final(&digest),
-    .execute = spn_dag_exec_compile_commands,
+    .execute = si_on_write_compile_commands,
     .user_data = b,
   });
   sp_ht_for_kv(b->ids.builds, it) {
