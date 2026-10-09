@@ -492,7 +492,7 @@ sp_test_each(options_merge, merge, merge_test_t, tests, .setup = spn_test_ctx_se
         .value = make_value(arm->value),
       }));
     }
-    si_om_insert(mem, pkg.options, spn_intern_id(option.name), option);
+    si_om_insert(mem, pkg.options, spn_intern(option.name).id, option);
   }
 
   spn_profile_info_t profile = {

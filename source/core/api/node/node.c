@@ -26,7 +26,7 @@ spn_node_t* spn_add_node(spn_config_t* config, const c8* tag) {
   u32 index = sp_da_size(unit->user_nodes);
   spn_user_node_t node = {
     .pkg = unit,
-    .tag = spn_intern_cstr(tag),
+    .tag = spn_intern_cstr(tag).str,
   };
   sp_da_push(unit->user_nodes, node);
 
@@ -124,5 +124,5 @@ void spn_node_link(spn_node_t* from, spn_node_t* to) {
 
 void spn_node_set_fn(spn_node_t* node, const c8* fn) {
   spn_user_node_t* info = spn_node_deref(node->ref);
-  info->fn = spn_intern_cstr(fn);
+  info->fn = spn_intern_cstr(fn).str;
 }

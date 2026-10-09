@@ -154,7 +154,7 @@ static spn_err_union_t unsatisfiable_err(spn_resolver_t* resolver, spn_resolved_
     .unsatisfiable = {
       .qualified = request->qualified,
       .range = request->source == SPN_PKG_SOURCE_INDEX ? spn_semver_range_to_str(resolver->mem, request->index.range) : sp_str_lit(""),
-      .requester = from ? sp_intern_str_from_id(resolver->intern, from->id.qualified) : sp_str_lit(""),
+      .requester = from ? sp_intern_find(resolver->intern, from->id.qualified) : sp_str_lit(""),
       .requester_version = from ? from->id.version : sp_zero_s(spn_semver_t),
       .selected = selected,
     }
@@ -1052,7 +1052,7 @@ static spn_err_union_t check_group_cycle(spn_resolver_t* resolver, spn_resolve_r
     return (spn_err_union_t) {
       .kind = SPN_ERR_UNIT_CYCLE,
       .unit_cycle = {
-        .id = err_pkg_name(spn_pkg_name_from_qualified(sp_intern_str_from_id(resolver->intern, node->id.qualified))),
+        .id = err_pkg_name(spn_pkg_name_from_qualified(sp_intern_find(resolver->intern, node->id.qualified))),
         .version = node->id.version,
       }
     };
@@ -1096,7 +1096,7 @@ static spn_err_union_t check_group_cycles(spn_resolver_t* resolver, spn_resolve_
 }
 
 static sp_hash_t leaf_hash(spn_resolver_t* resolver, spn_resolved_pkg_t* instance) {
-  sp_hash_t hash = sp_hash_str(sp_intern_str_from_id(resolver->intern, instance->id.qualified));
+  sp_hash_t hash = sp_hash_str(sp_intern_find(resolver->intern, instance->id.qualified));
   return sp_hash_bytes(&instance->id.version, sizeof(spn_semver_t), hash);
 }
 
@@ -1228,7 +1228,7 @@ static spn_err_union_t check_dynamic_duplicates(spn_resolver_t* resolver, spn_re
         result = (spn_err_union_t) {
           .kind = SPN_ERR_DYNAMIC_DUPLICATE,
           .dynamic_dup = {
-            .id = err_pkg_name(spn_pkg_name_from_qualified(sp_intern_str_from_id(resolver->intern, node->id.qualified))),
+            .id = err_pkg_name(spn_pkg_name_from_qualified(sp_intern_find(resolver->intern, node->id.qualified))),
             .low = low,
             .high = high,
           }

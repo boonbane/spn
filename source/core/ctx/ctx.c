@@ -49,19 +49,15 @@ spn_index_info_t* spn_find_index(spn_ctx_t* ctx, sp_str_t name) {
   return SP_NULLPTR;
 }
 
-sp_str_t spn_intern(sp_str_t str) {
-  return sp_intern(spn_ctx_get_intern(), str).str;
+sp_intern_str_t spn_intern(sp_str_t str) {
+  return sp_intern(spn_ctx_get_intern(), str);
 }
 
-sp_str_t spn_intern_cstr(const c8* cstr) {
-  return sp_intern(spn_ctx_get_intern(), sp_cstr_as_str(cstr)).str;
+sp_intern_str_t spn_intern_cstr(const c8* cstr) {
+  return sp_intern_cstr(spn_ctx_get_intern(), cstr);
 }
 
-sp_str_t spn_intern_str(sp_intern_id_t id) {
-  return sp_intern_str_from_id(spn_ctx_get_intern(), id);
-}
-
-sp_intern_id_t spn_intern_id(sp_str_t str) {
-  return sp_intern(spn_ctx_get_intern(), str).id;
+sp_str_t spn_intern_find(sp_intern_id_t id) {
+  return sp_intern_find(spn_ctx_get_intern(), id);
 }
 

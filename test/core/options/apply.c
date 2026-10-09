@@ -626,7 +626,7 @@ sp_test_each(options_apply, option_defines, apply_option_test_t, option_tests, .
       .public = it->options[ot].public,
       .define = sp_cstr_as_str(it->options[ot].define),
     };
-    si_om_insert(mem, info.options, spn_intern_id(option.name), option);
+    si_om_insert(mem, info.options, spn_intern(option.name).id, option);
   }
 
   spn_when_env_t env = sp_zero;

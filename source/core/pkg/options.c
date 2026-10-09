@@ -66,7 +66,7 @@ static void gather_claims(
 ) {
   si_da_for(set->clauses, it) {
     const spn_when_clause_t* clause = &set->clauses[it];
-    spn_option_info_t** option = si_om_getp(pkg->options, spn_intern_id(clause->key));
+    spn_option_info_t** option = si_om_getp(pkg->options, spn_intern(clause->key).id);
     if (!option) {
       sp_da_push(*violations, ((spn_option_violation_t) {
         .kind = SPN_OPTION_ERR_UNDECLARED,

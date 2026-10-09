@@ -373,7 +373,7 @@ static spn_err_t stamp_patches(spn_session_t* session, spn_resolved_pkg_t* pkg, 
 static spn_err_t load_package(spn_session_t* session, spn_resolved_pkg_t* pkg, spn_loaded_pkg_t* loaded) {
   sp_tm_timer_t timer = sp_tm_start_timer();
   bool fetched = false;
-  sp_str_t qualified = spn_intern_str(pkg->id.qualified);
+  sp_str_t qualified = spn_intern_find(pkg->id.qualified);
 
   loaded->source = pkg->source;
 
@@ -500,7 +500,7 @@ static spn_err_t check_unused_patches(spn_session_t* session) {
 
     bool used = false;
     sp_ht_for_kv(session->resolve, jt) {
-      if (sp_str_equal(spn_intern_str(jt.key->qualified), qualified)) {
+      if (sp_str_equal(spn_intern_find(jt.key->qualified), qualified)) {
         used = true;
         break;
       }

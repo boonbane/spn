@@ -37,7 +37,7 @@ static void clone_target_map(spn_target_map_t* result, spn_target_map_t source, 
   *result = sp_zero_struct(spn_target_map_t);
   si_om_for(source, it) {
     spn_target_info_t target = clone_target_info(mem, si_om_at(source, it));
-    si_om_insert(mem, *result, ((spn_target_key_t) { .name = spn_intern_id(target.name), .kind = target.kind }), target);
+    si_om_insert(mem, *result, ((spn_target_key_t) { .name = spn_intern(target.name).id, .kind = target.kind }), target);
   }
 }
 

@@ -79,7 +79,7 @@ static spn_err_t spn_index_parse_rel(sp_mem_t mem, spn_pkg_name_t id, sp_str_t j
     sp_da_for(entry->value.values, vt) {
       si_da_push(mem, option.values, entry->value.values[vt]);
     }
-    si_om_insert(mem, release->options, spn_intern_id(option.name), option);
+    si_om_insert(mem, release->options, spn_intern(option.name).id, option);
   }
 
   return SPN_OK;

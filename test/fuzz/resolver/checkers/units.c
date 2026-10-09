@@ -235,7 +235,7 @@ static sp_hash_t fz_label(sp_mem_t mem, sp_intern_t* intern, fz_instance_arr_t i
   }
   sp_da_sort(records, fz_sort_label_record);
 
-  sp_hash_t label = sp_hash_str(sp_intern_str_from_id(intern, node->id.qualified));
+  sp_hash_t label = sp_hash_str(sp_intern_find(intern, node->id.qualified));
   label = sp_hash_bytes(&node->id.version, sizeof(spn_semver_t), label);
   if (!sp_da_empty(records)) {
     label = sp_hash_bytes(records, sp_da_size(records) * sizeof(fz_label_record_t), label);
@@ -254,11 +254,11 @@ fz_err_t fz_check_units(sp_mem_t mem, fz_universe_t* u, sp_intern_t* intern, spn
     spn_resolved_pkg_t* node = it.val;
     fz_instance_t instance = { .node = node, .pkg = -1 };
 
-    if (sp_str_equal(sp_intern_str_from_id(intern, node->id.qualified), sp_str_view(fz_root_qualified))) {
+    if (sp_str_equal(sp_intern_find(intern, node->id.qualified), sp_str_view(fz_root_qualified))) {
       root = sp_da_size(instances);
     }
     else {
-      instance.pkg = fz_pkg_from_qualified(u, sp_intern_str_from_id(intern, node->id.qualified));
+      instance.pkg = fz_pkg_from_qualified(u, sp_intern_find(intern, node->id.qualified));
       must(instance.pkg >= 0, FZ_ERR_SOLVE_FOREIGN_PKG);
       must(fz_inst_release(u, &instance), FZ_ERR_SOLVE_FOREIGN_VERSION);
     }

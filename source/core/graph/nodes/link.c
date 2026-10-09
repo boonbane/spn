@@ -82,7 +82,7 @@ static spn_err_t read_archive_symbols(const spn_path_roots_t* roots, spn_path_t 
 
   sp_str_t symbol = sp_zero;
   while (spn_toc_next(&toc, &symbol)) {
-    sp_str_t interned = spn_intern(symbol);
+    sp_str_t interned = spn_intern(symbol).str;
     if (sp_str_ht_exists(*seen, interned)) {
       continue;
     }

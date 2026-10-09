@@ -159,7 +159,7 @@ static sp_str_t target_kind_dir(spn_target_kind_t kind) {
 static spn_err_t ensure_target(spn_session_t* s, spn_pkg_unit_t* pkg, spn_target_info_t* info, spn_target_unit_t** result) {
   spn_target_unit_id_t id = {
     .pkg = pkg->id,
-    .target = { .name = spn_intern_id(info->name), .kind = info->kind },
+    .target = { .name = spn_intern(info->name).id, .kind = info->kind },
   };
   spn_target_unit_t* target = spn_session_find_target_in_pkg(s, pkg, id.target);
   if (!target) {
@@ -225,7 +225,7 @@ static void add_object(spn_session_t* s, spn_target_unit_t* target, spn_path_t f
     .target = target,
     .lang = spn_lang_from_path(rel.sub),
     .paths = {
-      .file = { .root = file.root, .sub = sp_intern_str_from_id(s->ctx->intern, id.source.sub) },
+      .file = { .root = file.root, .sub = sp_intern_find(s->ctx->intern, id.source.sub) },
       .object = {
         .root = dir.root,
         .sub = sp_fmt(s->mem, "{}/{}/{}.o",
@@ -618,7 +618,7 @@ static spn_err_t ensure_sibling_targets(spn_session_t* s, sp_da(spn_target_unit_
       if (find_dep_unit(s, unit->pkg, qualified)) {
         continue;
       }
-      if (spn_session_find_target_in_pkg(s, unit->pkg, ((spn_target_key_t) { .name = spn_intern_id(unit->info->deps[jt]), .kind = SPN_TARGET_KIND_LIB }))) {
+      if (spn_session_find_target_in_pkg(s, unit->pkg, ((spn_target_key_t) { .name = spn_intern(unit->info->deps[jt]).id, .kind = SPN_TARGET_KIND_LIB }))) {
         continue;
       }
       spn_target_info_t* info = spn_pkg_get_target(unit->pkg->info, unit->info->deps[jt], SPN_TARGET_KIND_LIB);
@@ -642,7 +642,7 @@ static spn_err_t resolve_target_deps(spn_session_t* s, sp_da(spn_target_unit_t*)
         continue;
       }
 
-      spn_target_unit_t* target = spn_session_find_target_in_pkg(s, unit->pkg, ((spn_target_key_t) { .name = spn_intern_id(unit->info->deps[jt]), .kind = SPN_TARGET_KIND_LIB }));
+      spn_target_unit_t* target = spn_session_find_target_in_pkg(s, unit->pkg, ((spn_target_key_t) { .name = spn_intern(unit->info->deps[jt]).id, .kind = SPN_TARGET_KIND_LIB }));
       if (!target) {
         return spn_err_emit(s->ctx, (spn_err_union_t) {
           .kind = SPN_ERR_TARGET_DEP,

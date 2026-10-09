@@ -28,9 +28,9 @@ sp_str_t spn_pkg_canonicalize_pair(sp_str_t namespace, sp_str_t name) {
 }
 
 sp_str_t spn_pkg_name_to_qualified(spn_pkg_name_t name) {
-  sp_str_t namespace = sp_str_empty(name.namespace) ? spn_intern_lit("core") : name.namespace;
+  sp_str_t namespace = sp_str_empty(name.namespace) ? spn_intern_lit("core").str : name.namespace;
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  sp_str_t qualified = spn_intern(sp_str_join(scratch.mem, namespace, name.name, strl("/")));
+  sp_str_t qualified = spn_intern(sp_str_join(scratch.mem, namespace, name.name, strl("/"))).str;
   sp_mem_end_scratch(scratch);
   return qualified;
 }
@@ -40,13 +40,13 @@ spn_pkg_name_t spn_pkg_name_from_qualified(sp_str_t qualified) {
 
   if (sp_str_empty(pair.second)) {
     return (spn_pkg_name_t) {
-      .namespace = spn_intern_lit("core"),
-      .name = spn_intern(qualified)
+      .namespace = spn_intern_lit("core").str,
+      .name = spn_intern(qualified).str
     };
   }
 
   return (spn_pkg_name_t) {
-    .namespace = spn_intern(pair.first),
-    .name = spn_intern(pair.second)
+    .namespace = spn_intern(pair.first).str,
+    .name = spn_intern(pair.second).str
   };
 }

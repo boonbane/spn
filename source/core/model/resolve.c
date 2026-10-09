@@ -34,7 +34,7 @@ static spn_err_t apply_patch_overrides(spn_session_t* session, spn_resolve_query
       continue;
     }
 
-    sp_str_t name = sp_intern_str_from_id(session->ctx->intern, pkg->id.qualified);
+    sp_str_t name = sp_intern_find(session->ctx->intern, pkg->id.qualified);
     spn_pkg_info_t* info = sp_alloc_type(session->mem, spn_pkg_info_t);
     spn_codegen_issues_t issues = sp_zero;
     spn_err_t loaded = spn_pkg_load(session->mem, session->ctx->intern, &session->ctx->roots, manifest, SPN_MANIFEST_DEP, info, &issues);
@@ -74,7 +74,7 @@ static void emit_resolved(sp_mem_t mem, spn_resolve_query_t* query) {
     spn_event_buffer_push(spn.events, (spn_event_t) {
       .kind = SPN_EVENT_RESOLVE_PACKAGE,
       .resolve_pkg = {
-        .name = spn_intern_str(it.val->id.qualified),
+        .name = spn_intern_find(it.val->id.qualified),
         .version = spn_semver_to_str(mem, it.val->id.version),
       }
     });

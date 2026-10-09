@@ -29,7 +29,7 @@ spn_lock_file_t spn_build_lock_file(sp_mem_t mem, sp_intern_t* intern, spn_resol
     if (pkg->source == SPN_PKG_SOURCE_ROOT) continue;
 
     spn_lock_entry_t entry = {
-      .name = sp_intern_str_from_id(intern, pkg->id.qualified),
+      .name = sp_intern_find(intern, pkg->id.qualified),
       .version = pkg->id.version,
       .kind = pkg->source,
       .deps = sp_da_new(mem, sp_str_t),

@@ -143,7 +143,7 @@ sp_intern_str_t sp_intern_cstr(sp_intern_t* intern, const c8* cstr) {
   return sp_intern(intern, sp_cstr_as_str(cstr));
 }
 
-sp_str_t sp_intern_str_from_id(sp_intern_t* intern, sp_intern_id_t id) {
+sp_str_t sp_intern_find(sp_intern_t* intern, sp_intern_id_t id) {
   if (!intern) return SP_INTERN_INVALID_STR;
   sp_mutex_lock(&intern->mutex);
   sp_str_t str = id < sp_da_size(intern->by_id) ? intern->by_id[id] : SP_INTERN_INVALID_STR;
