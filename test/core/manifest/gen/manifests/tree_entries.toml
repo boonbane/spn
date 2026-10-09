@@ -13,5 +13,5 @@ source = [{ path = "mc.c", tree = "manifest" }]
 [[lib]]
 name = "t"
 source = [{ path = "s.c", tree = "source" }, { path = "m.c", tree = "manifest" }]
-headers = ["a.h", { path = "m.h", tree = "manifest" }, { path = "w.h", when = { os = "linux" } }]
+publish.include = [{ from = "source/a.h" }, { from = "manifest/m.h" }, { from = "source/w.h", when = { os = "linux" } }]
 include = [{ path = "minc", tree = "manifest" }]

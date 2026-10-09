@@ -14,4 +14,4 @@ source = [
   { path = "impl_gl.c", when = { grum = "gl" } },
   { path = "impl_vk.c", when = { grum = "vk" } },
 ]
-headers = ["spum.h"]
+publish.include = [{ from = "source/spum.h" }]

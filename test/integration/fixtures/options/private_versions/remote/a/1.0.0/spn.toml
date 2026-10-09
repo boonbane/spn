@@ -9,4 +9,4 @@ b = { version = "1.0.0", private = true, options = { x = true } }
 name = "a"
 kinds = ["shared"]
 source = ["a.c"]
-headers = ["a.h"]
+publish.include = [{ from = "source/a.h" }]

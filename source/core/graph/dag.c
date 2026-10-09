@@ -584,42 +584,36 @@ spn_err_t spn_dag_build_add_target(spn_dag_build_t* b, spn_target_unit_t* target
   return SPN_OK;
 }
 
-static bool dag_pkg_publishes(spn_pkg_unit_t* unit) {
-  si_om_for(unit->info->targets, it) {
-    spn_target_info_t* target = si_om_at(unit->info->targets, it);
-    if (spn_pkg_unit_publishes_target(unit, target) && !si_da_empty(target->headers)) {
-      return true;
-    }
-  }
-
-  return !si_da_empty(unit->info->publish.copy);
+static void hash_publish(spn_digest_ctx_t* digest, const spn_publish_t* publish) {
+  spn_dag_hash_u8(digest, (u8)publish->root);
+  spn_dag_hash_path(digest, publish->source.path);
+  spn_dag_hash_str(digest, publish->dest);
 }
 
-static spn_err_t dag_add_tree(spn_dag_build_t* b, spn_pkg_unit_t* unit) {
+static spn_err_t dag_add_publish(spn_dag_build_t* b, spn_pkg_unit_t* unit) {
   spn_dag_t* g = b->graph;
-
-  if (!dag_pkg_publishes(unit)) {
-    return SPN_OK;
-  }
-
+  spn_pkg_info_t* info = unit->info;
   source_pin_t pin = source_pin(unit);
 
   spn_digest_ctx_t digest = sp_zero;
   spn_digest_init_blake3(&digest);
-  spn_dag_hash_str(&digest, sp_str_lit("spn.build.tree.v11"));
-  spn_dag_hash_str(&digest, unit->info->qualified);
+  spn_dag_hash_str(&digest, sp_str_lit("spn.build.publish.v1"));
+  spn_dag_hash_str(&digest, info->qualified);
   hash_pin(&digest, &pin);
-  si_om_for(unit->info->targets, it) {
-    spn_target_info_t* target = si_om_at(unit->info->targets, it);
-    if (!spn_pkg_unit_publishes_target(unit, target)) {
-      continue;
-    }
-    spn_dag_hash_paths(&digest, target->headers);
+  u32 entries = 0;
+  si_da_for(info->publish, it) {
+    hash_publish(&digest, &info->publish[it]);
+    entries++;
   }
-  si_da_for(unit->info->publish.copy, it) {
-    spn_dag_hash_u8(&digest, (u8)unit->info->publish.copy[it].tree);
-    spn_dag_hash_str(&digest, unit->info->publish.copy[it].pattern);
-    spn_dag_hash_str(&digest, unit->info->publish.copy[it].dest);
+  si_om_for(info->targets, it) {
+    spn_target_info_t* target = si_om_at(info->targets, it);
+    si_da_for(target->publish, jt) {
+      hash_publish(&digest, &target->publish[jt]);
+      entries++;
+    }
+  }
+  if (!entries) {
+    return SPN_OK;
   }
 
   spn_dag_id_t action = spn_dag_add_action(g, (spn_dag_action_config_t) {
@@ -629,27 +623,17 @@ static spn_err_t dag_add_tree(spn_dag_build_t* b, spn_pkg_unit_t* unit) {
     .user_data = unit,
   });
   spn_try(spn_dag_action_add_output(g, action, spn_dag_add_tree(g, unit->paths.include)));
+  spn_try(spn_dag_action_add_output(g, action, spn_dag_add_tree(g, unit->paths.share)));
   spn_dag_id_t stamp = spn_dag_add_output(g, sp_str_lit("include.stamp"));
   spn_try(spn_dag_action_add_output(g, action, stamp));
   sp_ht_insert(b->ids.stamps, unit->paths.include, stamp);
-
-  si_om_for(unit->info->targets, it) {
-    spn_target_info_t* target = si_om_at(unit->info->targets, it);
-    if (!spn_pkg_unit_publishes_target(unit, target)) {
-      continue;
-    }
-    si_da_for(target->headers, ht) {
-      spn_dag_action_add_input(g, action, spn_dag_add_file(g, target->headers[ht]));
-    }
-  }
-
   return SPN_OK;
 }
 
 static spn_err_t dag_add_package(spn_dag_build_t* b, spn_pkg_unit_t* unit) {
   sp_da(spn_dag_id_t) user_outputs = sp_da_new(b->mem, spn_dag_id_t);
   spn_try(dag_add_user_nodes(b, unit, &user_outputs));
-  spn_try(dag_add_tree(b, unit));
+  spn_try(dag_add_publish(b, unit));
   sp_ht_insert(b->ids.user_outputs, unit, user_outputs);
 
   return SPN_OK;

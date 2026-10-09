@@ -2,8 +2,8 @@
 name = "p"
 version = "1.0.0"
 
-[publish]
-copy = [
-  { from = "source/a.h", to = "include" },
-  { from = "source/b.h", to = "include/b", when = { os = "windows" } },
+[package.publish]
+include = [
+  { from = "source/a.h" },
+  { from = "source/b.h", to = "b", when = { os = "windows" } },
 ]

@@ -9,4 +9,4 @@ min_os = { major = 12 }
 name = "dep"
 kinds = ["static"]
 source = ["dep.c"]
-headers = ["dep.h"]
+publish.include = [{ from = "source/dep.h" }]

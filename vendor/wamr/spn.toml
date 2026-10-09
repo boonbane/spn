@@ -105,7 +105,7 @@ flags = [
   { value = "-Wno-unused-parameter", when = { abi = { not = "msvc" } } },
 ]
 
-[publish]
-copy = [
-  { from = "source/core/iwasm/include/*.h", to = "include" },
+[package.publish]
+include = [
+  { from = "source/core/iwasm/include/*.h" },
 ]

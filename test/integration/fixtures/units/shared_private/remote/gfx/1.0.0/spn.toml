@@ -9,4 +9,4 @@ foo = { version = "1.0.0", private = true }
 name = "gfx"
 kinds = ["shared"]
 source = ["gfx.c"]
-headers = ["gfx.h"]
+publish.include = [{ from = "source/gfx.h" }]

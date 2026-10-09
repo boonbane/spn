@@ -11,4 +11,4 @@ define = "B_X"
 name = "b"
 kinds = ["static"]
 source = ["b.c"]
-headers = ["b.h"]
+publish.include = [{ from = "source/b.h" }]

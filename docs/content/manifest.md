@@ -24,7 +24,6 @@ readme: false
 | `[deps]` | [`deps`](#deps) |
 | `[config.<name>]` | map of [`config_entry`](#config_entry) |
 | `[patch.<name>]` | map of [`patch_entry`](#patch_entry) |
-| `[publish]` | [`publish`](#publish) |
 
 ## package
 
@@ -43,6 +42,7 @@ readme: false
 | `macos` | [`platform_macos`](#platform_macos) | |
 | `build` | [`build_script`](#build_script) | |
 | `configure` | [`build_script`](#build_script) | |
+| `publish` | [`publish`](#publish) | |
 
 ## target
 
@@ -51,7 +51,6 @@ readme: false
 | `name` | `string` | yes |
 | `kinds` | array of `string` | |
 | `source` | array of [`source_entry`](#source_entry) \| `string` | |
-| `headers` | array of [`source_entry`](#source_entry) \| `string` | |
 | `include` | array of [`source_entry`](#source_entry) \| `string` | |
 | `define` | array of [`value_entry`](#value_entry) \| `string` | |
 | `flags` | array of [`value_entry`](#value_entry) \| `string` | |
@@ -63,6 +62,7 @@ readme: false
 | `cxx` | [`cxx_options`](#cxx_options) | |
 | `macos` | [`platform_macos`](#platform_macos) | |
 | `windows` | [`platform_windows`](#platform_windows) | |
+| `publish` | [`publish`](#publish) | |
 
 ## toolchain_decl
 
@@ -144,7 +144,8 @@ readme: false
 
 | Field | Type |
 |---|---|
-| `copy` | array of [`publish_copy`](#publish_copy) |
+| `include` | array of [`publish_entry`](#publish_entry) |
+| `share` | array of [`publish_entry`](#publish_entry) |
 
 ## upstream
 
@@ -240,12 +241,12 @@ readme: false
 | `when` | [`when`](#extern-types) |
 | `options` | [`when`](#extern-types) |
 
-## publish_copy
+## publish_entry
 
 | Field | Type | Required |
 |---|---|---|
 | `from` | `string` | yes |
-| `to` | `string` | yes |
+| `to` | `string` | |
 | `when` | [`when`](#extern-types) | |
 
 ## Extern types

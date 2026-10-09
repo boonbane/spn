@@ -2,8 +2,8 @@
 name = "kit"
 version = "1.0.0"
 
-[publish]
-copy = [{ from = "source/kit.h", to = "include" }]
+[package.publish]
+include = [{ from = "source/kit.h" }]
 
 [[lib]]
 name = "kit"

@@ -9,4 +9,4 @@ sdl_mixer = { version = "1.0.0", private = true }
 name = "engine"
 kinds = ["static"]
 source = ["engine.c"]
-headers = ["engine.h"]
+publish.include = [{ from = "source/engine.h" }]

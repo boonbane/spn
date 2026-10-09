@@ -6,4 +6,4 @@ version = "1.0.0"
 name = "spam"
 kinds = ["static"]
 source = ["spam.cpp"]
-headers = ["spam.h"]
+publish.include = [{ from = "source/spam.h" }]

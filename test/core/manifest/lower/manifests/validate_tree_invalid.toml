@@ -13,6 +13,5 @@ include = [{ path = "inc", tree = "spum" }]
 name = "t"
 kinds = ["shared"]
 source = [{ path = "a.c", tree = "spum" }]
-headers = [{ path = "a.h", tree = "spum" }]
 linker_script = [{ path = "a.ld", tree = "spum" }]
 embed = [{ path = "a.txt", tree = "spum" }]

@@ -22,4 +22,4 @@ define = "A_Y"
 name = "a"
 kinds = ["static"]
 source = ["a.c"]
-headers = ["a.h"]
+publish.include = [{ from = "source/a.h" }]

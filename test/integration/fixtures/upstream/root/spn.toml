@@ -6,14 +6,14 @@ version = "0.1.0"
 url = "@A.url@"
 commit = "@A.commit@"
 
-[publish]
-copy = [{ from = "manifest/pub.h", to = "include" }]
+[package.publish]
+include = [{ from = "manifest/pub.h" }]
 
 [[lib]]
 name = "A"
 kinds = ["static"]
 source = ["a.c"]
-headers = ["a.h", { path = "cfg.h", tree = "manifest" }]
+publish.include = [{ from = "source/a.h" }, { from = "manifest/cfg.h" }]
 
 [[example]]
 name = "E"

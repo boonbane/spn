@@ -52,25 +52,28 @@
           "tree": "manifest"
         }
       ],
-      "headers": [
-        "a.h",
-        {
-          "path": "m.h",
-          "tree": "manifest"
-        },
-        {
-          "path": "w.h",
-          "when": {
-            "os": "linux"
-          }
-        }
-      ],
       "include": [
         {
           "path": "minc",
           "tree": "manifest"
         }
-      ]
+      ],
+      "publish": {
+        "include": [
+          {
+            "from": "source/a.h"
+          },
+          {
+            "from": "manifest/m.h"
+          },
+          {
+            "from": "source/w.h",
+            "when": {
+              "os": "linux"
+            }
+          }
+        ]
+      }
     }
   }
 }

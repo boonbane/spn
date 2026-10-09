@@ -6,7 +6,7 @@ version = "1.0.0"
 name = "rich"
 kinds = ["executable"]
 source = ["a.c", "b.c", { path = "c.c", tree = "manifest" }, { path = "d.c", tree = "source" }]
-headers = ["a.h"]
+publish.include = [{ from = "source/a.h" }]
 include = ["inc", { path = "minc", tree = "manifest" }]
 define = ["X=1"]
 flags = ["-O2"]

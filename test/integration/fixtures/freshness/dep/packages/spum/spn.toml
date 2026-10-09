@@ -2,11 +2,11 @@
 name = "spum"
 version = "1.0.0"
 
-[publish]
-copy = [{ from = "source/extra.h", to = "include" }]
+[package.publish]
+include = [{ from = "source/extra.h" }]
 
 [[lib]]
 name = "spum"
 kinds = ["static"]
 source = ["spum.c"]
-headers = ["spum.h"]
+publish.include = [{ from = "source/spum.h" }]

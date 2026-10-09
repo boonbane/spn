@@ -6,7 +6,7 @@ version = "0.1.0"
 name = "calc"
 kinds = ["static"]
 source = ["calc.c"]
-headers = ["calc.h"]
+publish.include = [{ from = "source/calc.h" }]
 
 [[bin]]
 name = "main"

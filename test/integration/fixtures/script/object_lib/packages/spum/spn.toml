@@ -7,7 +7,7 @@ version = "1.0.0"
 name = "spum"
 kinds = ["static"]
 source = ["spum.c"]
-headers = ["spum.h"]
+publish.include = [{ from = "source/spum.h" }]
 
 # An object lib: its objects are published to lib/ and never linked
 [[lib]]

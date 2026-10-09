@@ -16,8 +16,8 @@ commit = "5fac8af189fd2afa0f3663428db865193264f38b"
 name = "sp"
 kinds = ["source"]
 
-[publish]
-copy = [
-  { from = "source/sp.h", to = "include" },
-  { from = "source/sp/*", to = "include/sp" },
+[package.publish]
+include = [
+  { from = "source/sp.h" },
+  { from = "source/sp/*", to = "sp" },
 ]

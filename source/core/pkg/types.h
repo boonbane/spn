@@ -134,13 +134,6 @@ typedef struct {
 } spn_pkg_config_entry_t;
 
 typedef struct {
-  spn_tree_t tree;
-  sp_str_t pattern;
-  sp_str_t dest;
-  spn_when_t when;
-} spn_publish_copy_t;
-
-typedef struct {
   sp_str_t qualified;
   spn_git_patch_set_t set;
 } spn_pkg_patch_t;
@@ -185,16 +178,12 @@ struct spn_pkg_info {
     spn_gated_path_list_t include;
     spn_gated_list_t define;
     spn_gated_list_t frameworks;
-    struct {
-      si_da(spn_publish_copy_t) copy;
-    } publish;
+    si_da(spn_gated_publish_t) publish;
   } gated;
   spn_toolchain_map_t toolchains;
   spn_target_info_t build;
   spn_target_info_t configure;
-  struct {
-    si_da(spn_publish_copy_t) copy;
-  } publish;
+  si_da(spn_publish_t) publish;
 
   bool applied;
 };

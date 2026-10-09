@@ -35,6 +35,7 @@ void spn_unit_paths_init(spn_pkg_unit_t* unit, spn_loaded_pkg_t* loaded) {
   unit->paths.store = spn_path_anchor(mem, &s->ctx->roots, unit->paths.store);
 
   unit->paths.include = spn_path_join(mem, unit->paths.store, SP_LIT("include"));
+  unit->paths.share = spn_path_join(mem, unit->paths.store, SP_LIT("share"));
   unit->paths.bin = spn_path_join(mem, unit->paths.store, SP_LIT("bin"));
   unit->paths.lib = spn_path_join(mem, unit->paths.store, SP_LIT("lib"));
   unit->paths.vendor = spn_path_join(mem, unit->paths.store, SP_LIT("vendor"));

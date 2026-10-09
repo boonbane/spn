@@ -2,9 +2,9 @@
 name = "K"
 version = "1.0.0"
 
-[publish]
-copy = [
-  { from = "source/K.h", to = "include" },
+[package.publish]
+include = [
+  { from = "source/K.h" },
 ]
 
 [[lib]]

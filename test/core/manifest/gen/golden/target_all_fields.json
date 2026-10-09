@@ -21,9 +21,6 @@
           "tree": "source"
         }
       ],
-      "headers": [
-        "a.h"
-      ],
       "include": [
         "inc",
         {
@@ -40,7 +37,14 @@
       "deps": [
         "libfoo"
       ],
-      "link": true
+      "link": true,
+      "publish": {
+        "include": [
+          {
+            "from": "source/a.h"
+          }
+        ]
+      }
     }
   }
 }

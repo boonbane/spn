@@ -12,4 +12,4 @@ public = true
 name = "sdl"
 kinds = ["static"]
 source = ["sdl.c"]
-headers = ["sdl.h"]
+publish.include = [{ from = "source/sdl.h" }]

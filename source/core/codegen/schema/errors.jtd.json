@@ -135,7 +135,6 @@
     "cancelled": { "properties": {} },
     "patch_unused": { "ref": "patch" },
     "patch_not_git": { "ref": "patch" },
-    "header_collision": { "ref": "header_collision" },
     "path_component": { "ref": "fs" },
     "path_absolute": { "ref": "fs" },
     "path_foreign": { "ref": "fs" },
@@ -414,13 +413,6 @@
     "patch": {
       "properties": {
         "name": { "type": "string" }
-      }
-    },
-    "header_collision": {
-      "properties": {
-        "path": { "type": "string" },
-        "first": { "type": "string" },
-        "second": { "type": "string" }
       }
     }
   }

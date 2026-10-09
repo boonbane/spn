@@ -46,22 +46,6 @@ static const test_t tests [] = {
     }
   },
   {
-    .name = "literal_pattern_probes_file",
-    .files = { "A/X.h", "A/Y.h" },
-    .pattern = "A/X.h",
-    .expect = {
-      .matches = { { "A/X.h", "X.h" } },
-    }
-  },
-  {
-    .name = "literal_missing_probes_absent",
-    .files = { "A/X.h" },
-    .pattern = "A/Z.h",
-    .expect = {
-      .absent = { "A/Z.h" },
-    }
-  },
-  {
     .name = "invalid_pattern_fails",
     .pattern = "A/[",
     .expect = {
@@ -258,12 +242,6 @@ static const iterate_test_t iterate_tests [] = {
     .files = { "A/Z.c", "A/B/Y.c", "A/X.h" },
     .pattern = "A/*.c",
     .expect = { "A/Z.c" },
-  },
-  {
-    .name = "literal_pattern_yields_the_file",
-    .files = { "A/X.c" },
-    .pattern = "A/X.c",
-    .expect = { "A/X.c" },
   },
   {
     .name = "missing_dir_yields_nothing",

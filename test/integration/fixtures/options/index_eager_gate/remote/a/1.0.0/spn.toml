@@ -13,4 +13,4 @@ ghost = { version = "1.0.0", when = { x = true } }
 name = "a"
 kinds = ["static"]
 source = ["a.c"]
-headers = ["a.h"]
+publish.include = [{ from = "source/a.h" }]

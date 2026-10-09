@@ -38,7 +38,9 @@ typedef struct {
   const c8* dest;
   const c8* when;
   spn_tree_t tree;
-} copy_t;
+  spn_publish_root_t root;
+  spn_source_kind_t kind;
+} publish_t;
 
 typedef struct {
   const c8* path;
@@ -55,7 +57,7 @@ typedef struct {
   spn_linkage_set_t linkages;
   bool no_link;
   source_t source [4];
-  gated_t headers [4];
+  publish_t publish [4];
   gated_t include [4];
   gated_t define [4];
   gated_t flags [4];
@@ -179,7 +181,7 @@ typedef struct {
   gated_t define [8];
   gated_t system_deps [8];
   gated_t frameworks [4];
-  copy_t publish [4];
+  publish_t publish [4];
   issue_t issues [8];
   target_t libs [8];
   target_t exes [8];
@@ -251,7 +253,7 @@ static const test_t tests [] = {
         .name = "t",
         .linkages = { .static_lib = true, .shared = true },
         .source = { { "main.c" } },
-        .headers = { { "header.h" } },
+        .publish = { { "header.h", "" } },
         .include = { { "include/dir" } },
         .define = { { "SPUM" } },
         .flags = { { "-flag" } },
@@ -266,6 +268,23 @@ static const test_t tests [] = {
     .manifest = "exe",
     .exes = {
       { .name = "t" }
+    }
+  },
+  {
+    .name = "exe_publish_share",
+    .manifest = "exe_publish_share",
+    .exes = {
+      { .name = "t", .publish = { { "data/*", "d", .root = SPN_PUBLISH_ROOT_SHARE, .kind = SPN_SOURCE_GLOB } } }
+    }
+  },
+  {
+    .name = "validate_exe_publish_include",
+    .manifest = "validate_exe_publish_include",
+    .exes = {
+      { .name = "t", .publish = { { "t.h", "" } } }
+    },
+    .issues = {
+      { SPN_ERR_CODEGEN_INVALID, "bin[0].publish.include" },
     }
   },
   {
@@ -857,7 +876,7 @@ static const test_t tests [] = {
         .name = "t",
         .linkages = { .static_lib = true, .shared = true },
         .source = { { "a.c" }, { "b.c", .tree = SPN_TREE_MANIFEST }, { "c.c", .tree = SPN_TREE_SOURCE } },
-        .headers = { { "a.h" }, { "b.h", .tree = SPN_TREE_MANIFEST } },
+        .publish = { { "a.h", "" }, { "b.h", "", .tree = SPN_TREE_MANIFEST } },
         .include = { { "inc", .tree = SPN_TREE_MANIFEST } },
         .linker_script = { { "a.ld", .tree = SPN_TREE_MANIFEST } },
       }
@@ -884,7 +903,6 @@ static const test_t tests [] = {
     .build_source = { { "b.c", .tree_none = true } },
     .issues = {
       { SPN_ERR_CODEGEN_INVALID, "lib[0].source[0].tree" },
-      { SPN_ERR_CODEGEN_INVALID, "lib[0].headers[0].tree" },
       { SPN_ERR_CODEGEN_INVALID, "lib[0].linker_script[0].tree" },
       { SPN_ERR_CODEGEN_INVALID, "lib[0].embed[0].tree" },
       { SPN_ERR_CODEGEN_INVALID, "package.include[0].tree" },
@@ -1281,7 +1299,7 @@ static const test_t tests [] = {
   {
     .name = "publish_glob_dest",
     .manifest = "publish_glob_dest",
-    .publish = { { "sub/*.h", "s" } },
+    .publish = { { "sub/*.h", "s", .kind = SPN_SOURCE_GLOB } },
   },
   {
     .name = "publish_manifest_tree",
@@ -1289,61 +1307,63 @@ static const test_t tests [] = {
     .publish = { { "gen/a.h", "", .tree = SPN_TREE_MANIFEST } },
   },
   {
+    .name = "publish_roots",
+    .manifest = "publish_roots",
+    .publish = {
+      { "a.h", "" },
+      { "data/*", "d", .root = SPN_PUBLISH_ROOT_SHARE, .kind = SPN_SOURCE_GLOB },
+    },
+  },
+  {
     .name = "validate_publish_from_tree",
     .manifest = "validate_publish_from_tree",
     .issues = {
-      { SPN_ERR_CODEGEN_INVALID, "publish.copy[0].from" },
+      { SPN_ERR_CODEGEN_INVALID, "package.publish.include[0].from" },
     },
   },
   {
     .name = "validate_publish_from_prefix",
     .manifest = "validate_publish_from_prefix",
     .issues = {
-      { SPN_ERR_CODEGEN_INVALID, "publish.copy[0].from" },
+      { SPN_ERR_CODEGEN_INVALID, "package.publish.include[0].from" },
     },
   },
   {
     .name = "validate_publish_from_empty",
     .manifest = "validate_publish_from_empty",
     .issues = {
-      { SPN_ERR_CODEGEN_PATH, "publish.copy[0].from" },
+      { SPN_ERR_CODEGEN_PATH, "package.publish.include[0].from" },
     },
   },
   {
     .name = "validate_publish_from_glob",
     .manifest = "validate_publish_from_glob",
     .issues = {
-      { SPN_ERR_CODEGEN_INVALID, "publish.copy[0].from" },
-    },
-  },
-  {
-    .name = "validate_publish_to_mount",
-    .manifest = "validate_publish_to_mount",
-    .issues = {
-      { SPN_ERR_CODEGEN_INVALID, "publish.copy[0].to" },
-    },
-  },
-  {
-    .name = "validate_publish_to_prefix",
-    .manifest = "validate_publish_to_prefix",
-    .issues = {
-      { SPN_ERR_CODEGEN_INVALID, "publish.copy[0].to" },
+      { SPN_ERR_CODEGEN_INVALID, "package.publish.include[0].from" },
     },
   },
   {
     .name = "validate_publish_paths",
     .manifest = "validate_publish_paths",
     .issues = {
-      { SPN_ERR_CODEGEN_PATH, "publish.copy[0].from" },
-      { SPN_ERR_CODEGEN_PATH, "publish.copy[0].to" },
+      { SPN_ERR_CODEGEN_PATH, "package.publish.include[0].from" },
+      { SPN_ERR_CODEGEN_PATH, "package.publish.include[0].to" },
     },
   },
   {
     .name = "validate_publish_when_unknown_key",
     .manifest = "validate_publish_when_unknown_key",
     .publish = { { "a.h", "", "simd = \"avx2\"" } },
+    .libs = {
+      {
+        .name = "t",
+        .linkages = { .static_lib = true },
+        .publish = { { "data/*", "", "simd = \"avx2\"", .root = SPN_PUBLISH_ROOT_SHARE, .kind = SPN_SOURCE_GLOB } },
+      },
+    },
     .issues = {
-      { SPN_ERR_CODEGEN_INVALID, "publish.copy[0].when.simd" },
+      { SPN_ERR_CODEGEN_INVALID, "lib[0].publish.share[0].when.simd" },
+      { SPN_ERR_CODEGEN_INVALID, "package.publish.include[0].when.simd" },
     },
   },
   {
@@ -1556,17 +1576,25 @@ static sp_err_t check_gated_list(sp_test_t* t, spn_gated_list_t actual, const ga
   return SP_OK;
 }
 
-static sp_err_t check_copy_list(sp_test_t* t, sp_da(spn_publish_copy_t) actual, const copy_t* expected, u32 n) {
+static sp_err_t check_publish_list(sp_test_t* t, sp_da(spn_gated_publish_t) actual, const publish_t* expected, u32 n) {
   sp_must_eq(t, n, (u32)sp_da_size(actual));
   sp_for(it, n) {
     spn_tree_t tree = expected[it].tree ? expected[it].tree : SPN_TREE_SOURCE;
-    sp_expect_eq(t, (u32)tree, (u32)actual[it].tree);
-    sp_expect_str_eq_c(t, actual[it].pattern, expected[it].pattern);
+    sp_expect_eq(t, (u32)expected[it].root, (u32)actual[it].root);
+    sp_expect_eq(t, (u32)expected[it].kind, (u32)actual[it].source.kind);
+    sp_expect_eq(t, (u32)tree, (u32)actual[it].source.tree);
+    sp_expect_str_eq_c(t, actual[it].source.path, expected[it].pattern);
     sp_expect_str_eq_c(t, actual[it].dest, expected[it].dest);
-    sp_expect_str_eq_c(t, spn_when_to_str(sp_test_arena(t), &actual[it].when), expected[it].when ? expected[it].when : "always");
+    sp_expect_str_eq_c(t, spn_when_to_str(sp_test_arena(t), &actual[it].source.when), expected[it].when ? expected[it].when : "always");
   }
   return SP_OK;
 }
+
+#define check_publish(t, actual, expected) do { \
+  u32 num_publish = 0; \
+  sp_carr_detect_len(expected, num_publish, (expected)[num_publish].pattern); \
+  sp_try(check_publish_list(t, actual, expected, num_publish)); \
+} while (0)
 
 static sp_err_t check_gated_path_list(sp_test_t* t, spn_gated_path_list_t actual, const gated_t* expected, u32 n) {
   sp_must_eq(t, n, (u32)sp_da_size(actual));
@@ -1629,8 +1657,8 @@ static sp_err_t check_targets(sp_test_t* t, spn_pkg_info_t* pkg, const target_t*
     sp_expect_eq(t, (u32)0, (u32)si_da_size(info->system_deps));
     sp_expect_eq(t, (u32)0, (u32)si_da_size(info->deps));
     check_gated_sources(t, info->gated.source, arr[i].source);
-    sp_expect_eq(t, (u32)0, (u32)si_da_size(info->headers));
-    check_gated_paths(t, info->gated.headers, arr[i].headers);
+    sp_expect_eq(t, (u32)0, (u32)si_da_size(info->publish));
+    check_publish(t, info->gated.publish, arr[i].publish);
     check_gated_paths(t, info->gated.include, arr[i].include);
     check_gated(t, info->gated.define, arr[i].define);
     check_gated(t, info->gated.flags, arr[i].flags);
@@ -1663,7 +1691,7 @@ static sp_err_t check_targets(sp_test_t* t, spn_pkg_info_t* pkg, const target_t*
   return SP_OK;
 }
 
-sp_test_each(lower, cases, test_t, tests) {
+sp_test_each(lower, cases, test_t, tests, .setup = spn_test_ctx_setup) {
   sp_mem_t mem = sp_test_arena(t);
   sp_intern_t* interner = sp_intern_new(mem);
 
@@ -1721,10 +1749,8 @@ sp_test_each(lower, cases, test_t, tests) {
   check_gated(t, pkg.gated.system_deps, it->system_deps);
   sp_expect_eq(t, (u32)0, (u32)si_da_size(pkg.macos.frameworks));
   check_gated(t, pkg.gated.frameworks, it->frameworks);
-  sp_expect_eq(t, (u32)0, (u32)si_da_size(pkg.publish.copy));
-  u32 num_copies = 0;
-  sp_carr_detect_len(it->publish, num_copies, it->publish[num_copies].pattern);
-  sp_try(check_copy_list(t, pkg.gated.publish.copy, it->publish, num_copies));
+  sp_expect_eq(t, (u32)0, (u32)si_da_size(pkg.publish));
+  check_publish(t, pkg.gated.publish, it->publish);
   sp_expect_eq(t, (u32)0, (u32)si_da_size(pkg.include));
   check_gated_paths(t, pkg.gated.include, it->include);
   check_gated_sources(t, pkg.build.gated.source, it->build_source);

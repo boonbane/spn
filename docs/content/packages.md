@@ -32,7 +32,7 @@ A `[[bin]]` and a `[[script]]`, for instance, are both executables, but their di
 
 ### source
 
-### include and headers
+### include and publish
 
 ### define and flags
 

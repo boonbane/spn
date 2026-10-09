@@ -6,4 +6,4 @@ version = "1.0.0"
 name = "applib"
 kinds = ["static"]
 source = ["applib.c"]
-headers = ["applib.h"]
+publish.include = [{ from = "source/applib.h" }]

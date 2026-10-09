@@ -12,4 +12,4 @@ public = true
 name = "ui"
 kinds = ["static"]
 source = ["ui.c"]
-headers = ["ui.h"]
+publish.include = [{ from = "source/ui.h" }]

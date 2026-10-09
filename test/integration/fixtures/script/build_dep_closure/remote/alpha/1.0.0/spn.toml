@@ -9,4 +9,4 @@ beta = { version = "1.0.0", private = true }
 name = "alpha"
 kinds = ["static"]
 source = ["alpha.c"]
-headers = ["alpha.h"]
+publish.include = [{ from = "source/alpha.h" }]

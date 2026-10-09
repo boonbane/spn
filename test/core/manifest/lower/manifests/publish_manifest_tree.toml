@@ -2,7 +2,7 @@
 name = "p"
 version = "1.0.0"
 
-[publish]
-copy = [
-  { from = "manifest/gen/a.h", to = "include" },
+[package.publish]
+include = [
+  { from = "manifest/gen/a.h" },
 ]

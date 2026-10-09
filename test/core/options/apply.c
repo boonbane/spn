@@ -654,20 +654,20 @@ sp_test_each(options_apply, option_defines, apply_option_test_t, option_tests, .
 typedef struct {
   const c8* pattern;
   apply_clause_t when [2];
-} apply_copy_t;
+} apply_publish_t;
 
 typedef struct {
   const c8* name;
   spn_when_facts_t facts;
-  apply_copy_t copies [4];
+  apply_publish_t entries [4];
   const c8* expect [4];
-} apply_copy_test_t;
+} apply_publish_test_t;
 
-static const apply_copy_test_t copy_tests [] = {
+static const apply_publish_test_t publish_tests [] = {
   {
-    .name = "publish_copies",
+    .name = "publish_entries",
     .facts = { .os = SPN_OS_LINUX },
-    .copies = {
+    .entries = {
       { .pattern = "a.h", .when = { { "os", "linux" } } },
       { .pattern = "b.h", .when = { { "os", "windows" } } },
       { .pattern = "c.h" },
@@ -676,17 +676,19 @@ static const apply_copy_test_t copy_tests [] = {
   },
 };
 
-sp_test_each(options_apply, publish_copies, apply_copy_test_t, copy_tests) {
+sp_test_each(options_apply, publish, apply_publish_test_t, publish_tests) {
   sp_mem_t mem = sp_test_arena(t);
   spn_pkg_info_t info = sp_zero;
-  sp_carr_for(it->copies, ct) {
-    if (!it->copies[ct].pattern) {
+  sp_carr_for(it->entries, et) {
+    if (!it->entries[et].pattern) {
       break;
     }
-    si_da_push(mem, info.gated.publish.copy, ((spn_publish_copy_t) {
-      .tree = SPN_TREE_SOURCE,
-      .pattern = sp_cstr_as_str(it->copies[ct].pattern),
-      .when = make_apply_when(mem, it->copies[ct].when, sp_carr_len(it->copies[ct].when)),
+    si_da_push(mem, info.gated.publish, ((spn_gated_publish_t) {
+      .source = {
+        .path = sp_cstr_as_str(it->entries[et].pattern),
+        .tree = SPN_TREE_SOURCE,
+        .when = make_apply_when(mem, it->entries[et].when, sp_carr_len(it->entries[et].when)),
+      },
     }));
   }
 
@@ -694,15 +696,15 @@ sp_test_each(options_apply, publish_copies, apply_copy_test_t, copy_tests) {
   spn_when_env_init(mem, &env);
   spn_when_env_set_facts(&env, it->facts);
   spn_path_roots_t roots = sp_zero;
-  spn_tree_roots_t trees = sp_zero;
+  spn_tree_roots_t trees = { .source = spn_path_from_root(SPN_PATH_ROOT_PROJECT) };
   spn_pkg_apply_options(mem, &info, &roots, trees, &env);
 
   sp_expect(t, info.applied);
   u32 expected = 0;
   sp_carr_detect_len(it->expect, expected, it->expect[expected]);
-  sp_must_eq(t, expected, (u32)si_da_size(info.publish.copy));
-  sp_for(ct, expected) {
-    sp_expect_str_eq_c(t, info.publish.copy[ct].pattern, it->expect[ct]);
+  sp_must_eq(t, expected, (u32)si_da_size(info.publish));
+  sp_for(et, expected) {
+    sp_expect_str_eq_c(t, info.publish[et].source.path.sub, it->expect[et]);
   }
   return SP_OK;
 }

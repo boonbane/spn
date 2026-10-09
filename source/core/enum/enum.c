@@ -379,6 +379,14 @@ sp_str_t spn_tree_to_str(spn_tree_t tree) {
   SP_UNREACHABLE_RETURN(sp_str_lit(""));
 }
 
+sp_str_t spn_publish_root_to_str(spn_publish_root_t root) {
+  switch (root) {
+    case SPN_PUBLISH_ROOT_INCLUDE: return sp_str_lit("include");
+    case SPN_PUBLISH_ROOT_SHARE:   return sp_str_lit("share");
+  }
+  SP_UNREACHABLE_RETURN(sp_str_lit(""));
+}
+
 sp_str_t spn_dir_to_str(spn_dir_t dir) {
   switch (dir) {
     case SPN_DIR_NONE:     return sp_str_lit("");
