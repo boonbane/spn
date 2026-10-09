@@ -67,6 +67,7 @@ void spn_pkg_add_system_dep_ex(sp_mem_t mem, spn_pkg_info_t* pkg, sp_str_t dep) 
 
 spn_err_t spn_pkg_add_target(sp_mem_t mem, spn_pkg_info_t* pkg, sp_str_t name, spn_target_kind_t kind, spn_target_info_t** out) {
   spn_target_key_t key = { .name = spn_intern_id(name), .kind = kind };
+
   // @spader Yeah, this double hashes, but I don't care
   if (si_om_has(pkg->targets, key)) {
     return SPN_ERR_TARGET_DUPLICATE;

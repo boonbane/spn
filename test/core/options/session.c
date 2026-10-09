@@ -23,7 +23,7 @@ sp_test_suite(options_session, .serial = true);
 
 static spn_pkg_id_t make_id(sp_intern_t* intern, const c8* qualified) {
   return (spn_pkg_id_t) {
-    .qualified = sp_intern_get_or_insert(intern, sp_cstr_as_str(qualified)),
+    .qualified = sp_intern(intern, sp_cstr_as_str(qualified)).id,
   };
 }
 

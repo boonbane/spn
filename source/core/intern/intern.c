@@ -51,7 +51,7 @@ SP_PRIVATE void sp_intern_index_grow(sp_intern_index_t* index) {
   sp_free(index->mem, old_slots, (u64)old_capacity * sizeof(sp_intern_slot_t));
 }
 
-SP_PRIVATE void sp_intern_index_put(sp_intern_index_t* index, sp_intern_slot_t entry, u32 slot) {
+SP_PRIVATE void sp_intern_index_put(sp_intern_index_t* index, u32 slot, sp_intern_slot_t entry) {
   if ((index->count + 1) * 4 > index->capacity * 3) {
     sp_intern_index_grow(index);
     sp_intern_index_insert(index, entry);
@@ -63,12 +63,8 @@ SP_PRIVATE void sp_intern_index_put(sp_intern_index_t* index, sp_intern_slot_t e
 }
 
 sp_intern_t* sp_intern_new(sp_mem_t mem) {
-  return sp_intern_new_ex(mem, sp_intern_default_hash);
-}
-
-sp_intern_t* sp_intern_new_ex(sp_mem_t mem, sp_intern_hash_fn_t hash) {
   sp_intern_t* intern = sp_alloc_type(mem, sp_intern_t);
-  sp_intern_init_ex(intern, mem, hash);
+  sp_intern_init_ex(intern, mem, sp_intern_default_hash);
   return intern;
 }
 
@@ -79,7 +75,6 @@ void sp_intern_init(sp_intern_t* intern, sp_mem_t mem) {
 void sp_intern_init_ex(sp_intern_t* intern, sp_mem_t mem, sp_intern_hash_fn_t hash) {
   if (!intern) return;
 
-  intern->mem = mem;
   intern->hash = hash;
   intern->next_id = SP_INTERN_INVALID_ID + 1;
   intern->data = sp_mem_arena_new_ex(mem, 4096, 1);
@@ -104,74 +99,48 @@ void sp_intern_init_ex(sp_intern_t* intern, sp_mem_t mem, sp_intern_hash_fn_t ha
   sp_da_push(intern->by_id, sp_str(empty, 0));
 }
 
-sp_intern_id_t sp_intern_get_or_insert(sp_intern_t* intern, sp_str_t str) {
-  if (!intern) return SP_INTERN_INVALID_ID;
-  if (sp_str_empty(str)) return SP_INTERN_INVALID_ID;
+SP_PRIVATE sp_intern_str_t sp_intern_get_or_insert_2_locked(sp_intern_t* intern, sp_str_t str, u32 hash) {
+  sp_intern_slot_t* slots = intern->index.slots;
+  u32 slot = sp_intern_index_find(&intern->index, str, hash);
 
-  u32 hash = intern->hash(str);
-  sp_mutex_lock(&intern->mutex);
-  sp_intern_index_t* index = &intern->index;
-  u32 slot = sp_intern_index_find(index, str, hash);
-  sp_intern_id_t id;
-  if (index->slots[slot].data) {
-    id = index->slots[slot].id;
+  if (slots[slot].data) {
+    return (sp_intern_str_t) {
+      .id = slots[slot].id,
+      .str = sp_str(slots[slot].data, slots[slot].len)
+    };
   }
-  else {
-    const c8* cstr = sp_str_to_cstr(sp_mem_arena_as_allocator(intern->data), str);
-    id = intern->next_id++;
-    sp_intern_index_put(index, (sp_intern_slot_t) { .hash = hash, .len = str.len, .id = id, .data = cstr }, slot);
-    sp_da_push(intern->by_id, sp_str(cstr, str.len));
-  }
-  sp_mutex_unlock(&intern->mutex);
-  return id;
+
+  sp_mem_t arena = sp_mem_arena_as_allocator(intern->data);
+  sp_intern_str_t interned = {
+    .id = intern->next_id++,
+    .str = (sp_str_t) {
+      .data = sp_str_to_cstr(arena, str),
+      .len = str.len,
+    }
+  };
+
+  sp_intern_index_put(&intern->index, slot, (sp_intern_slot_t) {
+    .hash = hash,
+    .data = interned.str.data,
+    .len = interned.str.len,
+    .id = interned.id
+  });
+  sp_da_push(intern->by_id, interned.str);
+
+  return interned;
 }
 
-sp_intern_id_t sp_intern_get(sp_intern_t* intern, sp_str_t str) {
-  if (!intern) return SP_INTERN_INVALID_ID;
-  if (sp_str_empty(str)) return SP_INTERN_INVALID_ID;
+sp_intern_str_t sp_intern(sp_intern_t* intern, sp_str_t str) {
+  sp_assert(intern);
   u32 hash = intern->hash(str);
   sp_mutex_lock(&intern->mutex);
-  sp_intern_index_t* index = &intern->index;
-  sp_intern_id_t id = index->slots[sp_intern_index_find(index, str, hash)].id;
+  sp_intern_str_t interned = sp_intern_get_or_insert_2_locked(intern, str, hash);
   sp_mutex_unlock(&intern->mutex);
-  return id;
+  return interned;
+
 }
-
-bool sp_intern_is_equal(sp_intern_t* intern, sp_intern_id_t a, sp_intern_id_t b) {
-  (void)intern;
-  return a == b;
-}
-
-sp_str_t sp_intern_get_str(sp_intern_t* intern, sp_str_t str) {
-  if (!intern) return SP_INTERN_INVALID_STR;
-  if (sp_str_empty(str)) return sp_str_lit("");
-
-  u32 hash = intern->hash(str);
-  sp_mutex_lock(&intern->mutex);
-  sp_intern_index_t* index = &intern->index;
-  const c8* data = index->slots[sp_intern_index_find(index, str, hash)].data;
-  sp_mutex_unlock(&intern->mutex);
-  if (!data) return SP_INTERN_INVALID_STR;
-  return sp_str(data, str.len);
-}
-
-sp_str_t sp_intern_get_or_insert_str(sp_intern_t* intern, sp_str_t str) {
-  if (!intern) return SP_INTERN_INVALID_STR;
-  if (sp_str_empty(str)) return sp_str_lit("");
-
-  u32 hash = intern->hash(str);
-  sp_mutex_lock(&intern->mutex);
-  sp_intern_index_t* index = &intern->index;
-  u32 slot = sp_intern_index_find(index, str, hash);
-  const c8* cstr = index->slots[slot].data;
-  if (!cstr) {
-    cstr = sp_str_to_cstr(sp_mem_arena_as_allocator(intern->data), str);
-    sp_intern_index_put(index, (sp_intern_slot_t) { .hash = hash, .len = str.len, .id = intern->next_id++, .data = cstr }, slot);
-    sp_da_push(intern->by_id, sp_str(cstr, str.len));
-  }
-  sp_mutex_unlock(&intern->mutex);
-
-  return sp_str(cstr, str.len);
+sp_intern_str_t sp_intern_cstr(sp_intern_t* intern, const c8* cstr) {
+  return sp_intern(intern, sp_cstr_as_str(cstr));
 }
 
 sp_str_t sp_intern_str_from_id(sp_intern_t* intern, sp_intern_id_t id) {
@@ -182,32 +151,7 @@ sp_str_t sp_intern_str_from_id(sp_intern_t* intern, sp_intern_id_t id) {
   return str;
 }
 
-bool sp_intern_is_interned(sp_intern_t* intern, sp_str_t str) {
-  if (!intern) return false;
-  if (sp_str_empty(str)) return true;
-  u32 hash = intern->hash(str);
-  sp_mutex_lock(&intern->mutex);
-  sp_intern_index_t* index = &intern->index;
-  bool interned = index->slots[sp_intern_index_find(index, str, hash)].data != SP_NULLPTR;
-  sp_mutex_unlock(&intern->mutex);
-  return interned;
-}
-
-bool sp_intern_is_equal_str(sp_intern_t* intern, sp_str_t a, sp_str_t b) {
-  if (!intern) return false;
-
-  // Empty strings are never stored; treat them as equal only to each other.
-  if (sp_str_empty(a) || sp_str_empty(b)) return a.len == b.len;
-
-  sp_mutex_lock(&intern->mutex);
-  sp_intern_index_t* index = &intern->index;
-  const c8* ia = index->slots[sp_intern_index_find(index, a, intern->hash(a))].data;
-  const c8* ib = index->slots[sp_intern_index_find(index, b, intern->hash(b))].data;
-  sp_mutex_unlock(&intern->mutex);
-  return ia && ib && ia == ib;
-}
-
-u64 sp_intern_size(sp_intern_t* intern) {
+u64 sp_intern_get_len(sp_intern_t* intern) {
   if (!intern) return 0;
   sp_mutex_lock(&intern->mutex);
   u64 count = intern->index.count;
@@ -215,7 +159,7 @@ u64 sp_intern_size(sp_intern_t* intern) {
   return count;
 }
 
-u64 sp_intern_bytes_used(sp_intern_t* intern) {
+u64 sp_intern_get_bytes_used(sp_intern_t* intern) {
   if (!intern) return 0;
   sp_mutex_lock(&intern->mutex);
   u64 bytes = sp_mem_arena_bytes_used(intern->data);
@@ -223,18 +167,10 @@ u64 sp_intern_bytes_used(sp_intern_t* intern) {
   return bytes;
 }
 
-u64 sp_intern_bytes_allocated(sp_intern_t* intern) {
+u64 sp_intern_get_bytes_allocated(sp_intern_t* intern) {
   if (!intern) return 0;
   sp_mutex_lock(&intern->mutex);
   u64 bytes = sp_mem_arena_capacity(intern->data);
-  sp_mutex_unlock(&intern->mutex);
-  return bytes;
-}
-
-u64 sp_intern_metadata_bytes(sp_intern_t* intern) {
-  if (!intern) return 0;
-  sp_mutex_lock(&intern->mutex);
-  u64 bytes = (u64)intern->index.capacity * sizeof(sp_intern_slot_t);
   sp_mutex_unlock(&intern->mutex);
   return bytes;
 }

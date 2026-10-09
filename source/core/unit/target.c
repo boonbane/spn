@@ -211,7 +211,7 @@ static s32 compare_objects(const void* a, const void* b) {
 static void add_object(spn_session_t* s, spn_target_unit_t* target, spn_path_t file) {
   spn_compile_unit_id_t id = {
     .target = target->id,
-    .source = { .root = file.root, .sub = sp_intern_get_or_insert(s->ctx->intern, file.sub) },
+    .source = { .root = file.root, .sub = sp_intern(s->ctx->intern, file.sub).id },
   };
   if (sp_om_has(s->units.objects, id)) {
     return;

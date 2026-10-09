@@ -159,7 +159,7 @@ spn_err_t spn_session_apply_options(spn_session_t* session, bool* reresolve) {
         if (si_da_empty(dep->options.clauses)) {
           continue;
         }
-        spn_resolved_dep_t* edge = node_find_edge(node, sp_intern_get_or_insert(session->ctx->intern, dep->qualified), dep->kind);
+        spn_resolved_dep_t* edge = node_find_edge(node, sp_intern(session->ctx->intern, dep->qualified).id, dep->kind);
         if (!edge) {
           continue;
         }
@@ -175,7 +175,7 @@ spn_err_t spn_session_apply_options(spn_session_t* session, bool* reresolve) {
         sp_da_push(*sp_ht_getp(requests, edge->id), request);
 
         spn_resolved_pkg_t* target = sp_ht_getp(session->resolve, edge->id);
-        sp_intern_id_t seed_key = target ? target->id.qualified : sp_intern_get_or_insert(session->ctx->intern, dep->qualified);
+        sp_intern_id_t seed_key = target ? target->id.qualified : sp_intern(session->ctx->intern, dep->qualified).id;
         if (!sp_ht_getp(session->gates.seeds, seed_key)) {
           sp_ht_insert(session->gates.seeds, seed_key, sp_da_new(mem, spn_option_request_t));
         }
@@ -221,7 +221,7 @@ spn_err_t spn_session_apply_options(spn_session_t* session, bool* reresolve) {
         if (si_da_empty(dep->when.clauses)) {
           continue;
         }
-        spn_resolved_dep_t* edge = node_find_edge(node, sp_intern_get_or_insert(session->ctx->intern, dep->qualified), dep->kind);
+        spn_resolved_dep_t* edge = node_find_edge(node, sp_intern(session->ctx->intern, dep->qualified).id, dep->kind);
         bool expected = spn_when_eval(&dep->when, &env);
         if (expected && !edge) {
           missing = true;

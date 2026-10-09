@@ -60,7 +60,7 @@ _Static_assert(
 );
 
 typedef struct {
-  sp_intern_str_t qualified;
+  sp_str_t qualified;
   spn_pkg_source_t source;
   spn_dep_kind_t kind;
   bool private;

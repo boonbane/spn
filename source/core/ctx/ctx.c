@@ -50,11 +50,11 @@ spn_index_info_t* spn_find_index(spn_ctx_t* ctx, sp_str_t name) {
 }
 
 sp_str_t spn_intern(sp_str_t str) {
-  return sp_intern_get_or_insert_str(spn_ctx_get_intern(), str);
+  return sp_intern(spn_ctx_get_intern(), str).str;
 }
 
 sp_str_t spn_intern_cstr(const c8* cstr) {
-  return sp_intern_get_or_insert_str(spn_ctx_get_intern(), sp_cstr_as_str(cstr));
+  return sp_intern(spn_ctx_get_intern(), sp_cstr_as_str(cstr)).str;
 }
 
 sp_str_t spn_intern_str(sp_intern_id_t id) {
@@ -62,14 +62,6 @@ sp_str_t spn_intern_str(sp_intern_id_t id) {
 }
 
 sp_intern_id_t spn_intern_id(sp_str_t str) {
-  return sp_intern_get_or_insert(spn_ctx_get_intern(), str);
-}
-
-bool spn_intern_is_equal(sp_str_t a, sp_str_t b) {
-  return sp_intern_is_equal_str(spn_ctx_get_intern(), a, b);
-}
-
-bool spn_intern_is_equal_cstr(sp_str_t str, const c8* cstr) {
-  return sp_intern_is_equal_str(spn_ctx_get_intern(), str, sp_cstr_as_str(cstr));
+  return sp_intern(spn_ctx_get_intern(), str).id;
 }
 

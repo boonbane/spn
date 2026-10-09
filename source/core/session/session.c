@@ -149,7 +149,7 @@ spn_pkg_unit_t* spn_session_find_pkg_unit(spn_session_t* session, spn_build_unit
 }
 
 spn_pkg_unit_t* spn_session_find_dep(spn_session_t* session, spn_pkg_unit_t* pkg, sp_str_t qualified, spn_dep_kind_t kind) {
-  sp_intern_id_t name = sp_intern_get_or_insert(session->ctx->intern, qualified);
+  sp_intern_id_t name = sp_intern(session->ctx->intern, qualified).id;
 
   sp_da_for(pkg->deps, it) {
     if (pkg->deps[it].kind != kind) {

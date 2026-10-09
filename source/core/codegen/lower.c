@@ -303,7 +303,7 @@ static void lower_targets(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, s
 static void lower_toolchains(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, spn_pkg_info_t* out) {
   sp_da(spn_toolchain_decl_t) toolchains = spn_toolchains_lower_list(ctx, SPN_PATH_ROOT_PROJECT, cg->toolchain);
   sp_da_for(toolchains, it) {
-    si_om_insert(ctx->mem, out->toolchains, sp_intern_get_or_insert(ctx->intern, toolchains[it].name), toolchains[it]);
+    si_om_insert(ctx->mem, out->toolchains, sp_intern(ctx->intern, toolchains[it].name).id, toolchains[it]);
   }
 }
 
@@ -329,7 +329,7 @@ static spn_profile_decl_t lower_profile(spn_toml_loader_t* ctx, sp_str_t name, c
 static void lower_profiles(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, spn_pkg_info_t* out) {
   sp_da_for(cg->profile, i) {
     spn_profile_decl_t decl = lower_profile(ctx, cg->profile[i].key, &cg->profile[i].value);
-    si_om_insert(ctx->mem, out->profiles, sp_intern_get_or_insert(ctx->intern, decl.name), decl);
+    si_om_insert(ctx->mem, out->profiles, sp_intern(ctx->intern, decl.name).id, decl);
   }
 }
 
@@ -401,7 +401,7 @@ spn_index_info_t spn_index_lower(spn_toml_loader_t* ctx, u32 at, spn_index_kind_
 static void lower_indexes(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, spn_pkg_info_t* out) {
   sp_da_for(cg->index, it) {
     spn_index_info_t info = spn_index_lower(ctx, it, SPN_INDEX_KIND_WORKSPACE, &cg->index[it]);
-    si_om_insert(ctx->mem, out->indexes, sp_intern_get_or_insert(ctx->intern, info.name), info);
+    si_om_insert(ctx->mem, out->indexes, sp_intern(ctx->intern, info.name).id, info);
   }
 }
 
@@ -431,7 +431,7 @@ static void lower_options(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, s
     sp_da_for(entry->value.values, vt) {
       si_da_push(ctx->mem, option.values, entry->value.values[vt]);
     }
-    si_om_insert(ctx->mem, out->options, sp_intern_get_or_insert(ctx->intern, option.name), option);
+    si_om_insert(ctx->mem, out->options, sp_intern(ctx->intern, option.name).id, option);
   }
 }
 
@@ -572,7 +572,7 @@ static void validate_when(spn_toml_loader_t* ctx, const spn_when_t* when, spn_pk
       ok = when_fact_value_valid(clause->key, clause->value);
     }
     else {
-      spn_option_info_t** option = si_om_getp(out->options, sp_intern_get_or_insert(ctx->intern, clause->key));
+      spn_option_info_t** option = si_om_getp(out->options, sp_intern(ctx->intern, clause->key).id);
       ok = option && when_option_value_valid(*option, clause->value);
     }
     if (!ok) {
@@ -768,7 +768,7 @@ static void validate_option_sets(spn_toml_loader_t* ctx, const spn_cg_manifest_t
     spn_toml_loader_push_key(ctx, "options");
     si_da_for(cg->profile[it].value.options.clauses, jt) {
       const spn_when_clause_t* clause = &cg->profile[it].value.options.clauses[jt];
-      spn_option_info_t** option = si_om_getp(out->options, sp_intern_get_or_insert(ctx->intern, clause->key));
+      spn_option_info_t** option = si_om_getp(out->options, sp_intern(ctx->intern, clause->key).id);
       if (!option || !when_option_value_valid(*option, clause->value)) {
         spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, clause->key.data);
       }
@@ -807,7 +807,7 @@ static void validate_options(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg
       spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "public");
     }
 
-    spn_option_info_t** lowered = si_om_getp(out->options, sp_intern_get_or_insert(ctx->intern, cg->options[it].key));
+    spn_option_info_t** lowered = si_om_getp(out->options, sp_intern(ctx->intern, cg->options[it].key).id);
     spn_toml_loader_push_key(ctx, "default");
     si_da_for(option->defaults, jt) {
       const spn_option_default_t* entry = &option->defaults[jt];

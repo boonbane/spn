@@ -7,7 +7,10 @@
 #define SP_INTERN_INVALID_ID 0
 
 typedef u32 sp_intern_id_t;
-typedef sp_str_t sp_intern_str_t;
+typedef struct {
+  sp_intern_id_t id;
+  sp_str_t str;
+} sp_intern_str_t;
 
 typedef u32 (*sp_intern_hash_fn_t)(sp_str_t str);
 
@@ -27,7 +30,6 @@ typedef struct {
 
 typedef struct sp_intern_t sp_intern_t;
 struct sp_intern_t {
-  sp_mem_t mem;
   sp_mem_arena_t* data;
   sp_intern_index_t index;
   sp_da(sp_str_t) by_id;

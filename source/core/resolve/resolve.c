@@ -443,7 +443,7 @@ static u32 find_or_create_scope(spn_resolver_t* resolver, spn_resolve_run_t* run
 
 static spn_err_union_t resolve_local_package(spn_resolver_t* resolver, spn_resolve_run_t* run, spn_resolved_pkg_t* from, spn_requested_dep_t* request) {
   spn_scope_t* scope = &run->scopes[run->scope];
-  sp_intern_id_t name = sp_intern_get_or_insert(resolver->intern, request->qualified);
+  sp_intern_id_t name = sp_intern(resolver->intern, request->qualified).id;
 
   if (sp_ht_getp(run->visited, name)) {
     return (spn_err_union_t) {
@@ -481,7 +481,7 @@ static spn_err_union_t resolve_local_package(spn_resolver_t* resolver, spn_resol
 
   spn_resolved_pkg_t node = {
     .id = {
-      .qualified = sp_intern_get_or_insert(resolver->intern, pkg->info->qualified),
+      .qualified = sp_intern(resolver->intern, pkg->info->qualified).id,
       .version = pkg->info->version,
     },
     .name = pkg->info->name,
@@ -528,7 +528,7 @@ static spn_err_union_t try_candidate(spn_resolver_t* resolver, spn_resolve_run_t
 
   spn_scope_t* scope = &run->scopes[run->scope];
   sp_str_t qualified = spn_pkg_name_to_qualified(release->id);
-  sp_intern_id_t name = sp_intern_get_or_insert(resolver->intern, qualified);
+  sp_intern_id_t name = sp_intern(resolver->intern, qualified).id;
 
   spn_resolved_pkg_t node = {
     .id = {
@@ -574,7 +574,7 @@ static spn_err_union_t try_candidate(spn_resolver_t* resolver, spn_resolve_run_t
 
 static spn_err_union_t resolve_index_package(spn_resolver_t* resolver, spn_resolve_run_t* run, spn_resolved_pkg_t* from, spn_requested_dep_t* request) {
   spn_scope_t* scope = &run->scopes[run->scope];
-  sp_intern_id_t name = sp_intern_get_or_insert(resolver->intern, request->qualified);
+  sp_intern_id_t name = sp_intern(resolver->intern, request->qualified).id;
 
   if (sp_ht_getp(run->visited, name)) {
     return (spn_err_union_t) {
@@ -924,7 +924,7 @@ static void process_boundaries(spn_resolver_t* resolver, spn_resolve_run_t* run)
 
     sp_intern_id_t root = boundary.edge == SPN_DEP_EDGE_PRIVATE ?
       boundary.from.qualified :
-      sp_intern_get_or_insert(resolver->intern, boundary.req.qualified);
+      sp_intern(resolver->intern, boundary.req.qualified).id;
     u32 target = find_or_create_scope(resolver, run, root, boundary.from);
 
     sp_da_push(run->edges, ((spn_scope_edge_t) {
@@ -998,7 +998,7 @@ static sp_da(spn_node_edge_t) collect_node_edges(spn_resolver_t* resolver, spn_r
       continue;
     }
 
-    sp_intern_id_t name = sp_intern_get_or_insert(resolver->intern, dep->qualified);
+    sp_intern_id_t name = sp_intern(resolver->intern, dep->qualified).id;
     u32 target_scope = scope_index;
     if (edge != SPN_DEP_EDGE_SCOPE) {
       spn_scope_t* found = find_scope(run, edge == SPN_DEP_EDGE_PRIVATE ? node->id.qualified : name, node->id);

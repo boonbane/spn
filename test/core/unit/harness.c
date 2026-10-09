@@ -51,7 +51,7 @@ spn_pkg_id_t find_pkg_id(spn_session_t* s, unit_graph_test_t* g, const c8* name)
     }
     if (sp_str_equal_cstr(sp_str_view(g->pkgs[it].name), name)) {
       return (spn_pkg_id_t) {
-        .qualified = sp_intern_get_or_insert(s->ctx->intern, sp_str_view(g->pkgs[it].name)),
+        .qualified = sp_intern(s->ctx->intern, sp_str_view(g->pkgs[it].name)).id,
         .hash = it + 1,
       };
     }
