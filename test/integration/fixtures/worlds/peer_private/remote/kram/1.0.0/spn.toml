@@ -9,4 +9,4 @@ spum = { version = "^1.0.0", peer = true, private = true }
 name = "kram"
 kinds = ["static"]
 source = ["kram.c"]
-headers = ["kram.h"]
+publish.include = [{ from = "source/kram.h" }]

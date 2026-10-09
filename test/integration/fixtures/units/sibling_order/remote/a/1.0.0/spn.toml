@@ -9,4 +9,4 @@ c = "^1.0.0"
 name = "a"
 kinds = ["static"]
 source = ["a.c"]
-headers = ["a.h"]
+publish.include = [{ from = "source/a.h" }]

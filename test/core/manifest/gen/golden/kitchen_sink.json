@@ -30,9 +30,6 @@
       "source": [
         "lib.c"
       ],
-      "headers": [
-        "everything.h"
-      ],
       "include": [
         "include"
       ],
@@ -45,7 +42,14 @@
       "deps": [
         "libfoo"
       ],
-      "link": true
+      "link": true,
+      "publish": {
+        "include": [
+          {
+            "from": "source/everything.h"
+          }
+        ]
+      }
     }
   },
   "bin": {

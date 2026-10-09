@@ -6,4 +6,4 @@ version = "1.0.0"
 name = "sdl"
 kinds = ["shared"]
 source = ["sdl.c"]
-headers = ["sdl.h"]
+publish.include = [{ from = "source/sdl.h" }]

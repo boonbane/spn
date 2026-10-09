@@ -20,4 +20,4 @@ public = true
 name = "codec"
 kinds = ["static"]
 source = ["codec.c"]
-headers = ["codec.h"]
+publish.include = [{ from = "source/codec.h" }]

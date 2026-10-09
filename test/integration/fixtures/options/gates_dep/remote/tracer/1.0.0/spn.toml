@@ -6,4 +6,4 @@ version = "1.0.0"
 name = "tracer"
 kinds = ["static"]
 source = ["tracer.c"]
-headers = ["tracer.h"]
+publish.include = [{ from = "source/tracer.h" }]

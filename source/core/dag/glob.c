@@ -65,29 +65,6 @@ spn_err_t spn_dag_glob(sp_mem_t mem, const spn_path_roots_t* roots, spn_path_t p
   result->matches = sp_da_new(mem, spn_dag_glob_match_t);
 
   sp_glob_meta_t glob = sp_glob_parse_meta(pattern.sub);
-  if (glob.literal) {
-    spn_dag_obs_t observation = sp_zero;
-
-    sp_path_t at = spn_path_at(roots, pattern);
-    sp_sys_file_meta_t file = sp_zero;
-    switch (sp_sys_get_path_metadata_s(at.dir, at.sub, &file)) {
-      case SP_OK: observation.kind = SPN_DAG_OBS_FILE; break;
-      case SP_ERR_SYS_NOT_FOUND: observation.kind = SPN_DAG_OBS_ABSENT; break;
-      default: return SPN_ERR_DAG_GLOB;
-    }
-
-    observation.path = spn_path_copy(mem, pattern);
-    sp_da_push(result->obs, observation);
-
-    if (file.kind == SP_FS_KIND_FILE) {
-      sp_da_push(result->matches, ((spn_dag_glob_match_t) {
-        .path = observation.path,
-        .rel = sp_str_suffix(observation.path.sub, (s32)glob.name.len)
-      }));
-    }
-    return SPN_OK;
-  }
-
   spn_dag_glob_it_t it = spn_dag_glob_it_new(mem, roots, pattern);
   sp_da_push(result->obs, ((spn_dag_obs_t) {
     .kind = SPN_DAG_OBS_ENUMERATION,

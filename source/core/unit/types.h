@@ -168,6 +168,7 @@ struct spn_pkg_unit_t {
     spn_path_t stamp;
     spn_path_t store;
     spn_path_t include;
+    spn_path_t share;
     spn_path_t lib;
     spn_path_t bin;
     spn_path_t vendor;

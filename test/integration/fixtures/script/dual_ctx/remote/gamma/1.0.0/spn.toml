@@ -5,4 +5,4 @@ version = "1.0.0"
 [[lib]]
 name = "gamma"
 kinds = ["source"]
-headers = ["gamma.h"]
+publish.include = [{ from = "source/gamma.h" }]

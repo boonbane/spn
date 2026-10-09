@@ -6,4 +6,4 @@ version = "1.5.0"
 name = "spum"
 kinds = ["static"]
 source = ["spum.c"]
-headers = ["spum.h"]
+publish.include = [{ from = "source/spum.h" }]

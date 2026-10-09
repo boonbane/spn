@@ -6,6 +6,6 @@ version = "1.0.0"
 name = "t"
 kinds = ["static", "shared"]
 source = ["a.c", { path = "b.c", tree = "manifest" }, { path = "c.c", tree = "source" }]
-headers = ["a.h", { path = "b.h", tree = "manifest" }]
+publish.include = [{ from = "source/a.h" }, { from = "manifest/b.h" }]
 include = [{ path = "inc", tree = "manifest" }]
 linker_script = [{ path = "a.ld", tree = "manifest" }]

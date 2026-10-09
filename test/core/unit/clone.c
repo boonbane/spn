@@ -30,9 +30,10 @@ sp_test_each(unit, clone, clone_test_t, tests, .setup = spn_test_ctx_setup) {
   si_da_push(mem, loaded->gated.system_deps, ((spn_gated_str_t) { .value = sp_str_lit("A") }));
   si_da_push(mem, loaded->gated.frameworks, ((spn_gated_str_t) { .value = sp_str_lit("A") }));
   si_da_push(mem, loaded->gated.include, ((spn_gated_path_t) { .path = sp_str_lit("A"), .tree = SPN_TREE_SOURCE }));
-  si_da_push(mem, loaded->gated.publish.copy, ((spn_publish_copy_t) { .tree = SPN_TREE_SOURCE, .pattern = sp_str_lit("A") }));
+  si_da_push(mem, loaded->gated.publish, ((spn_gated_publish_t) { .source = { .path = sp_str_lit("A"), .tree = SPN_TREE_SOURCE } }));
   si_da_push(mem, loaded_lib->gated.define, ((spn_gated_str_t) { .value = sp_str_lit("A") }));
   si_da_push(mem, loaded_lib->gated.frameworks, ((spn_gated_str_t) { .value = sp_str_lit("A") }));
+  si_da_push(mem, loaded_lib->gated.publish, ((spn_gated_publish_t) { .source = { .path = sp_str_lit("A"), .tree = SPN_TREE_SOURCE } }));
 
   sp_must_eq(t, SPN_OK, spn_units_add_packages(s));
 
@@ -44,19 +45,21 @@ sp_test_each(unit, clone, clone_test_t, tests, .setup = spn_test_ctx_setup) {
     sp_expect_eq(t, (u32)1, (u32)si_da_size(unit->info->system_deps));
     sp_expect_eq(t, (u32)1, (u32)si_da_size(unit->info->include));
     sp_expect_eq(t, (u32)1, (u32)si_da_size(unit->info->macos.frameworks));
-    sp_expect_eq(t, (u32)1, (u32)si_da_size(unit->info->publish.copy));
+    sp_expect_eq(t, (u32)1, (u32)si_da_size(unit->info->publish));
     spn_target_info_t* lib = spn_pkg_get_target(unit->info, sp_str_lit("L"), SPN_TARGET_KIND_LIB);
     sp_must(t, lib);
     sp_expect_eq(t, (u32)1, (u32)si_da_size(lib->define));
     sp_expect_eq(t, (u32)1, (u32)si_da_size(lib->macos.frameworks));
+    sp_expect_eq(t, (u32)1, (u32)si_da_size(lib->publish));
   }
 
   sp_expect_eq(t, (u32)0, (u32)si_da_size(loaded->define));
   sp_expect_eq(t, (u32)0, (u32)si_da_size(loaded->system_deps));
   sp_expect_eq(t, (u32)0, (u32)si_da_size(loaded->include));
   sp_expect_eq(t, (u32)0, (u32)si_da_size(loaded->macos.frameworks));
-  sp_expect_eq(t, (u32)0, (u32)si_da_size(loaded->publish.copy));
+  sp_expect_eq(t, (u32)0, (u32)si_da_size(loaded->publish));
   sp_expect_eq(t, (u32)0, (u32)si_da_size(loaded_lib->define));
   sp_expect_eq(t, (u32)0, (u32)si_da_size(loaded_lib->macos.frameworks));
+  sp_expect_eq(t, (u32)0, (u32)si_da_size(loaded_lib->publish));
   return SP_OK;
 }

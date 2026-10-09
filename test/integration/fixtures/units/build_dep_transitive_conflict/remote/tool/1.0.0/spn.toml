@@ -9,4 +9,4 @@ foo = "1.0.0"
 name = "tool"
 kinds = ["static"]
 source = ["tool.c"]
-headers = ["tool.h"]
+publish.include = [{ from = "source/tool.h" }]

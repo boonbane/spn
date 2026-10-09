@@ -9,4 +9,4 @@ foo = "1.0.0"
 name = "gfx"
 kinds = ["static"]
 source = ["gfx.c"]
-headers = ["gfx.h"]
+publish.include = [{ from = "source/gfx.h" }]

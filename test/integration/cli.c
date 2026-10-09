@@ -182,7 +182,7 @@ sp_test(cli, user_dir_index) {
         .kind = ACTION_CREATE_FILE,
         .create = {
           .file = sp_str_lit(".home/config/spn/index/A/spn.toml"),
-          .content = sp_str_lit("[package]\nname = \"A\"\nversion = \"1.0.0\"\n\n[[lib]]\nname = \"A\"\nkinds = [\"source\"]\nheaders = [\"A.h\"]\n"),
+          .content = sp_str_lit("[package]\nname = \"A\"\nversion = \"1.0.0\"\n\n[[lib]]\nname = \"A\"\nkinds = [\"source\"]\npublish.include = [{ from = \"source/A.h\" }]\n"),
         },
       },
       {
