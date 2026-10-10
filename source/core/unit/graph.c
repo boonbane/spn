@@ -1,11 +1,11 @@
 #include "unit/unit.h"
 
 #include "ctx/types.h"
+#include "intern/intern.h"
 #include "paths/paths.h"
 #include "pkg/options.h"
 #include "pkg/pkg.h"
 #include "session/session.h"
-#include "target/target.h"
 #include "when/when.h"
 
 static si_da(spn_path_t) clone_path_list(sp_mem_t mem, si_da(spn_path_t) source) {
@@ -37,7 +37,7 @@ static void clone_target_map(spn_target_map_t* result, spn_target_map_t source, 
   *result = sp_zero_struct(spn_target_map_t);
   si_om_for(source, it) {
     spn_target_info_t target = clone_target_info(mem, si_om_at(source, it));
-    si_om_insert(mem, *result, spn_target_key(target.name, target.kind), target);
+    si_om_insert(mem, *result, ((spn_target_key_t) { .name = spn_intern_id(target.name), .kind = target.kind }), target);
   }
 }
 
@@ -139,9 +139,10 @@ spn_err_t spn_units_add_packages(spn_session_t* s) {
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   sp_da(spn_pkg_unit_t*) pending = sp_da_new(scratch.mem, spn_pkg_unit_t*);
 
-  spn_pkg_id_t root = spn_session_root_pkg(s);
+  spn_pkg_id_t root = si_get_root_pkg(s);
   sp_da_for(s->plans.build, it) {
-    add_unit(s, s->plans.build[it].build, root, kind_bits(SPN_DEP_KIND_PACKAGE) | kind_bits(SPN_DEP_KIND_TEST), &pending);
+    spn_build_plan_t* plan = &s->plans.build[it];
+    plan->root = add_unit(s, plan->build, root, kind_bits(SPN_DEP_KIND_PACKAGE) | kind_bits(SPN_DEP_KIND_TEST), &pending);
   }
   drain(s, &pending);
 
@@ -169,7 +170,7 @@ spn_err_t spn_units_add_packages(spn_session_t* s) {
 
   sp_da_for(owners, it) {
     spn_pkg_id_t id = owners[it]->id.pkg;
-    if (!spn_session_find_pkg_unit(s, s->units.metaprogram, id)) {
+    if (!si_get_pkg_unit(s, s->units.metaprogram, id)) {
       add_unit(s, s->units.metaprogram, id, kind_bits(SPN_DEP_KIND_BUILD), &pending);
     }
   }
@@ -178,7 +179,7 @@ spn_err_t spn_units_add_packages(spn_session_t* s) {
   sp_om_for(s->units.packages, it) {
     spn_pkg_unit_t* unit = sp_om_at(s->units.packages, it);
     if (pkg_has_scripts(sp_ht_getp(s->packages, unit->id.pkg))) {
-      unit->metaprogram = spn_session_find_pkg_unit(s, s->units.metaprogram, unit->id.pkg);
+      unit->metaprogram = si_get_pkg_unit(s, s->units.metaprogram, unit->id.pkg);
       sp_assert(unit->metaprogram);
     }
   }

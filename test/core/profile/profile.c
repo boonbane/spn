@@ -865,7 +865,9 @@ sp_test_each(profile, resolve, test_t, tests, .setup = spn_test_ctx_setup) {
     si_om_insert(mem, pkg.profiles, spn_intern_id(decl.name), decl);
   }
   if (it->shared_demand) {
-    spn_pkg_add_target(mem, &pkg, sp_str_lit("L"), SPN_TARGET_KIND_LIB)->linkages = (spn_linkage_set_t) { .shared = true };
+    spn_target_info_t* lib = SP_NULLPTR;
+    sp_must_eq(t, SPN_OK, spn_pkg_add_target(mem, &pkg, sp_str_lit("L"), SPN_TARGET_KIND_LIB, &lib));
+    lib->linkages = (spn_linkage_set_t) { .shared = true };
   }
 
   spn_profile_info_t result = sp_zero;

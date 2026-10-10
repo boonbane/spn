@@ -157,7 +157,7 @@ sp_test_each(unit, walk, walk_test_t, tests, .setup = spn_test_ctx_setup) {
 
     spn_pkg_id_t id = find_pkg_id(s, &it->graph, expect->pkg);
     spn_build_unit_t* build = expect->build == WALK_TARGET ? s->units.target : s->units.metaprogram;
-    spn_pkg_unit_t* unit = spn_session_find_pkg_unit(s, build, id);
+    spn_pkg_unit_t* unit = si_get_pkg_unit(s, build, id);
     sp_must(t, unit != SP_NULLPTR);
     sp_expect_eq(t, expect->host, spn_pkg_unit_is_script_host(unit));
 
@@ -167,7 +167,7 @@ sp_test_each(unit, walk, walk_test_t, tests, .setup = spn_test_ctx_setup) {
     }
     else {
       sp_must(t, unit->metaprogram != SP_NULLPTR);
-      sp_expect(t, unit->metaprogram == spn_session_find_pkg_unit(s, s->units.metaprogram, id));
+      sp_expect(t, unit->metaprogram == si_get_pkg_unit(s, s->units.metaprogram, id));
       sp_expect(t, unit->metaprogram->metaprogram == unit->metaprogram);
     }
   }

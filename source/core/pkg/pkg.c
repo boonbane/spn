@@ -82,11 +82,8 @@ bool spn_pkg_has_lib_kind(spn_pkg_info_t* pkg, spn_linkage_t kind) {
 }
 
 spn_target_info_t* spn_pkg_get_target(spn_pkg_info_t* pkg, sp_str_t name, spn_target_kind_t kind) {
-  (void)pkg;
-  (void)name;
-  (void)kind;
-  SP_UNIMPLEMENTED();
-  return SP_NULLPTR;
+  spn_target_key_t key = { .name = spn_intern_id(name), .kind = kind };
+  return si_om_get(pkg->targets, key);
 }
 
 spn_pkg_root_t spn_pkg_upstream(spn_pkg_info_t* info) {
