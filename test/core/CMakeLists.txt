@@ -227,7 +227,6 @@ add_executable(core
   ${UTIL}/array/array.c
   ${UTIL}/hash_table/hash_table.c
   ${SRC}/target/mutate.c
-  ${SRC}/target/target.c
   ${SRC}/target/select.c
   ${UTIL}/thread_pool/thread_pool.c
   ${SRC}/toml/edit.c

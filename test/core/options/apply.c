@@ -440,10 +440,14 @@ sp_test_each(options_apply, lists, apply_test_t, list_tests, .setup = spn_test_c
   sp_mem_t mem = sp_test_arena(t);
 
   spn_pkg_info_t info = spn_pkg_new(sp_str_lit("P"));
-  spn_target_info_t* lib = spn_pkg_add_target(mem, &info, sp_str_lit("A"), SPN_TARGET_KIND_LIB);
-  spn_target_info_t* exe = spn_pkg_add_target(mem, &info, sp_str_lit("main"), SPN_TARGET_KIND_EXE);
-  spn_target_info_t* script = spn_pkg_add_target(mem, &info, sp_str_lit("B"), SPN_TARGET_KIND_SCRIPT);
-  spn_target_info_t* unit_test = spn_pkg_add_target(mem, &info, sp_str_lit("C"), SPN_TARGET_KIND_TEST);
+  spn_target_info_t* lib = SP_NULLPTR;
+  spn_target_info_t* exe = SP_NULLPTR;
+  spn_target_info_t* script = SP_NULLPTR;
+  spn_target_info_t* unit_test = SP_NULLPTR;
+  sp_must_eq(t, SPN_OK, spn_pkg_add_target(mem, &info, sp_str_lit("A"), SPN_TARGET_KIND_LIB, &lib));
+  sp_must_eq(t, SPN_OK, spn_pkg_add_target(mem, &info, sp_str_lit("main"), SPN_TARGET_KIND_EXE, &exe));
+  sp_must_eq(t, SPN_OK, spn_pkg_add_target(mem, &info, sp_str_lit("B"), SPN_TARGET_KIND_SCRIPT, &script));
+  sp_must_eq(t, SPN_OK, spn_pkg_add_target(mem, &info, sp_str_lit("C"), SPN_TARGET_KIND_TEST, &unit_test));
 
   struct {
     apply_list_t test;
@@ -731,7 +735,8 @@ static const apply_embed_test_t embed_tests [] = {
 sp_test_each(options_apply, target_embeds, apply_embed_test_t, embed_tests, .setup = spn_test_ctx_setup) {
   sp_mem_t mem = sp_test_arena(t);
   spn_pkg_info_t info = spn_pkg_new(sp_str_lit("P"));
-  spn_target_info_t* exe = spn_pkg_add_target(mem, &info, sp_str_lit("main"), SPN_TARGET_KIND_EXE);
+  spn_target_info_t* exe = SP_NULLPTR;
+  sp_must_eq(t, SPN_OK, spn_pkg_add_target(mem, &info, sp_str_lit("main"), SPN_TARGET_KIND_EXE, &exe));
   sp_carr_for(it->embeds, et) {
     if (!it->embeds[et].dest) {
       break;

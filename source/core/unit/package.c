@@ -25,20 +25,6 @@ spn_user_output_t spn_pkg_unit_node_stamp(spn_pkg_unit_t* ctx, spn_user_node_t* 
   };
 }
 
-bool spn_pkg_unit_publishes_target(spn_pkg_unit_t* unit, const spn_target_info_t* target) {
-  (void)unit;
-  (void)target;
-  SP_UNIMPLEMENTED();
-  return false;
-}
-
-spn_err_t spn_pkg_unit_publish_headers(spn_pkg_unit_t* unit, spn_path_t root) {
-  (void)unit;
-  (void)root;
-  SP_UNIMPLEMENTED();
-  return SPN_ERROR;
-}
-
 // @spader I think this is wrong; it's called in four places and deduplicated with an atomic,
 // but really we just want to add one graph node to log before anything in a package is compiled.
 // I think of of the existing nodes would even suffice for this.

@@ -119,8 +119,8 @@ static spn_invocation_t render_archive_invocation(sp_mem_t mem, spn_target_unit_
   return invocation;
 }
 
-spn_err_t spn_dag_exec_archive(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs) {
-  spn_dag_target_ctx_t* ctx = (spn_dag_target_ctx_t*)user_data;
+spn_err_t si_on_archive(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs) {
+  si_link_t* ctx = (si_link_t*)user_data;
 
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   spn_invocation_t invocation = render_archive_invocation(scratch.mem, ctx->target, ctx->objects, outputs[0]);
@@ -129,8 +129,8 @@ spn_err_t spn_dag_exec_archive(spn_dag_t* g, spn_dag_action_t* action, void* use
   return result ? SPN_ERR_DAG_ACTION : SPN_OK;
 }
 
-spn_err_t spn_dag_exec_link(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs) {
-  spn_dag_target_ctx_t* ctx = (spn_dag_target_ctx_t*)user_data;
+spn_err_t si_on_link(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs) {
+  si_link_t* ctx = (si_link_t*)user_data;
   spn_target_unit_t* target = ctx->target;
   spn_build_unit_t* build = target->pkg->build;
   spn_cc_t* cc = &build->toolchain->cc;
@@ -209,8 +209,8 @@ static spn_err_t write_exports(sp_mem_t mem, const spn_path_roots_t* roots, spn_
   return SPN_OK;
 }
 
-spn_err_t on_write_exports(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs) {
-  spn_dag_target_ctx_t* ctx = (spn_dag_target_ctx_t*)user_data;
+spn_err_t si_on_write_exports(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs) {
+  si_link_t* ctx = (si_link_t*)user_data;
 
   spn_pkg_unit_announce_compile(ctx->target->pkg);
 

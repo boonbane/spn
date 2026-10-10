@@ -8,7 +8,6 @@
 #include "enum/enum.h"
 #include "intern/intern.h"
 #include "pkg/mutate.h"
-#include "target/target.h"
 
 void spn_pkg_init(spn_pkg_info_t* pkg, sp_str_t name) {
   pkg->name = spn_intern(name);
@@ -66,11 +65,14 @@ void spn_pkg_add_system_dep_ex(sp_mem_t mem, spn_pkg_info_t* pkg, sp_str_t dep) 
   si_da_push(mem, pkg->system_deps, sp_str_copy(mem, dep));
 }
 
-spn_target_info_t* spn_pkg_add_target(sp_mem_t mem, spn_pkg_info_t* pkg, sp_str_t name, spn_target_kind_t kind) {
-  (void)mem;
-  (void)pkg;
-  (void)name;
-  (void)kind;
-  SP_UNIMPLEMENTED();
-  return SP_NULLPTR;
+spn_err_t spn_pkg_add_target(sp_mem_t mem, spn_pkg_info_t* pkg, sp_str_t name, spn_target_kind_t kind, spn_target_info_t** out) {
+  spn_target_key_t key = { .name = spn_intern_id(name), .kind = kind };
+  // @spader Yeah, this double hashes, but I don't care
+  if (si_om_has(pkg->targets, key)) {
+    return SPN_ERR_TARGET_DUPLICATE;
+  }
+
+  si_om_insert(mem, pkg->targets, key, ((spn_target_info_t) { .name = spn_intern_str(key.name), .kind = kind }));
+  *out = si_om_back(pkg->targets);
+  return SPN_OK;
 }

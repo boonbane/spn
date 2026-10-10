@@ -15,7 +15,8 @@ static spn_pkg_info_t make_pkg(sp_mem_t mem) {
   pkg.macos.min_os = (spn_os_version_t) { .major = 12 };
   si_da_push(mem, pkg.gated.frameworks, ((spn_gated_str_t) { .value = sp_str_lit("A") }));
 
-  spn_target_info_t* bin = spn_pkg_add_target(mem, &pkg, sp_str_lit("A"), SPN_TARGET_KIND_EXE);
+  spn_target_info_t* bin = SP_NULLPTR;
+  spn_pkg_add_target(mem, &pkg, sp_str_lit("A"), SPN_TARGET_KIND_EXE, &bin);
   si_da_push(mem, bin->gated.frameworks, ((spn_gated_str_t) { .value = sp_str_lit("B") }));
   bin->windows.subsystem = SPN_WIN_SUBSYSTEM_WINDOWS;
 
@@ -144,5 +145,52 @@ sp_test_each(pkg, patch_stamp, stamp_test_t, stamp_tests) {
     sp_expect_eq(t, it->expect.hash, source.git.patches.hash);
   }
 
+  return SP_OK;
+}
+
+typedef struct {
+  const c8* name;
+  spn_target_kind_t kind;
+} target_ref_t;
+
+typedef struct {
+  const c8* name;
+  target_ref_t add [2];
+  target_ref_t get;
+  struct {
+    spn_err_t err;
+    bool found;
+  } expect;
+} targets_test_t;
+
+static const targets_test_t targets_tests [] = {
+  { .name = "add_distinct_names",           .add = { { "A", SPN_TARGET_KIND_EXE }, { "B", SPN_TARGET_KIND_EXE } }, .get = { "B", SPN_TARGET_KIND_EXE }, .expect = { .found = true } },
+  { .name = "add_same_name_distinct_kinds", .add = { { "A" }, { "A", SPN_TARGET_KIND_EXE } },                      .get = { "A", SPN_TARGET_KIND_EXE }, .expect = { .found = true } },
+  { .name = "reject_duplicate",             .add = { { "A", SPN_TARGET_KIND_EXE }, { "A", SPN_TARGET_KIND_EXE } }, .expect = { .err = SPN_ERR_TARGET_DUPLICATE } },
+  { .name = "get_missing_kind",             .add = { { "A" } },                                                     .get = { "A", SPN_TARGET_KIND_EXE } },
+  { .name = "get_missing_name",             .add = { { "A" } },                                                     .get = { "B" } },
+};
+
+sp_test_each(pkg, targets, targets_test_t, targets_tests, .setup = spn_test_ctx_setup) {
+  sp_mem_t mem = sp_test_arena(t);
+  spn_pkg_info_t pkg = sp_zero;
+
+  spn_err_t err = SPN_OK;
+  sp_carr_for(it->add, at) {
+    if (!it->add[at].name) break;
+    spn_target_info_t* added = SP_NULLPTR;
+    err = spn_pkg_add_target(mem, &pkg, sp_str_view(it->add[at].name), it->add[at].kind, &added);
+  }
+  sp_expect_eq(t, (u32)it->expect.err, (u32)err);
+
+  if (!it->get.name) {
+    return SP_OK;
+  }
+  spn_target_info_t* found = spn_pkg_get_target(&pkg, sp_str_view(it->get.name), it->get.kind);
+  sp_must_eq(t, it->expect.found, found != SP_NULLPTR);
+  if (found) {
+    sp_expect_str_eq_c(t, found->name, it->get.name);
+    sp_expect_eq(t, (u32)it->get.kind, (u32)found->kind);
+  }
   return SP_OK;
 }

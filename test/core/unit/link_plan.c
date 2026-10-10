@@ -1,7 +1,6 @@
 #include "unit.h"
 
 #include "pkg/mutate.h"
-#include "target/target.h"
 #include "session/session.h"
 
 sp_test_suite(link_plan, .serial = true);
@@ -261,14 +260,17 @@ sp_test_each(link_plan, plan, plan_test_t, tests, .setup = spn_test_ctx_setup) {
   spn_session_t* s = build_session(mem, &it->graph);
 
   spn_loaded_pkg_t* loaded = sp_ht_getp(s->packages, find_pkg_id(s, &it->graph, it->graph.pkgs[0].name));
-  target_info(mem, loaded->roots, &it->target, spn_pkg_add_target(s->mem, s->pkg, sp_str_lit("app"), it->target.kind));
+  spn_target_info_t* info = SP_NULLPTR;
+  sp_must_eq(t, SPN_OK, spn_pkg_add_target(s->mem, s->pkg, sp_str_lit("app"), it->target.kind, &info));
+  target_info(mem, loaded->roots, &it->target, info);
+  si_da_push(s->mem, s->plans.build[0].roots, ((spn_target_key_t) { .name = spn_intern(sp_str_lit("app")).id, .kind = it->target.kind }));
 
   sp_must_eq(t, SPN_OK, spn_units_add_packages(s));
   sp_must_eq(t, SPN_OK, spn_units_add_targets(s, SPN_UNIT_SCOPE_TARGET));
 
-  spn_pkg_unit_t* root = spn_session_find_pkg_unit(s, s->units.target, find_pkg_id(s, &it->graph, it->graph.pkgs[0].name));
+  spn_pkg_unit_t* root = si_get_pkg_unit(s, s->units.target, find_pkg_id(s, &it->graph, it->graph.pkgs[0].name));
   sp_must(t, root != SP_NULLPTR);
-  spn_target_unit_t* app = spn_session_find_target_in_pkg(s, root, spn_target_key(sp_str_lit("app"), it->target.kind));
+  spn_target_unit_t* app = spn_session_find_target_in_pkg(s, root, ((spn_target_key_t) { .name = spn_intern_id(sp_str_lit("app")), .kind = it->target.kind }));
   sp_must(t, app != SP_NULLPTR);
 
   spn_link_plan_t* plan = &spn_session_get_target_plan(s, app->id)->link;
