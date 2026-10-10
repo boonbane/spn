@@ -18,7 +18,7 @@ s32 spn_run_ex(spn_t* ctx, spn_run_t run) {
           .pkg = unit->info->name,
           .api_call = {
               .fn = sp_str_lit("spn_run_ex"),
-              .args = run.target ? sp_str_copy(spn.mem, run.target->info->name)
+              .args = run.target ? sp_str_copy(spn.mem, run.target->info->name.str)
                                  : sp_zero_s(sp_str_t),
           }});
 

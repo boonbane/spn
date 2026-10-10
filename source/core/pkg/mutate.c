@@ -1,3 +1,4 @@
+#include "intern/types.h"
 #include "sp.h"
 #include "spn/core.h"
 #include "index/types.h"
@@ -10,7 +11,7 @@
 #include "pkg/mutate.h"
 
 void spn_pkg_init(spn_pkg_info_t* pkg, sp_str_t name) {
-  pkg->name = spn_intern(name);
+  pkg->name = spn_intern(name).str;
 }
 
 void spn_pkg_set_name(spn_pkg_info_t* pkg, const c8* name) {
@@ -18,7 +19,7 @@ void spn_pkg_set_name(spn_pkg_info_t* pkg, const c8* name) {
 }
 
 void spn_pkg_set_name_ex(spn_pkg_info_t* pkg, sp_str_t name) {
-  pkg->name = spn_intern(name);
+  pkg->name = spn_intern(name).str;
 }
 
 void spn_pkg_set_repo(sp_mem_t mem, spn_pkg_info_t* pkg, const c8* repo) {
@@ -66,13 +67,17 @@ void spn_pkg_add_system_dep_ex(sp_mem_t mem, spn_pkg_info_t* pkg, sp_str_t dep) 
 }
 
 spn_err_t spn_pkg_add_target(sp_mem_t mem, spn_pkg_info_t* pkg, sp_str_t name, spn_target_kind_t kind, spn_target_info_t** out) {
-  spn_target_key_t key = { .name = spn_intern_id(name), .kind = kind };
-  // @spader Yeah, this double hashes, but I don't care
-  if (si_om_has(pkg->targets, key)) {
+  sp_intern_str_t interned = spn_intern(name);
+  spn_target_id_t id = { .name = interned.id, .kind = kind };
+  if (si_om_has(pkg->targets, id)) {
     return SPN_ERR_TARGET_DUPLICATE;
   }
 
-  si_om_insert(mem, pkg->targets, key, ((spn_target_info_t) { .name = spn_intern_str(key.name), .kind = kind }));
+  si_om_insert(mem, pkg->targets, id, ((spn_target_info_t) {
+    .id = id,
+    .name = interned,
+    .kind = kind
+  }));
   *out = si_om_back(pkg->targets);
   return SPN_OK;
 }

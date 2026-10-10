@@ -23,6 +23,7 @@ spn_toolchain_launcher_t spn_toolchain_launcher_with_root(sp_mem_t mem, spn_tool
 spn_err_t                spn_toolchain_generation(sp_mem_t mem, const spn_path_roots_t* roots, spn_path_t cache, sp_hash_t* generation);
 bool                     spn_toolchain_has_cxx(spn_toolchain_info_t* toolchain);
 spn_wasi_spelling_t      spn_toolchain_wasi_spelling(const spn_path_roots_t* roots, sp_mem_t mem, const spn_toolchain_info_t* toolchain);
+spn_toolchain_ref_kind_t spn_toolchain_ref_kind(sp_str_t str);
 spn_toolchain_ref_t      spn_toolchain_ref_from_str(sp_str_t str);
 
 #endif

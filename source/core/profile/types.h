@@ -2,11 +2,15 @@
 #define SPN_PROFILE_TYPES_H
 
 #include "core/types.h"
+#include "intern/types.h"
 #include "toolchain/types.h"
 #include "when/types.h"
 
+typedef sp_intern_id_t spn_profile_id_t;
+
 struct spn_profile_info {
-  sp_str_t name;
+  spn_profile_id_t id;
+  sp_intern_str_t name;
   spn_toolchain_ref_t toolchain;
   spn_cc_driver_t driver;
   spn_ld_family_t linker;
@@ -27,7 +31,8 @@ struct spn_profile_info {
 };
 
 typedef struct {
-  sp_str_t name;
+  spn_profile_id_t id;
+  sp_intern_str_t name;
   spn_os_t os;
   spn_arch_t arch;
   spn_gated_list_t toolchain;

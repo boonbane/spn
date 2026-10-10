@@ -7,6 +7,8 @@
 #include "core/types.h"
 #include "paths/types.h"
 #include "sp_om/sp_om.h"
+#include "intern/types.h"
+#include "ordered_map.h"
 
 typedef enum {
   SPN_CC_CAP_TARGET_TRIPLE  = 1 << 0,
@@ -147,8 +149,11 @@ typedef struct {
   };
 } spn_toolchain_support_t;
 
+typedef sp_intern_id_t spn_toolchain_id_t;
+
 typedef struct {
-  sp_str_t name;
+  spn_toolchain_id_t id;
+  sp_intern_str_t name;
   sp_str_t version;
   spn_cc_driver_t driver;
   spn_toolchain_launcher_t compiler;
@@ -166,7 +171,8 @@ typedef struct {
 } spn_toolchain_decl_t;
 
 typedef struct {
-  sp_str_t name;
+  spn_toolchain_id_t id;
+  sp_intern_str_t name;
   sp_str_t version;
   spn_cc_driver_t driver;
   spn_toolchain_launcher_t compiler;
@@ -184,7 +190,7 @@ struct spn_toolchain_catalog_t {
   sp_mem_t mem;
   spn_triple_t host;
   spn_sdk_host_t sdks;
-  sp_str_om(spn_toolchain_info_t) entries;
+  si_om(spn_toolchain_id_t, spn_toolchain_info_t) entries;
 };
 
 typedef struct {
@@ -200,7 +206,8 @@ typedef enum {
 
 typedef struct {
   spn_toolchain_ref_kind_t kind;
-  sp_str_t name;
+  spn_toolchain_id_t id;
+  sp_intern_str_t name;
 } spn_toolchain_ref_t;
 
 typedef struct {

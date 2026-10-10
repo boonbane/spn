@@ -316,7 +316,7 @@ static sp_str_t search_path(sp_mem_t mem, sp_str_t root, const c8* const* dirs) 
 
 static spn_cc_t make_cc(sp_mem_t mem, sp_str_t root, const test_t* it) {
   spn_cc_t cc = {
-    .name = sp_str_lit("A"),
+    .name = spn_intern(sp_str_lit("A")),
     .driver = SPN_CC_DRIVER_CLANG,
     .compiler = launcher(mem, root, it->programs.compiler, "cc"),
     .archiver = launcher(mem, root, it->programs.archiver, "ar"),

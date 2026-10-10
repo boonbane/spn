@@ -101,16 +101,17 @@ SPN_PACK_PUSH
 typedef struct {
   sp_intern_id_t name;
   spn_target_kind_t kind;
-} spn_target_key_t;
+} spn_target_id_t;
 SPN_PACK_POP
 
 _Static_assert(
-  sizeof(spn_target_key_t) == sizeof(sp_intern_id_t) + sizeof(spn_target_kind_t),
-  "spn_target_key_t is byte-hashed as a key; it must have no padding"
+  sizeof(spn_target_id_t) == sizeof(sp_intern_id_t) + sizeof(spn_target_kind_t),
+  "spn_target_id_t is byte-hashed as a key; it must have no padding"
 );
 
 struct spn_target_info {
-  sp_str_t name;
+  spn_target_id_t id;
+  sp_intern_str_t name;
   spn_target_kind_t kind;
   spn_linkage_set_t linkages;
   bool no_link; // @spader A hack for libtcc1.a (building an unlinked library)
@@ -150,6 +151,6 @@ struct spn_target_info {
   } gated;
 };
 
-typedef si_om(spn_target_key_t, spn_target_info_t) spn_target_map_t;
+typedef si_om(spn_target_id_t, spn_target_info_t) spn_target_map_t;
 
 #endif

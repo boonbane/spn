@@ -169,7 +169,7 @@ static const flags_test_t tests [] = {
   },
 };
 
-sp_test_each(render_flags, resolve, flags_test_t, tests) {
+sp_test_each(render_flags, resolve, flags_test_t, tests, .setup = spn_test_ctx_setup) {
   sp_mem_t mem = sp_test_arena(t);
   spn_cc_t toolchain = test_toolchain(it->driver);
 

@@ -4,8 +4,8 @@
 #include "toml/loader.h"
 #include "intern/intern.h"
 
-lanes_read_t lanes_read(sp_mem_t mem, sp_str_t path, lanes_t* lanes) {
-  *lanes = (lanes_t) { .mem = mem, .intern = sp_intern_new(mem), .path = path };
+lanes_read_t lanes_read(sp_mem_t mem, sp_intern_t* intern, sp_str_t path, lanes_t* lanes) {
+  *lanes = (lanes_t) { .mem = mem, .intern = intern, .path = path };
   if (sp_io_read_file(mem, path, &lanes->text)) {
     return LANES_READ_UNREADABLE;
   }

@@ -146,7 +146,7 @@ static spn_err_t probe_missing(const spn_cc_t* cc, const spn_path_roots_t* roots
   return spn_err_emit(&spn, (spn_err_union_t) {
     .kind = SPN_ERR_TOOLCHAIN_MISSING,
     .program = {
-      .name = cc->name,
+      .name = cc->name.str,
       .program = spn_arg_str(roots, mem, program),
     },
   });

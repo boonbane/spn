@@ -41,6 +41,7 @@ typedef enum {
 
 typedef struct {
   sp_mem_t mem;
+  sp_intern_t* intern;
   sp_template_registry_t* templates;
   lanes_t builtin;
   lanes_t lanes;

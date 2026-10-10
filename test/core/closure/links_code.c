@@ -36,7 +36,7 @@ static const test_t tests [] = {
   },
 };
 
-sp_test_each(links_code, mark, test_t, tests) {
+sp_test_each(links_code, mark, test_t, tests, .setup = spn_test_ctx_setup) {
   closure_graph_t g = build_graph(&it->graph);
 
   sp_da(spn_closure_entry_t) closure = si_link_get_target_closure(g.mem, g.root);

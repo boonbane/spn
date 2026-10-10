@@ -43,7 +43,7 @@ spn_err_t si_on_zig_warmup(spn_dag_t* g, spn_dag_action_t* action, void* user_da
   spn_event_buffer_push(spn.events, (spn_event_t) {
     .kind = SPN_EVENT_WARM_START,
     .warm = {
-      .toolchain = cc->name,
+      .toolchain = cc->name.str,
       .triple = warm->triple,
       .stub = warm->name,
     },
@@ -73,7 +73,7 @@ spn_err_t si_on_zig_warmup(spn_dag_t* g, spn_dag_action_t* action, void* user_da
     spn_event_buffer_push(spn.events, (spn_event_t) {
       .kind = SPN_EVENT_WARM_FAILED,
       .warm_failed = {
-        .toolchain = cc->name,
+        .toolchain = cc->name.str,
         .triple = warm->triple,
         .stub = warm->name,
         .rc = run.result.status.exit_code,

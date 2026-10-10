@@ -92,11 +92,12 @@ bool spn_toml_loader_issue_at(spn_toml_loader_t* ctx, spn_err_t code, sp_str_t d
 }
 
 sp_str_t spn_toml_loader_intern(spn_toml_loader_t* ctx, sp_str_t value) {
-  return sp_intern_get_or_insert_str(ctx->intern, value);
+  return sp_intern(ctx->intern, value).str;
 }
 
 sp_str_t spn_toml_loader_intern_value(spn_toml_loader_t* ctx, toml_value_t value) {
-  sp_str_t interned = sp_intern_get_or_insert_str(ctx->intern, sp_str(value.u.s, (u32)value.u.sl));
+  sp_str_t str = sp_str(value.u.s, (u32)value.u.sl);
+  sp_str_t interned = sp_intern(ctx->intern, str).str;
   free(value.u.s);
   return interned;
 }

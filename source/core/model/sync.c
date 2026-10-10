@@ -72,7 +72,7 @@ static spn_err_t setup_local(spn_toolchain_store_t* store, spn_toolchain_unit_t*
   spn_event_buffer_push(spn.events, (spn_event_t) {
     .kind = SPN_EVENT_SYNC_PACKAGE,
     .sync_pkg = {
-      .name = toolchain->name,
+      .name = toolchain->name.str,
       .time = sp_tm_read_timer(&timer),
     }
   });
@@ -91,10 +91,10 @@ static spn_err_t setup_artifact(spn_toolchain_store_t* store, spn_toolchain_unit
     spn_event_buffer_push(spn.events, (spn_event_t) {
       .kind = SPN_EVENT_SYNC,
       .sync = {
-        .name = toolchain->name,
+        .name = toolchain->name.str,
         .url = url,
       }});
-    spn_try(spn_toolchain_provision(store, toolchain->name, artifact));
+    spn_try(spn_toolchain_provision(store, toolchain->name.str, artifact));
   }
 
   spn_toolchain_launcher_t cxx = toolchain->cxx;
@@ -113,7 +113,7 @@ static spn_err_t setup_artifact(spn_toolchain_store_t* store, spn_toolchain_unit
   spn_event_buffer_push(spn.events, (spn_event_t) {
     .kind = SPN_EVENT_SYNC_PACKAGE,
     .sync_pkg = {
-      .name = toolchain->name,
+      .name = toolchain->name.str,
       .url = url,
       .source_path = spn_path_str(store->roots, spn.mem, root),
       .time = sp_tm_read_timer(&timer),
@@ -373,7 +373,7 @@ static spn_err_t stamp_patches(spn_session_t* session, spn_resolved_pkg_t* pkg, 
 static spn_err_t load_package(spn_session_t* session, spn_resolved_pkg_t* pkg, spn_loaded_pkg_t* loaded) {
   sp_tm_timer_t timer = sp_tm_start_timer();
   bool fetched = false;
-  sp_str_t qualified = spn_intern_str(pkg->id.qualified);
+  sp_str_t qualified = spn_intern_find(pkg->id.qualified);
 
   loaded->source = pkg->source;
 
@@ -394,7 +394,7 @@ static spn_err_t load_package(spn_session_t* session, spn_resolved_pkg_t* pkg, s
   }
 
   spn_when_env_t facts = sp_zero;
-  spn_when_env_from_profile(spn.mem, &session->profile, &facts);
+  spn_when_env_from_profile(spn.mem, &session->units.target->profile, &facts);
 
   loaded->build = loaded->info->build;
   loaded->build.source = SP_NULLPTR;
@@ -500,7 +500,7 @@ static spn_err_t check_unused_patches(spn_session_t* session) {
 
     bool used = false;
     sp_ht_for_kv(session->resolve, jt) {
-      if (sp_str_equal(spn_intern_str(jt.key->qualified), qualified)) {
+      if (sp_str_equal(spn_intern_find(jt.key->qualified), qualified)) {
         used = true;
         break;
       }

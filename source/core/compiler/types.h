@@ -36,7 +36,7 @@ typedef enum {
 } spn_cc_depfile_t;
 
 typedef struct {
-  sp_str_t name;
+  sp_intern_str_t name;
   spn_cc_driver_t driver;
   spn_toolchain_launcher_t compiler;
   spn_toolchain_launcher_t cxx;

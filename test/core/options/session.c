@@ -23,7 +23,7 @@ sp_test_suite(options_session, .serial = true);
 
 static spn_pkg_id_t make_id(sp_intern_t* intern, const c8* qualified) {
   return (spn_pkg_id_t) {
-    .qualified = sp_intern_get_or_insert(intern, sp_cstr_as_str(qualified)),
+    .qualified = sp_intern(intern, sp_cstr_as_str(qualified)).id,
   };
 }
 
@@ -103,12 +103,15 @@ sp_test_each(options_session, apply, session_test_t, tests, .setup = spn_test_ct
     .info = &root,
   };
 
+  spn_build_unit_t target = {
+    .profile = { .os = SPN_OS_LINUX },
+  };
   spn_session_t session = {
     .ctx = &spn,
     .mem = mem,
     .pkg = &root,
     .gates = { .resolves = it->resolves },
-    .profile = { .os = SPN_OS_LINUX },
+    .units = { .target = &target },
   };
   sp_ht_init(mem, session.resolve);
   sp_ht_init(mem, session.packages);

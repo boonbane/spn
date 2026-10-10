@@ -38,10 +38,10 @@ static const ref_test_t ref_tests [] = {
   { .name = "anything_else_is_named", .str = "A", .expect = { .kind = SPN_TOOLCHAIN_REF_NAMED, .name = "A" } },
 };
 
-sp_test_each(launcher, ref, ref_test_t, ref_tests) {
+sp_test_each(launcher, ref, ref_test_t, ref_tests, .setup = spn_test_ctx_setup) {
   spn_toolchain_ref_t ref = spn_toolchain_ref_from_str(sp_cstr_as_str(it->str));
   sp_expect_eq(t, (u32)it->expect.kind, (u32)ref.kind);
-  sp_expect_str_eq_c(t, ref.name, it->expect.name);
+  sp_expect_str_eq_c(t, ref.name.str, it->expect.name);
   return SP_OK;
 }
 

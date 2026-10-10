@@ -1807,7 +1807,7 @@ sp_test_each(lower, cases, test_t, tests, .setup = spn_test_ctx_setup) {
     option_t expected = it->options[o];
     if (!expected.name) break;
 
-    spn_option_info_t** slot = si_om_getp(pkg.options, sp_intern_get_or_insert(interner, sp_str_view(expected.name)));
+    spn_option_info_t** slot = si_om_getp(pkg.options, sp_intern(interner, sp_str_view(expected.name)).id);
     sp_must(t, slot);
     spn_option_info_t* option = *slot;
     sp_expect_str_eq_c(t, option->name, expected.name);
@@ -1831,7 +1831,7 @@ sp_test_each(lower, cases, test_t, tests, .setup = spn_test_ctx_setup) {
     toolchain_t expected = it->toolchains[c];
     if (!expected.name) break;
 
-    spn_toolchain_decl_t* tc = si_om_get(pkg.toolchains, sp_intern_get_or_insert(interner, sp_str_view(expected.name)));
+    spn_toolchain_decl_t* tc = si_om_get(pkg.toolchains, sp_intern(interner, sp_str_view(expected.name)).id);
     sp_must(t, tc);
 
     if (expected.url)      sp_expect_str_eq_c(t, tc->hosts[0].artifact.url, expected.url);
@@ -1873,9 +1873,9 @@ sp_test_each(lower, cases, test_t, tests, .setup = spn_test_ctx_setup) {
     profile_t expected = it->profiles[pr];
     if (!expected.name) break;
 
-    spn_profile_decl_t* p = si_om_get(pkg.profiles, sp_intern_get_or_insert(interner, sp_str_view(expected.name)));
+    spn_profile_decl_t* p = si_om_get(pkg.profiles, sp_intern(interner, sp_str_view(expected.name)).id);
     sp_must(t, p);
-    sp_expect_str_eq_c(t, p->name, expected.name);
+    sp_expect_str_eq_c(t, p->name.str, expected.name);
     check_gated(t, p->toolchain, expected.toolchain);
     check_gated(t, p->linkage, expected.linkage);
     check_gated(t, p->standard, expected.standard);
@@ -1894,7 +1894,7 @@ sp_test_each(lower, cases, test_t, tests, .setup = spn_test_ctx_setup) {
     index_t expected = it->indexes[x];
     if (!expected.name) break;
 
-    spn_index_info_t* idx = si_om_get(pkg.indexes, sp_intern_get_or_insert(interner, sp_str_view(expected.name)));
+    spn_index_info_t* idx = si_om_get(pkg.indexes, sp_intern(interner, sp_str_view(expected.name)).id);
     sp_must(t, idx);
     if (expected.url) sp_expect_str_eq_c(t, idx->protocol == SPN_INDEX_PROTOCOL_HTTP ? idx->http.url : idx->git.url, expected.url);
     if (expected.path) sp_expect_str_eq(t, idx->dir.path.sub, sp_fs_join_path(mem, ctx.dir.sub, sp_cstr_as_str(expected.path)));

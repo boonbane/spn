@@ -150,10 +150,10 @@ sp_intern_t* sp_fuzz_perturbed_intern(sp_fuzz_prng_t* prng, sp_da(sp_str_t) name
   u32 junk = 0;
   sp_da_for(shuffled, it) {
     while (sp_fuzz_chance(prng, 1, 2)) {
-      sp_intern_get_or_insert(intern, sp_fmt(scratch.mem, "#{}", sp_fmt_uint(junk++)).value);
+      sp_intern(intern, sp_fmt(scratch.mem, "#{}", sp_fmt_uint(junk++)).value);
     }
     if (sp_fuzz_chance(prng, 1, 2)) {
-      sp_intern_get_or_insert(intern, shuffled[it]);
+      sp_intern(intern, shuffled[it]);
     }
   }
 

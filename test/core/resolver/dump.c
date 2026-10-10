@@ -30,7 +30,7 @@ static sp_str_t dump_hash_str(sp_mem_t mem, sp_hash_t hash) {
 }
 
 static spn_dump_key_t dump_key(sp_intern_t* intern, spn_pkg_id_t id) {
-  spn_pkg_name_t name = spn_pkg_name_from_qualified(sp_intern_str_from_id(intern, id.qualified));
+  spn_pkg_name_t name = spn_pkg_name_from_qualified(sp_intern_find(intern, id.qualified));
   return (spn_dump_key_t) {
     .namespace = name.namespace,
     .name = name.name,
