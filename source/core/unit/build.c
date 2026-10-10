@@ -27,8 +27,7 @@ static spn_toolchain_unit_t* bind_toolchain(spn_session_t* s, spn_toolchain_info
 spn_build_unit_t* spn_build_add(spn_session_t* s, spn_profile_info_t profile, spn_path_t root, spn_toolchain_info_t* toolchain) {
   sp_hash_t parts [] = {
     spn_digest_hash_str(profile.name.str),
-    (sp_hash_t)profile.toolchain.kind,
-    spn_digest_hash_str(profile.toolchain.name.str),
+    spn_digest_hash_str(toolchain->name.str),
     spn_sdk_hash(&profile.sdk),
     (sp_hash_t)profile.os,
     (sp_hash_t)profile.arch,
