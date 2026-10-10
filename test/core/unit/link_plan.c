@@ -263,6 +263,7 @@ sp_test_each(link_plan, plan, plan_test_t, tests, .setup = spn_test_ctx_setup) {
   spn_target_info_t* info = SP_NULLPTR;
   sp_must_eq(t, SPN_OK, spn_pkg_add_target(s->mem, s->pkg, sp_str_lit("app"), it->target.kind, &info));
   target_info(mem, loaded->roots, &it->target, info);
+  si_da_push(s->mem, s->plans.build[0].roots, ((spn_target_key_t) { .name = spn_intern(sp_str_lit("app")).id, .kind = it->target.kind }));
 
   sp_must_eq(t, SPN_OK, spn_units_add_packages(s));
   sp_must_eq(t, SPN_OK, spn_units_add_targets(s, SPN_UNIT_SCOPE_TARGET));

@@ -22,22 +22,16 @@
 #include "toolchain/select.h"
 #include "triple/triple.h"
 
-static spn_session_config_t copy_config(sp_mem_t mem, spn_session_config_t config) {
-  spn_str_arr_t names = {
-    .items = sp_alloc_n(mem, sp_str_t, config.selection.names.count),
-    .count = config.selection.names.count,
-  };
-  sp_for(it, names.count) {
-    names.items[it] = sp_str_copy(mem, config.selection.names.items[it]);
-  }
-  return (spn_session_config_t) {
-    .selection = {
-      .kinds = config.selection.kinds,
-      .names = names,
-    },
+spn_err_t spn_session_init(spn_session_t* s, spn_ctx_t* ctx, sp_mem_t mem, spn_project_t* project, spn_session_config_t config) {
+  s->ctx = ctx;
+  s->project = project;
+  s->arena = sp_mem_arena_new(mem);
+  s->mem = sp_mem_arena_as_allocator(s->arena);
+  s->pkg = &project->package;
+  s->config = (spn_session_config_t) {
     .profile = {
-      .name = sp_str_copy(mem, config.profile.name),
-      .toolchain = sp_str_copy(mem, config.profile.toolchain),
+      .name = sp_intern(ctx->intern, config.profile.name).str,
+      .toolchain = sp_intern(ctx->intern, config.profile.toolchain).str,
       .mode = config.profile.mode,
       .opt = config.profile.opt,
       .sanitizers = config.profile.sanitizers,
@@ -46,20 +40,8 @@ static spn_session_config_t copy_config(sp_mem_t mem, spn_session_config_t confi
     },
     .force = config.force,
   };
-}
-
-spn_err_t spn_session_init(spn_session_t* s, spn_ctx_t* ctx, sp_mem_t mem, spn_project_t* project, spn_session_config_t config) {
-  spn_pkg_info_t* root = &project->package;
-  s->ctx = ctx;
-  s->project = project;
-  s->arena = sp_mem_arena_new(mem);
-  s->mem = sp_mem_arena_as_allocator(s->arena);
-  s->pkg = root;
-  config = copy_config(s->mem, config);
-  s->config = config;
   s->paths.root = spn_path_from_root(SPN_PATH_ROOT_PROJECT);
   s->paths.build = spn_path_join(s->mem, s->paths.root, sp_str_lit("build"));
-  spn_triple_t host = ctx->host;
 
   sp_ht_init(s->mem, s->registry);
   sp_ht_init(s->mem, s->packages);
@@ -75,17 +57,17 @@ spn_err_t spn_session_init(spn_session_t* s, spn_ctx_t* ctx, sp_mem_t mem, spn_p
   sp_om_new(s->plans.objects);
   sp_om_new(s->dag.objects);
 
-  spn_try(spn_profile_resolve(&config.profile, host, root, &s->profile));
+  spn_try(spn_profile_resolve(&s->config.profile, ctx->host, s->pkg, &s->profile));
 
   spn_toolchain_query_t query = sp_zero;
-  spn_try(spn_profile_query(&s->profile, host, &query));
+  spn_try(spn_profile_query(&s->profile, ctx->host, &query));
   spn_toolchain_selection_t target = sp_zero;
   spn_try(spn_toolchain_select(&ctx->catalog, query, &target));
   spn_profile_finalize(&s->profile, &target);
 
   spn_profile_info_t metaprogram = spn_profile_metaprogram();
   spn_toolchain_query_t metaprogram_query = sp_zero;
-  spn_try(spn_profile_query(&metaprogram, host, &metaprogram_query));
+  spn_try(spn_profile_query(&metaprogram, ctx->host, &metaprogram_query));
   spn_toolchain_selection_t script = sp_zero;
   spn_try(spn_toolchain_select(&ctx->catalog, metaprogram_query, &script));
   spn_profile_finalize(&metaprogram, &script);
@@ -108,9 +90,34 @@ spn_err_t spn_session_init(spn_session_t* s, spn_ctx_t* ctx, sp_mem_t mem, spn_p
 
   spn_build_plan_t plan = {
     .build = s->units.target,
-    .selection = config.selection,
   };
-  sp_da_init(s->mem, plan.roots);
+  if (config.selection.names.count) {
+    sp_for(i, config.selection.names.count) {
+      sp_str_t name = config.selection.names.items[i];
+      bool matched = false;
+      si_om_for(s->pkg->targets, j) {
+        spn_target_info_t* target = si_om_at(s->pkg->targets, j);
+        if (!(config.selection.kinds & spn_target_kind_bit(target->kind)) || !sp_str_equal(target->name, name)) {
+          continue;
+        }
+        si_da_push(s->mem, plan.roots, ((spn_target_key_t) { .name = spn_intern(target->name).id, .kind = target->kind }));
+        matched = true;
+      }
+      if (!matched) {
+        return spn_err_emit(ctx, (spn_err_union_t) {
+          .kind = SPN_ERR_TARGET_SELECTION,
+          .target = { .name = name },
+        });
+      }
+    }
+  } else {
+    si_om_for(s->pkg->targets, it) {
+      spn_target_info_t* target = si_om_at(s->pkg->targets, it);
+      if (config.selection.kinds & spn_target_kind_bit(target->kind)) {
+        si_da_push(s->mem, plan.roots, ((spn_target_key_t) { .name = spn_intern(target->name).id, .kind = target->kind }));
+      }
+    }
+  }
   sp_da_init(s->mem, plan.staged);
   sp_da_push(s->plans.build, plan);
 
@@ -165,11 +172,6 @@ spn_pkg_unit_t* spn_session_find_dep(spn_session_t* session, spn_pkg_unit_t* pkg
 spn_target_unit_t* spn_session_find_target_in_pkg(spn_session_t* session, spn_pkg_unit_t* pkg, spn_target_key_t key) {
   spn_target_unit_id_t id = { .pkg = pkg->id, .target = key };
   return sp_om_has(session->units.targets, id) ? sp_om_get(session->units.targets, id) : SP_NULLPTR;
-}
-
-spn_target_unit_t* spn_session_get_target_unit(spn_session_t* session, spn_target_unit_id_t id) {
-  sp_assert(sp_om_has(session->units.targets, id));
-  return sp_om_get(session->units.targets, id);
 }
 
 spn_target_plan_t* spn_session_get_target_plan(spn_session_t* session, spn_target_unit_id_t id) {

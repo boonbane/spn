@@ -85,6 +85,7 @@ sp_test_each(unit_objects, create, objects_test_t, tests, .setup = spn_test_ctx_
         : spn_tree_path(mem, &spn.roots, loaded->roots, it->source[st].tree, path),
     }));
   }
+  si_da_push(s->mem, s->plans.build[0].roots, ((spn_target_key_t) { .name = spn_intern(sp_str_lit("app")).id, .kind = SPN_TARGET_KIND_EXE }));
   sp_must_eq(t, SPN_OK, spn_units_add_packages(s));
   sp_must_eq(t, SPN_OK, spn_units_add_targets(s, SPN_UNIT_SCOPE_TARGET));
 

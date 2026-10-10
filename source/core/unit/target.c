@@ -615,166 +615,132 @@ static spn_err_t add_metaprogram_targets(spn_session_t* s) {
   return SPN_OK;
 }
 
-static spn_err_t add_target_units(spn_session_t* s) {
-  sp_da_for(s->plans.build, it) {
-    spn_build_plan_t* plan = &s->plans.build[it];
-    sp_da_for(plan->build->packages, jt) {
-      spn_pkg_unit_t* pkg = plan->build->packages[jt];
-
-      if (pkg == plan->root) {
-        spn_target_selection_t* selection = &plan->selection;
-        si_om_for(pkg->info->targets, kt) {
-          spn_target_info_t* info = si_om_at(pkg->info->targets, kt);
-          if (!(selection->kinds & spn_target_kind_bit(info->kind))) {
-            continue;
-          }
-          bool selected = !selection->names.count;
-          sp_for(lt, selection->names.count) {
-            if (sp_str_equal(selection->names.items[lt], info->name)) {
-              selected = true;
-              break;
-            }
-          }
-          if (!selected) {
-            continue;
-          }
-          spn_target_unit_t* target = SP_NULLPTR;
-          spn_try(ensure_target_unit(s, pkg, info, &target));
-          sp_da_push(plan->roots, target->id);
-        }
-
-        sp_for(kt, selection->names.count) {
-          sp_str_t name = selection->names.items[kt];
-          bool matched = false;
-          sp_da_for(plan->roots, lt) {
-            if (sp_str_equal(spn_session_get_target_unit(s, plan->roots[lt])->info->name, name)) {
-              matched = true;
-              break;
-            }
-          }
-          if (!matched) {
-            return spn_err_emit(s->ctx, (spn_err_union_t) {
-              .kind = SPN_ERR_TARGET_SELECTION,
-              .target = { .name = name },
-            });
-          }
-        }
-      } else {
-        si_om_for(pkg->info->targets, kt) {
-          spn_target_info_t* info = si_om_at(pkg->info->targets, kt);
-          if (info->kind != SPN_TARGET_KIND_LIB) {
-            continue;
-          }
-          spn_try(ensure_target_unit(s, pkg, info, SP_NULLPTR));
-        }
-      }
-    }
-  }
-
-  sp_da_for(s->plans.build, it) {
-    spn_build_unit_t* world = s->plans.build[it].build;
-
-    sp_om_for(s->units.targets, jt) {
-      spn_target_unit_t* target = sp_om_at(s->units.targets, jt);
-
-      // @spader
-      // This is a hack. All we're really asking here is whether the unit
-      // belongs to the metabuild or the build. The right fix is to stop
-      // treating the metabuild as a special case, but I'm punting.
-      if (target->pkg->build != world) {
-        continue;
-      }
-
-      si_da_for(target->info->deps, kt) {
-        sp_str_t name = target->info->deps[kt];
-
-        // @review Fake defensive code or real?
-        // Even if a real program state, is our code factored correctly? Like,
-        // can we reorder the code so that any creation happens up front?
-        if (find_dep_unit(s, target->pkg, spn_pkg_canonicalize_name(name))) {
-          continue;
-        }
-
-        spn_target_info_t* info = spn_pkg_get_target(target->pkg->info, name, SPN_TARGET_KIND_LIB);
-
-        // @review Fake defensive code or real?
-        if (!info) {
-          return spn_err_emit(s->ctx, (spn_err_union_t) {
-            .kind = SPN_ERR_TARGET_DEP,
-            .target = { .name = name },
-          });
-        }
-        spn_target_unit_t* dep = SP_NULLPTR;
-        spn_try(ensure_target_unit(s, target->pkg, info, &dep));
-        sp_da_push(target->deps, dep);
-      }
-      if (target->lib_kind == SPN_LIB_KIND_SOURCE) {
-        continue;
-      }
-      spn_try(create_target_objects(s, target));
-      if (is_any_object_cxx(target->objects) && spn_arg_empty(world->toolchain->cc.cxx.program)) {
-        return spn_err_emit(s->ctx, (spn_err_union_t) { .kind = SPN_ERR_TOOLCHAIN_NO_CXX, .toolchain = { .name = world->toolchain->info->name } });
-      }
-    }
-
-    sp_om_for(s->units.targets, jt) {
-      spn_target_unit_t* target = sp_om_at(s->units.targets, jt);
-      if (target->pkg->build != world) {
-        continue;
-      }
-      spn_try(build_target_plan(target));
-    }
-  }
-
-  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  sp_da_for(s->plans.build, it) {
-    spn_build_plan_t* plan = &s->plans.build[it];
-    sp_ht(spn_path_t, spn_target_unit_t*) claimed = SP_NULLPTR;
-    sp_ht_init(scratch.mem, claimed);
-    sp_ht_set_fns(claimed, spn_path_on_hash, spn_path_on_compare);
-    sp_da_for(plan->roots, jt) {
-      spn_target_unit_t* root = spn_session_get_target_unit(s, plan->roots[jt]);
-      if (root->kind != SPN_CC_OUTPUT_EXE) {
-        continue;
-      }
-      spn_stage_closure_t closure = {
-        .exe = { .target = root, .path = spn_target_unit_staged_path(s->mem, root) },
-      };
-      sp_da_init(s->mem, closure.libs);
-
-      spn_path_t dir = spn_path_parent(closure.exe.path);
-      sp_da(spn_target_unit_t*) libs = si_link_get_target_runtime_libs(scratch.mem, root);
-      sp_da_for(libs, lt) {
-        spn_target_unit_t* lib = libs[lt];
-        sp_str_t name = sp_fs_get_name(lib->paths.output.sub);
-        spn_path_t path = spn_path_join(s->mem, dir, name);
-        spn_target_unit_t** owner = sp_ht_getp(claimed, path);
-        if (owner && *owner != lib) {
-          sp_mem_end_scratch(scratch);
-          return spn_err_emit(s->ctx, (spn_err_union_t) {
-            .kind = SPN_ERR_TARGET_COLLISION,
-            .collision = {
-              .exe = root->info->name,
-              .pkg = (*owner)->pkg->info->name,
-              .other = lib->pkg->info->name,
-              .name = name,
-            },
-          });
-        }
-        sp_ht_insert(claimed, path, lib);
-        sp_da_push(closure.libs, ((spn_stage_entry_t) { .target = lib, .path = path }));
-      }
-      sp_da_push(plan->staged, closure);
-    }
-  }
-  sp_mem_end_scratch(scratch);
-  return SPN_OK;
-}
-
 spn_err_t spn_units_add_targets(spn_session_t* s, spn_unit_scope_t scope) {
   switch (scope) {
     case SPN_UNIT_SCOPE_METAPROGRAM: return add_metaprogram_targets(s);
-    case SPN_UNIT_SCOPE_TARGET:      return add_target_units(s);
+    case SPN_UNIT_SCOPE_TARGET: {
+      sp_da_for(s->plans.build, i) {
+        spn_build_plan_t* plan = &s->plans.build[i];
+        sp_da_for(plan->build->packages, j) {
+          spn_pkg_unit_t* pkg = plan->build->packages[j];
+
+          if (pkg == plan->root) {
+            si_da_for(plan->roots, kt) {
+              spn_target_info_t* info = si_om_get(pkg->info->targets, plan->roots[kt]);
+              spn_try(ensure_target_unit(s, pkg, info, SP_NULLPTR));
+            }
+          } else {
+            si_om_for(pkg->info->targets, kt) {
+              spn_target_info_t* info = si_om_at(pkg->info->targets, kt);
+              if (info->kind != SPN_TARGET_KIND_LIB) {
+                continue;
+              }
+              spn_try(ensure_target_unit(s, pkg, info, SP_NULLPTR));
+            }
+          }
+        }
+      }
+
+      sp_da_for(s->plans.build, i) {
+        spn_build_unit_t* world = s->plans.build[i].build;
+
+        sp_om_for(s->units.targets, j) {
+          spn_target_unit_t* target = sp_om_at(s->units.targets, j);
+
+          // @spader
+          // This is a hack. All we're really asking here is whether the unit
+          // belongs to the metabuild or the build. The right fix is to stop
+          // treating the metabuild as a special case, but I'm punting.
+          if (target->pkg->build != world) {
+            continue;
+          }
+
+          si_da_for(target->info->deps, kt) {
+            sp_str_t name = target->info->deps[kt];
+
+            // @review Fake defensive code or real?
+            // Even if a real program state, is our code factored correctly? Like,
+            // can we reorder the code so that any creation happens up front?
+            if (find_dep_unit(s, target->pkg, spn_pkg_canonicalize_name(name))) {
+              continue;
+            }
+
+            spn_target_info_t* info = spn_pkg_get_target(target->pkg->info, name, SPN_TARGET_KIND_LIB);
+
+            // @review Fake defensive code or real?
+            if (!info) {
+              return spn_err_emit(s->ctx, (spn_err_union_t) {
+                .kind = SPN_ERR_TARGET_DEP,
+                .target = { .name = name },
+              });
+            }
+            spn_target_unit_t* dep = SP_NULLPTR;
+            spn_try(ensure_target_unit(s, target->pkg, info, &dep));
+            sp_da_push(target->deps, dep);
+          }
+          if (target->lib_kind == SPN_LIB_KIND_SOURCE) {
+            continue;
+          }
+          spn_try(create_target_objects(s, target));
+          if (is_any_object_cxx(target->objects) && spn_arg_empty(world->toolchain->cc.cxx.program)) {
+            return spn_err_emit(s->ctx, (spn_err_union_t) { .kind = SPN_ERR_TOOLCHAIN_NO_CXX, .toolchain = { .name = world->toolchain->info->name } });
+          }
+        }
+
+        sp_om_for(s->units.targets, jt) {
+          spn_target_unit_t* target = sp_om_at(s->units.targets, jt);
+          if (target->pkg->build != world) {
+            continue;
+          }
+          spn_try(build_target_plan(target));
+        }
+      }
+
+      sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+      sp_da_for(s->plans.build, it) {
+        spn_build_plan_t* plan = &s->plans.build[it];
+        sp_ht(spn_path_t, spn_target_unit_t*) claimed = SP_NULLPTR;
+        sp_ht_init(scratch.mem, claimed);
+        sp_ht_set_fns(claimed, spn_path_on_hash, spn_path_on_compare);
+        si_da_for(plan->roots, jt) {
+          spn_target_unit_t* root = spn_session_find_target_in_pkg(s, plan->root, plan->roots[jt]);
+          if (root->kind != SPN_CC_OUTPUT_EXE) {
+            continue;
+          }
+          spn_stage_closure_t closure = {
+            .exe = { .target = root, .path = spn_target_unit_staged_path(s->mem, root) },
+          };
+          sp_da_init(s->mem, closure.libs);
+
+          spn_path_t dir = spn_path_parent(closure.exe.path);
+          sp_da(spn_target_unit_t*) libs = si_link_get_target_runtime_libs(scratch.mem, root);
+          sp_da_for(libs, lt) {
+            spn_target_unit_t* lib = libs[lt];
+            sp_str_t name = sp_fs_get_name(lib->paths.output.sub);
+            spn_path_t path = spn_path_join(s->mem, dir, name);
+            spn_target_unit_t** owner = sp_ht_getp(claimed, path);
+            if (owner && *owner != lib) {
+              sp_mem_end_scratch(scratch);
+              return spn_err_emit(s->ctx, (spn_err_union_t) {
+                .kind = SPN_ERR_TARGET_COLLISION,
+                .collision = {
+                  .exe = root->info->name,
+                  .pkg = (*owner)->pkg->info->name,
+                  .other = lib->pkg->info->name,
+                  .name = name,
+                },
+              });
+            }
+            sp_ht_insert(claimed, path, lib);
+            sp_da_push(closure.libs, ((spn_stage_entry_t) { .target = lib, .path = path }));
+          }
+          sp_da_push(plan->staged, closure);
+        }
+      }
+      sp_mem_end_scratch(scratch);
+      return SPN_OK;
+
+    }
   }
   sp_unreachable_return(SPN_ERROR);
 }
