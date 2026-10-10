@@ -160,6 +160,7 @@ static spn_toolchain_support_t bind_support(spn_toolchain_catalog_t* catalog, co
 
 static spn_toolchain_info_t bind_toolchain(spn_toolchain_catalog_t* catalog, const spn_toolchain_decl_t* decl) {
   spn_toolchain_info_t info = {
+    .id = decl->id,
     .name = decl->name,
     .version = decl->version,
     .driver = decl->driver,
@@ -182,15 +183,15 @@ void spn_toolchain_catalog_init(spn_toolchain_catalog_t* catalog, spn_triple_t h
 
 void spn_toolchain_catalog_add(spn_toolchain_catalog_t* catalog, spn_toolchain_decl_t decl) {
   spn_toolchain_info_t toolchain = bind_toolchain(catalog, &decl);
-  spn_toolchain_info_t* existing = spn_toolchain_catalog_get(catalog, toolchain.name.id);
+  spn_toolchain_info_t* existing = spn_toolchain_catalog_get(catalog, toolchain.id);
   if (existing) {
     *existing = toolchain;
     return;
   }
-  si_om_insert(catalog->mem, catalog->entries, toolchain.name.id, toolchain);
+  si_om_insert(catalog->mem, catalog->entries, toolchain.id, toolchain);
 }
 
-spn_toolchain_info_t* spn_toolchain_catalog_get(spn_toolchain_catalog_t* catalog, sp_intern_id_t name) {
-  spn_toolchain_info_t** entry = si_om_getp(catalog->entries, name);
+spn_toolchain_info_t* spn_toolchain_catalog_get(spn_toolchain_catalog_t* catalog, spn_toolchain_id_t id) {
+  spn_toolchain_info_t** entry = si_om_getp(catalog->entries, id);
   return entry ? *entry : SP_NULLPTR;
 }

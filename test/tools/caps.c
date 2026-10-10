@@ -261,11 +261,11 @@ static sp_err_t load_lanes(void* user) {
     spn_toolchain_decl_t decl = sp_zero;
     sp_da(spn_codegen_issue_t) issues = lanes_lower(&lanes, it, SPN_PATH_ROOT_NONE, &decl);
     if (sp_da_empty(issues)) {
-      if (decl.name.id == lane.id) {
+      if (decl.id == lane.id) {
         spn_toolchain_catalog_add(&catalog, decl);
       }
     }
-    else if (decl.name.id == lane.id) {
+    else if (decl.id == lane.id) {
       sp_log("lane {.red} is broken: {}", sp_fmt_str(name), sp_fmt_str(spn_codegen_issues_to_json(mem, issues)));
       sp_sys_exit(1);
     }

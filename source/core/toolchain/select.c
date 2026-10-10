@@ -183,7 +183,7 @@ static spn_err_t select_auto(spn_toolchain_catalog_t* catalog, spn_toolchain_que
 }
 
 static spn_err_t select_named(spn_toolchain_catalog_t* catalog, spn_toolchain_query_t query, spn_toolchain_selection_t* selection) {
-  spn_toolchain_info_t* toolchain = spn_toolchain_catalog_get(catalog, query.toolchain.name.id);
+  spn_toolchain_info_t* toolchain = spn_toolchain_catalog_get(catalog, query.toolchain.id);
   if (!toolchain) {
     return emit(SPN_ERR_TOOLCHAIN_UNKNOWN, catalog, query, query.target, satisfying(catalog, query), SP_NULLPTR);
   }

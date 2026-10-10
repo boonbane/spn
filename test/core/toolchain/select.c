@@ -630,7 +630,7 @@ sp_test_each(select, complete, complete_test_t, complete_tests, .setup = spn_tes
   sp_for(at, checks) {
     const check_t* check = &it->checks[at];
     spn_toolchain_query_t query = {
-      .toolchain = { SPN_TOOLCHAIN_REF_NAMED, spn_intern(sp_str_lit("A")) },
+      .toolchain = spn_toolchain_ref_from_str(sp_str_lit("A")),
       .target = check->target,
       .candidates = candidates(check->target, check->abis, check->linking),
       .sanitizers = check->sanitizers,
@@ -669,7 +669,7 @@ sp_test_each(select, resolve, resolve_test_t, resolve_tests, .setup = spn_test_c
     .sanitizers = it->sanitizers,
   };
   if (it->toolchain) {
-    query.toolchain = (spn_toolchain_ref_t) { SPN_TOOLCHAIN_REF_NAMED, spn_intern_cstr(it->toolchain) };
+    query.toolchain = spn_toolchain_ref_from_str(sp_cstr_as_str(it->toolchain));
   }
   spn_toolchain_selection_t selection = sp_zero;
   spn_err_t err = spn_toolchain_select(&catalog, query, &selection);

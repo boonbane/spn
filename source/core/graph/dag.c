@@ -1070,40 +1070,40 @@ spn_err_t spn_dag_build_session(spn_op_t* op) {
   spn_session_t* session = op->session;
   spn_project_t* project = session->project;
 
-  spn_dag_build_t* b = spn_dag_build_new(op);
-  session->dag.build = b;
+  spn_dag_build_t* dag = spn_dag_build_new(op);
+  session->dag.build = dag;
 
-  spn_err_t prepared = prepare_graph(b);
+  spn_err_t prepared = prepare_graph(dag);
   if (prepared) {
-    b->result = prepared;
-    return dag_result(b);
+    dag->result = prepared;
+    return dag_result(dag);
   }
 
-  spn_triple_t target = { session->profile.arch, session->profile.os, session->profile.abi };
+  spn_build_unit_t* unit = session->units.target;
   spn_event_buffer_push(spn.events, (spn_event_t) {
     .kind = SPN_EVENT_INIT_BUILD_GRAPH,
     .pkg = session->pkg->name,
     .graph_init = {
-      .profile = session->profile.name.str,
-      .target = spn_triple_to_str(session->mem, target),
-      .toolchain = session->units.target->toolchain->info->name.str,
-      .version = session->units.target->toolchain->version,
+      .profile = unit->profile.name.str,
+      .target = spn_triple_to_str(session->mem, spn_profile_triple(&unit->profile)),
+      .toolchain = unit->toolchain->info->name.str,
+      .version = unit->toolchain->version,
       .force = session->force,
     }
   });
 
-  sp_atomic_ptr_store(&session->ctx->progress, &b->progress, SP_ATOMIC_SEQ_CST);
-  spn_err_t result = spn_dag_build_run(b, spn_cpu_count());
+  sp_atomic_ptr_store(&session->ctx->progress, &dag->progress, SP_ATOMIC_SEQ_CST);
+  spn_err_t result = spn_dag_build_run(dag, spn_cpu_count());
   sp_atomic_ptr_store(&session->ctx->progress, SP_NULLPTR, SP_ATOMIC_SEQ_CST);
-  u64 elapsed = sp_tm_read_timer(&b->timer);
+  u64 elapsed = sp_tm_read_timer(&dag->timer);
 
-  if (b->result == SPN_ERR_DAG_CANCELLED) {
+  if (dag->result == SPN_ERR_DAG_CANCELLED) {
     return result;
   }
 
-  if (spn_dag_digest_valid(spn_dag_find_artifact(b->graph, b->compile_commands)->digest)) {
+  if (spn_dag_digest_valid(spn_dag_find_artifact(dag->graph, dag->compile_commands)->digest)) {
     sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-    spn_err_t staged = dag_stage_copy(b, b->compile_commands, spn_path_join(scratch.mem, session->paths.root, sp_str_lit("compile_commands.json")));
+    spn_err_t staged = dag_stage_copy(dag, dag->compile_commands, spn_path_join(scratch.mem, session->paths.root, sp_str_lit("compile_commands.json")));
     sp_mem_end_scratch(scratch);
     if (!result) {
       result = staged;
@@ -1113,14 +1113,14 @@ spn_err_t spn_dag_build_session(spn_op_t* op) {
     if (!project->lock.some) {
       spn_try(spn_project_update_lock(session->ctx, project, session->resolve));
     }
-    result = dag_stage(b);
-    spn_dag_file_cache_flush(b->env.files, session->dag.files_path);
+    result = dag_stage(dag);
+    spn_dag_file_cache_flush(dag->env.files, session->dag.files_path);
   }
-  if (!b->result) {
-    b->result = result;
+  if (!dag->result) {
+    dag->result = result;
   }
 
-  dag_emit_reports(b, elapsed);
+  dag_emit_reports(dag, elapsed);
 
   return result;
 }

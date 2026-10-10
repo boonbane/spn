@@ -390,8 +390,10 @@ static spn_toolchain_info_t* fixture_catalog_at(spn_toolchain_catalog_t* catalog
 }
 
 static spn_toolchain_decl_t fixture_local_toolchain(const c8* name, fixture_launcher_t compiler) {
+  sp_intern_str_t interned = spn_intern_cstr(name);
   return (spn_toolchain_decl_t) {
-    .name = spn_intern_cstr(name),
+    .id = interned.id,
+    .name = interned,
     .driver = SPN_CC_DRIVER_GCC,
     .compiler = { .program = fixture_arg(compiler) },
     .archiver = { .program = spn_arg_lit(sp_cstr_as_str("ar")) },

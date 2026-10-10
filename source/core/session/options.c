@@ -189,7 +189,7 @@ spn_err_t spn_session_apply_options(spn_session_t* session, bool* reresolve) {
 
       spn_option_requests_t node_requests = asked ? *asked : SP_NULLPTR;
       spn_merged_options_t merged = sp_zero;
-      spn_pkg_options_merge(mem, node, &session->profile, session->pkg->config, node_requests, &merged);
+      spn_pkg_options_merge(mem, node, &session->units.target->profile, session->pkg->config, node_requests, &merged);
       if (!sp_da_empty(merged.violations)) {
         spn_err_t first = SPN_OK;
         sp_da_for(merged.violations, vt) {
@@ -213,7 +213,7 @@ spn_err_t spn_session_apply_options(spn_session_t* session, bool* reresolve) {
       sp_assert(resolved);
 
       spn_when_env_t env = sp_zero;
-      spn_when_env_from_profile(mem, &session->profile, &env);
+      spn_when_env_from_profile(mem, &session->units.target->profile, &env);
       spn_when_env_add_options(&env, resolved);
 
       si_da_for(loaded->info->deps, dt) {

@@ -33,7 +33,6 @@ struct spn_session_t {
   spn_pkg_info_t* pkg;
 
   bool force;
-  spn_profile_info_t profile;
 
   spn_resolve_t resolve;
   spn_pkg_registry_t registry;

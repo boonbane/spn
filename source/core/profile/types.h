@@ -6,7 +6,10 @@
 #include "toolchain/types.h"
 #include "when/types.h"
 
+typedef sp_intern_id_t spn_profile_id_t;
+
 struct spn_profile_info {
+  spn_profile_id_t id;
   sp_intern_str_t name;
   spn_toolchain_ref_t toolchain;
   spn_cc_driver_t driver;
@@ -28,6 +31,7 @@ struct spn_profile_info {
 };
 
 typedef struct {
+  spn_profile_id_t id;
   sp_intern_str_t name;
   spn_os_t os;
   spn_arch_t arch;

@@ -138,9 +138,9 @@ typedef struct {
   spn_git_patch_set_t set;
 } spn_pkg_patch_t;
 
-typedef si_om(sp_intern_id_t, spn_profile_decl_t) spn_profile_map_t;
+typedef si_om(spn_profile_id_t, spn_profile_decl_t) spn_profile_map_t;
 typedef si_om(sp_intern_id_t, spn_index_info_t) spn_index_map_t;
-typedef si_om(sp_intern_id_t, spn_toolchain_decl_t) spn_toolchain_map_t;
+typedef si_om(spn_toolchain_id_t, spn_toolchain_decl_t) spn_toolchain_map_t;
 typedef si_om(sp_intern_id_t, spn_option_info_t) spn_option_map_t;
 
 struct spn_pkg_info {

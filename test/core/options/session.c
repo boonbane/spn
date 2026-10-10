@@ -103,12 +103,15 @@ sp_test_each(options_session, apply, session_test_t, tests, .setup = spn_test_ct
     .info = &root,
   };
 
+  spn_build_unit_t target = {
+    .profile = { .os = SPN_OS_LINUX },
+  };
   spn_session_t session = {
     .ctx = &spn,
     .mem = mem,
     .pkg = &root,
     .gates = { .resolves = it->resolves },
-    .profile = { .os = SPN_OS_LINUX },
+    .units = { .target = &target },
   };
   sp_ht_init(mem, session.resolve);
   sp_ht_init(mem, session.packages);

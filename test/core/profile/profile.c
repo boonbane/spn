@@ -826,8 +826,10 @@ static spn_gated_list_t candidates_to_list(sp_mem_t mem, const candidate_t* cand
 #define candidates(mem, field) candidates_to_list(mem, field, sp_carr_len(field))
 
 static spn_profile_decl_t desc_to_decl(sp_mem_t mem, const decl_t* d) {
+  sp_intern_str_t name = spn_intern(sp_cstr_as_str(d->name));
   return (spn_profile_decl_t) {
-    .name = spn_intern(sp_cstr_as_str(d->name)),
+    .id = name.id,
+    .name = name,
     .os = d->os,
     .arch = d->arch,
     .toolchain = candidates(mem, d->toolchain),
@@ -858,11 +860,11 @@ sp_test_each(profile, resolve, test_t, tests, .setup = spn_test_ctx_setup) {
   spn_pkg_info_t pkg = spn_pkg_new(sp_str_lit("P"));
   if (it->profile.name) {
     spn_profile_decl_t decl = desc_to_decl(mem, &it->profile);
-    si_om_insert(mem, pkg.profiles, decl.name.id, decl);
+    si_om_insert(mem, pkg.profiles, decl.id, decl);
   }
   if (it->derived.name) {
     spn_profile_decl_t decl = desc_to_decl(mem, &it->derived);
-    si_om_insert(mem, pkg.profiles, decl.name.id, decl);
+    si_om_insert(mem, pkg.profiles, decl.id, decl);
   }
   if (it->shared_demand) {
     spn_target_info_t* lib = SP_NULLPTR;
@@ -888,7 +890,7 @@ sp_test_each(profile, resolve, test_t, tests, .setup = spn_test_ctx_setup) {
   if (it->expect.toolchain) {
     spn_toolchain_ref_t toolchain = spn_toolchain_ref_from_str(sp_cstr_as_str(it->expect.toolchain));
     sp_expect_eq(t, (u32)toolchain.kind, (u32)result.toolchain.kind);
-    sp_expect_eq(t, toolchain.name.id, result.toolchain.name.id);
+    sp_expect_eq(t, toolchain.id, result.toolchain.id);
   }
   if (it->expect.standard) {
     sp_expect_eq(t, (u32)it->expect.standard, (u32)result.standard);
@@ -923,9 +925,11 @@ sp_test_each(profile, resolve, test_t, tests, .setup = spn_test_ctx_setup) {
 
 sp_test_each(profile, query, query_test_t, query_tests, .setup = spn_test_ctx_setup) {
   sp_mem_t mem = spn.mem;
+  sp_intern_str_t name = spn_intern(sp_str_lit("P"));
   spn_profile_info_t profile = {
-    .name = spn_intern(sp_str_lit("P")),
-    .toolchain = { SPN_TOOLCHAIN_REF_NAMED, spn_intern(sp_str_lit("T")) },
+    .id = name.id,
+    .name = name,
+    .toolchain = spn_toolchain_ref_from_str(sp_str_lit("T")),
     .arch = it->target.arch,
     .os = it->target.os,
     .abi = it->target.abi,
@@ -955,7 +959,7 @@ sp_test_each(profile, query, query_test_t, query_tests, .setup = spn_test_ctx_se
   }
 
   sp_expect_eq(t, (u32)profile.toolchain.kind, (u32)query.toolchain.kind);
-  sp_expect_eq(t, query.toolchain.name.id, profile.toolchain.name.id);
+  sp_expect_eq(t, query.toolchain.id, profile.toolchain.id);
   sp_expect(t, spn_triple_equal(query.target, it->target));
   sp_expect_eq(t, query.sanitizers, it->sanitizers);
 

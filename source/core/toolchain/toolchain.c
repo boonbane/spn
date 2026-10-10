@@ -203,6 +203,7 @@ spn_toolchain_ref_t spn_toolchain_ref_from_str(sp_str_t str) {
   spn_toolchain_ref_t ref = { .kind = spn_toolchain_ref_kind(str) };
   if (ref.kind == SPN_TOOLCHAIN_REF_NAMED) {
     ref.name = spn_intern(str);
+    ref.id = ref.name.id;
   }
   return ref;
 }

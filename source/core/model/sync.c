@@ -394,7 +394,7 @@ static spn_err_t load_package(spn_session_t* session, spn_resolved_pkg_t* pkg, s
   }
 
   spn_when_env_t facts = sp_zero;
-  spn_when_env_from_profile(spn.mem, &session->profile, &facts);
+  spn_when_env_from_profile(spn.mem, &session->units.target->profile, &facts);
 
   loaded->build = loaded->info->build;
   loaded->build.source = SP_NULLPTR;

@@ -7,6 +7,7 @@
 #include "resolve/types.h"
 #include "session/types.h"
 #include "spn/core.h"
+#include "spn/types.h"
 #include "unit/types.h"
 #include "unit/unit.h"
 
@@ -46,13 +47,14 @@ spn_err_t spn_session_init(spn_session_t* s, spn_ctx_t* ctx, sp_mem_t mem, spn_p
   sp_om_new(s->plans.objects);
   sp_om_new(s->dag.objects);
 
-  spn_try(spn_profile_resolve(&config.profile, ctx->host, s->pkg, &s->profile));
+  spn_profile_info_t profile = sp_zero;
+  spn_try(spn_profile_resolve(&config.profile, ctx->host, s->pkg, &profile));
 
   spn_toolchain_query_t query = sp_zero;
-  spn_try(spn_profile_query(&s->profile, ctx->host, &query));
+  spn_try(spn_profile_query(&profile, ctx->host, &query));
   spn_toolchain_selection_t target = sp_zero;
   spn_try(spn_toolchain_select(&ctx->catalog, query, &target));
-  spn_profile_finalize(&s->profile, &target);
+  spn_profile_finalize(&profile, &target);
 
   spn_profile_info_t metaprogram = spn_profile_metaprogram();
   spn_toolchain_query_t metaprogram_query = sp_zero;
@@ -61,12 +63,14 @@ spn_err_t spn_session_init(spn_session_t* s, spn_ctx_t* ctx, sp_mem_t mem, spn_p
   spn_try(spn_toolchain_select(&ctx->catalog, metaprogram_query, &script));
   spn_profile_finalize(&metaprogram, &script);
 
-  spn_path_t target_root = spn_path_join(s->mem, s->paths.build, spn_profile_build_dir(s->mem, &s->profile));
-  s->units.target = spn_build_add(s, s->profile, target_root, target.toolchain);
-
   spn_triple_t metaprogram_triple = { metaprogram.arch, metaprogram.os, metaprogram.abi };
-  spn_path_t metaprogram_root = spn_path_join(s->mem, s->paths.build, spn_triple_to_str(s->mem, metaprogram_triple));
-  s->units.metaprogram = spn_build_add(s, metaprogram, metaprogram_root, script.toolchain);
+  struct { spn_path_t build; spn_path_t metabuild; } roots = {
+    .build = spn_path_join(s->mem, s->paths.build, spn_profile_build_dir(s->mem, &profile)),
+    .metabuild = spn_path_join(s->mem, s->paths.build, spn_triple_to_str(s->mem, metaprogram_triple))
+  };
+  s->units.target = spn_build_add(s, profile, roots.build, target.toolchain);
+  s->units.metaprogram = spn_build_add(s, metaprogram, roots.metabuild, script.toolchain);
+
   sp_da_push(s->units.metaprogram->include, spn_path(s->mem, SPN_DIR_ID_RUNTIME, "include"));
 
   spn_path_t log_path = spn_path_join(s->mem, s->units.target->paths.root, sp_str_lit(".spn/build.jsonl"));

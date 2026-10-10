@@ -149,7 +149,10 @@ typedef struct {
   };
 } spn_toolchain_support_t;
 
+typedef sp_intern_id_t spn_toolchain_id_t;
+
 typedef struct {
+  spn_toolchain_id_t id;
   sp_intern_str_t name;
   sp_str_t version;
   spn_cc_driver_t driver;
@@ -168,6 +171,7 @@ typedef struct {
 } spn_toolchain_decl_t;
 
 typedef struct {
+  spn_toolchain_id_t id;
   sp_intern_str_t name;
   sp_str_t version;
   spn_cc_driver_t driver;
@@ -186,7 +190,7 @@ struct spn_toolchain_catalog_t {
   sp_mem_t mem;
   spn_triple_t host;
   spn_sdk_host_t sdks;
-  si_om(sp_intern_id_t, spn_toolchain_info_t) entries;
+  si_om(spn_toolchain_id_t, spn_toolchain_info_t) entries;
 };
 
 typedef struct {
@@ -202,6 +206,7 @@ typedef enum {
 
 typedef struct {
   spn_toolchain_ref_kind_t kind;
+  spn_toolchain_id_t id;
   sp_intern_str_t name;
 } spn_toolchain_ref_t;
 

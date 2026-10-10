@@ -106,7 +106,7 @@ spn_err_t resolve(spn_op_t* op) {
   spn_index_cache_init(&index, session->mem, session->ctx->intern, &session->ctx->roots, &spn.indexes);
 
   spn_resolver_t resolver = sp_zero;
-  spn_resolver_init(&resolver, spn.mem, session->ctx->intern, &index, &session->registry, session->profile, session->pkg->config, 0);
+  spn_resolver_init(&resolver, spn.mem, session->ctx->intern, &index, &session->registry, session->units.target->profile, session->pkg->config, 0);
   resolver.roots = &session->ctx->roots;
   resolver.seeds = session->gates.seeds;
 

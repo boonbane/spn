@@ -71,8 +71,8 @@ static bool is_builtin(sp_str_t name) {
   return sp_str_equal_cstr(name, "default") || builtin_mode(name) != SPN_MODE_NONE;
 }
 
-static const spn_profile_decl_t* find_decl(spn_profile_map_t profiles, sp_intern_id_t name) {
-  spn_profile_decl_t** slot = si_om_getp(profiles, name);
+static const spn_profile_decl_t* find_decl(spn_profile_map_t profiles, spn_profile_id_t id) {
+  spn_profile_decl_t** slot = si_om_getp(profiles, id);
   return slot ? *slot : SP_NULLPTR;
 }
 
@@ -343,6 +343,7 @@ spn_err_t spn_profile_resolve(const spn_profile_override_t* override, spn_triple
   }
 
   *result = (spn_profile_info_t) {
+    .id          = name.id,
     .name        = name,
     .toolchain   = merged.toolchain,
     .os          = pinned.os,
@@ -361,8 +362,10 @@ spn_err_t spn_profile_resolve(const spn_profile_override_t* override, spn_triple
 }
 
 spn_profile_info_t spn_profile_metaprogram(void) {
+  sp_intern_str_t name = spn_intern_lit("metaprogram");
   return (spn_profile_info_t) {
-    .name = spn_intern_lit("metaprogram"),
+    .id = name.id,
+    .name = name,
     .toolchain = { .kind = SPN_TOOLCHAIN_REF_AUTO },
     .arch = SPN_ARCH_WASM32,
     .os = SPN_OS_WASI,
