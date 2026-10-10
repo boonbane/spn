@@ -333,13 +333,13 @@ static void lower_targets(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, s
 static void lower_toolchains(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, spn_pkg_info_t* out) {
   sp_da(spn_toolchain_decl_t) toolchains = spn_toolchains_lower_list(ctx, SPN_PATH_ROOT_PROJECT, cg->toolchain);
   sp_da_for(toolchains, it) {
-    si_om_insert(ctx->mem, out->toolchains, sp_intern(ctx->intern, toolchains[it].name).id, toolchains[it]);
+    si_om_insert(ctx->mem, out->toolchains, toolchains[it].name.id, toolchains[it]);
   }
 }
 
 static spn_profile_decl_t lower_profile(spn_toml_loader_t* ctx, sp_str_t name, const spn_cg_profile_t* p) {
   return (spn_profile_decl_t) {
-    .name = name,
+    .name = sp_intern(ctx->intern, name),
     .os = sp_opt_is_null(p->os) ? SPN_OS_NONE : sp_opt_get(p->os),
     .arch = sp_opt_is_null(p->arch) ? SPN_ARCH_NONE : sp_opt_get(p->arch),
     .toolchain = lower_gated_values(ctx, p->toolchain),
@@ -359,7 +359,7 @@ static spn_profile_decl_t lower_profile(spn_toml_loader_t* ctx, sp_str_t name, c
 static void lower_profiles(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, spn_pkg_info_t* out) {
   sp_da_for(cg->profile, i) {
     spn_profile_decl_t decl = lower_profile(ctx, cg->profile[i].key, &cg->profile[i].value);
-    si_om_insert(ctx->mem, out->profiles, sp_intern(ctx->intern, decl.name).id, decl);
+    si_om_insert(ctx->mem, out->profiles, decl.name.id, decl);
   }
 }
 

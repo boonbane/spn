@@ -965,7 +965,7 @@ static void dag_emit_reports(spn_dag_build_t* b, u64 elapsed) {
         .kind = SPN_EVENT_BUILD_FAILED,
         .pkg = pkg->name,
         .build_failed = {
-          .profile = profile->name,
+          .profile = profile->name.str,
           .time = elapsed,
         },
       });
@@ -975,7 +975,7 @@ static void dag_emit_reports(spn_dag_build_t* b, u64 elapsed) {
         .kind = SPN_EVENT_BUILD_PASSED,
         .pkg = pkg->name,
         .build_passed = {
-          .profile = profile->name,
+          .profile = profile->name.str,
           .time = elapsed,
           .hits = hits,
           .misses = misses,
@@ -992,7 +992,7 @@ static void dag_emit_reports(spn_dag_build_t* b, u64 elapsed) {
         .misses = misses,
         .total = (u32)sp_da_size(b->graph->actions),
         .time = elapsed,
-        .profile = profile->name,
+        .profile = profile->name.str,
         .hashed_files = sp_atomic_u32_load(&b->stats.hashed_files, SP_ATOMIC_SEQ_CST),
         .hashed_bytes = sp_atomic_u64_load(&b->stats.hashed_bytes, SP_ATOMIC_SEQ_CST),
         .stats = sp_atomic_u32_load(&b->stats.stats, SP_ATOMIC_SEQ_CST),
@@ -1084,11 +1084,11 @@ spn_err_t spn_dag_build_session(spn_op_t* op) {
     .kind = SPN_EVENT_INIT_BUILD_GRAPH,
     .pkg = session->pkg->name,
     .graph_init = {
-      .profile = session->profile.name,
+      .profile = session->profile.name.str,
       .target = spn_triple_to_str(session->mem, target),
-      .toolchain = session->units.target->toolchain->info->name,
+      .toolchain = session->units.target->toolchain->info->name.str,
       .version = session->units.target->toolchain->version,
-      .force = session->config.force,
+      .force = session->force,
     }
   });
 

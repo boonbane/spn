@@ -1,5 +1,7 @@
 #include "compiler.h"
 
+#include "intern/intern.h"
+
 spn_path_t test_arg_path(const c8* value) {
   return (spn_path_t) { .sub = sp_cstr_as_str(value) };
 }
@@ -42,7 +44,7 @@ spn_profile_info_t test_profile(test_profile_t desc) {
 
 spn_cc_t test_toolchain(spn_cc_driver_t driver) {
   return (spn_cc_t) {
-    .name = sp_str_lit("test"),
+    .name = spn_intern(sp_str_lit("test")),
     .driver = driver,
     .compiler = { .program = spn_arg_lit(sp_str_lit("cc")) },
     .cxx = { .program = spn_arg_lit(sp_str_lit("c++")) },

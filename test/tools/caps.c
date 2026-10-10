@@ -5,6 +5,7 @@
 #include "enum/enum.h"
 #include "ctx/types.h"
 #include "event/event.h"
+#include "intern/intern.h"
 #include "profile/profile.h"
 #include "paths/paths.h"
 #include "spn/err.h"
@@ -25,7 +26,7 @@ static sp_str_t toml;
 static sp_str_t probes;
 
 static void read_lanes(sp_mem_t mem, const c8* rel, lanes_t* lanes) {
-  switch (lanes_read(mem, test_repo_path(mem, sp_cstr_as_str(rel)), lanes)) {
+  switch (lanes_read(mem, spn.intern, test_repo_path(mem, sp_cstr_as_str(rel)), lanes)) {
     case LANES_READ_OK: {
       return;
     }
@@ -172,7 +173,7 @@ static bool links_dialect(const spn_toolchain_info_t* info, spn_ld_dialect_t dia
 static sp_str_t missing_lane_program(sp_mem_t mem, const spn_toolchain_info_t* info) {
   sp_carr_for(lane_programs, it) {
     const lane_program_t* row = &lane_programs[it];
-    if (!sp_str_equal_cstr(info->name, row->lane) || !links_dialect(info, row->dialect)) {
+    if (!sp_str_equal_cstr(info->name.str, row->lane) || !links_dialect(info, row->dialect)) {
       continue;
     }
     if (!present(spn_arg_lit(sp_cstr_as_str(row->program)))) {
@@ -240,7 +241,9 @@ static sp_err_t load_lanes(void* user) {
   }
 
   spn.mem = mem;
+  spn.intern = sp_intern_new(mem);
   spn.events = spn_event_buffer_new(mem);
+  sp_intern_str_t lane = spn_intern(name);
   read_lanes(mem, SPN_LANES_BUILTIN, &builtin);
   read_lanes(mem, SPN_LANES_TEST, &lanes);
   sp_env_t env = sp_env_capture(mem);
@@ -258,17 +261,17 @@ static sp_err_t load_lanes(void* user) {
     spn_toolchain_decl_t decl = sp_zero;
     sp_da(spn_codegen_issue_t) issues = lanes_lower(&lanes, it, SPN_PATH_ROOT_NONE, &decl);
     if (sp_da_empty(issues)) {
-      if (sp_str_equal(decl.name, name)) {
+      if (decl.name.id == lane.id) {
         spn_toolchain_catalog_add(&catalog, decl);
       }
     }
-    else if (sp_str_equal(decl.name, name)) {
+    else if (decl.name.id == lane.id) {
       sp_log("lane {.red} is broken: {}", sp_fmt_str(name), sp_fmt_str(spn_codegen_issues_to_json(mem, issues)));
       sp_sys_exit(1);
     }
   }
 
-  spn_toolchain_info_t* info = spn_toolchain_catalog_get(&catalog, name);
+  spn_toolchain_info_t* info = spn_toolchain_catalog_get(&catalog, lane.id);
   if (!info) {
     sp_log("unknown lane {.red}", sp_fmt_str(name));
     sp_sys_exit(1);
@@ -280,7 +283,7 @@ static sp_err_t load_lanes(void* user) {
   }
   toml = lanes_text(&lanes, name);
   probes = sp_str_copy(mem, sp_os_env_get(sp_str_lit("SPN_BARE_PROBES")));
-  cached = (test_toolchain_t) { .name = sp_str_to_cstr(mem, info->name), .info = info };
+  cached = (test_toolchain_t) { .name = sp_str_to_cstr(mem, info->name.str), .info = info };
   return SP_OK;
 }
 
@@ -401,7 +404,7 @@ sp_str_t test_when_blocked(test_when_t when) {
   }
   sp_str_t broken = lane_broken(mem, selection.toolchain);
   if (!sp_str_empty(broken)) {
-    return sp_fmt(mem, "{} {}", sp_fmt_str(selection.toolchain->name), sp_fmt_str(broken)).value;
+    return sp_fmt(mem, "{} {}", sp_fmt_str(selection.toolchain->name.str), sp_fmt_str(broken)).value;
   }
 
   if (when.cxx && spn_arg_empty(toolchain->info->cxx.program)) {

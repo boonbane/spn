@@ -569,7 +569,7 @@ static sp_err_t check_failure(sp_test_t* t, sp_mem_t mem, spn_toolchain_catalog_
 
   if (expect->err == SPN_ERR_SANITIZER_UNSUPPORTED || expect->err == SPN_ERR_SANITIZER_STATIC) {
     spn_err_sanitizer_t* sanitizer = &errs[0].err.sanitizer;
-    sp_expect_str_eq(t, sanitizer->toolchain, query.toolchain.name);
+    sp_expect_str_eq(t, sanitizer->toolchain, query.toolchain.name.str);
     sp_expect(t, spn_triple_equal(sanitizer->target, expect->triple));
     sp_expect_eq(t, sanitizer->unsupported, expect->unsupported);
     sp_expect_eq(t, sanitizer->supported, expect->supported);
@@ -578,7 +578,7 @@ static sp_err_t check_failure(sp_test_t* t, sp_mem_t mem, spn_toolchain_catalog_
 
   spn_err_toolchain_t* err = &errs[0].err.toolchain;
   spn_triple_t target = fixture_triple_empty(expect->triple) ? query.target : expect->triple;
-  sp_expect_str_eq(t, err->name, query.toolchain.name);
+  sp_expect_str_eq(t, err->name, query.toolchain.name.str);
   sp_expect(t, spn_triple_equal(err->target, target));
   sp_expect(t, spn_triple_equal(err->host, catalog->host));
   sp_expect_eq(t, err->sanitizers, query.sanitizers);
@@ -595,7 +595,7 @@ static sp_err_t check_failure(sp_test_t* t, sp_mem_t mem, spn_toolchain_catalog_
 
 static sp_err_t check_selection(sp_test_t* t, const spn_toolchain_selection_t* selection, const c8* name, const expect_t* expect) {
   sp_must(t, selection->toolchain);
-  sp_expect_str_eq_c(t, selection->toolchain->name, name);
+  sp_expect_str_eq_c(t, selection->toolchain->name.str, name);
   sp_expect(t, spn_triple_equal(selection->row.triple, expect->triple));
   if (expect->linking.linkage) {
     sp_expect_eq(t, (u32)expect->linking.linkage, (u32)selection->linking.linkage);
@@ -630,7 +630,7 @@ sp_test_each(select, complete, complete_test_t, complete_tests, .setup = spn_tes
   sp_for(at, checks) {
     const check_t* check = &it->checks[at];
     spn_toolchain_query_t query = {
-      .toolchain = { SPN_TOOLCHAIN_REF_NAMED, sp_str_lit("A") },
+      .toolchain = { SPN_TOOLCHAIN_REF_NAMED, spn_intern(sp_str_lit("A")) },
       .target = check->target,
       .candidates = candidates(check->target, check->abis, check->linking),
       .sanitizers = check->sanitizers,
@@ -669,7 +669,7 @@ sp_test_each(select, resolve, resolve_test_t, resolve_tests, .setup = spn_test_c
     .sanitizers = it->sanitizers,
   };
   if (it->toolchain) {
-    query.toolchain = (spn_toolchain_ref_t) { SPN_TOOLCHAIN_REF_NAMED, sp_cstr_as_str(it->toolchain) };
+    query.toolchain = (spn_toolchain_ref_t) { SPN_TOOLCHAIN_REF_NAMED, spn_intern_cstr(it->toolchain) };
   }
   spn_toolchain_selection_t selection = sp_zero;
   spn_err_t err = spn_toolchain_select(&catalog, query, &selection);

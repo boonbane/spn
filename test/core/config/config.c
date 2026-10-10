@@ -120,7 +120,7 @@ sp_test_each(config, lower, test_t, tests) {
   sp_must_eq(t, num_toolchains, (u32)sp_da_size(toolchains));
   sp_for(n, num_toolchains) {
     const toolchain_t* expected = &expect->toolchains[n];
-    sp_expect_str_eq_c(t, toolchains[n].name, expected->name);
+    sp_expect_str_eq_c(t, toolchains[n].name.str, expected->name);
     sp_expect_eq(t, (u32)expected->driver, (u32)toolchains[n].driver);
     if (test_check_arg(t, toolchains[n].compiler.program, expected->compiler)) return SP_ERR;
     if (test_check_arg(t, toolchains[n].archiver.program, expected->archiver)) return SP_ERR;

@@ -4,6 +4,7 @@
 #include "ctx/types.h"
 #include "enum/enum.h"
 #include "event/event.h"
+#include "intern/intern.h"
 #include "paths/paths.h"
 #include "toolchain/catalog.h"
 #include "toolchain/provision.h"
@@ -96,7 +97,7 @@ static bool missing(docker_t* docker, sp_str_t path, const c8* hint) {
 }
 
 static bool read_lanes(docker_t* docker, sp_str_t path, lanes_t* lanes) {
-  docker->err.lanes.read = lanes_read(docker->mem, path, lanes);
+  docker->err.lanes.read = lanes_read(docker->mem, docker->intern, path, lanes);
   docker->err.lanes.path = path;
   docker->err.lanes.issues = lanes->issues;
   return docker->err.lanes.read == LANES_READ_OK;
@@ -112,7 +113,7 @@ static void bind_lanes(docker_t* docker) {
   sp_da_for(docker->lanes.config.toolchain, it) {
     spn_toolchain_decl_t decl = sp_zero;
     sp_da(spn_codegen_issue_t) issues = lanes_lower(&docker->lanes, it, SPN_PATH_ROOT_NONE, &decl);
-    docker->issues[lane_find(decl.name)] = issues;
+    docker->issues[lane_find(decl.name.str)] = issues;
     if (sp_da_empty(issues)) {
       spn_toolchain_catalog_add(&docker->catalog, decl);
     }
@@ -173,6 +174,7 @@ static sp_ps_config_t launch(docker_t* docker, const variant_t* variant, const c
 
 docker_init_err_t docker_init(docker_t* docker, sp_mem_t mem, spn_fetch_fn fetch, void* user) {
   docker->mem = mem;
+  docker->intern = sp_intern_new(mem);
   docker->host = host_key(mem);
 
   sp_str_t repo = find_repo(mem);

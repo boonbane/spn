@@ -406,7 +406,7 @@ static const support_test_t support_tests [] = {
   },
 };
 
-sp_test_each(catalog, add, add_test_t, add_tests) {
+sp_test_each(catalog, add, add_test_t, add_tests, .setup = spn_test_ctx_setup) {
   spn_toolchain_catalog_t catalog = sp_zero;
   if (fixture_catalog(t, &catalog, it->file, (spn_triple_t) HOST_X64_LINUX, sp_zero_struct(spn_sdk_host_t))) {
     return SP_ERR;
@@ -422,14 +422,14 @@ sp_test_each(catalog, add, add_test_t, add_tests) {
   sp_carr_detect_len(it->expect.order, order, it->expect.order[order]);
   sp_must_eq(t, order, fixture_catalog_size(&catalog));
   sp_for(at, order) {
-    sp_expect_str_eq_c(t, fixture_catalog_at(&catalog, at)->name, it->expect.order[at]);
+    sp_expect_str_eq_c(t, fixture_catalog_at(&catalog, at)->name.str, it->expect.order[at]);
   }
 
   u32 toolchains = 0;
   sp_carr_detect_len(it->expect.toolchains, toolchains, it->expect.toolchains[toolchains].name);
   sp_for(at, toolchains) {
     fixture_toolchain_t toolchain = it->expect.toolchains[at];
-    if (fixture_check_entry(t, spn_toolchain_catalog_get(&catalog, sp_cstr_as_str(toolchain.name)), toolchain)) {
+    if (fixture_check_entry(t, spn_toolchain_catalog_get(&catalog, spn_intern_cstr(toolchain.name).id), toolchain)) {
       return SP_ERR;
     }
   }
@@ -437,18 +437,18 @@ sp_test_each(catalog, add, add_test_t, add_tests) {
   return SP_OK;
 }
 
-sp_test_each(catalog, rows, rows_test_t, rows_tests) {
+sp_test_each(catalog, rows, rows_test_t, rows_tests, .setup = spn_test_ctx_setup) {
   spn_toolchain_catalog_t catalog = sp_zero;
   if (fixture_catalog(t, &catalog, it->file, it->host, sp_zero_struct(spn_sdk_host_t))) {
     return SP_ERR;
   }
 
-  spn_toolchain_info_t* info = spn_toolchain_catalog_get(&catalog, sp_cstr_as_str(it->toolchain));
+  spn_toolchain_info_t* info = spn_toolchain_catalog_get(&catalog, spn_intern_cstr(it->toolchain).id);
   sp_must(t, info);
   return fixture_check_expected_rows(t, info->rows, it->expect.rows);
 }
 
-sp_test_each(catalog, bind, bind_test_t, bind_tests) {
+sp_test_each(catalog, bind, bind_test_t, bind_tests, .setup = spn_test_ctx_setup) {
   sp_mem_t mem = sp_test_arena(t);
   spn_toolchain_decl_t toolchain = fixture_local_toolchain("A", (fixture_launcher_t) { .name = "cc" });
   toolchain.driver = it->driver;
@@ -466,7 +466,7 @@ sp_test_each(catalog, bind, bind_test_t, bind_tests) {
   spn_toolchain_catalog_init(&catalog, it->host, fixture_sdks(mem, it->sdks), mem);
   spn_toolchain_catalog_add(&catalog, toolchain);
 
-  spn_toolchain_info_t* info = spn_toolchain_catalog_get(&catalog, sp_str_lit("A"));
+  spn_toolchain_info_t* info = spn_toolchain_catalog_get(&catalog, spn_intern(sp_str_lit("A")).id);
   sp_must(t, info);
   if (fixture_check_expected_rows(t, info->rows, it->expect.rows)) {
     return SP_ERR;
@@ -476,13 +476,13 @@ sp_test_each(catalog, bind, bind_test_t, bind_tests) {
   return fixture_check_triples(t, info->unserved, it->expect.unserved, unserved);
 }
 
-sp_test_each(catalog, support, support_test_t, support_tests) {
+sp_test_each(catalog, support, support_test_t, support_tests, .setup = spn_test_ctx_setup) {
   spn_toolchain_catalog_t catalog = sp_zero;
   if (fixture_catalog(t, &catalog, it->file, it->host, fixture_sdks(sp_test_arena(t), it->sdks))) {
     return SP_ERR;
   }
 
-  spn_toolchain_info_t* info = spn_toolchain_catalog_get(&catalog, sp_cstr_as_str(it->toolchain));
+  spn_toolchain_info_t* info = spn_toolchain_catalog_get(&catalog, spn_intern_cstr(it->toolchain).id);
   sp_must(t, info);
 
   sp_must_eq(t, (u32)it->expect.kind, (u32)info->support.kind);

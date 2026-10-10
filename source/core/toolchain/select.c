@@ -117,11 +117,11 @@ static bool satisfies(const spn_toolchain_catalog_t* catalog, const spn_toolchai
 
 static sp_da(sp_str_t) satisfying(spn_toolchain_catalog_t* catalog, spn_toolchain_query_t query) {
   sp_da(sp_str_t) names = sp_da_new(catalog->mem, sp_str_t);
-  sp_om_for(catalog->entries, it) {
-    spn_toolchain_info_t* entry = sp_om_at(catalog->entries, it);
+  si_om_for(catalog->entries, it) {
+    spn_toolchain_info_t* entry = si_om_at(catalog->entries, it);
     reach_t reach = sp_zero;
     if (satisfies(catalog, entry, query, &reach)) {
-      sp_da_push(names, entry->name);
+      sp_da_push(names, entry->name.str);
     }
   }
   return names;
@@ -131,7 +131,7 @@ static spn_err_t emit(spn_err_t kind, spn_toolchain_catalog_t* catalog, spn_tool
   return spn_err_emit(&spn, (spn_err_union_t) {
     .kind = kind,
     .toolchain = {
-      .name = query.toolchain.name,
+      .name = query.toolchain.name.str,
       .target = target,
       .query = query.target,
       .host = catalog->host,
@@ -148,7 +148,7 @@ static spn_err_t emit_reach(spn_toolchain_catalog_t* catalog, spn_toolchain_quer
       return spn_err_emit(&spn, (spn_err_union_t) {
         .kind = reach.err,
         .sanitizer = {
-          .toolchain = toolchain->name,
+          .toolchain = toolchain->name.str,
           .target = reach.row.triple,
           .unsupported = reach.unsupported,
           .supported = reach.row.sanitizers,
@@ -170,8 +170,8 @@ static spn_err_t emit_reach(spn_toolchain_catalog_t* catalog, spn_toolchain_quer
 }
 
 static spn_err_t select_auto(spn_toolchain_catalog_t* catalog, spn_toolchain_query_t query, spn_toolchain_selection_t* selection) {
-  sp_om_for(catalog->entries, it) {
-    spn_toolchain_info_t* entry = sp_om_at(catalog->entries, it);
+  si_om_for(catalog->entries, it) {
+    spn_toolchain_info_t* entry = si_om_at(catalog->entries, it);
     reach_t reach = sp_zero;
     if (satisfies(catalog, entry, query, &reach)) {
       *selection = (spn_toolchain_selection_t) { .toolchain = entry, .row = reach.row, .linking = reach.linking };
@@ -183,7 +183,7 @@ static spn_err_t select_auto(spn_toolchain_catalog_t* catalog, spn_toolchain_que
 }
 
 static spn_err_t select_named(spn_toolchain_catalog_t* catalog, spn_toolchain_query_t query, spn_toolchain_selection_t* selection) {
-  spn_toolchain_info_t* toolchain = spn_toolchain_catalog_get(catalog, query.toolchain.name);
+  spn_toolchain_info_t* toolchain = spn_toolchain_catalog_get(catalog, query.toolchain.name.id);
   if (!toolchain) {
     return emit(SPN_ERR_TOOLCHAIN_UNKNOWN, catalog, query, query.target, satisfying(catalog, query), SP_NULLPTR);
   }

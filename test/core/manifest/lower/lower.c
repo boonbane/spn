@@ -1875,7 +1875,7 @@ sp_test_each(lower, cases, test_t, tests, .setup = spn_test_ctx_setup) {
 
     spn_profile_decl_t* p = si_om_get(pkg.profiles, sp_intern(interner, sp_str_view(expected.name)).id);
     sp_must(t, p);
-    sp_expect_str_eq_c(t, p->name, expected.name);
+    sp_expect_str_eq_c(t, p->name.str, expected.name);
     check_gated(t, p->toolchain, expected.toolchain);
     check_gated(t, p->linkage, expected.linkage);
     check_gated(t, p->standard, expected.standard);

@@ -82,7 +82,7 @@ static spn_build_unit_t* add_build(spn_session_t* s, spn_build_id_t id, const c8
   sp_da_init(s->mem, build->packages);
 
   spn_toolchain_info_t* info = sp_alloc_type(s->mem, spn_toolchain_info_t);
-  info->name = sp_str_lit("test");
+  info->name = spn_intern(sp_str_lit("test"));
   info->driver = SPN_CC_DRIVER_GCC;
   info->compiler.program = spn_arg_lit(sp_str_lit("cc"));
   info->cxx.program = spn_arg_lit(sp_str_lit("c++"));
@@ -123,7 +123,7 @@ spn_session_t* build_session(sp_mem_t mem, unit_graph_test_t* g) {
   sp_om_new(s->plans.objects);
 
   spn_profile_info_t profile = {
-    .name = sp_str_lit("debug"),
+    .name = spn_intern(sp_str_lit("debug")),
     .toolchain = { .kind = SPN_TOOLCHAIN_REF_AUTO },
     .driver = SPN_CC_DRIVER_GCC,
     .standard = SPN_C11,

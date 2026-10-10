@@ -15,7 +15,7 @@ static sp_err_t builtins_decls(sp_test_t* t, sp_da(spn_toolchain_decl_t)* decls)
   return SP_OK;
 }
 
-sp_test(builtins, declared_order) {
+sp_test(builtins, declared_order, .setup = spn_test_ctx_setup) {
   spn_toolchain_catalog_t catalog = sp_zero;
   if (spn_test_builtin_catalog(t, &catalog, (spn_triple_t) HOST_X64_LINUX)) {
     return SP_ERR;
@@ -24,12 +24,12 @@ sp_test(builtins, declared_order) {
   const c8* order [] = { "zig", "msvc", "clang", "llvm", "gcc" };
   sp_must_eq(t, (u32)sp_carr_len(order), fixture_catalog_size(&catalog));
   sp_carr_for(order, it) {
-    sp_expect_str_eq_c(t, fixture_catalog_at(&catalog, it)->name, order[it]);
+    sp_expect_str_eq_c(t, fixture_catalog_at(&catalog, it)->name.str, order[it]);
   }
   return SP_OK;
 }
 
-sp_test(builtins, well_formed) {
+sp_test(builtins, well_formed, .setup = spn_test_ctx_setup) {
   sp_da(spn_toolchain_decl_t) decls = SP_NULLPTR;
   if (builtins_decls(t, &decls)) {
     return SP_ERR;

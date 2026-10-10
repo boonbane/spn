@@ -13,9 +13,9 @@
 
 sp_str_t spn_profile_build_dir(sp_mem_t mem, const spn_profile_info_t* profile) {
   if (!profile->targeted) {
-    return profile->name;
+    return profile->name.str;
   }
-  return sp_fs_join_path(mem, spn_triple_to_str(mem, spn_profile_triple(profile)), profile->name);
+  return sp_fs_join_path(mem, spn_triple_to_str(mem, spn_profile_triple(profile)), profile->name.str);
 }
 
 static void overlay_profile(spn_profile_info_t* to, const spn_profile_info_t* from) {
@@ -57,18 +57,6 @@ static void overlay_profile(spn_profile_info_t* to, const spn_profile_info_t* fr
   if (!si_da_empty(from->options.clauses)) to->options = from->options;
 }
 
-static sp_str_t select_name(const spn_profile_override_t* override) {
-  if (!sp_str_empty(override->name)) {
-    return override->name;
-  }
-
-  if (override->mode == SPN_MODE_RELEASE) {
-    return sp_str_lit("release");
-  }
-
-  return sp_str_lit("debug");
-}
-
 static spn_mode_t builtin_mode(sp_str_t name) {
   if (sp_str_equal_cstr(name, "release")) {
     return SPN_MODE_RELEASE;
@@ -83,8 +71,8 @@ static bool is_builtin(sp_str_t name) {
   return sp_str_equal_cstr(name, "default") || builtin_mode(name) != SPN_MODE_NONE;
 }
 
-static const spn_profile_decl_t* find_decl(spn_profile_map_t profiles, sp_str_t name) {
-  spn_profile_decl_t** slot = si_om_getp(profiles, spn_intern(name).id);
+static const spn_profile_decl_t* find_decl(spn_profile_map_t profiles, sp_intern_id_t name) {
+  spn_profile_decl_t** slot = si_om_getp(profiles, name);
   return slot ? *slot : SP_NULLPTR;
 }
 
@@ -188,7 +176,7 @@ spn_err_t spn_profile_query(const spn_profile_info_t* profile, spn_triple_t host
     }
     return spn_err_emit(&spn, (spn_err_union_t) {
       .kind = SPN_ERR_PROFILE_LINKING,
-      .profile = { .name = profile->name, .target = spn_profile_triple(profile), .refusals = list },
+      .profile = { .name = profile->name.str, .target = spn_profile_triple(profile), .refusals = list },
     });
   }
 
@@ -240,33 +228,49 @@ static bool shared_demand(const spn_pkg_info_t* pkg) {
 }
 
 spn_err_t spn_profile_resolve(const spn_profile_override_t* override, spn_triple_t host, const spn_pkg_info_t* pkg, spn_profile_info_t* result) {
-  sp_str_t name = select_name(override);
+  sp_intern_str_t name = sp_zero;
+  if (!sp_str_empty(override->name)) {
+    name = spn_intern(override->name);
+  } else if (override->mode == SPN_MODE_RELEASE) {
+    name = spn_intern_cstr("release");
+  } else {
+    name = spn_intern_cstr("debug");
+  }
 
-  if (sp_str_find_c8(name, '/') >= 0 || sp_str_find_c8(name, '\\') >= 0) {
-    return spn_err_emit(&spn, (spn_err_union_t) {
-      .kind = SPN_ERR_PROFILE_INVALID,
-      .profile = { .name = name },
-    });
+  sp_str_for_it(name.str, it) {
+    switch (it.c) {
+      case '/':
+      case '\\': {
+        return spn_err_emit(&spn, (spn_err_union_t) {
+          .kind = SPN_ERR_PROFILE_INVALID,
+          .profile = { .name = name.str },
+        });
+      }
+      default: {
+        break;
+      }
+    }
   }
 
   spn_triple_t collision = sp_zero;
-  if (spn_triple_parse(name, &collision) == SPN_OK) {
+  if (spn_triple_parse(name.str, &collision) == SPN_OK) {
     return spn_err_emit(&spn, (spn_err_union_t) {
       .kind = SPN_ERR_PROFILE_INVALID,
-      .profile = { .name = name },
+      .profile = { .name = name.str },
     });
   }
 
-  const spn_profile_decl_t* selected = find_decl(pkg->profiles, name);
-  if (!selected && !is_builtin(name)) {
+
+  const spn_profile_decl_t* selected = find_decl(pkg->profiles, name.id);
+  if (!selected && !is_builtin(name.str)) {
     return spn_err_emit(&spn, (spn_err_union_t) {
       .kind = SPN_ERR_PROFILE_UNDEFINED,
-      .profile = { .name = name },
+      .profile = { .name = name.str },
     });
   }
 
   spn_profile_decl_t none = sp_zero;
-  const spn_profile_decl_t* base = find_decl(pkg->profiles, sp_str_lit("default"));
+  const spn_profile_decl_t* base = find_decl(pkg->profiles, spn_intern_lit("default").id);
   base = base ? base : &none;
   selected = selected ? selected : &none;
 
@@ -284,7 +288,7 @@ spn_err_t spn_profile_resolve(const spn_profile_override_t* override, spn_triple
   spn_profile_info_t from_selected = evaluate(selected, &env);
   sp_mem_end_scratch(scratch);
 
-  spn_profile_info_t builtin = { .mode = builtin_mode(name) };
+  spn_profile_info_t builtin = { .mode = builtin_mode(name.str) };
   spn_profile_info_t lifted = override_to_info(override);
   spn_profile_info_t merged = {
     .toolchain = { .kind = SPN_TOOLCHAIN_REF_AUTO },
@@ -315,7 +319,7 @@ spn_err_t spn_profile_resolve(const spn_profile_override_t* override, spn_triple
       if (pinned.arch != host.arch || pinned.os != host.os) {
         return spn_err_emit(&spn, (spn_err_union_t) {
           .kind = SPN_ERR_TARGET_ABI,
-          .profile = { .name = name, .target = pinned, .targets = spn_os_triples(spn.mem, pinned.arch, pinned.os) },
+          .profile = { .name = name.str, .target = pinned, .targets = spn_os_triples(spn.mem, pinned.arch, pinned.os) },
         });
       }
       break;
@@ -323,13 +327,13 @@ spn_err_t spn_profile_resolve(const spn_profile_override_t* override, spn_triple
     case SPN_TRIPLE_ENTRY_FOREIGN_ARCH: {
       return spn_err_emit(&spn, (spn_err_union_t) {
         .kind = SPN_ERR_PROFILE_ARCH,
-        .profile = { .name = name, .target = pinned, .targets = spn_arch_triples(spn.mem, pinned.arch) },
+        .profile = { .name = name.str, .target = pinned, .targets = spn_arch_triples(spn.mem, pinned.arch) },
       });
     }
     case SPN_TRIPLE_ENTRY_FOREIGN_ABI: {
       return spn_err_emit(&spn, (spn_err_union_t) {
         .kind = SPN_ERR_PROFILE_ABI,
-        .profile = { .name = name, .target = pinned, .targets = spn_os_triples(spn.mem, pinned.arch, pinned.os) },
+        .profile = { .name = name.str, .target = pinned, .targets = spn_os_triples(spn.mem, pinned.arch, pinned.os) },
       });
     }
     case SPN_TRIPLE_ENTRY_MISSING_ARCH:
@@ -358,7 +362,7 @@ spn_err_t spn_profile_resolve(const spn_profile_override_t* override, spn_triple
 
 spn_profile_info_t spn_profile_metaprogram(void) {
   return (spn_profile_info_t) {
-    .name = sp_str_lit("metaprogram"),
+    .name = spn_intern_lit("metaprogram"),
     .toolchain = { .kind = SPN_TOOLCHAIN_REF_AUTO },
     .arch = SPN_ARCH_WASM32,
     .os = SPN_OS_WASI,

@@ -142,7 +142,7 @@ sp_hash_t spn_unit_fingerprint(spn_session_t* session, spn_build_unit_t* build, 
   fingerprint.abi = build->profile.abi;
   fingerprint.sdk = spn_sdk_hash(&build->profile.sdk);
   fingerprint.platform = spn_pkg_hash_platform(pkg, &build->profile);
-  fingerprint.toolchain.name = spn_digest_hash_str(toolchain->name);
+  fingerprint.toolchain.name = spn_digest_hash_str(toolchain->name.str);
   fingerprint.toolchain.cc = hash_arg(toolchain->compiler.program);
   fingerprint.toolchain.ar = hash_arg(toolchain->archiver.program);
   fingerprint.toolchain.cxx = hash_arg(toolchain->cxx.program);

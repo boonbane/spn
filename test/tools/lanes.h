@@ -24,7 +24,7 @@ typedef struct {
   sp_da(spn_codegen_issue_t) issues;
 } lanes_t;
 
-lanes_read_t                   lanes_read(sp_mem_t mem, sp_str_t path, lanes_t* lanes);
+lanes_read_t                   lanes_read(sp_mem_t mem, sp_intern_t* intern, sp_str_t path, lanes_t* lanes);
 const spn_cg_toolchain_decl_t* lanes_find(const lanes_t* lanes, sp_str_t name);
 sp_da(spn_codegen_issue_t)     lanes_lower(const lanes_t* lanes, u32 at, spn_path_root_t base, spn_toolchain_decl_t* decl);
 sp_str_t                       lanes_text(const lanes_t* lanes, sp_str_t name);

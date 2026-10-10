@@ -625,13 +625,13 @@ spn_err_t spn_units_add_targets(spn_session_t* s, spn_unit_scope_t scope) {
           spn_pkg_unit_t* pkg = plan->build->packages[j];
 
           if (pkg == plan->root) {
-            si_da_for(plan->roots, kt) {
-              spn_target_info_t* info = si_om_get(pkg->info->targets, plan->roots[kt]);
+            si_da_for(plan->roots, k) {
+              spn_target_info_t* info = si_om_get(pkg->info->targets, plan->roots[k]);
               spn_try(ensure_target_unit(s, pkg, info, SP_NULLPTR));
             }
           } else {
-            si_om_for(pkg->info->targets, kt) {
-              spn_target_info_t* info = si_om_at(pkg->info->targets, kt);
+            si_om_for(pkg->info->targets, k) {
+              spn_target_info_t* info = si_om_at(pkg->info->targets, k);
               if (info->kind != SPN_TARGET_KIND_LIB) {
                 continue;
               }
@@ -683,7 +683,7 @@ spn_err_t spn_units_add_targets(spn_session_t* s, spn_unit_scope_t scope) {
           }
           spn_try(create_target_objects(s, target));
           if (is_any_object_cxx(target->objects) && spn_arg_empty(world->toolchain->cc.cxx.program)) {
-            return spn_err_emit(s->ctx, (spn_err_union_t) { .kind = SPN_ERR_TOOLCHAIN_NO_CXX, .toolchain = { .name = world->toolchain->info->name } });
+            return spn_err_emit(s->ctx, (spn_err_union_t) { .kind = SPN_ERR_TOOLCHAIN_NO_CXX, .toolchain = { .name = world->toolchain->info->name.str } });
           }
         }
 

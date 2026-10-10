@@ -1,6 +1,7 @@
 #include "sp.h"
 #include "ctx/types.h"
 #include "error/error.h"
+#include "intern/intern.h"
 #include "macro/macro.h"
 #include "paths/paths.h"
 #include "toolchain/toolchain.h"
@@ -188,14 +189,22 @@ bool spn_toolchain_has_cxx(spn_toolchain_info_t* toolchain) {
   return !spn_arg_empty(toolchain->cxx.program);
 }
 
-spn_toolchain_ref_t spn_toolchain_ref_from_str(sp_str_t str) {
+spn_toolchain_ref_kind_t spn_toolchain_ref_kind(sp_str_t str) {
   if (sp_str_empty(str)) {
-    return (spn_toolchain_ref_t) { .kind = SPN_TOOLCHAIN_REF_NONE };
+    return SPN_TOOLCHAIN_REF_NONE;
   }
   if (sp_str_equal_cstr(str, "auto")) {
-    return (spn_toolchain_ref_t) { .kind = SPN_TOOLCHAIN_REF_AUTO };
+    return SPN_TOOLCHAIN_REF_AUTO;
   }
-  return (spn_toolchain_ref_t) { .kind = SPN_TOOLCHAIN_REF_NAMED, .name = str };
+  return SPN_TOOLCHAIN_REF_NAMED;
+}
+
+spn_toolchain_ref_t spn_toolchain_ref_from_str(sp_str_t str) {
+  spn_toolchain_ref_t ref = { .kind = spn_toolchain_ref_kind(str) };
+  if (ref.kind == SPN_TOOLCHAIN_REF_NAMED) {
+    ref.name = spn_intern(str);
+  }
+  return ref;
 }
 
 spn_cc_cap_set_t spn_toolchain_driver_caps(spn_cc_driver_t driver) {

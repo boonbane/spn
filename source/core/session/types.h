@@ -32,7 +32,7 @@ struct spn_session_t {
   sp_mem_t mem;
   spn_pkg_info_t* pkg;
 
-  spn_session_config_t config;
+  bool force;
   spn_profile_info_t profile;
 
   spn_resolve_t resolve;

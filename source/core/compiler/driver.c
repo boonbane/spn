@@ -131,7 +131,7 @@ static spn_err_t feature_unsupported(const spn_cc_t* toolchain, const spn_profil
   return spn_err_emit(&spn, (spn_err_union_t) {
     .kind = SPN_ERR_COMPILER_FEATURE_UNSUPPORTED,
     .compiler = {
-      .toolchain = toolchain->name,
+      .toolchain = toolchain->name.str,
       .target = spn_profile_triple(profile),
       .feature = feature,
       .pkg = link->pkg,
@@ -145,7 +145,7 @@ static spn_err_t link_refused(spn_err_t kind, const spn_cc_t* toolchain, spn_tri
   return spn_err_emit(&spn, (spn_err_union_t) {
     .kind = kind,
     .toolchain = {
-      .name = toolchain->name,
+      .name = toolchain->name.str,
       .target = spn_profile_triple(profile),
       .host = host,
     },

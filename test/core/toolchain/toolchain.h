@@ -7,6 +7,7 @@
 #include "hash/digest/digest.h"
 #include "paths/paths.h"
 #include "enum/enum.h"
+#include "intern/intern.h"
 #include "toolchain/toolchain.h"
 #include "triple/triple.h"
 
@@ -359,7 +360,7 @@ static sp_err_t fixture_decls(sp_test_t* t, const c8* file, sp_da(spn_toolchain_
 
 static const spn_toolchain_decl_t* fixture_decl(sp_da(spn_toolchain_decl_t) decls, const c8* name) {
   sp_da_for(decls, it) {
-    if (sp_str_equal_cstr(decls[it].name, name)) {
+    if (sp_str_equal_cstr(decls[it].name.str, name)) {
       return &decls[it];
     }
   }
@@ -381,16 +382,16 @@ static sp_err_t fixture_catalog(sp_test_t* t, spn_toolchain_catalog_t* catalog, 
 }
 
 static u32 fixture_catalog_size(spn_toolchain_catalog_t* catalog) {
-  return (u32)sp_str_om_size(catalog->entries);
+  return (u32)si_om_size(catalog->entries);
 }
 
 static spn_toolchain_info_t* fixture_catalog_at(spn_toolchain_catalog_t* catalog, u32 index) {
-  return sp_str_om_at(catalog->entries, index);
+  return si_om_at(catalog->entries, index);
 }
 
 static spn_toolchain_decl_t fixture_local_toolchain(const c8* name, fixture_launcher_t compiler) {
   return (spn_toolchain_decl_t) {
-    .name = sp_cstr_as_str(name),
+    .name = spn_intern_cstr(name),
     .driver = SPN_CC_DRIVER_GCC,
     .compiler = { .program = fixture_arg(compiler) },
     .archiver = { .program = spn_arg_lit(sp_cstr_as_str("ar")) },

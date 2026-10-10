@@ -1,6 +1,7 @@
 #include "codegen/toolchain.h"
 
 #include "enum/enum.h"
+#include "intern/intern.h"
 #include "paths/paths.h"
 #include "toolchain/toolchain.h"
 #include "triple/triple.h"
@@ -249,7 +250,7 @@ spn_toolchain_decl_t spn_toolchain_lower(spn_toml_loader_t* ctx, u32 at, spn_pat
   } else {
     spn_toml_loader_push_scope(ctx, decl->name);
   }
-  if (spn_toolchain_ref_from_str(decl->name).kind == SPN_TOOLCHAIN_REF_AUTO) { spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "name"); }
+  if (spn_toolchain_ref_kind(decl->name) == SPN_TOOLCHAIN_REF_AUTO) { spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "name"); }
   if (sp_str_empty(decl->compiler)) { spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_MISSING_KEY, "compiler"); }
   if (sp_str_empty(decl->archiver)) { spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_MISSING_KEY, "archiver"); }
   if (sp_opt_is_null(decl->driver) || sp_opt_get(decl->driver) == SPN_CC_DRIVER_NONE) {
@@ -257,7 +258,7 @@ spn_toolchain_decl_t spn_toolchain_lower(spn_toml_loader_t* ctx, u32 at, spn_pat
   }
 
   spn_toolchain_decl_t toolchain = sp_zero;
-  toolchain.name = decl->name;
+  toolchain.name = sp_intern(ctx->intern, decl->name);
   toolchain.version = decl->version;
   toolchain.driver = sp_opt_is_null(decl->driver) ? SPN_CC_DRIVER_NONE : sp_opt_get(decl->driver);
   toolchain.link_args = lower_strs(ctx, decl->link_args);
@@ -301,9 +302,9 @@ bool spn_toolchains_parse(spn_toml_loader_t* ctx, sp_str_t toml, spn_cg_config_t
   return true;
 }
 
-static bool named(sp_da(spn_toolchain_decl_t) decls, sp_str_t name) {
+static bool named(sp_da(spn_toolchain_decl_t) decls, sp_intern_id_t name) {
   sp_da_for(decls, it) {
-    if (sp_str_equal(decls[it].name, name)) {
+    if (decls[it].name.id == name) {
       return true;
     }
   }
@@ -314,12 +315,12 @@ sp_da(spn_toolchain_decl_t) spn_toolchains_lower_list(spn_toml_loader_t* ctx, sp
   sp_da(spn_toolchain_decl_t) decls = sp_da_new(ctx->mem, spn_toolchain_decl_t);
   sp_da_for(list, it) {
     spn_toolchain_decl_t decl = spn_toolchain_lower(ctx, it, base, &list[it]);
-    if (!sp_str_empty(decl.name) && named(decls, decl.name)) {
+    if (decl.name.id && named(decls, decl.name.id)) {
       spn_toml_loader_push_key(ctx, "toolchain");
       spn_toml_loader_push_index(ctx, it);
-      spn_toml_loader_push_scope(ctx, decl.name);
+      spn_toml_loader_push_scope(ctx, decl.name.str);
       spn_toml_loader_push_key(ctx, "name");
-      spn_toml_loader_issue_at(ctx, SPN_ERR_CODEGEN_DUPLICATE_KEY, decl.name);
+      spn_toml_loader_issue_at(ctx, SPN_ERR_CODEGEN_DUPLICATE_KEY, decl.name.str);
       spn_toml_loader_pop(ctx);
       spn_toml_loader_pop_scope(ctx);
       spn_toml_loader_pop(ctx);

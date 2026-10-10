@@ -28,18 +28,7 @@ spn_err_t spn_session_init(spn_session_t* s, spn_ctx_t* ctx, sp_mem_t mem, spn_p
   s->arena = sp_mem_arena_new(mem);
   s->mem = sp_mem_arena_as_allocator(s->arena);
   s->pkg = &project->package;
-  s->config = (spn_session_config_t) {
-    .profile = {
-      .name = sp_intern(ctx->intern, config.profile.name).str,
-      .toolchain = sp_intern(ctx->intern, config.profile.toolchain).str,
-      .mode = config.profile.mode,
-      .opt = config.profile.opt,
-      .sanitizers = config.profile.sanitizers,
-      .sanitizers_set = config.profile.sanitizers_set,
-      .triple = config.profile.triple,
-    },
-    .force = config.force,
-  };
+  s->force = config.force;
   s->paths.root = spn_path_from_root(SPN_PATH_ROOT_PROJECT);
   s->paths.build = spn_path_join(s->mem, s->paths.root, sp_str_lit("build"));
 
@@ -57,7 +46,7 @@ spn_err_t spn_session_init(spn_session_t* s, spn_ctx_t* ctx, sp_mem_t mem, spn_p
   sp_om_new(s->plans.objects);
   sp_om_new(s->dag.objects);
 
-  spn_try(spn_profile_resolve(&s->config.profile, ctx->host, s->pkg, &s->profile));
+  spn_try(spn_profile_resolve(&config.profile, ctx->host, s->pkg, &s->profile));
 
   spn_toolchain_query_t query = sp_zero;
   spn_try(spn_profile_query(&s->profile, ctx->host, &query));

@@ -72,7 +72,7 @@ static spn_err_t setup_local(spn_toolchain_store_t* store, spn_toolchain_unit_t*
   spn_event_buffer_push(spn.events, (spn_event_t) {
     .kind = SPN_EVENT_SYNC_PACKAGE,
     .sync_pkg = {
-      .name = toolchain->name,
+      .name = toolchain->name.str,
       .time = sp_tm_read_timer(&timer),
     }
   });
@@ -91,10 +91,10 @@ static spn_err_t setup_artifact(spn_toolchain_store_t* store, spn_toolchain_unit
     spn_event_buffer_push(spn.events, (spn_event_t) {
       .kind = SPN_EVENT_SYNC,
       .sync = {
-        .name = toolchain->name,
+        .name = toolchain->name.str,
         .url = url,
       }});
-    spn_try(spn_toolchain_provision(store, toolchain->name, artifact));
+    spn_try(spn_toolchain_provision(store, toolchain->name.str, artifact));
   }
 
   spn_toolchain_launcher_t cxx = toolchain->cxx;
@@ -113,7 +113,7 @@ static spn_err_t setup_artifact(spn_toolchain_store_t* store, spn_toolchain_unit
   spn_event_buffer_push(spn.events, (spn_event_t) {
     .kind = SPN_EVENT_SYNC_PACKAGE,
     .sync_pkg = {
-      .name = toolchain->name,
+      .name = toolchain->name.str,
       .url = url,
       .source_path = spn_path_str(store->roots, spn.mem, root),
       .time = sp_tm_read_timer(&timer),
