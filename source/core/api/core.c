@@ -1,4 +1,3 @@
-#include "intern/types.h"
 #include "sp.h"
 #include "macro/macro.h"
 #include "spn.h"
@@ -351,20 +350,24 @@ void spn_target_add_include(spn_target_t* target, const c8* include) {
 }
 
 void spn_target_add_define(spn_target_t* target, const c8* define) {
-  si_da_push(target->unit->session->mem, target->info->define, spn_intern_cstr(define).str);
+  sp_mem_t mem = target->unit->session->mem;
+  si_da_push(mem, target->info->define, sp_str_from_cstr(mem, define));
 }
 
 void spn_target_add_define_path(spn_target_t* target, const c8* name, spn_dir_t dir, const c8* path) {
   spn_pkg_unit_t* unit = target->unit;
+  sp_mem_t mem = unit->session->mem;
+
   if (spn_api_path_rejected(unit, "spn_target_add_define_path", sp_str_view(path))) {
     return;
   }
+
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   spn_path_t joined = spn_path_join(scratch.mem, spn_api_dir_path(unit, dir), sp_str_view(path));
   spn_path_rel_t rel = spn_path_within(unit->session->paths.root, joined);
   if (rel.within) {
-    sp_str_t str = sp_fmt(scratch.mem, "{}=\"{}\"", sp_fmt_cstr(name), sp_fmt_str(rel.sub)).value;
-    si_da_push(unit->session->mem, target->info->define, spn_intern(str).str);
+    sp_str_t str = sp_fmt(mem, "{}=\"{}\"", sp_fmt_cstr(name), sp_fmt_str(rel.sub)).value;
+    si_da_push(mem, target->info->define, str);
   }
   else {
     sp_str_t full = spn_path_str(&unit->session->ctx->roots, scratch.mem, joined);
@@ -380,7 +383,8 @@ void spn_target_add_define_path(spn_target_t* target, const c8* name, spn_dir_t 
 }
 
 void spn_target_add_flag(spn_target_t* target, const c8* flag) {
-  si_da_push(target->unit->session->mem, target->info->flags, spn_intern_cstr(flag).str);
+  sp_mem_t mem = target->unit->session->mem;
+  si_da_push(mem, target->info->flags, sp_str_from_cstr(mem, flag));
 }
 
 static bool embed_dest_rejected(spn_pkg_unit_t* unit, const c8* fn, sp_str_t dest) {

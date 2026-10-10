@@ -88,10 +88,6 @@ static const spn_profile_decl_t* find_decl(spn_profile_map_t profiles, sp_str_t 
   return slot ? *slot : SP_NULLPTR;
 }
 
-static spn_triple_t decl_platform(const spn_profile_decl_t* decl) {
-  return (spn_triple_t) { .arch = decl->arch, .os = decl->os };
-}
-
 static sp_str_t pick(spn_gated_list_t candidates, spn_when_env_t* env) {
   si_da_for(candidates, it) {
     if (spn_when_eval(&candidates[it].when, env)) {
@@ -275,8 +271,9 @@ spn_err_t spn_profile_resolve(const spn_profile_override_t* override, spn_triple
   selected = selected ? selected : &none;
 
   spn_triple_t platform = { .arch = host.arch, .os = host.os };
-  platform = spn_triple_merge(platform, decl_platform(base));
-  platform = spn_triple_merge(platform, decl_platform(selected));
+
+  platform = spn_triple_merge(platform, (spn_triple_t) { .arch = base->arch, .os = base->os });
+  platform = spn_triple_merge(platform, (spn_triple_t) { .arch = selected->arch, .os = selected->os });
   platform = spn_triple_merge(platform, (spn_triple_t) { .arch = override->triple.arch, .os = override->triple.os });
 
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();

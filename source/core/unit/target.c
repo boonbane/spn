@@ -495,17 +495,17 @@ static void collect_unit_targets(sp_da(spn_target_unit_t*)* targets, sp_da(spn_p
 }
 
 static spn_err_t ensure_sibling_targets(spn_session_t* s, sp_da(spn_target_unit_t*)* targets) {
-  sp_for(it, sp_da_size(*targets)) {
-    spn_target_unit_t* unit = (*targets)[it];
-    si_da_for(unit->info->deps, jt) {
-      sp_str_t qualified = spn_pkg_canonicalize_name(unit->info->deps[jt]);
+  sp_for(i, sp_da_size(*targets)) {
+    spn_target_unit_t* unit = (*targets)[i];
+    si_da_for(unit->info->deps, j) {
+      sp_str_t qualified = spn_pkg_canonicalize_name(unit->info->deps[j]);
       if (find_dep_unit(s, unit->pkg, qualified)) {
         continue;
       }
-      if (spn_session_find_target_in_pkg(s, unit->pkg, ((spn_target_key_t) { .name = spn_intern(unit->info->deps[jt]).id, .kind = SPN_TARGET_KIND_LIB }))) {
+      if (spn_session_find_target_in_pkg(s, unit->pkg, ((spn_target_key_t) { .name = spn_intern(unit->info->deps[j]).id, .kind = SPN_TARGET_KIND_LIB }))) {
         continue;
       }
-      spn_target_info_t* info = spn_pkg_get_target(unit->pkg->info, unit->info->deps[jt], SPN_TARGET_KIND_LIB);
+      spn_target_info_t* info = spn_pkg_get_target(unit->pkg->info, unit->info->deps[j], SPN_TARGET_KIND_LIB);
       if (!info) {
         continue;
       }
