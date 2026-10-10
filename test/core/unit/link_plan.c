@@ -263,15 +263,13 @@ sp_test_each(link_plan, plan, plan_test_t, tests, .setup = spn_test_ctx_setup) {
   spn_target_info_t* info = SP_NULLPTR;
   sp_must_eq(t, SPN_OK, spn_pkg_add_target(s->mem, s->pkg, sp_str_lit("app"), it->target.kind, &info));
   target_info(mem, loaded->roots, &it->target, info);
-  si_da_push(s->mem, s->plans.build[0].roots, info->id);
+  s->plans.build[0].selection.kinds = spn_target_kind_bit(it->target.kind);
 
   sp_must_eq(t, SPN_OK, spn_units_add_packages(s));
   sp_must_eq(t, SPN_OK, spn_units_add_targets(s, SPN_UNIT_SCOPE_TARGET));
 
-  spn_pkg_unit_t* root = si_get_pkg_unit(s, s->units.target, find_pkg_id(s, &it->graph, it->graph.pkgs[0].name));
-  sp_must(t, root != SP_NULLPTR);
-  spn_target_unit_t* app = spn_session_find_target_in_pkg(s, root, info->id);
-  sp_must(t, app != SP_NULLPTR);
+  sp_must_eq(t, 1, si_da_size(s->plans.build[0].roots));
+  spn_target_unit_t* app = s->plans.build[0].roots[0];
 
   spn_link_plan_t* plan = &spn_session_get_target_plan(s, app->id)->link;
   sp_must_strs_eq(t, plan->cc.libs, sp_da_size(plan->cc.libs), it->expect.libs);

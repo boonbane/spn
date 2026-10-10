@@ -73,7 +73,11 @@ typedef struct {
 typedef struct {
   spn_build_unit_t* build;
   spn_pkg_unit_t* root;
-  si_da(spn_target_id_t) roots;
+  struct {
+    u32 kinds;
+    si_om(sp_intern_id_t, sp_intern_str_t) names;
+  } selection;
+  si_da(spn_target_unit_t*) roots;
   sp_da(spn_stage_closure_t) staged;
 } spn_build_plan_t;
 

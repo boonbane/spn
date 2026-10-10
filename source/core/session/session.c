@@ -83,33 +83,11 @@ spn_err_t spn_session_init(spn_session_t* s, spn_ctx_t* ctx, sp_mem_t mem, spn_p
 
   spn_build_plan_t plan = {
     .build = s->units.target,
+    .selection.kinds = config.selection.kinds,
   };
-  if (config.selection.names.count) {
-    sp_for(i, config.selection.names.count) {
-      sp_intern_str_t name = sp_intern(ctx->intern, config.selection.names.items[i]);
-      bool matched = false;
-      si_om_for(s->pkg->targets, j) {
-        spn_target_info_t* target = si_om_at(s->pkg->targets, j);
-        if (!(config.selection.kinds & spn_target_kind_bit(target->kind)) || target->name.id != name.id) {
-          continue;
-        }
-        si_da_push(s->mem, plan.roots, target->id);
-        matched = true;
-      }
-      if (!matched) {
-        return spn_err_emit(ctx, (spn_err_union_t) {
-          .kind = SPN_ERR_TARGET_SELECTION,
-          .target = { .name = name.str },
-        });
-      }
-    }
-  } else {
-    si_om_for(s->pkg->targets, it) {
-      spn_target_info_t* target = si_om_at(s->pkg->targets, it);
-      if (config.selection.kinds & spn_target_kind_bit(target->kind)) {
-        si_da_push(s->mem, plan.roots, target->id);
-      }
-    }
+  sp_for(it, config.selection.names.count) {
+    sp_intern_str_t name = spn_intern(config.selection.names.items[it]);
+    si_om_insert(s->mem, plan.selection.names, name.id, name);
   }
   sp_da_init(s->mem, plan.staged);
   sp_da_push(s->plans.build, plan);

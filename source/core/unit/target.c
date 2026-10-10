@@ -625,9 +625,41 @@ spn_err_t spn_units_add_targets(spn_session_t* s, spn_unit_scope_t scope) {
           spn_pkg_unit_t* pkg = plan->build->packages[j];
 
           if (pkg == plan->root) {
-            si_da_for(plan->roots, k) {
-              spn_target_info_t* info = si_om_get(pkg->info->targets, plan->roots[k]);
-              spn_try(ensure_target_unit(s, pkg, info, SP_NULLPTR));
+            if (si_om_empty(plan->selection.names)) {
+              si_om_for(pkg->info->targets, k) {
+                spn_target_info_t* info = si_om_at(pkg->info->targets, k);
+                if (plan->selection.kinds & spn_target_kind_bit(info->kind)) {
+                  spn_target_unit_t* root = SP_NULLPTR;
+                  spn_try(ensure_target_unit(s, pkg, info, &root));
+                  si_da_push(s->mem, plan->roots, root);
+                }
+              }
+            }
+            else {
+              si_om_for(pkg->info->targets, k) {
+                spn_target_info_t* info = si_om_at(pkg->info->targets, k);
+                if ((plan->selection.kinds & spn_target_kind_bit(info->kind)) && si_om_has(plan->selection.names, info->name.id)) {
+                  spn_target_unit_t* root = SP_NULLPTR;
+                  spn_try(ensure_target_unit(s, pkg, info, &root));
+                  si_da_push(s->mem, plan->roots, root);
+                }
+              }
+              si_om_for(plan->selection.names, k) {
+                sp_intern_str_t* name = si_om_at(plan->selection.names, k);
+                bool matched = false;
+                si_da_for(plan->roots, r) {
+                  if (plan->roots[r]->id.target.name == name->id) {
+                    matched = true;
+                    break;
+                  }
+                }
+                if (!matched) {
+                  return spn_err_emit(s->ctx, (spn_err_union_t) {
+                    .kind = SPN_ERR_TARGET_SELECTION,
+                    .target = { .name = name->str },
+                  });
+                }
+              }
             }
           } else {
             si_om_for(pkg->info->targets, k) {
@@ -703,7 +735,7 @@ spn_err_t spn_units_add_targets(spn_session_t* s, spn_unit_scope_t scope) {
         sp_ht_init(scratch.mem, claimed);
         sp_ht_set_fns(claimed, spn_path_on_hash, spn_path_on_compare);
         si_da_for(plan->roots, jt) {
-          spn_target_unit_t* root = spn_session_find_target_in_pkg(s, plan->root, plan->roots[jt]);
+          spn_target_unit_t* root = plan->roots[jt];
           if (root->kind != SPN_CC_OUTPUT_EXE) {
             continue;
           }
