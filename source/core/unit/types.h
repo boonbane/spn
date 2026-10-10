@@ -38,7 +38,7 @@ typedef struct {
 
 typedef struct {
   spn_pkg_unit_id_t pkg;
-  spn_target_key_t target;
+  spn_target_id_t target;
 } spn_target_unit_id_t;
 
 typedef struct {
@@ -52,7 +52,7 @@ _Static_assert(
   "spn_pkg_unit_id_t is byte-hashed as a key; it must have no padding"
 );
 _Static_assert(
-  sizeof(spn_target_unit_id_t) == sizeof(spn_pkg_unit_id_t) + sizeof(spn_target_key_t),
+  sizeof(spn_target_unit_id_t) == sizeof(spn_pkg_unit_id_t) + sizeof(spn_target_id_t),
   "spn_target_unit_id_t is byte-hashed as a key; it must have no padding"
 );
 _Static_assert(
@@ -73,7 +73,7 @@ typedef struct {
 typedef struct {
   spn_build_unit_t* build;
   spn_pkg_unit_t* root;
-  si_da(spn_target_key_t) roots;
+  si_da(spn_target_id_t) roots;
   sp_da(spn_stage_closure_t) staged;
 } spn_build_plan_t;
 

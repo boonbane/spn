@@ -185,6 +185,7 @@ static si_da(spn_gated_publish_t) lower_publish(spn_toml_loader_t* ctx, const sp
 
 static void lower_target(spn_toml_loader_t* ctx, const spn_cg_target_t* cg, spn_target_info_t* target) {
   *target = (spn_target_info_t) {
+    .id = target->id,
     .name = target->name,
     .kind = target->kind,
     .linkages = lower_linkages(cg->kinds),
@@ -249,8 +250,10 @@ static void lower_collection(spn_toml_loader_t* ctx, spn_cg_target_om_t cg, cons
 }
 
 static spn_target_info_t lower_metaprogram(spn_toml_loader_t* ctx, const spn_cg_build_script_t* cg, sp_str_t name, spn_target_kind_t kind) {
+  sp_intern_str_t interned = sp_intern(ctx->intern, name);
   return (spn_target_info_t) {
-    .name = name,
+    .id = { .name = interned.id, .kind = kind },
+    .name = interned,
     .kind = kind,
     .gated = {
       .source = lower_gated_sources(ctx, cg->source),

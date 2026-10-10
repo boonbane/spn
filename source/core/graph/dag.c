@@ -41,7 +41,7 @@ static spn_dag_digest_t hash_embedding(spn_target_unit_t* target) {
   spn_digest_init_blake3(&ctx);
   spn_dag_hash_str(&ctx, sp_str_lit("spn.build.embed.v9"));
   spn_dag_hash_str(&ctx, target->pkg->info->qualified);
-  spn_dag_hash_str(&ctx, target->info->name);
+  spn_dag_hash_str(&ctx, target->info->name.str);
   spn_dag_hash_u8(&ctx, (u8)target->info->kind);
   spn_profile_info_t* profile = &target->pkg->build->profile;
   spn_dag_hash_u8(&ctx, (u8)profile->os);
@@ -242,7 +242,7 @@ static spn_err_t add_object_compilation(spn_dag_build_t* b, spn_target_unit_t* t
 
 static spn_path_t embed_artifact_path(sp_mem_t mem, spn_target_unit_t* unit, const c8* extension) {
   sp_mem_arena_marker_t s = sp_mem_begin_scratch_for(mem);
-  sp_str_t name = sp_fmt(s.mem, "{}.embed.{}", sp_fmt_str(unit->info->name), sp_fmt_cstr(extension)).value;
+  sp_str_t name = sp_fmt(s.mem, "{}.embed.{}", sp_fmt_str(unit->info->name.str), sp_fmt_cstr(extension)).value;
   spn_path_t path = spn_path_join(mem, unit->paths.object, name);
   sp_mem_end_scratch(s);
   return path;
@@ -419,7 +419,7 @@ spn_err_t spn_dag_build_add_target(spn_dag_build_t* b, spn_target_unit_t* target
       spn_dag_hash_u64(&digest, toolchain->identity);
       spn_dag_hash_s32(&digest, format.exports);
       spn_dag_hash_s32(&digest, spn_rsp_style(toolchain->cc.driver));
-      spn_dag_hash_str(&digest, target->info->name);
+      spn_dag_hash_str(&digest, target->info->name.str);
       spn_dag_id_t action = spn_dag_add_action(g, (spn_dag_action_config_t) {
         .identity = spn_dag_hash_final(&digest),
         .execute = si_on_write_exports,
@@ -453,7 +453,7 @@ spn_err_t spn_dag_build_add_target(spn_dag_build_t* b, spn_target_unit_t* target
       spn_dag_hash_str(&digest, sp_str_lit("spn.build.archive.v1"));
       spn_dag_hash_u64(&digest, target->pkg->fingerprint);
       spn_dag_hash_str(&digest, target->pkg->info->name);
-      spn_dag_hash_str(&digest, target->info->name);
+      spn_dag_hash_str(&digest, target->info->name.str);
       ids.action = spn_dag_add_action(g, (spn_dag_action_config_t) {
         .identity = spn_dag_hash_final(&digest),
         .execute = si_on_archive,

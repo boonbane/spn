@@ -94,7 +94,7 @@ static const test_t tests [] = {
   },
 };
 
-sp_test_each(get_linked_libs, flatten, test_t, tests) {
+sp_test_each(get_linked_libs, flatten, test_t, tests, .setup = spn_test_ctx_setup) {
   closure_graph_t g = build_graph(&it->graph);
 
   sp_da(spn_closure_entry_t) closure = si_link_get_target_closure(g.mem, g.root);
@@ -105,7 +105,7 @@ sp_test_each(get_linked_libs, flatten, test_t, tests) {
   sp_must_eq(t, expected, sp_da_size(libs));
   sp_for(row, expected) {
     sp_expect_str_eq_c(t, libs[row].pkg->info->name, it->expect[row].pkg);
-    sp_expect_str_eq_c(t, libs[row].lib->info->name, it->expect[row].lib);
+    sp_expect_str_eq_c(t, libs[row].lib->info->name.str, it->expect[row].lib);
     sp_expect_eq(t, it->expect[row].private, libs[row].private);
   }
 

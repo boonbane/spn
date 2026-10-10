@@ -25,7 +25,7 @@ spn_err_t si_on_embed(spn_dag_t* g, spn_dag_action_t* action, void* user_data, s
   spn_event_buffer_push(spn.events, (spn_event_t) {
     .kind = SPN_EVENT_EMBED_START,
     .pkg = unit->pkg->info->name,
-    .embed_start = { .target = info->name, .num_files = si_da_size(info->embed) },
+    .embed_start = { .target = info->name.str, .num_files = si_da_size(info->embed) },
   });
 
   sp_tm_timer_t timer = sp_tm_start_timer();
@@ -53,7 +53,7 @@ spn_err_t si_on_embed(spn_dag_t* g, spn_dag_action_t* action, void* user_data, s
           spn_event_buffer_push(spn.events, (spn_event_t) {
             .kind = SPN_EVENT_EMBED_FAILED,
             .pkg = unit->pkg->info->name,
-            .embed_failed = { .target = info->name, .path = embed.path, .error = sp_str_lit("file not found") },
+            .embed_failed = { .target = info->name.str, .path = embed.path, .error = sp_str_lit("file not found") },
           });
           return SPN_ERR_DAG_ACTION;
         }
@@ -88,7 +88,7 @@ spn_err_t si_on_embed(spn_dag_t* g, spn_dag_action_t* action, void* user_data, s
             spn_event_buffer_push(spn.events, (spn_event_t) {
               .kind = SPN_EVENT_EMBED_FAILED,
               .pkg = unit->pkg->info->name,
-              .embed_failed = { .target = info->name, .path = spn_path_copy(spn.mem, file), .error = sp_str_lit("file not found") },
+              .embed_failed = { .target = info->name.str, .path = spn_path_copy(spn.mem, file), .error = sp_str_lit("file not found") },
             });
             sp_fs_it_deinit(&walk);
             sp_mem_end_scratch(scratch);
@@ -115,7 +115,7 @@ spn_err_t si_on_embed(spn_dag_t* g, spn_dag_action_t* action, void* user_data, s
     spn_event_buffer_push(spn.events, (spn_event_t) {
       .kind = SPN_EVENT_EMBED_FAILED,
       .pkg = unit->pkg->info->name,
-      .embed_failed = { .target = info->name, .error = sp_str_lit("embed write failed") },
+      .embed_failed = { .target = info->name.str, .error = sp_str_lit("embed write failed") },
     });
     return SPN_ERR_DAG_ACTION;
   }
@@ -125,7 +125,7 @@ spn_err_t si_on_embed(spn_dag_t* g, spn_dag_action_t* action, void* user_data, s
     .kind = SPN_EVENT_EMBED_PASSED,
     .pkg = unit->pkg->info->name,
     .embed_passed = {
-      .target = info->name,
+      .target = info->name.str,
       .object_path = spn_dag_find_artifact(g, action->produces[0])->path,
       .header_path = spn_dag_find_artifact(g, action->produces[1])->path,
       .time = elapsed,

@@ -86,20 +86,20 @@ spn_err_t spn_session_init(spn_session_t* s, spn_ctx_t* ctx, sp_mem_t mem, spn_p
   };
   if (config.selection.names.count) {
     sp_for(i, config.selection.names.count) {
-      sp_str_t name = config.selection.names.items[i];
+      sp_intern_str_t name = sp_intern(ctx->intern, config.selection.names.items[i]);
       bool matched = false;
       si_om_for(s->pkg->targets, j) {
         spn_target_info_t* target = si_om_at(s->pkg->targets, j);
-        if (!(config.selection.kinds & spn_target_kind_bit(target->kind)) || !sp_str_equal(target->name, name)) {
+        if (!(config.selection.kinds & spn_target_kind_bit(target->kind)) || target->name.id != name.id) {
           continue;
         }
-        si_da_push(s->mem, plan.roots, ((spn_target_key_t) { .name = spn_intern(target->name).id, .kind = target->kind }));
+        si_da_push(s->mem, plan.roots, target->id);
         matched = true;
       }
       if (!matched) {
         return spn_err_emit(ctx, (spn_err_union_t) {
           .kind = SPN_ERR_TARGET_SELECTION,
-          .target = { .name = name },
+          .target = { .name = name.str },
         });
       }
     }
@@ -107,7 +107,7 @@ spn_err_t spn_session_init(spn_session_t* s, spn_ctx_t* ctx, sp_mem_t mem, spn_p
     si_om_for(s->pkg->targets, it) {
       spn_target_info_t* target = si_om_at(s->pkg->targets, it);
       if (config.selection.kinds & spn_target_kind_bit(target->kind)) {
-        si_da_push(s->mem, plan.roots, ((spn_target_key_t) { .name = spn_intern(target->name).id, .kind = target->kind }));
+        si_da_push(s->mem, plan.roots, target->id);
       }
     }
   }
@@ -162,9 +162,9 @@ spn_pkg_unit_t* spn_session_find_dep(spn_session_t* session, spn_pkg_unit_t* pkg
   return SP_NULLPTR;
 }
 
-spn_target_unit_t* spn_session_find_target_in_pkg(spn_session_t* session, spn_pkg_unit_t* pkg, spn_target_key_t key) {
-  spn_target_unit_id_t id = { .pkg = pkg->id, .target = key };
-  return sp_om_has(session->units.targets, id) ? sp_om_get(session->units.targets, id) : SP_NULLPTR;
+spn_target_unit_t* spn_session_find_target_in_pkg(spn_session_t* session, spn_pkg_unit_t* pkg, spn_target_id_t id) {
+  spn_target_unit_id_t key = { .pkg = pkg->id, .target = id };
+  return sp_om_has(session->units.targets, key) ? sp_om_get(session->units.targets, key) : SP_NULLPTR;
 }
 
 spn_target_plan_t* spn_session_get_target_plan(spn_session_t* session, spn_target_unit_id_t id) {

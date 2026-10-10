@@ -31,7 +31,7 @@ static spn_err_t run_link(const spn_path_roots_t* roots, spn_target_unit_t* targ
     .kind = SPN_EVENT_LINK_FAILED,
     .pkg = target->pkg->info->name,
     .link_failed = {
-      .target = target->info->name,
+      .target = target->info->name.str,
       .exit_code = run->result.status.exit_code,
       .command = spn_invocation_to_str(roots, spn.mem, invocation),
       .out = run->result.out,
@@ -48,7 +48,7 @@ static spn_err_t run_target(const spn_path_roots_t* roots, spn_target_unit_t* ta
     .kind = SPN_EVENT_LINK_START,
     .pkg = target->pkg->info->name,
     .link_start = {
-      .target = target->info->name,
+      .target = target->info->name.str,
     }
   });
 
@@ -59,7 +59,7 @@ static spn_err_t run_target(const spn_path_roots_t* roots, spn_target_unit_t* ta
     .kind = SPN_EVENT_LINK_PASSED,
     .pkg = target->pkg->info->name,
     .link_passed = {
-      .target = target->info->name,
+      .target = target->info->name.str,
       .output_path = target->paths.output,
       .command = spn_invocation_to_str(roots, spn.mem, invocation),
       .out = run.result.out,
@@ -200,7 +200,7 @@ static spn_err_t write_exports(sp_mem_t mem, const spn_path_roots_t* roots, spn_
       break;
     }
     case SPN_CC_EXPORTS_DEF: {
-      spn_exports_render_def(&writer.base, target->info->name, symbols);
+      spn_exports_render_def(&writer.base, target->info->name.str, symbols);
       break;
     }
   }

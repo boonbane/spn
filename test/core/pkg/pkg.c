@@ -189,7 +189,7 @@ sp_test_each(pkg, targets, targets_test_t, targets_tests, .setup = spn_test_ctx_
   spn_target_info_t* found = spn_pkg_get_target(&pkg, sp_str_view(it->get.name), it->get.kind);
   sp_must_eq(t, it->expect.found, found != SP_NULLPTR);
   if (found) {
-    sp_expect_str_eq_c(t, found->name, it->get.name);
+    sp_expect_str_eq_c(t, found->name.str, it->get.name);
     sp_expect_eq(t, (u32)it->get.kind, (u32)found->kind);
   }
   return SP_OK;

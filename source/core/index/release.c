@@ -57,7 +57,7 @@ spn_err_t spn_index_release_from_pkg(sp_mem_t mem, spn_pkg_info_t* info, spn_pkg
     if (lib->kind != SPN_TARGET_KIND_LIB) {
       continue;
     }
-    spn_index_target_t target = { .name = lib->name };
+    spn_index_target_t target = { .name = lib->name.str };
     sp_da_init(mem, target.linkages);
 
     const spn_linkage_t kinds [] = { SPN_LIB_KIND_SOURCE, SPN_LIB_KIND_STATIC, SPN_LIB_KIND_SHARED, SPN_LIB_KIND_OBJECT };

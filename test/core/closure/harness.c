@@ -1,9 +1,11 @@
 #include "closure.h"
 
+#include "intern/intern.h"
+
 sp_err_t expect_target_names(sp_test_t* t, sp_da(spn_target_unit_t*) targets, const c8* const* expect) {
   sp_da(sp_str_t) names = sp_da_new(sp_test_arena(t), sp_str_t);
   sp_da_for(targets, it) {
-    sp_da_push(names, targets[it]->info->name);
+    sp_da_push(names, targets[it]->info->name.str);
   }
 
   sp_must_strs_eq(t, names, sp_da_size(names), expect);
@@ -21,10 +23,10 @@ spn_pkg_unit_t* find_pkg(spn_pkg_unit_t** pkgs, u32 count, const c8* name) {
 }
 
 spn_target_unit_t* find_lib(spn_pkg_unit_t** pkgs, u32 count, const c8* name) {
-  sp_str_t needle = sp_str_view(name);
+  sp_intern_id_t needle = spn_intern_cstr(name).id;
   sp_for(it, count) {
     sp_da_for(pkgs[it]->libs, lt) {
-      if (sp_str_equal(pkgs[it]->libs[lt]->info->name, needle)) {
+      if (pkgs[it]->libs[lt]->info->name.id == needle) {
         return pkgs[it]->libs[lt];
       }
     }
@@ -33,8 +35,11 @@ spn_target_unit_t* find_lib(spn_pkg_unit_t** pkgs, u32 count, const c8* name) {
 }
 
 static spn_target_unit_t* add_lib(sp_mem_t mem, spn_pkg_unit_t* pkg, const c8* name, spn_linkage_t kind, bool no_link) {
+  sp_intern_str_t interned = spn_intern_cstr(name);
   spn_target_info_t* info = sp_alloc_type(mem, spn_target_info_t);
-  info->name = sp_str_view(name);
+  info->id = (spn_target_id_t) { .name = interned.id, .kind = SPN_TARGET_KIND_LIB };
+  info->name = interned;
+  info->kind = SPN_TARGET_KIND_LIB;
   info->no_link = no_link;
 
   spn_target_unit_t* lib = sp_alloc_type(mem, spn_target_unit_t);
@@ -112,8 +117,10 @@ closure_graph_t build_graph(closure_graph_test_t* t) {
   }
 
   spn_pkg_unit_t* root = find_pkg(g.pkgs, g.count, t->root);
+  sp_intern_str_t name = spn_intern(root->info->name);
   spn_target_info_t* exe_info = sp_alloc_type(g.mem, spn_target_info_t);
-  exe_info->name = root->info->name;
+  exe_info->id = (spn_target_id_t) { .name = name.id, .kind = t->target };
+  exe_info->name = name;
   exe_info->kind = t->target;
 
   spn_target_unit_t* exe = sp_alloc_type(g.mem, spn_target_unit_t);

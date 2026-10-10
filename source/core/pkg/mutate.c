@@ -67,17 +67,15 @@ void spn_pkg_add_system_dep_ex(sp_mem_t mem, spn_pkg_info_t* pkg, sp_str_t dep) 
 }
 
 spn_err_t spn_pkg_add_target(sp_mem_t mem, spn_pkg_info_t* pkg, sp_str_t name, spn_target_kind_t kind, spn_target_info_t** out) {
-  struct { sp_intern_str_t name; } c = {
-    .name = spn_intern(name)
-  };
-
-  spn_target_key_t key = { .name = c.name.id, .kind = kind };
-  if (si_om_has(pkg->targets, key)) {
+  sp_intern_str_t interned = spn_intern(name);
+  spn_target_id_t id = { .name = interned.id, .kind = kind };
+  if (si_om_has(pkg->targets, id)) {
     return SPN_ERR_TARGET_DUPLICATE;
   }
 
-  si_om_insert(mem, pkg->targets, key, ((spn_target_info_t) {
-    .name = c.name.str,
+  si_om_insert(mem, pkg->targets, id, ((spn_target_info_t) {
+    .id = id,
+    .name = interned,
     .kind = kind
   }));
   *out = si_om_back(pkg->targets);
