@@ -73,7 +73,7 @@ sp_test_each(target_kind, kind, test_t, tests, .setup = spn_test_ctx_setup) {
   spn_target_info_t* app = SP_NULLPTR;
   sp_must_eq(t, SPN_OK, spn_pkg_add_target(s->mem, s->pkg, sp_str_lit("app"), SPN_TARGET_KIND_EXE, &app));
   app->source = test_source_list(mem, loaded->roots, source, sp_carr_len(source));
-  si_da_push(s->mem, s->plans.build[0].roots, ((spn_target_key_t) { .name = spn_intern(sp_str_lit("app")).id, .kind = SPN_TARGET_KIND_EXE }));
+  si_da_push(s->mem, s->plans.build[0].roots, app->id);
 
   sp_must_eq(t, SPN_OK, spn_units_add_packages(s));
   spn_err_t err = spn_units_add_targets(s, SPN_UNIT_SCOPE_TARGET);

@@ -7,6 +7,7 @@
 #include "resolve/types.h"
 #include "session/types.h"
 #include "spn/core.h"
+#include "spn/types.h"
 #include "unit/types.h"
 #include "unit/unit.h"
 
@@ -28,18 +29,7 @@ spn_err_t spn_session_init(spn_session_t* s, spn_ctx_t* ctx, sp_mem_t mem, spn_p
   s->arena = sp_mem_arena_new(mem);
   s->mem = sp_mem_arena_as_allocator(s->arena);
   s->pkg = &project->package;
-  s->config = (spn_session_config_t) {
-    .profile = {
-      .name = sp_intern(ctx->intern, config.profile.name).str,
-      .toolchain = sp_intern(ctx->intern, config.profile.toolchain).str,
-      .mode = config.profile.mode,
-      .opt = config.profile.opt,
-      .sanitizers = config.profile.sanitizers,
-      .sanitizers_set = config.profile.sanitizers_set,
-      .triple = config.profile.triple,
-    },
-    .force = config.force,
-  };
+  s->force = config.force;
   s->paths.root = spn_path_from_root(SPN_PATH_ROOT_PROJECT);
   s->paths.build = spn_path_join(s->mem, s->paths.root, sp_str_lit("build"));
 
@@ -57,13 +47,14 @@ spn_err_t spn_session_init(spn_session_t* s, spn_ctx_t* ctx, sp_mem_t mem, spn_p
   sp_om_new(s->plans.objects);
   sp_om_new(s->dag.objects);
 
-  spn_try(spn_profile_resolve(&s->config.profile, ctx->host, s->pkg, &s->profile));
+  spn_profile_info_t profile = sp_zero;
+  spn_try(spn_profile_resolve(&config.profile, ctx->host, s->pkg, &profile));
 
   spn_toolchain_query_t query = sp_zero;
-  spn_try(spn_profile_query(&s->profile, ctx->host, &query));
+  spn_try(spn_profile_query(&profile, ctx->host, &query));
   spn_toolchain_selection_t target = sp_zero;
   spn_try(spn_toolchain_select(&ctx->catalog, query, &target));
-  spn_profile_finalize(&s->profile, &target);
+  spn_profile_finalize(&profile, &target);
 
   spn_profile_info_t metaprogram = spn_profile_metaprogram();
   spn_toolchain_query_t metaprogram_query = sp_zero;
@@ -72,12 +63,14 @@ spn_err_t spn_session_init(spn_session_t* s, spn_ctx_t* ctx, sp_mem_t mem, spn_p
   spn_try(spn_toolchain_select(&ctx->catalog, metaprogram_query, &script));
   spn_profile_finalize(&metaprogram, &script);
 
-  spn_path_t target_root = spn_path_join(s->mem, s->paths.build, spn_profile_build_dir(s->mem, &s->profile));
-  s->units.target = spn_build_add(s, s->profile, target_root, target.toolchain);
-
   spn_triple_t metaprogram_triple = { metaprogram.arch, metaprogram.os, metaprogram.abi };
-  spn_path_t metaprogram_root = spn_path_join(s->mem, s->paths.build, spn_triple_to_str(s->mem, metaprogram_triple));
-  s->units.metaprogram = spn_build_add(s, metaprogram, metaprogram_root, script.toolchain);
+  struct { spn_path_t build; spn_path_t metabuild; } roots = {
+    .build = spn_path_join(s->mem, s->paths.build, spn_profile_build_dir(s->mem, &profile)),
+    .metabuild = spn_path_join(s->mem, s->paths.build, spn_triple_to_str(s->mem, metaprogram_triple))
+  };
+  s->units.target = spn_build_add(s, profile, roots.build, target.toolchain);
+  s->units.metaprogram = spn_build_add(s, metaprogram, roots.metabuild, script.toolchain);
+
   sp_da_push(s->units.metaprogram->include, spn_path(s->mem, SPN_DIR_ID_RUNTIME, "include"));
 
   spn_path_t log_path = spn_path_join(s->mem, s->units.target->paths.root, sp_str_lit(".spn/build.jsonl"));
@@ -93,20 +86,20 @@ spn_err_t spn_session_init(spn_session_t* s, spn_ctx_t* ctx, sp_mem_t mem, spn_p
   };
   if (config.selection.names.count) {
     sp_for(i, config.selection.names.count) {
-      sp_str_t name = config.selection.names.items[i];
+      sp_intern_str_t name = sp_intern(ctx->intern, config.selection.names.items[i]);
       bool matched = false;
       si_om_for(s->pkg->targets, j) {
         spn_target_info_t* target = si_om_at(s->pkg->targets, j);
-        if (!(config.selection.kinds & spn_target_kind_bit(target->kind)) || !sp_str_equal(target->name, name)) {
+        if (!(config.selection.kinds & spn_target_kind_bit(target->kind)) || target->name.id != name.id) {
           continue;
         }
-        si_da_push(s->mem, plan.roots, ((spn_target_key_t) { .name = spn_intern(target->name).id, .kind = target->kind }));
+        si_da_push(s->mem, plan.roots, target->id);
         matched = true;
       }
       if (!matched) {
         return spn_err_emit(ctx, (spn_err_union_t) {
           .kind = SPN_ERR_TARGET_SELECTION,
-          .target = { .name = name },
+          .target = { .name = name.str },
         });
       }
     }
@@ -114,7 +107,7 @@ spn_err_t spn_session_init(spn_session_t* s, spn_ctx_t* ctx, sp_mem_t mem, spn_p
     si_om_for(s->pkg->targets, it) {
       spn_target_info_t* target = si_om_at(s->pkg->targets, it);
       if (config.selection.kinds & spn_target_kind_bit(target->kind)) {
-        si_da_push(s->mem, plan.roots, ((spn_target_key_t) { .name = spn_intern(target->name).id, .kind = target->kind }));
+        si_da_push(s->mem, plan.roots, target->id);
       }
     }
   }
@@ -156,7 +149,7 @@ spn_pkg_unit_t* si_get_pkg_unit(spn_session_t* session, spn_build_unit_t* build,
 }
 
 spn_pkg_unit_t* spn_session_find_dep(spn_session_t* session, spn_pkg_unit_t* pkg, sp_str_t qualified, spn_dep_kind_t kind) {
-  sp_intern_id_t name = sp_intern_get_or_insert(session->ctx->intern, qualified);
+  sp_intern_id_t name = sp_intern(session->ctx->intern, qualified).id;
 
   sp_da_for(pkg->deps, it) {
     if (pkg->deps[it].kind != kind) {
@@ -169,9 +162,9 @@ spn_pkg_unit_t* spn_session_find_dep(spn_session_t* session, spn_pkg_unit_t* pkg
   return SP_NULLPTR;
 }
 
-spn_target_unit_t* spn_session_find_target_in_pkg(spn_session_t* session, spn_pkg_unit_t* pkg, spn_target_key_t key) {
-  spn_target_unit_id_t id = { .pkg = pkg->id, .target = key };
-  return sp_om_has(session->units.targets, id) ? sp_om_get(session->units.targets, id) : SP_NULLPTR;
+spn_target_unit_t* spn_session_find_target_in_pkg(spn_session_t* session, spn_pkg_unit_t* pkg, spn_target_id_t id) {
+  spn_target_unit_id_t key = { .pkg = pkg->id, .target = id };
+  return sp_om_has(session->units.targets, key) ? sp_om_get(session->units.targets, key) : SP_NULLPTR;
 }
 
 spn_target_plan_t* spn_session_get_target_plan(spn_session_t* session, spn_target_unit_id_t id) {

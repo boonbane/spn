@@ -31,7 +31,7 @@ spn_op_t* spn_clean(spn_ctx_t* ctx) {
 
 spn_err_t spn_op_clean_profile(spn_op_t* op) {
   spn_session_t* session = op->session;
-  spn_path_t dir = spn_path_join(session->mem, session->paths.build, spn_profile_build_dir(session->mem, &session->profile));
+  spn_path_t dir = spn_path_join(session->mem, session->paths.build, spn_profile_build_dir(session->mem, &session->units.target->profile));
   return remove_path(session->ctx, dir);
 }
 
