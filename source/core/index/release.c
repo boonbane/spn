@@ -16,7 +16,7 @@ static spn_index_dep_kind_t dep_kind_to_index(spn_dep_kind_t kind) {
 spn_err_t spn_index_release_from_pkg(sp_mem_t mem, spn_pkg_info_t* info, spn_pkg_root_t published, spn_index_release_t* release, sp_str_t* dep) {
   *dep = sp_str_lit("");
   *release = (spn_index_release_t) {
-    .id = spn_pkg_name_from_qualified(info->qualified),
+    .id = spn_pkg_name_from_qualified(info->qualified.str),
     .version = info->version,
     .source = spn_pkg_upstream(info),
     .paths = {

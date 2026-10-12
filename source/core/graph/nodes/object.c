@@ -31,7 +31,7 @@ static s32 run_compiler(const spn_path_roots_t* roots, spn_compile_unit_t* unit,
   if (run.result.status.exit_code) {
     spn_event_buffer_push(session->ctx->events, (spn_event_t) {
       .kind = SPN_EVENT_TARGET_BUILD_FAILED,
-      .pkg = pkg->info->name,
+      .pkg = pkg->info->name.str,
       .target_failed = {
         .target = unit->target->info->name.str,
         .source_file = unit->paths.file,
@@ -45,7 +45,7 @@ static s32 run_compiler(const spn_path_roots_t* roots, spn_compile_unit_t* unit,
   } else {
     spn_event_buffer_push(session->ctx->events, (spn_event_t) {
       .kind = SPN_EVENT_TARGET_BUILD_PASSED,
-      .pkg = pkg->info->name,
+      .pkg = pkg->info->name.str,
       .target_passed = {
         .target = unit->target->info->name.str,
         .source_file = unit->paths.file,

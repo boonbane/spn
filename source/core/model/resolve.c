@@ -56,7 +56,7 @@ static spn_err_t apply_patch_overrides(spn_session_t* session, spn_resolve_query
     pkg->origin.recipe = (spn_pkg_root_t) { .kind = SPN_PKG_ROOT_LOCAL, .local = patch };
     pkg->origin.source = spn_pkg_upstream(info);
     pkg->origin.info = info;
-    pkg->name = info->name;
+    pkg->name = info->name.str;
     pkg->options = info->options;
   }
   return result;
@@ -64,7 +64,7 @@ static spn_err_t apply_patch_overrides(spn_session_t* session, spn_resolve_query
 
 static void add_root(spn_session_t* session, spn_resolve_query_t* query) {
   spn_resolve_query_add(query, (spn_requested_dep_t) {
-    .qualified = session->pkg->qualified,
+    .qualified = session->pkg->qualified.str,
     .source = SPN_PKG_SOURCE_ROOT,
   });
 }
@@ -93,10 +93,10 @@ spn_err_t resolve(spn_op_t* op) {
   spn_session_t* session = op->session;
   spn_event_buffer_push(spn.events, (spn_event_t) {
     .kind = SPN_EVENT_RESOLVE_START,
-    .pkg = session->pkg->name,
+    .pkg = session->pkg->name.str,
   });
 
-  sp_ht_insert(session->registry, spn_pkg_id(session->ctx->intern, session->pkg->qualified), ((spn_registry_pkg_t) {
+  sp_ht_insert(session->registry, ((spn_pkg_id_t) { .qualified = session->pkg->qualified.id }), ((spn_registry_pkg_t) {
     .source = SPN_PKG_SOURCE_ROOT,
     .info = session->pkg,
     .manifest = session->project->paths.manifest,

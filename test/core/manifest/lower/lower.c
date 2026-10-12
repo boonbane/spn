@@ -1737,9 +1737,9 @@ sp_test_each(lower, cases, test_t, tests, .setup = spn_test_ctx_setup) {
   }
 
   // Package scalars
-  if (it->pkg_name)   sp_expect_str_eq_c(t, pkg.name, it->pkg_name);
+  if (it->pkg_name)   sp_expect_str_eq_c(t, pkg.name.str, it->pkg_name);
   if (it->namespace)  sp_expect_str_eq_c(t, pkg.namespace, it->namespace);
-  if (it->qualified)  sp_expect_str_eq_c(t, pkg.qualified, it->qualified);
+  if (it->qualified)  sp_expect_str_eq_c(t, pkg.qualified.str, it->qualified);
   if (it->url)        sp_expect_str_eq_c(t, pkg.upstream.url, it->url);
   if (it->repo)       sp_expect_str_eq_c(t, pkg.repo, it->repo);
   if (it->author)     sp_expect_str_eq_c(t, pkg.author, it->author);

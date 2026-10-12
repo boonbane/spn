@@ -216,10 +216,10 @@ static spn_err_union_t load_file_pkg(spn_resolver_t* resolver, spn_requested_dep
 
   // Option requests, config keys, and edge lookups all route by the name the
   // edge requested; a manifest declaring some other name would strand them
-  if (!sp_str_equal(info->qualified, request->qualified)) {
+  if (!sp_str_equal(info->qualified.str, request->qualified)) {
     return (spn_err_union_t) {
       .kind = SPN_ERR_PKG_MISMATCH,
-      .mismatch = { .path = spn_path_str(resolver->roots, resolver->mem, request->file.path), .declared = info->qualified, .requested = request->qualified },
+      .mismatch = { .path = spn_path_str(resolver->roots, resolver->mem, request->file.path), .declared = info->qualified.str, .requested = request->qualified },
     };
   }
 
@@ -481,10 +481,10 @@ static spn_err_union_t resolve_local_package(spn_resolver_t* resolver, spn_resol
 
   spn_resolved_pkg_t node = {
     .id = {
-      .qualified = sp_intern(resolver->intern, pkg->info->qualified).id,
+      .qualified = pkg->info->qualified.id,
       .version = pkg->info->version,
     },
-    .name = pkg->info->name,
+    .name = pkg->info->name.str,
     .options = pkg->info->options,
     .source = pkg->source,
     .origin = {

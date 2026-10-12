@@ -313,10 +313,10 @@ static spn_err_t load_manifest(spn_session_t* session, sp_str_t name, spn_path_t
   // Short names only: published manifests routinely omit the namespace the
   // index assigns, but config keys and consumer routing use the name
   sp_str_t requested = spn_pkg_name_from_qualified(name).name;
-  if (!sp_str_equal(parsed->name, requested)) {
+  if (!sp_str_equal(parsed->name.str, requested)) {
     return spn_err_emit(session->ctx, (spn_err_union_t) {
       .kind = SPN_ERR_PKG_MISMATCH,
-      .mismatch = { .path = spn_path_str(&session->ctx->roots, spn.events->mem, manifest), .declared = parsed->name, .requested = name },
+      .mismatch = { .path = spn_path_str(&session->ctx->roots, spn.events->mem, manifest), .declared = parsed->name.str, .requested = name },
     });
   }
 
@@ -457,7 +457,7 @@ static spn_err_t load_package(spn_session_t* session, spn_resolved_pkg_t* pkg, s
   loaded->elapsed = sp_tm_read_timer(&timer);
 
   spn_event_buffer_push(spn.events, (spn_event_t) {
-    .kind = SPN_EVENT_SYNC_PACKAGE, .pkg = loaded->info->name,
+    .kind = SPN_EVENT_SYNC_PACKAGE, .pkg = loaded->info->name.str,
     .sync_pkg = {
       .name = qualified,
       .url = sync_url(pkg->origin.recipe, pkg->origin.source),
@@ -592,7 +592,7 @@ spn_err_t sync_packages(spn_op_t* op, bool* reresolve) {
 
   sp_da_for(packages, it) {
     pkg_job_t* job = packages[it];
-    job->pkg->name = job->loaded.info->name;
+    job->pkg->name = job->loaded.info->name.str;
     job->pkg->options = job->loaded.info->options;
     sp_ht_insert(session->packages, job->pkg->id, job->loaded);
   }

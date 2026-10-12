@@ -298,14 +298,14 @@ static void lower_dep(spn_toml_loader_t* ctx, sp_str_t name, const spn_cg_dep_t*
 
 static void lower_package(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, spn_pkg_info_t* info) {
   const spn_cg_package_t* p = &cg->package;
-  info->name = p->name;
+  info->name = sp_intern(ctx->intern, p->name);
   info->namespace = p->namespace;
   info->repo = p->repo;
   info->upstream.url = p->upstream.url;
   info->upstream.commit = p->upstream.commit;
   info->author = p->author;
   info->maintainer = p->maintainer;
-  info->qualified = lower_qualify(ctx, p->namespace, p->name).str;
+  info->qualified = lower_qualify(ctx, p->namespace, p->name);
   if (spn_semver_parse(p->version, &info->version)) {
     spn_toml_loader_push_key(ctx, "package");
     spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "version");

@@ -23,12 +23,12 @@ spn_err_t spn_index_dir_get_package(spn_index_info_t* index, sp_mem_t mem, sp_in
     return loaded;
   }
 
-  if (!sp_str_equal(info->name, id.name)) {
+  if (!sp_str_equal(info->name.str, id.name)) {
     diag->path = spn_path_str(roots, mem, manifest);
     return SPN_ERR_INDEX_CORRUPT;
   }
 
-  if (!sp_str_equal(info->qualified, spn_pkg_name_to_qualified(id))) {
+  if (!sp_str_equal(info->qualified.str, spn_pkg_name_to_qualified(id))) {
     return SPN_OK;
   }
 

@@ -177,7 +177,7 @@ sp_test_each(closure, walk, test_t, tests, .setup = spn_test_ctx_setup) {
   sp_expect(t, closure[0].pkg == g.root->pkg);
   sp_expect(t, !closure[0].private);
   sp_for(row, expected) {
-    sp_expect_str_eq_c(t, closure[row + 1].pkg->info->name, it->expect[row].pkg);
+    sp_expect_str_eq_c(t, closure[row + 1].pkg->info->name.str, it->expect[row].pkg);
     sp_expect_eq(t, it->expect[row].private, closure[row + 1].private);
   }
 

@@ -58,7 +58,7 @@ static resolve_result_t execute_fixture(const fx_config_t* config, const spn_pkg
   spn_pkg_registry_t registry = sp_zero;
   sp_ht_init(mem, registry);
 
-  sp_ht_insert(registry, spn_pkg_id(intern, root->qualified), ((spn_registry_pkg_t) {
+  sp_ht_insert(registry, ((spn_pkg_id_t) { .qualified = root->qualified.id }), ((spn_registry_pkg_t) {
     .source = SPN_PKG_SOURCE_ROOT,
     .info = (spn_pkg_info_t*)root,
   }));

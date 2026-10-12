@@ -182,8 +182,8 @@ static fz_result_t fz_execute(sp_mem_t mem, fz_universe_t* u, sp_intern_t* inter
     spn_pkg_info_t* info = (spn_pkg_info_t*)sp_alloc(mem, sizeof(spn_pkg_info_t));
     *info = sp_zero_s(spn_pkg_info_t);
     info->namespace = sp_str_lit("spn");
-    info->name = fz_pkg_name((u32)it);
-    info->qualified = spn_pkg_canonicalize_pair(sp_str_lit("spn"), fz_pkg_name((u32)it));
+    info->name = sp_intern(intern, fz_pkg_name((u32)it));
+    info->qualified = sp_intern(intern, spn_pkg_canonicalize_pair(sp_str_lit("spn"), fz_pkg_name((u32)it)));
     info->version = release->version;
     sp_da_for(release->deps, dt) {
       si_da_push(mem, info->deps, fz_req(mem, u, release->deps[dt]));
@@ -191,11 +191,11 @@ static fz_result_t fz_execute(sp_mem_t mem, fz_universe_t* u, sp_intern_t* inter
 
     if (fz_pkg_linked(local)) {
       spn_target_info_t* lib = SP_NULLPTR;
-      spn_pkg_add_target(mem, info, info->name, SPN_TARGET_KIND_LIB, &lib);
+      spn_pkg_add_target(mem, info, info->name.str, SPN_TARGET_KIND_LIB, &lib);
       lib->linkages = local->linkages;
     }
 
-    sp_ht_insert(registry, spn_pkg_id(intern, info->qualified), ((spn_registry_pkg_t) {
+    sp_ht_insert(registry, ((spn_pkg_id_t) { .qualified = info->qualified.id }), ((spn_registry_pkg_t) {
       .source = SPN_PKG_SOURCE_FILE,
       .info = info,
     }));
@@ -204,15 +204,15 @@ static fz_result_t fz_execute(sp_mem_t mem, fz_universe_t* u, sp_intern_t* inter
   spn_pkg_info_t* root = (spn_pkg_info_t*)sp_alloc(mem, sizeof(spn_pkg_info_t));
   *root = sp_zero_s(spn_pkg_info_t);
   root->namespace = sp_str_lit("test");
-  root->name = sp_str_lit("root");
-  root->qualified = sp_str_view(fz_root_qualified);
+  root->name = sp_intern(intern, sp_str_lit("root"));
+  root->qualified = sp_intern(intern, sp_str_view(fz_root_qualified));
   root->version = spn_semver_lit(0, 0, 1);
 
   sp_da_for(u->roots, it) {
     si_da_push(mem, root->deps, fz_req(mem, u, u->roots[it]));
   }
 
-  sp_ht_insert(registry, spn_pkg_id(intern, root->qualified), ((spn_registry_pkg_t) {
+  sp_ht_insert(registry, ((spn_pkg_id_t) { .qualified = root->qualified.id }), ((spn_registry_pkg_t) {
     .source = SPN_PKG_SOURCE_ROOT,
     .info = root,
   }));
