@@ -129,6 +129,7 @@ set(SPN_SOURCES
   util/sp_template/sp_template.c
   util/str/str.c
   util/array/array.c
+  util/mem/mem.c
   util/hash_table/hash_table.c
   core/target/mutate.c
   core/target/select.c
