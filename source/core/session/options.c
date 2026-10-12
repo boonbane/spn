@@ -116,7 +116,7 @@ static spn_err_t validate_config_keys(spn_session_t* session) {
         break;
       }
       si_da_for(loaded->info->deps, dt) {
-        if (sp_str_equal(spn_pkg_name_from_qualified(loaded->info->deps[dt].qualified).name, entry->key)) {
+        if (sp_str_equal(spn_pkg_name_from_qualified(loaded->info->deps[dt].qualified.str).name, entry->key)) {
           known = true;
           break;
         }
@@ -159,7 +159,7 @@ spn_err_t spn_session_apply_options(spn_session_t* session, bool* reresolve) {
         if (si_da_empty(dep->options.clauses)) {
           continue;
         }
-        spn_resolved_dep_t* edge = node_find_edge(node, sp_intern(session->ctx->intern, dep->qualified).id, dep->kind);
+        spn_resolved_dep_t* edge = node_find_edge(node, dep->qualified.id, dep->kind);
         if (!edge) {
           continue;
         }
@@ -175,7 +175,7 @@ spn_err_t spn_session_apply_options(spn_session_t* session, bool* reresolve) {
         sp_da_push(*sp_ht_getp(requests, edge->id), request);
 
         spn_resolved_pkg_t* target = sp_ht_getp(session->resolve, edge->id);
-        sp_intern_id_t seed_key = target ? target->id.qualified : sp_intern(session->ctx->intern, dep->qualified).id;
+        sp_intern_id_t seed_key = target ? target->id.qualified : dep->qualified.id;
         if (!sp_ht_getp(session->gates.seeds, seed_key)) {
           sp_ht_insert(session->gates.seeds, seed_key, sp_da_new(mem, spn_option_request_t));
         }
@@ -221,13 +221,13 @@ spn_err_t spn_session_apply_options(spn_session_t* session, bool* reresolve) {
         if (si_da_empty(dep->when.clauses)) {
           continue;
         }
-        spn_resolved_dep_t* edge = node_find_edge(node, sp_intern(session->ctx->intern, dep->qualified).id, dep->kind);
+        spn_resolved_dep_t* edge = node_find_edge(node, dep->qualified.id, dep->kind);
         bool expected = spn_when_eval(&dep->when, &env);
         if (expected && !edge) {
           missing = true;
           if (sp_str_empty(missing_pkg)) {
             missing_pkg = node->name;
-            missing_dep = spn_pkg_name_from_qualified(dep->qualified).name;
+            missing_dep = spn_pkg_name_from_qualified(dep->qualified.str).name;
           }
         }
         if (!expected && edge) {

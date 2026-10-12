@@ -94,7 +94,7 @@ spn_err_t spn_publish_build(spn_publish_opts_t* opts, spn_index_release_t* built
   if (spn_index_release_from_pkg(opts->mem, &info, published, &release, &dep)) {
     return spn_err_emit(&spn, (spn_err_union_t) {
       .kind = SPN_ERR_INDEX_PATH_DEP,
-      .pkg = { .name = info.qualified, .requested = dep },
+      .pkg = { .name = info.qualified.str, .requested = dep },
     });
   }
 

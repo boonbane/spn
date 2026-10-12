@@ -58,7 +58,7 @@ static resolve_result_t execute_fixture(const fx_config_t* config, const spn_pkg
   spn_pkg_registry_t registry = sp_zero;
   sp_ht_init(mem, registry);
 
-  sp_ht_insert(registry, spn_pkg_id(intern, root->qualified), ((spn_registry_pkg_t) {
+  sp_ht_insert(registry, ((spn_pkg_id_t) { .qualified = root->qualified.id }), ((spn_registry_pkg_t) {
     .source = SPN_PKG_SOURCE_ROOT,
     .info = (spn_pkg_info_t*)root,
   }));
@@ -75,7 +75,7 @@ static resolve_result_t execute_fixture(const fx_config_t* config, const spn_pkg
   result.intern = intern;
   spn_resolve_query_init(mem, &result.query);
   spn_resolve_query_add(&result.query, (spn_requested_dep_t) {
-    .qualified = sp_str_view(root_qualified),
+    .qualified = sp_intern(intern, sp_str_view(root_qualified)),
     .source = SPN_PKG_SOURCE_ROOT,
   });
 

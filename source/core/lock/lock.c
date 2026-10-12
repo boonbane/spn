@@ -37,7 +37,7 @@ spn_lock_file_t spn_build_lock_file(sp_mem_t mem, sp_intern_t* intern, spn_resol
     };
 
     sp_da_for(pkg->deps, d) {
-      sp_da_push(entry.deps, pkg->deps[d].qualified);
+      sp_da_push(entry.deps, pkg->deps[d].qualified.str);
     }
 
     if (pkg->source == SPN_PKG_SOURCE_INDEX) {

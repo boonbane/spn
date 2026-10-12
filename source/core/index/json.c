@@ -70,8 +70,10 @@ static spn_err_t spn_index_parse_rel(sp_mem_t mem, spn_pkg_name_t id, sp_str_t j
 
   sp_da_for(rel.options, it) {
     spn_cg_release_options_entry_t* entry = &rel.options[it];
+    sp_intern_str_t name = spn_intern(entry->key);
     spn_option_info_t option = {
-      .name = entry->key,
+      .id = name.id,
+      .name = name,
       .type = entry->value.type,
       .additive = !sp_opt_is_null(entry->value.additive) && sp_opt_get(entry->value.additive),
       .defaults = entry->value.defaults,
@@ -79,7 +81,7 @@ static spn_err_t spn_index_parse_rel(sp_mem_t mem, spn_pkg_name_t id, sp_str_t j
     sp_da_for(entry->value.values, vt) {
       si_da_push(mem, option.values, entry->value.values[vt]);
     }
-    si_om_insert(mem, release->options, spn_intern(option.name).id, option);
+    si_om_insert(mem, release->options, option.id, option);
   }
 
   return SPN_OK;
@@ -135,7 +137,7 @@ sp_str_t spn_index_release_to_json(sp_mem_t mem, spn_index_release_t* rel) {
   si_om_for(rel->options, it) {
     spn_option_info_t* option = si_om_at(rel->options, it);
     spn_cg_release_options_entry_t entry = {
-      .key = option->name,
+      .key = option->name.str,
       .value = {
         .type = option->type,
         .values = sp_da_new(mem, sp_str_t),

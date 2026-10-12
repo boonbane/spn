@@ -53,7 +53,7 @@ static spn_err_t ensure_target_unit(spn_session_t* s, spn_pkg_unit_t* pkg, spn_t
         else {
           const spn_profile_info_t* profile = &pkg->build->profile;
           spn_kind_query_t query = {
-            .config = spn_session_config_kind(s, pkg->info->name),
+            .config = spn_session_config_kind(s, pkg->info->name.str),
             .linkage = profile->linking.linkage,
           };
 
@@ -81,7 +81,7 @@ static spn_err_t ensure_target_unit(spn_session_t* s, spn_pkg_unit_t* pkg, spn_t
             return spn_err_emit(s->ctx, (spn_err_union_t) {
               .kind = SPN_ERR_TARGET_LINKAGE,
               .target = {
-                .pkg = pkg->info->name,
+                .pkg = pkg->info->name.str,
                 .name = info->name.str,
                 .requested = spn_linkage_to_str(query.config.some ? query.config.value : query.linkage),
                 .requester = query.config.some ? SPN_LINKAGE_REQUESTER_ROOT_MANIFEST : requester,
@@ -229,7 +229,7 @@ static spn_err_t create_target_objects(spn_session_t* s, spn_target_unit_t* targ
           return spn_err_emit(s->ctx, (spn_err_union_t) {
             .kind = SPN_ERR_TARGET_SOURCE_GLOB,
             .target_source = {
-              .pkg = target->pkg->info->name,
+              .pkg = target->pkg->info->name.str,
               .name = target->info->name.str,
               .source = spn_path_str(&s->ctx->roots, s->ctx->events->mem, source.path),
             },
@@ -318,7 +318,7 @@ static spn_err_t build_target_plan(spn_target_unit_t* target) {
   plan->link = (spn_link_plan_t) {
     .libs = si_link_get_closure_libs(mem, closure),
     .cc = {
-      .pkg = pkg->info->name,
+      .pkg = pkg->info->name.str,
       .name = info->name.str,
       .kind = target->kind,
       .lang = is_any_object_cxx(target->objects) ? SPN_LANG_CXX : SPN_LANG_C,
@@ -477,8 +477,9 @@ static spn_err_t build_target_plan(spn_target_unit_t* target) {
 
 static spn_pkg_unit_t* find_dep_unit(spn_session_t* s, spn_pkg_unit_t* pkg, sp_str_t qualified) {
   const spn_dep_kind_t kinds [] = { SPN_DEP_KIND_PACKAGE, SPN_DEP_KIND_TEST, SPN_DEP_KIND_BUILD };
+  sp_intern_id_t id = sp_intern(s->ctx->intern, qualified).id;
   sp_carr_for(kinds, it) {
-    spn_pkg_unit_t* unit = spn_session_find_dep(s, pkg, qualified, kinds[it]);
+    spn_pkg_unit_t* unit = spn_session_find_dep(s, pkg, id, kinds[it]);
     if (unit) {
       return unit;
     }
@@ -754,8 +755,8 @@ spn_err_t spn_units_add_targets(spn_session_t* s, spn_unit_scope_t scope) {
                 .kind = SPN_ERR_TARGET_COLLISION,
                 .collision = {
                   .exe = root->info->name.str,
-                  .pkg = (*owner)->pkg->info->name,
-                  .other = lib->pkg->info->name,
+                  .pkg = (*owner)->pkg->info->name.str,
+                  .other = lib->pkg->info->name.str,
                   .name = name,
                 },
               });

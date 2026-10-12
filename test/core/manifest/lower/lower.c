@@ -1737,9 +1737,9 @@ sp_test_each(lower, cases, test_t, tests, .setup = spn_test_ctx_setup) {
   }
 
   // Package scalars
-  if (it->pkg_name)   sp_expect_str_eq_c(t, pkg.name, it->pkg_name);
+  if (it->pkg_name)   sp_expect_str_eq_c(t, pkg.name.str, it->pkg_name);
   if (it->namespace)  sp_expect_str_eq_c(t, pkg.namespace, it->namespace);
-  if (it->qualified)  sp_expect_str_eq_c(t, pkg.qualified, it->qualified);
+  if (it->qualified)  sp_expect_str_eq_c(t, pkg.qualified.str, it->qualified);
   if (it->url)        sp_expect_str_eq_c(t, pkg.upstream.url, it->url);
   if (it->repo)       sp_expect_str_eq_c(t, pkg.repo, it->repo);
   if (it->author)     sp_expect_str_eq_c(t, pkg.author, it->author);
@@ -1788,7 +1788,7 @@ sp_test_each(lower, cases, test_t, tests, .setup = spn_test_ctx_setup) {
 
     spn_requested_dep_t* req = SP_NULLPTR;
     si_da_for(pkg.deps, j) {
-      if (sp_str_equal(pkg.deps[j].qualified, sp_str_view(expected.name)) && pkg.deps[j].kind == kind) {
+      if (sp_str_equal(pkg.deps[j].qualified.str, sp_str_view(expected.name)) && pkg.deps[j].kind == kind) {
         req = &pkg.deps[j];
         break;
       }
@@ -1810,7 +1810,7 @@ sp_test_each(lower, cases, test_t, tests, .setup = spn_test_ctx_setup) {
     spn_option_info_t** slot = si_om_getp(pkg.options, sp_intern(interner, sp_str_view(expected.name)).id);
     sp_must(t, slot);
     spn_option_info_t* option = *slot;
-    sp_expect_str_eq_c(t, option->name, expected.name);
+    sp_expect_str_eq_c(t, option->name.str, expected.name);
     sp_expect_eq(t, (u32)expected.type, (u32)option->type);
     sp_expect_eq(t, expected.additive, option->additive);
     sp_expect_eq(t, expected.public, option->public);
@@ -1909,7 +1909,7 @@ sp_test_each(lower, cases, test_t, tests, .setup = spn_test_ctx_setup) {
 
     spn_pkg_patch_t* patch = SP_NULLPTR;
     si_da_for(pkg.patches, j) {
-      if (sp_str_equal(pkg.patches[j].qualified, sp_str_view(expected.name))) {
+      if (sp_str_equal(pkg.patches[j].qualified.str, sp_str_view(expected.name))) {
         patch = &pkg.patches[j];
         break;
       }

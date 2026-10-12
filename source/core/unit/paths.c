@@ -16,13 +16,13 @@ void spn_unit_paths_init(spn_pkg_unit_t* unit, spn_loaded_pkg_t* loaded) {
     case SPN_PKG_SOURCE_FILE: {
       spn_path_t work = spn_path_join(mem, build->paths.root, sp_str_lit(".spn"));
       spn_path_t store = spn_path_join(mem, build->paths.root, sp_str_lit("store"));
-      unit->paths.work = spn_path_join(mem, work, loaded->info->name);
-      unit->paths.store = spn_path_join(mem, store, loaded->info->name);
+      unit->paths.work = spn_path_join(mem, work, loaded->info->name.str);
+      unit->paths.store = spn_path_join(mem, store, loaded->info->name.str);
       break;
     }
     case SPN_PKG_SOURCE_INDEX: {
       sp_str_t fingerprint = spn_unit_fingerprint_str(mem, unit->fingerprint);
-      spn_pkg_name_t id = spn_pkg_name_from_qualified(loaded->info->qualified);
+      spn_pkg_name_t id = spn_pkg_name_from_qualified(loaded->info->qualified.str);
       spn_path_t work = spn_path_s(mem, SPN_DIR_ID_BUILD, id.namespace);
       spn_path_t store = spn_path_s(mem, SPN_DIR_ID_STORE, id.namespace);
       unit->paths.work = spn_path_join(mem, spn_path_join(mem, work, id.name), fingerprint);

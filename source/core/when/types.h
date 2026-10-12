@@ -5,6 +5,7 @@
 #include "spn/core.h"
 
 #include "array/array.h"
+#include "intern/types.h"
 
 typedef enum {
   SPN_OPTION_VALUE_NONE,
@@ -56,8 +57,11 @@ typedef struct {
 
 typedef si_da(spn_option_default_t) spn_option_defaults_t;
 
+typedef sp_intern_id_t spn_option_id_t;
+
 typedef struct {
-  sp_str_t name;
+  spn_option_id_t id;
+  sp_intern_str_t name;
   spn_option_type_t type;
   bool additive;
   bool public;

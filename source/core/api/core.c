@@ -92,7 +92,7 @@ static bool foreign(spn_pkg_unit_t* unit, spn_path_t path) {
   }
   si_da_for(unit->info->deps, it) {
     spn_requested_dep_t* dep = &unit->info->deps[it];
-    spn_pkg_unit_t* dep_unit = spn_session_find_dep(unit->session, unit, dep->qualified, dep->kind);
+    spn_pkg_unit_t* dep_unit = spn_session_find_dep(unit->session, unit, dep->qualified.id, dep->kind);
     if (dep_unit && spn_tree_rel(dep_unit->paths.roots, path).tree != SPN_TREE_NONE) {
       return false;
     }
@@ -144,7 +144,7 @@ bool spn_api_name_rejected(spn_pkg_unit_t* unit, const c8* fn, const c8* name) {
   if (!spn_wasm_trap_active(unit, message)) {
     spn_err_emit(unit->session->ctx, (spn_err_union_t) {
       .kind = SPN_ERR_NAME_SEPARATOR,
-      .target = { .pkg = unit->info->name, .name = sp_str_copy(spn.events->mem, str) },
+      .target = { .pkg = unit->info->name.str, .name = sp_str_copy(spn.events->mem, str) },
     });
   }
   sp_mem_end_scratch(scratch);
@@ -169,7 +169,7 @@ static spn_target_t* add_target(spn_pkg_unit_t* unit, const c8* fn, const c8* na
     if (!spn_wasm_trap_active(unit, message)) {
       spn_err_emit(unit->session->ctx, (spn_err_union_t) {
         .kind = SPN_ERR_TARGET_DUPLICATE,
-        .target = { .pkg = unit->info->name, .name = sp_str_copy(spn.events->mem, str) },
+        .target = { .pkg = unit->info->name.str, .name = sp_str_copy(spn.events->mem, str) },
       });
     }
     sp_mem_end_scratch(scratch);
@@ -219,9 +219,9 @@ const spn_t* spn_get_dep(const spn_t* s, const c8* name) {
 
   si_da_for(unit->info->deps, it) {
     spn_requested_dep_t* dep = &unit->info->deps[it];
-    if (!sp_str_equal(spn_pkg_name_from_qualified(dep->qualified).name, key)) continue;
+    if (!sp_str_equal(spn_pkg_name_from_qualified(dep->qualified.str).name, key)) continue;
 
-    spn_pkg_unit_t* dep_unit = spn_session_find_dep(unit->session, unit, dep->qualified, dep->kind);
+    spn_pkg_unit_t* dep_unit = spn_session_find_dep(unit->session, unit, dep->qualified.id, dep->kind);
     if (dep_unit) return (const spn_t*)dep_unit;
   }
 
@@ -249,7 +249,7 @@ void spn_log(spn_t* s, const c8* message) {
   spn_pkg_unit_t* unit = spn_api_unit(s);
   spn_event_buffer_push(spn.events, (spn_event_t) {
     .kind = SPN_EVENT_USER_LOG,
-    .pkg = unit->info->name,
+    .pkg = unit->info->name.str,
     .user_log = { .message = sp_str_from_cstr(spn.events->mem, message) },
   });
 }

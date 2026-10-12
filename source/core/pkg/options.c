@@ -133,14 +133,14 @@ void spn_pkg_options_merge(
       fallback = spn_option_value_bool(false);
     }
 
-    spn_resolved_option_t resolved = { .name = option->name, .setter = { .kind = SPN_OPTION_SETTER_DEFAULT } };
+    spn_resolved_option_t resolved = { .name = option->name.str, .setter = { .kind = SPN_OPTION_SETTER_DEFAULT } };
     bool settled = false;
     bool value_union = false;
     const claim_t* last = SP_NULLPTR;
 
     sp_da_for(claims, ct) {
       const claim_t* claim = &claims[ct];
-      if (!sp_str_equal(claim->option, option->name) || claim->negated) {
+      if (!sp_str_equal(claim->option, option->name.str) || claim->negated) {
         continue;
       }
       if (claim->setter.kind != SPN_OPTION_SETTER_CONSUMER) {
@@ -160,7 +160,7 @@ void spn_pkg_options_merge(
         sp_da_push(merged->violations, ((spn_option_violation_t) {
           .kind = SPN_OPTION_ERR_CONFLICT,
           .pkg = pkg->name,
-          .option = option->name,
+          .option = option->name.str,
           .value = claim->value,
           .a = last->setter,
           .b = claim->setter,
@@ -180,20 +180,20 @@ void spn_pkg_options_merge(
       sp_da_push(merged->violations, ((spn_option_violation_t) {
         .kind = SPN_OPTION_ERR_NO_VALUE,
         .pkg = pkg->name,
-        .option = option->name,
+        .option = option->name.str,
       }));
     }
 
     sp_da_for(claims, ct) {
       const claim_t* claim = &claims[ct];
-      if (!sp_str_equal(claim->option, option->name) || !claim->negated) {
+      if (!sp_str_equal(claim->option, option->name.str) || !claim->negated) {
         continue;
       }
       if (spn_option_value_equal(resolved.value, claim->value)) {
         sp_da_push(merged->violations, ((spn_option_violation_t) {
           .kind = SPN_OPTION_ERR_VETO,
           .pkg = pkg->name,
-          .option = option->name,
+          .option = option->name.str,
           .value = claim->value,
           .a = claim->setter,
           .b = resolved.setter,
@@ -329,7 +329,7 @@ void spn_pkg_apply_options(
     if (sp_str_empty(option->define)) {
       continue;
     }
-    spn_option_value_t* value = sp_str_ht_get(*env, option->name);
+    spn_option_value_t* value = sp_str_ht_get(*env, option->name.str);
     if (!value || value->kind != SPN_OPTION_VALUE_BOOL || !value->b) {
       continue;
     }

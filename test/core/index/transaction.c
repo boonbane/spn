@@ -185,7 +185,6 @@ sp_test_each(index_transaction, publish, txn_test_t, tests, .setup = spn_test_ct
   sp_str_t clone = sp_fs_join_path(mem, tmp, sp_str_lit("clone"));
 
   spn_index_info_t index = {
-    .name = sp_str_lit("test"),
     .protocol = SPN_INDEX_PROTOCOL_GIT,
     .git = { .url = remote },
     .location = { .at = sp_path_from_str(clone), .dir = clone },

@@ -116,6 +116,30 @@ sp_test(layout, staged_script) {
   });
 }
 
+// Each exe kind stages into exactly one place: bin and script at the root,
+// test under test/, example under example/.
+sp_test(layout, staged_kinds) {
+  return run_test(t, (test_t) {
+    .project = "test/integration/fixtures/target/selection",
+    .copy = { "spum.c", "script.c", "x.c" },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { "build", .args = { "--bin", "--script", "--test", "--example" } } },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = exe("script") },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = test_exe("test") },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = example_exe("x") },
+      { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = exe("test") },
+      { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = exe("x") },
+      { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = test_exe("main") },
+      { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = test_exe("script") },
+      { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = test_exe("x") },
+      { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = example_exe("main") },
+      { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = example_exe("script") },
+      { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = example_exe("test") },
+    },
+  });
+}
+
 sp_test(layout, script_ctx_footprint) {
   return run_command_test(t, (command_test_t) {
     .project = "test/integration/fixtures/script/default_script",

@@ -40,7 +40,7 @@ static spn_err_t publish(spn_ctx_t* ctx, spn_publish_request_t request, spn_inde
   spn_event_publish_t evt = {
     .name = spn_pkg_name_to_qualified(release->id),
     .version = spn_semver_to_str(ctx->events->mem, release->version),
-    .index = index->name,
+    .index = index->name.str,
     .url = spn_index_publish_target(index),
   };
 

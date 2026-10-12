@@ -100,7 +100,7 @@ sp_hash_t spn_unit_fingerprint(spn_session_t* session, spn_build_unit_t* build, 
   spn_pkg_info_t* pkg = loaded->info;
 
   fingerprint_input_t fingerprint = sp_zero;
-  fingerprint.qualified = spn_digest_hash_str(pkg->qualified);
+  fingerprint.qualified = spn_digest_hash_str(pkg->qualified.str);
   fingerprint.options = hash_options(session, id);
   fingerprint.version = pkg->version;
   fingerprint.commit = spn_digest_hash_str(pkg->upstream.commit);
@@ -127,7 +127,7 @@ sp_hash_t spn_unit_fingerprint(spn_session_t* session, spn_build_unit_t* build, 
   }
 
   spn_toolchain_info_t* toolchain = build->toolchain->info;
-  sp_opt_spn_linkage_t config = spn_session_config_kind(session, pkg->name);
+  sp_opt_spn_linkage_t config = spn_session_config_kind(session, pkg->name.str);
 
   fingerprint.mode = build->profile.mode;
   fingerprint.opt = build->profile.opt;
