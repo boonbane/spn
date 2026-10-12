@@ -1,4 +1,5 @@
 #include "core/types.h"
+#include "unit/types.h"
 #include "unit/unit.h"
 
 #include "sp.h"
@@ -518,19 +519,18 @@ static spn_err_t ensure_sibling_targets(spn_session_t* s, sp_da(spn_target_unit_
 }
 
 static spn_err_t resolve_target_deps(spn_session_t* s, sp_da(spn_target_unit_t*) targets) {
-  sp_da_for(targets, it) {
-    spn_target_unit_t* unit = targets[it];
-    si_da_for(unit->info->deps, jt) {
-      sp_str_t qualified = spn_pkg_canonicalize_name(unit->info->deps[jt]);
+  sp_da_for_value(targets, unit) {
+    si_da_for_value(unit->info->deps, dep) {
+      sp_str_t qualified = spn_pkg_canonicalize_name(dep);
       if (find_dep_unit(s, unit->pkg, qualified)) {
         continue;
       }
 
-      spn_target_unit_t* target = spn_session_find_target_in_pkg(s, unit->pkg, ((spn_target_id_t) { .name = spn_intern(unit->info->deps[jt]).id, .kind = SPN_TARGET_KIND_LIB }));
+      spn_target_unit_t* target = spn_session_find_target_in_pkg(s, unit->pkg, ((spn_target_id_t) { .name = spn_intern(dep).id, .kind = SPN_TARGET_KIND_LIB }));
       if (!target) {
         return spn_err_emit(s->ctx, (spn_err_union_t) {
           .kind = SPN_ERR_TARGET_DEP,
-          .target = { .name = unit->info->deps[jt] },
+          .target = { .name = dep },
         });
       }
       sp_da_push(unit->deps, target);
@@ -557,8 +557,7 @@ static void init_wasm_scripts(spn_session_t* s) {
 static spn_err_t add_metaprogram_targets(spn_session_t* s) {
   spn_build_unit_t* world = s->units.metaprogram;
 
-  sp_da_for(world->packages, it) {
-    spn_pkg_unit_t* unit = world->packages[it];
+  sp_da_for_value(world->packages, unit) {
     spn_loaded_pkg_t* loaded = sp_ht_getp(s->packages, unit->id.pkg);
     if (!si_da_empty(loaded->configure.source)) {
       spn_try(ensure_target_unit(s, unit, &loaded->configure, SP_NULLPTR));
@@ -568,8 +567,7 @@ static spn_err_t add_metaprogram_targets(spn_session_t* s) {
     }
   }
 
-  sp_da_for(world->packages, it) {
-    spn_pkg_unit_t* unit = world->packages[it];
+  sp_da_for_value(world->packages, unit) {
     if (spn_pkg_unit_is_script_host(unit)) {
       continue;
     }
@@ -593,21 +591,20 @@ static spn_err_t add_metaprogram_targets(spn_session_t* s) {
     }
     spn_try(create_target_objects(s, targets[it]));
   }
-  sp_da_for(world->packages, it) {
-    spn_target_unit_t* configure = world->packages[it]->scripts.configure;
-    if (configure) {
-      spn_try(create_target_objects(s, configure));
-      sp_assert(!sp_da_empty(configure->objects));
+  sp_da_for_value(world->packages, it) {
+    if (it->scripts.configure) {
+      spn_try(create_target_objects(s, it->scripts.configure));
+      sp_assert(!sp_da_empty(it->scripts.configure->objects));
     }
   }
 
-  sp_da_for(targets, it) {
-    spn_try(build_target_plan(targets[it]));
+  sp_da_for_value(targets, it) {
+    spn_try(build_target_plan(it));
   }
-  sp_da_for(world->packages, it) {
-    spn_target_unit_t* configure = world->packages[it]->scripts.configure;
-    if (configure) {
-      spn_try(build_target_plan(configure));
+
+  sp_da_for_value(world->packages, it) {
+    if (it->scripts.configure) {
+      spn_try(build_target_plan(it->scripts.configure));
     }
   }
 
@@ -615,22 +612,22 @@ static spn_err_t add_metaprogram_targets(spn_session_t* s) {
   return SPN_OK;
 }
 
+
 spn_err_t spn_units_add_targets(spn_session_t* s, spn_unit_scope_t scope) {
   switch (scope) {
-    case SPN_UNIT_SCOPE_METAPROGRAM: return add_metaprogram_targets(s);
+    case SPN_UNIT_SCOPE_METAPROGRAM: {
+      return add_metaprogram_targets(s);
+    }
     case SPN_UNIT_SCOPE_TARGET: {
-      sp_da_for(s->plans.build, i) {
-        spn_build_plan_t* plan = &s->plans.build[i];
-        sp_da_for(plan->build->packages, j) {
-          spn_pkg_unit_t* pkg = plan->build->packages[j];
-
+      sp_da_for_ptr(s->plans.build, plan) {
+        sp_da_for_value(plan->build->packages, pkg) {
           if (pkg == plan->root) {
             if (si_om_empty(plan->selection.names)) {
               si_om_for(pkg->info->targets, k) {
-                spn_target_info_t* info = si_om_at(pkg->info->targets, k);
-                if (plan->selection.kinds & spn_target_kind_bit(info->kind)) {
+                spn_target_info_t* target = si_om_at(pkg->info->targets, k);
+                if (plan->selection.kinds & spn_target_kind_bit(target->kind)) {
                   spn_target_unit_t* root = SP_NULLPTR;
-                  spn_try(ensure_target_unit(s, pkg, info, &root));
+                  spn_try(ensure_target_unit(s, pkg, target, &root));
                   si_da_push(s->mem, plan->roots, root);
                 }
               }
