@@ -205,12 +205,12 @@ void spn_add_include(spn_config_t* config, const c8* path) {
 
 void spn_add_define(spn_config_t* config, const c8* define) {
   spn_pkg_unit_t* unit = spn_api_unit(config);
-  spn_pkg_add_define(unit->session->mem, unit->info, define);
+  spn_pkg_add_define(unit->session->mem, unit->info, sp_cstr_as_str(define));
 }
 
 void spn_add_system_dep(spn_config_t* config, const c8* dep) {
   spn_pkg_unit_t* unit = spn_api_unit(config);
-  spn_pkg_add_system_dep(unit->session->mem, unit->info, dep);
+  spn_pkg_add_system_dep(unit->session->mem, unit->info, sp_cstr_as_str(dep));
 }
 
 const spn_t* spn_get_dep(const spn_t* s, const c8* name) {

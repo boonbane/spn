@@ -259,15 +259,14 @@ static spn_err_t publish_git(spn_index_info_t* index, spn_index_release_t* rel, 
     }
 
     result = SPN_ERR_PUBLISH_PUSH;
-    output = sp_str_copy(spn.events->mem, output);
   }
 
   if (result == SPN_ERR_PUBLISH_PUSH) {
     spn_err_emit(&spn, (spn_err_union_t) {
       .kind = SPN_ERR_PUBLISH_PUSH,
       .publish = {
-        .url = sp_str_copy(spn.events->mem, url),
-        .output = output,
+        .url = url,
+        .output = sp_str_copy(spn.events->mem, output),
       },
     });
   }

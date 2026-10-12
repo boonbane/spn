@@ -36,6 +36,7 @@ sp_hash_t spn_pkg_hash_platform(spn_pkg_info_t* pkg, const spn_profile_info_t* p
       si_om_for(pkg->targets, it) {
         spn_target_info_t* target = si_om_at(pkg->targets, it);
         hash = hash_push(hash, spn_digest_hash_str(target->name.str));
+        hash = hash_push(hash, (sp_hash_t)target->kind);
         hash = hash_push(hash, spn_digest_hash(&target->macos.min_os, sizeof(target->macos.min_os)));
         hash = hash_gated(hash, target->gated.frameworks);
       }
@@ -46,6 +47,7 @@ sp_hash_t spn_pkg_hash_platform(spn_pkg_info_t* pkg, const spn_profile_info_t* p
         spn_target_info_t* target = si_om_at(pkg->targets, it);
         if (target->windows.subsystem == SPN_WIN_SUBSYSTEM_NONE) continue;
         hash = hash_push(hash, spn_digest_hash_str(target->name.str));
+        hash = hash_push(hash, (sp_hash_t)target->kind);
         hash = hash_push(hash, (sp_hash_t)target->windows.subsystem);
       }
       break;
@@ -63,7 +65,7 @@ sp_hash_t spn_pkg_hash_platform(spn_pkg_info_t* pkg, const spn_profile_info_t* p
 
 spn_pkg_info_t spn_pkg_new(sp_str_t name) {
   spn_pkg_info_t pkg = sp_zero;
-  spn_pkg_init(&pkg, name);
+  pkg.name = spn_intern(name).str;
   return pkg;
 }
 

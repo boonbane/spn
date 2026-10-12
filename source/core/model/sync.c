@@ -148,7 +148,7 @@ static spn_err_t setup_toolchain_unit(spn_toolchain_store_t* store, spn_toolchai
     sp_assert(unit->identity);
     sp_str_t id = sp_fmt(spn.mem, "{:0>16x}", sp_fmt_uint(unit->identity)).value;
     unit->cc.cache = spn_path_s(spn.mem, SPN_DIR_ID_TOOLCHAIN_EXTERNAL, sp_fmt(spn.mem, "zig/cache/{}", sp_fmt_str(id)).value);
-    spn_try(spn_toolchain_generation(spn.mem, store->roots, unit->cc.cache, &unit->generation));
+    spn_try(spn_toolchain_generation(store->roots, unit->cc.cache, &unit->generation));
   }
   return SPN_OK;
 }

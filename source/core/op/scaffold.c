@@ -61,11 +61,11 @@ static bool is_name_valid(sp_str_t name) {
 static spn_err_t scaffold(spn_ctx_t* ctx, spn_scaffold_request_t request, sp_mem_t mem, spn_str_arr_t* files) {
   *files = sp_zero_s(spn_str_arr_t);
   if (!is_name_valid(request.name)) {
-    return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_INIT_NAME, .pkg = { .name = sp_str_copy(ctx->events->mem, request.name) } });
+    return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_INIT_NAME, .pkg = { .name = request.name } });
   }
   spn_path_t dir = { .sub = request.dir };
   if (sp_fs_create_dir_at(spn_path_at(&ctx->roots, dir)) != SP_OK) {
-    return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_FS_WRITE, .fs = { .path = spn_path_copy(ctx->events->mem, dir) } });
+    return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_FS_WRITE, .fs = { .path = dir } });
   }
 
   sp_da(sp_str_t) created = sp_da_new(mem, sp_str_t);

@@ -110,8 +110,8 @@ static generation_err_t claim_generation(const spn_path_roots_t* roots, sp_mem_t
   return (generation_err_t) { SPN_ERR_FS_READ, file };
 }
 
-spn_err_t spn_toolchain_generation(sp_mem_t mem, const spn_path_roots_t* roots, spn_path_t cache, sp_hash_t* generation) {
-  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch_for(mem);
+spn_err_t spn_toolchain_generation(const spn_path_roots_t* roots, spn_path_t cache, sp_hash_t* generation) {
+  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   spn_path_t dir = spn_path_join(scratch.mem, cache, sp_str_lit("spn"));
   spn_path_t file = spn_path_join(scratch.mem, dir, sp_str_lit("generation"));
   generation_err_t err = claim_generation(roots, scratch.mem, dir, file, generation);
