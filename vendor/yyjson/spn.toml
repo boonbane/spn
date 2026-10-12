@@ -1,0 +1,20 @@
+[package]
+name = "yyjson"
+version = "0.14.0"
+author = "ibireme"
+maintainer = "tspader"
+
+[package.publish]
+include = [
+  { from = "source/src/yyjson.h" },
+]
+
+[package.upstream]
+url = "https://github.com/ibireme/yyjson.git"
+commit = "92ae1e2216548eb1dee78c09145a9a9bd067e9e9"
+
+[[lib]]
+name = "yyjson"
+kinds = ["static"]
+source = ["src/yyjson.c"]
+

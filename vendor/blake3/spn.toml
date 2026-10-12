@@ -1,0 +1,48 @@
+[package]
+name = "blake3"
+version = "1.8.7"
+author = "BLAKE3-team"
+maintainer = "tspader"
+
+[package.publish]
+include = [
+  { from = "source/c/blake3.h" },
+]
+
+[package.upstream]
+url = "https://github.com/BLAKE3-team/BLAKE3.git"
+commit = "f3149ec5bb5449af877ba20377a11008ff499fa2"
+
+[[lib]]
+name = "blake3"
+kinds = ["static"]
+include = ["c"]
+source = [
+  "c/blake3.c",
+  "c/blake3_dispatch.c",
+  "c/blake3_portable.c",
+  { path = "c/blake3_sse2_x86-64_unix.S", when = { arch = "x86_64", os = { not = "windows" } } },
+  { path = "c/blake3_sse41_x86-64_unix.S", when = { arch = "x86_64", os = { not = "windows" } } },
+  { path = "c/blake3_avx2_x86-64_unix.S", when = { arch = "x86_64", os = { not = "windows" } } },
+  { path = "c/blake3_avx512_x86-64_unix.S", when = { arch = "x86_64", os = { not = "windows" } } },
+  { path = "c/blake3_sse2_x86-64_windows_gnu.S", when = { arch = "x86_64", os = "windows", abi = "gnu" } },
+  { path = "c/blake3_sse41_x86-64_windows_gnu.S", when = { arch = "x86_64", os = "windows", abi = "gnu" } },
+  { path = "c/blake3_avx2_x86-64_windows_gnu.S", when = { arch = "x86_64", os = "windows", abi = "gnu" } },
+  { path = "c/blake3_avx512_x86-64_windows_gnu.S", when = { arch = "x86_64", os = "windows", abi = "gnu" } },
+  { path = "c/blake3_sse2_x86-64_windows_msvc.asm", when = { arch = "x86_64", abi = "msvc" } },
+  { path = "c/blake3_sse41_x86-64_windows_msvc.asm", when = { arch = "x86_64", abi = "msvc" } },
+  { path = "c/blake3_avx2_x86-64_windows_msvc.asm", when = { arch = "x86_64", abi = "msvc" } },
+  { path = "c/blake3_avx512_x86-64_windows_msvc.asm", when = { arch = "x86_64", abi = "msvc" } },
+  { path = "c/blake3_neon.c", when = { arch = "aarch64" } },
+]
+
+[[example]]
+name = "hash"
+source = [{ path = "example/hash.c", tree = "manifest" }]
+deps = ["blake3"]
+
+[[example]]
+name = "tree"
+source = [{ path = "example/tree.c", tree = "manifest" }]
+deps = ["blake3"]
+

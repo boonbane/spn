@@ -1,5 +1,4 @@
 [package]
-namespace = "spader"
 name = "sp"
 version = "3.5.0"
 author = "tspader"

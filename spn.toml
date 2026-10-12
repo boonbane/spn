@@ -31,15 +31,15 @@ source = [
 include = ["include", "source/core", "source/util", "tools", "tools/gen"]
 
 [deps.package]
-"spader/sp" = { path = "vendor/sp" }
+sp = { path = "vendor/sp" }
 wamr = { path = "vendor/wamr" }
-toml = "1.6.1"
-yyjson = "0.14.0"
-blake3 = "1.8.7"
+toml = { path = "vendor/toml" }
+yyjson = { path = "vendor/yyjson"}
+blake3 = { path = "vendor/blake3"}
 
 [deps.build]
-"spader/sp" = { path = "vendor/sp" }
-yyjson = "0.14.0"
+sp = { path = "vendor/sp" }
+yyjson = { path = "vendor/yyjson"}
 
 [patch.wamr]
 files = [
