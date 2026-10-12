@@ -88,7 +88,7 @@ spn_err_t si_on_embed(spn_dag_t* g, spn_dag_action_t* action, void* user_data, s
             spn_event_buffer_push(spn.events, (spn_event_t) {
               .kind = SPN_EVENT_EMBED_FAILED,
               .pkg = unit->pkg->info->name,
-              .embed_failed = { .target = info->name.str, .path = spn_path_copy(spn.mem, file), .error = sp_str_lit("file not found") },
+              .embed_failed = { .target = info->name.str, .path = spn_path_copy(spn.events->mem, file), .error = sp_str_lit("file not found") },
             });
             sp_fs_it_deinit(&walk);
             sp_mem_end_scratch(scratch);

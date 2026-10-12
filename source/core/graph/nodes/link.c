@@ -33,7 +33,7 @@ static spn_err_t run_link(const spn_path_roots_t* roots, spn_target_unit_t* targ
     .link_failed = {
       .target = target->info->name.str,
       .exit_code = run->result.status.exit_code,
-      .command = spn_invocation_to_str(roots, spn.mem, invocation),
+      .command = spn_invocation_to_str(roots, spn.events->mem, invocation),
       .out = run->result.out,
       .err = run->result.err,
     }
@@ -61,7 +61,7 @@ static spn_err_t run_target(const spn_path_roots_t* roots, spn_target_unit_t* ta
     .link_passed = {
       .target = target->info->name.str,
       .output_path = target->paths.output,
-      .command = spn_invocation_to_str(roots, spn.mem, invocation),
+      .command = spn_invocation_to_str(roots, spn.events->mem, invocation),
       .out = run.result.out,
       .time = run.elapsed,
     }
@@ -74,7 +74,7 @@ typedef sp_str_ht(u8) spn_symbol_set_t;
 static spn_err_t read_archive_symbols(const spn_path_roots_t* roots, spn_path_t path, sp_da(sp_str_t)* symbols, spn_symbol_set_t* seen) {
   sp_io_file_reader_t reader = sp_zero;
   if (sp_io_file_reader_from_path_at(&reader, spn_path_at(roots, path))) {
-    return spn_err_emit(&spn, (spn_err_union_t) { .kind = SPN_ERR_FS_READ, .fs.path = spn_path_copy(spn.mem, path) });
+    return spn_err_emit(&spn, (spn_err_union_t) { .kind = SPN_ERR_FS_READ, .fs.path = spn_path_copy(spn.events->mem, path) });
   }
 
   spn_toc_parser_t toc;
@@ -95,7 +95,7 @@ static spn_err_t read_archive_symbols(const spn_path_roots_t* roots, spn_path_t 
 
   sp_io_file_reader_close(&reader);
   if (err) {
-    return spn_err_emit(&spn, (spn_err_union_t) { .kind = err, .fs.path = spn_path_copy(spn.mem, path) });
+    return spn_err_emit(&spn, (spn_err_union_t) { .kind = err, .fs.path = spn_path_copy(spn.events->mem, path) });
   }
   return SPN_OK;
 }

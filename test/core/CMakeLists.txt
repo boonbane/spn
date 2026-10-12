@@ -225,6 +225,7 @@ add_executable(core
   ${UTIL}/queue/queue.c
   ${UTIL}/str/str.c
   ${UTIL}/array/array.c
+  ${UTIL}/mem/mem.c
   ${UTIL}/hash_table/hash_table.c
   ${SRC}/target/mutate.c
   ${SRC}/target/select.c

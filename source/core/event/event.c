@@ -27,6 +27,8 @@ static u64 current_thread_id() {
 spn_event_buffer_t* spn_event_buffer_new(sp_mem_t mem) {
   spn_event_buffer_t* events = sp_alloc_type(mem, spn_event_buffer_t);
   sp_rb_init(mem, events->buffer);
+  si_mem_locked_arena_init(&events->arena, mem);
+  events->mem = si_mem_locked_arena_as_allocator(&events->arena);
   sp_io_dyn_mem_writer_init(mem, &events->backlog);
   return events;
 }
