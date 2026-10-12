@@ -60,6 +60,23 @@
 #define si_om_for(om, it)    for (u32 it = 0; it < si_om_size(om); it++)
 #define si_om_back(om)       (*si_da_back((om).order))
 
+#define __si_it(it) sp_mcat(it, _p)
+#define __si_it_end(it) sp_mcat(it, _end)
+
+#define si_om_for_each(__arr, __it) \
+  for ( \
+    sp_da_value_t(__arr) __it, \
+    *__sp_it(__it) = (__arr), \
+    *__sp_it_end(__it) = __sp_it(__it) ? \
+      __sp_it(__it) + sp_da_size(__sp_it(__it)) : \
+      __sp_it(__it); \
+  \
+    __sp_it(__it) < __sp_it_end(__it) && \
+    (__it = *__sp_it(__it), 1);\
+  \
+    __sp_it(__it)++ \
+  )
+
 ////////////
 // STR_OM //
 ////////////
