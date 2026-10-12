@@ -14,6 +14,7 @@ add_executable(integration
   ${TEST_GEN_DIR}/probe.gen.c
   ${SRC}/core/core.c
   ${UTIL}/array/array.c
+  ${UTIL}/mem/mem.c
   ${UTIL}/hash_table/hash_table.c
   ${UTIL}/fs/fs.c
   ${UTIL}/io/io.c

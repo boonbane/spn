@@ -33,7 +33,7 @@ static spn_err_t run_link(const spn_path_roots_t* roots, spn_target_unit_t* targ
     .link_failed = {
       .target = target->info->name.str,
       .exit_code = run->result.status.exit_code,
-      .command = spn_invocation_to_str(roots, spn.mem, invocation),
+      .command = spn_invocation_to_str(roots, spn.events->mem, invocation),
       .out = run->result.out,
       .err = run->result.err,
     }
@@ -61,7 +61,7 @@ static spn_err_t run_target(const spn_path_roots_t* roots, spn_target_unit_t* ta
     .link_passed = {
       .target = target->info->name.str,
       .output_path = target->paths.output,
-      .command = spn_invocation_to_str(roots, spn.mem, invocation),
+      .command = spn_invocation_to_str(roots, spn.events->mem, invocation),
       .out = run.result.out,
       .time = run.elapsed,
     }

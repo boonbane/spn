@@ -26,7 +26,7 @@ static s32 run_compiler(const spn_path_roots_t* roots, spn_compile_unit_t* unit,
   };
   spn_invocation_t invocation = spn_cc_render_compile_command(spn.mem, &pkg->build->toolchain->cc, profile, base, &files);
   spn_invocation_result_t run = spn_invocation_run(roots, &invocation);
-  sp_str_t command = spn_invocation_to_str(roots, spn.mem, &invocation);
+  sp_str_t command = spn_invocation_to_str(roots, spn.events->mem, &invocation);
 
   if (run.result.status.exit_code) {
     spn_event_buffer_push(session->ctx->events, (spn_event_t) {

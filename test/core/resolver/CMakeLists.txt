@@ -57,6 +57,7 @@ add_executable(resolver
   ${SRC}/semver/parser.c
   ${SRC}/target/mutate.c
   ${UTIL}/array/array.c
+  ${UTIL}/mem/mem.c
   ${UTIL}/hash_table/hash_table.c
   ${SRC}/target/select.c
   ${SRC}/toolchain/toolchain.c

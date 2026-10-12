@@ -74,14 +74,14 @@ static spn_err_t extract(spn_ctx_t* ctx, sp_mem_t mem, sp_str_t stamp) {
     sp_fs_create_parent_at(at);
     if (!write_file(at, entry.data, entry.size)) {
       sp_fs_remove_dir_at(staging_at);
-      return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_FS_WRITE, .fs = { .path = spn_path_copy(ctx->heap, path) } });
+      return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_FS_WRITE, .fs = { .path = spn_path_copy(ctx->events->mem, path) } });
     }
   }
 
   spn_path_t stamp_path = spn_path_join(mem, staging, sp_str_lit("version.stamp"));
   if (!write_file(spn_path_at(&ctx->roots, stamp_path), stamp.data, stamp.len)) {
     sp_fs_remove_dir_at(staging_at);
-    return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_FS_WRITE, .fs = { .path = spn_path_copy(ctx->heap, stamp_path) } });
+    return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_FS_WRITE, .fs = { .path = spn_path_copy(ctx->events->mem, stamp_path) } });
   }
 
   sp_path_t runtime_at = spn_path_at(&ctx->roots, runtime);
