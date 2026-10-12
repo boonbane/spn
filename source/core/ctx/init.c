@@ -143,7 +143,7 @@ static void load_builtins(spn_ctx_t* ctx) {
 static spn_err_t create_root(spn_ctx_t* ctx, spn_path_root_t kind, spn_path_t dir) {
   sp_path_t at = spn_path_at(&ctx->roots, dir);
   if (sp_fs_create_dir_at(at) || spn_path_roots_set(&ctx->roots, ctx->heap, kind, at)) {
-    return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_FS_CREATE_DIR, .fs = { .path = spn_path_copy(ctx->heap, dir) } });
+    return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_FS_CREATE_DIR, .fs = { .path = spn_path_copy(ctx->events->mem, dir) } });
   }
   return SPN_OK;
 }
@@ -163,7 +163,7 @@ static spn_err_t open_roots(spn_ctx_t* ctx, spn_open_request_t request) {
     }
   }
   if (spn_path_roots_set(&ctx->roots, ctx->heap, SPN_PATH_ROOT_PROJECT, sp_path_from_str(project))) {
-    return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_NO_MANIFEST, .no_manifest = { .path = sp_str_copy(ctx->heap, project) } });
+    return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_NO_MANIFEST, .no_manifest = { .path = sp_str_copy(ctx->events->mem, project) } });
   }
   return SPN_OK;
 }
@@ -223,7 +223,7 @@ static spn_err_t open_ctx(spn_ctx_t* ctx, spn_open_request_t request) {
     if (!sp_da_empty(loader.issues)) {
       return spn_err_emit(ctx, (spn_err_union_t) {
         .kind = SPN_ERR_MANIFEST_ISSUES,
-        .manifest = { .path = spn_path_str(&ctx->roots, ctx->heap, ctx->paths.config), .issues = spn_codegen_issues_to_err(ctx->mem, loader.issues) },
+        .manifest = { .path = spn_path_str(&ctx->roots, ctx->events->mem, ctx->paths.config), .issues = spn_codegen_issues_to_err(ctx->events->mem, loader.issues) },
       });
     }
     ctx->config.indexes = indexes;

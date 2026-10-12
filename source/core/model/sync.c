@@ -84,7 +84,7 @@ static spn_err_t setup_artifact(spn_toolchain_store_t* store, spn_toolchain_unit
   spn_artifact_t artifact = toolchain->support.artifact;
   sp_tm_timer_t timer = sp_tm_start_timer();
 
-  sp_str_t url = spn_artifact_resolve_url(spn.mem, artifact, store->mirror);
+  sp_str_t url = spn_artifact_resolve_url(spn.events->mem, artifact, store->mirror);
   spn_path_t root = spn_toolchain_artifact_root(spn.mem, artifact);
   bool cached = sp_fs_is_dir_at(spn_path_at(store->roots, root));
   if (!cached) {
@@ -115,7 +115,7 @@ static spn_err_t setup_artifact(spn_toolchain_store_t* store, spn_toolchain_unit
     .sync_pkg = {
       .name = toolchain->name.str,
       .url = url,
-      .source_path = spn_path_str(store->roots, spn.mem, root),
+      .source_path = spn_path_str(store->roots, spn.events->mem, root),
       .time = sp_tm_read_timer(&timer),
       .fetched = !cached,
     }
@@ -160,7 +160,7 @@ static spn_err_t materialize_tree(spn_session_t* session, sp_str_t name, spn_pkg
       if (!sp_fs_exists_at(spn_path_at(&session->ctx->roots, canonical))) {
         return spn_err_emit(session->ctx, (spn_err_union_t) {
           .kind = SPN_ERR_NO_MANIFEST,
-          .no_manifest = { .path = spn_path_str(&session->ctx->roots, spn.mem, tree.local) },
+          .no_manifest = { .path = spn_path_str(&session->ctx->roots, spn.events->mem, tree.local) },
         });
       }
       *root = canonical;
@@ -297,7 +297,7 @@ static spn_err_t load_manifest(spn_session_t* session, sp_str_t name, spn_path_t
   spn_codegen_issues_t issues = sp_zero;
   spn_err_t loaded = spn_pkg_load(session->mem, session->ctx->intern, &session->ctx->roots, manifest, SPN_MANIFEST_DEP, parsed, &issues);
   if (loaded) {
-    sp_str_t path = spn_path_str(&session->ctx->roots, spn.mem, manifest);
+    sp_str_t path = spn_path_str(&session->ctx->roots, spn.events->mem, manifest);
     if (loaded == SPN_ERR_NO_MANIFEST) {
       return spn_err_emit(session->ctx, (spn_err_union_t) {
         .kind = SPN_ERR_NO_MANIFEST,
@@ -306,7 +306,7 @@ static spn_err_t load_manifest(spn_session_t* session, sp_str_t name, spn_path_t
     }
     return spn_err_emit(session->ctx, (spn_err_union_t) {
       .kind = SPN_ERR_MANIFEST_ISSUES,
-      .manifest = { .name = name, .path = path, .issues = spn_codegen_issues_to_err(spn.mem, issues) },
+      .manifest = { .name = name, .path = path, .issues = spn_codegen_issues_to_err(spn.events->mem, issues) },
     });
   }
 
@@ -316,7 +316,7 @@ static spn_err_t load_manifest(spn_session_t* session, sp_str_t name, spn_path_t
   if (!sp_str_equal(parsed->name, requested)) {
     return spn_err_emit(session->ctx, (spn_err_union_t) {
       .kind = SPN_ERR_PKG_MISMATCH,
-      .mismatch = { .path = spn_path_str(&session->ctx->roots, spn.mem, manifest), .declared = parsed->name, .requested = name },
+      .mismatch = { .path = spn_path_str(&session->ctx->roots, spn.events->mem, manifest), .declared = parsed->name, .requested = name },
     });
   }
 
@@ -461,7 +461,7 @@ static spn_err_t load_package(spn_session_t* session, spn_resolved_pkg_t* pkg, s
     .sync_pkg = {
       .name = qualified,
       .url = sync_url(pkg->origin.recipe, pkg->origin.source),
-      .source_path = spn_path_str(roots, spn.mem, loaded->roots.source),
+      .source_path = spn_path_str(roots, spn.events->mem, loaded->roots.source),
       .time = loaded->elapsed,
       .fetched = fetched,
     }});

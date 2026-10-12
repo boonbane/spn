@@ -36,8 +36,8 @@ spn_err_t si_on_user_node(spn_dag_t* g, spn_dag_action_t* action, void* user_dat
         .kind = SPN_EVENT_NODE_FAILED,
         .pkg = pkg->info->name,
         .node_failed = {
-          .path = spn_path_str(g->roots, spn.mem, artifact->path),
-          .message = sp_fmt(spn.mem, "could not be removed before node {} ran", sp_fmt_str(node->tag)).value,
+          .path = spn_path_str(g->roots, spn.events->mem, artifact->path),
+          .message = sp_fmt(spn.events->mem, "could not be removed before node {} ran", sp_fmt_str(node->tag)).value,
         },
       });
       return SPN_ERR_DAG_ACTION;
@@ -70,10 +70,10 @@ spn_err_t si_on_user_node(spn_dag_t* g, spn_dag_action_t* action, void* user_dat
         .kind = SPN_EVENT_NODE_FAILED,
         .pkg = pkg->info->name,
         .node_failed = {
-          .path = spn_path_str(g->roots, spn.mem, artifact->path),
+          .path = spn_path_str(g->roots, spn.events->mem, artifact->path),
           .message = err == SP_ERR_SYS_NOT_FOUND
-            ? sp_fmt(spn.mem, "was declared as an output of node {} but was not produced", sp_fmt_str(node->tag)).value
-            : sp_fmt(spn.mem, "output of node {} could not be copied into the build", sp_fmt_str(node->tag)).value,
+            ? sp_fmt(spn.events->mem, "was declared as an output of node {} but was not produced", sp_fmt_str(node->tag)).value
+            : sp_fmt(spn.events->mem, "output of node {} could not be copied into the build", sp_fmt_str(node->tag)).value,
         },
       });
       return SPN_ERR_DAG_ACTION;

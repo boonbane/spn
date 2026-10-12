@@ -179,7 +179,7 @@ static void index_append_release(spn_index_info_t* index, spn_index_release_t* r
 
 #define SPN_INDEX_PUBLISH_ATTEMPTS 3
 
-static spn_err_t publish_git(spn_index_info_t* index, sp_mem_t mem, spn_index_release_t* rel, bool* dirtied) {
+static spn_err_t publish_git(spn_index_info_t* index, spn_index_release_t* rel, bool* dirtied) {
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   sp_str_t message = sp_fmt(scratch.mem, "{}/{} {}",
     sp_fmt_str(rel->id.namespace),
@@ -206,7 +206,7 @@ static spn_err_t publish_git(spn_index_info_t* index, sp_mem_t mem, spn_index_re
     if (index_release_exists(index, scratch.mem, rel, &exists, &diag)) {
       result = spn_err_emit(&spn, (spn_err_union_t) {
         .kind = SPN_ERR_INDEX_CORRUPT,
-        .index_corrupt = { .name = spn_pkg_name_to_qualified(rel->id), .path = sp_str_copy(mem, diag.path) },
+        .index_corrupt = { .name = spn_pkg_name_to_qualified(rel->id), .path = sp_str_copy(spn.events->mem, diag.path) },
       });
       break;
     }
@@ -215,7 +215,7 @@ static spn_err_t publish_git(spn_index_info_t* index, sp_mem_t mem, spn_index_re
         .kind = SPN_ERR_VERSION_EXISTS,
         .version_exists = {
           .name = rel->id.name,
-          .version = spn_semver_to_str(mem, rel->version),
+          .version = spn_semver_to_str(spn.events->mem, rel->version),
         },
       });
       break;
@@ -259,14 +259,14 @@ static spn_err_t publish_git(spn_index_info_t* index, sp_mem_t mem, spn_index_re
     }
 
     result = SPN_ERR_PUBLISH_PUSH;
-    output = sp_str_copy(mem, output);
+    output = sp_str_copy(spn.events->mem, output);
   }
 
   if (result == SPN_ERR_PUBLISH_PUSH) {
     spn_err_emit(&spn, (spn_err_union_t) {
       .kind = SPN_ERR_PUBLISH_PUSH,
       .publish = {
-        .url = sp_str_copy(mem, url),
+        .url = sp_str_copy(spn.events->mem, url),
         .output = output,
       },
     });
@@ -275,7 +275,7 @@ static spn_err_t publish_git(spn_index_info_t* index, sp_mem_t mem, spn_index_re
   return result;
 }
 
-spn_err_t spn_index_publish(spn_index_info_t* index, sp_mem_t mem, spn_index_release_t* rel) {
+spn_err_t spn_index_publish(spn_index_info_t* index, spn_index_release_t* rel) {
   switch (index->protocol) {
     case SPN_INDEX_PROTOCOL_GIT: {
       if (!sp_str_empty(index->git.rev)) {
@@ -286,7 +286,7 @@ spn_err_t spn_index_publish(spn_index_info_t* index, sp_mem_t mem, spn_index_rel
       }
 
       bool dirtied = false;
-      spn_err_t err = publish_git(index, mem, rel, &dirtied);
+      spn_err_t err = publish_git(index, rel, &dirtied);
 
       // Leave the replica clean when the transaction died after mutating it
       if (err && dirtied) {

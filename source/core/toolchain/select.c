@@ -116,7 +116,7 @@ static bool satisfies(const spn_toolchain_catalog_t* catalog, const spn_toolchai
 }
 
 static sp_da(sp_str_t) satisfying(spn_toolchain_catalog_t* catalog, spn_toolchain_query_t query) {
-  sp_da(sp_str_t) names = sp_da_new(catalog->mem, sp_str_t);
+  sp_da(sp_str_t) names = sp_da_new(spn.events->mem, sp_str_t);
   si_om_for(catalog->entries, it) {
     spn_toolchain_info_t* entry = si_om_at(catalog->entries, it);
     reach_t reach = sp_zero;
@@ -157,10 +157,10 @@ static spn_err_t emit_reach(spn_toolchain_catalog_t* catalog, spn_toolchain_quer
     }
     case REACH_DROPPED:
     case REACH_UNSERVED: {
-      return emit(sdk_refusal(reach.row.triple), catalog, query, reach.row.triple, candidates, triples(catalog->mem, toolchain->rows));
+      return emit(sdk_refusal(reach.row.triple), catalog, query, reach.row.triple, candidates, triples(spn.events->mem, toolchain->rows));
     }
     case REACH_UNLISTED: {
-      return emit(SPN_ERR_TOOLCHAIN_TARGET, catalog, query, query.target, candidates, triples(catalog->mem, toolchain->rows));
+      return emit(SPN_ERR_TOOLCHAIN_TARGET, catalog, query, query.target, candidates, triples(spn.events->mem, toolchain->rows));
     }
     case REACH_OK: {
       sp_unreachable_case();

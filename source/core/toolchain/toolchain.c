@@ -117,7 +117,7 @@ spn_err_t spn_toolchain_generation(sp_mem_t mem, const spn_path_roots_t* roots, 
   generation_err_t err = claim_generation(roots, scratch.mem, dir, file, generation);
   spn_err_t result = SPN_OK;
   if (err.kind) {
-    result = spn_err_emit(&spn, (spn_err_union_t) { .kind = err.kind, .fs = { .path = spn_path_copy(mem, err.path) } });
+    result = spn_err_emit(&spn, (spn_err_union_t) { .kind = err.kind, .fs = { .path = spn_path_copy(spn.events->mem, err.path) } });
   }
   sp_mem_end_scratch(scratch);
   return result;

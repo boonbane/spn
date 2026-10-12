@@ -193,7 +193,7 @@ spn_err_t spn_session_apply_options(spn_session_t* session, bool* reresolve) {
       if (!sp_da_empty(merged.violations)) {
         spn_err_t first = SPN_OK;
         sp_da_for(merged.violations, vt) {
-          spn_err_t kind = spn_err_emit(session->ctx, violation_err(mem, merged.violations[vt]));
+          spn_err_t kind = spn_err_emit(session->ctx, violation_err(session->ctx->events->mem, merged.violations[vt]));
           if (!first) {
             first = kind;
           }

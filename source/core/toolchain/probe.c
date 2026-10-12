@@ -142,12 +142,12 @@ static bool probe_program(spn_probe_cache_t* cache, const spn_path_roots_t* root
   return true;
 }
 
-static spn_err_t probe_missing(const spn_cc_t* cc, const spn_path_roots_t* roots, sp_mem_t mem, spn_arg_t program) {
+static spn_err_t probe_missing(const spn_cc_t* cc, const spn_path_roots_t* roots, spn_arg_t program) {
   return spn_err_emit(&spn, (spn_err_union_t) {
     .kind = SPN_ERR_TOOLCHAIN_MISSING,
     .program = {
       .name = cc->name.str,
-      .program = spn_arg_str(roots, mem, program),
+      .program = spn_arg_str(roots, spn.events->mem, program),
     },
   });
 }
@@ -169,7 +169,7 @@ spn_err_t spn_toolchain_probe(spn_cc_t* cc, const spn_path_roots_t* roots, spn_s
   sp_da(sp_str_t) dirs = spn_search_dirs(rules, s.mem, path);
   if (!probe_program(cache, roots, rules, dirs, mem, &cc->compiler.program, &hashes[0])) {
     sp_mem_end_scratch(s);
-    return probe_missing(cc, roots, mem, cc->compiler.program);
+    return probe_missing(cc, roots, cc->compiler.program);
   }
   dirs = beside(s.mem, roots, cc->compiler.program.path, dirs);
   bool archiver = probe_program(cache, roots, rules, dirs, mem, &cc->archiver.program, &hashes[1]);
@@ -177,7 +177,7 @@ spn_err_t spn_toolchain_probe(spn_cc_t* cc, const spn_path_roots_t* roots, spn_s
   sp_mem_end_scratch(s);
 
   if (!archiver) {
-    return probe_missing(cc, roots, mem, cc->archiver.program);
+    return probe_missing(cc, roots, cc->archiver.program);
   }
   if (!cxx) {
     cc->cxx = sp_zero_s(spn_toolchain_launcher_t);

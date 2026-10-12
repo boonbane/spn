@@ -56,8 +56,8 @@ void spn_wasm_thread_exit(void) {
 }
 
 static spn_err_t script_fail(spn_pkg_unit_t* unit, spn_err_t err, spn_err_wasm_t wasm) {
-  wasm.path = spn_path_copy(spn.mem, wasm.path);
-  wasm.error = sp_str_copy(spn.mem, wasm.error);
+  wasm.path = spn_path_copy(spn.events->mem, wasm.path);
+  wasm.error = sp_str_copy(spn.events->mem, wasm.error);
   spn_event_buffer_push(spn.events, (spn_event_t) {
     .kind = SPN_EVENT_ERR,
     .pkg = unit->info->name,

@@ -54,7 +54,7 @@ static spn_err_t index_err(spn_ctx_t* ctx, spn_pkg_name_t name, spn_err_t kind, 
     case SPN_ERR_MANIFEST_ISSUES: {
       return spn_err_emit(ctx, (spn_err_union_t) {
         .kind = kind,
-        .manifest = { .name = spn_pkg_name_to_qualified(name), .path = diag->path, .issues = spn_codegen_issues_to_err(ctx->heap, diag->issues) },
+        .manifest = { .name = spn_pkg_name_to_qualified(name), .path = diag->path, .issues = spn_codegen_issues_to_err(ctx->events->mem, diag->issues) },
       });
     }
     case SPN_ERR_INDEX_CORRUPT: {
@@ -109,7 +109,7 @@ static spn_err_t add(spn_ctx_t* ctx, spn_add_request_t request, spn_semver_range
   if (!release) {
     return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_PKG_NO_MATCH, .unsatisfiable = {
       .qualified = spn_pkg_name_to_qualified(name),
-      .range = spn_semver_range_to_str(ctx->heap, range),
+      .range = spn_semver_range_to_str(ctx->events->mem, range),
     }});
   }
 
@@ -131,7 +131,7 @@ static spn_err_t add(spn_ctx_t* ctx, spn_add_request_t request, spn_semver_range
 
   spn_toml_edit_t edit = sp_zero;
   if (spn_toml_edit_init(&edit, s.mem, source)) {
-    result = spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_MANIFEST_PARSE, .manifest_parse = { .path = spn_path_str(&ctx->roots, ctx->heap, manifest) } });
+    result = spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_MANIFEST_PARSE, .manifest_parse = { .path = spn_path_str(&ctx->roots, ctx->events->mem, manifest) } });
     goto cleanup;
   }
 
@@ -144,7 +144,7 @@ static spn_err_t add(spn_ctx_t* ctx, spn_add_request_t request, spn_semver_range
 
   site_t site = find_site(&edit, s.mem, sp_cstr_as_str(table), request.name, spn_pkg_name_to_qualified(name));
   if (spn_toml_edit_set_str(&edit, site.path, site.num_segments, version)) {
-    result = spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_MANIFEST_EDIT, .manifest_parse = { .path = spn_path_str(&ctx->roots, ctx->heap, manifest) } });
+    result = spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_MANIFEST_EDIT, .manifest_parse = { .path = spn_path_str(&ctx->roots, ctx->events->mem, manifest) } });
     goto cleanup;
   }
 
@@ -157,7 +157,7 @@ static spn_err_t add(spn_ctx_t* ctx, spn_add_request_t request, spn_semver_range
   spn_event_buffer_push(ctx->events, (spn_event_t) {
     .kind = SPN_EVENT_ADDED,
     .added = {
-      .name = sp_str_copy(ctx->heap, site.path[2]),
+      .name = sp_str_copy(ctx->events->mem, site.path[2]),
       .version = version,
     },
   });

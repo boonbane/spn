@@ -46,8 +46,8 @@ static spn_err_t publish_entry(spn_dag_t* g, spn_pkg_unit_t* unit, spn_path_t ro
       .kind = SPN_EVENT_NODE_FAILED,
       .pkg = unit->info->name,
       .node_failed = {
-        .path = spn_path_str(roots, spn.mem, publish->source.path),
-        .message = sp_fmt(spn.mem, "could not be published to {}", sp_fmt_str(sp_fs_join_path(spn.mem, spn_publish_root_to_str(publish->root), publish->dest))).value,
+        .path = spn_path_str(roots, spn.events->mem, publish->source.path),
+        .message = sp_fmt(spn.events->mem, "could not be published to {}", sp_fmt_str(sp_fs_join_path(spn.events->mem, spn_publish_root_to_str(publish->root), publish->dest))).value,
       },
     });
     return SPN_ERR_DAG_ACTION;

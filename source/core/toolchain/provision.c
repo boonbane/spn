@@ -130,7 +130,7 @@ static spn_err_t fill(spn_toolchain_store_t* store, sp_mem_t scratch, sp_str_t n
       .artifact = {
         .name = name,
         .url = url,
-        .output = sp_str_copy(store->mem, sp_str_trim(extract.err)),
+        .output = sp_str_copy(spn.events->mem, sp_str_trim(extract.err)),
       },
     });
   }

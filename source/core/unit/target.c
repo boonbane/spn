@@ -65,7 +65,7 @@ static spn_err_t ensure_target_unit(spn_session_t* s, spn_pkg_unit_t* pkg, spn_t
             else if (profile->request.libc == SPN_RUNTIME_STATIC) {
               requester = SPN_LINKAGE_REQUESTER_LIBC;
             }
-            sp_da(spn_linkage_t) supported = sp_da_new(s->mem, spn_linkage_t);
+            sp_da(spn_linkage_t) supported = sp_da_new(s->ctx->events->mem, spn_linkage_t);
             if (info->linkages.shared) {
               sp_da_push(supported, SPN_LIB_KIND_SHARED);
             }
@@ -231,7 +231,7 @@ static spn_err_t create_target_objects(spn_session_t* s, spn_target_unit_t* targ
             .target_source = {
               .pkg = target->pkg->info->name,
               .name = target->info->name.str,
-              .source = spn_path_str(&s->ctx->roots, s->mem, source.path),
+              .source = spn_path_str(&s->ctx->roots, s->ctx->events->mem, source.path),
             },
           });
         }
