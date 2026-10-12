@@ -1,9 +1,9 @@
 #include "sp.h"
 #include "pkg/patch.h"
 
-spn_pkg_patch_stamp_result_t spn_pkg_patch_stamp(si_da(spn_pkg_patch_t) patches, sp_str_t qualified, spn_pkg_root_t* source) {
+spn_pkg_patch_stamp_result_t spn_pkg_patch_stamp(si_da(spn_pkg_patch_t) patches, sp_intern_id_t qualified, spn_pkg_root_t* source) {
   si_da_for(patches, it) {
-    if (!sp_str_equal(patches[it].qualified, qualified)) {
+    if (patches[it].qualified.id != qualified) {
       continue;
     }
     if (source->kind != SPN_PKG_ROOT_GIT) {

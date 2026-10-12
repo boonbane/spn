@@ -132,20 +132,20 @@ static const stamp_test_t stamp_tests [] = {
   { .name = "skip_empty_patches",    .qualified = "core/a",   .tree = SPN_PKG_ROOT_NONE, .expect = { SPN_PKG_PATCH_STAMP_NONE } },
 };
 
-sp_test_each(pkg, patch_stamp, stamp_test_t, stamp_tests) {
+sp_test_each(pkg, patch_stamp, stamp_test_t, stamp_tests, .setup = spn_test_ctx_setup) {
   sp_mem_t mem = sp_test_arena(t);
 
   si_da(spn_pkg_patch_t) patches = SP_NULLPTR;
   sp_carr_for(it->patches, p) {
     if (!it->patches[p]) break;
     si_da_push(mem, patches, ((spn_pkg_patch_t) {
-      .qualified = sp_str_view(it->patches[p]),
+      .qualified = spn_intern(sp_str_view(it->patches[p])),
       .set.hash = (sp_hash_t)(p + 1),
     }));
   }
 
   spn_pkg_root_t source = { .kind = it->tree };
-  spn_pkg_patch_stamp_result_t result = spn_pkg_patch_stamp(patches, sp_str_view(it->qualified), &source);
+  spn_pkg_patch_stamp_result_t result = spn_pkg_patch_stamp(patches, spn_intern(sp_str_view(it->qualified)).id, &source);
 
   sp_expect_eq(t, (u32)it->expect.result, (u32)result);
   if (it->tree == SPN_PKG_ROOT_GIT) {

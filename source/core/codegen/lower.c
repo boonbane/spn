@@ -27,14 +27,14 @@ static void validate_name(spn_toml_loader_t* ctx, sp_str_t key, sp_str_t name) {
   }
 }
 
-static sp_str_t lower_qualify(spn_toml_loader_t* ctx, sp_str_t namespace, sp_str_t name) {
-  if (sp_str_empty(name)) return name;
+static sp_intern_str_t lower_qualify(spn_toml_loader_t* ctx, sp_str_t namespace, sp_str_t name) {
+  if (sp_str_empty(name)) return sp_zero_s(sp_intern_str_t);
   sp_str_t ns = sp_str_empty(namespace) ? sp_str_lit("core") : namespace;
-  return spn_toml_loader_intern(ctx, sp_str_join(ctx->mem, ns, name, sp_str_lit("/")));
+  return sp_intern(ctx->intern, sp_str_join(ctx->mem, ns, name, sp_str_lit("/")));
 }
 
-static sp_str_t lower_canonicalize(spn_toml_loader_t* ctx, sp_str_t name) {
-  if (sp_str_empty(name)) return name;
+static sp_intern_str_t lower_canonicalize(spn_toml_loader_t* ctx, sp_str_t name) {
+  if (sp_str_empty(name)) return sp_zero_s(sp_intern_str_t);
   sp_str_pair_t pair = sp_str_cleave_c8(name, '/');
   if (sp_str_empty(pair.second)) {
     validate_name(ctx, name, name);
@@ -266,7 +266,7 @@ static spn_target_info_t lower_metaprogram(spn_toml_loader_t* ctx, const spn_cg_
 
 static void lower_dep(spn_toml_loader_t* ctx, sp_str_t name, const spn_cg_dep_t* cg, spn_dep_kind_t kind, spn_pkg_info_t* out) {
   spn_requested_dep_t req = {
-    .qualified = lower_canonicalize(ctx, name),
+    .qualified = lower_canonicalize(ctx, name).str,
     .kind = kind,
     .private = sp_opt_is_null(cg->private) ? false : sp_opt_get(cg->private),
     .when = cg->when,
@@ -305,7 +305,7 @@ static void lower_package(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, s
   info->upstream.commit = p->upstream.commit;
   info->author = p->author;
   info->maintainer = p->maintainer;
-  info->qualified = lower_qualify(ctx, p->namespace, p->name);
+  info->qualified = lower_qualify(ctx, p->namespace, p->name).str;
   if (spn_semver_parse(p->version, &info->version)) {
     spn_toml_loader_push_key(ctx, "package");
     spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "version");
@@ -473,14 +473,14 @@ static void lower_options(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, s
 }
 
 static void lower_patches(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, spn_pkg_info_t* out) {
-  sp_da(sp_str_t) seen = sp_da_new(ctx->mem, sp_str_t);
+  sp_da(sp_intern_id_t) seen = sp_da_new(ctx->mem, sp_intern_id_t);
   spn_toml_loader_push_key(ctx, "patch");
   sp_da_for(cg->patch, it) {
-    sp_str_t qualified = lower_canonicalize(ctx, cg->patch[it].key);
+    sp_intern_str_t qualified = lower_canonicalize(ctx, cg->patch[it].key);
 
     bool duplicate = false;
     sp_da_for(seen, jt) {
-      if (sp_str_equal(seen[jt], qualified)) {
+      if (seen[jt] == qualified.id) {
         duplicate = true;
         break;
       }
@@ -489,7 +489,7 @@ static void lower_patches(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, s
       spn_toml_loader_issue_at(ctx, SPN_ERR_CODEGEN_DUPLICATE_KEY, cg->patch[it].key);
       continue;
     }
-    sp_da_push(seen, qualified);
+    sp_da_push(seen, qualified.id);
 
     if (sp_da_empty(cg->patch[it].value.files)) {
       spn_toml_loader_push_key(ctx, sp_str_to_cstr(ctx->mem, cg->patch[it].key));
@@ -521,7 +521,7 @@ spn_err_t spn_pkg_lower_patch_hashes(spn_toml_loader_t* ctx, spn_pkg_info_t* out
       continue;
     }
 
-    spn_toml_loader_push_key(ctx, sp_str_to_cstr(ctx->mem, patch->qualified));
+    spn_toml_loader_push_key(ctx, sp_str_to_cstr(ctx->mem, patch->qualified.str));
     spn_toml_loader_push_index(ctx, missing);
     spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_FILE_MISSING, "files");
     spn_toml_loader_pop(ctx);

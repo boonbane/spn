@@ -1909,7 +1909,7 @@ sp_test_each(lower, cases, test_t, tests, .setup = spn_test_ctx_setup) {
 
     spn_pkg_patch_t* patch = SP_NULLPTR;
     si_da_for(pkg.patches, j) {
-      if (sp_str_equal(pkg.patches[j].qualified, sp_str_view(expected.name))) {
+      if (sp_str_equal(pkg.patches[j].qualified.str, sp_str_view(expected.name))) {
         patch = &pkg.patches[j];
         break;
       }

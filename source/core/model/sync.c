@@ -344,7 +344,7 @@ static bool package_has_build_deps(spn_resolved_pkg_t* pkg) {
 }
 
 static spn_err_t stamp_patches(spn_session_t* session, spn_resolved_pkg_t* pkg, sp_str_t qualified) {
-  switch (spn_pkg_patch_stamp(session->pkg->patches, qualified, &pkg->origin.source)) {
+  switch (spn_pkg_patch_stamp(session->pkg->patches, pkg->id.qualified, &pkg->origin.source)) {
     case SPN_PKG_PATCH_STAMP_NONE: {
       return SPN_OK;
     }
@@ -496,11 +496,11 @@ static void sync_toolchain_node(void* data) {
 static spn_err_t check_unused_patches(spn_session_t* session) {
   spn_err_t err = SPN_OK;
   si_da_for(session->pkg->patches, it) {
-    sp_str_t qualified = session->pkg->patches[it].qualified;
+    sp_intern_str_t qualified = session->pkg->patches[it].qualified;
 
     bool used = false;
     sp_ht_for_kv(session->resolve, jt) {
-      if (sp_str_equal(spn_intern_find(jt.key->qualified), qualified)) {
+      if (jt.key->qualified == qualified.id) {
         used = true;
         break;
       }
@@ -511,7 +511,7 @@ static spn_err_t check_unused_patches(spn_session_t* session) {
 
     spn_err_t kind = spn_err_emit(session->ctx, (spn_err_union_t) {
       .kind = SPN_ERR_PATCH_UNUSED,
-      .patch = { .name = qualified },
+      .patch = { .name = qualified.str },
     });
     if (!err) {
       err = kind;

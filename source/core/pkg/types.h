@@ -134,7 +134,7 @@ typedef struct {
 } spn_pkg_config_entry_t;
 
 typedef struct {
-  sp_str_t qualified;
+  sp_intern_str_t qualified;
   spn_git_patch_set_t set;
 } spn_pkg_patch_t;
 
