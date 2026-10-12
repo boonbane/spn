@@ -1788,7 +1788,7 @@ sp_test_each(lower, cases, test_t, tests, .setup = spn_test_ctx_setup) {
 
     spn_requested_dep_t* req = SP_NULLPTR;
     si_da_for(pkg.deps, j) {
-      if (sp_str_equal(pkg.deps[j].qualified, sp_str_view(expected.name)) && pkg.deps[j].kind == kind) {
+      if (sp_str_equal(pkg.deps[j].qualified.str, sp_str_view(expected.name)) && pkg.deps[j].kind == kind) {
         req = &pkg.deps[j];
         break;
       }

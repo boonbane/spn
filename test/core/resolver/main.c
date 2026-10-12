@@ -75,7 +75,7 @@ static resolve_result_t execute_fixture(const fx_config_t* config, const spn_pkg
   result.intern = intern;
   spn_resolve_query_init(mem, &result.query);
   spn_resolve_query_add(&result.query, (spn_requested_dep_t) {
-    .qualified = sp_str_view(root_qualified),
+    .qualified = sp_intern(intern, sp_str_view(root_qualified)),
     .source = SPN_PKG_SOURCE_ROOT,
   });
 

@@ -79,7 +79,7 @@ sp_test_each(options_session, apply, session_test_t, tests, .setup = spn_test_ct
   }
   if (it->direct_dep || it->gated_dep) {
     spn_requested_dep_t dep = {
-      .qualified = sp_str_lit("core/spum"),
+      .qualified = spn_intern_lit("core/spum"),
       .kind = SPN_DEP_KIND_PACKAGE,
     };
     if (it->gated_dep) {

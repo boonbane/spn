@@ -38,14 +38,14 @@ spn_err_t spn_index_release_from_pkg(sp_mem_t mem, spn_pkg_info_t* info, spn_pkg
   si_da_for(info->deps, it) {
     spn_requested_dep_t* req = &info->deps[it];
     if (req->source != SPN_PKG_SOURCE_INDEX) {
-      *dep = req->qualified;
+      *dep = req->qualified.str;
       return SPN_ERR_INDEX_PATH_DEP;
     }
 
     sp_da_push(release->deps, ((spn_index_dep_t) {
       .kind = dep_kind_to_index(req->kind),
       .private = req->private,
-      .id = spn_pkg_name_from_qualified(req->qualified),
+      .id = spn_pkg_name_from_qualified(req->qualified.str),
       .range = req->index.range,
       .when = req->when,
       .options = req->options,

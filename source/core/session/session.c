@@ -126,14 +126,12 @@ spn_pkg_unit_t* si_get_pkg_unit(spn_session_t* session, spn_build_unit_t* build,
   });
 }
 
-spn_pkg_unit_t* spn_session_find_dep(spn_session_t* session, spn_pkg_unit_t* pkg, sp_str_t qualified, spn_dep_kind_t kind) {
-  sp_intern_id_t name = sp_intern(session->ctx->intern, qualified).id;
-
+spn_pkg_unit_t* spn_session_find_dep(spn_session_t* session, spn_pkg_unit_t* pkg, sp_intern_id_t qualified, spn_dep_kind_t kind) {
   sp_da_for(pkg->deps, it) {
     if (pkg->deps[it].kind != kind) {
       continue;
     }
-    if (pkg->deps[it].unit && pkg->deps[it].unit->id.pkg.qualified == name) {
+    if (pkg->deps[it].unit && pkg->deps[it].unit->id.pkg.qualified == qualified) {
       return pkg->deps[it].unit;
     }
   }

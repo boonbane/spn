@@ -195,7 +195,7 @@ spn_cg_resolve_t spn_resolve_dump(sp_mem_t mem, sp_intern_t* intern, const spn_r
 
   sp_da_for(query->reqs, it) {
     const spn_requested_dep_t* req = &query->reqs[it];
-    spn_pkg_name_t name = spn_pkg_name_from_qualified(req->qualified);
+    spn_pkg_name_t name = spn_pkg_name_from_qualified(req->qualified.str);
     spn_cg_resolve_request_t request = {
       .namespace = name.namespace,
       .name = name.name,

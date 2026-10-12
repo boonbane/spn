@@ -477,8 +477,9 @@ static spn_err_t build_target_plan(spn_target_unit_t* target) {
 
 static spn_pkg_unit_t* find_dep_unit(spn_session_t* s, spn_pkg_unit_t* pkg, sp_str_t qualified) {
   const spn_dep_kind_t kinds [] = { SPN_DEP_KIND_PACKAGE, SPN_DEP_KIND_TEST, SPN_DEP_KIND_BUILD };
+  sp_intern_id_t id = sp_intern(s->ctx->intern, qualified).id;
   sp_carr_for(kinds, it) {
-    spn_pkg_unit_t* unit = spn_session_find_dep(s, pkg, qualified, kinds[it]);
+    spn_pkg_unit_t* unit = spn_session_find_dep(s, pkg, id, kinds[it]);
     if (unit) {
       return unit;
     }

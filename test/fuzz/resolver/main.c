@@ -88,9 +88,9 @@ static spn_dep_kind_t fz_root_dep_kind(spn_index_dep_kind_t kind) {
   sp_unreachable_return(SPN_DEP_KIND_PACKAGE);
 }
 
-static spn_requested_dep_t fz_req(sp_mem_t mem, fz_universe_t* u, fz_dep_t dep) {
+static spn_requested_dep_t fz_req(sp_mem_t mem, sp_intern_t* intern, fz_universe_t* u, fz_dep_t dep) {
   spn_requested_dep_t req = {
-    .qualified = spn_pkg_canonicalize_pair(sp_str_lit("spn"), fz_pkg_name(dep.pkg)),
+    .qualified = sp_intern(intern, spn_pkg_canonicalize_pair(sp_str_lit("spn"), fz_pkg_name(dep.pkg))),
     .kind = fz_root_dep_kind(dep.kind),
     .private = dep.private,
   };
@@ -186,7 +186,7 @@ static fz_result_t fz_execute(sp_mem_t mem, fz_universe_t* u, sp_intern_t* inter
     info->qualified = sp_intern(intern, spn_pkg_canonicalize_pair(sp_str_lit("spn"), fz_pkg_name((u32)it)));
     info->version = release->version;
     sp_da_for(release->deps, dt) {
-      si_da_push(mem, info->deps, fz_req(mem, u, release->deps[dt]));
+      si_da_push(mem, info->deps, fz_req(mem, intern, u, release->deps[dt]));
     }
 
     if (fz_pkg_linked(local)) {
@@ -209,7 +209,7 @@ static fz_result_t fz_execute(sp_mem_t mem, fz_universe_t* u, sp_intern_t* inter
   root->version = spn_semver_lit(0, 0, 1);
 
   sp_da_for(u->roots, it) {
-    si_da_push(mem, root->deps, fz_req(mem, u, u->roots[it]));
+    si_da_push(mem, root->deps, fz_req(mem, intern, u, u->roots[it]));
   }
 
   sp_ht_insert(registry, ((spn_pkg_id_t) { .qualified = root->qualified.id }), ((spn_registry_pkg_t) {
@@ -236,7 +236,7 @@ static fz_result_t fz_execute(sp_mem_t mem, fz_universe_t* u, sp_intern_t* inter
   result.intern = intern;
   spn_resolve_query_init(mem, &result.query);
   spn_resolve_query_add(&result.query, (spn_requested_dep_t) {
-    .qualified = sp_str_view(fz_root_qualified),
+    .qualified = sp_intern(intern, sp_str_view(fz_root_qualified)),
     .source = SPN_PKG_SOURCE_ROOT,
   });
 

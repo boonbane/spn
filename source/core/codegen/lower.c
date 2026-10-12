@@ -266,7 +266,7 @@ static spn_target_info_t lower_metaprogram(spn_toml_loader_t* ctx, const spn_cg_
 
 static void lower_dep(spn_toml_loader_t* ctx, sp_str_t name, const spn_cg_dep_t* cg, spn_dep_kind_t kind, spn_pkg_info_t* out) {
   spn_requested_dep_t req = {
-    .qualified = lower_canonicalize(ctx, name).str,
+    .qualified = lower_canonicalize(ctx, name),
     .kind = kind,
     .private = sp_opt_is_null(cg->private) ? false : sp_opt_get(cg->private),
     .when = cg->when,

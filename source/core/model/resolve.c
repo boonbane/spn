@@ -64,7 +64,7 @@ static spn_err_t apply_patch_overrides(spn_session_t* session, spn_resolve_query
 
 static void add_root(spn_session_t* session, spn_resolve_query_t* query) {
   spn_resolve_query_add(query, (spn_requested_dep_t) {
-    .qualified = session->pkg->qualified.str,
+    .qualified = session->pkg->qualified,
     .source = SPN_PKG_SOURCE_ROOT,
   });
 }
