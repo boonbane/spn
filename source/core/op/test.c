@@ -7,7 +7,6 @@
 #include "graph/build.h"
 #include "op/op.h"
 #include "paths/paths.h"
-#include "session/session.h"
 #include "session/types.h"
 #include "unit/types.h"
 
@@ -80,7 +79,7 @@ spn_err_t spn_op_test(spn_op_t* op) {
   sp_da_for(session->plans.build, i) {
     spn_build_plan_t* plan = &session->plans.build[i];
     si_da_for(plan->roots, j) {
-      spn_target_unit_t* unit = spn_session_find_target_in_pkg(session, plan->root, plan->roots[j]);
+      spn_target_unit_t* unit = plan->roots[j];
       if (unit->info->kind != SPN_TARGET_KIND_TEST) {
         continue;
       }
