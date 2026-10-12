@@ -11,6 +11,7 @@
 #include "git/key.h"
 #include "index/dir.h"
 #include "index/index.h"
+#include "intern/intern.h"
 #include "fs/fs.h"
 #include "index/json.h"
 #include "index/jsonl.h"
@@ -195,7 +196,7 @@ static spn_err_t publish_git(spn_index_info_t* index, spn_index_release_t* rel, 
     if (git_index_freshen(index)) {
       result = spn_err_emit(&spn, (spn_err_union_t) {
         .kind = SPN_ERR_INDEX_SYNC,
-        .index = { .name = index->name, .url = index->git.url },
+        .index = { .name = index->name.str, .url = index->git.url },
       });
       break;
     }
@@ -280,7 +281,7 @@ spn_err_t spn_index_publish(spn_index_info_t* index, spn_index_release_t* rel) {
       if (!sp_str_empty(index->git.rev)) {
         return spn_err_emit(&spn, (spn_err_union_t) {
           .kind = SPN_ERR_INDEX_PINNED,
-          .index = { .name = index->name, .url = index->git.url },
+          .index = { .name = index->name.str, .url = index->git.url },
         });
       }
 
@@ -298,7 +299,7 @@ spn_err_t spn_index_publish(spn_index_info_t* index, spn_index_release_t* rel) {
     case SPN_INDEX_PROTOCOL_DIR: {
       return spn_err_emit(&spn, (spn_err_union_t) {
         .kind = SPN_ERR_INDEX_PUBLISH_PROTOCOL,
-        .index = { .name = index->name, .url = spn_index_source(index) },
+        .index = { .name = index->name.str, .url = spn_index_source(index) },
       });
     }
   }
@@ -321,9 +322,9 @@ spn_path_t spn_index_location(spn_index_info_t* index, sp_mem_t mem, spn_path_t 
   sp_unreachable_return(sp_zero_struct(spn_path_t));
 }
 
-static spn_index_info_t* find_index(sp_da(spn_index_info_t)* indexes, sp_str_t name) {
+static spn_index_info_t* find_index(sp_da(spn_index_info_t)* indexes, spn_index_id_t id) {
   sp_da_for(*indexes, it) {
-    if (sp_str_equal((*indexes)[it].name, name)) {
+    if ((*indexes)[it].id == id) {
       return &(*indexes)[it];
     }
   }
@@ -340,14 +341,16 @@ void spn_index_assemble(sp_mem_t mem, spn_index_map_t* workspace, sp_da(spn_inde
   }
 
   sp_da_for(user, it) {
-    if (!find_index(indexes, user[it].name)) {
+    if (!find_index(indexes, user[it].id)) {
       sp_da_push(*indexes, user[it]);
     }
   }
 
-  if (!find_index(indexes, sp_str_lit("core"))) {
+  sp_intern_str_t core = spn_intern_lit("core");
+  if (!find_index(indexes, core.id)) {
     sp_da_push(*indexes, ((spn_index_info_t) {
-      .name = sp_str_lit("core"),
+      .id = core.id,
+      .name = core,
       .protocol = SPN_INDEX_PROTOCOL_GIT,
       .kind = SPN_INDEX_KIND_BUILTIN,
       .git = { .url = sp_str_lit("https://github.com/tspader/spandex.git") },

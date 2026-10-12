@@ -380,8 +380,10 @@ spn_index_info_t spn_index_lower(spn_toml_loader_t* ctx, u32 at, spn_index_kind_
     protocol = SPN_INDEX_PROTOCOL_DIR;
   }
 
+  sp_intern_str_t name = sp_intern(ctx->intern, decl->name);
   spn_index_info_t info = {
-    .name = decl->name,
+    .id = name.id,
+    .name = name,
     .kind = kind,
     .protocol = protocol,
   };
@@ -436,7 +438,7 @@ spn_index_info_t spn_index_lower(spn_toml_loader_t* ctx, u32 at, spn_index_kind_
 static void lower_indexes(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, spn_pkg_info_t* out) {
   sp_da_for(cg->index, it) {
     spn_index_info_t info = spn_index_lower(ctx, it, SPN_INDEX_KIND_WORKSPACE, &cg->index[it]);
-    si_om_insert(ctx->mem, out->indexes, sp_intern(ctx->intern, info.name).id, info);
+    si_om_insert(ctx->mem, out->indexes, info.id, info);
   }
 }
 

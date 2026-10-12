@@ -8,7 +8,7 @@
 
 static spn_index_desc_t describe_index(sp_mem_t mem, spn_index_info_t* index) {
   return (spn_index_desc_t) {
-    .name = index->name,
+    .name = index->name.str,
     .kind = index->kind,
     .protocol = index->protocol,
     .source = spn_index_source(index),

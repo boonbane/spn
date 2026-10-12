@@ -2,6 +2,7 @@
 #define SPN_INDEX_TYPES_H
 
 #include "codegen/types.h"
+#include "intern/types.h"
 #include "paths/types.h"
 #include "core/types.h"
 #include "spn/types.h"
@@ -65,7 +66,8 @@ typedef struct {
 } spn_index_pkg_t;
 
 struct spn_index_info {
-  sp_str_t name;
+  spn_index_id_t id;
+  sp_intern_str_t name;
   spn_index_kind_t kind;
   spn_index_protocol_t protocol;
   union {

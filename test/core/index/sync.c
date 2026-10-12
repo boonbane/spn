@@ -100,7 +100,6 @@ sp_test_each(index_sync, sync, sync_test_t, tests) {
   commit_seed(mem, remote, it->name, 0);
 
   spn_index_info_t index = {
-    .name = sp_str_lit("test"),
     .protocol = it->protocol,
     .git = { .url = remote },
     .location = { .at = sp_path_from_str(cache), .dir = cache },

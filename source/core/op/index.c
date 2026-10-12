@@ -9,6 +9,7 @@
 #include "event/types.h"
 #include "core/types.h"
 #include "index/types.h"
+#include "intern/intern.h"
 #include "spn/host.h"
 
 #include "event/event.h"
@@ -43,11 +44,12 @@ static spn_err_t sync_indexes(spn_op_t* op) {
   }
 
   sp_da(job_t*) jobs = sp_da_new(ctx->mem, job_t*);
+  spn_index_id_t only = sp_intern(ctx->intern, request.only).id;
 
   sp_da_for(ctx->indexes, it) {
     spn_index_info_t* index = &ctx->indexes[it];
 
-    if (!sp_str_empty(request.only) && !sp_str_equal(index->name, request.only)) {
+    if (!sp_str_empty(request.only) && index->id != only) {
       continue;
     }
 
@@ -55,7 +57,7 @@ static spn_err_t sync_indexes(spn_op_t* op) {
       spn_event_buffer_push(ctx->events, (spn_event_t) {
         .kind = SPN_EVENT_SYNC,
         .sync = {
-          .name = index->name,
+          .name = index->name.str,
           .url = spn_index_source(index),
         }});
     }
@@ -96,7 +98,7 @@ static spn_err_t sync_indexes(spn_op_t* op) {
       spn_event_buffer_push(ctx->events, (spn_event_t) {
         .kind = SPN_EVENT_SYNC_STALE,
         .sync = {
-          .name = job->index->name,
+          .name = job->index->name.str,
           .url = spn_index_source(job->index),
         }});
       continue;
@@ -105,7 +107,7 @@ static spn_err_t sync_indexes(spn_op_t* op) {
     return spn_err_emit(ctx, (spn_err_union_t) {
       .kind = SPN_ERR_INDEX_SYNC,
       .index = {
-        .name = job->index->name,
+        .name = job->index->name.str,
         .url = spn_index_source(job->index),
       }});
   }
