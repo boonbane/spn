@@ -621,12 +621,14 @@ sp_test_each(options_apply, option_defines, apply_option_test_t, option_tests, .
     if (!it->options[ot].name) {
       break;
     }
+    sp_intern_str_t name = spn_intern(sp_cstr_as_str(it->options[ot].name));
     spn_option_info_t option = {
-      .name = sp_cstr_as_str(it->options[ot].name),
+      .id = name.id,
+      .name = name,
       .public = it->options[ot].public,
       .define = sp_cstr_as_str(it->options[ot].define),
     };
-    si_om_insert(mem, info.options, spn_intern(option.name).id, option);
+    si_om_insert(mem, info.options, option.id, option);
   }
 
   spn_when_env_t env = sp_zero;

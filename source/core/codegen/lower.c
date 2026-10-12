@@ -457,8 +457,10 @@ static void lower_deps(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, spn_
 static void lower_options(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, spn_pkg_info_t* out) {
   sp_da_for(cg->options, it) {
     const spn_cg_manifest_options_entry_t* entry = &cg->options[it];
+    sp_intern_str_t name = sp_intern(ctx->intern, entry->key);
     spn_option_info_t option = {
-      .name = entry->key,
+      .id = name.id,
+      .name = name,
       .type = entry->value.type,
       .additive = sp_opt_is_null(entry->value.additive) ? false : sp_opt_get(entry->value.additive),
       .public = sp_opt_is_null(entry->value.public) ? false : sp_opt_get(entry->value.public),
@@ -468,7 +470,7 @@ static void lower_options(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, s
     sp_da_for(entry->value.values, vt) {
       si_da_push(ctx->mem, option.values, entry->value.values[vt]);
     }
-    si_om_insert(ctx->mem, out->options, sp_intern(ctx->intern, option.name).id, option);
+    si_om_insert(ctx->mem, out->options, option.id, option);
   }
 }
 

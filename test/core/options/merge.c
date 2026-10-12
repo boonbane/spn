@@ -475,8 +475,10 @@ sp_test_each(options_merge, merge, merge_test_t, tests, .setup = spn_test_ctx_se
     option_decl_t* decl = &it->decls[dx];
     if (!decl->name) break;
 
+    sp_intern_str_t name = spn_intern(sp_str_view(decl->name));
     spn_option_info_t option = {
-      .name = sp_str_view(decl->name),
+      .id = name.id,
+      .name = name,
       .type = decl->type,
       .additive = decl->additive,
     };
@@ -492,7 +494,7 @@ sp_test_each(options_merge, merge, merge_test_t, tests, .setup = spn_test_ctx_se
         .value = make_value(arm->value),
       }));
     }
-    si_om_insert(mem, pkg.options, spn_intern(option.name).id, option);
+    si_om_insert(mem, pkg.options, option.id, option);
   }
 
   spn_profile_info_t profile = {

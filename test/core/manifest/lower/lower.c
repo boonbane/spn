@@ -1810,7 +1810,7 @@ sp_test_each(lower, cases, test_t, tests, .setup = spn_test_ctx_setup) {
     spn_option_info_t** slot = si_om_getp(pkg.options, sp_intern(interner, sp_str_view(expected.name)).id);
     sp_must(t, slot);
     spn_option_info_t* option = *slot;
-    sp_expect_str_eq_c(t, option->name, expected.name);
+    sp_expect_str_eq_c(t, option->name.str, expected.name);
     sp_expect_eq(t, (u32)expected.type, (u32)option->type);
     sp_expect_eq(t, expected.additive, option->additive);
     sp_expect_eq(t, expected.public, option->public);
