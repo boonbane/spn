@@ -6,6 +6,7 @@
 #include "core/types.h"
 #include "spn/events.h"
 #include "lazy/types.h"
+#include "mem/mem.h"
 
 struct spn_event_buffer_t {
   sp_rb(spn_event_t) buffer;
@@ -14,6 +15,8 @@ struct spn_event_buffer_t {
   spn_lazy_log_t log;
   sp_io_dyn_mem_writer_t backlog;
   spn_wake_t* wake;
+  si_mem_locked_arena_t arena;
+  sp_mem_t mem;
 };
 
 #endif

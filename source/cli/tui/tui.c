@@ -1371,7 +1371,7 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
         case SPN_ERR_TARGET_DUPLICATE: {
           sp_tty_fmt(
             &w,
-            "{.cyan} declares a target {.yellow}, which collides with another target of the same name",
+            "{.cyan} declares a target {.yellow}, which collides with another target of the same name and kind",
             sp_fmt_str(event->err.target.pkg),
             sp_fmt_str(event->err.target.name)
           );

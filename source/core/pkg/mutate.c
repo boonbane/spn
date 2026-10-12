@@ -10,59 +10,15 @@
 #include "intern/intern.h"
 #include "pkg/mutate.h"
 
-void spn_pkg_init(spn_pkg_info_t* pkg, sp_str_t name) {
-  pkg->name = spn_intern(name).str;
-}
-
-void spn_pkg_set_name(spn_pkg_info_t* pkg, const c8* name) {
-  spn_pkg_set_name_ex(pkg, sp_str_view(name));
-}
-
-void spn_pkg_set_name_ex(spn_pkg_info_t* pkg, sp_str_t name) {
-  pkg->name = spn_intern(name).str;
-}
-
-void spn_pkg_set_repo(sp_mem_t mem, spn_pkg_info_t* pkg, const c8* repo) {
-  spn_pkg_set_repo_ex(mem, pkg, sp_str_view(repo));
-}
-
-void spn_pkg_set_repo_ex(sp_mem_t mem, spn_pkg_info_t* pkg, sp_str_t repo) {
-  pkg->repo = sp_str_copy(mem, repo);
-}
-
-void spn_pkg_set_author(sp_mem_t mem, spn_pkg_info_t* pkg, const c8* author) {
-  spn_pkg_set_author_ex(mem, pkg, sp_str_view(author));
-}
-
-void spn_pkg_set_author_ex(sp_mem_t mem, spn_pkg_info_t* pkg, sp_str_t author) {
-  pkg->author = sp_str_copy(mem, author);
-}
-
-void spn_pkg_set_maintainer(sp_mem_t mem, spn_pkg_info_t* pkg, const c8* maintainer) {
-  spn_pkg_set_maintainer_ex(mem, pkg, sp_str_view(maintainer));
-}
-
-void spn_pkg_set_maintainer_ex(sp_mem_t mem, spn_pkg_info_t* pkg, sp_str_t maintainer) {
-  pkg->maintainer = sp_str_copy(mem, maintainer);
-}
-
 void spn_pkg_add_include(sp_mem_t mem, spn_pkg_info_t* pkg, spn_path_t path) {
   si_da_push(mem, pkg->configured.include, path);
 }
 
-void spn_pkg_add_define(sp_mem_t mem, spn_pkg_info_t* pkg, const c8* define) {
-  spn_pkg_add_define_ex(mem, pkg, sp_str_view(define));
-}
-
-void spn_pkg_add_define_ex(sp_mem_t mem, spn_pkg_info_t* pkg, sp_str_t define) {
+void spn_pkg_add_define(sp_mem_t mem, spn_pkg_info_t* pkg, sp_str_t define) {
   si_da_push(mem, pkg->define, sp_str_copy(mem, define));
 }
 
-void spn_pkg_add_system_dep(sp_mem_t mem, spn_pkg_info_t* pkg, const c8* dep) {
-  spn_pkg_add_system_dep_ex(mem, pkg, sp_str_view(dep));
-}
-
-void spn_pkg_add_system_dep_ex(sp_mem_t mem, spn_pkg_info_t* pkg, sp_str_t dep) {
+void spn_pkg_add_system_dep(sp_mem_t mem, spn_pkg_info_t* pkg, sp_str_t dep) {
   si_da_push(mem, pkg->system_deps, sp_str_copy(mem, dep));
 }
 

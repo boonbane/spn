@@ -24,13 +24,13 @@ spn_err_t spn_project_load(spn_ctx_t* ctx, spn_project_t** project) {
   if (parsed == SPN_ERR_NO_MANIFEST) {
     return spn_err_emit(ctx, (spn_err_union_t) {
       .kind = SPN_ERR_NO_MANIFEST,
-      .no_manifest = { .path = spn_path_str(&ctx->roots, ctx->heap, manifest) },
+      .no_manifest = { .path = spn_path_str(&ctx->roots, ctx->events->mem, manifest) },
     });
   }
   if (parsed) {
     return spn_err_emit(ctx, (spn_err_union_t) {
       .kind = SPN_ERR_MANIFEST_ISSUES,
-      .manifest = { .path = spn_path_str(&ctx->roots, ctx->heap, manifest), .issues = spn_codegen_issues_to_err(ctx->heap, issues) },
+      .manifest = { .path = spn_path_str(&ctx->roots, ctx->events->mem, manifest), .issues = spn_codegen_issues_to_err(ctx->events->mem, issues) },
     });
   }
 

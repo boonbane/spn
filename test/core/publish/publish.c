@@ -361,7 +361,7 @@ sp_test_each(cmd_publish, publish, case_t, cases, .setup = spn_test_ctx_setup) {
   spn_index_release_t release = sp_zero;
   spn_err_t result = spn_publish_build(&opts, &release);
   if (!result) {
-    result = spn_index_publish(&index, mem, &release);
+    result = spn_index_publish(&index, &release);
   }
   sp_expect_eq(t, c.expect.kind, result);
 

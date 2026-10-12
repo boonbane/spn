@@ -811,7 +811,7 @@ static spn_err_t dag_stage_copy(spn_dag_build_t* b, spn_dag_id_t id, spn_path_t 
     spn_dag_file_cache_invalidate(b->env.files, to);
     return spn_err_emit(b->session->ctx, (spn_err_union_t) {
       .kind = err,
-      .dag = { .path = spn_path_str(b->graph->roots, b->mem, to) },
+      .dag = { .path = spn_path_str(b->graph->roots, b->session->ctx->events->mem, to) },
     });
   }
   return SPN_OK;
@@ -938,7 +938,7 @@ static spn_err_t dag_result(spn_dag_build_t* b) {
       spn_dag_artifact_t* artifact = spn_dag_find_artifact(b->graph, action->produces[0]);
       path = spn_path_empty(artifact->path)
         ? artifact->name
-        : spn_path_str(b->graph->roots, b->mem, artifact->path);
+        : spn_path_str(b->graph->roots, b->session->ctx->events->mem, artifact->path);
     }
   }
 
@@ -1085,7 +1085,7 @@ spn_err_t spn_dag_build_session(spn_op_t* op) {
     .pkg = session->pkg->name,
     .graph_init = {
       .profile = unit->profile.name.str,
-      .target = spn_triple_to_str(session->mem, spn_profile_triple(&unit->profile)),
+      .target = spn_triple_to_str(spn.events->mem, spn_profile_triple(&unit->profile)),
       .toolchain = unit->toolchain->info->name.str,
       .version = unit->toolchain->version,
       .force = session->force,

@@ -35,7 +35,7 @@ void spn_pkg_unit_announce_compile(spn_pkg_unit_t* unit) {
     .kind = SPN_EVENT_COMPILE_START,
     .pkg = unit->info->name,
     .compile_start = {
-      .version = spn_semver_to_str(spn.mem, unit->info->version),
+      .version = spn_semver_to_str(spn.events->mem, unit->info->version),
     },
   });
 }

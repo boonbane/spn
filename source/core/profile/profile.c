@@ -170,7 +170,7 @@ spn_err_t spn_profile_query(const spn_profile_info_t* profile, spn_triple_t host
   }
 
   if (!query->candidates.count) {
-    sp_da(spn_err_refusal_t) list = sp_da_new(spn.mem, spn_err_refusal_t);
+    sp_da(spn_err_refusal_t) list = sp_da_new(spn.events->mem, spn_err_refusal_t);
     sp_for(it, refusals) {
       sp_da_push(list, refused[it]);
     }
@@ -319,7 +319,7 @@ spn_err_t spn_profile_resolve(const spn_profile_override_t* override, spn_triple
       if (pinned.arch != host.arch || pinned.os != host.os) {
         return spn_err_emit(&spn, (spn_err_union_t) {
           .kind = SPN_ERR_TARGET_ABI,
-          .profile = { .name = name.str, .target = pinned, .targets = spn_os_triples(spn.mem, pinned.arch, pinned.os) },
+          .profile = { .name = name.str, .target = pinned, .targets = spn_os_triples(spn.events->mem, pinned.arch, pinned.os) },
         });
       }
       break;
@@ -327,13 +327,13 @@ spn_err_t spn_profile_resolve(const spn_profile_override_t* override, spn_triple
     case SPN_TRIPLE_ENTRY_FOREIGN_ARCH: {
       return spn_err_emit(&spn, (spn_err_union_t) {
         .kind = SPN_ERR_PROFILE_ARCH,
-        .profile = { .name = name.str, .target = pinned, .targets = spn_arch_triples(spn.mem, pinned.arch) },
+        .profile = { .name = name.str, .target = pinned, .targets = spn_arch_triples(spn.events->mem, pinned.arch) },
       });
     }
     case SPN_TRIPLE_ENTRY_FOREIGN_ABI: {
       return spn_err_emit(&spn, (spn_err_union_t) {
         .kind = SPN_ERR_PROFILE_ABI,
-        .profile = { .name = name.str, .target = pinned, .targets = spn_os_triples(spn.mem, pinned.arch, pinned.os) },
+        .profile = { .name = name.str, .target = pinned, .targets = spn_os_triples(spn.events->mem, pinned.arch, pinned.os) },
       });
     }
     case SPN_TRIPLE_ENTRY_MISSING_ARCH:

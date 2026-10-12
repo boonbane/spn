@@ -3,6 +3,7 @@
 #include "hash/digest/digest.h"
 #include "paths/paths.h"
 #include "pkg/mutate.h"
+#include "pkg/pkg.h"
 #include "profile/profile.h"
 #include "toolchain/toolchain.h"
 #include "when/when.h"
@@ -161,7 +162,7 @@ spn_session_t* build_session(sp_mem_t mem, unit_graph_test_t* g) {
     spn_pkg_id_t id = find_pkg_id(s, g, pkg->name);
 
     spn_pkg_info_t* info = sp_alloc_type(mem, spn_pkg_info_t);
-    spn_pkg_init(info, sp_str_view(pkg->name));
+    *info = spn_pkg_new(sp_str_view(pkg->name));
     info->qualified = sp_str_view(pkg->name);
     info->system_deps = test_str_list(mem, pkg->system_deps, UNIT_TEST_MAX_STRS);
     info->macos.frameworks = test_str_list(mem, pkg->frameworks, UNIT_TEST_MAX_STRS);
