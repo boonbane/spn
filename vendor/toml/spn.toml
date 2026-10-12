@@ -1,0 +1,22 @@
+[package]
+name = "toml"
+version = "1.6.1"
+author = "cktan"
+maintainer = "tspader"
+
+[package.publish]
+include = [
+  { from = "source/toml.h" },
+]
+
+[package.upstream]
+url = "https://github.com/tspader/toml.git"
+commit = "9b5f922de150c9eb6c4c7de28cae3c244633d9f1"
+
+[options.strict]
+type = "bool"
+default = false
+
+[[lib]]
+name = "toml"
+kinds = ["source"]
