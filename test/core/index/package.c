@@ -1,6 +1,7 @@
 #include "index.h"
 
 #include "index/release.h"
+#include "intern/intern.h"
 
 typedef struct {
   const c8* url;
@@ -85,11 +86,11 @@ static sp_err_t check(sp_test_t* t, root_t expect, spn_pkg_root_t root) {
   return SP_OK;
 }
 
-sp_test_each(index_from_pkg, roots, test_t, tests) {
+sp_test_each(index_from_pkg, roots, test_t, tests, .setup = spn_test_ctx_setup) {
   sp_mem_t mem = sp_test_arena(t);
 
   spn_pkg_info_t info = sp_zero;
-  info.qualified = sp_str_lit("core/A");
+  info.qualified = spn_intern_lit("core/A");
   if (it->upstream.url) {
     info.upstream.url = sp_cstr_as_str(it->upstream.url);
     info.upstream.commit = sp_cstr_as_str(it->upstream.commit);

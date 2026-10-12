@@ -41,8 +41,9 @@ spn_index_info_t* spn_find_index(spn_ctx_t* ctx, sp_str_t name) {
   if (sp_str_empty(name)) {
     name = sp_str_lit("core");
   }
+  spn_index_id_t id = sp_intern(ctx->intern, name).id;
   sp_da_for(ctx->indexes, it) {
-    if (sp_str_equal(ctx->indexes[it].name, name)) {
+    if (ctx->indexes[it].id == id) {
       return &ctx->indexes[it];
     }
   }

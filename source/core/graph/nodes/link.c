@@ -29,7 +29,7 @@ static spn_err_t run_link(const spn_path_roots_t* roots, spn_target_unit_t* targ
 
   spn_event_buffer_push(spn.events, (spn_event_t) {
     .kind = SPN_EVENT_LINK_FAILED,
-    .pkg = target->pkg->info->name,
+    .pkg = target->pkg->info->name.str,
     .link_failed = {
       .target = target->info->name.str,
       .exit_code = run->result.status.exit_code,
@@ -46,7 +46,7 @@ static spn_err_t run_target(const spn_path_roots_t* roots, spn_target_unit_t* ta
 
   spn_event_buffer_push(spn.events, (spn_event_t) {
     .kind = SPN_EVENT_LINK_START,
-    .pkg = target->pkg->info->name,
+    .pkg = target->pkg->info->name.str,
     .link_start = {
       .target = target->info->name.str,
     }
@@ -57,7 +57,7 @@ static spn_err_t run_target(const spn_path_roots_t* roots, spn_target_unit_t* ta
 
   spn_event_buffer_push(spn.events, (spn_event_t) {
     .kind = SPN_EVENT_LINK_PASSED,
-    .pkg = target->pkg->info->name,
+    .pkg = target->pkg->info->name.str,
     .link_passed = {
       .target = target->info->name.str,
       .output_path = target->paths.output,

@@ -40,7 +40,7 @@ static spn_dag_digest_t hash_embedding(spn_target_unit_t* target) {
   spn_digest_ctx_t ctx = sp_zero;
   spn_digest_init_blake3(&ctx);
   spn_dag_hash_str(&ctx, sp_str_lit("spn.build.embed.v9"));
-  spn_dag_hash_str(&ctx, target->pkg->info->qualified);
+  spn_dag_hash_str(&ctx, target->pkg->info->qualified.str);
   spn_dag_hash_str(&ctx, target->info->name.str);
   spn_dag_hash_u8(&ctx, (u8)target->info->kind);
   spn_profile_info_t* profile = &target->pkg->build->profile;
@@ -117,7 +117,7 @@ static spn_err_t dag_add_user_nodes(spn_dag_build_t* b, spn_pkg_unit_t* unit, sp
     spn_digest_ctx_t digest = sp_zero;
     spn_digest_init_blake3(&digest);
     spn_dag_hash_str(&digest, sp_str_lit("spn.build.user.v8"));
-    spn_dag_hash_str(&digest, node->pkg->info->qualified);
+    spn_dag_hash_str(&digest, node->pkg->info->qualified.str);
     spn_dag_hash_u64(&digest, node->pkg->fingerprint);
     hash_pin(&digest, &pin);
     spn_dag_hash_str(&digest, node->tag);
@@ -452,7 +452,7 @@ spn_err_t spn_dag_build_add_target(spn_dag_build_t* b, spn_target_unit_t* target
       spn_digest_init_blake3(&digest);
       spn_dag_hash_str(&digest, sp_str_lit("spn.build.archive.v1"));
       spn_dag_hash_u64(&digest, target->pkg->fingerprint);
-      spn_dag_hash_str(&digest, target->pkg->info->name);
+      spn_dag_hash_str(&digest, target->pkg->info->name.str);
       spn_dag_hash_str(&digest, target->info->name.str);
       ids.action = spn_dag_add_action(g, (spn_dag_action_config_t) {
         .identity = spn_dag_hash_final(&digest),
@@ -598,7 +598,7 @@ static spn_err_t dag_add_publish(spn_dag_build_t* b, spn_pkg_unit_t* unit) {
   spn_digest_ctx_t digest = sp_zero;
   spn_digest_init_blake3(&digest);
   spn_dag_hash_str(&digest, sp_str_lit("spn.build.publish.v1"));
-  spn_dag_hash_str(&digest, info->qualified);
+  spn_dag_hash_str(&digest, info->qualified.str);
   hash_pin(&digest, &pin);
   u32 entries = 0;
   si_da_for(info->publish, it) {
@@ -963,7 +963,7 @@ static void dag_emit_reports(spn_dag_build_t* b, u64 elapsed) {
     if (failed) {
       spn_event_buffer_push(session->ctx->events, (spn_event_t) {
         .kind = SPN_EVENT_BUILD_FAILED,
-        .pkg = pkg->name,
+        .pkg = pkg->name.str,
         .build_failed = {
           .profile = profile->name.str,
           .time = elapsed,
@@ -973,7 +973,7 @@ static void dag_emit_reports(spn_dag_build_t* b, u64 elapsed) {
     else {
       spn_event_buffer_push(session->ctx->events, (spn_event_t) {
         .kind = SPN_EVENT_BUILD_PASSED,
-        .pkg = pkg->name,
+        .pkg = pkg->name.str,
         .build_passed = {
           .profile = profile->name.str,
           .time = elapsed,
@@ -985,7 +985,7 @@ static void dag_emit_reports(spn_dag_build_t* b, u64 elapsed) {
 
     spn_event_buffer_push(session->ctx->events, (spn_event_t) {
       .kind = SPN_EVENT_BUILD_SUMMARY,
-      .pkg = pkg->name,
+      .pkg = pkg->name.str,
       .build_summary = {
         .success = !failed,
         .hits = hits,
@@ -1082,7 +1082,7 @@ spn_err_t spn_dag_build_session(spn_op_t* op) {
   spn_build_unit_t* unit = session->units.target;
   spn_event_buffer_push(spn.events, (spn_event_t) {
     .kind = SPN_EVENT_INIT_BUILD_GRAPH,
-    .pkg = session->pkg->name,
+    .pkg = session->pkg->name.str,
     .graph_init = {
       .profile = unit->profile.name.str,
       .target = spn_triple_to_str(spn.events->mem, spn_profile_triple(&unit->profile)),

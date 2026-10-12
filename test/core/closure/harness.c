@@ -13,9 +13,9 @@ sp_err_t expect_target_names(sp_test_t* t, sp_da(spn_target_unit_t*) targets, co
 }
 
 spn_pkg_unit_t* find_pkg(spn_pkg_unit_t** pkgs, u32 count, const c8* name) {
-  sp_str_t needle = sp_str_view(name);
+  sp_intern_id_t needle = spn_intern_cstr(name).id;
   sp_for(it, count) {
-    if (sp_str_equal(pkgs[it]->info->name, needle)) {
+    if (pkgs[it]->info->name.id == needle) {
       return pkgs[it];
     }
   }
@@ -53,7 +53,7 @@ static spn_target_unit_t* add_lib(sp_mem_t mem, spn_pkg_unit_t* pkg, const c8* n
 
 static spn_pkg_unit_t* build_pkg(sp_mem_t mem, spn_session_t* session, u32 id, closure_pkg_t spec) {
   spn_pkg_info_t* info = sp_alloc_type(mem, spn_pkg_info_t);
-  info->name = sp_str_view(spec.name);
+  info->name = spn_intern_cstr(spec.name);
 
   spn_pkg_unit_t* pkg = sp_alloc_type(mem, spn_pkg_unit_t);
   pkg->id.pkg.qualified = id;
@@ -117,7 +117,7 @@ closure_graph_t build_graph(closure_graph_test_t* t) {
   }
 
   spn_pkg_unit_t* root = find_pkg(g.pkgs, g.count, t->root);
-  sp_intern_str_t name = spn_intern(root->info->name);
+  sp_intern_str_t name = root->info->name;
   spn_target_info_t* exe_info = sp_alloc_type(g.mem, spn_target_info_t);
   exe_info->id = (spn_target_id_t) { .name = name.id, .kind = t->target };
   exe_info->name = name;

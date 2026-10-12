@@ -65,7 +65,7 @@ sp_hash_t spn_pkg_hash_platform(spn_pkg_info_t* pkg, const spn_profile_info_t* p
 
 spn_pkg_info_t spn_pkg_new(sp_str_t name) {
   spn_pkg_info_t pkg = sp_zero;
-  pkg.name = spn_intern(name).str;
+  pkg.name = spn_intern(name);
   return pkg;
 }
 

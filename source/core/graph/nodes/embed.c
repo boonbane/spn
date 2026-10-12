@@ -24,7 +24,7 @@ spn_err_t si_on_embed(spn_dag_t* g, spn_dag_action_t* action, void* user_data, s
 
   spn_event_buffer_push(spn.events, (spn_event_t) {
     .kind = SPN_EVENT_EMBED_START,
-    .pkg = unit->pkg->info->name,
+    .pkg = unit->pkg->info->name.str,
     .embed_start = { .target = info->name.str, .num_files = si_da_size(info->embed) },
   });
 
@@ -52,7 +52,7 @@ spn_err_t si_on_embed(spn_dag_t* g, spn_dag_action_t* action, void* user_data, s
         if (sp_io_read_file_at(embedder.mem, spn_path_at(g->roots, embed.path), &content) != SP_OK) {
           spn_event_buffer_push(spn.events, (spn_event_t) {
             .kind = SPN_EVENT_EMBED_FAILED,
-            .pkg = unit->pkg->info->name,
+            .pkg = unit->pkg->info->name.str,
             .embed_failed = { .target = info->name.str, .path = embed.path, .error = sp_str_lit("file not found") },
           });
           return SPN_ERR_DAG_ACTION;
@@ -87,7 +87,7 @@ spn_err_t si_on_embed(spn_dag_t* g, spn_dag_action_t* action, void* user_data, s
           if (sp_io_read_file_at(embedder.mem, walk.at, &content) != SP_OK) {
             spn_event_buffer_push(spn.events, (spn_event_t) {
               .kind = SPN_EVENT_EMBED_FAILED,
-              .pkg = unit->pkg->info->name,
+              .pkg = unit->pkg->info->name.str,
               .embed_failed = { .target = info->name.str, .path = spn_path_copy(spn.events->mem, file), .error = sp_str_lit("file not found") },
             });
             sp_fs_it_deinit(&walk);
@@ -114,7 +114,7 @@ spn_err_t si_on_embed(spn_dag_t* g, spn_dag_action_t* action, void* user_data, s
   if (write_err) {
     spn_event_buffer_push(spn.events, (spn_event_t) {
       .kind = SPN_EVENT_EMBED_FAILED,
-      .pkg = unit->pkg->info->name,
+      .pkg = unit->pkg->info->name.str,
       .embed_failed = { .target = info->name.str, .error = sp_str_lit("embed write failed") },
     });
     return SPN_ERR_DAG_ACTION;
@@ -123,7 +123,7 @@ spn_err_t si_on_embed(spn_dag_t* g, spn_dag_action_t* action, void* user_data, s
   u64 elapsed = sp_tm_read_timer(&timer);
   spn_event_buffer_push(spn.events, (spn_event_t) {
     .kind = SPN_EVENT_EMBED_PASSED,
-    .pkg = unit->pkg->info->name,
+    .pkg = unit->pkg->info->name.str,
     .embed_passed = {
       .target = info->name.str,
       .object_path = spn_dag_find_artifact(g, action->produces[0])->path,

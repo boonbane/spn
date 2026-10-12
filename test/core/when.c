@@ -62,14 +62,12 @@ static spn_when_env_t make_env(sp_mem_t mem) {
 
 static spn_option_info_t make_option_zstd(sp_mem_t mem) {
   return (spn_option_info_t) {
-    .name = sp_str_lit("zstd"),
     .type = SPN_OPTION_TYPE_BOOL,
   };
 }
 
 static spn_option_info_t make_option_tls(sp_mem_t mem) {
   spn_option_info_t option = {
-    .name = sp_str_lit("tls"),
     .type = SPN_OPTION_TYPE_ENUM,
   };
   si_da_push(mem, option.values, sp_str_lit("schannel"));
