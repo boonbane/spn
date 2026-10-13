@@ -2,9 +2,9 @@
 
 #include "intern/intern.h"
 
-sp_err_t expect_target_names(sp_test_t* t, sp_da(spn_target_unit_t*) targets, const c8* const* expect) {
+sp_err_t expect_target_names(sp_test_t* t, si_da(spn_target_unit_t*) targets, const c8* const* expect) {
   sp_da(sp_str_t) names = sp_da_new(sp_test_arena(t), sp_str_t);
-  sp_da_for(targets, it) {
+  si_da_for(targets, it) {
     sp_da_push(names, targets[it]->info->name.str);
   }
 
@@ -25,7 +25,7 @@ spn_pkg_unit_t* find_pkg(spn_pkg_unit_t** pkgs, u32 count, const c8* name) {
 spn_target_unit_t* find_lib(spn_pkg_unit_t** pkgs, u32 count, const c8* name) {
   sp_intern_id_t needle = spn_intern_cstr(name).id;
   sp_for(it, count) {
-    sp_da_for(pkgs[it]->libs, lt) {
+    si_da_for(pkgs[it]->libs, lt) {
       if (pkgs[it]->libs[lt]->info->name.id == needle) {
         return pkgs[it]->libs[lt];
       }
@@ -47,7 +47,7 @@ static spn_target_unit_t* add_lib(sp_mem_t mem, spn_pkg_unit_t* pkg, const c8* n
   lib->pkg = pkg;
   lib->lib_kind = kind;
   sp_da_init(mem, lib->deps);
-  sp_da_push(pkg->libs, lib);
+  si_da_push(mem, pkg->libs, lib);
   return lib;
 }
 
@@ -59,7 +59,6 @@ static spn_pkg_unit_t* build_pkg(sp_mem_t mem, spn_session_t* session, u32 id, c
   pkg->id.pkg.qualified = id;
   pkg->info = info;
   pkg->session = session;
-  sp_da_init(mem, pkg->libs);
 
   if (spec.kind != SPN_LIB_KIND_NONE) {
     add_lib(mem, pkg, spec.name, spec.kind, false);

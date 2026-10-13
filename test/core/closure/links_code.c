@@ -39,11 +39,11 @@ static const test_t tests [] = {
 sp_test_each(links_code, mark, test_t, tests, .setup = spn_test_ctx_setup) {
   closure_graph_t g = build_graph(&it->graph);
 
-  sp_da(spn_closure_entry_t) closure = si_link_get_target_closure(g.mem, g.root);
+  si_da(spn_closure_entry_t) closure = si_link_get_target_closure(g.mem, g.root);
 
   u32 expected = 0;
   sp_carr_detect_len(it->expect, expected, it->expect[expected].pkg);
-  sp_must_eq(t, expected, sp_da_size(closure));
+  sp_must_eq(t, expected, si_da_size(closure));
   sp_for(row, expected) {
     sp_expect_str_eq_c(t, closure[row].pkg->info->name.str, it->expect[row].pkg);
     sp_expect_eq(t, it->expect[row].links_code, closure[row].links_code);
