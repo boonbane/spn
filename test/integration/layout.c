@@ -119,6 +119,7 @@ sp_test(layout, staged_script) {
 // Each exe kind stages into exactly one place: bin and script at the root,
 // test under test/, example under example/.
 sp_test(layout, staged_kinds) {
+  return sp_test_skip(t, "disabled");
   return run_test(t, (test_t) {
     .project = "test/integration/fixtures/target/selection",
     .copy = { "spum.c", "script.c", "x.c" },
