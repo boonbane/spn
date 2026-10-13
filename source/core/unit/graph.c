@@ -76,7 +76,7 @@ static u32 kind_bits(spn_dep_kind_t kind) {
   return spn_dep_kind_bit(kind);
 }
 
-static spn_pkg_unit_t* add_unit(spn_session_t* s, spn_build_unit_t* build, spn_pkg_id_t pid, u32 kinds, sp_da(spn_pkg_unit_t*)* pending) {
+static spn_pkg_unit_t* add_unit(spn_session_t* s, spn_build_unit_t* build, spn_pkg_id_t pid, u32 kinds, sp_mem_t mem, si_da(spn_pkg_unit_t*)* pending) {
   spn_pkg_unit_id_t uid = { .pkg = pid, .build = build->id };
   if (sp_om_has(s->units.packages, uid)) {
     // First creation wins, so a request may never widen an existing unit's
@@ -105,12 +105,12 @@ static spn_pkg_unit_t* add_unit(spn_session_t* s, spn_build_unit_t* build, spn_p
   spn_unit_paths_init(unit, loaded);
 
   sp_da_push(build->packages, unit);
-  sp_da_push(*pending, unit);
+  si_da_push(mem, *pending, unit);
   return unit;
 }
 
-static void drain(spn_session_t* s, sp_da(spn_pkg_unit_t*)* pending) {
-  sp_for(it, sp_da_size(*pending)) {
+static void drain(spn_session_t* s, sp_mem_t mem, si_da(spn_pkg_unit_t*)* pending) {
+  sp_for(it, si_da_size(*pending)) {
     spn_pkg_unit_t* unit = (*pending)[it];
     spn_resolved_pkg_t* resolved = sp_ht_getp(s->resolve, unit->id.pkg);
     sp_assert(resolved);
@@ -125,55 +125,55 @@ static void drain(spn_session_t* s, sp_da(spn_pkg_unit_t*)* pending) {
         continue;
       }
       sp_da_push(unit->deps, ((spn_pkg_dep_t) {
-        .unit = add_unit(s, unit->build, edge->id, kinds, pending),
+        .unit = add_unit(s, unit->build, edge->id, kinds, mem, pending),
         .kind = edge->kind,
         .private = edge->private,
       }));
     }
   }
-  sp_da_clear(*pending);
+  si_da_clear(*pending);
 }
 
 spn_err_t spn_units_add_packages(spn_session_t* s) {
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  sp_da(spn_pkg_unit_t*) pending = sp_da_new(scratch.mem, spn_pkg_unit_t*);
+  si_da(spn_pkg_unit_t*) pending = sp_zero;
 
   spn_pkg_id_t root = si_get_root_pkg(s);
   sp_da_for(s->plans.build, it) {
     spn_build_plan_t* plan = &s->plans.build[it];
-    plan->root = add_unit(s, plan->build, root, kind_bits(SPN_DEP_KIND_PACKAGE) | kind_bits(SPN_DEP_KIND_TEST), &pending);
+    plan->root = add_unit(s, plan->build, root, kind_bits(SPN_DEP_KIND_PACKAGE) | kind_bits(SPN_DEP_KIND_TEST), scratch.mem, &pending);
   }
-  drain(s, &pending);
+  drain(s, scratch.mem, &pending);
 
-  sp_da(spn_pkg_unit_t*) owners = sp_da_new(scratch.mem, spn_pkg_unit_t*);
+  si_da(spn_pkg_unit_t*) owners = sp_zero;
   sp_om_for(s->units.packages, it) {
     spn_pkg_unit_t* unit = sp_om_at(s->units.packages, it);
     if (unit->build == s->units.metaprogram) {
       continue;
     }
     if (pkg_has_scripts(sp_ht_getp(s->packages, unit->id.pkg))) {
-      sp_da_push(owners, unit);
+      si_da_push(scratch.mem, owners, unit);
     }
   }
 
-  sp_da_for(owners, it) {
+  si_da_for(owners, it) {
     spn_resolved_pkg_t* resolved = sp_ht_getp(s->resolve, owners[it]->id.pkg);
     sp_assert(resolved);
     sp_da_for(resolved->edges, et) {
       if (resolved->edges[et].kind == SPN_DEP_KIND_BUILD) {
-        add_unit(s, s->units.metaprogram, resolved->edges[et].id, kind_bits(SPN_DEP_KIND_PACKAGE) | kind_bits(SPN_DEP_KIND_BUILD), &pending);
+        add_unit(s, s->units.metaprogram, resolved->edges[et].id, kind_bits(SPN_DEP_KIND_PACKAGE) | kind_bits(SPN_DEP_KIND_BUILD), scratch.mem, &pending);
       }
     }
   }
-  drain(s, &pending);
+  drain(s, scratch.mem, &pending);
 
-  sp_da_for(owners, it) {
+  si_da_for(owners, it) {
     spn_pkg_id_t id = owners[it]->id.pkg;
     if (!si_get_pkg_unit(s, s->units.metaprogram, id)) {
-      add_unit(s, s->units.metaprogram, id, kind_bits(SPN_DEP_KIND_BUILD), &pending);
+      add_unit(s, s->units.metaprogram, id, kind_bits(SPN_DEP_KIND_BUILD), scratch.mem, &pending);
     }
   }
-  drain(s, &pending);
+  drain(s, scratch.mem, &pending);
 
   sp_om_for(s->units.packages, it) {
     spn_pkg_unit_t* unit = sp_om_at(s->units.packages, it);
