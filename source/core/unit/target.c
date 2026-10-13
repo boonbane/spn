@@ -123,24 +123,19 @@ static spn_err_t ensure_target_unit(spn_session_t* s, spn_pkg_unit_t* pkg, spn_t
       }
     }
 
-    if (target->lib_kind == SPN_LIB_KIND_OBJECT) {
-      target->paths.object = pkg->paths.lib;
+    sp_str_t dir = sp_zero;
+    switch (info->kind) {
+      case SPN_TARGET_KIND_LIB:                   dir = sp_str_lit("lib"); break;
+      case SPN_TARGET_KIND_EXE:                   dir = sp_str_lit("exe"); break;
+      case SPN_TARGET_KIND_SCRIPT:                dir = sp_str_lit("script"); break;
+      case SPN_TARGET_KIND_TEST:                  dir = sp_str_lit("test"); break;
+      case SPN_TARGET_KIND_EXAMPLE:               dir = sp_str_lit("example"); break;
+      case SPN_TARGET_KIND_CONFIGURE_METAPROGRAM: dir = sp_str_lit("configure"); break;
+      case SPN_TARGET_KIND_BUILD_METAPROGRAM:     dir = sp_str_lit("build"); break;
     }
-    else {
-      sp_str_t dir = sp_zero;
-      switch (info->kind) {
-        case SPN_TARGET_KIND_LIB:                   dir = sp_str_lit("lib"); break;
-        case SPN_TARGET_KIND_EXE:                   dir = sp_str_lit("exe"); break;
-        case SPN_TARGET_KIND_SCRIPT:                dir = sp_str_lit("script"); break;
-        case SPN_TARGET_KIND_TEST:                  dir = sp_str_lit("test"); break;
-        case SPN_TARGET_KIND_EXAMPLE:               dir = sp_str_lit("example"); break;
-        case SPN_TARGET_KIND_CONFIGURE_METAPROGRAM: dir = sp_str_lit("configure"); break;
-        case SPN_TARGET_KIND_BUILD_METAPROGRAM:     dir = sp_str_lit("build"); break;
-      }
-      sp_str_buf_t buf = sp_zero;
-      spn_path_t kind = spn_path_join(sp_str_buf_as_mem(&buf), pkg->paths.object, dir);
-      target->paths.object = spn_path_join(s->mem, kind, info->name.str);
-    }
+    sp_str_buf_t buf = sp_zero;
+    spn_path_t kind = spn_path_join(sp_str_buf_as_mem(&buf), pkg->paths.object, dir);
+    target->paths.object = spn_path_join(s->mem, kind, info->name.str);
 
     sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
     spn_triple_t triple = spn_profile_triple(&pkg->build->profile);
@@ -184,23 +179,17 @@ static void add_object(spn_session_t* s, spn_target_unit_t* target, spn_path_t f
     return;
   }
 
-  spn_path_t dir = target->paths.object;
   spn_tree_rel_t rel = spn_tree_rel(target->pkg->paths.roots, file);
   sp_str_t prefix = rel.tree == SPN_TREE_NONE ? spn_path_root_label(file.root) : spn_tree_to_str(rel.tree);
+  sp_str_t name = sp_fmt(s->mem, "{}/{}.o", sp_fmt_str(prefix), sp_fmt_str(rel.sub)).value;
   sp_om_insert(s->units.objects, id, ((spn_compile_unit_t) {
     .id = id,
     .target = target,
     .lang = spn_lang_from_path(rel.sub),
+    .name = name,
     .paths = {
       .file = { .root = file.root, .sub = sp_intern_find(s->ctx->intern, id.source.sub) },
-      .object = {
-        .root = dir.root,
-        .sub = sp_fmt(s->mem, "{}/{}/{}.o",
-          sp_fmt_str(dir.sub),
-          sp_fmt_str(prefix),
-          sp_fmt_str(rel.sub)
-        ).value
-      },
+      .object = spn_path_join(s->mem, target->paths.object, name),
     },
   }));
   sp_da_push(target->objects, sp_om_back(s->units.objects));

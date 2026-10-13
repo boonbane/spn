@@ -595,6 +595,31 @@ static spn_err_t dag_add_publish(spn_dag_build_t* b, spn_pkg_unit_t* unit) {
   spn_pkg_info_t* info = unit->info;
   source_pin_t pin = source_pin(unit);
 
+  sp_da_for(unit->targets, it) {
+    spn_target_unit_t* target = unit->targets[it];
+    if (target->lib_kind != SPN_LIB_KIND_OBJECT) {
+      continue;
+    }
+    sp_da_for(target->objects, ot) {
+      spn_compile_unit_t* object = target->objects[ot];
+      spn_dag_object_ids_t* ids = sp_ht_getp(b->ids.objects, object);
+      sp_assert(ids);
+      spn_path_t dest = spn_path_join(b->mem, unit->paths.lib, object->name);
+
+      spn_digest_ctx_t digest = sp_zero;
+      spn_digest_init_blake3(&digest);
+      spn_dag_hash_str(&digest, sp_str_lit("spn.build.publish.file.v1"));
+      spn_dag_hash_path(&digest, dest);
+
+      spn_dag_id_t action = spn_dag_add_action(g, (spn_dag_action_config_t) {
+        .identity = spn_dag_hash_final(&digest),
+        .execute = si_on_publish_file,
+      });
+      spn_dag_action_add_input(g, action, ids->object);
+      spn_try(spn_dag_action_add_output(g, action, spn_dag_add_file(g, dest)));
+    }
+  }
+
   spn_digest_ctx_t digest = sp_zero;
   spn_digest_init_blake3(&digest);
   spn_dag_hash_str(&digest, sp_str_lit("spn.build.publish.v1"));

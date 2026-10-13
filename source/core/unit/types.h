@@ -113,6 +113,7 @@ typedef struct {
   spn_compile_unit_id_t id;
   spn_target_unit_t* target;
   spn_lang_t lang;
+  sp_str_t name;
 
   struct {
     spn_path_t file;
