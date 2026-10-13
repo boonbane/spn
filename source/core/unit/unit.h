@@ -7,9 +7,9 @@
 #include "target/types.h"
 #include "unit/types.h"
 
-sp_da(spn_closure_entry_t) si_link_get_target_closure(sp_mem_t mem, spn_target_unit_t* root);
-sp_da(spn_target_unit_t*) si_link_get_target_runtime_libs(sp_mem_t mem, spn_target_unit_t* root);
-si_da(spn_link_lib_t) si_link_get_closure_libs(sp_mem_t mem, sp_da(spn_closure_entry_t) closure);
+si_da(spn_closure_entry_t) si_link_get_target_closure(sp_mem_t mem, spn_target_unit_t* root);
+si_da(spn_target_unit_t*) si_link_get_target_runtime_libs(sp_mem_t mem, spn_target_unit_t* root);
+si_da(spn_link_lib_t) si_link_get_closure_libs(sp_mem_t mem, si_da(spn_closure_entry_t) closure);
 
 spn_build_unit_t* spn_build_add(spn_session_t* session, spn_profile_info_t profile, spn_path_t root, spn_toolchain_info_t* toolchain);
 spn_err_t spn_units_add_packages(spn_session_t* session);

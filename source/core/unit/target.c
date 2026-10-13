@@ -45,7 +45,7 @@ static spn_err_t ensure_target_unit(spn_session_t* s, spn_pkg_unit_t* pkg, spn_t
     switch (info->kind) {
       case SPN_TARGET_KIND_LIB: {
         sp_da_push(pkg->targets, target);
-        sp_da_push(pkg->libs, target);
+        si_da_push(s->mem, pkg->libs, target);
 
         if (spn_linkage_set_has(info->linkages, SPN_LIB_KIND_OBJECT) || info->no_link) {
           target->lib_kind = spn_linkage_set_default(info->linkages);
@@ -317,7 +317,7 @@ static spn_err_t build_target_plan(spn_target_unit_t* target) {
   }
 
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  sp_da(spn_closure_entry_t) closure = si_link_get_target_closure(scratch.mem, target);
+  si_da(spn_closure_entry_t) closure = si_link_get_target_closure(scratch.mem, target);
   sp_assert(closure[0].pkg == pkg);
 
   plan->link = (spn_link_plan_t) {
@@ -342,14 +342,14 @@ static spn_err_t build_target_plan(spn_target_unit_t* target) {
 
   push_unique(mem, &link->cc.frameworks, info->macos.frameworks);
   push_unique(mem, &link->cc.system_libs, info->system_deps);
-  sp_da_for(closure, it) {
+  si_da_for(closure, it) {
     spn_closure_entry_t* entry = &closure[it];
     link->cc.min_os = max_os_version(link->cc.min_os, entry->pkg->info->macos.min_os);
     if (entry->links_code) {
       push_unique(mem, &link->cc.frameworks, entry->pkg->info->macos.frameworks);
     }
     push_unique(mem, &link->cc.system_libs, entry->pkg->info->system_deps);
-    sp_da_for(entry->targets, lt) {
+    si_da_for(entry->targets, lt) {
       spn_target_unit_t* lib = entry->targets[lt];
       link->cc.min_os = max_os_version(link->cc.min_os, lib->info->macos.min_os);
       if (lib->info->no_link || lib->lib_kind == SPN_LIB_KIND_SHARED) {
@@ -743,8 +743,8 @@ spn_err_t spn_units_add_targets(spn_session_t* s, spn_unit_scope_t scope) {
           sp_da_init(s->mem, closure.libs);
 
           spn_path_t dir = spn_path_parent(closure.exe.path);
-          sp_da(spn_target_unit_t*) libs = si_link_get_target_runtime_libs(scratch.mem, root);
-          sp_da_for(libs, lt) {
+          si_da(spn_target_unit_t*) libs = si_link_get_target_runtime_libs(scratch.mem, root);
+          si_da_for(libs, lt) {
             spn_target_unit_t* lib = libs[lt];
             sp_str_t name = sp_fs_get_name(lib->paths.output.sub);
             spn_path_t path = spn_path_join(s->mem, dir, name);

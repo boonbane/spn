@@ -98,7 +98,6 @@ static spn_pkg_unit_t* add_unit(spn_session_t* s, spn_build_unit_t* build, spn_p
   unit->kinds = kinds;
   unit->info = clone_pkg_info(s, pid, build, loaded);
   sp_da_init(s->mem, unit->deps);
-  sp_da_init(s->mem, unit->libs);
   sp_da_init(s->mem, unit->targets);
   sp_da_init(s->mem, unit->user_nodes);
   unit->fingerprint = spn_unit_fingerprint(s, build, pid);

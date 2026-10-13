@@ -97,12 +97,12 @@ static const test_t tests [] = {
 sp_test_each(get_linked_libs, flatten, test_t, tests, .setup = spn_test_ctx_setup) {
   closure_graph_t g = build_graph(&it->graph);
 
-  sp_da(spn_closure_entry_t) closure = si_link_get_target_closure(g.mem, g.root);
-  sp_da(spn_link_lib_t) libs = si_link_get_closure_libs(g.mem, closure);
+  si_da(spn_closure_entry_t) closure = si_link_get_target_closure(g.mem, g.root);
+  si_da(spn_link_lib_t) libs = si_link_get_closure_libs(g.mem, closure);
 
   u32 expected = 0;
   sp_carr_detect_len(it->expect, expected, it->expect[expected].lib);
-  sp_must_eq(t, expected, sp_da_size(libs));
+  sp_must_eq(t, expected, si_da_size(libs));
   sp_for(row, expected) {
     sp_expect_str_eq_c(t, libs[row].pkg->info->name.str, it->expect[row].pkg);
     sp_expect_str_eq_c(t, libs[row].lib->info->name.str, it->expect[row].lib);
