@@ -12,5 +12,6 @@ typedef struct {
 spn_path_t         spn_target_unit_staged_path(sp_mem_t mem, spn_target_unit_t* unit);
 spn_path_t         spn_target_exports_path(sp_mem_t mem, spn_target_unit_t* unit);
 spn_profile_info_t spn_dag_build_profile(spn_dag_t* g, const spn_dag_build_ctx_t* build);
+sp_da(spn_arg_t)   spn_dag_build_object_args(sp_mem_t mem, spn_dag_t* g, sp_da(spn_dag_id_t) ids);
 
 #endif

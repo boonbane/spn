@@ -26,29 +26,29 @@ static const objects_test_t tests [] = {
   {
     .name = "one_object_per_file",
     .source = { { "a.c", SPN_TREE_SOURCE }, { "b.c", SPN_TREE_SOURCE } },
-    .expect = { .objects = { "object/exe/app/manifest/a.c.o", "object/exe/app/manifest/b.c.o" } },
+    .expect = { .objects = { "manifest/a.c.o", "manifest/b.c.o" } },
   },
   {
     .name = "shared_tree_dedups_both_declarations",
     .source = { { "a.c", SPN_TREE_SOURCE }, { "a.c", SPN_TREE_MANIFEST } },
-    .expect = { .objects = { "object/exe/app/manifest/a.c.o" } },
+    .expect = { .objects = { "manifest/a.c.o" } },
   },
   {
     .name = "outside_tree_files_keep_a_root_label",
     .source = { { "manifest/x.c", SPN_TREE_SOURCE }, { "/manifest/x.c" } },
-    .expect = { .objects = { "object/exe/app/manifest/manifest/x.c.o", "object/exe/app/absolute/manifest/x.c.o" } },
+    .expect = { .objects = { "manifest/manifest/x.c.o", "absolute/manifest/x.c.o" } },
   },
   {
     .name = "glob_expands_in_sorted_order",
     .files = { "b.c", "a.c", "c.h" },
     .source = { { "*.c", SPN_TREE_SOURCE, SPN_SOURCE_GLOB } },
-    .expect = { .objects = { "object/exe/app/manifest/a.c.o", "object/exe/app/manifest/b.c.o" } },
+    .expect = { .objects = { "manifest/a.c.o", "manifest/b.c.o" } },
   },
   {
     .name = "glob_dedups_against_declared_files",
     .files = { "a.c", "b.c" },
     .source = { { "b.c", SPN_TREE_SOURCE }, { "*.c", SPN_TREE_SOURCE, SPN_SOURCE_GLOB } },
-    .expect = { .objects = { "object/exe/app/manifest/b.c.o", "object/exe/app/manifest/a.c.o" } },
+    .expect = { .objects = { "manifest/b.c.o", "manifest/a.c.o" } },
   },
 };
 
@@ -97,7 +97,7 @@ sp_test_each(unit_objects, create, objects_test_t, tests, .setup = spn_test_ctx_
   sp_must_eq(t, count, (u32)sp_da_size(target->objects));
   sp_for(ot, count) {
     sp_test_kv_c(t, "object", it->expect.objects[ot]);
-    sp_expect(t, sp_str_ends_with(target->objects[ot]->paths.object.sub, sp_cstr_as_str(it->expect.objects[ot])));
+    sp_expect_str_eq_c(t, target->objects[ot]->name, it->expect.objects[ot]);
   }
 
   return SP_OK;

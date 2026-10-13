@@ -191,17 +191,16 @@ void spn_cc_render_compile(sp_mem_t mem, const spn_cc_t* toolchain, const spn_pr
   }
 }
 
-spn_invocation_t spn_cc_render_compile_command(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, const spn_invocation_t* base, const spn_cc_compile_files_t* files) {
+spn_invocation_t spn_cc_render_compile_source(sp_mem_t mem, const spn_invocation_t* base, spn_path_t source) {
   sp_assert(!spn_arg_empty(base->program));
-  sp_assert(!spn_path_empty(files->source));
-  sp_assert(!spn_path_empty(files->output));
+  sp_assert(!spn_path_empty(source));
 
   spn_invocation_t invocation = {
     .program = base->program,
     .cwd = base->cwd,
   };
   sp_da_init(mem, invocation.args);
-  sp_da_reserve(invocation.args, sp_da_size(base->args));
+  sp_da_reserve(invocation.args, sp_da_size(base->args) + 1);
   sp_da_for(base->args, it) {
     sp_da_push(invocation.args, base->args[it]);
   }
@@ -209,16 +208,23 @@ spn_invocation_t spn_cc_render_compile_command(sp_mem_t mem, const spn_cc_t* too
   sp_da_for(base->env, it) {
     sp_da_push(invocation.env, base->env[it]);
   }
+  spn_cc_push_path(mem, &invocation, source);
+  return invocation;
+}
 
+spn_invocation_t spn_cc_render_compile_command(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, const spn_invocation_t* base, const spn_cc_compile_files_t* files) {
+  sp_assert(!spn_path_empty(files->output));
+
+  spn_invocation_t invocation = spn_cc_render_compile_source(mem, base, files->source);
   switch (toolchain->driver) {
     case SPN_CC_DRIVER_GCC:
     case SPN_CC_DRIVER_CLANG:
     case SPN_CC_DRIVER_ZIG: {
-      spn_gnu_render_compile_files(mem, toolchain, profile, files, &invocation);
+      spn_gnu_render_compile_locations(mem, toolchain, profile, files, &invocation);
       break;
     }
     case SPN_CC_DRIVER_MSVC: {
-      spn_msvc_render_compile_files(mem, toolchain, profile, files, &invocation);
+      spn_msvc_render_compile_locations(mem, toolchain, profile, files, &invocation);
       break;
     }
     case SPN_CC_DRIVER_NONE: {

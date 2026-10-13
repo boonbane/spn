@@ -167,7 +167,7 @@ static spn_err_t ensure_target_unit(spn_session_t* s, spn_pkg_unit_t* pkg, spn_t
 }
 
 static s32 compare_objects(const void* a, const void* b) {
-  return sp_str_compare_alphabetical((*(spn_compile_unit_t* const*)a)->paths.file.sub, (*(spn_compile_unit_t* const*)b)->paths.file.sub);
+  return sp_str_compare_alphabetical((*(spn_compile_unit_t* const*)a)->file.sub, (*(spn_compile_unit_t* const*)b)->file.sub);
 }
 
 static void add_object(spn_session_t* s, spn_target_unit_t* target, spn_path_t file) {
@@ -187,10 +187,7 @@ static void add_object(spn_session_t* s, spn_target_unit_t* target, spn_path_t f
     .target = target,
     .lang = spn_lang_from_path(rel.sub),
     .name = name,
-    .paths = {
-      .file = { .root = file.root, .sub = sp_intern_find(s->ctx->intern, id.source.sub) },
-      .object = spn_path_join(s->mem, target->paths.object, name),
-    },
+    .file = { .root = file.root, .sub = sp_intern_find(s->ctx->intern, id.source.sub) },
   }));
   sp_da_push(target->objects, sp_om_back(s->units.objects));
 }

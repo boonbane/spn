@@ -20,7 +20,7 @@ static s32 run_compiler(const spn_path_roots_t* roots, spn_compile_unit_t* unit,
   spn_pkg_unit_announce_compile(pkg);
 
   spn_cc_compile_files_t files = {
-    .source = unit->paths.file,
+    .source = unit->file,
     .output = object,
     .depfile = depfile,
   };
@@ -34,8 +34,7 @@ static s32 run_compiler(const spn_path_roots_t* roots, spn_compile_unit_t* unit,
       .pkg = pkg->info->name.str,
       .target_failed = {
         .target = unit->target->info->name.str,
-        .source_file = unit->paths.file,
-        .object_file = unit->paths.object,
+        .source_file = unit->file,
         .rc = run.result.status.exit_code,
         .out = run.result.out,
         .command = command,
@@ -48,8 +47,7 @@ static s32 run_compiler(const spn_path_roots_t* roots, spn_compile_unit_t* unit,
       .pkg = pkg->info->name.str,
       .target_passed = {
         .target = unit->target->info->name.str,
-        .source_file = unit->paths.file,
-        .object_file = unit->paths.object,
+        .source_file = unit->file,
         .command = command,
         .out = run.result.out,
         .time = run.elapsed,

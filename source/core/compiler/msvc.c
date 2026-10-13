@@ -175,13 +175,12 @@ void spn_msvc_render_compile(sp_mem_t mem, const spn_cc_t* toolchain, const spn_
   spn_cc_push_c(mem, invocation, "/we4715");
 }
 
-void spn_msvc_render_compile_files(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, const spn_cc_compile_files_t* files, spn_invocation_t* invocation) {
+void spn_msvc_render_compile_locations(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, const spn_cc_compile_files_t* files, spn_invocation_t* invocation) {
   if (!spn_path_empty(files->depfile)) {
     spn_cc_push_c(mem, invocation, "/sourceDependencies");
     spn_cc_push_path(mem, invocation, files->depfile);
   }
   spn_cc_push_glued(mem, invocation, "/Fo", files->output);
-  spn_cc_push_path(mem, invocation, files->source);
 }
 
 spn_err_t spn_msvc_parse_depfile(sp_mem_t mem, sp_str_t content, sp_da(sp_str_t)* prereqs) {
