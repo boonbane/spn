@@ -112,16 +112,16 @@ sp_hash_t spn_unit_fingerprint(spn_session_t* session, spn_build_unit_t* build, 
     }
     if (!sp_da_empty(resolved->edges)) {
       sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-      sp_da(fingerprint_edge_t) edges = sp_da_new(scratch.mem, fingerprint_edge_t);
+      si_da(fingerprint_edge_t) edges = sp_zero;
       sp_da_for(resolved->edges, it) {
-        sp_da_push(edges, ((fingerprint_edge_t) {
+        si_da_push(scratch.mem, edges, ((fingerprint_edge_t) {
           .hash = spn_unit_fingerprint(session, build, resolved->edges[it].id),
           .kind = (u32)resolved->edges[it].kind,
           .private = (u32)resolved->edges[it].private,
         }));
       }
-      sp_da_sort(edges, sort_fingerprint_edges);
-      fingerprint.deps = spn_digest_hash(edges, sp_da_size(edges) * sizeof(fingerprint_edge_t));
+      si_da_sort(edges, sort_fingerprint_edges);
+      fingerprint.deps = spn_digest_hash(edges, si_da_size(edges) * sizeof(fingerprint_edge_t));
       sp_mem_end_scratch(scratch);
     }
   }

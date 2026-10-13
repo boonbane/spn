@@ -161,7 +161,7 @@ struct spn_pkg_unit_t {
   } scripts;
 
   sp_da(spn_pkg_dep_t) deps;
-  sp_da(spn_target_unit_t*) libs;
+  si_da(spn_target_unit_t*) libs;
   sp_da(spn_target_unit_t*) targets;
   sp_da(spn_user_node_t) user_nodes;
 
