@@ -10,12 +10,36 @@
 #include "graph/build.h"
 #include "unit/types.h"
 
+typedef enum {
+  SI_LINK_OBJECTS_DIRECT,
+  SI_LINK_OBJECTS_RSP,
+} si_link_objects_kind_t;
+
+typedef struct {
+  si_link_objects_kind_t kind;
+  union {
+    sp_da(spn_dag_id_t) ids;
+    spn_dag_id_t rsp;
+  };
+} si_link_objects_t;
+
 typedef struct {
   spn_target_unit_t* target;
   const spn_cc_link_t* link;
-  sp_da(spn_arg_t) objects;
+  si_link_objects_t objects;
   const spn_dag_build_ctx_t* build;
 } si_link_t;
+
+typedef struct {
+  spn_target_unit_t* target;
+  si_link_objects_t objects;
+} si_archive_t;
+
+typedef struct {
+  spn_target_unit_t* target;
+  const spn_cc_link_t* link;
+  si_link_objects_t objects;
+} si_exports_t;
 
 typedef struct {
   spn_compile_unit_t* unit;
@@ -25,7 +49,7 @@ typedef struct {
 
 typedef struct {
   spn_rsp_style_t style;
-  sp_da(spn_arg_t) args;
+  sp_da(spn_dag_id_t) objects;
 } si_rsp_t;
 
 typedef struct {
@@ -45,6 +69,7 @@ spn_err_t si_on_write_compile_commands(spn_dag_t* g, spn_dag_action_t* action, v
 spn_err_t si_on_embed(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs);
 spn_err_t si_on_user_node(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs);
 spn_err_t si_on_publish(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs);
+spn_err_t si_on_publish_file(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs);
 spn_err_t si_on_zig_warmup(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs);
 
 #endif

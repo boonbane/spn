@@ -274,7 +274,6 @@
       "properties": {
         "target": { "type": "string" },
         "source_file": { "metadata": { "extern": "path" } },
-        "object_file": { "metadata": { "extern": "path" } },
         "command": { "type": "string" },
         "time_ns": { "type": "uint64", "metadata": { "field": "time" } }
       },
@@ -286,7 +285,6 @@
       "properties": {
         "target": { "type": "string" },
         "source_file": { "metadata": { "extern": "path" } },
-        "object_file": { "metadata": { "extern": "path" } },
         "rc": { "type": "int32" },
         "command": { "type": "string" },
         "out": { "type": "string" },
