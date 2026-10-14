@@ -363,7 +363,7 @@ spn_err_t spn_dag_build_add_target(spn_dag_build_t* b, spn_target_unit_t* target
   sp_da_for(objects, it) {
     sp_da_push(inputs, objects[it]);
   }
-  si_link_objects_t link_objects = { .kind = SI_LINK_OBJECTS_DIRECT, .ids = objects };
+  spn_dag_build_objects_t link_objects = { .kind = SPN_DAG_BUILD_OBJECTS_DIRECT, .ids = objects };
 
   if (spn.host.os == SPN_OS_WINDOWS) {
     si_rsp_t* rsp = sp_alloc_type(b->mem, si_rsp_t);
@@ -394,7 +394,7 @@ spn_err_t spn_dag_build_add_target(spn_dag_build_t* b, spn_target_unit_t* target
     spn_try(spn_dag_action_add_output(g, action, file));
 
     sp_da_push(inputs, file);
-    link_objects = (si_link_objects_t) { .kind = SI_LINK_OBJECTS_RSP, .rsp = file };
+    link_objects = (spn_dag_build_objects_t) { .kind = SPN_DAG_BUILD_OBJECTS_RSP, .rsp = file };
   }
 
   switch (target->kind) {

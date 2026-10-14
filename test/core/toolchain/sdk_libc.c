@@ -96,7 +96,6 @@ sp_test_each(sdk_for_driver, kind, driver_test_t, driver_tests) {
       return test_check_path(t, sdk.msvc.lib.vc, (test_path_t) { "/X/crt/lib/x86_64" });
     }
     case SPN_SDK_LIBC: {
-      sp_expect(t, spn_path_empty(sdk.libc.file));
       if (it->frameworks.path) {
         return test_check_path(t, sdk.libc.frameworks, it->frameworks);
       }

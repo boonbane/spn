@@ -50,12 +50,15 @@ spn_err_t si_on_zig_warmup(spn_dag_t* g, spn_dag_action_t* action, void* user_da
   });
 
   spn_path_t staging = spn_path_parent(outputs[0]);
-  spn_profile_info_t profile = spn_dag_build_profile(g, warm->build);
+  spn_cc_link_files_t files = {
+    .output = spn_path_join(mem, staging, sp_str_lit("stub.bin")),
+    .libc = si_dag_build_libc(g, warm->build),
+  };
   sp_da(spn_arg_t) objects = sp_da_new(mem, spn_arg_t);
   sp_da_push(objects, spn_arg_path(spn_path(mem, SPN_DIR_ID_RUNTIME, "zig/stub.c")));
 
   spn_invocation_t invocation = sp_zero;
-  spn_gnu_render_link(mem, cc, &profile, &warm->link, objects, spn_path_join(mem, staging, sp_str_lit("stub.bin")), sp_zero_struct(spn_path_t), &invocation);
+  spn_gnu_render_link(mem, cc, &build->profile, &warm->link, objects, &files, &invocation);
   invocation.cwd = staging;
 
   progress_writer_t* progress = sp_alloc_type(mem, progress_writer_t);

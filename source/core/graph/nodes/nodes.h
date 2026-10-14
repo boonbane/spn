@@ -10,35 +10,22 @@
 #include "graph/build.h"
 #include "unit/types.h"
 
-typedef enum {
-  SI_LINK_OBJECTS_DIRECT,
-  SI_LINK_OBJECTS_RSP,
-} si_link_objects_kind_t;
-
-typedef struct {
-  si_link_objects_kind_t kind;
-  union {
-    sp_da(spn_dag_id_t) ids;
-    spn_dag_id_t rsp;
-  };
-} si_link_objects_t;
-
 typedef struct {
   spn_target_unit_t* target;
   const spn_cc_link_t* link;
-  si_link_objects_t objects;
+  spn_dag_build_objects_t objects;
   const spn_dag_build_ctx_t* build;
 } si_link_t;
 
 typedef struct {
   spn_target_unit_t* target;
-  si_link_objects_t objects;
+  spn_dag_build_objects_t objects;
 } si_archive_t;
 
 typedef struct {
   spn_target_unit_t* target;
   const spn_cc_link_t* link;
-  si_link_objects_t objects;
+  spn_dag_build_objects_t objects;
 } si_exports_t;
 
 typedef struct {

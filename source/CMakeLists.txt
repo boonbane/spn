@@ -74,8 +74,10 @@ set(SPN_SOURCES
   util/lazy/lazy.c
   core/graph/build.c
   core/graph/dag.c
+  core/graph/nodes/archive.c
   core/graph/nodes/compile_commands.c
   core/graph/nodes/embed.c
+  core/graph/nodes/exports.c
   core/graph/nodes/libc.c
   core/graph/nodes/link.c
   core/graph/nodes/object.c

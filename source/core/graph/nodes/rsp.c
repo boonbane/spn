@@ -14,7 +14,7 @@ spn_err_t si_on_write_rsp(spn_dag_t* g, spn_dag_action_t* action, void* user_dat
     return SPN_ERR_DAG_OUTPUT_WRITE;
   }
   sp_mem_arena_marker_t s = sp_mem_begin_scratch();
-  spn_rsp_render(&writer.base, g->roots, rsp->style, spn_dag_build_object_args(s.mem, g, rsp->objects));
+  spn_rsp_render(&writer.base, g->roots, rsp->style, si_dag_build_object_args(s.mem, g, rsp->objects));
   sp_mem_end_scratch(s);
   sp_io_file_writer_close(&writer);
   return SPN_OK;

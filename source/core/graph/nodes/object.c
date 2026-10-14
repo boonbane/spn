@@ -14,18 +14,13 @@
 #include "graph/nodes/nodes.h"
 #include "unit/package.h"
 
-static s32 run_compiler(const spn_path_roots_t* roots, spn_compile_unit_t* unit, const spn_invocation_t* base, const spn_profile_info_t* profile, spn_path_t object, spn_path_t depfile) {
+static s32 run_compiler(const spn_path_roots_t* roots, spn_compile_unit_t* unit, const spn_invocation_t* base, const spn_cc_compile_files_t* files) {
   spn_pkg_unit_t* pkg = unit->target->pkg;
   spn_session_t* session = pkg->session;
 
   spn_pkg_unit_announce_compile(pkg);
 
-  spn_cc_compile_files_t files = {
-    .source = unit->file,
-    .output = object,
-    .depfile = depfile,
-  };
-  spn_invocation_t invocation = spn_cc_render_compile_command(spn.mem, &pkg->build->toolchain->cc, profile, base, &files);
+  spn_invocation_t invocation = spn_cc_render_compile_command(spn.mem, &pkg->build->toolchain->cc, &pkg->build->profile, base, files);
   spn_invocation_result_t run = spn_invocation_run(roots, &invocation);
   sp_str_t command = spn_invocation_to_str(roots, spn.events->mem, &invocation);
 
@@ -62,7 +57,11 @@ static s32 run_compiler(const spn_path_roots_t* roots, spn_compile_unit_t* unit,
 static spn_err_t compile_object(sp_mem_t scratch, spn_dag_t* g, si_compile_t* ctx, spn_dag_env_t* env, spn_path_t object, spn_dag_obs_set_t* obs) {
   spn_compile_unit_t* unit = ctx->unit;
   const spn_cc_t* toolchain = &unit->target->pkg->build->toolchain->cc;
-  spn_profile_info_t profile = spn_dag_build_profile(g, ctx->build);
+  spn_cc_compile_files_t files = {
+    .source = unit->file,
+    .output = object,
+    .libc = si_dag_build_libc(g, ctx->build),
+  };
 
   spn_cc_depfile_t mode = SPN_CC_DEPFILE_NONE;
   switch (toolchain->driver) {
@@ -74,15 +73,15 @@ static spn_err_t compile_object(sp_mem_t scratch, spn_dag_t* g, si_compile_t* ct
   }
 
   if (mode == SPN_CC_DEPFILE_NONE) {
-    return run_compiler(g->roots, unit, ctx->invocation, &profile, object, (spn_path_t) sp_zero) ? SPN_ERR_DAG_ACTION : SPN_OK;
+    return run_compiler(g->roots, unit, ctx->invocation, &files) ? SPN_ERR_DAG_ACTION : SPN_OK;
   }
 
-  spn_path_t depfile = spn_path_concat(scratch, object, ".d");
-  if (run_compiler(g->roots, unit, ctx->invocation, &profile, object, depfile)) {
+  files.depfile = spn_path_concat(scratch, object, ".d");
+  if (run_compiler(g->roots, unit, ctx->invocation, &files)) {
     return SPN_ERR_DAG_ACTION;
   }
 
-  sp_path_t dep = spn_path_at(g->roots, depfile);
+  sp_path_t dep = spn_path_at(g->roots, files.depfile);
   if (!sp_fs_exists_at(dep)) {
     return mode == SPN_CC_DEPFILE_REQUIRED ? SPN_ERR_DAG_DEPFILE : SPN_OK;
   }

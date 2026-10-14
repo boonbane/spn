@@ -197,7 +197,7 @@ spn_err_t spn_msvc_parse_depfile(sp_mem_t mem, sp_str_t content, sp_da(sp_str_t)
   return SPN_OK;
 }
 
-void spn_msvc_render_link(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, const spn_cc_link_t* link, sp_da(spn_arg_t) objects, spn_path_t output, spn_path_t implib, spn_invocation_t* invocation) {
+void spn_msvc_render_link(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, const spn_cc_link_t* link, sp_da(spn_arg_t) objects, const spn_cc_link_files_t* files, spn_invocation_t* invocation) {
   add_launcher(mem, toolchain, profile, link->lang, invocation);
   spn_cc_flags_t flags = sp_zero;
   sp_da_init(mem, flags.compile);
@@ -229,7 +229,7 @@ void spn_msvc_render_link(sp_mem_t mem, const spn_cc_t* toolchain, const spn_pro
   si_da_for(link->system_libs, it) {
     spn_cc_push_fmt(mem, invocation, "{}.lib", sp_fmt_str(link->system_libs[it]));
   }
-  spn_cc_push_glued(mem, invocation, "/Fe", output);
+  spn_cc_push_glued(mem, invocation, "/Fe", files->output);
   if (profile->sdk.kind == SPN_SDK_MSVC) {
     add_sdk_link(mem, &profile->sdk.msvc, invocation);
   }
@@ -241,8 +241,8 @@ void spn_msvc_render_link(sp_mem_t mem, const spn_cc_t* toolchain, const spn_pro
   if (!spn_path_empty(link->exports)) {
     sp_da_push(linker, spn_arg_glue(sp_str_lit("/DEF:"), link->exports));
   }
-  if (!spn_path_empty(implib)) {
-    sp_da_push(linker, spn_arg_glue(sp_str_lit("/IMPLIB:"), implib));
+  if (!spn_path_empty(files->implib)) {
+    sp_da_push(linker, spn_arg_glue(sp_str_lit("/IMPLIB:"), files->implib));
   }
   si_da_for(link->whole_archives, it) {
     sp_da_push(linker, spn_arg_glue(sp_str_lit("/WHOLEARCHIVE:"), link->whole_archives[it]));

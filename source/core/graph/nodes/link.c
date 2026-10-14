@@ -1,49 +1,49 @@
 #include "core/types.h"
 #include "ctx/types.h"
 #include "spn/errors.h"
-#include "spn/core.h"
 #include "unit/types.h"
-#include "session/types.h"
 
-#include "external/cc.h"
 #include "compiler/driver.h"
-#include "compiler/exports.h"
-#include "compiler/rsp.h"
-#include "compiler/toc.h"
 #include "dag/dag.h"
-#include "error/error.h"
 #include "event/event.h"
-#include "intern/intern.h"
-#include "paths/paths.h"
-#include "session/invocation.h"
 #include "graph/build.h"
 #include "graph/nodes/nodes.h"
+#include "paths/paths.h"
+#include "session/invocation.h"
 #include "unit/package.h"
-#include "triple/triple.h"
 
-static spn_err_t run_link(const spn_path_roots_t* roots, spn_target_unit_t* target, spn_invocation_t* invocation, spn_invocation_result_t* run) {
-  *run = spn_invocation_run(roots, invocation);
-  if (!run->result.status.exit_code) {
-    return SPN_OK;
-  }
+spn_err_t si_on_link(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs) {
+  si_link_t* ctx = (si_link_t*)user_data;
+  spn_target_unit_t* target = ctx->target;
+  spn_build_unit_t* build = target->pkg->build;
+  spn_cc_t* cc = &build->toolchain->cc;
+  spn_cc_link_files_t files = {
+    .output = outputs[0],
+    .implib = spn_path_empty(ctx->link->implib) ? sp_zero_s(spn_path_t) : outputs[1],
+    .libc = si_dag_build_libc(g, ctx->build),
+  };
 
-  spn_event_buffer_push(spn.events, (spn_event_t) {
-    .kind = SPN_EVENT_LINK_FAILED,
-    .pkg = target->pkg->info->name.str,
-    .link_failed = {
-      .target = target->info->name.str,
-      .exit_code = run->result.status.exit_code,
-      .command = spn_invocation_to_str(roots, spn.events->mem, invocation),
-      .out = run->result.out,
-      .err = run->result.err,
+  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+  sp_da(spn_arg_t) objects = si_dag_build_objects(scratch.mem, g, &ctx->objects);
+  spn_invocation_t invocation = sp_zero;
+  switch (cc->driver) {
+    case SPN_CC_DRIVER_GCC:
+    case SPN_CC_DRIVER_CLANG:
+    case SPN_CC_DRIVER_ZIG: {
+      spn_gnu_render_link(scratch.mem, cc, &build->profile, ctx->link, objects, &files, &invocation);
+      break;
     }
-  });
-  return SPN_ERROR;
-}
+    case SPN_CC_DRIVER_MSVC: {
+      spn_msvc_render_link(scratch.mem, cc, &build->profile, ctx->link, objects, &files, &invocation);
+      break;
+    }
+    case SPN_CC_DRIVER_NONE: {
+      sp_unreachable_case();
+    }
+  }
+  invocation.cwd = target->pkg->paths.work;
 
-static spn_err_t run_target(const spn_path_roots_t* roots, spn_target_unit_t* target, spn_invocation_t* invocation) {
   spn_pkg_unit_announce_compile(target->pkg);
-
   spn_event_buffer_push(spn.events, (spn_event_t) {
     .kind = SPN_EVENT_LINK_START,
     .pkg = target->pkg->info->name.str,
@@ -52,8 +52,24 @@ static spn_err_t run_target(const spn_path_roots_t* roots, spn_target_unit_t* ta
     }
   });
 
-  spn_invocation_result_t run = sp_zero;
-  spn_try(run_link(roots, target, invocation, &run));
+  spn_invocation_result_t run = spn_invocation_run(g->roots, &invocation);
+  sp_str_t command = spn_invocation_to_str(g->roots, spn.events->mem, &invocation);
+  sp_mem_end_scratch(scratch);
+
+  if (run.result.status.exit_code) {
+    spn_event_buffer_push(spn.events, (spn_event_t) {
+      .kind = SPN_EVENT_LINK_FAILED,
+      .pkg = target->pkg->info->name.str,
+      .link_failed = {
+        .target = target->info->name.str,
+        .exit_code = run.result.status.exit_code,
+        .command = command,
+        .out = run.result.out,
+        .err = run.result.err,
+      }
+    });
+    return SPN_ERR_DAG_ACTION;
+  }
 
   spn_event_buffer_push(spn.events, (spn_event_t) {
     .kind = SPN_EVENT_LINK_PASSED,
@@ -61,176 +77,10 @@ static spn_err_t run_target(const spn_path_roots_t* roots, spn_target_unit_t* ta
     .link_passed = {
       .target = target->info->name.str,
       .output_path = target->paths.output,
-      .command = spn_invocation_to_str(roots, spn.events->mem, invocation),
+      .command = command,
       .out = run.result.out,
       .time = run.elapsed,
     }
   });
   return SPN_OK;
-}
-
-typedef sp_str_ht(u8) spn_symbol_set_t;
-
-static spn_err_t read_archive_symbols(const spn_path_roots_t* roots, spn_path_t path, sp_da(sp_str_t)* symbols, spn_symbol_set_t* seen) {
-  sp_io_file_reader_t reader = sp_zero;
-  if (sp_io_file_reader_from_path_at(&reader, spn_path_at(roots, path))) {
-    return spn_err_emit(&spn, (spn_err_union_t) { .kind = SPN_ERR_FS_READ, .fs.path = spn_path_copy(spn.events->mem, path) });
-  }
-
-  spn_toc_parser_t toc;
-  spn_err_t err = spn_toc_init(&toc, &reader.base);
-
-  sp_str_t symbol = sp_zero;
-  while (spn_toc_next(&toc, &symbol)) {
-    sp_str_t interned = spn_intern(symbol).str;
-    if (sp_str_ht_exists(*seen, interned)) {
-      continue;
-    }
-    sp_str_ht_insert(*seen, interned, (u8)true);
-    sp_da_push(*symbols, interned);
-  }
-  if (!err) {
-    err = toc.err;
-  }
-
-  sp_io_file_reader_close(&reader);
-  if (err) {
-    return spn_err_emit(&spn, (spn_err_union_t) { .kind = err, .fs.path = spn_path_copy(spn.events->mem, path) });
-  }
-  return SPN_OK;
-}
-
-static sp_da(spn_arg_t) resolve_objects(sp_mem_t mem, spn_dag_t* g, const si_link_objects_t* objects) {
-  switch (objects->kind) {
-    case SI_LINK_OBJECTS_DIRECT: {
-      return spn_dag_build_object_args(mem, g, objects->ids);
-    }
-    case SI_LINK_OBJECTS_RSP: {
-      sp_da(spn_arg_t) args = sp_da_new(mem, spn_arg_t);
-      sp_da_push(args, spn_arg_glue(sp_str_lit("@"), spn_dag_find_artifact(g, objects->rsp)->materialized));
-      return args;
-    }
-  }
-  sp_unreachable_return(SP_NULLPTR);
-}
-
-static spn_invocation_t render_archive_invocation(sp_mem_t mem, spn_target_unit_t* target, sp_da(spn_arg_t) objects, spn_path_t output) {
-  spn_build_unit_t* build = target->pkg->build;
-  spn_cc_t* cc = &build->toolchain->cc;
-
-  spn_invocation_t invocation = sp_zero;
-  switch (cc->archiver_driver) {
-    case SPN_AR_DRIVER_GNU: {
-      spn_gnu_render_archive(mem, cc, objects, output, &invocation);
-      break;
-    }
-    case SPN_AR_DRIVER_MSVC: {
-      spn_msvc_render_archive(mem, cc, &build->profile, objects, output, &invocation);
-      break;
-    }
-  }
-  invocation.cwd = target->pkg->paths.work;
-  return invocation;
-}
-
-spn_err_t si_on_archive(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs) {
-  si_archive_t* ctx = (si_archive_t*)user_data;
-
-  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  spn_invocation_t invocation = render_archive_invocation(scratch.mem, ctx->target, resolve_objects(scratch.mem, g, &ctx->objects), outputs[0]);
-  spn_err_t result = run_target(g->roots, ctx->target, &invocation);
-  sp_mem_end_scratch(scratch);
-  return result ? SPN_ERR_DAG_ACTION : SPN_OK;
-}
-
-spn_err_t si_on_link(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs) {
-  si_link_t* ctx = (si_link_t*)user_data;
-  spn_target_unit_t* target = ctx->target;
-  spn_build_unit_t* build = target->pkg->build;
-  spn_cc_t* cc = &build->toolchain->cc;
-  spn_path_t implib = spn_path_empty(ctx->link->implib) ? sp_zero_struct(spn_path_t) : outputs[1];
-  spn_profile_info_t profile = spn_dag_build_profile(g, ctx->build);
-
-  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  sp_da(spn_arg_t) objects = resolve_objects(scratch.mem, g, &ctx->objects);
-  spn_invocation_t invocation = sp_zero;
-  switch (cc->driver) {
-    case SPN_CC_DRIVER_GCC:
-    case SPN_CC_DRIVER_CLANG:
-    case SPN_CC_DRIVER_ZIG: {
-      spn_gnu_render_link(scratch.mem, cc, &profile, ctx->link, objects, outputs[0], implib, &invocation);
-      break;
-    }
-    case SPN_CC_DRIVER_MSVC: {
-      spn_msvc_render_link(scratch.mem, cc, &profile, ctx->link, objects, outputs[0], implib, &invocation);
-      break;
-    }
-    case SPN_CC_DRIVER_NONE: {
-      sp_unreachable_case();
-    }
-  }
-  invocation.cwd = target->pkg->paths.work;
-  spn_err_t result = run_target(g->roots, target, &invocation);
-  sp_mem_end_scratch(scratch);
-  return result ? SPN_ERR_DAG_ACTION : SPN_OK;
-}
-
-static spn_err_t write_exports(sp_mem_t mem, const spn_path_roots_t* roots, spn_target_unit_t* target, const spn_cc_link_t* link, sp_da(spn_arg_t) objects, spn_path_t output) {
-  spn_path_t archive = spn_path_concat(mem, output, ".a");
-  spn_invocation_t invocation = render_archive_invocation(mem, target, objects, archive);
-
-  spn_invocation_result_t run = sp_zero;
-  spn_try(run_link(roots, target, &invocation, &run));
-
-  spn_symbol_set_t seen;
-  sp_str_ht_init(mem, seen);
-  sp_da(sp_str_t) symbols = sp_da_new(mem, sp_str_t);
-  spn_try(read_archive_symbols(roots, archive, &symbols, &seen));
-  si_da_for(link->whole_archives, it) {
-    spn_try(read_archive_symbols(roots, link->whole_archives[it], &symbols, &seen));
-  }
-
-  sp_io_file_writer_t writer = sp_zero;
-  if (sp_io_file_writer_from_path_at(&writer, spn_path_at(roots, output))) {
-    // @spader I hate this error. Ultimately useless.
-    return spn_err_emit(&spn, (spn_err_union_t) {
-      .kind = SPN_ERR_FS_WRITE,
-      .fs.path = link->exports
-    });
-  }
-
-  spn_obj_format_t format = spn_os_to_native_object_format(target->pkg->build->profile.os);
-  switch (spn_cc_exports_format(target->kind, format)) {
-    case SPN_CC_EXPORTS_VERSION_SCRIPT: {
-      spn_exports_render_version_script(&writer.base, symbols);
-      break;
-    }
-    case SPN_CC_EXPORTS_SYMBOL_LIST: {
-      spn_exports_render_symbol_list(&writer.base, symbols);
-      break;
-    }
-    case SPN_CC_EXPORTS_WASM: {
-      spn_rsp_style_t style = spn_rsp_style(target->pkg->build->toolchain->cc.driver);
-      spn_rsp_render(&writer.base, roots, style, spn_gnu_render_exports(mem, symbols));
-      break;
-    }
-    case SPN_CC_EXPORTS_DEF: {
-      spn_exports_render_def(&writer.base, target->info->name.str, symbols);
-      break;
-    }
-  }
-  sp_io_file_writer_close(&writer);
-
-  return SPN_OK;
-}
-
-spn_err_t si_on_write_exports(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs) {
-  si_exports_t* ctx = (si_exports_t*)user_data;
-
-  spn_pkg_unit_announce_compile(ctx->target->pkg);
-
-  sp_mem_arena_marker_t s = sp_mem_begin_scratch();
-  spn_err_t result = write_exports(s.mem, g->roots, ctx->target, ctx->link, resolve_objects(s.mem, g, &ctx->objects), outputs[0]);
-  sp_mem_end_scratch(s);
-  return result ? SPN_ERR_DAG_ACTION : SPN_OK;
 }

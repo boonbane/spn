@@ -70,9 +70,9 @@ spn_path_t spn_target_unit_staged_path(sp_mem_t mem, spn_target_unit_t* target) 
   return path;
 }
 
-spn_profile_info_t spn_dag_build_profile(spn_dag_t* g, const spn_dag_build_ctx_t* build) {
-  spn_profile_info_t profile = build->unit->profile;
-  switch (profile.sdk.kind) {
+spn_path_t si_dag_build_libc(spn_dag_t* g, const spn_dag_build_ctx_t* build) {
+  spn_path_t libc = sp_zero;
+  switch (build->unit->profile.sdk.kind) {
     case SPN_SDK_NONE:
     case SPN_SDK_SYSROOT:
     case SPN_SDK_MACOS:
@@ -80,14 +80,14 @@ spn_profile_info_t spn_dag_build_profile(spn_dag_t* g, const spn_dag_build_ctx_t
       break;
     }
     case SPN_SDK_LIBC: {
-      profile.sdk.libc.file = spn_dag_find_artifact(g, build->libc)->materialized;
+      libc = spn_dag_find_artifact(g, build->libc)->materialized;
       break;
     }
   }
-  return profile;
+  return libc;
 }
 
-sp_da(spn_arg_t) spn_dag_build_object_args(sp_mem_t mem, spn_dag_t* g, sp_da(spn_dag_id_t) ids) {
+sp_da(spn_arg_t) si_dag_build_object_args(sp_mem_t mem, spn_dag_t* g, sp_da(spn_dag_id_t) ids) {
   sp_da(spn_arg_t) args = sp_da_new(mem, spn_arg_t);
   sp_da_for(ids, it) {
     sp_da_push(args, spn_arg_path(spn_dag_find_artifact(g, ids[it])->materialized));
@@ -95,3 +95,17 @@ sp_da(spn_arg_t) spn_dag_build_object_args(sp_mem_t mem, spn_dag_t* g, sp_da(spn
   return args;
 }
 
+
+sp_da(spn_arg_t) si_dag_build_objects(sp_mem_t mem, spn_dag_t* g, const spn_dag_build_objects_t* objects) {
+  switch (objects->kind) {
+    case SPN_DAG_BUILD_OBJECTS_DIRECT: {
+      return si_dag_build_object_args(mem, g, objects->ids);
+    }
+    case SPN_DAG_BUILD_OBJECTS_RSP: {
+      sp_da(spn_arg_t) args = sp_da_new(mem, spn_arg_t);
+      sp_da_push(args, spn_arg_glue(sp_str_lit("@"), spn_dag_find_artifact(g, objects->rsp)->materialized));
+      return args;
+    }
+  }
+  sp_unreachable_return(SP_NULLPTR);
+}
