@@ -273,8 +273,12 @@ void spn_gnu_render_compile(sp_mem_t mem, const spn_cc_t* toolchain, const spn_p
   spn_cc_push_c(mem, invocation, "-Werror=return-type");
 }
 
-void spn_gnu_render_compile_files(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, const spn_cc_compile_files_t* files, spn_invocation_t* invocation) {
-  spn_cc_push_path(mem, invocation, files->source);
+static void add_output(sp_mem_t mem, spn_path_t output, spn_invocation_t* invocation) {
+  spn_cc_push_c(mem, invocation, "-o");
+  spn_cc_push_path(mem, invocation, output);
+}
+
+void spn_gnu_render_compile_locations(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, const spn_cc_compile_files_t* files, spn_invocation_t* invocation) {
   if (!spn_path_empty(files->depfile)) {
     spn_cc_push_c(mem, invocation, "-MD");
     spn_cc_push_c(mem, invocation, "-MF");
@@ -284,8 +288,7 @@ void spn_gnu_render_compile_files(sp_mem_t mem, const spn_cc_t* toolchain, const
     spn_cc_push_c(mem, invocation, "-Xclang");
     spn_cc_push_fmt(mem, invocation, "-object-file-name={}", sp_fmt_str(sp_fs_get_name(files->output.sub)));
   }
-  spn_cc_push_c(mem, invocation, "-o");
-  spn_cc_push_path(mem, invocation, files->output);
+  add_output(mem, files->output, invocation);
   switch (profile->sdk.kind) {
     case SPN_SDK_NONE:
     case SPN_SDK_SYSROOT:
@@ -528,8 +531,7 @@ void spn_gnu_render_link(sp_mem_t mem, const spn_cc_t* toolchain, const spn_prof
   if (spn_triple_dynamic(triple)) {
     add_rpath(mem, profile->os, invocation);
   }
-  spn_cc_push_c(mem, invocation, "-o");
-  spn_cc_push_path(mem, invocation, output);
+  add_output(mem, output, invocation);
 }
 
 sp_da(spn_arg_t) spn_gnu_render_exports(sp_mem_t mem, sp_da(sp_str_t) symbols) {

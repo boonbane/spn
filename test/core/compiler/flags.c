@@ -174,7 +174,16 @@ sp_test_each(render_flags, resolve, flags_test_t, tests, .setup = spn_test_ctx_s
   spn_cc_t toolchain = test_toolchain(it->driver);
 
   spn_cc_flags_t flags = sp_zero;
-  spn_cc_render_flags(mem, &toolchain, &it->profile, &flags);
+  sp_da_init(mem, flags.compile);
+  sp_da_init(mem, flags.link);
+  switch (toolchain.driver) {
+    case SPN_CC_DRIVER_GCC:
+    case SPN_CC_DRIVER_CLANG:
+    case SPN_CC_DRIVER_ZIG: spn_gnu_render_flags(mem, &toolchain, &it->profile, &flags); break;
+    case SPN_CC_DRIVER_MSVC: spn_msvc_render_flags(mem, &it->profile, &flags); break;
+    case SPN_CC_DRIVER_NONE: sp_unreachable_case();
+  }
+
   sp_must_strs_eq(t, flags.compile, sp_da_size(flags.compile), it->expect.compile);
   sp_must_strs_eq(t, flags.link, sp_da_size(flags.link), it->expect.link);
   return SP_OK;
