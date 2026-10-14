@@ -261,13 +261,3 @@ spn_cc_exports_format_t spn_cc_exports_format(spn_cc_output_kind_t kind, spn_obj
   }
   SP_UNREACHABLE_RETURN(SPN_CC_EXPORTS_VERSION_SCRIPT);
 }
-
-const c8* spn_cc_exports_extension(spn_cc_exports_format_t format) {
-  switch (format) {
-    case SPN_CC_EXPORTS_VERSION_SCRIPT: return "map";
-    case SPN_CC_EXPORTS_SYMBOL_LIST: return "exp";
-    case SPN_CC_EXPORTS_DEF: return "def";
-    case SPN_CC_EXPORTS_WASM: return "rsp";
-  }
-  SP_UNREACHABLE_RETURN("map");
-}
