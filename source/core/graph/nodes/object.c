@@ -1,3 +1,4 @@
+#include "compiler/types.h"
 #include "ctx/types.h"
 #include "event/event.h"
 #include "session/types.h"
@@ -63,7 +64,15 @@ static spn_err_t compile_object(sp_mem_t scratch, spn_dag_t* g, si_compile_t* ct
   const spn_cc_t* toolchain = &unit->target->pkg->build->toolchain->cc;
   spn_profile_info_t profile = spn_dag_build_profile(g, ctx->build);
 
-  spn_cc_depfile_t mode = spn_cc_depfile(toolchain, unit->lang);
+  spn_cc_depfile_t mode = SPN_CC_DEPFILE_NONE;
+  switch (toolchain->driver) {
+    case SPN_CC_DRIVER_GCC:
+    case SPN_CC_DRIVER_CLANG:
+    case SPN_CC_DRIVER_ZIG:  mode = unit->lang == SPN_LANG_ASM ? SPN_CC_DEPFILE_OPTIONAL : SPN_CC_DEPFILE_REQUIRED; break;
+    case SPN_CC_DRIVER_MSVC: mode = unit->lang == SPN_LANG_ASM ? SPN_CC_DEPFILE_NONE : SPN_CC_DEPFILE_REQUIRED; break;
+    case SPN_CC_DRIVER_NONE: sp_unreachable_case();
+  }
+
   if (mode == SPN_CC_DEPFILE_NONE) {
     return run_compiler(g->roots, unit, ctx->invocation, &profile, object, (spn_path_t) sp_zero) ? SPN_ERR_DAG_ACTION : SPN_OK;
   }

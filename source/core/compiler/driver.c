@@ -79,23 +79,6 @@ bool spn_cc_has(const spn_cc_t* toolchain, spn_cc_cap_t cap) {
   return (spn_toolchain_driver_caps(toolchain->driver) & cap) == (spn_cc_cap_set_t)cap;
 }
 
-spn_cc_depfile_t spn_cc_depfile(const spn_cc_t* toolchain, spn_lang_t lang) {
-  switch (toolchain->driver) {
-    case SPN_CC_DRIVER_GCC:
-    case SPN_CC_DRIVER_CLANG:
-    case SPN_CC_DRIVER_ZIG: {
-      return lang == SPN_LANG_ASM ? SPN_CC_DEPFILE_OPTIONAL : SPN_CC_DEPFILE_REQUIRED;
-    }
-    case SPN_CC_DRIVER_MSVC: {
-      return lang == SPN_LANG_ASM ? SPN_CC_DEPFILE_NONE : SPN_CC_DEPFILE_REQUIRED;
-    }
-    case SPN_CC_DRIVER_NONE: {
-      sp_unreachable_case();
-    }
-  }
-  SP_UNREACHABLE_RETURN(SPN_CC_DEPFILE_NONE);
-}
-
 spn_err_t spn_cc_parse_depfile(sp_mem_t mem, const spn_cc_t* toolchain, sp_str_t content, sp_da(sp_str_t)* prereqs) {
   sp_da_init(mem, *prereqs);
   switch (toolchain->driver) {
