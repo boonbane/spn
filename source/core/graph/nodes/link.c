@@ -17,13 +17,15 @@ spn_err_t si_on_link(spn_dag_t* g, spn_dag_action_t* action, void* user_data, sp
   spn_target_unit_t* target = ctx->target;
   spn_build_unit_t* build = target->pkg->build;
   spn_cc_t* cc = &build->toolchain->cc;
+  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   spn_cc_link_files_t files = {
     .output = outputs[0],
     .implib = spn_path_empty(ctx->link->implib) ? sp_zero_s(spn_path_t) : outputs[1],
     .libc = si_dag_build_libc(g, ctx->build),
+    .archives = si_dag_build_paths(scratch.mem, g, ctx->deps.archives),
+    .shared = si_dag_build_paths(scratch.mem, g, ctx->deps.shared),
+    .whole_archives = si_dag_build_paths(scratch.mem, g, ctx->deps.whole_archives),
   };
-
-  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   sp_da(spn_arg_t) objects = si_dag_build_objects(scratch.mem, g, &ctx->objects);
   spn_invocation_t invocation = sp_zero;
   switch (cc->driver) {

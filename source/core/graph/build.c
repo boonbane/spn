@@ -109,3 +109,11 @@ sp_da(spn_arg_t) si_dag_build_objects(sp_mem_t mem, spn_dag_t* g, const spn_dag_
   }
   sp_unreachable_return(SP_NULLPTR);
 }
+
+si_da(spn_path_t) si_dag_build_paths(sp_mem_t mem, spn_dag_t* g, si_da(spn_dag_id_t) ids) {
+  si_da(spn_path_t) paths = sp_zero;
+  si_da_for(ids, it) {
+    si_da_push(mem, paths, spn_dag_find_artifact(g, ids[it])->materialized);
+  }
+  return paths;
+}

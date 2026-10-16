@@ -220,11 +220,11 @@ void spn_msvc_render_link(sp_mem_t mem, const spn_cc_t* toolchain, const spn_pro
   }
   spn_cc_push_args(mem, invocation, objects);
 
-  si_da_for(link->private_libs, it) {
-    spn_cc_push_fmt(mem, invocation, "{}.lib", sp_fmt_str(link->private_libs[it]));
+  si_da_for(files->archives, it) {
+    spn_cc_push_path(mem, invocation, files->archives[it]);
   }
-  si_da_for(link->libs, it) {
-    spn_cc_push_fmt(mem, invocation, "{}.lib", sp_fmt_str(link->libs[it]));
+  si_da_for(files->shared, it) {
+    spn_cc_push_path(mem, invocation, files->shared[it]);
   }
   si_da_for(link->system_libs, it) {
     spn_cc_push_fmt(mem, invocation, "{}.lib", sp_fmt_str(link->system_libs[it]));
@@ -244,11 +244,8 @@ void spn_msvc_render_link(sp_mem_t mem, const spn_cc_t* toolchain, const spn_pro
   if (!spn_path_empty(files->implib)) {
     sp_da_push(linker, spn_arg_glue(sp_str_lit("/IMPLIB:"), files->implib));
   }
-  si_da_for(link->whole_archives, it) {
-    sp_da_push(linker, spn_arg_glue(sp_str_lit("/WHOLEARCHIVE:"), link->whole_archives[it]));
-  }
-  si_da_for(link->lib_dirs, it) {
-    sp_da_push(linker, spn_arg_glue(sp_str_lit("/LIBPATH:"), link->lib_dirs[it]));
+  si_da_for(files->whole_archives, it) {
+    sp_da_push(linker, spn_arg_glue(sp_str_lit("/WHOLEARCHIVE:"), files->whole_archives[it]));
   }
   if (link->kind == SPN_CC_OUTPUT_EXE && link->subsystem == SPN_WIN_SUBSYSTEM_WINDOWS) {
     sp_da_push(linker, spn_arg_lit(sp_str_lit("/SUBSYSTEM:WINDOWS")));

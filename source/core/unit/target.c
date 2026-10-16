@@ -305,9 +305,10 @@ static spn_err_t build_target_plan(spn_target_unit_t* target) {
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   si_da(spn_closure_entry_t) closure = si_link_get_target_closure(scratch.mem, target);
   sp_assert(closure[0].pkg == pkg);
+  si_da(spn_link_lib_t) libs = si_link_get_closure_libs(scratch.mem, closure);
+  bool dynamic = target->kind == SPN_CC_OUTPUT_SHARED_LIB || target->kind == SPN_CC_OUTPUT_REACTOR;
 
   plan->link = (spn_link_plan_t) {
-    .libs = si_link_get_closure_libs(mem, closure),
     .cc = {
       .pkg = pkg->info->name.str,
       .name = info->name.str,
@@ -318,12 +319,28 @@ static spn_err_t build_target_plan(spn_target_unit_t* target) {
     },
   };
   spn_link_plan_t* link = &plan->link;
-  si_da_for(link->libs, it) {
-    spn_target_unit_t* lib = link->libs[it].lib;
-    if (lib->lib_kind == SPN_LIB_KIND_STATIC && is_any_object_cxx(lib->objects)) {
-      link->cc.lang = SPN_LANG_CXX;
-      break;
+  si_da_for(libs, it) {
+    spn_target_unit_t* lib = libs[it].lib;
+    spn_link_role_t role = SPN_LINK_ROLE_ARCHIVE;
+    switch (lib->lib_kind) {
+      case SPN_LIB_KIND_SHARED: {
+        role = SPN_LINK_ROLE_SHARED;
+        break;
+      }
+      case SPN_LIB_KIND_STATIC: {
+        role = dynamic && !libs[it].private ? SPN_LINK_ROLE_WHOLE_ARCHIVE : SPN_LINK_ROLE_ARCHIVE;
+        if (is_any_object_cxx(lib->objects)) {
+          link->cc.lang = SPN_LANG_CXX;
+        }
+        break;
+      }
+      case SPN_LIB_KIND_SOURCE:
+      case SPN_LIB_KIND_OBJECT:
+      case SPN_LIB_KIND_NONE: {
+        sp_unreachable_case();
+      }
     }
+    si_da_push(mem, link->deps, ((spn_link_dep_t) { .lib = lib, .role = role }));
   }
 
   push_unique(mem, &link->cc.frameworks, info->macos.frameworks);
@@ -371,40 +388,6 @@ static spn_err_t build_target_plan(spn_target_unit_t* target) {
     case SPN_CC_OUTPUT_STATIC_LIB:
     case SPN_CC_OUTPUT_OBJECT: {
       break;
-    }
-  }
-
-  bool dynamic = target->kind == SPN_CC_OUTPUT_SHARED_LIB || target->kind == SPN_CC_OUTPUT_REACTOR;
-  si_da_for(link->libs, it) {
-    spn_link_lib_t* lib = &link->libs[it];
-    if (lib->lib->info->no_link) {
-      continue;
-    }
-    switch (lib->lib->lib_kind) {
-      case SPN_LIB_KIND_SHARED: {
-        si_da_push(mem, link->cc.lib_dirs, lib->lib->pkg->paths.lib);
-        si_da_push(mem, link->cc.libs, lib->lib->info->name.str);
-        break;
-      }
-      case SPN_LIB_KIND_STATIC: {
-        if (!dynamic) {
-          si_da_push(mem, link->cc.lib_dirs, lib->lib->pkg->paths.lib);
-          si_da_push(mem, link->cc.libs, lib->lib->info->name.str);
-        }
-        else if (lib->private) {
-          si_da_push(mem, link->cc.lib_dirs, lib->lib->pkg->paths.lib);
-          si_da_push(mem, link->cc.private_libs, lib->lib->info->name.str);
-        }
-        else {
-          si_da_push(mem, link->cc.whole_archives, lib->lib->paths.output);
-        }
-        break;
-      }
-      case SPN_LIB_KIND_SOURCE:
-      case SPN_LIB_KIND_OBJECT:
-      case SPN_LIB_KIND_NONE: {
-        break;
-      }
     }
   }
 

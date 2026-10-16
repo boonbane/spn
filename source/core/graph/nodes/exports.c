@@ -47,8 +47,8 @@ static spn_err_t write_exports(sp_mem_t mem, spn_dag_t* g, si_exports_t* ctx, sp
 
   si_da(spn_path_t) archives = sp_zero;
   si_da_push(mem, archives, archive);
-  si_da_for(ctx->link->whole_archives, it) {
-    si_da_push(mem, archives, ctx->link->whole_archives[it]);
+  si_da_for(ctx->whole_archives, it) {
+    si_da_push(mem, archives, spn_dag_find_artifact(g, ctx->whole_archives[it])->materialized);
   }
 
   si_str_ht(u8) seen = sp_zero;

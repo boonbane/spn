@@ -15,12 +15,18 @@ typedef struct {
 typedef struct {
   spn_dag_id_t action;
   spn_dag_id_t output;
+  spn_dag_id_t implib;
+  si_link_t* link;
   struct {
     spn_dag_id_t action;
     spn_dag_id_t object;
     spn_dag_id_t header;
   } embed;
-  spn_dag_id_t exports;
+  struct {
+    spn_dag_id_t action;
+    spn_dag_id_t file;
+    si_exports_t* ctx;
+  } exports;
 } spn_dag_target_ids_t;
 
 struct spn_dag_build_t {

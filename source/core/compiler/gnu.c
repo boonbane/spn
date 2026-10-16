@@ -463,8 +463,21 @@ void spn_gnu_render_link(sp_mem_t mem, const spn_cc_t* toolchain, const spn_prof
     }
     case SPN_CC_OUTPUT_SHARED_LIB: {
       spn_cc_push_c(mem, invocation, "-shared");
-      if (format == SPN_OBJ_MACHO) {
-        spn_cc_push_fmt(mem, invocation, "-Wl,-install_name,@rpath/{}", sp_fmt_str(sp_fs_get_name(files->output.sub)));
+      switch (format) {
+        case SPN_OBJ_ELF: {
+          spn_cc_push_fmt(mem, invocation, "-Wl,-soname,{}", sp_fmt_str(sp_fs_get_name(files->output.sub)));
+          break;
+        }
+        case SPN_OBJ_MACHO: {
+          spn_cc_push_fmt(mem, invocation, "-Wl,-install_name,@rpath/{}", sp_fmt_str(sp_fs_get_name(files->output.sub)));
+          break;
+        }
+        case SPN_OBJ_COFF: {
+          break;
+        }
+        case SPN_OBJ_WASM: {
+          sp_unreachable_case();
+        }
       }
       if (is_gnu_runtime_static) {
         add_static_runtime(mem, profile->os, invocation);
@@ -501,17 +514,14 @@ void spn_gnu_render_link(sp_mem_t mem, const spn_cc_t* toolchain, const spn_prof
     spn_cc_push_str(mem, invocation, link->args[it]);
   }
   spn_cc_push_args(mem, invocation, objects);
-  if (!si_da_empty(link->whole_archives)) {
-    add_whole_archives(mem, dialect, link->whole_archives, invocation);
+  if (!si_da_empty(files->whole_archives)) {
+    add_whole_archives(mem, dialect, files->whole_archives, invocation);
   }
-  si_da_for(link->lib_dirs, it) {
-    spn_cc_push_glued(mem, invocation, "-L", link->lib_dirs[it]);
+  si_da_for(files->archives, it) {
+    spn_cc_push_path(mem, invocation, files->archives[it]);
   }
-  si_da_for(link->private_libs, it) {
-    spn_cc_push_fmt(mem, invocation, "-l{}", sp_fmt_str(link->private_libs[it]));
-  }
-  si_da_for(link->libs, it) {
-    spn_cc_push_fmt(mem, invocation, "-l{}", sp_fmt_str(link->libs[it]));
+  si_da_for(files->shared, it) {
+    spn_cc_push_path(mem, invocation, files->shared[it]);
   }
   si_da_for(link->system_libs, it) {
     spn_cc_push_fmt(mem, invocation, "-l{}", sp_fmt_str(link->system_libs[it]));

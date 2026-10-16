@@ -117,9 +117,20 @@ typedef struct {
   spn_path_t file;
 } spn_compile_unit_t;
 
+typedef enum {
+  SPN_LINK_ROLE_ARCHIVE,
+  SPN_LINK_ROLE_SHARED,
+  SPN_LINK_ROLE_WHOLE_ARCHIVE,
+} spn_link_role_t;
+
+typedef struct {
+  spn_target_unit_t* lib;
+  spn_link_role_t role;
+} spn_link_dep_t;
+
 typedef struct {
   spn_cc_link_t cc;
-  si_da(spn_link_lib_t) libs;
+  si_da(spn_link_dep_t) deps;
 } spn_link_plan_t;
 
 typedef struct {

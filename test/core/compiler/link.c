@@ -11,12 +11,11 @@ typedef struct {
   test_profile_t profile;
   spn_cc_output_kind_t kind;
   const c8* exports;
-  const c8* lib;
+  const c8* archive;
+  const c8* shared;
   const c8* whole_archive;
-  const c8* private_lib;
   const c8* system_lib;
   const c8* framework;
-  const c8* lib_dir;
   const c8* arg;
   const c8* script;
   const c8* libc;
@@ -120,9 +119,8 @@ static const link_test_t tests [] = {
       .linking.runtime = SPN_RUNTIME_STATIC,
     },
     .kind = SPN_CC_OUTPUT_SHARED_LIB,
-    .private_lib = "spum",
+    .archive = "spum.lib",
     .system_lib = "ws2_32",
-    .lib_dir = "deps/lib",
     .expect = {
       .command = "cc",
       .args = {
@@ -130,8 +128,7 @@ static const link_test_t tests [] = {
         "/LD",
         "main.o",
         "spum.lib", "ws2_32.lib",
-        "/Femain",
-        "/link", "/LIBPATH:deps/lib"
+        "/Femain"
       },
     },
   },
@@ -327,7 +324,7 @@ static const link_test_t tests [] = {
     .kind = SPN_CC_OUTPUT_SHARED_LIB,
     .expect = {
       .command = "cc",
-      .args = { "-shared", "main.o", "-Wl,-rpath,$ORIGIN", "-o", "main" },
+      .args = { "-shared", "-Wl,-soname,main", "main.o", "-Wl,-rpath,$ORIGIN", "-o", "main" },
     },
   },
   {
@@ -378,7 +375,7 @@ static const link_test_t tests [] = {
     .kind = SPN_CC_OUTPUT_SHARED_LIB,
     .expect = {
       .command = "cc",
-      .args = { "-shared", "-static-libstdc++", "-static-libgcc", "main.o", "-Wl,-rpath,$ORIGIN", "-o", "main" },
+      .args = { "-shared", "-Wl,-soname,main", "-static-libstdc++", "-static-libgcc", "main.o", "-Wl,-rpath,$ORIGIN", "-o", "main" },
     },
   },
   {
@@ -485,21 +482,6 @@ static const link_test_t tests [] = {
     .expect = {
       .command = "cc",
       .args = { "--target=aarch64-macos", "main.o", "-Wl,-rpath,@loader_path", "-o", "main" },
-    },
-  },
-  {
-    .name = "lib_dirs_and_rpath",
-    .driver = SPN_CC_DRIVER_GCC,
-    .profile = {
-      .arch = SPN_ARCH_X64,
-      .os = SPN_OS_LINUX,
-      .abi = SPN_ABI_GNU,
-    },
-    .kind = SPN_CC_OUTPUT_EXE,
-    .lib_dir = "deps/lib",
-    .expect = {
-      .command = "cc",
-      .args = { "main.o", "-Ldeps/lib", "-Wl,-rpath,$ORIGIN", "-o", "main" },
     },
   },
   {
@@ -635,12 +617,12 @@ static const link_test_t tests [] = {
       .abi = SPN_ABI_GNU,
     },
     .kind = SPN_CC_OUTPUT_EXE,
-    .lib = "A",
-    .private_lib = "P",
+    .archive = "libA.a",
+    .shared = "libS.so",
     .system_lib = "m",
     .expect = {
       .command = "cc",
-      .args = { "main.o", "-lP", "-lA", "-lm", "-Wl,-rpath,$ORIGIN", "-o", "main" },
+      .args = { "main.o", "libA.a", "libS.so", "-lm", "-Wl,-rpath,$ORIGIN", "-o", "main" },
     },
   },
   {
@@ -669,14 +651,14 @@ static const link_test_t tests [] = {
     .kind = SPN_CC_OUTPUT_SHARED_LIB,
     .exports = "S.map",
     .whole_archive = "libD.a",
-    .private_lib = "P",
+    .archive = "libP.a",
     .expect = {
       .command = "cc",
       .args = {
-        "-shared", "-Wl,--version-script,S.map",
+        "-shared", "-Wl,-soname,main", "-Wl,--version-script,S.map",
         "main.o",
         "-Wl,--whole-archive", "libD.a", "-Wl,--no-whole-archive",
-        "-lP",
+        "libP.a",
         "-Wl,-rpath,$ORIGIN", "-o", "main"
       },
     },
@@ -691,7 +673,7 @@ static const link_test_t tests [] = {
     .kind = SPN_CC_OUTPUT_SHARED_LIB,
     .exports = "S.exp",
     .whole_archive = "libD.a",
-    .private_lib = "P",
+    .archive = "libP.a",
     .expect = {
       .command = "cc",
       .args = {
@@ -699,7 +681,7 @@ static const link_test_t tests [] = {
         "-shared", "-Wl,-install_name,@rpath/main", "-Wl,-exported_symbols_list,S.exp",
         "main.o",
         "-Wl,-force_load,libD.a",
-        "-lP",
+        "libP.a",
         "-Wl,-rpath,@loader_path", "-o", "main"
       },
     },
@@ -715,14 +697,14 @@ static const link_test_t tests [] = {
     .kind = SPN_CC_OUTPUT_SHARED_LIB,
     .exports = "S.def",
     .whole_archive = "libD.a",
-    .private_lib = "P",
+    .archive = "libP.a",
     .expect = {
       .command = "cc",
       .args = {
         "-shared", "S.def",
         "main.o",
         "-Wl,--whole-archive", "libD.a", "-Wl,--no-whole-archive",
-        "-lP",
+        "libP.a",
         "-o", "main"
       },
     },
@@ -738,7 +720,7 @@ static const link_test_t tests [] = {
     .kind = SPN_CC_OUTPUT_SHARED_LIB,
     .exports = "S.def",
     .whole_archive = "libD.a",
-    .private_lib = "P",
+    .archive = "libP.a",
     .expect = {
       .command = "cc",
       .args = {
@@ -746,7 +728,7 @@ static const link_test_t tests [] = {
         "-shared", "S.def",
         "main.o",
         "-Wl,--whole-archive", "libD.a", "-Wl,--no-whole-archive",
-        "-lP",
+        "libP.a",
         "-o", "main"
       },
     },
@@ -910,7 +892,7 @@ static const link_test_t tests [] = {
     .kind = SPN_CC_OUTPUT_SHARED_LIB,
     .exports = "S.def",
     .whole_archive = "libD.a",
-    .private_lib = "P",
+    .archive = "P.lib",
     .expect = {
       .command = "cc",
       .args = {
@@ -919,7 +901,7 @@ static const link_test_t tests [] = {
         "-shared", "-Wl,/DEF:S.def",
         "main.o",
         "-Wl,/WHOLEARCHIVE:libD.a",
-        "-lP",
+        "P.lib",
         "-o", "main"
       },
     },
@@ -1079,29 +1061,27 @@ sp_test_each(render_link, render, link_test_t, tests, .setup = spn_test_ctx_setu
     .min_os = it->min_os,
     .subsystem = it->subsystem,
   };
+  spn_cc_link_files_t files = { .output = test_arg_path("main") };
 
   sp_da(spn_arg_t) objects = sp_da_new(mem, spn_arg_t);
   sp_da_push(objects, spn_arg_path(test_arg_path("main.o")));
   if (it->exports) {
     link.exports = test_arg_path(it->exports);
   }
-  if (it->lib) {
-    si_da_push(mem, link.libs, sp_str_from_cstr(mem, it->lib));
+  if (it->archive) {
+    si_da_push(mem, files.archives, test_arg_path(it->archive));
+  }
+  if (it->shared) {
+    si_da_push(mem, files.shared, test_arg_path(it->shared));
   }
   if (it->whole_archive) {
-    si_da_push(mem, link.whole_archives, test_arg_path(it->whole_archive));
-  }
-  if (it->private_lib) {
-    si_da_push(mem, link.private_libs, sp_str_from_cstr(mem, it->private_lib));
+    si_da_push(mem, files.whole_archives, test_arg_path(it->whole_archive));
   }
   if (it->system_lib) {
     si_da_push(mem, link.system_libs, sp_str_from_cstr(mem, it->system_lib));
   }
   if (it->framework) {
     si_da_push(mem, link.frameworks, sp_str_from_cstr(mem, it->framework));
-  }
-  if (it->lib_dir) {
-    si_da_push(mem, link.lib_dirs, test_arg_path(it->lib_dir));
   }
   if (it->arg) {
     si_da_push(mem, link.args, sp_str_from_cstr(mem, it->arg));
@@ -1135,7 +1115,6 @@ sp_test_each(render_link, render, link_test_t, tests, .setup = spn_test_ctx_setu
     }
     return SP_OK;
   }
-  spn_cc_link_files_t files = { .output = test_arg_path("main") };
   profile.sdk = spn_sdk_for_driver(spn_toolchain_driver_caps(it->driver), profile.sdk);
   if (it->libc) {
     sp_must_eq(t, (u32)SPN_SDK_LIBC, (u32)profile.sdk.kind);

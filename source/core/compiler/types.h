@@ -68,6 +68,9 @@ typedef struct {
   spn_path_t output;
   spn_path_t implib;
   spn_path_t libc;
+  si_da(spn_path_t) archives;
+  si_da(spn_path_t) shared;
+  si_da(spn_path_t) whole_archives;
 } spn_cc_link_files_t;
 
 typedef struct {
@@ -75,14 +78,10 @@ typedef struct {
   sp_str_t name;
   spn_lang_t lang;
   spn_cc_output_kind_t kind;
-  si_da(sp_str_t) libs;
-  si_da(sp_str_t) private_libs;
   si_da(sp_str_t) system_libs;
-  si_da(spn_path_t) lib_dirs;
   si_da(sp_str_t) frameworks;
   si_da(sp_str_t) args;
   si_da(spn_path_t) scripts;
-  si_da(spn_path_t) whole_archives;
   spn_path_t exports;
   spn_path_t implib;
   spn_os_version_t min_os;
