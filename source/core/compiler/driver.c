@@ -111,7 +111,7 @@ static spn_cc_feature_t link_feature(spn_cc_output_kind_t kind) {
   SP_UNREACHABLE_RETURN(SPN_CC_FEATURE_LINK_EXE);
 }
 
-void spn_cc_render_compile(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, const spn_cc_compile_t* compile, spn_invocation_t* invocation) {
+void si_cc_render_compile(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, const spn_cc_compile_t* compile, spn_invocation_t* invocation) {
   *invocation = sp_zero_s(spn_invocation_t);
   switch (toolchain->driver) {
     case SPN_CC_DRIVER_GCC:
@@ -185,6 +185,25 @@ void si_cc_render_archive(sp_mem_t mem, const spn_cc_t* toolchain, const spn_pro
       break;
     }
   }
+}
+
+void si_cc_render_link(sp_mem_t mem, const spn_cc_t* cc, const spn_profile_info_t* profile, const spn_cc_link_t* link, sp_da(spn_arg_t) objects, const spn_cc_link_files_t* files, spn_invocation_t* invocation) {
+  switch (cc->driver) {
+    case SPN_CC_DRIVER_GCC:
+    case SPN_CC_DRIVER_CLANG:
+    case SPN_CC_DRIVER_ZIG: {
+      spn_gnu_render_link(mem, cc, profile, link, objects, files, invocation);
+      break;
+    }
+    case SPN_CC_DRIVER_MSVC: {
+      spn_msvc_render_link(mem, cc, profile, link, objects, files, invocation);
+      break;
+    }
+    case SPN_CC_DRIVER_NONE: {
+      sp_unreachable_case();
+    }
+  }
+
 }
 
 spn_cc_link_refusal_t spn_cc_validate_link(const spn_cc_t* toolchain, spn_triple_t host, const spn_profile_info_t* profile, const spn_cc_link_t* link) {

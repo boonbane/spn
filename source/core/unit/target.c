@@ -400,7 +400,7 @@ static spn_err_t build_target_plan(spn_target_unit_t* target) {
   sp_da_for(target->objects, it) {
     spn_compile_unit_t* unit = target->objects[it];
     compile.lang = unit->lang;
-    spn_cc_render_compile(mem, toolchain, profile, &compile, &unit->base);
+    si_cc_render_compile(mem, toolchain, profile, &compile, &unit->base);
     unit->base.cwd = pkg->paths.work;
   }
   sp_mem_end_scratch(scratch);

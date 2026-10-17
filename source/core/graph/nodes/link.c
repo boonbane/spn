@@ -17,7 +17,9 @@ spn_err_t si_on_link(spn_dag_t* g, spn_dag_action_t* action, void* user_data, sp
   spn_target_unit_t* target = ctx->target;
   spn_build_unit_t* build = target->pkg->build;
   spn_cc_t* cc = &build->toolchain->cc;
+
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+
   spn_cc_link_files_t files = {
     .output = outputs[0],
     .libc = si_dag_build_libc(g, ctx->build),
@@ -45,23 +47,10 @@ spn_err_t si_on_link(spn_dag_t* g, spn_dag_action_t* action, void* user_data, sp
       sp_unreachable_case();
     }
   }
+
   sp_da(spn_arg_t) objects = si_dag_build_objects(scratch.mem, g, &ctx->objects);
   spn_invocation_t invocation = sp_zero;
-  switch (cc->driver) {
-    case SPN_CC_DRIVER_GCC:
-    case SPN_CC_DRIVER_CLANG:
-    case SPN_CC_DRIVER_ZIG: {
-      spn_gnu_render_link(scratch.mem, cc, &build->profile, &target->link.cc, objects, &files, &invocation);
-      break;
-    }
-    case SPN_CC_DRIVER_MSVC: {
-      spn_msvc_render_link(scratch.mem, cc, &build->profile, &target->link.cc, objects, &files, &invocation);
-      break;
-    }
-    case SPN_CC_DRIVER_NONE: {
-      sp_unreachable_case();
-    }
-  }
+  si_cc_render_link(scratch.mem, cc, &build->profile, &target->link.cc, objects, &files, &invocation);
   invocation.cwd = target->pkg->paths.work;
 
   spn_pkg_unit_announce_compile(target->pkg);

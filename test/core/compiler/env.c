@@ -40,13 +40,13 @@ sp_test_each(render_env, render, env_test_t, tests, .setup = spn_test_ctx_setup)
   switch (it->render) {
     case RENDER_COMPILE: {
       spn_cc_compile_t compile = { .lang = SPN_LANG_C };
-      spn_cc_render_compile(mem, &toolchain, &profile, &compile, &invocation);
+      si_cc_render_compile(mem, &toolchain, &profile, &compile, &invocation);
       break;
     }
     case RENDER_COMPILE_COMMAND: {
       spn_cc_compile_t compile = { .lang = SPN_LANG_C };
       spn_invocation_t base = sp_zero;
-      spn_cc_render_compile(mem, &toolchain, &profile, &compile, &base);
+      si_cc_render_compile(mem, &toolchain, &profile, &compile, &base);
       spn_cc_compile_files_t files = {
         .source = test_arg_path("main.c"),
         .output = test_arg_path("main.o"),

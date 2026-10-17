@@ -652,7 +652,7 @@ sp_test_each(render_compile, render, compile_test_t, tests, .setup = spn_test_ct
     sp_must_eq(t, (u32)SPN_SDK_LIBC, (u32)profile.sdk.kind);
   }
   spn_invocation_t base = sp_zero;
-  spn_cc_render_compile(mem, &toolchain, &profile, &compile, &base);
+  si_cc_render_compile(mem, &toolchain, &profile, &compile, &base);
 
   spn_cc_compile_files_t files = {
     .source = test_arg_path("main.c"),
@@ -682,7 +682,7 @@ sp_test(render_compile, base_shared_across_commands, .setup = spn_test_ctx_setup
   sp_must_eq(t, (u32)SPN_SDK_LIBC, (u32)profile.sdk.kind);
 
   spn_invocation_t base = sp_zero;
-  spn_cc_render_compile(mem, &toolchain, &profile, &compile, &base);
+  si_cc_render_compile(mem, &toolchain, &profile, &compile, &base);
   u64 args = sp_da_size(base.args);
   u64 env = sp_da_size(base.env);
 
