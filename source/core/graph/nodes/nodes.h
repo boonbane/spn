@@ -12,13 +12,13 @@
 
 typedef struct {
   spn_target_unit_t* target;
-  const spn_cc_link_t* link;
   spn_dag_build_objects_t objects;
   struct {
     si_da(spn_dag_id_t) archives;
     si_da(spn_dag_id_t) shared;
     si_da(spn_dag_id_t) whole_archives;
   } deps;
+  spn_dag_id_t exports;
   const spn_dag_build_ctx_t* build;
 } si_link_t;
 
@@ -35,7 +35,6 @@ typedef struct {
 
 typedef struct {
   spn_compile_unit_t* unit;
-  const spn_invocation_t* invocation;
   const spn_dag_build_ctx_t* build;
 } si_compile_t;
 

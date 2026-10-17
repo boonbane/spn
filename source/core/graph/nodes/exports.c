@@ -4,8 +4,6 @@
 #include "unit/types.h"
 
 #include "compiler/driver.h"
-#include "compiler/exports.h"
-#include "compiler/rsp.h"
 #include "compiler/toc.h"
 #include "dag/dag.h"
 #include "error/error.h"
@@ -16,7 +14,6 @@
 #include "intern/intern.h"
 #include "paths/paths.h"
 #include "session/invocation.h"
-#include "triple/triple.h"
 #include "unit/package.h"
 
 static spn_err_t write_exports(sp_mem_t mem, spn_dag_t* g, si_exports_t* ctx, spn_path_t output) {
@@ -85,24 +82,7 @@ static spn_err_t write_exports(sp_mem_t mem, spn_dag_t* g, si_exports_t* ctx, sp
   if (sp_io_file_writer_from_path_at(&writer, spn_path_at(roots, output))) {
     return SPN_ERR_DAG_OUTPUT_WRITE;
   }
-  switch (spn_cc_exports_format(target->kind, spn_os_to_native_object_format(build->profile.os))) {
-    case SPN_CC_EXPORTS_VERSION_SCRIPT: {
-      spn_exports_render_version_script(&writer.base, symbols);
-      break;
-    }
-    case SPN_CC_EXPORTS_SYMBOL_LIST: {
-      spn_exports_render_symbol_list(&writer.base, symbols);
-      break;
-    }
-    case SPN_CC_EXPORTS_WASM: {
-      spn_rsp_render(&writer.base, roots, spn_rsp_style(build->toolchain->cc.driver), spn_gnu_render_exports(mem, symbols));
-      break;
-    }
-    case SPN_CC_EXPORTS_DEF: {
-      spn_exports_render_def(&writer.base, target->info->name.str, symbols);
-      break;
-    }
-  }
+  spn_cc_render_exports(&writer.base, roots, &build->toolchain->cc, &build->profile, target->kind, target->info->name.str, symbols);
   sp_io_file_writer_close(&writer);
   return SPN_OK;
 }

@@ -115,6 +115,7 @@ typedef struct {
   spn_lang_t lang;
   sp_str_t name;
   spn_path_t file;
+  spn_invocation_t base;
 } spn_compile_unit_t;
 
 typedef enum {
@@ -133,11 +134,6 @@ typedef struct {
   si_da(spn_link_dep_t) deps;
 } spn_link_plan_t;
 
-typedef struct {
-  si_da(spn_path_t) include;
-  spn_link_plan_t link;
-} spn_target_plan_t;
-
 struct spn_target_unit {
   spn_target_unit_id_t id;
   spn_pkg_unit_t* pkg;
@@ -151,6 +147,7 @@ struct spn_target_unit {
 
   sp_da(spn_compile_unit_t*) objects;
   sp_da(spn_target_unit_t*) deps;
+  spn_link_plan_t link;
 };
 
 struct spn_pkg_unit_t {

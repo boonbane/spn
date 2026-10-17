@@ -8,25 +8,8 @@
 #include "unit/types.h"
 
 typedef struct {
-  spn_dag_id_t action;
-  spn_dag_id_t object;
-} spn_dag_object_ids_t;
-
-typedef struct {
-  spn_dag_id_t action;
   spn_dag_id_t output;
   spn_dag_id_t implib;
-  si_link_t* link;
-  struct {
-    spn_dag_id_t action;
-    spn_dag_id_t object;
-    spn_dag_id_t header;
-  } embed;
-  struct {
-    spn_dag_id_t action;
-    spn_dag_id_t file;
-    si_exports_t* ctx;
-  } exports;
 } spn_dag_target_ids_t;
 
 struct spn_dag_build_t {
@@ -35,14 +18,17 @@ struct spn_dag_build_t {
   spn_dag_t* graph;
 
   struct {
-    sp_ht(spn_pkg_unit_t*, sp_da(spn_dag_id_t)) user_outputs;
-    sp_ht(spn_path_t, spn_dag_id_t) stamps;
+    sp_ht(spn_pkg_unit_t*, spn_dag_id_t) stamps;
     sp_ht(spn_target_unit_t*, spn_dag_target_ids_t) targets;
-    sp_ht(spn_compile_unit_t*, spn_dag_object_ids_t) objects;
+    sp_ht(spn_target_unit_t*, spn_dag_id_t) embeds;
     sp_ht(spn_build_unit_t*, spn_dag_build_ctx_t*) builds;
     sp_ht(spn_dag_digest_t, spn_dag_id_t) warm;
   } ids;
-  spn_dag_id_t compile_commands;
+  si_da(spn_dag_id_t) compiles;
+  struct {
+    spn_dag_id_t file;
+    spn_dag_id_t stamp;
+  } compile_commands;
   spn_dag_action_cache_t actions;
   spn_dag_obs_table_t discovery;
   spn_dag_store_t store;
@@ -58,6 +44,7 @@ spn_err_t        spn_dag_build_session(spn_op_t* op);
 spn_dag_build_t* spn_dag_build_new(spn_op_t* op);
 spn_err_t        spn_dag_build_run(spn_dag_build_t* b, u32 workers);
 spn_err_t        spn_dag_build_add_build(spn_dag_build_t* b, spn_build_unit_t* build);
-spn_err_t        spn_dag_build_add_target(spn_dag_build_t* b, spn_target_unit_t* target, const spn_target_plan_t* plan);
+void             spn_dag_build_declare_target(spn_dag_build_t* b, spn_target_unit_t* target);
+spn_err_t        spn_dag_build_add_target(spn_dag_build_t* b, spn_target_unit_t* target);
 
 #endif

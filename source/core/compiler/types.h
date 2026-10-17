@@ -67,6 +67,7 @@ typedef struct {
 typedef struct {
   spn_path_t output;
   spn_path_t implib;
+  spn_path_t exports;
   spn_path_t libc;
   si_da(spn_path_t) archives;
   si_da(spn_path_t) shared;
@@ -74,19 +75,20 @@ typedef struct {
 } spn_cc_link_files_t;
 
 typedef struct {
-  sp_str_t pkg;
-  sp_str_t name;
   spn_lang_t lang;
   spn_cc_output_kind_t kind;
   si_da(sp_str_t) system_libs;
   si_da(sp_str_t) frameworks;
   si_da(sp_str_t) args;
   si_da(spn_path_t) scripts;
-  spn_path_t exports;
-  spn_path_t implib;
   spn_os_version_t min_os;
   spn_win_subsystem_t subsystem;
 } spn_cc_link_t;
+
+typedef struct {
+  spn_err_t err;
+  spn_cc_feature_t feature;
+} spn_cc_link_refusal_t;
 
 typedef enum {
   SPN_CC_EXPORTS_VERSION_SCRIPT,

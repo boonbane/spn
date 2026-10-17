@@ -456,9 +456,7 @@ void spn_gnu_render_link(sp_mem_t mem, const spn_cc_t* toolchain, const spn_prof
       spn_cc_push_c(mem, invocation, "-mexec-model=reactor");
       spn_cc_push_c(mem, invocation, "-Wl,--no-entry");
       spn_cc_push_c(mem, invocation, "-Wl,--import-symbols");
-      if (!spn_path_empty(link->exports)) {
-        add_exports(mem, format, dialect, link->exports, invocation);
-      }
+      add_exports(mem, format, dialect, files->exports, invocation);
       break;
     }
     case SPN_CC_OUTPUT_SHARED_LIB: {
@@ -482,10 +480,8 @@ void spn_gnu_render_link(sp_mem_t mem, const spn_cc_t* toolchain, const spn_prof
       if (is_gnu_runtime_static) {
         add_static_runtime(mem, profile->os, invocation);
       }
-      if (!spn_path_empty(link->exports)) {
-        add_exports(mem, format, dialect, link->exports, invocation);
-      }
-      if (!spn_path_empty(files->implib)) {
+      add_exports(mem, format, dialect, files->exports, invocation);
+      if (spn_cc_link_implib(profile, link->kind)) {
         spn_cc_push_glued(mem, invocation, "-Wl,/IMPLIB:", files->implib);
       }
       break;

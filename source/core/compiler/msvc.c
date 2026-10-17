@@ -238,10 +238,8 @@ void spn_msvc_render_link(sp_mem_t mem, const spn_cc_t* toolchain, const spn_pro
   if (profile->mode == SPN_MODE_DEBUG) {
     sp_da_push(linker, spn_arg_lit(sp_str_lit("/DEBUG")));
   }
-  if (!spn_path_empty(link->exports)) {
-    sp_da_push(linker, spn_arg_glue(sp_str_lit("/DEF:"), link->exports));
-  }
-  if (!spn_path_empty(files->implib)) {
+  if (link->kind == SPN_CC_OUTPUT_SHARED_LIB) {
+    sp_da_push(linker, spn_arg_glue(sp_str_lit("/DEF:"), files->exports));
     sp_da_push(linker, spn_arg_glue(sp_str_lit("/IMPLIB:"), files->implib));
   }
   si_da_for(files->whole_archives, it) {

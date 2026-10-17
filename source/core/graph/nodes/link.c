@@ -20,23 +20,42 @@ spn_err_t si_on_link(spn_dag_t* g, spn_dag_action_t* action, void* user_data, sp
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   spn_cc_link_files_t files = {
     .output = outputs[0],
-    .implib = spn_path_empty(ctx->link->implib) ? sp_zero_s(spn_path_t) : outputs[1],
     .libc = si_dag_build_libc(g, ctx->build),
     .archives = si_dag_build_paths(scratch.mem, g, ctx->deps.archives),
     .shared = si_dag_build_paths(scratch.mem, g, ctx->deps.shared),
     .whole_archives = si_dag_build_paths(scratch.mem, g, ctx->deps.whole_archives),
   };
+  switch (target->kind) {
+    case SPN_CC_OUTPUT_REACTOR: {
+      files.exports = spn_dag_find_artifact(g, ctx->exports)->materialized;
+      break;
+    }
+    case SPN_CC_OUTPUT_SHARED_LIB: {
+      files.exports = spn_dag_find_artifact(g, ctx->exports)->materialized;
+      if (spn_cc_link_implib(&build->profile, target->kind)) {
+        files.implib = outputs[1];
+      }
+      break;
+    }
+    case SPN_CC_OUTPUT_EXE: {
+      break;
+    }
+    case SPN_CC_OUTPUT_OBJECT:
+    case SPN_CC_OUTPUT_STATIC_LIB: {
+      sp_unreachable_case();
+    }
+  }
   sp_da(spn_arg_t) objects = si_dag_build_objects(scratch.mem, g, &ctx->objects);
   spn_invocation_t invocation = sp_zero;
   switch (cc->driver) {
     case SPN_CC_DRIVER_GCC:
     case SPN_CC_DRIVER_CLANG:
     case SPN_CC_DRIVER_ZIG: {
-      spn_gnu_render_link(scratch.mem, cc, &build->profile, ctx->link, objects, &files, &invocation);
+      spn_gnu_render_link(scratch.mem, cc, &build->profile, &target->link.cc, objects, &files, &invocation);
       break;
     }
     case SPN_CC_DRIVER_MSVC: {
-      spn_msvc_render_link(scratch.mem, cc, &build->profile, ctx->link, objects, &files, &invocation);
+      spn_msvc_render_link(scratch.mem, cc, &build->profile, &target->link.cc, objects, &files, &invocation);
       break;
     }
     case SPN_CC_DRIVER_NONE: {

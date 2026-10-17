@@ -2,6 +2,7 @@
 
 #include "pkg/mutate.h"
 #include "session/session.h"
+#include "triple/triple.h"
 
 sp_test_suite(link_plan, .serial = true);
 
@@ -31,6 +32,8 @@ typedef struct {
   const c8* scripts [UNIT_TEST_MAX_STRS];
   spn_os_version_t min_os;
   spn_lang_t lang;
+  spn_err_t err;
+  spn_cc_feature_t feature;
 } plan_expect_t;
 
 typedef struct {
@@ -235,6 +238,32 @@ static const plan_test_t tests [] = {
       .deps = { { "D1" }, { "T1" } },
     },
   },
+  {
+    .name = "frameworks_without_sdk_refused",
+    .target = { .kind = SPN_TARGET_KIND_EXE, .source = { "main.c" }, .frameworks = { "Metal" } },
+    .graph = {
+      .os = SPN_OS_MACOS,
+      .pkgs = { { .name = "P1" } },
+    },
+    .expect = {
+      .err = SPN_ERR_COMPILER_FEATURE_UNSUPPORTED,
+      .feature = SPN_CC_FEATURE_FRAMEWORKS,
+      .frameworks = { "Metal" },
+    },
+  },
+  {
+    .name = "linker_script_on_macos_refused",
+    .target = { .kind = SPN_TARGET_KIND_EXE, .source = { "main.c" }, .linker_script = { "A.ld" } },
+    .graph = {
+      .os = SPN_OS_MACOS,
+      .sdk = "/sdk",
+      .pkgs = { { .name = "P1" } },
+    },
+    .expect = {
+      .err = SPN_ERR_COMPILER_FEATURE_UNSUPPORTED,
+      .feature = SPN_CC_FEATURE_LINKER_SCRIPT,
+    },
+  },
 };
 
 static void target_info(sp_mem_t mem, spn_tree_roots_t trees, const plan_target_t* spec, spn_target_info_t* info) {
@@ -267,12 +296,26 @@ sp_test_each(link_plan, plan, plan_test_t, tests, .setup = spn_test_ctx_setup) {
   s->plans.build[0].selection.kinds = spn_target_kind_bit(it->target.kind);
 
   sp_must_eq(t, SPN_OK, spn_units_add_packages(s));
-  sp_must_eq(t, SPN_OK, spn_units_add_targets(s, SPN_UNIT_SCOPE_TARGET));
+  spn_err_t err = spn_units_add_targets(s, SPN_UNIT_SCOPE_TARGET);
+  sp_must_eq(t, it->expect.err, err);
+  if (err) {
+    sp_da(spn_event_t) errs = spn_test_drain_errs(mem);
+    sp_must_eq(t, 1, sp_da_size(errs));
+    sp_expect_eq(t, err, errs[0].err.kind);
+    spn_err_compiler_t* refusal = &errs[0].err.compiler;
+    sp_expect_eq(t, it->expect.feature, refusal->feature);
+    sp_expect_str_eq_c(t, refusal->toolchain, "test");
+    sp_expect_str_eq_c(t, refusal->pkg, "P1");
+    sp_expect_str_eq_c(t, refusal->name, "app");
+    sp_expect(t, spn_triple_equal(refusal->target, spn_profile_triple(&s->units.target->profile)));
+    sp_must_strs_eq(t, refusal->frameworks, sp_da_size(refusal->frameworks), it->expect.frameworks);
+    return SP_OK;
+  }
 
   sp_must_eq(t, 1, si_da_size(s->plans.build[0].roots));
   spn_target_unit_t* app = s->plans.build[0].roots[0];
 
-  spn_link_plan_t* plan = &spn_session_get_target_plan(s, app->id)->link;
+  spn_link_plan_t* plan = &app->link;
   u32 num_deps = 0;
   sp_carr_detect_len(it->expect.deps, num_deps, it->expect.deps[num_deps].lib);
   sp_must_eq(t, num_deps, si_da_size(plan->deps));

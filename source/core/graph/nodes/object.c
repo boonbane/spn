@@ -73,11 +73,11 @@ static spn_err_t compile_object(sp_mem_t scratch, spn_dag_t* g, si_compile_t* ct
   }
 
   if (mode == SPN_CC_DEPFILE_NONE) {
-    return run_compiler(g->roots, unit, ctx->invocation, &files) ? SPN_ERR_DAG_ACTION : SPN_OK;
+    return run_compiler(g->roots, unit, &unit->base, &files) ? SPN_ERR_DAG_ACTION : SPN_OK;
   }
 
   files.depfile = spn_path_concat(scratch, object, ".d");
-  if (run_compiler(g->roots, unit, ctx->invocation, &files)) {
+  if (run_compiler(g->roots, unit, &unit->base, &files)) {
     return SPN_ERR_DAG_ACTION;
   }
 

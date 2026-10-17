@@ -23,7 +23,6 @@
 #include "target/select.h"
 #include "graph/build.h"
 #include "profile/types.h"
-#include "toolchain/linker.h"
 #include "toolchain/toolchain.h"
 #include "triple/triple.h"
 
@@ -271,54 +270,21 @@ static spn_err_t build_target_plan(spn_target_unit_t* target) {
   spn_cc_t* toolchain = &build->toolchain->cc;
   sp_mem_t mem = s->mem;
 
-  spn_target_plan_t* plan = SP_NULLPTR;
-  sp_om_emplace(s->plans.targets, target->id, plan);
-
-  si_da_for(info->configured.include, it) {
-    si_da_push(mem, plan->include, info->configured.include[it]);
-  }
-  si_da_for(pkg->info->configured.include, it) {
-    si_da_push(mem, plan->include, pkg->info->configured.include[it]);
-  }
-  sp_da_for(build->include, it) {
-    si_da_push(mem, plan->include, build->include[it]);
-  }
-  si_da_for(pkg->info->include, it) {
-    si_da_push(mem, plan->include, pkg->info->include[it]);
-  }
-  si_da_for(info->include, it) {
-    si_da_push(mem, plan->include, info->include[it]);
-  }
-  if (info->kind == SPN_TARGET_KIND_EXAMPLE) {
-    si_da_push(mem, plan->include, pkg->paths.include);
-  }
-  sp_da_for(pkg->deps, it) {
-    if (!spn_dep_kind_applies(pkg->deps[it].kind, info->kind)) {
-      continue;
-    }
-    si_da_push(mem, plan->include, pkg->deps[it].unit->paths.include);
-  }
-  if (!si_da_empty(info->embed)) {
-    si_da_push(mem, plan->include, target->paths.object);
-  }
-
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   si_da(spn_closure_entry_t) closure = si_link_get_target_closure(scratch.mem, target);
   sp_assert(closure[0].pkg == pkg);
   si_da(spn_link_lib_t) libs = si_link_get_closure_libs(scratch.mem, closure);
   bool dynamic = target->kind == SPN_CC_OUTPUT_SHARED_LIB || target->kind == SPN_CC_OUTPUT_REACTOR;
 
-  plan->link = (spn_link_plan_t) {
+  spn_link_plan_t* link = &target->link;
+  *link = (spn_link_plan_t) {
     .cc = {
-      .pkg = pkg->info->name.str,
-      .name = info->name.str,
       .kind = target->kind,
       .lang = is_any_object_cxx(target->objects) ? SPN_LANG_CXX : SPN_LANG_C,
       .min_os = info->macos.min_os,
       .subsystem = info->windows.subsystem,
     },
   };
-  spn_link_plan_t* link = &plan->link;
   si_da_for(libs, it) {
     spn_target_unit_t* lib = libs[it].lib;
     spn_link_role_t role = SPN_LINK_ROLE_ARCHIVE;
@@ -364,25 +330,11 @@ static spn_err_t build_target_plan(spn_target_unit_t* target) {
   }
 
   switch (target->kind) {
-    case SPN_CC_OUTPUT_EXE: {
-      link->cc.args = info->link_flags;
-      link->cc.scripts = info->linker_script;
-      break;
-    }
-    case SPN_CC_OUTPUT_REACTOR: {
-      link->cc.args = info->link_flags;
-      link->cc.scripts = info->linker_script;
-      link->cc.exports = spn_target_exports_path(mem, target);
-      break;
-    }
+    case SPN_CC_OUTPUT_EXE:
+    case SPN_CC_OUTPUT_REACTOR:
     case SPN_CC_OUTPUT_SHARED_LIB: {
       link->cc.args = info->link_flags;
       link->cc.scripts = info->linker_script;
-      link->cc.exports = spn_target_exports_path(mem, target);
-      spn_triple_t triple = spn_profile_triple(profile);
-      if (spn_ld_dialect(triple) == SPN_LD_DIALECT_LINK) {
-        link->cc.implib = spn_path_join(mem, pkg->paths.lib, spn_triple_lib_file_name(scratch.mem, triple, info->name.str, SP_OS_LIB_STATIC));
-      }
       break;
     }
     case SPN_CC_OUTPUT_STATIC_LIB:
@@ -394,10 +346,36 @@ static spn_err_t build_target_plan(spn_target_unit_t* target) {
   spn_cc_compile_t compile = {
     .cxx = info->cxx,
     .pic = info->kind == SPN_TARGET_KIND_LIB && spn_triple_pic(spn_profile_triple(profile)),
-    .include = plan->include,
   };
   if (profile->os == SPN_OS_MACOS) {
     compile.min_os = link->cc.min_os;
+  }
+  si_da_for(info->configured.include, it) {
+    si_da_push(scratch.mem, compile.include, info->configured.include[it]);
+  }
+  si_da_for(pkg->info->configured.include, it) {
+    si_da_push(scratch.mem, compile.include, pkg->info->configured.include[it]);
+  }
+  sp_da_for(build->include, it) {
+    si_da_push(scratch.mem, compile.include, build->include[it]);
+  }
+  si_da_for(pkg->info->include, it) {
+    si_da_push(scratch.mem, compile.include, pkg->info->include[it]);
+  }
+  si_da_for(info->include, it) {
+    si_da_push(scratch.mem, compile.include, info->include[it]);
+  }
+  if (info->kind == SPN_TARGET_KIND_EXAMPLE) {
+    si_da_push(scratch.mem, compile.include, pkg->paths.include);
+  }
+  sp_da_for(pkg->deps, it) {
+    if (!spn_dep_kind_applies(pkg->deps[it].kind, info->kind)) {
+      continue;
+    }
+    si_da_push(scratch.mem, compile.include, pkg->deps[it].unit->paths.include);
+  }
+  if (!si_da_empty(info->embed)) {
+    si_da_push(scratch.mem, compile.include, target->paths.object);
   }
   sp_da_for(build->define, it) {
     si_da_push(scratch.mem, compile.define, build->define[it]);
@@ -421,12 +399,9 @@ static spn_err_t build_target_plan(spn_target_unit_t* target) {
   }
   sp_da_for(target->objects, it) {
     spn_compile_unit_t* unit = target->objects[it];
-    spn_invocation_t* invocation = SP_NULLPTR;
-    sp_om_emplace(s->plans.objects, unit->id, invocation);
-
     compile.lang = unit->lang;
-    spn_cc_render_compile(mem, toolchain, profile, &compile, invocation);
-    invocation->cwd = pkg->paths.work;
+    spn_cc_render_compile(mem, toolchain, profile, &compile, &unit->base);
+    unit->base.cwd = pkg->paths.work;
   }
   sp_mem_end_scratch(scratch);
 
@@ -434,7 +409,38 @@ static spn_err_t build_target_plan(spn_target_unit_t* target) {
     case SPN_CC_OUTPUT_EXE:
     case SPN_CC_OUTPUT_SHARED_LIB:
     case SPN_CC_OUTPUT_REACTOR: {
-      return spn_cc_validate_link(toolchain, spn.host, profile, &link->cc);
+      spn_cc_link_refusal_t refusal = spn_cc_validate_link(toolchain, spn.host, profile, &link->cc);
+      switch (refusal.err) {
+        case SPN_OK: {
+          return SPN_OK;
+        }
+        case SPN_ERR_COMPILER_FEATURE_UNSUPPORTED: {
+          return spn_err_emit(s->ctx, (spn_err_union_t) {
+            .kind = refusal.err,
+            .compiler = {
+              .toolchain = toolchain->name.str,
+              .target = spn_profile_triple(profile),
+              .feature = refusal.feature,
+              .pkg = pkg->info->name.str,
+              .name = info->name.str,
+              .frameworks = link->cc.frameworks,
+            },
+          });
+        }
+        case SPN_ERR_TOOLCHAIN_MSVC_LINKER_HOST: {
+          return spn_err_emit(s->ctx, (spn_err_union_t) {
+            .kind = refusal.err,
+            .toolchain = {
+              .name = toolchain->name.str,
+              .target = spn_profile_triple(profile),
+              .host = spn.host,
+            },
+          });
+        }
+        default: {
+          sp_unreachable_return(SPN_ERROR);
+        }
+      }
     }
     case SPN_CC_OUTPUT_STATIC_LIB:
     case SPN_CC_OUTPUT_OBJECT: {

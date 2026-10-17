@@ -1,11 +1,12 @@
 #include "compiler/driver.h"
+#include "compiler/exports.h"
 #include "compiler/push.h"
+#include "compiler/rsp.h"
 #include "compiler/types.h"
-#include "ctx/types.h"
 
-#include "error/error.h"
 #include "paths/paths.h"
 #include "profile/types.h"
+#include "toolchain/linker.h"
 #include "toolchain/toolchain.h"
 #include "triple/triple.h"
 
@@ -110,31 +111,6 @@ static spn_cc_feature_t link_feature(spn_cc_output_kind_t kind) {
   SP_UNREACHABLE_RETURN(SPN_CC_FEATURE_LINK_EXE);
 }
 
-static spn_err_t feature_unsupported(const spn_cc_t* toolchain, const spn_profile_info_t* profile, const spn_cc_link_t* link, spn_cc_feature_t feature) {
-  return spn_err_emit(&spn, (spn_err_union_t) {
-    .kind = SPN_ERR_COMPILER_FEATURE_UNSUPPORTED,
-    .compiler = {
-      .toolchain = toolchain->name.str,
-      .target = spn_profile_triple(profile),
-      .feature = feature,
-      .pkg = link->pkg,
-      .name = link->name,
-      .frameworks = link->frameworks,
-    },
-  });
-}
-
-static spn_err_t link_refused(spn_err_t kind, const spn_cc_t* toolchain, spn_triple_t host, const spn_profile_info_t* profile) {
-  return spn_err_emit(&spn, (spn_err_union_t) {
-    .kind = kind,
-    .toolchain = {
-      .name = toolchain->name.str,
-      .target = spn_profile_triple(profile),
-      .host = host,
-    },
-  });
-}
-
 void spn_cc_render_compile(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, const spn_cc_compile_t* compile, spn_invocation_t* invocation) {
   *invocation = sp_zero_s(spn_invocation_t);
   switch (toolchain->driver) {
@@ -211,26 +187,26 @@ void si_cc_render_archive(sp_mem_t mem, const spn_cc_t* toolchain, const spn_pro
   }
 }
 
-spn_err_t spn_cc_validate_link(const spn_cc_t* toolchain, spn_triple_t host, const spn_profile_info_t* profile, const spn_cc_link_t* link) {
+spn_cc_link_refusal_t spn_cc_validate_link(const spn_cc_t* toolchain, spn_triple_t host, const spn_profile_info_t* profile, const spn_cc_link_t* link) {
   spn_cc_feature_t feature = link_feature(link->kind);
   spn_triple_t target = spn_profile_triple(profile);
 
   if (link->kind == SPN_CC_OUTPUT_REACTOR && profile->os != SPN_OS_WASI) {
-    return feature_unsupported(toolchain, profile, link, feature);
+    return (spn_cc_link_refusal_t) { .err = SPN_ERR_COMPILER_FEATURE_UNSUPPORTED, .feature = feature };
   }
   if (link->kind == SPN_CC_OUTPUT_SHARED_LIB && !spn_triple_dynamic(target)) {
-    return feature_unsupported(toolchain, profile, link, feature);
+    return (spn_cc_link_refusal_t) { .err = SPN_ERR_COMPILER_FEATURE_UNSUPPORTED, .feature = feature };
   }
   if (profile->os == SPN_OS_MACOS && !si_da_empty(link->frameworks) && profile->sdk.kind == SPN_SDK_NONE) {
-    return feature_unsupported(toolchain, profile, link, SPN_CC_FEATURE_FRAMEWORKS);
+    return (spn_cc_link_refusal_t) { .err = SPN_ERR_COMPILER_FEATURE_UNSUPPORTED, .feature = SPN_CC_FEATURE_FRAMEWORKS };
   }
   if (!si_da_empty(link->scripts) && !spn_ld_scripts(profile->linker, spn_os_to_native_object_format(profile->os))) {
-    return feature_unsupported(toolchain, profile, link, SPN_CC_FEATURE_LINKER_SCRIPT);
+    return (spn_cc_link_refusal_t) { .err = SPN_ERR_COMPILER_FEATURE_UNSUPPORTED, .feature = SPN_CC_FEATURE_LINKER_SCRIPT };
   }
   if (profile->linker == SPN_LD_FAMILY_MSVC && host.os != SPN_OS_WINDOWS) {
-    return link_refused(SPN_ERR_TOOLCHAIN_MSVC_LINKER_HOST, toolchain, host, profile);
+    return (spn_cc_link_refusal_t) { .err = SPN_ERR_TOOLCHAIN_MSVC_LINKER_HOST };
   }
-  return SPN_OK;
+  return (spn_cc_link_refusal_t) { .err = SPN_OK };
 }
 
 spn_cc_exports_format_t spn_cc_exports_format(spn_cc_output_kind_t kind, spn_obj_format_t format) {
@@ -254,4 +230,41 @@ spn_cc_exports_format_t spn_cc_exports_format(spn_cc_output_kind_t kind, spn_obj
     }
   }
   SP_UNREACHABLE_RETURN(SPN_CC_EXPORTS_VERSION_SCRIPT);
+}
+
+sp_str_t spn_cc_exports_extension(spn_cc_exports_format_t format) {
+  switch (format) {
+    case SPN_CC_EXPORTS_VERSION_SCRIPT: return sp_str_lit("map");
+    case SPN_CC_EXPORTS_SYMBOL_LIST:    return sp_str_lit("exp");
+    case SPN_CC_EXPORTS_DEF:            return sp_str_lit("def");
+    case SPN_CC_EXPORTS_WASM:           return sp_str_lit("rsp");
+  }
+  SP_UNREACHABLE_RETURN(sp_str_lit(""));
+}
+
+void spn_cc_render_exports(sp_io_writer_t* io, const spn_path_roots_t* roots, const spn_cc_t* toolchain, const spn_profile_info_t* profile, spn_cc_output_kind_t kind, sp_str_t library, si_da(sp_str_t) symbols) {
+  switch (spn_cc_exports_format(kind, spn_os_to_native_object_format(profile->os))) {
+    case SPN_CC_EXPORTS_VERSION_SCRIPT: {
+      spn_exports_render_version_script(io, symbols);
+      break;
+    }
+    case SPN_CC_EXPORTS_SYMBOL_LIST: {
+      spn_exports_render_symbol_list(io, symbols);
+      break;
+    }
+    case SPN_CC_EXPORTS_WASM: {
+      sp_mem_arena_marker_t s = sp_mem_begin_scratch();
+      spn_rsp_render(io, roots, spn_rsp_style(toolchain->driver), spn_gnu_render_exports(s.mem, symbols));
+      sp_mem_end_scratch(s);
+      break;
+    }
+    case SPN_CC_EXPORTS_DEF: {
+      spn_exports_render_def(io, library, symbols);
+      break;
+    }
+  }
+}
+
+bool spn_cc_link_implib(const spn_profile_info_t* profile, spn_cc_output_kind_t kind) {
+  return kind == SPN_CC_OUTPUT_SHARED_LIB && spn_ld_dialect(spn_profile_triple(profile)) == SPN_LD_DIALECT_LINK;
 }

@@ -21,22 +21,6 @@
 #include "profile/types.h"
 #include "triple/triple.h"
 
-spn_path_t spn_target_exports_path(sp_mem_t mem, spn_target_unit_t* target) {
-  const c8* extension = "map";
-  switch (spn_cc_exports_format(target->kind, spn_os_to_native_object_format(target->pkg->build->profile.os))) {
-    case SPN_CC_EXPORTS_VERSION_SCRIPT: extension = "map"; break;
-    case SPN_CC_EXPORTS_SYMBOL_LIST:    extension = "exp"; break;
-    case SPN_CC_EXPORTS_DEF:            extension = "def"; break;
-    case SPN_CC_EXPORTS_WASM:           extension = "rsp"; break;
-  }
-
-  sp_mem_arena_marker_t s = sp_mem_begin_scratch_for(mem);
-  sp_str_t file_name = sp_fmt(s.mem, "{}.{}", sp_fmt_str(target->info->name.str), sp_fmt_cstr(extension)).value;
-  spn_path_t path = spn_path_join(mem, target->pkg->paths.work, file_name);
-  sp_mem_end_scratch(s);
-  return path;
-}
-
 spn_path_t spn_target_unit_staged_path(sp_mem_t mem, spn_target_unit_t* target) {
   if (target->kind != SPN_CC_OUTPUT_EXE) return sp_zero_s(spn_path_t);
 

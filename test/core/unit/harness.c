@@ -122,8 +122,6 @@ spn_session_t* build_session(sp_mem_t mem, unit_graph_test_t* g) {
   sp_om_new(s->units.packages);
   sp_om_new(s->units.targets);
   sp_om_new(s->units.objects);
-  sp_om_new(s->plans.targets);
-  sp_om_new(s->plans.objects);
 
   sp_intern_str_t name = spn_intern(sp_str_lit("debug"));
   spn_profile_info_t profile = {

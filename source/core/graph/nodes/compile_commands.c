@@ -6,7 +6,7 @@
 #include "graph/nodes/nodes.h"
 #include "paths/paths.h"
 #include "session/invocation.h"
-#include "session/session.h"
+#include "session/types.h"
 
 static spn_err_t write_compile_commands(spn_dag_t* g, spn_session_t* session, spn_path_t path) {
   const spn_path_roots_t* roots = g->roots;
@@ -20,7 +20,7 @@ static spn_err_t write_compile_commands(spn_dag_t* g, spn_session_t* session, sp
   sp_io_write_cstr(io, "[", SP_NULLPTR);
   sp_om_for(session->units.objects, it) {
     spn_compile_unit_t* unit = sp_om_at(session->units.objects, it);
-    spn_invocation_t invocation = spn_cc_render_compile_source(mem, spn_session_get_object_plan(session, unit->id), unit->file);
+    spn_invocation_t invocation = spn_cc_render_compile_source(mem, &unit->base, unit->file);
     sp_da(sp_str_t) args = spn_invocation_args(roots, mem, &invocation);
 
     if (it) {

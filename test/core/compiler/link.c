@@ -11,6 +11,7 @@ typedef struct {
   test_profile_t profile;
   spn_cc_output_kind_t kind;
   const c8* exports;
+  const c8* implib;
   const c8* archive;
   const c8* shared;
   const c8* whole_archive;
@@ -52,12 +53,13 @@ static const link_test_t tests [] = {
       .os = SPN_OS_WASI,
     },
     .kind = SPN_CC_OUTPUT_REACTOR,
+    .exports = "S.rsp",
     .expect = {
       .command = "cc",
       .args = {
         "--target=wasm32-wasi",
         "-mexec-model=reactor",
-        "-Wl,--no-entry", "-Wl,--import-symbols",
+        "-Wl,--no-entry", "-Wl,--import-symbols", "@S.rsp",
         "main.o", "-o", "main"
       },
     },
@@ -71,12 +73,13 @@ static const link_test_t tests [] = {
       .os = SPN_OS_WASI,
     },
     .kind = SPN_CC_OUTPUT_REACTOR,
+    .exports = "S.rsp",
     .expect = {
       .command = "cc",
       .args = {
         "--target=wasm32-wasip1",
         "-mexec-model=reactor",
-        "-Wl,--no-entry", "-Wl,--import-symbols",
+        "-Wl,--no-entry", "-Wl,--import-symbols", "@S.rsp",
         "main.o", "-o", "main"
       },
     },
@@ -119,6 +122,8 @@ static const link_test_t tests [] = {
       .linking.runtime = SPN_RUNTIME_STATIC,
     },
     .kind = SPN_CC_OUTPUT_SHARED_LIB,
+    .exports = "S.def",
+    .implib = "main.lib",
     .archive = "spum.lib",
     .system_lib = "ws2_32",
     .expect = {
@@ -128,7 +133,8 @@ static const link_test_t tests [] = {
         "/LD",
         "main.o",
         "spum.lib", "ws2_32.lib",
-        "/Femain"
+        "/Femain",
+        "/link", "/DEF:S.def", "/IMPLIB:main.lib"
       },
     },
   },
@@ -143,9 +149,11 @@ static const link_test_t tests [] = {
       .linking.runtime = SPN_RUNTIME_STATIC,
     },
     .kind = SPN_CC_OUTPUT_SHARED_LIB,
+    .exports = "S.def",
+    .implib = "main.lib",
     .expect = {
       .command = "cc",
-      .args = { "/nologo", "/LD", "main.o", "/Femain" },
+      .args = { "/nologo", "/LD", "main.o", "/Femain", "/link", "/DEF:S.def", "/IMPLIB:main.lib" },
     },
   },
   {
@@ -322,9 +330,10 @@ static const link_test_t tests [] = {
       .abi = SPN_ABI_GNU,
     },
     .kind = SPN_CC_OUTPUT_SHARED_LIB,
+    .exports = "S.map",
     .expect = {
       .command = "cc",
-      .args = { "-shared", "-Wl,-soname,main", "main.o", "-Wl,-rpath,$ORIGIN", "-o", "main" },
+      .args = { "-shared", "-Wl,-soname,main", "-Wl,--version-script,S.map", "main.o", "-Wl,-rpath,$ORIGIN", "-o", "main" },
     },
   },
   {
@@ -373,9 +382,10 @@ static const link_test_t tests [] = {
       .linking.libc = SPN_RUNTIME_STATIC,
     },
     .kind = SPN_CC_OUTPUT_SHARED_LIB,
+    .exports = "S.map",
     .expect = {
       .command = "cc",
-      .args = { "-shared", "-Wl,-soname,main", "-static-libstdc++", "-static-libgcc", "main.o", "-Wl,-rpath,$ORIGIN", "-o", "main" },
+      .args = { "-shared", "-Wl,-soname,main", "-static-libstdc++", "-static-libgcc", "-Wl,--version-script,S.map", "main.o", "-Wl,-rpath,$ORIGIN", "-o", "main" },
     },
   },
   {
@@ -421,9 +431,10 @@ static const link_test_t tests [] = {
       .linking.runtime = SPN_RUNTIME_STATIC,
     },
     .kind = SPN_CC_OUTPUT_SHARED_LIB,
+    .exports = "S.def",
     .expect = {
       .command = "cc",
-      .args = { "-shared", "-static-libstdc++", "-static-libgcc", "-Wl,-Bstatic,--whole-archive", "-lwinpthread", "-Wl,--no-whole-archive,-Bdynamic", "main.o", "-o", "main" },
+      .args = { "-shared", "-static-libstdc++", "-static-libgcc", "-Wl,-Bstatic,--whole-archive", "-lwinpthread", "-Wl,--no-whole-archive,-Bdynamic", "S.def", "main.o", "-o", "main" },
     },
   },
   {
@@ -891,6 +902,7 @@ static const link_test_t tests [] = {
     .profile = { .arch = SPN_ARCH_X64, .os = SPN_OS_WINDOWS, .abi = SPN_ABI_MSVC, .linking.runtime = SPN_RUNTIME_STATIC },
     .kind = SPN_CC_OUTPUT_SHARED_LIB,
     .exports = "S.def",
+    .implib = "main.lib",
     .whole_archive = "libD.a",
     .archive = "P.lib",
     .expect = {
@@ -898,7 +910,7 @@ static const link_test_t tests [] = {
       .args = {
         "--target=x86_64-windows-msvc",
         "-fms-runtime-lib=static",
-        "-shared", "-Wl,/DEF:S.def",
+        "-shared", "-Wl,/DEF:S.def", "-Wl,/IMPLIB:main.lib",
         "main.o",
         "-Wl,/WHOLEARCHIVE:libD.a",
         "P.lib",
@@ -945,13 +957,14 @@ static const link_test_t tests [] = {
     .driver = SPN_CC_DRIVER_CLANG,
     .profile = { .arch = SPN_ARCH_WASM32, .os = SPN_OS_WASI },
     .kind = SPN_CC_OUTPUT_REACTOR,
+    .exports = "S.rsp",
     .whole_archive = "libD.a",
     .expect = {
       .command = "cc",
       .args = {
         "--target=wasm32-wasi",
         "-mexec-model=reactor",
-        "-Wl,--no-entry", "-Wl,--import-symbols",
+        "-Wl,--no-entry", "-Wl,--import-symbols", "@S.rsp",
         "main.o",
         "-Wl,--whole-archive", "libD.a", "-Wl,--no-whole-archive",
         "-o", "main"
@@ -1066,7 +1079,10 @@ sp_test_each(render_link, render, link_test_t, tests, .setup = spn_test_ctx_setu
   sp_da(spn_arg_t) objects = sp_da_new(mem, spn_arg_t);
   sp_da_push(objects, spn_arg_path(test_arg_path("main.o")));
   if (it->exports) {
-    link.exports = test_arg_path(it->exports);
+    files.exports = test_arg_path(it->exports);
+  }
+  if (it->implib) {
+    files.implib = test_arg_path(it->implib);
   }
   if (it->archive) {
     si_da_push(mem, files.archives, test_arg_path(it->archive));
@@ -1092,27 +1108,10 @@ sp_test_each(render_link, render, link_test_t, tests, .setup = spn_test_ctx_setu
 
   spn_profile_info_t profile = test_profile(it->profile);
   profile.linker = it->lld ? SPN_LD_FAMILY_LLD : spn_ld_native(it->driver, triple);
-  spn_err_t err = spn_cc_validate_link(&toolchain, it->host, &profile, &link);
-  sp_expect_eq(t, err, it->expect.err);
+  spn_cc_link_refusal_t refusal = spn_cc_validate_link(&toolchain, it->host, &profile, &link);
+  sp_expect_eq(t, refusal.err, it->expect.err);
   if (it->expect.err) {
-    sp_da(spn_event_t) errs = spn_test_drain_errs(mem);
-    sp_must_eq(t, 1, sp_da_size(errs));
-    sp_expect_eq(t, errs[0].err.kind, it->expect.err);
-    switch (errs[0].err.kind) {
-      case SPN_ERR_COMPILER_FEATURE_UNSUPPORTED: {
-        sp_expect_eq(t, errs[0].err.compiler.feature, it->expect.feature);
-        sp_expect(t, spn_triple_equal(errs[0].err.compiler.target, triple));
-        break;
-      }
-      case SPN_ERR_TOOLCHAIN_MSVC_LINKER_HOST: {
-        sp_expect(t, spn_triple_equal(errs[0].err.toolchain.target, triple));
-        sp_expect(t, spn_triple_equal(errs[0].err.toolchain.host, it->host));
-        break;
-      }
-      default: {
-        break;
-      }
-    }
+    sp_expect_eq(t, refusal.feature, it->expect.feature);
     return SP_OK;
   }
   profile.sdk = spn_sdk_for_driver(spn_toolchain_driver_caps(it->driver), profile.sdk);
