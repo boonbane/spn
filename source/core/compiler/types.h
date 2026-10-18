@@ -29,12 +29,6 @@ typedef enum {
   SPN_AR_DRIVER_MSVC,
 } spn_ar_driver_t;
 
-typedef enum {
-  SPN_CC_DEPFILE_NONE,
-  SPN_CC_DEPFILE_OPTIONAL,
-  SPN_CC_DEPFILE_REQUIRED,
-} spn_cc_depfile_t;
-
 typedef struct {
   sp_intern_str_t name;
   spn_cc_driver_t driver;

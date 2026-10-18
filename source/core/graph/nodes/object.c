@@ -1,20 +1,19 @@
 #include "compiler/types.h"
 #include "ctx/types.h"
 #include "event/event.h"
-#include "session/types.h"
-#include "macro/macro.h"
+#include "spn/core.h"
+#include "spn/err.h"
 #include "unit/types.h"
 
 #include "compiler/driver.h"
 #include "dag/dag.h"
 #include "paths/paths.h"
 #include "session/invocation.h"
-#include "session/session.h"
 #include "graph/build.h"
 #include "graph/nodes/nodes.h"
 #include "unit/package.h"
 
-static s32 run_compiler(const spn_path_roots_t* roots, spn_compile_unit_t* unit, const spn_invocation_t* base, const spn_cc_compile_files_t* files) {
+static spn_err_t run_compiler(const spn_path_roots_t* roots, spn_compile_unit_t* unit, const spn_invocation_t* base, const spn_cc_compile_files_t* files) {
   spn_pkg_unit_t* pkg = unit->target->pkg;
   spn_session_t* session = pkg->session;
 
@@ -51,7 +50,7 @@ static s32 run_compiler(const spn_path_roots_t* roots, spn_compile_unit_t* unit,
     });
   }
 
-  return run.result.status.exit_code;
+  return run.result.status.exit_code ? SPN_ERR_DAG_ACTION : SPN_OK;
 }
 
 static spn_err_t compile_object(sp_mem_t scratch, spn_dag_t* g, si_compile_t* ctx, spn_dag_env_t* env, spn_path_t object, spn_dag_obs_set_t* obs) {
@@ -63,28 +62,28 @@ static spn_err_t compile_object(sp_mem_t scratch, spn_dag_t* g, si_compile_t* ct
     .libc = si_dag_build_libc(g, ctx->build),
   };
 
-  spn_cc_depfile_t mode = SPN_CC_DEPFILE_NONE;
-  switch (toolchain->driver) {
-    case SPN_CC_DRIVER_GCC:
-    case SPN_CC_DRIVER_CLANG:
-    case SPN_CC_DRIVER_ZIG:  mode = unit->lang == SPN_LANG_ASM ? SPN_CC_DEPFILE_OPTIONAL : SPN_CC_DEPFILE_REQUIRED; break;
-    case SPN_CC_DRIVER_MSVC: mode = unit->lang == SPN_LANG_ASM ? SPN_CC_DEPFILE_NONE : SPN_CC_DEPFILE_REQUIRED; break;
-    case SPN_CC_DRIVER_NONE: sp_unreachable_case();
+  struct { bool wanted; bool required; } depfile = { true, true };
+  if (unit->lang == SPN_LANG_ASM) {
+    if (toolchain->driver == SPN_CC_DRIVER_MSVC) {
+      depfile.wanted = false;
+    } else {
+      depfile.required = false;
+    }
   }
 
-  if (mode == SPN_CC_DEPFILE_NONE) {
-    return run_compiler(g->roots, unit, &unit->base, &files) ? SPN_ERR_DAG_ACTION : SPN_OK;
+  if (depfile.wanted) {
+    files.depfile = spn_path_concat(scratch, object, ".d");
   }
 
-  files.depfile = spn_path_concat(scratch, object, ".d");
-  if (run_compiler(g->roots, unit, &unit->base, &files)) {
-    return SPN_ERR_DAG_ACTION;
-  }
+  spn_try(run_compiler(g->roots, unit, &unit->base, &files));
+  if (!depfile.wanted) return SPN_OK;
 
   sp_path_t dep = spn_path_at(g->roots, files.depfile);
   if (!sp_fs_exists_at(dep)) {
-    return mode == SPN_CC_DEPFILE_REQUIRED ? SPN_ERR_DAG_DEPFILE : SPN_OK;
+    if (!depfile.required) return SPN_OK;
+    return SPN_ERR_DAG_DEPFILE;
   }
+
   sp_str_t content = sp_zero;
   sp_da(sp_str_t) prereqs = sp_zero;
   if (sp_io_read_file_at(scratch, dep, &content) || spn_cc_parse_depfile(scratch, toolchain, content, &prereqs)) {
