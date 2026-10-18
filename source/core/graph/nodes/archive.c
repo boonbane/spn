@@ -24,7 +24,7 @@ spn_err_t si_on_archive(spn_dag_t* g, spn_dag_action_t* action, void* user_data,
       break;
     }
     case SPN_DAG_BUILD_OBJECTS_RSP: {
-      files.rsp = spn_dag_find_artifact(g, ctx->objects.rsp)->materialized;
+      files.rsp = si_dag_get_artifact_path(g, ctx->objects.rsp);
       break;
     }
   }

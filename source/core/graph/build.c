@@ -54,6 +54,10 @@ spn_path_t spn_target_unit_staged_path(sp_mem_t mem, spn_target_unit_t* target) 
   return path;
 }
 
+spn_path_t si_dag_get_artifact_path(spn_dag_t* g, spn_dag_id_t id) {
+  return spn_dag_find_artifact(g, id)->materialized;
+}
+
 spn_path_t si_dag_build_libc(spn_dag_t* g, const spn_dag_build_ctx_t* build) {
   spn_path_t libc = sp_zero;
   switch (build->unit->profile.sdk.kind) {
@@ -64,7 +68,7 @@ spn_path_t si_dag_build_libc(spn_dag_t* g, const spn_dag_build_ctx_t* build) {
       break;
     }
     case SPN_SDK_LIBC: {
-      libc = spn_dag_find_artifact(g, build->libc)->materialized;
+      libc = si_dag_get_artifact_path(g, build->libc);
       break;
     }
   }
@@ -74,7 +78,7 @@ spn_path_t si_dag_build_libc(spn_dag_t* g, const spn_dag_build_ctx_t* build) {
 si_da(spn_path_t) si_dag_build_paths(sp_mem_t mem, spn_dag_t* g, si_da(spn_dag_id_t) ids) {
   si_da(spn_path_t) paths = sp_zero;
   si_da_for(ids, it) {
-    si_da_push(mem, paths, spn_dag_find_artifact(g, ids[it])->materialized);
+    si_da_push(mem, paths, si_dag_get_artifact_path(g, ids[it]));
   }
   return paths;
 }

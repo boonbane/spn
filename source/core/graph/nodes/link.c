@@ -33,17 +33,17 @@ spn_err_t si_on_link(spn_dag_t* g, spn_dag_action_t* action, void* user_data, sp
       break;
     }
     case SPN_DAG_BUILD_OBJECTS_RSP: {
-      files.rsp = spn_dag_find_artifact(g, ctx->objects.rsp)->materialized;
+      files.rsp = si_dag_get_artifact_path(g, ctx->objects.rsp);
       break;
     }
   }
   switch (target->kind) {
     case SPN_CC_OUTPUT_REACTOR: {
-      files.exports = spn_dag_find_artifact(g, ctx->exports)->materialized;
+      files.exports = si_dag_get_artifact_path(g, ctx->exports);
       break;
     }
     case SPN_CC_OUTPUT_SHARED_LIB: {
-      files.exports = spn_dag_find_artifact(g, ctx->exports)->materialized;
+      files.exports = si_dag_get_artifact_path(g, ctx->exports);
       if (spn_cc_link_implib(&build->profile, target->kind)) {
         files.implib = outputs[1];
       }

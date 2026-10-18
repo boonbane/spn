@@ -23,6 +23,7 @@ typedef struct {
 } spn_dag_build_objects_t;
 
 spn_path_t         spn_target_unit_staged_path(sp_mem_t mem, spn_target_unit_t* unit);
+spn_path_t         si_dag_get_artifact_path(spn_dag_t* g, spn_dag_id_t id);
 spn_path_t         si_dag_build_libc(spn_dag_t* g, const spn_dag_build_ctx_t* build);
 si_da(spn_path_t)  si_dag_build_paths(sp_mem_t mem, spn_dag_t* g, si_da(spn_dag_id_t) ids);
 

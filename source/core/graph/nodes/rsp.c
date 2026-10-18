@@ -16,7 +16,7 @@ spn_err_t si_on_write_rsp(spn_dag_t* g, spn_dag_action_t* action, void* user_dat
   sp_mem_arena_marker_t s = sp_mem_begin_scratch();
   sp_da(spn_arg_t) args = sp_da_new(s.mem, spn_arg_t);
   si_da_for(rsp->objects, it) {
-    sp_da_push(args, spn_arg_path(spn_dag_find_artifact(g, rsp->objects[it])->materialized));
+    sp_da_push(args, spn_arg_path(si_dag_get_artifact_path(g, rsp->objects[it])));
   }
   spn_rsp_render(&writer.base, g->roots, rsp->style, args);
   sp_mem_end_scratch(s);
