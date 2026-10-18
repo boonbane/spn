@@ -452,9 +452,9 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
   spn_dag_target_ids_t* ids = sp_ht_getp(b->ids.targets, target);
   sp_assert(ids);
 
-  sp_da(spn_dag_id_t) object_ids = sp_da_new(b->mem, spn_dag_id_t);
+  si_da(spn_dag_id_t) object_ids = sp_zero;
   si_da_for(objects, it) {
-    sp_da_push(object_ids, objects[it].object);
+    si_da_push(b->mem, object_ids, objects[it].object);
   }
 
   if (!si_da_empty(target->info->embed)) {
@@ -479,12 +479,12 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
     si_da_for(objects, it) {
       spn_dag_action_add_input(g, objects[it].action, header);
     }
-    sp_da_push(object_ids, object);
+    si_da_push(b->mem, object_ids, object);
   }
 
-  sp_da(spn_dag_id_t) link_inputs = sp_da_new(mem, spn_dag_id_t);
-  sp_da_for(object_ids, it) {
-    sp_da_push(link_inputs, object_ids[it]);
+  si_da(spn_dag_id_t) link_inputs = sp_zero;
+  si_da_for(object_ids, it) {
+    si_da_push(mem, link_inputs, object_ids[it]);
   }
   spn_dag_build_objects_t link_objects = { .kind = SPN_DAG_BUILD_OBJECTS_DIRECT, .ids = object_ids };
   if (spn.host.os == SPN_OS_WINDOWS) {
@@ -509,13 +509,13 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
       .execute = si_on_write_rsp,
       .user_data = rsp,
     });
-    sp_da_for(object_ids, it) {
+    si_da_for(object_ids, it) {
       spn_dag_action_add_input(g, action, object_ids[it]);
     }
     spn_dag_id_t file = spn_dag_add_output(g, sp_str_lit("objects.rsp"));
     spn_try(spn_dag_action_add_output(g, action, file));
 
-    sp_da_push(link_inputs, file);
+    si_da_push(mem, link_inputs, file);
     link_objects = (spn_dag_build_objects_t) { .kind = SPN_DAG_BUILD_OBJECTS_RSP, .rsp = file };
   }
 
@@ -538,7 +538,7 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
         .execute = si_on_archive,
         .user_data = ctx,
       });
-      sp_da_for(link_inputs, it) {
+      si_da_for(link_inputs, it) {
         spn_dag_action_add_input(g, action, link_inputs[it]);
       }
       spn_try(spn_dag_action_add_output(g, action, ids->output));
@@ -598,7 +598,7 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
             .execute = si_on_write_exports,
             .user_data = exports,
           });
-          sp_da_for(link_inputs, it) {
+          si_da_for(link_inputs, it) {
             spn_dag_action_add_input(g, action, link_inputs[it]);
           }
           si_da_for(ctx->deps.whole_archives, it) {
@@ -606,7 +606,7 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
           }
           ctx->exports = spn_dag_add_output(g, sp_fmt(mem, "{}.{}", sp_fmt_str(target->info->name.str), sp_fmt_str(spn_cc_exports_extension(format))).value);
           spn_try(spn_dag_action_add_output(g, action, ctx->exports));
-          sp_da_push(link_inputs, ctx->exports);
+          si_da_push(mem, link_inputs, ctx->exports);
           break;
         }
         case SPN_CC_OUTPUT_EXE: {
@@ -639,7 +639,7 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
         .execute = si_on_link,
         .user_data = ctx,
       });
-      sp_da_for(link_inputs, it) {
+      si_da_for(link_inputs, it) {
         spn_dag_action_add_input(g, action, link_inputs[it]);
       }
       si_da_for(link->cc.scripts, it) {

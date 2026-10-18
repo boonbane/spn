@@ -40,7 +40,7 @@ typedef struct {
 
 typedef struct {
   spn_rsp_style_t style;
-  sp_da(spn_dag_id_t) objects;
+  si_da(spn_dag_id_t) objects;
 } si_rsp_t;
 
 typedef struct {
