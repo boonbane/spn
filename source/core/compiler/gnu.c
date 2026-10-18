@@ -438,7 +438,7 @@ bool spn_gnu_link_static(const spn_profile_info_t* profile, spn_cc_output_kind_t
   return kind == SPN_CC_OUTPUT_EXE && profile->linking.libc == SPN_RUNTIME_STATIC && spn_os_to_native_object_format(profile->os) == SPN_OBJ_ELF;
 }
 
-void spn_gnu_render_link(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, const spn_cc_link_t* link, sp_da(spn_arg_t) objects, const spn_cc_link_files_t* files, spn_invocation_t* invocation) {
+void spn_gnu_render_link(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, const spn_cc_link_t* link, const spn_cc_link_files_t* files, spn_invocation_t* invocation) {
   spn_triple_t triple = spn_profile_triple(profile);
   spn_obj_format_t format = spn_os_to_native_object_format(profile->os);
   spn_ld_dialect_t dialect = spn_ld_dialect(triple);
@@ -509,7 +509,12 @@ void spn_gnu_render_link(sp_mem_t mem, const spn_cc_t* toolchain, const spn_prof
   si_da_for(link->args, it) {
     spn_cc_push_str(mem, invocation, link->args[it]);
   }
-  spn_cc_push_args(mem, invocation, objects);
+  if (!spn_path_empty(files->rsp)) {
+    spn_cc_push_glued(mem, invocation, "@", files->rsp);
+  }
+  si_da_for(files->objects, it) {
+    spn_cc_push_path(mem, invocation, files->objects[it]);
+  }
   if (!si_da_empty(files->whole_archives)) {
     add_whole_archives(mem, dialect, files->whole_archives, invocation);
   }
@@ -546,11 +551,16 @@ sp_da(spn_arg_t) spn_gnu_render_exports(sp_mem_t mem, si_da(sp_str_t) symbols) {
   return args;
 }
 
-void spn_gnu_render_archive(sp_mem_t mem, const spn_cc_t* toolchain, sp_da(spn_arg_t) objects, spn_path_t output, spn_invocation_t* invocation) {
+void spn_gnu_render_archive(sp_mem_t mem, const spn_cc_t* toolchain, const spn_cc_archive_files_t* files, spn_invocation_t* invocation) {
   add_cache(mem, toolchain, invocation);
   invocation->program = toolchain->archiver.program;
   spn_cc_push_strs(mem, invocation, toolchain->archiver.args);
   spn_cc_push_c(mem, invocation, "rcs");
-  spn_cc_push_path(mem, invocation, output);
-  spn_cc_push_args(mem, invocation, objects);
+  spn_cc_push_path(mem, invocation, files->output);
+  if (!spn_path_empty(files->rsp)) {
+    spn_cc_push_glued(mem, invocation, "@", files->rsp);
+  }
+  si_da_for(files->objects, it) {
+    spn_cc_push_path(mem, invocation, files->objects[it]);
+  }
 }

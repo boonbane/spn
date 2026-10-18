@@ -80,11 +80,10 @@ spn_err_t si_on_zig_warmup(spn_dag_t* g, spn_dag_action_t* action, void* user_da
       sp_unreachable_case();
     }
   }
-  sp_da(spn_arg_t) objects = sp_da_new(mem, spn_arg_t);
-  sp_da_push(objects, spn_arg_path(spn_path(mem, SPN_DIR_ID_RUNTIME, "zig/stub.c")));
+  si_da_push(mem, files.objects, spn_path(mem, SPN_DIR_ID_RUNTIME, "zig/stub.c"));
 
   spn_invocation_t invocation = sp_zero;
-  spn_gnu_render_link(mem, cc, &build->profile, &warm->link, objects, &files, &invocation);
+  spn_gnu_render_link(mem, cc, &build->profile, &warm->link, &files, &invocation);
   invocation.cwd = staging;
 
   progress_writer_t* progress = sp_alloc_type(mem, progress_writer_t);

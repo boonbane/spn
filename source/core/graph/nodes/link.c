@@ -27,6 +27,16 @@ spn_err_t si_on_link(spn_dag_t* g, spn_dag_action_t* action, void* user_data, sp
     .shared = si_dag_build_paths(scratch.mem, g, ctx->deps.shared),
     .whole_archives = si_dag_build_paths(scratch.mem, g, ctx->deps.whole_archives),
   };
+  switch (ctx->objects.kind) {
+    case SPN_DAG_BUILD_OBJECTS_DIRECT: {
+      files.objects = si_dag_build_paths(scratch.mem, g, ctx->objects.ids);
+      break;
+    }
+    case SPN_DAG_BUILD_OBJECTS_RSP: {
+      files.rsp = spn_dag_find_artifact(g, ctx->objects.rsp)->materialized;
+      break;
+    }
+  }
   switch (target->kind) {
     case SPN_CC_OUTPUT_REACTOR: {
       files.exports = spn_dag_find_artifact(g, ctx->exports)->materialized;
@@ -48,9 +58,8 @@ spn_err_t si_on_link(spn_dag_t* g, spn_dag_action_t* action, void* user_data, sp
     }
   }
 
-  sp_da(spn_arg_t) objects = si_dag_build_objects(scratch.mem, g, &ctx->objects);
   spn_invocation_t invocation = sp_zero;
-  si_cc_render_link(scratch.mem, cc, &build->profile, &target->link.cc, objects, &files, &invocation);
+  si_cc_render_link(scratch.mem, cc, &build->profile, &target->link.cc, &files, &invocation);
   invocation.cwd = target->pkg->paths.work;
 
   spn_pkg_unit_announce_compile(target->pkg);

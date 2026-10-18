@@ -22,8 +22,19 @@ static spn_err_t write_exports(sp_mem_t mem, spn_dag_t* g, si_exports_t* ctx, sp
   const spn_path_roots_t* roots = g->roots;
 
   spn_path_t archive = spn_path_concat(mem, output, ".a");
+  spn_cc_archive_files_t files = { .output = archive };
+  switch (ctx->objects.kind) {
+    case SPN_DAG_BUILD_OBJECTS_DIRECT: {
+      files.objects = si_dag_build_paths(mem, g, ctx->objects.ids);
+      break;
+    }
+    case SPN_DAG_BUILD_OBJECTS_RSP: {
+      files.rsp = spn_dag_find_artifact(g, ctx->objects.rsp)->materialized;
+      break;
+    }
+  }
   spn_invocation_t invocation = sp_zero;
-  si_cc_render_archive(mem, &build->toolchain->cc, &build->profile, si_dag_build_objects(mem, g, &ctx->objects), archive, &invocation);
+  si_cc_render_archive(mem, &build->toolchain->cc, &build->profile, &files, &invocation);
   invocation.cwd = target->pkg->paths.work;
 
   spn_invocation_result_t run = spn_invocation_run(roots, &invocation);

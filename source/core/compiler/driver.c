@@ -173,30 +173,30 @@ spn_invocation_t spn_cc_render_compile_command(sp_mem_t mem, const spn_cc_t* too
   return invocation;
 }
 
-void si_cc_render_archive(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, sp_da(spn_arg_t) objects, spn_path_t output, spn_invocation_t* invocation) {
+void si_cc_render_archive(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, const spn_cc_archive_files_t* files, spn_invocation_t* invocation) {
   *invocation = sp_zero_s(spn_invocation_t);
   switch (toolchain->archiver_driver) {
     case SPN_AR_DRIVER_GNU: {
-      spn_gnu_render_archive(mem, toolchain, objects, output, invocation);
+      spn_gnu_render_archive(mem, toolchain, files, invocation);
       break;
     }
     case SPN_AR_DRIVER_MSVC: {
-      spn_msvc_render_archive(mem, toolchain, profile, objects, output, invocation);
+      spn_msvc_render_archive(mem, toolchain, profile, files, invocation);
       break;
     }
   }
 }
 
-void si_cc_render_link(sp_mem_t mem, const spn_cc_t* cc, const spn_profile_info_t* profile, const spn_cc_link_t* link, sp_da(spn_arg_t) objects, const spn_cc_link_files_t* files, spn_invocation_t* invocation) {
+void si_cc_render_link(sp_mem_t mem, const spn_cc_t* cc, const spn_profile_info_t* profile, const spn_cc_link_t* link, const spn_cc_link_files_t* files, spn_invocation_t* invocation) {
   switch (cc->driver) {
     case SPN_CC_DRIVER_GCC:
     case SPN_CC_DRIVER_CLANG:
     case SPN_CC_DRIVER_ZIG: {
-      spn_gnu_render_link(mem, cc, profile, link, objects, files, invocation);
+      spn_gnu_render_link(mem, cc, profile, link, files, invocation);
       break;
     }
     case SPN_CC_DRIVER_MSVC: {
-      spn_msvc_render_link(mem, cc, profile, link, objects, files, invocation);
+      spn_msvc_render_link(mem, cc, profile, link, files, invocation);
       break;
     }
     case SPN_CC_DRIVER_NONE: {

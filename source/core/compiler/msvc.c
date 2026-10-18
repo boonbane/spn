@@ -197,7 +197,7 @@ spn_err_t spn_msvc_parse_depfile(sp_mem_t mem, sp_str_t content, sp_da(sp_str_t)
   return SPN_OK;
 }
 
-void spn_msvc_render_link(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, const spn_cc_link_t* link, sp_da(spn_arg_t) objects, const spn_cc_link_files_t* files, spn_invocation_t* invocation) {
+void spn_msvc_render_link(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, const spn_cc_link_t* link, const spn_cc_link_files_t* files, spn_invocation_t* invocation) {
   add_launcher(mem, toolchain, profile, link->lang, invocation);
   spn_cc_flags_t flags = sp_zero;
   sp_da_init(mem, flags.compile);
@@ -218,7 +218,12 @@ void spn_msvc_render_link(sp_mem_t mem, const spn_cc_t* toolchain, const spn_pro
       sp_unreachable_case();
     }
   }
-  spn_cc_push_args(mem, invocation, objects);
+  if (!spn_path_empty(files->rsp)) {
+    spn_cc_push_glued(mem, invocation, "@", files->rsp);
+  }
+  si_da_for(files->objects, it) {
+    spn_cc_push_path(mem, invocation, files->objects[it]);
+  }
 
   si_da_for(files->archives, it) {
     spn_cc_push_path(mem, invocation, files->archives[it]);
@@ -262,11 +267,16 @@ void spn_msvc_render_link(sp_mem_t mem, const spn_cc_t* toolchain, const spn_pro
   }
 }
 
-void spn_msvc_render_archive(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, sp_da(spn_arg_t) objects, spn_path_t output, spn_invocation_t* invocation) {
+void spn_msvc_render_archive(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, const spn_cc_archive_files_t* files, spn_invocation_t* invocation) {
   invocation->program = program(mem, profile, toolchain->archiver, sp_str_lit("lib.exe"));
   spn_cc_push_strs(mem, invocation, toolchain->archiver.args);
   spn_cc_push_c(mem, invocation, "/nologo");
-  spn_cc_push_glued(mem, invocation, "/OUT:", output);
-  spn_cc_push_args(mem, invocation, objects);
+  spn_cc_push_glued(mem, invocation, "/OUT:", files->output);
+  if (!spn_path_empty(files->rsp)) {
+    spn_cc_push_glued(mem, invocation, "@", files->rsp);
+  }
+  si_da_for(files->objects, it) {
+    spn_cc_push_path(mem, invocation, files->objects[it]);
+  }
 }
 

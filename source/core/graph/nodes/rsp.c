@@ -14,7 +14,11 @@ spn_err_t si_on_write_rsp(spn_dag_t* g, spn_dag_action_t* action, void* user_dat
     return SPN_ERR_DAG_OUTPUT_WRITE;
   }
   sp_mem_arena_marker_t s = sp_mem_begin_scratch();
-  spn_rsp_render(&writer.base, g->roots, rsp->style, si_dag_build_object_args(s.mem, g, rsp->objects));
+  sp_da(spn_arg_t) args = sp_da_new(s.mem, spn_arg_t);
+  si_da_for(rsp->objects, it) {
+    sp_da_push(args, spn_arg_path(spn_dag_find_artifact(g, rsp->objects[it])->materialized));
+  }
+  spn_rsp_render(&writer.base, g->roots, rsp->style, args);
   sp_mem_end_scratch(s);
   sp_io_file_writer_close(&writer);
   return SPN_OK;

@@ -17,8 +17,19 @@ spn_err_t si_on_archive(spn_dag_t* g, spn_dag_action_t* action, void* user_data,
   spn_build_unit_t* build = target->pkg->build;
 
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+  spn_cc_archive_files_t files = { .output = outputs[0] };
+  switch (ctx->objects.kind) {
+    case SPN_DAG_BUILD_OBJECTS_DIRECT: {
+      files.objects = si_dag_build_paths(scratch.mem, g, ctx->objects.ids);
+      break;
+    }
+    case SPN_DAG_BUILD_OBJECTS_RSP: {
+      files.rsp = spn_dag_find_artifact(g, ctx->objects.rsp)->materialized;
+      break;
+    }
+  }
   spn_invocation_t invocation = sp_zero;
-  si_cc_render_archive(scratch.mem, &build->toolchain->cc, &build->profile, si_dag_build_objects(scratch.mem, g, &ctx->objects), outputs[0], &invocation);
+  si_cc_render_archive(scratch.mem, &build->toolchain->cc, &build->profile, &files, &invocation);
   invocation.cwd = target->pkg->paths.work;
 
   spn_pkg_unit_announce_compile(target->pkg);

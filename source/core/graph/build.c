@@ -71,29 +71,6 @@ spn_path_t si_dag_build_libc(spn_dag_t* g, const spn_dag_build_ctx_t* build) {
   return libc;
 }
 
-sp_da(spn_arg_t) si_dag_build_object_args(sp_mem_t mem, spn_dag_t* g, si_da(spn_dag_id_t) ids) {
-  sp_da(spn_arg_t) args = sp_da_new(mem, spn_arg_t);
-  si_da_for(ids, it) {
-    sp_da_push(args, spn_arg_path(spn_dag_find_artifact(g, ids[it])->materialized));
-  }
-  return args;
-}
-
-
-sp_da(spn_arg_t) si_dag_build_objects(sp_mem_t mem, spn_dag_t* g, const spn_dag_build_objects_t* objects) {
-  switch (objects->kind) {
-    case SPN_DAG_BUILD_OBJECTS_DIRECT: {
-      return si_dag_build_object_args(mem, g, objects->ids);
-    }
-    case SPN_DAG_BUILD_OBJECTS_RSP: {
-      sp_da(spn_arg_t) args = sp_da_new(mem, spn_arg_t);
-      sp_da_push(args, spn_arg_glue(sp_str_lit("@"), spn_dag_find_artifact(g, objects->rsp)->materialized));
-      return args;
-    }
-  }
-  sp_unreachable_return(SP_NULLPTR);
-}
-
 si_da(spn_path_t) si_dag_build_paths(sp_mem_t mem, spn_dag_t* g, si_da(spn_dag_id_t) ids) {
   si_da(spn_path_t) paths = sp_zero;
   si_da_for(ids, it) {
