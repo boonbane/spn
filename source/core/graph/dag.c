@@ -370,7 +370,7 @@ static spn_err_t add_object_compilation(spn_dag_build_t* b, sp_mem_t mem, spn_ta
       .cc = &toolchain->cc,
       .profile = &pkg->build->profile,
       .base = &unit->base,
-      .lang = unit->lang,
+      .depfile = unit->depfile,
       .source = unit->file,
       .subject = spn_target_unit_subject(target),
       .libc = libc,

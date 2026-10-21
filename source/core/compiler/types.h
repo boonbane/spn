@@ -58,6 +58,12 @@ typedef struct {
   spn_path_t libc;
 } spn_cc_compile_files_t;
 
+typedef enum {
+  SPN_CC_DEPFILE_NONE,
+  SPN_CC_DEPFILE_OPTIONAL,
+  SPN_CC_DEPFILE_REQUIRED,
+} spn_cc_depfile_t;
+
 typedef struct {
   spn_path_t output;
   spn_path_t implib;

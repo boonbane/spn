@@ -128,12 +128,12 @@ static spn_arg_t assembler(sp_mem_t mem, const spn_cc_t* toolchain, const spn_pr
   return spn_arg_path(spn_path_join(mem, bin, assembler_name(profile->arch)));
 }
 
-void spn_msvc_render_compile(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, const spn_cc_compile_t* compile, spn_invocation_t* invocation) {
+spn_cc_depfile_t spn_msvc_render_compile(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, const spn_cc_compile_t* compile, spn_invocation_t* invocation) {
   if (compile->lang == SPN_LANG_ASM) {
     invocation->program = assembler(mem, toolchain, profile);
     spn_cc_push_c(mem, invocation, "/nologo");
     spn_cc_push_c(mem, invocation, "/c");
-    return;
+    return SPN_CC_DEPFILE_NONE;
   }
   add_launcher(mem, toolchain, profile, compile->lang, invocation);
   spn_cc_push_c(mem, invocation, "/utf-8");
@@ -173,6 +173,7 @@ void spn_msvc_render_compile(sp_mem_t mem, const spn_cc_t* toolchain, const spn_
   // Parity with -Werror=return-type: C4715 is "not all control paths
   // return a value"
   spn_cc_push_c(mem, invocation, "/we4715");
+  return SPN_CC_DEPFILE_REQUIRED;
 }
 
 void spn_msvc_render_compile_locations(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, const spn_cc_compile_files_t* files, spn_invocation_t* invocation) {

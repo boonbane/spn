@@ -229,7 +229,7 @@ static void add_launcher(sp_mem_t mem, const spn_cc_t* toolchain, const spn_prof
   }
 }
 
-void spn_gnu_render_compile(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, const spn_cc_compile_t* compile, spn_invocation_t* invocation) {
+spn_cc_depfile_t spn_gnu_render_compile(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, const spn_cc_compile_t* compile, spn_invocation_t* invocation) {
   add_launcher(mem, toolchain, profile, compile->lang, invocation);
   spn_cc_flags_t flags = sp_zero;
   sp_da_init(mem, flags.compile);
@@ -270,6 +270,7 @@ void spn_gnu_render_compile(sp_mem_t mem, const spn_cc_t* toolchain, const spn_p
     spn_cc_push_str(mem, invocation, compile->args[it]);
   }
   spn_cc_push_c(mem, invocation, "-Werror=return-type");
+  return compile->lang == SPN_LANG_ASM ? SPN_CC_DEPFILE_OPTIONAL : SPN_CC_DEPFILE_REQUIRED;
 }
 
 static void add_output(sp_mem_t mem, spn_path_t output, spn_invocation_t* invocation) {

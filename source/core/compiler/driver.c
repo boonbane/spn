@@ -111,23 +111,22 @@ static spn_cc_feature_t link_feature(spn_cc_output_kind_t kind) {
   SP_UNREACHABLE_RETURN(SPN_CC_FEATURE_LINK_EXE);
 }
 
-void si_cc_render_compile(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, const spn_cc_compile_t* compile, spn_invocation_t* invocation) {
+spn_cc_depfile_t si_cc_render_compile(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, const spn_cc_compile_t* compile, spn_invocation_t* invocation) {
   *invocation = sp_zero_s(spn_invocation_t);
   switch (toolchain->driver) {
     case SPN_CC_DRIVER_GCC:
     case SPN_CC_DRIVER_CLANG:
     case SPN_CC_DRIVER_ZIG: {
-      spn_gnu_render_compile(mem, toolchain, profile, compile, invocation);
-      break;
+      return spn_gnu_render_compile(mem, toolchain, profile, compile, invocation);
     }
     case SPN_CC_DRIVER_MSVC: {
-      spn_msvc_render_compile(mem, toolchain, profile, compile, invocation);
-      break;
+      return spn_msvc_render_compile(mem, toolchain, profile, compile, invocation);
     }
     case SPN_CC_DRIVER_NONE: {
       sp_unreachable_case();
     }
   }
+  SP_UNREACHABLE_RETURN(SPN_CC_DEPFILE_NONE);
 }
 
 spn_invocation_t spn_cc_render_compile_source(sp_mem_t mem, const spn_invocation_t* base, spn_path_t source) {

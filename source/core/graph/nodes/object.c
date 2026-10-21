@@ -41,26 +41,16 @@ static spn_err_t compile_object(sp_mem_t scratch, spn_dag_t* g, si_compile_t* ct
     files.libc = si_dag_get_artifact_path(g, ctx->libc);
   }
 
-  struct { bool wanted; bool required; } depfile = { true, true };
-  if (ctx->lang == SPN_LANG_ASM) {
-    if (toolchain->driver == SPN_CC_DRIVER_MSVC) {
-      depfile.wanted = false;
-    } else {
-      depfile.required = false;
-    }
-  }
-
-  if (depfile.wanted) {
+  if (ctx->depfile != SPN_CC_DEPFILE_NONE) {
     files.depfile = spn_path_concat(scratch, object, ".d");
   }
 
   spn_try(run_compiler(g->roots, ctx, &files));
-  if (!depfile.wanted) return SPN_OK;
+  if (ctx->depfile == SPN_CC_DEPFILE_NONE) return SPN_OK;
 
   sp_path_t dep = spn_path_at(g->roots, files.depfile);
   if (!sp_fs_exists_at(dep)) {
-    if (!depfile.required) return SPN_OK;
-    return SPN_ERR_DAG_DEPFILE;
+    return ctx->depfile == SPN_CC_DEPFILE_REQUIRED ? SPN_ERR_DAG_DEPFILE : SPN_OK;
   }
 
   sp_str_t content = sp_zero;

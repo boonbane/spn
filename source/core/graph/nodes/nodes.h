@@ -51,7 +51,7 @@ typedef struct {
   const spn_cc_t* cc;
   const spn_profile_info_t* profile;
   const spn_invocation_t* base;
-  spn_lang_t lang;
+  spn_cc_depfile_t depfile;
   spn_path_t source;
   spn_event_subject_t subject;
   spn_dag_id_t libc;

@@ -116,6 +116,7 @@ typedef struct {
   sp_str_t name;
   spn_path_t file;
   spn_invocation_t base;
+  spn_cc_depfile_t depfile;
 } spn_compile_unit_t;
 
 typedef enum {
