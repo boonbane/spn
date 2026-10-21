@@ -21,32 +21,17 @@ static spn_err_t run_compiler(const spn_path_roots_t* roots, spn_compile_unit_t*
 
   spn_invocation_t invocation = spn_cc_render_compile_command(spn.mem, &pkg->build->toolchain->cc, &pkg->build->profile, base, files);
   spn_invocation_result_t run = spn_invocation_run(roots, &invocation);
-  sp_str_t command = spn_invocation_to_str(roots, spn.events->mem, &invocation);
+  spn_event_run_t report = spn_event_run(roots, &invocation, &run);
 
   if (run.result.status.exit_code) {
     spn_event_buffer_push(session->ctx->events, (spn_event_t) {
       .kind = SPN_EVENT_TARGET_BUILD_FAILED,
-      .pkg = pkg->info->name.str,
-      .target_failed = {
-        .target = unit->target->info->name.str,
-        .source_file = unit->file,
-        .rc = run.result.status.exit_code,
-        .out = run.result.out,
-        .command = command,
-        .time = run.elapsed,
-      }
+      .target_failed = { .subject = spn_target_unit_subject(unit->target), .source_file = unit->file, .run = report },
     });
   } else {
     spn_event_buffer_push(session->ctx->events, (spn_event_t) {
       .kind = SPN_EVENT_TARGET_BUILD_PASSED,
-      .pkg = pkg->info->name.str,
-      .target_passed = {
-        .target = unit->target->info->name.str,
-        .source_file = unit->file,
-        .command = command,
-        .out = run.result.out,
-        .time = run.elapsed,
-      }
+      .target_passed = { .subject = spn_target_unit_subject(unit->target), .source_file = unit->file, .run = report },
     });
   }
 

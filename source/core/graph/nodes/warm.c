@@ -106,9 +106,7 @@ spn_err_t si_on_zig_warmup(spn_dag_t* g, spn_dag_action_t* action, void* user_da
         .toolchain = cc->name.str,
         .triple = warm->triple,
         .stub = warm->name,
-        .rc = run.result.status.exit_code,
-        .command = spn_invocation_to_str(g->roots, spn.events->mem, &invocation),
-        .out = run.result.out,
+        .run = spn_event_run(g->roots, &invocation, &run),
       },
     });
     err = SPN_ERR_DAG_ACTION;

@@ -41,14 +41,7 @@ static spn_err_t write_exports(sp_mem_t mem, spn_dag_t* g, si_exports_t* ctx, sp
   if (run.result.status.exit_code) {
     spn_event_buffer_push(spn.events, (spn_event_t) {
       .kind = SPN_EVENT_LINK_FAILED,
-      .pkg = target->pkg->info->name.str,
-      .link_failed = {
-        .target = target->info->name.str,
-        .exit_code = run.result.status.exit_code,
-        .command = spn_invocation_to_str(roots, spn.events->mem, &invocation),
-        .out = run.result.out,
-        .err = run.result.err,
-      }
+      .link_failed = { .subject = spn_target_unit_subject(target), .run = spn_event_run(roots, &invocation, &run) },
     });
     return SPN_ERR_DAG_ACTION;
   }

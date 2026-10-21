@@ -35,41 +35,24 @@ spn_err_t si_on_archive(spn_dag_t* g, spn_dag_action_t* action, void* user_data,
   spn_pkg_unit_announce_compile(target->pkg);
   spn_event_buffer_push(spn.events, (spn_event_t) {
     .kind = SPN_EVENT_LINK_START,
-    .pkg = target->pkg->info->name.str,
-    .link_start = {
-      .target = target->info->name.str,
-    }
+    .link_start = { .subject = spn_target_unit_subject(target) },
   });
 
   spn_invocation_result_t run = spn_invocation_run(g->roots, &invocation);
-  sp_str_t command = spn_invocation_to_str(g->roots, spn.events->mem, &invocation);
+  spn_event_run_t report = spn_event_run(g->roots, &invocation, &run);
   sp_mem_end_scratch(scratch);
 
   if (run.result.status.exit_code) {
     spn_event_buffer_push(spn.events, (spn_event_t) {
       .kind = SPN_EVENT_LINK_FAILED,
-      .pkg = target->pkg->info->name.str,
-      .link_failed = {
-        .target = target->info->name.str,
-        .exit_code = run.result.status.exit_code,
-        .command = command,
-        .out = run.result.out,
-        .err = run.result.err,
-      }
+      .link_failed = { .subject = spn_target_unit_subject(target), .run = report },
     });
     return SPN_ERR_DAG_ACTION;
   }
 
   spn_event_buffer_push(spn.events, (spn_event_t) {
     .kind = SPN_EVENT_LINK_PASSED,
-    .pkg = target->pkg->info->name.str,
-    .link_passed = {
-      .target = target->info->name.str,
-      .output_path = target->paths.output,
-      .command = command,
-      .out = run.result.out,
-      .time = run.elapsed,
-    }
+    .link_passed = { .subject = spn_target_unit_subject(target), .output_path = target->paths.output, .run = report },
   });
   return SPN_OK;
 }

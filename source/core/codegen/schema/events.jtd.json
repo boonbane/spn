@@ -103,29 +103,22 @@
     "link_start": {
       "metadata": { "verb": "Linking", "verbosity": "verbose" },
       "properties": {
-        "target": { "type": "string" }
+        "subject": { "ref": "subject" }
       }
     },
     "link_passed": {
       "metadata": { "verb": "Linked", "verbosity": "debug" },
       "properties": {
-        "target": { "type": "string" },
+        "subject": { "ref": "subject" },
         "output_path": { "metadata": { "extern": "path" } },
-        "command": { "type": "string" },
-        "time_ns": { "type": "uint64", "metadata": { "field": "time" } }
-      },
-      "optionalProperties": {
-        "out": { "type": "string" }
+        "run": { "ref": "run" }
       }
     },
     "link_failed": {
       "metadata": { "verb": "Failed", "severity": "error" },
       "properties": {
-        "target": { "type": "string" },
-        "exit_code": { "type": "int32" },
-        "command": { "type": "string" },
-        "out": { "type": "string" },
-        "err": { "type": "string" }
+        "subject": { "ref": "subject" },
+        "run": { "ref": "run" }
       }
     },
     "embed_start": {
@@ -232,6 +225,21 @@
     }
   },
   "definitions": {
+    "subject": {
+      "properties": {
+        "pkg": { "type": "string" },
+        "target": { "type": "string" }
+      }
+    },
+    "run": {
+      "properties": {
+        "command": { "type": "string" },
+        "exit_code": { "type": "int32" },
+        "out": { "type": "string" },
+        "err": { "type": "string" },
+        "time_ns": { "type": "uint64", "metadata": { "field": "time" } }
+      }
+    },
     "resolve_pkg": {
       "properties": {
         "name": { "type": "string" },
@@ -272,24 +280,16 @@
     },
     "target_passed": {
       "properties": {
-        "target": { "type": "string" },
+        "subject": { "ref": "subject" },
         "source_file": { "metadata": { "extern": "path" } },
-        "command": { "type": "string" },
-        "time_ns": { "type": "uint64", "metadata": { "field": "time" } }
-      },
-      "optionalProperties": {
-        "out": { "type": "string" }
+        "run": { "ref": "run" }
       }
     },
     "target_failed": {
       "properties": {
-        "target": { "type": "string" },
+        "subject": { "ref": "subject" },
         "source_file": { "metadata": { "extern": "path" } },
-        "rc": { "type": "int32" },
-        "command": { "type": "string" },
-        "out": { "type": "string" },
-        "err": { "type": "string" },
-        "time_ns": { "type": "uint64", "metadata": { "field": "time" } }
+        "run": { "ref": "run" }
       }
     },
     "warm": {
@@ -304,9 +304,7 @@
         "toolchain": { "type": "string" },
         "triple": { "type": "string" },
         "stub": { "type": "string" },
-        "rc": { "type": "int32" },
-        "command": { "type": "string" },
-        "out": { "type": "string" }
+        "run": { "ref": "run" }
       }
     },
     "graph_init": {
