@@ -1,7 +1,6 @@
 #include "core/types.h"
 #include "ctx/types.h"
 #include "spn/errors.h"
-#include "unit/types.h"
 
 #include "compiler/driver.h"
 #include "compiler/toc.h"
@@ -14,7 +13,6 @@
 #include "intern/intern.h"
 #include "paths/paths.h"
 #include "session/invocation.h"
-#include "unit/package.h"
 
 static spn_err_t write_exports(sp_mem_t mem, spn_dag_t* g, si_exports_t* ctx, spn_path_t output) {
   const spn_path_roots_t* roots = g->roots;

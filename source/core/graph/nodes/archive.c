@@ -1,7 +1,6 @@
 #include "core/types.h"
 #include "ctx/types.h"
 #include "spn/errors.h"
-#include "unit/types.h"
 
 #include "compiler/driver.h"
 #include "dag/dag.h"
@@ -9,7 +8,6 @@
 #include "graph/build.h"
 #include "graph/nodes/nodes.h"
 #include "session/invocation.h"
-#include "unit/package.h"
 
 spn_err_t si_on_archive(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs) {
   si_archive_t* ctx = (si_archive_t*)user_data;

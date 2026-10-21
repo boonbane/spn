@@ -3,7 +3,6 @@
 #include "event/event.h"
 #include "spn/core.h"
 #include "spn/err.h"
-#include "unit/types.h"
 
 #include "compiler/driver.h"
 #include "dag/dag.h"
@@ -11,7 +10,6 @@
 #include "session/invocation.h"
 #include "graph/build.h"
 #include "graph/nodes/nodes.h"
-#include "unit/package.h"
 
 static spn_err_t run_compiler(const spn_path_roots_t* roots, si_compile_t* ctx, const spn_cc_compile_files_t* files) {
   spn_invocation_t invocation = spn_cc_render_compile_command(spn.mem, ctx->cc, ctx->profile, ctx->base, files);
