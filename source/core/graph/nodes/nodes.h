@@ -10,50 +10,42 @@
 #include "graph/build.h"
 #include "unit/types.h"
 
-typedef enum {
-  SI_LINK_OBJECTS_DIRECT,
-  SI_LINK_OBJECTS_RSP,
-} si_link_objects_kind_t;
-
-typedef struct {
-  si_link_objects_kind_t kind;
-  union {
-    sp_da(spn_dag_id_t) ids;
-    spn_dag_id_t rsp;
-  };
-} si_link_objects_t;
-
 typedef struct {
   spn_target_unit_t* target;
-  const spn_cc_link_t* link;
-  si_link_objects_t objects;
-  const spn_dag_build_ctx_t* build;
+  spn_dag_build_objects_t objects;
+  struct {
+    si_da(spn_dag_id_t) archives;
+    si_da(spn_dag_id_t) shared;
+    si_da(spn_dag_id_t) whole_archives;
+  } deps;
+  spn_dag_id_t exports;
+  spn_dag_id_t libc;
 } si_link_t;
 
 typedef struct {
   spn_target_unit_t* target;
-  si_link_objects_t objects;
+  spn_dag_build_objects_t objects;
 } si_archive_t;
 
 typedef struct {
   spn_target_unit_t* target;
-  const spn_cc_link_t* link;
-  si_link_objects_t objects;
+  spn_dag_build_objects_t objects;
+  si_da(spn_dag_id_t) whole_archives;
 } si_exports_t;
 
 typedef struct {
   spn_compile_unit_t* unit;
-  const spn_invocation_t* invocation;
-  const spn_dag_build_ctx_t* build;
+  spn_dag_id_t libc;
 } si_compile_t;
 
 typedef struct {
   spn_rsp_style_t style;
-  sp_da(spn_dag_id_t) objects;
+  si_da(spn_dag_id_t) objects;
 } si_rsp_t;
 
 typedef struct {
-  const spn_dag_build_ctx_t* build;
+  spn_build_unit_t* unit;
+  spn_dag_id_t libc;
   spn_cc_link_t link;
   sp_str_t name;
   sp_str_t triple;

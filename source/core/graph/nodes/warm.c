@@ -8,6 +8,7 @@
 #include "external/zig.h"
 #include "paths/paths.h"
 #include "session/invocation.h"
+#include "triple/triple.h"
 #include "graph/build.h"
 #include "graph/nodes/nodes.h"
 
@@ -35,7 +36,7 @@ static sp_err_t progress_write(sp_io_writer_t* writer, const void* bytes, u64 le
 
 spn_err_t si_on_zig_warmup(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs) {
   si_zig_warmup_t* warm = (si_zig_warmup_t*)user_data;
-  spn_build_unit_t* build = warm->build->unit;
+  spn_build_unit_t* build = warm->unit;
   spn_cc_t* cc = &build->toolchain->cc;
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   sp_mem_t mem = scratch.mem;
@@ -50,12 +51,41 @@ spn_err_t si_on_zig_warmup(spn_dag_t* g, spn_dag_action_t* action, void* user_da
   });
 
   spn_path_t staging = spn_path_parent(outputs[0]);
-  spn_profile_info_t profile = spn_dag_build_profile(g, warm->build);
-  sp_da(spn_arg_t) objects = sp_da_new(mem, spn_arg_t);
-  sp_da_push(objects, spn_arg_path(spn_path(mem, SPN_DIR_ID_RUNTIME, "zig/stub.c")));
+  spn_cc_link_files_t files = {
+    .output = spn_path_join(mem, staging, sp_str_lit("stub.bin")),
+  };
+  if (warm->libc.occupied) {
+    files.libc = si_dag_get_artifact_path(g, warm->libc);
+  }
+  switch (warm->link.kind) {
+    case SPN_CC_OUTPUT_SHARED_LIB:
+    case SPN_CC_OUTPUT_REACTOR: {
+      sp_str_t extension = spn_cc_exports_extension(spn_cc_exports_format(warm->link.kind, spn_os_to_native_object_format(build->profile.os)));
+      files.exports = spn_path_join(mem, staging, sp_fmt(mem, "stub.{}", sp_fmt_str(extension)).value);
+      sp_io_file_writer_t writer = sp_zero;
+      if (sp_io_file_writer_from_path_at(&writer, spn_path_at(g->roots, files.exports))) {
+        sp_mem_end_scratch(scratch);
+        return SPN_ERR_DAG_OUTPUT_WRITE;
+      }
+      spn_cc_render_exports(&writer.base, g->roots, cc, &build->profile, warm->link.kind, sp_str_lit("stub"), SP_NULLPTR);
+      sp_io_file_writer_close(&writer);
+      if (spn_cc_link_implib(&build->profile, warm->link.kind)) {
+        files.implib = spn_path_join(mem, staging, sp_str_lit("stub.lib"));
+      }
+      break;
+    }
+    case SPN_CC_OUTPUT_EXE: {
+      break;
+    }
+    case SPN_CC_OUTPUT_OBJECT:
+    case SPN_CC_OUTPUT_STATIC_LIB: {
+      sp_unreachable_case();
+    }
+  }
+  si_da_push(mem, files.objects, spn_path(mem, SPN_DIR_ID_RUNTIME, "zig/stub.c"));
 
   spn_invocation_t invocation = sp_zero;
-  spn_gnu_render_link(mem, cc, &profile, &warm->link, objects, spn_path_join(mem, staging, sp_str_lit("stub.bin")), sp_zero_struct(spn_path_t), &invocation);
+  spn_gnu_render_link(mem, cc, &build->profile, &warm->link, &files, &invocation);
   invocation.cwd = staging;
 
   progress_writer_t* progress = sp_alloc_type(mem, progress_writer_t);

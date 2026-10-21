@@ -75,7 +75,6 @@ typedef struct {
   spn_path_t msvc_lib;
   spn_path_t kernel32_lib;
   spn_path_t frameworks;
-  spn_path_t file;
 } spn_libc_t;
 
 typedef struct {

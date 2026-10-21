@@ -42,10 +42,10 @@ static const wasm_test_t tests [] = {
 sp_test_each(exports_wasm, render, wasm_test_t, tests, .setup = spn_test_ctx_setup) {
   sp_mem_t mem = sp_test_arena(t);
 
-  sp_da(sp_str_t) symbols = sp_da_new(mem, sp_str_t);
+  si_da(sp_str_t) symbols = sp_zero;
   sp_carr_for(it->symbols, s) {
     if (!it->symbols[s]) break;
-    sp_da_push(symbols, sp_cstr_as_str(it->symbols[s]));
+    si_da_push(mem, symbols, sp_cstr_as_str(it->symbols[s]));
   }
 
   sp_io_dyn_mem_writer_t buf;

@@ -1,8 +1,10 @@
 add_executable(render
   ${SRC}/compiler/driver.c
+  ${SRC}/compiler/exports.c
   ${SRC}/compiler/gnu.c
   ${SRC}/compiler/msvc.c
   ${SRC}/compiler/occ.c
+  ${SRC}/compiler/rsp.c
   ${SRC}/reflect/json.c
   ${GEN_DIR}/errors.gen.c
   ${GEN_DIR}/events.gen.c

@@ -650,15 +650,15 @@ sp_test_each(render_compile, render, compile_test_t, tests, .setup = spn_test_ct
   profile.sdk = spn_sdk_for_driver(spn_toolchain_driver_caps(it->driver), profile.sdk);
   if (it->libc) {
     sp_must_eq(t, (u32)SPN_SDK_LIBC, (u32)profile.sdk.kind);
-    profile.sdk.libc.file = test_arg_path(it->libc);
   }
   spn_invocation_t base = sp_zero;
-  spn_cc_render_compile(mem, &toolchain, &profile, &compile, &base);
+  si_cc_render_compile(mem, &toolchain, &profile, &compile, &base);
 
   spn_cc_compile_files_t files = {
     .source = test_arg_path("main.c"),
     .output = test_arg_path("main.o"),
     .depfile = it->depfile ? test_arg_path(it->depfile) : sp_zero_s(spn_path_t),
+    .libc = it->libc ? test_arg_path(it->libc) : sp_zero_s(spn_path_t),
   };
   spn_invocation_t invocation = spn_cc_render_compile_command(mem, &toolchain, &profile, &base, &files);
   return expect_args(t, &invocation, it->expect);
@@ -680,21 +680,22 @@ sp_test(render_compile, base_shared_across_commands, .setup = spn_test_ctx_setup
   });
   profile.sdk = spn_sdk_for_driver(spn_toolchain_driver_caps(SPN_CC_DRIVER_ZIG), profile.sdk);
   sp_must_eq(t, (u32)SPN_SDK_LIBC, (u32)profile.sdk.kind);
-  profile.sdk.libc.file = test_arg_path("/L");
 
   spn_invocation_t base = sp_zero;
-  spn_cc_render_compile(mem, &toolchain, &profile, &compile, &base);
+  si_cc_render_compile(mem, &toolchain, &profile, &compile, &base);
   u64 args = sp_da_size(base.args);
   u64 env = sp_da_size(base.env);
 
   spn_cc_compile_files_t first = {
     .source = test_arg_path("main.c"),
     .output = test_arg_path("a.o"),
+    .libc = test_arg_path("/L"),
   };
   spn_cc_compile_files_t second = {
     .source = test_arg_path("main.c"),
     .output = test_arg_path("b.o"),
     .depfile = test_arg_path("b.o.d"),
+    .libc = test_arg_path("/L"),
   };
   spn_invocation_t a = spn_cc_render_compile_command(mem, &toolchain, &profile, &base, &first);
   spn_invocation_t b = spn_cc_render_compile_command(mem, &toolchain, &profile, &base, &second);
