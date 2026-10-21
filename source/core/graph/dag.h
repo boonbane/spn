@@ -26,6 +26,10 @@ struct spn_dag_build_t {
   } ids;
   si_da(spn_dag_id_t) compiles;
   struct {
+    sp_ht(spn_dag_id_t, spn_pkg_unit_t*) pkgs;
+    sp_ht(spn_pkg_unit_t*, sp_atomic_s32_t) announced;
+  } announce;
+  struct {
     spn_dag_id_t file;
     spn_dag_id_t stamp;
   } compile_commands;

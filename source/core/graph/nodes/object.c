@@ -17,8 +17,6 @@ static spn_err_t run_compiler(const spn_path_roots_t* roots, spn_compile_unit_t*
   spn_pkg_unit_t* pkg = unit->target->pkg;
   spn_session_t* session = pkg->session;
 
-  spn_pkg_unit_announce_compile(pkg);
-
   spn_invocation_t invocation = spn_cc_render_compile_command(spn.mem, &pkg->build->toolchain->cc, &pkg->build->profile, base, files);
   spn_invocation_result_t run = spn_invocation_run(roots, &invocation);
   spn_event_run_t report = spn_event_run(roots, &invocation, &run);

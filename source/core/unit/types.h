@@ -195,8 +195,6 @@ struct spn_pkg_unit_t {
     spn_wasm_script_t build;
     spn_wasm_script_t* active;
   } wasm;
-
-  sp_atomic_s32_t compile_announced;
 };
 
 struct spn_toolchain_unit_t {

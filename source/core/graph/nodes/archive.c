@@ -32,7 +32,6 @@ spn_err_t si_on_archive(spn_dag_t* g, spn_dag_action_t* action, void* user_data,
   si_cc_render_archive(scratch.mem, &build->toolchain->cc, &build->profile, &files, &invocation);
   invocation.cwd = target->pkg->paths.work;
 
-  spn_pkg_unit_announce_compile(target->pkg);
   spn_event_buffer_push(spn.events, (spn_event_t) {
     .kind = SPN_EVENT_LINK_START,
     .link_start = { .subject = spn_target_unit_subject(target) },

@@ -20,8 +20,6 @@ spn_err_t si_on_embed(spn_dag_t* g, spn_dag_action_t* action, void* user_data, s
   spn_target_unit_t* unit = (spn_target_unit_t*)user_data;
   spn_target_info_t* info = unit->info;
 
-  spn_pkg_unit_announce_compile(unit->pkg);
-
   spn_event_buffer_push(spn.events, (spn_event_t) {
     .kind = SPN_EVENT_EMBED_START,
     .pkg = unit->pkg->info->name.str,
