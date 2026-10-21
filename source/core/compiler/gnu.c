@@ -70,13 +70,6 @@ static bool is_os_version_present(spn_os_version_t version) {
 // clang writes CodeView for the msvc abi and DWARF for mingw; zig writes
 // CodeView for every Windows target. Only CodeView records the command line
 // and object name, and only clang 15 and later knows the flag that drops them
-static bool codeview(const spn_cc_t* toolchain, const spn_profile_info_t* profile) {
-  if (profile->os != SPN_OS_WINDOWS || !spn_cc_has(toolchain, SPN_CC_CAP_CLANG_FRONTEND)) {
-    return false;
-  }
-  return profile->abi == SPN_ABI_MSVC || spn_cc_has(toolchain, SPN_CC_CAP_CODEVIEW);
-}
-
 static sp_str_t render_wasi(spn_wasi_spelling_t spelling) {
   switch (spelling) {
     case SPN_WASI_SPELLING_WASI: return sp_str_lit("wasm32-wasi");
@@ -229,15 +222,22 @@ static void add_launcher(sp_mem_t mem, const spn_cc_t* toolchain, const spn_prof
   }
 }
 
-spn_cc_depfile_t spn_gnu_render_compile(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, const spn_cc_compile_t* compile, spn_invocation_t* invocation) {
-  add_launcher(mem, toolchain, profile, compile->lang, invocation);
+spn_cc_compile_plan_t spn_gnu_render_compile(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, spn_lang_t lang, const spn_cc_compile_t* compile) {
+  spn_cc_compile_plan_t plan = {
+    .driver = toolchain->driver,
+    .base = { .cwd = compile->cwd },
+    .depfile = lang == SPN_LANG_ASM ? SPN_CC_DEPFILE_OPTIONAL : SPN_CC_DEPFILE_REQUIRED,
+    .codeview = profile->os == SPN_OS_WINDOWS && spn_cc_has(toolchain, SPN_CC_CAP_CLANG_FRONTEND) && (profile->abi == SPN_ABI_MSVC || spn_cc_has(toolchain, SPN_CC_CAP_CODEVIEW)),
+  };
+  spn_invocation_t* invocation = &plan.base;
+  add_launcher(mem, toolchain, profile, lang, invocation);
   spn_cc_flags_t flags = sp_zero;
   sp_da_init(mem, flags.compile);
   sp_da_init(mem, flags.link);
   spn_gnu_render_flags(mem, toolchain, profile, &flags);
-  if (compile->lang == SPN_LANG_C) {
+  if (lang == SPN_LANG_C) {
     spn_cc_push_str(mem, invocation, c_standard_to_flag(profile->standard));
-  } else if (compile->lang == SPN_LANG_CXX) {
+  } else if (lang == SPN_LANG_CXX) {
     spn_cc_push_str(mem, invocation, cxx_standard_to_flag(compile->cxx.standard));
   }
   spn_cc_push_strs(mem, invocation, flags.compile);
@@ -248,7 +248,7 @@ spn_cc_depfile_t spn_gnu_render_compile(sp_mem_t mem, const spn_cc_t* toolchain,
   si_da_for(compile->define, it) {
     spn_cc_push_str(mem, invocation, render_define(mem, compile->define[it]));
   }
-  if (compile->lang == SPN_LANG_CXX) {
+  if (lang == SPN_LANG_CXX) {
     if (compile->cxx.no_exceptions) {
       spn_cc_push_c(mem, invocation, "-fno-exceptions");
     }
@@ -263,14 +263,14 @@ spn_cc_depfile_t spn_gnu_render_compile(sp_mem_t mem, const spn_cc_t* toolchain,
   if (profile->os == SPN_OS_MACOS && is_os_version_present(compile->min_os)) {
     spn_cc_push_fmt(mem, invocation, "-mmacosx-version-min={}.{}", sp_fmt_uint(compile->min_os.major), sp_fmt_uint(compile->min_os.minor));
   }
-  if (codeview(toolchain, profile)) {
+  if (plan.codeview) {
     spn_cc_push_c(mem, invocation, "-gno-codeview-command-line");
   }
   si_da_for(compile->args, it) {
     spn_cc_push_str(mem, invocation, compile->args[it]);
   }
   spn_cc_push_c(mem, invocation, "-Werror=return-type");
-  return compile->lang == SPN_LANG_ASM ? SPN_CC_DEPFILE_OPTIONAL : SPN_CC_DEPFILE_REQUIRED;
+  return plan;
 }
 
 static void add_output(sp_mem_t mem, spn_path_t output, spn_invocation_t* invocation) {
@@ -278,28 +278,19 @@ static void add_output(sp_mem_t mem, spn_path_t output, spn_invocation_t* invoca
   spn_cc_push_path(mem, invocation, output);
 }
 
-void spn_gnu_render_compile_locations(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, const spn_cc_compile_files_t* files, spn_invocation_t* invocation) {
+void spn_gnu_render_compile_locations(sp_mem_t mem, const spn_cc_compile_plan_t* plan, const spn_cc_compile_files_t* files, spn_invocation_t* invocation) {
   if (!spn_path_empty(files->depfile)) {
     spn_cc_push_c(mem, invocation, "-MD");
     spn_cc_push_c(mem, invocation, "-MF");
     spn_cc_push_path(mem, invocation, files->depfile);
   }
-  if (codeview(toolchain, profile)) {
+  if (plan->codeview) {
     spn_cc_push_c(mem, invocation, "-Xclang");
     spn_cc_push_fmt(mem, invocation, "-object-file-name={}", sp_fmt_str(sp_fs_get_name(files->output.sub)));
   }
   add_output(mem, files->output, invocation);
-  switch (profile->sdk.kind) {
-    case SPN_SDK_NONE:
-    case SPN_SDK_SYSROOT:
-    case SPN_SDK_MACOS:
-    case SPN_SDK_MSVC: {
-      break;
-    }
-    case SPN_SDK_LIBC: {
-      spn_cc_push_env(mem, invocation, SPN_ENV_ZIG_LIBC, spn_arg_path(files->libc));
-      break;
-    }
+  if (!spn_path_empty(files->libc)) {
+    spn_cc_push_env(mem, invocation, SPN_ENV_ZIG_LIBC, spn_arg_path(files->libc));
   }
 }
 

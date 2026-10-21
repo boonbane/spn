@@ -80,9 +80,9 @@ bool spn_cc_has(const spn_cc_t* toolchain, spn_cc_cap_t cap) {
   return (spn_toolchain_driver_caps(toolchain->driver) & cap) == (spn_cc_cap_set_t)cap;
 }
 
-spn_err_t spn_cc_parse_depfile(sp_mem_t mem, const spn_cc_t* toolchain, sp_str_t content, sp_da(sp_str_t)* prereqs) {
+spn_err_t spn_cc_parse_depfile(sp_mem_t mem, spn_cc_driver_t driver, sp_str_t content, sp_da(sp_str_t)* prereqs) {
   sp_da_init(mem, *prereqs);
-  switch (toolchain->driver) {
+  switch (driver) {
     case SPN_CC_DRIVER_GCC:
     case SPN_CC_DRIVER_CLANG:
     case SPN_CC_DRIVER_ZIG: {
@@ -111,22 +111,21 @@ static spn_cc_feature_t link_feature(spn_cc_output_kind_t kind) {
   SP_UNREACHABLE_RETURN(SPN_CC_FEATURE_LINK_EXE);
 }
 
-spn_cc_depfile_t si_cc_render_compile(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, const spn_cc_compile_t* compile, spn_invocation_t* invocation) {
-  *invocation = sp_zero_s(spn_invocation_t);
+spn_cc_compile_plan_t si_cc_render_compile(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, spn_lang_t lang, const spn_cc_compile_t* compile) {
   switch (toolchain->driver) {
     case SPN_CC_DRIVER_GCC:
     case SPN_CC_DRIVER_CLANG:
     case SPN_CC_DRIVER_ZIG: {
-      return spn_gnu_render_compile(mem, toolchain, profile, compile, invocation);
+      return spn_gnu_render_compile(mem, toolchain, profile, lang, compile);
     }
     case SPN_CC_DRIVER_MSVC: {
-      return spn_msvc_render_compile(mem, toolchain, profile, compile, invocation);
+      return spn_msvc_render_compile(mem, toolchain, profile, lang, compile);
     }
     case SPN_CC_DRIVER_NONE: {
       sp_unreachable_case();
     }
   }
-  SP_UNREACHABLE_RETURN(SPN_CC_DEPFILE_NONE);
+  SP_UNREACHABLE_RETURN(sp_zero_s(spn_cc_compile_plan_t));
 }
 
 spn_invocation_t spn_cc_render_compile_source(sp_mem_t mem, const spn_invocation_t* base, spn_path_t source) {
@@ -150,19 +149,19 @@ spn_invocation_t spn_cc_render_compile_source(sp_mem_t mem, const spn_invocation
   return invocation;
 }
 
-spn_invocation_t spn_cc_render_compile_command(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, const spn_invocation_t* base, const spn_cc_compile_files_t* files) {
+spn_invocation_t spn_cc_render_compile_command(sp_mem_t mem, const spn_cc_compile_plan_t* plan, const spn_cc_compile_files_t* files) {
   sp_assert(!spn_path_empty(files->output));
 
-  spn_invocation_t invocation = spn_cc_render_compile_source(mem, base, files->source);
-  switch (toolchain->driver) {
+  spn_invocation_t invocation = spn_cc_render_compile_source(mem, &plan->base, files->source);
+  switch (plan->driver) {
     case SPN_CC_DRIVER_GCC:
     case SPN_CC_DRIVER_CLANG:
     case SPN_CC_DRIVER_ZIG: {
-      spn_gnu_render_compile_locations(mem, toolchain, profile, files, &invocation);
+      spn_gnu_render_compile_locations(mem, plan, files, &invocation);
       break;
     }
     case SPN_CC_DRIVER_MSVC: {
-      spn_msvc_render_compile_locations(mem, toolchain, profile, files, &invocation);
+      spn_msvc_render_compile_locations(mem, plan, files, &invocation);
       break;
     }
     case SPN_CC_DRIVER_NONE: {

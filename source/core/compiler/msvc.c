@@ -128,21 +128,27 @@ static spn_arg_t assembler(sp_mem_t mem, const spn_cc_t* toolchain, const spn_pr
   return spn_arg_path(spn_path_join(mem, bin, assembler_name(profile->arch)));
 }
 
-spn_cc_depfile_t spn_msvc_render_compile(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, const spn_cc_compile_t* compile, spn_invocation_t* invocation) {
-  if (compile->lang == SPN_LANG_ASM) {
+spn_cc_compile_plan_t spn_msvc_render_compile(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, spn_lang_t lang, const spn_cc_compile_t* compile) {
+  spn_cc_compile_plan_t plan = {
+    .driver = toolchain->driver,
+    .base = { .cwd = compile->cwd },
+    .depfile = lang == SPN_LANG_ASM ? SPN_CC_DEPFILE_NONE : SPN_CC_DEPFILE_REQUIRED,
+  };
+  spn_invocation_t* invocation = &plan.base;
+  if (lang == SPN_LANG_ASM) {
     invocation->program = assembler(mem, toolchain, profile);
     spn_cc_push_c(mem, invocation, "/nologo");
     spn_cc_push_c(mem, invocation, "/c");
-    return SPN_CC_DEPFILE_NONE;
+    return plan;
   }
-  add_launcher(mem, toolchain, profile, compile->lang, invocation);
+  add_launcher(mem, toolchain, profile, lang, invocation);
   spn_cc_push_c(mem, invocation, "/utf-8");
   spn_cc_push_c(mem, invocation, "/Brepro");
   spn_cc_flags_t flags = sp_zero;
   sp_da_init(mem, flags.compile);
   sp_da_init(mem, flags.link);
   spn_msvc_render_flags(mem, profile, &flags);
-  sp_str_t standard = compile->lang == SPN_LANG_CXX ?
+  sp_str_t standard = lang == SPN_LANG_CXX ?
     cxx_standard_switch(compile->cxx.standard) :
     c_standard_switch(profile->standard);
   if (!sp_str_empty(standard)) {
@@ -159,7 +165,7 @@ spn_cc_depfile_t spn_msvc_render_compile(sp_mem_t mem, const spn_cc_t* toolchain
   si_da_for(compile->define, it) {
     spn_cc_push_fmt(mem, invocation, "/D{}", sp_fmt_str(compile->define[it]));
   }
-  if (compile->lang == SPN_LANG_CXX) {
+  if (lang == SPN_LANG_CXX) {
     if (!compile->cxx.no_exceptions) {
       spn_cc_push_c(mem, invocation, "/EHsc");
     }
@@ -173,10 +179,10 @@ spn_cc_depfile_t spn_msvc_render_compile(sp_mem_t mem, const spn_cc_t* toolchain
   // Parity with -Werror=return-type: C4715 is "not all control paths
   // return a value"
   spn_cc_push_c(mem, invocation, "/we4715");
-  return SPN_CC_DEPFILE_REQUIRED;
+  return plan;
 }
 
-void spn_msvc_render_compile_locations(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, const spn_cc_compile_files_t* files, spn_invocation_t* invocation) {
+void spn_msvc_render_compile_locations(sp_mem_t mem, const spn_cc_compile_plan_t* plan, const spn_cc_compile_files_t* files, spn_invocation_t* invocation) {
   if (!spn_path_empty(files->depfile)) {
     spn_cc_push_c(mem, invocation, "/sourceDependencies");
     spn_cc_push_path(mem, invocation, files->depfile);

@@ -346,6 +346,7 @@ static spn_err_t build_target_plan(spn_target_unit_t* target) {
   spn_cc_compile_t compile = {
     .cxx = info->cxx,
     .pic = info->kind == SPN_TARGET_KIND_LIB && spn_triple_pic(spn_profile_triple(profile)),
+    .cwd = pkg->paths.work,
   };
   if (profile->os == SPN_OS_MACOS) {
     compile.min_os = link->cc.min_os;
@@ -399,9 +400,7 @@ static spn_err_t build_target_plan(spn_target_unit_t* target) {
   }
   sp_da_for(target->objects, it) {
     spn_compile_unit_t* unit = target->objects[it];
-    compile.lang = unit->lang;
-    unit->depfile = si_cc_render_compile(mem, toolchain, profile, &compile, &unit->base);
-    unit->base.cwd = pkg->paths.work;
+    unit->plan = si_cc_render_compile(mem, toolchain, profile, unit->lang, &compile);
   }
   sp_mem_end_scratch(scratch);
 

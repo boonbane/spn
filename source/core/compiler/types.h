@@ -42,13 +42,13 @@ typedef struct {
 } spn_cc_t;
 
 typedef struct {
-  spn_lang_t lang;
   si_da(spn_path_t) include;
   si_da(sp_str_t) define;
   si_da(sp_str_t) args;
   spn_cxx_options_t cxx;
   bool pic;
   spn_os_version_t min_os;
+  spn_path_t cwd;
 } spn_cc_compile_t;
 
 typedef struct {
@@ -124,6 +124,13 @@ typedef struct {
   spn_path_t cwd;
   sp_da(spn_invocation_env_t) env;
 } spn_invocation_t;
+
+typedef struct {
+  spn_cc_driver_t driver;
+  spn_invocation_t base;
+  spn_cc_depfile_t depfile;
+  bool codeview;
+} spn_cc_compile_plan_t;
 
 typedef enum {
   SPN_RSP_STYLE_WINDOWS,

@@ -21,6 +21,7 @@ void                spn_dag_action_add_input(spn_dag_t* g, spn_dag_id_t action, 
 spn_err_t           spn_dag_action_add_output(spn_dag_t* g, spn_dag_id_t action, spn_dag_id_t artifact);
 bool                spn_dag_output_overlaps(spn_dag_artifact_t* artifact, spn_path_t path);
 spn_dag_violation_t spn_dag_validate(spn_dag_t* g);
+spn_path_t          spn_dag_scratch(sp_mem_t mem, const spn_dag_env_t* env, const spn_dag_action_t* action);
 
 void                spn_dag_hash_bytes(spn_digest_ctx_t* ctx, const void* data, u64 len);
 void                spn_dag_hash_u8(spn_digest_ctx_t* ctx, u8 value);

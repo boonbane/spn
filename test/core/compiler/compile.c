@@ -481,6 +481,37 @@ static const compile_test_t tests [] = {
     },
   },
   {
+    .name = "zig_libc_sdk_without_libc_file",
+    .driver = SPN_CC_DRIVER_ZIG,
+    .profile = {
+      .arch = SPN_ARCH_ARM64,
+      .os = SPN_OS_MACOS,
+      .abi = SPN_ABI_APPLE,
+      .standard = SPN_C99,
+      .sdk = "/sdk",
+    },
+    .expect = {
+      .command = "cc",
+      .args = { "--target=aarch64-macos", "-std=c99", "-c", "-Werror=return-type", "main.c", "-o", "main.o" },
+    },
+  },
+  {
+    .name = "zig_libc_file_without_sdk",
+    .driver = SPN_CC_DRIVER_ZIG,
+    .profile = {
+      .arch = SPN_ARCH_X64,
+      .os = SPN_OS_LINUX,
+      .abi = SPN_ABI_MUSL,
+      .standard = SPN_C99,
+    },
+    .libc = "/L",
+    .expect = {
+      .command = "cc",
+      .args = { "--target=x86_64-linux-musl", "-std=c99", "-c", "-Werror=return-type", "main.c", "-o", "main.o" },
+      .env = { "ZIG_LIBC=/L" },
+    },
+  },
+  {
     .name = "msvc_sdk",
     .driver = SPN_CC_DRIVER_MSVC,
     .profile = {
@@ -627,7 +658,6 @@ sp_test_each(render_compile, render, compile_test_t, tests, .setup = spn_test_ct
     toolchain.compiler.program = spn_arg_path(test_arg_path(it->compiler));
   }
   spn_cc_compile_t compile = {
-    .lang = it->lang,
     .cxx = it->cxx,
     .pic = it->pic,
     .min_os = it->min_os,
@@ -648,11 +678,7 @@ sp_test_each(render_compile, render, compile_test_t, tests, .setup = spn_test_ct
 
   spn_profile_info_t profile = test_profile(it->profile);
   profile.sdk = spn_sdk_for_driver(spn_toolchain_driver_caps(it->driver), profile.sdk);
-  if (it->libc) {
-    sp_must_eq(t, (u32)SPN_SDK_LIBC, (u32)profile.sdk.kind);
-  }
-  spn_invocation_t base = sp_zero;
-  si_cc_render_compile(mem, &toolchain, &profile, &compile, &base);
+  spn_cc_compile_plan_t plan = si_cc_render_compile(mem, &toolchain, &profile, it->lang, &compile);
 
   spn_cc_compile_files_t files = {
     .source = test_arg_path("main.c"),
@@ -660,7 +686,7 @@ sp_test_each(render_compile, render, compile_test_t, tests, .setup = spn_test_ct
     .depfile = it->depfile ? test_arg_path(it->depfile) : sp_zero_s(spn_path_t),
     .libc = it->libc ? test_arg_path(it->libc) : sp_zero_s(spn_path_t),
   };
-  spn_invocation_t invocation = spn_cc_render_compile_command(mem, &toolchain, &profile, &base, &files);
+  spn_invocation_t invocation = spn_cc_render_compile_command(mem, &plan, &files);
   return expect_args(t, &invocation, it->expect);
 }
 
@@ -668,9 +694,7 @@ sp_test(render_compile, base_shared_across_commands, .setup = spn_test_ctx_setup
   sp_mem_t mem = sp_test_arena(t);
   spn_cc_t toolchain = test_toolchain(SPN_CC_DRIVER_ZIG);
   toolchain.cache = test_arg_path("/C");
-  spn_cc_compile_t compile = {
-    .lang = SPN_LANG_C,
-  };
+  spn_cc_compile_t compile = sp_zero;
   spn_profile_info_t profile = test_profile((test_profile_t) {
     .arch = SPN_ARCH_ARM64,
     .os = SPN_OS_MACOS,
@@ -681,10 +705,9 @@ sp_test(render_compile, base_shared_across_commands, .setup = spn_test_ctx_setup
   profile.sdk = spn_sdk_for_driver(spn_toolchain_driver_caps(SPN_CC_DRIVER_ZIG), profile.sdk);
   sp_must_eq(t, (u32)SPN_SDK_LIBC, (u32)profile.sdk.kind);
 
-  spn_invocation_t base = sp_zero;
-  si_cc_render_compile(mem, &toolchain, &profile, &compile, &base);
-  u64 args = sp_da_size(base.args);
-  u64 env = sp_da_size(base.env);
+  spn_cc_compile_plan_t plan = si_cc_render_compile(mem, &toolchain, &profile, SPN_LANG_C, &compile);
+  u64 args = sp_da_size(plan.base.args);
+  u64 env = sp_da_size(plan.base.env);
 
   spn_cc_compile_files_t first = {
     .source = test_arg_path("main.c"),
@@ -697,11 +720,11 @@ sp_test(render_compile, base_shared_across_commands, .setup = spn_test_ctx_setup
     .depfile = test_arg_path("b.o.d"),
     .libc = test_arg_path("/L"),
   };
-  spn_invocation_t a = spn_cc_render_compile_command(mem, &toolchain, &profile, &base, &first);
-  spn_invocation_t b = spn_cc_render_compile_command(mem, &toolchain, &profile, &base, &second);
+  spn_invocation_t a = spn_cc_render_compile_command(mem, &plan, &first);
+  spn_invocation_t b = spn_cc_render_compile_command(mem, &plan, &second);
 
-  sp_expect_eq(t, sp_da_size(base.args), args);
-  sp_expect_eq(t, sp_da_size(base.env), env);
+  sp_expect_eq(t, sp_da_size(plan.base.args), args);
+  sp_expect_eq(t, sp_da_size(plan.base.env), env);
   if (expect_args(t, &a, (render_expect_t) {
     .command = "cc",
     .args = { "--target=aarch64-macos", "-std=c99", "-c", "-Werror=return-type", "main.c", "-o", "a.o" },
@@ -714,4 +737,37 @@ sp_test(render_compile, base_shared_across_commands, .setup = spn_test_ctx_setup
     .args = { "--target=aarch64-macos", "-std=c99", "-c", "-Werror=return-type", "main.c", "-MD", "-MF", "b.o.d", "-o", "b.o" },
     .env = { "ZIG_GLOBAL_CACHE_DIR=/C", "ZIG_LOCAL_CACHE_DIR=/C", "ZIG_LIBC=/L" },
   });
+}
+
+typedef struct {
+  const c8* name;
+  spn_cc_driver_t driver;
+  spn_os_t os;
+  spn_abi_t abi;
+  bool expect;
+} codeview_test_t;
+
+static const codeview_test_t codeview_tests [] = {
+  { .name = "zig_windows_gnu", .driver = SPN_CC_DRIVER_ZIG, .os = SPN_OS_WINDOWS, .abi = SPN_ABI_GNU, .expect = true },
+  { .name = "zig_windows_msvc", .driver = SPN_CC_DRIVER_ZIG, .os = SPN_OS_WINDOWS, .abi = SPN_ABI_MSVC, .expect = true },
+  { .name = "clang_windows_msvc", .driver = SPN_CC_DRIVER_CLANG, .os = SPN_OS_WINDOWS, .abi = SPN_ABI_MSVC, .expect = true },
+  { .name = "clang_windows_gnu", .driver = SPN_CC_DRIVER_CLANG, .os = SPN_OS_WINDOWS, .abi = SPN_ABI_GNU, .expect = false },
+  { .name = "gcc_windows_gnu", .driver = SPN_CC_DRIVER_GCC, .os = SPN_OS_WINDOWS, .abi = SPN_ABI_GNU, .expect = false },
+  { .name = "zig_linux_musl", .driver = SPN_CC_DRIVER_ZIG, .os = SPN_OS_LINUX, .abi = SPN_ABI_MUSL, .expect = false },
+};
+
+sp_test_each(render_compile, codeview, codeview_test_t, codeview_tests, .setup = spn_test_ctx_setup) {
+  sp_mem_t mem = sp_test_arena(t);
+  spn_cc_t toolchain = test_toolchain(it->driver);
+  spn_profile_info_t profile = test_profile((test_profile_t) {
+    .arch = SPN_ARCH_X64,
+    .os = it->os,
+    .abi = it->abi,
+    .linking.runtime = SPN_RUNTIME_STATIC,
+    .standard = SPN_C99,
+  });
+  spn_cc_compile_t compile = sp_zero;
+  spn_cc_compile_plan_t plan = si_cc_render_compile(mem, &toolchain, &profile, SPN_LANG_C, &compile);
+  sp_expect_eq(t, (u32)plan.codeview, (u32)it->expect);
+  return SP_OK;
 }

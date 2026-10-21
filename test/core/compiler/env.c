@@ -39,19 +39,18 @@ sp_test_each(render_env, render, env_test_t, tests, .setup = spn_test_ctx_setup)
   spn_invocation_t invocation = sp_zero;
   switch (it->render) {
     case RENDER_COMPILE: {
-      spn_cc_compile_t compile = { .lang = SPN_LANG_C };
-      si_cc_render_compile(mem, &toolchain, &profile, &compile, &invocation);
+      spn_cc_compile_t compile = sp_zero;
+      invocation = si_cc_render_compile(mem, &toolchain, &profile, SPN_LANG_C, &compile).base;
       break;
     }
     case RENDER_COMPILE_COMMAND: {
-      spn_cc_compile_t compile = { .lang = SPN_LANG_C };
-      spn_invocation_t base = sp_zero;
-      si_cc_render_compile(mem, &toolchain, &profile, &compile, &base);
+      spn_cc_compile_t compile = sp_zero;
+      spn_cc_compile_plan_t plan = si_cc_render_compile(mem, &toolchain, &profile, SPN_LANG_C, &compile);
       spn_cc_compile_files_t files = {
         .source = test_arg_path("main.c"),
         .output = test_arg_path("main.o"),
       };
-      invocation = spn_cc_render_compile_command(mem, &toolchain, &profile, &base, &files);
+      invocation = spn_cc_render_compile_command(mem, &plan, &files);
       break;
     }
     case RENDER_LINK: {

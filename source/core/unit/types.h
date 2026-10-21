@@ -115,8 +115,7 @@ typedef struct {
   spn_lang_t lang;
   sp_str_t name;
   spn_path_t file;
-  spn_invocation_t base;
-  spn_cc_depfile_t depfile;
+  spn_cc_compile_plan_t plan;
 } spn_compile_unit_t;
 
 typedef enum {

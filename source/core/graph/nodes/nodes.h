@@ -48,10 +48,7 @@ typedef struct {
 } si_exports_t;
 
 typedef struct {
-  const spn_cc_t* cc;
-  const spn_profile_info_t* profile;
-  const spn_invocation_t* base;
-  spn_cc_depfile_t depfile;
+  const spn_cc_compile_plan_t* plan;
   spn_path_t source;
   spn_event_subject_t subject;
   spn_dag_id_t libc;
@@ -72,6 +69,7 @@ typedef struct {
 } si_zig_warmup_t;
 
 spn_err_t si_on_compile(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs);
+spn_err_t si_on_compile_discover(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs);
 spn_err_t si_on_archive(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs);
 spn_err_t si_on_link(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs);
 spn_err_t si_on_write_exports(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs);

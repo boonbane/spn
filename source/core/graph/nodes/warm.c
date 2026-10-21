@@ -49,7 +49,7 @@ spn_err_t si_on_zig_warmup(spn_dag_t* g, spn_dag_action_t* action, void* user_da
     },
   });
 
-  spn_path_t staging = spn_path_parent(outputs[0]);
+  spn_path_t staging = spn_dag_scratch(mem, env, action);
   spn_cc_link_files_t files = {
     .output = spn_path_join(mem, staging, sp_str_lit("stub.bin")),
   };

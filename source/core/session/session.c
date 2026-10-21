@@ -43,7 +43,6 @@ spn_err_t spn_session_init(spn_session_t* s, spn_ctx_t* ctx, sp_mem_t mem, spn_p
   sp_om_new(s->units.packages);
   sp_om_new(s->units.targets);
   sp_om_new(s->units.objects);
-  sp_om_new(s->dag.objects);
 
   spn_profile_info_t profile = sp_zero;
   spn_try(spn_profile_resolve(&config.profile, ctx->host, s->pkg, &profile));
