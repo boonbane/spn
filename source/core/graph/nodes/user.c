@@ -14,8 +14,6 @@ spn_err_t si_on_user_node(spn_dag_t* g, spn_dag_action_t* action, void* user_dat
   spn_user_node_t* node = (spn_user_node_t*)user_data;
   spn_pkg_unit_t* pkg = node->pkg;
 
-  spn_pkg_unit_announce_compile(pkg);
-
   spn_event_buffer_push(spn.events, (spn_event_t) {
     .kind = SPN_EVENT_SCRIPT_USER_FN,
     .pkg = pkg->info->name.str,

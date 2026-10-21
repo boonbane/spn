@@ -22,6 +22,7 @@
 #include "external/zig.h"
 #include "op/op.h"
 #include "paths/paths.h"
+#include "semver/convert.h"
 #include "str/str.h"
 #include "session/session.h"
 #include "thread_pool/thread_pool.h"
@@ -97,6 +98,29 @@ static bool pkg_publishes(spn_pkg_unit_t* unit) {
     }
   }
   return false;
+}
+
+static void dag_announce_for(spn_dag_build_t* b, spn_dag_id_t action, spn_pkg_unit_t* pkg) {
+  sp_ht_insert(b->announce.pkgs, action, pkg);
+  if (!sp_ht_getp(b->announce.announced, pkg)) {
+    sp_ht_insert(b->announce.announced, pkg, (sp_atomic_s32_t)0);
+  }
+}
+
+static void dag_trace(const spn_dag_trace_event_t* event, void* user_data) {
+  spn_dag_build_t* b = (spn_dag_build_t*)user_data;
+  if (event->kind != SPN_DAG_TRACE_EXECUTE) return;
+  spn_pkg_unit_t** pkg = sp_ht_getp(b->announce.pkgs, event->action);
+  if (!pkg) return;
+  if (!sp_atomic_s32_cas(sp_ht_getp(b->announce.announced, *pkg), 0, 1, SP_ATOMIC_SEQ_CST)) return;
+
+  spn_event_buffer_push(spn.events, (spn_event_t) {
+    .kind = SPN_EVENT_COMPILE_START,
+    .pkg = (*pkg)->info->name.str,
+    .compile_start = {
+      .version = spn_semver_to_str(spn.events->mem, (*pkg)->info->version),
+    },
+  });
 }
 
 spn_err_t spn_dag_build_add_build(spn_dag_build_t* b, spn_build_unit_t* build) {
@@ -210,6 +234,7 @@ static spn_err_t dag_add_user_nodes(spn_dag_build_t* b, spn_pkg_unit_t* unit) {
       .execute = si_on_user_node,
       .user_data = node,
     });
+    dag_announce_for(b, action, unit);
 
     if (metaprogram.occupied) {
       spn_dag_action_add_input(g, action, metaprogram);
@@ -342,7 +367,12 @@ static spn_err_t add_object_compilation(spn_dag_build_t* b, sp_mem_t mem, spn_ta
 
     si_compile_t* ctx = sp_alloc_type(b->mem, si_compile_t);
     *ctx = (si_compile_t) {
-      .unit = unit,
+      .cc = &toolchain->cc,
+      .profile = &pkg->build->profile,
+      .base = &unit->base,
+      .lang = unit->lang,
+      .source = unit->file,
+      .subject = spn_target_unit_subject(target),
       .libc = libc,
     };
     object_ids_t ids = sp_zero;
@@ -352,6 +382,7 @@ static spn_err_t add_object_compilation(spn_dag_build_t* b, sp_mem_t mem, spn_ta
       .execute = si_on_compile,
       .user_data = ctx,
     });
+    dag_announce_for(b, ids.action, pkg);
     spn_dag_action_add_input(g, ids.action, spn_dag_add_file(g, unit->file));
     if (libc.occupied) {
       spn_dag_action_add_input(g, ids.action, libc);
@@ -449,6 +480,7 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
       .execute = si_on_embed,
       .user_data = target,
     });
+    dag_announce_for(b, embed, target->pkg);
     sp_ht_insert(b->ids.embeds, target, embed);
     spn_dag_id_t object = spn_dag_add_file(g, embed_artifact_path(mem, target, "o"));
     spn_dag_id_t header = spn_dag_add_file(g, embed_artifact_path(mem, target, "h"));
@@ -508,7 +540,11 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
     case SPN_CC_OUTPUT_STATIC_LIB: {
       si_archive_t* ctx = sp_alloc_type(b->mem, si_archive_t);
       *ctx = (si_archive_t) {
-        .target = target,
+        .cc = &toolchain->cc,
+        .profile = &build->profile,
+        .cwd = target->pkg->paths.work,
+        .output_path = target->paths.output,
+        .subject = spn_target_unit_subject(target),
         .objects = link_objects,
       };
 
@@ -523,6 +559,7 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
         .execute = si_on_archive,
         .user_data = ctx,
       });
+      dag_announce_for(b, action, target->pkg);
       si_da_for(link_inputs, it) {
         spn_dag_action_add_input(g, action, link_inputs[it]);
       }
@@ -534,7 +571,12 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
     case SPN_CC_OUTPUT_REACTOR: {
       si_link_t* ctx = sp_alloc_type(b->mem, si_link_t);
       *ctx = (si_link_t) {
-        .target = target,
+        .cc = &toolchain->cc,
+        .profile = &build->profile,
+        .link = &link->cc,
+        .cwd = target->pkg->paths.work,
+        .output_path = target->paths.output,
+        .subject = spn_target_unit_subject(target),
         .objects = link_objects,
         .libc = libc,
       };
@@ -563,7 +605,12 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
         case SPN_CC_OUTPUT_REACTOR: {
           si_exports_t* exports = sp_alloc_type(b->mem, si_exports_t);
           *exports = (si_exports_t) {
-            .target = target,
+            .cc = &toolchain->cc,
+            .profile = &build->profile,
+            .cwd = target->pkg->paths.work,
+            .kind = target->kind,
+            .library = target->info->name.str,
+            .subject = spn_target_unit_subject(target),
             .objects = link_objects,
             .whole_archives = ctx->deps.whole_archives,
           };
@@ -583,6 +630,7 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
             .execute = si_on_write_exports,
             .user_data = exports,
           });
+          dag_announce_for(b, action, target->pkg);
           si_da_for(link_inputs, it) {
             spn_dag_action_add_input(g, action, link_inputs[it]);
           }
@@ -624,6 +672,7 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
         .execute = si_on_link,
         .user_data = ctx,
       });
+      dag_announce_for(b, action, target->pkg);
       si_da_for(link_inputs, it) {
         spn_dag_action_add_input(g, action, link_inputs[it]);
       }
@@ -682,7 +731,8 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
           sp_str_t name = spn_zig_stub_name(b->mem, &stub);
           si_zig_warmup_t* warm = sp_alloc_type(b->mem, si_zig_warmup_t);
           *warm = (si_zig_warmup_t) {
-            .unit = build,
+            .cc = &toolchain->cc,
+            .profile = &build->profile,
             .libc = libc,
             .link = stub_link,
             .name = name,
@@ -1043,6 +1093,8 @@ spn_dag_build_t* spn_dag_build_new(spn_op_t* op) {
   sp_ht_init(b->mem, b->ids.embeds);
   sp_ht_init(b->mem, b->ids.builds);
   sp_ht_init(b->mem, b->ids.warm);
+  sp_ht_init(b->mem, b->announce.pkgs);
+  sp_ht_init(b->mem, b->announce.announced);
 
   spn_path_t root = spn_path_anchor(session->mem, roots, spn_path_from_id(SPN_DIR_ID_DAG));
   spn_path_t tmp = spn_path_join(session->mem, root, sp_str_lit("tmp"));
@@ -1070,6 +1122,8 @@ spn_dag_build_t* spn_dag_build_new(spn_op_t* op) {
     .progress = &b->progress,
     .wake = &op->ctx->wake,
     .cancel = &op->cancelled,
+    .trace = dag_trace,
+    .trace_data = b,
     .scratch = tmp,
   };
 

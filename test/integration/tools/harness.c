@@ -217,14 +217,24 @@ static sp_err_t expect_elf_no_symbol(sp_test_t* t, fixture_t* fixture, sp_str_t 
   return SP_ERR;
 }
 
+static yyjson_val* event_field(sp_mem_t mem, yyjson_val* obj, const c8* key) {
+  sp_da(sp_str_t) parts = sp_str_split_c8(mem, sp_cstr_as_str(key), '.');
+  sp_da_for(parts, it) {
+    if (!obj) return SP_NULLPTR;
+    obj = yyjson_obj_getn(obj, parts[it].data, parts[it].len);
+  }
+  return obj;
+}
+
 static bool event_matches(yyjson_val* line, const c8* event, const c8* key, const c8* value) {
   const c8* name = yyjson_get_str(yyjson_obj_get(line, "event"));
   if (!name || !sp_cstr_equal(name, event)) return false;
   if (!key) return true;
 
-  yyjson_val* field = yyjson_obj_get(line, key);
+  sp_mem_t mem = sp_mem_get_scratch();
+  yyjson_val* field = event_field(mem, line, key);
   if (!field) {
-    field = yyjson_obj_get(yyjson_obj_get(line, "data"), key);
+    field = event_field(mem, yyjson_obj_get(line, "data"), key);
   }
 
   if (yyjson_is_int(field)) {
