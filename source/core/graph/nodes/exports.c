@@ -29,9 +29,7 @@ static spn_err_t write_exports(sp_mem_t mem, spn_dag_t* g, si_exports_t* ctx, sp
       break;
     }
   }
-  spn_invocation_t invocation = sp_zero;
-  si_cc_render_archive(mem, ctx->cc, ctx->profile, &files, &invocation);
-  invocation.cwd = ctx->cwd;
+  spn_invocation_t invocation = spn_cc_render_archive_command(mem, ctx->archive, &files);
 
   spn_invocation_result_t run = spn_invocation_run(roots, &invocation);
   if (run.result.status.exit_code) {
@@ -82,7 +80,7 @@ static spn_err_t write_exports(sp_mem_t mem, spn_dag_t* g, si_exports_t* ctx, sp
   if (sp_io_file_writer_from_path_at(&writer, spn_path_at(roots, output))) {
     return SPN_ERR_DAG_OUTPUT_WRITE;
   }
-  spn_cc_render_exports(&writer.base, roots, ctx->cc, ctx->profile, ctx->kind, ctx->library, symbols);
+  spn_cc_render_exports(&writer.base, roots, ctx->format, ctx->rsp, ctx->library, symbols);
   sp_io_file_writer_close(&writer);
   return SPN_OK;
 }

@@ -24,9 +24,7 @@ spn_err_t si_on_archive(spn_dag_t* g, spn_dag_action_t* action, void* user_data,
       break;
     }
   }
-  spn_invocation_t invocation = sp_zero;
-  si_cc_render_archive(scratch.mem, ctx->cc, ctx->profile, &files, &invocation);
-  invocation.cwd = ctx->cwd;
+  spn_invocation_t invocation = spn_cc_render_archive_command(scratch.mem, ctx->plan, &files);
 
   spn_event_buffer_push(spn.events, (spn_event_t) {
     .kind = SPN_EVENT_LINK_START,

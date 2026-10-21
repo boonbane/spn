@@ -57,13 +57,16 @@ sp_test_each(render_env, render, env_test_t, tests, .setup = spn_test_ctx_setup)
       spn_cc_link_t link = { .lang = SPN_LANG_C, .kind = SPN_CC_OUTPUT_EXE };
       spn_cc_link_files_t files = { .output = test_arg_path("main") };
       si_da_push(mem, files.objects, test_arg_path("main.o"));
-      spn_gnu_render_link(mem, &toolchain, &profile, &link, &files, &invocation);
+      spn_cc_link_plan_t plan = spn_gnu_render_link(mem, &toolchain, &profile, &link);
+      invocation = spn_cc_render_link_command(mem, &plan, &files);
       break;
     }
     case RENDER_ARCHIVE: {
+      spn_cc_archive_t archive = sp_zero;
       spn_cc_archive_files_t files = { .output = test_arg_path("libmain.a") };
       si_da_push(mem, files.objects, test_arg_path("main.o"));
-      spn_gnu_render_archive(mem, &toolchain, &files, &invocation);
+      spn_cc_archive_plan_t plan = spn_gnu_render_archive(mem, &toolchain, &archive);
+      invocation = spn_cc_render_archive_command(mem, &plan, &files);
       break;
     }
   }

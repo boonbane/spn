@@ -11,36 +11,32 @@
 #include "unit/types.h"
 
 typedef struct {
-  const spn_cc_t* cc;
-  const spn_profile_info_t* profile;
-  const spn_cc_link_t* link;
-  spn_path_t cwd;
+  const spn_cc_link_plan_t* plan;
   spn_path_t output_path;
   spn_event_subject_t subject;
   spn_dag_build_objects_t objects;
+  si_da(spn_dag_id_t) scripts;
   struct {
     si_da(spn_dag_id_t) archives;
     si_da(spn_dag_id_t) shared;
     si_da(spn_dag_id_t) whole_archives;
   } deps;
   spn_dag_id_t exports;
+  spn_dag_id_t implib;
   spn_dag_id_t libc;
 } si_link_t;
 
 typedef struct {
-  const spn_cc_t* cc;
-  const spn_profile_info_t* profile;
-  spn_path_t cwd;
+  const spn_cc_archive_plan_t* plan;
   spn_path_t output_path;
   spn_event_subject_t subject;
   spn_dag_build_objects_t objects;
 } si_archive_t;
 
 typedef struct {
-  const spn_cc_t* cc;
-  const spn_profile_info_t* profile;
-  spn_path_t cwd;
-  spn_cc_output_kind_t kind;
+  const spn_cc_archive_plan_t* archive;
+  spn_cc_exports_format_t format;
+  spn_rsp_style_t rsp;
   sp_str_t library;
   spn_event_subject_t subject;
   spn_dag_build_objects_t objects;

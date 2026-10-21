@@ -3,6 +3,7 @@
 #include "event/event.h"
 
 #include "compiler/driver.h"
+#include "compiler/rsp.h"
 #include "dag/dag.h"
 #include "external/zig.h"
 #include "paths/paths.h"
@@ -59,14 +60,15 @@ spn_err_t si_on_zig_warmup(spn_dag_t* g, spn_dag_action_t* action, void* user_da
   switch (warm->link.kind) {
     case SPN_CC_OUTPUT_SHARED_LIB:
     case SPN_CC_OUTPUT_REACTOR: {
-      sp_str_t extension = spn_cc_exports_extension(spn_cc_exports_format(warm->link.kind, spn_os_to_native_object_format(profile->os)));
+      spn_cc_exports_format_t format = spn_cc_exports_format(warm->link.kind, spn_os_to_native_object_format(profile->os));
+      sp_str_t extension = spn_cc_exports_extension(format);
       files.exports = spn_path_join(mem, staging, sp_fmt(mem, "stub.{}", sp_fmt_str(extension)).value);
       sp_io_file_writer_t writer = sp_zero;
       if (sp_io_file_writer_from_path_at(&writer, spn_path_at(g->roots, files.exports))) {
         sp_mem_end_scratch(scratch);
         return SPN_ERR_DAG_OUTPUT_WRITE;
       }
-      spn_cc_render_exports(&writer.base, g->roots, cc, profile, warm->link.kind, sp_str_lit("stub"), SP_NULLPTR);
+      spn_cc_render_exports(&writer.base, g->roots, format, spn_rsp_style(cc->driver), sp_str_lit("stub"), SP_NULLPTR);
       sp_io_file_writer_close(&writer);
       if (spn_cc_link_implib(profile, warm->link.kind)) {
         files.implib = spn_path_join(mem, staging, sp_str_lit("stub.lib"));
@@ -83,9 +85,10 @@ spn_err_t si_on_zig_warmup(spn_dag_t* g, spn_dag_action_t* action, void* user_da
   }
   si_da_push(mem, files.objects, spn_path(mem, SPN_DIR_ID_RUNTIME, "zig/stub.c"));
 
-  spn_invocation_t invocation = sp_zero;
-  spn_gnu_render_link(mem, cc, profile, &warm->link, &files, &invocation);
-  invocation.cwd = staging;
+  spn_cc_link_t link = warm->link;
+  link.cwd = staging;
+  spn_cc_link_plan_t plan = spn_gnu_render_link(mem, cc, profile, &link);
+  spn_invocation_t invocation = spn_cc_render_link_command(mem, &plan, &files);
 
   progress_writer_t* progress = sp_alloc_type(mem, progress_writer_t);
   *progress = (progress_writer_t) { .base = { .write = progress_write }, .env = env };

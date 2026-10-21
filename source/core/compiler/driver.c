@@ -128,9 +128,8 @@ spn_cc_compile_plan_t si_cc_render_compile(sp_mem_t mem, const spn_cc_t* toolcha
   SP_UNREACHABLE_RETURN(sp_zero_s(spn_cc_compile_plan_t));
 }
 
-spn_invocation_t spn_cc_render_compile_source(sp_mem_t mem, const spn_invocation_t* base, spn_path_t source) {
+static spn_invocation_t invocation_from_base(sp_mem_t mem, const spn_invocation_t* base) {
   sp_assert(!spn_arg_empty(base->program));
-  sp_assert(!spn_path_empty(source));
 
   spn_invocation_t invocation = {
     .program = base->program,
@@ -145,6 +144,12 @@ spn_invocation_t spn_cc_render_compile_source(sp_mem_t mem, const spn_invocation
   sp_da_for(base->env, it) {
     sp_da_push(invocation.env, base->env[it]);
   }
+  return invocation;
+}
+
+spn_invocation_t spn_cc_render_compile_source(sp_mem_t mem, const spn_invocation_t* base, spn_path_t source) {
+  sp_assert(!spn_path_empty(source));
+  spn_invocation_t invocation = invocation_from_base(mem, base);
   spn_cc_push_path(mem, &invocation, source);
   return invocation;
 }
@@ -171,37 +176,72 @@ spn_invocation_t spn_cc_render_compile_command(sp_mem_t mem, const spn_cc_compil
   return invocation;
 }
 
-void si_cc_render_archive(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, const spn_cc_archive_files_t* files, spn_invocation_t* invocation) {
-  *invocation = sp_zero_s(spn_invocation_t);
+spn_cc_archive_plan_t si_cc_render_archive(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, const spn_cc_archive_t* archive) {
   switch (toolchain->archiver_driver) {
     case SPN_AR_DRIVER_GNU: {
-      spn_gnu_render_archive(mem, toolchain, files, invocation);
+      return spn_gnu_render_archive(mem, toolchain, archive);
+    }
+    case SPN_AR_DRIVER_MSVC: {
+      return spn_msvc_render_archive(mem, toolchain, profile, archive);
+    }
+  }
+  SP_UNREACHABLE_RETURN(sp_zero_s(spn_cc_archive_plan_t));
+}
+
+spn_invocation_t spn_cc_render_archive_command(sp_mem_t mem, const spn_cc_archive_plan_t* plan, const spn_cc_archive_files_t* files) {
+  sp_assert(!spn_path_empty(files->output));
+
+  spn_invocation_t invocation = invocation_from_base(mem, &plan->base);
+  switch (plan->driver) {
+    case SPN_AR_DRIVER_GNU: {
+      spn_gnu_render_archive_locations(mem, plan, files, &invocation);
       break;
     }
     case SPN_AR_DRIVER_MSVC: {
-      spn_msvc_render_archive(mem, toolchain, profile, files, invocation);
+      spn_msvc_render_archive_locations(mem, plan, files, &invocation);
       break;
     }
   }
+  return invocation;
 }
 
-void si_cc_render_link(sp_mem_t mem, const spn_cc_t* cc, const spn_profile_info_t* profile, const spn_cc_link_t* link, const spn_cc_link_files_t* files, spn_invocation_t* invocation) {
-  switch (cc->driver) {
+spn_cc_link_plan_t si_cc_render_link(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, const spn_cc_link_t* link) {
+  switch (toolchain->driver) {
     case SPN_CC_DRIVER_GCC:
     case SPN_CC_DRIVER_CLANG:
     case SPN_CC_DRIVER_ZIG: {
-      spn_gnu_render_link(mem, cc, profile, link, files, invocation);
+      return spn_gnu_render_link(mem, toolchain, profile, link);
+    }
+    case SPN_CC_DRIVER_MSVC: {
+      return spn_msvc_render_link(mem, toolchain, profile, link);
+    }
+    case SPN_CC_DRIVER_NONE: {
+      sp_unreachable_case();
+    }
+  }
+  SP_UNREACHABLE_RETURN(sp_zero_s(spn_cc_link_plan_t));
+}
+
+spn_invocation_t spn_cc_render_link_command(sp_mem_t mem, const spn_cc_link_plan_t* plan, const spn_cc_link_files_t* files) {
+  sp_assert(!spn_path_empty(files->output));
+
+  spn_invocation_t invocation = invocation_from_base(mem, &plan->base);
+  switch (plan->driver) {
+    case SPN_CC_DRIVER_GCC:
+    case SPN_CC_DRIVER_CLANG:
+    case SPN_CC_DRIVER_ZIG: {
+      spn_gnu_render_link_locations(mem, plan, files, &invocation);
       break;
     }
     case SPN_CC_DRIVER_MSVC: {
-      spn_msvc_render_link(mem, cc, profile, link, files, invocation);
+      spn_msvc_render_link_locations(mem, plan, files, &invocation);
       break;
     }
     case SPN_CC_DRIVER_NONE: {
       sp_unreachable_case();
     }
   }
-
+  return invocation;
 }
 
 spn_cc_link_refusal_t spn_cc_validate_link(const spn_cc_t* toolchain, spn_triple_t host, const spn_profile_info_t* profile, const spn_cc_link_t* link) {
@@ -259,8 +299,8 @@ sp_str_t spn_cc_exports_extension(spn_cc_exports_format_t format) {
   SP_UNREACHABLE_RETURN(sp_str_lit(""));
 }
 
-void spn_cc_render_exports(sp_io_writer_t* io, const spn_path_roots_t* roots, const spn_cc_t* toolchain, const spn_profile_info_t* profile, spn_cc_output_kind_t kind, sp_str_t library, si_da(sp_str_t) symbols) {
-  switch (spn_cc_exports_format(kind, spn_os_to_native_object_format(profile->os))) {
+void spn_cc_render_exports(sp_io_writer_t* io, const spn_path_roots_t* roots, spn_cc_exports_format_t format, spn_rsp_style_t rsp, sp_str_t library, si_da(sp_str_t) symbols) {
+  switch (format) {
     case SPN_CC_EXPORTS_VERSION_SCRIPT: {
       spn_exports_render_version_script(io, symbols);
       break;
@@ -271,7 +311,7 @@ void spn_cc_render_exports(sp_io_writer_t* io, const spn_path_roots_t* roots, co
     }
     case SPN_CC_EXPORTS_WASM: {
       sp_mem_arena_marker_t s = sp_mem_begin_scratch();
-      spn_rsp_render(io, roots, spn_rsp_style(toolchain->driver), spn_gnu_render_exports(s.mem, symbols));
+      spn_rsp_render(io, roots, rsp, spn_gnu_render_exports(s.mem, symbols));
       sp_mem_end_scratch(s);
       break;
     }

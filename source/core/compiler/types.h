@@ -70,11 +70,16 @@ typedef struct {
   spn_path_t exports;
   spn_path_t libc;
   spn_path_t rsp;
+  si_da(spn_path_t) scripts;
   si_da(spn_path_t) objects;
   si_da(spn_path_t) archives;
   si_da(spn_path_t) shared;
   si_da(spn_path_t) whole_archives;
 } spn_cc_link_files_t;
+
+typedef struct {
+  spn_path_t cwd;
+} spn_cc_archive_t;
 
 typedef struct {
   spn_path_t output;
@@ -91,6 +96,7 @@ typedef struct {
   si_da(spn_path_t) scripts;
   spn_os_version_t min_os;
   spn_win_subsystem_t subsystem;
+  spn_path_t cwd;
 } spn_cc_link_t;
 
 typedef struct {
@@ -131,6 +137,26 @@ typedef struct {
   spn_cc_depfile_t depfile;
   bool codeview;
 } spn_cc_compile_plan_t;
+
+typedef enum {
+  SPN_CC_SONAME_NONE,
+  SPN_CC_SONAME_ELF,
+  SPN_CC_SONAME_MACHO,
+} spn_cc_soname_t;
+
+typedef struct {
+  spn_cc_driver_t driver;
+  spn_invocation_t base;
+  sp_da(spn_arg_t) tail;
+  spn_ld_dialect_t dialect;
+  spn_cc_exports_format_t exports;
+  spn_cc_soname_t soname;
+} spn_cc_link_plan_t;
+
+typedef struct {
+  spn_ar_driver_t driver;
+  spn_invocation_t base;
+} spn_cc_archive_plan_t;
 
 typedef enum {
   SPN_RSP_STYLE_WINDOWS,
