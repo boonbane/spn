@@ -367,7 +367,12 @@ static spn_err_t add_object_compilation(spn_dag_build_t* b, sp_mem_t mem, spn_ta
 
     si_compile_t* ctx = sp_alloc_type(b->mem, si_compile_t);
     *ctx = (si_compile_t) {
-      .unit = unit,
+      .cc = &toolchain->cc,
+      .profile = &pkg->build->profile,
+      .base = &unit->base,
+      .lang = unit->lang,
+      .source = unit->file,
+      .subject = spn_target_unit_subject(target),
       .libc = libc,
     };
     object_ids_t ids = sp_zero;
@@ -535,7 +540,11 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
     case SPN_CC_OUTPUT_STATIC_LIB: {
       si_archive_t* ctx = sp_alloc_type(b->mem, si_archive_t);
       *ctx = (si_archive_t) {
-        .target = target,
+        .cc = &toolchain->cc,
+        .profile = &build->profile,
+        .cwd = target->pkg->paths.work,
+        .output_path = target->paths.output,
+        .subject = spn_target_unit_subject(target),
         .objects = link_objects,
       };
 
@@ -562,7 +571,12 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
     case SPN_CC_OUTPUT_REACTOR: {
       si_link_t* ctx = sp_alloc_type(b->mem, si_link_t);
       *ctx = (si_link_t) {
-        .target = target,
+        .cc = &toolchain->cc,
+        .profile = &build->profile,
+        .link = &link->cc,
+        .cwd = target->pkg->paths.work,
+        .output_path = target->paths.output,
+        .subject = spn_target_unit_subject(target),
         .objects = link_objects,
         .libc = libc,
       };
@@ -591,7 +605,12 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
         case SPN_CC_OUTPUT_REACTOR: {
           si_exports_t* exports = sp_alloc_type(b->mem, si_exports_t);
           *exports = (si_exports_t) {
-            .target = target,
+            .cc = &toolchain->cc,
+            .profile = &build->profile,
+            .cwd = target->pkg->paths.work,
+            .kind = target->kind,
+            .library = target->info->name.str,
+            .subject = spn_target_unit_subject(target),
             .objects = link_objects,
             .whole_archives = ctx->deps.whole_archives,
           };
@@ -712,7 +731,8 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
           sp_str_t name = spn_zig_stub_name(b->mem, &stub);
           si_zig_warmup_t* warm = sp_alloc_type(b->mem, si_zig_warmup_t);
           *warm = (si_zig_warmup_t) {
-            .unit = build,
+            .cc = &toolchain->cc,
+            .profile = &build->profile,
             .libc = libc,
             .link = stub_link,
             .name = name,

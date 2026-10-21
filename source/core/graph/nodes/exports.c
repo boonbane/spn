@@ -17,8 +17,6 @@
 #include "unit/package.h"
 
 static spn_err_t write_exports(sp_mem_t mem, spn_dag_t* g, si_exports_t* ctx, spn_path_t output) {
-  spn_target_unit_t* target = ctx->target;
-  spn_build_unit_t* build = target->pkg->build;
   const spn_path_roots_t* roots = g->roots;
 
   spn_path_t archive = spn_path_concat(mem, output, ".a");
@@ -34,14 +32,14 @@ static spn_err_t write_exports(sp_mem_t mem, spn_dag_t* g, si_exports_t* ctx, sp
     }
   }
   spn_invocation_t invocation = sp_zero;
-  si_cc_render_archive(mem, &build->toolchain->cc, &build->profile, &files, &invocation);
-  invocation.cwd = target->pkg->paths.work;
+  si_cc_render_archive(mem, ctx->cc, ctx->profile, &files, &invocation);
+  invocation.cwd = ctx->cwd;
 
   spn_invocation_result_t run = spn_invocation_run(roots, &invocation);
   if (run.result.status.exit_code) {
     spn_event_buffer_push(spn.events, (spn_event_t) {
       .kind = SPN_EVENT_LINK_FAILED,
-      .link_failed = { .subject = spn_target_unit_subject(target), .run = spn_event_run(roots, &invocation, &run) },
+      .link_failed = { .subject = ctx->subject, .run = spn_event_run(roots, &invocation, &run) },
     });
     return SPN_ERR_DAG_ACTION;
   }
@@ -86,7 +84,7 @@ static spn_err_t write_exports(sp_mem_t mem, spn_dag_t* g, si_exports_t* ctx, sp
   if (sp_io_file_writer_from_path_at(&writer, spn_path_at(roots, output))) {
     return SPN_ERR_DAG_OUTPUT_WRITE;
   }
-  spn_cc_render_exports(&writer.base, roots, &build->toolchain->cc, &build->profile, target->kind, target->info->name.str, symbols);
+  spn_cc_render_exports(&writer.base, roots, ctx->cc, ctx->profile, ctx->kind, ctx->library, symbols);
   sp_io_file_writer_close(&writer);
   return SPN_OK;
 }

@@ -14,9 +14,6 @@
 
 spn_err_t si_on_link(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs) {
   si_link_t* ctx = (si_link_t*)user_data;
-  spn_target_unit_t* target = ctx->target;
-  spn_build_unit_t* build = target->pkg->build;
-  spn_cc_t* cc = &build->toolchain->cc;
 
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
 
@@ -42,17 +39,17 @@ spn_err_t si_on_link(spn_dag_t* g, spn_dag_action_t* action, void* user_data, sp
   if (ctx->exports.occupied) {
     files.exports = si_dag_get_artifact_path(g, ctx->exports);
   }
-  if (spn_cc_link_implib(&build->profile, target->kind)) {
+  if (spn_cc_link_implib(ctx->profile, ctx->link->kind)) {
     files.implib = outputs[1];
   }
 
   spn_invocation_t invocation = sp_zero;
-  si_cc_render_link(scratch.mem, cc, &build->profile, &target->link.cc, &files, &invocation);
-  invocation.cwd = target->pkg->paths.work;
+  si_cc_render_link(scratch.mem, ctx->cc, ctx->profile, ctx->link, &files, &invocation);
+  invocation.cwd = ctx->cwd;
 
   spn_event_buffer_push(spn.events, (spn_event_t) {
     .kind = SPN_EVENT_LINK_START,
-    .link_start = { .subject = spn_target_unit_subject(target) },
+    .link_start = { .subject = ctx->subject },
   });
 
   spn_invocation_result_t run = spn_invocation_run(g->roots, &invocation);
@@ -62,14 +59,14 @@ spn_err_t si_on_link(spn_dag_t* g, spn_dag_action_t* action, void* user_data, sp
   if (run.result.status.exit_code) {
     spn_event_buffer_push(spn.events, (spn_event_t) {
       .kind = SPN_EVENT_LINK_FAILED,
-      .link_failed = { .subject = spn_target_unit_subject(target), .run = report },
+      .link_failed = { .subject = ctx->subject, .run = report },
     });
     return SPN_ERR_DAG_ACTION;
   }
 
   spn_event_buffer_push(spn.events, (spn_event_t) {
     .kind = SPN_EVENT_LINK_PASSED,
-    .link_passed = { .subject = spn_target_unit_subject(target), .output_path = target->paths.output, .run = report },
+    .link_passed = { .subject = ctx->subject, .output_path = ctx->output_path, .run = report },
   });
   return SPN_OK;
 }

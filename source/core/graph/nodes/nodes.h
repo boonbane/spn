@@ -11,7 +11,12 @@
 #include "unit/types.h"
 
 typedef struct {
-  spn_target_unit_t* target;
+  const spn_cc_t* cc;
+  const spn_profile_info_t* profile;
+  const spn_cc_link_t* link;
+  spn_path_t cwd;
+  spn_path_t output_path;
+  spn_event_subject_t subject;
   spn_dag_build_objects_t objects;
   struct {
     si_da(spn_dag_id_t) archives;
@@ -23,18 +28,32 @@ typedef struct {
 } si_link_t;
 
 typedef struct {
-  spn_target_unit_t* target;
+  const spn_cc_t* cc;
+  const spn_profile_info_t* profile;
+  spn_path_t cwd;
+  spn_path_t output_path;
+  spn_event_subject_t subject;
   spn_dag_build_objects_t objects;
 } si_archive_t;
 
 typedef struct {
-  spn_target_unit_t* target;
+  const spn_cc_t* cc;
+  const spn_profile_info_t* profile;
+  spn_path_t cwd;
+  spn_cc_output_kind_t kind;
+  sp_str_t library;
+  spn_event_subject_t subject;
   spn_dag_build_objects_t objects;
   si_da(spn_dag_id_t) whole_archives;
 } si_exports_t;
 
 typedef struct {
-  spn_compile_unit_t* unit;
+  const spn_cc_t* cc;
+  const spn_profile_info_t* profile;
+  const spn_invocation_t* base;
+  spn_lang_t lang;
+  spn_path_t source;
+  spn_event_subject_t subject;
   spn_dag_id_t libc;
 } si_compile_t;
 
@@ -44,7 +63,8 @@ typedef struct {
 } si_rsp_t;
 
 typedef struct {
-  spn_build_unit_t* unit;
+  const spn_cc_t* cc;
+  const spn_profile_info_t* profile;
   spn_dag_id_t libc;
   spn_cc_link_t link;
   sp_str_t name;
