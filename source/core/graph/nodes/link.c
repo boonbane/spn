@@ -39,25 +39,11 @@ spn_err_t si_on_link(spn_dag_t* g, spn_dag_action_t* action, void* user_data, sp
       break;
     }
   }
-  switch (target->kind) {
-    case SPN_CC_OUTPUT_REACTOR: {
-      files.exports = si_dag_get_artifact_path(g, ctx->exports);
-      break;
-    }
-    case SPN_CC_OUTPUT_SHARED_LIB: {
-      files.exports = si_dag_get_artifact_path(g, ctx->exports);
-      if (spn_cc_link_implib(&build->profile, target->kind)) {
-        files.implib = outputs[1];
-      }
-      break;
-    }
-    case SPN_CC_OUTPUT_EXE: {
-      break;
-    }
-    case SPN_CC_OUTPUT_OBJECT:
-    case SPN_CC_OUTPUT_STATIC_LIB: {
-      sp_unreachable_case();
-    }
+  if (ctx->exports.occupied) {
+    files.exports = si_dag_get_artifact_path(g, ctx->exports);
+  }
+  if (spn_cc_link_implib(&build->profile, target->kind)) {
+    files.implib = outputs[1];
   }
 
   spn_invocation_t invocation = sp_zero;
