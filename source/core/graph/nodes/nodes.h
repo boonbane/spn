@@ -19,7 +19,7 @@ typedef struct {
     si_da(spn_dag_id_t) whole_archives;
   } deps;
   spn_dag_id_t exports;
-  const spn_dag_build_ctx_t* build;
+  spn_dag_id_t libc;
 } si_link_t;
 
 typedef struct {
@@ -35,7 +35,7 @@ typedef struct {
 
 typedef struct {
   spn_compile_unit_t* unit;
-  const spn_dag_build_ctx_t* build;
+  spn_dag_id_t libc;
 } si_compile_t;
 
 typedef struct {
@@ -44,7 +44,8 @@ typedef struct {
 } si_rsp_t;
 
 typedef struct {
-  const spn_dag_build_ctx_t* build;
+  spn_build_unit_t* unit;
+  spn_dag_id_t libc;
   spn_cc_link_t link;
   sp_str_t name;
   sp_str_t triple;

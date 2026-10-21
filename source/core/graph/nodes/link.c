@@ -22,11 +22,13 @@ spn_err_t si_on_link(spn_dag_t* g, spn_dag_action_t* action, void* user_data, sp
 
   spn_cc_link_files_t files = {
     .output = outputs[0],
-    .libc = si_dag_build_libc(g, ctx->build),
     .archives = si_dag_build_paths(scratch.mem, g, ctx->deps.archives),
     .shared = si_dag_build_paths(scratch.mem, g, ctx->deps.shared),
     .whole_archives = si_dag_build_paths(scratch.mem, g, ctx->deps.whole_archives),
   };
+  if (ctx->libc.occupied) {
+    files.libc = si_dag_get_artifact_path(g, ctx->libc);
+  }
   switch (ctx->objects.kind) {
     case SPN_DAG_BUILD_OBJECTS_DIRECT: {
       files.objects = si_dag_build_paths(scratch.mem, g, ctx->objects.ids);

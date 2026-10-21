@@ -21,7 +21,7 @@ struct spn_dag_build_t {
     sp_ht(spn_pkg_unit_t*, spn_dag_id_t) stamps;
     sp_ht(spn_target_unit_t*, spn_dag_target_ids_t) targets;
     sp_ht(spn_target_unit_t*, spn_dag_id_t) embeds;
-    sp_ht(spn_build_unit_t*, spn_dag_build_ctx_t*) builds;
+    sp_ht(spn_build_unit_t*, spn_dag_id_t) builds;
     sp_ht(spn_dag_digest_t, spn_dag_id_t) warm;
   } ids;
   si_da(spn_dag_id_t) compiles;

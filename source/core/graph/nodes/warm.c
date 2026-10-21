@@ -36,7 +36,7 @@ static sp_err_t progress_write(sp_io_writer_t* writer, const void* bytes, u64 le
 
 spn_err_t si_on_zig_warmup(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs) {
   si_zig_warmup_t* warm = (si_zig_warmup_t*)user_data;
-  spn_build_unit_t* build = warm->build->unit;
+  spn_build_unit_t* build = warm->unit;
   spn_cc_t* cc = &build->toolchain->cc;
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   sp_mem_t mem = scratch.mem;
@@ -53,8 +53,10 @@ spn_err_t si_on_zig_warmup(spn_dag_t* g, spn_dag_action_t* action, void* user_da
   spn_path_t staging = spn_path_parent(outputs[0]);
   spn_cc_link_files_t files = {
     .output = spn_path_join(mem, staging, sp_str_lit("stub.bin")),
-    .libc = si_dag_build_libc(g, warm->build),
   };
+  if (warm->libc.occupied) {
+    files.libc = si_dag_get_artifact_path(g, warm->libc);
+  }
   switch (warm->link.kind) {
     case SPN_CC_OUTPUT_SHARED_LIB:
     case SPN_CC_OUTPUT_REACTOR: {

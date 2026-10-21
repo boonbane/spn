@@ -59,8 +59,10 @@ static spn_err_t compile_object(sp_mem_t scratch, spn_dag_t* g, si_compile_t* ct
   spn_cc_compile_files_t files = {
     .source = unit->file,
     .output = object,
-    .libc = si_dag_build_libc(g, ctx->build),
   };
+  if (ctx->libc.occupied) {
+    files.libc = si_dag_get_artifact_path(g, ctx->libc);
+  }
 
   struct { bool wanted; bool required; } depfile = { true, true };
   if (unit->lang == SPN_LANG_ASM) {

@@ -99,28 +99,11 @@ static bool pkg_publishes(spn_pkg_unit_t* unit) {
   return false;
 }
 
-static void dag_add_sdk_inputs(spn_dag_build_t* b, const spn_dag_build_ctx_t* build, spn_dag_id_t action) {
-  switch (build->unit->profile.sdk.kind) {
-    case SPN_SDK_NONE:
-    case SPN_SDK_SYSROOT:
-    case SPN_SDK_MACOS:
-    case SPN_SDK_MSVC: {
-      break;
-    }
-    case SPN_SDK_LIBC: {
-      spn_dag_action_add_input(b->graph, action, build->libc);
-      break;
-    }
-  }
-}
-
 spn_err_t spn_dag_build_add_build(spn_dag_build_t* b, spn_build_unit_t* build) {
   spn_dag_t* g = b->graph;
   sp_assert(!sp_ht_getp(b->ids.builds, build));
 
-  spn_dag_build_ctx_t* ctx = sp_alloc_type(b->mem, spn_dag_build_ctx_t);
-  *ctx = (spn_dag_build_ctx_t) { .unit = build };
-
+  spn_dag_id_t libc = sp_zero;
   switch (build->profile.sdk.kind) {
     case SPN_SDK_NONE:
     case SPN_SDK_SYSROOT:
@@ -129,7 +112,7 @@ spn_err_t spn_dag_build_add_build(spn_dag_build_t* b, spn_build_unit_t* build) {
       break;
     }
     case SPN_SDK_LIBC: {
-      spn_libc_t* libc = &build->profile.sdk.libc;
+      spn_libc_t* paths = &build->profile.sdk.libc;
 
       spn_digest_ctx_t digest = sp_zero;
       spn_digest_init_blake3(&digest);
@@ -137,24 +120,24 @@ spn_err_t spn_dag_build_add_build(spn_dag_build_t* b, spn_build_unit_t* build) {
       sp_for(it, SPN_PATH_ROOT_COUNT) {
         spn_dag_hash_str(&digest, g->roots->dirs[it]);
       }
-      spn_dag_hash_path(&digest, libc->include);
-      spn_dag_hash_path(&digest, libc->sys_include);
-      spn_dag_hash_path(&digest, libc->crt);
-      spn_dag_hash_path(&digest, libc->msvc_lib);
-      spn_dag_hash_path(&digest, libc->kernel32_lib);
+      spn_dag_hash_path(&digest, paths->include);
+      spn_dag_hash_path(&digest, paths->sys_include);
+      spn_dag_hash_path(&digest, paths->crt);
+      spn_dag_hash_path(&digest, paths->msvc_lib);
+      spn_dag_hash_path(&digest, paths->kernel32_lib);
 
       spn_dag_id_t action = spn_dag_add_action(g, (spn_dag_action_config_t) {
         .identity = spn_dag_hash_final(&digest),
         .execute = si_on_write_libc,
-        .user_data = libc,
+        .user_data = paths,
       });
-      ctx->libc = spn_dag_add_output(g, sp_str_lit("libc.txt"));
-      spn_try(spn_dag_action_add_output(g, action, ctx->libc));
+      libc = spn_dag_add_output(g, sp_str_lit("libc.txt"));
+      spn_try(spn_dag_action_add_output(g, action, libc));
       break;
     }
   }
 
-  sp_ht_insert(b->ids.builds, build, ctx);
+  sp_ht_insert(b->ids.builds, build, libc);
   return SPN_OK;
 }
 
@@ -308,7 +291,7 @@ typedef struct {
   spn_dag_id_t object;
 } object_ids_t;
 
-static spn_err_t add_object_compilation(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t* target, const spn_dag_build_ctx_t* build, si_da(object_ids_t)* objects) {
+static spn_err_t add_object_compilation(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t* target, spn_dag_id_t libc, si_da(object_ids_t)* objects) {
   spn_dag_t* g = b->graph;
   spn_session_t* session = b->session;
   spn_pkg_unit_t* pkg = target->pkg;
@@ -360,7 +343,7 @@ static spn_err_t add_object_compilation(spn_dag_build_t* b, sp_mem_t mem, spn_ta
     si_compile_t* ctx = sp_alloc_type(b->mem, si_compile_t);
     *ctx = (si_compile_t) {
       .unit = unit,
-      .build = build,
+      .libc = libc,
     };
     object_ids_t ids = sp_zero;
     ids.action = spn_dag_add_action(g, (spn_dag_action_config_t) {
@@ -370,7 +353,9 @@ static spn_err_t add_object_compilation(spn_dag_build_t* b, sp_mem_t mem, spn_ta
       .user_data = ctx,
     });
     spn_dag_action_add_input(g, ids.action, spn_dag_add_file(g, unit->file));
-    dag_add_sdk_inputs(b, build, ids.action);
+    if (libc.occupied) {
+      spn_dag_action_add_input(g, ids.action, libc);
+    }
     si_da_for(inputs, jt) {
       spn_dag_action_add_input(g, ids.action, inputs[jt]);
     }
@@ -408,9 +393,9 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
   spn_toolchain_unit_t* toolchain = build->toolchain;
   const spn_link_plan_t* link = &target->link;
 
-  spn_dag_build_ctx_t** found_build = sp_ht_getp(b->ids.builds, build);
-  sp_assert(found_build);
-  const spn_dag_build_ctx_t* build_ctx = *found_build;
+  spn_dag_id_t* found_libc = sp_ht_getp(b->ids.builds, build);
+  sp_assert(found_libc);
+  spn_dag_id_t libc = *found_libc;
 
   si_da(object_ids_t) objects = sp_zero;
 
@@ -419,7 +404,7 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
       return SPN_OK;
     }
     case SPN_LIB_KIND_OBJECT: {
-      spn_try(add_object_compilation(b, mem, target, build_ctx, &objects));
+      spn_try(add_object_compilation(b, mem, target, libc, &objects));
       si_da_for(objects, it) {
         spn_path_t dest = spn_path_join(mem, target->pkg->paths.lib, target->objects[it]->name);
 
@@ -444,7 +429,7 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
     }
   }
 
-  spn_try(add_object_compilation(b, mem, target, build_ctx, &objects));
+  spn_try(add_object_compilation(b, mem, target, libc, &objects));
   if (sp_da_empty(target->objects)) {
     return SPN_OK;
   }
@@ -551,7 +536,7 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
       *ctx = (si_link_t) {
         .target = target,
         .objects = link_objects,
-        .build = build_ctx,
+        .libc = libc,
       };
       si_da_for(link->deps, it) {
         spn_link_dep_t* dep = &link->deps[it];
@@ -654,7 +639,9 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
       si_da_for(ctx->deps.whole_archives, it) {
         spn_dag_action_add_input(g, action, ctx->deps.whole_archives[it]);
       }
-      dag_add_sdk_inputs(b, build_ctx, action);
+      if (libc.occupied) {
+        spn_dag_action_add_input(g, action, libc);
+      }
       spn_try(spn_dag_action_add_output(g, action, ids->output));
       if (spn_cc_link_implib(&build->profile, target->kind)) {
         spn_try(spn_dag_action_add_output(g, action, ids->implib));
@@ -695,7 +682,8 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
           sp_str_t name = spn_zig_stub_name(b->mem, &stub);
           si_zig_warmup_t* warm = sp_alloc_type(b->mem, si_zig_warmup_t);
           *warm = (si_zig_warmup_t) {
-            .build = build_ctx,
+            .unit = build,
+            .libc = libc,
             .link = stub_link,
             .name = name,
             .triple = spn_triple_to_str(b->mem, stub.triple),
@@ -707,7 +695,9 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
             .user_data = warm,
           });
           spn_dag_action_add_input(g, warm_action, spn_dag_add_file(g, spn_path(b->mem, SPN_DIR_ID_RUNTIME, "zig/stub.c")));
-          dag_add_sdk_inputs(b, build_ctx, warm_action);
+          if (libc.occupied) {
+            spn_dag_action_add_input(g, warm_action, libc);
+          }
           stamp = spn_dag_add_output(g, name);
           spn_try(spn_dag_action_add_output(g, warm_action, stamp));
           sp_ht_insert(b->ids.warm, identity, stamp);

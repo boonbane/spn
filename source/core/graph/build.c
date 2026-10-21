@@ -58,23 +58,6 @@ spn_path_t si_dag_get_artifact_path(spn_dag_t* g, spn_dag_id_t id) {
   return spn_dag_find_artifact(g, id)->materialized;
 }
 
-spn_path_t si_dag_build_libc(spn_dag_t* g, const spn_dag_build_ctx_t* build) {
-  spn_path_t libc = sp_zero;
-  switch (build->unit->profile.sdk.kind) {
-    case SPN_SDK_NONE:
-    case SPN_SDK_SYSROOT:
-    case SPN_SDK_MACOS:
-    case SPN_SDK_MSVC: {
-      break;
-    }
-    case SPN_SDK_LIBC: {
-      libc = si_dag_get_artifact_path(g, build->libc);
-      break;
-    }
-  }
-  return libc;
-}
-
 si_da(spn_path_t) si_dag_build_paths(sp_mem_t mem, spn_dag_t* g, si_da(spn_dag_id_t) ids) {
   si_da(spn_path_t) paths = sp_zero;
   si_da_for(ids, it) {
