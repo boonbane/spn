@@ -112,8 +112,8 @@ sp_test(freshness, staged_lib_change) {
         .command = {
           .args = { "build" },
           .expect.events = {
-            { .event = SPN_EVENT_TARGET_BUILD_PASSED, .key = "target", .value = "B" },
-            { .event = SPN_EVENT_LINK_PASSED, .key = "target", .value = "B" },
+            { .event = SPN_EVENT_TARGET_BUILD_PASSED, .key = "subject.target", .value = "B" },
+            { .event = SPN_EVENT_LINK_PASSED, .key = "subject.target", .value = "B" },
           },
         },
       },
@@ -137,9 +137,9 @@ sp_test(freshness, dep_source_change) {
         .command = {
           .args = { "build", "-p", "debug" },
           .expect.events = {
-            { .event = SPN_EVENT_TARGET_BUILD_PASSED, .key = "target", .value = "spum" },
-            { .event = SPN_EVENT_LINK_PASSED, .key = "target", .value = "spum" },
-            { .event = SPN_EVENT_LINK_PASSED, .key = "target", .value = "main" },
+            { .event = SPN_EVENT_TARGET_BUILD_PASSED, .key = "subject.target", .value = "spum" },
+            { .event = SPN_EVENT_LINK_PASSED, .key = "subject.target", .value = "spum" },
+            { .event = SPN_EVENT_LINK_PASSED, .key = "subject.target", .value = "main" },
           },
         },
       },
@@ -173,7 +173,7 @@ sp_test(freshness, dep_header_inert) {
         .command = {
           .args = { "build", "-p", "debug" },
           .expect.events = {
-            { .event = SPN_EVENT_TARGET_BUILD_PASSED, .key = "target", .value = "main" },
+            { .event = SPN_EVENT_TARGET_BUILD_PASSED, .key = "subject.target", .value = "main" },
             { .event = SPN_EVENT_LINK_PASSED, .absent = true },
           },
         },
@@ -224,8 +224,8 @@ sp_test(freshness, dep_header_change) {
         .command = {
           .args = { "build", "-p", "debug" },
           .expect.events = {
-            { .event = SPN_EVENT_TARGET_BUILD_PASSED, .key = "target", .value = "main" },
-            { .event = SPN_EVENT_LINK_PASSED, .key = "target", .value = "main" },
+            { .event = SPN_EVENT_TARGET_BUILD_PASSED, .key = "subject.target", .value = "main" },
+            { .event = SPN_EVENT_LINK_PASSED, .key = "subject.target", .value = "main" },
           },
         },
       },
@@ -236,8 +236,8 @@ sp_test(freshness, dep_header_change) {
         .command = {
           .args = { "build", "-p", "debug" },
           .expect.events = {
-            { .event = SPN_EVENT_TARGET_BUILD_PASSED, .key = "target", .value = "main" },
-            { .event = SPN_EVENT_LINK_PASSED, .key = "target", .value = "main" },
+            { .event = SPN_EVENT_TARGET_BUILD_PASSED, .key = "subject.target", .value = "main" },
+            { .event = SPN_EVENT_LINK_PASSED, .key = "subject.target", .value = "main" },
           },
         },
       },

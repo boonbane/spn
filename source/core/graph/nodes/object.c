@@ -3,7 +3,6 @@
 #include "event/event.h"
 #include "spn/core.h"
 #include "spn/err.h"
-#include "unit/types.h"
 
 #include "compiler/driver.h"
 #include "dag/dag.h"
@@ -11,42 +10,21 @@
 #include "session/invocation.h"
 #include "graph/build.h"
 #include "graph/nodes/nodes.h"
-#include "unit/package.h"
 
-static spn_err_t run_compiler(const spn_path_roots_t* roots, spn_compile_unit_t* unit, const spn_invocation_t* base, const spn_cc_compile_files_t* files) {
-  spn_pkg_unit_t* pkg = unit->target->pkg;
-  spn_session_t* session = pkg->session;
-
-  spn_pkg_unit_announce_compile(pkg);
-
-  spn_invocation_t invocation = spn_cc_render_compile_command(spn.mem, &pkg->build->toolchain->cc, &pkg->build->profile, base, files);
+static spn_err_t run_compiler(const spn_path_roots_t* roots, si_compile_t* ctx, const spn_cc_compile_files_t* files) {
+  spn_invocation_t invocation = spn_cc_render_compile_command(spn.mem, ctx->cc, ctx->profile, ctx->base, files);
   spn_invocation_result_t run = spn_invocation_run(roots, &invocation);
-  sp_str_t command = spn_invocation_to_str(roots, spn.events->mem, &invocation);
+  spn_event_run_t report = spn_event_run(roots, &invocation, &run);
 
   if (run.result.status.exit_code) {
-    spn_event_buffer_push(session->ctx->events, (spn_event_t) {
+    spn_event_buffer_push(spn.events, (spn_event_t) {
       .kind = SPN_EVENT_TARGET_BUILD_FAILED,
-      .pkg = pkg->info->name.str,
-      .target_failed = {
-        .target = unit->target->info->name.str,
-        .source_file = unit->file,
-        .rc = run.result.status.exit_code,
-        .out = run.result.out,
-        .command = command,
-        .time = run.elapsed,
-      }
+      .target_failed = { .subject = ctx->subject, .source_file = ctx->source, .run = report },
     });
   } else {
-    spn_event_buffer_push(session->ctx->events, (spn_event_t) {
+    spn_event_buffer_push(spn.events, (spn_event_t) {
       .kind = SPN_EVENT_TARGET_BUILD_PASSED,
-      .pkg = pkg->info->name.str,
-      .target_passed = {
-        .target = unit->target->info->name.str,
-        .source_file = unit->file,
-        .command = command,
-        .out = run.result.out,
-        .time = run.elapsed,
-      }
+      .target_passed = { .subject = ctx->subject, .source_file = ctx->source, .run = report },
     });
   }
 
@@ -54,10 +32,9 @@ static spn_err_t run_compiler(const spn_path_roots_t* roots, spn_compile_unit_t*
 }
 
 static spn_err_t compile_object(sp_mem_t scratch, spn_dag_t* g, si_compile_t* ctx, spn_dag_env_t* env, spn_path_t object, spn_dag_obs_set_t* obs) {
-  spn_compile_unit_t* unit = ctx->unit;
-  const spn_cc_t* toolchain = &unit->target->pkg->build->toolchain->cc;
+  const spn_cc_t* toolchain = ctx->cc;
   spn_cc_compile_files_t files = {
-    .source = unit->file,
+    .source = ctx->source,
     .output = object,
   };
   if (ctx->libc.occupied) {
@@ -65,7 +42,7 @@ static spn_err_t compile_object(sp_mem_t scratch, spn_dag_t* g, si_compile_t* ct
   }
 
   struct { bool wanted; bool required; } depfile = { true, true };
-  if (unit->lang == SPN_LANG_ASM) {
+  if (ctx->lang == SPN_LANG_ASM) {
     if (toolchain->driver == SPN_CC_DRIVER_MSVC) {
       depfile.wanted = false;
     } else {
@@ -77,7 +54,7 @@ static spn_err_t compile_object(sp_mem_t scratch, spn_dag_t* g, si_compile_t* ct
     files.depfile = spn_path_concat(scratch, object, ".d");
   }
 
-  spn_try(run_compiler(g->roots, unit, &unit->base, &files));
+  spn_try(run_compiler(g->roots, ctx, &files));
   if (!depfile.wanted) return SPN_OK;
 
   sp_path_t dep = spn_path_at(g->roots, files.depfile);
@@ -92,7 +69,7 @@ static spn_err_t compile_object(sp_mem_t scratch, spn_dag_t* g, si_compile_t* ct
     return SPN_ERR_DAG_DEPFILE;
   }
   sp_da_for(prereqs, it) {
-    spn_path_t path = spn_path_resolve(scratch, unit->target->pkg->paths.work, prereqs[it]);
+    spn_path_t path = spn_path_resolve(scratch, ctx->base->cwd, prereqs[it]);
     spn_dag_observe(obs, (spn_dag_obs_t) {
       .kind = SPN_DAG_OBS_FILE,
       .path = spn_dag_file_cache_canonical(env->files, path),

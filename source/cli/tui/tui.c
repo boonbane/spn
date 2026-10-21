@@ -399,7 +399,7 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
     }
     case SPN_EVENT_TARGET_BUILD_PASSED: {
       c8 buffer [64] = sp_zero;
-      sp_fmt_write_duration_buf(buffer, sizeof(buffer), event->target_passed.time);
+      sp_fmt_write_duration_buf(buffer, sizeof(buffer), event->target_passed.run.time);
       sp_tty_fmt(&w, "{.gray} in {.gray}",
         sp_fmt_str(contextual_path(mem, event->target_passed.source_file)),
         sp_fmt_cstr(buffer)
@@ -408,7 +408,7 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
     }
     case SPN_EVENT_LINK_PASSED: {
       c8 buffer [64] = sp_zero;
-      sp_fmt_write_duration_buf(buffer, sizeof(buffer), event->link_passed.time);
+      sp_fmt_write_duration_buf(buffer, sizeof(buffer), event->link_passed.run.time);
       sp_tty_fmt(&w, "{.gray} in {.gray}",
         sp_fmt_str(contextual_path(mem, event->link_passed.output_path)),
         sp_fmt_cstr(buffer)
@@ -1571,12 +1571,12 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
     }
     case SPN_EVENT_LINK_START: {
       sp_tty_fmt(&w, "{.cyan}",
-        sp_fmt_str(event->link_start.target)
+        sp_fmt_str(event->link_start.subject.target)
       );
       break;
     }
     case SPN_EVENT_LINK_FAILED: {
-      sp_tty_fmt(&w, "could not link {.cyan}", sp_fmt_str(event->link_failed.target));
+      sp_tty_fmt(&w, "could not link {.cyan}", sp_fmt_str(event->link_failed.subject.target));
       break;
     }
     case SPN_EVENT_CONFIGURE_OK: {
@@ -1657,24 +1657,32 @@ static sp_str_t event_subject(spn_event_t* event) {
       }
       return event->pkg;
     }
+    case SPN_EVENT_TARGET_BUILD_PASSED:       return event->target_passed.subject.pkg;
+    case SPN_EVENT_TARGET_BUILD_FAILED:       return event->target_failed.subject.pkg;
+    case SPN_EVENT_LINK_START:                return event->link_start.subject.pkg;
+    case SPN_EVENT_LINK_PASSED:               return event->link_passed.subject.pkg;
+    case SPN_EVENT_LINK_FAILED:               return event->link_failed.subject.pkg;
     default:                                  return event->pkg;
   }
+}
+
+static void write_run_output(sp_tty_t* w, const spn_event_run_t* run) {
+  sp_io_write_str(w->io, run->out, SP_NULLPTR);
+  sp_io_write_str(w->io, run->err, SP_NULLPTR);
 }
 
 static void render_event_extra(sp_tty_t* w, spn_event_t* event) {
   switch (event->kind) {
     case SPN_EVENT_TARGET_BUILD_FAILED: {
-      sp_io_write_str(w->io, event->target_failed.out, SP_NULLPTR);
-      sp_io_write_str(w->io, event->target_failed.err, SP_NULLPTR);
+      write_run_output(w, &event->target_failed.run);
       break;
     }
     case SPN_EVENT_WARM_FAILED: {
-      sp_io_write_str(w->io, event->warm_failed.out, SP_NULLPTR);
+      write_run_output(w, &event->warm_failed.run);
       break;
     }
     case SPN_EVENT_LINK_FAILED: {
-      sp_io_write_str(w->io, event->link_failed.out, SP_NULLPTR);
-      sp_io_write_str(w->io, event->link_failed.err, SP_NULLPTR);
+      write_run_output(w, &event->link_failed.run);
       break;
     }
     case SPN_EVENT_TEST_FAILED: {
@@ -1826,7 +1834,7 @@ void spn_tui_log_event(spn_tui_t* tui, spn_event_t* event) {
       }
       write_error(tty, detail);
     } else {
-      write_event(tty, verb, sp_fmt_style_red, event->pkg, detail);
+      write_event(tty, verb, sp_fmt_style_red, event_subject(event), detail);
     }
     render_event_extra(tty, event);
     flush_writer(&tui->writer);
@@ -1900,8 +1908,7 @@ void spn_tui_log_event(spn_tui_t* tui, spn_event_t* event) {
     }
 
     default: {
-      sp_str_t name = event->pkg;
-      write_event(tty, verb, sp_fmt_style_green, name, render_event_detail(tui, mem, event));
+      write_event(tty, verb, sp_fmt_style_green, event_subject(event), render_event_detail(tui, mem, event));
       break;
     }
   }
