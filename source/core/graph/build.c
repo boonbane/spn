@@ -21,16 +21,6 @@
 #include "profile/types.h"
 #include "triple/triple.h"
 
-spn_path_t spn_target_exports_path(sp_mem_t mem, spn_target_unit_t* target) {
-  spn_cc_exports_format_t format = spn_cc_exports_format(target->kind, spn_os_to_native_object_format(target->pkg->build->profile.os));
-
-  sp_mem_arena_marker_t s = sp_mem_begin_scratch_for(mem);
-  sp_str_t file_name = sp_fmt(s.mem, "{}.{}", sp_fmt_str(target->info->name.str), sp_fmt_cstr(spn_cc_exports_extension(format))).value;
-  spn_path_t path = spn_path_join(mem, target->pkg->paths.work, file_name);
-  sp_mem_end_scratch(s);
-  return path;
-}
-
 spn_path_t spn_target_unit_staged_path(sp_mem_t mem, spn_target_unit_t* target) {
   if (target->kind != SPN_CC_OUTPUT_EXE) return sp_zero_s(spn_path_t);
 
@@ -64,28 +54,14 @@ spn_path_t spn_target_unit_staged_path(sp_mem_t mem, spn_target_unit_t* target) 
   return path;
 }
 
-spn_profile_info_t spn_dag_build_profile(spn_dag_t* g, const spn_dag_build_ctx_t* build) {
-  spn_profile_info_t profile = build->unit->profile;
-  switch (profile.sdk.kind) {
-    case SPN_SDK_NONE:
-    case SPN_SDK_SYSROOT:
-    case SPN_SDK_MACOS:
-    case SPN_SDK_MSVC: {
-      break;
-    }
-    case SPN_SDK_LIBC: {
-      profile.sdk.libc.file = spn_dag_find_artifact(g, build->libc)->materialized;
-      break;
-    }
-  }
-  return profile;
+spn_path_t si_dag_get_artifact_path(spn_dag_t* g, spn_dag_id_t id) {
+  return spn_dag_find_artifact(g, id)->materialized;
 }
 
-sp_da(spn_arg_t) spn_dag_build_object_args(sp_mem_t mem, spn_dag_t* g, sp_da(spn_dag_id_t) ids) {
-  sp_da(spn_arg_t) args = sp_da_new(mem, spn_arg_t);
-  sp_da_for(ids, it) {
-    sp_da_push(args, spn_arg_path(spn_dag_find_artifact(g, ids[it])->materialized));
+si_da(spn_path_t) si_dag_build_paths(sp_mem_t mem, spn_dag_t* g, si_da(spn_dag_id_t) ids) {
+  si_da(spn_path_t) paths = sp_zero;
+  si_da_for(ids, it) {
+    si_da_push(mem, paths, si_dag_get_artifact_path(g, ids[it]));
   }
-  return args;
+  return paths;
 }
-

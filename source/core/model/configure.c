@@ -49,7 +49,14 @@ spn_err_t configure(spn_op_t* op) {
     if (!reactor) {
       continue;
     }
-    spn_try(spn_dag_build_add_target(dag, reactor, spn_session_get_target_plan(s, reactor->id)));
+    spn_dag_build_declare_target(dag, reactor);
+  }
+  sp_da_for(s->units.metaprogram->packages, it) {
+    spn_target_unit_t* reactor = s->units.metaprogram->packages[it]->scripts.configure;
+    if (!reactor) {
+      continue;
+    }
+    spn_try(spn_dag_build_add_target(dag, reactor));
   }
 
   sp_da_for(s->plans.build, i) {

@@ -389,9 +389,11 @@ flags = []
 name = "integration"
 source = [
   "source/core/compiler/driver.c",
+  "source/core/compiler/exports.c",
   "source/core/compiler/gnu.c",
   "source/core/compiler/msvc.c",
   "source/core/compiler/occ.c",
+  "source/core/compiler/rsp.c",
   "source/core/reflect/json.c",
   "source/core/codegen/json.c",
   "source/core/codegen/loader.c",
@@ -470,9 +472,11 @@ flags = []
 name = "render"
 source = [
   "source/core/compiler/driver.c",
+  "source/core/compiler/exports.c",
   "source/core/compiler/gnu.c",
   "source/core/compiler/msvc.c",
   "source/core/compiler/occ.c",
+  "source/core/compiler/rsp.c",
   "source/core/reflect/json.c",
   "source/core/codegen/json.c",
   "source/core/codegen/loader.c",
@@ -723,9 +727,11 @@ source = [
   "test/tools/toml.c",
   "source/core/reflect/json.c",
   "source/core/compiler/driver.c",
+  "source/core/compiler/exports.c",
   "source/core/compiler/gnu.c",
   "source/core/compiler/msvc.c",
   "source/core/compiler/occ.c",
+  "source/core/compiler/rsp.c",
   "source/core/core/core.c",
   "source/core/ctx/ctx.c",
   "source/core/dag/glob.c",

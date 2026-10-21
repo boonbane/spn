@@ -115,17 +115,24 @@ typedef struct {
   spn_lang_t lang;
   sp_str_t name;
   spn_path_t file;
+  spn_invocation_t base;
 } spn_compile_unit_t;
+
+typedef enum {
+  SPN_LINK_ROLE_ARCHIVE,
+  SPN_LINK_ROLE_SHARED,
+  SPN_LINK_ROLE_WHOLE_ARCHIVE,
+} spn_link_role_t;
+
+typedef struct {
+  spn_target_unit_t* lib;
+  spn_link_role_t role;
+} spn_link_dep_t;
 
 typedef struct {
   spn_cc_link_t cc;
-  si_da(spn_link_lib_t) libs;
+  si_da(spn_link_dep_t) deps;
 } spn_link_plan_t;
-
-typedef struct {
-  si_da(spn_path_t) include;
-  spn_link_plan_t link;
-} spn_target_plan_t;
 
 struct spn_target_unit {
   spn_target_unit_id_t id;
@@ -140,6 +147,7 @@ struct spn_target_unit {
 
   sp_da(spn_compile_unit_t*) objects;
   sp_da(spn_target_unit_t*) deps;
+  spn_link_plan_t link;
 };
 
 struct spn_pkg_unit_t {

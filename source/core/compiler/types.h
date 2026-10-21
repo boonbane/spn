@@ -29,12 +29,6 @@ typedef enum {
   SPN_AR_DRIVER_MSVC,
 } spn_ar_driver_t;
 
-typedef enum {
-  SPN_CC_DEPFILE_NONE,
-  SPN_CC_DEPFILE_OPTIONAL,
-  SPN_CC_DEPFILE_REQUIRED,
-} spn_cc_depfile_t;
-
 typedef struct {
   sp_intern_str_t name;
   spn_cc_driver_t driver;
@@ -61,26 +55,42 @@ typedef struct {
   spn_path_t source;
   spn_path_t output;
   spn_path_t depfile;
+  spn_path_t libc;
 } spn_cc_compile_files_t;
 
 typedef struct {
-  sp_str_t pkg;
-  sp_str_t name;
+  spn_path_t output;
+  spn_path_t implib;
+  spn_path_t exports;
+  spn_path_t libc;
+  spn_path_t rsp;
+  si_da(spn_path_t) objects;
+  si_da(spn_path_t) archives;
+  si_da(spn_path_t) shared;
+  si_da(spn_path_t) whole_archives;
+} spn_cc_link_files_t;
+
+typedef struct {
+  spn_path_t output;
+  spn_path_t rsp;
+  si_da(spn_path_t) objects;
+} spn_cc_archive_files_t;
+
+typedef struct {
   spn_lang_t lang;
   spn_cc_output_kind_t kind;
-  si_da(sp_str_t) libs;
-  si_da(sp_str_t) private_libs;
   si_da(sp_str_t) system_libs;
-  si_da(spn_path_t) lib_dirs;
   si_da(sp_str_t) frameworks;
   si_da(sp_str_t) args;
   si_da(spn_path_t) scripts;
-  si_da(spn_path_t) whole_archives;
-  spn_path_t exports;
-  spn_path_t implib;
   spn_os_version_t min_os;
   spn_win_subsystem_t subsystem;
 } spn_cc_link_t;
+
+typedef struct {
+  spn_err_t err;
+  spn_cc_feature_t feature;
+} spn_cc_link_refusal_t;
 
 typedef enum {
   SPN_CC_EXPORTS_VERSION_SCRIPT,

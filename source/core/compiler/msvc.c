@@ -197,7 +197,7 @@ spn_err_t spn_msvc_parse_depfile(sp_mem_t mem, sp_str_t content, sp_da(sp_str_t)
   return SPN_OK;
 }
 
-void spn_msvc_render_link(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, const spn_cc_link_t* link, sp_da(spn_arg_t) objects, spn_path_t output, spn_path_t implib, spn_invocation_t* invocation) {
+void spn_msvc_render_link(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, const spn_cc_link_t* link, const spn_cc_link_files_t* files, spn_invocation_t* invocation) {
   add_launcher(mem, toolchain, profile, link->lang, invocation);
   spn_cc_flags_t flags = sp_zero;
   sp_da_init(mem, flags.compile);
@@ -218,18 +218,23 @@ void spn_msvc_render_link(sp_mem_t mem, const spn_cc_t* toolchain, const spn_pro
       sp_unreachable_case();
     }
   }
-  spn_cc_push_args(mem, invocation, objects);
-
-  si_da_for(link->private_libs, it) {
-    spn_cc_push_fmt(mem, invocation, "{}.lib", sp_fmt_str(link->private_libs[it]));
+  if (!spn_path_empty(files->rsp)) {
+    spn_cc_push_glued(mem, invocation, "@", files->rsp);
   }
-  si_da_for(link->libs, it) {
-    spn_cc_push_fmt(mem, invocation, "{}.lib", sp_fmt_str(link->libs[it]));
+  si_da_for(files->objects, it) {
+    spn_cc_push_path(mem, invocation, files->objects[it]);
+  }
+
+  si_da_for(files->archives, it) {
+    spn_cc_push_path(mem, invocation, files->archives[it]);
+  }
+  si_da_for(files->shared, it) {
+    spn_cc_push_path(mem, invocation, files->shared[it]);
   }
   si_da_for(link->system_libs, it) {
     spn_cc_push_fmt(mem, invocation, "{}.lib", sp_fmt_str(link->system_libs[it]));
   }
-  spn_cc_push_glued(mem, invocation, "/Fe", output);
+  spn_cc_push_glued(mem, invocation, "/Fe", files->output);
   if (profile->sdk.kind == SPN_SDK_MSVC) {
     add_sdk_link(mem, &profile->sdk.msvc, invocation);
   }
@@ -238,17 +243,12 @@ void spn_msvc_render_link(sp_mem_t mem, const spn_cc_t* toolchain, const spn_pro
   if (profile->mode == SPN_MODE_DEBUG) {
     sp_da_push(linker, spn_arg_lit(sp_str_lit("/DEBUG")));
   }
-  if (!spn_path_empty(link->exports)) {
-    sp_da_push(linker, spn_arg_glue(sp_str_lit("/DEF:"), link->exports));
+  if (link->kind == SPN_CC_OUTPUT_SHARED_LIB) {
+    sp_da_push(linker, spn_arg_glue(sp_str_lit("/DEF:"), files->exports));
+    sp_da_push(linker, spn_arg_glue(sp_str_lit("/IMPLIB:"), files->implib));
   }
-  if (!spn_path_empty(implib)) {
-    sp_da_push(linker, spn_arg_glue(sp_str_lit("/IMPLIB:"), implib));
-  }
-  si_da_for(link->whole_archives, it) {
-    sp_da_push(linker, spn_arg_glue(sp_str_lit("/WHOLEARCHIVE:"), link->whole_archives[it]));
-  }
-  si_da_for(link->lib_dirs, it) {
-    sp_da_push(linker, spn_arg_glue(sp_str_lit("/LIBPATH:"), link->lib_dirs[it]));
+  si_da_for(files->whole_archives, it) {
+    sp_da_push(linker, spn_arg_glue(sp_str_lit("/WHOLEARCHIVE:"), files->whole_archives[it]));
   }
   if (link->kind == SPN_CC_OUTPUT_EXE && link->subsystem == SPN_WIN_SUBSYSTEM_WINDOWS) {
     sp_da_push(linker, spn_arg_lit(sp_str_lit("/SUBSYSTEM:WINDOWS")));
@@ -267,11 +267,16 @@ void spn_msvc_render_link(sp_mem_t mem, const spn_cc_t* toolchain, const spn_pro
   }
 }
 
-void spn_msvc_render_archive(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, sp_da(spn_arg_t) objects, spn_path_t output, spn_invocation_t* invocation) {
+void spn_msvc_render_archive(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, const spn_cc_archive_files_t* files, spn_invocation_t* invocation) {
   invocation->program = program(mem, profile, toolchain->archiver, sp_str_lit("lib.exe"));
   spn_cc_push_strs(mem, invocation, toolchain->archiver.args);
   spn_cc_push_c(mem, invocation, "/nologo");
-  spn_cc_push_glued(mem, invocation, "/OUT:", output);
-  spn_cc_push_args(mem, invocation, objects);
+  spn_cc_push_glued(mem, invocation, "/OUT:", files->output);
+  if (!spn_path_empty(files->rsp)) {
+    spn_cc_push_glued(mem, invocation, "@", files->rsp);
+  }
+  si_da_for(files->objects, it) {
+    spn_cc_push_path(mem, invocation, files->objects[it]);
+  }
 }
 

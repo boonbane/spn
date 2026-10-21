@@ -2,6 +2,7 @@
 
 #include "pkg/mutate.h"
 #include "session/session.h"
+#include "triple/triple.h"
 
 sp_test_suite(link_plan, .serial = true);
 
@@ -19,15 +20,20 @@ typedef struct {
 } plan_target_t;
 
 typedef struct {
-  const c8* libs [UNIT_TEST_MAX_STRS];
-  const c8* whole_archives [UNIT_TEST_MAX_STRS]; // matched by file name suffix
-  const c8* private_libs [UNIT_TEST_MAX_STRS];
+  const c8* lib;
+  spn_link_role_t role;
+} plan_dep_t;
+
+typedef struct {
+  plan_dep_t deps [UNIT_TEST_MAX_STRS];
   const c8* system_libs [UNIT_TEST_MAX_STRS];
   const c8* frameworks [UNIT_TEST_MAX_STRS];
   const c8* args [UNIT_TEST_MAX_STRS];
   const c8* scripts [UNIT_TEST_MAX_STRS];
   spn_os_version_t min_os;
   spn_lang_t lang;
+  spn_err_t err;
+  spn_cc_feature_t feature;
 } plan_expect_t;
 
 typedef struct {
@@ -61,7 +67,7 @@ static const plan_test_t tests [] = {
       },
     },
     .expect = {
-      .libs = { "D3", "D2", "D1" },
+      .deps = { { "D3" }, { "D2", SPN_LINK_ROLE_SHARED }, { "D1" } },
       .system_libs = { "pthread", "m" },
     },
   },
@@ -79,9 +85,7 @@ static const plan_test_t tests [] = {
       },
     },
     .expect = {
-      .libs = { "D2" },
-      .whole_archives = { "libD1.a" },
-      .private_libs = { "D3" },
+      .deps = { { "D3" }, { "D2", SPN_LINK_ROLE_SHARED }, { "D1", SPN_LINK_ROLE_WHOLE_ARCHIVE } },
     },
   },
   {
@@ -99,7 +103,7 @@ static const plan_test_t tests [] = {
       },
     },
     .expect = {
-      .libs = { "L1", "L2", "D1" },
+      .deps = { { "L1" }, { "L2" }, { "D1" } },
     },
   },
   {
@@ -112,7 +116,7 @@ static const plan_test_t tests [] = {
       },
     },
     .expect = {
-      .libs = { "D1" },
+      .deps = { { "D1" } },
       .lang = SPN_LANG_CXX,
     },
   },
@@ -127,7 +131,7 @@ static const plan_test_t tests [] = {
       },
     },
     .expect = {
-      .libs = { "D1" },
+      .deps = { { "D1", SPN_LINK_ROLE_SHARED } },
     },
   },
   // min_os is the max over the target, every closure package, and every closure
@@ -147,7 +151,7 @@ static const plan_test_t tests [] = {
       },
     },
     .expect = {
-      .libs = { "D2", "D1" },
+      .deps = { { "D2", SPN_LINK_ROLE_SHARED }, { "D1" } },
       .min_os = { 14, 0 },
     },
   },
@@ -170,7 +174,7 @@ static const plan_test_t tests [] = {
       },
     },
     .expect = {
-      .libs = { "D2", "D1" },
+      .deps = { { "D2", SPN_LINK_ROLE_SHARED }, { "D1" } },
       .frameworks = { "Metal", "Cocoa", "IOKit" },
     },
   },
@@ -188,7 +192,7 @@ static const plan_test_t tests [] = {
       },
     },
     .expect = {
-      .libs = { "L1", "D2", "D1" },
+      .deps = { { "L1" }, { "D2", SPN_LINK_ROLE_SHARED }, { "D1" } },
       .system_libs = { "m", "pthread", "dl", "rt" },
     },
   },
@@ -204,7 +208,7 @@ static const plan_test_t tests [] = {
       },
     },
     .expect = {
-      .libs = { "D1" },
+      .deps = { { "D1", SPN_LINK_ROLE_SHARED } },
       .args = { "-A" },
       .scripts = { "A.ld" },
     },
@@ -231,7 +235,33 @@ static const plan_test_t tests [] = {
       },
     },
     .expect = {
-      .libs = { "D1", "T1" },
+      .deps = { { "D1" }, { "T1" } },
+    },
+  },
+  {
+    .name = "frameworks_without_sdk_refused",
+    .target = { .kind = SPN_TARGET_KIND_EXE, .source = { "main.c" }, .frameworks = { "Metal" } },
+    .graph = {
+      .os = SPN_OS_MACOS,
+      .pkgs = { { .name = "P1" } },
+    },
+    .expect = {
+      .err = SPN_ERR_COMPILER_FEATURE_UNSUPPORTED,
+      .feature = SPN_CC_FEATURE_FRAMEWORKS,
+      .frameworks = { "Metal" },
+    },
+  },
+  {
+    .name = "linker_script_on_macos_refused",
+    .target = { .kind = SPN_TARGET_KIND_EXE, .source = { "main.c" }, .linker_script = { "A.ld" } },
+    .graph = {
+      .os = SPN_OS_MACOS,
+      .sdk = "/sdk",
+      .pkgs = { { .name = "P1" } },
+    },
+    .expect = {
+      .err = SPN_ERR_COMPILER_FEATURE_UNSUPPORTED,
+      .feature = SPN_CC_FEATURE_LINKER_SCRIPT,
     },
   },
 };
@@ -266,17 +296,33 @@ sp_test_each(link_plan, plan, plan_test_t, tests, .setup = spn_test_ctx_setup) {
   s->plans.build[0].selection.kinds = spn_target_kind_bit(it->target.kind);
 
   sp_must_eq(t, SPN_OK, spn_units_add_packages(s));
-  sp_must_eq(t, SPN_OK, spn_units_add_targets(s, SPN_UNIT_SCOPE_TARGET));
+  spn_err_t err = spn_units_add_targets(s, SPN_UNIT_SCOPE_TARGET);
+  sp_must_eq(t, it->expect.err, err);
+  if (err) {
+    sp_da(spn_event_t) errs = spn_test_drain_errs(mem);
+    sp_must_eq(t, 1, sp_da_size(errs));
+    sp_expect_eq(t, err, errs[0].err.kind);
+    spn_err_compiler_t* refusal = &errs[0].err.compiler;
+    sp_expect_eq(t, it->expect.feature, refusal->feature);
+    sp_expect_str_eq_c(t, refusal->toolchain, "test");
+    sp_expect_str_eq_c(t, refusal->pkg, "P1");
+    sp_expect_str_eq_c(t, refusal->name, "app");
+    sp_expect(t, spn_triple_equal(refusal->target, spn_profile_triple(&s->units.target->profile)));
+    sp_must_strs_eq(t, refusal->frameworks, sp_da_size(refusal->frameworks), it->expect.frameworks);
+    return SP_OK;
+  }
 
   sp_must_eq(t, 1, si_da_size(s->plans.build[0].roots));
   spn_target_unit_t* app = s->plans.build[0].roots[0];
 
-  spn_link_plan_t* plan = &spn_session_get_target_plan(s, app->id)->link;
-  sp_must_strs_eq(t, plan->cc.libs, sp_da_size(plan->cc.libs), it->expect.libs);
-  u32 num_whole_archives = 0;
-  sp_carr_detect_len(it->expect.whole_archives, num_whole_archives, it->expect.whole_archives[num_whole_archives]);
-  sp_try(expect_path_suffixes(t, plan->cc.whole_archives, it->expect.whole_archives, num_whole_archives));
-  sp_must_strs_eq(t, plan->cc.private_libs, sp_da_size(plan->cc.private_libs), it->expect.private_libs);
+  spn_link_plan_t* plan = &app->link;
+  u32 num_deps = 0;
+  sp_carr_detect_len(it->expect.deps, num_deps, it->expect.deps[num_deps].lib);
+  sp_must_eq(t, num_deps, si_da_size(plan->deps));
+  sp_for(dt, num_deps) {
+    sp_expect_str_eq_c(t, plan->deps[dt].lib->info->name.str, it->expect.deps[dt].lib);
+    sp_expect_eq(t, it->expect.deps[dt].role, plan->deps[dt].role);
+  }
   sp_must_strs_eq(t, plan->cc.system_libs, sp_da_size(plan->cc.system_libs), it->expect.system_libs);
   sp_must_strs_eq(t, plan->cc.frameworks, sp_da_size(plan->cc.frameworks), it->expect.frameworks);
   sp_must_strs_eq(t, plan->cc.args, sp_da_size(plan->cc.args), it->expect.args);

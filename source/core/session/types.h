@@ -47,8 +47,6 @@ struct spn_session_t {
 
   struct {
     sp_da(spn_build_plan_t) build;
-    sp_om(spn_target_unit_id_t, spn_target_plan_t) targets;
-    sp_om(spn_compile_unit_id_t, spn_invocation_t) objects;
   } plans;
 
   struct {

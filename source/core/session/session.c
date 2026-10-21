@@ -43,8 +43,6 @@ spn_err_t spn_session_init(spn_session_t* s, spn_ctx_t* ctx, sp_mem_t mem, spn_p
   sp_om_new(s->units.packages);
   sp_om_new(s->units.targets);
   sp_om_new(s->units.objects);
-  sp_om_new(s->plans.targets);
-  sp_om_new(s->plans.objects);
   sp_om_new(s->dag.objects);
 
   spn_profile_info_t profile = sp_zero;
@@ -142,14 +140,3 @@ spn_target_unit_t* spn_session_find_target_in_pkg(spn_session_t* session, spn_pk
   spn_target_unit_id_t key = { .pkg = pkg->id, .target = id };
   return sp_om_has(session->units.targets, key) ? sp_om_get(session->units.targets, key) : SP_NULLPTR;
 }
-
-spn_target_plan_t* spn_session_get_target_plan(spn_session_t* session, spn_target_unit_id_t id) {
-  sp_assert(sp_om_has(session->plans.targets, id));
-  return sp_om_get(session->plans.targets, id);
-}
-
-spn_invocation_t* spn_session_get_object_plan(spn_session_t* session, spn_compile_unit_id_t id) {
-  sp_assert(sp_om_has(session->plans.objects, id));
-  return sp_om_get(session->plans.objects, id);
-}
-

@@ -57,8 +57,7 @@ static spn_err_t publish_entry(spn_dag_t* g, spn_pkg_unit_t* unit, spn_path_t ro
 
 spn_err_t si_on_publish_file(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs) {
   sp_assert(sp_da_size(action->consumes) == 1);
-  spn_dag_artifact_t* source = spn_dag_find_artifact(g, action->consumes[0]);
-  if (sp_fs_copy_file_at(spn_path_at(g->roots, source->materialized), spn_path_at(g->roots, outputs[0]), SP_FS_ATOMIC_REPLACE)) {
+  if (sp_fs_copy_file_at(spn_path_at(g->roots, si_dag_get_artifact_path(g, action->consumes[0])), spn_path_at(g->roots, outputs[0]), SP_FS_ATOMIC_REPLACE)) {
     return SPN_ERR_DAG_OUTPUT_WRITE;
   }
   return SPN_OK;
