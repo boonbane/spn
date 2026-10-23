@@ -145,7 +145,7 @@ typedef si_om(spn_index_id_t, spn_index_info_t) spn_index_map_t;
 typedef si_om(spn_toolchain_id_t, spn_toolchain_decl_t) spn_toolchain_map_t;
 typedef si_om(spn_option_id_t, spn_option_info_t) spn_option_map_t;
 
-struct spn_pkg_info {
+struct spn_manifest {
   sp_str_t namespace;
   sp_intern_str_t name;
   sp_intern_str_t qualified;
@@ -157,37 +157,38 @@ struct spn_pkg_info {
     sp_str_t url;
     sp_str_t commit;
   } upstream;
-  spn_target_map_t targets;
+  spn_target_decl_map_t targets;
   spn_profile_map_t profiles;
   spn_index_map_t indexes;
   si_da(spn_requested_dep_t) deps;
   si_da(spn_pkg_config_entry_t) config;
   si_da(spn_pkg_patch_t) patches;
   spn_option_map_t options;
+  spn_toolchain_map_t toolchains;
+  spn_gated_path_list_t include;
+  spn_gated_list_t define;
+  spn_gated_list_t system_deps;
+  si_da(spn_gated_publish_t) publish;
+  struct {
+    spn_gated_list_t frameworks;
+    spn_os_version_t min_os;
+  } macos;
+};
+
+struct spn_pkg {
+  const spn_manifest_t* manifest;
+  spn_target_eval_map_t targets;
   si_da(spn_path_t) include;
   si_da(sp_str_t) define;
   si_da(sp_str_t) public_define;
   si_da(sp_str_t) system_deps;
+  si_da(spn_publish_t) publish;
   struct {
     si_da(spn_path_t) include;
   } configured;
   struct {
     si_da(sp_str_t) frameworks;
-    spn_os_version_t min_os;
   } macos;
-  struct {
-    spn_gated_list_t system_deps;
-    spn_gated_path_list_t include;
-    spn_gated_list_t define;
-    spn_gated_list_t frameworks;
-    si_da(spn_gated_publish_t) publish;
-  } gated;
-  spn_toolchain_map_t toolchains;
-  spn_target_info_t build;
-  spn_target_info_t configure;
-  si_da(spn_publish_t) publish;
-
-  bool applied;
 };
 
 #endif

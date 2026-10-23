@@ -45,7 +45,7 @@ sp_test_each(links_code, mark, test_t, tests, .setup = spn_test_ctx_setup) {
   sp_carr_detect_len(it->expect, expected, it->expect[expected].pkg);
   sp_must_eq(t, expected, si_da_size(closure));
   sp_for(row, expected) {
-    sp_expect_str_eq_c(t, closure[row].pkg->info->name.str, it->expect[row].pkg);
+    sp_expect_str_eq_c(t, closure[row].pkg->eval.manifest->name.str, it->expect[row].pkg);
     sp_expect_eq(t, it->expect[row].links_code, closure[row].links_code);
   }
 

@@ -8,8 +8,8 @@
 
 typedef struct {
   spn_pkg_source_t source;
-  spn_pkg_info_t* info;
-  spn_path_t manifest;
+  const spn_manifest_t* manifest;
+  spn_path_t path;
 } spn_registry_pkg_t;
 
 typedef sp_ht(spn_pkg_id_t, spn_registry_pkg_t) spn_pkg_registry_t;

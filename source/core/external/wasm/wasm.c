@@ -59,7 +59,7 @@ static spn_err_t fail(spn_pkg_unit_t* unit, spn_err_t err, spn_err_wasm_t wasm) 
   wasm.error = sp_str_copy(spn.events->mem, wasm.error);
   spn_event_buffer_push(spn.events, (spn_event_t) {
     .kind = SPN_EVENT_ERR,
-    .pkg = unit->info->name.str,
+    .pkg = unit->eval.manifest->name.str,
     .err = { .kind = err, .wasm = wasm },
   });
   return err;

@@ -82,7 +82,7 @@ add_executable(core
   manifest/gen/gen.c
   manifest/lower/lower.c
   options/merge.c
-  options/apply.c
+  pkg/eval.c
   options/session.c
   paths/anchor.c
   paths/canonicalize.c
@@ -140,7 +140,6 @@ add_executable(core
   unit/objects.c
   unit/paths.c
   unit/fingerprint.c
-  unit/clone.c
   zig/decode.c
   zig/stubs.c
   ${CMAKE_SOURCE_DIR}/tools/jtd.c
@@ -209,7 +208,7 @@ add_executable(core
   ${SRC}/graph/build.c
   ${SRC}/paths/paths.c
   ${SRC}/pkg/id.c
-  ${SRC}/pkg/mutate.c
+  ${SRC}/pkg/manifest.c
   ${SRC}/pkg/options.c
   ${SRC}/pkg/patch.c
   ${SRC}/pkg/pkg.c

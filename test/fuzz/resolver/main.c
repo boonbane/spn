@@ -9,7 +9,7 @@
 #include "index/cache.h"
 #include "intern/intern.h"
 #include "pkg/id.h"
-#include "pkg/mutate.h"
+#include "pkg/manifest.h"
 #include "resolve/resolve.h"
 #include "semver/parser.h"
 #include "spn/core.h"
@@ -179,8 +179,8 @@ static fz_result_t fz_execute(sp_mem_t mem, fz_universe_t* u, sp_intern_t* inter
     }
     fz_release_t* release = &local->releases[0];
 
-    spn_pkg_info_t* info = (spn_pkg_info_t*)sp_alloc(mem, sizeof(spn_pkg_info_t));
-    *info = sp_zero_s(spn_pkg_info_t);
+    spn_manifest_t* info = (spn_manifest_t*)sp_alloc(mem, sizeof(spn_manifest_t));
+    *info = sp_zero_s(spn_manifest_t);
     info->namespace = sp_str_lit("spn");
     info->name = sp_intern(intern, fz_pkg_name((u32)it));
     info->qualified = sp_intern(intern, spn_pkg_canonicalize_pair(sp_str_lit("spn"), fz_pkg_name((u32)it)));
@@ -190,19 +190,19 @@ static fz_result_t fz_execute(sp_mem_t mem, fz_universe_t* u, sp_intern_t* inter
     }
 
     if (fz_pkg_linked(local)) {
-      spn_target_info_t* lib = SP_NULLPTR;
-      spn_pkg_add_target(mem, info, info->name.str, SPN_TARGET_KIND_LIB, &lib);
+      spn_target_decl_t* lib = SP_NULLPTR;
+      spn_manifest_add_target(mem, info, info->name.str, SPN_TARGET_KIND_LIB, &lib);
       lib->linkages = local->linkages;
     }
 
     sp_ht_insert(registry, ((spn_pkg_id_t) { .qualified = info->qualified.id }), ((spn_registry_pkg_t) {
       .source = SPN_PKG_SOURCE_FILE,
-      .info = info,
+      .manifest = info,
     }));
   }
 
-  spn_pkg_info_t* root = (spn_pkg_info_t*)sp_alloc(mem, sizeof(spn_pkg_info_t));
-  *root = sp_zero_s(spn_pkg_info_t);
+  spn_manifest_t* root = (spn_manifest_t*)sp_alloc(mem, sizeof(spn_manifest_t));
+  *root = sp_zero_s(spn_manifest_t);
   root->namespace = sp_str_lit("test");
   root->name = sp_intern(intern, sp_str_lit("root"));
   root->qualified = sp_intern(intern, sp_str_view(fz_root_qualified));
@@ -214,7 +214,7 @@ static fz_result_t fz_execute(sp_mem_t mem, fz_universe_t* u, sp_intern_t* inter
 
   sp_ht_insert(registry, ((spn_pkg_id_t) { .qualified = root->qualified.id }), ((spn_registry_pkg_t) {
     .source = SPN_PKG_SOURCE_ROOT,
-    .info = root,
+    .manifest = root,
   }));
 
   spn_index_cache_t cache = sp_zero;

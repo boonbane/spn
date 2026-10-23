@@ -1,6 +1,6 @@
 #include "unit.h"
 
-#include "pkg/mutate.h"
+#include "pkg/manifest.h"
 #include "session/session.h"
 #include "triple/triple.h"
 
@@ -266,15 +266,15 @@ static const plan_test_t tests [] = {
   },
 };
 
-static void target_info(sp_mem_t mem, spn_tree_roots_t trees, const plan_target_t* spec, spn_target_info_t* info) {
-  info->linkages = spec->linkages;
-  info->source = test_source_list(mem, trees, spec->source, UNIT_TEST_MAX_STRS);
-  info->deps = test_str_list(mem, spec->deps, UNIT_TEST_MAX_STRS);
-  info->system_deps = test_str_list(mem, spec->system_deps, UNIT_TEST_MAX_STRS);
-  info->macos.frameworks = test_str_list(mem, spec->frameworks, UNIT_TEST_MAX_STRS);
-  info->macos.min_os = spec->min_os;
-  info->link_flags = test_str_list(mem, spec->link_flags, UNIT_TEST_MAX_STRS);
-  info->linker_script = test_path_list(mem, trees, spec->linker_script, UNIT_TEST_MAX_STRS);
+static void target_decl(sp_mem_t mem, const plan_target_t* spec, spn_target_decl_t* decl) {
+  decl->linkages = spec->linkages;
+  decl->source = test_gated_sources(mem, spec->source, UNIT_TEST_MAX_STRS);
+  decl->deps = test_gated_list(mem, spec->deps, UNIT_TEST_MAX_STRS);
+  decl->system_deps = test_gated_list(mem, spec->system_deps, UNIT_TEST_MAX_STRS);
+  decl->macos.frameworks = test_gated_list(mem, spec->frameworks, UNIT_TEST_MAX_STRS);
+  decl->macos.min_os = spec->min_os;
+  decl->link_flags = test_gated_list(mem, spec->link_flags, UNIT_TEST_MAX_STRS);
+  decl->linker_script = test_gated_paths(mem, spec->linker_script, UNIT_TEST_MAX_STRS);
 }
 
 static sp_err_t expect_path_suffixes(sp_test_t* t, sp_da(spn_path_t) actual, const c8* const* expect, u32 count) {
@@ -289,10 +289,10 @@ sp_test_each(link_plan, plan, plan_test_t, tests, .setup = spn_test_ctx_setup) {
   sp_mem_t mem = sp_test_arena(t);
   spn_session_t* s = build_session(mem, &it->graph);
 
-  spn_loaded_pkg_t* loaded = sp_ht_getp(s->packages, find_pkg_id(s, &it->graph, it->graph.pkgs[0].name));
-  spn_target_info_t* info = SP_NULLPTR;
-  sp_must_eq(t, SPN_OK, spn_pkg_add_target(s->mem, s->pkg, sp_str_lit("app"), it->target.kind, &info));
-  target_info(mem, loaded->roots, &it->target, info);
+  spn_manifest_t* manifest = test_manifest(s, find_pkg_id(s, &it->graph, it->graph.pkgs[0].name));
+  spn_target_decl_t* decl = SP_NULLPTR;
+  sp_must_eq(t, SPN_OK, spn_manifest_add_target(s->mem, manifest, sp_str_lit("app"), it->target.kind, &decl));
+  target_decl(mem, &it->target, decl);
   s->plans.build[0].selection.kinds = spn_target_kind_bit(it->target.kind);
 
   sp_must_eq(t, SPN_OK, spn_units_add_packages(s));
@@ -320,7 +320,7 @@ sp_test_each(link_plan, plan, plan_test_t, tests, .setup = spn_test_ctx_setup) {
   sp_carr_detect_len(it->expect.deps, num_deps, it->expect.deps[num_deps].lib);
   sp_must_eq(t, num_deps, si_da_size(plan->deps));
   sp_for(dt, num_deps) {
-    sp_expect_str_eq_c(t, plan->deps[dt].lib->info->name.str, it->expect.deps[dt].lib);
+    sp_expect_str_eq_c(t, plan->deps[dt].lib->eval->decl->name.str, it->expect.deps[dt].lib);
     sp_expect_eq(t, it->expect.deps[dt].role, plan->deps[dt].role);
   }
   sp_must_strs_eq(t, plan->cc.system_libs, sp_da_size(plan->cc.system_libs), it->expect.system_libs);

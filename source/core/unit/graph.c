@@ -7,71 +7,6 @@
 #include "session/session.h"
 #include "when/when.h"
 
-static si_da(spn_path_t) clone_path_list(sp_mem_t mem, si_da(spn_path_t) source) {
-  si_da(spn_path_t) result = SP_NULLPTR;
-  si_da_for(source, it) {
-    si_da_push(mem, result, spn_path_copy(mem, source[it]));
-  }
-  return result;
-}
-
-static spn_target_info_t clone_target_info(sp_mem_t mem, spn_target_info_t* source) {
-  spn_target_info_t target = *source;
-  si_da_copy(mem, target.source, source->source);
-  si_da_copy(mem, target.publish, source->publish);
-  target.include = clone_path_list(mem, source->include);
-  si_da_copy(mem, target.define, source->define);
-  si_da_copy(mem, target.flags, source->flags);
-  si_da_copy(mem, target.link_flags, source->link_flags);
-  target.linker_script = clone_path_list(mem, source->linker_script);
-  si_da_copy(mem, target.system_deps, source->system_deps);
-  si_da_copy(mem, target.deps, source->deps);
-  si_da_copy(mem, target.embed, source->embed);
-  target.configured.include = clone_path_list(mem, source->configured.include);
-  si_da_copy(mem, target.macos.frameworks, source->macos.frameworks);
-  return target;
-}
-
-static void clone_target_map(spn_target_map_t* result, spn_target_map_t source, sp_mem_t mem) {
-  *result = sp_zero_struct(spn_target_map_t);
-  si_om_for(source, it) {
-    spn_target_info_t target = clone_target_info(mem, si_om_at(source, it));
-    si_om_insert(mem, *result, target.id, target);
-  }
-}
-
-// Each unit owns a clone of its package's info: configure scripts mutate it,
-// and option values differ per build
-static spn_pkg_info_t* clone_pkg_info(spn_session_t* s, spn_pkg_id_t id, spn_build_unit_t* build, spn_loaded_pkg_t* loaded) {
-  spn_pkg_info_t* source = loaded->info;
-  spn_pkg_info_t* info = sp_alloc_type(s->mem, spn_pkg_info_t);
-  *info = *source;
-  info->applied = false;
-  sp_mem_t mem = s->mem;
-
-  clone_target_map(&info->targets, source->targets, mem);
-  info->include = clone_path_list(mem, source->include);
-  info->configured.include = clone_path_list(mem, source->configured.include);
-  si_da_copy(mem, info->define, source->define);
-  si_da_copy(mem, info->public_define, source->public_define);
-  si_da_copy(mem, info->system_deps, source->system_deps);
-  si_da_copy(mem, info->macos.frameworks, source->macos.frameworks);
-  si_da_copy(mem, info->publish, source->publish);
-
-  spn_when_env_t env;
-  spn_when_env_from_profile(mem, &build->profile, &env);
-  spn_resolved_options_t* options = sp_ht_getp(s->options, id);
-  if (options) {
-    spn_when_env_add_options(&env, options);
-  }
-  spn_pkg_apply_options(mem, info, &s->ctx->roots, loaded->roots, &env);
-  return info;
-}
-
-static bool pkg_has_scripts(spn_loaded_pkg_t* loaded) {
-  return !si_da_empty(loaded->configure.source) || !si_da_empty(loaded->build.source);
-}
-
 static u32 kind_bits(spn_dep_kind_t kind) {
   return spn_dep_kind_bit(kind);
 }
@@ -89,6 +24,13 @@ static spn_pkg_unit_t* add_unit(spn_session_t* s, spn_build_unit_t* build, spn_p
   spn_loaded_pkg_t* loaded = sp_ht_getp(s->packages, pid);
   sp_assert(loaded);
 
+  spn_when_env_t env = sp_zero;
+  spn_when_env_from_profile(s->mem, &build->profile, &env);
+  spn_resolved_options_t* options = sp_ht_getp(s->options, pid);
+  if (options) {
+    spn_when_env_add_options(&env, options);
+  }
+
   sp_om_insert(s->units.packages, uid, sp_zero_struct(spn_pkg_unit_t));
   spn_pkg_unit_t* unit = sp_om_back(s->units.packages);
   unit->id = uid;
@@ -96,7 +38,7 @@ static spn_pkg_unit_t* add_unit(spn_session_t* s, spn_build_unit_t* build, spn_p
   unit->session = s;
   unit->source = loaded->source;
   unit->kinds = kinds;
-  unit->info = clone_pkg_info(s, pid, build, loaded);
+  unit->eval = spn_pkg_eval(s->mem, loaded->manifest, &s->ctx->roots, loaded->roots, &env);
   sp_da_init(s->mem, unit->deps);
   sp_da_init(s->mem, unit->targets);
   sp_da_init(s->mem, unit->user_nodes);
@@ -150,7 +92,7 @@ spn_err_t spn_units_add_packages(spn_session_t* s) {
     if (unit->build == s->units.metaprogram) {
       continue;
     }
-    if (pkg_has_scripts(sp_ht_getp(s->packages, unit->id.pkg))) {
+    if (spn_pkg_has_scripts(&unit->eval)) {
       si_da_push(scratch.mem, owners, unit);
     }
   }
@@ -176,7 +118,7 @@ spn_err_t spn_units_add_packages(spn_session_t* s) {
 
   sp_om_for(s->units.packages, it) {
     spn_pkg_unit_t* unit = sp_om_at(s->units.packages, it);
-    if (pkg_has_scripts(sp_ht_getp(s->packages, unit->id.pkg))) {
+    if (spn_pkg_has_scripts(&unit->eval)) {
       unit->metaprogram = si_get_pkg_unit(s, s->units.metaprogram, unit->id.pkg);
       sp_assert(unit->metaprogram);
     }

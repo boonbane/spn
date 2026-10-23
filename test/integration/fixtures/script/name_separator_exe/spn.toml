@@ -1,6 +1,0 @@
-[package]
-name = "A"
-version = "0.0.1"
-
-[package.configure]
-source = ["tools/configure.c"]

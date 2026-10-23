@@ -19,13 +19,13 @@
 spn_err_t si_on_embed(const si_dag_ctx_t* c, void* user_data) {
   si_embed_t* embed = (si_embed_t*)user_data;
   spn_target_unit_t* unit = embed->target;
-  spn_target_info_t* info = unit->info;
+  spn_target_eval_t* eval = unit->eval;
   const spn_path_roots_t* roots = c->roots;
 
   spn_event_buffer_push(spn.events, (spn_event_t) {
     .kind = SPN_EVENT_EMBED_START,
-    .pkg = unit->pkg->info->name.str,
-    .embed_start = { .target = info->name.str, .num_files = si_da_size(info->embed) },
+    .pkg = unit->pkg->eval.manifest->name.str,
+    .embed_start = { .target = eval->decl->name.str, .num_files = si_da_size(eval->embed) },
   });
 
   sp_tm_timer_t timer = sp_tm_start_timer();
@@ -33,8 +33,8 @@ spn_err_t si_on_embed(const si_dag_ctx_t* c, void* user_data) {
   spn_cc_embed_ctx_t embedder = sp_zero;
   spn_cc_embed_ctx_init(&embedder, spn.mem, spn_os_to_native_object_format(unit->pkg->build->profile.os), unit->pkg->build->profile.arch);
 
-  si_da_for(info->embed, it) {
-    spn_embed_t entry = info->embed[it];
+  si_da_for(eval->embed, it) {
+    spn_embed_t entry = eval->embed[it];
     spn_embed_types_t types = entry.types;
 
     if (sp_str_empty(types.data)) {
@@ -52,8 +52,8 @@ spn_err_t si_on_embed(const si_dag_ctx_t* c, void* user_data) {
         if (sp_io_read_file_at(embedder.mem, spn_path_at(roots, entry.path), &content) != SP_OK) {
           spn_event_buffer_push(spn.events, (spn_event_t) {
             .kind = SPN_EVENT_EMBED_FAILED,
-            .pkg = unit->pkg->info->name.str,
-            .embed_failed = { .target = info->name.str, .path = entry.path, .error = sp_str_lit("file not found") },
+            .pkg = unit->pkg->eval.manifest->name.str,
+            .embed_failed = { .target = eval->decl->name.str, .path = entry.path, .error = sp_str_lit("file not found") },
           });
           return SPN_ERR_DAG_ACTION;
         }
@@ -83,8 +83,8 @@ spn_err_t si_on_embed(const si_dag_ctx_t* c, void* user_data) {
           if (sp_io_read_file_at(embedder.mem, walk.at, &content) != SP_OK) {
             spn_event_buffer_push(spn.events, (spn_event_t) {
               .kind = SPN_EVENT_EMBED_FAILED,
-              .pkg = unit->pkg->info->name.str,
-              .embed_failed = { .target = info->name.str, .path = spn_path_copy(spn.events->mem, file), .error = sp_str_lit("file not found") },
+              .pkg = unit->pkg->eval.manifest->name.str,
+              .embed_failed = { .target = eval->decl->name.str, .path = spn_path_copy(spn.events->mem, file), .error = sp_str_lit("file not found") },
             });
             sp_fs_it_deinit(&walk);
             return SPN_ERR_DAG_ACTION;
@@ -108,8 +108,8 @@ spn_err_t si_on_embed(const si_dag_ctx_t* c, void* user_data) {
   if (write_err) {
     spn_event_buffer_push(spn.events, (spn_event_t) {
       .kind = SPN_EVENT_EMBED_FAILED,
-      .pkg = unit->pkg->info->name.str,
-      .embed_failed = { .target = info->name.str, .error = sp_str_lit("embed write failed") },
+      .pkg = unit->pkg->eval.manifest->name.str,
+      .embed_failed = { .target = eval->decl->name.str, .error = sp_str_lit("embed write failed") },
     });
     return SPN_ERR_DAG_ACTION;
   }
@@ -117,9 +117,9 @@ spn_err_t si_on_embed(const si_dag_ctx_t* c, void* user_data) {
   u64 elapsed = sp_tm_read_timer(&timer);
   spn_event_buffer_push(spn.events, (spn_event_t) {
     .kind = SPN_EVENT_EMBED_PASSED,
-    .pkg = unit->pkg->info->name.str,
+    .pkg = unit->pkg->eval.manifest->name.str,
     .embed_passed = {
-      .target = info->name.str,
+      .target = eval->decl->name.str,
       .object_path = embed->object_path,
       .header_path = embed->header_path,
       .time = elapsed,

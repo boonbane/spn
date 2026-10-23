@@ -4,8 +4,8 @@
 
 sp_err_t expect_target_names(sp_test_t* t, si_da(spn_target_unit_t*) targets, const c8* const* expect) {
   sp_da(sp_str_t) names = sp_da_new(sp_test_arena(t), sp_str_t);
-  si_da_for(targets, it) {
-    sp_da_push(names, targets[it]->info->name.str);
+  si_da_for_value(targets, target) {
+    sp_da_push(names, target->eval->decl->name.str);
   }
 
   sp_must_strs_eq(t, names, sp_da_size(names), expect);
@@ -15,7 +15,7 @@ sp_err_t expect_target_names(sp_test_t* t, si_da(spn_target_unit_t*) targets, co
 spn_pkg_unit_t* find_pkg(spn_pkg_unit_t** pkgs, u32 count, const c8* name) {
   sp_intern_id_t needle = spn_intern_cstr(name).id;
   sp_for(it, count) {
-    if (pkgs[it]->info->name.id == needle) {
+    if (pkgs[it]->eval.manifest->name.id == needle) {
       return pkgs[it];
     }
   }
@@ -25,25 +25,30 @@ spn_pkg_unit_t* find_pkg(spn_pkg_unit_t** pkgs, u32 count, const c8* name) {
 spn_target_unit_t* find_lib(spn_pkg_unit_t** pkgs, u32 count, const c8* name) {
   sp_intern_id_t needle = spn_intern_cstr(name).id;
   sp_for(it, count) {
-    si_da_for(pkgs[it]->libs, lt) {
-      if (pkgs[it]->libs[lt]->info->name.id == needle) {
-        return pkgs[it]->libs[lt];
+    si_da_for_value(pkgs[it]->libs, lib) {
+      if (lib->eval->decl->name.id == needle) {
+        return lib;
       }
     }
   }
   return SP_NULLPTR;
 }
 
-static spn_target_unit_t* add_lib(sp_mem_t mem, spn_pkg_unit_t* pkg, const c8* name, spn_linkage_t kind, bool no_link) {
-  sp_intern_str_t interned = spn_intern_cstr(name);
-  spn_target_info_t* info = sp_alloc_type(mem, spn_target_info_t);
-  info->id = (spn_target_id_t) { .name = interned.id, .kind = SPN_TARGET_KIND_LIB };
-  info->name = interned;
-  info->kind = SPN_TARGET_KIND_LIB;
-  info->no_link = no_link;
+static spn_target_eval_t* make_target(sp_mem_t mem, sp_intern_str_t name, spn_target_kind_t kind, bool no_link) {
+  spn_target_decl_t* decl = sp_alloc_type(mem, spn_target_decl_t);
+  decl->id = (spn_target_id_t) { .name = name.id, .kind = kind };
+  decl->name = name;
+  decl->kind = kind;
+  decl->no_link = no_link;
 
+  spn_target_eval_t* eval = sp_alloc_type(mem, spn_target_eval_t);
+  eval->decl = decl;
+  return eval;
+}
+
+static spn_target_unit_t* add_lib(sp_mem_t mem, spn_pkg_unit_t* pkg, const c8* name, spn_linkage_t kind, bool no_link) {
   spn_target_unit_t* lib = sp_alloc_type(mem, spn_target_unit_t);
-  lib->info = info;
+  lib->eval = make_target(mem, spn_intern_cstr(name), SPN_TARGET_KIND_LIB, no_link);
   lib->pkg = pkg;
   lib->lib_kind = kind;
   sp_da_init(mem, lib->deps);
@@ -52,12 +57,12 @@ static spn_target_unit_t* add_lib(sp_mem_t mem, spn_pkg_unit_t* pkg, const c8* n
 }
 
 static spn_pkg_unit_t* build_pkg(sp_mem_t mem, spn_session_t* session, u32 id, closure_pkg_t spec) {
-  spn_pkg_info_t* info = sp_alloc_type(mem, spn_pkg_info_t);
-  info->name = spn_intern_cstr(spec.name);
+  spn_manifest_t* manifest = sp_alloc_type(mem, spn_manifest_t);
+  manifest->name = spn_intern_cstr(spec.name);
 
   spn_pkg_unit_t* pkg = sp_alloc_type(mem, spn_pkg_unit_t);
   pkg->id.pkg.qualified = id;
-  pkg->info = info;
+  pkg->eval.manifest = manifest;
   pkg->session = session;
 
   if (spec.kind != SPN_LIB_KIND_NONE) {
@@ -116,15 +121,9 @@ closure_graph_t build_graph(closure_graph_test_t* t) {
   }
 
   spn_pkg_unit_t* root = find_pkg(g.pkgs, g.count, t->root);
-  sp_intern_str_t name = root->info->name;
-  spn_target_info_t* exe_info = sp_alloc_type(g.mem, spn_target_info_t);
-  exe_info->id = (spn_target_id_t) { .name = name.id, .kind = t->target };
-  exe_info->name = name;
-  exe_info->kind = t->target;
-
   spn_target_unit_t* exe = sp_alloc_type(g.mem, spn_target_unit_t);
   exe->pkg = root;
-  exe->info = exe_info;
+  exe->eval = make_target(g.mem, root->eval.manifest->name, t->target, false);
   exe->lib_kind = SPN_LIB_KIND_NONE;
   sp_da_init(g.mem, exe->deps);
   sp_carr_for(t->root_deps, it) {

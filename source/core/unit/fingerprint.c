@@ -1,7 +1,7 @@
 #include "unit/unit.h"
 
 #include "hash/digest/digest.h"
-#include "pkg/pkg.h"
+#include "pkg/manifest.h"
 #include "session/session.h"
 #include "str/str.h"
 #include "profile/types.h"
@@ -97,13 +97,13 @@ sp_hash_t spn_unit_fingerprint(spn_session_t* session, spn_build_unit_t* build, 
   }
 
   spn_loaded_pkg_t* loaded = sp_ht_getp(session->packages, id);
-  spn_pkg_info_t* pkg = loaded->info;
+  const spn_manifest_t* manifest = loaded->manifest;
 
   fingerprint_input_t fingerprint = sp_zero;
-  fingerprint.qualified = spn_digest_hash_str(pkg->qualified.str);
+  fingerprint.qualified = spn_digest_hash_str(manifest->qualified.str);
   fingerprint.options = hash_options(session, id);
-  fingerprint.version = pkg->version;
-  fingerprint.commit = spn_digest_hash_str(pkg->upstream.commit);
+  fingerprint.version = manifest->version;
+  fingerprint.commit = spn_digest_hash_str(manifest->upstream.commit);
 
   spn_resolved_pkg_t* resolved = sp_ht_getp(session->resolve, id);
   if (resolved) {
@@ -127,7 +127,7 @@ sp_hash_t spn_unit_fingerprint(spn_session_t* session, spn_build_unit_t* build, 
   }
 
   spn_toolchain_info_t* toolchain = build->toolchain->info;
-  sp_opt_spn_linkage_t config = spn_session_config_kind(session, pkg->name.str);
+  sp_opt_spn_linkage_t config = spn_session_config_kind(session, manifest->name.str);
 
   fingerprint.mode = build->profile.mode;
   fingerprint.opt = build->profile.opt;
@@ -141,7 +141,7 @@ sp_hash_t spn_unit_fingerprint(spn_session_t* session, spn_build_unit_t* build, 
   fingerprint.os = build->profile.os;
   fingerprint.abi = build->profile.abi;
   fingerprint.sdk = spn_sdk_hash(&build->profile.sdk);
-  fingerprint.platform = spn_pkg_hash_platform(pkg, &build->profile);
+  fingerprint.platform = spn_manifest_hash_platform(manifest, &build->profile);
   fingerprint.toolchain.name = spn_digest_hash_str(toolchain->name.str);
   fingerprint.toolchain.cc = hash_arg(toolchain->compiler.program);
   fingerprint.toolchain.ar = hash_arg(toolchain->archiver.program);

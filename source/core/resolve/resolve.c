@@ -15,7 +15,7 @@
 #include "pkg/id.h"
 #include "pkg/load.h"
 #include "toml/issue.h"
-#include "pkg/pkg.h"
+#include "pkg/manifest.h"
 #include "resolve/resolve.h"
 #include "semver/compare.h"
 #include "semver/convert.h"
@@ -197,9 +197,9 @@ static spn_err_union_t load_file_pkg(spn_resolver_t* resolver, spn_requested_dep
 
   *pkg = SP_NULLPTR;
 
-  spn_pkg_info_t* info = sp_alloc_type(resolver->mem, spn_pkg_info_t);
+  spn_manifest_t* manifest = sp_alloc_type(resolver->mem, spn_manifest_t);
   spn_codegen_issues_t issues = sp_zero;
-  spn_err_t loaded = spn_pkg_load(resolver->mem, resolver->intern, resolver->roots, request->file.path, SPN_MANIFEST_DEP, info, &issues);
+  spn_err_t loaded = spn_manifest_load(resolver->mem, resolver->intern, resolver->roots, request->file.path, SPN_MANIFEST_DEP, manifest, &issues);
   if (loaded) {
     sp_str_t path = spn_path_str(resolver->roots, resolver->mem, request->file.path);
     if (loaded == SPN_ERR_NO_MANIFEST) {
@@ -216,17 +216,17 @@ static spn_err_union_t load_file_pkg(spn_resolver_t* resolver, spn_requested_dep
 
   // Option requests, config keys, and edge lookups all route by the name the
   // edge requested; a manifest declaring some other name would strand them
-  if (info->qualified.id != request->qualified.id) {
+  if (manifest->qualified.id != request->qualified.id) {
     return (spn_err_union_t) {
       .kind = SPN_ERR_PKG_MISMATCH,
-      .mismatch = { .path = spn_path_str(resolver->roots, resolver->mem, request->file.path), .declared = info->qualified.str, .requested = request->qualified.str },
+      .mismatch = { .path = spn_path_str(resolver->roots, resolver->mem, request->file.path), .declared = manifest->qualified.str, .requested = request->qualified.str },
     };
   }
 
   sp_ht_insert(*resolver->registry, id, ((spn_registry_pkg_t) {
     .source = SPN_PKG_SOURCE_FILE,
-    .info = info,
-    .manifest = request->file.path,
+    .manifest = manifest,
+    .path = request->file.path,
   }));
 
   *pkg = sp_ht_getp(*resolver->registry, id);
@@ -250,9 +250,9 @@ static spn_kind_query_t kind_query(spn_resolver_t* resolver, sp_str_t pkg_name) 
   return query;
 }
 
-static bool target_selects_shared(spn_target_info_t* info, spn_kind_query_t query) {
+static bool target_selects_shared(spn_linkage_set_t linkages, spn_kind_query_t query) {
   spn_linkage_t kind = SPN_LIB_KIND_NONE;
-  if (spn_target_select_lib_kind(info, query, &kind)) {
+  if (spn_target_select_lib_kind(linkages, query, &kind)) {
     return false;
   }
   return kind == SPN_LIB_KIND_SHARED;
@@ -281,11 +281,11 @@ static bool node_is_shared(spn_resolver_t* resolver, spn_resolved_pkg_t* node) {
           continue;
         }
 
-        spn_target_info_t info = sp_zero;
+        spn_linkage_set_t linkages = sp_zero;
         sp_da_for(target->linkages, jt) {
-          spn_linkage_set_add(&info.linkages, target->linkages[jt]);
+          spn_linkage_set_add(&linkages, target->linkages[jt]);
         }
-        if (target_selects_shared(&info, query)) {
+        if (target_selects_shared(linkages, query)) {
           return true;
         }
       }
@@ -298,12 +298,12 @@ static bool node_is_shared(spn_resolver_t* resolver, spn_resolved_pkg_t* node) {
         return false;
       }
 
-      si_om_for(pkg->info->targets, it) {
-        spn_target_info_t* target = si_om_at(pkg->info->targets, it);
+      si_om_for(pkg->manifest->targets, it) {
+        spn_target_decl_t* target = si_om_at(pkg->manifest->targets, it);
         if (target->kind != SPN_TARGET_KIND_LIB) {
           continue;
         }
-        if (target_selects_shared(target, query)) {
+        if (target_selects_shared(target->linkages, query)) {
           return true;
         }
       }
@@ -474,29 +474,29 @@ static spn_err_union_t resolve_local_package(spn_resolver_t* resolver, spn_resol
   bool contradiction = false;
   bool held = find_forced(run, name, &pinned) || find_pin(scope, name, &pinned, &contradiction);
   if (held) {
-    if (contradiction || !spn_semver_eq(pkg->info->version, pinned)) {
+    if (contradiction || !spn_semver_eq(pkg->manifest->version, pinned)) {
       return unsatisfiable_err(resolver, from, request, SPN_ERR_PKG_CONFLICT_EXACT, pinned);
     }
   }
 
   spn_resolved_pkg_t node = {
     .id = {
-      .qualified = pkg->info->qualified.id,
-      .version = pkg->info->version,
+      .qualified = pkg->manifest->qualified.id,
+      .version = pkg->manifest->version,
     },
-    .name = pkg->info->name.str,
-    .options = pkg->info->options,
+    .name = pkg->manifest->name.str,
+    .options = pkg->manifest->options,
     .source = pkg->source,
     .origin = {
       .recipe = {
         .kind = SPN_PKG_ROOT_LOCAL,
-        .local = spn_path_parent(pkg->manifest)
+        .local = spn_path_parent(pkg->path)
       },
-      .source = spn_pkg_upstream(pkg->info),
+      .source = spn_manifest_upstream(pkg->manifest),
       .paths = {
-        .manifest = sp_fs_get_name(pkg->manifest.sub),
+        .manifest = sp_fs_get_name(pkg->path.sub),
       },
-      .info = pkg->info,
+      .manifest = pkg->manifest,
     },
   };
 
@@ -504,11 +504,11 @@ static spn_err_union_t resolve_local_package(spn_resolver_t* resolver, spn_resol
 
   spn_when_env_t env;
   node_options_env(resolver, &node, &env);
-  si_da_for(pkg->info->deps, it) {
-    if (!spn_when_eval(&pkg->info->deps[it].when, &env)) {
+  si_da_for(pkg->manifest->deps, it) {
+    if (!spn_when_eval(&pkg->manifest->deps[it].when, &env)) {
       continue;
     }
-    sp_da_push(node.deps, pkg->info->deps[it]);
+    sp_da_push(node.deps, pkg->manifest->deps[it]);
   }
   sp_da_sort(node.deps, sort_req_canonical);
 

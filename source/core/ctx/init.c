@@ -237,12 +237,12 @@ static spn_err_t open_ctx(spn_ctx_t* ctx, spn_open_request_t request) {
   }
 
   if (ctx->project) {
-    si_om_for(ctx->project->package.toolchains, it) {
-      spn_toolchain_catalog_add(&ctx->catalog, *si_om_at(ctx->project->package.toolchains, it));
+    si_om_for(ctx->project->manifest.toolchains, it) {
+      spn_toolchain_catalog_add(&ctx->catalog, *si_om_at(ctx->project->manifest.toolchains, it));
     }
   }
 
-  spn_index_assemble(ctx->heap, ctx->project ? &ctx->project->package.indexes : SP_NULLPTR, ctx->config.indexes, &ctx->indexes);
+  spn_index_assemble(ctx->heap, ctx->project ? &ctx->project->manifest.indexes : SP_NULLPTR, ctx->config.indexes, &ctx->indexes);
 
   sp_da_for(ctx->indexes, it) {
     spn_index_info_t* index = &ctx->indexes[it];

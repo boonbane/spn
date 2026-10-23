@@ -2,47 +2,50 @@
 
 #include "hash/digest/digest.h"
 #include "paths/paths.h"
-#include "pkg/mutate.h"
-#include "pkg/pkg.h"
 #include "profile/profile.h"
 #include "toolchain/toolchain.h"
 #include "when/when.h"
 
 
-si_da(sp_str_t) test_str_list(sp_mem_t mem, const c8* const* items, u32 max) {
-  si_da(sp_str_t) list = SP_NULLPTR;
+spn_gated_list_t test_gated_list(sp_mem_t mem, const c8* const* items, u32 max) {
+  spn_gated_list_t list = SP_NULLPTR;
   sp_for(it, max) {
     if (!items[it]) {
       break;
     }
-    si_da_push(mem, list, sp_str_view(items[it]));
+    si_da_push(mem, list, ((spn_gated_str_t) { .value = sp_cstr_as_str(items[it]) }));
   }
   return list;
 }
 
-si_da(spn_path_t) test_path_list(sp_mem_t mem, spn_tree_roots_t trees, const c8* const* items, u32 max) {
-  si_da(spn_path_t) list = SP_NULLPTR;
+spn_gated_path_list_t test_gated_paths(sp_mem_t mem, const c8* const* items, u32 max) {
+  spn_gated_path_list_t list = SP_NULLPTR;
   sp_for(it, max) {
     if (!items[it]) {
       break;
     }
-    si_da_push(mem, list, spn_tree_path(mem, &spn.roots, trees, SPN_TREE_SOURCE, sp_cstr_as_str(items[it])));
+    si_da_push(mem, list, ((spn_gated_path_t) { .path = sp_cstr_as_str(items[it]), .tree = SPN_TREE_SOURCE }));
   }
   return list;
 }
 
-si_da(spn_source_t) test_source_list(sp_mem_t mem, spn_tree_roots_t trees, const c8* const* items, u32 max) {
-  si_da(spn_source_t) list = SP_NULLPTR;
+si_da(spn_gated_source_t) test_gated_sources(sp_mem_t mem, const c8* const* items, u32 max) {
+  si_da(spn_gated_source_t) list = SP_NULLPTR;
   sp_for(it, max) {
     if (!items[it]) {
       break;
     }
-    si_da_push(mem, list, ((spn_source_t) {
+    si_da_push(mem, list, ((spn_gated_source_t) {
       .kind = SPN_SOURCE_FILE,
-      .path = spn_tree_path(mem, &spn.roots, trees, SPN_TREE_SOURCE, sp_cstr_as_str(items[it])),
+      .path = sp_cstr_as_str(items[it]),
+      .tree = SPN_TREE_SOURCE,
     }));
   }
   return list;
+}
+
+spn_manifest_t* test_manifest(spn_session_t* s, spn_pkg_id_t id) {
+  return (spn_manifest_t*)sp_ht_getp(s->packages, id)->manifest;
 }
 
 spn_pkg_id_t find_pkg_id(spn_session_t* s, unit_graph_test_t* g, const c8* name) {
@@ -50,9 +53,9 @@ spn_pkg_id_t find_pkg_id(spn_session_t* s, unit_graph_test_t* g, const c8* name)
     if (!g->pkgs[it].name) {
       break;
     }
-    if (sp_str_equal_cstr(sp_str_view(g->pkgs[it].name), name)) {
+    if (sp_str_equal_cstr(sp_cstr_as_str(g->pkgs[it].name), name)) {
       return (spn_pkg_id_t) {
-        .qualified = sp_intern(s->ctx->intern, sp_str_view(g->pkgs[it].name)).id,
+        .qualified = sp_intern(s->ctx->intern, sp_cstr_as_str(g->pkgs[it].name)).id,
         .hash = it + 1,
       };
     }
@@ -60,16 +63,16 @@ spn_pkg_id_t find_pkg_id(spn_session_t* s, unit_graph_test_t* g, const c8* name)
   return sp_zero_struct(spn_pkg_id_t);
 }
 
-static void lib_info(sp_mem_t mem, spn_tree_roots_t trees, const unit_lib_t* spec, spn_target_info_t* info) {
-  info->linkages = spec->linkages;
-  info->no_link = spec->no_link;
-  info->source = test_source_list(mem, trees, spec->source, UNIT_TEST_MAX_STRS);
-  info->deps = test_str_list(mem, spec->deps, UNIT_TEST_MAX_STRS);
-  info->system_deps = test_str_list(mem, spec->system_deps, UNIT_TEST_MAX_STRS);
-  info->macos.frameworks = test_str_list(mem, spec->frameworks, UNIT_TEST_MAX_STRS);
-  info->macos.min_os = spec->min_os;
-  info->link_flags = test_str_list(mem, spec->link_flags, UNIT_TEST_MAX_STRS);
-  info->linker_script = test_path_list(mem, trees, spec->linker_script, UNIT_TEST_MAX_STRS);
+static void lib_decl(sp_mem_t mem, const unit_lib_t* spec, spn_target_decl_t* decl) {
+  decl->linkages = spec->linkages;
+  decl->no_link = spec->no_link;
+  decl->source = test_gated_sources(mem, spec->source, UNIT_TEST_MAX_STRS);
+  decl->deps = test_gated_list(mem, spec->deps, UNIT_TEST_MAX_STRS);
+  decl->system_deps = test_gated_list(mem, spec->system_deps, UNIT_TEST_MAX_STRS);
+  decl->macos.frameworks = test_gated_list(mem, spec->frameworks, UNIT_TEST_MAX_STRS);
+  decl->macos.min_os = spec->min_os;
+  decl->link_flags = test_gated_list(mem, spec->link_flags, UNIT_TEST_MAX_STRS);
+  decl->linker_script = test_gated_paths(mem, spec->linker_script, UNIT_TEST_MAX_STRS);
 }
 
 static spn_build_unit_t* add_build(spn_session_t* s, spn_build_id_t id, const c8* root, spn_profile_info_t profile, spn_toolchain_support_t support) {
@@ -77,7 +80,7 @@ static spn_build_unit_t* add_build(spn_session_t* s, spn_build_id_t id, const c8
   spn_build_unit_t* build = sp_om_back(s->units.builds);
   build->id = id;
   build->profile = profile;
-  build->paths.root = spn_path_make(&spn.roots, sp_str_view(root));
+  build->paths.root = spn_path_make(&spn.roots, sp_cstr_as_str(root));
   sp_da_init(s->mem, build->include);
   build->define = spn_when_facts_to_defines(s->mem, spn_profile_facts(&profile));
   sp_da_init(s->mem, build->packages);
@@ -146,7 +149,7 @@ spn_session_t* build_session(sp_mem_t mem, unit_graph_test_t* g) {
 
   spn_toolchain_support_t support = { .kind = SPN_TOOLCHAIN_SUPPORT_LOCAL };
   if (g->sha256) {
-    support = (spn_toolchain_support_t) { .kind = SPN_TOOLCHAIN_SUPPORT_ARTIFACT, .artifact.sha256 = sp_str_view(g->sha256) };
+    support = (spn_toolchain_support_t) { .kind = SPN_TOOLCHAIN_SUPPORT_ARTIFACT, .artifact.sha256 = sp_cstr_as_str(g->sha256) };
   }
 
   s->units.target = add_build(s, 1, "/build/debug", profile, support);
@@ -159,12 +162,12 @@ spn_session_t* build_session(sp_mem_t mem, unit_graph_test_t* g) {
     unit_pkg_t* pkg = &g->pkgs[it];
     spn_pkg_id_t id = find_pkg_id(s, g, pkg->name);
 
-    spn_pkg_info_t* info = sp_alloc_type(mem, spn_pkg_info_t);
-    *info = spn_pkg_new(sp_str_view(pkg->name));
-    info->qualified = sp_intern(s->ctx->intern, sp_str_view(pkg->name));
-    info->system_deps = test_str_list(mem, pkg->system_deps, UNIT_TEST_MAX_STRS);
-    info->macos.frameworks = test_str_list(mem, pkg->frameworks, UNIT_TEST_MAX_STRS);
-    info->macos.min_os = pkg->min_os;
+    spn_manifest_t* manifest = sp_alloc_type(mem, spn_manifest_t);
+    *manifest = spn_manifest_new(sp_cstr_as_str(pkg->name));
+    manifest->qualified = sp_intern(s->ctx->intern, sp_cstr_as_str(pkg->name));
+    manifest->system_deps = test_gated_list(mem, pkg->system_deps, UNIT_TEST_MAX_STRS);
+    manifest->macos.frameworks = test_gated_list(mem, pkg->frameworks, UNIT_TEST_MAX_STRS);
+    manifest->macos.min_os = pkg->min_os;
 
     spn_path_t tree = spn_path_make(&spn.roots, sp_fmt(mem, "/pkg/{}", sp_fmt_cstr(pkg->name)).value);
     spn_tree_roots_t trees = { .recipe = tree, .source = tree };
@@ -173,26 +176,29 @@ spn_session_t* build_session(sp_mem_t mem, unit_graph_test_t* g) {
       if (!pkg->libs[lt].name) {
         break;
       }
-      spn_target_info_t* lib = SP_NULLPTR;
-      spn_pkg_add_target(mem, info, sp_str_view(pkg->libs[lt].name), SPN_TARGET_KIND_LIB, &lib);
-      lib_info(mem, trees, &pkg->libs[lt], lib);
+      spn_target_decl_t* lib = SP_NULLPTR;
+      spn_manifest_add_target(mem, manifest, sp_cstr_as_str(pkg->libs[lt].name), SPN_TARGET_KIND_LIB, &lib);
+      lib_decl(mem, &pkg->libs[lt], lib);
+    }
+    if (pkg->scripts) {
+      spn_target_decl_t* configure = SP_NULLPTR;
+      spn_manifest_add_target(mem, manifest, sp_str_lit("configure"), SPN_TARGET_KIND_CONFIGURE_METAPROGRAM, &configure);
+      si_da_push(mem, configure->source, ((spn_gated_source_t) {
+        .kind = SPN_SOURCE_FILE,
+        .path = sp_str_lit("configure.c"),
+        .tree = SPN_TREE_MANIFEST,
+      }));
     }
 
     if (it == 0) {
-      s->pkg = info;
+      s->manifest = manifest;
     }
 
     spn_loaded_pkg_t loaded = {
       .source = it == 0 ? SPN_PKG_SOURCE_ROOT : SPN_PKG_SOURCE_FILE,
-      .info = info,
+      .manifest = manifest,
       .roots = trees,
     };
-    if (pkg->scripts) {
-      si_da_push(mem, loaded.configure.source, ((spn_source_t) {
-        .kind = SPN_SOURCE_FILE,
-        .path = spn_tree_path(mem, &spn.roots, trees, SPN_TREE_MANIFEST, sp_str_lit("configure.c")),
-      }));
-    }
     sp_ht_insert(s->packages, id, loaded);
 
     spn_resolved_pkg_t resolved = {

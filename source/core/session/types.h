@@ -19,10 +19,8 @@
 
 typedef struct {
   spn_pkg_source_t source;
-  spn_pkg_info_t* info;
+  const spn_manifest_t* manifest;
   spn_tree_roots_t roots;
-  spn_target_info_t configure;
-  spn_target_info_t build;
 } spn_loaded_pkg_t;
 
 struct spn_session_t {
@@ -30,7 +28,7 @@ struct spn_session_t {
   spn_project_t* project;
   sp_mem_arena_t* arena;
   sp_mem_t mem;
-  spn_pkg_info_t* pkg;
+  const spn_manifest_t* manifest;
 
   bool force;
 

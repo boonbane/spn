@@ -61,7 +61,7 @@ spn_linkage_t spn_linkage_set_default(spn_linkage_set_t set) {
   SP_UNREACHABLE_RETURN(SPN_LIB_KIND_SHARED);
 }
 
-void spn_target_add_embed(sp_mem_t mem, spn_target_info_t* target, spn_embed_t embed) {
+void spn_target_add_embed(sp_mem_t mem, spn_target_eval_t* target, spn_embed_t embed) {
   embed.dest = spn_intern(embed.dest).str;
   embed.types.data = spn_intern(embed.types.data).str;
   embed.types.size = spn_intern(embed.types.size).str;

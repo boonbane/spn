@@ -37,9 +37,6 @@ const c8*     spn_fmt_ex(const c8* fmt, const c8* a0, const c8* a1, const c8* a2
 #define spn_fmt_select(fmt, a0, a1, a2, a3, ...) spn_fmt_ex(fmt, a0, a1, a2, a3)
 #define spn_fmt(fmt, ...) spn_fmt_select(fmt, ##__VA_ARGS__, 0, 0, 0, 0, 0)
 
-spn_target_t* spn_add_exe(spn_config_t* config, const c8* name);
-spn_target_t* spn_add_lib(spn_config_t* config, const c8* name, spn_linkage_t kind);
-spn_target_t* spn_add_test(spn_config_t* config, const c8* name);
 void          spn_add_include(spn_config_t* config, const c8* path);
 void          spn_add_define(spn_config_t* config, const c8* define);
 void          spn_add_system_dep(spn_config_t* config, const c8* dep);

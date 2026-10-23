@@ -18,6 +18,6 @@ typedef struct {
   spn_linkage_t linkage;
 } spn_kind_query_t;
 
-spn_err_t spn_target_select_lib_kind(spn_target_info_t* info, spn_kind_query_t query, spn_linkage_t* out);
+spn_err_t spn_target_select_lib_kind(spn_linkage_set_t supported, spn_kind_query_t query, spn_linkage_t* kind);
 
 #endif

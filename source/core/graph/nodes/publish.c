@@ -43,7 +43,7 @@ static spn_err_t publish_entry(const si_dag_ctx_t* c, spn_pkg_unit_t* unit, spn_
   if (err) {
     spn_event_buffer_push(spn.events, (spn_event_t) {
       .kind = SPN_EVENT_NODE_FAILED,
-      .pkg = unit->info->name.str,
+      .pkg = unit->eval.manifest->name.str,
       .node_failed = {
         .path = spn_path_str(roots, spn.events->mem, publish->source.path),
         .message = sp_fmt(spn.events->mem, "could not be published to {}", sp_fmt_str(sp_fs_join_path(spn.events->mem, spn_publish_root_to_str(publish->root), publish->dest))).value,
@@ -72,12 +72,12 @@ spn_err_t si_on_publish(const si_dag_ctx_t* c, void* user_data) {
     [SPN_PUBLISH_ROOT_SHARE] = si_dag_resolve_output(c, publish->share),
   };
 
-  si_da_for(unit->info->publish, it) {
-    spn_publish_t* entry = &unit->info->publish[it];
+  si_da_for(unit->eval.publish, it) {
+    spn_publish_t* entry = &unit->eval.publish[it];
     spn_try(publish_entry(c, unit, dirs[entry->root], entry));
   }
-  si_om_for(unit->info->targets, it) {
-    spn_target_info_t* target = si_om_at(unit->info->targets, it);
+  si_om_for(unit->eval.targets, it) {
+    spn_target_eval_t* target = si_om_at(unit->eval.targets, it);
     si_da_for(target->publish, jt) {
       spn_publish_t* entry = &target->publish[jt];
       spn_try(publish_entry(c, unit, dirs[entry->root], entry));

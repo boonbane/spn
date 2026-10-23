@@ -1,10 +1,8 @@
 #include "pkg/options.h"
 #include "intern/intern.h"
 
-#include "paths/paths.h"
 #include "profile/profile.h"
 #include "resolve/types.h"
-#include "target/mutate.h"
 #include "when/when.h"
 
 spn_pkg_config_t* spn_pkg_config_find(si_da(spn_pkg_config_entry_t) config, sp_str_t name) {
@@ -221,121 +219,4 @@ void spn_pkg_options_env(
   spn_pkg_options_merge(mem, pkg, profile, root_config, requests, &merged);
   spn_when_env_from_profile(mem, profile, env);
   spn_when_env_add_options(env, &merged.options);
-}
-
-typedef struct {
-  sp_mem_t mem;
-  const spn_path_roots_t* roots;
-  spn_tree_roots_t trees;
-  spn_when_env_t* env;
-} apply_ctx_t;
-
-static void apply_gated(apply_ctx_t* ctx, si_da(sp_str_t)* plain, spn_gated_list_t gated) {
-  si_da_for(gated, it) {
-    if (!spn_when_eval(&gated[it].when, ctx->env)) {
-      continue;
-    }
-    si_da_push(ctx->mem, *plain, gated[it].value);
-  }
-}
-
-static void apply_gated_paths(apply_ctx_t* ctx, si_da(spn_path_t)* plain, spn_gated_path_list_t gated) {
-  si_da_for(gated, it) {
-    if (!spn_when_eval(&gated[it].when, ctx->env)) {
-      continue;
-    }
-    spn_path_t path = spn_tree_path(ctx->mem, ctx->roots, ctx->trees, gated[it].tree, gated[it].path);
-    si_da_push(ctx->mem, *plain, path);
-  }
-}
-
-static void apply_publish(apply_ctx_t* ctx, si_da(spn_publish_t)* plain, si_da(spn_gated_publish_t) gated) {
-  si_da_for(gated, it) {
-    spn_gated_publish_t* publish = &gated[it];
-    if (!spn_when_eval(&publish->source.when, ctx->env)) {
-      continue;
-    }
-    si_da_push(ctx->mem, *plain, ((spn_publish_t) {
-      .root = publish->root,
-      .source = {
-        .kind = publish->source.kind,
-        .path = spn_tree_path(ctx->mem, ctx->roots, ctx->trees, publish->source.tree, publish->source.path),
-      },
-      .dest = publish->dest,
-    }));
-  }
-}
-
-static void apply_target(apply_ctx_t* ctx, spn_target_info_t* target) {
-  si_da_for(target->gated.source, it) {
-    spn_gated_source_t* source = &target->gated.source[it];
-    if (!spn_when_eval(&source->when, ctx->env)) {
-      continue;
-    }
-    si_da_push(ctx->mem, target->source, ((spn_source_t) {
-      .kind = source->kind,
-      .path = spn_tree_path(ctx->mem, ctx->roots, ctx->trees, source->tree, source->path),
-    }));
-  }
-  apply_publish(ctx, &target->publish, target->gated.publish);
-  apply_gated_paths(ctx, &target->include, target->gated.include);
-  apply_gated(ctx, &target->define, target->gated.define);
-  apply_gated(ctx, &target->flags, target->gated.flags);
-  apply_gated(ctx, &target->link_flags, target->gated.link_flags);
-  apply_gated_paths(ctx, &target->linker_script, target->gated.linker_script);
-  apply_gated(ctx, &target->system_deps, target->gated.system_deps);
-  apply_gated(ctx, &target->deps, target->gated.deps);
-  apply_gated(ctx, &target->macos.frameworks, target->gated.frameworks);
-  si_da_for(target->gated.embed, it) {
-    spn_gated_embed_t* embed = &target->gated.embed[it];
-    if (!spn_when_eval(&embed->when, ctx->env)) {
-      continue;
-    }
-    spn_path_t path = spn_tree_path(ctx->mem, ctx->roots, ctx->trees, embed->tree, embed->path);
-    spn_target_add_embed(ctx->mem, target, (spn_embed_t) {
-      .kind = embed->kind,
-      .path = path,
-      .dest = embed->dest,
-      .types = embed->types,
-    });
-  }
-}
-
-void spn_pkg_apply_options(
-  sp_mem_t mem,
-  spn_pkg_info_t* info,
-  const spn_path_roots_t* roots,
-  spn_tree_roots_t trees,
-  spn_when_env_t* env
-) {
-  if (info->applied) {
-    return;
-  }
-  info->applied = true;
-
-  apply_ctx_t ctx = { .mem = mem, .roots = roots, .trees = trees, .env = env };
-  si_om_for(info->targets, it) {
-    apply_target(&ctx, si_om_at(info->targets, it));
-  }
-
-  apply_gated(&ctx, &info->system_deps, info->gated.system_deps);
-  apply_gated_paths(&ctx, &info->include, info->gated.include);
-  apply_gated(&ctx, &info->define, info->gated.define);
-  apply_gated(&ctx, &info->macos.frameworks, info->gated.frameworks);
-  apply_publish(&ctx, &info->publish, info->gated.publish);
-
-  si_om_for(info->options, it) {
-    spn_option_info_t* option = si_om_at(info->options, it);
-    if (sp_str_empty(option->define)) {
-      continue;
-    }
-    spn_option_value_t* value = sp_str_ht_get(*env, option->name.str);
-    if (!value || value->kind != SPN_OPTION_VALUE_BOOL || !value->b) {
-      continue;
-    }
-    si_da_push(mem, info->define, option->define);
-    if (option->public) {
-      si_da_push(mem, info->public_define, option->define);
-    }
-  }
 }

@@ -14,7 +14,7 @@
 #include "pkg/load.h"
 #include "paths/paths.h"
 #include "toml/issue.h"
-#include "pkg/pkg.h"
+#include "pkg/manifest.h"
 #include "resolve/resolve.h"
 #include "semver/convert.h"
 #include "session/session.h"
@@ -29,42 +29,42 @@ static spn_err_t apply_patch_overrides(spn_session_t* session, spn_resolve_query
     }
 
     spn_path_t patch = spn_path_join(spn.mem, session->ctx->paths.patches, pkg->origin.release->id.name);
-    spn_path_t manifest = spn_path_join(spn.mem, patch, pkg->origin.paths.manifest);
-    if (!sp_fs_exists_at(spn_path_at(&session->ctx->roots, manifest))) {
+    spn_path_t path = spn_path_join(spn.mem, patch, pkg->origin.paths.manifest);
+    if (!sp_fs_exists_at(spn_path_at(&session->ctx->roots, path))) {
       continue;
     }
 
     sp_str_t name = sp_intern_find(session->ctx->intern, pkg->id.qualified);
-    spn_pkg_info_t* info = sp_alloc_type(session->mem, spn_pkg_info_t);
+    spn_manifest_t* manifest = sp_alloc_type(session->mem, spn_manifest_t);
     spn_codegen_issues_t issues = sp_zero;
-    spn_err_t loaded = spn_pkg_load(session->mem, session->ctx->intern, &session->ctx->roots, manifest, SPN_MANIFEST_DEP, info, &issues);
+    spn_err_t loaded = spn_manifest_load(session->mem, session->ctx->intern, &session->ctx->roots, path, SPN_MANIFEST_DEP, manifest, &issues);
     if (loaded == SPN_ERR_NO_MANIFEST) {
       result = spn_err_emit(session->ctx, (spn_err_union_t) {
         .kind = SPN_ERR_NO_MANIFEST,
-        .no_manifest = { .path = spn_path_str(&session->ctx->roots, spn.events->mem, manifest) },
+        .no_manifest = { .path = spn_path_str(&session->ctx->roots, spn.events->mem, path) },
       });
       continue;
     }
     if (loaded) {
       result = spn_err_emit(session->ctx, (spn_err_union_t) {
         .kind = SPN_ERR_MANIFEST_ISSUES,
-        .manifest = { .name = name, .path = spn_path_str(&session->ctx->roots, spn.events->mem, manifest), .issues = spn_codegen_issues_to_err(spn.events->mem, issues) },
+        .manifest = { .name = name, .path = spn_path_str(&session->ctx->roots, spn.events->mem, path), .issues = spn_codegen_issues_to_err(spn.events->mem, issues) },
       });
       continue;
     }
 
     pkg->origin.recipe = (spn_pkg_root_t) { .kind = SPN_PKG_ROOT_LOCAL, .local = patch };
-    pkg->origin.source = spn_pkg_upstream(info);
-    pkg->origin.info = info;
-    pkg->name = info->name.str;
-    pkg->options = info->options;
+    pkg->origin.source = spn_manifest_upstream(manifest);
+    pkg->origin.manifest = manifest;
+    pkg->name = manifest->name.str;
+    pkg->options = manifest->options;
   }
   return result;
 }
 
 static void add_root(spn_session_t* session, spn_resolve_query_t* query) {
   spn_resolve_query_add(query, (spn_requested_dep_t) {
-    .qualified = session->pkg->qualified,
+    .qualified = session->manifest->qualified,
     .source = SPN_PKG_SOURCE_ROOT,
   });
 }
@@ -93,20 +93,20 @@ spn_err_t resolve(spn_op_t* op) {
   spn_session_t* session = op->session;
   spn_event_buffer_push(spn.events, (spn_event_t) {
     .kind = SPN_EVENT_RESOLVE_START,
-    .pkg = session->pkg->name.str,
+    .pkg = session->manifest->name.str,
   });
 
-  sp_ht_insert(session->registry, ((spn_pkg_id_t) { .qualified = session->pkg->qualified.id }), ((spn_registry_pkg_t) {
+  sp_ht_insert(session->registry, ((spn_pkg_id_t) { .qualified = session->manifest->qualified.id }), ((spn_registry_pkg_t) {
     .source = SPN_PKG_SOURCE_ROOT,
-    .info = session->pkg,
-    .manifest = session->project->paths.manifest,
+    .manifest = session->manifest,
+    .path = session->project->paths.manifest,
   }));
 
   spn_index_cache_t index = sp_zero;
   spn_index_cache_init(&index, session->mem, session->ctx->intern, &session->ctx->roots, &spn.indexes);
 
   spn_resolver_t resolver = sp_zero;
-  spn_resolver_init(&resolver, spn.mem, session->ctx->intern, &index, &session->registry, session->units.target->profile, session->pkg->config, 0);
+  spn_resolver_init(&resolver, spn.mem, session->ctx->intern, &index, &session->registry, session->units.target->profile, session->manifest->config, 0);
   resolver.roots = &session->ctx->roots;
   resolver.seeds = session->gates.seeds;
 

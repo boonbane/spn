@@ -4,7 +4,7 @@
 #include "codegen/codegen.h"
 #include "codegen/lower.h"
 #include "manifest.gen.h"
-#include "pkg/pkg.h"
+#include "pkg/manifest.h"
 #include "target/types.h"
 #include "profile/types.h"
 #include "index/types.h"
@@ -1649,10 +1649,15 @@ static sp_err_t check_gated_source_list(sp_test_t* t, sp_da(spn_gated_source_t) 
   sp_try(check_gated_source_list(t, actual, expected, num_gated)); \
 } while (0)
 
-static sp_err_t check_targets(sp_test_t* t, spn_pkg_info_t* pkg, const target_t* arr, u32 n, spn_target_kind_t kind) {
+static const spn_target_decl_t* get_target(const spn_manifest_t* manifest, sp_str_t name, spn_target_kind_t kind) {
+  spn_target_id_t id = { .name = spn_intern(name).id, .kind = kind };
+  return si_om_get(manifest->targets, id);
+}
+
+static sp_err_t check_targets(sp_test_t* t, spn_manifest_t* pkg, const target_t* arr, u32 n, spn_target_kind_t kind) {
   for (u32 i = 0; i < n; i++) {
     if (!arr[i].name) break;
-    spn_target_info_t* info = spn_pkg_get_target(pkg, sp_str_view(arr[i].name), kind);
+    const spn_target_decl_t* info = get_target(pkg, sp_cstr_as_str(arr[i].name), kind);
     sp_must(t, info);
     sp_expect_eq(t, (u32)kind, (u32)info->kind);
     sp_expect_eq(t, arr[i].linkages.source, info->linkages.source);
@@ -1660,33 +1665,22 @@ static sp_err_t check_targets(sp_test_t* t, spn_pkg_info_t* pkg, const target_t*
     sp_expect_eq(t, arr[i].linkages.static_lib, info->linkages.static_lib);
     sp_expect_eq(t, arr[i].linkages.object, info->linkages.object);
     sp_expect_eq(t, arr[i].no_link, info->no_link);
-    sp_expect_eq(t, (u32)0, (u32)si_da_size(info->source));
-    sp_expect_eq(t, (u32)0, (u32)si_da_size(info->include));
-    sp_expect_eq(t, (u32)0, (u32)si_da_size(info->define));
-    sp_expect_eq(t, (u32)0, (u32)si_da_size(info->flags));
-    sp_expect_eq(t, (u32)0, (u32)si_da_size(info->link_flags));
-    sp_expect_eq(t, (u32)0, (u32)si_da_size(info->linker_script));
-    sp_expect_eq(t, (u32)0, (u32)si_da_size(info->system_deps));
-    sp_expect_eq(t, (u32)0, (u32)si_da_size(info->deps));
-    check_gated_sources(t, info->gated.source, arr[i].source);
-    sp_expect_eq(t, (u32)0, (u32)si_da_size(info->publish));
-    check_publish(t, info->gated.publish, arr[i].publish);
-    check_gated_paths(t, info->gated.include, arr[i].include);
-    check_gated(t, info->gated.define, arr[i].define);
-    check_gated(t, info->gated.flags, arr[i].flags);
-    check_gated(t, info->gated.link_flags, arr[i].link_flags);
-    check_gated_paths(t, info->gated.linker_script, arr[i].linker_script);
-    check_gated(t, info->gated.system_deps, arr[i].system_deps);
-    check_gated(t, info->gated.deps, arr[i].deps);
-    sp_expect_eq(t, (u32)0, (u32)si_da_size(info->macos.frameworks));
-    check_gated(t, info->gated.frameworks, arr[i].frameworks);
+    check_gated_sources(t, info->source, arr[i].source);
+    check_publish(t, info->publish, arr[i].publish);
+    check_gated_paths(t, info->include, arr[i].include);
+    check_gated(t, info->define, arr[i].define);
+    check_gated(t, info->flags, arr[i].flags);
+    check_gated(t, info->link_flags, arr[i].link_flags);
+    check_gated_paths(t, info->linker_script, arr[i].linker_script);
+    check_gated(t, info->system_deps, arr[i].system_deps);
+    check_gated(t, info->deps, arr[i].deps);
+    check_gated(t, info->macos.frameworks, arr[i].frameworks);
     u32 num_embeds = 0;
     sp_carr_detect_len(arr[i].embed, num_embeds, arr[i].embed[num_embeds].path);
-    sp_expect_eq(t, (u32)0, (u32)si_da_size(info->embed));
-    sp_must_eq(t, num_embeds, (u32)si_da_size(info->gated.embed));
+    sp_must_eq(t, num_embeds, (u32)si_da_size(info->embed));
     sp_for(e, num_embeds) {
       const embed_t* expected = &arr[i].embed[e];
-      spn_gated_embed_t* actual = &info->gated.embed[e];
+      spn_gated_embed_t* actual = &info->embed[e];
       spn_tree_t tree = expected->tree ? expected->tree : SPN_TREE_SOURCE;
       sp_expect_eq(t, (u32)(expected->dir ? SPN_EMBED_DIR : SPN_EMBED_FILE), (u32)actual->kind);
       sp_expect_str_eq_c(t, actual->path, expected->path);
@@ -1717,14 +1711,14 @@ sp_test_each(lower, cases, test_t, tests, .setup = spn_test_ctx_setup) {
   spn_cg_manifest_t cg = sp_zero;
   spn_codegen_load(&ctx, (spn_path_t) { .sub = path }, &cg);
 
-  spn_pkg_info_t pkg = sp_zero;
-  spn_pkg_lower(&ctx, &cg, &pkg);
+  spn_manifest_t pkg = sp_zero;
+  spn_manifest_lower(&ctx, &cg, &pkg);
 
   if (it->hash_patches) {
-    spn_pkg_lower_patch_hashes(&ctx, &pkg);
+    spn_manifest_lower_patch_hashes(&ctx, &pkg);
   }
   if (it->reject_patches) {
-    spn_pkg_reject_patches(&ctx, &pkg);
+    spn_manifest_reject_patches(&ctx, &pkg);
   }
 
   // Issues
@@ -1756,21 +1750,16 @@ sp_test_each(lower, cases, test_t, tests, .setup = spn_test_ctx_setup) {
   }
 
   // Package arrays
-  sp_expect_eq(t, (u32)0, (u32)si_da_size(pkg.define));
-  check_gated(t, pkg.gated.define, it->define);
-  check_gated(t, pkg.gated.system_deps, it->system_deps);
-  sp_expect_eq(t, (u32)0, (u32)si_da_size(pkg.macos.frameworks));
-  check_gated(t, pkg.gated.frameworks, it->frameworks);
-  sp_expect_eq(t, (u32)0, (u32)si_da_size(pkg.publish));
-  check_publish(t, pkg.gated.publish, it->publish);
-  sp_expect_eq(t, (u32)0, (u32)si_da_size(pkg.include));
-  check_gated_paths(t, pkg.gated.include, it->include);
-  check_gated_sources(t, pkg.build.gated.source, it->build_source);
-  check_gated_paths(t, pkg.build.gated.include, it->build_include);
-  sp_expect_eq(t, (u32)0, (u32)si_da_size(pkg.build.define));
-  sp_expect_eq(t, (u32)0, (u32)si_da_size(pkg.build.flags));
-  check_gated(t, pkg.build.gated.define, it->build_define);
-  check_gated(t, pkg.build.gated.flags, it->build_flags);
+  check_gated(t, pkg.define, it->define);
+  check_gated(t, pkg.system_deps, it->system_deps);
+  check_gated(t, pkg.macos.frameworks, it->frameworks);
+  check_publish(t, pkg.publish, it->publish);
+  check_gated_paths(t, pkg.include, it->include);
+  const spn_target_decl_t* build = get_target(&pkg, sp_str_lit("build"), SPN_TARGET_KIND_BUILD_METAPROGRAM);
+  check_gated_sources(t, build ? build->source : SP_NULLPTR, it->build_source);
+  check_gated_paths(t, build ? build->include : SP_NULLPTR, it->build_include);
+  check_gated(t, build ? build->define : SP_NULLPTR, it->build_define);
+  check_gated(t, build ? build->flags : SP_NULLPTR, it->build_flags);
 
   // Targets
   sp_try(check_targets(t, &pkg, it->libs,     SP_CARR_LEN(it->libs),     SPN_TARGET_KIND_LIB));

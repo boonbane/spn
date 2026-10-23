@@ -1,6 +1,6 @@
 #include "unit.h"
 
-#include "pkg/mutate.h"
+#include "pkg/manifest.h"
 
 sp_test_suite(target_kind, .serial = true);
 
@@ -68,11 +68,11 @@ sp_test_each(target_kind, kind, test_t, tests, .setup = spn_test_ctx_setup) {
   sp_mem_t mem = sp_test_arena(t);
   spn_session_t* s = build_session(mem, &it->graph);
 
-  spn_loaded_pkg_t* loaded = sp_ht_getp(s->packages, find_pkg_id(s, &it->graph, it->graph.pkgs[0].name));
+  spn_manifest_t* manifest = test_manifest(s, find_pkg_id(s, &it->graph, it->graph.pkgs[0].name));
   const c8* source [] = { "app.c", SP_NULLPTR };
-  spn_target_info_t* app = SP_NULLPTR;
-  sp_must_eq(t, SPN_OK, spn_pkg_add_target(s->mem, s->pkg, sp_str_lit("app"), SPN_TARGET_KIND_EXE, &app));
-  app->source = test_source_list(mem, loaded->roots, source, sp_carr_len(source));
+  spn_target_decl_t* app = SP_NULLPTR;
+  sp_must_eq(t, SPN_OK, spn_manifest_add_target(s->mem, manifest, sp_str_lit("app"), SPN_TARGET_KIND_EXE, &app));
+  app->source = test_gated_sources(mem, source, sp_carr_len(source));
   s->plans.build[0].selection.kinds = spn_target_kind_bit(SPN_TARGET_KIND_EXE);
 
   sp_must_eq(t, SPN_OK, spn_units_add_packages(s));

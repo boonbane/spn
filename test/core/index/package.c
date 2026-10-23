@@ -89,7 +89,7 @@ static sp_err_t check(sp_test_t* t, root_t expect, spn_pkg_root_t root) {
 sp_test_each(index_from_pkg, roots, test_t, tests, .setup = spn_test_ctx_setup) {
   sp_mem_t mem = sp_test_arena(t);
 
-  spn_pkg_info_t info = sp_zero;
+  spn_manifest_t info = sp_zero;
   info.qualified = spn_intern_lit("core/A");
   if (it->upstream.url) {
     info.upstream.url = sp_cstr_as_str(it->upstream.url);
@@ -98,7 +98,7 @@ sp_test_each(index_from_pkg, roots, test_t, tests, .setup = spn_test_ctx_setup) 
 
   spn_index_release_t release = sp_zero;
   sp_str_t dep = sp_zero;
-  sp_must_eq(t, SPN_OK, spn_index_release_from_pkg(mem, &info, build(it->published), &release, &dep));
+  sp_must_eq(t, SPN_OK, spn_index_release_from_manifest(mem, &info, build(it->published), &release, &dep));
 
   if (check(t, it->expect.source, release.source)) {
     return SP_ERR;

@@ -1,99 +1,166 @@
-#include "sp.h"
-#include "macro/macro.h"
-#include "str/str.h"
 #include "pkg/pkg.h"
 
-#include "hash/digest/digest.h"
 #include "intern/intern.h"
 #include "paths/paths.h"
-#include "pkg/mutate.h"
-#include "profile/types.h"
 #include "target/mutate.h"
 #include "when/when.h"
 
-static sp_hash_t hash_push(sp_hash_t hash, sp_hash_t value) {
-  sp_hash_t parts [] = { hash, value };
-  return spn_digest_hash_combine(parts, sp_carr_len(parts));
-}
+typedef struct {
+  sp_mem_t mem;
+  const spn_path_roots_t* roots;
+  spn_tree_roots_t trees;
+  spn_when_env_t* env;
+} eval_ctx_t;
 
-static sp_hash_t hash_gated(sp_hash_t hash, spn_gated_list_t list) {
-  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  si_da_for(list, it) {
-    hash = hash_push(hash, spn_digest_hash_str(list[it].value));
-    hash = hash_push(hash, spn_digest_hash_str(spn_when_to_str(scratch.mem, &list[it].when)));
+static si_da(sp_str_t) eval_list(eval_ctx_t* ctx, spn_gated_list_t gated) {
+  si_da(sp_str_t) plain = SP_NULLPTR;
+  si_da_for_ptr(gated, entry) {
+    if (!spn_when_eval(&entry->when, ctx->env)) {
+      continue;
+    }
+    si_da_push(ctx->mem, plain, entry->value);
   }
-  sp_mem_end_scratch(scratch);
-  return hash;
+  return plain;
 }
 
-sp_hash_t spn_pkg_hash_platform(spn_pkg_info_t* pkg, const spn_profile_info_t* profile) {
-  sp_hash_t hash = 0;
+static si_da(spn_path_t) eval_paths(eval_ctx_t* ctx, spn_gated_path_list_t gated) {
+  si_da(spn_path_t) plain = SP_NULLPTR;
+  si_da_for_ptr(gated, entry) {
+    if (!spn_when_eval(&entry->when, ctx->env)) {
+      continue;
+    }
+    si_da_push(ctx->mem, plain, spn_tree_path(ctx->mem, ctx->roots, ctx->trees, entry->tree, entry->path));
+  }
+  return plain;
+}
 
-  switch (profile->os) {
-    case SPN_OS_MACOS: {
-      hash = hash_push(hash, spn_digest_hash(&pkg->macos.min_os, sizeof(pkg->macos.min_os)));
-      hash = hash_gated(hash, pkg->gated.frameworks);
-      si_om_for(pkg->targets, it) {
-        spn_target_info_t* target = si_om_at(pkg->targets, it);
-        hash = hash_push(hash, spn_digest_hash_str(target->name.str));
-        hash = hash_push(hash, (sp_hash_t)target->kind);
-        hash = hash_push(hash, spn_digest_hash(&target->macos.min_os, sizeof(target->macos.min_os)));
-        hash = hash_gated(hash, target->gated.frameworks);
-      }
-      break;
+static si_da(spn_source_t) eval_sources(eval_ctx_t* ctx, si_da(spn_gated_source_t) gated) {
+  si_da(spn_source_t) plain = SP_NULLPTR;
+  si_da_for_ptr(gated, entry) {
+    if (!spn_when_eval(&entry->when, ctx->env)) {
+      continue;
     }
-    case SPN_OS_WINDOWS: {
-      si_om_for(pkg->targets, it) {
-        spn_target_info_t* target = si_om_at(pkg->targets, it);
-        if (target->windows.subsystem == SPN_WIN_SUBSYSTEM_NONE) continue;
-        hash = hash_push(hash, spn_digest_hash_str(target->name.str));
-        hash = hash_push(hash, (sp_hash_t)target->kind);
-        hash = hash_push(hash, (sp_hash_t)target->windows.subsystem);
-      }
-      break;
+    si_da_push(ctx->mem, plain, ((spn_source_t) {
+      .kind = entry->kind,
+      .path = spn_tree_path(ctx->mem, ctx->roots, ctx->trees, entry->tree, entry->path),
+    }));
+  }
+  return plain;
+}
+
+static si_da(spn_publish_t) eval_publish(eval_ctx_t* ctx, si_da(spn_gated_publish_t) gated) {
+  si_da(spn_publish_t) plain = SP_NULLPTR;
+  si_da_for_ptr(gated, entry) {
+    if (!spn_when_eval(&entry->source.when, ctx->env)) {
+      continue;
     }
-    case SPN_OS_LINUX:
-    case SPN_OS_WASI:
-    case SPN_OS_FREESTANDING:
-    case SPN_OS_NONE: {
-      break;
+    si_da_push(ctx->mem, plain, ((spn_publish_t) {
+      .root = entry->root,
+      .source = {
+        .kind = entry->source.kind,
+        .path = spn_tree_path(ctx->mem, ctx->roots, ctx->trees, entry->source.tree, entry->source.path),
+      },
+      .dest = entry->dest,
+    }));
+  }
+  return plain;
+}
+
+static spn_target_eval_t eval_target(eval_ctx_t* ctx, const spn_target_decl_t* decl) {
+  spn_target_eval_t target = {
+    .decl = decl,
+    .source = eval_sources(ctx, decl->source),
+    .publish = eval_publish(ctx, decl->publish),
+    .include = eval_paths(ctx, decl->include),
+    .define = eval_list(ctx, decl->define),
+    .flags = eval_list(ctx, decl->flags),
+    .link_flags = eval_list(ctx, decl->link_flags),
+    .linker_script = eval_paths(ctx, decl->linker_script),
+    .system_deps = eval_list(ctx, decl->system_deps),
+    .deps = eval_list(ctx, decl->deps),
+    .macos = { .frameworks = eval_list(ctx, decl->macos.frameworks) },
+  };
+  si_da_for_value(decl->embed, embed) {
+    if (!spn_when_eval(&embed.when, ctx->env)) {
+      continue;
+    }
+    spn_target_add_embed(ctx->mem, &target, (spn_embed_t) {
+      .kind = embed.kind,
+      .path = spn_tree_path(ctx->mem, ctx->roots, ctx->trees, embed.tree, embed.path),
+      .dest = embed.dest,
+      .types = embed.types,
+    });
+  }
+  return target;
+}
+
+spn_pkg_t spn_pkg_eval(sp_mem_t mem, const spn_manifest_t* manifest, const spn_path_roots_t* roots, spn_tree_roots_t trees, spn_when_env_t* env) {
+  eval_ctx_t ctx = { .mem = mem, .roots = roots, .trees = trees, .env = env };
+  spn_pkg_t pkg = {
+    .manifest = manifest,
+    .include = eval_paths(&ctx, manifest->include),
+    .define = eval_list(&ctx, manifest->define),
+    .system_deps = eval_list(&ctx, manifest->system_deps),
+    .publish = eval_publish(&ctx, manifest->publish),
+    .macos = { .frameworks = eval_list(&ctx, manifest->macos.frameworks) },
+  };
+  si_om_for(manifest->targets, it) {
+    const spn_target_decl_t* decl = si_om_at(manifest->targets, it);
+    si_om_insert(mem, pkg.targets, decl->id, eval_target(&ctx, decl));
+  }
+  si_om_for(manifest->options, it) {
+    spn_option_info_t* option = si_om_at(manifest->options, it);
+    if (sp_str_empty(option->define)) {
+      continue;
+    }
+    spn_option_value_t* value = sp_str_ht_get(*env, option->name.str);
+    if (!value || value->kind != SPN_OPTION_VALUE_BOOL || !value->b) {
+      continue;
+    }
+    si_da_push(mem, pkg.define, option->define);
+    if (option->public) {
+      si_da_push(mem, pkg.public_define, option->define);
     }
   }
-
-  return hash;
-}
-
-spn_pkg_info_t spn_pkg_new(sp_str_t name) {
-  spn_pkg_info_t pkg = sp_zero;
-  pkg.name = spn_intern(name);
   return pkg;
 }
 
-bool spn_pkg_has_lib_kind(spn_pkg_info_t* pkg, spn_linkage_t kind) {
-  si_om_for(pkg->targets, it) {
-    spn_target_info_t* target = si_om_at(pkg->targets, it);
-    if (target->kind != SPN_TARGET_KIND_LIB) {
-      continue;
-    }
-    if (spn_linkage_set_has(target->linkages, kind)) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-spn_target_info_t* spn_pkg_get_target(spn_pkg_info_t* pkg, sp_str_t name, spn_target_kind_t kind) {
+spn_target_eval_t* spn_pkg_get_target(spn_pkg_t* pkg, sp_str_t name, spn_target_kind_t kind) {
   spn_target_id_t id = { .name = spn_intern(name).id, .kind = kind };
   return si_om_get(pkg->targets, id);
 }
 
-spn_pkg_root_t spn_pkg_upstream(spn_pkg_info_t* info) {
-  if (sp_str_empty(info->upstream.url)) {
-    return (spn_pkg_root_t) { .kind = SPN_PKG_ROOT_NONE };
+bool spn_pkg_has_scripts(const spn_pkg_t* pkg) {
+  si_om_for(pkg->targets, it) {
+    spn_target_eval_t* target = si_om_at(pkg->targets, it);
+    switch (target->decl->kind) {
+      case SPN_TARGET_KIND_CONFIGURE_METAPROGRAM:
+      case SPN_TARGET_KIND_BUILD_METAPROGRAM: {
+        if (!si_da_empty(target->source)) {
+          return true;
+        }
+        break;
+      }
+      case SPN_TARGET_KIND_LIB:
+      case SPN_TARGET_KIND_EXE:
+      case SPN_TARGET_KIND_SCRIPT:
+      case SPN_TARGET_KIND_TEST:
+      case SPN_TARGET_KIND_EXAMPLE: {
+        break;
+      }
+    }
   }
-  return (spn_pkg_root_t) {
-    .kind = SPN_PKG_ROOT_GIT,
-    .git = { .url = info->upstream.url, .rev = info->upstream.commit },
-  };
+  return false;
+}
+
+void spn_pkg_add_include(sp_mem_t mem, spn_pkg_t* pkg, spn_path_t path) {
+  si_da_push(mem, pkg->configured.include, path);
+}
+
+void spn_pkg_add_define(sp_mem_t mem, spn_pkg_t* pkg, sp_str_t define) {
+  si_da_push(mem, pkg->define, sp_str_copy(mem, define));
+}
+
+void spn_pkg_add_system_dep(sp_mem_t mem, spn_pkg_t* pkg, sp_str_t dep) {
+  si_da_push(mem, pkg->system_deps, sp_str_copy(mem, dep));
 }

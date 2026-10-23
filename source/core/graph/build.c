@@ -25,11 +25,11 @@ spn_path_t spn_target_unit_staged_path(sp_mem_t mem, spn_target_unit_t* target) 
   if (target->kind != SPN_CC_OUTPUT_EXE) return sp_zero_s(spn_path_t);
 
   sp_mem_arena_marker_t s = sp_mem_begin_scratch_for(mem);
-  sp_str_t file_name = spn_triple_exe_file_name(s.mem, spn_profile_triple(&target->pkg->build->profile), target->info->name.str);
+  sp_str_t file_name = spn_triple_exe_file_name(s.mem, spn_profile_triple(&target->pkg->build->profile), target->eval->decl->name.str);
   spn_path_t root = target->pkg->build->paths.root;
 
   spn_path_t path = sp_zero;
-  switch (target->info->kind) {
+  switch (target->eval->decl->kind) {
     case SPN_TARGET_KIND_EXE:
     case SPN_TARGET_KIND_SCRIPT: {
       path = spn_path_join(mem, root, file_name);
@@ -56,8 +56,8 @@ spn_path_t spn_target_unit_staged_path(sp_mem_t mem, spn_target_unit_t* target) 
 
 spn_event_subject_t spn_target_unit_subject(const spn_target_unit_t* unit) {
   return (spn_event_subject_t) {
-    .pkg = unit->pkg->info->name.str,
-    .target = unit->info->name.str,
+    .pkg = unit->pkg->eval.manifest->name.str,
+    .target = unit->eval->decl->name.str,
   };
 }
 
