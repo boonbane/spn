@@ -55,7 +55,7 @@ static spn_err_t apply_patch_overrides(spn_session_t* session, spn_resolve_query
     pkg->origin.recipe = (spn_pkg_root_t) { .kind = SPN_PKG_ROOT_LOCAL, .local = patch };
     pkg->origin.source = manifest->upstream;
     pkg->origin.manifest = manifest;
-    pkg->name = manifest->name.str;
+    pkg->name = manifest->name;
     pkg->options = manifest->options;
   }
   return result;

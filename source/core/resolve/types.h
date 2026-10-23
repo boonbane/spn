@@ -30,7 +30,7 @@ typedef struct {
 
 struct spn_resolved_pkg {
   spn_pkg_id_t id;
-  sp_str_t name;
+  sp_intern_str_t name;
   spn_option_map_t options;
   spn_pkg_source_t source;
   u64 priority;

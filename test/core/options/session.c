@@ -94,7 +94,7 @@ sp_test_each(options_session, apply, session_test_t, tests, .setup = spn_test_ct
   spn_pkg_id_t root_id = make_id(intern, "core/test");
   spn_resolved_pkg_t root_node = {
     .id = root_id,
-    .name = root.name.str,
+    .name = root.name,
     .source = SPN_PKG_SOURCE_ROOT,
     .edges = sp_da_new(mem, spn_resolved_dep_t),
   };

@@ -30,14 +30,14 @@ static spn_err_t violation_kind(spn_option_err_t kind) {
 }
 
 static spn_err_setter_t violation_setter(spn_option_setter_t setter) {
-  return (spn_err_setter_t) { .kind = setter.kind, .name = setter.name };
+  return (spn_err_setter_t) { .kind = setter.kind, .name = setter.name.str };
 }
 
 static spn_err_union_t violation_err(sp_mem_t mem, spn_option_violation_t violation) {
   return (spn_err_union_t) {
     .kind = violation_kind(violation.kind),
     .option = {
-      .pkg = violation.pkg,
+      .pkg = violation.pkg.str,
       .option = violation.option,
       .value = violation.value.kind == SPN_OPTION_VALUE_NONE ? sp_str_lit("") : spn_option_value_to_str(mem, violation.value),
       .a = violation_setter(violation.a),
@@ -112,7 +112,7 @@ static spn_err_t validate_config_keys(spn_session_t* session) {
       spn_resolved_pkg_t* node = rt.val;
       spn_loaded_pkg_t* loaded = sp_ht_getp(session->packages, node->id);
       sp_assert(loaded);
-      if (sp_str_equal(node->name, entry->key)) {
+      if (sp_str_equal(node->name.str, entry->key)) {
         known = true;
         break;
       }
@@ -228,7 +228,7 @@ spn_err_t spn_session_apply_options(spn_session_t* session, bool* reresolve) {
         if (expected && !edge) {
           missing = true;
           if (sp_str_empty(missing_pkg)) {
-            missing_pkg = node->name;
+            missing_pkg = node->name.str;
             missing_dep = spn_pkg_name_from_qualified(dep->qualified.str).name;
           }
         }

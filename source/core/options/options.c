@@ -12,7 +12,7 @@ typedef struct {
 } option_set_t;
 
 static option_set_t find_set(spn_option_subject_t subject, const spn_profile_info_t* profile, si_da(spn_pkg_config_entry_t) config) {
-  spn_pkg_config_t* entry = spn_pkg_config_find(config, subject.name);
+  spn_pkg_config_t* entry = spn_pkg_config_find(config, subject.name.str);
   return (option_set_t) {
     .clauses = subject.is_root ? &profile->options : entry ? &entry->options : SP_NULLPTR,
     .setter = { .kind = subject.is_root ? SPN_OPTION_SETTER_PROFILE : SPN_OPTION_SETTER_ROOT_MANIFEST },
@@ -27,7 +27,7 @@ typedef struct {
   bool negated;
 } claim_t;
 
-static spn_option_setter_t setter_consumer(sp_str_t name) {
+static spn_option_setter_t setter_consumer(sp_intern_str_t name) {
   return (spn_option_setter_t) { .kind = SPN_OPTION_SETTER_CONSUMER, .name = name };
 }
 
@@ -107,7 +107,7 @@ void spn_options_merge(
       fallback = spn_option_value_bool(false);
     }
 
-    spn_resolved_option_t resolved = { .name = option->name.str, .setter = { .kind = SPN_OPTION_SETTER_DEFAULT } };
+    spn_resolved_option_t resolved = { .name = option->name, .setter = { .kind = SPN_OPTION_SETTER_DEFAULT } };
     bool settled = false;
     bool value_union = false;
     const claim_t* last = SP_NULLPTR;
@@ -177,7 +177,7 @@ void spn_options_merge(
 
     resolved.is_default = spn_option_value_equal(resolved.value, fallback);
     if (resolved.value.kind != SPN_OPTION_VALUE_NONE) {
-      spn_when_env_set(&env, resolved.name, resolved.value);
+      spn_when_env_set(&env, resolved.name.str, resolved.value);
     }
     sp_da_push(merged->options, resolved);
   }
@@ -188,6 +188,6 @@ void spn_options_env_set(spn_when_env_t* env, const spn_resolved_options_t* opti
     if ((*options)[it].value.kind == SPN_OPTION_VALUE_NONE) {
       continue;
     }
-    spn_when_env_set(env, (*options)[it].name, (*options)[it].value);
+    spn_when_env_set(env, (*options)[it].name.str, (*options)[it].value);
   }
 }

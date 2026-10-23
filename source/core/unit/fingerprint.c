@@ -51,7 +51,7 @@ static sp_hash_t hash_options(spn_session_t* session, spn_pkg_id_t id) {
     }
     sp_hash_t parts [] = {
       hash,
-      spn_digest_hash_str(option->name),
+      spn_digest_hash_str(option->name.str),
       (sp_hash_t)option->value.kind,
       option->value.kind == SPN_OPTION_VALUE_STR ? spn_digest_hash_str(option->value.str) : (sp_hash_t)option->value.b,
     };
@@ -89,7 +89,6 @@ static sp_hash_t hash_gated(sp_hash_t hash, spn_gated_list_t list) {
   return hash;
 }
 
-// Platform-specific manifest inputs that only matter on the profile's OS
 static sp_hash_t hash_platform(const spn_manifest_t* manifest, const spn_profile_info_t* profile) {
   sp_hash_t hash = 0;
 
@@ -182,7 +181,7 @@ sp_hash_t spn_unit_fingerprint(spn_session_t* session, spn_build_unit_t* build, 
   }
 
   spn_toolchain_info_t* toolchain = build->toolchain->info;
-  sp_opt_spn_linkage_t config = spn_session_config_kind(session, manifest->name.str);
+  sp_opt_spn_linkage_t config = spn_session_config_kind(session, manifest->name);
 
   fingerprint.mode = build->profile.mode;
   fingerprint.opt = build->profile.opt;

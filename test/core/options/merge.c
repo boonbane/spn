@@ -468,7 +468,7 @@ sp_test_each(options_merge, merge, merge_test_t, tests, .setup = spn_test_ctx_se
   sp_mem_t mem = sp_test_arena(t);
 
   spn_option_subject_t pkg = {
-    .name = sp_str_lit("p"),
+    .name = spn_intern_lit("p"),
     .is_root = it->is_root,
   };
   sp_carr_for(it->decls, dx) {
@@ -524,7 +524,7 @@ sp_test_each(options_merge, merge, merge_test_t, tests, .setup = spn_test_ctx_se
     spn_when_t* options = (spn_when_t*)sp_alloc(mem, sizeof(spn_when_t));
     *options = make_when(mem, it->requests[rx].options, SP_CARR_LEN(it->requests[rx].options));
     sp_da_push(requests, ((spn_option_request_t) {
-      .consumer = sp_str_view(it->requests[rx].consumer),
+      .consumer = spn_intern_cstr(it->requests[rx].consumer),
       .options = options,
     }));
   }
@@ -541,13 +541,13 @@ sp_test_each(options_merge, merge, merge_test_t, tests, .setup = spn_test_ctx_se
       sp_expect_eq(t, violation->a.kind, it->expect.a.kind);
     }
     if (it->expect.a.name) {
-      sp_expect(t, sp_str_equal_cstr(violation->a.name, it->expect.a.name));
+      sp_expect(t, sp_str_equal_cstr(violation->a.name.str, it->expect.a.name));
     }
     if (it->expect.b.kind) {
       sp_expect_eq(t, violation->b.kind, it->expect.b.kind);
     }
     if (it->expect.b.name) {
-      sp_expect(t, sp_str_equal_cstr(violation->b.name, it->expect.b.name));
+      sp_expect(t, sp_str_equal_cstr(violation->b.name.str, it->expect.b.name));
     }
     return SP_OK;
   }
@@ -561,7 +561,7 @@ sp_test_each(options_merge, merge, merge_test_t, tests, .setup = spn_test_ctx_se
     sp_test_kv_c(t, "option", expected->name);
     bool found = false;
     sp_da_for(merged.options, rt) {
-      if (!sp_str_equal_cstr(merged.options[rt].name, expected->name)) continue;
+      if (!sp_str_equal_cstr(merged.options[rt].name.str, expected->name)) continue;
       sp_expect(t, spn_option_value_equal(merged.options[rt].value, make_value(expected->value)));
       sp_expect_eq(t, merged.options[rt].is_default, expected->is_default);
       found = true;

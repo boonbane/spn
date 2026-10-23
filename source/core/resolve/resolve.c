@@ -242,9 +242,9 @@ static bool find_forced(spn_resolve_run_t* run, sp_intern_id_t name, spn_semver_
   return false;
 }
 
-static spn_kind_query_t kind_query(spn_resolver_t* resolver, sp_str_t pkg_name) {
+static spn_kind_query_t kind_query(spn_resolver_t* resolver, sp_intern_str_t name) {
   spn_kind_query_t query = { .linkage = resolver->profile.linking.linkage };
-  spn_pkg_config_t* config = spn_pkg_config_find(resolver->config, pkg_name);
+  spn_pkg_config_t* config = spn_pkg_config_find(resolver->config, name.str);
   if (config && !sp_opt_is_null(config->kind)) {
     sp_opt_set(query.config, config->kind.value);
   }
@@ -489,7 +489,7 @@ static spn_err_union_t resolve_local_package(spn_resolver_t* resolver, spn_resol
       .qualified = pkg->manifest->qualified.id,
       .version = pkg->manifest->version,
     },
-    .name = pkg->manifest->name.str,
+    .name = pkg->manifest->name,
     .options = pkg->manifest->options,
     .source = pkg->source,
     .origin = {
@@ -539,7 +539,7 @@ static spn_err_union_t try_candidate(spn_resolver_t* resolver, spn_resolve_run_t
       .qualified = name,
       .version = release->version,
     },
-    .name = release->id.name,
+    .name = sp_intern(resolver->intern, release->id.name),
     .options = release->options,
     .source = SPN_PKG_SOURCE_INDEX,
     .origin = {

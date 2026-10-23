@@ -90,10 +90,10 @@ spn_err_t spn_session_init(spn_session_t* s, spn_ctx_t* ctx, sp_mem_t mem, spn_p
   return SPN_OK;
 }
 
-sp_opt_spn_linkage_t spn_session_config_kind(spn_session_t* session, sp_str_t pkg_name) {
+sp_opt_spn_linkage_t spn_session_config_kind(spn_session_t* session, sp_intern_str_t name) {
   sp_opt_spn_linkage_t requested = sp_zero;
 
-  spn_pkg_config_t* config = spn_pkg_config_find(session->manifest->config, pkg_name);
+  spn_pkg_config_t* config = spn_pkg_config_find(session->manifest->config, name.str);
   if (config && !sp_opt_is_null(config->kind)) {
     sp_opt_set(requested, config->kind.value);
   }

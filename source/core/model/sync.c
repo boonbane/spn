@@ -213,7 +213,6 @@ typedef enum {
   PATCH_STAMP_NOT_GIT,
 } patch_stamp_t;
 
-// Attach the root manifest's patch set for this package to its git source
 static patch_stamp_t patch_stamp(si_da(spn_pkg_patch_t) patches, sp_intern_id_t qualified, spn_pkg_root_t* source) {
   si_da_for(patches, it) {
     if (patches[it].qualified.id != qualified) {
@@ -427,7 +426,7 @@ static spn_err_t sync_jobs(spn_op_t* op, sp_mem_t mem, bool* reresolve) {
       loaded->manifest = parsed;
     }
 
-    pkg->name = loaded->manifest->name.str;
+    pkg->name = loaded->manifest->name;
     pkg->options = loaded->manifest->options;
     sp_ht_insert(session->packages, pkg->id, job->loaded);
 

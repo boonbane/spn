@@ -8,16 +8,14 @@
 #include "intern/types.h"
 #include "when/types.h"
 
-// The package whose options are being merged: the three manifest fields the
-// merge reads
 typedef struct {
-  sp_str_t name;
+  sp_intern_str_t name;
   bool is_root;
   spn_option_map_t options;
 } spn_option_subject_t;
 
 typedef struct {
-  sp_str_t consumer;
+  sp_intern_str_t consumer;
   const spn_when_t* options;
 } spn_option_request_t;
 
@@ -26,11 +24,11 @@ typedef sp_ht(sp_intern_id_t, spn_option_requests_t) spn_option_seeds_t;
 
 typedef struct {
   spn_option_setter_kind_t kind;
-  sp_str_t name;
+  sp_intern_str_t name;
 } spn_option_setter_t;
 
 typedef struct {
-  sp_str_t name;
+  sp_intern_str_t name;
   spn_option_value_t value;
   spn_option_setter_t setter;
   bool is_default;
@@ -50,7 +48,7 @@ typedef enum {
 
 typedef struct {
   spn_option_err_t kind;
-  sp_str_t pkg;
+  sp_intern_str_t pkg;
   sp_str_t option;
   spn_option_value_t value;
   spn_option_setter_t a;

@@ -52,7 +52,7 @@ static spn_err_t ensure_target_unit(spn_session_t* s, spn_pkg_unit_t* pkg, spn_t
         else {
           const spn_profile_info_t* profile = &pkg->build->profile;
           spn_kind_query_t query = {
-            .config = spn_session_config_kind(s, pkg->eval.manifest->name.str),
+            .config = spn_session_config_kind(s, pkg->eval.manifest->name),
             .linkage = profile->linking.linkage,
           };
 

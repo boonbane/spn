@@ -1,8 +1,6 @@
 #ifndef SPN_TEST_MANIFEST_H
 #define SPN_TEST_MANIFEST_H
 
-// Hand-built manifests for tests that bypass the TOML loader
-
 #include "intern/intern.h"
 #include "pkg/types.h"
 #include "target/types.h"
