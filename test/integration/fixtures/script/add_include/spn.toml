@@ -3,6 +3,9 @@ name = "add_bin"
 version = "0.1.0"
 repo = "repo/repo"
 
+[package.configure]
+source = ["tools/configure.c"]
+
 [[bin]]
 name = "main"
 source = ["main.c"]

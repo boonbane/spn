@@ -2,6 +2,12 @@
 name = "gen"
 version = "1.0.0"
 
+[package.configure]
+source = ["tools/configure.c"]
+
+[package.build]
+source = ["tools/build.c"]
+
 [[lib]]
 name = "gen"
 kinds = ["static"]

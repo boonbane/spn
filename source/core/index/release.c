@@ -21,7 +21,6 @@ spn_err_t spn_index_release_from_pkg(sp_mem_t mem, spn_pkg_info_t* info, spn_pkg
     .source = spn_pkg_upstream(info),
     .paths = {
       .manifest = sp_str_lit("spn.toml"),
-      .script = sp_str_lit("spn.c"),
     },
     .options = info->options,
   };

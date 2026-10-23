@@ -2,6 +2,12 @@
 name = "cross_package"
 version = "0.0.1"
 
+[package.configure]
+source = ["tools/configure.c"]
+
+[package.build]
+source = ["tools/build.c"]
+
 [deps.package]
 spum = "1.0.0"
 

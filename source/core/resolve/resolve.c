@@ -495,7 +495,6 @@ static spn_err_union_t resolve_local_package(spn_resolver_t* resolver, spn_resol
       .source = spn_pkg_upstream(pkg->info),
       .paths = {
         .manifest = sp_fs_get_name(pkg->manifest.sub),
-        .script = sp_str_lit("spn.c")
       },
       .info = pkg->info,
     },

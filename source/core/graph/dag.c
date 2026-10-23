@@ -748,19 +748,16 @@ static spn_err_t prepare_graph(spn_dag_build_t* b) {
       source_pin_t pin = source_pin(package);
 
       if (!spn_pkg_unit_is_script_host(package)) {
-        spn_dag_id_t configure = sp_zero;
-        if (package->metaprogram && package->metaprogram->scripts.configure) {
-          configure = spn_dag_add_file(g, package->metaprogram->scripts.configure->paths.output);
-        }
-        spn_dag_id_t metaprogram = sp_zero;
+        spn_dag_id_t script = sp_zero;
         if (package->metaprogram && package->metaprogram->scripts.build) {
           spn_dag_target_ids_t* ids = sp_ht_getp(b->ids.targets, package->metaprogram->scripts.build);
           sp_assert(ids);
-          metaprogram = ids->output;
+          script = ids->output;
         }
 
         sp_da_for(package->user_nodes, k) {
           spn_user_node_t* node = &package->user_nodes[k];
+          sp_assert(script.occupied || sp_str_empty(node->fn));
 
           spn_digest_ctx_t digest = sp_zero;
           spn_digest_init_blake3(&digest);
@@ -778,19 +775,21 @@ static spn_err_t prepare_graph(spn_dag_build_t* b) {
             spn_dag_hash_u64(&digest, node->outputs[ot].kind);
           }
 
+          si_user_node_t* ctx = sp_alloc_type(b->mem, si_user_node_t);
+          *ctx = (si_user_node_t) {
+            .node = node,
+            .script = script,
+          };
           spn_dag_id_t action = spn_dag_add_action(g, (spn_dag_action_config_t) {
             .kind = SPN_DAG_ACTION_DISCOVERED,
             .identity = spn_dag_hash_final(&digest),
             .execute = si_on_user_node,
-            .user_data = node,
+            .user_data = ctx,
           });
           announce_package(b, action, package);
 
-          if (metaprogram.occupied) {
-            spn_dag_action_add_input(g, action, metaprogram);
-          }
-          if (configure.occupied) {
-            spn_dag_action_add_input(g, action, configure);
+          if (script.occupied) {
+            spn_dag_action_add_input(g, action, script);
           }
           si_da_for(node->inputs, jt) {
             spn_dag_action_add_input(g, action, spn_dag_add_file(g, node->inputs[jt]));

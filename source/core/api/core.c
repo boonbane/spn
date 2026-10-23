@@ -4,7 +4,6 @@
 
 #include "api/api.h"
 #include "api/types.h"
-#include "core/core.h"
 #include "core/types.h"
 #include "ctx/types.h"
 #include "event/types.h"
@@ -65,7 +64,7 @@ static void reject(spn_pkg_unit_t* unit, const c8* fn, sp_str_t path, spn_err_t 
   }
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   sp_str_t message = sp_fmt(scratch.mem, "{}: {} {}", SP_FMT_CSTR(fn), SP_FMT_STR(path), SP_FMT_STR(reason)).value;
-  if (!spn_wasm_trap_active(unit, message)) {
+  if (!spn_wasm_trap(message)) {
     spn_err_emit(unit->session->ctx, (spn_err_union_t) {
       .kind = kind,
       .fs = { .path = { .sub = sp_str_copy(spn.events->mem, path) } },
@@ -141,7 +140,7 @@ bool spn_api_name_rejected(spn_pkg_unit_t* unit, const c8* fn, const c8* name) {
   }
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   sp_str_t message = sp_fmt(scratch.mem, "{}: {} may not contain '/'", SP_FMT_CSTR(fn), SP_FMT_STR(str)).value;
-  if (!spn_wasm_trap_active(unit, message)) {
+  if (!spn_wasm_trap(message)) {
     spn_err_emit(unit->session->ctx, (spn_err_union_t) {
       .kind = SPN_ERR_NAME_SEPARATOR,
       .target = { .pkg = unit->info->name.str, .name = sp_str_copy(spn.events->mem, str) },
@@ -166,7 +165,7 @@ static spn_target_t* add_target(spn_pkg_unit_t* unit, const c8* fn, const c8* na
 
     // @spader This smells like bullshit, but leaving for now. Not this one
     // call site, the whole pattern.
-    if (!spn_wasm_trap_active(unit, message)) {
+    if (!spn_wasm_trap(message)) {
       spn_err_emit(unit->session->ctx, (spn_err_union_t) {
         .kind = SPN_ERR_TARGET_DUPLICATE,
         .target = { .pkg = unit->info->name.str, .name = sp_str_copy(spn.events->mem, str) },
@@ -254,51 +253,6 @@ void spn_log(spn_t* s, const c8* message) {
   });
 }
 
-void spn_write_file(spn_t* s, const c8* path, const c8* content) {
-  spn_pkg_unit_t* unit = spn_api_unit(s);
-  if (spn_api_path_rejected(unit, "spn_write_file", sp_str_view(path))) {
-    return;
-  }
-
-  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  spn_path_t joined = spn_path_join(scratch.mem, unit->paths.work, sp_str_view(path));
-  spn_fs_update_file_str(spn_path_at(&unit->session->ctx->roots, joined), sp_str_view(content));
-  sp_mem_end_scratch(scratch);
-}
-
-s32 spn_api_copy(sp_path_t from, sp_path_t to) {
-  if (!sp_glob_parse_meta(from.sub).literal) {
-    return spn_fs_update_glob(from, to);
-  }
-  bool from_is_dir = sp_fs_is_dir_at(from);
-  if (!from_is_dir && !sp_fs_is_dir_at(to)) {
-    return spn_fs_update_file(from, to);
-  }
-  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  sp_path_t into = sp_path_join(scratch.mem, to, sp_fs_get_name(from.sub));
-  s32 err = from_is_dir
-    ? (sp_fs_copy_at(from, into, SP_FS_ATOMIC_REPLACE) ? SPN_ERROR : SPN_OK)
-    : spn_fs_update_file(from, into);
-  sp_mem_end_scratch(scratch);
-  return err;
-}
-
-s32 spn_copy(spn_t* s, spn_dir_t from_dir, const c8* from_path, spn_dir_t to_dir, const c8* to_path) {
-  spn_pkg_unit_t* unit = spn_api_unit(s);
-  if (spn_api_path_rejected(unit, "spn_copy", sp_str_view(from_path)) || spn_api_path_rejected(unit, "spn_copy", sp_str_view(to_path))) {
-    return SPN_ERROR;
-  }
-
-  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  spn_path_t from = spn_path_join(scratch.mem, spn_api_dir_path(unit, from_dir), sp_cstr_as_str(from_path));
-  spn_path_t to = spn_path_join(scratch.mem, spn_api_dir_path(unit, to_dir), sp_cstr_as_str(to_path));
-  const spn_path_roots_t* roots = &unit->session->ctx->roots;
-
-  s32 err = spn_api_copy(spn_path_at(roots, from), spn_path_at(roots, to));
-  sp_mem_end_scratch(scratch);
-  return err;
-}
-
 spn_profile_t* spn_get_profile(spn_t* s) {
   spn_pkg_unit_t* unit = sp_ptr_cast(spn_pkg_unit_t*, s);
   return sp_ptr_cast(spn_profile_t*, &unit->build->profile);
@@ -372,7 +326,7 @@ void spn_target_add_define_path(spn_target_t* target, const c8* name, spn_dir_t 
   else {
     sp_str_t full = spn_path_str(&unit->session->ctx->roots, scratch.mem, joined);
     sp_str_t message = sp_fmt(scratch.mem, "spn_target_add_define_path: {} is not inside the project", SP_FMT_STR(full)).value;
-    if (!spn_wasm_trap_active(unit, message)) {
+    if (!spn_wasm_trap(message)) {
       spn_err_emit(unit->session->ctx, (spn_err_union_t) {
         .kind = SPN_ERR_PATH_OUTSIDE_PROJECT,
         .fs = { .path = spn_path_copy(spn.events->mem, joined) },
@@ -393,7 +347,7 @@ static bool embed_dest_rejected(spn_pkg_unit_t* unit, const c8* fn, sp_str_t des
   }
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   sp_str_t message = sp_fmt(scratch.mem, "{}: {} must be a relative, non-empty path without '.' or '..' components", SP_FMT_CSTR(fn), SP_FMT_STR(dest)).value;
-  if (!spn_wasm_trap_active(unit, message)) {
+  if (!spn_wasm_trap(message)) {
     spn_err_emit(unit->session->ctx, (spn_err_union_t) {
       .kind = SPN_ERR_PATH_COMPONENT,
       .fs = { .path = { .sub = sp_str_copy(spn.events->mem, dest) } },

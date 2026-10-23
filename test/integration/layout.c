@@ -141,16 +141,6 @@ sp_test(layout, staged_kinds) {
   });
 }
 
-sp_test(layout, script_ctx_footprint) {
-  return run_command_test(t, (command_test_t) {
-    .project = "test/integration/fixtures/script/default_script",
-    .args = { "build" },
-    .expect = {
-      .exists = { sp_str_lit("build/wasm32-wasi-musl/.spn/default_script/configure.wasm") },
-    },
-  });
-}
-
 sp_test(layout, reserved_bin_name) {
   return run_command_test(t, (command_test_t) {
     .project = "test/integration/fixtures/layout/reserved_bin",

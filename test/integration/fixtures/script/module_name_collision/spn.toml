@@ -2,6 +2,9 @@
 name = "module_name_collision"
 version = "0.0.1"
 
+[package.configure]
+source = ["tools/configure.c"]
+
 [[bin]]
 name = "configure"
 source = ["main.c"]

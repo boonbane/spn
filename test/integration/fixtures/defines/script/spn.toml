@@ -3,4 +3,4 @@ name = "defines_script"
 version = "0.1.0"
 
 [package.configure]
-source = ["configure.c"]
+source = ["tools/configure.c"]

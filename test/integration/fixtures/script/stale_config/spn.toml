@@ -1,7 +1,0 @@
-[package]
-name = "stale_config"
-version = "0.0.1"
-
-[[bin]]
-name = "stale_config"
-source = ["main.c"]

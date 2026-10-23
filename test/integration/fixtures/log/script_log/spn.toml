@@ -2,6 +2,9 @@
 name = "script_log"
 version = "0.0.1"
 
+[package.configure]
+source = ["tools/configure.c"]
+
 [[bin]]
 name = "script_log"
 source = ["main.c"]

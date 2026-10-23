@@ -54,7 +54,6 @@ spn_lock_file_t spn_build_lock_file(sp_mem_t mem, sp_intern_t* intern, spn_resol
         entry.manifest.dir = release->manifest.git.dir;
       }
       entry.paths.manifest = release->paths.manifest;
-      entry.paths.script = release->paths.script;
     }
 
     sp_ht_insert(lock.entries, entry.name, entry);
@@ -133,7 +132,6 @@ spn_lock_file_t spn_lock_file_parse(sp_mem_t mem, sp_str_t toml, spn_event_buffe
       },
       .paths = {
         .manifest = spn_toml_str_opt(mem, pkg, "manifest_file", "spn.toml"),
-        .script = spn_toml_str_opt(mem, pkg, "script_file", "spn.c"),
       },
     };
     sp_ht_insert(lock.entries, entry.name, entry);
@@ -208,9 +206,6 @@ sp_str_t spn_lock_file_to_str(sp_mem_t mem, spn_lock_file_t* lock) {
 
     if (!sp_str_empty(entry->paths.manifest)) {
       spn_toml_append_str_cstr(&toml, "manifest_file", entry->paths.manifest);
-    }
-    if (!sp_str_empty(entry->paths.script)) {
-      spn_toml_append_str_cstr(&toml, "script_file", entry->paths.script);
     }
 
     if (sp_da_size(entry->deps)) {

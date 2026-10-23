@@ -2,6 +2,12 @@
 name = "build_deps"
 version = "0.0.1"
 
+[package.configure]
+source = ["tools/configure.c"]
+
+[package.build]
+source = ["tools/build.c"]
+
 [deps.build]
 spum = "1.0.0"
 
