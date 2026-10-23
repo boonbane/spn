@@ -2,8 +2,9 @@
 
 #include "ctx/types.h"
 #include "paths/paths.h"
-#include "pkg/options.h"
+#include "options/options.h"
 #include "pkg/pkg.h"
+#include "profile/profile.h"
 #include "session/session.h"
 #include "when/when.h"
 
@@ -25,10 +26,10 @@ static spn_pkg_unit_t* add_unit(spn_session_t* s, spn_build_unit_t* build, spn_p
   sp_assert(loaded);
 
   spn_when_env_t env = sp_zero;
-  spn_when_env_from_profile(s->mem, &build->profile, &env);
+  spn_profile_env(s->mem, &build->profile, &env);
   spn_resolved_options_t* options = sp_ht_getp(s->options, pid);
   if (options) {
-    spn_when_env_add_options(&env, options);
+    spn_options_env_set(&env, options);
   }
 
   sp_om_insert(s->units.packages, uid, sp_zero_struct(spn_pkg_unit_t));

@@ -1,32 +1,9 @@
-#include "pkg/options.h"
+#include "options/options.h"
+
 #include "intern/intern.h"
-
+#include "pkg/pkg.h"
 #include "profile/profile.h"
-#include "resolve/types.h"
 #include "when/when.h"
-
-spn_pkg_config_t* spn_pkg_config_find(si_da(spn_pkg_config_entry_t) config, sp_str_t name) {
-  si_da_for(config, it) {
-    if (sp_str_equal(config[it].key, name)) {
-      return &config[it].value;
-    }
-  }
-  return SP_NULLPTR;
-}
-
-void spn_when_env_from_profile(sp_mem_t mem, const spn_profile_info_t* profile, spn_when_env_t* env) {
-  spn_when_env_init(mem, env);
-  spn_when_env_set_facts(env, spn_profile_facts(profile));
-}
-
-void spn_when_env_add_options(spn_when_env_t* env, const spn_resolved_options_t* options) {
-  sp_da_for(*options, it) {
-    if ((*options)[it].value.kind == SPN_OPTION_VALUE_NONE) {
-      continue;
-    }
-    spn_when_env_set(env, (*options)[it].name, (*options)[it].value);
-  }
-}
 
 typedef struct {
   const spn_when_t* clauses;
@@ -34,13 +11,12 @@ typedef struct {
   bool defaults_declined;
 } option_set_t;
 
-static option_set_t find_set(const spn_resolved_pkg_t* pkg, const spn_profile_info_t* profile, si_da(spn_pkg_config_entry_t) root_config) {
-  bool is_root = pkg->source == SPN_PKG_SOURCE_ROOT;
-  spn_pkg_config_t* config = spn_pkg_config_find(root_config, pkg->name);
+static option_set_t find_set(spn_option_subject_t subject, const spn_profile_info_t* profile, si_da(spn_pkg_config_entry_t) config) {
+  spn_pkg_config_t* entry = spn_pkg_config_find(config, subject.name);
   return (option_set_t) {
-    .clauses = is_root ? &profile->options : config ? &config->options : SP_NULLPTR,
-    .setter = { .kind = is_root ? SPN_OPTION_SETTER_PROFILE : SPN_OPTION_SETTER_ROOT_MANIFEST },
-    .defaults_declined = config && config->defaults_declined,
+    .clauses = subject.is_root ? &profile->options : entry ? &entry->options : SP_NULLPTR,
+    .setter = { .kind = subject.is_root ? SPN_OPTION_SETTER_PROFILE : SPN_OPTION_SETTER_ROOT_MANIFEST },
+    .defaults_declined = entry && entry->defaults_declined,
   };
 }
 
@@ -56,7 +32,7 @@ static spn_option_setter_t setter_consumer(sp_str_t name) {
 }
 
 static void gather_claims(
-  const spn_resolved_pkg_t* pkg,
+  spn_option_subject_t subject,
   const spn_when_t* set,
   spn_option_setter_t setter,
   sp_da(claim_t)* claims,
@@ -64,11 +40,11 @@ static void gather_claims(
 ) {
   si_da_for(set->clauses, it) {
     const spn_when_clause_t* clause = &set->clauses[it];
-    spn_option_info_t** option = si_om_getp(pkg->options, spn_intern(clause->key).id);
+    spn_option_info_t** option = si_om_getp(subject.options, spn_intern(clause->key).id);
     if (!option) {
       sp_da_push(*violations, ((spn_option_violation_t) {
         .kind = SPN_OPTION_ERR_UNDECLARED,
-        .pkg = pkg->name,
+        .pkg = subject.name,
         .option = clause->key,
         .a = setter,
       }));
@@ -77,7 +53,7 @@ static void gather_claims(
     if (!spn_option_value_ok(*option, clause->value)) {
       sp_da_push(*violations, ((spn_option_violation_t) {
         .kind = SPN_OPTION_ERR_BAD_VALUE,
-        .pkg = pkg->name,
+        .pkg = subject.name,
         .option = clause->key,
         .value = clause->value,
         .a = setter,
@@ -96,32 +72,32 @@ static void gather_claims(
   }
 }
 
-void spn_pkg_options_merge(
+void spn_options_merge(
   sp_mem_t mem,
-  const spn_resolved_pkg_t* pkg,
+  spn_option_subject_t subject,
   const spn_profile_info_t* profile,
-  si_da(spn_pkg_config_entry_t) root_config,
+  si_da(spn_pkg_config_entry_t) config,
   spn_option_requests_t requests,
   spn_merged_options_t* merged
 ) {
-  option_set_t set = find_set(pkg, profile, root_config);
+  option_set_t set = find_set(subject, profile, config);
 
   merged->options = sp_da_new(mem, spn_resolved_option_t);
   merged->violations = sp_da_new(mem, spn_option_violation_t);
 
   sp_da(claim_t) claims = sp_da_new(mem, claim_t);
   if (set.clauses) {
-    gather_claims(pkg, set.clauses, set.setter, &claims, &merged->violations);
+    gather_claims(subject, set.clauses, set.setter, &claims, &merged->violations);
   }
   sp_da_for(requests, rt) {
-    gather_claims(pkg, requests[rt].options, setter_consumer(requests[rt].consumer), &claims, &merged->violations);
+    gather_claims(subject, requests[rt].options, setter_consumer(requests[rt].consumer), &claims, &merged->violations);
   }
 
   spn_when_env_t env;
-  spn_when_env_from_profile(mem, profile, &env);
+  spn_profile_env(mem, profile, &env);
 
-  si_om_for(pkg->options, it) {
-    spn_option_info_t* option = si_om_at(pkg->options, it);
+  si_om_for(subject.options, it) {
+    spn_option_info_t* option = si_om_at(subject.options, it);
 
     spn_option_value_t fallback = sp_zero;
     if (!set.defaults_declined) {
@@ -157,7 +133,7 @@ void spn_pkg_options_merge(
       if (last && !spn_option_value_equal(last->value, claim->value)) {
         sp_da_push(merged->violations, ((spn_option_violation_t) {
           .kind = SPN_OPTION_ERR_CONFLICT,
-          .pkg = pkg->name,
+          .pkg = subject.name,
           .option = option->name.str,
           .value = claim->value,
           .a = last->setter,
@@ -177,7 +153,7 @@ void spn_pkg_options_merge(
     if (resolved.value.kind == SPN_OPTION_VALUE_NONE) {
       sp_da_push(merged->violations, ((spn_option_violation_t) {
         .kind = SPN_OPTION_ERR_NO_VALUE,
-        .pkg = pkg->name,
+        .pkg = subject.name,
         .option = option->name.str,
       }));
     }
@@ -190,7 +166,7 @@ void spn_pkg_options_merge(
       if (spn_option_value_equal(resolved.value, claim->value)) {
         sp_da_push(merged->violations, ((spn_option_violation_t) {
           .kind = SPN_OPTION_ERR_VETO,
-          .pkg = pkg->name,
+          .pkg = subject.name,
           .option = option->name.str,
           .value = claim->value,
           .a = claim->setter,
@@ -207,16 +183,11 @@ void spn_pkg_options_merge(
   }
 }
 
-void spn_pkg_options_env(
-  sp_mem_t mem,
-  const spn_resolved_pkg_t* pkg,
-  const spn_profile_info_t* profile,
-  si_da(spn_pkg_config_entry_t) root_config,
-  spn_option_requests_t requests,
-  spn_when_env_t* env
-) {
-  spn_merged_options_t merged = sp_zero;
-  spn_pkg_options_merge(mem, pkg, profile, root_config, requests, &merged);
-  spn_when_env_from_profile(mem, profile, env);
-  spn_when_env_add_options(env, &merged.options);
+void spn_options_env_set(spn_when_env_t* env, const spn_resolved_options_t* options) {
+  sp_da_for(*options, it) {
+    if ((*options)[it].value.kind == SPN_OPTION_VALUE_NONE) {
+      continue;
+    }
+    spn_when_env_set(env, (*options)[it].name, (*options)[it].value);
+  }
 }

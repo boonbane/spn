@@ -389,3 +389,8 @@ spn_when_facts_t spn_profile_facts(const spn_profile_info_t* profile) {
     .sanitizers = profile->sanitizers,
   };
 }
+
+void spn_profile_env(sp_mem_t mem, const spn_profile_info_t* profile, spn_when_env_t* env) {
+  spn_when_env_init(mem, env);
+  spn_when_env_set_facts(env, spn_profile_facts(profile));
+}

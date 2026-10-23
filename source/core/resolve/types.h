@@ -8,6 +8,7 @@
 #include "core/types.h"
 #include "index/types.h"
 #include "intern/types.h"
+#include "options/types.h"
 #include "pkg/types.h"
 #include "profile/types.h"
 #include "semver/types.h"

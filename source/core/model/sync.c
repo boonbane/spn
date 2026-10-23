@@ -17,8 +17,6 @@
 #include "paths/paths.h"
 #include "pkg/id.h"
 #include "pkg/load.h"
-#include "pkg/options.h"
-#include "pkg/patch.h"
 #include "pkg/types.h"
 #include "resolve/types.h"
 #include "session/session.h"
@@ -209,14 +207,35 @@ static spn_err_t materialize_tree(spn_session_t* session, sp_str_t name, spn_pkg
   sp_unreachable_return(SPN_ERROR);
 }
 
+typedef enum {
+  PATCH_STAMP_NONE,
+  PATCH_STAMP_APPLIED,
+  PATCH_STAMP_NOT_GIT,
+} patch_stamp_t;
+
+// Attach the root manifest's patch set for this package to its git source
+static patch_stamp_t patch_stamp(si_da(spn_pkg_patch_t) patches, sp_intern_id_t qualified, spn_pkg_root_t* source) {
+  si_da_for(patches, it) {
+    if (patches[it].qualified.id != qualified) {
+      continue;
+    }
+    if (source->kind != SPN_PKG_ROOT_GIT) {
+      return PATCH_STAMP_NOT_GIT;
+    }
+    source->git.patches = patches[it].set;
+    return PATCH_STAMP_APPLIED;
+  }
+  return PATCH_STAMP_NONE;
+}
+
 static spn_err_t fetch_package(spn_session_t* session, spn_resolved_pkg_t* pkg, spn_loaded_pkg_t* loaded, bool* fetched) {
   sp_str_t qualified = spn_intern_find(pkg->id.qualified);
 
-  switch (spn_pkg_patch_stamp(session->manifest->patches, pkg->id.qualified, &pkg->origin.source)) {
-    case SPN_PKG_PATCH_STAMP_NONE: {
+  switch (patch_stamp(session->manifest->patches, pkg->id.qualified, &pkg->origin.source)) {
+    case PATCH_STAMP_NONE: {
       break;
     }
-    case SPN_PKG_PATCH_STAMP_APPLIED: {
+    case PATCH_STAMP_APPLIED: {
       if (!spn_git_cache_is_checkout_cached(&session->ctx->caches.git, pkg->origin.source.git)) {
         spn_event_buffer_push(spn.events, (spn_event_t) {
           .kind = SPN_EVENT_SYNC_PATCH,
@@ -227,7 +246,7 @@ static spn_err_t fetch_package(spn_session_t* session, spn_resolved_pkg_t* pkg, 
       }
       break;
     }
-    case SPN_PKG_PATCH_STAMP_NOT_GIT: {
+    case PATCH_STAMP_NOT_GIT: {
       return spn_err_emit(session->ctx, (spn_err_union_t) {
         .kind = SPN_ERR_PATCH_NOT_GIT,
         .patch = { .name = qualified },

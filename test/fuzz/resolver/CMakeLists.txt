@@ -40,7 +40,7 @@ add_executable(fuzz_resolver
   ${SRC}/paths/paths.c
   ${SRC}/pkg/id.c
   ${SRC}/pkg/pkg.c
-  ${SRC}/pkg/options.c
+  ${SRC}/options/options.c
   ${SRC}/profile/profile.c
   ${SRC}/pkg/load.c
   ${SRC}/triple/triple.c

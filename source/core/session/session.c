@@ -18,7 +18,6 @@
 #include "paths/paths.h"
 #include "project/types.h"
 #include "pkg/pkg.h"
-#include "pkg/options.h"
 #include "profile/profile.h"
 #include "toolchain/select.h"
 #include "triple/triple.h"

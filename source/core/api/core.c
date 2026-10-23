@@ -23,7 +23,6 @@
 #include "str/str.h"
 #include "pkg/pkg.h"
 #include "target/mutate.h"
-#include "pkg/pkg.h"
 #include "session/session.h"
 #include "io/io.h"
 
@@ -156,17 +155,19 @@ void spn_add_include(spn_config_t* config, const c8* path) {
   if (spn_path_empty(made)) {
     return;
   }
-  spn_pkg_add_include(unit->session->mem, &unit->eval, made);
+  si_da_push(unit->session->mem, unit->eval.configured.include, made);
 }
 
 void spn_add_define(spn_config_t* config, const c8* define) {
   spn_pkg_unit_t* unit = spn_api_unit(config);
-  spn_pkg_add_define(unit->session->mem, &unit->eval, sp_cstr_as_str(define));
+  sp_mem_t mem = unit->session->mem;
+  si_da_push(mem, unit->eval.define, sp_str_from_cstr(mem, define));
 }
 
 void spn_add_system_dep(spn_config_t* config, const c8* dep) {
   spn_pkg_unit_t* unit = spn_api_unit(config);
-  spn_pkg_add_system_dep(unit->session->mem, &unit->eval, sp_cstr_as_str(dep));
+  sp_mem_t mem = unit->session->mem;
+  si_da_push(mem, unit->eval.system_deps, sp_str_from_cstr(mem, dep));
 }
 
 const spn_t* spn_get_dep(const spn_t* s, const c8* name) {

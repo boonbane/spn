@@ -10,6 +10,7 @@
 #include "compiler/types.h"
 #include "core/types.h"
 #include "dag/types.h"
+#include "options/types.h"
 #include "profile/types.h"
 #include "resolve/types.h"
 #include "session/registry/types.h"

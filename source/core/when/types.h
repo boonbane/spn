@@ -6,6 +6,7 @@
 
 #include "array/array.h"
 #include "intern/types.h"
+#include "ordered_map.h"
 
 typedef enum {
   SPN_OPTION_VALUE_NONE,
@@ -69,6 +70,8 @@ typedef struct {
   si_da(sp_str_t) values;
   spn_option_defaults_t defaults;
 } spn_option_info_t;
+
+typedef si_om(spn_option_id_t, spn_option_info_t) spn_option_map_t;
 
 typedef struct {
   sp_str_t value;

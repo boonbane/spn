@@ -98,8 +98,7 @@ set(SPN_SOURCES
   core/op/publish.c
   core/paths/paths.c
   core/pkg/id.c
-  core/pkg/patch.c
-  core/pkg/options.c
+  core/options/options.c
   core/pkg/pkg.c
   core/profile/profile.c
   core/reflect/json.c

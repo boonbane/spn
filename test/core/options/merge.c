@@ -467,9 +467,9 @@ sp_test_each(options_merge, merge, merge_test_t, tests, .setup = spn_test_ctx_se
 
   sp_mem_t mem = sp_test_arena(t);
 
-  spn_resolved_pkg_t pkg = {
+  spn_option_subject_t pkg = {
     .name = sp_str_lit("p"),
-    .source = it->is_root ? SPN_PKG_SOURCE_ROOT : SPN_PKG_SOURCE_INDEX,
+    .is_root = it->is_root,
   };
   sp_carr_for(it->decls, dx) {
     option_decl_t* decl = &it->decls[dx];
@@ -530,7 +530,7 @@ sp_test_each(options_merge, merge, merge_test_t, tests, .setup = spn_test_ctx_se
   }
 
   spn_merged_options_t merged = sp_zero;
-  spn_pkg_options_merge(mem, &pkg, &profile, config, requests, &merged);
+  spn_options_merge(mem, pkg, &profile, config, requests, &merged);
 
   if (it->expect.violation) {
     sp_must(t, !sp_da_empty(merged.violations));

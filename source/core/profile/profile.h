@@ -9,6 +9,7 @@
 #include "toolchain/types.h"
 
 spn_when_facts_t      spn_profile_facts(const spn_profile_info_t* profile);
+void                  spn_profile_env(sp_mem_t mem, const spn_profile_info_t* profile, spn_when_env_t* env);
 spn_profile_info_t    spn_profile_metaprogram(void);
 spn_err_t             spn_profile_resolve(const spn_profile_override_t* override, spn_triple_t host, const spn_manifest_t* manifest, spn_profile_info_t* result);
 spn_err_t             spn_profile_query(const spn_profile_info_t* profile, spn_triple_t host, spn_toolchain_query_t* query);

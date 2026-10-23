@@ -153,14 +153,11 @@ bool spn_pkg_has_scripts(const spn_pkg_t* pkg) {
   return false;
 }
 
-void spn_pkg_add_include(sp_mem_t mem, spn_pkg_t* pkg, spn_path_t path) {
-  si_da_push(mem, pkg->configured.include, path);
-}
-
-void spn_pkg_add_define(sp_mem_t mem, spn_pkg_t* pkg, sp_str_t define) {
-  si_da_push(mem, pkg->define, sp_str_copy(mem, define));
-}
-
-void spn_pkg_add_system_dep(sp_mem_t mem, spn_pkg_t* pkg, sp_str_t dep) {
-  si_da_push(mem, pkg->system_deps, sp_str_copy(mem, dep));
+spn_pkg_config_t* spn_pkg_config_find(si_da(spn_pkg_config_entry_t) config, sp_str_t name) {
+  si_da_for(config, it) {
+    if (sp_str_equal(config[it].key, name)) {
+      return &config[it].value;
+    }
+  }
+  return SP_NULLPTR;
 }

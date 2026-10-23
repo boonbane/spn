@@ -8,8 +8,9 @@
 #include "error/error.h"
 #include "spn/errors.h"
 #include "intern/intern.h"
+#include "options/options.h"
 #include "pkg/id.h"
-#include "pkg/options.h"
+#include "profile/profile.h"
 #include "session/session.h"
 #include "when/when.h"
 
@@ -189,7 +190,8 @@ spn_err_t spn_session_apply_options(spn_session_t* session, bool* reresolve) {
 
       spn_option_requests_t node_requests = asked ? *asked : SP_NULLPTR;
       spn_merged_options_t merged = sp_zero;
-      spn_pkg_options_merge(mem, node, &session->units.target->profile, session->manifest->config, node_requests, &merged);
+      spn_option_subject_t subject = { .name = node->name, .is_root = node->source == SPN_PKG_SOURCE_ROOT, .options = node->options };
+      spn_options_merge(mem, subject, &session->units.target->profile, session->manifest->config, node_requests, &merged);
       if (!sp_da_empty(merged.violations)) {
         spn_err_t first = SPN_OK;
         sp_da_for(merged.violations, vt) {
@@ -213,8 +215,8 @@ spn_err_t spn_session_apply_options(spn_session_t* session, bool* reresolve) {
       sp_assert(resolved);
 
       spn_when_env_t env = sp_zero;
-      spn_when_env_from_profile(mem, &session->units.target->profile, &env);
-      spn_when_env_add_options(&env, resolved);
+      spn_profile_env(mem, &session->units.target->profile, &env);
+      spn_options_env_set(&env, resolved);
 
       si_da_for(loaded->manifest->deps, dt) {
         spn_requested_dep_t* dep = &loaded->manifest->deps[dt];

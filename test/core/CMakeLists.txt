@@ -97,7 +97,6 @@ add_executable(core
   paths/stage.c
   paths/tree_path.c
   paths/tree_rel.c
-  pkg/pkg.c
   profile/profile.c
   publish/publish.c
   queue/ops.c
@@ -208,8 +207,7 @@ add_executable(core
   ${SRC}/graph/build.c
   ${SRC}/paths/paths.c
   ${SRC}/pkg/id.c
-  ${SRC}/pkg/options.c
-  ${SRC}/pkg/patch.c
+  ${SRC}/options/options.c
   ${SRC}/pkg/pkg.c
   ${SRC}/profile/profile.c
   ${SRC}/reflect/json.c
