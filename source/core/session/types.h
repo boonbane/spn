@@ -6,6 +6,7 @@
 #include "spn/core.h"
 #include "spn/types.h"
 
+#include "array/array.h"
 #include "compiler/types.h"
 #include "core/types.h"
 #include "dag/types.h"
@@ -52,7 +53,7 @@ struct spn_session_t {
     sp_om(spn_build_id_t, spn_build_unit_t) builds;
     spn_build_unit_t* target;
     spn_build_unit_t* metaprogram;
-    sp_da(spn_toolchain_unit_t*) toolchains;
+    si_da(spn_toolchain_unit_t*) toolchains;
     sp_om(spn_pkg_unit_id_t, spn_pkg_unit_t) packages;
     sp_om(spn_target_unit_id_t, spn_target_unit_t) targets;
     sp_om(spn_compile_unit_id_t, spn_compile_unit_t) objects;

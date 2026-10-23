@@ -38,7 +38,6 @@ spn_err_t spn_session_init(spn_session_t* s, spn_ctx_t* ctx, sp_mem_t mem, spn_p
   sp_ht_init(s->mem, s->options);
   sp_ht_init(s->mem, s->fingerprints);
   sp_da_init(s->mem, s->plans.build);
-  sp_da_init(s->mem, s->units.toolchains);
   sp_om_new(s->units.builds);
   sp_om_new(s->units.packages);
   sp_om_new(s->units.targets);

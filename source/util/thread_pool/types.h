@@ -3,6 +3,8 @@
 
 #include "sp.h"
 
+#include "array/array.h"
+
 SP_TYPEDEF_FN(void, spn_thread_pool_job_fn_t, void* data);
 
 typedef struct {
@@ -25,6 +27,7 @@ typedef struct {
 typedef struct {
   spn_thread_pool_executor_t executor;
   sp_mem_arena_t* arena;
+  sp_mem_t mem;
   sp_mutex_t mutex;
   struct {
     sp_cv_t submitted;
@@ -34,9 +37,9 @@ typedef struct {
     u32 submitted;
     u32 completed;
   } count;
-  sp_da(spn_thread_pool_job_t) queue;
-  sp_da(spn_thread_pool_job_t) done;
-  sp_da(sp_thread_t) workers;
+  si_da(spn_thread_pool_job_t) queue;
+  si_da(spn_thread_pool_job_t) done;
+  si_da(sp_thread_t) workers;
   void (*on_worker_exit)(void);
   bool shutdown;
 } spn_thread_pool_t;

@@ -1918,7 +1918,7 @@ sp_test_each(lower, cases, test_t, tests, .setup = spn_test_ctx_setup) {
 
     u32 num_files = 0;
     sp_carr_detect_len(expected.files, num_files, expected.files[num_files]);
-    sp_must_eq(t, num_files, (u32)sp_da_size(patch->set.files));
+    sp_must_eq(t, num_files, (u32)si_da_size(patch->set.files));
     sp_for(j, num_files) {
       sp_expect(t, sp_fs_is_absolute(patch->set.files[j]));
       sp_expect(t, sp_str_ends_with(patch->set.files[j], sp_str_view(expected.files[j])));

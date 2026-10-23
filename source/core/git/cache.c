@@ -162,7 +162,7 @@ static spn_err_t spn_git_cache_fill_checkout(spn_git_cache_t* cache, spn_git_che
     return SPN_ERROR;
   }
 
-  sp_da_for(entry->id.patches.files, it) {
+  si_da_for(entry->id.patches.files, it) {
     sp_mem_arena_marker_t s = sp_mem_begin_scratch();
     sp_str_t error = sp_zero;
     spn_err_t applied = spn_git_apply(s.mem, work, entry->id.patches.files[it], &error);

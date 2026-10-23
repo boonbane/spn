@@ -4,6 +4,7 @@
 #include "sp.h"
 #include "sp_om/sp_om.h"
 
+#include "array/array.h"
 #include "intern/types.h"
 #include "paths/types.h"
 #include "spn/core.h"
@@ -20,7 +21,7 @@ typedef struct {
 // hash is the set's identity: derived from file contents in order, zero iff
 // files is empty. Checkout keys and fingerprints treat zero as unpatched.
 typedef struct {
-  sp_da(sp_str_t) files;
+  si_da(sp_str_t) files;
   sp_hash_t hash;
 } spn_git_patch_set_t;
 
