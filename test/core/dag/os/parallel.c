@@ -38,7 +38,6 @@ typedef struct {
 
 typedef struct {
   env_t* env;
-  spn_dag_t* g;
   const action_t* spec;
 } ctx_t;
 
@@ -155,41 +154,37 @@ static const test_t tests [] = {
   },
 };
 
-static spn_err_t execute_graph(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs) {
+static spn_err_t execute_graph(const si_dag_ctx_t* c, void* user_data) {
   ctx_t* ctx = (ctx_t*)user_data;
   if (ctx->spec->fails) {
     return SPN_ERR_DAG_ACTION;
   }
 
-  sp_mem_arena_marker_t s = sp_mem_begin_scratch();
-  const spn_path_roots_t* roots = &ctx->env->dag.roots;
+  const spn_path_roots_t* roots = c->roots;
 
   sp_carr_for(ctx->spec->discovers, it) {
     if (!ctx->spec->discovers[it]) {
       break;
     }
-    spn_dag_observe(obs, (spn_dag_obs_t) {
+    spn_dag_observe(c->obs, (spn_dag_obs_t) {
       .kind = SPN_DAG_OBS_FILE,
       .path = dag_test_env_rooted(&ctx->env->dag, sp_cstr_as_str(ctx->spec->discovers[it]))
     });
   }
 
-  sp_da_for(action->consumes, it) {
-    spn_dag_artifact_t* in = spn_dag_find_artifact(ctx->g, action->consumes[it]);
-    if (in->kind == SPN_DAG_ARTIFACT_KIND_FILE && !sp_fs_exists_at(spn_path_at(roots, in->materialized))) {
-      sp_mem_end_scratch(s);
+  sp_da_for(c->consumes, it) {
+    if (!sp_fs_exists_at(spn_path_at(roots, si_dag_resolve_input(c, c->consumes[it])))) {
       return SPN_ERR_DAG_ACTION;
     }
   }
 
   sp_atomic_s32_add(&ctx->env->runs, 1, SP_ATOMIC_SEQ_CST);
-  spn_dag_artifact_t* out = spn_dag_find_artifact(ctx->g, action->produces[0]);
+  spn_path_t output = si_dag_resolve_output(c, c->produces[0]);
   sp_str_t content = sp_cstr_as_str(ctx->spec->identity);
-  spn_path_t target = out->kind == SPN_DAG_ARTIFACT_KIND_TREE
-    ? spn_path_join(s.mem, outputs[0], sp_str_lit("H"))
-    : outputs[0];
+  spn_path_t target = ctx->spec->tree
+    ? spn_path_join(c->mem, output, sp_str_lit("H"))
+    : output;
   sp_err_t err = sp_fs_create_file_str_at(spn_path_at(roots, target), content);
-  sp_mem_end_scratch(s);
   return err ? SPN_ERR_DAG_ACTION : SPN_OK;
 }
 
@@ -202,7 +197,6 @@ static sp_err_t build_graph(sp_test_t* t, env_t* env, spn_dag_t* g, const test_t
 
     ctx_t* ctx = sp_alloc_type(env->dag.mem, ctx_t);
     ctx->env = env;
-    ctx->g = g;
     ctx->spec = spec;
 
     spn_dag_id_t action = spn_dag_add_action(g, (spn_dag_action_config_t) {

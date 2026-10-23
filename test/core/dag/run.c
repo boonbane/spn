@@ -36,7 +36,6 @@ typedef struct {
 
 typedef struct {
   dag_test_env_t* env;
-  spn_dag_t* g;
   const action_t* spec;
 } ctx_t;
 
@@ -205,7 +204,7 @@ static const test_t tests [] = {
   },
 };
 
-static spn_err_t execute_action(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs) {
+static spn_err_t execute_action(const si_dag_ctx_t* c, void* user_data) {
   ctx_t* ctx = (ctx_t*)user_data;
   if (ctx->spec->fails) {
     return SPN_ERR_DAG_ACTION;
@@ -215,7 +214,7 @@ static spn_err_t execute_action(spn_dag_t* g, spn_dag_action_t* action, void* us
     if (!ctx->spec->discovers[it]) {
       break;
     }
-    spn_dag_observe(obs, (spn_dag_obs_t) {
+    spn_dag_observe(c->obs, (spn_dag_obs_t) {
       .kind = SPN_DAG_OBS_FILE,
       .path = dag_test_env_rooted(ctx->env, sp_str_view(ctx->spec->discovers[it]))
     });
@@ -225,22 +224,21 @@ static spn_err_t execute_action(spn_dag_t* g, spn_dag_action_t* action, void* us
     ctx->env->runs++;
     return SPN_OK;
   }
-  sp_da_for(action->consumes, it) {
-    spn_dag_artifact_t* in = spn_dag_find_artifact(ctx->g, action->consumes[it]);
-    if (in->kind == SPN_DAG_ARTIFACT_KIND_FILE && !sp_fs_exists_at(dag_test_at(ctx->env, in->materialized))) {
+  sp_da_for(c->consumes, it) {
+    if (!sp_fs_exists_at(dag_test_at(ctx->env, si_dag_resolve_input(c, c->consumes[it])))) {
       return SPN_ERR_DAG_ACTION;
     }
   }
   ctx->env->runs++;
-  spn_dag_artifact_t* out = spn_dag_find_artifact(ctx->g, action->produces[0]);
+  spn_path_t output = si_dag_resolve_output(c, c->produces[0]);
   sp_str_t content = ctx->spec->writes
     ? sp_str_view(ctx->spec->writes)
     : sp_fmt(ctx->env->mem, "{}", sp_fmt_uint(ctx->env->runs)).value;
-  if (out->kind == SPN_DAG_ARTIFACT_KIND_TREE) {
-    spn_path_t inside = spn_path_join(ctx->env->mem, outputs[0], sp_str_lit("H"));
+  if (ctx->spec->tree) {
+    spn_path_t inside = spn_path_join(ctx->env->mem, output, sp_str_lit("H"));
     return sp_fs_create_file_str_at(dag_test_at(ctx->env, inside), sp_str_lit("T")) ? SPN_ERR_DAG_ACTION : SPN_OK;
   }
-  return sp_fs_create_file_str_at(dag_test_at(ctx->env, outputs[0]), content) ? SPN_ERR_DAG_ACTION : SPN_OK;
+  return sp_fs_create_file_str_at(dag_test_at(ctx->env, output), content) ? SPN_ERR_DAG_ACTION : SPN_OK;
 }
 
 static sp_err_t build_graph(sp_test_t* t, dag_test_env_t* env, spn_dag_t* g, const test_t* test) {
@@ -252,7 +250,6 @@ static sp_err_t build_graph(sp_test_t* t, dag_test_env_t* env, spn_dag_t* g, con
 
     ctx_t* ctx = sp_alloc_type(env->mem, ctx_t);
     ctx->env = env;
-    ctx->g = g;
     ctx->spec = spec;
 
     spn_dag_id_t action = spn_dag_add_action(g, (spn_dag_action_config_t) {
@@ -312,7 +309,6 @@ sp_test_each(dag_run, builds, test_t, tests) {
 
       ctx_t* ctx = sp_alloc_type(env.mem, ctx_t);
       ctx->env = &env;
-      ctx->g = g;
       ctx->spec = spec;
 
       spn_dag_id_t action = spn_dag_add_action(g, (spn_dag_action_config_t) {

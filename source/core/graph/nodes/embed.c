@@ -16,9 +16,11 @@
 #include "unit/package.h"
 #include "unit/unit.h"
 
-spn_err_t si_on_embed(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs) {
-  spn_target_unit_t* unit = (spn_target_unit_t*)user_data;
+spn_err_t si_on_embed(const si_dag_ctx_t* c, void* user_data) {
+  si_embed_t* embed = (si_embed_t*)user_data;
+  spn_target_unit_t* unit = embed->target;
   spn_target_info_t* info = unit->info;
+  const spn_path_roots_t* roots = c->roots;
 
   spn_event_buffer_push(spn.events, (spn_event_t) {
     .kind = SPN_EVENT_EMBED_START,
@@ -32,8 +34,8 @@ spn_err_t si_on_embed(spn_dag_t* g, spn_dag_action_t* action, void* user_data, s
   spn_cc_embed_ctx_init(&embedder, spn.mem, spn_os_to_native_object_format(unit->pkg->build->profile.os), unit->pkg->build->profile.arch);
 
   si_da_for(info->embed, it) {
-    spn_embed_t embed = info->embed[it];
-    spn_embed_types_t types = embed.types;
+    spn_embed_t entry = info->embed[it];
+    spn_embed_types_t types = entry.types;
 
     if (sp_str_empty(types.data)) {
       types.data = sp_str_lit("unsigned char");
@@ -43,15 +45,15 @@ spn_err_t si_on_embed(spn_dag_t* g, spn_dag_action_t* action, void* user_data, s
       types.size = sp_str_lit("unsigned long long");
     }
 
-    switch (embed.kind) {
+    switch (entry.kind) {
       case SPN_EMBED_FILE: {
-        spn_dag_observe(obs, (spn_dag_obs_t) { .kind = SPN_DAG_OBS_FILE, .path = embed.path });
+        spn_dag_observe(c->obs, (spn_dag_obs_t) { .kind = SPN_DAG_OBS_FILE, .path = entry.path });
         sp_str_t content = sp_zero;
-        if (sp_io_read_file_at(embedder.mem, spn_path_at(g->roots, embed.path), &content) != SP_OK) {
+        if (sp_io_read_file_at(embedder.mem, spn_path_at(roots, entry.path), &content) != SP_OK) {
           spn_event_buffer_push(spn.events, (spn_event_t) {
             .kind = SPN_EVENT_EMBED_FAILED,
             .pkg = unit->pkg->info->name.str,
-            .embed_failed = { .target = info->name.str, .path = embed.path, .error = sp_str_lit("file not found") },
+            .embed_failed = { .target = info->name.str, .path = entry.path, .error = sp_str_lit("file not found") },
           });
           return SPN_ERR_DAG_ACTION;
         }
@@ -61,26 +63,22 @@ spn_err_t si_on_embed(spn_dag_t* g, spn_dag_action_t* action, void* user_data, s
           .len = content.len,
           .capacity = content.len,
         };
-        sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-        spn_cc_embed_ctx_add(&embedder, data, spn_cc_symbol_from_embedded_file(scratch.mem, embed.dest), embed.dest, types.data, types.size);
-        sp_mem_end_scratch(scratch);
+        spn_cc_embed_ctx_add(&embedder, data, spn_cc_symbol_from_embedded_file(c->mem, entry.dest), entry.dest, types.data, types.size);
         break;
       }
       case SPN_EMBED_DIR: {
-        sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-        spn_path_t root = embed.path;
-        spn_dag_observe(obs, (spn_dag_obs_t) { .kind = SPN_DAG_OBS_ENUMERATION, .path = root });
-        sp_fs_it_t walk = sp_fs_it_new_at(scratch.mem, spn_path_at(g->roots, root), 0);
+        spn_path_t root = entry.path;
+        spn_dag_observe(c->obs, (spn_dag_obs_t) { .kind = SPN_DAG_OBS_ENUMERATION, .path = root });
+        sp_fs_it_t walk = sp_fs_it_new_at(c->mem, spn_path_at(roots, root), 0);
         while (sp_fs_it_walk(&walk)) {
-          sp_fs_entry_t entry = walk.entry;
-          sp_str_t rel = entry.rel;
-          if (entry.kind == SP_FS_KIND_DIR) {
-            spn_dag_observe(obs, (spn_dag_obs_t) { .kind = SPN_DAG_OBS_ENUMERATION, .path = spn_path_join(scratch.mem, root, rel) });
+          sp_str_t rel = walk.entry.rel;
+          if (walk.entry.kind == SP_FS_KIND_DIR) {
+            spn_dag_observe(c->obs, (spn_dag_obs_t) { .kind = SPN_DAG_OBS_ENUMERATION, .path = spn_path_join(c->mem, root, rel) });
             continue;
           }
           if (!sp_fs_is_file_at(walk.at)) continue;
-          spn_path_t file = spn_path_join(scratch.mem, root, rel);
-          spn_dag_observe(obs, (spn_dag_obs_t) { .kind = SPN_DAG_OBS_FILE, .path = file });
+          spn_path_t file = spn_path_join(c->mem, root, rel);
+          spn_dag_observe(c->obs, (spn_dag_obs_t) { .kind = SPN_DAG_OBS_FILE, .path = file });
           sp_str_t content = sp_zero;
           if (sp_io_read_file_at(embedder.mem, walk.at, &content) != SP_OK) {
             spn_event_buffer_push(spn.events, (spn_event_t) {
@@ -89,7 +87,6 @@ spn_err_t si_on_embed(spn_dag_t* g, spn_dag_action_t* action, void* user_data, s
               .embed_failed = { .target = info->name.str, .path = spn_path_copy(spn.events->mem, file), .error = sp_str_lit("file not found") },
             });
             sp_fs_it_deinit(&walk);
-            sp_mem_end_scratch(scratch);
             return SPN_ERR_DAG_ACTION;
           }
           sp_mem_buffer_t entry_data = {
@@ -97,17 +94,16 @@ spn_err_t si_on_embed(spn_dag_t* g, spn_dag_action_t* action, void* user_data, s
             .len = content.len,
             .capacity = content.len,
           };
-          sp_str_t dest = sp_fs_join_path(scratch.mem, embed.dest, rel);
-          spn_cc_embed_ctx_add(&embedder, entry_data, spn_cc_symbol_from_embedded_file(scratch.mem, dest), dest, types.data, types.size);
+          sp_str_t dest = sp_fs_join_path(c->mem, entry.dest, rel);
+          spn_cc_embed_ctx_add(&embedder, entry_data, spn_cc_symbol_from_embedded_file(c->mem, dest), dest, types.data, types.size);
         }
         sp_fs_it_deinit(&walk);
-        sp_mem_end_scratch(scratch);
         break;
       }
     }
   }
 
-  spn_err_t write_err = spn_cc_embed_ctx_write(&embedder, spn_path_at(g->roots, outputs[0]), spn_path_at(g->roots, outputs[1]));
+  spn_err_t write_err = spn_cc_embed_ctx_write(&embedder, spn_path_at(roots, si_dag_resolve_output(c, embed->object)), spn_path_at(roots, si_dag_resolve_output(c, embed->header)));
   spn_cc_embed_ctx_free(&embedder);
   if (write_err) {
     spn_event_buffer_push(spn.events, (spn_event_t) {
@@ -124,8 +120,8 @@ spn_err_t si_on_embed(spn_dag_t* g, spn_dag_action_t* action, void* user_data, s
     .pkg = unit->pkg->info->name.str,
     .embed_passed = {
       .target = info->name.str,
-      .object_path = spn_dag_find_artifact(g, action->produces[0])->path,
-      .header_path = spn_dag_find_artifact(g, action->produces[1])->path,
+      .object_path = embed->object_path,
+      .header_path = embed->header_path,
       .time = elapsed,
     },
   });

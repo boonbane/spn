@@ -53,7 +53,6 @@ typedef struct {
 } env_t;
 
 typedef struct {
-  spn_dag_t* g;
   const action_t* spec;
   behavior_t behavior;
   env_t* env;
@@ -160,20 +159,20 @@ static const test_t tests [] = {
   },
 };
 
-static spn_err_t execute_action(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs) {
+static spn_err_t execute_action(const si_dag_ctx_t* c, void* user_data) {
   ctx_t* ctx = (ctx_t*)user_data;
   if (ctx->behavior == EXEC_BEHAVIOR_FAIL) {
     return SPN_ERR_DAG_ACTION;
   }
 
   ctx->env->dag.runs++;
-  u64 count = sp_da_size(action->produces);
-  sp_da_for(action->produces, it) {
+  u64 count = sp_da_size(c->produces);
+  sp_da_for(c->produces, it) {
     if (ctx->behavior == EXEC_BEHAVIOR_SKIP_LAST_OUTPUT && it + 1 == count) {
       continue;
     }
     sp_str_t content = sp_fmt(ctx->env->dag.mem, "{}{}", sp_fmt_cstr(ctx->spec->write[it]), sp_fmt_uint(ctx->env->dag.runs)).value;
-    if (sp_fs_create_file_str_at(dag_test_at(&ctx->env->dag, outputs[it]), content)) {
+    if (sp_fs_create_file_str_at(dag_test_at(&ctx->env->dag, si_dag_resolve_output(c, c->produces[it])), content)) {
       return SPN_ERR_DAG_ACTION;
     }
   }
@@ -199,7 +198,6 @@ static void apply_change(action_t* action, change_t change) {
 static sp_err_t run_action(sp_test_t* t, env_t* env, const action_t* spec, const op_t* op) {
   spn_dag_t* g = dag_test_env_graph(&env->dag);
   ctx_t ctx = {
-    .g = g,
     .spec = spec,
     .behavior = op->behavior,
     .env = env

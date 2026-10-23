@@ -112,15 +112,16 @@ static const test_t tests [] = {
   },
 };
 
-static spn_err_t execute_action(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* dag_env, const spn_path_t* outputs, spn_dag_obs_set_t* obs) {
+static spn_err_t execute_action(const si_dag_ctx_t* c, void* user_data) {
   env_t* env = (env_t*)user_data;
   env->dag.runs++;
-  sp_fs_create_dir_at(dag_test_at(&env->dag, outputs[0]));
+  spn_path_t output = si_dag_resolve_output(c, c->produces[0]);
+  sp_fs_create_dir_at(dag_test_at(&env->dag, output));
   sp_carr_for(env->run->files, it) {
     if (!env->run->files[it].path) {
       break;
     }
-    sp_path_t path = dag_test_at(&env->dag, spn_path_join(env->dag.mem, outputs[0], sp_cstr_as_str(env->run->files[it].path)));
+    sp_path_t path = dag_test_at(&env->dag, spn_path_join(env->dag.mem, output, sp_cstr_as_str(env->run->files[it].path)));
     sp_fs_create_parent_at(path);
     if (sp_fs_create_file_str_at(path, sp_cstr_as_str(env->run->files[it].content))) {
       return SPN_ERR_DAG_ACTION;

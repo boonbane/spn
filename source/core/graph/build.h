@@ -20,7 +20,6 @@ typedef struct {
 
 spn_path_t          spn_target_unit_staged_path(sp_mem_t mem, spn_target_unit_t* unit);
 spn_event_subject_t spn_target_unit_subject(const spn_target_unit_t* unit);
-spn_path_t          si_dag_get_artifact_path(spn_dag_t* g, spn_dag_id_t id);
-si_da(spn_path_t)   si_dag_build_paths(sp_mem_t mem, spn_dag_t* g, si_da(spn_dag_id_t) ids);
+si_da(spn_path_t)   si_dag_build_paths(const si_dag_ctx_t* c, si_da(spn_dag_id_t) ids);
 
 #endif

@@ -61,14 +61,10 @@ spn_event_subject_t spn_target_unit_subject(const spn_target_unit_t* unit) {
   };
 }
 
-spn_path_t si_dag_get_artifact_path(spn_dag_t* g, spn_dag_id_t id) {
-  return spn_dag_find_artifact(g, id)->materialized;
-}
-
-si_da(spn_path_t) si_dag_build_paths(sp_mem_t mem, spn_dag_t* g, si_da(spn_dag_id_t) ids) {
+si_da(spn_path_t) si_dag_build_paths(const si_dag_ctx_t* c, si_da(spn_dag_id_t) ids) {
   si_da(spn_path_t) paths = sp_zero;
   si_da_for(ids, it) {
-    si_da_push(mem, paths, si_dag_get_artifact_path(g, ids[it]));
+    si_da_push(c->mem, paths, si_dag_resolve_input(c, ids[it]));
   }
   return paths;
 }

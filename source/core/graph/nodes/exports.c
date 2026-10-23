@@ -14,36 +14,38 @@
 #include "paths/paths.h"
 #include "session/invocation.h"
 
-static spn_err_t write_exports(sp_mem_t mem, spn_dag_t* g, spn_dag_env_t* env, spn_dag_action_t* action, si_exports_t* ctx, spn_path_t output) {
-  const spn_path_roots_t* roots = g->roots;
+spn_err_t si_on_write_exports(const si_dag_ctx_t* c, void* user_data) {
+  si_exports_t* exports = (si_exports_t*)user_data;
+  const spn_path_roots_t* roots = c->roots;
 
-  spn_path_t archive = spn_path_concat(mem, output, ".a");
-  spn_cc_archive_files_t files = { .cwd = spn_dag_scratch(mem, env, action), .output = archive };
-  switch (ctx->objects.kind) {
+  spn_path_t output = si_dag_resolve_output(c, exports->output);
+  spn_path_t archive = spn_path_concat(c->mem, output, ".a");
+  spn_cc_archive_files_t files = { .cwd = c->scratch, .output = archive };
+  switch (exports->objects.kind) {
     case SPN_DAG_BUILD_OBJECTS_DIRECT: {
-      files.objects = si_dag_build_paths(mem, g, ctx->objects.ids);
+      files.objects = si_dag_build_paths(c, exports->objects.ids);
       break;
     }
     case SPN_DAG_BUILD_OBJECTS_RSP: {
-      files.rsp = si_dag_get_artifact_path(g, ctx->objects.rsp);
+      files.rsp = si_dag_resolve_input(c, exports->objects.rsp);
       break;
     }
   }
-  spn_invocation_t invocation = spn_cc_render_archive_command(mem, ctx->archive, &files);
+  spn_invocation_t invocation = spn_cc_render_archive_command(c->mem, exports->archive, &files);
 
   spn_invocation_result_t run = spn_invocation_run(roots, &invocation);
   if (run.result.status.exit_code) {
     spn_event_buffer_push(spn.events, (spn_event_t) {
       .kind = SPN_EVENT_LINK_FAILED,
-      .link_failed = { .subject = ctx->subject, .run = spn_event_run(roots, &invocation, &run) },
+      .link_failed = { .subject = exports->subject, .run = spn_event_run(roots, &invocation, &run) },
     });
     return SPN_ERR_DAG_ACTION;
   }
 
   si_da(spn_path_t) archives = sp_zero;
-  si_da_push(mem, archives, archive);
-  si_da_for(ctx->whole_archives, it) {
-    si_da_push(mem, archives, si_dag_get_artifact_path(g, ctx->whole_archives[it]));
+  si_da_push(c->mem, archives, archive);
+  si_da_for(exports->whole_archives, it) {
+    si_da_push(c->mem, archives, si_dag_resolve_input(c, exports->whole_archives[it]));
   }
 
   si_str_ht(u8) seen = sp_zero;
@@ -63,8 +65,8 @@ static spn_err_t write_exports(sp_mem_t mem, spn_dag_t* g, spn_dag_env_t* env, s
       if (si_str_ht_get(seen, interned)) {
         continue;
       }
-      si_str_ht_insert(mem, seen, interned, (u8)true);
-      si_da_push(mem, symbols, interned);
+      si_str_ht_insert(c->mem, seen, interned, (u8)true);
+      si_da_push(c->mem, symbols, interned);
     }
     if (!err) {
       err = toc.err;
@@ -80,16 +82,7 @@ static spn_err_t write_exports(sp_mem_t mem, spn_dag_t* g, spn_dag_env_t* env, s
   if (sp_io_file_writer_from_path_at(&writer, spn_path_at(roots, output))) {
     return SPN_ERR_DAG_OUTPUT_WRITE;
   }
-  spn_cc_render_exports(&writer.base, roots, ctx->format, ctx->rsp, ctx->library, symbols);
+  spn_cc_render_exports(&writer.base, roots, exports->format, exports->rsp, exports->library, symbols);
   sp_io_file_writer_close(&writer);
   return SPN_OK;
-}
-
-spn_err_t si_on_write_exports(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs) {
-  si_exports_t* ctx = (si_exports_t*)user_data;
-
-  sp_mem_arena_marker_t s = sp_mem_begin_scratch();
-  spn_err_t err = write_exports(s.mem, g, env, action, ctx, outputs[0]);
-  sp_mem_end_scratch(s);
-  return err;
 }
