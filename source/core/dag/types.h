@@ -61,16 +61,27 @@ typedef struct {
   spn_err_t err;
 } spn_dag_glob_it_t;
 
-typedef struct spn_dag_env_t spn_dag_env_t;
-typedef struct spn_dag_obs_set_t spn_dag_obs_set_t;
-
-SP_TYPEDEF_FN(spn_err_t, spn_dag_exec_fn_t, spn_dag_t*, spn_dag_action_t*, void*, spn_dag_env_t*, const spn_path_t*, spn_dag_obs_set_t*);
-
 typedef struct {
   u32 index;
   u32 graph;
   u32 occupied;
 } spn_dag_id_t;
+
+typedef struct spn_dag_env_t spn_dag_env_t;
+typedef struct spn_dag_obs_set_t spn_dag_obs_set_t;
+typedef struct si_dag_action_handle si_dag_action_handle_t;
+
+typedef struct {
+  si_dag_action_handle_t* handle;
+  sp_mem_t mem;
+  const sp_da(spn_dag_id_t) consumes;
+  const sp_da(spn_dag_id_t) produces;
+  const spn_path_roots_t* roots;
+  spn_path_t scratch;
+  spn_dag_obs_set_t* obs;
+} si_dag_ctx_t;
+
+SP_TYPEDEF_FN(spn_err_t, si_dag_fn_t, const si_dag_ctx_t*, void*);
 
 typedef enum {
   SPN_DAG_ARTIFACT_KIND_VALUE,
@@ -99,7 +110,7 @@ struct spn_dag_action_t {
   spn_dag_id_t id;
   spn_dag_action_kind_t kind;
   spn_dag_digest_t identity;
-  spn_dag_exec_fn_t execute;
+  si_dag_fn_t execute;
   void* user_data;
   sp_da(spn_dag_id_t) consumes;
   sp_da(spn_dag_id_t) produces;
@@ -109,7 +120,7 @@ struct spn_dag_action_t {
 typedef struct {
   spn_dag_action_kind_t kind;
   spn_dag_digest_t identity;
-  spn_dag_exec_fn_t execute;
+  si_dag_fn_t execute;
   void* user_data;
 } spn_dag_action_config_t;
 
