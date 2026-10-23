@@ -64,8 +64,7 @@ Each JSONL entry is a release specifying the version, where the source code is, 
     "dir": "sqlite"
   },
   "paths": {
-    "manifest": "spn.toml",
-    "script": "spn.c"
+    "manifest": "spn.toml"
   }
 }
 ```

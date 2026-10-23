@@ -2,6 +2,9 @@
 name = "configure_error"
 version = "0.0.1"
 
+[package.configure]
+source = ["tools/configure.c"]
+
 [[bin]]
 name = "configure_error"
 source = ["main.c"]

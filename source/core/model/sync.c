@@ -277,21 +277,6 @@ static spn_err_t resolve_configure_source(spn_ctx_t* ctx, sp_str_t name, si_da(s
   return SPN_OK;
 }
 
-static si_da(spn_source_t) detect_configure_source(const spn_path_roots_t* roots, spn_loaded_pkg_t* loaded, sp_str_t script) {
-  si_da(spn_source_t) source = SP_NULLPTR;
-  sp_str_t candidates [] = { sp_str_lit("configure.c"), script };
-  sp_carr_for(candidates, it) {
-    spn_path_t path = spn_tree_path(spn.mem, roots, loaded->roots, SPN_TREE_MANIFEST, candidates[it]);
-    sp_path_t at = spn_path_at(roots, path);
-    sp_sys_file_meta_t meta = sp_zero;
-    if (!sp_sys_get_path_metadata_s(at.dir, at.sub, &meta) && meta.kind == SP_FS_KIND_FILE) {
-      si_da_push(spn.mem, source, ((spn_source_t) { .kind = SPN_SOURCE_FILE, .path = path }));
-      break;
-    }
-  }
-  return source;
-}
-
 static spn_err_t load_manifest(spn_session_t* session, sp_str_t name, spn_path_t manifest, spn_pkg_info_t** info) {
   spn_pkg_info_t* parsed = sp_alloc_type(session->mem, spn_pkg_info_t);
   spn_codegen_issues_t issues = sp_zero;
@@ -332,15 +317,6 @@ static sp_str_t sync_url(spn_pkg_root_t recipe, spn_pkg_root_t source) {
     return recipe.git.url;
   }
   return sp_str_lit("");
-}
-
-static bool package_has_build_deps(spn_resolved_pkg_t* pkg) {
-  sp_da_for(pkg->edges, it) {
-    if (pkg->edges[it].kind == SPN_DEP_KIND_BUILD) {
-      return true;
-    }
-  }
-  return false;
 }
 
 static spn_err_t stamp_patches(spn_session_t* session, spn_resolved_pkg_t* pkg, sp_str_t qualified) {
@@ -431,27 +407,8 @@ static spn_err_t load_package(spn_session_t* session, spn_resolved_pkg_t* pkg, s
   // But...this isn't really the right place to do it. This code is supposed
   // to be more mechanical; "get the sources on disk, do basic validation". But
   // what I just described belongs in the graph layer.
-  if (si_da_empty(loaded->info->configure.gated.source)) {
-    // @spader We need to stop doing this and force people to be explicit.
-    // Instead of this weird detection, just make if so if you don't have
-    // [package.configure] then you don't have a configure script. Simple.
-    loaded->configure.source = detect_configure_source(roots, loaded, pkg->origin.paths.script);
-  } else {
+  if (!si_da_empty(loaded->info->configure.gated.source)) {
     spn_try(resolve_configure_source(session->ctx, qualified, loaded->info->configure.gated.source, loaded, &facts, &loaded->configure.source));
-  }
-
-  if (si_da_empty(loaded->build.source)) {
-    spn_path_t candidate = spn_tree_path(spn.mem, roots, loaded->roots, SPN_TREE_MANIFEST, sp_str_lit("build.c"));
-    spn_path_t script = spn_tree_path(spn.mem, roots, loaded->roots, SPN_TREE_MANIFEST, pkg->origin.paths.script);
-    sp_path_t candidate_at = spn_path_at(roots, candidate);
-    sp_path_t script_at = spn_path_at(roots, script);
-    sp_sys_file_meta_t meta = sp_zero;
-    if (!sp_sys_get_path_metadata_s(candidate_at.dir, candidate_at.sub, &meta) && meta.kind == SP_FS_KIND_FILE) {
-      si_da_push(spn.mem, loaded->build.source, ((spn_source_t) { .kind = SPN_SOURCE_FILE, .path = candidate }));
-    }
-    else if (package_has_build_deps(pkg) && !sp_sys_get_path_metadata_s(script_at.dir, script_at.sub, &meta) && meta.kind == SP_FS_KIND_FILE) {
-      si_da_push(spn.mem, loaded->build.source, ((spn_source_t) { .kind = SPN_SOURCE_FILE, .path = script }));
-    }
   }
 
   loaded->elapsed = sp_tm_read_timer(&timer);

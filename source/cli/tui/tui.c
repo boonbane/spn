@@ -915,6 +915,16 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           );
           break;
         }
+        case SPN_ERR_NODE_NO_BUILD_SCRIPT: {
+          sp_tty_fmt(
+            &w,
+            "{.cyan} node {.yellow} runs {.yellow}, but the package has no [package.build] script",
+            sp_fmt_str(event->err.node.pkg),
+            sp_fmt_str(event->err.node.tag),
+            sp_fmt_str(event->err.node.fn)
+          );
+          break;
+        }
         case SPN_ERR_FS_READ: {
           sp_tty_fmt(
             &w,

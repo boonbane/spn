@@ -3,7 +3,7 @@ name = "configure_missing_source"
 version = "0.0.1"
 
 [package.configure]
-source = ["nope.c"]
+source = ["tools/nope.c"]
 
 [[bin]]
 name = "configure_missing_source"

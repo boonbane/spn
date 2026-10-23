@@ -376,10 +376,7 @@ static sp_err_t fixture_copy_project(sp_test_t* t, fixture_t* fixture, sp_str_t 
 
   const c8* defaults [] = {
     "main.c",
-    "spn.c",
     "spn.toml",
-    "configure.c",
-    "build.c",
   };
 
   sp_carr_for(defaults, it) {
@@ -387,6 +384,10 @@ static sp_err_t fixture_copy_project(sp_test_t* t, fixture_t* fixture, sp_str_t 
     if (sp_fs_exists(from)) {
       copy_into(from, fixture->root);
     }
+  }
+
+  if (sp_fs_is_dir(sp_fs_join_path(fixture->mem, project, sp_str_lit("tools")))) {
+    sp_try(copy_project_path(t, fixture, project, sp_str_lit("tools")));
   }
 
   if (copy) {

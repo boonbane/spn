@@ -38,7 +38,7 @@ static spn_err_t spn_index_parse_rel(sp_mem_t mem, spn_pkg_name_t id, sp_str_t j
       .git = { .url = rel.manifest.url, .rev = rel.manifest.rev, .dir = rel.manifest.dir },
     };
   }
-  release->paths = (spn_index_rel_paths_t) { .manifest = rel.paths.manifest, .script = rel.paths.script };
+  release->paths = (spn_index_rel_paths_t) { .manifest = rel.paths.manifest };
 
   sp_da_init(mem, release->deps);
   sp_da_for(rel.deps, it) {
@@ -99,7 +99,7 @@ sp_str_t spn_index_release_to_json(sp_mem_t mem, spn_index_release_t* rel) {
     .name = rel->id.name,
     .version = spn_semver_to_str(mem, rel->version),
     .yanked = rel->yanked,
-    .paths = { .manifest = rel->paths.manifest, .script = rel->paths.script },
+    .paths = { .manifest = rel->paths.manifest },
     .deps = sp_da_new(mem, spn_cg_release_dep_t),
     .targets = sp_da_new(mem, spn_cg_release_target_t),
     .options = sp_da_new(mem, spn_cg_release_options_entry_t),

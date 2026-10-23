@@ -125,6 +125,7 @@
     "option_unknown_pkg": { "ref": "option" },
     "configure_source_glob": { "ref": "configure_source" },
     "configure_source_missing": { "ref": "configure_source" },
+    "node_no_build_script": { "ref": "node" },
     "init_exists": { "ref": "fs" },
     "init_name": { "ref": "pkg" },
     "scaffold_template": { "ref": "fs" },
@@ -400,6 +401,13 @@
       "properties": {
         "name": { "type": "string" },
         "source": { "type": "string" }
+      }
+    },
+    "node": {
+      "properties": {
+        "pkg": { "type": "string" },
+        "tag": { "type": "string" },
+        "fn": { "type": "string" }
       }
     },
     "target_source": {

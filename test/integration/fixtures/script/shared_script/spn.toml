@@ -1,0 +1,13 @@
+[package]
+name = "S"
+version = "0.0.1"
+
+[package.configure]
+source = ["tools/script.c"]
+
+[package.build]
+source = ["tools/script.c"]
+
+[[bin]]
+name = "S"
+source = ["main.c"]

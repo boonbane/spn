@@ -2,6 +2,9 @@
 name = "foreign_path"
 version = "0.0.1"
 
+[package.configure]
+source = ["tools/configure.c"]
+
 [[bin]]
 name = "foreign_path"
 source = ["main.c"]

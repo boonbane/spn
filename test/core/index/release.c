@@ -19,7 +19,7 @@ typedef struct {
   bool yanked;
   struct { const c8* url; const c8* rev; const c8* dir; } source;
   struct { const c8* url; const c8* rev; const c8* dir; } manifest;
-  struct { const c8* manifest; const c8* script; } paths;
+  struct { const c8* manifest; } paths;
   release_dep_t deps [4];
   release_target_t targets [4];
 } release_rel_t;
@@ -61,7 +61,7 @@ static const release_test_t tests [] = {
           .yanked = true,
           .source = { .url = "https://github.com/example/spum", .rev = "abc123", .dir = "packages/spum" },
           .manifest = { .url = "https://github.com/example/packages", .rev = "def456", .dir = "spum" },
-          .paths = { .manifest = "spn.toml", .script = "spn.c" },
+          .paths = { .manifest = "spn.toml" },
           .deps = {
             { .namespace = "core", .name = "curl", .version = "^1.0.0", .kind = SPN_INDEX_DEP_NORMAL },
             { .namespace = "core", .name = "cmake", .version = "^3.0.0", .kind = SPN_INDEX_DEP_BUILD },
@@ -110,7 +110,7 @@ static const release_test_t tests [] = {
           .version = "1.0.0",
           .source = { .url = "git@github.com:A/B.git", .rev = "abc123" },
           .manifest = { .url = "ssh://git@github.com/C/D.git", .rev = "def456", .dir = "E" },
-          .paths = { .manifest = "spn.toml", .script = "spn.c" },
+          .paths = { .manifest = "spn.toml" },
         },
       },
     },
@@ -302,7 +302,6 @@ static spn_index_release_t release_build(sp_mem_t mem, const release_rel_t* rel)
     };
   }
   if (rel->paths.manifest) { built.paths.manifest = sp_cstr_as_str(rel->paths.manifest); }
-  if (rel->paths.script) { built.paths.script = sp_cstr_as_str(rel->paths.script); }
 
   sp_da_init(mem, built.deps);
   sp_carr_for(rel->deps, it) {
@@ -358,7 +357,6 @@ static sp_err_t release_check(sp_test_t* t, sp_mem_t mem, const release_rel_t* e
     sp_expect_eq(t, SPN_PKG_ROOT_NONE, rel->manifest.kind);
   }
   if (expected->paths.manifest) { sp_expect_str_eq_c(t, rel->paths.manifest, expected->paths.manifest); }
-  if (expected->paths.script) { sp_expect_str_eq_c(t, rel->paths.script, expected->paths.script); }
 
   u32 num_deps = 0;
   sp_carr_detect_len(expected->deps, num_deps, expected->deps[num_deps].namespace);

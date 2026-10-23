@@ -2,6 +2,9 @@
 name = "a"
 version = "1.0.0"
 
+[package.build]
+source = ["tools/build.c"]
+
 [options.x]
 type = "bool"
 default = false

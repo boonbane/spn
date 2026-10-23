@@ -47,7 +47,6 @@ spn_err_t configure(spn_op_t* op) {
   spn_try(spn_units_add_targets(s, SPN_UNIT_SCOPE_METAPROGRAM));
 
   spn_dag_build_t* dag = spn_dag_build_new(op);
-  s->dag.configure = dag;
   spn_dag_t* g = dag->graph;
 
   spn_try(spn_dag_build_add_build(dag, s->units.metaprogram));

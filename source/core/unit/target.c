@@ -592,6 +592,19 @@ spn_err_t spn_units_add_targets(spn_session_t* s, spn_unit_scope_t scope) {
     case SPN_UNIT_SCOPE_TARGET: {
       sp_da_for_ptr(s->plans.build, plan) {
         sp_da_for_value(plan->build->packages, pkg) {
+          sp_da_for(pkg->user_nodes, k) {
+            spn_user_node_t* node = &pkg->user_nodes[k];
+            if (!sp_str_empty(node->fn) && !pkg->metaprogram->scripts.build) {
+              return spn_err_emit(s->ctx, (spn_err_union_t) {
+                .kind = SPN_ERR_NODE_NO_BUILD_SCRIPT,
+                .node = {
+                  .pkg = pkg->info->name.str,
+                  .tag = node->tag,
+                  .fn = node->fn,
+                },
+              });
+            }
+          }
           if (pkg == plan->root) {
             if (si_om_empty(plan->selection.names)) {
               si_om_for(pkg->info->targets, k) {

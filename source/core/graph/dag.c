@@ -754,15 +754,10 @@ static spn_err_t prepare_graph(spn_dag_build_t* b) {
           sp_assert(ids);
           script = ids->output;
         }
-        else if (package->metaprogram && package->metaprogram->scripts.configure) {
-          spn_dag_build_t* configure = session->dag.configure;
-          spn_dag_target_ids_t* ids = sp_ht_getp(configure->ids.targets, package->metaprogram->scripts.configure);
-          sp_assert(ids);
-          script = spn_dag_add_file(g, spn_dag_find_artifact(configure->graph, ids->output)->materialized);
-        }
 
         sp_da_for(package->user_nodes, k) {
           spn_user_node_t* node = &package->user_nodes[k];
+          sp_assert(script.occupied || sp_str_empty(node->fn));
 
           spn_digest_ctx_t digest = sp_zero;
           spn_digest_init_blake3(&digest);

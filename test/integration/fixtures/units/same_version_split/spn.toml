@@ -2,6 +2,9 @@
 name = "units_same_version_split"
 version = "0.1.0"
 
+[package.build]
+source = ["tools/build.c"]
+
 [deps.package]
 foo = "1.0.0"
 num = "2.0.0"

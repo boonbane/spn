@@ -2,6 +2,12 @@
 name = "node_output_absolute"
 version = "0.0.1"
 
+[package.configure]
+source = ["tools/configure.c"]
+
+[package.build]
+source = ["tools/build.c"]
+
 [[bin]]
 name = "node_output_absolute"
 source = ["main.c"]

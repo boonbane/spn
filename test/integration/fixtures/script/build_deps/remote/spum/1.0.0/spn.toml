@@ -2,6 +2,9 @@
 name = "spum"
 version = "1.0.0"
 
+[package.configure]
+source = ["tools/configure.c"]
+
 [[lib]]
 name = "spum"
 kinds = ["source"]

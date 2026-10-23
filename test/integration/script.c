@@ -59,10 +59,17 @@ sp_test(script, chained_nodes) {
   });
 }
 
+sp_test(script, shared_script) {
+  return run_command_test(t, (command_test_t) {
+    .project = "test/integration/fixtures/script/shared_script",
+    .args = { "build" },
+    .expect.files = { { .file = work_file("S/V.txt"), .content = "1" } },
+  });
+}
+
 sp_test(script, script_edit) {
   return run_rebuild_test(t, (rebuild_test_t) {
     .project = "test/integration/fixtures/script/script_edit",
-    .copy = { "spn.c", "spn.change.c" },
     .first = {
       .args = { "build" },
       .expect.files = { { .file = work_file("E/V.txt"), .content = "1" } },
@@ -70,7 +77,7 @@ sp_test(script, script_edit) {
     .rebuilds = {
       {
         .change.moves = {
-          { .from = sp_str_lit("spn.change.c"), .to = sp_str_lit("spn.c") },
+          { .from = sp_str_lit("tools/build.change.c"), .to = sp_str_lit("tools/build.c") },
         },
         .command = {
           .args = { "build" },
@@ -174,9 +181,10 @@ static const failure_t failures [] = {
   { .name = "name_separator_node", .err = SPN_ERR_WASM_MODULE_CALL_FAILED },
   { .name = "nested_output", .err = SPN_ERR_DAG_NESTED_OUTPUT },
   { .name = "configure_missing_source", .err = SPN_ERR_CONFIGURE_SOURCE_MISSING },
-  { .name = "configure_dead_glob", .copy = { "tools" }, .err = SPN_ERR_CONFIGURE_SOURCE_GLOB },
+  { .name = "configure_dead_glob", .err = SPN_ERR_CONFIGURE_SOURCE_GLOB },
   { .name = "configure_error", .err = SPN_ERR_WASM_SCRIPT_ERROR },
   { .name = "missing_node_fn", .err = SPN_ERR_WASM_EXPORT_NOT_FOUND },
+  { .name = "node_fn_without_build_script", .err = SPN_ERR_NODE_NO_BUILD_SCRIPT },
   { .name = "add_define_path_outside", .err = SPN_ERR_WASM_MODULE_CALL_FAILED },
 };
 
@@ -233,7 +241,7 @@ sp_test(script, object_lib) {
 sp_test(script, configure_table) {
   return run_test(t, (test_t) {
     .project = "test/integration/fixtures/script/configure_table",
-    .copy = { "tools", "include" },
+    .copy = { "include" },
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
       { .kind = ACTION_RUN_BIN, .bin.name = "configure_table" },
@@ -244,7 +252,6 @@ sp_test(script, configure_table) {
 sp_test(script, configure_glob) {
   return run_test(t, (test_t) {
     .project = "test/integration/fixtures/script/configure_glob",
-    .copy = { "tools" },
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
       { .kind = ACTION_VERIFY_EVENT_COUNT, .verify_event_count = { .event = SPN_EVENT_USER_LOG, .key = "message", .value = "G", .count = 1 } },
@@ -262,20 +269,10 @@ sp_test(script, wrong_handle) {
   });
 }
 
-sp_test(script, stale_config) {
-  return run_test(t, (test_t) {
-    .project = "test/integration/fixtures/script/stale_config",
-    .actions = {
-      { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_RUN_BIN, .bin.name = "stale_config" },
-    },
-  });
-}
-
 sp_test(script, build_script) {
   return run_rebuild_test(t, (rebuild_test_t) {
     .project = "test/integration/fixtures/script/build_script",
-    .copy = { "tools", "include", "vendor" },
+    .copy = { "include", "vendor" },
     .first = {
       .args = { "build" },
       .expect = {
@@ -296,14 +293,6 @@ sp_test(script, build_script) {
         },
       },
     },
-  });
-}
-
-sp_test(script, default_script) {
-  return run_command_test(t, (command_test_t) {
-    .project = "test/integration/fixtures/script/default_script",
-    .args = { "build" },
-    .expect.exists = { work_file("default_script/version.h"), exe("default_script") },
   });
 }
 

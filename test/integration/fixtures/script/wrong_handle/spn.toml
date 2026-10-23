@@ -2,6 +2,9 @@
 name = "wrong_handle"
 version = "0.0.1"
 
+[package.configure]
+source = ["tools/configure.c"]
+
 [[bin]]
 name = "wrong_handle"
 source = ["main.c"]

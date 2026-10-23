@@ -2,6 +2,12 @@
 name = "script_log_fail"
 version = "0.0.1"
 
+[package.configure]
+source = ["tools/configure.c"]
+
+[package.build]
+source = ["tools/build.c"]
+
 [[bin]]
 name = "script_log_fail"
 source = ["main.c"]

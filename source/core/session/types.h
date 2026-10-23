@@ -65,7 +65,6 @@ struct spn_session_t {
   } paths;
 
   struct {
-    spn_dag_build_t* configure;
     spn_dag_build_t* build;
     spn_dag_file_cache_t files;
     spn_path_t files_path;
