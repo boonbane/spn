@@ -11,8 +11,7 @@
 #include "when/when.h"
 
 static spn_toolchain_unit_t* bind_toolchain(spn_session_t* s, spn_toolchain_info_t* toolchain) {
-  sp_da_for(s->units.toolchains, it) {
-    spn_toolchain_unit_t* unit = s->units.toolchains[it];
+  si_da_for_value(s->units.toolchains, unit) {
     if (unit->info == toolchain) {
       return unit;
     }
@@ -20,7 +19,7 @@ static spn_toolchain_unit_t* bind_toolchain(spn_session_t* s, spn_toolchain_info
 
   spn_toolchain_unit_t* unit = sp_alloc_type(s->mem, spn_toolchain_unit_t);
   *unit = (spn_toolchain_unit_t) { .info = toolchain };
-  sp_da_push(s->units.toolchains, unit);
+  si_da_push(s->mem, s->units.toolchains, unit);
   return unit;
 }
 

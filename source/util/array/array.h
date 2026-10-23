@@ -3,6 +3,8 @@
 
 #include "sp.h"
 
+#include "macro/macro.h"
+
 typedef struct SP_ALIGNED {
   u64 size;
   u64 capacity;
@@ -14,12 +16,17 @@ typedef struct SP_ALIGNED {
 #define si_da_for(__ARR, __IT)  for (u64 __IT = 0; __IT < si_da_size((__ARR)); __IT++)
 #define si_da_rfor(__ARR, __IT) for (u64 __IT = si_da_size(__ARR); __IT-- > 0; )
 
+#define si_da_value_t(arr) sp_type_of(arr[0])
+
+#define si_da_for_ptr(arr, it) \
+  for (__typeof__(arr) it = (arr); (it - (arr)) < si_da_size(arr); it++)
+
 #define si_da_for_value(__arr, __it) \
   for ( \
-    sp_da_value_t(__arr) __it, \
+    si_da_value_t(__arr) __it, \
     *__sp_it(__it) = (__arr), \
     *__sp_it_end(__it) = __sp_it(__it) ? \
-      __sp_it(__it) + sp_da_size(__sp_it(__it)) : \
+      __sp_it(__it) + si_da_size(__sp_it(__it)) : \
       __sp_it(__it); \
   \
     __sp_it(__it) < __sp_it_end(__it) && \

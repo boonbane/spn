@@ -7,6 +7,7 @@ add_executable(fuzz_dag
   ${UTIL}/glob/glob.c
   ${SRC}/dag/stamp.c
   ${UTIL}/thread_pool/thread_pool.c
+  ${UTIL}/array/array.c
   ${SRC}/codegen/json.c
   ${SRC}/codegen/loader.c
   ${TEST_GEN_DIR}/fuzz.gen.c

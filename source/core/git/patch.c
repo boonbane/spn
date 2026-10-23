@@ -6,7 +6,7 @@ spn_err_t spn_git_patch_set_hash(spn_git_patch_set_t* set, u32* missing) {
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
 
   set->hash = 0;
-  sp_da_for(set->files, it) {
+  si_da_for(set->files, it) {
     sp_str_t content = sp_zero;
     if (sp_io_read_file_at(scratch.mem, sp_path_from_str(set->files[it]), &content)) {
       *missing = (u32)it;
@@ -22,6 +22,6 @@ spn_err_t spn_git_patch_set_hash(spn_git_patch_set_t* set, u32* missing) {
   }
 
   sp_mem_end_scratch(scratch);
-  sp_assert(sp_da_empty(set->files) || set->hash);
+  sp_assert(si_da_empty(set->files) || set->hash);
   return SPN_OK;
 }
