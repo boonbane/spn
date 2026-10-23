@@ -11,7 +11,8 @@
 #include "unit/package.h"
 
 spn_err_t si_on_user_node(const si_dag_ctx_t* c, void* user_data) {
-  spn_user_node_t* node = (spn_user_node_t*)user_data;
+  si_user_node_t* ctx = (si_user_node_t*)user_data;
+  spn_user_node_t* node = ctx->node;
   spn_pkg_unit_t* pkg = node->pkg;
   const spn_path_roots_t* roots = c->roots;
 
@@ -44,7 +45,13 @@ spn_err_t si_on_user_node(const si_dag_ctx_t* c, void* user_data) {
   }
 
   if (!sp_str_empty(node->fn)) {
-    if (spn_wasm_call_export_ex(pkg, node->fn, SPN_ABI_KIND_NONE, SP_NULLPTR, c->obs)) {
+    spn_wasm_script_t script = sp_zero;
+    if (spn_wasm_script_open(c->mem, pkg, si_dag_resolve_input(c, ctx->script), c->obs, &script)) {
+      return SPN_ERR_DAG_ACTION;
+    }
+    spn_err_t err = spn_wasm_script_call(&script, node->fn, SP_NULLPTR, 0);
+    spn_wasm_script_close(&script);
+    if (err) {
       return SPN_ERR_DAG_ACTION;
     }
   }

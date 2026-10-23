@@ -38,7 +38,6 @@ struct spn_dag_wasi_t {
   const spn_path_roots_t* roots;
   sp_da(spn_dag_wasi_dir_t) mounts;
   sp_ht(u32, sp_str_t) dirs;
-  sp_mem_arena_t* call;
   sp_ht(spn_path_t, u8) writes;
   spn_dag_obs_set_t* obs;
 };
@@ -100,7 +99,7 @@ static bool wasi_written(spn_dag_wasi_t* w, spn_path_t host) {
 
 static void wasi_record_write(spn_dag_wasi_t* w, spn_path_t host) {
   if (!wasi_written(w, host)) {
-    sp_ht_insert(w->writes, spn_path_copy(sp_mem_arena_as_allocator(w->call), host), (u8)true);
+    sp_ht_insert(w->writes, spn_path_copy(w->mem, host), (u8)true);
   }
 }
 
@@ -244,15 +243,14 @@ spn_err_t spn_dag_wasi_install(void) {
   return SPN_OK;
 }
 
-spn_dag_wasi_t* spn_dag_wasi_new(sp_mem_t mem, const spn_path_roots_t* roots, const spn_dag_wasi_mount_t* mounts, u32 count) {
+spn_dag_wasi_t* spn_dag_wasi_new(sp_mem_t mem, const spn_path_roots_t* roots, const spn_dag_wasi_mount_t* mounts, u32 count, spn_dag_obs_set_t* obs) {
   spn_dag_wasi_t* w = sp_alloc_type(mem, spn_dag_wasi_t);
   w->mem = mem;
   w->roots = roots;
-  w->obs = SP_NULLPTR;
+  w->obs = obs;
   sp_da_init(mem, w->mounts);
   sp_ht_init(mem, w->dirs);
-  w->call = sp_mem_arena_new(mem);
-  sp_ht_init(sp_mem_arena_as_allocator(w->call), w->writes);
+  sp_ht_init(mem, w->writes);
   sp_ht_set_fns(w->writes, spn_path_on_hash, spn_path_on_compare);
 
   sp_for(it, count) {
@@ -268,17 +266,6 @@ spn_dag_wasi_t* spn_dag_wasi_new(sp_mem_t mem, const spn_path_roots_t* roots, co
 
 void spn_dag_wasi_bind(spn_dag_wasi_t* w, wasm_module_inst_t instance) {
   wasm_runtime_set_custom_data(instance, w);
-}
-
-void spn_dag_wasi_begin(spn_dag_wasi_t* w, spn_dag_obs_set_t* obs) {
-  sp_mem_arena_clear(w->call);
-  sp_ht_init(sp_mem_arena_as_allocator(w->call), w->writes);
-  sp_ht_set_fns(w->writes, spn_path_on_hash, spn_path_on_compare);
-  w->obs = obs;
-}
-
-void spn_dag_wasi_end(spn_dag_wasi_t* w) {
-  w->obs = SP_NULLPTR;
 }
 
 static spn_dag_wasi_t* wasi_of(wasm_module_inst_t instance) {

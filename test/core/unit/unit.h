@@ -3,7 +3,6 @@
 #include "spn_test.h"
 
 #include "ctx/types.h"
-#include "external/wasm/types.h"
 #include "intern/intern.h"
 #include "session/session.h"
 #include "session/types.h"

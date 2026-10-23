@@ -285,7 +285,8 @@ sp_str_t wasm_emit_module(sp_mem_t mem, const wasm_emit_fn_t* fns, u32 count) {
     put_functype(&s.base, params_close, sp_carr_len(params_close), true);
     put_functype(&s.base, params_path, sp_carr_len(params_path), true);
     put_functype(&s.base, params_rename, sp_carr_len(params_rename), true);
-    put_functype(&s.base, SP_NULLPTR, 0, true);
+    const u8 params_guest [] = { WASM_TYPE_I32 };
+    put_functype(&s.base, params_guest, sp_carr_len(params_guest), true);
     put_functype(&s.base, SP_NULLPTR, 0, false);
     put_section(&out.base, WASM_SEC_TYPE, &s);
   }

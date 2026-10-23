@@ -10,24 +10,31 @@
 #include "cpu/cpu.h"
 #include "error/error.h"
 #include "external/wasm/wasm.h"
+#include "dag/node.h"
 #include "graph/dag.h"
 #include "op/types.h"
 #include "unit/unit.h"
 #include "session/session.h"
 
+typedef struct {
+  spn_pkg_unit_t* unit;
+  spn_dag_id_t reactor;
+} configure_t;
+
 static spn_err_t on_configure(const si_dag_ctx_t* c, void* user_data) {
-  spn_pkg_unit_t* unit = (spn_pkg_unit_t*)user_data;
-  spn_wasm_script_t* script = &unit->wasm.configure;
-  if (spn_wasm_script_open(script, unit)) {
+  configure_t* ctx = (configure_t*)user_data;
+  spn_pkg_unit_t* unit = ctx->unit;
+  spn_wasm_script_t script = sp_zero;
+  if (spn_wasm_script_open(c->mem, unit, si_dag_resolve_input(c, ctx->reactor), c->obs, &script)) {
     return SPN_ERR_DAG_ACTION;
   }
-  if (!spn_wasm_script_exports(script, sp_str_lit("configure"))) {
-    return SPN_OK;
+  spn_err_t err = SPN_OK;
+  if (spn_wasm_script_exports(&script, sp_str_lit("configure"))) {
+    spn_wasm_handle_t config = { .ptr = unit, .kind = SPN_ABI_KIND_CONFIG };
+    err = spn_wasm_script_call(&script, sp_str_lit("configure"), &config, 1);
   }
-  if (spn_wasm_script_call(script, unit, sp_str_lit("configure"), SPN_ABI_KIND_CONFIG, unit)) {
-    return SPN_ERR_DAG_ACTION;
-  }
-  return SPN_OK;
+  spn_wasm_script_close(&script);
+  return err ? SPN_ERR_DAG_ACTION : SPN_OK;
 }
 
 spn_err_t configure(spn_op_t* op) {
@@ -68,10 +75,15 @@ spn_err_t configure(spn_op_t* op) {
       }
       spn_dag_target_ids_t* ids = sp_ht_getp(dag->ids.targets, reactor);
       sp_assert(ids);
+      configure_t* ctx = sp_alloc_type(dag->mem, configure_t);
+      *ctx = (configure_t) {
+        .unit = unit,
+        .reactor = ids->output,
+      };
       spn_dag_id_t action = spn_dag_add_action(g, (spn_dag_action_config_t) {
         .kind = SPN_DAG_ACTION_UNCACHEABLE,
         .execute = on_configure,
-        .user_data = unit,
+        .user_data = ctx,
       });
       spn_dag_action_add_input(g, action, ids->output);
     }

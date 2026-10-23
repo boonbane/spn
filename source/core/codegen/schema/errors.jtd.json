@@ -49,7 +49,6 @@
     "wasm_read_failed": { "ref": "wasm" },
     "wasm_thread_env_failed": { "ref": "wasm" },
     "wasm_script_error": { "ref": "wasm" },
-    "wasm_no_script": { "ref": "wasm" },
     "wasm_export_not_found": { "ref": "wasm" },
     "profile_invalid": { "ref": "profile" },
     "profile_undefined": { "ref": "profile" },

@@ -59,6 +59,31 @@ sp_test(script, chained_nodes) {
   });
 }
 
+sp_test(script, script_edit) {
+  return run_rebuild_test(t, (rebuild_test_t) {
+    .project = "test/integration/fixtures/script/script_edit",
+    .copy = { "spn.c", "spn.change.c" },
+    .first = {
+      .args = { "build" },
+      .expect.files = { { .file = work_file("E/V.txt"), .content = "1" } },
+    },
+    .rebuilds = {
+      {
+        .change.moves = {
+          { .from = sp_str_lit("spn.change.c"), .to = sp_str_lit("spn.c") },
+        },
+        .command = {
+          .args = { "build" },
+          .expect = {
+            .events = { { .event = SPN_EVENT_SCRIPT_USER_FN, .key = "tag", .value = "gen" } },
+            .files = { { .file = work_file("E/V.txt"), .content = "2" } },
+          },
+        },
+      },
+    },
+  });
+}
+
 sp_test(script, tree_output_cached) {
   return run_rebuild_test(t, (rebuild_test_t) {
     .project = "test/integration/fixtures/script/tree_output",
@@ -151,6 +176,7 @@ static const failure_t failures [] = {
   { .name = "configure_missing_source", .err = SPN_ERR_CONFIGURE_SOURCE_MISSING },
   { .name = "configure_dead_glob", .copy = { "tools" }, .err = SPN_ERR_CONFIGURE_SOURCE_GLOB },
   { .name = "configure_error", .err = SPN_ERR_WASM_SCRIPT_ERROR },
+  { .name = "missing_node_fn", .err = SPN_ERR_WASM_EXPORT_NOT_FOUND },
   { .name = "add_define_path_outside", .err = SPN_ERR_WASM_MODULE_CALL_FAILED },
 };
 

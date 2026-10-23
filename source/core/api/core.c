@@ -65,7 +65,7 @@ static void reject(spn_pkg_unit_t* unit, const c8* fn, sp_str_t path, spn_err_t 
   }
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   sp_str_t message = sp_fmt(scratch.mem, "{}: {} {}", SP_FMT_CSTR(fn), SP_FMT_STR(path), SP_FMT_STR(reason)).value;
-  if (!spn_wasm_trap_active(unit, message)) {
+  if (!spn_wasm_trap(message)) {
     spn_err_emit(unit->session->ctx, (spn_err_union_t) {
       .kind = kind,
       .fs = { .path = { .sub = sp_str_copy(spn.events->mem, path) } },
@@ -141,7 +141,7 @@ bool spn_api_name_rejected(spn_pkg_unit_t* unit, const c8* fn, const c8* name) {
   }
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   sp_str_t message = sp_fmt(scratch.mem, "{}: {} may not contain '/'", SP_FMT_CSTR(fn), SP_FMT_STR(str)).value;
-  if (!spn_wasm_trap_active(unit, message)) {
+  if (!spn_wasm_trap(message)) {
     spn_err_emit(unit->session->ctx, (spn_err_union_t) {
       .kind = SPN_ERR_NAME_SEPARATOR,
       .target = { .pkg = unit->info->name.str, .name = sp_str_copy(spn.events->mem, str) },
@@ -166,7 +166,7 @@ static spn_target_t* add_target(spn_pkg_unit_t* unit, const c8* fn, const c8* na
 
     // @spader This smells like bullshit, but leaving for now. Not this one
     // call site, the whole pattern.
-    if (!spn_wasm_trap_active(unit, message)) {
+    if (!spn_wasm_trap(message)) {
       spn_err_emit(unit->session->ctx, (spn_err_union_t) {
         .kind = SPN_ERR_TARGET_DUPLICATE,
         .target = { .pkg = unit->info->name.str, .name = sp_str_copy(spn.events->mem, str) },
@@ -372,7 +372,7 @@ void spn_target_add_define_path(spn_target_t* target, const c8* name, spn_dir_t 
   else {
     sp_str_t full = spn_path_str(&unit->session->ctx->roots, scratch.mem, joined);
     sp_str_t message = sp_fmt(scratch.mem, "spn_target_add_define_path: {} is not inside the project", SP_FMT_STR(full)).value;
-    if (!spn_wasm_trap_active(unit, message)) {
+    if (!spn_wasm_trap(message)) {
       spn_err_emit(unit->session->ctx, (spn_err_union_t) {
         .kind = SPN_ERR_PATH_OUTSIDE_PROJECT,
         .fs = { .path = spn_path_copy(spn.events->mem, joined) },
@@ -393,7 +393,7 @@ static bool embed_dest_rejected(spn_pkg_unit_t* unit, const c8* fn, sp_str_t des
   }
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   sp_str_t message = sp_fmt(scratch.mem, "{}: {} must be a relative, non-empty path without '.' or '..' components", SP_FMT_CSTR(fn), SP_FMT_STR(dest)).value;
-  if (!spn_wasm_trap_active(unit, message)) {
+  if (!spn_wasm_trap(message)) {
     spn_err_emit(unit->session->ctx, (spn_err_union_t) {
       .kind = SPN_ERR_PATH_COMPONENT,
       .fs = { .path = { .sub = sp_str_copy(spn.events->mem, dest) } },

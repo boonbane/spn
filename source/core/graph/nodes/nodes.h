@@ -81,6 +81,11 @@ typedef struct {
 } si_embed_t;
 
 typedef struct {
+  spn_user_node_t* node;
+  spn_dag_id_t script;
+} si_user_node_t;
+
+typedef struct {
   spn_pkg_unit_t* pkg;
   spn_dag_id_t include;
   spn_dag_id_t share;

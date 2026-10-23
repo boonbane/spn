@@ -12,7 +12,6 @@
 #include "dag/glob.h"
 #include "error/error.h"
 #include "enum/enum.h"
-#include "external/wasm/wasm.h"
 #include "intern/intern.h"
 #include "paths/paths.h"
 #include "pkg/id.h"
@@ -528,21 +527,6 @@ static spn_err_t resolve_target_deps(spn_session_t* s, si_da(spn_target_unit_t*)
   return SPN_OK;
 }
 
-static void init_wasm_scripts(spn_session_t* s) {
-  sp_om_for(s->units.packages, it) {
-    spn_pkg_unit_t* unit = sp_om_at(s->units.packages, it);
-    if (!unit->metaprogram) {
-      continue;
-    }
-    if (unit->metaprogram->scripts.configure) {
-      spn_wasm_script_init(&unit->wasm.configure, unit->metaprogram->scripts.configure->paths.output);
-    }
-    if (unit->metaprogram->scripts.build) {
-      spn_wasm_script_init(&unit->wasm.build, unit->metaprogram->scripts.build->paths.output);
-    }
-  }
-}
-
 static spn_err_t add_metaprogram_targets(spn_session_t* s) {
   spn_build_unit_t* world = s->units.metaprogram;
 
@@ -596,8 +580,6 @@ static spn_err_t add_metaprogram_targets(spn_session_t* s) {
       spn_try(build_target_plan(it->scripts.configure));
     }
   }
-
-  init_wasm_scripts(s);
   return SPN_OK;
 }
 

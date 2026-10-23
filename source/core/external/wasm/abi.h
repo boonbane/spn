@@ -8,11 +8,6 @@
 
 #include "external/wasm/types.h"
 
-typedef struct {
-  void* ptr;
-  spn_abi_kind_t kind;
-} spn_wasm_handle_t;
-
 struct spn_wasm_handles_t {
   sp_ht(u32, spn_wasm_handle_t) map;
   u32 next;

@@ -96,7 +96,7 @@ static void add_output(spn_node_t* node, const c8* fn, spn_dir_t dir, const c8* 
   if (problem != OUTPUT_OK) {
     sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
     sp_str_t message = sp_fmt(scratch.mem, "{}: {}/{} {}", SP_FMT_CSTR(fn), SP_FMT_STR(spn_dir_to_str(dir)), SP_FMT_STR(sub), SP_FMT_STR(output_problem_str(problem))).value;
-    bool trapped = spn_wasm_trap_active(unit, message);
+    bool trapped = spn_wasm_trap(message);
     sp_mem_end_scratch(scratch);
     sp_assert(trapped);
     return;

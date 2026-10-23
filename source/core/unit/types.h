@@ -14,7 +14,6 @@
 #include "macro/macro.h"
 #include "profile/types.h"
 #include "target/types.h"
-#include "external/wasm/types.h"
 
 struct spn_build_unit_t {
   spn_build_id_t id;
@@ -185,18 +184,6 @@ struct spn_pkg_unit_t {
     spn_path_t vendor;
   } paths;
 
-  struct {
-    u64 compile;
-    u64 configure;
-    u64 build;
-    u64 total;
-  } time;
-
-  struct {
-    spn_wasm_script_t configure;
-    spn_wasm_script_t build;
-    spn_wasm_script_t* active;
-  } wasm;
 };
 
 struct spn_toolchain_unit_t {

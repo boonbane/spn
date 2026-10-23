@@ -1,6 +1,7 @@
 add_executable(core
   tools/ctx.c
   tools/elf_emit.c
+  tools/wasm_emit.c
   tools/main/unit.c
   drain.c
   elf.c
@@ -41,6 +42,7 @@ add_executable(core
   compiler/toc.c
   config/config.c
   external/obj.c
+  external/wasm.c
   gen/lower.c
   gen/reader.c
   git/fixture.c
@@ -151,6 +153,7 @@ add_executable(core
   ${SRC}/codegen/toolchain.c
   ${SRC}/codegen/options.c
   ${SRC}/codegen/when.c
+  ${GEN_DIR}/abi.gen.c
   ${GEN_DIR}/config.gen.c
   ${GEN_DIR}/errors.gen.c
   ${GEN_DIR}/events.gen.c
@@ -180,8 +183,13 @@ add_executable(core
   ${SRC}/external/git.c
   ${SRC}/external/obj.c
   ${SRC}/external/tom.c
-  ${SRC}/external/wasm/script.c
+  ${SRC}/external/wasm/abi.c
+  ${SRC}/external/wasm/guest.c
+  ${SRC}/external/wasm/wasm.c
   ${SRC}/external/zig.c
+  ${SRC}/api/api.c
+  ${SRC}/api/core.c
+  ${SRC}/api/node/node.c
   ${SRC}/git/cache.c
   ${SRC}/git/key.c
   ${SRC}/git/url.c

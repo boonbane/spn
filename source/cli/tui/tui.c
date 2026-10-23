@@ -1336,10 +1336,6 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           );
           break;
         }
-        case SPN_ERR_WASM_NO_SCRIPT: {
-          sp_io_write_str(w.io, sp_str_lit("Node has a wasm fn but no build script is loaded"), SP_NULLPTR);
-          break;
-        }
         case SPN_ERR_WASM_EXPORT_NOT_FOUND: {
           sp_tty_fmt(
             &w,
