@@ -150,12 +150,15 @@ spn_err_t spn_dag_build_add_build(spn_dag_build_t* b, spn_build_unit_t* build) {
       spn_dag_hash_path(&digest, paths->msvc_lib);
       spn_dag_hash_path(&digest, paths->kernel32_lib);
 
+      si_libc_t* ctx = sp_alloc_type(b->mem, si_libc_t);
+      *ctx = (si_libc_t) { .libc = paths };
       spn_dag_id_t action = spn_dag_add_action(g, (spn_dag_action_config_t) {
         .identity = spn_dag_hash_final(&digest),
         .execute = si_on_write_libc,
-        .user_data = paths,
+        .user_data = ctx,
       });
       libc = spn_dag_add_output(g, sp_str_lit("libc.txt"));
+      ctx->output = libc;
       spn_try(spn_dag_action_add_output(g, action, libc));
       break;
     }
@@ -290,6 +293,7 @@ static spn_err_t add_object_compilation(spn_dag_build_t* b, sp_mem_t mem, spn_ta
     }
 
     ids.object = spn_dag_add_output(g, sp_fs_get_name(unit->name));
+    ctx->object = ids.object;
     spn_try(spn_dag_action_add_output(g, ids.action, ids.object));
 
     si_da_push(mem, *objects, ids);
@@ -342,12 +346,18 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
         spn_dag_hash_str(&digest, sp_str_lit("spn.build.publish.file.v1"));
         spn_dag_hash_path(&digest, dest);
 
+        si_publish_file_t* ctx = sp_alloc_type(b->mem, si_publish_file_t);
+        *ctx = (si_publish_file_t) {
+          .source = objects[it].object,
+          .dest = spn_dag_add_file(g, dest),
+        };
         spn_dag_id_t action = spn_dag_add_action(g, (spn_dag_action_config_t) {
           .identity = spn_dag_hash_final(&digest),
           .execute = si_on_publish_file,
+          .user_data = ctx,
         });
-        spn_dag_action_add_input(g, action, objects[it].object);
-        spn_try(spn_dag_action_add_output(g, action, spn_dag_add_file(g, dest)));
+        spn_dag_action_add_input(g, action, ctx->source);
+        spn_try(spn_dag_action_add_output(g, action, ctx->dest));
       }
       return SPN_OK;
     }
@@ -372,16 +382,24 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
   }
 
   if (!si_da_empty(target->info->embed)) {
+    si_embed_t* ctx = sp_alloc_type(b->mem, si_embed_t);
+    *ctx = (si_embed_t) {
+      .target = target,
+      .object_path = embed_artifact_path(b->mem, target, "o"),
+      .header_path = embed_artifact_path(b->mem, target, "h"),
+    };
+    ctx->object = spn_dag_add_file(g, ctx->object_path);
+    ctx->header = spn_dag_add_file(g, ctx->header_path);
+    spn_dag_id_t object = ctx->object;
+    spn_dag_id_t header = ctx->header;
     spn_dag_id_t embed = spn_dag_add_action(g, (spn_dag_action_config_t) {
       .kind = SPN_DAG_ACTION_DISCOVERED,
       .identity = hash_embedding(target),
       .execute = si_on_embed,
-      .user_data = target,
+      .user_data = ctx,
     });
     announce_package(b, embed, target->pkg);
     sp_ht_insert(b->ids.embeds, target, embed);
-    spn_dag_id_t object = spn_dag_add_file(g, embed_artifact_path(mem, target, "o"));
-    spn_dag_id_t header = spn_dag_add_file(g, embed_artifact_path(mem, target, "h"));
     spn_try(spn_dag_action_add_output(g, embed, object));
     spn_try(spn_dag_action_add_output(g, embed, header));
 
@@ -428,6 +446,7 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
       spn_dag_action_add_input(g, action, object_ids[it]);
     }
     spn_dag_id_t file = spn_dag_add_output(g, sp_str_lit("objects.rsp"));
+    rsp->output = file;
     spn_try(spn_dag_action_add_output(g, action, file));
 
     si_da_push(mem, link_inputs, file);
@@ -442,6 +461,7 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
         .output_path = target->paths.output,
         .subject = spn_target_unit_subject(target),
         .objects = link_objects,
+        .output = ids->output,
       };
 
       spn_digest_ctx_t digest = sp_zero;
@@ -470,8 +490,9 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
         .output_path = target->paths.output,
         .subject = spn_target_unit_subject(target),
         .objects = link_objects,
-        .implib = ids->implib,
         .libc = libc,
+        .output = ids->output,
+        .implib = ids->implib,
       };
       si_da_for(link->deps, it) {
         spn_link_dep_t* dep = &link->deps[it];
@@ -529,6 +550,7 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
             spn_dag_action_add_input(g, action, ctx->deps.whole_archives[it]);
           }
           ctx->exports = spn_dag_add_output(g, sp_fmt(mem, "{}.{}", sp_fmt_str(target->info->name.str), sp_fmt_str(spn_cc_exports_extension(format))).value);
+          exports->output = ctx->exports;
           spn_try(spn_dag_action_add_output(g, action, ctx->exports));
           si_da_push(mem, link_inputs, ctx->exports);
           break;
@@ -633,6 +655,7 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
             spn_dag_action_add_input(g, warm_action, libc);
           }
           stamp = spn_dag_add_output(g, name);
+          warm->stamp = stamp;
           spn_try(spn_dag_action_add_output(g, warm_action, stamp));
           sp_ht_insert(b->ids.warm, identity, stamp);
         }
@@ -671,15 +694,21 @@ static spn_err_t add_compile_commands(spn_dag_build_t* b) {
     spn_dag_hash_digest(&digest, hash_compile(unit));
   }
 
+  si_compile_commands_t* ctx = sp_alloc_type(b->mem, si_compile_commands_t);
+  *ctx = (si_compile_commands_t) {
+    .session = session,
+    .file = spn_dag_add_output(g, sp_str_lit("compile_commands.json")),
+    .stamp = spn_dag_add_output(g, sp_str_lit("compile_commands.stamp")),
+  };
   spn_dag_id_t action = spn_dag_add_action(g, (spn_dag_action_config_t) {
     .identity = spn_dag_hash_final(&digest),
     .execute = si_on_write_compile_commands,
-    .user_data = session,
+    .user_data = ctx,
   });
-  b->compile_commands.file = spn_dag_add_output(g, sp_str_lit("compile_commands.json"));
-  b->compile_commands.stamp = spn_dag_add_output(g, sp_str_lit("compile_commands.stamp"));
-  spn_try(spn_dag_action_add_output(g, action, b->compile_commands.file));
-  spn_try(spn_dag_action_add_output(g, action, b->compile_commands.stamp));
+  b->compile_commands.file = ctx->file;
+  b->compile_commands.stamp = ctx->stamp;
+  spn_try(spn_dag_action_add_output(g, action, ctx->file));
+  spn_try(spn_dag_action_add_output(g, action, ctx->stamp));
 
   si_da_for(b->compiles, it) {
     spn_dag_action_add_input(g, b->compiles[it], b->compile_commands.stamp);
@@ -775,7 +804,8 @@ static spn_err_t prepare_graph(spn_dag_build_t* b) {
 
           si_da_for(node->outputs, ot) {
             spn_user_output_t* out = &node->outputs[ot];
-            spn_err_t err = spn_dag_action_add_output(g, action, spn_dag_add_path(g, out->path, out->kind));
+            spn_dag_id_t output = spn_dag_add_path(g, out->path, out->kind);
+            spn_err_t err = spn_dag_action_add_output(g, action, output);
             if (err) {
               b->env.diag = (spn_dag_diag_t) {
                 .err = err,
@@ -805,17 +835,24 @@ static spn_err_t prepare_graph(spn_dag_build_t* b) {
           }
         }
 
+        spn_dag_id_t* stamp = sp_ht_getp(b->ids.stamps, package);
+        sp_assert(stamp);
+        si_publish_t* ctx = sp_alloc_type(b->mem, si_publish_t);
+        *ctx = (si_publish_t) {
+          .pkg = package,
+          .include = spn_dag_add_tree(g, package->paths.include),
+          .share = spn_dag_add_tree(g, package->paths.share),
+          .stamp = *stamp,
+        };
         spn_dag_id_t action = spn_dag_add_action(g, (spn_dag_action_config_t) {
           .kind = SPN_DAG_ACTION_DISCOVERED,
           .identity = spn_dag_hash_final(&digest),
           .execute = si_on_publish,
-          .user_data = package,
+          .user_data = ctx,
         });
-        spn_try(spn_dag_action_add_output(g, action, spn_dag_add_tree(g, package->paths.include)));
-        spn_try(spn_dag_action_add_output(g, action, spn_dag_add_tree(g, package->paths.share)));
-        spn_dag_id_t* stamp = sp_ht_getp(b->ids.stamps, package);
-        sp_assert(stamp);
-        spn_try(spn_dag_action_add_output(g, action, *stamp));
+        spn_try(spn_dag_action_add_output(g, action, ctx->include));
+        spn_try(spn_dag_action_add_output(g, action, ctx->share));
+        spn_try(spn_dag_action_add_output(g, action, ctx->stamp));
       }
 
       sp_da_for(package->targets, k) {

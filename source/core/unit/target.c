@@ -9,7 +9,7 @@
 #include "ctx/types.h"
 
 #include "compiler/driver.h"
-#include "dag/dag.h"
+#include "dag/glob.h"
 #include "error/error.h"
 #include "enum/enum.h"
 #include "external/wasm/wasm.h"

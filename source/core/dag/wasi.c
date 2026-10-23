@@ -1,5 +1,6 @@
 #include "dag/wasi.h"
 #include "dag/dag.h"
+#include "dag/glob.h"
 #include "paths/paths.h"
 #include "str/str.h"
 
