@@ -20,14 +20,14 @@ static spn_err_t write_compile_commands(spn_dag_t* g, spn_session_t* session, sp
   sp_io_write_cstr(io, "[", SP_NULLPTR);
   sp_om_for(session->units.objects, it) {
     spn_compile_unit_t* unit = sp_om_at(session->units.objects, it);
-    spn_invocation_t invocation = spn_cc_render_compile_source(mem, &unit->base, unit->file);
+    spn_invocation_t invocation = spn_cc_render_compile_source(mem, &unit->plan.base, unit->file);
     sp_da(sp_str_t) args = spn_invocation_args(roots, mem, &invocation);
 
     if (it) {
       sp_io_write_c8(io, ',');
     }
     sp_io_write_cstr(io, "\n  { \"directory\": ", SP_NULLPTR);
-    spn_codegen_json_str(io, spn_path_str(roots, mem, invocation.cwd));
+    spn_codegen_json_str(io, spn_path_str(roots, mem, session->paths.root));
     sp_io_write_cstr(io, ", \"file\": ", SP_NULLPTR);
     spn_codegen_json_str(io, spn_path_str(roots, mem, unit->file));
     sp_io_write_cstr(io, ", \"arguments\": [", SP_NULLPTR);

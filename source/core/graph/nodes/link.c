@@ -16,7 +16,9 @@ spn_err_t si_on_link(spn_dag_t* g, spn_dag_action_t* action, void* user_data, sp
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
 
   spn_cc_link_files_t files = {
+    .cwd = spn_dag_scratch(scratch.mem, env, action),
     .output = outputs[0],
+    .scripts = si_dag_build_paths(scratch.mem, g, ctx->scripts),
     .archives = si_dag_build_paths(scratch.mem, g, ctx->deps.archives),
     .shared = si_dag_build_paths(scratch.mem, g, ctx->deps.shared),
     .whole_archives = si_dag_build_paths(scratch.mem, g, ctx->deps.whole_archives),
@@ -37,13 +39,11 @@ spn_err_t si_on_link(spn_dag_t* g, spn_dag_action_t* action, void* user_data, sp
   if (ctx->exports.occupied) {
     files.exports = si_dag_get_artifact_path(g, ctx->exports);
   }
-  if (spn_cc_link_implib(ctx->profile, ctx->link->kind)) {
+  if (ctx->implib.occupied) {
     files.implib = outputs[1];
   }
 
-  spn_invocation_t invocation = sp_zero;
-  si_cc_render_link(scratch.mem, ctx->cc, ctx->profile, ctx->link, &files, &invocation);
-  invocation.cwd = ctx->cwd;
+  spn_invocation_t invocation = spn_cc_render_link_command(scratch.mem, ctx->plan, &files);
 
   spn_event_buffer_push(spn.events, (spn_event_t) {
     .kind = SPN_EVENT_LINK_START,

@@ -128,21 +128,26 @@ static spn_arg_t assembler(sp_mem_t mem, const spn_cc_t* toolchain, const spn_pr
   return spn_arg_path(spn_path_join(mem, bin, assembler_name(profile->arch)));
 }
 
-void spn_msvc_render_compile(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, const spn_cc_compile_t* compile, spn_invocation_t* invocation) {
-  if (compile->lang == SPN_LANG_ASM) {
+spn_cc_compile_plan_t spn_msvc_render_compile(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, spn_lang_t lang, const spn_cc_compile_t* compile) {
+  spn_cc_compile_plan_t plan = {
+    .driver = toolchain->driver,
+    .depfile = lang == SPN_LANG_ASM ? SPN_CC_DEPFILE_NONE : SPN_CC_DEPFILE_REQUIRED,
+  };
+  spn_invocation_t* invocation = &plan.base;
+  if (lang == SPN_LANG_ASM) {
     invocation->program = assembler(mem, toolchain, profile);
     spn_cc_push_c(mem, invocation, "/nologo");
     spn_cc_push_c(mem, invocation, "/c");
-    return;
+    return plan;
   }
-  add_launcher(mem, toolchain, profile, compile->lang, invocation);
+  add_launcher(mem, toolchain, profile, lang, invocation);
   spn_cc_push_c(mem, invocation, "/utf-8");
   spn_cc_push_c(mem, invocation, "/Brepro");
   spn_cc_flags_t flags = sp_zero;
   sp_da_init(mem, flags.compile);
   sp_da_init(mem, flags.link);
   spn_msvc_render_flags(mem, profile, &flags);
-  sp_str_t standard = compile->lang == SPN_LANG_CXX ?
+  sp_str_t standard = lang == SPN_LANG_CXX ?
     cxx_standard_switch(compile->cxx.standard) :
     c_standard_switch(profile->standard);
   if (!sp_str_empty(standard)) {
@@ -159,7 +164,7 @@ void spn_msvc_render_compile(sp_mem_t mem, const spn_cc_t* toolchain, const spn_
   si_da_for(compile->define, it) {
     spn_cc_push_fmt(mem, invocation, "/D{}", sp_fmt_str(compile->define[it]));
   }
-  if (compile->lang == SPN_LANG_CXX) {
+  if (lang == SPN_LANG_CXX) {
     if (!compile->cxx.no_exceptions) {
       spn_cc_push_c(mem, invocation, "/EHsc");
     }
@@ -173,14 +178,16 @@ void spn_msvc_render_compile(sp_mem_t mem, const spn_cc_t* toolchain, const spn_
   // Parity with -Werror=return-type: C4715 is "not all control paths
   // return a value"
   spn_cc_push_c(mem, invocation, "/we4715");
+  return plan;
 }
 
-void spn_msvc_render_compile_locations(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, const spn_cc_compile_files_t* files, spn_invocation_t* invocation) {
+void spn_msvc_render_compile_locations(sp_mem_t mem, const spn_cc_compile_plan_t* plan, const spn_cc_compile_files_t* files, spn_invocation_t* invocation) {
   if (!spn_path_empty(files->depfile)) {
     spn_cc_push_c(mem, invocation, "/sourceDependencies");
     spn_cc_push_path(mem, invocation, files->depfile);
   }
   spn_cc_push_glued(mem, invocation, "/Fo", files->output);
+  spn_cc_push_path(mem, invocation, files->source);
 }
 
 spn_err_t spn_msvc_parse_depfile(sp_mem_t mem, sp_str_t content, sp_da(sp_str_t)* prereqs) {
@@ -197,16 +204,24 @@ spn_err_t spn_msvc_parse_depfile(sp_mem_t mem, sp_str_t content, sp_da(sp_str_t)
   return SPN_OK;
 }
 
-void spn_msvc_render_link(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, const spn_cc_link_t* link, const spn_cc_link_files_t* files, spn_invocation_t* invocation) {
-  add_launcher(mem, toolchain, profile, link->lang, invocation);
+spn_cc_link_plan_t spn_msvc_render_link(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, const spn_cc_link_t* link) {
+  spn_cc_link_plan_t plan = {
+    .driver = toolchain->driver,
+    .dialect = SPN_LD_DIALECT_LINK,
+  };
+  spn_invocation_t* base = &plan.base;
+  spn_invocation_t tail = sp_zero;
+
+  add_launcher(mem, toolchain, profile, link->lang, base);
   spn_cc_flags_t flags = sp_zero;
   sp_da_init(mem, flags.compile);
   sp_da_init(mem, flags.link);
   spn_msvc_render_flags(mem, profile, &flags);
-  spn_cc_push_strs(mem, invocation, flags.link);
+  spn_cc_push_strs(mem, base, flags.link);
   switch (link->kind) {
     case SPN_CC_OUTPUT_SHARED_LIB: {
-      spn_cc_push_c(mem, invocation, "/LD");
+      spn_cc_push_c(mem, base, "/LD");
+      plan.exports = spn_cc_exports_format(link->kind, SPN_OBJ_COFF);
       break;
     }
     case SPN_CC_OUTPUT_EXE: {
@@ -218,59 +233,67 @@ void spn_msvc_render_link(sp_mem_t mem, const spn_cc_t* toolchain, const spn_pro
       sp_unreachable_case();
     }
   }
+  if (profile->sdk.kind == SPN_SDK_MSVC) {
+    add_sdk_link(mem, &profile->sdk.msvc, base);
+  }
+
+  si_da_for(link->system_libs, it) {
+    spn_cc_push_fmt(mem, &tail, "{}.lib", sp_fmt_str(link->system_libs[it]));
+  }
+  spn_cc_push_c(mem, &tail, "/link");
+  if (profile->mode == SPN_MODE_DEBUG) {
+    spn_cc_push_c(mem, &tail, "/DEBUG");
+  }
+  if (link->kind == SPN_CC_OUTPUT_EXE && link->subsystem == SPN_WIN_SUBSYSTEM_WINDOWS) {
+    spn_cc_push_c(mem, &tail, "/SUBSYSTEM:WINDOWS");
+    spn_cc_push_c(mem, &tail, "/ENTRY:mainCRTStartup");
+  }
+  spn_cc_push_strs(mem, &tail, toolchain->link_args);
+  si_da_for(link->args, it) {
+    spn_cc_push_str(mem, &tail, link->args[it]);
+  }
+  plan.tail = tail.args;
+  return plan;
+}
+
+void spn_msvc_render_link_locations(sp_mem_t mem, const spn_cc_link_plan_t* plan, const spn_cc_link_files_t* files, spn_invocation_t* invocation) {
   if (!spn_path_empty(files->rsp)) {
     spn_cc_push_glued(mem, invocation, "@", files->rsp);
   }
   si_da_for(files->objects, it) {
     spn_cc_push_path(mem, invocation, files->objects[it]);
   }
-
   si_da_for(files->archives, it) {
     spn_cc_push_path(mem, invocation, files->archives[it]);
   }
   si_da_for(files->shared, it) {
     spn_cc_push_path(mem, invocation, files->shared[it]);
   }
-  si_da_for(link->system_libs, it) {
-    spn_cc_push_fmt(mem, invocation, "{}.lib", sp_fmt_str(link->system_libs[it]));
-  }
   spn_cc_push_glued(mem, invocation, "/Fe", files->output);
-  if (profile->sdk.kind == SPN_SDK_MSVC) {
-    add_sdk_link(mem, &profile->sdk.msvc, invocation);
+  spn_cc_push_args(mem, invocation, plan->tail);
+  if (!spn_path_empty(files->exports)) {
+    spn_cc_push_glued(mem, invocation, "/DEF:", files->exports);
   }
-
-  sp_da(spn_arg_t) linker = sp_da_new(mem, spn_arg_t);
-  if (profile->mode == SPN_MODE_DEBUG) {
-    sp_da_push(linker, spn_arg_lit(sp_str_lit("/DEBUG")));
-  }
-  if (link->kind == SPN_CC_OUTPUT_SHARED_LIB) {
-    sp_da_push(linker, spn_arg_glue(sp_str_lit("/DEF:"), files->exports));
-    sp_da_push(linker, spn_arg_glue(sp_str_lit("/IMPLIB:"), files->implib));
+  if (!spn_path_empty(files->implib)) {
+    spn_cc_push_glued(mem, invocation, "/IMPLIB:", files->implib);
   }
   si_da_for(files->whole_archives, it) {
-    sp_da_push(linker, spn_arg_glue(sp_str_lit("/WHOLEARCHIVE:"), files->whole_archives[it]));
-  }
-  if (link->kind == SPN_CC_OUTPUT_EXE && link->subsystem == SPN_WIN_SUBSYSTEM_WINDOWS) {
-    sp_da_push(linker, spn_arg_lit(sp_str_lit("/SUBSYSTEM:WINDOWS")));
-    sp_da_push(linker, spn_arg_lit(sp_str_lit("/ENTRY:mainCRTStartup")));
-  }
-  sp_da_for(toolchain->link_args, it) {
-    sp_da_push(linker, spn_arg_lit(toolchain->link_args[it]));
-  }
-  si_da_for(link->args, it) {
-    sp_da_push(linker, spn_arg_lit(link->args[it]));
-  }
-
-  if (!sp_da_empty(linker)) {
-    spn_cc_push_c(mem, invocation, "/link");
-    spn_cc_push_args(mem, invocation, linker);
+    spn_cc_push_glued(mem, invocation, "/WHOLEARCHIVE:", files->whole_archives[it]);
   }
 }
 
-void spn_msvc_render_archive(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, const spn_cc_archive_files_t* files, spn_invocation_t* invocation) {
-  invocation->program = program(mem, profile, toolchain->archiver, sp_str_lit("lib.exe"));
-  spn_cc_push_strs(mem, invocation, toolchain->archiver.args);
-  spn_cc_push_c(mem, invocation, "/nologo");
+spn_cc_archive_plan_t spn_msvc_render_archive(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile) {
+  spn_cc_archive_plan_t plan = {
+    .driver = SPN_AR_DRIVER_MSVC,
+  };
+  spn_invocation_t* base = &plan.base;
+  base->program = program(mem, profile, toolchain->archiver, sp_str_lit("lib.exe"));
+  spn_cc_push_strs(mem, base, toolchain->archiver.args);
+  spn_cc_push_c(mem, base, "/nologo");
+  return plan;
+}
+
+void spn_msvc_render_archive_locations(sp_mem_t mem, const spn_cc_archive_plan_t* plan, const spn_cc_archive_files_t* files, spn_invocation_t* invocation) {
   spn_cc_push_glued(mem, invocation, "/OUT:", files->output);
   if (!spn_path_empty(files->rsp)) {
     spn_cc_push_glued(mem, invocation, "@", files->rsp);

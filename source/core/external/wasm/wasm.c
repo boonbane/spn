@@ -313,7 +313,3 @@ spn_err_t spn_wasm_call_export_ex(spn_pkg_unit_t* unit, sp_str_t name, spn_abi_k
 
   return script_call_ex(script, unit, name, kind, arg, obs);
 }
-
-spn_err_t spn_wasm_call_export(spn_pkg_unit_t* unit, sp_str_t name, spn_abi_kind_t kind, void* arg) {
-  return spn_wasm_call_export_ex(unit, name, kind, arg, SP_NULLPTR);
-}
