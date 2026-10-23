@@ -497,15 +497,7 @@ sp_test_each(options_merge, merge, merge_test_t, tests, .setup = spn_test_ctx_se
     si_om_insert(mem, pkg.options, option.id, option);
   }
 
-  spn_profile_info_t profile = {
-    .os = it->facts.os,
-    .arch = it->facts.arch,
-    .abi = it->facts.abi,
-    .mode = it->facts.mode,
-    .opt = it->facts.opt,
-    .sanitizers = it->facts.sanitizers,
-    .options = make_when(mem, it->profile_options, SP_CARR_LEN(it->profile_options)),
-  };
+  spn_when_t profile_options = make_when(mem, it->profile_options, SP_CARR_LEN(it->profile_options));
 
   spn_pkg_config_map_t config = sp_zero;
   if (it->config[0].key || it->defaults_declined) {
@@ -528,7 +520,7 @@ sp_test_each(options_merge, merge, merge_test_t, tests, .setup = spn_test_ctx_se
   }
 
   spn_merged_options_t merged = sp_zero;
-  spn_options_merge(mem, pkg, &profile, config, requests, &merged);
+  spn_options_merge(mem, pkg, requests, it->facts, &profile_options, config, &merged);
 
   if (it->expect.violation) {
     sp_must(t, !sp_da_empty(merged.violations));

@@ -1,7 +1,6 @@
 #include "options/options.h"
 
 #include "intern/intern.h"
-#include "profile/profile.h"
 #include "when/when.h"
 
 typedef struct {
@@ -10,10 +9,10 @@ typedef struct {
   bool defaults_declined;
 } option_set_t;
 
-static option_set_t find_set(spn_option_subject_t subject, const spn_profile_info_t* profile, spn_pkg_config_map_t config) {
+static option_set_t find_set(spn_option_subject_t subject, const spn_when_t* profile_options, spn_pkg_config_map_t config) {
   spn_pkg_config_t* entry = si_om_get(config, subject.name.id);
   return (option_set_t) {
-    .clauses = subject.is_root ? &profile->options : entry ? &entry->options : SP_NULLPTR,
+    .clauses = subject.is_root ? profile_options : entry ? &entry->options : SP_NULLPTR,
     .setter = { .kind = subject.is_root ? SPN_OPTION_SETTER_PROFILE : SPN_OPTION_SETTER_ROOT_MANIFEST },
     .defaults_declined = entry && entry->defaults_declined,
   };
@@ -74,12 +73,13 @@ static void gather_claims(
 void spn_options_merge(
   sp_mem_t mem,
   spn_option_subject_t subject,
-  const spn_profile_info_t* profile,
-  spn_pkg_config_map_t config,
   spn_option_requests_t requests,
+  spn_when_facts_t facts,
+  const spn_when_t* profile_options,
+  spn_pkg_config_map_t config,
   spn_merged_options_t* merged
 ) {
-  option_set_t set = find_set(subject, profile, config);
+  option_set_t set = find_set(subject, profile_options, config);
 
   merged->options = sp_da_new(mem, spn_resolved_option_t);
   merged->violations = sp_da_new(mem, spn_option_violation_t);
@@ -93,7 +93,8 @@ void spn_options_merge(
   }
 
   spn_when_env_t env;
-  spn_profile_env(mem, profile, &env);
+  spn_when_env_init(mem, &env);
+  spn_when_env_set_facts(&env, facts);
 
   si_om_for(subject.options, it) {
     spn_option_info_t* option = si_om_at(subject.options, it);

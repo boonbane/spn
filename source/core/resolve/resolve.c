@@ -266,7 +266,7 @@ static void node_options_env(spn_resolver_t* resolver, spn_resolved_pkg_t* node,
   }
   spn_option_subject_t subject = { .name = node->name, .is_root = node->source == SPN_PKG_SOURCE_ROOT, .options = node->options };
   spn_merged_options_t merged = sp_zero;
-  spn_options_merge(resolver->mem, subject, &resolver->profile, resolver->config, seeds ? *seeds : SP_NULLPTR, &merged);
+  spn_options_merge(resolver->mem, subject, seeds ? *seeds : SP_NULLPTR, spn_profile_facts(&resolver->profile), &resolver->profile.options, resolver->config, &merged);
   spn_profile_env(resolver->mem, &resolver->profile, env);
   spn_options_env_set(env, &merged.options);
 }
