@@ -40,6 +40,8 @@ typedef struct {
   spn_session_t* session;
   spn_resolved_pkg_t* pkg;
   spn_loaded_pkg_t loaded;
+  bool fetched;
+  u64 elapsed;
   spn_err_t err;
 } pkg_job_t;
 
@@ -230,99 +232,12 @@ static si_da(sp_str_t) resolve_values(spn_gated_list_t entries, spn_when_env_t* 
   return resolved;
 }
 
-static spn_err_t resolve_configure_source(spn_ctx_t* ctx, sp_str_t name, si_da(spn_gated_source_t) declared, spn_loaded_pkg_t* loaded, spn_when_env_t* env, si_da(spn_source_t)* source) {
-  si_da(spn_source_t) resolved = SP_NULLPTR;
-  si_da_for(declared, it) {
-    if (!spn_when_eval(&declared[it].when, env)) {
-      continue;
-    }
-    spn_path_t path = spn_tree_path(spn.mem, &ctx->roots, loaded->roots, declared[it].tree, declared[it].path);
-    switch (declared[it].kind) {
-      case SPN_SOURCE_FILE: {
-        sp_path_t at = spn_path_at(&ctx->roots, path);
-        sp_sys_file_meta_t meta = sp_zero;
-        if (sp_sys_get_path_metadata_s(at.dir, at.sub, &meta) || meta.kind != SP_FS_KIND_FILE) {
-          return spn_err_emit(ctx, (spn_err_union_t) {
-            .kind = SPN_ERR_CONFIGURE_SOURCE_MISSING,
-            .configure_source = {
-              .name = name,
-              .source = declared[it].path,
-            }});
-        }
-        break;
-      }
-      case SPN_SOURCE_GLOB: {
-        sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-        spn_dag_glob_it_t glob = spn_dag_glob_it_new(scratch.mem, &ctx->roots, path);
-        bool matched = false;
-        while (!matched && spn_dag_glob_it_next(&glob)) {
-          matched = glob.entry.kind != SP_FS_KIND_DIR;
-        }
-        spn_dag_glob_it_deinit(&glob);
-        sp_mem_end_scratch(scratch);
-        if (!matched) {
-          return spn_err_emit(ctx, (spn_err_union_t) {
-            .kind = SPN_ERR_CONFIGURE_SOURCE_GLOB,
-            .configure_source = {
-              .name = name,
-              .source = declared[it].path,
-            }});
-        }
-        break;
-      }
-    }
-    si_da_push(spn.mem, resolved, ((spn_source_t) { .kind = declared[it].kind, .path = path }));
-  }
-  *source = resolved;
-  return SPN_OK;
-}
+static spn_err_t fetch_package(spn_session_t* session, spn_resolved_pkg_t* pkg, spn_loaded_pkg_t* loaded, bool* fetched) {
+  sp_str_t qualified = spn_intern_find(pkg->id.qualified);
 
-static spn_err_t load_manifest(spn_session_t* session, sp_str_t name, spn_path_t manifest, spn_pkg_info_t** info) {
-  spn_pkg_info_t* parsed = sp_alloc_type(session->mem, spn_pkg_info_t);
-  spn_codegen_issues_t issues = sp_zero;
-  spn_err_t loaded = spn_pkg_load(session->mem, session->ctx->intern, &session->ctx->roots, manifest, SPN_MANIFEST_DEP, parsed, &issues);
-  if (loaded) {
-    sp_str_t path = spn_path_str(&session->ctx->roots, spn.events->mem, manifest);
-    if (loaded == SPN_ERR_NO_MANIFEST) {
-      return spn_err_emit(session->ctx, (spn_err_union_t) {
-        .kind = SPN_ERR_NO_MANIFEST,
-        .no_manifest = { .path = path },
-      });
-    }
-    return spn_err_emit(session->ctx, (spn_err_union_t) {
-      .kind = SPN_ERR_MANIFEST_ISSUES,
-      .manifest = { .name = name, .path = path, .issues = spn_codegen_issues_to_err(spn.events->mem, issues) },
-    });
-  }
-
-  // Short names only: published manifests routinely omit the namespace the
-  // index assigns, but config keys and consumer routing use the name
-  sp_str_t requested = spn_pkg_name_from_qualified(name).name;
-  if (!sp_str_equal(parsed->name.str, requested)) {
-    return spn_err_emit(session->ctx, (spn_err_union_t) {
-      .kind = SPN_ERR_PKG_MISMATCH,
-      .mismatch = { .path = spn_path_str(&session->ctx->roots, spn.events->mem, manifest), .declared = parsed->name.str, .requested = name },
-    });
-  }
-
-  *info = parsed;
-  return SPN_OK;
-}
-
-static sp_str_t sync_url(spn_pkg_root_t recipe, spn_pkg_root_t source) {
-  if (source.kind == SPN_PKG_ROOT_GIT) {
-    return source.git.url;
-  }
-  if (recipe.kind == SPN_PKG_ROOT_GIT) {
-    return recipe.git.url;
-  }
-  return sp_str_lit("");
-}
-
-static spn_err_t stamp_patches(spn_session_t* session, spn_resolved_pkg_t* pkg, sp_str_t qualified) {
   switch (spn_pkg_patch_stamp(session->pkg->patches, pkg->id.qualified, &pkg->origin.source)) {
     case SPN_PKG_PATCH_STAMP_NONE: {
-      return SPN_OK;
+      break;
     }
     case SPN_PKG_PATCH_STAMP_APPLIED: {
       if (!spn_git_cache_is_checkout_cached(&session->ctx->caches.git, pkg->origin.source.git)) {
@@ -333,7 +248,7 @@ static spn_err_t stamp_patches(spn_session_t* session, spn_resolved_pkg_t* pkg, 
             .url = pkg->origin.source.git.url,
           }});
       }
-      return SPN_OK;
+      break;
     }
     case SPN_PKG_PATCH_STAMP_NOT_GIT: {
       return spn_err_emit(session->ctx, (spn_err_union_t) {
@@ -343,85 +258,13 @@ static spn_err_t stamp_patches(spn_session_t* session, spn_resolved_pkg_t* pkg, 
     }
   }
 
-  sp_unreachable_return(SPN_ERROR);
-}
-
-static spn_err_t load_package(spn_session_t* session, spn_resolved_pkg_t* pkg, spn_loaded_pkg_t* loaded) {
-  sp_tm_timer_t timer = sp_tm_start_timer();
-  bool fetched = false;
-  sp_str_t qualified = spn_intern_find(pkg->id.qualified);
-
-  loaded->source = pkg->source;
-
-  spn_try(stamp_patches(session, pkg, qualified));
-
-  spn_try(materialize_tree(session, qualified, pkg->origin.recipe, &loaded->roots.recipe, &fetched));
-
-  const spn_path_roots_t* roots = &session->ctx->roots;
-  loaded->info = pkg->origin.info;
-  if (!loaded->info) {
-    spn_try(load_manifest(session, qualified, spn_path_join(spn.mem, loaded->roots.recipe, pkg->origin.paths.manifest), &loaded->info));
-  }
+  spn_try(materialize_tree(session, qualified, pkg->origin.recipe, &loaded->roots.recipe, fetched));
 
   if (pkg->origin.source.kind == SPN_PKG_ROOT_NONE) {
     loaded->roots.source = loaded->roots.recipe;
   } else {
-    spn_try(materialize_tree(session, qualified, pkg->origin.source, &loaded->roots.source, &fetched));
+    spn_try(materialize_tree(session, qualified, pkg->origin.source, &loaded->roots.source, fetched));
   }
-
-  spn_when_env_t facts = sp_zero;
-  spn_when_env_from_profile(spn.mem, &session->units.target->profile, &facts);
-
-  loaded->build = loaded->info->build;
-  loaded->build.source = SP_NULLPTR;
-  si_da_for(loaded->info->build.gated.source, it) {
-    spn_gated_source_t* source = &loaded->info->build.gated.source[it];
-    if (!spn_when_eval(&source->when, &facts)) {
-      continue;
-    }
-    si_da_push(spn.mem, loaded->build.source, ((spn_source_t) {
-      .kind = source->kind,
-      .path = spn_tree_path(spn.mem, roots, loaded->roots, source->tree, source->path),
-    }));
-  }
-  loaded->build.include = resolve_paths(roots, loaded->info->build.gated.include, loaded, &facts);
-  loaded->build.define = resolve_values(loaded->info->build.gated.define, &facts);
-  loaded->build.flags = resolve_values(loaded->info->build.gated.flags, &facts);
-
-  loaded->configure = loaded->info->configure;
-  loaded->configure.include = resolve_paths(roots, loaded->info->configure.gated.include, loaded, &facts);
-  loaded->configure.define = resolve_values(loaded->info->configure.gated.define, &facts);
-  loaded->configure.flags = resolve_values(loaded->info->configure.gated.flags, &facts);
-
-  // @spader This is a weird case. Normally, a manifest is validated when we
-  // actually load the TOML, mechanically. No real context needed. But lists
-  // of sources can include globs, and those can hit files that are code
-  // generated by part of your build, so those are validated at the last
-  // moment, when we're ready to compile the sources that the glob lists.
-  //
-  // But for your configure script, if it uses a glob that produces no sources,
-  // that needs to error. There's no point at which you could code generate
-  // something that matches, so we can do it eagerly. And we *want* to do it
-  // up front, so we fail fast.
-  //
-  // But...this isn't really the right place to do it. This code is supposed
-  // to be more mechanical; "get the sources on disk, do basic validation". But
-  // what I just described belongs in the graph layer.
-  if (!si_da_empty(loaded->info->configure.gated.source)) {
-    spn_try(resolve_configure_source(session->ctx, qualified, loaded->info->configure.gated.source, loaded, &facts, &loaded->configure.source));
-  }
-
-  loaded->elapsed = sp_tm_read_timer(&timer);
-
-  spn_event_buffer_push(spn.events, (spn_event_t) {
-    .kind = SPN_EVENT_SYNC_PACKAGE, .pkg = loaded->info->name.str,
-    .sync_pkg = {
-      .name = qualified,
-      .url = sync_url(pkg->origin.recipe, pkg->origin.source),
-      .source_path = spn_path_str(roots, spn.events->mem, loaded->roots.source),
-      .time = loaded->elapsed,
-      .fetched = fetched,
-    }});
 
   return SPN_OK;
 }
@@ -433,7 +276,9 @@ static void sync_package_node(void *data) {
   if (sp_atomic_s32_load(&sync_failed, SP_ATOMIC_SEQ_CST) || spn_op_cancelled(job->op)) {
     return;
   }
-  job->err = load_package(job->session, job->pkg, &job->loaded);
+  sp_tm_timer_t timer = sp_tm_start_timer();
+  job->err = fetch_package(job->session, job->pkg, &job->loaded, &job->fetched);
+  job->elapsed = sp_tm_read_timer(&timer);
   if (job->err) {
     sp_atomic_s32_store(&sync_failed, (s32)job->err, SP_ATOMIC_SEQ_CST);
   }
@@ -547,11 +392,142 @@ spn_err_t sync_packages(spn_op_t* op, bool* reresolve) {
     spn_try(toolchains[it]->err);
   }
 
+  spn_when_env_t facts = sp_zero;
+  spn_when_env_from_profile(spn.mem, &session->units.target->profile, &facts);
+
+  const spn_path_roots_t* roots = &session->ctx->roots;
   sp_da_for(packages, it) {
     pkg_job_t* job = packages[it];
-    job->pkg->name = job->loaded.info->name.str;
-    job->pkg->options = job->loaded.info->options;
-    sp_ht_insert(session->packages, job->pkg->id, job->loaded);
+    spn_resolved_pkg_t* pkg = job->pkg;
+    spn_loaded_pkg_t* loaded = &job->loaded;
+    sp_str_t qualified = spn_intern_find(pkg->id.qualified);
+
+    loaded->source = pkg->source;
+    loaded->info = pkg->origin.info;
+    if (!loaded->info) {
+      spn_path_t manifest = spn_path_join(spn.mem, loaded->roots.recipe, pkg->origin.paths.manifest);
+      spn_pkg_info_t* parsed = sp_alloc_type(session->mem, spn_pkg_info_t);
+      spn_codegen_issues_t issues = sp_zero;
+      spn_err_t err = spn_pkg_load(session->mem, session->ctx->intern, roots, manifest, SPN_MANIFEST_DEP, parsed, &issues);
+      if (err == SPN_ERR_NO_MANIFEST) {
+        return spn_err_emit(session->ctx, (spn_err_union_t) {
+          .kind = SPN_ERR_NO_MANIFEST,
+          .no_manifest = { .path = spn_path_str(roots, spn.events->mem, manifest) },
+        });
+      }
+      if (err) {
+        return spn_err_emit(session->ctx, (spn_err_union_t) {
+          .kind = SPN_ERR_MANIFEST_ISSUES,
+          .manifest = { .name = qualified, .path = spn_path_str(roots, spn.events->mem, manifest), .issues = spn_codegen_issues_to_err(spn.events->mem, issues) },
+        });
+      }
+
+      // Short names only: published manifests routinely omit the namespace the
+      // index assigns, but config keys and consumer routing use the name
+      sp_str_t requested = spn_pkg_name_from_qualified(qualified).name;
+      if (!sp_str_equal(parsed->name.str, requested)) {
+        return spn_err_emit(session->ctx, (spn_err_union_t) {
+          .kind = SPN_ERR_PKG_MISMATCH,
+          .mismatch = { .path = spn_path_str(roots, spn.events->mem, manifest), .declared = parsed->name.str, .requested = qualified },
+        });
+      }
+      loaded->info = parsed;
+    }
+
+    loaded->build = loaded->info->build;
+    loaded->build.source = SP_NULLPTR;
+    si_da_for(loaded->info->build.gated.source, jt) {
+      spn_gated_source_t* source = &loaded->info->build.gated.source[jt];
+      if (!spn_when_eval(&source->when, &facts)) {
+        continue;
+      }
+      si_da_push(spn.mem, loaded->build.source, ((spn_source_t) {
+        .kind = source->kind,
+        .path = spn_tree_path(spn.mem, roots, loaded->roots, source->tree, source->path),
+      }));
+    }
+    loaded->build.include = resolve_paths(roots, loaded->info->build.gated.include, loaded, &facts);
+    loaded->build.define = resolve_values(loaded->info->build.gated.define, &facts);
+    loaded->build.flags = resolve_values(loaded->info->build.gated.flags, &facts);
+
+    loaded->configure = loaded->info->configure;
+    loaded->configure.source = SP_NULLPTR;
+    // @spader This is a weird case. Normally, a manifest is validated when we
+    // actually load the TOML, mechanically. No real context needed. But lists
+    // of sources can include globs, and those can hit files that are code
+    // generated by part of your build, so those are validated at the last
+    // moment, when we're ready to compile the sources that the glob lists.
+    //
+    // But for your configure script, if it uses a glob that produces no sources,
+    // that needs to error. There's no point at which you could code generate
+    // something that matches, so we can do it eagerly. And we *want* to do it
+    // up front, so we fail fast.
+    //
+    // But...this isn't really the right place to do it. This code is supposed
+    // to be more mechanical; "get the sources on disk, do basic validation". But
+    // what I just described belongs in the graph layer.
+    si_da_for(loaded->info->configure.gated.source, jt) {
+      spn_gated_source_t* source = &loaded->info->configure.gated.source[jt];
+      if (!spn_when_eval(&source->when, &facts)) {
+        continue;
+      }
+      spn_path_t path = spn_tree_path(spn.mem, roots, loaded->roots, source->tree, source->path);
+      switch (source->kind) {
+        case SPN_SOURCE_FILE: {
+          sp_path_t at = spn_path_at(roots, path);
+          sp_sys_file_meta_t meta = sp_zero;
+          if (sp_sys_get_path_metadata_s(at.dir, at.sub, &meta) || meta.kind != SP_FS_KIND_FILE) {
+            return spn_err_emit(session->ctx, (spn_err_union_t) {
+              .kind = SPN_ERR_CONFIGURE_SOURCE_MISSING,
+              .configure_source = { .name = qualified, .source = source->path },
+            });
+          }
+          break;
+        }
+        case SPN_SOURCE_GLOB: {
+          sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+          spn_dag_glob_it_t glob = spn_dag_glob_it_new(scratch.mem, roots, path);
+          bool matched = false;
+          while (!matched && spn_dag_glob_it_next(&glob)) {
+            matched = glob.entry.kind != SP_FS_KIND_DIR;
+          }
+          spn_dag_glob_it_deinit(&glob);
+          sp_mem_end_scratch(scratch);
+          if (!matched) {
+            return spn_err_emit(session->ctx, (spn_err_union_t) {
+              .kind = SPN_ERR_CONFIGURE_SOURCE_GLOB,
+              .configure_source = { .name = qualified, .source = source->path },
+            });
+          }
+          break;
+        }
+      }
+      si_da_push(spn.mem, loaded->configure.source, ((spn_source_t) { .kind = source->kind, .path = path }));
+    }
+    loaded->configure.include = resolve_paths(roots, loaded->info->configure.gated.include, loaded, &facts);
+    loaded->configure.define = resolve_values(loaded->info->configure.gated.define, &facts);
+    loaded->configure.flags = resolve_values(loaded->info->configure.gated.flags, &facts);
+
+    pkg->name = loaded->info->name.str;
+    pkg->options = loaded->info->options;
+    sp_ht_insert(session->packages, pkg->id, job->loaded);
+
+    sp_str_t url = sp_str_lit("");
+    if (pkg->origin.recipe.kind == SPN_PKG_ROOT_GIT) {
+      url = pkg->origin.recipe.git.url;
+    }
+    if (pkg->origin.source.kind == SPN_PKG_ROOT_GIT) {
+      url = pkg->origin.source.git.url;
+    }
+    spn_event_buffer_push(spn.events, (spn_event_t) {
+      .kind = SPN_EVENT_SYNC_PACKAGE, .pkg = loaded->info->name.str,
+      .sync_pkg = {
+        .name = qualified,
+        .url = url,
+        .source_path = spn_path_str(roots, spn.events->mem, loaded->roots.source),
+        .time = job->elapsed,
+        .fetched = job->fetched,
+      }});
   }
 
   spn_try(spn_session_apply_options(session, reresolve));

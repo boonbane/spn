@@ -22,7 +22,6 @@ typedef struct {
   spn_tree_roots_t roots;
   spn_target_info_t configure;
   spn_target_info_t build;
-  u64 elapsed;
 } spn_loaded_pkg_t;
 
 struct spn_session_t {
