@@ -642,13 +642,13 @@ typedef struct {
   spn_dag_diag_t diag;
 } spn_dag_attempt_t;
 
-static spn_path_t scratch_dir(sp_mem_t mem, spn_dag_env_t* env, spn_dag_action_t* action) {
+spn_path_t spn_dag_scratch(sp_mem_t mem, const spn_dag_env_t* env, const spn_dag_action_t* action) {
   return spn_path_join(mem, env->scratch, sp_fmt(mem, "scratch/{}", sp_fmt_uint(action->id.index)).value);
 }
 
 static void attempt_discard(spn_dag_t* g, spn_dag_env_t* env, spn_dag_attempt_t* attempt) {
   sp_str_buf_t buf = sp_zero;
-  sp_fs_remove_dir_at(spn_path_at(g->roots, scratch_dir(sp_str_buf_as_mem(&buf), env, attempt->action)));
+  sp_fs_remove_dir_at(spn_path_at(g->roots, spn_dag_scratch(sp_str_buf_as_mem(&buf), env, attempt->action)));
 }
 
 static void diag_flush(spn_dag_env_t* env, spn_dag_attempt_t* attempt, spn_err_t err) {
@@ -710,7 +710,7 @@ static void lookup(spn_dag_t* g, spn_dag_action_t* action, spn_dag_env_t* env, s
 static spn_err_t execute_attempt(sp_mem_t mem, spn_dag_t* g, spn_dag_attempt_t* attempt, spn_dag_env_t* env) {
   spn_dag_action_t* action = attempt->action;
 
-  spn_path_t staging = scratch_dir(mem, env, action);
+  spn_path_t staging = spn_dag_scratch(mem, env, action);
   sp_path_t dir = spn_path_at(g->roots, staging);
   sp_fs_remove_dir_at(dir);
   if (sp_fs_create_dir_at(dir)) {

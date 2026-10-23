@@ -42,7 +42,6 @@ typedef struct {
 } spn_cc_t;
 
 typedef struct {
-  spn_lang_t lang;
   si_da(spn_path_t) include;
   si_da(sp_str_t) define;
   si_da(sp_str_t) args;
@@ -52,18 +51,27 @@ typedef struct {
 } spn_cc_compile_t;
 
 typedef struct {
+  spn_path_t cwd;
   spn_path_t source;
   spn_path_t output;
   spn_path_t depfile;
   spn_path_t libc;
 } spn_cc_compile_files_t;
 
+typedef enum {
+  SPN_CC_DEPFILE_NONE,
+  SPN_CC_DEPFILE_OPTIONAL,
+  SPN_CC_DEPFILE_REQUIRED,
+} spn_cc_depfile_t;
+
 typedef struct {
+  spn_path_t cwd;
   spn_path_t output;
   spn_path_t implib;
   spn_path_t exports;
   spn_path_t libc;
   spn_path_t rsp;
+  si_da(spn_path_t) scripts;
   si_da(spn_path_t) objects;
   si_da(spn_path_t) archives;
   si_da(spn_path_t) shared;
@@ -71,6 +79,7 @@ typedef struct {
 } spn_cc_link_files_t;
 
 typedef struct {
+  spn_path_t cwd;
   spn_path_t output;
   spn_path_t rsp;
   si_da(spn_path_t) objects;
@@ -118,6 +127,33 @@ typedef struct {
   spn_path_t cwd;
   sp_da(spn_invocation_env_t) env;
 } spn_invocation_t;
+
+typedef struct {
+  spn_cc_driver_t driver;
+  spn_invocation_t base;
+  spn_cc_depfile_t depfile;
+  bool codeview;
+} spn_cc_compile_plan_t;
+
+typedef enum {
+  SPN_CC_SONAME_NONE,
+  SPN_CC_SONAME_ELF,
+  SPN_CC_SONAME_MACHO,
+} spn_cc_soname_t;
+
+typedef struct {
+  spn_cc_driver_t driver;
+  spn_invocation_t base;
+  sp_da(spn_arg_t) tail;
+  spn_ld_dialect_t dialect;
+  spn_cc_exports_format_t exports;
+  spn_cc_soname_t soname;
+} spn_cc_link_plan_t;
+
+typedef struct {
+  spn_ar_driver_t driver;
+  spn_invocation_t base;
+} spn_cc_archive_plan_t;
 
 typedef enum {
   SPN_RSP_STYLE_WINDOWS,

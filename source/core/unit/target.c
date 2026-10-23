@@ -399,9 +399,7 @@ static spn_err_t build_target_plan(spn_target_unit_t* target) {
   }
   sp_da_for(target->objects, it) {
     spn_compile_unit_t* unit = target->objects[it];
-    compile.lang = unit->lang;
-    si_cc_render_compile(mem, toolchain, profile, &compile, &unit->base);
-    unit->base.cwd = pkg->paths.work;
+    unit->plan = si_cc_render_compile(mem, toolchain, profile, unit->lang, &compile);
   }
   sp_mem_end_scratch(scratch);
 
@@ -412,7 +410,7 @@ static spn_err_t build_target_plan(spn_target_unit_t* target) {
       spn_cc_link_refusal_t refusal = spn_cc_validate_link(toolchain, spn.host, profile, &link->cc);
       switch (refusal.err) {
         case SPN_OK: {
-          return SPN_OK;
+          break;
         }
         case SPN_ERR_COMPILER_FEATURE_UNSUPPORTED: {
           return spn_err_emit(s->ctx, (spn_err_union_t) {
@@ -441,14 +439,28 @@ static spn_err_t build_target_plan(spn_target_unit_t* target) {
           sp_unreachable_return(SPN_ERROR);
         }
       }
+      link->plan = si_cc_render_link(mem, toolchain, profile, &link->cc);
+      break;
     }
     case SPN_CC_OUTPUT_STATIC_LIB:
     case SPN_CC_OUTPUT_OBJECT: {
-      return SPN_OK;
+      break;
     }
   }
 
-  sp_unreachable_return(SPN_ERROR);
+  switch (target->kind) {
+    case SPN_CC_OUTPUT_STATIC_LIB:
+    case SPN_CC_OUTPUT_SHARED_LIB:
+    case SPN_CC_OUTPUT_REACTOR: {
+      target->archive = si_cc_render_archive(mem, toolchain, profile);
+      break;
+    }
+    case SPN_CC_OUTPUT_EXE:
+    case SPN_CC_OUTPUT_OBJECT: {
+      break;
+    }
+  }
+  return SPN_OK;
 }
 
 static spn_pkg_unit_t* find_dep_unit(spn_session_t* s, spn_pkg_unit_t* pkg, sp_str_t qualified) {

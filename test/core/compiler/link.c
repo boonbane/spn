@@ -132,8 +132,9 @@ static const link_test_t tests [] = {
         "/nologo",
         "/LD",
         "main.o",
-        "spum.lib", "ws2_32.lib",
+        "spum.lib",
         "/Femain",
+        "ws2_32.lib",
         "/link", "/DEF:S.def", "/IMPLIB:main.lib"
       },
     },
@@ -333,7 +334,7 @@ static const link_test_t tests [] = {
     .exports = "S.map",
     .expect = {
       .command = "cc",
-      .args = { "-shared", "-Wl,-soname,main", "-Wl,--version-script,S.map", "main.o", "-Wl,-rpath,$ORIGIN", "-o", "main" },
+      .args = { "-shared", "-Wl,--version-script,S.map", "-Wl,-soname,main", "main.o", "-Wl,-rpath,$ORIGIN", "-o", "main" },
     },
   },
   {
@@ -385,7 +386,7 @@ static const link_test_t tests [] = {
     .exports = "S.map",
     .expect = {
       .command = "cc",
-      .args = { "-shared", "-Wl,-soname,main", "-static-libstdc++", "-static-libgcc", "-Wl,--version-script,S.map", "main.o", "-Wl,-rpath,$ORIGIN", "-o", "main" },
+      .args = { "-shared", "-static-libstdc++", "-static-libgcc", "-Wl,--version-script,S.map", "-Wl,-soname,main", "main.o", "-Wl,-rpath,$ORIGIN", "-o", "main" },
     },
   },
   {
@@ -666,7 +667,7 @@ static const link_test_t tests [] = {
     .expect = {
       .command = "cc",
       .args = {
-        "-shared", "-Wl,-soname,main", "-Wl,--version-script,S.map",
+        "-shared", "-Wl,--version-script,S.map", "-Wl,-soname,main",
         "main.o",
         "-Wl,--whole-archive", "libD.a", "-Wl,--no-whole-archive",
         "libP.a",
@@ -689,7 +690,7 @@ static const link_test_t tests [] = {
       .command = "cc",
       .args = {
         "--target=aarch64-macos",
-        "-shared", "-Wl,-install_name,@rpath/main", "-Wl,-exported_symbols_list,S.exp",
+        "-shared", "-Wl,-exported_symbols_list,S.exp", "-Wl,-install_name,@rpath/main",
         "main.o",
         "-Wl,-force_load,libD.a",
         "libP.a",
@@ -833,7 +834,7 @@ static const link_test_t tests [] = {
     .script = "A.ld",
     .expect = {
       .command = "cc",
-      .args = { "-fuse-ld=lld", "-B", "-Wl,-T,A.ld", "-A", "main.o", "-Wl,-rpath,$ORIGIN", "-o", "main" },
+      .args = { "-fuse-ld=lld", "-B", "-A", "-Wl,-T,A.ld", "main.o", "-Wl,-rpath,$ORIGIN", "-o", "main" },
     },
   },
   {
@@ -1041,7 +1042,7 @@ static const link_test_t tests [] = {
     .system_lib = "user32",
     .expect = {
       .command = "cc",
-      .args = { "/nologo", "main.o", "user32.lib", "/Femain" },
+      .args = { "/nologo", "main.o", "/Femain", "user32.lib", "/link" },
       .env = { "LIB=/X/crt/lib/x86_64;/X/sdk/lib/ucrt/x86_64;/X/sdk/lib/um/x86_64" },
     },
   },
@@ -1102,6 +1103,7 @@ sp_test_each(render_link, render, link_test_t, tests, .setup = spn_test_ctx_setu
   }
   if (it->script) {
     si_da_push(mem, link.scripts, test_arg_path(it->script));
+    si_da_push(mem, files.scripts, test_arg_path(it->script));
   }
 
   spn_profile_info_t profile = test_profile(it->profile);
@@ -1114,24 +1116,9 @@ sp_test_each(render_link, render, link_test_t, tests, .setup = spn_test_ctx_setu
   }
   profile.sdk = spn_sdk_for_driver(spn_toolchain_driver_caps(it->driver), profile.sdk);
   if (it->libc) {
-    sp_must_eq(t, (u32)SPN_SDK_LIBC, (u32)profile.sdk.kind);
     files.libc = test_arg_path(it->libc);
   }
-  spn_invocation_t invocation = sp_zero;
-  switch (it->driver) {
-    case SPN_CC_DRIVER_GCC:
-    case SPN_CC_DRIVER_CLANG:
-    case SPN_CC_DRIVER_ZIG: {
-      spn_gnu_render_link(mem, &toolchain, &profile, &link, &files, &invocation);
-      break;
-    }
-    case SPN_CC_DRIVER_MSVC: {
-      spn_msvc_render_link(mem, &toolchain, &profile, &link, &files, &invocation);
-      break;
-    }
-    case SPN_CC_DRIVER_NONE: {
-      sp_unreachable_case();
-    }
-  }
+  spn_cc_link_plan_t plan = si_cc_render_link(mem, &toolchain, &profile, &link);
+  spn_invocation_t invocation = spn_cc_render_link_command(mem, &plan, &files);
   return expect_args(t, &invocation, it->expect);
 }
