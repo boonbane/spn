@@ -507,14 +507,12 @@ sp_test_each(options_merge, merge, merge_test_t, tests, .setup = spn_test_ctx_se
     .options = make_when(mem, it->profile_options, SP_CARR_LEN(it->profile_options)),
   };
 
-  si_da(spn_pkg_config_entry_t) config = SP_NULLPTR;
+  spn_pkg_config_map_t config = sp_zero;
   if (it->config[0].key || it->defaults_declined) {
-    si_da_push(mem, config, ((spn_pkg_config_entry_t) {
-      .key = sp_str_lit("p"),
-      .value = {
-        .options = make_when(mem, it->config, SP_CARR_LEN(it->config)),
-        .defaults_declined = it->defaults_declined,
-      },
+    si_om_insert(mem, config, pkg.name.id, ((spn_pkg_config_t) {
+      .name = pkg.name,
+      .options = make_when(mem, it->config, SP_CARR_LEN(it->config)),
+      .defaults_declined = it->defaults_declined,
     }));
   }
 

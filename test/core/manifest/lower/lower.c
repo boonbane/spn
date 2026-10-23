@@ -1921,20 +1921,14 @@ sp_test_each(lower, cases, test_t, tests, .setup = spn_test_ctx_setup) {
     config_t expected = it->config[ct];
     if (!expected.key) break;
 
-    spn_pkg_config_entry_t* entry = SP_NULLPTR;
-    si_da_for(pkg.config, j) {
-      if (sp_str_equal(pkg.config[j].key, sp_str_view(expected.key))) {
-        entry = &pkg.config[j];
-        break;
-      }
-    }
-    sp_must(t, entry);
+    spn_pkg_config_t* config = si_om_get(pkg.config, sp_intern(interner, sp_cstr_as_str(expected.key)).id);
+    sp_must(t, config);
     if (expected.kind) {
-      sp_must(t, !sp_opt_is_null(entry->value.kind));
-      sp_expect_eq(t, (u32)expected.kind, (u32)sp_opt_get(entry->value.kind));
+      sp_must(t, !sp_opt_is_null(config->kind));
+      sp_expect_eq(t, (u32)expected.kind, (u32)sp_opt_get(config->kind));
     }
-    if (expected.options) sp_expect_str_eq_c(t, spn_when_to_str(mem, &entry->value.options), expected.options);
-    sp_expect_eq(t, expected.defaults_declined, entry->value.defaults_declined);
+    if (expected.options) sp_expect_str_eq_c(t, spn_when_to_str(mem, &config->options), expected.options);
+    sp_expect_eq(t, expected.defaults_declined, config->defaults_declined);
   }
 
   return SP_OK;

@@ -208,8 +208,8 @@ void spn_profile_finalize(spn_profile_info_t* profile, const spn_toolchain_selec
 }
 
 static bool shared_demand(const spn_manifest_t* manifest) {
-  si_da_for(manifest->config, it) {
-    const spn_pkg_config_t* config = &manifest->config[it].value;
+  si_om_for(manifest->config, it) {
+    const spn_pkg_config_t* config = si_om_at(manifest->config, it);
     if (!sp_opt_is_null(config->kind) && config->kind.value == SPN_LIB_KIND_SHARED) {
       return true;
     }

@@ -219,14 +219,15 @@ static fz_result_t fz_execute(sp_mem_t mem, fz_universe_t* u, sp_intern_t* inter
 
   spn_index_cache_t cache = sp_zero;
 
-  si_da(spn_pkg_config_entry_t) config = SP_NULLPTR;
+  spn_pkg_config_map_t config = sp_zero;
   sp_da_for(u->pkgs, it) {
     if (!u->pkgs[it].has_config) {
       continue;
     }
-    spn_pkg_config_entry_t entry = { .key = fz_pkg_name((u32)it) };
-    sp_opt_set(entry.value.kind, u->pkgs[it].config);
-    si_da_push(mem, config, entry);
+    sp_intern_str_t name = sp_intern(intern, fz_pkg_name((u32)it));
+    spn_pkg_config_t entry = { .name = name };
+    sp_opt_set(entry.kind, u->pkgs[it].config);
+    si_om_insert(mem, config, name.id, entry);
   }
 
   spn_resolver_t resolver = sp_zero;

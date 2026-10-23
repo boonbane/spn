@@ -73,9 +73,8 @@ sp_test_each(options_session, apply, session_test_t, tests, .setup = spn_test_ct
     .qualified = spn_intern_lit("core/test"),
   };
   if (it->config) {
-    si_da_push(mem, root.config, ((spn_pkg_config_entry_t) {
-      .key = sp_cstr_as_str(it->config),
-    }));
+    sp_intern_str_t name = spn_intern_cstr(it->config);
+    si_om_insert(mem, root.config, name.id, ((spn_pkg_config_t) { .name = name }));
   }
   if (it->direct_dep || it->gated_dep) {
     spn_requested_dep_t dep = {

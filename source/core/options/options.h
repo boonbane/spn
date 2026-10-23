@@ -13,7 +13,7 @@ void spn_options_merge(
   sp_mem_t mem,
   spn_option_subject_t subject,
   const spn_profile_info_t* profile,
-  si_da(spn_pkg_config_entry_t) config,
+  spn_pkg_config_map_t config,
   spn_option_requests_t requests,
   spn_merged_options_t* merged);
 

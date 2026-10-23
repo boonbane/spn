@@ -556,17 +556,16 @@ spn_err_t spn_manifest_reject_patches(spn_toml_loader_t* ctx, spn_manifest_t* ou
 
 static void lower_config(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, spn_manifest_t* out) {
   sp_da_for(cg->config, i) {
-    spn_pkg_config_entry_t entry = {
-      .key = cg->config[i].key,
-      .value = {
-        .options = cg->config[i].value.options,
-        .defaults_declined = !sp_opt_is_null(cg->config[i].value.defaults) && !sp_opt_get(cg->config[i].value.defaults),
-      },
+    sp_intern_str_t name = sp_intern(ctx->intern, cg->config[i].key);
+    spn_pkg_config_t config = {
+      .name = name,
+      .options = cg->config[i].value.options,
+      .defaults_declined = !sp_opt_is_null(cg->config[i].value.defaults) && !sp_opt_get(cg->config[i].value.defaults),
     };
     if (!sp_opt_is_null(cg->config[i].value.kind) && sp_opt_get(cg->config[i].value.kind) != SPN_LIB_KIND_NONE) {
-      sp_opt_set(entry.value.kind, sp_opt_get(cg->config[i].value.kind));
+      sp_opt_set(config.kind, sp_opt_get(cg->config[i].value.kind));
     }
-    si_da_push(ctx->mem, out->config, entry);
+    si_om_insert(ctx->mem, out->config, name.id, config);
   }
 }
 

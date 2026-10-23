@@ -152,12 +152,3 @@ bool spn_pkg_has_scripts(const spn_pkg_t* pkg) {
   }
   return false;
 }
-
-spn_pkg_config_t* spn_pkg_config_find(si_da(spn_pkg_config_entry_t) config, sp_str_t name) {
-  si_da_for(config, it) {
-    if (sp_str_equal(config[it].key, name)) {
-      return &config[it].value;
-    }
-  }
-  return SP_NULLPTR;
-}

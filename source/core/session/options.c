@@ -104,20 +104,20 @@ static void sweep_unreachable(spn_session_t* session) {
 }
 
 static spn_err_t validate_config_keys(spn_session_t* session) {
-  si_da_for(session->manifest->config, it) {
-    spn_pkg_config_entry_t* entry = &session->manifest->config[it];
+  si_om_for(session->manifest->config, it) {
+    spn_pkg_config_t* config = si_om_at(session->manifest->config, it);
 
     bool known = false;
     sp_ht_for_kv(session->resolve, rt) {
       spn_resolved_pkg_t* node = rt.val;
       spn_loaded_pkg_t* loaded = sp_ht_getp(session->packages, node->id);
       sp_assert(loaded);
-      if (sp_str_equal(node->name.str, entry->key)) {
+      if (node->name.id == config->name.id) {
         known = true;
         break;
       }
       si_da_for(loaded->manifest->deps, dt) {
-        if (sp_str_equal(spn_pkg_name_from_qualified(loaded->manifest->deps[dt].qualified.str).name, entry->key)) {
+        if (sp_str_equal(spn_pkg_name_from_qualified(loaded->manifest->deps[dt].qualified.str).name, config->name.str)) {
           known = true;
           break;
         }
@@ -130,7 +130,7 @@ static spn_err_t validate_config_keys(spn_session_t* session) {
     if (!known) {
       return spn_err_emit(session->ctx, (spn_err_union_t) {
         .kind = SPN_ERR_OPTION_UNKNOWN_PKG,
-        .option = { .pkg = entry->key },
+        .option = { .pkg = config->name.str },
       });
     }
   }

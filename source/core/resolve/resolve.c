@@ -113,7 +113,7 @@ static spn_err_union_t resolve_dep(spn_resolver_t* resolver, spn_resolve_run_t* 
 static spn_err_union_t resolve_deps(spn_resolver_t* resolver, spn_resolve_run_t* run, spn_resolved_pkg_t* node);
 static spn_err_union_t solve_node(spn_resolver_t* resolver, spn_resolve_run_t* run, spn_scope_t* scope, sp_intern_id_t name, spn_resolved_pkg_t* node);
 
-void spn_resolver_init(spn_resolver_t* r, sp_mem_t mem, sp_intern_t* intern, spn_index_cache_t* index, spn_pkg_registry_t* registry, spn_profile_info_t profile, sp_da(spn_pkg_config_entry_t) config, u64 budget) {
+void spn_resolver_init(spn_resolver_t* r, sp_mem_t mem, sp_intern_t* intern, spn_index_cache_t* index, spn_pkg_registry_t* registry, spn_profile_info_t profile, spn_pkg_config_map_t config, u64 budget) {
   *r = (spn_resolver_t){
     .mem = mem,
     .intern = intern,
@@ -244,7 +244,7 @@ static bool find_forced(spn_resolve_run_t* run, sp_intern_id_t name, spn_semver_
 
 static spn_kind_query_t kind_query(spn_resolver_t* resolver, sp_intern_str_t name) {
   spn_kind_query_t query = { .linkage = resolver->profile.linking.linkage };
-  spn_pkg_config_t* config = spn_pkg_config_find(resolver->config, name.str);
+  spn_pkg_config_t* config = si_om_get(resolver->config, name.id);
   if (config && !sp_opt_is_null(config->kind)) {
     sp_opt_set(query.config, config->kind.value);
   }

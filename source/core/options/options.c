@@ -1,7 +1,6 @@
 #include "options/options.h"
 
 #include "intern/intern.h"
-#include "pkg/pkg.h"
 #include "profile/profile.h"
 #include "when/when.h"
 
@@ -11,8 +10,8 @@ typedef struct {
   bool defaults_declined;
 } option_set_t;
 
-static option_set_t find_set(spn_option_subject_t subject, const spn_profile_info_t* profile, si_da(spn_pkg_config_entry_t) config) {
-  spn_pkg_config_t* entry = spn_pkg_config_find(config, subject.name.str);
+static option_set_t find_set(spn_option_subject_t subject, const spn_profile_info_t* profile, spn_pkg_config_map_t config) {
+  spn_pkg_config_t* entry = si_om_get(config, subject.name.id);
   return (option_set_t) {
     .clauses = subject.is_root ? &profile->options : entry ? &entry->options : SP_NULLPTR,
     .setter = { .kind = subject.is_root ? SPN_OPTION_SETTER_PROFILE : SPN_OPTION_SETTER_ROOT_MANIFEST },
@@ -76,7 +75,7 @@ void spn_options_merge(
   sp_mem_t mem,
   spn_option_subject_t subject,
   const spn_profile_info_t* profile,
-  si_da(spn_pkg_config_entry_t) config,
+  spn_pkg_config_map_t config,
   spn_option_requests_t requests,
   spn_merged_options_t* merged
 ) {

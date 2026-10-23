@@ -74,15 +74,13 @@ typedef struct {
 
 
 typedef struct {
+  sp_intern_str_t name;
   sp_opt(spn_linkage_t) kind;
   spn_when_t options;
   bool defaults_declined;
 } spn_pkg_config_t;
 
-typedef struct {
-  sp_str_t key;
-  spn_pkg_config_t value;
-} spn_pkg_config_entry_t;
+typedef si_om(sp_intern_id_t, spn_pkg_config_t) spn_pkg_config_map_t;
 
 typedef struct {
   sp_intern_str_t qualified;
@@ -108,7 +106,7 @@ struct spn_manifest {
   spn_profile_map_t profiles;
   spn_index_map_t indexes;
   si_da(spn_requested_dep_t) deps;
-  si_da(spn_pkg_config_entry_t) config;
+  spn_pkg_config_map_t config;
   si_da(spn_pkg_patch_t) patches;
   spn_option_map_t options;
   spn_toolchain_map_t toolchains;
