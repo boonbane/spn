@@ -1,4 +1,4 @@
-#include "dag/dag.h"
+#include "dag/glob.h"
 #include "dag/types.h"
 #include "glob/glob.h"
 #include "paths/paths.h"

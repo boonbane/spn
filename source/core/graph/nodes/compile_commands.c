@@ -2,7 +2,7 @@
 
 #include "codegen/codegen.h"
 #include "compiler/driver.h"
-#include "dag/dag.h"
+#include "dag/node.h"
 #include "graph/nodes/nodes.h"
 #include "paths/paths.h"
 #include "session/invocation.h"

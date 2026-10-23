@@ -4,7 +4,7 @@
 
 #include "compiler/driver.h"
 #include "compiler/toc.h"
-#include "dag/dag.h"
+#include "dag/node.h"
 #include "error/error.h"
 #include "event/event.h"
 #include "graph/build.h"

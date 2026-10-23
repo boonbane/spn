@@ -5,6 +5,7 @@
 
 #include "fuzz/fuzz.h"
 #include "dag/dag.h"
+#include "dag/node.h"
 #include "sim/sim.h"
 
 typedef struct spn_cg_fuzz_graph spn_cg_fuzz_graph_t;

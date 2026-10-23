@@ -2,7 +2,7 @@
 #include "spn/errors.h"
 #include "unit/types.h"
 
-#include "dag/dag.h"
+#include "dag/node.h"
 #include "event/event.h"
 #include "external/wasm/wasm.h"
 #include "graph/nodes/nodes.h"

@@ -1,4 +1,5 @@
 #include "dag/dag_test.h"
+#include "dag/glob.h"
 
 typedef struct {
   const c8* dir;
@@ -322,7 +323,7 @@ static spn_err_t execute_action(const si_dag_ctx_t* c, void* user_data) {
   spn_dag_glob_result_t glob = sp_zero;
   spn_try(spn_dag_glob(c->mem, c->roots, env->pattern, &glob));
   sp_da_for(glob.obs, it) {
-    spn_dag_observe(c->obs, glob.obs[it]);
+    si_dag_observe(c, glob.obs[it]);
   }
   return SPN_OK;
 }

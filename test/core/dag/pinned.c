@@ -117,7 +117,7 @@ static spn_err_t execute_action(const si_dag_ctx_t* c, void* user_data) {
     if (!spec->path) {
       break;
     }
-    spn_dag_observe(c->obs, (spn_dag_obs_t) {
+    si_dag_observe(c, (spn_dag_obs_t) {
       .kind = spec->kind,
       .path = { .root = env->root, .sub = sp_str_view(spec->path) },
       .filter = spec->filter ? sp_str_view(spec->filter) : sp_str_lit("")

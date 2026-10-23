@@ -134,7 +134,7 @@ static spn_err_t execute_action(const si_dag_ctx_t* c, void* user_data) {
     if (!env->test->obs[it].dir) {
       break;
     }
-    spn_dag_observe(c->obs, (spn_dag_obs_t) {
+    si_dag_observe(c, (spn_dag_obs_t) {
       .kind = SPN_DAG_OBS_ENUMERATION,
       .path = dag_test_env_rooted(&env->dag, sp_str_view(env->test->obs[it].dir)),
       .filter = env->test->obs[it].filter ? sp_str_view(env->test->obs[it].filter) : sp_str_lit("")

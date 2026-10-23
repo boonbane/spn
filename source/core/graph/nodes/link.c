@@ -3,7 +3,7 @@
 #include "spn/errors.h"
 
 #include "compiler/driver.h"
-#include "dag/dag.h"
+#include "dag/node.h"
 #include "event/event.h"
 #include "graph/build.h"
 #include "graph/nodes/nodes.h"

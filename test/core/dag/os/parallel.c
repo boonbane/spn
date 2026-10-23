@@ -166,7 +166,7 @@ static spn_err_t execute_graph(const si_dag_ctx_t* c, void* user_data) {
     if (!ctx->spec->discovers[it]) {
       break;
     }
-    spn_dag_observe(c->obs, (spn_dag_obs_t) {
+    si_dag_observe(c, (spn_dag_obs_t) {
       .kind = SPN_DAG_OBS_FILE,
       .path = dag_test_env_rooted(&ctx->env->dag, sp_cstr_as_str(ctx->spec->discovers[it]))
     });

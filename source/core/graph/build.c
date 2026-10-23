@@ -8,7 +8,7 @@
 #include "unit/types.h"
 
 #include "compiler/driver.h"
-#include "dag/dag.h"
+#include "dag/node.h"
 #include "enum/enum.h"
 #include "event/event.h"
 #include "paths/paths.h"

@@ -162,7 +162,7 @@ static spn_err_t execute_action(const si_dag_ctx_t* c, void* user_data) {
     if (!env->run->headers[it].path) {
       break;
     }
-    spn_dag_observe(c->obs, (spn_dag_obs_t) {
+    si_dag_observe(c, (spn_dag_obs_t) {
       .kind = SPN_DAG_OBS_FILE,
       .path = dag_test_env_rooted(&env->dag, sp_str_view(env->run->headers[it].path))
     });
@@ -171,7 +171,7 @@ static spn_err_t execute_action(const si_dag_ctx_t* c, void* user_data) {
     if (!env->run->missing[it]) {
       break;
     }
-    spn_dag_observe(c->obs, (spn_dag_obs_t) {
+    si_dag_observe(c, (spn_dag_obs_t) {
       .kind = SPN_DAG_OBS_FILE,
       .path = dag_test_env_rooted(&env->dag, sp_str_view(env->run->missing[it]))
     });
@@ -180,7 +180,7 @@ static spn_err_t execute_action(const si_dag_ctx_t* c, void* user_data) {
     if (!env->run->probes[it]) {
       break;
     }
-    spn_dag_observe(c->obs, (spn_dag_obs_t) {
+    si_dag_observe(c, (spn_dag_obs_t) {
       .kind = SPN_DAG_OBS_ABSENT,
       .path = dag_test_env_rooted(&env->dag, sp_str_view(env->run->probes[it]))
     });

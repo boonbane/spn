@@ -48,11 +48,6 @@ bool                spn_dag_digest_valid(spn_dag_digest_t digest);
 sp_str_t            spn_dag_digest_hex(sp_mem_t mem, spn_dag_digest_t digest);
 bool                spn_dag_digest_parse(sp_str_t hex, spn_dag_digest_t* out);
 
-spn_err_t           spn_dag_glob(sp_mem_t mem, const spn_path_roots_t* roots, spn_path_t pattern, spn_dag_glob_result_t* result);
-spn_dag_glob_it_t   spn_dag_glob_it_new(sp_mem_t mem, const spn_path_roots_t* roots, spn_path_t pattern);
-bool                spn_dag_glob_it_next(spn_dag_glob_it_t* it);
-void                spn_dag_glob_it_deinit(spn_dag_glob_it_t* it);
-
 void                spn_dag_store_init(spn_dag_store_t* store, spn_dag_store_config_t config);
 spn_err_t           spn_dag_store_put(spn_dag_store_t* store, const void* data, u64 len, sp_str_t name, spn_dag_digest_t* digest);
 spn_err_t           spn_dag_store_put_file(spn_dag_store_t* store, sp_path_t path, sp_str_t name, spn_dag_digest_t* digest);
@@ -86,11 +81,6 @@ spn_err_t           spn_dag_file_cache_stat(spn_dag_file_cache_t* c, spn_path_t 
 spn_err_t           spn_dag_file_cache_digest(spn_dag_file_cache_t* c, spn_path_t path, spn_dag_digest_t* digest);
 bool                spn_dag_file_cache_recorded(spn_dag_file_cache_t* c, spn_path_t path);
 spn_path_t          spn_dag_file_cache_canonical(spn_dag_file_cache_t* c, spn_path_t path);
-
-spn_path_t          si_dag_resolve_input(const si_dag_ctx_t* c, spn_dag_id_t id);
-spn_path_t          si_dag_resolve_output(const si_dag_ctx_t* c, spn_dag_id_t id);
-spn_path_t          si_dag_canonicalize_path(const si_dag_ctx_t* c, spn_path_t path);
-void                si_dag_add_warm(const si_dag_ctx_t* c, s64 delta);
 
 spn_err_t           spn_dag_execute(spn_dag_t* g, spn_dag_id_t action, spn_dag_env_t* env);
 spn_err_t           spn_dag_run(spn_dag_t* g, spn_dag_env_t* env);

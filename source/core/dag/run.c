@@ -1,4 +1,5 @@
 #include "dag/dag.h"
+#include "dag/node.h"
 #include "dag/stamp.h"
 #include "dag/types.h"
 #include "core/core.h"
@@ -660,6 +661,10 @@ spn_path_t si_dag_resolve_output(const si_dag_ctx_t* c, spn_dag_id_t id) {
 
 spn_path_t si_dag_canonicalize_path(const si_dag_ctx_t* c, spn_path_t path) {
   return spn_dag_file_cache_canonical(c->handle->env->files, path);
+}
+
+void si_dag_observe(const si_dag_ctx_t* c, spn_dag_obs_t obs) {
+  spn_dag_observe(c->obs, obs);
 }
 
 void si_dag_add_warm(const si_dag_ctx_t* c, s64 delta) {

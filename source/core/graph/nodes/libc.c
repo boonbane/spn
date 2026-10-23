@@ -1,6 +1,6 @@
 #include "spn/errors.h"
 
-#include "dag/dag.h"
+#include "dag/node.h"
 #include "graph/nodes/nodes.h"
 #include "paths/paths.h"
 #include "toolchain/libc.h"

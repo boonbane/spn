@@ -4,7 +4,7 @@
 #include "unit/types.h"
 #include "target/types.h"
 
-#include "dag/dag.h"
+#include "dag/node.h"
 #include "external/cc.h"
 #include "event/event.h"
 #include "intern/intern.h"
@@ -47,7 +47,7 @@ spn_err_t si_on_embed(const si_dag_ctx_t* c, void* user_data) {
 
     switch (entry.kind) {
       case SPN_EMBED_FILE: {
-        spn_dag_observe(c->obs, (spn_dag_obs_t) { .kind = SPN_DAG_OBS_FILE, .path = entry.path });
+        si_dag_observe(c, (spn_dag_obs_t) { .kind = SPN_DAG_OBS_FILE, .path = entry.path });
         sp_str_t content = sp_zero;
         if (sp_io_read_file_at(embedder.mem, spn_path_at(roots, entry.path), &content) != SP_OK) {
           spn_event_buffer_push(spn.events, (spn_event_t) {
@@ -68,17 +68,17 @@ spn_err_t si_on_embed(const si_dag_ctx_t* c, void* user_data) {
       }
       case SPN_EMBED_DIR: {
         spn_path_t root = entry.path;
-        spn_dag_observe(c->obs, (spn_dag_obs_t) { .kind = SPN_DAG_OBS_ENUMERATION, .path = root });
+        si_dag_observe(c, (spn_dag_obs_t) { .kind = SPN_DAG_OBS_ENUMERATION, .path = root });
         sp_fs_it_t walk = sp_fs_it_new_at(c->mem, spn_path_at(roots, root), 0);
         while (sp_fs_it_walk(&walk)) {
           sp_str_t rel = walk.entry.rel;
           if (walk.entry.kind == SP_FS_KIND_DIR) {
-            spn_dag_observe(c->obs, (spn_dag_obs_t) { .kind = SPN_DAG_OBS_ENUMERATION, .path = spn_path_join(c->mem, root, rel) });
+            si_dag_observe(c, (spn_dag_obs_t) { .kind = SPN_DAG_OBS_ENUMERATION, .path = spn_path_join(c->mem, root, rel) });
             continue;
           }
           if (!sp_fs_is_file_at(walk.at)) continue;
           spn_path_t file = spn_path_join(c->mem, root, rel);
-          spn_dag_observe(c->obs, (spn_dag_obs_t) { .kind = SPN_DAG_OBS_FILE, .path = file });
+          si_dag_observe(c, (spn_dag_obs_t) { .kind = SPN_DAG_OBS_FILE, .path = file });
           sp_str_t content = sp_zero;
           if (sp_io_read_file_at(embedder.mem, walk.at, &content) != SP_OK) {
             spn_event_buffer_push(spn.events, (spn_event_t) {

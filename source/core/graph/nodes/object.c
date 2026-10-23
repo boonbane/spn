@@ -5,7 +5,7 @@
 #include "spn/err.h"
 
 #include "compiler/driver.h"
-#include "dag/dag.h"
+#include "dag/node.h"
 #include "paths/paths.h"
 #include "session/invocation.h"
 #include "graph/build.h"
@@ -68,7 +68,7 @@ spn_err_t si_on_compile_discover(const si_dag_ctx_t* c, void* user_data) {
   }
   sp_da_for(prereqs, it) {
     spn_path_t path = spn_path_resolve(c->mem, files.cwd, prereqs[it]);
-    spn_dag_observe(c->obs, (spn_dag_obs_t) {
+    si_dag_observe(c, (spn_dag_obs_t) {
       .kind = SPN_DAG_OBS_FILE,
       .path = si_dag_canonicalize_path(c, path),
     });

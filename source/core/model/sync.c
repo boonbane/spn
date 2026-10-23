@@ -4,7 +4,7 @@
 #include "cpu/cpu.h"
 #include "ctx/ctx.h"
 #include "ctx/types.h"
-#include "dag/dag.h"
+#include "dag/glob.h"
 #include "error/error.h"
 #include "spn/errors.h"
 #include "event/event.h"

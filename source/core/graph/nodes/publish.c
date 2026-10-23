@@ -3,7 +3,8 @@
 #include "unit/types.h"
 
 #include "core/core.h"
-#include "dag/dag.h"
+#include "dag/glob.h"
+#include "dag/node.h"
 #include "enum/enum.h"
 #include "event/event.h"
 #include "graph/nodes/nodes.h"
@@ -16,7 +17,7 @@ static spn_err_t publish_entry(const si_dag_ctx_t* c, spn_pkg_unit_t* unit, spn_
   spn_err_t err = SPN_OK;
   switch (publish->source.kind) {
     case SPN_SOURCE_FILE: {
-      spn_dag_observe(c->obs, (spn_dag_obs_t) { .kind = SPN_DAG_OBS_FILE, .path = publish->source.path });
+      si_dag_observe(c, (spn_dag_obs_t) { .kind = SPN_DAG_OBS_FILE, .path = publish->source.path });
       err = spn_fs_update_file(spn_path_at(roots, publish->source.path), sp_path_join(c->mem, dir, sp_fs_get_name(publish->source.path.sub)));
       break;
     }
@@ -24,7 +25,7 @@ static spn_err_t publish_entry(const si_dag_ctx_t* c, spn_pkg_unit_t* unit, spn_
       spn_dag_glob_result_t glob = sp_zero;
       err = spn_dag_glob(c->mem, roots, publish->source.path, &glob);
       sp_da_for(glob.obs, it) {
-        spn_dag_observe(c->obs, glob.obs[it]);
+        si_dag_observe(c, glob.obs[it]);
       }
       if (!err && sp_da_empty(glob.matches)) {
         err = SPN_ERROR;

@@ -88,13 +88,13 @@ static spn_err_t fz_exec(const si_dag_ctx_t* c, void* user_data) {
       if (stat && stat != SP_ERR_SYS_NOT_FOUND) {
         return SPN_ERR_DAG_ACTION;
       }
-      spn_dag_observe(c->obs, (spn_dag_obs_t) {
+      si_dag_observe(c, (spn_dag_obs_t) {
         .kind = !stat && meta.kind == SP_FS_KIND_FILE ? SPN_DAG_OBS_FILE : SPN_DAG_OBS_ABSENT,
         .path = spn_path_make(c->roots, path),
       });
     }
     else {
-      spn_dag_observe(c->obs, (spn_dag_obs_t) {
+      si_dag_observe(c, (spn_dag_obs_t) {
         .kind = SPN_DAG_OBS_FILE,
         .path = spn_path_make(c->roots, fz_artifact_sim_path(c->mem, low->u, fo.artifact)),
       });

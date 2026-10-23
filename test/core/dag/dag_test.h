@@ -3,6 +3,7 @@
 #include "spn_test.h"
 
 #include "dag/dag.h"
+#include "dag/node.h"
 #include "dag/stamp.h"
 #include "paths/paths_test.h"
 

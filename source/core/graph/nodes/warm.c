@@ -4,7 +4,7 @@
 
 #include "compiler/driver.h"
 #include "compiler/rsp.h"
-#include "dag/dag.h"
+#include "dag/node.h"
 #include "external/zig.h"
 #include "paths/paths.h"
 #include "session/invocation.h"
