@@ -535,6 +535,7 @@ source = [
   "source/util/glob/glob.c",
   "source/core/dag/stamp.c",
   "source/util/thread_pool/thread_pool.c",
+  "source/util/array/array.c",
   "source/core/codegen/json.c",
   "source/core/codegen/loader.c",
   "source/core/external/tom.c",

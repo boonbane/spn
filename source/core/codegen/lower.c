@@ -500,13 +500,10 @@ static void lower_patches(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, s
       continue;
     }
 
-    spn_pkg_patch_t patch = {
-      .qualified = qualified,
-      .set.files = sp_da_new(ctx->mem, sp_str_t),
-    };
+    spn_pkg_patch_t patch = { .qualified = qualified };
     sp_da_for(cg->patch[it].value.files, jt) {
       spn_path_t path = spn_path_resolve(ctx->mem, ctx->dir, cg->patch[it].value.files[jt]);
-      sp_da_push(patch.set.files, sp_fs_normalize_path(ctx->mem, spn_path_str(ctx->roots, ctx->mem, path)));
+      si_da_push(ctx->mem, patch.set.files, sp_fs_normalize_path(ctx->mem, spn_path_str(ctx->roots, ctx->mem, path)));
     }
     si_da_push(ctx->mem, out->patches, patch);
   }

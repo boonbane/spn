@@ -332,6 +332,7 @@ set(DAG_TEST_SOURCES
   ${UTIL}/fs/fs.c
   ${UTIL}/io/io.c
   ${UTIL}/thread_pool/thread_pool.c
+  ${UTIL}/array/array.c
   ${TEST_TOOLS}/dag/track.c
   ${TEST_TOOLS}/sim/sim.c
   ${TEST_TOOLS}/path_roots.c
