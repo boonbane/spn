@@ -211,11 +211,11 @@ static spn_err_t materialize_tree(spn_session_t* session, sp_str_t name, spn_pkg
 
 static si_da(spn_path_t) resolve_paths(const spn_path_roots_t* roots, spn_gated_path_list_t entries, spn_loaded_pkg_t* loaded, spn_when_env_t* env) {
   si_da(spn_path_t) resolved = SP_NULLPTR;
-  si_da_for(entries, it) {
-    if (!spn_when_eval(&entries[it].when, env)) {
+  si_da_for_ptr(entries, entry) {
+    if (!spn_when_eval(&entry->when, env)) {
       continue;
     }
-    spn_path_t path = spn_tree_path(spn.mem, roots, loaded->roots, entries[it].tree, entries[it].path);
+    spn_path_t path = spn_tree_path(spn.mem, roots, loaded->roots, entry->tree, entry->path);
     si_da_push(spn.mem, resolved, path);
   }
   return resolved;
@@ -223,11 +223,11 @@ static si_da(spn_path_t) resolve_paths(const spn_path_roots_t* roots, spn_gated_
 
 static si_da(sp_str_t) resolve_values(spn_gated_list_t entries, spn_when_env_t* env) {
   si_da(sp_str_t) resolved = SP_NULLPTR;
-  si_da_for(entries, it) {
-    if (!spn_when_eval(&entries[it].when, env)) {
+  si_da_for_ptr(entries, entry) {
+    if (!spn_when_eval(&entry->when, env)) {
       continue;
     }
-    si_da_push(spn.mem, resolved, entries[it].value);
+    si_da_push(spn.mem, resolved, entry->value);
   }
   return resolved;
 }
@@ -297,8 +297,8 @@ static void sync_toolchain_node(void* data) {
 
 static spn_err_t check_unused_patches(spn_session_t* session) {
   spn_err_t err = SPN_OK;
-  si_da_for(session->pkg->patches, it) {
-    sp_intern_str_t qualified = session->pkg->patches[it].qualified;
+  si_da_for_ptr(session->pkg->patches, patch) {
+    sp_intern_str_t qualified = patch->qualified;
 
     bool used = false;
     sp_ht_for_kv(session->resolve, jt) {
@@ -344,10 +344,10 @@ static spn_err_t sync_jobs(spn_op_t* op, sp_mem_t mem, bool* reresolve) {
     si_da_push(mem, packages, job);
   }
 
-  si_da_for(session->units.toolchains, it) {
+  si_da_for_value(session->units.toolchains, unit) {
     toolchain_job_t* job = sp_alloc_type(mem, toolchain_job_t);
     job->op = op;
-    job->unit = session->units.toolchains[it];
+    job->unit = unit;
     si_da_push(mem, toolchains, job);
   }
 
@@ -370,11 +370,11 @@ static spn_err_t sync_jobs(spn_op_t* op, sp_mem_t mem, bool* reresolve) {
 
   sp_tm_timer_t timer = sp_tm_start_timer();
 
-  si_da_for(packages, it) {
-    spn_thread_pool_submit(&pool.executor, (spn_thread_pool_job_t) { .fn = sync_package_node, .data = packages[it] });
+  si_da_for_value(packages, job) {
+    spn_thread_pool_submit(&pool.executor, (spn_thread_pool_job_t) { .fn = sync_package_node, .data = job });
   }
-  si_da_for(toolchains, it) {
-    spn_thread_pool_submit(&pool.executor, (spn_thread_pool_job_t) { .fn = sync_toolchain_node, .data = toolchains[it] });
+  si_da_for_value(toolchains, job) {
+    spn_thread_pool_submit(&pool.executor, (spn_thread_pool_job_t) { .fn = sync_toolchain_node, .data = job });
   }
 
   spn_thread_pool_wait(&pool);
@@ -385,19 +385,18 @@ static spn_err_t sync_jobs(spn_op_t* op, sp_mem_t mem, bool* reresolve) {
     return SPN_ERR_CANCELLED;
   }
 
-  si_da_for(packages, it) {
-    spn_try(packages[it]->err);
+  si_da_for_value(packages, job) {
+    spn_try(job->err);
   }
-  si_da_for(toolchains, it) {
-    spn_try(toolchains[it]->err);
+  si_da_for_value(toolchains, job) {
+    spn_try(job->err);
   }
 
   spn_when_env_t facts = sp_zero;
   spn_when_env_from_profile(mem, &session->units.target->profile, &facts);
 
   const spn_path_roots_t* roots = &session->ctx->roots;
-  si_da_for(packages, it) {
-    pkg_job_t* job = packages[it];
+  si_da_for_value(packages, job) {
     spn_resolved_pkg_t* pkg = job->pkg;
     spn_loaded_pkg_t* loaded = &job->loaded;
     sp_str_t qualified = spn_intern_find(pkg->id.qualified);
@@ -436,8 +435,7 @@ static spn_err_t sync_jobs(spn_op_t* op, sp_mem_t mem, bool* reresolve) {
 
     loaded->build = loaded->info->build;
     loaded->build.source = SP_NULLPTR;
-    si_da_for(loaded->info->build.gated.source, jt) {
-      spn_gated_source_t* source = &loaded->info->build.gated.source[jt];
+    si_da_for_ptr(loaded->info->build.gated.source, source) {
       if (!spn_when_eval(&source->when, &facts)) {
         continue;
       }
@@ -466,8 +464,7 @@ static spn_err_t sync_jobs(spn_op_t* op, sp_mem_t mem, bool* reresolve) {
     // But...this isn't really the right place to do it. This code is supposed
     // to be more mechanical; "get the sources on disk, do basic validation". But
     // what I just described belongs in the graph layer.
-    si_da_for(loaded->info->configure.gated.source, jt) {
-      spn_gated_source_t* source = &loaded->info->configure.gated.source[jt];
+    si_da_for_ptr(loaded->info->configure.gated.source, source) {
       if (!spn_when_eval(&source->when, &facts)) {
         continue;
       }

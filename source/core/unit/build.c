@@ -11,8 +11,7 @@
 #include "when/when.h"
 
 static spn_toolchain_unit_t* bind_toolchain(spn_session_t* s, spn_toolchain_info_t* toolchain) {
-  si_da_for(s->units.toolchains, it) {
-    spn_toolchain_unit_t* unit = s->units.toolchains[it];
+  si_da_for_value(s->units.toolchains, unit) {
     if (unit->info == toolchain) {
       return unit;
     }

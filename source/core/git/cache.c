@@ -162,13 +162,13 @@ static spn_err_t spn_git_cache_fill_checkout(spn_git_cache_t* cache, spn_git_che
     return SPN_ERROR;
   }
 
-  si_da_for(entry->id.patches.files, it) {
+  si_da_for_value(entry->id.patches.files, file) {
     sp_mem_arena_marker_t s = sp_mem_begin_scratch();
     sp_str_t error = sp_zero;
-    spn_err_t applied = spn_git_apply(s.mem, work, entry->id.patches.files[it], &error);
+    spn_err_t applied = spn_git_apply(s.mem, work, file, &error);
     if (applied) {
       entry->error = sp_fmt(cache->mem, "failed to apply {}: {}",
-        sp_fmt_str(entry->id.patches.files[it]), sp_fmt_str(error)).value;
+        sp_fmt_str(file), sp_fmt_str(error)).value;
     }
     sp_mem_end_scratch(s);
     if (applied) {

@@ -123,8 +123,8 @@ void spn_thread_pool_deinit(spn_thread_pool_t* pool) {
   sp_mutex_unlock(&pool->mutex);
   sp_cv_notify_all(&pool->signal.submitted);
 
-  si_da_for(pool->workers, it) {
-    sp_thread_join(&pool->workers[it]);
+  si_da_for_ptr(pool->workers, worker) {
+    sp_thread_join(worker);
   }
 
   sp_cv_destroy(&pool->signal.submitted);
