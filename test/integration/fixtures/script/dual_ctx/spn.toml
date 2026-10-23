@@ -2,6 +2,9 @@
 name = "dual_ctx"
 version = "0.0.1"
 
+[package.build]
+source = ["tools/build.c"]
+
 [deps.package]
 gamma = "1.0.0"
 

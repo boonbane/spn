@@ -2,6 +2,12 @@
 name = "basic_node"
 version = "0.0.1"
 
+[package.configure]
+source = ["tools/configure.c"]
+
+[package.build]
+source = ["tools/build.c"]
+
 [[bin]]
 name = "basic_node"
 source = ["main.c"]

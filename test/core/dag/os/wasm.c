@@ -5,7 +5,6 @@
 #define DAG_WASM_MAX_FILES 4
 #define DAG_WASM_MAX_OBS 4
 #define DAG_WASM_MAX_OPS 4
-#define DAG_WASM_MAX_CALLS 2
 #define DAG_WASM_STACK_SIZE (64 * 1024)
 #define DAG_WASM_HEAP_SIZE (64 * 1024)
 
@@ -27,15 +26,10 @@ typedef struct {
 } expect_t;
 
 typedef struct {
-  const c8* fn;
-  wasm_emit_op_t ops [DAG_WASM_MAX_OPS];
-  expect_t expect;
-} call_t;
-
-typedef struct {
   const c8* name;
   file_t files [DAG_WASM_MAX_FILES];
-  call_t calls [DAG_WASM_MAX_CALLS];
+  wasm_emit_op_t ops [DAG_WASM_MAX_OPS];
+  expect_t expect;
 } test_t;
 
 sp_test_suite(dag_wasm, .serial = true);
@@ -44,188 +38,119 @@ static const test_t tests [] = {
   {
     .name = "open_read",
     .files = { { "work/H" } },
-    .calls = {
-      { .fn = "run",
-        .ops = { { WASM_EMIT_OPEN_READ, "H" } },
-        .expect = { .obs = { { .path = "work/H" } } } },
-    }
+    .ops = { { WASM_EMIT_OPEN_READ, "H" } },
+    .expect = { .obs = { { .path = "work/H" } } }
   },
   {
     .name = "open_absent",
-    .calls = {
-      { .fn = "run",
-        .ops = { { WASM_EMIT_OPEN_READ, "H" } },
-        .expect = { .rc = WASI_ENOENT, .obs = { { .kind = SPN_DAG_OBS_ABSENT, .path = "work/H" } } } },
-    }
+    .ops = { { WASM_EMIT_OPEN_READ, "H" } },
+    .expect = { .rc = WASI_ENOENT, .obs = { { .kind = SPN_DAG_OBS_ABSENT, .path = "work/H" } } }
   },
   {
     .name = "open_write",
-    .calls = {
-      { .fn = "run",
-        .ops = { { WASM_EMIT_OPEN_WRITE, "O" } } },
-    }
+    .ops = { { WASM_EMIT_OPEN_WRITE, "O" } }
   },
   {
     .name = "write_then_read",
-    .calls = {
-      { .fn = "run",
-        .ops = {
-          { WASM_EMIT_OPEN_WRITE, "O" },
-          { WASM_EMIT_CLOSE },
-          { WASM_EMIT_OPEN_READ, "O" },
-        } },
+    .ops = {
+      { WASM_EMIT_OPEN_WRITE, "O" },
+      { WASM_EMIT_CLOSE },
+      { WASM_EMIT_OPEN_READ, "O" },
     }
   },
   {
     .name = "write_then_read_alias",
-    .calls = {
-      { .fn = "run",
-        .ops = {
-          { WASM_EMIT_OPEN_WRITE, "O" },
-          { WASM_EMIT_CLOSE },
-          { WASM_EMIT_OPEN_READ, "./O" },
-        } },
+    .ops = {
+      { WASM_EMIT_OPEN_WRITE, "O" },
+      { WASM_EMIT_CLOSE },
+      { WASM_EMIT_OPEN_READ, "./O" },
     }
   },
   {
     .name = "stat_file",
     .files = { { "work/H" } },
-    .calls = {
-      { .fn = "run",
-        .ops = { { WASM_EMIT_STAT, "H" } },
-        .expect = { .obs = { { .path = "work/H" } } } },
-    }
+    .ops = { { WASM_EMIT_STAT, "H" } },
+    .expect = { .obs = { { .path = "work/H" } } }
   },
   {
     .name = "stat_absent",
-    .calls = {
-      { .fn = "run",
-        .ops = { { WASM_EMIT_STAT, "H" } },
-        .expect = { .rc = WASI_ENOENT, .obs = { { .kind = SPN_DAG_OBS_ABSENT, .path = "work/H" } } } },
-    }
+    .ops = { { WASM_EMIT_STAT, "H" } },
+    .expect = { .rc = WASI_ENOENT, .obs = { { .kind = SPN_DAG_OBS_ABSENT, .path = "work/H" } } }
   },
   {
     .name = "readdir",
     .files = { { "work/H" } },
-    .calls = {
-      { .fn = "run",
-        .ops = { { WASM_EMIT_READDIR } },
-        .expect = { .obs = { { .kind = SPN_DAG_OBS_ENUMERATION, .path = "work" } } } },
-    }
+    .ops = { { WASM_EMIT_READDIR } },
+    .expect = { .obs = { { .kind = SPN_DAG_OBS_ENUMERATION, .path = "work" } } }
   },
   {
     .name = "subdir",
     .files = { { "work/D/H" } },
-    .calls = {
-      { .fn = "run",
-        .ops = {
-          { WASM_EMIT_OPEN_DIR, "D" },
-          { WASM_EMIT_OPEN_AT, "H" },
-        },
-        .expect = { .obs = { { .path = "work/D/H" } } } },
-    }
+    .ops = {
+      { WASM_EMIT_OPEN_DIR, "D" },
+      { WASM_EMIT_OPEN_AT, "H" },
+    },
+    .expect = { .obs = { { .path = "work/D/H" } } }
   },
   {
     .name = "close_reuse",
     .files = { { "work/D/G" }, { "work/E/H" } },
-    .calls = {
-      { .fn = "run",
-        .ops = {
-          { WASM_EMIT_OPEN_DIR, "D" },
-          { WASM_EMIT_CLOSE },
-          { WASM_EMIT_OPEN_DIR, "E" },
-          { WASM_EMIT_OPEN_AT, "H" },
-        },
-        .expect = { .obs = { { .path = "work/E/H" } } } },
-    }
+    .ops = {
+      { WASM_EMIT_OPEN_DIR, "D" },
+      { WASM_EMIT_CLOSE },
+      { WASM_EMIT_OPEN_DIR, "E" },
+      { WASM_EMIT_OPEN_AT, "H" },
+    },
+    .expect = { .obs = { { .path = "work/E/H" } } }
   },
   {
     .name = "mounts",
     .files = { { "source/H" }, { "store/H" } },
-    .calls = {
-      { .fn = "run",
-        .ops = {
-          { WASM_EMIT_OPEN_READ, "H", .mount = 1 },
-          { WASM_EMIT_OPEN_READ, "H", .mount = 2 },
-        },
-        .expect = { .obs = { { .path = "source/H" }, { .path = "store/H" } } } },
-    }
-  },
-  {
-    .name = "cross_call",
-    .files = { { "work/D/H" } },
-    .calls = {
-      { .fn = "A",
-        .ops = { { WASM_EMIT_OPEN_DIR, "D" } } },
-      { .fn = "B",
-        .ops = { { WASM_EMIT_OPEN_AT, "H" } },
-        .expect = { .obs = { { .path = "work/D/H" } } } },
-    }
-  },
-  {
-    .name = "write_then_read_cross_call",
-    .calls = {
-      { .fn = "A",
-        .ops = { { WASM_EMIT_OPEN_WRITE, "O" } } },
-      { .fn = "B",
-        .ops = { { WASM_EMIT_OPEN_READ, "O" } },
-        .expect = { .obs = { { .path = "work/O" } } } },
-    }
+    .ops = {
+      { WASM_EMIT_OPEN_READ, "H", .mount = 1 },
+      { WASM_EMIT_OPEN_READ, "H", .mount = 2 },
+    },
+    .expect = { .obs = { { .path = "source/H" }, { .path = "store/H" } } }
   },
   {
     .name = "rename_then_read",
-    .calls = {
-      { .fn = "run",
-        .ops = {
-          { WASM_EMIT_OPEN_WRITE, "T" },
-          { WASM_EMIT_CLOSE },
-          { WASM_EMIT_RENAME, "T", .to = "O" },
-          { WASM_EMIT_OPEN_READ, "O" },
-        } },
+    .ops = {
+      { WASM_EMIT_OPEN_WRITE, "T" },
+      { WASM_EMIT_CLOSE },
+      { WASM_EMIT_RENAME, "T", .to = "O" },
+      { WASM_EMIT_OPEN_READ, "O" },
     }
   },
   {
     .name = "mkdir_then_stat",
-    .calls = {
-      { .fn = "run",
-        .ops = {
-          { WASM_EMIT_MKDIR, "D" },
-          { WASM_EMIT_STAT, "D" },
-        } },
+    .ops = {
+      { WASM_EMIT_MKDIR, "D" },
+      { WASM_EMIT_STAT, "D" },
     }
   },
   {
     .name = "unlink_then_stat",
     .files = { { "work/H" } },
-    .calls = {
-      { .fn = "run",
-        .ops = {
-          { WASM_EMIT_UNLINK, "H" },
-          { WASM_EMIT_STAT, "H" },
-        },
-        .expect = { .rc = WASI_ENOENT } },
-    }
+    .ops = {
+      { WASM_EMIT_UNLINK, "H" },
+      { WASM_EMIT_STAT, "H" },
+    },
+    .expect = { .rc = WASI_ENOENT }
   },
   {
     .name = "rmdir_then_stat",
     .files = { { "work/D/H" } },
-    .calls = {
-      { .fn = "run",
-        .ops = {
-          { WASM_EMIT_UNLINK, "D/H" },
-          { WASM_EMIT_RMDIR, "D" },
-          { WASM_EMIT_STAT, "D" },
-        },
-        .expect = { .rc = WASI_ENOENT } },
-    }
+    .ops = {
+      { WASM_EMIT_UNLINK, "D/H" },
+      { WASM_EMIT_RMDIR, "D" },
+      { WASM_EMIT_STAT, "D" },
+    },
+    .expect = { .rc = WASI_ENOENT }
   },
   {
     .name = "escape",
-    .calls = {
-      { .fn = "run",
-        .ops = { { WASM_EMIT_OPEN_READ, "../H" } },
-        .expect = { .rc = WASI_ENOTCAPABLE } },
-    }
+    .ops = { { WASM_EMIT_OPEN_READ, "../H" } },
+    .expect = { .rc = WASI_ENOTCAPABLE }
   },
 };
 
@@ -285,27 +210,10 @@ sp_test_each(dag_wasm, wasi, test_t, tests) {
     dag_test_create(sp_path_join(mem, sandbox, sp_str_view(it->files[ft].path)), sp_str_lit("A"));
   }
 
-  wasm_emit_fn_t fns [DAG_WASM_MAX_CALLS] = sp_zero;
-  u32 num_fns = 0;
-  sp_carr_for(it->calls, ct) {
-    call_t* call = &it->calls[ct];
-    if (!call->fn) {
-      break;
-    }
-    u32 num_ops = 0;
-    sp_carr_for(call->ops, ot) {
-      if (!call->ops[ot].kind) {
-        break;
-      }
-      num_ops++;
-    }
-    fns[num_fns++] = (wasm_emit_fn_t) {
-      .name = call->fn,
-      .ops = call->ops,
-      .count = num_ops
-    };
-  }
-  sp_str_t blob = wasm_emit_module(mem, fns, num_fns);
+  u32 num_ops = 0;
+  sp_carr_detect_len(it->ops, num_ops, it->ops[num_ops].kind);
+  wasm_emit_fn_t fn = { .name = "run", .ops = it->ops, .count = num_ops };
+  sp_str_t blob = wasm_emit_module(mem, &fn, 1);
 
   c8 error [128] = sp_zero;
   wasm_module_t module = wasm_runtime_load((u8*)blob.data, (u32)blob.len, error, sizeof(error));
@@ -320,35 +228,23 @@ sp_test_each(dag_wasm, wasi, test_t, tests) {
   wasm_module_inst_t instance = wasm_runtime_instantiate(module, DAG_WASM_STACK_SIZE, DAG_WASM_HEAP_SIZE, error, sizeof(error));
   sp_must(t, instance != SP_NULLPTR);
 
-  spn_dag_wasi_t* w = spn_dag_wasi_new(mem, &roots, mounts, sp_carr_len(mounts));
+  spn_dag_obs_table_t table = sp_zero;
+  spn_dag_obs_table_init(&table, mem, &roots, sp_zero_struct(spn_path_t));
+  spn_dag_obs_set_t obs = { .table = &table };
+  spn_dag_wasi_t* w = spn_dag_wasi_new(mem, &roots, mounts, sp_carr_len(mounts), &obs);
   spn_dag_wasi_bind(w, instance);
 
   wasm_exec_env_t env = wasm_runtime_create_exec_env(instance, DAG_WASM_STACK_SIZE);
   sp_must(t, env != SP_NULLPTR);
 
-  spn_dag_obs_table_t table = sp_zero;
-  spn_dag_obs_table_init(&table, mem, &roots, sp_zero_struct(spn_path_t));
+  wasm_function_inst_t run = wasm_runtime_lookup_function(instance, "run");
+  sp_must(t, run != SP_NULLPTR);
 
-  sp_carr_for(it->calls, ct) {
-    call_t* call = &it->calls[ct];
-    if (!call->fn) {
-      break;
-    }
-
-    wasm_function_inst_t fn = wasm_runtime_lookup_function(instance, call->fn);
-    sp_must(t, fn != SP_NULLPTR);
-
-    spn_dag_obs_set_t obs = { .table = &table };
-    spn_dag_wasi_begin(w, &obs);
-
-    wasm_val_t results [1] = sp_zero;
-    bool called = wasm_runtime_call_wasm_a(env, fn, 1, results, 0, SP_NULLPTR);
-    spn_dag_wasi_end(w);
-
-    sp_must(t, called);
-    sp_expect_eq(t, call->expect.rc, results[0].of.i32);
-    expect_obs(t, mem, &roots, root, &call->expect, obs.rows);
-  }
+  wasm_val_t args [1] = { { .kind = WASM_I32 } };
+  wasm_val_t results [1] = sp_zero;
+  sp_must(t, wasm_runtime_call_wasm_a(env, run, 1, results, 1, args));
+  sp_expect_eq(t, it->expect.rc, results[0].of.i32);
+  expect_obs(t, mem, &roots, root, &it->expect, obs.rows);
 
   wasm_runtime_destroy_exec_env(env);
   wasm_runtime_deinstantiate(instance);

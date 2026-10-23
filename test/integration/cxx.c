@@ -154,7 +154,6 @@ sp_test(cxx, bare_threads) {
 sp_test(cxx, script_rejected) {
   return run_test(t, (test_t) {
     .project = "test/integration/fixtures/cxx/script_rejected",
-    .copy = { "tools" },
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build", .rc = 1 } },
       { .kind = ACTION_VERIFY_RESULT, .verify_result = { .err = SPN_ERR_MANIFEST_ISSUES } },

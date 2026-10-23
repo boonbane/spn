@@ -209,7 +209,6 @@ sp_test_each(index_dir, get_package, dir_test_t, tests, .setup = spn_test_ctx_se
     sp_expect_str_eq(t, release->id.namespace, request.namespace);
     sp_expect_str_eq(t, release->id.name, request.name);
     sp_expect_str_eq_c(t, release->paths.manifest, "spn.toml");
-    sp_expect_str_eq_c(t, release->paths.script, "spn.c");
 
     sp_must_eq(t, SPN_PKG_ROOT_LOCAL, release->source.kind);
     sp_expect_str_eq(t, release->source.local.sub, package);

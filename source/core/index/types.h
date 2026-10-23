@@ -37,7 +37,6 @@ typedef struct {
 
 typedef struct {
   sp_str_t manifest;
-  sp_str_t script;
 } spn_index_rel_paths_t;
 
 typedef struct {

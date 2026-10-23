@@ -2,6 +2,9 @@
 name = "applib"
 version = "2.0.0"
 
+[package.build]
+source = ["tools/build.c"]
+
 [deps.build]
 tool = "1.0.0"
 

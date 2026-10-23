@@ -27,8 +27,7 @@
 
     "release_paths": {
       "optionalProperties": {
-        "manifest": { "type": "string" },
-        "script": { "type": "string" }
+        "manifest": { "type": "string" }
       }
     },
 

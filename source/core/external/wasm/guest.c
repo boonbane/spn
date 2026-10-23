@@ -7,9 +7,6 @@
 #include "unit/types.h"
 #include "api/api.h"
 #include "ctx/types.h"
-#include "event/types.h"
-#include "event/event.h"
-#include "glob/glob.h"
 
 #define SPN_GUEST_FMT_ARGS 4
 
@@ -28,49 +25,6 @@ static bool guest_path(spn_wasm_ctx_t* abi, sp_mem_t mem, const c8* path, spn_pa
     return false;
   }
   return true;
-}
-
-static void guest_copy(spn_wasm_ctx_t* abi, const c8* name, const c8* from, const c8* to) {
-  spn_pkg_unit_t* unit = guest_unit(abi);
-  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  spn_path_t from_path = sp_zero;
-  spn_path_t to_path = sp_zero;
-  if (!guest_path(abi, scratch.mem, from, &from_path) || !guest_path(abi, scratch.mem, to, &to_path)) {
-    sp_mem_end_scratch(scratch);
-    return;
-  }
-
-  const spn_path_roots_t* roots = &unit->session->ctx->roots;
-  sp_str_t from_str = spn_path_str(roots, scratch.mem, from_path);
-  sp_str_t to_str = spn_path_str(roots, scratch.mem, to_path);
-  spn_event_buffer_push(spn.events, (spn_event_t) {
-    .kind = SPN_EVENT_API_CALL,
-    .pkg = unit->info->name.str,
-    .api_call = { .fn = sp_cstr_as_str(name), .args = sp_fmt(spn.events->mem, "{} -> {}", SP_FMT_STR(from_str), SP_FMT_STR(to_str)).value },
-  });
-
-  if (!sp_glob_parse_meta(from_path.sub).literal) {
-    spn_dag_wasi_observe_glob(abi->instance, spn_path_parent(from_path), sp_fs_get_name(from_path.sub));
-  }
-  else {
-    spn_dag_wasi_observe_read(abi->instance, from_path);
-  }
-
-  if (spn_api_copy(spn_path_at(roots, from_path), spn_path_at(roots, to_path))) {
-    wasm_runtime_set_exception(abi->instance, sp_fmt_mem_cstr(scratch.mem, "{}: {} -> {}", SP_FMT_CSTR(name), SP_FMT_STR(from_str), SP_FMT_STR(to_str)));
-  }
-  else {
-    spn_dag_wasi_observe_write(abi->instance, to_path);
-  }
-  sp_mem_end_scratch(scratch);
-}
-
-void spn_abi_fs_copy(spn_wasm_ctx_t* abi, const c8* from, const c8* to) {
-  guest_copy(abi, "spn_fs_copy", from, to);
-}
-
-void spn_abi_fs_copy_glob(spn_wasm_ctx_t* abi, const c8* glob, const c8* dir) {
-  guest_copy(abi, "spn_fs_copy_glob", glob, dir);
 }
 
 void spn_abi_fs_create_dir(spn_wasm_ctx_t* abi, const c8* path) {

@@ -7,12 +7,10 @@
 
 spn_err_t spn_wasm_init();
 void      spn_wasm_thread_exit(void);
-void      spn_wasm_script_init(spn_wasm_script_t* script, spn_path_t module);
-spn_err_t spn_wasm_script_open(spn_wasm_script_t* script, spn_pkg_unit_t* unit);
+spn_err_t spn_wasm_script_open(sp_mem_t mem, spn_pkg_unit_t* unit, spn_path_t module, spn_dag_obs_set_t* obs, spn_wasm_script_t* script);
 void      spn_wasm_script_close(spn_wasm_script_t* script);
 bool      spn_wasm_script_exports(spn_wasm_script_t* script, sp_str_t name);
-spn_err_t spn_wasm_script_call(spn_wasm_script_t* script, spn_pkg_unit_t* unit, sp_str_t name, spn_abi_kind_t kind, void* arg);
-bool      spn_wasm_trap_active(spn_pkg_unit_t* unit, sp_str_t message);
-spn_err_t spn_wasm_call_export_ex(spn_pkg_unit_t* unit, sp_str_t name, spn_abi_kind_t kind, void* arg, spn_dag_obs_set_t* obs);
+spn_err_t spn_wasm_script_call(spn_wasm_script_t* script, sp_str_t name, const spn_wasm_handle_t* handles, u32 count);
+bool      spn_wasm_trap(sp_str_t message);
 
 #endif

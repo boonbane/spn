@@ -2,6 +2,12 @@
 name = "S"
 version = "0.0.1"
 
+[package.configure]
+source = ["tools/configure.c"]
+
+[package.build]
+source = ["tools/build.c"]
+
 [[bin]]
 name = "S"
 source = ["main.c"]

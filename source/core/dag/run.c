@@ -757,7 +757,7 @@ static spn_err_t execute_attempt(sp_mem_t mem, spn_dag_t* g, si_dag_action_handl
     .produces = action->produces,
     .roots = g->roots,
     .scratch = staging,
-    .obs = &attempt->obs,
+    .obs = action->kind == SPN_DAG_ACTION_DISCOVERED ? &attempt->obs : SP_NULLPTR,
   };
   spn_err_t err = action->execute(&c, action->user_data);
   if (err) {
