@@ -1,7 +1,7 @@
 #include "unit.h"
 
 #include "paths/paths.h"
-#include "pkg/manifest.h"
+#include "manifest.h"
 
 #define OBJECTS_TEST_MAX_SOURCE 4
 
@@ -72,7 +72,7 @@ sp_test_each(unit_objects, create, objects_test_t, tests, .setup = spn_test_ctx_
   }
 
   spn_target_decl_t* decl = SP_NULLPTR;
-  sp_must_eq(t, SPN_OK, spn_manifest_add_target(s->mem, test_manifest(s, id), sp_str_lit("app"), SPN_TARGET_KIND_EXE, &decl));
+  decl = test_manifest_target(s->mem, test_manifest(s, id), sp_str_lit("app"), SPN_TARGET_KIND_EXE);
   s->plans.build[0].selection.kinds = spn_target_kind_bit(SPN_TARGET_KIND_EXE);
   sp_must_eq(t, SPN_OK, spn_units_add_packages(s));
   spn_target_eval_t* app = spn_pkg_get_target(&si_get_pkg_unit(s, s->units.target, id)->eval, sp_str_lit("app"), SPN_TARGET_KIND_EXE);

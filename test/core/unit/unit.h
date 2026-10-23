@@ -4,7 +4,7 @@
 
 #include "ctx/types.h"
 #include "intern/intern.h"
-#include "pkg/manifest.h"
+#include "manifest.h"
 #include "pkg/pkg.h"
 #include "session/session.h"
 #include "session/types.h"

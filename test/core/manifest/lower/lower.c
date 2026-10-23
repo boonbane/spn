@@ -4,7 +4,7 @@
 #include "codegen/codegen.h"
 #include "codegen/lower.h"
 #include "manifest.gen.h"
-#include "pkg/manifest.h"
+#include "manifest.h"
 #include "target/types.h"
 #include "profile/types.h"
 #include "index/types.h"
@@ -1734,7 +1734,7 @@ sp_test_each(lower, cases, test_t, tests, .setup = spn_test_ctx_setup) {
   if (it->pkg_name)   sp_expect_str_eq_c(t, pkg.name.str, it->pkg_name);
   if (it->namespace)  sp_expect_str_eq_c(t, pkg.namespace, it->namespace);
   if (it->qualified)  sp_expect_str_eq_c(t, pkg.qualified.str, it->qualified);
-  if (it->url)        sp_expect_str_eq_c(t, pkg.upstream.url, it->url);
+  if (it->url)        sp_expect_str_eq_c(t, pkg.upstream.git.url, it->url);
   if (it->repo)       sp_expect_str_eq_c(t, pkg.repo, it->repo);
   if (it->author)     sp_expect_str_eq_c(t, pkg.author, it->author);
   if (it->maintainer) sp_expect_str_eq_c(t, pkg.maintainer, it->maintainer);
@@ -1746,7 +1746,7 @@ sp_test_each(lower, cases, test_t, tests, .setup = spn_test_ctx_setup) {
   }
 
   if (it->commit) {
-    sp_expect_str_eq_c(t, pkg.upstream.commit, it->commit);
+    sp_expect_str_eq_c(t, pkg.upstream.git.rev, it->commit);
   }
 
   // Package arrays

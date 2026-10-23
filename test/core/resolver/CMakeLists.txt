@@ -41,7 +41,6 @@ add_executable(resolver
   ${SRC}/paths/paths.c
   ${SRC}/pkg/id.c
   ${SRC}/pkg/pkg.c
-  ${SRC}/pkg/mutate.c
   ${SRC}/pkg/options.c
   ${SRC}/profile/profile.c
   ${SRC}/pkg/load.c

@@ -3,8 +3,7 @@
 #include "ctx/types.h"
 #include "intern/intern.h"
 #include "profile/profile.h"
-#include "pkg/manifest.h"
-#include "pkg/manifest.h"
+#include "manifest.h"
 #include "pkg/types.h"
 #include "target/types.h"
 #include "toolchain/toolchain.h"
@@ -857,7 +856,7 @@ sp_test_each(profile, resolve, test_t, tests, .setup = spn_test_ctx_setup) {
 
   spn_profile_override_t overrides = desc_to_override(&it->overrides);
 
-  spn_manifest_t pkg = spn_manifest_new(sp_str_lit("P"));
+  spn_manifest_t pkg = test_manifest_make(sp_str_lit("P"));
   if (it->profile.name) {
     spn_profile_decl_t decl = desc_to_decl(mem, &it->profile);
     si_om_insert(mem, pkg.profiles, decl.id, decl);
@@ -868,7 +867,7 @@ sp_test_each(profile, resolve, test_t, tests, .setup = spn_test_ctx_setup) {
   }
   if (it->shared_demand) {
     spn_target_decl_t* lib = SP_NULLPTR;
-    sp_must_eq(t, SPN_OK, spn_manifest_add_target(mem, &pkg, sp_str_lit("L"), SPN_TARGET_KIND_LIB, &lib));
+    lib = test_manifest_target(mem, &pkg, sp_str_lit("L"), SPN_TARGET_KIND_LIB);
     lib->linkages = (spn_linkage_set_t) { .shared = true };
   }
 

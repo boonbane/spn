@@ -1,6 +1,6 @@
 #include "unit.h"
 
-#include "pkg/manifest.h"
+#include "manifest.h"
 #include "session/session.h"
 #include "triple/triple.h"
 
@@ -291,7 +291,7 @@ sp_test_each(link_plan, plan, plan_test_t, tests, .setup = spn_test_ctx_setup) {
 
   spn_manifest_t* manifest = test_manifest(s, find_pkg_id(s, &it->graph, it->graph.pkgs[0].name));
   spn_target_decl_t* decl = SP_NULLPTR;
-  sp_must_eq(t, SPN_OK, spn_manifest_add_target(s->mem, manifest, sp_str_lit("app"), it->target.kind, &decl));
+  decl = test_manifest_target(s->mem, manifest, sp_str_lit("app"), it->target.kind);
   target_decl(mem, &it->target, decl);
   s->plans.build[0].selection.kinds = spn_target_kind_bit(it->target.kind);
 

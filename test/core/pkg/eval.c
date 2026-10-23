@@ -2,7 +2,7 @@
 
 #include "intern/intern.h"
 #include "paths/paths.h"
-#include "pkg/manifest.h"
+#include "manifest.h"
 #include "pkg/pkg.h"
 #include "when/when.h"
 
@@ -283,17 +283,17 @@ static const lists_test_t lists_tests [] = {
 sp_test_each(pkg_eval, lists, lists_test_t, lists_tests, .setup = spn_test_ctx_setup) {
   sp_mem_t mem = sp_test_arena(t);
 
-  spn_manifest_t manifest = spn_manifest_new(sp_str_lit("P"));
+  spn_manifest_t manifest = test_manifest_make(sp_str_lit("P"));
   spn_target_decl_t* lib = SP_NULLPTR;
   spn_target_decl_t* exe = SP_NULLPTR;
   spn_target_decl_t* script = SP_NULLPTR;
   spn_target_decl_t* unit_test = SP_NULLPTR;
   spn_target_decl_t* build = SP_NULLPTR;
-  sp_must_eq(t, SPN_OK, spn_manifest_add_target(mem, &manifest, sp_str_lit("A"), SPN_TARGET_KIND_LIB, &lib));
-  sp_must_eq(t, SPN_OK, spn_manifest_add_target(mem, &manifest, sp_str_lit("main"), SPN_TARGET_KIND_EXE, &exe));
-  sp_must_eq(t, SPN_OK, spn_manifest_add_target(mem, &manifest, sp_str_lit("B"), SPN_TARGET_KIND_SCRIPT, &script));
-  sp_must_eq(t, SPN_OK, spn_manifest_add_target(mem, &manifest, sp_str_lit("C"), SPN_TARGET_KIND_TEST, &unit_test));
-  sp_must_eq(t, SPN_OK, spn_manifest_add_target(mem, &manifest, sp_str_lit("build"), SPN_TARGET_KIND_BUILD_METAPROGRAM, &build));
+  lib = test_manifest_target(mem, &manifest, sp_str_lit("A"), SPN_TARGET_KIND_LIB);
+  exe = test_manifest_target(mem, &manifest, sp_str_lit("main"), SPN_TARGET_KIND_EXE);
+  script = test_manifest_target(mem, &manifest, sp_str_lit("B"), SPN_TARGET_KIND_SCRIPT);
+  unit_test = test_manifest_target(mem, &manifest, sp_str_lit("C"), SPN_TARGET_KIND_TEST);
+  build = test_manifest_target(mem, &manifest, sp_str_lit("build"), SPN_TARGET_KIND_BUILD_METAPROGRAM);
 
   lib->source = make_sources(mem, it->lib_source);
   exe->source = make_sources(mem, it->source);
@@ -544,9 +544,9 @@ static const embed_test_t embed_tests [] = {
 
 sp_test_each(pkg_eval, target_embeds, embed_test_t, embed_tests, .setup = spn_test_ctx_setup) {
   sp_mem_t mem = sp_test_arena(t);
-  spn_manifest_t manifest = spn_manifest_new(sp_str_lit("P"));
+  spn_manifest_t manifest = test_manifest_make(sp_str_lit("P"));
   spn_target_decl_t* exe = SP_NULLPTR;
-  sp_must_eq(t, SPN_OK, spn_manifest_add_target(mem, &manifest, sp_str_lit("main"), SPN_TARGET_KIND_EXE, &exe));
+  exe = test_manifest_target(mem, &manifest, sp_str_lit("main"), SPN_TARGET_KIND_EXE);
   sp_carr_for(it->embeds, et) {
     if (!it->embeds[et].dest) {
       break;
@@ -602,13 +602,13 @@ static const scripts_test_t scripts_tests [] = {
 
 sp_test_each(pkg_eval, has_scripts, scripts_test_t, scripts_tests, .setup = spn_test_ctx_setup) {
   sp_mem_t mem = sp_test_arena(t);
-  spn_manifest_t manifest = spn_manifest_new(sp_str_lit("P"));
+  spn_manifest_t manifest = test_manifest_make(sp_str_lit("P"));
   sp_carr_for(it->targets, tt) {
     if (!it->targets[tt].source) {
       break;
     }
     spn_target_decl_t* decl = SP_NULLPTR;
-    sp_must_eq(t, SPN_OK, spn_manifest_add_target(mem, &manifest, sp_str_lit("T"), it->targets[tt].kind, &decl));
+    decl = test_manifest_target(mem, &manifest, sp_str_lit("T"), it->targets[tt].kind);
     si_da_push(mem, decl->source, ((spn_gated_source_t) {
       .path = sp_cstr_as_str(it->targets[tt].source),
       .tree = SPN_TREE_SOURCE,

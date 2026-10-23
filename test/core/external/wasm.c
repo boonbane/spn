@@ -4,7 +4,7 @@
 #include "dag/dag.h"
 #include "external/wasm/wasm.h"
 #include "paths/paths.h"
-#include "pkg/manifest.h"
+#include "manifest.h"
 #include "session/types.h"
 #include "unit/types.h"
 #include "wasm_emit.h"
@@ -57,7 +57,7 @@ sp_test_each(wasm_script, lifecycle, test_t, tests, .setup = spn_test_ctx_setup)
   spn_path_t sandbox = spn_path_make(&spn.roots, test_dir_str(t));
   spn_path_t source = spn_path_join(mem, sandbox, sp_str_lit("source"));
   spn_path_t store = spn_path_join(mem, sandbox, sp_str_lit("store"));
-  spn_manifest_t manifest = spn_manifest_new(sp_str_lit("A"));
+  spn_manifest_t manifest = test_manifest_make(sp_str_lit("A"));
   spn_session_t session = { .ctx = &spn };
   spn_pkg_unit_t unit = {
     .session = &session,

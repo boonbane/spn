@@ -1,6 +1,6 @@
 #include "unit.h"
 
-#include "pkg/manifest.h"
+#include "manifest.h"
 
 sp_test_suite(target_kind, .serial = true);
 
@@ -71,7 +71,7 @@ sp_test_each(target_kind, kind, test_t, tests, .setup = spn_test_ctx_setup) {
   spn_manifest_t* manifest = test_manifest(s, find_pkg_id(s, &it->graph, it->graph.pkgs[0].name));
   const c8* source [] = { "app.c", SP_NULLPTR };
   spn_target_decl_t* app = SP_NULLPTR;
-  sp_must_eq(t, SPN_OK, spn_manifest_add_target(s->mem, manifest, sp_str_lit("app"), SPN_TARGET_KIND_EXE, &app));
+  app = test_manifest_target(s->mem, manifest, sp_str_lit("app"), SPN_TARGET_KIND_EXE);
   app->source = test_gated_sources(mem, source, sp_carr_len(source));
   s->plans.build[0].selection.kinds = spn_target_kind_bit(SPN_TARGET_KIND_EXE);
 

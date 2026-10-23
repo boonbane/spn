@@ -92,8 +92,10 @@ sp_test_each(index_from_pkg, roots, test_t, tests, .setup = spn_test_ctx_setup) 
   spn_manifest_t info = sp_zero;
   info.qualified = spn_intern_lit("core/A");
   if (it->upstream.url) {
-    info.upstream.url = sp_cstr_as_str(it->upstream.url);
-    info.upstream.commit = sp_cstr_as_str(it->upstream.commit);
+    info.upstream = (spn_pkg_root_t) {
+      .kind = SPN_PKG_ROOT_GIT,
+      .git = { .url = sp_cstr_as_str(it->upstream.url), .rev = sp_cstr_as_str(it->upstream.commit) },
+    };
   }
 
   spn_index_release_t release = sp_zero;

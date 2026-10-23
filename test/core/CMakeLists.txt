@@ -208,7 +208,6 @@ add_executable(core
   ${SRC}/graph/build.c
   ${SRC}/paths/paths.c
   ${SRC}/pkg/id.c
-  ${SRC}/pkg/manifest.c
   ${SRC}/pkg/options.c
   ${SRC}/pkg/patch.c
   ${SRC}/pkg/pkg.c

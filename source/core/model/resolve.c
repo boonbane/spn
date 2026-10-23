@@ -14,7 +14,6 @@
 #include "pkg/load.h"
 #include "paths/paths.h"
 #include "toml/issue.h"
-#include "pkg/manifest.h"
 #include "resolve/resolve.h"
 #include "semver/convert.h"
 #include "session/session.h"
@@ -54,7 +53,7 @@ static spn_err_t apply_patch_overrides(spn_session_t* session, spn_resolve_query
     }
 
     pkg->origin.recipe = (spn_pkg_root_t) { .kind = SPN_PKG_ROOT_LOCAL, .local = patch };
-    pkg->origin.source = spn_manifest_upstream(manifest);
+    pkg->origin.source = manifest->upstream;
     pkg->origin.manifest = manifest;
     pkg->name = manifest->name.str;
     pkg->options = manifest->options;

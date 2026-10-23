@@ -40,7 +40,6 @@ add_executable(fuzz_resolver
   ${SRC}/paths/paths.c
   ${SRC}/pkg/id.c
   ${SRC}/pkg/pkg.c
-  ${SRC}/pkg/mutate.c
   ${SRC}/pkg/options.c
   ${SRC}/profile/profile.c
   ${SRC}/pkg/load.c
@@ -70,7 +69,7 @@ add_executable(fuzz_resolver
   ${TEST_TOOLS}/toml.c
 )
 spn_test_binary(fuzz_resolver)
-target_include_directories(fuzz_resolver PRIVATE ${GEN_DIR} ${CMAKE_SOURCE_DIR}/tools ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(fuzz_resolver PRIVATE ${GEN_DIR} ${CMAKE_SOURCE_DIR}/tools ${CMAKE_SOURCE_DIR}/test/core/tools ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(fuzz_resolver PRIVATE yyjson blake3)
 add_dependencies(fuzz_resolver spn_codegen_gen)
 add_test(NAME fuzz_resolver COMMAND "$<TARGET_FILE:fuzz_resolver>" WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")

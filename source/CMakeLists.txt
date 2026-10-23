@@ -98,7 +98,6 @@ set(SPN_SOURCES
   core/op/publish.c
   core/paths/paths.c
   core/pkg/id.c
-  core/pkg/manifest.c
   core/pkg/patch.c
   core/pkg/options.c
   core/pkg/pkg.c

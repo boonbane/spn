@@ -163,7 +163,7 @@ spn_session_t* build_session(sp_mem_t mem, unit_graph_test_t* g) {
     spn_pkg_id_t id = find_pkg_id(s, g, pkg->name);
 
     spn_manifest_t* manifest = sp_alloc_type(mem, spn_manifest_t);
-    *manifest = spn_manifest_new(sp_cstr_as_str(pkg->name));
+    *manifest = test_manifest_make(sp_cstr_as_str(pkg->name));
     manifest->qualified = sp_intern(s->ctx->intern, sp_cstr_as_str(pkg->name));
     manifest->system_deps = test_gated_list(mem, pkg->system_deps, UNIT_TEST_MAX_STRS);
     manifest->macos.frameworks = test_gated_list(mem, pkg->frameworks, UNIT_TEST_MAX_STRS);
@@ -177,12 +177,12 @@ spn_session_t* build_session(sp_mem_t mem, unit_graph_test_t* g) {
         break;
       }
       spn_target_decl_t* lib = SP_NULLPTR;
-      spn_manifest_add_target(mem, manifest, sp_cstr_as_str(pkg->libs[lt].name), SPN_TARGET_KIND_LIB, &lib);
+      lib = test_manifest_target(mem, manifest, sp_cstr_as_str(pkg->libs[lt].name), SPN_TARGET_KIND_LIB);
       lib_decl(mem, &pkg->libs[lt], lib);
     }
     if (pkg->scripts) {
       spn_target_decl_t* configure = SP_NULLPTR;
-      spn_manifest_add_target(mem, manifest, sp_str_lit("configure"), SPN_TARGET_KIND_CONFIGURE_METAPROGRAM, &configure);
+      configure = test_manifest_target(mem, manifest, sp_str_lit("configure"), SPN_TARGET_KIND_CONFIGURE_METAPROGRAM);
       si_da_push(mem, configure->source, ((spn_gated_source_t) {
         .kind = SPN_SOURCE_FILE,
         .path = sp_str_lit("configure.c"),

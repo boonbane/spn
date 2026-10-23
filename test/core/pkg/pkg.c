@@ -2,111 +2,11 @@
 
 #include "ctx/types.h"
 #include "intern/intern.h"
-#include "pkg/manifest.h"
 #include "pkg/patch.h"
 #include "profile/types.h"
 #include "when/when.h"
 
 sp_test_suite(pkg, .serial = true);
-
-static const spn_target_decl_t* get_target(const spn_manifest_t* manifest, sp_str_t name, spn_target_kind_t kind) {
-  spn_target_id_t id = { .name = spn_intern(name).id, .kind = kind };
-  return si_om_get(manifest->targets, id);
-}
-
-static spn_manifest_t make_manifest(sp_mem_t mem, spn_target_decl_t** bin) {
-  spn_manifest_t manifest = spn_manifest_new(sp_str_lit("A"));
-  manifest.macos.min_os = (spn_os_version_t) { .major = 12 };
-  si_da_push(mem, manifest.macos.frameworks, ((spn_gated_str_t) { .value = sp_str_lit("A") }));
-
-  spn_manifest_add_target(mem, &manifest, sp_str_lit("A"), SPN_TARGET_KIND_EXE, bin);
-  si_da_push(mem, (*bin)->macos.frameworks, ((spn_gated_str_t) { .value = sp_str_lit("B") }));
-  (*bin)->windows.subsystem = SPN_WIN_SUBSYSTEM_WINDOWS;
-
-  return manifest;
-}
-
-typedef enum {
-  PKG_EDIT_NONE,
-  PKG_EDIT_MACOS_MIN_OS,
-  PKG_EDIT_MACOS_FRAMEWORK,
-  PKG_EDIT_MACOS_FRAMEWORK_WHEN,
-  PKG_EDIT_TARGET_FRAMEWORK,
-  PKG_EDIT_TARGET_SUBSYSTEM,
-  PKG_EDIT_TARGET_KIND,
-} pkg_edit_t;
-
-typedef struct {
-  bool hashed;
-  bool changed;
-} hash_expect_t;
-
-typedef struct {
-  const c8* name;
-  spn_profile_info_t profile;
-  pkg_edit_t edit;
-  hash_expect_t expect;
-} hash_platform_test_t;
-
-static const hash_platform_test_t hash_platform_tests [] = {
-  { .name = "skip_linux",                     .profile = { .os = SPN_OS_LINUX } },
-  { .name = "hash_macos",                     .profile = { .os = SPN_OS_MACOS },   .expect = { .hashed = true } },
-  { .name = "hash_windows",                   .profile = { .os = SPN_OS_WINDOWS }, .expect = { .hashed = true } },
-  { .name = "track_macos_min_os",             .profile = { .os = SPN_OS_MACOS },   .edit = PKG_EDIT_MACOS_MIN_OS,     .expect = { .hashed = true, .changed = true } },
-  { .name = "ignore_macos_edit_on_windows",   .profile = { .os = SPN_OS_WINDOWS }, .edit = PKG_EDIT_MACOS_MIN_OS,     .expect = { .hashed = true } },
-  { .name = "track_macos_framework",          .profile = { .os = SPN_OS_MACOS },   .edit = PKG_EDIT_MACOS_FRAMEWORK,  .expect = { .hashed = true, .changed = true } },
-  { .name = "track_macos_framework_when",     .profile = { .os = SPN_OS_MACOS },   .edit = PKG_EDIT_MACOS_FRAMEWORK_WHEN, .expect = { .hashed = true, .changed = true } },
-  { .name = "track_target_framework",         .profile = { .os = SPN_OS_MACOS },   .edit = PKG_EDIT_TARGET_FRAMEWORK, .expect = { .hashed = true, .changed = true } },
-  { .name = "ignore_framework_edit_on_windows", .profile = { .os = SPN_OS_WINDOWS }, .edit = PKG_EDIT_MACOS_FRAMEWORK, .expect = { .hashed = true } },
-  { .name = "track_windows_subsystem",        .profile = { .os = SPN_OS_WINDOWS }, .edit = PKG_EDIT_TARGET_SUBSYSTEM, .expect = { .hashed = true, .changed = true } },
-  { .name = "ignore_subsystem_edit_on_macos", .profile = { .os = SPN_OS_MACOS },   .edit = PKG_EDIT_TARGET_SUBSYSTEM, .expect = { .hashed = true } },
-  { .name = "track_target_kind_on_macos",     .profile = { .os = SPN_OS_MACOS },   .edit = PKG_EDIT_TARGET_KIND,      .expect = { .hashed = true, .changed = true } },
-  { .name = "track_target_kind_on_windows",   .profile = { .os = SPN_OS_WINDOWS }, .edit = PKG_EDIT_TARGET_KIND,      .expect = { .hashed = true, .changed = true } },
-};
-
-sp_test_each(pkg, hash_platform, hash_platform_test_t, hash_platform_tests, .setup = spn_test_ctx_setup) {
-  sp_mem_t mem = spn.mem;
-  spn_target_decl_t* bin = SP_NULLPTR;
-  spn_manifest_t manifest = make_manifest(mem, &bin);
-
-  sp_hash_t before = spn_manifest_hash_platform(&manifest, &it->profile);
-  sp_expect_eq(t, before != 0, it->expect.hashed);
-
-  switch (it->edit) {
-    case PKG_EDIT_NONE: {
-      return SP_OK;
-    }
-    case PKG_EDIT_MACOS_MIN_OS: {
-      manifest.macos.min_os = (spn_os_version_t) { .major = 13 };
-      break;
-    }
-    case PKG_EDIT_MACOS_FRAMEWORK: {
-      si_da_push(mem, manifest.macos.frameworks, ((spn_gated_str_t) { .value = sp_str_lit("C") }));
-      break;
-    }
-    case PKG_EDIT_MACOS_FRAMEWORK_WHEN: {
-      spn_when_t when = sp_zero;
-      si_da_push(mem, when.clauses, ((spn_when_clause_t) { .key = sp_str_lit("os"), .value = spn_option_value_str(sp_str_lit("macos")) }));
-      manifest.macos.frameworks[0].when = when;
-      break;
-    }
-    case PKG_EDIT_TARGET_FRAMEWORK: {
-      si_da_push(mem, bin->macos.frameworks, ((spn_gated_str_t) { .value = sp_str_lit("C") }));
-      break;
-    }
-    case PKG_EDIT_TARGET_SUBSYSTEM: {
-      bin->windows.subsystem = SPN_WIN_SUBSYSTEM_CONSOLE;
-      break;
-    }
-    case PKG_EDIT_TARGET_KIND: {
-      bin->kind = SPN_TARGET_KIND_LIB;
-      break;
-    }
-  }
-
-  sp_expect_eq(t, spn_manifest_hash_platform(&manifest, &it->profile) != before, it->expect.changed);
-  return SP_OK;
-}
 
 typedef struct {
   spn_pkg_patch_stamp_result_t result;
@@ -150,52 +50,5 @@ sp_test_each(pkg, patch_stamp, stamp_test_t, stamp_tests, .setup = spn_test_ctx_
     sp_expect_eq(t, it->expect.hash, source.git.patches.hash);
   }
 
-  return SP_OK;
-}
-
-typedef struct {
-  const c8* name;
-  spn_target_kind_t kind;
-} target_ref_t;
-
-typedef struct {
-  const c8* name;
-  target_ref_t add [2];
-  target_ref_t get;
-  struct {
-    spn_err_t err;
-    bool found;
-  } expect;
-} targets_test_t;
-
-static const targets_test_t targets_tests [] = {
-  { .name = "add_distinct_names",           .add = { { "A", SPN_TARGET_KIND_EXE }, { "B", SPN_TARGET_KIND_EXE } }, .get = { "B", SPN_TARGET_KIND_EXE }, .expect = { .found = true } },
-  { .name = "add_same_name_distinct_kinds", .add = { { "A" }, { "A", SPN_TARGET_KIND_EXE } },                      .get = { "A", SPN_TARGET_KIND_EXE }, .expect = { .found = true } },
-  { .name = "reject_duplicate",             .add = { { "A", SPN_TARGET_KIND_EXE }, { "A", SPN_TARGET_KIND_EXE } }, .expect = { .err = SPN_ERR_TARGET_DUPLICATE } },
-  { .name = "get_missing_kind",             .add = { { "A" } },                                                     .get = { "A", SPN_TARGET_KIND_EXE } },
-  { .name = "get_missing_name",             .add = { { "A" } },                                                     .get = { "B" } },
-};
-
-sp_test_each(pkg, targets, targets_test_t, targets_tests, .setup = spn_test_ctx_setup) {
-  sp_mem_t mem = sp_test_arena(t);
-  spn_manifest_t manifest = sp_zero;
-
-  spn_err_t err = SPN_OK;
-  sp_carr_for(it->add, at) {
-    if (!it->add[at].name) break;
-    spn_target_decl_t* added = SP_NULLPTR;
-    err = spn_manifest_add_target(mem, &manifest, sp_cstr_as_str(it->add[at].name), it->add[at].kind, &added);
-  }
-  sp_expect_eq(t, (u32)it->expect.err, (u32)err);
-
-  if (!it->get.name) {
-    return SP_OK;
-  }
-  const spn_target_decl_t* found = get_target(&manifest, sp_cstr_as_str(it->get.name), it->get.kind);
-  sp_must_eq(t, it->expect.found, found != SP_NULLPTR);
-  if (found) {
-    sp_expect_str_eq_c(t, found->name.str, it->get.name);
-    sp_expect_eq(t, (u32)it->get.kind, (u32)found->kind);
-  }
   return SP_OK;
 }

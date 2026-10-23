@@ -153,10 +153,7 @@ struct spn_manifest {
   sp_str_t author;
   sp_str_t maintainer;
   spn_semver_t version;
-  struct {
-    sp_str_t url;
-    sp_str_t commit;
-  } upstream;
+  spn_pkg_root_t upstream;
   spn_target_decl_map_t targets;
   spn_profile_map_t profiles;
   spn_index_map_t indexes;

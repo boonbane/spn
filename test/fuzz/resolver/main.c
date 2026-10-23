@@ -9,7 +9,7 @@
 #include "index/cache.h"
 #include "intern/intern.h"
 #include "pkg/id.h"
-#include "pkg/manifest.h"
+#include "manifest.h"
 #include "resolve/resolve.h"
 #include "semver/parser.h"
 #include "spn/core.h"
@@ -191,7 +191,7 @@ static fz_result_t fz_execute(sp_mem_t mem, fz_universe_t* u, sp_intern_t* inter
 
     if (fz_pkg_linked(local)) {
       spn_target_decl_t* lib = SP_NULLPTR;
-      spn_manifest_add_target(mem, info, info->name.str, SPN_TARGET_KIND_LIB, &lib);
+      lib = test_manifest_target(mem, info, info->name.str, SPN_TARGET_KIND_LIB);
       lib->linkages = local->linkages;
     }
 

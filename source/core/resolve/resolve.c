@@ -15,7 +15,6 @@
 #include "pkg/id.h"
 #include "pkg/load.h"
 #include "toml/issue.h"
-#include "pkg/manifest.h"
 #include "resolve/resolve.h"
 #include "semver/compare.h"
 #include "semver/convert.h"
@@ -492,7 +491,7 @@ static spn_err_union_t resolve_local_package(spn_resolver_t* resolver, spn_resol
         .kind = SPN_PKG_ROOT_LOCAL,
         .local = spn_path_parent(pkg->path)
       },
-      .source = spn_manifest_upstream(pkg->manifest),
+      .source = pkg->manifest->upstream,
       .paths = {
         .manifest = sp_fs_get_name(pkg->path.sub),
       },

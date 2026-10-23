@@ -1,7 +1,6 @@
 #include "index/release.h"
 
 #include "pkg/id.h"
-#include "pkg/manifest.h"
 #include "target/mutate.h"
 
 static spn_index_dep_kind_t dep_kind_to_index(spn_dep_kind_t kind) {
@@ -18,7 +17,7 @@ spn_err_t spn_index_release_from_manifest(sp_mem_t mem, const spn_manifest_t* ma
   *release = (spn_index_release_t) {
     .id = spn_pkg_name_from_qualified(manifest->qualified.str),
     .version = manifest->version,
-    .source = spn_manifest_upstream(manifest),
+    .source = manifest->upstream,
     .paths = {
       .manifest = sp_str_lit("spn.toml"),
     },
