@@ -207,7 +207,6 @@ typedef struct {
 
 static void hash_invocation(spn_digest_ctx_t* digest, const spn_invocation_t* base) {
   spn_dag_hash_arg(digest, base->program);
-  spn_dag_hash_path(digest, base->cwd);
   spn_dag_hash_args(digest, base->args);
   spn_dag_hash_u64(digest, sp_da_size(base->env));
   sp_da_for(base->env, et) {

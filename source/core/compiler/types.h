@@ -48,10 +48,10 @@ typedef struct {
   spn_cxx_options_t cxx;
   bool pic;
   spn_os_version_t min_os;
-  spn_path_t cwd;
 } spn_cc_compile_t;
 
 typedef struct {
+  spn_path_t cwd;
   spn_path_t source;
   spn_path_t output;
   spn_path_t depfile;
@@ -65,6 +65,7 @@ typedef enum {
 } spn_cc_depfile_t;
 
 typedef struct {
+  spn_path_t cwd;
   spn_path_t output;
   spn_path_t implib;
   spn_path_t exports;
@@ -79,9 +80,6 @@ typedef struct {
 
 typedef struct {
   spn_path_t cwd;
-} spn_cc_archive_t;
-
-typedef struct {
   spn_path_t output;
   spn_path_t rsp;
   si_da(spn_path_t) objects;
@@ -96,7 +94,6 @@ typedef struct {
   si_da(spn_path_t) scripts;
   spn_os_version_t min_os;
   spn_win_subsystem_t subsystem;
-  spn_path_t cwd;
 } spn_cc_link_t;
 
 typedef struct {

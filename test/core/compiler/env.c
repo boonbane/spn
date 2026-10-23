@@ -62,10 +62,9 @@ sp_test_each(render_env, render, env_test_t, tests, .setup = spn_test_ctx_setup)
       break;
     }
     case RENDER_ARCHIVE: {
-      spn_cc_archive_t archive = sp_zero;
       spn_cc_archive_files_t files = { .output = test_arg_path("libmain.a") };
       si_da_push(mem, files.objects, test_arg_path("main.o"));
-      spn_cc_archive_plan_t plan = spn_gnu_render_archive(mem, &toolchain, &archive);
+      spn_cc_archive_plan_t plan = spn_gnu_render_archive(mem, &toolchain);
       invocation = spn_cc_render_archive_command(mem, &plan, &files);
       break;
     }

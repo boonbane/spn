@@ -16,6 +16,7 @@ spn_err_t si_on_link(spn_dag_t* g, spn_dag_action_t* action, void* user_data, sp
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
 
   spn_cc_link_files_t files = {
+    .cwd = spn_dag_scratch(scratch.mem, env, action),
     .output = outputs[0],
     .scripts = si_dag_build_paths(scratch.mem, g, ctx->scripts),
     .archives = si_dag_build_paths(scratch.mem, g, ctx->deps.archives),

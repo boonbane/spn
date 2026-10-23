@@ -14,11 +14,11 @@
 #include "paths/paths.h"
 #include "session/invocation.h"
 
-static spn_err_t write_exports(sp_mem_t mem, spn_dag_t* g, si_exports_t* ctx, spn_path_t output) {
+static spn_err_t write_exports(sp_mem_t mem, spn_dag_t* g, spn_dag_env_t* env, spn_dag_action_t* action, si_exports_t* ctx, spn_path_t output) {
   const spn_path_roots_t* roots = g->roots;
 
   spn_path_t archive = spn_path_concat(mem, output, ".a");
-  spn_cc_archive_files_t files = { .output = archive };
+  spn_cc_archive_files_t files = { .cwd = spn_dag_scratch(mem, env, action), .output = archive };
   switch (ctx->objects.kind) {
     case SPN_DAG_BUILD_OBJECTS_DIRECT: {
       files.objects = si_dag_build_paths(mem, g, ctx->objects.ids);
@@ -89,7 +89,7 @@ spn_err_t si_on_write_exports(spn_dag_t* g, spn_dag_action_t* action, void* user
   si_exports_t* ctx = (si_exports_t*)user_data;
 
   sp_mem_arena_marker_t s = sp_mem_begin_scratch();
-  spn_err_t err = write_exports(s.mem, g, ctx, outputs[0]);
+  spn_err_t err = write_exports(s.mem, g, env, action, ctx, outputs[0]);
   sp_mem_end_scratch(s);
   return err;
 }

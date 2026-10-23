@@ -31,8 +31,9 @@ static spn_err_t run_compiler(const spn_path_roots_t* roots, si_compile_t* ctx, 
   return run.result.status.exit_code ? SPN_ERR_DAG_ACTION : SPN_OK;
 }
 
-static spn_cc_compile_files_t compile_files(spn_dag_t* g, const si_compile_t* ctx, spn_path_t output) {
+static spn_cc_compile_files_t compile_files(sp_mem_t mem, spn_dag_t* g, spn_dag_env_t* env, spn_dag_action_t* action, const si_compile_t* ctx, spn_path_t output) {
   spn_cc_compile_files_t files = {
+    .cwd = spn_dag_scratch(mem, env, action),
     .source = ctx->source,
     .output = output,
   };
@@ -43,8 +44,8 @@ static spn_cc_compile_files_t compile_files(spn_dag_t* g, const si_compile_t* ct
 }
 
 static spn_err_t compile_discover(sp_mem_t scratch, spn_dag_t* g, spn_dag_action_t* action, si_compile_t* ctx, spn_dag_env_t* env, spn_path_t output, spn_dag_obs_set_t* obs) {
-  spn_cc_compile_files_t files = compile_files(g, ctx, output);
-  files.depfile = spn_path_join(scratch, spn_dag_scratch(scratch, env, action), sp_str_lit("depfile"));
+  spn_cc_compile_files_t files = compile_files(scratch, g, env, action, ctx, output);
+  files.depfile = spn_path_join(scratch, files.cwd, sp_str_lit("depfile"));
 
   spn_try(run_compiler(g->roots, ctx, &files));
 
@@ -59,7 +60,7 @@ static spn_err_t compile_discover(sp_mem_t scratch, spn_dag_t* g, spn_dag_action
     return SPN_ERR_DAG_DEPFILE;
   }
   sp_da_for(prereqs, it) {
-    spn_path_t path = spn_path_resolve(scratch, ctx->plan->base.cwd, prereqs[it]);
+    spn_path_t path = spn_path_resolve(scratch, files.cwd, prereqs[it]);
     spn_dag_observe(obs, (spn_dag_obs_t) {
       .kind = SPN_DAG_OBS_FILE,
       .path = spn_dag_file_cache_canonical(env->files, path),
@@ -70,8 +71,12 @@ static spn_err_t compile_discover(sp_mem_t scratch, spn_dag_t* g, spn_dag_action
 
 spn_err_t si_on_compile(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs) {
   si_compile_t* ctx = sp_ptr_cast(si_compile_t*, user_data);
-  spn_cc_compile_files_t files = compile_files(g, ctx, outputs[0]);
-  return run_compiler(g->roots, ctx, &files);
+
+  sp_mem_arena_marker_t s = sp_mem_begin_scratch();
+  spn_cc_compile_files_t files = compile_files(s.mem, g, env, action, ctx, outputs[0]);
+  spn_err_t err = run_compiler(g->roots, ctx, &files);
+  sp_mem_end_scratch(s);
+  return err;
 }
 
 spn_err_t si_on_compile_discover(spn_dag_t* g, spn_dag_action_t* action, void* user_data, spn_dag_env_t* env, const spn_path_t* outputs, spn_dag_obs_set_t* obs) {

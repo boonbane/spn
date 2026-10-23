@@ -131,7 +131,6 @@ static spn_arg_t assembler(sp_mem_t mem, const spn_cc_t* toolchain, const spn_pr
 spn_cc_compile_plan_t spn_msvc_render_compile(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, spn_lang_t lang, const spn_cc_compile_t* compile) {
   spn_cc_compile_plan_t plan = {
     .driver = toolchain->driver,
-    .base = { .cwd = compile->cwd },
     .depfile = lang == SPN_LANG_ASM ? SPN_CC_DEPFILE_NONE : SPN_CC_DEPFILE_REQUIRED,
   };
   spn_invocation_t* invocation = &plan.base;
@@ -188,6 +187,7 @@ void spn_msvc_render_compile_locations(sp_mem_t mem, const spn_cc_compile_plan_t
     spn_cc_push_path(mem, invocation, files->depfile);
   }
   spn_cc_push_glued(mem, invocation, "/Fo", files->output);
+  spn_cc_push_path(mem, invocation, files->source);
 }
 
 spn_err_t spn_msvc_parse_depfile(sp_mem_t mem, sp_str_t content, sp_da(sp_str_t)* prereqs) {
@@ -207,7 +207,6 @@ spn_err_t spn_msvc_parse_depfile(sp_mem_t mem, sp_str_t content, sp_da(sp_str_t)
 spn_cc_link_plan_t spn_msvc_render_link(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, const spn_cc_link_t* link) {
   spn_cc_link_plan_t plan = {
     .driver = toolchain->driver,
-    .base = { .cwd = link->cwd },
     .dialect = SPN_LD_DIALECT_LINK,
   };
   spn_invocation_t* base = &plan.base;
@@ -283,10 +282,9 @@ void spn_msvc_render_link_locations(sp_mem_t mem, const spn_cc_link_plan_t* plan
   }
 }
 
-spn_cc_archive_plan_t spn_msvc_render_archive(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, const spn_cc_archive_t* archive) {
+spn_cc_archive_plan_t spn_msvc_render_archive(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile) {
   spn_cc_archive_plan_t plan = {
     .driver = SPN_AR_DRIVER_MSVC,
-    .base = { .cwd = archive->cwd },
   };
   spn_invocation_t* base = &plan.base;
   base->program = program(mem, profile, toolchain->archiver, sp_str_lit("lib.exe"));

@@ -52,6 +52,7 @@ spn_err_t si_on_zig_warmup(spn_dag_t* g, spn_dag_action_t* action, void* user_da
 
   spn_path_t staging = spn_dag_scratch(mem, env, action);
   spn_cc_link_files_t files = {
+    .cwd = staging,
     .output = spn_path_join(mem, staging, sp_str_lit("stub.bin")),
   };
   if (warm->libc.occupied) {
@@ -85,9 +86,7 @@ spn_err_t si_on_zig_warmup(spn_dag_t* g, spn_dag_action_t* action, void* user_da
   }
   si_da_push(mem, files.objects, spn_path(mem, SPN_DIR_ID_RUNTIME, "zig/stub.c"));
 
-  spn_cc_link_t link = warm->link;
-  link.cwd = staging;
-  spn_cc_link_plan_t plan = spn_gnu_render_link(mem, cc, profile, &link);
+  spn_cc_link_plan_t plan = spn_gnu_render_link(mem, cc, profile, &warm->link);
   spn_invocation_t invocation = spn_cc_render_link_command(mem, &plan, &files);
 
   progress_writer_t* progress = sp_alloc_type(mem, progress_writer_t);

@@ -83,8 +83,6 @@ static void ps_env_push(sp_ps_config_t* ps, sp_env_var_t var) {
 }
 
 static sp_ps_config_t invocation_ps(const spn_path_roots_t* roots, const spn_invocation_t* invocation, sp_mem_t mem) {
-  sp_fs_create_dir_at(spn_path_at(roots, invocation->cwd));
-
   sp_ps_config_t ps = {
     .command = spn_arg_str(roots, mem, invocation->program),
     .dyn_args = spn_invocation_args(roots, mem, invocation),

@@ -10,6 +10,36 @@
 #include "graph/build.h"
 #include "unit/types.h"
 
+// - I never liked the implicit interface of produces/outputs being arrays that you must index into properly. It's always better
+// to, wherever you create the action and its outputs/whatever to name the thing and keep a ref to it rather than index the array
+// Maybe we should just totally nuke access to the arrays and make it so you do that instead? Publish needs all of them, so maybe
+// we give access to the arrays but make it convention to put specific things you need as IDs on the user data type?
+
+// opaque pointer, holds the dag* and whatever else you need to do stuff from inside the callback, like
+// iterating outputs. this probably just replaces the dag_attempt struct? cuz it just represents all the stuff
+// for the attempt. by replaces, I mean that the opaque pointer is just cast to the attempt* internally
+// in the DAG code and we add the fields we need?
+typedef struct si_dag_whatever_t si_dag_whatever_t;
+
+typedef struct {
+  si_dag_whatever_t* handle;
+  const spn_path_roots_t* roots;
+  spn_path_t cwd; // Just the scratch dir
+} si_action_ctx_t;
+
+typedef struct {
+  si_action_ctx_t* ctx;
+  // ...whatever other iterator state
+} si_action_file_it_t;
+
+typedef struct {
+  spn_path_t path;
+} si_action_file_it_entry_t;
+
+si_action_file_it_t si_action_consumed_files_it(si_action_ctx_t* ctx);
+si_action_file_it_t si_action_produced_files_it(si_action_ctx_t* ctx);
+bool si_action_file_it_next(si_action_file_it_t* it);
+
 typedef struct {
   const spn_cc_link_plan_t* plan;
   spn_path_t output_path;

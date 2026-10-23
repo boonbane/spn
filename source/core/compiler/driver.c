@@ -133,7 +133,6 @@ static spn_invocation_t invocation_from_base(sp_mem_t mem, const spn_invocation_
 
   spn_invocation_t invocation = {
     .program = base->program,
-    .cwd = base->cwd,
   };
   sp_da_init(mem, invocation.args);
   sp_da_reserve(invocation.args, sp_da_size(base->args) + 1);
@@ -155,9 +154,11 @@ spn_invocation_t spn_cc_render_compile_source(sp_mem_t mem, const spn_invocation
 }
 
 spn_invocation_t spn_cc_render_compile_command(sp_mem_t mem, const spn_cc_compile_plan_t* plan, const spn_cc_compile_files_t* files) {
+  sp_assert(!spn_path_empty(files->source));
   sp_assert(!spn_path_empty(files->output));
 
-  spn_invocation_t invocation = spn_cc_render_compile_source(mem, &plan->base, files->source);
+  spn_invocation_t invocation = invocation_from_base(mem, &plan->base);
+  invocation.cwd = files->cwd;
   switch (plan->driver) {
     case SPN_CC_DRIVER_GCC:
     case SPN_CC_DRIVER_CLANG:
@@ -176,13 +177,13 @@ spn_invocation_t spn_cc_render_compile_command(sp_mem_t mem, const spn_cc_compil
   return invocation;
 }
 
-spn_cc_archive_plan_t si_cc_render_archive(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, const spn_cc_archive_t* archive) {
+spn_cc_archive_plan_t si_cc_render_archive(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile) {
   switch (toolchain->archiver_driver) {
     case SPN_AR_DRIVER_GNU: {
-      return spn_gnu_render_archive(mem, toolchain, archive);
+      return spn_gnu_render_archive(mem, toolchain);
     }
     case SPN_AR_DRIVER_MSVC: {
-      return spn_msvc_render_archive(mem, toolchain, profile, archive);
+      return spn_msvc_render_archive(mem, toolchain, profile);
     }
   }
   SP_UNREACHABLE_RETURN(sp_zero_s(spn_cc_archive_plan_t));
@@ -192,6 +193,7 @@ spn_invocation_t spn_cc_render_archive_command(sp_mem_t mem, const spn_cc_archiv
   sp_assert(!spn_path_empty(files->output));
 
   spn_invocation_t invocation = invocation_from_base(mem, &plan->base);
+  invocation.cwd = files->cwd;
   switch (plan->driver) {
     case SPN_AR_DRIVER_GNU: {
       spn_gnu_render_archive_locations(mem, plan, files, &invocation);
@@ -226,6 +228,7 @@ spn_invocation_t spn_cc_render_link_command(sp_mem_t mem, const spn_cc_link_plan
   sp_assert(!spn_path_empty(files->output));
 
   spn_invocation_t invocation = invocation_from_base(mem, &plan->base);
+  invocation.cwd = files->cwd;
   switch (plan->driver) {
     case SPN_CC_DRIVER_GCC:
     case SPN_CC_DRIVER_CLANG:

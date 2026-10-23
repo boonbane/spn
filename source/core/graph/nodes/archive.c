@@ -13,7 +13,7 @@ spn_err_t si_on_archive(spn_dag_t* g, spn_dag_action_t* action, void* user_data,
   si_archive_t* ctx = (si_archive_t*)user_data;
 
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  spn_cc_archive_files_t files = { .output = outputs[0] };
+  spn_cc_archive_files_t files = { .cwd = spn_dag_scratch(scratch.mem, env, action), .output = outputs[0] };
   switch (ctx->objects.kind) {
     case SPN_DAG_BUILD_OBJECTS_DIRECT: {
       files.objects = si_dag_build_paths(scratch.mem, g, ctx->objects.ids);

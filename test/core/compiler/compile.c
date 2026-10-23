@@ -251,7 +251,7 @@ static const compile_test_t tests [] = {
     .define = "SPUM=1",
     .expect = {
       .command = "cc",
-      .args = { "/nologo", "/utf-8", "/Brepro", "/std:c11", "/MT", "/c", "/Iinc", "/DSPUM=1", "/we4715", "main.c", "/Fomain.o" },
+      .args = { "/nologo", "/utf-8", "/Brepro", "/std:c11", "/MT", "/c", "/Iinc", "/DSPUM=1", "/we4715", "/Fomain.o", "main.c" },
     },
   },
   {
@@ -271,7 +271,7 @@ static const compile_test_t tests [] = {
     .define = "SPUM=1",
     .expect = {
       .command = "vc/bin/ml64.exe",
-      .args = { "/nologo", "/c", "main.c", "/Fomain.o" },
+      .args = { "/nologo", "/c", "/Fomain.o", "main.c" },
     },
   },
   {
@@ -291,7 +291,7 @@ static const compile_test_t tests [] = {
     },
     .expect = {
       .command = "/X/bin/arm64/armasm64.exe",
-      .args = { "/nologo", "/c", "main.c", "/Fomain.o" },
+      .args = { "/nologo", "/c", "/Fomain.o", "main.c" },
     },
   },
   {
@@ -308,7 +308,7 @@ static const compile_test_t tests [] = {
     },
     .expect = {
       .command = "/X/bin/arm64/cl.exe",
-      .args = { "/nologo", "/utf-8", "/Brepro", "/MT", "/c", "/I/X/crt/include", "/I/X/sdk/include/ucrt", "/I/X/sdk/include/um", "/I/X/sdk/include/shared", "/we4715", "main.c", "/Fomain.o" },
+      .args = { "/nologo", "/utf-8", "/Brepro", "/MT", "/c", "/I/X/crt/include", "/I/X/sdk/include/ucrt", "/I/X/sdk/include/um", "/I/X/sdk/include/shared", "/we4715", "/Fomain.o", "main.c" },
       .env = { "INCLUDE=/X/crt/include;/X/sdk/include/ucrt;/X/sdk/include/um;/X/sdk/include/shared" },
     },
   },
@@ -324,7 +324,7 @@ static const compile_test_t tests [] = {
     },
     .expect = {
       .command = "cc",
-      .args = { "/nologo", "/utf-8", "/Brepro", "/std:c11", "/MT", "/c", "/we4715", "main.c", "/Fomain.o" },
+      .args = { "/nologo", "/utf-8", "/Brepro", "/std:c11", "/MT", "/c", "/we4715", "/Fomain.o", "main.c" },
     },
   },
   {
@@ -339,7 +339,7 @@ static const compile_test_t tests [] = {
     },
     .expect = {
       .command = "cc",
-      .args = { "/nologo", "/utf-8", "/Brepro", "/MT", "/c", "/we4715", "main.c", "/Fomain.o" },
+      .args = { "/nologo", "/utf-8", "/Brepro", "/MT", "/c", "/we4715", "/Fomain.o", "main.c" },
     },
   },
   {
@@ -354,7 +354,7 @@ static const compile_test_t tests [] = {
     },
     .expect = {
       .command = "cc",
-      .args = { "/nologo", "/utf-8", "/Brepro", "/std:c11", "/MD", "/c", "/we4715", "main.c", "/Fomain.o" },
+      .args = { "/nologo", "/utf-8", "/Brepro", "/std:c11", "/MD", "/c", "/we4715", "/Fomain.o", "main.c" },
     },
   },
   {
@@ -371,7 +371,7 @@ static const compile_test_t tests [] = {
     },
     .expect = {
       .command = "cc",
-      .args = { "/nologo", "/utf-8", "/Brepro", "/std:c11", "/MT", "/Z7", "/Od", "/c", "/we4715", "main.c", "/Fomain.o" },
+      .args = { "/nologo", "/utf-8", "/Brepro", "/std:c11", "/MT", "/Z7", "/Od", "/c", "/we4715", "/Fomain.o", "main.c" },
     },
   },
   {
@@ -386,7 +386,7 @@ static const compile_test_t tests [] = {
     .lang = SPN_LANG_CXX,
     .expect = {
       .command = "c++",
-      .args = { "/nologo", "/utf-8", "/Brepro", "/std:c++17", "/MT", "/c", "/EHsc", "/we4715", "main.c", "/Fomain.o" },
+      .args = { "/nologo", "/utf-8", "/Brepro", "/std:c++17", "/MT", "/c", "/EHsc", "/we4715", "/Fomain.o", "main.c" },
     },
   },
   {
@@ -402,7 +402,7 @@ static const compile_test_t tests [] = {
     .cxx = { .standard = SPN_CXX20, .no_exceptions = true, .no_rtti = true },
     .expect = {
       .command = "c++",
-      .args = { "/nologo", "/utf-8", "/Brepro", "/std:c++20", "/MT", "/c", "/GR-", "/we4715", "main.c", "/Fomain.o" },
+      .args = { "/nologo", "/utf-8", "/Brepro", "/std:c++20", "/MT", "/c", "/GR-", "/we4715", "/Fomain.o", "main.c" },
     },
   },
   {
@@ -523,7 +523,7 @@ static const compile_test_t tests [] = {
     },
     .expect = {
       .command = "cc",
-      .args = { "/nologo", "/utf-8", "/Brepro", "/MT", "/c", "/I/X/crt/include", "/I/X/sdk/include/ucrt", "/I/X/sdk/include/um", "/I/X/sdk/include/shared", "/we4715", "main.c", "/Fomain.o" },
+      .args = { "/nologo", "/utf-8", "/Brepro", "/MT", "/c", "/I/X/crt/include", "/I/X/sdk/include/ucrt", "/I/X/sdk/include/um", "/I/X/sdk/include/shared", "/we4715", "/Fomain.o", "main.c" },
       .env = { "INCLUDE=/X/crt/include;/X/sdk/include/ucrt;/X/sdk/include/um;/X/sdk/include/shared" },
     },
   },
@@ -710,6 +710,7 @@ sp_test(render_compile, base_shared_across_commands, .setup = spn_test_ctx_setup
   u64 env = sp_da_size(plan.base.env);
 
   spn_cc_compile_files_t first = {
+    .cwd = test_arg_path("/W"),
     .source = test_arg_path("main.c"),
     .output = test_arg_path("a.o"),
     .libc = test_arg_path("/L"),
@@ -725,6 +726,9 @@ sp_test(render_compile, base_shared_across_commands, .setup = spn_test_ctx_setup
 
   sp_expect_eq(t, sp_da_size(plan.base.args), args);
   sp_expect_eq(t, sp_da_size(plan.base.env), env);
+  sp_expect_str_eq_c(t, a.cwd.sub, "/W");
+  sp_expect(t, spn_path_empty(b.cwd));
+  sp_expect(t, spn_path_empty(plan.base.cwd));
   if (expect_args(t, &a, (render_expect_t) {
     .command = "cc",
     .args = { "--target=aarch64-macos", "-std=c99", "-c", "-Werror=return-type", "main.c", "-o", "a.o" },

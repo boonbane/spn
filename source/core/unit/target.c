@@ -283,7 +283,6 @@ static spn_err_t build_target_plan(spn_target_unit_t* target) {
       .lang = is_any_object_cxx(target->objects) ? SPN_LANG_CXX : SPN_LANG_C,
       .min_os = info->macos.min_os,
       .subsystem = info->windows.subsystem,
-      .cwd = pkg->paths.work,
     },
   };
   si_da_for(libs, it) {
@@ -347,7 +346,6 @@ static spn_err_t build_target_plan(spn_target_unit_t* target) {
   spn_cc_compile_t compile = {
     .cxx = info->cxx,
     .pic = info->kind == SPN_TARGET_KIND_LIB && spn_triple_pic(spn_profile_triple(profile)),
-    .cwd = pkg->paths.work,
   };
   if (profile->os == SPN_OS_MACOS) {
     compile.min_os = link->cc.min_os;
@@ -450,12 +448,11 @@ static spn_err_t build_target_plan(spn_target_unit_t* target) {
     }
   }
 
-  spn_cc_archive_t archive = { .cwd = pkg->paths.work };
   switch (target->kind) {
     case SPN_CC_OUTPUT_STATIC_LIB:
     case SPN_CC_OUTPUT_SHARED_LIB:
     case SPN_CC_OUTPUT_REACTOR: {
-      target->archive = si_cc_render_archive(mem, toolchain, profile, &archive);
+      target->archive = si_cc_render_archive(mem, toolchain, profile);
       break;
     }
     case SPN_CC_OUTPUT_EXE:

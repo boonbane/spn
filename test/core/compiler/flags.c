@@ -1,6 +1,6 @@
 #include "compiler.h"
 
-#define flags_max 6
+#define flags_max 8
 
 typedef struct {
   const c8* compile [flags_max];
@@ -51,7 +51,7 @@ static const flags_test_t tests [] = {
     },
     .driver = SPN_CC_DRIVER_CLANG,
     .expect = {
-      .compile = { "-g", "-O0", "-fsanitize=address,undefined", "-fno-sanitize-recover=all", "-fno-omit-frame-pointer" },
+      .compile = { "-g", "-ffile-compilation-dir=.", "-O0", "-fsanitize=address,undefined", "-fno-sanitize-recover=all", "-fno-omit-frame-pointer" },
       .link = { "-fsanitize=address,undefined" },
     },
   },

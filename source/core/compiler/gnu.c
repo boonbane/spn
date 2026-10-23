@@ -117,6 +117,9 @@ void spn_gnu_render_flags(sp_mem_t mem, const spn_cc_t* toolchain, const spn_pro
   }
   if (profile->mode == SPN_MODE_DEBUG) {
     sp_da_push(flags->compile, sp_str_lit("-g"));
+    if (spn_cc_has(toolchain, SPN_CC_CAP_CLANG_FRONTEND)) {
+      sp_da_push(flags->compile, sp_str_lit("-ffile-compilation-dir=."));
+    }
   }
   push_flag(&flags->compile, opt_switch(profile->opt));
   if (profile->mode == SPN_MODE_RELEASE) {
@@ -224,7 +227,6 @@ static void add_launcher(sp_mem_t mem, const spn_cc_t* toolchain, const spn_prof
 spn_cc_compile_plan_t spn_gnu_render_compile(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, spn_lang_t lang, const spn_cc_compile_t* compile) {
   spn_cc_compile_plan_t plan = {
     .driver = toolchain->driver,
-    .base = { .cwd = compile->cwd },
     .depfile = lang == SPN_LANG_ASM ? SPN_CC_DEPFILE_OPTIONAL : SPN_CC_DEPFILE_REQUIRED,
     .codeview = profile->os == SPN_OS_WINDOWS && spn_cc_has(toolchain, SPN_CC_CAP_CLANG_FRONTEND) && (profile->abi == SPN_ABI_MSVC || spn_cc_has(toolchain, SPN_CC_CAP_CODEVIEW)),
   };
@@ -278,6 +280,7 @@ static void add_output(sp_mem_t mem, spn_path_t output, spn_invocation_t* invoca
 }
 
 void spn_gnu_render_compile_locations(sp_mem_t mem, const spn_cc_compile_plan_t* plan, const spn_cc_compile_files_t* files, spn_invocation_t* invocation) {
+  spn_cc_push_path(mem, invocation, files->source);
   if (!spn_path_empty(files->depfile)) {
     spn_cc_push_c(mem, invocation, "-MD");
     spn_cc_push_c(mem, invocation, "-MF");
@@ -436,7 +439,6 @@ spn_cc_link_plan_t spn_gnu_render_link(sp_mem_t mem, const spn_cc_t* toolchain, 
 
   spn_cc_link_plan_t plan = {
     .driver = toolchain->driver,
-    .base = { .cwd = link->cwd },
     .dialect = spn_ld_dialect(triple),
   };
   spn_invocation_t* base = &plan.base;
@@ -575,10 +577,9 @@ sp_da(spn_arg_t) spn_gnu_render_exports(sp_mem_t mem, si_da(sp_str_t) symbols) {
   return args;
 }
 
-spn_cc_archive_plan_t spn_gnu_render_archive(sp_mem_t mem, const spn_cc_t* toolchain, const spn_cc_archive_t* archive) {
+spn_cc_archive_plan_t spn_gnu_render_archive(sp_mem_t mem, const spn_cc_t* toolchain) {
   spn_cc_archive_plan_t plan = {
     .driver = SPN_AR_DRIVER_GNU,
-    .base = { .cwd = archive->cwd },
   };
   spn_invocation_t* base = &plan.base;
   add_cache(mem, toolchain, base);
