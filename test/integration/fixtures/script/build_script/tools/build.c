@@ -11,6 +11,6 @@
 #endif
 
 SPN_EXPORT s32 gen_version(spn_t* spn) {
-  spn_write_file(spn, "version.h", "#define BUILD_SCRIPT_VERSION 69\n");
+  spn_io_write("/work/version.h", "#define BUILD_SCRIPT_VERSION 69\n");
   return 0;
 }

@@ -1,6 +1,5 @@
 #include "dag/wasi.h"
 #include "dag/dag.h"
-#include "dag/glob.h"
 #include "paths/paths.h"
 #include "str/str.h"
 
@@ -276,43 +275,6 @@ bool spn_dag_wasi_resolve(wasm_module_inst_t instance, sp_mem_t mem, sp_str_t gu
   return wasi_match(wasi_of(instance), mem, guest, host);
 }
 
-static void wasi_observe_dir(spn_dag_wasi_t* w, spn_path_t dir) {
-  wasi_push_obs(w, SPN_DAG_OBS_ENUMERATION, dir);
-
-  sp_mem_arena_marker_t s = sp_mem_begin_scratch();
-  sp_fs_for_recursive(s.mem, spn_path_at(w->roots, dir), it) {
-    spn_path_t path = spn_path_join(s.mem, dir, it.entry.rel);
-    if (wasi_written(w, path)) {
-      continue;
-    }
-    wasi_push_obs(w, it.entry.kind == SP_FS_KIND_DIR ? SPN_DAG_OBS_ENUMERATION : SPN_DAG_OBS_FILE, path);
-  }
-  sp_mem_end_scratch(s);
-}
-
-void spn_dag_wasi_observe_read(wasm_module_inst_t instance, spn_path_t host) {
-  spn_dag_wasi_t* w = wasi_of(instance);
-  if (!w || !w->obs) {
-    return;
-  }
-  sp_mem_arena_marker_t s = sp_mem_begin_scratch();
-  host = spn_path_canonicalize_head(s.mem, w->roots, host);
-  if (!wasi_written(w, host)) {
-    sp_path_t at = spn_path_at(w->roots, host);
-    sp_sys_file_meta_t meta = sp_zero;
-    if (sp_sys_get_path_metadata_s(at.dir, at.sub, &meta)) {
-      wasi_push_obs(w, SPN_DAG_OBS_ABSENT, host);
-    }
-    else if (meta.kind == SP_FS_KIND_DIR) {
-      wasi_observe_dir(w, host);
-    }
-    else {
-      wasi_push_obs(w, SPN_DAG_OBS_FILE, host);
-    }
-  }
-  sp_mem_end_scratch(s);
-}
-
 void spn_dag_wasi_observe_write(wasm_module_inst_t instance, spn_path_t host) {
   spn_dag_wasi_t* w = wasi_of(instance);
   if (!w) {
@@ -320,24 +282,5 @@ void spn_dag_wasi_observe_write(wasm_module_inst_t instance, spn_path_t host) {
   }
   sp_mem_arena_marker_t s = sp_mem_begin_scratch();
   wasi_record_write(w, spn_path_canonicalize_head(s.mem, w->roots, host));
-  sp_mem_end_scratch(s);
-}
-
-void spn_dag_wasi_observe_glob(wasm_module_inst_t instance, spn_path_t dir, sp_str_t pattern) {
-  spn_dag_wasi_t* w = wasi_of(instance);
-  if (!w || !w->obs) {
-    return;
-  }
-
-  sp_mem_arena_marker_t s = sp_mem_begin_scratch();
-  spn_dag_glob_result_t glob = sp_zero;
-  if (!spn_dag_glob(s.mem, w->roots, spn_path_join(s.mem, dir, pattern), &glob)) {
-    sp_da_for(glob.obs, it) {
-      if (wasi_written(w, glob.obs[it].path)) {
-        continue;
-      }
-      spn_dag_observe(w->obs, glob.obs[it]);
-    }
-  }
   sp_mem_end_scratch(s);
 }

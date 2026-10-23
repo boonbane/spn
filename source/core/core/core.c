@@ -1,7 +1,6 @@
 #include "core/core.h"
 #include "fs/fs.h"
 #include "io/io.h"
-#include "sp/sp_glob.h"
 
 static bool content_matches(sp_mem_t mem, sp_path_t path, sp_mem_slice_t content) {
   sp_mem_slice_t existing = sp_zero;
@@ -9,18 +8,6 @@ static bool content_matches(sp_mem_t mem, sp_path_t path, sp_mem_slice_t content
     return false;
   }
   return existing.len == content.len && sp_mem_is_equal(existing.data, content.data, content.len);
-}
-
-static bool file_matches(sp_path_t path, sp_mem_slice_t content) {
-  sp_sys_file_meta_t meta = sp_zero;
-  if (sp_sys_get_path_metadata_s(path.dir, path.sub, &meta) || (u64)meta.size != content.len) {
-    return false;
-  }
-
-  sp_mem_arena_marker_t s = sp_mem_begin_scratch();
-  bool matches = content_matches(s.mem, path, content);
-  sp_mem_end_scratch(s);
-  return matches;
 }
 
 spn_err_t spn_fs_update_file(sp_path_t from, sp_path_t to) {
@@ -50,68 +37,6 @@ spn_err_t spn_fs_update_file(sp_path_t from, sp_path_t to) {
 
   sp_mem_end_scratch(s);
   return err;
-}
-
-spn_err_t spn_fs_update_glob(sp_path_t from, sp_path_t to) {
-  sp_mem_arena_marker_t s = sp_mem_begin_scratch();
-  spn_err_t err = SPN_OK;
-
-  sp_glob_set_t* glob = sp_glob_set_new(s.mem);
-  sp_glob_set_add(glob, sp_str_to_cstr(s.mem, sp_fs_get_name(from.sub)));
-  sp_glob_set_build(glob);
-
-  sp_fs_it_t walk = sp_fs_it_new_at(s.mem, sp_path_parent(s.mem, from), 0);
-  if (walk.err || sp_fs_create_dir_at(to)) {
-    err = SPN_ERROR;
-  }
-
-  while (!err && sp_fs_it_next(&walk)) {
-    sp_fs_entry_t* entry = &walk.entry;
-    if (!sp_glob_set_match(glob, entry->name)) {
-      continue;
-    }
-
-    sp_path_t dest = sp_path_join(s.mem, to, entry->name);
-    sp_fs_kind_t kind = entry->kind == SP_FS_KIND_SYMLINK ? sp_fs_get_target_kind_at(walk.at) : entry->kind;
-    switch (kind) {
-      case SP_FS_KIND_FILE: {
-        err = spn_fs_update_file(walk.at, dest);
-        break;
-      }
-      case SP_FS_KIND_DIR: {
-        err = sp_fs_copy_tree_at(walk.at, dest, SP_FS_ATOMIC_REPLACE) ? SPN_ERROR : SPN_OK;
-        break;
-      }
-      case SP_FS_KIND_SYMLINK:
-      case SP_FS_KIND_NONE: {
-        err = SPN_ERROR;
-        break;
-      }
-    }
-  }
-  sp_fs_it_deinit(&walk);
-  if (walk.err) {
-    err = SPN_ERROR;
-  }
-
-  sp_mem_end_scratch(s);
-  return err;
-}
-
-spn_err_t spn_fs_update_file_str(sp_path_t path, sp_str_t content) {
-  if (file_matches(path, sp_mem_slice((u8*)content.data, content.len))) {
-    return SPN_OK;
-  }
-
-  sp_fs_create_parent_at(path);
-
-  sp_io_file_writer_t writer = sp_zero;
-  if (sp_io_file_writer_from_path_at(&writer, path)) {
-    return SPN_ERROR;
-  }
-  sp_err_t err = sp_io_write_all(&writer.base, content.data, content.len, SP_NULLPTR);
-  sp_io_file_writer_close(&writer);
-  return err ? SPN_ERROR : SPN_OK;
 }
 
 void spn_wake_ring(spn_wake_t* wake) {
