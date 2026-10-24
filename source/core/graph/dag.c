@@ -304,7 +304,6 @@ static spn_err_t add_object_compilation(spn_dag_build_t* b, sp_mem_t mem, spn_ta
     spn_try(spn_dag_action_add_output(g, ids.action, ids.object));
 
     si_da_push(mem, *objects, ids);
-    si_da_push(b->mem, b->compiles, ids.action);
   }
 
   return SPN_OK;
@@ -685,45 +684,6 @@ spn_err_t spn_dag_build_add_target(spn_dag_build_t* b, spn_target_unit_t* target
   return err;
 }
 
-static spn_err_t add_compile_commands(spn_dag_build_t* b) {
-  spn_dag_t* g = b->graph;
-  spn_session_t* session = b->session;
-
-  spn_digest_ctx_t digest = sp_zero;
-  spn_digest_init_blake3(&digest);
-  spn_dag_hash_str(&digest, sp_str_lit("spn.build.compile_commands.v3"));
-  sp_for(it, SPN_PATH_ROOT_COUNT) {
-    spn_dag_hash_str(&digest, g->roots->dirs[it]);
-  }
-  spn_dag_hash_u64(&digest, sp_om_size(session->units.objects));
-  sp_om_for(session->units.objects, it) {
-    spn_compile_unit_t* unit = sp_om_at(session->units.objects, it);
-    spn_dag_hash_digest(&digest, hash_compile(unit));
-  }
-
-  si_compile_commands_t* ctx = sp_alloc_type(b->mem, si_compile_commands_t);
-  *ctx = (si_compile_commands_t) {
-    .session = session,
-    .file = spn_dag_add_output(g, sp_str_lit("compile_commands.json")),
-    .stamp = spn_dag_add_output(g, sp_str_lit("compile_commands.stamp")),
-  };
-  spn_dag_id_t action = spn_dag_add_action(g, (spn_dag_action_config_t) {
-    .identity = spn_dag_hash_final(&digest),
-    .execute = si_on_write_compile_commands,
-    .user_data = ctx,
-  });
-  b->compile_commands.file = ctx->file;
-  b->compile_commands.stamp = ctx->stamp;
-  spn_try(spn_dag_action_add_output(g, action, ctx->file));
-  spn_try(spn_dag_action_add_output(g, action, ctx->stamp));
-
-  si_da_for(b->compiles, it) {
-    spn_dag_action_add_input(g, b->compiles[it], b->compile_commands.stamp);
-  }
-
-  return SPN_OK;
-}
-
 static spn_err_t prepare_graph(spn_dag_build_t* b) {
   spn_session_t* session = b->session;
   spn_dag_t* g = b->graph;
@@ -866,8 +826,6 @@ static spn_err_t prepare_graph(spn_dag_build_t* b) {
       }
     }
   }
-
-  spn_try(add_compile_commands(b));
 
   sp_ht_for_kv(b->ids.embeds, it) {
     spn_target_unit_t* target = *it.key;
@@ -1203,13 +1161,9 @@ spn_err_t spn_dag_build_session(spn_op_t* op) {
     return result;
   }
 
-  if (spn_dag_digest_valid(spn_dag_find_artifact(dag->graph, dag->compile_commands.file)->digest)) {
-    sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-    spn_err_t staged = dag_stage_copy(dag, dag->compile_commands.file, spn_path_join(scratch.mem, session->paths.root, sp_str_lit("compile_commands.json")));
-    sp_mem_end_scratch(scratch);
-    if (!result) {
-      result = staged;
-    }
+  spn_err_t written = spn_dag_build_write_compile_commands(dag);
+  if (!result) {
+    result = written;
   }
   if (!result) {
     if (!sp_fs_exists_at(spn_path_at(&session->ctx->roots, project->paths.lock))) {

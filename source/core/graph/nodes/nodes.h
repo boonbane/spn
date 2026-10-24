@@ -67,12 +67,6 @@ typedef struct {
 } si_libc_t;
 
 typedef struct {
-  spn_session_t* session;
-  spn_dag_id_t file;
-  spn_dag_id_t stamp;
-} si_compile_commands_t;
-
-typedef struct {
   spn_target_unit_t* target;
   spn_path_t object_path;
   spn_path_t header_path;
@@ -114,7 +108,6 @@ spn_err_t si_on_link(const si_dag_ctx_t* c, void* user_data);
 spn_err_t si_on_write_exports(const si_dag_ctx_t* c, void* user_data);
 spn_err_t si_on_write_rsp(const si_dag_ctx_t* c, void* user_data);
 spn_err_t si_on_write_libc(const si_dag_ctx_t* c, void* user_data);
-spn_err_t si_on_write_compile_commands(const si_dag_ctx_t* c, void* user_data);
 spn_err_t si_on_embed(const si_dag_ctx_t* c, void* user_data);
 spn_err_t si_on_user_node(const si_dag_ctx_t* c, void* user_data);
 spn_err_t si_on_publish(const si_dag_ctx_t* c, void* user_data);
