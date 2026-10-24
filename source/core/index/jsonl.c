@@ -12,7 +12,7 @@ sp_str_t spn_index_jsonl_path(sp_mem_t mem, spn_pkg_name_t id) {
   return path;
 }
 
-spn_err_t spn_index_jsonl_get_package(spn_index_info_t* index, sp_mem_t mem, spn_pkg_name_t id, spn_index_pkg_t** pkg, spn_index_diag_t* diag) {
+spn_err_t spn_index_jsonl_get_package(spn_index_info_t* index, sp_mem_t mem, spn_pkg_name_t id, spn_index_pkg_t** pkg, spn_err_union_t* err) {
   *pkg = SP_NULLPTR;
 
   spn_err_t result = SPN_OK;
@@ -30,8 +30,11 @@ spn_err_t spn_index_jsonl_get_package(spn_index_info_t* index, sp_mem_t mem, spn
   spn_index_pkg_t* package = sp_alloc_type(mem, spn_index_pkg_t);
   *package = SP_ZERO_STRUCT(spn_index_pkg_t);
   if (spn_index_parse_pkg(mem, id, blob, package) != SPN_OK) {
-    diag->path = sp_fs_join_path(mem, index->location.dir, path);
-    result = SPN_ERR_INDEX_CORRUPT;
+    *err = (spn_err_union_t) {
+      .kind = SPN_ERR_INDEX_CORRUPT,
+      .index_corrupt = { .name = spn_pkg_name_to_qualified(id), .path = sp_fs_join_path(mem, index->location.dir, path) },
+    };
+    result = err->kind;
     goto cleanup;
   }
 

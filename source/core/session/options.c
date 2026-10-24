@@ -8,8 +8,10 @@
 #include "error/error.h"
 #include "spn/errors.h"
 #include "intern/intern.h"
+#include "options/options.h"
 #include "pkg/id.h"
-#include "pkg/options.h"
+#include "profile/profile.h"
+#include "project/types.h"
 #include "session/session.h"
 #include "when/when.h"
 
@@ -29,14 +31,14 @@ static spn_err_t violation_kind(spn_option_err_t kind) {
 }
 
 static spn_err_setter_t violation_setter(spn_option_setter_t setter) {
-  return (spn_err_setter_t) { .kind = setter.kind, .name = setter.name };
+  return (spn_err_setter_t) { .kind = setter.kind, .name = setter.name.str };
 }
 
 static spn_err_union_t violation_err(sp_mem_t mem, spn_option_violation_t violation) {
   return (spn_err_union_t) {
     .kind = violation_kind(violation.kind),
     .option = {
-      .pkg = violation.pkg,
+      .pkg = violation.pkg.str,
       .option = violation.option,
       .value = violation.value.kind == SPN_OPTION_VALUE_NONE ? sp_str_lit("") : spn_option_value_to_str(mem, violation.value),
       .a = violation_setter(violation.a),
@@ -103,20 +105,20 @@ static void sweep_unreachable(spn_session_t* session) {
 }
 
 static spn_err_t validate_config_keys(spn_session_t* session) {
-  si_da_for(session->pkg->config, it) {
-    spn_pkg_config_entry_t* entry = &session->pkg->config[it];
+  si_om_for(session->project->config, it) {
+    spn_pkg_config_t* config = si_om_at(session->project->config, it);
 
     bool known = false;
     sp_ht_for_kv(session->resolve, rt) {
       spn_resolved_pkg_t* node = rt.val;
       spn_loaded_pkg_t* loaded = sp_ht_getp(session->packages, node->id);
       sp_assert(loaded);
-      if (sp_str_equal(node->name, entry->key)) {
+      if (node->name.id == config->name.id) {
         known = true;
         break;
       }
-      si_da_for(loaded->info->deps, dt) {
-        if (sp_str_equal(spn_pkg_name_from_qualified(loaded->info->deps[dt].qualified.str).name, entry->key)) {
+      si_da_for(loaded->manifest->deps, dt) {
+        if (sp_str_equal(spn_pkg_name_from_qualified(loaded->manifest->deps[dt].qualified.str).name, config->name.str)) {
           known = true;
           break;
         }
@@ -129,7 +131,7 @@ static spn_err_t validate_config_keys(spn_session_t* session) {
     if (!known) {
       return spn_err_emit(session->ctx, (spn_err_union_t) {
         .kind = SPN_ERR_OPTION_UNKNOWN_PKG,
-        .option = { .pkg = entry->key },
+        .option = { .pkg = config->name.str },
       });
     }
   }
@@ -154,8 +156,8 @@ spn_err_t spn_session_apply_options(spn_session_t* session, bool* reresolve) {
       spn_loaded_pkg_t* loaded = sp_ht_getp(session->packages, node->id);
       sp_assert(loaded);
 
-      si_da_for(loaded->info->deps, dt) {
-        spn_requested_dep_t* dep = &loaded->info->deps[dt];
+      si_da_for(loaded->manifest->deps, dt) {
+        spn_requested_dep_t* dep = &loaded->manifest->deps[dt];
         if (si_da_empty(dep->options.clauses)) {
           continue;
         }
@@ -189,7 +191,9 @@ spn_err_t spn_session_apply_options(spn_session_t* session, bool* reresolve) {
 
       spn_option_requests_t node_requests = asked ? *asked : SP_NULLPTR;
       spn_merged_options_t merged = sp_zero;
-      spn_pkg_options_merge(mem, node, &session->units.target->profile, session->pkg->config, node_requests, &merged);
+      spn_option_subject_t subject = { .name = node->name, .is_root = node->source == SPN_PKG_SOURCE_ROOT, .options = node->options };
+      const spn_profile_info_t* profile = &session->units.target->profile;
+      spn_options_merge(mem, subject, node_requests, spn_profile_facts(profile), &profile->options, session->project->config, &merged);
       if (!sp_da_empty(merged.violations)) {
         spn_err_t first = SPN_OK;
         sp_da_for(merged.violations, vt) {
@@ -213,11 +217,11 @@ spn_err_t spn_session_apply_options(spn_session_t* session, bool* reresolve) {
       sp_assert(resolved);
 
       spn_when_env_t env = sp_zero;
-      spn_when_env_from_profile(mem, &session->units.target->profile, &env);
-      spn_when_env_add_options(&env, resolved);
+      spn_profile_env(mem, &session->units.target->profile, &env);
+      spn_options_env_set(&env, resolved);
 
-      si_da_for(loaded->info->deps, dt) {
-        spn_requested_dep_t* dep = &loaded->info->deps[dt];
+      si_da_for(loaded->manifest->deps, dt) {
+        spn_requested_dep_t* dep = &loaded->manifest->deps[dt];
         if (si_da_empty(dep->when.clauses)) {
           continue;
         }
@@ -226,7 +230,7 @@ spn_err_t spn_session_apply_options(spn_session_t* session, bool* reresolve) {
         if (expected && !edge) {
           missing = true;
           if (sp_str_empty(missing_pkg)) {
-            missing_pkg = node->name;
+            missing_pkg = node->name.str;
             missing_dep = spn_pkg_name_from_qualified(dep->qualified.str).name;
           }
         }

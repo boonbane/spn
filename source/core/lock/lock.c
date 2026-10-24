@@ -20,7 +20,7 @@ static void spn_lock_build_dependents(spn_lock_file_t* lock) {
   }
 }
 
-spn_lock_file_t spn_build_lock_file(sp_mem_t mem, sp_intern_t* intern, spn_resolve_t resolve, spn_pkg_info_t* root) {
+spn_lock_file_t spn_build_lock_file(sp_mem_t mem, sp_intern_t* intern, spn_resolve_t resolve) {
   spn_lock_file_t lock = sp_zero;
   spn_lock_file_init(mem, &lock);
 

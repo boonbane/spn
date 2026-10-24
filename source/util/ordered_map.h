@@ -63,19 +63,7 @@
 #define __si_it(it) sp_mcat(it, _p)
 #define __si_it_end(it) sp_mcat(it, _end)
 
-#define si_om_for_each(__arr, __it) \
-  for ( \
-    sp_da_value_t(__arr) __it, \
-    *__sp_it(__it) = (__arr), \
-    *__sp_it_end(__it) = __sp_it(__it) ? \
-      __sp_it(__it) + sp_da_size(__sp_it(__it)) : \
-      __sp_it(__it); \
-  \
-    __sp_it(__it) < __sp_it_end(__it) && \
-    (__it = *__sp_it(__it), 1);\
-  \
-    __sp_it(__it)++ \
-  )
+#define si_om_for_each(__om, __it) si_da_for_value((__om).order, __it)
 
 ////////////
 // STR_OM //

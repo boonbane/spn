@@ -8,6 +8,7 @@
 #include "core/types.h"
 #include "index/types.h"
 #include "intern/types.h"
+#include "options/types.h"
 #include "pkg/types.h"
 #include "profile/types.h"
 #include "semver/types.h"
@@ -29,7 +30,7 @@ typedef struct {
 
 struct spn_resolved_pkg {
   spn_pkg_id_t id;
-  sp_str_t name;
+  sp_intern_str_t name;
   spn_option_map_t options;
   spn_pkg_source_t source;
   u64 priority;
@@ -39,7 +40,7 @@ struct spn_resolved_pkg {
     spn_pkg_root_t recipe;
     spn_pkg_root_t source;
     spn_index_rel_paths_t paths;
-    spn_pkg_info_t* info;
+    const si_pkg_info_t* manifest;
     spn_index_release_t* release;
   } origin;
 };
@@ -60,7 +61,7 @@ typedef struct spn_resolver_t {
   spn_index_cache_t* index;
   spn_pkg_registry_t* registry;
   spn_profile_info_t profile;
-  sp_da(spn_pkg_config_entry_t) config;
+  spn_pkg_config_map_t config;
   spn_option_seeds_t seeds;
   u64 budget;
 } spn_resolver_t;

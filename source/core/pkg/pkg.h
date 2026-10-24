@@ -2,15 +2,14 @@
 #define SPN_PKG_PKG_H
 
 #include "sp.h"
-
 #include "spn/core.h"
+
+#include "paths/types.h"
 #include "pkg/types.h"
+#include "when/types.h"
 
-spn_pkg_info_t spn_pkg_new(sp_str_t name);
-spn_pkg_root_t spn_pkg_upstream(spn_pkg_info_t* info);
-
-bool spn_pkg_has_lib_kind(spn_pkg_info_t* pkg, spn_linkage_t kind);
-spn_target_info_t* spn_pkg_get_target(spn_pkg_info_t* pkg, sp_str_t name, spn_target_kind_t kind);
-sp_hash_t spn_pkg_hash_platform(spn_pkg_info_t* pkg, const spn_profile_info_t* profile);
+si_pkg_t          spn_pkg_eval(sp_mem_t mem, const si_pkg_info_t* manifest, const spn_path_roots_t* roots, spn_tree_roots_t trees, spn_when_env_t* env);
+si_target_t* spn_pkg_get_target(si_pkg_t* pkg, sp_str_t name, spn_target_kind_t kind);
+bool               spn_pkg_has_scripts(const si_pkg_t* pkg);
 
 #endif

@@ -10,23 +10,21 @@
 #include "paths/paths.h"
 #include "session/invocation.h"
 
-spn_err_t si_on_link(const si_dag_ctx_t* c, void* user_data) {
-  si_link_t* link = (si_link_t*)user_data;
-
+static spn_err_t run_linker(sp_mem_t mem, const si_dag_ctx_t* c, si_link_t* link) {
   spn_cc_link_files_t files = {
     .cwd = c->scratch,
     .output = si_dag_resolve_output(c, link->output),
-    .scripts = si_dag_build_paths(c, link->scripts),
-    .archives = si_dag_build_paths(c, link->deps.archives),
-    .shared = si_dag_build_paths(c, link->deps.shared),
-    .whole_archives = si_dag_build_paths(c, link->deps.whole_archives),
+    .scripts = si_dag_build_paths(mem, c, link->scripts),
+    .archives = si_dag_build_paths(mem, c, link->deps.archives),
+    .shared = si_dag_build_paths(mem, c, link->deps.shared),
+    .whole_archives = si_dag_build_paths(mem, c, link->deps.whole_archives),
   };
   if (link->libc.occupied) {
     files.libc = si_dag_resolve_input(c, link->libc);
   }
   switch (link->objects.kind) {
     case SPN_DAG_BUILD_OBJECTS_DIRECT: {
-      files.objects = si_dag_build_paths(c, link->objects.ids);
+      files.objects = si_dag_build_paths(mem, c, link->objects.ids);
       break;
     }
     case SPN_DAG_BUILD_OBJECTS_RSP: {
@@ -41,7 +39,7 @@ spn_err_t si_on_link(const si_dag_ctx_t* c, void* user_data) {
     files.implib = si_dag_resolve_output(c, link->implib);
   }
 
-  spn_invocation_t invocation = spn_cc_render_link_command(c->mem, link->plan, &files);
+  spn_invocation_t invocation = spn_cc_render_link_command(mem, link->plan, &files);
 
   spn_event_buffer_push(spn.events, (spn_event_t) {
     .kind = SPN_EVENT_LINK_START,
@@ -64,4 +62,11 @@ spn_err_t si_on_link(const si_dag_ctx_t* c, void* user_data) {
     .link_passed = { .subject = link->subject, .output_path = link->output_path, .run = report },
   });
   return SPN_OK;
+}
+
+spn_err_t si_on_link(const si_dag_ctx_t* c, void* user_data) {
+  sp_mem_arena_marker_t s = sp_mem_begin_scratch();
+  spn_err_t err = run_linker(s.mem, c, (si_link_t*)user_data);
+  sp_mem_end_scratch(s);
+  return err;
 }

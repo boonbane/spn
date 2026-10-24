@@ -1,7 +1,6 @@
 #ifndef SPN_INDEX_TYPES_H
 #define SPN_INDEX_TYPES_H
 
-#include "codegen/types.h"
 #include "intern/types.h"
 #include "paths/types.h"
 #include "core/types.h"
@@ -10,15 +9,7 @@
 #include "pkg/types.h"
 #include "semver/types.h"
 
-// @spader this is just kind of a shim for now because the code that generates
-// this error doesn't know whether it's really an error yet (resolver calls
-// speculatively) but we dont have an error payload type publically yet to just
-// return what would get emitted so we shim
-typedef struct {
-  sp_str_t path;
-  spn_codegen_issues_t issues;
-  sp_str_t dep;
-} spn_index_diag_t;
+typedef sp_intern_id_t spn_index_id_t;
 
 typedef enum {
   SPN_INDEX_DEP_NORMAL,
@@ -89,7 +80,7 @@ struct spn_index_info {
   u32 refresh;
 };
 
-
+typedef si_om(spn_index_id_t, spn_index_info_t) spn_index_map_t;
 
 typedef struct {
   sp_mem_t mem;

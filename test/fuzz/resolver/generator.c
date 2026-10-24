@@ -32,8 +32,6 @@ bool fz_pkg_shared(fz_universe_t* u, s32 pkg) {
     return false;
   }
 
-  spn_target_info_t info = sp_zero_s(spn_target_info_t);
-  info.linkages = it->linkages;
 
   spn_kind_query_t query = { .linkage = u->profile.linkage };
   if (it->has_config) {
@@ -41,7 +39,7 @@ bool fz_pkg_shared(fz_universe_t* u, s32 pkg) {
   }
 
   spn_linkage_t kind = SPN_LIB_KIND_NONE;
-  if (spn_target_select_lib_kind(&info, query, &kind)) {
+  if (spn_target_select_lib_kind(it->linkages, query, &kind)) {
     return false;
   }
   return kind == SPN_LIB_KIND_SHARED;

@@ -11,6 +11,7 @@ SP_BEGIN_EXTERN_C()
 {{ $types }}
 typedef struct {
   spn_err_t kind;
+  sp_str_t subject;
   union {
 {{ for .arms }}
     {{ .type }} {{ .name }};

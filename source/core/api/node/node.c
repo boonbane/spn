@@ -25,7 +25,7 @@ spn_node_t* spn_add_node(spn_config_t* config, const c8* tag) {
   sp_mem_t mem = spn.mem;
   u32 index = sp_da_size(unit->user_nodes);
   spn_user_node_t node = {
-    .pkg = unit,
+    .unit = unit,
     .tag = spn_intern_cstr(tag).str,
   };
   sp_da_push(unit->user_nodes, node);

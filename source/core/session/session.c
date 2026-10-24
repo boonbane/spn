@@ -18,7 +18,6 @@
 #include "paths/paths.h"
 #include "project/types.h"
 #include "pkg/pkg.h"
-#include "pkg/options.h"
 #include "profile/profile.h"
 #include "toolchain/select.h"
 #include "triple/triple.h"
@@ -28,7 +27,7 @@ spn_err_t spn_session_init(spn_session_t* s, spn_ctx_t* ctx, sp_mem_t mem, spn_p
   s->project = project;
   s->arena = sp_mem_arena_new(mem);
   s->mem = sp_mem_arena_as_allocator(s->arena);
-  s->pkg = &project->package;
+  s->manifest = &project->package;
   s->force = config.force;
   s->paths.root = spn_path_from_root(SPN_PATH_ROOT_PROJECT);
   s->paths.build = spn_path_join(s->mem, s->paths.root, sp_str_lit("build"));
@@ -44,7 +43,7 @@ spn_err_t spn_session_init(spn_session_t* s, spn_ctx_t* ctx, sp_mem_t mem, spn_p
   sp_om_new(s->units.objects);
 
   spn_profile_info_t profile = sp_zero;
-  spn_try(spn_profile_resolve(&config.profile, ctx->host, s->pkg, &profile));
+  spn_try(spn_profile_resolve(&config.profile, ctx->host, project, &profile));
 
   spn_toolchain_query_t query = sp_zero;
   spn_try(spn_profile_query(&profile, ctx->host, &query));
@@ -91,10 +90,10 @@ spn_err_t spn_session_init(spn_session_t* s, spn_ctx_t* ctx, sp_mem_t mem, spn_p
   return SPN_OK;
 }
 
-sp_opt_spn_linkage_t spn_session_config_kind(spn_session_t* session, sp_str_t pkg_name) {
+sp_opt_spn_linkage_t spn_session_config_kind(spn_session_t* session, sp_intern_str_t name) {
   sp_opt_spn_linkage_t requested = sp_zero;
 
-  spn_pkg_config_t* config = spn_pkg_config_find(session->pkg->config, pkg_name);
+  spn_pkg_config_t* config = si_om_get(session->project->config, name.id);
   if (config && !sp_opt_is_null(config->kind)) {
     sp_opt_set(requested, config->kind.value);
   }
@@ -134,7 +133,7 @@ spn_pkg_unit_t* spn_session_find_dep(spn_session_t* session, spn_pkg_unit_t* pkg
   return SP_NULLPTR;
 }
 
-spn_target_unit_t* spn_session_find_target_in_pkg(spn_session_t* session, spn_pkg_unit_t* pkg, spn_target_id_t id) {
+spn_target_unit_t* spn_session_find_target_in_pkg(spn_session_t* session, spn_pkg_unit_t* pkg, si_target_id_t id) {
   spn_target_unit_id_t key = { .pkg = pkg->id, .target = id };
   return sp_om_has(session->units.targets, key) ? sp_om_get(session->units.targets, key) : SP_NULLPTR;
 }

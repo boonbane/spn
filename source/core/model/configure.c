@@ -25,7 +25,7 @@ static spn_err_t on_configure(const si_dag_ctx_t* c, void* user_data) {
   configure_t* ctx = (configure_t*)user_data;
   spn_pkg_unit_t* unit = ctx->unit;
   spn_wasm_script_t script = sp_zero;
-  if (spn_wasm_script_open(c->mem, unit, si_dag_resolve_input(c, ctx->reactor), c->obs, &script)) {
+  if (spn_wasm_script_open(unit, si_dag_resolve_input(c, ctx->reactor), c->obs, &script)) {
     return SPN_ERR_DAG_ACTION;
   }
   spn_err_t err = SPN_OK;

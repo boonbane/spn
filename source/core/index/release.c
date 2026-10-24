@@ -1,7 +1,6 @@
 #include "index/release.h"
 
 #include "pkg/id.h"
-#include "pkg/pkg.h"
 #include "target/mutate.h"
 
 static spn_index_dep_kind_t dep_kind_to_index(spn_dep_kind_t kind) {
@@ -13,16 +12,15 @@ static spn_index_dep_kind_t dep_kind_to_index(spn_dep_kind_t kind) {
   sp_unreachable_return(SPN_INDEX_DEP_NORMAL);
 }
 
-spn_err_t spn_index_release_from_pkg(sp_mem_t mem, spn_pkg_info_t* info, spn_pkg_root_t published, spn_index_release_t* release, sp_str_t* dep) {
-  *dep = sp_str_lit("");
+spn_err_t spn_index_release_from_manifest(sp_mem_t mem, const si_pkg_info_t* manifest, spn_pkg_root_t published, spn_index_release_t* release, spn_err_union_t* err) {
   *release = (spn_index_release_t) {
-    .id = spn_pkg_name_from_qualified(info->qualified.str),
-    .version = info->version,
-    .source = spn_pkg_upstream(info),
+    .id = spn_pkg_name_from_qualified(manifest->qualified.str),
+    .version = manifest->version,
+    .source = manifest->upstream,
     .paths = {
       .manifest = sp_str_lit("spn.toml"),
     },
-    .options = info->options,
+    .options = manifest->options,
   };
 
   if (release->source.kind == SPN_PKG_ROOT_NONE) {
@@ -34,11 +32,14 @@ spn_err_t spn_index_release_from_pkg(sp_mem_t mem, spn_pkg_info_t* info, spn_pkg
   sp_da_init(mem, release->deps);
   sp_da_init(mem, release->targets);
 
-  si_da_for(info->deps, it) {
-    spn_requested_dep_t* req = &info->deps[it];
+  si_da_for(manifest->deps, it) {
+    spn_requested_dep_t* req = &manifest->deps[it];
     if (req->source != SPN_PKG_SOURCE_INDEX) {
-      *dep = req->qualified.str;
-      return SPN_ERR_INDEX_PATH_DEP;
+      *err = (spn_err_union_t) {
+        .kind = SPN_ERR_INDEX_PATH_DEP,
+        .pkg = { .name = manifest->qualified.str, .requested = req->qualified.str },
+      };
+      return err->kind;
     }
 
     sp_da_push(release->deps, ((spn_index_dep_t) {
@@ -51,8 +52,8 @@ spn_err_t spn_index_release_from_pkg(sp_mem_t mem, spn_pkg_info_t* info, spn_pkg
     }));
   }
 
-  si_om_for(info->targets, it) {
-    spn_target_info_t* lib = si_om_at(info->targets, it);
+  si_om_for(manifest->targets, it) {
+    si_target_info_t* lib = si_om_at(manifest->targets, it);
     if (lib->kind != SPN_TARGET_KIND_LIB) {
       continue;
     }

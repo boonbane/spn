@@ -156,7 +156,7 @@ static spn_cg_resolve_error_t dump_error(sp_mem_t mem, const spn_err_union_t* er
       break;
     }
     case SPN_ERR_MANIFEST_ISSUES: {
-      dump_error_pkg(&error, spn_pkg_name_from_qualified(err->manifest.name));
+      dump_error_pkg(&error, spn_pkg_name_from_qualified(err->subject));
       error.issues = dump_issues(mem, err->manifest.issues);
       break;
     }

@@ -101,20 +101,42 @@ SPN_PACK_PUSH
 typedef struct {
   sp_intern_id_t name;
   spn_target_kind_t kind;
-} spn_target_id_t;
+} si_target_id_t;
 SPN_PACK_POP
 
 _Static_assert(
-  sizeof(spn_target_id_t) == sizeof(sp_intern_id_t) + sizeof(spn_target_kind_t),
+  sizeof(si_target_id_t) == sizeof(sp_intern_id_t) + sizeof(spn_target_kind_t),
   "spn_target_id_t is byte-hashed as a key; it must have no padding"
 );
 
-struct spn_target_info {
-  spn_target_id_t id;
+struct si_target_info {
+  si_target_id_t id;
   sp_intern_str_t name;
   spn_target_kind_t kind;
   spn_linkage_set_t linkages;
   bool no_link; // @spader A hack for libtcc1.a (building an unlinked library)
+  spn_cxx_options_t cxx;
+  si_da(spn_gated_source_t) source;
+  si_da(spn_gated_publish_t) publish;
+  spn_gated_path_list_t include;
+  spn_gated_list_t define;
+  spn_gated_list_t flags;
+  spn_gated_list_t link_flags;
+  spn_gated_path_list_t linker_script;
+  spn_gated_list_t system_deps;
+  spn_gated_list_t deps;
+  si_da(spn_gated_embed_t) embed;
+  struct {
+    spn_gated_list_t frameworks;
+    spn_os_version_t min_os;
+  } macos;
+  struct {
+    spn_win_subsystem_t subsystem;
+  } windows;
+};
+
+struct si_target {
+  const si_target_info_t* info;
   si_da(spn_source_t) source;
   si_da(spn_publish_t) publish;
   si_da(spn_path_t) include;
@@ -125,32 +147,15 @@ struct spn_target_info {
   si_da(sp_str_t) system_deps;
   si_da(sp_str_t) deps;
   si_da(spn_embed_t) embed;
-  spn_cxx_options_t cxx;
   struct {
     si_da(spn_path_t) include;
   } configured;
   struct {
     si_da(sp_str_t) frameworks;
-    spn_os_version_t min_os;
   } macos;
-  struct {
-    spn_win_subsystem_t subsystem;
-  } windows;
-  struct {
-    si_da(spn_gated_source_t) source;
-    si_da(spn_gated_publish_t) publish;
-    spn_gated_path_list_t include;
-    spn_gated_list_t define;
-    spn_gated_list_t flags;
-    spn_gated_list_t link_flags;
-    spn_gated_path_list_t linker_script;
-    spn_gated_list_t system_deps;
-    spn_gated_list_t deps;
-    spn_gated_list_t frameworks;
-    si_da(spn_gated_embed_t) embed;
-  } gated;
 };
 
-typedef si_om(spn_target_id_t, spn_target_info_t) spn_target_map_t;
+typedef si_om(si_target_id_t, si_target_info_t) spn_target_decl_map_t;
+typedef si_om(si_target_id_t, si_target_t) spn_target_eval_map_t;
 
 #endif

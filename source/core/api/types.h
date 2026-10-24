@@ -11,7 +11,7 @@ struct spn_node {
 
 struct spn_target {
   spn_pkg_unit_t* unit;
-  spn_target_info_t* info;
+  si_target_t* eval;
 };
 
 #endif
