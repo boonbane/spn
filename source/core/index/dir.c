@@ -9,7 +9,7 @@
 spn_err_t spn_index_dir_get_package(spn_index_info_t* index, sp_mem_t mem, sp_intern_t* intern, const spn_path_roots_t* roots, spn_pkg_name_t id, spn_index_pkg_t** pkg, spn_err_union_t* err) {
   *pkg = SP_NULLPTR;
 
-  spn_path_t dir = spn_path_join(mem, index->dir.path, id.name);
+  spn_path_t dir = spn_path_join(mem, (spn_path_t) { .sub = index->location.dir }, id.name);
   spn_path_t path = spn_path_join(mem, dir, sp_str_lit("spn.toml"));
 
   si_pkg_info_t* manifest = sp_alloc_type(mem, si_pkg_info_t);
