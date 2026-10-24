@@ -13,7 +13,7 @@
 
 typedef struct {
   const spn_cc_link_plan_t* plan;
-  spn_path_t output_path;
+  sp_str_t file_name;
   spn_event_subject_t subject;
   spn_dag_build_objects_t objects;
   si_da(spn_dag_id_t) scripts;
@@ -30,7 +30,7 @@ typedef struct {
 
 typedef struct {
   const spn_cc_archive_plan_t* plan;
-  spn_path_t output_path;
+  sp_str_t file_name;
   spn_event_subject_t subject;
   spn_dag_build_objects_t objects;
   spn_dag_id_t output;
@@ -52,6 +52,7 @@ typedef struct {
   spn_path_t source;
   spn_event_subject_t subject;
   spn_dag_id_t libc;
+  spn_dag_id_t header;
   spn_dag_id_t object;
 } si_compile_t;
 
@@ -67,15 +68,7 @@ typedef struct {
 } si_libc_t;
 
 typedef struct {
-  spn_session_t* session;
-  spn_dag_id_t file;
-  spn_dag_id_t stamp;
-} si_compile_commands_t;
-
-typedef struct {
   spn_target_unit_t* target;
-  spn_path_t object_path;
-  spn_path_t header_path;
   spn_dag_id_t object;
   spn_dag_id_t header;
 } si_embed_t;
@@ -114,7 +107,6 @@ spn_err_t si_on_link(const si_dag_ctx_t* c, void* user_data);
 spn_err_t si_on_write_exports(const si_dag_ctx_t* c, void* user_data);
 spn_err_t si_on_write_rsp(const si_dag_ctx_t* c, void* user_data);
 spn_err_t si_on_write_libc(const si_dag_ctx_t* c, void* user_data);
-spn_err_t si_on_write_compile_commands(const si_dag_ctx_t* c, void* user_data);
 spn_err_t si_on_embed(const si_dag_ctx_t* c, void* user_data);
 spn_err_t si_on_user_node(const si_dag_ctx_t* c, void* user_data);
 spn_err_t si_on_publish(const si_dag_ctx_t* c, void* user_data);

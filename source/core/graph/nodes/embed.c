@@ -114,8 +114,6 @@ static spn_err_t embed_files(sp_mem_t mem, const si_dag_ctx_t* c, si_embed_t* em
     .pkg = unit->pkg->eval.manifest->name.str,
     .embed_passed = {
       .target = eval->info->name.str,
-      .object_path = embed->object_path,
-      .header_path = embed->header_path,
       .time = elapsed,
     },
   });

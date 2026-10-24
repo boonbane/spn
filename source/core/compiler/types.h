@@ -56,6 +56,7 @@ typedef struct {
   spn_path_t output;
   spn_path_t depfile;
   spn_path_t libc;
+  spn_path_t include;
 } spn_cc_compile_files_t;
 
 typedef enum {

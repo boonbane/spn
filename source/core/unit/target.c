@@ -122,44 +122,28 @@ static spn_err_t ensure_target_unit(spn_session_t* s, spn_pkg_unit_t* pkg, si_ta
       }
     }
 
-    sp_str_t dir = sp_zero;
-    switch (decl->kind) {
-      case SPN_TARGET_KIND_LIB:                   dir = sp_str_lit("lib"); break;
-      case SPN_TARGET_KIND_EXE:                   dir = sp_str_lit("exe"); break;
-      case SPN_TARGET_KIND_SCRIPT:                dir = sp_str_lit("script"); break;
-      case SPN_TARGET_KIND_TEST:                  dir = sp_str_lit("test"); break;
-      case SPN_TARGET_KIND_EXAMPLE:               dir = sp_str_lit("example"); break;
-      case SPN_TARGET_KIND_CONFIGURE_METAPROGRAM: dir = sp_str_lit("configure"); break;
-      case SPN_TARGET_KIND_BUILD_METAPROGRAM:     dir = sp_str_lit("build"); break;
-    }
-    sp_str_buf_t buf = sp_zero;
-    spn_path_t kind = spn_path_join(sp_str_buf_as_mem(&buf), pkg->paths.object, dir);
-    target->paths.object = spn_path_join(s->mem, kind, decl->name.str);
-
-    sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
     spn_triple_t triple = spn_profile_triple(&pkg->build->profile);
     switch (target->kind) {
       case SPN_CC_OUTPUT_EXE: {
-        target->paths.output = spn_path_join(s->mem, pkg->paths.bin, spn_triple_exe_file_name(scratch.mem, triple, decl->name.str));
+        target->file_name = spn_triple_exe_file_name(s->mem, triple, decl->name.str);
         break;
       }
       case SPN_CC_OUTPUT_STATIC_LIB: {
-        target->paths.output = spn_path_join(s->mem, pkg->paths.lib, spn_triple_lib_file_name(scratch.mem, triple, decl->name.str, SP_OS_LIB_STATIC));
+        target->file_name = spn_triple_lib_file_name(s->mem, triple, decl->name.str, SP_OS_LIB_STATIC);
         break;
       }
       case SPN_CC_OUTPUT_SHARED_LIB: {
-        target->paths.output = spn_path_join(s->mem, pkg->paths.lib, spn_triple_lib_file_name(scratch.mem, triple, decl->name.str, SP_OS_LIB_SHARED));
+        target->file_name = spn_triple_lib_file_name(s->mem, triple, decl->name.str, SP_OS_LIB_SHARED);
         break;
       }
       case SPN_CC_OUTPUT_REACTOR: {
-        target->paths.output = spn_path_join(s->mem, pkg->paths.work, sp_fmt(scratch.mem, "{}.wasm", sp_fmt_str(decl->name.str)).value);
+        target->file_name = sp_fmt(s->mem, "{}.wasm", sp_fmt_str(decl->name.str)).value;
         break;
       }
       case SPN_CC_OUTPUT_OBJECT: {
         break;
       }
     }
-    sp_mem_end_scratch(scratch);
   }
   if (result) *result = target;
   return SPN_OK;
@@ -408,9 +392,6 @@ static spn_err_t build_target_plan(spn_target_unit_t* target) {
       continue;
     }
     si_da_push(scratch.mem, compile.include, pkg->deps[it].unit->paths.include);
-  }
-  if (!si_da_empty(eval->embed)) {
-    si_da_push(scratch.mem, compile.include, target->paths.object);
   }
   sp_da_for(build->define, it) {
     si_da_push(scratch.mem, compile.define, build->define[it]);
@@ -777,7 +758,7 @@ spn_err_t spn_units_add_targets(spn_session_t* s, spn_unit_scope_t scope) {
           si_da(spn_target_unit_t*) libs = si_link_get_target_runtime_libs(scratch.mem, root);
           si_da_for(libs, lt) {
             spn_target_unit_t* lib = libs[lt];
-            sp_str_t name = sp_fs_get_name(lib->paths.output.sub);
+            sp_str_t name = lib->file_name;
             spn_path_t path = spn_path_join(s->mem, dir, name);
             spn_target_unit_t** owner = si_ht_getp(claimed, path);
             if (owner && *owner != lib) {
