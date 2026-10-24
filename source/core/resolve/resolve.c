@@ -172,9 +172,10 @@ static spn_err_union_t load_file_pkg(spn_resolver_t* resolver, spn_requested_dep
 
   *pkg = SP_NULLPTR;
 
+  spn_path_t path = spn_path_canonicalize(resolver->mem, resolver->roots, request->file.path);
   si_pkg_info_t* manifest = sp_alloc_type(resolver->mem, si_pkg_info_t);
   spn_err_union_t err = sp_zero;
-  if (spn_pkg_load(resolver->mem, resolver->intern, resolver->roots, request->file.path, manifest, &err)) {
+  if (spn_pkg_load(resolver->mem, resolver->intern, resolver->roots, path, manifest, &err)) {
     return spn_err_about(err, request->qualified.str);
   }
 
@@ -183,14 +184,14 @@ static spn_err_union_t load_file_pkg(spn_resolver_t* resolver, spn_requested_dep
   if (manifest->qualified.id != request->qualified.id) {
     return (spn_err_union_t) {
       .kind = SPN_ERR_PKG_MISMATCH,
-      .mismatch = { .path = spn_path_str(resolver->roots, resolver->mem, request->file.path), .declared = manifest->qualified.str, .requested = request->qualified.str },
+      .mismatch = { .path = spn_path_str(resolver->roots, resolver->mem, path), .declared = manifest->qualified.str, .requested = request->qualified.str },
     };
   }
 
   sp_ht_insert(*resolver->registry, id, ((spn_registry_pkg_t) {
     .source = SPN_PKG_SOURCE_FILE,
     .manifest = manifest,
-    .path = request->file.path,
+    .path = path,
   }));
 
   *pkg = sp_ht_getp(*resolver->registry, id);

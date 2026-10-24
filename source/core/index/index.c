@@ -305,7 +305,7 @@ spn_err_t spn_index_publish(spn_index_info_t* index, spn_index_release_t* rel) {
   sp_unreachable_return(SPN_ERROR);
 }
 
-spn_path_t spn_index_location(spn_index_info_t* index, sp_mem_t mem, spn_path_t root) {
+spn_path_t spn_index_location(spn_index_info_t* index, sp_mem_t mem, const spn_path_roots_t* roots, spn_path_t root) {
   switch (index->protocol) {
     case SPN_INDEX_PROTOCOL_GIT: {
       return spn_path_join(mem, root, spn_git_db_key(mem, index->git.url));
@@ -314,7 +314,7 @@ spn_path_t spn_index_location(spn_index_info_t* index, sp_mem_t mem, spn_path_t 
       return spn_path_join(mem, root, spn_git_db_key(mem, index->http.url));
     }
     case SPN_INDEX_PROTOCOL_DIR: {
-      return index->dir.path;
+      return spn_path_canonicalize(mem, roots, index->dir.path);
     }
   }
   sp_unreachable_return(sp_zero_struct(spn_path_t));
