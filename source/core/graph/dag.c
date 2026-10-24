@@ -235,7 +235,7 @@ static spn_dag_digest_t hash_compile(const spn_compile_unit_t* unit) {
   return spn_dag_hash_final(&digest);
 }
 
-static spn_err_t add_object_compilation(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t* target, spn_dag_id_t libc, si_da(object_ids_t)* objects) {
+static spn_err_t add_object_compilation(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t* target, spn_dag_id_t libc, spn_dag_id_t header, si_da(object_ids_t)* objects) {
   spn_dag_t* g = b->graph;
   spn_pkg_unit_t* pkg = target->pkg;
 
@@ -270,6 +270,7 @@ static spn_err_t add_object_compilation(spn_dag_build_t* b, sp_mem_t mem, spn_ta
       .source = unit->file,
       .subject = spn_target_unit_subject(target),
       .libc = libc,
+      .header = header,
     };
     spn_dag_action_config_t config = {
       .identity = hash_compile(unit),
@@ -295,6 +296,9 @@ static spn_err_t add_object_compilation(spn_dag_build_t* b, sp_mem_t mem, spn_ta
     if (libc.occupied) {
       spn_dag_action_add_input(g, ids.action, libc);
     }
+    if (header.occupied) {
+      spn_dag_action_add_input(g, ids.action, header);
+    }
     si_da_for(inputs, jt) {
       spn_dag_action_add_input(g, ids.action, inputs[jt]);
     }
@@ -307,14 +311,6 @@ static spn_err_t add_object_compilation(spn_dag_build_t* b, sp_mem_t mem, spn_ta
   }
 
   return SPN_OK;
-}
-
-static spn_path_t embed_artifact_path(sp_mem_t mem, spn_target_unit_t* unit, const c8* extension) {
-  sp_mem_arena_marker_t s = sp_mem_begin_scratch_for(mem);
-  sp_str_t name = sp_fmt(s.mem, "{}.embed.{}", sp_fmt_str(unit->eval->info->name.str), sp_fmt_cstr(extension)).value;
-  spn_path_t path = spn_path_join(mem, unit->paths.object, name);
-  sp_mem_end_scratch(s);
-  return path;
 }
 
 static void hash_link_deps(spn_digest_ctx_t* digest, const spn_link_plan_t* link) {
@@ -343,7 +339,7 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
       return SPN_OK;
     }
     case SPN_LIB_KIND_OBJECT: {
-      spn_try(add_object_compilation(b, mem, target, libc, &objects));
+      spn_try(add_object_compilation(b, mem, target, libc, (spn_dag_id_t) sp_zero, &objects));
       si_da_for(objects, it) {
         spn_path_t dest = spn_path_join(mem, target->pkg->paths.lib, target->objects[it]->name);
 
@@ -374,7 +370,6 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
     }
   }
 
-  spn_try(add_object_compilation(b, mem, target, libc, &objects));
   if (sp_da_empty(target->objects)) {
     return SPN_OK;
   }
@@ -382,43 +377,45 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
   spn_dag_target_ids_t* ids = sp_ht_getp(b->ids.targets, target);
   sp_assert(ids);
 
+  spn_dag_embed_ids_t embed = sp_zero;
+  if (!si_da_empty(target->eval->embed)) {
+    sp_str_t name = target->eval->info->name.str;
+    si_embed_t* ctx = sp_alloc_type(b->mem, si_embed_t);
+    *ctx = (si_embed_t) {
+      .target = target,
+      .object = spn_dag_add_output(g, sp_fmt(b->mem, "{}.embed.o", sp_fmt_str(name)).value),
+      .header = spn_dag_add_output(g, sp_fmt(b->mem, "{}.embed.h", sp_fmt_str(name)).value),
+    };
+    embed = (spn_dag_embed_ids_t) {
+      .action = spn_dag_add_action(g, (spn_dag_action_config_t) {
+        .kind = SPN_DAG_ACTION_DISCOVERED,
+        .identity = hash_embedding(target),
+        .execute = si_on_embed,
+        .user_data = ctx,
+      }),
+      .object = ctx->object,
+      .header = ctx->header,
+    };
+    announce_package(b, embed.action, target->pkg);
+    sp_ht_insert(b->ids.embeds, target, embed);
+    spn_try(spn_dag_action_add_output(g, embed.action, embed.object));
+    spn_try(spn_dag_action_add_output(g, embed.action, embed.header));
+    si_da_for(target->eval->embed, it) {
+      spn_embed_t* entry = &target->eval->embed[it];
+      if (entry->kind == SPN_EMBED_FILE) {
+        spn_dag_action_add_input(g, embed.action, spn_dag_add_file(g, entry->path));
+      }
+    }
+  }
+
+  spn_try(add_object_compilation(b, mem, target, libc, embed.header, &objects));
+
   si_da(spn_dag_id_t) object_ids = sp_zero;
   si_da_for(objects, it) {
     si_da_push(b->mem, object_ids, objects[it].object);
   }
-
-  if (!si_da_empty(target->eval->embed)) {
-    si_embed_t* ctx = sp_alloc_type(b->mem, si_embed_t);
-    *ctx = (si_embed_t) {
-      .target = target,
-      .object_path = embed_artifact_path(b->mem, target, "o"),
-      .header_path = embed_artifact_path(b->mem, target, "h"),
-    };
-    ctx->object = spn_dag_add_file(g, ctx->object_path);
-    ctx->header = spn_dag_add_file(g, ctx->header_path);
-    spn_dag_id_t object = ctx->object;
-    spn_dag_id_t header = ctx->header;
-    spn_dag_id_t embed = spn_dag_add_action(g, (spn_dag_action_config_t) {
-      .kind = SPN_DAG_ACTION_DISCOVERED,
-      .identity = hash_embedding(target),
-      .execute = si_on_embed,
-      .user_data = ctx,
-    });
-    announce_package(b, embed, target->pkg);
-    sp_ht_insert(b->ids.embeds, target, embed);
-    spn_try(spn_dag_action_add_output(g, embed, object));
-    spn_try(spn_dag_action_add_output(g, embed, header));
-
-    si_da_for(target->eval->embed, it) {
-      spn_embed_t* entry = &target->eval->embed[it];
-      if (entry->kind == SPN_EMBED_FILE) {
-        spn_dag_action_add_input(g, embed, spn_dag_add_file(g, entry->path));
-      }
-    }
-    si_da_for(objects, it) {
-      spn_dag_action_add_input(g, objects[it].action, header);
-    }
-    si_da_push(b->mem, object_ids, object);
+  if (embed.action.occupied) {
+    si_da_push(b->mem, object_ids, embed.object);
   }
 
   si_da(spn_dag_id_t) link_inputs = sp_zero;
@@ -837,7 +834,7 @@ static spn_err_t prepare_graph(spn_dag_build_t* b) {
       sp_da_for(g->artifacts, at) {
         spn_dag_artifact_t* artifact = &g->artifacts[at];
         if (spn_dag_output_overlaps(artifact, embed->path)) {
-          spn_dag_action_add_input(g, *it.val, artifact->id);
+          spn_dag_action_add_input(g, it.val->action, artifact->id);
         }
       }
     }

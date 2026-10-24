@@ -17,7 +17,15 @@ static void render(sp_mem_t mem, spn_dag_build_t* b, sp_io_writer_t* io) {
   sp_io_write_cstr(io, "[", SP_NULLPTR);
   sp_om_for(session->units.objects, it) {
     spn_compile_unit_t* unit = sp_om_at(session->units.objects, it);
-    spn_invocation_t invocation = spn_cc_render_compile_source(mem, &unit->plan.base, unit->file);
+    spn_cc_compile_files_t files = { .source = unit->file };
+    spn_dag_embed_ids_t* embed = sp_ht_getp(b->ids.embeds, unit->target);
+    if (embed) {
+      spn_dag_artifact_t* header = spn_dag_find_artifact(b->graph, embed->header);
+      if (!spn_path_empty(header->materialized)) {
+        files.include = spn_path_parent(header->materialized);
+      }
+    }
+    spn_invocation_t invocation = spn_cc_render_compile_source(mem, &unit->plan, &files);
     sp_da(sp_str_t) args = spn_invocation_args(roots, mem, &invocation);
 
     if (it) {

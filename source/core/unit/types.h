@@ -141,7 +141,6 @@ struct spn_target_unit {
   spn_cc_output_kind_t kind;
   spn_linkage_t lib_kind;
   struct {
-    spn_path_t object;
     spn_path_t output;
   } paths;
 
@@ -174,7 +173,6 @@ struct spn_pkg_unit_t {
   struct {
     spn_tree_roots_t roots;
     spn_path_t work;
-    spn_path_t object;
     spn_path_t stamp;
     spn_path_t store;
     spn_path_t include;

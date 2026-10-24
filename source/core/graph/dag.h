@@ -12,6 +12,12 @@ typedef struct {
   spn_dag_id_t implib;
 } spn_dag_target_ids_t;
 
+typedef struct {
+  spn_dag_id_t action;
+  spn_dag_id_t object;
+  spn_dag_id_t header;
+} spn_dag_embed_ids_t;
+
 struct spn_dag_build_t {
   spn_session_t* session;
   sp_mem_t mem;
@@ -20,7 +26,7 @@ struct spn_dag_build_t {
   struct {
     sp_ht(spn_pkg_unit_t*, spn_dag_id_t) stamps;
     sp_ht(spn_target_unit_t*, spn_dag_target_ids_t) targets;
-    sp_ht(spn_target_unit_t*, spn_dag_id_t) embeds;
+    sp_ht(spn_target_unit_t*, spn_dag_embed_ids_t) embeds;
     sp_ht(spn_build_unit_t*, spn_dag_id_t) builds;
     sp_ht(spn_dag_digest_t, spn_dag_id_t) warm;
   } ids;

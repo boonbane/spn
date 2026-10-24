@@ -181,7 +181,14 @@ spn_cc_compile_plan_t spn_msvc_render_compile(sp_mem_t mem, const spn_cc_t* tool
   return plan;
 }
 
+void spn_msvc_render_compile_include(sp_mem_t mem, const spn_cc_compile_files_t* files, spn_invocation_t* invocation) {
+  if (!spn_path_empty(files->include)) {
+    spn_cc_push_glued(mem, invocation, "/I", files->include);
+  }
+}
+
 void spn_msvc_render_compile_locations(sp_mem_t mem, const spn_cc_compile_plan_t* plan, const spn_cc_compile_files_t* files, spn_invocation_t* invocation) {
+  spn_msvc_render_compile_include(mem, files, invocation);
   if (!spn_path_empty(files->depfile)) {
     spn_cc_push_c(mem, invocation, "/sourceDependencies");
     spn_cc_push_path(mem, invocation, files->depfile);

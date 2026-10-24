@@ -15,6 +15,7 @@ typedef struct {
   const c8* define;
   const c8* depfile;
   const c8* libc;
+  const c8* embed_include;
   spn_os_version_t min_os;
   render_expect_t expect;
 } compile_test_t;
@@ -34,6 +35,22 @@ static const compile_test_t tests [] = {
     .expect = {
       .command = "cc",
       .args = { "-std=c99", "-c", "-fPIC", "-fno-common", "-Werror=return-type", "main.c", "-o", "main.o" },
+    },
+  },
+  {
+    .name = "gcc_embed_include_is_a_location",
+    .driver = SPN_CC_DRIVER_GCC,
+    .profile = {
+      .arch = SPN_ARCH_X64,
+      .os = SPN_OS_LINUX,
+      .abi = SPN_ABI_GNU,
+      .standard = SPN_C99,
+    },
+    .include = "inc",
+    .embed_include = "E",
+    .expect = {
+      .command = "cc",
+      .args = { "-std=c99", "-c", "-Iinc", "-Werror=return-type", "-IE", "main.c", "-o", "main.o" },
     },
   },
   {
@@ -252,6 +269,23 @@ static const compile_test_t tests [] = {
     .expect = {
       .command = "cc",
       .args = { "/nologo", "/utf-8", "/Brepro", "/std:c11", "/MT", "/c", "/Iinc", "/DSPUM=1", "/we4715", "/Fomain.o", "main.c" },
+    },
+  },
+  {
+    .name = "msvc_embed_include_is_a_location",
+    .driver = SPN_CC_DRIVER_MSVC,
+    .profile = {
+      .arch = SPN_ARCH_X64,
+      .os = SPN_OS_WINDOWS,
+      .abi = SPN_ABI_MSVC,
+      .linking.runtime = SPN_RUNTIME_STATIC,
+      .standard = SPN_C11,
+    },
+    .include = "inc",
+    .embed_include = "E",
+    .expect = {
+      .command = "cc",
+      .args = { "/nologo", "/utf-8", "/Brepro", "/std:c11", "/MT", "/c", "/Iinc", "/we4715", "/IE", "/Fomain.o", "main.c" },
     },
   },
   {
@@ -685,6 +719,7 @@ sp_test_each(render_compile, render, compile_test_t, tests, .setup = spn_test_ct
     .output = test_arg_path("main.o"),
     .depfile = it->depfile ? test_arg_path(it->depfile) : sp_zero_s(spn_path_t),
     .libc = it->libc ? test_arg_path(it->libc) : sp_zero_s(spn_path_t),
+    .include = it->embed_include ? test_arg_path(it->embed_include) : sp_zero_s(spn_path_t),
   };
   spn_invocation_t invocation = spn_cc_render_compile_command(mem, &plan, &files);
   return expect_args(t, &invocation, it->expect);

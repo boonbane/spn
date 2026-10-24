@@ -52,6 +52,7 @@ typedef struct {
   spn_path_t source;
   spn_event_subject_t subject;
   spn_dag_id_t libc;
+  spn_dag_id_t header;
   spn_dag_id_t object;
 } si_compile_t;
 
@@ -68,8 +69,6 @@ typedef struct {
 
 typedef struct {
   spn_target_unit_t* target;
-  spn_path_t object_path;
-  spn_path_t header_path;
   spn_dag_id_t object;
   spn_dag_id_t header;
 } si_embed_t;

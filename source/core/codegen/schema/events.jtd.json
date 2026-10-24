@@ -132,8 +132,6 @@
       "metadata": { "verb": "Embedded", "verbosity": "debug" },
       "properties": {
         "target": { "type": "string" },
-        "object_path": { "metadata": { "extern": "path" } },
-        "header_path": { "metadata": { "extern": "path" } },
         "time_ns": { "type": "uint64", "metadata": { "field": "time" } }
       }
     },

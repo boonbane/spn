@@ -122,20 +122,6 @@ static spn_err_t ensure_target_unit(spn_session_t* s, spn_pkg_unit_t* pkg, si_ta
       }
     }
 
-    sp_str_t dir = sp_zero;
-    switch (decl->kind) {
-      case SPN_TARGET_KIND_LIB:                   dir = sp_str_lit("lib"); break;
-      case SPN_TARGET_KIND_EXE:                   dir = sp_str_lit("exe"); break;
-      case SPN_TARGET_KIND_SCRIPT:                dir = sp_str_lit("script"); break;
-      case SPN_TARGET_KIND_TEST:                  dir = sp_str_lit("test"); break;
-      case SPN_TARGET_KIND_EXAMPLE:               dir = sp_str_lit("example"); break;
-      case SPN_TARGET_KIND_CONFIGURE_METAPROGRAM: dir = sp_str_lit("configure"); break;
-      case SPN_TARGET_KIND_BUILD_METAPROGRAM:     dir = sp_str_lit("build"); break;
-    }
-    sp_str_buf_t buf = sp_zero;
-    spn_path_t kind = spn_path_join(sp_str_buf_as_mem(&buf), pkg->paths.object, dir);
-    target->paths.object = spn_path_join(s->mem, kind, decl->name.str);
-
     sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
     spn_triple_t triple = spn_profile_triple(&pkg->build->profile);
     switch (target->kind) {
@@ -408,9 +394,6 @@ static spn_err_t build_target_plan(spn_target_unit_t* target) {
       continue;
     }
     si_da_push(scratch.mem, compile.include, pkg->deps[it].unit->paths.include);
-  }
-  if (!si_da_empty(eval->embed)) {
-    si_da_push(scratch.mem, compile.include, target->paths.object);
   }
   sp_da_for(build->define, it) {
     si_da_push(scratch.mem, compile.define, build->define[it]);
