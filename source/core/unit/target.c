@@ -25,8 +25,8 @@
 #include "toolchain/toolchain.h"
 #include "triple/triple.h"
 
-static spn_err_t ensure_target_unit(spn_session_t* s, spn_pkg_unit_t* pkg, spn_target_eval_t* eval, spn_target_unit_t** result) {
-  const spn_target_info_t* decl = eval->info;
+static spn_err_t ensure_target_unit(spn_session_t* s, spn_pkg_unit_t* pkg, si_target_t* eval, spn_target_unit_t** result) {
+  const si_target_info_t* decl = eval->info;
   spn_target_unit_id_t id = {
     .pkg = pkg->id,
     .target = decl->id,
@@ -299,8 +299,8 @@ static spn_err_t build_target_plan(spn_target_unit_t* target) {
   spn_pkg_unit_t* pkg = target->pkg;
   spn_session_t* s = pkg->session;
   spn_build_unit_t* build = pkg->build;
-  spn_target_eval_t* eval = target->eval;
-  const spn_target_info_t* decl = eval->info;
+  si_target_t* eval = target->eval;
+  const si_target_info_t* decl = eval->info;
   spn_profile_info_t* profile = &build->profile;
   spn_cc_t* toolchain = &build->toolchain->cc;
   sp_mem_t mem = s->mem;
@@ -527,7 +527,7 @@ static spn_err_t ensure_sibling_targets(spn_session_t* s, si_da(spn_target_unit_
       if (find_dep_unit(s, unit->pkg, qualified)) {
         continue;
       }
-      spn_target_eval_t* lib = spn_pkg_get_target(&unit->pkg->eval, unit->eval->deps[j], SPN_TARGET_KIND_LIB);
+      si_target_t* lib = spn_pkg_get_target(&unit->pkg->eval, unit->eval->deps[j], SPN_TARGET_KIND_LIB);
       if (!lib) {
         continue;
       }
@@ -550,7 +550,7 @@ static spn_err_t resolve_target_deps(spn_session_t* s, si_da(spn_target_unit_t*)
         continue;
       }
 
-      spn_target_unit_t* target = spn_session_find_target_in_pkg(s, unit->pkg, ((spn_target_id_t) { .name = spn_intern(dep).id, .kind = SPN_TARGET_KIND_LIB }));
+      spn_target_unit_t* target = spn_session_find_target_in_pkg(s, unit->pkg, ((si_target_id_t) { .name = spn_intern(dep).id, .kind = SPN_TARGET_KIND_LIB }));
       if (!target) {
         return spn_err_emit(s->ctx, (spn_err_union_t) {
           .kind = SPN_ERR_TARGET_DEP,
@@ -568,7 +568,7 @@ static spn_err_t add_metaprogram_targets(spn_session_t* s) {
 
   sp_da_for_value(world->packages, unit) {
     si_om_for(unit->eval.targets, jt) {
-      spn_target_eval_t* eval = si_om_at(unit->eval.targets, jt);
+      si_target_t* eval = si_om_at(unit->eval.targets, jt);
       switch (eval->info->kind) {
         case SPN_TARGET_KIND_CONFIGURE_METAPROGRAM:
         case SPN_TARGET_KIND_BUILD_METAPROGRAM: {
@@ -593,7 +593,7 @@ static spn_err_t add_metaprogram_targets(spn_session_t* s) {
       continue;
     }
     si_om_for(unit->eval.targets, jt) {
-      spn_target_eval_t* eval = si_om_at(unit->eval.targets, jt);
+      si_target_t* eval = si_om_at(unit->eval.targets, jt);
       if (eval->info->kind != SPN_TARGET_KIND_LIB) {
         continue;
       }
@@ -641,8 +641,7 @@ spn_err_t spn_units_add_targets(spn_session_t* s, spn_unit_scope_t scope) {
     case SPN_UNIT_SCOPE_TARGET: {
       sp_da_for_ptr(s->plans.build, plan) {
         sp_da_for_value(plan->build->packages, pkg) {
-          sp_da_for(pkg->user_nodes, k) {
-            spn_user_node_t* node = &pkg->user_nodes[k];
+          sp_da_for_ptr(pkg->user_nodes, node) {
             if (!sp_str_empty(node->fn) && !pkg->metaprogram->scripts.build) {
               return spn_err_emit(s->ctx, (spn_err_union_t) {
                 .kind = SPN_ERR_NODE_NO_BUILD_SCRIPT,
@@ -654,10 +653,11 @@ spn_err_t spn_units_add_targets(spn_session_t* s, spn_unit_scope_t scope) {
               });
             }
           }
+
           if (pkg == plan->root) {
             if (si_om_empty(plan->selection.names)) {
               si_om_for(pkg->eval.targets, k) {
-                spn_target_eval_t* eval = si_om_at(pkg->eval.targets, k);
+                si_target_t* eval = si_om_at(pkg->eval.targets, k);
                 if (plan->selection.kinds & spn_target_kind_bit(eval->info->kind)) {
                   spn_target_unit_t* root = SP_NULLPTR;
                   spn_try(ensure_target_unit(s, pkg, eval, &root));
@@ -666,16 +666,14 @@ spn_err_t spn_units_add_targets(spn_session_t* s, spn_unit_scope_t scope) {
               }
             }
             else {
-              si_om_for(pkg->eval.targets, k) {
-                spn_target_eval_t* eval = si_om_at(pkg->eval.targets, k);
+              si_om_for_each(pkg->eval.targets, eval) {
                 if ((plan->selection.kinds & spn_target_kind_bit(eval->info->kind)) && si_om_has(plan->selection.names, eval->info->name.id)) {
                   spn_target_unit_t* root = SP_NULLPTR;
                   spn_try(ensure_target_unit(s, pkg, eval, &root));
                   si_da_push(s->mem, plan->roots, root);
                 }
               }
-              si_om_for(plan->selection.names, k) {
-                sp_intern_str_t* name = si_om_at(plan->selection.names, k);
+              si_om_for_each(plan->selection.names, name) {
                 bool matched = false;
                 si_da_for(plan->roots, r) {
                   if (plan->roots[r]->id.target.name == name->id) {
@@ -692,8 +690,7 @@ spn_err_t spn_units_add_targets(spn_session_t* s, spn_unit_scope_t scope) {
               }
             }
           } else {
-            si_om_for(pkg->eval.targets, k) {
-              spn_target_eval_t* eval = si_om_at(pkg->eval.targets, k);
+            si_om_for_each(pkg->eval.targets, eval) {
               if (eval->info->kind != SPN_TARGET_KIND_LIB) {
                 continue;
               }
@@ -727,7 +724,7 @@ spn_err_t spn_units_add_targets(spn_session_t* s, spn_unit_scope_t scope) {
               continue;
             }
 
-            spn_target_eval_t* lib = spn_pkg_get_target(&target->pkg->eval, name, SPN_TARGET_KIND_LIB);
+            si_target_t* lib = spn_pkg_get_target(&target->pkg->eval, name, SPN_TARGET_KIND_LIB);
 
             // @review Fake defensive code or real?
             if (!lib) {

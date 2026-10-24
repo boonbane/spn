@@ -398,7 +398,7 @@ static spn_err_t sync_jobs(spn_op_t* op, sp_mem_t mem, bool* reresolve) {
     loaded->manifest = pkg->origin.manifest;
     if (!loaded->manifest) {
       spn_path_t path = spn_path_join(spn.mem, loaded->roots.recipe, pkg->origin.paths.manifest);
-      spn_manifest_t* parsed = sp_alloc_type(session->mem, spn_manifest_t);
+      si_pkg_info_t* parsed = sp_alloc_type(session->mem, si_pkg_info_t);
       spn_codegen_issues_t issues = sp_zero;
       spn_err_t err = spn_manifest_load(session->mem, session->ctx->intern, roots, path, SPN_MANIFEST_DEP, parsed, &issues);
       if (err == SPN_ERR_NO_MANIFEST) {

@@ -133,7 +133,7 @@ static spn_when_env_t make_env(sp_mem_t mem, spn_when_facts_t facts) {
   return env;
 }
 
-static spn_pkg_t eval(sp_mem_t mem, const spn_manifest_t* manifest, spn_when_env_t* env) {
+static si_pkg_t eval(sp_mem_t mem, const si_pkg_info_t* manifest, spn_when_env_t* env) {
   spn_path_roots_t roots = sp_zero;
   spn_tree_roots_t trees = { .source = spn_path_from_root(SPN_PATH_ROOT_PROJECT) };
   return spn_pkg_eval(mem, manifest, &roots, trees, env);
@@ -283,12 +283,12 @@ static const lists_test_t lists_tests [] = {
 sp_test_each(pkg_eval, lists, lists_test_t, lists_tests, .setup = spn_test_ctx_setup) {
   sp_mem_t mem = sp_test_arena(t);
 
-  spn_manifest_t manifest = test_manifest_make(sp_str_lit("P"));
-  spn_target_info_t* lib = SP_NULLPTR;
-  spn_target_info_t* exe = SP_NULLPTR;
-  spn_target_info_t* script = SP_NULLPTR;
-  spn_target_info_t* unit_test = SP_NULLPTR;
-  spn_target_info_t* build = SP_NULLPTR;
+  si_pkg_info_t manifest = test_manifest_make(sp_str_lit("P"));
+  si_target_info_t* lib = SP_NULLPTR;
+  si_target_info_t* exe = SP_NULLPTR;
+  si_target_info_t* script = SP_NULLPTR;
+  si_target_info_t* unit_test = SP_NULLPTR;
+  si_target_info_t* build = SP_NULLPTR;
   lib = test_manifest_target(mem, &manifest, sp_str_lit("A"), SPN_TARGET_KIND_LIB);
   exe = test_manifest_target(mem, &manifest, sp_str_lit("main"), SPN_TARGET_KIND_EXE);
   script = test_manifest_target(mem, &manifest, sp_str_lit("B"), SPN_TARGET_KIND_SCRIPT);
@@ -313,12 +313,12 @@ sp_test_each(pkg_eval, lists, lists_test_t, lists_tests, .setup = spn_test_ctx_s
   manifest.macos.frameworks = make_list(mem, it->pkg_frameworks);
 
   spn_when_env_t env = make_env(mem, it->facts);
-  spn_pkg_t pkg = eval(mem, &manifest, &env);
-  spn_target_eval_t* lib_eval = spn_pkg_get_target(&pkg, sp_str_lit("A"), SPN_TARGET_KIND_LIB);
-  spn_target_eval_t* exe_eval = spn_pkg_get_target(&pkg, sp_str_lit("main"), SPN_TARGET_KIND_EXE);
-  spn_target_eval_t* script_eval = spn_pkg_get_target(&pkg, sp_str_lit("B"), SPN_TARGET_KIND_SCRIPT);
-  spn_target_eval_t* test_eval = spn_pkg_get_target(&pkg, sp_str_lit("C"), SPN_TARGET_KIND_TEST);
-  spn_target_eval_t* build_eval = spn_pkg_get_target(&pkg, sp_str_lit("build"), SPN_TARGET_KIND_BUILD_METAPROGRAM);
+  si_pkg_t pkg = eval(mem, &manifest, &env);
+  si_target_t* lib_eval = spn_pkg_get_target(&pkg, sp_str_lit("A"), SPN_TARGET_KIND_LIB);
+  si_target_t* exe_eval = spn_pkg_get_target(&pkg, sp_str_lit("main"), SPN_TARGET_KIND_EXE);
+  si_target_t* script_eval = spn_pkg_get_target(&pkg, sp_str_lit("B"), SPN_TARGET_KIND_SCRIPT);
+  si_target_t* test_eval = spn_pkg_get_target(&pkg, sp_str_lit("C"), SPN_TARGET_KIND_TEST);
+  si_target_t* build_eval = spn_pkg_get_target(&pkg, sp_str_lit("build"), SPN_TARGET_KIND_BUILD_METAPROGRAM);
   sp_must(t, lib_eval && exe_eval && script_eval && test_eval && build_eval);
   sp_expect(t, exe_eval->info == exe);
 
@@ -410,7 +410,7 @@ static const options_test_t options_tests [] = {
 
 sp_test_each(pkg_eval, option_defines, options_test_t, options_tests, .setup = spn_test_ctx_setup) {
   sp_mem_t mem = sp_test_arena(t);
-  spn_manifest_t manifest = sp_zero;
+  si_pkg_info_t manifest = sp_zero;
 
   sp_carr_for(it->define, dt) {
     if (!it->define[dt]) {
@@ -444,7 +444,7 @@ sp_test_each(pkg_eval, option_defines, options_test_t, options_tests, .setup = s
     spn_when_env_set(&env, sp_cstr_as_str(it->env[et].name), value);
   }
 
-  spn_pkg_t pkg = eval(mem, &manifest, &env);
+  si_pkg_t pkg = eval(mem, &manifest, &env);
   sp_try(expect_list(t, pkg.define, it->expect.define));
   return expect_list(t, pkg.public_define, it->expect.public_define);
 }
@@ -487,7 +487,7 @@ static const publish_test_t publish_tests [] = {
 
 sp_test_each(pkg_eval, publish, publish_test_t, publish_tests, .setup = spn_test_ctx_setup) {
   sp_mem_t mem = sp_test_arena(t);
-  spn_manifest_t manifest = sp_zero;
+  si_pkg_info_t manifest = sp_zero;
   sp_carr_for(it->entries, et) {
     if (!it->entries[et].pattern) {
       break;
@@ -504,7 +504,7 @@ sp_test_each(pkg_eval, publish, publish_test_t, publish_tests, .setup = spn_test
   }
 
   spn_when_env_t env = make_env(mem, it->facts);
-  spn_pkg_t pkg = eval(mem, &manifest, &env);
+  si_pkg_t pkg = eval(mem, &manifest, &env);
 
   u32 expected = 0;
   sp_carr_detect_len(it->expect, expected, it->expect[expected].pattern);
@@ -544,8 +544,8 @@ static const embed_test_t embed_tests [] = {
 
 sp_test_each(pkg_eval, target_embeds, embed_test_t, embed_tests, .setup = spn_test_ctx_setup) {
   sp_mem_t mem = sp_test_arena(t);
-  spn_manifest_t manifest = test_manifest_make(sp_str_lit("P"));
-  spn_target_info_t* exe = SP_NULLPTR;
+  si_pkg_info_t manifest = test_manifest_make(sp_str_lit("P"));
+  si_target_info_t* exe = SP_NULLPTR;
   exe = test_manifest_target(mem, &manifest, sp_str_lit("main"), SPN_TARGET_KIND_EXE);
   sp_carr_for(it->embeds, et) {
     if (!it->embeds[et].dest) {
@@ -562,8 +562,8 @@ sp_test_each(pkg_eval, target_embeds, embed_test_t, embed_tests, .setup = spn_te
   }
 
   spn_when_env_t env = make_env(mem, it->facts);
-  spn_pkg_t pkg = eval(mem, &manifest, &env);
-  spn_target_eval_t* target = spn_pkg_get_target(&pkg, sp_str_lit("main"), SPN_TARGET_KIND_EXE);
+  si_pkg_t pkg = eval(mem, &manifest, &env);
+  si_target_t* target = spn_pkg_get_target(&pkg, sp_str_lit("main"), SPN_TARGET_KIND_EXE);
   sp_must(t, target);
 
   u32 expected = 0;
@@ -602,12 +602,12 @@ static const scripts_test_t scripts_tests [] = {
 
 sp_test_each(pkg_eval, has_scripts, scripts_test_t, scripts_tests, .setup = spn_test_ctx_setup) {
   sp_mem_t mem = sp_test_arena(t);
-  spn_manifest_t manifest = test_manifest_make(sp_str_lit("P"));
+  si_pkg_info_t manifest = test_manifest_make(sp_str_lit("P"));
   sp_carr_for(it->targets, tt) {
     if (!it->targets[tt].source) {
       break;
     }
-    spn_target_info_t* decl = SP_NULLPTR;
+    si_target_info_t* decl = SP_NULLPTR;
     decl = test_manifest_target(mem, &manifest, sp_str_lit("T"), it->targets[tt].kind);
     si_da_push(mem, decl->source, ((spn_gated_source_t) {
       .path = sp_cstr_as_str(it->targets[tt].source),
@@ -617,7 +617,7 @@ sp_test_each(pkg_eval, has_scripts, scripts_test_t, scripts_tests, .setup = spn_
   }
 
   spn_when_env_t env = make_env(mem, it->facts);
-  spn_pkg_t pkg = eval(mem, &manifest, &env);
+  si_pkg_t pkg = eval(mem, &manifest, &env);
   sp_expect_eq(t, it->expect, spn_pkg_has_scripts(&pkg));
   return SP_OK;
 }

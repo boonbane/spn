@@ -1649,15 +1649,15 @@ static sp_err_t check_gated_source_list(sp_test_t* t, sp_da(spn_gated_source_t) 
   sp_try(check_gated_source_list(t, actual, expected, num_gated)); \
 } while (0)
 
-static const spn_target_info_t* get_target(const spn_manifest_t* manifest, sp_str_t name, spn_target_kind_t kind) {
-  spn_target_id_t id = { .name = spn_intern(name).id, .kind = kind };
+static const si_target_info_t* get_target(const si_pkg_info_t* manifest, sp_str_t name, spn_target_kind_t kind) {
+  si_target_id_t id = { .name = spn_intern(name).id, .kind = kind };
   return si_om_get(manifest->targets, id);
 }
 
-static sp_err_t check_targets(sp_test_t* t, spn_manifest_t* pkg, const target_t* arr, u32 n, spn_target_kind_t kind) {
+static sp_err_t check_targets(sp_test_t* t, si_pkg_info_t* pkg, const target_t* arr, u32 n, spn_target_kind_t kind) {
   for (u32 i = 0; i < n; i++) {
     if (!arr[i].name) break;
-    const spn_target_info_t* info = get_target(pkg, sp_cstr_as_str(arr[i].name), kind);
+    const si_target_info_t* info = get_target(pkg, sp_cstr_as_str(arr[i].name), kind);
     sp_must(t, info);
     sp_expect_eq(t, (u32)kind, (u32)info->kind);
     sp_expect_eq(t, arr[i].linkages.source, info->linkages.source);
@@ -1711,7 +1711,7 @@ sp_test_each(lower, cases, test_t, tests, .setup = spn_test_ctx_setup) {
   spn_cg_manifest_t cg = sp_zero;
   spn_codegen_load(&ctx, (spn_path_t) { .sub = path }, &cg);
 
-  spn_manifest_t pkg = sp_zero;
+  si_pkg_info_t pkg = sp_zero;
   spn_manifest_lower(&ctx, &cg, &pkg);
 
   if (it->hash_patches) {
@@ -1755,7 +1755,7 @@ sp_test_each(lower, cases, test_t, tests, .setup = spn_test_ctx_setup) {
   check_gated(t, pkg.macos.frameworks, it->frameworks);
   check_publish(t, pkg.publish, it->publish);
   check_gated_paths(t, pkg.include, it->include);
-  const spn_target_info_t* build = get_target(&pkg, sp_str_lit("build"), SPN_TARGET_KIND_BUILD_METAPROGRAM);
+  const si_target_info_t* build = get_target(&pkg, sp_str_lit("build"), SPN_TARGET_KIND_BUILD_METAPROGRAM);
   check_gated_sources(t, build ? build->source : SP_NULLPTR, it->build_source);
   check_gated_paths(t, build ? build->include : SP_NULLPTR, it->build_include);
   check_gated(t, build ? build->define : SP_NULLPTR, it->build_define);

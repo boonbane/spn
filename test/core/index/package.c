@@ -89,7 +89,7 @@ static sp_err_t check(sp_test_t* t, root_t expect, spn_pkg_root_t root) {
 sp_test_each(index_from_pkg, roots, test_t, tests, .setup = spn_test_ctx_setup) {
   sp_mem_t mem = sp_test_arena(t);
 
-  spn_manifest_t info = sp_zero;
+  si_pkg_info_t info = sp_zero;
   info.qualified = spn_intern_lit("core/A");
   if (it->upstream.url) {
     info.upstream = (spn_pkg_root_t) {

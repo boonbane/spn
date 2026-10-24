@@ -23,7 +23,7 @@ spn_err_t spn_publish_build(spn_publish_opts_t* opts, spn_index_release_t* built
   spn_path_t path = spn_path_join(opts->mem, opts->dir, sp_str_lit("spn.toml"));
   sp_str_t cwd = spn_path_str(opts->roots, opts->mem, opts->dir);
 
-  spn_manifest_t manifest = sp_zero;
+  si_pkg_info_t manifest = sp_zero;
   spn_codegen_issues_t issues = sp_zero;
   spn_err_t loaded = spn_manifest_load(opts->mem, opts->intern, opts->roots, path, SPN_MANIFEST_DEP, &manifest, &issues);
   if (loaded == SPN_ERR_NO_MANIFEST) {

@@ -89,7 +89,7 @@ static sp_hash_t hash_gated(sp_hash_t hash, spn_gated_list_t list) {
   return hash;
 }
 
-static sp_hash_t hash_platform(const spn_manifest_t* manifest, const spn_profile_info_t* profile) {
+static sp_hash_t hash_platform(const si_pkg_info_t* manifest, const spn_profile_info_t* profile) {
   sp_hash_t hash = 0;
 
   switch (profile->os) {
@@ -97,7 +97,7 @@ static sp_hash_t hash_platform(const spn_manifest_t* manifest, const spn_profile
       hash = hash_push(hash, spn_digest_hash(&manifest->macos.min_os, sizeof(manifest->macos.min_os)));
       hash = hash_gated(hash, manifest->macos.frameworks);
       si_om_for(manifest->targets, it) {
-        spn_target_info_t* target = si_om_at(manifest->targets, it);
+        si_target_info_t* target = si_om_at(manifest->targets, it);
         hash = hash_push(hash, spn_digest_hash_str(target->name.str));
         hash = hash_push(hash, (sp_hash_t)target->kind);
         hash = hash_push(hash, spn_digest_hash(&target->macos.min_os, sizeof(target->macos.min_os)));
@@ -107,7 +107,7 @@ static sp_hash_t hash_platform(const spn_manifest_t* manifest, const spn_profile
     }
     case SPN_OS_WINDOWS: {
       si_om_for(manifest->targets, it) {
-        spn_target_info_t* target = si_om_at(manifest->targets, it);
+        si_target_info_t* target = si_om_at(manifest->targets, it);
         if (target->windows.subsystem == SPN_WIN_SUBSYSTEM_NONE) continue;
         hash = hash_push(hash, spn_digest_hash_str(target->name.str));
         hash = hash_push(hash, (sp_hash_t)target->kind);
@@ -149,7 +149,7 @@ sp_hash_t spn_unit_fingerprint(spn_session_t* session, spn_build_unit_t* build, 
   }
 
   spn_loaded_pkg_t* loaded = sp_ht_getp(session->packages, id);
-  const spn_manifest_t* manifest = loaded->manifest;
+  const si_pkg_info_t* manifest = loaded->manifest;
 
   fingerprint_input_t fingerprint = sp_zero;
   fingerprint.qualified = spn_digest_hash_str(manifest->qualified.str);

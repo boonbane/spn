@@ -71,11 +71,11 @@ sp_test_each(unit_objects, create, objects_test_t, tests, .setup = spn_test_ctx_
     sp_fs_create_file(sp_fs_join_path(mem, root, sp_cstr_as_str(it->files[ft])));
   }
 
-  spn_target_info_t* decl = SP_NULLPTR;
+  si_target_info_t* decl = SP_NULLPTR;
   decl = test_manifest_target(s->mem, test_manifest(s, id), sp_str_lit("app"), SPN_TARGET_KIND_EXE);
   s->plans.build[0].selection.kinds = spn_target_kind_bit(SPN_TARGET_KIND_EXE);
   sp_must_eq(t, SPN_OK, spn_units_add_packages(s));
-  spn_target_eval_t* app = spn_pkg_get_target(&si_get_pkg_unit(s, s->units.target, id)->eval, sp_str_lit("app"), SPN_TARGET_KIND_EXE);
+  si_target_t* app = spn_pkg_get_target(&si_get_pkg_unit(s, s->units.target, id)->eval, sp_str_lit("app"), SPN_TARGET_KIND_EXE);
   sp_must(t, app);
   sp_carr_for(it->source, st) {
     if (!it->source[st].path) {

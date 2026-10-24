@@ -12,7 +12,7 @@ static spn_index_dep_kind_t dep_kind_to_index(spn_dep_kind_t kind) {
   sp_unreachable_return(SPN_INDEX_DEP_NORMAL);
 }
 
-spn_err_t spn_index_release_from_manifest(sp_mem_t mem, const spn_manifest_t* manifest, spn_pkg_root_t published, spn_index_release_t* release, sp_str_t* dep) {
+spn_err_t spn_index_release_from_manifest(sp_mem_t mem, const si_pkg_info_t* manifest, spn_pkg_root_t published, spn_index_release_t* release, sp_str_t* dep) {
   *dep = sp_str_lit("");
   *release = (spn_index_release_t) {
     .id = spn_pkg_name_from_qualified(manifest->qualified.str),
@@ -51,7 +51,7 @@ spn_err_t spn_index_release_from_manifest(sp_mem_t mem, const spn_manifest_t* ma
   }
 
   si_om_for(manifest->targets, it) {
-    spn_target_info_t* lib = si_om_at(manifest->targets, it);
+    si_target_info_t* lib = si_om_at(manifest->targets, it);
     if (lib->kind != SPN_TARGET_KIND_LIB) {
       continue;
     }

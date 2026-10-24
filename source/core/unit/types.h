@@ -37,7 +37,7 @@ typedef struct {
 
 typedef struct {
   spn_pkg_unit_id_t pkg;
-  spn_target_id_t target;
+  si_target_id_t target;
 } spn_target_unit_id_t;
 
 typedef struct {
@@ -51,7 +51,7 @@ _Static_assert(
   "spn_pkg_unit_id_t is byte-hashed as a key; it must have no padding"
 );
 _Static_assert(
-  sizeof(spn_target_unit_id_t) == sizeof(spn_pkg_unit_id_t) + sizeof(spn_target_id_t),
+  sizeof(spn_target_unit_id_t) == sizeof(spn_pkg_unit_id_t) + sizeof(si_target_id_t),
   "spn_target_unit_id_t is byte-hashed as a key; it must have no padding"
 );
 _Static_assert(
@@ -100,7 +100,7 @@ typedef struct {
 } spn_user_output_t;
 
 struct spn_user_node_t {
-  spn_pkg_unit_t* pkg;
+  spn_pkg_unit_t* unit;
   sp_str_t tag;
   sp_str_t fn;
   si_da(spn_path_t) inputs;
@@ -137,7 +137,7 @@ typedef struct {
 struct spn_target_unit {
   spn_target_unit_id_t id;
   spn_pkg_unit_t* pkg;
-  spn_target_eval_t* eval;
+  si_target_t* eval;
   spn_cc_output_kind_t kind;
   spn_linkage_t lib_kind;
   struct {
@@ -155,7 +155,7 @@ struct spn_pkg_unit_t {
   spn_pkg_unit_id_t id;
   spn_build_unit_t* build;
   spn_session_t* session;
-  spn_pkg_t eval;
+  si_pkg_t eval;
   spn_pkg_source_t source;
   u32 kinds;
   sp_hash_t fingerprint;

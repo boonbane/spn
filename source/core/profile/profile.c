@@ -207,7 +207,7 @@ void spn_profile_finalize(spn_profile_info_t* profile, const spn_toolchain_selec
   profile->linking = selection->linking;
 }
 
-static bool shared_demand(const spn_manifest_t* manifest) {
+static bool shared_demand(const si_pkg_info_t* manifest) {
   si_om_for(manifest->config, it) {
     const spn_pkg_config_t* config = si_om_at(manifest->config, it);
     if (!sp_opt_is_null(config->kind) && config->kind.value == SPN_LIB_KIND_SHARED) {
@@ -215,7 +215,7 @@ static bool shared_demand(const spn_manifest_t* manifest) {
     }
   }
   si_om_for(manifest->targets, it) {
-    spn_target_info_t* target = si_om_at(manifest->targets, it);
+    si_target_info_t* target = si_om_at(manifest->targets, it);
     if (target->kind != SPN_TARGET_KIND_LIB) {
       continue;
     }
@@ -227,7 +227,7 @@ static bool shared_demand(const spn_manifest_t* manifest) {
   return false;
 }
 
-spn_err_t spn_profile_resolve(const spn_profile_override_t* override, spn_triple_t host, const spn_manifest_t* manifest, spn_profile_info_t* result) {
+spn_err_t spn_profile_resolve(const spn_profile_override_t* override, spn_triple_t host, const si_pkg_info_t* manifest, spn_profile_info_t* result) {
   sp_intern_str_t name = sp_zero;
   if (!sp_str_empty(override->name)) {
     name = spn_intern(override->name);

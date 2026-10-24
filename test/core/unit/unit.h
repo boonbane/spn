@@ -64,7 +64,7 @@ typedef struct {
 
 spn_session_t* build_session(sp_mem_t mem, unit_graph_test_t* g);
 spn_pkg_id_t find_pkg_id(spn_session_t* s, unit_graph_test_t* g, const c8* name);
-spn_manifest_t* test_manifest(spn_session_t* s, spn_pkg_id_t id);
+si_pkg_info_t* test_manifest(spn_session_t* s, spn_pkg_id_t id);
 spn_gated_list_t test_gated_list(sp_mem_t mem, const c8* const* items, u32 max);
 spn_gated_path_list_t test_gated_paths(sp_mem_t mem, const c8* const* items, u32 max);
 si_da(spn_gated_source_t) test_gated_sources(sp_mem_t mem, const c8* const* items, u32 max);

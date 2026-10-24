@@ -34,7 +34,7 @@ static spn_err_t apply_patch_overrides(spn_session_t* session, spn_resolve_query
     }
 
     sp_str_t name = sp_intern_find(session->ctx->intern, pkg->id.qualified);
-    spn_manifest_t* manifest = sp_alloc_type(session->mem, spn_manifest_t);
+    si_pkg_info_t* manifest = sp_alloc_type(session->mem, si_pkg_info_t);
     spn_codegen_issues_t issues = sp_zero;
     spn_err_t loaded = spn_manifest_load(session->mem, session->ctx->intern, &session->ctx->roots, path, SPN_MANIFEST_DEP, manifest, &issues);
     if (loaded == SPN_ERR_NO_MANIFEST) {

@@ -133,7 +133,7 @@ spn_pkg_unit_t* spn_session_find_dep(spn_session_t* session, spn_pkg_unit_t* pkg
   return SP_NULLPTR;
 }
 
-spn_target_unit_t* spn_session_find_target_in_pkg(spn_session_t* session, spn_pkg_unit_t* pkg, spn_target_id_t id) {
+spn_target_unit_t* spn_session_find_target_in_pkg(spn_session_t* session, spn_pkg_unit_t* pkg, si_target_id_t id) {
   spn_target_unit_id_t key = { .pkg = pkg->id, .target = id };
   return sp_om_has(session->units.targets, key) ? sp_om_get(session->units.targets, key) : SP_NULLPTR;
 }

@@ -4,7 +4,7 @@
 #include "paths/paths.h"
 #include "toml/loader.h"
 
-spn_err_t spn_manifest_load(sp_mem_t mem, sp_intern_t* intern, const spn_path_roots_t* roots, spn_path_t path, spn_manifest_role_t role, spn_manifest_t* manifest, spn_codegen_issues_t* issues) {
+spn_err_t spn_manifest_load(sp_mem_t mem, sp_intern_t* intern, const spn_path_roots_t* roots, spn_path_t path, spn_manifest_role_t role, si_pkg_info_t* manifest, spn_codegen_issues_t* issues) {
   *issues = SP_NULLPTR;
   if (!sp_fs_exists_at(spn_path_at(roots, path))) {
     return SPN_ERR_NO_MANIFEST;

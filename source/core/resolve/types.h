@@ -40,7 +40,7 @@ struct spn_resolved_pkg {
     spn_pkg_root_t recipe;
     spn_pkg_root_t source;
     spn_index_rel_paths_t paths;
-    const spn_manifest_t* manifest;
+    const si_pkg_info_t* manifest;
     spn_index_release_t* release;
   } origin;
 };

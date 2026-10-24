@@ -198,7 +198,7 @@ static spn_err_union_t load_file_pkg(spn_resolver_t* resolver, spn_requested_dep
 
   *pkg = SP_NULLPTR;
 
-  spn_manifest_t* manifest = sp_alloc_type(resolver->mem, spn_manifest_t);
+  si_pkg_info_t* manifest = sp_alloc_type(resolver->mem, si_pkg_info_t);
   spn_codegen_issues_t issues = sp_zero;
   spn_err_t loaded = spn_manifest_load(resolver->mem, resolver->intern, resolver->roots, request->file.path, SPN_MANIFEST_DEP, manifest, &issues);
   if (loaded) {
@@ -304,7 +304,7 @@ static bool node_is_shared(spn_resolver_t* resolver, spn_resolved_pkg_t* node) {
       }
 
       si_om_for(pkg->manifest->targets, it) {
-        spn_target_info_t* target = si_om_at(pkg->manifest->targets, it);
+        si_target_info_t* target = si_om_at(pkg->manifest->targets, it);
         if (target->kind != SPN_TARGET_KIND_LIB) {
           continue;
         }

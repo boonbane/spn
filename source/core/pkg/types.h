@@ -93,7 +93,7 @@ typedef si_om(spn_profile_id_t, spn_profile_decl_t) spn_profile_map_t;
 typedef si_om(spn_index_id_t, spn_index_info_t) spn_index_map_t;
 typedef si_om(spn_toolchain_id_t, spn_toolchain_decl_t) spn_toolchain_map_t;
 
-struct spn_manifest {
+struct si_pkg_info {
   sp_str_t namespace;
   sp_intern_str_t name;
   sp_intern_str_t qualified;
@@ -102,7 +102,7 @@ struct spn_manifest {
   sp_str_t maintainer;
   spn_semver_t version;
   spn_pkg_root_t upstream;
-  si_om(spn_target_id_t, spn_target_info_t) targets;
+  si_om(si_target_id_t, si_target_info_t) targets;
   spn_profile_map_t profiles;
   spn_index_map_t indexes;
   si_da(spn_requested_dep_t) deps;
@@ -120,8 +120,8 @@ struct spn_manifest {
   } macos;
 };
 
-struct spn_pkg {
-  const spn_manifest_t* manifest;
+struct si_pkg {
+  const si_pkg_info_t* manifest;
   spn_target_eval_map_t targets;
   si_da(spn_path_t) include;
   si_da(sp_str_t) define;

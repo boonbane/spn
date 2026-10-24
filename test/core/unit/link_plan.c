@@ -266,7 +266,7 @@ static const plan_test_t tests [] = {
   },
 };
 
-static void target_decl(sp_mem_t mem, const plan_target_t* spec, spn_target_info_t* decl) {
+static void target_decl(sp_mem_t mem, const plan_target_t* spec, si_target_info_t* decl) {
   decl->linkages = spec->linkages;
   decl->source = test_gated_sources(mem, spec->source, UNIT_TEST_MAX_STRS);
   decl->deps = test_gated_list(mem, spec->deps, UNIT_TEST_MAX_STRS);
@@ -289,8 +289,8 @@ sp_test_each(link_plan, plan, plan_test_t, tests, .setup = spn_test_ctx_setup) {
   sp_mem_t mem = sp_test_arena(t);
   spn_session_t* s = build_session(mem, &it->graph);
 
-  spn_manifest_t* manifest = test_manifest(s, find_pkg_id(s, &it->graph, it->graph.pkgs[0].name));
-  spn_target_info_t* decl = SP_NULLPTR;
+  si_pkg_info_t* manifest = test_manifest(s, find_pkg_id(s, &it->graph, it->graph.pkgs[0].name));
+  si_target_info_t* decl = SP_NULLPTR;
   decl = test_manifest_target(s->mem, manifest, sp_str_lit("app"), it->target.kind);
   target_decl(mem, &it->target, decl);
   s->plans.build[0].selection.kinds = spn_target_kind_bit(it->target.kind);

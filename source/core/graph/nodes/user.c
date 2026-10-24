@@ -13,12 +13,12 @@
 spn_err_t si_on_user_node(const si_dag_ctx_t* c, void* user_data) {
   si_user_node_t* ctx = (si_user_node_t*)user_data;
   spn_user_node_t* node = ctx->node;
-  spn_pkg_unit_t* pkg = node->pkg;
+  spn_pkg_unit_t* unit = node->unit;
   const spn_path_roots_t* roots = c->roots;
 
   spn_event_buffer_push(spn.events, (spn_event_t) {
     .kind = SPN_EVENT_SCRIPT_USER_FN,
-    .pkg = pkg->eval.manifest->name.str,
+    .pkg = unit->eval.manifest->name.str,
     .script_user_fn = { .tag = node->tag }
   });
 
@@ -34,7 +34,7 @@ spn_err_t si_on_user_node(const si_dag_ctx_t* c, void* user_data) {
     if (err && err != SP_ERR_SYS_NOT_FOUND) {
       spn_event_buffer_push(spn.events, (spn_event_t) {
         .kind = SPN_EVENT_NODE_FAILED,
-        .pkg = pkg->eval.manifest->name.str,
+        .pkg = unit->eval.manifest->name.str,
         .node_failed = {
           .path = spn_path_str(roots, spn.events->mem, out->path),
           .message = sp_fmt(spn.events->mem, "could not be removed before node {} ran", sp_fmt_str(node->tag)).value,
@@ -46,7 +46,7 @@ spn_err_t si_on_user_node(const si_dag_ctx_t* c, void* user_data) {
 
   if (!sp_str_empty(node->fn)) {
     spn_wasm_script_t script = sp_zero;
-    if (spn_wasm_script_open(pkg, si_dag_resolve_input(c, ctx->script), c->obs, &script)) {
+    if (spn_wasm_script_open(unit, si_dag_resolve_input(c, ctx->script), c->obs, &script)) {
       return SPN_ERR_DAG_ACTION;
     }
     spn_err_t err = spn_wasm_script_call(&script, node->fn, SP_NULLPTR, 0);
@@ -74,7 +74,7 @@ spn_err_t si_on_user_node(const si_dag_ctx_t* c, void* user_data) {
     if (err) {
       spn_event_buffer_push(spn.events, (spn_event_t) {
         .kind = SPN_EVENT_NODE_FAILED,
-        .pkg = pkg->eval.manifest->name.str,
+        .pkg = unit->eval.manifest->name.str,
         .node_failed = {
           .path = spn_path_str(roots, spn.events->mem, out->path),
           .message = err == SP_ERR_SYS_NOT_FOUND

@@ -34,14 +34,14 @@ spn_target_unit_t* find_lib(spn_pkg_unit_t** pkgs, u32 count, const c8* name) {
   return SP_NULLPTR;
 }
 
-static spn_target_eval_t* make_target(sp_mem_t mem, sp_intern_str_t name, spn_target_kind_t kind, bool no_link) {
-  spn_target_info_t* decl = sp_alloc_type(mem, spn_target_info_t);
-  decl->id = (spn_target_id_t) { .name = name.id, .kind = kind };
+static si_target_t* make_target(sp_mem_t mem, sp_intern_str_t name, spn_target_kind_t kind, bool no_link) {
+  si_target_info_t* decl = sp_alloc_type(mem, si_target_info_t);
+  decl->id = (si_target_id_t) { .name = name.id, .kind = kind };
   decl->name = name;
   decl->kind = kind;
   decl->no_link = no_link;
 
-  spn_target_eval_t* eval = sp_alloc_type(mem, spn_target_eval_t);
+  si_target_t* eval = sp_alloc_type(mem, si_target_t);
   eval->info = decl;
   return eval;
 }
@@ -57,7 +57,7 @@ static spn_target_unit_t* add_lib(sp_mem_t mem, spn_pkg_unit_t* pkg, const c8* n
 }
 
 static spn_pkg_unit_t* build_pkg(sp_mem_t mem, spn_session_t* session, u32 id, closure_pkg_t spec) {
-  spn_manifest_t* manifest = sp_alloc_type(mem, spn_manifest_t);
+  si_pkg_info_t* manifest = sp_alloc_type(mem, si_pkg_info_t);
   manifest->name = spn_intern_cstr(spec.name);
 
   spn_pkg_unit_t* pkg = sp_alloc_type(mem, spn_pkg_unit_t);

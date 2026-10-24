@@ -18,7 +18,7 @@
 
 static spn_err_t embed_files(sp_mem_t mem, const si_dag_ctx_t* c, si_embed_t* embed, spn_cc_embed_ctx_t* embedder) {
   spn_target_unit_t* unit = embed->target;
-  spn_target_eval_t* eval = unit->eval;
+  si_target_t* eval = unit->eval;
   const spn_path_roots_t* roots = c->roots;
 
   spn_event_buffer_push(spn.events, (spn_event_t) {

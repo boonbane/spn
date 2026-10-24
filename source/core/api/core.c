@@ -119,7 +119,7 @@ static spn_path_t api_path(spn_pkg_unit_t* unit, const c8* fn, const c8* path) {
   return spn_api_tree_path(unit, fn, path);
 }
 
-static spn_target_t* wrap(spn_pkg_unit_t* unit, spn_target_eval_t* eval) {
+static spn_target_t* wrap(spn_pkg_unit_t* unit, si_target_t* eval) {
   spn_target_t* target = sp_alloc_type(spn.mem, spn_target_t);
   target->unit = unit;
   target->eval = eval;
@@ -128,7 +128,7 @@ static spn_target_t* wrap(spn_pkg_unit_t* unit, spn_target_eval_t* eval) {
 
 spn_target_t* spn_get_target(spn_t* spn, const c8* name, spn_target_kind_t kind) {
   spn_pkg_unit_t* unit = spn_api_unit(spn);
-  spn_target_eval_t* eval = spn_pkg_get_target(&unit->eval, sp_cstr_as_str(name), kind);
+  si_target_t* eval = spn_pkg_get_target(&unit->eval, sp_cstr_as_str(name), kind);
   return eval ? wrap(unit, eval) : SP_NULLPTR;
 }
 

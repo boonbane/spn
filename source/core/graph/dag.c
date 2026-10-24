@@ -769,8 +769,8 @@ static spn_err_t prepare_graph(spn_dag_build_t* b) {
           spn_digest_ctx_t digest = sp_zero;
           spn_digest_init_blake3(&digest);
           spn_dag_hash_str(&digest, sp_str_lit("spn.build.user.v8"));
-          spn_dag_hash_str(&digest, node->pkg->eval.manifest->qualified.str);
-          spn_dag_hash_u64(&digest, node->pkg->fingerprint);
+          spn_dag_hash_str(&digest, node->unit->eval.manifest->qualified.str);
+          spn_dag_hash_u64(&digest, node->unit->fingerprint);
           hash_pin(&digest, &pin);
           spn_dag_hash_str(&digest, node->tag);
           spn_dag_hash_str(&digest, node->fn);
@@ -824,7 +824,7 @@ static spn_err_t prepare_graph(spn_dag_build_t* b) {
       }
 
       if (pkg_publishes(package)) {
-        spn_pkg_t* eval = &package->eval;
+        si_pkg_t* eval = &package->eval;
 
         spn_digest_ctx_t digest = sp_zero;
         spn_digest_init_blake3(&digest);
@@ -835,7 +835,7 @@ static spn_err_t prepare_graph(spn_dag_build_t* b) {
           hash_publish(&digest, &eval->publish[it]);
         }
         si_om_for(eval->targets, it) {
-          spn_target_eval_t* target = si_om_at(eval->targets, it);
+          si_target_t* target = si_om_at(eval->targets, it);
           si_da_for(target->publish, jt) {
             hash_publish(&digest, &target->publish[jt]);
           }
@@ -1057,7 +1057,7 @@ static void dag_emit_reports(spn_dag_build_t* b, u64 elapsed) {
   sp_da_for(session->plans.build, it) {
     spn_build_plan_t* plan = &session->plans.build[it];
     spn_build_unit_t* build = plan->build;
-    const spn_manifest_t* pkg = plan->root->eval.manifest;
+    const si_pkg_info_t* pkg = plan->root->eval.manifest;
     spn_profile_info_t* profile = &build->profile;
 
     if (failed) {

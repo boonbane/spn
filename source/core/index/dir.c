@@ -11,7 +11,7 @@ spn_err_t spn_index_dir_get_package(spn_index_info_t* index, sp_mem_t mem, sp_in
   spn_path_t dir = spn_path_join(mem, index->dir.path, id.name);
   spn_path_t path = spn_path_join(mem, dir, sp_str_lit("spn.toml"));
 
-  spn_manifest_t* manifest = sp_alloc_type(mem, spn_manifest_t);
+  si_pkg_info_t* manifest = sp_alloc_type(mem, si_pkg_info_t);
   spn_codegen_issues_t issues = sp_zero;
   spn_err_t loaded = spn_manifest_load(mem, intern, roots, path, SPN_MANIFEST_DEP, manifest, &issues);
   if (loaded == SPN_ERR_NO_MANIFEST) {

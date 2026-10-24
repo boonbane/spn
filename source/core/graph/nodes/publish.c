@@ -65,7 +65,7 @@ static spn_err_t publish_unit(sp_mem_t mem, const si_dag_ctx_t* c, si_publish_t*
     spn_try(publish_entry(mem, c, unit, dirs[entry->root], entry));
   }
   si_om_for(unit->eval.targets, it) {
-    spn_target_eval_t* target = si_om_at(unit->eval.targets, it);
+    si_target_t* target = si_om_at(unit->eval.targets, it);
     si_da_for(target->publish, jt) {
       spn_publish_t* entry = &target->publish[jt];
       spn_try(publish_entry(mem, c, unit, dirs[entry->root], entry));

@@ -68,9 +68,9 @@ sp_test_each(target_kind, kind, test_t, tests, .setup = spn_test_ctx_setup) {
   sp_mem_t mem = sp_test_arena(t);
   spn_session_t* s = build_session(mem, &it->graph);
 
-  spn_manifest_t* manifest = test_manifest(s, find_pkg_id(s, &it->graph, it->graph.pkgs[0].name));
+  si_pkg_info_t* manifest = test_manifest(s, find_pkg_id(s, &it->graph, it->graph.pkgs[0].name));
   const c8* source [] = { "app.c", SP_NULLPTR };
-  spn_target_info_t* app = SP_NULLPTR;
+  si_target_info_t* app = SP_NULLPTR;
   app = test_manifest_target(s->mem, manifest, sp_str_lit("app"), SPN_TARGET_KIND_EXE);
   app->source = test_gated_sources(mem, source, sp_carr_len(source));
   s->plans.build[0].selection.kinds = spn_target_kind_bit(SPN_TARGET_KIND_EXE);

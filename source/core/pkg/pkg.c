@@ -66,8 +66,8 @@ static si_da(spn_publish_t) eval_publish(eval_ctx_t* ctx, si_da(spn_gated_publis
   return plain;
 }
 
-static spn_target_eval_t eval_target(eval_ctx_t* ctx, const spn_target_info_t* decl) {
-  spn_target_eval_t target = {
+static si_target_t eval_target(eval_ctx_t* ctx, const si_target_info_t* decl) {
+  si_target_t target = {
     .info = decl,
     .source = eval_sources(ctx, decl->source),
     .publish = eval_publish(ctx, decl->publish),
@@ -94,9 +94,9 @@ static spn_target_eval_t eval_target(eval_ctx_t* ctx, const spn_target_info_t* d
   return target;
 }
 
-spn_pkg_t spn_pkg_eval(sp_mem_t mem, const spn_manifest_t* manifest, const spn_path_roots_t* roots, spn_tree_roots_t trees, spn_when_env_t* env) {
+si_pkg_t spn_pkg_eval(sp_mem_t mem, const si_pkg_info_t* manifest, const spn_path_roots_t* roots, spn_tree_roots_t trees, spn_when_env_t* env) {
   eval_ctx_t ctx = { .mem = mem, .roots = roots, .trees = trees, .env = env };
-  spn_pkg_t pkg = {
+  si_pkg_t pkg = {
     .manifest = manifest,
     .include = eval_paths(&ctx, manifest->include),
     .define = eval_list(&ctx, manifest->define),
@@ -105,7 +105,7 @@ spn_pkg_t spn_pkg_eval(sp_mem_t mem, const spn_manifest_t* manifest, const spn_p
     .macos = { .frameworks = eval_list(&ctx, manifest->macos.frameworks) },
   };
   si_om_for(manifest->targets, it) {
-    const spn_target_info_t* decl = si_om_at(manifest->targets, it);
+    const si_target_info_t* decl = si_om_at(manifest->targets, it);
     si_om_insert(mem, pkg.targets, decl->id, eval_target(&ctx, decl));
   }
   si_om_for(manifest->options, it) {
@@ -125,14 +125,14 @@ spn_pkg_t spn_pkg_eval(sp_mem_t mem, const spn_manifest_t* manifest, const spn_p
   return pkg;
 }
 
-spn_target_eval_t* spn_pkg_get_target(spn_pkg_t* pkg, sp_str_t name, spn_target_kind_t kind) {
-  spn_target_id_t id = { .name = spn_intern(name).id, .kind = kind };
+si_target_t* spn_pkg_get_target(si_pkg_t* pkg, sp_str_t name, spn_target_kind_t kind) {
+  si_target_id_t id = { .name = spn_intern(name).id, .kind = kind };
   return si_om_get(pkg->targets, id);
 }
 
-bool spn_pkg_has_scripts(const spn_pkg_t* pkg) {
+bool spn_pkg_has_scripts(const si_pkg_t* pkg) {
   si_om_for(pkg->targets, it) {
-    spn_target_eval_t* target = si_om_at(pkg->targets, it);
+    si_target_t* target = si_om_at(pkg->targets, it);
     switch (target->info->kind) {
       case SPN_TARGET_KIND_CONFIGURE_METAPROGRAM:
       case SPN_TARGET_KIND_BUILD_METAPROGRAM: {

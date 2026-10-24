@@ -68,7 +68,7 @@ sp_test_each(options_session, apply, session_test_t, tests, .setup = spn_test_ct
   sp_mem_t mem = sp_test_arena(t);
   sp_intern_t* intern = spn.intern;
 
-  spn_manifest_t root = {
+  si_pkg_info_t root = {
     .name = spn_intern_lit("test"),
     .qualified = spn_intern_lit("core/test"),
   };
@@ -117,7 +117,7 @@ sp_test_each(options_session, apply, session_test_t, tests, .setup = spn_test_ct
   sp_ht_insert(session.resolve, root_id, root_node);
   sp_ht_insert(session.packages, root_id, root_loaded);
 
-  spn_manifest_t stale = {
+  si_pkg_info_t stale = {
     .name = spn_intern_lit("spum"),
     .qualified = spn_intern_lit("core/spum"),
   };

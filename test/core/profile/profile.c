@@ -856,7 +856,7 @@ sp_test_each(profile, resolve, test_t, tests, .setup = spn_test_ctx_setup) {
 
   spn_profile_override_t overrides = desc_to_override(&it->overrides);
 
-  spn_manifest_t pkg = test_manifest_make(sp_str_lit("P"));
+  si_pkg_info_t pkg = test_manifest_make(sp_str_lit("P"));
   if (it->profile.name) {
     spn_profile_decl_t decl = desc_to_decl(mem, &it->profile);
     si_om_insert(mem, pkg.profiles, decl.id, decl);
@@ -866,7 +866,7 @@ sp_test_each(profile, resolve, test_t, tests, .setup = spn_test_ctx_setup) {
     si_om_insert(mem, pkg.profiles, decl.id, decl);
   }
   if (it->shared_demand) {
-    spn_target_info_t* lib = SP_NULLPTR;
+    si_target_info_t* lib = SP_NULLPTR;
     lib = test_manifest_target(mem, &pkg, sp_str_lit("L"), SPN_TARGET_KIND_LIB);
     lib->linkages = (spn_linkage_set_t) { .shared = true };
   }

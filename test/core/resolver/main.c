@@ -34,7 +34,7 @@ typedef struct {
   sp_intern_t* intern;
 } resolve_result_t;
 
-static resolve_result_t execute_fixture(const fx_config_t* config, const spn_manifest_t* root, sp_str_t dir, sp_intern_t* intern) {
+static resolve_result_t execute_fixture(const fx_config_t* config, const si_pkg_info_t* root, sp_str_t dir, sp_intern_t* intern) {
   sp_mem_t mem = sp_mem_arena_as_allocator(arena);
 
   sp_da(spn_index_info_t) indexes = sp_da_new(mem, spn_index_info_t);
@@ -114,7 +114,7 @@ static sp_err_t load_config(sp_test_t* t, sp_mem_t mem, sp_str_t dir, fx_config_
   return SP_OK;
 }
 
-static sp_err_t load_manifest(sp_test_t* t, sp_mem_t mem, sp_str_t dir, spn_manifest_t* root) {
+static sp_err_t load_manifest(sp_test_t* t, sp_mem_t mem, sp_str_t dir, si_pkg_info_t* root) {
   sp_str_t manifest = sp_fs_join_path(mem, dir, sp_str_lit("spn.toml"));
   sp_must(t, sp_fs_is_target_file(manifest));
 
@@ -142,7 +142,7 @@ static sp_err_t run_fixture(sp_test_t* t) {
     return sp_test_skip(t, "{}", sp_fmt_str(config.skip));
   }
 
-  spn_manifest_t root = sp_zero;
+  si_pkg_info_t root = sp_zero;
   sp_try(load_manifest(t, mem, dir, &root));
 
   resolve_result_t result = execute_fixture(&config, &root, dir, spn.intern);
