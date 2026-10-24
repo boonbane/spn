@@ -512,9 +512,8 @@ static void lower_patches(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, s
     }
 
     spn_pkg_patch_t patch = { .qualified = qualified };
-    sp_da_for(cg->patch[it].value.files, jt) {
-      spn_path_t path = spn_path_resolve(ctx->mem, ctx->dir, cg->patch[it].value.files[jt]);
-      si_da_push(ctx->mem, patch.files, sp_fs_normalize_path(ctx->mem, spn_path_str(ctx->roots, ctx->mem, path)));
+    si_da_for_value(cg->patch[it].value.files, file) {
+      si_da_push(ctx->mem, patch.files, spn_path_resolve(ctx->mem, ctx->dir, file));
     }
     si_da_push(ctx->mem, project->patches, patch);
   }
