@@ -110,7 +110,7 @@
       "metadata": { "verb": "Linked", "verbosity": "debug" },
       "properties": {
         "subject": { "ref": "subject" },
-        "output_path": { "metadata": { "extern": "path" } },
+        "file_name": { "type": "string" },
         "run": { "ref": "run" }
       }
     },

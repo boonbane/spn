@@ -140,9 +140,7 @@ struct spn_target_unit {
   si_target_t* eval;
   spn_cc_output_kind_t kind;
   spn_linkage_t lib_kind;
-  struct {
-    spn_path_t output;
-  } paths;
+  sp_str_t file_name;
 
   sp_da(spn_compile_unit_t*) objects;
   sp_da(spn_target_unit_t*) deps;

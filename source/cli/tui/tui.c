@@ -410,7 +410,7 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
       c8 buffer [64] = sp_zero;
       sp_fmt_write_duration_buf(buffer, sizeof(buffer), event->link_passed.run.time);
       sp_tty_fmt(&w, "{.gray} in {.gray}",
-        sp_fmt_str(contextual_path(mem, event->link_passed.output_path)),
+        sp_fmt_str(event->link_passed.file_name),
         sp_fmt_cstr(buffer)
       );
       break;

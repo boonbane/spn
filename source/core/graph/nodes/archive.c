@@ -41,7 +41,7 @@ static spn_err_t run_archiver(sp_mem_t mem, const si_dag_ctx_t* c, si_archive_t*
 
   spn_event_buffer_push(spn.events, (spn_event_t) {
     .kind = SPN_EVENT_LINK_PASSED,
-    .link_passed = { .subject = archive->subject, .output_path = archive->output_path, .run = report },
+    .link_passed = { .subject = archive->subject, .file_name = archive->file_name, .run = report },
   });
   return SPN_OK;
 }

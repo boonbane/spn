@@ -59,7 +59,7 @@ static spn_err_t run_linker(sp_mem_t mem, const si_dag_ctx_t* c, si_link_t* link
 
   spn_event_buffer_push(spn.events, (spn_event_t) {
     .kind = SPN_EVENT_LINK_PASSED,
-    .link_passed = { .subject = link->subject, .output_path = link->output_path, .run = report },
+    .link_passed = { .subject = link->subject, .file_name = link->file_name, .run = report },
   });
   return SPN_OK;
 }

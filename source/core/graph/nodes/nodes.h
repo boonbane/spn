@@ -13,7 +13,7 @@
 
 typedef struct {
   const spn_cc_link_plan_t* plan;
-  spn_path_t output_path;
+  sp_str_t file_name;
   spn_event_subject_t subject;
   spn_dag_build_objects_t objects;
   si_da(spn_dag_id_t) scripts;
@@ -30,7 +30,7 @@ typedef struct {
 
 typedef struct {
   const spn_cc_archive_plan_t* plan;
-  spn_path_t output_path;
+  sp_str_t file_name;
   spn_event_subject_t subject;
   spn_dag_build_objects_t objects;
   spn_dag_id_t output;

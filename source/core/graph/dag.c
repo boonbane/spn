@@ -193,13 +193,11 @@ void spn_dag_build_declare_target(spn_dag_build_t* b, spn_target_unit_t* target)
   }
 
   spn_dag_target_ids_t ids = {
-    .output = spn_dag_add_file(g, target->paths.output),
+    .output = spn_dag_add_output(g, target->file_name),
   };
   if (spn_cc_link_implib(&target->pkg->build->profile, target->kind)) {
-    sp_mem_arena_marker_t s = sp_mem_begin_scratch();
     spn_triple_t triple = spn_profile_triple(&target->pkg->build->profile);
-    ids.implib = spn_dag_add_file(g, spn_path_join(s.mem, target->pkg->paths.lib, spn_triple_lib_file_name(s.mem, triple, target->eval->info->name.str, SP_OS_LIB_STATIC)));
-    sp_mem_end_scratch(s);
+    ids.implib = spn_dag_add_output(g, spn_triple_lib_file_name(b->mem, triple, target->eval->info->name.str, SP_OS_LIB_STATIC));
   }
   sp_ht_insert(b->ids.targets, target, ids);
 }
@@ -313,6 +311,28 @@ static spn_err_t add_object_compilation(spn_dag_build_t* b, sp_mem_t mem, spn_ta
   return SPN_OK;
 }
 
+static spn_err_t add_publish_file(spn_dag_build_t* b, spn_dag_id_t source, spn_path_t dest) {
+  spn_dag_t* g = b->graph;
+
+  spn_digest_ctx_t digest = sp_zero;
+  spn_digest_init_blake3(&digest);
+  spn_dag_hash_str(&digest, sp_str_lit("spn.build.publish.file.v1"));
+  spn_dag_hash_path(&digest, dest);
+
+  si_publish_file_t* ctx = sp_alloc_type(b->mem, si_publish_file_t);
+  *ctx = (si_publish_file_t) {
+    .source = source,
+    .dest = spn_dag_add_file(g, dest),
+  };
+  spn_dag_id_t action = spn_dag_add_action(g, (spn_dag_action_config_t) {
+    .identity = spn_dag_hash_final(&digest),
+    .execute = si_on_publish_file,
+    .user_data = ctx,
+  });
+  spn_dag_action_add_input(g, action, ctx->source);
+  return spn_dag_action_add_output(g, action, ctx->dest);
+}
+
 static void hash_link_deps(spn_digest_ctx_t* digest, const spn_link_plan_t* link) {
   si_da_for(link->deps, it) {
     spn_link_dep_t* dep = &link->deps[it];
@@ -341,25 +361,7 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
     case SPN_LIB_KIND_OBJECT: {
       spn_try(add_object_compilation(b, mem, target, libc, (spn_dag_id_t) sp_zero, &objects));
       si_da_for(objects, it) {
-        spn_path_t dest = spn_path_join(mem, target->pkg->paths.lib, target->objects[it]->name);
-
-        spn_digest_ctx_t digest = sp_zero;
-        spn_digest_init_blake3(&digest);
-        spn_dag_hash_str(&digest, sp_str_lit("spn.build.publish.file.v1"));
-        spn_dag_hash_path(&digest, dest);
-
-        si_publish_file_t* ctx = sp_alloc_type(b->mem, si_publish_file_t);
-        *ctx = (si_publish_file_t) {
-          .source = objects[it].object,
-          .dest = spn_dag_add_file(g, dest),
-        };
-        spn_dag_id_t action = spn_dag_add_action(g, (spn_dag_action_config_t) {
-          .identity = spn_dag_hash_final(&digest),
-          .execute = si_on_publish_file,
-          .user_data = ctx,
-        });
-        spn_dag_action_add_input(g, action, ctx->source);
-        spn_try(spn_dag_action_add_output(g, action, ctx->dest));
+        spn_try(add_publish_file(b, objects[it].object, spn_path_join(b->mem, target->pkg->paths.lib, target->objects[it]->name)));
       }
       return SPN_OK;
     }
@@ -461,7 +463,7 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
       si_archive_t* ctx = sp_alloc_type(b->mem, si_archive_t);
       *ctx = (si_archive_t) {
         .plan = &target->archive,
-        .output_path = target->paths.output,
+        .file_name = target->file_name,
         .subject = spn_target_unit_subject(target),
         .objects = link_objects,
         .output = ids->output,
@@ -490,7 +492,7 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
       si_link_t* ctx = sp_alloc_type(b->mem, si_link_t);
       *ctx = (si_link_t) {
         .plan = &link->plan,
-        .output_path = target->paths.output,
+        .file_name = target->file_name,
         .subject = spn_target_unit_subject(target),
         .objects = link_objects,
         .libc = libc,
@@ -664,6 +666,43 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
         }
         spn_dag_action_add_input(g, action, stamp);
       }
+      break;
+    }
+    case SPN_CC_OUTPUT_OBJECT: {
+      sp_unreachable_case();
+    }
+  }
+
+  spn_pkg_unit_t* pkg = target->pkg;
+  switch (target->kind) {
+    case SPN_CC_OUTPUT_EXE: {
+      switch (target->eval->info->kind) {
+        case SPN_TARGET_KIND_EXE:
+        case SPN_TARGET_KIND_SCRIPT: {
+          spn_try(add_publish_file(b, ids->output, spn_path_join(b->mem, pkg->paths.bin, target->file_name)));
+          break;
+        }
+        case SPN_TARGET_KIND_TEST:
+        case SPN_TARGET_KIND_EXAMPLE: {
+          break;
+        }
+        case SPN_TARGET_KIND_LIB:
+        case SPN_TARGET_KIND_CONFIGURE_METAPROGRAM:
+        case SPN_TARGET_KIND_BUILD_METAPROGRAM: {
+          sp_unreachable_case();
+        }
+      }
+      break;
+    }
+    case SPN_CC_OUTPUT_STATIC_LIB:
+    case SPN_CC_OUTPUT_SHARED_LIB: {
+      spn_try(add_publish_file(b, ids->output, spn_path_join(b->mem, pkg->paths.lib, target->file_name)));
+      if (ids->implib.occupied) {
+        spn_try(add_publish_file(b, ids->implib, spn_path_join(b->mem, pkg->paths.lib, spn_dag_find_artifact(g, ids->implib)->name)));
+      }
+      break;
+    }
+    case SPN_CC_OUTPUT_REACTOR: {
       break;
     }
     case SPN_CC_OUTPUT_OBJECT: {
