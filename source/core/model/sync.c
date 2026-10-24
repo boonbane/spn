@@ -393,6 +393,13 @@ static spn_err_t sync_jobs(spn_op_t* op, sp_mem_t mem, bool* reresolve) {
     loaded->manifest = pkg->origin.manifest;
     if (!loaded->manifest) {
       spn_path_t path = spn_path_join(spn.mem, loaded->roots.recipe, pkg->origin.paths.manifest);
+      if (!sp_fs_exists_at(spn_path_at(roots, path))) {
+        return spn_err_emit(session->ctx, (spn_err_union_t) {
+          .kind = SPN_ERR_NO_MANIFEST,
+          .subject = qualified,
+          .no_manifest = { .path = spn_path_str(roots, spn.events->mem, path) },
+        });
+      }
       si_pkg_info_t* parsed = sp_alloc_type(session->mem, si_pkg_info_t);
       spn_err_union_t err = sp_zero;
       if (spn_pkg_load(session->mem, session->ctx->intern, roots, path, parsed, &err)) {

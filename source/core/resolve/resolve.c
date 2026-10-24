@@ -173,6 +173,14 @@ static spn_err_union_t load_file_pkg(spn_resolver_t* resolver, spn_requested_dep
   *pkg = SP_NULLPTR;
 
   spn_path_t path = spn_path_canonicalize(resolver->mem, resolver->roots, request->file.path);
+  if (!sp_fs_exists_at(spn_path_at(resolver->roots, path))) {
+    return (spn_err_union_t) {
+      .kind = SPN_ERR_NO_MANIFEST,
+      .subject = request->qualified.str,
+      .no_manifest = { .path = spn_path_str(resolver->roots, resolver->mem, path) },
+    };
+  }
+
   si_pkg_info_t* manifest = sp_alloc_type(resolver->mem, si_pkg_info_t);
   spn_err_union_t err = sp_zero;
   if (spn_pkg_load(resolver->mem, resolver->intern, resolver->roots, path, manifest, &err)) {

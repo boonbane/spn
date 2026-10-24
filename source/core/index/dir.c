@@ -11,15 +11,14 @@ spn_err_t spn_index_dir_get_package(spn_index_info_t* index, sp_mem_t mem, sp_in
 
   spn_path_t dir = spn_path_join(mem, (spn_path_t) { .sub = index->location.dir }, id.name);
   spn_path_t path = spn_path_join(mem, dir, sp_str_lit("spn.toml"));
-
-  si_pkg_info_t* manifest = sp_alloc_type(mem, si_pkg_info_t);
-  spn_err_t loaded = spn_pkg_load(mem, intern, roots, path, manifest, err);
-  if (loaded == SPN_ERR_NO_MANIFEST) {
+  if (!sp_fs_exists_at(spn_path_at(roots, path))) {
     return SPN_OK;
   }
-  if (loaded) {
+
+  si_pkg_info_t* manifest = sp_alloc_type(mem, si_pkg_info_t);
+  if (spn_pkg_load(mem, intern, roots, path, manifest, err)) {
     *err = spn_err_about(*err, spn_pkg_name_to_qualified(id));
-    return loaded;
+    return err->kind;
   }
 
   if (!sp_str_equal(manifest->name.str, id.name)) {

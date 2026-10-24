@@ -23,11 +23,6 @@ static const test_t tests [] = {
     .expect = { .qualified = "core/A" },
   },
   {
-    .name = "missing_file",
-    .manifest = "Z",
-    .expect = { .err = SPN_ERR_NO_MANIFEST },
-  },
-  {
     .name = "issues",
     .manifest = "B",
     .expect = { .err = SPN_ERR_MANIFEST_ISSUES, .issue = SPN_ERR_CODEGEN_INVALID },
@@ -51,11 +46,6 @@ sp_test_each(pkg_load, cases, test_t, tests, .setup = spn_test_ctx_setup) {
   switch (it->expect.err) {
     case SPN_OK: {
       sp_expect_str_eq_c(t, pkg.qualified.str, it->expect.qualified);
-      break;
-    }
-    case SPN_ERR_NO_MANIFEST: {
-      sp_expect_eq(t, it->expect.err, err.kind);
-      sp_expect_str_eq(t, err.no_manifest.path, path.sub);
       break;
     }
     case SPN_ERR_MANIFEST_ISSUES: {
