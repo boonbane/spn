@@ -106,13 +106,13 @@ static bool read_lanes(docker_t* docker, sp_str_t path, lanes_t* lanes) {
 static void bind_lanes(docker_t* docker) {
   sp_da_for(docker->builtin.config.toolchain, it) {
     spn_toolchain_decl_t decl = sp_zero;
-    sp_da(spn_codegen_issue_t) issues = lanes_lower(&docker->builtin, it, SPN_PATH_ROOT_NONE, &decl);
+    sp_da(spn_toml_issue_t) issues = lanes_lower(&docker->builtin, it, SPN_PATH_ROOT_NONE, &decl);
     sp_assert(sp_da_empty(issues));
     spn_toolchain_catalog_add(&docker->catalog, decl);
   }
   sp_da_for(docker->lanes.config.toolchain, it) {
     spn_toolchain_decl_t decl = sp_zero;
-    sp_da(spn_codegen_issue_t) issues = lanes_lower(&docker->lanes, it, SPN_PATH_ROOT_NONE, &decl);
+    sp_da(spn_toml_issue_t) issues = lanes_lower(&docker->lanes, it, SPN_PATH_ROOT_NONE, &decl);
     docker->issues[lane_find(decl.name.str)] = issues;
     if (sp_da_empty(issues)) {
       spn_toolchain_catalog_add(&docker->catalog, decl);

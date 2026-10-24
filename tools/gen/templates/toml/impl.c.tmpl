@@ -1,5 +1,6 @@
 #include "{{ .root_name }}.gen.h"
 #include "enum/enum.h"
+#include "paths/paths.h"
 
 {{ for .fwd }}
 static void spn_cg_{{ .name }}_read(spn_toml_loader_t* ctx, toml_table_t* table, {{ .type }}* out);
@@ -149,6 +150,7 @@ static void spn_cg_{{ .entry }}_read_map(spn_toml_loader_t* ctx, toml_table_t* t
 
 {{ for .types }}
 static void spn_cg_{{ .name }}_read(spn_toml_loader_t* ctx, toml_table_t* table, {{ .type }}* out) {
+{{ if .strict }}
   static const c8* keys [] = {
 {{ for .fields }}
     "{{ .key }}",
@@ -156,6 +158,7 @@ static void spn_cg_{{ .name }}_read(spn_toml_loader_t* ctx, toml_table_t* table,
     SP_NULLPTR,
   };
   spn_toml_loader_check_keys(ctx, table, keys, sp_carr_len(keys) - 1);
+{{ end }}
 {{ for .fields }}
 {{ if .k_str }}
 {{ if .req }}
@@ -177,11 +180,11 @@ static void spn_cg_{{ .name }}_read(spn_toml_loader_t* ctx, toml_table_t* table,
 {{ end }}
 {{ if .k_enum }}
 {{ if .req }}
-  out->{{ .name }} = {{ .from }}(spn_toml_loader_raw_required(ctx, table, "{{ .key }}"));
+  out->{{ .name }} = {{ .from }}(spn_toml_loader_str_required(ctx, table, "{{ .key }}"));
 {{ else }}
   {
     sp_str_t raw = sp_zero;
-    if (spn_toml_loader_raw_optional(ctx, table, "{{ .key }}", &raw)) {
+    if (spn_toml_loader_str_optional(ctx, table, "{{ .key }}", &raw)) {
       sp_opt_set(out->{{ .name }}, {{ .from }}(raw));
     }
     else if (spn_toml_loader_field_present(table, "{{ .key }}")) {
@@ -241,6 +244,15 @@ static void spn_cg_{{ .name }}_read(spn_toml_loader_t* ctx, toml_table_t* table,
 {{ end }}
 void spn_{{ .root_name }}_read(spn_toml_loader_t* ctx, toml_table_t* table, spn_cg_{{ .root_name }}_t* out) {
   spn_cg_{{ .root_name }}_read(ctx, table, out);
+}
+
+void spn_toml_load_{{ .root_name }}(spn_toml_loader_t* ctx, spn_path_t path, spn_cg_{{ .root_name }}_t* out) {
+  ctx->dir = spn_path_parent(path);
+  toml_table_t* table = spn_toml_loader_parse(ctx, path);
+  if (table) {
+    spn_{{ .root_name }}_read(ctx, table, out);
+    toml_free(table);
+  }
 }
 
 {{ $root_write }}

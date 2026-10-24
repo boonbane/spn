@@ -1,9 +1,7 @@
-{
-  "issues": [
-    {
-      "code": "invalid",
-      "path": "profile.dev.sanitize[1]",
-      "detail": "sanitize"
-    }
-  ]
-}
+[
+  {
+    "code": "codegen_invalid",
+    "path": "profile.dev.sanitize[1]",
+    "detail": "sanitize"
+  }
+]

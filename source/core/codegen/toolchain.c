@@ -1,6 +1,7 @@
 #include "codegen/toolchain.h"
 
 #include "enum/enum.h"
+#include "external/tom.h"
 #include "intern/intern.h"
 #include "paths/paths.h"
 #include "toolchain/toolchain.h"
@@ -121,7 +122,7 @@ static sp_da(sp_str_t) accepted_linkers(sp_mem_t mem, spn_cc_driver_t driver) {
 
 static bool lower_linker(spn_toml_loader_t* ctx, spn_ld_family_t declared, spn_cc_driver_t driver) {
   if (!spn_ld_accepts(driver, declared)) {
-    spn_toml_loader_issue_with(ctx, "linker", (spn_codegen_issue_t) {
+    spn_toml_loader_issue_with(ctx, "linker", (spn_toml_issue_t) {
       .code = SPN_ERR_CODEGEN_LINKER,
       .detail = spn_cc_driver_to_str(driver),
       .value = spn_ld_family_to_str(declared),
@@ -295,8 +296,10 @@ spn_toolchain_decl_t spn_toolchain_lower(spn_toml_loader_t* ctx, u32 at, spn_pat
 }
 
 bool spn_toolchains_parse(spn_toml_loader_t* ctx, sp_str_t toml, spn_cg_config_t* config) {
-  toml_table_t* table = spn_codegen_parse_str(ctx, toml);
+  sp_str_t diag = sp_zero;
+  toml_table_t* table = spn_toml_parse_str_diag(ctx->mem, toml, &diag);
   if (!table) {
+    spn_toml_loader_issue_at(ctx, SPN_ERR_CODEGEN_PARSE, diag);
     return false;
   }
   spn_config_read(ctx, table, config);

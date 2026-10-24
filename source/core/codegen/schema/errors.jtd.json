@@ -33,7 +33,6 @@
     "codegen_duplicate_key": { "properties": {} },
     "codegen_unknown_key": { "properties": {} },
     "codegen_parse": { "properties": {} },
-    "codegen_file_missing": { "properties": {} },
     "codegen_invalid": { "properties": {} },
     "codegen_linker": { "properties": {} },
     "codegen_root_only": { "properties": {} },
@@ -151,19 +150,7 @@
     "manifest": {
       "properties": {
         "path": { "type": "string" },
-        "issues": { "elements": { "ref": "issue" } }
-      }
-    },
-    "issue": {
-      "properties": {
-        "code": { "metadata": { "extern": "err" } },
-        "path": { "type": "string" },
-        "choices": { "elements": { "type": "string" } }
-      },
-      "optionalProperties": {
-        "detail": { "type": "string" },
-        "value": { "type": "string" },
-        "scope": { "type": "string" }
+        "issues": { "elements": { "metadata": { "extern": "toml_issue" } } }
       }
     },
     "no_manifest": {

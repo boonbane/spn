@@ -45,7 +45,7 @@ typedef struct {
   sp_template_registry_t* templates;
   lanes_t builtin;
   lanes_t lanes;
-  sp_da(spn_codegen_issue_t) issues [LANE_COUNT];
+  sp_da(spn_toml_issue_t) issues [LANE_COUNT];
   spn_toolchain_catalog_t catalog;
   spn_path_roots_t roots;
   spn_toolchain_store_t store;
@@ -86,7 +86,7 @@ typedef struct {
     struct {
       sp_str_t path;
       lanes_read_t read;
-      sp_da(spn_codegen_issue_t) issues;
+      sp_da(spn_toml_issue_t) issues;
     } lanes;
     verify_t verify;
     s32 render;

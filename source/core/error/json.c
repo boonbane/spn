@@ -4,6 +4,7 @@
 #include "ctx/types.h"
 #include "enum/enum.h"
 #include "paths/paths.h"
+#include "toml/loader.h"
 #include "triple/triple.h"
 
 void spn_codegen_write_err(sp_io_writer_t* out, const spn_err_t* err) {
@@ -50,4 +51,48 @@ void spn_codegen_write_path(sp_io_writer_t* out, const spn_path_t* path) {
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   spn_codegen_json_str(out, spn_path_str(&spn.roots, scratch.mem, *path));
   sp_mem_end_scratch(scratch);
+}
+
+void spn_codegen_write_toml_issue(sp_io_writer_t* out, const spn_toml_issue_t* issue) {
+  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+  bool first = true;
+  sp_io_write_c8(out, '{');
+  spn_codegen_json_key(out, &first, sp_str_lit("code"));
+  spn_codegen_json_str(out, spn_err_to_str(issue->code));
+  spn_codegen_json_key(out, &first, sp_str_lit("path"));
+  spn_codegen_json_str(out, spn_toml_path_str(scratch.mem, &issue->at));
+  if (!sp_str_empty(issue->detail)) {
+    spn_codegen_json_key(out, &first, sp_str_lit("detail"));
+    spn_codegen_json_str(out, issue->detail);
+  }
+  if (!sp_str_empty(issue->value)) {
+    spn_codegen_json_key(out, &first, sp_str_lit("value"));
+    spn_codegen_json_str(out, issue->value);
+  }
+  if (!sp_str_empty(issue->scope)) {
+    spn_codegen_json_key(out, &first, sp_str_lit("scope"));
+    spn_codegen_json_str(out, issue->scope);
+  }
+  if (!sp_da_empty(issue->choices)) {
+    spn_codegen_json_key(out, &first, sp_str_lit("choices"));
+    spn_codegen_json_str_array(out, issue->choices);
+  }
+  sp_io_write_c8(out, '}');
+  sp_mem_end_scratch(scratch);
+}
+
+sp_str_t spn_toml_issues_to_str(sp_mem_t mem, sp_da(spn_toml_issue_t) issues) {
+  sp_io_dyn_mem_writer_t sink;
+  sp_io_dyn_mem_writer_init(mem, &sink);
+  spn_codegen_json_writer_t pretty;
+  spn_codegen_json_writer_init(&pretty, &sink.base);
+  sp_io_write_c8(&pretty.base, '[');
+  sp_da_for(issues, it) {
+    if (it) {
+      sp_io_write_c8(&pretty.base, ',');
+    }
+    spn_codegen_write_toml_issue(&pretty.base, &issues[it]);
+  }
+  sp_io_write_c8(&pretty.base, ']');
+  return sp_io_dyn_mem_writer_as_str(&sink);
 }

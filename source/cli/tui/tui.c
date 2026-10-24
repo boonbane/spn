@@ -98,8 +98,9 @@ static sp_str_t colored_sanitizers(sp_tty_color_t color, sp_mem_t mem, sp_fmt_st
   return sp_io_dyn_mem_writer_take_str(&buf);
 }
 
-static void write_issue(sp_tty_t* w, const spn_err_issue_t* issue) {
-  sp_str_t field = issue->path;
+static void write_issue(sp_tty_t* w, const spn_toml_issue_t* issue) {
+  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+  sp_str_t field = spn_toml_path_str(scratch.mem, &issue->at);
   switch (issue->code) {
     case SPN_ERR_CODEGEN_MISSING_KEY:
       sp_tty_fmt(w, "Missing required field {.cyan}", SP_FMT_STR(field));
@@ -133,10 +134,8 @@ static void write_issue(sp_tty_t* w, const spn_err_issue_t* issue) {
       if (sp_da_empty(issue->choices)) {
         sp_tty_fmt(w, "Driver {.cyan} doesn't support linker {.red}. Leave it unset for the native linker", SP_FMT_STR(issue->detail), SP_FMT_STR(issue->value));
       } else {
-        sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
         sp_str_t choices = sp_str_join_n(scratch.mem, issue->choices, (u32)sp_da_size(issue->choices), sp_str_lit(", "));
         sp_tty_fmt(w, "Driver {.cyan} doesn't support linker {.red}. Use {.cyan}, or leave it unset for the native linker", SP_FMT_STR(issue->detail), SP_FMT_STR(issue->value), SP_FMT_STR(choices));
-        sp_mem_end_scratch(scratch);
       }
       break;
     case SPN_ERR_CODEGEN_PARSE:
@@ -145,9 +144,6 @@ static void write_issue(sp_tty_t* w, const spn_err_issue_t* issue) {
       } else {
         sp_tty_fmt(w, "Not valid toml: {}", SP_FMT_STR(issue->detail));
       }
-      break;
-    case SPN_ERR_CODEGEN_FILE_MISSING:
-      sp_io_write_str(w->io, sp_str_lit("File is missing"), SP_NULLPTR);
       break;
     case SPN_ERR_CODEGEN_ROOT_ONLY:
       sp_tty_fmt(w, "Field {.cyan} is only allowed in the root manifest", SP_FMT_STR(field));
@@ -164,9 +160,10 @@ static void write_issue(sp_tty_t* w, const spn_err_issue_t* issue) {
     default:
       sp_unreachable_case();
   }
+  sp_mem_end_scratch(scratch);
 }
 
-static sp_str_t get_issue_scope(sp_da(spn_err_issue_t) issues) {
+static sp_str_t get_issue_scope(sp_da(spn_toml_issue_t) issues) {
   sp_str_t scope = sp_da_empty(issues) ? sp_str_lit("") : issues[0].scope;
   sp_da_for(issues, it) {
     if (!sp_str_equal(issues[it].scope, scope)) {
@@ -1715,7 +1712,7 @@ static void render_event_extra(sp_tty_t* w, spn_event_t* event) {
     case SPN_EVENT_ERR: {
       switch (event->err.kind) {
         case SPN_ERR_MANIFEST_ISSUES: {
-          sp_da(spn_err_issue_t) issues = event->err.manifest.issues;
+          sp_da(spn_toml_issue_t) issues = event->err.manifest.issues;
           if (sp_str_empty(get_issue_scope(issues))) {
             sp_da_for(issues, it) {
               sp_io_write_str(w->io, sp_str_lit("  - "), SP_NULLPTR);

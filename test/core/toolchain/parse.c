@@ -382,7 +382,7 @@ static const parse_test_t tests [] = {
 
 sp_test_each(parse, decls, parse_test_t, tests, .setup = spn_test_ctx_setup) {
   sp_da(spn_toolchain_decl_t) decls = SP_NULLPTR;
-  sp_da(spn_codegen_issue_t) issues = SP_NULLPTR;
+  sp_da(spn_toml_issue_t) issues = SP_NULLPTR;
   if (fixture_decls(t, it->file, &decls, &issues)) return SP_ERR;
 
   sp_must_eq(t, it->expect.err != SPN_OK, !sp_da_empty(issues));

@@ -9,7 +9,7 @@ add_executable(fuzz_dag
   ${UTIL}/thread_pool/thread_pool.c
   ${UTIL}/array/array.c
   ${SRC}/codegen/json.c
-  ${SRC}/codegen/loader.c
+  ${SRC}/toml/loader.c
   ${TEST_GEN_DIR}/fuzz.gen.c
   ${SRC}/external/tom.c
   ${SRC}/hash/digest/digest.c

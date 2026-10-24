@@ -2,6 +2,7 @@
 
 #include "codegen/codegen.h"
 #include "intern/intern.h"
+#include "error/json.h"
 #include "toml/loader.h"
 #include "manifest.gen.h"
 
@@ -70,8 +71,7 @@ static const test_t tests [] = {
 };
 
 static spn_toml_loader_t loader_new(sp_mem_t mem, const spn_path_roots_t* roots) {
-  spn_toml_loader_t ctx = sp_zero;
-  spn_toml_loader_init(&ctx, mem, sp_intern_new(mem), roots);
+  spn_toml_loader_t ctx = spn_toml_loader(mem, sp_intern_new(mem), roots);
   return ctx;
 }
 
@@ -80,8 +80,9 @@ static sp_str_t manifest_render(sp_mem_t mem, sp_str_t path) {
   spn_toml_loader_t ctx = loader_new(mem, &roots);
 
   spn_cg_manifest_t manifest = sp_zero;
-  if (spn_codegen_load(&ctx, (spn_path_t) { .sub = path }, &manifest)) {
-    return spn_codegen_issues_to_str(mem, ctx.issues);
+  spn_toml_load_manifest(&ctx, (spn_path_t) { .sub = path }, &manifest);
+  if (!sp_da_empty(ctx.issues)) {
+    return spn_toml_issues_to_str(mem, ctx.issues);
   }
 
   return spn_manifest_write(mem, &manifest);
@@ -92,20 +93,6 @@ sp_test_each(manifest_gen, corpus, test_t, tests) {
 
   sp_str_t path = test_repo_path(mem, sp_fmt(mem, "test/core/manifest/gen/manifests/{}.toml", sp_fmt_cstr(it->name)).value);
   sp_expect_golden(t, sp_test_format(t, "golden/{}.json", sp_fmt_cstr(it->name)), manifest_render(mem, path));
-
-  return SP_OK;
-}
-
-sp_test(manifest_gen, missing_file) {
-  sp_mem_t mem = sp_test_arena(t);
-  spn_path_roots_t roots = sp_zero;
-  spn_toml_loader_t ctx = loader_new(mem, &roots);
-
-  spn_cg_manifest_t manifest = sp_zero;
-  sp_must(t, spn_codegen_load(&ctx, (spn_path_t) { .sub = sp_str_lit("/nonexistent/missing.toml") }, &manifest));
-  sp_must_eq(t, 1, sp_da_size(ctx.issues));
-  sp_expect_eq(t, SPN_ERR_CODEGEN_FILE_MISSING, ctx.issues[0].code);
-  sp_expect_str_eq_c(t, ctx.issues[0].detail, "missing file");
 
   return SP_OK;
 }

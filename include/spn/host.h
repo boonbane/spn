@@ -24,6 +24,7 @@ bool spn_ctx_progress(spn_ctx_t* ctx, spn_progress_t* progress);
 spn_event_t* spn_ctx_drain(spn_ctx_t* ctx);
 sp_str_t spn_ctx_project_dir(spn_ctx_t* ctx);
 spn_path_t spn_ctx_collapse_path(spn_ctx_t* ctx, sp_str_t path);
+sp_str_t spn_toml_path_str(sp_mem_t mem, const spn_toml_path_t* path);
 bool spn_get_index(sp_mem_t mem, spn_ctx_t* ctx, sp_str_t name, spn_index_desc_t* index);
 spn_index_arr_t spn_get_indexes(sp_mem_t mem, spn_ctx_t* ctx);
 spn_op_t* spn_add_dependency(spn_ctx_t* ctx, spn_add_request_t request);

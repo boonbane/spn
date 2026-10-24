@@ -1,11 +1,10 @@
 #include "project/project.h"
 
-#include "codegen/codegen.h"
 #include "codegen/lower.h"
+#include "manifest.gen.h"
 #include "error/error.h"
 #include "lock/lock.h"
 #include "paths/paths.h"
-#include "toml/issue.h"
 #include "toml/loader.h"
 
 spn_err_t spn_project_load(spn_ctx_t* ctx, spn_project_t** project) {
@@ -20,19 +19,14 @@ spn_err_t spn_project_load(spn_ctx_t* ctx, spn_project_t** project) {
   loaded->paths.manifest = manifest;
   loaded->paths.lock = (spn_path_t) { .root = SPN_PATH_ROOT_PROJECT, .sub = sp_str_lit("spn.lock") };
 
-  spn_toml_loader_t t = sp_zero;
-  spn_toml_loader_init(&t, ctx->heap, ctx->intern, &ctx->roots);
-  t.strict = true;
-
+  spn_toml_loader_t t = spn_toml_loader(ctx->heap, ctx->intern, &ctx->roots);
   spn_cg_manifest_t cg = sp_zero;
-  if (!spn_codegen_load(&t, manifest, &cg)) {
+  spn_toml_load_manifest(&t, manifest, &cg);
+  if (sp_da_empty(t.issues)) {
     spn_project_lower(&t, &cg, loaded);
   }
   if (!sp_da_empty(t.issues)) {
-    return spn_err_emit(ctx, (spn_err_union_t) {
-      .kind = SPN_ERR_MANIFEST_ISSUES,
-      .manifest = { .path = spn_path_str(&ctx->roots, ctx->events->mem, manifest), .issues = spn_codegen_issues_to_err(ctx->events->mem, t.issues) },
-    });
+    return spn_err_emit(ctx, spn_toml_loader_err(&t, manifest));
   }
 
   *project = loaded;

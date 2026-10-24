@@ -1,5 +1,5 @@
 {
-  "metadata": { "format": "toml" },
+  "metadata": { "format": "toml", "lenient": true },
   "optionalProperties": {
     "index": { "elements": { "ref": "index" } },
     "toolchain": { "elements": { "ref": "toolchain_decl" } }

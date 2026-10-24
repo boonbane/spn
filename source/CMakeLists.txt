@@ -20,7 +20,7 @@ set(SPN_SOURCES
   cli/host/host.c
   cli/main.c
   core/codegen/codegen.c
-  core/codegen/loader.c
+  core/toml/loader.c
   core/codegen/json.c
   core/codegen/lower.c
   core/codegen/toolchain.c
