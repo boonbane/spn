@@ -361,7 +361,7 @@ sp_test_each(cmd_publish, publish, case_t, cases, .setup = spn_test_ctx_setup) {
 
   si_pkg_info_t pkg = sp_zero;
   spn_err_union_t err = sp_zero;
-  sp_must_eq(t, SPN_OK, spn_pkg_load(mem, spn.intern, &spn.roots, sp_str_lit(""), spn_path_join(mem, opts.dir, sp_str_lit("spn.toml")), &pkg, &err));
+  sp_must_eq(t, SPN_OK, spn_pkg_load(mem, spn.intern, &spn.roots, spn_path_join(mem, opts.dir, sp_str_lit("spn.toml")), &pkg, &err));
 
   spn_index_release_t release = sp_zero;
   spn_err_t result = spn_publish_build(&opts, &pkg, &release);

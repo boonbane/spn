@@ -9,6 +9,7 @@
 #include "sp.h"
 #include "spn/core.h"
 
+#include "error/error.h"
 #include "index/cache.h"
 #include "index/index.h"
 #include "intern/intern.h"
@@ -173,8 +174,8 @@ static spn_err_union_t load_file_pkg(spn_resolver_t* resolver, spn_requested_dep
 
   si_pkg_info_t* manifest = sp_alloc_type(resolver->mem, si_pkg_info_t);
   spn_err_union_t err = sp_zero;
-  if (spn_pkg_load(resolver->mem, resolver->intern, resolver->roots, request->qualified.str, request->file.path, manifest, &err)) {
-    return err;
+  if (spn_pkg_load(resolver->mem, resolver->intern, resolver->roots, request->file.path, manifest, &err)) {
+    return spn_err_about(err, request->qualified.str);
   }
 
   // Option requests, config keys, and edge lookups all route by the name the

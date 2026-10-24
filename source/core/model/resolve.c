@@ -34,8 +34,8 @@ static spn_err_t apply_patch_overrides(spn_session_t* session, spn_resolve_query
 
     si_pkg_info_t* manifest = sp_alloc_type(session->mem, si_pkg_info_t);
     spn_err_union_t err = sp_zero;
-    if (spn_pkg_load(session->mem, session->ctx->intern, &session->ctx->roots, sp_intern_find(session->ctx->intern, pkg->id.qualified), path, manifest, &err)) {
-      result = spn_err_emit(session->ctx, err);
+    if (spn_pkg_load(session->mem, session->ctx->intern, &session->ctx->roots, path, manifest, &err)) {
+      result = spn_err_emit(session->ctx, spn_err_about(err, sp_intern_find(session->ctx->intern, pkg->id.qualified)));
       continue;
     }
 

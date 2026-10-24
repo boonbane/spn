@@ -26,6 +26,10 @@ sp_str_t spn_err_to_str(spn_err_t err) {
 void spn_err_write_json(sp_io_writer_t* json, const spn_err_union_t* err) {
   sp_io_write_cstr(json, ", \"kind\": ", SP_NULLPTR);
   spn_codegen_json_str(json, spn_err_to_str(err->kind));
+  if (!sp_str_empty(err->subject)) {
+    sp_io_write_cstr(json, ", \"subject\": ", SP_NULLPTR);
+    spn_codegen_json_str(json, err->subject);
+  }
 
   switch (err->kind) {
 {{ for .kinds }}

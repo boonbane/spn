@@ -694,11 +694,11 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           if (!sp_str_empty(scope)) {
             sp_tty_fmt(&w, "Invalid toolchain {} ({.gray})", sp_fmt_str(colored_name(w.color, mem, scope)), sp_fmt_str(path));
           }
-          else if (sp_str_empty(event->err.manifest.name)) {
+          else if (sp_str_empty(event->err.subject)) {
             sp_tty_fmt(&w, "Invalid manifest ({.gray})", sp_fmt_str(path));
           }
           else {
-            sp_tty_fmt(&w, "{} has an invalid manifest ({.gray})", sp_fmt_str(colored_name(w.color, mem, event->err.manifest.name)), sp_fmt_str(path));
+            sp_tty_fmt(&w, "{} has an invalid manifest ({.gray})", sp_fmt_str(colored_name(w.color, mem, event->err.subject)), sp_fmt_str(path));
           }
           break;
         }
@@ -1656,8 +1656,10 @@ static sp_str_t event_subject(spn_event_t* event) {
   switch (event->kind) {
     case SPN_EVENT_SYNC_FAILED:               return event->sync_failed.name;
     case SPN_EVENT_ERR: {
+      if (!sp_str_empty(event->err.subject)) {
+        return event->err.subject;
+      }
       switch (event->err.kind) {
-        case SPN_ERR_MANIFEST_ISSUES:  return event->err.manifest.name;
         case SPN_ERR_PKG_UNKNOWN:      return event->err.unknown.qualified;
         case SPN_ERR_PKG_NO_MATCH:     return event->err.unsatisfiable.qualified;
         case SPN_ERR_PKG_CONFLICT:     return event->err.unsatisfiable.qualified;

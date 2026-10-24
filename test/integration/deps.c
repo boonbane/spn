@@ -202,7 +202,7 @@ sp_test(deps_index, invalid_manifest) {
     .project = "test/integration/fixtures/deps/index/invalid_manifest",
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { "build", .rc = 1 } },
-      { .kind = ACTION_VERIFY_EVENT, .verify_event = { .event = SPN_EVENT_ERR, .key = "name", .value = "core/spum" } },
+      { .kind = ACTION_VERIFY_EVENT, .verify_event = { .event = SPN_EVENT_ERR, .key = "subject", .value = "core/spum" } },
     },
   });
 }

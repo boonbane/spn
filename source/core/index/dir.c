@@ -1,5 +1,6 @@
 #include "index/dir.h"
 
+#include "error/error.h"
 #include "index/release.h"
 #include "paths/paths.h"
 #include "pkg/id.h"
@@ -12,11 +13,14 @@ spn_err_t spn_index_dir_get_package(spn_index_info_t* index, sp_mem_t mem, sp_in
   spn_path_t path = spn_path_join(mem, dir, sp_str_lit("spn.toml"));
 
   si_pkg_info_t* manifest = sp_alloc_type(mem, si_pkg_info_t);
-  spn_err_t loaded = spn_pkg_load(mem, intern, roots, spn_pkg_name_to_qualified(id), path, manifest, err);
+  spn_err_t loaded = spn_pkg_load(mem, intern, roots, path, manifest, err);
   if (loaded == SPN_ERR_NO_MANIFEST) {
     return SPN_OK;
   }
-  spn_try(loaded);
+  if (loaded) {
+    *err = spn_err_about(*err, spn_pkg_name_to_qualified(id));
+    return loaded;
+  }
 
   if (!sp_str_equal(manifest->name.str, id.name)) {
     *err = (spn_err_union_t) {
