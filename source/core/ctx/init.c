@@ -167,7 +167,43 @@ static spn_err_t open_roots(spn_ctx_t* ctx, spn_open_request_t request) {
   return SPN_OK;
 }
 
-static spn_err_t open_ctx(spn_ctx_t* ctx, spn_open_request_t request) {
+spn_ctx_t* spn_ctx_new(spn_wake_fn_t wake, void* wake_data) {
+  sp_assert(!spn.arena);
+  spn_ctx_t* ctx = &spn;
+  *ctx = sp_zero_s(spn_ctx_t);
+  ctx->wake.fn = wake;
+  ctx->wake.data = wake_data;
+  ctx->mem = sp_mem_os_new();
+  ctx->arena = sp_mem_arena_new(ctx->mem);
+  ctx->heap = sp_mem_arena_as_allocator(ctx->arena);
+  ctx->intern = sp_intern_new(ctx->mem);
+  ctx->env = sp_alloc_type(ctx->heap, sp_env_t);
+  *ctx->env = sp_env_capture(ctx->heap);
+  ctx->events = spn_event_buffer_new(ctx->mem);
+  ctx->events->wake = &ctx->wake;
+
+  ctx->host = spn_triple_host();
+
+  // @spader This has nothing to do with the context. It's data
+  // that the DAG needs and decides, and pinned is a dumb name. Really,
+  // it just means "does this live in a folder the DAG knows to be
+  // immutable"
+  ctx->roots.pinned = sp_da_new(ctx->heap, spn_path_t);
+  sp_da_push(ctx->roots.pinned, spn_path_from_id(SPN_DIR_ID_CHECKOUTS));
+  sp_da_push(ctx->roots.pinned, spn_path_from_id(SPN_DIR_ID_TOOLCHAIN_STORE));
+
+  spn_op_thread_start(ctx);
+  return ctx;
+}
+
+static spn_err_t open_session(spn_ctx_t* ctx, spn_session_config_t config) {
+  spn_try(spn_ctx_require_project(ctx));
+
+  ctx->session = sp_alloc_type(ctx->heap, spn_session_t);
+  return spn_session_init(ctx->session, ctx, ctx->heap, ctx->project, config);
+}
+
+spn_err_t spn_ctx_open(spn_ctx_t* ctx, spn_open_request_t request) {
   sp_assert(!ctx->config.indexes);
 
   spn_try(open_roots(ctx, request));
@@ -255,46 +291,7 @@ static spn_err_t open_ctx(spn_ctx_t* ctx, spn_open_request_t request) {
   }
 
   return SPN_OK;
-}
 
-spn_ctx_t* spn_ctx_new(spn_wake_fn_t wake, void* wake_data) {
-  sp_assert(!spn.arena);
-  spn_ctx_t* ctx = &spn;
-  *ctx = sp_zero_s(spn_ctx_t);
-  ctx->wake.fn = wake;
-  ctx->wake.data = wake_data;
-  ctx->mem = sp_mem_os_new();
-  ctx->arena = sp_mem_arena_new(ctx->mem);
-  ctx->heap = sp_mem_arena_as_allocator(ctx->arena);
-  ctx->intern = sp_intern_new(ctx->mem);
-  ctx->env = sp_alloc_type(ctx->heap, sp_env_t);
-  *ctx->env = sp_env_capture(ctx->heap);
-  ctx->events = spn_event_buffer_new(ctx->mem);
-  ctx->events->wake = &ctx->wake;
-
-  ctx->host = spn_triple_host();
-
-  // @spader This has nothing to do with the context. It's data
-  // that the DAG needs and decides, and pinned is a dumb name. Really,
-  // it just means "does this live in a folder the DAG knows to be
-  // immutable"
-  ctx->roots.pinned = sp_da_new(ctx->heap, spn_path_t);
-  sp_da_push(ctx->roots.pinned, spn_path_from_id(SPN_DIR_ID_CHECKOUTS));
-  sp_da_push(ctx->roots.pinned, spn_path_from_id(SPN_DIR_ID_TOOLCHAIN_STORE));
-
-  spn_op_thread_start(ctx);
-  return ctx;
-}
-
-static spn_err_t open_session(spn_ctx_t* ctx, spn_session_config_t config) {
-  spn_try(spn_ctx_require_project(ctx));
-
-  ctx->session = sp_alloc_type(ctx->heap, spn_session_t);
-  return spn_session_init(ctx->session, ctx, ctx->heap, ctx->project, config);
-}
-
-spn_err_t spn_ctx_open(spn_ctx_t* ctx, spn_open_request_t request) {
-  return open_ctx(ctx, request);
 }
 
 spn_err_t spn_ctx_open_session(spn_ctx_t* ctx, const spn_session_config_t* config, spn_session_t** session) {
