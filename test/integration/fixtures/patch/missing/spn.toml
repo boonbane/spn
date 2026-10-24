@@ -8,6 +8,9 @@ spum = { path = "vendor/spum" }
 [patch."core/spum"]
 files = ["patches/nosuch.patch"]
 
+[patch."core/nosuch"]
+files = ["patches/other.patch"]
+
 [[bin]]
 name = "main"
 source = ["main.c"]

@@ -71,22 +71,19 @@ sp_test_each(git_patch, set_hash, patch_load_t, tests) {
 
   spn_git_patch_set_t set = { .files = files };
   u32 missing = 0;
-  spn_err_t err = spn_git_patch_set_hash(&set, &missing);
-  sp_expect_eq(t, err, it->expect.err);
+  set.hash = spn_git_patch_hash(set.files, &missing);
+  sp_expect_eq(t, set.hash ? SPN_OK : SPN_ERROR, it->expect.err);
 
   if (it->expect.err) {
     sp_expect_eq(t, missing, it->expect.missing_index);
-    sp_expect_eq(t, set.hash, (sp_hash_t)0);
     return SP_OK;
   }
-
-  sp_expect_ne(t, set.hash, (sp_hash_t)0);
 
   if (it->pair[0]) {
     sp_da(sp_str_t) pair_files = write_patch_files(t, "b", it->pair, PATCH_TEST_MAX_FILES);
     spn_git_patch_set_t pair = { .files = pair_files };
-    spn_err_t pair_err = spn_git_patch_set_hash(&pair, &missing);
-    sp_expect_eq(t, pair_err, SPN_OK);
+    pair.hash = spn_git_patch_hash(pair.files, &missing);
+    sp_expect_ne(t, pair.hash, (sp_hash_t)0);
     sp_expect_eq(t, it->expect.hash_matches_pair, set.hash == pair.hash);
   }
 

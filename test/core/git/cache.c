@@ -375,7 +375,7 @@ static spn_git_checkout_id_t build_id(sp_test_t* t, git_repo_result_t* repo, con
     }
     id.patches.files = files;
     u32 missing = 0;
-    spn_git_patch_set_hash(&id.patches, &missing);
+    id.patches.hash = spn_git_patch_hash(id.patches.files, &missing);
   }
 
   return id;

@@ -10,6 +10,7 @@
 #include "compiler/types.h"
 #include "core/types.h"
 #include "dag/types.h"
+#include "git/types.h"
 #include "options/types.h"
 #include "profile/types.h"
 #include "resolve/types.h"
@@ -24,6 +25,11 @@ typedef struct {
   spn_tree_roots_t roots;
 } spn_loaded_pkg_t;
 
+typedef struct {
+  sp_intern_str_t qualified;
+  spn_git_patch_set_t set;
+} spn_patch_t;
+
 struct spn_session_t {
   spn_ctx_t* ctx;
   spn_project_t* project;
@@ -34,6 +40,7 @@ struct spn_session_t {
   bool force;
 
   spn_resolve_t resolve;
+  si_da(spn_patch_t) patches;
   spn_pkg_registry_t registry;
   sp_ht(spn_pkg_id_t, spn_loaded_pkg_t) packages;
   sp_ht(spn_pkg_id_t, spn_resolved_options_t) options;

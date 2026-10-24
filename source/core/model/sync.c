@@ -10,7 +10,6 @@
 #include "event/event.h"
 #include "core/types.h"
 #include "git/cache.h"
-#include "git/patch.h"
 #include "hash/digest/digest.h"
 #include "intern/intern.h"
 #include "lazy/lazy.h"
@@ -38,6 +37,7 @@ typedef struct {
   spn_session_t* session;
   spn_resolved_pkg_t* pkg;
   spn_loaded_pkg_t loaded;
+  bool patched;
   bool fetched;
   u64 elapsed;
   spn_err_t err;
@@ -207,11 +207,14 @@ static spn_err_t materialize_tree(spn_session_t* session, sp_str_t name, spn_pkg
   sp_unreachable_return(SPN_ERROR);
 }
 
-static spn_err_t fetch_package(spn_session_t* session, spn_resolved_pkg_t* pkg, spn_loaded_pkg_t* loaded, bool* fetched) {
+static spn_err_t fetch_package(pkg_job_t* job) {
+  spn_session_t* session = job->session;
+  spn_resolved_pkg_t* pkg = job->pkg;
+  spn_loaded_pkg_t* loaded = &job->loaded;
+  bool* fetched = &job->fetched;
   sp_str_t qualified = spn_intern_find(pkg->id.qualified);
 
-  bool patched = pkg->origin.source.kind == SPN_PKG_ROOT_GIT && pkg->origin.source.git.patches.hash;
-  if (patched && !spn_git_cache_is_checkout_cached(&session->ctx->caches.git, pkg->origin.source.git)) {
+  if (job->patched && !spn_git_cache_is_checkout_cached(&session->ctx->caches.git, pkg->origin.source.git)) {
     spn_event_buffer_push(spn.events, (spn_event_t) {
       .kind = SPN_EVENT_SYNC_PATCH,
       .sync = {
@@ -239,7 +242,7 @@ static void sync_package_node(void *data) {
     return;
   }
   sp_tm_timer_t timer = sp_tm_start_timer();
-  job->err = fetch_package(job->session, job->pkg, &job->loaded, &job->fetched);
+  job->err = fetch_package(job);
   job->elapsed = sp_tm_read_timer(&timer);
   if (job->err) {
     sp_atomic_s32_store(&sync_failed, (s32)job->err, SP_ATOMIC_SEQ_CST);
@@ -257,68 +260,14 @@ static void sync_toolchain_node(void* data) {
   }
 }
 
-static spn_err_t check_unused_patches(spn_session_t* session) {
-  spn_err_t err = SPN_OK;
-  si_da_for_value(session->project->patches, patch) {
-    sp_intern_str_t qualified = patch.qualified;
-
-    bool used = false;
-    sp_ht_for_kv(session->resolve, jt) {
-      if (jt.key->qualified == qualified.id) {
-        used = true;
-        break;
-      }
-    }
-    if (used) {
-      continue;
-    }
-
-    spn_err_t kind = spn_err_emit(session->ctx, (spn_err_union_t) {
-      .kind = SPN_ERR_PATCH_UNUSED,
-      .patch = { .name = qualified.str },
-    });
-    if (!err) {
-      err = kind;
-    }
-  }
-  return err;
-}
-
 static spn_err_t sync_jobs(spn_op_t* op, sp_mem_t mem, bool* reresolve) {
   spn_session_t* session = op->session;
-
-  spn_err_t stamped = SPN_OK;
-  sp_ht_for_kv(session->resolve, it) {
-    spn_resolved_pkg_t* pkg = it.val;
-    si_da_for_ptr(session->project->patches, patch) {
-      if (patch->qualified.id != pkg->id.qualified) {
-        continue;
-      }
-      if (pkg->origin.source.kind != SPN_PKG_ROOT_GIT) {
-        stamped = spn_err_emit(session->ctx, (spn_err_union_t) {
-          .kind = SPN_ERR_PATCH_NOT_GIT,
-          .patch = { .name = patch->qualified.str },
-        });
-        continue;
-      }
-      spn_git_patch_set_t set = { .files = patch->files };
-      u32 missing = 0;
-      if (spn_git_patch_set_hash(&set, &missing)) {
-        stamped = spn_err_emit(session->ctx, (spn_err_union_t) {
-          .kind = SPN_ERR_PATCH_FILE_MISSING,
-          .patch = { .name = patch->qualified.str, .path = patch->files[missing] },
-        });
-        continue;
-      }
-      pkg->origin.source.git.patches = set;
-    }
-  }
-  spn_try(stamped);
   si_da(pkg_job_t*) packages = sp_zero;
   si_da(toolchain_job_t*) toolchains = sp_zero;
 
   u32 num_index = 0;
   u32 num_file = 0;
+  spn_err_t stamped = SPN_OK;
   sp_ht_for_kv(session->resolve, it) {
     spn_resolved_pkg_t *pkg = it.val;
     switch (pkg->source) {
@@ -331,8 +280,26 @@ static spn_err_t sync_jobs(spn_op_t* op, sp_mem_t mem, bool* reresolve) {
     job->op = op;
     job->session = session;
     job->pkg = pkg;
+    si_da_for_ptr(session->patches, patch) {
+      if (patch->qualified.id != pkg->id.qualified) {
+        continue;
+      }
+      if (pkg->origin.source.kind != SPN_PKG_ROOT_GIT) {
+        spn_err_t kind = spn_err_emit(session->ctx, (spn_err_union_t) {
+          .kind = SPN_ERR_PATCH_NOT_GIT,
+          .patch = { .name = patch->qualified.str },
+        });
+        if (!stamped) {
+          stamped = kind;
+        }
+        continue;
+      }
+      pkg->origin.source.git.patches = patch->set;
+      job->patched = true;
+    }
     si_da_push(mem, packages, job);
   }
+  spn_try(stamped);
 
   si_da_for_value(session->units.toolchains, unit) {
     toolchain_job_t* job = sp_alloc_type(mem, toolchain_job_t);
@@ -445,8 +412,6 @@ static spn_err_t sync_jobs(spn_op_t* op, sp_mem_t mem, bool* reresolve) {
   if (*reresolve) {
     return SPN_OK;
   }
-
-  spn_try(check_unused_patches(session));
 
   spn_event_buffer_push(spn.events, (spn_event_t) {
     .kind = SPN_EVENT_SYNC_END,
