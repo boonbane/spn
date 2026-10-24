@@ -49,6 +49,7 @@ sp_test(patch, unused_entry_fails) {
 sp_test(patch, missing_file_fails) {
   return run_test(t, (test_t) {
     .project = "test/integration/fixtures/patch/missing",
+    .copy = { "vendor/spum/spn.toml" },
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build", .rc = 1 } },
       { .kind = ACTION_VERIFY_EVENT, .verify_event = { .event = SPN_EVENT_ERR, .key = "kind", .value = "patch_file_missing" } },

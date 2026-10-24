@@ -78,7 +78,7 @@ typedef si_om(sp_intern_id_t, spn_pkg_config_t) spn_pkg_config_map_t;
 
 typedef struct {
   sp_intern_str_t qualified;
-  spn_git_patch_set_t set;
+  si_da(sp_str_t) files;
 } spn_pkg_patch_t;
 
 struct si_pkg_info {

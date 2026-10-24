@@ -3,7 +3,6 @@
 #include "codegen/codegen.h"
 #include "codegen/lower.h"
 #include "error/error.h"
-#include "git/patch.h"
 #include "lock/lock.h"
 #include "paths/paths.h"
 #include "toml/issue.h"
@@ -36,18 +35,6 @@ spn_err_t spn_project_load(spn_ctx_t* ctx, spn_project_t** project) {
       .manifest = { .path = spn_path_str(&ctx->roots, ctx->events->mem, manifest), .issues = spn_codegen_issues_to_err(ctx->events->mem, t.issues) },
     });
   }
-
-  spn_err_t hashed = SPN_OK;
-  si_da_for_ptr(loaded->patches, patch) {
-    u32 missing = 0;
-    if (spn_git_patch_set_hash(&patch->set, &missing)) {
-      hashed = spn_err_emit(ctx, (spn_err_union_t) {
-        .kind = SPN_ERR_PATCH_FILE_MISSING,
-        .patch = { .name = patch->qualified.str, .path = patch->set.files[missing] },
-      });
-    }
-  }
-  spn_try(hashed);
 
   *project = loaded;
   return SPN_OK;

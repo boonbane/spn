@@ -10,6 +10,7 @@
 #include "event/event.h"
 #include "core/types.h"
 #include "git/cache.h"
+#include "git/patch.h"
 #include "hash/digest/digest.h"
 #include "intern/intern.h"
 #include "lazy/lazy.h"
@@ -210,9 +211,10 @@ typedef enum {
   PATCH_STAMP_NONE,
   PATCH_STAMP_APPLIED,
   PATCH_STAMP_NOT_GIT,
+  PATCH_STAMP_MISSING,
 } patch_stamp_t;
 
-static patch_stamp_t patch_stamp(si_da(spn_pkg_patch_t) patches, sp_intern_id_t qualified, spn_pkg_root_t* source) {
+static patch_stamp_t patch_stamp(si_da(spn_pkg_patch_t) patches, sp_intern_id_t qualified, spn_pkg_root_t* source, sp_str_t* missing) {
   si_da_for(patches, it) {
     if (patches[it].qualified.id != qualified) {
       continue;
@@ -220,7 +222,12 @@ static patch_stamp_t patch_stamp(si_da(spn_pkg_patch_t) patches, sp_intern_id_t 
     if (source->kind != SPN_PKG_ROOT_GIT) {
       return PATCH_STAMP_NOT_GIT;
     }
-    source->git.patches = patches[it].set;
+    source->git.patches = (spn_git_patch_set_t) { .files = patches[it].files };
+    u32 index = 0;
+    if (spn_git_patch_set_hash(&source->git.patches, &index)) {
+      *missing = patches[it].files[index];
+      return PATCH_STAMP_MISSING;
+    }
     return PATCH_STAMP_APPLIED;
   }
   return PATCH_STAMP_NONE;
@@ -229,7 +236,8 @@ static patch_stamp_t patch_stamp(si_da(spn_pkg_patch_t) patches, sp_intern_id_t 
 static spn_err_t fetch_package(spn_session_t* session, spn_resolved_pkg_t* pkg, spn_loaded_pkg_t* loaded, bool* fetched) {
   sp_str_t qualified = spn_intern_find(pkg->id.qualified);
 
-  switch (patch_stamp(session->project->patches, pkg->id.qualified, &pkg->origin.source)) {
+  sp_str_t missing = sp_zero;
+  switch (patch_stamp(session->project->patches, pkg->id.qualified, &pkg->origin.source, &missing)) {
     case PATCH_STAMP_NONE: {
       break;
     }
@@ -248,6 +256,12 @@ static spn_err_t fetch_package(spn_session_t* session, spn_resolved_pkg_t* pkg, 
       return spn_err_emit(session->ctx, (spn_err_union_t) {
         .kind = SPN_ERR_PATCH_NOT_GIT,
         .patch = { .name = qualified },
+      });
+    }
+    case PATCH_STAMP_MISSING: {
+      return spn_err_emit(session->ctx, (spn_err_union_t) {
+        .kind = SPN_ERR_PATCH_FILE_MISSING,
+        .patch = { .name = qualified, .path = missing },
       });
     }
   }
