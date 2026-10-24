@@ -204,8 +204,7 @@ static spn_err_t publish_git(spn_index_info_t* index, spn_index_release_t* rel, 
 
     bool exists = false;
     spn_err_union_t err = sp_zero;
-    if (index_release_exists(index, scratch.mem, rel, &exists, &err)) {
-      err.index_corrupt.path = sp_str_copy(spn.events->mem, err.index_corrupt.path);
+    if (index_release_exists(index, spn.mem, rel, &exists, &err)) {
       result = spn_err_emit(&spn, err);
       break;
     }
