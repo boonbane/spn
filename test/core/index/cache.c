@@ -95,9 +95,6 @@ sp_test_each(index_cache, get_package, cache_test_t, tests, .setup = spn_test_ct
       .location = { .at = sp_path_from_str(location), .dir = location },
       .protocol = it->indexes[slot].protocol,
     };
-    if (index.protocol == SPN_INDEX_PROTOCOL_DIR) {
-      index.dir.path = (spn_path_t) { .sub = location };
-    }
     sp_da_push(indexes, index);
   }
 

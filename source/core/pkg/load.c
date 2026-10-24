@@ -7,14 +7,6 @@
 #include "toml/loader.h"
 
 spn_err_t spn_pkg_load(sp_mem_t mem, sp_intern_t* intern, const spn_path_roots_t* roots, spn_path_t path, si_pkg_info_t* pkg, spn_err_union_t* err) {
-  if (!sp_fs_exists_at(spn_path_at(roots, path))) {
-    *err = (spn_err_union_t) {
-      .kind = SPN_ERR_NO_MANIFEST,
-      .no_manifest = { .path = spn_path_str(roots, mem, path) },
-    };
-    return err->kind;
-  }
-
   spn_toml_loader_t t = sp_zero;
   spn_toml_loader_init(&t, mem, intern, roots);
   t.strict = true;

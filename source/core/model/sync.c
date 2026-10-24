@@ -37,6 +37,7 @@ typedef struct {
   spn_session_t* session;
   spn_resolved_pkg_t* pkg;
   spn_loaded_pkg_t loaded;
+  bool patched;
   bool fetched;
   u64 elapsed;
   spn_err_t err;
@@ -206,50 +207,20 @@ static spn_err_t materialize_tree(spn_session_t* session, sp_str_t name, spn_pkg
   sp_unreachable_return(SPN_ERROR);
 }
 
-typedef enum {
-  PATCH_STAMP_NONE,
-  PATCH_STAMP_APPLIED,
-  PATCH_STAMP_NOT_GIT,
-} patch_stamp_t;
-
-static patch_stamp_t patch_stamp(si_da(spn_pkg_patch_t) patches, sp_intern_id_t qualified, spn_pkg_root_t* source) {
-  si_da_for(patches, it) {
-    if (patches[it].qualified.id != qualified) {
-      continue;
-    }
-    if (source->kind != SPN_PKG_ROOT_GIT) {
-      return PATCH_STAMP_NOT_GIT;
-    }
-    source->git.patches = patches[it].set;
-    return PATCH_STAMP_APPLIED;
-  }
-  return PATCH_STAMP_NONE;
-}
-
-static spn_err_t fetch_package(spn_session_t* session, spn_resolved_pkg_t* pkg, spn_loaded_pkg_t* loaded, bool* fetched) {
+static spn_err_t fetch_package(pkg_job_t* job) {
+  spn_session_t* session = job->session;
+  spn_resolved_pkg_t* pkg = job->pkg;
+  spn_loaded_pkg_t* loaded = &job->loaded;
+  bool* fetched = &job->fetched;
   sp_str_t qualified = spn_intern_find(pkg->id.qualified);
 
-  switch (patch_stamp(session->project->patches, pkg->id.qualified, &pkg->origin.source)) {
-    case PATCH_STAMP_NONE: {
-      break;
-    }
-    case PATCH_STAMP_APPLIED: {
-      if (!spn_git_cache_is_checkout_cached(&session->ctx->caches.git, pkg->origin.source.git)) {
-        spn_event_buffer_push(spn.events, (spn_event_t) {
-          .kind = SPN_EVENT_SYNC_PATCH,
-          .sync = {
-            .name = qualified,
-            .url = pkg->origin.source.git.url,
-          }});
-      }
-      break;
-    }
-    case PATCH_STAMP_NOT_GIT: {
-      return spn_err_emit(session->ctx, (spn_err_union_t) {
-        .kind = SPN_ERR_PATCH_NOT_GIT,
-        .patch = { .name = qualified },
-      });
-    }
+  if (job->patched && !spn_git_cache_is_checkout_cached(&session->ctx->caches.git, pkg->origin.source.git)) {
+    spn_event_buffer_push(spn.events, (spn_event_t) {
+      .kind = SPN_EVENT_SYNC_PATCH,
+      .sync = {
+        .name = qualified,
+        .url = pkg->origin.source.git.url,
+      }});
   }
 
   spn_try(materialize_tree(session, qualified, pkg->origin.recipe, &loaded->roots.recipe, fetched));
@@ -271,7 +242,7 @@ static void sync_package_node(void *data) {
     return;
   }
   sp_tm_timer_t timer = sp_tm_start_timer();
-  job->err = fetch_package(job->session, job->pkg, &job->loaded, &job->fetched);
+  job->err = fetch_package(job);
   job->elapsed = sp_tm_read_timer(&timer);
   if (job->err) {
     sp_atomic_s32_store(&sync_failed, (s32)job->err, SP_ATOMIC_SEQ_CST);
@@ -289,33 +260,6 @@ static void sync_toolchain_node(void* data) {
   }
 }
 
-static spn_err_t check_unused_patches(spn_session_t* session) {
-  spn_err_t err = SPN_OK;
-  si_da_for_value(session->project->patches, patch) {
-    sp_intern_str_t qualified = patch.qualified;
-
-    bool used = false;
-    sp_ht_for_kv(session->resolve, jt) {
-      if (jt.key->qualified == qualified.id) {
-        used = true;
-        break;
-      }
-    }
-    if (used) {
-      continue;
-    }
-
-    spn_err_t kind = spn_err_emit(session->ctx, (spn_err_union_t) {
-      .kind = SPN_ERR_PATCH_UNUSED,
-      .patch = { .name = qualified.str },
-    });
-    if (!err) {
-      err = kind;
-    }
-  }
-  return err;
-}
-
 static spn_err_t sync_jobs(spn_op_t* op, sp_mem_t mem, bool* reresolve) {
   spn_session_t* session = op->session;
   si_da(pkg_job_t*) packages = sp_zero;
@@ -323,6 +267,7 @@ static spn_err_t sync_jobs(spn_op_t* op, sp_mem_t mem, bool* reresolve) {
 
   u32 num_index = 0;
   u32 num_file = 0;
+  spn_err_t stamped = SPN_OK;
   sp_ht_for_kv(session->resolve, it) {
     spn_resolved_pkg_t *pkg = it.val;
     switch (pkg->source) {
@@ -335,8 +280,26 @@ static spn_err_t sync_jobs(spn_op_t* op, sp_mem_t mem, bool* reresolve) {
     job->op = op;
     job->session = session;
     job->pkg = pkg;
+    si_da_for_ptr(session->patches, patch) {
+      if (patch->qualified.id != pkg->id.qualified) {
+        continue;
+      }
+      if (pkg->origin.source.kind != SPN_PKG_ROOT_GIT) {
+        spn_err_t kind = spn_err_emit(session->ctx, (spn_err_union_t) {
+          .kind = SPN_ERR_PATCH_NOT_GIT,
+          .patch = { .name = patch->qualified.str },
+        });
+        if (!stamped) {
+          stamped = kind;
+        }
+        continue;
+      }
+      pkg->origin.source.git.patches = patch->set;
+      job->patched = true;
+    }
     si_da_push(mem, packages, job);
   }
+  spn_try(stamped);
 
   si_da_for_value(session->units.toolchains, unit) {
     toolchain_job_t* job = sp_alloc_type(mem, toolchain_job_t);
@@ -397,6 +360,13 @@ static spn_err_t sync_jobs(spn_op_t* op, sp_mem_t mem, bool* reresolve) {
     loaded->manifest = pkg->origin.manifest;
     if (!loaded->manifest) {
       spn_path_t path = spn_path_join(spn.mem, loaded->roots.recipe, pkg->origin.paths.manifest);
+      if (!sp_fs_exists_at(spn_path_at(roots, path))) {
+        return spn_err_emit(session->ctx, (spn_err_union_t) {
+          .kind = SPN_ERR_NO_MANIFEST,
+          .subject = qualified,
+          .no_manifest = { .path = spn_path_str(roots, spn.events->mem, path) },
+        });
+      }
       si_pkg_info_t* parsed = sp_alloc_type(session->mem, si_pkg_info_t);
       spn_err_union_t err = sp_zero;
       if (spn_pkg_load(session->mem, session->ctx->intern, roots, path, parsed, &err)) {
@@ -442,8 +412,6 @@ static spn_err_t sync_jobs(spn_op_t* op, sp_mem_t mem, bool* reresolve) {
   if (*reresolve) {
     return SPN_OK;
   }
-
-  spn_try(check_unused_patches(session));
 
   spn_event_buffer_push(spn.events, (spn_event_t) {
     .kind = SPN_EVENT_SYNC_END,

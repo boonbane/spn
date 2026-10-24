@@ -1677,7 +1677,6 @@ sp_test_each(lower, cases, test_t, tests, .setup = spn_test_ctx_setup) {
 
   spn_project_t project = sp_zero;
   si_pkg_info_t* pkg = &project.package;
-  spn_manifest_lower(&ctx, &cg, pkg);
   spn_project_lower(&ctx, &cg, &project);
 
   // Issues
@@ -1866,10 +1865,9 @@ sp_test_each(lower, cases, test_t, tests, .setup = spn_test_ctx_setup) {
 
     u32 num_files = 0;
     sp_carr_detect_len(expected.files, num_files, expected.files[num_files]);
-    sp_must_eq(t, num_files, (u32)si_da_size(patch->set.files));
+    sp_must_eq(t, num_files, (u32)si_da_size(patch->files));
     sp_for(j, num_files) {
-      sp_expect(t, sp_fs_is_absolute(patch->set.files[j]));
-      sp_expect(t, sp_str_ends_with(patch->set.files[j], sp_str_view(expected.files[j])));
+      sp_expect(t, sp_str_ends_with(patch->files[j].sub, sp_str_view(expected.files[j])));
     }
 
   }
