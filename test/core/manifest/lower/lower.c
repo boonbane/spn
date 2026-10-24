@@ -1677,7 +1677,6 @@ sp_test_each(lower, cases, test_t, tests, .setup = spn_test_ctx_setup) {
 
   spn_project_t project = sp_zero;
   si_pkg_info_t* pkg = &project.package;
-  spn_manifest_lower(&ctx, &cg, pkg);
   spn_project_lower(&ctx, &cg, &project);
 
   // Issues

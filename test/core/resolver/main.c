@@ -126,7 +126,6 @@ static sp_err_t load_manifest(sp_test_t* t, sp_mem_t mem, sp_str_t dir, spn_proj
   spn_toml_loader_init(&loader, mem, spn.intern, &roots);
   spn_cg_manifest_t cg = sp_zero;
   sp_must_eq(t, SPN_OK, spn_codegen_load(&loader, (spn_path_t) { .sub = manifest }, &cg));
-  spn_manifest_lower(&loader, &cg, &project->package);
   spn_project_lower(&loader, &cg, project);
   sp_must_eq(t, 0, sp_da_size(loader.issues));
   return SP_OK;

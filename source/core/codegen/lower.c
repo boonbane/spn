@@ -1207,6 +1207,7 @@ void spn_manifest_lower(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, si_
 }
 
 void spn_project_lower(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, spn_project_t* project) {
+  spn_manifest_lower(ctx, cg, &project->package);
   lower_toolchains(ctx, cg, project);
   lower_profiles(ctx, cg, project);
   lower_indexes(ctx, cg, project);

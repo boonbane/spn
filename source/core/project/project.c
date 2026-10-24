@@ -26,7 +26,6 @@ spn_err_t spn_project_load(spn_ctx_t* ctx, spn_project_t** project) {
 
   spn_cg_manifest_t cg = sp_zero;
   if (!spn_codegen_load(&t, manifest, &cg)) {
-    spn_manifest_lower(&t, &cg, &loaded->package);
     spn_project_lower(&t, &cg, loaded);
   }
   if (!sp_da_empty(t.issues)) {
