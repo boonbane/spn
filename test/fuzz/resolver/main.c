@@ -9,7 +9,7 @@
 #include "index/cache.h"
 #include "intern/intern.h"
 #include "pkg/id.h"
-#include "pkg/mutate.h"
+#include "manifest.h"
 #include "resolve/resolve.h"
 #include "semver/parser.h"
 #include "spn/core.h"
@@ -67,7 +67,7 @@ void spn_index_cache_init(spn_index_cache_t* cache, sp_mem_t mem, sp_intern_t* i
 
 }
 
-spn_err_t spn_index_cache_get_package(spn_index_cache_t* cache, spn_pkg_name_t id, spn_index_pkg_t** pkg, spn_index_diag_t* diag) {
+spn_err_t spn_index_cache_get_package(spn_index_cache_t* cache, spn_pkg_name_t id, spn_index_pkg_t** pkg, spn_err_union_t* err) {
   sp_str_t qualified = spn_pkg_name_to_qualified(id);
   *pkg = sp_str_ht_get(fz_state.cache, qualified);
   return SPN_OK;
@@ -179,8 +179,8 @@ static fz_result_t fz_execute(sp_mem_t mem, fz_universe_t* u, sp_intern_t* inter
     }
     fz_release_t* release = &local->releases[0];
 
-    spn_pkg_info_t* info = (spn_pkg_info_t*)sp_alloc(mem, sizeof(spn_pkg_info_t));
-    *info = sp_zero_s(spn_pkg_info_t);
+    si_pkg_info_t* info = (si_pkg_info_t*)sp_alloc(mem, sizeof(si_pkg_info_t));
+    *info = sp_zero_s(si_pkg_info_t);
     info->namespace = sp_str_lit("spn");
     info->name = sp_intern(intern, fz_pkg_name((u32)it));
     info->qualified = sp_intern(intern, spn_pkg_canonicalize_pair(sp_str_lit("spn"), fz_pkg_name((u32)it)));
@@ -190,19 +190,19 @@ static fz_result_t fz_execute(sp_mem_t mem, fz_universe_t* u, sp_intern_t* inter
     }
 
     if (fz_pkg_linked(local)) {
-      spn_target_info_t* lib = SP_NULLPTR;
-      spn_pkg_add_target(mem, info, info->name.str, SPN_TARGET_KIND_LIB, &lib);
+      si_target_info_t* lib = SP_NULLPTR;
+      lib = test_manifest_target(mem, info, info->name.str, SPN_TARGET_KIND_LIB);
       lib->linkages = local->linkages;
     }
 
     sp_ht_insert(registry, ((spn_pkg_id_t) { .qualified = info->qualified.id }), ((spn_registry_pkg_t) {
       .source = SPN_PKG_SOURCE_FILE,
-      .info = info,
+      .manifest = info,
     }));
   }
 
-  spn_pkg_info_t* root = (spn_pkg_info_t*)sp_alloc(mem, sizeof(spn_pkg_info_t));
-  *root = sp_zero_s(spn_pkg_info_t);
+  si_pkg_info_t* root = (si_pkg_info_t*)sp_alloc(mem, sizeof(si_pkg_info_t));
+  *root = sp_zero_s(si_pkg_info_t);
   root->namespace = sp_str_lit("test");
   root->name = sp_intern(intern, sp_str_lit("root"));
   root->qualified = sp_intern(intern, sp_str_view(fz_root_qualified));
@@ -214,19 +214,20 @@ static fz_result_t fz_execute(sp_mem_t mem, fz_universe_t* u, sp_intern_t* inter
 
   sp_ht_insert(registry, ((spn_pkg_id_t) { .qualified = root->qualified.id }), ((spn_registry_pkg_t) {
     .source = SPN_PKG_SOURCE_ROOT,
-    .info = root,
+    .manifest = root,
   }));
 
   spn_index_cache_t cache = sp_zero;
 
-  si_da(spn_pkg_config_entry_t) config = SP_NULLPTR;
+  spn_pkg_config_map_t config = sp_zero;
   sp_da_for(u->pkgs, it) {
     if (!u->pkgs[it].has_config) {
       continue;
     }
-    spn_pkg_config_entry_t entry = { .key = fz_pkg_name((u32)it) };
-    sp_opt_set(entry.value.kind, u->pkgs[it].config);
-    si_da_push(mem, config, entry);
+    sp_intern_str_t name = sp_intern(intern, fz_pkg_name((u32)it));
+    spn_pkg_config_t entry = { .name = name };
+    sp_opt_set(entry.kind, u->pkgs[it].config);
+    si_om_insert(mem, config, name.id, entry);
   }
 
   spn_resolver_t resolver = sp_zero;

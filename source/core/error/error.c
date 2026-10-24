@@ -13,3 +13,8 @@ spn_err_t spn_err_emit(spn_ctx_t* ctx, spn_err_union_t err) {
   }
   return err.kind;
 }
+
+spn_err_union_t spn_err_about(spn_err_union_t err, sp_str_t subject) {
+  err.subject = subject;
+  return err;
+}

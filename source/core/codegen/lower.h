@@ -10,14 +10,10 @@
 #include "common.gen.h"
 #include "manifest.gen.h"
 #include "pkg/types.h"
+#include "project/types.h"
 
-spn_err_t spn_pkg_lower(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, spn_pkg_info_t* out);
-
-spn_err_t spn_pkg_lower_patch_hashes(spn_toml_loader_t* ctx, spn_pkg_info_t* out);
-
-spn_err_t spn_pkg_reject_patches(spn_toml_loader_t* ctx, spn_pkg_info_t* out);
+void             spn_manifest_lower(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, si_pkg_info_t* pkg);
+void             spn_project_lower(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, spn_project_t* project);
 spn_index_info_t spn_index_lower(spn_toml_loader_t* ctx, u32 at, spn_index_kind_t kind, const spn_cg_index_t* decl);
-
-spn_err_t spn_codegen_load_pkg(spn_toml_loader_t* ctx, spn_path_t manifest, spn_pkg_info_t* out);
 
 #endif

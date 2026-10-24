@@ -467,9 +467,9 @@ sp_test_each(options_merge, merge, merge_test_t, tests, .setup = spn_test_ctx_se
 
   sp_mem_t mem = sp_test_arena(t);
 
-  spn_resolved_pkg_t pkg = {
-    .name = sp_str_lit("p"),
-    .source = it->is_root ? SPN_PKG_SOURCE_ROOT : SPN_PKG_SOURCE_INDEX,
+  spn_option_subject_t pkg = {
+    .name = spn_intern_lit("p"),
+    .is_root = it->is_root,
   };
   sp_carr_for(it->decls, dx) {
     option_decl_t* decl = &it->decls[dx];
@@ -497,24 +497,14 @@ sp_test_each(options_merge, merge, merge_test_t, tests, .setup = spn_test_ctx_se
     si_om_insert(mem, pkg.options, option.id, option);
   }
 
-  spn_profile_info_t profile = {
-    .os = it->facts.os,
-    .arch = it->facts.arch,
-    .abi = it->facts.abi,
-    .mode = it->facts.mode,
-    .opt = it->facts.opt,
-    .sanitizers = it->facts.sanitizers,
-    .options = make_when(mem, it->profile_options, SP_CARR_LEN(it->profile_options)),
-  };
+  spn_when_t profile_options = make_when(mem, it->profile_options, SP_CARR_LEN(it->profile_options));
 
-  si_da(spn_pkg_config_entry_t) config = SP_NULLPTR;
+  spn_pkg_config_map_t config = sp_zero;
   if (it->config[0].key || it->defaults_declined) {
-    si_da_push(mem, config, ((spn_pkg_config_entry_t) {
-      .key = sp_str_lit("p"),
-      .value = {
-        .options = make_when(mem, it->config, SP_CARR_LEN(it->config)),
-        .defaults_declined = it->defaults_declined,
-      },
+    si_om_insert(mem, config, pkg.name.id, ((spn_pkg_config_t) {
+      .name = pkg.name,
+      .options = make_when(mem, it->config, SP_CARR_LEN(it->config)),
+      .defaults_declined = it->defaults_declined,
     }));
   }
 
@@ -524,13 +514,13 @@ sp_test_each(options_merge, merge, merge_test_t, tests, .setup = spn_test_ctx_se
     spn_when_t* options = (spn_when_t*)sp_alloc(mem, sizeof(spn_when_t));
     *options = make_when(mem, it->requests[rx].options, SP_CARR_LEN(it->requests[rx].options));
     sp_da_push(requests, ((spn_option_request_t) {
-      .consumer = sp_str_view(it->requests[rx].consumer),
+      .consumer = spn_intern_cstr(it->requests[rx].consumer),
       .options = options,
     }));
   }
 
   spn_merged_options_t merged = sp_zero;
-  spn_pkg_options_merge(mem, &pkg, &profile, config, requests, &merged);
+  spn_options_merge(mem, pkg, requests, it->facts, &profile_options, config, &merged);
 
   if (it->expect.violation) {
     sp_must(t, !sp_da_empty(merged.violations));
@@ -541,13 +531,13 @@ sp_test_each(options_merge, merge, merge_test_t, tests, .setup = spn_test_ctx_se
       sp_expect_eq(t, violation->a.kind, it->expect.a.kind);
     }
     if (it->expect.a.name) {
-      sp_expect(t, sp_str_equal_cstr(violation->a.name, it->expect.a.name));
+      sp_expect(t, sp_str_equal_cstr(violation->a.name.str, it->expect.a.name));
     }
     if (it->expect.b.kind) {
       sp_expect_eq(t, violation->b.kind, it->expect.b.kind);
     }
     if (it->expect.b.name) {
-      sp_expect(t, sp_str_equal_cstr(violation->b.name, it->expect.b.name));
+      sp_expect(t, sp_str_equal_cstr(violation->b.name.str, it->expect.b.name));
     }
     return SP_OK;
   }
@@ -561,7 +551,7 @@ sp_test_each(options_merge, merge, merge_test_t, tests, .setup = spn_test_ctx_se
     sp_test_kv_c(t, "option", expected->name);
     bool found = false;
     sp_da_for(merged.options, rt) {
-      if (!sp_str_equal_cstr(merged.options[rt].name, expected->name)) continue;
+      if (!sp_str_equal_cstr(merged.options[rt].name.str, expected->name)) continue;
       sp_expect(t, spn_option_value_equal(merged.options[rt].value, make_value(expected->value)));
       sp_expect_eq(t, merged.options[rt].is_default, expected->is_default);
       found = true;

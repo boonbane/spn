@@ -320,12 +320,14 @@ static const exec_test_t exec_tests [] = {
 static spn_err_t execute_action(const si_dag_ctx_t* c, void* user_data) {
   env_t* env = (env_t*)user_data;
   spn_try(dag_test_exec_stamp(c, &env->dag));
+  sp_mem_arena_marker_t s = sp_mem_begin_scratch();
   spn_dag_glob_result_t glob = sp_zero;
-  spn_try(spn_dag_glob(c->mem, c->roots, env->pattern, &glob));
+  spn_err_t err = spn_dag_glob(s.mem, c->roots, env->pattern, &glob);
   sp_da_for(glob.obs, it) {
     si_dag_observe(c, glob.obs[it]);
   }
-  return SPN_OK;
+  sp_mem_end_scratch(s);
+  return err;
 }
 
 sp_test_each(dag_glob, exec, exec_test_t, exec_tests) {

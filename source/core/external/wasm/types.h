@@ -30,6 +30,7 @@ typedef struct spn_dag_wasi_t spn_dag_wasi_t;
 typedef struct {
   spn_pkg_unit_t* unit;
   spn_path_t path;
+  sp_mem_arena_t* arena;
   spn_wasm_module_t* module;
   spn_wasm_instance_t* instance;
   spn_wasm_exec_env_t* env;

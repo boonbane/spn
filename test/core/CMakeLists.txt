@@ -82,7 +82,8 @@ add_executable(core
   manifest/gen/gen.c
   manifest/lower/lower.c
   options/merge.c
-  options/apply.c
+  pkg/eval.c
+  pkg/load.c
   options/session.c
   paths/anchor.c
   paths/canonicalize.c
@@ -97,7 +98,6 @@ add_executable(core
   paths/stage.c
   paths/tree_path.c
   paths/tree_rel.c
-  pkg/pkg.c
   profile/profile.c
   publish/publish.c
   queue/ops.c
@@ -140,7 +140,6 @@ add_executable(core
   unit/objects.c
   unit/paths.c
   unit/fingerprint.c
-  unit/clone.c
   zig/decode.c
   zig/stubs.c
   ${CMAKE_SOURCE_DIR}/tools/jtd.c
@@ -209,9 +208,7 @@ add_executable(core
   ${SRC}/graph/build.c
   ${SRC}/paths/paths.c
   ${SRC}/pkg/id.c
-  ${SRC}/pkg/mutate.c
-  ${SRC}/pkg/options.c
-  ${SRC}/pkg/patch.c
+  ${SRC}/options/options.c
   ${SRC}/pkg/pkg.c
   ${SRC}/profile/profile.c
   ${SRC}/reflect/json.c
@@ -285,6 +282,8 @@ set_source_files_properties(jtd/harness.c jtd/conformance.c PROPERTIES COMPILE_D
   "JTD_TEST_JSON_DIR=\"test/core/jtd/json\"")
 set_source_files_properties(manifest/lower/lower.c PROPERTIES COMPILE_DEFINITIONS
   "MANIFEST_DIR=\"test/core/manifest/lower/manifests\"")
+set_source_files_properties(pkg/load.c PROPERTIES COMPILE_DEFINITIONS
+  "PKG_MANIFEST_DIR=\"test/core/pkg/manifests\"")
 set_source_files_properties(config/config.c PROPERTIES COMPILE_DEFINITIONS
   "CONFIG_DIR=\"test/core/config/configs\"")
 set_source_files_properties(

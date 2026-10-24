@@ -15,7 +15,6 @@
 #include "semver/convert.h"
 #include "semver/parser.h"
 #include "toml/edit.h"
-#include "toml/issue.h"
 
 typedef struct {
   sp_str_t path [4];
@@ -49,32 +48,6 @@ static site_t find_site(spn_toml_edit_t* edit, sp_mem_t mem, sp_str_t table, sp_
   };
 }
 
-static spn_err_t index_err(spn_ctx_t* ctx, spn_pkg_name_t name, spn_err_t kind, spn_index_diag_t* diag) {
-  switch (kind) {
-    case SPN_ERR_MANIFEST_ISSUES: {
-      return spn_err_emit(ctx, (spn_err_union_t) {
-        .kind = kind,
-        .manifest = { .name = spn_pkg_name_to_qualified(name), .path = diag->path, .issues = spn_codegen_issues_to_err(ctx->events->mem, diag->issues) },
-      });
-    }
-    case SPN_ERR_INDEX_CORRUPT: {
-      return spn_err_emit(ctx, (spn_err_union_t) {
-        .kind = kind,
-        .index_corrupt = { .name = spn_pkg_name_to_qualified(name), .path = diag->path },
-      });
-    }
-    case SPN_ERR_INDEX_PATH_DEP: {
-      return spn_err_emit(ctx, (spn_err_union_t) {
-        .kind = kind,
-        .pkg = { .name = spn_pkg_name_to_qualified(name), .requested = diag->dep },
-      });
-    }
-    default: {
-      return spn_err_emit(ctx, (spn_err_union_t) { .kind = kind });
-    }
-  }
-}
-
 static spn_err_t add(spn_ctx_t* ctx, spn_add_request_t request, spn_semver_range_t range) {
   spn_try(spn_ctx_require_project(ctx));
 
@@ -84,10 +57,9 @@ static spn_err_t add(spn_ctx_t* ctx, spn_add_request_t request, spn_semver_range
   spn_index_cache_init(&cache, ctx->heap, ctx->intern, &ctx->roots, &ctx->indexes);
 
   spn_index_pkg_t* pkg = SP_NULLPTR;
-  spn_index_diag_t diag = sp_zero;
-  spn_err_t got = spn_index_cache_get_package(&cache, name, &pkg, &diag);
-  if (got) {
-    return index_err(ctx, name, got, &diag);
+  spn_err_union_t err = sp_zero;
+  if (spn_index_cache_get_package(&cache, name, &pkg, &err)) {
+    return spn_err_emit(ctx, err);
   }
   if (!pkg || sp_da_empty(pkg->releases)) {
     return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_PKG_UNKNOWN, .unknown = { .qualified = spn_pkg_name_to_qualified(name) } });

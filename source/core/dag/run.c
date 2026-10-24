@@ -752,7 +752,6 @@ static spn_err_t execute_attempt(sp_mem_t mem, spn_dag_t* g, si_dag_action_handl
   attempt->env = env;
   si_dag_ctx_t c = {
     .handle = attempt,
-    .mem = mem,
     .consumes = action->consumes,
     .produces = action->produces,
     .roots = g->roots,

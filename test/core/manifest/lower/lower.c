@@ -4,7 +4,7 @@
 #include "codegen/codegen.h"
 #include "codegen/lower.h"
 #include "manifest.gen.h"
-#include "pkg/pkg.h"
+#include "manifest.h"
 #include "target/types.h"
 #include "profile/types.h"
 #include "index/types.h"
@@ -158,7 +158,6 @@ typedef struct {
 typedef struct {
   const c8* name;
   const c8* files [4];
-  bool hashed;
 } patch_t;
 
 typedef struct {
@@ -195,8 +194,6 @@ typedef struct {
   config_t config [8];
   option_t options [4];
   patch_t patches [4];
-  bool hash_patches;
-  bool reject_patches;
 } test_t;
 
 ///////////
@@ -1510,31 +1507,6 @@ static const test_t tests [] = {
     },
   },
   {
-    .name = "patch_hashes",
-    .manifest = "patch_table",
-    .hash_patches = true,
-    .patches = {
-      { .name = "ns/q", .files = { "patches/a.patch", "patches/b.patch" }, .hashed = true },
-    },
-  },
-  {
-    .name = "patch_hash_missing_file",
-    .manifest = "patch_missing_file",
-    .hash_patches = true,
-    .issues = {
-      { SPN_ERR_CODEGEN_FILE_MISSING, "patch.core/q[0].files" },
-    },
-  },
-  {
-    .name = "patch_hash_missing_files_in_two_entries",
-    .manifest = "patch_missing_two",
-    .hash_patches = true,
-    .issues = {
-      { SPN_ERR_CODEGEN_FILE_MISSING, "patch.core/q[0].files" },
-      { SPN_ERR_CODEGEN_FILE_MISSING, "patch.core/r[1].files" },
-    },
-  },
-  {
     .name = "patch_duplicate_canonical_name",
     .manifest = "patch_duplicate",
     .issues = {
@@ -1557,14 +1529,6 @@ static const test_t tests [] = {
     .manifest = "validate_patch_files_empty",
     .issues = {
       { SPN_ERR_CODEGEN_MISSING_KEY, "patch.q.files" },
-    },
-  },
-  {
-    .name = "patch_rejected_outside_root",
-    .manifest = "patch_table",
-    .reject_patches = true,
-    .issues = {
-      { SPN_ERR_CODEGEN_ROOT_ONLY, "patch" },
     },
   },
   {
@@ -1649,10 +1613,15 @@ static sp_err_t check_gated_source_list(sp_test_t* t, sp_da(spn_gated_source_t) 
   sp_try(check_gated_source_list(t, actual, expected, num_gated)); \
 } while (0)
 
-static sp_err_t check_targets(sp_test_t* t, spn_pkg_info_t* pkg, const target_t* arr, u32 n, spn_target_kind_t kind) {
+static const si_target_info_t* get_target(const si_pkg_info_t* manifest, sp_str_t name, spn_target_kind_t kind) {
+  si_target_id_t id = { .name = spn_intern(name).id, .kind = kind };
+  return si_om_get(manifest->targets, id);
+}
+
+static sp_err_t check_targets(sp_test_t* t, si_pkg_info_t* pkg, const target_t* arr, u32 n, spn_target_kind_t kind) {
   for (u32 i = 0; i < n; i++) {
     if (!arr[i].name) break;
-    spn_target_info_t* info = spn_pkg_get_target(pkg, sp_str_view(arr[i].name), kind);
+    const si_target_info_t* info = get_target(pkg, sp_cstr_as_str(arr[i].name), kind);
     sp_must(t, info);
     sp_expect_eq(t, (u32)kind, (u32)info->kind);
     sp_expect_eq(t, arr[i].linkages.source, info->linkages.source);
@@ -1660,33 +1629,22 @@ static sp_err_t check_targets(sp_test_t* t, spn_pkg_info_t* pkg, const target_t*
     sp_expect_eq(t, arr[i].linkages.static_lib, info->linkages.static_lib);
     sp_expect_eq(t, arr[i].linkages.object, info->linkages.object);
     sp_expect_eq(t, arr[i].no_link, info->no_link);
-    sp_expect_eq(t, (u32)0, (u32)si_da_size(info->source));
-    sp_expect_eq(t, (u32)0, (u32)si_da_size(info->include));
-    sp_expect_eq(t, (u32)0, (u32)si_da_size(info->define));
-    sp_expect_eq(t, (u32)0, (u32)si_da_size(info->flags));
-    sp_expect_eq(t, (u32)0, (u32)si_da_size(info->link_flags));
-    sp_expect_eq(t, (u32)0, (u32)si_da_size(info->linker_script));
-    sp_expect_eq(t, (u32)0, (u32)si_da_size(info->system_deps));
-    sp_expect_eq(t, (u32)0, (u32)si_da_size(info->deps));
-    check_gated_sources(t, info->gated.source, arr[i].source);
-    sp_expect_eq(t, (u32)0, (u32)si_da_size(info->publish));
-    check_publish(t, info->gated.publish, arr[i].publish);
-    check_gated_paths(t, info->gated.include, arr[i].include);
-    check_gated(t, info->gated.define, arr[i].define);
-    check_gated(t, info->gated.flags, arr[i].flags);
-    check_gated(t, info->gated.link_flags, arr[i].link_flags);
-    check_gated_paths(t, info->gated.linker_script, arr[i].linker_script);
-    check_gated(t, info->gated.system_deps, arr[i].system_deps);
-    check_gated(t, info->gated.deps, arr[i].deps);
-    sp_expect_eq(t, (u32)0, (u32)si_da_size(info->macos.frameworks));
-    check_gated(t, info->gated.frameworks, arr[i].frameworks);
+    check_gated_sources(t, info->source, arr[i].source);
+    check_publish(t, info->publish, arr[i].publish);
+    check_gated_paths(t, info->include, arr[i].include);
+    check_gated(t, info->define, arr[i].define);
+    check_gated(t, info->flags, arr[i].flags);
+    check_gated(t, info->link_flags, arr[i].link_flags);
+    check_gated_paths(t, info->linker_script, arr[i].linker_script);
+    check_gated(t, info->system_deps, arr[i].system_deps);
+    check_gated(t, info->deps, arr[i].deps);
+    check_gated(t, info->macos.frameworks, arr[i].frameworks);
     u32 num_embeds = 0;
     sp_carr_detect_len(arr[i].embed, num_embeds, arr[i].embed[num_embeds].path);
-    sp_expect_eq(t, (u32)0, (u32)si_da_size(info->embed));
-    sp_must_eq(t, num_embeds, (u32)si_da_size(info->gated.embed));
+    sp_must_eq(t, num_embeds, (u32)si_da_size(info->embed));
     sp_for(e, num_embeds) {
       const embed_t* expected = &arr[i].embed[e];
-      spn_gated_embed_t* actual = &info->gated.embed[e];
+      spn_gated_embed_t* actual = &info->embed[e];
       spn_tree_t tree = expected->tree ? expected->tree : SPN_TREE_SOURCE;
       sp_expect_eq(t, (u32)(expected->dir ? SPN_EMBED_DIR : SPN_EMBED_FILE), (u32)actual->kind);
       sp_expect_str_eq_c(t, actual->path, expected->path);
@@ -1717,15 +1675,10 @@ sp_test_each(lower, cases, test_t, tests, .setup = spn_test_ctx_setup) {
   spn_cg_manifest_t cg = sp_zero;
   spn_codegen_load(&ctx, (spn_path_t) { .sub = path }, &cg);
 
-  spn_pkg_info_t pkg = sp_zero;
-  spn_pkg_lower(&ctx, &cg, &pkg);
-
-  if (it->hash_patches) {
-    spn_pkg_lower_patch_hashes(&ctx, &pkg);
-  }
-  if (it->reject_patches) {
-    spn_pkg_reject_patches(&ctx, &pkg);
-  }
+  spn_project_t project = sp_zero;
+  si_pkg_info_t* pkg = &project.package;
+  spn_manifest_lower(&ctx, &cg, pkg);
+  spn_project_lower(&ctx, &cg, &project);
 
   // Issues
   u32 num_issues = 0;
@@ -1737,47 +1690,42 @@ sp_test_each(lower, cases, test_t, tests, .setup = spn_test_ctx_setup) {
   }
 
   // Package scalars
-  if (it->pkg_name)   sp_expect_str_eq_c(t, pkg.name.str, it->pkg_name);
-  if (it->namespace)  sp_expect_str_eq_c(t, pkg.namespace, it->namespace);
-  if (it->qualified)  sp_expect_str_eq_c(t, pkg.qualified.str, it->qualified);
-  if (it->url)        sp_expect_str_eq_c(t, pkg.upstream.url, it->url);
-  if (it->repo)       sp_expect_str_eq_c(t, pkg.repo, it->repo);
-  if (it->author)     sp_expect_str_eq_c(t, pkg.author, it->author);
-  if (it->maintainer) sp_expect_str_eq_c(t, pkg.maintainer, it->maintainer);
+  if (it->pkg_name)   sp_expect_str_eq_c(t, pkg->name.str, it->pkg_name);
+  if (it->namespace)  sp_expect_str_eq_c(t, pkg->namespace, it->namespace);
+  if (it->qualified)  sp_expect_str_eq_c(t, pkg->qualified.str, it->qualified);
+  if (it->url)        sp_expect_str_eq_c(t, pkg->upstream.git.url, it->url);
+  if (it->repo)       sp_expect_str_eq_c(t, pkg->repo, it->repo);
+  if (it->author)     sp_expect_str_eq_c(t, pkg->author, it->author);
+  if (it->maintainer) sp_expect_str_eq_c(t, pkg->maintainer, it->maintainer);
 
   if (!spn_semver_is_empty(it->version)) {
-    sp_expect_eq(t, it->version.major, pkg.version.major);
-    sp_expect_eq(t, it->version.minor, pkg.version.minor);
-    sp_expect_eq(t, it->version.patch, pkg.version.patch);
+    sp_expect_eq(t, it->version.major, pkg->version.major);
+    sp_expect_eq(t, it->version.minor, pkg->version.minor);
+    sp_expect_eq(t, it->version.patch, pkg->version.patch);
   }
 
   if (it->commit) {
-    sp_expect_str_eq_c(t, pkg.upstream.commit, it->commit);
+    sp_expect_str_eq_c(t, pkg->upstream.git.rev, it->commit);
   }
 
   // Package arrays
-  sp_expect_eq(t, (u32)0, (u32)si_da_size(pkg.define));
-  check_gated(t, pkg.gated.define, it->define);
-  check_gated(t, pkg.gated.system_deps, it->system_deps);
-  sp_expect_eq(t, (u32)0, (u32)si_da_size(pkg.macos.frameworks));
-  check_gated(t, pkg.gated.frameworks, it->frameworks);
-  sp_expect_eq(t, (u32)0, (u32)si_da_size(pkg.publish));
-  check_publish(t, pkg.gated.publish, it->publish);
-  sp_expect_eq(t, (u32)0, (u32)si_da_size(pkg.include));
-  check_gated_paths(t, pkg.gated.include, it->include);
-  check_gated_sources(t, pkg.build.gated.source, it->build_source);
-  check_gated_paths(t, pkg.build.gated.include, it->build_include);
-  sp_expect_eq(t, (u32)0, (u32)si_da_size(pkg.build.define));
-  sp_expect_eq(t, (u32)0, (u32)si_da_size(pkg.build.flags));
-  check_gated(t, pkg.build.gated.define, it->build_define);
-  check_gated(t, pkg.build.gated.flags, it->build_flags);
+  check_gated(t, pkg->define, it->define);
+  check_gated(t, pkg->system_deps, it->system_deps);
+  check_gated(t, pkg->macos.frameworks, it->frameworks);
+  check_publish(t, pkg->publish, it->publish);
+  check_gated_paths(t, pkg->include, it->include);
+  const si_target_info_t* build = get_target(pkg, sp_str_lit("build"), SPN_TARGET_KIND_BUILD_METAPROGRAM);
+  check_gated_sources(t, build ? build->source : SP_NULLPTR, it->build_source);
+  check_gated_paths(t, build ? build->include : SP_NULLPTR, it->build_include);
+  check_gated(t, build ? build->define : SP_NULLPTR, it->build_define);
+  check_gated(t, build ? build->flags : SP_NULLPTR, it->build_flags);
 
   // Targets
-  sp_try(check_targets(t, &pkg, it->libs,     SP_CARR_LEN(it->libs),     SPN_TARGET_KIND_LIB));
-  sp_try(check_targets(t, &pkg, it->exes,     SP_CARR_LEN(it->exes),     SPN_TARGET_KIND_EXE));
-  sp_try(check_targets(t, &pkg, it->scripts,  SP_CARR_LEN(it->scripts),  SPN_TARGET_KIND_SCRIPT));
-  sp_try(check_targets(t, &pkg, it->tests,    SP_CARR_LEN(it->tests),    SPN_TARGET_KIND_TEST));
-  sp_try(check_targets(t, &pkg, it->examples, SP_CARR_LEN(it->examples), SPN_TARGET_KIND_EXAMPLE));
+  sp_try(check_targets(t, pkg, it->libs,     SP_CARR_LEN(it->libs),     SPN_TARGET_KIND_LIB));
+  sp_try(check_targets(t, pkg, it->exes,     SP_CARR_LEN(it->exes),     SPN_TARGET_KIND_EXE));
+  sp_try(check_targets(t, pkg, it->scripts,  SP_CARR_LEN(it->scripts),  SPN_TARGET_KIND_SCRIPT));
+  sp_try(check_targets(t, pkg, it->tests,    SP_CARR_LEN(it->tests),    SPN_TARGET_KIND_TEST));
+  sp_try(check_targets(t, pkg, it->examples, SP_CARR_LEN(it->examples), SPN_TARGET_KIND_EXAMPLE));
 
   // Deps
   sp_carr_for(it->deps, d) {
@@ -1787,9 +1735,9 @@ sp_test_each(lower, cases, test_t, tests, .setup = spn_test_ctx_setup) {
     spn_dep_kind_t kind = expected.build ? SPN_DEP_KIND_BUILD : expected.test ? SPN_DEP_KIND_TEST : SPN_DEP_KIND_PACKAGE;
 
     spn_requested_dep_t* req = SP_NULLPTR;
-    si_da_for(pkg.deps, j) {
-      if (sp_str_equal(pkg.deps[j].qualified.str, sp_str_view(expected.name)) && pkg.deps[j].kind == kind) {
-        req = &pkg.deps[j];
+    si_da_for(pkg->deps, j) {
+      if (sp_str_equal(pkg->deps[j].qualified.str, sp_str_view(expected.name)) && pkg->deps[j].kind == kind) {
+        req = &pkg->deps[j];
         break;
       }
     }
@@ -1807,7 +1755,7 @@ sp_test_each(lower, cases, test_t, tests, .setup = spn_test_ctx_setup) {
     option_t expected = it->options[o];
     if (!expected.name) break;
 
-    spn_option_info_t** slot = si_om_getp(pkg.options, sp_intern(interner, sp_str_view(expected.name)).id);
+    spn_option_info_t** slot = si_om_getp(pkg->options, sp_intern(interner, sp_str_view(expected.name)).id);
     sp_must(t, slot);
     spn_option_info_t* option = *slot;
     sp_expect_str_eq_c(t, option->name.str, expected.name);
@@ -1831,7 +1779,7 @@ sp_test_each(lower, cases, test_t, tests, .setup = spn_test_ctx_setup) {
     toolchain_t expected = it->toolchains[c];
     if (!expected.name) break;
 
-    spn_toolchain_decl_t* tc = si_om_get(pkg.toolchains, sp_intern(interner, sp_str_view(expected.name)).id);
+    spn_toolchain_decl_t* tc = si_om_get(project.toolchains, sp_intern(interner, sp_str_view(expected.name)).id);
     sp_must(t, tc);
 
     if (expected.url)      sp_expect_str_eq_c(t, tc->hosts[0].artifact.url, expected.url);
@@ -1873,7 +1821,7 @@ sp_test_each(lower, cases, test_t, tests, .setup = spn_test_ctx_setup) {
     profile_t expected = it->profiles[pr];
     if (!expected.name) break;
 
-    spn_profile_decl_t* p = si_om_get(pkg.profiles, sp_intern(interner, sp_str_view(expected.name)).id);
+    spn_profile_decl_t* p = si_om_get(project.profiles, sp_intern(interner, sp_str_view(expected.name)).id);
     sp_must(t, p);
     sp_expect_str_eq_c(t, p->name.str, expected.name);
     check_gated(t, p->toolchain, expected.toolchain);
@@ -1894,7 +1842,7 @@ sp_test_each(lower, cases, test_t, tests, .setup = spn_test_ctx_setup) {
     index_t expected = it->indexes[x];
     if (!expected.name) break;
 
-    spn_index_info_t* idx = si_om_get(pkg.indexes, sp_intern(interner, sp_str_view(expected.name)).id);
+    spn_index_info_t* idx = si_om_get(project.indexes, sp_intern(interner, sp_str_view(expected.name)).id);
     sp_must(t, idx);
     if (expected.url) sp_expect_str_eq_c(t, idx->protocol == SPN_INDEX_PROTOCOL_HTTP ? idx->http.url : idx->git.url, expected.url);
     if (expected.path) sp_expect_str_eq(t, idx->dir.path.sub, sp_fs_join_path(mem, ctx.dir.sub, sp_cstr_as_str(expected.path)));
@@ -1908,9 +1856,9 @@ sp_test_each(lower, cases, test_t, tests, .setup = spn_test_ctx_setup) {
     if (!expected.name) break;
 
     spn_pkg_patch_t* patch = SP_NULLPTR;
-    si_da_for(pkg.patches, j) {
-      if (sp_str_equal(pkg.patches[j].qualified.str, sp_str_view(expected.name))) {
-        patch = &pkg.patches[j];
+    si_da_for(project.patches, j) {
+      if (sp_str_equal(project.patches[j].qualified.str, sp_str_view(expected.name))) {
+        patch = &project.patches[j];
         break;
       }
     }
@@ -1924,7 +1872,6 @@ sp_test_each(lower, cases, test_t, tests, .setup = spn_test_ctx_setup) {
       sp_expect(t, sp_str_ends_with(patch->set.files[j], sp_str_view(expected.files[j])));
     }
 
-    sp_expect_eq(t, expected.hashed, patch->set.hash != 0);
   }
 
   // Config
@@ -1932,20 +1879,14 @@ sp_test_each(lower, cases, test_t, tests, .setup = spn_test_ctx_setup) {
     config_t expected = it->config[ct];
     if (!expected.key) break;
 
-    spn_pkg_config_entry_t* entry = SP_NULLPTR;
-    si_da_for(pkg.config, j) {
-      if (sp_str_equal(pkg.config[j].key, sp_str_view(expected.key))) {
-        entry = &pkg.config[j];
-        break;
-      }
-    }
-    sp_must(t, entry);
+    spn_pkg_config_t* config = si_om_get(project.config, sp_intern(interner, sp_cstr_as_str(expected.key)).id);
+    sp_must(t, config);
     if (expected.kind) {
-      sp_must(t, !sp_opt_is_null(entry->value.kind));
-      sp_expect_eq(t, (u32)expected.kind, (u32)sp_opt_get(entry->value.kind));
+      sp_must(t, !sp_opt_is_null(config->kind));
+      sp_expect_eq(t, (u32)expected.kind, (u32)sp_opt_get(config->kind));
     }
-    if (expected.options) sp_expect_str_eq_c(t, spn_when_to_str(mem, &entry->value.options), expected.options);
-    sp_expect_eq(t, expected.defaults_declined, entry->value.defaults_declined);
+    if (expected.options) sp_expect_str_eq_c(t, spn_when_to_str(mem, &config->options), expected.options);
+    sp_expect_eq(t, expected.defaults_declined, config->defaults_declined);
   }
 
   return SP_OK;

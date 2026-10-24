@@ -41,7 +41,7 @@ static spn_err_t consume(const si_dag_ctx_t* c, void* user_data) {
     && spn_path_equal(si_dag_resolve_output(c, c->produces[0]), output);
   env->seen.output_name = sp_str_copy(env->dag.mem, sp_fs_get_name(output.sub));
   sp_str_t content = sp_zero;
-  if (sp_io_read_file_at(c->mem, dag_test_at(&env->dag, input), &content)) {
+  if (sp_io_read_file_at(env->dag.mem, dag_test_at(&env->dag, input), &content)) {
     return SPN_ERR_DAG_ACTION;
   }
   env->seen.input_content = sp_str_copy(env->dag.mem, content);

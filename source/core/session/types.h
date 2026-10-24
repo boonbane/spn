@@ -10,6 +10,7 @@
 #include "compiler/types.h"
 #include "core/types.h"
 #include "dag/types.h"
+#include "options/types.h"
 #include "profile/types.h"
 #include "resolve/types.h"
 #include "session/registry/types.h"
@@ -19,10 +20,8 @@
 
 typedef struct {
   spn_pkg_source_t source;
-  spn_pkg_info_t* info;
+  const si_pkg_info_t* manifest;
   spn_tree_roots_t roots;
-  spn_target_info_t configure;
-  spn_target_info_t build;
 } spn_loaded_pkg_t;
 
 struct spn_session_t {
@@ -30,7 +29,7 @@ struct spn_session_t {
   spn_project_t* project;
   sp_mem_arena_t* arena;
   sp_mem_t mem;
-  spn_pkg_info_t* pkg;
+  const si_pkg_info_t* manifest;
 
   bool force;
 

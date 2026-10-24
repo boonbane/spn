@@ -1,11 +1,11 @@
 #include "unit/unit.h"
 
 #include "hash/digest/digest.h"
-#include "pkg/pkg.h"
 #include "session/session.h"
 #include "str/str.h"
 #include "profile/types.h"
 #include "toolchain/sdk.h"
+#include "when/when.h"
 
 typedef struct {
   sp_hash_t qualified;
@@ -51,7 +51,7 @@ static sp_hash_t hash_options(spn_session_t* session, spn_pkg_id_t id) {
     }
     sp_hash_t parts [] = {
       hash,
-      spn_digest_hash_str(option->name),
+      spn_digest_hash_str(option->name.str),
       (sp_hash_t)option->value.kind,
       option->value.kind == SPN_OPTION_VALUE_STR ? spn_digest_hash_str(option->value.str) : (sp_hash_t)option->value.b,
     };
@@ -71,6 +71,58 @@ static sp_hash_t hash_strs(sp_da(sp_str_t) strs) {
     sp_hash_t parts [] = { hash, spn_digest_hash_str(strs[it]) };
     hash = spn_digest_hash_combine(parts, sp_carr_len(parts));
   }
+  return hash;
+}
+
+static sp_hash_t hash_push(sp_hash_t hash, sp_hash_t value) {
+  sp_hash_t parts [] = { hash, value };
+  return spn_digest_hash_combine(parts, sp_carr_len(parts));
+}
+
+static sp_hash_t hash_gated(sp_hash_t hash, spn_gated_list_t list) {
+  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+  si_da_for_ptr(list, entry) {
+    hash = hash_push(hash, spn_digest_hash_str(entry->value));
+    hash = hash_push(hash, spn_digest_hash_str(spn_when_to_str(scratch.mem, &entry->when)));
+  }
+  sp_mem_end_scratch(scratch);
+  return hash;
+}
+
+static sp_hash_t hash_platform(const si_pkg_info_t* manifest, const spn_profile_info_t* profile) {
+  sp_hash_t hash = 0;
+
+  switch (profile->os) {
+    case SPN_OS_MACOS: {
+      hash = hash_push(hash, spn_digest_hash(&manifest->macos.min_os, sizeof(manifest->macos.min_os)));
+      hash = hash_gated(hash, manifest->macos.frameworks);
+      si_om_for(manifest->targets, it) {
+        si_target_info_t* target = si_om_at(manifest->targets, it);
+        hash = hash_push(hash, spn_digest_hash_str(target->name.str));
+        hash = hash_push(hash, (sp_hash_t)target->kind);
+        hash = hash_push(hash, spn_digest_hash(&target->macos.min_os, sizeof(target->macos.min_os)));
+        hash = hash_gated(hash, target->macos.frameworks);
+      }
+      break;
+    }
+    case SPN_OS_WINDOWS: {
+      si_om_for(manifest->targets, it) {
+        si_target_info_t* target = si_om_at(manifest->targets, it);
+        if (target->windows.subsystem == SPN_WIN_SUBSYSTEM_NONE) continue;
+        hash = hash_push(hash, spn_digest_hash_str(target->name.str));
+        hash = hash_push(hash, (sp_hash_t)target->kind);
+        hash = hash_push(hash, (sp_hash_t)target->windows.subsystem);
+      }
+      break;
+    }
+    case SPN_OS_LINUX:
+    case SPN_OS_WASI:
+    case SPN_OS_FREESTANDING:
+    case SPN_OS_NONE: {
+      break;
+    }
+  }
+
   return hash;
 }
 
@@ -97,13 +149,15 @@ sp_hash_t spn_unit_fingerprint(spn_session_t* session, spn_build_unit_t* build, 
   }
 
   spn_loaded_pkg_t* loaded = sp_ht_getp(session->packages, id);
-  spn_pkg_info_t* pkg = loaded->info;
+  const si_pkg_info_t* manifest = loaded->manifest;
 
   fingerprint_input_t fingerprint = sp_zero;
-  fingerprint.qualified = spn_digest_hash_str(pkg->qualified.str);
+  fingerprint.qualified = spn_digest_hash_str(manifest->qualified.str);
   fingerprint.options = hash_options(session, id);
-  fingerprint.version = pkg->version;
-  fingerprint.commit = spn_digest_hash_str(pkg->upstream.commit);
+  fingerprint.version = manifest->version;
+  if (manifest->upstream.kind == SPN_PKG_ROOT_GIT) {
+    fingerprint.commit = spn_digest_hash_str(manifest->upstream.git.rev);
+  }
 
   spn_resolved_pkg_t* resolved = sp_ht_getp(session->resolve, id);
   if (resolved) {
@@ -127,7 +181,7 @@ sp_hash_t spn_unit_fingerprint(spn_session_t* session, spn_build_unit_t* build, 
   }
 
   spn_toolchain_info_t* toolchain = build->toolchain->info;
-  sp_opt_spn_linkage_t config = spn_session_config_kind(session, pkg->name.str);
+  sp_opt_spn_linkage_t config = spn_session_config_kind(session, manifest->name);
 
   fingerprint.mode = build->profile.mode;
   fingerprint.opt = build->profile.opt;
@@ -141,7 +195,7 @@ sp_hash_t spn_unit_fingerprint(spn_session_t* session, spn_build_unit_t* build, 
   fingerprint.os = build->profile.os;
   fingerprint.abi = build->profile.abi;
   fingerprint.sdk = spn_sdk_hash(&build->profile.sdk);
-  fingerprint.platform = spn_pkg_hash_platform(pkg, &build->profile);
+  fingerprint.platform = hash_platform(manifest, &build->profile);
   fingerprint.toolchain.name = spn_digest_hash_str(toolchain->name.str);
   fingerprint.toolchain.cc = hash_arg(toolchain->compiler.program);
   fingerprint.toolchain.ar = hash_arg(toolchain->archiver.program);

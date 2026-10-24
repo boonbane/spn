@@ -175,9 +175,6 @@ static const failure_t failures [] = {
   { .name = "relative_path", .err = SPN_ERR_WASM_MODULE_CALL_FAILED },
   { .name = "foreign_path", .err = SPN_ERR_WASM_MODULE_CALL_FAILED },
   { .name = "node_output_absolute", .err = SPN_ERR_WASM_MODULE_CALL_FAILED },
-  { .name = "name_separator_exe", .err = SPN_ERR_WASM_MODULE_CALL_FAILED },
-  { .name = "name_separator_lib", .err = SPN_ERR_WASM_MODULE_CALL_FAILED },
-  { .name = "name_separator_test", .err = SPN_ERR_WASM_MODULE_CALL_FAILED },
   { .name = "name_separator_node", .err = SPN_ERR_WASM_MODULE_CALL_FAILED },
   { .name = "nested_output", .err = SPN_ERR_DAG_NESTED_OUTPUT },
   { .name = "configure_missing_source", .err = SPN_ERR_CONFIGURE_SOURCE_MISSING },
@@ -229,8 +226,6 @@ sp_test(script, object_lib) {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
       // object libs publish their objects to lib/, preserving source-relative paths
       { .kind = ACTION_VERIFY_EXISTS, .exists = pkg_store_file("spum", "lib/manifest/rt/extra.c.o") },
-      // ditto for an object lib declared from the build script instead of the manifest
-      { .kind = ACTION_VERIFY_EXISTS, .exists = pkg_store_file("spum", "lib/manifest/rt/extra2.c.o") },
       // an unlinked archive still builds and installs
       { .kind = ACTION_VERIFY_EXISTS, .exists = pkg_static_lib("spum", "blob") },
       { .kind = ACTION_RUN_BIN, .bin.name = "object_lib" },
@@ -424,26 +419,6 @@ sp_test(script, add_system_dep) {
     .project = "test/integration/fixtures/script/add_system_dep",
     .args = { "build" },
     .expect.exists = { exe("main") },
-  });
-}
-
-sp_test(script, add_test) {
-  return run_test(t, (test_t) {
-    .project = "test/integration/fixtures/script/add_test",
-    .actions = {
-      { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_RUN_TEST, .bin.name = "test" },
-    },
-  });
-}
-
-sp_test(script, add_exe) {
-  return run_test(t, (test_t) {
-    .project = "test/integration/fixtures/script/add_exe",
-    .actions = {
-      { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_RUN_BIN, .bin.name = "foo" },
-    },
   });
 }
 

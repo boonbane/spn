@@ -1,5 +1,7 @@
 #include "options.h"
 
+#include "project/types.h"
+
 typedef struct {
   spn_err_t err;
   const c8* pkg;
@@ -68,14 +70,16 @@ sp_test_each(options_session, apply, session_test_t, tests, .setup = spn_test_ct
   sp_mem_t mem = sp_test_arena(t);
   sp_intern_t* intern = spn.intern;
 
-  spn_pkg_info_t root = {
-    .name = spn_intern_lit("test"),
-    .qualified = spn_intern_lit("core/test"),
+  spn_project_t project = {
+    .package = {
+      .name = spn_intern_lit("test"),
+      .qualified = spn_intern_lit("core/test"),
+    },
   };
+  si_pkg_info_t* root = &project.package;
   if (it->config) {
-    si_da_push(mem, root.config, ((spn_pkg_config_entry_t) {
-      .key = sp_cstr_as_str(it->config),
-    }));
+    sp_intern_str_t name = spn_intern_cstr(it->config);
+    si_om_insert(mem, project.config, name.id, ((spn_pkg_config_t) { .name = name }));
   }
   if (it->direct_dep || it->gated_dep) {
     spn_requested_dep_t dep = {
@@ -88,19 +92,19 @@ sp_test_each(options_session, apply, session_test_t, tests, .setup = spn_test_ct
         .value = spn_option_value_str(sp_str_lit("linux")),
       }));
     }
-    si_da_push(mem, root.deps, dep);
+    si_da_push(mem, root->deps, dep);
   }
 
   spn_pkg_id_t root_id = make_id(intern, "core/test");
   spn_resolved_pkg_t root_node = {
     .id = root_id,
-    .name = root.name.str,
+    .name = root->name,
     .source = SPN_PKG_SOURCE_ROOT,
     .edges = sp_da_new(mem, spn_resolved_dep_t),
   };
   spn_loaded_pkg_t root_loaded = {
     .source = SPN_PKG_SOURCE_ROOT,
-    .info = &root,
+    .manifest = root,
   };
 
   spn_build_unit_t target = {
@@ -109,7 +113,8 @@ sp_test_each(options_session, apply, session_test_t, tests, .setup = spn_test_ct
   spn_session_t session = {
     .ctx = &spn,
     .mem = mem,
-    .pkg = &root,
+    .project = &project,
+    .manifest = root,
     .gates = { .resolves = it->resolves },
     .units = { .target = &target },
   };
@@ -118,7 +123,7 @@ sp_test_each(options_session, apply, session_test_t, tests, .setup = spn_test_ct
   sp_ht_insert(session.resolve, root_id, root_node);
   sp_ht_insert(session.packages, root_id, root_loaded);
 
-  spn_pkg_info_t stale = {
+  si_pkg_info_t stale = {
     .name = spn_intern_lit("spum"),
     .qualified = spn_intern_lit("core/spum"),
   };
@@ -126,7 +131,7 @@ sp_test_each(options_session, apply, session_test_t, tests, .setup = spn_test_ct
     spn_pkg_id_t stale_id = make_id(intern, "core/spum");
     sp_ht_insert(session.packages, stale_id, ((spn_loaded_pkg_t) {
       .source = SPN_PKG_SOURCE_INDEX,
-      .info = &stale,
+      .manifest = &stale,
     }));
   }
 

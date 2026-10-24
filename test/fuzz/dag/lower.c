@@ -24,17 +24,17 @@ static spn_err_t fz_exec(const si_dag_ctx_t* c, void* user_data) {
 
   u64 consumed = sp_da_size(fz->consumes);
   u64 count = consumed + sp_da_size(fz->obs);
-  sp_str_t* inputs = sp_alloc_n(c->mem, sp_str_t, count ? count : 1);
+  sp_str_t* inputs = sp_alloc_n(low->mem, sp_str_t, count ? count : 1);
   sp_da_for(fz->consumes, it) {
     spn_dag_id_t id = low->ids[fz->consumes[it]];
     spn_dag_artifact_t* in = spn_dag_find_artifact(low->g, id);
     switch (in->kind) {
       case SPN_DAG_ARTIFACT_KIND_VALUE: {
-        inputs[it] = fz_content(c->mem, low->u->artifacts[fz->consumes[it]].content);
+        inputs[it] = fz_content(low->mem, low->u->artifacts[fz->consumes[it]].content);
         break;
       }
       case SPN_DAG_ARTIFACT_KIND_FILE: {
-        if (sp_io_read_file_at(c->mem, spn_path_at(c->roots, si_dag_resolve_input(c, id)), &inputs[it])) {
+        if (sp_io_read_file_at(low->mem, spn_path_at(c->roots, si_dag_resolve_input(c, id)), &inputs[it])) {
           return SPN_ERR_DAG_ACTION;
         }
         break;
@@ -48,10 +48,10 @@ static spn_err_t fz_exec(const si_dag_ctx_t* c, void* user_data) {
   sp_da_for(fz->obs, ot) {
     fz_obs_t fo = fz->obs[ot];
     sp_str_t path = fo.probe
-      ? fz_phantom_sim_path(c->mem, fo.phantom)
-      : fz_artifact_sim_path(c->mem, low->u, fo.artifact);
+      ? fz_phantom_sim_path(low->mem, fo.phantom)
+      : fz_artifact_sim_path(low->mem, low->u, fo.artifact);
     sp_str_t bytes = sp_zero;
-    sp_err_t read = sp_io_read_file(c->mem, path, &bytes);
+    sp_err_t read = sp_io_read_file(low->mem, path, &bytes);
     if (!read) {
       inputs[consumed + ot] = bytes;
       continue;
@@ -73,7 +73,7 @@ static spn_err_t fz_exec(const si_dag_ctx_t* c, void* user_data) {
   sp_da_for(fz->produces, it) {
     spn_dag_id_t id = low->ids[fz->produces[it]];
     spn_dag_artifact_t* out = spn_dag_find_artifact(low->g, id);
-    sp_str_t content = fz_output_content(c->mem, low->u->actions[ctx->action].identity, inputs, count, out->name);
+    sp_str_t content = fz_output_content(low->mem, low->u->actions[ctx->action].identity, inputs, count, out->name);
     if (sp_fs_create_file_str_at(spn_path_at(c->roots, si_dag_resolve_output(c, id)), content)) {
       return SPN_ERR_DAG_ACTION;
     }
@@ -82,7 +82,7 @@ static spn_err_t fz_exec(const si_dag_ctx_t* c, void* user_data) {
   sp_da_for(fz->obs, ot) {
     fz_obs_t fo = fz->obs[ot];
     if (fo.probe) {
-      sp_str_t path = fz_phantom_sim_path(c->mem, fo.phantom);
+      sp_str_t path = fz_phantom_sim_path(low->mem, fo.phantom);
       sp_sys_file_meta_t meta = sp_zero;
       sp_err_t stat = sp_sys_get_path_metadata_s(sp_sys_get_root(0), path, &meta);
       if (stat && stat != SP_ERR_SYS_NOT_FOUND) {
@@ -96,7 +96,7 @@ static spn_err_t fz_exec(const si_dag_ctx_t* c, void* user_data) {
     else {
       si_dag_observe(c, (spn_dag_obs_t) {
         .kind = SPN_DAG_OBS_FILE,
-        .path = spn_path_make(c->roots, fz_artifact_sim_path(c->mem, low->u, fo.artifact)),
+        .path = spn_path_make(c->roots, fz_artifact_sim_path(low->mem, low->u, fo.artifact)),
       });
     }
   }

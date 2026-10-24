@@ -2,10 +2,10 @@
 
 #include "target/mutate.h"
 
-static spn_err_t select_first_supported(spn_linkage_set_t supported, const spn_linkage_t* order, u32 len, spn_linkage_t* out) {
+static spn_err_t select_first_supported(spn_linkage_set_t supported, const spn_linkage_t* order, u32 len, spn_linkage_t* kind) {
   sp_for(it, len) {
     if (spn_linkage_set_has(supported, order[it])) {
-      *out = order[it];
+      *kind = order[it];
       return SPN_OK;
     }
   }
@@ -13,15 +13,14 @@ static spn_err_t select_first_supported(spn_linkage_set_t supported, const spn_l
   return SPN_ERROR;
 }
 
-spn_err_t spn_target_select_lib_kind(spn_target_info_t* info, spn_kind_query_t query, spn_linkage_t* out) {
-  spn_linkage_set_t supported = info->linkages;
+spn_err_t spn_target_select_lib_kind(spn_linkage_set_t supported, spn_kind_query_t query, spn_linkage_t* kind) {
 
   if (query.config.some) {
     if (!spn_linkage_set_has(supported, query.config.value)) {
       return SPN_ERROR;
     }
 
-    *out = query.config.value;
+    *kind = query.config.value;
     return SPN_OK;
   }
 
@@ -32,12 +31,12 @@ spn_err_t spn_target_select_lib_kind(spn_target_info_t* info, spn_kind_query_t q
     case SPN_LIB_KIND_STATIC:
     case SPN_LIB_KIND_SOURCE: {
       static const spn_linkage_t order [] = { SPN_LIB_KIND_SOURCE, SPN_LIB_KIND_STATIC };
-      return select_first_supported(supported, order, SP_CARR_LEN(order), out);
+      return select_first_supported(supported, order, SP_CARR_LEN(order), kind);
     }
     case SPN_LIB_KIND_SHARED:
     case SPN_LIB_KIND_NONE: {
       static const spn_linkage_t order [] = { SPN_LIB_KIND_SOURCE, SPN_LIB_KIND_STATIC, SPN_LIB_KIND_SHARED };
-      return select_first_supported(supported, order, SP_CARR_LEN(order), out);
+      return select_first_supported(supported, order, SP_CARR_LEN(order), kind);
     }
     // A profile can't request object linkage; object libs never reach selection
     case SPN_LIB_KIND_OBJECT: sp_unreachable_case();

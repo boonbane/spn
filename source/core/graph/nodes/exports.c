@@ -14,16 +14,15 @@
 #include "paths/paths.h"
 #include "session/invocation.h"
 
-spn_err_t si_on_write_exports(const si_dag_ctx_t* c, void* user_data) {
-  si_exports_t* exports = (si_exports_t*)user_data;
+static spn_err_t write_exports(sp_mem_t mem, const si_dag_ctx_t* c, si_exports_t* exports) {
   const spn_path_roots_t* roots = c->roots;
 
   spn_path_t output = si_dag_resolve_output(c, exports->output);
-  spn_path_t archive = spn_path_concat(c->mem, output, ".a");
+  spn_path_t archive = spn_path_concat(mem, output, ".a");
   spn_cc_archive_files_t files = { .cwd = c->scratch, .output = archive };
   switch (exports->objects.kind) {
     case SPN_DAG_BUILD_OBJECTS_DIRECT: {
-      files.objects = si_dag_build_paths(c, exports->objects.ids);
+      files.objects = si_dag_build_paths(mem, c, exports->objects.ids);
       break;
     }
     case SPN_DAG_BUILD_OBJECTS_RSP: {
@@ -31,7 +30,7 @@ spn_err_t si_on_write_exports(const si_dag_ctx_t* c, void* user_data) {
       break;
     }
   }
-  spn_invocation_t invocation = spn_cc_render_archive_command(c->mem, exports->archive, &files);
+  spn_invocation_t invocation = spn_cc_render_archive_command(mem, exports->archive, &files);
 
   spn_invocation_result_t run = spn_invocation_run(roots, &invocation);
   if (run.result.status.exit_code) {
@@ -43,9 +42,9 @@ spn_err_t si_on_write_exports(const si_dag_ctx_t* c, void* user_data) {
   }
 
   si_da(spn_path_t) archives = sp_zero;
-  si_da_push(c->mem, archives, archive);
+  si_da_push(mem, archives, archive);
   si_da_for(exports->whole_archives, it) {
-    si_da_push(c->mem, archives, si_dag_resolve_input(c, exports->whole_archives[it]));
+    si_da_push(mem, archives, si_dag_resolve_input(c, exports->whole_archives[it]));
   }
 
   si_str_ht(u8) seen = sp_zero;
@@ -65,8 +64,8 @@ spn_err_t si_on_write_exports(const si_dag_ctx_t* c, void* user_data) {
       if (si_str_ht_get(seen, interned)) {
         continue;
       }
-      si_str_ht_insert(c->mem, seen, interned, (u8)true);
-      si_da_push(c->mem, symbols, interned);
+      si_str_ht_insert(mem, seen, interned, (u8)true);
+      si_da_push(mem, symbols, interned);
     }
     if (!err) {
       err = toc.err;
@@ -85,4 +84,11 @@ spn_err_t si_on_write_exports(const si_dag_ctx_t* c, void* user_data) {
   spn_cc_render_exports(&writer.base, roots, exports->format, exports->rsp, exports->library, symbols);
   sp_io_file_writer_close(&writer);
   return SPN_OK;
+}
+
+spn_err_t si_on_write_exports(const si_dag_ctx_t* c, void* user_data) {
+  sp_mem_arena_marker_t s = sp_mem_begin_scratch();
+  spn_err_t err = write_exports(s.mem, c, (si_exports_t*)user_data);
+  sp_mem_end_scratch(s);
+  return err;
 }
