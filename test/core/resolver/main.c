@@ -72,6 +72,7 @@ static resolve_result_t execute_fixture(const fx_config_t* config, const spn_pro
     .arch = SPN_ARCH_X64,
     .abi = SPN_ABI_GNU,
   }, project->config, config->budget);
+  resolver.roots = &roots;
 
   resolve_result_t result = sp_zero_s(resolve_result_t);
   result.intern = intern;
