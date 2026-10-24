@@ -3,6 +3,7 @@
 
 #include "core/types.h"
 #include "intern/types.h"
+#include "ordered_map.h"
 #include "toolchain/types.h"
 #include "when/types.h"
 
@@ -47,6 +48,8 @@ typedef struct {
   bool sanitizers_set;
   spn_when_t options;
 } spn_profile_decl_t;
+
+typedef si_om(spn_profile_id_t, spn_profile_decl_t) spn_profile_map_t;
 
 static inline spn_triple_t spn_profile_triple(const spn_profile_info_t* profile) {
   return (spn_triple_t) { profile->arch, profile->os, profile->abi };

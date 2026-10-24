@@ -10,7 +10,6 @@
 
 typedef struct {
   sp_mem_t mem;
-  sp_intern_t* intern;
   const spn_path_roots_t* roots;
   spn_path_t dir;
   sp_str_t url;
@@ -18,6 +17,6 @@ typedef struct {
   bool allow_dirty;
 } spn_publish_opts_t;
 
-spn_err_t spn_publish_build(spn_publish_opts_t* opts, spn_index_release_t* built);
+spn_err_t spn_publish_build(spn_publish_opts_t* opts, const si_pkg_info_t* pkg, spn_index_release_t* built);
 
 #endif

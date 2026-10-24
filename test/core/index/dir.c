@@ -177,7 +177,7 @@ sp_test_each(index_dir, get_package, dir_test_t, tests, .setup = spn_test_ctx_se
   };
 
   spn_index_pkg_t* pkg = SP_NULLPTR;
-  spn_index_diag_t diag = sp_zero;
+  spn_err_union_t diag = sp_zero;
   spn_err_t err = spn_index_get_package(&index, mem, spn.intern, &spn.roots, request, &pkg, &diag);
 
   sp_expect_eq(t, it->expect.err, err);
@@ -185,15 +185,15 @@ sp_test_each(index_dir, get_package, dir_test_t, tests, .setup = spn_test_ctx_se
 
   switch (err) {
     case SPN_ERR_INDEX_CORRUPT: {
-      sp_expect_str_eq(t, diag.path, manifest);
+      sp_expect_str_eq(t, diag.index_corrupt.path, manifest);
       break;
     }
     case SPN_ERR_MANIFEST_ISSUES: {
-      sp_expect_str_eq(t, diag.path, manifest);
+      sp_expect_str_eq(t, diag.manifest.path, manifest);
       break;
     }
     case SPN_ERR_INDEX_PATH_DEP: {
-      sp_expect_str_eq_c(t, diag.dep, it->expect.dep);
+      sp_expect_str_eq_c(t, diag.pkg.requested, it->expect.dep);
       break;
     }
     default: {

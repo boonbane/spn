@@ -2,15 +2,12 @@
 #include "macro/macro.h"
 #include "ctx/types.h"
 #include "spn/errors.h"
-#include "codegen/lower.h"
 #include "error/error.h"
 #include "external/git.h"
 #include "git/url.h"
 #include "index/release.h"
 #include "index/publish.h"
 #include "paths/paths.h"
-#include "pkg/load.h"
-#include "toml/issue.h"
 
 static spn_pkg_root_t web_root(sp_mem_t mem, spn_pkg_root_t root) {
   if (root.kind == SPN_PKG_ROOT_GIT) {
@@ -19,25 +16,8 @@ static spn_pkg_root_t web_root(sp_mem_t mem, spn_pkg_root_t root) {
   return root;
 }
 
-spn_err_t spn_publish_build(spn_publish_opts_t* opts, spn_index_release_t* built) {
-  spn_path_t path = spn_path_join(opts->mem, opts->dir, sp_str_lit("spn.toml"));
+spn_err_t spn_publish_build(spn_publish_opts_t* opts, const si_pkg_info_t* pkg, spn_index_release_t* built) {
   sp_str_t cwd = spn_path_str(opts->roots, opts->mem, opts->dir);
-
-  si_pkg_info_t manifest = sp_zero;
-  spn_codegen_issues_t issues = sp_zero;
-  spn_err_t loaded = spn_manifest_load(opts->mem, opts->intern, opts->roots, path, SPN_MANIFEST_DEP, &manifest, &issues);
-  if (loaded == SPN_ERR_NO_MANIFEST) {
-    return spn_err_emit(&spn, (spn_err_union_t) {
-      .kind = SPN_ERR_NO_MANIFEST,
-      .no_manifest = { .path = spn_path_str(opts->roots, spn.events->mem, path) },
-    });
-  }
-  if (loaded) {
-    return spn_err_emit(&spn, (spn_err_union_t) {
-      .kind = SPN_ERR_MANIFEST_ISSUES,
-      .manifest = { .path = spn_path_str(opts->roots, spn.events->mem, path), .issues = spn_codegen_issues_to_err(spn.events->mem, issues) },
-    });
-  }
 
   sp_str_t repo = sp_zero;
   if (spn_git_get_root(opts->mem, cwd, &repo)) {
@@ -90,12 +70,9 @@ spn_err_t spn_publish_build(spn_publish_opts_t* opts, spn_index_release_t* built
   };
 
   spn_index_release_t release = sp_zero;
-  sp_str_t dep = sp_zero;
-  if (spn_index_release_from_manifest(opts->mem, &manifest, published, &release, &dep)) {
-    return spn_err_emit(&spn, (spn_err_union_t) {
-      .kind = SPN_ERR_INDEX_PATH_DEP,
-      .pkg = { .name = manifest.qualified.str, .requested = dep },
-    });
+  spn_err_union_t err = sp_zero;
+  if (spn_index_release_from_manifest(opts->mem, pkg, published, &release, &err)) {
+    return spn_err_emit(&spn, err);
   }
 
   release.source = web_root(opts->mem, release.source);

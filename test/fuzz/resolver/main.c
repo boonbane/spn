@@ -67,7 +67,7 @@ void spn_index_cache_init(spn_index_cache_t* cache, sp_mem_t mem, sp_intern_t* i
 
 }
 
-spn_err_t spn_index_cache_get_package(spn_index_cache_t* cache, spn_pkg_name_t id, spn_index_pkg_t** pkg, spn_index_diag_t* diag) {
+spn_err_t spn_index_cache_get_package(spn_index_cache_t* cache, spn_pkg_name_t id, spn_index_pkg_t** pkg, spn_err_union_t* err) {
   sp_str_t qualified = spn_pkg_name_to_qualified(id);
   *pkg = sp_str_ht_get(fz_state.cache, qualified);
   return SPN_OK;

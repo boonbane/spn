@@ -6,7 +6,6 @@
 #include "paths/paths.h"
 #include "enum/enum.h"
 #include "glob/glob.h"
-#include "git/patch.h"
 #include "semver/convert.h"
 #include "semver/parser.h"
 #include "target/types.h"
@@ -347,10 +346,10 @@ static void lower_targets(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, s
   lower_collection(ctx, cg->example, "example", out, SPN_TARGET_KIND_EXAMPLE);
 }
 
-static void lower_toolchains(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, si_pkg_info_t* out) {
+static void lower_toolchains(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, spn_project_t* project) {
   sp_da(spn_toolchain_decl_t) toolchains = spn_toolchains_lower_list(ctx, SPN_PATH_ROOT_PROJECT, cg->toolchain);
   sp_da_for(toolchains, it) {
-    si_om_insert(ctx->mem, out->toolchains, toolchains[it].id, toolchains[it]);
+    si_om_insert(ctx->mem, project->toolchains, toolchains[it].id, toolchains[it]);
   }
 }
 
@@ -375,10 +374,10 @@ static spn_profile_decl_t lower_profile(spn_toml_loader_t* ctx, sp_str_t name, c
   };
 }
 
-static void lower_profiles(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, si_pkg_info_t* out) {
+static void lower_profiles(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, spn_project_t* project) {
   sp_da_for(cg->profile, i) {
     spn_profile_decl_t decl = lower_profile(ctx, cg->profile[i].key, &cg->profile[i].value);
-    si_om_insert(ctx->mem, out->profiles, decl.id, decl);
+    si_om_insert(ctx->mem, project->profiles, decl.id, decl);
   }
 }
 
@@ -449,10 +448,10 @@ spn_index_info_t spn_index_lower(spn_toml_loader_t* ctx, u32 at, spn_index_kind_
   return info;
 }
 
-static void lower_indexes(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, si_pkg_info_t* out) {
+static void lower_indexes(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, spn_project_t* project) {
   sp_da_for(cg->index, it) {
     spn_index_info_t info = spn_index_lower(ctx, it, SPN_INDEX_KIND_WORKSPACE, &cg->index[it]);
-    si_om_insert(ctx->mem, out->indexes, info.id, info);
+    si_om_insert(ctx->mem, project->indexes, info.id, info);
   }
 }
 
@@ -488,7 +487,7 @@ static void lower_options(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, s
   }
 }
 
-static void lower_patches(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, si_pkg_info_t* out) {
+static void lower_patches(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, spn_project_t* project) {
   sp_da(sp_intern_id_t) seen = sp_da_new(ctx->mem, sp_intern_id_t);
   spn_toml_loader_push_key(ctx, "patch");
   sp_da_for(cg->patch, it) {
@@ -519,42 +518,12 @@ static void lower_patches(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, s
       spn_path_t path = spn_path_resolve(ctx->mem, ctx->dir, cg->patch[it].value.files[jt]);
       si_da_push(ctx->mem, patch.set.files, sp_fs_normalize_path(ctx->mem, spn_path_str(ctx->roots, ctx->mem, path)));
     }
-    si_da_push(ctx->mem, out->patches, patch);
+    si_da_push(ctx->mem, project->patches, patch);
   }
   spn_toml_loader_pop(ctx);
 }
 
-spn_err_t spn_manifest_lower_patch_hashes(spn_toml_loader_t* ctx, si_pkg_info_t* out) {
-  spn_err_t err = SPN_OK;
-  spn_toml_loader_push_key(ctx, "patch");
-  si_da_for(out->patches, it) {
-    spn_pkg_patch_t* patch = &out->patches[it];
-    u32 missing = 0;
-    if (!spn_git_patch_set_hash(&patch->set, &missing)) {
-      continue;
-    }
-
-    spn_toml_loader_push_key(ctx, sp_str_to_cstr(ctx->mem, patch->qualified.str));
-    spn_toml_loader_push_index(ctx, missing);
-    spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_FILE_MISSING, "files");
-    spn_toml_loader_pop(ctx);
-    spn_toml_loader_pop(ctx);
-    err = SPN_ERROR;
-  }
-  spn_toml_loader_pop(ctx);
-
-  return err;
-}
-
-spn_err_t spn_manifest_reject_patches(spn_toml_loader_t* ctx, si_pkg_info_t* out) {
-  if (si_da_empty(out->patches)) {
-    return SPN_OK;
-  }
-  spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_ROOT_ONLY, "patch");
-  return SPN_ERROR;
-}
-
-static void lower_config(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, si_pkg_info_t* out) {
+static void lower_config(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, spn_project_t* project) {
   sp_da_for(cg->config, i) {
     sp_intern_str_t name = sp_intern(ctx->intern, cg->config[i].key);
     spn_pkg_config_t config = {
@@ -565,7 +534,7 @@ static void lower_config(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, si
     if (!sp_opt_is_null(cg->config[i].value.kind) && sp_opt_get(cg->config[i].value.kind) != SPN_LIB_KIND_NONE) {
       sp_opt_set(config.kind, sp_opt_get(cg->config[i].value.kind));
     }
-    si_om_insert(ctx->mem, out->config, name.id, config);
+    si_om_insert(ctx->mem, project->config, name.id, config);
   }
 }
 
@@ -807,7 +776,7 @@ static void validate_option_set(spn_toml_loader_t* ctx, const spn_when_t* set) {
 // Profiles set the root's own options, so both names and values check against
 // this manifest's declarations; config sets other packages' options, whose
 // declarations only exist once those manifests load, so values wait for merge
-static void validate_option_sets(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, si_pkg_info_t* out) {
+static void validate_option_sets(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, const spn_project_t* project) {
   spn_toml_loader_push_key(ctx, "config");
   sp_da_for(cg->config, it) {
     spn_toml_loader_push_index(ctx, it);
@@ -823,7 +792,7 @@ static void validate_option_sets(spn_toml_loader_t* ctx, const spn_cg_manifest_t
     spn_toml_loader_push_key(ctx, "options");
     si_da_for(cg->profile[it].value.options.clauses, jt) {
       const spn_when_clause_t* clause = &cg->profile[it].value.options.clauses[jt];
-      spn_option_info_t** option = si_om_getp(out->options, sp_intern(ctx->intern, clause->key).id);
+      spn_option_info_t** option = si_om_getp(project->package.options, sp_intern(ctx->intern, clause->key).id);
       if (!option || !when_option_value_valid(*option, clause->value)) {
         spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, clause->key.data);
       }
@@ -889,7 +858,6 @@ static void validate_whens(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, 
   validate_target_whens(ctx, cg->example, "example", out);
   validate_pkg_whens(ctx, cg, out);
   validate_metaprogram_whens(ctx, cg);
-  validate_option_sets(ctx, cg, out);
 }
 
 static bool when_key_is_platform(sp_str_t key) {
@@ -930,6 +898,9 @@ static void issue_candidate_value(spn_toml_loader_t* ctx, const c8* key, u32 ind
 
 static void validate_profiles(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg) {
   spn_toml_loader_push_key(ctx, "profile");
+  sp_da_for(cg->profile, it) {
+    validate_name(ctx, cg->profile[it].key, cg->profile[it].key);
+  }
   sp_da_for(cg->profile, it) {
     const spn_cg_profile_t* p = &cg->profile[it].value;
     spn_toml_loader_push_index(ctx, it);
@@ -1218,45 +1189,32 @@ static void validate_names(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg) 
   validate_collection_names(ctx, cg->test, "test");
   validate_collection_names(ctx, cg->example, "example");
   validate_staged_names(ctx, cg);
-  spn_toml_loader_push_key(ctx, "profile");
-  sp_da_for(cg->profile, it) {
-    validate_name(ctx, cg->profile[it].key, cg->profile[it].key);
-  }
-  spn_toml_loader_pop(ctx);
 }
 
-spn_err_t spn_manifest_lower(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, si_pkg_info_t* out) {
-
-  lower_package(ctx, cg, out);
-  lower_targets(ctx, cg, out);
-  lower_toolchains(ctx, cg, out);
-  lower_profiles(ctx, cg, out);
-  lower_indexes(ctx, cg, out);
-  lower_deps(ctx, cg, out);
-  lower_options(ctx, cg, out);
-  lower_config(ctx, cg, out);
-  lower_patches(ctx, cg, out);
+void spn_manifest_lower(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, si_pkg_info_t* pkg) {
+  lower_package(ctx, cg, pkg);
+  lower_targets(ctx, cg, pkg);
+  lower_deps(ctx, cg, pkg);
+  lower_options(ctx, cg, pkg);
 
   validate_names(ctx, cg);
-  validate_profiles(ctx, cg);
   validate_lib_linkages(ctx, cg);
   validate_trees(ctx, cg);
   validate_cxx(ctx, cg);
   validate_lib_only(ctx, cg);
   validate_c_only_scripts(ctx, cg);
   validate_platform(ctx, cg);
-  validate_options(ctx, cg, out);
-  validate_whens(ctx, cg, out);
-
-  return sp_da_empty(ctx->issues) ? SPN_OK : SPN_ERROR;
+  validate_options(ctx, cg, pkg);
+  validate_whens(ctx, cg, pkg);
 }
 
-spn_err_t spn_codegen_load_manifest(spn_toml_loader_t* ctx, spn_path_t manifest, si_pkg_info_t* out) {
-  spn_cg_manifest_t cg = sp_zero;
-  spn_err_t err = spn_codegen_load(ctx, manifest, &cg);
-  if (err) {
-    return err;
-  }
+void spn_project_lower(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, spn_project_t* project) {
+  lower_toolchains(ctx, cg, project);
+  lower_profiles(ctx, cg, project);
+  lower_indexes(ctx, cg, project);
+  lower_config(ctx, cg, project);
+  lower_patches(ctx, cg, project);
 
-  return spn_manifest_lower(ctx, &cg, out);
+  validate_profiles(ctx, cg);
+  validate_option_sets(ctx, cg, project);
 }

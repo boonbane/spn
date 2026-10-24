@@ -601,6 +601,15 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           );
           break;
         }
+        case SPN_ERR_PATCH_FILE_MISSING: {
+          sp_tty_fmt(
+            &w,
+            "[patch.{.cyan}] lists {.gray}, which does not exist",
+            sp_fmt_str(event->err.patch.name),
+            sp_fmt_str(get_contextual_path(ctx, mem, event->err.patch.path))
+          );
+          break;
+        }
         case SPN_ERR_OPTION_UNDECLARED: {
           sp_tty_fmt(
             &w,
@@ -1659,6 +1668,7 @@ static sp_str_t event_subject(spn_event_t* event) {
         case SPN_ERR_RESOLVE_TOO_COMPLEX: return event->err.too_complex.id.name;
         case SPN_ERR_PATCH_UNUSED:     return event->err.patch.name;
         case SPN_ERR_PATCH_NOT_GIT:    return event->err.patch.name;
+        case SPN_ERR_PATCH_FILE_MISSING: return event->err.patch.name;
         default:                       break;
       }
       return event->pkg;

@@ -110,7 +110,7 @@ sp_test_each(index_cache, get_package, cache_test_t, tests, .setup = spn_test_ct
   };
 
   spn_index_pkg_t* pkg = SP_NULLPTR;
-  spn_index_diag_t diag = sp_zero;
+  spn_err_union_t diag = sp_zero;
   spn_err_t err = spn_index_cache_get_package(&cache, request, &pkg, &diag);
 
   sp_expect_eq(t, it->expect.err, err);

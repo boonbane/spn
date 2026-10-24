@@ -12,8 +12,7 @@ static spn_index_dep_kind_t dep_kind_to_index(spn_dep_kind_t kind) {
   sp_unreachable_return(SPN_INDEX_DEP_NORMAL);
 }
 
-spn_err_t spn_index_release_from_manifest(sp_mem_t mem, const si_pkg_info_t* manifest, spn_pkg_root_t published, spn_index_release_t* release, sp_str_t* dep) {
-  *dep = sp_str_lit("");
+spn_err_t spn_index_release_from_manifest(sp_mem_t mem, const si_pkg_info_t* manifest, spn_pkg_root_t published, spn_index_release_t* release, spn_err_union_t* err) {
   *release = (spn_index_release_t) {
     .id = spn_pkg_name_from_qualified(manifest->qualified.str),
     .version = manifest->version,
@@ -36,8 +35,11 @@ spn_err_t spn_index_release_from_manifest(sp_mem_t mem, const si_pkg_info_t* man
   si_da_for(manifest->deps, it) {
     spn_requested_dep_t* req = &manifest->deps[it];
     if (req->source != SPN_PKG_SOURCE_INDEX) {
-      *dep = req->qualified.str;
-      return SPN_ERR_INDEX_PATH_DEP;
+      *err = (spn_err_union_t) {
+        .kind = SPN_ERR_INDEX_PATH_DEP,
+        .pkg = { .name = manifest->qualified.str, .requested = req->qualified.str },
+      };
+      return err->kind;
     }
 
     sp_da_push(release->deps, ((spn_index_dep_t) {

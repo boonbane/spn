@@ -3,6 +3,7 @@
 #include "hash/digest/digest.h"
 #include "paths/paths.h"
 #include "profile/profile.h"
+#include "project/types.h"
 #include "toolchain/toolchain.h"
 #include "when/when.h"
 
@@ -116,6 +117,7 @@ spn_session_t* build_session(sp_mem_t mem, unit_graph_test_t* g) {
   spn_session_t* s = sp_alloc_type(mem, spn_session_t);
   s->ctx = &spn;
   s->mem = mem;
+  s->project = sp_alloc_type(mem, spn_project_t);
   sp_ht_init(mem, s->resolve);
   sp_ht_init(mem, s->packages);
   sp_ht_init(mem, s->options);

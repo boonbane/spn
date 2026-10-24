@@ -12,7 +12,6 @@
 #include "ordered_map.h"
 #include "semver/types.h"
 #include "target/types.h"
-#include "toolchain/types.h"
 #include "when/types.h"
 
 typedef enum {
@@ -20,11 +19,6 @@ typedef enum {
   SPN_PKG_SOURCE_FILE,
   SPN_PKG_SOURCE_INDEX,
 } spn_pkg_source_t;
-
-typedef enum {
-  SPN_MANIFEST_ROOT,
-  SPN_MANIFEST_DEP,
-} spn_manifest_role_t;
 
 typedef enum {
   SPN_PKG_ROOT_NONE,
@@ -87,12 +81,6 @@ typedef struct {
   spn_git_patch_set_t set;
 } spn_pkg_patch_t;
 
-typedef sp_intern_id_t spn_index_id_t;
-
-typedef si_om(spn_profile_id_t, spn_profile_decl_t) spn_profile_map_t;
-typedef si_om(spn_index_id_t, spn_index_info_t) spn_index_map_t;
-typedef si_om(spn_toolchain_id_t, spn_toolchain_decl_t) spn_toolchain_map_t;
-
 struct si_pkg_info {
   sp_str_t namespace;
   sp_intern_str_t name;
@@ -103,13 +91,8 @@ struct si_pkg_info {
   spn_semver_t version;
   spn_pkg_root_t upstream;
   si_om(si_target_id_t, si_target_info_t) targets;
-  spn_profile_map_t profiles;
-  spn_index_map_t indexes;
   si_da(spn_requested_dep_t) deps;
-  spn_pkg_config_map_t config;
-  si_da(spn_pkg_patch_t) patches;
   spn_option_map_t options;
-  spn_toolchain_map_t toolchains;
   spn_gated_path_list_t include;
   spn_gated_list_t define;
   spn_gated_list_t system_deps;

@@ -14,7 +14,6 @@
 #include "intern/intern.h"
 #include "pkg/id.h"
 #include "pkg/load.h"
-#include "toml/issue.h"
 #include "resolve/resolve.h"
 #include "semver/compare.h"
 #include "semver/convert.h"
@@ -162,32 +161,6 @@ static spn_err_union_t unsatisfiable_err(spn_resolver_t* resolver, spn_resolved_
   };
 }
 
-static spn_err_union_t index_err(spn_resolver_t* resolver, spn_requested_dep_t* request, spn_err_t kind, spn_index_diag_t* diag) {
-  switch (kind) {
-    case SPN_ERR_MANIFEST_ISSUES: {
-      return (spn_err_union_t) {
-        .kind = kind,
-        .manifest = { .name = request->qualified.str, .path = diag->path, .issues = spn_codegen_issues_to_err(resolver->mem, diag->issues) },
-      };
-    }
-    case SPN_ERR_INDEX_CORRUPT: {
-      return (spn_err_union_t) {
-        .kind = kind,
-        .index_corrupt = { .name = request->qualified.str, .path = diag->path },
-      };
-    }
-    case SPN_ERR_INDEX_PATH_DEP: {
-      return (spn_err_union_t) {
-        .kind = kind,
-        .pkg = { .name = request->qualified.str, .requested = diag->dep },
-      };
-    }
-    default: {
-      return (spn_err_union_t) { .kind = kind };
-    }
-  }
-}
-
 static spn_err_union_t load_file_pkg(spn_resolver_t* resolver, spn_requested_dep_t* request, spn_registry_pkg_t** pkg) {
   spn_pkg_id_t id = { .qualified = request->qualified.id };
   spn_registry_pkg_t* existing = sp_ht_getp(*resolver->registry, id);
@@ -199,20 +172,9 @@ static spn_err_union_t load_file_pkg(spn_resolver_t* resolver, spn_requested_dep
   *pkg = SP_NULLPTR;
 
   si_pkg_info_t* manifest = sp_alloc_type(resolver->mem, si_pkg_info_t);
-  spn_codegen_issues_t issues = sp_zero;
-  spn_err_t loaded = spn_manifest_load(resolver->mem, resolver->intern, resolver->roots, request->file.path, SPN_MANIFEST_DEP, manifest, &issues);
-  if (loaded) {
-    sp_str_t path = spn_path_str(resolver->roots, resolver->mem, request->file.path);
-    if (loaded == SPN_ERR_NO_MANIFEST) {
-      return (spn_err_union_t) {
-        .kind = SPN_ERR_NO_MANIFEST,
-        .no_manifest = { .path = path },
-      };
-    }
-    return (spn_err_union_t) {
-      .kind = SPN_ERR_MANIFEST_ISSUES,
-      .manifest = { .name = request->qualified.str, .path = path, .issues = spn_codegen_issues_to_err(resolver->mem, issues) },
-    };
+  spn_err_union_t err = sp_zero;
+  if (spn_pkg_load(resolver->mem, resolver->intern, resolver->roots, request->qualified.str, request->file.path, manifest, &err)) {
+    return err;
   }
 
   // Option requests, config keys, and edge lookups all route by the name the
@@ -599,10 +561,9 @@ static spn_err_union_t resolve_index_package(spn_resolver_t* resolver, spn_resol
   }
 
   spn_index_pkg_t* pkg = SP_NULLPTR;
-  spn_index_diag_t diag = sp_zero;
-  spn_err_t got = spn_index_cache_get_package(resolver->index, spn_pkg_name_from_qualified(request->qualified.str), &pkg, &diag);
-  if (got) {
-    return index_err(resolver, request, got, &diag);
+  spn_err_union_t err = sp_zero;
+  if (spn_index_cache_get_package(resolver->index, spn_pkg_name_from_qualified(request->qualified.str), &pkg, &err)) {
+    return err;
   }
   if (!pkg) {
     return (spn_err_union_t) {

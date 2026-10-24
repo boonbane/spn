@@ -1,11 +1,13 @@
 #include "project/project.h"
 
+#include "codegen/codegen.h"
+#include "codegen/lower.h"
 #include "error/error.h"
-#include "intern/intern.h"
+#include "git/patch.h"
 #include "lock/lock.h"
 #include "paths/paths.h"
-#include "pkg/load.h"
 #include "toml/issue.h"
+#include "toml/loader.h"
 
 spn_err_t spn_project_load(spn_ctx_t* ctx, spn_project_t** project) {
   *project = SP_NULLPTR;
@@ -19,20 +21,33 @@ spn_err_t spn_project_load(spn_ctx_t* ctx, spn_project_t** project) {
   loaded->paths.manifest = manifest;
   loaded->paths.lock = (spn_path_t) { .root = SPN_PATH_ROOT_PROJECT, .sub = sp_str_lit("spn.lock") };
 
-  spn_codegen_issues_t issues = sp_zero;
-  spn_err_t parsed = spn_manifest_load(ctx->heap, ctx->intern, &ctx->roots, manifest, SPN_MANIFEST_ROOT, &loaded->manifest, &issues);
-  if (parsed == SPN_ERR_NO_MANIFEST) {
-    return spn_err_emit(ctx, (spn_err_union_t) {
-      .kind = SPN_ERR_NO_MANIFEST,
-      .no_manifest = { .path = spn_path_str(&ctx->roots, ctx->events->mem, manifest) },
-    });
+  spn_toml_loader_t t = sp_zero;
+  spn_toml_loader_init(&t, ctx->heap, ctx->intern, &ctx->roots);
+  t.strict = true;
+
+  spn_cg_manifest_t cg = sp_zero;
+  if (!spn_codegen_load(&t, manifest, &cg)) {
+    spn_manifest_lower(&t, &cg, &loaded->package);
+    spn_project_lower(&t, &cg, loaded);
   }
-  if (parsed) {
+  if (!sp_da_empty(t.issues)) {
     return spn_err_emit(ctx, (spn_err_union_t) {
       .kind = SPN_ERR_MANIFEST_ISSUES,
-      .manifest = { .path = spn_path_str(&ctx->roots, ctx->events->mem, manifest), .issues = spn_codegen_issues_to_err(ctx->events->mem, issues) },
+      .manifest = { .path = spn_path_str(&ctx->roots, ctx->events->mem, manifest), .issues = spn_codegen_issues_to_err(ctx->events->mem, t.issues) },
     });
   }
+
+  spn_err_t hashed = SPN_OK;
+  si_da_for_ptr(loaded->patches, patch) {
+    u32 missing = 0;
+    if (spn_git_patch_set_hash(&patch->set, &missing)) {
+      hashed = spn_err_emit(ctx, (spn_err_union_t) {
+        .kind = SPN_ERR_PATCH_FILE_MISSING,
+        .patch = { .name = patch->qualified.str, .path = patch->set.files[missing] },
+      });
+    }
+  }
+  spn_try(hashed);
 
   sp_path_t lock = spn_path_at(&ctx->roots, loaded->paths.lock);
   if (sp_fs_exists_at(lock)) {

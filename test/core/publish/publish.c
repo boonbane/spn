@@ -5,6 +5,8 @@
 #include "index/index.h"
 #include "index/publish.h"
 #include "intern/intern.h"
+#include "paths/paths.h"
+#include "pkg/load.h"
 #include "semver/convert.h"
 
 sp_test_suite(cmd_publish, .serial = true);
@@ -351,15 +353,18 @@ sp_test_each(cmd_publish, publish, case_t, cases, .setup = spn_test_ctx_setup) {
 
   spn_publish_opts_t opts = {
     .mem = mem,
-    .intern = spn.intern,
     .roots = &spn.roots,
     .dir = { .sub = cwd },
     .url = c.opts.url ? sp_cstr_as_str(c.opts.url) : repo.path,
     .revision = repo.commits[rev_idx],
   };
 
+  si_pkg_info_t pkg = sp_zero;
+  spn_err_union_t err = sp_zero;
+  sp_must_eq(t, SPN_OK, spn_pkg_load(mem, spn.intern, &spn.roots, sp_str_lit(""), spn_path_join(mem, opts.dir, sp_str_lit("spn.toml")), &pkg, &err));
+
   spn_index_release_t release = sp_zero;
-  spn_err_t result = spn_publish_build(&opts, &release);
+  spn_err_t result = spn_publish_build(&opts, &pkg, &release);
   if (!result) {
     result = spn_index_publish(&index, &release);
   }
@@ -367,7 +372,7 @@ sp_test_each(cmd_publish, publish, case_t, cases, .setup = spn_test_ctx_setup) {
 
   if (c.expect.namespace && result == SPN_OK) {
     spn_index_pkg_t* pkg = SP_NULLPTR;
-    spn_index_diag_t diag = sp_zero;
+    spn_err_union_t diag = sp_zero;
     spn_index_get_package(&index, mem, spn.intern, &spn.roots, (spn_pkg_name_t) {
       .namespace = sp_str_view(c.expect.namespace),
       .name = sp_str_view(c.expect.name),

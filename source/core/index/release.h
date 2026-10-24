@@ -4,7 +4,8 @@
 #include "sp.h"
 #include "spn/core.h"
 #include "index/types.h"
+#include "spn/errors.h"
 
-spn_err_t spn_index_release_from_manifest(sp_mem_t mem, const si_pkg_info_t* manifest, spn_pkg_root_t published, spn_index_release_t* release, sp_str_t* dep);
+spn_err_t spn_index_release_from_manifest(sp_mem_t mem, const si_pkg_info_t* manifest, spn_pkg_root_t published, spn_index_release_t* release, spn_err_union_t* err);
 
 #endif

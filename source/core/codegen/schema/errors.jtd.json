@@ -135,6 +135,7 @@
     "cancelled": { "properties": {} },
     "patch_unused": { "ref": "patch" },
     "patch_not_git": { "ref": "patch" },
+    "patch_file_missing": { "ref": "patch" },
     "path_component": { "ref": "fs" },
     "path_absolute": { "ref": "fs" },
     "path_foreign": { "ref": "fs" },
@@ -419,7 +420,8 @@
     },
     "patch": {
       "properties": {
-        "name": { "type": "string" }
+        "name": { "type": "string" },
+        "path": { "type": "string" }
       }
     }
   }

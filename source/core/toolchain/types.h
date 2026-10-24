@@ -169,6 +169,8 @@ typedef struct {
   bool host_row;
 } spn_toolchain_decl_t;
 
+typedef si_om(spn_toolchain_id_t, spn_toolchain_decl_t) spn_toolchain_map_t;
+
 typedef struct {
   spn_toolchain_id_t id;
   sp_intern_str_t name;

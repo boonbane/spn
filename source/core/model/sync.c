@@ -18,13 +18,12 @@
 #include "pkg/id.h"
 #include "pkg/load.h"
 #include "pkg/types.h"
+#include "project/types.h"
 #include "resolve/types.h"
 #include "session/session.h"
 #include "session/types.h"
 #include "spn/core.h"
 #include "thread_pool/thread_pool.h"
-#include "toml/loader.h"
-#include "toml/issue.h"
 #include "toolchain/probe.h"
 #include "toolchain/toolchain.h"
 #include "toolchain/types.h"
@@ -230,7 +229,7 @@ static patch_stamp_t patch_stamp(si_da(spn_pkg_patch_t) patches, sp_intern_id_t 
 static spn_err_t fetch_package(spn_session_t* session, spn_resolved_pkg_t* pkg, spn_loaded_pkg_t* loaded, bool* fetched) {
   sp_str_t qualified = spn_intern_find(pkg->id.qualified);
 
-  switch (patch_stamp(session->manifest->patches, pkg->id.qualified, &pkg->origin.source)) {
+  switch (patch_stamp(session->project->patches, pkg->id.qualified, &pkg->origin.source)) {
     case PATCH_STAMP_NONE: {
       break;
     }
@@ -292,7 +291,7 @@ static void sync_toolchain_node(void* data) {
 
 static spn_err_t check_unused_patches(spn_session_t* session) {
   spn_err_t err = SPN_OK;
-  si_da_for_value(session->manifest->patches, patch) {
+  si_da_for_value(session->project->patches, patch) {
     sp_intern_str_t qualified = patch.qualified;
 
     bool used = false;
@@ -399,19 +398,9 @@ static spn_err_t sync_jobs(spn_op_t* op, sp_mem_t mem, bool* reresolve) {
     if (!loaded->manifest) {
       spn_path_t path = spn_path_join(spn.mem, loaded->roots.recipe, pkg->origin.paths.manifest);
       si_pkg_info_t* parsed = sp_alloc_type(session->mem, si_pkg_info_t);
-      spn_codegen_issues_t issues = sp_zero;
-      spn_err_t err = spn_manifest_load(session->mem, session->ctx->intern, roots, path, SPN_MANIFEST_DEP, parsed, &issues);
-      if (err == SPN_ERR_NO_MANIFEST) {
-        return spn_err_emit(session->ctx, (spn_err_union_t) {
-          .kind = SPN_ERR_NO_MANIFEST,
-          .no_manifest = { .path = spn_path_str(roots, spn.events->mem, path) },
-        });
-      }
-      if (err) {
-        return spn_err_emit(session->ctx, (spn_err_union_t) {
-          .kind = SPN_ERR_MANIFEST_ISSUES,
-          .manifest = { .name = qualified, .path = spn_path_str(roots, spn.events->mem, path), .issues = spn_codegen_issues_to_err(spn.events->mem, issues) },
-        });
+      spn_err_union_t err = sp_zero;
+      if (spn_pkg_load(session->mem, session->ctx->intern, roots, qualified, path, parsed, &err)) {
+        return spn_err_emit(session->ctx, err);
       }
 
       // Short names only: published manifests routinely omit the namespace the

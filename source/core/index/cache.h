@@ -4,8 +4,9 @@
 #include "sp.h"
 #include "spn/core.h"
 #include "index/types.h"
+#include "spn/errors.h"
 
 void spn_index_cache_init(spn_index_cache_t* cache, sp_mem_t mem, sp_intern_t* intern, const spn_path_roots_t* roots, sp_da(spn_index_info_t)* indexes);
-spn_err_t spn_index_cache_get_package(spn_index_cache_t* cache, spn_pkg_name_t id, spn_index_pkg_t** pkg, spn_index_diag_t* diag);
+spn_err_t spn_index_cache_get_package(spn_index_cache_t* cache, spn_pkg_name_t id, spn_index_pkg_t** pkg, spn_err_union_t* err);
 
 #endif

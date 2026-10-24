@@ -11,6 +11,7 @@
 #include "options/options.h"
 #include "pkg/id.h"
 #include "profile/profile.h"
+#include "project/types.h"
 #include "session/session.h"
 #include "when/when.h"
 
@@ -104,8 +105,8 @@ static void sweep_unreachable(spn_session_t* session) {
 }
 
 static spn_err_t validate_config_keys(spn_session_t* session) {
-  si_om_for(session->manifest->config, it) {
-    spn_pkg_config_t* config = si_om_at(session->manifest->config, it);
+  si_om_for(session->project->config, it) {
+    spn_pkg_config_t* config = si_om_at(session->project->config, it);
 
     bool known = false;
     sp_ht_for_kv(session->resolve, rt) {
@@ -192,7 +193,7 @@ spn_err_t spn_session_apply_options(spn_session_t* session, bool* reresolve) {
       spn_merged_options_t merged = sp_zero;
       spn_option_subject_t subject = { .name = node->name, .is_root = node->source == SPN_PKG_SOURCE_ROOT, .options = node->options };
       const spn_profile_info_t* profile = &session->units.target->profile;
-      spn_options_merge(mem, subject, node_requests, spn_profile_facts(profile), &profile->options, session->manifest->config, &merged);
+      spn_options_merge(mem, subject, node_requests, spn_profile_facts(profile), &profile->options, session->project->config, &merged);
       if (!sp_da_empty(merged.violations)) {
         spn_err_t first = SPN_OK;
         sp_da_for(merged.violations, vt) {

@@ -13,6 +13,7 @@
 #include "paths/paths.h"
 #include "spn/host.h"
 #include "pkg/id.h"
+#include "project/types.h"
 #include "semver/convert.h"
 
 static spn_err_t publish_build(spn_ctx_t* ctx, spn_publish_request_t request, spn_index_release_t* release) {
@@ -24,14 +25,13 @@ static spn_err_t publish_build(spn_ctx_t* ctx, spn_publish_request_t request, sp
 
   spn_publish_opts_t opts = {
     .mem = ctx->mem,
-    .intern = ctx->intern,
     .roots = &ctx->roots,
     .dir = spn_path_from_root(SPN_PATH_ROOT_PROJECT),
     .url = request.url,
     .revision = request.revision,
     .allow_dirty = request.allow_dirty,
   };
-  return spn_publish_build(&opts, release);
+  return spn_publish_build(&opts, &ctx->project->package, release);
 }
 
 static spn_err_t publish(spn_ctx_t* ctx, spn_publish_request_t request, spn_index_release_t* release) {

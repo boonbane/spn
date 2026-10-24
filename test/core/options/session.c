@@ -1,5 +1,7 @@
 #include "options.h"
 
+#include "project/types.h"
+
 typedef struct {
   spn_err_t err;
   const c8* pkg;
@@ -68,13 +70,16 @@ sp_test_each(options_session, apply, session_test_t, tests, .setup = spn_test_ct
   sp_mem_t mem = sp_test_arena(t);
   sp_intern_t* intern = spn.intern;
 
-  si_pkg_info_t root = {
-    .name = spn_intern_lit("test"),
-    .qualified = spn_intern_lit("core/test"),
+  spn_project_t project = {
+    .package = {
+      .name = spn_intern_lit("test"),
+      .qualified = spn_intern_lit("core/test"),
+    },
   };
+  si_pkg_info_t* root = &project.package;
   if (it->config) {
     sp_intern_str_t name = spn_intern_cstr(it->config);
-    si_om_insert(mem, root.config, name.id, ((spn_pkg_config_t) { .name = name }));
+    si_om_insert(mem, project.config, name.id, ((spn_pkg_config_t) { .name = name }));
   }
   if (it->direct_dep || it->gated_dep) {
     spn_requested_dep_t dep = {
@@ -87,19 +92,19 @@ sp_test_each(options_session, apply, session_test_t, tests, .setup = spn_test_ct
         .value = spn_option_value_str(sp_str_lit("linux")),
       }));
     }
-    si_da_push(mem, root.deps, dep);
+    si_da_push(mem, root->deps, dep);
   }
 
   spn_pkg_id_t root_id = make_id(intern, "core/test");
   spn_resolved_pkg_t root_node = {
     .id = root_id,
-    .name = root.name,
+    .name = root->name,
     .source = SPN_PKG_SOURCE_ROOT,
     .edges = sp_da_new(mem, spn_resolved_dep_t),
   };
   spn_loaded_pkg_t root_loaded = {
     .source = SPN_PKG_SOURCE_ROOT,
-    .manifest = &root,
+    .manifest = root,
   };
 
   spn_build_unit_t target = {
@@ -108,7 +113,8 @@ sp_test_each(options_session, apply, session_test_t, tests, .setup = spn_test_ct
   spn_session_t session = {
     .ctx = &spn,
     .mem = mem,
-    .manifest = &root,
+    .project = &project,
+    .manifest = root,
     .gates = { .resolves = it->resolves },
     .units = { .target = &target },
   };

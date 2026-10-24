@@ -63,7 +63,7 @@ sp_test_each(index_query, get_package, query_test_t, tests, .setup = spn_test_ct
   };
 
   spn_index_pkg_t* pkg = SP_NULLPTR;
-  spn_index_diag_t diag = sp_zero;
+  spn_err_union_t diag = sp_zero;
   spn_err_t err = spn_index_get_package(&index, mem, spn.intern, &spn.roots, (spn_pkg_name_t) {
     .namespace = sp_str_lit("core"),
     .name = sp_str_lit("spum"),
@@ -71,7 +71,7 @@ sp_test_each(index_query, get_package, query_test_t, tests, .setup = spn_test_ct
   sp_expect_eq(t, it->expect.exists, pkg != SP_NULLPTR);
   sp_expect_eq(t, it->expect.err, err);
   if (err == SPN_ERR_INDEX_CORRUPT) {
-    sp_expect_str_eq(t, diag.path, file);
+    sp_expect_str_eq(t, diag.index_corrupt.path, file);
   }
 
   if (pkg) {

@@ -10,7 +10,7 @@ void spn_index_cache_init(spn_index_cache_t* cache, sp_mem_t mem, sp_intern_t* i
   sp_str_om_new(cache->packages);
 }
 
-spn_err_t spn_index_cache_get_package(spn_index_cache_t* cache, spn_pkg_name_t id, spn_index_pkg_t** pkg, spn_index_diag_t* diag) {
+spn_err_t spn_index_cache_get_package(spn_index_cache_t* cache, spn_pkg_name_t id, spn_index_pkg_t** pkg, spn_err_union_t* err) {
   *pkg = SP_NULLPTR;
 
   sp_str_t qualified = spn_pkg_name_to_qualified(id);
@@ -22,7 +22,7 @@ spn_err_t spn_index_cache_get_package(spn_index_cache_t* cache, spn_pkg_name_t i
   spn_index_pkg_t* package = SP_NULLPTR;
   sp_da_for(*cache->indexes, it) {
     spn_index_info_t* index = &(*cache->indexes)[it];
-    spn_try(spn_index_get_package(index, cache->mem, cache->intern, cache->roots, id, &package, diag));
+    spn_try(spn_index_get_package(index, cache->mem, cache->intern, cache->roots, id, &package, err));
     if (package) {
       break;
     }

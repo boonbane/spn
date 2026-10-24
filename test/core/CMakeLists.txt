@@ -83,6 +83,7 @@ add_executable(core
   manifest/lower/lower.c
   options/merge.c
   pkg/eval.c
+  pkg/load.c
   options/session.c
   paths/anchor.c
   paths/canonicalize.c
@@ -281,6 +282,8 @@ set_source_files_properties(jtd/harness.c jtd/conformance.c PROPERTIES COMPILE_D
   "JTD_TEST_JSON_DIR=\"test/core/jtd/json\"")
 set_source_files_properties(manifest/lower/lower.c PROPERTIES COMPILE_DEFINITIONS
   "MANIFEST_DIR=\"test/core/manifest/lower/manifests\"")
+set_source_files_properties(pkg/load.c PROPERTIES COMPILE_DEFINITIONS
+  "PKG_MANIFEST_DIR=\"test/core/pkg/manifests\"")
 set_source_files_properties(config/config.c PROPERTIES COMPILE_DEFINITIONS
   "CONFIG_DIR=\"test/core/config/configs\"")
 set_source_files_properties(

@@ -6,6 +6,7 @@
 #include "macro/macro.h"
 #include "intern/intern.h"
 #include "pkg/types.h"
+#include "project/types.h"
 #include "spn/core.h"
 #include "toolchain/toolchain.h"
 #include "triple/triple.h"
@@ -207,15 +208,15 @@ void spn_profile_finalize(spn_profile_info_t* profile, const spn_toolchain_selec
   profile->linking = selection->linking;
 }
 
-static bool shared_demand(const si_pkg_info_t* manifest) {
-  si_om_for(manifest->config, it) {
-    const spn_pkg_config_t* config = si_om_at(manifest->config, it);
+static bool shared_demand(const spn_project_t* project) {
+  si_om_for(project->config, it) {
+    const spn_pkg_config_t* config = si_om_at(project->config, it);
     if (!sp_opt_is_null(config->kind) && config->kind.value == SPN_LIB_KIND_SHARED) {
       return true;
     }
   }
-  si_om_for(manifest->targets, it) {
-    si_target_info_t* target = si_om_at(manifest->targets, it);
+  si_om_for(project->package.targets, it) {
+    si_target_info_t* target = si_om_at(project->package.targets, it);
     if (target->kind != SPN_TARGET_KIND_LIB) {
       continue;
     }
@@ -227,7 +228,7 @@ static bool shared_demand(const si_pkg_info_t* manifest) {
   return false;
 }
 
-spn_err_t spn_profile_resolve(const spn_profile_override_t* override, spn_triple_t host, const si_pkg_info_t* manifest, spn_profile_info_t* result) {
+spn_err_t spn_profile_resolve(const spn_profile_override_t* override, spn_triple_t host, const spn_project_t* project, spn_profile_info_t* result) {
   sp_intern_str_t name = sp_zero;
   if (!sp_str_empty(override->name)) {
     name = spn_intern(override->name);
@@ -261,7 +262,7 @@ spn_err_t spn_profile_resolve(const spn_profile_override_t* override, spn_triple
   }
 
 
-  const spn_profile_decl_t* selected = find_decl(manifest->profiles, name.id);
+  const spn_profile_decl_t* selected = find_decl(project->profiles, name.id);
   if (!selected && !is_builtin(name.str)) {
     return spn_err_emit(&spn, (spn_err_union_t) {
       .kind = SPN_ERR_PROFILE_UNDEFINED,
@@ -270,7 +271,7 @@ spn_err_t spn_profile_resolve(const spn_profile_override_t* override, spn_triple
   }
 
   spn_profile_decl_t none = sp_zero;
-  const spn_profile_decl_t* base = find_decl(manifest->profiles, spn_intern_lit("default").id);
+  const spn_profile_decl_t* base = find_decl(project->profiles, spn_intern_lit("default").id);
   base = base ? base : &none;
   selected = selected ? selected : &none;
 
@@ -350,7 +351,7 @@ spn_err_t spn_profile_resolve(const spn_profile_override_t* override, spn_triple
     .arch        = pinned.arch,
     .abi         = pinned.abi,
     .request     = merged.request,
-    .demand      = shared_demand(manifest) ? SPN_LIB_KIND_SHARED : SPN_LIB_KIND_NONE,
+    .demand      = shared_demand(project) ? SPN_LIB_KIND_SHARED : SPN_LIB_KIND_NONE,
     .standard    = merged.standard,
     .mode        = merged.mode,
     .opt         = merged.opt,

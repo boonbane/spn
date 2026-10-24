@@ -129,24 +129,24 @@ bool spn_index_needs_fetch(spn_index_info_t* index) {
   return false;
 }
 
-spn_err_t spn_index_get_package(spn_index_info_t* index, sp_mem_t mem, sp_intern_t* intern, const spn_path_roots_t* roots, spn_pkg_name_t id, spn_index_pkg_t** pkg, spn_index_diag_t* diag) {
+spn_err_t spn_index_get_package(spn_index_info_t* index, sp_mem_t mem, sp_intern_t* intern, const spn_path_roots_t* roots, spn_pkg_name_t id, spn_index_pkg_t** pkg, spn_err_union_t* err) {
   switch (index->protocol) {
     case SPN_INDEX_PROTOCOL_GIT:
     case SPN_INDEX_PROTOCOL_HTTP: {
-      return spn_index_jsonl_get_package(index, mem, id, pkg, diag);
+      return spn_index_jsonl_get_package(index, mem, id, pkg, err);
     }
     case SPN_INDEX_PROTOCOL_DIR: {
-      return spn_index_dir_get_package(index, mem, intern, roots, id, pkg, diag);
+      return spn_index_dir_get_package(index, mem, intern, roots, id, pkg, err);
     }
   }
   sp_unreachable_return(SPN_ERROR);
 }
 
-static spn_err_t index_release_exists(spn_index_info_t* index, sp_mem_t mem, spn_index_release_t* rel, bool* exists, spn_index_diag_t* diag) {
+static spn_err_t index_release_exists(spn_index_info_t* index, sp_mem_t mem, spn_index_release_t* rel, bool* exists, spn_err_union_t* err) {
   *exists = false;
 
   spn_index_pkg_t* existing = SP_NULLPTR;
-  spn_try(spn_index_jsonl_get_package(index, mem, rel->id, &existing, diag));
+  spn_try(spn_index_jsonl_get_package(index, mem, rel->id, &existing, err));
   if (!existing) {
     return SPN_OK;
   }
@@ -203,12 +203,10 @@ static spn_err_t publish_git(spn_index_info_t* index, spn_index_release_t* rel, 
     *dirtied = false;
 
     bool exists = false;
-    spn_index_diag_t diag = sp_zero;
-    if (index_release_exists(index, scratch.mem, rel, &exists, &diag)) {
-      result = spn_err_emit(&spn, (spn_err_union_t) {
-        .kind = SPN_ERR_INDEX_CORRUPT,
-        .index_corrupt = { .name = spn_pkg_name_to_qualified(rel->id), .path = sp_str_copy(spn.events->mem, diag.path) },
-      });
+    spn_err_union_t err = sp_zero;
+    if (index_release_exists(index, scratch.mem, rel, &exists, &err)) {
+      err.index_corrupt.path = sp_str_copy(spn.events->mem, err.index_corrupt.path);
+      result = spn_err_emit(&spn, err);
       break;
     }
     if (exists) {

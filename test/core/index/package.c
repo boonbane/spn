@@ -99,8 +99,8 @@ sp_test_each(index_from_pkg, roots, test_t, tests, .setup = spn_test_ctx_setup) 
   }
 
   spn_index_release_t release = sp_zero;
-  sp_str_t dep = sp_zero;
-  sp_must_eq(t, SPN_OK, spn_index_release_from_manifest(mem, &info, build(it->published), &release, &dep));
+  spn_err_union_t err = sp_zero;
+  sp_must_eq(t, SPN_OK, spn_index_release_from_manifest(mem, &info, build(it->published), &release, &err));
 
   if (check(t, it->expect.source, release.source)) {
     return SP_ERR;
