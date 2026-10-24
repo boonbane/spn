@@ -1,0 +1,12 @@
+[package]
+name = "spum"
+version = "1.0.0"
+
+[package.upstream]
+url = "@spum.url@"
+commit = "@spum.commit@"
+
+[[lib]]
+name = "spum"
+kinds = ["source"]
+publish.include = [{ from = "source/spum.h" }]

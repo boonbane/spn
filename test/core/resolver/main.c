@@ -45,6 +45,7 @@ static resolve_result_t execute_fixture(const fx_config_t* config, const spn_pro
     sp_da_push(indexes, ((spn_index_info_t) {
       .protocol = SPN_INDEX_PROTOCOL_DIR,
       .dir = { .path = { .sub = dir_index_location } },
+      .location = { .at = sp_path_from_str(dir_index_location), .dir = dir_index_location },
     }));
   }
 
@@ -71,6 +72,7 @@ static resolve_result_t execute_fixture(const fx_config_t* config, const spn_pro
     .arch = SPN_ARCH_X64,
     .abi = SPN_ABI_GNU,
   }, project->config, config->budget);
+  resolver.roots = &roots;
 
   resolve_result_t result = sp_zero_s(resolve_result_t);
   result.intern = intern;
@@ -124,7 +126,6 @@ static sp_err_t load_manifest(sp_test_t* t, sp_mem_t mem, sp_str_t dir, spn_proj
   spn_toml_loader_init(&loader, mem, spn.intern, &roots);
   spn_cg_manifest_t cg = sp_zero;
   sp_must_eq(t, SPN_OK, spn_codegen_load(&loader, (spn_path_t) { .sub = manifest }, &cg));
-  spn_manifest_lower(&loader, &cg, &project->package);
   spn_project_lower(&loader, &cg, project);
   sp_must_eq(t, 0, sp_da_size(loader.issues));
   return SP_OK;

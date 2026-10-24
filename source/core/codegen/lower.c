@@ -289,9 +289,8 @@ static void lower_dep(spn_toml_loader_t* ctx, sp_str_t name, const spn_cg_dep_t*
       spn_toml_loader_pop(ctx);
       return;
     }
-    spn_path_t dir = spn_path_resolve(ctx->mem, ctx->dir, cg->path);
     req.source = SPN_PKG_SOURCE_FILE;
-    req.file.path = spn_path_join(ctx->mem, spn_path_canonicalize(ctx->mem, ctx->roots, dir), sp_str_lit("spn.toml"));
+    req.file.path = spn_path_join(ctx->mem, spn_path_resolve(ctx->mem, ctx->dir, cg->path), sp_str_lit("spn.toml"));
   } else {
     req.source = SPN_PKG_SOURCE_INDEX;
     if (sp_str_empty(cg->version) || spn_semver_parse_range(cg->version, &req.index.range)) {
@@ -436,8 +435,7 @@ spn_index_info_t spn_index_lower(spn_toml_loader_t* ctx, u32 at, spn_index_kind_
       if (!has_path) {
         spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_MISSING_KEY, "path");
       } else {
-        spn_path_t dir = spn_path_resolve(ctx->mem, ctx->dir, decl->path);
-        info.dir.path = spn_path_canonicalize(ctx->mem, ctx->roots, dir);
+        info.dir.path = spn_path_resolve(ctx->mem, ctx->dir, decl->path);
       }
       break;
     }
@@ -514,9 +512,8 @@ static void lower_patches(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, s
     }
 
     spn_pkg_patch_t patch = { .qualified = qualified };
-    sp_da_for(cg->patch[it].value.files, jt) {
-      spn_path_t path = spn_path_resolve(ctx->mem, ctx->dir, cg->patch[it].value.files[jt]);
-      si_da_push(ctx->mem, patch.set.files, sp_fs_normalize_path(ctx->mem, spn_path_str(ctx->roots, ctx->mem, path)));
+    si_da_for_value(cg->patch[it].value.files, file) {
+      si_da_push(ctx->mem, patch.files, spn_path_resolve(ctx->mem, ctx->dir, file));
     }
     si_da_push(ctx->mem, project->patches, patch);
   }
@@ -1209,6 +1206,7 @@ void spn_manifest_lower(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, si_
 }
 
 void spn_project_lower(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, spn_project_t* project) {
+  spn_manifest_lower(ctx, cg, &project->package);
   lower_toolchains(ctx, cg, project);
   lower_profiles(ctx, cg, project);
   lower_indexes(ctx, cg, project);
