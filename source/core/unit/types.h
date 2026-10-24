@@ -140,10 +140,7 @@ struct spn_target_unit {
   si_target_t* eval;
   spn_cc_output_kind_t kind;
   spn_linkage_t lib_kind;
-  struct {
-    spn_path_t object;
-    spn_path_t output;
-  } paths;
+  sp_str_t file_name;
 
   sp_da(spn_compile_unit_t*) objects;
   sp_da(spn_target_unit_t*) deps;
@@ -174,7 +171,6 @@ struct spn_pkg_unit_t {
   struct {
     spn_tree_roots_t roots;
     spn_path_t work;
-    spn_path_t object;
     spn_path_t stamp;
     spn_path_t store;
     spn_path_t include;

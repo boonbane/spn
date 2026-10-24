@@ -146,10 +146,25 @@ static spn_invocation_t invocation_from_base(sp_mem_t mem, const spn_invocation_
   return invocation;
 }
 
-spn_invocation_t spn_cc_render_compile_source(sp_mem_t mem, const spn_invocation_t* base, spn_path_t source) {
-  sp_assert(!spn_path_empty(source));
-  spn_invocation_t invocation = invocation_from_base(mem, base);
-  spn_cc_push_path(mem, &invocation, source);
+spn_invocation_t spn_cc_render_compile_source(sp_mem_t mem, const spn_cc_compile_plan_t* plan, const spn_cc_compile_files_t* files) {
+  sp_assert(!spn_path_empty(files->source));
+  spn_invocation_t invocation = invocation_from_base(mem, &plan->base);
+  switch (plan->driver) {
+    case SPN_CC_DRIVER_GCC:
+    case SPN_CC_DRIVER_CLANG:
+    case SPN_CC_DRIVER_ZIG: {
+      spn_gnu_render_compile_include(mem, files, &invocation);
+      break;
+    }
+    case SPN_CC_DRIVER_MSVC: {
+      spn_msvc_render_compile_include(mem, files, &invocation);
+      break;
+    }
+    case SPN_CC_DRIVER_NONE: {
+      sp_unreachable_case();
+    }
+  }
+  spn_cc_push_path(mem, &invocation, files->source);
   return invocation;
 }
 

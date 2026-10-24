@@ -110,7 +110,7 @@
       "metadata": { "verb": "Linked", "verbosity": "debug" },
       "properties": {
         "subject": { "ref": "subject" },
-        "output_path": { "metadata": { "extern": "path" } },
+        "file_name": { "type": "string" },
         "run": { "ref": "run" }
       }
     },
@@ -132,8 +132,6 @@
       "metadata": { "verb": "Embedded", "verbosity": "debug" },
       "properties": {
         "target": { "type": "string" },
-        "object_path": { "metadata": { "extern": "path" } },
-        "header_path": { "metadata": { "extern": "path" } },
         "time_ns": { "type": "uint64", "metadata": { "field": "time" } }
       }
     },

@@ -40,6 +40,9 @@ static spn_cc_compile_files_t compile_files(const si_dag_ctx_t* c, const si_comp
   if (compile->libc.occupied) {
     files.libc = si_dag_resolve_input(c, compile->libc);
   }
+  if (compile->header.occupied) {
+    files.include = spn_path_parent(si_dag_resolve_input(c, compile->header));
+  }
   return files;
 }
 

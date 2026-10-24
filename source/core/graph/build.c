@@ -25,7 +25,7 @@ spn_path_t spn_target_unit_staged_path(sp_mem_t mem, spn_target_unit_t* target) 
   if (target->kind != SPN_CC_OUTPUT_EXE) return sp_zero_s(spn_path_t);
 
   sp_mem_arena_marker_t s = sp_mem_begin_scratch_for(mem);
-  sp_str_t file_name = spn_triple_exe_file_name(s.mem, spn_profile_triple(&target->pkg->build->profile), target->eval->info->name.str);
+  sp_str_t file_name = target->file_name;
   spn_path_t root = target->pkg->build->paths.root;
 
   spn_path_t path = sp_zero;

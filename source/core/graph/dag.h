@@ -12,6 +12,12 @@ typedef struct {
   spn_dag_id_t implib;
 } spn_dag_target_ids_t;
 
+typedef struct {
+  spn_dag_id_t action;
+  spn_dag_id_t object;
+  spn_dag_id_t header;
+} spn_dag_embed_ids_t;
+
 struct spn_dag_build_t {
   spn_session_t* session;
   sp_mem_t mem;
@@ -20,19 +26,14 @@ struct spn_dag_build_t {
   struct {
     sp_ht(spn_pkg_unit_t*, spn_dag_id_t) stamps;
     sp_ht(spn_target_unit_t*, spn_dag_target_ids_t) targets;
-    sp_ht(spn_target_unit_t*, spn_dag_id_t) embeds;
+    sp_ht(spn_target_unit_t*, spn_dag_embed_ids_t) embeds;
     sp_ht(spn_build_unit_t*, spn_dag_id_t) builds;
     sp_ht(spn_dag_digest_t, spn_dag_id_t) warm;
   } ids;
-  si_da(spn_dag_id_t) compiles;
   struct {
     sp_ht(spn_dag_id_t, spn_pkg_unit_t*) pkgs;
     sp_ht(spn_pkg_unit_t*, sp_atomic_s32_t) announced;
   } announce;
-  struct {
-    spn_dag_id_t file;
-    spn_dag_id_t stamp;
-  } compile_commands;
   spn_dag_action_cache_t actions;
   spn_dag_obs_table_t discovery;
   spn_dag_store_t store;
@@ -50,5 +51,6 @@ spn_err_t        spn_dag_build_run(spn_dag_build_t* b, u32 workers);
 spn_err_t        spn_dag_build_add_build(spn_dag_build_t* b, spn_build_unit_t* build);
 void             spn_dag_build_declare_target(spn_dag_build_t* b, spn_target_unit_t* target);
 spn_err_t        spn_dag_build_add_target(spn_dag_build_t* b, spn_target_unit_t* target);
+spn_err_t        spn_dag_build_write_compile_commands(spn_dag_build_t* b);
 
 #endif
