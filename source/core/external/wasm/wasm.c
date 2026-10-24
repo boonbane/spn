@@ -65,21 +65,26 @@ static spn_err_t fail(spn_pkg_unit_t* unit, spn_err_t err, spn_err_wasm_t wasm) 
   return err;
 }
 
-spn_err_t spn_wasm_script_open(sp_mem_t mem, spn_pkg_unit_t* unit, spn_path_t module, spn_dag_obs_set_t* obs, spn_wasm_script_t* script) {
+spn_err_t spn_wasm_script_open(spn_pkg_unit_t* unit, spn_path_t module, spn_dag_obs_set_t* obs, spn_wasm_script_t* script) {
   *script = (spn_wasm_script_t) { .unit = unit, .path = module };
   if (!wasm_runtime_init_thread_env()) {
     return fail(unit, SPN_ERR_WASM_THREAD_ENV_FAILED, (spn_err_wasm_t) { .path = module });
   }
 
+  script->arena = sp_mem_arena_new(sp_mem_os_new());
+  sp_mem_t mem = sp_mem_arena_as_allocator(script->arena);
+
   const spn_path_roots_t* roots = &unit->session->ctx->roots;
   sp_str_t blob = sp_zero;
   if (sp_io_read_file_at(mem, spn_path_at(roots, module), &blob)) {
+    sp_mem_arena_destroy(script->arena);
     return fail(unit, SPN_ERR_WASM_READ_FAILED, (spn_err_wasm_t) { .path = module });
   }
 
   c8 error [128] = sp_zero;
   script->module = wasm_runtime_load((u8*)blob.data, blob.len, error, sizeof(error));
   if (!script->module) {
+    sp_mem_arena_destroy(script->arena);
     return fail(unit, SPN_ERR_WASM_MODULE_LOAD_FAILED, (spn_err_wasm_t) {
       .path = module,
       .error = sp_cstr_as_str(error),
@@ -111,6 +116,7 @@ spn_err_t spn_wasm_script_open(sp_mem_t mem, spn_pkg_unit_t* unit, spn_path_t mo
   script->instance = wasm_runtime_instantiate(script->module, SPN_WASM_STACK_SIZE, SPN_WASM_HEAP_SIZE, error, sizeof(error));
   if (!script->instance) {
     wasm_runtime_unload(script->module);
+    sp_mem_arena_destroy(script->arena);
     return fail(unit, SPN_ERR_WASM_MODULE_INSTANCE_FAILED, (spn_err_wasm_t) {
       .path = module,
       .error = sp_cstr_as_str(error),
@@ -121,6 +127,7 @@ spn_err_t spn_wasm_script_open(sp_mem_t mem, spn_pkg_unit_t* unit, spn_path_t mo
   if (!script->env) {
     wasm_runtime_deinstantiate(script->instance);
     wasm_runtime_unload(script->module);
+    sp_mem_arena_destroy(script->arena);
     return fail(unit, SPN_ERR_WASM_CTX_FAILED, (spn_err_wasm_t) { .path = module });
   }
 
@@ -140,6 +147,7 @@ void spn_wasm_script_close(spn_wasm_script_t* script) {
   wasm_runtime_destroy_exec_env(script->env);
   wasm_runtime_deinstantiate(script->instance);
   wasm_runtime_unload(script->module);
+  sp_mem_arena_destroy(script->arena);
 }
 
 bool spn_wasm_script_exports(spn_wasm_script_t* script, sp_str_t name) {

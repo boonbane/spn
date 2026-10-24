@@ -16,8 +16,7 @@
 #include "unit/package.h"
 #include "unit/unit.h"
 
-spn_err_t si_on_embed(const si_dag_ctx_t* c, void* user_data) {
-  si_embed_t* embed = (si_embed_t*)user_data;
+static spn_err_t embed_files(sp_mem_t mem, const si_dag_ctx_t* c, si_embed_t* embed, spn_cc_embed_ctx_t* embedder) {
   spn_target_unit_t* unit = embed->target;
   spn_target_eval_t* eval = unit->eval;
   const spn_path_roots_t* roots = c->roots;
@@ -29,9 +28,6 @@ spn_err_t si_on_embed(const si_dag_ctx_t* c, void* user_data) {
   });
 
   sp_tm_timer_t timer = sp_tm_start_timer();
-
-  spn_cc_embed_ctx_t embedder = sp_zero;
-  spn_cc_embed_ctx_init(&embedder, spn.mem, spn_os_to_native_object_format(unit->pkg->build->profile.os), unit->pkg->build->profile.arch);
 
   si_da_for(eval->embed, it) {
     spn_embed_t entry = eval->embed[it];
@@ -49,7 +45,7 @@ spn_err_t si_on_embed(const si_dag_ctx_t* c, void* user_data) {
       case SPN_EMBED_FILE: {
         si_dag_observe(c, (spn_dag_obs_t) { .kind = SPN_DAG_OBS_FILE, .path = entry.path });
         sp_str_t content = sp_zero;
-        if (sp_io_read_file_at(embedder.mem, spn_path_at(roots, entry.path), &content) != SP_OK) {
+        if (sp_io_read_file_at(embedder->mem, spn_path_at(roots, entry.path), &content) != SP_OK) {
           spn_event_buffer_push(spn.events, (spn_event_t) {
             .kind = SPN_EVENT_EMBED_FAILED,
             .pkg = unit->pkg->eval.manifest->name.str,
@@ -63,24 +59,24 @@ spn_err_t si_on_embed(const si_dag_ctx_t* c, void* user_data) {
           .len = content.len,
           .capacity = content.len,
         };
-        spn_cc_embed_ctx_add(&embedder, data, spn_cc_symbol_from_embedded_file(c->mem, entry.dest), entry.dest, types.data, types.size);
+        spn_cc_embed_ctx_add(embedder, data, spn_cc_symbol_from_embedded_file(mem, entry.dest), entry.dest, types.data, types.size);
         break;
       }
       case SPN_EMBED_DIR: {
         spn_path_t root = entry.path;
         si_dag_observe(c, (spn_dag_obs_t) { .kind = SPN_DAG_OBS_ENUMERATION, .path = root });
-        sp_fs_it_t walk = sp_fs_it_new_at(c->mem, spn_path_at(roots, root), 0);
+        sp_fs_it_t walk = sp_fs_it_new_at(mem, spn_path_at(roots, root), 0);
         while (sp_fs_it_walk(&walk)) {
           sp_str_t rel = walk.entry.rel;
           if (walk.entry.kind == SP_FS_KIND_DIR) {
-            si_dag_observe(c, (spn_dag_obs_t) { .kind = SPN_DAG_OBS_ENUMERATION, .path = spn_path_join(c->mem, root, rel) });
+            si_dag_observe(c, (spn_dag_obs_t) { .kind = SPN_DAG_OBS_ENUMERATION, .path = spn_path_join(mem, root, rel) });
             continue;
           }
           if (!sp_fs_is_file_at(walk.at)) continue;
-          spn_path_t file = spn_path_join(c->mem, root, rel);
+          spn_path_t file = spn_path_join(mem, root, rel);
           si_dag_observe(c, (spn_dag_obs_t) { .kind = SPN_DAG_OBS_FILE, .path = file });
           sp_str_t content = sp_zero;
-          if (sp_io_read_file_at(embedder.mem, walk.at, &content) != SP_OK) {
+          if (sp_io_read_file_at(embedder->mem, walk.at, &content) != SP_OK) {
             spn_event_buffer_push(spn.events, (spn_event_t) {
               .kind = SPN_EVENT_EMBED_FAILED,
               .pkg = unit->pkg->eval.manifest->name.str,
@@ -94,8 +90,8 @@ spn_err_t si_on_embed(const si_dag_ctx_t* c, void* user_data) {
             .len = content.len,
             .capacity = content.len,
           };
-          sp_str_t dest = sp_fs_join_path(c->mem, entry.dest, rel);
-          spn_cc_embed_ctx_add(&embedder, entry_data, spn_cc_symbol_from_embedded_file(c->mem, dest), dest, types.data, types.size);
+          sp_str_t dest = sp_fs_join_path(mem, entry.dest, rel);
+          spn_cc_embed_ctx_add(embedder, entry_data, spn_cc_symbol_from_embedded_file(mem, dest), dest, types.data, types.size);
         }
         sp_fs_it_deinit(&walk);
         break;
@@ -103,9 +99,7 @@ spn_err_t si_on_embed(const si_dag_ctx_t* c, void* user_data) {
     }
   }
 
-  spn_err_t write_err = spn_cc_embed_ctx_write(&embedder, spn_path_at(roots, si_dag_resolve_output(c, embed->object)), spn_path_at(roots, si_dag_resolve_output(c, embed->header)));
-  spn_cc_embed_ctx_free(&embedder);
-  if (write_err) {
+  if (spn_cc_embed_ctx_write(embedder, spn_path_at(roots, si_dag_resolve_output(c, embed->object)), spn_path_at(roots, si_dag_resolve_output(c, embed->header)))) {
     spn_event_buffer_push(spn.events, (spn_event_t) {
       .kind = SPN_EVENT_EMBED_FAILED,
       .pkg = unit->pkg->eval.manifest->name.str,
@@ -125,6 +119,17 @@ spn_err_t si_on_embed(const si_dag_ctx_t* c, void* user_data) {
       .time = elapsed,
     },
   });
-
   return SPN_OK;
+}
+
+spn_err_t si_on_embed(const si_dag_ctx_t* c, void* user_data) {
+  si_embed_t* embed = (si_embed_t*)user_data;
+  spn_pkg_unit_t* pkg = embed->target->pkg;
+  sp_mem_arena_marker_t s = sp_mem_begin_scratch();
+  spn_cc_embed_ctx_t embedder = sp_zero;
+  spn_cc_embed_ctx_init(&embedder, spn.mem, spn_os_to_native_object_format(pkg->build->profile.os), pkg->build->profile.arch);
+  spn_err_t err = embed_files(s.mem, c, embed, &embedder);
+  spn_cc_embed_ctx_free(&embedder);
+  sp_mem_end_scratch(s);
+  return err;
 }

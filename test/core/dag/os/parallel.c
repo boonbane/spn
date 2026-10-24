@@ -181,10 +181,12 @@ static spn_err_t execute_graph(const si_dag_ctx_t* c, void* user_data) {
   sp_atomic_s32_add(&ctx->env->runs, 1, SP_ATOMIC_SEQ_CST);
   spn_path_t output = si_dag_resolve_output(c, c->produces[0]);
   sp_str_t content = sp_cstr_as_str(ctx->spec->identity);
+  sp_mem_arena_marker_t s = sp_mem_begin_scratch();
   spn_path_t target = ctx->spec->tree
-    ? spn_path_join(c->mem, output, sp_str_lit("H"))
+    ? spn_path_join(s.mem, output, sp_str_lit("H"))
     : output;
   sp_err_t err = sp_fs_create_file_str_at(spn_path_at(roots, target), content);
+  sp_mem_end_scratch(s);
   return err ? SPN_ERR_DAG_ACTION : SPN_OK;
 }
 

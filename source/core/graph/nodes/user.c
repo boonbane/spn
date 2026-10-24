@@ -46,7 +46,7 @@ spn_err_t si_on_user_node(const si_dag_ctx_t* c, void* user_data) {
 
   if (!sp_str_empty(node->fn)) {
     spn_wasm_script_t script = sp_zero;
-    if (spn_wasm_script_open(c->mem, pkg, si_dag_resolve_input(c, ctx->script), c->obs, &script)) {
+    if (spn_wasm_script_open(pkg, si_dag_resolve_input(c, ctx->script), c->obs, &script)) {
       return SPN_ERR_DAG_ACTION;
     }
     spn_err_t err = spn_wasm_script_call(&script, node->fn, SP_NULLPTR, 0);

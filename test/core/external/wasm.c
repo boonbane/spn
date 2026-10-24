@@ -101,7 +101,7 @@ sp_test_each(wasm_script, lifecycle, test_t, tests, .setup = spn_test_ctx_setup)
   spn_dag_obs_set_t obs = { .table = &table };
 
   spn_wasm_script_t script = sp_zero;
-  spn_err_t opened = spn_wasm_script_open(mem, &unit, module, &obs, &script);
+  spn_err_t opened = spn_wasm_script_open(&unit, module, &obs, &script);
   sp_expect_eq(t, it->expect.open, opened);
   if (opened) {
     return SP_OK;

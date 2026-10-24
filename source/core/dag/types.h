@@ -73,7 +73,6 @@ typedef struct si_dag_action_handle si_dag_action_handle_t;
 
 typedef struct {
   si_dag_action_handle_t* handle;
-  sp_mem_t mem;
   const sp_da(spn_dag_id_t) consumes;
   const sp_da(spn_dag_id_t) produces;
   const spn_path_roots_t* roots;
