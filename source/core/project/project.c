@@ -49,11 +49,6 @@ spn_err_t spn_project_load(spn_ctx_t* ctx, spn_project_t** project) {
   }
   spn_try(hashed);
 
-  sp_path_t lock = spn_path_at(&ctx->roots, loaded->paths.lock);
-  if (sp_fs_exists_at(lock)) {
-    sp_opt_set(loaded->lock, spn_lock_file_load(ctx->heap, lock, ctx->events));
-  }
-
   *project = loaded;
   return SPN_OK;
 }

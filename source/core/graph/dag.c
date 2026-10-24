@@ -1212,7 +1212,7 @@ spn_err_t spn_dag_build_session(spn_op_t* op) {
     }
   }
   if (!result) {
-    if (!project->lock.some) {
+    if (!sp_fs_exists_at(spn_path_at(&session->ctx->roots, project->paths.lock))) {
       spn_try(spn_project_update_lock(session->ctx, project, session->resolve));
     }
     result = dag_stage(dag);
