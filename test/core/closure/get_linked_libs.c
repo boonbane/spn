@@ -105,7 +105,7 @@ sp_test_each(get_linked_libs, flatten, test_t, tests, .setup = spn_test_ctx_setu
   sp_must_eq(t, expected, si_da_size(libs));
   sp_for(row, expected) {
     sp_expect_str_eq_c(t, libs[row].pkg->eval.manifest->name.str, it->expect[row].pkg);
-    sp_expect_str_eq_c(t, libs[row].lib->eval->decl->name.str, it->expect[row].lib);
+    sp_expect_str_eq_c(t, libs[row].lib->eval->info->name.str, it->expect[row].lib);
     sp_expect_eq(t, it->expect[row].private, libs[row].private);
   }
 

@@ -24,7 +24,7 @@ static spn_err_t embed_files(sp_mem_t mem, const si_dag_ctx_t* c, si_embed_t* em
   spn_event_buffer_push(spn.events, (spn_event_t) {
     .kind = SPN_EVENT_EMBED_START,
     .pkg = unit->pkg->eval.manifest->name.str,
-    .embed_start = { .target = eval->decl->name.str, .num_files = si_da_size(eval->embed) },
+    .embed_start = { .target = eval->info->name.str, .num_files = si_da_size(eval->embed) },
   });
 
   sp_tm_timer_t timer = sp_tm_start_timer();
@@ -49,7 +49,7 @@ static spn_err_t embed_files(sp_mem_t mem, const si_dag_ctx_t* c, si_embed_t* em
           spn_event_buffer_push(spn.events, (spn_event_t) {
             .kind = SPN_EVENT_EMBED_FAILED,
             .pkg = unit->pkg->eval.manifest->name.str,
-            .embed_failed = { .target = eval->decl->name.str, .path = entry.path, .error = sp_str_lit("file not found") },
+            .embed_failed = { .target = eval->info->name.str, .path = entry.path, .error = sp_str_lit("file not found") },
           });
           return SPN_ERR_DAG_ACTION;
         }
@@ -80,7 +80,7 @@ static spn_err_t embed_files(sp_mem_t mem, const si_dag_ctx_t* c, si_embed_t* em
             spn_event_buffer_push(spn.events, (spn_event_t) {
               .kind = SPN_EVENT_EMBED_FAILED,
               .pkg = unit->pkg->eval.manifest->name.str,
-              .embed_failed = { .target = eval->decl->name.str, .path = spn_path_copy(spn.events->mem, file), .error = sp_str_lit("file not found") },
+              .embed_failed = { .target = eval->info->name.str, .path = spn_path_copy(spn.events->mem, file), .error = sp_str_lit("file not found") },
             });
             sp_fs_it_deinit(&walk);
             return SPN_ERR_DAG_ACTION;
@@ -103,7 +103,7 @@ static spn_err_t embed_files(sp_mem_t mem, const si_dag_ctx_t* c, si_embed_t* em
     spn_event_buffer_push(spn.events, (spn_event_t) {
       .kind = SPN_EVENT_EMBED_FAILED,
       .pkg = unit->pkg->eval.manifest->name.str,
-      .embed_failed = { .target = eval->decl->name.str, .error = sp_str_lit("embed write failed") },
+      .embed_failed = { .target = eval->info->name.str, .error = sp_str_lit("embed write failed") },
     });
     return SPN_ERR_DAG_ACTION;
   }
@@ -113,7 +113,7 @@ static spn_err_t embed_files(sp_mem_t mem, const si_dag_ctx_t* c, si_embed_t* em
     .kind = SPN_EVENT_EMBED_PASSED,
     .pkg = unit->pkg->eval.manifest->name.str,
     .embed_passed = {
-      .target = eval->decl->name.str,
+      .target = eval->info->name.str,
       .object_path = embed->object_path,
       .header_path = embed->header_path,
       .time = elapsed,

@@ -11,10 +11,10 @@ static inline spn_manifest_t test_manifest_make(sp_str_t name) {
   return manifest;
 }
 
-static inline spn_target_decl_t* test_manifest_target(sp_mem_t mem, spn_manifest_t* manifest, sp_str_t name, spn_target_kind_t kind) {
+static inline spn_target_info_t* test_manifest_target(sp_mem_t mem, spn_manifest_t* manifest, sp_str_t name, spn_target_kind_t kind) {
   sp_intern_str_t interned = spn_intern(name);
   spn_target_id_t id = { .name = interned.id, .kind = kind };
-  si_om_insert(mem, manifest->targets, id, ((spn_target_decl_t) {
+  si_om_insert(mem, manifest->targets, id, ((spn_target_info_t) {
     .id = id,
     .name = interned,
     .kind = kind,

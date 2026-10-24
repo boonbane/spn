@@ -182,8 +182,8 @@ static si_da(spn_gated_publish_t) lower_publish(spn_toml_loader_t* ctx, const sp
   return publish;
 }
 
-static void lower_target(spn_toml_loader_t* ctx, const spn_cg_target_t* cg, spn_target_decl_t* target) {
-  *target = (spn_target_decl_t) {
+static void lower_target(spn_toml_loader_t* ctx, const spn_cg_target_t* cg, spn_target_info_t* target) {
+  *target = (spn_target_info_t) {
     .id = target->id,
     .name = target->name,
     .kind = target->kind,
@@ -230,14 +230,14 @@ static void lower_target(spn_toml_loader_t* ctx, const spn_cg_target_t* cg, spn_
   }
 }
 
-static spn_err_t add_target(sp_mem_t mem, spn_manifest_t* manifest, sp_str_t name, spn_target_kind_t kind, spn_target_decl_t** decl) {
+static spn_err_t add_target(sp_mem_t mem, spn_manifest_t* manifest, sp_str_t name, spn_target_kind_t kind, spn_target_info_t** decl) {
   sp_intern_str_t interned = spn_intern(name);
   spn_target_id_t id = { .name = interned.id, .kind = kind };
   if (si_om_has(manifest->targets, id)) {
     return SPN_ERR_TARGET_DUPLICATE;
   }
 
-  si_om_insert(mem, manifest->targets, id, ((spn_target_decl_t) {
+  si_om_insert(mem, manifest->targets, id, ((spn_target_info_t) {
     .id = id,
     .name = interned,
     .kind = kind,
@@ -250,7 +250,7 @@ static void lower_collection(spn_toml_loader_t* ctx, spn_cg_target_om_t cg, cons
   spn_toml_loader_push_key(ctx, key);
   sp_om_for(cg, it) {
     const spn_cg_target_t* entry = sp_str_om_at(cg, it);
-    spn_target_decl_t* target = SP_NULLPTR;
+    spn_target_info_t* target = SP_NULLPTR;
     if (add_target(ctx->mem, out, entry->name, kind, &target)) {
       spn_toml_loader_push_index(ctx, it);
       spn_toml_loader_issue_at(ctx, SPN_ERR_CODEGEN_DUPLICATE_KEY, entry->name);
@@ -266,7 +266,7 @@ static void lower_metaprogram(spn_toml_loader_t* ctx, const spn_cg_build_script_
   if (sp_da_empty(cg->source)) {
     return;
   }
-  spn_target_decl_t* target = SP_NULLPTR;
+  spn_target_info_t* target = SP_NULLPTR;
   add_target(ctx->mem, out, name, kind, &target);
   target->source = lower_gated_sources(ctx, cg->source);
   target->include = lower_gated_dirs(ctx, cg->include);

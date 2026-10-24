@@ -15,7 +15,7 @@ typedef struct spn_manifest spn_manifest_t;
 typedef struct spn_pkg spn_pkg_t;
 typedef struct spn_resolved_pkg spn_resolved_pkg_t;
 typedef struct spn_profile_info spn_profile_info_t;
-typedef struct spn_target_decl spn_target_decl_t;
+typedef struct spn_target_info spn_target_info_t;
 typedef struct spn_target_eval spn_target_eval_t;
 typedef struct spn_build_unit_t spn_build_unit_t;
 typedef struct spn_pkg_unit_t spn_pkg_unit_t;

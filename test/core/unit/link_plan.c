@@ -266,7 +266,7 @@ static const plan_test_t tests [] = {
   },
 };
 
-static void target_decl(sp_mem_t mem, const plan_target_t* spec, spn_target_decl_t* decl) {
+static void target_decl(sp_mem_t mem, const plan_target_t* spec, spn_target_info_t* decl) {
   decl->linkages = spec->linkages;
   decl->source = test_gated_sources(mem, spec->source, UNIT_TEST_MAX_STRS);
   decl->deps = test_gated_list(mem, spec->deps, UNIT_TEST_MAX_STRS);
@@ -290,7 +290,7 @@ sp_test_each(link_plan, plan, plan_test_t, tests, .setup = spn_test_ctx_setup) {
   spn_session_t* s = build_session(mem, &it->graph);
 
   spn_manifest_t* manifest = test_manifest(s, find_pkg_id(s, &it->graph, it->graph.pkgs[0].name));
-  spn_target_decl_t* decl = SP_NULLPTR;
+  spn_target_info_t* decl = SP_NULLPTR;
   decl = test_manifest_target(s->mem, manifest, sp_str_lit("app"), it->target.kind);
   target_decl(mem, &it->target, decl);
   s->plans.build[0].selection.kinds = spn_target_kind_bit(it->target.kind);
@@ -320,7 +320,7 @@ sp_test_each(link_plan, plan, plan_test_t, tests, .setup = spn_test_ctx_setup) {
   sp_carr_detect_len(it->expect.deps, num_deps, it->expect.deps[num_deps].lib);
   sp_must_eq(t, num_deps, si_da_size(plan->deps));
   sp_for(dt, num_deps) {
-    sp_expect_str_eq_c(t, plan->deps[dt].lib->eval->decl->name.str, it->expect.deps[dt].lib);
+    sp_expect_str_eq_c(t, plan->deps[dt].lib->eval->info->name.str, it->expect.deps[dt].lib);
     sp_expect_eq(t, it->expect.deps[dt].role, plan->deps[dt].role);
   }
   sp_must_strs_eq(t, plan->cc.system_libs, sp_da_size(plan->cc.system_libs), it->expect.system_libs);

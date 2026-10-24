@@ -284,11 +284,11 @@ sp_test_each(pkg_eval, lists, lists_test_t, lists_tests, .setup = spn_test_ctx_s
   sp_mem_t mem = sp_test_arena(t);
 
   spn_manifest_t manifest = test_manifest_make(sp_str_lit("P"));
-  spn_target_decl_t* lib = SP_NULLPTR;
-  spn_target_decl_t* exe = SP_NULLPTR;
-  spn_target_decl_t* script = SP_NULLPTR;
-  spn_target_decl_t* unit_test = SP_NULLPTR;
-  spn_target_decl_t* build = SP_NULLPTR;
+  spn_target_info_t* lib = SP_NULLPTR;
+  spn_target_info_t* exe = SP_NULLPTR;
+  spn_target_info_t* script = SP_NULLPTR;
+  spn_target_info_t* unit_test = SP_NULLPTR;
+  spn_target_info_t* build = SP_NULLPTR;
   lib = test_manifest_target(mem, &manifest, sp_str_lit("A"), SPN_TARGET_KIND_LIB);
   exe = test_manifest_target(mem, &manifest, sp_str_lit("main"), SPN_TARGET_KIND_EXE);
   script = test_manifest_target(mem, &manifest, sp_str_lit("B"), SPN_TARGET_KIND_SCRIPT);
@@ -320,7 +320,7 @@ sp_test_each(pkg_eval, lists, lists_test_t, lists_tests, .setup = spn_test_ctx_s
   spn_target_eval_t* test_eval = spn_pkg_get_target(&pkg, sp_str_lit("C"), SPN_TARGET_KIND_TEST);
   spn_target_eval_t* build_eval = spn_pkg_get_target(&pkg, sp_str_lit("build"), SPN_TARGET_KIND_BUILD_METAPROGRAM);
   sp_must(t, lib_eval && exe_eval && script_eval && test_eval && build_eval);
-  sp_expect(t, exe_eval->decl == exe);
+  sp_expect(t, exe_eval->info == exe);
 
   sp_try(expect_sources(t, lib_eval->source, it->expect.lib_source));
   sp_try(expect_sources(t, exe_eval->source, it->expect.source));
@@ -545,7 +545,7 @@ static const embed_test_t embed_tests [] = {
 sp_test_each(pkg_eval, target_embeds, embed_test_t, embed_tests, .setup = spn_test_ctx_setup) {
   sp_mem_t mem = sp_test_arena(t);
   spn_manifest_t manifest = test_manifest_make(sp_str_lit("P"));
-  spn_target_decl_t* exe = SP_NULLPTR;
+  spn_target_info_t* exe = SP_NULLPTR;
   exe = test_manifest_target(mem, &manifest, sp_str_lit("main"), SPN_TARGET_KIND_EXE);
   sp_carr_for(it->embeds, et) {
     if (!it->embeds[et].dest) {
@@ -607,7 +607,7 @@ sp_test_each(pkg_eval, has_scripts, scripts_test_t, scripts_tests, .setup = spn_
     if (!it->targets[tt].source) {
       break;
     }
-    spn_target_decl_t* decl = SP_NULLPTR;
+    spn_target_info_t* decl = SP_NULLPTR;
     decl = test_manifest_target(mem, &manifest, sp_str_lit("T"), it->targets[tt].kind);
     si_da_push(mem, decl->source, ((spn_gated_source_t) {
       .path = sp_cstr_as_str(it->targets[tt].source),

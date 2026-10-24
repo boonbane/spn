@@ -51,7 +51,7 @@ spn_err_t spn_index_release_from_manifest(sp_mem_t mem, const spn_manifest_t* ma
   }
 
   si_om_for(manifest->targets, it) {
-    spn_target_decl_t* lib = si_om_at(manifest->targets, it);
+    spn_target_info_t* lib = si_om_at(manifest->targets, it);
     if (lib->kind != SPN_TARGET_KIND_LIB) {
       continue;
     }

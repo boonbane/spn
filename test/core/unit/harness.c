@@ -63,7 +63,7 @@ spn_pkg_id_t find_pkg_id(spn_session_t* s, unit_graph_test_t* g, const c8* name)
   return sp_zero_struct(spn_pkg_id_t);
 }
 
-static void lib_decl(sp_mem_t mem, const unit_lib_t* spec, spn_target_decl_t* decl) {
+static void lib_decl(sp_mem_t mem, const unit_lib_t* spec, spn_target_info_t* decl) {
   decl->linkages = spec->linkages;
   decl->no_link = spec->no_link;
   decl->source = test_gated_sources(mem, spec->source, UNIT_TEST_MAX_STRS);
@@ -176,12 +176,12 @@ spn_session_t* build_session(sp_mem_t mem, unit_graph_test_t* g) {
       if (!pkg->libs[lt].name) {
         break;
       }
-      spn_target_decl_t* lib = SP_NULLPTR;
+      spn_target_info_t* lib = SP_NULLPTR;
       lib = test_manifest_target(mem, manifest, sp_cstr_as_str(pkg->libs[lt].name), SPN_TARGET_KIND_LIB);
       lib_decl(mem, &pkg->libs[lt], lib);
     }
     if (pkg->scripts) {
-      spn_target_decl_t* configure = SP_NULLPTR;
+      spn_target_info_t* configure = SP_NULLPTR;
       configure = test_manifest_target(mem, manifest, sp_str_lit("configure"), SPN_TARGET_KIND_CONFIGURE_METAPROGRAM);
       si_da_push(mem, configure->source, ((spn_gated_source_t) {
         .kind = SPN_SOURCE_FILE,

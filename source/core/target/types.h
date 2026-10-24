@@ -109,7 +109,7 @@ _Static_assert(
   "spn_target_id_t is byte-hashed as a key; it must have no padding"
 );
 
-struct spn_target_decl {
+struct spn_target_info {
   spn_target_id_t id;
   sp_intern_str_t name;
   spn_target_kind_t kind;
@@ -136,7 +136,7 @@ struct spn_target_decl {
 };
 
 struct spn_target_eval {
-  const spn_target_decl_t* decl;
+  const spn_target_info_t* info;
   si_da(spn_source_t) source;
   si_da(spn_publish_t) publish;
   si_da(spn_path_t) include;
@@ -155,7 +155,7 @@ struct spn_target_eval {
   } macos;
 };
 
-typedef si_om(spn_target_id_t, spn_target_decl_t) spn_target_decl_map_t;
+typedef si_om(spn_target_id_t, spn_target_info_t) spn_target_decl_map_t;
 typedef si_om(spn_target_id_t, spn_target_eval_t) spn_target_eval_map_t;
 
 #endif

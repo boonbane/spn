@@ -37,7 +37,7 @@ static bool pkg_is_shared_boundary(spn_pkg_unit_t* pkg) {
 static bool pkg_links_code(spn_pkg_unit_t* pkg) {
   si_da_for(pkg->libs, it) {
     spn_target_unit_t* lib = pkg->libs[it];
-    if (lib->eval->decl->no_link) continue;
+    if (lib->eval->info->no_link) continue;
     if (lib->lib_kind == SPN_LIB_KIND_SHARED) continue;
     return true;
   }
@@ -99,7 +99,7 @@ static void collect(search_t* s, spn_pkg_unit_t* pkg, bool private, bool tests, 
 }
 
 static bool sibling_code_links(spn_target_unit_t* dep) {
-  if (dep->eval->decl->no_link) {
+  if (dep->eval->info->no_link) {
     return false;
   }
   switch (dep->lib_kind) {
@@ -157,7 +157,7 @@ si_da(spn_closure_entry_t) si_link_get_target_closure(sp_mem_t mem, spn_target_u
     .links_code = true,
   }));
 
-  if (root->eval->decl->kind == SPN_TARGET_KIND_CONFIGURE_METAPROGRAM) {
+  if (root->eval->info->kind == SPN_TARGET_KIND_CONFIGURE_METAPROGRAM) {
     return closure;
   }
 
@@ -167,7 +167,7 @@ si_da(spn_closure_entry_t) si_link_get_target_closure(sp_mem_t mem, spn_target_u
     .mem = s.mem,
   };
   si_ht_insert(s.mem, search.visited, root->pkg, (u8)true);
-  collect(&search, root->pkg, CLOSURE_SEARCH_PUBLIC, root->eval->decl->kind == SPN_TARGET_KIND_TEST, root->eval->decl->kind == SPN_TARGET_KIND_BUILD_METAPROGRAM);
+  collect(&search, root->pkg, CLOSURE_SEARCH_PUBLIC, root->eval->info->kind == SPN_TARGET_KIND_TEST, root->eval->info->kind == SPN_TARGET_KIND_BUILD_METAPROGRAM);
 
   // The result is in post-order. Reversing us gives us a topological sort.
   si_da_rfor(search.closure, it) {
@@ -204,7 +204,7 @@ static void collect_runtime(search_t* s, spn_pkg_unit_t* pkg, bool tests, bool b
 }
 
 static void push_unique_runtime_lib(runtime_search_t* s, spn_target_unit_t* lib) {
-  if (lib->eval->decl->no_link) return;
+  if (lib->eval->info->no_link) return;
   if (lib->lib_kind != SPN_LIB_KIND_SHARED) return;
   if (si_ht_getp(s->unique, lib)) return;
   si_ht_insert(s->mem, s->unique, lib, (u8)true);
@@ -229,7 +229,7 @@ si_da(spn_target_unit_t*) si_link_get_target_runtime_libs(sp_mem_t mem, spn_targ
     .mem = s.mem,
   };
   si_ht_insert(s.mem, search.visited, root->pkg, (u8)true);
-  collect_runtime(&search, root->pkg, root->eval->decl->kind == SPN_TARGET_KIND_TEST, root->eval->decl->kind == SPN_TARGET_KIND_BUILD_METAPROGRAM);
+  collect_runtime(&search, root->pkg, root->eval->info->kind == SPN_TARGET_KIND_TEST, root->eval->info->kind == SPN_TARGET_KIND_BUILD_METAPROGRAM);
 
   runtime_search_t runtime = {
     .mem = s.mem,
@@ -254,7 +254,7 @@ si_da(spn_link_lib_t) si_link_get_closure_libs(sp_mem_t mem, si_da(spn_closure_e
     spn_closure_entry_t* entry = &closure[it];
     si_da_for(entry->targets, lt) {
       spn_target_unit_t* lib = entry->targets[lt];
-      if (lib->eval->decl->no_link) {
+      if (lib->eval->info->no_link) {
         continue;
       }
 

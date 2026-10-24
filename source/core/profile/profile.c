@@ -215,7 +215,7 @@ static bool shared_demand(const spn_manifest_t* manifest) {
     }
   }
   si_om_for(manifest->targets, it) {
-    spn_target_decl_t* target = si_om_at(manifest->targets, it);
+    spn_target_info_t* target = si_om_at(manifest->targets, it);
     if (target->kind != SPN_TARGET_KIND_LIB) {
       continue;
     }

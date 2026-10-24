@@ -304,7 +304,7 @@ static bool node_is_shared(spn_resolver_t* resolver, spn_resolved_pkg_t* node) {
       }
 
       si_om_for(pkg->manifest->targets, it) {
-        spn_target_decl_t* target = si_om_at(pkg->manifest->targets, it);
+        spn_target_info_t* target = si_om_at(pkg->manifest->targets, it);
         if (target->kind != SPN_TARGET_KIND_LIB) {
           continue;
         }

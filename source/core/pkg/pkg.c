@@ -66,9 +66,9 @@ static si_da(spn_publish_t) eval_publish(eval_ctx_t* ctx, si_da(spn_gated_publis
   return plain;
 }
 
-static spn_target_eval_t eval_target(eval_ctx_t* ctx, const spn_target_decl_t* decl) {
+static spn_target_eval_t eval_target(eval_ctx_t* ctx, const spn_target_info_t* decl) {
   spn_target_eval_t target = {
-    .decl = decl,
+    .info = decl,
     .source = eval_sources(ctx, decl->source),
     .publish = eval_publish(ctx, decl->publish),
     .include = eval_paths(ctx, decl->include),
@@ -105,7 +105,7 @@ spn_pkg_t spn_pkg_eval(sp_mem_t mem, const spn_manifest_t* manifest, const spn_p
     .macos = { .frameworks = eval_list(&ctx, manifest->macos.frameworks) },
   };
   si_om_for(manifest->targets, it) {
-    const spn_target_decl_t* decl = si_om_at(manifest->targets, it);
+    const spn_target_info_t* decl = si_om_at(manifest->targets, it);
     si_om_insert(mem, pkg.targets, decl->id, eval_target(&ctx, decl));
   }
   si_om_for(manifest->options, it) {
@@ -133,7 +133,7 @@ spn_target_eval_t* spn_pkg_get_target(spn_pkg_t* pkg, sp_str_t name, spn_target_
 bool spn_pkg_has_scripts(const spn_pkg_t* pkg) {
   si_om_for(pkg->targets, it) {
     spn_target_eval_t* target = si_om_at(pkg->targets, it);
-    switch (target->decl->kind) {
+    switch (target->info->kind) {
       case SPN_TARGET_KIND_CONFIGURE_METAPROGRAM:
       case SPN_TARGET_KIND_BUILD_METAPROGRAM: {
         if (!si_da_empty(target->source)) {

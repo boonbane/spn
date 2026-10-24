@@ -19,7 +19,7 @@ static spn_err_t run_test(spn_session_t* session, spn_target_unit_t* unit, bool*
     .kind = SPN_EVENT_TARGET_RUN,
     .pkg = unit->pkg->eval.manifest->name.str,
     .target_run = {
-      .name = unit->eval->decl->name.str,
+      .name = unit->eval->info->name.str,
       .command = command,
     },
   });
@@ -27,7 +27,7 @@ static spn_err_t run_test(spn_session_t* session, spn_target_unit_t* unit, bool*
   if (!sp_fs_exists_at(spn_path_at(&ctx->roots, staged))) {
     return spn_err_emit(ctx, (spn_err_union_t) {
       .kind = SPN_ERR_TEST_MISSING,
-      .script = { .name = unit->eval->decl->name.str, .path = command },
+      .script = { .name = unit->eval->info->name.str, .path = command },
     });
   }
 
@@ -48,7 +48,7 @@ static spn_err_t run_test(spn_session_t* session, spn_target_unit_t* unit, bool*
     spn_event_buffer_push(ctx->events, (spn_event_t) {
       .kind = SPN_EVENT_TEST_PASSED,
       .test_passed = {
-        .name = unit->eval->decl->name.str,
+        .name = unit->eval->info->name.str,
         .time = time,
       },
     });
@@ -57,7 +57,7 @@ static spn_err_t run_test(spn_session_t* session, spn_target_unit_t* unit, bool*
     spn_event_buffer_push(ctx->events, (spn_event_t) {
       .kind = SPN_EVENT_TEST_FAILED,
       .test_failed = {
-        .name = unit->eval->decl->name.str,
+        .name = unit->eval->info->name.str,
         .code = output.status.exit_code,
         .out = output.out,
         .err = output.err,
@@ -80,7 +80,7 @@ spn_err_t spn_op_test(spn_op_t* op) {
     spn_build_plan_t* plan = &session->plans.build[i];
     si_da_for(plan->roots, j) {
       spn_target_unit_t* unit = plan->roots[j];
-      if (unit->eval->decl->kind != SPN_TARGET_KIND_TEST) {
+      if (unit->eval->info->kind != SPN_TARGET_KIND_TEST) {
         continue;
       }
       bool test_passed = sp_zero;

@@ -102,7 +102,7 @@ struct spn_manifest {
   sp_str_t maintainer;
   spn_semver_t version;
   spn_pkg_root_t upstream;
-  spn_target_decl_map_t targets;
+  si_om(spn_target_id_t, spn_target_info_t) targets;
   spn_profile_map_t profiles;
   spn_index_map_t indexes;
   si_da(spn_requested_dep_t) deps;
