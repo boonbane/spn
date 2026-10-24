@@ -62,7 +62,7 @@ static spn_err_t add(spn_ctx_t* ctx, spn_add_request_t request, spn_semver_range
     return spn_err_emit(ctx, err);
   }
   if (!pkg || sp_da_empty(pkg->releases)) {
-    return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_PKG_UNKNOWN, .unknown = { .qualified = spn_pkg_name_to_qualified(name) } });
+    return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_PKG_UNKNOWN, .subject = spn_pkg_name_to_qualified(name) });
   }
 
   spn_index_release_t* release = SP_NULLPTR;
@@ -79,10 +79,11 @@ static spn_err_t add(spn_ctx_t* ctx, spn_add_request_t request, spn_semver_range
   }
 
   if (!release) {
-    return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_PKG_NO_MATCH, .unsatisfiable = {
-      .qualified = spn_pkg_name_to_qualified(name),
-      .range = spn_semver_range_to_str(ctx->events->mem, range),
-    }});
+    return spn_err_emit(ctx, (spn_err_union_t) {
+      .kind = SPN_ERR_PKG_NO_MATCH,
+      .subject = spn_pkg_name_to_qualified(name),
+      .unsatisfiable = { .range = spn_semver_range_to_str(ctx->events->mem, range) },
+    });
   }
 
   sp_str_t version = request.version;

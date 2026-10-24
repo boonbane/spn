@@ -586,7 +586,7 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           sp_tty_fmt(
             &w,
             "[patch.{.cyan}] does not name a package in this build",
-            sp_fmt_str(event->err.patch.name)
+            sp_fmt_str(event->err.subject)
           );
           break;
         }
@@ -594,7 +594,7 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           sp_tty_fmt(
             &w,
             "[patch.{.cyan}] names a package whose sources are not fetched from git; only git sources can be patched",
-            sp_fmt_str(event->err.patch.name)
+            sp_fmt_str(event->err.subject)
           );
           break;
         }
@@ -602,8 +602,8 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           sp_tty_fmt(
             &w,
             "[patch.{.cyan}] lists {.gray}, which does not exist",
-            sp_fmt_str(event->err.patch.name),
-            sp_fmt_str(get_contextual_path(ctx, mem, event->err.patch.path))
+            sp_fmt_str(event->err.subject),
+            sp_fmt_str(get_contextual_path(ctx, mem, event->err.patch_file.path))
           );
           break;
         }
@@ -713,7 +713,7 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           sp_tty_fmt(
             &w,
             "{} could not be located",
-            sp_fmt_str(colored_name(w.color, mem, event->err.unknown.qualified))
+            sp_fmt_str(colored_name(w.color, mem, event->err.subject))
           );
           break;
         }
@@ -726,7 +726,7 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           sp_tty_fmt(
             &w,
             "No version of {} satisfies {.yellow}, required by {}",
-            sp_fmt_str(colored_name(w.color, mem, err->qualified)),
+            sp_fmt_str(colored_name(w.color, mem, event->err.subject)),
             sp_fmt_str(err->range),
             sp_fmt_str(requester)
           );
@@ -741,7 +741,7 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           sp_tty_fmt(
             &w,
             "{} is already selected at {.yellow}, but {} requires {.yellow}",
-            sp_fmt_str(colored_name(w.color, mem, err->qualified)),
+            sp_fmt_str(colored_name(w.color, mem, event->err.subject)),
             sp_fmt_str(spn_semver_to_str(mem, err->selected)),
             sp_fmt_str(requester),
             sp_fmt_str(err->range)
@@ -757,7 +757,7 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           sp_tty_fmt(
             &w,
             "{} is already selected at {.yellow}, which conflicts with the version required by {}",
-            sp_fmt_str(colored_name(w.color, mem, err->qualified)),
+            sp_fmt_str(colored_name(w.color, mem, event->err.subject)),
             sp_fmt_str(spn_semver_to_str(mem, err->selected)),
             sp_fmt_str(requester)
           );
@@ -1653,24 +1653,7 @@ static sp_str_t event_subject(spn_event_t* event) {
   switch (event->kind) {
     case SPN_EVENT_SYNC_FAILED:               return event->sync_failed.name;
     case SPN_EVENT_ERR: {
-      if (!sp_str_empty(event->err.subject)) {
-        return event->err.subject;
-      }
-      switch (event->err.kind) {
-        case SPN_ERR_PKG_UNKNOWN:      return event->err.unknown.qualified;
-        case SPN_ERR_PKG_NO_MATCH:     return event->err.unsatisfiable.qualified;
-        case SPN_ERR_PKG_CONFLICT:     return event->err.unsatisfiable.qualified;
-        case SPN_ERR_PKG_CONFLICT_EXACT: return event->err.unsatisfiable.qualified;
-        case SPN_ERR_DEP_CYCLE:        return event->err.circular.id.name;
-        case SPN_ERR_UNIT_CYCLE:       return event->err.unit_cycle.id.name;
-        case SPN_ERR_DYNAMIC_DUPLICATE: return event->err.dynamic_dup.id.name;
-        case SPN_ERR_RESOLVE_TOO_COMPLEX: return event->err.too_complex.id.name;
-        case SPN_ERR_PATCH_UNUSED:     return event->err.patch.name;
-        case SPN_ERR_PATCH_NOT_GIT:    return event->err.patch.name;
-        case SPN_ERR_PATCH_FILE_MISSING: return event->err.patch.name;
-        default:                       break;
-      }
-      return event->pkg;
+      return sp_str_empty(event->err.subject) ? event->pkg : event->err.subject;
     }
     case SPN_EVENT_TARGET_BUILD_PASSED:       return event->target_passed.subject.pkg;
     case SPN_EVENT_TARGET_BUILD_FAILED:       return event->target_failed.subject.pkg;

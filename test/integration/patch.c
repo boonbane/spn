@@ -53,8 +53,8 @@ sp_test(patch, missing_file_fails) {
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build", .rc = 1 } },
       { .kind = ACTION_VERIFY_EVENT, .verify_event = { .event = SPN_EVENT_ERR, .key = "kind", .value = "patch_file_missing" } },
-      { .kind = ACTION_VERIFY_EVENT, .verify_event = { .event = SPN_EVENT_ERR, .key = "name", .value = "core/spum" } },
-      { .kind = ACTION_VERIFY_EVENT, .verify_event = { .event = SPN_EVENT_ERR, .key = "name", .value = "core/nosuch" } },
+      { .kind = ACTION_VERIFY_EVENT, .verify_event = { .event = SPN_EVENT_ERR, .key = "subject", .value = "core/spum" } },
+      { .kind = ACTION_VERIFY_EVENT, .verify_event = { .event = SPN_EVENT_ERR, .key = "subject", .value = "core/nosuch" } },
       { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = exe("main") },
     },
   });

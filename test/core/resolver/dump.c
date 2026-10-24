@@ -118,19 +118,19 @@ static spn_cg_resolve_error_t dump_error(sp_mem_t mem, const spn_err_union_t* er
 
   switch (err->kind) {
     case SPN_ERR_PKG_UNKNOWN: {
-      dump_error_pkg(&error, spn_pkg_name_from_qualified(err->unknown.qualified));
+      dump_error_pkg(&error, spn_pkg_name_from_qualified(err->subject));
       error.range = err->unknown.range;
       break;
     }
     case SPN_ERR_PKG_NO_MATCH: {
-      dump_error_pkg(&error, spn_pkg_name_from_qualified(err->unsatisfiable.qualified));
+      dump_error_pkg(&error, spn_pkg_name_from_qualified(err->subject));
       error.range = err->unsatisfiable.range;
       error.requester = err->unsatisfiable.requester;
       break;
     }
     case SPN_ERR_PKG_CONFLICT:
     case SPN_ERR_PKG_CONFLICT_EXACT: {
-      dump_error_pkg(&error, spn_pkg_name_from_qualified(err->unsatisfiable.qualified));
+      dump_error_pkg(&error, spn_pkg_name_from_qualified(err->subject));
       error.range = err->unsatisfiable.range;
       error.requester = err->unsatisfiable.requester;
       error.selected = spn_semver_to_str(mem, err->unsatisfiable.selected);

@@ -29,7 +29,8 @@ spn_err_t spn_model_establish(spn_op_t* op) {
     if (!patch.set.hash) {
       spn_err_t kind = spn_err_emit(session->ctx, (spn_err_union_t) {
         .kind = SPN_ERR_PATCH_FILE_MISSING,
-        .patch = { .name = decl->qualified.str, .path = patch.set.files[missing] },
+        .subject = decl->qualified.str,
+        .patch_file = { .path = patch.set.files[missing] },
       });
       if (!hashed) {
         hashed = kind;
@@ -60,7 +61,7 @@ spn_err_t spn_model_establish(spn_op_t* op) {
     }
     spn_err_t kind = spn_err_emit(session->ctx, (spn_err_union_t) {
       .kind = SPN_ERR_PATCH_UNUSED,
-      .patch = { .name = patch->qualified.str },
+      .subject = patch->qualified.str,
     });
     if (!unused) {
       unused = kind;

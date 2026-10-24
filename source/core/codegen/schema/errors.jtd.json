@@ -132,9 +132,9 @@
     "test_failed": { "properties": {} },
     "version_invalid": { "ref": "version_invalid" },
     "cancelled": { "properties": {} },
-    "patch_unused": { "ref": "patch" },
-    "patch_not_git": { "ref": "patch" },
-    "patch_file_missing": { "ref": "patch" },
+    "patch_unused": { "properties": {} },
+    "patch_not_git": { "properties": {} },
+    "patch_file_missing": { "ref": "patch_file" },
     "path_component": { "ref": "fs" },
     "path_absolute": { "ref": "fs" },
     "path_foreign": { "ref": "fs" },
@@ -279,17 +279,13 @@
       }
     },
     "unknown": {
-      "properties": {
-        "qualified": { "type": "string" }
-      },
+      "properties": {},
       "optionalProperties": {
         "range": { "type": "string" }
       }
     },
     "unsatisfiable": {
-      "properties": {
-        "qualified": { "type": "string" }
-      },
+      "properties": {},
       "optionalProperties": {
         "range": { "type": "string" },
         "requester": { "type": "string" },
@@ -404,9 +400,8 @@
         "source": { "type": "string" }
       }
     },
-    "patch": {
+    "patch_file": {
       "properties": {
-        "name": { "type": "string" },
         "path": { "type": "string" }
       }
     }

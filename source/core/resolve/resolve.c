@@ -152,8 +152,8 @@ static spn_err_pkg_name_t err_pkg_name(spn_pkg_name_t id) {
 static spn_err_union_t unsatisfiable_err(spn_resolver_t* resolver, spn_resolved_pkg_t* from, spn_requested_dep_t* request, spn_err_t kind, spn_semver_t selected) {
   return (spn_err_union_t) {
     .kind = kind,
+    .subject = request->qualified.str,
     .unsatisfiable = {
-      .qualified = request->qualified.str,
       .range = request->source == SPN_PKG_SOURCE_INDEX ? spn_semver_range_to_str(resolver->mem, request->index.range) : sp_str_lit(""),
       .requester = from ? sp_intern_find(resolver->intern, from->id.qualified) : sp_str_lit(""),
       .requester_version = from ? from->id.version : sp_zero_s(spn_semver_t),
@@ -425,6 +425,7 @@ static spn_err_union_t resolve_local_package(spn_resolver_t* resolver, spn_resol
   if (sp_ht_getp(run->visited, name)) {
     return (spn_err_union_t) {
       .kind = SPN_ERR_DEP_CYCLE,
+      .subject = request->qualified.str,
       .circular.id = err_pkg_name(spn_pkg_name_from_qualified(request->qualified.str)),
     };
   }
@@ -443,7 +444,7 @@ static spn_err_union_t resolve_local_package(spn_resolver_t* resolver, spn_resol
   if (!pkg) {
     return (spn_err_union_t) {
       .kind = SPN_ERR_PKG_UNKNOWN,
-      .unknown.qualified = request->qualified.str
+      .subject = request->qualified.str,
     };
   }
 
@@ -497,6 +498,7 @@ static spn_err_union_t try_candidate(spn_resolver_t* resolver, spn_resolve_run_t
     run->fatal = true;
     return (spn_err_union_t) {
       .kind = SPN_ERR_RESOLVE_TOO_COMPLEX,
+      .subject = spn_pkg_name_to_qualified(release->id),
       .too_complex.id = err_pkg_name(release->id),
     };
   }
@@ -555,6 +557,7 @@ static spn_err_union_t resolve_index_package(spn_resolver_t* resolver, spn_resol
   if (sp_ht_getp(run->visited, name)) {
     return (spn_err_union_t) {
       .kind = SPN_ERR_DEP_CYCLE,
+      .subject = request->qualified.str,
       .circular.id = err_pkg_name(spn_pkg_name_from_qualified(request->qualified.str)),
     };
   }
@@ -578,8 +581,8 @@ static spn_err_union_t resolve_index_package(spn_resolver_t* resolver, spn_resol
   if (!pkg) {
     return (spn_err_union_t) {
       .kind = SPN_ERR_PKG_UNKNOWN,
+      .subject = request->qualified.str,
       .unknown = {
-        .qualified = request->qualified.str,
         .range = spn_semver_range_to_str(resolver->mem, request->index.range),
       },
     };
@@ -1026,6 +1029,7 @@ static spn_err_union_t check_group_cycle(spn_resolver_t* resolver, spn_resolve_r
   if (state && *state == 1) {
     return (spn_err_union_t) {
       .kind = SPN_ERR_UNIT_CYCLE,
+      .subject = sp_intern_find(resolver->intern, node->id.qualified),
       .unit_cycle = {
         .id = err_pkg_name(spn_pkg_name_from_qualified(sp_intern_find(resolver->intern, node->id.qualified))),
         .version = node->id.version,
@@ -1202,6 +1206,7 @@ static spn_err_union_t check_dynamic_duplicates(spn_resolver_t* resolver, spn_re
         spn_semver_t high = ordered ? node->id.version : prior->node->id.version;
         result = (spn_err_union_t) {
           .kind = SPN_ERR_DYNAMIC_DUPLICATE,
+          .subject = sp_intern_find(resolver->intern, node->id.qualified),
           .dynamic_dup = {
             .id = err_pkg_name(spn_pkg_name_from_qualified(sp_intern_find(resolver->intern, node->id.qualified))),
             .low = low,
