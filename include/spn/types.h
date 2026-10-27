@@ -24,6 +24,34 @@ typedef struct {
   sp_str_t sub;
 } spn_path_t;
 
+#define SPN_TOML_PATH_MAX 32
+
+typedef enum {
+  SPN_TOML_SEG_KEY,
+  SPN_TOML_SEG_INDEX,
+} spn_toml_seg_kind_t;
+
+typedef struct {
+  spn_toml_seg_kind_t kind;
+  const c8* key;
+  u32 index;
+} spn_toml_seg_t;
+
+typedef struct {
+  spn_toml_seg_t segs [SPN_TOML_PATH_MAX];
+  u32 depth;
+  u32 scope;
+} spn_toml_path_t;
+
+typedef struct {
+  spn_err_t code;
+  spn_toml_path_t at;
+  sp_str_t detail;
+  sp_str_t value;
+  sp_str_t scope;
+  sp_da(sp_str_t) choices;
+} spn_toml_issue_t;
+
 typedef enum {
   SPN_DIR_ID_NONE = 0,
   SPN_DIR_ID_STORE,

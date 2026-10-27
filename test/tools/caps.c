@@ -4,6 +4,7 @@
 
 #include "enum/enum.h"
 #include "ctx/types.h"
+#include "error/json.h"
 #include "event/event.h"
 #include "intern/intern.h"
 #include "profile/profile.h"
@@ -15,7 +16,6 @@
 #include "toolchain/toolchain.h"
 #include "triple/triple.h"
 #include "lanes.h"
-#include "toml/issue.h"
 
 static sp_test_once_t once;
 static test_toolchain_t cached;
@@ -35,7 +35,7 @@ static void read_lanes(sp_mem_t mem, const c8* rel, lanes_t* lanes) {
       break;
     }
     case LANES_READ_PARSE: {
-      sp_log("{.red}: {}", sp_fmt_cstr(rel), sp_fmt_str(spn_codegen_issues_to_json(mem, lanes->issues)));
+      sp_log("{.red}: {}", sp_fmt_cstr(rel), sp_fmt_str(spn_toml_issues_to_str(mem, lanes->issues)));
       break;
     }
   }
@@ -252,21 +252,21 @@ static sp_err_t load_lanes(void* user) {
 
   sp_da_for(builtin.config.toolchain, it) {
     spn_toolchain_decl_t decl = sp_zero;
-    sp_da(spn_codegen_issue_t) issues = lanes_lower(&builtin, it, SPN_PATH_ROOT_NONE, &decl);
+    sp_da(spn_toml_issue_t) issues = lanes_lower(&builtin, it, SPN_PATH_ROOT_NONE, &decl);
     sp_assert(sp_da_empty(issues));
     spn_toolchain_catalog_add(&catalog, decl);
   }
 
   sp_da_for(lanes.config.toolchain, it) {
     spn_toolchain_decl_t decl = sp_zero;
-    sp_da(spn_codegen_issue_t) issues = lanes_lower(&lanes, it, SPN_PATH_ROOT_NONE, &decl);
+    sp_da(spn_toml_issue_t) issues = lanes_lower(&lanes, it, SPN_PATH_ROOT_NONE, &decl);
     if (sp_da_empty(issues)) {
       if (decl.id == lane.id) {
         spn_toolchain_catalog_add(&catalog, decl);
       }
     }
     else if (decl.id == lane.id) {
-      sp_log("lane {.red} is broken: {}", sp_fmt_str(name), sp_fmt_str(spn_codegen_issues_to_json(mem, issues)));
+      sp_log("lane {.red} is broken: {}", sp_fmt_str(name), sp_fmt_str(spn_toml_issues_to_str(mem, issues)));
       sp_sys_exit(1);
     }
   }

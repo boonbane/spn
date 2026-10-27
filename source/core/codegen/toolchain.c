@@ -121,7 +121,7 @@ static sp_da(sp_str_t) accepted_linkers(sp_mem_t mem, spn_cc_driver_t driver) {
 
 static bool lower_linker(spn_toml_loader_t* ctx, spn_ld_family_t declared, spn_cc_driver_t driver) {
   if (!spn_ld_accepts(driver, declared)) {
-    spn_toml_loader_issue_with(ctx, "linker", (spn_codegen_issue_t) {
+    spn_toml_loader_issue_with(ctx, "linker", (spn_toml_issue_t) {
       .code = SPN_ERR_CODEGEN_LINKER,
       .detail = spn_cc_driver_to_str(driver),
       .value = spn_ld_family_to_str(declared),
@@ -295,7 +295,7 @@ spn_toolchain_decl_t spn_toolchain_lower(spn_toml_loader_t* ctx, u32 at, spn_pat
 }
 
 bool spn_toolchains_parse(spn_toml_loader_t* ctx, sp_str_t toml, spn_cg_config_t* config) {
-  toml_table_t* table = spn_codegen_parse_str(ctx, toml);
+  toml_table_t* table = spn_toml_loader_parse_str(ctx, toml);
   if (!table) {
     return false;
   }

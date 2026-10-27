@@ -1,9 +1,7 @@
-{
-  "issues": [
-    {
-      "code": "missing_key",
-      "path": "package",
-      "detail": "package"
-    }
-  ]
-}
+[
+  {
+    "code": "codegen_missing_key",
+    "path": "package",
+    "detail": "package"
+  }
+]

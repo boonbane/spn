@@ -9,7 +9,7 @@ static sp_err_t builtins_decls(sp_test_t* t, sp_da(spn_toolchain_decl_t)* decls)
   if (spn_test_builtin_toml(t, &toml)) {
     return SP_ERR;
   }
-  sp_da(spn_codegen_issue_t) issues = SP_NULLPTR;
+  sp_da(spn_toml_issue_t) issues = SP_NULLPTR;
   spn_test_lower_toolchains(t, toml, SPN_PATH_ROOT_NONE, decls, &issues);
   sp_must(t, sp_da_empty(issues));
   return SP_OK;

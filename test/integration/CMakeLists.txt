@@ -10,7 +10,7 @@ add_executable(integration
   ${GEN_DIR}/events.gen.c
   ${GEN_DIR}/source_deps.gen.c
   ${SRC}/codegen/json.c
-  ${SRC}/codegen/loader.c
+  ${SRC}/toml/loader.c
   ${SRC}/codegen/toolchain.c
   ${GEN_DIR}/config.gen.c
   ${TEST_GEN_DIR}/probe.gen.c

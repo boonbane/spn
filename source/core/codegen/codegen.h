@@ -4,29 +4,10 @@
 #include "codegen/types.h"
 #include "sp.h"
 #include "spn/core.h"
+#include "toml/loader.h"
 #include "when/types.h"
 #include "toml.h"
 
-void               spn_toml_loader_push_key(spn_toml_loader_t* t, const c8* key);
-void               spn_toml_loader_push_index(spn_toml_loader_t* t, u32 index);
-void               spn_toml_loader_pop(spn_toml_loader_t* t);
-void               spn_toml_loader_push_scope(spn_toml_loader_t* t, sp_str_t name);
-void               spn_toml_loader_pop_scope(spn_toml_loader_t* t);
-bool               spn_toml_loader_issue(spn_toml_loader_t* t, spn_err_t code, const c8* key);
-bool               spn_toml_loader_issue_at(spn_toml_loader_t* t, spn_err_t code, sp_str_t detail);
-bool               spn_toml_loader_issue_with(spn_toml_loader_t* t, const c8* key, spn_codegen_issue_t issue);
-sp_str_t           spn_toml_loader_intern(spn_toml_loader_t* t, sp_str_t value);
-sp_str_t           spn_toml_loader_intern_value(spn_toml_loader_t* t, toml_value_t value);
-bool               spn_toml_loader_field_present(toml_table_t* table, const c8* key);
-bool               spn_toml_loader_str_present(toml_table_t* table, const c8* key);
-sp_str_t           spn_toml_loader_str_required(spn_toml_loader_t* t, toml_table_t* table, const c8* k);
-bool               spn_toml_loader_str_optional(spn_toml_loader_t* t, toml_table_t* table, const c8* k, sp_str_t* v);
-sp_str_t           spn_toml_loader_raw_required(spn_toml_loader_t* t, toml_table_t* table, const c8* k);
-bool               spn_toml_loader_raw_optional(spn_toml_loader_t* t, toml_table_t* table, const c8* k, sp_str_t* v);
-bool               spn_toml_loader_read_bool(spn_toml_loader_t* t, toml_table_t* table, const c8* k, bool* v);
-bool               spn_toml_loader_read_u64(spn_toml_loader_t* t, toml_table_t* table, const c8* k, u64* v);
-void               spn_toml_loader_check_keys(spn_toml_loader_t* t, toml_table_t* table, const c8** keys, u32 count);
-sp_da(sp_str_t)    spn_toml_loader_read_str_array(spn_toml_loader_t* t, toml_table_t* table, const c8* key);
 spn_option_value_t spn_toml_loader_value_str(spn_toml_loader_t* t, toml_value_t value);
 spn_option_value_t spn_toml_loader_value_bool(toml_value_t value);
 void               spn_toml_loader_write_option_value(sp_io_writer_t* out, spn_option_value_t value);
@@ -47,10 +28,6 @@ bool spn_codegen_when_present(const spn_when_t* in);
 void spn_codegen_write_os_version(sp_io_writer_t* out, const spn_os_version_t* in);
 bool spn_codegen_os_version_present(const spn_os_version_t* in);
 
-const c8* spn_codegen_err_name(spn_err_t code);
-toml_table_t* spn_codegen_parse(spn_toml_loader_t* t, spn_path_t path);
-toml_table_t* spn_codegen_parse_str(spn_toml_loader_t* t, sp_str_t content);
-
 typedef struct {
   sp_io_writer_t base;
   sp_io_writer_t* inner;
@@ -68,9 +45,6 @@ void spn_codegen_json_bool(sp_io_writer_t* out, bool value);
 void spn_codegen_json_u64(sp_io_writer_t* out, u64 value);
 void spn_codegen_json_s32(sp_io_writer_t* out, s32 value);
 void spn_codegen_json_str_array(sp_io_writer_t* out, sp_da(sp_str_t) values);
-void spn_codegen_json_issues(sp_io_writer_t* out, sp_da(spn_codegen_issue_t) issues);
-sp_str_t spn_codegen_issues_to_str(sp_mem_t mem, sp_da(spn_codegen_issue_t) issues);
-sp_str_t spn_codegen_issues_to_json(sp_mem_t mem, sp_da(spn_codegen_issue_t) issues);
 
 
 #endif

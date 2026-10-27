@@ -98,8 +98,9 @@ static sp_str_t colored_sanitizers(sp_tty_color_t color, sp_mem_t mem, sp_fmt_st
   return sp_io_dyn_mem_writer_take_str(&buf);
 }
 
-static void write_issue(sp_tty_t* w, const spn_err_issue_t* issue) {
-  sp_str_t field = issue->path;
+static void write_issue(sp_tty_t* w, const spn_toml_issue_t* issue) {
+  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+  sp_str_t field = spn_toml_path_str(scratch.mem, &issue->at);
   switch (issue->code) {
     case SPN_ERR_CODEGEN_MISSING_KEY:
       sp_tty_fmt(w, "Missing required field {.cyan}", SP_FMT_STR(field));
@@ -133,10 +134,8 @@ static void write_issue(sp_tty_t* w, const spn_err_issue_t* issue) {
       if (sp_da_empty(issue->choices)) {
         sp_tty_fmt(w, "Driver {.cyan} doesn't support linker {.red}. Leave it unset for the native linker", SP_FMT_STR(issue->detail), SP_FMT_STR(issue->value));
       } else {
-        sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
         sp_str_t choices = sp_str_join_n(scratch.mem, issue->choices, (u32)sp_da_size(issue->choices), sp_str_lit(", "));
         sp_tty_fmt(w, "Driver {.cyan} doesn't support linker {.red}. Use {.cyan}, or leave it unset for the native linker", SP_FMT_STR(issue->detail), SP_FMT_STR(issue->value), SP_FMT_STR(choices));
-        sp_mem_end_scratch(scratch);
       }
       break;
     case SPN_ERR_CODEGEN_PARSE:
@@ -146,8 +145,8 @@ static void write_issue(sp_tty_t* w, const spn_err_issue_t* issue) {
         sp_tty_fmt(w, "Not valid toml: {}", SP_FMT_STR(issue->detail));
       }
       break;
-    case SPN_ERR_CODEGEN_FILE_MISSING:
-      sp_io_write_str(w->io, sp_str_lit("File is missing"), SP_NULLPTR);
+    case SPN_ERR_FS_READ:
+      sp_tty_fmt(w, "Failed to read file: {}", SP_FMT_STR(issue->detail));
       break;
     case SPN_ERR_CODEGEN_ROOT_ONLY:
       sp_tty_fmt(w, "Field {.cyan} is only allowed in the root manifest", SP_FMT_STR(field));
@@ -164,9 +163,10 @@ static void write_issue(sp_tty_t* w, const spn_err_issue_t* issue) {
     default:
       sp_unreachable_case();
   }
+  sp_mem_end_scratch(scratch);
 }
 
-static sp_str_t get_issue_scope(sp_da(spn_err_issue_t) issues) {
+static sp_str_t get_issue_scope(sp_da(spn_toml_issue_t) issues) {
   sp_str_t scope = sp_da_empty(issues) ? sp_str_lit("") : issues[0].scope;
   sp_da_for(issues, it) {
     if (!sp_str_equal(issues[it].scope, scope)) {
@@ -589,7 +589,7 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           sp_tty_fmt(
             &w,
             "[patch.{.cyan}] does not name a package in this build",
-            sp_fmt_str(event->err.patch.name)
+            sp_fmt_str(event->err.subject)
           );
           break;
         }
@@ -597,7 +597,7 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           sp_tty_fmt(
             &w,
             "[patch.{.cyan}] names a package whose sources are not fetched from git; only git sources can be patched",
-            sp_fmt_str(event->err.patch.name)
+            sp_fmt_str(event->err.subject)
           );
           break;
         }
@@ -605,8 +605,8 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           sp_tty_fmt(
             &w,
             "[patch.{.cyan}] lists {.gray}, which does not exist",
-            sp_fmt_str(event->err.patch.name),
-            sp_fmt_str(get_contextual_path(ctx, mem, event->err.patch.path))
+            sp_fmt_str(event->err.subject),
+            sp_fmt_str(get_contextual_path(ctx, mem, event->err.patch_file.path))
           );
           break;
         }
@@ -716,7 +716,7 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           sp_tty_fmt(
             &w,
             "{} could not be located",
-            sp_fmt_str(colored_name(w.color, mem, event->err.unknown.qualified))
+            sp_fmt_str(colored_name(w.color, mem, event->err.subject))
           );
           break;
         }
@@ -729,7 +729,7 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           sp_tty_fmt(
             &w,
             "No version of {} satisfies {.yellow}, required by {}",
-            sp_fmt_str(colored_name(w.color, mem, err->qualified)),
+            sp_fmt_str(colored_name(w.color, mem, event->err.subject)),
             sp_fmt_str(err->range),
             sp_fmt_str(requester)
           );
@@ -744,7 +744,7 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           sp_tty_fmt(
             &w,
             "{} is already selected at {.yellow}, but {} requires {.yellow}",
-            sp_fmt_str(colored_name(w.color, mem, err->qualified)),
+            sp_fmt_str(colored_name(w.color, mem, event->err.subject)),
             sp_fmt_str(spn_semver_to_str(mem, err->selected)),
             sp_fmt_str(requester),
             sp_fmt_str(err->range)
@@ -760,7 +760,7 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           sp_tty_fmt(
             &w,
             "{} is already selected at {.yellow}, which conflicts with the version required by {}",
-            sp_fmt_str(colored_name(w.color, mem, err->qualified)),
+            sp_fmt_str(colored_name(w.color, mem, event->err.subject)),
             sp_fmt_str(spn_semver_to_str(mem, err->selected)),
             sp_fmt_str(requester)
           );
@@ -1656,24 +1656,7 @@ static sp_str_t event_subject(spn_event_t* event) {
   switch (event->kind) {
     case SPN_EVENT_SYNC_FAILED:               return event->sync_failed.name;
     case SPN_EVENT_ERR: {
-      if (!sp_str_empty(event->err.subject)) {
-        return event->err.subject;
-      }
-      switch (event->err.kind) {
-        case SPN_ERR_PKG_UNKNOWN:      return event->err.unknown.qualified;
-        case SPN_ERR_PKG_NO_MATCH:     return event->err.unsatisfiable.qualified;
-        case SPN_ERR_PKG_CONFLICT:     return event->err.unsatisfiable.qualified;
-        case SPN_ERR_PKG_CONFLICT_EXACT: return event->err.unsatisfiable.qualified;
-        case SPN_ERR_DEP_CYCLE:        return event->err.circular.id.name;
-        case SPN_ERR_UNIT_CYCLE:       return event->err.unit_cycle.id.name;
-        case SPN_ERR_DYNAMIC_DUPLICATE: return event->err.dynamic_dup.id.name;
-        case SPN_ERR_RESOLVE_TOO_COMPLEX: return event->err.too_complex.id.name;
-        case SPN_ERR_PATCH_UNUSED:     return event->err.patch.name;
-        case SPN_ERR_PATCH_NOT_GIT:    return event->err.patch.name;
-        case SPN_ERR_PATCH_FILE_MISSING: return event->err.patch.name;
-        default:                       break;
-      }
-      return event->pkg;
+      return sp_str_empty(event->err.subject) ? event->pkg : event->err.subject;
     }
     case SPN_EVENT_TARGET_BUILD_PASSED:       return event->target_passed.subject.pkg;
     case SPN_EVENT_TARGET_BUILD_FAILED:       return event->target_failed.subject.pkg;
@@ -1715,7 +1698,7 @@ static void render_event_extra(sp_tty_t* w, spn_event_t* event) {
     case SPN_EVENT_ERR: {
       switch (event->err.kind) {
         case SPN_ERR_MANIFEST_ISSUES: {
-          sp_da(spn_err_issue_t) issues = event->err.manifest.issues;
+          sp_da(spn_toml_issue_t) issues = event->err.manifest.issues;
           if (sp_str_empty(get_issue_scope(issues))) {
             sp_da_for(issues, it) {
               sp_io_write_str(w->io, sp_str_lit("  - "), SP_NULLPTR);

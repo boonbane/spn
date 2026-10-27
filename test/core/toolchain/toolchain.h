@@ -349,7 +349,7 @@ static sp_err_t fixture_read_toml(sp_test_t* t, const c8* file, sp_str_t* toml) 
   return SP_OK;
 }
 
-static sp_err_t fixture_decls(sp_test_t* t, const c8* file, sp_da(spn_toolchain_decl_t)* decls, sp_da(spn_codegen_issue_t)* issues) {
+static sp_err_t fixture_decls(sp_test_t* t, const c8* file, sp_da(spn_toolchain_decl_t)* decls, sp_da(spn_toml_issue_t)* issues) {
   sp_str_t toml = sp_zero;
   if (fixture_read_toml(t, file, &toml)) {
     return SP_ERR;
@@ -369,7 +369,7 @@ static const spn_toolchain_decl_t* fixture_decl(sp_da(spn_toolchain_decl_t) decl
 
 static sp_err_t fixture_catalog(sp_test_t* t, spn_toolchain_catalog_t* catalog, const c8* file, spn_triple_t host, spn_sdk_host_t sdks) {
   sp_da(spn_toolchain_decl_t) decls = SP_NULLPTR;
-  sp_da(spn_codegen_issue_t) issues = SP_NULLPTR;
+  sp_da(spn_toml_issue_t) issues = SP_NULLPTR;
   if (fixture_decls(t, file, &decls, &issues)) {
     return SP_ERR;
   }

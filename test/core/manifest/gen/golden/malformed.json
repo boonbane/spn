@@ -1,9 +1,7 @@
-{
-  "issues": [
-    {
-      "code": "parse",
-      "path": "",
-      "detail": "at 2:15: unterminated quote (\")"
-    }
-  ]
-}
+[
+  {
+    "code": "codegen_parse",
+    "path": "",
+    "detail": "at 2:15: unterminated quote (\")"
+  }
+]

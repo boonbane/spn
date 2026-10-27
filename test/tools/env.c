@@ -346,18 +346,15 @@ static sp_str_t config_toml_path(fixture_t* fixture) {
   return sp_fs_join_path(fixture->mem, fixture->paths.config, sp_str_lit("spn/spn.toml"));
 }
 
-static void setup_fixture_config(fixture_t* fixture, sp_str_t index_dir, sp_str_t spn_dir) {
+static void setup_fixture_config(fixture_t* fixture, sp_str_t index_dir) {
   sp_mem_t mem = fixture->mem;
   sp_str_t config_path = config_toml_path(fixture);
   sp_str_t content = sp_fmt(
     mem,
-    "spn = \"{}\"\n"
-    "\n"
     "[[index]]\n"
     "name = \"core\"\n"
     "url = \"{}\"\n"
     "protocol = \"git\"\n",
-    sp_fmt_str(sp_str_replace_c8(mem, spn_dir, '\\', '/')),
     sp_fmt_str(sp_str_replace_c8(mem, index_dir, '\\', '/'))
   ).value;
   write_file(config_path, sp_str_concat(mem, content, test_lanes_toml()));
@@ -427,7 +424,7 @@ sp_err_t prepare_test(sp_test_t* t, fixture_t* fixture, const c8* project, const
   git(fixture->paths.index, "config", "receive.denyCurrentBranch", "updateInstead");
   git_repo_commit(fixture->paths.index, sp_str_lit("init"));
   setup_fixture_envrc(fixture, fixture->paths.storage, fixture->paths.toolchain, fixture->paths.config);
-  setup_fixture_config(fixture, fixture->paths.index, fixture->paths.root);
+  setup_fixture_config(fixture, fixture->paths.index);
 
   copy_into(sp_fs_join_path(mem, fixture->paths.root, sp_str_lit("include/spn.h")), fixture->paths.include);
   sp_str_t include_spn = sp_fs_join_path(mem, fixture->paths.include, sp_str_lit("spn"));

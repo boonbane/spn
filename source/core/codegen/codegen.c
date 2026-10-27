@@ -1,14 +1,8 @@
 #include "codegen/codegen.h"
-#include "paths/paths.h"
-#include "config.gen.h"
-#include "external/tom.h"
-#include "intern/intern.h"
-#include "manifest.gen.h"
 #include "sp.h"
-#include "macro/macro.h"
 #include "spn/core.h"
 
-static bool spn_toml_loader_read_version_part(spn_toml_loader_t* ctx, toml_table_t* table, const c8* key, s64 min, u16* out) {
+static bool read_version_part(spn_toml_loader_t* ctx, toml_table_t* table, const c8* key, s64 min, u16* out) {
   toml_value_t part = toml_table_int(table, key);
   if (!part.ok || part.u.i < min || part.u.i > UINT16_MAX) {
     return spn_toml_loader_issue(ctx, spn_toml_loader_field_present(table, key) ? SPN_ERR_CODEGEN_INVALID : SPN_ERR_CODEGEN_MISSING_KEY, key);
@@ -27,9 +21,9 @@ void spn_toml_loader_read_os_version(spn_toml_loader_t* ctx, toml_table_t* table
   }
 
   spn_toml_loader_push_key(ctx, key);
-  spn_toml_loader_read_version_part(ctx, child, "major", 1, &out->major);
+  read_version_part(ctx, child, "major", 1, &out->major);
   if (spn_toml_loader_field_present(child, "minor")) {
-    spn_toml_loader_read_version_part(ctx, child, "minor", 0, &out->minor);
+    read_version_part(ctx, child, "minor", 0, &out->minor);
   }
   spn_toml_loader_pop(ctx);
 }
@@ -46,24 +40,4 @@ void spn_codegen_write_os_version(sp_io_writer_t* out, const spn_os_version_t* i
 
 bool spn_codegen_os_version_present(const spn_os_version_t* in) {
   return in->major || in->minor;
-}
-
-spn_err_t spn_codegen_load(spn_toml_loader_t* ctx, spn_path_t path, spn_cg_manifest_t* out) {
-  ctx->dir = spn_path_parent(path);
-  toml_table_t* table = spn_codegen_parse(ctx, path);
-  if (table) {
-    spn_manifest_read(ctx, table, out);
-    toml_free(table);
-  }
-  return (sp_da_empty(ctx->issues)) ? SPN_OK : SPN_ERROR;
-}
-
-spn_err_t spn_codegen_load_config(spn_toml_loader_t* ctx, spn_path_t path, spn_cg_config_t* out) {
-  ctx->dir = spn_path_parent(path);
-  toml_table_t* table = spn_codegen_parse(ctx, path);
-  if (table) {
-    spn_config_read(ctx, table, out);
-    toml_free(table);
-  }
-  return (sp_da_empty(ctx->issues)) ? SPN_OK : SPN_ERROR;
 }

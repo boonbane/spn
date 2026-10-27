@@ -1666,14 +1666,13 @@ sp_test_each(lower, cases, test_t, tests, .setup = spn_test_ctx_setup) {
   sp_intern_t* interner = sp_intern_new(mem);
 
   spn_path_roots_t roots = sp_zero;
-  spn_toml_loader_t ctx = sp_zero;
-  spn_toml_loader_init(&ctx, mem, interner, &roots);
+  spn_toml_loader_t ctx = spn_toml_loader(mem, interner, &roots);
 
   sp_str_t file = sp_fmt(mem, "{}.toml", sp_fmt_cstr(it->manifest)).value;
   sp_str_t path = sp_fs_join_path(mem, test_repo_path(mem, sp_str_lit(MANIFEST_DIR)), file);
 
   spn_cg_manifest_t cg = sp_zero;
-  spn_codegen_load(&ctx, (spn_path_t) { .sub = path }, &cg);
+  spn_toml_load_manifest(&ctx, (spn_path_t) { .sub = path }, &cg);
 
   spn_project_t project = sp_zero;
   si_pkg_info_t* pkg = &project.package;
@@ -1685,7 +1684,7 @@ sp_test_each(lower, cases, test_t, tests, .setup = spn_test_ctx_setup) {
   sp_must_eq(t, num_issues, (u32)sp_da_size(ctx.issues));
   sp_for(i, num_issues) {
     sp_expect_eq(t, (u32)it->issues[i].code, (u32)ctx.issues[i].code);
-    if (it->issues[i].path) sp_expect_str_eq_c(t, ctx.issues[i].path, it->issues[i].path);
+    if (it->issues[i].path) sp_expect_str_eq_c(t, spn_toml_path_str(mem, &ctx.issues[i].at), it->issues[i].path);
   }
 
   // Package scalars
