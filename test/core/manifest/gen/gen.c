@@ -96,3 +96,17 @@ sp_test_each(manifest_gen, corpus, test_t, tests) {
 
   return SP_OK;
 }
+
+sp_test(manifest_gen, unreadable) {
+  sp_mem_t mem = sp_test_arena(t);
+  spn_path_roots_t roots = sp_zero;
+  spn_toml_loader_t ctx = loader_new(mem, &roots);
+
+  spn_cg_manifest_t manifest = sp_zero;
+  spn_toml_load_manifest(&ctx, (spn_path_t) { .sub = sp_str_lit("/nonexistent/missing.toml") }, &manifest);
+  sp_must_eq(t, 1, sp_da_size(ctx.issues));
+  sp_expect_eq(t, SPN_ERR_FS_READ, ctx.issues[0].code);
+  sp_expect_str_eq_c(t, ctx.issues[0].detail, "SP_ERR_SYS_NOT_FOUND");
+
+  return SP_OK;
+}

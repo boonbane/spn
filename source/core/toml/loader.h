@@ -10,6 +10,7 @@
 
 spn_toml_loader_t spn_toml_loader(sp_mem_t mem, sp_intern_t* intern, const spn_path_roots_t* roots);
 toml_table_t*     spn_toml_loader_parse(spn_toml_loader_t* t, spn_path_t path);
+toml_table_t*     spn_toml_loader_parse_str(spn_toml_loader_t* t, sp_str_t content);
 spn_err_union_t   spn_toml_loader_err(const spn_toml_loader_t* t, spn_path_t path);
 
 void              spn_toml_loader_push_key(spn_toml_loader_t* t, const c8* key);

@@ -211,7 +211,6 @@ static bool lower_record(codegen_t* c, sp_fs_entry_t* entry, yyjson_doc* doc, ge
   gen_t* gen = gen_new(c->mem);
   gen->format = format;
   gen->name = name;
-  gen->lenient = yyjson_get_bool(yyjson_obj_get(yyjson_obj_get(yyjson_doc_get_root(doc), "metadata"), "lenient"));
   if (!gen_lower(gen, name, jtd.root)) {
     return fail(c, gen->err);
   }

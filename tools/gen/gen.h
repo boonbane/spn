@@ -113,7 +113,6 @@ typedef struct {
   sp_da(gen_type_t*) arms;
   gen_type_t* root;
   gen_format_t format;
-  bool lenient;
   sp_str_t name;
   sp_str_t prefix;
   sp_str_t err;

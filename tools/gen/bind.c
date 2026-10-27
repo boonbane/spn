@@ -409,9 +409,6 @@ void gen_bind_type_impls(gen_t* g, sp_template_scope_t* scope) {
   sp_da_for(g->types, it) {
     gen_type_t* type = g->types[it];
     sp_template_scope_t* child = sp_template_push(scope, sp_str_lit("types"));
-    if (!g->lenient) {
-      sp_template_set(child, sp_str_lit("strict"), sp_str_lit("1"));
-    }
     sp_template_set(child, sp_str_lit("name"), type->name);
     sp_template_set(child, sp_str_lit("self"), gen_undecorated(g, type->name));
     sp_template_set(child, sp_str_lit("type"), struct_type(g, type->name));

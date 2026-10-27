@@ -195,12 +195,27 @@ sp_da(sp_str_t) spn_toml_loader_read_str_array(spn_toml_loader_t* ctx, toml_tabl
   return values;
 }
 
-toml_table_t* spn_toml_loader_parse(spn_toml_loader_t* ctx, spn_path_t path) {
+toml_table_t* spn_toml_loader_parse_str(spn_toml_loader_t* ctx, sp_str_t content) {
   sp_str_t diag = sp_zero;
-  toml_table_t* table = spn_toml_parse_diag(ctx->mem, spn_path_at(ctx->roots, path), &diag);
+  toml_table_t* table = spn_toml_parse_str_diag(ctx->mem, content, &diag);
   if (!table) {
     spn_toml_loader_issue_at(ctx, SPN_ERR_CODEGEN_PARSE, diag);
   }
+  return table;
+}
+
+toml_table_t* spn_toml_loader_parse(spn_toml_loader_t* ctx, spn_path_t path) {
+  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+  sp_str_t content = sp_zero;
+  toml_table_t* table = SP_NULLPTR;
+  sp_err_t err = sp_io_read_file_at(scratch.mem, spn_path_at(ctx->roots, path), &content);
+  if (err) {
+    spn_toml_loader_issue_at(ctx, SPN_ERR_FS_READ, sp_err_str(err));
+  }
+  else {
+    table = spn_toml_loader_parse_str(ctx, content);
+  }
+  sp_mem_end_scratch(scratch);
   return table;
 }
 

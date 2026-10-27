@@ -145,6 +145,9 @@ static void write_issue(sp_tty_t* w, const spn_toml_issue_t* issue) {
         sp_tty_fmt(w, "Not valid toml: {}", SP_FMT_STR(issue->detail));
       }
       break;
+    case SPN_ERR_FS_READ:
+      sp_tty_fmt(w, "Failed to read file: {}", SP_FMT_STR(issue->detail));
+      break;
     case SPN_ERR_CODEGEN_ROOT_ONLY:
       sp_tty_fmt(w, "Field {.cyan} is only allowed in the root manifest", SP_FMT_STR(field));
       break;
