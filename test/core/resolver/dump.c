@@ -5,6 +5,7 @@
 #include "pkg/id.h"
 #include "semver/compare.h"
 #include "semver/convert.h"
+#include "toml/loader.h"
 
 typedef struct {
   sp_str_t namespace;
@@ -98,12 +99,12 @@ static void dump_error_id(spn_cg_resolve_error_t* error, const spn_err_pkg_name_
   error->name = id->name;
 }
 
-static sp_da(spn_cg_resolve_issue_t) dump_issues(sp_mem_t mem, sp_da(spn_err_issue_t) issues) {
+static sp_da(spn_cg_resolve_issue_t) dump_issues(sp_mem_t mem, sp_da(spn_toml_issue_t) issues) {
   sp_da(spn_cg_resolve_issue_t) out = sp_da_new(mem, spn_cg_resolve_issue_t);
   sp_da_for(issues, it) {
     sp_da_push(out, ((spn_cg_resolve_issue_t) {
       .code = spn_err_to_str(issues[it].code),
-      .path = issues[it].path,
+      .path = spn_toml_path_str(mem, &issues[it].at),
       .detail = issues[it].detail,
     }));
   }
@@ -117,19 +118,19 @@ static spn_cg_resolve_error_t dump_error(sp_mem_t mem, const spn_err_union_t* er
 
   switch (err->kind) {
     case SPN_ERR_PKG_UNKNOWN: {
-      dump_error_pkg(&error, spn_pkg_name_from_qualified(err->unknown.qualified));
+      dump_error_pkg(&error, spn_pkg_name_from_qualified(err->subject));
       error.range = err->unknown.range;
       break;
     }
     case SPN_ERR_PKG_NO_MATCH: {
-      dump_error_pkg(&error, spn_pkg_name_from_qualified(err->unsatisfiable.qualified));
+      dump_error_pkg(&error, spn_pkg_name_from_qualified(err->subject));
       error.range = err->unsatisfiable.range;
       error.requester = err->unsatisfiable.requester;
       break;
     }
     case SPN_ERR_PKG_CONFLICT:
     case SPN_ERR_PKG_CONFLICT_EXACT: {
-      dump_error_pkg(&error, spn_pkg_name_from_qualified(err->unsatisfiable.qualified));
+      dump_error_pkg(&error, spn_pkg_name_from_qualified(err->subject));
       error.range = err->unsatisfiable.range;
       error.requester = err->unsatisfiable.requester;
       error.selected = spn_semver_to_str(mem, err->unsatisfiable.selected);

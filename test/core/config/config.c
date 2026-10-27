@@ -96,13 +96,12 @@ static const test_t tests [] = {
 sp_test_each(config, lower, test_t, tests) {
   sp_mem_t mem = sp_test_arena(t);
   spn_path_roots_t roots = sp_zero;
-  spn_toml_loader_t ctx = sp_zero;
-  spn_toml_loader_init(&ctx, mem, sp_intern_new(mem), &roots);
+  spn_toml_loader_t ctx = spn_toml_loader(mem, sp_intern_new(mem), &roots);
 
   sp_str_t file = sp_fmt(mem, "{}.toml", sp_fmt_cstr(it->config)).value;
   sp_str_t path = sp_fs_join_path(mem, test_repo_path(mem, sp_str_lit(CONFIG_DIR)), file);
   spn_cg_config_t cg = sp_zero;
-  spn_codegen_load_config(&ctx, (spn_path_t) { .sub = path }, &cg);
+  spn_toml_load_config(&ctx, (spn_path_t) { .sub = path }, &cg);
 
   sp_da(spn_toolchain_decl_t) toolchains = spn_toolchains_lower_list(&ctx, SPN_PATH_ROOT_NONE, cg.toolchain);
 
@@ -112,7 +111,7 @@ sp_test_each(config, lower, test_t, tests) {
   sp_must_eq(t, num_issues, (u32)sp_da_size(ctx.issues));
   sp_for(n, num_issues) {
     sp_expect_eq(t, (u32)expect->issues[n].code, (u32)ctx.issues[n].code);
-    sp_expect_str_eq_c(t, ctx.issues[n].path, expect->issues[n].path);
+    sp_expect_str_eq_c(t, spn_toml_path_str(mem, &ctx.issues[n].at), expect->issues[n].path);
   }
 
   u32 num_toolchains = 0;

@@ -287,7 +287,7 @@ static spn_err_t sync_jobs(spn_op_t* op, sp_mem_t mem, bool* reresolve) {
       if (pkg->origin.source.kind != SPN_PKG_ROOT_GIT) {
         spn_err_t kind = spn_err_emit(session->ctx, (spn_err_union_t) {
           .kind = SPN_ERR_PATCH_NOT_GIT,
-          .patch = { .name = patch->qualified.str },
+          .subject = patch->qualified.str,
         });
         if (!stamped) {
           stamped = kind;

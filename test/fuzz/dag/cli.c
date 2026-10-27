@@ -6,7 +6,6 @@
 #include "external/tom.h"
 #include "fuzz.gen.h"
 #include "intern/intern.h"
-#include "toml/issue.h"
 #include "toml/loader.h"
 
 sp_app_result_t    sp_prompt_app_on_init(sp_app_t* app);
@@ -181,17 +180,16 @@ static sp_cli_result_t load_config(sp_cli_t* cli, sp_mem_t mem, cli_t* config, s
   }
 
   spn_path_roots_t roots = sp_zero;
-  spn_toml_loader_t loader = sp_zero;
-  spn_toml_loader_init(&loader, mem, sp_intern_new(mem), &roots);
-  loader.strict = true;
+  spn_toml_loader_t loader = spn_toml_loader(mem, sp_intern_new(mem), &roots);
 
-  toml_table_t* table = spn_codegen_parse(&loader, (spn_path_t) { .sub = sp_cstr_as_str(config->config) });
-  if (table) {
-    spn_fuzz_read(&loader, table, out);
-    toml_free(table);
-  }
+  spn_toml_load_fuzz(&loader, (spn_path_t) { .sub = sp_cstr_as_str(config->config) }, out);
   if (!sp_da_empty(loader.issues)) {
-    return sp_cli_set_error(cli, sp_fmt(mem, "{.cyan}: {}", sp_fmt_cstr(config->config), sp_fmt_str(spn_codegen_issues_to_json(mem, loader.issues))).value);
+    sp_io_dyn_mem_writer_t why;
+    sp_io_dyn_mem_writer_init(mem, &why);
+    si_da_for_ptr(loader.issues, issue) {
+      sp_fmt_io(&why.base, "\n  {}: {}", sp_fmt_str(spn_toml_path_str(mem, &issue->at)), sp_fmt_str(issue->detail));
+    }
+    return sp_cli_set_error(cli, sp_fmt(mem, "{.cyan}: {}", sp_fmt_cstr(config->config), sp_fmt_str(sp_io_dyn_mem_writer_as_str(&why))).value);
   }
   return SP_CLI_OK;
 }

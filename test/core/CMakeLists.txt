@@ -146,7 +146,7 @@ add_executable(core
   ${CMAKE_SOURCE_DIR}/tools/gen/lower.c
   ${CMAKE_SOURCE_DIR}/tools/install/render.c
   ${SRC}/codegen/codegen.c
-  ${SRC}/codegen/loader.c
+  ${SRC}/toml/loader.c
   ${SRC}/codegen/json.c
   ${SRC}/codegen/lower.c
   ${SRC}/codegen/toolchain.c

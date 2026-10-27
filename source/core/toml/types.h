@@ -2,6 +2,24 @@
 #define SPN_TOML_TYPES_H
 
 #include "sp.h"
+#include "spn/types.h"
+#include "intern/types.h"
+#include "paths/types.h"
+
+typedef struct {
+  sp_str_t name;
+  u32 depth;
+} spn_toml_scope_t;
+
+typedef struct {
+  sp_mem_t mem;
+  sp_intern_t* intern;
+  const spn_path_roots_t* roots;
+  spn_path_t dir;
+  spn_toml_path_t path;
+  spn_toml_scope_t scope;
+  sp_da(spn_toml_issue_t) issues;
+} spn_toml_loader_t;
 
 typedef enum {
   SPN_TOML_EDIT_VALUE_SCALAR,

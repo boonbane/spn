@@ -3,7 +3,7 @@
 #include "sp/sp_prompt.h"
 
 #include "docker/docker.h"
-#include "toml/issue.h"
+#include "error/json.h"
 #include "tail/tail.h"
 #include "variant/variant.h"
 
@@ -75,7 +75,7 @@ static sp_cli_result_t init(sp_cli_t* cli, smoke_t* smoke) {
       return sp_cli_set_error(cli, sp_fmt(mem, "failed to load templates from {.cyan}", sp_fmt_str(smoke->docker.paths.templates)).value);
     }
     case DOCKER_INIT_ERR_LANES: {
-      sp_str_t why = smoke->docker.err.lanes.read == LANES_READ_UNREADABLE ? sp_str_lit("unreadable") : spn_codegen_issues_to_json(mem, smoke->docker.err.lanes.issues);
+      sp_str_t why = smoke->docker.err.lanes.read == LANES_READ_UNREADABLE ? sp_str_lit("unreadable") : spn_toml_issues_to_str(mem, smoke->docker.err.lanes.issues);
       return sp_cli_set_error(cli, sp_fmt(mem, "{.cyan}: {}", sp_fmt_str(smoke->docker.err.lanes.path), sp_fmt_str(why)).value);
     }
     case DOCKER_INIT_ERR_VERIFY: {
@@ -185,11 +185,11 @@ static sp_cli_result_t run_shell(sp_cli_t* cli) {
 }
 
 static bool unloadable(smoke_t* smoke, lane_t lane, const variant_t* variant) {
-  sp_da(spn_codegen_issue_t) issues = smoke->docker.issues[lane];
+  sp_da(spn_toml_issue_t) issues = smoke->docker.issues[lane];
   if (sp_da_empty(issues)) {
     return false;
   }
-  sp_prompt_error(smoke->prompt, cfmt(smoke->mem, "FAIL {} in {} ({})", sp_fmt_cstr(lane_name(lane)), sp_fmt_cstr(variant->name), sp_fmt_str(spn_codegen_issues_to_json(smoke->mem, issues))));
+  sp_prompt_error(smoke->prompt, cfmt(smoke->mem, "FAIL {} in {} ({})", sp_fmt_cstr(lane_name(lane)), sp_fmt_cstr(variant->name), sp_fmt_str(spn_toml_issues_to_str(smoke->mem, issues))));
   return true;
 }
 

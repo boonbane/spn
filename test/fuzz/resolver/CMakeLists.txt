@@ -11,7 +11,7 @@ add_executable(fuzz_resolver
   ${SRC}/external/git.c
   ${SRC}/external/tom.c
   ${SRC}/codegen/codegen.c
-  ${SRC}/codegen/loader.c
+  ${SRC}/toml/loader.c
   ${SRC}/codegen/json.c
   ${SRC}/codegen/options.c
   ${SRC}/codegen/when.c
