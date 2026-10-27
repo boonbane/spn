@@ -64,6 +64,10 @@ void fz_render_mermaid(sp_io_writer_t* io, fz_universe_t* u) {
       sp_fmt_io(io, "  f{} --> a{}", sp_fmt_uint(action->consumes[ct]), sp_fmt_uint(at));
       sp_io_write_cstr(io, "\n", SP_NULLPTR);
     }
+    sp_da_for(action->orders, ot) {
+      sp_fmt_io(io, "  f{} -. order .-> a{}", sp_fmt_uint(action->orders[ot]), sp_fmt_uint(at));
+      sp_io_write_cstr(io, "\n", SP_NULLPTR);
+    }
     sp_da_for(action->produces, pt) {
       sp_fmt_io(io, "  a{} --> f{}", sp_fmt_uint(at), sp_fmt_uint(action->produces[pt]));
       sp_io_write_cstr(io, "\n", SP_NULLPTR);

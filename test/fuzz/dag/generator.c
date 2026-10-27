@@ -61,6 +61,7 @@ fz_profile_t fz_gen_profile(sp_fuzz_prng_t* prng, fz_limits_t limits) {
     profile.absent_pct = sp_fuzz_below(prng, 6);
     profile.obs_output_pct = sp_fuzz_below(prng, 8);
   }
+  profile.order_pct = sp_fuzz_chance(prng, 1, 2) ? sp_fuzz_range(prng, 2, 12) : 0;
   profile.back_density = sp_fuzz_chance(prng, 1, 8) ? sp_fuzz_range(prng, 1, 2) : 0;
   profile.steps = sp_fuzz_range(prng, 1, profile.big ? 4 : 12);
   static const u64 fz_granularities [] = { 16000000ull, 1000000000ull, 2000000000ull };
@@ -100,6 +101,13 @@ static sp_da(u64) topo(sp_mem_t mem, fz_universe_t* u, bool obs) {
     fz_action_t* action = &u->actions[at];
     sp_da_for(action->consumes, ct) {
       s64 producer = u->artifacts[action->consumes[ct]].producer;
+      if (producer >= 0) {
+        sp_da_push(dependents[producer], at);
+        degree[at]++;
+      }
+    }
+    sp_da_for(action->orders, ot) {
+      s64 producer = u->artifacts[action->orders[ot]].producer;
       if (producer >= 0) {
         sp_da_push(dependents[producer], at);
         degree[at]++;
@@ -161,6 +169,7 @@ fz_universe_t fz_gen_universe(sp_mem_t mem, sp_fuzz_prng_t* prng, fz_profile_t p
       .identity = sp_fuzz_below(prng, profile.identity_count),
     };
     sp_da_init(mem, action.consumes);
+    sp_da_init(mem, action.orders);
     sp_da_init(mem, action.produces);
     sp_da_init(mem, action.obs);
 
@@ -181,6 +190,9 @@ fz_universe_t fz_gen_universe(sp_mem_t mem, sp_fuzz_prng_t* prng, fz_profile_t p
     if (!sp_da_empty(action.consumes) && sp_fuzz_chance(prng, 1, 8)) {
       u64 dup = action.consumes[sp_fuzz_below(prng, sp_da_size(action.consumes))];
       sp_da_push(action.consumes, dup);
+    }
+    if (!sp_da_empty(u.outputs) && sp_fuzz_chance(prng, profile.order_pct, 16)) {
+      sp_da_push(action.orders, u.outputs[sp_fuzz_below(prng, sp_da_size(u.outputs))]);
     }
 
     u64 produced = 1 + sp_fuzz_below(prng, profile.produce_count);
@@ -236,6 +248,12 @@ fz_universe_t fz_gen_universe(sp_mem_t mem, sp_fuzz_prng_t* prng, fz_profile_t p
     if (!sp_da_empty(action->obs) && sp_da_size(action->obs) < profile.limits.obs && sp_fuzz_chance(prng, 1, 8)) {
       fz_obs_t dup = action->obs[sp_fuzz_below(prng, sp_da_size(action->obs))];
       sp_da_push(action->obs, dup);
+    }
+    sp_da_for(action->obs, ot) {
+      fz_obs_t obs = action->obs[ot];
+      if (obs_producer(&u, it, obs) >= 0 && sp_fuzz_chance(prng, profile.order_pct, 16)) {
+        sp_da_push(action->orders, obs.artifact);
+      }
     }
   }
 

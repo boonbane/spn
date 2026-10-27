@@ -18,6 +18,7 @@ spn_dag_id_t        spn_dag_add_tree(spn_dag_t* g, spn_path_t path);
 spn_dag_id_t        spn_dag_add_output(spn_dag_t* g, sp_str_t name);
 spn_dag_id_t        spn_dag_add_action(spn_dag_t* g, spn_dag_action_config_t config);
 void                spn_dag_action_add_input(spn_dag_t* g, spn_dag_id_t action, spn_dag_id_t artifact);
+void                spn_dag_action_add_order(spn_dag_t* g, spn_dag_id_t action, spn_dag_id_t artifact);
 spn_err_t           spn_dag_action_add_output(spn_dag_t* g, spn_dag_id_t action, spn_dag_id_t artifact);
 bool                spn_dag_output_overlaps(spn_dag_artifact_t* artifact, spn_path_t path);
 spn_dag_violation_t spn_dag_validate(spn_dag_t* g);

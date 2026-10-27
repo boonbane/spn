@@ -103,6 +103,7 @@ spn_dag_id_t spn_dag_add_action(spn_dag_t* g, spn_dag_action_config_t config) {
     .user_data = config.user_data,
   };
   sp_da_init(g->mem, action.consumes);
+  sp_da_init(g->mem, action.orders);
   sp_da_init(g->mem, action.produces);
   sp_da_push(g->actions, action);
   return action.id;
@@ -113,6 +114,9 @@ void spn_dag_action_add_input(spn_dag_t* g, spn_dag_id_t action_id, spn_dag_id_t
   spn_dag_artifact_t* artifact = spn_dag_find_artifact(g, artifact_id);
   sp_da_push(action->consumes, artifact_id);
   sp_da_push(artifact->consumers, action_id);
+}
+
+void spn_dag_action_add_order(spn_dag_t* g, spn_dag_id_t action_id, spn_dag_id_t artifact_id) {
 }
 
 spn_err_t spn_dag_action_add_output(spn_dag_t* g, spn_dag_id_t action_id, spn_dag_id_t artifact_id) {

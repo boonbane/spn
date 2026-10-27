@@ -82,7 +82,6 @@ typedef struct {
   spn_pkg_unit_t* pkg;
   spn_dag_id_t include;
   spn_dag_id_t share;
-  spn_dag_id_t stamp;
 } si_publish_t;
 
 typedef struct {

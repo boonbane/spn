@@ -17,6 +17,7 @@ sp_str_t fz_err_to_str(fz_err_t err) {
     case FZ_ERR_EXEC_SPURIOUS: return sp_str_lit("an action executed where the model expected a cache hit");
     case FZ_ERR_KEY:          return sp_str_lit("a dag key diverges from the model");
     case FZ_ERR_SCHEDULE:     return sp_str_lit("a schedule reseed changed output bytes");
+    case FZ_ERR_ORDER:        return sp_str_lit("an action started before an order-only producer finished");
     case FZ_ERR_COUNT:        break;
   }
   sp_unreachable_return(sp_str_lit("unknown"));

@@ -13,7 +13,6 @@
 #include "paths/paths.h"
 #include "str/str.h"
 #include "triple/triple.h"
-#include "unit/package.h"
 #include "unit/unit.h"
 
 static spn_err_t embed_files(sp_mem_t mem, const si_dag_ctx_t* c, si_embed_t* embed, spn_cc_embed_ctx_t* embedder) {

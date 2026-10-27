@@ -151,7 +151,6 @@ set(SPN_SOURCES
   core/unit/fingerprint.c
   core/unit/graph.c
   core/unit/link.c
-  core/unit/package.c
   core/unit/paths.c
   core/unit/target.c
   core/when/when.c

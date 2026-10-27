@@ -24,7 +24,6 @@ struct spn_dag_build_t {
   spn_dag_t* graph;
 
   struct {
-    sp_ht(spn_pkg_unit_t*, spn_dag_id_t) stamps;
     sp_ht(spn_target_unit_t*, spn_dag_target_ids_t) targets;
     sp_ht(spn_target_unit_t*, spn_dag_embed_ids_t) embeds;
     sp_ht(spn_build_unit_t*, spn_dag_id_t) builds;

@@ -8,6 +8,7 @@ typedef struct {
 typedef struct {
   const c8* identity;
   const c8* inputs [DAG_TEST_MAX_INPUTS];
+  const c8* orders [DAG_TEST_MAX_INPUTS];
   const c8* discovers [DAG_TEST_MAX_INPUTS];
   const c8* output;
   const c8* writes;
@@ -166,6 +167,49 @@ static const test_t tests [] = {
     }
   },
   {
+    .name = "order_only_input_waits_for_producer",
+    .actions = {
+      { .identity = "J", .inputs = { "T" }, .orders = { "X" }, .output = "Y" },
+      { .identity = "I", .inputs = { "S" }, .output = "X" },
+    },
+    .builds = {
+      { .sources = { { "S", "A" }, { "T", "B" } }, .expect_runs = 2 },
+    }
+  },
+  {
+    .name = "order_only_producer_change_keeps_hit",
+    .actions = {
+      { .identity = "J", .inputs = { "T" }, .orders = { "X" }, .output = "Y" },
+      { .identity = "I", .inputs = { "S" }, .output = "X" },
+    },
+    .builds = {
+      { .sources = { { "S", "A" }, { "T", "B" } }, .expect_runs = 2 },
+      { .sources = { { "S", "C" }, { "T", "B" } }, .expect_runs = 3 },
+      { .sources = { { "S", "C" }, { "T", "B" } }, .expect_runs = 3 },
+    }
+  },
+  {
+    .name = "order_only_observed_change_reruns",
+    .discovery = true,
+    .actions = {
+      { .identity = "J", .inputs = { "M" }, .orders = { "X" }, .discovers = { "X" }, .output = "O" },
+      { .identity = "I", .inputs = { "S" }, .output = "X" },
+    },
+    .builds = {
+      { .sources = { { "S", "A" }, { "M", "B" } }, .expect_runs = 2 },
+      { .sources = { { "S", "C" }, { "M", "B" } }, .expect_runs = 4 },
+    }
+  },
+  {
+    .name = "order_only_source_needs_no_producer",
+    .actions = {
+      { .identity = "J", .inputs = { "T" }, .orders = { "S" }, .output = "Y" },
+    },
+    .builds = {
+      { .sources = { { "S", "A" }, { "T", "B" } }, .expect_runs = 1 },
+    }
+  },
+  {
     .name = "discovered_generated_header_waits_for_producer",
     .discovery = true,
     .actions = {
@@ -229,6 +273,14 @@ static spn_err_t execute_action(const si_dag_ctx_t* c, void* user_data) {
       return SPN_ERR_DAG_ACTION;
     }
   }
+  sp_carr_for(ctx->spec->orders, it) {
+    if (!ctx->spec->orders[it]) {
+      break;
+    }
+    if (!sp_fs_exists_at(dag_test_at(ctx->env, dag_test_env_rooted(ctx->env, sp_str_view(ctx->spec->orders[it]))))) {
+      return SPN_ERR_DAG_ACTION;
+    }
+  }
   ctx->env->runs++;
   spn_path_t output = si_dag_resolve_output(c, c->produces[0]);
   sp_str_t content = ctx->spec->writes
@@ -263,6 +315,12 @@ static sp_err_t build_graph(sp_test_t* t, dag_test_env_t* env, spn_dag_t* g, con
         break;
       }
       spn_dag_action_add_input(g, action, spn_dag_add_file(g, dag_test_env_rooted(env, sp_str_view(spec->inputs[ii]))));
+    }
+    sp_carr_for(spec->orders, oi) {
+      if (!spec->orders[oi]) {
+        break;
+      }
+      spn_dag_action_add_order(g, action, spn_dag_add_file(g, dag_test_env_rooted(env, sp_str_view(spec->orders[oi]))));
     }
     spn_path_t output = dag_test_env_rooted(env, sp_str_view(spec->output));
     spn_dag_id_t out_id = spec->tree ? spn_dag_add_tree(g, output) : spn_dag_add_file(g, output);
@@ -322,6 +380,12 @@ sp_test_each(dag_run, builds, test_t, tests) {
           break;
         }
         spn_dag_action_add_input(g, action, spn_dag_add_file(g, dag_test_env_rooted(&env, sp_str_view(spec->inputs[ii]))));
+      }
+      sp_carr_for(spec->orders, oi) {
+        if (!spec->orders[oi]) {
+          break;
+        }
+        spn_dag_action_add_order(g, action, spn_dag_add_file(g, dag_test_env_rooted(&env, sp_str_view(spec->orders[oi]))));
       }
       spn_path_t output = dag_test_env_rooted(&env, sp_str_view(spec->output));
       spn_dag_id_t out_id = spec->tree ? spn_dag_add_tree(g, output) : spn_dag_add_file(g, output);

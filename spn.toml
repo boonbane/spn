@@ -769,7 +769,6 @@ source = [
   "source/core/toolchain/libc.c",
   "source/util/sp/sp_msvc.c",
   "source/core/toolchain/linker.c",
-  "source/core/unit/package.c",
   "source/core/triple/triple.c",
   "source/core/elf/elf.c",
   "source/core/when/when.c",

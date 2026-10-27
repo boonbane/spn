@@ -414,7 +414,9 @@ static void seed_bytes(world_t* w, fz_universe_t* u, sp_mem_t mem, sp_str_t* key
 typedef struct {
   bool hit;
   bool recorded;
+  bool done;
   u64 commit_sys;
+  u64 done_sys;
   spn_dag_digest_t hit_key;
   spn_dag_digest_t commit_key;
 } action_facts_t;
@@ -438,10 +440,14 @@ static void collect_facts(world_t* w, sp_mem_t mem, u64 actions, u64 artifacts, 
         if (event->present && event->hit) {
           fact->hit = true;
           fact->hit_key = event->key;
+          fact->done = true;
+          fact->done_sys = w->events[et].sys;
         }
         break;
       }
       case SPN_DAG_TRACE_COMMIT: {
+        fact->done = true;
+        fact->done_sys = w->events[et].sys;
         if (event->hit) {
           fact->recorded = true;
           fact->commit_key = event->key;
@@ -459,6 +465,31 @@ static void collect_facts(world_t* w, sp_mem_t mem, u64 actions, u64 artifacts, 
       }
     }
   }
+}
+
+static u64 order_rows(sp_mem_t mem, fz_universe_t* u, world_t* w, const facts_t* facts, u64 log_start, fz_order_row_t** rows) {
+  sp_da(fz_order_row_t) built = sp_da_new(mem, fz_order_row_t);
+  for (u64 it = log_start; it < sp_da_size(w->ex.log); it++) {
+    fz_flight_t flight = w->ex.log[it];
+    fz_action_t* action = &u->actions[flight.action];
+    sp_da_for(action->orders, ot) {
+      s64 producer = u->artifacts[action->orders[ot]].producer;
+      if (producer < 0 || (u64)producer == flight.action) {
+        continue;
+      }
+      const action_facts_t* fact = &facts->actions[producer];
+      sp_da_push(built, ((fz_order_row_t) {
+        .action = flight.action,
+        .artifact = action->orders[ot],
+        .producer = (u64)producer,
+        .started = flight.started,
+        .done = fact->done_sys,
+        .ok = fact->done && fact->done_sys <= flight.started,
+      }));
+    }
+  }
+  *rows = built;
+  return sp_da_size(built);
 }
 
 static void reconcile_action(world_t* w, fz_universe_t* u, sp_mem_t mem, sp_str_t* key_bytes, sp_str_t* disk_bytes, fz_predict_row_t* rows, const facts_t* facts, bool lossy, u64 crash_at, u64 at) {
@@ -742,6 +773,10 @@ static fz_err_t trace_check_run(sp_mem_t mem, fz_universe_t* u, world_t* w, fz_s
   }
   fz_journal_check_execs(w->j, exec_rows, actions);
 
+  fz_order_row_t* orders = SP_NULLPTR;
+  u64 order_count = order_rows(mem, u, w, &facts, log_start, &orders);
+  fz_journal_check_orders(w->j, orders, order_count);
+
   u64 outputs = sp_da_size(u->outputs);
   fz_bytes_row_t* disk_rows = sp_alloc_n(mem, fz_bytes_row_t, outputs ? outputs : 1);
   sp_da_for(u->outputs, ot) {
@@ -787,6 +822,9 @@ static fz_err_t trace_check_run(sp_mem_t mem, fz_universe_t* u, world_t* w, fz_s
   }
   sp_for(it, outputs) {
     must(disk_rows[it].ok, FZ_ERR_STALE_OUTPUT);
+  }
+  sp_for(it, order_count) {
+    must(orders[it].ok, FZ_ERR_ORDER);
   }
 
   return FZ_OK;

@@ -96,7 +96,6 @@ typedef struct {
   sp_str_t sub;
   spn_dag_artifact_kind_t kind;
   spn_path_t path;
-  bool stamp;
 } spn_user_output_t;
 
 struct spn_user_node_t {
@@ -171,7 +170,6 @@ struct spn_pkg_unit_t {
   struct {
     spn_tree_roots_t roots;
     spn_path_t work;
-    spn_path_t stamp;
     spn_path_t store;
     spn_path_t include;
     spn_path_t share;

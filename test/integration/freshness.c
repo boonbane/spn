@@ -182,6 +182,31 @@ sp_test(freshness, dep_header_inert) {
   });
 }
 
+sp_test(freshness, node_header_inert) {
+  return run_rebuild_test(t, (rebuild_test_t) {
+    .project = "test/integration/fixtures/freshness/node",
+    .copy = { "other.c", "version.txt", "version.change.txt" },
+    .first = {
+      .args = { "build" },
+      .expect.exists = { exe("M"), exe("O") },
+    },
+    .rebuilds = {
+      {
+        .change.moves = {
+          { .from = sp_str_lit("version.change.txt"), .to = sp_str_lit("version.txt") },
+        },
+        .command = {
+          .args = { "build" },
+          .expect.events = {
+            { .event = SPN_EVENT_TARGET_BUILD_PASSED, .key = "subject.target", .value = "M" },
+            { .event = SPN_EVENT_TARGET_BUILD_PASSED, .key = "subject.target", .value = "O", .absent = true },
+          },
+        },
+      },
+    },
+  });
+}
+
 sp_test(freshness, dep_unincluded_header_change) {
   return run_rebuild_test(t, (rebuild_test_t) {
     .project = "test/integration/fixtures/freshness/dep",
