@@ -251,7 +251,8 @@ fz_universe_t fz_gen_universe(sp_mem_t mem, sp_fuzz_prng_t* prng, fz_profile_t p
     }
     sp_da_for(action->obs, ot) {
       fz_obs_t obs = action->obs[ot];
-      if (obs_producer(&u, it, obs) >= 0 && sp_fuzz_chance(prng, profile.order_pct, 16)) {
+      s64 producer = obs_producer(&u, it, obs);
+      if (producer >= 0 && (u64)producer < it && sp_fuzz_chance(prng, profile.order_pct, 16)) {
         sp_da_push(action->orders, obs.artifact);
       }
     }

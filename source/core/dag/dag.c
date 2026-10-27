@@ -117,6 +117,10 @@ void spn_dag_action_add_input(spn_dag_t* g, spn_dag_id_t action_id, spn_dag_id_t
 }
 
 void spn_dag_action_add_order(spn_dag_t* g, spn_dag_id_t action_id, spn_dag_id_t artifact_id) {
+  spn_dag_action_t* action = spn_dag_find_action(g, action_id);
+  spn_dag_artifact_t* artifact = spn_dag_find_artifact(g, artifact_id);
+  sp_da_push(action->orders, artifact_id);
+  sp_da_push(artifact->consumers, action_id);
 }
 
 spn_err_t spn_dag_action_add_output(spn_dag_t* g, spn_dag_id_t action_id, spn_dag_id_t artifact_id) {

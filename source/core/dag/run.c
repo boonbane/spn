@@ -1077,6 +1077,11 @@ static void seed_ready(spn_dag_run_t* run, sp_mem_t mem) {
         run->states[ai].pending++;
       }
     }
+    sp_da_for(action->orders, oi) {
+      if (!spn_dag_digest_valid(spn_dag_find_artifact(run->g, action->orders[oi])->digest)) {
+        run->states[ai].pending++;
+      }
+    }
     if (!run->states[ai].pending) {
       sp_da_push(run->ready, action->id);
     }

@@ -462,7 +462,7 @@ sp_test(script, embed_dir) {
           .args = { "build" },
           .expect.events = {
             { .event = SPN_EVENT_SCRIPT_USER_FN },
-            { .event = SPN_EVENT_TARGET_BUILD_PASSED },
+            { .event = SPN_EVENT_EMBED_PASSED },
           },
         },
       },
