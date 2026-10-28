@@ -20,7 +20,7 @@ static spn_err_t remove_path(spn_ctx_t* ctx, spn_path_t path) {
 spn_err_t spn_op_clean(spn_op_t* op) {
   spn_ctx_t* ctx = op->ctx;
   spn_try(spn_ctx_require_project(ctx));
-  return remove_path(ctx, spn_path_join(ctx->heap, spn_path_from_root(SPN_PATH_ROOT_PROJECT), sp_str_lit("build")));
+  return remove_path(ctx, spn_path_project_build());
 }
 
 spn_op_t* spn_clean(spn_ctx_t* ctx) {
