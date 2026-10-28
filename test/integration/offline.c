@@ -57,6 +57,19 @@ sp_test(offline, no_source_cache) {
   });
 }
 
+sp_test(offline, relocated_checkout) {
+  return run_test(t, (test_t) {
+    .project = "test/integration/fixtures/offline/relocated_checkout",
+    .copy = { "one/*", "two/*" },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { "build", .cwd = "one" } },
+      { .kind = ACTION_VERIFY_EVENT, .verify_event = { .event = SPN_EVENT_TARGET_BUILD_PASSED, .key = "subject.target", .value = "main" } },
+      { .kind = ACTION_RUN_CLI, .cli = { "build", .cwd = "two" } },
+      { .kind = ACTION_VERIFY_EVENT, .verify_event = { .event = SPN_EVENT_TARGET_BUILD_PASSED, .key = "subject.target", .value = "main" } },
+    },
+  });
+}
+
 sp_test(offline, shared_store) {
   return run_test(t, (test_t) {
     .project = "test/integration/fixtures/offline/shared_store",

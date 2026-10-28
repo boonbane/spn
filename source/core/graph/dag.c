@@ -32,7 +32,7 @@
 #include "graph/nodes/nodes.h"
 #include "triple/triple.h"
 
-static spn_dag_digest_t hash_embedding(spn_target_unit_t* target) {
+static spn_dag_digest_t hash_embedding(const spn_path_roots_t* roots, spn_target_unit_t* target) {
   spn_digest_ctx_t ctx = sp_zero;
   spn_digest_init_blake3(&ctx);
   spn_dag_hash_str(&ctx, sp_str_lit("spn.build.embed.v9"));
@@ -46,7 +46,7 @@ static spn_dag_digest_t hash_embedding(spn_target_unit_t* target) {
   si_da_for(target->eval->embed, it) {
     spn_embed_t* embed = &target->eval->embed[it];
     spn_dag_hash_u8(&ctx, (u8)embed->kind);
-    spn_dag_hash_path(&ctx, embed->path);
+    spn_dag_hash_path(&ctx, roots, embed->path);
     spn_dag_hash_str(&ctx, embed->dest);
     spn_dag_hash_str(&ctx, embed->types.data);
     spn_dag_hash_str(&ctx, embed->types.size);
@@ -146,15 +146,12 @@ spn_err_t spn_dag_build_add_build(spn_dag_build_t* b, spn_build_unit_t* build) {
 
       spn_digest_ctx_t digest = sp_zero;
       spn_digest_init_blake3(&digest);
-      spn_dag_hash_str(&digest, sp_str_lit("spn.build.libc.v2"));
-      sp_for(it, SPN_PATH_ROOT_COUNT) {
-        spn_dag_hash_str(&digest, g->roots->dirs[it]);
-      }
-      spn_dag_hash_path(&digest, paths->include);
-      spn_dag_hash_path(&digest, paths->sys_include);
-      spn_dag_hash_path(&digest, paths->crt);
-      spn_dag_hash_path(&digest, paths->msvc_lib);
-      spn_dag_hash_path(&digest, paths->kernel32_lib);
+      spn_dag_hash_str(&digest, sp_str_lit("spn.build.libc.v3"));
+      spn_dag_hash_path(&digest, g->roots, paths->include);
+      spn_dag_hash_path(&digest, g->roots, paths->sys_include);
+      spn_dag_hash_path(&digest, g->roots, paths->crt);
+      spn_dag_hash_path(&digest, g->roots, paths->msvc_lib);
+      spn_dag_hash_path(&digest, g->roots, paths->kernel32_lib);
 
       si_libc_t* ctx = sp_alloc_type(b->mem, si_libc_t);
       *ctx = (si_libc_t) { .libc = paths };
@@ -201,9 +198,9 @@ void spn_dag_build_declare_target(spn_dag_build_t* b, spn_target_unit_t* target)
   sp_ht_insert(b->ids.targets, target, ids);
 }
 
-static void hash_publish(spn_digest_ctx_t* digest, const spn_publish_t* publish) {
+static void hash_publish(spn_digest_ctx_t* digest, const spn_path_roots_t* roots, const spn_publish_t* publish) {
   spn_dag_hash_u8(digest, (u8)publish->root);
-  spn_dag_hash_path(digest, publish->source.path);
+  spn_dag_hash_path(digest, roots, publish->source.path);
   spn_dag_hash_str(digest, publish->dest);
 }
 
@@ -212,23 +209,23 @@ typedef struct {
   spn_dag_id_t object;
 } object_ids_t;
 
-static void hash_invocation(spn_digest_ctx_t* digest, const spn_invocation_t* base) {
-  spn_dag_hash_arg(digest, base->program);
-  spn_dag_hash_args(digest, base->args);
+static void hash_invocation(spn_digest_ctx_t* digest, const spn_path_roots_t* roots, const spn_invocation_t* base) {
+  spn_dag_hash_arg(digest, roots, base->program);
+  spn_dag_hash_args(digest, roots, base->args);
   spn_dag_hash_u64(digest, sp_da_size(base->env));
   sp_da_for(base->env, et) {
     spn_dag_hash_u64(digest, base->env[et].key);
-    spn_dag_hash_args(digest, base->env[et].values);
+    spn_dag_hash_args(digest, roots, base->env[et].values);
   }
 }
 
-static spn_dag_digest_t hash_compile(const spn_compile_unit_t* unit) {
+static spn_dag_digest_t hash_compile(const spn_path_roots_t* roots, const spn_compile_unit_t* unit) {
   spn_digest_ctx_t digest = sp_zero;
   spn_digest_init_blake3(&digest);
-  spn_dag_hash_str(&digest, sp_str_lit("spn.build.compile.v6"));
+  spn_dag_hash_str(&digest, sp_str_lit("spn.build.compile.v7"));
   spn_dag_hash_u64(&digest, unit->target->pkg->build->toolchain->identity);
-  hash_invocation(&digest, &unit->plan.base);
-  spn_dag_hash_path(&digest, unit->file);
+  hash_invocation(&digest, roots, &unit->plan.base);
+  spn_dag_hash_path(&digest, roots, unit->file);
   return spn_dag_hash_final(&digest);
 }
 
@@ -266,7 +263,7 @@ static spn_err_t add_object_compilation(spn_dag_build_t* b, sp_mem_t mem, spn_ta
       .header = header,
     };
     spn_dag_action_config_t config = {
-      .identity = hash_compile(unit),
+      .identity = hash_compile(g->roots, unit),
       .user_data = ctx,
     };
     switch (unit->plan.depfile) {
@@ -311,8 +308,8 @@ static spn_err_t add_publish_file(spn_dag_build_t* b, spn_dag_id_t source, spn_p
 
   spn_digest_ctx_t digest = sp_zero;
   spn_digest_init_blake3(&digest);
-  spn_dag_hash_str(&digest, sp_str_lit("spn.build.publish.file.v1"));
-  spn_dag_hash_path(&digest, dest);
+  spn_dag_hash_str(&digest, sp_str_lit("spn.build.publish.file.v2"));
+  spn_dag_hash_path(&digest, g->roots, dest);
 
   si_publish_file_t* ctx = sp_alloc_type(b->mem, si_publish_file_t);
   *ctx = (si_publish_file_t) {
@@ -386,7 +383,7 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
     embed = (spn_dag_embed_ids_t) {
       .action = spn_dag_add_action(g, (spn_dag_action_config_t) {
         .kind = SPN_DAG_ACTION_DISCOVERED,
-        .identity = hash_embedding(target),
+        .identity = hash_embedding(g->roots, target),
         .execute = si_on_embed,
         .user_data = ctx,
       }),
@@ -429,11 +426,8 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
 
     spn_digest_ctx_t digest = sp_zero;
     spn_digest_init_blake3(&digest);
-    spn_dag_hash_str(&digest, sp_str_lit("spn.build.rsp.v2"));
+    spn_dag_hash_str(&digest, sp_str_lit("spn.build.rsp.v3"));
     spn_dag_hash_u8(&digest, (u8)rsp->style);
-    sp_for(it, SPN_PATH_ROOT_COUNT) {
-      spn_dag_hash_str(&digest, g->roots->dirs[it]);
-    }
     spn_dag_hash_str(&digest, target->pkg->eval.manifest->qualified.str);
     spn_dag_hash_str(&digest, target->eval->info->name.str);
 
@@ -466,9 +460,9 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
 
       spn_digest_ctx_t digest = sp_zero;
       spn_digest_init_blake3(&digest);
-      spn_dag_hash_str(&digest, sp_str_lit("spn.build.archive.v2"));
+      spn_dag_hash_str(&digest, sp_str_lit("spn.build.archive.v3"));
       spn_dag_hash_u64(&digest, toolchain->identity);
-      hash_invocation(&digest, &target->archive.base);
+      hash_invocation(&digest, g->roots, &target->archive.base);
       spn_dag_id_t action = spn_dag_add_action(g, (spn_dag_action_config_t) {
         .identity = spn_dag_hash_final(&digest),
         .execute = si_on_archive,
@@ -566,10 +560,10 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
 
       spn_digest_ctx_t digest = sp_zero;
       spn_digest_init_blake3(&digest);
-      spn_dag_hash_str(&digest, sp_str_lit("spn.build.link.v10"));
+      spn_dag_hash_str(&digest, sp_str_lit("spn.build.link.v11"));
       spn_dag_hash_u64(&digest, toolchain->identity);
-      hash_invocation(&digest, &link->plan.base);
-      spn_dag_hash_args(&digest, link->plan.tail);
+      hash_invocation(&digest, g->roots, &link->plan.base);
+      spn_dag_hash_args(&digest, g->roots, link->plan.tail);
       hash_link_deps(&digest, link);
       spn_dag_id_t action = spn_dag_add_action(g, (spn_dag_action_config_t) {
         .identity = spn_dag_hash_final(&digest),
@@ -750,13 +744,13 @@ static spn_err_t prepare_graph(spn_dag_build_t* b) {
 
           spn_digest_ctx_t digest = sp_zero;
           spn_digest_init_blake3(&digest);
-          spn_dag_hash_str(&digest, sp_str_lit("spn.build.user.v8"));
+          spn_dag_hash_str(&digest, sp_str_lit("spn.build.user.v9"));
           spn_dag_hash_str(&digest, node->unit->eval.manifest->qualified.str);
           spn_dag_hash_u64(&digest, node->unit->fingerprint);
           hash_pin(&digest, &pin);
           spn_dag_hash_str(&digest, node->tag);
           spn_dag_hash_str(&digest, node->fn);
-          spn_dag_hash_paths(&digest, node->inputs);
+          spn_dag_hash_paths(&digest, g->roots, node->inputs);
           spn_dag_hash_u64(&digest, si_da_size(node->outputs));
           si_da_for(node->outputs, ot) {
             spn_dag_hash_u64(&digest, node->outputs[ot].dir);
@@ -810,16 +804,16 @@ static spn_err_t prepare_graph(spn_dag_build_t* b) {
 
         spn_digest_ctx_t digest = sp_zero;
         spn_digest_init_blake3(&digest);
-        spn_dag_hash_str(&digest, sp_str_lit("spn.build.publish.v1"));
+        spn_dag_hash_str(&digest, sp_str_lit("spn.build.publish.v2"));
         spn_dag_hash_str(&digest, eval->manifest->qualified.str);
         hash_pin(&digest, &pin);
         si_da_for(eval->publish, it) {
-          hash_publish(&digest, &eval->publish[it]);
+          hash_publish(&digest, g->roots, &eval->publish[it]);
         }
         si_om_for(eval->targets, it) {
           si_target_t* target = si_om_at(eval->targets, it);
           si_da_for(target->publish, jt) {
-            hash_publish(&digest, &target->publish[jt]);
+            hash_publish(&digest, g->roots, &target->publish[jt]);
           }
         }
 
