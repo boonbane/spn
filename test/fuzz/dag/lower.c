@@ -13,12 +13,10 @@ static spn_err_t fz_exec(const si_dag_ctx_t* c, void* user_data) {
   fz_lowered_t* low = ctx->low;
   low->execs[ctx->action]++;
   fz_journal_exec(low->journal, ctx->action);
-  if (low->ex) {
-    sp_da_push(low->ex->log, ((fz_flight_t) {
-      .action = ctx->action,
-      .started = low->ex->sim->syscalls,
-    }));
-  }
+  si_da_push(low->mem, *low->log, ((fz_flight_t) {
+    .action = ctx->action,
+    .started = low->sim->syscalls,
+  }));
 
   fz_action_t* fz = &low->u->actions[ctx->action];
 
@@ -27,7 +25,7 @@ static spn_err_t fz_exec(const si_dag_ctx_t* c, void* user_data) {
   sp_str_t* inputs = sp_alloc_n(low->mem, sp_str_t, count ? count : 1);
   sp_da_for(fz->consumes, it) {
     spn_dag_id_t id = low->ids[fz->consumes[it]];
-    spn_dag_artifact_t* in = spn_dag_find_artifact(low->g, id);
+    const spn_dag_artifact_t* in = spn_dag_find_artifact(low->g, id);
     switch (in->kind) {
       case SPN_DAG_ARTIFACT_KIND_VALUE: {
         inputs[it] = fz_content(low->mem, low->u->artifacts[fz->consumes[it]].content);
@@ -60,11 +58,11 @@ static spn_err_t fz_exec(const si_dag_ctx_t* c, void* user_data) {
       return SPN_ERR_DAG_ACTION;
     }
     if (fo.probe) {
-      if (low->state->phantoms[fo.phantom].present) {
+      if (low->model->phantoms[fo.phantom].present) {
         return SPN_ERR_DAG_ACTION;
       }
     }
-    else if (spn_dag_digest_valid(spn_dag_find_artifact(low->g, low->ids[fo.artifact])->digest)) {
+    else if (spn_dag_digest_valid(spn_dag_run_artifact(&low->run, low->ids[fo.artifact])->digest)) {
       return SPN_ERR_DAG_ACTION;
     }
     inputs[consumed + ot] = sp_str_lit("absent");
@@ -72,7 +70,7 @@ static spn_err_t fz_exec(const si_dag_ctx_t* c, void* user_data) {
 
   sp_da_for(fz->produces, it) {
     spn_dag_id_t id = low->ids[fz->produces[it]];
-    spn_dag_artifact_t* out = spn_dag_find_artifact(low->g, id);
+    const spn_dag_artifact_t* out = spn_dag_find_artifact(low->g, id);
     sp_str_t content = fz_output_content(low->mem, low->u->actions[ctx->action].identity, inputs, count, out->name);
     if (sp_fs_create_file_str_at(spn_path_at(c->roots, si_dag_resolve_output(c, id)), content)) {
       return SPN_ERR_DAG_ACTION;

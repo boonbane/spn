@@ -78,7 +78,7 @@ static spn_err_t sync_indexes(spn_op_t* op) {
   });
 
   sp_da_for(jobs, it) {
-    spn_thread_pool_submit(&pool.executor, (spn_thread_pool_job_t) { .fn = sync_index_node, .data = jobs[it] });
+    spn_thread_pool_submit(&pool, (spn_thread_pool_job_t) { .fn = sync_index_node, .data = jobs[it] });
   }
 
   spn_thread_pool_wait(&pool);

@@ -288,11 +288,11 @@ void spn_dag_action_cache_init(spn_dag_action_cache_t* c, sp_mem_t mem, const sp
   }
 }
 
-bool spn_dag_action_cache_get(spn_dag_action_cache_t* c, spn_dag_digest_t key, spn_dag_action_entry_t* out) {
+bool spn_dag_action_cache_get(spn_dag_action_cache_t* c, spn_dag_digest_t key, spn_dag_action_entry_t* entry) {
   sp_mutex_lock(&c->mutex);
   const spn_dag_action_entry_t* cached = sp_ht_getp(c->entries, key);
   if (cached) {
-    *out = *cached;
+    *entry = *cached;
     sp_mutex_unlock(&c->mutex);
     return true;
   }
@@ -302,9 +302,9 @@ bool spn_dag_action_cache_get(spn_dag_action_cache_t* c, spn_dag_digest_t key, s
     return false;
   }
 
-  spn_dag_action_entry_t entry = sp_zero;
-  sp_da_init(c->mem, entry.outputs);
-  if (!load_outputs(c, key, &entry.outputs)) {
+  spn_dag_action_entry_t loaded = sp_zero;
+  sp_da_init(c->mem, loaded.outputs);
+  if (!load_outputs(c, key, &loaded.outputs)) {
     sp_mutex_unlock(&c->mutex);
     return false;
   }
@@ -312,8 +312,8 @@ bool spn_dag_action_cache_get(spn_dag_action_cache_t* c, spn_dag_digest_t key, s
     sp_atomic_u32_add(&c->stats->cache_reads, 1, SP_ATOMIC_RELAXED);
   }
 
-  sp_ht_insert(c->entries, key, entry);
-  *out = entry;
+  sp_ht_insert(c->entries, key, loaded);
+  *entry = loaded;
   sp_mutex_unlock(&c->mutex);
   return true;
 }
@@ -859,17 +859,17 @@ done:
   return err;
 }
 
-spn_err_t spn_dag_tree_entries(spn_dag_store_t* store, spn_dag_digest_t digest, sp_mem_t mem, sp_da(spn_dag_action_output_t)* out) {
+spn_err_t spn_dag_tree_entries(spn_dag_store_t* store, spn_dag_digest_t digest, sp_mem_t mem, sp_da(spn_dag_action_output_t)* entries) {
   sp_mem_slice_t manifest = sp_zero;
   spn_try(spn_dag_store_get(store, digest, sp_str_lit("tree"), mem, &manifest));
   sp_assert(manifest.len <= SP_LIMIT_U32_MAX);
 
-  *out = sp_da_new(mem, spn_dag_action_output_t);
-  if (!parse_outputs(sp_str((c8*)manifest.data, (u32)manifest.len), out)) {
+  *entries = sp_da_new(mem, spn_dag_action_output_t);
+  if (!parse_outputs(sp_str((c8*)manifest.data, (u32)manifest.len), entries)) {
     return SPN_ERR_DAG_TREE;
   }
-  sp_da_for(*out, it) {
-    if (!tree_name_ok((*out)[it].name)) {
+  sp_da_for(*entries, it) {
+    if (!tree_name_ok((*entries)[it].name)) {
       return SPN_ERR_DAG_TREE;
     }
   }

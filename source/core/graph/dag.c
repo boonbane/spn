@@ -26,6 +26,7 @@
 #include "str/str.h"
 #include "session/session.h"
 #include "thread_pool/thread_pool.h"
+#include "dag/run.h"
 #include "unit/unit.h"
 #include "graph/build.h"
 #include "graph/dag.h"
@@ -115,10 +116,16 @@ static void announce_package(spn_dag_build_t* b, spn_dag_id_t action, spn_pkg_un
 
 static void dag_trace(const spn_dag_trace_event_t* event, void* user_data) {
   spn_dag_build_t* b = (spn_dag_build_t*)user_data;
-  if (event->kind != SPN_DAG_TRACE_EXECUTE) return;
+  if (event->kind != SPN_DAG_TRACE_EXECUTE) {
+    return;
+  }
   spn_pkg_unit_t** pkg = sp_ht_getp(b->announce.pkgs, event->action);
-  if (!pkg) return;
-  if (!sp_atomic_s32_cas(sp_ht_getp(b->announce.announced, *pkg), 0, 1, SP_ATOMIC_SEQ_CST)) return;
+  if (!pkg) {
+    return;
+  }
+  if (!sp_atomic_s32_cas(sp_ht_getp(b->announce.announced, *pkg), 0, 1, SP_ATOMIC_SEQ_CST)) {
+    return;
+  }
 
   spn_event_buffer_push(spn.events, (spn_event_t) {
     .kind = SPN_EVENT_COMPILE_START,
@@ -789,11 +796,10 @@ static spn_err_t prepare_graph(spn_dag_build_t* b) {
             spn_dag_id_t output = spn_dag_add_path(g, out->path, out->kind);
             spn_err_t err = spn_dag_action_add_output(g, action, output);
             if (err) {
-              b->env.diag = (spn_dag_diag_t) {
-                .err = err,
-                .path = spn_path_str(g->roots, b->mem, out->path)
-              };
-              return err;
+              return spn_err_emit(b->session->ctx, (spn_err_union_t) {
+                .kind = err,
+                .dag = { .path = spn_path_str(g->roots, b->session->ctx->events->mem, out->path) },
+              });
             }
           }
         }
@@ -847,7 +853,7 @@ static spn_err_t prepare_graph(spn_dag_build_t* b) {
         continue;
       }
       sp_da_for(g->artifacts, at) {
-        spn_dag_artifact_t* artifact = &g->artifacts[at];
+        const spn_dag_artifact_t* artifact = &g->artifacts[at];
         if (spn_dag_output_overlaps(artifact, embed->path)) {
           spn_dag_action_add_input(g, it.val->action, artifact->id);
         }
@@ -862,23 +868,23 @@ static spn_err_t prepare_graph(spn_dag_build_t* b) {
 // RUN //
 /////////
 static spn_err_t dag_stage_copy(spn_dag_build_t* b, spn_dag_id_t id, spn_path_t to) {
-  spn_dag_artifact_t* artifact = spn_dag_find_artifact(b->graph, id);
+  const spn_dag_artifact_state_t* artifact = spn_dag_run_artifact(&b->run, id);
 
   sp_sys_file_meta_t staged_meta = sp_zero;
   spn_dag_digest_t staged_digest = sp_zero;
-  if (!spn_dag_file_cache_stat(b->env.files, to, &staged_meta) && staged_meta.nlink == 1 &&
-      !spn_dag_file_cache_digest(b->env.files, to, &staged_digest) &&
+  if (!spn_dag_file_cache_stat(b->run.files, to, &staged_meta) && staged_meta.nlink == 1 &&
+      !spn_dag_file_cache_digest(b->run.files, to, &staged_digest) &&
       spn_dag_digest_equal(staged_digest, artifact->digest)) {
     return SPN_OK;
   }
 
   const spn_path_roots_t* roots = b->graph->roots;
   sp_fs_create_parent_at(spn_path_at(roots, to));
-  sp_err_t copied = sp_fs_copy_file_at(spn_path_at(roots, artifact->materialized), spn_path_at(roots, to), SP_FS_ATOMIC_REPLACE);
+  sp_err_t copied = sp_fs_copy_file_at(spn_path_at(roots, artifact->location), spn_path_at(roots, to), SP_FS_ATOMIC_REPLACE);
 
-  spn_err_t err = copied ? SPN_ERR_DAG_OUTPUT_WRITE : spn_dag_file_cache_seed(b->env.files, to, artifact->digest);
+  spn_err_t err = copied ? SPN_ERR_DAG_OUTPUT_WRITE : spn_dag_file_cache_seed(b->run.files, to, artifact->digest);
   if (err) {
-    spn_dag_file_cache_invalidate(b->env.files, to);
+    spn_dag_file_cache_invalidate(b->run.files, to);
     return spn_err_emit(b->session->ctx, (spn_err_union_t) {
       .kind = err,
       .dag = { .path = spn_path_str(b->graph->roots, b->session->ctx->events->mem, to) },
@@ -947,7 +953,7 @@ static spn_err_t dag_stage(spn_dag_build_t* b) {
       }
       spn_path_t path = { .root = root.root, .sub = previous[j].entry };
       sp_fs_remove_file_at(spn_path_at(roots, path));
-      spn_dag_file_cache_invalidate(b->env.files, path);
+      spn_dag_file_cache_invalidate(b->run.files, path);
     }
     sp_fs_create_parent_at(spn_path_at(roots, manifest));
     sp_fs_write_atomic_at(spn_path_at(roots, manifest), sp_io_dyn_mem_writer_as_str(&sink));
@@ -986,7 +992,7 @@ done:
 }
 
 static spn_err_t dag_result(spn_dag_build_t* b) {
-  spn_dag_diag_t* diag = &b->env.diag;
+  spn_dag_diag_t* diag = &b->run.diag;
 
   switch (b->result) {
     case SPN_OK: {
@@ -1001,19 +1007,27 @@ static spn_err_t dag_result(spn_dag_build_t* b) {
     }
   }
 
-  sp_str_t path = diag->path;
-  if (sp_str_empty(path) && diag->action.occupied) {
-    spn_dag_action_t* action = spn_dag_find_action(b->graph, diag->action);
+  const spn_path_roots_t* roots = b->graph->roots;
+  sp_mem_t mem = b->session->ctx->events->mem;
+  spn_dag_id_t artifact = diag->artifact;
+  if (!artifact.occupied && diag->action.occupied) {
+    const spn_dag_action_t* action = spn_dag_find_action(b->graph, diag->action);
     if (!sp_da_empty(action->produces)) {
-      spn_dag_artifact_t* artifact = spn_dag_find_artifact(b->graph, action->produces[0]);
-      path = spn_path_empty(artifact->path)
-        ? artifact->name
-        : spn_path_str(b->graph->roots, b->session->ctx->events->mem, artifact->path);
+      artifact = action->produces[0];
     }
   }
 
+  sp_str_t path = sp_zero;
+  if (!spn_path_empty(diag->path)) {
+    path = spn_path_str(roots, mem, diag->path);
+  }
+  else if (artifact.occupied) {
+    const spn_dag_artifact_t* at = spn_dag_find_artifact(b->graph, artifact);
+    path = spn_path_empty(at->path) ? at->name : spn_path_str(roots, mem, at->path);
+  }
+
   return spn_err_emit(b->session->ctx, (spn_err_union_t) {
-    .kind = diag->err ? diag->err : b->result,
+    .kind = diag->err,
     .dag = { .path = path },
   });
 }
@@ -1021,8 +1035,8 @@ static spn_err_t dag_result(spn_dag_build_t* b) {
 static void dag_emit_reports(spn_dag_build_t* b, u64 elapsed) {
   spn_session_t* session = b->session;
   bool failed = b->result != SPN_OK;
-  u32 hits = (u32)sp_atomic_s32_load(&b->progress.hits, SP_ATOMIC_SEQ_CST);
-  u32 misses = (u32)sp_atomic_s32_load(&b->progress.misses, SP_ATOMIC_SEQ_CST);
+  u32 hits = (u32)sp_atomic_s32_load(&b->run.progress.hits, SP_ATOMIC_SEQ_CST);
+  u32 misses = (u32)sp_atomic_s32_load(&b->run.progress.misses, SP_ATOMIC_SEQ_CST);
 
   sp_da_for(session->plans.build, it) {
     spn_build_plan_t* plan = &session->plans.build[it];
@@ -1106,18 +1120,18 @@ spn_dag_build_t* spn_dag_build_new(spn_op_t* op) {
   b->discovery.stats = &b->stats;
   b->store.stats = &b->stats;
 
-  b->env = (spn_dag_env_t) {
+  b->run = (spn_dag_run_t) {
+    .g = b->graph,
+    .mem = b->mem,
     .files = &session->dag.files,
     .cache = &b->actions,
     .store = &b->store,
     .discovery = &b->discovery,
-    .stats = &b->stats,
-    .progress = &b->progress,
-    .wake = &op->ctx->wake,
-    .cancel = &op->cancelled,
+    .scratch = tmp,
     .trace = dag_trace,
     .trace_data = b,
-    .scratch = tmp,
+    .cancel = &op->cancelled,
+    .wake = &op->ctx->wake,
   };
 
   return b;
@@ -1130,10 +1144,10 @@ spn_err_t spn_dag_build_run(spn_dag_build_t* b, u32 workers) {
   });
 
   b->timer = sp_tm_start_timer();
-  spn_dag_file_cache_invalidate_all(b->env.files);
-  b->result = spn_dag_run_executor(b->graph, &b->env, &b->pool.executor);
+  spn_dag_file_cache_invalidate_all(b->run.files);
+  b->result = spn_dag_run(&b->run, &b->pool);
   spn_thread_pool_deinit(&b->pool);
-  spn_dag_file_cache_flush(b->env.files, b->session->dag.files_path);
+  spn_dag_file_cache_flush(b->run.files, b->session->dag.files_path);
   return dag_result(b);
 }
 
@@ -1144,11 +1158,7 @@ spn_err_t spn_dag_build_session(spn_op_t* op) {
   spn_dag_build_t* dag = spn_dag_build_new(op);
   session->dag.build = dag;
 
-  spn_err_t prepared = prepare_graph(dag);
-  if (prepared) {
-    dag->result = prepared;
-    return dag_result(dag);
-  }
+  spn_try(prepare_graph(dag));
 
   spn_build_unit_t* unit = session->units.target;
   spn_event_buffer_push(spn.events, (spn_event_t) {
@@ -1163,7 +1173,7 @@ spn_err_t spn_dag_build_session(spn_op_t* op) {
     }
   });
 
-  sp_atomic_ptr_store(&session->ctx->progress, &dag->progress, SP_ATOMIC_SEQ_CST);
+  sp_atomic_ptr_store(&session->ctx->progress, &dag->run.progress, SP_ATOMIC_SEQ_CST);
   spn_err_t result = spn_dag_build_run(dag, spn_cpu_count());
   sp_atomic_ptr_store(&session->ctx->progress, SP_NULLPTR, SP_ATOMIC_SEQ_CST);
   u64 elapsed = sp_tm_read_timer(&dag->timer);
@@ -1181,7 +1191,7 @@ spn_err_t spn_dag_build_session(spn_op_t* op) {
       spn_try(spn_project_update_lock(session->ctx, project, session->resolve));
     }
     result = dag_stage(dag);
-    spn_dag_file_cache_flush(dag->env.files, session->dag.files_path);
+    spn_dag_file_cache_flush(dag->run.files, session->dag.files_path);
   }
   if (!dag->result) {
     dag->result = result;
