@@ -142,7 +142,7 @@ sp_test_each(thread_pool, ops, pool_test_t, pool_tests) {
       case POOL_OP_SUBMIT: {
         pool_probe_t* probe = &probes[submitted++];
         probe->env = &env;
-        spn_thread_pool_submit(&pool.executor, (spn_thread_pool_job_t) { .fn = probe_run, .data = probe });
+        spn_thread_pool_submit(&pool, (spn_thread_pool_job_t) { .fn = probe_run, .data = probe });
         break;
       }
       case POOL_OP_STEP: {
@@ -150,7 +150,7 @@ sp_test_each(thread_pool, ops, pool_test_t, pool_tests) {
         break;
       }
       case POOL_OP_POLL: {
-        spn_thread_pool_job_t job = spn_thread_pool_poll(&pool.executor);
+        spn_thread_pool_job_t job = spn_thread_pool_poll(&pool);
         sp_must(t, job.fn);
         sp_expect(t, ((pool_probe_t*)job.data)->ran);
         if (op->poll.probe) {
@@ -159,7 +159,7 @@ sp_test_each(thread_pool, ops, pool_test_t, pool_tests) {
         break;
       }
       case POOL_OP_TRY_POLL: {
-        spn_thread_pool_job_t job = spn_thread_pool_try_poll(&pool.executor);
+        spn_thread_pool_job_t job = spn_thread_pool_try_poll(&pool);
         sp_expect_eq(t, op->try_poll.empty, !job.fn);
         if (job.fn) {
           sp_expect(t, ((pool_probe_t*)job.data)->ran);
@@ -173,7 +173,7 @@ sp_test_each(thread_pool, ops, pool_test_t, pool_tests) {
   sp_expect_eq(t, it->expect.pending, spn_thread_pool_pending(&pool));
 
   while (spn_thread_pool_pending(&pool)) {
-    spn_thread_pool_poll(&pool.executor);
+    spn_thread_pool_poll(&pool);
   }
   spn_thread_pool_deinit(&pool);
   return SP_OK;

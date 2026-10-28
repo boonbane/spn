@@ -3,6 +3,7 @@
 #include "dag/track.h"
 #include "paths/paths.h"
 #include "io/io.h"
+#include "thread_pool/thread_pool.h"
 
 typedef enum {
   MEMO_SURE,
@@ -26,8 +27,8 @@ typedef struct {
   spn_path_t disco_dir;
   spn_path_t cache_dir;
   spn_path_roots_t roots;
-  spn_dag_env_t env;
-  fz_executor_t ex;
+  sp_fuzz_prng_t schedule;
+  si_da(fz_flight_t) log;
   sp_dag_track_t track;
   sp_ht(spn_dag_digest_t, fz_shape_t) shapes;
   sp_ht(spn_dag_digest_t, memo_t) memo;
@@ -42,49 +43,6 @@ typedef struct {
   fz_journal_t* j;
   bool stealthy;
 } world_t;
-
-static void executor_submit(spn_thread_pool_executor_t* base, spn_thread_pool_job_t job) {
-  fz_executor_t* ex = (fz_executor_t*)base;
-  sp_da_push(ex->jobs, job);
-}
-
-static spn_thread_pool_job_t executor_poll(spn_thread_pool_executor_t* base) {
-  fz_executor_t* ex = (fz_executor_t*)base;
-  sp_assert(!sp_da_empty(ex->jobs));
-
-  u64 pick = sp_fuzz_below(&ex->prng, sp_da_size(ex->jobs));
-  spn_thread_pool_job_t job = ex->jobs[pick];
-  ex->jobs[pick] = *sp_da_back(ex->jobs);
-  sp_da_pop(ex->jobs);
-
-  job.fn(job.data);
-  return job;
-}
-
-static spn_thread_pool_job_t executor_try_poll(spn_thread_pool_executor_t* base) {
-  fz_executor_t* ex = (fz_executor_t*)base;
-  if (sp_da_empty(ex->jobs)) {
-    return (spn_thread_pool_job_t) sp_zero;
-  }
-  if (sp_fuzz_below(&ex->prng, 2)) {
-    return (spn_thread_pool_job_t) sp_zero;
-  }
-  return executor_poll(base);
-}
-
-void fz_executor_init(fz_executor_t* ex, sp_mem_t mem, sp_sim_t* sim, sp_fuzz_prng_t prng) {
-  *ex = (fz_executor_t) {
-    .base = {
-      .submit = executor_submit,
-      .poll = executor_poll,
-      .try_poll = executor_try_poll,
-    },
-    .prng = prng,
-    .sim = sim,
-  };
-  sp_da_init(mem, ex->jobs);
-  sp_da_init(mem, ex->log);
-}
 
 static s32 digest_order(const void* a, const void* b) {
   return sp_sys_memcmp(a, b, sizeof(spn_dag_digest_t));
@@ -123,15 +81,14 @@ static bool covered_write(fz_universe_t* u, world_t* w, sp_mem_t mem, u64 at, u6
 }
 
 static u64 action_requeues(fz_universe_t* u, world_t* w, sp_mem_t mem, u64 log_start, u64 at) {
-  fz_executor_t* ex = &w->ex;
   u64 requeues = 0;
   s64 prev = -1;
-  for (u64 it = log_start; it < sp_da_size(ex->log); it++) {
-    if (ex->log[it].action != at) {
+  for (u64 it = log_start; it < si_da_size(w->log); it++) {
+    if (w->log[it].action != at) {
       continue;
     }
     if (prev >= 0) {
-      if (covered_write(u, w, mem, at, ex->log[prev].started, ex->log[it].started)) {
+      if (covered_write(u, w, mem, at, w->log[prev].started, w->log[it].started)) {
         requeues++;
       }
     }
@@ -216,10 +173,20 @@ static void init_world(world_t* w, sp_mem_t mem, sp_sim_t* sim, fz_universe_t* u
   w->dirty = sp_alloc_n(mem, bool, artifacts);
   w->tainted = sp_alloc_n(mem, bool, artifacts);
   w->sweep = sweep;
+  w->schedule = schedule;
 
   reboot_world(w, u);
 
-  w->env = (spn_dag_env_t) {
+  w->j = j;
+  if (j) {
+    j->sim = sim;
+  }
+}
+
+static spn_err_t run_world(world_t* w, fz_universe_t* u, fz_lowered_t* low) {
+  low->run = (spn_dag_run_t) {
+    .g = low->g,
+    .mem = low->mem,
     .files = &w->files,
     .cache = &w->cache,
     .store = &w->store,
@@ -228,18 +195,46 @@ static void init_world(world_t* w, sp_mem_t mem, sp_sim_t* sim, fz_universe_t* u
     .trace = world_trace_hook,
     .trace_data = w,
   };
-  w->j = j;
-  if (j) {
-    j->sim = sim;
+  if (!u->profile.run_ex) {
+    spn_thread_pool_t pool = sp_zero;
+    spn_thread_pool_init(&pool, low->mem, (spn_thread_pool_config_t) sp_zero);
+    spn_err_t err = spn_dag_run(&low->run, &pool);
+    spn_thread_pool_deinit(&pool);
+    return err;
   }
-  fz_executor_init(&w->ex, mem, sim, schedule);
-}
 
-static spn_err_t run_world(world_t* w, fz_universe_t* u, spn_dag_t* g) {
-  if (u->profile.run_ex) {
-    return spn_dag_run_executor(g, &w->env, &w->ex.base);
+  sp_mem_arena_marker_t s = sp_mem_begin_scratch();
+  spn_err_t err = spn_dag_run_begin(&low->run, s.mem);
+  if (err) {
+    sp_mem_end_scratch(s);
+    return err;
   }
-  return spn_dag_run(g, &w->env);
+
+  u64 actions = sp_da_size(u->actions);
+  spn_dag_id_t* bag = sp_alloc_n(s.mem, spn_dag_id_t, actions ? actions : 1);
+  u64 bagged = 0;
+  while (true) {
+    bool fire = bagged && sp_fuzz_below(&w->schedule, 2);
+    if (!fire) {
+      spn_dag_id_t next = spn_dag_run_next(&low->run);
+      if (next.occupied) {
+        bag[bagged++] = next;
+        continue;
+      }
+      if (!bagged) {
+        break;
+      }
+    }
+    u64 pick = sp_fuzz_below(&w->schedule, bagged);
+    spn_dag_id_t id = bag[pick];
+    bag[pick] = bag[--bagged];
+    spn_dag_run_attempt(&low->run, id);
+    spn_dag_run_complete(&low->run, id);
+  }
+
+  err = spn_dag_run_end(&low->run);
+  sp_mem_end_scratch(s);
+  return err;
 }
 
 static void write_source(sp_mem_t mem, fz_universe_t* u, fz_state_t* state, u64 artifact) {
@@ -469,8 +464,8 @@ static void collect_facts(world_t* w, sp_mem_t mem, u64 actions, u64 artifacts, 
 
 static u64 order_rows(sp_mem_t mem, fz_universe_t* u, world_t* w, const facts_t* facts, u64 log_start, fz_order_row_t** rows) {
   sp_da(fz_order_row_t) built = sp_da_new(mem, fz_order_row_t);
-  for (u64 it = log_start; it < sp_da_size(w->ex.log); it++) {
-    fz_flight_t flight = w->ex.log[it];
+  for (u64 it = log_start; it < si_da_size(w->log); it++) {
+    fz_flight_t flight = w->log[it];
     fz_action_t* action = &u->actions[flight.action];
     sp_da_for(action->orders, ot) {
       s64 producer = u->artifacts[action->orders[ot]].producer;
@@ -660,8 +655,9 @@ static fz_err_t trace_check_run(sp_mem_t mem, fz_universe_t* u, world_t* w, fz_s
 
   fz_lowered_t low = sp_zero;
   fz_lower(&low, mem, u, &w->roots);
-  low.state = &w->state;
-  low.ex = &w->ex;
+  low.model = &w->state;
+  low.sim = w->sim;
+  low.log = &w->log;
   low.journal = w->j;
 
   u64 artifacts = sp_da_size(u->artifacts);
@@ -677,7 +673,7 @@ static fz_err_t trace_check_run(sp_mem_t mem, fz_universe_t* u, world_t* w, fz_s
   }
   fz_journal_model(w->j, sp_str_lit("predict"), predict, actions);
 
-  u64 log_start = sp_da_size(w->ex.log);
+  u64 log_start = si_da_size(w->log);
   switch (step->kind) {
     case FZ_STEP_EIO: {
       sp_sim_fault_eio(w->sim, step->entropy, step->rate);
@@ -712,7 +708,7 @@ static fz_err_t trace_check_run(sp_mem_t mem, fz_universe_t* u, world_t* w, fz_s
   u64 points_start = w->sim->fail_points;
   u64 faults_start = w->sim->faults;
   u64 fault_log_start = sp_da_size(w->sim->fault_log);
-  spn_err_t err = run_world(w, u, low.g);
+  spn_err_t err = run_world(w, u, &low);
   u64 fired = w->sim->faults - faults_start;
   bool crashed = w->sim->crashed;
   u64 crash_at = crashed ? w->sim->crash_at : 0;
@@ -844,10 +840,11 @@ static fz_err_t trace_body(sp_mem_t mem, sp_sim_t* sim, fz_universe_t* u, fz_tra
   if (u->cyclic || u->obs_cyclic) {
     fz_lowered_t low = sp_zero;
     fz_lower(&low, mem, u, &w.roots);
-    low.state = &w.state;
-    low.ex = &w.ex;
+    low.model = &w.state;
+    low.sim = w.sim;
+    low.log = &w.log;
     low.journal = w.j;
-    must(run_world(&w, u, low.g), FZ_ERR_RUN_CYCLIC);
+    must(run_world(&w, u, &low), FZ_ERR_RUN_CYCLIC);
     return FZ_OK;
   }
 

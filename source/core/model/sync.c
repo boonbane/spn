@@ -328,10 +328,10 @@ static spn_err_t sync_jobs(spn_op_t* op, sp_mem_t mem, bool* reresolve) {
   sp_tm_timer_t timer = sp_tm_start_timer();
 
   si_da_for_value(packages, job) {
-    spn_thread_pool_submit(&pool.executor, (spn_thread_pool_job_t) { .fn = sync_package_node, .data = job });
+    spn_thread_pool_submit(&pool, (spn_thread_pool_job_t) { .fn = sync_package_node, .data = job });
   }
   si_da_for_value(toolchains, job) {
-    spn_thread_pool_submit(&pool.executor, (spn_thread_pool_job_t) { .fn = sync_toolchain_node, .data = job });
+    spn_thread_pool_submit(&pool, (spn_thread_pool_job_t) { .fn = sync_toolchain_node, .data = job });
   }
 
   spn_thread_pool_wait(&pool);

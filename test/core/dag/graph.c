@@ -111,7 +111,7 @@ sp_test_each(dag_graph, validate, test_t, tests) {
     spn_dag_action_add_input(g, actions[0], artifact);
   }
 
-  spn_dag_violation_t violation = spn_dag_validate(g);
+  spn_dag_diag_t violation = spn_dag_validate(g);
   sp_expect_eq(t, it->expect.err, violation.err);
   if (it->expect.path) {
     sp_expect_str_eq_c(t, spn_path_str(roots, sp_test_arena(t), violation.path), it->expect.path);
