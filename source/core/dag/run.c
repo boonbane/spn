@@ -234,7 +234,7 @@ static void diag_set(spn_dag_diag_t* diag, spn_err_t err, spn_dag_id_t action, s
   diag->path = path;
 }
 
-static void trace_emit(spn_dag_run_t* run, spn_dag_trace_event_t event) {
+static void trace_emit(const spn_dag_run_t* run, spn_dag_trace_event_t event) {
   if (run->trace) {
     run->trace(&event, run->trace_data);
   }
@@ -881,12 +881,25 @@ static spn_err_t commit(si_dag_action_handle_t* attempt) {
 typedef struct {
   u32 producer;
   spn_dag_artifact_kind_t kind;
-} spn_dag_target_t;
+} target_t;
 
 typedef struct {
-  sp_ht(spn_path_t, spn_dag_target_t) by_path;
+  u32 pending;
+  u32 deferred;
+  u64 done_epoch;
+  bool done;
+  bool wrote;
+  sp_da(u32) waiters;
+} slot_t;
+
+typedef struct {
+  const spn_dag_run_t* run;
+  slot_t* slots;
+  sp_ht(spn_path_t, target_t) by_path;
   sp_ht(spn_path_t, sp_da(u32)) below;
-} spn_dag_targets_t;
+  sp_da(spn_dag_id_t) ready;
+  sp_atomic_s32_t completed;
+} sched_t;
 
 static bool path_parent(spn_path_t* path) {
   spn_path_t parent = spn_path_parent(*path);
@@ -897,11 +910,16 @@ static bool path_parent(spn_path_t* path) {
   return true;
 }
 
-static void targets_init(spn_dag_targets_t* targets, const spn_dag_t* g, sp_mem_t mem) {
-  sp_ht_init(mem, targets->by_path);
-  sp_ht_set_fns(targets->by_path, spn_path_on_hash, spn_path_on_compare);
-  sp_ht_init(mem, targets->below);
-  sp_ht_set_fns(targets->below, spn_path_on_hash, spn_path_on_compare);
+static void sched_init(sched_t* s, sp_mem_t mem, const spn_dag_run_t* run) {
+  const spn_dag_t* g = run->g;
+  u64 n = sp_da_size(g->actions);
+  s->run = run;
+  s->slots = sp_alloc_n(mem, slot_t, n ? n : 1);
+  s->ready = sp_da_new(mem, spn_dag_id_t);
+  sp_ht_init(mem, s->by_path);
+  sp_ht_set_fns(s->by_path, spn_path_on_hash, spn_path_on_compare);
+  sp_ht_init(mem, s->below);
+  sp_ht_set_fns(s->below, spn_path_on_hash, spn_path_on_compare);
 
   sp_da_for(g->artifacts, it) {
     const spn_dag_artifact_t* artifact = &g->artifacts[it];
@@ -910,19 +928,126 @@ static void targets_init(spn_dag_targets_t* targets, const spn_dag_t* g, sp_mem_
     }
 
     sp_assert(!spn_path_pinned(g->roots, artifact->path));
-    sp_assert(!sp_ht_getp(targets->by_path, artifact->path));
-    sp_ht_insert(targets->by_path, artifact->path, ((spn_dag_target_t) {
+    sp_assert(!sp_ht_getp(s->by_path, artifact->path));
+    sp_ht_insert(s->by_path, artifact->path, ((target_t) {
       .producer = artifact->producer.index,
       .kind = artifact->kind
     }));
 
     for (spn_path_t dir = artifact->path; path_parent(&dir);) {
-      sp_da(u32)* below = sp_ht_getp(targets->below, dir);
+      sp_da(u32)* below = sp_ht_getp(s->below, dir);
       if (!below) {
-        sp_ht_insert(targets->below, dir, sp_da_new(mem, u32));
-        below = sp_ht_getp(targets->below, dir);
+        sp_ht_insert(s->below, dir, sp_da_new(mem, u32));
+        below = sp_ht_getp(s->below, dir);
       }
       sp_da_push(*below, artifact->producer.index);
+    }
+  }
+
+  sp_da_for(g->actions, ai) {
+    const spn_dag_action_t* action = &g->actions[ai];
+    slot_t* slot = &s->slots[ai];
+    sp_da_init(mem, slot->waiters);
+    sp_da_for(action->consumes, ci) {
+      if (!spn_dag_digest_valid(spn_dag_run_artifact(run, action->consumes[ci])->digest)) {
+        slot->pending++;
+      }
+    }
+    sp_da_for(action->orders, oi) {
+      if (!spn_dag_digest_valid(spn_dag_run_artifact(run, action->orders[oi])->digest)) {
+        slot->pending++;
+      }
+    }
+    if (!slot->pending) {
+      sp_da_push(s->ready, action->id);
+    }
+  }
+}
+
+static u64 sched_epoch(sched_t* s) {
+  return (u64)sp_atomic_s32_load(&s->completed, SP_ATOMIC_SEQ_CST);
+}
+
+static void sched_defer_producer(sched_t* s, spn_dag_id_t action, u32 producer_index, u64 epoch, bool* requeue) {
+  if (producer_index == action.index) {
+    return;
+  }
+  slot_t* producer = &s->slots[producer_index];
+  spn_dag_id_t producer_id = s->run->g->actions[producer_index].id;
+  if (producer->done) {
+    if (producer->done_epoch > epoch && producer->wrote) {
+      trace_emit(s->run, (spn_dag_trace_event_t) { .kind = SPN_DAG_TRACE_REQUEUE, .action = action, .producer = producer_id });
+      *requeue = true;
+    }
+    return;
+  }
+  trace_emit(s->run, (spn_dag_trace_event_t) { .kind = SPN_DAG_TRACE_DEFER, .action = action, .producer = producer_id });
+  sp_da_push(producer->waiters, action.index);
+  s->slots[action.index].deferred++;
+}
+
+static bool sched_defer(sched_t* s, spn_dag_id_t action, sp_da(spn_dag_obs_t) obs, u64 epoch, bool* requeue) {
+  const spn_path_roots_t* roots = s->run->g->roots;
+  sp_da_for(obs, it) {
+    const spn_dag_obs_t* o = &obs[it];
+    if (spn_path_pinned(roots, o->path)) {
+      continue;
+    }
+
+    target_t* exact = sp_ht_getp(s->by_path, o->path);
+    if (exact) {
+      sched_defer_producer(s, action, exact->producer, epoch, requeue);
+    }
+
+    for (spn_path_t dir = o->path; path_parent(&dir);) {
+      target_t* tree = sp_ht_getp(s->by_path, dir);
+      if (tree && tree->kind == SPN_DAG_ARTIFACT_KIND_TREE) {
+        sched_defer_producer(s, action, tree->producer, epoch, requeue);
+      }
+    }
+
+    if (o->kind == SPN_DAG_OBS_ENUMERATION) {
+      sp_da(u32)* below = sp_ht_getp(s->below, o->path);
+      if (below) {
+        sp_da_for(*below, bi) {
+          sched_defer_producer(s, action, (*below)[bi], epoch, requeue);
+        }
+      }
+    }
+  }
+
+  return s->slots[action.index].deferred > 0;
+}
+
+static void sched_finish(sched_t* s, spn_dag_id_t action, bool wrote) {
+  const spn_dag_t* g = s->run->g;
+  slot_t* slot = &s->slots[action.index];
+  slot->done = true;
+  slot->wrote = wrote;
+  slot->done_epoch = (u64)(sp_atomic_s32_add(&s->completed, 1, SP_ATOMIC_SEQ_CST) + 1);
+
+  const spn_dag_action_t* finished = spn_dag_find_action(g, action);
+  sp_da_for(finished->produces, pi) {
+    const spn_dag_artifact_t* produced = spn_dag_find_artifact(g, finished->produces[pi]);
+    sp_da_for(produced->consumers, cj) {
+      slot_t* consumer = &s->slots[produced->consumers[cj].index];
+      if (consumer->pending) {
+        consumer->pending--;
+        if (!consumer->pending) {
+          sp_da_push(s->ready, produced->consumers[cj]);
+        }
+      }
+    }
+  }
+
+  sp_da_for(slot->waiters, wi) {
+    u32 index = slot->waiters[wi];
+    slot_t* waiter = &s->slots[index];
+    if (waiter->deferred) {
+      waiter->deferred--;
+      if (!waiter->deferred) {
+        sp_da_push(s->ready, g->actions[index].id);
+      }
     }
   }
 }
@@ -934,175 +1059,52 @@ typedef struct {
   const spn_dag_action_t* action;
   u64 epoch;
   spn_err_t err;
-  si_dag_action_handle_t attempt;
-} spn_dag_flight_t;
-
-typedef struct {
-  u32 pending;
-  u32 deferred;
-  bool done;
   bool parked;
-  u64 done_epoch;
-  sp_da(u32) waiters;
-  spn_dag_flight_t flight;
-} spn_dag_slot_t;
+  si_dag_action_handle_t attempt;
+} flight_t;
 
 struct loop_t {
   spn_dag_run_t* run;
   spn_thread_pool_executor_t* ex;
-  spn_dag_targets_t targets;
-  spn_dag_slot_t* slots;
-  sp_da(spn_dag_id_t) ready;
-  sp_atomic_s32_t completed;
+  sched_t sched;
+  flight_t* flights;
   u32 in_flight;
   spn_path_t scratch;
   spn_err_t err;
 };
 
-static void defer_producer(loop_t* loop, const spn_dag_action_t* action, u32 producer_index, u64 epoch, bool* requeue) {
-  if (producer_index == action->id.index) {
-    return;
-  }
-  spn_dag_slot_t* producer = &loop->slots[producer_index];
-  if (producer->done) {
-    if (producer->done_epoch > epoch && producer->flight.attempt.wrote) {
-      trace_emit(loop->run, (spn_dag_trace_event_t) { .kind = SPN_DAG_TRACE_REQUEUE, .action = action->id, .producer = loop->run->g->actions[producer_index].id });
-      *requeue = true;
-    }
-    return;
-  }
-  trace_emit(loop->run, (spn_dag_trace_event_t) { .kind = SPN_DAG_TRACE_DEFER, .action = action->id, .producer = loop->run->g->actions[producer_index].id });
-  sp_da_push(producer->waiters, action->id.index);
-  loop->slots[action->id.index].deferred++;
-}
-
-static bool defer_observations(loop_t* loop, const spn_dag_action_t* action, sp_da(spn_dag_obs_t) obs, u64 epoch, bool* requeue) {
-  sp_da_for(obs, it) {
-    const spn_dag_obs_t* o = &obs[it];
-    if (spn_path_pinned(loop->run->g->roots, o->path)) {
-      continue;
-    }
-
-    spn_dag_target_t* exact = sp_ht_getp(loop->targets.by_path, o->path);
-    if (exact) {
-      defer_producer(loop, action, exact->producer, epoch, requeue);
-    }
-
-    for (spn_path_t dir = o->path; path_parent(&dir);) {
-      spn_dag_target_t* tree = sp_ht_getp(loop->targets.by_path, dir);
-      if (tree && tree->kind == SPN_DAG_ARTIFACT_KIND_TREE) {
-        defer_producer(loop, action, tree->producer, epoch, requeue);
-      }
-    }
-
-    if (o->kind == SPN_DAG_OBS_ENUMERATION) {
-      sp_da(u32)* below = sp_ht_getp(loop->targets.below, o->path);
-      if (below) {
-        sp_da_for(*below, bi) {
-          defer_producer(loop, action, (*below)[bi], epoch, requeue);
-        }
-      }
-    }
-  }
-
-  return loop->slots[action->id.index].deferred > 0;
-}
-
-static void seed_ready(loop_t* loop, sp_mem_t mem) {
-  u64 outputs = 0;
-  sp_da_for(loop->run->g->actions, ai) {
-    outputs += sp_da_size(loop->run->g->actions[ai].produces);
-  }
-  spn_dag_digest_t* digests = sp_alloc_n(mem, spn_dag_digest_t, outputs);
-
-  sp_da_for(loop->run->g->actions, ai) {
-    const spn_dag_action_t* action = &loop->run->g->actions[ai];
-    sp_da_init(mem, loop->slots[ai].waiters);
-    loop->slots[ai].flight = (spn_dag_flight_t) {
-      .loop = loop,
-      .action = action,
-      .attempt = { .digests = digests },
-    };
-    digests += sp_da_size(action->produces);
-    sp_da_for(action->consumes, ci) {
-      if (!spn_dag_digest_valid(spn_dag_run_artifact(loop->run, action->consumes[ci])->digest)) {
-        loop->slots[ai].pending++;
-      }
-    }
-    sp_da_for(action->orders, oi) {
-      if (!spn_dag_digest_valid(spn_dag_run_artifact(loop->run, action->orders[oi])->digest)) {
-        loop->slots[ai].pending++;
-      }
-    }
-    if (!loop->slots[ai].pending) {
-      sp_da_push(loop->ready, action->id);
-    }
-  }
-}
-
-static void finish_action(loop_t* loop, const spn_dag_action_t* action) {
-  spn_dag_slot_t* slot = &loop->slots[action->id.index];
-  slot->done = true;
-  slot->done_epoch = (u64)(sp_atomic_s32_add(&loop->completed, 1, SP_ATOMIC_SEQ_CST) + 1);
-
-  sp_da_for(action->produces, pi) {
-    const spn_dag_artifact_t* produced = spn_dag_find_artifact(loop->run->g, action->produces[pi]);
-    sp_da_for(produced->consumers, cj) {
-      spn_dag_slot_t* consumer = &loop->slots[produced->consumers[cj].index];
-      if (consumer->pending) {
-        consumer->pending--;
-        if (!consumer->pending) {
-          sp_da_push(loop->ready, produced->consumers[cj]);
-        }
-      }
-    }
-  }
-
-  sp_da_for(slot->waiters, wi) {
-    u32 index = slot->waiters[wi];
-    spn_dag_slot_t* waiter = &loop->slots[index];
-    if (waiter->deferred) {
-      waiter->deferred--;
-      if (!waiter->deferred) {
-        sp_da_push(loop->ready, loop->run->g->actions[index].id);
-      }
-    }
-  }
-}
-
 static void flight_run(void* data) {
-  spn_dag_flight_t* flight = (spn_dag_flight_t*)data;
+  flight_t* flight = (flight_t*)data;
   loop_t* loop = flight->loop;
-  flight->epoch = (u64)sp_atomic_s32_load(&loop->completed, SP_ATOMIC_SEQ_CST);
+  flight->epoch = sched_epoch(&loop->sched);
   lookup(&flight->attempt);
   if (!flight->attempt.hit) {
     flight->err = execute(&flight->attempt, loop->scratch);
   }
 }
 
-static void run_commit_flight(loop_t* loop, const spn_dag_action_t* action, spn_dag_flight_t* flight) {
+static void run_commit_flight(loop_t* loop, flight_t* flight) {
   loop->err = commit(&flight->attempt);
   diag_flush(&flight->attempt, loop->err);
   if (loop->err) {
     return;
   }
-  progress_count(loop->run, action, false);
-  finish_action(loop, action);
+  progress_count(loop->run, flight->action, false);
+  sched_finish(&loop->sched, flight->action->id, flight->attempt.wrote);
 }
 
 static void run_dispatch(loop_t* loop, spn_dag_id_t id) {
   const spn_dag_action_t* action = spn_dag_find_action(loop->run->g, id);
-  spn_dag_slot_t* slot = &loop->slots[id.index];
-  spn_dag_flight_t* flight = &slot->flight;
+  flight_t* flight = &loop->flights[id.index];
 
-  if (slot->parked) {
+  if (flight->parked) {
     bool requeue = false;
-    if (defer_observations(loop, action, flight->attempt.obs.rows, flight->epoch, &requeue)) {
+    if (sched_defer(&loop->sched, id, flight->attempt.obs.rows, flight->epoch, &requeue)) {
       return;
     }
-    slot->parked = false;
+    flight->parked = false;
     if (!requeue) {
-      run_commit_flight(loop, action, flight);
+      run_commit_flight(loop, flight);
       return;
     }
   }
@@ -1110,8 +1112,8 @@ static void run_dispatch(loop_t* loop, spn_dag_id_t id) {
   if (action->kind == SPN_DAG_ACTION_DISCOVERED) {
     spn_dag_pathset_t set = sp_zero;
     bool requeue = false;
-    if (spn_dag_obs_table_get(loop->run->discovery, spn_dag_weak_key(loop->run->g, loop->run->artifacts, action->id), &set)
-      && defer_observations(loop, action, set.obs, (u64)sp_atomic_s32_load(&loop->completed, SP_ATOMIC_SEQ_CST), &requeue)) {
+    if (spn_dag_obs_table_get(loop->run->discovery, spn_dag_weak_key(loop->run->g, loop->run->artifacts, id), &set)
+      && sched_defer(&loop->sched, id, set.obs, sched_epoch(&loop->sched), &requeue)) {
       return;
     }
     sp_assert(!requeue);
@@ -1129,7 +1131,7 @@ static void run_dispatch(loop_t* loop, spn_dag_id_t id) {
   loop->in_flight++;
 }
 
-static void run_complete(loop_t* loop, spn_dag_flight_t* flight) {
+static void run_complete(loop_t* loop, flight_t* flight) {
   const spn_dag_action_t* action = flight->action;
   si_dag_action_handle_t* attempt = &flight->attempt;
 
@@ -1141,23 +1143,23 @@ static void run_complete(loop_t* loop, spn_dag_flight_t* flight) {
 
   if (attempt->hit) {
     progress_count(loop->run, action, true);
-    finish_action(loop, action);
+    sched_finish(&loop->sched, action->id, attempt->wrote);
     return;
   }
 
   if (action->kind == SPN_DAG_ACTION_DISCOVERED) {
     bool requeue = false;
-    if (defer_observations(loop, action, attempt->obs.rows, flight->epoch, &requeue)) {
-      loop->slots[action->id.index].parked = true;
+    if (sched_defer(&loop->sched, action->id, attempt->obs.rows, flight->epoch, &requeue)) {
+      flight->parked = true;
       return;
     }
     if (requeue) {
-      sp_da_push(loop->ready, action->id);
+      sp_da_push(loop->sched.ready, action->id);
       return;
     }
   }
 
-  run_commit_flight(loop, action, flight);
+  run_commit_flight(loop, flight);
 }
 
 static spn_err_t run_graph(spn_dag_run_t* run, spn_thread_pool_executor_t* ex, sp_mem_t mem, spn_path_t scratch) {
@@ -1208,11 +1210,23 @@ static spn_err_t run_graph(spn_dag_run_t* run, spn_thread_pool_executor_t* ex, s
     .run = run,
     .ex = ex,
     .scratch = scratch,
-    .slots = sp_alloc_n(mem, spn_dag_slot_t, n ? n : 1),
-    .ready = sp_da_new(mem, spn_dag_id_t),
+    .flights = sp_alloc_n(mem, flight_t, n ? n : 1),
   };
-  seed_ready(&loop, mem);
-  targets_init(&loop.targets, g, mem);
+  sched_init(&loop.sched, mem, run);
+
+  u64 outputs = 0;
+  sp_da_for(g->actions, ai) {
+    outputs += sp_da_size(g->actions[ai].produces);
+  }
+  spn_dag_digest_t* digests = sp_alloc_n(mem, spn_dag_digest_t, outputs);
+  sp_da_for(g->actions, ai) {
+    loop.flights[ai] = (flight_t) {
+      .loop = &loop,
+      .action = &g->actions[ai],
+      .attempt = { .digests = digests },
+    };
+    digests += sp_da_size(g->actions[ai].produces);
+  }
 
   u64 turns = 0;
   u64 turns_max = 4 * (n + 1) * (n + 1);
@@ -1227,25 +1241,25 @@ static spn_err_t run_graph(spn_dag_run_t* run, spn_thread_pool_executor_t* ex, s
     spn_thread_pool_job_t job = spn_thread_pool_try_poll(ex);
     if (job.fn) {
       loop.in_flight--;
-      run_complete(&loop, (spn_dag_flight_t*)job.data);
+      run_complete(&loop, (flight_t*)job.data);
       continue;
     }
-    if (!loop.err && !sp_da_empty(loop.ready)) {
-      spn_dag_id_t id = *sp_da_back(loop.ready);
-      sp_da_pop(loop.ready);
+    if (!loop.err && !sp_da_empty(loop.sched.ready)) {
+      spn_dag_id_t id = *sp_da_back(loop.sched.ready);
+      sp_da_pop(loop.sched.ready);
       run_dispatch(&loop, id);
       continue;
     }
     if (loop.in_flight) {
       job = spn_thread_pool_poll(ex);
       loop.in_flight--;
-      run_complete(&loop, (spn_dag_flight_t*)job.data);
+      run_complete(&loop, (flight_t*)job.data);
       continue;
     }
     break;
   }
 
-  if (!loop.err && (u64)sp_atomic_s32_load(&loop.completed, SP_ATOMIC_SEQ_CST) != n) {
+  if (!loop.err && sched_epoch(&loop.sched) != n) {
     return SPN_ERR_DAG_STALLED;
   }
   return loop.err;
