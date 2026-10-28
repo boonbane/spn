@@ -79,6 +79,11 @@ typedef struct {
 } si_user_node_t;
 
 typedef struct {
+  spn_pkg_unit_t* unit;
+  spn_dag_id_t reactor;
+} si_configure_t;
+
+typedef struct {
   spn_pkg_unit_t* pkg;
   spn_dag_id_t include;
   spn_dag_id_t share;
@@ -108,6 +113,7 @@ spn_err_t si_on_write_rsp(const si_dag_ctx_t* c, void* user_data);
 spn_err_t si_on_write_libc(const si_dag_ctx_t* c, void* user_data);
 spn_err_t si_on_embed(const si_dag_ctx_t* c, void* user_data);
 spn_err_t si_on_user_node(const si_dag_ctx_t* c, void* user_data);
+spn_err_t si_on_configure(const si_dag_ctx_t* c, void* user_data);
 spn_err_t si_on_publish(const si_dag_ctx_t* c, void* user_data);
 spn_err_t si_on_publish_file(const si_dag_ctx_t* c, void* user_data);
 spn_err_t si_on_zig_warmup(const si_dag_ctx_t* c, void* user_data);

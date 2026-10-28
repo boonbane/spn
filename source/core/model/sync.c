@@ -1,3 +1,5 @@
+#include "model/sync.h"
+
 #include "sp.h"
 #include "os/os.h"
 #include "str/str.h"
@@ -423,7 +425,7 @@ static spn_err_t sync_jobs(spn_op_t* op, sp_mem_t mem, bool* reresolve) {
   return SPN_OK;
 }
 
-spn_err_t sync_packages(spn_op_t* op, bool* reresolve) {
+spn_err_t spn_sync(spn_op_t* op, bool* reresolve) {
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   spn_err_t err = sync_jobs(op, scratch.mem, reresolve);
   sp_mem_end_scratch(scratch);

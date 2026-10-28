@@ -1,3 +1,5 @@
+#include "model/resolve.h"
+
 #include "sp.h"
 #include "macro/macro.h"
 #include "ctx/types.h"
@@ -75,7 +77,7 @@ static void emit_resolved(spn_resolve_query_t* query) {
   });
 }
 
-spn_err_t resolve(spn_op_t* op) {
+spn_err_t spn_resolve(spn_op_t* op) {
   spn_session_t* session = op->session;
   spn_event_buffer_push(spn.events, (spn_event_t) {
     .kind = SPN_EVENT_RESOLVE_START,

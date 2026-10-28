@@ -75,6 +75,7 @@ set(SPN_SOURCES
   core/graph/compile_commands.c
   core/graph/dag.c
   core/graph/nodes/archive.c
+  core/graph/nodes/configure.c
   core/graph/nodes/embed.c
   core/graph/nodes/exports.c
   core/graph/nodes/libc.c
@@ -84,8 +85,6 @@ set(SPN_SOURCES
   core/graph/nodes/publish.c
   core/graph/nodes/user.c
   core/graph/nodes/warm.c
-  core/model/configure.c
-  core/model/model.c
   core/model/resolve.c
   core/model/sync.c
   core/op/add.c
