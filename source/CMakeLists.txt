@@ -151,6 +151,7 @@ set(SPN_SOURCES
   core/unit/graph.c
   core/unit/link.c
   core/unit/paths.c
+  core/unit/plan.c
   core/unit/target.c
   core/when/when.c
 )

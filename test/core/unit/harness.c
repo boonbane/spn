@@ -122,7 +122,6 @@ spn_session_t* build_session(sp_mem_t mem, unit_graph_test_t* g) {
   sp_ht_init(mem, s->packages);
   sp_ht_init(mem, s->options);
   sp_ht_init(mem, s->fingerprints);
-  sp_da_init(mem, s->plans.build);
   sp_om_new(s->units.builds);
   sp_om_new(s->units.packages);
   sp_om_new(s->units.targets);
@@ -223,9 +222,16 @@ spn_session_t* build_session(sp_mem_t mem, unit_graph_test_t* g) {
     sp_ht_insert(s->resolve, id, resolved);
   }
 
-  spn_build_plan_t plan = { .build = s->units.target };
-  sp_da_init(mem, plan.staged);
-  sp_da_push(s->plans.build, plan);
-
   return s;
+}
+
+spn_err_t test_plan(spn_session_t* s, sp_str_t name, spn_target_kind_t kind) {
+  spn_pkg_unit_t* root = si_get_pkg_unit(s, s->units.target, si_get_root_pkg(s));
+  si_target_t* target = spn_pkg_get_target(&root->pkg, name, kind);
+  SP_ASSERT(target);
+  spn_target_unit_t* unit = SP_NULLPTR;
+  spn_try(spn_target_unit_ensure(s, root, target, &unit));
+  si_da(spn_target_unit_t*) roots = SP_NULLPTR;
+  si_da_push(s->mem, roots, unit);
+  return spn_plan_new(s, s->units.target, roots, &s->plan);
 }

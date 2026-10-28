@@ -66,18 +66,16 @@ typedef struct {
 
 typedef struct {
   spn_stage_entry_t exe;
-  sp_da(spn_stage_entry_t) libs;
+  si_da(spn_stage_entry_t) libs;
 } spn_stage_closure_t;
 
 typedef struct {
   spn_build_unit_t* build;
-  spn_pkg_unit_t* root;
-  struct {
-    u32 kinds;
-    si_om(sp_intern_id_t, sp_intern_str_t) names;
-  } selection;
   si_da(spn_target_unit_t*) roots;
-  sp_da(spn_stage_closure_t) staged;
+  si_da(spn_target_unit_t*) targets;
+  si_da(spn_pkg_unit_t*) publishes;
+  si_da(spn_user_node_t*) nodes;
+  si_da(spn_stage_closure_t) staged;
 } spn_build_plan_t;
 
 typedef struct {
@@ -105,6 +103,7 @@ struct spn_user_node_t {
   si_da(spn_path_t) inputs;
   si_da(spn_user_output_t) outputs;
   si_da(spn_node_ref_t) deps;
+  spn_target_unit_t* script;
 };
 
 typedef struct {
@@ -133,6 +132,11 @@ typedef struct {
   spn_cc_link_plan_t plan;
 } spn_link_plan_t;
 
+typedef struct {
+  spn_path_t path;
+  spn_dag_artifact_kind_t kind;
+} spn_target_order_t;
+
 struct spn_target_unit {
   spn_target_unit_id_t id;
   spn_pkg_unit_t* pkg;
@@ -140,12 +144,21 @@ struct spn_target_unit {
   spn_cc_output_kind_t kind;
   spn_linkage_t lib_kind;
   sp_str_t file_name;
+  spn_path_t install;
 
   sp_da(spn_compile_unit_t*) objects;
   sp_da(spn_target_unit_t*) deps;
+  si_da(spn_target_order_t) orders;
   spn_link_plan_t link;
   spn_cc_archive_plan_t archive;
 };
+
+typedef struct {
+  spn_pkg_root_kind_t kind;
+  sp_str_t rev;
+  sp_str_t dir;
+  sp_hash_t patches;
+} spn_source_pin_t;
 
 struct spn_pkg_unit_t {
   spn_pkg_unit_id_t id;
@@ -155,16 +168,11 @@ struct spn_pkg_unit_t {
   spn_pkg_source_t source;
   u32 kinds;
   sp_hash_t fingerprint;
-
+  spn_source_pin_t pin;
   spn_pkg_unit_t* metaprogram;
-  struct {
-    spn_target_unit_t* configure;
-    spn_target_unit_t* build;
-  } scripts;
 
   sp_da(spn_pkg_dep_t) deps;
   si_da(spn_target_unit_t*) libs;
-  sp_da(spn_target_unit_t*) targets;
   sp_da(spn_user_node_t) user_nodes;
 
   struct {

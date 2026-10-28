@@ -52,8 +52,10 @@ struct spn_session_t {
   } gates;
 
   struct {
-    sp_da(spn_build_plan_t) build;
-  } plans;
+    u32 kinds;
+    si_om(sp_intern_id_t, sp_intern_str_t) names;
+  } selection;
+  spn_build_plan_t plan;
 
   struct {
     sp_om(spn_build_id_t, spn_build_unit_t) builds;

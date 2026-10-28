@@ -76,21 +76,17 @@ spn_err_t spn_op_test(spn_op_t* op) {
 
   spn_test_result_t* result = &op->result.test;
 
-  sp_da_for(session->plans.build, i) {
-    spn_build_plan_t* plan = &session->plans.build[i];
-    si_da_for(plan->roots, j) {
-      spn_target_unit_t* unit = plan->roots[j];
-      if (unit->target->info->kind != SPN_TARGET_KIND_TEST) {
-        continue;
-      }
-      bool test_passed = sp_zero;
-      spn_try(run_test(session, unit, &test_passed));
-      if (test_passed) {
-        result->passed++;
-      }
-      else {
-        result->failed++;
-      }
+  si_da_for_value(session->plan.roots, unit) {
+    if (unit->target->info->kind != SPN_TARGET_KIND_TEST) {
+      continue;
+    }
+    bool test_passed = sp_zero;
+    spn_try(run_test(session, unit, &test_passed));
+    if (test_passed) {
+      result->passed++;
+    }
+    else {
+      result->failed++;
     }
   }
 

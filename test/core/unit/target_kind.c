@@ -73,10 +73,9 @@ sp_test_each(target_kind, kind, test_t, tests, .setup = spn_test_ctx_setup) {
   si_target_info_t* app = SP_NULLPTR;
   app = test_manifest_target(s->mem, manifest, sp_str_lit("app"), SPN_TARGET_KIND_EXE);
   app->source = test_gated_sources(mem, source, sp_carr_len(source));
-  s->plans.build[0].selection.kinds = spn_target_kind_bit(SPN_TARGET_KIND_EXE);
 
   sp_must_eq(t, SPN_OK, spn_units_add_packages(s));
-  spn_err_t err = spn_units_add_targets(s, SPN_UNIT_SCOPE_TARGET);
+  spn_err_t err = test_plan(s, sp_str_lit("app"), SPN_TARGET_KIND_EXE);
   sp_must_eq(t, (u32)it->expect.err, (u32)err);
   if (!err) {
     return SP_OK;

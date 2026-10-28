@@ -36,11 +36,8 @@ struct spn_dag_build_t {
 };
 
 spn_dag_build_t* spn_dag_build_new(spn_op_t* op);
+spn_err_t        spn_dag_build_lower(spn_dag_build_t* b, const spn_build_plan_t* plan);
 spn_err_t        spn_dag_build_run(spn_dag_build_t* b, u32 workers);
-spn_err_t        spn_dag_build_add_build(spn_dag_build_t* b, spn_build_unit_t* build);
-void             spn_dag_build_declare_target(spn_dag_build_t* b, spn_target_unit_t* target);
-spn_err_t        spn_dag_build_add_target(spn_dag_build_t* b, spn_target_unit_t* target);
-spn_err_t        spn_dag_build_add_session(spn_dag_build_t* b);
 spn_err_t        spn_dag_build_stage(spn_dag_build_t* b);
 spn_err_t        spn_dag_build_write_compile_commands(spn_dag_build_t* b);
 

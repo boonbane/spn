@@ -253,6 +253,7 @@ add_executable(core
   ${SRC}/unit/graph.c
   ${SRC}/unit/link.c
   ${SRC}/unit/paths.c
+  ${SRC}/unit/plan.c
   ${SRC}/unit/target.c
   ${UTIL}/version/version.c
   ${SRC}/when/when.c

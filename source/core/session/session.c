@@ -36,7 +36,6 @@ spn_err_t spn_session_init(spn_session_t* s, spn_ctx_t* ctx, sp_mem_t mem, spn_p
   sp_ht_init(s->mem, s->packages);
   sp_ht_init(s->mem, s->options);
   sp_ht_init(s->mem, s->fingerprints);
-  sp_da_init(s->mem, s->plans.build);
   sp_om_new(s->units.builds);
   sp_om_new(s->units.packages);
   sp_om_new(s->units.targets);
@@ -76,16 +75,11 @@ spn_err_t spn_session_init(spn_session_t* s, spn_ctx_t* ctx, sp_mem_t mem, spn_p
     });
   }
 
-  spn_build_plan_t plan = {
-    .build = s->units.target,
-    .selection.kinds = config.selection.kinds,
-  };
+  s->selection.kinds = config.selection.kinds;
   sp_for(it, config.selection.names.count) {
     sp_intern_str_t name = spn_intern(config.selection.names.items[it]);
-    si_om_insert(s->mem, plan.selection.names, name.id, name);
+    si_om_insert(s->mem, s->selection.names, name.id, name);
   }
-  sp_da_init(s->mem, plan.staged);
-  sp_da_push(s->plans.build, plan);
 
   return SPN_OK;
 }

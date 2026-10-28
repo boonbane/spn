@@ -1,3 +1,4 @@
+#include "core/types.h"
 #include "unit/unit.h"
 
 #include "ctx/types.h"
@@ -24,6 +25,8 @@ static spn_pkg_unit_t* add_unit(spn_session_t* s, spn_build_unit_t* build, spn_p
 
   spn_loaded_pkg_t* loaded = sp_ht_getp(s->packages, pid);
   sp_assert(loaded);
+  spn_resolved_pkg_t* resolved = sp_ht_getp(s->resolve, pid);
+  sp_assert(resolved);
 
   spn_when_env_t env = sp_zero;
   spn_profile_env(s->mem, &build->profile, &env);
@@ -40,8 +43,15 @@ static spn_pkg_unit_t* add_unit(spn_session_t* s, spn_build_unit_t* build, spn_p
   unit->source = loaded->source;
   unit->kinds = kinds;
   unit->pkg = spn_pkg_eval(s->mem, loaded->manifest, &s->ctx->roots, loaded->roots, &env);
+  if (resolved->origin.source.kind == SPN_PKG_ROOT_GIT) {
+    unit->pin = (spn_source_pin_t) {
+      .kind = SPN_PKG_ROOT_GIT,
+      .rev = resolved->origin.source.git.rev,
+      .dir = resolved->origin.source.git.dir,
+      .patches = resolved->origin.source.git.patches.hash,
+    };
+  }
   sp_da_init(s->mem, unit->deps);
-  sp_da_init(s->mem, unit->targets);
   sp_da_init(s->mem, unit->user_nodes);
   unit->fingerprint = spn_unit_fingerprint(s, build, pid);
   spn_unit_paths_init(unit, loaded);
@@ -80,11 +90,7 @@ spn_err_t spn_units_add_packages(spn_session_t* s) {
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   si_da(spn_pkg_unit_t*) pending = sp_zero;
 
-  spn_pkg_id_t root = si_get_root_pkg(s);
-  sp_da_for(s->plans.build, it) {
-    spn_build_plan_t* plan = &s->plans.build[it];
-    plan->root = add_unit(s, plan->build, root, kind_bits(SPN_DEP_KIND_PACKAGE) | kind_bits(SPN_DEP_KIND_TEST), scratch.mem, &pending);
-  }
+  add_unit(s, s->units.target, si_get_root_pkg(s), kind_bits(SPN_DEP_KIND_PACKAGE) | kind_bits(SPN_DEP_KIND_TEST), scratch.mem, &pending);
   drain(s, scratch.mem, &pending);
 
   si_da(spn_pkg_unit_t*) owners = sp_zero;

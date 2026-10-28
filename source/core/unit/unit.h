@@ -13,23 +13,12 @@ si_da(spn_link_lib_t) si_link_get_closure_libs(sp_mem_t mem, si_da(spn_closure_e
 
 spn_build_unit_t* spn_build_add(spn_session_t* session, spn_profile_info_t profile, spn_path_t root, spn_toolchain_info_t* toolchain);
 spn_err_t spn_units_add_packages(spn_session_t* session);
-
-// The metaprogram scope runs before the configure graph, the target scope after
-typedef enum {
-  SPN_UNIT_SCOPE_METAPROGRAM,
-  SPN_UNIT_SCOPE_TARGET,
-} spn_unit_scope_t;
-spn_err_t spn_units_add_targets(spn_session_t* session, spn_unit_scope_t scope);
+spn_err_t spn_target_unit_ensure(spn_session_t* session, spn_pkg_unit_t* pkg, si_target_t* target, spn_target_unit_t** unit);
+spn_err_t spn_plan_new(spn_session_t* session, spn_build_unit_t* build, si_da(spn_target_unit_t*) roots, spn_build_plan_t* plan);
 
 bool spn_dep_kind_applies(spn_dep_kind_t dep, spn_target_kind_t target);
 
 void spn_unit_paths_init(spn_pkg_unit_t* unit, spn_loaded_pkg_t* loaded);
-
-// A script host exists in the metaprogram build only to compile its package's
-// scripts; it is not consumed there, so it configures and packages nothing
-static inline bool spn_pkg_unit_is_script_host(spn_pkg_unit_t* unit) {
-  return !(unit->kinds & (spn_dep_kind_bit(SPN_DEP_KIND_PACKAGE) | spn_dep_kind_bit(SPN_DEP_KIND_TEST)));
-}
 
 sp_hash_t spn_unit_fingerprint(spn_session_t* session, spn_build_unit_t* build, spn_pkg_id_t id);
 sp_str_t  spn_unit_fingerprint_str(sp_mem_t mem, sp_hash_t fingerprint);
