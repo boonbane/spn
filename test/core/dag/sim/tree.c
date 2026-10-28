@@ -178,7 +178,7 @@ sp_test_each(dag_tree, exec, test_t, tests) {
     });
     sp_must_eq(t, SPN_OK, spn_dag_action_add_output(g, action, spn_dag_add_tree(g, tree)));
 
-    sp_expect_eq(t, SPN_OK, spn_dag_execute(g, action, &env.dag.env, dag_test_env_state(&env.dag)));
+    sp_expect_eq(t, SPN_OK, dag_test_run(&env.dag));
     sp_expect_eq(t, run->expect.runs, env.dag.runs);
     sp_expect_eq(t, run->expect.hashes, dag_test_hashed(&env.dag) - hashed);
     sp_expect(t, sp_fs_is_dir_at(target));

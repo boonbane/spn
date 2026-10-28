@@ -344,10 +344,7 @@ static spn_err_t execute_action(const si_dag_ctx_t* c, void* user_data) {
 
 sp_test_each(dag_glob, exec, exec_test_t, exec_tests) {
   env_t env = sp_zero;
-  dag_test_env_init(&env.dag, t, (dag_test_env_config_t) {
-    .store = SPN_DAG_STORE_MEM,
-    .discovery = true
-  });
+  dag_test_env_init(&env.dag, t, (dag_test_env_config_t) { .store = SPN_DAG_STORE_MEM });
   env.root = dag_test_env_path(&env.dag, sp_str_lit("R"));
   env.pattern = spn_path_join(env.dag.mem, dag_test_env_rooted(&env.dag, sp_str_lit("R")), sp_str_view(it->pattern));
   sp_fs_create_dir_at(env.root);
@@ -375,7 +372,7 @@ sp_test_each(dag_glob, exec, exec_test_t, exec_tests) {
     });
     sp_must_eq(t, SPN_OK, spn_dag_action_add_output(g, action, spn_dag_add_output(g, sp_str_lit("O"))));
 
-    sp_expect_eq(t, SPN_OK, spn_dag_execute(g, action, &env.dag.env, dag_test_env_state(&env.dag)));
+    sp_expect_eq(t, SPN_OK, dag_test_run(&env.dag));
     sp_expect_eq(t, run->expect_runs, env.dag.runs);
   }
 

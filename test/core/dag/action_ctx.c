@@ -72,7 +72,7 @@ sp_test_each(dag_action_ctx, resolve, resolve_test_t, resolve_tests) {
   env.output = spn_dag_add_file(g, dag_test_env_rooted(&env.dag, sp_str_lit("Y")));
   sp_must_eq(t, SPN_OK, spn_dag_action_add_output(g, consumer, env.output));
 
-  sp_expect_eq(t, SPN_OK, spn_dag_run(g, &env.dag.env, dag_test_env_state(&env.dag)));
+  sp_expect_eq(t, SPN_OK, dag_test_run(&env.dag));
   sp_expect(t, env.seen.roots_match);
   sp_expect(t, env.seen.output_under_scratch);
   sp_expect(t, env.seen.arrays_match);
@@ -83,7 +83,6 @@ sp_test_each(dag_action_ctx, resolve, resolve_test_t, resolve_tests) {
 
 typedef struct {
   const c8* name;
-  bool progress;
   bool wake;
   u64 expect_warm;
   u32 expect_fired;
@@ -99,9 +98,8 @@ typedef struct {
 } warm_env_t;
 
 static const warm_test_t warm_tests [] = {
-  { .name = "adds_delta_and_rings", .progress = true, .wake = true, .expect_warm = 7, .expect_fired = 1 },
-  { .name = "without_wake", .progress = true, .expect_warm = 7 },
-  { .name = "without_progress", .wake = true },
+  { .name = "adds_delta_and_rings", .wake = true, .expect_warm = 7, .expect_fired = 1 },
+  { .name = "without_wake", .expect_warm = 7 },
 };
 
 static void count_wake(void* data) {
@@ -111,7 +109,7 @@ static void count_wake(void* data) {
 static spn_err_t warm(const si_dag_ctx_t* c, void* user_data) {
   warm_env_t* env = (warm_env_t*)user_data;
   si_dag_add_warm(c, 7);
-  env->seen.warm = sp_atomic_u64_load(&env->dag.progress.warm, SP_ATOMIC_SEQ_CST);
+  env->seen.warm = sp_atomic_u64_load(&env->dag.run.progress.warm, SP_ATOMIC_SEQ_CST);
   env->seen.fired = env->fired;
   si_dag_add_warm(c, -7);
   return dag_test_exec_stamp(c, &env->dag);
@@ -121,8 +119,7 @@ sp_test_each(dag_action_ctx, warm, warm_test_t, warm_tests) {
   warm_env_t env = sp_zero;
   dag_test_env_init(&env.dag, t, (dag_test_env_config_t) { .store = SPN_DAG_STORE_MEM });
   spn_wake_t wake = { .fn = count_wake, .data = &env };
-  env.dag.env.progress = it->progress ? &env.dag.progress : SP_NULLPTR;
-  env.dag.env.wake = it->wake ? &wake : SP_NULLPTR;
+  env.dag.run.wake = it->wake ? &wake : SP_NULLPTR;
 
   spn_dag_t* g = dag_test_env_graph(&env.dag);
   spn_dag_id_t action = spn_dag_add_action(g, (spn_dag_action_config_t) {
@@ -132,10 +129,10 @@ sp_test_each(dag_action_ctx, warm, warm_test_t, warm_tests) {
   });
   sp_must_eq(t, SPN_OK, spn_dag_action_add_output(g, action, spn_dag_add_file(g, dag_test_env_rooted(&env.dag, sp_str_lit("O")))));
 
-  sp_expect_eq(t, SPN_OK, spn_dag_execute(g, action, &env.dag.env, dag_test_env_state(&env.dag)));
+  sp_expect_eq(t, SPN_OK, dag_test_run(&env.dag));
   sp_expect_eq(t, it->expect_warm, env.seen.warm);
   sp_expect_eq(t, it->expect_fired, env.seen.fired);
-  sp_expect_eq(t, 0u, (u32)sp_atomic_u64_load(&env.dag.progress.warm, SP_ATOMIC_SEQ_CST));
+  sp_expect_eq(t, 0u, (u32)sp_atomic_u64_load(&env.dag.run.progress.warm, SP_ATOMIC_SEQ_CST));
   return SP_OK;
 }
 
@@ -164,7 +161,7 @@ static spn_err_t observe(const si_dag_ctx_t* c, void* user_data) {
 
 sp_test_each(dag_action_ctx, obs, obs_test_t, obs_tests) {
   obs_env_t env = sp_zero;
-  dag_test_env_init(&env.dag, t, (dag_test_env_config_t) { .store = SPN_DAG_STORE_MEM, .discovery = true });
+  dag_test_env_init(&env.dag, t, (dag_test_env_config_t) { .store = SPN_DAG_STORE_MEM });
 
   spn_dag_t* g = dag_test_env_graph(&env.dag);
   spn_dag_id_t action = spn_dag_add_action(g, (spn_dag_action_config_t) {
@@ -175,7 +172,7 @@ sp_test_each(dag_action_ctx, obs, obs_test_t, obs_tests) {
   });
   sp_must_eq(t, SPN_OK, spn_dag_action_add_output(g, action, spn_dag_add_file(g, dag_test_env_rooted(&env.dag, sp_str_lit("O")))));
 
-  sp_expect_eq(t, SPN_OK, spn_dag_execute(g, action, &env.dag.env, dag_test_env_state(&env.dag)));
+  sp_expect_eq(t, SPN_OK, dag_test_run(&env.dag));
   sp_expect_eq(t, it->expect_obs, env.seen_obs);
   return SP_OK;
 }

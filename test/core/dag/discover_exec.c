@@ -223,10 +223,7 @@ static sp_sys_file_meta_t manifest_meta(env_t* env) {
 
 sp_test_each(dag_discover_exec, runs, test_t, tests) {
   env_t env = sp_zero;
-  dag_test_env_init(&env.dag, t, (dag_test_env_config_t) {
-    .store = SPN_DAG_STORE_MEM,
-    .discovery = true
-  });
+  dag_test_env_init(&env.dag, t, (dag_test_env_config_t) { .store = SPN_DAG_STORE_MEM });
 
   sp_carr_for(it->runs, r) {
     const run_t* run = &it->runs[r];
@@ -257,7 +254,7 @@ sp_test_each(dag_discover_exec, runs, test_t, tests) {
       before = manifest_meta(&env);
     }
 
-    spn_err_t err = spn_dag_execute(g, action, &env.dag.env, dag_test_env_state(&env.dag));
+    spn_err_t err = dag_test_run(&env.dag);
 
     if (run->manifest_stable) {
       sp_sys_file_meta_t after = manifest_meta(&env);

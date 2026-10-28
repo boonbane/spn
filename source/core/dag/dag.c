@@ -276,7 +276,7 @@ spn_dag_digest_t spn_dag_hash_final(spn_digest_ctx_t* ctx) {
   return digest;
 }
 
-spn_dag_digest_t spn_dag_weak_key(const spn_dag_t* g, const spn_dag_state_t* state, spn_dag_id_t action_id) {
+spn_dag_digest_t spn_dag_weak_key(const spn_dag_t* g, const spn_dag_artifact_state_t* artifacts, spn_dag_id_t action_id) {
   const spn_dag_action_t* action = spn_dag_find_action(g, action_id);
 
   spn_digest_ctx_t ctx = sp_zero;
@@ -291,7 +291,7 @@ spn_dag_digest_t spn_dag_weak_key(const spn_dag_t* g, const spn_dag_state_t* sta
   spn_dag_hash_u64(&ctx, sp_da_size(action->consumes));
   sp_da_for(action->consumes, it) {
     const spn_dag_artifact_t* artifact = spn_dag_find_artifact(g, action->consumes[it]);
-    spn_dag_digest_t digest = spn_dag_state_artifact(state, artifact->id)->digest;
+    spn_dag_digest_t digest = artifacts[artifact->id.index].digest;
     sp_assert(spn_dag_digest_valid(digest));
     spn_dag_hash_u8(&ctx, (u8)artifact->kind);
     spn_dag_hash_digest(&ctx, digest);

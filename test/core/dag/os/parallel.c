@@ -26,7 +26,6 @@ typedef struct {
 typedef struct {
   const c8* name;
   u32 workers;
-  bool discovery;
   action_t actions [DAG_TEST_MAX_OPS];
   build_t builds [DAG_TEST_MAX_OPS];
 } test_t;
@@ -118,7 +117,6 @@ static const test_t tests [] = {
   },
   {
     .name = "discovered_generated_header_waits_for_producer",
-    .discovery = true,
     .actions = {
       { .identity = "A", .inputs = { "S" }, .output = "H" },
       { .identity = "B", .inputs = { "M" }, .discovers = { "H" }, .output = "O" },
@@ -131,7 +129,6 @@ static const test_t tests [] = {
   },
   {
     .name = "discovered_tree_member_waits_for_producer",
-    .discovery = true,
     .actions = {
       { .identity = "A", .inputs = { "S" }, .output = "D", .tree = true },
       { .identity = "B", .inputs = { "M" }, .discovers = { "D/H" }, .output = "O" },
@@ -245,8 +242,7 @@ static sp_err_t build_all(sp_test_t* t, spn_dag_store_kind_t kind, const test_t*
   env_t env = sp_zero;
   dag_test_env_init(&env.dag, t, (dag_test_env_config_t) {
     .sub = dag_test_store_name(kind),
-    .store = kind,
-    .discovery = test->discovery
+    .store = kind
   });
 
   spn_thread_pool_t pool = sp_zero;
@@ -281,7 +277,7 @@ static sp_err_t build_all(sp_test_t* t, spn_dag_store_kind_t kind, const test_t*
       break;
     }
 
-    spn_err_t err = spn_dag_run_executor(g, &env.dag.env, &pool.executor, dag_test_env_state(&env.dag));
+    spn_err_t err = spn_dag_run(&env.dag.run, &pool.executor);
     sp_expect_eq(t, build->expect_err, err);
     s32 runs = sp_atomic_s32_load(&env.runs, SP_ATOMIC_SEQ_CST);
     sp_expect_ge(t, runs, (s32)build->expect_runs);

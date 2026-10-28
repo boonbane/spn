@@ -3,6 +3,7 @@
 #include "dag/track.h"
 #include "paths/paths.h"
 #include "io/io.h"
+#include "thread_pool/thread_pool.h"
 
 typedef enum {
   MEMO_SURE,
@@ -26,7 +27,6 @@ typedef struct {
   spn_path_t disco_dir;
   spn_path_t cache_dir;
   spn_path_roots_t roots;
-  spn_dag_env_t env;
   fz_executor_t ex;
   sp_dag_track_t track;
   sp_ht(spn_dag_digest_t, fz_shape_t) shapes;
@@ -219,15 +219,6 @@ static void init_world(world_t* w, sp_mem_t mem, sp_sim_t* sim, fz_universe_t* u
 
   reboot_world(w, u);
 
-  w->env = (spn_dag_env_t) {
-    .files = &w->files,
-    .cache = &w->cache,
-    .store = &w->store,
-    .discovery = &w->discovery,
-    .scratch = { .root = SPN_PATH_ROOT_NONE, .sub = sp_str_lit("/scratch") },
-    .trace = world_trace_hook,
-    .trace_data = w,
-  };
   w->j = j;
   if (j) {
     j->sim = sim;
@@ -236,10 +227,25 @@ static void init_world(world_t* w, sp_mem_t mem, sp_sim_t* sim, fz_universe_t* u
 }
 
 static spn_err_t run_world(world_t* w, fz_universe_t* u, fz_lowered_t* low) {
+  low->run = (spn_dag_run_t) {
+    .g = low->g,
+    .mem = low->mem,
+    .files = &w->files,
+    .cache = &w->cache,
+    .store = &w->store,
+    .discovery = &w->discovery,
+    .scratch = { .root = SPN_PATH_ROOT_NONE, .sub = sp_str_lit("/scratch") },
+    .trace = world_trace_hook,
+    .trace_data = w,
+  };
   if (u->profile.run_ex) {
-    return spn_dag_run_executor(low->g, &w->env, &w->ex.base, &low->state);
+    return spn_dag_run(&low->run, &w->ex.base);
   }
-  return spn_dag_run(low->g, &w->env, &low->state);
+  spn_thread_pool_t pool = sp_zero;
+  spn_thread_pool_init(&pool, low->mem, (spn_thread_pool_config_t) sp_zero);
+  spn_err_t err = spn_dag_run(&low->run, &pool.executor);
+  spn_thread_pool_deinit(&pool);
+  return err;
 }
 
 static void write_source(sp_mem_t mem, fz_universe_t* u, fz_state_t* state, u64 artifact) {

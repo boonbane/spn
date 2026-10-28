@@ -64,7 +64,7 @@ static spn_err_t fz_exec(const si_dag_ctx_t* c, void* user_data) {
         return SPN_ERR_DAG_ACTION;
       }
     }
-    else if (spn_dag_digest_valid(spn_dag_state_artifact(&low->state, low->ids[fo.artifact])->digest)) {
+    else if (spn_dag_digest_valid(spn_dag_run_artifact(&low->run, low->ids[fo.artifact])->digest)) {
       return SPN_ERR_DAG_ACTION;
     }
     inputs[consumed + ot] = sp_str_lit("absent");
@@ -164,6 +164,4 @@ void fz_lower(fz_lowered_t* low, sp_mem_t mem, fz_universe_t* u, const spn_path_
     }
     sp_da_push(low->execs, 0);
   }
-
-  spn_dag_state_init(&low->state, mem, low->g);
 }

@@ -23,7 +23,6 @@ typedef struct {
   const c8* sub;
   const c8* storage;
   spn_dag_store_kind_t store;
-  bool discovery;
   const c8* pinned;
 } dag_test_env_config_t;
 
@@ -36,10 +35,8 @@ typedef struct {
   spn_dag_file_cache_t files;
   spn_dag_action_cache_t cache;
   spn_dag_obs_table_t discovery;
-  spn_dag_env_t env;
-  spn_dag_state_t state;
+  spn_dag_run_t run;
   spn_dag_stats_t stats;
-  spn_dag_progress_t progress;
   u32 runs;
 } dag_test_env_t;
 
@@ -49,7 +46,8 @@ const c8*        dag_test_store_name(spn_dag_store_kind_t kind);
 void             dag_test_env_init(dag_test_env_t* env, sp_test_t* t, dag_test_env_config_t config);
 void             dag_test_env_cold(dag_test_env_t* env);
 spn_dag_t*       dag_test_env_graph(dag_test_env_t* env);
-spn_dag_state_t* dag_test_env_state(dag_test_env_t* env);
+spn_err_t        dag_test_run(dag_test_env_t* env);
+spn_dag_artifact_state_t* dag_test_values(sp_mem_t mem, const spn_dag_t* g);
 sp_path_t        dag_test_env_path(dag_test_env_t* env, sp_str_t rel);
 spn_path_t       dag_test_env_rooted(dag_test_env_t* env, sp_str_t rel);
 sp_path_t        dag_test_at(dag_test_env_t* env, spn_path_t path);

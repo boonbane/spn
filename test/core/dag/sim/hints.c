@@ -121,16 +121,13 @@ static sp_err_t execute_observing(sp_test_t* t, env_t* env, const c8* identity) 
     .user_data = env
   });
   sp_must_eq(t, SPN_OK, spn_dag_action_add_output(g, action, spn_dag_add_file(g, dag_test_env_rooted(&env->dag, sp_str_lit("O")))));
-  sp_expect_eq(t, SPN_OK, spn_dag_execute(g, action, &env->dag.env, dag_test_env_state(&env->dag)));
+  sp_expect_eq(t, SPN_OK, dag_test_run(&env->dag));
   return SP_OK;
 }
 
 sp_test(dag_hints, refreshed_on_hit) {
   env_t env = sp_zero;
-  dag_test_env_init(&env.dag, t, (dag_test_env_config_t) {
-    .store = SPN_DAG_STORE_MEM,
-    .discovery = true
-  });
+  dag_test_env_init(&env.dag, t, (dag_test_env_config_t) { .store = SPN_DAG_STORE_MEM });
   env.obs = dag_test_env_rooted(&env.dag, sp_str_lit("H"));
 
   sp_carr_for(steps, s) {
@@ -161,7 +158,6 @@ sp_test(dag_hints, pinned_obs_not_recorded) {
   dag_test_env_init(&env.dag, t, (dag_test_env_config_t) {
     .storage = "storage",
     .store = SPN_DAG_STORE_MEM,
-    .discovery = true,
     .pinned = "P"
   });
   env.obs = (spn_path_t) { .root = SPN_PATH_ROOT_STORAGE, .sub = sp_str_lit("P/locked.h") };

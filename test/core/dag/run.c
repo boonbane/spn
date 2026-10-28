@@ -30,7 +30,6 @@ typedef struct {
 
 typedef struct {
   const c8* name;
-  bool discovery;
   action_t actions [DAG_TEST_MAX_OPS];
   build_t builds [DAG_TEST_MAX_OPS];
 } test_t;
@@ -190,7 +189,6 @@ static const test_t tests [] = {
   },
   {
     .name = "order_only_observed_change_reruns",
-    .discovery = true,
     .actions = {
       { .identity = "J", .inputs = { "M" }, .orders = { "X" }, .discovers = { "X" }, .output = "O" },
       { .identity = "I", .inputs = { "S" }, .output = "X" },
@@ -211,7 +209,6 @@ static const test_t tests [] = {
   },
   {
     .name = "discovered_generated_header_waits_for_producer",
-    .discovery = true,
     .actions = {
       { .identity = "I", .inputs = { "S" }, .output = "H" },
       { .identity = "J", .inputs = { "M" }, .discovers = { "H" }, .output = "O" },
@@ -224,7 +221,6 @@ static const test_t tests [] = {
   },
   {
     .name = "discovered_tree_member_waits_for_producer",
-    .discovery = true,
     .actions = {
       { .identity = "I", .inputs = { "S" }, .output = "D", .tree = true },
       { .identity = "J", .inputs = { "M" }, .discovers = { "D/H" }, .output = "O" },
@@ -236,7 +232,6 @@ static const test_t tests [] = {
   },
   {
     .name = "discovered_source_header_no_deferral",
-    .discovery = true,
     .actions = {
       { .identity = "I", .inputs = { "M" }, .discovers = { "H" }, .output = "O" },
     },
@@ -332,10 +327,7 @@ static sp_err_t build_graph(sp_test_t* t, dag_test_env_t* env, spn_dag_t* g, con
 
 sp_test_each(dag_run, builds, test_t, tests) {
   dag_test_env_t env;
-  dag_test_env_init(&env, t, (dag_test_env_config_t) {
-    .store = SPN_DAG_STORE_MEM,
-    .discovery = it->discovery
-  });
+  dag_test_env_init(&env, t, (dag_test_env_config_t) { .store = SPN_DAG_STORE_MEM });
 
   sp_carr_for(it->builds, b) {
     const build_t* build = &it->builds[b];
@@ -344,7 +336,6 @@ sp_test_each(dag_run, builds, test_t, tests) {
     }
 
     spn_dag_file_cache_invalidate_all(&env.files);
-    sp_mem_zero(&env.progress, sizeof(env.progress));
     sp_carr_for(build->sources, si) {
       if (!build->sources[si].path) {
         break;
@@ -392,16 +383,16 @@ sp_test_each(dag_run, builds, test_t, tests) {
       sp_must_eq(t, SPN_OK, spn_dag_action_add_output(g, action, out_id));
     }
 
-    spn_err_t err = spn_dag_run(g, &env.env, dag_test_env_state(&env));
+    spn_err_t err = dag_test_run(&env);
     sp_expect_eq(t, build->expect_err, err);
-    sp_expect_eq(t, build->expect_err, env.state.diag.err);
+    sp_expect_eq(t, build->expect_err, env.run.diag.err);
     if (build->expect_diag_path) {
-      sp_expect_str_eq(t, env.state.diag.path, spn_path_str(&env.roots, env.mem, dag_test_env_rooted(&env, sp_str_view(build->expect_diag_path))));
+      sp_expect_str_eq(t, env.run.diag.path, spn_path_str(&env.roots, env.mem, dag_test_env_rooted(&env, sp_str_view(build->expect_diag_path))));
     }
     sp_expect_eq(t, build->expect_runs, env.runs);
     if (build->expect_hits || build->expect_misses) {
-      sp_expect_eq(t, build->expect_hits, (u32)sp_atomic_s32_load(&env.progress.hits, SP_ATOMIC_SEQ_CST));
-      sp_expect_eq(t, build->expect_misses, (u32)sp_atomic_s32_load(&env.progress.misses, SP_ATOMIC_SEQ_CST));
+      sp_expect_eq(t, build->expect_hits, (u32)sp_atomic_s32_load(&env.run.progress.hits, SP_ATOMIC_SEQ_CST));
+      sp_expect_eq(t, build->expect_misses, (u32)sp_atomic_s32_load(&env.run.progress.misses, SP_ATOMIC_SEQ_CST));
     }
   }
 

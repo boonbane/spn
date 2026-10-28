@@ -1,76 +1,6 @@
 #include "dag/dag_test.h"
 
 typedef enum {
-  ARTIFACT_VALUE,
-  ARTIFACT_SOURCE,
-  ARTIFACT_OUTPUT,
-  ARTIFACT_DECLARED,
-  ARTIFACT_TREE,
-} artifact_kind_t;
-
-typedef struct {
-  const c8* name;
-  artifact_kind_t kind;
-  struct {
-    bool digest;
-  } expect;
-} init_t;
-
-static const init_t inits [] = {
-  { .name = "value", .kind = ARTIFACT_VALUE, .expect = { .digest = true } },
-  { .name = "source", .kind = ARTIFACT_SOURCE },
-  { .name = "output", .kind = ARTIFACT_OUTPUT },
-  { .name = "declared", .kind = ARTIFACT_DECLARED },
-  { .name = "tree", .kind = ARTIFACT_TREE },
-};
-
-sp_test_each(dag_state, init, init_t, inits) {
-  dag_test_env_t env;
-  dag_test_env_init(&env, t, (dag_test_env_config_t) { .store = SPN_DAG_STORE_MEM });
-  spn_dag_t* g = dag_test_env_graph(&env);
-  spn_path_t path = dag_test_env_rooted(&env, sp_str_lit("A"));
-
-  spn_dag_id_t artifact = sp_zero;
-  spn_dag_id_t producer = sp_zero;
-  switch (it->kind) {
-    case ARTIFACT_VALUE: {
-      artifact = spn_dag_add_value(g, "A", 1);
-      break;
-    }
-    case ARTIFACT_SOURCE: {
-      artifact = spn_dag_add_file(g, path);
-      break;
-    }
-    case ARTIFACT_OUTPUT: {
-      artifact = spn_dag_add_output(g, sp_str_lit("A"));
-      producer = spn_dag_add_action(g, (spn_dag_action_config_t) { .execute = dag_test_exec_noop });
-      break;
-    }
-    case ARTIFACT_DECLARED: {
-      artifact = spn_dag_add_file(g, path);
-      producer = spn_dag_add_action(g, (spn_dag_action_config_t) { .execute = dag_test_exec_noop });
-      break;
-    }
-    case ARTIFACT_TREE: {
-      artifact = spn_dag_add_tree(g, path);
-      producer = spn_dag_add_action(g, (spn_dag_action_config_t) { .execute = dag_test_exec_noop });
-      break;
-    }
-  }
-  if (producer.occupied) {
-    sp_must_eq(t, SPN_OK, spn_dag_action_add_output(g, producer, artifact));
-  }
-
-  const spn_dag_artifact_state_t* state = spn_dag_state_artifact(dag_test_env_state(&env), artifact);
-  sp_expect_eq(t, it->expect.digest, spn_dag_digest_valid(state->digest));
-  if (it->expect.digest) {
-    sp_expect(t, spn_dag_digest_equal(state->digest, dag_test_digest("A")));
-  }
-  sp_expect(t, spn_path_empty(state->location));
-  return SP_OK;
-}
-
-typedef enum {
   LOCATION_NONE,
   LOCATION_DECLARED,
   LOCATION_STORE,
@@ -135,8 +65,7 @@ static sp_err_t check_fact(sp_test_t* t, spn_dag_store_kind_t kind, const fact_t
   spn_dag_action_add_input(g, c, x);
   sp_must_eq(t, SPN_OK, spn_dag_action_add_output(g, c, y));
 
-  spn_dag_state_t* state = dag_test_env_state(&env);
-  sp_must_eq(t, SPN_OK, spn_dag_run(g, &env.env, state));
+  sp_must_eq(t, SPN_OK, dag_test_run(&env));
 
   spn_dag_id_t ids [] = { s, x, y };
   const c8* names [] = { "S", "X", "Y" };
@@ -148,7 +77,7 @@ static sp_err_t check_fact(sp_test_t* t, spn_dag_store_kind_t kind, const fact_t
   }
   sp_must(t, id.occupied);
 
-  const spn_dag_artifact_state_t* artifact = spn_dag_state_artifact(state, id);
+  const spn_dag_artifact_state_t* artifact = spn_dag_run_artifact(&env.run, id);
   sp_expect(t, spn_dag_digest_equal(artifact->digest, dag_test_digest(fact->expect.content)));
   switch (fact->expect.location[kind]) {
     case LOCATION_NONE: {
@@ -210,9 +139,8 @@ sp_test_each(dag_state, execute, execute_t, executes) {
   spn_dag_action_add_input(g, action, spn_dag_add_file(g, dag_test_env_rooted(&env, sp_str_lit("S"))));
   sp_must_eq(t, SPN_OK, spn_dag_action_add_output(g, action, spn_dag_add_file(g, dag_test_env_rooted(&env, sp_str_lit("O")))));
 
-  spn_dag_state_t* state = dag_test_env_state(&env);
-  sp_expect_eq(t, it->expect.err, spn_dag_execute(g, action, &env.env, state));
-  sp_expect_eq(t, it->expect.err, state->diag.err);
+  sp_expect_eq(t, it->expect.err, dag_test_run(&env));
+  sp_expect_eq(t, it->expect.err, env.run.diag.err);
   if (it->expect.output) {
     return dag_test_expect_file(t, env.mem, dag_test_env_path(&env, sp_str_lit("O")), it->expect.output);
   }

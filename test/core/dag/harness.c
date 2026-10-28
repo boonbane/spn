@@ -1,5 +1,6 @@
 #include "dag/dag_test.h"
 #include "fs/fs.h"
+#include "thread_pool/thread_pool.h"
 
 const spn_dag_store_kind_t dag_test_store_kinds [2] = {
   SPN_DAG_STORE_MEM,
@@ -45,13 +46,12 @@ void dag_test_env_init(dag_test_env_t* env, sp_test_t* t, dag_test_env_config_t 
   env->files.stats = &env->stats;
   spn_dag_action_cache_init(&env->cache, env->mem, &env->roots, sp_zero_struct(spn_path_t));
   spn_dag_obs_table_init(&env->discovery, env->mem, &env->roots, dag_test_env_rooted(env, sp_str_lit("manifests")));
-  env->env = (spn_dag_env_t) {
+  env->run = (spn_dag_run_t) {
+    .mem = env->mem,
     .files = &env->files,
     .cache = &env->cache,
     .store = &env->store,
-    .discovery = config.discovery ? &env->discovery : SP_NULLPTR,
-    .stats = &env->stats,
-    .progress = &env->progress,
+    .discovery = &env->discovery,
     .scratch = dag_test_env_rooted(env, sp_str_lit("scratch"))
   };
 }
@@ -71,12 +71,25 @@ u32 dag_test_hashed(dag_test_env_t* env) {
 
 spn_dag_t* dag_test_env_graph(dag_test_env_t* env) {
   env->g = spn_dag_new(env->mem, &env->roots);
+  env->run.g = env->g;
   return env->g;
 }
 
-spn_dag_state_t* dag_test_env_state(dag_test_env_t* env) {
-  spn_dag_state_init(&env->state, env->mem, env->g);
-  return &env->state;
+spn_err_t dag_test_run(dag_test_env_t* env) {
+  spn_thread_pool_t pool = sp_zero;
+  spn_thread_pool_init(&pool, env->mem, (spn_thread_pool_config_t) sp_zero);
+  spn_err_t err = spn_dag_run(&env->run, &pool.executor);
+  spn_thread_pool_deinit(&pool);
+  return err;
+}
+
+spn_dag_artifact_state_t* dag_test_values(sp_mem_t mem, const spn_dag_t* g) {
+  u64 count = sp_da_size(g->artifacts);
+  spn_dag_artifact_state_t* artifacts = sp_alloc_n(mem, spn_dag_artifact_state_t, count ? count : 1);
+  sp_da_for(g->artifacts, it) {
+    artifacts[it].digest = g->artifacts[it].digest;
+  }
+  return artifacts;
 }
 
 sp_path_t dag_test_env_path(dag_test_env_t* env, sp_str_t rel) {

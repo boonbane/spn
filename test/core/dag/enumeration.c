@@ -172,10 +172,7 @@ static void prepare_run(env_t* env, const run_t* run) {
 sp_test_each(dag_enumeration, runs, test_t, tests) {
   env_t env = sp_zero;
   env.test = it;
-  dag_test_env_init(&env.dag, t, (dag_test_env_config_t) {
-    .store = SPN_DAG_STORE_MEM,
-    .discovery = true
-  });
+  dag_test_env_init(&env.dag, t, (dag_test_env_config_t) { .store = SPN_DAG_STORE_MEM });
 
   sp_carr_for(it->runs, r) {
     const run_t* run = &it->runs[r];
@@ -198,7 +195,7 @@ sp_test_each(dag_enumeration, runs, test_t, tests) {
     });
     sp_must_eq(t, SPN_OK, spn_dag_action_add_output(g, action, spn_dag_add_output(g, sp_str_lit("O"))));
 
-    sp_expect_eq(t, SPN_OK, spn_dag_execute(g, action, &env.dag.env, dag_test_env_state(&env.dag)));
+    sp_expect_eq(t, SPN_OK, dag_test_run(&env.dag));
     sp_expect_eq(t, run->expect_runs, env.dag.runs);
   }
 

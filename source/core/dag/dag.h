@@ -38,7 +38,7 @@ void                spn_dag_hash_args(spn_digest_ctx_t* ctx, const spn_path_root
 spn_dag_digest_t    spn_dag_hash_final(spn_digest_ctx_t* ctx);
 
 
-spn_dag_digest_t    spn_dag_weak_key(const spn_dag_t* g, const spn_dag_state_t* state, spn_dag_id_t action);
+spn_dag_digest_t    spn_dag_weak_key(const spn_dag_t* g, const spn_dag_artifact_state_t* artifacts, spn_dag_id_t action);
 spn_dag_digest_t    spn_dag_strong_key(const spn_path_roots_t* roots, spn_dag_digest_t weak, spn_dag_digest_t pinned, const spn_dag_obs_t* obs, const spn_dag_digest_t* digests, u32 count);
 spn_dag_digest_t    spn_dag_pinned_digest(const spn_path_roots_t* roots, const spn_dag_obs_t* obs, u32 count);
 void                spn_dag_obs_canonicalize(sp_da(spn_dag_obs_t) obs);
@@ -83,11 +83,7 @@ spn_err_t           spn_dag_file_cache_digest(spn_dag_file_cache_t* c, spn_path_
 bool                spn_dag_file_cache_recorded(spn_dag_file_cache_t* c, spn_path_t path);
 spn_path_t          spn_dag_file_cache_canonical(spn_dag_file_cache_t* c, spn_path_t path);
 
-void                            spn_dag_state_init(spn_dag_state_t* state, sp_mem_t mem, const spn_dag_t* g);
-const spn_dag_artifact_state_t* spn_dag_state_artifact(const spn_dag_state_t* state, spn_dag_id_t id);
-
-spn_err_t           spn_dag_execute(const spn_dag_t* g, spn_dag_id_t action, spn_dag_env_t* env, spn_dag_state_t* state);
-spn_err_t           spn_dag_run(const spn_dag_t* g, spn_dag_env_t* env, spn_dag_state_t* state);
-spn_err_t           spn_dag_run_executor(const spn_dag_t* g, spn_dag_env_t* env, spn_thread_pool_executor_t* executor, spn_dag_state_t* state);
+const spn_dag_artifact_state_t* spn_dag_run_artifact(const spn_dag_run_t* run, spn_dag_id_t id);
+spn_err_t                       spn_dag_run(spn_dag_run_t* run, spn_thread_pool_executor_t* ex);
 
 #endif

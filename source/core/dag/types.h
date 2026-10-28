@@ -67,7 +67,6 @@ typedef struct {
   u32 occupied;
 } spn_dag_id_t;
 
-typedef struct spn_dag_env_t spn_dag_env_t;
 typedef struct spn_dag_obs_set_t spn_dag_obs_set_t;
 typedef struct si_dag_action_handle si_dag_action_handle_t;
 
@@ -271,26 +270,22 @@ typedef struct {
 } spn_dag_artifact_state_t;
 
 typedef struct {
-  u32 graph;
-  sp_mem_arena_t* arena;
+  const spn_dag_t* g;
   sp_mem_t mem;
-  sp_mutex_t mutex;
-  spn_dag_artifact_state_t* artifacts;
-  spn_dag_diag_t diag;
-} spn_dag_state_t;
-
-struct spn_dag_env_t {
   spn_dag_file_cache_t* files;
   spn_dag_action_cache_t* cache;
   spn_dag_store_t* store;
   spn_dag_obs_table_t* discovery;
-  spn_dag_stats_t* stats;
-  spn_dag_progress_t* progress;
-  spn_wake_t* wake;
-  sp_atomic_s32_t* cancel;
+  spn_path_t scratch;
   spn_dag_trace_fn_t trace;
   void* trace_data;
-  spn_path_t scratch;
-};
+  sp_atomic_s32_t* cancel;
+  spn_wake_t* wake;
+
+  spn_dag_artifact_state_t* artifacts;
+  spn_dag_diag_t diag;
+  spn_dag_progress_t progress;
+  sp_mutex_t mutex;
+} spn_dag_run_t;
 
 #endif
