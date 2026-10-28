@@ -107,9 +107,9 @@ void fz_journal_universe(fz_journal_t* j, fz_universe_t* u, fz_trace_t* trace, u
   sp_da_for(u->actions, at) {
     fz_action_t* action = &u->actions[at];
     emit(j, sp_fmt(mem,
-      "\"ev\":\"action\",\"id\":{},\"identity\":{},\"discover\":{},\"consumes\":{},\"produces\":{},\"obs\":{}",
+      "\"ev\":\"action\",\"id\":{},\"identity\":{},\"discover\":{},\"consumes\":{},\"orders\":{},\"produces\":{},\"obs\":{}",
       sp_fmt_uint(at), sp_fmt_uint(action->identity), sp_fmt_str(json_bool(action->discover)),
-      sp_fmt_str(json_ids(mem, action->consumes)), sp_fmt_str(json_ids(mem, action->produces)),
+      sp_fmt_str(json_ids(mem, action->consumes)), sp_fmt_str(json_ids(mem, action->orders)), sp_fmt_str(json_ids(mem, action->produces)),
       sp_fmt_str(json_obs(mem, action->obs))).value);
   }
 
@@ -227,6 +227,19 @@ void fz_journal_check_execs(fz_journal_t* j, const fz_exec_row_t* rows, u64 coun
       sp_fmt_uint(rows[it].requeues), sp_fmt_str(json_bool(rows[it].miss)), sp_fmt_str(json_bool(rows[it].ok))).value;
   }
   emit(j, sp_fmt(mem, "\"ev\":\"check\",\"kind\":\"execs\",\"rows\":{},\"sys\":{}",
+    sp_fmt_str(json_list(mem, items, (u32)count)), sp_fmt_uint(sys_now(j))).value);
+}
+
+void fz_journal_check_orders(fz_journal_t* j, const fz_order_row_t* rows, u64 count) {
+  if (!j) return;
+  sp_mem_t mem = j->mem;
+  sp_str_t* items = sp_alloc_n(mem, sp_str_t, count ? count : 1);
+  sp_for(it, count) {
+    items[it] = sp_fmt(mem, "{{\"action\":{},\"artifact\":{},\"producer\":{},\"started\":{},\"done\":{},\"ok\":{}}}",
+      sp_fmt_uint(rows[it].action), sp_fmt_uint(rows[it].artifact), sp_fmt_uint(rows[it].producer),
+      sp_fmt_uint(rows[it].started), sp_fmt_uint(rows[it].done), sp_fmt_str(json_bool(rows[it].ok))).value;
+  }
+  emit(j, sp_fmt(mem, "\"ev\":\"check\",\"kind\":\"orders\",\"rows\":{},\"sys\":{}",
     sp_fmt_str(json_list(mem, items, (u32)count)), sp_fmt_uint(sys_now(j))).value);
 }
 

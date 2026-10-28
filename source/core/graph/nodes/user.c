@@ -8,7 +8,6 @@
 #include "graph/nodes/nodes.h"
 #include "paths/paths.h"
 #include "str/str.h"
-#include "unit/package.h"
 
 spn_err_t si_on_user_node(const si_dag_ctx_t* c, void* user_data) {
   si_user_node_t* ctx = (si_user_node_t*)user_data;
@@ -61,15 +60,10 @@ spn_err_t si_on_user_node(const si_dag_ctx_t* c, void* user_data) {
     sp_path_t target = spn_path_at(roots, si_dag_resolve_output(c, c->produces[it]));
     sp_path_t declared = spn_path_at(roots, out->path);
     sp_err_t err = SP_OK;
-    if (out->stamp) {
-      sp_fs_create_file_at(target);
-    }
-    else {
-      switch (out->kind) {
-        case SPN_DAG_ARTIFACT_KIND_FILE:  err = sp_fs_copy_file_at(declared, target, SP_FS_ATOMIC_REPLACE); break;
-        case SPN_DAG_ARTIFACT_KIND_TREE:  err = sp_fs_copy_tree_at(declared, target, SP_FS_ATOMIC_REPLACE); break;
-        case SPN_DAG_ARTIFACT_KIND_VALUE: sp_unreachable_case();
-      }
+    switch (out->kind) {
+      case SPN_DAG_ARTIFACT_KIND_FILE:  err = sp_fs_copy_file_at(declared, target, SP_FS_ATOMIC_REPLACE); break;
+      case SPN_DAG_ARTIFACT_KIND_TREE:  err = sp_fs_copy_tree_at(declared, target, SP_FS_ATOMIC_REPLACE); break;
+      case SPN_DAG_ARTIFACT_KIND_VALUE: sp_unreachable_case();
     }
     if (err) {
       spn_event_buffer_push(spn.events, (spn_event_t) {

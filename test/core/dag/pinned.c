@@ -240,7 +240,7 @@ sp_test_each(dag_pinned, source, source_test_t, source_tests) {
 sp_test(dag_pinned, pinned_dirs_change_weak_key) {
   sp_mem_t mem = sp_test_arena(t);
   spn_path_roots_t storage = sp_zero;
-  const spn_path_roots_t* roots = paths_test_roots_build((paths_test_roots_t) { .project = "/R" }, &storage);
+  const spn_path_roots_t* roots = paths_test_roots_build((paths_test_roots_t) { .project = "/R", .storage = "/C" }, &storage);
   storage.pinned = sp_da_new(mem, spn_path_t);
 
   const c8* dirs [2] = { "P", "Q" };

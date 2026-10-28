@@ -44,6 +44,7 @@ typedef enum {
   FZ_ERR_EXEC_SPURIOUS,
   FZ_ERR_KEY,
   FZ_ERR_SCHEDULE,
+  FZ_ERR_ORDER,
   FZ_ERR_COUNT,
 } fz_err_t;
 
@@ -125,6 +126,7 @@ typedef struct {
   bool discover;
   u64 identity;
   sp_da(u64) consumes;
+  sp_da(u64) orders;
   sp_da(u64) produces;
   sp_da(fz_obs_t) obs;
 } fz_action_t;
@@ -143,6 +145,7 @@ typedef struct {
   u64 obs_count;
   u64 absent_pct;
   u64 obs_output_pct;
+  u64 order_pct;
   u64 back_density;
   u64 steps;
   u64 granularity;
@@ -257,6 +260,15 @@ typedef struct {
   bool ok;
 } fz_bytes_row_t;
 
+typedef struct {
+  u64 action;
+  u64 artifact;
+  u64 producer;
+  u64 started;
+  u64 done;
+  bool ok;
+} fz_order_row_t;
+
 void fz_journal_init(fz_journal_t* j, sp_mem_t mem);
 void fz_journal_universe(fz_journal_t* j, fz_universe_t* u, fz_trace_t* trace, u64 iter);
 void fz_journal_step(fz_journal_t* j, fz_step_t* step, u64 index);
@@ -268,6 +280,7 @@ void fz_journal_exec(fz_journal_t* j, u64 action);
 void fz_journal_check_execs(fz_journal_t* j, const fz_exec_row_t* rows, u64 count);
 void fz_journal_check_keys(fz_journal_t* j, const fz_key_row_t* rows, u64 count);
 void fz_journal_check_bytes(fz_journal_t* j, sp_str_t kind, const fz_bytes_row_t* rows, u64 count);
+void fz_journal_check_orders(fz_journal_t* j, const fz_order_row_t* rows, u64 count);
 void fz_journal_blob(fz_journal_t* j, u64 artifact, sp_str_t want, sp_str_t got);
 void fz_journal_drop(fz_journal_t* j, sp_str_t what, sp_str_t path);
 void fz_journal_sim_fault(fz_journal_t* j, u64 sys);

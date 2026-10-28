@@ -155,6 +155,9 @@ void fz_lower(fz_lowered_t* low, sp_mem_t mem, fz_universe_t* u, const spn_path_
     sp_da_for(action->consumes, ct) {
       spn_dag_action_add_input(low->g, id, low->ids[action->consumes[ct]]);
     }
+    sp_da_for(action->orders, ot) {
+      spn_dag_action_add_order(low->g, id, low->ids[action->orders[ot]]);
+    }
     sp_da_for(action->produces, pt) {
       spn_err_t err = spn_dag_action_add_output(low->g, id, low->ids[action->produces[pt]]);
       sp_assert(!err);

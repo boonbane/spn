@@ -71,8 +71,6 @@ static spn_err_t publish_unit(sp_mem_t mem, const si_dag_ctx_t* c, si_publish_t*
       spn_try(publish_entry(mem, c, unit, dirs[entry->root], entry));
     }
   }
-
-  sp_fs_create_file_at(spn_path_at(c->roots, si_dag_resolve_output(c, publish->stamp)));
   return SPN_OK;
 }
 
