@@ -387,7 +387,7 @@ sp_test_each(dag_run, builds, test_t, tests) {
     sp_expect_eq(t, build->expect_err, err);
     sp_expect_eq(t, build->expect_err, env.run.diag.err);
     if (build->expect_diag_path) {
-      sp_expect_str_eq(t, env.run.diag.path, spn_path_str(&env.roots, env.mem, dag_test_env_rooted(&env, sp_str_view(build->expect_diag_path))));
+      sp_expect(t, spn_path_equal(env.run.diag.path, dag_test_env_rooted(&env, sp_str_view(build->expect_diag_path))));
     }
     sp_expect_eq(t, build->expect_runs, env.runs);
     if (build->expect_hits || build->expect_misses) {

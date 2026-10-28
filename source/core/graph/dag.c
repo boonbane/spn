@@ -115,10 +115,16 @@ static void announce_package(spn_dag_build_t* b, spn_dag_id_t action, spn_pkg_un
 
 static void dag_trace(const spn_dag_trace_event_t* event, void* user_data) {
   spn_dag_build_t* b = (spn_dag_build_t*)user_data;
-  if (event->kind != SPN_DAG_TRACE_EXECUTE) return;
+  if (event->kind != SPN_DAG_TRACE_EXECUTE) {
+    return;
+  }
   spn_pkg_unit_t** pkg = sp_ht_getp(b->announce.pkgs, event->action);
-  if (!pkg) return;
-  if (!sp_atomic_s32_cas(sp_ht_getp(b->announce.announced, *pkg), 0, 1, SP_ATOMIC_SEQ_CST)) return;
+  if (!pkg) {
+    return;
+  }
+  if (!sp_atomic_s32_cas(sp_ht_getp(b->announce.announced, *pkg), 0, 1, SP_ATOMIC_SEQ_CST)) {
+    return;
+  }
 
   spn_event_buffer_push(spn.events, (spn_event_t) {
     .kind = SPN_EVENT_COMPILE_START,
@@ -1000,19 +1006,27 @@ static spn_err_t dag_result(spn_dag_build_t* b) {
     }
   }
 
-  sp_str_t path = diag->path;
-  if (sp_str_empty(path) && diag->action.occupied) {
+  const spn_path_roots_t* roots = b->graph->roots;
+  sp_mem_t mem = b->session->ctx->events->mem;
+  spn_dag_id_t artifact = diag->artifact;
+  if (!artifact.occupied && diag->action.occupied) {
     const spn_dag_action_t* action = spn_dag_find_action(b->graph, diag->action);
     if (!sp_da_empty(action->produces)) {
-      const spn_dag_artifact_t* artifact = spn_dag_find_artifact(b->graph, action->produces[0]);
-      path = spn_path_empty(artifact->path)
-        ? artifact->name
-        : spn_path_str(b->graph->roots, b->session->ctx->events->mem, artifact->path);
+      artifact = action->produces[0];
     }
   }
 
+  sp_str_t path = sp_zero;
+  if (!spn_path_empty(diag->path)) {
+    path = spn_path_str(roots, mem, diag->path);
+  }
+  else if (artifact.occupied) {
+    const spn_dag_artifact_t* at = spn_dag_find_artifact(b->graph, artifact);
+    path = spn_path_empty(at->path) ? at->name : spn_path_str(roots, mem, at->path);
+  }
+
   return spn_err_emit(b->session->ctx, (spn_err_union_t) {
-    .kind = diag->err ? diag->err : b->result,
+    .kind = diag->err,
     .dag = { .path = path },
   });
 }

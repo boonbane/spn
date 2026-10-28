@@ -30,9 +30,15 @@ static spn_dag_file_meta_t file_meta_from_sys(sp_sys_file_meta_t sys) {
 }
 
 static bool file_meta_current(spn_dag_file_meta_t meta, sp_sys_file_meta_t sys) {
-  if (meta.id.device && meta.id.device != sys.device) return false;
-  if (meta.id.inode != sys.id) return false;
-  if (!is_timespec_equal(meta.mtime, sys.mtime)) return false;
+  if (meta.id.device && meta.id.device != sys.device) {
+    return false;
+  }
+  if (meta.id.inode != sys.id) {
+    return false;
+  }
+  if (!is_timespec_equal(meta.mtime, sys.mtime)) {
+    return false;
+  }
   return meta.size == sys.size;
 }
 
@@ -49,7 +55,7 @@ void spn_dag_file_cache_init(spn_dag_file_cache_t* c, sp_mem_t mem, const spn_pa
   sp_ht_set_fns(c->canonical, spn_path_on_hash, spn_path_on_compare);
 }
 
-spn_path_t spn_dag_file_cache_canonical(spn_dag_file_cache_t* c, spn_path_t path) {
+static spn_path_t file_cache_canonical(spn_dag_file_cache_t* c, spn_path_t path) {
   sp_mutex_lock(&c->mutex);
   spn_path_t* cached = sp_ht_getp(c->canonical, path);
   if (cached) {
@@ -205,7 +211,6 @@ spn_err_t spn_dag_file_cache_seed(spn_dag_file_cache_t* c, spn_path_t path, spn_
 const spn_dag_artifact_state_t* spn_dag_run_artifact(const spn_dag_run_t* run, spn_dag_id_t id) {
   sp_assert(id.occupied);
   sp_assert(id.graph == run->g->id);
-  sp_assert(id.index < sp_da_size(run->g->artifacts));
   return run->artifacts + id.index;
 }
 
@@ -225,27 +230,10 @@ struct si_dag_action_handle {
   spn_dag_diag_t diag;
 };
 
-static void diag_set(spn_dag_diag_t* diag, spn_err_t err, spn_dag_id_t action, sp_str_t path) {
-  if (!diag || diag->err) {
-    return;
-  }
-  diag->err = err;
-  diag->action = action;
-  diag->path = path;
-}
-
 static void trace_emit(const spn_dag_run_t* run, spn_dag_trace_event_t event) {
   if (run->trace) {
     run->trace(&event, run->trace_data);
   }
-}
-
-static void trace_resolve(spn_dag_run_t* run, spn_dag_id_t action, bool hit) {
-  trace_emit(run, (spn_dag_trace_event_t) {
-    .kind = SPN_DAG_TRACE_RESOLVE,
-    .action = action,
-    .hit = hit
-  });
 }
 
 static void progress_wake(spn_dag_run_t* run) {
@@ -254,47 +242,17 @@ static void progress_wake(spn_dag_run_t* run) {
   }
 }
 
-static void progress_begin(spn_dag_run_t* run, u64 total) {
-  sp_atomic_s32_store(&run->progress.total, (s32)total, SP_ATOMIC_SEQ_CST);
-  sp_atomic_s32_store(&run->progress.completed, 0, SP_ATOMIC_SEQ_CST);
-  sp_atomic_s32_store(&run->progress.hits, 0, SP_ATOMIC_SEQ_CST);
-  sp_atomic_s32_store(&run->progress.misses, 0, SP_ATOMIC_SEQ_CST);
-  sp_atomic_u64_store(&run->progress.warm, 0, SP_ATOMIC_SEQ_CST);
-  progress_wake(run);
-}
-
-static void progress_count(spn_dag_run_t* run, const spn_dag_action_t* action, bool hit) {
-  switch (action->kind) {
-    case SPN_DAG_ACTION_STATIC:
-    case SPN_DAG_ACTION_DISCOVERED: {
-      sp_atomic_s32_add(hit ? &run->progress.hits : &run->progress.misses, 1, SP_ATOMIC_SEQ_CST);
-      break;
-    }
-    case SPN_DAG_ACTION_UNCACHEABLE: {
-      sp_assert(!hit);
-      break;
-    }
-  }
-  sp_atomic_s32_add(&run->progress.completed, 1, SP_ATOMIC_SEQ_CST);
-  progress_wake(run);
-}
-
-static sp_str_t render_path(spn_dag_run_t* run, spn_path_t path) {
+static spn_dag_diag_t diag_at(si_dag_action_handle_t* a, spn_err_t err, const spn_dag_artifact_t* artifact, spn_path_t path) {
+  spn_dag_run_t* run = a->run;
   sp_mutex_lock(&run->mutex);
-  sp_str_t rendered = spn_path_str(run->g->roots, run->mem, path);
+  spn_path_t copy = spn_path_copy(run->mem, path);
   sp_mutex_unlock(&run->mutex);
-  return rendered;
-}
-
-static void diag_set_path(si_dag_action_handle_t* a, spn_dag_diag_t* diag, spn_err_t err, spn_path_t path) {
-  if (!diag || diag->err) {
-    return;
-  }
-  diag_set(diag, err, a->action->id, render_path(a->run, path));
-}
-
-static sp_str_t artifact_location(si_dag_action_handle_t* a, const spn_dag_artifact_t* artifact) {
-  return spn_path_empty(artifact->path) ? artifact->name : render_path(a->run, artifact->path);
+  return (spn_dag_diag_t) {
+    .err = err,
+    .action = a->action->id,
+    .artifact = artifact->id,
+    .path = copy,
+  };
 }
 
 typedef enum {
@@ -325,18 +283,19 @@ typedef struct {
   sp_fs_kind_t kind;
 } extra_entry_t;
 
-static spn_err_t settle_tree(si_dag_action_handle_t* a, const spn_dag_artifact_t* artifact, spn_dag_diag_t* diag) {
+// @spader @cleanup
+static spn_dag_diag_t settle_tree(si_dag_action_handle_t* a, const spn_dag_artifact_t* artifact) {
   spn_dag_run_t* run = a->run;
   const spn_dag_t* g = run->g;
   const spn_dag_action_t* action = a->action;
   spn_dag_digest_t digest = spn_dag_run_artifact(run, artifact->id)->digest;
   sp_mem_arena_marker_t s = sp_mem_begin_scratch();
-  spn_err_t err = SPN_OK;
+  spn_dag_diag_t diag = sp_zero;
 
   sp_da(spn_dag_action_output_t) entries = sp_zero;
-  err = spn_dag_tree_entries(run->store, digest, s.mem, &entries);
+  spn_err_t err = spn_dag_tree_entries(run->store, digest, s.mem, &entries);
   if (err) {
-    diag_set_path(a, diag, err, artifact->path);
+    diag = diag_at(a, err, artifact, artifact->path);
     goto done;
   }
   spn_path_t* paths = sp_alloc_n(s.mem, spn_path_t, sp_da_size(entries) ? sp_da_size(entries) : 1);
@@ -376,8 +335,7 @@ static spn_err_t settle_tree(si_dag_action_handle_t* a, const spn_dag_artifact_t
     }
     sp_fs_it_deinit(&walk);
     if (walk.err) {
-      err = SPN_ERR_DAG_STORE_READ;
-      diag_set_path(a, diag, err, artifact->path);
+      diag = diag_at(a, SPN_ERR_DAG_STORE_READ, artifact, artifact->path);
       goto done;
     }
     sp_da_for(entries, it) {
@@ -390,8 +348,7 @@ static spn_err_t settle_tree(si_dag_action_handle_t* a, const spn_dag_artifact_t
   }
   else {
     if (sp_fs_create_dir_at(dir)) {
-      err = SPN_ERR_DAG_STORE_WRITE;
-      diag_set_path(a, diag, err, artifact->path);
+      diag = diag_at(a, SPN_ERR_DAG_STORE_WRITE, artifact, artifact->path);
       goto done;
     }
     sp_da_for(entries, it) {
@@ -409,8 +366,7 @@ static spn_err_t settle_tree(si_dag_action_handle_t* a, const spn_dag_artifact_t
     spn_dag_store_drop(run->store, entries[poisoned[it]].digest, entries[poisoned[it]].name);
   }
   if (!sp_da_empty(poisoned)) {
-    err = SPN_ERR_DAG_STORE_MISSING;
-    diag_set_path(a, diag, err, paths[poisoned[0]]);
+    diag = diag_at(a, SPN_ERR_DAG_STORE_MISSING, artifact, paths[poisoned[0]]);
     goto done;
   }
 
@@ -419,8 +375,7 @@ static spn_err_t settle_tree(si_dag_action_handle_t* a, const spn_dag_artifact_t
     sp_path_t at = spn_path_at(g->roots, path);
     sp_err_t removed = extra[it].kind == SP_FS_KIND_DIR ? sp_fs_remove_dir_at(at) : sp_fs_remove_file_at(at);
     if (removed) {
-      err = SPN_ERR_DAG_STORE_WRITE;
-      diag_set_path(a, diag, err, path);
+      diag = diag_at(a, SPN_ERR_DAG_STORE_WRITE, artifact, path);
       goto done;
     }
     spn_dag_file_cache_invalidate(run->files, path);
@@ -430,7 +385,7 @@ static spn_err_t settle_tree(si_dag_action_handle_t* a, const spn_dag_artifact_t
     spn_dag_action_output_t* entry = &entries[stale[it]];
     err = link_target(run, paths[stale[it]], entry->name, entry->digest);
     if (err) {
-      diag_set_path(a, diag, err, paths[stale[it]]);
+      diag = diag_at(a, err, artifact, paths[stale[it]]);
       goto done;
     }
   }
@@ -438,38 +393,10 @@ static spn_err_t settle_tree(si_dag_action_handle_t* a, const spn_dag_artifact_t
 
 done:
   sp_mem_end_scratch(s);
-  return err;
+  return diag;
 }
 
-static spn_err_t settle_file(si_dag_action_handle_t* a, const spn_dag_artifact_t* artifact, spn_dag_diag_t* diag) {
-  spn_dag_run_t* run = a->run;
-  const spn_dag_action_t* action = a->action;
-  spn_dag_digest_t digest = spn_dag_run_artifact(run, artifact->id)->digest;
-  switch (target_state(run, artifact->path, artifact->name, digest)) {
-    case TARGET_SETTLED: {
-      trace_emit(run, (spn_dag_trace_event_t) { .kind = SPN_DAG_TRACE_SETTLE, .action = action->id, .producer = artifact->id, .key = digest, .hit = true });
-      return SPN_OK;
-    }
-    case TARGET_POISONED: {
-      spn_dag_store_drop(run->store, digest, artifact->name);
-      diag_set_path(a, diag, SPN_ERR_DAG_STORE_MISSING, artifact->path);
-      return SPN_ERR_DAG_STORE_MISSING;
-    }
-    case TARGET_STALE: {
-      break;
-    }
-  }
-  a->wrote = true;
-  spn_err_t err = link_target(run, artifact->path, artifact->name, digest);
-  if (err) {
-    diag_set_path(a, diag, err, artifact->path);
-    return err;
-  }
-  trace_emit(run, (spn_dag_trace_event_t) { .kind = SPN_DAG_TRACE_SETTLE, .action = action->id, .producer = artifact->id, .key = digest, .hit = false });
-  return SPN_OK;
-}
-
-static spn_err_t settle(si_dag_action_handle_t* a, spn_dag_diag_t* diag) {
+static spn_dag_diag_t settle(si_dag_action_handle_t* a) {
   const spn_dag_action_t* action = a->action;
   spn_dag_run_t* run = a->run;
   a->wrote = false;
@@ -481,46 +408,70 @@ static spn_err_t settle(si_dag_action_handle_t* a, spn_dag_diag_t* diag) {
       spn_err_t located = spn_dag_store_locate(run->store, run->mem, produced->digest, artifact->name, &produced->location);
       sp_mutex_unlock(&run->mutex);
       if (located) {
-        diag_set(diag, located, action->id, artifact->name);
-        return located;
+        return diag_at(a, located, artifact, sp_zero_s(spn_path_t));
       }
       continue;
     }
-    spn_try(artifact->kind == SPN_DAG_ARTIFACT_KIND_TREE
-      ? settle_tree(a, artifact, diag)
-      : settle_file(a, artifact, diag));
+    switch (artifact->kind) {
+      case SPN_DAG_ARTIFACT_KIND_TREE: {
+        spn_dag_diag_t diag = settle_tree(a, artifact);
+        if (diag.err) {
+          return diag;
+        }
+        break;
+      }
+      case SPN_DAG_ARTIFACT_KIND_VALUE:
+      case SPN_DAG_ARTIFACT_KIND_FILE: {
+        switch (target_state(run, artifact->path, artifact->name, produced->digest)) {
+          case TARGET_SETTLED: {
+            trace_emit(run, (spn_dag_trace_event_t) { .kind = SPN_DAG_TRACE_SETTLE, .action = action->id, .producer = artifact->id, .key = produced->digest, .hit = true });
+            break;
+          }
+          case TARGET_POISONED: {
+            spn_dag_store_drop(run->store, produced->digest, artifact->name);
+            return diag_at(a, SPN_ERR_DAG_STORE_MISSING, artifact, artifact->path);
+          }
+          case TARGET_STALE: {
+            a->wrote = true;
+            spn_err_t err = link_target(run, artifact->path, artifact->name, produced->digest);
+            if (err) {
+              return diag_at(a, err, artifact, artifact->path);
+            }
+            trace_emit(run, (spn_dag_trace_event_t) { .kind = SPN_DAG_TRACE_SETTLE, .action = action->id, .producer = artifact->id, .key = produced->digest, .hit = false });
+            break;
+          }
+        }
+        break;
+      }
+    }
     produced->location = artifact->path;
   }
-  return SPN_OK;
-}
-
-static bool restore_entry(si_dag_action_handle_t* a, const spn_dag_action_entry_t* entry) {
-  const spn_dag_action_t* action = a->action;
-  if (sp_da_size(entry->outputs) != sp_da_size(action->produces)) {
-    return false;
-  }
-
-  sp_da_for(entry->outputs, it) {
-    if (!sp_str_equal(entry->outputs[it].name, spn_dag_find_artifact(a->run->g, action->produces[it])->name)) {
-      return false;
-    }
-  }
-
-  sp_da_for(entry->outputs, it) {
-    artifact_state(a->run, action->produces[it])->digest = entry->outputs[it].digest;
-  }
-
-  return !settle(a, SP_NULLPTR);
+  return (spn_dag_diag_t) sp_zero;
 }
 
 static bool try_restore(si_dag_action_handle_t* a, spn_dag_digest_t key) {
   spn_dag_run_t* run = a->run;
+  const spn_dag_action_t* action = a->action;
   spn_dag_action_entry_t entry = sp_zero;
   bool present = spn_dag_action_cache_get(run->cache, key, &entry);
-  bool hit = present && restore_entry(a, &entry);
+  bool hit = present && sp_da_size(entry.outputs) == sp_da_size(action->produces);
+  if (hit) {
+    sp_da_for(entry.outputs, it) {
+      if (!sp_str_equal(entry.outputs[it].name, spn_dag_find_artifact(run->g, action->produces[it])->name)) {
+        hit = false;
+        break;
+      }
+    }
+  }
+  if (hit) {
+    sp_da_for(entry.outputs, it) {
+      artifact_state(run, action->produces[it])->digest = entry.outputs[it].digest;
+    }
+    hit = !settle(a).err;
+  }
   trace_emit(run, (spn_dag_trace_event_t) {
     .kind = SPN_DAG_TRACE_CACHE,
-    .action = a->action->id,
+    .action = action->id,
     .key = key,
     .present = present,
     .hit = hit,
@@ -608,7 +559,7 @@ done:
   return err;
 }
 
-static spn_err_t resolve_one(spn_dag_file_cache_t* files, const spn_dag_obs_t* o, spn_dag_digest_t* digest, sp_mem_t mem) {
+static spn_err_t resolve_one(spn_dag_file_cache_t* files, const spn_dag_obs_t* o, spn_dag_digest_t* digest) {
   *digest = (spn_dag_digest_t) sp_zero;
   switch (o->kind) {
     case SPN_DAG_OBS_ENUMERATION: {
@@ -641,17 +592,28 @@ static spn_err_t resolve_one(spn_dag_file_cache_t* files, const spn_dag_obs_t* o
   return spn_dag_file_cache_digest(files, o->path, digest);
 }
 
-static spn_err_t resolve_observations(spn_dag_file_cache_t* files, const spn_dag_obs_t* obs, u32 count, spn_dag_digest_t* digests) {
+static bool strong_key(si_dag_action_handle_t* a, const spn_dag_pathset_t* set, spn_dag_digest_t* strong) {
+  spn_dag_run_t* run = a->run;
   sp_mem_arena_marker_t s = sp_mem_begin_scratch();
-  spn_err_t err = SPN_OK;
+  u32 count = (u32)sp_da_size(set->obs);
+  spn_dag_digest_t* digests = sp_alloc_n(s.mem, spn_dag_digest_t, count);
+  bool resolved = true;
   sp_for(it, count) {
-    err = resolve_one(files, &obs[it], &digests[it], s.mem);
-    if (err) {
+    if (resolve_one(run->files, &set->obs[it], &digests[it])) {
+      resolved = false;
       break;
     }
   }
+  if (resolved) {
+    *strong = spn_dag_strong_key(run->g->roots, a->key, set->pinned, set->obs, digests, count);
+  }
   sp_mem_end_scratch(s);
-  return err;
+
+  trace_emit(run, (spn_dag_trace_event_t) { .kind = SPN_DAG_TRACE_RESOLVE, .action = a->action->id, .hit = resolved });
+  if (resolved) {
+    trace_emit(run, (spn_dag_trace_event_t) { .kind = SPN_DAG_TRACE_STRONG, .action = a->action->id, .key = *strong });
+  }
+  return resolved;
 }
 
 static void record(si_dag_action_handle_t* a, spn_dag_digest_t key) {
@@ -684,7 +646,7 @@ spn_path_t si_dag_resolve_output(const si_dag_ctx_t* c, spn_dag_id_t id) {
 }
 
 spn_path_t si_dag_canonicalize_path(const si_dag_ctx_t* c, spn_path_t path) {
-  return spn_dag_file_cache_canonical(c->handle->run->files, path);
+  return file_cache_canonical(c->handle->run->files, path);
 }
 
 void si_dag_observe(const si_dag_ctx_t* c, spn_dag_obs_t obs) {
@@ -697,61 +659,10 @@ void si_dag_add_warm(const si_dag_ctx_t* c, s64 delta) {
   progress_wake(run);
 }
 
-static void diag_flush(si_dag_action_handle_t* a, spn_err_t err) {
-  if (!err) {
-    return;
-  }
-  if (a->diag.err) {
-    diag_set(&a->run->diag, a->diag.err, a->diag.action, a->diag.path);
-  }
-  else {
-    diag_set(&a->run->diag, err, a->action->id, sp_str_lit(""));
-  }
-}
-
 static spn_dag_digest_t weak_key_traced(si_dag_action_handle_t* a) {
   spn_dag_digest_t key = spn_dag_weak_key(a->run->g, a->run->artifacts, a->action->id);
   trace_emit(a->run, (spn_dag_trace_event_t) { .kind = SPN_DAG_TRACE_KEY, .action = a->action->id, .key = key });
   return key;
-}
-
-static void lookup(si_dag_action_handle_t* attempt) {
-  spn_dag_run_t* run = attempt->run;
-  const spn_dag_t* g = run->g;
-  const spn_dag_action_t* action = attempt->action;
-
-  switch (action->kind) {
-    case SPN_DAG_ACTION_STATIC: {
-      attempt->key = weak_key_traced(attempt);
-      attempt->hit = try_restore(attempt, attempt->key);
-      break;
-    }
-    case SPN_DAG_ACTION_DISCOVERED: {
-      attempt->key = weak_key_traced(attempt);
-      spn_dag_pathset_t set = sp_zero;
-      bool present = spn_dag_obs_table_get(run->discovery, attempt->key, &set);
-      trace_emit(run, (spn_dag_trace_event_t) { .kind = SPN_DAG_TRACE_DISCOVERY, .action = action->id, .key = attempt->key, .hit = present });
-      if (!present) {
-        break;
-      }
-      sp_mem_arena_marker_t s = sp_mem_begin_scratch();
-      u32 count = (u32)sp_da_size(set.obs);
-      spn_dag_digest_t* digests = sp_alloc_n(s.mem, spn_dag_digest_t, count);
-      bool resolved = !resolve_observations(run->files, set.obs, count, digests);
-      spn_dag_digest_t strong = resolved ? spn_dag_strong_key(g->roots, attempt->key, set.pinned, set.obs, digests, count) : attempt->key;
-      sp_mem_end_scratch(s);
-      trace_resolve(run, action->id, resolved);
-      if (!resolved) {
-        break;
-      }
-      trace_emit(run, (spn_dag_trace_event_t) { .kind = SPN_DAG_TRACE_STRONG, .action = action->id, .key = strong });
-      attempt->hit = try_restore(attempt, strong);
-      break;
-    }
-    case SPN_DAG_ACTION_UNCACHEABLE: {
-      break;
-    }
-  }
 }
 
 static spn_err_t execute_attempt(sp_mem_t mem, si_dag_action_handle_t* attempt, spn_path_t staging) {
@@ -770,29 +681,22 @@ static spn_err_t execute_attempt(sp_mem_t mem, si_dag_action_handle_t* attempt, 
 
   trace_emit(run, (spn_dag_trace_event_t) { .kind = SPN_DAG_TRACE_EXECUTE, .action = action->id, .key = attempt->key });
 
+  spn_dag_obs_set_t* obs = action->kind == SPN_DAG_ACTION_DISCOVERED ? &attempt->obs : SP_NULLPTR;
   si_dag_ctx_t c = {
     .handle = attempt,
     .consumes = action->consumes,
     .produces = action->produces,
     .roots = g->roots,
     .scratch = staging,
-    .obs = action->kind == SPN_DAG_ACTION_DISCOVERED ? &attempt->obs : SP_NULLPTR,
+    .obs = obs,
   };
   spn_err_t err = action->execute(&c, action->user_data);
   if (err) {
-    diag_set(&attempt->diag, err, action->id, sp_str_lit(""));
+    attempt->diag = (spn_dag_diag_t) { .err = err, .action = action->id };
     return err;
   }
-  switch (action->kind) {
-    case SPN_DAG_ACTION_DISCOVERED: {
-      spn_dag_obs_canonicalize(attempt->obs.rows);
-      break;
-    }
-    case SPN_DAG_ACTION_STATIC:
-    case SPN_DAG_ACTION_UNCACHEABLE: {
-      sp_assert(sp_da_empty(attempt->obs.rows));
-      break;
-    }
+  if (obs) {
+    spn_dag_obs_canonicalize(obs->rows);
   }
 
   sp_da_for(action->produces, it) {
@@ -813,7 +717,7 @@ static spn_err_t execute_attempt(sp_mem_t mem, si_dag_action_handle_t* attempt, 
       }
     }
     if (err) {
-      diag_set(&attempt->diag, err, action->id, artifact_location(attempt, artifact));
+      attempt->diag = diag_at(attempt, err, artifact, artifact->path);
       return err;
     }
   }
@@ -830,52 +734,6 @@ static spn_err_t execute(si_dag_action_handle_t* attempt, spn_path_t scratch) {
   sp_fs_remove_dir_at(dir);
   sp_mem_end_scratch(s);
   return err;
-}
-
-static spn_err_t commit(si_dag_action_handle_t* attempt) {
-  spn_dag_run_t* run = attempt->run;
-  const spn_dag_t* g = run->g;
-  const spn_dag_action_t* action = attempt->action;
-  sp_assert(!attempt->hit);
-
-  sp_da_for(action->produces, it) {
-    artifact_state(run, action->produces[it])->digest = attempt->digests[it];
-  }
-
-  switch (action->kind) {
-    case SPN_DAG_ACTION_UNCACHEABLE: {
-      spn_try(settle(attempt, &attempt->diag));
-      trace_emit(run, (spn_dag_trace_event_t) { .kind = SPN_DAG_TRACE_COMMIT, .action = action->id });
-      return SPN_OK;
-    }
-    case SPN_DAG_ACTION_STATIC: {
-      spn_try(settle(attempt, &attempt->diag));
-      record(attempt, attempt->key);
-      trace_emit(run, (spn_dag_trace_event_t) { .kind = SPN_DAG_TRACE_COMMIT, .action = action->id, .key = attempt->key, .hit = true });
-      return SPN_OK;
-    }
-    case SPN_DAG_ACTION_DISCOVERED: {
-      spn_dag_pathset_t set = spn_dag_obs_set_put(&attempt->obs, attempt->key);
-      sp_mem_arena_marker_t s = sp_mem_begin_scratch();
-      u32 count = (u32)sp_da_size(set.obs);
-      spn_dag_digest_t* digests = sp_alloc_n(s.mem, spn_dag_digest_t, count);
-      bool resolved = !resolve_observations(run->files, set.obs, count, digests);
-      spn_dag_digest_t key = resolved ? spn_dag_strong_key(g->roots, attempt->key, set.pinned, set.obs, digests, count) : attempt->key;
-      sp_mem_end_scratch(s);
-      trace_resolve(run, action->id, resolved);
-      if (resolved) {
-        trace_emit(run, (spn_dag_trace_event_t) { .kind = SPN_DAG_TRACE_STRONG, .action = action->id, .key = key });
-      }
-      spn_try(settle(attempt, &attempt->diag));
-      if (resolved) {
-        record(attempt, key);
-      }
-      trace_emit(run, (spn_dag_trace_event_t) { .kind = SPN_DAG_TRACE_COMMIT, .action = action->id, .key = key, .hit = resolved });
-      return SPN_OK;
-    }
-  }
-
-  sp_unreachable_return(SPN_ERROR);
 }
 
 typedef struct {
@@ -901,6 +759,12 @@ typedef struct {
   sp_atomic_s32_t completed;
 } sched_t;
 
+typedef enum {
+  SCHED_PROCEED,
+  SCHED_WAIT,
+  SCHED_REQUEUE,
+} sched_verdict_t;
+
 static bool path_parent(spn_path_t* path) {
   spn_path_t parent = spn_path_parent(*path);
   if (spn_path_equal(parent, *path) || spn_path_empty(parent)) {
@@ -913,9 +777,11 @@ static bool path_parent(spn_path_t* path) {
 static void sched_init(sched_t* s, sp_mem_t mem, const spn_dag_run_t* run) {
   const spn_dag_t* g = run->g;
   u64 n = sp_da_size(g->actions);
-  s->run = run;
-  s->slots = sp_alloc_n(mem, slot_t, n ? n : 1);
-  s->ready = sp_da_new(mem, spn_dag_id_t);
+  *s = (sched_t) {
+    .run = run,
+    .slots = sp_alloc_n(mem, slot_t, n ? n : 1),
+    .ready = sp_da_new(mem, spn_dag_id_t),
+  };
   sp_ht_init(mem, s->by_path);
   sp_ht_set_fns(s->by_path, spn_path_on_hash, spn_path_on_compare);
   sp_ht_init(mem, s->below);
@@ -927,8 +793,6 @@ static void sched_init(sched_t* s, sp_mem_t mem, const spn_dag_run_t* run) {
       continue;
     }
 
-    sp_assert(!spn_path_pinned(g->roots, artifact->path));
-    sp_assert(!sp_ht_getp(s->by_path, artifact->path));
     sp_ht_insert(s->by_path, artifact->path, ((target_t) {
       .producer = artifact->producer.index,
       .kind = artifact->kind
@@ -968,26 +832,28 @@ static u64 sched_epoch(sched_t* s) {
   return (u64)sp_atomic_s32_load(&s->completed, SP_ATOMIC_SEQ_CST);
 }
 
-static void sched_defer_producer(sched_t* s, spn_dag_id_t action, u32 producer_index, u64 epoch, bool* requeue) {
+static bool sched_defer_producer(sched_t* s, spn_dag_id_t action, u32 producer_index, u64 epoch) {
   if (producer_index == action.index) {
-    return;
+    return false;
   }
   slot_t* producer = &s->slots[producer_index];
   spn_dag_id_t producer_id = s->run->g->actions[producer_index].id;
   if (producer->done) {
-    if (producer->done_epoch > epoch && producer->wrote) {
+    bool stale = producer->done_epoch > epoch && producer->wrote;
+    if (stale) {
       trace_emit(s->run, (spn_dag_trace_event_t) { .kind = SPN_DAG_TRACE_REQUEUE, .action = action, .producer = producer_id });
-      *requeue = true;
     }
-    return;
+    return stale;
   }
   trace_emit(s->run, (spn_dag_trace_event_t) { .kind = SPN_DAG_TRACE_DEFER, .action = action, .producer = producer_id });
   sp_da_push(producer->waiters, action.index);
   s->slots[action.index].deferred++;
+  return false;
 }
 
-static bool sched_defer(sched_t* s, spn_dag_id_t action, sp_da(spn_dag_obs_t) obs, u64 epoch, bool* requeue) {
+static sched_verdict_t sched_defer(sched_t* s, spn_dag_id_t action, sp_da(spn_dag_obs_t) obs, u64 epoch) {
   const spn_path_roots_t* roots = s->run->g->roots;
+  bool requeue = false;
   sp_da_for(obs, it) {
     const spn_dag_obs_t* o = &obs[it];
     if (spn_path_pinned(roots, o->path)) {
@@ -995,14 +861,14 @@ static bool sched_defer(sched_t* s, spn_dag_id_t action, sp_da(spn_dag_obs_t) ob
     }
 
     target_t* exact = sp_ht_getp(s->by_path, o->path);
-    if (exact) {
-      sched_defer_producer(s, action, exact->producer, epoch, requeue);
+    if (exact && sched_defer_producer(s, action, exact->producer, epoch)) {
+      requeue = true;
     }
 
     for (spn_path_t dir = o->path; path_parent(&dir);) {
       target_t* tree = sp_ht_getp(s->by_path, dir);
-      if (tree && tree->kind == SPN_DAG_ARTIFACT_KIND_TREE) {
-        sched_defer_producer(s, action, tree->producer, epoch, requeue);
+      if (tree && tree->kind == SPN_DAG_ARTIFACT_KIND_TREE && sched_defer_producer(s, action, tree->producer, epoch)) {
+        requeue = true;
       }
     }
 
@@ -1010,13 +876,18 @@ static bool sched_defer(sched_t* s, spn_dag_id_t action, sp_da(spn_dag_obs_t) ob
       sp_da(u32)* below = sp_ht_getp(s->below, o->path);
       if (below) {
         sp_da_for(*below, bi) {
-          sched_defer_producer(s, action, (*below)[bi], epoch, requeue);
+          if (sched_defer_producer(s, action, (*below)[bi], epoch)) {
+            requeue = true;
+          }
         }
       }
     }
   }
 
-  return s->slots[action.index].deferred > 0;
+  if (s->slots[action.index].deferred) {
+    return SCHED_WAIT;
+  }
+  return requeue ? SCHED_REQUEUE : SCHED_PROCEED;
 }
 
 static void sched_finish(sched_t* s, spn_dag_id_t action, bool wrote) {
@@ -1056,7 +927,6 @@ typedef struct loop_t loop_t;
 
 typedef struct {
   loop_t* loop;
-  const spn_dag_action_t* action;
   u64 epoch;
   spn_err_t err;
   bool parked;
@@ -1076,100 +946,164 @@ struct loop_t {
 static void flight_run(void* data) {
   flight_t* flight = (flight_t*)data;
   loop_t* loop = flight->loop;
+  si_dag_action_handle_t* attempt = &flight->attempt;
+  spn_dag_run_t* run = attempt->run;
+  const spn_dag_action_t* action = attempt->action;
   flight->epoch = sched_epoch(&loop->sched);
-  lookup(&flight->attempt);
-  if (!flight->attempt.hit) {
-    flight->err = execute(&flight->attempt, loop->scratch);
+
+  switch (action->kind) {
+    case SPN_DAG_ACTION_STATIC: {
+      attempt->hit = try_restore(attempt, attempt->key);
+      break;
+    }
+    case SPN_DAG_ACTION_DISCOVERED: {
+      spn_dag_pathset_t set = sp_zero;
+      bool present = spn_dag_obs_table_get(run->discovery, attempt->key, &set);
+      trace_emit(run, (spn_dag_trace_event_t) { .kind = SPN_DAG_TRACE_DISCOVERY, .action = action->id, .key = attempt->key, .hit = present });
+      spn_dag_digest_t strong = sp_zero;
+      if (present && strong_key(attempt, &set, &strong)) {
+        attempt->hit = try_restore(attempt, strong);
+      }
+      break;
+    }
+    case SPN_DAG_ACTION_UNCACHEABLE: {
+      break;
+    }
+  }
+
+  if (!attempt->hit) {
+    flight->err = execute(attempt, loop->scratch);
   }
 }
 
-static void run_commit_flight(loop_t* loop, flight_t* flight) {
-  loop->err = commit(&flight->attempt);
-  diag_flush(&flight->attempt, loop->err);
-  if (loop->err) {
-    return;
-  }
-  progress_count(loop->run, flight->action, false);
-  sched_finish(&loop->sched, flight->action->id, flight->attempt.wrote);
-}
-
-static void run_dispatch(loop_t* loop, spn_dag_id_t id) {
-  const spn_dag_action_t* action = spn_dag_find_action(loop->run->g, id);
-  flight_t* flight = &loop->flights[id.index];
-
-  if (flight->parked) {
-    bool requeue = false;
-    if (sched_defer(&loop->sched, id, flight->attempt.obs.rows, flight->epoch, &requeue)) {
-      return;
-    }
-    flight->parked = false;
-    if (!requeue) {
-      run_commit_flight(loop, flight);
-      return;
-    }
-  }
-
-  if (action->kind == SPN_DAG_ACTION_DISCOVERED) {
-    spn_dag_pathset_t set = sp_zero;
-    bool requeue = false;
-    if (spn_dag_obs_table_get(loop->run->discovery, spn_dag_weak_key(loop->run->g, loop->run->artifacts, id), &set)
-      && sched_defer(&loop->sched, id, set.obs, sched_epoch(&loop->sched), &requeue)) {
-      return;
-    }
-    sp_assert(!requeue);
-  }
+static void dispatch(loop_t* loop, flight_t* flight) {
+  spn_dag_run_t* run = loop->run;
+  si_dag_action_handle_t* attempt = &flight->attempt;
+  const spn_dag_action_t* action = attempt->action;
 
   flight->err = SPN_OK;
-  flight->attempt = (si_dag_action_handle_t) {
-    .run = loop->run,
+  *attempt = (si_dag_action_handle_t) {
+    .run = run,
     .action = action,
-    .digests = flight->attempt.digests,
-    .obs.table = loop->run->discovery,
+    .digests = attempt->digests,
+    .obs.table = run->discovery,
   };
+
+  switch (action->kind) {
+    case SPN_DAG_ACTION_STATIC: {
+      attempt->key = weak_key_traced(attempt);
+      break;
+    }
+    case SPN_DAG_ACTION_DISCOVERED: {
+      attempt->key = weak_key_traced(attempt);
+      spn_dag_pathset_t set = sp_zero;
+      if (spn_dag_obs_table_get(run->discovery, attempt->key, &set)) {
+        sched_verdict_t verdict = sched_defer(&loop->sched, action->id, set.obs, sched_epoch(&loop->sched));
+        sp_assert(verdict != SCHED_REQUEUE);
+        if (verdict == SCHED_WAIT) {
+          return;
+        }
+      }
+      break;
+    }
+    case SPN_DAG_ACTION_UNCACHEABLE: {
+      break;
+    }
+  }
 
   spn_thread_pool_submit(loop->ex, (spn_thread_pool_job_t) { .fn = flight_run, .data = flight });
   loop->in_flight++;
 }
 
-static void run_complete(loop_t* loop, flight_t* flight) {
-  const spn_dag_action_t* action = flight->action;
+static void complete(loop_t* loop, flight_t* flight) {
+  spn_dag_run_t* run = loop->run;
   si_dag_action_handle_t* attempt = &flight->attempt;
+  const spn_dag_action_t* action = attempt->action;
+  flight->parked = false;
 
-  if (loop->err || flight->err) {
-    diag_flush(attempt, flight->err);
-    loop->err = loop->err ? loop->err : flight->err;
+  if (loop->err) {
+    return;
+  }
+
+  spn_err_t err = flight->err;
+  if (!err && !attempt->hit) {
+    if (action->kind == SPN_DAG_ACTION_DISCOVERED) {
+      switch (sched_defer(&loop->sched, action->id, attempt->obs.rows, flight->epoch)) {
+        case SCHED_WAIT: {
+          flight->parked = true;
+          return;
+        }
+        case SCHED_REQUEUE: {
+          dispatch(loop, flight);
+          return;
+        }
+        case SCHED_PROCEED: {
+          break;
+        }
+      }
+    }
+
+    sp_da_for(action->produces, it) {
+      artifact_state(run, action->produces[it])->digest = attempt->digests[it];
+    }
+    switch (action->kind) {
+      case SPN_DAG_ACTION_UNCACHEABLE: {
+        attempt->diag = settle(attempt);
+        err = attempt->diag.err;
+        if (!err) {
+          trace_emit(run, (spn_dag_trace_event_t) { .kind = SPN_DAG_TRACE_COMMIT, .action = action->id });
+        }
+        break;
+      }
+      case SPN_DAG_ACTION_STATIC: {
+        attempt->diag = settle(attempt);
+        err = attempt->diag.err;
+        if (!err) {
+          record(attempt, attempt->key);
+          trace_emit(run, (spn_dag_trace_event_t) { .kind = SPN_DAG_TRACE_COMMIT, .action = action->id, .key = attempt->key, .hit = true });
+          sp_atomic_s32_add(&run->progress.misses, 1, SP_ATOMIC_SEQ_CST);
+        }
+        break;
+      }
+      case SPN_DAG_ACTION_DISCOVERED: {
+        spn_dag_pathset_t set = spn_dag_obs_set_put(&attempt->obs, attempt->key);
+        spn_dag_digest_t key = attempt->key;
+        bool resolved = strong_key(attempt, &set, &key);
+        attempt->diag = settle(attempt);
+        err = attempt->diag.err;
+        if (!err) {
+          if (resolved) {
+            record(attempt, key);
+          }
+          trace_emit(run, (spn_dag_trace_event_t) { .kind = SPN_DAG_TRACE_COMMIT, .action = action->id, .key = key, .hit = resolved });
+          sp_atomic_s32_add(&run->progress.misses, 1, SP_ATOMIC_SEQ_CST);
+        }
+        break;
+      }
+    }
+  }
+
+  if (err) {
+    run->diag = attempt->diag.err ? attempt->diag : (spn_dag_diag_t) { .err = err, .action = action->id };
+    loop->err = err;
     return;
   }
 
   if (attempt->hit) {
-    progress_count(loop->run, action, true);
-    sched_finish(&loop->sched, action->id, attempt->wrote);
-    return;
+    sp_atomic_s32_add(&run->progress.hits, 1, SP_ATOMIC_SEQ_CST);
   }
-
-  if (action->kind == SPN_DAG_ACTION_DISCOVERED) {
-    bool requeue = false;
-    if (sched_defer(&loop->sched, action->id, attempt->obs.rows, flight->epoch, &requeue)) {
-      flight->parked = true;
-      return;
-    }
-    if (requeue) {
-      sp_da_push(loop->sched.ready, action->id);
-      return;
-    }
-  }
-
-  run_commit_flight(loop, flight);
+  sp_atomic_s32_add(&run->progress.completed, 1, SP_ATOMIC_SEQ_CST);
+  progress_wake(run);
+  sched_finish(&loop->sched, action->id, attempt->wrote);
 }
 
 static spn_err_t run_graph(spn_dag_run_t* run, spn_thread_pool_executor_t* ex, sp_mem_t mem, spn_path_t scratch) {
   const spn_dag_t* g = run->g;
   spn_try(spn_dag_file_cache_fence_dir(run->files, scratch));
 
-  spn_dag_violation_t violation = spn_dag_validate(g);
-  if (violation.err) {
-    diag_set(&run->diag, violation.err, (spn_dag_id_t) sp_zero, render_path(run, violation.path));
-    return violation.err;
+  run->diag = spn_dag_validate(g);
+  if (run->diag.err) {
+    return run->diag.err;
   }
 
   sp_da_for(g->artifacts, it) {
@@ -1191,7 +1125,7 @@ static spn_err_t run_graph(spn_dag_run_t* run, spn_thread_pool_executor_t* ex, s
         }
         sp_sys_file_meta_t sys = sp_zero;
         if (spn_dag_file_cache_stat(run->files, artifact->path, &sys) || sys.kind == SP_FS_KIND_DIR || spn_dag_file_cache_digest(run->files, artifact->path, &state->digest)) {
-          diag_set(&run->diag, SPN_ERR_DAG_MISSING_INPUT, (spn_dag_id_t) sp_zero, render_path(run, artifact->path));
+          run->diag = (spn_dag_diag_t) { .err = SPN_ERR_DAG_MISSING_INPUT, .artifact = artifact->id, .path = artifact->path };
           return SPN_ERR_DAG_MISSING_INPUT;
         }
         break;
@@ -1204,7 +1138,12 @@ static spn_err_t run_graph(spn_dag_run_t* run, spn_thread_pool_executor_t* ex, s
 
   u64 n = sp_da_size(g->actions);
   sp_assert(n < (1u << 30));
-  progress_begin(run, n);
+  sp_atomic_s32_store(&run->progress.total, (s32)n, SP_ATOMIC_SEQ_CST);
+  sp_atomic_s32_store(&run->progress.completed, 0, SP_ATOMIC_SEQ_CST);
+  sp_atomic_s32_store(&run->progress.hits, 0, SP_ATOMIC_SEQ_CST);
+  sp_atomic_s32_store(&run->progress.misses, 0, SP_ATOMIC_SEQ_CST);
+  sp_atomic_u64_store(&run->progress.warm, 0, SP_ATOMIC_SEQ_CST);
+  progress_wake(run);
 
   loop_t loop = {
     .run = run,
@@ -1222,8 +1161,10 @@ static spn_err_t run_graph(spn_dag_run_t* run, spn_thread_pool_executor_t* ex, s
   sp_da_for(g->actions, ai) {
     loop.flights[ai] = (flight_t) {
       .loop = &loop,
-      .action = &g->actions[ai],
-      .attempt = { .digests = digests },
+      .attempt = {
+        .action = &g->actions[ai],
+        .digests = digests,
+      },
     };
     digests += sp_da_size(g->actions[ai].produces);
   }
@@ -1241,19 +1182,24 @@ static spn_err_t run_graph(spn_dag_run_t* run, spn_thread_pool_executor_t* ex, s
     spn_thread_pool_job_t job = spn_thread_pool_try_poll(ex);
     if (job.fn) {
       loop.in_flight--;
-      run_complete(&loop, (flight_t*)job.data);
+      complete(&loop, (flight_t*)job.data);
       continue;
     }
     if (!loop.err && !sp_da_empty(loop.sched.ready)) {
-      spn_dag_id_t id = *sp_da_back(loop.sched.ready);
+      flight_t* flight = &loop.flights[sp_da_back(loop.sched.ready)->index];
       sp_da_pop(loop.sched.ready);
-      run_dispatch(&loop, id);
+      if (flight->parked) {
+        complete(&loop, flight);
+      }
+      else {
+        dispatch(&loop, flight);
+      }
       continue;
     }
     if (loop.in_flight) {
       job = spn_thread_pool_poll(ex);
       loop.in_flight--;
-      run_complete(&loop, (flight_t*)job.data);
+      complete(&loop, (flight_t*)job.data);
       continue;
     }
     break;
@@ -1282,8 +1228,8 @@ spn_err_t spn_dag_run(spn_dag_run_t* run, spn_thread_pool_executor_t* ex) {
     err = run_graph(run, ex, s.mem, scratch);
     sp_fs_remove_dir_at(spn_path_at(g->roots, scratch));
   }
-  if (err) {
-    diag_set(&run->diag, err, (spn_dag_id_t) sp_zero, sp_str_lit(""));
+  if (err && !run->diag.err) {
+    run->diag = (spn_dag_diag_t) { .err = err };
   }
 
   sp_mem_end_scratch(s);

@@ -171,9 +171,9 @@ bool spn_dag_output_overlaps(const spn_dag_artifact_t* artifact, spn_path_t path
   return below || above;
 }
 
-spn_dag_violation_t spn_dag_validate(const spn_dag_t* g) {
+spn_dag_diag_t spn_dag_validate(const spn_dag_t* g) {
   sp_str_buf_t buf = sp_zero;
-  spn_dag_violation_t violation = sp_zero;
+  spn_dag_diag_t violation = sp_zero;
   sp_da_for(g->artifacts, it) {
     const spn_dag_artifact_t* artifact = &g->artifacts[it];
     if (spn_path_empty(artifact->path)) {
@@ -202,7 +202,7 @@ spn_dag_violation_t spn_dag_validate(const spn_dag_t* g) {
     }
 
     if (err) {
-      violation = (spn_dag_violation_t) { .err = err, .path = artifact->path };
+      violation = (spn_dag_diag_t) { .err = err, .artifact = artifact->id, .path = artifact->path };
       break;
     }
   }
@@ -386,11 +386,11 @@ sp_str_t spn_dag_digest_hex(sp_mem_t mem, spn_dag_digest_t digest) {
   return spn_digest_hex(mem, digest.bytes);
 }
 
-bool spn_dag_digest_parse(sp_str_t hex, spn_dag_digest_t* out) {
-  if (hex.len != 2 * sizeof(out->bytes)) {
+bool spn_dag_digest_parse(sp_str_t hex, spn_dag_digest_t* digest) {
+  if (hex.len != 2 * sizeof(digest->bytes)) {
     return false;
   }
-  sp_for(it, sizeof(out->bytes)) {
+  sp_for(it, sizeof(digest->bytes)) {
     u8 byte = 0;
     sp_for(n, 2) {
       c8 c = hex.data[2 * it + n];
@@ -404,7 +404,7 @@ bool spn_dag_digest_parse(sp_str_t hex, spn_dag_digest_t* out) {
       }
       byte = (u8)(byte << 4) | nibble;
     }
-    out->bytes[it] = byte;
+    digest->bytes[it] = byte;
   }
   return true;
 }

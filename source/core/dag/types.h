@@ -256,13 +256,9 @@ SP_TYPEDEF_FN(void, spn_dag_trace_fn_t, const spn_dag_trace_event_t*, void*);
 typedef struct {
   spn_err_t err;
   spn_dag_id_t action;
-  sp_str_t path;
-} spn_dag_diag_t;
-
-typedef struct {
-  spn_err_t err;
+  spn_dag_id_t artifact;
   spn_path_t path;
-} spn_dag_violation_t;
+} spn_dag_diag_t;
 
 typedef struct {
   spn_dag_digest_t digest;
