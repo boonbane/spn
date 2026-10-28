@@ -13,7 +13,6 @@ typedef struct {
   path_expect_t work;
   path_expect_t store;
   path_expect_t include;
-  path_expect_t stamp;
 } paths_test_t;
 
 static const paths_test_t tests [] = {
@@ -23,7 +22,6 @@ static const paths_test_t tests [] = {
     .work =    { .sub = "/build/debug/.spn/A" },
     .store =   { .sub = "/build/debug/store/A" },
     .include = { .sub = "/build/debug/store/A/include" },
-    .stamp =   { .sub = "/build/debug/.spn/A/stamp" },
   },
   {
     .name = "file_package_lives_under_the_build_root",
@@ -31,7 +29,6 @@ static const paths_test_t tests [] = {
     .work =    { .sub = "/build/debug/.spn/A" },
     .store =   { .sub = "/build/debug/store/A" },
     .include = { .sub = "/build/debug/store/A/include" },
-    .stamp =   { .sub = "/build/debug/.spn/A/stamp" },
   },
   {
     .name = "index_package_lives_under_the_build_and_store_dirs",
@@ -39,7 +36,6 @@ static const paths_test_t tests [] = {
     .work =    { .root = SPN_PATH_ROOT_STORAGE, .prefix = "cache/build/core/A/" },
     .store =   { .root = SPN_PATH_ROOT_STORAGE, .prefix = "cache/store/core/A/" },
     .include = { .root = SPN_PATH_ROOT_STORAGE, .prefix = "cache/store/core/A/", .suffix = "/include" },
-    .stamp =   { .root = SPN_PATH_ROOT_STORAGE, .prefix = "cache/build/core/A/", .suffix = "/stamp" },
   },
 };
 
@@ -76,7 +72,6 @@ sp_test_each(unit_paths, init, paths_test_t, tests, .setup = spn_test_ctx_setup)
   sp_try(expect_path(t, unit.paths.work, &it->work));
   sp_try(expect_path(t, unit.paths.store, &it->store));
   sp_try(expect_path(t, unit.paths.include, &it->include));
-  sp_try(expect_path(t, unit.paths.stamp, &it->stamp));
 
   return SP_OK;
 }

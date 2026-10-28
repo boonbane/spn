@@ -15,18 +15,19 @@ s32 check_p(spn_t* spn) {
     return 1;
   }
   fclose(file);
+  spn_io_write("/work/S.txt", "S");
   return 0;
 }
 
-// S has no outputs, so the link makes S's stamp the input of G; if the link
-// did nothing, G would run alongside P and find no stamp
+// The link makes S's output the input of G; if the link did nothing, G would
+// run alongside P and find no S.txt
 SPN_EXPORT
 s32 gen_g(spn_t* spn) {
-  FILE* stamp = fopen("/work/stamp/S", "r");
-  if (!stamp) {
+  FILE* witness = fopen("/work/S.txt", "r");
+  if (!witness) {
     return 1;
   }
-  fclose(stamp);
+  fclose(witness);
   spn_io_write("/work/G.h", "#define G 1\n");
   return 0;
 }

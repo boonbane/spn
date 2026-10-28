@@ -112,6 +112,7 @@ struct spn_dag_action_t {
   si_dag_fn_t execute;
   void* user_data;
   sp_da(spn_dag_id_t) consumes;
+  sp_da(spn_dag_id_t) orders;
   sp_da(spn_dag_id_t) produces;
   bool wrote;
 };

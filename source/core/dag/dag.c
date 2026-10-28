@@ -103,6 +103,7 @@ spn_dag_id_t spn_dag_add_action(spn_dag_t* g, spn_dag_action_config_t config) {
     .user_data = config.user_data,
   };
   sp_da_init(g->mem, action.consumes);
+  sp_da_init(g->mem, action.orders);
   sp_da_init(g->mem, action.produces);
   sp_da_push(g->actions, action);
   return action.id;
@@ -112,6 +113,13 @@ void spn_dag_action_add_input(spn_dag_t* g, spn_dag_id_t action_id, spn_dag_id_t
   spn_dag_action_t* action = spn_dag_find_action(g, action_id);
   spn_dag_artifact_t* artifact = spn_dag_find_artifact(g, artifact_id);
   sp_da_push(action->consumes, artifact_id);
+  sp_da_push(artifact->consumers, action_id);
+}
+
+void spn_dag_action_add_order(spn_dag_t* g, spn_dag_id_t action_id, spn_dag_id_t artifact_id) {
+  spn_dag_action_t* action = spn_dag_find_action(g, action_id);
+  spn_dag_artifact_t* artifact = spn_dag_find_artifact(g, artifact_id);
+  sp_da_push(action->orders, artifact_id);
   sp_da_push(artifact->consumers, action_id);
 }
 
@@ -222,15 +230,16 @@ void spn_dag_hash_digest(spn_digest_ctx_t* ctx, spn_dag_digest_t digest) {
   spn_dag_hash_bytes(ctx, digest.bytes, sizeof(digest.bytes));
 }
 
-void spn_dag_hash_path(spn_digest_ctx_t* ctx, spn_path_t path) {
-  spn_dag_hash_u8(ctx, (u8)path.root);
-  spn_dag_hash_str(ctx, path.sub);
+void spn_dag_hash_path(spn_digest_ctx_t* ctx, const spn_path_roots_t* roots, spn_path_t path) {
+  sp_mem_arena_marker_t s = sp_mem_begin_scratch();
+  spn_dag_hash_str(ctx, spn_path_str(roots, s.mem, path));
+  sp_mem_end_scratch(s);
 }
 
-void spn_dag_hash_paths(spn_digest_ctx_t* ctx, si_da(spn_path_t) paths) {
+void spn_dag_hash_paths(spn_digest_ctx_t* ctx, const spn_path_roots_t* roots, si_da(spn_path_t) paths) {
   spn_dag_hash_u64(ctx, si_da_size(paths));
   si_da_for(paths, it) {
-    spn_dag_hash_path(ctx, paths[it]);
+    spn_dag_hash_path(ctx, roots, paths[it]);
   }
 }
 
@@ -241,15 +250,15 @@ void spn_dag_hash_strs(spn_digest_ctx_t* ctx, si_da(sp_str_t) strs) {
   }
 }
 
-void spn_dag_hash_arg(spn_digest_ctx_t* ctx, spn_arg_t arg) {
+void spn_dag_hash_arg(spn_digest_ctx_t* ctx, const spn_path_roots_t* roots, spn_arg_t arg) {
   spn_dag_hash_str(ctx, arg.prefix);
-  spn_dag_hash_path(ctx, arg.path);
+  spn_dag_hash_path(ctx, roots, arg.path);
 }
 
-void spn_dag_hash_args(spn_digest_ctx_t* ctx, sp_da(spn_arg_t) args) {
+void spn_dag_hash_args(spn_digest_ctx_t* ctx, const spn_path_roots_t* roots, sp_da(spn_arg_t) args) {
   spn_dag_hash_u64(ctx, sp_da_size(args));
   sp_da_for(args, it) {
-    spn_dag_hash_arg(ctx, args[it]);
+    spn_dag_hash_arg(ctx, roots, args[it]);
   }
 }
 
@@ -264,10 +273,10 @@ spn_dag_digest_t spn_dag_weak_key(spn_dag_t* g, spn_dag_id_t action_id) {
 
   spn_digest_ctx_t ctx = sp_zero;
   spn_digest_init_blake3(&ctx);
-  spn_dag_hash_str(&ctx, sp_str_lit("spn.dag.action.v5"));
+  spn_dag_hash_str(&ctx, sp_str_lit("spn.dag.action.v6"));
   spn_dag_hash_u64(&ctx, sp_da_size(g->roots->pinned));
   sp_da_for(g->roots->pinned, it) {
-    spn_dag_hash_path(&ctx, g->roots->pinned[it]);
+    spn_dag_hash_path(&ctx, g->roots, g->roots->pinned[it]);
   }
   spn_dag_hash_digest(&ctx, action->identity);
 
@@ -289,22 +298,28 @@ spn_dag_digest_t spn_dag_weak_key(spn_dag_t* g, spn_dag_id_t action_id) {
   return spn_dag_hash_final(&ctx);
 }
 
-static void hash_obs_row(spn_digest_ctx_t* ctx, const spn_dag_obs_t* obs) {
+static void hash_located_row(spn_digest_ctx_t* ctx, const spn_path_roots_t* roots, const spn_dag_obs_t* obs) {
+  spn_dag_hash_u8(ctx, (u8)obs->kind);
+  spn_dag_hash_path(ctx, roots, obs->path);
+  spn_dag_hash_str(ctx, obs->filter);
+}
+
+static void hash_rooted_row(spn_digest_ctx_t* ctx, const spn_dag_obs_t* obs) {
   spn_dag_hash_u8(ctx, (u8)obs->kind);
   spn_dag_hash_u8(ctx, (u8)obs->path.root);
   spn_dag_hash_str(ctx, obs->path.sub);
   spn_dag_hash_str(ctx, obs->filter);
 }
 
-spn_dag_digest_t spn_dag_strong_key(spn_dag_digest_t weak, spn_dag_digest_t pinned, const spn_dag_obs_t* obs, const spn_dag_digest_t* digests, u32 count) {
+spn_dag_digest_t spn_dag_strong_key(const spn_path_roots_t* roots, spn_dag_digest_t weak, spn_dag_digest_t pinned, const spn_dag_obs_t* obs, const spn_dag_digest_t* digests, u32 count) {
   spn_digest_ctx_t ctx = sp_zero;
   spn_digest_init_blake3(&ctx);
-  spn_dag_hash_str(&ctx, sp_str_lit("spn.dag.strong.v8"));
+  spn_dag_hash_str(&ctx, sp_str_lit("spn.dag.strong.v9"));
   spn_dag_hash_digest(&ctx, weak);
   spn_dag_hash_digest(&ctx, pinned);
   spn_dag_hash_u64(&ctx, count);
   sp_for(it, count) {
-    hash_obs_row(&ctx, &obs[it]);
+    hash_located_row(&ctx, roots, &obs[it]);
     spn_dag_hash_digest(&ctx, digests[it]);
   }
 
@@ -325,7 +340,7 @@ spn_dag_digest_t spn_dag_pinned_digest(const spn_path_roots_t* roots, const spn_
   spn_dag_hash_u64(&ctx, rows);
   sp_for(it, count) {
     if (spn_path_pinned(roots, obs[it].path)) {
-      hash_obs_row(&ctx, &obs[it]);
+      hash_rooted_row(&ctx, &obs[it]);
     }
   }
   return spn_dag_hash_final(&ctx);
@@ -337,11 +352,11 @@ spn_dag_digest_t spn_dag_digest(const void* data, u64 len) {
   return digest;
 }
 
-spn_dag_digest_t spn_dag_path_digest(spn_path_t path) {
+spn_dag_digest_t spn_dag_path_digest(const spn_path_roots_t* roots, spn_path_t path) {
   spn_digest_ctx_t ctx = sp_zero;
   spn_digest_init_blake3(&ctx);
-  spn_dag_hash_str(&ctx, sp_str_lit("spn.dag.path.v1"));
-  spn_dag_hash_path(&ctx, path);
+  spn_dag_hash_str(&ctx, sp_str_lit("spn.dag.path.v2"));
+  spn_dag_hash_path(&ctx, roots, path);
   return spn_dag_hash_final(&ctx);
 }
 

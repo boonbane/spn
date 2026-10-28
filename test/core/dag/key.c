@@ -3,6 +3,7 @@
 typedef struct {
   const c8* identity;
   const c8* inputs [DAG_TEST_MAX_INPUTS];
+  const c8* orders [DAG_TEST_MAX_INPUTS];
   const c8* outputs [DAG_TEST_MAX_OUTPUTS];
 } action_t;
 
@@ -40,6 +41,12 @@ static const test_t tests [] = {
     .b = { .inputs = { "A", "B" } },
   },
   {
+    .name = "order_only_input_leaves_key_unchanged",
+    .a = { .inputs = { "A" } },
+    .b = { .inputs = { "A" }, .orders = { "B" } },
+    .expect = { .equal = true }
+  },
+  {
     .name = "identity_changes_key",
     .a = { .identity = "A", .inputs = { "A" } },
     .b = { .identity = "B", .inputs = { "A" } },
@@ -70,6 +77,14 @@ static sp_err_t build_key(sp_test_t* t, sp_mem_t mem, const spn_path_roots_t* ro
     sp_str_t str = sp_cstr_as_str(spec->inputs[it]);
     spn_dag_id_t value = spn_dag_add_value(g, str.data, str.len);
     spn_dag_action_add_input(g, action, value);
+  }
+
+  sp_carr_for(spec->orders, it) {
+    if (!spec->orders[it]) {
+      break;
+    }
+    sp_str_t str = sp_cstr_as_str(spec->orders[it]);
+    spn_dag_action_add_order(g, action, spn_dag_add_value(g, str.data, str.len));
   }
 
   sp_carr_for(spec->outputs, it) {

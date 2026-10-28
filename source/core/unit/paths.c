@@ -39,6 +39,4 @@ void spn_unit_paths_init(spn_pkg_unit_t* unit, spn_loaded_pkg_t* loaded) {
   unit->paths.bin = spn_path_join(mem, unit->paths.store, SP_LIT("bin"));
   unit->paths.lib = spn_path_join(mem, unit->paths.store, SP_LIT("lib"));
   unit->paths.vendor = spn_path_join(mem, unit->paths.store, SP_LIT("vendor"));
-
-  unit->paths.stamp = spn_path_join(mem, unit->paths.work, SP_LIT("stamp"));
 }
