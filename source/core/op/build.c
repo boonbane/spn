@@ -191,7 +191,7 @@ spn_err_t spn_op_build(spn_op_t* op) {
   sp_da_for(session->plans.build, it) {
     spn_build_plan_t* plan = &session->plans.build[it];
     spn_build_unit_t* build = plan->build;
-    const si_pkg_info_t* pkg = plan->root->eval.manifest;
+    const si_pkg_info_t* pkg = plan->root->pkg.manifest;
     spn_profile_info_t* profile = &build->profile;
 
     if (failed) {

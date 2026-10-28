@@ -88,8 +88,8 @@ static bool foreign(spn_pkg_unit_t* unit, spn_path_t path) {
   if (path.root != SPN_PATH_ROOT_NONE || spn_tree_rel(unit->paths.roots, path).tree != SPN_TREE_NONE) {
     return false;
   }
-  si_da_for(unit->eval.manifest->deps, it) {
-    spn_requested_dep_t* dep = &unit->eval.manifest->deps[it];
+  si_da_for(unit->pkg.manifest->deps, it) {
+    spn_requested_dep_t* dep = &unit->pkg.manifest->deps[it];
     spn_pkg_unit_t* dep_unit = spn_session_find_dep(unit->session, unit, dep->qualified.id, dep->kind);
     if (dep_unit && spn_tree_rel(dep_unit->paths.roots, path).tree != SPN_TREE_NONE) {
       return false;
@@ -122,13 +122,13 @@ static spn_path_t api_path(spn_pkg_unit_t* unit, const c8* fn, const c8* path) {
 static spn_target_t* wrap(spn_pkg_unit_t* unit, si_target_t* eval) {
   spn_target_t* target = sp_alloc_type(spn.mem, spn_target_t);
   target->unit = unit;
-  target->eval = eval;
+  target->target = eval;
   return target;
 }
 
 spn_target_t* spn_get_target(spn_t* spn, const c8* name, spn_target_kind_t kind) {
   spn_pkg_unit_t* unit = spn_api_unit(spn);
-  si_target_t* eval = spn_pkg_get_target(&unit->eval, sp_cstr_as_str(name), kind);
+  si_target_t* eval = spn_pkg_get_target(&unit->pkg, sp_cstr_as_str(name), kind);
   return eval ? wrap(unit, eval) : SP_NULLPTR;
 }
 
@@ -142,7 +142,7 @@ bool spn_api_name_rejected(spn_pkg_unit_t* unit, const c8* fn, const c8* name) {
   if (!spn_wasm_trap(message)) {
     spn_err_emit(unit->session->ctx, (spn_err_union_t) {
       .kind = SPN_ERR_NAME_SEPARATOR,
-      .target = { .pkg = unit->eval.manifest->name.str, .name = sp_str_copy(spn.events->mem, str) },
+      .target = { .pkg = unit->pkg.manifest->name.str, .name = sp_str_copy(spn.events->mem, str) },
     });
   }
   sp_mem_end_scratch(scratch);
@@ -155,27 +155,27 @@ void spn_add_include(spn_config_t* config, const c8* path) {
   if (spn_path_empty(made)) {
     return;
   }
-  si_da_push(unit->session->mem, unit->eval.configured.include, made);
+  si_da_push(unit->session->mem, unit->pkg.configured.include, made);
 }
 
 void spn_add_define(spn_config_t* config, const c8* define) {
   spn_pkg_unit_t* unit = spn_api_unit(config);
   sp_mem_t mem = unit->session->mem;
-  si_da_push(mem, unit->eval.define, sp_str_from_cstr(mem, define));
+  si_da_push(mem, unit->pkg.define, sp_str_from_cstr(mem, define));
 }
 
 void spn_add_system_dep(spn_config_t* config, const c8* dep) {
   spn_pkg_unit_t* unit = spn_api_unit(config);
   sp_mem_t mem = unit->session->mem;
-  si_da_push(mem, unit->eval.system_deps, sp_str_from_cstr(mem, dep));
+  si_da_push(mem, unit->pkg.system_deps, sp_str_from_cstr(mem, dep));
 }
 
 const spn_t* spn_get_dep(const spn_t* s, const c8* name) {
   spn_pkg_unit_t* unit = spn_api_unit(s);
   sp_str_t key = sp_str_view(name);
 
-  si_da_for(unit->eval.manifest->deps, it) {
-    spn_requested_dep_t* dep = &unit->eval.manifest->deps[it];
+  si_da_for(unit->pkg.manifest->deps, it) {
+    spn_requested_dep_t* dep = &unit->pkg.manifest->deps[it];
     if (!sp_str_equal(spn_pkg_name_from_qualified(dep->qualified.str).name, key)) continue;
 
     spn_pkg_unit_t* dep_unit = spn_session_find_dep(unit->session, unit, dep->qualified.id, dep->kind);
@@ -206,7 +206,7 @@ void spn_log(spn_t* s, const c8* message) {
   spn_pkg_unit_t* unit = spn_api_unit(s);
   spn_event_buffer_push(spn.events, (spn_event_t) {
     .kind = SPN_EVENT_USER_LOG,
-    .pkg = unit->eval.manifest->name.str,
+    .pkg = unit->pkg.manifest->name.str,
     .user_log = { .message = sp_str_from_cstr(spn.events->mem, message) },
   });
 }
@@ -247,7 +247,7 @@ void spn_target_add_source(spn_target_t* target, const c8* source) {
   if (spn_path_empty(made)) {
     return;
   }
-  si_da_push(target->unit->session->mem, target->eval->source, ((spn_source_t) {
+  si_da_push(target->unit->session->mem, target->target->source, ((spn_source_t) {
     .kind = sp_glob_parse_meta(sp_cstr_as_str(source)).literal ? SPN_SOURCE_FILE : SPN_SOURCE_GLOB,
     .path = made,
   }));
@@ -258,12 +258,12 @@ void spn_target_add_include(spn_target_t* target, const c8* include) {
   if (spn_path_empty(made)) {
     return;
   }
-  si_da_push(target->unit->session->mem, target->eval->configured.include, made);
+  si_da_push(target->unit->session->mem, target->target->configured.include, made);
 }
 
 void spn_target_add_define(spn_target_t* target, const c8* define) {
   sp_mem_t mem = target->unit->session->mem;
-  si_da_push(mem, target->eval->define, sp_str_from_cstr(mem, define));
+  si_da_push(mem, target->target->define, sp_str_from_cstr(mem, define));
 }
 
 void spn_target_add_define_path(spn_target_t* target, const c8* name, spn_dir_t dir, const c8* path) {
@@ -279,7 +279,7 @@ void spn_target_add_define_path(spn_target_t* target, const c8* name, spn_dir_t 
   spn_path_rel_t rel = spn_path_within(unit->session->paths.root, joined);
   if (rel.within) {
     sp_str_t str = sp_fmt(mem, "{}=\"{}\"", sp_fmt_cstr(name), sp_fmt_str(rel.sub)).value;
-    si_da_push(mem, target->eval->define, str);
+    si_da_push(mem, target->target->define, str);
   }
   else {
     sp_str_t full = spn_path_str(&unit->session->ctx->roots, scratch.mem, joined);
@@ -296,7 +296,7 @@ void spn_target_add_define_path(spn_target_t* target, const c8* name, spn_dir_t 
 
 void spn_target_add_flag(spn_target_t* target, const c8* flag) {
   sp_mem_t mem = target->unit->session->mem;
-  si_da_push(mem, target->eval->flags, sp_str_from_cstr(mem, flag));
+  si_da_push(mem, target->target->flags, sp_str_from_cstr(mem, flag));
 }
 
 static bool embed_dest_rejected(spn_pkg_unit_t* unit, const c8* fn, sp_str_t dest) {
@@ -320,7 +320,7 @@ void spn_target_embed_file(spn_target_t* t, const c8* file) {
   if (spn_path_empty(made) || embed_dest_rejected(t->unit, "spn_target_embed_file", sp_str_view(file))) {
     return;
   }
-  spn_target_add_embed(t->unit->session->mem, t->eval, (spn_embed_t) {
+  spn_target_add_embed(t->unit->session->mem, t->target, (spn_embed_t) {
     .kind = SPN_EMBED_FILE,
     .path = made,
     .dest = sp_str_view(file),
@@ -332,7 +332,7 @@ void spn_target_embed_file_ex(spn_target_t* t, const c8* file, const c8* dest, c
   if (spn_path_empty(made) || embed_dest_rejected(t->unit, "spn_target_embed_file_ex", sp_str_view(dest))) {
     return;
   }
-  spn_target_add_embed(t->unit->session->mem, t->eval, (spn_embed_t) {
+  spn_target_add_embed(t->unit->session->mem, t->target, (spn_embed_t) {
     .kind = SPN_EMBED_FILE,
     .path = made,
     .dest = sp_str_view(dest),
@@ -345,7 +345,7 @@ void spn_target_embed_dir_ex(spn_target_t* t, const c8* dir, const c8* dest, con
   if (spn_path_empty(made) || embed_dest_rejected(t->unit, "spn_target_embed_dir_ex", sp_str_view(dest))) {
     return;
   }
-  spn_target_add_embed(t->unit->session->mem, t->eval, (spn_embed_t) {
+  spn_target_add_embed(t->unit->session->mem, t->target, (spn_embed_t) {
     .kind = SPN_EMBED_DIR,
     .path = made,
     .dest = sp_str_view(dest),

@@ -136,7 +136,7 @@ typedef struct {
 struct spn_target_unit {
   spn_target_unit_id_t id;
   spn_pkg_unit_t* pkg;
-  si_target_t* eval;
+  si_target_t* target;
   spn_cc_output_kind_t kind;
   spn_linkage_t lib_kind;
   sp_str_t file_name;
@@ -151,7 +151,7 @@ struct spn_pkg_unit_t {
   spn_pkg_unit_id_t id;
   spn_build_unit_t* build;
   spn_session_t* session;
-  si_pkg_t eval;
+  si_pkg_t pkg;
   spn_pkg_source_t source;
   u32 kinds;
   sp_hash_t fingerprint;

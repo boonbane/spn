@@ -17,7 +17,7 @@ spn_err_t si_on_user_node(const si_dag_ctx_t* c, void* user_data) {
 
   spn_event_buffer_push(spn.events, (spn_event_t) {
     .kind = SPN_EVENT_SCRIPT_USER_FN,
-    .pkg = unit->eval.manifest->name.str,
+    .pkg = unit->pkg.manifest->name.str,
     .script_user_fn = { .tag = node->tag }
   });
 
@@ -33,7 +33,7 @@ spn_err_t si_on_user_node(const si_dag_ctx_t* c, void* user_data) {
     if (err && err != SP_ERR_SYS_NOT_FOUND) {
       spn_event_buffer_push(spn.events, (spn_event_t) {
         .kind = SPN_EVENT_NODE_FAILED,
-        .pkg = unit->eval.manifest->name.str,
+        .pkg = unit->pkg.manifest->name.str,
         .node_failed = {
           .path = spn_path_str(roots, spn.events->mem, out->path),
           .message = sp_fmt(spn.events->mem, "could not be removed before node {} ran", sp_fmt_str(node->tag)).value,
@@ -68,7 +68,7 @@ spn_err_t si_on_user_node(const si_dag_ctx_t* c, void* user_data) {
     if (err) {
       spn_event_buffer_push(spn.events, (spn_event_t) {
         .kind = SPN_EVENT_NODE_FAILED,
-        .pkg = unit->eval.manifest->name.str,
+        .pkg = unit->pkg.manifest->name.str,
         .node_failed = {
           .path = spn_path_str(roots, spn.events->mem, out->path),
           .message = err == SP_ERR_SYS_NOT_FOUND

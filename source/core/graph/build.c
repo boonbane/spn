@@ -29,7 +29,7 @@ spn_path_t spn_target_unit_staged_path(sp_mem_t mem, spn_target_unit_t* target) 
   spn_path_t root = target->pkg->build->paths.root;
 
   spn_path_t path = sp_zero;
-  switch (target->eval->info->kind) {
+  switch (target->target->info->kind) {
     case SPN_TARGET_KIND_EXE:
     case SPN_TARGET_KIND_SCRIPT: {
       path = spn_path_join(mem, root, file_name);

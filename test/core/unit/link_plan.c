@@ -320,7 +320,7 @@ sp_test_each(link_plan, plan, plan_test_t, tests, .setup = spn_test_ctx_setup) {
   sp_carr_detect_len(it->expect.deps, num_deps, it->expect.deps[num_deps].lib);
   sp_must_eq(t, num_deps, si_da_size(plan->deps));
   sp_for(dt, num_deps) {
-    sp_expect_str_eq_c(t, plan->deps[dt].lib->eval->info->name.str, it->expect.deps[dt].lib);
+    sp_expect_str_eq_c(t, plan->deps[dt].lib->target->info->name.str, it->expect.deps[dt].lib);
     sp_expect_eq(t, it->expect.deps[dt].role, plan->deps[dt].role);
   }
   sp_must_strs_eq(t, plan->cc.system_libs, sp_da_size(plan->cc.system_libs), it->expect.system_libs);

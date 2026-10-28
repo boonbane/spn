@@ -15,10 +15,10 @@ s32 spn_run_ex(spn_t* ctx, spn_run_t run) {
       spn.events,
       (spn_event_t){
           .kind = SPN_EVENT_API_CALL,
-          .pkg = unit->eval.manifest->name.str,
+          .pkg = unit->pkg.manifest->name.str,
           .api_call = {
               .fn = sp_str_lit("spn_run_ex"),
-              .args = run.target ? run.target->eval->info->name.str
+              .args = run.target ? run.target->target->info->name.str
                                  : sp_zero_s(sp_str_t),
           }});
 

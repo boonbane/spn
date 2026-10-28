@@ -155,7 +155,7 @@ struct si_target {
   } macos;
 };
 
-typedef si_om(si_target_id_t, si_target_info_t) spn_target_decl_map_t;
-typedef si_om(si_target_id_t, si_target_t) spn_target_eval_map_t;
+typedef si_om(si_target_id_t, si_target_info_t) spn_target_info_map_t;
+typedef si_om(si_target_id_t, si_target_t) spn_target_map_t;
 
 #endif

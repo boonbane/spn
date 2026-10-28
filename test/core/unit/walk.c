@@ -161,7 +161,7 @@ sp_test_each(unit, walk, walk_test_t, tests, .setup = spn_test_ctx_setup) {
     sp_must(t, unit != SP_NULLPTR);
     sp_expect_eq(t, expect->host, spn_pkg_unit_is_script_host(unit));
 
-    if (!spn_pkg_has_scripts(&unit->eval)) {
+    if (!spn_pkg_has_scripts(&unit->pkg)) {
       sp_expect(t, unit->metaprogram == SP_NULLPTR);
     }
     else {

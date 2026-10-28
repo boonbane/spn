@@ -61,7 +61,7 @@ sp_test_each(wasm_script, lifecycle, test_t, tests, .setup = spn_test_ctx_setup)
   spn_session_t session = { .ctx = &spn };
   spn_pkg_unit_t unit = {
     .session = &session,
-    .eval = { .manifest = &manifest },
+    .pkg = { .manifest = &manifest },
     .paths = {
       .roots = { .recipe = source, .source = source },
       .work = spn_path_join(mem, sandbox, sp_str_lit("work")),

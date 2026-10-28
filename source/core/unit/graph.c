@@ -39,7 +39,7 @@ static spn_pkg_unit_t* add_unit(spn_session_t* s, spn_build_unit_t* build, spn_p
   unit->session = s;
   unit->source = loaded->source;
   unit->kinds = kinds;
-  unit->eval = spn_pkg_eval(s->mem, loaded->manifest, &s->ctx->roots, loaded->roots, &env);
+  unit->pkg = spn_pkg_eval(s->mem, loaded->manifest, &s->ctx->roots, loaded->roots, &env);
   sp_da_init(s->mem, unit->deps);
   sp_da_init(s->mem, unit->targets);
   sp_da_init(s->mem, unit->user_nodes);
@@ -93,7 +93,7 @@ spn_err_t spn_units_add_packages(spn_session_t* s) {
     if (unit->build == s->units.metaprogram) {
       continue;
     }
-    if (spn_pkg_has_scripts(&unit->eval)) {
+    if (spn_pkg_has_scripts(&unit->pkg)) {
       si_da_push(scratch.mem, owners, unit);
     }
   }
@@ -119,7 +119,7 @@ spn_err_t spn_units_add_packages(spn_session_t* s) {
 
   sp_om_for(s->units.packages, it) {
     spn_pkg_unit_t* unit = sp_om_at(s->units.packages, it);
-    if (spn_pkg_has_scripts(&unit->eval)) {
+    if (spn_pkg_has_scripts(&unit->pkg)) {
       unit->metaprogram = si_get_pkg_unit(s, s->units.metaprogram, unit->id.pkg);
       sp_assert(unit->metaprogram);
     }
