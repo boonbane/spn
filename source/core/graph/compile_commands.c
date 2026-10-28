@@ -6,6 +6,7 @@
 #include "compiler/driver.h"
 #include "error/error.h"
 #include "graph/dag.h"
+#include "dag/run.h"
 #include "paths/paths.h"
 #include "session/invocation.h"
 #include "session/types.h"

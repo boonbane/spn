@@ -78,7 +78,7 @@ spn_dag_t* dag_test_env_graph(dag_test_env_t* env) {
 spn_err_t dag_test_run(dag_test_env_t* env) {
   spn_thread_pool_t pool = sp_zero;
   spn_thread_pool_init(&pool, env->mem, (spn_thread_pool_config_t) sp_zero);
-  spn_err_t err = spn_dag_run(&env->run, &pool.executor);
+  spn_err_t err = spn_dag_run(&env->run, &pool);
   spn_thread_pool_deinit(&pool);
   return err;
 }

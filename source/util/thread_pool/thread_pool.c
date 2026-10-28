@@ -1,17 +1,5 @@
 #include "thread_pool/thread_pool.h"
 
-void spn_thread_pool_submit(spn_thread_pool_executor_t* ex, spn_thread_pool_job_t job) {
-  ex->submit(ex, job);
-}
-
-spn_thread_pool_job_t spn_thread_pool_poll(spn_thread_pool_executor_t* ex) {
-  return ex->poll(ex);
-}
-
-spn_thread_pool_job_t spn_thread_pool_try_poll(spn_thread_pool_executor_t* ex) {
-  return ex->try_poll(ex);
-}
-
 bool spn_thread_pool_step(spn_thread_pool_t* pool) {
   sp_mutex_lock(&pool->mutex);
   if (si_da_empty(pool->queue)) {
@@ -54,8 +42,7 @@ static s32 pool_worker(void* data) {
   }
 }
 
-static void pool_submit(spn_thread_pool_executor_t* ex, spn_thread_pool_job_t job) {
-  spn_thread_pool_t* pool = (spn_thread_pool_t*)ex;
+void spn_thread_pool_submit(spn_thread_pool_t* pool, spn_thread_pool_job_t job) {
   sp_mutex_lock(&pool->mutex);
   si_da_push(pool->mem, pool->queue, job);
   pool->count.submitted++;
@@ -63,9 +50,7 @@ static void pool_submit(spn_thread_pool_executor_t* ex, spn_thread_pool_job_t jo
   sp_cv_notify_one(&pool->signal.submitted);
 }
 
-static spn_thread_pool_job_t pool_poll(spn_thread_pool_executor_t* ex) {
-  spn_thread_pool_t* pool = (spn_thread_pool_t*)ex;
-
+spn_thread_pool_job_t spn_thread_pool_poll(spn_thread_pool_t* pool) {
   while (true) {
     sp_mutex_lock(&pool->mutex);
     while (!si_da_empty(pool->workers) && si_da_empty(pool->done)) {
@@ -84,8 +69,7 @@ static spn_thread_pool_job_t pool_poll(spn_thread_pool_executor_t* ex) {
   }
 }
 
-static spn_thread_pool_job_t pool_try_poll(spn_thread_pool_executor_t* ex) {
-  spn_thread_pool_t* pool = (spn_thread_pool_t*)ex;
+spn_thread_pool_job_t spn_thread_pool_try_poll(spn_thread_pool_t* pool) {
   spn_thread_pool_job_t job = sp_zero;
   sp_mutex_lock(&pool->mutex);
   if (!si_da_empty(pool->done)) {
@@ -99,11 +83,6 @@ static spn_thread_pool_job_t pool_try_poll(spn_thread_pool_executor_t* ex) {
 void spn_thread_pool_init(spn_thread_pool_t* pool, sp_mem_t mem, spn_thread_pool_config_t config) {
   sp_mem_arena_t* arena = sp_mem_arena_new(mem);
   *pool = (spn_thread_pool_t) {
-    .executor = {
-      .submit = pool_submit,
-      .poll = pool_poll,
-      .try_poll = pool_try_poll,
-    },
     .arena = arena,
     .mem = sp_mem_arena_as_allocator(arena),
     .on_worker_exit = config.on_worker_exit,

@@ -534,6 +534,7 @@ source = [
   "source/core/dag/stamp.c",
   "source/util/thread_pool/thread_pool.c",
   "source/util/array/array.c",
+  "source/util/hash_table/hash_table.c",
   "source/core/codegen/json.c",
   "source/core/toml/loader.c",
   "source/core/external/tom.c",

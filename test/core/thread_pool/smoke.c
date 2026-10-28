@@ -38,11 +38,11 @@ sp_test(thread_pool, smoke) {
 
   smoke_probe_t* probes = sp_alloc_n(mem, smoke_probe_t, SMOKE_JOBS);
   sp_for(it, SMOKE_JOBS) {
-    spn_thread_pool_submit(&pool.executor, (spn_thread_pool_job_t) { .fn = smoke_run, .data = &probes[it] });
+    spn_thread_pool_submit(&pool, (spn_thread_pool_job_t) { .fn = smoke_run, .data = &probes[it] });
   }
 
   sp_for(it, SMOKE_JOBS) {
-    spn_thread_pool_job_t job = spn_thread_pool_poll(&pool.executor);
+    spn_thread_pool_job_t job = spn_thread_pool_poll(&pool);
     sp_must(t, job.fn);
   }
 

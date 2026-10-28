@@ -12,20 +12,12 @@ typedef struct {
   void* data;
 } spn_thread_pool_job_t;
 
-typedef struct spn_thread_pool_executor_t spn_thread_pool_executor_t;
-struct spn_thread_pool_executor_t {
-  void (*submit)(spn_thread_pool_executor_t* ex, spn_thread_pool_job_t job);
-  spn_thread_pool_job_t (*poll)(spn_thread_pool_executor_t* ex);
-  spn_thread_pool_job_t (*try_poll)(spn_thread_pool_executor_t* ex);
-};
-
 typedef struct {
   u32 workers;
   void (*on_worker_exit)(void);
 } spn_thread_pool_config_t;
 
 typedef struct {
-  spn_thread_pool_executor_t executor;
   sp_mem_arena_t* arena;
   sp_mem_t mem;
   sp_mutex_t mutex;

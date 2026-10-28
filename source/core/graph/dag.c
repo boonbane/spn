@@ -26,6 +26,7 @@
 #include "str/str.h"
 #include "session/session.h"
 #include "thread_pool/thread_pool.h"
+#include "dag/run.h"
 #include "unit/unit.h"
 #include "graph/build.h"
 #include "graph/dag.h"
@@ -1144,7 +1145,7 @@ spn_err_t spn_dag_build_run(spn_dag_build_t* b, u32 workers) {
 
   b->timer = sp_tm_start_timer();
   spn_dag_file_cache_invalidate_all(b->run.files);
-  b->result = spn_dag_run(&b->run, &b->pool.executor);
+  b->result = spn_dag_run(&b->run, &b->pool);
   spn_thread_pool_deinit(&b->pool);
   spn_dag_file_cache_flush(b->run.files, b->session->dag.files_path);
   return dag_result(b);

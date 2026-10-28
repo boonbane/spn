@@ -69,6 +69,7 @@ typedef struct {
 
 typedef struct spn_dag_obs_set_t spn_dag_obs_set_t;
 typedef struct si_dag_action_handle si_dag_action_handle_t;
+typedef struct si_dag_run_state si_dag_run_state_t;
 
 typedef struct {
   si_dag_action_handle_t* handle;
@@ -279,6 +280,7 @@ typedef struct {
   spn_wake_t* wake;
 
   spn_dag_artifact_state_t* artifacts;
+  si_dag_run_state_t* state;
   spn_dag_diag_t diag;
   spn_dag_progress_t progress;
   sp_mutex_t mutex;

@@ -277,7 +277,7 @@ static sp_err_t build_all(sp_test_t* t, spn_dag_store_kind_t kind, const test_t*
       break;
     }
 
-    spn_err_t err = spn_dag_run(&env.dag.run, &pool.executor);
+    spn_err_t err = spn_dag_run(&env.dag.run, &pool);
     sp_expect_eq(t, build->expect_err, err);
     s32 runs = sp_atomic_s32_load(&env.runs, SP_ATOMIC_SEQ_CST);
     sp_expect_ge(t, runs, (s32)build->expect_runs);

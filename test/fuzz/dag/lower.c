@@ -13,12 +13,10 @@ static spn_err_t fz_exec(const si_dag_ctx_t* c, void* user_data) {
   fz_lowered_t* low = ctx->low;
   low->execs[ctx->action]++;
   fz_journal_exec(low->journal, ctx->action);
-  if (low->ex) {
-    sp_da_push(low->ex->log, ((fz_flight_t) {
-      .action = ctx->action,
-      .started = low->ex->sim->syscalls,
-    }));
-  }
+  si_da_push(low->mem, *low->log, ((fz_flight_t) {
+    .action = ctx->action,
+    .started = low->sim->syscalls,
+  }));
 
   fz_action_t* fz = &low->u->actions[ctx->action];
 

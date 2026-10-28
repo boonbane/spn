@@ -5,7 +5,6 @@
 #include "spn/core.h"
 #include "dag/types.h"
 #include "array/array.h"
-#include "thread_pool/types.h"
 #include "hash/digest/digest.h"
 
 spn_dag_t*          spn_dag_new(sp_mem_t mem, const spn_path_roots_t* roots);
@@ -81,8 +80,5 @@ void                spn_dag_file_cache_invalidate_all(spn_dag_file_cache_t* c);
 spn_err_t           spn_dag_file_cache_stat(spn_dag_file_cache_t* c, spn_path_t path, sp_sys_file_meta_t* meta);
 spn_err_t           spn_dag_file_cache_digest(spn_dag_file_cache_t* c, spn_path_t path, spn_dag_digest_t* digest);
 bool                spn_dag_file_cache_recorded(spn_dag_file_cache_t* c, spn_path_t path);
-
-const spn_dag_artifact_state_t* spn_dag_run_artifact(const spn_dag_run_t* run, spn_dag_id_t id);
-spn_err_t                       spn_dag_run(spn_dag_run_t* run, spn_thread_pool_executor_t* ex);
 
 #endif

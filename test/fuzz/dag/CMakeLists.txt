@@ -8,6 +8,7 @@ add_executable(fuzz_dag
   ${SRC}/dag/stamp.c
   ${UTIL}/thread_pool/thread_pool.c
   ${UTIL}/array/array.c
+  ${UTIL}/hash_table/hash_table.c
   ${SRC}/codegen/json.c
   ${SRC}/toml/loader.c
   ${TEST_GEN_DIR}/fuzz.gen.c

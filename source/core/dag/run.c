@@ -1,4 +1,6 @@
 #include "dag/dag.h"
+#include "dag/run.h"
+#include "hash_table/hash_table.h"
 #include "dag/node.h"
 #include "dag/stamp.h"
 #include "dag/types.h"
@@ -747,15 +749,15 @@ typedef struct {
   u64 done_epoch;
   bool done;
   bool wrote;
-  sp_da(u32) waiters;
+  si_da(u32) waiters;
 } slot_t;
 
 typedef struct {
   const spn_dag_run_t* run;
   slot_t* slots;
-  sp_ht(spn_path_t, target_t) by_path;
-  sp_ht(spn_path_t, sp_da(u32)) below;
-  sp_da(spn_dag_id_t) ready;
+  si_ht(spn_path_t, target_t) by_path;
+  si_ht(spn_path_t, si_da(u32)) below;
+  si_da(spn_dag_id_t) ready;
   sp_atomic_s32_t completed;
 } sched_t;
 
@@ -780,12 +782,9 @@ static void sched_init(sched_t* s, sp_mem_t mem, const spn_dag_run_t* run) {
   *s = (sched_t) {
     .run = run,
     .slots = sp_alloc_n(mem, slot_t, n ? n : 1),
-    .ready = sp_da_new(mem, spn_dag_id_t),
   };
-  sp_ht_init(mem, s->by_path);
-  sp_ht_set_fns(s->by_path, spn_path_on_hash, spn_path_on_compare);
-  sp_ht_init(mem, s->below);
-  sp_ht_set_fns(s->below, spn_path_on_hash, spn_path_on_compare);
+  si_ht_init_ex(mem, s->by_path, spn_path_on_hash, spn_path_on_compare);
+  si_ht_init_ex(mem, s->below, spn_path_on_hash, spn_path_on_compare);
 
   sp_da_for(g->artifacts, it) {
     const spn_dag_artifact_t* artifact = &g->artifacts[it];
@@ -793,25 +792,24 @@ static void sched_init(sched_t* s, sp_mem_t mem, const spn_dag_run_t* run) {
       continue;
     }
 
-    sp_ht_insert(s->by_path, artifact->path, ((target_t) {
+    si_ht_insert(mem, s->by_path, artifact->path, ((target_t) {
       .producer = artifact->producer.index,
       .kind = artifact->kind
     }));
 
     for (spn_path_t dir = artifact->path; path_parent(&dir);) {
-      sp_da(u32)* below = sp_ht_getp(s->below, dir);
+      si_da(u32)* below = si_ht_getp(s->below, dir);
       if (!below) {
-        sp_ht_insert(s->below, dir, sp_da_new(mem, u32));
-        below = sp_ht_getp(s->below, dir);
+        si_ht_insert(mem, s->below, dir, SP_NULLPTR);
+        below = si_ht_getp(s->below, dir);
       }
-      sp_da_push(*below, artifact->producer.index);
+      si_da_push(mem, *below, artifact->producer.index);
     }
   }
 
   sp_da_for(g->actions, ai) {
     const spn_dag_action_t* action = &g->actions[ai];
     slot_t* slot = &s->slots[ai];
-    sp_da_init(mem, slot->waiters);
     sp_da_for(action->consumes, ci) {
       if (!spn_dag_digest_valid(spn_dag_run_artifact(run, action->consumes[ci])->digest)) {
         slot->pending++;
@@ -823,7 +821,7 @@ static void sched_init(sched_t* s, sp_mem_t mem, const spn_dag_run_t* run) {
       }
     }
     if (!slot->pending) {
-      sp_da_push(s->ready, action->id);
+      si_da_push(mem, s->ready, action->id);
     }
   }
 }
@@ -832,7 +830,7 @@ static u64 sched_epoch(sched_t* s) {
   return (u64)sp_atomic_s32_load(&s->completed, SP_ATOMIC_SEQ_CST);
 }
 
-static bool sched_defer_producer(sched_t* s, spn_dag_id_t action, u32 producer_index, u64 epoch) {
+static bool sched_defer_producer(sched_t* s, sp_mem_t mem, spn_dag_id_t action, u32 producer_index, u64 epoch) {
   if (producer_index == action.index) {
     return false;
   }
@@ -846,12 +844,12 @@ static bool sched_defer_producer(sched_t* s, spn_dag_id_t action, u32 producer_i
     return stale;
   }
   trace_emit(s->run, (spn_dag_trace_event_t) { .kind = SPN_DAG_TRACE_DEFER, .action = action, .producer = producer_id });
-  sp_da_push(producer->waiters, action.index);
+  si_da_push(mem, producer->waiters, action.index);
   s->slots[action.index].deferred++;
   return false;
 }
 
-static sched_verdict_t sched_defer(sched_t* s, spn_dag_id_t action, sp_da(spn_dag_obs_t) obs, u64 epoch) {
+static sched_verdict_t sched_defer(sched_t* s, sp_mem_t mem, spn_dag_id_t action, sp_da(spn_dag_obs_t) obs, u64 epoch) {
   const spn_path_roots_t* roots = s->run->g->roots;
   bool requeue = false;
   sp_da_for(obs, it) {
@@ -860,23 +858,23 @@ static sched_verdict_t sched_defer(sched_t* s, spn_dag_id_t action, sp_da(spn_da
       continue;
     }
 
-    target_t* exact = sp_ht_getp(s->by_path, o->path);
-    if (exact && sched_defer_producer(s, action, exact->producer, epoch)) {
+    target_t* exact = si_ht_getp(s->by_path, o->path);
+    if (exact && sched_defer_producer(s, mem, action, exact->producer, epoch)) {
       requeue = true;
     }
 
     for (spn_path_t dir = o->path; path_parent(&dir);) {
-      target_t* tree = sp_ht_getp(s->by_path, dir);
-      if (tree && tree->kind == SPN_DAG_ARTIFACT_KIND_TREE && sched_defer_producer(s, action, tree->producer, epoch)) {
+      target_t* tree = si_ht_getp(s->by_path, dir);
+      if (tree && tree->kind == SPN_DAG_ARTIFACT_KIND_TREE && sched_defer_producer(s, mem, action, tree->producer, epoch)) {
         requeue = true;
       }
     }
 
     if (o->kind == SPN_DAG_OBS_ENUMERATION) {
-      sp_da(u32)* below = sp_ht_getp(s->below, o->path);
+      si_da(u32)* below = si_ht_getp(s->below, o->path);
       if (below) {
-        sp_da_for(*below, bi) {
-          if (sched_defer_producer(s, action, (*below)[bi], epoch)) {
+        si_da_for(*below, bi) {
+          if (sched_defer_producer(s, mem, action, (*below)[bi], epoch)) {
             requeue = true;
           }
         }
@@ -890,7 +888,7 @@ static sched_verdict_t sched_defer(sched_t* s, spn_dag_id_t action, sp_da(spn_da
   return requeue ? SCHED_REQUEUE : SCHED_PROCEED;
 }
 
-static void sched_finish(sched_t* s, spn_dag_id_t action, bool wrote) {
+static void sched_finish(sched_t* s, sp_mem_t mem, spn_dag_id_t action, bool wrote) {
   const spn_dag_t* g = s->run->g;
   slot_t* slot = &s->slots[action.index];
   slot->done = true;
@@ -905,53 +903,211 @@ static void sched_finish(sched_t* s, spn_dag_id_t action, bool wrote) {
       if (consumer->pending) {
         consumer->pending--;
         if (!consumer->pending) {
-          sp_da_push(s->ready, produced->consumers[cj]);
+          si_da_push(mem, s->ready, produced->consumers[cj]);
         }
       }
     }
   }
 
-  sp_da_for(slot->waiters, wi) {
+  si_da_for(slot->waiters, wi) {
     u32 index = slot->waiters[wi];
     slot_t* waiter = &s->slots[index];
     if (waiter->deferred) {
       waiter->deferred--;
       if (!waiter->deferred) {
-        sp_da_push(s->ready, g->actions[index].id);
+        si_da_push(mem, s->ready, g->actions[index].id);
       }
     }
   }
 }
 
-typedef struct loop_t loop_t;
-
 typedef struct {
-  loop_t* loop;
   u64 epoch;
   spn_err_t err;
   bool parked;
   si_dag_action_handle_t attempt;
 } flight_t;
 
-struct loop_t {
-  spn_dag_run_t* run;
-  spn_thread_pool_executor_t* ex;
+struct si_dag_run_state {
+  sp_mem_t mem;
   sched_t sched;
   flight_t* flights;
-  u32 in_flight;
   spn_path_t scratch;
-  spn_err_t err;
+  u64 turns;
 };
 
-static void flight_run(void* data) {
-  flight_t* flight = (flight_t*)data;
-  loop_t* loop = flight->loop;
-  si_dag_action_handle_t* attempt = &flight->attempt;
-  spn_dag_run_t* run = attempt->run;
-  const spn_dag_action_t* action = attempt->action;
-  flight->epoch = sched_epoch(&loop->sched);
+static flight_t* flight_at(spn_dag_run_t* run, spn_dag_id_t id) {
+  sp_assert(id.occupied);
+  sp_assert(id.graph == run->g->id);
+  return &run->state->flights[id.index];
+}
 
-  switch (action->kind) {
+static spn_err_t begin(spn_dag_run_t* run, sp_mem_t mem, spn_path_t scratch) {
+  const spn_dag_t* g = run->g;
+  spn_err_t err = spn_dag_file_cache_fence_dir(run->files, scratch);
+  if (err) {
+    run->diag = (spn_dag_diag_t) { .err = err, .path = scratch };
+    return err;
+  }
+
+  sp_da_for(g->artifacts, it) {
+    const spn_dag_artifact_t* artifact = &g->artifacts[it];
+    switch (artifact->kind) {
+      case SPN_DAG_ARTIFACT_KIND_VALUE: {
+        run->artifacts[it].digest = artifact->digest;
+        break;
+      }
+      case SPN_DAG_ARTIFACT_KIND_FILE: {
+        if (artifact->producer.occupied) {
+          break;
+        }
+        run->artifacts[it].location = artifact->path;
+        if (spn_path_pinned(g->roots, artifact->path)) {
+          run->artifacts[it].digest = spn_dag_path_digest(g->roots, artifact->path);
+          break;
+        }
+        sp_sys_file_meta_t sys = sp_zero;
+        if (spn_dag_file_cache_stat(run->files, artifact->path, &sys) || sys.kind == SP_FS_KIND_DIR || spn_dag_file_cache_digest(run->files, artifact->path, &run->artifacts[it].digest)) {
+          run->diag = (spn_dag_diag_t) { .err = SPN_ERR_DAG_MISSING_INPUT, .artifact = artifact->id, .path = artifact->path };
+          return SPN_ERR_DAG_MISSING_INPUT;
+        }
+        break;
+      }
+      case SPN_DAG_ARTIFACT_KIND_TREE: {
+        break;
+      }
+    }
+  }
+
+  u64 n = sp_da_size(g->actions);
+  sp_atomic_s32_store(&run->progress.total, (s32)n, SP_ATOMIC_SEQ_CST);
+  sp_atomic_s32_store(&run->progress.completed, 0, SP_ATOMIC_SEQ_CST);
+  sp_atomic_s32_store(&run->progress.hits, 0, SP_ATOMIC_SEQ_CST);
+  sp_atomic_s32_store(&run->progress.misses, 0, SP_ATOMIC_SEQ_CST);
+  sp_atomic_u64_store(&run->progress.warm, 0, SP_ATOMIC_SEQ_CST);
+  progress_wake(run);
+
+  si_dag_run_state_t* state = sp_alloc_n(mem, si_dag_run_state_t, 1);
+  *state = (si_dag_run_state_t) {
+    .mem = mem,
+    .flights = sp_alloc_n(mem, flight_t, n ? n : 1),
+    .scratch = scratch,
+  };
+  sched_init(&state->sched, mem, run);
+
+  u64 outputs = 0;
+  sp_da_for(g->actions, ai) {
+    outputs += sp_da_size(g->actions[ai].produces);
+  }
+  spn_dag_digest_t* digests = sp_alloc_n(mem, spn_dag_digest_t, outputs);
+  sp_da_for(g->actions, ai) {
+    state->flights[ai].attempt = (si_dag_action_handle_t) {
+      .action = &g->actions[ai],
+      .digests = digests,
+    };
+    digests += sp_da_size(g->actions[ai].produces);
+  }
+
+  run->state = state;
+  return SPN_OK;
+}
+
+spn_err_t spn_dag_run_begin(spn_dag_run_t* run, sp_mem_t mem) {
+  const spn_dag_t* g = run->g;
+  sp_assert(run->discovery);
+  sp_assert(!spn_path_empty(run->scratch));
+  sp_assert(sp_da_size(g->actions) < (1u << 30));
+
+  run->diag = spn_dag_validate(g);
+  if (run->diag.err) {
+    return run->diag.err;
+  }
+
+  u64 artifacts = sp_da_size(g->artifacts);
+  run->artifacts = sp_alloc_n(run->mem, spn_dag_artifact_state_t, artifacts ? artifacts : 1);
+
+  sp_mem_arena_marker_t s = sp_mem_begin_scratch();
+  spn_path_t base = spn_path_join(s.mem, run->scratch, sp_str_lit("scratch/run"));
+  spn_path_t scratch = sp_zero;
+  spn_err_t err = spn_path_stage_dir(run->mem, g->roots, base, sp_str_lit("tmp"), &scratch);
+  sp_mem_end_scratch(s);
+  if (err) {
+    run->diag = (spn_dag_diag_t) { .err = SPN_ERR_DAG_SCRATCH };
+    return SPN_ERR_DAG_SCRATCH;
+  }
+
+  err = begin(run, mem, scratch);
+  if (err) {
+    sp_fs_remove_dir_at(spn_path_at(g->roots, scratch));
+  }
+  return err;
+}
+
+spn_dag_id_t spn_dag_run_next(spn_dag_run_t* run) {
+  si_dag_run_state_t* state = run->state;
+  sched_t* sched = &state->sched;
+  u64 n = sp_da_size(run->g->actions);
+
+  state->turns++;
+  sp_assert(state->turns <= 4 * (n + 1) * (n + 1));
+
+  if (!run->diag.err && run->cancel && sp_atomic_s32_load(run->cancel, SP_ATOMIC_SEQ_CST)) {
+    run->diag = (spn_dag_diag_t) { .err = SPN_ERR_DAG_CANCELLED };
+  }
+
+  while (!run->diag.err && !si_da_empty(sched->ready)) {
+    spn_dag_id_t id = *si_da_back(sched->ready);
+    si_da_pop(sched->ready);
+    flight_t* flight = flight_at(run, id);
+    if (flight->parked) {
+      spn_dag_run_complete(run, id);
+      continue;
+    }
+
+    si_dag_action_handle_t* attempt = &flight->attempt;
+    const spn_dag_action_t* action = attempt->action;
+    flight->err = SPN_OK;
+    *attempt = (si_dag_action_handle_t) {
+      .run = run,
+      .action = action,
+      .digests = attempt->digests,
+      .obs.table = run->discovery,
+    };
+
+    switch (action->kind) {
+      case SPN_DAG_ACTION_STATIC: {
+        attempt->key = weak_key_traced(attempt);
+        break;
+      }
+      case SPN_DAG_ACTION_DISCOVERED: {
+        attempt->key = weak_key_traced(attempt);
+        spn_dag_pathset_t set = sp_zero;
+        if (spn_dag_obs_table_get(run->discovery, attempt->key, &set)) {
+          sched_verdict_t verdict = sched_defer(sched, state->mem, action->id, set.obs, sched_epoch(sched));
+          sp_assert(verdict != SCHED_REQUEUE);
+          if (verdict == SCHED_WAIT) {
+            continue;
+          }
+        }
+        break;
+      }
+      case SPN_DAG_ACTION_UNCACHEABLE: {
+        break;
+      }
+    }
+    return id;
+  }
+
+  return (spn_dag_id_t) sp_zero;
+}
+
+void spn_dag_run_attempt(spn_dag_run_t* run, spn_dag_id_t id) {
+  si_dag_run_state_t* state = run->state;
+  flight_t* flight = flight_at(run, id);
+  si_dag_action_handle_t* attempt = &flight->attempt;
+  flight->epoch = sched_epoch(&state->sched);
+
+  switch (attempt->action->kind) {
     case SPN_DAG_ACTION_STATIC: {
       attempt->hit = try_restore(attempt, attempt->key);
       break;
@@ -959,7 +1115,7 @@ static void flight_run(void* data) {
     case SPN_DAG_ACTION_DISCOVERED: {
       spn_dag_pathset_t set = sp_zero;
       bool present = spn_dag_obs_table_get(run->discovery, attempt->key, &set);
-      trace_emit(run, (spn_dag_trace_event_t) { .kind = SPN_DAG_TRACE_DISCOVERY, .action = action->id, .key = attempt->key, .hit = present });
+      trace_emit(run, (spn_dag_trace_event_t) { .kind = SPN_DAG_TRACE_DISCOVERY, .action = id, .key = attempt->key, .hit = present });
       spn_dag_digest_t strong = sp_zero;
       if (present && strong_key(attempt, &set, &strong)) {
         attempt->hit = try_restore(attempt, strong);
@@ -972,69 +1128,32 @@ static void flight_run(void* data) {
   }
 
   if (!attempt->hit) {
-    flight->err = execute(attempt, loop->scratch);
+    flight->err = execute(attempt, state->scratch);
   }
 }
 
-static void dispatch(loop_t* loop, flight_t* flight) {
-  spn_dag_run_t* run = loop->run;
-  si_dag_action_handle_t* attempt = &flight->attempt;
-  const spn_dag_action_t* action = attempt->action;
-
-  flight->err = SPN_OK;
-  *attempt = (si_dag_action_handle_t) {
-    .run = run,
-    .action = action,
-    .digests = attempt->digests,
-    .obs.table = run->discovery,
-  };
-
-  switch (action->kind) {
-    case SPN_DAG_ACTION_STATIC: {
-      attempt->key = weak_key_traced(attempt);
-      break;
-    }
-    case SPN_DAG_ACTION_DISCOVERED: {
-      attempt->key = weak_key_traced(attempt);
-      spn_dag_pathset_t set = sp_zero;
-      if (spn_dag_obs_table_get(run->discovery, attempt->key, &set)) {
-        sched_verdict_t verdict = sched_defer(&loop->sched, action->id, set.obs, sched_epoch(&loop->sched));
-        sp_assert(verdict != SCHED_REQUEUE);
-        if (verdict == SCHED_WAIT) {
-          return;
-        }
-      }
-      break;
-    }
-    case SPN_DAG_ACTION_UNCACHEABLE: {
-      break;
-    }
-  }
-
-  spn_thread_pool_submit(loop->ex, (spn_thread_pool_job_t) { .fn = flight_run, .data = flight });
-  loop->in_flight++;
-}
-
-static void complete(loop_t* loop, flight_t* flight) {
-  spn_dag_run_t* run = loop->run;
+void spn_dag_run_complete(spn_dag_run_t* run, spn_dag_id_t id) {
+  si_dag_run_state_t* state = run->state;
+  sched_t* sched = &state->sched;
+  flight_t* flight = flight_at(run, id);
   si_dag_action_handle_t* attempt = &flight->attempt;
   const spn_dag_action_t* action = attempt->action;
   flight->parked = false;
 
-  if (loop->err) {
+  if (run->diag.err) {
     return;
   }
 
   spn_err_t err = flight->err;
   if (!err && !attempt->hit) {
     if (action->kind == SPN_DAG_ACTION_DISCOVERED) {
-      switch (sched_defer(&loop->sched, action->id, attempt->obs.rows, flight->epoch)) {
+      switch (sched_defer(sched, state->mem, action->id, attempt->obs.rows, flight->epoch)) {
         case SCHED_WAIT: {
           flight->parked = true;
           return;
         }
         case SCHED_REQUEUE: {
-          dispatch(loop, flight);
+          si_da_push(state->mem, sched->ready, action->id);
           return;
         }
         case SCHED_PROCEED: {
@@ -1085,7 +1204,6 @@ static void complete(loop_t* loop, flight_t* flight) {
 
   if (err) {
     run->diag = attempt->diag.err ? attempt->diag : (spn_dag_diag_t) { .err = err, .action = action->id };
-    loop->err = err;
     return;
   }
 
@@ -1094,144 +1212,55 @@ static void complete(loop_t* loop, flight_t* flight) {
   }
   sp_atomic_s32_add(&run->progress.completed, 1, SP_ATOMIC_SEQ_CST);
   progress_wake(run);
-  sched_finish(&loop->sched, action->id, attempt->wrote);
+  sched_finish(sched, state->mem, action->id, attempt->wrote);
 }
 
-static spn_err_t run_graph(spn_dag_run_t* run, spn_thread_pool_executor_t* ex, sp_mem_t mem, spn_path_t scratch) {
-  const spn_dag_t* g = run->g;
-  spn_try(spn_dag_file_cache_fence_dir(run->files, scratch));
-
-  run->diag = spn_dag_validate(g);
-  if (run->diag.err) {
-    return run->diag.err;
+spn_err_t spn_dag_run_end(spn_dag_run_t* run) {
+  si_dag_run_state_t* state = run->state;
+  if (!run->diag.err && sched_epoch(&state->sched) != sp_da_size(run->g->actions)) {
+    run->diag = (spn_dag_diag_t) { .err = SPN_ERR_DAG_STALLED };
   }
-
-  sp_da_for(g->artifacts, it) {
-    const spn_dag_artifact_t* artifact = &g->artifacts[it];
-    spn_dag_artifact_state_t* state = &run->artifacts[it];
-    switch (artifact->kind) {
-      case SPN_DAG_ARTIFACT_KIND_VALUE: {
-        state->digest = artifact->digest;
-        break;
-      }
-      case SPN_DAG_ARTIFACT_KIND_FILE: {
-        if (artifact->producer.occupied) {
-          break;
-        }
-        state->location = artifact->path;
-        if (spn_path_pinned(g->roots, artifact->path)) {
-          state->digest = spn_dag_path_digest(g->roots, artifact->path);
-          break;
-        }
-        sp_sys_file_meta_t sys = sp_zero;
-        if (spn_dag_file_cache_stat(run->files, artifact->path, &sys) || sys.kind == SP_FS_KIND_DIR || spn_dag_file_cache_digest(run->files, artifact->path, &state->digest)) {
-          run->diag = (spn_dag_diag_t) { .err = SPN_ERR_DAG_MISSING_INPUT, .artifact = artifact->id, .path = artifact->path };
-          return SPN_ERR_DAG_MISSING_INPUT;
-        }
-        break;
-      }
-      case SPN_DAG_ARTIFACT_KIND_TREE: {
-        break;
-      }
-    }
-  }
-
-  u64 n = sp_da_size(g->actions);
-  sp_assert(n < (1u << 30));
-  sp_atomic_s32_store(&run->progress.total, (s32)n, SP_ATOMIC_SEQ_CST);
-  sp_atomic_s32_store(&run->progress.completed, 0, SP_ATOMIC_SEQ_CST);
-  sp_atomic_s32_store(&run->progress.hits, 0, SP_ATOMIC_SEQ_CST);
-  sp_atomic_s32_store(&run->progress.misses, 0, SP_ATOMIC_SEQ_CST);
-  sp_atomic_u64_store(&run->progress.warm, 0, SP_ATOMIC_SEQ_CST);
-  progress_wake(run);
-
-  loop_t loop = {
-    .run = run,
-    .ex = ex,
-    .scratch = scratch,
-    .flights = sp_alloc_n(mem, flight_t, n ? n : 1),
-  };
-  sched_init(&loop.sched, mem, run);
-
-  u64 outputs = 0;
-  sp_da_for(g->actions, ai) {
-    outputs += sp_da_size(g->actions[ai].produces);
-  }
-  spn_dag_digest_t* digests = sp_alloc_n(mem, spn_dag_digest_t, outputs);
-  sp_da_for(g->actions, ai) {
-    loop.flights[ai] = (flight_t) {
-      .loop = &loop,
-      .attempt = {
-        .action = &g->actions[ai],
-        .digests = digests,
-      },
-    };
-    digests += sp_da_size(g->actions[ai].produces);
-  }
-
-  u64 turns = 0;
-  u64 turns_max = 4 * (n + 1) * (n + 1);
-  while (true) {
-    turns++;
-    sp_assert(turns <= turns_max);
-
-    if (!loop.err && run->cancel && sp_atomic_s32_load(run->cancel, SP_ATOMIC_SEQ_CST)) {
-      loop.err = SPN_ERR_DAG_CANCELLED;
-    }
-
-    spn_thread_pool_job_t job = spn_thread_pool_try_poll(ex);
-    if (job.fn) {
-      loop.in_flight--;
-      complete(&loop, (flight_t*)job.data);
-      continue;
-    }
-    if (!loop.err && !sp_da_empty(loop.sched.ready)) {
-      flight_t* flight = &loop.flights[sp_da_back(loop.sched.ready)->index];
-      sp_da_pop(loop.sched.ready);
-      if (flight->parked) {
-        complete(&loop, flight);
-      }
-      else {
-        dispatch(&loop, flight);
-      }
-      continue;
-    }
-    if (loop.in_flight) {
-      job = spn_thread_pool_poll(ex);
-      loop.in_flight--;
-      complete(&loop, (flight_t*)job.data);
-      continue;
-    }
-    break;
-  }
-
-  if (!loop.err && sched_epoch(&loop.sched) != n) {
-    return SPN_ERR_DAG_STALLED;
-  }
-  return loop.err;
+  sp_fs_remove_dir_at(spn_path_at(run->g->roots, state->scratch));
+  run->state = SP_NULLPTR;
+  return run->diag.err;
 }
 
-spn_err_t spn_dag_run(spn_dag_run_t* run, spn_thread_pool_executor_t* ex) {
-  const spn_dag_t* g = run->g;
-  sp_assert(run->discovery);
-  sp_assert(!spn_path_empty(run->scratch));
+static void flight_run(void* data) {
+  flight_t* flight = (flight_t*)data;
+  spn_dag_run_attempt(flight->attempt.run, flight->attempt.action->id);
+}
+
+spn_err_t spn_dag_run(spn_dag_run_t* run, spn_thread_pool_t* pool) {
   sp_mem_arena_marker_t s = sp_mem_begin_scratch();
-
-  u64 artifacts = sp_da_size(g->artifacts);
-  run->artifacts = sp_alloc_n(run->mem, spn_dag_artifact_state_t, artifacts ? artifacts : 1);
-  run->diag = (spn_dag_diag_t) sp_zero;
-
-  spn_err_t err = SPN_ERR_DAG_SCRATCH;
-  spn_path_t scratch = sp_zero;
-  spn_path_t base = spn_path_join(s.mem, run->scratch, sp_str_lit("scratch/run"));
-  if (!spn_path_stage_dir(s.mem, g->roots, base, sp_str_lit("tmp"), &scratch)) {
-    err = run_graph(run, ex, s.mem, scratch);
-    sp_fs_remove_dir_at(spn_path_at(g->roots, scratch));
-  }
-  if (err && !run->diag.err) {
-    run->diag = (spn_dag_diag_t) { .err = err };
+  spn_err_t err = spn_dag_run_begin(run, s.mem);
+  if (err) {
+    sp_mem_end_scratch(s);
+    return err;
   }
 
+  u32 in_flight = 0;
+  while (true) {
+    spn_thread_pool_job_t job = spn_thread_pool_try_poll(pool);
+    if (job.fn) {
+      in_flight--;
+      spn_dag_run_complete(run, ((flight_t*)job.data)->attempt.action->id);
+      continue;
+    }
+    spn_dag_id_t id = spn_dag_run_next(run);
+    if (id.occupied) {
+      in_flight++;
+      spn_thread_pool_submit(pool, (spn_thread_pool_job_t) { .fn = flight_run, .data = flight_at(run, id) });
+      continue;
+    }
+    if (!in_flight) {
+      break;
+    }
+    job = spn_thread_pool_poll(pool);
+    in_flight--;
+    spn_dag_run_complete(run, ((flight_t*)job.data)->attempt.action->id);
+  }
+
+  err = spn_dag_run_end(run);
   sp_mem_end_scratch(s);
   return err;
 }
