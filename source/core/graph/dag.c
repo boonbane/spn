@@ -1004,31 +1004,14 @@ spn_dag_build_t* spn_dag_build_new(spn_op_t* op) {
   sp_ht_init(b->mem, b->announce.pkgs);
   sp_ht_init(b->mem, b->announce.announced);
 
-  spn_path_t root = spn_path_anchor(session->mem, roots, spn_path_from_id(SPN_DIR_ID_DAG));
-  spn_path_t tmp = spn_path_join(session->mem, root, sp_str_lit("tmp"));
-  sp_fs_create_dir_at(spn_path_at(roots, tmp));
-
-  spn_dag_store_init(&b->store, (spn_dag_store_config_t) {
-    .kind = SPN_DAG_STORE_FILESYSTEM,
-    .mem = spn.mem,
-    .roots = roots,
-    .dir = spn_path_join(session->mem, root, sp_str_lit("store")),
-  });
-  spn_dag_action_cache_init(&b->actions, spn.mem, roots, spn_path_join(session->mem, root, sp_str_lit("strong")));
-  spn_dag_obs_table_init(&b->discovery, spn.mem, roots, spn_path_join(session->mem, root, sp_str_lit("weak")));
-  session->dag.files.stats = &b->stats;
-  b->actions.stats = &b->stats;
-  b->discovery.stats = &b->stats;
-  b->store.stats = &b->stats;
-
   b->run = (spn_dag_run_t) {
     .g = b->graph,
     .mem = b->mem,
     .files = &session->dag.files,
-    .cache = &b->actions,
-    .store = &b->store,
-    .discovery = &b->discovery,
-    .scratch = tmp,
+    .cache = &session->dag.actions,
+    .store = &session->dag.store,
+    .discovery = &session->dag.discovery,
+    .scratch = session->dag.scratch,
     .trace = dag_trace,
     .trace_data = b,
     .cancel = &op->cancelled,
@@ -1039,22 +1022,22 @@ spn_dag_build_t* spn_dag_build_new(spn_op_t* op) {
 }
 
 spn_err_t spn_dag_build_run(spn_dag_build_t* b, u32 workers) {
-  spn_thread_pool_init(&b->pool, spn.mem, (spn_thread_pool_config_t) {
+  spn_thread_pool_t pool = sp_zero;
+  spn_thread_pool_init(&pool, spn.mem, (spn_thread_pool_config_t) {
     .workers = sp_min(workers, (u32)sp_da_size(b->graph->actions)),
     .on_worker_exit = spn_wasm_thread_exit,
   });
 
-  b->timer = sp_tm_start_timer();
   spn_dag_file_cache_invalidate_all(b->run.files);
-  b->result = spn_dag_run(&b->run, &b->pool);
-  spn_thread_pool_deinit(&b->pool);
+  spn_err_t result = spn_dag_run(&b->run, &pool);
+  spn_thread_pool_deinit(&pool);
   spn_dag_file_cache_flush(b->run.files, b->session->dag.files_path);
 
-  switch (b->result) {
+  switch (result) {
     case SPN_OK:
     case SPN_ERR_DAG_CANCELLED:
     case SPN_ERR_DAG_ACTION: {
-      return b->result;
+      return result;
     }
     default: {
       break;

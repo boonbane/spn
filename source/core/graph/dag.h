@@ -4,7 +4,6 @@
 #include "dag/dag.h"
 #include "core/types.h"
 #include "graph/nodes/nodes.h"
-#include "thread_pool/types.h"
 #include "unit/types.h"
 
 typedef struct {
@@ -33,14 +32,7 @@ struct spn_dag_build_t {
     sp_ht(spn_dag_id_t, spn_pkg_unit_t*) pkgs;
     sp_ht(spn_pkg_unit_t*, sp_atomic_s32_t) announced;
   } announce;
-  spn_dag_action_cache_t actions;
-  spn_dag_obs_table_t discovery;
-  spn_dag_store_t store;
-  spn_thread_pool_t pool;
   spn_dag_run_t run;
-  spn_dag_stats_t stats;
-  spn_err_t result;
-  sp_tm_timer_t timer;
 };
 
 spn_dag_build_t* spn_dag_build_new(spn_op_t* op);

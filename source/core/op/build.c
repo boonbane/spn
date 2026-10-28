@@ -1,6 +1,7 @@
 #include "spn/host.h"
 
 #include "cpu/cpu.h"
+#include "ctx/types.h"
 #include "dag/dag.h"
 #include "error/error.h"
 #include "event/event.h"
@@ -81,6 +82,22 @@ spn_err_t spn_op_build(spn_op_t* op) {
   spn_dag_file_cache_init(&session->dag.files, session->mem, roots);
   spn_dag_file_cache_load(&session->dag.files, session->dag.files_path);
 
+  spn_path_t root = spn_path_anchor(session->mem, roots, spn_path_from_id(SPN_DIR_ID_DAG));
+  session->dag.scratch = spn_path_join(session->mem, root, sp_str_lit("tmp"));
+  sp_fs_create_dir_at(spn_path_at(roots, session->dag.scratch));
+  spn_dag_store_init(&session->dag.store, (spn_dag_store_config_t) {
+    .kind = SPN_DAG_STORE_FILESYSTEM,
+    .mem = spn.mem,
+    .roots = roots,
+    .dir = spn_path_join(session->mem, root, sp_str_lit("store")),
+  });
+  spn_dag_action_cache_init(&session->dag.actions, spn.mem, roots, spn_path_join(session->mem, root, sp_str_lit("strong")));
+  spn_dag_obs_table_init(&session->dag.discovery, spn.mem, roots, spn_path_join(session->mem, root, sp_str_lit("weak")));
+  session->dag.files.stats = &session->dag.stats;
+  session->dag.actions.stats = &session->dag.stats;
+  session->dag.discovery.stats = &session->dag.stats;
+  session->dag.store.stats = &session->dag.stats;
+
   if (spn_wasm_init()) {
     return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_WASM_INIT_FAILED });
   }
@@ -145,10 +162,11 @@ spn_err_t spn_op_build(spn_op_t* op) {
     }
   });
 
+  sp_tm_timer_t timer = sp_tm_start_timer();
   sp_atomic_ptr_store(&ctx->progress, &dag->run.progress, SP_ATOMIC_SEQ_CST);
   spn_err_t result = spn_dag_build_run(dag, spn_cpu_count());
   sp_atomic_ptr_store(&ctx->progress, SP_NULLPTR, SP_ATOMIC_SEQ_CST);
-  u64 elapsed = sp_tm_read_timer(&dag->timer);
+  u64 elapsed = sp_tm_read_timer(&timer);
 
   if (result == SPN_ERR_DAG_CANCELLED) {
     return result;
@@ -209,12 +227,12 @@ spn_err_t spn_op_build(spn_op_t* op) {
         .total = (u32)sp_da_size(dag->graph->actions),
         .time = elapsed,
         .profile = profile->name.str,
-        .hashed_files = sp_atomic_u32_load(&dag->stats.hashed_files, SP_ATOMIC_SEQ_CST),
-        .hashed_bytes = sp_atomic_u64_load(&dag->stats.hashed_bytes, SP_ATOMIC_SEQ_CST),
-        .stats = sp_atomic_u32_load(&dag->stats.stats, SP_ATOMIC_SEQ_CST),
-        .obs_rows = sp_atomic_u32_load(&dag->stats.obs_rows, SP_ATOMIC_SEQ_CST),
-        .cache_reads = sp_atomic_u32_load(&dag->stats.cache_reads, SP_ATOMIC_SEQ_CST),
-        .cache_writes = sp_atomic_u32_load(&dag->stats.cache_writes, SP_ATOMIC_SEQ_CST),
+        .hashed_files = sp_atomic_u32_load(&session->dag.stats.hashed_files, SP_ATOMIC_SEQ_CST),
+        .hashed_bytes = sp_atomic_u64_load(&session->dag.stats.hashed_bytes, SP_ATOMIC_SEQ_CST),
+        .stats = sp_atomic_u32_load(&session->dag.stats.stats, SP_ATOMIC_SEQ_CST),
+        .obs_rows = sp_atomic_u32_load(&session->dag.stats.obs_rows, SP_ATOMIC_SEQ_CST),
+        .cache_reads = sp_atomic_u32_load(&session->dag.stats.cache_reads, SP_ATOMIC_SEQ_CST),
+        .cache_writes = sp_atomic_u32_load(&session->dag.stats.cache_writes, SP_ATOMIC_SEQ_CST),
       },
     });
   }

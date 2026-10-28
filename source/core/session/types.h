@@ -73,6 +73,11 @@ struct spn_session_t {
   struct {
     spn_dag_file_cache_t files;
     spn_path_t files_path;
+    spn_dag_store_t store;
+    spn_dag_action_cache_t actions;
+    spn_dag_obs_table_t discovery;
+    spn_path_t scratch;
+    spn_dag_stats_t stats;
   } dag;
 };
 
