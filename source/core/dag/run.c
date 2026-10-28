@@ -801,10 +801,15 @@ static spn_err_t execute_attempt(sp_mem_t mem, spn_dag_t* g, si_dag_action_handl
   return SPN_OK;
 }
 
-static spn_err_t execute(spn_dag_t* g, si_dag_action_handle_t* attempt, spn_dag_env_t* env) {
+static spn_err_t scratch_claim(spn_dag_t* g, spn_dag_env_t* env, sp_mem_t mem, spn_path_t* scratch) {
   sp_assert(!spn_path_empty(env->scratch));
+  spn_path_t base = spn_path_join(mem, env->scratch, sp_str_lit("scratch/run"));
+  return spn_path_stage_dir(mem, g->roots, base, sp_str_lit("tmp"), scratch) ? SPN_ERR_DAG_SCRATCH : SPN_OK;
+}
+
+static spn_err_t execute(spn_dag_t* g, si_dag_action_handle_t* attempt, spn_dag_env_t* env, spn_path_t scratch) {
   sp_mem_arena_marker_t s = sp_mem_begin_scratch();
-  spn_path_t staging = spn_path_join(s.mem, env->scratch, sp_fmt(s.mem, "scratch/{}", sp_fmt_uint(attempt->action->id.index)).value);
+  spn_path_t staging = spn_path_join(s.mem, scratch, sp_fmt(s.mem, "{}", sp_fmt_uint(attempt->action->id.index)).value);
   sp_path_t dir = spn_path_at(g->roots, staging);
   sp_fs_remove_dir_at(dir);
   spn_err_t err = sp_fs_create_dir_at(dir) ? SPN_ERR_DAG_SCRATCH : execute_attempt(s.mem, g, attempt, env, staging);
@@ -857,7 +862,7 @@ static spn_err_t commit(spn_dag_t* g, si_dag_action_handle_t* attempt, spn_dag_e
   sp_unreachable_return(SPN_ERROR);
 }
 
-static spn_err_t exec_action(spn_dag_t* g, spn_dag_action_t* action, spn_dag_env_t* env) {
+static spn_err_t exec_action(spn_dag_t* g, spn_dag_action_t* action, spn_dag_env_t* env, spn_path_t scratch) {
   sp_mem_arena_marker_t s = sp_mem_begin_scratch();
   env->diag = (spn_dag_diag_t) sp_zero;
 
@@ -868,7 +873,7 @@ static spn_err_t exec_action(spn_dag_t* g, spn_dag_action_t* action, spn_dag_env
   lookup(g, action, env, &attempt);
   spn_err_t err = SPN_OK;
   if (!attempt.hit) {
-    err = execute(g, &attempt, env);
+    err = execute(g, &attempt, env, scratch);
     if (!err) {
       err = commit(g, &attempt, env);
     }
@@ -885,7 +890,19 @@ static spn_err_t exec_action(spn_dag_t* g, spn_dag_action_t* action, spn_dag_env
 spn_err_t spn_dag_execute(spn_dag_t* g, spn_dag_id_t action_id, spn_dag_env_t* env) {
   spn_dag_action_t* action = spn_dag_find_action(g, action_id);
   sp_assert(action->kind != SPN_DAG_ACTION_DISCOVERED || env->discovery);
-  return exec_action(g, action, env);
+  sp_mem_arena_marker_t s = sp_mem_begin_scratch();
+  spn_path_t scratch = sp_zero;
+  spn_err_t err = scratch_claim(g, env, s.mem, &scratch);
+  if (err) {
+    env->diag = (spn_dag_diag_t) sp_zero;
+    diag_set(&env->diag, err, (spn_dag_id_t) sp_zero, sp_str_lit(""));
+  }
+  else {
+    err = exec_action(g, action, env, scratch);
+    sp_fs_remove_dir_at(spn_path_at(g->roots, scratch));
+  }
+  sp_mem_end_scratch(s);
+  return err;
 }
 
 typedef struct {
@@ -966,6 +983,7 @@ struct spn_dag_run_t {
   sp_da(spn_dag_id_t) ready;
   sp_atomic_s32_t completed;
   u32 in_flight;
+  spn_path_t scratch;
   spn_err_t err;
 };
 
@@ -1124,7 +1142,7 @@ static void flight_run(void* data) {
   flight->epoch = (u64)sp_atomic_s32_load(&run->completed, SP_ATOMIC_SEQ_CST);
   lookup(run->g, flight->action, run->env, &flight->attempt);
   if (!flight->attempt.hit) {
-    flight->err = execute(run->g, &flight->attempt, run->env);
+    flight->err = execute(run->g, &flight->attempt, run->env, run->scratch);
   }
 }
 
@@ -1211,14 +1229,15 @@ spn_err_t spn_dag_run_executor(spn_dag_t* g, spn_dag_env_t* env, spn_thread_pool
   sp_mem_arena_marker_t s = sp_mem_begin_scratch();
   env->diag = (spn_dag_diag_t) sp_zero;
 
-  spn_path_t scratch = spn_path_join(s.mem, env->scratch, sp_str_lit("scratch"));
-  sp_fs_create_dir_at(spn_path_at(g->roots, scratch));
   spn_dag_run_t run = {
     .g = g,
     .env = env,
     .ex = ex,
-    .err = spn_dag_file_cache_fence_dir(env->files, scratch),
   };
+  run.err = scratch_claim(g, env, s.mem, &run.scratch);
+  if (!run.err) {
+    run.err = spn_dag_file_cache_fence_dir(env->files, run.scratch);
+  }
   if (run.err) {
     diag_set(&env->diag, run.err, (spn_dag_id_t) sp_zero, sp_str_lit(""));
   }
@@ -1279,6 +1298,9 @@ spn_err_t spn_dag_run_executor(spn_dag_t* g, spn_dag_env_t* env, spn_thread_pool
     }
   }
 
+  if (!spn_path_empty(run.scratch)) {
+    sp_fs_remove_dir_at(spn_path_at(g->roots, run.scratch));
+  }
   sp_mem_end_scratch(s);
   return run.err;
 }
