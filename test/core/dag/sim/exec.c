@@ -226,26 +226,27 @@ static sp_err_t run_action(sp_test_t* t, env_t* env, const action_t* spec, const
     sp_must_eq(t, SPN_OK, spn_dag_action_add_output(g, action, file));
   }
 
+  spn_dag_state_t* state = dag_test_env_state(&env->dag);
   if (op->unavailable[0]) {
     spn_dag_action_output_t outputs [DAG_TEST_MAX_OUTPUTS] = sp_zero;
-    spn_dag_action_t* a = spn_dag_find_action(g, action);
+    const spn_dag_action_t* a = spn_dag_find_action(g, action);
     u32 count = 0;
     sp_carr_for(op->unavailable, it) {
       if (!op->unavailable[it]) {
         break;
       }
-      spn_dag_artifact_t* artifact = spn_dag_find_artifact(g, a->produces[it]);
+      const spn_dag_artifact_t* artifact = spn_dag_find_artifact(g, a->produces[it]);
       outputs[it] = (spn_dag_action_output_t) {
         .name = artifact->name,
         .digest = dag_test_digest(op->unavailable[it])
       };
       count++;
     }
-    spn_dag_action_cache_put(&env->dag.cache, spn_dag_weak_key(g, action), outputs, count);
+    spn_dag_action_cache_put(&env->dag.cache, spn_dag_weak_key(g, state, action), outputs, count);
   }
 
   u32 hashed = dag_test_hashed(&env->dag);
-  env->err = spn_dag_execute(g, action, &env->dag.env);
+  env->err = spn_dag_execute(g, action, &env->dag.env, state);
   sp_expect_eq(t, op->expect.err, env->err);
   if (env->err != op->expect.err) {
     return SP_OK;
@@ -266,10 +267,10 @@ static sp_err_t run_action(sp_test_t* t, env_t* env, const action_t* spec, const
       return err;
     }
 
-    spn_dag_action_t* a = spn_dag_find_action(g, action);
-    spn_dag_artifact_t* artifact = spn_dag_find_artifact(g, a->produces[it]);
-    sp_must(t, spn_dag_digest_valid(artifact->digest));
-    sp_expect(t, spn_dag_digest_equal(artifact->digest, dag_test_digest(op->expect.contents[it])));
+    const spn_dag_action_t* a = spn_dag_find_action(g, action);
+    spn_dag_digest_t digest = spn_dag_state_artifact(state, a->produces[it])->digest;
+    sp_must(t, spn_dag_digest_valid(digest));
+    sp_expect(t, spn_dag_digest_equal(digest, dag_test_digest(op->expect.contents[it])));
   }
 
   return SP_OK;

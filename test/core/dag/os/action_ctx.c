@@ -29,7 +29,7 @@ sp_test(dag_action_ctx_os, canonical_resolves_symlinked_head) {
   });
   sp_must_eq(t, SPN_OK, spn_dag_action_add_output(g, action, spn_dag_add_file(g, dag_test_env_rooted(&env.dag, sp_str_lit("O")))));
 
-  sp_expect_eq(t, SPN_OK, spn_dag_execute(g, action, &env.dag.env));
+  sp_expect_eq(t, SPN_OK, spn_dag_execute(g, action, &env.dag.env, dag_test_env_state(&env.dag)));
   sp_expect_eq(t, SPN_PATH_ROOT_PROJECT, env.seen.root);
   sp_expect_str_eq_c(t, env.seen.sub, "real/H");
   return SP_OK;

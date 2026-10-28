@@ -38,6 +38,7 @@ struct spn_dag_build_t {
   spn_dag_store_t store;
   spn_thread_pool_t pool;
   spn_dag_env_t env;
+  spn_dag_state_t state;
   spn_dag_progress_t progress;
   spn_dag_stats_t stats;
   spn_err_t result;

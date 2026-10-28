@@ -202,6 +202,51 @@ spn_err_t spn_dag_file_cache_seed(spn_dag_file_cache_t* c, spn_path_t path, spn_
   return SPN_OK;
 }
 
+void spn_dag_state_init(spn_dag_state_t* state, sp_mem_t mem, const spn_dag_t* g) {
+  *state = (spn_dag_state_t) { .graph = g->id };
+  state->arena = sp_mem_arena_new(mem);
+  state->mem = sp_mem_arena_as_allocator(state->arena);
+  u64 count = sp_da_size(g->artifacts);
+  state->artifacts = sp_alloc_n(state->mem, spn_dag_artifact_state_t, count ? count : 1);
+  sp_da_for(g->artifacts, it) {
+    const spn_dag_artifact_t* artifact = &g->artifacts[it];
+    switch (artifact->kind) {
+      case SPN_DAG_ARTIFACT_KIND_VALUE: {
+        state->artifacts[it].digest = artifact->digest;
+        break;
+      }
+      case SPN_DAG_ARTIFACT_KIND_FILE:
+      case SPN_DAG_ARTIFACT_KIND_TREE: {
+        break;
+      }
+    }
+  }
+}
+
+const spn_dag_artifact_state_t* spn_dag_state_artifact(const spn_dag_state_t* state, spn_dag_id_t id) {
+  sp_assert(id.occupied);
+  sp_assert(id.graph == state->graph);
+  return state->artifacts + id.index;
+}
+
+static spn_dag_artifact_state_t* state_artifact(spn_dag_state_t* state, spn_dag_id_t id) {
+  return sp_ptr_cast(spn_dag_artifact_state_t*, spn_dag_state_artifact(state, id));
+}
+
+struct si_dag_action_handle {
+  const spn_dag_t* g;
+  spn_dag_env_t* env;
+  spn_dag_state_t* state;
+  const spn_dag_action_t* action;
+  spn_dag_digest_t key;
+  bool hit;
+  bool wrote;
+  spn_dag_digest_t* digests;
+  spn_path_t* outputs;
+  spn_dag_obs_set_t obs;
+  spn_dag_diag_t diag;
+};
+
 static void diag_set(spn_dag_diag_t* diag, spn_err_t err, spn_dag_id_t action, sp_str_t path) {
   if (!diag || diag->err) {
     return;
@@ -255,22 +300,22 @@ static void progress_count(spn_dag_env_t* env, const spn_dag_action_t* action, b
   }
 }
 
-static sp_str_t artifact_render(spn_dag_t* g, spn_path_t path) {
-  sp_mutex_lock(&g->mutex);
-  sp_str_t rendered = spn_path_str(g->roots, g->mem, path);
-  sp_mutex_unlock(&g->mutex);
+static sp_str_t render_path(spn_dag_state_t* state, const spn_path_roots_t* roots, spn_path_t path) {
+  sp_mutex_lock(&state->mutex);
+  sp_str_t rendered = spn_path_str(roots, state->mem, path);
+  sp_mutex_unlock(&state->mutex);
   return rendered;
 }
 
-static void diag_set_path(spn_dag_diag_t* diag, spn_err_t err, spn_dag_id_t action, spn_dag_t* g, spn_path_t path) {
+static void diag_set_path(si_dag_action_handle_t* a, spn_dag_diag_t* diag, spn_err_t err, spn_path_t path) {
   if (!diag || diag->err) {
     return;
   }
-  diag_set(diag, err, action, artifact_render(g, path));
+  diag_set(diag, err, a->action->id, render_path(a->state, a->g->roots, path));
 }
 
-static sp_str_t artifact_location(spn_dag_t* g, spn_dag_artifact_t* artifact) {
-  return spn_path_empty(artifact->path) ? artifact->name : artifact_render(g, artifact->path);
+static sp_str_t artifact_location(si_dag_action_handle_t* a, const spn_dag_artifact_t* artifact) {
+  return spn_path_empty(artifact->path) ? artifact->name : render_path(a->state, a->g->roots, artifact->path);
 }
 
 typedef enum {
@@ -301,14 +346,18 @@ typedef struct {
   sp_fs_kind_t kind;
 } extra_entry_t;
 
-static spn_err_t settle_tree(spn_dag_t* g, spn_dag_action_t* action, spn_dag_artifact_t* artifact, spn_dag_env_t* env, spn_dag_diag_t* diag) {
+static spn_err_t settle_tree(si_dag_action_handle_t* a, const spn_dag_artifact_t* artifact, spn_dag_diag_t* diag) {
+  const spn_dag_t* g = a->g;
+  const spn_dag_action_t* action = a->action;
+  spn_dag_env_t* env = a->env;
+  spn_dag_digest_t digest = spn_dag_state_artifact(a->state, artifact->id)->digest;
   sp_mem_arena_marker_t s = sp_mem_begin_scratch();
   spn_err_t err = SPN_OK;
 
   sp_da(spn_dag_action_output_t) entries = sp_zero;
-  err = spn_dag_tree_entries(env->store, artifact->digest, s.mem, &entries);
+  err = spn_dag_tree_entries(env->store, digest, s.mem, &entries);
   if (err) {
-    diag_set_path(diag, err, action->id, g, artifact->path);
+    diag_set_path(a, diag, err, artifact->path);
     goto done;
   }
   spn_path_t* paths = sp_alloc_n(s.mem, spn_path_t, sp_da_size(entries) ? sp_da_size(entries) : 1);
@@ -349,7 +398,7 @@ static spn_err_t settle_tree(spn_dag_t* g, spn_dag_action_t* action, spn_dag_art
     sp_fs_it_deinit(&walk);
     if (walk.err) {
       err = SPN_ERR_DAG_STORE_READ;
-      diag_set_path(diag, err, action->id, g, artifact->path);
+      diag_set_path(a, diag, err, artifact->path);
       goto done;
     }
     sp_da_for(entries, it) {
@@ -363,7 +412,7 @@ static spn_err_t settle_tree(spn_dag_t* g, spn_dag_action_t* action, spn_dag_art
   else {
     if (sp_fs_create_dir_at(dir)) {
       err = SPN_ERR_DAG_STORE_WRITE;
-      diag_set_path(diag, err, action->id, g, artifact->path);
+      diag_set_path(a, diag, err, artifact->path);
       goto done;
     }
     sp_da_for(entries, it) {
@@ -372,17 +421,17 @@ static spn_err_t settle_tree(spn_dag_t* g, spn_dag_action_t* action, spn_dag_art
   }
 
   if (exists && sp_da_empty(stale) && sp_da_empty(poisoned) && files == sp_da_size(entries)) {
-    trace_emit(env, (spn_dag_trace_event_t) { .kind = SPN_DAG_TRACE_SETTLE, .action = action->id, .producer = artifact->id, .key = artifact->digest, .hit = true });
+    trace_emit(env, (spn_dag_trace_event_t) { .kind = SPN_DAG_TRACE_SETTLE, .action = action->id, .producer = artifact->id, .key = digest, .hit = true });
     goto done;
   }
-  action->wrote = true;
+  a->wrote = true;
 
   sp_da_for(poisoned, it) {
     spn_dag_store_drop(env->store, entries[poisoned[it]].digest, entries[poisoned[it]].name);
   }
   if (!sp_da_empty(poisoned)) {
     err = SPN_ERR_DAG_STORE_MISSING;
-    diag_set_path(diag, err, action->id, g, paths[poisoned[0]]);
+    diag_set_path(a, diag, err, paths[poisoned[0]]);
     goto done;
   }
 
@@ -392,7 +441,7 @@ static spn_err_t settle_tree(spn_dag_t* g, spn_dag_action_t* action, spn_dag_art
     sp_err_t removed = extra[it].kind == SP_FS_KIND_DIR ? sp_fs_remove_dir_at(at) : sp_fs_remove_file_at(at);
     if (removed) {
       err = SPN_ERR_DAG_STORE_WRITE;
-      diag_set_path(diag, err, action->id, g, path);
+      diag_set_path(a, diag, err, path);
       goto done;
     }
     spn_dag_file_cache_invalidate(env->files, path);
@@ -402,50 +451,56 @@ static spn_err_t settle_tree(spn_dag_t* g, spn_dag_action_t* action, spn_dag_art
     spn_dag_action_output_t* entry = &entries[stale[it]];
     err = link_target(env, paths[stale[it]], entry->name, entry->digest);
     if (err) {
-      diag_set_path(diag, err, action->id, g, paths[stale[it]]);
+      diag_set_path(a, diag, err, paths[stale[it]]);
       goto done;
     }
   }
-  trace_emit(env, (spn_dag_trace_event_t) { .kind = SPN_DAG_TRACE_SETTLE, .action = action->id, .producer = artifact->id, .key = artifact->digest, .hit = false });
+  trace_emit(env, (spn_dag_trace_event_t) { .kind = SPN_DAG_TRACE_SETTLE, .action = action->id, .producer = artifact->id, .key = digest, .hit = false });
 
 done:
   sp_mem_end_scratch(s);
   return err;
 }
 
-static spn_err_t settle_file(spn_dag_t* g, spn_dag_action_t* action, spn_dag_artifact_t* artifact, spn_dag_env_t* env, spn_dag_diag_t* diag) {
-  switch (target_state(env, artifact->path, artifact->name, artifact->digest)) {
+static spn_err_t settle_file(si_dag_action_handle_t* a, const spn_dag_artifact_t* artifact, spn_dag_diag_t* diag) {
+  const spn_dag_action_t* action = a->action;
+  spn_dag_env_t* env = a->env;
+  spn_dag_digest_t digest = spn_dag_state_artifact(a->state, artifact->id)->digest;
+  switch (target_state(env, artifact->path, artifact->name, digest)) {
     case TARGET_SETTLED: {
-      trace_emit(env, (spn_dag_trace_event_t) { .kind = SPN_DAG_TRACE_SETTLE, .action = action->id, .producer = artifact->id, .key = artifact->digest, .hit = true });
+      trace_emit(env, (spn_dag_trace_event_t) { .kind = SPN_DAG_TRACE_SETTLE, .action = action->id, .producer = artifact->id, .key = digest, .hit = true });
       return SPN_OK;
     }
     case TARGET_POISONED: {
-      spn_dag_store_drop(env->store, artifact->digest, artifact->name);
-      diag_set_path(diag, SPN_ERR_DAG_STORE_MISSING, action->id, g, artifact->path);
+      spn_dag_store_drop(env->store, digest, artifact->name);
+      diag_set_path(a, diag, SPN_ERR_DAG_STORE_MISSING, artifact->path);
       return SPN_ERR_DAG_STORE_MISSING;
     }
     case TARGET_STALE: {
       break;
     }
   }
-  action->wrote = true;
-  spn_err_t err = link_target(env, artifact->path, artifact->name, artifact->digest);
+  a->wrote = true;
+  spn_err_t err = link_target(env, artifact->path, artifact->name, digest);
   if (err) {
-    diag_set_path(diag, err, action->id, g, artifact->path);
+    diag_set_path(a, diag, err, artifact->path);
     return err;
   }
-  trace_emit(env, (spn_dag_trace_event_t) { .kind = SPN_DAG_TRACE_SETTLE, .action = action->id, .producer = artifact->id, .key = artifact->digest, .hit = false });
+  trace_emit(env, (spn_dag_trace_event_t) { .kind = SPN_DAG_TRACE_SETTLE, .action = action->id, .producer = artifact->id, .key = digest, .hit = false });
   return SPN_OK;
 }
 
-static spn_err_t settle(spn_dag_t* g, spn_dag_action_t* action, spn_dag_env_t* env, spn_dag_diag_t* diag) {
-  action->wrote = false;
+static spn_err_t settle(si_dag_action_handle_t* a, spn_dag_diag_t* diag) {
+  const spn_dag_action_t* action = a->action;
+  spn_dag_state_t* state = a->state;
+  a->wrote = false;
   sp_da_for(action->produces, it) {
-    spn_dag_artifact_t* artifact = spn_dag_find_artifact(g, action->produces[it]);
+    const spn_dag_artifact_t* artifact = spn_dag_find_artifact(a->g, action->produces[it]);
+    spn_dag_artifact_state_t* produced = state_artifact(state, artifact->id);
     if (spn_path_empty(artifact->path)) {
-      sp_mutex_lock(&g->mutex);
-      spn_err_t located = spn_dag_store_locate(env->store, g->mem, artifact->digest, artifact->name, &artifact->materialized);
-      sp_mutex_unlock(&g->mutex);
+      sp_mutex_lock(&state->mutex);
+      spn_err_t located = spn_dag_store_locate(a->env->store, state->mem, produced->digest, artifact->name, &produced->location);
+      sp_mutex_unlock(&state->mutex);
       if (located) {
         diag_set(diag, located, action->id, artifact->name);
         return located;
@@ -453,38 +508,40 @@ static spn_err_t settle(spn_dag_t* g, spn_dag_action_t* action, spn_dag_env_t* e
       continue;
     }
     spn_try(artifact->kind == SPN_DAG_ARTIFACT_KIND_TREE
-      ? settle_tree(g, action, artifact, env, diag)
-      : settle_file(g, action, artifact, env, diag));
-    artifact->materialized = artifact->path;
+      ? settle_tree(a, artifact, diag)
+      : settle_file(a, artifact, diag));
+    produced->location = artifact->path;
   }
   return SPN_OK;
 }
 
-static bool restore_entry(spn_dag_t* g, spn_dag_action_t* action, const spn_dag_action_entry_t* entry, spn_dag_env_t* env) {
+static bool restore_entry(si_dag_action_handle_t* a, const spn_dag_action_entry_t* entry) {
+  const spn_dag_action_t* action = a->action;
   if (sp_da_size(entry->outputs) != sp_da_size(action->produces)) {
     return false;
   }
 
   sp_da_for(entry->outputs, it) {
-    if (!sp_str_equal(entry->outputs[it].name, spn_dag_find_artifact(g, action->produces[it])->name)) {
+    if (!sp_str_equal(entry->outputs[it].name, spn_dag_find_artifact(a->g, action->produces[it])->name)) {
       return false;
     }
   }
 
   sp_da_for(entry->outputs, it) {
-    spn_dag_find_artifact(g, action->produces[it])->digest = entry->outputs[it].digest;
+    state_artifact(a->state, action->produces[it])->digest = entry->outputs[it].digest;
   }
 
-  return !settle(g, action, env, SP_NULLPTR);
+  return !settle(a, SP_NULLPTR);
 }
 
-static bool try_restore(spn_dag_t* g, spn_dag_action_t* action, spn_dag_digest_t key, spn_dag_env_t* env) {
+static bool try_restore(si_dag_action_handle_t* a, spn_dag_digest_t key) {
+  spn_dag_env_t* env = a->env;
   spn_dag_action_entry_t entry = sp_zero;
   bool present = spn_dag_action_cache_get(env->cache, key, &entry);
-  bool hit = present && restore_entry(g, action, &entry, env);
+  bool hit = present && restore_entry(a, &entry);
   trace_emit(env, (spn_dag_trace_event_t) {
     .kind = SPN_DAG_TRACE_CACHE,
-    .action = action->id,
+    .action = a->action->id,
     .key = key,
     .present = present,
     .hit = hit,
@@ -618,36 +675,24 @@ static spn_err_t resolve_observations(spn_dag_file_cache_t* files, const spn_dag
   return err;
 }
 
-static void record(spn_dag_t* g, spn_dag_action_t* action, spn_dag_digest_t key, spn_dag_env_t* env) {
+static void record(si_dag_action_handle_t* a, spn_dag_digest_t key) {
+  const spn_dag_action_t* action = a->action;
   sp_mem_arena_marker_t s = sp_mem_begin_scratch();
 
   sp_da(spn_dag_action_output_t) outputs = sp_da_new(s.mem, spn_dag_action_output_t);
   sp_da_for(action->produces, it) {
-    spn_dag_artifact_t* artifact = spn_dag_find_artifact(g, action->produces[it]);
     sp_da_push(outputs, ((spn_dag_action_output_t) {
-      .name = artifact->name,
-      .digest = artifact->digest
+      .name = spn_dag_find_artifact(a->g, action->produces[it])->name,
+      .digest = spn_dag_state_artifact(a->state, action->produces[it])->digest
     }));
   }
-  spn_dag_action_cache_put(env->cache, key, outputs, (u32)sp_da_size(outputs));
+  spn_dag_action_cache_put(a->env->cache, key, outputs, (u32)sp_da_size(outputs));
 
   sp_mem_end_scratch(s);
 }
 
-struct si_dag_action_handle {
-  spn_dag_t* g;
-  spn_dag_env_t* env;
-  spn_dag_action_t* action;
-  spn_dag_digest_t key;
-  bool hit;
-  spn_dag_digest_t* digests;
-  spn_path_t* outputs;
-  spn_dag_obs_set_t obs;
-  spn_dag_diag_t diag;
-};
-
 spn_path_t si_dag_resolve_input(const si_dag_ctx_t* c, spn_dag_id_t id) {
-  return spn_dag_find_artifact(c->handle->g, id)->materialized;
+  return spn_dag_state_artifact(c->handle->state, id)->location;
 }
 
 spn_path_t si_dag_resolve_output(const si_dag_ctx_t* c, spn_dag_id_t id) {
@@ -678,36 +723,37 @@ void si_dag_add_warm(const si_dag_ctx_t* c, s64 delta) {
   }
 }
 
-static void diag_flush(spn_dag_env_t* env, si_dag_action_handle_t* attempt, spn_err_t err) {
+static void diag_flush(si_dag_action_handle_t* a, spn_err_t err) {
   if (!err) {
     return;
   }
-  if (attempt->diag.err) {
-    diag_set(&env->diag, attempt->diag.err, attempt->diag.action, attempt->diag.path);
+  if (a->diag.err) {
+    diag_set(&a->state->diag, a->diag.err, a->diag.action, a->diag.path);
   }
   else {
-    spn_dag_id_t action = attempt->action ? attempt->action->id : (spn_dag_id_t) sp_zero;
-    diag_set(&env->diag, err, action, sp_str_lit(""));
+    diag_set(&a->state->diag, err, a->action->id, sp_str_lit(""));
   }
 }
 
-static spn_dag_digest_t weak_key_traced(spn_dag_t* g, spn_dag_action_t* action, spn_dag_env_t* env) {
-  spn_dag_digest_t key = spn_dag_weak_key(g, action->id);
-  trace_emit(env, (spn_dag_trace_event_t) { .kind = SPN_DAG_TRACE_KEY, .action = action->id, .key = key });
+static spn_dag_digest_t weak_key_traced(si_dag_action_handle_t* a) {
+  spn_dag_digest_t key = spn_dag_weak_key(a->g, a->state, a->action->id);
+  trace_emit(a->env, (spn_dag_trace_event_t) { .kind = SPN_DAG_TRACE_KEY, .action = a->action->id, .key = key });
   return key;
 }
 
-static void lookup(spn_dag_t* g, spn_dag_action_t* action, spn_dag_env_t* env, si_dag_action_handle_t* attempt) {
-  attempt->action = action;
+static void lookup(si_dag_action_handle_t* attempt) {
+  const spn_dag_t* g = attempt->g;
+  const spn_dag_action_t* action = attempt->action;
+  spn_dag_env_t* env = attempt->env;
 
   switch (action->kind) {
     case SPN_DAG_ACTION_STATIC: {
-      attempt->key = weak_key_traced(g, action, env);
-      attempt->hit = try_restore(g, action, attempt->key, env);
+      attempt->key = weak_key_traced(attempt);
+      attempt->hit = try_restore(attempt, attempt->key);
       break;
     }
     case SPN_DAG_ACTION_DISCOVERED: {
-      attempt->key = weak_key_traced(g, action, env);
+      attempt->key = weak_key_traced(attempt);
       spn_dag_pathset_t set = sp_zero;
       bool present = spn_dag_obs_table_get(env->discovery, attempt->key, &set);
       trace_emit(env, (spn_dag_trace_event_t) { .kind = SPN_DAG_TRACE_DISCOVERY, .action = action->id, .key = attempt->key, .hit = present });
@@ -725,7 +771,7 @@ static void lookup(spn_dag_t* g, spn_dag_action_t* action, spn_dag_env_t* env, s
         break;
       }
       trace_emit(env, (spn_dag_trace_event_t) { .kind = SPN_DAG_TRACE_STRONG, .action = action->id, .key = strong });
-      attempt->hit = try_restore(g, action, strong, env);
+      attempt->hit = try_restore(attempt, strong);
       break;
     }
     case SPN_DAG_ACTION_UNCACHEABLE: {
@@ -734,12 +780,14 @@ static void lookup(spn_dag_t* g, spn_dag_action_t* action, spn_dag_env_t* env, s
   }
 }
 
-static spn_err_t execute_attempt(sp_mem_t mem, spn_dag_t* g, si_dag_action_handle_t* attempt, spn_dag_env_t* env, spn_path_t staging) {
-  spn_dag_action_t* action = attempt->action;
+static spn_err_t execute_attempt(sp_mem_t mem, si_dag_action_handle_t* attempt, spn_path_t staging) {
+  const spn_dag_t* g = attempt->g;
+  const spn_dag_action_t* action = attempt->action;
+  spn_dag_env_t* env = attempt->env;
 
   attempt->outputs = sp_alloc_n(mem, spn_path_t, sp_da_size(action->produces));
   sp_da_for(action->produces, it) {
-    spn_dag_artifact_t* artifact = spn_dag_find_artifact(g, action->produces[it]);
+    const spn_dag_artifact_t* artifact = spn_dag_find_artifact(g, action->produces[it]);
     attempt->outputs[it] = spn_path_join(mem, staging, artifact->name);
     if (artifact->kind == SPN_DAG_ARTIFACT_KIND_TREE) {
       sp_fs_create_dir_at(spn_path_at(g->roots, attempt->outputs[it]));
@@ -748,8 +796,6 @@ static spn_err_t execute_attempt(sp_mem_t mem, spn_dag_t* g, si_dag_action_handl
 
   trace_emit(env, (spn_dag_trace_event_t) { .kind = SPN_DAG_TRACE_EXECUTE, .action = action->id, .key = attempt->key });
 
-  attempt->g = g;
-  attempt->env = env;
   si_dag_ctx_t c = {
     .handle = attempt,
     .consumes = action->consumes,
@@ -776,7 +822,7 @@ static spn_err_t execute_attempt(sp_mem_t mem, spn_dag_t* g, si_dag_action_handl
   }
 
   sp_da_for(action->produces, it) {
-    spn_dag_artifact_t* artifact = spn_dag_find_artifact(g, action->produces[it]);
+    const spn_dag_artifact_t* artifact = spn_dag_find_artifact(g, action->produces[it]);
     sp_path_t output = spn_path_at(g->roots, attempt->outputs[it]);
     err = SPN_ERR_DAG_MISSING_OUTPUT;
     if (sp_fs_exists_at(output)) {
@@ -793,7 +839,7 @@ static spn_err_t execute_attempt(sp_mem_t mem, spn_dag_t* g, si_dag_action_handl
       }
     }
     if (err) {
-      diag_set(&attempt->diag, err, action->id, artifact_location(g, artifact));
+      diag_set(&attempt->diag, err, action->id, artifact_location(attempt, artifact));
       return err;
     }
   }
@@ -801,40 +847,42 @@ static spn_err_t execute_attempt(sp_mem_t mem, spn_dag_t* g, si_dag_action_handl
   return SPN_OK;
 }
 
-static spn_err_t scratch_claim(spn_dag_t* g, spn_dag_env_t* env, sp_mem_t mem, spn_path_t* scratch) {
+static spn_err_t scratch_claim(const spn_dag_t* g, spn_dag_env_t* env, sp_mem_t mem, spn_path_t* scratch) {
   sp_assert(!spn_path_empty(env->scratch));
   spn_path_t base = spn_path_join(mem, env->scratch, sp_str_lit("scratch/run"));
   return spn_path_stage_dir(mem, g->roots, base, sp_str_lit("tmp"), scratch) ? SPN_ERR_DAG_SCRATCH : SPN_OK;
 }
 
-static spn_err_t execute(spn_dag_t* g, si_dag_action_handle_t* attempt, spn_dag_env_t* env, spn_path_t scratch) {
+static spn_err_t execute(si_dag_action_handle_t* attempt, spn_path_t scratch) {
   sp_mem_arena_marker_t s = sp_mem_begin_scratch();
   spn_path_t staging = spn_path_join(s.mem, scratch, sp_fmt(s.mem, "{}", sp_fmt_uint(attempt->action->id.index)).value);
-  sp_path_t dir = spn_path_at(g->roots, staging);
+  sp_path_t dir = spn_path_at(attempt->g->roots, staging);
   sp_fs_remove_dir_at(dir);
-  spn_err_t err = sp_fs_create_dir_at(dir) ? SPN_ERR_DAG_SCRATCH : execute_attempt(s.mem, g, attempt, env, staging);
+  spn_err_t err = sp_fs_create_dir_at(dir) ? SPN_ERR_DAG_SCRATCH : execute_attempt(s.mem, attempt, staging);
   sp_fs_remove_dir_at(dir);
   sp_mem_end_scratch(s);
   return err;
 }
 
-static spn_err_t commit(spn_dag_t* g, si_dag_action_handle_t* attempt, spn_dag_env_t* env) {
-  spn_dag_action_t* action = attempt->action;
+static spn_err_t commit(si_dag_action_handle_t* attempt) {
+  const spn_dag_t* g = attempt->g;
+  const spn_dag_action_t* action = attempt->action;
+  spn_dag_env_t* env = attempt->env;
   sp_assert(!attempt->hit);
 
   sp_da_for(action->produces, it) {
-    spn_dag_find_artifact(g, action->produces[it])->digest = attempt->digests[it];
+    state_artifact(attempt->state, action->produces[it])->digest = attempt->digests[it];
   }
 
   switch (action->kind) {
     case SPN_DAG_ACTION_UNCACHEABLE: {
-      spn_try(settle(g, action, env, &attempt->diag));
+      spn_try(settle(attempt, &attempt->diag));
       trace_emit(env, (spn_dag_trace_event_t) { .kind = SPN_DAG_TRACE_COMMIT, .action = action->id });
       return SPN_OK;
     }
     case SPN_DAG_ACTION_STATIC: {
-      spn_try(settle(g, action, env, &attempt->diag));
-      record(g, action, attempt->key, env);
+      spn_try(settle(attempt, &attempt->diag));
+      record(attempt, attempt->key);
       trace_emit(env, (spn_dag_trace_event_t) { .kind = SPN_DAG_TRACE_COMMIT, .action = action->id, .key = attempt->key, .hit = true });
       return SPN_OK;
     }
@@ -850,9 +898,9 @@ static spn_err_t commit(spn_dag_t* g, si_dag_action_handle_t* attempt, spn_dag_e
       if (resolved) {
         trace_emit(env, (spn_dag_trace_event_t) { .kind = SPN_DAG_TRACE_STRONG, .action = action->id, .key = key });
       }
-      spn_try(settle(g, action, env, &attempt->diag));
+      spn_try(settle(attempt, &attempt->diag));
       if (resolved) {
-        record(g, action, key, env);
+        record(attempt, key);
       }
       trace_emit(env, (spn_dag_trace_event_t) { .kind = SPN_DAG_TRACE_COMMIT, .action = action->id, .key = key, .hit = resolved });
       return SPN_OK;
@@ -862,23 +910,65 @@ static spn_err_t commit(spn_dag_t* g, si_dag_action_handle_t* attempt, spn_dag_e
   sp_unreachable_return(SPN_ERROR);
 }
 
-static spn_err_t exec_action(spn_dag_t* g, spn_dag_action_t* action, spn_dag_env_t* env, spn_path_t scratch) {
+static spn_err_t seed_source(spn_dag_env_t* env, spn_path_t path, spn_dag_artifact_state_t* source) {
+  source->location = path;
+  sp_sys_file_meta_t sys = sp_zero;
+  spn_try(spn_dag_file_cache_stat(env->files, path, &sys));
+  if (sys.kind == SP_FS_KIND_DIR) {
+    return SPN_ERR_DAG_MISSING_INPUT;
+  }
+  return spn_dag_file_cache_digest(env->files, path, &source->digest);
+}
+
+static spn_err_t seed_sources(const spn_dag_t* g, spn_dag_env_t* env, spn_dag_state_t* state) {
+  sp_da_for(g->artifacts, it) {
+    const spn_dag_artifact_t* artifact = &g->artifacts[it];
+    spn_dag_artifact_state_t* source = state_artifact(state, artifact->id);
+    switch (artifact->kind) {
+      case SPN_DAG_ARTIFACT_KIND_TREE: {
+        break;
+      }
+      case SPN_DAG_ARTIFACT_KIND_FILE: {
+        if (!artifact->producer.occupied) {
+          if (spn_path_pinned(g->roots, artifact->path)) {
+            source->location = artifact->path;
+            source->digest = spn_dag_path_digest(g->roots, artifact->path);
+          }
+          else if (seed_source(env, artifact->path, source)) {
+            diag_set(&state->diag, SPN_ERR_DAG_MISSING_INPUT, (spn_dag_id_t) sp_zero, render_path(state, g->roots, artifact->path));
+            return SPN_ERR_DAG_MISSING_INPUT;
+          }
+        }
+        break;
+      }
+      case SPN_DAG_ARTIFACT_KIND_VALUE: {
+        break;
+      }
+    }
+  }
+  return SPN_OK;
+}
+
+static spn_err_t exec_action(const spn_dag_t* g, const spn_dag_action_t* action, spn_dag_env_t* env, spn_dag_state_t* state, spn_path_t scratch) {
   sp_mem_arena_marker_t s = sp_mem_begin_scratch();
-  env->diag = (spn_dag_diag_t) sp_zero;
 
   si_dag_action_handle_t attempt = {
+    .g = g,
+    .env = env,
+    .state = state,
+    .action = action,
     .digests = sp_alloc_n(s.mem, spn_dag_digest_t, sp_da_size(action->produces)),
     .obs.table = env->discovery,
   };
-  lookup(g, action, env, &attempt);
+  lookup(&attempt);
   spn_err_t err = SPN_OK;
   if (!attempt.hit) {
-    err = execute(g, &attempt, env, scratch);
+    err = execute(&attempt, scratch);
     if (!err) {
-      err = commit(g, &attempt, env);
+      err = commit(&attempt);
     }
   }
-  diag_flush(env, &attempt, err);
+  diag_flush(&attempt, err);
   if (!err) {
     progress_count(env, action, attempt.hit);
   }
@@ -887,18 +977,21 @@ static spn_err_t exec_action(spn_dag_t* g, spn_dag_action_t* action, spn_dag_env
   return err;
 }
 
-spn_err_t spn_dag_execute(spn_dag_t* g, spn_dag_id_t action_id, spn_dag_env_t* env) {
-  spn_dag_action_t* action = spn_dag_find_action(g, action_id);
+spn_err_t spn_dag_execute(const spn_dag_t* g, spn_dag_id_t action_id, spn_dag_env_t* env, spn_dag_state_t* state) {
+  sp_assert(state->graph == g->id);
+  const spn_dag_action_t* action = spn_dag_find_action(g, action_id);
   sp_assert(action->kind != SPN_DAG_ACTION_DISCOVERED || env->discovery);
   sp_mem_arena_marker_t s = sp_mem_begin_scratch();
   spn_path_t scratch = sp_zero;
   spn_err_t err = scratch_claim(g, env, s.mem, &scratch);
   if (err) {
-    env->diag = (spn_dag_diag_t) sp_zero;
-    diag_set(&env->diag, err, (spn_dag_id_t) sp_zero, sp_str_lit(""));
+    diag_set(&state->diag, err, (spn_dag_id_t) sp_zero, sp_str_lit(""));
   }
   else {
-    err = exec_action(g, action, env, scratch);
+    err = seed_sources(g, env, state);
+    if (!err) {
+      err = exec_action(g, action, env, state, scratch);
+    }
     sp_fs_remove_dir_at(spn_path_at(g->roots, scratch));
   }
   sp_mem_end_scratch(s);
@@ -924,14 +1017,14 @@ static bool path_parent(spn_path_t* path) {
   return true;
 }
 
-static void targets_init(spn_dag_targets_t* targets, spn_dag_t* g, sp_mem_t mem) {
+static void targets_init(spn_dag_targets_t* targets, const spn_dag_t* g, sp_mem_t mem) {
   sp_ht_init(mem, targets->by_path);
   sp_ht_set_fns(targets->by_path, spn_path_on_hash, spn_path_on_compare);
   sp_ht_init(mem, targets->below);
   sp_ht_set_fns(targets->below, spn_path_on_hash, spn_path_on_compare);
 
   sp_da_for(g->artifacts, it) {
-    spn_dag_artifact_t* artifact = &g->artifacts[it];
+    const spn_dag_artifact_t* artifact = &g->artifacts[it];
     if (!artifact->producer.occupied || spn_path_empty(artifact->path)) {
       continue;
     }
@@ -958,7 +1051,7 @@ typedef struct spn_dag_run_t spn_dag_run_t;
 
 typedef struct {
   spn_dag_run_t* run;
-  spn_dag_action_t* action;
+  const spn_dag_action_t* action;
   u64 epoch;
   spn_err_t err;
   si_dag_action_handle_t attempt;
@@ -972,14 +1065,15 @@ typedef struct {
   u64 done_epoch;
   sp_da(u32) waiters;
   spn_dag_flight_t flight;
-} spn_dag_run_state_t;
+} spn_dag_slot_t;
 
 struct spn_dag_run_t {
-  spn_dag_t* g;
+  const spn_dag_t* g;
   spn_dag_env_t* env;
+  spn_dag_state_t* state;
   spn_thread_pool_executor_t* ex;
   spn_dag_targets_t targets;
-  spn_dag_run_state_t* states;
+  spn_dag_slot_t* slots;
   sp_da(spn_dag_id_t) ready;
   sp_atomic_s32_t completed;
   u32 in_flight;
@@ -987,13 +1081,13 @@ struct spn_dag_run_t {
   spn_err_t err;
 };
 
-static void defer_producer(spn_dag_run_t* run, spn_dag_action_t* action, u32 producer_index, u64 epoch, bool* requeue) {
+static void defer_producer(spn_dag_run_t* run, const spn_dag_action_t* action, u32 producer_index, u64 epoch, bool* requeue) {
   if (producer_index == action->id.index) {
     return;
   }
-  spn_dag_run_state_t* producer = &run->states[producer_index];
+  spn_dag_slot_t* producer = &run->slots[producer_index];
   if (producer->done) {
-    if (producer->done_epoch > epoch && run->g->actions[producer_index].wrote) {
+    if (producer->done_epoch > epoch && producer->flight.attempt.wrote) {
       trace_emit(run->env, (spn_dag_trace_event_t) { .kind = SPN_DAG_TRACE_REQUEUE, .action = action->id, .producer = run->g->actions[producer_index].id });
       *requeue = true;
     }
@@ -1001,10 +1095,10 @@ static void defer_producer(spn_dag_run_t* run, spn_dag_action_t* action, u32 pro
   }
   trace_emit(run->env, (spn_dag_trace_event_t) { .kind = SPN_DAG_TRACE_DEFER, .action = action->id, .producer = run->g->actions[producer_index].id });
   sp_da_push(producer->waiters, action->id.index);
-  run->states[action->id.index].deferred++;
+  run->slots[action->id.index].deferred++;
 }
 
-static bool defer_observations(spn_dag_run_t* run, spn_dag_action_t* action, sp_da(spn_dag_obs_t) obs, u64 epoch, bool* requeue) {
+static bool defer_observations(spn_dag_run_t* run, const spn_dag_action_t* action, sp_da(spn_dag_obs_t) obs, u64 epoch, bool* requeue) {
   sp_da_for(obs, it) {
     const spn_dag_obs_t* o = &obs[it];
     if (spn_path_pinned(run->g->roots, o->path)) {
@@ -1033,45 +1127,7 @@ static bool defer_observations(spn_dag_run_t* run, spn_dag_action_t* action, sp_
     }
   }
 
-  return run->states[action->id.index].deferred > 0;
-}
-
-static spn_err_t seed_source(spn_dag_env_t* env, spn_dag_artifact_t* artifact) {
-  artifact->materialized = artifact->path;
-  sp_sys_file_meta_t sys = sp_zero;
-  spn_try(spn_dag_file_cache_stat(env->files, artifact->materialized, &sys));
-  if (sys.kind == SP_FS_KIND_DIR) {
-    return SPN_ERR_DAG_MISSING_INPUT;
-  }
-  return spn_dag_file_cache_digest(env->files, artifact->materialized, &artifact->digest);
-}
-
-static spn_err_t seed_sources(spn_dag_t* g, spn_dag_env_t* env) {
-  sp_da_for(g->artifacts, it) {
-    spn_dag_artifact_t* artifact = &g->artifacts[it];
-    switch (artifact->kind) {
-      case SPN_DAG_ARTIFACT_KIND_TREE: {
-        break;
-      }
-      case SPN_DAG_ARTIFACT_KIND_FILE: {
-        if (!artifact->producer.occupied) {
-          if (spn_path_pinned(g->roots, artifact->path)) {
-            artifact->materialized = artifact->path;
-            artifact->digest = spn_dag_path_digest(g->roots, artifact->path);
-          }
-          else if (seed_source(env, artifact)) {
-            diag_set(&env->diag, SPN_ERR_DAG_MISSING_INPUT, (spn_dag_id_t) sp_zero, artifact_render(g, artifact->path));
-            return SPN_ERR_DAG_MISSING_INPUT;
-          }
-        }
-        break;
-      }
-      case SPN_DAG_ARTIFACT_KIND_VALUE: {
-        break;
-      }
-    }
-  }
-  return SPN_OK;
+  return run->slots[action->id.index].deferred > 0;
 }
 
 static void seed_ready(spn_dag_run_t* run, sp_mem_t mem) {
@@ -1082,39 +1138,39 @@ static void seed_ready(spn_dag_run_t* run, sp_mem_t mem) {
   spn_dag_digest_t* digests = sp_alloc_n(mem, spn_dag_digest_t, outputs);
 
   sp_da_for(run->g->actions, ai) {
-    spn_dag_action_t* action = &run->g->actions[ai];
-    sp_da_init(mem, run->states[ai].waiters);
-    run->states[ai].flight = (spn_dag_flight_t) {
+    const spn_dag_action_t* action = &run->g->actions[ai];
+    sp_da_init(mem, run->slots[ai].waiters);
+    run->slots[ai].flight = (spn_dag_flight_t) {
       .run = run,
       .action = action,
       .attempt = { .digests = digests },
     };
     digests += sp_da_size(action->produces);
     sp_da_for(action->consumes, ci) {
-      if (!spn_dag_digest_valid(spn_dag_find_artifact(run->g, action->consumes[ci])->digest)) {
-        run->states[ai].pending++;
+      if (!spn_dag_digest_valid(spn_dag_state_artifact(run->state, action->consumes[ci])->digest)) {
+        run->slots[ai].pending++;
       }
     }
     sp_da_for(action->orders, oi) {
-      if (!spn_dag_digest_valid(spn_dag_find_artifact(run->g, action->orders[oi])->digest)) {
-        run->states[ai].pending++;
+      if (!spn_dag_digest_valid(spn_dag_state_artifact(run->state, action->orders[oi])->digest)) {
+        run->slots[ai].pending++;
       }
     }
-    if (!run->states[ai].pending) {
+    if (!run->slots[ai].pending) {
       sp_da_push(run->ready, action->id);
     }
   }
 }
 
-static void finish_action(spn_dag_run_t* run, spn_dag_action_t* action) {
-  spn_dag_run_state_t* state = &run->states[action->id.index];
-  state->done = true;
-  state->done_epoch = (u64)(sp_atomic_s32_add(&run->completed, 1, SP_ATOMIC_SEQ_CST) + 1);
+static void finish_action(spn_dag_run_t* run, const spn_dag_action_t* action) {
+  spn_dag_slot_t* slot = &run->slots[action->id.index];
+  slot->done = true;
+  slot->done_epoch = (u64)(sp_atomic_s32_add(&run->completed, 1, SP_ATOMIC_SEQ_CST) + 1);
 
   sp_da_for(action->produces, pi) {
-    spn_dag_artifact_t* produced = spn_dag_find_artifact(run->g, action->produces[pi]);
+    const spn_dag_artifact_t* produced = spn_dag_find_artifact(run->g, action->produces[pi]);
     sp_da_for(produced->consumers, cj) {
-      spn_dag_run_state_t* consumer = &run->states[produced->consumers[cj].index];
+      spn_dag_slot_t* consumer = &run->slots[produced->consumers[cj].index];
       if (consumer->pending) {
         consumer->pending--;
         if (!consumer->pending) {
@@ -1124,9 +1180,9 @@ static void finish_action(spn_dag_run_t* run, spn_dag_action_t* action) {
     }
   }
 
-  sp_da_for(state->waiters, wi) {
-    u32 index = state->waiters[wi];
-    spn_dag_run_state_t* waiter = &run->states[index];
+  sp_da_for(slot->waiters, wi) {
+    u32 index = slot->waiters[wi];
+    spn_dag_slot_t* waiter = &run->slots[index];
     if (waiter->deferred) {
       waiter->deferred--;
       if (!waiter->deferred) {
@@ -1140,15 +1196,15 @@ static void flight_run(void* data) {
   spn_dag_flight_t* flight = (spn_dag_flight_t*)data;
   spn_dag_run_t* run = flight->run;
   flight->epoch = (u64)sp_atomic_s32_load(&run->completed, SP_ATOMIC_SEQ_CST);
-  lookup(run->g, flight->action, run->env, &flight->attempt);
+  lookup(&flight->attempt);
   if (!flight->attempt.hit) {
-    flight->err = execute(run->g, &flight->attempt, run->env, run->scratch);
+    flight->err = execute(&flight->attempt, run->scratch);
   }
 }
 
-static void run_commit_flight(spn_dag_run_t* run, spn_dag_action_t* action, spn_dag_flight_t* flight) {
-  run->err = commit(run->g, &flight->attempt, run->env);
-  diag_flush(run->env, &flight->attempt, run->err);
+static void run_commit_flight(spn_dag_run_t* run, const spn_dag_action_t* action, spn_dag_flight_t* flight) {
+  run->err = commit(&flight->attempt);
+  diag_flush(&flight->attempt, run->err);
   if (run->err) {
     return;
   }
@@ -1157,27 +1213,27 @@ static void run_commit_flight(spn_dag_run_t* run, spn_dag_action_t* action, spn_
 }
 
 static void run_dispatch(spn_dag_run_t* run, spn_dag_id_t id) {
-  spn_dag_action_t* action = spn_dag_find_action(run->g, id);
-  spn_dag_run_state_t* state = &run->states[id.index];
-  spn_dag_flight_t* flight = &state->flight;
+  const spn_dag_action_t* action = spn_dag_find_action(run->g, id);
+  spn_dag_slot_t* slot = &run->slots[id.index];
+  spn_dag_flight_t* flight = &slot->flight;
 
-  if (state->parked) {
+  if (slot->parked) {
     bool requeue = false;
     if (defer_observations(run, action, flight->attempt.obs.rows, flight->epoch, &requeue)) {
       return;
     }
-    state->parked = false;
+    slot->parked = false;
     if (!requeue) {
       run_commit_flight(run, action, flight);
       return;
     }
-    }
+  }
 
   if (action->kind == SPN_DAG_ACTION_DISCOVERED) {
     sp_assert(run->env->discovery);
     spn_dag_pathset_t set = sp_zero;
     bool requeue = false;
-    if (spn_dag_obs_table_get(run->env->discovery, spn_dag_weak_key(run->g, action->id), &set)
+    if (spn_dag_obs_table_get(run->env->discovery, spn_dag_weak_key(run->g, run->state, action->id), &set)
       && defer_observations(run, action, set.obs, (u64)sp_atomic_s32_load(&run->completed, SP_ATOMIC_SEQ_CST), &requeue)) {
       return;
     }
@@ -1186,6 +1242,10 @@ static void run_dispatch(spn_dag_run_t* run, spn_dag_id_t id) {
 
   flight->err = SPN_OK;
   flight->attempt = (si_dag_action_handle_t) {
+    .g = run->g,
+    .env = run->env,
+    .state = run->state,
+    .action = action,
     .digests = flight->attempt.digests,
     .obs.table = run->env->discovery,
   };
@@ -1195,11 +1255,11 @@ static void run_dispatch(spn_dag_run_t* run, spn_dag_id_t id) {
 }
 
 static void run_complete(spn_dag_run_t* run, spn_dag_flight_t* flight) {
-  spn_dag_action_t* action = flight->action;
+  const spn_dag_action_t* action = flight->action;
   si_dag_action_handle_t* attempt = &flight->attempt;
 
   if (run->err || flight->err) {
-    diag_flush(run->env, attempt, flight->err);
+    diag_flush(attempt, flight->err);
     run->err = run->err ? run->err : flight->err;
     return;
   }
@@ -1213,7 +1273,7 @@ static void run_complete(spn_dag_run_t* run, spn_dag_flight_t* flight) {
   if (action->kind == SPN_DAG_ACTION_DISCOVERED) {
     bool requeue = false;
     if (defer_observations(run, action, attempt->obs.rows, flight->epoch, &requeue)) {
-      run->states[action->id.index].parked = true;
+      run->slots[action->id.index].parked = true;
       return;
     }
     if (requeue) {
@@ -1225,13 +1285,14 @@ static void run_complete(spn_dag_run_t* run, spn_dag_flight_t* flight) {
   run_commit_flight(run, action, flight);
 }
 
-spn_err_t spn_dag_run_executor(spn_dag_t* g, spn_dag_env_t* env, spn_thread_pool_executor_t* ex) {
+spn_err_t spn_dag_run_executor(const spn_dag_t* g, spn_dag_env_t* env, spn_thread_pool_executor_t* ex, spn_dag_state_t* state) {
+  sp_assert(state->graph == g->id);
   sp_mem_arena_marker_t s = sp_mem_begin_scratch();
-  env->diag = (spn_dag_diag_t) sp_zero;
 
   spn_dag_run_t run = {
     .g = g,
     .env = env,
+    .state = state,
     .ex = ex,
   };
   run.err = scratch_claim(g, env, s.mem, &run.scratch);
@@ -1239,24 +1300,24 @@ spn_err_t spn_dag_run_executor(spn_dag_t* g, spn_dag_env_t* env, spn_thread_pool
     run.err = spn_dag_file_cache_fence_dir(env->files, run.scratch);
   }
   if (run.err) {
-    diag_set(&env->diag, run.err, (spn_dag_id_t) sp_zero, sp_str_lit(""));
+    diag_set(&state->diag, run.err, (spn_dag_id_t) sp_zero, sp_str_lit(""));
   }
   if (!run.err) {
     spn_dag_violation_t violation = spn_dag_validate(g);
     run.err = violation.err;
     if (violation.err) {
-      diag_set(&env->diag, violation.err, (spn_dag_id_t) sp_zero, artifact_render(g, violation.path));
+      diag_set(&state->diag, violation.err, (spn_dag_id_t) sp_zero, render_path(state, g->roots, violation.path));
     }
   }
   if (!run.err) {
-    run.err = seed_sources(g, env);
+    run.err = seed_sources(g, env, state);
   }
 
   u64 n = sp_da_size(g->actions);
   sp_assert(n < (1u << 30));
   if (!run.err) {
     progress_total(env, n);
-    run.states = sp_alloc_n(s.mem, spn_dag_run_state_t, n ? n : 1);
+    run.slots = sp_alloc_n(s.mem, spn_dag_slot_t, n ? n : 1);
     run.ready = sp_da_new(s.mem, spn_dag_id_t);
     seed_ready(&run, s.mem);
     targets_init(&run.targets, g, s.mem);
@@ -1294,7 +1355,7 @@ spn_err_t spn_dag_run_executor(spn_dag_t* g, spn_dag_env_t* env, spn_thread_pool
 
     if (!run.err && (u64)sp_atomic_s32_load(&run.completed, SP_ATOMIC_SEQ_CST) != n) {
       run.err = SPN_ERR_DAG_STALLED;
-      diag_set(&env->diag, SPN_ERR_DAG_STALLED, (spn_dag_id_t) sp_zero, sp_str_lit(""));
+      diag_set(&state->diag, SPN_ERR_DAG_STALLED, (spn_dag_id_t) sp_zero, sp_str_lit(""));
     }
   }
 
@@ -1305,10 +1366,10 @@ spn_err_t spn_dag_run_executor(spn_dag_t* g, spn_dag_env_t* env, spn_thread_pool
   return run.err;
 }
 
-spn_err_t spn_dag_run(spn_dag_t* g, spn_dag_env_t* env) {
+spn_err_t spn_dag_run(const spn_dag_t* g, spn_dag_env_t* env, spn_dag_state_t* state) {
   spn_thread_pool_t pool = sp_zero;
-  spn_thread_pool_init(&pool, g->mem, (spn_thread_pool_config_t) sp_zero);
-  spn_err_t err = spn_dag_run_executor(g, env, &pool.executor);
+  spn_thread_pool_init(&pool, state->mem, (spn_thread_pool_config_t) sp_zero);
+  spn_err_t err = spn_dag_run_executor(g, env, &pool.executor, state);
   spn_thread_pool_deinit(&pool);
   return err;
 }

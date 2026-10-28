@@ -375,7 +375,7 @@ sp_test_each(dag_glob, exec, exec_test_t, exec_tests) {
     });
     sp_must_eq(t, SPN_OK, spn_dag_action_add_output(g, action, spn_dag_add_output(g, sp_str_lit("O"))));
 
-    sp_expect_eq(t, SPN_OK, spn_dag_execute(g, action, &env.dag.env));
+    sp_expect_eq(t, SPN_OK, spn_dag_execute(g, action, &env.dag.env, dag_test_env_state(&env.dag)));
     sp_expect_eq(t, run->expect_runs, env.dag.runs);
   }
 

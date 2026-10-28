@@ -188,8 +188,9 @@ typedef struct {
 
 typedef struct {
   fz_universe_t* u;
-  const fz_state_t* state;
+  const fz_state_t* model;
   spn_dag_t* g;
+  spn_dag_state_t state;
   sp_mem_t mem;
   fz_executor_t* ex;
   fz_journal_t* journal;

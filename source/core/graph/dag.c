@@ -789,11 +789,10 @@ static spn_err_t prepare_graph(spn_dag_build_t* b) {
             spn_dag_id_t output = spn_dag_add_path(g, out->path, out->kind);
             spn_err_t err = spn_dag_action_add_output(g, action, output);
             if (err) {
-              b->env.diag = (spn_dag_diag_t) {
-                .err = err,
-                .path = spn_path_str(g->roots, b->mem, out->path)
-              };
-              return err;
+              return spn_err_emit(b->session->ctx, (spn_err_union_t) {
+                .kind = err,
+                .dag = { .path = spn_path_str(g->roots, b->session->ctx->events->mem, out->path) },
+              });
             }
           }
         }
@@ -847,7 +846,7 @@ static spn_err_t prepare_graph(spn_dag_build_t* b) {
         continue;
       }
       sp_da_for(g->artifacts, at) {
-        spn_dag_artifact_t* artifact = &g->artifacts[at];
+        const spn_dag_artifact_t* artifact = &g->artifacts[at];
         if (spn_dag_output_overlaps(artifact, embed->path)) {
           spn_dag_action_add_input(g, it.val->action, artifact->id);
         }
@@ -862,7 +861,7 @@ static spn_err_t prepare_graph(spn_dag_build_t* b) {
 // RUN //
 /////////
 static spn_err_t dag_stage_copy(spn_dag_build_t* b, spn_dag_id_t id, spn_path_t to) {
-  spn_dag_artifact_t* artifact = spn_dag_find_artifact(b->graph, id);
+  const spn_dag_artifact_state_t* artifact = spn_dag_state_artifact(&b->state, id);
 
   sp_sys_file_meta_t staged_meta = sp_zero;
   spn_dag_digest_t staged_digest = sp_zero;
@@ -874,7 +873,7 @@ static spn_err_t dag_stage_copy(spn_dag_build_t* b, spn_dag_id_t id, spn_path_t 
 
   const spn_path_roots_t* roots = b->graph->roots;
   sp_fs_create_parent_at(spn_path_at(roots, to));
-  sp_err_t copied = sp_fs_copy_file_at(spn_path_at(roots, artifact->materialized), spn_path_at(roots, to), SP_FS_ATOMIC_REPLACE);
+  sp_err_t copied = sp_fs_copy_file_at(spn_path_at(roots, artifact->location), spn_path_at(roots, to), SP_FS_ATOMIC_REPLACE);
 
   spn_err_t err = copied ? SPN_ERR_DAG_OUTPUT_WRITE : spn_dag_file_cache_seed(b->env.files, to, artifact->digest);
   if (err) {
@@ -986,7 +985,7 @@ done:
 }
 
 static spn_err_t dag_result(spn_dag_build_t* b) {
-  spn_dag_diag_t* diag = &b->env.diag;
+  spn_dag_diag_t* diag = &b->state.diag;
 
   switch (b->result) {
     case SPN_OK: {
@@ -1003,9 +1002,9 @@ static spn_err_t dag_result(spn_dag_build_t* b) {
 
   sp_str_t path = diag->path;
   if (sp_str_empty(path) && diag->action.occupied) {
-    spn_dag_action_t* action = spn_dag_find_action(b->graph, diag->action);
+    const spn_dag_action_t* action = spn_dag_find_action(b->graph, diag->action);
     if (!sp_da_empty(action->produces)) {
-      spn_dag_artifact_t* artifact = spn_dag_find_artifact(b->graph, action->produces[0]);
+      const spn_dag_artifact_t* artifact = spn_dag_find_artifact(b->graph, action->produces[0]);
       path = spn_path_empty(artifact->path)
         ? artifact->name
         : spn_path_str(b->graph->roots, b->session->ctx->events->mem, artifact->path);
@@ -1131,7 +1130,8 @@ spn_err_t spn_dag_build_run(spn_dag_build_t* b, u32 workers) {
 
   b->timer = sp_tm_start_timer();
   spn_dag_file_cache_invalidate_all(b->env.files);
-  b->result = spn_dag_run_executor(b->graph, &b->env, &b->pool.executor);
+  spn_dag_state_init(&b->state, b->mem, b->graph);
+  b->result = spn_dag_run_executor(b->graph, &b->env, &b->pool.executor, &b->state);
   spn_thread_pool_deinit(&b->pool);
   spn_dag_file_cache_flush(b->env.files, b->session->dag.files_path);
   return dag_result(b);
@@ -1144,11 +1144,7 @@ spn_err_t spn_dag_build_session(spn_op_t* op) {
   spn_dag_build_t* dag = spn_dag_build_new(op);
   session->dag.build = dag;
 
-  spn_err_t prepared = prepare_graph(dag);
-  if (prepared) {
-    dag->result = prepared;
-    return dag_result(dag);
-  }
+  spn_try(prepare_graph(dag));
 
   spn_build_unit_t* unit = session->units.target;
   spn_event_buffer_push(spn.events, (spn_event_t) {

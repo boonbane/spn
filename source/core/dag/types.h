@@ -93,7 +93,6 @@ typedef struct {
   spn_dag_artifact_kind_t kind;
   sp_str_t name;
   spn_path_t path;
-  spn_path_t materialized;
   spn_dag_digest_t digest;
   spn_dag_id_t producer;
   sp_da(spn_dag_id_t) consumers;
@@ -114,7 +113,6 @@ struct spn_dag_action_t {
   sp_da(spn_dag_id_t) consumes;
   sp_da(spn_dag_id_t) orders;
   sp_da(spn_dag_id_t) produces;
-  bool wrote;
 };
 
 typedef struct {
@@ -128,7 +126,6 @@ struct spn_dag_t {
   u32 id;
   sp_mem_arena_t* arena;
   sp_mem_t mem;
-  sp_mutex_t mutex;
   const spn_path_roots_t* roots;
   sp_da(spn_dag_artifact_t) artifacts;
   sp_da(spn_dag_action_t) actions;
@@ -268,6 +265,20 @@ typedef struct {
   spn_path_t path;
 } spn_dag_violation_t;
 
+typedef struct {
+  spn_dag_digest_t digest;
+  spn_path_t location;
+} spn_dag_artifact_state_t;
+
+typedef struct {
+  u32 graph;
+  sp_mem_arena_t* arena;
+  sp_mem_t mem;
+  sp_mutex_t mutex;
+  spn_dag_artifact_state_t* artifacts;
+  spn_dag_diag_t diag;
+} spn_dag_state_t;
+
 struct spn_dag_env_t {
   spn_dag_file_cache_t* files;
   spn_dag_action_cache_t* cache;
@@ -280,7 +291,6 @@ struct spn_dag_env_t {
   spn_dag_trace_fn_t trace;
   void* trace_data;
   spn_path_t scratch;
-  spn_dag_diag_t diag;
 };
 
 #endif

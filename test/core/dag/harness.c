@@ -74,6 +74,11 @@ spn_dag_t* dag_test_env_graph(dag_test_env_t* env) {
   return env->g;
 }
 
+spn_dag_state_t* dag_test_env_state(dag_test_env_t* env) {
+  spn_dag_state_init(&env->state, env->mem, env->g);
+  return &env->state;
+}
+
 sp_path_t dag_test_env_path(dag_test_env_t* env, sp_str_t rel) {
   return sp_path_join(env->mem, env->root, rel);
 }

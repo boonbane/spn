@@ -24,18 +24,26 @@ spn_dag_t* spn_dag_new(sp_mem_t mem, const spn_path_roots_t* roots) {
   return g;
 }
 
-spn_dag_artifact_t* spn_dag_find_artifact(spn_dag_t* g, spn_dag_id_t id) {
+const spn_dag_artifact_t* spn_dag_find_artifact(const spn_dag_t* g, spn_dag_id_t id) {
   sp_assert(id.occupied);
   sp_assert(id.graph == g->id);
   sp_assert(id.index < sp_da_size(g->artifacts));
   return g->artifacts + id.index;
 }
 
-spn_dag_action_t* spn_dag_find_action(spn_dag_t* g, spn_dag_id_t id) {
+const spn_dag_action_t* spn_dag_find_action(const spn_dag_t* g, spn_dag_id_t id) {
   sp_assert(id.occupied);
   sp_assert(id.graph == g->id);
   sp_assert(id.index < sp_da_size(g->actions));
   return g->actions + id.index;
+}
+
+static spn_dag_artifact_t* find_artifact_mut(spn_dag_t* g, spn_dag_id_t id) {
+  return sp_ptr_cast(spn_dag_artifact_t*, spn_dag_find_artifact(g, id));
+}
+
+static spn_dag_action_t* find_action_mut(spn_dag_t* g, spn_dag_id_t id) {
+  return sp_ptr_cast(spn_dag_action_t*, spn_dag_find_action(g, id));
 }
 
 static spn_dag_id_t add_artifact(spn_dag_t* g, spn_dag_artifact_t artifact) {
@@ -110,22 +118,22 @@ spn_dag_id_t spn_dag_add_action(spn_dag_t* g, spn_dag_action_config_t config) {
 }
 
 void spn_dag_action_add_input(spn_dag_t* g, spn_dag_id_t action_id, spn_dag_id_t artifact_id) {
-  spn_dag_action_t* action = spn_dag_find_action(g, action_id);
-  spn_dag_artifact_t* artifact = spn_dag_find_artifact(g, artifact_id);
+  spn_dag_action_t* action = find_action_mut(g, action_id);
+  spn_dag_artifact_t* artifact = find_artifact_mut(g, artifact_id);
   sp_da_push(action->consumes, artifact_id);
   sp_da_push(artifact->consumers, action_id);
 }
 
 void spn_dag_action_add_order(spn_dag_t* g, spn_dag_id_t action_id, spn_dag_id_t artifact_id) {
-  spn_dag_action_t* action = spn_dag_find_action(g, action_id);
-  spn_dag_artifact_t* artifact = spn_dag_find_artifact(g, artifact_id);
+  spn_dag_action_t* action = find_action_mut(g, action_id);
+  spn_dag_artifact_t* artifact = find_artifact_mut(g, artifact_id);
   sp_da_push(action->orders, artifact_id);
   sp_da_push(artifact->consumers, action_id);
 }
 
 spn_err_t spn_dag_action_add_output(spn_dag_t* g, spn_dag_id_t action_id, spn_dag_id_t artifact_id) {
-  spn_dag_action_t* action = spn_dag_find_action(g, action_id);
-  spn_dag_artifact_t* artifact = spn_dag_find_artifact(g, artifact_id);
+  spn_dag_action_t* action = find_action_mut(g, action_id);
+  spn_dag_artifact_t* artifact = find_artifact_mut(g, artifact_id);
   if (artifact->producer.occupied) {
     return SPN_ERR_DAG_DUPLICATE_OUTPUT;
   }
@@ -154,7 +162,7 @@ spn_err_t spn_dag_action_add_output(spn_dag_t* g, spn_dag_id_t action_id, spn_da
   return SPN_OK;
 }
 
-bool spn_dag_output_overlaps(spn_dag_artifact_t* artifact, spn_path_t path) {
+bool spn_dag_output_overlaps(const spn_dag_artifact_t* artifact, spn_path_t path) {
   if (!artifact->producer.occupied) {
     return false;
   }
@@ -163,11 +171,11 @@ bool spn_dag_output_overlaps(spn_dag_artifact_t* artifact, spn_path_t path) {
   return below || above;
 }
 
-spn_dag_violation_t spn_dag_validate(spn_dag_t* g) {
+spn_dag_violation_t spn_dag_validate(const spn_dag_t* g) {
   sp_str_buf_t buf = sp_zero;
   spn_dag_violation_t violation = sp_zero;
   sp_da_for(g->artifacts, it) {
-    spn_dag_artifact_t* artifact = &g->artifacts[it];
+    const spn_dag_artifact_t* artifact = &g->artifacts[it];
     if (spn_path_empty(artifact->path)) {
       continue;
     }
@@ -268,8 +276,8 @@ spn_dag_digest_t spn_dag_hash_final(spn_digest_ctx_t* ctx) {
   return digest;
 }
 
-spn_dag_digest_t spn_dag_weak_key(spn_dag_t* g, spn_dag_id_t action_id) {
-  spn_dag_action_t* action = spn_dag_find_action(g, action_id);
+spn_dag_digest_t spn_dag_weak_key(const spn_dag_t* g, const spn_dag_state_t* state, spn_dag_id_t action_id) {
+  const spn_dag_action_t* action = spn_dag_find_action(g, action_id);
 
   spn_digest_ctx_t ctx = sp_zero;
   spn_digest_init_blake3(&ctx);
@@ -282,15 +290,16 @@ spn_dag_digest_t spn_dag_weak_key(spn_dag_t* g, spn_dag_id_t action_id) {
 
   spn_dag_hash_u64(&ctx, sp_da_size(action->consumes));
   sp_da_for(action->consumes, it) {
-    spn_dag_artifact_t* artifact = spn_dag_find_artifact(g, action->consumes[it]);
-    sp_assert(spn_dag_digest_valid(artifact->digest));
+    const spn_dag_artifact_t* artifact = spn_dag_find_artifact(g, action->consumes[it]);
+    spn_dag_digest_t digest = spn_dag_state_artifact(state, artifact->id)->digest;
+    sp_assert(spn_dag_digest_valid(digest));
     spn_dag_hash_u8(&ctx, (u8)artifact->kind);
-    spn_dag_hash_digest(&ctx, artifact->digest);
+    spn_dag_hash_digest(&ctx, digest);
   }
 
   spn_dag_hash_u64(&ctx, sp_da_size(action->produces));
   sp_da_for(action->produces, it) {
-    spn_dag_artifact_t* artifact = spn_dag_find_artifact(g, action->produces[it]);
+    const spn_dag_artifact_t* artifact = spn_dag_find_artifact(g, action->produces[it]);
     spn_dag_hash_u8(&ctx, (u8)artifact->kind);
     spn_dag_hash_str(&ctx, artifact->name);
   }

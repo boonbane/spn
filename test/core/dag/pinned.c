@@ -180,7 +180,7 @@ sp_test_each(dag_pinned, runs, test_t, tests) {
     spn_dag_id_t obj = spn_dag_add_file(g, dag_test_env_rooted(&env.dag, sp_str_lit("O")));
     sp_must_eq(t, SPN_OK, spn_dag_action_add_output(g, action, obj));
 
-    sp_expect_eq(t, SPN_OK, spn_dag_execute(g, action, &env.dag.env));
+    sp_expect_eq(t, SPN_OK, spn_dag_execute(g, action, &env.dag.env, dag_test_env_state(&env.dag)));
     sp_expect_eq(t, run->expect_runs, env.dag.runs);
   }
 
@@ -230,7 +230,7 @@ sp_test_each(dag_pinned, source, source_test_t, source_tests) {
     spn_dag_id_t obj = spn_dag_add_file(g, dag_test_env_rooted(&env.dag, sp_str_lit("O")));
     sp_must_eq(t, SPN_OK, spn_dag_action_add_output(g, action, obj));
 
-    sp_expect_eq(t, SPN_OK, spn_dag_run(g, &env.dag.env));
+    sp_expect_eq(t, SPN_OK, spn_dag_run(g, &env.dag.env, dag_test_env_state(&env.dag)));
     sp_expect_eq(t, it->expect_runs[r], env.dag.runs);
   }
 
@@ -251,7 +251,9 @@ sp_test(dag_pinned, pinned_dirs_change_weak_key) {
       .identity = dag_test_digest("cc"),
       .execute = dag_test_exec_noop
     });
-    keys[it] = spn_dag_weak_key(g, action);
+    spn_dag_state_t state = sp_zero;
+    spn_dag_state_init(&state, mem, g);
+    keys[it] = spn_dag_weak_key(g, &state, action);
     if (it < sp_carr_len(dirs)) {
       sp_da_push(storage.pinned, ((spn_path_t) { .root = SPN_PATH_ROOT_STORAGE, .sub = sp_str_view(dirs[it]) }));
     }

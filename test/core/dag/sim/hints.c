@@ -121,7 +121,7 @@ static sp_err_t execute_observing(sp_test_t* t, env_t* env, const c8* identity) 
     .user_data = env
   });
   sp_must_eq(t, SPN_OK, spn_dag_action_add_output(g, action, spn_dag_add_file(g, dag_test_env_rooted(&env->dag, sp_str_lit("O")))));
-  sp_expect_eq(t, SPN_OK, spn_dag_execute(g, action, &env->dag.env));
+  sp_expect_eq(t, SPN_OK, spn_dag_execute(g, action, &env->dag.env, dag_test_env_state(&env->dag)));
   return SP_OK;
 }
 

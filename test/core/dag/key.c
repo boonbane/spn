@@ -96,7 +96,9 @@ static sp_err_t build_key(sp_test_t* t, sp_mem_t mem, const spn_path_roots_t* ro
     sp_must_eq(t, SPN_OK, spn_dag_action_add_output(g, action, file));
   }
 
-  *key = spn_dag_weak_key(g, action);
+  spn_dag_state_t state = sp_zero;
+  spn_dag_state_init(&state, mem, g);
+  *key = spn_dag_weak_key(g, &state, action);
   return SP_OK;
 }
 

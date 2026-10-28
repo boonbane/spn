@@ -235,11 +235,11 @@ static void init_world(world_t* w, sp_mem_t mem, sp_sim_t* sim, fz_universe_t* u
   fz_executor_init(&w->ex, mem, sim, schedule);
 }
 
-static spn_err_t run_world(world_t* w, fz_universe_t* u, spn_dag_t* g) {
+static spn_err_t run_world(world_t* w, fz_universe_t* u, fz_lowered_t* low) {
   if (u->profile.run_ex) {
-    return spn_dag_run_executor(g, &w->env, &w->ex.base);
+    return spn_dag_run_executor(low->g, &w->env, &w->ex.base, &low->state);
   }
-  return spn_dag_run(g, &w->env);
+  return spn_dag_run(low->g, &w->env, &low->state);
 }
 
 static void write_source(sp_mem_t mem, fz_universe_t* u, fz_state_t* state, u64 artifact) {
@@ -660,7 +660,7 @@ static fz_err_t trace_check_run(sp_mem_t mem, fz_universe_t* u, world_t* w, fz_s
 
   fz_lowered_t low = sp_zero;
   fz_lower(&low, mem, u, &w->roots);
-  low.state = &w->state;
+  low.model = &w->state;
   low.ex = &w->ex;
   low.journal = w->j;
 
@@ -712,7 +712,7 @@ static fz_err_t trace_check_run(sp_mem_t mem, fz_universe_t* u, world_t* w, fz_s
   u64 points_start = w->sim->fail_points;
   u64 faults_start = w->sim->faults;
   u64 fault_log_start = sp_da_size(w->sim->fault_log);
-  spn_err_t err = run_world(w, u, low.g);
+  spn_err_t err = run_world(w, u, &low);
   u64 fired = w->sim->faults - faults_start;
   bool crashed = w->sim->crashed;
   u64 crash_at = crashed ? w->sim->crash_at : 0;
@@ -844,10 +844,10 @@ static fz_err_t trace_body(sp_mem_t mem, sp_sim_t* sim, fz_universe_t* u, fz_tra
   if (u->cyclic || u->obs_cyclic) {
     fz_lowered_t low = sp_zero;
     fz_lower(&low, mem, u, &w.roots);
-    low.state = &w.state;
+    low.model = &w.state;
     low.ex = &w.ex;
     low.journal = w.j;
-    must(run_world(&w, u, low.g), FZ_ERR_RUN_CYCLIC);
+    must(run_world(&w, u, &low), FZ_ERR_RUN_CYCLIC);
     return FZ_OK;
   }
 

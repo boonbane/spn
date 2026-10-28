@@ -257,7 +257,7 @@ sp_test_each(dag_discover_exec, runs, test_t, tests) {
       before = manifest_meta(&env);
     }
 
-    spn_err_t err = spn_dag_execute(g, action, &env.dag.env);
+    spn_err_t err = spn_dag_execute(g, action, &env.dag.env, dag_test_env_state(&env.dag));
 
     if (run->manifest_stable) {
       sp_sys_file_meta_t after = manifest_meta(&env);

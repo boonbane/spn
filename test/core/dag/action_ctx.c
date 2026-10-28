@@ -72,7 +72,7 @@ sp_test_each(dag_action_ctx, resolve, resolve_test_t, resolve_tests) {
   env.output = spn_dag_add_file(g, dag_test_env_rooted(&env.dag, sp_str_lit("Y")));
   sp_must_eq(t, SPN_OK, spn_dag_action_add_output(g, consumer, env.output));
 
-  sp_expect_eq(t, SPN_OK, spn_dag_run(g, &env.dag.env));
+  sp_expect_eq(t, SPN_OK, spn_dag_run(g, &env.dag.env, dag_test_env_state(&env.dag)));
   sp_expect(t, env.seen.roots_match);
   sp_expect(t, env.seen.output_under_scratch);
   sp_expect(t, env.seen.arrays_match);
@@ -132,7 +132,7 @@ sp_test_each(dag_action_ctx, warm, warm_test_t, warm_tests) {
   });
   sp_must_eq(t, SPN_OK, spn_dag_action_add_output(g, action, spn_dag_add_file(g, dag_test_env_rooted(&env.dag, sp_str_lit("O")))));
 
-  sp_expect_eq(t, SPN_OK, spn_dag_execute(g, action, &env.dag.env));
+  sp_expect_eq(t, SPN_OK, spn_dag_execute(g, action, &env.dag.env, dag_test_env_state(&env.dag)));
   sp_expect_eq(t, it->expect_warm, env.seen.warm);
   sp_expect_eq(t, it->expect_fired, env.seen.fired);
   sp_expect_eq(t, 0u, (u32)sp_atomic_u64_load(&env.dag.progress.warm, SP_ATOMIC_SEQ_CST));
@@ -175,7 +175,7 @@ sp_test_each(dag_action_ctx, obs, obs_test_t, obs_tests) {
   });
   sp_must_eq(t, SPN_OK, spn_dag_action_add_output(g, action, spn_dag_add_file(g, dag_test_env_rooted(&env.dag, sp_str_lit("O")))));
 
-  sp_expect_eq(t, SPN_OK, spn_dag_execute(g, action, &env.dag.env));
+  sp_expect_eq(t, SPN_OK, spn_dag_execute(g, action, &env.dag.env, dag_test_env_state(&env.dag)));
   sp_expect_eq(t, it->expect_obs, env.seen_obs);
   return SP_OK;
 }

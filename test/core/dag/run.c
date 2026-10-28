@@ -392,11 +392,11 @@ sp_test_each(dag_run, builds, test_t, tests) {
       sp_must_eq(t, SPN_OK, spn_dag_action_add_output(g, action, out_id));
     }
 
-    spn_err_t err = spn_dag_run(g, &env.env);
+    spn_err_t err = spn_dag_run(g, &env.env, dag_test_env_state(&env));
     sp_expect_eq(t, build->expect_err, err);
-    sp_expect_eq(t, build->expect_err, env.env.diag.err);
+    sp_expect_eq(t, build->expect_err, env.state.diag.err);
     if (build->expect_diag_path) {
-      sp_expect_str_eq(t, env.env.diag.path, spn_path_str(&env.roots, env.mem, dag_test_env_rooted(&env, sp_str_view(build->expect_diag_path))));
+      sp_expect_str_eq(t, env.state.diag.path, spn_path_str(&env.roots, env.mem, dag_test_env_rooted(&env, sp_str_view(build->expect_diag_path))));
     }
     sp_expect_eq(t, build->expect_runs, env.runs);
     if (build->expect_hits || build->expect_misses) {
