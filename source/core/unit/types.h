@@ -21,13 +21,10 @@ struct spn_build_unit_t {
   spn_toolchain_unit_t* toolchain;
   sp_da(spn_path_t) include;
   sp_da(sp_str_t) define;
-  sp_da(spn_pkg_unit_t*) packages;
   struct {
     spn_path_t root;
   } paths;
 };
-
-#define spn_dep_kind_bit(kind) (1u << (kind))
 
 SPN_PACK_PUSH
 typedef struct {
@@ -70,9 +67,14 @@ typedef struct {
 } spn_stage_closure_t;
 
 typedef struct {
-  spn_build_unit_t* build;
+  spn_pkg_unit_t* root;
   si_da(spn_target_unit_t*) roots;
   si_da(spn_target_unit_t*) targets;
+  si_da(spn_pkg_unit_t*) pkgs;
+} spn_closure_t;
+
+typedef struct {
+  spn_closure_t closure;
   si_da(spn_pkg_unit_t*) publishes;
   si_da(spn_user_node_t*) nodes;
   si_da(spn_stage_closure_t) staged;
@@ -147,7 +149,7 @@ struct spn_target_unit {
   spn_path_t install;
 
   sp_da(spn_compile_unit_t*) objects;
-  sp_da(spn_target_unit_t*) deps;
+  si_da(spn_target_unit_t*) deps;
   si_da(spn_target_order_t) orders;
   spn_link_plan_t link;
   spn_cc_archive_plan_t archive;
@@ -166,12 +168,10 @@ struct spn_pkg_unit_t {
   spn_session_t* session;
   si_pkg_t pkg;
   spn_pkg_source_t source;
-  u32 kinds;
   sp_hash_t fingerprint;
   spn_source_pin_t pin;
-  spn_pkg_unit_t* metaprogram;
 
-  sp_da(spn_pkg_dep_t) deps;
+  si_da(spn_pkg_dep_t) deps;
   si_da(spn_target_unit_t*) libs;
   sp_da(spn_user_node_t) user_nodes;
 

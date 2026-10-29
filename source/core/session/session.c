@@ -104,24 +104,15 @@ spn_pkg_id_t si_get_root_pkg(spn_session_t* session) {
   return SP_ZERO_STRUCT(spn_pkg_id_t);
 }
 
-spn_pkg_unit_t* spn_session_find_pkg_unit_by_id(spn_session_t* session, spn_pkg_unit_id_t id) {
+spn_pkg_unit_t* si_get_pkg_unit(spn_session_t* session, spn_build_unit_t* build, spn_pkg_id_t pkg) {
+  spn_pkg_unit_id_t id = { .pkg = pkg, .build = build->id };
   return sp_om_has(session->units.packages, id) ? sp_om_get(session->units.packages, id) : SP_NULLPTR;
 }
 
-spn_pkg_unit_t* si_get_pkg_unit(spn_session_t* session, spn_build_unit_t* build, spn_pkg_id_t pkg) {
-  return spn_session_find_pkg_unit_by_id(session, (spn_pkg_unit_id_t) {
-    .pkg = pkg,
-    .build = build->id,
-  });
-}
-
 spn_pkg_unit_t* spn_session_find_dep(spn_session_t* session, spn_pkg_unit_t* pkg, sp_intern_id_t qualified, spn_dep_kind_t kind) {
-  sp_da_for(pkg->deps, it) {
-    if (pkg->deps[it].kind != kind) {
-      continue;
-    }
-    if (pkg->deps[it].unit && pkg->deps[it].unit->id.pkg.qualified == qualified) {
-      return pkg->deps[it].unit;
+  si_da_for_ptr(pkg->deps, dep) {
+    if (dep->kind == kind && dep->unit->id.pkg.qualified == qualified) {
+      return dep->unit;
     }
   }
   return SP_NULLPTR;

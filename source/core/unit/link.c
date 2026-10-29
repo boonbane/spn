@@ -73,9 +73,7 @@ static bool edge_links(spn_pkg_dep_t* dep, bool tests, bool builds) {
 #define CLOSURE_DO_NOT_SEARCH_BUILDS false
 
 static void collect(search_t* s, spn_pkg_unit_t* pkg, bool private, bool tests, bool builds) {
-  sp_da(spn_pkg_dep_t) deps = pkg->deps;
-  sp_da_for(deps, it) {
-    spn_pkg_dep_t* dep = &deps[it];
+  si_da_for_ptr(pkg->deps, dep) {
     if (!edge_links(dep, tests, builds)) {
       continue;
     }
@@ -117,8 +115,7 @@ static bool sibling_code_links(spn_target_unit_t* dep) {
 }
 
 static void collect_siblings(sibling_search_t* s, spn_target_unit_t* target) {
-  sp_da_for(target->deps, it) {
-    spn_target_unit_t* dep = target->deps[it];
+  si_da_for_value(target->deps, dep) {
     if (si_ht_getp(s->visited, dep)) {
       continue;
     }
@@ -184,9 +181,7 @@ si_da(spn_closure_entry_t) si_link_get_target_closure(sp_mem_t mem, spn_target_u
 }
 
 static void collect_runtime(search_t* s, spn_pkg_unit_t* pkg, bool tests, bool builds) {
-  sp_da(spn_pkg_dep_t) deps = pkg->deps;
-  sp_da_for(deps, it) {
-    spn_pkg_dep_t* dep = &deps[it];
+  si_da_for_ptr(pkg->deps, dep) {
     if (!edge_links(dep, tests, builds)) {
       continue;
     }
@@ -212,8 +207,7 @@ static void push_unique_runtime_lib(runtime_search_t* s, spn_target_unit_t* lib)
 }
 
 static void collect_runtime_siblings(runtime_search_t* s, spn_target_unit_t* target) {
-  sp_da_for(target->deps, it) {
-    spn_target_unit_t* dep = target->deps[it];
+  si_da_for_value(target->deps, dep) {
     if (si_ht_getp(s->visited, dep)) continue;
     si_ht_insert(s->mem, s->visited, dep, (u8)true);
 

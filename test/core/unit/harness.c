@@ -84,7 +84,6 @@ static spn_build_unit_t* add_build(spn_session_t* s, spn_build_id_t id, const c8
   build->paths.root = spn_path_make(&spn.roots, sp_cstr_as_str(root));
   sp_da_init(s->mem, build->include);
   build->define = spn_when_facts_to_defines(s->mem, spn_profile_facts(&profile));
-  sp_da_init(s->mem, build->packages);
 
   spn_toolchain_info_t* info = sp_alloc_type(s->mem, spn_toolchain_info_t);
   sp_intern_str_t name = spn_intern(sp_str_lit("test"));
@@ -181,16 +180,6 @@ spn_session_t* build_session(sp_mem_t mem, unit_graph_test_t* g) {
       lib = test_manifest_target(mem, manifest, sp_cstr_as_str(pkg->libs[lt].name), SPN_TARGET_KIND_LIB);
       lib_decl(mem, &pkg->libs[lt], lib);
     }
-    if (pkg->scripts) {
-      si_target_info_t* configure = SP_NULLPTR;
-      configure = test_manifest_target(mem, manifest, sp_str_lit("configure"), SPN_TARGET_KIND_CONFIGURE_METAPROGRAM);
-      si_da_push(mem, configure->source, ((spn_gated_source_t) {
-        .kind = SPN_SOURCE_FILE,
-        .path = sp_str_lit("configure.c"),
-        .tree = SPN_TREE_MANIFEST,
-      }));
-    }
-
     if (it == 0) {
       s->manifest = manifest;
     }
@@ -226,12 +215,14 @@ spn_session_t* build_session(sp_mem_t mem, unit_graph_test_t* g) {
 }
 
 spn_err_t test_plan(spn_session_t* s, sp_str_t name, spn_target_kind_t kind) {
-  spn_pkg_unit_t* root = si_get_pkg_unit(s, s->units.target, si_get_root_pkg(s));
+  spn_pkg_unit_t* root = spn_pkg_unit_ensure(s, s->units.target, si_get_root_pkg(s));
   si_target_t* target = spn_pkg_get_target(&root->pkg, name, kind);
   SP_ASSERT(target);
   spn_target_unit_t* unit = SP_NULLPTR;
   spn_try(spn_target_unit_ensure(s, root, target, &unit));
   si_da(spn_target_unit_t*) roots = SP_NULLPTR;
   si_da_push(s->mem, roots, unit);
-  return spn_plan_new(s, s->units.target, roots, &s->plan);
+  spn_closure_t closure = sp_zero;
+  spn_try(spn_closure_new(s, root, roots, &closure));
+  return spn_plan_new(s, closure, &s->plan);
 }

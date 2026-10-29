@@ -42,7 +42,6 @@ typedef struct {
 
 typedef struct {
   const c8* name;
-  bool scripts;
   unit_dep_t deps [UNIT_TEST_MAX_DEPS];
   unit_lib_t libs [UNIT_TEST_MAX_LIBS];
   const c8* system_deps [UNIT_TEST_MAX_STRS];

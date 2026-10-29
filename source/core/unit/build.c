@@ -54,6 +54,5 @@ spn_build_unit_t* spn_build_add(spn_session_t* s, spn_profile_info_t profile, sp
   build->paths.root = root;
   sp_da_init(s->mem, build->include);
   build->define = spn_when_facts_to_defines(s->mem, spn_profile_facts(&build->profile));
-  sp_da_init(s->mem, build->packages);
   return build;
 }

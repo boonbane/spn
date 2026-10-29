@@ -147,10 +147,10 @@ set(SPN_SOURCES
   core/elf/elf.c
   cli/tui/tui.c
   core/unit/build.c
+  core/unit/closure.c
   core/unit/fingerprint.c
-  core/unit/graph.c
   core/unit/link.c
-  core/unit/paths.c
+  core/unit/pkg.c
   core/unit/plan.c
   core/unit/target.c
   core/when/when.c

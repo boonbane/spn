@@ -62,16 +62,10 @@ sp_test_each(unit_paths, init, paths_test_t, tests, .setup = spn_test_ctx_setup)
   spn_loaded_pkg_t* loaded = sp_ht_getp(s->packages, id);
   loaded->source = it->source;
 
-  spn_pkg_unit_t unit = {
-    .id = { .pkg = id, .build = s->units.target->id },
-    .build = s->units.target,
-    .session = s,
-  };
-  spn_unit_paths_init(&unit, loaded);
-
-  sp_try(expect_path(t, unit.paths.work, &it->work));
-  sp_try(expect_path(t, unit.paths.store, &it->store));
-  sp_try(expect_path(t, unit.paths.include, &it->include));
+  spn_pkg_unit_t* unit = spn_pkg_unit_ensure(s, s->units.target, id);
+  sp_try(expect_path(t, unit->paths.work, &it->work));
+  sp_try(expect_path(t, unit->paths.store, &it->store));
+  sp_try(expect_path(t, unit->paths.include, &it->include));
 
   return SP_OK;
 }

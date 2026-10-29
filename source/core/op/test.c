@@ -76,7 +76,7 @@ spn_err_t spn_op_test(spn_op_t* op) {
 
   spn_test_result_t* result = &op->result.test;
 
-  si_da_for_value(session->plan.roots, unit) {
+  si_da_for_value(session->plan.closure.roots, unit) {
     if (unit->target->info->kind != SPN_TARGET_KIND_TEST) {
       continue;
     }

@@ -563,7 +563,7 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
 spn_err_t spn_dag_build_lower(spn_dag_build_t* b, const spn_build_plan_t* plan) {
   spn_dag_t* g = b->graph;
 
-  si_da_for_value(plan->targets, target) {
+  si_da_for_value(plan->closure.targets, target) {
     spn_build_unit_t* build = target->pkg->build;
     if (!sp_ht_getp(b->ids.builds, build)) {
       spn_dag_id_t libc = sp_zero;
@@ -725,7 +725,7 @@ spn_err_t spn_dag_build_lower(spn_dag_build_t* b, const spn_build_plan_t* plan) 
     }
   }
 
-  si_da_for_value(plan->targets, target) {
+  si_da_for_value(plan->closure.targets, target) {
     sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
     spn_err_t err = add_target(b, scratch.mem, target);
     sp_mem_end_scratch(scratch);
@@ -792,7 +792,7 @@ spn_err_t spn_dag_build_stage(spn_dag_build_t* b) {
 
   const spn_path_roots_t* roots = b->graph->roots;
   const spn_build_plan_t* plan = &session->plan;
-  spn_path_t root = plan->build->paths.root;
+  spn_path_t root = plan->closure.root->build->paths.root;
   spn_path_t manifest = spn_path_join(scratch.mem, root, sp_str_lit(".spn/staged"));
 
   sp_ht(spn_path_t, bool) exes = SP_NULLPTR;

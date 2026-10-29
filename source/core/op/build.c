@@ -1,3 +1,4 @@
+#include "core/types.h"
 #include "spn/host.h"
 
 #include "cpu/cpu.h"
@@ -23,9 +24,22 @@
 #include "unit/types.h"
 #include "unit/unit.h"
 
+
+#include "options/options.h"
+#include "when/when.h"
+#include "profile/profile.h"
+
+typedef struct {
+  spn_pkg_id_t id;
+  spn_profile_info_t* profile;
+  spn_loaded_pkg_t* loaded;
+  spn_resolved_options_t* options;
+} pkg_builder_t;
+
 spn_err_t spn_op_build(spn_op_t* op) {
   spn_session_t* session = op->session;
   spn_ctx_t* ctx = session->ctx;
+  sp_mem_t mem = session->mem;
   spn_project_t* project = session->project;
   const spn_path_roots_t* roots = &ctx->roots;
 
@@ -104,25 +118,87 @@ spn_err_t spn_op_build(spn_op_t* op) {
   if (spn_wasm_init()) {
     return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_WASM_INIT_FAILED });
   }
-  spn_try(spn_units_add_packages(session));
+
+
+
+  // struct {
+  //   spn_build_unit_t* program;
+  //   spn_build_unit_t* metaprogram;
+  // } builds = { session->units.target, session->units.metaprogram };
+  //
+  // pkg_builder_t builder = sp_zero;
+  // builder.id = si_get_root_pkg(session);
+  // builder.profile = &builds.program->profile;
+  // builder.loaded = sp_ht_getp(session->packages, builder.id);
+  // builder.options = sp_ht_getp(session->options, builder.id);
+  //
+  // spn_when_env_t env = sp_zero;
+  // spn_profile_env(mem, builder.profile, &env);
+  // if (builder.options) {
+  //   spn_options_env_set(&env, builder.options);
+  // }
+  //
+  // unit->pkg = spn_pkg_eval(mem, builder.loaded->manifest, &session->ctx->roots, builder.loaded->roots, &env);
+
+
+
+  spn_pkg_unit_t* root = spn_pkg_unit_ensure(session, session->units.target, si_get_root_pkg(session));
+  si_da(spn_target_unit_t*) targets = sp_zero;
+  si_om_for_each(root->pkg.targets, target) {
+    if (!(session->selection.kinds & spn_target_kind_bit(target->info->kind))) {
+      continue;
+    }
+    if (!si_om_empty(session->selection.names) && !si_om_has(session->selection.names, target->info->name.id)) {
+      continue;
+    }
+    spn_target_unit_t* unit = SP_NULLPTR;
+    spn_try(spn_target_unit_ensure(session, root, target, &unit));
+    si_da_push(session->mem, targets, unit);
+  }
+  si_om_for_each(session->selection.names, name) {
+    bool matched = false;
+    si_da_for(targets, it) {
+      if (targets[it]->id.target.name == name->id) {
+        matched = true;
+        break;
+      }
+    }
+    if (!matched) {
+      return spn_err_emit(ctx, (spn_err_union_t) {
+        .kind = SPN_ERR_TARGET_SELECTION,
+        .target = { .name = name->str },
+      });
+    }
+  }
+
+  spn_closure_t selected = sp_zero;
+  spn_try(spn_closure_new(session, root, targets, &selected));
 
   si_da(spn_target_unit_t*) reactors = sp_zero;
   si_da(spn_pkg_unit_t*) configured = sp_zero;
-  sp_da_for_value(session->units.target->packages, unit) {
-    si_target_t* script = unit->metaprogram ? spn_pkg_get_script(&unit->metaprogram->pkg, SPN_TARGET_KIND_CONFIGURE_METAPROGRAM) : SP_NULLPTR;
-    if (!script) {
-      continue;
+  si_da_for_value(selected.pkgs, pkg) {
+    spn_pkg_unit_t* metaprogram = spn_pkg_unit_ensure(session, session->units.metaprogram, pkg->id.pkg);
+    si_target_t* configure = spn_pkg_get_script(&metaprogram->pkg, SPN_TARGET_KIND_CONFIGURE_METAPROGRAM);
+    if (configure) {
+      spn_target_unit_t* reactor = SP_NULLPTR;
+      spn_try(spn_target_unit_ensure(session, metaprogram, configure, &reactor));
+      si_da_push(session->mem, reactors, reactor);
+      si_da_push(session->mem, configured, pkg);
     }
-    spn_target_unit_t* reactor = SP_NULLPTR;
-    spn_try(spn_target_unit_ensure(session, unit->metaprogram, script, &reactor));
-    si_da_push(session->mem, reactors, reactor);
-    si_da_push(session->mem, configured, unit);
+    si_target_t* script = spn_pkg_get_script(&metaprogram->pkg, SPN_TARGET_KIND_BUILD_METAPROGRAM);
+    if (script) {
+      spn_target_unit_t* unit = SP_NULLPTR;
+      spn_try(spn_target_unit_ensure(session, metaprogram, script, &unit));
+      si_da_push(session->mem, targets, unit);
+    }
   }
 
-  spn_build_plan_t configure = sp_zero;
-  spn_try(spn_plan_new(session, session->units.metaprogram, reactors, &configure));
+  spn_closure_t configure = sp_zero;
+  spn_try(spn_closure_new(session, spn_pkg_unit_ensure(session, session->units.metaprogram, root->id.pkg), reactors, &configure));
+  spn_build_plan_t plan = sp_zero;
+  spn_try(spn_plan_new(session, configure, &plan));
   spn_dag_build_t* b = spn_dag_build_new(op);
-  spn_try(spn_dag_build_lower(b, &configure));
+  spn_try(spn_dag_build_lower(b, &plan));
   si_da_for(reactors, it) {
     spn_dag_target_ids_t* ids = sp_ht_getp(b->ids.targets, reactors[it]);
     sp_assert(ids);
@@ -140,35 +216,9 @@ spn_err_t spn_op_build(spn_op_t* op) {
   }
   spn_try(spn_dag_build_run(b, spn_cpu_count()));
 
-  spn_pkg_unit_t* root = si_get_pkg_unit(session, session->units.target, si_get_root_pkg(session));
-  si_da(spn_target_unit_t*) selected = sp_zero;
-  si_om_for_each(root->pkg.targets, target) {
-    if (!(session->selection.kinds & spn_target_kind_bit(target->info->kind))) {
-      continue;
-    }
-    if (!si_om_empty(session->selection.names) && !si_om_has(session->selection.names, target->info->name.id)) {
-      continue;
-    }
-    spn_target_unit_t* unit = SP_NULLPTR;
-    spn_try(spn_target_unit_ensure(session, root, target, &unit));
-    si_da_push(session->mem, selected, unit);
-  }
-  si_om_for_each(session->selection.names, name) {
-    bool matched = false;
-    si_da_for(selected, it) {
-      if (selected[it]->id.target.name == name->id) {
-        matched = true;
-        break;
-      }
-    }
-    if (!matched) {
-      return spn_err_emit(ctx, (spn_err_union_t) {
-        .kind = SPN_ERR_TARGET_SELECTION,
-        .target = { .name = name->str },
-      });
-    }
-  }
-  spn_try(spn_plan_new(session, session->units.target, selected, &session->plan));
+  spn_closure_t closure = sp_zero;
+  spn_try(spn_closure_new(session, root, targets, &closure));
+  spn_try(spn_plan_new(session, closure, &session->plan));
 
   b = spn_dag_build_new(op);
   spn_try(spn_dag_build_lower(b, &session->plan));

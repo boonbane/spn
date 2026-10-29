@@ -14,6 +14,7 @@
 #include "intern/intern.h"
 #include "paths/paths.h"
 #include "target/mutate.h"
+#include "pkg/id.h"
 #include "pkg/pkg.h"
 #include "session/session.h"
 #include "target/select.h"
@@ -38,7 +39,6 @@ spn_err_t spn_target_unit_ensure(spn_session_t* s, spn_pkg_unit_t* pkg, si_targe
   unit->pkg = pkg;
   unit->target = target;
   sp_da_init(s->mem, unit->objects);
-  sp_da_init(s->mem, unit->deps);
 
   switch (target->info->kind) {
     case SPN_TARGET_KIND_LIB: {
@@ -133,6 +133,31 @@ spn_err_t spn_target_unit_ensure(spn_session_t* s, spn_pkg_unit_t* pkg, si_targe
     case SPN_CC_OUTPUT_OBJECT: {
       break;
     }
+  }
+
+  spn_resolved_pkg_t* resolved = sp_ht_getp(s->resolve, pkg->id.pkg);
+  si_da_for_value(target->deps, name) {
+    sp_intern_id_t qualified = spn_intern(spn_pkg_canonicalize_name(name)).id;
+    bool package = false;
+    sp_da_for_ptr(resolved->edges, edge) {
+      if (edge->id.qualified == qualified) {
+        package = true;
+        break;
+      }
+    }
+    if (package) {
+      continue;
+    }
+    si_target_t* lib = spn_pkg_get_target(&pkg->pkg, name, SPN_TARGET_KIND_LIB);
+    if (!lib) {
+      return spn_err_emit(s->ctx, (spn_err_union_t) {
+        .kind = SPN_ERR_TARGET_DEP,
+        .target = { .name = name },
+      });
+    }
+    spn_target_unit_t* dep = SP_NULLPTR;
+    spn_try(spn_target_unit_ensure(s, pkg, lib, &dep));
+    si_da_push(s->mem, unit->deps, dep);
   }
 
   *result = unit;

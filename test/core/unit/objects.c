@@ -73,8 +73,7 @@ sp_test_each(unit_objects, create, objects_test_t, tests, .setup = spn_test_ctx_
 
   si_target_info_t* decl = SP_NULLPTR;
   decl = test_manifest_target(s->mem, test_manifest(s, id), sp_str_lit("app"), SPN_TARGET_KIND_EXE);
-  sp_must_eq(t, SPN_OK, spn_units_add_packages(s));
-  si_target_t* app = spn_pkg_get_target(&si_get_pkg_unit(s, s->units.target, id)->pkg, sp_str_lit("app"), SPN_TARGET_KIND_EXE);
+  si_target_t* app = spn_pkg_get_target(&spn_pkg_unit_ensure(s, s->units.target, id)->pkg, sp_str_lit("app"), SPN_TARGET_KIND_EXE);
   sp_must(t, app);
   sp_carr_for(it->source, st) {
     if (!it->source[st].path) {
@@ -90,8 +89,8 @@ sp_test_each(unit_objects, create, objects_test_t, tests, .setup = spn_test_ctx_
   }
   sp_must_eq(t, SPN_OK, test_plan(s, sp_str_lit("app"), SPN_TARGET_KIND_EXE));
 
-  sp_must_eq(t, 1, si_da_size(s->plan.roots));
-  spn_target_unit_t* target = s->plan.roots[0];
+  sp_must_eq(t, 1, si_da_size(s->plan.closure.roots));
+  spn_target_unit_t* target = s->plan.closure.roots[0];
 
   u32 count = 0;
   sp_carr_detect_len(it->expect.objects, count, it->expect.objects[count]);
