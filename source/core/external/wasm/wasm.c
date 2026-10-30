@@ -203,6 +203,18 @@ spn_err_t spn_wasm_script_call(spn_wasm_script_t* script, sp_str_t name, const s
   return SPN_OK;
 }
 
+spn_err_t spn_wasm_configure(spn_pkg_unit_t* unit, spn_path_t reactor) {
+  spn_wasm_script_t script = sp_zero;
+  spn_try(spn_wasm_script_open(unit, reactor, SP_NULLPTR, &script));
+  spn_err_t err = SPN_OK;
+  if (spn_wasm_script_exports(&script, sp_str_lit("configure"))) {
+    spn_wasm_handle_t config = { .ptr = unit, .kind = SPN_ABI_KIND_CONFIG };
+    err = spn_wasm_script_call(&script, sp_str_lit("configure"), &config, 1);
+  }
+  spn_wasm_script_close(&script);
+  return err;
+}
+
 bool spn_wasm_trap(sp_str_t message) {
   if (!active) {
     return false;

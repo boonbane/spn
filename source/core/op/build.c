@@ -3,12 +3,12 @@
 #include "cpu/cpu.h"
 #include "ctx/types.h"
 #include "dag/dag.h"
+#include "dag/run.h"
 #include "error/error.h"
 #include "event/event.h"
 #include "external/wasm/wasm.h"
 #include "git/patch.h"
 #include "graph/dag.h"
-#include "graph/nodes/nodes.h"
 #include "model/resolve.h"
 #include "model/sync.h"
 #include "op/op.h"
@@ -169,22 +169,12 @@ spn_err_t spn_op_build(spn_op_t* op) {
   spn_try(spn_plan_new(units, configure, &plan));
   spn_dag_build_t* b = spn_dag_build_new(op);
   spn_try(spn_dag_build_lower(b, &plan));
+  spn_try(spn_dag_build_run(b, spn_cpu_count()));
   si_da_for(reactors, it) {
     spn_dag_target_ids_t* ids = sp_ht_getp(b->ids.targets, reactors[it]);
     sp_assert(ids);
-    si_configure_t* action = sp_alloc_type(b->mem, si_configure_t);
-    *action = (si_configure_t) {
-      .unit = configured[it],
-      .reactor = ids->output,
-    };
-    spn_dag_id_t id = spn_dag_add_action(b->graph, (spn_dag_action_config_t) {
-      .kind = SPN_DAG_ACTION_UNCACHEABLE,
-      .execute = si_on_configure,
-      .user_data = action,
-    });
-    spn_dag_action_add_input(b->graph, id, ids->output);
+    spn_try(spn_wasm_configure(configured[it], spn_dag_run_artifact(&b->run, ids->output)->location));
   }
-  spn_try(spn_dag_build_run(b, spn_cpu_count()));
 
   si_da_for_value(selected.pkgs, pkg) {
     spn_target_unit_t* script = SP_NULLPTR;
