@@ -249,10 +249,11 @@ add_executable(core
   ${SRC}/triple/triple.c
   ${SRC}/elf/elf.c
   ${SRC}/unit/build.c
+  ${SRC}/unit/closure.c
   ${SRC}/unit/fingerprint.c
-  ${SRC}/unit/graph.c
   ${SRC}/unit/link.c
-  ${SRC}/unit/paths.c
+  ${SRC}/unit/pkg.c
+  ${SRC}/unit/plan.c
   ${SRC}/unit/target.c
   ${UTIL}/version/version.c
   ${SRC}/when/when.c

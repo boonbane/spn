@@ -31,7 +31,6 @@ typedef struct {
 struct spn_resolved_pkg {
   spn_pkg_id_t id;
   sp_intern_str_t name;
-  spn_option_map_t options;
   spn_pkg_source_t source;
   u64 priority;
   sp_da(spn_requested_dep_t) deps;
@@ -43,6 +42,14 @@ struct spn_resolved_pkg {
     const si_pkg_info_t* manifest;
     spn_index_release_t* release;
   } origin;
+
+  const si_pkg_info_t* manifest;
+  spn_tree_roots_t roots;
+  const spn_pkg_config_t* config;
+  struct {
+    spn_option_map_t decls;
+    spn_resolved_options_t values;
+  } options;
 };
 
 typedef sp_ht(spn_pkg_id_t, spn_resolved_pkg_t) spn_resolve_t;

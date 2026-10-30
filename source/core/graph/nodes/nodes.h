@@ -68,7 +68,7 @@ typedef struct {
 } si_libc_t;
 
 typedef struct {
-  spn_target_unit_t* target;
+  spn_target_unit_t* unit;
   spn_dag_id_t object;
   spn_dag_id_t header;
 } si_embed_t;

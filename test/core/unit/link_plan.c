@@ -293,10 +293,8 @@ sp_test_each(link_plan, plan, plan_test_t, tests, .setup = spn_test_ctx_setup) {
   si_target_info_t* decl = SP_NULLPTR;
   decl = test_manifest_target(s->mem, manifest, sp_str_lit("app"), it->target.kind);
   target_decl(mem, &it->target, decl);
-  s->plans.build[0].selection.kinds = spn_target_kind_bit(it->target.kind);
 
-  sp_must_eq(t, SPN_OK, spn_units_add_packages(s));
-  spn_err_t err = spn_units_add_targets(s, SPN_UNIT_SCOPE_TARGET);
+  spn_err_t err = test_plan(s, sp_str_lit("app"), it->target.kind);
   sp_must_eq(t, it->expect.err, err);
   if (err) {
     sp_da(spn_event_t) errs = spn_test_drain_errs(mem);
@@ -307,20 +305,20 @@ sp_test_each(link_plan, plan, plan_test_t, tests, .setup = spn_test_ctx_setup) {
     sp_expect_str_eq_c(t, refusal->toolchain, "test");
     sp_expect_str_eq_c(t, refusal->pkg, "P1");
     sp_expect_str_eq_c(t, refusal->name, "app");
-    sp_expect(t, spn_triple_equal(refusal->target, spn_profile_triple(&s->units.target->profile)));
+    sp_expect(t, spn_triple_equal(refusal->target, spn_profile_triple(&s->builds.program->profile)));
     sp_must_strs_eq(t, refusal->frameworks, sp_da_size(refusal->frameworks), it->expect.frameworks);
     return SP_OK;
   }
 
-  sp_must_eq(t, 1, si_da_size(s->plans.build[0].roots));
-  spn_target_unit_t* app = s->plans.build[0].roots[0];
+  sp_must_eq(t, 1, si_da_size(s->plan.closure.roots));
+  spn_target_unit_t* app = s->plan.closure.roots[0];
 
   spn_link_plan_t* plan = &app->link;
   u32 num_deps = 0;
   sp_carr_detect_len(it->expect.deps, num_deps, it->expect.deps[num_deps].lib);
   sp_must_eq(t, num_deps, si_da_size(plan->deps));
   sp_for(dt, num_deps) {
-    sp_expect_str_eq_c(t, plan->deps[dt].lib->eval->info->name.str, it->expect.deps[dt].lib);
+    sp_expect_str_eq_c(t, plan->deps[dt].lib->target->info->name.str, it->expect.deps[dt].lib);
     sp_expect_eq(t, it->expect.deps[dt].role, plan->deps[dt].role);
   }
   sp_must_strs_eq(t, plan->cc.system_libs, sp_da_size(plan->cc.system_libs), it->expect.system_libs);

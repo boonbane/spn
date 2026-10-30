@@ -1,15 +1,298 @@
 #include "spn/host.h"
 
+#include "cpu/cpu.h"
+#include "ctx/types.h"
+#include "dag/dag.h"
+#include "dag/run.h"
 #include "error/error.h"
+#include "event/event.h"
+#include "external/wasm/wasm.h"
+#include "git/patch.h"
 #include "graph/dag.h"
-#include "model/model.h"
+#include "model/resolve.h"
+#include "model/sync.h"
 #include "op/op.h"
+#include "paths/paths.h"
+#include "pkg/pkg.h"
+#include "profile/types.h"
+#include "project/project.h"
+#include "project/types.h"
+#include "session/session.h"
 #include "session/types.h"
+#include "triple/triple.h"
+#include "unit/types.h"
+#include "unit/unit.h"
 
 spn_err_t spn_op_build(spn_op_t* op) {
   spn_session_t* session = op->session;
-  spn_try(spn_model_establish(op));
-  return spn_dag_build_session(op);
+  spn_ctx_t* ctx = session->ctx;
+  sp_mem_t mem = session->mem;
+  spn_project_t* project = session->project;
+  const spn_path_roots_t* roots = &ctx->roots;
+
+  spn_err_t hashed = SPN_OK;
+  si_da_for_ptr(project->patches, decl) {
+    spn_patch_t patch = { .qualified = decl->qualified };
+    si_da_for_value(decl->files, file) {
+      si_da_push(session->mem, patch.set.files, spn_path_str(roots, session->mem, file));
+    }
+    u32 missing = 0;
+    patch.set.hash = spn_git_patch_hash(patch.set.files, &missing);
+    if (!patch.set.hash) {
+      spn_err_t kind = spn_err_emit(ctx, (spn_err_union_t) {
+        .kind = SPN_ERR_PATCH_FILE_MISSING,
+        .subject = decl->qualified.str,
+        .patch_file = { .path = patch.set.files[missing] },
+      });
+      if (!hashed) {
+        hashed = kind;
+      }
+      continue;
+    }
+    si_da_push(session->mem, session->patches, patch);
+  }
+  spn_try(hashed);
+
+  bool reresolve = sp_zero;
+  do {
+    spn_try(spn_resolve(op));
+    spn_try(spn_sync(op, &reresolve));
+  } while (reresolve);
+
+  spn_err_t unused = SPN_OK;
+  si_da_for_ptr(session->patches, patch) {
+    bool used = false;
+    sp_ht_for_kv(session->resolve, it) {
+      if (it.key->qualified == patch->qualified.id) {
+        used = true;
+        break;
+      }
+    }
+    if (used) {
+      continue;
+    }
+    spn_err_t kind = spn_err_emit(ctx, (spn_err_union_t) {
+      .kind = SPN_ERR_PATCH_UNUSED,
+      .subject = patch->qualified.str,
+    });
+    if (!unused) {
+      unused = kind;
+    }
+  }
+  spn_try(unused);
+
+  // Initialize shared state across the DAGs
+  session->dag.files_path = spn_path_join(session->mem, session->paths.build, sp_str_lit(".spn/files"));
+  spn_dag_file_cache_init(&session->dag.files, session->mem, roots);
+  spn_dag_file_cache_load(&session->dag.files, session->dag.files_path);
+
+  spn_path_t dag = spn_path_anchor(session->mem, roots, spn_path_from_id(SPN_DIR_ID_DAG));
+  session->dag.scratch = spn_path_join(session->mem, dag, sp_str_lit("tmp"));
+  sp_fs_create_dir_at(spn_path_at(roots, session->dag.scratch));
+  spn_dag_store_init(&session->dag.store, (spn_dag_store_config_t) {
+    .kind = SPN_DAG_STORE_FILESYSTEM,
+    .mem = spn.mem,
+    .roots = roots,
+    .dir = spn_path_join(session->mem, dag, sp_str_lit("store")),
+  });
+  spn_dag_action_cache_init(&session->dag.actions, spn.mem, roots, spn_path_join(session->mem, dag, sp_str_lit("strong")));
+  spn_dag_obs_table_init(&session->dag.discovery, spn.mem, roots, spn_path_join(session->mem, dag, sp_str_lit("weak")));
+  session->dag.files.stats = &session->dag.stats;
+  session->dag.actions.stats = &session->dag.stats;
+  session->dag.discovery.stats = &session->dag.stats;
+  session->dag.store.stats = &session->dag.stats;
+
+  if (spn_wasm_init()) {
+    return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_WASM_INIT_FAILED });
+  }
+
+  spn_units_t* units = &session->units;
+  *units = (spn_units_t) {
+    .ctx = ctx,
+    .mem = mem,
+    .resolve = session->resolve,
+  };
+  struct {
+    spn_build_unit_t* program;
+    spn_build_unit_t* metaprogram;
+  } builds = { session->builds.program, session->builds.metaprogram };
+
+  spn_pkg_unit_t* root = spn_pkg_unit_ensure(units, builds.program, si_get_root_pkg(session));
+  si_da(spn_target_unit_t*) targets = sp_zero;
+  si_om_for_each(root->pkg.targets, target) {
+    if (!(session->selection.kinds & spn_target_kind_bit(target->info->kind))) {
+      continue;
+    }
+    if (!si_om_empty(session->selection.names) && !si_om_has(session->selection.names, target->info->name.id)) {
+      continue;
+    }
+    spn_target_unit_t* unit = SP_NULLPTR;
+    spn_try(spn_target_unit_ensure(units, root, target, &unit));
+    si_da_push(mem, targets, unit);
+  }
+  si_om_for_each(session->selection.names, name) {
+    bool matched = false;
+    si_da_for(targets, it) {
+      if (targets[it]->id.target.name == name->id) {
+        matched = true;
+        break;
+      }
+    }
+    if (!matched) {
+      return spn_err_emit(ctx, (spn_err_union_t) {
+        .kind = SPN_ERR_TARGET_SELECTION,
+        .target = { .name = name->str },
+      });
+    }
+  }
+
+  spn_closure_t selected = sp_zero;
+  spn_try(spn_closure_new(units, root, targets, &selected));
+
+  si_da(spn_target_unit_t*) reactors = sp_zero;
+  si_da(spn_pkg_unit_t*) configured = sp_zero;
+  si_da_for_value(selected.pkgs, pkg) {
+    spn_pkg_unit_t* metaprogram = spn_pkg_unit_ensure(units, builds.metaprogram, pkg->resolved);
+    si_target_t* configure = spn_pkg_get_script(&metaprogram->pkg, SPN_TARGET_KIND_CONFIGURE_METAPROGRAM);
+    if (!configure) {
+      continue;
+    }
+    spn_target_unit_t* reactor = SP_NULLPTR;
+    spn_try(spn_target_unit_ensure(units, metaprogram, configure, &reactor));
+    si_da_push(mem, reactors, reactor);
+    si_da_push(mem, configured, pkg);
+  }
+
+  spn_closure_t configure = sp_zero;
+  spn_try(spn_closure_new(units, spn_pkg_unit_ensure(units, builds.metaprogram, root->resolved), reactors, &configure));
+  spn_build_plan_t plan = sp_zero;
+  spn_try(spn_plan_new(units, configure, &plan));
+  spn_dag_build_t* b = spn_dag_build_new(op);
+  spn_try(spn_dag_build_lower(b, &plan));
+  spn_try(spn_dag_build_run(b, spn_cpu_count()));
+  si_da_for(reactors, it) {
+    spn_dag_target_ids_t* ids = sp_ht_getp(b->ids.targets, reactors[it]);
+    sp_assert(ids);
+    spn_try(spn_wasm_configure(configured[it], spn_dag_run_artifact(&b->run, ids->output)->location));
+  }
+
+  si_da_for_value(selected.pkgs, pkg) {
+    spn_target_unit_t* script = SP_NULLPTR;
+    sp_da_for_ptr(pkg->user_nodes, node) {
+      if (sp_str_empty(node->fn)) {
+        continue;
+      }
+      if (!script) {
+        spn_pkg_unit_t* metaprogram = spn_pkg_unit_ensure(units, builds.metaprogram, pkg->resolved);
+        si_target_t* target = spn_pkg_get_script(&metaprogram->pkg, SPN_TARGET_KIND_BUILD_METAPROGRAM);
+        if (!target) {
+          return spn_err_emit(ctx, (spn_err_union_t) {
+            .kind = SPN_ERR_NODE_NO_BUILD_SCRIPT,
+            .node = {
+              .pkg = pkg->pkg.manifest->name.str,
+              .tag = node->tag,
+              .fn = node->fn,
+            },
+          });
+        }
+        spn_try(spn_target_unit_ensure(units, metaprogram, target, &script));
+        si_da_push(mem, targets, script);
+      }
+      node->script = script;
+    }
+  }
+
+  spn_closure_t closure = sp_zero;
+  spn_try(spn_closure_new(units, root, targets, &closure));
+  spn_try(spn_plan_new(units, closure, &session->plan));
+
+  b = spn_dag_build_new(op);
+  spn_try(spn_dag_build_lower(b, &session->plan));
+
+  spn_build_unit_t* build = builds.program;
+  spn_event_buffer_push(ctx->events, (spn_event_t) {
+    .kind = SPN_EVENT_INIT_BUILD_GRAPH,
+    .pkg = session->manifest->name.str,
+    .graph_init = {
+      .profile = build->profile.name.str,
+      .target = spn_triple_to_str(ctx->events->mem, spn_profile_triple(&build->profile)),
+      .toolchain = build->toolchain->info->name.str,
+      .version = build->toolchain->version,
+      .force = session->force,
+    }
+  });
+
+  sp_tm_timer_t timer = sp_tm_start_timer();
+  sp_atomic_ptr_store(&ctx->progress, &b->run.progress, SP_ATOMIC_SEQ_CST);
+  spn_err_t result = spn_dag_build_run(b, spn_cpu_count());
+  sp_atomic_ptr_store(&ctx->progress, SP_NULLPTR, SP_ATOMIC_SEQ_CST);
+  u64 elapsed = sp_tm_read_timer(&timer);
+
+  if (result == SPN_ERR_DAG_CANCELLED) {
+    return result;
+  }
+
+  spn_err_t written = spn_dag_build_write_compile_commands(b);
+  if (!result) {
+    result = written;
+  }
+  if (!result) {
+    if (!sp_fs_exists_at(spn_path_at(roots, project->paths.lock))) {
+      spn_try(spn_project_update_lock(ctx, project, session->resolve));
+    }
+    result = spn_dag_build_stage(b);
+    spn_dag_file_cache_flush(b->run.files, session->dag.files_path);
+  }
+
+  bool failed = result != SPN_OK;
+  u32 hits = (u32)sp_atomic_s32_load(&b->run.progress.hits, SP_ATOMIC_SEQ_CST);
+  u32 misses = (u32)sp_atomic_s32_load(&b->run.progress.misses, SP_ATOMIC_SEQ_CST);
+  const si_pkg_info_t* pkg = session->manifest;
+  spn_profile_info_t* profile = &build->profile;
+
+  if (failed) {
+    spn_event_buffer_push(ctx->events, (spn_event_t) {
+      .kind = SPN_EVENT_BUILD_FAILED,
+      .pkg = pkg->name.str,
+      .build_failed = {
+        .profile = profile->name.str,
+        .time = elapsed,
+      },
+    });
+  }
+  else {
+    spn_event_buffer_push(ctx->events, (spn_event_t) {
+      .kind = SPN_EVENT_BUILD_PASSED,
+      .pkg = pkg->name.str,
+      .build_passed = {
+        .profile = profile->name.str,
+        .time = elapsed,
+        .hits = hits,
+        .misses = misses,
+      },
+    });
+  }
+
+  spn_event_buffer_push(ctx->events, (spn_event_t) {
+    .kind = SPN_EVENT_BUILD_SUMMARY,
+    .pkg = pkg->name.str,
+    .build_summary = {
+      .success = !failed,
+      .hits = hits,
+      .misses = misses,
+      .total = (u32)sp_da_size(b->graph->actions),
+      .time = elapsed,
+      .profile = profile->name.str,
+      .hashed_files = sp_atomic_u32_load(&session->dag.stats.hashed_files, SP_ATOMIC_SEQ_CST),
+      .hashed_bytes = sp_atomic_u64_load(&session->dag.stats.hashed_bytes, SP_ATOMIC_SEQ_CST),
+      .stats = sp_atomic_u32_load(&session->dag.stats.stats, SP_ATOMIC_SEQ_CST),
+      .obs_rows = sp_atomic_u32_load(&session->dag.stats.obs_rows, SP_ATOMIC_SEQ_CST),
+      .cache_reads = sp_atomic_u32_load(&session->dag.stats.cache_reads, SP_ATOMIC_SEQ_CST),
+      .cache_writes = sp_atomic_u32_load(&session->dag.stats.cache_writes, SP_ATOMIC_SEQ_CST),
+    },
+  });
+
+  return result;
 }
 
 spn_op_t* spn_build(spn_session_t* session) {

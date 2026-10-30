@@ -1,7 +1,7 @@
 #include "unit/unit.h"
 
 #include "hash/digest/digest.h"
-#include "session/session.h"
+#include "hash_table/hash_table.h"
 #include "str/str.h"
 #include "profile/types.h"
 #include "toolchain/sdk.h"
@@ -37,15 +37,10 @@ typedef struct {
 
 // The resolved non-default option set: distinct option sets get distinct
 // store paths, while default flips ride the manifest commit hash instead
-static sp_hash_t hash_options(spn_session_t* session, spn_pkg_id_t id) {
-  spn_resolved_options_t* options = sp_ht_getp(session->options, id);
-  if (!options) {
-    return 0;
-  }
-
+static sp_hash_t hash_options(spn_resolved_options_t options) {
   sp_hash_t hash = 0;
-  sp_da_for(*options, it) {
-    spn_resolved_option_t* option = &(*options)[it];
+  sp_da_for(options, it) {
+    spn_resolved_option_t* option = &options[it];
     if (option->is_default) {
       continue;
     }
@@ -141,54 +136,50 @@ static s32 sort_fingerprint_edges(const void* a, const void* b) {
   return 0;
 }
 
-sp_hash_t spn_unit_fingerprint(spn_session_t* session, spn_build_unit_t* build, spn_pkg_id_t id) {
-  spn_pkg_unit_id_t uid = { .pkg = id, .build = build->id };
-  sp_hash_t* memo = sp_ht_getp(session->fingerprints, uid);
+sp_hash_t spn_unit_fingerprint(spn_units_t* u, spn_build_unit_t* build, const spn_resolved_pkg_t* resolved) {
+  spn_pkg_unit_id_t uid = { .pkg = resolved->id, .build = build->id };
+  sp_hash_t* memo = si_ht_getp(u->fingerprints, uid);
   if (memo) {
     return *memo;
   }
 
-  spn_loaded_pkg_t* loaded = sp_ht_getp(session->packages, id);
-  const si_pkg_info_t* manifest = loaded->manifest;
+  const si_pkg_info_t* manifest = resolved->manifest;
 
   fingerprint_input_t fingerprint = sp_zero;
   fingerprint.qualified = spn_digest_hash_str(manifest->qualified.str);
-  fingerprint.options = hash_options(session, id);
+  fingerprint.options = hash_options(resolved->options.values);
   fingerprint.version = manifest->version;
   if (manifest->upstream.kind == SPN_PKG_ROOT_GIT) {
     fingerprint.commit = spn_digest_hash_str(manifest->upstream.git.rev);
   }
-
-  spn_resolved_pkg_t* resolved = sp_ht_getp(session->resolve, id);
-  if (resolved) {
-    if (resolved->origin.source.kind == SPN_PKG_ROOT_GIT) {
-      fingerprint.patches = resolved->origin.source.git.patches.hash;
+  if (resolved->origin.source.kind == SPN_PKG_ROOT_GIT) {
+    fingerprint.patches = resolved->origin.source.git.patches.hash;
+  }
+  if (!sp_da_empty(resolved->edges)) {
+    sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+    si_da(fingerprint_edge_t) edges = sp_zero;
+    sp_da_for(resolved->edges, it) {
+      const spn_resolved_pkg_t* dep = sp_ht_getp(u->resolve, resolved->edges[it].id);
+      sp_assert(dep);
+      si_da_push(scratch.mem, edges, ((fingerprint_edge_t) {
+        .hash = spn_unit_fingerprint(u, build, dep),
+        .kind = (u32)resolved->edges[it].kind,
+        .private = (u32)resolved->edges[it].private,
+      }));
     }
-    if (!sp_da_empty(resolved->edges)) {
-      sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-      si_da(fingerprint_edge_t) edges = sp_zero;
-      sp_da_for(resolved->edges, it) {
-        si_da_push(scratch.mem, edges, ((fingerprint_edge_t) {
-          .hash = spn_unit_fingerprint(session, build, resolved->edges[it].id),
-          .kind = (u32)resolved->edges[it].kind,
-          .private = (u32)resolved->edges[it].private,
-        }));
-      }
-      si_da_sort(edges, sort_fingerprint_edges);
-      fingerprint.deps = spn_digest_hash(edges, si_da_size(edges) * sizeof(fingerprint_edge_t));
-      sp_mem_end_scratch(scratch);
-    }
+    si_da_sort(edges, sort_fingerprint_edges);
+    fingerprint.deps = spn_digest_hash(edges, si_da_size(edges) * sizeof(fingerprint_edge_t));
+    sp_mem_end_scratch(scratch);
   }
 
   spn_toolchain_info_t* toolchain = build->toolchain->info;
-  sp_opt_spn_linkage_t config = spn_session_config_kind(session, manifest->name);
 
   fingerprint.mode = build->profile.mode;
   fingerprint.opt = build->profile.opt;
   fingerprint.sanitizers = build->profile.sanitizers;
   fingerprint.linking = build->profile.linking;
-  if (config.some) {
-    fingerprint.linking.linkage = config.value;
+  if (resolved->config && !sp_opt_is_null(resolved->config->kind)) {
+    fingerprint.linking.linkage = resolved->config->kind.value;
   }
   fingerprint.standard = build->profile.standard;
   fingerprint.arch = build->profile.arch;
@@ -205,7 +196,7 @@ sp_hash_t spn_unit_fingerprint(spn_session_t* session, spn_build_unit_t* build, 
   fingerprint.toolchain.identity = build->toolchain->identity;
 
   sp_hash_t hash = spn_digest_hash(&fingerprint, sizeof(fingerprint));
-  sp_ht_insert(session->fingerprints, uid, hash);
+  si_ht_insert(u->mem, u->fingerprints, uid, hash);
   return hash;
 }
 

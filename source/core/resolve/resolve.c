@@ -236,7 +236,7 @@ static void node_options_env(spn_resolver_t* resolver, spn_resolved_pkg_t* node,
   if (resolver->seeds) {
     seeds = sp_ht_getp(resolver->seeds, node->id.qualified);
   }
-  spn_option_subject_t subject = { .name = node->name, .is_root = node->source == SPN_PKG_SOURCE_ROOT, .options = node->options };
+  spn_option_subject_t subject = { .name = node->name, .is_root = node->source == SPN_PKG_SOURCE_ROOT, .options = node->options.decls };
   spn_merged_options_t merged = sp_zero;
   spn_options_merge(resolver->mem, subject, seeds ? *seeds : SP_NULLPTR, spn_profile_facts(&resolver->profile), &resolver->profile.options, resolver->config, &merged);
   spn_profile_env(resolver->mem, &resolver->profile, env);
@@ -463,7 +463,7 @@ static spn_err_union_t resolve_local_package(spn_resolver_t* resolver, spn_resol
       .version = pkg->manifest->version,
     },
     .name = pkg->manifest->name,
-    .options = pkg->manifest->options,
+    .options = { .decls = pkg->manifest->options },
     .source = pkg->source,
     .origin = {
       .recipe = {
@@ -514,7 +514,7 @@ static spn_err_union_t try_candidate(spn_resolver_t* resolver, spn_resolve_run_t
       .version = release->version,
     },
     .name = sp_intern(resolver->intern, release->id.name),
-    .options = release->options,
+    .options = { .decls = release->options },
     .source = SPN_PKG_SOURCE_INDEX,
     .origin = {
       .release = release,
