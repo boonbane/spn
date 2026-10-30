@@ -20,12 +20,6 @@
 #include "unit/types.h"
 
 typedef struct {
-  spn_pkg_source_t source;
-  const si_pkg_info_t* manifest;
-  spn_tree_roots_t roots;
-} spn_loaded_pkg_t;
-
-typedef struct {
   sp_intern_str_t qualified;
   spn_git_patch_set_t set;
 } spn_patch_t;
@@ -42,9 +36,6 @@ struct spn_session_t {
   spn_resolve_t resolve;
   si_da(spn_patch_t) patches;
   spn_pkg_registry_t registry;
-  sp_ht(spn_pkg_id_t, spn_loaded_pkg_t) packages;
-  sp_ht(spn_pkg_id_t, spn_resolved_options_t) options;
-  sp_ht(spn_pkg_unit_id_t, sp_hash_t) fingerprints;
 
   struct {
     spn_option_seeds_t seeds;
@@ -58,14 +49,11 @@ struct spn_session_t {
   spn_build_plan_t plan;
 
   struct {
-    sp_om(spn_build_id_t, spn_build_unit_t) builds;
-    spn_build_unit_t* target;
+    spn_build_unit_t* program;
     spn_build_unit_t* metaprogram;
     si_da(spn_toolchain_unit_t*) toolchains;
-    sp_om(spn_pkg_unit_id_t, spn_pkg_unit_t) packages;
-    sp_om(spn_target_unit_id_t, spn_target_unit_t) targets;
-    sp_om(spn_compile_unit_id_t, spn_compile_unit_t) objects;
-  } units;
+  } builds;
+  spn_units_t units;
 
   struct {
     spn_path_t root;

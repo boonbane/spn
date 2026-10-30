@@ -10,10 +10,6 @@
 
 spn_err_t spn_session_init(spn_session_t* session, spn_ctx_t* ctx, sp_mem_t mem, spn_project_t* project, spn_session_config_t config);
 spn_err_t spn_session_apply_options(spn_session_t* session, bool* reresolve);
-sp_opt_spn_linkage_t spn_session_config_kind(spn_session_t* session, sp_intern_str_t name);
-spn_pkg_id_t si_get_root_pkg(spn_session_t* session);
-spn_pkg_unit_t* si_get_pkg_unit(spn_session_t* session, spn_build_unit_t* build, spn_pkg_id_t pkg);
-spn_pkg_unit_t* spn_session_find_dep(spn_session_t* session, spn_pkg_unit_t* pkg, sp_intern_id_t qualified, spn_dep_kind_t kind);
-spn_target_unit_t* spn_session_find_target_in_pkg(spn_session_t* session, spn_pkg_unit_t* pkg, si_target_id_t id);
+spn_resolved_pkg_t* si_get_root_pkg(spn_session_t* session);
 
 #endif

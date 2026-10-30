@@ -33,13 +33,6 @@ spn_err_t spn_session_init(spn_session_t* s, spn_ctx_t* ctx, sp_mem_t mem, spn_p
   s->paths.build = spn_path_project_build();
 
   sp_ht_init(s->mem, s->registry);
-  sp_ht_init(s->mem, s->packages);
-  sp_ht_init(s->mem, s->options);
-  sp_ht_init(s->mem, s->fingerprints);
-  sp_om_new(s->units.builds);
-  sp_om_new(s->units.packages);
-  sp_om_new(s->units.targets);
-  sp_om_new(s->units.objects);
 
   spn_profile_info_t profile = sp_zero;
   spn_try(spn_profile_resolve(&config.profile, ctx->host, project, &profile));
@@ -62,12 +55,12 @@ spn_err_t spn_session_init(spn_session_t* s, spn_ctx_t* ctx, sp_mem_t mem, spn_p
     .build = spn_path_join(s->mem, s->paths.build, spn_profile_build_dir(s->mem, &profile)),
     .metabuild = spn_path_join(s->mem, s->paths.build, spn_triple_to_str(s->mem, metaprogram_triple))
   };
-  s->units.target = spn_build_add(s, profile, roots.build, target.toolchain);
-  s->units.metaprogram = spn_build_add(s, metaprogram, roots.metabuild, script.toolchain);
+  s->builds.program = spn_build_add(s, profile, roots.build, target.toolchain);
+  s->builds.metaprogram = spn_build_add(s, metaprogram, roots.metabuild, script.toolchain);
 
-  sp_da_push(s->units.metaprogram->include, spn_path(s->mem, SPN_DIR_ID_RUNTIME, "include"));
+  sp_da_push(s->builds.metaprogram->include, spn_path(s->mem, SPN_DIR_ID_RUNTIME, "include"));
 
-  spn_path_t log_path = spn_path_join(s->mem, s->units.target->paths.root, sp_str_lit(".spn/build.jsonl"));
+  spn_path_t log_path = spn_path_join(s->mem, s->builds.program->paths.root, sp_str_lit(".spn/build.jsonl"));
   if (spn_event_log_open(ctx->events, spn_path_at(&ctx->roots, log_path))) {
     return spn_err_emit(ctx, (spn_err_union_t) {
       .kind = SPN_ERR_FS_WRITE,
@@ -84,41 +77,11 @@ spn_err_t spn_session_init(spn_session_t* s, spn_ctx_t* ctx, sp_mem_t mem, spn_p
   return SPN_OK;
 }
 
-sp_opt_spn_linkage_t spn_session_config_kind(spn_session_t* session, sp_intern_str_t name) {
-  sp_opt_spn_linkage_t requested = sp_zero;
-
-  spn_pkg_config_t* config = si_om_get(session->project->config, name.id);
-  if (config && !sp_opt_is_null(config->kind)) {
-    sp_opt_set(requested, config->kind.value);
-  }
-
-  return requested;
-}
-
-spn_pkg_id_t si_get_root_pkg(spn_session_t* session) {
+spn_resolved_pkg_t* si_get_root_pkg(spn_session_t* session) {
   sp_ht_for_kv(session->resolve, it) {
     if (it.val->source == SPN_PKG_SOURCE_ROOT) {
-      return it.val->id;
-    }
-  }
-  return SP_ZERO_STRUCT(spn_pkg_id_t);
-}
-
-spn_pkg_unit_t* si_get_pkg_unit(spn_session_t* session, spn_build_unit_t* build, spn_pkg_id_t pkg) {
-  spn_pkg_unit_id_t id = { .pkg = pkg, .build = build->id };
-  return sp_om_has(session->units.packages, id) ? sp_om_get(session->units.packages, id) : SP_NULLPTR;
-}
-
-spn_pkg_unit_t* spn_session_find_dep(spn_session_t* session, spn_pkg_unit_t* pkg, sp_intern_id_t qualified, spn_dep_kind_t kind) {
-  si_da_for_ptr(pkg->deps, dep) {
-    if (dep->kind == kind && dep->unit->id.pkg.qualified == qualified) {
-      return dep->unit;
+      return it.val;
     }
   }
   return SP_NULLPTR;
-}
-
-spn_target_unit_t* spn_session_find_target_in_pkg(spn_session_t* session, spn_pkg_unit_t* pkg, si_target_id_t id) {
-  spn_target_unit_id_t key = { .pkg = pkg->id, .target = id };
-  return sp_om_has(session->units.targets, key) ? sp_om_get(session->units.targets, key) : SP_NULLPTR;
 }

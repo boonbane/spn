@@ -38,7 +38,6 @@ typedef struct {
   spn_op_t* op;
   spn_session_t* session;
   spn_resolved_pkg_t* pkg;
-  spn_loaded_pkg_t loaded;
   bool patched;
   bool fetched;
   u64 elapsed;
@@ -212,7 +211,6 @@ static spn_err_t materialize_tree(spn_session_t* session, sp_str_t name, spn_pkg
 static spn_err_t fetch_package(pkg_job_t* job) {
   spn_session_t* session = job->session;
   spn_resolved_pkg_t* pkg = job->pkg;
-  spn_loaded_pkg_t* loaded = &job->loaded;
   bool* fetched = &job->fetched;
   sp_str_t qualified = spn_intern_find(pkg->id.qualified);
 
@@ -225,12 +223,12 @@ static spn_err_t fetch_package(pkg_job_t* job) {
       }});
   }
 
-  spn_try(materialize_tree(session, qualified, pkg->origin.recipe, &loaded->roots.recipe, fetched));
+  spn_try(materialize_tree(session, qualified, pkg->origin.recipe, &pkg->roots.recipe, fetched));
 
   if (pkg->origin.source.kind == SPN_PKG_ROOT_NONE) {
-    loaded->roots.source = loaded->roots.recipe;
+    pkg->roots.source = pkg->roots.recipe;
   } else {
-    spn_try(materialize_tree(session, qualified, pkg->origin.source, &loaded->roots.source, fetched));
+    spn_try(materialize_tree(session, qualified, pkg->origin.source, &pkg->roots.source, fetched));
   }
 
   return SPN_OK;
@@ -303,7 +301,7 @@ static spn_err_t sync_jobs(spn_op_t* op, sp_mem_t mem, bool* reresolve) {
   }
   spn_try(stamped);
 
-  si_da_for_value(session->units.toolchains, unit) {
+  si_da_for_value(session->builds.toolchains, unit) {
     toolchain_job_t* job = sp_alloc_type(mem, toolchain_job_t);
     job->op = op;
     job->unit = unit;
@@ -355,13 +353,11 @@ static spn_err_t sync_jobs(spn_op_t* op, sp_mem_t mem, bool* reresolve) {
   const spn_path_roots_t* roots = &session->ctx->roots;
   si_da_for_value(packages, job) {
     spn_resolved_pkg_t* pkg = job->pkg;
-    spn_loaded_pkg_t* loaded = &job->loaded;
     sp_str_t qualified = spn_intern_find(pkg->id.qualified);
 
-    loaded->source = pkg->source;
-    loaded->manifest = pkg->origin.manifest;
-    if (!loaded->manifest) {
-      spn_path_t path = spn_path_join(spn.mem, loaded->roots.recipe, pkg->origin.paths.manifest);
+    pkg->manifest = pkg->origin.manifest;
+    if (!pkg->manifest) {
+      spn_path_t path = spn_path_join(spn.mem, pkg->roots.recipe, pkg->origin.paths.manifest);
       if (!sp_fs_exists_at(spn_path_at(roots, path))) {
         return spn_err_emit(session->ctx, (spn_err_union_t) {
           .kind = SPN_ERR_NO_MANIFEST,
@@ -384,12 +380,11 @@ static spn_err_t sync_jobs(spn_op_t* op, sp_mem_t mem, bool* reresolve) {
           .mismatch = { .path = spn_path_str(roots, spn.events->mem, path), .declared = parsed->name.str, .requested = qualified },
         });
       }
-      loaded->manifest = parsed;
+      pkg->manifest = parsed;
     }
 
-    pkg->name = loaded->manifest->name;
-    pkg->options = loaded->manifest->options;
-    sp_ht_insert(session->packages, pkg->id, job->loaded);
+    pkg->name = pkg->manifest->name;
+    pkg->options.decls = pkg->manifest->options;
 
     sp_str_t url = sp_str_lit("");
     if (pkg->origin.recipe.kind == SPN_PKG_ROOT_GIT) {
@@ -399,11 +394,11 @@ static spn_err_t sync_jobs(spn_op_t* op, sp_mem_t mem, bool* reresolve) {
       url = pkg->origin.source.git.url;
     }
     spn_event_buffer_push(spn.events, (spn_event_t) {
-      .kind = SPN_EVENT_SYNC_PACKAGE, .pkg = loaded->manifest->name.str,
+      .kind = SPN_EVENT_SYNC_PACKAGE, .pkg = pkg->manifest->name.str,
       .sync_pkg = {
         .name = qualified,
         .url = url,
-        .source_path = spn_path_str(roots, spn.events->mem, loaded->roots.source),
+        .source_path = spn_path_str(roots, spn.events->mem, pkg->roots.source),
         .time = job->elapsed,
         .fetched = job->fetched,
       }});

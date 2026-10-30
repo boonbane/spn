@@ -13,6 +13,7 @@
 #include "pkg/types.h"
 #include "macro/macro.h"
 #include "profile/types.h"
+#include "resolve/types.h"
 #include "target/types.h"
 
 struct spn_build_unit_t {
@@ -165,9 +166,9 @@ typedef struct {
 struct spn_pkg_unit_t {
   spn_pkg_unit_id_t id;
   spn_build_unit_t* build;
-  spn_session_t* session;
+  spn_units_t* units;
+  const spn_resolved_pkg_t* resolved;
   si_pkg_t pkg;
-  spn_pkg_source_t source;
   sp_hash_t fingerprint;
   spn_source_pin_t pin;
 
@@ -194,6 +195,16 @@ struct spn_toolchain_unit_t {
   sp_hash_t identity;
   sp_hash_t generation;
   sp_str_t version;
+};
+
+struct spn_units_t {
+  spn_ctx_t* ctx;
+  sp_mem_t mem;
+  spn_resolve_t resolve;
+  sp_om(spn_pkg_unit_id_t, spn_pkg_unit_t) packages;
+  sp_om(spn_target_unit_id_t, spn_target_unit_t) targets;
+  sp_om(spn_compile_unit_id_t, spn_compile_unit_t) objects;
+  si_ht(spn_pkg_unit_id_t, sp_hash_t) fingerprints;
 };
 
 static inline spn_user_node_t* spn_node_deref(spn_node_ref_t ref) {

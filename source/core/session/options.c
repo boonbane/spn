@@ -111,14 +111,12 @@ static spn_err_t validate_config_keys(spn_session_t* session) {
     bool known = false;
     sp_ht_for_kv(session->resolve, rt) {
       spn_resolved_pkg_t* node = rt.val;
-      spn_loaded_pkg_t* loaded = sp_ht_getp(session->packages, node->id);
-      sp_assert(loaded);
       if (node->name.id == config->name.id) {
         known = true;
         break;
       }
-      si_da_for(loaded->manifest->deps, dt) {
-        if (sp_str_equal(spn_pkg_name_from_qualified(loaded->manifest->deps[dt].qualified.str).name, config->name.str)) {
+      si_da_for(node->manifest->deps, dt) {
+        if (sp_str_equal(spn_pkg_name_from_qualified(node->manifest->deps[dt].qualified.str).name, config->name.str)) {
           known = true;
           break;
         }
@@ -145,7 +143,6 @@ spn_err_t spn_session_apply_options(spn_session_t* session, bool* reresolve) {
   *reresolve = false;
 
   for (;;) {
-    sp_ht_init(mem, session->options);
     sp_ht_init(mem, session->gates.seeds);
 
     sp_ht(spn_pkg_id_t, spn_option_requests_t) requests = SP_NULLPTR;
@@ -153,11 +150,8 @@ spn_err_t spn_session_apply_options(spn_session_t* session, bool* reresolve) {
 
     sp_ht_for_kv(session->resolve, it) {
       spn_resolved_pkg_t* node = it.val;
-      spn_loaded_pkg_t* loaded = sp_ht_getp(session->packages, node->id);
-      sp_assert(loaded);
-
-      si_da_for(loaded->manifest->deps, dt) {
-        spn_requested_dep_t* dep = &loaded->manifest->deps[dt];
+      si_da_for(node->manifest->deps, dt) {
+        spn_requested_dep_t* dep = &node->manifest->deps[dt];
         if (si_da_empty(dep->options.clauses)) {
           continue;
         }
@@ -191,8 +185,8 @@ spn_err_t spn_session_apply_options(spn_session_t* session, bool* reresolve) {
 
       spn_option_requests_t node_requests = asked ? *asked : SP_NULLPTR;
       spn_merged_options_t merged = sp_zero;
-      spn_option_subject_t subject = { .name = node->name, .is_root = node->source == SPN_PKG_SOURCE_ROOT, .options = node->options };
-      const spn_profile_info_t* profile = &session->units.target->profile;
+      spn_option_subject_t subject = { .name = node->name, .is_root = node->source == SPN_PKG_SOURCE_ROOT, .options = node->options.decls };
+      const spn_profile_info_t* profile = &session->builds.program->profile;
       spn_options_merge(mem, subject, node_requests, spn_profile_facts(profile), &profile->options, session->project->config, &merged);
       if (!sp_da_empty(merged.violations)) {
         spn_err_t first = SPN_OK;
@@ -205,23 +199,20 @@ spn_err_t spn_session_apply_options(spn_session_t* session, bool* reresolve) {
         return first;
       }
 
-      sp_ht_insert(session->options, node->id, merged.options);
+      node->config = si_om_get(session->project->config, node->name.id);
+      node->options.values = merged.options;
     }
 
     bool pruned = false;
     bool missing = false;
     sp_ht_for_kv(session->resolve, it) {
       spn_resolved_pkg_t* node = it.val;
-      spn_loaded_pkg_t* loaded = sp_ht_getp(session->packages, node->id);
-      spn_resolved_options_t* resolved = sp_ht_getp(session->options, node->id);
-      sp_assert(resolved);
-
       spn_when_env_t env = sp_zero;
-      spn_profile_env(mem, &session->units.target->profile, &env);
-      spn_options_env_set(&env, resolved);
+      spn_profile_env(mem, &session->builds.program->profile, &env);
+      spn_options_env_set(&env, &node->options.values);
 
-      si_da_for(loaded->manifest->deps, dt) {
-        spn_requested_dep_t* dep = &loaded->manifest->deps[dt];
+      si_da_for(node->manifest->deps, dt) {
+        spn_requested_dep_t* dep = &node->manifest->deps[dt];
         if (si_da_empty(dep->when.clauses)) {
           continue;
         }

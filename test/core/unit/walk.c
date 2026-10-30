@@ -194,17 +194,17 @@ sp_test_each(unit, walk, walk_test_t, tests, .setup = spn_test_ctx_setup) {
   si_da(spn_target_unit_t*) roots = sp_zero;
   sp_for(rt, count) {
     const walk_root_t* root = &it->roots[rt];
-    spn_build_unit_t* build = root->metaprogram ? s->units.metaprogram : s->units.target;
-    spn_pkg_unit_t* pkg = spn_pkg_unit_ensure(s, build, id);
+    spn_build_unit_t* build = root->metaprogram ? s->builds.metaprogram : s->builds.program;
+    spn_pkg_unit_t* pkg = spn_pkg_unit_ensure(&s->units, build, sp_ht_getp(s->resolve, id));
     si_target_t* target = spn_pkg_get_target(&pkg->pkg, sp_cstr_as_str(root->name), root->kind);
     sp_must(t, target);
     spn_target_unit_t* unit = SP_NULLPTR;
-    sp_must_eq(t, SPN_OK, spn_target_unit_ensure(s, pkg, target, &unit));
+    sp_must_eq(t, SPN_OK, spn_target_unit_ensure(&s->units, pkg, target, &unit));
     si_da_push(mem, roots, unit);
   }
 
   spn_closure_t closure = sp_zero;
-  sp_must_eq(t, SPN_OK, spn_closure_new(s, spn_pkg_unit_ensure(s, s->units.target, id), roots, &closure));
+  sp_must_eq(t, SPN_OK, spn_closure_new(&s->units, spn_pkg_unit_ensure(&s->units, s->builds.program, sp_ht_getp(s->resolve, id)), roots, &closure));
 
   u32 expected = 0;
   sp_carr_detect_len(it->expect, expected, it->expect[expected].pkg);
@@ -215,7 +215,7 @@ sp_test_each(unit, walk, walk_test_t, tests, .setup = spn_test_ctx_setup) {
     sp_test_kv_c(t, "pkg", expect->pkg);
     spn_pkg_unit_t* unit = closure.pkgs[et];
     sp_expect(t, spn_pkg_id_eq(unit->id.pkg, find_pkg_id(s, &it->graph, expect->pkg)));
-    sp_expect_eq(t, expect->metaprogram, unit->build == s->units.metaprogram);
+    sp_expect_eq(t, expect->metaprogram, unit->build == s->builds.metaprogram);
   }
 
   return SP_OK;

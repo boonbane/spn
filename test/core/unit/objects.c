@@ -58,12 +58,12 @@ sp_test_each(unit_objects, create, objects_test_t, tests, .setup = spn_test_ctx_
   spn_session_t* s = build_session(mem, &graph);
 
   spn_pkg_id_t id = find_pkg_id(s, &graph, "A");
-  spn_loaded_pkg_t* loaded = sp_ht_getp(s->packages, id);
+  spn_resolved_pkg_t* resolved = sp_ht_getp(s->resolve, id);
 
   sp_str_t root = sp_fs_join_path(mem, test_dir_str(t), sp_str_lit("R"));
   sp_fs_create_dir(root);
   spn_path_t tree = spn_path_make(&spn.roots, root);
-  loaded->roots = (spn_tree_roots_t) { .recipe = tree, .source = tree };
+  resolved->roots = (spn_tree_roots_t) { .recipe = tree, .source = tree };
   sp_carr_for(it->files, ft) {
     if (!it->files[ft]) {
       break;
@@ -73,7 +73,7 @@ sp_test_each(unit_objects, create, objects_test_t, tests, .setup = spn_test_ctx_
 
   si_target_info_t* decl = SP_NULLPTR;
   decl = test_manifest_target(s->mem, test_manifest(s, id), sp_str_lit("app"), SPN_TARGET_KIND_EXE);
-  si_target_t* app = spn_pkg_get_target(&spn_pkg_unit_ensure(s, s->units.target, id)->pkg, sp_str_lit("app"), SPN_TARGET_KIND_EXE);
+  si_target_t* app = spn_pkg_get_target(&spn_pkg_unit_ensure(&s->units, s->builds.program, resolved)->pkg, sp_str_lit("app"), SPN_TARGET_KIND_EXE);
   sp_must(t, app);
   sp_carr_for(it->source, st) {
     if (!it->source[st].path) {
@@ -84,7 +84,7 @@ sp_test_each(unit_objects, create, objects_test_t, tests, .setup = spn_test_ctx_
       .kind = it->source[st].kind,
       .path = it->source[st].tree == SPN_TREE_NONE
         ? spn_path_make(&spn.roots, path)
-        : spn_tree_path(mem, &spn.roots, loaded->roots, it->source[st].tree, path),
+        : spn_tree_path(mem, &spn.roots, resolved->roots, it->source[st].tree, path),
     }));
   }
   sp_must_eq(t, SPN_OK, test_plan(s, sp_str_lit("app"), SPN_TARGET_KIND_EXE));

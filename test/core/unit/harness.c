@@ -46,7 +46,7 @@ si_da(spn_gated_source_t) test_gated_sources(sp_mem_t mem, const c8* const* item
 }
 
 si_pkg_info_t* test_manifest(spn_session_t* s, spn_pkg_id_t id) {
-  return (si_pkg_info_t*)sp_ht_getp(s->packages, id)->manifest;
+  return (si_pkg_info_t*)sp_ht_getp(s->resolve, id)->manifest;
 }
 
 spn_pkg_id_t find_pkg_id(spn_session_t* s, unit_graph_test_t* g, const c8* name) {
@@ -77,8 +77,7 @@ static void lib_decl(sp_mem_t mem, const unit_lib_t* spec, si_target_info_t* dec
 }
 
 static spn_build_unit_t* add_build(spn_session_t* s, spn_build_id_t id, const c8* root, spn_profile_info_t profile, spn_toolchain_support_t support) {
-  sp_om_insert(s->units.builds, id, sp_zero_struct(spn_build_unit_t));
-  spn_build_unit_t* build = sp_om_back(s->units.builds);
+  spn_build_unit_t* build = sp_alloc_type(s->mem, spn_build_unit_t);
   build->id = id;
   build->profile = profile;
   build->paths.root = spn_path_make(&spn.roots, sp_cstr_as_str(root));
@@ -118,13 +117,6 @@ spn_session_t* build_session(sp_mem_t mem, unit_graph_test_t* g) {
   s->mem = mem;
   s->project = sp_alloc_type(mem, spn_project_t);
   sp_ht_init(mem, s->resolve);
-  sp_ht_init(mem, s->packages);
-  sp_ht_init(mem, s->options);
-  sp_ht_init(mem, s->fingerprints);
-  sp_om_new(s->units.builds);
-  sp_om_new(s->units.packages);
-  sp_om_new(s->units.targets);
-  sp_om_new(s->units.objects);
 
   sp_intern_str_t name = spn_intern(sp_str_lit("debug"));
   spn_profile_info_t profile = {
@@ -152,8 +144,8 @@ spn_session_t* build_session(sp_mem_t mem, unit_graph_test_t* g) {
     support = (spn_toolchain_support_t) { .kind = SPN_TOOLCHAIN_SUPPORT_ARTIFACT, .artifact.sha256 = sp_cstr_as_str(g->sha256) };
   }
 
-  s->units.target = add_build(s, 1, "/build/debug", profile, support);
-  s->units.metaprogram = add_build(s, 2, "/build/wasm32-wasi", profile, support);
+  s->builds.program = add_build(s, 1, "/build/debug", profile, support);
+  s->builds.metaprogram = add_build(s, 2, "/build/wasm32-wasi", profile, support);
 
   u32 count = 0;
   sp_carr_detect_len(g->pkgs, count, g->pkgs[count].name);
@@ -184,16 +176,11 @@ spn_session_t* build_session(sp_mem_t mem, unit_graph_test_t* g) {
       s->manifest = manifest;
     }
 
-    spn_loaded_pkg_t loaded = {
+    spn_resolved_pkg_t resolved = {
+      .id = id,
       .source = it == 0 ? SPN_PKG_SOURCE_ROOT : SPN_PKG_SOURCE_FILE,
       .manifest = manifest,
       .roots = trees,
-    };
-    sp_ht_insert(s->packages, id, loaded);
-
-    spn_resolved_pkg_t resolved = {
-      .id = id,
-      .source = loaded.source,
     };
     sp_da_init(mem, resolved.edges);
     sp_carr_for(pkg->deps, dt) {
@@ -211,18 +198,23 @@ spn_session_t* build_session(sp_mem_t mem, unit_graph_test_t* g) {
     sp_ht_insert(s->resolve, id, resolved);
   }
 
+  s->units = (spn_units_t) {
+    .ctx = s->ctx,
+    .mem = mem,
+    .resolve = s->resolve,
+  };
   return s;
 }
 
 spn_err_t test_plan(spn_session_t* s, sp_str_t name, spn_target_kind_t kind) {
-  spn_pkg_unit_t* root = spn_pkg_unit_ensure(s, s->units.target, si_get_root_pkg(s));
+  spn_pkg_unit_t* root = spn_pkg_unit_ensure(&s->units, s->builds.program, si_get_root_pkg(s));
   si_target_t* target = spn_pkg_get_target(&root->pkg, name, kind);
   SP_ASSERT(target);
   spn_target_unit_t* unit = SP_NULLPTR;
-  spn_try(spn_target_unit_ensure(s, root, target, &unit));
+  spn_try(spn_target_unit_ensure(&s->units, root, target, &unit));
   si_da(spn_target_unit_t*) roots = SP_NULLPTR;
   si_da_push(s->mem, roots, unit);
   spn_closure_t closure = sp_zero;
-  spn_try(spn_closure_new(s, root, roots, &closure));
-  return spn_plan_new(s, closure, &s->plan);
+  spn_try(spn_closure_new(&s->units, root, roots, &closure));
+  return spn_plan_new(&s->units, closure, &s->plan);
 }

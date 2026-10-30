@@ -34,7 +34,7 @@ static const test_t tests [] = {
 static sp_hash_t fingerprint(sp_mem_t mem, side_t side) {
   unit_graph_test_t graph = { .os = side.os, .abi = side.abi, .sdk = side.sdk, .sha256 = side.sha256, .runtime = side.runtime, .libc = side.libc, .pkgs = { { .name = "A" } } };
   spn_session_t* s = build_session(mem, &graph);
-  return spn_unit_fingerprint(s, s->units.target, find_pkg_id(s, &graph, "A"));
+  return spn_unit_fingerprint(&s->units, s->builds.program, sp_ht_getp(s->resolve, find_pkg_id(s, &graph, "A")));
 }
 
 sp_test_each(unit_fingerprint, input, test_t, tests, .setup = spn_test_ctx_setup) {

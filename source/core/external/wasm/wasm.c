@@ -74,7 +74,7 @@ spn_err_t spn_wasm_script_open(spn_pkg_unit_t* unit, spn_path_t module, spn_dag_
   script->arena = sp_mem_arena_new(sp_mem_os_new());
   sp_mem_t mem = sp_mem_arena_as_allocator(script->arena);
 
-  const spn_path_roots_t* roots = &unit->session->ctx->roots;
+  const spn_path_roots_t* roots = &unit->units->ctx->roots;
   sp_str_t blob = sp_zero;
   if (sp_io_read_file_at(mem, spn_path_at(roots, module), &blob)) {
     sp_mem_arena_destroy(script->arena);

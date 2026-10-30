@@ -1,6 +1,7 @@
 #include "unit/unit.h"
 
 #include "ctx/types.h"
+#include "session/types.h"
 #include "hash/digest/digest.h"
 #include "paths/paths.h"
 #include "profile/profile.h"
@@ -11,7 +12,7 @@
 #include "when/when.h"
 
 static spn_toolchain_unit_t* bind_toolchain(spn_session_t* s, spn_toolchain_info_t* toolchain) {
-  si_da_for_value(s->units.toolchains, unit) {
+  si_da_for_value(s->builds.toolchains, unit) {
     if (unit->info == toolchain) {
       return unit;
     }
@@ -19,7 +20,7 @@ static spn_toolchain_unit_t* bind_toolchain(spn_session_t* s, spn_toolchain_info
 
   spn_toolchain_unit_t* unit = sp_alloc_type(s->mem, spn_toolchain_unit_t);
   *unit = (spn_toolchain_unit_t) { .info = toolchain };
-  si_da_push(s->mem, s->units.toolchains, unit);
+  si_da_push(s->mem, s->builds.toolchains, unit);
   return unit;
 }
 
@@ -42,17 +43,14 @@ spn_build_unit_t* spn_build_add(spn_session_t* s, spn_profile_info_t profile, sp
     (sp_hash_t)profile.targeted,
     spn_digest_hash(&profile.sanitizers, sizeof(profile.sanitizers)),
   };
-  spn_build_id_t id = spn_digest_hash_combine(parts, sp_carr_len(parts));
-
-  sp_assert(!sp_om_has(s->units.builds, id));
-
-  sp_om_insert(s->units.builds, id, sp_zero_struct(spn_build_unit_t));
-  spn_build_unit_t* build = sp_om_back(s->units.builds);
-  build->id = id;
-  build->profile = profile;
-  build->toolchain = bind_toolchain(s, toolchain);
-  build->paths.root = root;
+  spn_build_unit_t* build = sp_alloc_type(s->mem, spn_build_unit_t);
+  *build = (spn_build_unit_t) {
+    .id = spn_digest_hash_combine(parts, sp_carr_len(parts)),
+    .profile = profile,
+    .toolchain = bind_toolchain(s, toolchain),
+    .paths = { .root = root },
+    .define = spn_when_facts_to_defines(s->mem, spn_profile_facts(&profile)),
+  };
   sp_da_init(s->mem, build->include);
-  build->define = spn_when_facts_to_defines(s->mem, spn_profile_facts(&build->profile));
   return build;
 }

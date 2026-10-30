@@ -16,7 +16,6 @@
 #include "paths/paths.h"
 #include "pkg/pkg.h"
 #include "session/invocation.h"
-#include "session/session.h"
 #include "graph/build.h"
 #include "profile/types.h"
 #include "toolchain/toolchain.h"
@@ -38,26 +37,26 @@ static s32 compare_objects(const void* a, const void* b) {
   return sp_str_compare_alphabetical((*(spn_compile_unit_t* const*)a)->file.sub, (*(spn_compile_unit_t* const*)b)->file.sub);
 }
 
-static void add_object(spn_session_t* s, spn_target_unit_t* target, spn_path_t file) {
+static void add_object(spn_units_t* u, spn_target_unit_t* target, spn_path_t file) {
   spn_compile_unit_id_t id = {
     .target = target->id,
-    .source = { .root = file.root, .sub = sp_intern(s->ctx->intern, file.sub).id },
+    .source = { .root = file.root, .sub = sp_intern(u->ctx->intern, file.sub).id },
   };
-  if (sp_om_has(s->units.objects, id)) {
+  if (sp_om_has(u->objects, id)) {
     return;
   }
 
   spn_tree_rel_t rel = spn_tree_rel(target->pkg->paths.roots, file);
   sp_str_t prefix = rel.tree == SPN_TREE_NONE ? spn_path_root_label(file.root) : spn_tree_to_str(rel.tree);
-  sp_str_t name = sp_fmt(s->mem, "{}/{}.o", sp_fmt_str(prefix), sp_fmt_str(rel.sub)).value;
-  sp_om_insert(s->units.objects, id, ((spn_compile_unit_t) {
+  sp_str_t name = sp_fmt(u->mem, "{}/{}.o", sp_fmt_str(prefix), sp_fmt_str(rel.sub)).value;
+  sp_om_insert(u->objects, id, ((spn_compile_unit_t) {
     .id = id,
     .target = target,
     .lang = spn_lang_from_path(rel.sub),
     .name = name,
-    .file = { .root = file.root, .sub = sp_intern_find(s->ctx->intern, id.source.sub) },
+    .file = { .root = file.root, .sub = sp_intern_find(u->ctx->intern, id.source.sub) },
   }));
-  sp_da_push(target->objects, sp_om_back(s->units.objects));
+  sp_da_push(target->objects, sp_om_back(u->objects));
 }
 
 static spn_os_version_t max_os_version(spn_os_version_t current, spn_os_version_t candidate) {
@@ -93,15 +92,14 @@ static void push_unique(sp_mem_t mem, si_da(sp_str_t)* result, si_da(sp_str_t) v
   }
 }
 
-static spn_err_t lower_target(spn_target_unit_t* unit) {
+static spn_err_t lower_target(spn_units_t* u, spn_target_unit_t* unit) {
   spn_pkg_unit_t* pkg = unit->pkg;
-  spn_session_t* s = pkg->session;
   spn_build_unit_t* build = pkg->build;
   si_target_t* eval = unit->target;
   const si_target_info_t* decl = eval->info;
   spn_profile_info_t* profile = &build->profile;
   spn_cc_t* toolchain = &build->toolchain->cc;
-  sp_mem_t mem = s->mem;
+  sp_mem_t mem = u->mem;
 
   switch (decl->kind) {
     case SPN_TARGET_KIND_EXE:
@@ -273,7 +271,7 @@ static spn_err_t lower_target(spn_target_unit_t* unit) {
           break;
         }
         case SPN_ERR_COMPILER_FEATURE_UNSUPPORTED: {
-          return spn_err_emit(s->ctx, (spn_err_union_t) {
+          return spn_err_emit(u->ctx, (spn_err_union_t) {
             .kind = refusal.err,
             .compiler = {
               .toolchain = toolchain->name.str,
@@ -286,7 +284,7 @@ static spn_err_t lower_target(spn_target_unit_t* unit) {
           });
         }
         case SPN_ERR_TOOLCHAIN_MSVC_LINKER_HOST: {
-          return spn_err_emit(s->ctx, (spn_err_union_t) {
+          return spn_err_emit(u->ctx, (spn_err_union_t) {
             .kind = refusal.err,
             .toolchain = {
               .name = toolchain->name.str,
@@ -323,33 +321,15 @@ static spn_err_t lower_target(spn_target_unit_t* unit) {
   return SPN_OK;
 }
 
-static spn_err_t plan_new(spn_session_t* s, sp_mem_t scratch, spn_closure_t closure, spn_build_plan_t* plan) {
+static spn_err_t plan_new(spn_units_t* u, sp_mem_t scratch, spn_closure_t closure, spn_build_plan_t* plan) {
   *plan = (spn_build_plan_t) { .closure = closure };
 
   si_da_for_value(closure.pkgs, pkg) {
     if (publishes(pkg)) {
-      si_da_push(s->mem, plan->publishes, pkg);
+      si_da_push(u->mem, plan->publishes, pkg);
     }
     sp_da_for_ptr(pkg->user_nodes, node) {
-      si_da_push(s->mem, plan->nodes, node);
-      if (sp_str_empty(node->fn)) {
-        continue;
-      }
-      spn_pkg_unit_t* metaprogram = si_get_pkg_unit(s, s->units.metaprogram, pkg->id.pkg);
-      sp_assert(metaprogram);
-      si_target_t* script = spn_pkg_get_script(&metaprogram->pkg, SPN_TARGET_KIND_BUILD_METAPROGRAM);
-      if (!script) {
-        return spn_err_emit(s->ctx, (spn_err_union_t) {
-          .kind = SPN_ERR_NODE_NO_BUILD_SCRIPT,
-          .node = {
-            .pkg = pkg->pkg.manifest->name.str,
-            .tag = node->tag,
-            .fn = node->fn,
-          },
-        });
-      }
-      node->script = spn_session_find_target_in_pkg(s, metaprogram, script->info->id);
-      sp_assert(node->script);
+      si_da_push(u->mem, plan->nodes, node);
     }
   }
 
@@ -359,13 +339,13 @@ static spn_err_t plan_new(spn_session_t* s, sp_mem_t scratch, spn_closure_t clos
         bool found = false;
         switch (source.kind) {
           case SPN_SOURCE_FILE: {
-            sp_path_t at = spn_path_at(&s->ctx->roots, source.path);
+            sp_path_t at = spn_path_at(&u->ctx->roots, source.path);
             sp_sys_file_meta_t meta = sp_zero;
             found = !sp_sys_get_path_metadata_s(at.dir, at.sub, &meta) && meta.kind == SP_FS_KIND_FILE;
             break;
           }
           case SPN_SOURCE_GLOB: {
-            spn_dag_glob_it_t glob = spn_dag_glob_it_new(scratch, &s->ctx->roots, source.path);
+            spn_dag_glob_it_t glob = spn_dag_glob_it_new(scratch, &u->ctx->roots, source.path);
             while (!found && spn_dag_glob_it_next(&glob)) {
               found = glob.entry.kind != SP_FS_KIND_DIR;
             }
@@ -374,11 +354,11 @@ static spn_err_t plan_new(spn_session_t* s, sp_mem_t scratch, spn_closure_t clos
           }
         }
         if (!found) {
-          return spn_err_emit(s->ctx, (spn_err_union_t) {
+          return spn_err_emit(u->ctx, (spn_err_union_t) {
             .kind = source.kind == SPN_SOURCE_FILE ? SPN_ERR_CONFIGURE_SOURCE_MISSING : SPN_ERR_CONFIGURE_SOURCE_GLOB,
             .configure_source = {
               .name = target->pkg->pkg.manifest->qualified.str,
-              .source = spn_path_str(&s->ctx->roots, s->ctx->events->mem, source.path),
+              .source = spn_path_str(&u->ctx->roots, u->ctx->events->mem, source.path),
             },
           });
         }
@@ -391,25 +371,25 @@ static spn_err_t plan_new(spn_session_t* s, sp_mem_t scratch, spn_closure_t clos
     si_da_for_value(target->target->source, source) {
       switch (source.kind) {
         case SPN_SOURCE_FILE: {
-          add_object(s, target, source.path);
+          add_object(u, target, source.path);
           break;
         }
         case SPN_SOURCE_GLOB: {
           u64 first = sp_da_size(target->objects);
-          spn_dag_glob_it_t glob = spn_dag_glob_it_new(scratch, &s->ctx->roots, source.path);
+          spn_dag_glob_it_t glob = spn_dag_glob_it_new(scratch, &u->ctx->roots, source.path);
           while (spn_dag_glob_it_next(&glob)) {
             if (glob.entry.kind != SP_FS_KIND_DIR) {
-              add_object(s, target, spn_path_join(scratch, glob.base, glob.entry.rel));
+              add_object(u, target, spn_path_join(scratch, glob.base, glob.entry.rel));
             }
           }
           spn_dag_glob_it_deinit(&glob);
           if (glob.err) {
-            return spn_err_emit(s->ctx, (spn_err_union_t) {
+            return spn_err_emit(u->ctx, (spn_err_union_t) {
               .kind = SPN_ERR_TARGET_SOURCE_GLOB,
               .target_source = {
                 .pkg = target->pkg->pkg.manifest->name.str,
                 .name = target->target->info->name.str,
-                .source = spn_path_str(&s->ctx->roots, s->ctx->events->mem, source.path),
+                .source = spn_path_str(&u->ctx->roots, u->ctx->events->mem, source.path),
               },
             });
           }
@@ -419,7 +399,7 @@ static spn_err_t plan_new(spn_session_t* s, sp_mem_t scratch, spn_closure_t clos
       }
     }
     if (is_any_object_cxx(target->objects) && spn_arg_empty(target->pkg->build->toolchain->cc.cxx.program)) {
-      return spn_err_emit(s->ctx, (spn_err_union_t) {
+      return spn_err_emit(u->ctx, (spn_err_union_t) {
         .kind = SPN_ERR_TOOLCHAIN_NO_CXX,
         .toolchain = { .name = target->pkg->build->toolchain->info->name.str },
       });
@@ -427,7 +407,7 @@ static spn_err_t plan_new(spn_session_t* s, sp_mem_t scratch, spn_closure_t clos
   }
 
   si_da_for_value(closure.targets, target) {
-    spn_try(lower_target(target));
+    spn_try(lower_target(u, target));
   }
 
   si_ht(spn_path_t, spn_target_unit_t*) claimed = sp_zero;
@@ -439,16 +419,16 @@ static spn_err_t plan_new(spn_session_t* s, sp_mem_t scratch, spn_closure_t clos
     spn_stage_closure_t closure = {
       .exe = {
         .target = root,
-        .path = spn_target_unit_staged_path(s->mem, root),
+        .path = spn_target_unit_staged_path(u->mem, root),
       },
     };
     spn_path_t dir = spn_path_parent(closure.exe.path);
     si_da(spn_target_unit_t*) libs = si_link_get_target_runtime_libs(scratch, root);
     si_da_for_value(libs, lib) {
-      spn_path_t path = spn_path_join(s->mem, dir, lib->file_name);
+      spn_path_t path = spn_path_join(u->mem, dir, lib->file_name);
       spn_target_unit_t** owner = si_ht_getp(claimed, path);
       if (owner && *owner != lib) {
-        return spn_err_emit(s->ctx, (spn_err_union_t) {
+        return spn_err_emit(u->ctx, (spn_err_union_t) {
           .kind = SPN_ERR_TARGET_COLLISION,
           .collision = {
             .exe = root->target->info->name.str,
@@ -459,16 +439,16 @@ static spn_err_t plan_new(spn_session_t* s, sp_mem_t scratch, spn_closure_t clos
         });
       }
       si_ht_insert(scratch, claimed, path, lib);
-      si_da_push(s->mem, closure.libs, ((spn_stage_entry_t) { .target = lib, .path = path }));
+      si_da_push(u->mem, closure.libs, ((spn_stage_entry_t) { .target = lib, .path = path }));
     }
-    si_da_push(s->mem, plan->staged, closure);
+    si_da_push(u->mem, plan->staged, closure);
   }
   return SPN_OK;
 }
 
-spn_err_t spn_plan_new(spn_session_t* s, spn_closure_t closure, spn_build_plan_t* plan) {
+spn_err_t spn_plan_new(spn_units_t* u, spn_closure_t closure, spn_build_plan_t* plan) {
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  spn_err_t err = plan_new(s, scratch.mem, closure, plan);
+  spn_err_t err = plan_new(u, scratch.mem, closure, plan);
   sp_mem_end_scratch(scratch);
   return err;
 }

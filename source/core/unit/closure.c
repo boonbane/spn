@@ -4,7 +4,7 @@
 #include "pkg/id.h"
 
 typedef struct {
-  spn_session_t* s;
+  spn_units_t* u;
   sp_mem_t mem;
   spn_closure_t* closure;
   si_ht(spn_target_unit_t*, u8) targets;
@@ -19,17 +19,19 @@ static void visit_pkg(walk_t* w, spn_pkg_unit_t* pkg) {
     return;
   }
   si_ht_insert(w->mem, w->pkgs, pkg, (u8)true);
-  si_da_push(w->s->mem, w->closure->pkgs, pkg);
+  si_da_push(w->u->mem, w->closure->pkgs, pkg);
 }
 
-static spn_pkg_unit_t* follow(spn_session_t* s, spn_pkg_unit_t* pkg, spn_resolved_dep_t* edge) {
+static spn_pkg_unit_t* follow(spn_units_t* u, spn_pkg_unit_t* pkg, const spn_resolved_dep_t* edge) {
   si_da_for_ptr(pkg->deps, dep) {
     if (dep->kind == edge->kind && spn_pkg_id_eq(dep->unit->id.pkg, edge->id)) {
       return dep->unit;
     }
   }
-  spn_pkg_unit_t* unit = spn_pkg_unit_ensure(s, pkg->build, edge->id);
-  si_da_push(s->mem, pkg->deps, ((spn_pkg_dep_t) {
+  const spn_resolved_pkg_t* resolved = sp_ht_getp(u->resolve, edge->id);
+  sp_assert(resolved);
+  spn_pkg_unit_t* unit = spn_pkg_unit_ensure(u, pkg->build, resolved);
+  si_da_push(u->mem, pkg->deps, ((spn_pkg_dep_t) {
     .unit = unit,
     .kind = edge->kind,
     .private = edge->private,
@@ -49,14 +51,13 @@ static spn_err_t visit_dep(walk_t* w, spn_pkg_unit_t* pkg) {
       continue;
     }
     spn_target_unit_t* lib = SP_NULLPTR;
-    spn_try(spn_target_unit_ensure(w->s, pkg, target, &lib));
+    spn_try(spn_target_unit_ensure(w->u, pkg, target, &lib));
     spn_try(visit_target(w, lib));
   }
 
-  spn_resolved_pkg_t* resolved = sp_ht_getp(w->s->resolve, pkg->id.pkg);
-  sp_da_for_ptr(resolved->edges, edge) {
+  sp_da_for_ptr(pkg->resolved->edges, edge) {
     if (edge->kind == SPN_DEP_KIND_PACKAGE) {
-      spn_try(visit_dep(w, follow(w->s, pkg, edge)));
+      spn_try(visit_dep(w, follow(w->u, pkg, edge)));
     }
   }
   return SPN_OK;
@@ -67,7 +68,7 @@ static spn_err_t visit_target(walk_t* w, spn_target_unit_t* target) {
     return SPN_OK;
   }
   si_ht_insert(w->mem, w->targets, target, (u8)true);
-  si_da_push(w->s->mem, w->closure->targets, target);
+  si_da_push(w->u->mem, w->closure->targets, target);
 
   spn_pkg_unit_t* pkg = target->pkg;
   visit_pkg(w, pkg);
@@ -75,22 +76,21 @@ static spn_err_t visit_target(walk_t* w, spn_target_unit_t* target) {
     spn_try(visit_target(w, dep));
   }
 
-  spn_resolved_pkg_t* resolved = sp_ht_getp(w->s->resolve, pkg->id.pkg);
-  sp_da_for_ptr(resolved->edges, edge) {
+  sp_da_for_ptr(pkg->resolved->edges, edge) {
     if (spn_dep_kind_applies(edge->kind, target->target->info->kind)) {
-      spn_try(visit_dep(w, follow(w->s, pkg, edge)));
+      spn_try(visit_dep(w, follow(w->u, pkg, edge)));
     }
   }
   return SPN_OK;
 }
 
-static spn_err_t closure_new(spn_session_t* s, sp_mem_t scratch, spn_pkg_unit_t* root, si_da(spn_target_unit_t*) roots, spn_closure_t* closure) {
+static spn_err_t closure_new(spn_units_t* u, sp_mem_t scratch, spn_pkg_unit_t* root, si_da(spn_target_unit_t*) roots, spn_closure_t* closure) {
   *closure = (spn_closure_t) {
     .root = root,
     .roots = roots,
   };
   walk_t w = {
-    .s = s,
+    .u = u,
     .mem = scratch,
     .closure = closure,
   };
@@ -101,9 +101,9 @@ static spn_err_t closure_new(spn_session_t* s, sp_mem_t scratch, spn_pkg_unit_t*
   return SPN_OK;
 }
 
-spn_err_t spn_closure_new(spn_session_t* s, spn_pkg_unit_t* root, si_da(spn_target_unit_t*) roots, spn_closure_t* closure) {
+spn_err_t spn_closure_new(spn_units_t* u, spn_pkg_unit_t* root, si_da(spn_target_unit_t*) roots, spn_closure_t* closure) {
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  spn_err_t err = closure_new(s, scratch.mem, root, roots, closure);
+  spn_err_t err = closure_new(u, scratch.mem, root, roots, closure);
   sp_mem_end_scratch(scratch);
   return err;
 }

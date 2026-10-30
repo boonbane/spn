@@ -1,4 +1,3 @@
-#include "core/types.h"
 #include "spn/host.h"
 
 #include "cpu/cpu.h"
@@ -23,18 +22,6 @@
 #include "triple/triple.h"
 #include "unit/types.h"
 #include "unit/unit.h"
-
-
-#include "options/options.h"
-#include "when/when.h"
-#include "profile/profile.h"
-
-typedef struct {
-  spn_pkg_id_t id;
-  spn_profile_info_t* profile;
-  spn_loaded_pkg_t* loaded;
-  spn_resolved_options_t* options;
-} pkg_builder_t;
 
 spn_err_t spn_op_build(spn_op_t* op) {
   spn_session_t* session = op->session;
@@ -119,30 +106,18 @@ spn_err_t spn_op_build(spn_op_t* op) {
     return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_WASM_INIT_FAILED });
   }
 
+  spn_units_t* units = &session->units;
+  *units = (spn_units_t) {
+    .ctx = ctx,
+    .mem = mem,
+    .resolve = session->resolve,
+  };
+  struct {
+    spn_build_unit_t* program;
+    spn_build_unit_t* metaprogram;
+  } builds = { session->builds.program, session->builds.metaprogram };
 
-
-  // struct {
-  //   spn_build_unit_t* program;
-  //   spn_build_unit_t* metaprogram;
-  // } builds = { session->units.target, session->units.metaprogram };
-  //
-  // pkg_builder_t builder = sp_zero;
-  // builder.id = si_get_root_pkg(session);
-  // builder.profile = &builds.program->profile;
-  // builder.loaded = sp_ht_getp(session->packages, builder.id);
-  // builder.options = sp_ht_getp(session->options, builder.id);
-  //
-  // spn_when_env_t env = sp_zero;
-  // spn_profile_env(mem, builder.profile, &env);
-  // if (builder.options) {
-  //   spn_options_env_set(&env, builder.options);
-  // }
-  //
-  // unit->pkg = spn_pkg_eval(mem, builder.loaded->manifest, &session->ctx->roots, builder.loaded->roots, &env);
-
-
-
-  spn_pkg_unit_t* root = spn_pkg_unit_ensure(session, session->units.target, si_get_root_pkg(session));
+  spn_pkg_unit_t* root = spn_pkg_unit_ensure(units, builds.program, si_get_root_pkg(session));
   si_da(spn_target_unit_t*) targets = sp_zero;
   si_om_for_each(root->pkg.targets, target) {
     if (!(session->selection.kinds & spn_target_kind_bit(target->info->kind))) {
@@ -152,8 +127,8 @@ spn_err_t spn_op_build(spn_op_t* op) {
       continue;
     }
     spn_target_unit_t* unit = SP_NULLPTR;
-    spn_try(spn_target_unit_ensure(session, root, target, &unit));
-    si_da_push(session->mem, targets, unit);
+    spn_try(spn_target_unit_ensure(units, root, target, &unit));
+    si_da_push(mem, targets, unit);
   }
   si_om_for_each(session->selection.names, name) {
     bool matched = false;
@@ -172,31 +147,26 @@ spn_err_t spn_op_build(spn_op_t* op) {
   }
 
   spn_closure_t selected = sp_zero;
-  spn_try(spn_closure_new(session, root, targets, &selected));
+  spn_try(spn_closure_new(units, root, targets, &selected));
 
   si_da(spn_target_unit_t*) reactors = sp_zero;
   si_da(spn_pkg_unit_t*) configured = sp_zero;
   si_da_for_value(selected.pkgs, pkg) {
-    spn_pkg_unit_t* metaprogram = spn_pkg_unit_ensure(session, session->units.metaprogram, pkg->id.pkg);
+    spn_pkg_unit_t* metaprogram = spn_pkg_unit_ensure(units, builds.metaprogram, pkg->resolved);
     si_target_t* configure = spn_pkg_get_script(&metaprogram->pkg, SPN_TARGET_KIND_CONFIGURE_METAPROGRAM);
-    if (configure) {
-      spn_target_unit_t* reactor = SP_NULLPTR;
-      spn_try(spn_target_unit_ensure(session, metaprogram, configure, &reactor));
-      si_da_push(session->mem, reactors, reactor);
-      si_da_push(session->mem, configured, pkg);
+    if (!configure) {
+      continue;
     }
-    si_target_t* script = spn_pkg_get_script(&metaprogram->pkg, SPN_TARGET_KIND_BUILD_METAPROGRAM);
-    if (script) {
-      spn_target_unit_t* unit = SP_NULLPTR;
-      spn_try(spn_target_unit_ensure(session, metaprogram, script, &unit));
-      si_da_push(session->mem, targets, unit);
-    }
+    spn_target_unit_t* reactor = SP_NULLPTR;
+    spn_try(spn_target_unit_ensure(units, metaprogram, configure, &reactor));
+    si_da_push(mem, reactors, reactor);
+    si_da_push(mem, configured, pkg);
   }
 
   spn_closure_t configure = sp_zero;
-  spn_try(spn_closure_new(session, spn_pkg_unit_ensure(session, session->units.metaprogram, root->id.pkg), reactors, &configure));
+  spn_try(spn_closure_new(units, spn_pkg_unit_ensure(units, builds.metaprogram, root->resolved), reactors, &configure));
   spn_build_plan_t plan = sp_zero;
-  spn_try(spn_plan_new(session, configure, &plan));
+  spn_try(spn_plan_new(units, configure, &plan));
   spn_dag_build_t* b = spn_dag_build_new(op);
   spn_try(spn_dag_build_lower(b, &plan));
   si_da_for(reactors, it) {
@@ -216,14 +186,40 @@ spn_err_t spn_op_build(spn_op_t* op) {
   }
   spn_try(spn_dag_build_run(b, spn_cpu_count()));
 
+  si_da_for_value(selected.pkgs, pkg) {
+    spn_target_unit_t* script = SP_NULLPTR;
+    sp_da_for_ptr(pkg->user_nodes, node) {
+      if (sp_str_empty(node->fn)) {
+        continue;
+      }
+      if (!script) {
+        spn_pkg_unit_t* metaprogram = spn_pkg_unit_ensure(units, builds.metaprogram, pkg->resolved);
+        si_target_t* target = spn_pkg_get_script(&metaprogram->pkg, SPN_TARGET_KIND_BUILD_METAPROGRAM);
+        if (!target) {
+          return spn_err_emit(ctx, (spn_err_union_t) {
+            .kind = SPN_ERR_NODE_NO_BUILD_SCRIPT,
+            .node = {
+              .pkg = pkg->pkg.manifest->name.str,
+              .tag = node->tag,
+              .fn = node->fn,
+            },
+          });
+        }
+        spn_try(spn_target_unit_ensure(units, metaprogram, target, &script));
+        si_da_push(mem, targets, script);
+      }
+      node->script = script;
+    }
+  }
+
   spn_closure_t closure = sp_zero;
-  spn_try(spn_closure_new(session, root, targets, &closure));
-  spn_try(spn_plan_new(session, closure, &session->plan));
+  spn_try(spn_closure_new(units, root, targets, &closure));
+  spn_try(spn_plan_new(units, closure, &session->plan));
 
   b = spn_dag_build_new(op);
   spn_try(spn_dag_build_lower(b, &session->plan));
 
-  spn_build_unit_t* build = session->units.target;
+  spn_build_unit_t* build = builds.program;
   spn_event_buffer_push(ctx->events, (spn_event_t) {
     .kind = SPN_EVENT_INIT_BUILD_GRAPH,
     .pkg = session->manifest->name.str,

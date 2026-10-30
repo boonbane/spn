@@ -2,7 +2,6 @@
 
 #include "spn_test.h"
 
-#include "session/types.h"
 #include "unit/types.h"
 #include "unit/unit.h"
 

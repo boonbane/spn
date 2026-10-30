@@ -22,6 +22,7 @@ typedef struct spn_pkg_unit_t spn_pkg_unit_t;
 typedef struct spn_toolchain_unit_t spn_toolchain_unit_t;
 typedef struct spn_toolchain_catalog_t spn_toolchain_catalog_t;
 typedef struct spn_target_unit spn_target_unit_t;
+typedef struct spn_units_t spn_units_t;
 typedef struct spn_session_t spn_session_t;
 typedef struct spn_op_t spn_op_t;
 typedef struct spn_user_node_t spn_user_node_t;
@@ -41,7 +42,7 @@ typedef struct toml_table_t toml_table_t;
 #define sp_da_value_t(arr) sp_type_of(arr[0])
 
 #define sp_da_for_ptr(arr, it) \
-  for (__typeof__(arr) it = (arr); (it - (arr)) < sp_da_size(arr); it++)
+  for (__typeof__(&(arr)[0]) it = (arr); (it - (arr)) < sp_da_size(arr); it++)
 
 #define sp_da_for_value(__arr, __it) \
   for ( \

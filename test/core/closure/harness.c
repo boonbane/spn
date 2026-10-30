@@ -56,14 +56,14 @@ static spn_target_unit_t* add_lib(sp_mem_t mem, spn_pkg_unit_t* pkg, const c8* n
   return lib;
 }
 
-static spn_pkg_unit_t* build_pkg(sp_mem_t mem, spn_session_t* session, u32 id, closure_pkg_t spec) {
+static spn_pkg_unit_t* build_pkg(sp_mem_t mem, spn_units_t* units, u32 id, closure_pkg_t spec) {
   si_pkg_info_t* manifest = sp_alloc_type(mem, si_pkg_info_t);
   manifest->name = spn_intern_cstr(spec.name);
 
   spn_pkg_unit_t* pkg = sp_alloc_type(mem, spn_pkg_unit_t);
   pkg->id.pkg.qualified = id;
   pkg->pkg.manifest = manifest;
-  pkg->session = session;
+  pkg->units = units;
 
   if (spec.kind != SPN_LIB_KIND_NONE) {
     add_lib(mem, pkg, spec.name, spec.kind, false);
@@ -81,14 +81,14 @@ static spn_pkg_unit_t* build_pkg(sp_mem_t mem, spn_session_t* session, u32 id, c
 closure_graph_t build_graph(closure_graph_test_t* t) {
   closure_graph_t g = sp_zero;
   g.mem = sp_mem_os_new();
-  spn_session_t* session = sp_alloc_type(g.mem, spn_session_t);
-  session->mem = g.mem;
+  spn_units_t* units = sp_alloc_type(g.mem, spn_units_t);
+  units->mem = g.mem;
 
   sp_carr_for(t->pkgs, it) {
     if (!t->pkgs[it].name) {
       break;
     }
-    g.pkgs[it] = build_pkg(g.mem, session, it + 1, t->pkgs[it]);
+    g.pkgs[it] = build_pkg(g.mem, units, it + 1, t->pkgs[it]);
     g.count++;
   }
 
