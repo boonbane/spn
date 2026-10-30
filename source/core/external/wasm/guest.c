@@ -35,9 +35,9 @@ void spn_abi_fs_create_dir(spn_wasm_ctx_t* abi, const c8* path) {
     sp_mem_end_scratch(scratch);
     return;
   }
-  sp_str_t dir_str = spn_path_str(&unit->session->ctx->roots, scratch.mem, dir);
+  sp_str_t dir_str = spn_path_str(&unit->units->ctx->roots, scratch.mem, dir);
 
-  if (sp_fs_create_dir_at(spn_path_at(&unit->session->ctx->roots, dir))) {
+  if (sp_fs_create_dir_at(spn_path_at(&unit->units->ctx->roots, dir))) {
     wasm_runtime_set_exception(abi->instance, sp_fmt_mem_cstr(scratch.mem, "spn_fs_create_dir: {}", SP_FMT_STR(dir_str)));
   }
   else {
@@ -54,12 +54,12 @@ void spn_abi_io_write(spn_wasm_ctx_t* abi, const c8* path, const c8* contents) {
     sp_mem_end_scratch(scratch);
     return;
   }
-  sp_str_t dst_str = spn_path_str(&unit->session->ctx->roots, scratch.mem, dst);
+  sp_str_t dst_str = spn_path_str(&unit->units->ctx->roots, scratch.mem, dst);
 
-  sp_fs_create_parent_at(spn_path_at(&unit->session->ctx->roots, dst));
+  sp_fs_create_parent_at(spn_path_at(&unit->units->ctx->roots, dst));
 
   sp_io_file_writer_t writer = sp_zero;
-  if (sp_io_file_writer_from_path_at(&writer, spn_path_at(&unit->session->ctx->roots, dst))) {
+  if (sp_io_file_writer_from_path_at(&writer, spn_path_at(&unit->units->ctx->roots, dst))) {
     wasm_runtime_set_exception(abi->instance, sp_fmt_mem_cstr(scratch.mem, "spn_io_write: {}", SP_FMT_STR(dst_str)));
     sp_mem_end_scratch(scratch);
     return;

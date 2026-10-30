@@ -59,7 +59,7 @@ static spn_err_t fail(spn_pkg_unit_t* unit, spn_err_t err, spn_err_wasm_t wasm) 
   wasm.error = sp_str_copy(spn.events->mem, wasm.error);
   spn_event_buffer_push(spn.events, (spn_event_t) {
     .kind = SPN_EVENT_ERR,
-    .pkg = unit->eval.manifest->name.str,
+    .pkg = unit->pkg.manifest->name.str,
     .err = { .kind = err, .wasm = wasm },
   });
   return err;
@@ -74,7 +74,7 @@ spn_err_t spn_wasm_script_open(spn_pkg_unit_t* unit, spn_path_t module, spn_dag_
   script->arena = sp_mem_arena_new(sp_mem_os_new());
   sp_mem_t mem = sp_mem_arena_as_allocator(script->arena);
 
-  const spn_path_roots_t* roots = &unit->session->ctx->roots;
+  const spn_path_roots_t* roots = &unit->units->ctx->roots;
   sp_str_t blob = sp_zero;
   if (sp_io_read_file_at(mem, spn_path_at(roots, module), &blob)) {
     sp_mem_arena_destroy(script->arena);
@@ -201,6 +201,18 @@ spn_err_t spn_wasm_script_call(spn_wasm_script_t* script, sp_str_t name, const s
     });
   }
   return SPN_OK;
+}
+
+spn_err_t spn_wasm_configure(spn_pkg_unit_t* unit, spn_path_t reactor) {
+  spn_wasm_script_t script = sp_zero;
+  spn_try(spn_wasm_script_open(unit, reactor, SP_NULLPTR, &script));
+  spn_err_t err = SPN_OK;
+  if (spn_wasm_script_exports(&script, sp_str_lit("configure"))) {
+    spn_wasm_handle_t config = { .ptr = unit, .kind = SPN_ABI_KIND_CONFIG };
+    err = spn_wasm_script_call(&script, sp_str_lit("configure"), &config, 1);
+  }
+  spn_wasm_script_close(&script);
+  return err;
 }
 
 bool spn_wasm_trap(sp_str_t message) {

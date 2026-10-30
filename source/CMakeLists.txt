@@ -84,8 +84,6 @@ set(SPN_SOURCES
   core/graph/nodes/publish.c
   core/graph/nodes/user.c
   core/graph/nodes/warm.c
-  core/model/configure.c
-  core/model/model.c
   core/model/resolve.c
   core/model/sync.c
   core/op/add.c
@@ -148,10 +146,11 @@ set(SPN_SOURCES
   core/elf/elf.c
   cli/tui/tui.c
   core/unit/build.c
+  core/unit/closure.c
   core/unit/fingerprint.c
-  core/unit/graph.c
   core/unit/link.c
-  core/unit/paths.c
+  core/unit/pkg.c
+  core/unit/plan.c
   core/unit/target.c
   core/when/when.c
 )

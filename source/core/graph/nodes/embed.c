@@ -16,13 +16,13 @@
 #include "unit/unit.h"
 
 static spn_err_t embed_files(sp_mem_t mem, const si_dag_ctx_t* c, si_embed_t* embed, spn_cc_embed_ctx_t* embedder) {
-  spn_target_unit_t* unit = embed->target;
-  si_target_t* eval = unit->eval;
+  spn_target_unit_t* unit = embed->unit;
+  si_target_t* eval = unit->target;
   const spn_path_roots_t* roots = c->roots;
 
   spn_event_buffer_push(spn.events, (spn_event_t) {
     .kind = SPN_EVENT_EMBED_START,
-    .pkg = unit->pkg->eval.manifest->name.str,
+    .pkg = unit->pkg->pkg.manifest->name.str,
     .embed_start = { .target = eval->info->name.str, .num_files = si_da_size(eval->embed) },
   });
 
@@ -47,7 +47,7 @@ static spn_err_t embed_files(sp_mem_t mem, const si_dag_ctx_t* c, si_embed_t* em
         if (sp_io_read_file_at(embedder->mem, spn_path_at(roots, entry.path), &content) != SP_OK) {
           spn_event_buffer_push(spn.events, (spn_event_t) {
             .kind = SPN_EVENT_EMBED_FAILED,
-            .pkg = unit->pkg->eval.manifest->name.str,
+            .pkg = unit->pkg->pkg.manifest->name.str,
             .embed_failed = { .target = eval->info->name.str, .path = entry.path, .error = sp_str_lit("file not found") },
           });
           return SPN_ERR_DAG_ACTION;
@@ -78,7 +78,7 @@ static spn_err_t embed_files(sp_mem_t mem, const si_dag_ctx_t* c, si_embed_t* em
           if (sp_io_read_file_at(embedder->mem, walk.at, &content) != SP_OK) {
             spn_event_buffer_push(spn.events, (spn_event_t) {
               .kind = SPN_EVENT_EMBED_FAILED,
-              .pkg = unit->pkg->eval.manifest->name.str,
+              .pkg = unit->pkg->pkg.manifest->name.str,
               .embed_failed = { .target = eval->info->name.str, .path = spn_path_copy(spn.events->mem, file), .error = sp_str_lit("file not found") },
             });
             sp_fs_it_deinit(&walk);
@@ -101,7 +101,7 @@ static spn_err_t embed_files(sp_mem_t mem, const si_dag_ctx_t* c, si_embed_t* em
   if (spn_cc_embed_ctx_write(embedder, spn_path_at(roots, si_dag_resolve_output(c, embed->object)), spn_path_at(roots, si_dag_resolve_output(c, embed->header)))) {
     spn_event_buffer_push(spn.events, (spn_event_t) {
       .kind = SPN_EVENT_EMBED_FAILED,
-      .pkg = unit->pkg->eval.manifest->name.str,
+      .pkg = unit->pkg->pkg.manifest->name.str,
       .embed_failed = { .target = eval->info->name.str, .error = sp_str_lit("embed write failed") },
     });
     return SPN_ERR_DAG_ACTION;
@@ -110,7 +110,7 @@ static spn_err_t embed_files(sp_mem_t mem, const si_dag_ctx_t* c, si_embed_t* em
   u64 elapsed = sp_tm_read_timer(&timer);
   spn_event_buffer_push(spn.events, (spn_event_t) {
     .kind = SPN_EVENT_EMBED_PASSED,
-    .pkg = unit->pkg->eval.manifest->name.str,
+    .pkg = unit->pkg->pkg.manifest->name.str,
     .embed_passed = {
       .target = eval->info->name.str,
       .time = elapsed,
@@ -121,7 +121,7 @@ static spn_err_t embed_files(sp_mem_t mem, const si_dag_ctx_t* c, si_embed_t* em
 
 spn_err_t si_on_embed(const si_dag_ctx_t* c, void* user_data) {
   si_embed_t* embed = (si_embed_t*)user_data;
-  spn_pkg_unit_t* pkg = embed->target->pkg;
+  spn_pkg_unit_t* pkg = embed->unit->pkg;
   sp_mem_arena_marker_t s = sp_mem_begin_scratch();
   spn_cc_embed_ctx_t embedder = sp_zero;
   spn_cc_embed_ctx_init(&embedder, spn.mem, spn_os_to_native_object_format(pkg->build->profile.os), pkg->build->profile.arch);

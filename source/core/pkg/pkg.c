@@ -130,25 +130,15 @@ si_target_t* spn_pkg_get_target(si_pkg_t* pkg, sp_str_t name, spn_target_kind_t 
   return si_om_get(pkg->targets, id);
 }
 
-bool spn_pkg_has_scripts(const si_pkg_t* pkg) {
-  si_om_for(pkg->targets, it) {
-    si_target_t* target = si_om_at(pkg->targets, it);
-    switch (target->info->kind) {
-      case SPN_TARGET_KIND_CONFIGURE_METAPROGRAM:
-      case SPN_TARGET_KIND_BUILD_METAPROGRAM: {
-        if (!si_da_empty(target->source)) {
-          return true;
-        }
-        break;
-      }
-      case SPN_TARGET_KIND_LIB:
-      case SPN_TARGET_KIND_EXE:
-      case SPN_TARGET_KIND_SCRIPT:
-      case SPN_TARGET_KIND_TEST:
-      case SPN_TARGET_KIND_EXAMPLE: {
-        break;
-      }
+si_target_t* spn_pkg_get_script(si_pkg_t* pkg, spn_target_kind_t kind) {
+  si_om_for_each(pkg->targets, target) {
+    if (target->info->kind == kind && !si_da_empty(target->source)) {
+      return target;
     }
   }
-  return false;
+  return SP_NULLPTR;
+}
+
+bool spn_pkg_has_scripts(si_pkg_t* pkg) {
+  return spn_pkg_get_script(pkg, SPN_TARGET_KIND_CONFIGURE_METAPROGRAM) || spn_pkg_get_script(pkg, SPN_TARGET_KIND_BUILD_METAPROGRAM);
 }

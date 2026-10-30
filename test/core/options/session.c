@@ -14,7 +14,6 @@ typedef struct {
 typedef struct {
   const c8* name;
   const c8* config;
-  bool stale_loaded;
   bool direct_dep;
   bool gated_dep;
   u32 resolves;
@@ -45,15 +44,6 @@ static const session_test_t tests [] = {
   {
     .name = "unknown_config_package",
     .config = "spum",
-    .expect = {
-      .err = SPN_ERR_OPTION_UNKNOWN_PKG,
-      .pkg = "spum",
-    },
-  },
-  {
-    .name = "stale_loaded_unresolved_config_package",
-    .config = "spum",
-    .stale_loaded = true,
     .expect = {
       .err = SPN_ERR_OPTION_UNKNOWN_PKG,
       .pkg = "spum",
@@ -101,13 +91,10 @@ sp_test_each(options_session, apply, session_test_t, tests, .setup = spn_test_ct
     .name = root->name,
     .source = SPN_PKG_SOURCE_ROOT,
     .edges = sp_da_new(mem, spn_resolved_dep_t),
-  };
-  spn_loaded_pkg_t root_loaded = {
-    .source = SPN_PKG_SOURCE_ROOT,
     .manifest = root,
   };
 
-  spn_build_unit_t target = {
+  spn_build_unit_t program = {
     .profile = { .os = SPN_OS_LINUX },
   };
   spn_session_t session = {
@@ -116,24 +103,10 @@ sp_test_each(options_session, apply, session_test_t, tests, .setup = spn_test_ct
     .project = &project,
     .manifest = root,
     .gates = { .resolves = it->resolves },
-    .units = { .target = &target },
+    .builds = { .program = &program },
   };
   sp_ht_init(mem, session.resolve);
-  sp_ht_init(mem, session.packages);
   sp_ht_insert(session.resolve, root_id, root_node);
-  sp_ht_insert(session.packages, root_id, root_loaded);
-
-  si_pkg_info_t stale = {
-    .name = spn_intern_lit("spum"),
-    .qualified = spn_intern_lit("core/spum"),
-  };
-  if (it->stale_loaded) {
-    spn_pkg_id_t stale_id = make_id(intern, "core/spum");
-    sp_ht_insert(session.packages, stale_id, ((spn_loaded_pkg_t) {
-      .source = SPN_PKG_SOURCE_INDEX,
-      .manifest = &stale,
-    }));
-  }
 
   bool reresolve = sp_zero;
   spn_err_t err = spn_session_apply_options(&session, &reresolve);

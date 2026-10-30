@@ -1,3 +1,5 @@
+#include "model/resolve.h"
+
 #include "sp.h"
 #include "macro/macro.h"
 #include "ctx/types.h"
@@ -43,7 +45,7 @@ static spn_err_t apply_patch_overrides(spn_session_t* session, spn_resolve_query
     pkg->origin.source = manifest->upstream;
     pkg->origin.manifest = manifest;
     pkg->name = manifest->name;
-    pkg->options = manifest->options;
+    pkg->options.decls = manifest->options;
   }
   return result;
 }
@@ -75,7 +77,7 @@ static void emit_resolved(spn_resolve_query_t* query) {
   });
 }
 
-spn_err_t resolve(spn_op_t* op) {
+spn_err_t spn_resolve(spn_op_t* op) {
   spn_session_t* session = op->session;
   spn_event_buffer_push(spn.events, (spn_event_t) {
     .kind = SPN_EVENT_RESOLVE_START,
@@ -92,7 +94,7 @@ spn_err_t resolve(spn_op_t* op) {
   spn_index_cache_init(&index, session->mem, session->ctx->intern, &session->ctx->roots, &spn.indexes);
 
   spn_resolver_t resolver = sp_zero;
-  spn_resolver_init(&resolver, spn.mem, session->ctx->intern, &index, &session->registry, session->units.target->profile, session->project->config, 0);
+  spn_resolver_init(&resolver, spn.mem, session->ctx->intern, &index, &session->registry, session->builds.program->profile, session->project->config, 0);
   resolver.roots = &session->ctx->roots;
   resolver.seeds = session->gates.seeds;
 

@@ -105,7 +105,7 @@ struct si_pkg_info {
 
 struct si_pkg {
   const si_pkg_info_t* manifest;
-  spn_target_eval_map_t targets;
+  spn_target_map_t targets;
   si_da(spn_path_t) include;
   si_da(sp_str_t) define;
   si_da(sp_str_t) public_define;
