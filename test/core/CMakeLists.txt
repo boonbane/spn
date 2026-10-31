@@ -21,10 +21,8 @@ add_executable(core
   when.c
   closure/harness.c
   closure/closure.c
-  closure/dep_kind.c
-  closure/get_linked_libs.c
-  closure/links_code.c
-  closure/runtime.c
+  closure/chase.c
+  closure/libs.c
   closure/siblings.c
   compiler/harness.c
   compiler/invocation.c

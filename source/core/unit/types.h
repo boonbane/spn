@@ -134,11 +134,6 @@ typedef struct {
   spn_cc_link_plan_t plan;
 } spn_link_plan_t;
 
-typedef struct {
-  spn_path_t path;
-  spn_dag_artifact_kind_t kind;
-} spn_target_order_t;
-
 struct spn_target_unit {
   spn_target_unit_id_t id;
   spn_pkg_unit_t* pkg;
@@ -149,10 +144,9 @@ struct spn_target_unit {
   spn_path_t install;
 
   si_da(spn_target_unit_t*) deps;
-  si_da(spn_pkg_edge_t) pkgs;
+  si_da(spn_pkg_edge_t) edges;
 
   sp_da(spn_compile_unit_t*) objects;
-  si_da(spn_target_order_t) orders;
   spn_link_plan_t link;
   spn_cc_archive_plan_t archive;
 };

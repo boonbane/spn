@@ -130,14 +130,9 @@ static spn_dag_digest_t hash_compile(const spn_path_roots_t* roots, const spn_co
   return spn_dag_hash_final(&digest);
 }
 
-static spn_err_t add_object_compilation(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t* target, spn_dag_id_t libc, spn_dag_id_t header, si_da(object_ids_t)* objects) {
+static spn_err_t add_object_compilation(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t* target, spn_dag_id_t libc, spn_dag_id_t header, si_da(spn_dag_id_t) orders, si_da(object_ids_t)* objects) {
   spn_dag_t* g = b->graph;
   spn_pkg_unit_t* pkg = target->pkg;
-
-  si_da(spn_dag_id_t) orders = sp_zero;
-  si_da_for_ptr(target->orders, order) {
-    si_da_push(mem, orders, spn_dag_add_path(g, order->path, order->kind));
-  }
 
   sp_da_for(target->objects, it) {
     spn_compile_unit_t* unit = target->objects[it];
@@ -232,6 +227,19 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
   sp_assert(found_libc);
   spn_dag_id_t libc = *found_libc;
 
+  si_da(spn_dag_id_t) needs = sp_zero;
+  spn_dag_pkg_ids_t* pkg_ids = si_ht_getp(b->ids.packages, unit->pkg);
+
+  si_da_for(pkg_ids->outputs, it) {
+    si_da_push(mem, needs, pkg_ids->outputs[it]);
+  }
+  si_da_for_ptr(unit->edges, edge) {
+    spn_dag_pkg_ids_t* dep = si_ht_getp(b->ids.packages, edge->pkg);
+    if (dep->include.occupied) {
+      si_da_push(mem, needs, dep->include);
+    }
+  }
+
   si_da(object_ids_t) objects = sp_zero;
 
   switch (unit->lib_kind) {
@@ -239,7 +247,7 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
       return SPN_OK;
     }
     case SPN_LIB_KIND_OBJECT: {
-      spn_try(add_object_compilation(b, mem, unit, libc, (spn_dag_id_t) sp_zero, &objects));
+      spn_try(add_object_compilation(b, mem, unit, libc, (spn_dag_id_t) sp_zero, needs, &objects));
       si_da_for(objects, it) {
         spn_try(add_publish_file(b, objects[it].object, spn_path_join(b->mem, unit->install, unit->objects[it]->name)));
       }
@@ -290,7 +298,7 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
     }
   }
 
-  spn_try(add_object_compilation(b, mem, unit, libc, embed.header, &objects));
+  spn_try(add_object_compilation(b, mem, unit, libc, embed.header, needs, &objects));
 
   si_da(spn_dag_id_t) object_ids = sp_zero;
   si_da_for(objects, it) {
@@ -563,6 +571,10 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
 spn_err_t spn_dag_build_lower(spn_dag_build_t* b, const spn_build_plan_t* plan) {
   spn_dag_t* g = b->graph;
 
+  si_da_for_value(plan->closure.pkgs, pkg) {
+    si_ht_insert(b->mem, b->ids.packages, pkg, sp_zero_s(spn_dag_pkg_ids_t));
+  }
+
   si_da_for_value(plan->closure.targets, target) {
     spn_build_unit_t* build = target->pkg->build;
     if (!sp_ht_getp(b->ids.builds, build)) {
@@ -652,6 +664,9 @@ spn_err_t spn_dag_build_lower(spn_dag_build_t* b, const spn_build_plan_t* plan) 
       .include = spn_dag_add_tree(g, pkg->paths.include),
       .share = spn_dag_add_tree(g, pkg->paths.share),
     };
+    spn_dag_pkg_ids_t* ids = si_ht_getp(b->ids.packages, pkg);
+    sp_assert(ids);
+    ids->include = ctx->include;
     spn_dag_id_t action = spn_dag_add_action(g, (spn_dag_action_config_t) {
       .kind = SPN_DAG_ACTION_DISCOVERED,
       .identity = spn_dag_hash_final(&digest),
@@ -712,6 +727,8 @@ spn_err_t spn_dag_build_lower(spn_dag_build_t* b, const spn_build_plan_t* plan) 
         spn_dag_action_add_input(g, action, spn_dag_add_path(g, dep->outputs[ot].path, dep->outputs[ot].kind));
       }
     }
+    spn_dag_pkg_ids_t* ids = si_ht_getp(b->ids.packages, pkg);
+    sp_assert(ids);
     si_da_for(node->outputs, ot) {
       spn_user_output_t* out = &node->outputs[ot];
       spn_dag_id_t output = spn_dag_add_path(g, out->path, out->kind);
@@ -722,6 +739,7 @@ spn_err_t spn_dag_build_lower(spn_dag_build_t* b, const spn_build_plan_t* plan) 
           .dag = { .path = spn_path_str(g->roots, b->session->ctx->events->mem, out->path) },
         });
       }
+      si_da_push(b->mem, ids->outputs, output);
     }
   }
 

@@ -237,9 +237,13 @@ spn_err_t si_add_target_unit(spn_units_t* u, spn_pkg_unit_t* pkg, si_target_t* t
   switch (target->info->kind) {
     case SPN_TARGET_KIND_LIB:
     case SPN_TARGET_KIND_EXE:
-    case SPN_TARGET_KIND_SCRIPT:
+    case SPN_TARGET_KIND_SCRIPT: {
+      take = 1u << SPN_DEP_KIND_PACKAGE;
+      break;
+    }
     case SPN_TARGET_KIND_EXAMPLE: {
       take = 1u << SPN_DEP_KIND_PACKAGE;
+      si_da_push(u->mem, unit->edges, ((spn_pkg_edge_t) { .pkg = pkg }));
       break;
     }
     case SPN_TARGET_KIND_TEST: {
@@ -260,7 +264,7 @@ spn_err_t si_add_target_unit(spn_units_t* u, spn_pkg_unit_t* pkg, si_target_t* t
     }
     spn_pkg_unit_t* dep = si_add_package_unit(u, pkg->build, sp_ht_getp(u->resolve, edge->id));
     spn_try(si_add_package_unit_closure(u, dep));
-    si_da_push(u->mem, unit->pkgs, ((spn_pkg_edge_t) { .pkg = dep, .private = edge->private }));
+    si_da_push(u->mem, unit->edges, ((spn_pkg_edge_t) { .pkg = dep, .private = edge->private }));
   }
 
   *result = unit;

@@ -4,6 +4,7 @@
 #include "dag/dag.h"
 #include "core/types.h"
 #include "graph/nodes/nodes.h"
+#include "hash_table/hash_table.h"
 #include "unit/types.h"
 
 typedef struct {
@@ -17,6 +18,11 @@ typedef struct {
   spn_dag_id_t header;
 } spn_dag_embed_ids_t;
 
+typedef struct {
+  spn_dag_id_t include;
+  si_da(spn_dag_id_t) outputs;
+} spn_dag_pkg_ids_t;
+
 struct spn_dag_build_t {
   spn_session_t* session;
   sp_mem_t mem;
@@ -25,6 +31,7 @@ struct spn_dag_build_t {
   struct {
     sp_ht(spn_target_unit_t*, spn_dag_target_ids_t) targets;
     sp_ht(spn_target_unit_t*, spn_dag_embed_ids_t) embeds;
+    si_ht(spn_pkg_unit_t*, spn_dag_pkg_ids_t) packages;
     sp_ht(spn_build_unit_t*, spn_dag_id_t) builds;
     sp_ht(spn_dag_digest_t, spn_dag_id_t) warm;
   } ids;

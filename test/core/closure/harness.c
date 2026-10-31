@@ -143,7 +143,7 @@ closure_graph_t build_graph(closure_graph_test_t* t) {
   exe->pkg = root;
   exe->target = make_target(g.mem, root->pkg.manifest->name, t->target, false);
   exe->lib_kind = SPN_LIB_KIND_NONE;
-  exe->pkgs = root->deps;
+  exe->edges = root->deps;
   sp_da_init(g.mem, exe->deps);
   sp_carr_for(t->root_deps, it) {
     if (!t->root_deps[it]) {

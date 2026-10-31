@@ -119,20 +119,6 @@ static spn_err_t lower_target(spn_units_t* u, spn_target_unit_t* unit) {
     }
   }
 
-  sp_da_for_ptr(pkg->user_nodes, node) {
-    si_da_for_ptr(node->outputs, output) {
-      si_da_push(mem, unit->orders, ((spn_target_order_t) { .path = output->path, .kind = output->kind }));
-    }
-  }
-  si_da_for_ptr(unit->pkgs, edge) {
-    if (publishes(edge->pkg)) {
-      si_da_push(mem, unit->orders, ((spn_target_order_t) { .path = edge->pkg->paths.include, .kind = SPN_DAG_ARTIFACT_KIND_TREE }));
-    }
-  }
-  if (target->info->kind == SPN_TARGET_KIND_EXAMPLE && publishes(pkg)) {
-    si_da_push(mem, unit->orders, ((spn_target_order_t) { .path = pkg->paths.include, .kind = SPN_DAG_ARTIFACT_KIND_TREE }));
-  }
-
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   si_da(si_closure_entry_t) entries = sp_zero;
   si_closure_it_t it = si_closure_it(scratch.mem, SI_CLOSURE_STOP_AT_SHARED);
@@ -242,10 +228,7 @@ static spn_err_t lower_target(spn_units_t* u, spn_target_unit_t* unit) {
   si_da_for(target->include, it) {
     si_da_push(scratch.mem, compile.include, target->include[it]);
   }
-  if (target->info->kind == SPN_TARGET_KIND_EXAMPLE) {
-    si_da_push(scratch.mem, compile.include, pkg->paths.include);
-  }
-  si_da_for_ptr(unit->pkgs, edge) {
+  si_da_for_ptr(unit->edges, edge) {
     si_da_push(scratch.mem, compile.include, edge->pkg->paths.include);
   }
   sp_da_for(build->define, it) {
@@ -260,7 +243,7 @@ static spn_err_t lower_target(spn_units_t* u, spn_target_unit_t* unit) {
   si_da_for(target->flags, it) {
     si_da_push(scratch.mem, compile.args, target->flags[it]);
   }
-  si_da_for_ptr(unit->pkgs, edge) {
+  si_da_for_ptr(unit->edges, edge) {
     si_da_for_value(edge->pkg->pkg.public_define, define) {
       si_da_push(scratch.mem, compile.define, define);
     }
