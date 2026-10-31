@@ -21,39 +21,6 @@
 #include "profile/types.h"
 #include "triple/triple.h"
 
-spn_path_t spn_target_unit_staged_path(sp_mem_t mem, spn_target_unit_t* target) {
-  if (target->kind != SPN_CC_OUTPUT_EXE) return sp_zero_s(spn_path_t);
-
-  sp_mem_arena_marker_t s = sp_mem_begin_scratch_for(mem);
-  sp_str_t file_name = target->file_name;
-  spn_path_t root = target->pkg->build->paths.root;
-
-  spn_path_t path = sp_zero;
-  switch (target->target->info->kind) {
-    case SPN_TARGET_KIND_EXE:
-    case SPN_TARGET_KIND_SCRIPT: {
-      path = spn_path_join(mem, root, file_name);
-      break;
-    }
-    case SPN_TARGET_KIND_TEST: {
-      path = spn_path_join(mem, spn_path_join(s.mem, root, SP_LIT("test")), file_name);
-      break;
-    }
-    case SPN_TARGET_KIND_EXAMPLE: {
-      path = spn_path_join(mem, spn_path_join(s.mem, root, SP_LIT("example")), file_name);
-      break;
-    }
-    case SPN_TARGET_KIND_LIB:
-    case SPN_TARGET_KIND_CONFIGURE_METAPROGRAM:
-    case SPN_TARGET_KIND_BUILD_METAPROGRAM: {
-      break;
-    }
-  }
-
-  sp_mem_end_scratch(s);
-  return path;
-}
-
 si_da(spn_path_t) si_dag_build_paths(sp_mem_t mem, const si_dag_ctx_t* c, si_da(spn_dag_id_t) ids) {
   si_da(spn_path_t) paths = sp_zero;
   si_da_for(ids, it) {

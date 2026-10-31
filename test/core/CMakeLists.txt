@@ -136,6 +136,7 @@ add_executable(core
   unit/walk.c
   unit/link_plan.c
   unit/objects.c
+  unit/edges.c
   unit/paths.c
   unit/fingerprint.c
   zig/decode.c

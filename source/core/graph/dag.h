@@ -21,7 +21,7 @@ typedef struct {
 typedef struct {
   spn_dag_id_t include;
   si_da(spn_dag_id_t) outputs;
-} spn_dag_pkg_ids_t;
+} si_dag_pkg_ids_t;
 
 struct spn_dag_build_t {
   spn_session_t* session;
@@ -31,7 +31,7 @@ struct spn_dag_build_t {
   struct {
     sp_ht(spn_target_unit_t*, spn_dag_target_ids_t) targets;
     sp_ht(spn_target_unit_t*, spn_dag_embed_ids_t) embeds;
-    si_ht(spn_pkg_unit_t*, spn_dag_pkg_ids_t) packages;
+    si_om(spn_pkg_unit_t*, si_dag_pkg_ids_t) packages;
     sp_ht(spn_build_unit_t*, spn_dag_id_t) builds;
     sp_ht(spn_dag_digest_t, spn_dag_id_t) warm;
   } ids;

@@ -1,4 +1,5 @@
 #include "core/types.h"
+#include "ordered_map.h"
 #include "unit/types.h"
 #include "unit/unit.h"
 #include "unit/closure/closure.h"
@@ -10,6 +11,7 @@
 #include "ctx/types.h"
 
 #include "compiler/driver.h"
+#include "compiler/rsp.h"
 #include "dag/glob.h"
 #include "error/error.h"
 #include "enum/enum.h"
@@ -17,22 +19,9 @@
 #include "paths/paths.h"
 #include "pkg/pkg.h"
 #include "session/invocation.h"
-#include "graph/build.h"
 #include "profile/types.h"
 #include "toolchain/toolchain.h"
 #include "triple/triple.h"
-
-static bool publishes(spn_pkg_unit_t* unit) {
-  if (!si_da_empty(unit->pkg.publish)) {
-    return true;
-  }
-  si_om_for_each(unit->pkg.targets, target) {
-    if (!si_da_empty(target->publish)) {
-      return true;
-    }
-  }
-  return false;
-}
 
 static s32 compare_objects(const void* a, const void* b) {
   return sp_str_compare_alphabetical((*(spn_compile_unit_t* const*)a)->file.sub, (*(spn_compile_unit_t* const*)b)->file.sub);
@@ -91,6 +80,60 @@ static void push_unique(sp_mem_t mem, si_da(sp_str_t)* result, si_da(sp_str_t) v
       si_da_push(mem, *result, values[it]);
     }
   }
+}
+
+static spn_err_t lower_link(spn_units_t* u, spn_target_unit_t* unit) {
+  spn_pkg_unit_t* pkg = unit->pkg;
+  spn_profile_info_t* profile = &pkg->build->profile;
+  spn_cc_t* toolchain = &pkg->build->toolchain->cc;
+  spn_cc_link_t* cc = &unit->link.cc;
+  cc->args = unit->target->link_flags;
+  cc->scripts = unit->target->linker_script;
+
+  spn_cc_link_refusal_t refusal = spn_cc_validate_link(toolchain, spn.host, profile, cc);
+  switch (refusal.err) {
+    case SPN_OK: {
+      break;
+    }
+    case SPN_ERR_COMPILER_FEATURE_UNSUPPORTED: {
+      return spn_err_emit(u->ctx, (spn_err_union_t) {
+        .kind = refusal.err,
+        .compiler = {
+          .toolchain = toolchain->name.str,
+          .target = spn_profile_triple(profile),
+          .feature = refusal.feature,
+          .pkg = pkg->pkg.manifest->name.str,
+          .name = unit->target->info->name.str,
+          .frameworks = cc->frameworks,
+        },
+      });
+    }
+    case SPN_ERR_TOOLCHAIN_MSVC_LINKER_HOST: {
+      return spn_err_emit(u->ctx, (spn_err_union_t) {
+        .kind = refusal.err,
+        .toolchain = {
+          .name = toolchain->name.str,
+          .target = spn_profile_triple(profile),
+          .host = spn.host,
+        },
+      });
+    }
+    default: {
+      sp_unreachable_return(SPN_ERROR);
+    }
+  }
+  sp_opt_set(unit->emit.link, si_cc_render_link(u->mem, toolchain, profile, cc));
+  return SPN_OK;
+}
+
+static spn_exports_plan_t render_exports(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, const spn_cc_link_plan_t* link, sp_str_t library) {
+  return (spn_exports_plan_t) {
+    .archive = si_cc_render_archive(mem, toolchain, profile),
+    .format = link->exports,
+    .rsp = spn_rsp_style(toolchain->driver),
+    .library = library,
+    .file_name = sp_fmt(mem, "{}.{}", sp_fmt_str(library), sp_fmt_str(spn_cc_exports_extension(link->exports))).value,
+  };
 }
 
 static spn_err_t lower_target(spn_units_t* u, spn_target_unit_t* unit) {
@@ -166,12 +209,16 @@ static spn_err_t lower_target(spn_units_t* u, spn_target_unit_t* unit) {
         }
         switch (lib->lib_kind) {
           case SPN_LIB_KIND_SHARED: {
-            si_da_push(mem, link->deps, ((spn_link_dep_t) { .lib = lib, .role = SPN_LINK_ROLE_SHARED }));
+            if (!sp_da_empty(lib->objects)) {
+              si_da_push(mem, link->deps, ((spn_link_dep_t) { .lib = lib, .role = SPN_LINK_ROLE_SHARED }));
+            }
             break;
           }
           case SPN_LIB_KIND_STATIC: {
-            spn_link_role_t role = dynamic && !entry->private ? SPN_LINK_ROLE_WHOLE_ARCHIVE : SPN_LINK_ROLE_ARCHIVE;
-            si_da_push(mem, link->deps, ((spn_link_dep_t) { .lib = lib, .role = role }));
+            if (!sp_da_empty(lib->objects)) {
+              spn_link_role_t role = dynamic && !entry->private ? SPN_LINK_ROLE_WHOLE_ARCHIVE : SPN_LINK_ROLE_ARCHIVE;
+              si_da_push(mem, link->deps, ((spn_link_dep_t) { .lib = lib, .role = role }));
+            }
             if (is_any_object_cxx(lib->objects)) {
               link->cc.lang = SPN_LANG_CXX;
             }
@@ -189,20 +236,6 @@ static spn_err_t lower_target(spn_units_t* u, spn_target_unit_t* unit) {
         }
         break;
       }
-    }
-  }
-
-  switch (unit->kind) {
-    case SPN_CC_OUTPUT_EXE:
-    case SPN_CC_OUTPUT_REACTOR:
-    case SPN_CC_OUTPUT_SHARED_LIB: {
-      link->cc.args = target->link_flags;
-      link->cc.scripts = target->linker_script;
-      break;
-    }
-    case SPN_CC_OUTPUT_STATIC_LIB:
-    case SPN_CC_OUTPUT_OBJECT: {
-      break;
     }
   }
 
@@ -253,72 +286,96 @@ static spn_err_t lower_target(spn_units_t* u, spn_target_unit_t* unit) {
   }
   sp_mem_end_scratch(scratch);
 
-  switch (unit->kind) {
-    case SPN_CC_OUTPUT_EXE:
-    case SPN_CC_OUTPUT_SHARED_LIB:
-    case SPN_CC_OUTPUT_REACTOR: {
-      spn_cc_link_refusal_t refusal = spn_cc_validate_link(toolchain, spn.host, profile, &link->cc);
-      switch (refusal.err) {
-        case SPN_OK: {
-          break;
-        }
-        case SPN_ERR_COMPILER_FEATURE_UNSUPPORTED: {
-          return spn_err_emit(u->ctx, (spn_err_union_t) {
-            .kind = refusal.err,
-            .compiler = {
-              .toolchain = toolchain->name.str,
-              .target = spn_profile_triple(profile),
-              .feature = refusal.feature,
-              .pkg = pkg->pkg.manifest->name.str,
-              .name = target->info->name.str,
-              .frameworks = link->cc.frameworks,
-            },
-          });
-        }
-        case SPN_ERR_TOOLCHAIN_MSVC_LINKER_HOST: {
-          return spn_err_emit(u->ctx, (spn_err_union_t) {
-            .kind = refusal.err,
-            .toolchain = {
-              .name = toolchain->name.str,
-              .target = spn_profile_triple(profile),
-              .host = spn.host,
-            },
-          });
-        }
-        default: {
-          sp_unreachable_return(SPN_ERROR);
-        }
-      }
-      link->plan = si_cc_render_link(mem, toolchain, profile, &link->cc);
-      break;
-    }
-    case SPN_CC_OUTPUT_STATIC_LIB:
-    case SPN_CC_OUTPUT_OBJECT: {
-      break;
-    }
+  if (sp_da_empty(unit->objects)) {
+    return SPN_OK;
   }
 
+  spn_target_emit_t* emit = &unit->emit;
+  spn_triple_t triple = spn_profile_triple(profile);
+  sp_str_t name = target->info->name.str;
   switch (unit->kind) {
-    case SPN_CC_OUTPUT_STATIC_LIB:
-    case SPN_CC_OUTPUT_SHARED_LIB:
-    case SPN_CC_OUTPUT_REACTOR: {
-      unit->archive = si_cc_render_archive(mem, toolchain, profile);
+    case SPN_CC_OUTPUT_EXE: {
+      spn_try(lower_link(u, unit));
+      emit->output = spn_triple_exe_file_name(mem, triple, name);
       break;
     }
-    case SPN_CC_OUTPUT_EXE:
+    case SPN_CC_OUTPUT_SHARED_LIB: {
+      spn_try(lower_link(u, unit));
+      emit->output = spn_triple_lib_file_name(mem, triple, name, SP_OS_LIB_SHARED);
+      if (spn_cc_link_implib(profile, unit->kind)) {
+        emit->implib = spn_triple_lib_file_name(mem, triple, name, SP_OS_LIB_STATIC);
+      }
+      sp_opt_set(emit->exports, render_exports(mem, toolchain, profile, &emit->link.value, name));
+      break;
+    }
+    case SPN_CC_OUTPUT_REACTOR: {
+      spn_try(lower_link(u, unit));
+      emit->output = sp_fmt(mem, "{}.wasm", sp_fmt_str(name)).value;
+      sp_opt_set(emit->exports, render_exports(mem, toolchain, profile, &emit->link.value, name));
+      break;
+    }
+    case SPN_CC_OUTPUT_STATIC_LIB: {
+      emit->output = spn_triple_lib_file_name(mem, triple, name, SP_OS_LIB_STATIC);
+      sp_opt_set(emit->archive, si_cc_render_archive(mem, toolchain, profile));
+      break;
+    }
     case SPN_CC_OUTPUT_OBJECT: {
+      emit->objects = true;
       break;
     }
   }
   return SPN_OK;
 }
 
+static spn_path_t staged_path(sp_mem_t mem, spn_target_unit_t* unit) {
+  if (sp_str_empty(unit->emit.output)) {
+    return sp_zero_s(spn_path_t);
+  }
+
+  sp_mem_arena_marker_t s = sp_mem_begin_scratch_for(mem);
+  spn_path_t root = unit->pkg->build->paths.root;
+  spn_path_t path = sp_zero;
+  switch (unit->target->info->kind) {
+    case SPN_TARGET_KIND_EXE:
+    case SPN_TARGET_KIND_SCRIPT: {
+      path = spn_path_join(mem, root, unit->emit.output);
+      break;
+    }
+    case SPN_TARGET_KIND_TEST: {
+      path = spn_path_join(mem, spn_path_join(s.mem, root, SP_LIT("test")), unit->emit.output);
+      break;
+    }
+    case SPN_TARGET_KIND_EXAMPLE: {
+      path = spn_path_join(mem, spn_path_join(s.mem, root, SP_LIT("example")), unit->emit.output);
+      break;
+    }
+    case SPN_TARGET_KIND_LIB:
+    case SPN_TARGET_KIND_CONFIGURE_METAPROGRAM:
+    case SPN_TARGET_KIND_BUILD_METAPROGRAM: {
+      break;
+    }
+  }
+  sp_mem_end_scratch(s);
+  return path;
+}
+
 static spn_err_t plan_new(spn_units_t* u, sp_mem_t scratch, spn_closure_t closure, spn_build_plan_t* plan) {
-  *plan = (spn_build_plan_t) { .closure = closure };
+  *plan = (spn_build_plan_t) {
+    .root = closure.root->build->paths.root,
+  };
 
   si_da_for_value(closure.pkgs, pkg) {
-    if (publishes(pkg)) {
-      si_da_push(u->mem, plan->publishes, pkg);
+    spn_publish_plan_t publish = { .pkg = pkg };
+    si_da_for_value(pkg->pkg.publish, entry) {
+      si_da_push(u->mem, publish.entries, entry);
+    }
+    si_om_for_each(pkg->pkg.targets, target) {
+      si_da_for_value(target->publish, entry) {
+        si_da_push(u->mem, publish.entries, entry);
+      }
+    }
+    if (!si_da_empty(publish.entries)) {
+      si_da_push(u->mem, plan->publishes, publish);
     }
     sp_da_for_ptr(pkg->user_nodes, node) {
       si_da_push(u->mem, plan->nodes, node);
@@ -405,13 +462,14 @@ static spn_err_t plan_new(spn_units_t* u, sp_mem_t scratch, spn_closure_t closur
   si_ht(spn_path_t, spn_target_unit_t*) claimed = sp_zero;
   si_ht_init_ex(scratch, claimed, spn_path_on_hash, spn_path_on_compare);
   si_da_for_value(closure.roots, root) {
-    if (root->kind != SPN_CC_OUTPUT_EXE) {
+    spn_path_t staged = staged_path(u->mem, root);
+    if (spn_path_empty(staged)) {
       continue;
     }
     spn_stage_closure_t closure = {
       .exe = {
         .target = root,
-        .path = spn_target_unit_staged_path(u->mem, root),
+        .path = staged,
       },
     };
     spn_path_t dir = spn_path_parent(closure.exe.path);
@@ -422,10 +480,10 @@ static spn_err_t plan_new(spn_units_t* u, sp_mem_t scratch, spn_closure_t closur
         continue;
       }
       spn_target_unit_t* lib = it.entry.lib;
-      if (lib->lib_kind != SPN_LIB_KIND_SHARED || lib->target->info->no_link) {
+      if (lib->lib_kind != SPN_LIB_KIND_SHARED || lib->target->info->no_link || sp_str_empty(lib->emit.output)) {
         continue;
       }
-      spn_path_t path = spn_path_join(u->mem, dir, lib->file_name);
+      spn_path_t path = spn_path_join(u->mem, dir, lib->emit.output);
       spn_target_unit_t** owner = si_ht_getp(claimed, path);
       if (owner && *owner != lib) {
         return spn_err_emit(u->ctx, (spn_err_union_t) {
@@ -434,7 +492,7 @@ static spn_err_t plan_new(spn_units_t* u, sp_mem_t scratch, spn_closure_t closur
             .exe = root->target->info->name.str,
             .pkg = (*owner)->pkg->pkg.manifest->name.str,
             .other = lib->pkg->pkg.manifest->name.str,
-            .name = lib->file_name,
+            .name = lib->emit.output,
           },
         });
       }

@@ -186,29 +186,6 @@ spn_err_t si_add_target_unit(spn_units_t* u, spn_pkg_unit_t* pkg, si_target_t* t
     }
   }
 
-  spn_triple_t triple = spn_profile_triple(&pkg->build->profile);
-  switch (unit->kind) {
-    case SPN_CC_OUTPUT_EXE: {
-      unit->file_name = spn_triple_exe_file_name(u->mem, triple, target->info->name.str);
-      break;
-    }
-    case SPN_CC_OUTPUT_STATIC_LIB: {
-      unit->file_name = spn_triple_lib_file_name(u->mem, triple, target->info->name.str, SP_OS_LIB_STATIC);
-      break;
-    }
-    case SPN_CC_OUTPUT_SHARED_LIB: {
-      unit->file_name = spn_triple_lib_file_name(u->mem, triple, target->info->name.str, SP_OS_LIB_SHARED);
-      break;
-    }
-    case SPN_CC_OUTPUT_REACTOR: {
-      unit->file_name = sp_fmt(u->mem, "{}.wasm", sp_fmt_str(target->info->name.str)).value;
-      break;
-    }
-    case SPN_CC_OUTPUT_OBJECT: {
-      break;
-    }
-  }
-
   si_da_for_value(target->deps, name) {
     sp_intern_id_t qualified = spn_intern(spn_pkg_canonicalize_name(name)).id;
     bool package = false;

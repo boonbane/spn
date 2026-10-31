@@ -52,11 +52,12 @@ static void visit_target(walk_t* w, spn_target_unit_t* target) {
 
 spn_closure_t spn_closure_collect(sp_mem_t mem, spn_pkg_unit_t* root, si_da(spn_target_unit_t*) roots) {
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch_for(mem);
-  spn_closure_t closure = { .root = root, .roots = roots };
+  spn_closure_t closure = { .root = root };
   walk_t w = { .mem = mem, .scratch = scratch.mem, .closure = &closure };
   visit_pkg(&w, root);
   si_ht_insert(w.scratch, w.walked, root, (u8)true);
   si_da_for_value(roots, target) {
+    si_da_push(mem, closure.roots, target);
     visit_target(&w, target);
   }
   sp_mem_end_scratch(scratch);

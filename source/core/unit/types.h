@@ -75,8 +75,15 @@ typedef struct {
 } spn_closure_t;
 
 typedef struct {
+  spn_pkg_unit_t* pkg;
+  si_da(spn_publish_t) entries;
+} spn_publish_plan_t;
+
+typedef struct {
+  spn_path_t root;
+  si_da(spn_target_unit_t*) targets;
   spn_closure_t closure;
-  si_da(spn_pkg_unit_t*) publishes;
+  si_da(spn_publish_plan_t) publishes;
   si_da(spn_user_node_t*) nodes;
   si_da(spn_stage_closure_t) staged;
 } spn_build_plan_t;
@@ -105,7 +112,6 @@ struct spn_user_node_t {
   si_da(spn_path_t) inputs;
   si_da(spn_user_output_t) outputs;
   si_da(spn_node_ref_t) deps;
-  spn_target_unit_t* script;
 };
 
 typedef struct {
@@ -131,8 +137,24 @@ typedef struct {
 typedef struct {
   spn_cc_link_t cc;
   si_da(spn_link_dep_t) deps;
-  spn_cc_link_plan_t plan;
 } spn_link_plan_t;
+
+typedef struct {
+  spn_cc_archive_plan_t archive;
+  spn_cc_exports_format_t format;
+  spn_rsp_style_t rsp;
+  sp_str_t library;
+  sp_str_t file_name;
+} spn_exports_plan_t;
+
+typedef struct {
+  sp_str_t output;
+  sp_str_t implib;
+  bool objects;
+  sp_opt(spn_cc_link_plan_t) link;
+  sp_opt(spn_cc_archive_plan_t) archive;
+  sp_opt(spn_exports_plan_t) exports;
+} spn_target_emit_t;
 
 struct spn_target_unit {
   spn_target_unit_id_t id;
@@ -140,7 +162,6 @@ struct spn_target_unit {
   si_target_t* target;
   spn_cc_output_kind_t kind;
   spn_linkage_t lib_kind;
-  sp_str_t file_name;
   spn_path_t install;
 
   si_da(spn_target_unit_t*) deps;
@@ -148,7 +169,7 @@ struct spn_target_unit {
 
   sp_da(spn_compile_unit_t*) objects;
   spn_link_plan_t link;
-  spn_cc_archive_plan_t archive;
+  spn_target_emit_t emit;
 };
 
 typedef struct {
@@ -171,6 +192,7 @@ struct spn_pkg_unit_t {
   si_da(spn_target_unit_t*) libs;
   bool expanded;
   sp_da(spn_user_node_t) user_nodes;
+  spn_target_unit_t* script;
 
   struct {
     spn_tree_roots_t roots;

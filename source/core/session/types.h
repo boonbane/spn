@@ -24,6 +24,12 @@ typedef struct {
   spn_git_patch_set_t set;
 } spn_patch_t;
 
+typedef si_om(sp_intern_id_t, sp_intern_str_t) si_selected_names_t;
+typedef struct {
+  u32 kinds;
+  si_selected_names_t names;
+} si_target_selection_t;
+
 struct spn_session_t {
   spn_ctx_t* ctx;
   spn_project_t* project;
@@ -42,10 +48,7 @@ struct spn_session_t {
     u32 resolves;
   } gates;
 
-  struct {
-    u32 kinds;
-    si_om(sp_intern_id_t, sp_intern_str_t) names;
-  } selection;
+  si_target_selection_t selection;
   spn_build_plan_t plan;
 
   struct {

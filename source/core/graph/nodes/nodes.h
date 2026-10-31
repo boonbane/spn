@@ -79,7 +79,8 @@ typedef struct {
 } si_user_node_t;
 
 typedef struct {
-  spn_pkg_unit_t* pkg;
+  sp_str_t pkg;
+  si_da(spn_publish_t) entries;
   spn_dag_id_t include;
   spn_dag_id_t share;
 } si_publish_t;
