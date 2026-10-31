@@ -124,7 +124,7 @@ void spn_node_link(spn_node_t* from, spn_node_t* to) {
 void spn_node_set_fn(spn_node_t* node, const c8* fn) {
   spn_user_node_t* info = spn_node_deref(node->ref);
   spn_pkg_unit_t* unit = node->ref.pkg;
-  if (!unit->script) {
+  if (!unit->metaprogram) {
     sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
     sp_str_t message = sp_fmt(scratch.mem, "spn_node_set_fn: node {} runs {}, but {} has no [package.build] script", SP_FMT_STR(info->tag), SP_FMT_CSTR(fn), SP_FMT_STR(unit->pkg.manifest->name.str)).value;
     bool trapped = spn_wasm_trap(message);

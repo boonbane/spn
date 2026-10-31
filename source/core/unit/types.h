@@ -68,21 +68,13 @@ typedef struct {
 } spn_stage_closure_t;
 
 typedef struct {
-  spn_pkg_unit_t* root;
-  si_da(spn_target_unit_t*) roots;
-  si_da(spn_target_unit_t*) targets;
-  si_da(spn_pkg_unit_t*) pkgs;
-} spn_closure_t;
-
-typedef struct {
   spn_pkg_unit_t* pkg;
   si_da(spn_publish_t) entries;
 } spn_publish_plan_t;
 
 typedef struct {
-  spn_path_t root;
+  si_da(spn_pkg_unit_t*) pkgs;
   si_da(spn_target_unit_t*) targets;
-  spn_closure_t closure;
   si_da(spn_publish_plan_t) publishes;
   si_da(spn_user_node_t*) nodes;
   si_da(spn_stage_closure_t) staged;
@@ -181,19 +173,11 @@ typedef struct {
 
 struct spn_pkg_unit_t {
   spn_pkg_unit_id_t id;
-  spn_build_unit_t* build;
-  spn_units_t* units;
-  const spn_resolved_pkg_t* resolved;
   si_pkg_t pkg;
+  const spn_resolved_pkg_t* resolved;
   sp_hash_t fingerprint;
+  spn_build_unit_t* build;
   spn_source_pin_t pin;
-
-  si_da(spn_pkg_edge_t) deps;
-  si_da(spn_target_unit_t*) libs;
-  bool expanded;
-  sp_da(spn_user_node_t) user_nodes;
-  spn_target_unit_t* script;
-
   struct {
     spn_tree_roots_t roots;
     spn_path_t work;
@@ -205,6 +189,14 @@ struct spn_pkg_unit_t {
     spn_path_t vendor;
   } paths;
 
+  si_da(spn_pkg_edge_t) deps;
+  si_da(spn_target_unit_t*) libs;
+  bool expanded;
+
+  // wasm configure bullshit
+  spn_units_t* units;
+  spn_target_unit_t* metaprogram;
+  sp_da(spn_user_node_t) user_nodes;
 };
 
 struct spn_toolchain_unit_t {

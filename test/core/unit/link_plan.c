@@ -295,7 +295,8 @@ sp_test_each(link_plan, plan, plan_test_t, tests, .setup = spn_test_ctx_setup) {
   decl = test_manifest_target(s->mem, manifest, sp_str_lit("app"), it->target.kind);
   target_decl(mem, &it->target, decl);
 
-  spn_err_t err = test_plan(s, sp_str_lit("app"), it->target.kind);
+  spn_target_unit_t* app = SP_NULLPTR;
+  spn_err_t err = test_plan(s, sp_str_lit("app"), it->target.kind, &app);
   sp_must_eq(t, it->expect.err, err);
   if (err) {
     sp_da(spn_event_t) errs = spn_test_drain_errs(mem);
@@ -310,9 +311,6 @@ sp_test_each(link_plan, plan, plan_test_t, tests, .setup = spn_test_ctx_setup) {
     sp_must_strs_eq(t, refusal->frameworks, sp_da_size(refusal->frameworks), it->expect.frameworks);
     return SP_OK;
   }
-
-  sp_must_eq(t, 1, si_da_size(s->plan.closure.roots));
-  spn_target_unit_t* app = s->plan.closure.roots[0];
 
   spn_link_plan_t* plan = &app->link;
   u32 num_deps = 0;

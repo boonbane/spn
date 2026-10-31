@@ -1,3 +1,4 @@
+#include "core/types.h"
 #include "spn/host.h"
 
 #include "cpu/cpu.h"
@@ -23,7 +24,7 @@
 #include "unit/types.h"
 #include "unit/unit.h"
 
-bool is_selected(si_target_selection_t* selection, const si_target_info_t* target) {
+static bool is_selected(si_target_selection_t* selection, const si_target_info_t* target) {
   if (!(selection->kinds & spn_target_kind_bit(target->kind))) {
     return false;
   }
@@ -118,18 +119,17 @@ spn_err_t spn_op_build(spn_op_t* op) {
     return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_WASM_INIT_FAILED });
   }
 
+  spn_build_unit_t* build = session->builds.program;
+  spn_build_unit_t* metabuild = session->builds.metaprogram;
+
   spn_units_t* units = &session->units;
   *units = (spn_units_t) {
     .ctx = ctx,
     .mem = mem,
     .resolve = session->resolve,
   };
-  spn_build_unit_t* build = session->builds.program;
-  spn_build_unit_t* metabuild = session->builds.metaprogram;
 
   spn_pkg_unit_t* root = si_add_package_unit(units, build, si_get_root_pkg(session));
-  spn_try(si_add_package_unit_closure(units, root));
-
   si_da(spn_target_unit_t*) targets = sp_zero;
   si_om_for_each(root->pkg.targets, target) {
     if (!is_selected(&session->selection, target->info)) {
@@ -160,27 +160,37 @@ spn_err_t spn_op_build(spn_op_t* op) {
     }
   }
 
-  spn_closure_t selected = spn_closure_collect(mem, root, targets);
+  si_da(spn_pkg_unit_t*) pkgs = sp_zero;
+  sp_om_for(units->packages, it) {
+    si_da_push(mem, pkgs, sp_om_at(units->packages, it));
+  }
 
+  spn_units_t* configure = sp_alloc_type(mem, spn_units_t);
+  *configure = (spn_units_t) {
+    .ctx = ctx,
+    .mem = mem,
+    .resolve = session->resolve,
+  };
   si_da(spn_target_unit_t*) reactors = sp_zero;
-  si_da_for_value(selected.pkgs, pkg) {
-    spn_pkg_unit_t* metaprogram = si_add_package_unit(units, metabuild, pkg->resolved);
-    si_target_t* configure = spn_pkg_get_script(&metaprogram->pkg, SPN_TARGET_KIND_CONFIGURE_METAPROGRAM);
-    if (configure) {
-      spn_target_unit_t* reactor = SP_NULLPTR;
-      spn_try(si_add_target_unit(units, metaprogram, configure, &reactor));
-      si_da_push(mem, reactors, reactor);
+  si_da_for_value(pkgs, pkg) {
+    spn_pkg_unit_t* unit = si_add_package_unit(configure, metabuild, pkg->resolved);
+    si_target_t* reactor = spn_pkg_get_script(&unit->pkg, SPN_TARGET_KIND_CONFIGURE_METAPROGRAM);
+    if (reactor) {
+      spn_target_unit_t* target = SP_NULLPTR;
+      spn_try(si_add_target_unit(configure, unit, reactor, &target));
+      si_da_push(mem, reactors, target);
     }
-    si_target_t* script = spn_pkg_get_script(&metaprogram->pkg, SPN_TARGET_KIND_BUILD_METAPROGRAM);
+
+    unit = si_add_package_unit(units, metabuild, pkg->resolved);
+    si_target_t* script = spn_pkg_get_script(&unit->pkg, SPN_TARGET_KIND_BUILD_METAPROGRAM);
     if (script) {
-      spn_try(si_add_target_unit(units, metaprogram, script, &pkg->script));
-      si_da_push(mem, targets, pkg->script);
+      spn_try(si_add_target_unit(units, unit, script, &unit->metaprogram));
+      si_da_push(mem, targets, unit->metaprogram);
     }
   }
 
-  spn_closure_t configure = spn_closure_collect(mem, si_add_package_unit(units, metabuild, root->resolved), reactors);
   spn_build_plan_t plan = sp_zero;
-  spn_try(spn_plan_new(units, configure, &plan));
+  spn_try(spn_plan_new(configure, reactors, &plan));
   spn_dag_build_t* b = spn_dag_build_new(op);
   spn_try(spn_dag_build_lower(b, &plan));
   spn_try(spn_dag_build_run(b, spn_cpu_count()));
@@ -191,8 +201,7 @@ spn_err_t spn_op_build(spn_op_t* op) {
     spn_try(spn_wasm_configure(pkg, spn_dag_run_artifact(&b->run, ids->output)->location));
   }
 
-  spn_closure_t closure = spn_closure_collect(mem, root, targets);
-  spn_try(spn_plan_new(units, closure, &session->plan));
+  spn_try(spn_plan_new(units, targets, &session->plan));
 
   b = spn_dag_build_new(op);
   spn_try(spn_dag_build_lower(b, &session->plan));

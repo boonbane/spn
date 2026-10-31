@@ -26,18 +26,6 @@ typedef struct {
 
 static const walk_test_t tests [] = {
   {
-    .name = "root_package_without_targets_is_in_the_closure",
-    .graph = {
-      .pkgs = {
-        { .name = "R", .deps = { { "A" } } },
-        { .name = "A" },
-      },
-    },
-    .expect = {
-      { "R" },
-    },
-  },
-  {
     .name = "package_chain_stays_in_target_build",
     .graph = {
       .pkgs = {
@@ -105,7 +93,6 @@ static const walk_test_t tests [] = {
     },
     .roots = { { "build", SPN_TARGET_KIND_BUILD_METAPROGRAM, .metaprogram = true } },
     .expect = {
-      { "R" },
       { "R", .metaprogram = true },
       { "T", .metaprogram = true },
     },
@@ -134,7 +121,6 @@ static const walk_test_t tests [] = {
     },
     .roots = { { "configure", SPN_TARGET_KIND_CONFIGURE_METAPROGRAM, .metaprogram = true } },
     .expect = {
-      { "R" },
       { "R", .metaprogram = true },
     },
   },
@@ -152,7 +138,6 @@ static const walk_test_t tests [] = {
     },
     .roots = { { "build", SPN_TARGET_KIND_BUILD_METAPROGRAM, .metaprogram = true } },
     .expect = {
-      { "R" },
       { "R", .metaprogram = true },
       { "T", .metaprogram = true },
       { "U", .metaprogram = true },
@@ -191,7 +176,6 @@ sp_test_each(unit, walk, walk_test_t, tests, .setup = spn_test_ctx_setup) {
     test_manifest_target(s->mem, manifest, sp_cstr_as_str(it->roots[rt].name), it->roots[rt].kind);
   }
 
-  si_da(spn_target_unit_t*) roots = sp_zero;
   sp_for(rt, count) {
     const walk_root_t* root = &it->roots[rt];
     spn_build_unit_t* build = root->metaprogram ? s->builds.metaprogram : s->builds.program;
@@ -200,19 +184,16 @@ sp_test_each(unit, walk, walk_test_t, tests, .setup = spn_test_ctx_setup) {
     sp_must(t, target);
     spn_target_unit_t* unit = SP_NULLPTR;
     sp_must_eq(t, SPN_OK, si_add_target_unit(&s->units, pkg, target, &unit));
-    si_da_push(mem, roots, unit);
   }
-
-  spn_closure_t closure = spn_closure_collect(mem, si_add_package_unit(&s->units, s->builds.program, sp_ht_getp(s->resolve, id)), roots);
 
   u32 expected = 0;
   sp_carr_detect_len(it->expect, expected, it->expect[expected].pkg);
-  sp_must_eq(t, expected, si_da_size(closure.pkgs));
+  sp_must_eq(t, expected, sp_om_size(s->units.packages));
 
   sp_for(et, expected) {
     const walk_unit_t* expect = &it->expect[et];
     sp_test_kv_c(t, "pkg", expect->pkg);
-    spn_pkg_unit_t* unit = closure.pkgs[et];
+    spn_pkg_unit_t* unit = sp_om_at(s->units.packages, et);
     sp_expect(t, spn_pkg_id_eq(unit->id.pkg, find_pkg_id(s, &it->graph, expect->pkg)));
     sp_expect_eq(t, expect->metaprogram, unit->build == s->builds.metaprogram);
   }

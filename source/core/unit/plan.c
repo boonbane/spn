@@ -359,12 +359,12 @@ static spn_path_t staged_path(sp_mem_t mem, spn_target_unit_t* unit) {
   return path;
 }
 
-static spn_err_t plan_new(spn_units_t* u, sp_mem_t scratch, spn_closure_t closure, spn_build_plan_t* plan) {
-  *plan = (spn_build_plan_t) {
-    .root = closure.root->build->paths.root,
-  };
+static spn_err_t plan_new(spn_units_t* u, sp_mem_t scratch, si_da(spn_target_unit_t*) roots, spn_build_plan_t* plan) {
+  *plan = sp_zero_s(spn_build_plan_t);
 
-  si_da_for_value(closure.pkgs, pkg) {
+  sp_om_for(u->packages, pt) {
+    spn_pkg_unit_t* pkg = sp_om_at(u->packages, pt);
+    si_da_push(u->mem, plan->pkgs, pkg);
     spn_publish_plan_t publish = { .pkg = pkg };
     si_da_for_value(pkg->pkg.publish, entry) {
       si_da_push(u->mem, publish.entries, entry);
@@ -382,7 +382,9 @@ static spn_err_t plan_new(spn_units_t* u, sp_mem_t scratch, spn_closure_t closur
     }
   }
 
-  si_da_for_value(closure.targets, target) {
+  sp_om_for(u->targets, tt) {
+    spn_target_unit_t* target = sp_om_at(u->targets, tt);
+    si_da_push(u->mem, plan->targets, target);
     if (target->target->info->kind == SPN_TARGET_KIND_CONFIGURE_METAPROGRAM) {
       si_da_for_value(target->target->source, source) {
         bool found = false;
@@ -455,13 +457,13 @@ static spn_err_t plan_new(spn_units_t* u, sp_mem_t scratch, spn_closure_t closur
     }
   }
 
-  si_da_for_value(closure.targets, target) {
+  si_da_for_value(plan->targets, target) {
     spn_try(lower_target(u, target));
   }
 
   si_ht(spn_path_t, spn_target_unit_t*) claimed = sp_zero;
   si_ht_init_ex(scratch, claimed, spn_path_on_hash, spn_path_on_compare);
-  si_da_for_value(closure.roots, root) {
+  si_da_for_value(roots, root) {
     spn_path_t staged = staged_path(u->mem, root);
     if (spn_path_empty(staged)) {
       continue;
@@ -504,9 +506,9 @@ static spn_err_t plan_new(spn_units_t* u, sp_mem_t scratch, spn_closure_t closur
   return SPN_OK;
 }
 
-spn_err_t spn_plan_new(spn_units_t* u, spn_closure_t closure, spn_build_plan_t* plan) {
+spn_err_t spn_plan_new(spn_units_t* u, si_da(spn_target_unit_t*) roots, spn_build_plan_t* plan) {
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  spn_err_t err = plan_new(u, scratch.mem, closure, plan);
+  spn_err_t err = plan_new(u, scratch.mem, roots, plan);
   sp_mem_end_scratch(scratch);
   return err;
 }

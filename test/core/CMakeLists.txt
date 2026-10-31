@@ -248,7 +248,6 @@ add_executable(core
   ${SRC}/triple/triple.c
   ${SRC}/elf/elf.c
   ${SRC}/unit/build.c
-  ${SRC}/unit/closure.c
   ${SRC}/unit/fingerprint.c
   ${SRC}/unit/closure/closure.c
   ${SRC}/unit/pkg.c

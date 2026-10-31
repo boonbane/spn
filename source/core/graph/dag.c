@@ -546,8 +546,8 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
 spn_err_t spn_dag_build_lower(spn_dag_build_t* b, const spn_build_plan_t* plan) {
   spn_dag_t* g = b->graph;
 
-  si_da_for_value(plan->targets, target) {
-    si_om_insert(b->mem, b->ids.packages, target->pkg, sp_zero_s(si_dag_pkg_ids_t));
+  si_da_for_value(plan->pkgs, pkg) {
+    si_om_insert(b->mem, b->ids.packages, pkg, sp_zero_s(si_dag_pkg_ids_t));
   }
 
   si_da_for_value(plan->targets, target) {
@@ -638,7 +638,7 @@ spn_err_t spn_dag_build_lower(spn_dag_build_t* b, const spn_build_plan_t* plan) 
     spn_pkg_unit_t* pkg = node->unit;
     spn_dag_id_t script = sp_zero;
     if (!sp_str_empty(node->fn)) {
-      spn_dag_target_ids_t* ids = sp_ht_getp(b->ids.targets, pkg->script);
+      spn_dag_target_ids_t* ids = sp_ht_getp(b->ids.targets, pkg->metaprogram);
       sp_assert(ids);
       script = ids->output;
     }
@@ -767,7 +767,7 @@ spn_err_t spn_dag_build_stage(spn_dag_build_t* b) {
 
   const spn_path_roots_t* roots = b->graph->roots;
   const spn_build_plan_t* plan = &session->plan;
-  spn_path_t root = plan->root;
+  spn_path_t root = session->builds.program->paths.root;
   spn_path_t manifest = spn_path_join(scratch.mem, root, sp_str_lit(".spn/staged"));
 
   sp_ht(spn_path_t, bool) exes = SP_NULLPTR;

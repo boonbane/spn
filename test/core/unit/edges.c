@@ -37,10 +37,8 @@ sp_test_each(unit_edges, target, test_t, tests, .setup = spn_test_ctx_setup) {
   };
   spn_session_t* s = build_session(mem, &graph);
   test_manifest_target(s->mem, test_manifest(s, find_pkg_id(s, &graph, "A")), sp_str_lit("app"), it->kind);
-  sp_must_eq(t, SPN_OK, test_plan(s, sp_str_lit("app"), it->kind));
-
-  sp_must_eq(t, 1, si_da_size(s->plan.closure.roots));
-  spn_target_unit_t* target = s->plan.closure.roots[0];
+  spn_target_unit_t* target = SP_NULLPTR;
+  sp_must_eq(t, SPN_OK, test_plan(s, sp_str_lit("app"), it->kind, &target));
 
   u32 count = 0;
   sp_carr_detect_len(it->expect.edges, count, it->expect.edges[count]);

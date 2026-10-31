@@ -87,10 +87,8 @@ sp_test_each(unit_objects, create, objects_test_t, tests, .setup = spn_test_ctx_
         : spn_tree_path(mem, &spn.roots, resolved->roots, it->source[st].tree, path),
     }));
   }
-  sp_must_eq(t, SPN_OK, test_plan(s, sp_str_lit("app"), SPN_TARGET_KIND_EXE));
-
-  sp_must_eq(t, 1, si_da_size(s->plan.closure.roots));
-  spn_target_unit_t* target = s->plan.closure.roots[0];
+  spn_target_unit_t* target = SP_NULLPTR;
+  sp_must_eq(t, SPN_OK, test_plan(s, sp_str_lit("app"), SPN_TARGET_KIND_EXE, &target));
 
   u32 count = 0;
   sp_carr_detect_len(it->expect.objects, count, it->expect.objects[count]);
