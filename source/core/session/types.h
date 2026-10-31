@@ -56,7 +56,6 @@ struct spn_session_t {
     spn_build_unit_t* metaprogram;
     si_da(spn_toolchain_unit_t*) toolchains;
   } builds;
-  spn_units_t units;
 
   struct {
     spn_path_t root;

@@ -120,16 +120,21 @@ spn_err_t spn_op_build(spn_op_t* op) {
   }
 
   spn_build_unit_t* build = session->builds.program;
-  spn_build_unit_t* metabuild = session->builds.metaprogram;
 
-  spn_units_t* units = &session->units;
-  *units = (spn_units_t) {
+  spn_units_t configure = {
     .ctx = ctx,
     .mem = mem,
     .resolve = session->resolve,
   };
+  spn_units_t units = {
+    .ctx = ctx,
+    .mem = mem,
+    .resolve = session->resolve,
+    .configure = &configure,
+  };
 
-  spn_pkg_unit_t* root = si_add_package_unit(units, build, si_get_root_pkg(session));
+  spn_pkg_unit_t* root = SP_NULLPTR;
+  spn_try(si_add_package_unit(&units, build, si_get_root_pkg(session), &root));
   si_da(spn_target_unit_t*) targets = sp_zero;
   si_om_for_each(root->pkg.targets, target) {
     if (!is_selected(&session->selection, target->info)) {
@@ -137,7 +142,7 @@ spn_err_t spn_op_build(spn_op_t* op) {
     }
 
     spn_target_unit_t* unit = sp_zero;
-    spn_try(si_add_target_unit(units, root, target, &unit));
+    spn_try(si_add_target_unit(&units, root, target, &unit));
     si_da_push(mem, targets, unit);
   }
 
@@ -160,48 +165,22 @@ spn_err_t spn_op_build(spn_op_t* op) {
     }
   }
 
-  si_da(spn_pkg_unit_t*) pkgs = sp_zero;
-  sp_om_for(units->packages, it) {
-    si_da_push(mem, pkgs, sp_om_at(units->packages, it));
-  }
-
-  spn_units_t* configure = sp_alloc_type(mem, spn_units_t);
-  *configure = (spn_units_t) {
-    .ctx = ctx,
-    .mem = mem,
-    .resolve = session->resolve,
-  };
-  si_da(spn_target_unit_t*) reactors = sp_zero;
-  si_da_for_value(pkgs, pkg) {
-    spn_pkg_unit_t* unit = si_add_package_unit(configure, metabuild, pkg->resolved);
-    si_target_t* reactor = spn_pkg_get_script(&unit->pkg, SPN_TARGET_KIND_CONFIGURE_METAPROGRAM);
-    if (reactor) {
-      spn_target_unit_t* target = SP_NULLPTR;
-      spn_try(si_add_target_unit(configure, unit, reactor, &target));
-      si_da_push(mem, reactors, target);
-    }
-
-    unit = si_add_package_unit(units, metabuild, pkg->resolved);
-    si_target_t* script = spn_pkg_get_script(&unit->pkg, SPN_TARGET_KIND_BUILD_METAPROGRAM);
-    if (script) {
-      spn_try(si_add_target_unit(units, unit, script, &unit->metaprogram));
-      si_da_push(mem, targets, unit->metaprogram);
-    }
-  }
-
   spn_build_plan_t plan = sp_zero;
-  spn_try(spn_plan_new(configure, reactors, &plan));
+  spn_try(spn_plan_new(&configure, SP_NULLPTR, &plan));
   spn_dag_build_t* b = spn_dag_build_new(op);
   spn_try(spn_dag_build_lower(b, &plan));
   spn_try(spn_dag_build_run(b, spn_cpu_count()));
-  si_da_for_value(reactors, reactor) {
-    spn_dag_target_ids_t* ids = sp_ht_getp(b->ids.targets, reactor);
+  sp_om_for(units.packages, it) {
+    spn_pkg_unit_t* pkg = sp_om_at(units.packages, it);
+    if (!pkg->reactor) {
+      continue;
+    }
+    spn_dag_target_ids_t* ids = sp_ht_getp(b->ids.targets, pkg->reactor);
     sp_assert(ids);
-    spn_pkg_unit_t* pkg = si_add_package_unit(units, build, reactor->pkg->resolved);
     spn_try(spn_wasm_configure(pkg, spn_dag_run_artifact(&b->run, ids->output)->location));
   }
 
-  spn_try(spn_plan_new(units, targets, &session->plan));
+  spn_try(spn_plan_new(&units, targets, &session->plan));
 
   b = spn_dag_build_new(op);
   spn_try(spn_dag_build_lower(b, &session->plan));
@@ -228,7 +207,7 @@ spn_err_t spn_op_build(spn_op_t* op) {
     return result;
   }
 
-  spn_err_t written = spn_dag_build_write_compile_commands(b);
+  spn_err_t written = spn_dag_build_write_compile_commands(b, &session->plan);
   if (!result) {
     result = written;
   }

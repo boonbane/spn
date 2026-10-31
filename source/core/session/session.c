@@ -57,6 +57,7 @@ spn_err_t spn_session_init(spn_session_t* s, spn_ctx_t* ctx, sp_mem_t mem, spn_p
   };
   s->builds.program = spn_build_add(s, profile, roots.build, target.toolchain);
   s->builds.metaprogram = spn_build_add(s, metaprogram, roots.metabuild, script.toolchain);
+  s->builds.program->metabuild = s->builds.metaprogram;
 
   sp_da_push(s->builds.metaprogram->include, spn_path(s->mem, SPN_DIR_ID_RUNTIME, "include"));
 
