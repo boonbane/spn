@@ -1,5 +1,7 @@
 #include "closure.h"
 
+#include "unit/closure/closure.h"
+
 static const target_list_test_t tests [] = {
   {
     .name = "order_depender_first",
@@ -60,9 +62,5 @@ static const target_list_test_t tests [] = {
 sp_test_each(siblings, collect, target_list_test_t, tests, .setup = spn_test_ctx_setup) {
   closure_graph_t g = build_graph(&it->graph);
 
-  si_da(spn_closure_entry_t) closure = si_link_get_target_closure(g.mem, g.root);
-  sp_must_le(t, 1u, si_da_size(closure));
-  sp_expect(t, closure[0].pkg == g.root->pkg);
-
-  return expect_target_names(t, closure[0].targets, it->expect);
+  return expect_lib_names(t, closure_entries(g.mem, g.root, SI_CLOSURE_STOP_AT_SHARED, SI_CLOSURE_YIELD_LIB), it->expect);
 }

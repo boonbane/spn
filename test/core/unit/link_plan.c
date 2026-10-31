@@ -164,18 +164,19 @@ static const plan_test_t tests [] = {
       .os = SPN_OS_MACOS,
       .sdk = "/sdk",
       .pkgs = {
-        { .name = "P1", .deps = { { "D1" }, { "D2" }, { "D3" } } },
+        { .name = "P1", .deps = { { "D1" }, { "D2" }, { "D3" }, { "D4" } } },
         { .name = "D1", .frameworks = { "Cocoa" },
           .libs = { { "D1", STATIC_ONLY, .source = { "a.c" }, .frameworks = { "Metal", "IOKit" } } } },
         { .name = "D2", .frameworks = { "AppKit" },
           .libs = { { "D2", SHARED_ONLY, .source = { "s.c" }, .frameworks = { "CoreAudio" } } } },
         { .name = "D3", .frameworks = { "Carbon" },
           .libs = { { "L1", STATIC_ONLY, .no_link = true, .source = { "n.c" }, .frameworks = { "Cocoa" } } } },
+        { .name = "D4", .frameworks = { "OpenGL" } },
       },
     },
     .expect = {
       .deps = { { "D2", SPN_LINK_ROLE_SHARED }, { "D1" } },
-      .frameworks = { "Metal", "Cocoa", "IOKit" },
+      .frameworks = { "Metal", "OpenGL", "Cocoa", "IOKit" },
     },
   },
   {

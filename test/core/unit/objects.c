@@ -73,7 +73,7 @@ sp_test_each(unit_objects, create, objects_test_t, tests, .setup = spn_test_ctx_
 
   si_target_info_t* decl = SP_NULLPTR;
   decl = test_manifest_target(s->mem, test_manifest(s, id), sp_str_lit("app"), SPN_TARGET_KIND_EXE);
-  si_target_t* app = spn_pkg_get_target(&spn_pkg_unit_ensure(&s->units, s->builds.program, resolved)->pkg, sp_str_lit("app"), SPN_TARGET_KIND_EXE);
+  si_target_t* app = spn_pkg_get_target(&si_add_package_unit(&s->units, s->builds.program, resolved)->pkg, sp_str_lit("app"), SPN_TARGET_KIND_EXE);
   sp_must(t, app);
   sp_carr_for(it->source, st) {
     if (!it->source[st].path) {

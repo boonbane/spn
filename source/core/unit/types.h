@@ -82,10 +82,9 @@ typedef struct {
 } spn_build_plan_t;
 
 typedef struct {
-  spn_pkg_unit_t* unit;
-  spn_dep_kind_t kind;
+  spn_pkg_unit_t* pkg;
   bool private;
-} spn_pkg_dep_t;
+} spn_pkg_edge_t;
 
 typedef struct {
   spn_pkg_unit_t* pkg;
@@ -149,8 +148,10 @@ struct spn_target_unit {
   sp_str_t file_name;
   spn_path_t install;
 
-  sp_da(spn_compile_unit_t*) objects;
   si_da(spn_target_unit_t*) deps;
+  si_da(spn_pkg_edge_t) pkgs;
+
+  sp_da(spn_compile_unit_t*) objects;
   si_da(spn_target_order_t) orders;
   spn_link_plan_t link;
   spn_cc_archive_plan_t archive;
@@ -172,8 +173,9 @@ struct spn_pkg_unit_t {
   sp_hash_t fingerprint;
   spn_source_pin_t pin;
 
-  si_da(spn_pkg_dep_t) deps;
+  si_da(spn_pkg_edge_t) deps;
   si_da(spn_target_unit_t*) libs;
+  bool expanded;
   sp_da(spn_user_node_t) user_nodes;
 
   struct {

@@ -251,10 +251,9 @@ add_executable(core
   ${SRC}/unit/build.c
   ${SRC}/unit/closure.c
   ${SRC}/unit/fingerprint.c
-  ${SRC}/unit/link.c
+  ${SRC}/unit/closure/closure.c
   ${SRC}/unit/pkg.c
   ${SRC}/unit/plan.c
-  ${SRC}/unit/target.c
   ${UTIL}/version/version.c
   ${SRC}/when/when.c
   ${TEST_TOOLS}/fixture.c

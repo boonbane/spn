@@ -136,7 +136,7 @@ static spn_when_env_t make_env(sp_mem_t mem, spn_when_facts_t facts) {
 static si_pkg_t eval(sp_mem_t mem, const si_pkg_info_t* manifest, spn_when_env_t* env) {
   spn_path_roots_t roots = sp_zero;
   spn_tree_roots_t trees = { .source = spn_path_from_root(SPN_PATH_ROOT_PROJECT) };
-  return spn_pkg_eval(mem, manifest, &roots, trees, env);
+  return si_evaluate_package(mem, manifest, &roots, trees, env);
 }
 
 static sp_err_t expect_list(sp_test_t* t, si_da(sp_str_t) actual, const c8* const* expected) {

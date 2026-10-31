@@ -83,10 +83,15 @@ bool spn_api_path_rejected(spn_pkg_unit_t* unit, const c8* fn, sp_str_t path) {
 }
 
 static spn_pkg_unit_t* find_dep(spn_pkg_unit_t* pkg, sp_intern_id_t qualified, spn_dep_kind_t kind) {
-  si_da_for_ptr(pkg->deps, dep) {
-    if (dep->kind == kind && dep->unit->id.pkg.qualified == qualified) {
-      return dep->unit;
+  sp_da_for_ptr(pkg->resolved->edges, edge) {
+    if (edge->kind != kind || edge->id.qualified != qualified) {
+      continue;
     }
+    spn_pkg_unit_id_t id = { .pkg = edge->id, .build = pkg->build->id };
+    if (!sp_om_has(pkg->units->packages, id)) {
+      return SP_NULLPTR;
+    }
+    return sp_om_get(pkg->units->packages, id);
   }
   return SP_NULLPTR;
 }

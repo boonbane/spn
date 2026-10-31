@@ -207,14 +207,13 @@ spn_session_t* build_session(sp_mem_t mem, unit_graph_test_t* g) {
 }
 
 spn_err_t test_plan(spn_session_t* s, sp_str_t name, spn_target_kind_t kind) {
-  spn_pkg_unit_t* root = spn_pkg_unit_ensure(&s->units, s->builds.program, si_get_root_pkg(s));
+  spn_pkg_unit_t* root = si_add_package_unit(&s->units, s->builds.program, si_get_root_pkg(s));
+  spn_try(si_add_package_unit_closure(&s->units, root));
   si_target_t* target = spn_pkg_get_target(&root->pkg, name, kind);
   SP_ASSERT(target);
   spn_target_unit_t* unit = SP_NULLPTR;
-  spn_try(spn_target_unit_ensure(&s->units, root, target, &unit));
+  spn_try(si_add_target_unit(&s->units, root, target, &unit));
   si_da(spn_target_unit_t*) roots = SP_NULLPTR;
   si_da_push(s->mem, roots, unit);
-  spn_closure_t closure = sp_zero;
-  spn_try(spn_closure_new(&s->units, root, roots, &closure));
-  return spn_plan_new(&s->units, closure, &s->plan);
+  return spn_plan_new(&s->units, spn_closure_collect(s->mem, root, roots), &s->plan);
 }

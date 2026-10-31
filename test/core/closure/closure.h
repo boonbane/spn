@@ -3,6 +3,7 @@
 #include "spn_test.h"
 
 #include "unit/types.h"
+#include "unit/closure/closure.h"
 #include "unit/unit.h"
 
 #define CLOSURE_TEST_MAX_PKGS 8
@@ -12,7 +13,6 @@
 
 typedef struct {
   const c8* name;
-  spn_dep_kind_t kind;
   bool private;
 } closure_dep_t;
 
@@ -54,4 +54,5 @@ typedef struct {
 closure_graph_t build_graph(closure_graph_test_t* t);
 spn_pkg_unit_t* find_pkg(spn_pkg_unit_t** pkgs, u32 count, const c8* name);
 spn_target_unit_t* find_lib(spn_pkg_unit_t** pkgs, u32 count, const c8* name);
-sp_err_t expect_target_names(sp_test_t* t, si_da(spn_target_unit_t*) targets, const c8* const* expect);
+si_da(si_closure_entry_t) closure_entries(sp_mem_t mem, spn_target_unit_t* root, si_closure_shared_t shared, si_closure_yield_t yield);
+sp_err_t expect_lib_names(sp_test_t* t, si_da(si_closure_entry_t) libs, const c8* const* expect);
