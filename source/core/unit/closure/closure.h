@@ -30,6 +30,7 @@ typedef struct {
   u32 edge;
   u32 child;
   bool private;
+  bool root;
 } si_closure_frame_t;
 
 typedef struct {
