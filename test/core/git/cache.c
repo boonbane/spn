@@ -416,8 +416,9 @@ sp_test_each(git_cache, ensure, cache_test_t, tests) {
     err = spn_git_db_ensure_rev(&cache, db, ids[c].rev);
     sp_must_eq(t, err, SPN_OK);
 
-    spn_git_checkout_t* checkout = SP_NULLPTR;
-    err = spn_git_cache_ensure_checkout(&cache, ids[c], &checkout);
+    bool fetching = false;
+    spn_git_checkout_t* checkout = spn_git_cache_checkout(&cache, ids[c], &fetching);
+    err = spn_git_checkout_ensure(&cache, checkout);
     sp_must(t, checkout != SP_NULLPTR);
 
     if (expect->err) {
@@ -441,8 +442,8 @@ sp_test_each(git_cache, ensure, cache_test_t, tests) {
       continue;
     }
 
-    spn_git_checkout_t* checkout = SP_NULLPTR;
-    spn_git_cache_ensure_checkout(&cache, ids[c], &checkout);
+    bool fetching = false;
+    spn_git_checkout_t* checkout = spn_git_cache_checkout(&cache, ids[c], &fetching);
     sp_must(t, checkout != SP_NULLPTR);
     sp_expect(t, sp_fs_is_dir_at(spn_path_at(&roots, checkout->path)));
 
