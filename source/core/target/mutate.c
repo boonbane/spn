@@ -2,28 +2,6 @@
 
 #include "intern/intern.h"
 
-void spn_linkage_set_add(spn_linkage_set_t* set, spn_linkage_t kind) {
-  switch (kind) {
-    case SPN_LIB_KIND_SOURCE: {
-      set->source = true;
-      break;
-    }
-    case SPN_LIB_KIND_SHARED: {
-      set->shared = true;
-      break;
-    }
-    case SPN_LIB_KIND_STATIC: {
-      set->static_lib = true;
-      break;
-    }
-    case SPN_LIB_KIND_OBJECT: {
-      set->object = true;
-      break;
-    }
-    case SPN_LIB_KIND_NONE: sp_unreachable_case();
-  }
-}
-
 bool spn_linkage_set_has(spn_linkage_set_t set, spn_linkage_t kind) {
   switch (kind) {
     case SPN_LIB_KIND_SOURCE: {
@@ -42,23 +20,6 @@ bool spn_linkage_set_has(spn_linkage_set_t set, spn_linkage_t kind) {
   }
 
   SP_UNREACHABLE_RETURN(false);
-}
-
-spn_linkage_t spn_linkage_set_default(spn_linkage_set_t set) {
-  if (set.object) {
-    return SPN_LIB_KIND_OBJECT;
-  }
-  if (set.source) {
-    return SPN_LIB_KIND_SOURCE;
-  }
-  if (set.static_lib) {
-    return SPN_LIB_KIND_STATIC;
-  }
-  if (set.shared) {
-    return SPN_LIB_KIND_SHARED;
-  }
-
-  SP_UNREACHABLE_RETURN(SPN_LIB_KIND_SHARED);
 }
 
 void spn_target_add_embed(sp_mem_t mem, si_target_t* target, spn_embed_t embed) {

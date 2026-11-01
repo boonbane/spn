@@ -147,7 +147,18 @@ spn_err_t si_add_target_unit(spn_units_t* u, spn_pkg_unit_t* pkg, si_target_t* t
   switch (target->info->kind) {
     case SPN_TARGET_KIND_LIB: {
       if (spn_linkage_set_has(target->info->linkages, SPN_LIB_KIND_OBJECT) || target->info->no_link) {
-        unit->lib_kind = spn_linkage_set_default(target->info->linkages);
+        if (target->info->linkages.object) {
+          unit->lib_kind = SPN_LIB_KIND_OBJECT;
+        }
+        if (target->info->linkages.source) {
+          unit->lib_kind = SPN_LIB_KIND_SOURCE;
+        }
+        if (target->info->linkages.static_lib) {
+          unit->lib_kind = SPN_LIB_KIND_STATIC;
+        }
+        if (target->info->linkages.shared) {
+          unit->lib_kind = SPN_LIB_KIND_SHARED;
+        }
       }
       else {
         const spn_profile_info_t* profile = &pkg->build->profile;
