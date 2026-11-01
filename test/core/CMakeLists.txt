@@ -19,11 +19,7 @@ add_executable(core
   triple.c
   version.c
   when.c
-  closure/harness.c
-  closure/closure.c
-  closure/chase.c
-  closure/libs.c
-  closure/siblings.c
+  closure.c
   compiler/harness.c
   compiler/invocation.c
   compiler/compile.c
