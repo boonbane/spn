@@ -74,21 +74,6 @@ typedef struct {
 } spn_gated_publish_t;
 
 typedef struct {
-  spn_pkg_unit_t* pkg;
-  si_da(spn_target_unit_t*) targets;
-  bool private;
-  bool links_code;
-} spn_closure_entry_t;
-
-typedef struct {
-  spn_pkg_unit_t* pkg;
-  spn_target_unit_t* lib;
-  bool private;
-} spn_link_lib_t;
-
-
-
-typedef struct {
   bool source;
   bool shared;
   bool static_lib;

@@ -259,8 +259,26 @@ static bool node_is_shared(spn_resolver_t* resolver, spn_resolved_pkg_t* node) {
         }
 
         spn_linkage_set_t linkages = sp_zero;
-        sp_da_for(target->linkages, jt) {
-          spn_linkage_set_add(&linkages, target->linkages[jt]);
+        sp_da_for_value(target->linkages, kind) {
+          switch (kind) {
+            case SPN_LIB_KIND_SOURCE: {
+              linkages.source = true;
+              break;
+            }
+            case SPN_LIB_KIND_SHARED: {
+              linkages.shared = true;
+              break;
+            }
+            case SPN_LIB_KIND_STATIC: {
+              linkages.static_lib = true;
+              break;
+            }
+            case SPN_LIB_KIND_OBJECT: {
+              linkages.object = true;
+              break;
+            }
+            case SPN_LIB_KIND_NONE: sp_unreachable_case();
+          }
         }
         if (target_selects_shared(linkages, query)) {
           return true;

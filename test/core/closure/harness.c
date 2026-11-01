@@ -1,11 +1,30 @@
 #include "closure.h"
 
+#include "unit/closure/closure.h"
+
 #include "intern/intern.h"
 
-sp_err_t expect_target_names(sp_test_t* t, si_da(spn_target_unit_t*) targets, const c8* const* expect) {
+si_da(si_closure_entry_t) closure_entries(sp_mem_t mem, spn_target_unit_t* root, si_closure_shared_t shared, si_closure_yield_t yield) {
+  si_da(si_closure_entry_t) post = sp_zero;
+  si_closure_it_t it = si_closure_it(mem, shared);
+  si_closure_it_push(&it, root);
+  while (si_closure_it_next(&it)) {
+    if (it.entry.yield == yield) {
+      si_da_push(mem, post, it.entry);
+    }
+  }
+
+  si_da(si_closure_entry_t) entries = sp_zero;
+  si_da_rfor(post, it) {
+    si_da_push(mem, entries, post[it]);
+  }
+  return entries;
+}
+
+sp_err_t expect_lib_names(sp_test_t* t, si_da(si_closure_entry_t) libs, const c8* const* expect) {
   sp_da(sp_str_t) names = sp_da_new(sp_test_arena(t), sp_str_t);
-  si_da_for_value(targets, target) {
-    sp_da_push(names, target->target->info->name.str);
+  si_da_for_ptr(libs, entry) {
+    sp_da_push(names, entry->lib->target->info->name.str);
   }
 
   sp_must_strs_eq(t, names, sp_da_size(names), expect);
@@ -93,14 +112,13 @@ closure_graph_t build_graph(closure_graph_test_t* t) {
   }
 
   sp_for(it, g.count) {
-    sp_da(spn_pkg_dep_t) deps = sp_da_new(g.mem, spn_pkg_dep_t);
+    sp_da(spn_pkg_edge_t) deps = sp_da_new(g.mem, spn_pkg_edge_t);
     sp_carr_for(t->pkgs[it].deps, d) {
       if (!t->pkgs[it].deps[d].name) {
         break;
       }
-      sp_da_push(deps, ((spn_pkg_dep_t) {
-        .unit = find_pkg(g.pkgs, g.count, t->pkgs[it].deps[d].name),
-        .kind = t->pkgs[it].deps[d].kind,
+      sp_da_push(deps, ((spn_pkg_edge_t) {
+        .pkg = find_pkg(g.pkgs, g.count, t->pkgs[it].deps[d].name),
         .private = t->pkgs[it].deps[d].private,
       }));
     }
@@ -125,6 +143,7 @@ closure_graph_t build_graph(closure_graph_test_t* t) {
   exe->pkg = root;
   exe->target = make_target(g.mem, root->pkg.manifest->name, t->target, false);
   exe->lib_kind = SPN_LIB_KIND_NONE;
+  exe->edges = root->deps;
   sp_da_init(g.mem, exe->deps);
   sp_carr_for(t->root_deps, it) {
     if (!t->root_deps[it]) {

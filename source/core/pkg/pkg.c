@@ -94,7 +94,7 @@ static si_target_t eval_target(eval_ctx_t* ctx, const si_target_info_t* decl) {
   return target;
 }
 
-si_pkg_t spn_pkg_eval(sp_mem_t mem, const si_pkg_info_t* manifest, const spn_path_roots_t* roots, spn_tree_roots_t trees, spn_when_env_t* env) {
+si_pkg_t si_evaluate_package(sp_mem_t mem, const si_pkg_info_t* manifest, const spn_path_roots_t* roots, spn_tree_roots_t trees, spn_when_env_t* env) {
   eval_ctx_t ctx = { .mem = mem, .roots = roots, .trees = trees, .env = env };
   si_pkg_t pkg = {
     .manifest = manifest,

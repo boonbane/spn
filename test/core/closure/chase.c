@@ -1,10 +1,12 @@
 #include "closure.h"
 
+#include "unit/closure/closure.h"
+
 static const target_list_test_t tests [] = {
   // Runtime collection crosses shared boundaries the link closure stops at: a
   // shared lib's own shared deps must still sit next to the executable
   {
-    .name = "collect_shared_transitively",
+    .name = "chase_through_shared",
     .graph = {
       .root = "P1",
       .pkgs = {
@@ -14,33 +16,29 @@ static const target_list_test_t tests [] = {
         { .name = "D3", .kind = SPN_LIB_KIND_SHARED },
       },
     },
-    .expect = { "D3", "D1" },
+    .expect = { "D1", "D2", "D3" },
   },
   {
-    .name = "include_sibling_shared",
+    .name = "chase_sibling_shared",
     .graph = {
       .root = "P1",
-      .root_deps = { "L1", "L2" },
+      .root_deps = { "L1" },
       .pkgs = {
         {
           .name = "P1",
-          .deps = { { "D1" } },
           .libs = {
-            { "L1", SPN_LIB_KIND_SHARED },
-            { "L2", SPN_LIB_KIND_SHARED, .no_link = true },
+            { "L1", SPN_LIB_KIND_SHARED, .deps = { "L2" } },
+            { "L2", SPN_LIB_KIND_STATIC },
           }
         },
-        { .name = "D1", .kind = SPN_LIB_KIND_SHARED },
       },
     },
-    .expect = { "L1", "D1" },
+    .expect = { "L1", "L2" },
   },
 };
 
-sp_test_each(runtime_libs, collect, target_list_test_t, tests, .setup = spn_test_ctx_setup) {
+sp_test_each(chase, shared, target_list_test_t, tests, .setup = spn_test_ctx_setup) {
   closure_graph_t g = build_graph(&it->graph);
 
-  si_da(spn_target_unit_t*) libs = si_link_get_target_runtime_libs(g.mem, g.root);
-
-  return expect_target_names(t, libs, it->expect);
+  return expect_lib_names(t, closure_entries(g.mem, g.root, SI_CLOSURE_CHASE_SHARED, SI_CLOSURE_YIELD_LIB), it->expect);
 }

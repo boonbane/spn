@@ -148,10 +148,9 @@ set(SPN_SOURCES
   core/unit/build.c
   core/unit/closure.c
   core/unit/fingerprint.c
-  core/unit/link.c
+  core/unit/closure/closure.c
   core/unit/pkg.c
   core/unit/plan.c
-  core/unit/target.c
   core/when/when.c
 )
 
