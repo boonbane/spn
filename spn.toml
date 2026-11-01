@@ -444,6 +444,7 @@ source = [
   "test/integration/example.c",
   "test/integration/exports.c",
   "test/integration/freshness.c",
+  "test/integration/glob.c",
   "test/integration/layout.c",
   "test/integration/linker.c",
   "test/integration/log.c",

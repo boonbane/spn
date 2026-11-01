@@ -58,6 +58,7 @@ add_executable(integration
   example.c
   exports.c
   freshness.c
+  glob.c
   layout.c
   linker.c
   log.c
