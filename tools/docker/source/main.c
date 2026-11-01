@@ -26,16 +26,6 @@ typedef struct {
 #define try(expr) do { sp_cli_result_t _e = (expr); if (_e) return _e; } while (0)
 #define cfmt(mem, ...) sp_str_to_cstr(mem, sp_fmt(mem, __VA_ARGS__).value)
 
-static spn_err_t fetch(spn_toolchain_store_t* store, sp_str_t url, sp_str_t dest, sp_str_t* output) {
-  smoke_t* smoke = store->fetch_user_data;
-  sp_ps_config_t curl = {
-    .command = sp_str_lit("curl"),
-    .args = { sp_str_lit("-fsSL"), sp_str_lit("-o"), dest, url },
-  };
-  sp_str_t log = docker_log(&smoke->docker, cfmt(smoke->mem, "fetch-{}", sp_fmt_str(sp_fs_get_name(dest))));
-  return tail_trace(smoke->mem, smoke->prompt, cfmt(smoke->mem, "curl {}", sp_fmt_str(url)), log, curl) ? SPN_ERROR : SPN_OK;
-}
-
 static sp_str_t verify_message(sp_mem_t mem, verify_t verify) {
   switch (verify.kind) {
     case VERIFY_OK: {
@@ -58,7 +48,7 @@ static sp_cli_result_t init(sp_cli_t* cli, smoke_t* smoke) {
   smoke->mem = sp_mem_os_new();
   sp_mem_t mem = smoke->mem;
 
-  switch (docker_init(&smoke->docker, mem, fetch, smoke)) {
+  switch (docker_init(&smoke->docker, mem)) {
     case DOCKER_INIT_OK: {
       return SP_CLI_OK;
     }
@@ -97,6 +87,7 @@ static sp_cli_result_t require(sp_cli_t* cli, smoke_t* smoke, const variant_t* v
 
 static sp_cli_result_t begin(sp_cli_t* cli, smoke_t* smoke) {
   smoke->prompt = sp_prompt_begin(smoke->mem);
+  smoke->docker.prompt = smoke->prompt;
   if (!smoke->prompt) {
     return sp_cli_set_error_c(cli, "smoke needs an interactive terminal");
   }

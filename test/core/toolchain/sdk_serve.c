@@ -18,8 +18,10 @@ static const test_t tests [] = {
   { .name = "empty_table_is_absent",        .target = HOST_ARM_MACOS },
 };
 
-sp_test_each(sdk_serve, from_host, test_t, tests) {
+sp_test_each(sdk_serve, host_sdk, test_t, tests) {
   sp_mem_t mem = sp_test_arena(t);
   spn_sdk_host_t host = fixture_sdks(mem, it->sdks);
-  return fixture_check_sdk(t, spn_sdk_from_host(&host, it->target), it->expect);
+  spn_sdk_t sdk = sp_zero;
+  spn_sdk_default(&host, it->target, &sdk);
+  return fixture_check_sdk(t, sdk, it->expect);
 }

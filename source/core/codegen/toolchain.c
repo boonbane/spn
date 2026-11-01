@@ -177,7 +177,7 @@ static void lower_toolchain_targets(spn_toml_loader_t* ctx, spn_path_root_t base
       spn_toml_loader_pop(ctx);
       continue;
     }
-    if (!spn_toolchain_driver_composes(driver, spn_ld_dialect(target.triple))) {
+    if (!spn_toolchain_driver_composes(driver, target.triple)) {
       spn_toml_loader_push_index(ctx, it);
       spn_toml_loader_issue_at(ctx, SPN_ERR_CODEGEN_INVALID, spn_triple_to_str(ctx->mem, target.triple));
       spn_toml_loader_pop(ctx);

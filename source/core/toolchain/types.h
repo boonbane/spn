@@ -2,6 +2,7 @@
 #define SPN_TOOLCHAIN_TYPES_H
 
 #include "sp.h"
+#include "fs/fs.h"
 #include "spn/core.h"
 
 #include "core/types.h"
@@ -235,7 +236,6 @@ typedef struct {
 } spn_toolchain_selection_t;
 
 typedef struct spn_toolchain_store spn_toolchain_store_t;
-typedef spn_err_t (*spn_fetch_fn)(spn_toolchain_store_t* store, sp_str_t url, sp_str_t dest, sp_str_t* output);
 
 typedef struct {
   sp_str_t path;
@@ -255,9 +255,15 @@ struct spn_toolchain_store {
   sp_mem_t mem;
   const spn_path_roots_t* roots;
   sp_str_t mirror;
-  spn_fetch_fn fetch;
-  void* fetch_user_data;
   spn_probe_cache_t probes;
 };
+
+typedef struct {
+  spn_artifact_t artifact;
+  spn_path_t root;
+  spn_path_t tarball;
+  sp_fs_lock_t lock;
+  bool present;
+} spn_toolchain_claim_t;
 
 #endif
