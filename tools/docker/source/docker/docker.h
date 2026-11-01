@@ -2,6 +2,7 @@
 #define SMOKE_DOCKER_H
 
 #include "sp.h"
+#include "sp/sp_prompt.h"
 #include "sp_template/sp_template.h"
 #include "toolchain/types.h"
 
@@ -49,6 +50,7 @@ typedef struct {
   spn_toolchain_catalog_t catalog;
   spn_path_roots_t roots;
   spn_toolchain_store_t store;
+  sp_prompt_ctx_t* prompt;
   sp_str_t host;
   struct {
     sp_str_t repo;
@@ -93,7 +95,7 @@ typedef struct {
   } err;
 } docker_t;
 
-docker_init_err_t      docker_init(docker_t* docker, sp_mem_t mem, spn_fetch_fn fetch, void* user);
+docker_init_err_t      docker_init(docker_t* docker, sp_mem_t mem);
 docker_tests_err_t     docker_tests_init(docker_t* docker);
 bool                   docker_require(docker_t* docker, const variant_t* variant);
 docker_provision_err_t docker_provision(docker_t* docker, const variant_t* variant);
