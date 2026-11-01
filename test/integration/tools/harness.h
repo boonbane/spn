@@ -20,6 +20,7 @@
 #define SPN_TEST_MAX_WATCHES 4
 #define SPN_TEST_MAX_BUILDS 3
 #define SPN_TEST_MAX_CONTAINS 4
+#define SPN_TEST_MAX_WITH 4
 
 typedef enum {
   PATH_NONE,
@@ -72,7 +73,6 @@ typedef enum {
   ACTION_CLEAR_WARM,
   ACTION_RUN_CLI,
   ACTION_RUN_BIN,
-  ACTION_RUN_TEST,
   ACTION_STAGE_BARE_RUN,
   ACTION_VERIFY_EXISTS,
   ACTION_VERIFY_NOT_EXISTS,
@@ -99,8 +99,8 @@ typedef struct {
     struct { path_t file; const c8* content; } create;
     struct { const c8* dir; } rm;
     struct { const c8* cmd; const c8* args [8]; const c8* env [4]; const c8* path; const c8* cwd; s32 rc; } cli;
-    struct { const c8* name; s32 rc; } bin;
-    struct { path_t file; bare_expect_t expect; } bare;
+    struct { path_t file; s32 rc; } bin;
+    struct { path_t file; path_t with [SPN_TEST_MAX_WITH]; bare_expect_t expect; } bare;
     path_t exists;
     path_t verify_no_interp;
     struct { path_t file; u64 entry; } verify_elf_entry;

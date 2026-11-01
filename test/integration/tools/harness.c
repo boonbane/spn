@@ -763,6 +763,13 @@ static sp_err_t stage_bare_run(sp_test_t* t, fixture_t* fixture, action_t action
 
   sp_str_t exe_name = sp_fs_get_name(path_render(fixture, action.bare.file));
   sp_try(sp_fs_copy_file_at(sp_path_cwd(at(fixture, action.bare.file)), sp_path_cwd(sp_fs_join_path(mem, dir, exe_name)), SP_FS_ATOMIC_REPLACE));
+  sp_carr_for(action.bare.with, it) {
+    if (action.bare.with[it].kind == PATH_NONE) {
+      break;
+    }
+    sp_str_t name = sp_fs_get_name(path_render(fixture, action.bare.with[it]));
+    sp_try(sp_fs_copy_file_at(sp_path_cwd(at(fixture, action.bare.with[it])), sp_path_cwd(sp_fs_join_path(mem, dir, name)), SP_FS_ATOMIC_REPLACE));
+  }
 
   spn_cg_probe_t probe = { .exe = exe_name, .expect = bare_expect_token(action.bare.expect) };
   return sp_fs_create_file_str(sp_fs_join_path(mem, dir, sp_str_lit("probe.json")), spn_probe_write(mem, &probe));
@@ -787,10 +794,8 @@ sp_err_t run_actions(sp_test_t* t, fixture_t* fixture, const action_t* actions) 
         fixture_create(fixture, path_render(fixture, action.create.file), sp_cstr_as_str(action.create.content));
         break;
       }
-      case ACTION_RUN_BIN:
-      case ACTION_RUN_TEST: {
-        path_t staged = action.kind == ACTION_RUN_TEST ? (path_t) test_exe(action.bin.name) : (path_t) exe(action.bin.name);
-        sp_str_t bin = at(fixture, staged);
+      case ACTION_RUN_BIN: {
+        sp_str_t bin = at(fixture, action.bin.file);
         expect_path(t, fixture, bin);
 
         sp_ps_output_t output = run_fixture_bin(fixture, bin);
@@ -926,8 +931,7 @@ sp_err_t run_test(sp_test_t* t, test_t test) {
     action_t action = test.actions[it];
     bool keep = true;
     switch (action.kind) {
-      case ACTION_RUN_BIN:
-      case ACTION_RUN_TEST: {
+      case ACTION_RUN_BIN: {
         keep = runs;
         break;
       }

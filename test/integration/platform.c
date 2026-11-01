@@ -7,7 +7,7 @@ static const test_t tests [] = {
     .copy = { "main.c" },
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_RUN_BIN, .bin.name = "main" },
+      { .kind = ACTION_RUN_BIN, .bin.file = exe("main") },
     },
   },
   {
@@ -25,7 +25,7 @@ static const test_t tests [] = {
     .when.os = SPN_OS_MACOS,
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_RUN_BIN, .bin.name = "main" },
+      { .kind = ACTION_RUN_BIN, .bin.file = exe("main") },
     },
   },
   {
@@ -55,7 +55,7 @@ static const test_t tests [] = {
     .when.driver = SPN_CC_DRIVER_MSVC,
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_RUN_BIN, .bin.name = "main" },
+      { .kind = ACTION_RUN_BIN, .bin.file = exe("main") },
     },
   },
 };

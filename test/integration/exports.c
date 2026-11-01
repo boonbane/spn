@@ -6,7 +6,7 @@ static const test_t tests [] = {
     .project = "test/integration/fixtures/exports/own_exported",
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { "build" } },
-      { .kind = ACTION_RUN_BIN, .bin = { .name = "main", .rc = 0 } },
+      { .kind = ACTION_RUN_BIN, .bin = { .file = exe("main"), .rc = 0 } },
     },
   },
   {
@@ -15,7 +15,7 @@ static const test_t tests [] = {
     .when.exports = true,
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { "build" } },
-      { .kind = ACTION_RUN_BIN, .bin = { .name = "main", .rc = 0 } },
+      { .kind = ACTION_RUN_BIN, .bin = { .file = exe("main"), .rc = 0 } },
     },
   },
   {
@@ -23,7 +23,7 @@ static const test_t tests [] = {
     .project = "test/integration/fixtures/exports/public_reexported",
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { "build" } },
-      { .kind = ACTION_RUN_BIN, .bin = { .name = "main", .rc = 0 } },
+      { .kind = ACTION_RUN_BIN, .bin = { .file = exe("main"), .rc = 0 } },
     },
   },
   {
@@ -39,7 +39,7 @@ static const test_t tests [] = {
     .project = "test/integration/fixtures/exports/no_interference",
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { "build" } },
-      { .kind = ACTION_RUN_BIN, .bin = { .name = "main", .rc = 0 } },
+      { .kind = ACTION_RUN_BIN, .bin = { .file = exe("main"), .rc = 0 } },
     },
   },
 };

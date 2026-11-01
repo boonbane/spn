@@ -130,7 +130,7 @@ static const test_t tests [] = {
     .copy = { "index/*" },
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build" } },
-      { .kind = ACTION_RUN_BIN, .bin = { .name = "main", .rc = 3 } },
+      { .kind = ACTION_RUN_BIN, .bin = { .file = exe("main"), .rc = 3 } },
     },
   },
   {

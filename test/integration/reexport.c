@@ -14,7 +14,7 @@ static const test_t tests [] = {
     .project = "test/integration/fixtures/reexport/private_owner",
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { "build" } },
-      { .kind = ACTION_RUN_BIN, .bin = { .name = "main", .rc = 0 } },
+      { .kind = ACTION_RUN_BIN, .bin = { .file = exe("main"), .rc = 0 } },
     },
   },
   {

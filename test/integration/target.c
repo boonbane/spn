@@ -208,7 +208,7 @@ static const test_t tests [] = {
     .copy = { "A.txt" },
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_RUN_BIN, .bin.name = "main" },
+      { .kind = ACTION_RUN_BIN, .bin.file = exe("main") },
     },
   },
 };

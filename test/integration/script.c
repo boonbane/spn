@@ -303,7 +303,7 @@ static const test_t tests [] = {
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
       { .kind = ACTION_VERIFY_PKG_LOCKED, .verify_locked.name = "core/spum" },
-      { .kind = ACTION_RUN_BIN, .bin.name = "cross_package" },
+      { .kind = ACTION_RUN_BIN, .bin.file = exe("cross_package") },
     },
   },
   {
@@ -316,7 +316,7 @@ static const test_t tests [] = {
       { .kind = ACTION_VERIFY_EXISTS, .exists = pkg_store_file("spum", "lib/manifest/rt/extra.c.o") },
       // an unlinked archive still builds and installs
       { .kind = ACTION_VERIFY_EXISTS, .exists = pkg_static_lib("spum", "blob") },
-      { .kind = ACTION_RUN_BIN, .bin.name = "object_lib" },
+      { .kind = ACTION_RUN_BIN, .bin.file = exe("object_lib") },
     },
   },
   {
@@ -325,7 +325,7 @@ static const test_t tests [] = {
     .copy = { "include" },
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_RUN_BIN, .bin.name = "configure_table" },
+      { .kind = ACTION_RUN_BIN, .bin.file = exe("configure_table") },
     },
   },
   {
@@ -333,7 +333,7 @@ static const test_t tests [] = {
     .project = "test/integration/fixtures/script/wrong_handle",
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_RUN_BIN, .bin.name = "wrong_handle" },
+      { .kind = ACTION_RUN_BIN, .bin.file = exe("wrong_handle") },
     },
   },
   {
@@ -344,7 +344,7 @@ static const test_t tests [] = {
       { .kind = ACTION_VERIFY_PKG_LOCKED, .verify_locked.name = "core/spum" },
       { .kind = ACTION_VERIFY_DIR_COUNT, .verify_dir_count = { .dir = ".home/storage/cache/store/core/spum", .count = 1 } },
       { .kind = ACTION_VERIFY_EVENT_COUNT, .verify_event_count = { .event = SPN_EVENT_USER_LOG, .key = "message", .value = "spum configure", .count = 0 } },
-      { .kind = ACTION_RUN_BIN, .bin.name = "build_deps" },
+      { .kind = ACTION_RUN_BIN, .bin.file = exe("build_deps") },
     },
   },
   {
@@ -354,7 +354,7 @@ static const test_t tests [] = {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
       { .kind = ACTION_VERIFY_EVENT_COUNT, .verify_event_count = { .event = SPN_EVENT_USER_LOG, .key = "message", .value = "gamma configure", .count = 1 } },
       { .kind = ACTION_VERIFY_DIR_COUNT, .verify_dir_count = { .dir = ".home/storage/cache/store/core/gamma", .count = 2 } },
-      { .kind = ACTION_RUN_BIN, .bin.name = "dual_ctx" },
+      { .kind = ACTION_RUN_BIN, .bin.file = exe("dual_ctx") },
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
       { .kind = ACTION_VERIFY_EVENT_COUNT, .verify_event_count = { .event = SPN_EVENT_USER_LOG, .key = "message", .value = "gamma configure", .count = 1 } },
     },
@@ -368,7 +368,7 @@ static const test_t tests [] = {
       { .kind = ACTION_VERIFY_PKG_LOCKED, .verify_locked.name = "core/beta" },
       { .kind = ACTION_VERIFY_DIR_COUNT, .verify_dir_count = { .dir = ".home/storage/cache/store/core/alpha", .count = 1 } },
       { .kind = ACTION_VERIFY_DIR_COUNT, .verify_dir_count = { .dir = ".home/storage/cache/store/core/beta", .count = 1 } },
-      { .kind = ACTION_RUN_BIN, .bin.name = "build_dep_closure" },
+      { .kind = ACTION_RUN_BIN, .bin.file = exe("build_dep_closure") },
     },
   },
   {
@@ -387,7 +387,7 @@ static const test_t tests [] = {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
       { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build", .args = { "-m", "release" } } },
       { .kind = ACTION_VERIFY_DIR_COUNT, .verify_dir_count = { .dir = ".home/storage/cache/store/core/spum", .count = 1 } },
-      { .kind = ACTION_RUN_BIN, .bin.name = "build_dep_static" },
+      { .kind = ACTION_RUN_BIN, .bin.file = exe("build_dep_static") },
     },
   },
   {
@@ -395,7 +395,7 @@ static const test_t tests [] = {
     .project = "test/integration/fixtures/script/add_define",
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_RUN_BIN, .bin.name = "main" },
+      { .kind = ACTION_RUN_BIN, .bin.file = exe("main") },
     },
   },
   {
@@ -404,7 +404,7 @@ static const test_t tests [] = {
     .copy = { "include/*" },
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_RUN_BIN, .bin.name = "main" },
+      { .kind = ACTION_RUN_BIN, .bin.file = exe("main") },
     },
   },
   {
@@ -413,7 +413,7 @@ static const test_t tests [] = {
     .copy = { "hello.txt" },
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_RUN_BIN, .bin = { .name = "main", .rc = 0 } },
+      { .kind = ACTION_RUN_BIN, .bin = { .file = exe("main"), .rc = 0 } },
     },
   },
 };

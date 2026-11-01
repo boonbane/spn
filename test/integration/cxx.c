@@ -9,7 +9,7 @@ static const test_t tests [] = {
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
       { .kind = ACTION_VERIFY_EXISTS, .exists = pkg_static_lib("spum", "spum") },
-      { .kind = ACTION_RUN_BIN, .bin.name = "main" },
+      { .kind = ACTION_RUN_BIN, .bin.file = exe("main") },
     },
   },
   {
@@ -20,7 +20,7 @@ static const test_t tests [] = {
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
       { .kind = ACTION_VERIFY_EXISTS, .exists = pkg_shared_lib("spum", "spum") },
-      { .kind = ACTION_RUN_BIN, .bin.name = "main" },
+      { .kind = ACTION_RUN_BIN, .bin.file = exe("main") },
     },
   },
   {
@@ -30,7 +30,7 @@ static const test_t tests [] = {
     .when.cxx = true,
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_RUN_BIN, .bin.name = "main" },
+      { .kind = ACTION_RUN_BIN, .bin.file = exe("main") },
     },
   },
   {
@@ -71,7 +71,7 @@ static const test_t tests [] = {
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
       { .kind = ACTION_VERIFY_EXISTS, .exists = pkg_shared_lib("spum", "spum") },
-      { .kind = ACTION_RUN_BIN, .bin.name = "main" },
+      { .kind = ACTION_RUN_BIN, .bin.file = exe("main") },
     },
   },
   {
@@ -81,7 +81,7 @@ static const test_t tests [] = {
     .when.cxx = true,
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_RUN_BIN, .bin.name = "main" },
+      { .kind = ACTION_RUN_BIN, .bin.file = exe("main") },
     },
   },
   {
@@ -92,7 +92,7 @@ static const test_t tests [] = {
     .copy = { "packages/*" },
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_RUN_BIN, .bin.name = "main" },
+      { .kind = ACTION_RUN_BIN, .bin.file = exe("main") },
     },
   },
   {
@@ -102,7 +102,7 @@ static const test_t tests [] = {
     .when.cxx = true,
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_RUN_BIN, .bin.name = "main" },
+      { .kind = ACTION_RUN_BIN, .bin.file = exe("main") },
       { .kind = ACTION_STAGE_BARE_RUN, .bare = { .file = exe("main"), .expect = BARE_EXPECT_RUNS } },
     },
   },
@@ -124,7 +124,7 @@ static const test_t tests [] = {
     .when.cxx = true,
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_RUN_BIN, .bin.name = "main" },
+      { .kind = ACTION_RUN_BIN, .bin.file = exe("main") },
       { .kind = ACTION_STAGE_BARE_RUN, .bare = { .file = exe("main"), .expect = BARE_EXPECT_RUNS } },
     },
   },
