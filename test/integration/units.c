@@ -86,24 +86,3 @@ sp_test(units, build_dep_bootstrap) {
     },
   });
 }
-
-sp_test(units, same_version_split) {
-  return sp_test_skip(t, "disabled");
-  return run_test(t, (test_t) {
-    .project = "test/integration/fixtures/units/same_version_split",
-    .actions = {
-      { .kind = ACTION_RUN_CLI, .cli = { "build" } },
-      { .kind = ACTION_VERIFY_EVENT, .verify_event = { .event = SPN_EVENT_RESOLVE_END, .key = "num_resolved", .value = "6" } },
-    },
-  });
-}
-
-sp_test(units, sibling_order) {
-  return sp_test_skip(t, "disabled");
-  return run_test(t, (test_t) {
-    .project = "test/integration/fixtures/units/sibling_order",
-    .actions = {
-      { .kind = ACTION_RUN_CLI, .cli = { "build" } },
-    },
-  });
-}

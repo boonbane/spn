@@ -1,9 +1,0 @@
-[package]
-name = "sdl"
-version = "1.0.0"
-
-[[lib]]
-name = "sdl"
-kinds = ["static"]
-source = ["sdl.c"]
-publish.include = [{ from = "source/sdl.h" }]

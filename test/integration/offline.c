@@ -41,22 +41,6 @@ sp_test(offline, store_only_unlocked) {
   });
 }
 
-sp_test(offline, no_source_cache) {
-  return sp_test_skip(t, "a store hit still syncs sources when the checkout is gone; passes once store-only consumption covers resolve");
-
-  return run_test(t, (test_t) {
-    .project = "test/integration/fixtures/deps/index/binary_static",
-    .actions = {
-      { .kind = ACTION_RUN_CLI, .cli = { "build" } },
-      { .kind = ACTION_REMOVE_DIR, .rm = { .dir = "remote/spum" } },
-      { .kind = ACTION_REMOVE_DIR, .rm = { .dir = ".home/storage/cache/source" } },
-      { .kind = ACTION_REMOVE_DIR, .rm = { .dir = "build" } },
-      { .kind = ACTION_RUN_CLI, .cli = { "build" } },
-      { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
-    },
-  });
-}
-
 sp_test(offline, relocated_checkout) {
   return run_test(t, (test_t) {
     .project = "test/integration/fixtures/offline/relocated_checkout",

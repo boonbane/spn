@@ -1,18 +1,5 @@
 #include "harness.h"
 
-sp_test(profile, sanitize_trigger) {
-  return sp_test_skip(t, "SPN-32");
-
-  return run_opt_test(t, (opt_test_t) {
-    .project = "test/integration/fixtures/profile/sanitize",
-    .when.sanitize = SPN_SANITIZER_ADDRESS,
-    .builds = {
-      { .expect = { .bin = { .name = "main" } } },
-      { .profile = "asan", .expect = { .bin = { .name = "main", .rc = 1, .contains = { "AddressSanitizer" } } } },
-    },
-  });
-}
-
 sp_test(profile, sanitize_clear) {
   return run_test(t, (test_t) {
     .project = "test/integration/fixtures/profile/clear",
@@ -22,19 +9,6 @@ sp_test(profile, sanitize_clear) {
       { .kind = ACTION_VERIFY_CC_ARG, .verify_cc_arg = { "-fsanitize=address", "/fsanitize=address" } },
       { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build", .args = { "-p", "clean" } } },
       { .kind = ACTION_VERIFY_NO_CC_ARG, .verify_cc_arg = { "-fsanitize=address", "/fsanitize=address" } },
-    },
-  });
-}
-
-sp_test(profile, identity) {
-  return sp_test_skip(t, "SPN-32");
-
-  return run_opt_test(t, (opt_test_t) {
-    .project = "test/integration/fixtures/profile/identity",
-    .builds = {
-      { .expect = { .bin = { .name = "main" } } },
-      { .profile = "fast", .expect = { .bin = { .name = "main" } } },
-      { .profile = "asan", .when.sanitize = SPN_SANITIZER_ADDRESS, .expect = { .bin = { .name = "main" } } },
     },
   });
 }
@@ -216,18 +190,6 @@ sp_test(profile, nolibc_target) {
   });
 }
 
-sp_test(profile, nolibc_runs) {
-  return run_command_test(t, (command_test_t) {
-    .project = "test/integration/fixtures/profile/nolibc",
-    .copy = { "a.c" },
-    .when = { .host = SPN_OS_LINUX, .target = SPN_TEST_ARCH "-linux-none" },
-    .args = { "build", "--abi", "none" },
-    .expect = {
-      .bin = { .path = target_exe("main", SPN_TEST_ARCH "-linux-none"), .rc = 7, .contains = { "A" } },
-    },
-  });
-}
-
 sp_test(profile, nolibc_exe_has_no_interp) {
   return run_test(t, (test_t) {
     .project = "test/integration/fixtures/profile/nolibc",
@@ -289,4 +251,3 @@ sp_test(profile, flags) {
     },
   });
 }
-

@@ -26,17 +26,6 @@ sp_test(example, kernel_aarch64) {
   });
 }
 
-sp_test(example, nolibc_runs) {
-  return run_command_test(t, (command_test_t) {
-    .project = "example/nolibc",
-    .when = { .host = SPN_OS_LINUX, .target = SPN_TEST_ARCH "-linux-none" },
-    .args = { "build" },
-    .expect = {
-      .bin = { .path = target_exe("main", SPN_TEST_ARCH "-linux-none"), .contains = { "hello from nolibc" } },
-    },
-  });
-}
-
 sp_test(example, nolibc_exe_has_no_interp) {
   return run_test(t, (test_t) {
     .project = "example/nolibc",

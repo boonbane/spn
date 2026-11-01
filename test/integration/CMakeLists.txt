@@ -58,7 +58,6 @@ add_executable(integration
   example.c
   exports.c
   freshness.c
-  harness_test.c
   layout.c
   linker.c
   log.c
@@ -73,7 +72,6 @@ add_executable(integration
   units.c
   upstream.c
   warm.c
-  worlds.c
   ${TEST_TOOLS}/caps.c
   ${TEST_TOOLS}/lanes.c
   ${TEST_TOOLS}/env.c

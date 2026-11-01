@@ -493,33 +493,6 @@ sp_test(script, embed_cross_windows_aarch64) {
   });
 }
 
-sp_test(script, input_order) {
-  return sp_test_skip(t, "pending: canonicalize declared node input/output order in DAG construction");
-
-  return run_rebuild_test(t, (rebuild_test_t) {
-    .project = "test/integration/fixtures/script/input_order",
-    .copy = { "a.txt", "b.txt", "c.txt", "inputs.txt", "inputs.reordered.txt" },
-    .first = {
-      .args = { "build" },
-      .expect = {
-        .events = { { .event = SPN_EVENT_SCRIPT_USER_FN } },
-        .exists = { work_file("input_order/gen.h") },
-      },
-    },
-    .rebuilds = {
-      {
-        .change.moves = {
-          { .from = sp_str_lit("inputs.reordered.txt"), .to = sp_str_lit("inputs.txt") },
-        },
-        .command = {
-          .args = { "build" },
-          .expect.events = { { .event = SPN_EVENT_SCRIPT_USER_FN, .absent = true } },
-        },
-      },
-    },
-  });
-}
-
 sp_test(script, generated_source) {
   return run_command_test(t, (command_test_t) {
     .project = "test/integration/fixtures/script/generated_source",
