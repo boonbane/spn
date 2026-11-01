@@ -115,10 +115,6 @@ spn_err_t spn_op_build(spn_op_t* op) {
   session->dag.discovery.stats = &session->dag.stats;
   session->dag.store.stats = &session->dag.stats;
 
-  if (spn_wasm_init()) {
-    return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_WASM_INIT_FAILED });
-  }
-
   spn_build_unit_t* build = session->builds.program;
 
   spn_units_t configure = {

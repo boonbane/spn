@@ -49,7 +49,6 @@ static site_t find_site(spn_toml_edit_t* edit, sp_mem_t mem, sp_str_t table, sp_
 }
 
 static spn_err_t add(spn_ctx_t* ctx, spn_add_request_t request, spn_semver_range_t range) {
-  spn_try(spn_ctx_require_project(ctx));
 
   spn_pkg_name_t name = spn_pkg_name_from_qualified(request.name);
 

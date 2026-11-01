@@ -980,47 +980,6 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           );
           break;
         }
-        case SPN_ERR_PATH_COMPONENT: {
-          sp_tty_fmt(
-            &w,
-            "Path {.yellow} must not contain '.', '..', or empty components",
-            sp_fmt_str(contextual_path(mem, event->err.fs.path))
-          );
-          break;
-        }
-        case SPN_ERR_PATH_ABSOLUTE: {
-          sp_tty_fmt(
-            &w,
-            "Path {.yellow} must be relative",
-            sp_fmt_str(contextual_path(mem, event->err.fs.path))
-          );
-          break;
-        }
-        case SPN_ERR_PATH_FOREIGN: {
-          sp_tty_fmt(
-            &w,
-            "Path {.yellow} is outside every directory spn manages",
-            sp_fmt_str(contextual_path(mem, event->err.fs.path))
-          );
-          break;
-        }
-        case SPN_ERR_PATH_OUTSIDE_PROJECT: {
-          sp_tty_fmt(
-            &w,
-            "Path {.yellow} is not inside the project",
-            sp_fmt_str(contextual_path(mem, event->err.fs.path))
-          );
-          break;
-        }
-        case SPN_ERR_NAME_SEPARATOR: {
-          sp_tty_fmt(
-            &w,
-            "{.cyan} names {.yellow}, but names may not contain '/'",
-            sp_fmt_str(event->err.target.pkg),
-            sp_fmt_str(event->err.target.name)
-          );
-          break;
-        }
         case SPN_ERR_INDEX_UNKNOWN: {
           sp_tty_fmt(
             &w,
