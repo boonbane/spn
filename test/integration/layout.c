@@ -1,16 +1,24 @@
 #include "harness.h"
 
-static const command_test_t commands [] = {
+static const test_t tests [] = {
   {
-    .name = "staged_bin",
+    .name = "staged_bin_loads_its_libs",
     .project = "test/integration/fixtures/layout/test_shared",
     .copy = { "check.c", "packages/*" },
-    .args = { "build" },
-    .expect = {
-      .bin.name = "main",
-      .exists = { exe("main"), staged_lib("spum") },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = staged_lib("spum") },
+      { .kind = ACTION_RUN_BIN, .bin.file = exe("main") },
+      { .kind = ACTION_STAGE_BARE_RUN, .bare = { .file = exe("main"), .with = { staged_lib("spum") }, .expect = BARE_EXPECT_RUNS } },
     },
   },
+};
+
+sp_test_each(layout, cases, test_t, tests) {
+  return run_test(t, *it);
+}
+
+static const command_test_t commands [] = {
   {
     .name = "staged_test",
     .project = "test/integration/fixtures/layout/test_shared",
