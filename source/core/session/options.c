@@ -70,13 +70,9 @@ static void sweep_unreachable(spn_session_t* session) {
   sp_ht(spn_pkg_id_t, u8) visited = SP_NULLPTR;
   sp_ht_init(mem, visited);
   sp_da(spn_pkg_id_t) frontier = sp_da_new(mem, spn_pkg_id_t);
-
-  sp_ht_for_kv(session->resolve, it) {
-    if (it.val->source == SPN_PKG_SOURCE_ROOT) {
-      sp_ht_insert(visited, it.val->id, (u8)true);
-      sp_da_push(frontier, it.val->id);
-    }
-  }
+  spn_pkg_id_t root = session->root->id;
+  sp_ht_insert(visited, root, (u8)true);
+  sp_da_push(frontier, root);
 
   while (!sp_da_empty(frontier)) {
     spn_pkg_id_t id = *sp_da_back(frontier);
@@ -102,6 +98,7 @@ static void sweep_unreachable(spn_session_t* session) {
     }
   }
   session->resolve = kept;
+  session->root = sp_ht_getp(session->resolve, root);
 }
 
 static spn_err_t validate_config_keys(spn_session_t* session) {

@@ -133,12 +133,7 @@
     "cancelled": { "properties": {} },
     "patch_unused": { "properties": {} },
     "patch_not_git": { "properties": {} },
-    "patch_file_missing": { "ref": "patch_file" },
-    "path_component": { "ref": "fs" },
-    "path_absolute": { "ref": "fs" },
-    "path_foreign": { "ref": "fs" },
-    "path_outside_project": { "ref": "fs" },
-    "name_separator": { "ref": "target" }
+    "patch_file_missing": { "ref": "patch_file" }
   },
   "definitions": {
     "manifest_parse": {

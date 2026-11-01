@@ -7,7 +7,7 @@
 #include "compiler/driver.h"
 #include "dag/node.h"
 #include "paths/paths.h"
-#include "session/invocation.h"
+#include "graph/invocation.h"
 #include "graph/build.h"
 #include "graph/nodes/nodes.h"
 

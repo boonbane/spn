@@ -168,7 +168,9 @@ static spn_err_t materialize_tree(spn_session_t* session, sp_str_t name, spn_pkg
       return SPN_OK;
     }
     case SPN_PKG_ROOT_GIT: {
-      if (!spn_git_cache_is_checkout_cached(&session->ctx->caches.git, tree.git)) {
+      bool fetching = false;
+      spn_git_checkout_t* checkout = spn_git_cache_checkout(&session->ctx->caches.git, tree.git, &fetching);
+      if (fetching) {
         spn_event_buffer_push(spn.events, (spn_event_t){
           .kind = SPN_EVENT_SYNC,
           .sync = {
@@ -178,8 +180,7 @@ static spn_err_t materialize_tree(spn_session_t* session, sp_str_t name, spn_pkg
         });
       }
 
-      spn_git_checkout_t* checkout = SP_NULLPTR;
-      if (spn_git_cache_ensure_checkout(&session->ctx->caches.git, tree.git, &checkout)) {
+      if (spn_git_checkout_ensure(&session->ctx->caches.git, checkout)) {
         sp_str_t error = sp_str_lit("failed to fetch repository");
         if (!sp_str_empty(checkout->error)) {
           error = checkout->error;
@@ -214,13 +215,17 @@ static spn_err_t fetch_package(pkg_job_t* job) {
   bool* fetched = &job->fetched;
   sp_str_t qualified = spn_intern_find(pkg->id.qualified);
 
-  if (job->patched && !spn_git_cache_is_checkout_cached(&session->ctx->caches.git, pkg->origin.source.git)) {
-    spn_event_buffer_push(spn.events, (spn_event_t) {
-      .kind = SPN_EVENT_SYNC_PATCH,
-      .sync = {
-        .name = qualified,
-        .url = pkg->origin.source.git.url,
-      }});
+  if (job->patched) {
+    bool fetching = false;
+    spn_git_cache_checkout(&session->ctx->caches.git, pkg->origin.source.git, &fetching);
+    if (fetching) {
+      spn_event_buffer_push(spn.events, (spn_event_t) {
+        .kind = SPN_EVENT_SYNC_PATCH,
+        .sync = {
+          .name = qualified,
+          .url = pkg->origin.source.git.url,
+        }});
+    }
   }
 
   spn_try(materialize_tree(session, qualified, pkg->origin.recipe, &pkg->roots.recipe, fetched));

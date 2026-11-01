@@ -8,7 +8,7 @@
 #include "graph/build.h"
 #include "graph/nodes/nodes.h"
 #include "paths/paths.h"
-#include "session/invocation.h"
+#include "graph/invocation.h"
 
 static spn_err_t run_linker(sp_mem_t mem, const si_dag_ctx_t* c, si_link_t* link) {
   spn_cc_link_files_t files = {

@@ -57,6 +57,7 @@ typedef sp_ht(spn_pkg_id_t, spn_resolved_pkg_t) spn_resolve_t;
 typedef struct {
   sp_da(spn_requested_dep_t) reqs;
   spn_resolve_t result;
+  spn_pkg_id_t root;
   sp_da(spn_err_union_t) errors;
   u64 time;
 } spn_resolve_query_t;

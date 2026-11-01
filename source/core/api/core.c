@@ -51,32 +51,21 @@ sp_str_t spn_api_dir(spn_pkg_unit_t* unit, spn_dir_t dir) {
   return spn_path_str(&unit->units->ctx->roots, spn.mem, spn_api_dir_path(unit, dir));
 }
 
-static void reject(spn_pkg_unit_t* unit, const c8* fn, sp_str_t path, spn_err_t kind) {
-  sp_str_t reason = sp_zero;
-  switch (kind) {
-    case SPN_ERR_PATH_COMPONENT: reason = sp_str_lit("must not contain '.', '..', or empty components"); break;
-    case SPN_ERR_PATH_ABSOLUTE:  reason = sp_str_lit("must be relative"); break;
-    case SPN_ERR_PATH_FOREIGN:   reason = sp_str_lit("is outside every directory spn manages"); break;
-    default: sp_unreachable_case();
-  }
+static void reject(const c8* fn, sp_str_t path, const c8* reason) {
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  sp_str_t message = sp_fmt(scratch.mem, "{}: {} {}", SP_FMT_CSTR(fn), SP_FMT_STR(path), SP_FMT_STR(reason)).value;
-  if (!spn_wasm_trap(message)) {
-    spn_err_emit(unit->units->ctx, (spn_err_union_t) {
-      .kind = kind,
-      .fs = { .path = { .sub = sp_str_copy(spn.events->mem, path) } },
-    });
-  }
+  sp_str_t message = sp_fmt(scratch.mem, "{}: {} {}", SP_FMT_CSTR(fn), SP_FMT_STR(path), SP_FMT_CSTR(reason)).value;
+  bool trapped = spn_wasm_trap(message);
   sp_mem_end_scratch(scratch);
+  sp_assert(trapped);
 }
 
-bool spn_api_path_rejected(spn_pkg_unit_t* unit, const c8* fn, sp_str_t path) {
+bool spn_api_path_rejected(const c8* fn, sp_str_t path) {
   if (!spn_path_normal(path)) {
-    reject(unit, fn, path, SPN_ERR_PATH_COMPONENT);
+    reject(fn, path, "must not contain '.', '..', or empty components");
     return true;
   }
   if (sp_fs_is_absolute(path)) {
-    reject(unit, fn, path, SPN_ERR_PATH_ABSOLUTE);
+    reject(fn, path, "must be relative");
     return true;
   }
   return false;
@@ -113,7 +102,7 @@ static bool foreign(spn_pkg_unit_t* unit, spn_path_t path) {
 spn_path_t spn_api_tree_path(spn_pkg_unit_t* unit, const c8* fn, const c8* path) {
   sp_str_t str = sp_cstr_as_str(path);
   if (!spn_path_normal(str)) {
-    reject(unit, fn, str, SPN_ERR_PATH_COMPONENT);
+    reject(fn, str, "must not contain '.', '..', or empty components");
     return sp_zero_struct(spn_path_t);
   }
   if (!sp_fs_is_absolute(str)) {
@@ -121,7 +110,7 @@ spn_path_t spn_api_tree_path(spn_pkg_unit_t* unit, const c8* fn, const c8* path)
   }
   spn_path_t absolute = spn_path_make(&unit->units->ctx->roots, str);
   if (foreign(unit, absolute)) {
-    reject(unit, fn, str, SPN_ERR_PATH_FOREIGN);
+    reject(fn, str, "is outside every directory spn manages");
     return sp_zero_struct(spn_path_t);
   }
   return spn_path_copy(spn.mem, absolute);
@@ -144,19 +133,15 @@ spn_target_t* spn_get_target(spn_t* spn, const c8* name, spn_target_kind_t kind)
   return eval ? wrap(unit, eval) : SP_NULLPTR;
 }
 
-bool spn_api_name_rejected(spn_pkg_unit_t* unit, const c8* fn, const c8* name) {
+bool spn_api_name_rejected(const c8* fn, const c8* name) {
   sp_str_t str = sp_cstr_as_str(name);
   if (!sp_str_contains(str, sp_str_lit("/"))) {
     return false;
   }
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   sp_str_t message = sp_fmt(scratch.mem, "{}: {} may not contain '/'", SP_FMT_CSTR(fn), SP_FMT_STR(str)).value;
-  if (!spn_wasm_trap(message)) {
-    spn_err_emit(unit->units->ctx, (spn_err_union_t) {
-      .kind = SPN_ERR_NAME_SEPARATOR,
-      .target = { .pkg = unit->pkg.manifest->name.str, .name = sp_str_copy(spn.events->mem, str) },
-    });
-  }
+  bool trapped = spn_wasm_trap(message);
+  sp_assert(trapped);
   sp_mem_end_scratch(scratch);
   return true;
 }
@@ -204,7 +189,7 @@ const c8* spn_get_dir(const spn_t* s, spn_dir_t dir) {
 
 const c8* spn_get_subdir(const spn_t* s, spn_dir_t base, const c8* path) {
   spn_pkg_unit_t* unit = spn_api_unit(s);
-  if (spn_api_path_rejected(unit, "spn_get_subdir", sp_str_view(path))) {
+  if (spn_api_path_rejected("spn_get_subdir", sp_str_view(path))) {
     return "";
   }
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
@@ -282,7 +267,7 @@ void spn_target_add_define_path(spn_target_t* target, const c8* name, spn_dir_t 
   spn_pkg_unit_t* unit = target->unit;
   sp_mem_t mem = unit->units->mem;
 
-  if (spn_api_path_rejected(unit, "spn_target_add_define_path", sp_str_view(path))) {
+  if (spn_api_path_rejected("spn_target_add_define_path", sp_str_view(path))) {
     return;
   }
 
@@ -296,12 +281,8 @@ void spn_target_add_define_path(spn_target_t* target, const c8* name, spn_dir_t 
   else {
     sp_str_t full = spn_path_str(&unit->units->ctx->roots, scratch.mem, joined);
     sp_str_t message = sp_fmt(scratch.mem, "spn_target_add_define_path: {} is not inside the project", SP_FMT_STR(full)).value;
-    if (!spn_wasm_trap(message)) {
-      spn_err_emit(unit->units->ctx, (spn_err_union_t) {
-        .kind = SPN_ERR_PATH_OUTSIDE_PROJECT,
-        .fs = { .path = spn_path_copy(spn.events->mem, joined) },
-      });
-    }
+    bool trapped = spn_wasm_trap(message);
+    sp_assert(trapped);
   }
   sp_mem_end_scratch(scratch);
 }
@@ -311,25 +292,21 @@ void spn_target_add_flag(spn_target_t* target, const c8* flag) {
   si_da_push(mem, target->target->flags, sp_str_from_cstr(mem, flag));
 }
 
-static bool embed_dest_rejected(spn_pkg_unit_t* unit, const c8* fn, sp_str_t dest) {
+static bool embed_dest_rejected(const c8* fn, sp_str_t dest) {
   if (!sp_str_empty(dest) && !sp_fs_is_absolute(dest) && spn_path_normal(dest)) {
     return false;
   }
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   sp_str_t message = sp_fmt(scratch.mem, "{}: {} must be a relative, non-empty path without '.' or '..' components", SP_FMT_CSTR(fn), SP_FMT_STR(dest)).value;
-  if (!spn_wasm_trap(message)) {
-    spn_err_emit(unit->units->ctx, (spn_err_union_t) {
-      .kind = SPN_ERR_PATH_COMPONENT,
-      .fs = { .path = { .sub = sp_str_copy(spn.events->mem, dest) } },
-    });
-  }
+  bool trapped = spn_wasm_trap(message);
+  sp_assert(trapped);
   sp_mem_end_scratch(scratch);
   return true;
 }
 
 void spn_target_embed_file(spn_target_t* t, const c8* file) {
   spn_path_t made = api_path(t->unit, "spn_target_embed_file", file);
-  if (spn_path_empty(made) || embed_dest_rejected(t->unit, "spn_target_embed_file", sp_str_view(file))) {
+  if (spn_path_empty(made) || embed_dest_rejected("spn_target_embed_file", sp_str_view(file))) {
     return;
   }
   spn_target_add_embed(t->unit->units->mem, t->target, (spn_embed_t) {
@@ -341,7 +318,7 @@ void spn_target_embed_file(spn_target_t* t, const c8* file) {
 
 void spn_target_embed_file_ex(spn_target_t* t, const c8* file, const c8* dest, const c8* data_type, const c8* size_type) {
   spn_path_t made = api_path(t->unit, "spn_target_embed_file_ex", file);
-  if (spn_path_empty(made) || embed_dest_rejected(t->unit, "spn_target_embed_file_ex", sp_str_view(dest))) {
+  if (spn_path_empty(made) || embed_dest_rejected("spn_target_embed_file_ex", sp_str_view(dest))) {
     return;
   }
   spn_target_add_embed(t->unit->units->mem, t->target, (spn_embed_t) {
@@ -354,7 +331,7 @@ void spn_target_embed_file_ex(spn_target_t* t, const c8* file, const c8* dest, c
 
 void spn_target_embed_dir_ex(spn_target_t* t, const c8* dir, const c8* dest, const c8* data_type, const c8* size_type) {
   spn_path_t made = api_path(t->unit, "spn_target_embed_dir_ex", dir);
-  if (spn_path_empty(made) || embed_dest_rejected(t->unit, "spn_target_embed_dir_ex", sp_str_view(dest))) {
+  if (spn_path_empty(made) || embed_dest_rejected("spn_target_embed_dir_ex", sp_str_view(dest))) {
     return;
   }
   spn_target_add_embed(t->unit->units->mem, t->target, (spn_embed_t) {

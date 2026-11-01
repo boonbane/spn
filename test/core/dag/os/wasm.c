@@ -1,5 +1,5 @@
 #include "dag/dag_test.h"
-#include "dag/wasi.h"
+#include "external/wasm/wasi.h"
 #include "wasm_emit.h"
 
 #define DAG_WASM_MAX_FILES 4
@@ -161,7 +161,7 @@ static sp_err_t bring_up_runtime(void* user) {
   if (!wasm_runtime_init()) {
     return SP_ERR;
   }
-  if (spn_dag_wasi_install() != SPN_OK) {
+  if (spn_wasi_install() != SPN_OK) {
     return SP_ERR;
   }
   return SP_OK;
@@ -195,7 +195,7 @@ sp_test_each(dag_wasm, wasi, test_t, tests) {
   spn_path_roots_set(&roots, mem, SPN_PATH_ROOT_PROJECT, sandbox);
   sp_str_t root = roots.dirs[SPN_PATH_ROOT_PROJECT];
 
-  spn_dag_wasi_mount_t mounts [] = {
+  spn_wasi_mount_t mounts [] = {
     { .guest = "/work",   .host = { .root = SPN_PATH_ROOT_PROJECT, .sub = sp_str_lit("work") } },
     { .guest = "/source", .host = { .root = SPN_PATH_ROOT_PROJECT, .sub = sp_str_lit("source") } },
     { .guest = "/store",  .host = { .root = SPN_PATH_ROOT_PROJECT, .sub = sp_str_lit("store") } },
@@ -231,8 +231,8 @@ sp_test_each(dag_wasm, wasi, test_t, tests) {
   spn_dag_obs_table_t table = sp_zero;
   spn_dag_obs_table_init(&table, mem, &roots, sp_zero_struct(spn_path_t));
   spn_dag_obs_set_t obs = { .table = &table };
-  spn_dag_wasi_t* w = spn_dag_wasi_new(mem, &roots, mounts, sp_carr_len(mounts), &obs);
-  spn_dag_wasi_bind(w, instance);
+  spn_wasi_t* w = spn_wasi_new(mem, &roots, mounts, sp_carr_len(mounts), &obs);
+  spn_wasi_bind(w, instance);
 
   wasm_exec_env_t env = wasm_runtime_create_exec_env(instance, DAG_WASM_STACK_SIZE);
   sp_must(t, env != SP_NULLPTR);

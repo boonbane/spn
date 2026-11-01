@@ -10,7 +10,7 @@
 #include "wasm_export.h"
 
 #include "external/wasm/abi.h"
-#include "dag/wasi.h"
+#include "external/wasm/wasi.h"
 #include "paths/paths.h"
 #include "str/str.h"
 
@@ -43,7 +43,7 @@ spn_err_t spn_wasm_init() {
     return SPN_ERR_WASM_REGISTER_FAILED;
   }
 
-  return spn_dag_wasi_install();
+  return spn_wasi_install();
 }
 
 // WAMR mprotects guard pages at the bottom of any thread that runs a script;
@@ -95,7 +95,7 @@ spn_err_t spn_wasm_script_open(spn_pkg_unit_t* unit, spn_path_t module, spn_dag_
   sp_carr_for(dirs, it) {
     sp_fs_create_dir_at(spn_path_at(roots, dirs[it]));
   }
-  spn_dag_wasi_mount_t mounts [] = {
+  spn_wasi_mount_t mounts [] = {
     { .guest = "/work",     .host = unit->paths.work },
     { .guest = "/source",   .host = unit->paths.roots.source },
     { .guest = "/manifest", .host = unit->paths.roots.recipe },
@@ -137,8 +137,8 @@ spn_err_t spn_wasm_script_open(spn_pkg_unit_t* unit, spn_path_t module, spn_dag_
   script->ctx = spn_wasm_add_handle(script->handles, unit, SPN_ABI_KIND_CTX);
   wasm_runtime_set_user_data(script->env, script->handles);
 
-  script->wasi = spn_dag_wasi_new(mem, roots, mounts, sp_carr_len(mounts), obs);
-  spn_dag_wasi_bind(script->wasi, script->instance);
+  script->wasi = spn_wasi_new(mem, roots, mounts, sp_carr_len(mounts), obs);
+  spn_wasi_bind(script->wasi, script->instance);
 
   return SPN_OK;
 }

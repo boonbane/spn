@@ -239,8 +239,9 @@ sp_test_each(provision, store, provision_test_t, tests, .setup = spn_test_ctx_se
     }
   }
 
-  sp_str_t sha = sp_zero;
-  sp_must_eq(t, (u32)SPN_OK, (u32)spn_digest_file_hex(SPN_DIGEST_SHA256, mem, sp_path_from_str(stub.tarball), &sha));
+  sp_str_t tarball = sp_zero;
+  sp_must_ok(t, sp_io_read_file(mem, stub.tarball, &tarball));
+  sp_str_t sha = test_sha256_hex(mem, tarball);
   sp_must_eq(t, 64u, sha.len);
 
   sp_path_t store_dir = sp_path_join(mem, sp_test_dir(t), sp_str_lit("store"));

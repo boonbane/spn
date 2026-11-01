@@ -7,7 +7,7 @@
 #include "dag/node.h"
 #include "external/zig.h"
 #include "paths/paths.h"
-#include "session/invocation.h"
+#include "graph/invocation.h"
 #include "triple/triple.h"
 #include "graph/build.h"
 #include "graph/nodes/nodes.h"

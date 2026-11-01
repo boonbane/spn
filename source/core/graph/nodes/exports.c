@@ -12,7 +12,7 @@
 #include "hash_table/hash_table.h"
 #include "intern/intern.h"
 #include "paths/paths.h"
-#include "session/invocation.h"
+#include "graph/invocation.h"
 
 static spn_err_t write_exports(sp_mem_t mem, const si_dag_ctx_t* c, si_exports_t* exports) {
   const spn_path_roots_t* roots = c->roots;

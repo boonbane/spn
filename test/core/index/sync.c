@@ -80,9 +80,10 @@ sp_test_each(index_sync, dir, dir_sync_test_t, dir_tests) {
     .protocol = SPN_INDEX_PROTOCOL_DIR,
   };
 
-  sp_expect_eq(t, it->expect.result, spn_index_sync(&index, false));
+  spn_index_plan_t plan = spn_index_plan(&index, false);
+  sp_expect_eq(t, it->expect.result, spn_index_sync(&index, plan));
   if (it->exists) {
-    sp_expect_eq(t, false, spn_index_needs_fetch(&index));
+    sp_expect_eq(t, false, plan.fetch);
   }
 
   return SP_OK;
@@ -106,13 +107,13 @@ sp_test_each(index_sync, sync, sync_test_t, tests) {
   };
 
   if (it->cloned) {
-    sp_expect_eq(t, SPN_OK, spn_index_sync(&index, false));
+    sp_expect_eq(t, SPN_OK, spn_index_sync(&index, spn_index_plan(&index, false)));
   }
   if (it->mutate_remote) {
     commit_seed(mem, remote, it->name, 1);
   }
 
-  sp_expect_eq(t, it->expect.result, spn_index_sync(&index, false));
+  sp_expect_eq(t, it->expect.result, spn_index_sync(&index, spn_index_plan(&index, false)));
   sp_expect_eq(t, it->expect.cached, sp_fs_exists(cache));
 
   return SP_OK;

@@ -40,7 +40,7 @@ set(SPN_SOURCES
   core/dag/run.c
   core/dag/glob.c
   core/dag/stamp.c
-  core/dag/wasi.c
+  core/external/wasm/wasi.c
   core/enum/enum.c
   core/error/error.c
   core/error/json.c
@@ -104,7 +104,7 @@ set(SPN_SOURCES
   core/semver/compare.c
   core/semver/convert.c
   core/semver/parser.c
-  core/session/invocation.c
+  core/graph/invocation.c
   core/session/options.c
   core/session/session.c
   core/hash/digest/digest.c
@@ -145,7 +145,6 @@ set(SPN_SOURCES
   core/triple/triple.c
   core/elf/elf.c
   cli/tui/tui.c
-  core/unit/build.c
   core/unit/fingerprint.c
   core/unit/closure/closure.c
   core/unit/pkg.c

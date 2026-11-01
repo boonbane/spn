@@ -181,7 +181,7 @@ spn_err_t spn_dag_file_cache_digest(spn_dag_file_cache_t* c, spn_path_t path, sp
   spn_try(admitted);
 
   u64 size = 0;
-  spn_try(spn_digest_file(SPN_DIGEST_BLAKE3, spn_path_at(c->roots, path), digest->bytes, &size));
+  spn_try(spn_digest_file(spn_path_at(c->roots, path), digest->bytes, &size));
   if (c->stats) {
     sp_atomic_u32_add(&c->stats->hashed_files, 1, SP_ATOMIC_RELAXED);
     sp_atomic_u64_add(&c->stats->hashed_bytes, size, SP_ATOMIC_RELAXED);
@@ -547,7 +547,7 @@ static spn_err_t membership_digest(sp_path_t dir, sp_str_t filter, spn_dag_diges
   sp_da_sort(members, member_order);
 
   spn_digest_ctx_t ctx = sp_zero;
-  spn_digest_init_blake3(&ctx);
+  spn_digest_init(&ctx);
   spn_dag_hash_str(&ctx, sp_str_lit("spn.dag.enum.v1"));
   spn_dag_hash_u64(&ctx, sp_da_size(members));
   sp_da_for(members, it) {
