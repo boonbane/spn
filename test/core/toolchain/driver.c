@@ -21,31 +21,31 @@ sp_test_each(driver, caps, caps_t, caps_tests) {
 typedef struct {
   const c8* name;
   spn_cc_driver_t driver;
-  spn_ld_dialect_t dialect;
+  spn_triple_t target;
   bool expect;
 } composes_t;
 
 static const composes_t composes_tests [] = {
-  { "gcc_gnu",      SPN_CC_DRIVER_GCC,   SPN_LD_DIALECT_GNU,    true },
-  { "gcc_link",     SPN_CC_DRIVER_GCC,   SPN_LD_DIALECT_LINK,   false },
-  { "gcc_darwin",   SPN_CC_DRIVER_GCC,   SPN_LD_DIALECT_DARWIN, true },
-  { "gcc_wasm",     SPN_CC_DRIVER_GCC,   SPN_LD_DIALECT_WASM,   false },
-  { "clang_gnu",    SPN_CC_DRIVER_CLANG, SPN_LD_DIALECT_GNU,    true },
-  { "clang_link",   SPN_CC_DRIVER_CLANG, SPN_LD_DIALECT_LINK,   true },
-  { "clang_darwin", SPN_CC_DRIVER_CLANG, SPN_LD_DIALECT_DARWIN, true },
-  { "clang_wasm",   SPN_CC_DRIVER_CLANG, SPN_LD_DIALECT_WASM,   true },
-  { "zig_gnu",      SPN_CC_DRIVER_ZIG,   SPN_LD_DIALECT_GNU,    true },
-  { "zig_link",     SPN_CC_DRIVER_ZIG,   SPN_LD_DIALECT_LINK,   true },
-  { "zig_darwin",   SPN_CC_DRIVER_ZIG,   SPN_LD_DIALECT_DARWIN, true },
-  { "zig_wasm",     SPN_CC_DRIVER_ZIG,   SPN_LD_DIALECT_WASM,   true },
-  { "msvc_gnu",     SPN_CC_DRIVER_MSVC,  SPN_LD_DIALECT_GNU,    false },
-  { "msvc_link",    SPN_CC_DRIVER_MSVC,  SPN_LD_DIALECT_LINK,   true },
-  { "msvc_darwin",  SPN_CC_DRIVER_MSVC,  SPN_LD_DIALECT_DARWIN, false },
-  { "msvc_wasm",    SPN_CC_DRIVER_MSVC,  SPN_LD_DIALECT_WASM,   false },
+  { "gcc_gnu",      SPN_CC_DRIVER_GCC,   HOST_X64_LINUX, true },
+  { "gcc_link",     SPN_CC_DRIVER_GCC,   TARGET_WIN_MSVC, false },
+  { "gcc_darwin",   SPN_CC_DRIVER_GCC,   HOST_ARM_MACOS, true },
+  { "gcc_wasm",     SPN_CC_DRIVER_GCC,   TARGET_WASM, false },
+  { "clang_gnu",    SPN_CC_DRIVER_CLANG, HOST_X64_LINUX, true },
+  { "clang_link",   SPN_CC_DRIVER_CLANG, TARGET_WIN_MSVC, true },
+  { "clang_darwin", SPN_CC_DRIVER_CLANG, HOST_ARM_MACOS, true },
+  { "clang_wasm",   SPN_CC_DRIVER_CLANG, TARGET_WASM, true },
+  { "zig_gnu",      SPN_CC_DRIVER_ZIG,   HOST_X64_LINUX, true },
+  { "zig_link",     SPN_CC_DRIVER_ZIG,   TARGET_WIN_MSVC, true },
+  { "zig_darwin",   SPN_CC_DRIVER_ZIG,   HOST_ARM_MACOS, true },
+  { "zig_wasm",     SPN_CC_DRIVER_ZIG,   TARGET_WASM, true },
+  { "msvc_gnu",     SPN_CC_DRIVER_MSVC,  HOST_X64_LINUX, false },
+  { "msvc_link",    SPN_CC_DRIVER_MSVC,  TARGET_WIN_MSVC, true },
+  { "msvc_darwin",  SPN_CC_DRIVER_MSVC,  HOST_ARM_MACOS, false },
+  { "msvc_wasm",    SPN_CC_DRIVER_MSVC,  TARGET_WASM, false },
 };
 
 sp_test_each(driver, composes, composes_t, composes_tests) {
-  sp_expect_eq(t, it->expect, spn_toolchain_driver_composes(it->driver, it->dialect));
+  sp_expect_eq(t, it->expect, spn_toolchain_driver_composes(it->driver, it->target));
   return SP_OK;
 }
 

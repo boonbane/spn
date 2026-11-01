@@ -1,6 +1,7 @@
 #include "docker.h"
 
 #include "container/container.h"
+#include "tail/tail.h"
 #include "ctx/ctx.h"
 #include "ctx/types.h"
 #include "enum/enum.h"
@@ -173,7 +174,7 @@ static sp_ps_config_t launch(docker_t* docker, const variant_t* variant, const c
   return config;
 }
 
-docker_init_err_t docker_init(docker_t* docker, sp_mem_t mem, spn_fetch_fn fetch, void* user) {
+docker_init_err_t docker_init(docker_t* docker, sp_mem_t mem) {
   docker->mem = mem;
   docker->intern = sp_intern_new(mem);
   docker->host = host_key(mem);
@@ -214,8 +215,6 @@ docker_init_err_t docker_init(docker_t* docker, sp_mem_t mem, spn_fetch_fn fetch
   docker->store = (spn_toolchain_store_t) {
     .mem = mem,
     .roots = &docker->roots,
-    .fetch = fetch,
-    .fetch_user_data = user,
   };
 
   const c8* tools [] = { CONTAINER_SHELL_BIN, CONTAINER_CHECK_BIN };
@@ -288,6 +287,15 @@ docker_tests_err_t docker_tests_init(docker_t* docker) {
   return DOCKER_TESTS_OK;
 }
 
+static spn_err_t fetch(docker_t* docker, sp_str_t url, sp_str_t dest) {
+  sp_ps_config_t curl = {
+    .command = sp_str_lit("curl"),
+    .args = { sp_str_lit("-fsSL"), sp_str_lit("-o"), dest, url },
+  };
+  sp_str_t log = docker_log(docker, cfmt(docker->mem, "fetch-{}", sp_fmt_str(sp_fs_get_name(dest))));
+  return tail_trace(docker->mem, docker->prompt, cfmt(docker->mem, "curl {}", sp_fmt_str(url)), log, curl) ? SPN_ERROR : SPN_OK;
+}
+
 static docker_provision_err_t provision_artifact(docker_t* docker, const sysroot_t* sysroot) {
   spn_artifact_t artifact = sp_zero;
   docker->err.artifact.name = lane_name(sysroot->artifact);
@@ -295,7 +303,15 @@ static docker_provision_err_t provision_artifact(docker_t* docker, const sysroot
     return DOCKER_PROVISION_ERR_ARTIFACT;
   }
   docker->err.artifact.url = artifact.url;
-  if (spn_toolchain_provision(&docker->store, sp_cstr_as_str(docker->err.artifact.name), artifact)) {
+  spn_toolchain_claim_t claim = spn_toolchain_claim(&docker->store, docker->mem, artifact);
+  if (claim.present) {
+    return DOCKER_PROVISION_OK;
+  }
+  if (fetch(docker, artifact.url, spn_path_str(&docker->roots, docker->mem, claim.tarball))) {
+    spn_toolchain_release(&docker->store, &claim);
+    return DOCKER_PROVISION_ERR_FETCH;
+  }
+  if (spn_toolchain_install(&docker->store, &claim, sp_cstr_as_str(docker->err.artifact.name), artifact.url)) {
     return DOCKER_PROVISION_ERR_FETCH;
   }
   return DOCKER_PROVISION_OK;

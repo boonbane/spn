@@ -25,7 +25,7 @@ sp_test_each(sdk_wasi, spelling, test_t, tests) {
     sp_fs_create_dir(sp_fs_join_path(mem, root, sp_cstr_as_str(it->dir)));
   }
   spn_path_roots_t roots = sp_zero;
-  spn_sdk_t sdk = it->kind == SPN_SDK_SYSROOT ? spn_sdk_sysroot((spn_path_t) { .sub = root }) : sp_zero_struct(spn_sdk_t);
+  spn_sdk_t sdk = it->kind == SPN_SDK_SYSROOT ? spn_sdk_at(mem, (spn_triple_t) TARGET_WASM, (spn_path_t) { .sub = root }) : sp_zero_struct(spn_sdk_t);
   sp_expect_eq(t, (u32)it->expect.spelling, (u32)spn_sdk_wasi_spelling(&roots, mem, &sdk));
   return SP_OK;
 }

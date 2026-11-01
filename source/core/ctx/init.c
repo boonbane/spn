@@ -227,7 +227,6 @@ spn_err_t spn_ctx_open(spn_ctx_t* ctx, spn_open_request_t request) {
     .mem = ctx->mem,
     .roots = &ctx->roots,
     .mirror = sp_env_get(ctx->env, sp_str_lit("SPN_MIRROR")),
-    .fetch = spn_fetch_curl,
   };
   spn_probe_cache_load(&ctx->caches.toolchains.probes, &ctx->roots, (spn_path_t) { .root = SPN_PATH_ROOT_TOOLCHAIN, .sub = sp_str_lit("probe.cache") }, ctx->mem);
 

@@ -27,6 +27,7 @@
 #include "spn/core.h"
 #include "thread_pool/thread_pool.h"
 #include "toolchain/probe.h"
+#include "toolchain/provision.h"
 #include "toolchain/toolchain.h"
 #include "toolchain/types.h"
 #include "unit/types.h"
@@ -80,14 +81,26 @@ static spn_err_t setup_local(spn_toolchain_store_t* store, spn_toolchain_unit_t*
   return SPN_OK;
 }
 
+static spn_wasi_spelling_t wasi_spelling(const spn_path_roots_t* roots, sp_mem_t mem, const spn_toolchain_info_t* toolchain) {
+  sp_da_for(toolchain->rows, it) {
+    if (toolchain->rows[it].triple.os == SPN_OS_WASI) {
+      return spn_sdk_wasi_spelling(roots, mem, &toolchain->rows[it].sdk);
+    }
+  }
+  return SPN_WASI_SPELLING_WASI;
+}
+
 static spn_err_t setup_artifact(spn_toolchain_store_t* store, spn_toolchain_unit_t* unit) {
   spn_toolchain_info_t* toolchain = unit->info;
   spn_artifact_t artifact = toolchain->support.artifact;
   sp_tm_timer_t timer = sp_tm_start_timer();
 
-  sp_str_t url = spn_artifact_resolve_url(spn.events->mem, artifact, store->mirror);
-  spn_path_t root = spn_toolchain_artifact_root(spn.mem, artifact);
-  bool cached = sp_fs_is_dir_at(spn_path_at(store->roots, root));
+  spn_toolchain_claim_t claim = spn_toolchain_claim(store, spn.mem, artifact);
+  spn_path_t root = claim.root;
+  bool cached = claim.present;
+  sp_str_t urls [2] = { spn_artifact_resolve_url(spn.events->mem, artifact, store->mirror), artifact.url };
+  u32 count = sp_str_equal(urls[0], urls[1]) ? 1 : 2;
+  sp_str_t url = urls[0];
   if (!cached) {
     spn_event_buffer_push(spn.events, (spn_event_t) {
       .kind = SPN_EVENT_SYNC,
@@ -95,11 +108,32 @@ static spn_err_t setup_artifact(spn_toolchain_store_t* store, spn_toolchain_unit
         .name = toolchain->name.str,
         .url = url,
       }});
-    spn_try(spn_toolchain_provision(store, toolchain->name.str, artifact));
+    sp_str_t dest = spn_path_str(store->roots, spn.mem, claim.tarball);
+    sp_str_t output = sp_zero;
+    spn_err_t err = SPN_ERROR;
+    sp_for(it, count) {
+      url = urls[it];
+      err = spn_fetch_curl(spn.events->mem, url, dest, &output);
+      if (!err) {
+        break;
+      }
+    }
+    if (err) {
+      spn_toolchain_release(store, &claim);
+      return spn_err_emit(&spn, (spn_err_union_t) {
+        .kind = SPN_ERR_TOOLCHAIN_FETCH,
+        .artifact = {
+          .name = toolchain->name.str,
+          .url = url,
+          .output = output,
+        },
+      });
+    }
+    spn_try(spn_toolchain_install(store, &claim, toolchain->name.str, url));
   }
 
   spn_toolchain_launcher_t cxx = toolchain->cxx;
-  if (spn_toolchain_has_cxx(toolchain)) {
+  if (!spn_arg_empty(toolchain->cxx.program)) {
     cxx = spn_toolchain_launcher_with_root(spn.mem, toolchain->cxx, root);
   }
   unit->version = toolchain->version;
@@ -144,7 +178,7 @@ static spn_err_t setup_toolchain_unit(spn_toolchain_store_t* store, spn_toolchai
     }
   }
 
-  unit->cc.wasi = spn_toolchain_wasi_spelling(store->roots, spn.mem, unit->info);
+  unit->cc.wasi = wasi_spelling(store->roots, spn.mem, unit->info);
   if (unit->info->driver == SPN_CC_DRIVER_ZIG) {
     sp_assert(unit->identity);
     sp_str_t id = sp_fmt(spn.mem, "{:0>16x}", sp_fmt_uint(unit->identity)).value;

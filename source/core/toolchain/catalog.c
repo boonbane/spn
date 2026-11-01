@@ -34,17 +34,52 @@ static void bind_target(spn_toolchain_catalog_t* catalog, spn_toolchain_info_t* 
   sp_da_push(info->unserved, target.triple);
 }
 
+static spn_sanitizer_set_t gcc_stock_sanitizers(spn_triple_t host) {
+  switch (host.os) {
+    case SPN_OS_LINUX: return host.abi == SPN_ABI_MUSL ? 0 : SPN_SANITIZER_ADDRESS | SPN_SANITIZER_THREAD | SPN_SANITIZER_UNDEFINED | SPN_SANITIZER_LEAK;
+    case SPN_OS_MACOS: return SPN_SANITIZER_ADDRESS | SPN_SANITIZER_THREAD | SPN_SANITIZER_UNDEFINED;
+    case SPN_OS_WINDOWS:
+    case SPN_OS_WASI:
+    case SPN_OS_FREESTANDING:
+    case SPN_OS_NONE: return 0;
+  }
+  SP_UNREACHABLE_RETURN(0);
+}
+
+static spn_sanitizer_set_t clang_stock_sanitizers(spn_triple_t host) {
+  switch (host.os) {
+    case SPN_OS_LINUX: return SPN_SANITIZER_ADDRESS | SPN_SANITIZER_THREAD | SPN_SANITIZER_UNDEFINED | SPN_SANITIZER_MEMORY | SPN_SANITIZER_LEAK;
+    case SPN_OS_MACOS: return SPN_SANITIZER_ADDRESS | SPN_SANITIZER_THREAD | SPN_SANITIZER_UNDEFINED | SPN_SANITIZER_LEAK;
+    case SPN_OS_WINDOWS:
+    case SPN_OS_WASI:
+    case SPN_OS_FREESTANDING:
+    case SPN_OS_NONE: return 0;
+  }
+  SP_UNREACHABLE_RETURN(0);
+}
+
+static spn_sanitizer_set_t stock_sanitizers(spn_cc_driver_t driver, spn_triple_t host) {
+  switch (driver) {
+    case SPN_CC_DRIVER_GCC: return gcc_stock_sanitizers(host);
+    case SPN_CC_DRIVER_CLANG: return clang_stock_sanitizers(host);
+    case SPN_CC_DRIVER_ZIG:
+    case SPN_CC_DRIVER_MSVC: return 0;
+    case SPN_CC_DRIVER_NONE: sp_unreachable_case();
+  }
+  SP_UNREACHABLE_RETURN(0);
+}
+
 static spn_toolchain_target_t stock(spn_cc_driver_t driver, spn_triple_t triple) {
   return (spn_toolchain_target_t) {
     .triple = triple,
-    .sanitizers = spn_toolchain_stock_sanitizers(driver, triple),
+    .sanitizers = stock_sanitizers(driver, triple),
   };
 }
 
 static void push_stock(spn_toolchain_catalog_t* catalog, spn_toolchain_info_t* info, const spn_toolchain_decl_t* decl) {
   spn_triple_t host = catalog->host;
   host.abi = host.abi ? host.abi : spn_default_abi(decl->driver, host.os);
-  if (!host.abi || !spn_toolchain_driver_composes(decl->driver, spn_ld_dialect(host)) || spn_toolchain_row(info, host) || spn_toolchain_unserved(info, host)) {
+  if (!host.abi || !spn_toolchain_driver_composes(decl->driver, host) || spn_toolchain_row(info, host) || spn_toolchain_unserved(info, host)) {
     return;
   }
   bind_target(catalog, info, sp_zero_struct(spn_toolchain_support_t), stock(decl->driver, host));
@@ -62,7 +97,7 @@ static void push_hosted(spn_toolchain_info_t* info, spn_toolchain_catalog_t* cat
       sp_for(abi, num_abis) {
         spn_toolchain_row_t row = { .triple = { arches[arch], hosted[os], abis[abi] } };
         if (own) {
-          row.sanitizers = spn_toolchain_stock_sanitizers(driver, row.triple);
+          row.sanitizers = stock_sanitizers(driver, row.triple);
         }
         if (spn_sdk_served(&catalog->sdks, catalog->host, row.triple, &row.sdk)) {
           push_row(info, row);

@@ -116,10 +116,10 @@ static spn_path_t fixture_path(test_path_t path) {
 static spn_sdk_t fixture_sdk(sp_mem_t mem, fixture_sdk_t sdk) {
   switch (sdk.kind) {
     case SPN_SDK_NONE: return sp_zero_struct(spn_sdk_t);
-    case SPN_SDK_SYSROOT: return spn_sdk_sysroot(fixture_path(sdk.root));
-    case SPN_SDK_MACOS: return spn_sdk_macos(mem, fixture_path(sdk.root));
+    case SPN_SDK_SYSROOT: return spn_sdk_at(mem, (spn_triple_t) HOST_X64_LINUX, fixture_path(sdk.root));
+    case SPN_SDK_MACOS: return spn_sdk_at(mem, (spn_triple_t) HOST_ARM_MACOS, fixture_path(sdk.root));
     case SPN_SDK_MSVC: {
-      spn_sdk_t msvc = spn_sdk_msvc(mem, fixture_path(sdk.root), sdk.arch);
+      spn_sdk_t msvc = spn_sdk_at(mem, (spn_triple_t) { sdk.arch, SPN_OS_WINDOWS, SPN_ABI_MSVC }, fixture_path(sdk.root));
       msvc.msvc.bin = fixture_path(sdk.bin);
       msvc.msvc.version = sp_str_view(sdk.version);
       return msvc;
@@ -134,13 +134,13 @@ static spn_sdk_t fixture_sdk(sp_mem_t mem, fixture_sdk_t sdk) {
 static spn_sdk_host_t fixture_sdks(sp_mem_t mem, fixture_sdks_t sdks) {
   spn_sdk_host_t host = { .msvc = sp_da_new(mem, spn_sdk_msvc_t) };
   if (sdks.macos.path) {
-    host.macos = spn_sdk_macos(mem, fixture_path(sdks.macos)).macos;
+    host.macos = spn_sdk_at(mem, (spn_triple_t) HOST_ARM_MACOS, fixture_path(sdks.macos)).macos;
   }
   sp_carr_for(sdks.msvc, it) {
     if (!sdks.msvc[it].root.path) {
       break;
     }
-    sp_da_push(host.msvc, spn_sdk_msvc(mem, fixture_path(sdks.msvc[it].root), sdks.msvc[it].arch).msvc);
+    sp_da_push(host.msvc, spn_sdk_at(mem, (spn_triple_t) { sdks.msvc[it].arch, SPN_OS_WINDOWS, SPN_ABI_MSVC }, fixture_path(sdks.msvc[it].root)).msvc);
   }
   return host;
 }
