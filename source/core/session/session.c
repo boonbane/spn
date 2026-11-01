@@ -14,13 +14,60 @@
 #include "compiler/driver.h"
 #include "error/error.h"
 #include "event/event.h"
+#include "hash/digest/digest.h"
 #include "intern/intern.h"
 #include "paths/paths.h"
 #include "project/types.h"
 #include "pkg/pkg.h"
 #include "profile/profile.h"
 #include "toolchain/select.h"
+#include "toolchain/toolchain.h"
 #include "triple/triple.h"
+#include "when/when.h"
+
+static spn_toolchain_unit_t* bind_toolchain(spn_session_t* s, spn_toolchain_info_t* toolchain) {
+  si_da_for_value(s->builds.toolchains, unit) {
+    if (unit->info == toolchain) {
+      return unit;
+    }
+  }
+
+  spn_toolchain_unit_t* unit = sp_alloc_type(s->mem, spn_toolchain_unit_t);
+  *unit = (spn_toolchain_unit_t) { .info = toolchain };
+  si_da_push(s->mem, s->builds.toolchains, unit);
+  return unit;
+}
+
+static spn_build_unit_t* add_build(spn_session_t* s, spn_profile_info_t profile, spn_path_t root, spn_toolchain_info_t* toolchain) {
+  sp_hash_t parts [] = {
+    spn_digest_hash_str(profile.name.str),
+    spn_digest_hash_str(toolchain->name.str),
+    spn_sdk_hash(&profile.sdk),
+    (sp_hash_t)profile.target.os,
+    (sp_hash_t)profile.target.arch,
+    (sp_hash_t)profile.target.abi,
+    (sp_hash_t)profile.driver,
+    (sp_hash_t)profile.linker,
+    (sp_hash_t)profile.linking.linkage,
+    (sp_hash_t)profile.linking.runtime,
+    (sp_hash_t)profile.linking.libc,
+    (sp_hash_t)profile.standard,
+    (sp_hash_t)profile.mode,
+    (sp_hash_t)profile.opt,
+    (sp_hash_t)profile.targeted,
+    spn_digest_hash(&profile.sanitizers, sizeof(profile.sanitizers)),
+  };
+  spn_build_unit_t* build = sp_alloc_type(s->mem, spn_build_unit_t);
+  *build = (spn_build_unit_t) {
+    .id = spn_digest_hash_combine(parts, sp_carr_len(parts)),
+    .profile = profile,
+    .toolchain = bind_toolchain(s, toolchain),
+    .paths = { .root = root },
+    .define = spn_when_facts_to_defines(s->mem, spn_profile_facts(&profile)),
+  };
+  sp_da_init(s->mem, build->include);
+  return build;
+}
 
 spn_err_t spn_session_init(spn_session_t* s, spn_ctx_t* ctx, sp_mem_t mem, spn_project_t* project, spn_session_config_t config) {
   s->ctx = ctx;
@@ -54,8 +101,8 @@ spn_err_t spn_session_init(spn_session_t* s, spn_ctx_t* ctx, sp_mem_t mem, spn_p
     .build = spn_path_join(s->mem, s->paths.build, spn_profile_build_dir(s->mem, &profile)),
     .metabuild = spn_path_join(s->mem, s->paths.build, spn_triple_to_str(s->mem, metaprogram.target))
   };
-  s->builds.program = spn_build_add(s, profile, roots.build, target.toolchain);
-  s->builds.metaprogram = spn_build_add(s, metaprogram, roots.metabuild, script.toolchain);
+  s->builds.program = add_build(s, profile, roots.build, target.toolchain);
+  s->builds.metaprogram = add_build(s, metaprogram, roots.metabuild, script.toolchain);
   s->builds.program->metabuild = s->builds.metaprogram;
 
   sp_da_push(s->builds.metaprogram->include, spn_path(s->mem, SPN_DIR_ID_RUNTIME, "include"));
@@ -75,13 +122,4 @@ spn_err_t spn_session_init(spn_session_t* s, spn_ctx_t* ctx, sp_mem_t mem, spn_p
   }
 
   return SPN_OK;
-}
-
-spn_resolved_pkg_t* si_get_root_pkg(spn_session_t* session) {
-  sp_ht_for_kv(session->resolve, it) {
-    if (it.val->source == SPN_PKG_SOURCE_ROOT) {
-      return it.val;
-    }
-  }
-  return SP_NULLPTR;
 }

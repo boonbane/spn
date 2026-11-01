@@ -113,6 +113,7 @@ spn_err_t spn_resolve(spn_op_t* op) {
     spn_try(apply_patch_overrides(session, &query));
   }
   session->resolve = query.result;
+  session->root = sp_ht_getp(session->resolve, query.root);
 
   emit_resolved(&query);
 

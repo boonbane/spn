@@ -1160,6 +1160,9 @@ static void commit_instances(spn_resolver_t* resolver, spn_resolve_run_t* run, s
 
       spn_resolved_pkg_t instance = *node;
       instance.id = id;
+      if (node->source == SPN_PKG_SOURCE_ROOT) {
+        run->query->root = id;
+      }
       sp_da_init(resolver->mem, instance.edges);
 
       sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();

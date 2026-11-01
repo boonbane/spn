@@ -28,16 +28,6 @@ bool spn_ctx_progress(spn_ctx_t* ctx, spn_progress_t* progress) {
   return true;
 }
 
-spn_err_t spn_ctx_require_project(spn_ctx_t* ctx) {
-  if (!ctx->project) {
-    return spn_err_emit(ctx, (spn_err_union_t) {
-      .kind = SPN_ERR_NO_MANIFEST,
-      .no_manifest = { .path = ctx->roots.dirs[SPN_PATH_ROOT_PROJECT] },
-    });
-  }
-  return SPN_OK;
-}
-
 spn_index_info_t* spn_find_index(spn_ctx_t* ctx, sp_str_t name) {
   if (sp_str_empty(name)) {
     name = sp_str_lit("core");

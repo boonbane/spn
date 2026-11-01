@@ -1,5 +1,5 @@
-#ifndef SPN_SESSION_INVOCATION_H
-#define SPN_SESSION_INVOCATION_H
+#ifndef SPN_GRAPH_INVOCATION_H
+#define SPN_GRAPH_INVOCATION_H
 
 #include "sp.h"
 

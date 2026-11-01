@@ -192,8 +192,7 @@ static spn_err_t spn_git_cache_materialize_checkout(spn_git_cache_t* cache, spn_
   }
 
   sp_path_t dest = spn_path_at(cache->roots, entry->path);
-  if (!sp_fs_is_dir_at(dest)) {
-    entry->fetched = true;
+  if (entry->fetched) {
 
     // Fill a claimed staging dir and rename into place, so a crash never
     // leaves a partial tree that later runs mistake for a finished checkout
@@ -230,7 +229,7 @@ static spn_err_t spn_git_cache_materialize_checkout(spn_git_cache_t* cache, spn_
   return SPN_OK;
 }
 
-spn_err_t spn_git_cache_ensure_checkout(spn_git_cache_t* cache, spn_git_checkout_id_t id, spn_git_checkout_t** checkout) {
+spn_git_checkout_t* spn_git_cache_checkout(spn_git_cache_t* cache, spn_git_checkout_id_t id, bool* fetching) {
   sp_mutex_lock(&cache->mutex);
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
 
@@ -242,6 +241,7 @@ spn_err_t spn_git_cache_ensure_checkout(spn_git_cache_t* cache, spn_git_checkout
     entry = sp_alloc_type(cache->mem, spn_git_checkout_t);
     entry->id = id;
     entry->path = spn_path_join(cache->mem, cache->checkouts.dir, owned);
+    entry->fetched = !sp_fs_is_dir_at(spn_path_at(cache->roots, entry->path));
     sp_str_om_insert(cache->checkouts.entries, owned, entry);
   }
 
@@ -249,20 +249,17 @@ spn_err_t spn_git_cache_ensure_checkout(spn_git_cache_t* cache, spn_git_checkout
   sp_mutex_unlock(&cache->mutex);
 
   sp_mutex_lock(&entry->mutex);
-  if (!entry->ready) {
-    entry->ready = true;
-    entry->err = spn_git_cache_materialize_checkout(cache, entry);
-  }
+  *fetching = entry->fetched && !entry->ready;
   sp_mutex_unlock(&entry->mutex);
-
-  *checkout = entry;
-  return entry->err;
+  return entry;
 }
 
-bool spn_git_cache_is_checkout_cached(spn_git_cache_t* cache, spn_git_checkout_id_t id) {
-  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  sp_str_t key = spn_git_checkout_key(scratch.mem, id);
-  bool cached = sp_fs_is_dir_at(spn_path_at(cache->roots, spn_path_join(scratch.mem, cache->checkouts.dir, key)));
-  sp_mem_end_scratch(scratch);
-  return cached;
+spn_err_t spn_git_checkout_ensure(spn_git_cache_t* cache, spn_git_checkout_t* checkout) {
+  sp_mutex_lock(&checkout->mutex);
+  if (!checkout->ready) {
+    checkout->ready = true;
+    checkout->err = spn_git_cache_materialize_checkout(cache, checkout);
+  }
+  sp_mutex_unlock(&checkout->mutex);
+  return checkout->err;
 }

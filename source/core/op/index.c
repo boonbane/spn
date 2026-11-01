@@ -22,6 +22,7 @@ typedef struct {
   spn_op_t* op;
   spn_index_info_t* index;
   bool force;
+  spn_index_plan_t plan;
   spn_err_t err;
 } job_t;
 
@@ -30,7 +31,7 @@ static void sync_index_node(void* data) {
   if (spn_op_cancelled(job->op)) {
     return;
   }
-  job->err = spn_index_sync(job->index, job->force);
+  job->err = spn_index_sync(job->index, job->plan);
 }
 
 static spn_err_t sync_indexes(spn_op_t* op) {
@@ -53,7 +54,8 @@ static spn_err_t sync_indexes(spn_op_t* op) {
       continue;
     }
 
-    if (request.force || spn_index_needs_fetch(index)) {
+    spn_index_plan_t plan = spn_index_plan(index, request.force);
+    if (plan.fetch) {
       spn_event_buffer_push(ctx->events, (spn_event_t) {
         .kind = SPN_EVENT_SYNC,
         .sync = {
@@ -67,6 +69,7 @@ static spn_err_t sync_indexes(spn_op_t* op) {
       .op = op,
       .index = index,
       .force = request.force,
+      .plan = plan,
     };
     sp_da_push(jobs, job);
   }
@@ -94,7 +97,7 @@ static spn_err_t sync_indexes(spn_op_t* op) {
       continue;
     }
 
-    if (!job->force && sp_fs_exists_at(job->index->location.at)) {
+    if (!job->force && job->plan.present) {
       spn_event_buffer_push(ctx->events, (spn_event_t) {
         .kind = SPN_EVENT_SYNC_STALE,
         .sync = {

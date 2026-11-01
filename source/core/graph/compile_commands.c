@@ -8,7 +8,7 @@
 #include "graph/dag.h"
 #include "dag/run.h"
 #include "paths/paths.h"
-#include "session/invocation.h"
+#include "graph/invocation.h"
 #include "session/types.h"
 
 static void render(sp_mem_t mem, spn_dag_build_t* b, const spn_build_plan_t* plan, sp_io_writer_t* io) {

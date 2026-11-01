@@ -1,12 +1,7 @@
-#include "ctx/types.h"
-#include "session/types.h"
-#include "unit/types.h"
+#include "graph/invocation.h"
 
-#include "compiler/driver.h"
-#include "external/cc.h"
+#include "ctx/types.h"
 #include "paths/paths.h"
-#include "profile/types.h"
-#include "session/invocation.h"
 #include "toolchain/search.h"
 
 sp_da(sp_str_t) spn_invocation_args(const spn_path_roots_t* roots, sp_mem_t mem, const spn_invocation_t* invocation) {

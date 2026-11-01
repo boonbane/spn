@@ -72,61 +72,53 @@ static spn_err_t git_index_freshen(spn_index_info_t* index) {
   return err;
 }
 
-spn_err_t spn_index_sync(spn_index_info_t* index, bool force) {
+spn_index_plan_t spn_index_plan(spn_index_info_t* index, bool force) {
   sp_path_t at = index->location.at;
+  switch (index->protocol) {
+    case SPN_INDEX_PROTOCOL_GIT: {
+      bool present = sp_fs_exists_at(at);
+      bool pinned = !sp_str_empty(index->git.rev);
+      return (spn_index_plan_t) {
+        .present = present,
+        .fetch = !present || force || (!pinned && git_index_stale(index)),
+      };
+    }
+    case SPN_INDEX_PROTOCOL_HTTP: {
+      return sp_zero_s(spn_index_plan_t);
+    }
+    case SPN_INDEX_PROTOCOL_DIR: {
+      return (spn_index_plan_t) { .present = sp_fs_is_dir_at(at) };
+    }
+  }
+  sp_unreachable_return(sp_zero_s(spn_index_plan_t));
+}
+
+spn_err_t spn_index_sync(spn_index_info_t* index, spn_index_plan_t plan) {
   switch (index->protocol) {
     case SPN_INDEX_PROTOCOL_GIT: {
       bool pinned = !sp_str_empty(index->git.rev);
       sp_str_t dir = index->location.dir;
-
-      if (sp_fs_exists_at(at)) {
-        if (pinned) {
-          if (force) {
-            spn_try(spn_git_fetch(dir));
-          }
-          return spn_git_checkout(dir, index->git.rev);
-        }
-        if (force || git_index_stale(index)) {
-          return git_index_freshen(index);
-        }
-        return SPN_OK;
+      if (!plan.present) {
+        spn_try(spn_git_clone(index->git.url, dir));
+        return pinned ? spn_git_checkout(dir, index->git.rev) : SPN_OK;
       }
-
-      spn_try(spn_git_clone(index->git.url, dir));
-      return pinned ? spn_git_checkout(dir, index->git.rev) : SPN_OK;
+      if (!plan.fetch) {
+        return pinned ? spn_git_checkout(dir, index->git.rev) : SPN_OK;
+      }
+      if (pinned) {
+        spn_try(spn_git_fetch(dir));
+        return spn_git_checkout(dir, index->git.rev);
+      }
+      return git_index_freshen(index);
     }
     case SPN_INDEX_PROTOCOL_HTTP: {
       return SPN_ERROR;
     }
     case SPN_INDEX_PROTOCOL_DIR: {
-      return sp_fs_is_dir_at(at) ? SPN_OK : SPN_ERROR;
+      return plan.present ? SPN_OK : SPN_ERROR;
     }
   }
   return SPN_ERROR;
-}
-
-bool spn_index_needs_fetch(spn_index_info_t* index) {
-  switch (index->protocol) {
-    case SPN_INDEX_PROTOCOL_GIT: {
-      if (!sp_fs_exists_at(index->location.at)) {
-        return true;
-      }
-
-      bool pinned = !sp_str_empty(index->git.rev);
-      if (pinned) {
-        return false;
-      }
-
-      return git_index_stale(index);
-    }
-    case SPN_INDEX_PROTOCOL_HTTP: {
-      return false;
-    }
-    case SPN_INDEX_PROTOCOL_DIR: {
-      return false;
-    }
-  }
-  return false;
 }
 
 spn_err_t spn_index_get_package(spn_index_info_t* index, sp_mem_t mem, sp_intern_t* intern, const spn_path_roots_t* roots, spn_pkg_name_t id, spn_index_pkg_t** pkg, spn_err_union_t* err) {

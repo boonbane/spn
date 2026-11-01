@@ -107,6 +107,7 @@ sp_test_each(options_session, apply, session_test_t, tests, .setup = spn_test_ct
   };
   sp_ht_init(mem, session.resolve);
   sp_ht_insert(session.resolve, root_id, root_node);
+  session.root = sp_ht_getp(session.resolve, root_id);
 
   bool reresolve = sp_zero;
   spn_err_t err = spn_session_apply_options(&session, &reresolve);

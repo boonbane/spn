@@ -175,7 +175,7 @@ add_executable(core
   ${SRC}/dag/run.c
   ${SRC}/dag/stamp.c
   ${SRC}/dag/store.c
-  ${SRC}/dag/wasi.c
+  ${SRC}/external/wasm/wasi.c
   ${SRC}/enum/enum.c
   ${SRC}/error/error.c
   ${SRC}/error/json.c
@@ -229,7 +229,7 @@ add_executable(core
   ${SRC}/semver/compare.c
   ${SRC}/semver/convert.c
   ${SRC}/semver/parser.c
-  ${SRC}/session/invocation.c
+  ${SRC}/graph/invocation.c
   ${SRC}/session/options.c
   ${SRC}/session/session.c
   ${SRC}/hash/digest/digest.c
@@ -262,7 +262,6 @@ add_executable(core
   ${SRC}/toolchain/linker.c
   ${SRC}/triple/triple.c
   ${SRC}/elf/elf.c
-  ${SRC}/unit/build.c
   ${SRC}/unit/fingerprint.c
   ${SRC}/unit/closure/closure.c
   ${SRC}/unit/pkg.c
@@ -336,7 +335,7 @@ set(DAG_TEST_SOURCES
   ${SRC}/dag/run.c
   ${SRC}/dag/stamp.c
   ${SRC}/dag/store.c
-  ${SRC}/dag/wasi.c
+  ${SRC}/external/wasm/wasi.c
   ${SRC}/hash/digest/digest.c
   ${SRC}/hash/sha256/sha256.c
   ${SRC}/paths/paths.c

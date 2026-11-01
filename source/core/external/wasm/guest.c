@@ -1,6 +1,6 @@
 #include "sp.h"
 #include "dag/dag.h"
-#include "dag/wasi.h"
+#include "external/wasm/wasi.h"
 #include "fs/fs.h"
 #include "paths/paths.h"
 #include "external/wasm/abi.h"
@@ -20,7 +20,7 @@ static bool guest_path(spn_wasm_ctx_t* abi, sp_mem_t mem, const c8* path, spn_pa
     wasm_runtime_set_exception(abi->instance, sp_fmt_mem_cstr(mem, "{} must not contain '.', '..', or empty components", sp_fmt_cstr(path)));
     return false;
   }
-  if (!spn_dag_wasi_resolve(abi->instance, mem, str, host)) {
+  if (!spn_wasi_resolve(abi->instance, mem, str, host)) {
     wasm_runtime_set_exception(abi->instance, sp_fmt_mem_cstr(mem, "{} is not under /work, /source, /manifest, or /store", sp_fmt_cstr(path)));
     return false;
   }
@@ -41,7 +41,7 @@ void spn_abi_fs_create_dir(spn_wasm_ctx_t* abi, const c8* path) {
     wasm_runtime_set_exception(abi->instance, sp_fmt_mem_cstr(scratch.mem, "spn_fs_create_dir: {}", SP_FMT_STR(dir_str)));
   }
   else {
-    spn_dag_wasi_observe_write(abi->instance, dir);
+    spn_wasi_observe_write(abi->instance, dir);
   }
   sp_mem_end_scratch(scratch);
 }
@@ -64,7 +64,7 @@ void spn_abi_io_write(spn_wasm_ctx_t* abi, const c8* path, const c8* contents) {
     sp_mem_end_scratch(scratch);
     return;
   }
-  spn_dag_wasi_observe_write(abi->instance, dst);
+  spn_wasi_observe_write(abi->instance, dst);
 
   sp_io_write_cstr(&writer.base, contents, SP_NULLPTR);
   sp_io_file_writer_close(&writer);

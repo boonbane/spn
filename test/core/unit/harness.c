@@ -252,8 +252,26 @@ units_t* units_new(sp_test_t* t, const graph_t* g) {
   metaprogram.linker = spn_ld_native(metaprogram.driver, metaprogram.target);
 
   spn_path_t project = spn_path_from_root(SPN_PATH_ROOT_PROJECT);
-  spn_build_unit_t* program = spn_build_add(&u->session, profile, spn_path_join(mem, project, sp_str_lit("build/debug")), info);
-  spn_build_unit_t* metabuild = spn_build_add(&u->session, metaprogram, spn_path_join(mem, project, sp_str_lit("build/wasm32-wasi")), info);
+  spn_toolchain_unit_t* toolchain = sp_alloc_type(mem, spn_toolchain_unit_t);
+  *toolchain = (spn_toolchain_unit_t) { .info = info };
+  spn_build_unit_t* program = sp_alloc_type(mem, spn_build_unit_t);
+  *program = (spn_build_unit_t) {
+    .id = 1,
+    .profile = profile,
+    .toolchain = toolchain,
+    .paths = { .root = spn_path_join(mem, project, sp_str_lit("build/debug")) },
+    .define = spn_when_facts_to_defines(mem, spn_profile_facts(&profile)),
+  };
+  sp_da_init(mem, program->include);
+  spn_build_unit_t* metabuild = sp_alloc_type(mem, spn_build_unit_t);
+  *metabuild = (spn_build_unit_t) {
+    .id = 2,
+    .profile = metaprogram,
+    .toolchain = toolchain,
+    .paths = { .root = spn_path_join(mem, project, sp_str_lit("build/wasm32-wasi")) },
+    .define = spn_when_facts_to_defines(mem, spn_profile_facts(&metaprogram)),
+  };
+  sp_da_init(mem, metabuild->include);
   program->metabuild = metabuild;
   u->session.builds.program = program;
   u->session.builds.metaprogram = metabuild;

@@ -17,7 +17,7 @@
 
 spn_node_t* spn_add_node(spn_config_t* config, const c8* tag) {
   spn_pkg_unit_t* unit = spn_api_unit(config);
-  if (spn_api_name_rejected(unit, "spn_add_node", tag)) {
+  if (spn_api_name_rejected("spn_add_node", tag)) {
     return SP_NULLPTR;
   }
 
@@ -88,7 +88,7 @@ static void add_output(spn_node_t* node, const c8* fn, spn_dir_t dir, const c8* 
   spn_user_node_t* info = spn_node_deref(node->ref);
   spn_pkg_unit_t* unit = node->ref.pkg;
   sp_str_t sub = sp_str_view(path);
-  if (spn_api_path_rejected(unit, fn, sub)) {
+  if (spn_api_path_rejected(fn, sub)) {
     return;
   }
   output_problem_t problem = output_problem(dir, sub);

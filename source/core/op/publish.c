@@ -17,7 +17,6 @@
 #include "semver/convert.h"
 
 static spn_err_t publish_build(spn_ctx_t* ctx, spn_publish_request_t request, spn_index_release_t* release) {
-  spn_try(spn_ctx_require_project(ctx));
 
   if (!spn_find_index(ctx, request.index)) {
     return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_INDEX_UNKNOWN, .index = { .name = request.index } });
