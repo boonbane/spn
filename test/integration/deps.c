@@ -68,12 +68,12 @@ sp_test(deps_file, editable) {
     .rebuilds = {
       {
         .change = {
-          .remove_files = { sp_str_lit("packages/spum/spum.h") },
+          .remove_files = { lit("packages/spum/spum.h") },
           .moves = {
-            { .from = sp_str_lit("packages/spum/kram.h"), .to = sp_str_lit("packages/spum/spum.h") },
-            { .from = sp_str_lit("main.kram.c"), .to = sp_str_lit("main.c") },
+            { .from = "packages/spum/kram.h", .to = "packages/spum/spum.h" },
+            { .from = "main.kram.c", .to = "main.c" },
           },
-          .remove_dirs = { sp_str_lit("build") },
+          .remove_dirs = { "build" },
         },
         .command = {
           .args = { "build" },
@@ -98,7 +98,7 @@ sp_test(deps_index, basic) {
     },
     .rebuilds = {
       {
-        .change.remove_dirs = { sp_str_lit("build") },
+        .change.remove_dirs = { "build" },
         .command = {
           .args = { "build" },
           .expect = {

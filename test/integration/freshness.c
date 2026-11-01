@@ -35,7 +35,7 @@ sp_test(freshness, source_change) {
     .rebuilds = {
       {
         .change.moves = {
-          { .from = sp_str_lit("main.change.c"), .to = sp_str_lit("main.c") },
+          { .from = "main.change.c", .to = "main.c" },
         },
         .command = {
           .args = { "build" },
@@ -60,7 +60,7 @@ sp_test(freshness, touch_without_change) {
     .rebuilds = {
       {
         .change.moves = {
-          { .from = sp_str_lit("main.same.c"), .to = sp_str_lit("main.c") },
+          { .from = "main.same.c", .to = "main.c" },
         },
         .command = {
           .args = { "build" },
@@ -107,7 +107,7 @@ sp_test(freshness, staged_lib_change) {
     .rebuilds = {
       {
         .change.moves = {
-          { .from = sp_str_lit("packages/B/b.change.c"), .to = sp_str_lit("packages/B/b.c") },
+          { .from = "packages/B/b.change.c", .to = "packages/B/b.c" },
         },
         .command = {
           .args = { "build" },
@@ -132,7 +132,7 @@ sp_test(freshness, dep_source_change) {
     .rebuilds = {
       {
         .change.moves = {
-          { .from = sp_str_lit("packages/spum/spum.change.c"), .to = sp_str_lit("packages/spum/spum.c") },
+          { .from = "packages/spum/spum.change.c", .to = "packages/spum/spum.c" },
         },
         .command = {
           .args = { "build", "-p", "debug" },
@@ -168,7 +168,7 @@ sp_test(freshness, dep_header_inert) {
     .rebuilds = {
       {
         .change.moves = {
-          { .from = sp_str_lit("packages/spum/spum.inert.h"), .to = sp_str_lit("packages/spum/spum.h") },
+          { .from = "packages/spum/spum.inert.h", .to = "packages/spum/spum.h" },
         },
         .command = {
           .args = { "build", "-p", "debug" },
@@ -193,7 +193,7 @@ sp_test(freshness, node_header_inert) {
     .rebuilds = {
       {
         .change.moves = {
-          { .from = sp_str_lit("version.change.txt"), .to = sp_str_lit("version.txt") },
+          { .from = "version.change.txt", .to = "version.txt" },
         },
         .command = {
           .args = { "build" },
@@ -218,7 +218,7 @@ sp_test(freshness, dep_unincluded_header_change) {
     .rebuilds = {
       {
         .change.moves = {
-          { .from = sp_str_lit("packages/spum/extra.change.h"), .to = sp_str_lit("packages/spum/extra.h") },
+          { .from = "packages/spum/extra.change.h", .to = "packages/spum/extra.h" },
         },
         .command = {
           .args = { "build", "-p", "debug" },
@@ -243,8 +243,8 @@ sp_test(freshness, dep_header_change) {
     .rebuilds = {
       {
         .change.moves = {
-          { .from = sp_str_lit("main.code.c"), .to = sp_str_lit("main.c") },
-          { .from = sp_str_lit("packages/spum/spum.seven.h"), .to = sp_str_lit("packages/spum/spum.h") },
+          { .from = "main.code.c", .to = "main.c" },
+          { .from = "packages/spum/spum.seven.h", .to = "packages/spum/spum.h" },
         },
         .command = {
           .args = { "build", "-p", "debug" },
@@ -256,7 +256,7 @@ sp_test(freshness, dep_header_change) {
       },
       {
         .change.moves = {
-          { .from = sp_str_lit("packages/spum/spum.eight.h"), .to = sp_str_lit("packages/spum/spum.h") },
+          { .from = "packages/spum/spum.eight.h", .to = "packages/spum/spum.h" },
         },
         .command = {
           .args = { "build", "-p", "debug" },
@@ -307,7 +307,7 @@ sp_test(freshness, linker_script_change) {
     .rebuilds = {
       {
         .change.moves = {
-          { .from = sp_str_lit("main.change.ld"), .to = sp_str_lit("main.ld") },
+          { .from = "main.change.ld", .to = "main.ld" },
         },
         .command = {
           .args = { "build", "--target", SPN_TEST_ARCH "-freestanding-none" },

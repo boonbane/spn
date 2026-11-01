@@ -25,8 +25,8 @@ sp_test(offline, store_only_unlocked) {
     .rebuilds = {
       {
         .change = {
-          .remove_files = { sp_str_lit("spn.lock") },
-          .remove_dirs = { sp_str_lit("remote/spum"), sp_str_lit("build") },
+          .remove_files = { lit("spn.lock") },
+          .remove_dirs = { "remote/spum", "build" },
         },
         .command = {
           .args = { "build" },
@@ -64,7 +64,7 @@ sp_test(offline, shared_store) {
       { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
       { .kind = ACTION_REMOVE_DIR, .rm = { .dir = "remote/spum" } },
       { .kind = ACTION_RUN_CLI, .cli = { "build", .cwd = "second" } },
-      { .kind = ACTION_VERIFY_EXISTS, .exists = in_dir("second", exe("main")) },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = { PATH_EXE, .name = "main", .dir = "second" } },
       { .kind = ACTION_VERIFY_STORE, .verify_store = { .pkg = "core/spum", .count = 1 } },
     },
   });

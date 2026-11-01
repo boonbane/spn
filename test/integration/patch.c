@@ -23,7 +23,7 @@ sp_test(patch, edit_rebuilds_with_new_content) {
     .rebuilds = {
       {
         .change.moves = {
-          { .from = sp_str_lit("patches/spum.edit.patch"), .to = sp_str_lit("patches/spum.patch") },
+          { .from = "patches/spum.edit.patch", .to = "patches/spum.patch" },
         },
         .command = {
           .args = { "build" },

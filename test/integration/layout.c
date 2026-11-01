@@ -38,9 +38,9 @@ sp_test(layout, staged_identity) {
     .expect.exists = { exe("main"), test_exe("check") },
   }));
 
-  sp_str_t staged[] = { exe("main"), staged_lib("spum"), test_exe("check"), test_lib("spum") };
+  path_t staged [] = { exe("main"), staged_lib("spum"), test_exe("check"), test_lib("spum") };
   sp_carr_for(staged, it) {
-    sp_str_t path = fixture_path(&fixture, staged[it]);
+    sp_str_t path = fixture_path(&fixture, path_render(&fixture, staged[it]));
     sp_sys_file_meta_t meta = sp_zero;
     sp_sys_get_path_metadata_s(sp_sys_get_root(0), path, &meta);
     sp_test_kv(t, "path", path);
@@ -72,15 +72,15 @@ sp_test(layout, staged_prune) {
       {
         .change = {
           .moves = {
-            { .from = sp_str_lit("spn.nodep.toml"), .to = sp_str_lit("spn.toml") },
-            { .from = sp_str_lit("main.nodep.c"), .to = sp_str_lit("main.c") },
+            { .from = "spn.nodep.toml", .to = "spn.toml" },
+            { .from = "main.nodep.c", .to = "main.c" },
           },
-          .writes = { { .file = sp_str_lit("build/debug/user.txt"), .content = sp_str_lit("U") } },
+          .writes = { { .file = "build/debug/user.txt", .content = "U" } },
         },
         .command = {
           .args = { "build" },
           .expect = {
-            .exists = { exe("main"), sp_str_lit("build/debug/user.txt") },
+            .exists = { exe("main"), lit("build/debug/user.txt") },
             .missing = { staged_lib("B") },
           },
         },
@@ -132,7 +132,7 @@ sp_test(layout, target_triple) {
     .args = { "build", "--target", triple },
     .expect = {
       .exists = { target_exe("main", triple) },
-      .missing = { sp_str_lit("build/debug") },
+      .missing = { lit("build/debug") },
     },
   });
 }

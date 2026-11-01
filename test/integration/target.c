@@ -214,7 +214,7 @@ sp_test(target, publish_prune) {
     .rebuilds = {
       {
         .change.moves = {
-          { .from = sp_str_lit("packages/kit/spn.fewer.toml"), .to = sp_str_lit("packages/kit/spn.toml") },
+          { .from = "packages/kit/spn.fewer.toml", .to = "packages/kit/spn.toml" },
         },
         .command = {
           .args = { "build" },
@@ -244,7 +244,7 @@ sp_test(target, system_deps) {
     .project = "test/integration/fixtures/target/system_deps",
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { "build" } },
-      { .kind = ACTION_VERIFY_EXISTS, .exists = sp_str_lit("spn.lock") },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = lit("spn.lock") },
       { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
       { .kind = ACTION_RUN_CLI, .cli = { "build", .args = { "--force" } } },
       { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },

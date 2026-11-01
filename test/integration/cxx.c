@@ -120,7 +120,7 @@ sp_test(cxx, bin) {
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
       { .kind = ACTION_RUN_BIN, .bin.name = "main" },
-      { .kind = ACTION_STAGE_BARE_RUN, .bare = { .name = "main", .expect = BARE_EXPECT_RUNS } },
+      { .kind = ACTION_STAGE_BARE_RUN, .bare = { .file = exe("main"), .expect = BARE_EXPECT_RUNS } },
     },
   });
 }
@@ -133,7 +133,7 @@ sp_test(cxx, runtime_shared) {
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
       { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
-      { .kind = ACTION_STAGE_BARE_RUN, .bare = { .name = "main", .expect = BARE_EXPECT_NOT_LOADABLE } },
+      { .kind = ACTION_STAGE_BARE_RUN, .bare = { .file = exe("main"), .expect = BARE_EXPECT_NOT_LOADABLE } },
     },
   });
 }
@@ -146,7 +146,7 @@ sp_test(cxx, bare_threads) {
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
       { .kind = ACTION_RUN_BIN, .bin.name = "main" },
-      { .kind = ACTION_STAGE_BARE_RUN, .bare = { .name = "main", .expect = BARE_EXPECT_RUNS } },
+      { .kind = ACTION_STAGE_BARE_RUN, .bare = { .file = exe("main"), .expect = BARE_EXPECT_RUNS } },
     },
   });
 }

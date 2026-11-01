@@ -6,7 +6,7 @@ static const c8* project(sp_test_t* t, const c8* name) {
 
 typedef struct {
   const c8* name;
-  const c8* work [SPN_TEST_COMMAND_MAX_PATHS];
+  const c8* work [SPN_TEST_MAX_PATHS];
 } graph_t;
 
 // Fixtures self-verify with _Static_assert on what their nodes generated, so a
@@ -29,7 +29,7 @@ sp_test_each(script, graph, graph_t, graphs) {
     if (!it->work[i]) {
       break;
     }
-    test.expect.exists[i] = work_file(it->work[i]);
+    test.expect.exists[i] = (path_t) work_file(it->work[i]);
   }
   return run_command_test(t, test);
 }
@@ -45,7 +45,7 @@ sp_test(script, chained_nodes) {
     .rebuilds = {
       {
         .change.moves = {
-          { .from = sp_str_lit("a.change.txt"), .to = sp_str_lit("a.txt") },
+          { .from = "a.change.txt", .to = "a.txt" },
         },
         .command = {
           .args = { "build" },
@@ -77,7 +77,7 @@ sp_test(script, script_edit) {
     .rebuilds = {
       {
         .change.moves = {
-          { .from = sp_str_lit("tools/build.change.c"), .to = sp_str_lit("tools/build.c") },
+          { .from = "tools/build.change.c", .to = "tools/build.c" },
         },
         .command = {
           .args = { "build" },
@@ -122,7 +122,7 @@ sp_test(script, publish_replay) {
     },
     .rebuilds = {
       {
-        .change.remove_dirs = { sp_str_lit("build") },
+        .change.remove_dirs = { "build" },
         .command = {
           .args = { "build" },
           .expect = {
@@ -148,7 +148,7 @@ sp_test(script, tree_output_rerun_drops_file) {
     },
     .rebuilds = {
       {
-        .change.remove_files = { sp_str_lit("H/d.h") },
+        .change.remove_files = { lit("H/d.h") },
         .command = {
           .args = { "build" },
           .expect = {
@@ -313,7 +313,7 @@ sp_test(script, build_deps_replay) {
     },
     .rebuilds = {
       {
-        .change.remove_dirs = { sp_str_lit("build") },
+        .change.remove_dirs = { "build" },
         .command = {
           .args = { "build" },
           .expect = {
@@ -456,7 +456,7 @@ sp_test(script, embed_dir) {
       },
       {
         .change.moves = {
-          { .from = sp_str_lit("H/a.change.h"), .to = sp_str_lit("H/a.h") },
+          { .from = "H/a.change.h", .to = "H/a.h" },
         },
         .command = {
           .args = { "build" },

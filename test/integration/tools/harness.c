@@ -9,133 +9,107 @@
 
 #define expect_path(t, fixture, path) expect_exists(t, fixture, path, true, __FILE__, __LINE__)
 #define expect_no_path(t, fixture, path) expect_exists(t, fixture, path, false, __FILE__, __LINE__)
-#define expect_static_elf(t, fixture, path) expect_no_interp(t, fixture, path, __FILE__, __LINE__)
 
-static SP_THREAD_LOCAL sp_mem_heap_t* harness_heap;
-
-static sp_mem_t harness_mem() {
-  if (!harness_heap) {
-    harness_heap = sp_mem_heap_new();
-  }
-  return sp_mem_heap_as_allocator(harness_heap);
-}
-
-static sp_str_t layout_path(const c8* triple, const c8* profile, sp_str_t rest) {
-  sp_mem_t mem = harness_mem();
-  sp_str_t path = sp_str_lit("build");
-  if (triple) {
-    path = sp_fs_join_path(mem, path, sp_str_view(triple));
-  }
-  path = sp_fs_join_path(mem, path, sp_str_view(profile));
-  return sp_fs_join_path(mem, path, rest);
-}
-
-static sp_str_t layout_sub(const c8* dir, const c8* rest) {
-  return sp_fs_join_path(harness_mem(), sp_str_view(dir), sp_str_view(rest));
-}
-
-static const c8* shared_lib_file(const c8* name) {
-  sp_mem_t mem = harness_mem();
-  return sp_str_to_cstr(mem, spn_triple_lib_file_name(mem, test_host(), sp_str_view(name), SP_OS_LIB_SHARED));
-}
-
-static const c8* static_lib_file(const c8* name) {
-  sp_mem_t mem = harness_mem();
-  return sp_str_to_cstr(mem, spn_triple_lib_file_name(mem, test_host(), sp_cstr_as_str(name), SP_OS_LIB_STATIC));
-}
-
-sp_str_t pkg_shared_lib(const c8* pkg, const c8* name) {
-  return pkg_store_file(pkg, sp_str_to_cstr(harness_mem(), layout_sub("lib", shared_lib_file(name))));
-}
-
-sp_str_t pkg_profile_static_lib(const c8* profile, const c8* pkg, const c8* name) {
-  return pkg_profile_store_file(profile, pkg, sp_str_to_cstr(harness_mem(), layout_sub("lib", static_lib_file(name))));
-}
-
-sp_str_t pkg_static_lib(const c8* pkg, const c8* name) {
-  return pkg_profile_static_lib("debug", pkg, name);
-}
-
-sp_str_t staged_lib(const c8* name) {
-  return exe(shared_lib_file(name));
-}
-
-sp_str_t test_lib(const c8* name) {
-  return test_exe(shared_lib_file(name));
-}
-
-static sp_str_t exe_file_name(const c8* name, const c8* triple) {
+static spn_triple_t path_target(const c8* triple) {
   spn_triple_t target = test_host();
   if (triple) {
     spn_triple_t partial = sp_zero;
-    sp_assert(spn_triple_parse(sp_str_view(triple), &partial) == SPN_OK);
+    sp_assert(spn_triple_parse(sp_cstr_as_str(triple), &partial) == SPN_OK);
     target = spn_triple_merge(target, partial);
   }
-  if (sp_str_find_c8(sp_fs_get_name(sp_str_view(name)), '.') >= 0) {
-    return sp_str_view(name);
+  return target;
+}
+
+static sp_str_t layout_path(sp_mem_t mem, const c8* triple, const c8* profile, sp_str_t rest) {
+  sp_str_t path = sp_str_lit("build");
+  if (triple) {
+    path = sp_fs_join_path(mem, path, sp_cstr_as_str(triple));
   }
-  return spn_triple_exe_file_name(harness_mem(), target, sp_str_view(name));
+  path = sp_fs_join_path(mem, path, sp_cstr_as_str(profile));
+  return sp_fs_join_path(mem, path, rest);
 }
 
-sp_str_t profile_exe(const c8* profile, const c8* name) {
-  return layout_path(SP_NULLPTR, profile, exe_file_name(name, SP_NULLPTR));
+static sp_str_t store_path(sp_mem_t mem, path_t path, const c8* profile, sp_str_t rest) {
+  return layout_path(mem, path.triple, profile, sp_fs_join_path(mem, sp_str_lit("store"), sp_fs_join_path(mem, sp_cstr_as_str(path.pkg), rest)));
 }
 
-sp_str_t pkg_profile_store_file(const c8* profile, const c8* pkg, const c8* rest) {
-  if (sp_str_starts_with(sp_cstr_as_str(rest), sp_str_lit("bin/"))) {
-    rest = sp_str_to_cstr(harness_mem(), exe_file_name(rest, SP_NULLPTR));
+sp_str_t path_render(fixture_t* fixture, path_t path) {
+  sp_mem_t mem = fixture->mem;
+  const c8* profile = path.profile ? path.profile : "debug";
+  spn_triple_t target = path_target(path.triple);
+  sp_str_t name = sp_cstr_as_str(path.name);
+  sp_str_t rendered = sp_zero;
+  switch (path.kind) {
+    case PATH_NONE: {
+      break;
+    }
+    case PATH_LITERAL: {
+      rendered = name;
+      break;
+    }
+    case PATH_EXE: {
+      rendered = layout_path(mem, path.triple, profile, spn_triple_exe_file_name(mem, target, name));
+      break;
+    }
+    case PATH_TEST_EXE: {
+      rendered = layout_path(mem, path.triple, profile, sp_fs_join_path(mem, sp_str_lit("test"), spn_triple_exe_file_name(mem, target, name)));
+      break;
+    }
+    case PATH_EXAMPLE_EXE: {
+      rendered = layout_path(mem, path.triple, profile, sp_fs_join_path(mem, sp_str_lit("example"), spn_triple_exe_file_name(mem, target, name)));
+      break;
+    }
+    case PATH_STAGED_LIB: {
+      rendered = layout_path(mem, path.triple, profile, spn_triple_lib_file_name(mem, target, name, SP_OS_LIB_SHARED));
+      break;
+    }
+    case PATH_TEST_LIB: {
+      rendered = layout_path(mem, path.triple, profile, sp_fs_join_path(mem, sp_str_lit("test"), spn_triple_lib_file_name(mem, target, name, SP_OS_LIB_SHARED)));
+      break;
+    }
+    case PATH_STORE: {
+      sp_str_t rest = path.exe ? sp_fs_join_path(mem, sp_str_lit("bin"), spn_triple_exe_file_name(mem, target, name)) : name;
+      rendered = store_path(mem, path, profile, rest);
+      break;
+    }
+    case PATH_STATIC_LIB: {
+      rendered = store_path(mem, path, profile, sp_fs_join_path(mem, sp_str_lit("lib"), spn_triple_lib_file_name(mem, target, name, SP_OS_LIB_STATIC)));
+      break;
+    }
+    case PATH_SHARED_LIB: {
+      rendered = store_path(mem, path, profile, sp_fs_join_path(mem, sp_str_lit("lib"), spn_triple_lib_file_name(mem, target, name, SP_OS_LIB_SHARED)));
+      break;
+    }
+    case PATH_WORK: {
+      rendered = layout_path(mem, path.triple, profile, sp_fs_join_path(mem, sp_str_lit(".spn"), name));
+      break;
+    }
   }
-  return layout_path(SP_NULLPTR, profile, layout_sub("store", sp_str_to_cstr(harness_mem(), layout_sub(pkg, rest))));
+  if (path.dir) {
+    rendered = sp_fs_join_path(mem, sp_cstr_as_str(path.dir), rendered);
+  }
+  return rendered;
 }
 
-sp_str_t exe(const c8* name) {
-  return profile_exe("debug", name);
-}
-
-sp_str_t test_exe(const c8* name) {
-  sp_str_t file = exe_file_name(name, SP_NULLPTR);
-  return layout_path(SP_NULLPTR, "debug", layout_sub("test", sp_str_to_cstr(harness_mem(), file)));
-}
-
-sp_str_t example_exe(const c8* name) {
-  sp_str_t file = exe_file_name(name, SP_NULLPTR);
-  return layout_path(SP_NULLPTR, "debug", layout_sub("example", sp_str_to_cstr(harness_mem(), file)));
-}
-
-sp_str_t target_exe(const c8* name, const c8* triple) {
-  return layout_path(triple, "debug", exe_file_name(name, triple));
-}
-
-sp_str_t pkg_store_file(const c8* pkg, const c8* rest) {
-  return pkg_profile_store_file("debug", pkg, rest);
-}
-
-sp_str_t work_file(const c8* rest) {
-  return layout_path(SP_NULLPTR, "debug", layout_sub(".spn", rest));
-}
-
-sp_str_t in_dir(const c8* dir, sp_str_t path) {
-  return sp_fs_join_path(harness_mem(), sp_str_view(dir), path);
+static sp_str_t at(fixture_t* fixture, path_t path) {
+  return fixture_path(fixture, path_render(fixture, path));
 }
 
 static sp_str_t display_path(fixture_t* fixture, sp_str_t path) {
-  if (!fixture) {
-    return path;
-  }
   sp_str_t relative = sp_str_strip_left(path, fixture->root);
   if (relative.len == path.len) {
     return path;
   }
-  return sp_str_concat(harness_mem(), sp_str_lit("$test"), relative);
+  return sp_str_concat(fixture->mem, sp_str_lit("$test"), relative);
 }
 
 sp_err_t expect_exists(sp_test_t* t, fixture_t* fixture, sp_str_t path, bool expected, const c8* file, u32 line) {
   bool exists = sp_fs_exists(path);
-  if (exists == expected) return SP_OK;
-
-  if (fixture) {
-    sp_test_kv(t, "root", fixture->root);
+  if (exists == expected) {
+    return SP_OK;
   }
+
+  sp_test_kv(t, "root", fixture->root);
   sp_test_kv(t, "path", display_path(fixture, path));
   sp_test_record(t, (sp_test_failure_t) {
     .file = sp_cstr_as_str(file),
@@ -181,7 +155,7 @@ static sp_err_t expect_elf_entry(sp_test_t* t, fixture_t* fixture, sp_str_t path
     return SP_OK;
   }
 
-  sp_mem_t mem = harness_mem();
+  sp_mem_t mem = fixture->mem;
   sp_test_kv(t, "root", fixture->root);
   sp_test_kv(t, "path", display_path(fixture, path));
   sp_test_record(t, (sp_test_failure_t) {
@@ -205,7 +179,7 @@ static sp_err_t expect_elf_no_symbol(sp_test_t* t, fixture_t* fixture, sp_str_t 
     return SP_OK;
   }
 
-  sp_mem_t mem = harness_mem();
+  sp_mem_t mem = fixture->mem;
   sp_test_kv(t, "root", fixture->root);
   sp_test_kv(t, "path", display_path(fixture, path));
   sp_test_record(t, (sp_test_failure_t) {
@@ -220,7 +194,9 @@ static sp_err_t expect_elf_no_symbol(sp_test_t* t, fixture_t* fixture, sp_str_t 
 static yyjson_val* event_field(sp_mem_t mem, yyjson_val* obj, const c8* key) {
   sp_da(sp_str_t) parts = sp_str_split_c8(mem, sp_cstr_as_str(key), '.');
   sp_da_for(parts, it) {
-    if (!obj) return SP_NULLPTR;
+    if (!obj) {
+      return SP_NULLPTR;
+    }
     obj = yyjson_obj_getn(obj, parts[it].data, parts[it].len);
   }
   return obj;
@@ -228,8 +204,12 @@ static yyjson_val* event_field(sp_mem_t mem, yyjson_val* obj, const c8* key) {
 
 static bool event_matches(yyjson_val* line, const c8* event, const c8* key, const c8* value) {
   const c8* name = yyjson_get_str(yyjson_obj_get(line, "event"));
-  if (!name || !sp_cstr_equal(name, event)) return false;
-  if (!key) return true;
+  if (!name || !sp_cstr_equal(name, event)) {
+    return false;
+  }
+  if (!key) {
+    return true;
+  }
 
   sp_mem_t mem = sp_mem_get_scratch();
   yyjson_val* field = event_field(mem, line, key);
@@ -253,10 +233,14 @@ static u32 count_events(fixture_t* fixture, spn_event_kind_t kind, const c8* key
   u32 count = 0;
   sp_da(sp_str_t) lines = sp_str_split_c8(mem, fixture->events, '\n');
   sp_da_for(lines, it) {
-    if (sp_str_empty(lines[it])) continue;
+    if (sp_str_empty(lines[it])) {
+      continue;
+    }
 
     yyjson_doc* doc = yyjson_read(lines[it].data, lines[it].len, 0);
-    if (!doc) continue;
+    if (!doc) {
+      continue;
+    }
 
     if (event_matches(yyjson_doc_get_root(doc), event, key, value)) {
       count++;
@@ -266,30 +250,19 @@ static u32 count_events(fixture_t* fixture, spn_event_kind_t kind, const c8* key
   return count;
 }
 
-static sp_err_t expect_event(sp_test_t* t, fixture_t* fixture, spn_event_kind_t kind, const c8* key, const c8* value, bool expected, const c8* file, u32 line) {
-  const c8* event = spn_event_name(kind);
-  sp_mem_t mem = fixture->mem;
-
-  bool found = false;
-  sp_da(sp_str_t) lines = sp_str_split_c8(mem, fixture->events, '\n');
-  sp_da_for(lines, it) {
-    if (sp_str_empty(lines[it])) continue;
-
-    yyjson_doc* doc = yyjson_read(lines[it].data, lines[it].len, 0);
-    if (!doc) continue;
-
-    found = event_matches(yyjson_doc_get_root(doc), event, key, value);
-    yyjson_doc_free(doc);
-    if (found) break;
+static sp_err_t expect_event(sp_test_t* t, fixture_t* fixture, spn_event_kind_t kind, const c8* key, const c8* value, bool lane, bool expected, const c8* file, u32 line) {
+  if (lane) {
+    value = test_toolchain()->name;
+  }
+  bool found = count_events(fixture, kind, key, value) > 0;
+  if (found == expected) {
+    return SP_OK;
   }
 
-  if (found == expected) return SP_OK;
-
-  sp_test_kv(t, "event", sp_str_view(event));
+  sp_mem_t mem = fixture->mem;
+  sp_test_kv(t, "event", sp_cstr_as_str(spn_event_name(kind)));
   if (key) {
-    sp_test_kv(t, "field", sp_fmt(mem, "{} = {}",
-      sp_fmt_cstr(key),
-      sp_fmt_cstr(value)).value);
+    sp_test_kv(t, "field", sp_fmt(mem, "{} = {}", sp_fmt_cstr(key), sp_fmt_cstr(value)).value);
   }
   sp_test_kv(t, "events", fixture->events);
   sp_test_record(t, (sp_test_failure_t) {
@@ -307,10 +280,14 @@ static sp_err_t expect_result(sp_test_t* t, fixture_t* fixture, spn_err_t err, c
   sp_str_t actual = sp_zero;
   sp_da(sp_str_t) lines = sp_str_split_c8(mem, fixture->events, '\n');
   sp_da_for(lines, it) {
-    if (sp_str_empty(lines[it])) continue;
+    if (sp_str_empty(lines[it])) {
+      continue;
+    }
 
     yyjson_doc* doc = yyjson_read(lines[it].data, lines[it].len, 0);
-    if (!doc) continue;
+    if (!doc) {
+      continue;
+    }
 
     yyjson_val* root = yyjson_doc_get_root(doc);
     const c8* name = yyjson_get_str(yyjson_obj_get(root, "event"));
@@ -321,7 +298,9 @@ static sp_err_t expect_result(sp_test_t* t, fixture_t* fixture, spn_err_t err, c
     yyjson_doc_free(doc);
   }
 
-  if (!sp_str_empty(actual) && sp_str_equal(spn_err_to_str(err), actual)) return SP_OK;
+  if (!sp_str_empty(actual) && sp_str_equal(spn_err_to_str(err), actual)) {
+    return SP_OK;
+  }
 
   sp_test_kv(t, "events", fixture->events);
   sp_test_record(t, (sp_test_failure_t) {
@@ -345,7 +324,7 @@ static sp_err_t expect_cc_arg(sp_test_t* t, fixture_t* fixture, const action_t* 
     if (!action->verify_cc_arg[it]) {
       break;
     }
-    list = sp_fmt(mem, "{} {.quote}", sp_fmt_str(list), sp_fmt_str(sp_str_view(action->verify_cc_arg[it]))).value;
+    list = sp_fmt(mem, "{} {.quote}", sp_fmt_str(list), sp_fmt_str(sp_cstr_as_str(action->verify_cc_arg[it]))).value;
   }
 
   yyjson_doc* doc = yyjson_read(content.data, content.len, 0);
@@ -379,7 +358,7 @@ static sp_err_t expect_cc_arg(sp_test_t* t, fixture_t* fixture, const action_t* 
     if (found != expected) {
       ok = false;
       const c8* source = yyjson_get_str(yyjson_obj_get(entry, "file"));
-      offender = source ? sp_str_view(source) : sp_str_lit("(unknown)");
+      offender = source ? sp_cstr_as_str(source) : sp_str_lit("(unknown)");
     }
   }
 
@@ -414,7 +393,7 @@ static sp_err_t expect_command_cc(sp_test_t* t, fixture_t* fixture, command_cc_t
     if (!expected.args[it]) {
       break;
     }
-    list = sp_fmt(mem, "{} {.quote}", sp_fmt_str(list), sp_fmt_str(sp_str_view(expected.args[it]))).value;
+    list = sp_fmt(mem, "{} {.quote}", sp_fmt_str(list), sp_fmt_str(sp_cstr_as_str(expected.args[it]))).value;
   }
 
   yyjson_doc* doc = yyjson_read(content.data, content.len, 0);
@@ -437,7 +416,7 @@ static sp_err_t expect_command_cc(sp_test_t* t, fixture_t* fixture, command_cc_t
         if (!expected.args[alt]) {
           break;
         }
-        if (sp_str_contains(sp_str_view(arg), sp_str_view(expected.args[alt]))) {
+        if (sp_str_contains(sp_cstr_as_str(arg), sp_cstr_as_str(expected.args[alt]))) {
           found = true;
         }
       }
@@ -485,11 +464,11 @@ static sp_ps_output_t run_fixture_bin(fixture_t* fixture, sp_str_t path) {
 }
 
 static sp_err_t run_command_bin(sp_test_t* t, fixture_t* fixture, command_bin_t bin) {
-  sp_str_t staged = bin.path;
-  if (sp_str_empty(staged)) {
-    staged = bin.profile ? profile_exe(bin.profile, bin.name) : exe(bin.name);
+  path_t staged = bin.path;
+  if (staged.kind == PATH_NONE) {
+    staged = (path_t) { PATH_EXE, .name = bin.name, .profile = bin.profile };
   }
-  sp_str_t path = fixture_path(fixture, staged);
+  sp_str_t path = at(fixture, staged);
   expect_path(t, fixture, path);
 
   if (bin.build_only) {
@@ -506,50 +485,30 @@ static sp_err_t run_command_bin(sp_test_t* t, fixture_t* fixture, command_bin_t 
     if (!bin.contains[it]) {
       break;
     }
-    sp_test_kv(t, "needle", sp_str_view(bin.contains[it]));
-    sp_expect(t, sp_str_contains(output.out, sp_str_view(bin.contains[it])));
+    sp_test_kv(t, "needle", sp_cstr_as_str(bin.contains[it]));
+    sp_expect(t, sp_str_contains(output.out, sp_cstr_as_str(bin.contains[it])));
   }
   return SP_OK;
 }
 
 static void expect_command_file(sp_test_t* t, fixture_t* fixture, command_file_t expected) {
-  sp_str_t path = fixture_path(fixture, expected.file);
+  sp_str_t path = at(fixture, expected.file);
   sp_str_t content = test_read_file(fixture->mem, path);
+  sp_test_kv(t, "path", path);
+  sp_test_kv(t, "content", content);
   if (expected.content) {
-    sp_test_kv(t, "path", path);
-    sp_test_kv(t, "expected", sp_str_view(expected.content));
-    sp_test_kv(t, "content", content);
-    sp_expect(t, sp_str_equal(content, sp_str_view(expected.content)));
-  }
-  sp_carr_for(expected.contains, it) {
-    if (!expected.contains[it]) {
-      break;
-    }
-    sp_test_kv(t, "path", path);
-    sp_test_kv(t, "needle", sp_str_view(expected.contains[it]));
-    sp_test_kv(t, "content", content);
-    sp_expect(t, sp_str_contains(content, sp_str_view(expected.contains[it])));
-  }
-  sp_carr_for(expected.excludes, it) {
-    if (!expected.excludes[it]) {
-      break;
-    }
-    sp_test_kv(t, "path", path);
-    sp_test_kv(t, "needle", sp_str_view(expected.excludes[it]));
-    sp_test_kv(t, "content", content);
-    sp_expect(t, !sp_str_contains(content, sp_str_view(expected.excludes[it])));
+    sp_test_kv(t, "expected", sp_cstr_as_str(expected.content));
+    sp_expect(t, sp_str_equal(content, sp_cstr_as_str(expected.content)));
   }
   if (expected.json) {
     yyjson_doc* doc = yyjson_read(content.data, content.len, 0);
-    sp_test_kv(t, "path", path);
-    sp_test_kv(t, "content", content);
     sp_expect(t, doc != SP_NULLPTR);
     yyjson_doc_free(doc);
   }
 }
 
 static sp_err_t expect_locked(sp_test_t* t, fixture_t* fixture, spn_lock_file_t* lock, const c8* name, const c8* version, const c8* file, u32 line) {
-  sp_str_t key = sp_str_view(name);
+  sp_str_t key = sp_cstr_as_str(name);
   spn_lock_entry_t* entry = sp_ht_getp(lock->entries, key);
   sp_test_kv(t, "package", key);
   if (!entry) {
@@ -580,18 +539,32 @@ static spn_lock_file_t load_lock(sp_test_t* t, fixture_t* fixture) {
   return lock;
 }
 
-// The lock holds exactly the expected packages
-static void expect_command_lock(sp_test_t* t, fixture_t* fixture, command_expect_t expected) {
+static void expect_lock(sp_test_t* t, fixture_t* fixture, const command_lock_t* locked) {
   spn_lock_file_t lock = load_lock(t, fixture);
   u32 num = 0;
-  sp_carr_for(expected.locked, it) {
-    if (!expected.locked[it].name) {
+  sp_for(it, SPN_TEST_MAX_PACKAGES) {
+    if (!locked[it].name) {
       break;
     }
     num++;
-    expect_locked(t, fixture, &lock, expected.locked[it].name, expected.locked[it].version, __FILE__, __LINE__);
+    expect_locked(t, fixture, &lock, locked[it].name, locked[it].version, __FILE__, __LINE__);
   }
   sp_expect_eq(t, num, (u32)sp_ht_size(lock.entries));
+}
+
+static void expect_store(sp_test_t* t, fixture_t* fixture, const c8* pkg, u32 count) {
+  sp_mem_t mem = fixture->mem;
+  sp_str_t path = sp_fs_join_path(mem, fixture->paths.storage, sp_fmt(mem, "cache/store/{}", sp_fmt_cstr(pkg)).value);
+  sp_da(sp_fs_entry_t) entries = sp_zero;
+  sp_fs_collect(mem, path, &entries);
+  u32 dirs = 0;
+  sp_da_for(entries, et) {
+    if (entries[et].kind == SP_FS_KIND_DIR) {
+      dirs++;
+    }
+  }
+  sp_test_kv(t, "path", path);
+  sp_expect_eq(t, count, dirs);
 }
 
 sp_err_t test_when(sp_test_t* t, test_when_t when) {
@@ -619,26 +592,25 @@ sp_err_t run_command(sp_test_t* t, fixture_t* fixture, command_test_t test) {
     if (!test.expect.contains[it]) {
       break;
     }
-    sp_test_kv(t, "needle", sp_str_view(test.expect.contains[it]));
+    sp_test_kv(t, "needle", sp_cstr_as_str(test.expect.contains[it]));
     sp_test_kv(t, "output", streams);
-    sp_expect(t, sp_str_contains(streams, sp_str_view(test.expect.contains[it])));
+    sp_expect(t, sp_str_contains(streams, sp_cstr_as_str(test.expect.contains[it])));
   }
 
   sp_carr_for(test.expect.excludes, it) {
     if (!test.expect.excludes[it]) {
       break;
     }
-    sp_test_kv(t, "needle", sp_str_view(test.expect.excludes[it]));
+    sp_test_kv(t, "needle", sp_cstr_as_str(test.expect.excludes[it]));
     sp_test_kv(t, "output", streams);
-    sp_expect(t, !sp_str_contains(streams, sp_str_view(test.expect.excludes[it])));
+    sp_expect(t, !sp_str_contains(streams, sp_cstr_as_str(test.expect.excludes[it])));
   }
 
   sp_carr_for(test.expect.files, it) {
-    command_file_t expected = test.expect.files[it];
-    if (sp_str_empty(expected.file)) {
+    if (test.expect.files[it].file.kind == PATH_NONE) {
       break;
     }
-    expect_command_file(t, fixture, expected);
+    expect_command_file(t, fixture, test.expect.files[it]);
   }
 
   sp_carr_for(test.expect.events, it) {
@@ -646,11 +618,11 @@ sp_err_t run_command(sp_test_t* t, fixture_t* fixture, command_test_t test) {
     if (!expected.event) {
       break;
     }
-    expect_event(t, fixture, expected.event, expected.key, expected.value, !expected.absent, __FILE__, __LINE__);
+    expect_event(t, fixture, expected.event, expected.key, expected.value, expected.lane, !expected.absent, __FILE__, __LINE__);
   }
 
   if (test.expect.err) {
-    expect_event(t, fixture, SPN_EVENT_ERR, "kind", sp_str_to_cstr(fixture->mem, spn_err_to_str(test.expect.err)), true, __FILE__, __LINE__);
+    expect_event(t, fixture, SPN_EVENT_ERR, "kind", sp_str_to_cstr(fixture->mem, spn_err_to_str(test.expect.err)), false, true, __FILE__, __LINE__);
   }
 
   sp_carr_for(test.expect.cc, it) {
@@ -661,26 +633,24 @@ sp_err_t run_command(sp_test_t* t, fixture_t* fixture, command_test_t test) {
   }
 
   sp_carr_for(test.expect.exists, it) {
-    if (sp_str_empty(test.expect.exists[it])) {
+    if (test.expect.exists[it].kind == PATH_NONE) {
       break;
     }
-    sp_str_t path = fixture_path(fixture, test.expect.exists[it]);
-    expect_path(t, fixture, path);
+    expect_path(t, fixture, at(fixture, test.expect.exists[it]));
   }
 
   sp_carr_for(test.expect.missing, it) {
-    if (sp_str_empty(test.expect.missing[it])) {
+    if (test.expect.missing[it].kind == PATH_NONE) {
       break;
     }
-    sp_str_t path = fixture_path(fixture, test.expect.missing[it]);
-    expect_no_path(t, fixture, path);
+    expect_no_path(t, fixture, at(fixture, test.expect.missing[it]));
   }
 
   if (test.expect.locked[0].name) {
-    expect_command_lock(t, fixture, test.expect);
+    expect_lock(t, fixture, test.expect.locked);
   }
 
-  if (test.expect.bin.name || !sp_str_empty(test.expect.bin.path)) {
+  if (test.expect.bin.name || test.expect.bin.path.kind) {
     sp_try(run_command_bin(t, fixture, test.expect.bin));
   }
   return SP_OK;
@@ -697,39 +667,39 @@ sp_err_t run_command_test(sp_test_t* t, command_test_t test) {
 
 static sp_err_t apply_rebuild_change(sp_test_t* t, fixture_t* fixture, rebuild_change_t change) {
   sp_carr_for(change.remove_files, it) {
-    if (sp_str_empty(change.remove_files[it])) {
+    if (change.remove_files[it].kind == PATH_NONE) {
       break;
     }
-    sp_str_t path = fixture_path(fixture, change.remove_files[it]);
+    sp_str_t path = at(fixture, change.remove_files[it]);
     sp_fs_remove_file(path);
     expect_no_path(t, fixture, path);
   }
 
   sp_carr_for(change.moves, it) {
-    if (sp_str_empty(change.moves[it].from)) {
+    if (!change.moves[it].from) {
       break;
     }
-    sp_str_t from = fixture_path(fixture, change.moves[it].from);
-    sp_str_t to = fixture_path(fixture, change.moves[it].to);
+    sp_str_t from = fixture_path(fixture, sp_cstr_as_str(change.moves[it].from));
+    sp_str_t to = fixture_path(fixture, sp_cstr_as_str(change.moves[it].to));
     sp_str_t content = test_read_file(fixture->mem, from);
-    fixture_create(fixture, change.moves[it].to, content);
+    fixture_create(fixture, sp_cstr_as_str(change.moves[it].to), content);
     sp_fs_remove_file(from);
     expect_no_path(t, fixture, from);
     expect_path(t, fixture, to);
   }
 
   sp_carr_for(change.writes, it) {
-    if (sp_str_empty(change.writes[it].file)) {
+    if (!change.writes[it].file) {
       break;
     }
-    fixture_create(fixture, change.writes[it].file, change.writes[it].content);
+    fixture_create(fixture, sp_cstr_as_str(change.writes[it].file), sp_cstr_as_str(change.writes[it].content));
   }
 
   sp_carr_for(change.remove_dirs, it) {
-    if (sp_str_empty(change.remove_dirs[it])) {
+    if (!change.remove_dirs[it]) {
       break;
     }
-    sp_str_t path = fixture_path(fixture, change.remove_dirs[it]);
+    sp_str_t path = fixture_path(fixture, sp_cstr_as_str(change.remove_dirs[it]));
     sp_fs_remove_dir(path);
     expect_no_path(t, fixture, path);
   }
@@ -744,12 +714,12 @@ sp_err_t run_rebuild_test(sp_test_t* t, rebuild_test_t test) {
   sp_try(prepare_test(t, &fixture, test.project, test.copy));
   sp_try(run_command(t, &fixture, test.first));
 
-  sp_tm_epoch_t mtimes[SPN_TEST_REBUILD_MAX_WATCHES] = sp_zero;
+  sp_tm_epoch_t mtimes [SPN_TEST_MAX_WATCHES] = sp_zero;
   sp_carr_for(test.watches, it) {
-    if (sp_str_empty(test.watches[it].file)) {
+    if (test.watches[it].file.kind == PATH_NONE) {
       break;
     }
-    sp_str_t path = fixture_path(&fixture, test.watches[it].file);
+    sp_str_t path = at(&fixture, test.watches[it].file);
     expect_path(t, &fixture, path);
     mtimes[it] = sp_fs_get_mod_time(path);
   }
@@ -764,10 +734,10 @@ sp_err_t run_rebuild_test(sp_test_t* t, rebuild_test_t test) {
 
   sp_carr_for(test.watches, it) {
     rebuild_watch_t watch = test.watches[it];
-    if (sp_str_empty(watch.file)) {
+    if (watch.file.kind == PATH_NONE) {
       break;
     }
-    sp_str_t path = fixture_path(&fixture, watch.file);
+    sp_str_t path = at(&fixture, watch.file);
     sp_tm_epoch_t now = sp_fs_get_mod_time(path);
     bool unchanged = mtimes[it].s == now.s && mtimes[it].ns == now.ns;
     if (watch.mtime == REBUILD_MTIME_CHANGED) {
@@ -791,8 +761,8 @@ static sp_err_t stage_bare_run(sp_test_t* t, fixture_t* fixture, action_t action
   sp_str_t dir = sp_fs_join_path(mem, lane, sp_test_get_name(t));
   sp_try(sp_fs_create_dir(dir));
 
-  sp_str_t exe_name = sp_fs_get_name(exe(action.bare.name));
-  sp_try(sp_fs_copy_file_at(sp_path_cwd(fixture_path(fixture, exe(action.bare.name))), sp_path_cwd(sp_fs_join_path(mem, dir, exe_name)), SP_FS_ATOMIC_REPLACE));
+  sp_str_t exe_name = sp_fs_get_name(path_render(fixture, action.bare.file));
+  sp_try(sp_fs_copy_file_at(sp_path_cwd(at(fixture, action.bare.file)), sp_path_cwd(sp_fs_join_path(mem, dir, exe_name)), SP_FS_ATOMIC_REPLACE));
 
   spn_cg_probe_t probe = { .exe = exe_name, .expect = bare_expect_token(action.bare.expect) };
   return sp_fs_create_file_str(sp_fs_join_path(mem, dir, sp_str_lit("probe.json")), spn_probe_write(mem, &probe));
@@ -814,13 +784,13 @@ sp_err_t run_actions(sp_test_t* t, fixture_t* fixture, const action_t* actions) 
         break;
       }
       case ACTION_CREATE_FILE: {
-        fixture_create(fixture, action.create.file, action.create.content);
+        fixture_create(fixture, path_render(fixture, action.create.file), sp_cstr_as_str(action.create.content));
         break;
       }
       case ACTION_RUN_BIN:
       case ACTION_RUN_TEST: {
-        sp_str_t staged_bin = action.kind == ACTION_RUN_TEST ? test_exe(action.bin.name) : exe(action.bin.name);
-        sp_str_t bin = fixture_path(fixture, staged_bin);
+        path_t staged = action.kind == ACTION_RUN_TEST ? (path_t) test_exe(action.bin.name) : (path_t) exe(action.bin.name);
+        sp_str_t bin = at(fixture, staged);
         expect_path(t, fixture, bin);
 
         sp_ps_output_t output = run_fixture_bin(fixture, bin);
@@ -835,64 +805,38 @@ sp_err_t run_actions(sp_test_t* t, fixture_t* fixture, const action_t* actions) 
         break;
       }
       case ACTION_VERIFY_EXISTS: {
-        sp_str_t path = fixture_path(fixture, action.exists);
-        expect_path(t, fixture, path);
+        expect_path(t, fixture, at(fixture, action.exists));
         break;
       }
       case ACTION_VERIFY_NOT_EXISTS: {
-        sp_str_t path = fixture_path(fixture, action.exists);
-        expect_no_path(t, fixture, path);
+        expect_no_path(t, fixture, at(fixture, action.exists));
         break;
       }
       case ACTION_VERIFY_NO_INTERP: {
-        sp_str_t path = fixture_path(fixture, action.verify_no_interp);
-        expect_static_elf(t, fixture, path);
+        expect_no_interp(t, fixture, at(fixture, action.verify_no_interp), __FILE__, __LINE__);
         break;
       }
       case ACTION_VERIFY_ELF_ENTRY: {
-        sp_str_t path = fixture_path(fixture, action.verify_elf_entry.file);
-        expect_elf_entry(t, fixture, path, action.verify_elf_entry.entry, __FILE__, __LINE__);
+        expect_elf_entry(t, fixture, at(fixture, action.verify_elf_entry.file), action.verify_elf_entry.entry, __FILE__, __LINE__);
         break;
       }
       case ACTION_VERIFY_ELF_NO_SYMBOL: {
-        sp_str_t path = fixture_path(fixture, action.verify_elf_no_symbol.file);
-        expect_elf_no_symbol(t, fixture, path, action.verify_elf_no_symbol.prefix, __FILE__, __LINE__);
+        expect_elf_no_symbol(t, fixture, at(fixture, action.verify_elf_no_symbol.file), action.verify_elf_no_symbol.prefix, __FILE__, __LINE__);
         break;
       }
-      case ACTION_VERIFY_DIR_COUNT: {
-        sp_str_t path = fixture_path(fixture, sp_str_view(action.verify_dir_count.dir));
-        sp_da(sp_fs_entry_t) entries = sp_zero;
-        sp_fs_collect(mem, path, &entries);
-        u32 dirs = 0;
-        sp_da_for(entries, et) {
-          if (entries[et].kind == SP_FS_KIND_DIR) {
-            dirs++;
-          }
-        }
-        sp_test_kv(t, "path", path);
-        sp_expect_eq(t, action.verify_dir_count.count, dirs);
-        break;
-      }
-      case ACTION_VERIFY_FILE_CONTAINS: {
-        sp_str_t path = fixture_path(fixture, action.verify_file_contains.file);
-        sp_str_t content = test_read_file(mem, path);
-        sp_test_kv(t, "path", path);
-        sp_test_kv(t, "needle", action.verify_file_contains.needle);
-        sp_test_kv(t, "content", content);
-        sp_expect(t, sp_str_contains(content, action.verify_file_contains.needle));
-        break;
-      }
+      case ACTION_VERIFY_FILE_CONTAINS:
       case ACTION_VERIFY_FILE_NOT_CONTAINS: {
-        sp_str_t path = fixture_path(fixture, action.verify_file_not_contains.file);
+        sp_str_t path = fixture_path(fixture, sp_cstr_as_str(action.verify_file_contains.file));
         sp_str_t content = test_read_file(mem, path);
+        sp_str_t needle = sp_cstr_as_str(action.verify_file_contains.needle);
         sp_test_kv(t, "path", path);
-        sp_test_kv(t, "needle", action.verify_file_not_contains.needle);
+        sp_test_kv(t, "needle", needle);
         sp_test_kv(t, "content", content);
-        sp_expect(t, !sp_str_contains(content, action.verify_file_not_contains.needle));
+        sp_expect_eq(t, action.kind == ACTION_VERIFY_FILE_CONTAINS, sp_str_contains(content, needle));
         break;
       }
       case ACTION_REMOVE_DIR: {
-        sp_str_t path = fixture_path(fixture, sp_str_view(action.rm.dir));
+        sp_str_t path = fixture_path(fixture, sp_cstr_as_str(action.rm.dir));
         sp_fs_remove_dir(path);
         expect_no_path(t, fixture, path);
         break;
@@ -907,12 +851,12 @@ sp_err_t run_actions(sp_test_t* t, fixture_t* fixture, const action_t* actions) 
         break;
       }
       case ACTION_RUN_CLI: {
-        const c8* args[SPN_TEST_COMMAND_MAX_ARGS] = { action.cli.cmd };
-        sp_carr_for(action.cli.args, it) {
-          if (!action.cli.args[it]) {
+        const c8* args [SPN_TEST_COMMAND_MAX_ARGS] = { action.cli.cmd };
+        sp_carr_for(action.cli.args, at) {
+          if (!action.cli.args[at]) {
             break;
           }
-          args[it + 1] = action.cli.args[it];
+          args[at + 1] = action.cli.args[at];
         }
         fixture->path = action.cli.path;
         fixture->cwd = action.cli.cwd;
@@ -929,17 +873,11 @@ sp_err_t run_actions(sp_test_t* t, fixture_t* fixture, const action_t* actions) 
       }
       case ACTION_VERIFY_EVENT:
       case ACTION_VERIFY_NO_EVENT: {
-        expect_event(t, fixture, action.verify_event.event, action.verify_event.key, action.verify_event.value, action.kind == ACTION_VERIFY_EVENT, __FILE__, __LINE__);
+        expect_event(t, fixture, action.verify_event.event, action.verify_event.key, action.verify_event.value, action.verify_event.lane, action.kind == ACTION_VERIFY_EVENT, __FILE__, __LINE__);
         break;
       }
       case ACTION_VERIFY_RESULT: {
         expect_result(t, fixture, action.verify_result.err, __FILE__, __LINE__);
-        break;
-      }
-      case ACTION_VERIFY_EVENT_COUNT: {
-        u32 count = count_events(fixture, action.verify_event_count.event, action.verify_event_count.key, action.verify_event_count.value);
-        sp_test_kv(t, "event", sp_str_view(spn_event_name(action.verify_event_count.event)));
-        sp_expect_eq(t, action.verify_event_count.count, count);
         break;
       }
       case ACTION_VERIFY_PKG_LOCKED: {
@@ -948,7 +886,11 @@ sp_err_t run_actions(sp_test_t* t, fixture_t* fixture, const action_t* actions) 
         break;
       }
       case ACTION_VERIFY_STORE: {
-        sp_str_t path = sp_fs_join_path(mem, fixture->paths.storage, sp_fmt(mem, "cache/store/{}", sp_fmt_cstr(action.verify_store.pkg)).value);
+        expect_store(t, fixture, action.verify_store.pkg, action.verify_store.count);
+        break;
+      }
+      case ACTION_VERIFY_DIR_COUNT: {
+        sp_str_t path = fixture_path(fixture, sp_cstr_as_str(action.verify_dir_count.dir));
         sp_da(sp_fs_entry_t) entries = sp_zero;
         sp_fs_collect(mem, path, &entries);
         u32 dirs = 0;
@@ -958,7 +900,13 @@ sp_err_t run_actions(sp_test_t* t, fixture_t* fixture, const action_t* actions) 
           }
         }
         sp_test_kv(t, "path", path);
-        sp_expect_eq(t, action.verify_store.count, dirs);
+        sp_expect_eq(t, action.verify_dir_count.count, dirs);
+        break;
+      }
+      case ACTION_VERIFY_EVENT_COUNT: {
+        u32 count = count_events(fixture, action.verify_event_count.event, action.verify_event_count.key, action.verify_event_count.value);
+        sp_test_kv(t, "event", sp_cstr_as_str(spn_event_name(action.verify_event_count.event)));
+        sp_expect_eq(t, action.verify_event_count.count, count);
         break;
       }
     }
@@ -996,7 +944,7 @@ sp_err_t run_test(sp_test_t* t, test_t test) {
     }
   }
   while (kept < SPN_TEST_MAX_ACTIONS) {
-    test.actions[kept++] = (action_t) { .kind = ACTION_NONE };
+    test.actions[kept++] = sp_zero_s(action_t);
   }
 
   sp_try(prepare_test(t, &fixture, test.project, test.copy));
@@ -1007,8 +955,7 @@ sp_err_t run_test(sp_test_t* t, test_t test) {
 }
 
 static bool opt_build_present(const opt_build_t* build) {
-  return build->present || build->profile || build->manifest || build->target ||
-    build->alternate || build->expect.rc || build->expect.bin.name;
+  return build->present || build->profile || build->manifest || build->target || build->alternate || build->expect.rc || build->expect.bin.name;
 }
 
 static sp_err_t opt_set_manifest(sp_test_t* t, fixture_t* fixture, const c8* manifest) {
@@ -1073,7 +1020,7 @@ sp_err_t run_opt_test(sp_test_t* t, opt_test_t test) {
       command.args[arg++] = "--target";
       command.args[arg++] = target;
     }
-    if ((command.expect.bin.name || command.expect.bin.path.len) && !test_when_runs(&when)) {
+    if ((command.expect.bin.name || command.expect.bin.path.kind) && !test_when_runs(&when)) {
       command.expect.bin.build_only = true;
     }
     sp_try(run_command(t, &fixture, command));
