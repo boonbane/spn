@@ -12,6 +12,17 @@ static const test_t tests [] = {
       { .kind = ACTION_STAGE_BARE_RUN, .bare = { .file = exe("main"), .with = { staged_lib("spum") }, .expect = BARE_EXPECT_RUNS } },
     },
   },
+  {
+    .name = "staged_test_loads_its_libs",
+    .project = "test/integration/fixtures/layout/test_shared",
+    .copy = { "check.c", "packages/*" },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = test_lib("spum") },
+      { .kind = ACTION_RUN_BIN, .bin.file = test_exe("check") },
+      { .kind = ACTION_STAGE_BARE_RUN, .bare = { .file = test_exe("check"), .with = { test_lib("spum") }, .expect = BARE_EXPECT_RUNS } },
+    },
+  },
 };
 
 sp_test_each(layout, cases, test_t, tests) {
@@ -19,16 +30,6 @@ sp_test_each(layout, cases, test_t, tests) {
 }
 
 static const command_test_t commands [] = {
-  {
-    .name = "staged_test",
-    .project = "test/integration/fixtures/layout/test_shared",
-    .copy = { "check.c", "packages/*" },
-    .args = { "build" },
-    .expect = {
-      .bin.path = test_exe("check"),
-      .exists = { test_exe("check"), test_lib("spum") },
-    },
-  },
   {
     .name = "staged_script",
     .project = "test/integration/fixtures/script/staged",
