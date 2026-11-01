@@ -19,11 +19,7 @@ add_executable(core
   triple.c
   version.c
   when.c
-  closure/harness.c
-  closure/closure.c
-  closure/chase.c
-  closure/libs.c
-  closure/siblings.c
+  closure.c
   compiler/harness.c
   compiler/invocation.c
   compiler/compile.c
@@ -133,12 +129,17 @@ add_executable(core
   toolchain/toolchain.c
   toolchain/zig.c
   unit/harness.c
-  unit/walk.c
-  unit/link_plan.c
-  unit/objects.c
+  unit/compile.c
   unit/edges.c
-  unit/paths.c
+  unit/emit.c
+  unit/errors.c
   unit/fingerprint.c
+  unit/link.c
+  unit/lower.c
+  unit/objects.c
+  unit/paths.c
+  unit/staged.c
+  unit/walk.c
   zig/decode.c
   zig/stubs.c
   ${CMAKE_SOURCE_DIR}/tools/jtd.c
@@ -205,6 +206,19 @@ add_executable(core
   ${SRC}/lock/lock.c
   ${UTIL}/lazy/lazy.c
   ${SRC}/graph/build.c
+  ${SRC}/graph/dag.c
+  ${SRC}/graph/compile_commands.c
+  ${SRC}/graph/nodes/archive.c
+  ${SRC}/graph/nodes/embed.c
+  ${SRC}/graph/nodes/exports.c
+  ${SRC}/graph/nodes/libc.c
+  ${SRC}/graph/nodes/link.c
+  ${SRC}/graph/nodes/object.c
+  ${SRC}/graph/nodes/publish.c
+  ${SRC}/graph/nodes/rsp.c
+  ${SRC}/graph/nodes/user.c
+  ${SRC}/graph/nodes/warm.c
+  ${SRC}/external/cc.c
   ${SRC}/paths/paths.c
   ${SRC}/pkg/id.c
   ${SRC}/options/options.c

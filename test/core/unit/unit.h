@@ -6,65 +6,121 @@
 #include "intern/intern.h"
 #include "manifest.h"
 #include "pkg/pkg.h"
-#include "session/session.h"
+#include "resolve/types.h"
 #include "session/types.h"
 #include "unit/types.h"
 #include "unit/unit.h"
 
 #define UNIT_TEST_MAX_PKGS 8
 #define UNIT_TEST_MAX_DEPS 8
-#define UNIT_TEST_MAX_LIBS 4
+#define UNIT_TEST_MAX_TARGETS 4
 #define UNIT_TEST_MAX_STRS 8
+#define UNIT_TEST_MAX_ROOTS 2
+#define UNIT_TEST_MAX_NODES 2
+#define UNIT_TEST_MAX_OPTIONS 2
 
-#define STATIC_ONLY { .static_lib = true }
-#define SHARED_ONLY { .shared = true }
-#define OBJECT_ONLY { .object = true }
-#define SOURCE_ONLY { .source = true }
+#define static_only { .static_lib = true }
+#define shared_only { .shared = true }
+#define object_only { .object = true }
+#define source_only { .source = true }
 
 typedef struct {
   const c8* to;
   spn_dep_kind_t kind;
   bool private;
-} unit_dep_t;
+} graph_dep_t;
 
 typedef struct {
   const c8* name;
   spn_linkage_set_t linkages;
+  spn_target_kind_t kind;
   bool no_link;
   const c8* source [UNIT_TEST_MAX_STRS];
   const c8* deps [UNIT_TEST_MAX_STRS];
+  const c8* include [UNIT_TEST_MAX_STRS];
+  const c8* define [UNIT_TEST_MAX_STRS];
   const c8* system_deps [UNIT_TEST_MAX_STRS];
   const c8* frameworks [UNIT_TEST_MAX_STRS];
   const c8* link_flags [UNIT_TEST_MAX_STRS];
   const c8* linker_script [UNIT_TEST_MAX_STRS];
+  const c8* embed [UNIT_TEST_MAX_STRS];
   spn_os_version_t min_os;
-} unit_lib_t;
+} graph_target_t;
+
+typedef struct {
+  const c8* tag;
+  const c8* inputs [UNIT_TEST_MAX_STRS];
+  const c8* outputs [UNIT_TEST_MAX_STRS];
+} graph_node_t;
 
 typedef struct {
   const c8* name;
-  unit_dep_t deps [UNIT_TEST_MAX_DEPS];
-  unit_lib_t libs [UNIT_TEST_MAX_LIBS];
-  const c8* system_deps [UNIT_TEST_MAX_STRS];
-  const c8* frameworks [UNIT_TEST_MAX_STRS];
-  spn_os_version_t min_os;
-} unit_pkg_t;
+  bool value;
+  bool is_default;
+  const c8* define;
+  bool public;
+} graph_option_t;
 
 typedef struct {
-  spn_os_t os; // zero selects linux
-  spn_abi_t abi; // zero selects the os default
+  const c8* name;
+  spn_pkg_source_t source;
+  spn_linkage_t config;
+  graph_dep_t deps [UNIT_TEST_MAX_DEPS];
+  graph_target_t targets [UNIT_TEST_MAX_TARGETS];
+  graph_option_t options [UNIT_TEST_MAX_OPTIONS];
+  const c8* include [UNIT_TEST_MAX_STRS];
+  const c8* define [UNIT_TEST_MAX_STRS];
+  const c8* system_deps [UNIT_TEST_MAX_STRS];
+  const c8* frameworks [UNIT_TEST_MAX_STRS];
+  const c8* publish [UNIT_TEST_MAX_STRS];
+  graph_node_t nodes [UNIT_TEST_MAX_NODES];
+  spn_os_version_t min_os;
+} graph_pkg_t;
+
+typedef struct {
+  spn_os_t os;
+  spn_abi_t abi;
+  spn_cc_driver_t driver;
+  spn_mode_t mode;
+  spn_opt_level_t opt;
+  spn_c_standard_t standard;
+  spn_sanitizer_t sanitize;
+  const c8* cc;
+  const c8* link_args [UNIT_TEST_MAX_STRS];
   const c8* sdk;
   const c8* sha256;
+  bool sdk_libc;
+  bool no_cxx;
   spn_linking_t request;
   spn_linkage_t linkage;
   spn_runtime_t runtime;
   spn_runtime_t libc;
-  unit_pkg_t pkgs [UNIT_TEST_MAX_PKGS]; // pkgs[0] is the root package
-} unit_graph_test_t;
+  graph_pkg_t pkgs [UNIT_TEST_MAX_PKGS];
+} graph_t;
 
-spn_session_t* build_session(sp_mem_t mem, unit_graph_test_t* g);
-spn_err_t test_plan(spn_session_t* s, sp_str_t name, spn_target_kind_t kind, spn_target_unit_t** unit);
-spn_pkg_id_t find_pkg_id(spn_session_t* s, unit_graph_test_t* g, const c8* name);
-si_pkg_info_t* test_manifest(spn_session_t* s, spn_pkg_id_t id);
-spn_gated_list_t test_gated_list(sp_mem_t mem, const c8* const* items, u32 max);
-spn_gated_path_list_t test_gated_paths(sp_mem_t mem, const c8* const* items, u32 max);
-si_da(spn_gated_source_t) test_gated_sources(sp_mem_t mem, const c8* const* items, u32 max);
+typedef struct {
+  const c8* name;
+  spn_target_kind_t kind;
+} graph_root_t;
+
+typedef struct {
+  sp_mem_t mem;
+  const graph_t* graph;
+  spn_ctx_t ctx;
+  spn_session_t session;
+  spn_resolve_t resolve;
+  spn_units_t configure;
+  spn_units_t units;
+  spn_build_plan_t configured;
+  spn_build_plan_t plan;
+} units_t;
+
+units_t*            units_new(sp_test_t* t, const graph_t* graph);
+spn_resolved_pkg_t* units_resolved(units_t* u, const c8* pkg);
+si_pkg_info_t*      units_manifest(units_t* u, const c8* pkg);
+spn_err_t           units_add_package(units_t* u, const c8* pkg, spn_pkg_unit_t** unit);
+spn_err_t           units_add_target(units_t* u, spn_pkg_unit_t* pkg, graph_root_t root, spn_target_unit_t** unit);
+spn_err_t           units_add_roots(units_t* u, const graph_root_t* roots, u32 count, si_da(spn_target_unit_t*)* targets);
+spn_err_t           units_plan(units_t* u, si_da(spn_target_unit_t*) targets);
+spn_target_unit_t*  units_find_target(units_t* u, const c8* name, spn_target_kind_t kind);
+sp_da(spn_event_t)  units_errs(units_t* u);

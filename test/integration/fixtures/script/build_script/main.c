@@ -1,5 +1,7 @@
 #include "version.h"
 
-int main(void) {
-  return BUILD_SCRIPT_VERSION == 69 ? 0 : 1;
+_Static_assert(BUILD_SCRIPT_VERSION == 69, "BUILD_SCRIPT_VERSION should be 69");
+
+int main() {
+  return 0;
 }

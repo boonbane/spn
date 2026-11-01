@@ -1,7 +1,8 @@
 #include "harness.h"
 
-sp_test(defines, build_facts) {
-  return run_test(t, (test_t) {
+static const test_t tests [] = {
+  {
+    .name = "build_facts",
     .project = "test/integration/fixtures/defines/simple",
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
@@ -9,36 +10,34 @@ sp_test(defines, build_facts) {
       { .kind = ACTION_VERIFY_CC_ARG, .verify_cc_arg = { "-DGATE_DEBUG=1", "/DGATE_DEBUG=1" } },
       { .kind = ACTION_VERIFY_NO_CC_ARG, .verify_cc_arg = { "-DGATE_RELEASE=1", "/DGATE_RELEASE=1" } },
     },
-  });
-}
-
-sp_test(defines, script_facts) {
-  return run_test(t, (test_t) {
+  },
+  {
+    .name = "script_facts",
     .project = "test/integration/fixtures/defines/script",
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
     },
-  });
-}
-
-sp_test(defines, windows_target) {
-  return run_test(t, (test_t) {
+  },
+  {
+    .name = "windows_target",
     .project = "test/integration/fixtures/defines/simple",
     .when.target = "x86_64-windows-gnu",
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build", .args = { "--target", "x86_64-windows-gnu" } } },
       { .kind = ACTION_VERIFY_CC_ARG, .verify_cc_arg = { "-DSPN_BUILD_OS_WINDOWS" } },
     },
-  });
-}
-
-sp_test(defines, windows_target_msvc) {
-  return run_test(t, (test_t) {
+  },
+  {
+    .name = "windows_target_msvc",
     .project = "test/integration/fixtures/defines/simple",
     .when.target = "x86_64-windows-msvc",
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build", .args = { "--target", "x86_64-windows-msvc" } } },
       { .kind = ACTION_VERIFY_CC_ARG, .verify_cc_arg = { "/DSPN_BUILD_OS_WINDOWS", "-DSPN_BUILD_OS_WINDOWS" } },
     },
-  });
+  },
+};
+
+sp_test_each(defines, cases, test_t, tests) {
+  return run_test(t, *it);
 }

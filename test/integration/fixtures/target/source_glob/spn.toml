@@ -1,7 +1,0 @@
-[package]
-name = "source_glob"
-version = "0.1.0"
-
-[[bin]]
-name = "main"
-source = ["src/pre/**/*.c", "main.c", "src/post/**/*.c"]

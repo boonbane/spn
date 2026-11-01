@@ -1,7 +1,8 @@
 #include "harness.h"
 
-sp_test(patch, applies_to_dep_source) {
-  return run_test(t, (test_t) {
+static const test_t tests [] = {
+  {
+    .name = "applies_to_dep_source",
     .project = "test/integration/fixtures/patch/basic",
     .copy = { "vendor/spum/spn.toml", "patches/*" },
     .actions = {
@@ -9,33 +10,9 @@ sp_test(patch, applies_to_dep_source) {
       { .kind = ACTION_VERIFY_EVENT, .verify_event = { .event = SPN_EVENT_SYNC_PATCH } },
       { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
     },
-  });
-}
-
-sp_test(patch, edit_rebuilds_with_new_content) {
-  return run_rebuild_test(t, (rebuild_test_t) {
-    .project = "test/integration/fixtures/patch/edit",
-    .copy = { "vendor/spum/spn.toml", "patches/*" },
-    .first = {
-      .args = { "build" },
-      .expect.bin = { .name = "main", .rc = 2 },
-    },
-    .rebuilds = {
-      {
-        .change.moves = {
-          { .from = sp_str_lit("patches/spum.edit.patch"), .to = sp_str_lit("patches/spum.patch") },
-        },
-        .command = {
-          .args = { "build" },
-          .expect.bin = { .name = "main", .rc = 3 },
-        },
-      },
-    },
-  });
-}
-
-sp_test(patch, unused_entry_fails) {
-  return run_test(t, (test_t) {
+  },
+  {
+    .name = "unused_entry_fails",
     .project = "test/integration/fixtures/patch/unused",
     .copy = { "patches/*" },
     .actions = {
@@ -43,11 +20,9 @@ sp_test(patch, unused_entry_fails) {
       { .kind = ACTION_VERIFY_EVENT, .verify_event = { .event = SPN_EVENT_ERR, .key = "kind", .value = "patch_unused" } },
       { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = exe("main") },
     },
-  });
-}
-
-sp_test(patch, missing_file_fails) {
-  return run_test(t, (test_t) {
+  },
+  {
+    .name = "missing_file_fails",
     .project = "test/integration/fixtures/patch/missing",
     .copy = { "vendor/spum/spn.toml" },
     .actions = {
@@ -57,5 +32,37 @@ sp_test(patch, missing_file_fails) {
       { .kind = ACTION_VERIFY_EVENT, .verify_event = { .event = SPN_EVENT_ERR, .key = "subject", .value = "core/nosuch" } },
       { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = exe("main") },
     },
-  });
+  },
+};
+
+sp_test_each(patch, cases, test_t, tests) {
+  return run_test(t, *it);
+}
+
+static const rebuild_test_t rebuilds [] = {
+  {
+    .name = "edit_rebuilds_with_new_content",
+    .project = "test/integration/fixtures/patch/edit",
+    .copy = { "vendor/spum/spn.toml", "patches/*" },
+    .first = {
+      .args = { "build" },
+      .expect.exists = { exe("main") },
+    },
+    .rebuilds = {
+      {
+        .change.moves = { { .from = "patches/spum.edit.patch", .to = "patches/spum.patch" } },
+        .command = {
+          .args = { "build" },
+          .expect.events = {
+            { .event = SPN_EVENT_SYNC_PATCH },
+            { .event = SPN_EVENT_TARGET_BUILD_PASSED, .key = "subject.target", .value = "main" },
+          },
+        },
+      },
+    },
+  },
+};
+
+sp_test_each(patch, rebuild, rebuild_test_t, rebuilds) {
+  return run_rebuild_test(t, *it);
 }

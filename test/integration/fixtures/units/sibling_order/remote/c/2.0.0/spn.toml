@@ -1,9 +1,0 @@
-[package]
-name = "c"
-version = "2.0.0"
-
-[[lib]]
-name = "c"
-kinds = ["static"]
-source = ["c.c"]
-publish.include = [{ from = "source/c.h" }]
