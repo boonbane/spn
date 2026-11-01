@@ -16,7 +16,7 @@ sp_str_t spn_profile_build_dir(sp_mem_t mem, const spn_profile_info_t* profile) 
   if (!profile->targeted) {
     return profile->name.str;
   }
-  return sp_fs_join_path(mem, spn_triple_to_str(mem, spn_profile_triple(profile)), profile->name.str);
+  return sp_fs_join_path(mem, spn_triple_to_str(mem, profile->target), profile->name.str);
 }
 
 static void overlay_profile(spn_profile_info_t* to, const spn_profile_info_t* from) {
@@ -45,15 +45,15 @@ static void overlay_profile(spn_profile_info_t* to, const spn_profile_info_t* fr
     to->sanitizers = from->sanitizers;
     to->sanitizers_set = true;
   }
-  if (from->os) {
-    to->os = from->os;
-    to->abi = from->abi;
+  if (from->target.os) {
+    to->target.os = from->target.os;
+    to->target.abi = from->target.abi;
   }
-  else if (from->abi) {
-    to->abi = from->abi;
+  else if (from->target.abi) {
+    to->target.abi = from->target.abi;
   }
-  if (from->arch) {
-    to->arch = from->arch;
+  if (from->target.arch) {
+    to->target.arch = from->target.arch;
   }
   if (!si_da_empty(from->options.clauses)) to->options = from->options;
 }
@@ -89,9 +89,11 @@ static sp_str_t pick(spn_gated_list_t candidates, spn_when_env_t* env) {
 static spn_profile_info_t evaluate(const spn_profile_decl_t* decl, spn_when_env_t* env) {
   return (spn_profile_info_t) {
     .toolchain = spn_toolchain_ref_from_str(pick(decl->toolchain, env)),
-    .os = decl->os,
-    .arch = decl->arch,
-    .abi = spn_abi_from_str(pick(decl->abi, env)),
+    .target = {
+      .arch = decl->arch,
+      .os = decl->os,
+      .abi = spn_abi_from_str(pick(decl->abi, env)),
+    },
     .request = {
       .linkage = spn_linkage_from_str(pick(decl->linkage, env)),
       .runtime = spn_runtime_from_str(pick(decl->runtime, env)),
@@ -113,9 +115,7 @@ static spn_profile_info_t override_to_info(const spn_profile_override_t* overrid
     .opt = override->opt,
     .sanitizers = override->sanitizers,
     .sanitizers_set = override->sanitizers_set,
-    .os = override->triple.os,
-    .arch = override->triple.arch,
-    .abi = override->triple.abi,
+    .target = override->triple,
   };
 }
 
@@ -131,21 +131,21 @@ static void push_abi(spn_abi_list_t* list, spn_abi_t abi) {
 spn_err_t spn_profile_query(const spn_profile_info_t* profile, spn_triple_t host, spn_toolchain_query_t* query) {
   *query = (spn_toolchain_query_t) {
     .toolchain = profile->toolchain,
-    .target = spn_profile_triple(profile),
+    .target = profile->target,
     .sanitizers = profile->sanitizers,
   };
 
   spn_abi_list_t abis = sp_zero;
-  if (profile->abi) {
-    push_abi(&abis, profile->abi);
+  if (profile->target.abi) {
+    push_abi(&abis, profile->target.abi);
   }
   else {
-    sp_assert(profile->arch == host.arch && profile->os == host.os);
-    if (profile->os == SPN_OS_LINUX) {
+    sp_assert(profile->target.arch == host.arch && profile->target.os == host.os);
+    if (profile->target.os == SPN_OS_LINUX) {
       push_abi(&abis, host.abi);
     }
     const spn_abi_t* completions = SP_NULLPTR;
-    u32 count = spn_os_completions(profile->os, &completions);
+    u32 count = spn_os_completions(profile->target.os, &completions);
     sp_for(it, count) {
       push_abi(&abis, completions[it]);
     }
@@ -158,7 +158,7 @@ spn_err_t spn_profile_query(const spn_profile_info_t* profile, spn_triple_t host
   spn_err_refusal_t refused [SPN_ABI_COUNT] = sp_zero;
   u32 refusals = 0;
   sp_for(it, abis.count) {
-    spn_toolchain_candidate_t candidate = { .triple = { profile->arch, profile->os, abis.items[it] } };
+    spn_toolchain_candidate_t candidate = { .triple = { profile->target.arch, profile->target.os, abis.items[it] } };
     spn_linking_refusal_t refusal = spn_ld_linking(candidate.triple, demanded, &candidate.linking);
     if (refusal && demanded.linkage != request.linkage) {
       refusal = spn_ld_linking(candidate.triple, request, &candidate.linking);
@@ -177,11 +177,11 @@ spn_err_t spn_profile_query(const spn_profile_info_t* profile, spn_triple_t host
     }
     return spn_err_emit(&spn, (spn_err_union_t) {
       .kind = SPN_ERR_PROFILE_LINKING,
-      .profile = { .name = profile->name.str, .target = spn_profile_triple(profile), .refusals = list },
+      .profile = { .name = profile->name.str, .target = profile->target, .refusals = list },
     });
   }
 
-  if (profile->os == SPN_OS_LINUX) {
+  if (profile->target.os == SPN_OS_LINUX) {
     spn_toolchain_candidates_t ordered = sp_zero;
     sp_for(it, query->candidates.count) {
       spn_toolchain_candidate_t candidate = query->candidates.items[it];
@@ -201,7 +201,7 @@ spn_err_t spn_profile_query(const spn_profile_info_t* profile, spn_triple_t host
 }
 
 void spn_profile_finalize(spn_profile_info_t* profile, const spn_toolchain_selection_t* selection) {
-  profile->abi = selection->row.triple.abi;
+  profile->target.abi = selection->row.triple.abi;
   profile->driver = selection->toolchain->driver;
   profile->linker = selection->toolchain->lld ? SPN_LD_FAMILY_LLD : spn_ld_native(selection->toolchain->driver, selection->row.triple);
   profile->sdk = spn_sdk_for_driver(spn_toolchain_driver_caps(profile->driver), selection->row.sdk);
@@ -301,13 +301,13 @@ spn_err_t spn_profile_resolve(const spn_profile_override_t* override, spn_triple
   overlay_profile(&merged, &from_selected);
   overlay_profile(&merged, &lifted);
 
-  bool targeted = merged.arch || merged.os || merged.abi;
+  bool targeted = merged.target.arch || merged.target.os || merged.target.abi;
 
   if (!merged.opt) {
     merged.opt = merged.mode == SPN_MODE_RELEASE ? SPN_OPT_LEVEL_2 : SPN_OPT_LEVEL_0;
   }
 
-  spn_triple_t pinned = { .arch = platform.arch, .os = platform.os, .abi = merged.abi };
+  spn_triple_t pinned = { .arch = platform.arch, .os = platform.os, .abi = merged.target.abi };
   spn_triple_t full = sp_zero;
   switch (spn_triple_entry(pinned, &full)) {
     case SPN_TRIPLE_ENTRY_OK: {
@@ -347,9 +347,7 @@ spn_err_t spn_profile_resolve(const spn_profile_override_t* override, spn_triple
     .id          = name.id,
     .name        = name,
     .toolchain   = merged.toolchain,
-    .os          = pinned.os,
-    .arch        = pinned.arch,
-    .abi         = pinned.abi,
+    .target      = pinned,
     .request     = merged.request,
     .demand      = shared_demand(project) ? SPN_LIB_KIND_SHARED : SPN_LIB_KIND_NONE,
     .standard    = merged.standard,
@@ -368,9 +366,7 @@ spn_profile_info_t spn_profile_metaprogram(void) {
     .id = name.id,
     .name = name,
     .toolchain = { .kind = SPN_TOOLCHAIN_REF_AUTO },
-    .arch = SPN_ARCH_WASM32,
-    .os = SPN_OS_WASI,
-    .abi = SPN_ABI_MUSL,
+    .target = { SPN_ARCH_WASM32, SPN_OS_WASI, SPN_ABI_MUSL },
     .mode = SPN_MODE_DEBUG,
     .opt = SPN_OPT_LEVEL_2,
     .standard = SPN_C99,
@@ -380,9 +376,9 @@ spn_profile_info_t spn_profile_metaprogram(void) {
 
 spn_when_facts_t spn_profile_facts(const spn_profile_info_t* profile) {
   return (spn_when_facts_t) {
-    .os = profile->os,
-    .arch = profile->arch,
-    .abi = profile->abi,
+    .os = profile->target.os,
+    .arch = profile->target.arch,
+    .abi = profile->target.abi,
     .driver = profile->driver,
     .linker = profile->linker,
     .mode = profile->mode,

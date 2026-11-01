@@ -101,14 +101,14 @@ static si_da(sp_str_t) canonical_libs(sp_mem_t mem, si_da(sp_str_t) libs) {
 
 spn_zig_stub_t spn_zig_stub(sp_mem_t mem, const spn_profile_info_t* profile, const spn_cc_link_t* link) {
   spn_zig_stub_t stub = {
-    .triple = spn_profile_triple(profile),
+    .triple = profile->target,
     .kind = link->kind,
     .lang = link->lang,
     .is_static = spn_gnu_link_static(profile, link->kind),
     .sanitizers = profile->sanitizers,
     .sdk = spn_sdk_hash(&profile->sdk),
   };
-  if (profile->os == SPN_OS_WINDOWS) {
+  if (profile->target.os == SPN_OS_WINDOWS) {
     stub.system_libs = canonical_libs(mem, link->system_libs);
   }
   return stub;

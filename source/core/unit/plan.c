@@ -100,7 +100,7 @@ static spn_err_t lower_link(spn_units_t* u, spn_target_unit_t* unit) {
         .kind = refusal.err,
         .compiler = {
           .toolchain = toolchain->name.str,
-          .target = spn_profile_triple(profile),
+          .target = profile->target,
           .feature = refusal.feature,
           .pkg = pkg->pkg.manifest->name.str,
           .name = unit->target->info->name.str,
@@ -113,7 +113,7 @@ static spn_err_t lower_link(spn_units_t* u, spn_target_unit_t* unit) {
         .kind = refusal.err,
         .toolchain = {
           .name = toolchain->name.str,
-          .target = spn_profile_triple(profile),
+          .target = profile->target,
           .host = spn.host,
         },
       });
@@ -241,9 +241,9 @@ static spn_err_t lower_target(spn_units_t* u, spn_target_unit_t* unit) {
 
   spn_cc_compile_t compile = {
     .cxx = target->info->cxx,
-    .pic = target->info->kind == SPN_TARGET_KIND_LIB && spn_triple_pic(spn_profile_triple(profile)),
+    .pic = target->info->kind == SPN_TARGET_KIND_LIB && spn_triple_pic(profile->target),
   };
-  if (profile->os == SPN_OS_MACOS) {
+  if (profile->target.os == SPN_OS_MACOS) {
     compile.min_os = link->cc.min_os;
   }
   si_da_for(target->configured.include, it) {
@@ -291,7 +291,7 @@ static spn_err_t lower_target(spn_units_t* u, spn_target_unit_t* unit) {
   }
 
   spn_target_emit_t* emit = &unit->emit;
-  spn_triple_t triple = spn_profile_triple(profile);
+  spn_triple_t triple = profile->target;
   sp_str_t name = target->info->name.str;
   switch (unit->kind) {
     case SPN_CC_OUTPUT_EXE: {

@@ -95,7 +95,7 @@ sp_test_each(options_session, apply, session_test_t, tests, .setup = spn_test_ct
   };
 
   spn_build_unit_t program = {
-    .profile = { .os = SPN_OS_LINUX },
+    .profile = { .target.os = SPN_OS_LINUX },
   };
   spn_session_t session = {
     .ctx = &spn,

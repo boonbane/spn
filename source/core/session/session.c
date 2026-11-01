@@ -50,10 +50,9 @@ spn_err_t spn_session_init(spn_session_t* s, spn_ctx_t* ctx, sp_mem_t mem, spn_p
   spn_try(spn_toolchain_select(&ctx->catalog, metaprogram_query, &script));
   spn_profile_finalize(&metaprogram, &script);
 
-  spn_triple_t metaprogram_triple = { metaprogram.arch, metaprogram.os, metaprogram.abi };
   struct { spn_path_t build; spn_path_t metabuild; } roots = {
     .build = spn_path_join(s->mem, s->paths.build, spn_profile_build_dir(s->mem, &profile)),
-    .metabuild = spn_path_join(s->mem, s->paths.build, spn_triple_to_str(s->mem, metaprogram_triple))
+    .metabuild = spn_path_join(s->mem, s->paths.build, spn_triple_to_str(s->mem, metaprogram.target))
   };
   s->builds.program = spn_build_add(s, profile, roots.build, target.toolchain);
   s->builds.metaprogram = spn_build_add(s, metaprogram, roots.metabuild, script.toolchain);

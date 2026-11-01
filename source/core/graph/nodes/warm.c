@@ -56,7 +56,7 @@ static spn_err_t zig_warmup(sp_mem_t mem, const si_dag_ctx_t* c, si_zig_warmup_t
   switch (warm->link.kind) {
     case SPN_CC_OUTPUT_SHARED_LIB:
     case SPN_CC_OUTPUT_REACTOR: {
-      spn_cc_exports_format_t format = spn_cc_exports_format(warm->link.kind, spn_os_to_native_object_format(profile->os));
+      spn_cc_exports_format_t format = spn_cc_exports_format(warm->link.kind, spn_os_to_native_object_format(profile->target.os));
       sp_str_t extension = spn_cc_exports_extension(format);
       files.exports = spn_path_join(mem, staging, sp_fmt(mem, "stub.{}", sp_fmt_str(extension)).value);
       sp_io_file_writer_t writer = sp_zero;

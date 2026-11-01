@@ -159,15 +159,17 @@ static spn_profile_info_t program_profile(units_t* u, const graph_t* g, const sp
     .mode = g->mode ? g->mode : SPN_MODE_DEBUG,
     .opt = g->opt,
     .sanitizers = g->sanitize ? 1u << g->sanitize : 0,
-    .os = g->os ? g->os : SPN_OS_LINUX,
-    .arch = SPN_ARCH_X64,
-    .abi = g->abi ? g->abi : (g->os == SPN_OS_MACOS ? SPN_ABI_NONE : SPN_ABI_GNU),
+    .target = {
+      .arch = SPN_ARCH_X64,
+      .os = g->os ? g->os : SPN_OS_LINUX,
+      .abi = g->abi ? g->abi : (g->os == SPN_OS_MACOS ? SPN_ABI_NONE : SPN_ABI_GNU),
+    },
     .request = g->request,
     .linking.linkage = g->linkage,
     .linking.runtime = g->runtime,
     .linking.libc = g->libc,
   };
-  spn_triple_t triple = spn_profile_triple(&profile);
+  spn_triple_t triple = profile.target;
   profile.linker = spn_ld_native(profile.driver, triple);
   if (g->sdk) {
     profile.sdk = spn_sdk_at(u->mem, triple, (spn_path_t) { .sub = sp_cstr_as_str(g->sdk) });
@@ -247,7 +249,7 @@ units_t* units_new(sp_test_t* t, const graph_t* g) {
   spn_profile_info_t profile = program_profile(u, g, info);
   spn_profile_info_t metaprogram = spn_profile_metaprogram();
   metaprogram.driver = profile.driver;
-  metaprogram.linker = spn_ld_native(metaprogram.driver, spn_profile_triple(&metaprogram));
+  metaprogram.linker = spn_ld_native(metaprogram.driver, metaprogram.target);
 
   spn_path_t project = spn_path_from_root(SPN_PATH_ROOT_PROJECT);
   spn_build_unit_t* program = spn_build_add(&u->session, profile, spn_path_join(mem, project, sp_str_lit("build/debug")), info);

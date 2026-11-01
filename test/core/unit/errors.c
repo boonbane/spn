@@ -196,7 +196,7 @@ sp_test_each(unit_errors, plan, test_t, tests, .setup = spn_test_ctx_setup) {
       sp_expect_str_eq_c(t, refusal->toolchain, "T");
       sp_expect_str_eq_c(t, refusal->pkg, "P");
       sp_expect_str_eq_c(t, refusal->name, "A");
-      sp_expect(t, spn_triple_equal(refusal->target, spn_profile_triple(&u->session.builds.program->profile)));
+      sp_expect(t, spn_triple_equal(refusal->target, u->session.builds.program->profile.target));
       sp_must_strs_eq(t, refusal->frameworks, sp_da_size(refusal->frameworks), it->expect.frameworks);
       break;
     }

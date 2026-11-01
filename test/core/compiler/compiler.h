@@ -32,9 +32,7 @@ typedef struct {
 } rsp_test_t;
 
 typedef struct {
-  spn_arch_t arch;
-  spn_os_t os;
-  spn_abi_t abi;
+  spn_triple_t target;
   spn_linking_t linking;
   spn_c_standard_t standard;
   spn_mode_t mode;

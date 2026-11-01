@@ -306,9 +306,7 @@ static spn_err_t lane_selects(sp_mem_t mem, const test_when_t* when, spn_triple_
   const c8* named = test_lane_toolchain_arg();
   *profile = (spn_profile_info_t) {
     .toolchain = spn_toolchain_ref_from_str(sp_cstr_as_str(named ? named : "auto")),
-    .arch = target.arch,
-    .os = target.os,
-    .abi = when->target ? target.abi : SPN_ABI_NONE,
+    .target = { target.arch, target.os, when->target ? target.abi : SPN_ABI_NONE },
     .sanitizers = when->sanitize,
   };
   spn_toolchain_query_t query = sp_zero;
