@@ -1,4 +1,5 @@
 #include "toolchain.h"
+#include "ctx/ctx.h"
 #include "toolchain/probe.h"
 #include "toolchain/search.h"
 
@@ -310,7 +311,7 @@ static sp_str_t search_path(sp_mem_t mem, sp_str_t root, const c8* const* dirs) 
   if (!any) {
     sp_da_push(result, sp_fs_join_path(mem, root, sp_str_lit("A")));
   }
-  c8 sep = spn_search_rules(spn_triple_host().os).sep;
+  c8 sep = spn_search_rules(spn_host_detect().os).sep;
   return sp_str_join_n(mem, result, sp_da_size(result), sp_str(&sep, 1));
 }
 
@@ -386,7 +387,7 @@ sp_test_each(probe, resolve, test_t, tests, .setup = spn_test_ctx_setup) {
         spn_cc_t declared = make_cc(mem, root, it);
         spn_cc_t cc = declared;
         sp_hash_t identity = sp_zero;
-        spn_err_t err = spn_toolchain_probe(&cc, &roots, spn_search_rules(spn_triple_host().os), search_path(mem, root, action.probe.dirs), &cache, mem, &identity);
+        spn_err_t err = spn_toolchain_probe(&cc, &roots, spn_search_rules(spn_host_detect().os), search_path(mem, root, action.probe.dirs), &cache, mem, &identity);
         sp_must_eq(t, (u32)action.probe.err, (u32)err);
         if (err) {
           sp_da(spn_event_t) errs = spn_test_drain_errs(mem);

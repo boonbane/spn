@@ -1,6 +1,7 @@
 #include "when/when.h"
 
 #include "enum/enum.h"
+#include "triple/triple.h"
 
 spn_option_value_t spn_option_value_none(void) {
   return (spn_option_value_t) { .kind = SPN_OPTION_VALUE_NONE };

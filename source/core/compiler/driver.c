@@ -269,7 +269,7 @@ spn_cc_link_refusal_t spn_cc_validate_link(const spn_cc_t* toolchain, spn_triple
   if (link->kind == SPN_CC_OUTPUT_REACTOR && profile->target.os != SPN_OS_WASI) {
     return (spn_cc_link_refusal_t) { .err = SPN_ERR_COMPILER_FEATURE_UNSUPPORTED, .feature = feature };
   }
-  if (link->kind == SPN_CC_OUTPUT_SHARED_LIB && !spn_triple_dynamic(target)) {
+  if (link->kind == SPN_CC_OUTPUT_SHARED_LIB && !spn_ld_dynamic(target)) {
     return (spn_cc_link_refusal_t) { .err = SPN_ERR_COMPILER_FEATURE_UNSUPPORTED, .feature = feature };
   }
   if (profile->target.os == SPN_OS_MACOS && !si_da_empty(link->frameworks) && profile->sdk.kind == SPN_SDK_NONE) {

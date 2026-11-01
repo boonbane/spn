@@ -10,8 +10,27 @@ typedef struct {
   u32 count;
 } rows_t;
 
+bool spn_ld_dynamic(spn_triple_t target) {
+  if (target.abi == SPN_ABI_BARE) {
+    return false;
+  }
+  switch (target.os) {
+    case SPN_OS_LINUX:
+    case SPN_OS_WINDOWS:
+    case SPN_OS_MACOS: {
+      return true;
+    }
+    case SPN_OS_WASI:
+    case SPN_OS_FREESTANDING:
+    case SPN_OS_NONE: {
+      return false;
+    }
+  }
+  SP_UNREACHABLE_RETURN(false);
+}
+
 bool spn_ld_loader(spn_triple_t target, spn_linking_t linking) {
-  return spn_triple_dynamic(target) && !(spn_os_to_native_object_format(target.os) == SPN_OBJ_ELF && linking.libc == SPN_RUNTIME_STATIC);
+  return spn_ld_dynamic(target) && !(spn_os_to_native_object_format(target.os) == SPN_OBJ_ELF && linking.libc == SPN_RUNTIME_STATIC);
 }
 
 static u32 first(spn_triple_t target, rows_t table, spn_linking_t request) {

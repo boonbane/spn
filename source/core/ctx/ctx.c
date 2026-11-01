@@ -2,6 +2,7 @@
 
 #include "ctx/ctx.h"
 #include "dag/types.h"
+#include "elf/elf.h"
 #include "error/error.h"
 #include "intern/intern.h"
 
@@ -62,3 +63,46 @@ sp_str_t spn_intern_find(sp_intern_id_t id) {
   return sp_intern_find(spn_ctx_get_intern(), id);
 }
 
+spn_triple_t spn_host_detect() {
+  spn_triple_t host = sp_zero;
+
+#if defined(SP_AMD64)
+  host.arch = SPN_ARCH_X64;
+#elif defined(SP_ARM64)
+  host.arch = SPN_ARCH_ARM64;
+#endif
+
+#if defined(SP_LINUX)
+  host.os = SPN_OS_LINUX;
+  #if defined(__GLIBC__)
+    host.abi = SPN_ABI_GNU;
+  #else
+    host.abi = SPN_ABI_MUSL;
+  #endif
+
+  sp_io_file_reader_t file = sp_zero;
+  if (!sp_io_file_reader_from_path_at(&file, sp_path_from_str(sp_str_lit("/bin/sh")))) {
+    sp_io_seeking_reader_t elf = sp_zero;
+    sp_io_seeking_reader_from_file_reader(&elf, &file);
+    sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+    sp_str_t interp = sp_zero;
+    if (!spn_elf_interp(scratch.mem, &elf, &interp)) {
+      if (sp_str_find(interp, sp_str_lit("ld-musl")) >= 0) {
+        host.abi = SPN_ABI_MUSL;
+      }
+      else if (sp_str_find(interp, sp_str_lit("ld-linux")) >= 0) {
+        host.abi = SPN_ABI_GNU;
+      }
+    }
+    sp_mem_end_scratch(scratch);
+    sp_io_file_reader_close(&file);
+  }
+#elif defined(SP_MACOS)
+  host.os = SPN_OS_MACOS;
+  host.abi = SPN_ABI_APPLE;
+#elif defined(SP_WIN32)
+  host.os = SPN_OS_WINDOWS;
+#endif
+
+  return host;
+}

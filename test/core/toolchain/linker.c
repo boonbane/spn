@@ -161,3 +161,24 @@ sp_test_each(linker, native, native_t, native_tests) {
   sp_expect_eq(t, (u32)it->expect, (u32)spn_ld_native(it->driver, it->target));
   return SP_OK;
 }
+
+typedef struct {
+  const c8* name;
+  spn_triple_t target;
+  bool expect;
+} dynamic_t;
+
+static const dynamic_t dynamic_tests [] = {
+  { "linux",            HOST_X64_LINUX,  true },
+  { "windows",          TARGET_WIN_GNU,  true },
+  { "macos",            HOST_ARM_MACOS,  true },
+  { "wasi",             TARGET_WASM },
+  { "freestanding",     TARGET_ARM_BARE },
+  { "freestanding_elf", TARGET_ARM_ELF },
+  { "linux_none",       TARGET_X64_LINUX_NONE },
+};
+
+sp_test_each(linker, dynamic, dynamic_t, dynamic_tests) {
+  sp_expect_eq(t, it->expect, spn_ld_dynamic(it->target));
+  return SP_OK;
+}

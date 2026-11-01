@@ -48,36 +48,36 @@ sp_str_t path_render(fixture_t* fixture, path_t path) {
       break;
     }
     case PATH_EXE: {
-      rendered = layout_path(mem, path.triple, profile, spn_triple_exe_file_name(mem, target, name));
+      rendered = layout_path(mem, path.triple, profile, test_exe_name(mem, target, name));
       break;
     }
     case PATH_TEST_EXE: {
-      rendered = layout_path(mem, path.triple, profile, sp_fs_join_path(mem, sp_str_lit("test"), spn_triple_exe_file_name(mem, target, name)));
+      rendered = layout_path(mem, path.triple, profile, sp_fs_join_path(mem, sp_str_lit("test"), test_exe_name(mem, target, name)));
       break;
     }
     case PATH_EXAMPLE_EXE: {
-      rendered = layout_path(mem, path.triple, profile, sp_fs_join_path(mem, sp_str_lit("example"), spn_triple_exe_file_name(mem, target, name)));
+      rendered = layout_path(mem, path.triple, profile, sp_fs_join_path(mem, sp_str_lit("example"), test_exe_name(mem, target, name)));
       break;
     }
     case PATH_STAGED_LIB: {
-      rendered = layout_path(mem, path.triple, profile, spn_triple_lib_file_name(mem, target, name, SP_OS_LIB_SHARED));
+      rendered = layout_path(mem, path.triple, profile, test_shared_lib_name(mem, target, name));
       break;
     }
     case PATH_TEST_LIB: {
-      rendered = layout_path(mem, path.triple, profile, sp_fs_join_path(mem, sp_str_lit("test"), spn_triple_lib_file_name(mem, target, name, SP_OS_LIB_SHARED)));
+      rendered = layout_path(mem, path.triple, profile, sp_fs_join_path(mem, sp_str_lit("test"), test_shared_lib_name(mem, target, name)));
       break;
     }
     case PATH_STORE: {
-      sp_str_t rest = path.exe ? sp_fs_join_path(mem, sp_str_lit("bin"), spn_triple_exe_file_name(mem, target, name)) : name;
+      sp_str_t rest = path.exe ? sp_fs_join_path(mem, sp_str_lit("bin"), test_exe_name(mem, target, name)) : name;
       rendered = store_path(mem, path, profile, rest);
       break;
     }
     case PATH_STATIC_LIB: {
-      rendered = store_path(mem, path, profile, sp_fs_join_path(mem, sp_str_lit("lib"), spn_triple_lib_file_name(mem, target, name, SP_OS_LIB_STATIC)));
+      rendered = store_path(mem, path, profile, sp_fs_join_path(mem, sp_str_lit("lib"), test_static_lib_name(mem, target, name)));
       break;
     }
     case PATH_SHARED_LIB: {
-      rendered = store_path(mem, path, profile, sp_fs_join_path(mem, sp_str_lit("lib"), spn_triple_lib_file_name(mem, target, name, SP_OS_LIB_SHARED)));
+      rendered = store_path(mem, path, profile, sp_fs_join_path(mem, sp_str_lit("lib"), test_shared_lib_name(mem, target, name)));
       break;
     }
     case PATH_WORK: {

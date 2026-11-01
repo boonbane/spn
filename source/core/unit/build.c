@@ -8,7 +8,6 @@
 #include "str/str.h"
 #include "spn/core.h"
 #include "toolchain/toolchain.h"
-#include "triple/triple.h"
 #include "when/when.h"
 
 static spn_toolchain_unit_t* bind_toolchain(spn_session_t* s, spn_toolchain_info_t* toolchain) {

@@ -524,7 +524,7 @@ spn_cc_link_plan_t spn_gnu_render_link(sp_mem_t mem, const spn_cc_t* toolchain, 
       spn_cc_push_str(mem, &tail, link->frameworks[it]);
     }
   }
-  if (spn_triple_dynamic(triple)) {
+  if (spn_ld_dynamic(triple)) {
     add_rpath(mem, profile->target.os, &tail);
   }
   plan.tail = tail.args;

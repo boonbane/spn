@@ -240,6 +240,7 @@
       "properties": {
         "toolchain": { "type": "string" },
         "target": { "metadata": { "extern": "triple" } },
+        "host": { "metadata": { "extern": "triple" } },
         "feature": { "ref": "cc_feature" },
         "pkg": { "type": "string" },
         "name": { "type": "string" },

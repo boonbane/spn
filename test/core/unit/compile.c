@@ -64,6 +64,15 @@ static const test_t tests [] = {
     .root = { "A", SPN_TARGET_KIND_EXE },
     .expect.absent = { "-fPIC" },
   },
+  {
+    .name = "coff_libs_are_not_pic",
+    .graph = {
+      .os = SPN_OS_WINDOWS,
+      .pkgs = { { .name = "P", .targets = { { "A", static_only, .source = { "a.c" } } } } },
+    },
+    .root = { "A", SPN_TARGET_KIND_LIB },
+    .expect.absent = { "-fPIC" },
+  },
 };
 
 static bool arg_matches(spn_arg_t arg, arg_t expect) {

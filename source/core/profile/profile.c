@@ -228,6 +228,14 @@ static bool shared_demand(const spn_project_t* project) {
   return false;
 }
 
+static void push_os_triples(sp_da(spn_triple_t)* triples, spn_arch_t arch, spn_os_t os) {
+  const spn_abi_t* abis = SP_NULLPTR;
+  u32 count = spn_os_abis(os, &abis);
+  sp_for(it, count) {
+    sp_da_push(*triples, ((spn_triple_t) { .arch = arch, .os = os, .abi = abis[it] }));
+  }
+}
+
 spn_err_t spn_profile_resolve(const spn_profile_override_t* override, spn_triple_t host, const spn_project_t* project, spn_profile_info_t* result) {
   sp_intern_str_t name = sp_zero;
   if (!sp_str_empty(override->name)) {
@@ -318,23 +326,38 @@ spn_err_t spn_profile_resolve(const spn_profile_override_t* override, spn_triple
       // @spader If you're crossing, we never want to infer. You're already crossing, just
       // be explicit about what you're crossing for.
       if (pinned.arch != host.arch || pinned.os != host.os) {
+        sp_da(spn_triple_t) targets = sp_da_new(spn.events->mem, spn_triple_t);
+        push_os_triples(&targets, pinned.arch, pinned.os);
         return spn_err_emit(&spn, (spn_err_union_t) {
           .kind = SPN_ERR_TARGET_ABI,
-          .profile = { .name = name.str, .target = pinned, .targets = spn_os_triples(spn.events->mem, pinned.arch, pinned.os) },
+          .profile = { .name = name.str, .target = pinned, .targets = targets },
         });
       }
       break;
     }
     case SPN_TRIPLE_ENTRY_FOREIGN_ARCH: {
+      static const spn_os_t oses [] = { SPN_OS_LINUX, SPN_OS_WINDOWS, SPN_OS_MACOS, SPN_OS_WASI, SPN_OS_FREESTANDING };
+      sp_da(spn_triple_t) targets = sp_da_new(spn.events->mem, spn_triple_t);
+      sp_carr_for(oses, it) {
+        const spn_arch_t* archs = SP_NULLPTR;
+        u32 count = spn_os_archs(oses[it], &archs);
+        sp_for(at, count) {
+          if (archs[at] == pinned.arch) {
+            push_os_triples(&targets, pinned.arch, oses[it]);
+          }
+        }
+      }
       return spn_err_emit(&spn, (spn_err_union_t) {
         .kind = SPN_ERR_PROFILE_ARCH,
-        .profile = { .name = name.str, .target = pinned, .targets = spn_arch_triples(spn.events->mem, pinned.arch) },
+        .profile = { .name = name.str, .target = pinned, .targets = targets },
       });
     }
     case SPN_TRIPLE_ENTRY_FOREIGN_ABI: {
+      sp_da(spn_triple_t) targets = sp_da_new(spn.events->mem, spn_triple_t);
+      push_os_triples(&targets, pinned.arch, pinned.os);
       return spn_err_emit(&spn, (spn_err_union_t) {
         .kind = SPN_ERR_PROFILE_ABI,
-        .profile = { .name = name.str, .target = pinned, .targets = spn_os_triples(spn.events->mem, pinned.arch, pinned.os) },
+        .profile = { .name = name.str, .target = pinned, .targets = targets },
       });
     }
     case SPN_TRIPLE_ENTRY_MISSING_ARCH:

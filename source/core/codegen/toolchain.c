@@ -223,7 +223,7 @@ static void lower_hosts(spn_toml_loader_t* ctx, const spn_cg_toolchain_decl_t* d
       spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_MISSING_KEY, "url");
     }
     spn_triple_t host = sp_zero;
-    if (spn_triple_parse_host(cell->key, &host)) {
+    if (spn_triple_parse(cell->key, &host) || !host.os) {
       spn_toml_loader_issue_at(ctx, SPN_ERR_CODEGEN_INVALID, cell->key);
     }
     else {

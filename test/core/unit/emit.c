@@ -33,8 +33,27 @@ static const test_t tests [] = {
     .expect = { .output = "A.exe", .link = true },
   },
   {
+    .name = "exe_on_freestanding_is_an_elf",
+    .graph = {
+      .os = SPN_OS_FREESTANDING,
+      .abi = SPN_ABI_BARE,
+      .pkgs = { { .name = "P", .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "a.c" } } } } },
+    },
+    .kind = SPN_TARGET_KIND_EXE,
+    .expect = { .output = "A.elf", .link = true },
+  },
+  {
     .name = "static_lib_archives",
     .graph.pkgs = { { .name = "P", .targets = { { "A", static_only, .source = { "a.c" } } } } },
+    .kind = SPN_TARGET_KIND_LIB,
+    .expect = { .output = "libA.a", .archive = true },
+  },
+  {
+    .name = "static_lib_on_windows_gnu_keeps_the_ar_name",
+    .graph = {
+      .os = SPN_OS_WINDOWS,
+      .pkgs = { { .name = "P", .targets = { { "A", static_only, .source = { "a.c" } } } } },
+    },
     .kind = SPN_TARGET_KIND_LIB,
     .expect = { .output = "libA.a", .archive = true },
   },
@@ -43,6 +62,15 @@ static const test_t tests [] = {
     .graph.pkgs = { { .name = "P", .targets = { { "A", shared_only, .source = { "a.c" } } } } },
     .kind = SPN_TARGET_KIND_LIB,
     .expect = { .output = "libA.so", .link = true, .exports = true },
+  },
+  {
+    .name = "shared_lib_on_macos_is_a_dylib",
+    .graph = {
+      .os = SPN_OS_MACOS,
+      .pkgs = { { .name = "P", .targets = { { "A", shared_only, .source = { "a.c" } } } } },
+    },
+    .kind = SPN_TARGET_KIND_LIB,
+    .expect = { .output = "libA.dylib", .link = true, .exports = true },
   },
   {
     .name = "shared_lib_for_msvc_has_an_implib",
