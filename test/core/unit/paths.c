@@ -62,7 +62,7 @@ sp_test_each(unit_paths, init, paths_test_t, tests, .setup = spn_test_ctx_setup)
   spn_resolved_pkg_t* resolved = sp_ht_getp(s->resolve, id);
   resolved->source = it->source;
 
-  spn_pkg_unit_t* unit = spn_pkg_unit_ensure(&s->units, s->builds.program, resolved);
+  spn_pkg_unit_t* unit = si_add_package_unit(&s->units, s->builds.program, resolved);
   sp_try(expect_path(t, unit->paths.work, &it->work));
   sp_try(expect_path(t, unit->paths.store, &it->store));
   sp_try(expect_path(t, unit->paths.include, &it->include));

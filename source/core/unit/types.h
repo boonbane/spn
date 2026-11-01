@@ -20,6 +20,7 @@ struct spn_build_unit_t {
   spn_build_id_t id;
   spn_profile_info_t profile;
   spn_toolchain_unit_t* toolchain;
+  spn_build_unit_t* metabuild;
   sp_da(spn_path_t) include;
   sp_da(sp_str_t) define;
   struct {
@@ -68,24 +69,22 @@ typedef struct {
 } spn_stage_closure_t;
 
 typedef struct {
-  spn_pkg_unit_t* root;
-  si_da(spn_target_unit_t*) roots;
-  si_da(spn_target_unit_t*) targets;
-  si_da(spn_pkg_unit_t*) pkgs;
-} spn_closure_t;
+  spn_pkg_unit_t* pkg;
+  si_da(spn_publish_t) entries;
+} spn_publish_plan_t;
 
 typedef struct {
-  spn_closure_t closure;
-  si_da(spn_pkg_unit_t*) publishes;
+  si_da(spn_pkg_unit_t*) pkgs;
+  si_da(spn_target_unit_t*) targets;
+  si_da(spn_publish_plan_t) publishes;
   si_da(spn_user_node_t*) nodes;
   si_da(spn_stage_closure_t) staged;
 } spn_build_plan_t;
 
 typedef struct {
-  spn_pkg_unit_t* unit;
-  spn_dep_kind_t kind;
+  spn_pkg_unit_t* pkg;
   bool private;
-} spn_pkg_dep_t;
+} spn_pkg_edge_t;
 
 typedef struct {
   spn_pkg_unit_t* pkg;
@@ -106,7 +105,6 @@ struct spn_user_node_t {
   si_da(spn_path_t) inputs;
   si_da(spn_user_output_t) outputs;
   si_da(spn_node_ref_t) deps;
-  spn_target_unit_t* script;
 };
 
 typedef struct {
@@ -132,13 +130,24 @@ typedef struct {
 typedef struct {
   spn_cc_link_t cc;
   si_da(spn_link_dep_t) deps;
-  spn_cc_link_plan_t plan;
 } spn_link_plan_t;
 
 typedef struct {
-  spn_path_t path;
-  spn_dag_artifact_kind_t kind;
-} spn_target_order_t;
+  spn_cc_archive_plan_t archive;
+  spn_cc_exports_format_t format;
+  spn_rsp_style_t rsp;
+  sp_str_t library;
+  sp_str_t file_name;
+} spn_exports_plan_t;
+
+typedef struct {
+  sp_str_t output;
+  sp_str_t implib;
+  bool objects;
+  sp_opt(spn_cc_link_plan_t) link;
+  sp_opt(spn_cc_archive_plan_t) archive;
+  sp_opt(spn_exports_plan_t) exports;
+} spn_target_emit_t;
 
 struct spn_target_unit {
   spn_target_unit_id_t id;
@@ -146,14 +155,14 @@ struct spn_target_unit {
   si_target_t* target;
   spn_cc_output_kind_t kind;
   spn_linkage_t lib_kind;
-  sp_str_t file_name;
   spn_path_t install;
 
-  sp_da(spn_compile_unit_t*) objects;
   si_da(spn_target_unit_t*) deps;
-  si_da(spn_target_order_t) orders;
+  si_da(spn_pkg_edge_t) edges;
+
+  sp_da(spn_compile_unit_t*) objects;
   spn_link_plan_t link;
-  spn_cc_archive_plan_t archive;
+  spn_target_emit_t emit;
 };
 
 typedef struct {
@@ -165,17 +174,11 @@ typedef struct {
 
 struct spn_pkg_unit_t {
   spn_pkg_unit_id_t id;
-  spn_build_unit_t* build;
-  spn_units_t* units;
-  const spn_resolved_pkg_t* resolved;
   si_pkg_t pkg;
+  const spn_resolved_pkg_t* resolved;
   sp_hash_t fingerprint;
+  spn_build_unit_t* build;
   spn_source_pin_t pin;
-
-  si_da(spn_pkg_dep_t) deps;
-  si_da(spn_target_unit_t*) libs;
-  sp_da(spn_user_node_t) user_nodes;
-
   struct {
     spn_tree_roots_t roots;
     spn_path_t work;
@@ -187,6 +190,15 @@ struct spn_pkg_unit_t {
     spn_path_t vendor;
   } paths;
 
+  si_da(spn_pkg_edge_t) deps;
+  si_da(spn_target_unit_t*) libs;
+  bool expanded;
+
+  // wasm configure bullshit
+  spn_units_t* units;
+  spn_target_unit_t* reactor;
+  spn_target_unit_t* metaprogram;
+  sp_da(spn_user_node_t) user_nodes;
 };
 
 struct spn_toolchain_unit_t {
@@ -201,6 +213,7 @@ struct spn_units_t {
   spn_ctx_t* ctx;
   sp_mem_t mem;
   spn_resolve_t resolve;
+  spn_units_t* configure;
   sp_om(spn_pkg_unit_id_t, spn_pkg_unit_t) packages;
   sp_om(spn_target_unit_id_t, spn_target_unit_t) targets;
   sp_om(spn_compile_unit_id_t, spn_compile_unit_t) objects;

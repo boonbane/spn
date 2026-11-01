@@ -1,5 +1,7 @@
 #include "closure.h"
 
+#include "unit/closure/closure.h"
+
 typedef struct {
   const c8* pkg;
   const c8* lib;
@@ -14,7 +16,7 @@ typedef struct {
 
 static const test_t tests [] = {
   {
-    .name = "flatten_by_linkage",
+    .name = "yield_every_lib",
     .graph = {
       .root = "P1",
       .pkgs = {
@@ -35,8 +37,11 @@ static const test_t tests [] = {
       },
     },
     .expect = {
+      { "D1", "L4" },
+      { "D1", "L3" },
+      { "D1", "L2" },
+      { "D1", "L1" },
       { "D1", "D1" },
-      { "D1", "L1" }
     },
   },
   {
@@ -94,17 +99,16 @@ static const test_t tests [] = {
   },
 };
 
-sp_test_each(get_linked_libs, flatten, test_t, tests, .setup = spn_test_ctx_setup) {
+sp_test_each(libs, yield, test_t, tests, .setup = spn_test_ctx_setup) {
   closure_graph_t g = build_graph(&it->graph);
 
-  si_da(spn_closure_entry_t) closure = si_link_get_target_closure(g.mem, g.root);
-  si_da(spn_link_lib_t) libs = si_link_get_closure_libs(g.mem, closure);
+  si_da(si_closure_entry_t) libs = closure_entries(g.mem, g.root, SI_CLOSURE_STOP_AT_SHARED, SI_CLOSURE_YIELD_LIB);
 
   u32 expected = 0;
   sp_carr_detect_len(it->expect, expected, it->expect[expected].lib);
   sp_must_eq(t, expected, si_da_size(libs));
   sp_for(row, expected) {
-    sp_expect_str_eq_c(t, libs[row].pkg->pkg.manifest->name.str, it->expect[row].pkg);
+    sp_expect_str_eq_c(t, libs[row].lib->pkg->pkg.manifest->name.str, it->expect[row].pkg);
     sp_expect_str_eq_c(t, libs[row].lib->target->info->name.str, it->expect[row].lib);
     sp_expect_eq(t, it->expect[row].private, libs[row].private);
   }

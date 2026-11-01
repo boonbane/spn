@@ -21,10 +21,8 @@ add_executable(core
   when.c
   closure/harness.c
   closure/closure.c
-  closure/dep_kind.c
-  closure/get_linked_libs.c
-  closure/links_code.c
-  closure/runtime.c
+  closure/chase.c
+  closure/libs.c
   closure/siblings.c
   compiler/harness.c
   compiler/invocation.c
@@ -138,6 +136,7 @@ add_executable(core
   unit/walk.c
   unit/link_plan.c
   unit/objects.c
+  unit/edges.c
   unit/paths.c
   unit/fingerprint.c
   zig/decode.c
@@ -249,12 +248,10 @@ add_executable(core
   ${SRC}/triple/triple.c
   ${SRC}/elf/elf.c
   ${SRC}/unit/build.c
-  ${SRC}/unit/closure.c
   ${SRC}/unit/fingerprint.c
-  ${SRC}/unit/link.c
+  ${SRC}/unit/closure/closure.c
   ${SRC}/unit/pkg.c
   ${SRC}/unit/plan.c
-  ${SRC}/unit/target.c
   ${UTIL}/version/version.c
   ${SRC}/when/when.c
   ${TEST_TOOLS}/fixture.c

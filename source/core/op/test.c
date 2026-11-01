@@ -4,15 +4,13 @@
 #include "ctx/types.h"
 #include "error/error.h"
 #include "event/event.h"
-#include "graph/build.h"
 #include "op/op.h"
 #include "paths/paths.h"
 #include "session/types.h"
 #include "unit/types.h"
 
-static spn_err_t run_test(spn_session_t* session, spn_target_unit_t* unit, bool* passed) {
+static spn_err_t run_test(spn_session_t* session, spn_target_unit_t* unit, spn_path_t staged, bool* passed) {
   spn_ctx_t* ctx = session->ctx;
-  spn_path_t staged = spn_target_unit_staged_path(session->mem, unit);
   sp_str_t command = spn_path_str(&ctx->roots, session->mem, staged);
 
   spn_event_buffer_push(ctx->events, (spn_event_t) {
@@ -76,12 +74,13 @@ spn_err_t spn_op_test(spn_op_t* op) {
 
   spn_test_result_t* result = &op->result.test;
 
-  si_da_for_value(session->plan.closure.roots, unit) {
+  si_da_for_ptr(session->plan.staged, closure) {
+    spn_target_unit_t* unit = closure->exe.target;
     if (unit->target->info->kind != SPN_TARGET_KIND_TEST) {
       continue;
     }
     bool test_passed = sp_zero;
-    spn_try(run_test(session, unit, &test_passed));
+    spn_try(run_test(session, unit, closure->exe.path, &test_passed));
     if (test_passed) {
       result->passed++;
     }

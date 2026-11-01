@@ -181,7 +181,7 @@ static const failure_t failures [] = {
   { .name = "configure_dead_glob", .err = SPN_ERR_CONFIGURE_SOURCE_GLOB },
   { .name = "configure_error", .err = SPN_ERR_WASM_SCRIPT_ERROR },
   { .name = "missing_node_fn", .err = SPN_ERR_WASM_EXPORT_NOT_FOUND },
-  { .name = "node_fn_without_build_script", .err = SPN_ERR_NODE_NO_BUILD_SCRIPT },
+  { .name = "node_fn_without_build_script", .err = SPN_ERR_WASM_MODULE_CALL_FAILED },
   { .name = "add_define_path_outside", .err = SPN_ERR_WASM_MODULE_CALL_FAILED },
 };
 
