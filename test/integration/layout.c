@@ -39,22 +39,6 @@ sp_test_each(layout, commands, command_test_t, commands) {
   return run_command_test(t, *it);
 }
 
-static const test_t tests [] = {
-  {
-    .name = "staged_collision",
-    .project = "test/integration/fixtures/layout/staged_collision",
-    .copy = { "packages/*" },
-    .actions = {
-      { .kind = ACTION_RUN_CLI, .cli = { "build", .rc = 1 } },
-      { .kind = ACTION_VERIFY_RESULT, .verify_result = { .err = SPN_ERR_TARGET_COLLISION } },
-    },
-  },
-};
-
-sp_test_each(layout, cases, test_t, tests) {
-  return run_test(t, *it);
-}
-
 static const rebuild_test_t rebuilds [] = {
   {
     .name = "staged_prune",

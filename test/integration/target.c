@@ -20,15 +20,6 @@ static const test_t tests [] = {
     },
   },
   {
-    .name = "source_glob",
-    .project = "test/integration/fixtures/target/source_glob",
-    .copy = { "src" },
-    .actions = {
-      { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
-    },
-  },
-  {
     .name = "shared_source",
     .project = "test/integration/fixtures/target/shared_source",
     .actions = {

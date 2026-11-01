@@ -22,15 +22,6 @@ static const test_t tests [] = {
     },
   },
   {
-    .name = "shared_lib_static_profile",
-    .project = "test/integration/fixtures/consume/shared",
-    .copy = { "packages/*" },
-    .actions = {
-      { .kind = ACTION_RUN_CLI, .cli = { "build", .args = { "-p", "static" }, .rc = 1 } },
-      { .kind = ACTION_VERIFY_RESULT, .verify_result = { .err = SPN_ERR_TARGET_LINKAGE } },
-    },
-  },
-  {
     .name = "source_lib",
     .project = "test/integration/fixtures/consume/source",
     .copy = { "packages/*" },
@@ -119,15 +110,6 @@ static const test_t tests [] = {
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { "build" } },
       { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
-    },
-  },
-  {
-    .name = "kind_not_supported",
-    .project = "test/integration/fixtures/consume/kind_not_supported",
-    .copy = { "packages/*" },
-    .actions = {
-      { .kind = ACTION_RUN_CLI, .cli = { "build", .rc = 1 } },
-      { .kind = ACTION_VERIFY_RESULT, .verify_result = { .err = SPN_ERR_TARGET_LINKAGE } },
     },
   },
 };

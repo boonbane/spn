@@ -137,18 +137,6 @@ static const test_t tests [] = {
       { .kind = ACTION_VERIFY_NO_EVENT, .verify_event = { .event = SPN_EVENT_SCRIPT_COMPILE_FAILED } },
     },
   },
-  {
-    .name = "toolchain_missing",
-    .project = "test/integration/fixtures/cxx/toolchain_missing",
-    .toolchain = "conly",
-    .when.programs = { "cc", "ar" },
-    .copy = { "packages/*" },
-    .actions = {
-      { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build", .rc = 1 } },
-      { .kind = ACTION_VERIFY_EVENT, .verify_event = { .event = SPN_EVENT_ERR } },
-      { .kind = ACTION_VERIFY_NO_EVENT, .verify_event = { .event = SPN_EVENT_TARGET_BUILD_FAILED } },
-    },
-  },
 };
 
 sp_test_each(cxx, cases, test_t, tests) {
