@@ -23,9 +23,7 @@ sp_err_t expect_args(sp_test_t* t, spn_invocation_t* invocation, render_expect_t
 
 spn_profile_info_t test_profile(test_profile_t desc) {
   spn_profile_info_t profile = {
-    .arch = desc.arch,
-    .os = desc.os,
-    .abi = desc.abi,
+    .target = desc.target,
     .linking = desc.linking,
     .standard = desc.standard,
     .mode = desc.mode,
@@ -33,7 +31,7 @@ spn_profile_info_t test_profile(test_profile_t desc) {
     .sanitizers = desc.sanitizers,
   };
   if (desc.sdk) {
-    profile.sdk = spn_sdk_at(spn.mem, (spn_triple_t) { desc.arch, desc.os, desc.abi }, test_arg_path(desc.sdk));
+    profile.sdk = spn_sdk_at(spn.mem, desc.target, test_arg_path(desc.sdk));
   }
   if (desc.bin) {
     sp_assert(profile.sdk.kind == SPN_SDK_MSVC);

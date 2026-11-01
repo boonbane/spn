@@ -13,26 +13,20 @@ typedef enum {
   SPN_TRIPLE_ENTRY_FOREIGN_ABI,
 } spn_triple_entry_t;
 
-spn_err_t spn_triple_parse(sp_str_t str, spn_triple_t* triple);
-spn_err_t spn_triple_parse_host(sp_str_t str, spn_triple_t* triple);
-sp_str_t spn_triple_to_str(sp_mem_t mem, spn_triple_t triple);
-spn_triple_t spn_triple_host();
-spn_abi_t spn_abi_from_interp(sp_str_t interp);
-spn_abi_t spn_host_libc(sp_mem_t mem, sp_io_seeking_reader_t* elf);
-u32 spn_os_abis(spn_os_t os, const spn_abi_t** abis);
-u32 spn_os_completions(spn_os_t os, const spn_abi_t** abis);
-u32 spn_os_archs(spn_os_t os, const spn_arch_t** archs);
-sp_da(spn_triple_t) spn_os_triples(sp_mem_t mem, spn_arch_t arch, spn_os_t os);
-sp_da(spn_triple_t) spn_arch_triples(sp_mem_t mem, spn_arch_t arch);
-spn_obj_format_t spn_os_to_native_object_format(spn_os_t os);
-bool spn_triple_dynamic(spn_triple_t triple);
-bool spn_triple_pic(spn_triple_t triple);
+spn_arch_t         spn_arch_from_str(sp_str_t str);
+sp_str_t           spn_arch_to_str(spn_arch_t arch);
+spn_os_t           spn_os_from_str(sp_str_t str);
+sp_str_t           spn_os_to_str(spn_os_t os);
+spn_abi_t          spn_abi_from_str(sp_str_t str);
+sp_str_t           spn_abi_to_str(spn_abi_t abi);
+u32                spn_os_archs(spn_os_t os, const spn_arch_t** archs);
+u32                spn_os_abis(spn_os_t os, const spn_abi_t** abis);
+u32                spn_os_completions(spn_os_t os, const spn_abi_t** abis);
+spn_obj_format_t   spn_os_to_native_object_format(spn_os_t os);
+spn_err_t          spn_triple_parse(sp_str_t str, spn_triple_t* triple);
+sp_str_t           spn_triple_to_str(sp_mem_t mem, spn_triple_t triple);
+bool               spn_triple_equal(spn_triple_t a, spn_triple_t b);
+spn_triple_t       spn_triple_merge(spn_triple_t base, spn_triple_t partial);
 spn_triple_entry_t spn_triple_entry(spn_triple_t partial, spn_triple_t* full);
-spn_triple_t spn_triple_merge(spn_triple_t base, spn_triple_t partial);
-bool spn_triple_match(spn_triple_t entry, spn_triple_t target);
-bool spn_triple_equal(spn_triple_t a, spn_triple_t b);
-bool spn_triple_in(sp_da(spn_triple_t) triples, spn_triple_t triple);
-sp_str_t spn_triple_lib_file_name(sp_mem_t mem, spn_triple_t triple, sp_str_t name, sp_os_lib_kind_t kind);
-sp_str_t spn_triple_exe_file_name(sp_mem_t mem, spn_triple_t triple, sp_str_t name);
 
 #endif

@@ -11,11 +11,6 @@
 #include "target/types.h"
 #include "when/types.h"
 
-spn_arch_t      spn_arch_from_str(sp_str_t str);
-sp_str_t        spn_arch_to_str(spn_arch_t arch);
-spn_os_t        spn_os_from_sp_os(sp_os_kind_t os);
-spn_os_t        spn_os_from_str(sp_str_t str);
-sp_str_t        spn_os_to_str(spn_os_t os);
 spn_cc_driver_t spn_cc_driver_from_str(sp_str_t str);
 sp_str_t        spn_cc_driver_to_str(spn_cc_driver_t driver);
 spn_ld_family_t spn_ld_family_from_str(sp_str_t str);
@@ -23,8 +18,6 @@ sp_str_t        spn_ld_family_to_str(spn_ld_family_t family);
 spn_toolchain_detect_t spn_toolchain_detect_from_str(sp_str_t str);
 sp_str_t               spn_toolchain_detect_to_str(spn_toolchain_detect_t detect);
 sp_str_t        spn_ld_dialect_to_str(spn_ld_dialect_t dialect);
-spn_abi_t       spn_abi_from_str(sp_str_t str);
-sp_str_t        spn_abi_to_str(spn_abi_t abi);
 
 spn_libc_kind_t spn_libc_kind_from_str(sp_str_t str);
 sp_str_t spn_libc_kind_to_str(spn_libc_kind_t libc);
@@ -84,7 +77,5 @@ spn_index_kind_t spn_index_kind_from_str(sp_str_t str);
 
 sp_str_t spn_index_dep_kind_to_str(spn_index_dep_kind_t kind);
 spn_index_dep_kind_t spn_index_dep_kind_from_str(sp_str_t str);
-
-sp_os_lib_kind_t spn_lib_kind_to_sp_os_lib_kind(spn_linkage_t kind);
 
 #endif

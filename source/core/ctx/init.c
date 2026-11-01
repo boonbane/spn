@@ -24,7 +24,6 @@
 #include "toolchain/probe.h"
 #include "toolchain/provision.h"
 #include "toolchain/sdk.h"
-#include "triple/triple.h"
 #include "version/version.h"
 
 static sp_str_t env_or(spn_ctx_t* ctx, const c8* env, sp_str_t fallback) {
@@ -180,7 +179,7 @@ spn_ctx_t* spn_ctx_new(spn_wake_fn_t wake, void* wake_data) {
   ctx->events = spn_event_buffer_new(ctx->mem);
   ctx->events->wake = &ctx->wake;
 
-  ctx->host = spn_triple_host();
+  ctx->host = spn_host_detect();
 
   // @spader This has nothing to do with the context. It's data
   // that the DAG needs and decides, and pinned is a dumb name. Really,

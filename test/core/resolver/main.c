@@ -69,9 +69,7 @@ static resolve_result_t execute_fixture(const fx_config_t* config, const spn_pro
   spn_resolver_t resolver = sp_zero;
   spn_resolver_init(&resolver, mem, intern, &cache, &registry, (spn_profile_info_t) {
     .linking.linkage = config->linkage,
-    .os = SPN_OS_LINUX,
-    .arch = SPN_ARCH_X64,
-    .abi = SPN_ABI_GNU,
+    .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU },
   }, project->config, config->budget);
   resolver.roots = &roots;
 

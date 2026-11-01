@@ -26,15 +26,6 @@ static bool usable(const spn_toolchain_info_t* toolchain) {
   return toolchain->support.kind != SPN_TOOLCHAIN_SUPPORT_NONE;
 }
 
-static const spn_toolchain_row_t* listed(const spn_toolchain_info_t* toolchain, spn_triple_t triple) {
-  sp_da_for(toolchain->rows, it) {
-    if (spn_triple_equal(toolchain->rows[it].triple, triple)) {
-      return &toolchain->rows[it];
-    }
-  }
-  return SP_NULLPTR;
-}
-
 static sp_da(spn_triple_t) triples(sp_mem_t mem, sp_da(spn_toolchain_row_t) rows) {
   sp_da(spn_triple_t) out = sp_da_new(mem, spn_triple_t);
   sp_da_for(rows, it) {
@@ -56,7 +47,7 @@ static reach_t supports(spn_toolchain_row_t row, spn_toolchain_query_t query, sp
 }
 
 static reach_kind_t absence(const spn_toolchain_catalog_t* catalog, const spn_toolchain_info_t* toolchain, spn_triple_t triple) {
-  if (spn_triple_in(toolchain->unserved, triple)) {
+  if (spn_toolchain_unserved(toolchain, triple)) {
     return REACH_DROPPED;
   }
   spn_sdk_t sdk = sp_zero;
@@ -67,7 +58,7 @@ static reach_kind_t absence(const spn_toolchain_catalog_t* catalog, const spn_to
 }
 
 static reach_t attempt(const spn_toolchain_catalog_t* catalog, const spn_toolchain_info_t* toolchain, spn_toolchain_query_t query, spn_toolchain_candidate_t candidate) {
-  const spn_toolchain_row_t* row = listed(toolchain, candidate.triple);
+  const spn_toolchain_row_t* row = spn_toolchain_row(toolchain, candidate.triple);
   if (row) {
     return supports(*row, query, candidate.linking);
   }

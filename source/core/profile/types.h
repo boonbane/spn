@@ -15,9 +15,7 @@ struct spn_profile_info {
   spn_toolchain_ref_t toolchain;
   spn_cc_driver_t driver;
   spn_ld_family_t linker;
-  spn_os_t os;
-  spn_arch_t arch;
-  spn_abi_t abi;
+  spn_triple_t target;
   spn_linking_t request;
   spn_linkage_t demand;
   spn_linking_t linking;
@@ -50,9 +48,5 @@ typedef struct {
 } spn_profile_decl_t;
 
 typedef si_om(spn_profile_id_t, spn_profile_decl_t) spn_profile_map_t;
-
-static inline spn_triple_t spn_profile_triple(const spn_profile_info_t* profile) {
-  return (spn_triple_t) { profile->arch, profile->os, profile->abi };
-}
 
 #endif

@@ -18,9 +18,7 @@ static const flags_test_t tests [] = {
   {
     .name = "render_gcc_debug",
     .profile = {
-      .arch = SPN_ARCH_X64,
-      .os = SPN_OS_LINUX,
-      .abi = SPN_ABI_GNU,
+      .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU },
       .mode = SPN_MODE_DEBUG,
       .opt = SPN_OPT_LEVEL_0,
     },
@@ -30,9 +28,7 @@ static const flags_test_t tests [] = {
   {
     .name = "render_clang_release",
     .profile = {
-      .arch = SPN_ARCH_X64,
-      .os = SPN_OS_LINUX,
-      .abi = SPN_ABI_GNU,
+      .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU },
       .mode = SPN_MODE_RELEASE,
       .opt = SPN_OPT_LEVEL_2,
     },
@@ -42,9 +38,7 @@ static const flags_test_t tests [] = {
   {
     .name = "sanitize_both_lines",
     .profile = {
-      .arch = SPN_ARCH_X64,
-      .os = SPN_OS_LINUX,
-      .abi = SPN_ABI_GNU,
+      .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU },
       .mode = SPN_MODE_DEBUG,
       .opt = SPN_OPT_LEVEL_0,
       .sanitizers = SPN_SANITIZER_ADDRESS | SPN_SANITIZER_UNDEFINED,
@@ -58,9 +52,7 @@ static const flags_test_t tests [] = {
   {
     .name = "sanitize_msvc",
     .profile = {
-      .arch = SPN_ARCH_X64,
-      .os = SPN_OS_WINDOWS,
-      .abi = SPN_ABI_MSVC,
+      .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC },
       .linking.runtime = SPN_RUNTIME_STATIC,
       .mode = SPN_MODE_RELEASE,
       .opt = SPN_OPT_LEVEL_2,
@@ -75,9 +67,7 @@ static const flags_test_t tests [] = {
   {
     .name = "render_msvc_debug",
     .profile = {
-      .arch = SPN_ARCH_X64,
-      .os = SPN_OS_WINDOWS,
-      .abi = SPN_ABI_MSVC,
+      .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC },
       .linking.runtime = SPN_RUNTIME_STATIC,
       .mode = SPN_MODE_DEBUG,
       .opt = SPN_OPT_LEVEL_0,
@@ -88,9 +78,7 @@ static const flags_test_t tests [] = {
   {
     .name = "render_msvc_shared_runtime",
     .profile = {
-      .arch = SPN_ARCH_X64,
-      .os = SPN_OS_WINDOWS,
-      .abi = SPN_ABI_MSVC,
+      .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC },
       .linking.runtime = SPN_RUNTIME_SHARED,
     },
     .driver = SPN_CC_DRIVER_MSVC,
@@ -99,9 +87,7 @@ static const flags_test_t tests [] = {
   {
     .name = "render_clang_msvc_static_runtime",
     .profile = {
-      .arch = SPN_ARCH_X64,
-      .os = SPN_OS_WINDOWS,
-      .abi = SPN_ABI_MSVC,
+      .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC },
       .linking.runtime = SPN_RUNTIME_STATIC,
     },
     .driver = SPN_CC_DRIVER_CLANG,
@@ -110,9 +96,7 @@ static const flags_test_t tests [] = {
   {
     .name = "render_clang_msvc_shared_runtime",
     .profile = {
-      .arch = SPN_ARCH_X64,
-      .os = SPN_OS_WINDOWS,
-      .abi = SPN_ABI_MSVC,
+      .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC },
       .linking.runtime = SPN_RUNTIME_SHARED,
     },
     .driver = SPN_CC_DRIVER_CLANG,
@@ -121,9 +105,7 @@ static const flags_test_t tests [] = {
   {
     .name = "freestanding_zig_strips_runtime",
     .profile = {
-      .arch = SPN_ARCH_ARM64,
-      .os = SPN_OS_FREESTANDING,
-      .abi = SPN_ABI_BARE,
+      .target = { SPN_ARCH_ARM64, SPN_OS_FREESTANDING, SPN_ABI_BARE },
     },
     .driver = SPN_CC_DRIVER_ZIG,
     .expect = { .compile = { "-ffreestanding", "-fno-stack-protector", "-fno-sanitize=undefined" }, .link = { "-nostartfiles", "-nolibc" } },
@@ -131,9 +113,7 @@ static const flags_test_t tests [] = {
   {
     .name = "freestanding_gcc_strips_runtime",
     .profile = {
-      .arch = SPN_ARCH_ARM64,
-      .os = SPN_OS_FREESTANDING,
-      .abi = SPN_ABI_BARE,
+      .target = { SPN_ARCH_ARM64, SPN_OS_FREESTANDING, SPN_ABI_BARE },
     },
     .driver = SPN_CC_DRIVER_GCC,
     .expect = { .compile = { "-ffreestanding", "-fno-stack-protector" }, .link = { "-nostartfiles", "-nolibc" } },
@@ -141,9 +121,7 @@ static const flags_test_t tests [] = {
   {
     .name = "freestanding_clang_strips_runtime",
     .profile = {
-      .arch = SPN_ARCH_ARM64,
-      .os = SPN_OS_FREESTANDING,
-      .abi = SPN_ABI_BARE,
+      .target = { SPN_ARCH_ARM64, SPN_OS_FREESTANDING, SPN_ABI_BARE },
     },
     .driver = SPN_CC_DRIVER_CLANG,
     .expect = { .compile = { "-ffreestanding", "-fno-stack-protector" }, .link = { "-nostartfiles", "-nolibc" } },
@@ -151,18 +129,14 @@ static const flags_test_t tests [] = {
   {
     .name = "freestanding_elf_strips_nothing",
     .profile = {
-      .arch = SPN_ARCH_ARM64,
-      .os = SPN_OS_FREESTANDING,
-      .abi = SPN_ABI_ELF,
+      .target = { SPN_ARCH_ARM64, SPN_OS_FREESTANDING, SPN_ABI_ELF },
     },
     .driver = SPN_CC_DRIVER_GCC,
   },
   {
     .name = "linux_none_zig_strips_runtime",
     .profile = {
-      .arch = SPN_ARCH_X64,
-      .os = SPN_OS_LINUX,
-      .abi = SPN_ABI_BARE,
+      .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_BARE },
     },
     .driver = SPN_CC_DRIVER_ZIG,
     .expect = { .compile = { "-ffreestanding", "-fno-stack-protector", "-fno-sanitize=undefined" }, .link = { "-nostartfiles", "-nolibc" } },

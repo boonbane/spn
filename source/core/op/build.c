@@ -190,7 +190,7 @@ spn_err_t spn_op_build(spn_op_t* op) {
     .pkg = session->manifest->name.str,
     .graph_init = {
       .profile = build->profile.name.str,
-      .target = spn_triple_to_str(ctx->events->mem, spn_profile_triple(&build->profile)),
+      .target = spn_triple_to_str(ctx->events->mem, build->profile.target),
       .toolchain = build->toolchain->info->name.str,
       .version = build->toolchain->version,
       .force = session->force,

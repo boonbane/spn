@@ -125,7 +125,7 @@ static spn_arg_t assembler(sp_mem_t mem, const spn_cc_t* toolchain, const spn_pr
     sp_assert(!spn_path_empty(compiler));
     bin = spn_path_parent(compiler);
   }
-  return spn_arg_path(spn_path_join(mem, bin, assembler_name(profile->arch)));
+  return spn_arg_path(spn_path_join(mem, bin, assembler_name(profile->target.arch)));
 }
 
 spn_cc_compile_plan_t spn_msvc_render_compile(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, spn_lang_t lang, const spn_cc_compile_t* compile) {

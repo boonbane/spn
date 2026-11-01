@@ -40,9 +40,9 @@ static spn_dag_digest_t hash_embedding(const spn_path_roots_t* roots, spn_target
   spn_dag_hash_str(&ctx, unit->target->info->name.str);
   spn_dag_hash_u8(&ctx, (u8)unit->target->info->kind);
   spn_profile_info_t* profile = &unit->pkg->build->profile;
-  spn_dag_hash_u8(&ctx, (u8)profile->os);
-  spn_dag_hash_u8(&ctx, (u8)profile->arch);
-  spn_dag_hash_u8(&ctx, (u8)profile->abi);
+  spn_dag_hash_u8(&ctx, (u8)profile->target.os);
+  spn_dag_hash_u8(&ctx, (u8)profile->target.arch);
+  spn_dag_hash_u8(&ctx, (u8)profile->target.abi);
   si_da_for(unit->target->embed, it) {
     spn_embed_t* embed = &unit->target->embed[it];
     spn_dag_hash_u8(&ctx, (u8)embed->kind);

@@ -110,7 +110,7 @@ static sp_str_t ms_runtime_flag(spn_runtime_t runtime) {
 }
 
 void spn_gnu_render_flags(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, spn_cc_flags_t* flags) {
-  if (profile->abi == SPN_ABI_MSVC && spn_cc_has(toolchain, SPN_CC_CAP_CLANG_FRONTEND)) {
+  if (profile->target.abi == SPN_ABI_MSVC && spn_cc_has(toolchain, SPN_CC_CAP_CLANG_FRONTEND)) {
     sp_str_t crt = ms_runtime_flag(profile->linking.runtime);
     sp_da_push(flags->compile, crt);
     sp_da_push(flags->link, crt);
@@ -132,7 +132,7 @@ void spn_gnu_render_flags(sp_mem_t mem, const spn_cc_t* toolchain, const spn_pro
     sp_da_push(flags->compile, sp_str_lit("-fno-sanitize-recover=all"));
     sp_da_push(flags->compile, sp_str_lit("-fno-omit-frame-pointer"));
   }
-  if (profile->abi == SPN_ABI_BARE) {
+  if (profile->target.abi == SPN_ABI_BARE) {
     sp_da_push(flags->compile, sp_str_lit("-ffreestanding"));
     sp_da_push(flags->compile, sp_str_lit("-fno-stack-protector"));
     if (spn_cc_has(toolchain, SPN_CC_CAP_DEFAULT_UBSAN)) {
@@ -217,7 +217,7 @@ static void add_launcher(sp_mem_t mem, const spn_cc_t* toolchain, const spn_prof
   invocation->program = launcher.program;
   spn_cc_push_strs(mem, invocation, launcher.args);
   if (spn_cc_has(toolchain, SPN_CC_CAP_TARGET_TRIPLE)) {
-    sp_str_t target = render_target(mem, toolchain, spn_profile_triple(profile));
+    sp_str_t target = render_target(mem, toolchain, profile->target);
     if (!sp_str_empty(target)) {
       spn_cc_push_fmt(mem, invocation, "--target={}", sp_fmt_str(target));
     }
@@ -228,7 +228,7 @@ spn_cc_compile_plan_t spn_gnu_render_compile(sp_mem_t mem, const spn_cc_t* toolc
   spn_cc_compile_plan_t plan = {
     .driver = toolchain->driver,
     .depfile = lang == SPN_LANG_ASM ? SPN_CC_DEPFILE_OPTIONAL : SPN_CC_DEPFILE_REQUIRED,
-    .codeview = profile->os == SPN_OS_WINDOWS && spn_cc_has(toolchain, SPN_CC_CAP_CLANG_FRONTEND) && (profile->abi == SPN_ABI_MSVC || spn_cc_has(toolchain, SPN_CC_CAP_CODEVIEW)),
+    .codeview = profile->target.os == SPN_OS_WINDOWS && spn_cc_has(toolchain, SPN_CC_CAP_CLANG_FRONTEND) && (profile->target.abi == SPN_ABI_MSVC || spn_cc_has(toolchain, SPN_CC_CAP_CODEVIEW)),
   };
   spn_invocation_t* invocation = &plan.base;
   add_launcher(mem, toolchain, profile, lang, invocation);
@@ -261,7 +261,7 @@ spn_cc_compile_plan_t spn_gnu_render_compile(sp_mem_t mem, const spn_cc_t* toolc
     spn_cc_push_c(mem, invocation, "-fPIC");
   }
   add_sdk_compile(mem, &profile->sdk, invocation);
-  if (profile->os == SPN_OS_MACOS && is_os_version_present(compile->min_os)) {
+  if (profile->target.os == SPN_OS_MACOS && is_os_version_present(compile->min_os)) {
     spn_cc_push_fmt(mem, invocation, "-mmacosx-version-min={}.{}", sp_fmt_uint(compile->min_os.major), sp_fmt_uint(compile->min_os.minor));
   }
   if (plan.codeview) {
@@ -436,12 +436,12 @@ static void add_static_runtime(sp_mem_t mem, spn_os_t os, spn_invocation_t* invo
 // zig only builds a static libc when the executable asks for one; the stub that
 // warms its cache has to make the same call
 bool spn_gnu_link_static(const spn_profile_info_t* profile, spn_cc_output_kind_t kind) {
-  return kind == SPN_CC_OUTPUT_EXE && profile->linking.libc == SPN_RUNTIME_STATIC && spn_os_to_native_object_format(profile->os) == SPN_OBJ_ELF;
+  return kind == SPN_CC_OUTPUT_EXE && profile->linking.libc == SPN_RUNTIME_STATIC && spn_os_to_native_object_format(profile->target.os) == SPN_OBJ_ELF;
 }
 
 spn_cc_link_plan_t spn_gnu_render_link(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, const spn_cc_link_t* link) {
-  spn_triple_t triple = spn_profile_triple(profile);
-  spn_obj_format_t format = spn_os_to_native_object_format(profile->os);
+  spn_triple_t triple = profile->target;
+  spn_obj_format_t format = spn_os_to_native_object_format(profile->target.os);
   bool is_gnu_runtime_static = profile->linking.runtime == SPN_RUNTIME_STATIC && triple.abi != SPN_ABI_MSVC && spn_cc_has(toolchain, SPN_CC_CAP_GNU_RUNTIME);
 
   spn_cc_link_plan_t plan = {
@@ -486,7 +486,7 @@ spn_cc_link_plan_t spn_gnu_render_link(sp_mem_t mem, const spn_cc_t* toolchain, 
         }
       }
       if (is_gnu_runtime_static) {
-        add_static_runtime(mem, profile->os, base);
+        add_static_runtime(mem, profile->target.os, base);
       }
       break;
     }
@@ -495,7 +495,7 @@ spn_cc_link_plan_t spn_gnu_render_link(sp_mem_t mem, const spn_cc_t* toolchain, 
         spn_cc_push_c(mem, base, "-static");
       }
       else if (is_gnu_runtime_static) {
-        add_static_runtime(mem, profile->os, base);
+        add_static_runtime(mem, profile->target.os, base);
       }
       if (link->subsystem == SPN_WIN_SUBSYSTEM_WINDOWS && format == SPN_OBJ_COFF) {
         add_subsystem(mem, plan.dialect, base);
@@ -515,7 +515,7 @@ spn_cc_link_plan_t spn_gnu_render_link(sp_mem_t mem, const spn_cc_t* toolchain, 
     spn_cc_push_fmt(mem, &tail, "-l{}", sp_fmt_str(link->system_libs[it]));
   }
   add_sdk_link(mem, &profile->sdk, base, &tail);
-  if (profile->os == SPN_OS_MACOS) {
+  if (profile->target.os == SPN_OS_MACOS) {
     if (is_os_version_present(link->min_os)) {
       spn_cc_push_fmt(mem, &tail, "-mmacosx-version-min={}.{}", sp_fmt_uint(link->min_os.major), sp_fmt_uint(link->min_os.minor));
     }
@@ -524,8 +524,8 @@ spn_cc_link_plan_t spn_gnu_render_link(sp_mem_t mem, const spn_cc_t* toolchain, 
       spn_cc_push_str(mem, &tail, link->frameworks[it]);
     }
   }
-  if (spn_triple_dynamic(triple)) {
-    add_rpath(mem, profile->os, &tail);
+  if (spn_ld_dynamic(triple)) {
+    add_rpath(mem, profile->target.os, &tail);
   }
   plan.tail = tail.args;
   return plan;

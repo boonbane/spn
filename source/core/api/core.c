@@ -230,7 +230,7 @@ spn_profile_t* spn_get_profile(spn_t* s) {
 
 spn_libc_kind_t spn_profile_get_libc(spn_profile_t* profile) {
   spn_profile_info_t* info = (spn_profile_info_t*)profile;
-  switch (info->abi) {
+  switch (info->target.abi) {
     case SPN_ABI_MUSL: return SPN_LIBC_MUSL;
     case SPN_ABI_BARE: return SPN_LIBC_NONE;
     case SPN_ABI_ELF:  return SPN_LIBC_CUSTOM;
@@ -239,7 +239,7 @@ spn_libc_kind_t spn_profile_get_libc(spn_profile_t* profile) {
 }
 
 spn_os_t spn_profile_get_os(spn_profile_t* profile) {
-  return ((spn_profile_info_t*)profile)->os;
+  return ((spn_profile_info_t*)profile)->target.os;
 }
 
 spn_mode_t spn_profile_get_mode(spn_profile_t* profile) {

@@ -146,7 +146,6 @@ set(SPN_SOURCES
   core/elf/elf.c
   cli/tui/tui.c
   core/unit/build.c
-  core/unit/closure.c
   core/unit/fingerprint.c
   core/unit/closure/closure.c
   core/unit/pkg.c

@@ -101,9 +101,7 @@ sp_test_each(zig_stubs, tuple, test_t, tests) {
   sp_mem_t mem = sp_test_arena(t);
 
   spn_profile_info_t profile = {
-    .arch = it->triple.arch,
-    .os = it->triple.os,
-    .abi = it->triple.abi,
+    .target = it->triple,
     .sanitizers = it->sanitizers,
     .linking.libc = it->link.libc,
   };

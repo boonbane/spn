@@ -5,7 +5,7 @@
 #include "codegen/toolchain.h"
 #include "toml/loader.h"
 #include "toolchain/catalog.h"
-#include "triple/triple.h"
+#include "ctx/ctx.h"
 #include "lanes.h"
 
 static sp_test_once_t spn_ctx_once;
@@ -16,7 +16,7 @@ static sp_err_t spn_ctx_init(void* user) {
   spn_ctx_intern = sp_intern_new(spn.mem);
   spn.env = sp_alloc_type(spn.mem, sp_env_t);
   *spn.env = sp_env_capture(spn.mem);
-  spn.host = spn_triple_host();
+  spn.host = spn_host_detect();
   return SP_OK;
 }
 

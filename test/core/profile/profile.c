@@ -885,7 +885,7 @@ sp_test_each(profile, resolve, test_t, tests, .setup = spn_test_ctx_setup) {
   if (it->expect.name) {
     sp_expect_str_eq_c(t, result.name.str, it->expect.name);
   }
-  sp_expect(t, spn_triple_equal(it->expect.target, (spn_triple_t) { result.arch, result.os, result.abi }));
+  sp_expect(t, spn_triple_equal(it->expect.target, result.target));
   sp_expect_eq(t, it->expect.targeted, result.targeted);
   if (it->expect.toolchain) {
     spn_toolchain_ref_t toolchain = spn_toolchain_ref_from_str(sp_cstr_as_str(it->expect.toolchain));
@@ -905,7 +905,7 @@ sp_test_each(profile, resolve, test_t, tests, .setup = spn_test_ctx_setup) {
   sp_expect_eq(t, it->shared_demand ? SPN_LIB_KIND_SHARED : SPN_LIB_KIND_NONE, result.demand);
 
   spn_toolchain_info_t info = { .driver = SPN_CC_DRIVER_ZIG };
-  spn_triple_t selected = { result.arch, result.os, it->abi ? it->abi : result.abi };
+  spn_triple_t selected = { result.target.arch, result.target.os, it->abi ? it->abi : result.target.abi };
   spn_toolchain_selection_t selection = { .toolchain = &info, .row.triple = selected };
   spn_linking_t demanded = result.request;
   demanded.linkage = demanded.linkage ? demanded.linkage : result.demand;
@@ -930,9 +930,7 @@ sp_test_each(profile, query, query_test_t, query_tests, .setup = spn_test_ctx_se
     .id = name.id,
     .name = name,
     .toolchain = spn_toolchain_ref_from_str(sp_str_lit("T")),
-    .arch = it->target.arch,
-    .os = it->target.os,
-    .abi = it->target.abi,
+    .target = it->target,
     .request = it->linking,
     .demand = it->demand,
     .sanitizers = it->sanitizers,

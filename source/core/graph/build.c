@@ -19,7 +19,6 @@
 #include "graph/build.h"
 #include "toolchain/linker.h"
 #include "profile/types.h"
-#include "triple/triple.h"
 
 si_da(spn_path_t) si_dag_build_paths(sp_mem_t mem, const si_dag_ctx_t* c, si_da(spn_dag_id_t) ids) {
   si_da(spn_path_t) paths = sp_zero;

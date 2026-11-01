@@ -1,6 +1,7 @@
 #include "docker.h"
 
 #include "container/container.h"
+#include "ctx/ctx.h"
 #include "ctx/types.h"
 #include "enum/enum.h"
 #include "event/event.h"
@@ -44,7 +45,7 @@ static const c8* spn_hint(spn_kind_t kind) {
 }
 
 static sp_str_t host_key(sp_mem_t mem) {
-  spn_triple_t host = spn_triple_host();
+  spn_triple_t host = spn_host_detect();
   return sp_fmt(mem, "{}-{}", sp_fmt_str(spn_arch_to_str(host.arch)), sp_fmt_str(spn_os_to_str(host.os))).value;
 }
 
@@ -229,7 +230,7 @@ docker_init_err_t docker_init(docker_t* docker, sp_mem_t mem, spn_fetch_fn fetch
     return DOCKER_INIT_ERR_TEMPLATES;
   }
 
-  spn_toolchain_catalog_init(&docker->catalog, spn_triple_host(), sp_zero_struct(spn_sdk_host_t), mem);
+  spn_toolchain_catalog_init(&docker->catalog, spn_host_detect(), sp_zero_struct(spn_sdk_host_t), mem);
   if (!read_lanes(docker, docker->paths.builtin, &docker->builtin) || !read_lanes(docker, docker->paths.lanes, &docker->lanes)) {
     return DOCKER_INIT_ERR_LANES;
   }
