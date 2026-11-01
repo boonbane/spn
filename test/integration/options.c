@@ -87,6 +87,11 @@ static const opt_test_t tests [] = {
     .project = "test/integration/fixtures/options/private_versions",
     .builds = { { .present = true } },
   },
+  {
+    .name = "bool_demand_on_gated_edge",
+    .project = "test/integration/fixtures/worlds/bool_demand_on_gated",
+    .builds = { { .expect.cc = { { .args = { "-DSPUM_GRUM", "/DSPUM_GRUM" } } } } },
+  },
 };
 
 sp_test_each(options, cases, opt_test_t, tests) {

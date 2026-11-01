@@ -88,15 +88,13 @@ typedef enum {
   ACTION_VERIFY_EVENT,
   ACTION_VERIFY_NO_EVENT,
   ACTION_VERIFY_RESULT,
-  ACTION_VERIFY_DIR_COUNT,
-  ACTION_VERIFY_EVENT_COUNT,
 } action_kind_t;
 
 typedef struct {
   action_kind_t kind;
 
   union {
-    struct { path_t file; const c8* content; } create;
+    struct { const c8* file; const c8* content; const c8* from; } create;
     struct { const c8* dir; } rm;
     struct { const c8* cmd; const c8* args [8]; const c8* env [4]; const c8* path; const c8* cwd; s32 rc; } cli;
     struct { path_t file; s32 rc; } bin;
@@ -111,8 +109,6 @@ typedef struct {
     struct { const c8* pkg; u32 count; } verify_store;
     struct { spn_event_kind_t event; const c8* key; const c8* value; bool lane; } verify_event;
     struct { spn_err_t err; } verify_result;
-    struct { const c8* dir; u32 count; } verify_dir_count;
-    struct { spn_event_kind_t event; const c8* key; const c8* value; u32 count; } verify_event_count;
   };
 } action_t;
 
@@ -141,16 +137,9 @@ typedef struct {
 } command_file_t;
 
 typedef struct {
-  const c8* name;
-  const c8* profile;
-  path_t path;
-  s32 rc;
-  bool build_only;
-  const c8* contains [SPN_TEST_MAX_CONTAINS];
-} command_bin_t;
-
-typedef struct {
+  path_t file;
   const c8* args [SPN_TEST_MAX_CC];
+  const c8* include;
   bool absent;
 } command_cc_t;
 
@@ -162,7 +151,6 @@ typedef struct {
 typedef struct {
   s32 rc;
   spn_err_t err;
-  command_bin_t bin;
   const c8* contains [SPN_TEST_MAX_CONTAINS];
   const c8* excludes [SPN_TEST_MAX_CONTAINS];
   command_event_t events [SPN_TEST_MAX_EVENTS];
@@ -245,6 +233,26 @@ typedef struct {
   opt_build_t builds [SPN_TEST_MAX_BUILDS];
 } opt_test_t;
 
+typedef struct {
+  const c8* pkg;
+  u32 count;
+} identity_count_t;
+
+typedef struct {
+  command_lock_t locked [SPN_TEST_MAX_PACKAGES];
+  identity_count_t store [SPN_TEST_MAX_PACKAGES];
+  identity_count_t configured [SPN_TEST_MAX_PACKAGES];
+} identity_expect_t;
+
+typedef struct {
+  const c8* name;
+  const c8* project;
+  const c8* copy [SPN_TEST_MAX_COPY];
+  test_when_t when;
+  const c8* builds [SPN_TEST_MAX_BUILDS][SPN_TEST_COMMAND_MAX_ARGS];
+  identity_expect_t expect;
+} identity_test_t;
+
 sp_str_t path_render(fixture_t* fixture, path_t path);
 sp_err_t expect_exists(sp_test_t* t, fixture_t* fixture, sp_str_t path, bool expected, const c8* file, u32 line);
 
@@ -255,5 +263,6 @@ sp_err_t run_rebuild_test(sp_test_t* t, rebuild_test_t test);
 sp_err_t run_actions(sp_test_t* t, fixture_t* fixture, const action_t* actions);
 sp_err_t run_test(sp_test_t* t, test_t test);
 sp_err_t run_opt_test(sp_test_t* t, opt_test_t test);
+sp_err_t run_identity_test(sp_test_t* t, identity_test_t test);
 
 #endif

@@ -33,9 +33,7 @@ static const rebuild_test_t tests [] = {
     },
     .rebuilds = {
       {
-        .change.moves = {
-          { .from = "main.change.c", .to = "main.c" },
-        },
+        .change.moves = { { .from = "main.change.c", .to = "main.c" } },
         .command = {
           .args = { "build" },
           .expect.events = {
@@ -56,9 +54,7 @@ static const rebuild_test_t tests [] = {
     },
     .rebuilds = {
       {
-        .change.moves = {
-          { .from = "main.same.c", .to = "main.c" },
-        },
+        .change.moves = { { .from = "main.same.c", .to = "main.c" } },
         .command = {
           .args = { "build" },
           .expect.events = {
@@ -99,9 +95,7 @@ static const rebuild_test_t tests [] = {
     },
     .rebuilds = {
       {
-        .change.moves = {
-          { .from = "packages/B/b.change.c", .to = "packages/B/b.c" },
-        },
+        .change.moves = { { .from = "packages/B/b.change.c", .to = "packages/B/b.c" } },
         .command = {
           .args = { "build" },
           .expect.events = {
@@ -118,13 +112,11 @@ static const rebuild_test_t tests [] = {
     .copy = { "packages/*" },
     .first = {
       .args = { "build", "-p", "debug" },
-      .expect.exists = { pkg_static_lib("spum", "spum"), pkg_store_file("test", "bin/main") },
+      .expect.exists = { pkg_static_lib("spum", "spum"), pkg_store_exe("test", "main") },
     },
     .rebuilds = {
       {
-        .change.moves = {
-          { .from = "packages/spum/spum.change.c", .to = "packages/spum/spum.c" },
-        },
+        .change.moves = { { .from = "packages/spum/spum.change.c", .to = "packages/spum/spum.c" } },
         .command = {
           .args = { "build", "-p", "debug" },
           .expect.events = {
@@ -152,13 +144,11 @@ static const rebuild_test_t tests [] = {
     .when.deterministic = true,
     .first = {
       .args = { "build", "-p", "debug" },
-      .expect.exists = { pkg_store_file("test", "bin/main") },
+      .expect.exists = { pkg_store_exe("test", "main") },
     },
     .rebuilds = {
       {
-        .change.moves = {
-          { .from = "packages/spum/spum.inert.h", .to = "packages/spum/spum.h" },
-        },
+        .change.moves = { { .from = "packages/spum/spum.inert.h", .to = "packages/spum/spum.h" } },
         .command = {
           .args = { "build", "-p", "debug" },
           .expect.events = {
@@ -179,9 +169,7 @@ static const rebuild_test_t tests [] = {
     },
     .rebuilds = {
       {
-        .change.moves = {
-          { .from = "version.change.txt", .to = "version.txt" },
-        },
+        .change.moves = { { .from = "version.change.txt", .to = "version.txt" } },
         .command = {
           .args = { "build" },
           .expect.events = {
@@ -198,13 +186,11 @@ static const rebuild_test_t tests [] = {
     .copy = { "packages/*" },
     .first = {
       .args = { "build", "-p", "debug" },
-      .expect.exists = { pkg_store_file("spum", "include/extra.h"), pkg_store_file("test", "bin/main") },
+      .expect.exists = { pkg_store_file("spum", "include/extra.h"), pkg_store_exe("test", "main") },
     },
     .rebuilds = {
       {
-        .change.moves = {
-          { .from = "packages/spum/extra.change.h", .to = "packages/spum/extra.h" },
-        },
+        .change.moves = { { .from = "packages/spum/extra.change.h", .to = "packages/spum/extra.h" } },
         .command = {
           .args = { "build", "-p", "debug" },
           .expect.events = {
@@ -221,7 +207,7 @@ static const rebuild_test_t tests [] = {
     .copy = { "packages/*", "main.code.c" },
     .first = {
       .args = { "build", "-p", "debug" },
-      .expect.exists = { pkg_store_file("test", "bin/main") },
+      .expect.exists = { pkg_store_exe("test", "main") },
     },
     .rebuilds = {
       {
@@ -238,9 +224,7 @@ static const rebuild_test_t tests [] = {
         },
       },
       {
-        .change.moves = {
-          { .from = "packages/spum/spum.eight.h", .to = "packages/spum/spum.h" },
-        },
+        .change.moves = { { .from = "packages/spum/spum.eight.h", .to = "packages/spum/spum.h" } },
         .command = {
           .args = { "build", "-p", "debug" },
           .expect.events = {
@@ -285,9 +269,7 @@ static const rebuild_test_t tests [] = {
     },
     .rebuilds = {
       {
-        .change.moves = {
-          { .from = "main.change.ld", .to = "main.ld" },
-        },
+        .change.moves = { { .from = "main.change.ld", .to = "main.ld" } },
         .command = {
           .args = { "build", "--target", SPN_TEST_ARCH "-freestanding-none" },
           .expect.events = {

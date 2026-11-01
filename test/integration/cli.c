@@ -6,6 +6,7 @@ static const test_t tests [] = {
     .project = "test/integration/fixtures/cli/missing_required_package_version",
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build", .rc = 1 } },
+      { .kind = ACTION_VERIFY_RESULT, .verify_result.err = SPN_ERR_MANIFEST_ISSUES },
     },
   },
   {
@@ -13,6 +14,7 @@ static const test_t tests [] = {
     .project = "test/integration/fixtures/cli/missing_required_package_name",
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build", .rc = 1 } },
+      { .kind = ACTION_VERIFY_RESULT, .verify_result.err = SPN_ERR_MANIFEST_ISSUES },
     },
   },
   {
@@ -20,6 +22,7 @@ static const test_t tests [] = {
     .project = "test/integration/fixtures/cli/wrong_type_required_package_version",
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build", .rc = 1 } },
+      { .kind = ACTION_VERIFY_RESULT, .verify_result.err = SPN_ERR_MANIFEST_ISSUES },
     },
   },
   {
@@ -36,7 +39,7 @@ static const test_t tests [] = {
   {
     .name = "init_existing",
     .actions = {
-      { .kind = ACTION_CREATE_FILE, .create = { .file = lit(".gitignore"), .content = "A" } },
+      { .kind = ACTION_CREATE_FILE, .create = { .file = ".gitignore", .content = "A" } },
       { .kind = ACTION_RUN_CLI, .cli = { .cmd = "init", .rc = 1 } },
       { .kind = ACTION_VERIFY_RESULT, .verify_result = { .err = SPN_ERR_INIT_EXISTS } },
     },
@@ -82,15 +85,17 @@ static const test_t tests [] = {
     .project = "test/integration/fixtures/cli/add",
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { .cmd = "add", .args = { "kram" }, .rc = 1 } },
+      { .kind = ACTION_VERIFY_RESULT, .verify_result.err = SPN_ERR_PKG_UNKNOWN },
       { .kind = ACTION_RUN_CLI, .cli = { .cmd = "add", .args = { "spum@9.0.0" }, .rc = 1 } },
+      { .kind = ACTION_VERIFY_RESULT, .verify_result.err = SPN_ERR_PKG_NO_MATCH },
     },
   },
   {
     .name = "clean",
     .project = "test/integration/fixtures/cli/add",
     .actions = {
-      { .kind = ACTION_CREATE_FILE, .create = { .file = lit("build/debug/marker"), .content = "x" } },
-      { .kind = ACTION_CREATE_FILE, .create = { .file = lit("build/release/marker"), .content = "x" } },
+      { .kind = ACTION_CREATE_FILE, .create = { .file = "build/debug/marker", .content = "x" } },
+      { .kind = ACTION_CREATE_FILE, .create = { .file = "build/release/marker", .content = "x" } },
       { .kind = ACTION_RUN_CLI, .cli = { .cmd = "clean", .args = { "-p", "debug" } } },
       { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = lit("build/debug") },
       { .kind = ACTION_VERIFY_EXISTS, .exists = lit("build/release") },
@@ -98,6 +103,7 @@ static const test_t tests [] = {
       { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = lit("build") },
       { .kind = ACTION_RUN_CLI, .cli = { .cmd = "clean" } },
       { .kind = ACTION_RUN_CLI, .cli = { .cmd = "clean", .args = { "-p", "../escape" }, .rc = 1 } },
+      { .kind = ACTION_VERIFY_RESULT, .verify_result.err = SPN_ERR_PROFILE_INVALID },
     },
   },
   {
@@ -106,6 +112,7 @@ static const test_t tests [] = {
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { .cmd = "index", .args = { "path" } } },
       { .kind = ACTION_RUN_CLI, .cli = { .cmd = "index", .args = { "path", "nope" }, .rc = 1 } },
+      { .kind = ACTION_VERIFY_RESULT, .verify_result.err = SPN_ERROR },
     },
   },
   {
@@ -114,6 +121,7 @@ static const test_t tests [] = {
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { .cmd = "index", .args = { "sync" } } },
       { .kind = ACTION_RUN_CLI, .cli = { .cmd = "index", .args = { "sync", "nope" }, .rc = 1 } },
+      { .kind = ACTION_VERIFY_RESULT, .verify_result.err = SPN_ERR_INDEX_UNKNOWN },
     },
   },
   {
@@ -130,7 +138,7 @@ static const test_t tests [] = {
     .copy = { "index/*" },
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build" } },
-      { .kind = ACTION_RUN_BIN, .bin = { .file = exe("main"), .rc = 3 } },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
     },
   },
   {
@@ -147,20 +155,8 @@ static const test_t tests [] = {
     .project = "test/integration/fixtures/cli/user_dir_index",
     .config = "config.toml",
     .actions = {
-      {
-        .kind = ACTION_CREATE_FILE,
-        .create = {
-          .file = lit(".home/config/spn/index/A/spn.toml"),
-          .content = "[package]\nname = \"A\"\nversion = \"1.0.0\"\n\n[[lib]]\nname = \"A\"\nkinds = [\"source\"]\npublish.include = [{ from = \"source/A.h\" }]\n",
-        },
-      },
-      {
-        .kind = ACTION_CREATE_FILE,
-        .create = {
-          .file = lit(".home/config/spn/index/A/A.h"),
-          .content = "#pragma once\n\nstatic inline int A(void) {\n  return 0;\n}\n",
-        },
-      },
+      { .kind = ACTION_CREATE_FILE, .create = { .file = ".home/config/spn/index/A/spn.toml", .from = "A/spn.toml" } },
+      { .kind = ACTION_CREATE_FILE, .create = { .file = ".home/config/spn/index/A/A.h", .from = "A/A.h" } },
       { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build" } },
       { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
     },

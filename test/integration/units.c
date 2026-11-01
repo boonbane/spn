@@ -1,37 +1,36 @@
 #include "harness.h"
 
-static const command_test_t commands [] = {
+static const test_t tests [] = {
   {
     .name = "build_dep_conflict",
     .project = "test/integration/fixtures/units/build_dep_conflict",
-    .args = { "build" },
-    .expect.exists = { exe("main") },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { "build" } },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
+    },
   },
   {
     .name = "build_dep_transitive_conflict",
     .project = "test/integration/fixtures/units/build_dep_transitive_conflict",
-    .args = { "build" },
-    .expect.exists = { exe("main") },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { "build" } },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
+    },
   },
-  {
-    .name = "shared_private",
-    .project = "test/integration/fixtures/units/shared_private",
-    .args = { "build" },
-    .expect.exists = { exe("main") },
-  },
-};
-
-sp_test_each(units, commands, command_test_t, commands) {
-  return run_command_test(t, *it);
-}
-
-static const test_t tests [] = {
   {
     .name = "shared_conflict",
     .project = "test/integration/fixtures/units/shared_conflict",
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { "build", .rc = 1 } },
       { .kind = ACTION_VERIFY_EVENT, .verify_event = { .event = SPN_EVENT_ERR, .key = "kind", .value = "pkg_conflict" } },
+    },
+  },
+  {
+    .name = "shared_private",
+    .project = "test/integration/fixtures/units/shared_private",
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { "build" } },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
     },
   },
   {

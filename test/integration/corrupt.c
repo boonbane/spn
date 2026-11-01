@@ -18,10 +18,10 @@ static const test_t tests [] = {
     .project = "test/integration/fixtures/deps/index/binary_static",
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { "build" } },
-      { .kind = ACTION_CREATE_FILE, .create = { .file = pkg_store_file("test", "bin/main"), .content = "poison" } },
-      { .kind = ACTION_CREATE_FILE, .create = { .file = exe("main"), .content = "poison" } },
+      { .kind = ACTION_CREATE_FILE, .create = { .file = "build/debug/store/test/bin/main", .content = "poison" } },
+      { .kind = ACTION_CREATE_FILE, .create = { .file = "build/debug/main", .content = "poison" } },
       { .kind = ACTION_RUN_CLI, .cli = { "build" } },
-      { .kind = ACTION_VERIFY_EXISTS, .exists = pkg_store_file("test", "bin/main") },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = pkg_store_exe("test", "main") },
       { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
     },
   },

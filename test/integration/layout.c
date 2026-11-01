@@ -40,7 +40,7 @@ static const command_test_t commands [] = {
     .name = "reserved_bin_name",
     .project = "test/integration/fixtures/layout/reserved_bin",
     .args = { "build" },
-    .expect.rc = 1,
+    .expect = { .rc = 1, .err = SPN_ERR_MANIFEST_ISSUES },
   },
 };
 
@@ -131,7 +131,7 @@ sp_test(layout, target_triple) {
     .copy = { "check.c", "packages/*" },
     .args = { "build", "--target", triple },
     .expect = {
-      .exists = { target_exe("main", triple) },
+      .exists = { { PATH_EXE, .name = "main", .triple = triple } },
       .missing = { lit("build/debug") },
     },
   });

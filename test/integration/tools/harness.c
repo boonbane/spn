@@ -312,65 +312,90 @@ static sp_err_t expect_result(sp_test_t* t, fixture_t* fixture, spn_err_t err, c
   return SP_ERR;
 }
 
-static sp_err_t expect_cc_arg(sp_test_t* t, fixture_t* fixture, const action_t* action, const c8* file, u32 line) {
-  sp_mem_t mem = fixture->mem;
-  bool expected = action->kind == ACTION_VERIFY_CC_ARG;
-
-  sp_str_t path = fixture_path(fixture, sp_str_lit("compile_commands.json"));
-  sp_str_t content = test_read_file(mem, path);
-
+static sp_str_t join_args(sp_mem_t mem, const c8* const* args, u32 max) {
   sp_str_t list = sp_str_lit("");
-  sp_carr_for(action->verify_cc_arg, it) {
-    if (!action->verify_cc_arg[it]) {
+  sp_for(it, max) {
+    if (!args[it]) {
       break;
     }
-    list = sp_fmt(mem, "{} {.quote}", sp_fmt_str(list), sp_fmt_str(sp_cstr_as_str(action->verify_cc_arg[it]))).value;
+    list = sp_fmt(mem, "{} {.quote}", sp_fmt_str(list), sp_fmt_str(sp_cstr_as_str(args[it]))).value;
   }
+  return list;
+}
 
-  yyjson_doc* doc = yyjson_read(content.data, content.len, 0);
-  yyjson_val* root = doc ? yyjson_doc_get_root(doc) : SP_NULLPTR;
+typedef struct {
+  yyjson_doc* doc;
+  yyjson_val* entries;
+  u32 count;
+} compile_commands_t;
 
-  u32 num = (u32)yyjson_arr_size(root);
-  bool ok = num || !expected;
-  sp_str_t offender = sp_zero;
+static compile_commands_t read_compile_commands(fixture_t* fixture) {
+  sp_str_t content = test_read_file(fixture->mem, fixture_path(fixture, sp_str_lit("compile_commands.json")));
+  compile_commands_t cc = { .doc = yyjson_read(content.data, content.len, 0) };
+  cc.entries = cc.doc ? yyjson_doc_get_root(cc.doc) : SP_NULLPTR;
+  cc.count = (u32)yyjson_arr_size(cc.entries);
+  return cc;
+}
 
-  sp_for(it, num) {
-    yyjson_val* entry = yyjson_arr_get(root, it);
-    yyjson_val* arguments = yyjson_obj_get(entry, "arguments");
-
-    bool found = false;
-    u32 num_args = (u32)yyjson_arr_size(arguments);
-    sp_for(ai, num_args) {
-      const c8* arg = yyjson_get_str(yyjson_arr_get(arguments, ai));
-      if (!arg) {
-        continue;
+static bool entry_has_arg(yyjson_val* entry, const c8* const* alternatives, u32 max) {
+  yyjson_val* arguments = yyjson_obj_get(entry, "arguments");
+  u32 num_args = (u32)yyjson_arr_size(arguments);
+  sp_for(ai, num_args) {
+    const c8* arg = yyjson_get_str(yyjson_arr_get(arguments, ai));
+    if (!arg) {
+      continue;
+    }
+    sp_for(alt, max) {
+      if (!alternatives[alt]) {
+        break;
       }
-      sp_carr_for(action->verify_cc_arg, alt) {
-        if (!action->verify_cc_arg[alt]) {
-          break;
-        }
-        if (sp_cstr_equal(arg, action->verify_cc_arg[alt])) {
-          found = true;
-        }
+      if (sp_cstr_equal(arg, alternatives[alt])) {
+        return true;
       }
     }
+  }
+  return false;
+}
 
-    if (found != expected) {
-      ok = false;
+static bool entry_includes(yyjson_val* entry, sp_str_t dir) {
+  yyjson_val* arguments = yyjson_obj_get(entry, "arguments");
+  u32 num_args = (u32)yyjson_arr_size(arguments);
+  sp_for(ai, num_args) {
+    const c8* arg = yyjson_get_str(yyjson_arr_get(arguments, ai));
+    if (!arg) {
+      continue;
+    }
+    sp_str_t str = sp_cstr_as_str(arg);
+    if (sp_str_starts_with(str, sp_str_lit("-I")) || sp_str_starts_with(str, sp_str_lit("/I"))) {
+      if (sp_str_starts_with(sp_str_suffix(str, str.len - 2), dir)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+static sp_err_t expect_cc_arg(sp_test_t* t, fixture_t* fixture, const action_t* action, const c8* file, u32 line) {
+  bool expected = action->kind == ACTION_VERIFY_CC_ARG;
+  compile_commands_t cc = read_compile_commands(fixture);
+
+  sp_str_t offender = sp_zero;
+  sp_for(it, cc.count) {
+    yyjson_val* entry = yyjson_arr_get(cc.entries, it);
+    if (entry_has_arg(entry, action->verify_cc_arg, sp_carr_len(action->verify_cc_arg)) != expected) {
       const c8* source = yyjson_get_str(yyjson_obj_get(entry, "file"));
       offender = source ? sp_cstr_as_str(source) : sp_str_lit("(unknown)");
     }
   }
-
-  if (doc) {
-    yyjson_doc_free(doc);
+  bool ok = cc.count && sp_str_empty(offender);
+  if (cc.doc) {
+    yyjson_doc_free(cc.doc);
   }
   if (ok) {
     return SP_OK;
   }
 
-  sp_test_kv(t, "args", list);
-  sp_test_kv(t, "path", path);
+  sp_test_kv(t, "args", join_args(fixture->mem, action->verify_cc_arg, sp_carr_len(action->verify_cc_arg)));
   if (offender.len) {
     sp_test_kv(t, "entry", offender);
   }
@@ -378,70 +403,50 @@ static sp_err_t expect_cc_arg(sp_test_t* t, fixture_t* fixture, const action_t* 
     .file = sp_cstr_as_str(file),
     .line = line,
     .expected = sp_cstr_as_str(expected ? "compile argument present in every entry" : "compile argument absent from every entry"),
-    .actual = sp_cstr_as_str(num ? (expected ? "an entry is missing it" : "an entry has it") : "no compile entries"),
+    .actual = sp_cstr_as_str(cc.count ? (expected ? "an entry is missing it" : "an entry has it") : "no compile entries"),
   });
   return SP_ERR;
 }
 
 static sp_err_t expect_command_cc(sp_test_t* t, fixture_t* fixture, command_cc_t expected) {
   sp_mem_t mem = fixture->mem;
-  sp_str_t path = fixture_path(fixture, sp_str_lit("compile_commands.json"));
-  sp_str_t content = test_read_file(mem, path);
+  compile_commands_t cc = read_compile_commands(fixture);
+  sp_str_t file = expected.file.kind == PATH_NONE ? sp_str_lit("") : at(fixture, expected.file);
+  sp_str_t include = expected.include ? fixture_path(fixture, sp_cstr_as_str(expected.include)) : sp_str_lit("");
 
-  sp_str_t list = sp_str_lit("");
-  sp_carr_for(expected.args, it) {
-    if (!expected.args[it]) {
-      break;
-    }
-    list = sp_fmt(mem, "{} {.quote}", sp_fmt_str(list), sp_fmt_str(sp_cstr_as_str(expected.args[it]))).value;
-  }
-
-  yyjson_doc* doc = yyjson_read(content.data, content.len, 0);
-  yyjson_val* root = doc ? yyjson_doc_get_root(doc) : SP_NULLPTR;
-
-  u32 num = (u32)yyjson_arr_size(root);
+  u32 selected = 0;
   u32 matches = 0;
-  sp_for(it, num) {
-    yyjson_val* entry = yyjson_arr_get(root, it);
-    yyjson_val* arguments = yyjson_obj_get(entry, "arguments");
-
-    bool found = false;
-    u32 num_args = (u32)yyjson_arr_size(arguments);
-    sp_for(ai, num_args) {
-      const c8* arg = yyjson_get_str(yyjson_arr_get(arguments, ai));
-      if (!arg) {
-        continue;
-      }
-      sp_carr_for(expected.args, alt) {
-        if (!expected.args[alt]) {
-          break;
-        }
-        if (sp_str_contains(sp_cstr_as_str(arg), sp_cstr_as_str(expected.args[alt]))) {
-          found = true;
-        }
-      }
+  sp_for(it, cc.count) {
+    yyjson_val* entry = yyjson_arr_get(cc.entries, it);
+    const c8* source = yyjson_get_str(yyjson_obj_get(entry, "file"));
+    if (!sp_str_empty(file) && !(source && sp_str_equal_cstr(file, source))) {
+      continue;
     }
-    if (found) {
-      matches++;
+    selected++;
+    if (expected.args[0]) {
+      matches += entry_has_arg(entry, expected.args, sp_carr_len(expected.args));
+    }
+    if (expected.include) {
+      matches += entry_includes(entry, include);
     }
   }
-
-  if (doc) {
-    yyjson_doc_free(doc);
+  if (cc.doc) {
+    yyjson_doc_free(cc.doc);
   }
 
-  bool ok = expected.absent ? matches == 0 : matches > 0;
+  bool ok = selected && (expected.absent ? matches == 0 : matches > 0);
   if (ok) {
     return SP_OK;
   }
 
-  sp_test_kv(t, "args", list);
-  sp_test_kv(t, "path", path);
+  sp_test_kv(t, "file", file);
+  sp_test_kv(t, "args", join_args(mem, expected.args, sp_carr_len(expected.args)));
+  sp_test_kv(t, "include", include);
   sp_test_record(t, (sp_test_failure_t) {
     .file = sp_cstr_as_str(__FILE__),
     .line = (u32)__LINE__,
-    .expected = sp_cstr_as_str(expected.absent ? "no compile entry has a matching argument" : "a compile entry has a matching argument"),
-    .actual = sp_cstr_as_str(expected.absent ? "an entry has one" : (num ? "no entry has one" : "no compile entries")),
+    .expected = sp_cstr_as_str(expected.absent ? "no selected compile entry has the argument" : "a selected compile entry has the argument"),
+    .actual = sp_cstr_as_str(!selected ? "no compile entries selected" : (expected.absent ? "an entry has it" : "no entry has it")),
   });
   return SP_ERR;
 }
@@ -461,34 +466,6 @@ static sp_ps_output_t run_fixture_bin(fixture_t* fixture, sp_str_t path) {
       .err.mode = SP_PS_IO_MODE_REDIRECT,
     },
   });
-}
-
-static sp_err_t run_command_bin(sp_test_t* t, fixture_t* fixture, command_bin_t bin) {
-  path_t staged = bin.path;
-  if (staged.kind == PATH_NONE) {
-    staged = (path_t) { PATH_EXE, .name = bin.name, .profile = bin.profile };
-  }
-  sp_str_t path = at(fixture, staged);
-  expect_path(t, fixture, path);
-
-  if (bin.build_only) {
-    return SP_OK;
-  }
-
-  sp_ps_output_t output = run_fixture_bin(fixture, path);
-
-  sp_test_kv(t, "command", path);
-  sp_test_kv(t, "output", output.out);
-  sp_expect_eq(t, bin.rc, output.status.exit_code);
-
-  sp_carr_for(bin.contains, it) {
-    if (!bin.contains[it]) {
-      break;
-    }
-    sp_test_kv(t, "needle", sp_cstr_as_str(bin.contains[it]));
-    sp_expect(t, sp_str_contains(output.out, sp_cstr_as_str(bin.contains[it])));
-  }
-  return SP_OK;
 }
 
 static void expect_command_file(sp_test_t* t, fixture_t* fixture, command_file_t expected) {
@@ -582,6 +559,7 @@ static sp_err_t begin_test(sp_test_t* t, fixture_t* fixture, test_when_t when) {
 
 sp_err_t run_command(sp_test_t* t, fixture_t* fixture, command_test_t test) {
   if (test.project) {
+    fixture->project = test.project;
     sp_try(prepare_test(t, fixture, test.project, test.copy));
   }
   sp_ps_output_t output = (test.human ? run_spn : run_spn_json)(t, fixture, test.args, test.env);
@@ -626,7 +604,7 @@ sp_err_t run_command(sp_test_t* t, fixture_t* fixture, command_test_t test) {
   }
 
   sp_carr_for(test.expect.cc, it) {
-    if (!test.expect.cc[it].args[0]) {
+    if (!test.expect.cc[it].args[0] && !test.expect.cc[it].include && test.expect.cc[it].file.kind == PATH_NONE) {
       break;
     }
     expect_command_cc(t, fixture, test.expect.cc[it]);
@@ -648,10 +626,6 @@ sp_err_t run_command(sp_test_t* t, fixture_t* fixture, command_test_t test) {
 
   if (test.expect.locked[0].name) {
     expect_lock(t, fixture, test.expect.locked);
-  }
-
-  if (test.expect.bin.name || test.expect.bin.path.kind) {
-    sp_try(run_command_bin(t, fixture, test.expect.bin));
   }
   return SP_OK;
 }
@@ -710,6 +684,7 @@ sp_err_t run_rebuild_test(sp_test_t* t, rebuild_test_t test) {
   fixture_t fixture = sp_zero;
   sp_try(begin_test(t, &fixture, test.when));
   fixture.toolchain = test.toolchain;
+  fixture.project = test.project;
 
   sp_try(prepare_test(t, &fixture, test.project, test.copy));
   sp_try(run_command(t, &fixture, test.first));
@@ -775,6 +750,15 @@ static sp_err_t stage_bare_run(sp_test_t* t, fixture_t* fixture, action_t action
   return sp_fs_create_file_str(sp_fs_join_path(mem, dir, sp_str_lit("probe.json")), spn_probe_write(mem, &probe));
 }
 
+static sp_str_t create_content(fixture_t* fixture, action_t action) {
+  if (action.create.from) {
+    sp_mem_t mem = fixture->mem;
+    sp_str_t project = sp_fs_join_path(mem, fixture->paths.root, sp_cstr_as_str(fixture->project));
+    return test_read_file(mem, sp_fs_join_path(mem, project, sp_cstr_as_str(action.create.from)));
+  }
+  return sp_cstr_as_str(action.create.content);
+}
+
 sp_err_t run_actions(sp_test_t* t, fixture_t* fixture, const action_t* actions) {
   sp_mem_t mem = fixture->mem;
 
@@ -791,7 +775,7 @@ sp_err_t run_actions(sp_test_t* t, fixture_t* fixture, const action_t* actions) 
         break;
       }
       case ACTION_CREATE_FILE: {
-        fixture_create(fixture, path_render(fixture, action.create.file), sp_cstr_as_str(action.create.content));
+        fixture_create(fixture, sp_cstr_as_str(action.create.file), create_content(fixture, action));
         break;
       }
       case ACTION_RUN_BIN: {
@@ -894,26 +878,6 @@ sp_err_t run_actions(sp_test_t* t, fixture_t* fixture, const action_t* actions) 
         expect_store(t, fixture, action.verify_store.pkg, action.verify_store.count);
         break;
       }
-      case ACTION_VERIFY_DIR_COUNT: {
-        sp_str_t path = fixture_path(fixture, sp_cstr_as_str(action.verify_dir_count.dir));
-        sp_da(sp_fs_entry_t) entries = sp_zero;
-        sp_fs_collect(mem, path, &entries);
-        u32 dirs = 0;
-        sp_da_for(entries, et) {
-          if (entries[et].kind == SP_FS_KIND_DIR) {
-            dirs++;
-          }
-        }
-        sp_test_kv(t, "path", path);
-        sp_expect_eq(t, action.verify_dir_count.count, dirs);
-        break;
-      }
-      case ACTION_VERIFY_EVENT_COUNT: {
-        u32 count = count_events(fixture, action.verify_event_count.event, action.verify_event_count.key, action.verify_event_count.value);
-        sp_test_kv(t, "event", sp_cstr_as_str(spn_event_name(action.verify_event_count.event)));
-        sp_expect_eq(t, action.verify_event_count.count, count);
-        break;
-      }
     }
   }
   return SP_OK;
@@ -923,6 +887,7 @@ sp_err_t run_test(sp_test_t* t, test_t test) {
   fixture_t fixture = sp_zero;
   sp_try(begin_test(t, &fixture, test.when));
   fixture.toolchain = test.toolchain;
+  fixture.project = test.project;
 
   bool runs = test_when_runs(&test.when);
   bool stages = !sp_str_empty(test_probes());
@@ -959,7 +924,7 @@ sp_err_t run_test(sp_test_t* t, test_t test) {
 }
 
 static bool opt_build_present(const opt_build_t* build) {
-  return build->present || build->profile || build->manifest || build->target || build->alternate || build->expect.rc || build->expect.bin.name;
+  return build->present || build->profile || build->manifest || build->target || build->alternate || build->expect.rc || build->expect.exists[0].kind || build->expect.cc[0].args[0];
 }
 
 static sp_err_t opt_set_manifest(sp_test_t* t, fixture_t* fixture, const c8* manifest) {
@@ -976,6 +941,7 @@ static sp_err_t opt_set_manifest(sp_test_t* t, fixture_t* fixture, const c8* man
 sp_err_t run_opt_test(sp_test_t* t, opt_test_t test) {
   fixture_t fixture = sp_zero;
   sp_try(begin_test(t, &fixture, test.when));
+  fixture.project = test.project;
 
   sp_try(prepare_test(t, &fixture, test.project, test.copy));
 
@@ -1018,14 +984,10 @@ sp_err_t run_opt_test(sp_test_t* t, opt_test_t test) {
     if (build->profile) {
       command.args[arg++] = "-p";
       command.args[arg++] = build->profile;
-      command.expect.bin.profile = build->profile;
     }
     if (target) {
       command.args[arg++] = "--target";
       command.args[arg++] = target;
-    }
-    if ((command.expect.bin.name || command.expect.bin.path.kind) && !test_when_runs(&when)) {
-      command.expect.bin.build_only = true;
     }
     sp_try(run_command(t, &fixture, command));
     ran++;
@@ -1033,6 +995,44 @@ sp_err_t run_opt_test(sp_test_t* t, opt_test_t test) {
 
   if (!ran) {
     return sp_test_skip(t, "{}", sp_fmt_str(blocked));
+  }
+  return SP_OK;
+}
+
+sp_err_t run_identity_test(sp_test_t* t, identity_test_t test) {
+  fixture_t fixture = sp_zero;
+  sp_try(begin_test(t, &fixture, test.when));
+  fixture.project = test.project;
+  sp_try(prepare_test(t, &fixture, test.project, test.copy));
+
+  sp_str_t events = sp_str_lit("");
+  sp_carr_for(test.builds, bt) {
+    if (!test.builds[bt][0]) {
+      break;
+    }
+    sp_ps_output_t output = run_spn_json(t, &fixture, test.builds[bt], SP_NULLPTR);
+    sp_expect_eq(t, 0, output.status.exit_code);
+    events = sp_str_concat(fixture.mem, events, fixture.events);
+  }
+  fixture.events = events;
+
+  if (test.expect.locked[0].name) {
+    expect_lock(t, &fixture, test.expect.locked);
+  }
+  sp_carr_for(test.expect.store, it) {
+    if (!test.expect.store[it].pkg) {
+      break;
+    }
+    expect_store(t, &fixture, test.expect.store[it].pkg, test.expect.store[it].count);
+  }
+  sp_carr_for(test.expect.configured, it) {
+    const identity_count_t* expected = &test.expect.configured[it];
+    if (!expected->pkg) {
+      break;
+    }
+    sp_str_t message = sp_fmt(fixture.mem, "{} configure", sp_fmt_cstr(expected->pkg)).value;
+    sp_test_kv(t, "package", sp_cstr_as_str(expected->pkg));
+    sp_expect_eq(t, expected->count, count_events(&fixture, SPN_EVENT_USER_LOG, "message", sp_str_to_cstr(fixture.mem, message)));
   }
   return SP_OK;
 }

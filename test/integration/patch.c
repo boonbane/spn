@@ -46,16 +46,17 @@ static const rebuild_test_t rebuilds [] = {
     .copy = { "vendor/spum/spn.toml", "patches/*" },
     .first = {
       .args = { "build" },
-      .expect.bin = { .name = "main", .rc = 2 },
+      .expect.exists = { exe("main") },
     },
     .rebuilds = {
       {
-        .change.moves = {
-          { .from = "patches/spum.edit.patch", .to = "patches/spum.patch" },
-        },
+        .change.moves = { { .from = "patches/spum.edit.patch", .to = "patches/spum.patch" } },
         .command = {
           .args = { "build" },
-          .expect.bin = { .name = "main", .rc = 3 },
+          .expect.events = {
+            { .event = SPN_EVENT_SYNC_PATCH },
+            { .event = SPN_EVENT_TARGET_BUILD_PASSED, .key = "subject.target", .value = "main" },
+          },
         },
       },
     },

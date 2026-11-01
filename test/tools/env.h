@@ -12,6 +12,7 @@ typedef struct {
   sp_mem_t mem;
   sp_str_t root;
   sp_str_t events;
+  const c8* project;
   const c8* toolchain;
   const c8* path;
   const c8* cwd;

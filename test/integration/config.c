@@ -37,7 +37,7 @@ static const test_t tests [] = {
   {
     .name = "storage_dir_not_a_dir",
     .actions = {
-      { .kind = ACTION_CREATE_FILE, .create = { .file = lit("S"), .content = "A" } },
+      { .kind = ACTION_CREATE_FILE, .create = { .file = "S", .content = "A" } },
       { .kind = ACTION_RUN_CLI, .cli = { .cmd = "init", .env = { "SPN_STORAGE_DIR=S" }, .rc = 1 } },
       { .kind = ACTION_VERIFY_RESULT, .verify_result = { .err = SPN_ERR_FS_CREATE_DIR } },
     },

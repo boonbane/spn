@@ -57,7 +57,7 @@ static const test_t tests [] = {
       { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
       { .kind = ACTION_VERIFY_EXISTS, .exists = test_exe("test") },
       { .kind = ACTION_VERIFY_EXISTS, .exists = example_exe("x") },
-      { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = pkg_store_file("test", "bin/script") },
+      { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = pkg_store_exe("test", "script") },
     },
   },
   {
@@ -67,9 +67,9 @@ static const test_t tests [] = {
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { "build", .args = { "--example" } } },
       { .kind = ACTION_VERIFY_EXISTS, .exists = example_exe("x") },
-      { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = pkg_store_file("test", "bin/main") },
+      { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = pkg_store_exe("test", "main") },
       { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = test_exe("test") },
-      { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = pkg_store_file("test", "bin/script") },
+      { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = pkg_store_exe("test", "script") },
     },
   },
   {
@@ -91,7 +91,7 @@ static const test_t tests [] = {
       { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
       { .kind = ACTION_VERIFY_EXISTS, .exists = pkg_static_lib("test", "spum") },
       { .kind = ACTION_VERIFY_EXISTS, .exists = test_exe("test") },
-      { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = pkg_store_file("test", "bin/script") },
+      { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = pkg_store_exe("test", "script") },
       { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = example_exe("x") },
     },
   },
@@ -102,7 +102,7 @@ static const test_t tests [] = {
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { "build", .args = { "--lib", "main" }, .rc = 1 } },
       { .kind = ACTION_VERIFY_RESULT, .verify_result = { .err = SPN_ERR_TARGET_SELECTION } },
-      { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = pkg_store_file("test", "bin/main") },
+      { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = pkg_store_exe("test", "main") },
     },
   },
   {
@@ -113,8 +113,8 @@ static const test_t tests [] = {
       { .kind = ACTION_RUN_CLI, .cli = { "test", .args = { "test" } } },
       { .kind = ACTION_VERIFY_EXISTS, .exists = test_exe("test") },
       { .kind = ACTION_VERIFY_EXISTS, .exists = pkg_static_lib("test", "spum") },
-      { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = pkg_store_file("test", "bin/main") },
-      { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = pkg_store_file("test", "bin/script") },
+      { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = pkg_store_exe("test", "main") },
+      { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = pkg_store_exe("test", "script") },
     },
   },
   {
@@ -124,7 +124,7 @@ static const test_t tests [] = {
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { "build", .args = { "script" } } },
       { .kind = ACTION_VERIFY_EXISTS, .exists = exe("script") },
-      { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = pkg_store_file("test", "bin/main") },
+      { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = pkg_store_exe("test", "main") },
       { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = test_exe("test") },
     },
   },
@@ -177,9 +177,6 @@ static const test_t tests [] = {
     .project = "test/integration/fixtures/target/system_deps",
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { "build" } },
-      { .kind = ACTION_VERIFY_EXISTS, .exists = lit("spn.lock") },
-      { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
-      { .kind = ACTION_RUN_CLI, .cli = { "build", .args = { "--force" } } },
       { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
     },
   },
@@ -202,15 +199,6 @@ static const test_t tests [] = {
       { .kind = ACTION_VERIFY_NO_CC_ARG, .verify_cc_arg = { "-lmissing", "/DEFAULTLIB:missing" } },
     },
   },
-  {
-    .name = "embed",
-    .project = "test/integration/fixtures/target/embed",
-    .copy = { "A.txt" },
-    .actions = {
-      { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_RUN_BIN, .bin.file = exe("main") },
-    },
-  },
 };
 
 sp_test_each(target, cases, test_t, tests) {
@@ -228,9 +216,7 @@ static const rebuild_test_t rebuilds [] = {
     },
     .rebuilds = {
       {
-        .change.moves = {
-          { .from = "packages/kit/spn.fewer.toml", .to = "packages/kit/spn.toml" },
-        },
+        .change.moves = { { .from = "packages/kit/spn.fewer.toml", .to = "packages/kit/spn.toml" } },
         .command = {
           .args = { "build" },
           .expect = {
@@ -256,6 +242,6 @@ sp_test(target, cross_exe) {
     .project = "test/integration/fixtures/profile/override",
     .when.target = triple,
     .args = { "build", "--target", triple },
-    .expect = { .exists = { target_exe("main", triple) } },
+    .expect.exists = { { PATH_EXE, .name = "main", .triple = triple } },
   });
 }

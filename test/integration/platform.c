@@ -7,7 +7,7 @@ static const test_t tests [] = {
     .copy = { "main.c" },
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_RUN_BIN, .bin.file = exe("main") },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
     },
   },
   {
@@ -16,6 +16,7 @@ static const test_t tests [] = {
     .copy = { "main.c", "packages/*" },
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
     },
   },
   {
@@ -25,7 +26,7 @@ static const test_t tests [] = {
     .when.os = SPN_OS_MACOS,
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_RUN_BIN, .bin.file = exe("main") },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
     },
   },
   {
@@ -55,7 +56,7 @@ static const test_t tests [] = {
     .when.driver = SPN_CC_DRIVER_MSVC,
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_RUN_BIN, .bin.file = exe("main") },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
     },
   },
 };

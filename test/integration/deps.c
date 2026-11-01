@@ -1,8 +1,8 @@
 #include "harness.h"
 
-static const test_t file_tests [] = {
+static const test_t tests [] = {
   {
-    .name = "basic",
+    .name = "file_basic",
     .project = "test/integration/fixtures/deps/file/basic",
     .copy = { "packages/*" },
     .actions = {
@@ -11,7 +11,7 @@ static const test_t file_tests [] = {
     },
   },
   {
-    .name = "invalid_manifest",
+    .name = "file_invalid_manifest",
     .project = "test/integration/fixtures/deps/file/invalid_manifest",
     .copy = { "vendor/spum/spn.toml" },
     .actions = {
@@ -20,7 +20,7 @@ static const test_t file_tests [] = {
     },
   },
   {
-    .name = "name_mismatch",
+    .name = "file_name_mismatch",
     .project = "test/integration/fixtures/deps/file/name_mismatch",
     .copy = { "vendor/spum/*" },
     .actions = {
@@ -30,7 +30,7 @@ static const test_t file_tests [] = {
     },
   },
   {
-    .name = "missing_manifest",
+    .name = "file_missing_manifest",
     .project = "test/integration/fixtures/deps/file/missing_manifest",
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { "build", .rc = 1 } },
@@ -39,7 +39,7 @@ static const test_t file_tests [] = {
     },
   },
   {
-    .name = "remote_source",
+    .name = "file_remote_source",
     .project = "test/integration/fixtures/deps/file/remote_source",
     .copy = { "vendor/spum/spn.toml" },
     .actions = {
@@ -48,15 +48,94 @@ static const test_t file_tests [] = {
       { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
     },
   },
+  {
+    .name = "index_name_mismatch",
+    .project = "test/integration/fixtures/deps/index/name_mismatch",
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { "build", .rc = 1 } },
+      { .kind = ACTION_VERIFY_EVENT, .verify_event = { .event = SPN_EVENT_ERR, .key = "requested", .value = "core/spum" } },
+      { .kind = ACTION_VERIFY_EVENT, .verify_event = { .event = SPN_EVENT_ERR, .key = "kind", .value = "pkg_mismatch" } },
+    },
+  },
+  {
+    .name = "index_pinned_commit",
+    .project = "test/integration/fixtures/deps/index/pinned_commit",
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { "build" } },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = exe("index_package_pinned_commit") },
+    },
+  },
+  {
+    .name = "index_without_source",
+    .project = "test/integration/fixtures/deps/index/without_source",
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { "build" } },
+      { .kind = ACTION_VERIFY_PKG_LOCKED, .verify_locked = { .name = "core/spum", .version = "1.0.0" } },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
+    },
+  },
+  {
+    .name = "index_binary_static",
+    .project = "test/integration/fixtures/deps/index/binary_static",
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { "build" } },
+      { .kind = ACTION_VERIFY_PKG_LOCKED, .verify_locked = { .name = "core/spum", .version = "1.0.0" } },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
+    },
+  },
+  {
+    .name = "index_binary_shared",
+    .project = "test/integration/fixtures/deps/index/binary_shared",
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { "build" } },
+      { .kind = ACTION_VERIFY_PKG_LOCKED, .verify_locked = { .name = "core/spum", .version = "1.0.0" } },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
+    },
+  },
+  {
+    .name = "index_split_recipe",
+    .project = "test/integration/fixtures/deps/index/split_recipe",
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { "build" } },
+      { .kind = ACTION_VERIFY_PKG_LOCKED, .verify_locked = { .name = "core/spum", .version = "1.0.0" } },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
+    },
+  },
+  {
+    .name = "index_patched",
+    .project = "test/integration/fixtures/deps/index/patched",
+    .copy = { "patches/*" },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { "build" } },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
+    },
+  },
+  {
+    .name = "index_fetch_fails",
+    .project = "test/integration/fixtures/deps/index/fetch_fails",
+    .actions = {
+      { .kind = ACTION_REMOVE_DIR, .rm = { .dir = "remote/spum" } },
+      { .kind = ACTION_RUN_CLI, .cli = { "build", .rc = 1 } },
+      { .kind = ACTION_VERIFY_EVENT, .verify_event = { .event = SPN_EVENT_SYNC_FAILED, .key = "name", .value = "core/spum" } },
+    },
+  },
+  {
+    .name = "index_invalid_manifest",
+    .project = "test/integration/fixtures/deps/index/invalid_manifest",
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { "build", .rc = 1 } },
+      { .kind = ACTION_VERIFY_EVENT, .verify_event = { .event = SPN_EVENT_ERR, .key = "subject", .value = "core/spum" } },
+    },
+  },
 };
 
-sp_test_each(deps_file, cases, test_t, file_tests) {
+sp_test_each(deps, cases, test_t, tests) {
   return run_test(t, *it);
 }
 
-static const rebuild_test_t file_rebuilds [] = {
+static const rebuild_test_t rebuilds [] = {
   {
-    .name = "editable",
+    .name = "file_editable",
     .project = "test/integration/fixtures/deps/file/editable",
     .copy = { "packages/*", "main.kram.c" },
     .first = {
@@ -83,122 +162,25 @@ static const rebuild_test_t file_rebuilds [] = {
       },
     },
   },
-};
-
-sp_test_each(deps_file, rebuild, rebuild_test_t, file_rebuilds) {
-  return run_rebuild_test(t, *it);
-}
-
-static const rebuild_test_t index_rebuilds [] = {
   {
-    .name = "basic",
+    .name = "index_relocks_after_clean",
     .project = "test/integration/fixtures/deps/index/basic",
     .first = {
       .args = { "build" },
-      .expect = {
-        .locked = { { .name = "core/spum", .version = "1.0.0" } },
-      },
+      .expect.locked = { { .name = "core/spum", .version = "1.0.0" } },
     },
     .rebuilds = {
       {
         .change.remove_dirs = { "build" },
         .command = {
           .args = { "build" },
-          .expect = {
-            .locked = { { .name = "core/spum", .version = "1.0.0" } },
-          },
+          .expect.locked = { { .name = "core/spum", .version = "1.0.0" } },
         },
       },
     },
   },
 };
 
-sp_test_each(deps_index, rebuild, rebuild_test_t, index_rebuilds) {
+sp_test_each(deps, rebuild, rebuild_test_t, rebuilds) {
   return run_rebuild_test(t, *it);
-}
-
-static const test_t index_tests [] = {
-  {
-    .name = "name_mismatch",
-    .project = "test/integration/fixtures/deps/index/name_mismatch",
-    .actions = {
-      { .kind = ACTION_RUN_CLI, .cli = { "build", .rc = 1 } },
-      { .kind = ACTION_VERIFY_EVENT, .verify_event = { .event = SPN_EVENT_ERR, .key = "requested", .value = "core/spum" } },
-      { .kind = ACTION_VERIFY_EVENT, .verify_event = { .event = SPN_EVENT_ERR, .key = "kind", .value = "pkg_mismatch" } },
-    },
-  },
-  {
-    .name = "pinned_commit",
-    .project = "test/integration/fixtures/deps/index/pinned_commit",
-    .actions = {
-      { .kind = ACTION_RUN_CLI, .cli = { "build" } },
-      { .kind = ACTION_VERIFY_EXISTS, .exists = exe("index_package_pinned_commit") },
-    },
-  },
-  {
-    .name = "without_source",
-    .project = "test/integration/fixtures/deps/index/without_source",
-    .actions = {
-      { .kind = ACTION_RUN_CLI, .cli = { "build" } },
-      { .kind = ACTION_VERIFY_PKG_LOCKED, .verify_locked = { .name = "core/spum", .version = "1.0.0" } },
-      { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
-    },
-  },
-  {
-    .name = "binary_static",
-    .project = "test/integration/fixtures/deps/index/binary_static",
-    .actions = {
-      { .kind = ACTION_RUN_CLI, .cli = { "build" } },
-      { .kind = ACTION_VERIFY_PKG_LOCKED, .verify_locked = { .name = "core/spum", .version = "1.0.0" } },
-      { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
-    },
-  },
-  {
-    .name = "binary_shared",
-    .project = "test/integration/fixtures/deps/index/binary_shared",
-    .actions = {
-      { .kind = ACTION_RUN_CLI, .cli = { "build" } },
-      { .kind = ACTION_VERIFY_PKG_LOCKED, .verify_locked = { .name = "core/spum", .version = "1.0.0" } },
-      { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
-    },
-  },
-  {
-    .name = "split_recipe",
-    .project = "test/integration/fixtures/deps/index/split_recipe",
-    .actions = {
-      { .kind = ACTION_RUN_CLI, .cli = { "build" } },
-      { .kind = ACTION_VERIFY_PKG_LOCKED, .verify_locked = { .name = "core/spum", .version = "1.0.0" } },
-      { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
-    },
-  },
-  {
-    .name = "patched",
-    .project = "test/integration/fixtures/deps/index/patched",
-    .copy = { "patches/*" },
-    .actions = {
-      { .kind = ACTION_RUN_CLI, .cli = { "build" } },
-      { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
-    },
-  },
-  {
-    .name = "fetch_fails",
-    .project = "test/integration/fixtures/deps/index/fetch_fails",
-    .actions = {
-      { .kind = ACTION_REMOVE_DIR, .rm = { .dir = "remote/spum" } },
-      { .kind = ACTION_RUN_CLI, .cli = { "build", .rc = 1 } },
-      { .kind = ACTION_VERIFY_EVENT, .verify_event = { .event = SPN_EVENT_SYNC_FAILED, .key = "name", .value = "core/spum" } },
-    },
-  },
-  {
-    .name = "invalid_manifest",
-    .project = "test/integration/fixtures/deps/index/invalid_manifest",
-    .actions = {
-      { .kind = ACTION_RUN_CLI, .cli = { "build", .rc = 1 } },
-      { .kind = ACTION_VERIFY_EVENT, .verify_event = { .event = SPN_EVENT_ERR, .key = "subject", .value = "core/spum" } },
-    },
-  },
-};
-
-sp_test_each(deps_index, cases, test_t, index_tests) {
-  return run_test(t, *it);
 }

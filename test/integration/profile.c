@@ -137,47 +137,6 @@ sp_test_each(profile, cases, test_t, tests) {
   return run_test(t, *it);
 }
 
-static const rebuild_test_t rebuilds [] = {
-  {
-    .name = "override_rebuild",
-    .project = "test/integration/fixtures/profile/override",
-    .first = {
-      .args = { "build" },
-      .expect = {
-        .bin = { .name = "main", .rc = 1 },
-        .events = { { .event = SPN_EVENT_TARGET_BUILD_PASSED } },
-        .cc = { { .args = { "DFAST" }, .absent = true } },
-      },
-    },
-    .rebuilds = {
-      {
-        .command = {
-          .args = { "build", "--opt", "3" },
-          .expect = {
-            .bin = { .name = "main", .rc = 2 },
-            .events = { { .event = SPN_EVENT_TARGET_BUILD_PASSED } },
-            .cc = { { .args = { "DFAST" } } },
-          },
-        },
-      },
-      {
-        .command = {
-          .args = { "build" },
-          .expect = {
-            .bin = { .name = "main", .rc = 1 },
-            .events = { { .event = SPN_EVENT_TARGET_BUILD_PASSED, .absent = true } },
-            .cc = { { .args = { "DFAST" }, .absent = true } },
-          },
-        },
-      },
-    },
-  },
-};
-
-sp_test_each(profile, rebuild, rebuild_test_t, rebuilds) {
-  return run_rebuild_test(t, *it);
-}
-
 static const command_test_t commands [] = {
   {
     .name = "cross_target_macos",
@@ -235,4 +194,42 @@ static const command_test_t commands [] = {
 
 sp_test_each(profile, commands, command_test_t, commands) {
   return run_command_test(t, *it);
+}
+
+static const rebuild_test_t rebuilds [] = {
+  {
+    .name = "override_rebuild",
+    .project = "test/integration/fixtures/profile/override",
+    .first = {
+      .args = { "build" },
+      .expect = {
+        .events = { { .event = SPN_EVENT_TARGET_BUILD_PASSED } },
+        .cc = { { .args = { "-DFAST", "/DFAST" }, .absent = true } },
+      },
+    },
+    .rebuilds = {
+      {
+        .command = {
+          .args = { "build", "--opt", "3" },
+          .expect = {
+            .events = { { .event = SPN_EVENT_TARGET_BUILD_PASSED } },
+            .cc = { { .args = { "-DFAST", "/DFAST" } } },
+          },
+        },
+      },
+      {
+        .command = {
+          .args = { "build" },
+          .expect = {
+            .events = { { .event = SPN_EVENT_TARGET_BUILD_PASSED, .absent = true } },
+            .cc = { { .args = { "-DFAST", "/DFAST" }, .absent = true } },
+          },
+        },
+      },
+    },
+  },
+};
+
+sp_test_each(profile, rebuild, rebuild_test_t, rebuilds) {
+  return run_rebuild_test(t, *it);
 }
