@@ -80,6 +80,15 @@ static spn_err_t setup_local(spn_toolchain_store_t* store, spn_toolchain_unit_t*
   return SPN_OK;
 }
 
+static spn_wasi_spelling_t wasi_spelling(const spn_path_roots_t* roots, sp_mem_t mem, const spn_toolchain_info_t* toolchain) {
+  sp_da_for(toolchain->rows, it) {
+    if (toolchain->rows[it].triple.os == SPN_OS_WASI) {
+      return spn_sdk_wasi_spelling(roots, mem, &toolchain->rows[it].sdk);
+    }
+  }
+  return SPN_WASI_SPELLING_WASI;
+}
+
 static spn_err_t setup_artifact(spn_toolchain_store_t* store, spn_toolchain_unit_t* unit) {
   spn_toolchain_info_t* toolchain = unit->info;
   spn_artifact_t artifact = toolchain->support.artifact;
@@ -99,7 +108,7 @@ static spn_err_t setup_artifact(spn_toolchain_store_t* store, spn_toolchain_unit
   }
 
   spn_toolchain_launcher_t cxx = toolchain->cxx;
-  if (spn_toolchain_has_cxx(toolchain)) {
+  if (!spn_arg_empty(toolchain->cxx.program)) {
     cxx = spn_toolchain_launcher_with_root(spn.mem, toolchain->cxx, root);
   }
   unit->version = toolchain->version;
@@ -144,7 +153,7 @@ static spn_err_t setup_toolchain_unit(spn_toolchain_store_t* store, spn_toolchai
     }
   }
 
-  unit->cc.wasi = spn_toolchain_wasi_spelling(store->roots, spn.mem, unit->info);
+  unit->cc.wasi = wasi_spelling(store->roots, spn.mem, unit->info);
   if (unit->info->driver == SPN_CC_DRIVER_ZIG) {
     sp_assert(unit->identity);
     sp_str_t id = sp_fmt(spn.mem, "{:0>16x}", sp_fmt_uint(unit->identity)).value;

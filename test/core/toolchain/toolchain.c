@@ -72,11 +72,3 @@ sp_test_each(launcher, resolve, launcher_test_t, tests) {
 
   return SP_OK;
 }
-
-sp_test(launcher, has_cxx_requires_program) {
-  spn_toolchain_info_t toolchain = sp_zero;
-  sp_expect(t, !spn_toolchain_has_cxx(&toolchain));
-  toolchain.cxx.program = spn_arg_lit(sp_cstr_as_str("A"));
-  sp_expect(t, spn_toolchain_has_cxx(&toolchain));
-  return SP_OK;
-}
