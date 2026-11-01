@@ -13,7 +13,6 @@
 #include "event/event.h"
 #include "paths/paths.h"
 #include "pkg/types.h"
-#include "session/invocation.h"
 #include "session/session.h"
 #include "unit/unit.h"
 #include "graph/build.h"

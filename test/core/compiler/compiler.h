@@ -10,7 +10,7 @@
 #include "compiler/toc.h"
 #include "ctx/types.h"
 #include "paths/paths.h"
-#include "session/invocation.h"
+#include "graph/invocation.h"
 #include "triple/triple.h"
 
 #define render_args_max 20

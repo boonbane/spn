@@ -7,7 +7,7 @@
 #include "event/event.h"
 #include "graph/build.h"
 #include "graph/nodes/nodes.h"
-#include "session/invocation.h"
+#include "graph/invocation.h"
 
 static spn_err_t run_archiver(sp_mem_t mem, const si_dag_ctx_t* c, si_archive_t* archive) {
   spn_cc_archive_files_t files = { .cwd = c->scratch, .output = si_dag_resolve_output(c, archive->output) };

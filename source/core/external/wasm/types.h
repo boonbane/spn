@@ -25,7 +25,7 @@ typedef struct WASMModuleCommon spn_wasm_module_t;
 typedef struct WASMModuleInstanceCommon spn_wasm_instance_t;
 typedef struct WASMExecEnv spn_wasm_exec_env_t;
 typedef struct spn_wasm_handles_t spn_wasm_handles_t;
-typedef struct spn_dag_wasi_t spn_dag_wasi_t;
+typedef struct spn_wasi_t spn_wasi_t;
 
 typedef struct {
   spn_pkg_unit_t* unit;
@@ -35,7 +35,7 @@ typedef struct {
   spn_wasm_instance_t* instance;
   spn_wasm_exec_env_t* env;
   spn_wasm_handles_t* handles;
-  spn_dag_wasi_t* wasi;
+  spn_wasi_t* wasi;
   u32 ctx;
 } spn_wasm_script_t;
 

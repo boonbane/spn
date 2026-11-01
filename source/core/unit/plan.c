@@ -18,7 +18,6 @@
 #include "intern/intern.h"
 #include "paths/paths.h"
 #include "pkg/pkg.h"
-#include "session/invocation.h"
 #include "profile/types.h"
 #include "toolchain/toolchain.h"
 #include "triple/triple.h"

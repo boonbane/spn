@@ -129,16 +129,3 @@ si_target_t* spn_pkg_get_target(si_pkg_t* pkg, sp_str_t name, spn_target_kind_t 
   si_target_id_t id = { .name = spn_intern(name).id, .kind = kind };
   return si_om_get(pkg->targets, id);
 }
-
-si_target_t* spn_pkg_get_script(si_pkg_t* pkg, spn_target_kind_t kind) {
-  si_om_for_each(pkg->targets, target) {
-    if (target->info->kind == kind && !si_da_empty(target->source)) {
-      return target;
-    }
-  }
-  return SP_NULLPTR;
-}
-
-bool spn_pkg_has_scripts(si_pkg_t* pkg) {
-  return spn_pkg_get_script(pkg, SPN_TARGET_KIND_CONFIGURE_METAPROGRAM) || spn_pkg_get_script(pkg, SPN_TARGET_KIND_BUILD_METAPROGRAM);
-}

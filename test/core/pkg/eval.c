@@ -618,6 +618,13 @@ sp_test_each(pkg_eval, has_scripts, scripts_test_t, scripts_tests, .setup = spn_
 
   spn_when_env_t env = make_env(mem, it->facts);
   si_pkg_t pkg = eval(mem, &manifest, &env);
-  sp_expect_eq(t, it->expect, spn_pkg_has_scripts(&pkg));
+  bool scripts = false;
+  si_om_for_each(pkg.targets, target) {
+    if (target->info->kind != SPN_TARGET_KIND_CONFIGURE_METAPROGRAM && target->info->kind != SPN_TARGET_KIND_BUILD_METAPROGRAM) {
+      continue;
+    }
+    scripts |= !si_da_empty(target->source);
+  }
+  sp_expect_eq(t, it->expect, scripts);
   return SP_OK;
 }
