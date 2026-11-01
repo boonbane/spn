@@ -3,9 +3,45 @@
 #include "ctx/types.h"
 #include "error/error.h"
 #include "hash/digest/digest.h"
+#include "hash/sha256/sha256.h"
 #include "fs/fs.h"
 #include "paths/paths.h"
 #include "toolchain/toolchain.h"
+
+static spn_err_t sha256_file(sp_mem_t mem, sp_path_t path, sp_str_t* hex) {
+  sp_io_file_reader_t reader = sp_zero;
+  if (sp_io_file_reader_from_path_at(&reader, path)) {
+    return SPN_ERROR;
+  }
+
+  spn_sha256_ctx_t ctx = sp_zero;
+  spn_sha256_init(&ctx);
+
+  u8 chunk [65536] = sp_zero;
+  while (true) {
+    u64 bytes_read = 0;
+    sp_err_t err = sp_io_read(&reader.base, chunk, sizeof(chunk), &bytes_read);
+    if (bytes_read) {
+      spn_sha256_update(&ctx, chunk, bytes_read);
+    }
+    if (err == SP_ERR_IO_EOF) {
+      break;
+    }
+    if (err) {
+      sp_io_file_reader_close(&reader);
+      return SPN_ERROR;
+    }
+    if (!bytes_read) {
+      break;
+    }
+  }
+
+  sp_io_file_reader_close(&reader);
+  u8 digest [32] = sp_zero;
+  spn_sha256_final(&ctx, digest);
+  *hex = spn_digest_hex(mem, digest);
+  return SPN_OK;
+}
 
 spn_err_t spn_fetch_curl(spn_toolchain_store_t* store, sp_str_t url, sp_str_t dest, sp_str_t* output) {
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
@@ -70,7 +106,7 @@ static spn_err_t fill(spn_toolchain_store_t* store, sp_mem_t scratch, sp_str_t n
   }
 
   sp_str_t actual = sp_zero;
-  if (spn_digest_file_hex(SPN_DIGEST_SHA256, store->mem, tarball_at, &actual)) {
+  if (sha256_file(store->mem, tarball_at, &actual)) {
     sp_fs_remove_file_at(tarball_at);
     return spn_err_emit(&spn, (spn_err_union_t) {
       .kind = SPN_ERR_TOOLCHAIN_READ,

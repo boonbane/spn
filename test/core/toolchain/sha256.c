@@ -5,8 +5,6 @@
 typedef struct {
   const c8* data;
   u64 fill;
-  bool file;
-  bool missing;
   const c8* expect;
 } sha256_case_t;
 
@@ -34,16 +32,9 @@ static const sha256_test_t tests [] = {
     },
   },
   {
-    .name = "file_larger_than_chunk",
+    .name = "many_blocks",
     .cases = {
-      { .fill = 1000000, .file = true, .expect = "cdc76e5c9914fb9281a1c7e284d73e67f1809a48a497200e046d39ccc7112cd0" },
-    },
-  },
-  {
-    .name = "file_matches_bytes",
-    .cases = {
-      { .data = "abc", .file = true, .expect = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad" },
-      { .missing = true },
+      { .fill = 1000000, .expect = "cdc76e5c9914fb9281a1c7e284d73e67f1809a48a497200e046d39ccc7112cd0" },
     },
   },
 };
@@ -53,14 +44,8 @@ sp_test_each(sha256, digest, sha256_test_t, tests) {
 
   sp_carr_for(it->cases, at) {
     sha256_case_t c = it->cases[at];
-    if (!c.data && !c.fill && !c.missing) {
+    if (!c.data && !c.fill) {
       break;
-    }
-
-    if (c.missing) {
-      sp_str_t hex = sp_zero;
-      sp_expect_eq(t, (u32)SPN_ERROR, (u32)spn_digest_file_hex(SPN_DIGEST_SHA256, mem, sp_path_join(mem, sp_test_dir(t), sp_str_lit("missing.bin")), &hex));
-      continue;
     }
 
     sp_str_t data = sp_zero;
@@ -68,21 +53,11 @@ sp_test_each(sha256, digest, sha256_test_t, tests) {
       c8* bytes = (c8*)sp_alloc(mem, c.fill);
       sp_mem_fill_u8(bytes, c.fill, (u8)0x61);
       data = sp_str(bytes, (u32)c.fill);
-    } else {
-      data = sp_str_view(c.data);
     }
-
-    u8 digest [32] = sp_zero;
-    spn_digest(SPN_DIGEST_SHA256, data.data, data.len, digest);
-    sp_expect_str_eq_c(t, spn_digest_hex(mem, digest), c.expect);
-
-    if (c.file) {
-      sp_path_t path = sp_path_join(mem, sp_test_dir(t), sp_fmt(mem, "{}.bin", sp_fmt_uint(at)).value);
-      sp_fs_create_file_str_at(path, data);
-      sp_str_t hex = sp_zero;
-      sp_must_eq(t, (u32)SPN_OK, (u32)spn_digest_file_hex(SPN_DIGEST_SHA256, mem, path, &hex));
-      sp_expect_str_eq_c(t, hex, c.expect);
+    else {
+      data = sp_cstr_as_str(c.data);
     }
+    sp_expect_str_eq_c(t, test_sha256_hex(mem, data), c.expect);
   }
 
   return SP_OK;

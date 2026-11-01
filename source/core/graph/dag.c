@@ -34,7 +34,7 @@
 
 static spn_dag_digest_t hash_embedding(const spn_path_roots_t* roots, spn_target_unit_t* unit) {
   spn_digest_ctx_t ctx = sp_zero;
-  spn_digest_init_blake3(&ctx);
+  spn_digest_init(&ctx);
   spn_dag_hash_str(&ctx, sp_str_lit("spn.build.embed.v9"));
   spn_dag_hash_str(&ctx, unit->pkg->pkg.manifest->qualified.str);
   spn_dag_hash_str(&ctx, unit->target->info->name.str);
@@ -123,7 +123,7 @@ static void hash_invocation(spn_digest_ctx_t* digest, const spn_path_roots_t* ro
 
 static spn_dag_digest_t hash_compile(const spn_path_roots_t* roots, const spn_compile_unit_t* unit) {
   spn_digest_ctx_t digest = sp_zero;
-  spn_digest_init_blake3(&digest);
+  spn_digest_init(&digest);
   spn_dag_hash_str(&digest, sp_str_lit("spn.build.compile.v7"));
   spn_dag_hash_u64(&digest, unit->target->pkg->build->toolchain->identity);
   hash_invocation(&digest, roots, &unit->plan.base);
@@ -191,7 +191,7 @@ static spn_err_t add_publish_file(spn_dag_build_t* b, spn_dag_id_t source, spn_p
   spn_dag_t* g = b->graph;
 
   spn_digest_ctx_t digest = sp_zero;
-  spn_digest_init_blake3(&digest);
+  spn_digest_init(&digest);
   spn_dag_hash_str(&digest, sp_str_lit("spn.build.publish.file.v2"));
   spn_dag_hash_path(&digest, g->roots, dest);
 
@@ -314,7 +314,7 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
     };
 
     spn_digest_ctx_t digest = sp_zero;
-    spn_digest_init_blake3(&digest);
+    spn_digest_init(&digest);
     spn_dag_hash_str(&digest, sp_str_lit("spn.build.rsp.v3"));
     spn_dag_hash_u8(&digest, (u8)rsp->style);
     spn_dag_hash_str(&digest, unit->pkg->pkg.manifest->qualified.str);
@@ -347,7 +347,7 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
     };
 
     spn_digest_ctx_t digest = sp_zero;
-    spn_digest_init_blake3(&digest);
+    spn_digest_init(&digest);
     spn_dag_hash_str(&digest, sp_str_lit("spn.build.archive.v3"));
     spn_dag_hash_u64(&digest, toolchain->identity);
     hash_invocation(&digest, g->roots, &emit->archive.value.base);
@@ -409,7 +409,7 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
       };
 
       spn_digest_ctx_t digest = sp_zero;
-      spn_digest_init_blake3(&digest);
+      spn_digest_init(&digest);
       spn_dag_hash_cstr(&digest, "spn.build.exports.v7");
       spn_dag_hash_u64(&digest, toolchain->identity);
       spn_dag_hash_s32(&digest, exports->format);
@@ -435,7 +435,7 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
     }
 
     spn_digest_ctx_t digest = sp_zero;
-    spn_digest_init_blake3(&digest);
+    spn_digest_init(&digest);
     spn_dag_hash_str(&digest, sp_str_lit("spn.build.link.v11"));
     spn_dag_hash_u64(&digest, toolchain->identity);
     hash_invocation(&digest, g->roots, &plan->base);
@@ -483,7 +483,7 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
       spn_zig_stub_t stub = spn_zig_stub(b->mem, &build->profile, &stub_link);
 
       spn_digest_ctx_t warm_digest = sp_zero;
-      spn_digest_init_blake3(&warm_digest);
+      spn_digest_init(&warm_digest);
       spn_dag_hash_str(&warm_digest, sp_str_lit("spn.build.warm.v1"));
       spn_dag_hash_u64(&warm_digest, toolchain->identity);
       spn_dag_hash_u64(&warm_digest, toolchain->generation);
@@ -565,7 +565,7 @@ spn_err_t spn_dag_build_lower(spn_dag_build_t* b, const spn_build_plan_t* plan) 
           spn_libc_t* paths = &build->profile.sdk.libc;
 
           spn_digest_ctx_t digest = sp_zero;
-          spn_digest_init_blake3(&digest);
+          spn_digest_init(&digest);
           spn_dag_hash_str(&digest, sp_str_lit("spn.build.libc.v3"));
           spn_dag_hash_path(&digest, g->roots, paths->include);
           spn_dag_hash_path(&digest, g->roots, paths->sys_include);
@@ -606,7 +606,7 @@ spn_err_t spn_dag_build_lower(spn_dag_build_t* b, const spn_build_plan_t* plan) 
     spn_pkg_unit_t* pkg = publish->pkg;
 
     spn_digest_ctx_t digest = sp_zero;
-    spn_digest_init_blake3(&digest);
+    spn_digest_init(&digest);
     spn_dag_hash_str(&digest, sp_str_lit("spn.build.publish.v2"));
     spn_dag_hash_str(&digest, pkg->pkg.manifest->qualified.str);
     hash_pin(&digest, &pkg->pin);
@@ -644,7 +644,7 @@ spn_err_t spn_dag_build_lower(spn_dag_build_t* b, const spn_build_plan_t* plan) 
     }
 
     spn_digest_ctx_t digest = sp_zero;
-    spn_digest_init_blake3(&digest);
+    spn_digest_init(&digest);
     spn_dag_hash_str(&digest, sp_str_lit("spn.build.user.v9"));
     spn_dag_hash_str(&digest, pkg->pkg.manifest->qualified.str);
     spn_dag_hash_u64(&digest, pkg->fingerprint);

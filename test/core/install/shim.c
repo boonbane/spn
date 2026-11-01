@@ -221,8 +221,10 @@ static sp_err_t build_fixture(sp_test_t* t, const test_t* it, fixture_t* fx) {
   sp_must_eq(t, (u32)SP_OK, (u32)sp_io_read_file(mem, corrupt, &bytes));
   sp_must_eq(t, (u32)SP_OK, (u32)sp_fs_create_file_str(corrupt, sp_str_concat(mem, bytes, sp_str_lit("x"))));
 
-  sp_must_eq(t, (u32)SPN_OK, (u32)spn_digest_file_hex(SPN_DIGEST_SHA256, mem, sp_path_from_str(asset), &fx->good_sha));
-  sp_must_eq(t, (u32)SPN_OK, (u32)spn_digest_file_hex(SPN_DIGEST_SHA256, mem, sp_path_from_str(corrupt), &fx->bad_sha));
+  sp_str_t good = sp_zero;
+  sp_must_eq(t, (u32)SP_OK, (u32)sp_io_read_file(mem, asset, &good));
+  fx->good_sha = test_sha256_hex(mem, good);
+  fx->bad_sha = test_sha256_hex(mem, sp_str_concat(mem, bytes, sp_str_lit("x")));
 
   sp_str_t shasums = sp_fmt(mem, "{}  {}\n{}  {}\n",
     sp_fmt_str(fx->good_sha), sp_fmt_cstr(SHIM_LINUX_ASSET),
