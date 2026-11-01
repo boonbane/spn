@@ -134,7 +134,7 @@ spn_err_t spn_op_build(spn_op_t* op) {
   };
 
   spn_pkg_unit_t* root = SP_NULLPTR;
-  spn_try(si_add_package_unit(&units, build, si_get_root_pkg(session), &root));
+  spn_try(si_add_package_unit(&units, build, session->root, &root));
   si_da(spn_target_unit_t*) targets = sp_zero;
   si_om_for_each(root->pkg.targets, target) {
     if (!is_selected(&session->selection, target->info)) {

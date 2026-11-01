@@ -76,12 +76,3 @@ spn_err_t spn_session_init(spn_session_t* s, spn_ctx_t* ctx, sp_mem_t mem, spn_p
 
   return SPN_OK;
 }
-
-spn_resolved_pkg_t* si_get_root_pkg(spn_session_t* session) {
-  sp_ht_for_kv(session->resolve, it) {
-    if (it.val->source == SPN_PKG_SOURCE_ROOT) {
-      return it.val;
-    }
-  }
-  return SP_NULLPTR;
-}

@@ -40,6 +40,7 @@ struct spn_session_t {
   bool force;
 
   spn_resolve_t resolve;
+  spn_resolved_pkg_t* root;
   si_da(spn_patch_t) patches;
   spn_pkg_registry_t registry;
 
