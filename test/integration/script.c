@@ -329,14 +329,6 @@ static const test_t tests [] = {
     },
   },
   {
-    .name = "configure_glob",
-    .project = "test/integration/fixtures/script/configure_glob",
-    .actions = {
-      { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_VERIFY_EVENT_COUNT, .verify_event_count = { .event = SPN_EVENT_USER_LOG, .key = "message", .value = "G", .count = 1 } },
-    },
-  },
-  {
     .name = "wrong_handle",
     .project = "test/integration/fixtures/script/wrong_handle",
     .actions = {

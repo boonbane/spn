@@ -49,3 +49,16 @@ static const rebuild_test_t rebuilds [] = {
 sp_test_each(glob, rebuild, rebuild_test_t, rebuilds) {
   return run_rebuild_test(t, *it);
 }
+
+static const identity_test_t identities [] = {
+  {
+    .name = "configure_glob_links_nested_sources_and_runs_once",
+    .project = "test/integration/fixtures/glob/configure",
+    .builds = { { "build" } },
+    .expect.configured = { { "A", 1 } },
+  },
+};
+
+sp_test_each(glob, identity, identity_test_t, identities) {
+  return run_identity_test(t, *it);
+}
