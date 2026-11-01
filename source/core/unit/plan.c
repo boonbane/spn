@@ -100,7 +100,8 @@ static spn_err_t lower_link(spn_units_t* u, spn_target_unit_t* unit) {
         .kind = refusal.err,
         .compiler = {
           .toolchain = toolchain->name.str,
-          .target = spn_profile_triple(profile),
+          .target = profile->target,
+          .host = spn.host,
           .feature = refusal.feature,
           .pkg = pkg->pkg.manifest->name.str,
           .name = unit->target->info->name.str,
@@ -113,7 +114,7 @@ static spn_err_t lower_link(spn_units_t* u, spn_target_unit_t* unit) {
         .kind = refusal.err,
         .toolchain = {
           .name = toolchain->name.str,
-          .target = spn_profile_triple(profile),
+          .target = profile->target,
           .host = spn.host,
         },
       });
@@ -241,9 +242,9 @@ static spn_err_t lower_target(spn_units_t* u, spn_target_unit_t* unit) {
 
   spn_cc_compile_t compile = {
     .cxx = target->info->cxx,
-    .pic = target->info->kind == SPN_TARGET_KIND_LIB && spn_triple_pic(spn_profile_triple(profile)),
+    .pic = target->info->kind == SPN_TARGET_KIND_LIB && spn_ld_dynamic(profile->target) && spn_os_to_native_object_format(profile->target.os) != SPN_OBJ_COFF,
   };
-  if (profile->os == SPN_OS_MACOS) {
+  if (profile->target.os == SPN_OS_MACOS) {
     compile.min_os = link->cc.min_os;
   }
   si_da_for(target->configured.include, it) {
@@ -291,19 +292,33 @@ static spn_err_t lower_target(spn_units_t* u, spn_target_unit_t* unit) {
   }
 
   spn_target_emit_t* emit = &unit->emit;
-  spn_triple_t triple = spn_profile_triple(profile);
+  spn_triple_t triple = profile->target;
   sp_str_t name = target->info->name.str;
   switch (unit->kind) {
     case SPN_CC_OUTPUT_EXE: {
       spn_try(lower_link(u, unit));
-      emit->output = spn_triple_exe_file_name(mem, triple, name);
+      switch (triple.os) {
+        case SPN_OS_WINDOWS:      emit->output = sp_fmt(mem, "{}.exe", sp_fmt_str(name)).value; break;
+        case SPN_OS_WASI:         emit->output = sp_fmt(mem, "{}.wasm", sp_fmt_str(name)).value; break;
+        case SPN_OS_FREESTANDING: emit->output = sp_fmt(mem, "{}.elf", sp_fmt_str(name)).value; break;
+        case SPN_OS_LINUX:
+        case SPN_OS_MACOS:        emit->output = name; break;
+        case SPN_OS_NONE:         sp_unreachable_case();
+      }
       break;
     }
     case SPN_CC_OUTPUT_SHARED_LIB: {
       spn_try(lower_link(u, unit));
-      emit->output = spn_triple_lib_file_name(mem, triple, name, SP_OS_LIB_SHARED);
+      switch (triple.os) {
+        case SPN_OS_WINDOWS: emit->output = sp_fmt(mem, "{}.dll", sp_fmt_str(name)).value; break;
+        case SPN_OS_MACOS:   emit->output = sp_fmt(mem, "lib{}.dylib", sp_fmt_str(name)).value; break;
+        case SPN_OS_LINUX:   emit->output = sp_fmt(mem, "lib{}.so", sp_fmt_str(name)).value; break;
+        case SPN_OS_WASI:
+        case SPN_OS_FREESTANDING:
+        case SPN_OS_NONE:    sp_unreachable_case();
+      }
       if (spn_cc_link_implib(profile, unit->kind)) {
-        emit->implib = spn_triple_lib_file_name(mem, triple, name, SP_OS_LIB_STATIC);
+        emit->implib = sp_fmt(mem, "{}.lib", sp_fmt_str(name)).value;
       }
       sp_opt_set(emit->exports, render_exports(mem, toolchain, profile, &emit->link.value, name));
       break;
@@ -315,7 +330,7 @@ static spn_err_t lower_target(spn_units_t* u, spn_target_unit_t* unit) {
       break;
     }
     case SPN_CC_OUTPUT_STATIC_LIB: {
-      emit->output = spn_triple_lib_file_name(mem, triple, name, SP_OS_LIB_STATIC);
+      emit->output = sp_fmt(mem, triple.abi == SPN_ABI_MSVC ? "{}.lib" : "lib{}.a", sp_fmt_str(name)).value;
       sp_opt_set(emit->archive, si_cc_render_archive(mem, toolchain, profile));
       break;
     }

@@ -19,9 +19,7 @@ typedef struct {
   spn_sanitizer_set_t sanitizers;
   spn_linking_t linking;
   spn_c_standard_t standard;
-  spn_arch_t arch;
-  spn_os_t os;
-  spn_abi_t abi;
+  spn_triple_t target;
   sp_hash_t sdk;
   sp_hash_t platform;
   struct {
@@ -87,7 +85,7 @@ static sp_hash_t hash_gated(sp_hash_t hash, spn_gated_list_t list) {
 static sp_hash_t hash_platform(const si_pkg_info_t* manifest, const spn_profile_info_t* profile) {
   sp_hash_t hash = 0;
 
-  switch (profile->os) {
+  switch (profile->target.os) {
     case SPN_OS_MACOS: {
       hash = hash_push(hash, spn_digest_hash(&manifest->macos.min_os, sizeof(manifest->macos.min_os)));
       hash = hash_gated(hash, manifest->macos.frameworks);
@@ -182,9 +180,7 @@ sp_hash_t spn_unit_fingerprint(spn_units_t* u, spn_build_unit_t* build, const sp
     fingerprint.linking.linkage = resolved->config->kind.value;
   }
   fingerprint.standard = build->profile.standard;
-  fingerprint.arch = build->profile.arch;
-  fingerprint.os = build->profile.os;
-  fingerprint.abi = build->profile.abi;
+  fingerprint.target = build->profile.target;
   fingerprint.sdk = spn_sdk_hash(&build->profile.sdk);
   fingerprint.platform = hash_platform(manifest, &build->profile);
   fingerprint.toolchain.name = spn_digest_hash_str(toolchain->name.str);

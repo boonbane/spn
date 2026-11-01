@@ -124,7 +124,7 @@ spn_err_t si_on_embed(const si_dag_ctx_t* c, void* user_data) {
   spn_pkg_unit_t* pkg = embed->unit->pkg;
   sp_mem_arena_marker_t s = sp_mem_begin_scratch();
   spn_cc_embed_ctx_t embedder = sp_zero;
-  spn_cc_embed_ctx_init(&embedder, spn.mem, spn_os_to_native_object_format(pkg->build->profile.os), pkg->build->profile.arch);
+  spn_cc_embed_ctx_init(&embedder, spn.mem, spn_os_to_native_object_format(pkg->build->profile.target.os), pkg->build->profile.target.arch);
   spn_err_t err = embed_files(s.mem, c, embed, &embedder);
   spn_cc_embed_ctx_free(&embedder);
   sp_mem_end_scratch(s);

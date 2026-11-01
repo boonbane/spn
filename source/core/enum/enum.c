@@ -4,71 +4,6 @@
 #include "macro/macro.h"
 #include "spn/core.h"
 
-spn_arch_t spn_arch_from_str(sp_str_t str) {
-  if (sp_str_equal_cstr(str, "x86_64")) {
-    return SPN_ARCH_X64;
-  }
-  else if (sp_str_equal_cstr(str, "aarch64")) {
-    return SPN_ARCH_ARM64;
-  }
-  else if (sp_str_equal_cstr(str, "wasm32")) {
-    return SPN_ARCH_WASM32;
-  }
-
-  return SPN_ARCH_NONE;
-}
-
-sp_str_t spn_arch_to_str(spn_arch_t arch) {
-  switch (arch) {
-    case SPN_ARCH_X64:   return sp_str_lit("x86_64");
-    case SPN_ARCH_ARM64: return sp_str_lit("aarch64");
-    case SPN_ARCH_WASM32: return sp_str_lit("wasm32");
-    case SPN_ARCH_NONE:  return sp_str_lit("");
-  }
-  SP_UNREACHABLE_RETURN(sp_str_lit(""));
-}
-
-spn_os_t spn_os_from_sp_os(sp_os_kind_t os) {
-  switch (os) {
-    case SP_OS_LINUX: return SPN_OS_LINUX;
-    case SP_OS_WIN32: return SPN_OS_WINDOWS;
-    case SP_OS_MACOS: return SPN_OS_MACOS;
-  }
-
-  sp_unreachable_return(SPN_OS_LINUX);
-}
-
-spn_os_t spn_os_from_str(sp_str_t str) {
-  if (sp_str_equal_cstr(str, "windows")) {
-    return SPN_OS_WINDOWS;
-  }
-  else if (sp_str_equal_cstr(str, "linux")) {
-    return SPN_OS_LINUX;
-  }
-  else if (sp_str_equal_cstr(str, "macos")) {
-    return SPN_OS_MACOS;
-  }
-  else if (sp_str_equal_cstr(str, "wasi")) {
-    return SPN_OS_WASI;
-  }
-  else if (sp_str_equal_cstr(str, "freestanding")) {
-    return SPN_OS_FREESTANDING;
-  }
-  return SPN_OS_NONE;
-}
-
-sp_str_t spn_os_to_str(spn_os_t os) {
-  switch (os) {
-    case SPN_OS_LINUX:   return sp_str_lit("linux");
-    case SPN_OS_WINDOWS: return sp_str_lit("windows");
-    case SPN_OS_MACOS:   return sp_str_lit("macos");
-    case SPN_OS_WASI:   return sp_str_lit("wasi");
-    case SPN_OS_FREESTANDING: return sp_str_lit("freestanding");
-    case SPN_OS_NONE:    return sp_str_lit("");
-  }
-  SP_UNREACHABLE_RETURN(sp_str_lit(""));
-}
-
 spn_cc_driver_t spn_cc_driver_from_str(sp_str_t str) {
   if (sp_str_equal_cstr(str, "gcc")) {
     return SPN_CC_DRIVER_GCC;
@@ -162,60 +97,6 @@ sp_str_t spn_ld_dialect_to_str(spn_ld_dialect_t dialect) {
     case SPN_LD_DIALECT_WASM:   return sp_str_lit("wasm");
     case SPN_LD_DIALECT_COUNT:  sp_unreachable_case();
   }
-  SP_UNREACHABLE_RETURN(sp_str_lit(""));
-}
-
-spn_abi_t spn_abi_from_str(sp_str_t str) {
-  if (sp_str_equal_cstr(str, "gnu")) {
-    return SPN_ABI_GNU;
-  }
-  if (sp_str_equal_cstr(str, "musl")) {
-    return SPN_ABI_MUSL;
-  }
-  if (sp_str_equal_cstr(str, "msvc")) {
-    return SPN_ABI_MSVC;
-  }
-  if (sp_str_equal_cstr(str, "apple")) {
-    return SPN_ABI_APPLE;
-  }
-  if (sp_str_equal_cstr(str, "none")) {
-    return SPN_ABI_BARE;
-  }
-  if (sp_str_equal_cstr(str, "elf")) {
-    return SPN_ABI_ELF;
-  }
-
-  return SPN_ABI_NONE;
-}
-
-sp_str_t spn_abi_to_str(spn_abi_t abi) {
-  switch (abi) {
-    case SPN_ABI_GNU: {
-      return sp_str_lit("gnu");
-    }
-    case SPN_ABI_MUSL: {
-      return sp_str_lit("musl");
-    }
-    case SPN_ABI_MSVC: {
-      return sp_str_lit("msvc");
-    }
-    case SPN_ABI_APPLE: {
-      return sp_str_lit("apple");
-    }
-    case SPN_ABI_BARE: {
-      return sp_str_lit("none");
-    }
-    case SPN_ABI_ELF: {
-      return sp_str_lit("elf");
-    }
-    case SPN_ABI_NONE: {
-      return sp_str_lit("");
-    }
-    case SPN_ABI_COUNT: {
-      sp_unreachable_case();
-    }
-  }
-
   SP_UNREACHABLE_RETURN(sp_str_lit(""));
 }
 
@@ -1024,22 +905,4 @@ spn_index_protocol_t spn_index_protocol_from_str(sp_str_t str) {
   }
 
   SP_UNREACHABLE_RETURN(SPN_INDEX_PROTOCOL_GIT);
-}
-
-sp_os_lib_kind_t spn_lib_kind_to_sp_os_lib_kind(spn_linkage_t kind) {
-  switch (kind) {
-    case SPN_LIB_KIND_SHARED: {
-      return SP_OS_LIB_SHARED;
-    }
-    case SPN_LIB_KIND_STATIC: {
-      return SP_OS_LIB_STATIC;
-    }
-    case SPN_LIB_KIND_NONE:
-    case SPN_LIB_KIND_SOURCE:
-    case SPN_LIB_KIND_OBJECT: {
-      return 0;
-    }
-  }
-
-  SP_UNREACHABLE_RETURN(0);
 }

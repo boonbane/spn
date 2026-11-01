@@ -264,18 +264,18 @@ spn_invocation_t spn_cc_render_link_command(sp_mem_t mem, const spn_cc_link_plan
 
 spn_cc_link_refusal_t spn_cc_validate_link(const spn_cc_t* toolchain, spn_triple_t host, const spn_profile_info_t* profile, const spn_cc_link_t* link) {
   spn_cc_feature_t feature = link_feature(link->kind);
-  spn_triple_t target = spn_profile_triple(profile);
+  spn_triple_t target = profile->target;
 
-  if (link->kind == SPN_CC_OUTPUT_REACTOR && profile->os != SPN_OS_WASI) {
+  if (link->kind == SPN_CC_OUTPUT_REACTOR && profile->target.os != SPN_OS_WASI) {
     return (spn_cc_link_refusal_t) { .err = SPN_ERR_COMPILER_FEATURE_UNSUPPORTED, .feature = feature };
   }
-  if (link->kind == SPN_CC_OUTPUT_SHARED_LIB && !spn_triple_dynamic(target)) {
+  if (link->kind == SPN_CC_OUTPUT_SHARED_LIB && !spn_ld_dynamic(target)) {
     return (spn_cc_link_refusal_t) { .err = SPN_ERR_COMPILER_FEATURE_UNSUPPORTED, .feature = feature };
   }
-  if (profile->os == SPN_OS_MACOS && !si_da_empty(link->frameworks) && profile->sdk.kind == SPN_SDK_NONE) {
+  if (profile->target.os == SPN_OS_MACOS && !si_da_empty(link->frameworks) && profile->sdk.kind == SPN_SDK_NONE) {
     return (spn_cc_link_refusal_t) { .err = SPN_ERR_COMPILER_FEATURE_UNSUPPORTED, .feature = SPN_CC_FEATURE_FRAMEWORKS };
   }
-  if (!si_da_empty(link->scripts) && !spn_ld_scripts(profile->linker, spn_os_to_native_object_format(profile->os))) {
+  if (!si_da_empty(link->scripts) && !spn_ld_scripts(profile->linker, spn_os_to_native_object_format(profile->target.os))) {
     return (spn_cc_link_refusal_t) { .err = SPN_ERR_COMPILER_FEATURE_UNSUPPORTED, .feature = SPN_CC_FEATURE_LINKER_SCRIPT };
   }
   if (profile->linker == SPN_LD_FAMILY_MSVC && host.os != SPN_OS_WINDOWS) {
@@ -341,5 +341,5 @@ void spn_cc_render_exports(sp_io_writer_t* io, const spn_path_roots_t* roots, sp
 }
 
 bool spn_cc_link_implib(const spn_profile_info_t* profile, spn_cc_output_kind_t kind) {
-  return kind == SPN_CC_OUTPUT_SHARED_LIB && spn_ld_dialect(spn_profile_triple(profile)) == SPN_LD_DIALECT_LINK;
+  return kind == SPN_CC_OUTPUT_SHARED_LIB && spn_ld_dialect(profile->target) == SPN_LD_DIALECT_LINK;
 }

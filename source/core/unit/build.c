@@ -8,7 +8,6 @@
 #include "str/str.h"
 #include "spn/core.h"
 #include "toolchain/toolchain.h"
-#include "triple/triple.h"
 #include "when/when.h"
 
 static spn_toolchain_unit_t* bind_toolchain(spn_session_t* s, spn_toolchain_info_t* toolchain) {
@@ -29,9 +28,9 @@ spn_build_unit_t* spn_build_add(spn_session_t* s, spn_profile_info_t profile, sp
     spn_digest_hash_str(profile.name.str),
     spn_digest_hash_str(toolchain->name.str),
     spn_sdk_hash(&profile.sdk),
-    (sp_hash_t)profile.os,
-    (sp_hash_t)profile.arch,
-    (sp_hash_t)profile.abi,
+    (sp_hash_t)profile.target.os,
+    (sp_hash_t)profile.target.arch,
+    (sp_hash_t)profile.target.abi,
     (sp_hash_t)profile.driver,
     (sp_hash_t)profile.linker,
     (sp_hash_t)profile.linking.linkage,

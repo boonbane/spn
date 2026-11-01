@@ -30,9 +30,7 @@ sp_test_each(render_env, render, env_test_t, tests, .setup = spn_test_ctx_setup)
   }
 
   spn_profile_info_t profile = test_profile((test_profile_t) {
-    .arch = SPN_ARCH_X64,
-    .os = SPN_OS_LINUX,
-    .abi = SPN_ABI_MUSL,
+    .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_MUSL },
     .standard = SPN_C99,
   });
 

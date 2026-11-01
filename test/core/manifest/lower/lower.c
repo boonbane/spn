@@ -818,6 +818,13 @@ static const test_t tests [] = {
     }
   },
   {
+    .name = "validate_toolchain_host_requires_os",
+    .manifest = "toolchain_host_no_os",
+    .issues = {
+      { SPN_ERR_CODEGEN_INVALID, "host.x86_64" }
+    }
+  },
+  {
     .name = "validate_toolchain_host_mixed",
     .manifest = "toolchain_host_mixed",
     .issues = {

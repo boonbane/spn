@@ -3,6 +3,7 @@
 #include "fixture.h"
 
 #include "enum/enum.h"
+#include "ctx/ctx.h"
 #include "ctx/types.h"
 #include "error/json.h"
 #include "event/event.h"
@@ -46,18 +47,9 @@ static bool declared(sp_str_t name) {
   return lanes_find(&lanes, name) || lanes_find(&builtin, name);
 }
 
-static bool targets(const spn_toolchain_info_t* info, spn_triple_t triple) {
-  sp_da_for(info->rows, it) {
-    if (spn_triple_equal(info->rows[it].triple, triple)) {
-      return true;
-    }
-  }
-  return false;
-}
-
 static spn_triple_t host_for(const spn_toolchain_info_t* info) {
-  spn_triple_t host = spn_triple_host();
-  if (targets(info, host)) {
+  spn_triple_t host = spn_host_detect();
+  if (spn_toolchain_row(info, host)) {
     return host;
   }
   sp_da_for(info->rows, it) {
@@ -126,7 +118,7 @@ static bool toolchain_deterministic_objects(const test_toolchain_t* toolchain) {
 }
 
 static spn_search_rules_t host_rules() {
-  return spn_search_rules(spn_triple_host().os);
+  return spn_search_rules(spn_host_detect().os);
 }
 
 static sp_str_t program_existing(sp_mem_t mem, spn_arg_t program) {
@@ -248,7 +240,7 @@ static sp_err_t load_lanes(void* user) {
   read_lanes(mem, SPN_LANES_TEST, &lanes);
   sp_env_t env = sp_env_capture(mem);
   spn_path_roots_t roots = sp_zero;
-  spn_toolchain_catalog_init(&catalog, spn_triple_host(), spn_sdk_detect(mem, &roots, &env, spn_triple_host()), mem);
+  spn_toolchain_catalog_init(&catalog, spn_host_detect(), spn_sdk_detect(mem, &roots, &env, spn_host_detect()), mem);
 
   sp_da_for(builtin.config.toolchain, it) {
     spn_toolchain_decl_t decl = sp_zero;
@@ -306,13 +298,11 @@ static spn_err_t lane_selects(sp_mem_t mem, const test_when_t* when, spn_triple_
   const c8* named = test_lane_toolchain_arg();
   *profile = (spn_profile_info_t) {
     .toolchain = spn_toolchain_ref_from_str(sp_cstr_as_str(named ? named : "auto")),
-    .arch = target.arch,
-    .os = target.os,
-    .abi = when->target ? target.abi : SPN_ABI_NONE,
+    .target = { target.arch, target.os, when->target ? target.abi : SPN_ABI_NONE },
     .sanitizers = when->sanitize,
   };
   spn_toolchain_query_t query = sp_zero;
-  spn_err_t err = spn_profile_query(profile, spn_triple_host(), &query);
+  spn_err_t err = spn_profile_query(profile, spn_host_detect(), &query);
   if (!err) {
     err = spn_toolchain_select(&catalog, query, selection);
   }
@@ -356,7 +346,7 @@ sp_str_t test_when_blocked(test_when_t when) {
       sp_fmt_str(spn_os_to_str(when.os))).value;
   }
 
-  spn_triple_t host = spn_triple_host();
+  spn_triple_t host = spn_host_detect();
   if (when.host && when.host != host.os) {
     return sp_fmt(mem, "host os is {}, test needs {}",
       sp_fmt_str(spn_os_to_str(host.os)),
@@ -426,7 +416,7 @@ sp_str_t test_when_blocked(test_when_t when) {
 }
 
 bool test_when_runs(const test_when_t* when) {
-  spn_triple_t host = spn_triple_host();
+  spn_triple_t host = spn_host_detect();
   spn_triple_t target = when_target(when);
   return target.os == host.os && target.arch == host.arch;
 }
@@ -434,4 +424,32 @@ bool test_when_runs(const test_when_t* when) {
 sp_str_t test_lanes_toml(void) {
   sp_test_once(&once, load_lanes, SP_NULLPTR);
   return toml;
+}
+
+sp_str_t test_exe_name(sp_mem_t mem, spn_triple_t target, sp_str_t name) {
+  switch (target.os) {
+    case SPN_OS_WINDOWS:      return sp_fmt(mem, "{}.exe", sp_fmt_str(name)).value;
+    case SPN_OS_WASI:         return sp_fmt(mem, "{}.wasm", sp_fmt_str(name)).value;
+    case SPN_OS_FREESTANDING: return sp_fmt(mem, "{}.elf", sp_fmt_str(name)).value;
+    case SPN_OS_LINUX:
+    case SPN_OS_MACOS:        return name;
+    case SPN_OS_NONE:         sp_unreachable_case();
+  }
+  SP_UNREACHABLE_RETURN(name);
+}
+
+sp_str_t test_shared_lib_name(sp_mem_t mem, spn_triple_t target, sp_str_t name) {
+  switch (target.os) {
+    case SPN_OS_WINDOWS: return sp_fmt(mem, "{}.dll", sp_fmt_str(name)).value;
+    case SPN_OS_MACOS:   return sp_fmt(mem, "lib{}.dylib", sp_fmt_str(name)).value;
+    case SPN_OS_LINUX:   return sp_fmt(mem, "lib{}.so", sp_fmt_str(name)).value;
+    case SPN_OS_WASI:
+    case SPN_OS_FREESTANDING:
+    case SPN_OS_NONE:    sp_unreachable_case();
+  }
+  SP_UNREACHABLE_RETURN(name);
+}
+
+sp_str_t test_static_lib_name(sp_mem_t mem, spn_triple_t target, sp_str_t name) {
+  return sp_fmt(mem, target.abi == SPN_ABI_MSVC ? "{}.lib" : "lib{}.a", sp_fmt_str(name)).value;
 }

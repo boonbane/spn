@@ -2,6 +2,7 @@
 
 #include "jtd.h"
 #include "enum/enum.h"
+#include "triple/triple.h"
 #include "yyjson.h"
 
 #define SCHEMA_ENUMS \

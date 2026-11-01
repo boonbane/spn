@@ -1,6 +1,7 @@
 #include "env.h"
 #include "caps.h"
 #include "enum/enum.h"
+#include "ctx/ctx.h"
 #include "toolchain/search.h"
 #include "triple/triple.h"
 
@@ -31,7 +32,7 @@ static void fixture_setup_paths(fixture_t* fixture) {
   sp_str_t exe = sp_zero;
   sp_fs_get_exe_path(mem, &exe);
   sp_str_t test_dir = sp_fs_parent_path(exe);
-  fixture->paths.spn = sp_fs_join_path(mem, sp_fs_parent_path(test_dir), spn_triple_exe_file_name(mem, test_host(), sp_str_lit("spn")));
+  fixture->paths.spn = sp_fs_join_path(mem, sp_fs_parent_path(test_dir), test_exe_name(mem, test_host(), sp_str_lit("spn")));
 #endif
 }
 
@@ -478,7 +479,7 @@ static sp_ps_output_t run_spn_ex(sp_test_t* t, fixture_t* fixture, const c8* for
     env_slot++;
   }
   if (fixture->path) {
-    sp_str_t prefixed = spn_search_prepend(spn_search_rules(spn_triple_host().os), mem, fixture_path(fixture, sp_cstr_as_str(fixture->path)), sp_os_env_get(sp_str_lit("PATH")));
+    sp_str_t prefixed = spn_search_prepend(spn_search_rules(spn_host_detect().os), mem, fixture_path(fixture, sp_cstr_as_str(fixture->path)), sp_os_env_get(sp_str_lit("PATH")));
     config.env.extra[env_slot++] = (sp_env_var_t) { .key = sp_str_lit("PATH"), .value = prefixed };
   }
   if (env) {

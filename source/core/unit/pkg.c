@@ -11,7 +11,6 @@
 #include "profile/profile.h"
 #include "target/mutate.h"
 #include "target/select.h"
-#include "triple/triple.h"
 #include "when/when.h"
 
 static si_pkg_t evaluate(spn_units_t* u, spn_build_unit_t* build, const spn_resolved_pkg_t* resolved) {

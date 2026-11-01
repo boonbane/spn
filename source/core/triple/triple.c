@@ -1,82 +1,93 @@
-#include "spn/host.h"
 #include "triple/triple.h"
-#include "elf/elf.h"
-#include "enum/enum.h"
 
-spn_err_t spn_triple_parse(sp_str_t str, spn_triple_t* triple) {
-  *triple = sp_zero_s(spn_triple_t);
-
-  sp_str_t segments [3] = sp_zero;
-  u32 num_segments = 0;
-  sp_str_t remaining = str;
-  while (true) {
-    s32 sep = sp_str_find_c8(remaining, '-');
-    sp_str_t segment = sep < 0 ? remaining : sp_str_prefix(remaining, sep);
-    if (sp_str_empty(segment) || num_segments == sp_carr_len(segments)) {
-      return SPN_ERR_TRIPLE_INVALID;
-    }
-    segments[num_segments++] = segment;
-    if (sep < 0) break;
-    remaining = sp_str_suffix(remaining, remaining.len - sep - 1);
+spn_arch_t spn_arch_from_str(sp_str_t str) {
+  if (sp_str_equal_cstr(str, "x86_64")) {
+    return SPN_ARCH_X64;
   }
-
-  triple->arch = spn_arch_from_str(segments[0]);
-  if (!triple->arch) {
-    return SPN_ERR_TRIPLE_INVALID;
+  if (sp_str_equal_cstr(str, "aarch64")) {
+    return SPN_ARCH_ARM64;
   }
-  if (num_segments > 1) {
-    triple->os = spn_os_from_str(segments[1]);
-    if (!triple->os) {
-      return SPN_ERR_TRIPLE_INVALID;
-    }
+  if (sp_str_equal_cstr(str, "wasm32")) {
+    return SPN_ARCH_WASM32;
   }
-  if (num_segments > 2) {
-    triple->abi = spn_abi_from_str(segments[2]);
-    if (!triple->abi) {
-      return SPN_ERR_TRIPLE_INVALID;
-    }
-  }
-  return SPN_OK;
+  return SPN_ARCH_NONE;
 }
 
-spn_err_t spn_triple_parse_host(sp_str_t str, spn_triple_t* triple) {
-  spn_try(spn_triple_parse(str, triple));
-  if (!triple->os) {
-    return SPN_ERR_TRIPLE_INVALID;
+sp_str_t spn_arch_to_str(spn_arch_t arch) {
+  switch (arch) {
+    case SPN_ARCH_X64:    return sp_str_lit("x86_64");
+    case SPN_ARCH_ARM64:  return sp_str_lit("aarch64");
+    case SPN_ARCH_WASM32: return sp_str_lit("wasm32");
+    case SPN_ARCH_NONE:   return sp_str_lit("");
   }
-  return SPN_OK;
+  SP_UNREACHABLE_RETURN(sp_str_lit(""));
 }
 
-sp_str_t spn_triple_to_str(sp_mem_t mem, spn_triple_t triple) {
-  sp_str_t arch = spn_arch_to_str(triple.arch);
-  sp_str_t os = spn_os_to_str(triple.os);
-  sp_str_t abi = spn_abi_to_str(triple.abi);
-
-  if (triple.abi) {
-    return sp_fmt(mem, "{}-{}-{}", sp_fmt_str(arch), sp_fmt_str(os), sp_fmt_str(abi)).value;
+spn_os_t spn_os_from_str(sp_str_t str) {
+  if (sp_str_equal_cstr(str, "windows")) {
+    return SPN_OS_WINDOWS;
   }
-  if (triple.os) {
-    return sp_fmt(mem, "{}-{}", sp_fmt_str(arch), sp_fmt_str(os)).value;
+  if (sp_str_equal_cstr(str, "linux")) {
+    return SPN_OS_LINUX;
   }
-  return arch;
+  if (sp_str_equal_cstr(str, "macos")) {
+    return SPN_OS_MACOS;
+  }
+  if (sp_str_equal_cstr(str, "wasi")) {
+    return SPN_OS_WASI;
+  }
+  if (sp_str_equal_cstr(str, "freestanding")) {
+    return SPN_OS_FREESTANDING;
+  }
+  return SPN_OS_NONE;
 }
 
-spn_abi_t spn_abi_from_interp(sp_str_t interp) {
-  if (sp_str_find(interp, sp_str_lit("ld-musl")) >= 0) {
+sp_str_t spn_os_to_str(spn_os_t os) {
+  switch (os) {
+    case SPN_OS_LINUX:        return sp_str_lit("linux");
+    case SPN_OS_WINDOWS:      return sp_str_lit("windows");
+    case SPN_OS_MACOS:        return sp_str_lit("macos");
+    case SPN_OS_WASI:         return sp_str_lit("wasi");
+    case SPN_OS_FREESTANDING: return sp_str_lit("freestanding");
+    case SPN_OS_NONE:         return sp_str_lit("");
+  }
+  SP_UNREACHABLE_RETURN(sp_str_lit(""));
+}
+
+spn_abi_t spn_abi_from_str(sp_str_t str) {
+  if (sp_str_equal_cstr(str, "gnu")) {
+    return SPN_ABI_GNU;
+  }
+  if (sp_str_equal_cstr(str, "musl")) {
     return SPN_ABI_MUSL;
   }
-  if (sp_str_find(interp, sp_str_lit("ld-linux")) >= 0) {
-    return SPN_ABI_GNU;
+  if (sp_str_equal_cstr(str, "msvc")) {
+    return SPN_ABI_MSVC;
+  }
+  if (sp_str_equal_cstr(str, "apple")) {
+    return SPN_ABI_APPLE;
+  }
+  if (sp_str_equal_cstr(str, "none")) {
+    return SPN_ABI_BARE;
+  }
+  if (sp_str_equal_cstr(str, "elf")) {
+    return SPN_ABI_ELF;
   }
   return SPN_ABI_NONE;
 }
 
-spn_abi_t spn_host_libc(sp_mem_t mem, sp_io_seeking_reader_t* elf) {
-  sp_str_t interp = sp_zero;
-  if (spn_elf_interp(mem, elf, &interp)) {
-    return SPN_ABI_NONE;
+sp_str_t spn_abi_to_str(spn_abi_t abi) {
+  switch (abi) {
+    case SPN_ABI_GNU:   return sp_str_lit("gnu");
+    case SPN_ABI_MUSL:  return sp_str_lit("musl");
+    case SPN_ABI_MSVC:  return sp_str_lit("msvc");
+    case SPN_ABI_APPLE: return sp_str_lit("apple");
+    case SPN_ABI_BARE:  return sp_str_lit("none");
+    case SPN_ABI_ELF:   return sp_str_lit("elf");
+    case SPN_ABI_NONE:  return sp_str_lit("");
+    case SPN_ABI_COUNT: sp_unreachable_case();
   }
-  return spn_abi_from_interp(interp);
+  SP_UNREACHABLE_RETURN(sp_str_lit(""));
 }
 
 typedef struct {
@@ -109,10 +120,10 @@ static os_abis_t os_abis(spn_os_t os) {
       return (os_abis_t) { .abis = freestanding_abis, .count = sp_carr_len(freestanding_abis), .completions = sp_carr_len(freestanding_abis) };
     }
     case SPN_OS_NONE: {
-      return sp_zero_struct(os_abis_t);
+      return sp_zero_s(os_abis_t);
     }
   }
-  sp_unreachable_return(sp_zero_struct(os_abis_t));
+  sp_unreachable_return(sp_zero_s(os_abis_t));
 }
 
 u32 spn_os_abis(spn_os_t os, const spn_abi_t** abis) {
@@ -163,40 +174,13 @@ static bool os_has_arch(spn_os_t os, spn_arch_t arch) {
 }
 
 static bool os_has_abi(spn_os_t os, spn_abi_t abi) {
-  const spn_abi_t* abis = SP_NULLPTR;
-  u32 count = spn_os_abis(os, &abis);
-  sp_for(it, count) {
-    if (abis[it] == abi) {
+  os_abis_t row = os_abis(os);
+  sp_for(it, row.count) {
+    if (row.abis[it] == abi) {
       return true;
     }
   }
   return false;
-}
-
-sp_da(spn_triple_t) spn_os_triples(sp_mem_t mem, spn_arch_t arch, spn_os_t os) {
-  sp_da(spn_triple_t) triples = sp_da_new(mem, spn_triple_t);
-  const spn_abi_t* abis = SP_NULLPTR;
-  u32 count = spn_os_abis(os, &abis);
-  sp_for(it, count) {
-    sp_da_push(triples, ((spn_triple_t) { arch, os, abis[it] }));
-  }
-  return triples;
-}
-
-sp_da(spn_triple_t) spn_arch_triples(sp_mem_t mem, spn_arch_t arch) {
-  static const spn_os_t oses [] = { SPN_OS_LINUX, SPN_OS_WINDOWS, SPN_OS_MACOS, SPN_OS_WASI, SPN_OS_FREESTANDING };
-  sp_da(spn_triple_t) triples = sp_da_new(mem, spn_triple_t);
-  sp_carr_for(oses, it) {
-    if (!os_has_arch(oses[it], arch)) {
-      continue;
-    }
-    const spn_abi_t* abis = SP_NULLPTR;
-    u32 count = spn_os_abis(oses[it], &abis);
-    sp_for(at, count) {
-      sp_da_push(triples, ((spn_triple_t) { arch, oses[it], abis[at] }));
-    }
-  }
-  return triples;
 }
 
 spn_obj_format_t spn_os_to_native_object_format(spn_os_t os) {
@@ -211,27 +195,68 @@ spn_obj_format_t spn_os_to_native_object_format(spn_os_t os) {
   SP_UNREACHABLE_RETURN(SPN_OBJ_ELF);
 }
 
-bool spn_triple_dynamic(spn_triple_t triple) {
-  if (triple.abi == SPN_ABI_BARE) {
-    return false;
-  }
-  switch (triple.os) {
-    case SPN_OS_LINUX:
-    case SPN_OS_WINDOWS:
-    case SPN_OS_MACOS: {
-      return true;
+spn_err_t spn_triple_parse(sp_str_t str, spn_triple_t* triple) {
+  *triple = sp_zero_s(spn_triple_t);
+
+  sp_str_t segments [3] = sp_zero;
+  u32 num_segments = 0;
+  sp_str_t remaining = str;
+  while (true) {
+    s32 sep = sp_str_find_c8(remaining, '-');
+    sp_str_t segment = sep < 0 ? remaining : sp_str_prefix(remaining, sep);
+    if (sp_str_empty(segment) || num_segments == sp_carr_len(segments)) {
+      return SPN_ERR_TRIPLE_INVALID;
     }
-    case SPN_OS_WASI:
-    case SPN_OS_FREESTANDING:
-    case SPN_OS_NONE: {
-      return false;
+    segments[num_segments++] = segment;
+    if (sep < 0) {
+      break;
+    }
+    remaining = sp_str_suffix(remaining, remaining.len - sep - 1);
+  }
+
+  triple->arch = spn_arch_from_str(segments[0]);
+  if (!triple->arch) {
+    return SPN_ERR_TRIPLE_INVALID;
+  }
+  if (num_segments > 1) {
+    triple->os = spn_os_from_str(segments[1]);
+    if (!triple->os) {
+      return SPN_ERR_TRIPLE_INVALID;
     }
   }
-  SP_UNREACHABLE_RETURN(false);
+  if (num_segments > 2) {
+    triple->abi = spn_abi_from_str(segments[2]);
+    if (!triple->abi) {
+      return SPN_ERR_TRIPLE_INVALID;
+    }
+  }
+  return SPN_OK;
 }
 
-bool spn_triple_pic(spn_triple_t triple) {
-  return spn_triple_dynamic(triple) && spn_os_to_native_object_format(triple.os) != SPN_OBJ_COFF;
+sp_str_t spn_triple_to_str(sp_mem_t mem, spn_triple_t triple) {
+  sp_str_t arch = spn_arch_to_str(triple.arch);
+  sp_str_t os = spn_os_to_str(triple.os);
+  sp_str_t abi = spn_abi_to_str(triple.abi);
+
+  if (triple.abi) {
+    return sp_fmt(mem, "{}-{}-{}", sp_fmt_str(arch), sp_fmt_str(os), sp_fmt_str(abi)).value;
+  }
+  if (triple.os) {
+    return sp_fmt(mem, "{}-{}", sp_fmt_str(arch), sp_fmt_str(os)).value;
+  }
+  return arch;
+}
+
+bool spn_triple_equal(spn_triple_t a, spn_triple_t b) {
+  return a.arch == b.arch && a.os == b.os && a.abi == b.abi;
+}
+
+spn_triple_t spn_triple_merge(spn_triple_t base, spn_triple_t partial) {
+  return (spn_triple_t) {
+    .arch = partial.arch ? partial.arch : base.arch,
+    .os   = partial.os   ? partial.os   : base.os,
+    .abi  = partial.abi  ? partial.abi  : base.abi,
+  };
 }
 
 spn_triple_entry_t spn_triple_entry(spn_triple_t partial, spn_triple_t* full) {
@@ -261,104 +286,4 @@ spn_triple_entry_t spn_triple_entry(spn_triple_t partial, spn_triple_t* full) {
   }
   *full = (spn_triple_t) { partial.arch, partial.os, abis[0] };
   return SPN_TRIPLE_ENTRY_OK;
-}
-
-spn_triple_t spn_triple_host() {
-  spn_triple_t host = {0};
-
-#if defined(SP_AMD64)
-  host.arch = SPN_ARCH_X64;
-#elif defined(SP_ARM64)
-  host.arch = SPN_ARCH_ARM64;
-#endif
-
-  host.os = spn_os_from_sp_os(sp_os_get_kind());
-
-#if defined(SP_LINUX)
-  #if defined(__GLIBC__)
-    host.abi = SPN_ABI_GNU;
-  #else
-    host.abi = SPN_ABI_MUSL;
-  #endif
-
-  sp_io_file_reader_t file = sp_zero;
-  if (!sp_io_file_reader_from_path_at(&file, sp_path_from_str(sp_str_lit("/bin/sh")))) {
-    sp_io_seeking_reader_t elf = sp_zero;
-    sp_io_seeking_reader_from_file_reader(&elf, &file);
-    sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-    spn_abi_t libc = spn_host_libc(scratch.mem, &elf);
-    sp_mem_end_scratch(scratch);
-    sp_io_file_reader_close(&file);
-    if (libc) {
-      host.abi = libc;
-    }
-  }
-#elif defined(SP_MACOS)
-  host.abi = SPN_ABI_APPLE;
-#endif
-
-  return host;
-}
-
-spn_triple_t spn_triple_merge(spn_triple_t base, spn_triple_t partial) {
-  return (spn_triple_t) {
-    .arch = partial.arch ? partial.arch : base.arch,
-    .os   = partial.os   ? partial.os   : base.os,
-    .abi  = partial.abi  ? partial.abi  : base.abi,
-  };
-}
-
-bool spn_triple_match(spn_triple_t entry, spn_triple_t target) {
-  if (entry.arch && entry.arch != target.arch) return false;
-  if (entry.os   && entry.os   != target.os)   return false;
-  if (entry.abi  && entry.abi  != target.abi)   return false;
-  return true;
-}
-
-bool spn_triple_equal(spn_triple_t a, spn_triple_t b) {
-  return a.arch == b.arch && a.os == b.os && a.abi == b.abi;
-}
-
-bool spn_triple_in(sp_da(spn_triple_t) triples, spn_triple_t triple) {
-  sp_da_for(triples, it) {
-    if (spn_triple_equal(triples[it], triple)) {
-      return true;
-    }
-  }
-  return false;
-}
-
-sp_str_t spn_triple_lib_file_name(sp_mem_t mem, spn_triple_t triple, sp_str_t name, sp_os_lib_kind_t kind) {
-  switch (kind) {
-    case SP_OS_LIB_STATIC: {
-      if (triple.os == SPN_OS_WINDOWS && triple.abi == SPN_ABI_MSVC) {
-        return sp_fmt(mem, "{}.lib", sp_fmt_str(name)).value;
-      }
-      return sp_fmt(mem, "lib{}.a", sp_fmt_str(name)).value;
-    }
-    case SP_OS_LIB_SHARED: {
-      switch (triple.os) {
-        case SPN_OS_WINDOWS: return sp_fmt(mem, "{}.dll", sp_fmt_str(name)).value;
-        case SPN_OS_MACOS:   return sp_fmt(mem, "lib{}.dylib", sp_fmt_str(name)).value;
-        case SPN_OS_LINUX:
-        case SPN_OS_WASI:
-        case SPN_OS_FREESTANDING:
-        case SPN_OS_NONE:    return sp_fmt(mem, "lib{}.so", sp_fmt_str(name)).value;
-      }
-      break;
-    }
-  }
-  SP_UNREACHABLE_RETURN(sp_str_lit(""));
-}
-
-sp_str_t spn_triple_exe_file_name(sp_mem_t mem, spn_triple_t triple, sp_str_t name) {
-  switch (triple.os) {
-    case SPN_OS_WINDOWS: return sp_fmt(mem, "{}.exe", sp_fmt_str(name)).value;
-    case SPN_OS_WASI:    return sp_fmt(mem, "{}.wasm", sp_fmt_str(name)).value;
-    case SPN_OS_FREESTANDING: return sp_fmt(mem, "{}.elf", sp_fmt_str(name)).value;
-    case SPN_OS_LINUX:
-    case SPN_OS_MACOS:
-    case SPN_OS_NONE:    return sp_str_copy(mem, name);
-  }
-  SP_UNREACHABLE_RETURN(name);
 }

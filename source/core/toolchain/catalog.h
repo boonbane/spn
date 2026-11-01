@@ -7,5 +7,7 @@
 void                  spn_toolchain_catalog_init(spn_toolchain_catalog_t* catalog, spn_triple_t host, spn_sdk_host_t sdks, sp_mem_t mem);
 void                  spn_toolchain_catalog_add(spn_toolchain_catalog_t* catalog, spn_toolchain_decl_t decl);
 spn_toolchain_info_t* spn_toolchain_catalog_get(spn_toolchain_catalog_t* catalog, spn_toolchain_id_t id);
+const spn_toolchain_row_t* spn_toolchain_row(const spn_toolchain_info_t* info, spn_triple_t triple);
+bool                  spn_toolchain_unserved(const spn_toolchain_info_t* info, spn_triple_t triple);
 
 #endif

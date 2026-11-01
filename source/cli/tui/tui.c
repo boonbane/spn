@@ -868,7 +868,7 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
             }
             case SPN_CC_FEATURE_FRAMEWORKS: {
               sp_str_t frameworks = sp_str_join_n(mem, err->frameworks, (u32)sp_da_size(err->frameworks), sp_str_lit(", "));
-              if (spn_triple_host().os == SPN_OS_MACOS) {
+              if (err->host.os == SPN_OS_MACOS) {
                 sp_tty_fmt(&w, "{.cyan} requires macOS frameworks ({}), but no macOS SDK is present. Install the Xcode Command Line Tools, or set {.cyan}", sp_fmt_str(subject), sp_fmt_str(frameworks), sp_fmt_str(sp_str_lit("SPN_MACOS_SDK")));
               } else {
                 sp_tty_fmt(&w, "{.cyan} requires macOS frameworks ({}), but no macOS SDK is present. Due to Apple's licensing, we can only recommend that you compile natively on a macOS host", sp_fmt_str(subject), sp_fmt_str(frameworks));

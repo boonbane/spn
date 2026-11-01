@@ -17,6 +17,7 @@ add_executable(core
   ordered_map.c
   str.c
   triple.c
+  ctx.c
   version.c
   when.c
   closure.c

@@ -30,9 +30,7 @@ static const link_test_t tests [] = {
     .name = "gcc_linux_libs",
     .driver = SPN_CC_DRIVER_GCC,
     .profile = {
-      .arch = SPN_ARCH_X64,
-      .os = SPN_OS_LINUX,
-      .abi = SPN_ABI_GNU,
+      .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU },
     },
     .kind = SPN_CC_OUTPUT_EXE,
     .system_lib = "m",
@@ -49,8 +47,7 @@ static const link_test_t tests [] = {
     .name = "clang_wasi_reactor",
     .driver = SPN_CC_DRIVER_CLANG,
     .profile = {
-      .arch = SPN_ARCH_WASM32,
-      .os = SPN_OS_WASI,
+      .target = { SPN_ARCH_WASM32, SPN_OS_WASI },
     },
     .kind = SPN_CC_OUTPUT_REACTOR,
     .exports = "S.rsp",
@@ -69,8 +66,7 @@ static const link_test_t tests [] = {
     .driver = SPN_CC_DRIVER_CLANG,
     .wasi = SPN_WASI_SPELLING_WASIP1,
     .profile = {
-      .arch = SPN_ARCH_WASM32,
-      .os = SPN_OS_WASI,
+      .target = { SPN_ARCH_WASM32, SPN_OS_WASI },
     },
     .kind = SPN_CC_OUTPUT_REACTOR,
     .exports = "S.rsp",
@@ -88,8 +84,7 @@ static const link_test_t tests [] = {
     .name = "wasi_shared_lib_unsupported",
     .driver = SPN_CC_DRIVER_CLANG,
     .profile = {
-      .arch = SPN_ARCH_WASM32,
-      .os = SPN_OS_WASI,
+      .target = { SPN_ARCH_WASM32, SPN_OS_WASI },
     },
     .kind = SPN_CC_OUTPUT_SHARED_LIB,
     .expect = {
@@ -101,9 +96,7 @@ static const link_test_t tests [] = {
     .name = "gcc_reactor_unsupported",
     .driver = SPN_CC_DRIVER_GCC,
     .profile = {
-      .arch = SPN_ARCH_X64,
-      .os = SPN_OS_LINUX,
-      .abi = SPN_ABI_GNU,
+      .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU },
     },
     .kind = SPN_CC_OUTPUT_REACTOR,
     .expect = {
@@ -116,9 +109,7 @@ static const link_test_t tests [] = {
     .driver = SPN_CC_DRIVER_MSVC,
     .host = HOST_X64_WINDOWS,
     .profile = {
-      .arch = SPN_ARCH_X64,
-      .os = SPN_OS_WINDOWS,
-      .abi = SPN_ABI_MSVC,
+      .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC },
       .linking.runtime = SPN_RUNTIME_STATIC,
     },
     .kind = SPN_CC_OUTPUT_SHARED_LIB,
@@ -144,9 +135,7 @@ static const link_test_t tests [] = {
     .driver = SPN_CC_DRIVER_MSVC,
     .host = HOST_X64_WINDOWS,
     .profile = {
-      .arch = SPN_ARCH_X64,
-      .os = SPN_OS_WINDOWS,
-      .abi = SPN_ABI_MSVC,
+      .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC },
       .linking.runtime = SPN_RUNTIME_STATIC,
     },
     .kind = SPN_CC_OUTPUT_SHARED_LIB,
@@ -162,9 +151,7 @@ static const link_test_t tests [] = {
     .driver = SPN_CC_DRIVER_MSVC,
     .host = HOST_X64_WINDOWS,
     .profile = {
-      .arch = SPN_ARCH_X64,
-      .os = SPN_OS_WINDOWS,
-      .abi = SPN_ABI_MSVC,
+      .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC },
       .linking.runtime = SPN_RUNTIME_STATIC,
       .mode = SPN_MODE_DEBUG,
     },
@@ -179,9 +166,7 @@ static const link_test_t tests [] = {
     .driver = SPN_CC_DRIVER_MSVC,
     .host = HOST_X64_WINDOWS,
     .profile = {
-      .arch = SPN_ARCH_X64,
-      .os = SPN_OS_WINDOWS,
-      .abi = SPN_ABI_MSVC,
+      .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC },
       .linking.runtime = SPN_RUNTIME_STATIC,
     },
     .kind = SPN_CC_OUTPUT_EXE,
@@ -196,9 +181,7 @@ static const link_test_t tests [] = {
     .driver = SPN_CC_DRIVER_MSVC,
     .host = HOST_X64_WINDOWS,
     .profile = {
-      .arch = SPN_ARCH_X64,
-      .os = SPN_OS_WINDOWS,
-      .abi = SPN_ABI_MSVC,
+      .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC },
       .linking.runtime = SPN_RUNTIME_STATIC,
     },
     .kind = SPN_CC_OUTPUT_REACTOR,
@@ -211,8 +194,7 @@ static const link_test_t tests [] = {
     .name = "clang_macos_frameworks",
     .driver = SPN_CC_DRIVER_CLANG,
     .profile = {
-      .arch = SPN_ARCH_ARM64,
-      .os = SPN_OS_MACOS,
+      .target = { SPN_ARCH_ARM64, SPN_OS_MACOS },
       .sdk = "/sdk",
     },
     .kind = SPN_CC_OUTPUT_EXE,
@@ -234,8 +216,7 @@ static const link_test_t tests [] = {
     .name = "zig_macos_libc",
     .driver = SPN_CC_DRIVER_ZIG,
     .profile = {
-      .arch = SPN_ARCH_ARM64,
-      .os = SPN_OS_MACOS,
+      .target = { SPN_ARCH_ARM64, SPN_OS_MACOS },
       .sdk = "/sdk",
     },
     .kind = SPN_CC_OUTPUT_EXE,
@@ -250,8 +231,7 @@ static const link_test_t tests [] = {
     .name = "frameworks_require_sdk",
     .driver = SPN_CC_DRIVER_CLANG,
     .profile = {
-      .arch = SPN_ARCH_ARM64,
-      .os = SPN_OS_MACOS,
+      .target = { SPN_ARCH_ARM64, SPN_OS_MACOS },
     },
     .kind = SPN_CC_OUTPUT_EXE,
     .framework = "Cocoa",
@@ -264,9 +244,7 @@ static const link_test_t tests [] = {
     .name = "gcc_link_flag",
     .driver = SPN_CC_DRIVER_GCC,
     .profile = {
-      .arch = SPN_ARCH_X64,
-      .os = SPN_OS_LINUX,
-      .abi = SPN_ABI_GNU,
+      .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU },
     },
     .kind = SPN_CC_OUTPUT_EXE,
     .arg = "-A",
@@ -279,9 +257,7 @@ static const link_test_t tests [] = {
     .name = "gcc_linker_script",
     .driver = SPN_CC_DRIVER_GCC,
     .profile = {
-      .arch = SPN_ARCH_X64,
-      .os = SPN_OS_LINUX,
-      .abi = SPN_ABI_GNU,
+      .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU },
     },
     .kind = SPN_CC_OUTPUT_EXE,
     .script = "A.ld",
@@ -295,9 +271,7 @@ static const link_test_t tests [] = {
     .driver = SPN_CC_DRIVER_MSVC,
     .host = HOST_X64_WINDOWS,
     .profile = {
-      .arch = SPN_ARCH_X64,
-      .os = SPN_OS_WINDOWS,
-      .abi = SPN_ABI_MSVC,
+      .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC },
       .linking.runtime = SPN_RUNTIME_STATIC,
     },
     .kind = SPN_CC_OUTPUT_EXE,
@@ -311,9 +285,7 @@ static const link_test_t tests [] = {
     .name = "windows_gnu_subsystem",
     .driver = SPN_CC_DRIVER_GCC,
     .profile = {
-      .arch = SPN_ARCH_X64,
-      .os = SPN_OS_WINDOWS,
-      .abi = SPN_ABI_GNU,
+      .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_GNU },
     },
     .kind = SPN_CC_OUTPUT_EXE,
     .subsystem = SPN_WIN_SUBSYSTEM_WINDOWS,
@@ -326,9 +298,7 @@ static const link_test_t tests [] = {
     .name = "linux_shared_lib",
     .driver = SPN_CC_DRIVER_GCC,
     .profile = {
-      .arch = SPN_ARCH_X64,
-      .os = SPN_OS_LINUX,
-      .abi = SPN_ABI_GNU,
+      .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU },
     },
     .kind = SPN_CC_OUTPUT_SHARED_LIB,
     .exports = "S.map",
@@ -341,9 +311,7 @@ static const link_test_t tests [] = {
     .name = "gcc_linux_static_runtime_keeps_shared_libc",
     .driver = SPN_CC_DRIVER_GCC,
     .profile = {
-      .arch = SPN_ARCH_X64,
-      .os = SPN_OS_LINUX,
-      .abi = SPN_ABI_GNU,
+      .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU },
       .linking.linkage = SPN_LIB_KIND_STATIC,
       .linking.runtime = SPN_RUNTIME_STATIC,
       .linking.libc = SPN_RUNTIME_SHARED,
@@ -358,9 +326,7 @@ static const link_test_t tests [] = {
     .name = "gcc_linux_musl_static_libc",
     .driver = SPN_CC_DRIVER_GCC,
     .profile = {
-      .arch = SPN_ARCH_X64,
-      .os = SPN_OS_LINUX,
-      .abi = SPN_ABI_MUSL,
+      .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_MUSL },
       .linking.linkage = SPN_LIB_KIND_STATIC,
       .linking.runtime = SPN_RUNTIME_STATIC,
       .linking.libc = SPN_RUNTIME_STATIC,
@@ -375,9 +341,7 @@ static const link_test_t tests [] = {
     .name = "gcc_linux_musl_shared_lib_static_libc",
     .driver = SPN_CC_DRIVER_GCC,
     .profile = {
-      .arch = SPN_ARCH_X64,
-      .os = SPN_OS_LINUX,
-      .abi = SPN_ABI_MUSL,
+      .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_MUSL },
       .linking.linkage = SPN_LIB_KIND_STATIC,
       .linking.runtime = SPN_RUNTIME_STATIC,
       .linking.libc = SPN_RUNTIME_STATIC,
@@ -393,9 +357,7 @@ static const link_test_t tests [] = {
     .name = "gcc_windows_gnu_static_runtime",
     .driver = SPN_CC_DRIVER_GCC,
     .profile = {
-      .arch = SPN_ARCH_X64,
-      .os = SPN_OS_WINDOWS,
-      .abi = SPN_ABI_GNU,
+      .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_GNU },
       .linking.linkage = SPN_LIB_KIND_SHARED,
       .linking.runtime = SPN_RUNTIME_STATIC,
     },
@@ -409,9 +371,7 @@ static const link_test_t tests [] = {
     .name = "clang_windows_gnu_static_runtime",
     .driver = SPN_CC_DRIVER_CLANG,
     .profile = {
-      .arch = SPN_ARCH_X64,
-      .os = SPN_OS_WINDOWS,
-      .abi = SPN_ABI_GNU,
+      .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_GNU },
       .linking.linkage = SPN_LIB_KIND_SHARED,
       .linking.runtime = SPN_RUNTIME_STATIC,
     },
@@ -425,9 +385,7 @@ static const link_test_t tests [] = {
     .name = "gcc_windows_gnu_shared_lib_static_runtime",
     .driver = SPN_CC_DRIVER_GCC,
     .profile = {
-      .arch = SPN_ARCH_X64,
-      .os = SPN_OS_WINDOWS,
-      .abi = SPN_ABI_GNU,
+      .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_GNU },
       .linking.linkage = SPN_LIB_KIND_SHARED,
       .linking.runtime = SPN_RUNTIME_STATIC,
     },
@@ -442,9 +400,7 @@ static const link_test_t tests [] = {
     .name = "zig_windows_gnu_static_runtime_is_bare",
     .driver = SPN_CC_DRIVER_ZIG,
     .profile = {
-      .arch = SPN_ARCH_X64,
-      .os = SPN_OS_WINDOWS,
-      .abi = SPN_ABI_GNU,
+      .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_GNU },
       .linking.runtime = SPN_RUNTIME_STATIC,
     },
     .kind = SPN_CC_OUTPUT_EXE,
@@ -457,9 +413,7 @@ static const link_test_t tests [] = {
     .name = "zig_windows_gnu_static_libc_stays_dynamic",
     .driver = SPN_CC_DRIVER_ZIG,
     .profile = {
-      .arch = SPN_ARCH_X64,
-      .os = SPN_OS_WINDOWS,
-      .abi = SPN_ABI_GNU,
+      .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_GNU },
       .linking.libc = SPN_RUNTIME_STATIC,
     },
     .kind = SPN_CC_OUTPUT_EXE,
@@ -472,8 +426,7 @@ static const link_test_t tests [] = {
     .name = "zig_macos_static_libc_stays_dynamic",
     .driver = SPN_CC_DRIVER_ZIG,
     .profile = {
-      .arch = SPN_ARCH_ARM64,
-      .os = SPN_OS_MACOS,
+      .target = { SPN_ARCH_ARM64, SPN_OS_MACOS },
       .linking.libc = SPN_RUNTIME_STATIC,
     },
     .kind = SPN_CC_OUTPUT_EXE,
@@ -486,8 +439,7 @@ static const link_test_t tests [] = {
     .name = "macos_static_linkage_suppressed",
     .driver = SPN_CC_DRIVER_CLANG,
     .profile = {
-      .arch = SPN_ARCH_ARM64,
-      .os = SPN_OS_MACOS,
+      .target = { SPN_ARCH_ARM64, SPN_OS_MACOS },
       .linking.linkage = SPN_LIB_KIND_STATIC,
     },
     .kind = SPN_CC_OUTPUT_EXE,
@@ -500,8 +452,7 @@ static const link_test_t tests [] = {
     .name = "macos_rpath",
     .driver = SPN_CC_DRIVER_CLANG,
     .profile = {
-      .arch = SPN_ARCH_ARM64,
-      .os = SPN_OS_MACOS,
+      .target = { SPN_ARCH_ARM64, SPN_OS_MACOS },
     },
     .kind = SPN_CC_OUTPUT_EXE,
     .expect = {
@@ -513,9 +464,7 @@ static const link_test_t tests [] = {
     .name = "zig_freestanding_exe",
     .driver = SPN_CC_DRIVER_ZIG,
     .profile = {
-      .arch = SPN_ARCH_ARM64,
-      .os = SPN_OS_FREESTANDING,
-      .abi = SPN_ABI_BARE,
+      .target = { SPN_ARCH_ARM64, SPN_OS_FREESTANDING, SPN_ABI_BARE },
     },
     .kind = SPN_CC_OUTPUT_EXE,
     .expect = {
@@ -527,9 +476,7 @@ static const link_test_t tests [] = {
     .name = "gcc_freestanding_exe",
     .driver = SPN_CC_DRIVER_GCC,
     .profile = {
-      .arch = SPN_ARCH_ARM64,
-      .os = SPN_OS_FREESTANDING,
-      .abi = SPN_ABI_BARE,
+      .target = { SPN_ARCH_ARM64, SPN_OS_FREESTANDING, SPN_ABI_BARE },
     },
     .kind = SPN_CC_OUTPUT_EXE,
     .expect = {
@@ -541,9 +488,7 @@ static const link_test_t tests [] = {
     .name = "zig_linux_none_exe",
     .driver = SPN_CC_DRIVER_ZIG,
     .profile = {
-      .arch = SPN_ARCH_X64,
-      .os = SPN_OS_LINUX,
-      .abi = SPN_ABI_BARE,
+      .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_BARE },
       .linking.linkage = SPN_LIB_KIND_STATIC,
       .linking.runtime = SPN_RUNTIME_STATIC,
       .linking.libc = SPN_RUNTIME_STATIC,
@@ -558,9 +503,7 @@ static const link_test_t tests [] = {
     .name = "clang_linux_none_exe",
     .driver = SPN_CC_DRIVER_CLANG,
     .profile = {
-      .arch = SPN_ARCH_X64,
-      .os = SPN_OS_LINUX,
-      .abi = SPN_ABI_BARE,
+      .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_BARE },
       .linking.linkage = SPN_LIB_KIND_STATIC,
       .linking.runtime = SPN_RUNTIME_STATIC,
       .linking.libc = SPN_RUNTIME_STATIC,
@@ -575,9 +518,7 @@ static const link_test_t tests [] = {
     .name = "gcc_linux_none_exe",
     .driver = SPN_CC_DRIVER_GCC,
     .profile = {
-      .arch = SPN_ARCH_X64,
-      .os = SPN_OS_LINUX,
-      .abi = SPN_ABI_BARE,
+      .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_BARE },
       .linking.linkage = SPN_LIB_KIND_STATIC,
       .linking.runtime = SPN_RUNTIME_STATIC,
       .linking.libc = SPN_RUNTIME_STATIC,
@@ -592,9 +533,7 @@ static const link_test_t tests [] = {
     .name = "clang_freestanding_elf_exe",
     .driver = SPN_CC_DRIVER_CLANG,
     .profile = {
-      .arch = SPN_ARCH_ARM64,
-      .os = SPN_OS_FREESTANDING,
-      .abi = SPN_ABI_ELF,
+      .target = { SPN_ARCH_ARM64, SPN_OS_FREESTANDING, SPN_ABI_ELF },
       .linking.linkage = SPN_LIB_KIND_STATIC,
       .linking.runtime = SPN_RUNTIME_STATIC,
       .linking.libc = SPN_RUNTIME_STATIC,
@@ -610,9 +549,7 @@ static const link_test_t tests [] = {
     .name = "freestanding_shared_lib_unsupported",
     .driver = SPN_CC_DRIVER_ZIG,
     .profile = {
-      .arch = SPN_ARCH_ARM64,
-      .os = SPN_OS_FREESTANDING,
-      .abi = SPN_ABI_BARE,
+      .target = { SPN_ARCH_ARM64, SPN_OS_FREESTANDING, SPN_ABI_BARE },
     },
     .kind = SPN_CC_OUTPUT_SHARED_LIB,
     .expect = {
@@ -624,9 +561,7 @@ static const link_test_t tests [] = {
     .name = "libs_precede_system_libs",
     .driver = SPN_CC_DRIVER_GCC,
     .profile = {
-      .arch = SPN_ARCH_X64,
-      .os = SPN_OS_LINUX,
-      .abi = SPN_ABI_GNU,
+      .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU },
     },
     .kind = SPN_CC_OUTPUT_EXE,
     .archive = "libA.a",
@@ -641,9 +576,7 @@ static const link_test_t tests [] = {
     .name = "sanitizers_on_link_line",
     .driver = SPN_CC_DRIVER_GCC,
     .profile = {
-      .arch = SPN_ARCH_X64,
-      .os = SPN_OS_LINUX,
-      .abi = SPN_ABI_GNU,
+      .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU },
       .sanitizers = SPN_SANITIZER_ADDRESS,
     },
     .kind = SPN_CC_OUTPUT_EXE,
@@ -656,9 +589,7 @@ static const link_test_t tests [] = {
     .name = "linux_shared_exports",
     .driver = SPN_CC_DRIVER_GCC,
     .profile = {
-      .arch = SPN_ARCH_X64,
-      .os = SPN_OS_LINUX,
-      .abi = SPN_ABI_GNU,
+      .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU },
     },
     .kind = SPN_CC_OUTPUT_SHARED_LIB,
     .exports = "S.map",
@@ -679,8 +610,7 @@ static const link_test_t tests [] = {
     .name = "macos_shared_exports",
     .driver = SPN_CC_DRIVER_CLANG,
     .profile = {
-      .arch = SPN_ARCH_ARM64,
-      .os = SPN_OS_MACOS,
+      .target = { SPN_ARCH_ARM64, SPN_OS_MACOS },
     },
     .kind = SPN_CC_OUTPUT_SHARED_LIB,
     .exports = "S.exp",
@@ -702,9 +632,7 @@ static const link_test_t tests [] = {
     .name = "windows_gnu_shared_def",
     .driver = SPN_CC_DRIVER_GCC,
     .profile = {
-      .arch = SPN_ARCH_X64,
-      .os = SPN_OS_WINDOWS,
-      .abi = SPN_ABI_GNU,
+      .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_GNU },
     },
     .kind = SPN_CC_OUTPUT_SHARED_LIB,
     .exports = "S.def",
@@ -725,9 +653,7 @@ static const link_test_t tests [] = {
     .name = "windows_zig_shared_def",
     .driver = SPN_CC_DRIVER_ZIG,
     .profile = {
-      .arch = SPN_ARCH_X64,
-      .os = SPN_OS_WINDOWS,
-      .abi = SPN_ABI_GNU,
+      .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_GNU },
     },
     .kind = SPN_CC_OUTPUT_SHARED_LIB,
     .exports = "S.def",
@@ -749,8 +675,7 @@ static const link_test_t tests [] = {
     .name = "wasi_reactor_exports",
     .driver = SPN_CC_DRIVER_CLANG,
     .profile = {
-      .arch = SPN_ARCH_WASM32,
-      .os = SPN_OS_WASI,
+      .target = { SPN_ARCH_WASM32, SPN_OS_WASI },
     },
     .kind = SPN_CC_OUTPUT_REACTOR,
     .exports = "S.rsp",
@@ -769,9 +694,7 @@ static const link_test_t tests [] = {
     .name = "foreign_platform_config_never_renders",
     .driver = SPN_CC_DRIVER_GCC,
     .profile = {
-      .arch = SPN_ARCH_X64,
-      .os = SPN_OS_LINUX,
-      .abi = SPN_ABI_GNU,
+      .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU },
     },
     .kind = SPN_CC_OUTPUT_EXE,
     .framework = "Cocoa",
@@ -786,9 +709,7 @@ static const link_test_t tests [] = {
     .name = "zig_linux_sysroot",
     .driver = SPN_CC_DRIVER_ZIG,
     .profile = {
-      .arch = SPN_ARCH_X64,
-      .os = SPN_OS_LINUX,
-      .abi = SPN_ABI_MUSL,
+      .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_MUSL },
       .sdk = "/S",
     },
     .kind = SPN_CC_OUTPUT_EXE,
@@ -801,9 +722,7 @@ static const link_test_t tests [] = {
     .name = "gcc_linux_sysroot",
     .driver = SPN_CC_DRIVER_GCC,
     .profile = {
-      .arch = SPN_ARCH_X64,
-      .os = SPN_OS_LINUX,
-      .abi = SPN_ABI_GNU,
+      .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU },
       .sdk = "/S",
     },
     .kind = SPN_CC_OUTPUT_EXE,
@@ -816,7 +735,7 @@ static const link_test_t tests [] = {
     .name = "family_alone_renders_nothing",
     .driver = SPN_CC_DRIVER_GCC,
     .lld = true,
-    .profile = { .arch = SPN_ARCH_X64, .os = SPN_OS_LINUX, .abi = SPN_ABI_GNU },
+    .profile = { .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU } },
     .kind = SPN_CC_OUTPUT_EXE,
     .expect = {
       .command = "cc",
@@ -828,7 +747,7 @@ static const link_test_t tests [] = {
     .driver = SPN_CC_DRIVER_GCC,
     .lld = true,
     .link_args = { "-fuse-ld=lld", "-B" },
-    .profile = { .arch = SPN_ARCH_X64, .os = SPN_OS_LINUX, .abi = SPN_ABI_GNU },
+    .profile = { .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU } },
     .kind = SPN_CC_OUTPUT_EXE,
     .arg = "-A",
     .script = "A.ld",
@@ -842,7 +761,7 @@ static const link_test_t tests [] = {
     .driver = SPN_CC_DRIVER_CLANG,
     .lld = true,
     .link_args = { "-fuse-ld=lld" },
-    .profile = { .arch = SPN_ARCH_X64, .os = SPN_OS_LINUX, .abi = SPN_ABI_GNU },
+    .profile = { .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU } },
     .kind = SPN_CC_OUTPUT_EXE,
     .script = "A.ld",
     .expect = {
@@ -854,7 +773,7 @@ static const link_test_t tests [] = {
     .name = "zig_toolchain_link_args_follow_target_triple",
     .driver = SPN_CC_DRIVER_ZIG,
     .link_args = { "-A" },
-    .profile = { .arch = SPN_ARCH_X64, .os = SPN_OS_LINUX, .abi = SPN_ABI_GNU },
+    .profile = { .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU } },
     .kind = SPN_CC_OUTPUT_EXE,
     .expect = {
       .command = "cc",
@@ -866,7 +785,7 @@ static const link_test_t tests [] = {
     .driver = SPN_CC_DRIVER_MSVC,
     .host = HOST_X64_WINDOWS,
     .link_args = { "/B" },
-    .profile = { .arch = SPN_ARCH_X64, .os = SPN_OS_WINDOWS, .abi = SPN_ABI_MSVC, .linking.runtime = SPN_RUNTIME_STATIC },
+    .profile = { .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC }, .linking.runtime = SPN_RUNTIME_STATIC },
     .kind = SPN_CC_OUTPUT_EXE,
     .arg = "/A",
     .expect = {
@@ -878,7 +797,7 @@ static const link_test_t tests [] = {
     .name = "clang_msvc_link",
     .driver = SPN_CC_DRIVER_CLANG,
     .host = HOST_X64_WINDOWS,
-    .profile = { .arch = SPN_ARCH_X64, .os = SPN_OS_WINDOWS, .abi = SPN_ABI_MSVC, .linking.runtime = SPN_RUNTIME_STATIC, .linking.libc = SPN_RUNTIME_STATIC },
+    .profile = { .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC }, .linking.runtime = SPN_RUNTIME_STATIC, .linking.libc = SPN_RUNTIME_STATIC },
     .kind = SPN_CC_OUTPUT_EXE,
     .expect = {
       .command = "cc",
@@ -889,7 +808,7 @@ static const link_test_t tests [] = {
     .name = "clang_msvc_shared_runtime",
     .driver = SPN_CC_DRIVER_CLANG,
     .host = HOST_X64_WINDOWS,
-    .profile = { .arch = SPN_ARCH_X64, .os = SPN_OS_WINDOWS, .abi = SPN_ABI_MSVC, .linking.runtime = SPN_RUNTIME_SHARED },
+    .profile = { .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC }, .linking.runtime = SPN_RUNTIME_SHARED },
     .kind = SPN_CC_OUTPUT_EXE,
     .expect = {
       .command = "cc",
@@ -900,7 +819,7 @@ static const link_test_t tests [] = {
     .name = "clang_msvc_shared_def",
     .driver = SPN_CC_DRIVER_CLANG,
     .host = HOST_X64_WINDOWS,
-    .profile = { .arch = SPN_ARCH_X64, .os = SPN_OS_WINDOWS, .abi = SPN_ABI_MSVC, .linking.runtime = SPN_RUNTIME_STATIC },
+    .profile = { .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC }, .linking.runtime = SPN_RUNTIME_STATIC },
     .kind = SPN_CC_OUTPUT_SHARED_LIB,
     .exports = "S.def",
     .implib = "main.lib",
@@ -923,7 +842,7 @@ static const link_test_t tests [] = {
     .name = "clang_msvc_subsystem",
     .driver = SPN_CC_DRIVER_CLANG,
     .host = HOST_X64_WINDOWS,
-    .profile = { .arch = SPN_ARCH_X64, .os = SPN_OS_WINDOWS, .abi = SPN_ABI_MSVC, .linking.runtime = SPN_RUNTIME_STATIC },
+    .profile = { .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC }, .linking.runtime = SPN_RUNTIME_STATIC },
     .kind = SPN_CC_OUTPUT_EXE,
     .subsystem = SPN_WIN_SUBSYSTEM_WINDOWS,
     .expect = {
@@ -935,7 +854,7 @@ static const link_test_t tests [] = {
     .name = "clang_msvc_rpath_never_renders",
     .driver = SPN_CC_DRIVER_CLANG,
     .host = HOST_X64_WINDOWS,
-    .profile = { .arch = SPN_ARCH_X64, .os = SPN_OS_WINDOWS, .abi = SPN_ABI_MSVC, .linking.runtime = SPN_RUNTIME_STATIC },
+    .profile = { .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC }, .linking.runtime = SPN_RUNTIME_STATIC },
     .kind = SPN_CC_OUTPUT_EXE,
     .expect = {
       .command = "cc",
@@ -945,7 +864,7 @@ static const link_test_t tests [] = {
   {
     .name = "clang_freestanding_exe",
     .driver = SPN_CC_DRIVER_CLANG,
-    .profile = { .arch = SPN_ARCH_X64, .os = SPN_OS_FREESTANDING, .abi = SPN_ABI_BARE },
+    .profile = { .target = { SPN_ARCH_X64, SPN_OS_FREESTANDING, SPN_ABI_BARE } },
     .kind = SPN_CC_OUTPUT_EXE,
     .script = "A.ld",
     .expect = {
@@ -956,7 +875,7 @@ static const link_test_t tests [] = {
   {
     .name = "wasi_whole_archive",
     .driver = SPN_CC_DRIVER_CLANG,
-    .profile = { .arch = SPN_ARCH_WASM32, .os = SPN_OS_WASI },
+    .profile = { .target = { SPN_ARCH_WASM32, SPN_OS_WASI } },
     .kind = SPN_CC_OUTPUT_REACTOR,
     .exports = "S.rsp",
     .whole_archive = "libD.a",
@@ -975,7 +894,7 @@ static const link_test_t tests [] = {
   {
     .name = "macos_linker_script_unsupported",
     .driver = SPN_CC_DRIVER_CLANG,
-    .profile = { .arch = SPN_ARCH_ARM64, .os = SPN_OS_MACOS },
+    .profile = { .target = { SPN_ARCH_ARM64, SPN_OS_MACOS } },
     .kind = SPN_CC_OUTPUT_EXE,
     .script = "A.ld",
     .expect = {
@@ -987,7 +906,7 @@ static const link_test_t tests [] = {
     .name = "msvc_linker_needs_windows_host",
     .driver = SPN_CC_DRIVER_CLANG,
     .host = HOST_X64_LINUX,
-    .profile = { .arch = SPN_ARCH_X64, .os = SPN_OS_WINDOWS, .abi = SPN_ABI_MSVC, .linking.runtime = SPN_RUNTIME_STATIC },
+    .profile = { .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC }, .linking.runtime = SPN_RUNTIME_STATIC },
     .kind = SPN_CC_OUTPUT_EXE,
     .expect = { .err = SPN_ERR_TOOLCHAIN_MSVC_LINKER_HOST },
   },
@@ -997,7 +916,7 @@ static const link_test_t tests [] = {
     .lld = true,
     .link_args = { "-fuse-ld=lld" },
     .host = HOST_X64_LINUX,
-    .profile = { .arch = SPN_ARCH_X64, .os = SPN_OS_WINDOWS, .abi = SPN_ABI_MSVC, .linking.runtime = SPN_RUNTIME_STATIC },
+    .profile = { .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC }, .linking.runtime = SPN_RUNTIME_STATIC },
     .kind = SPN_CC_OUTPUT_EXE,
     .expect = {
       .command = "cc",
@@ -1010,7 +929,7 @@ static const link_test_t tests [] = {
     .lld = true,
     .link_args = { "-fuse-ld=lld" },
     .host = HOST_X64_LINUX,
-    .profile = { .arch = SPN_ARCH_X64, .os = SPN_OS_WINDOWS, .abi = SPN_ABI_MSVC, .sdk = "/X", .linking.runtime = SPN_RUNTIME_STATIC },
+    .profile = { .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC }, .sdk = "/X", .linking.runtime = SPN_RUNTIME_STATIC },
     .kind = SPN_CC_OUTPUT_EXE,
     .system_lib = "user32",
     .expect = {
@@ -1023,7 +942,7 @@ static const link_test_t tests [] = {
     .name = "zig_msvc_libc_links_off_windows",
     .driver = SPN_CC_DRIVER_ZIG,
     .host = HOST_X64_LINUX,
-    .profile = { .arch = SPN_ARCH_X64, .os = SPN_OS_WINDOWS, .abi = SPN_ABI_MSVC, .linking.runtime = SPN_RUNTIME_STATIC, .sdk = "/X" },
+    .profile = { .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC }, .linking.runtime = SPN_RUNTIME_STATIC, .sdk = "/X" },
     .kind = SPN_CC_OUTPUT_EXE,
     .system_lib = "user32",
     .libc = "/L",
@@ -1037,7 +956,7 @@ static const link_test_t tests [] = {
     .name = "msvc_sdk_libs",
     .driver = SPN_CC_DRIVER_MSVC,
     .host = HOST_X64_WINDOWS,
-    .profile = { .arch = SPN_ARCH_X64, .os = SPN_OS_WINDOWS, .abi = SPN_ABI_MSVC, .linking.runtime = SPN_RUNTIME_STATIC, .sdk = "/X" },
+    .profile = { .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC }, .linking.runtime = SPN_RUNTIME_STATIC, .sdk = "/X" },
     .kind = SPN_CC_OUTPUT_EXE,
     .system_lib = "user32",
     .expect = {
@@ -1050,7 +969,7 @@ static const link_test_t tests [] = {
     .name = "zig_mingw_links_off_windows",
     .driver = SPN_CC_DRIVER_ZIG,
     .host = HOST_X64_LINUX,
-    .profile = { .arch = SPN_ARCH_X64, .os = SPN_OS_WINDOWS, .abi = SPN_ABI_GNU },
+    .profile = { .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_GNU } },
     .kind = SPN_CC_OUTPUT_EXE,
     .expect = {
       .command = "cc",
@@ -1063,7 +982,7 @@ sp_test_each(render_link, render, link_test_t, tests, .setup = spn_test_ctx_setu
   sp_mem_t mem = sp_test_arena(t);
   spn_cc_t toolchain = test_toolchain(it->driver);
   toolchain.wasi = it->wasi;
-  spn_triple_t triple = { it->profile.arch, it->profile.os, it->profile.abi };
+  spn_triple_t triple = it->profile.target;
   toolchain.link_args = sp_da_new(mem, sp_str_t);
   sp_carr_for(it->link_args, at) {
     if (!it->link_args[at]) break;
