@@ -1,0 +1,10 @@
+[package]
+name = "A"
+version = "0.1.0"
+
+[deps.package]
+D = { path = "packages/D" }
+
+[[bin]]
+name = "main"
+source = ["main.c"]
