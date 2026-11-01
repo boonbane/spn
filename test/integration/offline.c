@@ -1,7 +1,8 @@
 #include "harness.h"
 
-sp_test(offline, store_only) {
-  return run_test(t, (test_t) {
+static const test_t tests [] = {
+  {
+    .name = "store_only",
     .project = "test/integration/fixtures/deps/index/binary_static",
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { "build" } },
@@ -12,11 +13,41 @@ sp_test(offline, store_only) {
       { .kind = ACTION_VERIFY_NO_EVENT, .verify_event = { .event = SPN_EVENT_SYNC_FAILED } },
       { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
     },
-  });
+  },
+  {
+    .name = "relocated_checkout",
+    .project = "test/integration/fixtures/offline/relocated_checkout",
+    .copy = { "one/*", "two/*" },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { "build", .cwd = "one" } },
+      { .kind = ACTION_VERIFY_EVENT, .verify_event = { .event = SPN_EVENT_TARGET_BUILD_PASSED, .key = "subject.target", .value = "main" } },
+      { .kind = ACTION_RUN_CLI, .cli = { "build", .cwd = "two" } },
+      { .kind = ACTION_VERIFY_EVENT, .verify_event = { .event = SPN_EVENT_TARGET_BUILD_PASSED, .key = "subject.target", .value = "main" } },
+    },
+  },
+  {
+    .name = "shared_store",
+    .project = "test/integration/fixtures/offline/shared_store",
+    .copy = { "second/*" },
+    .when.driver = SPN_CC_DRIVER_ZIG,
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { "build" } },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
+      { .kind = ACTION_REMOVE_DIR, .rm = { .dir = "remote/spum" } },
+      { .kind = ACTION_RUN_CLI, .cli = { "build", .cwd = "second" } },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = { PATH_EXE, .name = "main", .dir = "second" } },
+      { .kind = ACTION_VERIFY_STORE, .verify_store = { .pkg = "core/spum", .count = 1 } },
+    },
+  },
+};
+
+sp_test_each(offline, cases, test_t, tests) {
+  return run_test(t, *it);
 }
 
-sp_test(offline, store_only_unlocked) {
-  return run_rebuild_test(t, (rebuild_test_t) {
+static const rebuild_test_t rebuilds [] = {
+  {
+    .name = "store_only_unlocked",
     .project = "test/integration/fixtures/deps/index/binary_static",
     .first = {
       .args = { "build" },
@@ -38,34 +69,9 @@ sp_test(offline, store_only_unlocked) {
         },
       },
     },
-  });
-}
+  },
+};
 
-sp_test(offline, relocated_checkout) {
-  return run_test(t, (test_t) {
-    .project = "test/integration/fixtures/offline/relocated_checkout",
-    .copy = { "one/*", "two/*" },
-    .actions = {
-      { .kind = ACTION_RUN_CLI, .cli = { "build", .cwd = "one" } },
-      { .kind = ACTION_VERIFY_EVENT, .verify_event = { .event = SPN_EVENT_TARGET_BUILD_PASSED, .key = "subject.target", .value = "main" } },
-      { .kind = ACTION_RUN_CLI, .cli = { "build", .cwd = "two" } },
-      { .kind = ACTION_VERIFY_EVENT, .verify_event = { .event = SPN_EVENT_TARGET_BUILD_PASSED, .key = "subject.target", .value = "main" } },
-    },
-  });
-}
-
-sp_test(offline, shared_store) {
-  return run_test(t, (test_t) {
-    .project = "test/integration/fixtures/offline/shared_store",
-    .copy = { "second/*" },
-    .when.driver = SPN_CC_DRIVER_ZIG,
-    .actions = {
-      { .kind = ACTION_RUN_CLI, .cli = { "build" } },
-      { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
-      { .kind = ACTION_REMOVE_DIR, .rm = { .dir = "remote/spum" } },
-      { .kind = ACTION_RUN_CLI, .cli = { "build", .cwd = "second" } },
-      { .kind = ACTION_VERIFY_EXISTS, .exists = { PATH_EXE, .name = "main", .dir = "second" } },
-      { .kind = ACTION_VERIFY_STORE, .verify_store = { .pkg = "core/spum", .count = 1 } },
-    },
-  });
+sp_test_each(offline, rebuild, rebuild_test_t, rebuilds) {
+  return run_rebuild_test(t, *it);
 }

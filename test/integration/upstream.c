@@ -1,51 +1,44 @@
 #include "harness.h"
 
-sp_test(upstream, root_lib) {
-  return run_test(t, (test_t) {
+static const test_t tests [] = {
+  {
+    .name = "root_lib",
     .project = "test/integration/fixtures/upstream/root",
     .copy = { "example", "cfg.h", "pub.h" },
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
       { .kind = ACTION_VERIFY_EXISTS, .exists = pkg_static_lib("A", "A") },
     },
-  });
-}
-
-sp_test(upstream, root_example) {
-  return run_test(t, (test_t) {
+  },
+  {
+    .name = "root_example",
     .project = "test/integration/fixtures/upstream/root",
     .copy = { "example", "cfg.h", "pub.h" },
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
       { .kind = ACTION_VERIFY_EXISTS, .exists = example_exe("E") },
     },
-  });
-}
-
-sp_test(upstream, recipe_tree_source) {
-  return run_test(t, (test_t) {
+  },
+  {
+    .name = "recipe_tree_source",
     .project = "test/integration/fixtures/upstream/root",
     .copy = { "example", "cfg.h", "pub.h" },
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
       { .kind = ACTION_VERIFY_EXISTS, .exists = example_exe("R") },
     },
-  });
-}
-
-sp_test(upstream, recipe_tree_glob) {
-  return run_test(t, (test_t) {
+  },
+  {
+    .name = "recipe_tree_glob",
     .project = "test/integration/fixtures/upstream/root",
     .copy = { "example", "cfg.h", "pub.h" },
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
       { .kind = ACTION_VERIFY_EXISTS, .exists = example_exe("G") },
     },
-  });
-}
-
-sp_test(upstream, recipe_tree_headers) {
-  return run_test(t, (test_t) {
+  },
+  {
+    .name = "recipe_tree_headers",
     .project = "test/integration/fixtures/upstream/root",
     .copy = { "example", "cfg.h", "pub.h" },
     .actions = {
@@ -53,38 +46,36 @@ sp_test(upstream, recipe_tree_headers) {
       { .kind = ACTION_VERIFY_EXISTS, .exists = pkg_store_file("A", "include/a.h") },
       { .kind = ACTION_VERIFY_EXISTS, .exists = pkg_store_file("A", "include/cfg.h") },
     },
-  });
-}
-
-sp_test(upstream, publish_manifest_tree) {
-  return run_test(t, (test_t) {
+  },
+  {
+    .name = "publish_manifest_tree",
     .project = "test/integration/fixtures/upstream/root",
     .copy = { "example", "cfg.h", "pub.h" },
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
       { .kind = ACTION_VERIFY_EXISTS, .exists = pkg_store_file("A", "include/pub.h") },
     },
-  });
-}
-
-sp_test(upstream, object_names_are_injective) {
-  return run_test(t, (test_t) {
+  },
+  {
+    .name = "object_names_are_injective",
     .project = "test/integration/fixtures/upstream/root",
     .copy = { "example", "cfg.h", "pub.h" },
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
       { .kind = ACTION_VERIFY_EXISTS, .exists = example_exe("X") },
     },
-  });
-}
-
-sp_test(upstream, file_dep) {
-  return run_test(t, (test_t) {
+  },
+  {
+    .name = "file_dep",
     .project = "test/integration/fixtures/upstream/consume",
     .copy = { "vendor/A/spn.toml" },
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
       { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
     },
-  });
+  },
+};
+
+sp_test_each(upstream, cases, test_t, tests) {
+  return run_test(t, *it);
 }

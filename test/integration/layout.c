@@ -1,7 +1,8 @@
 #include "harness.h"
 
-sp_test(layout, staged_bin) {
-  return run_command_test(t, (command_test_t) {
+static const command_test_t commands [] = {
+  {
+    .name = "staged_bin",
     .project = "test/integration/fixtures/layout/test_shared",
     .copy = { "check.c", "packages/*" },
     .args = { "build" },
@@ -9,11 +10,9 @@ sp_test(layout, staged_bin) {
       .bin.name = "main",
       .exists = { exe("main"), staged_lib("spum") },
     },
-  });
-}
-
-sp_test(layout, staged_test) {
-  return run_command_test(t, (command_test_t) {
+  },
+  {
+    .name = "staged_test",
     .project = "test/integration/fixtures/layout/test_shared",
     .copy = { "check.c", "packages/*" },
     .args = { "build" },
@@ -21,7 +20,90 @@ sp_test(layout, staged_test) {
       .bin.path = test_exe("check"),
       .exists = { test_exe("check"), test_lib("spum") },
     },
-  });
+  },
+  {
+    .name = "staged_script",
+    .project = "test/integration/fixtures/script/staged",
+    .args = { "build", "main" },
+    .expect.exists = { exe("main") },
+  },
+  {
+    .name = "reserved_bin_name",
+    .project = "test/integration/fixtures/layout/reserved_bin",
+    .args = { "build" },
+    .expect.rc = 1,
+  },
+};
+
+sp_test_each(layout, commands, command_test_t, commands) {
+  return run_command_test(t, *it);
+}
+
+static const test_t tests [] = {
+  {
+    .name = "staged_collision",
+    .project = "test/integration/fixtures/layout/staged_collision",
+    .copy = { "packages/*" },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { "build", .rc = 1 } },
+      { .kind = ACTION_VERIFY_RESULT, .verify_result = { .err = SPN_ERR_TARGET_COLLISION } },
+    },
+  },
+};
+
+sp_test_each(layout, cases, test_t, tests) {
+  return run_test(t, *it);
+}
+
+static const rebuild_test_t rebuilds [] = {
+  {
+    .name = "staged_prune",
+    .project = "test/integration/fixtures/freshness/shared",
+    .copy = { "packages/*", "t.c", "spn.nodep.toml", "main.nodep.c" },
+    .first = {
+      .args = { "build" },
+      .expect.exists = { exe("main"), staged_lib("B") },
+    },
+    .rebuilds = {
+      {
+        .change = {
+          .moves = {
+            { .from = "spn.nodep.toml", .to = "spn.toml" },
+            { .from = "main.nodep.c", .to = "main.c" },
+          },
+          .writes = { { .file = "build/debug/user.txt", .content = "U" } },
+        },
+        .command = {
+          .args = { "build" },
+          .expect = {
+            .exists = { exe("main"), lit("build/debug/user.txt") },
+            .missing = { staged_lib("B") },
+          },
+        },
+      },
+    },
+  },
+  {
+    .name = "staged_selection_keeps_others",
+    .project = "test/integration/fixtures/freshness/shared",
+    .copy = { "packages/*", "t.c" },
+    .first = {
+      .args = { "build" },
+      .expect.exists = { exe("main"), staged_lib("B") },
+    },
+    .rebuilds = {
+      {
+        .command = {
+          .args = { "build", "--test" },
+          .expect.exists = { exe("main"), staged_lib("B"), test_exe("T") },
+        },
+      },
+    },
+  },
+};
+
+sp_test_each(layout, rebuild, rebuild_test_t, rebuilds) {
+  return run_rebuild_test(t, *it);
 }
 
 // macOS dyld resolves a hardlinked main executable to an arbitrary one of the
@@ -47,81 +129,6 @@ sp_test(layout, staged_identity) {
     sp_expect_eq(t, (u64)1, meta.nlink);
   }
   return SP_OK;
-}
-
-sp_test(layout, staged_collision) {
-  return run_test(t, (test_t) {
-    .project = "test/integration/fixtures/layout/staged_collision",
-    .copy = { "packages/*" },
-    .actions = {
-      { .kind = ACTION_RUN_CLI, .cli = { "build", .rc = 1 } },
-      { .kind = ACTION_VERIFY_RESULT, .verify_result = { .err = SPN_ERR_TARGET_COLLISION } },
-    },
-  });
-}
-
-sp_test(layout, staged_prune) {
-  return run_rebuild_test(t, (rebuild_test_t) {
-    .project = "test/integration/fixtures/freshness/shared",
-    .copy = { "packages/*", "t.c", "spn.nodep.toml", "main.nodep.c" },
-    .first = {
-      .args = { "build" },
-      .expect.exists = { exe("main"), staged_lib("B") },
-    },
-    .rebuilds = {
-      {
-        .change = {
-          .moves = {
-            { .from = "spn.nodep.toml", .to = "spn.toml" },
-            { .from = "main.nodep.c", .to = "main.c" },
-          },
-          .writes = { { .file = "build/debug/user.txt", .content = "U" } },
-        },
-        .command = {
-          .args = { "build" },
-          .expect = {
-            .exists = { exe("main"), lit("build/debug/user.txt") },
-            .missing = { staged_lib("B") },
-          },
-        },
-      },
-    },
-  });
-}
-
-sp_test(layout, staged_selection_keeps_others) {
-  return run_rebuild_test(t, (rebuild_test_t) {
-    .project = "test/integration/fixtures/freshness/shared",
-    .copy = { "packages/*", "t.c" },
-    .first = {
-      .args = { "build" },
-      .expect.exists = { exe("main"), staged_lib("B") },
-    },
-    .rebuilds = {
-      {
-        .command = {
-          .args = { "build", "--test" },
-          .expect.exists = { exe("main"), staged_lib("B"), test_exe("T") },
-        },
-      },
-    },
-  });
-}
-
-sp_test(layout, staged_script) {
-  return run_command_test(t, (command_test_t) {
-    .project = "test/integration/fixtures/script/staged",
-    .args = { "build", "main" },
-    .expect.exists = { exe("main") },
-  });
-}
-
-sp_test(layout, reserved_bin_name) {
-  return run_command_test(t, (command_test_t) {
-    .project = "test/integration/fixtures/layout/reserved_bin",
-    .args = { "build" },
-    .expect.rc = 1,
-  });
 }
 
 sp_test(layout, target_triple) {

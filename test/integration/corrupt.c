@@ -1,7 +1,8 @@
 #include "harness.h"
 
-sp_test(corrupt, store_entry_deleted) {
-  return run_test(t, (test_t) {
+static const test_t tests [] = {
+  {
+    .name = "store_entry_deleted",
     .project = "test/integration/fixtures/deps/index/binary_static",
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { "build" } },
@@ -11,11 +12,9 @@ sp_test(corrupt, store_entry_deleted) {
       { .kind = ACTION_VERIFY_EXISTS, .exists = lit(".home/storage/cache/store/core/spum") },
       { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
     },
-  });
-}
-
-sp_test(corrupt, profile_store_poisoned) {
-  return run_test(t, (test_t) {
+  },
+  {
+    .name = "profile_store_poisoned",
     .project = "test/integration/fixtures/deps/index/binary_static",
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { "build" } },
@@ -25,11 +24,9 @@ sp_test(corrupt, profile_store_poisoned) {
       { .kind = ACTION_VERIFY_EXISTS, .exists = pkg_store_file("test", "bin/main") },
       { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
     },
-  });
-}
-
-sp_test(corrupt, checkout_deleted) {
-  return run_test(t, (test_t) {
+  },
+  {
+    .name = "checkout_deleted",
     .project = "test/integration/fixtures/deps/index/binary_static",
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { "build" } },
@@ -38,11 +35,9 @@ sp_test(corrupt, checkout_deleted) {
       { .kind = ACTION_RUN_CLI, .cli = { "build" } },
       { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
     },
-  });
-}
-
-sp_test(corrupt, build_cache_deleted) {
-  return run_test(t, (test_t) {
+  },
+  {
+    .name = "build_cache_deleted",
     .project = "test/integration/fixtures/deps/index/binary_static",
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { "build" } },
@@ -51,5 +46,9 @@ sp_test(corrupt, build_cache_deleted) {
       { .kind = ACTION_RUN_CLI, .cli = { "build" } },
       { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
     },
-  });
+  },
+};
+
+sp_test_each(corrupt, cases, test_t, tests) {
+  return run_test(t, *it);
 }
