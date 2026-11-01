@@ -1,9 +1,0 @@
-[package]
-name = "spum"
-version = "1.5.0"
-
-[[lib]]
-name = "spum"
-kinds = ["static"]
-source = ["spum.c"]
-publish.include = [{ from = "source/spum.h" }]

@@ -1,0 +1,10 @@
+[package]
+name = "A"
+version = "0.1.0"
+
+[package.configure]
+source = ["tools/**/*.c"]
+
+[[bin]]
+name = "main"
+source = ["main.c"]

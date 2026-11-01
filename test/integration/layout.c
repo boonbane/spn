@@ -1,27 +1,102 @@
 #include "harness.h"
 
-sp_test(layout, staged_bin) {
-  return run_command_test(t, (command_test_t) {
+static const test_t tests [] = {
+  {
+    .name = "staged_bin_loads_its_libs",
     .project = "test/integration/fixtures/layout/test_shared",
     .copy = { "check.c", "packages/*" },
-    .args = { "build" },
-    .expect = {
-      .bin.name = "main",
-      .exists = { exe("main"), staged_lib("spum") },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = staged_lib("spum") },
+      { .kind = ACTION_RUN_BIN, .bin.file = exe("main") },
+      { .kind = ACTION_STAGE_BARE_RUN, .bare = { .file = exe("main"), .with = { staged_lib("spum") }, .expect = BARE_EXPECT_RUNS } },
     },
-  });
+  },
+  {
+    .name = "staged_test_loads_its_libs",
+    .project = "test/integration/fixtures/layout/test_shared",
+    .copy = { "check.c", "packages/*" },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = test_lib("spum") },
+      { .kind = ACTION_RUN_BIN, .bin.file = test_exe("check") },
+      { .kind = ACTION_STAGE_BARE_RUN, .bare = { .file = test_exe("check"), .with = { test_lib("spum") }, .expect = BARE_EXPECT_RUNS } },
+    },
+  },
+};
+
+sp_test_each(layout, cases, test_t, tests) {
+  return run_test(t, *it);
 }
 
-sp_test(layout, staged_test) {
-  return run_command_test(t, (command_test_t) {
-    .project = "test/integration/fixtures/layout/test_shared",
-    .copy = { "check.c", "packages/*" },
+static const command_test_t commands [] = {
+  {
+    .name = "staged_script",
+    .project = "test/integration/fixtures/script/staged",
+    .args = { "build", "main" },
+    .expect.exists = { exe("main") },
+  },
+  {
+    .name = "reserved_bin_name",
+    .project = "test/integration/fixtures/layout/reserved_bin",
     .args = { "build" },
-    .expect = {
-      .bin.path = test_exe("check"),
-      .exists = { test_exe("check"), test_lib("spum") },
+    .expect = { .rc = 1, .err = SPN_ERR_MANIFEST_ISSUES },
+  },
+};
+
+sp_test_each(layout, commands, command_test_t, commands) {
+  return run_command_test(t, *it);
+}
+
+static const rebuild_test_t rebuilds [] = {
+  {
+    .name = "staged_prune",
+    .project = "test/integration/fixtures/freshness/shared",
+    .copy = { "packages/*", "t.c", "spn.nodep.toml", "main.nodep.c" },
+    .first = {
+      .args = { "build" },
+      .expect.exists = { exe("main"), staged_lib("B") },
     },
-  });
+    .rebuilds = {
+      {
+        .change = {
+          .moves = {
+            { .from = "spn.nodep.toml", .to = "spn.toml" },
+            { .from = "main.nodep.c", .to = "main.c" },
+          },
+          .writes = { { .file = "build/debug/user.txt", .content = "U" } },
+        },
+        .command = {
+          .args = { "build" },
+          .expect = {
+            .exists = { exe("main"), lit("build/debug/user.txt") },
+            .missing = { staged_lib("B") },
+          },
+        },
+      },
+    },
+  },
+  {
+    .name = "staged_selection_keeps_others",
+    .project = "test/integration/fixtures/freshness/shared",
+    .copy = { "packages/*", "t.c" },
+    .first = {
+      .args = { "build" },
+      .expect.exists = { exe("main"), staged_lib("B") },
+    },
+    .rebuilds = {
+      {
+        .command = {
+          .args = { "build", "--test" },
+          .expect.exists = { exe("main"), staged_lib("B"), test_exe("T") },
+        },
+      },
+    },
+  },
+};
+
+sp_test_each(layout, rebuild, rebuild_test_t, rebuilds) {
+  return run_rebuild_test(t, *it);
 }
 
 // macOS dyld resolves a hardlinked main executable to an arbitrary one of the
@@ -38,115 +113,15 @@ sp_test(layout, staged_identity) {
     .expect.exists = { exe("main"), test_exe("check") },
   }));
 
-  sp_str_t staged[] = { exe("main"), staged_lib("spum"), test_exe("check"), test_lib("spum") };
+  path_t staged [] = { exe("main"), staged_lib("spum"), test_exe("check"), test_lib("spum") };
   sp_carr_for(staged, it) {
-    sp_str_t path = fixture_path(&fixture, staged[it]);
+    sp_str_t path = fixture_path(&fixture, path_render(&fixture, staged[it]));
     sp_sys_file_meta_t meta = sp_zero;
     sp_sys_get_path_metadata_s(sp_sys_get_root(0), path, &meta);
     sp_test_kv(t, "path", path);
     sp_expect_eq(t, (u64)1, meta.nlink);
   }
   return SP_OK;
-}
-
-sp_test(layout, staged_collision) {
-  return run_test(t, (test_t) {
-    .project = "test/integration/fixtures/layout/staged_collision",
-    .copy = { "packages/*" },
-    .actions = {
-      { .kind = ACTION_RUN_CLI, .cli = { "build", .rc = 1 } },
-      { .kind = ACTION_VERIFY_RESULT, .verify_result = { .err = SPN_ERR_TARGET_COLLISION } },
-    },
-  });
-}
-
-sp_test(layout, staged_prune) {
-  return run_rebuild_test(t, (rebuild_test_t) {
-    .project = "test/integration/fixtures/freshness/shared",
-    .copy = { "packages/*", "t.c", "spn.nodep.toml", "main.nodep.c" },
-    .first = {
-      .args = { "build" },
-      .expect.exists = { exe("main"), staged_lib("B") },
-    },
-    .rebuilds = {
-      {
-        .change = {
-          .moves = {
-            { .from = sp_str_lit("spn.nodep.toml"), .to = sp_str_lit("spn.toml") },
-            { .from = sp_str_lit("main.nodep.c"), .to = sp_str_lit("main.c") },
-          },
-          .writes = { { .file = sp_str_lit("build/debug/user.txt"), .content = sp_str_lit("U") } },
-        },
-        .command = {
-          .args = { "build" },
-          .expect = {
-            .exists = { exe("main"), sp_str_lit("build/debug/user.txt") },
-            .missing = { staged_lib("B") },
-          },
-        },
-      },
-    },
-  });
-}
-
-sp_test(layout, staged_selection_keeps_others) {
-  return run_rebuild_test(t, (rebuild_test_t) {
-    .project = "test/integration/fixtures/freshness/shared",
-    .copy = { "packages/*", "t.c" },
-    .first = {
-      .args = { "build" },
-      .expect.exists = { exe("main"), staged_lib("B") },
-    },
-    .rebuilds = {
-      {
-        .command = {
-          .args = { "build", "--test" },
-          .expect.exists = { exe("main"), staged_lib("B"), test_exe("T") },
-        },
-      },
-    },
-  });
-}
-
-sp_test(layout, staged_script) {
-  return run_command_test(t, (command_test_t) {
-    .project = "test/integration/fixtures/script/staged",
-    .args = { "build", "main" },
-    .expect.exists = { exe("main") },
-  });
-}
-
-// Each exe kind stages into exactly one place: bin and script at the root,
-// test under test/, example under example/.
-sp_test(layout, staged_kinds) {
-  return sp_test_skip(t, "disabled");
-  return run_test(t, (test_t) {
-    .project = "test/integration/fixtures/target/selection",
-    .copy = { "spum.c", "script.c", "x.c" },
-    .actions = {
-      { .kind = ACTION_RUN_CLI, .cli = { "build", .args = { "--bin", "--script", "--test", "--example" } } },
-      { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
-      { .kind = ACTION_VERIFY_EXISTS, .exists = exe("script") },
-      { .kind = ACTION_VERIFY_EXISTS, .exists = test_exe("test") },
-      { .kind = ACTION_VERIFY_EXISTS, .exists = example_exe("x") },
-      { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = exe("test") },
-      { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = exe("x") },
-      { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = test_exe("main") },
-      { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = test_exe("script") },
-      { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = test_exe("x") },
-      { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = example_exe("main") },
-      { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = example_exe("script") },
-      { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = example_exe("test") },
-    },
-  });
-}
-
-sp_test(layout, reserved_bin_name) {
-  return run_command_test(t, (command_test_t) {
-    .project = "test/integration/fixtures/layout/reserved_bin",
-    .args = { "build" },
-    .expect.rc = 1,
-  });
 }
 
 sp_test(layout, target_triple) {
@@ -156,8 +131,8 @@ sp_test(layout, target_triple) {
     .copy = { "check.c", "packages/*" },
     .args = { "build", "--target", triple },
     .expect = {
-      .exists = { target_exe("main", triple) },
-      .missing = { sp_str_lit("build/debug") },
+      .exists = { { PATH_EXE, .name = "main", .triple = triple } },
+      .missing = { lit("build/debug") },
     },
   });
 }

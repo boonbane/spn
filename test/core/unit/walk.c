@@ -1,202 +1,143 @@
 #include "unit.h"
 
-#include "manifest.h"
-#include "pkg/id.h"
+#define WALK_TEST_MAX_UNITS 8
 
-#define WALK_TEST_MAX_ROOTS 2
-#define WALK_TEST_MAX_UNITS 16
-
-typedef struct {
-  const c8* name;
-  spn_target_kind_t kind;
-  bool metaprogram;
-} walk_root_t;
+typedef enum {
+  UNIT_PROGRAM,
+  UNIT_METAPROGRAM,
+  UNIT_CONFIGURE,
+} where_t;
 
 typedef struct {
   const c8* pkg;
-  bool metaprogram;
-} walk_unit_t;
+  where_t where;
+} expect_t;
 
 typedef struct {
   const c8* name;
-  unit_graph_test_t graph;
-  walk_root_t roots [WALK_TEST_MAX_ROOTS];
-  walk_unit_t expect [WALK_TEST_MAX_UNITS];
-} walk_test_t;
+  graph_t graph;
+  graph_root_t roots [UNIT_TEST_MAX_ROOTS];
+  expect_t expect [WALK_TEST_MAX_UNITS];
+} test_t;
 
-static const walk_test_t tests [] = {
+static const test_t tests [] = {
   {
-    .name = "package_chain_stays_in_target_build",
-    .graph = {
-      .pkgs = {
-        { .name = "R", .deps = { { "A" } } },
-        { .name = "A", .deps = { { "B" } } },
-        { .name = "B" },
-      },
+    .name = "package_chain_stays_in_program",
+    .graph.pkgs = {
+      { .name = "R", .deps = { { "A" } } },
+      { .name = "A", .deps = { { "B" } } },
+      { .name = "B" },
     },
-    .roots = { { "app", SPN_TARGET_KIND_EXE } },
-    .expect = {
-      { "R" },
-      { "A" },
-      { "B" },
-    },
+    .roots = { { "X", SPN_TARGET_KIND_EXE } },
+    .expect = { { "R" }, { "A" }, { "B" } },
   },
   {
     .name = "test_dep_of_test_target_included",
-    .graph = {
-      .pkgs = {
-        { .name = "R", .deps = { { "T", SPN_DEP_KIND_TEST } } },
-        { .name = "T" },
-      },
+    .graph.pkgs = {
+      { .name = "R", .deps = { { "T", SPN_DEP_KIND_TEST } } },
+      { .name = "T" },
     },
-    .roots = { { "app", SPN_TARGET_KIND_TEST } },
-    .expect = {
-      { "R" },
-      { "T" },
-    },
+    .roots = { { "X", SPN_TARGET_KIND_TEST } },
+    .expect = { { "R" }, { "T" } },
   },
   {
     .name = "test_dep_of_exe_target_excluded",
-    .graph = {
-      .pkgs = {
-        { .name = "R", .deps = { { "T", SPN_DEP_KIND_TEST } } },
-        { .name = "T" },
-      },
+    .graph.pkgs = {
+      { .name = "R", .deps = { { "T", SPN_DEP_KIND_TEST } } },
+      { .name = "T" },
     },
-    .roots = { { "app", SPN_TARGET_KIND_EXE } },
-    .expect = {
-      { "R" },
-    },
+    .roots = { { "X", SPN_TARGET_KIND_EXE } },
+    .expect = { { "R" } },
   },
   {
     .name = "test_dep_of_dep_excluded",
-    .graph = {
-      .pkgs = {
-        { .name = "R", .deps = { { "A" } } },
-        { .name = "A", .deps = { { "T", SPN_DEP_KIND_TEST } } },
-        { .name = "T" },
-      },
+    .graph.pkgs = {
+      { .name = "R", .deps = { { "A" } } },
+      { .name = "A", .deps = { { "T", SPN_DEP_KIND_TEST } } },
+      { .name = "T" },
     },
-    .roots = { { "app", SPN_TARGET_KIND_TEST } },
-    .expect = {
-      { "R" },
-      { "A" },
-    },
+    .roots = { { "X", SPN_TARGET_KIND_TEST } },
+    .expect = { { "R" }, { "A" } },
   },
   {
-    .name = "build_dep_of_build_script_lands_in_metaprogram_build",
-    .graph = {
-      .pkgs = {
-        { .name = "R", .deps = { { "T", SPN_DEP_KIND_BUILD } } },
-        { .name = "T" },
-      },
+    .name = "build_script_lands_in_metabuild_with_its_build_deps",
+    .graph.pkgs = {
+      { .name = "R", .deps = { { "T", SPN_DEP_KIND_BUILD } }, .targets = { { "B", .kind = SPN_TARGET_KIND_BUILD_METAPROGRAM, .source = { "b.c" } } } },
+      { .name = "T" },
     },
-    .roots = { { "build", SPN_TARGET_KIND_BUILD_METAPROGRAM, .metaprogram = true } },
-    .expect = {
-      { "R", .metaprogram = true },
-      { "T", .metaprogram = true },
-    },
+    .roots = { { "X", SPN_TARGET_KIND_EXE } },
+    .expect = { { "R" }, { "R", UNIT_METAPROGRAM }, { "T", UNIT_METAPROGRAM } },
   },
   {
-    .name = "build_dep_of_exe_target_excluded",
-    .graph = {
-      .pkgs = {
-        { .name = "R", .deps = { { "T", SPN_DEP_KIND_BUILD } } },
-        { .name = "T" },
-      },
+    .name = "build_dep_without_build_script_excluded",
+    .graph.pkgs = {
+      { .name = "R", .deps = { { "T", SPN_DEP_KIND_BUILD } } },
+      { .name = "T" },
     },
-    .roots = { { "app", SPN_TARGET_KIND_EXE } },
-    .expect = {
-      { "R" },
-    },
+    .roots = { { "X", SPN_TARGET_KIND_EXE } },
+    .expect = { { "R" } },
   },
   {
-    .name = "configure_script_follows_no_edges",
-    .graph = {
-      .pkgs = {
-        { .name = "R", .deps = { { "A" }, { "T", SPN_DEP_KIND_BUILD } } },
-        { .name = "A" },
-        { .name = "T" },
-      },
+    .name = "configure_script_lands_in_configure_units_and_follows_no_edges",
+    .graph.pkgs = {
+      { .name = "R", .deps = { { "A" }, { "T", SPN_DEP_KIND_BUILD } }, .targets = { { "C", .kind = SPN_TARGET_KIND_CONFIGURE_METAPROGRAM, .source = { "c.c" } } } },
+      { .name = "A" },
+      { .name = "T" },
     },
-    .roots = { { "configure", SPN_TARGET_KIND_CONFIGURE_METAPROGRAM, .metaprogram = true } },
-    .expect = {
-      { "R", .metaprogram = true },
-    },
+    .roots = { { "X", SPN_TARGET_KIND_EXE } },
+    .expect = { { "R" }, { "A" }, { "R", UNIT_CONFIGURE } },
   },
   // A build dep is consumed as a library, so only its package deps follow;
   // its own build deps belong to its build script, which nothing here roots
   {
     .name = "build_dep_follows_package_deps_only",
-    .graph = {
-      .pkgs = {
-        { .name = "R", .deps = { { "T", SPN_DEP_KIND_BUILD } } },
-        { .name = "T", .deps = { { "U" }, { "G", SPN_DEP_KIND_BUILD } } },
-        { .name = "U" },
-        { .name = "G" },
-      },
+    .graph.pkgs = {
+      { .name = "R", .deps = { { "T", SPN_DEP_KIND_BUILD } }, .targets = { { "B", .kind = SPN_TARGET_KIND_BUILD_METAPROGRAM, .source = { "b.c" } } } },
+      { .name = "T", .deps = { { "U" }, { "G", SPN_DEP_KIND_BUILD } } },
+      { .name = "U" },
+      { .name = "G" },
     },
-    .roots = { { "build", SPN_TARGET_KIND_BUILD_METAPROGRAM, .metaprogram = true } },
-    .expect = {
-      { "R", .metaprogram = true },
-      { "T", .metaprogram = true },
-      { "U", .metaprogram = true },
-    },
+    .roots = { { "X", SPN_TARGET_KIND_EXE } },
+    .expect = { { "R" }, { "R", UNIT_METAPROGRAM }, { "T", UNIT_METAPROGRAM }, { "U", UNIT_METAPROGRAM } },
   },
   {
     .name = "dual_membership_gets_two_units",
-    .graph = {
-      .pkgs = {
-        { .name = "R", .deps = { { "A" }, { "A", SPN_DEP_KIND_BUILD } } },
-        { .name = "A" },
-      },
+    .graph.pkgs = {
+      { .name = "R", .deps = { { "A" }, { "A", SPN_DEP_KIND_BUILD } }, .targets = { { "B", .kind = SPN_TARGET_KIND_BUILD_METAPROGRAM, .source = { "b.c" } } } },
+      { .name = "A" },
     },
-    .roots = {
-      { "app", SPN_TARGET_KIND_EXE },
-      { "build", SPN_TARGET_KIND_BUILD_METAPROGRAM, .metaprogram = true },
-    },
-    .expect = {
-      { "R" },
-      { "A" },
-      { "R", .metaprogram = true },
-      { "A", .metaprogram = true },
-    },
+    .roots = { { "X", SPN_TARGET_KIND_EXE } },
+    .expect = { { "R" }, { "A" }, { "R", UNIT_METAPROGRAM }, { "A", UNIT_METAPROGRAM } },
   },
 };
 
-sp_test_each(unit, walk, walk_test_t, tests, .setup = spn_test_ctx_setup) {
-  sp_mem_t mem = sp_test_arena(t);
-  spn_session_t* s = build_session(mem, &it->graph);
-  spn_pkg_id_t id = find_pkg_id(s, &it->graph, it->graph.pkgs[0].name);
-  si_pkg_info_t* manifest = test_manifest(s, id);
-
+static u32 count_units(units_t* u, const expect_t* expect) {
   u32 count = 0;
-  sp_carr_detect_len(it->roots, count, it->roots[count].name);
-  sp_for(rt, count) {
-    test_manifest_target(s->mem, manifest, sp_cstr_as_str(it->roots[rt].name), it->roots[rt].kind);
+  sp_om_for(u->units.packages, pt) {
+    spn_pkg_unit_t* unit = sp_om_at(u->units.packages, pt);
+    where_t where = unit->build == u->session.builds.metaprogram ? UNIT_METAPROGRAM : UNIT_PROGRAM;
+    count += where == expect->where && sp_str_equal_cstr(unit->pkg.manifest->name.str, expect->pkg);
   }
+  sp_om_for(u->configure.packages, pt) {
+    spn_pkg_unit_t* unit = sp_om_at(u->configure.packages, pt);
+    count += expect->where == UNIT_CONFIGURE && sp_str_equal_cstr(unit->pkg.manifest->name.str, expect->pkg);
+  }
+  return count;
+}
 
-  sp_for(rt, count) {
-    const walk_root_t* root = &it->roots[rt];
-    spn_build_unit_t* build = root->metaprogram ? s->builds.metaprogram : s->builds.program;
-    spn_pkg_unit_t* pkg = si_add_package_unit(&s->units, build, sp_ht_getp(s->resolve, id));
-    si_target_t* target = spn_pkg_get_target(&pkg->pkg, sp_cstr_as_str(root->name), root->kind);
-    sp_must(t, target);
-    spn_target_unit_t* unit = SP_NULLPTR;
-    sp_must_eq(t, SPN_OK, si_add_target_unit(&s->units, pkg, target, &unit));
-  }
+sp_test_each(unit_walk, packages, test_t, tests, .setup = spn_test_ctx_setup) {
+  units_t* u = units_new(t, &it->graph);
+  u32 roots = 0;
+  sp_carr_detect_len(it->roots, roots, it->roots[roots].name);
+  si_da(spn_target_unit_t*) targets = sp_zero;
+  sp_must_eq(t, SPN_OK, units_add_roots(u, it->roots, roots, &targets));
 
   u32 expected = 0;
   sp_carr_detect_len(it->expect, expected, it->expect[expected].pkg);
-  sp_must_eq(t, expected, sp_om_size(s->units.packages));
-
+  sp_must_eq(t, expected, (u32)(sp_om_size(u->units.packages) + sp_om_size(u->configure.packages)));
   sp_for(et, expected) {
-    const walk_unit_t* expect = &it->expect[et];
-    sp_test_kv_c(t, "pkg", expect->pkg);
-    spn_pkg_unit_t* unit = sp_om_at(s->units.packages, et);
-    sp_expect(t, spn_pkg_id_eq(unit->id.pkg, find_pkg_id(s, &it->graph, expect->pkg)));
-    sp_expect_eq(t, expect->metaprogram, unit->build == s->builds.metaprogram);
+    sp_test_kv_c(t, "pkg", it->expect[et].pkg);
+    sp_expect_eq(t, 1, count_units(u, &it->expect[et]));
   }
-
   return SP_OK;
 }
