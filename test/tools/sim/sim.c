@@ -888,6 +888,9 @@ static sp_err_t sp_sim_sys_chdir(const c8* path, u32 len) {
 
 static sp_err_t sp_sim_sys_dir_it_open(sp_sys_dir_t dir, sp_sys_dir_it_t* out) {
   sp_sim_t* sim = sp_sim_syscall();
+  if (dir.fd == SP_SYS_INVALID_FD) {
+    return SP_ERR_SYS_BAD_FD;
+  }
   sp_sim_fd_t* entry = sp_sim_fd(dir.fd);
 
   // The listing is serialized at open, like the kernel snapshotting a readdir
