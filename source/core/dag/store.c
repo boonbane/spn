@@ -821,24 +821,34 @@ static bool tree_name_ok(sp_str_t name) {
 }
 
 spn_err_t spn_dag_store_put_tree(spn_dag_store_t* store, sp_path_t dir, spn_dag_digest_t* digest) {
+  sp_sys_dir_t root = sp_zero;
+  if (sp_fs_open_dir_at(dir, &root)) {
+    return SPN_ERR_DAG_STORE_READ;
+  }
+
   sp_mem_arena_marker_t s = sp_mem_begin_scratch();
   spn_err_t err = SPN_OK;
 
   sp_da(spn_dag_action_output_t) entries = sp_da_new(s.mem, spn_dag_action_output_t);
-  sp_fs_it_t walk = sp_fs_it_new_at(s.mem, dir, 0);
-  while (!err && sp_fs_it_walk(&walk)) {
-    if (walk.entry.kind == SP_FS_KIND_DIR) {
+  sp_fs_it_t walk = sp_fs_it(s.mem, root);
+  sp_fs_it_entry_t file = sp_zero;
+  while (!err && sp_fs_it_next(&walk, &file)) {
+    if (file.kind == SP_FS_KIND_DIR) {
       continue;
     }
     spn_dag_action_output_t entry = {
-      .name = sp_str_copy(s.mem, walk.entry.rel)
+      .name = sp_str_copy(s.mem, file.path)
     };
-    err = spn_dag_store_put_file(store, walk.at, entry.name, &entry.digest);
+    err = spn_dag_store_put_file(store, file.at, entry.name, &entry.digest);
     if (!err) {
       sp_da_push(entries, entry);
     }
   }
+  if (!err && walk.err) {
+    err = SPN_ERR_DAG_STORE_READ;
+  }
   sp_fs_it_deinit(&walk);
+  sp_fs_close_dir(root);
   if (err) {
     goto done;
   }

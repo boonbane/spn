@@ -56,6 +56,7 @@ typedef struct {
   struct sp_glob_t* glob;
   spn_path_t base;
   bool recursive;
+  sp_sys_dir_t dir;
   sp_fs_it_t fs;
   spn_dag_glob_entry_t entry;
   spn_err_t err;
