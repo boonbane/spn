@@ -370,40 +370,58 @@ static bool probe_expect(sp_str_t token, winvm_probe_outcome_t* expect) {
   return false;
 }
 
-static winvm_probes_result_t read_lane(winvm_t* vm, const winvm_variant_t* variant, sp_fs_entry_t lane, sp_da(winvm_probe_t)* probes) {
-  sp_da(sp_fs_entry_t) cases = sp_zero;
-  if (sp_fs_collect(vm->mem, lane.path, &cases)) {
-    return (winvm_probes_result_t) { .err = WINVM_PROBES_ERR_TREE, .path = lane.path };
+static winvm_probes_result_t read_lane(winvm_t* vm, const winvm_variant_t* variant, sp_str_t lane, sp_str_t path, sp_da(winvm_probe_t)* probes) {
+  sp_sys_dir_t dir = sp_zero;
+  if (sp_fs_open_dir_at(sp_path_from_str(path), &dir)) {
+    return (winvm_probes_result_t) { .err = WINVM_PROBES_ERR_TREE, .path = path };
   }
 
-  sp_da_for(cases, it) {
-    sp_str_t manifest = sp_fs_join_path(vm->mem, cases[it].path, sp_str_lit("probe.json"));
+  winvm_probes_result_t result = { .err = WINVM_PROBES_OK };
+  SP_ALIGNED u8 buf [SP_SYS_DIR_MIN_BUF];
+  sp_fs_dir_it_t it = sp_fs_dir_it(dir);
+  sp_fs_dir_entry_t entry = sp_zero;
+  while (sp_fs_dir_it_next(&it, sp_mem_slice(buf, sizeof(buf)), &entry)) {
+    sp_str_t name = sp_str_copy(vm->mem, entry.name);
+    sp_str_t manifest = sp_fs_join_path(vm->mem, sp_fs_join_path(vm->mem, path, name), sp_str_lit("probe.json"));
     sp_str_t content = sp_zero;
     spn_cg_probe_t cg = sp_zero;
-    winvm_probe_t probe = { .variant = variant, .lane = lane.name, .name = cases[it].name };
+    winvm_probe_t probe = { .variant = variant, .lane = lane, .name = name };
     if (sp_io_read_file(vm->mem, manifest, &content) || !spn_probe_read(content, &cg, vm->mem) || !probe_expect(cg.expect, &probe.expect)) {
-      return (winvm_probes_result_t) { .err = WINVM_PROBES_ERR_MANIFEST, .path = manifest };
+      result = (winvm_probes_result_t) { .err = WINVM_PROBES_ERR_MANIFEST, .path = manifest };
+      break;
     }
     probe.exe = cg.exe;
     sp_da_push(*probes, probe);
   }
-  return (winvm_probes_result_t) { .err = WINVM_PROBES_OK };
+  if (!result.err && it.err) {
+    result = (winvm_probes_result_t) { .err = WINVM_PROBES_ERR_TREE, .path = path };
+  }
+  sp_fs_dir_it_close(&it);
+  sp_fs_close_dir(dir);
+  return result;
 }
 
 winvm_probes_result_t winvm_probes_read(winvm_t* vm, const winvm_variant_t* variant, sp_da(winvm_probe_t)* probes) {
   sp_str_t root = sp_fs_join_path(vm->mem, vm->paths.probes, sp_cstr_as_str(variant->name));
-  sp_da(sp_fs_entry_t) lanes = sp_zero;
-  if (sp_fs_collect(vm->mem, root, &lanes)) {
+  sp_sys_dir_t dir = sp_zero;
+  if (sp_fs_open_dir_at(sp_path_from_str(root), &dir)) {
     return (winvm_probes_result_t) { .err = WINVM_PROBES_ERR_TREE, .path = root };
   }
 
-  sp_da_for(lanes, it) {
-    winvm_probes_result_t result = read_lane(vm, variant, lanes[it], probes);
-    if (result.err) {
-      return result;
-    }
+  winvm_probes_result_t result = { .err = WINVM_PROBES_OK };
+  SP_ALIGNED u8 buf [SP_SYS_DIR_MIN_BUF];
+  sp_fs_dir_it_t it = sp_fs_dir_it(dir);
+  sp_fs_dir_entry_t entry = sp_zero;
+  while (!result.err && sp_fs_dir_it_next(&it, sp_mem_slice(buf, sizeof(buf)), &entry)) {
+    sp_str_t lane = sp_str_copy(vm->mem, entry.name);
+    result = read_lane(vm, variant, lane, sp_fs_join_path(vm->mem, root, lane), probes);
   }
-  return (winvm_probes_result_t) { .err = WINVM_PROBES_OK };
+  if (!result.err && it.err) {
+    result = (winvm_probes_result_t) { .err = WINVM_PROBES_ERR_TREE, .path = root };
+  }
+  sp_fs_dir_it_close(&it);
+  sp_fs_close_dir(dir);
+  return result;
 }
 
 sp_ps_config_t winvm_voldownload_config(winvm_t* vm, sp_str_t dest) {
