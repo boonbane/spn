@@ -46,8 +46,8 @@ static void scan_preopens() {
   }
 }
 
-static bool resolve(sp_sys_fd_t fd, const c8* path, u32 len, c8 buf [SP_PATH_MAX], __wasi_fd_t* at) {
-  __wasi_fd_t found_at = (__wasi_fd_t)fd;
+static bool resolve(sp_sys_dir_t dir, const c8* path, u32 len, c8 buf [SP_PATH_MAX], __wasi_fd_t* at) {
+  __wasi_fd_t found_at = (__wasi_fd_t)dir.fd;
   u32 skip = 0;
 
   if (len && path[0] == '/') {
@@ -137,11 +137,11 @@ static void meta_from_wasi(const __wasi_filestat_t* src, sp_sys_file_meta_t* met
   meta->nlink = src->nlink;
 }
 
-static sp_err_t wasi_open(sp_sys_fd_t fd, const c8* path, u32 len, sp_sys_open_mode_t mode, u32 flags, sp_sys_fd_t* out) {
+static sp_err_t wasi_open(sp_sys_dir_t dir, const c8* path, u32 len, sp_sys_open_mode_t mode, u32 flags, sp_sys_fd_t* out) {
   *out = SP_SYS_INVALID_FD;
   c8 buf [SP_PATH_MAX] = sp_zero;
   __wasi_fd_t at;
-  if (!resolve(fd, path, len, buf, &at)) return SP_ERR_SYS_NOT_FOUND;
+  if (!resolve(dir, path, len, buf, &at)) return SP_ERR_SYS_NOT_FOUND;
 
   __wasi_oflags_t oflags = 0;
   if (flags & (SP_SYS_OPEN_CREATE | SP_SYS_OPEN_EXCLUSIVE)) oflags |= __WASI_OFLAGS_CREAT;
@@ -167,11 +167,11 @@ static sp_err_t wasi_open(sp_sys_fd_t fd, const c8* path, u32 len, sp_sys_open_m
   return SP_OK;
 }
 
-static sp_err_t wasi_open_dir(sp_sys_fd_t fd, const c8* path, u32 len, u32 flags, sp_sys_fd_t* out) {
-  *out = SP_SYS_INVALID_FD;
+static sp_err_t wasi_open_dir(sp_sys_dir_t dir, const c8* path, u32 len, u32 flags, sp_sys_dir_t* out) {
+  out->fd = SP_SYS_INVALID_FD;
   c8 buf [SP_PATH_MAX] = sp_zero;
   __wasi_fd_t at;
-  if (!resolve(fd, path, len, buf, &at)) return SP_ERR_SYS_NOT_FOUND;
+  if (!resolve(dir, path, len, buf, &at)) return SP_ERR_SYS_NOT_FOUND;
 
   __wasi_rights_t rights =
     __WASI_RIGHTS_FD_READ | __WASI_RIGHTS_FD_READDIR | __WASI_RIGHTS_FD_FILESTAT_GET |
@@ -181,64 +181,64 @@ static sp_err_t wasi_open_dir(sp_sys_fd_t fd, const c8* path, u32 len, u32 flags
   __wasi_lookupflags_t lookup = (flags & SP_SYS_OPEN_DIR_NO_FOLLOW) ? 0 : __WASI_LOOKUPFLAGS_SYMLINK_FOLLOW;
   __wasi_errno_t err = __wasi_path_open(at, lookup, buf, __WASI_OFLAGS_DIRECTORY, rights, rights, 0, &result);
   if (err) return err_from_wasi(err);
-  *out = (sp_sys_fd_t)result;
+  out->fd = (sp_sys_fd_t)result;
   return SP_OK;
 }
 
-static sp_err_t wasi_mkdir(sp_sys_fd_t fd, const c8* path, u32 len, sp_sys_file_perms_t perms) {
+static sp_err_t wasi_mkdir(sp_sys_dir_t dir, const c8* path, u32 len, sp_sys_file_perms_t perms) {
   c8 buf [SP_PATH_MAX] = sp_zero;
   __wasi_fd_t at;
-  if (!resolve(fd, path, len, buf, &at)) return SP_ERR_SYS_NOT_FOUND;
+  if (!resolve(dir, path, len, buf, &at)) return SP_ERR_SYS_NOT_FOUND;
   return err_from_wasi(__wasi_path_create_directory(at, buf));
 }
 
-static sp_err_t wasi_rmdir(sp_sys_fd_t fd, const c8* path, u32 len) {
+static sp_err_t wasi_rmdir(sp_sys_dir_t dir, const c8* path, u32 len) {
   c8 buf [SP_PATH_MAX] = sp_zero;
   __wasi_fd_t at;
-  if (!resolve(fd, path, len, buf, &at)) return SP_ERR_SYS_NOT_FOUND;
+  if (!resolve(dir, path, len, buf, &at)) return SP_ERR_SYS_NOT_FOUND;
   return err_from_wasi(__wasi_path_remove_directory(at, buf));
 }
 
-static sp_err_t wasi_unlink(sp_sys_fd_t fd, const c8* path, u32 len) {
+static sp_err_t wasi_unlink(sp_sys_dir_t dir, const c8* path, u32 len) {
   c8 buf [SP_PATH_MAX] = sp_zero;
   __wasi_fd_t at;
-  if (!resolve(fd, path, len, buf, &at)) return SP_ERR_SYS_NOT_FOUND;
+  if (!resolve(dir, path, len, buf, &at)) return SP_ERR_SYS_NOT_FOUND;
   return err_from_wasi(__wasi_path_unlink_file(at, buf));
 }
 
-static sp_err_t wasi_rename(sp_sys_fd_t from_fd, const c8* from, u32 from_len, sp_sys_fd_t to_fd, const c8* to, u32 to_len) {
+static sp_err_t wasi_rename(sp_sys_dir_t from_dir, const c8* from, u32 from_len, sp_sys_dir_t to_dir, const c8* to, u32 to_len) {
   c8 from_buf [SP_PATH_MAX] = sp_zero;
   c8 to_buf [SP_PATH_MAX] = sp_zero;
   __wasi_fd_t from_at;
   __wasi_fd_t to_at;
-  if (!resolve(from_fd, from, from_len, from_buf, &from_at)) return SP_ERR_SYS_NOT_FOUND;
-  if (!resolve(to_fd, to, to_len, to_buf, &to_at)) return SP_ERR_SYS_NOT_FOUND;
+  if (!resolve(from_dir, from, from_len, from_buf, &from_at)) return SP_ERR_SYS_NOT_FOUND;
+  if (!resolve(to_dir, to, to_len, to_buf, &to_at)) return SP_ERR_SYS_NOT_FOUND;
   return err_from_wasi(__wasi_path_rename(from_at, from_buf, to_at, to_buf));
 }
 
-static sp_err_t wasi_link(sp_sys_fd_t from_fd, const c8* existing, u32 existing_len, sp_sys_fd_t to_fd, const c8* alias, u32 alias_len) {
+static sp_err_t wasi_link(sp_sys_dir_t from_dir, const c8* existing, u32 existing_len, sp_sys_dir_t to_dir, const c8* alias, u32 alias_len) {
   c8 existing_buf [SP_PATH_MAX] = sp_zero;
   c8 alias_buf [SP_PATH_MAX] = sp_zero;
   __wasi_fd_t existing_at;
   __wasi_fd_t alias_at;
-  if (!resolve(from_fd, existing, existing_len, existing_buf, &existing_at)) return SP_ERR_SYS_NOT_FOUND;
-  if (!resolve(to_fd, alias, alias_len, alias_buf, &alias_at)) return SP_ERR_SYS_NOT_FOUND;
+  if (!resolve(from_dir, existing, existing_len, existing_buf, &existing_at)) return SP_ERR_SYS_NOT_FOUND;
+  if (!resolve(to_dir, alias, alias_len, alias_buf, &alias_at)) return SP_ERR_SYS_NOT_FOUND;
   return err_from_wasi(__wasi_path_link(existing_at, __WASI_LOOKUPFLAGS_SYMLINK_FOLLOW, existing_buf, alias_at, alias_buf));
 }
 
-static sp_err_t wasi_symlink(const c8* existing, u32 existing_len, sp_sys_fd_t to_fd, const c8* alias, u32 alias_len, sp_fs_kind_t kind) {
+static sp_err_t wasi_symlink(const c8* existing, u32 existing_len, sp_sys_dir_t to_dir, const c8* alias, u32 alias_len, sp_fs_kind_t kind) {
   c8 existing_buf [SP_PATH_MAX] = sp_zero;
   c8 alias_buf [SP_PATH_MAX] = sp_zero;
   __wasi_fd_t alias_at;
   sp_cstr_copy_to_n(existing, existing_len, existing_buf, SP_PATH_MAX);
-  if (!resolve(to_fd, alias, alias_len, alias_buf, &alias_at)) return SP_ERR_SYS_NOT_FOUND;
+  if (!resolve(to_dir, alias, alias_len, alias_buf, &alias_at)) return SP_ERR_SYS_NOT_FOUND;
   return err_from_wasi(__wasi_path_symlink(existing_buf, alias_at, alias_buf));
 }
 
-static sp_err_t wasi_get_path_metadata(sp_sys_fd_t fd, const c8* path, u32 len, sp_sys_file_meta_t* st) {
+static sp_err_t wasi_get_path_metadata(sp_sys_dir_t dir, const c8* path, u32 len, sp_sys_file_meta_t* st) {
   c8 buf [SP_PATH_MAX] = sp_zero;
   __wasi_fd_t at;
-  if (!resolve(fd, path, len, buf, &at)) return SP_ERR_SYS_NOT_FOUND;
+  if (!resolve(dir, path, len, buf, &at)) return SP_ERR_SYS_NOT_FOUND;
 
   __wasi_filestat_t native;
   __wasi_errno_t err = __wasi_path_filestat_get(at, __WASI_LOOKUPFLAGS_SYMLINK_FOLLOW, buf, &native);
@@ -247,10 +247,10 @@ static sp_err_t wasi_get_path_metadata(sp_sys_fd_t fd, const c8* path, u32 len, 
   return SP_OK;
 }
 
-static sp_err_t wasi_get_link_metadata(sp_sys_fd_t fd, const c8* path, u32 len, sp_sys_file_meta_t* st) {
+static sp_err_t wasi_get_link_metadata(sp_sys_dir_t dir, const c8* path, u32 len, sp_sys_file_meta_t* st) {
   c8 buf [SP_PATH_MAX] = sp_zero;
   __wasi_fd_t at;
-  if (!resolve(fd, path, len, buf, &at)) return SP_ERR_SYS_NOT_FOUND;
+  if (!resolve(dir, path, len, buf, &at)) return SP_ERR_SYS_NOT_FOUND;
 
   __wasi_filestat_t native;
   __wasi_errno_t err = __wasi_path_filestat_get(at, 0, buf, &native);
@@ -265,72 +265,6 @@ static sp_err_t wasi_get_file_metadata(sp_sys_fd_t fd, sp_sys_file_meta_t* st) {
   if (err) return err_from_wasi(err);
   meta_from_wasi(&native, st);
   return SP_OK;
-}
-
-static sp_err_t wasi_dir_it_open(sp_sys_fd_t fd, sp_sys_dir_it_t* dir) {
-  *dir = sp_zero_s(sp_sys_dir_it_t);
-  dir->fd = fd;
-  return SP_OK;
-}
-
-static sp_err_t wasi_dir_it_read(sp_sys_dir_it_t* dir, sp_mem_buffer_t* buf) {
-  buf->len = 0;
-  __wasi_size_t used = 0;
-  __wasi_errno_t err = __wasi_fd_readdir((__wasi_fd_t)dir->fd, buf->data, (__wasi_size_t)buf->capacity, (__wasi_dircookie_t)dir->state, &used);
-  if (err) {
-    return err_from_wasi(err);
-  }
-  if (!used) {
-    return SP_OK;
-  }
-
-  u64 end = 0;
-  __wasi_dircookie_t next = (__wasi_dircookie_t)dir->state;
-  while (true) {
-    __wasi_dirent_t d;
-    if (end + sizeof(d) > used) {
-      break;
-    }
-    sp_mem_copy(&d, buf->data + end, sizeof(d));
-    if (end + sizeof(d) + d.d_namlen > used) {
-      break;
-    }
-    end += sizeof(d) + d.d_namlen;
-    next = d.d_next;
-  }
-  if (!end) {
-    return SP_ERR_SYS_INVALID;
-  }
-
-  dir->state = (s64)next;
-  buf->len = end;
-  return SP_OK;
-}
-
-static sp_err_t wasi_dir_it_parse(sp_sys_dir_it_t* dir, sp_mem_buffer_t* buf, u64* cursor, sp_sys_dir_entry_t* entry) {
-  *entry = sp_zero_s(sp_sys_dir_entry_t);
-
-  __wasi_dirent_t d;
-  sp_mem_copy(&d, buf->data + *cursor, sizeof(d));
-  const c8* name = (const c8*)(buf->data + *cursor + sizeof(d));
-  *cursor += sizeof(d) + d.d_namlen;
-
-  entry->name = name;
-  entry->len = d.d_namlen;
-  entry->kind = kind_from_wasi(d.d_type);
-  if (entry->kind == SP_FS_KIND_NONE) {
-    c8 cstr [SP_PATH_MAX] = sp_zero;
-    sp_cstr_copy_to_n(name, d.d_namlen, cstr, SP_PATH_MAX);
-    __wasi_filestat_t st;
-    if (!__wasi_path_filestat_get((__wasi_fd_t)dir->fd, 0, cstr, &st)) {
-      entry->kind = kind_from_wasi(st.filetype);
-    }
-  }
-  return SP_OK;
-}
-
-static sp_err_t wasi_dir_it_close(sp_sys_dir_it_t* dir) {
-  return sp_sys_close(dir->fd);
 }
 
 static sp_sys_vtable_t vtable;
@@ -349,9 +283,5 @@ static void install() {
   vtable.get_path_metadata = wasi_get_path_metadata;
   vtable.get_link_metadata = wasi_get_link_metadata;
   vtable.get_file_metadata = wasi_get_file_metadata;
-  vtable.dir_it_open = wasi_dir_it_open;
-  vtable.dir_it_read = wasi_dir_it_read;
-  vtable.dir_it_parse = wasi_dir_it_parse;
-  vtable.dir_it_close = wasi_dir_it_close;
   sp_sys_set_vtable(&vtable);
 }
