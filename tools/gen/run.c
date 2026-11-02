@@ -303,7 +303,7 @@ static bool render_abi(codegen_t* c) {
 
 static bool run(codegen_t* c) {
   c->reg = sp_template_registry_create(c->mem);
-  if (!sp_fs_is_dir(c->paths.templates) || sp_template_load_dir(c->reg, c->paths.templates)) {
+  if (sp_template_load_dir(c->reg, c->paths.templates)) {
     return fail(c, sp_fmt(c->mem, "failed to load templates from {}", sp_fmt_str(c->paths.templates)).value);
   }
 
