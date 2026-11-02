@@ -311,7 +311,6 @@ static spn_dag_diag_t settle_tree(si_dag_action_handle_t* a, const spn_dag_artif
   sp_da(extra_entry_t) extra = sp_da_new(s.mem, extra_entry_t);
   sp_da(u32) stale = sp_da_new(s.mem, u32);
   sp_da(u32) poisoned = sp_da_new(s.mem, u32);
-  u64 files = 0;
   if (exists) {
     sp_str_ht(bool) keep_files = SP_NULLPTR;
     sp_str_ht(bool) keep_dirs = SP_NULLPTR;
@@ -334,9 +333,11 @@ static spn_dag_diag_t settle_tree(si_dag_action_handle_t* a, const spn_dag_artif
     sp_fs_it_t walk = sp_fs_it(s.mem, handle);
     sp_fs_it_entry_t entry = sp_zero;
     while (sp_fs_it_next(&walk, &entry)) {
-      files += entry.kind != SP_FS_KIND_DIR;
       if (entry.kind == SP_FS_KIND_DIR ? sp_str_ht_exists(keep_dirs, entry.path) : sp_str_ht_exists(keep_files, entry.path)) {
         continue;
+      }
+      if (entry.kind == SP_FS_KIND_DIR) {
+        sp_fs_it_skip(&walk);
       }
       sp_da_push(extra, ((extra_entry_t) { .rel = sp_str_copy(s.mem, entry.path), .kind = entry.kind }));
     }
@@ -364,7 +365,7 @@ static spn_dag_diag_t settle_tree(si_dag_action_handle_t* a, const spn_dag_artif
     }
   }
 
-  if (exists && sp_da_empty(stale) && sp_da_empty(poisoned) && files == sp_da_size(entries)) {
+  if (exists && sp_da_empty(stale) && sp_da_empty(poisoned) && sp_da_empty(extra)) {
     trace_emit(run, (spn_dag_trace_event_t) { .kind = SPN_DAG_TRACE_SETTLE, .action = action->id, .producer = artifact->id, .key = digest, .hit = true });
     goto done;
   }
@@ -378,7 +379,7 @@ static spn_dag_diag_t settle_tree(si_dag_action_handle_t* a, const spn_dag_artif
     goto done;
   }
 
-  sp_da_rfor(extra, it) {
+  sp_da_for(extra, it) {
     spn_path_t path = spn_path_join(s.mem, artifact->path, extra[it].rel);
     sp_path_t at = spn_path_at(g->roots, path);
     sp_err_t removed = extra[it].kind == SP_FS_KIND_DIR ? sp_fs_remove_dir_at(at) : sp_fs_remove_file_at(at);
