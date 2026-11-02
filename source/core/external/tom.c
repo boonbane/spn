@@ -55,7 +55,7 @@ sp_str_t spn_toml_str(sp_mem_t mem, toml_table_t* toml, const c8* key) {
 sp_str_t spn_toml_str_opt(sp_mem_t mem, toml_table_t* toml, const c8* key, const c8* fallback) {
   toml_value_t value = toml_table_string(toml, key);
   if (!value.ok) {
-    return sp_str_view(fallback);
+    return sp_cstr_as_str(fallback);
   }
   return spn_toml_value_take(mem, value);
 }
@@ -123,7 +123,7 @@ void spn_toml_begin_table(spn_toml_writer_t* writer, sp_str_t key) {
 }
 
 void spn_toml_begin_table_cstr(spn_toml_writer_t* writer, const c8* key) {
-  spn_toml_begin_table(writer, sp_str_view(key));
+  spn_toml_begin_table(writer, sp_cstr_as_str(key));
 }
 
 void spn_toml_end_table(spn_toml_writer_t* writer) {
@@ -147,7 +147,7 @@ void spn_toml_begin_array(spn_toml_writer_t* writer, sp_str_t key) {
 }
 
 void spn_toml_begin_array_cstr(spn_toml_writer_t* writer, const c8* key) {
-  spn_toml_begin_array(writer, sp_str_view(key));
+  spn_toml_begin_array(writer, sp_cstr_as_str(key));
 }
 
 void spn_toml_end_array(spn_toml_writer_t* writer) {
@@ -198,7 +198,7 @@ void spn_toml_append_str(spn_toml_writer_t* writer, sp_str_t key, sp_str_t value
 }
 
 void spn_toml_append_str_cstr(spn_toml_writer_t* writer, const c8* key, sp_str_t value) {
-  spn_toml_append_str(writer, sp_str_view(key), value);
+  spn_toml_append_str(writer, sp_cstr_as_str(key), value);
 }
 
 void spn_toml_append_s64(spn_toml_writer_t* writer, sp_str_t key, s64 value) {
@@ -213,7 +213,7 @@ void spn_toml_append_s64(spn_toml_writer_t* writer, sp_str_t key, s64 value) {
 }
 
 void spn_toml_append_s64_cstr(spn_toml_writer_t* writer, const c8* key, s64 value) {
-  spn_toml_append_s64(writer, sp_str_view(key), value);
+  spn_toml_append_s64(writer, sp_cstr_as_str(key), value);
 }
 
 void spn_toml_append_bool(spn_toml_writer_t* writer, sp_str_t key, bool value) {
@@ -228,7 +228,7 @@ void spn_toml_append_bool(spn_toml_writer_t* writer, sp_str_t key, bool value) {
 }
 
 void spn_toml_append_bool_cstr(spn_toml_writer_t* writer, const c8* key, bool value) {
-  spn_toml_append_bool(writer, sp_str_view(key), value);
+  spn_toml_append_bool(writer, sp_cstr_as_str(key), value);
 }
 
 void spn_toml_append_str_array(spn_toml_writer_t* writer, sp_str_t key, sp_da(sp_str_t) values) {
@@ -236,7 +236,7 @@ void spn_toml_append_str_array(spn_toml_writer_t* writer, sp_str_t key, sp_da(sp
 }
 
 void spn_toml_append_str_array_cstr(spn_toml_writer_t* writer, const c8* key, sp_da(sp_str_t) values) {
-  spn_toml_append_str_array(writer, sp_str_view(key), values);
+  spn_toml_append_str_array(writer, sp_cstr_as_str(key), values);
 }
 
 void spn_toml_append_str_carr(spn_toml_writer_t* writer, sp_str_t key, sp_str_t* values, u32 len) {
@@ -255,7 +255,7 @@ void spn_toml_append_str_carr(spn_toml_writer_t* writer, sp_str_t key, sp_str_t*
 }
 
 void spn_toml_append_str_carr_cstr(spn_toml_writer_t* writer, const c8* key, sp_str_t* values, u32 len) {
-  spn_toml_append_str_carr(writer, sp_str_view(key), values, len);
+  spn_toml_append_str_carr(writer, sp_cstr_as_str(key), values, len);
 }
 
 sp_str_t spn_toml_writer_write(spn_toml_writer_t* writer) {

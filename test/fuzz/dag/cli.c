@@ -375,7 +375,7 @@ static sp_cli_result_t cli_run(sp_cli_t* cli) {
   }
 
   sp_da(sp_str_t) names = sp_da_new(mem, sp_str_t);
-  sp_da_push(names, sp_str_view(desc->name));
+  sp_da_push(names, sp_cstr_as_str(desc->name));
   sp_fuzz_prng_t base = sp_fuzz_stream(names);
 
   sp_io_writer_t* out = sp_io_get_std_out();

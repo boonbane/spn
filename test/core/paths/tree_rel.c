@@ -76,10 +76,10 @@ sp_test_each(paths_tree_rel, classify, tree_rel_test_t, tree_rel_tests) {
   const spn_path_roots_t* roots = paths_test_roots_build(it->roots, &storage);
 
   spn_tree_roots_t trees = sp_zero;
-  if (it->recipe) trees.recipe = spn_path_make(roots, sp_str_view(it->recipe));
-  if (it->source) trees.source = spn_path_make(roots, sp_str_view(it->source));
+  if (it->recipe) trees.recipe = spn_path_make(roots, sp_cstr_as_str(it->recipe));
+  if (it->source) trees.source = spn_path_make(roots, sp_cstr_as_str(it->source));
 
-  spn_tree_rel_t rel = spn_tree_rel(trees, spn_path_make(roots, sp_str_view(it->path)));
+  spn_tree_rel_t rel = spn_tree_rel(trees, spn_path_make(roots, sp_cstr_as_str(it->path)));
   sp_expect_eq(t, rel.tree, it->expect.tree);
   sp_expect_str_eq_c(t, rel.sub, it->expect.sub);
   return SP_OK;

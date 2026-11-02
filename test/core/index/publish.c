@@ -131,11 +131,11 @@ static void write_publish_fixtures(sp_mem_t mem, sp_str_t index_root, const publ
     sp_io_dyn_mem_writer_init(mem, &builder);
     sp_for(line_it, sp_carr_len(file.lines)) {
       if (!file.lines[line_it]) { break; }
-      sp_io_write_str(&builder.base, sp_str_view(file.lines[line_it]), SP_NULLPTR);
+      sp_io_write_str(&builder.base, sp_cstr_as_str(file.lines[line_it]), SP_NULLPTR);
       sp_io_write_c8(&builder.base, '\n');
     }
 
-    sp_str_t path = sp_fs_join_path(mem, index_root, sp_str_view(file.path));
+    sp_str_t path = sp_fs_join_path(mem, index_root, sp_cstr_as_str(file.path));
     sp_fs_create_dir(sp_fs_parent_path(path));
     sp_fs_create_file_str(path, sp_io_dyn_mem_writer_take_str(&builder));
   }
@@ -162,8 +162,8 @@ sp_test_each(index_publish, publish, publish_test_t, tests, .setup = spn_test_ct
 
   spn_index_release_t rel = {
     .id = {
-      .namespace = sp_str_view(it->release.namespace),
-      .name = sp_str_view(it->release.name),
+      .namespace = sp_cstr_as_str(it->release.namespace),
+      .name = sp_cstr_as_str(it->release.name),
     },
     .version = it->release.version,
   };
@@ -181,8 +181,8 @@ sp_test_each(index_publish, publish, publish_test_t, tests, .setup = spn_test_ct
   sp_expect_eq(t, it->expect.result, result);
 
   if (it->expect.lines > 0) {
-    sp_str_t ns = sp_str_view(it->release.namespace);
-    sp_str_t nm = sp_str_view(it->release.name);
+    sp_str_t ns = sp_cstr_as_str(it->release.namespace);
+    sp_str_t nm = sp_cstr_as_str(it->release.name);
     sp_str_t pkg_path = sp_fs_join_path(mem,
       sp_fs_join_path(mem, index_root, ns),
       sp_fmt(mem, "{}.jsonl", sp_fmt_str(nm)).value

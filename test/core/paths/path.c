@@ -51,7 +51,7 @@ sp_test_each(paths_path, construct, path_test_t, path_tests) {
   u32 count = 0;
   sp_carr_detect_len(it->subs, count, it->subs[count]);
   sp_for(st, count) {
-    path = spn_path_join(mem, path, sp_str_view(it->subs[st]));
+    path = spn_path_join(mem, path, sp_cstr_as_str(it->subs[st]));
     sp_expect_eq(t, path.root, it->root);
   }
 

@@ -22,7 +22,7 @@ fz_err_t fz_check_solve(fz_universe_t* u, sp_intern_t* intern, spn_resolve_query
 
   sp_ht_for_kv(query->result, it) {
     spn_resolved_pkg_t* node = it.val;
-    if (sp_str_equal(sp_intern_find(intern, node->id.qualified), sp_str_view(fz_root_qualified))) {
+    if (sp_str_equal(sp_intern_find(intern, node->id.qualified), sp_cstr_as_str(fz_root_qualified))) {
       continue;
     }
 
@@ -86,7 +86,7 @@ fz_solution_t fz_solution(sp_mem_t mem, fz_universe_t* u, sp_intern_t* intern, s
   fz_solution_t solution = sp_da_new(mem, fz_pick_t);
   sp_ht_for_kv(query->result, it) {
     spn_resolved_pkg_t* node = it.val;
-    if (sp_str_equal(sp_intern_find(intern, node->id.qualified), sp_str_view(fz_root_qualified))) {
+    if (sp_str_equal(sp_intern_find(intern, node->id.qualified), sp_cstr_as_str(fz_root_qualified))) {
       continue;
     }
     sp_da_push(solution, ((fz_pick_t) {

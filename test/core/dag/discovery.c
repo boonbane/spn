@@ -257,7 +257,7 @@ sp_test_each(dag_discovery, table, test_t, tests) {
   spn_path_roots_set(&roots, mem, SPN_PATH_ROOT_PROJECT, sandbox);
   if (it->pinned) {
     roots.pinned = sp_da_new(mem, spn_path_t);
-    sp_da_push(roots.pinned, ((spn_path_t) { .root = SPN_PATH_ROOT_STORAGE, .sub = sp_str_view(it->pinned) }));
+    sp_da_push(roots.pinned, ((spn_path_t) { .root = SPN_PATH_ROOT_STORAGE, .sub = sp_cstr_as_str(it->pinned) }));
   }
   spn_path_t dir = { .root = SPN_PATH_ROOT_PROJECT, .sub = sp_str_lit("manifests") };
 

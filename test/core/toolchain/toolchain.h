@@ -121,7 +121,7 @@ static spn_sdk_t fixture_sdk(sp_mem_t mem, fixture_sdk_t sdk) {
     case SPN_SDK_MSVC: {
       spn_sdk_t msvc = spn_sdk_at(mem, (spn_triple_t) { sdk.arch, SPN_OS_WINDOWS, SPN_ABI_MSVC }, fixture_path(sdk.root));
       msvc.msvc.bin = fixture_path(sdk.bin);
-      msvc.msvc.version = sp_str_view(sdk.version);
+      msvc.msvc.version = sp_cstr_as_str(sdk.version);
       return msvc;
     }
     case SPN_SDK_LIBC: {

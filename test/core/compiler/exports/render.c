@@ -61,7 +61,7 @@ sp_test_each(exports_render, render, render_exports_test_t, tests) {
   si_da(sp_str_t) symbols = sp_zero;
   sp_carr_for(it->symbols, s) {
     if (!it->symbols[s]) break;
-    si_da_push(mem, symbols, sp_str_view(it->symbols[s]));
+    si_da_push(mem, symbols, sp_cstr_as_str(it->symbols[s]));
   }
 
   sp_io_dyn_mem_writer_t buf;
@@ -76,7 +76,7 @@ sp_test_each(exports_render, render, render_exports_test_t, tests) {
       break;
     }
     case EXPORTS_RENDER_DEF: {
-      spn_exports_render_def(&buf.base, sp_str_view(it->library), symbols);
+      spn_exports_render_def(&buf.base, sp_cstr_as_str(it->library), symbols);
       break;
     }
   }

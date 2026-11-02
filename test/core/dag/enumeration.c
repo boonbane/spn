@@ -136,8 +136,8 @@ static spn_err_t execute_action(const si_dag_ctx_t* c, void* user_data) {
     }
     si_dag_observe(c, (spn_dag_obs_t) {
       .kind = SPN_DAG_OBS_ENUMERATION,
-      .path = dag_test_env_rooted(&env->dag, sp_str_view(env->test->obs[it].dir)),
-      .filter = env->test->obs[it].filter ? sp_str_view(env->test->obs[it].filter) : sp_str_lit("")
+      .path = dag_test_env_rooted(&env->dag, sp_cstr_as_str(env->test->obs[it].dir)),
+      .filter = env->test->obs[it].filter ? sp_cstr_as_str(env->test->obs[it].filter) : sp_str_lit("")
     });
   }
   return SPN_OK;
@@ -148,7 +148,7 @@ static void prepare_run(env_t* env, const run_t* run) {
     if (!run->removed[it]) {
       break;
     }
-    sp_path_t path = dag_test_env_path(&env->dag, sp_str_view(run->removed[it]));
+    sp_path_t path = dag_test_env_path(&env->dag, sp_cstr_as_str(run->removed[it]));
     if (sp_fs_is_dir_at(path)) {
       sp_fs_remove_dir_at(path);
     } else {
@@ -159,13 +159,13 @@ static void prepare_run(env_t* env, const run_t* run) {
     if (!run->files[it]) {
       break;
     }
-    dag_test_env_create(&env->dag, sp_str_view(run->files[it]), sp_str_lit("S"));
+    dag_test_env_create(&env->dag, sp_cstr_as_str(run->files[it]), sp_str_lit("S"));
   }
   sp_carr_for(run->dirs, it) {
     if (!run->dirs[it]) {
       break;
     }
-    sp_fs_create_dir_at(dag_test_env_path(&env->dag, sp_str_view(run->dirs[it])));
+    sp_fs_create_dir_at(dag_test_env_path(&env->dag, sp_cstr_as_str(run->dirs[it])));
   }
 }
 

@@ -378,7 +378,7 @@ static sp_err_t fixture_copy_project(sp_test_t* t, fixture_t* fixture, sp_str_t 
   };
 
   sp_carr_for(defaults, it) {
-    sp_str_t from = sp_fs_join_path(fixture->mem, project, sp_str_view(defaults[it]));
+    sp_str_t from = sp_fs_join_path(fixture->mem, project, sp_cstr_as_str(defaults[it]));
     if (sp_fs_exists(from)) {
       copy_into(from, fixture->root);
     }
@@ -390,7 +390,7 @@ static sp_err_t fixture_copy_project(sp_test_t* t, fixture_t* fixture, sp_str_t 
 
   if (copy) {
     for (u32 it = 0; copy[it]; it++) {
-      sp_try(copy_project_path(t, fixture, project, sp_str_view(copy[it])));
+      sp_try(copy_project_path(t, fixture, project, sp_cstr_as_str(copy[it])));
     }
   }
   return SP_OK;
@@ -433,7 +433,7 @@ sp_err_t prepare_test(sp_test_t* t, fixture_t* fixture, const c8* project, const
   copy_into(sp_fs_join_path(mem, fixture->paths.root, sp_str_lit("include/spn/err.h")), include_spn);
 
   if (project) {
-    sp_str_t path = sp_fs_join_path(mem, fixture->paths.root, sp_str_view(project));
+    sp_str_t path = sp_fs_join_path(mem, fixture->paths.root, sp_cstr_as_str(project));
     sp_try(fixture_copy_project(t, fixture, path, copy));
     sp_try(setup_fixture_index_from_remote(t, fixture, path));
     sp_try(setup_fixture_source_repos(t, fixture, path));
@@ -488,7 +488,7 @@ static sp_ps_output_t run_spn_ex(sp_test_t* t, fixture_t* fixture, const c8* for
       if (!var || env_slot >= sp_carr_len(config.env.extra)) {
         break;
       }
-      sp_str_pair_t pair = sp_str_cleave_c8(sp_str_view(var), '=');
+      sp_str_pair_t pair = sp_str_cleave_c8(sp_cstr_as_str(var), '=');
       config.env.extra[env_slot++] = (sp_env_var_t) { .key = pair.first, .value = pair.second };
     }
   }
@@ -498,7 +498,7 @@ static sp_ps_output_t run_spn_ex(sp_test_t* t, fixture_t* fixture, const c8* for
   }
 
   if (args) {
-    sp_ps_config_add_arg(mem, &config, sp_str_view(args[0]));
+    sp_ps_config_add_arg(mem, &config, sp_cstr_as_str(args[0]));
     const c8* toolchain = toolchain_arg(fixture);
     bool takes_toolchain = sp_cstr_equal(args[0], "build") || sp_cstr_equal(args[0], "test");
     if (takes_toolchain && toolchain) {
@@ -506,7 +506,7 @@ static sp_ps_output_t run_spn_ex(sp_test_t* t, fixture_t* fixture, const c8* for
       sp_ps_config_add_arg(mem, &config, sp_cstr_as_str(toolchain));
     }
     for (u32 it = 1; it < SPN_TEST_COMMAND_MAX_ARGS && args[it]; it++) {
-      sp_ps_config_add_arg(mem, &config, sp_str_view(args[it]));
+      sp_ps_config_add_arg(mem, &config, sp_cstr_as_str(args[it]));
     }
   }
 

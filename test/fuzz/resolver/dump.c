@@ -147,7 +147,7 @@ void fz_dump(fz_universe_t* u, u64 iter) {
     }
 
     sp_template_scope_t* table = sp_template_push(scope, sp_str_lit("root_kinds"));
-    sp_template_set(table, sp_str_lit("table"), sp_str_view(root_tables[kt].table));
+    sp_template_set(table, sp_str_lit("table"), sp_cstr_as_str(root_tables[kt].table));
     sp_template_list(table, sp_str_lit("deps"));
     sp_da_for(u->roots, it) {
       if (u->roots[it].kind != root_tables[kt].kind) {
@@ -167,7 +167,7 @@ void fz_dump(fz_universe_t* u, u64 iter) {
     }
     sp_template_scope_t* entry = sp_template_push(scope, sp_str_lit("config"));
     sp_template_set(entry, sp_str_lit("name"), fz_pkg_name((u32)it));
-    sp_template_set(entry, sp_str_lit("kind"), sp_str_view(fz_linkage_json(u->pkgs[it].config)));
+    sp_template_set(entry, sp_str_lit("kind"), sp_cstr_as_str(fz_linkage_json(u->pkgs[it].config)));
   }
 
   sp_template_list(scope, sp_str_lit("pkgs"));

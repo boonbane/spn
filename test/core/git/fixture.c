@@ -154,7 +154,7 @@ sp_test_each(git_fixture, build, git_repo_fixture_t, tests) {
         break;
       }
 
-      sp_str_t actual = git_repo_file_at(repo.path, repo.commits[c], sp_str_view(expect->file));
+      sp_str_t actual = git_repo_file_at(repo.path, repo.commits[c], sp_cstr_as_str(expect->file));
       sp_expect_str_eq_c(t, actual, expect->content);
     }
 
@@ -165,7 +165,7 @@ sp_test_each(git_fixture, build, git_repo_fixture_t, tests) {
         break;
       }
 
-      sp_expect(t, !git_repo_has_file(repo.path, repo.commits[c], sp_str_view(path)));
+      sp_expect(t, !git_repo_has_file(repo.path, repo.commits[c], sp_cstr_as_str(path)));
     }
   }
 

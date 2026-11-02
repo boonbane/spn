@@ -237,7 +237,7 @@ spn_path_t spn_path_parent(spn_path_t path) {
 spn_path_t spn_path_concat(sp_mem_t mem, spn_path_t path, const c8* suffix) {
   return (spn_path_t) {
     .root = path.root,
-    .sub = sp_str_concat(mem, path.sub, sp_str_view(suffix)),
+    .sub = sp_str_concat(mem, path.sub, sp_cstr_as_str(suffix)),
   };
 }
 
@@ -351,7 +351,7 @@ spn_path_t spn_path_from_id(spn_dir_id_t id) {
 }
 
 spn_path_t spn_path(sp_mem_t mem, spn_dir_id_t id, const c8* sub) {
-  return spn_path_s(mem, id, sp_str_view(sub));
+  return spn_path_s(mem, id, sp_cstr_as_str(sub));
 }
 
 spn_path_t spn_path_s(sp_mem_t mem, spn_dir_id_t id, sp_str_t sub) {

@@ -172,7 +172,7 @@ static void expect_obs(sp_test_t* t, sp_mem_t mem, const spn_path_roots_t* roots
   sp_carr_detect_len(expect->obs, expected, expect->obs[expected].path);
   sp_for(it, expected) {
     const obs_t* e = &expect->obs[it];
-    sp_str_t host = sp_fs_join_path(mem, root, sp_str_view(e->path));
+    sp_str_t host = sp_fs_join_path(mem, root, sp_cstr_as_str(e->path));
     bool found = false;
     sp_da_for(obs, ot) {
       if (obs[ot].kind == e->kind && sp_str_equal(spn_path_str(roots, mem, obs[ot].path), host)) {
@@ -207,7 +207,7 @@ sp_test_each(dag_wasm, wasi, test_t, tests) {
     if (!it->files[ft].path) {
       break;
     }
-    dag_test_create(sp_path_join(mem, sandbox, sp_str_view(it->files[ft].path)), sp_str_lit("A"));
+    dag_test_create(sp_path_join(mem, sandbox, sp_cstr_as_str(it->files[ft].path)), sp_str_lit("A"));
   }
 
   u32 num_ops = 0;

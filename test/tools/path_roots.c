@@ -10,7 +10,7 @@ const spn_path_roots_t* paths_test_roots_build(paths_test_roots_t spec, spn_path
   *storage = (spn_path_roots_t) sp_zero;
   sp_carr_for(dirs, it) {
     if (dirs[it]) {
-      storage->dirs[it] = sp_str_view(dirs[it]);
+      storage->dirs[it] = sp_cstr_as_str(dirs[it]);
     }
   }
   return storage;

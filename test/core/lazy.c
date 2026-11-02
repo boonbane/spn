@@ -47,7 +47,7 @@ sp_test_each(lazy_log, write, test_t, tests) {
   sp_mem_t mem = sp_test_arena(t);
   sp_path_t path = sp_path_join(mem, sp_test_dir(t), sp_str_lit("x.log"));
   if (it->seed) {
-    sp_fs_create_file_str_at(path, sp_str_view(it->seed));
+    sp_fs_create_file_str_at(path, sp_cstr_as_str(it->seed));
   }
 
   spn_lazy_log_t log;
@@ -55,7 +55,7 @@ sp_test_each(lazy_log, write, test_t, tests) {
 
   sp_carr_for(it->writes, w) {
     if (!it->writes[w]) break;
-    sp_io_write_str(&log.writer, sp_str_view(it->writes[w]), SP_NULLPTR);
+    sp_io_write_str(&log.writer, sp_cstr_as_str(it->writes[w]), SP_NULLPTR);
   }
 
   spn_lazy_log_close(&log);

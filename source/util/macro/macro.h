@@ -37,7 +37,6 @@
 #define sp_str_ht_exists(ht, key) (sp_str_ht_get((ht), (key)) != SP_NULLPTR)
 #define sp_ht_key_exists(ht, key) (sp_ht_getp((ht), (key)) != SP_NULLPTR)
 
-#define SP_CSTR(s)   sp_str_view(s)
 #define SP_MAX(a, b) sp_max((a), (b))
 #define SP_MIN(a, b) sp_min((a), (b))
 #define SP_ASSERT_FMT(cond, ...) sp_assert(cond)

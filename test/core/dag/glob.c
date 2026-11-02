@@ -144,7 +144,7 @@ sp_test_each(dag_glob, observe, test_t, tests) {
   }
 
   spn_dag_glob_result_t glob = sp_zero;
-  spn_path_t pattern = { .root = SPN_PATH_ROOT_PROJECT, .sub = sp_str_view(it->pattern) };
+  spn_path_t pattern = { .root = SPN_PATH_ROOT_PROJECT, .sub = sp_cstr_as_str(it->pattern) };
   spn_err_t err = spn_dag_glob(mem, roots, pattern, &glob);
   sp_expect_eq(t, it->expect.err, err);
   if (err) {
@@ -181,7 +181,7 @@ sp_test_each(dag_glob, observe, test_t, tests) {
     sp_str_t dir = *it->expect.enums[et].dir
       ? sp_fs_join_path(mem, root, sp_cstr_as_str(it->expect.enums[et].dir))
       : root;
-    sp_str_t filter = it->expect.enums[et].filter ? sp_str_view(it->expect.enums[et].filter) : sp_str_lit("");
+    sp_str_t filter = it->expect.enums[et].filter ? sp_cstr_as_str(it->expect.enums[et].filter) : sp_str_lit("");
     sp_expect_str_eq(t, enums[et].path, dir);
     sp_expect_str_eq(t, enums[et].filter, filter);
     sp_expect_eq(t, SPN_PATH_ROOT_PROJECT, enums[et].root);
@@ -197,7 +197,7 @@ sp_test_each(dag_glob, observe, test_t, tests) {
   sp_must_eq(t, expect_matches, (u32)sp_da_size(glob.matches));
   sp_must_eq(t, expect_matches, (u32)sp_da_size(file_obs));
   sp_for(mt, expect_matches) {
-    sp_str_t sub = sp_str_view(it->expect.matches[mt].path);
+    sp_str_t sub = sp_cstr_as_str(it->expect.matches[mt].path);
     sp_expect_str_eq(t, glob.matches[mt].path.sub, sub);
     sp_expect_str_eq_c(t, glob.matches[mt].rel, it->expect.matches[mt].rel);
     sp_expect_eq(t, SPN_PATH_ROOT_PROJECT, glob.matches[mt].path.root);
@@ -346,7 +346,7 @@ sp_test_each(dag_glob, exec, exec_test_t, exec_tests) {
   env_t env = sp_zero;
   dag_test_env_init(&env.dag, t, (dag_test_env_config_t) { .store = SPN_DAG_STORE_MEM });
   env.root = dag_test_env_path(&env.dag, sp_str_lit("R"));
-  env.pattern = spn_path_join(env.dag.mem, dag_test_env_rooted(&env.dag, sp_str_lit("R")), sp_str_view(it->pattern));
+  env.pattern = spn_path_join(env.dag.mem, dag_test_env_rooted(&env.dag, sp_str_lit("R")), sp_cstr_as_str(it->pattern));
   sp_fs_create_dir_at(env.root);
 
   sp_carr_for(it->runs, r) {
@@ -360,7 +360,7 @@ sp_test_each(dag_glob, exec, exec_test_t, exec_tests) {
       if (!run->files[ft].path) {
         break;
       }
-      dag_test_create(sp_path_join(env.dag.mem, env.root, sp_cstr_as_str(run->files[ft].path)), sp_str_view(run->files[ft].content));
+      dag_test_create(sp_path_join(env.dag.mem, env.root, sp_cstr_as_str(run->files[ft].path)), sp_cstr_as_str(run->files[ft].content));
     }
 
     spn_dag_t* g = dag_test_env_graph(&env.dag);

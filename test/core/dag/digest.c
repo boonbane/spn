@@ -20,7 +20,7 @@ static const test_t tests [] = {
 };
 
 sp_test_each(dag_digest, hash, test_t, tests) {
-  sp_str_t data = sp_str_view(it->data);
+  sp_str_t data = sp_cstr_as_str(it->data);
   spn_dag_digest_t digest = spn_dag_digest(data.data, data.len);
   sp_expect(t, spn_dag_digest_valid(digest));
   sp_expect_str_eq_c(t, spn_dag_digest_hex(sp_test_arena(t), digest), it->hex);
