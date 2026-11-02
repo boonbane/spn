@@ -18,7 +18,7 @@ static sp_err_t sim_path(c8* buf, u64 size, u64* len, sp_str_t path) {
 }
 
 static sp_err_t sim_get_fd_path(sp_sys_fd_t fd, c8* buf, u64 size, u64* len) {
-  if (fd == sp_fs_get_cwd()) {
+  if (fd == sp_fs_get_cwd().fd) {
     return sim_path(buf, size, len, sp_str_lit("/sim"));
   }
   return sim_base.get_fd_path(fd, buf, size, len);

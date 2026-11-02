@@ -108,8 +108,8 @@ static bool sp_sim_fail(void) {
 
 static sp_sim_fd_t* sp_sim_fd(sp_sys_fd_t fd);
 
-static sp_sim_t* sp_sim_syscall_at(sp_sys_fd_t fd) {
-  SP_ASSERT(fd == SP_SIM_ROOT || sp_sim_fd(fd)->node->kind == SP_FS_KIND_DIR);
+static sp_sim_t* sp_sim_syscall_at(sp_sys_dir_t dir) {
+  SP_ASSERT(dir.fd == SP_SIM_ROOT || sp_sim_fd(dir.fd)->node->kind == SP_FS_KIND_DIR);
   return sp_sim_syscall();
 }
 
@@ -210,11 +210,11 @@ static sp_sim_fd_t* sp_sim_fd(sp_sys_fd_t fd) {
   return &sim->fds[idx];
 }
 
-static sp_str_t sp_sim_resolve(sp_sys_fd_t fd, const c8* path, u32 len, c8* buf) {
-  if (fd == SP_SIM_ROOT || (len && path[0] == '/')) {
+static sp_str_t sp_sim_resolve(sp_sys_dir_t at, const c8* path, u32 len, c8* buf) {
+  if (at.fd == SP_SIM_ROOT || (len && path[0] == '/')) {
     return sp_sim_norm(path, len, buf);
   }
-  sp_str_t dir = sp_sim_fd(fd)->path;
+  sp_str_t dir = sp_sim_fd(at.fd)->path;
   c8 joined [SP_PATH_MAX];
   SP_ASSERT(dir.len + 1 + len < SP_PATH_MAX);
   sp_sys_memcpy(joined, dir.data, dir.len);
@@ -349,11 +349,11 @@ static sp_err_t sp_sim_sys_transfer_positional(sp_sys_fd_t in, u64* in_pos, sp_s
   return SP_ERR_SYS_UNSUPPORTED;
 }
 
-static sp_sys_fd_t sp_sim_sys_get_root(s32 it) {
+static sp_sys_dir_t sp_sim_sys_get_root(s32 it) {
   if (it != 0) {
-    return SP_SYS_INVALID_FD;
+    return sp_sys_dir(SP_SYS_INVALID_FD);
   }
-  return SP_SIM_ROOT;
+  return sp_sys_dir(SP_SIM_ROOT);
 }
 
 static sp_err_t sp_sim_sys_get_root_label(s32 it, c8* buf, u64 size, u64* len) {
@@ -413,15 +413,15 @@ static u64 sp_sim_dirent_read(const u8* data, sp_sys_dir_entry_t* out) {
   return SP_SIM_DIRENT_HEADER + name_len;
 }
 
-static sp_err_t sp_sim_sys_open(sp_sys_fd_t fd, const c8* path, u32 len, sp_sys_open_mode_t mode, u32 flags, sp_sys_fd_t* out) {
+static sp_err_t sp_sim_sys_open(sp_sys_dir_t dir, const c8* path, u32 len, sp_sys_open_mode_t mode, u32 flags, sp_sys_fd_t* out) {
   *out = SP_SYS_INVALID_FD;
-  sp_sim_t* sim = sp_sim_syscall_at(fd);
+  sp_sim_t* sim = sp_sim_syscall_at(dir);
   if (sp_sim_fail()) {
     return SP_ERR_SYS;
   }
 
   c8 buf [SP_PATH_MAX];
-  sp_str_t norm = sp_sim_resolve(fd, path, len, buf);
+  sp_str_t norm = sp_sim_resolve(dir, path, len, buf);
   sp_sim_inode_t* node = sp_sim_find(norm);
 
   if (node && (flags & SP_SYS_OPEN_CREATE) && (flags & SP_SYS_OPEN_EXCLUSIVE)) {
@@ -465,15 +465,15 @@ static sp_err_t sp_sim_sys_open(sp_sys_fd_t fd, const c8* path, u32 len, sp_sys_
   return SP_OK;
 }
 
-static sp_err_t sp_sim_sys_open_dir(sp_sys_fd_t fd, const c8* path, u32 len, u32 flags, sp_sys_fd_t* out) {
-  *out = SP_SYS_INVALID_FD;
-  sp_sim_t* sim = sp_sim_syscall_at(fd);
+static sp_err_t sp_sim_sys_open_dir(sp_sys_dir_t dir, const c8* path, u32 len, u32 flags, sp_sys_dir_t* out) {
+  out->fd = SP_SYS_INVALID_FD;
+  sp_sim_t* sim = sp_sim_syscall_at(dir);
   if (sp_sim_fail()) {
     return SP_ERR_SYS;
   }
 
   c8 norm_buf [SP_PATH_MAX];
-  sp_str_t norm = sp_sim_resolve(fd, path, len, norm_buf);
+  sp_str_t norm = sp_sim_resolve(dir, path, len, norm_buf);
   sp_sim_inode_t* node = sp_sim_find(norm);
   if (!node) {
     return SP_ERR_SYS_NOT_FOUND;
@@ -482,29 +482,12 @@ static sp_err_t sp_sim_sys_open_dir(sp_sys_fd_t fd, const c8* path, u32 len, u32
     return SP_ERR_SYS;
   }
 
-  // The listing is serialized at open, like the kernel snapshotting a readdir
-  u64 need = 0;
-  sp_ht_for_kv(sim->nodes, kv) {
-    sp_str_t name = sp_sim_child_name(*kv.key, norm);
-    if (sp_str_empty(name)) continue;
-    need += SP_SIM_DIRENT_HEADER + name.len;
-  }
-
-  u8* data = need ? sp_alloc_n(sim->mem, u8, need) : SP_NULLPTR;
-  u64 written = 0;
-  sp_ht_for_kv(sim->nodes, kv) {
-    sp_str_t name = sp_sim_child_name(*kv.key, norm);
-    if (sp_str_empty(name)) continue;
-    written += sp_sim_dirent_write(data + written, name, (*kv.val)->kind);
-  }
-
   sp_da_push(sim->fds, ((sp_sim_fd_t) {
     .node = node,
     .path = sp_str_copy(sim->mem, norm),
-    .dir = { .data = data, .len = written },
     .open = true,
   }));
-  *out = SP_SIM_FD_BASE + (sp_sys_fd_t)(sp_da_size(sim->fds) - 1);
+  out->fd = SP_SIM_FD_BASE + (sp_sys_fd_t)(sp_da_size(sim->fds) - 1);
   return SP_OK;
 }
 
@@ -519,14 +502,14 @@ static sp_err_t sp_sim_sys_pipe(sp_sys_pipe_t* pipe, sp_sys_pipe_desc_t desc) {
   return SP_ERR_SYS;
 }
 
-static sp_err_t sp_sim_sys_mkdir(sp_sys_fd_t fd, const c8* path, u32 len, sp_sys_file_perms_t perms) {
-  sp_sim_syscall_at(fd);
+static sp_err_t sp_sim_sys_mkdir(sp_sys_dir_t dir, const c8* path, u32 len, sp_sys_file_perms_t perms) {
+  sp_sim_syscall_at(dir);
   if (sp_sim_fail()) {
     return SP_ERR_SYS;
   }
 
   c8 buf [SP_PATH_MAX];
-  sp_str_t norm = sp_sim_resolve(fd, path, len, buf);
+  sp_str_t norm = sp_sim_resolve(dir, path, len, buf);
   if (sp_sim_find(norm)) {
     return SP_ERR_SYS;
   }
@@ -540,14 +523,14 @@ static sp_err_t sp_sim_sys_mkdir(sp_sys_fd_t fd, const c8* path, u32 len, sp_sys
   return SP_OK;
 }
 
-static sp_err_t sp_sim_sys_rmdir(sp_sys_fd_t fd, const c8* path, u32 len) {
-  sp_sim_t* sim = sp_sim_syscall_at(fd);
+static sp_err_t sp_sim_sys_rmdir(sp_sys_dir_t dir, const c8* path, u32 len) {
+  sp_sim_t* sim = sp_sim_syscall_at(dir);
   if (sp_sim_fail()) {
     return SP_ERR_SYS;
   }
 
   c8 buf [SP_PATH_MAX];
-  sp_str_t norm = sp_sim_resolve(fd, path, len, buf);
+  sp_str_t norm = sp_sim_resolve(dir, path, len, buf);
   sp_sim_inode_t* node = sp_sim_find(norm);
   if (!node) {
     return SP_ERR_SYS_NOT_FOUND;
@@ -567,14 +550,14 @@ static sp_err_t sp_sim_sys_rmdir(sp_sys_fd_t fd, const c8* path, u32 len) {
   return SP_OK;
 }
 
-static sp_err_t sp_sim_sys_unlink(sp_sys_fd_t fd, const c8* path, u32 len) {
-  sp_sim_t* sim = sp_sim_syscall_at(fd);
+static sp_err_t sp_sim_sys_unlink(sp_sys_dir_t dir, const c8* path, u32 len) {
+  sp_sim_t* sim = sp_sim_syscall_at(dir);
   if (sp_sim_fail()) {
     return SP_ERR_SYS;
   }
 
   c8 buf [SP_PATH_MAX];
-  sp_str_t norm = sp_sim_resolve(fd, path, len, buf);
+  sp_str_t norm = sp_sim_resolve(dir, path, len, buf);
   sp_sim_inode_t* node = sp_sim_find(norm);
   if (!node) {
     return SP_ERR_SYS_NOT_FOUND;
@@ -588,16 +571,16 @@ static sp_err_t sp_sim_sys_unlink(sp_sys_fd_t fd, const c8* path, u32 len) {
   return SP_OK;
 }
 
-static sp_err_t sp_sim_sys_rename(sp_sys_fd_t from_fd, const c8* from, u32 from_len, sp_sys_fd_t to_fd, const c8* to, u32 to_len) {
-  sp_sim_t* sim = sp_sim_syscall_at(from_fd);
+static sp_err_t sp_sim_sys_rename(sp_sys_dir_t from_dir, const c8* from, u32 from_len, sp_sys_dir_t to_dir, const c8* to, u32 to_len) {
+  sp_sim_t* sim = sp_sim_syscall_at(from_dir);
   if (sp_sim_fail()) {
     return SP_ERR_SYS;
   }
 
   c8 from_buf [SP_PATH_MAX];
   c8 to_buf [SP_PATH_MAX];
-  sp_str_t from_norm = sp_sim_resolve(from_fd, from, from_len, from_buf);
-  sp_str_t to_norm = sp_sim_resolve(to_fd, to, to_len, to_buf);
+  sp_str_t from_norm = sp_sim_resolve(from_dir, from, from_len, from_buf);
+  sp_str_t to_norm = sp_sim_resolve(to_dir, to, to_len, to_buf);
 
   sp_sim_inode_t* src = sp_sim_find(from_norm);
   if (!src) {
@@ -657,16 +640,16 @@ static sp_err_t sp_sim_sys_rename(sp_sys_fd_t from_fd, const c8* from, u32 from_
   return SP_OK;
 }
 
-static sp_err_t sp_sim_sys_link(sp_sys_fd_t from_fd, const c8* existing, u32 existing_len, sp_sys_fd_t to_fd, const c8* alias, u32 alias_len) {
-  sp_sim_syscall_at(from_fd);
+static sp_err_t sp_sim_sys_link(sp_sys_dir_t from_dir, const c8* existing, u32 existing_len, sp_sys_dir_t to_dir, const c8* alias, u32 alias_len) {
+  sp_sim_syscall_at(from_dir);
   if (sp_sim_fail()) {
     return SP_ERR_SYS;
   }
 
   c8 existing_buf [SP_PATH_MAX];
   c8 alias_buf [SP_PATH_MAX];
-  sp_str_t existing_norm = sp_sim_resolve(from_fd, existing, existing_len, existing_buf);
-  sp_str_t alias_norm = sp_sim_resolve(to_fd, alias, alias_len, alias_buf);
+  sp_str_t existing_norm = sp_sim_resolve(from_dir, existing, existing_len, existing_buf);
+  sp_str_t alias_norm = sp_sim_resolve(to_dir, alias, alias_len, alias_buf);
 
   sp_sim_inode_t* src = sp_sim_find(existing_norm);
   if (!src) {
@@ -690,24 +673,24 @@ static sp_err_t sp_sim_sys_link(sp_sys_fd_t from_fd, const c8* existing, u32 exi
   return SP_OK;
 }
 
-static sp_err_t sp_sim_sys_symlink(const c8* existing, u32 existing_len, sp_sys_fd_t to_fd, const c8* alias, u32 alias_len, sp_fs_kind_t kind) {
+static sp_err_t sp_sim_sys_symlink(const c8* existing, u32 existing_len, sp_sys_dir_t to_dir, const c8* alias, u32 alias_len, sp_fs_kind_t kind) {
   sp_sim_unexpected("symlink");
   return SP_ERR_SYS;
 }
 
-static sp_err_t sp_sim_sys_readlink(sp_sys_fd_t fd, const c8* path, u32 len, c8* buf, u64 size, u64* target_len) {
+static sp_err_t sp_sim_sys_readlink(sp_sys_dir_t dir, const c8* path, u32 len, c8* buf, u64 size, u64* target_len) {
   sp_sim_unexpected("readlink");
   return SP_ERR_SYS;
 }
 
-static sp_err_t sp_sim_sys_get_path_metadata(sp_sys_fd_t fd, const c8* path, u32 len, sp_sys_file_meta_t* st) {
-  sp_sim_syscall_at(fd);
+static sp_err_t sp_sim_sys_get_path_metadata(sp_sys_dir_t dir, const c8* path, u32 len, sp_sys_file_meta_t* st) {
+  sp_sim_syscall_at(dir);
   if (sp_sim_fail()) {
     return SP_ERR_SYS;
   }
 
   c8 buf [SP_PATH_MAX];
-  sp_sim_inode_t* node = sp_sim_find(sp_sim_resolve(fd, path, len, buf));
+  sp_sim_inode_t* node = sp_sim_find(sp_sim_resolve(dir, path, len, buf));
   if (!node) {
     return SP_ERR_SYS_NOT_FOUND;
   }
@@ -724,11 +707,11 @@ static sp_err_t sp_sim_sys_get_file_metadata(sp_sys_fd_t fd, sp_sys_file_meta_t*
   return SP_OK;
 }
 
-static sp_err_t sp_sim_sys_set_file_perms(sp_sys_fd_t fd, const c8* path, u32 len, sp_sys_file_perms_t perms) {
-  sp_sim_syscall_at(fd);
+static sp_err_t sp_sim_sys_set_file_perms(sp_sys_dir_t dir, const c8* path, u32 len, sp_sys_file_perms_t perms) {
+  sp_sim_syscall_at(dir);
 
   c8 buf [SP_PATH_MAX];
-  sp_sim_inode_t* node = sp_sim_find(sp_sim_resolve(fd, path, len, buf));
+  sp_sim_inode_t* node = sp_sim_find(sp_sim_resolve(dir, path, len, buf));
   if (!node) {
     return SP_ERR_SYS_NOT_FOUND;
   }
@@ -736,7 +719,7 @@ static sp_err_t sp_sim_sys_set_file_perms(sp_sys_fd_t fd, const c8* path, u32 le
   return SP_OK;
 }
 
-static sp_err_t sp_sim_sys_set_times(sp_sys_fd_t fd, const c8* path, u32 len, sp_sys_timespec_t atime, sp_sys_timespec_t mtime) {
+static sp_err_t sp_sim_sys_set_times(sp_sys_dir_t dir, const c8* path, u32 len, sp_sys_timespec_t atime, sp_sys_timespec_t mtime) {
   sp_sim_unexpected("set_times");
   return SP_ERR_SYS;
 }
@@ -903,10 +886,29 @@ static sp_err_t sp_sim_sys_chdir(const c8* path, u32 len) {
   return SP_ERR_SYS;
 }
 
-static sp_err_t sp_sim_sys_dir_it_open(sp_sys_fd_t fd, sp_sys_dir_it_t* out) {
-  sp_sim_syscall();
-  sp_sim_fd(fd);
-  *out = (sp_sys_dir_it_t) { .fd = fd };
+static sp_err_t sp_sim_sys_dir_it_open(sp_sys_dir_t dir, sp_sys_dir_it_t* out) {
+  sp_sim_t* sim = sp_sim_syscall();
+  sp_sim_fd_t* entry = sp_sim_fd(dir.fd);
+
+  // The listing is serialized at open, like the kernel snapshotting a readdir
+  u64 need = 0;
+  sp_ht_for_kv(sim->nodes, kv) {
+    sp_str_t name = sp_sim_child_name(*kv.key, entry->path);
+    if (sp_str_empty(name)) continue;
+    need += SP_SIM_DIRENT_HEADER + name.len;
+  }
+
+  u8* data = need ? sp_alloc_n(sim->mem, u8, need) : SP_NULLPTR;
+  u64 written = 0;
+  sp_ht_for_kv(sim->nodes, kv) {
+    sp_str_t name = sp_sim_child_name(*kv.key, entry->path);
+    if (sp_str_empty(name)) continue;
+    written += sp_sim_dirent_write(data + written, name, (*kv.val)->kind);
+  }
+
+  entry->dir.data = data;
+  entry->dir.len = written;
+  *out = (sp_sys_dir_it_t) { .dir = dir };
   return SP_OK;
 }
 
@@ -916,7 +918,7 @@ static sp_err_t sp_sim_sys_dir_it_read(sp_sys_dir_it_t* dir, sp_mem_buffer_t* bu
     return SP_ERR_SYS;
   }
 
-  sp_sim_fd_t* entry = sp_sim_fd(dir->fd);
+  sp_sim_fd_t* entry = sp_sim_fd(dir->dir.fd);
   buf->len = 0;
 
   // Copy whole records only; a parse never straddles a read boundary
@@ -940,8 +942,7 @@ static sp_err_t sp_sim_sys_dir_it_parse(sp_sys_dir_it_t* dir, sp_mem_buffer_t* b
 }
 
 static sp_err_t sp_sim_sys_dir_it_close(sp_sys_dir_it_t* dir) {
-  sp_sim_syscall();
-  sp_sim_fd(dir->fd)->open = false;
+  sp_sim_fd(dir->dir.fd);
   return SP_OK;
 }
 
