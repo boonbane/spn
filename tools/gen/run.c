@@ -176,11 +176,11 @@ static bool mark_shared(codegen_t* c, sp_str_t path, gen_t* gen, jtd_result_t* j
   return true;
 }
 
-static bool render_union(codegen_t* c, sp_fs_entry_t* entry, sp_str_t json, gen_format_t format, sp_str_t prefix) {
+static bool render_union(codegen_t* c, sp_str_t path, sp_str_t json, gen_format_t format, sp_str_t prefix) {
   jtd_result_t jtd = sp_zero;
-  try(parse_jtd(c, entry->path, json, &jtd));
+  try(parse_jtd(c, path, json, &jtd));
 
-  sp_str_t name = sp_str_strip_right(entry->name, sp_str_lit(".jtd.json"));
+  sp_str_t name = sp_str_strip_right(sp_fs_get_name(path), sp_str_lit(".jtd.json"));
   gen_t* gen = gen_new(c->mem);
   gen->format = format;
   gen->name = name;
@@ -201,13 +201,13 @@ static bool render_union(codegen_t* c, sp_fs_entry_t* entry, sp_str_t json, gen_
   return true;
 }
 
-static bool lower_record(codegen_t* c, sp_fs_entry_t* entry, yyjson_doc* doc, gen_format_t format, gen_t** lowered, sp_str_t* merged) {
-  try(merge_schema(c, entry->path, doc, merged));
+static bool lower_record(codegen_t* c, sp_str_t path, yyjson_doc* doc, gen_format_t format, gen_t** lowered, sp_str_t* merged) {
+  try(merge_schema(c, path, doc, merged));
 
   jtd_result_t jtd = sp_zero;
-  try(parse_jtd(c, entry->path, *merged, &jtd));
+  try(parse_jtd(c, path, *merged, &jtd));
 
-  sp_str_t name = sp_str_strip_right(entry->name, sp_str_lit(".jtd.json"));
+  sp_str_t name = sp_str_strip_right(sp_fs_get_name(path), sp_str_lit(".jtd.json"));
   gen_t* gen = gen_new(c->mem);
   gen->format = format;
   gen->name = name;
@@ -215,7 +215,7 @@ static bool lower_record(codegen_t* c, sp_fs_entry_t* entry, yyjson_doc* doc, ge
     return fail(c, gen->err);
   }
   gen->root = gen_find(gen, name);
-  try(mark_shared(c, entry->path, gen, &jtd));
+  try(mark_shared(c, path, gen, &jtd));
   *lowered = gen;
   return true;
 }
@@ -228,60 +228,60 @@ static bool commit_record(codegen_t* c, gen_t* gen, sp_str_t merged, gen_render_
   return true;
 }
 
-static bool render_toml(codegen_t* c, sp_fs_entry_t* entry, yyjson_doc* doc) {
+static bool render_toml(codegen_t* c, sp_str_t path, yyjson_doc* doc) {
   sp_str_t merged = sp_zero;
   gen_t* gen = SP_NULLPTR;
-  try(lower_record(c, entry, doc, GEN_FORMAT_TOML, &gen, &merged));
+  try(lower_record(c, path, doc, GEN_FORMAT_TOML, &gen, &merged));
   return commit_record(c, gen, merged, gen_render_decls(gen), gen_render_impl(gen));
 }
 
-static bool render_json(codegen_t* c, sp_fs_entry_t* entry, yyjson_doc* doc) {
+static bool render_json(codegen_t* c, sp_str_t path, yyjson_doc* doc) {
   sp_str_t merged = sp_zero;
   gen_t* gen = SP_NULLPTR;
-  try(lower_record(c, entry, doc, GEN_FORMAT_JSON, &gen, &merged));
+  try(lower_record(c, path, doc, GEN_FORMAT_JSON, &gen, &merged));
   if (sp_da_size(gen->containers.shorthand)) {
     return fail(c, sp_fmt(c->mem, "{.cyan}: shorthand arrays are not supported for json schemas", sp_fmt_str(gen->name)).value);
   }
   return commit_record(c, gen, merged, gen_render_decls(gen), gen_render_impl(gen));
 }
 
-static bool render_data(codegen_t* c, sp_fs_entry_t* entry, yyjson_doc* doc) {
+static bool render_data(codegen_t* c, sp_str_t path, yyjson_doc* doc) {
   sp_str_t merged = sp_zero;
   gen_t* gen = SP_NULLPTR;
-  try(lower_record(c, entry, doc, GEN_FORMAT_DATA, &gen, &merged));
+  try(lower_record(c, path, doc, GEN_FORMAT_DATA, &gen, &merged));
   if (!gen_data_check(gen)) {
     return fail(c, gen->err);
   }
   return commit_record(c, gen, merged, gen_render_data_decls(gen), gen_render_data_impl(gen));
 }
 
-static bool render_kind(codegen_t* c, sp_fs_entry_t* entry) {
+static bool render_kind(codegen_t* c, sp_str_t path) {
   sp_str_t json = sp_zero;
   yyjson_doc* doc = SP_NULLPTR;
-  try(read_json(c, entry->path, &json, &doc));
+  try(read_json(c, path, &json, &doc));
 
   yyjson_val* metadata = yyjson_obj_get(yyjson_doc_get_root(doc), "metadata");
   const c8* format = yyjson_get_str(yyjson_obj_get(metadata, "format"));
   if (!format) {
-    return fail(c, sp_fmt(c->mem, "{}: schema has no root metadata.format", sp_fmt_str(entry->path)).value);
+    return fail(c, sp_fmt(c->mem, "{}: schema has no root metadata.format", sp_fmt_str(path)).value);
   }
 
   if (sp_cstr_equal(format, "toml")) {
-    return render_toml(c, entry, doc);
+    return render_toml(c, path, doc);
   }
   if (sp_cstr_equal(format, "json")) {
-    return render_json(c, entry, doc);
+    return render_json(c, path, doc);
   }
   if (sp_cstr_equal(format, "data")) {
-    return render_data(c, entry, doc);
+    return render_data(c, path, doc);
   }
   if (sp_cstr_equal(format, "errors")) {
-    return render_union(c, entry, json, GEN_FORMAT_ERRORS, sp_str_lit("spn_err"));
+    return render_union(c, path, json, GEN_FORMAT_ERRORS, sp_str_lit("spn_err"));
   }
   if (sp_cstr_equal(format, "events")) {
-    return render_union(c, entry, json, GEN_FORMAT_EVENTS, sp_str_lit("spn_event"));
+    return render_union(c, path, json, GEN_FORMAT_EVENTS, sp_str_lit("spn_event"));
   }
-  return fail(c, sp_fmt(c->mem, "{}: unknown format {}", sp_fmt_str(entry->path), sp_fmt_cstr(format)).value);
+  return fail(c, sp_fmt(c->mem, "{}: unknown format {}", sp_fmt_str(path), sp_fmt_cstr(format)).value);
 }
 
 static bool render_abi(codegen_t* c) {
@@ -301,12 +301,6 @@ static bool render_abi(codegen_t* c) {
   return true;
 }
 
-static s32 sort_entries(const void* a, const void* b) {
-  const sp_fs_entry_t* ea = (const sp_fs_entry_t*)a;
-  const sp_fs_entry_t* eb = (const sp_fs_entry_t*)b;
-  return sp_str_compare_alphabetical(ea->name, eb->name);
-}
-
 static bool run(codegen_t* c) {
   c->reg = sp_template_registry_create(c->mem);
   if (!sp_fs_is_dir(c->paths.templates) || sp_template_load_dir(c->reg, c->paths.templates)) {
@@ -318,18 +312,31 @@ static bool run(codegen_t* c) {
     try(emit_common(c));
   }
 
-  sp_da(sp_fs_entry_t) entries = sp_zero;
-  sp_fs_collect(c->mem, c->paths.schema, &entries);
-  sp_da_sort(entries, sort_entries);
-  sp_da_for(entries, it) {
-    sp_fs_entry_t* entry = &entries[it];
-    if (!sp_str_ends_with(entry->name, sp_str_lit(".jtd.json"))) {
+  sp_sys_dir_t dir = sp_zero;
+  if (sp_fs_open_dir_at(sp_path_from_str(c->paths.schema), &dir)) {
+    return fail(c, sp_fmt(c->mem, "failed to open {}", sp_fmt_str(c->paths.schema)).value);
+  }
+  sp_da(sp_str_t) schemas = sp_da_new(c->mem, sp_str_t);
+  SP_ALIGNED u8 buf [SP_SYS_DIR_MIN_BUF];
+  sp_fs_dir_it_t listing = sp_fs_dir_it(dir);
+  sp_fs_dir_entry_t entry = sp_zero;
+  while (sp_fs_dir_it_next(&listing, sp_mem_slice(buf, sizeof(buf)), &entry)) {
+    if (!sp_str_ends_with(entry.name, sp_str_lit(".jtd.json"))) {
       continue;
     }
-    if (sp_str_equal_cstr(entry->name, "common.jtd.json")) {
+    if (sp_str_equal_cstr(entry.name, "common.jtd.json")) {
       continue;
     }
-    try(render_kind(c, entry));
+    sp_da_push(schemas, sp_fs_join_path(c->mem, c->paths.schema, entry.name));
+  }
+  sp_fs_dir_it_close(&listing);
+  sp_fs_close_dir(dir);
+  if (listing.err) {
+    return fail(c, sp_fmt(c->mem, "failed to read {}", sp_fmt_str(c->paths.schema)).value);
+  }
+  sp_da_sort(schemas, sp_str_sort_kernel_alphabetical);
+  sp_da_for(schemas, it) {
+    try(render_kind(c, schemas[it]));
   }
 
   return render_abi(c);
