@@ -243,15 +243,15 @@ sp_cli_result_t embed_run(sp_cli_t* cli) {
     }
 
     if (sp_fs_is_dir(src)) {
-      sp_da(sp_fs_entry_t) files = sp_zero;
-      sp_fs_collect_recursive(mem, src, &files);
-      u32 skip = src.len + 1;
+      sp_da(sp_fs_it_entry_t) files = sp_zero;
+      if (sp_fs_collect_recursive(mem, src, &files)) {
+        return sp_cli_set_error(cli, sp_fmt(mem, "failed to read {.red}", sp_fmt_str(src)).value);
+      }
       sp_da_for(files, fit) {
-        sp_fs_entry_t ent = files[fit];
+        sp_fs_it_entry_t ent = files[fit];
         if (ent.kind == SP_FS_KIND_DIR) continue;
-        sp_str_t rel = sp_str_sub(ent.path, skip, ent.path.len - skip);
-        sp_str_t embed_path = sp_str_empty(dest) ? rel : sp_fs_join_path(mem, dest, rel);
-        if (embed_one(cli, mem, &obj, &entries, ent.path, embed_path) != SP_CLI_OK) {
+        sp_str_t embed_path = sp_str_empty(dest) ? ent.path : sp_fs_join_path(mem, dest, ent.path);
+        if (embed_one(cli, mem, &obj, &entries, sp_fs_join_path(mem, src, ent.path), embed_path) != SP_CLI_OK) {
           return SP_CLI_ERR;
         }
       }

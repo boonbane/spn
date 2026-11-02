@@ -20,51 +20,43 @@ spn_dag_glob_it_t spn_dag_glob_it_new(sp_mem_t mem, const spn_path_roots_t* root
     .glob = sp_glob_new_str(mem, meta.rest),
     .base = { pattern.root, meta.dir },
     .recursive = meta.deep,
+    .dir = sp_sys_dir(SP_SYS_INVALID_FD),
   };
   if (!it.glob) {
     it.err = SPN_ERR_DAG_GLOB;
+    return it;
   }
 
-  it.fs = sp_fs_it_new_at(mem, spn_path_at(roots, it.base), 0);
-  if (it.fs.err == SP_ERR_SYS_NOT_FOUND) {
-    it.fs.err = SP_OK;
+  sp_err_t err = sp_fs_open_dir_at(spn_path_at(roots, it.base), &it.dir);
+  if (err == SP_ERR_SYS_NOT_FOUND) {
+    return it;
   }
+  if (err) {
+    it.err = SPN_ERR_DAG_GLOB;
+    return it;
+  }
+  it.fs = sp_fs_it(mem, it.dir);
   return it;
 }
 
-static bool glob_walk(spn_dag_glob_it_t* it) {
-  spn_path_t build = spn_path_project_build();
-  bool root = it->base.root == build.root && sp_str_empty(it->base.sub);
-  while (sp_fs_it_next(&it->fs)) {
-    if (it->fs.yield == SP_FS_IT_LEAVE) {
-      continue;
-    }
-    if (it->fs.entry.kind != SP_FS_KIND_DIR) {
-      return true;
-    }
-    if (root && sp_str_equal(it->fs.entry.rel, build.sub)) {
-      continue;
-    }
-    it->fs.err = sp_fs_it_enter(&it->fs);
-    return !it->fs.err;
-  }
-  return false;
-}
-
 bool spn_dag_glob_it_next(spn_dag_glob_it_t* it) {
-  if (it->err) {
+  if (it->err || it->dir.fd == SP_SYS_INVALID_FD) {
     return false;
   }
-  while (it->recursive ? glob_walk(it) : sp_fs_it_next(&it->fs)) {
-    sp_fs_entry_t entry = it->fs.entry;
-    sp_str_t rel = entry.rel;
-    if (entry.kind == SP_FS_KIND_DIR && !it->recursive) {
+  spn_path_t build = spn_path_project_build();
+  bool root = it->base.root == build.root && sp_str_empty(it->base.sub);
+  sp_fs_it_entry_t entry = sp_zero;
+  while (sp_fs_it_next(&it->fs, &entry)) {
+    if (entry.kind == SP_FS_KIND_DIR) {
+      if (!it->recursive || (root && sp_str_equal(entry.path, build.sub))) {
+        sp_fs_it_skip(&it->fs);
+        continue;
+      }
+    }
+    else if (!sp_glob_match(it->glob, entry.path)) {
       continue;
     }
-    if (entry.kind != SP_FS_KIND_DIR && !sp_glob_match(it->glob, rel)) {
-      continue;
-    }
-    it->entry = (spn_dag_glob_entry_t) { .rel = rel, .kind = entry.kind };
+    it->entry = (spn_dag_glob_entry_t) { .rel = entry.path, .kind = entry.kind };
     return true;
   }
   if (it->fs.err) {
@@ -74,7 +66,10 @@ bool spn_dag_glob_it_next(spn_dag_glob_it_t* it) {
 }
 
 void spn_dag_glob_it_deinit(spn_dag_glob_it_t* it) {
-  sp_fs_it_deinit(&it->fs);
+  if (it->dir.fd != SP_SYS_INVALID_FD) {
+    sp_fs_it_deinit(&it->fs);
+    sp_fs_close_dir(it->dir);
+  }
   sp_glob_free(it->glob);
 }
 

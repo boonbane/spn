@@ -172,32 +172,33 @@ bool sp_template_get(sp_template_registry_t* reg, sp_str_t name, sp_str_t* out) 
 }
 
 sp_template_err_t sp_template_load_dir(sp_template_registry_t* reg, sp_str_t root) {
+  sp_sys_dir_t dir = sp_zero;
+  if (sp_fs_open_dir_at(sp_path_from_str(root), &dir)) return SP_TEMPLATE_ERR_IO;
+
+  sp_mem_arena_marker_t s = sp_mem_begin_scratch_for(reg->mem);
   sp_template_err_t err = SP_TEMPLATE_OK;
+  sp_fs_it_t it = sp_fs_it(s.mem, dir);
+  sp_fs_it_entry_t e = sp_zero;
+  while (!err && sp_fs_it_next(&it, &e)) {
+    if (e.kind != SP_FS_KIND_FILE) continue;
+    if (e.name.len && e.name.data[0] == '.') continue; // dotfile
 
-  sp_str_t norm_root = sp_fs_normalize_path(reg->mem, root);
-  sp_da(sp_fs_entry_t) entries = sp_zero;
-  sp_fs_collect_recursive(reg->mem, root, &entries);
-
-  sp_da_for(entries, i) {
-    sp_fs_entry_t* e = &entries[i];
-    if (e->kind != SP_FS_KIND_FILE) continue;
-    if (e->name.len && e->name.data[0] == '.') continue; // dotfile
-
-    sp_str_t path = sp_fs_normalize_path(reg->mem, e->path);
-    if (path.len <= norm_root.len) continue;
-    sp_str_t rel = sp_str_sub(path, (s32)norm_root.len, (s32)(path.len - norm_root.len));
-    while (rel.len && rel.data[0] == '/') rel = sp_str_sub(rel, 1, (s32)rel.len - 1);
-
-    sp_str_t ext = sp_fs_get_ext(rel);
-    sp_str_t key = ext.len ? sp_str_sub(rel, 0, (s32)(rel.len - ext.len - 1)) : rel;
+    sp_str_t ext = sp_fs_get_ext(e.path);
+    sp_str_t key = ext.len ? sp_str_sub(e.path, 0, (s32)(e.path.len - ext.len - 1)) : e.path;
 
     sp_str_t src = sp_zero;
-    sp_try_as(sp_io_read_file(reg->mem, e->path, &src), SP_TEMPLATE_ERR_IO);
-    err = sp_template_register(reg, key, src);
-    if (err) return err;
+    if (sp_io_read_file_at(reg->mem, e.at, &src)) {
+      err = SP_TEMPLATE_ERR_IO;
+      break;
+    }
+    err = sp_template_register(reg, sp_str_copy(reg->mem, key), src);
   }
+  if (!err && it.err) err = SP_TEMPLATE_ERR_IO;
 
-  return SP_TEMPLATE_OK;
+  sp_fs_it_deinit(&it);
+  sp_mem_end_scratch(s);
+  sp_fs_close_dir(dir);
+  return err;
 }
 
 typedef struct {
