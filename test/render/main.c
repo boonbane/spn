@@ -5,24 +5,18 @@
 #include "render.h"
 #include "caps.h"
 
-static s32 sort_cells_by_name(const void* a, const void* b) {
-  const sp_fs_entry_t* lhs = (const sp_fs_entry_t*)a;
-  const sp_fs_entry_t* rhs = (const sp_fs_entry_t*)b;
-  return sp_str_sort_kernel_alphabetical(&lhs->name, &rhs->name);
-}
-
-static sp_str_t read_capture(sp_mem_t mem, sp_fs_entry_t* cell, const c8* stream, bool color) {
+static sp_str_t read_capture(sp_mem_t mem, sp_str_t cell, const c8* stream, bool color) {
   sp_str_t name = color ? sp_fmt(mem, "{}.color", sp_fmt_cstr(stream)).value : sp_cstr_as_str(stream);
-  return test_read_file(mem, sp_fs_join_path(mem, cell->path, name));
+  return test_read_file(mem, sp_fs_join_path(mem, cell, name));
 }
 
-static void view_cell(sp_tty_t* tty, sp_mem_t mem, sp_fs_entry_t* cell) {
+static void view_cell(sp_tty_t* tty, sp_mem_t mem, sp_str_t cell) {
   bool color = tty->color == SP_TTY_COLOR_ANSI;
-  sp_str_t exit_code = sp_str_trim_right(test_read_file(mem, sp_fs_join_path(mem, cell->path, sp_str_lit("exit"))));
+  sp_str_t exit_code = sp_str_trim_right(test_read_file(mem, sp_fs_join_path(mem, cell, sp_str_lit("exit"))));
   sp_str_t err = read_capture(mem, cell, "stderr", color);
   sp_str_t out = read_capture(mem, cell, "stdout", color);
 
-  sp_tty_fmt(tty, "{.bold} {.gray}\n", sp_fmt_str(cell->name), sp_fmt_str(sp_fmt(mem, "(exit {})", sp_fmt_str(exit_code)).value));
+  sp_tty_fmt(tty, "{.bold} {.gray}\n", sp_fmt_str(sp_fs_get_name(cell)), sp_fmt_str(sp_fmt(mem, "(exit {})", sp_fmt_str(exit_code)).value));
   sp_io_write_str(tty->io, err, SP_NULLPTR);
   if (!sp_str_empty(out)) {
     sp_tty_fmt(tty, "{.gray}\n", sp_fmt_cstr("stdout:"));
@@ -37,16 +31,24 @@ static s32 view(void) {
   sp_tty_t* tty = sp_tty_std_out();
 
   sp_str_t current = render_out_path(mem, "current");
-  if (!sp_fs_exists(current)) {
+  sp_sys_dir_t dir = sp_zero;
+  if (sp_fs_open_dir_at(sp_path_from_str(current), &dir)) {
     sp_fmt_io(tty->io, "no capture at {}; run render first\n", sp_fmt_str(current));
     return 1;
   }
 
-  sp_da(sp_fs_entry_t) cells = sp_zero;
-  sp_fs_collect(mem, current, &cells);
-  sp_da_sort(cells, sort_cells_by_name);
+  sp_da(sp_str_t) cells = sp_da_new(mem, sp_str_t);
+  SP_ALIGNED u8 buf [SP_SYS_DIR_MIN_BUF];
+  sp_fs_dir_it_t listing = sp_fs_dir_it(dir);
+  sp_fs_dir_entry_t entry = sp_zero;
+  while (sp_fs_dir_it_next(&listing, sp_mem_slice(buf, sizeof(buf)), &entry)) {
+    sp_da_push(cells, sp_fs_join_path(mem, current, entry.name));
+  }
+  sp_fs_dir_it_close(&listing);
+  sp_fs_close_dir(dir);
+  sp_da_sort(cells, sp_str_sort_kernel_alphabetical);
   sp_da_for(cells, it) {
-    view_cell(tty, mem, &cells[it]);
+    view_cell(tty, mem, cells[it]);
   }
   return 0;
 }
@@ -91,7 +93,7 @@ static void rotate(void) {
   if (sp_fs_exists(previous)) {
     sp_fs_remove_dir(previous);
   }
-  sp_sys_fd_t cwd = sp_sys_get_root(0);
+  sp_sys_dir_t cwd = sp_sys_get_root(0);
   sp_assert(!sp_sys_rename_s(cwd, current, cwd, previous));
 }
 

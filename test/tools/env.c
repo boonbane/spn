@@ -71,10 +71,22 @@ static sp_err_t copy_project_path(sp_test_t* t, fixture_t* fixture, sp_str_t pro
   return SP_OK;
 }
 
-static s32 sort_dirs_by_name(const void* a, const void* b) {
-  const sp_fs_entry_t* lhs = (const sp_fs_entry_t*)a;
-  const sp_fs_entry_t* rhs = (const sp_fs_entry_t*)b;
-  return sp_str_sort_kernel_alphabetical(&lhs->name, &rhs->name);
+static sp_da(sp_str_t) list_dir(sp_mem_t mem, sp_str_t path) {
+  sp_da(sp_str_t) names = sp_da_new(mem, sp_str_t);
+  sp_sys_dir_t dir = sp_zero;
+  if (sp_fs_open_dir_at(sp_path_from_str(path), &dir)) {
+    return names;
+  }
+  SP_ALIGNED u8 buf [SP_SYS_DIR_MIN_BUF];
+  sp_fs_dir_it_t it = sp_fs_dir_it(dir);
+  sp_fs_dir_entry_t entry = sp_zero;
+  while (sp_fs_dir_it_next(&it, sp_mem_slice(buf, sizeof(buf)), &entry)) {
+    sp_da_push(names, sp_str_copy(mem, entry.name));
+  }
+  sp_fs_dir_it_close(&it);
+  sp_fs_close_dir(dir);
+  sp_da_sort(names, sp_str_sort_kernel_alphabetical);
+  return names;
 }
 
 typedef struct {
@@ -145,42 +157,41 @@ static sp_err_t setup_fixture_index_from_remote(sp_test_t* t, fixture_t* fixture
   sp_str_t recipes = sp_fs_join_path(mem, project, sp_str_lit("recipes"));
   sp_da(fixture_sub_t) subs = sp_da_new(mem, fixture_sub_t);
 
-  sp_da(sp_fs_entry_t) entries = sp_zero;
-  sp_fs_collect(mem, remote, &entries);
-  sp_da_for(entries, it) {
-    sp_fs_entry_t* entry = &entries[it];
-    if (!sp_fs_is_dir(entry->path)) {
+  sp_da(sp_str_t) packages = list_dir(mem, remote);
+  sp_da_for(packages, it) {
+    sp_str_t package = packages[it];
+    sp_str_t package_dir = sp_fs_join_path(mem, remote, package);
+    if (!sp_fs_is_dir(package_dir)) {
       continue;
     }
 
-    sp_da(sp_fs_entry_t) versions = sp_zero;
-    sp_fs_collect(mem, entry->path, &versions);
+    sp_da(sp_str_t) versions = list_dir(mem, package_dir);
     sp_must(t, !sp_da_empty(versions));
-    sp_da_sort(versions, sort_dirs_by_name);
 
-    sp_str_t repo = fixture_path(fixture, sp_fs_join_path(mem, sp_str_lit("remote"), entry->name));
+    sp_str_t repo = fixture_path(fixture, sp_fs_join_path(mem, sp_str_lit("remote"), package));
     git_repo_init(repo);
     sp_da_push(subs, ((fixture_sub_t) {
-      .token = sp_fmt(mem, "@{}.url@", sp_fmt_str(entry->name)).value,
+      .token = sp_fmt(mem, "@{}.url@", sp_fmt_str(package)).value,
       .value = sp_str_replace_c8(mem, repo, '\\', '/'),
     }));
 
-    sp_str_t recipe_versions = sp_fs_join_path(mem, recipes, entry->name);
+    sp_str_t recipe_versions = sp_fs_join_path(mem, recipes, package);
     bool split = sp_fs_is_dir(recipe_versions);
     sp_str_t recipe_repo = sp_str_lit("");
     if (split) {
-      recipe_repo = fixture_path(fixture, sp_fs_join_path(mem, sp_str_lit("recipes"), entry->name));
+      recipe_repo = fixture_path(fixture, sp_fs_join_path(mem, sp_str_lit("recipes"), package));
       git_repo_init(recipe_repo);
     }
 
     sp_da_for(versions, v) {
-      sp_fs_entry_t* dir = &versions[v];
-      sp_must(t, sp_fs_is_dir(dir->path));
+      sp_str_t version = versions[v];
+      sp_str_t version_dir = sp_fs_join_path(mem, package_dir, version);
+      sp_must(t, sp_fs_is_dir(version_dir));
 
-      git_repo_commit_from_dir(dir->path, repo, dir->name);
+      git_repo_commit_from_dir(version_dir, repo, version);
       sp_str_t commit = git_repo_head(repo);
       sp_da_push(subs, ((fixture_sub_t) {
-        .token = sp_fmt(mem, "@{}.{}.commit@", sp_fmt_str(entry->name), sp_fmt_str(dir->name)).value,
+        .token = sp_fmt(mem, "@{}.{}.commit@", sp_fmt_str(package), sp_fmt_str(version)).value,
         .value = commit,
       }));
 
@@ -189,27 +200,27 @@ static sp_err_t setup_fixture_index_from_remote(sp_test_t* t, fixture_t* fixture
       }
 
       if (split) {
-        sp_str_t recipe_dir = sp_fs_join_path(mem, recipe_versions, dir->name);
+        sp_str_t recipe_dir = sp_fs_join_path(mem, recipe_versions, version);
         sp_str_t recipe_manifest = sp_fs_join_path(mem, recipe_dir, sp_str_lit("spn.toml"));
         sp_must(t, sp_fs_exists(recipe_manifest));
 
-        git_repo_commit_from_dir(recipe_dir, recipe_repo, dir->name);
+        git_repo_commit_from_dir(recipe_dir, recipe_repo, version);
 
         sp_str_t content = test_read_file(mem, recipe_manifest);
         content = str_replace_all(mem, content,
-          sp_fmt(mem, "@{}.url@", sp_fmt_str(entry->name)).value,
+          sp_fmt(mem, "@{}.url@", sp_fmt_str(package)).value,
           sp_str_replace_c8(mem, repo, '\\', '/'));
         content = str_replace_all(mem, content,
-          sp_fmt(mem, "@{}.commit@", sp_fmt_str(entry->name)).value,
+          sp_fmt(mem, "@{}.commit@", sp_fmt_str(package)).value,
           commit);
         write_file(sp_fs_join_path(mem, recipe_repo, sp_str_lit("spn.toml")), content);
         git_repo_stage_all(recipe_repo);
-        git_repo_commit(recipe_repo, dir->name);
+        git_repo_commit(recipe_repo, version);
 
         sp_try(fixture_publish(t, fixture, recipe_repo, recipe_repo, git_repo_head(recipe_repo)));
       }
       else {
-        sp_str_t source_manifest = sp_fs_join_path(mem, dir->path, sp_str_lit("spn.toml"));
+        sp_str_t source_manifest = sp_fs_join_path(mem, version_dir, sp_str_lit("spn.toml"));
         sp_must(t, sp_fs_exists(source_manifest));
 
         sp_try(fixture_publish(t, fixture, repo, repo, commit));
@@ -218,22 +229,20 @@ static sp_err_t setup_fixture_index_from_remote(sp_test_t* t, fixture_t* fixture
   }
 
   if (sp_fs_is_dir(raw)) {
-    sp_da(sp_fs_entry_t) namespaces = sp_zero;
-    sp_fs_collect(mem, raw, &namespaces);
+    sp_da(sp_str_t) namespaces = list_dir(mem, raw);
     sp_da_for(namespaces, nt) {
-      sp_fs_entry_t* ns = &namespaces[nt];
-      if (!sp_fs_is_dir(ns->path)) {
+      sp_str_t ns = sp_fs_join_path(mem, raw, namespaces[nt]);
+      if (!sp_fs_is_dir(ns)) {
         continue;
       }
-      sp_da(sp_fs_entry_t) files = sp_zero;
-      sp_fs_collect(mem, ns->path, &files);
+      sp_da(sp_str_t) files = list_dir(mem, ns);
       sp_da_for(files, ft) {
-        sp_str_t content = test_read_file(mem, files[ft].path);
+        sp_str_t content = test_read_file(mem, sp_fs_join_path(mem, ns, files[ft]));
         sp_da_for(subs, st) {
           content = str_replace_all(mem, content, subs[st].token, subs[st].value);
         }
         write_file(
-          sp_fs_join_path(mem, sp_fs_join_path(mem, fixture->paths.index, ns->name), files[ft].name),
+          sp_fs_join_path(mem, sp_fs_join_path(mem, fixture->paths.index, namespaces[nt]), files[ft]),
           content);
       }
     }
@@ -276,25 +285,25 @@ static sp_err_t setup_fixture_source_repos(sp_test_t* t, fixture_t* fixture, sp_
   subs[num_subs].value = sp_str_replace_c8(mem, fixture->root, '\\', '/');
   num_subs++;
 
-  sp_da(sp_fs_entry_t) entries = sp_zero;
-  sp_fs_collect(mem, source, &entries);
+  sp_da(sp_str_t) entries = list_dir(mem, source);
   sp_da_for(entries, it) {
-    sp_fs_entry_t* entry = &entries[it];
-    if (!sp_fs_is_dir(entry->path)) {
+    sp_str_t name = entries[it];
+    sp_str_t dir = sp_fs_join_path(mem, source, name);
+    if (!sp_fs_is_dir(dir)) {
       continue;
     }
 
-    sp_str_t repo = fixture_path(fixture, sp_fs_join_path(mem, sp_str_lit("source"), entry->name));
+    sp_str_t repo = fixture_path(fixture, sp_fs_join_path(mem, sp_str_lit("source"), name));
     git_repo_init(repo);
-    git_repo_commit_from_dir(entry->path, repo, sp_str_lit("source"));
+    git_repo_commit_from_dir(dir, repo, sp_str_lit("source"));
     sp_str_t commit = git_repo_head(repo);
     sp_str_t url = sp_str_replace_c8(mem, repo, '\\', '/');
 
     sp_must(t, num_subs + 2 <= (s32)sp_carr_len(subs));
-    subs[num_subs].token = sp_fmt(mem, "@{}.url@", sp_fmt_str(entry->name)).value;
+    subs[num_subs].token = sp_fmt(mem, "@{}.url@", sp_fmt_str(name)).value;
     subs[num_subs].value = url;
     num_subs++;
-    subs[num_subs].token = sp_fmt(mem, "@{}.commit@", sp_fmt_str(entry->name)).value;
+    subs[num_subs].token = sp_fmt(mem, "@{}.commit@", sp_fmt_str(name)).value;
     subs[num_subs].value = commit;
     num_subs++;
   }
@@ -303,16 +312,16 @@ static sp_err_t setup_fixture_source_repos(sp_test_t* t, fixture_t* fixture, sp_
     return SP_OK;
   }
 
-  sp_da(sp_fs_entry_t) files = sp_zero;
+  sp_da(sp_fs_it_entry_t) files = sp_zero;
   sp_fs_collect_recursive(mem, fixture->root, &files);
   sp_da_for(files, it) {
-    sp_fs_entry_t* file = &files[it];
-    if (sp_fs_is_dir(file->path)) {
+    sp_str_t path = sp_fs_join_path(mem, fixture->root, files[it].path);
+    if (sp_fs_is_dir(path)) {
       continue;
     }
 
     sp_str_t content = sp_zero;
-    sp_io_read_file(mem, file->path, &content);
+    sp_io_read_file(mem, path, &content);
 
     bool changed = false;
     sp_for(s, num_subs) {
@@ -323,7 +332,7 @@ static sp_err_t setup_fixture_source_repos(sp_test_t* t, fixture_t* fixture, sp_
     }
 
     if (changed) {
-      write_file(file->path, content);
+      write_file(path, content);
     }
   }
   return SP_OK;
