@@ -311,7 +311,6 @@ static spn_dag_diag_t settle_tree(si_dag_action_handle_t* a, const spn_dag_artif
   sp_da(extra_entry_t) extra = sp_da_new(s.mem, extra_entry_t);
   sp_da(u32) stale = sp_da_new(s.mem, u32);
   sp_da(u32) poisoned = sp_da_new(s.mem, u32);
-  u64 files = 0;
   if (exists) {
     sp_str_ht(bool) keep_files = SP_NULLPTR;
     sp_str_ht(bool) keep_dirs = SP_NULLPTR;
@@ -326,16 +325,24 @@ static spn_dag_diag_t settle_tree(si_dag_action_handle_t* a, const spn_dag_artif
       }
     }
 
-    sp_fs_it_t walk = sp_fs_it_new_at(s.mem, dir, 0);
-    while (sp_fs_it_walk(&walk)) {
-      sp_fs_entry_t entry = walk.entry;
-      files += entry.kind != SP_FS_KIND_DIR;
-      if (entry.kind == SP_FS_KIND_DIR ? sp_str_ht_exists(keep_dirs, entry.rel) : sp_str_ht_exists(keep_files, entry.rel)) {
+    sp_sys_dir_t handle = sp_zero;
+    if (sp_fs_open_dir_at(dir, &handle)) {
+      diag = diag_at(a, SPN_ERR_DAG_STORE_READ, artifact, artifact->path);
+      goto done;
+    }
+    sp_fs_it_t walk = sp_fs_it(s.mem, handle);
+    sp_fs_it_entry_t entry = sp_zero;
+    while (sp_fs_it_next(&walk, &entry)) {
+      if (entry.kind == SP_FS_KIND_DIR ? sp_str_ht_exists(keep_dirs, entry.path) : sp_str_ht_exists(keep_files, entry.path)) {
         continue;
       }
-      sp_da_push(extra, ((extra_entry_t) { .rel = sp_str_copy(s.mem, entry.rel), .kind = entry.kind }));
+      if (entry.kind == SP_FS_KIND_DIR) {
+        sp_fs_it_skip(&walk);
+      }
+      sp_da_push(extra, ((extra_entry_t) { .rel = sp_str_copy(s.mem, entry.path), .kind = entry.kind }));
     }
     sp_fs_it_deinit(&walk);
+    sp_fs_close_dir(handle);
     if (walk.err) {
       diag = diag_at(a, SPN_ERR_DAG_STORE_READ, artifact, artifact->path);
       goto done;
@@ -358,7 +365,7 @@ static spn_dag_diag_t settle_tree(si_dag_action_handle_t* a, const spn_dag_artif
     }
   }
 
-  if (exists && sp_da_empty(stale) && sp_da_empty(poisoned) && files == sp_da_size(entries)) {
+  if (exists && sp_da_empty(stale) && sp_da_empty(poisoned) && sp_da_empty(extra)) {
     trace_emit(run, (spn_dag_trace_event_t) { .kind = SPN_DAG_TRACE_SETTLE, .action = action->id, .producer = artifact->id, .key = digest, .hit = true });
     goto done;
   }
@@ -372,7 +379,7 @@ static spn_dag_diag_t settle_tree(si_dag_action_handle_t* a, const spn_dag_artif
     goto done;
   }
 
-  sp_da_rfor(extra, it) {
+  sp_da_for(extra, it) {
     spn_path_t path = spn_path_join(s.mem, artifact->path, extra[it].rel);
     sp_path_t at = spn_path_at(g->roots, path);
     sp_err_t removed = extra[it].kind == SP_FS_KIND_DIR ? sp_fs_remove_dir_at(at) : sp_fs_remove_file_at(at);
@@ -519,7 +526,7 @@ void spn_dag_obs_canonicalize(sp_da(spn_dag_obs_t) obs) {
 }
 
 static s32 member_order(const void* a, const void* b) {
-  return sp_str_compare_alphabetical(((const sp_fs_entry_t*)a)->name, ((const sp_fs_entry_t*)b)->name);
+  return sp_str_compare_alphabetical(((const sp_fs_dir_entry_t*)a)->name, ((const sp_fs_dir_entry_t*)b)->name);
 }
 
 static spn_err_t membership_digest(sp_path_t dir, sp_str_t filter, spn_dag_digest_t* digest) {
@@ -535,15 +542,25 @@ static spn_err_t membership_digest(sp_path_t dir, sp_str_t filter, spn_dag_diges
     }
   }
 
-  sp_da(sp_fs_entry_t) members = sp_da_new(s.mem, sp_fs_entry_t);
-  sp_fs_it_t walk = sp_fs_it_new_at(s.mem, dir, 0);
-  while (sp_fs_it_next(&walk)) {
-    if (walk.entry.kind != SP_FS_KIND_DIR && glob && !sp_glob_match(glob, walk.entry.name)) {
-      continue;
+  sp_da(sp_fs_dir_entry_t) members = sp_da_new(s.mem, sp_fs_dir_entry_t);
+  sp_sys_dir_t handle = sp_zero;
+  if (!sp_fs_open_dir_at(dir, &handle)) {
+    SP_ALIGNED u8 buf [SP_SYS_DIR_MIN_BUF];
+    sp_fs_dir_it_t it = sp_fs_dir_it(handle);
+    sp_fs_dir_entry_t entry = sp_zero;
+    while (sp_fs_dir_it_next(&it, sp_mem_slice(buf, sizeof(buf)), &entry)) {
+      if (entry.kind != SP_FS_KIND_DIR && glob && !sp_glob_match(glob, entry.name)) {
+        continue;
+      }
+      sp_da_push(members, ((sp_fs_dir_entry_t) { .name = sp_str_copy(s.mem, entry.name), .kind = entry.kind }));
     }
-    sp_da_push(members, ((sp_fs_entry_t) { .name = sp_str_copy(s.mem, walk.entry.name), .kind = walk.entry.kind }));
+    sp_fs_dir_it_close(&it);
+    sp_fs_close_dir(handle);
+    if (it.err) {
+      err = SPN_ERR_DAG_STAT;
+      goto done;
+    }
   }
-  sp_fs_it_deinit(&walk);
   sp_da_sort(members, member_order);
 
   spn_digest_ctx_t ctx = sp_zero;

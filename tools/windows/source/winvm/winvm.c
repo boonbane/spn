@@ -49,7 +49,7 @@ winvm_init_err_t winvm_init(winvm_t* vm, sp_mem_t mem) {
   vm->guest.probes = sp_fs_join_path(mem, vm->guest.home, sp_str_lit("probes"));
 
   vm->templates = sp_template_registry_create(mem);
-  if (!sp_fs_is_dir(vm->paths.templates) || sp_template_load_dir(vm->templates, vm->paths.templates)) {
+  if (sp_template_load_dir(vm->templates, vm->paths.templates)) {
     return WINVM_INIT_ERR_TEMPLATES;
   }
 

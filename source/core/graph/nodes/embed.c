@@ -64,35 +64,56 @@ static spn_err_t embed_files(sp_mem_t mem, const si_dag_ctx_t* c, si_embed_t* em
       case SPN_EMBED_DIR: {
         spn_path_t root = entry.path;
         si_dag_observe(c, (spn_dag_obs_t) { .kind = SPN_DAG_OBS_ENUMERATION, .path = root });
-        sp_fs_it_t walk = sp_fs_it_new_at(mem, spn_path_at(roots, root), 0);
-        while (sp_fs_it_walk(&walk)) {
-          sp_str_t rel = walk.entry.rel;
-          if (walk.entry.kind == SP_FS_KIND_DIR) {
-            si_dag_observe(c, (spn_dag_obs_t) { .kind = SPN_DAG_OBS_ENUMERATION, .path = spn_path_join(mem, root, rel) });
-            continue;
-          }
-          if (!sp_fs_is_file_at(walk.at)) continue;
-          spn_path_t file = spn_path_join(mem, root, rel);
-          si_dag_observe(c, (spn_dag_obs_t) { .kind = SPN_DAG_OBS_FILE, .path = file });
-          sp_str_t content = sp_zero;
-          if (sp_io_read_file_at(embedder->mem, walk.at, &content) != SP_OK) {
-            spn_event_buffer_push(spn.events, (spn_event_t) {
-              .kind = SPN_EVENT_EMBED_FAILED,
-              .pkg = unit->pkg->pkg.manifest->name.str,
-              .embed_failed = { .target = eval->info->name.str, .path = spn_path_copy(spn.events->mem, file), .error = sp_str_lit("file not found") },
-            });
-            sp_fs_it_deinit(&walk);
-            return SPN_ERR_DAG_ACTION;
-          }
-          sp_mem_buffer_t entry_data = {
-            .data = (u8*)(uintptr_t)content.data,
-            .len = content.len,
-            .capacity = content.len,
-          };
-          sp_str_t dest = sp_fs_join_path(mem, entry.dest, rel);
-          spn_cc_embed_ctx_add(embedder, entry_data, spn_cc_symbol_from_embedded_file(mem, dest), dest, types.data, types.size);
+        sp_sys_dir_t dir = sp_zero;
+        sp_err_t err = sp_fs_open_dir_at(spn_path_at(roots, root), &dir);
+        if (err == SP_ERR_SYS_NOT_FOUND) {
+          break;
         }
-        sp_fs_it_deinit(&walk);
+        if (!err) {
+          sp_fs_it_t walk = sp_fs_it(mem, dir);
+          sp_fs_it_entry_t child = sp_zero;
+          while (sp_fs_it_next(&walk, &child)) {
+            sp_str_t rel = child.path;
+            if (child.kind == SP_FS_KIND_DIR) {
+              si_dag_observe(c, (spn_dag_obs_t) { .kind = SPN_DAG_OBS_ENUMERATION, .path = spn_path_join(mem, root, rel) });
+              continue;
+            }
+            if (!sp_fs_is_file_at(child.at)) {
+              continue;
+            }
+            spn_path_t file = spn_path_join(mem, root, rel);
+            si_dag_observe(c, (spn_dag_obs_t) { .kind = SPN_DAG_OBS_FILE, .path = file });
+            sp_str_t content = sp_zero;
+            if (sp_io_read_file_at(embedder->mem, child.at, &content) != SP_OK) {
+              spn_event_buffer_push(spn.events, (spn_event_t) {
+                .kind = SPN_EVENT_EMBED_FAILED,
+                .pkg = unit->pkg->pkg.manifest->name.str,
+                .embed_failed = { .target = eval->info->name.str, .path = spn_path_copy(spn.events->mem, file), .error = sp_str_lit("file not found") },
+              });
+              sp_fs_it_deinit(&walk);
+              sp_fs_close_dir(dir);
+              return SPN_ERR_DAG_ACTION;
+            }
+            sp_mem_buffer_t entry_data = {
+              .data = (u8*)(uintptr_t)content.data,
+              .len = content.len,
+              .capacity = content.len,
+            };
+            sp_str_t dest = sp_fs_join_path(mem, entry.dest, rel);
+            spn_cc_embed_ctx_add(embedder, entry_data, spn_cc_symbol_from_embedded_file(mem, dest), dest, types.data, types.size);
+          }
+          sp_fs_it_deinit(&walk);
+          sp_fs_close_dir(dir);
+          err = walk.err;
+        }
+        if (err) {
+          spn_event_buffer_push(spn.events, (spn_event_t) {
+            .kind = SPN_EVENT_EMBED_FAILED,
+            .pkg = unit->pkg->pkg.manifest->name.str,
+            .embed_failed = { .target = eval->info->name.str, .path = root, .error = sp_str_lit("file not found") },
+          });
+          return SPN_ERR_DAG_ACTION;
+        }
         break;
       }
     }

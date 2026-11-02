@@ -132,9 +132,16 @@ static spn_err_t install(spn_toolchain_store_t* store, sp_mem_t scratch, spn_too
 
   sp_fs_remove_file_at(tarball_at);
 
-  sp_fs_it_t extracted = sp_fs_it_new_at(scratch, work, 0);
-  bool empty = !sp_fs_it_next(&extracted);
-  sp_fs_it_deinit(&extracted);
+  bool empty = true;
+  sp_sys_dir_t extracted = sp_zero;
+  if (!sp_fs_open_dir_at(work, &extracted)) {
+    SP_ALIGNED u8 buf [SP_SYS_DIR_MIN_BUF];
+    sp_fs_dir_it_t it = sp_fs_dir_it(extracted);
+    sp_fs_dir_entry_t entry = sp_zero;
+    empty = !sp_fs_dir_it_next(&it, sp_mem_slice(buf, sizeof(buf)), &entry);
+    sp_fs_dir_it_close(&it);
+    sp_fs_close_dir(extracted);
+  }
   if (extract.status.exit_code || empty) {
     sp_fs_remove_dir_at(work);
     return spn_err_emit(&spn, (spn_err_union_t) {

@@ -225,7 +225,7 @@ docker_init_err_t docker_init(docker_t* docker, sp_mem_t mem) {
   }
 
   docker->templates = sp_template_registry_create(mem);
-  if (!sp_fs_is_dir(docker->paths.templates) || sp_template_load_dir(docker->templates, docker->paths.templates)) {
+  if (sp_template_load_dir(docker->templates, docker->paths.templates)) {
     return DOCKER_INIT_ERR_TEMPLATES;
   }
 
