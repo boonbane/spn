@@ -74,7 +74,7 @@ spn_err_t spn_op_test(spn_op_t* op) {
 
   spn_test_result_t* result = &op->result.test;
 
-  si_da_for_ptr(session->plan.staged, closure) {
+  si_da_for_ptr(session->plan.closures, closure) {
     spn_target_unit_t* unit = closure->exe.target;
     if (unit->target->info->kind != SPN_TARGET_KIND_TEST) {
       continue;

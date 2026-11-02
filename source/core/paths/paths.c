@@ -201,6 +201,14 @@ spn_path_t spn_path_project_build() {
   return (spn_path_t) { .root = SPN_PATH_ROOT_PROJECT, .sub = sp_str_lit("build") };
 }
 
+spn_path_t spn_path_project_staged() {
+  return (spn_path_t) { .root = SPN_PATH_ROOT_PROJECT, .sub = sp_str_lit(".spn/staged") };
+}
+
+spn_path_t spn_path_project_compile_commands() {
+  return (spn_path_t) { .root = SPN_PATH_ROOT_PROJECT, .sub = sp_str_lit("compile_commands.json") };
+}
+
 spn_path_t spn_path_copy(sp_mem_t mem, spn_path_t path) {
   return (spn_path_t) { .root = path.root, .sub = sp_str_copy(mem, path.sub) };
 }

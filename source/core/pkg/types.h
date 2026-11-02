@@ -81,6 +81,12 @@ typedef struct {
   si_da(spn_path_t) files;
 } spn_pkg_patch_t;
 
+typedef struct {
+  spn_dir_t dir;
+  sp_str_t sub;
+  sp_str_t to;
+} spn_stage_copy_t;
+
 struct si_pkg_info {
   sp_str_t namespace;
   sp_intern_str_t name;
@@ -97,6 +103,7 @@ struct si_pkg_info {
   spn_gated_list_t define;
   spn_gated_list_t system_deps;
   si_da(spn_gated_publish_t) publish;
+  si_da(spn_stage_copy_t) stage;
   struct {
     spn_gated_list_t frameworks;
     spn_os_version_t min_os;

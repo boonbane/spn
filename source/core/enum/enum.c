@@ -285,6 +285,15 @@ sp_str_t spn_dir_to_str(spn_dir_t dir) {
   SP_UNREACHABLE_RETURN(sp_str_lit(""));
 }
 
+spn_dir_t spn_dir_from_str(sp_str_t str) {
+  for (spn_dir_t dir = SPN_DIR_CACHE; dir <= SPN_DIR_BIN; dir++) {
+    if (sp_str_equal(str, spn_dir_to_str(dir))) {
+      return dir;
+    }
+  }
+  return SPN_DIR_NONE;
+}
+
 spn_sanitizer_t spn_sanitizer_from_str(sp_str_t str) {
   if (sp_str_equal_cstr(str, "address")) {
     return SPN_SANITIZER_ADDRESS;

@@ -336,6 +336,7 @@ set(DAG_TEST_SOURCES
   ${SRC}/dag/stamp.c
   ${SRC}/dag/store.c
   ${SRC}/external/wasm/wasi.c
+  ${SRC}/stage/stage.c
   ${SRC}/hash/digest/digest.c
   ${SRC}/hash/sha256/sha256.c
   ${SRC}/paths/paths.c

@@ -181,6 +181,41 @@ static si_da(spn_gated_publish_t) lower_publish(spn_toml_loader_t* ctx, const sp
   return publish;
 }
 
+static void lower_stage(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, si_pkg_info_t* out) {
+  spn_toml_loader_push_key(ctx, "stage");
+  spn_toml_loader_push_key(ctx, "copy");
+  sp_da_for(cg->stage.copy, it) {
+    const spn_cg_stage_entry_t* entry = &cg->stage.copy[it];
+    spn_toml_loader_push_index(ctx, it);
+    spn_toml_loader_push_key(ctx, "from");
+    sp_str_pair_t split = sp_str_cleave_c8(entry->from, '/');
+    spn_dir_t dir = spn_dir_from_str(split.first);
+    bool ok = lower_path_ok(ctx, entry->from);
+    if (ok && dir == SPN_DIR_NONE) {
+      spn_toml_loader_issue_at(ctx, SPN_ERR_CODEGEN_INVALID, entry->from);
+      ok = false;
+    }
+    if (ok && sp_str_empty(split.second)) {
+      spn_toml_loader_issue_at(ctx, SPN_ERR_CODEGEN_PATH, entry->from);
+      ok = false;
+    }
+    if (ok && !sp_glob_parse_meta(split.second).literal) {
+      spn_toml_loader_issue_at(ctx, SPN_ERR_CODEGEN_INVALID, entry->from);
+      ok = false;
+    }
+    spn_toml_loader_pop(ctx);
+    spn_toml_loader_push_key(ctx, "to");
+    ok = lower_path_ok(ctx, entry->to) && ok;
+    spn_toml_loader_pop(ctx);
+    spn_toml_loader_pop(ctx);
+    if (ok) {
+      si_da_push(ctx->mem, out->stage, ((spn_stage_copy_t) { .dir = dir, .sub = split.second, .to = entry->to }));
+    }
+  }
+  spn_toml_loader_pop(ctx);
+  spn_toml_loader_pop(ctx);
+}
+
 static void lower_target(spn_toml_loader_t* ctx, const spn_cg_target_t* cg, si_target_info_t* target) {
   *target = (si_target_info_t) {
     .id = target->id,
@@ -1193,6 +1228,7 @@ void spn_manifest_lower(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, si_
   lower_targets(ctx, cg, pkg);
   lower_deps(ctx, cg, pkg);
   lower_options(ctx, cg, pkg);
+  lower_stage(ctx, cg, pkg);
 
   validate_names(ctx, cg);
   validate_lib_linkages(ctx, cg);

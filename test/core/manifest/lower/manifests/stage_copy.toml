@@ -1,0 +1,9 @@
+[package]
+name = "t"
+version = "0.0.1"
+
+[stage]
+copy = [
+  { from = "work/G.txt", to = "gen/G.txt" },
+  { from = "vendor/D", to = "share/D" },
+]

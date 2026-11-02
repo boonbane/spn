@@ -409,8 +409,10 @@ spn_err_t units_add_roots(units_t* u, const graph_root_t* roots, u32 count, si_d
 }
 
 spn_err_t units_plan(units_t* u, si_da(spn_target_unit_t*) targets) {
-  spn_try(spn_plan_new(&u->configure, SP_NULLPTR, &u->configured));
-  return spn_plan_new(&u->units, targets, &u->plan);
+  spn_pkg_unit_t* root = SP_NULLPTR;
+  spn_try(units_add_package(u, u->graph->pkgs[0].name, &root));
+  spn_try(spn_plan_new(&u->configure, SP_NULLPTR, SP_NULLPTR, &u->configured));
+  return spn_plan_new(&u->units, root, targets, &u->plan);
 }
 
 spn_target_unit_t* units_find_target(units_t* u, const c8* name, spn_target_kind_t kind) {

@@ -34,6 +34,7 @@ typedef struct {
   const c8* name;
   decl_t outputs [4];
   decl_t inputs [4];
+  decl_t claims [4];
   expect_t expect;
 } test_t;
 
@@ -84,6 +85,45 @@ static const test_t tests [] = {
     .outputs = { { "/R/C", .tree = true } },
     .expect = { .err = SPN_ERR_DAG_TREE_ROOT, .path = "/R/C" },
   },
+  {
+    .name = "claim_beside_artifacts_ok",
+    .outputs = { { "/R/T", .tree = true } },
+    .inputs = { { "/R/S" } },
+    .claims = { { "/R/G", .tree = true }, { "/R/X" } },
+  },
+  {
+    .name = "claim_on_source_rejected",
+    .inputs = { { "/R/S" } },
+    .claims = { { "/R/S" } },
+    .expect = { .err = SPN_ERR_STAGE_OVERLAP, .path = "/R/S" },
+  },
+  {
+    .name = "source_under_claimed_tree_rejected",
+    .inputs = { { "/R/G/S" } },
+    .claims = { { "/R/G", .tree = true } },
+    .expect = { .err = SPN_ERR_STAGE_OVERLAP, .path = "/R/G/S" },
+  },
+  {
+    .name = "claim_under_tree_output_rejected",
+    .outputs = { { "/R/T", .tree = true } },
+    .claims = { { "/R/T/X" } },
+    .expect = { .err = SPN_ERR_STAGE_OVERLAP, .path = "/R/T/X" },
+  },
+  {
+    .name = "claim_over_root_rejected",
+    .claims = { { "/R/C", .tree = true } },
+    .expect = { .err = SPN_ERR_STAGE_OVERLAP, .path = "/R/C" },
+  },
+  {
+    .name = "duplicate_claim_rejected",
+    .claims = { { "/R/X" }, { "/R/X" } },
+    .expect = { .err = SPN_ERR_STAGE_OVERLAP, .path = "/R/X" },
+  },
+  {
+    .name = "claim_under_claimed_tree_rejected",
+    .claims = { { "/R/G", .tree = true }, { "/R/G/X" } },
+    .expect = { .err = SPN_ERR_STAGE_OVERLAP, .path = "/R/G/X" },
+  },
 };
 
 sp_test_each(dag_graph, validate, test_t, tests) {
@@ -109,6 +149,16 @@ sp_test_each(dag_graph, validate, test_t, tests) {
     const decl_t* decl = &it->inputs[in];
     spn_dag_id_t artifact = spn_dag_add_path(g, spn_path_make(roots, sp_str_view(decl->path)), decl->tree ? SPN_DAG_ARTIFACT_KIND_TREE : SPN_DAG_ARTIFACT_KIND_FILE);
     spn_dag_action_add_input(g, actions[0], artifact);
+  }
+
+  u32 claims = 0;
+  sp_carr_detect_len(it->claims, claims, it->claims[claims].path);
+  sp_for(ct, claims) {
+    const decl_t* decl = &it->claims[ct];
+    spn_dag_add_claim(g, (spn_dag_claim_t) {
+      .path = spn_path_make(roots, sp_str_view(decl->path)),
+      .kind = decl->tree ? SPN_DAG_ARTIFACT_KIND_TREE : SPN_DAG_ARTIFACT_KIND_FILE,
+    });
   }
 
   spn_dag_diag_t violation = spn_dag_validate(g);

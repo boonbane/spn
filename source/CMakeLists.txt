@@ -106,6 +106,7 @@ set(SPN_SOURCES
   core/semver/parser.c
   core/graph/invocation.c
   core/session/options.c
+  core/stage/stage.c
   core/session/session.c
   core/hash/digest/digest.c
   core/hash/sha256/sha256.c

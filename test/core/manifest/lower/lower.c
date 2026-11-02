@@ -43,6 +43,12 @@ typedef struct {
 } publish_t;
 
 typedef struct {
+  const c8* sub;
+  const c8* to;
+  spn_dir_t dir;
+} stage_t;
+
+typedef struct {
   const c8* path;
   const c8* dest;
   const c8* data_type;
@@ -181,6 +187,7 @@ typedef struct {
   gated_t system_deps [8];
   gated_t frameworks [4];
   publish_t publish [4];
+  stage_t stage [4];
   issue_t issues [8];
   target_t libs [8];
   target_t exes [8];
@@ -1331,6 +1338,39 @@ static const test_t tests [] = {
     },
   },
   {
+    .name = "stage_copy",
+    .manifest = "stage_copy",
+    .stage = {
+      { "G.txt", "gen/G.txt", SPN_DIR_WORK },
+      { "D", "share/D", SPN_DIR_VENDOR },
+    },
+  },
+  {
+    .name = "validate_stage_from_unknown",
+    .manifest = "validate_stage_from_unknown",
+    .issues = { { SPN_ERR_CODEGEN_INVALID, "stage.copy[0].from" } },
+  },
+  {
+    .name = "validate_stage_from_empty",
+    .manifest = "validate_stage_from_empty",
+    .issues = { { SPN_ERR_CODEGEN_PATH, "stage.copy[0].from" } },
+  },
+  {
+    .name = "validate_stage_from_glob",
+    .manifest = "validate_stage_from_glob",
+    .issues = { { SPN_ERR_CODEGEN_INVALID, "stage.copy[0].from" } },
+  },
+  {
+    .name = "validate_stage_to_absolute",
+    .manifest = "validate_stage_to_absolute",
+    .issues = { { SPN_ERR_CODEGEN_ABSOLUTE, "stage.copy[0].to" } },
+  },
+  {
+    .name = "validate_stage_to_dotdot",
+    .manifest = "validate_stage_to_dotdot",
+    .issues = { { SPN_ERR_CODEGEN_PATH, "stage.copy[0].to" } },
+  },
+  {
     .name = "validate_publish_from_tree",
     .manifest = "validate_publish_from_tree",
     .issues = {
@@ -1579,6 +1619,22 @@ static sp_err_t check_publish_list(sp_test_t* t, sp_da(spn_gated_publish_t) actu
   sp_try(check_publish_list(t, actual, expected, num_publish)); \
 } while (0)
 
+static sp_err_t check_stage_list(sp_test_t* t, si_da(spn_stage_copy_t) actual, const stage_t* expected, u32 n) {
+  sp_must_eq(t, n, (u32)si_da_size(actual));
+  sp_for(it, n) {
+    sp_expect_eq(t, (u32)expected[it].dir, (u32)actual[it].dir);
+    sp_expect_str_eq_c(t, actual[it].sub, expected[it].sub);
+    sp_expect_str_eq_c(t, actual[it].to, expected[it].to);
+  }
+  return SP_OK;
+}
+
+#define check_stage(t, actual, expected) do { \
+  u32 num_stage = 0; \
+  sp_carr_detect_len(expected, num_stage, (expected)[num_stage].sub); \
+  sp_try(check_stage_list(t, actual, expected, num_stage)); \
+} while (0)
+
 static sp_err_t check_gated_path_list(sp_test_t* t, spn_gated_path_list_t actual, const gated_t* expected, u32 n) {
   sp_must_eq(t, n, (u32)sp_da_size(actual));
   sp_for(it, n) {
@@ -1718,6 +1774,7 @@ sp_test_each(lower, cases, test_t, tests, .setup = spn_test_ctx_setup) {
   check_gated(t, pkg->system_deps, it->system_deps);
   check_gated(t, pkg->macos.frameworks, it->frameworks);
   check_publish(t, pkg->publish, it->publish);
+  check_stage(t, pkg->stage, it->stage);
   check_gated_paths(t, pkg->include, it->include);
   const si_target_info_t* build = get_target(pkg, sp_str_lit("build"), SPN_TARGET_KIND_BUILD_METAPROGRAM);
   check_gated_sources(t, build ? build->source : SP_NULLPTR, it->build_source);

@@ -373,7 +373,7 @@ static spn_path_t staged_path(sp_mem_t mem, spn_target_unit_t* unit) {
   return path;
 }
 
-static spn_err_t plan_new(spn_units_t* u, sp_mem_t scratch, si_da(spn_target_unit_t*) roots, spn_build_plan_t* plan) {
+static spn_err_t plan_new(spn_units_t* u, sp_mem_t scratch, spn_pkg_unit_t* root, si_da(spn_target_unit_t*) roots, spn_build_plan_t* plan) {
   *plan = sp_zero_s(spn_build_plan_t);
 
   sp_om_for(u->packages, pt) {
@@ -477,20 +477,21 @@ static spn_err_t plan_new(spn_units_t* u, sp_mem_t scratch, si_da(spn_target_uni
 
   si_ht(spn_path_t, spn_target_unit_t*) claimed = sp_zero;
   si_ht_init_ex(scratch, claimed, spn_path_on_hash, spn_path_on_compare);
-  si_da_for_value(roots, root) {
-    spn_path_t staged = staged_path(u->mem, root);
+  si_da_for_value(roots, exe) {
+    spn_path_t staged = staged_path(u->mem, exe);
     if (spn_path_empty(staged)) {
       continue;
     }
     spn_stage_closure_t closure = {
       .exe = {
-        .target = root,
+        .target = exe,
         .path = staged,
       },
     };
+    si_da_push(u->mem, plan->claims, ((spn_dag_claim_t) { .path = staged, .kind = SPN_DAG_ARTIFACT_KIND_FILE }));
     spn_path_t dir = spn_path_parent(closure.exe.path);
     si_closure_it_t it = si_closure_it(scratch, SI_CLOSURE_CHASE_SHARED);
-    si_closure_it_push(&it, root);
+    si_closure_it_push(&it, exe);
     while (si_closure_it_next(&it)) {
       if (it.entry.yield != SI_CLOSURE_YIELD_LIB) {
         continue;
@@ -505,24 +506,49 @@ static spn_err_t plan_new(spn_units_t* u, sp_mem_t scratch, si_da(spn_target_uni
         return spn_err_emit(u->ctx, (spn_err_union_t) {
           .kind = SPN_ERR_TARGET_COLLISION,
           .collision = {
-            .exe = root->target->info->name.str,
+            .exe = exe->target->info->name.str,
             .pkg = (*owner)->pkg->pkg.manifest->name.str,
             .other = lib->pkg->pkg.manifest->name.str,
             .name = lib->emit.output,
           },
         });
       }
-      si_ht_insert(scratch, claimed, path, lib);
+      if (!owner) {
+        si_ht_insert(scratch, claimed, path, lib);
+        si_da_push(u->mem, plan->claims, ((spn_dag_claim_t) { .path = path, .kind = SPN_DAG_ARTIFACT_KIND_FILE }));
+      }
       si_da_push(u->mem, closure.libs, ((spn_stage_entry_t) { .target = lib, .path = path }));
     }
-    si_da_push(u->mem, plan->staged, closure);
+    si_da_push(u->mem, plan->closures, closure);
+  }
+
+  if (root) {
+    si_da_for_value(root->pkg.manifest->stage, copy) {
+      spn_user_output_t* from = SP_NULLPTR;
+      sp_da_for(root->user_nodes, nt) {
+        si_da_for_ptr(root->user_nodes[nt].outputs, output) {
+          if (output->dir == copy.dir && sp_str_equal(output->sub, copy.sub)) {
+            from = output;
+          }
+        }
+      }
+      if (!from) {
+        return spn_err_emit(u->ctx, (spn_err_union_t) {
+          .kind = SPN_ERR_STAGE_UNPRODUCED,
+          .dag = { .path = sp_fmt(u->ctx->events->mem, "{}/{}", sp_fmt_str(spn_dir_to_str(copy.dir)), sp_fmt_str(copy.sub)).value },
+        });
+      }
+      spn_path_t to = spn_path_join(u->mem, spn_path_from_root(SPN_PATH_ROOT_PROJECT), copy.to);
+      si_da_push(u->mem, plan->stages, ((spn_stage_plan_t) { .from = from, .to = to }));
+      si_da_push(u->mem, plan->claims, ((spn_dag_claim_t) { .path = to, .kind = from->kind }));
+    }
   }
   return SPN_OK;
 }
 
-spn_err_t spn_plan_new(spn_units_t* u, si_da(spn_target_unit_t*) roots, spn_build_plan_t* plan) {
+spn_err_t spn_plan_new(spn_units_t* u, spn_pkg_unit_t* root, si_da(spn_target_unit_t*) roots, spn_build_plan_t* plan) {
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  spn_err_t err = plan_new(u, scratch.mem, roots, plan);
+  spn_err_t err = plan_new(u, scratch.mem, root, roots, plan);
   sp_mem_end_scratch(scratch);
   return err;
 }
