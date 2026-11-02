@@ -888,10 +888,13 @@ static sp_err_t sp_sim_sys_chdir(const c8* path, u32 len) {
 
 static sp_err_t sp_sim_sys_dir_it_open(sp_sys_dir_t dir, sp_sys_dir_it_t* out) {
   sp_sim_t* sim = sp_sim_syscall();
-  if (dir.fd == SP_SYS_INVALID_FD) {
+  if (dir.fd == SP_SYS_INVALID_FD || dir.fd == SP_SIM_ROOT) {
     return SP_ERR_SYS_BAD_FD;
   }
   sp_sim_fd_t* entry = sp_sim_fd(dir.fd);
+  if (entry->node->kind != SP_FS_KIND_DIR) {
+    return SP_ERR_SYS_NOT_DIR;
+  }
 
   // The listing is serialized at open, like the kernel snapshotting a readdir
   u64 need = 0;
@@ -945,7 +948,6 @@ static sp_err_t sp_sim_sys_dir_it_parse(sp_sys_dir_it_t* dir, sp_mem_buffer_t* b
 }
 
 static sp_err_t sp_sim_sys_dir_it_close(sp_sys_dir_it_t* dir) {
-  sp_sim_fd(dir->dir.fd);
   return SP_OK;
 }
 
