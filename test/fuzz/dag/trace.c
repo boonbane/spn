@@ -909,11 +909,18 @@ static fz_err_t trace_body(sp_mem_t mem, sp_sim_t* sim, fz_universe_t* u, fz_tra
         }
         spn_dag_digest_t digest = blobs[step->entropy % sp_da_size(blobs)];
         sp_str_t dir = sp_fmt(mem, "/store/{}", sp_fmt_str(spn_dag_digest_hex(mem, digest))).value;
-        sp_da(sp_fs_entry_t) entries = sp_zero;
-        sp_fs_collect(mem, dir, &entries);
-        sp_da_for(entries, et) {
-          sp_fs_remove_file(entries[et].path);
-          fz_journal_drop(w.j, sp_str_lit("blob"), entries[et].path);
+        sp_sys_dir_t blob = sp_zero;
+        if (!sp_fs_open_dir_at(sp_path_from_str(dir), &blob)) {
+          SP_ALIGNED u8 buf [SP_SYS_DIR_MIN_BUF];
+          sp_fs_dir_it_t it = sp_fs_dir_it(blob);
+          sp_fs_dir_entry_t entry = sp_zero;
+          while (sp_fs_dir_it_next(&it, sp_mem_slice(buf, sizeof(buf)), &entry)) {
+            sp_str_t path = sp_fs_join_path(mem, dir, entry.name);
+            sp_fs_remove_file(path);
+            fz_journal_drop(w.j, sp_str_lit("blob"), path);
+          }
+          sp_fs_dir_it_close(&it);
+          sp_fs_close_dir(blob);
         }
         sp_dag_track_drop_blob(&w.track, digest);
         break;

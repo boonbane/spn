@@ -157,6 +157,23 @@ static sp_str_t which(sp_mem_t mem, const c8* tool) {
   return sp_zero_s(sp_str_t);
 }
 
+static u32 count_entries(sp_str_t path) {
+  u32 count = 0;
+  sp_sys_dir_t dir = sp_zero;
+  if (sp_fs_open_dir_at(sp_path_from_str(path), &dir)) {
+    return count;
+  }
+  SP_ALIGNED u8 buf [SP_SYS_DIR_MIN_BUF];
+  sp_fs_dir_it_t it = sp_fs_dir_it(dir);
+  sp_fs_dir_entry_t entry = sp_zero;
+  while (sp_fs_dir_it_next(&it, sp_mem_slice(buf, sizeof(buf)), &entry)) {
+    count++;
+  }
+  sp_fs_dir_it_close(&it);
+  sp_fs_close_dir(dir);
+  return count;
+}
+
 static sp_err_t stub_at(sp_test_t* t, fixture_t* fx, sp_str_t path, sp_str_t body) {
   sp_fs_remove_file(path);
   sp_must_eq(t, (u32)SP_OK, (u32)sp_fs_create_file_str(path, body));
@@ -393,12 +410,7 @@ sp_test_each(install_shim, cases, test_t, tests) {
     sp_expect(t, !sp_fs_exists(ps_args));
   }
 
-  sp_da(sp_fs_entry_t) staged = sp_zero;
-  sp_fs_collect(fx.mem, fx.tmp, &staged);
-  sp_expect_eq(t, 0, sp_da_size(staged));
-
-  sp_da(sp_fs_entry_t) home = sp_zero;
-  sp_fs_collect(fx.mem, fx.home, &home);
-  sp_expect_eq(t, 0, sp_da_size(home));
+  sp_expect_eq(t, 0u, count_entries(fx.tmp));
+  sp_expect_eq(t, 0u, count_entries(fx.home));
   return SP_OK;
 }

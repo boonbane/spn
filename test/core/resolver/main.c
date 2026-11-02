@@ -91,10 +91,6 @@ static sp_str_t get_fixture_dir(sp_test_t* t, sp_mem_t mem) {
   return test_repo_path(mem, sp_fs_join_path(mem, sp_str_lit("test/core/resolver/fixtures"), name));
 }
 
-static s32 sort_dir_entries(const void* a, const void* b) {
-  return sp_str_compare_alphabetical(((const sp_fs_entry_t*)a)->name, ((const sp_fs_entry_t*)b)->name);
-}
-
 static sp_err_t load_config(sp_test_t* t, sp_mem_t mem, sp_str_t dir, fx_config_t* config) {
   sp_str_t path = sp_fs_join_path(mem, dir, sp_str_lit("fixture.toml"));
   if (!sp_fs_is_target_file(path)) {
@@ -162,27 +158,37 @@ s32 main(s32 argc, const c8** argv) {
 
   spn.intern = sp_intern_new(sp_mem_os_new());
 
-  sp_da(sp_fs_entry_t) entries = sp_zero;
-  sp_fs_collect(mem, test_repo_path(mem, sp_str_lit("test/core/resolver/fixtures")), &entries);
-  sp_da_sort(entries, sort_dir_entries);
+  sp_da(sp_str_t) fixtures = sp_da_new(mem, sp_str_t);
+  sp_sys_dir_t dir = sp_zero;
+  if (!sp_fs_open_dir_at(sp_path_from_str(test_repo_path(mem, sp_str_lit("test/core/resolver/fixtures"))), &dir)) {
+    SP_ALIGNED u8 buf [SP_SYS_DIR_MIN_BUF];
+    sp_fs_dir_it_t listing = sp_fs_dir_it(dir);
+    sp_fs_dir_entry_t entry = sp_zero;
+    while (sp_fs_dir_it_next(&listing, sp_mem_slice(buf, sizeof(buf)), &entry)) {
+      if (entry.kind != SP_FS_KIND_DIR) {
+        continue;
+      }
+      if (sp_str_starts_with(entry.name, sp_str_lit("."))) {
+        continue;
+      }
+      sp_da_push(fixtures, sp_str_copy(mem, entry.name));
+    }
+    sp_fs_dir_it_close(&listing);
+    sp_fs_close_dir(dir);
+  }
+  sp_da_sort(fixtures, sp_str_sort_kernel_alphabetical);
 
   sp_da(sp_test_entry_t) tests = sp_da_new(mem, sp_test_entry_t);
   sp_da_push(tests, ((sp_test_entry_t) {
     .kind = SP_TEST_ENTRY_SUITE,
     .suite = { .name = "resolver", .serial = true },
   }));
-  sp_da_for(entries, it) {
-    if (entries[it].kind != SP_FS_KIND_DIR) {
-      continue;
-    }
-    if (sp_str_starts_with(entries[it].name, sp_str_lit("."))) {
-      continue;
-    }
+  sp_da_for(fixtures, it) {
     sp_da_push(tests, ((sp_test_entry_t) {
       .kind = SP_TEST_ENTRY_TEST,
       .decl = {
         .suite = "resolver",
-        .name = sp_str_to_cstr(mem, entries[it].name),
+        .name = sp_str_to_cstr(mem, fixtures[it]),
         .kind = SP_TEST_DECL_FN,
         .fn = run_fixture,
       },
