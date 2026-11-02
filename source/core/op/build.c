@@ -20,6 +20,7 @@
 #include "project/types.h"
 #include "session/session.h"
 #include "session/types.h"
+#include "stage/stage.h"
 #include "triple/triple.h"
 #include "unit/types.h"
 #include "unit/unit.h"
@@ -34,6 +35,76 @@ static bool is_selected(si_target_selection_t* selection, const si_target_info_t
     }
   }
   return true;
+}
+
+static void claim_spn_files(sp_mem_t mem, spn_project_t* project, spn_build_plan_t* plan) {
+  si_da_push(mem, plan->claims, ((spn_dag_claim_t) { .path = spn_path_project_compile_commands(), .kind = SPN_DAG_ARTIFACT_KIND_FILE }));
+  si_da_push(mem, plan->claims, ((spn_dag_claim_t) { .path = project->paths.lock, .kind = SPN_DAG_ARTIFACT_KIND_FILE }));
+  si_da_push(mem, plan->claims, ((spn_dag_claim_t) { .path = spn_path_project_staged(), .kind = SPN_DAG_ARTIFACT_KIND_FILE }));
+}
+
+static spn_err_t stage_rows(sp_mem_t scratch, spn_dag_build_t* b, si_da(spn_dag_stage_t) stages, si_da(spn_stage_t)* rows) {
+  si_da_for_ptr(stages, stage) {
+    const spn_dag_artifact_state_t* state = spn_dag_run_artifact(&b->run, stage->artifact);
+    switch (spn_dag_find_artifact(b->graph, stage->artifact)->kind) {
+      case SPN_DAG_ARTIFACT_KIND_FILE: {
+        si_da_push(scratch, *rows, ((spn_stage_t) { .key = stage->key, .to = stage->to, .digest = state->digest, .location = state->location }));
+        break;
+      }
+      case SPN_DAG_ARTIFACT_KIND_TREE: {
+        sp_da(spn_dag_action_output_t) entries = sp_zero;
+        spn_err_t listed = spn_dag_tree_entries(b->run.store, state->digest, scratch, &entries);
+        if (listed) {
+          return spn_err_emit(b->session->ctx, (spn_err_union_t) {
+            .kind = listed,
+            .dag = { .path = spn_path_str(b->graph->roots, b->session->ctx->events->mem, stage->to) },
+          });
+        }
+        sp_da_for(entries, et) {
+          si_da_push(scratch, *rows, ((spn_stage_t) {
+            .key = stage->key,
+            .to = spn_path_join(scratch, stage->to, entries[et].name),
+            .digest = entries[et].digest,
+            .location = spn_path_join(scratch, state->location, entries[et].name),
+          }));
+        }
+        break;
+      }
+      case SPN_DAG_ARTIFACT_KIND_VALUE: {
+        sp_unreachable_case();
+      }
+    }
+  }
+  return SPN_OK;
+}
+
+static spn_err_t stage(sp_mem_t scratch, spn_dag_build_t* b, spn_pkg_unit_t* root) {
+  spn_session_t* session = b->session;
+  const spn_path_roots_t* roots = b->graph->roots;
+
+  si_da(sp_str_t) targets = sp_zero;
+  si_om_for_each(root->pkg.targets, target) {
+    si_da_push(scratch, targets, target->info->name.str);
+  }
+  si_da(sp_str_t) copies = sp_zero;
+  si_da_for_value(session->manifest->stage, copy) {
+    si_da_push(scratch, copies, copy.to);
+  }
+
+  si_da(spn_stage_t) profile = sp_zero;
+  si_da(spn_stage_t) checkout = sp_zero;
+  spn_try(stage_rows(scratch, b, b->stages.profile, &profile));
+  spn_try(stage_rows(scratch, b, b->stages.checkout, &checkout));
+
+  spn_path_t manifest = spn_path_join(scratch, session->builds.program->paths.root, sp_str_lit(".spn/staged"));
+  spn_stage_diag_t diag = spn_stage_apply(scratch, roots, b->run.files, manifest, targets, profile);
+  if (!diag.err) {
+    diag = spn_stage_apply(scratch, roots, b->run.files, spn_path_project_staged(), copies, checkout);
+  }
+  if (diag.err) {
+    return spn_err_emit(session->ctx, (spn_err_union_t) { .kind = diag.err, .fs = { .path = diag.path } });
+  }
+  return SPN_OK;
 }
 
 spn_err_t spn_op_build(spn_op_t* op) {
@@ -162,7 +233,8 @@ spn_err_t spn_op_build(spn_op_t* op) {
   }
 
   spn_build_plan_t plan = sp_zero;
-  spn_try(spn_plan_new(&configure, SP_NULLPTR, &plan));
+  spn_try(spn_plan_new(&configure, SP_NULLPTR, SP_NULLPTR, &plan));
+  claim_spn_files(mem, project, &plan);
   spn_dag_build_t* b = spn_dag_build_new(op);
   spn_try(spn_dag_build_lower(b, &plan));
   spn_try(spn_dag_build_run(b, spn_cpu_count()));
@@ -176,7 +248,8 @@ spn_err_t spn_op_build(spn_op_t* op) {
     spn_try(spn_wasm_configure(pkg, spn_dag_run_artifact(&b->run, ids->output)->location));
   }
 
-  spn_try(spn_plan_new(&units, targets, &session->plan));
+  spn_try(spn_plan_new(&units, root, targets, &session->plan));
+  claim_spn_files(mem, project, &session->plan);
 
   b = spn_dag_build_new(op);
   spn_try(spn_dag_build_lower(b, &session->plan));
@@ -211,7 +284,9 @@ spn_err_t spn_op_build(spn_op_t* op) {
     if (!sp_fs_exists_at(spn_path_at(roots, project->paths.lock))) {
       spn_try(spn_project_update_lock(ctx, project, session->resolve));
     }
-    result = spn_dag_build_stage(b);
+    sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+    result = stage(scratch.mem, b, root);
+    sp_mem_end_scratch(scratch);
     spn_dag_file_cache_flush(b->run.files, session->dag.files_path);
   }
 

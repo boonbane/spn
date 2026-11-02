@@ -19,8 +19,14 @@ typedef struct {
 } action_t;
 
 typedef struct {
+  const c8* path;
+  bool tree;
+} claim_t;
+
+typedef struct {
   source_t sources [DAG_TEST_MAX_INPUTS];
   const c8* remove_dirs [DAG_TEST_MAX_INPUTS];
+  claim_t claims [2];
   spn_err_t expect_err;
   const c8* expect_diag_path;
   u32 expect_runs;
@@ -241,6 +247,43 @@ static const test_t tests [] = {
       { .sources = { { "M", "A" }, { "H", "C" } }, .expect_runs = 2 },
     }
   },
+  {
+    .name = "observing_claimed_file_fails",
+    .actions = {
+      { .identity = "I", .inputs = { "M" }, .discovers = { "H" }, .output = "O" },
+    },
+    .builds = {
+      { .sources = { { "M", "A" }, { "H", "B" } }, .claims = { { "H" } }, .expect_err = SPN_ERR_STAGE_OBSERVED, .expect_diag_path = "H", .expect_runs = 1 },
+    }
+  },
+  {
+    .name = "observing_under_claimed_tree_fails",
+    .actions = {
+      { .identity = "I", .inputs = { "M" }, .discovers = { "G/H" }, .output = "O" },
+    },
+    .builds = {
+      { .sources = { { "M", "A" }, { "G/H", "B" } }, .claims = { { "G", .tree = true } }, .expect_err = SPN_ERR_STAGE_OBSERVED, .expect_diag_path = "G/H", .expect_runs = 1 },
+    }
+  },
+  {
+    .name = "hit_observing_claimed_file_fails",
+    .actions = {
+      { .identity = "I", .inputs = { "M" }, .discovers = { "H" }, .output = "O" },
+    },
+    .builds = {
+      { .sources = { { "M", "A" }, { "H", "B" } }, .expect_runs = 1 },
+      { .sources = { { "M", "A" }, { "H", "B" } }, .claims = { { "H" } }, .expect_err = SPN_ERR_STAGE_OBSERVED, .expect_diag_path = "H", .expect_runs = 1 },
+    }
+  },
+  {
+    .name = "claim_beside_observed_file_ok",
+    .actions = {
+      { .identity = "I", .inputs = { "M" }, .discovers = { "H" }, .output = "O" },
+    },
+    .builds = {
+      { .sources = { { "M", "A" }, { "H", "B" } }, .claims = { { "G", .tree = true } }, .expect_runs = 1 },
+    }
+  },
 };
 
 static spn_err_t execute_action(const si_dag_ctx_t* c, void* user_data) {
@@ -381,6 +424,15 @@ sp_test_each(dag_run, builds, test_t, tests) {
       spn_path_t output = dag_test_env_rooted(&env, sp_str_view(spec->output));
       spn_dag_id_t out_id = spec->tree ? spn_dag_add_tree(g, output) : spn_dag_add_file(g, output);
       sp_must_eq(t, SPN_OK, spn_dag_action_add_output(g, action, out_id));
+    }
+    sp_carr_for(build->claims, ci) {
+      if (!build->claims[ci].path) {
+        break;
+      }
+      spn_dag_add_claim(g, (spn_dag_claim_t) {
+        .path = dag_test_env_rooted(&env, sp_str_view(build->claims[ci].path)),
+        .kind = build->claims[ci].tree ? SPN_DAG_ARTIFACT_KIND_TREE : SPN_DAG_ARTIFACT_KIND_FILE,
+      });
     }
 
     spn_err_t err = dag_test_run(&env);

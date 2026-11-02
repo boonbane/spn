@@ -1470,6 +1470,22 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           sp_tty_fmt(&w, "{.cyan} doesn't exist, but is listed as an input", sp_fmt_str(get_contextual_path(ctx, mem, event->err.dag.path)));
           break;
         }
+        case SPN_ERR_STAGE_UNPRODUCED: {
+          sp_tty_fmt(&w, "{.cyan} is listed under [stage], but no node of this package produces it", sp_fmt_str(event->err.dag.path));
+          break;
+        }
+        case SPN_ERR_STAGE_OVERLAP: {
+          sp_tty_fmt(&w, "{.cyan} is both a [stage] destination and part of the build", sp_fmt_str(get_contextual_path(ctx, mem, event->err.dag.path)));
+          break;
+        }
+        case SPN_ERR_STAGE_OBSERVED: {
+          sp_tty_fmt(&w, "{.cyan} is a [stage] destination, which the build may not read", sp_fmt_str(get_contextual_path(ctx, mem, event->err.dag.path)));
+          break;
+        }
+        case SPN_ERR_STAGE_COLLISION: {
+          sp_tty_fmt(&w, "{.cyan} already exists and was not staged by spn; remove it or change its [stage] destination", sp_fmt_str(contextual_path(mem, event->err.fs.path)));
+          break;
+        }
         case SPN_ERR_DAG_MISSING_OUTPUT: {
           sp_tty_fmt(&w, "{.cyan} was not produced by the action that declares it as an output", sp_fmt_str(get_contextual_path(ctx, mem, event->err.dag.path)));
           break;

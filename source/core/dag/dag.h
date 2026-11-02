@@ -15,11 +15,13 @@ spn_dag_id_t        spn_dag_add_path(spn_dag_t* g, spn_path_t path, spn_dag_arti
 spn_dag_id_t        spn_dag_add_file(spn_dag_t* g, spn_path_t path);
 spn_dag_id_t        spn_dag_add_tree(spn_dag_t* g, spn_path_t path);
 spn_dag_id_t        spn_dag_add_output(spn_dag_t* g, sp_str_t name);
+void                spn_dag_add_claim(spn_dag_t* g, spn_dag_claim_t claim);
 spn_dag_id_t        spn_dag_add_action(spn_dag_t* g, spn_dag_action_config_t config);
 void                spn_dag_action_add_input(spn_dag_t* g, spn_dag_id_t action, spn_dag_id_t artifact);
 void                spn_dag_action_add_order(spn_dag_t* g, spn_dag_id_t action, spn_dag_id_t artifact);
 spn_err_t           spn_dag_action_add_output(spn_dag_t* g, spn_dag_id_t action, spn_dag_id_t artifact);
 bool                spn_dag_output_overlaps(const spn_dag_artifact_t* artifact, spn_path_t path);
+bool                spn_dag_claimed(const spn_dag_t* g, const spn_dag_obs_t* obs);
 spn_dag_diag_t      spn_dag_validate(const spn_dag_t* g);
 
 void                spn_dag_hash_bytes(spn_digest_ctx_t* ctx, const void* data, u64 len);

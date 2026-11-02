@@ -60,7 +60,7 @@ spn_err_t spn_dag_build_write_compile_commands(spn_dag_build_t* b, const spn_bui
   render(s.mem, b, plan, &buf.base);
   sp_str_t rendered = sp_io_dyn_mem_writer_as_str(&buf);
 
-  spn_path_t path = spn_path_join(s.mem, session->paths.root, sp_str_lit("compile_commands.json"));
+  spn_path_t path = spn_path_project_compile_commands();
   sp_str_t existing = sp_zero;
   sp_io_read_file_at(s.mem, spn_path_at(roots, path), &existing);
 

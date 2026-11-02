@@ -1120,6 +1120,9 @@ void spn_dag_run_attempt(spn_dag_run_t* run, spn_dag_id_t id) {
       if (present && strong_key(attempt, &set, &strong)) {
         attempt->hit = try_restore(attempt, strong);
       }
+      if (attempt->hit) {
+        attempt->obs.rows = set.obs;
+      }
       break;
     }
     case SPN_DAG_ACTION_UNCACHEABLE: {
@@ -1142,6 +1145,13 @@ void spn_dag_run_complete(spn_dag_run_t* run, spn_dag_id_t id) {
 
   if (run->diag.err) {
     return;
+  }
+
+  sp_da_for(attempt->obs.rows, it) {
+    if (spn_dag_claimed(run->g, &attempt->obs.rows[it])) {
+      run->diag = (spn_dag_diag_t) { .err = SPN_ERR_STAGE_OBSERVED, .action = action->id, .path = attempt->obs.rows[it].path };
+      return;
+    }
   }
 
   spn_err_t err = flight->err;

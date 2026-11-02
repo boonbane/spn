@@ -4,6 +4,7 @@
 
 #include "dag/node.h"
 #include "event/event.h"
+#include "external/wasm/wasi.h"
 #include "external/wasm/wasm.h"
 #include "graph/nodes/nodes.h"
 #include "paths/paths.h"
@@ -49,6 +50,18 @@ spn_err_t si_on_user_node(const si_dag_ctx_t* c, void* user_data) {
       return SPN_ERR_DAG_ACTION;
     }
     spn_err_t err = spn_wasm_script_call(&script, node->fn, SP_NULLPTR, 0);
+    spn_path_t stray = sp_zero;
+    if (!err && spn_wasi_stray_write(script.wasi, &stray)) {
+      spn_event_buffer_push(spn.events, (spn_event_t) {
+        .kind = SPN_EVENT_NODE_FAILED,
+        .pkg = unit->pkg.manifest->name.str,
+        .node_failed = {
+          .path = spn_path_str(roots, spn.events->mem, stray),
+          .message = sp_fmt(spn.events->mem, "was written by node {}, which may only write under /work and /store", sp_fmt_str(node->tag)).value,
+        },
+      });
+      err = SPN_ERR_DAG_ACTION;
+    }
     spn_wasm_script_close(&script);
     if (err) {
       return SPN_ERR_DAG_ACTION;

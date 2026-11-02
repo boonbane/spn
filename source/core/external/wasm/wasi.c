@@ -30,6 +30,7 @@ extern void (*spn_wasi_hook)(wasm_exec_env_t exec_env, s32 op, u32 fd,
 typedef struct {
   sp_str_t guest;
   spn_path_t host;
+  bool writable;
 } spn_wasi_dir_t;
 
 struct spn_wasi_t {
@@ -255,7 +256,8 @@ spn_wasi_t* spn_wasi_new(sp_mem_t mem, const spn_path_roots_t* roots, const spn_
   sp_for(it, count) {
     sp_da_push(w->mounts, ((spn_wasi_dir_t) {
       .guest = sp_str_from_cstr(mem, mounts[it].guest),
-      .host = spn_path_copy(mem, mounts[it].host)
+      .host = spn_path_canonicalize_head(mem, roots, mounts[it].host),
+      .writable = mounts[it].writable,
     }));
     sp_ht_insert(w->dirs, SPN_WASI_PREOPEN_BASE_FD + it, w->mounts[it].guest);
   }
@@ -283,4 +285,20 @@ void spn_wasi_observe_write(wasm_module_inst_t instance, spn_path_t host) {
   sp_mem_arena_marker_t s = sp_mem_begin_scratch();
   wasi_record_write(w, spn_path_canonicalize_head(s.mem, w->roots, host));
   sp_mem_end_scratch(s);
+}
+
+bool spn_wasi_stray_write(spn_wasi_t* w, spn_path_t* path) {
+  sp_ht_for_kv(w->writes, it) {
+    bool allowed = false;
+    sp_da_for(w->mounts, mt) {
+      if (w->mounts[mt].writable && spn_path_within(w->mounts[mt].host, *it.key).within) {
+        allowed = true;
+      }
+    }
+    if (!allowed) {
+      *path = *it.key;
+      return true;
+    }
+  }
+  return false;
 }

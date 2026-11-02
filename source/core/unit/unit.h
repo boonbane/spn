@@ -9,7 +9,7 @@
 spn_err_t         si_add_package_unit(spn_units_t* units, spn_build_unit_t* build, const spn_resolved_pkg_t* resolved, spn_pkg_unit_t** unit);
 spn_err_t         si_add_package_unit_closure(spn_units_t* units, spn_build_unit_t* build, const spn_resolved_pkg_t* resolved, spn_pkg_unit_t** pkg);
 spn_err_t         si_add_target_unit(spn_units_t* units, spn_pkg_unit_t* pkg, si_target_t* target, spn_target_unit_t** unit);
-spn_err_t         spn_plan_new(spn_units_t* units, si_da(spn_target_unit_t*) roots, spn_build_plan_t* plan);
+spn_err_t         spn_plan_new(spn_units_t* units, spn_pkg_unit_t* root, si_da(spn_target_unit_t*) roots, spn_build_plan_t* plan);
 
 sp_hash_t spn_unit_fingerprint(spn_units_t* units, spn_build_unit_t* build, const spn_resolved_pkg_t* resolved);
 sp_str_t  spn_unit_fingerprint_str(sp_mem_t mem, sp_hash_t fingerprint);
