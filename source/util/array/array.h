@@ -19,7 +19,7 @@ typedef struct SP_ALIGNED {
 #define si_da_value_t(arr) sp_type_of(arr[0])
 
 #define si_da_for_ptr(arr, it) \
-  for (__typeof__(arr) it = (arr); (it - (arr)) < si_da_size(arr); it++)
+  for (sp_type_of(arr) it = (arr); (it - (arr)) < si_da_size(arr); it++)
 
 #define si_da_for_value(__arr, __it) \
   for ( \

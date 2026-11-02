@@ -19,7 +19,7 @@ sp_str_t fz_pkg_name(u32 pkg) {
       chars[1] = (c8)('a' + pkg % 26);
     }
   }
-  return sp_str_view(chars);
+  return sp_cstr_as_str(chars);
 }
 
 bool fz_pkg_shared(fz_universe_t* u, s32 pkg) {

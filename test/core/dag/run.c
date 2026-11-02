@@ -298,7 +298,7 @@ static spn_err_t execute_action(const si_dag_ctx_t* c, void* user_data) {
     }
     si_dag_observe(c, (spn_dag_obs_t) {
       .kind = SPN_DAG_OBS_FILE,
-      .path = dag_test_env_rooted(ctx->env, sp_str_view(ctx->spec->discovers[it]))
+      .path = dag_test_env_rooted(ctx->env, sp_cstr_as_str(ctx->spec->discovers[it]))
     });
   }
 
@@ -315,14 +315,14 @@ static spn_err_t execute_action(const si_dag_ctx_t* c, void* user_data) {
     if (!ctx->spec->orders[it]) {
       break;
     }
-    if (!sp_fs_exists_at(dag_test_at(ctx->env, dag_test_env_rooted(ctx->env, sp_str_view(ctx->spec->orders[it]))))) {
+    if (!sp_fs_exists_at(dag_test_at(ctx->env, dag_test_env_rooted(ctx->env, sp_cstr_as_str(ctx->spec->orders[it]))))) {
       return SPN_ERR_DAG_ACTION;
     }
   }
   ctx->env->runs++;
   spn_path_t output = si_dag_resolve_output(c, c->produces[0]);
   sp_str_t content = ctx->spec->writes
-    ? sp_str_view(ctx->spec->writes)
+    ? sp_cstr_as_str(ctx->spec->writes)
     : sp_fmt(ctx->env->mem, "{}", sp_fmt_uint(ctx->env->runs)).value;
   if (ctx->spec->tree) {
     spn_path_t inside = spn_path_join(ctx->env->mem, output, sp_str_lit("H"));
@@ -352,15 +352,15 @@ static sp_err_t build_graph(sp_test_t* t, dag_test_env_t* env, spn_dag_t* g, con
       if (!spec->inputs[ii]) {
         break;
       }
-      spn_dag_action_add_input(g, action, spn_dag_add_file(g, dag_test_env_rooted(env, sp_str_view(spec->inputs[ii]))));
+      spn_dag_action_add_input(g, action, spn_dag_add_file(g, dag_test_env_rooted(env, sp_cstr_as_str(spec->inputs[ii]))));
     }
     sp_carr_for(spec->orders, oi) {
       if (!spec->orders[oi]) {
         break;
       }
-      spn_dag_action_add_order(g, action, spn_dag_add_file(g, dag_test_env_rooted(env, sp_str_view(spec->orders[oi]))));
+      spn_dag_action_add_order(g, action, spn_dag_add_file(g, dag_test_env_rooted(env, sp_cstr_as_str(spec->orders[oi]))));
     }
-    spn_path_t output = dag_test_env_rooted(env, sp_str_view(spec->output));
+    spn_path_t output = dag_test_env_rooted(env, sp_cstr_as_str(spec->output));
     spn_dag_id_t out_id = spec->tree ? spn_dag_add_tree(g, output) : spn_dag_add_file(g, output);
     sp_must_eq(t, SPN_OK, spn_dag_action_add_output(g, action, out_id));
   }
@@ -383,13 +383,13 @@ sp_test_each(dag_run, builds, test_t, tests) {
       if (!build->sources[si].path) {
         break;
       }
-      sp_fs_create_file_str_at(dag_test_env_path(&env, sp_str_view(build->sources[si].path)), sp_str_view(build->sources[si].content));
+      sp_fs_create_file_str_at(dag_test_env_path(&env, sp_cstr_as_str(build->sources[si].path)), sp_cstr_as_str(build->sources[si].content));
     }
     sp_carr_for(build->remove_dirs, si) {
       if (!build->remove_dirs[si]) {
         break;
       }
-      sp_fs_remove_dir_at(dag_test_env_path(&env, sp_str_view(build->remove_dirs[si])));
+      sp_fs_remove_dir_at(dag_test_env_path(&env, sp_cstr_as_str(build->remove_dirs[si])));
     }
 
     spn_dag_t* g = dag_test_env_graph(&env);
@@ -413,15 +413,15 @@ sp_test_each(dag_run, builds, test_t, tests) {
         if (!spec->inputs[ii]) {
           break;
         }
-        spn_dag_action_add_input(g, action, spn_dag_add_file(g, dag_test_env_rooted(&env, sp_str_view(spec->inputs[ii]))));
+        spn_dag_action_add_input(g, action, spn_dag_add_file(g, dag_test_env_rooted(&env, sp_cstr_as_str(spec->inputs[ii]))));
       }
       sp_carr_for(spec->orders, oi) {
         if (!spec->orders[oi]) {
           break;
         }
-        spn_dag_action_add_order(g, action, spn_dag_add_file(g, dag_test_env_rooted(&env, sp_str_view(spec->orders[oi]))));
+        spn_dag_action_add_order(g, action, spn_dag_add_file(g, dag_test_env_rooted(&env, sp_cstr_as_str(spec->orders[oi]))));
       }
-      spn_path_t output = dag_test_env_rooted(&env, sp_str_view(spec->output));
+      spn_path_t output = dag_test_env_rooted(&env, sp_cstr_as_str(spec->output));
       spn_dag_id_t out_id = spec->tree ? spn_dag_add_tree(g, output) : spn_dag_add_file(g, output);
       sp_must_eq(t, SPN_OK, spn_dag_action_add_output(g, action, out_id));
     }
@@ -430,7 +430,7 @@ sp_test_each(dag_run, builds, test_t, tests) {
         break;
       }
       spn_dag_add_claim(g, (spn_dag_claim_t) {
-        .path = dag_test_env_rooted(&env, sp_str_view(build->claims[ci].path)),
+        .path = dag_test_env_rooted(&env, sp_cstr_as_str(build->claims[ci].path)),
         .kind = build->claims[ci].tree ? SPN_DAG_ARTIFACT_KIND_TREE : SPN_DAG_ARTIFACT_KIND_FILE,
       });
     }
@@ -439,7 +439,7 @@ sp_test_each(dag_run, builds, test_t, tests) {
     sp_expect_eq(t, build->expect_err, err);
     sp_expect_eq(t, build->expect_err, env.run.diag.err);
     if (build->expect_diag_path) {
-      sp_expect(t, spn_path_equal(env.run.diag.path, dag_test_env_rooted(&env, sp_str_view(build->expect_diag_path))));
+      sp_expect(t, spn_path_equal(env.run.diag.path, dag_test_env_rooted(&env, sp_cstr_as_str(build->expect_diag_path))));
     }
     sp_expect_eq(t, build->expect_runs, env.runs);
     if (build->expect_hits || build->expect_misses) {

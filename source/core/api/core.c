@@ -169,7 +169,7 @@ void spn_add_system_dep(spn_config_t* config, const c8* dep) {
 
 const spn_t* spn_get_dep(const spn_t* s, const c8* name) {
   spn_pkg_unit_t* unit = spn_api_unit(s);
-  sp_str_t key = sp_str_view(name);
+  sp_str_t key = sp_cstr_as_str(name);
 
   si_da_for(unit->pkg.manifest->deps, it) {
     spn_requested_dep_t* dep = &unit->pkg.manifest->deps[it];
@@ -189,11 +189,11 @@ const c8* spn_get_dir(const spn_t* s, spn_dir_t dir) {
 
 const c8* spn_get_subdir(const spn_t* s, spn_dir_t base, const c8* path) {
   spn_pkg_unit_t* unit = spn_api_unit(s);
-  if (spn_api_path_rejected("spn_get_subdir", sp_str_view(path))) {
+  if (spn_api_path_rejected("spn_get_subdir", sp_cstr_as_str(path))) {
     return "";
   }
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  sp_str_t joined = sp_fs_join_path(scratch.mem, spn_api_dir(unit, base), sp_str_view(path));
+  sp_str_t joined = sp_fs_join_path(scratch.mem, spn_api_dir(unit, base), sp_cstr_as_str(path));
   const c8* result = sp_str_to_cstr(spn.mem, joined);
   sp_mem_end_scratch(scratch);
   return result;
@@ -267,12 +267,12 @@ void spn_target_add_define_path(spn_target_t* target, const c8* name, spn_dir_t 
   spn_pkg_unit_t* unit = target->unit;
   sp_mem_t mem = unit->units->mem;
 
-  if (spn_api_path_rejected("spn_target_add_define_path", sp_str_view(path))) {
+  if (spn_api_path_rejected("spn_target_add_define_path", sp_cstr_as_str(path))) {
     return;
   }
 
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  spn_path_t joined = spn_path_join(scratch.mem, spn_api_dir_path(unit, dir), sp_str_view(path));
+  spn_path_t joined = spn_path_join(scratch.mem, spn_api_dir_path(unit, dir), sp_cstr_as_str(path));
   spn_path_rel_t rel = spn_path_within(spn_path_from_root(SPN_PATH_ROOT_PROJECT), joined);
   if (rel.within) {
     sp_str_t str = sp_fmt(mem, "{}=\"{}\"", sp_fmt_cstr(name), sp_fmt_str(rel.sub)).value;
@@ -306,38 +306,38 @@ static bool embed_dest_rejected(const c8* fn, sp_str_t dest) {
 
 void spn_target_embed_file(spn_target_t* t, const c8* file) {
   spn_path_t made = api_path(t->unit, "spn_target_embed_file", file);
-  if (spn_path_empty(made) || embed_dest_rejected("spn_target_embed_file", sp_str_view(file))) {
+  if (spn_path_empty(made) || embed_dest_rejected("spn_target_embed_file", sp_cstr_as_str(file))) {
     return;
   }
   spn_target_add_embed(t->unit->units->mem, t->target, (spn_embed_t) {
     .kind = SPN_EMBED_FILE,
     .path = made,
-    .dest = sp_str_view(file),
+    .dest = sp_cstr_as_str(file),
   });
 }
 
 void spn_target_embed_file_ex(spn_target_t* t, const c8* file, const c8* dest, const c8* data_type, const c8* size_type) {
   spn_path_t made = api_path(t->unit, "spn_target_embed_file_ex", file);
-  if (spn_path_empty(made) || embed_dest_rejected("spn_target_embed_file_ex", sp_str_view(dest))) {
+  if (spn_path_empty(made) || embed_dest_rejected("spn_target_embed_file_ex", sp_cstr_as_str(dest))) {
     return;
   }
   spn_target_add_embed(t->unit->units->mem, t->target, (spn_embed_t) {
     .kind = SPN_EMBED_FILE,
     .path = made,
-    .dest = sp_str_view(dest),
-    .types = { .data = sp_str_view(data_type), .size = sp_str_view(size_type) },
+    .dest = sp_cstr_as_str(dest),
+    .types = { .data = sp_cstr_as_str(data_type), .size = sp_cstr_as_str(size_type) },
   });
 }
 
 void spn_target_embed_dir_ex(spn_target_t* t, const c8* dir, const c8* dest, const c8* data_type, const c8* size_type) {
   spn_path_t made = api_path(t->unit, "spn_target_embed_dir_ex", dir);
-  if (spn_path_empty(made) || embed_dest_rejected("spn_target_embed_dir_ex", sp_str_view(dest))) {
+  if (spn_path_empty(made) || embed_dest_rejected("spn_target_embed_dir_ex", sp_cstr_as_str(dest))) {
     return;
   }
   spn_target_add_embed(t->unit->units->mem, t->target, (spn_embed_t) {
     .kind = SPN_EMBED_DIR,
     .path = made,
-    .dest = sp_str_view(dest),
-    .types = { .data = sp_str_view(data_type), .size = sp_str_view(size_type) },
+    .dest = sp_cstr_as_str(dest),
+    .types = { .data = sp_cstr_as_str(data_type), .size = sp_cstr_as_str(size_type) },
   });
 }

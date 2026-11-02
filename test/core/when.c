@@ -20,7 +20,7 @@ typedef struct {
 
 static spn_option_value_t make_value(value_lit_t lit) {
   if (lit.str) {
-    return spn_option_value_str(sp_str_view(lit.str));
+    return spn_option_value_str(sp_cstr_as_str(lit.str));
   }
   if (lit.is_bool) {
     return spn_option_value_bool(lit.b);
@@ -33,7 +33,7 @@ static spn_when_t make_when(sp_mem_t mem, const clause_lit_t* clauses, u64 count
   sp_for(it, count) {
     if (!clauses[it].key) break;
     spn_when_clause_t clause = {
-      .key = sp_str_view(clauses[it].key),
+      .key = sp_cstr_as_str(clauses[it].key),
       .negated = clauses[it].negated,
       .value = make_value((value_lit_t) { .str = clauses[it].str, .b = clauses[it].b, .is_bool = clauses[it].is_bool }),
     };

@@ -123,7 +123,7 @@ static spn_path_roots_t canonicalize_roots(sp_mem_t mem, sp_path_t sandbox, path
 }
 
 static spn_path_t canonicalize_ref(sp_mem_t mem, sp_str_t absolute, canonicalize_ref_t ref) {
-  sp_str_t sub = ref.sub ? sp_str_view(ref.sub) : sp_str_lit("");
+  sp_str_t sub = ref.sub ? sp_cstr_as_str(ref.sub) : sp_str_lit("");
   if (ref.root == SPN_PATH_ROOT_NONE) {
     return (spn_path_t) { .sub = sp_fs_join_path(mem, absolute, sub) };
   }
@@ -144,7 +144,7 @@ sp_test_each(paths_canonicalize, resolve, canonicalize_test_t, canonicalize_test
   sp_carr_detect_len(it->setup, count, it->setup[count].path);
   sp_for(at, count) {
     const canonicalize_setup_t* s = &it->setup[at];
-    sp_path_t path = sp_path_join(mem, sandbox, sp_str_view(s->path));
+    sp_path_t path = sp_path_join(mem, sandbox, sp_cstr_as_str(s->path));
     switch (s->kind) {
       case CANONICALIZE_SETUP_FILE: {
         sp_fs_create_file_at(path);
@@ -155,9 +155,9 @@ sp_test_each(paths_canonicalize, resolve, canonicalize_test_t, canonicalize_test
         break;
       }
       case CANONICALIZE_SETUP_SYMLINK: {
-        sp_path_t target = sp_path_join(mem, sandbox, sp_str_view(s->target));
+        sp_path_t target = sp_path_join(mem, sandbox, sp_cstr_as_str(s->target));
         sp_fs_kind_t kind = sp_fs_is_target_dir_at(target) ? SP_FS_KIND_DIR : SP_FS_KIND_FILE;
-        sp_must_ok(t, sp_fs_create_sym_link_at(sp_str_view(s->target), path, kind));
+        sp_must_ok(t, sp_fs_create_sym_link_at(sp_cstr_as_str(s->target), path, kind));
         break;
       }
     }

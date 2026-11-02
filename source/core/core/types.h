@@ -42,7 +42,7 @@ typedef struct toml_table_t toml_table_t;
 #define sp_da_value_t(arr) sp_type_of(arr[0])
 
 #define sp_da_for_ptr(arr, it) \
-  for (__typeof__(&(arr)[0]) it = (arr); (it - (arr)) < sp_da_size(arr); it++)
+  for (sp_type_of(&(arr)[0]) it = (arr); (it - (arr)) < sp_da_size(arr); it++)
 
 #define sp_da_for_value(__arr, __it) \
   for ( \

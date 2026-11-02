@@ -97,9 +97,9 @@ static const checkout_key_t checkout_keys [] = {
 
 static spn_git_checkout_id_t checkout_id(checkout_key_input_t c) {
   return (spn_git_checkout_id_t) {
-    .url = sp_str_view(c.url),
-    .rev = sp_str_view(c.rev),
-    .dir = c.dir ? sp_str_view(c.dir) : SP_LIT(""),
+    .url = sp_cstr_as_str(c.url),
+    .rev = sp_cstr_as_str(c.rev),
+    .dir = c.dir ? sp_cstr_as_str(c.dir) : SP_LIT(""),
     .patches.hash = c.patches,
   };
 }
@@ -118,14 +118,14 @@ static sp_err_t expect_key_format(sp_test_t* t, sp_str_t key, sp_str_t url) {
 }
 
 sp_test_each(git_key, url_name, url_name_t, url_names) {
-  sp_str_t name = spn_git_url_name(sp_str_view(it->url));
+  sp_str_t name = spn_git_url_name(sp_cstr_as_str(it->url));
   sp_expect_str_eq_c(t, name, it->expect);
   return SP_OK;
 }
 
 sp_test_each(git_key, db_key, db_key_t, db_keys) {
   sp_mem_t mem = sp_test_arena(t);
-  sp_str_t url = sp_str_view(it->url);
+  sp_str_t url = sp_cstr_as_str(it->url);
 
   sp_str_t key = spn_git_db_key(mem, url);
   if (expect_key_format(t, key, url)) {
@@ -142,8 +142,8 @@ sp_test_each(git_key, db_key, db_key_t, db_keys) {
 
 sp_test_each(git_key, db_key_uniqueness, db_key_pair_t, db_key_pairs) {
   sp_mem_t mem = sp_test_arena(t);
-  sp_str_t a = spn_git_db_key(mem, sp_str_view(it->url_a));
-  sp_str_t b = spn_git_db_key(mem, sp_str_view(it->url_b));
+  sp_str_t a = spn_git_db_key(mem, sp_cstr_as_str(it->url_a));
+  sp_str_t b = spn_git_db_key(mem, sp_cstr_as_str(it->url_b));
   sp_expect(t, !sp_str_equal(a, b));
   return SP_OK;
 }
@@ -153,7 +153,7 @@ sp_test_each(git_key, checkout_key, checkout_key_t, checkout_keys) {
 
   if (!it->b.url) {
     sp_str_t key = spn_git_checkout_key(mem, checkout_id(it->a));
-    return expect_key_format(t, key, sp_str_view(it->a.url));
+    return expect_key_format(t, key, sp_cstr_as_str(it->a.url));
   }
 
   sp_str_t ka = spn_git_checkout_key(mem, checkout_id(it->a));

@@ -171,7 +171,7 @@ static void build_lock(sp_mem_t mem, const test_t* fixture, spn_lock_file_t* loc
 
   sp_carr_for(fixture->system_deps, i) {
     if (!fixture->system_deps[i]) break;
-    sp_ht_insert(lock->system_deps, sp_str_view(fixture->system_deps[i]), true);
+    sp_ht_insert(lock->system_deps, sp_cstr_as_str(fixture->system_deps[i]), true);
   }
 
   sp_carr_for(fixture->deps, i) {
@@ -179,26 +179,26 @@ static void build_lock(sp_mem_t mem, const test_t* fixture, spn_lock_file_t* loc
     if (!d->name) break;
 
     spn_lock_entry_t entry = {
-      .name = sp_str_view(d->name),
-      .version = spn_semver_from_str(sp_str_view(d->version)),
-      .commit = sp_str_view(d->commit),
+      .name = sp_cstr_as_str(d->name),
+      .version = spn_semver_from_str(sp_cstr_as_str(d->version)),
+      .commit = sp_cstr_as_str(d->commit),
       .kind = d->kind,
       .source = {
-        .url = d->source_url ? sp_str_view(d->source_url) : SP_LIT(""),
-        .rev = d->source_rev ? sp_str_view(d->source_rev) : SP_LIT(""),
-        .dir = d->source_dir ? sp_str_view(d->source_dir) : SP_LIT(""),
+        .url = d->source_url ? sp_cstr_as_str(d->source_url) : SP_LIT(""),
+        .rev = d->source_rev ? sp_cstr_as_str(d->source_rev) : SP_LIT(""),
+        .dir = d->source_dir ? sp_cstr_as_str(d->source_dir) : SP_LIT(""),
       },
       .manifest = {
-        .url = d->manifest_url ? sp_str_view(d->manifest_url) : SP_LIT(""),
-        .rev = d->manifest_rev ? sp_str_view(d->manifest_rev) : SP_LIT(""),
-        .dir = d->manifest_dir ? sp_str_view(d->manifest_dir) : SP_LIT(""),
+        .url = d->manifest_url ? sp_cstr_as_str(d->manifest_url) : SP_LIT(""),
+        .rev = d->manifest_rev ? sp_cstr_as_str(d->manifest_rev) : SP_LIT(""),
+        .dir = d->manifest_dir ? sp_cstr_as_str(d->manifest_dir) : SP_LIT(""),
       },
     };
 
     sp_da_init(mem, entry.deps);
     sp_carr_for(d->deps, j) {
       if (!d->deps[j]) break;
-      sp_da_push(entry.deps, sp_str_view(d->deps[j]));
+      sp_da_push(entry.deps, sp_cstr_as_str(d->deps[j]));
     }
 
     sp_ht_insert(lock->entries, entry.name, entry);
@@ -218,7 +218,7 @@ sp_test_each(lock, roundtrip, test_t, tests) {
   sp_expect_eq(t, sp_ht_size(lock.system_deps), sp_ht_size(loaded.system_deps));
   sp_carr_for(it->system_deps, i) {
     if (!it->system_deps[i]) break;
-    sp_str_t key = sp_str_view(it->system_deps[i]);
+    sp_str_t key = sp_cstr_as_str(it->system_deps[i]);
     bool* found = sp_ht_getp(loaded.system_deps, key);
     sp_expect(t, found != SP_NULLPTR);
   }
@@ -230,7 +230,7 @@ sp_test_each(lock, roundtrip, test_t, tests) {
     const lock_dep_t* d = &it->deps[i];
     if (!d->name) break;
 
-    sp_str_t name = sp_str_view(d->name);
+    sp_str_t name = sp_cstr_as_str(d->name);
     spn_lock_entry_t* orig = sp_ht_getp(lock.entries, name);
     spn_lock_entry_t* got = sp_ht_getp(loaded.entries, name);
 

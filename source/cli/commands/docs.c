@@ -52,7 +52,7 @@ static sp_cli_result_t docs(sp_cli_t* cli) {
   sp_da(doc_page_t) pages = sp_da_new(s.mem, doc_page_t);
   sp_carr_for(spn_embed_manifest, it) {
     const spn_embed_entry_t* entry = &spn_embed_manifest[it];
-    sp_str_t path = sp_str_view(entry->path);
+    sp_str_t path = sp_cstr_as_str(entry->path);
     if (sp_glob_match(glob, path)) {
       sp_da_push(pages, ((doc_page_t) {
         .name = sp_fs_get_stem(path),

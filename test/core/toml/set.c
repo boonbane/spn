@@ -31,7 +31,7 @@ static sp_err_t run_set_test(sp_test_t* t, test_t* it) {
     if (!it->set[at].value) break;
     sp_str_t path [TOML_TEST_MAX_PATH] = sp_zero;
     u32 num_segments = toml_collect_path(&it->set[at].path, path);
-    sp_expect_eq(t, it->set[at].err, spn_toml_edit_set_str(&edit, path, num_segments, sp_str_view(it->set[at].value)));
+    sp_expect_eq(t, it->set[at].err, spn_toml_edit_set_str(&edit, path, num_segments, sp_cstr_as_str(it->set[at].value)));
   }
 
   sp_str_t rendered = spn_toml_edit_render(&edit, mem);
@@ -39,7 +39,7 @@ static sp_err_t run_set_test(sp_test_t* t, test_t* it) {
     sp_expect_golden(t, sp_test_format(t, "golden/{}.toml", sp_fmt_cstr(it->expect.golden)), rendered);
   }
   else if (it->expect.output) {
-    sp_expect_str_eq(t, rendered, sp_str_view(it->expect.output));
+    sp_expect_str_eq(t, rendered, sp_cstr_as_str(it->expect.output));
   }
   else {
     sp_expect_str_eq(t, rendered, source);

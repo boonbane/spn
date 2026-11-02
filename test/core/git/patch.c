@@ -66,7 +66,7 @@ sp_test_each(git_patch, set_hash, patch_load_t, tests) {
 
   sp_da(sp_str_t) files = write_patch_files(t, "a", it->files, PATCH_TEST_MAX_FILES);
   if (it->expect.missing) {
-    sp_da_push(files, sp_fs_join_path(mem, test_dir_str(t), sp_str_view(it->expect.missing)));
+    sp_da_push(files, sp_fs_join_path(mem, test_dir_str(t), sp_cstr_as_str(it->expect.missing)));
   }
 
   spn_git_patch_set_t set = { .files = files };

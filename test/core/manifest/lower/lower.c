@@ -1798,7 +1798,7 @@ sp_test_each(lower, cases, test_t, tests, .setup = spn_test_ctx_setup) {
 
     spn_requested_dep_t* req = SP_NULLPTR;
     si_da_for(pkg->deps, j) {
-      if (sp_str_equal(pkg->deps[j].qualified.str, sp_str_view(expected.name)) && pkg->deps[j].kind == kind) {
+      if (sp_str_equal(pkg->deps[j].qualified.str, sp_cstr_as_str(expected.name)) && pkg->deps[j].kind == kind) {
         req = &pkg->deps[j];
         break;
       }
@@ -1807,7 +1807,7 @@ sp_test_each(lower, cases, test_t, tests, .setup = spn_test_ctx_setup) {
     sp_expect_eq(t, (u32)expected.source, (u32)req->source);
     sp_expect_eq(t, expected.private != 0, req->private);
 
-    if (expected.file) sp_expect(t, sp_str_ends_with(req->file.path.sub, sp_str_view(expected.file)));
+    if (expected.file) sp_expect(t, sp_str_ends_with(req->file.path.sub, sp_cstr_as_str(expected.file)));
     if (expected.when) sp_expect_str_eq_c(t, spn_when_to_str(mem, &req->when), expected.when);
     if (expected.options) sp_expect_str_eq_c(t, spn_when_to_str(mem, &req->options), expected.options);
   }
@@ -1817,7 +1817,7 @@ sp_test_each(lower, cases, test_t, tests, .setup = spn_test_ctx_setup) {
     option_t expected = it->options[o];
     if (!expected.name) break;
 
-    spn_option_info_t** slot = si_om_getp(pkg->options, sp_intern(interner, sp_str_view(expected.name)).id);
+    spn_option_info_t** slot = si_om_getp(pkg->options, sp_intern(interner, sp_cstr_as_str(expected.name)).id);
     sp_must(t, slot);
     spn_option_info_t* option = *slot;
     sp_expect_str_eq_c(t, option->name.str, expected.name);
@@ -1841,7 +1841,7 @@ sp_test_each(lower, cases, test_t, tests, .setup = spn_test_ctx_setup) {
     toolchain_t expected = it->toolchains[c];
     if (!expected.name) break;
 
-    spn_toolchain_decl_t* tc = si_om_get(project.toolchains, sp_intern(interner, sp_str_view(expected.name)).id);
+    spn_toolchain_decl_t* tc = si_om_get(project.toolchains, sp_intern(interner, sp_cstr_as_str(expected.name)).id);
     sp_must(t, tc);
 
     if (expected.url)      sp_expect_str_eq_c(t, tc->hosts[0].artifact.url, expected.url);
@@ -1883,7 +1883,7 @@ sp_test_each(lower, cases, test_t, tests, .setup = spn_test_ctx_setup) {
     profile_t expected = it->profiles[pr];
     if (!expected.name) break;
 
-    spn_profile_decl_t* p = si_om_get(project.profiles, sp_intern(interner, sp_str_view(expected.name)).id);
+    spn_profile_decl_t* p = si_om_get(project.profiles, sp_intern(interner, sp_cstr_as_str(expected.name)).id);
     sp_must(t, p);
     sp_expect_str_eq_c(t, p->name.str, expected.name);
     check_gated(t, p->toolchain, expected.toolchain);
@@ -1904,7 +1904,7 @@ sp_test_each(lower, cases, test_t, tests, .setup = spn_test_ctx_setup) {
     index_t expected = it->indexes[x];
     if (!expected.name) break;
 
-    spn_index_info_t* idx = si_om_get(project.indexes, sp_intern(interner, sp_str_view(expected.name)).id);
+    spn_index_info_t* idx = si_om_get(project.indexes, sp_intern(interner, sp_cstr_as_str(expected.name)).id);
     sp_must(t, idx);
     if (expected.url) sp_expect_str_eq_c(t, idx->protocol == SPN_INDEX_PROTOCOL_HTTP ? idx->http.url : idx->git.url, expected.url);
     if (expected.path) sp_expect_str_eq(t, idx->dir.path.sub, sp_fs_join_path(mem, ctx.dir.sub, sp_cstr_as_str(expected.path)));
@@ -1919,7 +1919,7 @@ sp_test_each(lower, cases, test_t, tests, .setup = spn_test_ctx_setup) {
 
     spn_pkg_patch_t* patch = SP_NULLPTR;
     si_da_for(project.patches, j) {
-      if (sp_str_equal(project.patches[j].qualified.str, sp_str_view(expected.name))) {
+      if (sp_str_equal(project.patches[j].qualified.str, sp_cstr_as_str(expected.name))) {
         patch = &project.patches[j];
         break;
       }
@@ -1930,7 +1930,7 @@ sp_test_each(lower, cases, test_t, tests, .setup = spn_test_ctx_setup) {
     sp_carr_detect_len(expected.files, num_files, expected.files[num_files]);
     sp_must_eq(t, num_files, (u32)si_da_size(patch->files));
     sp_for(j, num_files) {
-      sp_expect(t, sp_str_ends_with(patch->files[j].sub, sp_str_view(expected.files[j])));
+      sp_expect(t, sp_str_ends_with(patch->files[j].sub, sp_cstr_as_str(expected.files[j])));
     }
 
   }

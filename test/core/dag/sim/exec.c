@@ -214,7 +214,7 @@ static sp_err_t run_action(sp_test_t* t, env_t* env, const action_t* spec, const
     if (!spec->inputs[it]) {
       break;
     }
-    sp_str_t str = sp_str_view(spec->inputs[it]);
+    sp_str_t str = sp_cstr_as_str(spec->inputs[it]);
     spn_dag_action_add_input(g, action, spn_dag_add_value(g, str.data, str.len));
   }
 
@@ -222,7 +222,7 @@ static sp_err_t run_action(sp_test_t* t, env_t* env, const action_t* spec, const
     if (!spec->outputs[it]) {
       break;
     }
-    spn_dag_id_t file = spn_dag_add_file(g, dag_test_env_rooted(&env->dag, sp_str_view(spec->outputs[it])));
+    spn_dag_id_t file = spn_dag_add_file(g, dag_test_env_rooted(&env->dag, sp_cstr_as_str(spec->outputs[it])));
     sp_must_eq(t, SPN_OK, spn_dag_action_add_output(g, action, file));
   }
 
@@ -261,7 +261,7 @@ static sp_err_t run_action(sp_test_t* t, env_t* env, const action_t* spec, const
     if (!op->expect.contents[it]) {
       break;
     }
-    sp_err_t err = dag_test_expect_file(t, env->dag.mem, dag_test_env_path(&env->dag, sp_str_view(spec->outputs[it])), op->expect.contents[it]);
+    sp_err_t err = dag_test_expect_file(t, env->dag.mem, dag_test_env_path(&env->dag, sp_cstr_as_str(spec->outputs[it])), op->expect.contents[it]);
     if (err) {
       return err;
     }
@@ -280,7 +280,7 @@ static sp_err_t remove_outputs(sp_test_t* t, env_t* env, const action_t* action)
     if (!action->outputs[it]) {
       break;
     }
-    spn_path_t rooted = dag_test_env_rooted(&env->dag, sp_str_view(action->outputs[it]));
+    spn_path_t rooted = dag_test_env_rooted(&env->dag, sp_cstr_as_str(action->outputs[it]));
     sp_path_t path = dag_test_at(&env->dag, rooted);
     env->err = sp_fs_remove_file_at(path) ? SPN_ERROR : SPN_OK;
     sp_expect_eq(t, SPN_OK, env->err);

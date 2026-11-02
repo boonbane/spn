@@ -31,6 +31,6 @@ static const normal_test_t normal_tests [] = {
 };
 
 sp_test_each(paths_normal, check, normal_test_t, normal_tests) {
-  sp_expect_eq(t, spn_path_normal(sp_str_view(it->path)), it->normal);
+  sp_expect_eq(t, spn_path_normal(sp_cstr_as_str(it->path)), it->normal);
   return SP_OK;
 }

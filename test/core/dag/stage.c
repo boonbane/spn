@@ -177,7 +177,7 @@ sp_test_each(dag_stage, steps, test_t, tests) {
       if (!step->files[ft].path) {
         break;
       }
-      dag_test_env_create(&env, sp_str_view(step->files[ft].path), sp_str_view(step->files[ft].content));
+      dag_test_env_create(&env, sp_cstr_as_str(step->files[ft].path), sp_cstr_as_str(step->files[ft].content));
     }
 
     si_da(spn_stage_t) rows = sp_zero;
@@ -187,9 +187,9 @@ sp_test_each(dag_stage, steps, test_t, tests) {
         break;
       }
       spn_stage_t staged = {
-        .key = sp_str_view(row->key),
-        .to = dag_test_env_rooted(&env, sp_str_view(row->to)),
-        .location = dag_test_env_rooted(&env, sp_str_view(row->from)),
+        .key = sp_cstr_as_str(row->key),
+        .to = dag_test_env_rooted(&env, sp_cstr_as_str(row->to)),
+        .location = dag_test_env_rooted(&env, sp_cstr_as_str(row->from)),
       };
       sp_must_eq(t, SPN_OK, spn_dag_file_cache_digest(&env.files, staged.location, &staged.digest));
       si_da_push(env.mem, rows, staged);
@@ -199,7 +199,7 @@ sp_test_each(dag_stage, steps, test_t, tests) {
       if (!step->declared[dt]) {
         break;
       }
-      si_da_push(env.mem, declared, sp_str_view(step->declared[dt]));
+      si_da_push(env.mem, declared, sp_cstr_as_str(step->declared[dt]));
     }
 
     spn_stage_diag_t diag = step->clean
@@ -207,21 +207,21 @@ sp_test_each(dag_stage, steps, test_t, tests) {
       : spn_stage_apply(env.mem, &env.roots, &env.files, manifest, declared, rows);
     sp_expect_eq(t, step->expect_err, diag.err);
     if (step->expect_path) {
-      sp_expect(t, spn_path_equal(diag.path, dag_test_env_rooted(&env, sp_str_view(step->expect_path))));
+      sp_expect(t, spn_path_equal(diag.path, dag_test_env_rooted(&env, sp_cstr_as_str(step->expect_path))));
     }
 
     sp_carr_for(step->expect, et) {
       if (!step->expect[et].path) {
         break;
       }
-      sp_try(dag_test_expect_file(t, env.mem, dag_test_env_path(&env, sp_str_view(step->expect[et].path)), step->expect[et].content));
+      sp_try(dag_test_expect_file(t, env.mem, dag_test_env_path(&env, sp_cstr_as_str(step->expect[et].path)), step->expect[et].content));
     }
     sp_carr_for(step->missing, mt) {
       if (!step->missing[mt]) {
         break;
       }
-      sp_test_kv(t, "path", sp_str_view(step->missing[mt]));
-      sp_expect(t, !sp_fs_exists_at(dag_test_env_path(&env, sp_str_view(step->missing[mt]))));
+      sp_test_kv(t, "path", sp_cstr_as_str(step->missing[mt]));
+      sp_expect(t, !sp_fs_exists_at(dag_test_env_path(&env, sp_cstr_as_str(step->missing[mt]))));
     }
   }
   return SP_OK;

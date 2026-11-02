@@ -37,7 +37,7 @@ static const test_t tests [] = {
 };
 
 static spn_path_t make_key(dag_test_env_t* env, const file_t* file) {
-  spn_path_t rooted = dag_test_env_rooted(env, sp_str_view(file->path));
+  spn_path_t rooted = dag_test_env_rooted(env, sp_cstr_as_str(file->path));
   if (file->root == SPN_PATH_ROOT_NONE) {
     return (spn_path_t) { .sub = spn_path_str(&env->roots, env->mem, rooted) };
   }
@@ -52,7 +52,7 @@ sp_test_each(dag_hints, roundtrip, test_t, tests) {
   u32 count = 0;
   sp_carr_detect_len(it->files, count, it->files[count].path);
   sp_for(f, count) {
-    dag_test_env_create(&env, sp_str_view(it->files[f].path), sp_str_view(it->files[f].content));
+    dag_test_env_create(&env, sp_cstr_as_str(it->files[f].path), sp_cstr_as_str(it->files[f].content));
   }
 
   spn_dag_digest_t hashed [HINTS_TEST_MAX_FILES] = sp_zero;

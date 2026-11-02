@@ -351,11 +351,11 @@ static const cache_test_t tests [] = {
 
 static spn_git_checkout_id_t build_id(sp_test_t* t, git_repo_result_t* repo, const checkout_req_t* req, u32 index) {
   sp_mem_t mem = sp_test_arena(t);
-  u32 rev_idx = sp_parse_u32(sp_str_view(req->rev));
+  u32 rev_idx = sp_parse_u32(sp_cstr_as_str(req->rev));
   spn_git_checkout_id_t id = {
     .url = repo->path,
     .rev = repo->commits[rev_idx],
-    .dir = req->dir ? sp_str_view(req->dir) : SP_LIT(""),
+    .dir = req->dir ? sp_cstr_as_str(req->dir) : SP_LIT(""),
   };
 
   if (req->patches[0].file) {
@@ -453,7 +453,7 @@ sp_test_each(git_cache, ensure, cache_test_t, tests) {
         break;
       }
 
-      sp_path_t path = spn_path_at(&roots, spn_path_join(mem, checkout->path, sp_str_view(file->file)));
+      sp_path_t path = spn_path_at(&roots, spn_path_join(mem, checkout->path, sp_cstr_as_str(file->file)));
       sp_str_t content = sp_zero;
       sp_must_ok(t, sp_io_read_file_at(mem, path, &content));
       sp_expect_str_eq_c(t, content, file->content);

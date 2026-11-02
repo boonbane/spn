@@ -190,7 +190,7 @@ sp_test_each(index_transaction, publish, txn_test_t, tests, .setup = spn_test_ct
     .location = { .at = sp_path_from_str(clone), .dir = clone },
   };
   if (it->remote.pin) {
-    index.git.rev = sp_str_view(it->remote.pin);
+    index.git.rev = sp_cstr_as_str(it->remote.pin);
   }
 
   if (it->remote.empty) {
@@ -224,7 +224,7 @@ sp_test_each(index_transaction, publish, txn_test_t, tests, .setup = spn_test_ct
         spn_index_release_t rel = {
           .id = {
             .namespace = sp_str_lit("core"),
-            .name = sp_str_view(action.publish.name),
+            .name = sp_cstr_as_str(action.publish.name),
           },
           .version = action.publish.version,
           .source = {
@@ -243,7 +243,7 @@ sp_test_each(index_transaction, publish, txn_test_t, tests, .setup = spn_test_ct
       }
       case TXN_ACTION_ADVANCE_REMOTE: {
         git_repo_pull(seed, remote, "main");
-        sp_str_t file = sp_fs_join_path(mem, seed, sp_str_view(action.write.file));
+        sp_str_t file = sp_fs_join_path(mem, seed, sp_cstr_as_str(action.write.file));
         sp_fs_create_dir(sp_fs_parent_path(file));
         sp_fs_create_file_str(file, sp_fmt(mem, "{}\n", sp_fmt_cstr(action.write.line)).value);
         git_repo_stage_all(seed);
@@ -252,14 +252,14 @@ sp_test_each(index_transaction, publish, txn_test_t, tests, .setup = spn_test_ct
         break;
       }
       case TXN_ACTION_APPEND_CLONE_FILE: {
-        sp_str_t file = sp_fs_join_path(mem, clone, sp_str_view(action.write.file));
+        sp_str_t file = sp_fs_join_path(mem, clone, sp_cstr_as_str(action.write.file));
         sp_fs_create_file_str(file, sp_fmt(mem, "{}{}\n",
           sp_fmt_str(test_read_file(mem, file)),
           sp_fmt_cstr(action.write.line)).value);
         break;
       }
       case TXN_ACTION_CREATE_CLONE_FILE: {
-        sp_str_t file = sp_fs_join_path(mem, clone, sp_str_view(action.write.file));
+        sp_str_t file = sp_fs_join_path(mem, clone, sp_cstr_as_str(action.write.file));
         sp_fs_create_dir(sp_fs_parent_path(file));
         sp_fs_create_file_str(file, sp_fmt(mem, "{}\n", sp_fmt_cstr(action.write.line)).value);
         break;
@@ -284,7 +284,7 @@ sp_test_each(index_transaction, publish, txn_test_t, tests, .setup = spn_test_ct
     sp_expect_eq(t, file.lines, remote_line_count(mem, remote, file.file));
   }
   if (it->expect.head) {
-    sp_expect_str_eq(t, remote_head_message(mem, remote), sp_str_view(it->expect.head));
+    sp_expect_str_eq(t, remote_head_message(mem, remote), sp_cstr_as_str(it->expect.head));
   }
   if (sp_fs_is_dir(clone)) {
     sp_expect(t, !spn_git_is_dirty(clone, clone));

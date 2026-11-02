@@ -167,7 +167,7 @@ sp_test_each(paths_canonicalize_head, probe, head_test_t, head_tests) {
   sp_carr_detect_len(it->setup, count, it->setup[count].path);
   sp_for(at, count) {
     const head_setup_t* s = &it->setup[at];
-    sp_path_t path = sp_path_join(mem, sandbox, sp_str_view(s->path));
+    sp_path_t path = sp_path_join(mem, sandbox, sp_cstr_as_str(s->path));
     switch (s->kind) {
       case HEAD_SETUP_FILE: {
         sp_must_ok(t, sp_fs_create_file_at(path));
@@ -178,9 +178,9 @@ sp_test_each(paths_canonicalize_head, probe, head_test_t, head_tests) {
         break;
       }
       case HEAD_SETUP_SYMLINK: {
-        sp_path_t target = sp_path_join(mem, sandbox, sp_str_view(s->target));
+        sp_path_t target = sp_path_join(mem, sandbox, sp_cstr_as_str(s->target));
         sp_fs_kind_t kind = sp_fs_is_target_dir_at(target) ? SP_FS_KIND_DIR : SP_FS_KIND_FILE;
-        sp_must_ok(t, sp_fs_create_sym_link_at(sp_str_view(s->target), path, kind));
+        sp_must_ok(t, sp_fs_create_sym_link_at(sp_cstr_as_str(s->target), path, kind));
         break;
       }
     }
@@ -196,7 +196,7 @@ sp_test_each(paths_canonicalize_head, probe, head_test_t, head_tests) {
   spn_path_roots_t roots = sp_zero;
   spn_path_roots_set(&roots, mem, SPN_PATH_ROOT_PROJECT, sandbox);
 
-  spn_path_t input = { .root = SPN_PATH_ROOT_PROJECT, .sub = sp_str_view(it->input) };
+  spn_path_t input = { .root = SPN_PATH_ROOT_PROJECT, .sub = sp_cstr_as_str(it->input) };
   spn_path_t result = spn_path_canonicalize_head(mem, &roots, input);
   sp_expect_eq(t, result.root, SPN_PATH_ROOT_PROJECT);
   sp_expect_str_eq_c(t, result.sub, expect->sub);

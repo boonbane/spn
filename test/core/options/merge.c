@@ -68,7 +68,7 @@ typedef struct {
 
 static spn_option_value_t make_value(value_lit_t lit) {
   if (lit.str) {
-    return spn_option_value_str(sp_str_view(lit.str));
+    return spn_option_value_str(sp_cstr_as_str(lit.str));
   }
   if (lit.is_bool) {
     return spn_option_value_bool(lit.b);
@@ -81,7 +81,7 @@ static spn_when_t make_when(sp_mem_t mem, const clause_lit_t* clauses, u64 count
   for (u64 it = 0; it < count; it++) {
     if (!clauses[it].key) break;
     si_da_push(mem, when.clauses, ((spn_when_clause_t) {
-      .key = sp_str_view(clauses[it].key),
+      .key = sp_cstr_as_str(clauses[it].key),
       .negated = clauses[it].negated,
       .value = make_value((value_lit_t) { .str = clauses[it].str, .b = clauses[it].b, .is_bool = clauses[it].is_bool }),
     }));
@@ -475,7 +475,7 @@ sp_test_each(options_merge, merge, merge_test_t, tests, .setup = spn_test_ctx_se
     option_decl_t* decl = &it->decls[dx];
     if (!decl->name) break;
 
-    sp_intern_str_t name = spn_intern(sp_str_view(decl->name));
+    sp_intern_str_t name = spn_intern(sp_cstr_as_str(decl->name));
     spn_option_info_t option = {
       .id = name.id,
       .name = name,
@@ -484,7 +484,7 @@ sp_test_each(options_merge, merge, merge_test_t, tests, .setup = spn_test_ctx_se
     };
     sp_carr_for(decl->values, vt) {
       if (!decl->values[vt]) break;
-      si_da_push(mem, option.values, sp_str_view(decl->values[vt]));
+      si_da_push(mem, option.values, sp_cstr_as_str(decl->values[vt]));
     }
     sp_carr_for(decl->defaults, dt) {
       default_lit_t* arm = &decl->defaults[dt];

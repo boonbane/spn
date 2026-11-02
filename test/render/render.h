@@ -9,7 +9,7 @@ static inline sp_str_t render_out_root(sp_mem_t mem) {
 }
 
 static inline sp_str_t render_out_path(sp_mem_t mem, const c8* sub) {
-  return sp_fs_join_path(mem, render_out_root(mem), sp_str_view(sub));
+  return sp_fs_join_path(mem, render_out_root(mem), sp_cstr_as_str(sub));
 }
 
 #endif

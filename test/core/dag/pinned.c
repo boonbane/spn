@@ -119,8 +119,8 @@ static spn_err_t execute_action(const si_dag_ctx_t* c, void* user_data) {
     }
     si_dag_observe(c, (spn_dag_obs_t) {
       .kind = spec->kind,
-      .path = { .root = env->root, .sub = sp_str_view(spec->path) },
-      .filter = spec->filter ? sp_str_view(spec->filter) : sp_str_lit("")
+      .path = { .root = env->root, .sub = sp_cstr_as_str(spec->path) },
+      .filter = spec->filter ? sp_cstr_as_str(spec->filter) : sp_str_lit("")
     });
   }
   return SPN_OK;
@@ -132,20 +132,20 @@ static void prepare_run(env_t* env, const run_t* run) {
       break;
     }
     if (run->obs[it].content) {
-      dag_test_create(root_path(env, sp_str_view(run->obs[it].path)), sp_str_view(run->obs[it].content));
+      dag_test_create(root_path(env, sp_cstr_as_str(run->obs[it].path)), sp_cstr_as_str(run->obs[it].content));
     }
   }
   sp_carr_for(run->plants, it) {
     if (!run->plants[it].path) {
       break;
     }
-    dag_test_create(root_path(env, sp_str_view(run->plants[it].path)), sp_str_view(run->plants[it].content));
+    dag_test_create(root_path(env, sp_cstr_as_str(run->plants[it].path)), sp_cstr_as_str(run->plants[it].content));
   }
   sp_carr_for(run->removed, it) {
     if (!run->removed[it]) {
       break;
     }
-    sp_fs_remove_file_at(root_path(env, sp_str_view(run->removed[it])));
+    sp_fs_remove_file_at(root_path(env, sp_cstr_as_str(run->removed[it])));
   }
 }
 
@@ -216,7 +216,7 @@ sp_test_each(dag_pinned, source, source_test_t, source_tests) {
   const c8* contents [2] = { "A", "B" };
   sp_carr_for(it->expect_runs, r) {
     sp_test_kv(t, "run", sp_fmt(env.dag.mem, "{}", sp_fmt_uint(r)).value);
-    dag_test_create(root_path(&env, sp_str_lit("P/S.c")), sp_str_view(contents[r]));
+    dag_test_create(root_path(&env, sp_str_lit("P/S.c")), sp_cstr_as_str(contents[r]));
     spn_dag_file_cache_invalidate_all(&env.dag.files);
 
     spn_dag_t* g = dag_test_env_graph(&env.dag);
@@ -252,7 +252,7 @@ sp_test(dag_pinned, pinned_dirs_change_weak_key) {
     });
     keys[it] = spn_dag_weak_key(g, dag_test_values(mem, g), action);
     if (it < sp_carr_len(dirs)) {
-      sp_da_push(storage.pinned, ((spn_path_t) { .root = SPN_PATH_ROOT_STORAGE, .sub = sp_str_view(dirs[it]) }));
+      sp_da_push(storage.pinned, ((spn_path_t) { .root = SPN_PATH_ROOT_STORAGE, .sub = sp_cstr_as_str(dirs[it]) }));
     }
   }
 

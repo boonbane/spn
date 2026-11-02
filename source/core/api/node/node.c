@@ -87,7 +87,7 @@ static sp_str_t output_problem_str(output_problem_t problem) {
 static void add_output(spn_node_t* node, const c8* fn, spn_dir_t dir, const c8* path, spn_dag_artifact_kind_t kind) {
   spn_user_node_t* info = spn_node_deref(node->ref);
   spn_pkg_unit_t* unit = node->ref.pkg;
-  sp_str_t sub = sp_str_view(path);
+  sp_str_t sub = sp_cstr_as_str(path);
   if (spn_api_path_rejected(fn, sub)) {
     return;
   }

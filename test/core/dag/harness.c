@@ -19,18 +19,18 @@ void dag_test_env_init(dag_test_env_t* env, sp_test_t* t, dag_test_env_config_t 
   sp_mem_zero(env, sizeof(*env));
   env->mem = sp_test_arena(t);
   env->root = config.sub
-    ? sp_path_join(env->mem, sp_test_dir(t), sp_str_view(config.sub))
+    ? sp_path_join(env->mem, sp_test_dir(t), sp_cstr_as_str(config.sub))
     : sp_test_dir(t);
   sp_fs_create_dir_at(env->root);
   spn_path_roots_set(&env->roots, env->mem, SPN_PATH_ROOT_PROJECT, env->root);
   if (config.storage) {
-    sp_path_t storage = dag_test_env_path(env, sp_str_view(config.storage));
+    sp_path_t storage = dag_test_env_path(env, sp_cstr_as_str(config.storage));
     sp_fs_create_dir_at(storage);
     spn_path_roots_set(&env->roots, env->mem, SPN_PATH_ROOT_STORAGE, storage);
   }
   if (config.pinned) {
     env->roots.pinned = sp_da_new(env->mem, spn_path_t);
-    sp_da_push(env->roots.pinned, ((spn_path_t) { .root = SPN_PATH_ROOT_STORAGE, .sub = sp_str_view(config.pinned) }));
+    sp_da_push(env->roots.pinned, ((spn_path_t) { .root = SPN_PATH_ROOT_STORAGE, .sub = sp_cstr_as_str(config.pinned) }));
   }
   spn_dag_store_init(&env->store, (spn_dag_store_config_t) {
     .kind = config.store,
@@ -124,7 +124,7 @@ spn_dag_digest_t dag_test_digest(const c8* data) {
   if (!data) {
     return (spn_dag_digest_t) sp_zero;
   }
-  sp_str_t str = sp_str_view(data);
+  sp_str_t str = sp_cstr_as_str(data);
   return spn_dag_digest(str.data, str.len);
 }
 
@@ -136,8 +136,8 @@ u32 dag_test_obs_build(const dag_test_obs_t* specs, u32 cap, spn_dag_obs_t* out,
     }
     out[count] = (spn_dag_obs_t) {
       .kind = specs[it].kind,
-      .path = { .root = specs[it].root, .sub = sp_str_view(specs[it].path) },
-      .filter = specs[it].filter ? sp_str_view(specs[it].filter) : sp_str_lit("")
+      .path = { .root = specs[it].root, .sub = sp_cstr_as_str(specs[it].path) },
+      .filter = specs[it].filter ? sp_cstr_as_str(specs[it].filter) : sp_str_lit("")
     };
     if (digests) {
       digests[count] = dag_test_digest(specs[it].content);

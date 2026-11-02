@@ -67,7 +67,7 @@ static void ar_field(c8* hdr, u32 offset, u32 width, sp_str_t value) {
 static void ar_header(ar_buf_t* b, const c8* name, u32 size) {
   c8 hdr [60];
   memset(hdr, ' ', 60);
-  ar_field(hdr, 0, 16, sp_str_view(name));
+  ar_field(hdr, 0, 16, sp_cstr_as_str(name));
   ar_field(hdr, 16, 12, sp_str_lit("0"));
   ar_field(hdr, 28, 6, sp_str_lit("0"));
   ar_field(hdr, 34, 6, sp_str_lit("0"));
