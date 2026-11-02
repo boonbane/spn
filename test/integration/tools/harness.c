@@ -532,13 +532,19 @@ static void expect_lock(sp_test_t* t, fixture_t* fixture, const command_lock_t* 
 static void expect_store(sp_test_t* t, fixture_t* fixture, const c8* pkg, u32 count) {
   sp_mem_t mem = fixture->mem;
   sp_str_t path = sp_fs_join_path(mem, fixture->paths.storage, sp_fmt(mem, "cache/store/{}", sp_fmt_cstr(pkg)).value);
-  sp_da(sp_fs_entry_t) entries = sp_zero;
-  sp_fs_collect(mem, path, &entries);
   u32 dirs = 0;
-  sp_da_for(entries, et) {
-    if (entries[et].kind == SP_FS_KIND_DIR) {
-      dirs++;
+  sp_sys_dir_t dir = sp_zero;
+  if (!sp_fs_open_dir_at(sp_path_from_str(path), &dir)) {
+    SP_ALIGNED u8 buf [SP_SYS_DIR_MIN_BUF];
+    sp_fs_dir_it_t it = sp_fs_dir_it(dir);
+    sp_fs_dir_entry_t entry = sp_zero;
+    while (sp_fs_dir_it_next(&it, sp_mem_slice(buf, sizeof(buf)), &entry)) {
+      if (entry.kind == SP_FS_KIND_DIR) {
+        dirs++;
+      }
     }
+    sp_fs_dir_it_close(&it);
+    sp_fs_close_dir(dir);
   }
   sp_test_kv(t, "path", path);
   sp_expect_eq(t, count, dirs);
@@ -832,11 +838,18 @@ sp_err_t run_actions(sp_test_t* t, fixture_t* fixture, const action_t* actions) 
       }
       case ACTION_CLEAR_WARM: {
         sp_str_t caches = sp_fs_join_path(mem, fixture->paths.toolchain, sp_str_lit("external/zig/cache"));
-        sp_fs_it_t walk = sp_fs_it_new(mem, caches);
-        while (sp_fs_it_next(&walk)) {
-          sp_fs_remove_file(sp_fs_join_path(mem, sp_fs_join_path(mem, caches, walk.entry.name), sp_str_lit("spn/generation")));
+        sp_sys_dir_t dir = sp_zero;
+        if (sp_fs_open_dir_at(sp_path_from_str(caches), &dir)) {
+          break;
         }
-        sp_fs_it_deinit(&walk);
+        SP_ALIGNED u8 buf [SP_SYS_DIR_MIN_BUF];
+        sp_fs_dir_it_t it = sp_fs_dir_it(dir);
+        sp_fs_dir_entry_t entry = sp_zero;
+        while (sp_fs_dir_it_next(&it, sp_mem_slice(buf, sizeof(buf)), &entry)) {
+          sp_fs_remove_file_at(sp_path_join(mem, sp_path(dir, entry.name), sp_str_lit("spn/generation")));
+        }
+        sp_fs_dir_it_close(&it);
+        sp_fs_close_dir(dir);
         break;
       }
       case ACTION_RUN_CLI: {

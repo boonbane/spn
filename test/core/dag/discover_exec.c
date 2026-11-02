@@ -212,12 +212,19 @@ static void prepare_run(env_t* env, const run_t* run) {
 static sp_sys_file_meta_t manifest_meta(env_t* env) {
   sp_sys_file_meta_t meta = sp_zero;
   u32 count = 0;
-  sp_fs_it_t it = sp_fs_it_new_at(env->dag.mem, dag_test_env_path(&env->dag, sp_str_lit("manifests")), 0);
-  while (sp_fs_it_next(&it)) {
-    count++;
-    sp_sys_get_path_metadata_s(it.at.dir, it.at.sub, &meta);
+  sp_sys_dir_t dir = sp_zero;
+  if (sp_fs_open_dir_at(dag_test_env_path(&env->dag, sp_str_lit("manifests")), &dir)) {
+    return meta;
   }
-  sp_fs_it_deinit(&it);
+  SP_ALIGNED u8 buf [SP_SYS_DIR_MIN_BUF];
+  sp_fs_dir_it_t it = sp_fs_dir_it(dir);
+  sp_fs_dir_entry_t entry = sp_zero;
+  while (sp_fs_dir_it_next(&it, sp_mem_slice(buf, sizeof(buf)), &entry)) {
+    count++;
+    sp_sys_get_path_metadata_s(dir, entry.name, &meta);
+  }
+  sp_fs_dir_it_close(&it);
+  sp_fs_close_dir(dir);
   return count == 1 ? meta : (sp_sys_file_meta_t) sp_zero;
 }
 

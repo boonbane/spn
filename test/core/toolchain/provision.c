@@ -233,12 +233,17 @@ sp_test_each(provision, store, provision_test_t, tests, .setup = spn_test_ctx_se
   if (it->expect.store_clean) {
     sp_str_t lock = sp_fmt(mem, "{}.lock", sp_fmt_str(artifact.sha256)).value;
     u32 entries = 0;
-    sp_fs_it_t walk = sp_fs_it_new_at(mem, spn_path_at(&roots, spn_path_from_id(SPN_DIR_ID_TOOLCHAIN_STORE)), 0);
-    while (sp_fs_it_next(&walk)) {
+    sp_sys_dir_t store = sp_zero;
+    sp_must_ok(t, sp_fs_open_dir_at(spn_path_at(&roots, spn_path_from_id(SPN_DIR_ID_TOOLCHAIN_STORE)), &store));
+    SP_ALIGNED u8 buf [SP_SYS_DIR_MIN_BUF];
+    sp_fs_dir_it_t walk = sp_fs_dir_it(store);
+    sp_fs_dir_entry_t entry = sp_zero;
+    while (sp_fs_dir_it_next(&walk, sp_mem_slice(buf, sizeof(buf)), &entry)) {
       entries++;
-      sp_expect_str_eq(t, walk.entry.name, lock);
+      sp_expect_str_eq(t, entry.name, lock);
     }
-    sp_fs_it_deinit(&walk);
+    sp_fs_dir_it_close(&walk);
+    sp_fs_close_dir(store);
     sp_must_eq(t, 1u, entries);
   }
   spn_path_roots_close(&roots);
