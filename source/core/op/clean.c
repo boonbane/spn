@@ -7,6 +7,7 @@
 #include "op/op.h"
 #include "paths/paths.h"
 #include "profile/profile.h"
+#include "stage/stage.h"
 #include "os/os.h"
 
 static spn_err_t remove_path(spn_ctx_t* ctx, spn_path_t path) {
@@ -19,6 +20,16 @@ static spn_err_t remove_path(spn_ctx_t* ctx, spn_path_t path) {
 
 spn_err_t spn_op_clean(spn_op_t* op) {
   spn_ctx_t* ctx = op->ctx;
+  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+  spn_stage_diag_t staged = spn_stage_clean(scratch.mem, &ctx->roots, spn_path_project_staged());
+  sp_mem_end_scratch(scratch);
+  if (staged.err) {
+    return spn_err_emit(ctx, (spn_err_union_t) { .kind = staged.err, .fs = { .path = staged.path } });
+  }
+  spn_path_t commands = spn_path_project_compile_commands();
+  if (sp_fs_exists_at(spn_path_at(&ctx->roots, commands))) {
+    spn_try(remove_path(ctx, commands));
+  }
   return remove_path(ctx, spn_path_project_build());
 }
 

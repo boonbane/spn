@@ -24,6 +24,7 @@ readme: false
 | `[deps]` | [`deps`](#deps) |
 | `[config.<name>]` | map of [`config_entry`](#config_entry) |
 | `[patch.<name>]` | map of [`patch_entry`](#patch_entry) |
+| `[stage]` | [`stage`](#stage) |
 
 ## package
 
@@ -191,6 +192,19 @@ readme: false
 |---|---|
 | `include` | array of [`publish_entry`](#publish_entry) |
 | `share` | array of [`publish_entry`](#publish_entry) |
+
+## stage
+
+| Field | Type |
+|---|---|
+| `copy` | array of [`stage_entry`](#stage_entry) |
+
+## stage_entry
+
+| Field | Type | Required |
+|---|---|---|
+| `from` | `string` | yes |
+| `to` | `string` | yes |
 
 ## target_dep_entry
 

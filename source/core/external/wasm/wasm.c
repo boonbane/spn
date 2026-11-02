@@ -96,10 +96,10 @@ spn_err_t spn_wasm_script_open(spn_pkg_unit_t* unit, spn_path_t module, spn_dag_
     sp_fs_create_dir_at(spn_path_at(roots, dirs[it]));
   }
   spn_wasi_mount_t mounts [] = {
-    { .guest = "/work",     .host = unit->paths.work },
+    { .guest = "/work",     .host = unit->paths.work,         .writable = true },
     { .guest = "/source",   .host = unit->paths.roots.source },
     { .guest = "/manifest", .host = unit->paths.roots.recipe },
-    { .guest = "/store",    .host = unit->paths.store },
+    { .guest = "/store",    .host = unit->paths.store,        .writable = true },
   };
   const c8* preopens [sp_carr_len(mounts)] = sp_zero;
   sp_carr_for(mounts, it) {

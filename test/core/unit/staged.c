@@ -126,10 +126,10 @@ sp_test_each(unit_staged, closure, test_t, tests, .setup = spn_test_ctx_setup) {
 
   u32 expected = 0;
   sp_carr_detect_len(it->expect, expected, it->expect[expected].exe);
-  sp_must_eq(t, expected, (u32)si_da_size(u->plan.staged));
+  sp_must_eq(t, expected, (u32)si_da_size(u->plan.closures));
   sp_for(st, expected) {
     const closure_t* expect = &it->expect[st];
-    spn_stage_closure_t* staged = &u->plan.staged[st];
+    spn_stage_closure_t* staged = &u->plan.closures[st];
     sp_test_kv_c(t, "exe", expect->exe);
     sp_expect_str_eq_c(t, staged->exe.path.sub, expect->exe);
 

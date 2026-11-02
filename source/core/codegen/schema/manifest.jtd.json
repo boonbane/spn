@@ -15,7 +15,8 @@
     "options": { "values": { "ref": "option" } },
     "deps": { "ref": "deps" },
     "config": { "values": { "ref": "config_entry" } },
-    "patch": { "values": { "ref": "patch_entry" } }
+    "patch": { "values": { "ref": "patch_entry" } },
+    "stage": { "ref": "stage" }
   },
   "definitions": {
     "c_standard": { "enum": ["c89", "c99", "c11", "gnu89", "gnu99", "gnu11"] },
@@ -113,6 +114,19 @@
       "optionalProperties": {
         "include": { "elements": { "ref": "publish_entry" } },
         "share": { "elements": { "ref": "publish_entry" } }
+      }
+    },
+
+    "stage": {
+      "optionalProperties": {
+        "copy": { "elements": { "ref": "stage_entry" } }
+      }
+    },
+
+    "stage_entry": {
+      "properties": {
+        "from": { "type": "string" },
+        "to": { "type": "string" }
       }
     },
 

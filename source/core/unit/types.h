@@ -74,14 +74,6 @@ typedef struct {
 } spn_publish_plan_t;
 
 typedef struct {
-  si_da(spn_pkg_unit_t*) pkgs;
-  si_da(spn_target_unit_t*) targets;
-  si_da(spn_publish_plan_t) publishes;
-  si_da(spn_user_node_t*) nodes;
-  si_da(spn_stage_closure_t) staged;
-} spn_build_plan_t;
-
-typedef struct {
   spn_pkg_unit_t* pkg;
   bool private;
 } spn_pkg_edge_t;
@@ -106,6 +98,21 @@ struct spn_user_node_t {
   si_da(spn_user_output_t) outputs;
   si_da(spn_node_ref_t) deps;
 };
+
+typedef struct {
+  spn_user_output_t* from;
+  spn_path_t to;
+} spn_stage_plan_t;
+
+typedef struct {
+  si_da(spn_pkg_unit_t*) pkgs;
+  si_da(spn_target_unit_t*) targets;
+  si_da(spn_publish_plan_t) publishes;
+  si_da(spn_user_node_t*) nodes;
+  si_da(spn_stage_closure_t) closures;
+  si_da(spn_stage_plan_t) stages;
+  si_da(spn_dag_claim_t) claims;
+} spn_build_plan_t;
 
 typedef struct {
   spn_compile_unit_id_t id;

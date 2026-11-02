@@ -98,6 +98,11 @@ typedef struct {
   sp_da(spn_dag_id_t) consumers;
 } spn_dag_artifact_t;
 
+typedef struct {
+  spn_path_t path;
+  spn_dag_artifact_kind_t kind;
+} spn_dag_claim_t;
+
 typedef enum {
   SPN_DAG_ACTION_STATIC,
   SPN_DAG_ACTION_DISCOVERED,
@@ -129,6 +134,7 @@ struct spn_dag_t {
   const spn_path_roots_t* roots;
   sp_da(spn_dag_artifact_t) artifacts;
   sp_da(spn_dag_action_t) actions;
+  sp_da(spn_dag_claim_t) claims;
   sp_ht(spn_path_t, spn_dag_id_t) paths;
 };
 

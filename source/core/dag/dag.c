@@ -19,6 +19,7 @@ spn_dag_t* spn_dag_new(sp_mem_t mem, const spn_path_roots_t* roots) {
   g->roots = roots;
   sp_da_init(a, g->artifacts);
   sp_da_init(a, g->actions);
+  sp_da_init(a, g->claims);
   sp_ht_init(a, g->paths);
   sp_ht_set_fns(g->paths, spn_path_on_hash, spn_path_on_compare);
   return g;
@@ -97,6 +98,12 @@ spn_dag_id_t spn_dag_add_output(spn_dag_t* g, sp_str_t name) {
   });
 }
 
+void spn_dag_add_claim(spn_dag_t* g, spn_dag_claim_t claim) {
+  sp_assert(!spn_path_empty(claim.path));
+  claim.path = spn_path_copy(g->mem, claim.path);
+  sp_da_push(g->claims, claim);
+}
+
 spn_dag_id_t spn_dag_add_action(spn_dag_t* g, spn_dag_action_config_t config) {
   sp_assert(config.execute);
   spn_dag_action_t action = {
@@ -171,8 +178,50 @@ bool spn_dag_output_overlaps(const spn_dag_artifact_t* artifact, spn_path_t path
   return below || above;
 }
 
+static bool claim_covers(const spn_dag_claim_t* claim, spn_path_t path) {
+  return claim->kind == SPN_DAG_ARTIFACT_KIND_TREE ? spn_path_within(claim->path, path).within : spn_path_equal(claim->path, path);
+}
+
+bool spn_dag_claimed(const spn_dag_t* g, const spn_dag_obs_t* obs) {
+  sp_da_for(g->claims, it) {
+    const spn_dag_claim_t* claim = &g->claims[it];
+    if (claim_covers(claim, obs->path)) {
+      return true;
+    }
+    if (obs->kind == SPN_DAG_OBS_ABSENT && spn_path_within(obs->path, claim->path).within) {
+      return true;
+    }
+  }
+  return false;
+}
+
 spn_dag_diag_t spn_dag_validate(const spn_dag_t* g) {
   sp_str_buf_t buf = sp_zero;
+  sp_da_for(g->claims, it) {
+    const spn_dag_claim_t* claim = &g->claims[it];
+    if (claim->kind == SPN_DAG_ARTIFACT_KIND_TREE && spn_path_roots_intersect(g->roots, spn_path_str(g->roots, sp_str_buf_as_mem(&buf), claim->path))) {
+      return (spn_dag_diag_t) { .err = SPN_ERR_STAGE_OVERLAP, .path = claim->path };
+    }
+    sp_da_for(g->artifacts, at) {
+      const spn_dag_artifact_t* artifact = &g->artifacts[at];
+      if (spn_path_empty(artifact->path)) {
+        continue;
+      }
+      if (claim_covers(claim, artifact->path)) {
+        return (spn_dag_diag_t) { .err = SPN_ERR_STAGE_OVERLAP, .artifact = artifact->id, .path = artifact->path };
+      }
+      if (artifact->kind == SPN_DAG_ARTIFACT_KIND_TREE && spn_path_within(artifact->path, claim->path).within) {
+        return (spn_dag_diag_t) { .err = SPN_ERR_STAGE_OVERLAP, .artifact = artifact->id, .path = claim->path };
+      }
+    }
+    sp_for(jt, it) {
+      const spn_dag_claim_t* other = &g->claims[jt];
+      if (claim_covers(claim, other->path) || claim_covers(other, claim->path)) {
+        return (spn_dag_diag_t) { .err = SPN_ERR_STAGE_OVERLAP, .path = claim->path };
+      }
+    }
+  }
+
   spn_dag_diag_t violation = sp_zero;
   sp_da_for(g->artifacts, it) {
     const spn_dag_artifact_t* artifact = &g->artifacts[it];

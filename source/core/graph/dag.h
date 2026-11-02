@@ -23,6 +23,12 @@ typedef struct {
   si_da(spn_dag_id_t) outputs;
 } si_dag_pkg_ids_t;
 
+typedef struct {
+  sp_str_t key;
+  spn_path_t to;
+  spn_dag_id_t artifact;
+} spn_dag_stage_t;
+
 struct spn_dag_build_t {
   spn_session_t* session;
   sp_mem_t mem;
@@ -39,13 +45,16 @@ struct spn_dag_build_t {
     sp_ht(spn_dag_id_t, spn_pkg_unit_t*) pkgs;
     sp_ht(spn_pkg_unit_t*, sp_atomic_s32_t) announced;
   } announce;
+  struct {
+    si_da(spn_dag_stage_t) profile;
+    si_da(spn_dag_stage_t) checkout;
+  } stages;
   spn_dag_run_t run;
 };
 
 spn_dag_build_t* spn_dag_build_new(spn_op_t* op);
 spn_err_t        spn_dag_build_lower(spn_dag_build_t* b, const spn_build_plan_t* plan);
 spn_err_t        spn_dag_build_run(spn_dag_build_t* b, u32 workers);
-spn_err_t        spn_dag_build_stage(spn_dag_build_t* b);
 spn_err_t        spn_dag_build_write_compile_commands(spn_dag_build_t* b, const spn_build_plan_t* plan);
 
 #endif
