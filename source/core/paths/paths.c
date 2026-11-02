@@ -9,14 +9,14 @@ sp_path_t spn_path_at(const spn_path_roots_t* roots, spn_path_t path) {
     return sp_path_from_str(path.sub);
   }
   sp_assert(roots->opened & spn_path_root_mask(path.root));
-  return sp_path(roots->fds[path.root], sp_str_empty(path.sub) ? sp_str_lit(".") : path.sub);
+  return sp_path(roots->handles[path.root], sp_str_empty(path.sub) ? sp_str_lit(".") : path.sub);
 }
 
 spn_err_t spn_path_roots_set(spn_path_roots_t* roots, sp_mem_t mem, spn_path_root_t kind, sp_path_t dir) {
   sp_assert(!(roots->opened & spn_path_root_mask(kind)));
   sp_str_t canonical = sp_zero;
   sp_try_as(sp_fs_canonicalize_path_at(mem, dir, &canonical), SPN_ERROR);
-  sp_try_as(sp_fs_open_dir_at(dir, &roots->fds[kind]), SPN_ERROR);
+  sp_try_as(sp_fs_open_dir_at(dir, &roots->handles[kind]), SPN_ERROR);
   roots->dirs[kind] = canonical;
   roots->opened |= spn_path_root_mask(kind);
   return SPN_OK;
@@ -25,7 +25,7 @@ spn_err_t spn_path_roots_set(spn_path_roots_t* roots, sp_mem_t mem, spn_path_roo
 void spn_path_roots_close(spn_path_roots_t* roots) {
   sp_for(it, SPN_PATH_ROOT_COUNT) {
     if (roots->opened & spn_path_root_mask((spn_path_root_t)it)) {
-      sp_sys_close(roots->fds[it]);
+      sp_fs_close_dir(roots->handles[it]);
     }
     roots->dirs[it] = sp_str_lit("");
   }
