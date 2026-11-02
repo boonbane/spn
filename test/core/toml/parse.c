@@ -50,6 +50,6 @@ static const test_t tests [] = {
 
 sp_test_each(toml_edit, parse_error, test_t, tests) {
   spn_toml_edit_t edit = sp_zero;
-  sp_expect_eq(t, SPN_ERR_TOML_PARSE, spn_toml_edit_init(&edit, sp_test_arena(t), sp_str_view(it->toml)));
+  sp_expect_eq(t, SPN_ERR_TOML_PARSE, spn_toml_edit_init(&edit, sp_test_arena(t), sp_cstr_as_str(it->toml)));
   return SP_OK;
 }

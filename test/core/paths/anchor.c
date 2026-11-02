@@ -56,7 +56,7 @@ sp_test_each(paths_anchor, check, anchor_test_t, anchor_tests) {
   spn_path_roots_t storage = sp_zero;
   const spn_path_roots_t* roots = paths_test_roots_build(it->roots, &storage);
 
-  spn_path_t path = { .root = it->path.root, .sub = sp_str_view(it->path.sub) };
+  spn_path_t path = { .root = it->path.root, .sub = sp_cstr_as_str(it->path.sub) };
   spn_path_t anchored = spn_path_anchor(mem, roots, path);
   sp_expect_eq(t, anchored.root, it->expect.root);
   sp_expect_str_eq_c(t, anchored.sub, it->expect.sub);

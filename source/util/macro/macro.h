@@ -37,7 +37,6 @@
 #define sp_str_ht_exists(ht, key) (sp_str_ht_get((ht), (key)) != SP_NULLPTR)
 #define sp_ht_key_exists(ht, key) (sp_ht_getp((ht), (key)) != SP_NULLPTR)
 
-#define SP_CSTR(s)   sp_str_view(s)
 #define SP_MAX(a, b) sp_max((a), (b))
 #define SP_MIN(a, b) sp_min((a), (b))
 #define SP_ASSERT_FMT(cond, ...) sp_assert(cond)
@@ -60,34 +59,6 @@
   sp_carr_for_until(arr, __sp_iterator, (expr)) { \
     (it)++; \
   }
-
-#if defined(SP_CPP)
-  #if defined(_MSVC_LANG)
-    #define SP_CPP_VERSION _MSVC_LANG
-  #else
-    #define SP_CPP_VERSION __cplusplus
-  #endif
-#endif
-
-#if defined(SP_CPP) && SP_CPP_VERSION >= 201103L
-  template<typename T> struct sp_typeof_t      { typedef T type; };
-  template<typename T> struct sp_typeof_t<T&>  { typedef T type; };
-  template<typename T> struct sp_typeof_t<T&&> { typedef T type; };
-  #define SP_HAS_TYPEOF 1
-  #define sp_type_of(x) typename sp_typeof_t<decltype(x)>::type
-#elif defined(__GNUC__) || defined(__clang__) || defined(__TINYC__)
-  #define SP_HAS_TYPEOF 1
-  #define sp_type_of(x) __typeof__(x)
-#elif defined(_MSC_VER) && !defined(SP_CPP) && _MSC_VER >= 1939
-  #define SP_HAS_TYPEOF 1
-  #define sp_type_of(x) __typeof__(x)
-#elif !defined(SP_CPP) && defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202311L
-  #define SP_HAS_TYPEOF 1
-  #define sp_type_of(x) typeof(x)
-#else
-  #define SP_HAS_TYPEOF 0
-  #define sp_type_of(x) sp_type_of_is_unsupported_on_this_toolchain
-#endif
 
 #define __sp_it(it) sp_mcat(it, _p)
 #define __sp_it_end(it) sp_mcat(it, _end)

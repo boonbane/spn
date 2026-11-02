@@ -69,16 +69,16 @@ static const err_name_t err_names [] = {
 };
 
 sp_test_each(names, types, type_name_t, type_names) {
-  sp_expect_str_eq_c(t, sp_str_view(jtd_type_name(it->type)), it->name);
+  sp_expect_str_eq_c(t, sp_cstr_as_str(jtd_type_name(it->type)), it->name);
   return SP_OK;
 }
 
 sp_test_each(names, forms, form_name_t, form_names) {
-  sp_expect_str_eq_c(t, sp_str_view(jtd_form_name(it->form)), it->name);
+  sp_expect_str_eq_c(t, sp_cstr_as_str(jtd_form_name(it->form)), it->name);
   return SP_OK;
 }
 
 sp_test_each(names, errors, err_name_t, err_names) {
-  sp_expect_str_eq_c(t, sp_str_view(jtd_err_name(it->err)), it->name);
+  sp_expect_str_eq_c(t, sp_cstr_as_str(jtd_err_name(it->err)), it->name);
   return SP_OK;
 }

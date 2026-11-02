@@ -139,7 +139,7 @@ sp_test_each(dag_graph, validate, test_t, tests) {
   sp_carr_detect_len(it->outputs, outputs, it->outputs[outputs].path);
   sp_for(ot, outputs) {
     const decl_t* decl = &it->outputs[ot];
-    spn_dag_id_t artifact = spn_dag_add_path(g, spn_path_make(roots, sp_str_view(decl->path)), decl->tree ? SPN_DAG_ARTIFACT_KIND_TREE : SPN_DAG_ARTIFACT_KIND_FILE);
+    spn_dag_id_t artifact = spn_dag_add_path(g, spn_path_make(roots, sp_cstr_as_str(decl->path)), decl->tree ? SPN_DAG_ARTIFACT_KIND_TREE : SPN_DAG_ARTIFACT_KIND_FILE);
     sp_must_eq(t, SPN_OK, spn_dag_action_add_output(g, actions[decl->action], artifact));
   }
 
@@ -147,7 +147,7 @@ sp_test_each(dag_graph, validate, test_t, tests) {
   sp_carr_detect_len(it->inputs, inputs, it->inputs[inputs].path);
   sp_for(in, inputs) {
     const decl_t* decl = &it->inputs[in];
-    spn_dag_id_t artifact = spn_dag_add_path(g, spn_path_make(roots, sp_str_view(decl->path)), decl->tree ? SPN_DAG_ARTIFACT_KIND_TREE : SPN_DAG_ARTIFACT_KIND_FILE);
+    spn_dag_id_t artifact = spn_dag_add_path(g, spn_path_make(roots, sp_cstr_as_str(decl->path)), decl->tree ? SPN_DAG_ARTIFACT_KIND_TREE : SPN_DAG_ARTIFACT_KIND_FILE);
     spn_dag_action_add_input(g, actions[0], artifact);
   }
 
@@ -156,7 +156,7 @@ sp_test_each(dag_graph, validate, test_t, tests) {
   sp_for(ct, claims) {
     const decl_t* decl = &it->claims[ct];
     spn_dag_add_claim(g, (spn_dag_claim_t) {
-      .path = spn_path_make(roots, sp_str_view(decl->path)),
+      .path = spn_path_make(roots, sp_cstr_as_str(decl->path)),
       .kind = decl->tree ? SPN_DAG_ARTIFACT_KIND_TREE : SPN_DAG_ARTIFACT_KIND_FILE,
     });
   }
@@ -252,7 +252,7 @@ sp_test_each(dag_graph, output_overlaps, overlap_t, overlaps) {
   sp_carr_detect_len(it->outputs, outputs, it->outputs[outputs].path);
   sp_for(ot, outputs) {
     const decl_t* decl = &it->outputs[ot];
-    spn_dag_id_t artifact = spn_dag_add_path(g, spn_path_make(roots, sp_str_view(decl->path)), decl->tree ? SPN_DAG_ARTIFACT_KIND_TREE : SPN_DAG_ARTIFACT_KIND_FILE);
+    spn_dag_id_t artifact = spn_dag_add_path(g, spn_path_make(roots, sp_cstr_as_str(decl->path)), decl->tree ? SPN_DAG_ARTIFACT_KIND_TREE : SPN_DAG_ARTIFACT_KIND_FILE);
     sp_must_eq(t, SPN_OK, spn_dag_action_add_output(g, actions[decl->action], artifact));
   }
 
@@ -260,7 +260,7 @@ sp_test_each(dag_graph, output_overlaps, overlap_t, overlaps) {
   sp_carr_detect_len(it->inputs, inputs, it->inputs[inputs].path);
   sp_for(in, inputs) {
     const decl_t* decl = &it->inputs[in];
-    spn_dag_action_add_input(g, actions[0], spn_dag_add_file(g, spn_path_make(roots, sp_str_view(decl->path))));
+    spn_dag_action_add_input(g, actions[0], spn_dag_add_file(g, spn_path_make(roots, sp_cstr_as_str(decl->path))));
   }
 
   u32 expected = 0;

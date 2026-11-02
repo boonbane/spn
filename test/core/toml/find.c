@@ -81,7 +81,7 @@ sp_test_each(toml_edit, find, test_t, tests) {
   }
   else {
     sp_must(t, entry != SP_NULLPTR);
-    sp_expect_str_eq(t, spn_toml_edit_entry_str(&edit, entry), sp_str_view(it->expect.value));
+    sp_expect_str_eq(t, spn_toml_edit_entry_str(&edit, entry), sp_cstr_as_str(it->expect.value));
   }
 
   sp_expect_str_eq(t, spn_toml_edit_render(&edit, mem), source);

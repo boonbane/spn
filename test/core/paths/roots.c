@@ -78,7 +78,7 @@ sp_test_each(paths_roots, collapse_expand, roots_test_t, roots_tests) {
   sp_mem_t mem = sp_test_arena(t);
   spn_path_roots_t storage = sp_zero;
   const spn_path_roots_t* roots = paths_test_roots_build(it->roots, &storage);
-  sp_str_t path = sp_str_view(it->path);
+  sp_str_t path = sp_cstr_as_str(it->path);
 
   spn_path_t collapsed = spn_path_make(roots, path);
   sp_expect_eq(t, it->expect.root, collapsed.root);

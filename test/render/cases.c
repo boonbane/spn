@@ -495,7 +495,7 @@ sp_test_each(render, cells, cell_t, cells) {
   sp_ps_output_t output = run_spn(t, &fixture, it->args, env);
 
   sp_mem_t mem = fixture.mem;
-  sp_str_t dir = sp_fs_join_path(mem, render_out_path(mem, "current"), sp_str_view(it->name));
+  sp_str_t dir = sp_fs_join_path(mem, render_out_path(mem, "current"), sp_cstr_as_str(it->name));
   bool color = forces_color(it->env);
   write_capture(mem, dir, "stderr", scrub(mem, &fixture, output.err), color);
   write_capture(mem, dir, "stdout", scrub(mem, &fixture, output.out), color);

@@ -305,7 +305,7 @@ sp_test_each(cmd_publish, publish, case_t, cases, .setup = spn_test_ctx_setup) {
       sp_carr_for(c.repo.commits[ci].files, fi) {
         git_repo_file_t* file = &c.repo.commits[ci].files[fi];
         if (!file->path) break;
-        if (sp_str_equal_cstr(sp_str_view(c.generated_manifest), file->path)) {
+        if (sp_str_equal_cstr(sp_cstr_as_str(c.generated_manifest), file->path)) {
           manifest = file;
         }
       }
@@ -345,7 +345,7 @@ sp_test_each(cmd_publish, publish, case_t, cases, .setup = spn_test_ctx_setup) {
 
   sp_str_t cwd = repo.path;
   if (c.opts.subdir) {
-    cwd = sp_fs_join_path(mem, repo.path, sp_str_view(c.opts.subdir));
+    cwd = sp_fs_join_path(mem, repo.path, sp_cstr_as_str(c.opts.subdir));
   }
 
   u32 rev_idx = c.opts.source_commit ? c.opts.source_commit - 1 : 0;
@@ -374,8 +374,8 @@ sp_test_each(cmd_publish, publish, case_t, cases, .setup = spn_test_ctx_setup) {
     spn_index_pkg_t* pkg = SP_NULLPTR;
     spn_err_union_t diag = sp_zero;
     spn_index_get_package(&index, mem, spn.intern, &spn.roots, (spn_pkg_name_t) {
-      .namespace = sp_str_view(c.expect.namespace),
-      .name = sp_str_view(c.expect.name),
+      .namespace = sp_cstr_as_str(c.expect.namespace),
+      .name = sp_cstr_as_str(c.expect.name),
     }, &pkg, &diag);
 
     sp_must(t, pkg);

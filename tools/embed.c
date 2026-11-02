@@ -188,12 +188,12 @@ sp_cli_result_t embed_run(sp_cli_t* cli) {
   }
 
   sp_mem_t mem = sp_mem_os_new();
-  sp_str_t obj_path = sp_str_view(embed->output);
-  sp_str_t hdr_path = embed->header ? sp_str_view(embed->header) : embed_header_path(mem, obj_path);
+  sp_str_t obj_path = sp_cstr_as_str(embed->output);
+  sp_str_t hdr_path = embed->header ? sp_cstr_as_str(embed->header) : embed_header_path(mem, obj_path);
 
   embed_format_t format = EMBED_FORMAT_ELF;
   if (embed->format) {
-    sp_str_t name = sp_str_view(embed->format);
+    sp_str_t name = sp_cstr_as_str(embed->format);
     if (sp_str_equal(name, sp_str_lit("elf"))) {
       format = EMBED_FORMAT_ELF;
     }
@@ -214,7 +214,7 @@ sp_cli_result_t embed_run(sp_cli_t* cli) {
   embed_arch_t arch = EMBED_ARCH_AARCH64;
 #endif
   if (embed->arch) {
-    sp_str_t name = sp_str_view(embed->arch);
+    sp_str_t name = sp_cstr_as_str(embed->arch);
     if (sp_str_equal(name, sp_str_lit("x86_64"))) {
       arch = EMBED_ARCH_X86_64;
     }
@@ -232,7 +232,7 @@ sp_cli_result_t embed_run(sp_cli_t* cli) {
   sp_da_init(mem, entries);
 
   for (const c8** it = cli->rest; *it; it++) {
-    sp_str_t arg = sp_str_view(*it);
+    sp_str_t arg = sp_cstr_as_str(*it);
 
     sp_str_t src = arg;
     sp_str_t dest = sp_zero;

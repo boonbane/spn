@@ -35,8 +35,8 @@ sp_test_each(invocation, run_progress, test_t, tests, .setup = spn_test_ctx_setu
   sp_test_skip_on_win32();
   sp_mem_t mem = sp_test_arena(t);
   sp_str_t dir = test_dir_str(t);
-  sp_must_ok(t, sp_fs_create_file_str(sp_fs_join_path(mem, dir, sp_str_lit("progress")), sp_str_view(it->progress)));
-  sp_must_ok(t, sp_fs_create_file_str(sp_fs_join_path(mem, dir, sp_str_lit("err")), sp_str_view(it->err)));
+  sp_must_ok(t, sp_fs_create_file_str(sp_fs_join_path(mem, dir, sp_str_lit("progress")), sp_cstr_as_str(it->progress)));
+  sp_must_ok(t, sp_fs_create_file_str(sp_fs_join_path(mem, dir, sp_str_lit("err")), sp_cstr_as_str(it->err)));
 
   spn_invocation_t invocation = {
     .program = spn_arg_path((spn_path_t) { .sub = sp_str_lit("/bin/sh") }),

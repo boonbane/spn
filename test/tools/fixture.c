@@ -38,7 +38,7 @@ sp_ps_output_t git_repo_run_cstr(sp_str_t repo, const c8** args, u32 count) {
   sp_str_t strs [SP_PS_MAX_ARGS];
   SP_ASSERT(count <= SP_PS_MAX_ARGS - 2);
   sp_for(it, count) {
-    strs[it] = sp_str_view(args[it]);
+    strs[it] = sp_cstr_as_str(args[it]);
   }
   return git_repo_run(repo, strs, count);
 }
@@ -60,11 +60,11 @@ void git_repo_commit(sp_str_t repo, sp_str_t message) {
 }
 
 void git_repo_push(sp_str_t repo, sp_str_t remote, const c8* refspec) {
-  git_repo_git(repo, sp_str_lit("push"), sp_str_lit("--quiet"), remote, sp_str_view(refspec));
+  git_repo_git(repo, sp_str_lit("push"), sp_str_lit("--quiet"), remote, sp_cstr_as_str(refspec));
 }
 
 void git_repo_pull(sp_str_t repo, sp_str_t remote, const c8* branch) {
-  git_repo_git(repo, sp_str_lit("pull"), sp_str_lit("--quiet"), remote, sp_str_view(branch));
+  git_repo_git(repo, sp_str_lit("pull"), sp_str_lit("--quiet"), remote, sp_cstr_as_str(branch));
 }
 
 void git_repo_commit_from_dir(sp_str_t source, sp_str_t repo, sp_str_t message) {
@@ -86,14 +86,14 @@ sp_str_t git_repo_head(sp_str_t repo) {
 }
 
 static void git_repo_write_file(sp_str_t repo, const c8* path, const c8* content) {
-  sp_str_t full = sp_fs_join_path(sp_mem_os_new(), repo, sp_str_view(path));
+  sp_str_t full = sp_fs_join_path(sp_mem_os_new(), repo, sp_cstr_as_str(path));
   sp_fs_create_dir(sp_fs_parent_path(full));
-  sp_fs_create_file_str(full, content ? sp_str_view(content) : sp_str_lit(""));
+  sp_fs_create_file_str(full, content ? sp_cstr_as_str(content) : sp_str_lit(""));
 }
 
 git_repo_result_t git_repo_build_at(sp_str_t dir, const c8* name, git_repo_fixture_t* fixture) {
   git_repo_result_t result = sp_zero;
-  result.path = sp_fs_join_path(sp_mem_os_new(), dir, sp_str_view(name));
+  result.path = sp_fs_join_path(sp_mem_os_new(), dir, sp_cstr_as_str(name));
 
   git_repo_init(result.path);
 
@@ -111,7 +111,7 @@ git_repo_result_t git_repo_build_at(sp_str_t dir, const c8* name, git_repo_fixtu
     }
 
     git_repo_stage_all(result.path);
-    git_repo_commit(result.path, sp_str_view(commit->message));
+    git_repo_commit(result.path, sp_cstr_as_str(commit->message));
 
     result.commits[c] = git_repo_head(result.path);
     result.commit_count++;

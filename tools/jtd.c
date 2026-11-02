@@ -138,7 +138,7 @@ static sp_str_t jtd_path_seg(sp_mem_t mem, sp_str_t base, sp_str_t seg) {
 }
 
 static sp_str_t jtd_path_seg_cstr(sp_mem_t mem, sp_str_t base, const c8* seg) {
-  return jtd_path_seg(mem, base, sp_str_view(seg));
+  return jtd_path_seg(mem, base, sp_cstr_as_str(seg));
 }
 
 static sp_str_t jtd_path_seg_cstr_cstr(sp_mem_t mem, sp_str_t base, const c8* a, const c8* b) {

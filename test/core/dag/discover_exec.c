@@ -164,7 +164,7 @@ static spn_err_t execute_action(const si_dag_ctx_t* c, void* user_data) {
     }
     si_dag_observe(c, (spn_dag_obs_t) {
       .kind = SPN_DAG_OBS_FILE,
-      .path = dag_test_env_rooted(&env->dag, sp_str_view(env->run->headers[it].path))
+      .path = dag_test_env_rooted(&env->dag, sp_cstr_as_str(env->run->headers[it].path))
     });
   }
   sp_carr_for(env->run->missing, it) {
@@ -173,7 +173,7 @@ static spn_err_t execute_action(const si_dag_ctx_t* c, void* user_data) {
     }
     si_dag_observe(c, (spn_dag_obs_t) {
       .kind = SPN_DAG_OBS_FILE,
-      .path = dag_test_env_rooted(&env->dag, sp_str_view(env->run->missing[it]))
+      .path = dag_test_env_rooted(&env->dag, sp_cstr_as_str(env->run->missing[it]))
     });
   }
   sp_carr_for(env->run->probes, it) {
@@ -182,7 +182,7 @@ static spn_err_t execute_action(const si_dag_ctx_t* c, void* user_data) {
     }
     si_dag_observe(c, (spn_dag_obs_t) {
       .kind = SPN_DAG_OBS_ABSENT,
-      .path = dag_test_env_rooted(&env->dag, sp_str_view(env->run->probes[it]))
+      .path = dag_test_env_rooted(&env->dag, sp_cstr_as_str(env->run->probes[it]))
     });
   }
   return SPN_OK;
@@ -193,19 +193,19 @@ static void prepare_run(env_t* env, const run_t* run) {
     if (!run->headers[it].path) {
       break;
     }
-    dag_test_env_create(&env->dag, sp_str_view(run->headers[it].path), sp_str_view(run->headers[it].content));
+    dag_test_env_create(&env->dag, sp_cstr_as_str(run->headers[it].path), sp_cstr_as_str(run->headers[it].content));
   }
   sp_carr_for(run->removed, it) {
     if (!run->removed[it]) {
       break;
     }
-    sp_fs_remove_file_at(dag_test_env_path(&env->dag, sp_str_view(run->removed[it])));
+    sp_fs_remove_file_at(dag_test_env_path(&env->dag, sp_cstr_as_str(run->removed[it])));
   }
   sp_carr_for(run->created, it) {
     if (!run->created[it]) {
       break;
     }
-    dag_test_env_create(&env->dag, sp_str_view(run->created[it]), sp_str_lit("S"));
+    dag_test_env_create(&env->dag, sp_cstr_as_str(run->created[it]), sp_str_lit("S"));
   }
 }
 
