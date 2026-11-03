@@ -29,6 +29,11 @@ typedef struct {
   spn_dag_id_t artifact;
 } spn_dag_stage_t;
 
+typedef struct {
+  spn_dag_build_t* build;
+  const spn_build_plan_t* plan;
+} spn_dag_lowered_t;
+
 struct spn_dag_build_t {
   spn_session_t* session;
   sp_mem_t mem;
@@ -55,6 +60,6 @@ struct spn_dag_build_t {
 spn_dag_build_t* spn_dag_build_new(spn_op_t* op);
 spn_err_t        spn_dag_build_lower(spn_dag_build_t* b, const spn_build_plan_t* plan);
 spn_err_t        spn_dag_build_run(spn_dag_build_t* b, u32 workers);
-spn_err_t        spn_dag_build_write_compile_commands(spn_dag_build_t* b, const spn_build_plan_t* plan);
+spn_err_t        spn_dag_build_write_compile_commands(spn_session_t* session, const spn_dag_lowered_t* lowered, u32 count);
 
 #endif

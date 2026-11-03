@@ -11,13 +11,11 @@
 #include "graph/invocation.h"
 #include "session/types.h"
 
-static void render(sp_mem_t mem, spn_dag_build_t* b, const spn_build_plan_t* plan, sp_io_writer_t* io) {
-  spn_session_t* session = b->session;
-  const spn_path_roots_t* roots = b->graph->roots;
+static void render(sp_mem_t mem, spn_session_t* session, const spn_dag_lowered_t* lowered, sp_io_writer_t* io, u32* written) {
+  spn_dag_build_t* b = lowered->build;
+  const spn_path_roots_t* roots = &session->ctx->roots;
 
-  sp_io_write_cstr(io, "[", SP_NULLPTR);
-  u32 written = 0;
-  si_da_for_value(plan->targets, target) {
+  si_da_for_value(lowered->plan->targets, target) {
     sp_da_for(target->objects, it) {
       spn_compile_unit_t* unit = target->objects[it];
       spn_cc_compile_files_t files = { .source = unit->file };
@@ -31,7 +29,7 @@ static void render(sp_mem_t mem, spn_dag_build_t* b, const spn_build_plan_t* pla
       spn_invocation_t invocation = spn_cc_render_compile_source(mem, &unit->plan, &files);
       sp_da(sp_str_t) args = spn_invocation_args(roots, mem, &invocation);
 
-      if (written++) {
+      if ((*written)++) {
         sp_io_write_c8(io, ',');
       }
       sp_io_write_cstr(io, "\n  { \"directory\": ", SP_NULLPTR);
@@ -47,17 +45,20 @@ static void render(sp_mem_t mem, spn_dag_build_t* b, const spn_build_plan_t* pla
       sp_io_write_cstr(io, "] }", SP_NULLPTR);
     }
   }
-  sp_io_write_cstr(io, "\n]\n", SP_NULLPTR);
 }
 
-spn_err_t spn_dag_build_write_compile_commands(spn_dag_build_t* b, const spn_build_plan_t* plan) {
-  spn_session_t* session = b->session;
-  const spn_path_roots_t* roots = b->graph->roots;
+spn_err_t spn_dag_build_write_compile_commands(spn_session_t* session, const spn_dag_lowered_t* lowered, u32 count) {
+  const spn_path_roots_t* roots = &session->ctx->roots;
   sp_mem_arena_marker_t s = sp_mem_begin_scratch();
 
   sp_io_dyn_mem_writer_t buf = sp_zero;
   sp_io_dyn_mem_writer_init(s.mem, &buf);
-  render(s.mem, b, plan, &buf.base);
+  sp_io_write_cstr(&buf.base, "[", SP_NULLPTR);
+  u32 written = 0;
+  sp_for(it, count) {
+    render(s.mem, session, &lowered[it], &buf.base, &written);
+  }
+  sp_io_write_cstr(&buf.base, "\n]\n", SP_NULLPTR);
   sp_str_t rendered = sp_io_dyn_mem_writer_as_str(&buf);
 
   spn_path_t path = spn_path_project_compile_commands();
