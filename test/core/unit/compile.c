@@ -36,6 +36,32 @@ static const test_t tests [] = {
     },
   },
   {
+    .name = "dep_subdirs_follow_the_dep_include_root",
+    .graph.pkgs = {
+      { .name = "P", .deps = { { "B" } }, .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "a.c" }, .deps = { "B" }, .dep_include = { { "X" } } } } },
+      { .name = "B" },
+    },
+    .root = { "A", SPN_TARGET_KIND_EXE },
+    .expect.args = {
+      { "-I", "build/debug/store/B/include" },
+      { "-I", "build/debug/store/B/include/X" },
+    },
+  },
+  {
+    .name = "sibling_subdirs_follow_the_package_include_root",
+    .graph.pkgs = {
+      { .name = "P", .targets = {
+        { "L", static_only, .source = { "l.c" } },
+        { "E", .kind = SPN_TARGET_KIND_EXAMPLE, .source = { "e.c" }, .deps = { "L" }, .dep_include = { { "X" } } },
+      } },
+    },
+    .root = { "E", SPN_TARGET_KIND_EXAMPLE },
+    .expect.args = {
+      { "-I", "build/debug/store/P/include" },
+      { "-I", "build/debug/store/P/include/X" },
+    },
+  },
+  {
     .name = "defines_go_facts_then_package_then_target",
     .graph.pkgs = {
       { .name = "P", .define = { "X" }, .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "a.c" }, .define = { "Y" } } } },

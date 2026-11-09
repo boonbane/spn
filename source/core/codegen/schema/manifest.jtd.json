@@ -106,6 +106,7 @@
         "pkg": { "type": "string" }
       },
       "optionalProperties": {
+        "include": { "elements": { "type": "string" } },
         "when": { "metadata": { "extern": "when", "include": "when/types.h" } }
       }
     },

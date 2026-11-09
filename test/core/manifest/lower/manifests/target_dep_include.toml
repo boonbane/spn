@@ -1,0 +1,7 @@
+[package]
+name = "P"
+version = "1.0.0"
+
+[[bin]]
+name = "T"
+deps = ["A", { pkg = "B", include = ["X", "Y/Z"], when = { os = "linux" } }]

@@ -173,6 +173,15 @@ static const test_t tests [] = {
     },
   },
   {
+    .name = "dep_include",
+    .project = "test/integration/fixtures/target/dep_include",
+    .copy = { "packages/*" },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = exe("A") },
+    },
+  },
+  {
     .name = "system_deps",
     .project = "test/integration/fixtures/target/system_deps",
     .actions = {

@@ -234,10 +234,11 @@ spn_err_t si_add_target_unit(spn_units_t* u, spn_pkg_unit_t* pkg, si_target_t* t
     }
   }
 
-  si_da_for_value(target->deps, name) {
+  si_da(sp_str_t) own = sp_zero;
+  si_da_for_ptr(target->deps, entry) {
     bool package = false;
     sp_da_for_ptr(pkg->resolved->edges, edge) {
-      if (edge->id.name == name.id) {
+      if (edge->id.name == entry->name.id) {
         package = true;
         break;
       }
@@ -245,16 +246,19 @@ spn_err_t si_add_target_unit(spn_units_t* u, spn_pkg_unit_t* pkg, si_target_t* t
     if (package) {
       continue;
     }
-    si_target_t* lib = spn_pkg_get_target(&pkg->pkg, name.id, SPN_TARGET_KIND_LIB);
+    si_target_t* lib = spn_pkg_get_target(&pkg->pkg, entry->name.id, SPN_TARGET_KIND_LIB);
     if (!lib) {
       return spn_err_emit(u->ctx, (spn_err_union_t) {
         .kind = SPN_ERR_TARGET_DEP,
-        .target = { .name = name.str },
+        .target = { .name = entry->name.str },
       });
     }
     spn_target_unit_t* dep = SP_NULLPTR;
     spn_try(si_add_target_unit(u, pkg, lib, &dep));
     si_da_push(u->mem, unit->deps, dep);
+    si_da_for_value(entry->include, dir) {
+      si_da_push(u->mem, own, dir);
+    }
   }
 
   u32 take = 0;
@@ -270,6 +274,7 @@ spn_err_t si_add_target_unit(spn_units_t* u, spn_pkg_unit_t* pkg, si_target_t* t
       spn_pkg_unit_t* self = SP_NULLPTR;
       spn_try(si_add_package_unit_closure(u, pkg->build, pkg->resolved, &self));
       si_da_push(u->mem, unit->edges, ((spn_pkg_edge_t) { .pkg = self }));
+      si_da_push(u->mem, unit->includes, ((spn_include_edge_t) { .pkg = self, .dirs = own }));
       break;
     }
     case SPN_TARGET_KIND_TEST: {
@@ -291,6 +296,16 @@ spn_err_t si_add_target_unit(spn_units_t* u, spn_pkg_unit_t* pkg, si_target_t* t
     spn_pkg_unit_t* dep = SP_NULLPTR;
     spn_try(si_add_package_unit_closure(u, pkg->build, sp_ht_getp(u->resolve, edge->id), &dep));
     si_da_push(u->mem, unit->edges, ((spn_pkg_edge_t) { .pkg = dep, .private = edge->private }));
+    spn_include_edge_t include = { .pkg = dep };
+    si_da_for_ptr(target->deps, entry) {
+      if (entry->name.id != edge->id.name) {
+        continue;
+      }
+      si_da_for_value(entry->include, dir) {
+        si_da_push(u->mem, include.dirs, dir);
+      }
+    }
+    si_da_push(u->mem, unit->includes, include);
   }
 
   *result = unit;

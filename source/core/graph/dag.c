@@ -238,7 +238,7 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
   si_da_for(pkg_ids->outputs, it) {
     si_da_push(mem, needs, pkg_ids->outputs[it]);
   }
-  si_da_for_ptr(unit->edges, edge) {
+  si_da_for_ptr(unit->includes, edge) {
     si_dag_pkg_ids_t* dep = si_om_get(b->ids.packages, edge->pkg);
     sp_assert(dep);
     if (dep->include.occupied) {

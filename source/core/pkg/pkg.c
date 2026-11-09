@@ -82,7 +82,7 @@ static si_target_t eval_target(eval_ctx_t* ctx, const si_target_info_t* decl) {
     if (!spn_when_eval(&dep.when, ctx->env)) {
       continue;
     }
-    si_da_push(ctx->mem, target.deps, dep.name);
+    si_da_push(ctx->mem, target.deps, ((spn_target_dep_t) { .name = dep.name, .include = dep.include }));
   }
   si_da_for_value(decl->embed, embed) {
     if (!spn_when_eval(&embed.when, ctx->env)) {

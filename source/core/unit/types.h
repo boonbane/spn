@@ -80,6 +80,11 @@ typedef struct {
 
 typedef struct {
   spn_pkg_unit_t* pkg;
+  si_da(sp_str_t) dirs;
+} spn_include_edge_t;
+
+typedef struct {
+  spn_pkg_unit_t* pkg;
   u32 index;
 } spn_node_ref_t;
 
@@ -166,6 +171,7 @@ struct spn_target_unit {
 
   si_da(spn_target_unit_t*) deps;
   si_da(spn_pkg_edge_t) edges;
+  si_da(spn_include_edge_t) includes;
 
   sp_da(spn_compile_unit_t*) objects;
   spn_link_plan_t link;
