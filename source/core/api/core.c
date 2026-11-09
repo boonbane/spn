@@ -44,63 +44,6 @@ spn_path_t spn_api_dir_path(spn_pkg_unit_t* unit, spn_dir_t dir) {
   SP_UNREACHABLE_RETURN(sp_zero_struct(spn_path_t));
 }
 
-static void reject(const c8* fn, sp_str_t path, const c8* reason) {
-  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  sp_str_t message = sp_fmt(scratch.mem, "{}: {} {}", SP_FMT_CSTR(fn), SP_FMT_STR(path), SP_FMT_CSTR(reason)).value;
-  bool trapped = spn_wasm_trap(message);
-  sp_mem_end_scratch(scratch);
-  sp_assert(trapped);
-}
-
-static spn_pkg_unit_t* find_dep(spn_pkg_unit_t* pkg, sp_intern_id_t name, spn_dep_kind_t kind) {
-  sp_da_for_ptr(pkg->resolved->edges, edge) {
-    if (edge->kind != kind || edge->id.name != name) {
-      continue;
-    }
-    spn_pkg_unit_id_t id = { .pkg = edge->id, .build = pkg->build->id };
-    if (!sp_om_has(pkg->units->packages, id)) {
-      return SP_NULLPTR;
-    }
-    return sp_om_get(pkg->units->packages, id);
-  }
-  return SP_NULLPTR;
-}
-
-static bool foreign(spn_pkg_unit_t* unit, spn_path_t path) {
-  if (path.root != SPN_PATH_ROOT_NONE || spn_tree_rel(unit->paths.roots, path).tree != SPN_TREE_NONE) {
-    return false;
-  }
-  si_da_for(unit->pkg.manifest->deps, it) {
-    spn_requested_dep_t* dep = &unit->pkg.manifest->deps[it];
-    spn_pkg_unit_t* dep_unit = find_dep(unit, dep->name.id, dep->kind);
-    if (dep_unit && spn_tree_rel(dep_unit->paths.roots, path).tree != SPN_TREE_NONE) {
-      return false;
-    }
-  }
-  return true;
-}
-
-spn_path_t spn_api_tree_path(spn_pkg_unit_t* unit, const c8* fn, const c8* path) {
-  sp_str_t str = sp_cstr_as_str(path);
-  if (!spn_path_normal(str)) {
-    reject(fn, str, "must not contain '.', '..', or empty components");
-    return sp_zero_struct(spn_path_t);
-  }
-  if (!sp_fs_is_absolute(str)) {
-    return spn_tree_path(spn.mem, &unit->units->ctx->roots, unit->paths.roots, SPN_TREE_SOURCE, str);
-  }
-  spn_path_t absolute = spn_path_make(&unit->units->ctx->roots, str);
-  if (foreign(unit, absolute)) {
-    reject(fn, str, "is outside every directory spn manages");
-    return sp_zero_struct(spn_path_t);
-  }
-  return spn_path_copy(spn.mem, absolute);
-}
-
-static spn_path_t api_path(spn_pkg_unit_t* unit, const c8* fn, const c8* path) {
-  return spn_api_tree_path(unit, fn, path);
-}
-
 static spn_target_t* wrap(spn_pkg_unit_t* unit, si_target_t* eval) {
   spn_target_t* target = sp_alloc_type(spn.mem, spn_target_t);
   target->unit = unit;
