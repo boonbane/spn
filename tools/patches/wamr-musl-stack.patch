@@ -1,5 +1,5 @@
 diff --git a/core/shared/platform/common/posix/posix_thread.c b/core/shared/platform/common/posix/posix_thread.c
-index 80b7d65..d1566cc 100644
+index 80b7d65..000c232 100644
 --- a/core/shared/platform/common/posix/posix_thread.c
 +++ b/core/shared/platform/common/posix/posix_thread.c
 @@ -11,6 +11,10 @@
@@ -13,7 +13,35 @@ index 80b7d65..d1566cc 100644
  #if defined(__APPLE__) || defined(__MACH__)
  #include <TargetConditionals.h>
  #endif
-@@ -452,6 +456,19 @@ os_thread_get_stack_boundary()
+@@ -422,6 +426,27 @@ os_thread_exit(void *retval)
+ static os_thread_local_attribute uint8 *thread_stack_boundary = NULL;
+ #endif
+ 
++#if defined(__linux__) && !defined(__GLIBC__)
++static uintptr_t
++stack_mapping_end(uintptr_t addr)
++{
++    uintptr_t from, to, end = 0;
++    FILE *maps = fopen("/proc/self/maps", "re");
++
++    if (!maps)
++        return 0;
++    while (fscanf(maps, "%" SCNxPTR "-%" SCNxPTR "%*[^\n]", &from, &to)
++           == 2) {
++        if (from <= addr && addr < to) {
++            end = to;
++            break;
++        }
++    }
++    fclose(maps);
++    return end;
++}
++#endif
++
+ uint8 *
+ os_thread_get_stack_boundary()
+ {
+@@ -452,6 +477,25 @@ os_thread_get_stack_boundary()
          pthread_attr_getstack(&attr, (void **)&addr, &stack_size);
          pthread_attr_getguardsize(&attr, &guard_size);
          pthread_attr_destroy(&attr);
@@ -22,11 +50,17 @@ index 80b7d65..d1566cc 100644
 +           thread's stack; size it from the rlimit like glibc does */
 +        if (getpid() == (pid_t)syscall(SYS_gettid)) {
 +            struct rlimit rl;
-+            if (getrlimit(RLIMIT_STACK, &rl) == 0
++            uintptr_t top = (uintptr_t)addr + stack_size;
++            uintptr_t end = stack_mapping_end(top - 1);
++            if (end && getrlimit(RLIMIT_STACK, &rl) == 0
 +                && rl.rlim_cur != RLIM_INFINITY
-+                && (size_t)rl.rlim_cur > stack_size) {
-+                addr = addr + stack_size - (size_t)rl.rlim_cur;
-+                stack_size = (size_t)rl.rlim_cur;
++                && (size_t)rl.rlim_cur > end - top) {
++                size_t limit = ((size_t)rl.rlim_cur - (end - top))
++                               & ~((size_t)page_size - 1);
++                if (limit > stack_size) {
++                    addr = (uint8 *)top - limit;
++                    stack_size = limit;
++                }
 +            }
 +        }
 +#endif
