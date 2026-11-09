@@ -50,7 +50,6 @@ typedef struct {
 
 typedef struct {
   const c8* tag;
-  const c8* inputs [UNIT_TEST_MAX_STRS];
   const c8* outputs [UNIT_TEST_MAX_STRS];
 } graph_node_t;
 

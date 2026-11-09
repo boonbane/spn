@@ -149,12 +149,12 @@ static const test_t tests [] = {
       {
         .name = "P",
         .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "main.c" } } },
-        .nodes = { { .tag = "N", .inputs = { "in.txt" }, .outputs = { "g/x.h" } } },
+        .nodes = { { .tag = "N", .outputs = { "g/x.h" } } },
       },
     },
     .roots = { { "A", SPN_TARGET_KIND_EXE } },
     .actions = {
-      { NODE_USER, .consumes = { "in.txt" }, .produces = { "build/debug/.spn/P/g/x.h" } },
+      { NODE_USER, .produces = { "build/debug/.spn/P/g/x.h" } },
       { NODE_COMPILE, .consumes = { "main.c" }, .orders = { "build/debug/.spn/P/g/x.h" }, .produces = { "main.c.o" } },
       { NODE_LINK, .consumes = { "main.c.o" }, .produces = { "A" } },
       { NODE_PUBLISH_FILE, .consumes = { "A" }, .produces = { "build/debug/store/P/bin/A" } },

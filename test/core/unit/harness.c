@@ -369,12 +369,6 @@ static void add_nodes(units_t* u, spn_pkg_unit_t* unit, const graph_pkg_t* spec)
       break;
     }
     spn_user_node_t made = { .unit = unit, .tag = sp_cstr_as_str(node->tag) };
-    sp_carr_for(node->inputs, it) {
-      if (!node->inputs[it]) {
-        break;
-      }
-      si_da_push(mem, made.inputs, spn_path_join(mem, unit->paths.roots.source, sp_cstr_as_str(node->inputs[it])));
-    }
     sp_carr_for(node->outputs, ot) {
       if (!node->outputs[ot]) {
         break;

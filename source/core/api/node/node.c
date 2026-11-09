@@ -40,15 +40,6 @@ spn_node_t* spn_add_node(spn_config_t* config, const c8* tag) {
   return out;
 }
 
-void spn_node_add_input(spn_node_t* node, const c8* input) {
-  spn_user_node_t* info = spn_node_deref(node->ref);
-  spn_path_t made = spn_api_tree_path(node->ref.pkg, "spn_node_add_input", input);
-  if (spn_path_empty(made)) {
-    return;
-  }
-  si_da_push(node->ref.pkg->units->mem, info->inputs, made);
-}
-
 typedef enum {
   OUTPUT_OK,
   OUTPUT_ABNORMAL,

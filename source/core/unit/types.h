@@ -99,7 +99,6 @@ struct spn_user_node_t {
   spn_pkg_unit_t* unit;
   sp_str_t tag;
   sp_str_t fn;
-  si_da(spn_path_t) inputs;
   si_da(spn_user_output_t) outputs;
   si_da(spn_node_ref_t) deps;
 };
