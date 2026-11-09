@@ -33,8 +33,6 @@ const c8*     spn_fmt_ex(const c8* fmt, const c8* a0, const c8* a1, const c8* a2
 #define spn_fmt_select(fmt, a0, a1, a2, a3, ...) spn_fmt_ex(fmt, a0, a1, a2, a3)
 #define spn_fmt(fmt, ...) spn_fmt_select(fmt, ##__VA_ARGS__, 0, 0, 0, 0, 0)
 
-void          spn_add_include(spn_config_t* config, const c8* path);
-void          spn_add_define(spn_config_t* config, const c8* define);
 void          spn_add_system_dep(spn_config_t* config, const c8* dep);
 spn_node_t*   spn_add_node(spn_config_t* config, const c8* tag);
 void          spn_node_add_output(spn_node_t* node, const c8* path);
@@ -42,14 +40,7 @@ void          spn_node_add_output_dir(spn_node_t* node, const c8* path);
 void          spn_node_link(spn_node_t* from, spn_node_t* to);
 void          spn_node_set_fn(spn_node_t* node, const c8* fn);
 
-void          spn_target_add_source(spn_target_t* target, const c8* source);
-void          spn_target_add_include(spn_target_t* target, const c8* include);
-void          spn_target_add_define(spn_target_t* target, const c8* define);
-void          spn_target_add_define_path(spn_target_t* target, const c8* name, spn_dir_t dir, const c8* path);
 void          spn_target_add_flag(spn_target_t* target, const c8* flag);
-void          spn_target_embed_file(spn_target_t* target, const c8* file);
-void          spn_target_embed_file_ex(spn_target_t* target, const c8* file, const c8* dest, const c8* data_type, const c8* size_type);
-void          spn_target_embed_dir_ex(spn_target_t* target, const c8* dir, const c8* dest, const c8* data_type, const c8* size_type);
 
 spn_profile_t*   spn_get_profile(spn_t* spn);
 spn_libc_kind_t  spn_profile_get_libc(spn_profile_t* profile);

@@ -246,12 +246,6 @@ static spn_err_t lower_target(spn_units_t* u, spn_target_unit_t* unit) {
   if (profile->target.os == SPN_OS_MACOS) {
     compile.min_os = link->cc.min_os;
   }
-  si_da_for(target->configured.include, it) {
-    si_da_push(scratch.mem, compile.include, target->configured.include[it]);
-  }
-  si_da_for(pkg->pkg.configured.include, it) {
-    si_da_push(scratch.mem, compile.include, pkg->pkg.configured.include[it]);
-  }
   sp_da_for(build->include, it) {
     si_da_push(scratch.mem, compile.include, build->include[it]);
   }

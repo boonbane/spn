@@ -111,9 +111,6 @@ struct si_pkg {
   si_da(sp_str_t) system_deps;
   si_da(spn_publish_t) publish;
   struct {
-    si_da(spn_path_t) include;
-  } configured;
-  struct {
     si_da(sp_str_t) frameworks;
   } macos;
 };
