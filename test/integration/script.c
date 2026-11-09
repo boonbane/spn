@@ -13,6 +13,17 @@ sp_test_each(script, graph, command_test_t, graphs) {
   return run_command_test(t, *it);
 }
 
+static const command_test_t work_trees [] = {
+  { .name = "source", .project = "test/integration/fixtures/script/work_source", .args = { "build" }, .expect.exists = { exe("A") } },
+  { .name = "include", .project = "test/integration/fixtures/script/work_include", .args = { "build" }, .expect.exists = { exe("A") } },
+  { .name = "embed", .project = "test/integration/fixtures/script/work_embed", .args = { "build" }, .expect.exists = { exe("A") } },
+  { .name = "embed_dir", .project = "test/integration/fixtures/script/work_embed_dir", .args = { "build" }, .expect.exists = { exe("A") } },
+};
+
+sp_test_each(script, work_tree, command_test_t, work_trees) {
+  return run_command_test(t, *it);
+}
+
 static const command_test_t apis [] = {
   {
     .name = "add_define",

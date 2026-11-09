@@ -10,6 +10,7 @@ typedef struct {
   paths_test_roots_t roots;
   const c8* recipe;
   const c8* source;
+  const c8* work;
   const c8* path;
   tree_rel_expect_t expect;
 } tree_rel_test_t;
@@ -42,6 +43,13 @@ static const tree_rel_test_t tree_rel_tests [] = {
     .recipe = "/A", .source = "/A/S",
     .path = "/A/G.c",
     .expect = { .tree = SPN_TREE_MANIFEST, .sub = "G.c" }
+  },
+  {
+    .name = "work_nested_in_source_wins",
+    .roots = { .project = "/A" },
+    .recipe = "/A", .source = "/A", .work = "/A/W",
+    .path = "/A/W/G.c",
+    .expect = { .tree = SPN_TREE_WORK, .sub = "G.c" }
   },
   {
     .name = "sibling_of_a_tree_root_is_outside",
@@ -78,6 +86,9 @@ sp_test_each(paths_tree_rel, classify, tree_rel_test_t, tree_rel_tests) {
   spn_tree_roots_t trees = sp_zero;
   if (it->recipe) trees.recipe = spn_path_make(roots, sp_cstr_as_str(it->recipe));
   if (it->source) trees.source = spn_path_make(roots, sp_cstr_as_str(it->source));
+  if (it->work) {
+    trees.work = spn_path_make(roots, sp_cstr_as_str(it->work));
+  }
 
   spn_tree_rel_t rel = spn_tree_rel(trees, spn_path_make(roots, sp_cstr_as_str(it->path)));
   sp_expect_eq(t, rel.tree, it->expect.tree);

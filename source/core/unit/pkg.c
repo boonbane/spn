@@ -11,12 +11,12 @@
 #include "target/select.h"
 #include "when/when.h"
 
-static si_pkg_t evaluate(spn_units_t* u, spn_build_unit_t* build, const spn_resolved_pkg_t* resolved) {
+static si_pkg_t evaluate(spn_units_t* u, spn_build_unit_t* build, const spn_resolved_pkg_t* resolved, spn_tree_roots_t trees) {
   sp_mem_t mem = u->mem;
   spn_when_env_t env = sp_zero;
   spn_profile_env(mem, &build->profile, &env);
   spn_options_env_set(&env, &resolved->options.values);
-  return si_evaluate_package(mem, resolved->manifest, &u->ctx->roots, resolved->roots, &env);
+  return si_evaluate_package(mem, resolved->manifest, &u->ctx->roots, trees, &env);
 }
 
 static si_target_t* get_script(si_pkg_t* pkg, spn_target_kind_t kind) {
@@ -48,7 +48,6 @@ spn_err_t si_add_package_unit(spn_units_t* u, spn_build_unit_t* build, const spn
   unit->build = build;
   unit->units = u;
   unit->resolved = resolved;
-  unit->pkg = evaluate(u, build, resolved);
   if (resolved->origin.source.kind == SPN_PKG_ROOT_GIT) {
     unit->pin = (spn_source_pin_t) {
       .kind = SPN_PKG_ROOT_GIT,
@@ -60,7 +59,6 @@ spn_err_t si_add_package_unit(spn_units_t* u, spn_build_unit_t* build, const spn
   sp_da_init(mem, unit->user_nodes);
   unit->fingerprint = spn_unit_fingerprint(u, build, resolved);
 
-  unit->paths.roots = resolved->roots;
   switch (resolved->source) {
     case SPN_PKG_SOURCE_ROOT:
     case SPN_PKG_SOURCE_FILE: {
@@ -86,6 +84,12 @@ spn_err_t si_add_package_unit(spn_units_t* u, spn_build_unit_t* build, const spn
   unit->paths.bin = spn_path_join(mem, unit->paths.store, SP_LIT("bin"));
   unit->paths.lib = spn_path_join(mem, unit->paths.store, SP_LIT("lib"));
   unit->paths.vendor = spn_path_join(mem, unit->paths.store, SP_LIT("vendor"));
+  unit->paths.roots = (spn_tree_roots_t) {
+    .recipe = resolved->roots.recipe,
+    .source = resolved->roots.source,
+    .work = unit->paths.work,
+  };
+  unit->pkg = evaluate(u, build, resolved, unit->paths.roots);
   *result = unit;
 
   spn_build_unit_t* metabuild = unit->build->metabuild;
@@ -93,7 +97,7 @@ spn_err_t si_add_package_unit(spn_units_t* u, spn_build_unit_t* build, const spn
     return SPN_OK;
   }
 
-  si_pkg_t meta = evaluate(u, metabuild, resolved);
+  si_pkg_t meta = evaluate(u, metabuild, resolved, unit->paths.roots);
   if (get_script(&meta, SPN_TARGET_KIND_CONFIGURE_METAPROGRAM)) {
     spn_try(add_script(u->configure, metabuild, resolved, SPN_TARGET_KIND_CONFIGURE_METAPROGRAM, &unit->reactor));
   }

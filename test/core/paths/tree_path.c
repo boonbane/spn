@@ -11,6 +11,7 @@ typedef struct {
   paths_test_roots_t roots;
   const c8* recipe;
   const c8* source;
+  const c8* work;
   spn_tree_t decl;
   const c8* path;
   tree_path_expect_t expect;
@@ -30,6 +31,13 @@ static const tree_path_test_t tree_path_tests [] = {
     .recipe = "/A/R", .source = "/A/S",
     .decl = SPN_TREE_MANIFEST, .path = "T/B.c",
     .expect = { .root = SPN_PATH_ROOT_PROJECT, .sub = "R/T/B.c", .resolved = "/A/R/T/B.c" }
+  },
+  {
+    .name = "relative_work_joins_the_work_tree",
+    .roots = { .project = "/A" },
+    .recipe = "/A/R", .source = "/A/S", .work = "/A/W",
+    .decl = SPN_TREE_WORK, .path = "G.c",
+    .expect = { .root = SPN_PATH_ROOT_PROJECT, .sub = "W/G.c", .resolved = "/A/W/G.c" }
   },
   {
     .name = "empty_names_the_tree_root",
@@ -56,6 +64,9 @@ sp_test_each(paths_tree_path, resolve, tree_path_test_t, tree_path_tests) {
     .recipe = spn_path_make(roots, sp_cstr_as_str(it->recipe)),
     .source = spn_path_make(roots, sp_cstr_as_str(it->source)),
   };
+  if (it->work) {
+    trees.work = spn_path_make(roots, sp_cstr_as_str(it->work));
+  }
 
   spn_path_t path = spn_tree_path(mem, roots, trees, it->decl, sp_cstr_as_str(it->path));
   sp_expect_eq(t, path.root, it->expect.root);

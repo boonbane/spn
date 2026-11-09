@@ -1,0 +1,7 @@
+[package]
+name = "A"
+version = "1.0.0"
+
+[[bin]]
+name = "B"
+source = [{ path = "C.c", tree = "work" }, { path = "*.c", tree = "work" }]

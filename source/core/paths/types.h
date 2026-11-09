@@ -33,6 +33,7 @@ typedef struct {
 typedef struct {
   spn_path_t recipe;
   spn_path_t source;
+  spn_path_t work;
 } spn_tree_roots_t;
 
 typedef struct {
