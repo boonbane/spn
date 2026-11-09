@@ -627,16 +627,29 @@ static step_t bare_session(app_t* app) {
   winvm_t* vm = &app->vm;
   sp_mem_t mem = vm->mem;
 
-  sp_da(sp_fs_entry_t) dirs = sp_zero;
-  if (sp_fs_collect(mem, vm->paths.probes, &dirs)) {
+  sp_da(sp_str_t) variants = sp_da_new(mem, sp_str_t);
+  sp_sys_dir_t store = sp_zero;
+  sp_err_t err = sp_fs_open_dir_at(sp_path_from_str(vm->paths.probes), &store);
+  if (!err) {
+    SP_ALIGNED u8 buf [SP_SYS_DIR_MIN_BUF];
+    sp_fs_dir_it_t listing = sp_fs_dir_it(store);
+    sp_fs_dir_entry_t entry = sp_zero;
+    while (sp_fs_dir_it_next(&listing, sp_mem_slice(buf, sizeof(buf)), &entry)) {
+      sp_da_push(variants, sp_str_copy(mem, entry.name));
+    }
+    sp_fs_dir_it_close(&listing);
+    sp_fs_close_dir(store);
+    err = listing.err;
+  }
+  if (err) {
     return failed(app, cfmt(mem, "failed to read the probe store at {.cyan}", sp_fmt_str(vm->paths.probes)));
   }
 
   sp_da(winvm_probe_t) probes = sp_da_new(mem, winvm_probe_t);
-  sp_da_for(dirs, it) {
-    const winvm_variant_t* variant = winvm_variant_find(sp_str_to_cstr(mem, dirs[it].name));
+  sp_da_for(variants, it) {
+    const winvm_variant_t* variant = winvm_variant_find(sp_str_to_cstr(mem, variants[it]));
     if (!variant) {
-      return failed(app, cfmt(mem, "{.cyan} in the probe store is not a variant", sp_fmt_str(dirs[it].path)));
+      return failed(app, cfmt(mem, "{.cyan} in the probe store is not a variant", sp_fmt_str(sp_fs_join_path(mem, vm->paths.probes, variants[it]))));
     }
     step_t step = read_probes(app, variant, &probes);
     if (step != STEP_OK) {
