@@ -152,14 +152,16 @@ add_executable(core
   ${TEST_TOOLS}/path_roots.c
   ${TEST_TOOLS}/sim/sim.c
   ${EMBED_OBJ}
+  ${CORE_EMBED_OBJ}
 )
-set_source_files_properties(${EMBED_OBJ} PROPERTIES EXTERNAL_OBJECT TRUE GENERATED TRUE)
+set_source_files_properties(${EMBED_OBJ} ${CORE_EMBED_OBJ} PROPERTIES EXTERNAL_OBJECT TRUE GENERATED TRUE)
 spn_test_binary(core)
 target_include_directories(core PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${CLI}
   ${CMAKE_CURRENT_SOURCE_DIR}/tools
   ${GEN_DIR}
+  ${TEST_GEN_DIR}
   ${SRC}/external
   ${SOURCE_ROOT}/wamr/core/iwasm/include
   ${CMAKE_SOURCE_DIR}/tools
@@ -168,7 +170,7 @@ target_include_directories(core PRIVATE
   ${STORE}/include/sp
 )
 set_source_files_properties(schema/schema.c PROPERTIES COMPILE_DEFINITIONS
-  "SCHEMA_GEN_DIR=\"${GEN_DIR}\";SCHEMA_DIR=\"source/core/codegen/schema\"")
+  "SCHEMA_DIR=\"source/core/codegen/schema\"")
 set_source_files_properties(jtd/harness.c jtd/conformance.c PROPERTIES COMPILE_DEFINITIONS
   "JTD_TEST_JSON_DIR=\"test/core/jtd/json\"")
 set_source_files_properties(manifest/lower/lower.c PROPERTIES COMPILE_DEFINITIONS
@@ -202,7 +204,7 @@ set_source_files_properties(
   toolchain/zig.c
   PROPERTIES COMPILE_DEFINITIONS "TOOLCHAINS_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/toolchain/toolchains\"")
 target_link_libraries(core PRIVATE spn_core)
-add_dependencies(core spn_embed spn_codegen_gen)
+add_dependencies(core spn_embed core_embed spn_codegen_gen)
 add_test(NAME core COMMAND "$<TARGET_FILE:core>" WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
 
 # DAG tests: dag/*.c run in both binaries; dag/sim needs the sim's deterministic mtimes, dag/os needs a real filesystem.

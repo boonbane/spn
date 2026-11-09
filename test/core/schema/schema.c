@@ -1,26 +1,27 @@
 #include "spn_test.h"
 
+#include "core.embed.h"
 #include "jtd.h"
 #include "enum/enum.h"
 #include "triple/triple.h"
 #include "yyjson.h"
 
 #define SCHEMA_ENUMS \
-  X(arch,           "manifest.jtd.json") \
-  X(os,             "manifest.jtd.json") \
-  X(abi,            "manifest.jtd.json") \
-  X(cc_driver,      "config.jtd.json") \
-  X(linkage,        "manifest.jtd.json") \
-  X(runtime,        "manifest.jtd.json") \
-  X(c_standard,     "manifest.jtd.json") \
-  X(cxx_standard,   "manifest.jtd.json") \
-  X(mode,           "manifest.jtd.json") \
-  X(option_type,    "manifest.jtd.json") \
-  X(tree,           "manifest.jtd.json") \
-  X(index_protocol, "manifest.jtd.json") \
-  X(index_dep_kind, "release.jtd.json")
+  X(arch,           manifest) \
+  X(os,             manifest) \
+  X(abi,            manifest) \
+  X(cc_driver,      config) \
+  X(linkage,        manifest) \
+  X(runtime,        manifest) \
+  X(c_standard,     manifest) \
+  X(cxx_standard,   manifest) \
+  X(mode,           manifest) \
+  X(option_type,    manifest) \
+  X(tree,           manifest) \
+  X(index_protocol, manifest) \
+  X(index_dep_kind, release)
 
-#define X(ID, FILE) \
+#define X(ID, SCHEMA) \
   static u32 schema_##ID##_from(sp_str_t str) { return spn_##ID##_from_str(str); } \
   static sp_str_t schema_##ID##_to(u32 value) { return spn_##ID##_to_str((spn_##ID##_t)value); }
 SCHEMA_ENUMS
@@ -28,14 +29,20 @@ SCHEMA_ENUMS
 
 typedef struct {
   const c8* name;
-  const c8* file;
+  sp_str_t schema;
   const c8* def;
   u32 (*from)(sp_str_t);
   sp_str_t (*to)(u32);
 } test_t;
 
 static const test_t tests [] = {
-  #define X(ID, FILE) { .name = #ID, .file = FILE, .def = #ID, .from = schema_##ID##_from, .to = schema_##ID##_to },
+  #define X(ID, SCHEMA) { \
+    .name = #ID, \
+    .schema = { .data = (const c8*)schema_##SCHEMA##_jtd_json, .len = sizeof(schema_##SCHEMA##_jtd_json) }, \
+    .def = #ID, \
+    .from = schema_##ID##_from, \
+    .to = schema_##ID##_to, \
+  },
   SCHEMA_ENUMS
   #undef X
 };
@@ -43,9 +50,8 @@ static const test_t tests [] = {
 sp_test_each(schema, roundtrip, test_t, tests) {
   sp_mem_t mem = sp_test_arena(t);
 
-  sp_str_t path = sp_fs_join_path(mem, test_repo_path(mem, sp_str_lit(SCHEMA_GEN_DIR)), sp_cstr_as_str(it->file));
-  jtd_result_t jtd = sp_zero;
-  sp_must_eq(t, JTD_OK, jtd_parse_file(mem, path, &jtd));
+  jtd_result_t jtd = jtd_parse(mem, it->schema);
+  sp_must(t, jtd.ok);
 
   jtd_schema_t* def = jtd_definition(&jtd, sp_cstr_as_str(it->def));
   sp_must(t, def != SP_NULLPTR);

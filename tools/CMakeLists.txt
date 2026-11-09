@@ -106,6 +106,22 @@ add_custom_command(
 add_custom_target(spn_codegen_gen ALL DEPENDS ${GEN_FILES})
 add_dependencies(spn_embed spn_codegen_gen)
 
+add_custom_command(
+  OUTPUT ${CORE_EMBED_OBJ} ${CORE_EMBED_HDR}
+  COMMAND $<TARGET_FILE:embed>
+    --header ${CORE_EMBED_HDR}
+    --format ${EMBED_FORMAT}
+    --arch ${EMBED_ARCH}
+    ${CORE_EMBED_OBJ}
+    ${GEN_DIR}/config.jtd.json=schema/config.jtd.json
+    ${GEN_DIR}/manifest.jtd.json=schema/manifest.jtd.json
+    ${GEN_DIR}/release.jtd.json=schema/release.jtd.json
+  DEPENDS embed ${GEN_DIR}/config.jtd.json ${GEN_DIR}/manifest.jtd.json ${GEN_DIR}/release.jtd.json
+  COMMENT "core.embed.o"
+  VERBATIM)
+add_custom_target(core_embed ALL DEPENDS ${CORE_EMBED_OBJ} ${CORE_EMBED_HDR})
+add_dependencies(core_embed spn_codegen_gen)
+
 set(TEST_SCHEMA_DIR ${CMAKE_SOURCE_DIR}/test/tools/schema)
 set(TEST_GEN_FILES
   ${TEST_GEN_DIR}/fuzz.gen.h

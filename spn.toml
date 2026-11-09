@@ -2,7 +2,7 @@
 name = "spn"
 version = "0.7.0"
 repo = "boonbane/spn"
-include = ["include"]
+include = ["include", { path = "gen/include", tree = "work" }]
 system_deps = [
   # spn self install reads and writes HKCU\Environment and broadcasts
   # WM_SETTINGCHANGE. these sit on the package, not the bin, because stage0 is
@@ -87,8 +87,23 @@ kinds = ["static"]
 source = [
   "source/core/**/*.c",
   "source/util/**/*.c",
+  { path = "gen/codegen/gen/abi.gen.c", tree = "work" },
+  { path = "gen/codegen/gen/config.gen.c", tree = "work" },
+  { path = "gen/codegen/gen/errors.gen.c", tree = "work" },
+  { path = "gen/codegen/gen/events.gen.c", tree = "work" },
+  { path = "gen/codegen/gen/manifest.gen.c", tree = "work" },
+  { path = "gen/codegen/gen/release.gen.c", tree = "work" },
+  { path = "gen/codegen/gen/source_deps.gen.c", tree = "work" },
 ]
-include = ["include", "source/core", "source/util", "source/core/external"]
+include = ["include", "source/core", "source/util", "source/core/external", { path = "gen/codegen/gen", tree = "work" }]
+embed = [
+  { path = "include/spn.h", data_type = "u8", size_type = "u64" },
+  { path = "include/spn/core.h", data_type = "u8", size_type = "u64" },
+  { path = "gen/include/spn/err.h", tree = "work", dest = "include/spn/err.h", data_type = "u8", size_type = "u64" },
+  { path = "source/core/toolchain/toolchains.toml", dest = "toolchains.toml", data_type = "u8", size_type = "u64" },
+  { path = "assets/zig/stub.c", dest = "zig/stub.c", data_type = "u8", size_type = "u64" },
+  { path = "assets/init", dir = true, dest = "init", data_type = "u8", size_type = "u64" },
+]
 
 [[bin]]
 name = "spn"
@@ -117,7 +132,7 @@ source = [
   "tools/docker/source/variant/variant.c",
   "test/tools/lanes.c",
 ]
-include = ["include", "source/core", "source/util", "test/tools", "tools/docker/source"]
+include = ["include", "source/core", "source/util", "test/tools", "tools/docker/source", { path = "gen/codegen/gen", tree = "work" }]
 deps = ["spn"]
 
 [[script]]
@@ -127,8 +142,9 @@ source = [
   "tools/windows/source/winvm/winvm.c",
   "tools/windows/source/variant/variant.c",
   "tools/docker/source/tail/tail.c",
+  { path = "gen/codegen/test/probe.gen.c", tree = "work" },
 ]
-include = ["include", "source/core", "source/util", "tools/windows/source", "tools/docker/source"]
+include = ["include", "source/core", "source/util", "tools/windows/source", "tools/docker/source", { path = "gen/codegen/gen", tree = "work" }, { path = "gen/codegen/test", tree = "work" }]
 deps = ["spn"]
 
 [[script]]
@@ -179,8 +195,13 @@ source = [
   "test/tools/sim/sim.c",
   "test/core/tools/main/unit.c",
 ]
-include = ["include", "source/core", "source/util", "source/core/external", "source/cli", "test/core", "test/core/tools", "test/tools", "tools", "tools/gen", "tools/install"]
+include = ["include", "source/core", "source/util", "source/core/external", "source/cli", "test/core", "test/core/tools", "test/tools", "tools", "tools/gen", "tools/install", { path = "gen/codegen/gen", tree = "work" }]
 deps = ["spn"]
+embed = [
+  { path = "gen/codegen/gen/config.jtd.json", tree = "work", dest = "schema/config.jtd.json" },
+  { path = "gen/codegen/gen/manifest.jtd.json", tree = "work", dest = "schema/manifest.jtd.json" },
+  { path = "gen/codegen/gen/release.jtd.json", tree = "work", dest = "schema/release.jtd.json" },
+]
 flags = [
   '-DSCHEMA_DIR="source/core/codegen/schema"',
   '-DJTD_TEST_JSON_DIR="test/core/jtd/json"',
@@ -223,8 +244,9 @@ source = [
   "test/core/resolver/dump.c",
   "test/core/resolver/main.c",
   "test/tools/fixture.c",
+  { path = "gen/codegen/test/resolve.gen.c", tree = "work" },
 ]
-include = ["include", "source/core", "source/util", "test/tools"]
+include = ["include", "source/core", "source/util", "test/tools", { path = "gen/codegen/gen", tree = "work" }, { path = "gen/codegen/test", tree = "work" }]
 deps = ["spn"]
 flags = []
 
@@ -264,8 +286,9 @@ source = [
   "test/tools/env.c",
   "test/tools/fixture.c",
   "test/tools/lanes.c",
+  { path = "gen/codegen/test/probe.gen.c", tree = "work" },
 ]
-include = ["include", "source/core", "source/util", "source/core/external", "test/integration/tools", "test/tools"]
+include = ["include", "source/core", "source/util", "source/core/external", "test/integration/tools", "test/tools", { path = "gen/codegen/gen", tree = "work" }, { path = "gen/codegen/test", tree = "work" }]
 deps = ["spn"]
 flags = []
 
@@ -279,7 +302,7 @@ source = [
   "test/tools/fixture.c",
   "test/tools/lanes.c",
 ]
-include = ["include", "source/core", "source/util", "source/core/external", "test/render", "test/tools"]
+include = ["include", "source/core", "source/util", "source/core/external", "test/render", "test/tools", { path = "gen/codegen/gen", tree = "work" }]
 deps = ["spn"]
 flags = []
 
@@ -297,8 +320,9 @@ source = [
   "test/tools/sim/sim.c",
   "test/tools/dag/track.c",
   "test/tools/fuzz/fuzz.c",
+  { path = "gen/codegen/test/fuzz.gen.c", tree = "work" },
 ]
-include = ["include", "source/core", "source/util", "test/fuzz/dag", "test/tools"]
+include = ["include", "source/core", "source/util", "test/fuzz/dag", "test/tools", { path = "gen/codegen/gen", tree = "work" }, { path = "gen/codegen/test", tree = "work" }]
 deps = ["spn"]
 flags = []
 
@@ -313,7 +337,7 @@ source = [
   "test/fuzz/resolver/dump.c",
   "test/tools/fuzz/fuzz.c",
 ]
-include = ["include", "source/core", "source/util", "test/core/tools", "test/fuzz/resolver", "test/tools"]
+include = ["include", "source/core", "source/util", "test/core/tools", "test/fuzz/resolver", "test/tools", { path = "gen/codegen/gen", tree = "work" }]
 deps = ["spn"]
 flags = []
 
@@ -353,7 +377,7 @@ source = [
   "test/tools/fixture.c",
   "test/core/tools/main/unit.c",
 ]
-include = ["include", "source/core", "source/util", "test/core", "test/core/tools", "test/tools"]
+include = ["include", "source/core", "source/util", "test/core", "test/core/tools", "test/tools", { path = "gen/codegen/gen", tree = "work" }]
 deps = ["spn"]
 flags = ['-DTOOLCHAINS_DIR="test/core/toolchain/toolchains"']
 
@@ -365,5 +389,5 @@ source = [
   "test/tools/fixture.c",
   "test/core/tools/main/unit.c",
 ]
-include = ["include", "source/core", "source/util", "source/core/external", "test/core", "test/core/tools", "test/tools"]
+include = ["include", "source/core", "source/util", "source/core/external", "test/core", "test/core/tools", "test/tools", { path = "gen/codegen/gen", tree = "work" }]
 deps = ["spn"]
