@@ -182,6 +182,24 @@ static const test_t tests [] = {
     },
   },
   {
+    .name = "own_include",
+    .project = "test/integration/fixtures/target/own_include",
+    .copy = { "a.c", "a.h" },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = test_exe("T") },
+    },
+  },
+  {
+    .name = "own_include_lib",
+    .project = "test/integration/fixtures/target/own_include_lib",
+    .copy = { "a.c", "include" },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = pkg_static_lib("A", "A") },
+    },
+  },
+  {
     .name = "system_deps",
     .project = "test/integration/fixtures/target/system_deps",
     .actions = {

@@ -90,6 +90,14 @@ spn_err_t si_add_package_unit(spn_units_t* u, spn_build_unit_t* build, const spn
     .work = unit->paths.work,
   };
   unit->pkg = evaluate(u, build, resolved, unit->paths.roots);
+  si_da_for_ptr(unit->pkg.publish, entry) {
+    unit->publishes.include = unit->publishes.include || entry->root == SPN_PUBLISH_ROOT_INCLUDE;
+  }
+  si_om_for_each(unit->pkg.targets, target) {
+    si_da_for_ptr(target->publish, entry) {
+      unit->publishes.include = unit->publishes.include || entry->root == SPN_PUBLISH_ROOT_INCLUDE;
+    }
+  }
   *result = unit;
 
   spn_build_unit_t* metabuild = unit->build->metabuild;
@@ -262,11 +270,13 @@ spn_err_t si_add_target_unit(spn_units_t* u, spn_pkg_unit_t* pkg, si_target_t* t
   }
 
   u32 take = 0;
+  bool published = false;
   switch (target->info->kind) {
     case SPN_TARGET_KIND_LIB:
     case SPN_TARGET_KIND_EXE:
     case SPN_TARGET_KIND_SCRIPT: {
       take = 1u << SPN_DEP_KIND_PACKAGE;
+      published = pkg->publishes.include;
       break;
     }
     case SPN_TARGET_KIND_EXAMPLE: {
@@ -279,6 +289,7 @@ spn_err_t si_add_target_unit(spn_units_t* u, spn_pkg_unit_t* pkg, si_target_t* t
     }
     case SPN_TARGET_KIND_TEST: {
       take = (1u << SPN_DEP_KIND_PACKAGE) | (1u << SPN_DEP_KIND_TEST);
+      published = pkg->publishes.include;
       break;
     }
     case SPN_TARGET_KIND_BUILD_METAPROGRAM: {
@@ -306,6 +317,9 @@ spn_err_t si_add_target_unit(spn_units_t* u, spn_pkg_unit_t* pkg, si_target_t* t
       }
     }
     si_da_push(u->mem, unit->includes, include);
+  }
+  if (published) {
+    si_da_push(u->mem, unit->includes, ((spn_include_edge_t) { .pkg = pkg, .dirs = own }));
   }
 
   *result = unit;

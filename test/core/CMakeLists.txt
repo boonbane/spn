@@ -135,6 +135,7 @@ add_executable(core
   unit/emit.c
   unit/errors.c
   unit/fingerprint.c
+  unit/includes.c
   unit/link.c
   unit/lower.c
   unit/objects.c

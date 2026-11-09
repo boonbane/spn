@@ -202,6 +202,9 @@ struct spn_pkg_unit_t {
     spn_path_t bin;
     spn_path_t vendor;
   } paths;
+  struct {
+    bool include;
+  } publishes;
 
   si_da(spn_pkg_edge_t) deps;
   si_da(spn_target_unit_t*) libs;

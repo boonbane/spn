@@ -131,6 +131,19 @@ static const test_t tests [] = {
     },
   },
   {
+    .name = "published_include_tree_orders_own_package_compiles",
+    .graph.pkgs = {
+      { .name = "P", .publish = { "p.h" }, .targets = { { "A", static_only, .source = { "a.c" } } } },
+    },
+    .roots = { { "A", SPN_TARGET_KIND_LIB } },
+    .actions = {
+      { NODE_PUBLISH, .produces = { "build/debug/store/P/include", "build/debug/store/P/share" } },
+      { NODE_COMPILE, .consumes = { "a.c" }, .orders = { "build/debug/store/P/include" }, .produces = { "a.c.o" } },
+      { NODE_ARCHIVE, .consumes = { "a.c.o" }, .produces = { "libA.a" } },
+      { NODE_PUBLISH_FILE, .consumes = { "libA.a" }, .produces = { "build/debug/store/P/lib/libA.a" } },
+    },
+  },
+  {
     .name = "user_node_outputs_order_the_package_compiles",
     .graph.pkgs = {
       {
