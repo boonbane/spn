@@ -8,8 +8,8 @@
 #include "event/types.h"
 #include "unit/types.h"
 
-#include "enum/enum.h"
 #include "event/event.h"
+#include "external/wasm/wasi.h"
 #include "external/wasm/wasm.h"
 #include "paths/paths.h"
 #include "unit/unit.h"
@@ -51,50 +51,57 @@ void spn_node_add_input(spn_node_t* node, const c8* input) {
 
 typedef enum {
   OUTPUT_OK,
+  OUTPUT_ABNORMAL,
   OUTPUT_UNNAMED,
   OUTPUT_ROOT,
 } output_problem_t;
 
-static output_problem_t output_problem(spn_dir_t dir, sp_str_t sub) {
-  if (sp_str_empty(sub)) {
-    return OUTPUT_UNNAMED;
-  }
-  switch (dir) {
-    case SPN_DIR_VENDOR:
-    case SPN_DIR_LIB:
-    case SPN_DIR_BIN:
-    case SPN_DIR_WORK:     return OUTPUT_OK;
-    case SPN_DIR_NONE:
-    case SPN_DIR_CACHE:
-    case SPN_DIR_STORE:
-    case SPN_DIR_INCLUDE:
-    case SPN_DIR_SOURCE:
-    case SPN_DIR_PROJECT:
-    case SPN_DIR_MANIFEST: return OUTPUT_ROOT;
-  }
-  SP_UNREACHABLE_RETURN(OUTPUT_ROOT);
-}
-
 static sp_str_t output_problem_str(output_problem_t problem) {
   switch (problem) {
     case OUTPUT_OK:       return sp_str_lit("");
+    case OUTPUT_ABNORMAL: return sp_str_lit("must not contain '.', '..', or empty components");
     case OUTPUT_UNNAMED:  return sp_str_lit("must name a path under its root");
-    case OUTPUT_ROOT:     return sp_str_lit("must be rooted at vendor, lib, bin, or work");
+    case OUTPUT_ROOT:     return sp_str_lit("must be under /work, /store/lib, /store/bin, or /store/vendor");
   }
   SP_UNREACHABLE_RETURN(sp_str_lit(""));
 }
 
-static void add_output(spn_node_t* node, const c8* fn, spn_dir_t dir, const c8* path, spn_dag_artifact_kind_t kind) {
+static output_problem_t find_output(spn_pkg_unit_t* unit, sp_mem_t mem, sp_str_t guest, spn_dir_t* dir, sp_str_t* sub) {
+  if (!spn_path_normal(guest)) {
+    return OUTPUT_ABNORMAL;
+  }
+  spn_wasm_mounts_t mounts = spn_wasm_mounts(unit);
+  sp_str_t rest = sp_zero;
+  const spn_wasi_mount_t* mount = spn_wasi_find_mount(mounts.dirs, sp_carr_len(mounts.dirs), guest, &rest);
+  if (!mount || !mount->writable) {
+    return OUTPUT_ROOT;
+  }
+  spn_path_t host = spn_path_join(mem, mount->host, rest);
+  spn_dir_t roots [] = { SPN_DIR_WORK, SPN_DIR_LIB, SPN_DIR_BIN, SPN_DIR_VENDOR };
+  sp_carr_for(roots, it) {
+    spn_path_rel_t rel = spn_path_within(spn_api_dir_path(unit, roots[it]), host);
+    if (!rel.within) {
+      continue;
+    }
+    if (sp_str_empty(rel.sub)) {
+      return OUTPUT_UNNAMED;
+    }
+    *dir = roots[it];
+    *sub = rel.sub;
+    return OUTPUT_OK;
+  }
+  return OUTPUT_ROOT;
+}
+
+static void add_output(spn_node_t* node, const c8* fn, const c8* path, spn_dag_artifact_kind_t kind) {
   spn_user_node_t* info = spn_node_deref(node->ref);
   spn_pkg_unit_t* unit = node->ref.pkg;
-  sp_str_t sub = sp_cstr_as_str(path);
-  if (spn_api_path_rejected(fn, sub)) {
-    return;
-  }
-  output_problem_t problem = output_problem(dir, sub);
+  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+  spn_dir_t dir = SPN_DIR_NONE;
+  sp_str_t sub = sp_zero;
+  output_problem_t problem = find_output(unit, scratch.mem, sp_cstr_as_str(path), &dir, &sub);
   if (problem != OUTPUT_OK) {
-    sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-    sp_str_t message = sp_fmt(scratch.mem, "{}: {}/{} {}", SP_FMT_CSTR(fn), SP_FMT_STR(spn_dir_to_str(dir)), SP_FMT_STR(sub), SP_FMT_STR(output_problem_str(problem))).value;
+    sp_str_t message = sp_fmt(scratch.mem, "{}: {} {}", sp_fmt_cstr(fn), sp_fmt_cstr(path), sp_fmt_str(output_problem_str(problem))).value;
     bool trapped = spn_wasm_trap(message);
     sp_mem_end_scratch(scratch);
     sp_assert(trapped);
@@ -106,14 +113,15 @@ static void add_output(spn_node_t* node, const c8* fn, spn_dir_t dir, const c8* 
     .kind = kind,
     .path = spn_path_join(spn.mem, spn_api_dir_path(unit, dir), sub),
   }));
+  sp_mem_end_scratch(scratch);
 }
 
-void spn_node_add_output(spn_node_t* node, spn_dir_t dir, const c8* path) {
-  add_output(node, "spn_node_add_output", dir, path, SPN_DAG_ARTIFACT_KIND_FILE);
+void spn_node_add_output(spn_node_t* node, const c8* path) {
+  add_output(node, "spn_node_add_output", path, SPN_DAG_ARTIFACT_KIND_FILE);
 }
 
-void spn_node_add_output_dir(spn_node_t* node, spn_dir_t dir, const c8* path) {
-  add_output(node, "spn_node_add_output_dir", dir, path, SPN_DAG_ARTIFACT_KIND_TREE);
+void spn_node_add_output_dir(spn_node_t* node, const c8* path) {
+  add_output(node, "spn_node_add_output_dir", path, SPN_DAG_ARTIFACT_KIND_TREE);
 }
 
 void spn_node_link(spn_node_t* from, spn_node_t* to) {

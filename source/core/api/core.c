@@ -58,7 +58,7 @@ static void reject(const c8* fn, sp_str_t path, const c8* reason) {
   sp_assert(trapped);
 }
 
-bool spn_api_path_rejected(const c8* fn, sp_str_t path) {
+static bool path_rejected(const c8* fn, sp_str_t path) {
   if (!spn_path_normal(path)) {
     reject(fn, path, "must not contain '.', '..', or empty components");
     return true;
@@ -192,7 +192,7 @@ const c8* spn_get_dir(const spn_t* s, spn_dir_t dir) {
 
 const c8* spn_get_subdir(const spn_t* s, spn_dir_t base, const c8* path) {
   spn_pkg_unit_t* unit = spn_api_unit(s);
-  if (spn_api_path_rejected("spn_get_subdir", sp_cstr_as_str(path))) {
+  if (path_rejected("spn_get_subdir", sp_cstr_as_str(path))) {
     return "";
   }
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
@@ -270,7 +270,7 @@ void spn_target_add_define_path(spn_target_t* target, const c8* name, spn_dir_t 
   spn_pkg_unit_t* unit = target->unit;
   sp_mem_t mem = unit->units->mem;
 
-  if (spn_api_path_rejected("spn_target_add_define_path", sp_cstr_as_str(path))) {
+  if (path_rejected("spn_target_add_define_path", sp_cstr_as_str(path))) {
     return;
   }
 

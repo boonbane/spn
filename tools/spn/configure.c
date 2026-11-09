@@ -60,10 +60,10 @@ static const codegen_t codegens [] = {
     .schema = "/source/source/core/codegen/schema",
     .out = "codegen/gen",
     .outputs = {
-      "gen/codegen/gen/common.gen.h",
-      "gen/codegen/gen/abi.gen.h",
-      "gen/codegen/gen/abi.gen.c",
-      "gen/include/spn/err.h",
+      "/work/gen/codegen/gen/common.gen.h",
+      "/work/gen/codegen/gen/abi.gen.h",
+      "/work/gen/codegen/gen/abi.gen.c",
+      "/work/gen/include/spn/err.h",
     },
     .consumers = core_consumers,
     .num_consumers = countof(core_consumers),
@@ -118,8 +118,8 @@ static spn_err_t add_inputs(spn_t* spn, spn_node_t* node, const c8* dir) {
 
 static void add_output(spn_node_t* node, const c8* dir, const c8* name, const c8* suffix) {
   c8 path [SPN_CODEGEN_PATH_MAX];
-  snprintf(path, sizeof(path), "gen/%s/%s%s", dir, name, suffix);
-  spn_node_add_output(node, SPN_DIR_WORK, path);
+  snprintf(path, sizeof(path), "/work/gen/%s/%s%s", dir, name, suffix);
+  spn_node_add_output(node, path);
 }
 
 SPN_EXPORT
@@ -145,7 +145,7 @@ spn_err_t configure(spn_t* spn, spn_config_t* config) {
       spn_node_add_input(node, host_source(spn, codegen->files[ft]));
     }
     for (u32 ot = 0; ot < SPN_CODEGEN_MAX_OUTPUTS && codegen->outputs[ot]; ot++) {
-      spn_node_add_output(node, SPN_DIR_WORK, codegen->outputs[ot]);
+      spn_node_add_output(node, codegen->outputs[ot]);
     }
 
     // Must match the union formats dispatched in tools/gen/run.c; union schemas

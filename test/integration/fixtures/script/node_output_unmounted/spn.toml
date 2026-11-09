@@ -1,5 +1,5 @@
 [package]
-name = "node_output_absolute"
+name = "M"
 version = "0.0.1"
 
 [package.configure]
@@ -9,5 +9,5 @@ source = ["tools/configure.c"]
 source = ["tools/build.c"]
 
 [[bin]]
-name = "node_output_absolute"
+name = "M"
 source = ["main.c"]

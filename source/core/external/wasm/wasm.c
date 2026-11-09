@@ -65,6 +65,17 @@ static spn_err_t fail(spn_pkg_unit_t* unit, spn_err_t err, spn_err_wasm_t wasm) 
   return err;
 }
 
+spn_wasm_mounts_t spn_wasm_mounts(const spn_pkg_unit_t* unit) {
+  return (spn_wasm_mounts_t) {
+    .dirs = {
+      { .guest = "/work",     .host = unit->paths.work,         .writable = true },
+      { .guest = "/source",   .host = unit->paths.roots.source },
+      { .guest = "/manifest", .host = unit->paths.roots.recipe },
+      { .guest = "/store",    .host = unit->paths.store,        .writable = true },
+    },
+  };
+}
+
 spn_err_t spn_wasm_script_open(spn_pkg_unit_t* unit, spn_path_t module, spn_dag_obs_set_t* obs, spn_wasm_script_t* script) {
   *script = (spn_wasm_script_t) { .unit = unit, .path = module };
   if (!wasm_runtime_init_thread_env()) {
@@ -95,15 +106,10 @@ spn_err_t spn_wasm_script_open(spn_pkg_unit_t* unit, spn_path_t module, spn_dag_
   sp_carr_for(dirs, it) {
     sp_fs_create_dir_at(spn_path_at(roots, dirs[it]));
   }
-  spn_wasi_mount_t mounts [] = {
-    { .guest = "/work",     .host = unit->paths.work,         .writable = true },
-    { .guest = "/source",   .host = unit->paths.roots.source },
-    { .guest = "/manifest", .host = unit->paths.roots.recipe },
-    { .guest = "/store",    .host = unit->paths.store,        .writable = true },
-  };
-  const c8* preopens [sp_carr_len(mounts)] = sp_zero;
-  sp_carr_for(mounts, it) {
-    preopens[it] = sp_fmt_mem_cstr(mem, "{}::{}", sp_fmt_cstr(mounts[it].guest), sp_fmt_str(spn_path_str(roots, mem, mounts[it].host)));
+  spn_wasm_mounts_t mounts = spn_wasm_mounts(unit);
+  const c8* preopens [SPN_WASM_MOUNT_COUNT] = sp_zero;
+  sp_carr_for(mounts.dirs, it) {
+    preopens[it] = sp_fmt_mem_cstr(mem, "{}::{}", sp_fmt_cstr(mounts.dirs[it].guest), sp_fmt_str(spn_path_str(roots, mem, mounts.dirs[it].host)));
   }
   wasm_runtime_set_wasi_args(
     script->module,
@@ -137,7 +143,7 @@ spn_err_t spn_wasm_script_open(spn_pkg_unit_t* unit, spn_path_t module, spn_dag_
   script->ctx = spn_wasm_add_handle(script->handles, unit, SPN_ABI_KIND_CTX);
   wasm_runtime_set_user_data(script->env, script->handles);
 
-  script->wasi = spn_wasi_new(mem, roots, mounts, sp_carr_len(mounts), obs);
+  script->wasi = spn_wasi_new(mem, roots, mounts.dirs, sp_carr_len(mounts.dirs), obs);
   spn_wasi_bind(script->wasi, script->instance);
 
   return SPN_OK;

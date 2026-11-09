@@ -6,8 +6,8 @@ spn_err_t configure(spn_t* spn, spn_config_t* config) {
 
   spn_node_t* node = spn_add_node(config, "G");
   spn_node_set_fn(node, "gen");
-  spn_node_add_output(node, SPN_DIR_WORK, "X.h");
-  spn_node_add_output(node, SPN_DIR_WORK, "Y.h");
-  spn_node_add_output(node, SPN_DIR_WORK, "Z.h");
+  spn_node_add_output(node, "/work/X.h");
+  spn_node_add_output(node, "/work/Y.h");
+  spn_node_add_output(node, "/work/Z.h");
   return SPN_OK;
 }
