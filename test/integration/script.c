@@ -319,6 +319,147 @@ static const rebuild_test_t reruns [] = {
       { .file = exe("M"), .mtime = REBUILD_MTIME_CHANGED },
     },
   },
+  {
+    .name = "observed_read",
+    .project = "test/integration/fixtures/script/observed_read",
+    .copy = { "X" },
+    .first = {
+      .args = { "build" },
+      .expect.files = { { work_file("A/N.h"), .content = "#define A\n" } },
+    },
+    .rebuilds = {
+      {
+        .change.writes = { { .file = "X", .content = "B" } },
+        .command = {
+          .args = { "build" },
+          .expect = {
+            .events = {
+              { .event = SPN_EVENT_SCRIPT_USER_FN, .key = "tag", .value = "N" },
+              { .event = SPN_EVENT_TARGET_BUILD_PASSED, .key = "subject.target", .value = "M" },
+            },
+            .files = { { work_file("A/N.h"), .content = "#define B\n" } },
+          },
+        },
+      },
+    },
+  },
+  {
+    .name = "observed_list",
+    .project = "test/integration/fixtures/script/observed_list",
+    .copy = { "D" },
+    .first = {
+      .args = { "build" },
+      .expect.files = { { work_file("A/N"), .content = "A" } },
+    },
+    .rebuilds = {
+      {
+        .change.writes = { { .file = "D/B", .content = "B" } },
+        .command = {
+          .args = { "build" },
+          .expect = {
+            .events = { { .event = SPN_EVENT_SCRIPT_USER_FN, .key = "tag", .value = "N" } },
+            .files = { { work_file("A/N"), .content = "AB" } },
+          },
+        },
+      },
+      {
+        .change.remove_files = { lit("D/A") },
+        .command = {
+          .args = { "build" },
+          .expect = {
+            .events = { { .event = SPN_EVENT_SCRIPT_USER_FN, .key = "tag", .value = "N" } },
+            .files = { { work_file("A/N"), .content = "B" } },
+          },
+        },
+      },
+    },
+  },
+  {
+    .name = "observed_open_absent",
+    .project = "test/integration/fixtures/script/observed_open_absent",
+    .first = {
+      .args = { "build" },
+      .expect.files = { { work_file("A/N"), .content = "A" } },
+    },
+    .rebuilds = {
+      {
+        .change.writes = { { .file = "X", .content = "B" } },
+        .command = {
+          .args = { "build" },
+          .expect = {
+            .events = { { .event = SPN_EVENT_SCRIPT_USER_FN, .key = "tag", .value = "N" } },
+            .files = { { work_file("A/N"), .content = "B" } },
+          },
+        },
+      },
+    },
+  },
+  {
+    .name = "observed_stat_absent",
+    .project = "test/integration/fixtures/script/observed_stat_absent",
+    .first = {
+      .args = { "build" },
+      .expect.files = { { work_file("A/N"), .content = "A" } },
+    },
+    .rebuilds = {
+      {
+        .change.writes = { { .file = "X", .content = "B" } },
+        .command = {
+          .args = { "build" },
+          .expect = {
+            .events = { { .event = SPN_EVENT_SCRIPT_USER_FN, .key = "tag", .value = "N" } },
+            .files = { { work_file("A/N"), .content = "B" } },
+          },
+        },
+      },
+    },
+  },
+  {
+    .name = "observed_manifest_read",
+    .project = "test/integration/fixtures/script/observed_manifest",
+    .copy = { "X" },
+    .first = {
+      .args = { "build" },
+      .expect.files = { { work_file("A/N"), .content = "A" } },
+    },
+    .rebuilds = {
+      {
+        .change.writes = { { .file = "X", .content = "B" } },
+        .command = {
+          .args = { "build" },
+          .expect = {
+            .events = { { .event = SPN_EVENT_SCRIPT_USER_FN, .key = "tag", .value = "N" } },
+            .files = { { work_file("A/N"), .content = "B" } },
+          },
+        },
+      },
+    },
+  },
+  {
+    .name = "observed_unrelated",
+    .project = "test/integration/fixtures/script/observed_read",
+    .copy = { "X", "Y" },
+    .first = {
+      .args = { "build" },
+      .expect.events = { { .event = SPN_EVENT_SCRIPT_USER_FN, .key = "tag", .value = "N" } },
+    },
+    .rebuilds = {
+      {
+        .change.writes = { { .file = "Y", .content = "B" } },
+        .command = {
+          .args = { "build" },
+          .expect.events = { { .event = SPN_EVENT_SCRIPT_USER_FN, .absent = true } },
+        },
+      },
+      {
+        .change.writes = { { .file = "Z", .content = "A" } },
+        .command = {
+          .args = { "build" },
+          .expect.events = { { .event = SPN_EVENT_SCRIPT_USER_FN, .absent = true } },
+        },
+      },
+    },
+  },
 };
 
 sp_test_each(script, rerun, rebuild_test_t, reruns) {
