@@ -409,7 +409,7 @@ static sp_err_t expect_labels(sp_test_t* t, sp_da(lowered_t) lowered, const c8* 
   return SP_OK;
 }
 
-sp_test_each(unit_lower, graph, test_t, tests, .setup = spn_test_ctx_setup) {
+sp_test_each(unit_lower, graph, test_t, tests, .setup = spn_test_ctx_setup, .teardown = units_teardown) {
   sp_mem_t mem = sp_test_arena(t);
   units_t* u = units_new(t, &it->graph);
   u32 roots = 0;

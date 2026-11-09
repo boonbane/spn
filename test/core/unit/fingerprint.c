@@ -66,7 +66,7 @@ static sp_hash_t fingerprint(sp_test_t* t, const graph_t* side) {
   return spn_unit_fingerprint(&u->units, u->session.builds.program, units_resolved(u, "A"));
 }
 
-sp_test_each(unit_fingerprint, input, test_t, tests, .setup = spn_test_ctx_setup) {
+sp_test_each(unit_fingerprint, input, test_t, tests, .setup = spn_test_ctx_setup, .teardown = units_teardown) {
   sp_expect_eq(t, it->equal, fingerprint(t, &it->a) == fingerprint(t, &it->b));
   return SP_OK;
 }

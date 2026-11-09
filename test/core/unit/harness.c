@@ -236,12 +236,20 @@ static void open_ctx(units_t* u, sp_test_t* t) {
   sp_assert(!spn_path_roots_set(&u->ctx.roots, mem, SPN_PATH_ROOT_STORAGE, storage));
 }
 
+void units_teardown(sp_test_t* t) {
+  for (units_t* u = sp_test_state(t); u; u = u->next) {
+    spn_path_roots_close(&u->ctx.roots);
+  }
+}
+
 units_t* units_new(sp_test_t* t, const graph_t* g) {
   sp_mem_t mem = sp_test_arena(t);
   units_t* u = sp_alloc_type(mem, units_t);
   u->mem = mem;
   u->graph = g;
+  u->next = sp_test_state(t);
   open_ctx(u, t);
+  sp_test_set_state(t, u);
   u->session = (spn_session_t) { .ctx = &u->ctx, .mem = mem };
   sp_ht_init(mem, u->resolve);
 

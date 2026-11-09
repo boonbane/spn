@@ -169,7 +169,7 @@ static const test_t tests [] = {
   },
 };
 
-sp_test_each(unit_errors, plan, test_t, tests, .setup = spn_test_ctx_setup) {
+sp_test_each(unit_errors, plan, test_t, tests, .setup = spn_test_ctx_setup, .teardown = units_teardown) {
   units_t* u = units_new(t, &it->graph);
   si_da(spn_target_unit_t*) targets = sp_zero;
   spn_err_t err = units_add_roots(u, &it->root, 1, &targets);

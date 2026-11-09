@@ -103,7 +103,8 @@ typedef struct {
   spn_target_kind_t kind;
 } graph_root_t;
 
-typedef struct {
+typedef struct units units_t;
+struct units {
   sp_mem_t mem;
   const graph_t* graph;
   spn_ctx_t ctx;
@@ -113,9 +114,11 @@ typedef struct {
   spn_units_t units;
   spn_build_plan_t configured;
   spn_build_plan_t plan;
-} units_t;
+  units_t* next;
+};
 
 units_t*            units_new(sp_test_t* t, const graph_t* graph);
+void                units_teardown(sp_test_t* t);
 spn_resolved_pkg_t* units_resolved(units_t* u, const c8* pkg);
 si_pkg_info_t*      units_manifest(units_t* u, const c8* pkg);
 spn_err_t           units_add_package(units_t* u, const c8* pkg, spn_pkg_unit_t** unit);
