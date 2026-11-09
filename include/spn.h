@@ -25,9 +25,6 @@ typedef spn_err_t (*spn_configure_fn_t) (spn_t*, spn_config_t*);
 typedef s32       (*spn_node_fn_t)      (spn_t*);
 
 spn_target_t* spn_get_target(spn_t* spn, const c8* name, spn_target_kind_t kind);
-const spn_t*  spn_get_dep(const spn_t* spn, const c8* name);
-const c8*     spn_get_dir(const spn_t* spn, spn_dir_t dir);
-const c8*     spn_get_subdir(const spn_t* spn, spn_dir_t base, const c8* path);
 void          spn_log(spn_t* spn, const c8* message);
 
 void          spn_io_write(const c8* path, const c8* contents);

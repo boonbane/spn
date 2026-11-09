@@ -46,10 +46,6 @@ spn_path_t spn_api_dir_path(spn_pkg_unit_t* unit, spn_dir_t dir) {
   SP_UNREACHABLE_RETURN(sp_zero_struct(spn_path_t));
 }
 
-sp_str_t spn_api_dir(spn_pkg_unit_t* unit, spn_dir_t dir) {
-  return spn_path_str(&unit->units->ctx->roots, spn.mem, spn_api_dir_path(unit, dir));
-}
-
 static void reject(const c8* fn, sp_str_t path, const c8* reason) {
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   sp_str_t message = sp_fmt(scratch.mem, "{}: {} {}", SP_FMT_CSTR(fn), SP_FMT_STR(path), SP_FMT_CSTR(reason)).value;
@@ -164,42 +160,6 @@ void spn_add_system_dep(spn_config_t* config, const c8* dep) {
   spn_pkg_unit_t* unit = spn_api_unit(config);
   sp_mem_t mem = unit->units->mem;
   si_da_push(mem, unit->pkg.system_deps, sp_str_from_cstr(mem, dep));
-}
-
-const spn_t* spn_get_dep(const spn_t* s, const c8* name) {
-  spn_pkg_unit_t* unit = spn_api_unit(s);
-  sp_str_t key = sp_cstr_as_str(name);
-
-  si_da_for(unit->pkg.manifest->deps, it) {
-    spn_requested_dep_t* dep = &unit->pkg.manifest->deps[it];
-    if (!sp_str_equal(dep->name.str, key)) {
-      continue;
-    }
-
-    spn_pkg_unit_t* dep_unit = find_dep(unit, dep->name.id, dep->kind);
-    if (dep_unit) {
-      return (const spn_t*)dep_unit;
-    }
-  }
-
-  return SP_NULLPTR;
-}
-
-const c8* spn_get_dir(const spn_t* s, spn_dir_t dir) {
-  spn_pkg_unit_t* unit = spn_api_unit(s);
-  return sp_str_to_cstr(spn.mem, spn_api_dir(unit, dir));
-}
-
-const c8* spn_get_subdir(const spn_t* s, spn_dir_t base, const c8* path) {
-  spn_pkg_unit_t* unit = spn_api_unit(s);
-  if (path_rejected("spn_get_subdir", sp_cstr_as_str(path))) {
-    return "";
-  }
-  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  sp_str_t joined = sp_fs_join_path(scratch.mem, spn_api_dir(unit, base), sp_cstr_as_str(path));
-  const c8* result = sp_str_to_cstr(spn.mem, joined);
-  sp_mem_end_scratch(scratch);
-  return result;
 }
 
 void spn_log(spn_t* s, const c8* message) {
