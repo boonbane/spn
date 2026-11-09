@@ -33,6 +33,11 @@ static const command_test_t apis [] = {
     .expect.exists = { exe("configure_table") },
   },
   {
+    .name = "configure_unmounted",
+    .project = "test/integration/fixtures/script/configure_unmounted",
+    .args = { "build" },
+  },
+  {
     .name = "program_name_context",
     .project = "test/integration/fixtures/script/module_name_collision",
     .args = { "build" },

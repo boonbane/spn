@@ -76,7 +76,7 @@ spn_wasm_mounts_t spn_wasm_mounts(const spn_pkg_unit_t* unit) {
   };
 }
 
-spn_err_t spn_wasm_script_open(spn_pkg_unit_t* unit, spn_path_t module, spn_dag_obs_set_t* obs, spn_wasm_script_t* script) {
+static spn_err_t instantiate(spn_pkg_unit_t* unit, spn_path_t module, const spn_wasi_mount_t* mounts, u32 count, spn_dag_obs_set_t* obs, spn_wasm_script_t* script) {
   *script = (spn_wasm_script_t) { .unit = unit, .path = module };
   if (!wasm_runtime_init_thread_env()) {
     return fail(unit, SPN_ERR_WASM_THREAD_ENV_FAILED, (spn_err_wasm_t) { .path = module });
@@ -102,19 +102,14 @@ spn_err_t spn_wasm_script_open(spn_pkg_unit_t* unit, spn_path_t module, spn_dag_
     });
   }
 
-  spn_path_t dirs [] = { unit->paths.work, unit->paths.lib, unit->paths.bin, unit->paths.vendor };
-  sp_carr_for(dirs, it) {
-    sp_fs_create_dir_at(spn_path_at(roots, dirs[it]));
-  }
-  spn_wasm_mounts_t mounts = spn_wasm_mounts(unit);
   const c8* preopens [SPN_WASM_MOUNT_COUNT] = sp_zero;
-  sp_carr_for(mounts.dirs, it) {
-    preopens[it] = sp_fmt_mem_cstr(mem, "{}::{}", sp_fmt_cstr(mounts.dirs[it].guest), sp_fmt_str(spn_path_str(roots, mem, mounts.dirs[it].host)));
+  sp_for(it, count) {
+    preopens[it] = sp_fmt_mem_cstr(mem, "{}::{}", sp_fmt_cstr(mounts[it].guest), sp_fmt_str(spn_path_str(roots, mem, mounts[it].host)));
   }
   wasm_runtime_set_wasi_args(
     script->module,
     SPN_WASM_NO_DIRS, SPN_WASM_NO_DIRS,
-    preopens, sp_carr_len(preopens),
+    preopens, count,
     SPN_WASM_NO_ENV, SPN_WASM_NO_ENV,
     SPN_WASM_NO_ARGS, SPN_WASM_NO_ARGS
   );
@@ -143,10 +138,19 @@ spn_err_t spn_wasm_script_open(spn_pkg_unit_t* unit, spn_path_t module, spn_dag_
   script->ctx = spn_wasm_add_handle(script->handles, unit, SPN_ABI_KIND_CTX);
   wasm_runtime_set_user_data(script->env, script->handles);
 
-  script->wasi = spn_wasi_new(mem, roots, mounts.dirs, sp_carr_len(mounts.dirs), obs);
+  script->wasi = spn_wasi_new(mem, roots, mounts, count, obs);
   spn_wasi_bind(script->wasi, script->instance);
 
   return SPN_OK;
+}
+
+spn_err_t spn_wasm_script_open(spn_pkg_unit_t* unit, spn_path_t module, spn_dag_obs_set_t* obs, spn_wasm_script_t* script) {
+  spn_path_t dirs [] = { unit->paths.work, unit->paths.lib, unit->paths.bin, unit->paths.vendor };
+  sp_carr_for(dirs, it) {
+    sp_fs_create_dir_at(spn_path_at(&unit->units->ctx->roots, dirs[it]));
+  }
+  spn_wasm_mounts_t mounts = spn_wasm_mounts(unit);
+  return instantiate(unit, module, mounts.dirs, sp_carr_len(mounts.dirs), obs, script);
 }
 
 void spn_wasm_script_close(spn_wasm_script_t* script) {
@@ -211,7 +215,7 @@ spn_err_t spn_wasm_script_call(spn_wasm_script_t* script, sp_str_t name, const s
 
 spn_err_t spn_wasm_configure(spn_pkg_unit_t* unit, spn_path_t reactor) {
   spn_wasm_script_t script = sp_zero;
-  spn_try(spn_wasm_script_open(unit, reactor, SP_NULLPTR, &script));
+  spn_try(instantiate(unit, reactor, SP_NULLPTR, 0, SP_NULLPTR, &script));
   spn_err_t err = SPN_OK;
   if (spn_wasm_script_exports(&script, sp_str_lit("configure"))) {
     spn_wasm_handle_t config = { .ptr = unit, .kind = SPN_ABI_KIND_CONFIG };
