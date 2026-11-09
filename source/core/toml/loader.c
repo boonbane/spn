@@ -61,6 +61,12 @@ sp_str_t spn_toml_path_str(sp_mem_t mem, const spn_toml_path_t* path) {
 static void record(spn_toml_loader_t* ctx, spn_toml_issue_t issue) {
   issue.at = ctx->path;
   issue.at.scope = ctx->scope.depth;
+  sp_for(it, issue.at.depth) {
+    spn_toml_seg_t* seg = &issue.at.segs[it];
+    if (seg->kind == SPN_TOML_SEG_KEY) {
+      seg->key = sp_cstr_copy(ctx->mem, seg->key);
+    }
+  }
   issue.detail = sp_str_copy(ctx->mem, issue.detail);
   issue.value = sp_str_copy(ctx->mem, issue.value);
   issue.scope = sp_str_copy(ctx->mem, ctx->scope.name);
