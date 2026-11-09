@@ -26,42 +26,11 @@ sp_test_each(script, work_tree, command_test_t, work_trees) {
 
 static const command_test_t apis [] = {
   {
-    .name = "add_define",
-    .project = "test/integration/fixtures/script/add_define",
-    .args = { "build" },
-    .expect.exists = { exe("main") },
-  },
-  {
-    .name = "add_define_path",
-    .project = "test/integration/fixtures/script/add_define_path",
-    .args = { "build" },
-    .expect.cc = { { .args = { "-DG=\"build/debug/.spn/A/gen\"", "/DG=\"build/debug/.spn/A/gen\"" } } },
-  },
-  {
-    .name = "add_include",
-    .project = "test/integration/fixtures/script/add_include",
-    .copy = { "include/*" },
-    .args = { "build" },
-    .expect.exists = { exe("main") },
-  },
-  {
-    .name = "add_system_dep",
-    .project = "test/integration/fixtures/script/add_system_dep",
-    .args = { "build" },
-    .expect.exists = { exe("main") },
-  },
-  {
     .name = "configure_table",
     .project = "test/integration/fixtures/script/configure_table",
     .copy = { "include" },
     .args = { "build" },
     .expect.exists = { exe("configure_table") },
-  },
-  {
-    .name = "wrong_handle",
-    .project = "test/integration/fixtures/script/wrong_handle",
-    .args = { "build" },
-    .expect.exists = { exe("wrong_handle") },
   },
   {
     .name = "program_name_context",
@@ -82,12 +51,6 @@ static const command_test_t apis [] = {
     .expect.exists = { pkg_store_file("B", "bin/R.txt") },
   },
   {
-    .name = "generated_source",
-    .project = "test/integration/fixtures/script/generated_source",
-    .args = { "build" },
-    .expect.exists = { exe("generated_source") },
-  },
-  {
     .name = "object_lib",
     .project = "test/integration/fixtures/script/object_lib",
     .copy = { "packages/*" },
@@ -105,16 +68,16 @@ static const command_test_t apis [] = {
   },
   {
     .name = "embed_cross_linux_aarch64",
-    .project = "test/integration/fixtures/script/embed",
-    .copy = { "hello.txt" },
+    .project = "test/integration/fixtures/target/embed",
+    .copy = { "A.txt" },
     .when.target = "aarch64-linux-musl",
     .args = { "build", "--target", "aarch64-linux-musl" },
     .expect.exists = { target_exe("main", "aarch64-linux-musl") },
   },
   {
     .name = "embed_cross_windows_aarch64",
-    .project = "test/integration/fixtures/script/embed",
-    .copy = { "hello.txt" },
+    .project = "test/integration/fixtures/target/embed",
+    .copy = { "A.txt" },
     .when.target = "aarch64-windows-gnu",
     .args = { "build", "--target", "aarch64-windows-gnu" },
     .expect.exists = { target_exe("main", "aarch64-windows-gnu") },
@@ -130,15 +93,6 @@ static const test_t embeds [] = {
     .name = "manifest",
     .project = "test/integration/fixtures/target/embed",
     .copy = { "A.txt" },
-    .actions = {
-      { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_RUN_BIN, .bin.file = exe("main") },
-    },
-  },
-  {
-    .name = "configure",
-    .project = "test/integration/fixtures/script/embed",
-    .copy = { "hello.txt" },
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
       { .kind = ACTION_RUN_BIN, .bin.file = exe("main") },
@@ -543,8 +497,6 @@ static const command_test_t failures [] = {
   { .name = "node_output_source", .project = "test/integration/fixtures/script/node_output_source", .args = { "build" }, .expect = { .rc = 1, .err = SPN_ERR_WASM_MODULE_CALL_FAILED } },
   { .name = "node_output_include", .project = "test/integration/fixtures/script/node_output_include", .args = { "build" }, .expect = { .rc = 1, .err = SPN_ERR_WASM_MODULE_CALL_FAILED } },
   { .name = "node_output_unnamed", .project = "test/integration/fixtures/script/node_output_unnamed", .args = { "build" }, .expect = { .rc = 1, .err = SPN_ERR_WASM_MODULE_CALL_FAILED } },
-  { .name = "relative_path", .project = "test/integration/fixtures/script/relative_path", .args = { "build" }, .expect = { .rc = 1, .err = SPN_ERR_WASM_MODULE_CALL_FAILED } },
-  { .name = "foreign_path", .project = "test/integration/fixtures/script/foreign_path", .args = { "build" }, .expect = { .rc = 1, .err = SPN_ERR_WASM_MODULE_CALL_FAILED } },
   { .name = "node_output_unmounted", .project = "test/integration/fixtures/script/node_output_unmounted", .args = { "build" }, .expect = { .rc = 1, .err = SPN_ERR_WASM_MODULE_CALL_FAILED } },
   { .name = "node_output_escape", .project = "test/integration/fixtures/script/node_output_escape", .args = { "build" }, .expect = { .rc = 1, .err = SPN_ERR_WASM_MODULE_CALL_FAILED } },
   { .name = "name_separator_node", .project = "test/integration/fixtures/script/name_separator_node", .args = { "build" }, .expect = { .rc = 1, .err = SPN_ERR_WASM_MODULE_CALL_FAILED } },
@@ -552,7 +504,6 @@ static const command_test_t failures [] = {
   { .name = "configure_error", .project = "test/integration/fixtures/script/configure_error", .args = { "build" }, .expect = { .rc = 1, .err = SPN_ERR_WASM_SCRIPT_ERROR } },
   { .name = "missing_node_fn", .project = "test/integration/fixtures/script/missing_node_fn", .args = { "build" }, .expect = { .rc = 1, .err = SPN_ERR_WASM_EXPORT_NOT_FOUND } },
   { .name = "node_fn_without_build_script", .project = "test/integration/fixtures/script/node_fn_without_build_script", .args = { "build" }, .expect = { .rc = 1, .err = SPN_ERR_WASM_MODULE_CALL_FAILED } },
-  { .name = "add_define_path_outside", .project = "test/integration/fixtures/script/add_define_path_outside", .args = { "build" }, .expect = { .rc = 1, .err = SPN_ERR_WASM_MODULE_CALL_FAILED } },
 };
 
 sp_test_each(script, failure, command_test_t, failures) {

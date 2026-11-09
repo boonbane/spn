@@ -1,6 +1,7 @@
 [package]
 name = "L"
 version = "0.0.1"
+include = [{ path = ".", tree = "work" }]
 
 [package.configure]
 source = ["tools/configure.c"]

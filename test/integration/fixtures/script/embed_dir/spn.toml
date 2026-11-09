@@ -11,3 +11,4 @@ source = ["tools/build.c"]
 [[bin]]
 name = "M"
 source = ["main.c"]
+embed = [{ path = "gen/G", dir = true, tree = "work" }]
