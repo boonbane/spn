@@ -84,7 +84,6 @@ set(GEN_FILES
   ${GEN_DIR}/source_deps.gen.h
   ${GEN_DIR}/source_deps.gen.c
   ${GEN_DIR}/source_deps.jtd.json
-  ${GEN_DIR}/abi.gen.h
   ${GEN_DIR}/abi.gen.c
   ${INCLUDE_DIR}/err.h
   ${INCLUDE_DIR}/errors.h

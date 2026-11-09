@@ -295,7 +295,6 @@ static bool render_abi(codegen_t* c) {
     return fail(c, abi->err);
   }
 
-  try(render_one(c, out_path(c, c->paths.out, sp_str_lit("abi"), ".gen.h"), abi_render_decls(abi)));
   try(render_one(c, out_path(c, c->paths.out, sp_str_lit("abi"), ".gen.c"), abi_render_impl(abi)));
   emit(c, sp_fmt(c->mem, "wrote abi ({} exports)", sp_fmt_uint(sp_da_size(abi->exports))).value);
   return true;

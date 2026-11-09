@@ -25,25 +25,12 @@ void* spn_wasm_resolve_handle(spn_wasm_handles_t* handles, u32 token, spn_abi_ki
   return handle->ptr;
 }
 
-const void* spn_wasm_resolve_guest_ptr(spn_wasm_ctx_t* wasm, u32 addr, u64 size) {
-  if (!addr) return SP_NULLPTR;
-  if (!wasm_runtime_validate_app_addr(wasm->instance, addr, size)) return SP_NULLPTR;
-  return wasm_runtime_addr_app_to_native(wasm->instance, addr);
-}
-
 bool spn_wasm_read_str(spn_wasm_ctx_t* abi, u32 offset, const c8** out) {
   *out = SP_NULLPTR;
   if (!offset) return true;
   if (!wasm_runtime_validate_app_str_addr(abi->instance, offset)) return false;
   *out = wasm_runtime_addr_app_to_native(abi->instance, offset);
   return true;
-}
-
-bool spn_wasm_read_handle(spn_wasm_ctx_t* abi, u32 token, spn_abi_kind_t kind, void** out) {
-  *out = SP_NULLPTR;
-  if (!token) return true;
-  *out = spn_wasm_resolve_handle(abi->handles, token, kind);
-  return *out != SP_NULLPTR;
 }
 
 spn_wasm_ptr_t spn_wasm_copy_str(spn_wasm_ctx_t* abi, const c8* str) {

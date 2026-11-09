@@ -1525,13 +1525,6 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
       sp_io_write_str(w.io, event->user_log.message, SP_NULLPTR);
       break;
     }
-    case SPN_EVENT_API_CALL: {
-      sp_tty_fmt(&w, "{}({})",
-        sp_fmt_str(event->api_call.fn),
-        sp_fmt_str(event->api_call.args)
-      );
-      break;
-    }
     case SPN_EVENT_INIT_BUILD_GRAPH: {
       if (sp_str_empty(event->graph_init.version)) {
         sp_tty_fmt(&w, "{}, {.yellow}, {.green}",

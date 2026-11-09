@@ -61,7 +61,6 @@ static const codegen_t codegens [] = {
     .out = "codegen/gen",
     .outputs = {
       "/work/gen/codegen/gen/common.gen.h",
-      "/work/gen/codegen/gen/abi.gen.h",
       "/work/gen/codegen/gen/abi.gen.c",
       "/work/gen/include/spn/err.h",
     },

@@ -1,5 +1,4 @@
 set(SPN_CORE_SOURCES
-  core/api/api.c
   core/api/core.c
   core/core/core.c
   util/cpu/cpu.c
