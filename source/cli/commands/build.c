@@ -11,13 +11,14 @@ static struct {
   } only;
 } args;
 
-static const u32 default_kinds =
-  spn_target_kind_bit(SPN_TARGET_KIND_LIB) |
-  spn_target_kind_bit(SPN_TARGET_KIND_EXE) |
-  spn_target_kind_bit(SPN_TARGET_KIND_TEST) |
-  spn_target_kind_bit(SPN_TARGET_KIND_EXAMPLE);
-
-static const u32 named_kinds = default_kinds | spn_target_kind_bit(SPN_TARGET_KIND_SCRIPT);
+enum {
+  default_kinds =
+    spn_target_kind_bit(SPN_TARGET_KIND_LIB) |
+    spn_target_kind_bit(SPN_TARGET_KIND_EXE) |
+    spn_target_kind_bit(SPN_TARGET_KIND_TEST) |
+    spn_target_kind_bit(SPN_TARGET_KIND_EXAMPLE),
+  named_kinds = default_kinds | spn_target_kind_bit(SPN_TARGET_KIND_SCRIPT),
+};
 
 static sp_cli_result_t build(sp_cli_t* cli) {
   try(spn_cli_open(false));
