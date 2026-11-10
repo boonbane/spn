@@ -7,7 +7,7 @@ name = "main"
 source = ["main.c"]
 
 [deps.package]
-sdl3 = "3.4.15"
+sdl3 = "3.4.14"
 
 [config.sdl3]
 options = { x11 = true }
