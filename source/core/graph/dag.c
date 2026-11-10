@@ -83,11 +83,13 @@ static void dag_trace(const spn_dag_trace_event_t* event, void* user_data) {
   if (event->kind != SPN_DAG_TRACE_EXECUTE) {
     return;
   }
-  spn_pkg_unit_t** pkg = sp_ht_getp(b->announce.pkgs, event->action);
+  spn_dag_id_t action = event->action;
+  u64 index = 0;
+  spn_pkg_unit_t** pkg = sp_ht_get_ex(b->announce.pkgs, action, index);
   if (!pkg) {
     return;
   }
-  if (!sp_atomic_s32_cas(sp_ht_getp(b->announce.announced, *pkg), 0, 1, SP_ATOMIC_SEQ_CST)) {
+  if (!sp_atomic_s32_cas(sp_ht_get_ex(b->announce.announced, *pkg, index), 0, 1, SP_ATOMIC_SEQ_CST)) {
     return;
   }
 

@@ -54,7 +54,7 @@ static sp_hash_t hash_options(spn_resolved_options_t options) {
 }
 
 static sp_hash_t hash_arg(spn_arg_t arg) {
-  sp_hash_t parts [] = { spn_digest_hash_str(arg.prefix), (sp_hash_t)arg.path.root, spn_digest_hash_str(arg.path.sub) };
+  sp_hash_t parts [] = { spn_digest_hash_str(arg.prefix), (sp_hash_t)arg.path.root, spn_digest_hash_str(arg.path.sub), spn_digest_hash_str(arg.suffix) };
   return spn_digest_hash_combine(parts, sp_carr_len(parts));
 }
 

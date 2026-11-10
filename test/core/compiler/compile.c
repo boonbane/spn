@@ -16,6 +16,7 @@ typedef struct {
   const c8* depfile;
   const c8* libc;
   const c8* embed_include;
+  const c8* cwd;
   spn_os_version_t min_os;
   render_expect_t expect;
 } compile_test_t;
@@ -47,6 +48,21 @@ static const compile_test_t tests [] = {
     .expect = {
       .command = "cc",
       .args = { "-std=c99", "-c", "-Iinc", "-Werror=return-type", "-IE", "main.c", "-o", "main.o" },
+    },
+  },
+  {
+    .name = "gcc_debug_maps_cwd_out_of_debug_info",
+    .driver = SPN_CC_DRIVER_GCC,
+    .profile = {
+      .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU },
+      .standard = SPN_C99,
+      .mode = SPN_MODE_DEBUG,
+      .opt = SPN_OPT_LEVEL_0,
+    },
+    .cwd = "/W",
+    .expect = {
+      .command = "cc",
+      .args = { "-std=c99", "-g", "-gno-record-gcc-switches", "-O0", "-c", "-Werror=return-type", "main.c", "-fdebug-prefix-map=/W=.", "-o", "main.o" },
     },
   },
   {
@@ -633,6 +649,7 @@ sp_test_each(render_compile, render, compile_test_t, tests, .setup = spn_test_ct
   spn_cc_compile_plan_t plan = si_cc_render_compile(mem, &toolchain, &profile, it->lang, &compile);
 
   spn_cc_compile_files_t files = {
+    .cwd = it->cwd ? test_arg_path(it->cwd) : sp_zero_s(spn_path_t),
     .source = test_arg_path("main.c"),
     .output = test_arg_path("main.o"),
     .depfile = it->depfile ? test_arg_path(it->depfile) : sp_zero_s(spn_path_t),
@@ -722,5 +739,33 @@ sp_test_each(render_compile, codeview, codeview_test_t, codeview_tests, .setup =
   spn_cc_compile_t compile = sp_zero;
   spn_cc_compile_plan_t plan = si_cc_render_compile(mem, &toolchain, &profile, SPN_LANG_C, &compile);
   sp_expect_eq(t, (u32)plan.codeview, (u32)it->expect);
+  return SP_OK;
+}
+
+typedef struct {
+  const c8* name;
+  spn_cc_driver_t driver;
+  spn_mode_t mode;
+  bool expect;
+} prefix_map_test_t;
+
+static const prefix_map_test_t prefix_map_tests [] = {
+  { .name = "gcc_debug", .driver = SPN_CC_DRIVER_GCC, .mode = SPN_MODE_DEBUG, .expect = true },
+  { .name = "gcc_release", .driver = SPN_CC_DRIVER_GCC, .mode = SPN_MODE_RELEASE },
+  { .name = "clang_debug", .driver = SPN_CC_DRIVER_CLANG, .mode = SPN_MODE_DEBUG },
+  { .name = "zig_debug", .driver = SPN_CC_DRIVER_ZIG, .mode = SPN_MODE_DEBUG },
+};
+
+sp_test_each(render_compile, prefix_map, prefix_map_test_t, prefix_map_tests, .setup = spn_test_ctx_setup) {
+  sp_mem_t mem = sp_test_arena(t);
+  spn_cc_t toolchain = test_toolchain(it->driver);
+  spn_profile_info_t profile = test_profile((test_profile_t) {
+    .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU },
+    .standard = SPN_C99,
+    .mode = it->mode,
+  });
+  spn_cc_compile_t compile = sp_zero;
+  spn_cc_compile_plan_t plan = si_cc_render_compile(mem, &toolchain, &profile, SPN_LANG_C, &compile);
+  sp_expect_eq(t, (u32)plan.prefix_map, (u32)it->expect);
   return SP_OK;
 }

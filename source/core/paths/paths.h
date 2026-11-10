@@ -44,6 +44,7 @@ spn_path_t spn_path_s(sp_mem_t mem, spn_dir_id_t id, sp_str_t sub);
 spn_arg_t spn_arg_lit(sp_str_t value);
 spn_arg_t spn_arg_path(spn_path_t path);
 spn_arg_t spn_arg_glue(sp_str_t prefix, spn_path_t path);
+spn_arg_t spn_arg_wrap(sp_str_t prefix, spn_path_t path, sp_str_t suffix);
 spn_arg_t spn_arg_prepend(sp_mem_t mem, sp_str_t prefix, spn_arg_t arg);
 bool spn_arg_empty(spn_arg_t arg);
 sp_str_t  spn_arg_str(const spn_path_roots_t* roots, sp_mem_t mem, spn_arg_t arg);

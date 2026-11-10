@@ -119,6 +119,8 @@ void spn_gnu_render_flags(sp_mem_t mem, const spn_cc_t* toolchain, const spn_pro
     sp_da_push(flags->compile, sp_str_lit("-g"));
     if (spn_cc_has(toolchain, SPN_CC_CAP_CLANG_FRONTEND)) {
       sp_da_push(flags->compile, sp_str_lit("-ffile-compilation-dir=."));
+    } else {
+      sp_da_push(flags->compile, sp_str_lit("-gno-record-gcc-switches"));
     }
   }
   push_flag(&flags->compile, opt_switch(profile->opt));
@@ -229,6 +231,7 @@ spn_cc_compile_plan_t spn_gnu_render_compile(sp_mem_t mem, const spn_cc_t* toolc
     .driver = toolchain->driver,
     .depfile = lang == SPN_LANG_ASM ? SPN_CC_DEPFILE_OPTIONAL : SPN_CC_DEPFILE_REQUIRED,
     .codeview = profile->target.os == SPN_OS_WINDOWS && spn_cc_has(toolchain, SPN_CC_CAP_CLANG_FRONTEND) && (profile->target.abi == SPN_ABI_MSVC || spn_cc_has(toolchain, SPN_CC_CAP_CODEVIEW)),
+    .prefix_map = profile->mode == SPN_MODE_DEBUG && !spn_cc_has(toolchain, SPN_CC_CAP_CLANG_FRONTEND),
   };
   spn_invocation_t* invocation = &plan.base;
   add_launcher(mem, toolchain, profile, lang, invocation);
@@ -296,6 +299,9 @@ void spn_gnu_render_compile_locations(sp_mem_t mem, const spn_cc_compile_plan_t*
   if (plan->codeview) {
     spn_cc_push_c(mem, invocation, "-Xclang");
     spn_cc_push_fmt(mem, invocation, "-object-file-name={}", sp_fmt_str(sp_fs_get_name(files->output.sub)));
+  }
+  if (plan->prefix_map && !spn_path_empty(files->cwd)) {
+    spn_cc_push_wrapped(mem, invocation, "-fdebug-prefix-map=", files->cwd, "=.");
   }
   add_output(mem, files->output, invocation);
   if (!spn_path_empty(files->libc)) {

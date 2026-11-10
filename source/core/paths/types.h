@@ -43,6 +43,7 @@ typedef struct {
 typedef struct {
   sp_str_t prefix;
   spn_path_t path;
+  sp_str_t suffix;
 } spn_arg_t;
 
 typedef struct {
