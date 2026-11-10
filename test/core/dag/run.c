@@ -10,6 +10,7 @@ typedef struct {
   const c8* inputs [DAG_TEST_MAX_INPUTS];
   const c8* orders [DAG_TEST_MAX_INPUTS];
   const c8* discovers [DAG_TEST_MAX_INPUTS];
+  const c8* lists [DAG_TEST_MAX_INPUTS];
   const c8* output;
   const c8* writes;
   bool tree;
@@ -237,6 +238,36 @@ static const test_t tests [] = {
     }
   },
   {
+    .name = "listing_waits_for_producer_below",
+    .actions = {
+      { .identity = "I", .inputs = { "M" }, .lists = { "D" }, .output = "O" },
+      { .identity = "J", .inputs = { "S" }, .output = "D/E/X" },
+    },
+    .builds = {
+      { .sources = { { "S", "A" }, { "M", "B" } }, .expect_runs = 3 },
+    }
+  },
+  {
+    .name = "build_listing_waits_for_producer_below",
+    .actions = {
+      { .identity = "I", .inputs = { "M" }, .lists = { "build" }, .output = "O" },
+      { .identity = "J", .inputs = { "S" }, .output = "build/E/X" },
+    },
+    .builds = {
+      { .sources = { { "S", "A" }, { "M", "B" } }, .expect_runs = 3 },
+    }
+  },
+  {
+    .name = "root_listing_ignores_build_producer",
+    .actions = {
+      { .identity = "I", .inputs = { "M" }, .lists = { "" }, .output = "O" },
+      { .identity = "J", .inputs = { "O" }, .output = "build/X" },
+    },
+    .builds = {
+      { .sources = { { "M", "A" } }, .expect_runs = 2 },
+    }
+  },
+  {
     .name = "discovered_source_header_no_deferral",
     .actions = {
       { .identity = "I", .inputs = { "M" }, .discovers = { "H" }, .output = "O" },
@@ -299,6 +330,15 @@ static spn_err_t execute_action(const si_dag_ctx_t* c, void* user_data) {
     si_dag_observe(c, (spn_dag_obs_t) {
       .kind = SPN_DAG_OBS_FILE,
       .path = dag_test_env_rooted(ctx->env, sp_cstr_as_str(ctx->spec->discovers[it]))
+    });
+  }
+  sp_carr_for(ctx->spec->lists, it) {
+    if (!ctx->spec->lists[it]) {
+      break;
+    }
+    si_dag_observe(c, (spn_dag_obs_t) {
+      .kind = SPN_DAG_OBS_ENUMERATION,
+      .path = dag_test_env_rooted(ctx->env, sp_cstr_as_str(ctx->spec->lists[it]))
     });
   }
 
@@ -404,7 +444,7 @@ sp_test_each(dag_run, builds, test_t, tests) {
       ctx->spec = spec;
 
       spn_dag_id_t action = spn_dag_add_action(g, (spn_dag_action_config_t) {
-        .kind = spec->discovers[0] ? SPN_DAG_ACTION_DISCOVERED : spec->kind,
+        .kind = spec->discovers[0] || spec->lists[0] ? SPN_DAG_ACTION_DISCOVERED : spec->kind,
         .identity = dag_test_digest(spec->identity),
         .execute = execute_action,
         .user_data = ctx

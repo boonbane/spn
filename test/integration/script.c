@@ -7,6 +7,7 @@ static const command_test_t graphs [] = {
   { .name = "multi_output", .project = "test/integration/fixtures/script/multi_output", .args = { "build" } },
   { .name = "node_linking", .project = "test/integration/fixtures/script/node_linking", .args = { "build" } },
   { .name = "orphan_outputs", .project = "test/integration/fixtures/script/orphan_outputs", .args = { "build" }, .expect.exists = { work_file("O/O.h") } },
+  { .name = "observed_list_root", .project = "test/integration/fixtures/script/observed_list_root", .args = { "build" } },
 };
 
 sp_test_each(script, graph, command_test_t, graphs) {

@@ -200,6 +200,15 @@ static const test_t tests [] = {
     },
   },
   {
+    .name = "own_include_glob",
+    .project = "test/integration/fixtures/target/own_include_glob",
+    .copy = { "a.c", "a.h" },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = pkg_static_lib("A", "A") },
+    },
+  },
+  {
     .name = "system_deps",
     .project = "test/integration/fixtures/target/system_deps",
     .actions = {
