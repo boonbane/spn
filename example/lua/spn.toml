@@ -8,4 +8,4 @@ source = ["main.c"]
 
 [deps.package]
 lua = "5.4.6"
-sp = "3.5.0"
+sp = "5.0.0"
