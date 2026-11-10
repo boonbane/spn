@@ -5,6 +5,9 @@
 #include "toolchain/search.h"
 #include "triple/triple.h"
 
+#define git_exe_max_path 259
+#define git_exe_checkout_depth 118
+
 void write_file(sp_str_t path, sp_str_t content) {
   sp_fs_create_dir(sp_fs_parent_path(path));
   sp_fs_remove_file(path);
@@ -151,6 +154,12 @@ static sp_err_t setup_fixture_index_from_remote(sp_test_t* t, fixture_t* fixture
   }
 
   sp_must(t, sp_fs_is_dir(remote));
+  if (test_host().os == SPN_OS_WINDOWS && fixture->root.len + git_exe_checkout_depth > git_exe_max_path) {
+    return sp_test_skip(t, "git.exe caps paths at {} characters; this fixture's root is {} and a checkout under it needs {} more",
+      sp_fmt_uint(git_exe_max_path),
+      sp_fmt_uint(fixture->root.len),
+      sp_fmt_uint(git_exe_checkout_depth));
+  }
 
   sp_str_t raw = sp_fs_join_path(mem, project, sp_str_lit("index"));
 
