@@ -40,7 +40,7 @@ static spn_target_unit_t* configure_target(units_t* u) {
   return SP_NULLPTR;
 }
 
-sp_test_each(unit_edges, consume, test_t, tests, .setup = spn_test_ctx_setup) {
+sp_test_each(unit_edges, consume, test_t, tests, .setup = spn_test_ctx_setup, .teardown = units_teardown) {
   units_t* u = units_new(t, &graph);
   spn_target_unit_t* target = SP_NULLPTR;
   if (it->script) {

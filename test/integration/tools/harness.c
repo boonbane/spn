@@ -862,6 +862,10 @@ sp_err_t run_actions(sp_test_t* t, fixture_t* fixture, const action_t* actions) 
         sp_fs_close_dir(dir);
         break;
       }
+      case ACTION_INIT_REPO: {
+        git_repo_init(fixture->root);
+        break;
+      }
       case ACTION_RUN_CLI: {
         const c8* args [SPN_TEST_COMMAND_MAX_ARGS] = { action.cli.cmd };
         sp_carr_for(action.cli.args, at) {

@@ -53,7 +53,7 @@ static sp_err_t expect_path(sp_test_t* t, spn_path_t actual, const path_t* expec
   return SP_OK;
 }
 
-sp_test_each(unit_paths, init, test_t, tests, .setup = spn_test_ctx_setup) {
+sp_test_each(unit_paths, init, test_t, tests, .setup = spn_test_ctx_setup, .teardown = units_teardown) {
   graph_t graph = { .pkgs = { { .name = "A", .source = it->source } } };
   units_t* u = units_new(t, &graph);
 
