@@ -23,7 +23,7 @@ static const flags_test_t tests [] = {
       .opt = SPN_OPT_LEVEL_0,
     },
     .driver = SPN_CC_DRIVER_GCC,
-    .expect = { .compile = { "-g", "-O0" } },
+    .expect = { .compile = { "-g", "-gno-record-gcc-switches", "-O0" } },
   },
   {
     .name = "render_clang_release",

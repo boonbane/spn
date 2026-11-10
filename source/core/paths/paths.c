@@ -378,16 +378,20 @@ spn_arg_t spn_arg_glue(sp_str_t prefix, spn_path_t path) {
   return (spn_arg_t) { .prefix = prefix, .path = path };
 }
 
+spn_arg_t spn_arg_wrap(sp_str_t prefix, spn_path_t path, sp_str_t suffix) {
+  return (spn_arg_t) { .prefix = prefix, .path = path, .suffix = suffix };
+}
+
 spn_arg_t spn_arg_prepend(sp_mem_t mem, sp_str_t prefix, spn_arg_t arg) {
-  return (spn_arg_t) { .prefix = sp_str_concat(mem, prefix, arg.prefix), .path = arg.path };
+  return (spn_arg_t) { .prefix = sp_str_concat(mem, prefix, arg.prefix), .path = arg.path, .suffix = arg.suffix };
 }
 
 bool spn_arg_empty(spn_arg_t arg) {
-  return sp_str_empty(arg.prefix) && spn_path_empty(arg.path);
+  return sp_str_empty(arg.prefix) && spn_path_empty(arg.path) && sp_str_empty(arg.suffix);
 }
 
 sp_str_t spn_arg_str(const spn_path_roots_t* roots, sp_mem_t mem, spn_arg_t arg) {
-  return sp_str_concat(mem, arg.prefix, spn_path_str(roots, mem, arg.path));
+  return sp_fmt(mem, "{}{}{}", sp_fmt_str(arg.prefix), sp_fmt_str(spn_path_str(roots, mem, arg.path)), sp_fmt_str(arg.suffix)).value;
 }
 
 sp_str_t spn_path_root_label(spn_path_root_t root) {
