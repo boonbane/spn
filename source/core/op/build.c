@@ -235,23 +235,23 @@ spn_err_t spn_op_build(spn_op_t* op) {
   spn_build_plan_t plan = sp_zero;
   spn_try(spn_plan_new(&configure, SP_NULLPTR, SP_NULLPTR, &plan));
   claim_spn_files(mem, project, &plan);
-  spn_dag_build_t* b = spn_dag_build_new(op);
-  spn_try(spn_dag_build_lower(b, &plan));
-  spn_try(spn_dag_build_run(b, spn_cpu_count()));
+  spn_dag_build_t* reactors = spn_dag_build_new(op);
+  spn_try(spn_dag_build_lower(reactors, &plan));
+  spn_try(spn_dag_build_run(reactors, spn_cpu_count()));
   sp_om_for(units.packages, it) {
     spn_pkg_unit_t* pkg = sp_om_at(units.packages, it);
     if (!pkg->reactor) {
       continue;
     }
-    spn_dag_target_ids_t* ids = sp_ht_getp(b->ids.targets, pkg->reactor);
+    spn_dag_target_ids_t* ids = sp_ht_getp(reactors->ids.targets, pkg->reactor);
     sp_assert(ids);
-    spn_try(spn_wasm_configure(pkg, spn_dag_run_artifact(&b->run, ids->output)->location));
+    spn_try(spn_wasm_configure(pkg, spn_dag_run_artifact(&reactors->run, ids->output)->location));
   }
 
   spn_try(spn_plan_new(&units, root, targets, &session->plan));
   claim_spn_files(mem, project, &session->plan);
 
-  b = spn_dag_build_new(op);
+  spn_dag_build_t* b = spn_dag_build_new(op);
   spn_try(spn_dag_build_lower(b, &session->plan));
 
   spn_event_buffer_push(ctx->events, (spn_event_t) {
@@ -276,7 +276,11 @@ spn_err_t spn_op_build(spn_op_t* op) {
     return result;
   }
 
-  spn_err_t written = spn_dag_build_write_compile_commands(b, &session->plan);
+  spn_dag_lowered_t lowered [] = {
+    { .build = reactors, .plan = &plan },
+    { .build = b, .plan = &session->plan },
+  };
+  spn_err_t written = spn_dag_build_write_compile_commands(session, lowered, sp_carr_len(lowered));
   if (!result) {
     result = written;
   }

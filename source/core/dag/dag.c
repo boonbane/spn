@@ -310,6 +310,7 @@ void spn_dag_hash_strs(spn_digest_ctx_t* ctx, si_da(sp_str_t) strs) {
 void spn_dag_hash_arg(spn_digest_ctx_t* ctx, const spn_path_roots_t* roots, spn_arg_t arg) {
   spn_dag_hash_str(ctx, arg.prefix);
   spn_dag_hash_path(ctx, roots, arg.path);
+  spn_dag_hash_str(ctx, arg.suffix);
 }
 
 void spn_dag_hash_args(spn_digest_ctx_t* ctx, const spn_path_roots_t* roots, sp_da(spn_arg_t) args) {

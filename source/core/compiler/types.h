@@ -134,6 +134,7 @@ typedef struct {
   spn_invocation_t base;
   spn_cc_depfile_t depfile;
   bool codeview;
+  bool prefix_map;
 } spn_cc_compile_plan_t;
 
 typedef enum {

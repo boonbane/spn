@@ -42,6 +42,10 @@ void spn_cc_push_glued(sp_mem_t mem, spn_invocation_t* invocation, const c8* pre
   spn_cc_push(mem, invocation, spn_arg_glue(sp_cstr_as_str(prefix), path));
 }
 
+void spn_cc_push_wrapped(sp_mem_t mem, spn_invocation_t* invocation, const c8* prefix, spn_path_t path, const c8* suffix) {
+  spn_cc_push(mem, invocation, spn_arg_wrap(sp_cstr_as_str(prefix), path, sp_cstr_as_str(suffix)));
+}
+
 void spn_cc_push_strs(sp_mem_t mem, spn_invocation_t* invocation, sp_da(sp_str_t) values) {
   sp_da_for(values, it) {
     spn_cc_push(mem, invocation, spn_arg_lit(values[it]));

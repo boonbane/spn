@@ -434,7 +434,14 @@ static sp_err_t expect_command_cc(sp_test_t* t, fixture_t* fixture, command_cc_t
     yyjson_doc_free(cc.doc);
   }
 
-  bool ok = selected && (expected.absent ? matches == 0 : matches > 0);
+  bool verified = expected.args[0] || expected.include;
+  bool ok = sp_zero;
+  if (verified) {
+    ok = selected && (expected.absent ? matches == 0 : matches > 0);
+  }
+  else {
+    ok = expected.absent ? !selected : selected > 0;
+  }
   if (ok) {
     return SP_OK;
   }
@@ -442,10 +449,13 @@ static sp_err_t expect_command_cc(sp_test_t* t, fixture_t* fixture, command_cc_t
   sp_test_kv(t, "file", file);
   sp_test_kv(t, "args", join_args(mem, expected.args, sp_carr_len(expected.args)));
   sp_test_kv(t, "include", include);
+  const c8* wanted = verified
+    ? (expected.absent ? "no selected compile entry has the argument" : "a selected compile entry has the argument")
+    : (expected.absent ? "no compile entry for the file" : "a compile entry for the file");
   sp_test_record(t, (sp_test_failure_t) {
     .file = sp_cstr_as_str(__FILE__),
     .line = (u32)__LINE__,
-    .expected = sp_cstr_as_str(expected.absent ? "no selected compile entry has the argument" : "a selected compile entry has the argument"),
+    .expected = sp_cstr_as_str(wanted),
     .actual = sp_cstr_as_str(!selected ? "no compile entries selected" : (expected.absent ? "an entry has it" : "no entry has it")),
   });
   return SP_ERR;
