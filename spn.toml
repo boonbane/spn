@@ -98,8 +98,8 @@ source = [
 include = ["include", "source/core", "source/util", "source/core/external", { path = "gen/codegen/gen", tree = "work" }]
 embed = [
   { path = "include/spn.h", data_type = "u8", size_type = "u64" },
-  { path = "include/spn/core.h", data_type = "u8", size_type = "u64" },
-  { path = "gen/include/spn/err.h", tree = "work", dest = "include/spn/err.h", data_type = "u8", size_type = "u64" },
+  { path = "include/spn/guest.h", data_type = "u8", size_type = "u64" },
+  { path = "gen/codegen/gen/errors.guest.h", tree = "work", dest = "include/spn/err.h", data_type = "u8", size_type = "u64" },
   { path = "source/core/toolchain/toolchains.toml", dest = "toolchains.toml", data_type = "u8", size_type = "u64" },
   { path = "assets/zig/stub.c", dest = "zig/stub.c", data_type = "u8", size_type = "u64" },
   { path = "assets/init", dir = true, dest = "init", data_type = "u8", size_type = "u64" },

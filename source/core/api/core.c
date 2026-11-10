@@ -9,7 +9,6 @@
 #include "event/types.h"
 #include "paths/paths.h"
 #include "pkg/types.h"
-#include "target/types.h"
 #include "unit/types.h"
 
 #include "enum/enum.h"
@@ -18,7 +17,6 @@
 #include "external/wasm/wasm.h"
 #include "intern/intern.h"
 #include "str/str.h"
-#include "pkg/pkg.h"
 #include "io/io.h"
 
 spn_pkg_unit_t* spn_api_unit(const void* opaque) {
@@ -44,19 +42,6 @@ spn_path_t spn_api_dir_path(spn_pkg_unit_t* unit, spn_dir_t dir) {
   SP_UNREACHABLE_RETURN(sp_zero_struct(spn_path_t));
 }
 
-static spn_target_t* wrap(spn_pkg_unit_t* unit, si_target_t* eval) {
-  spn_target_t* target = sp_alloc_type(spn.mem, spn_target_t);
-  target->unit = unit;
-  target->target = eval;
-  return target;
-}
-
-spn_target_t* spn_get_target(spn_t* spn, const c8* name, spn_target_kind_t kind) {
-  spn_pkg_unit_t* unit = spn_api_unit(spn);
-  si_target_t* eval = spn_pkg_get_target(&unit->pkg, spn_intern_cstr(name).id, kind);
-  return eval ? wrap(unit, eval) : SP_NULLPTR;
-}
-
 bool spn_api_name_rejected(const c8* fn, const c8* name) {
   sp_str_t str = sp_cstr_as_str(name);
   if (!sp_str_contains(str, sp_str_lit("/"))) {
@@ -68,12 +53,6 @@ bool spn_api_name_rejected(const c8* fn, const c8* name) {
   sp_assert(trapped);
   sp_mem_end_scratch(scratch);
   return true;
-}
-
-void spn_add_system_dep(spn_config_t* config, const c8* dep) {
-  spn_pkg_unit_t* unit = spn_api_unit(config);
-  sp_mem_t mem = unit->units->mem;
-  si_da_push(mem, unit->pkg.system_deps, sp_str_from_cstr(mem, dep));
 }
 
 void spn_log(spn_t* s, const c8* message) {
@@ -90,16 +69,6 @@ spn_profile_t* spn_get_profile(spn_t* s) {
   return sp_ptr_cast(spn_profile_t*, &unit->build->profile);
 }
 
-spn_libc_kind_t spn_profile_get_libc(spn_profile_t* profile) {
-  spn_profile_info_t* info = (spn_profile_info_t*)profile;
-  switch (info->target.abi) {
-    case SPN_ABI_MUSL: return SPN_LIBC_MUSL;
-    case SPN_ABI_BARE: return SPN_LIBC_NONE;
-    case SPN_ABI_ELF:  return SPN_LIBC_CUSTOM;
-    default:           return SPN_LIBC_GNU;
-  }
-}
-
 spn_os_t spn_profile_get_os(spn_profile_t* profile) {
   return ((spn_profile_info_t*)profile)->target.os;
 }
@@ -114,9 +83,4 @@ spn_opt_level_t spn_profile_get_opt(spn_profile_t* profile) {
 
 spn_sanitizer_set_t spn_profile_get_sanitizers(spn_profile_t* profile) {
   return ((spn_profile_info_t*)profile)->sanitizers;
-}
-
-void spn_target_add_flag(spn_target_t* target, const c8* flag) {
-  sp_mem_t mem = target->unit->units->mem;
-  si_da_push(mem, target->target->flags, sp_str_from_cstr(mem, flag));
 }

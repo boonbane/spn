@@ -19,6 +19,7 @@ static const codegen_t codegens [] = {
       "/work/gen/codegen/gen/config.gen.h",
       "/work/gen/codegen/gen/config.jtd.json",
       "/work/gen/codegen/gen/errors.gen.c",
+      "/work/gen/codegen/gen/errors.guest.h",
       "/work/gen/codegen/gen/events.gen.c",
       "/work/gen/codegen/gen/manifest.gen.c",
       "/work/gen/codegen/gen/manifest.gen.h",

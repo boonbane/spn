@@ -6,7 +6,11 @@ typedef enum {
   SPN_OK = 0,
   SPN_ERROR = 1,
 {{ for .kinds }}
+{{ if .guest }}
+  {{ .code }} = {{ .guest }},
+{{ else }}
   {{ .code }},
+{{ end }}
 {{ end }}
   SPN_ERR_COUNT,
 } spn_err_t;

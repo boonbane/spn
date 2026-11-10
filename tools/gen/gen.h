@@ -95,6 +95,7 @@ typedef struct {
   sp_str_t verb;
   sp_str_t verbosity;
   sp_str_t severity;
+  sp_str_t guest;
 } gen_kind_t;
 
 typedef struct {
@@ -160,6 +161,7 @@ gen_render_t gen_render_common(gen_t* g);
 gen_render_t gen_render_decls(gen_t* g);
 gen_render_t gen_render_impl(gen_t* g);
 gen_render_t gen_render_union_codes(gen_t* g);
+gen_render_t gen_render_union_guest(gen_t* g);
 gen_render_t gen_render_union_decls(gen_t* g);
 gen_render_t gen_render_union_impl(gen_t* g);
 bool         gen_data_check(gen_t* g);

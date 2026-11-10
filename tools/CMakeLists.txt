@@ -51,13 +51,13 @@ add_custom_command(
     --arch ${EMBED_ARCH}
     ${EMBED_OBJ}
     ${CMAKE_SOURCE_DIR}/include/spn.h=include/spn.h
-    ${CMAKE_SOURCE_DIR}/include/spn/core.h=include/spn/core.h
-    ${GEN_INCLUDE}/spn/err.h=include/spn/err.h
+    ${CMAKE_SOURCE_DIR}/include/spn/guest.h=include/spn/guest.h
+    ${GEN_DIR}/errors.guest.h=include/spn/err.h
     ${CMAKE_SOURCE_DIR}/source/core/toolchain/toolchains.toml=toolchains.toml
     ${CMAKE_SOURCE_DIR}/assets/zig/stub.c=zig/stub.c
     ${CMAKE_SOURCE_DIR}/assets/init=init
     ${CMAKE_SOURCE_DIR}/docs/content=docs
-  DEPENDS embed ${CMAKE_SOURCE_DIR}/include/spn.h ${CMAKE_SOURCE_DIR}/include/spn/core.h ${GEN_INCLUDE}/spn/err.h ${CMAKE_SOURCE_DIR}/source/core/toolchain/toolchains.toml ${CMAKE_SOURCE_DIR}/assets/zig/stub.c ${SPN_INIT_TEMPLATES} ${SPN_DOCS}
+  DEPENDS embed ${CMAKE_SOURCE_DIR}/include/spn.h ${CMAKE_SOURCE_DIR}/include/spn/guest.h ${GEN_DIR}/errors.guest.h ${CMAKE_SOURCE_DIR}/source/core/toolchain/toolchains.toml ${CMAKE_SOURCE_DIR}/assets/zig/stub.c ${SPN_INIT_TEMPLATES} ${SPN_DOCS}
   COMMENT "spn.embed.o"
   VERBATIM)
 add_custom_target(spn_embed ALL DEPENDS ${EMBED_OBJ} ${EMBED_HDR})
@@ -88,6 +88,7 @@ set(GEN_FILES
   ${INCLUDE_DIR}/err.h
   ${INCLUDE_DIR}/errors.h
   ${GEN_DIR}/errors.gen.c
+  ${GEN_DIR}/errors.guest.h
   ${INCLUDE_DIR}/events.h
   ${GEN_DIR}/events.gen.c)
 file(GLOB JTD_GEN_SCHEMAS CONFIGURE_DEPENDS ${SCHEMA_DIR}/*.json)

@@ -18,6 +18,10 @@ static void bind_kinds(gen_t* g, sp_template_scope_t* scope) {
       sp_template_set(child, sp_str_lit("awrite"), gen_undecorated(g, kind->payload->name));
     }
 
+    if (!sp_str_empty(kind->guest)) {
+      sp_template_set(child, sp_str_lit("guest"), kind->guest);
+    }
+
     if (g->format == GEN_FORMAT_EVENTS) {
       sp_template_set(child, sp_str_lit("verb"), kind->verb);
       sp_template_set(child, sp_str_lit("verbosity"), kind->verbosity);
@@ -45,6 +49,15 @@ gen_render_t gen_render_union_codes(gen_t* g) {
   bind_kinds(g, scope);
   return (gen_render_t) {
     .template = sp_fmt(g->mem, "{}/codes.h", sp_fmt_cstr(gen_format_name(g->format))).value,
+    .scope = scope,
+  };
+}
+
+gen_render_t gen_render_union_guest(gen_t* g) {
+  sp_template_scope_t* scope = union_scope(g);
+  bind_kinds(g, scope);
+  return (gen_render_t) {
+    .template = sp_fmt(g->mem, "{}/guest.h", sp_fmt_cstr(gen_format_name(g->format))).value,
     .scope = scope,
   };
 }

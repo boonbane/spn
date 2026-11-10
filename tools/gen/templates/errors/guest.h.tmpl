@@ -1,0 +1,23 @@
+// Generated from source/core/codegen/schema/errors.jtd.json. Do not edit.
+#ifndef SPN_ERR_H
+#define SPN_ERR_H
+
+typedef enum {
+  SPN_OK = 0,
+  SPN_ERROR = 1,
+{{ for .kinds }}
+{{ if .guest }}
+  {{ .code }} = {{ .guest }},
+{{ end }}
+{{ end }}
+} spn_err_t;
+
+#define spn_try(expr) \
+  do { \
+    spn_err_t __err = (expr); \
+    if (__err) { \
+      return __err; \
+    } \
+  } while (0)
+
+#endif

@@ -9,7 +9,6 @@ typedef enum {
   SPN_ABI_KIND_NONE = 0,
   SPN_ABI_KIND_CTX,
   SPN_ABI_KIND_CONFIG,
-  SPN_ABI_KIND_TARGET,
   SPN_ABI_KIND_NODE,
   SPN_ABI_KIND_PROFILE,
 } spn_abi_kind_t;

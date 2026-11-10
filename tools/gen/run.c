@@ -194,6 +194,7 @@ static bool render_union(codegen_t* c, sp_str_t path, sp_str_t json, gen_format_
 
   if (format == GEN_FORMAT_ERRORS) {
     try(render_one(c, out_path(c, c->paths.include, sp_str_lit("err"), ".h"), gen_render_union_codes(gen)));
+    try(render_one(c, out_path(c, c->paths.out, name, ".guest.h"), gen_render_union_guest(gen)));
   }
   try(render_one(c, out_path(c, c->paths.include, name, ".h"), gen_render_union_decls(gen)));
   try(render_one(c, out_path(c, c->paths.out, name, ".gen.c"), gen_render_union_impl(gen)));

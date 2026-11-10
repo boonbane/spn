@@ -5,7 +5,7 @@
   #error "include/spn.h is the guest build script API; it cannot share a translation unit with spn/host.h"
 #endif
 
-#include "spn/core.h"
+#include "spn/guest.h"
 
 #ifdef __wasm32__
   #define SPN_API __attribute__((import_module("env")))
@@ -17,14 +17,12 @@
 
 typedef struct spn              spn_t;
 typedef struct spn_config       spn_config_t;
-typedef struct spn_target       spn_target_t;
 typedef struct spn_profile      spn_profile_t;
 typedef struct spn_node         spn_node_t;
 
 typedef spn_err_t (*spn_configure_fn_t) (spn_t*, spn_config_t*);
 typedef s32       (*spn_node_fn_t)      (spn_t*);
 
-spn_target_t* spn_get_target(spn_t* spn, const c8* name, spn_target_kind_t kind);
 void          spn_log(spn_t* spn, const c8* message);
 
 void          spn_io_write(const c8* path, const c8* contents);
@@ -33,17 +31,13 @@ const c8*     spn_fmt_ex(const c8* fmt, const c8* a0, const c8* a1, const c8* a2
 #define spn_fmt_select(fmt, a0, a1, a2, a3, ...) spn_fmt_ex(fmt, a0, a1, a2, a3)
 #define spn_fmt(fmt, ...) spn_fmt_select(fmt, ##__VA_ARGS__, 0, 0, 0, 0, 0)
 
-void          spn_add_system_dep(spn_config_t* config, const c8* dep);
 spn_node_t*   spn_add_node(spn_config_t* config, const c8* tag);
 void          spn_node_add_output(spn_node_t* node, const c8* path);
 void          spn_node_add_output_dir(spn_node_t* node, const c8* path);
 void          spn_node_link(spn_node_t* from, spn_node_t* to);
 void          spn_node_set_fn(spn_node_t* node, const c8* fn);
 
-void          spn_target_add_flag(spn_target_t* target, const c8* flag);
-
 spn_profile_t*   spn_get_profile(spn_t* spn);
-spn_libc_kind_t  spn_profile_get_libc(spn_profile_t* profile);
 spn_os_t         spn_profile_get_os(spn_profile_t* profile);
 spn_mode_t       spn_profile_get_mode(spn_profile_t* profile);
 spn_opt_level_t  spn_profile_get_opt(spn_profile_t* profile);

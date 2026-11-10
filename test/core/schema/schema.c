@@ -67,7 +67,7 @@ sp_test_each(schema, roundtrip, test_t, tests) {
 }
 
 sp_test(schema, abi_handles) {
-  const c8* kinds [] = { "ctx", "config", "target", "node", "profile" };
+  const c8* kinds [] = { "ctx", "config", "node", "profile" };
 
   sp_mem_t mem = sp_test_arena(t);
   sp_str_t path = sp_fs_join_path(mem, test_repo_path(mem, sp_str_lit(SCHEMA_DIR)), sp_str_lit("abi.json"));
