@@ -2,10 +2,10 @@
   "handles": ["ctx", "config", "node", "profile"],
   "exports": [
     { "name": "spn_get_profile", "ret": "profile", "args": ["ctx"] },
-    { "name": "spn_profile_get_os", "ret": "s32", "args": ["profile"] },
-    { "name": "spn_profile_get_mode", "ret": "s32", "args": ["profile"] },
-    { "name": "spn_profile_get_opt", "ret": "s32", "args": ["profile"] },
-    { "name": "spn_profile_get_sanitizers", "ret": "s32", "args": ["profile"] },
+    { "name": "spn_profile_get_os", "args": ["profile", "out"] },
+    { "name": "spn_profile_get_mode", "args": ["profile", "out"] },
+    { "name": "spn_profile_get_opt", "args": ["profile", "out"] },
+    { "name": "spn_profile_get_sanitizers", "args": ["profile", "out"] },
     { "name": "spn_log", "args": ["ctx", "str"] },
     { "name": "spn_add_node", "ret": "node", "args": ["config", "str"] },
     { "name": "spn_node_set_fn", "args": ["node", "str"] },
@@ -13,6 +13,6 @@
     { "name": "spn_node_add_output_dir", "args": ["node", "str"] },
     { "name": "spn_node_link", "args": ["node", "node"] },
     { "name": "spn_io_write", "args": ["str", "str"], "host": "spn_abi_io_write", "wasm_ctx": true },
-    { "name": "spn_fmt_ex", "ret": "str", "args": ["str", "str_opt", "str_opt", "str_opt", "str_opt"], "host": "spn_abi_fmt", "wasm_ctx": true }
+    { "name": "spn_fmt_ex", "ret": "str", "args": ["str", "str_opt", "str_opt", "str_opt", "str_opt"] }
   ]
 }

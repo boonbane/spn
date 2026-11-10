@@ -8,17 +8,27 @@ static {{ .ret_type }} spn_abi_thunk_{{ .short }}(wasm_exec_env_t env{{ for .arg
 {{ for .args }}
 {{ if .stropt }}
   const c8* s{{ .i }} = SP_NULLPTR;
-  if (!spn_wasm_read_str(&abi, a{{ .i }}, &s{{ .i }})) {{ .fail }}
+  if (!spn_wasm_read_str(&abi, a{{ .i }}, &s{{ .i }})) {
+    {{ .fail }}
+  }
+{{ end }}
+{{ if .out }}
+  if (!wasm_runtime_validate_native_addr(abi.instance, a{{ .i }}, sizeof(s32))) {
+    {{ .fail }}
+  }
 {{ end }}
 {{ if .handle }}
-  void* h{{ .i }} = spn_wasm_resolve_handle(abi.handles, a{{ .i }}, {{ .kind }});
-  if (!h{{ .i }}) {{ .fail }}
+  void* h{{ .i }} = SP_NULLPTR;
+{{ if .r_err }}
+  spn_try(spn_wasm_resolve_handle(abi.handles, a{{ .i }}, {{ .kind }}, &h{{ .i }}));
+{{ else }}
+  if (spn_wasm_resolve_handle(abi.handles, a{{ .i }}, {{ .kind }}, &h{{ .i }})) {
+    return 0;
+  }
 {{ end }}
 {{ end }}
-{{ if .r_void }}
-  {{ .host }}({{ .call }});
 {{ end }}
-{{ if .r_s32 }}
+{{ if .r_err }}
   return {{ .host }}({{ .call }});
 {{ end }}
 {{ if .r_str }}

@@ -22,8 +22,6 @@
 #define SPN_WASM_NO_DIRS SP_NULL
 #define SPN_WASM_NO_ARGS SP_NULL
 
-static SP_THREAD_LOCAL spn_wasm_script_t* active;
-
 spn_err_t spn_wasm_init() {
   static bool initialized = false;
   if (initialized) return SPN_OK;
@@ -190,10 +188,7 @@ spn_err_t spn_wasm_script_call(spn_wasm_script_t* script, sp_str_t name, const s
   }
 
   wasm_val_t results [1] = sp_zero;
-  spn_wasm_script_t* previous = active;
-  active = script;
   bool called = wasm_runtime_call_wasm_a(script->env, fn, 1, results, 1 + count, args);
-  active = previous;
   sp_for(it, count) {
     spn_wasm_remove_handle(script->handles, tokens[it]);
   }
@@ -204,10 +199,11 @@ spn_err_t spn_wasm_script_call(spn_wasm_script_t* script, sp_str_t name, const s
       .error = sp_cstr_as_str(wasm_runtime_get_exception(script->instance)),
     });
   }
-  if (results[0].of.i32) {
-    return fail(unit, SPN_ERR_WASM_SCRIPT_ERROR, (spn_err_wasm_t) {
+  s32 rc = results[0].of.i32;
+  if (rc) {
+    return fail(unit, spn_err_is_guest(rc) ? (spn_err_t)rc : SPN_ERR_WASM_SCRIPT_ERROR, (spn_err_wasm_t) {
       .path = script->path,
-      .rc = results[0].of.i32,
+      .rc = rc,
     });
   }
   return SPN_OK;
@@ -223,14 +219,4 @@ spn_err_t spn_wasm_configure(spn_pkg_unit_t* unit, spn_path_t reactor) {
   }
   spn_wasm_script_close(&script);
   return err;
-}
-
-bool spn_wasm_trap(sp_str_t message) {
-  if (!active) {
-    return false;
-  }
-  sp_mem_arena_marker_t s = sp_mem_begin_scratch();
-  wasm_runtime_set_exception(active->instance, sp_str_to_cstr(s.mem, message));
-  sp_mem_end_scratch(s);
-  return true;
 }

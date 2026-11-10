@@ -8,7 +8,6 @@
 #include "paths/types.h"
 
 spn_pkg_unit_t* spn_api_unit(const void* opaque);
-bool            spn_api_name_rejected(const c8* fn, const c8* name);
 spn_path_t      spn_api_dir_path(spn_pkg_unit_t* unit, spn_dir_t dir);
 
 #endif

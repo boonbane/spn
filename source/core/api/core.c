@@ -14,7 +14,6 @@
 #include "enum/enum.h"
 #include "error/error.h"
 #include "event/event.h"
-#include "external/wasm/wasm.h"
 #include "intern/intern.h"
 #include "str/str.h"
 #include "io/io.h"
@@ -42,26 +41,14 @@ spn_path_t spn_api_dir_path(spn_pkg_unit_t* unit, spn_dir_t dir) {
   SP_UNREACHABLE_RETURN(sp_zero_struct(spn_path_t));
 }
 
-bool spn_api_name_rejected(const c8* fn, const c8* name) {
-  sp_str_t str = sp_cstr_as_str(name);
-  if (!sp_str_contains(str, sp_str_lit("/"))) {
-    return false;
-  }
-  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  sp_str_t message = sp_fmt(scratch.mem, "{}: {} may not contain '/'", SP_FMT_CSTR(fn), SP_FMT_STR(str)).value;
-  bool trapped = spn_wasm_trap(message);
-  sp_assert(trapped);
-  sp_mem_end_scratch(scratch);
-  return true;
-}
-
-void spn_log(spn_t* s, const c8* message) {
+spn_err_t spn_log(spn_t* s, const c8* message) {
   spn_pkg_unit_t* unit = spn_api_unit(s);
   spn_event_buffer_push(spn.events, (spn_event_t) {
     .kind = SPN_EVENT_USER_LOG,
     .pkg = unit->pkg.manifest->name.str,
     .user_log = { .message = sp_str_from_cstr(spn.events->mem, message) },
   });
+  return SPN_OK;
 }
 
 spn_profile_t* spn_get_profile(spn_t* s) {
@@ -69,18 +56,22 @@ spn_profile_t* spn_get_profile(spn_t* s) {
   return sp_ptr_cast(spn_profile_t*, &unit->build->profile);
 }
 
-spn_os_t spn_profile_get_os(spn_profile_t* profile) {
-  return ((spn_profile_info_t*)profile)->target.os;
+spn_err_t spn_profile_get_os(spn_profile_t* profile, spn_os_t* os) {
+  *os = ((spn_profile_info_t*)profile)->target.os;
+  return SPN_OK;
 }
 
-spn_mode_t spn_profile_get_mode(spn_profile_t* profile) {
-  return ((spn_profile_info_t*)profile)->mode;
+spn_err_t spn_profile_get_mode(spn_profile_t* profile, spn_mode_t* mode) {
+  *mode = ((spn_profile_info_t*)profile)->mode;
+  return SPN_OK;
 }
 
-spn_opt_level_t spn_profile_get_opt(spn_profile_t* profile) {
-  return ((spn_profile_info_t*)profile)->opt;
+spn_err_t spn_profile_get_opt(spn_profile_t* profile, spn_opt_level_t* opt) {
+  *opt = ((spn_profile_info_t*)profile)->opt;
+  return SPN_OK;
 }
 
-spn_sanitizer_set_t spn_profile_get_sanitizers(spn_profile_t* profile) {
-  return ((spn_profile_info_t*)profile)->sanitizers;
+spn_err_t spn_profile_get_sanitizers(spn_profile_t* profile, spn_sanitizer_set_t* sanitizers) {
+  *sanitizers = ((spn_profile_info_t*)profile)->sanitizers;
+  return SPN_OK;
 }

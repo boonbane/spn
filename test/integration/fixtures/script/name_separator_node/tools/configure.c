@@ -2,6 +2,5 @@
 
 SPN_EXPORT
 spn_err_t configure(spn_t* spn, spn_config_t* config) {
-  spn_add_node(config, "A/B");
-  return SPN_OK;
+  return spn_node_set_fn(spn_add_node(config, "A/B"), "N") == SPN_ERR_HANDLE_NULL ? SPN_OK : SPN_ERROR;
 }

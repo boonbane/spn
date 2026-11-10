@@ -40,6 +40,7 @@ add_executable(core
   external/wasm.c
   gen/lower.c
   gen/reader.c
+  gen/union.c
   git/fixture.c
   git/cache.c
   git/key.c

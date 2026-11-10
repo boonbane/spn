@@ -56,9 +56,9 @@ spn_err_t configure(spn_t* spn, spn_config_t* config) {
   for (u32 it = 0; it < countof(codegens); it++) {
     const codegen_t* codegen = &codegens[it];
     spn_node_t* node = spn_add_node(config, codegen->tag);
-    spn_node_set_fn(node, codegen->tag);
+    spn_try(spn_node_set_fn(node, codegen->tag));
     for (u32 ot = 0; ot < SPN_CODEGEN_MAX_OUTPUTS && codegen->outputs[ot]; ot++) {
-      spn_node_add_output(node, codegen->outputs[ot]);
+      spn_try(spn_node_add_output(node, codegen->outputs[ot]));
     }
   }
 

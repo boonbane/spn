@@ -86,3 +86,28 @@ sp_test(schema, abi_handles) {
 
   return SP_OK;
 }
+
+typedef struct {
+  const c8* name;
+  spn_err_t err;
+  s32 code;
+} code_t;
+
+static const code_t codes [] = {
+  { .name = "ok",               .err = SPN_OK },
+  { .name = "error",            .err = SPN_ERROR,                .code = 1 },
+  { .name = "handle_null",      .err = SPN_ERR_HANDLE_NULL,      .code = 2 },
+  { .name = "handle_kind",      .err = SPN_ERR_HANDLE_KIND,      .code = 3 },
+  { .name = "node_no_script",   .err = SPN_ERR_NODE_NO_SCRIPT,   .code = 4 },
+  { .name = "node_no_outputs",  .err = SPN_ERR_NODE_NO_OUTPUTS,  .code = 5 },
+  { .name = "path_not_normal",  .err = SPN_ERR_PATH_NOT_NORMAL,  .code = 6 },
+  { .name = "path_not_mounted", .err = SPN_ERR_PATH_NOT_MOUNTED, .code = 7 },
+  { .name = "output_outside",   .err = SPN_ERR_OUTPUT_OUTSIDE,   .code = 8 },
+  { .name = "output_is_root",   .err = SPN_ERR_OUTPUT_IS_ROOT,   .code = 9 },
+  { .name = "io_write",         .err = SPN_ERR_IO_WRITE,         .code = 10 },
+};
+
+sp_test_each(schema, guest_codes, code_t, codes) {
+  sp_expect_eq(t, (s32)it->err, it->code);
+  return SP_OK;
+}

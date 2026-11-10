@@ -23,6 +23,17 @@ sp_str_t spn_err_to_str(spn_err_t err) {
   sp_unreachable_return(sp_str_lit(""));
 }
 
+bool spn_err_is_guest(s32 code) {
+  switch (code) {
+{{ for .kinds }}
+{{ if .guest }}
+    case {{ .code }}: return true;
+{{ end }}
+{{ end }}
+    default: return false;
+  }
+}
+
 void spn_err_write_json(sp_io_writer_t* json, const spn_err_union_t* err) {
   sp_io_write_cstr(json, ", \"kind\": ", SP_NULLPTR);
   spn_codegen_json_str(json, spn_err_to_str(err->kind));

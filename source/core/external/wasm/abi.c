@@ -15,14 +15,18 @@ u32 spn_wasm_add_handle(spn_wasm_handles_t* table, void* ptr, spn_abi_kind_t kin
   return token;
 }
 
-void* spn_wasm_resolve_handle(spn_wasm_handles_t* handles, u32 token, spn_abi_kind_t kind) {
-  if (!token) return SP_NULLPTR;
+spn_err_t spn_wasm_resolve_handle(spn_wasm_handles_t* handles, u32 token, spn_abi_kind_t kind, void** ptr) {
+  if (!token) {
+    return SPN_ERR_HANDLE_NULL;
+  }
 
   spn_wasm_handle_t* handle = sp_ht_getp(handles->map, token);
-  if (!handle) return SP_NULLPTR;
-  if (handle->kind != kind) return SP_NULLPTR;
+  if (!handle || handle->kind != kind) {
+    return SPN_ERR_HANDLE_KIND;
+  }
 
-  return handle->ptr;
+  *ptr = handle->ptr;
+  return SPN_OK;
 }
 
 bool spn_wasm_read_str(spn_wasm_ctx_t* abi, u32 offset, const c8** out) {

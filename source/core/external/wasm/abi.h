@@ -24,11 +24,10 @@ typedef u32 spn_wasm_ptr_t;
 spn_wasm_ctx_t spn_wasm_ctx(wasm_exec_env_t env);
 u32            spn_wasm_add_handle(spn_wasm_handles_t* handles, void* ptr, spn_abi_kind_t kind);
 void           spn_wasm_remove_handle(spn_wasm_handles_t* handles, u32 token);
-void*          spn_wasm_resolve_handle(spn_wasm_handles_t* handles, u32 token, spn_abi_kind_t kind);
+spn_err_t      spn_wasm_resolve_handle(spn_wasm_handles_t* handles, u32 token, spn_abi_kind_t kind, void** ptr);
 bool           spn_wasm_read_str(spn_wasm_ctx_t* abi, u32 offset, const c8** out);
 spn_wasm_ptr_t spn_wasm_copy_str(spn_wasm_ctx_t* abi, const c8* str);
-void        spn_abi_io_write(spn_wasm_ctx_t* abi, const c8* path, const c8* contents);
-const c8*   spn_abi_fmt(spn_wasm_ctx_t* abi, const c8* fmt, const c8* a0, const c8* a1, const c8* a2, const c8* a3);
+spn_err_t   spn_abi_io_write(spn_wasm_ctx_t* abi, const c8* path, const c8* contents);
 bool        spn_wasm_register_api(void);
 
 #endif

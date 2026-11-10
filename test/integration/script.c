@@ -497,18 +497,35 @@ sp_test_each(script, identity, identity_test_t, identities) {
   return run_identity_test(t, *it);
 }
 
+static const command_test_t rejections [] = {
+  { .name = "handle_null", .project = "test/integration/fixtures/script/handle_null", .args = { "build" } },
+  { .name = "handle_kind", .project = "test/integration/fixtures/script/handle_kind", .args = { "build" } },
+  { .name = "name_separator_node", .project = "test/integration/fixtures/script/name_separator_node", .args = { "build" } },
+  { .name = "node_fn_without_build_script", .project = "test/integration/fixtures/script/node_fn_without_build_script", .args = { "build" } },
+  { .name = "link_no_outputs", .project = "test/integration/fixtures/script/link_no_outputs", .args = { "build" } },
+  { .name = "node_output_root", .project = "test/integration/fixtures/script/node_output_root", .args = { "build" } },
+  { .name = "node_output_source", .project = "test/integration/fixtures/script/node_output_source", .args = { "build" } },
+  { .name = "node_output_include", .project = "test/integration/fixtures/script/node_output_include", .args = { "build" } },
+  { .name = "node_output_unnamed", .project = "test/integration/fixtures/script/node_output_unnamed", .args = { "build" } },
+  { .name = "node_output_unmounted", .project = "test/integration/fixtures/script/node_output_unmounted", .args = { "build" } },
+  { .name = "node_output_escape", .project = "test/integration/fixtures/script/node_output_escape", .args = { "build" } },
+  { .name = "io_write_unmounted", .project = "test/integration/fixtures/script/io_write_unmounted", .args = { "build" } },
+  { .name = "io_write_not_normal", .project = "test/integration/fixtures/script/io_write_not_normal", .args = { "build" } },
+  { .name = "io_write_directory", .project = "test/integration/fixtures/script/io_write_directory", .args = { "build" } },
+  { .name = "io_write_configure", .project = "test/integration/fixtures/script/io_write_configure", .args = { "build" } },
+  { .name = "fmt_missing_arg", .project = "test/integration/fixtures/script/fmt_missing_arg", .args = { "build" } },
+  { .name = "fmt_bad_placeholder", .project = "test/integration/fixtures/script/fmt_bad_placeholder", .args = { "build" } },
+};
+
+sp_test_each(script, rejection, command_test_t, rejections) {
+  return run_command_test(t, *it);
+}
+
 static const command_test_t failures [] = {
-  { .name = "node_output_root", .project = "test/integration/fixtures/script/node_output_root", .args = { "build" }, .expect = { .rc = 1, .err = SPN_ERR_WASM_MODULE_CALL_FAILED } },
-  { .name = "node_output_source", .project = "test/integration/fixtures/script/node_output_source", .args = { "build" }, .expect = { .rc = 1, .err = SPN_ERR_WASM_MODULE_CALL_FAILED } },
-  { .name = "node_output_include", .project = "test/integration/fixtures/script/node_output_include", .args = { "build" }, .expect = { .rc = 1, .err = SPN_ERR_WASM_MODULE_CALL_FAILED } },
-  { .name = "node_output_unnamed", .project = "test/integration/fixtures/script/node_output_unnamed", .args = { "build" }, .expect = { .rc = 1, .err = SPN_ERR_WASM_MODULE_CALL_FAILED } },
-  { .name = "node_output_unmounted", .project = "test/integration/fixtures/script/node_output_unmounted", .args = { "build" }, .expect = { .rc = 1, .err = SPN_ERR_WASM_MODULE_CALL_FAILED } },
-  { .name = "node_output_escape", .project = "test/integration/fixtures/script/node_output_escape", .args = { "build" }, .expect = { .rc = 1, .err = SPN_ERR_WASM_MODULE_CALL_FAILED } },
-  { .name = "name_separator_node", .project = "test/integration/fixtures/script/name_separator_node", .args = { "build" }, .expect = { .rc = 1, .err = SPN_ERR_WASM_MODULE_CALL_FAILED } },
   { .name = "nested_output", .project = "test/integration/fixtures/script/nested_output", .args = { "build" }, .expect = { .rc = 1, .err = SPN_ERR_DAG_NESTED_OUTPUT } },
   { .name = "configure_error", .project = "test/integration/fixtures/script/configure_error", .args = { "build" }, .expect = { .rc = 1, .err = SPN_ERR_WASM_SCRIPT_ERROR } },
+  { .name = "propagated_error", .project = "test/integration/fixtures/script/propagated_error", .args = { "build" }, .expect = { .rc = 1, .err = SPN_ERR_NODE_NO_OUTPUTS } },
   { .name = "missing_node_fn", .project = "test/integration/fixtures/script/missing_node_fn", .args = { "build" }, .expect = { .rc = 1, .err = SPN_ERR_WASM_EXPORT_NOT_FOUND } },
-  { .name = "node_fn_without_build_script", .project = "test/integration/fixtures/script/node_fn_without_build_script", .args = { "build" }, .expect = { .rc = 1, .err = SPN_ERR_WASM_MODULE_CALL_FAILED } },
 };
 
 sp_test_each(script, failure, command_test_t, failures) {

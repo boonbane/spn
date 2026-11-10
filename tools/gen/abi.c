@@ -6,8 +6,7 @@ typedef struct {
 } abi_ret_row_t;
 
 static const abi_ret_row_t ABI_RETS[] = {
-  [ABI_VAL_VOID]    = { .type = "void", .fail = "return;" },
-  [ABI_VAL_S32]     = { .type = "s32",  .fail = "return SPN_ERROR;" },
+  [ABI_VAL_ERR]     = { .type = "s32",  .fail = "return SPN_ERROR;" },
   [ABI_VAL_STR]     = { .type = "u32",  .fail = "return 0;" },
   [ABI_VAL_STR_OPT] = { .type = "u32",  .fail = "return 0;" },
   [ABI_VAL_HANDLE]  = { .type = "u32",  .fail = "return 0;" },
@@ -51,14 +50,14 @@ static bool parse_val(abi_t* abi, sp_str_t where, yyjson_val* val, abi_val_t* pa
     return abi_fail(abi, where, "expected a string");
   }
   sp_str_t name = abi_str(abi, val);
-  if (sp_str_equal_cstr(name, "s32")) {
-    *parsed = (abi_val_t) { .kind = ABI_VAL_S32 };
-  }
-  else if (sp_str_equal_cstr(name, "str")) {
+  if (sp_str_equal_cstr(name, "str")) {
     *parsed = (abi_val_t) { .kind = ABI_VAL_STR };
   }
   else if (sp_str_equal_cstr(name, "str_opt")) {
     *parsed = (abi_val_t) { .kind = ABI_VAL_STR_OPT };
+  }
+  else if (sp_str_equal_cstr(name, "out")) {
+    *parsed = (abi_val_t) { .kind = ABI_VAL_OUT };
   }
   else if (is_handle(abi, name)) {
     *parsed = (abi_val_t) { .kind = ABI_VAL_HANDLE, .name = name };
@@ -132,8 +131,8 @@ static bool parse_export(abi_t* abi, yyjson_val* val) {
   if (ret && !parse_val(abi, export.name, ret, &export.ret)) {
     return false;
   }
-  if (export.ret.kind == ABI_VAL_STR_OPT) {
-    return abi_fail(abi, export.name, "export cannot return str_opt");
+  if (export.ret.kind == ABI_VAL_STR_OPT || export.ret.kind == ABI_VAL_OUT) {
+    return abi_fail(abi, export.name, "export can only return str or a handle");
   }
   if (args) {
     yyjson_val* arg;
@@ -212,12 +211,10 @@ static sp_str_t export_sig(abi_t* abi, abi_export_t* export) {
 
   sp_fmt_io(&w.base, "(");
   sp_da_for(export->args, it) {
-    sp_fmt_io(&w.base, "{}", sp_fmt_cstr(export->args[it].kind == ABI_VAL_STR ? "$" : "i"));
+    abi_val_kind_t kind = export->args[it].kind;
+    sp_fmt_io(&w.base, "{}", sp_fmt_cstr(kind == ABI_VAL_STR ? "$" : kind == ABI_VAL_OUT ? "*" : "i"));
   }
-  sp_fmt_io(&w.base, ")");
-  if (export->ret.kind != ABI_VAL_VOID) {
-    sp_fmt_io(&w.base, "i");
-  }
+  sp_fmt_io(&w.base, ")i");
   return sp_io_dyn_mem_writer_take_str(&w);
 }
 
@@ -229,9 +226,9 @@ static const c8* arg_prefix(abi_val_t val) {
     case ABI_VAL_STR_OPT: {
       return "s";
     }
-    case ABI_VAL_VOID:
-    case ABI_VAL_S32:
-    case ABI_VAL_STR: {
+    case ABI_VAL_ERR:
+    case ABI_VAL_STR:
+    case ABI_VAL_OUT: {
       return "a";
     }
   }
@@ -258,10 +255,10 @@ static const c8* arg_ctype(abi_val_t val) {
     case ABI_VAL_STR: {
       return "const c8*";
     }
-    case ABI_VAL_S32: {
-      return "s32";
+    case ABI_VAL_OUT: {
+      return "void*";
     }
-    case ABI_VAL_VOID:
+    case ABI_VAL_ERR:
     case ABI_VAL_STR_OPT:
     case ABI_VAL_HANDLE: {
       return "u32";
@@ -282,12 +279,8 @@ static void bind_export(abi_t* abi, sp_template_scope_t* scope, abi_export_t* ex
   sp_template_set(scope, sp_str_lit("fail"), sp_cstr_as_str(ret->fail));
 
   switch (export->ret.kind) {
-    case ABI_VAL_VOID: {
-      sp_template_set(scope, sp_str_lit("r_void"), sp_str_lit("1"));
-      break;
-    }
-    case ABI_VAL_S32: {
-      sp_template_set(scope, sp_str_lit("r_s32"), sp_str_lit("1"));
+    case ABI_VAL_ERR: {
+      sp_template_set(scope, sp_str_lit("r_err"), sp_str_lit("1"));
       break;
     }
     case ABI_VAL_STR: {
@@ -295,6 +288,7 @@ static void bind_export(abi_t* abi, sp_template_scope_t* scope, abi_export_t* ex
       break;
     }
     case ABI_VAL_STR_OPT:
+    case ABI_VAL_OUT:
     case ABI_VAL_HANDLE: {
       sp_template_set(scope, sp_str_lit("r_handle"), sp_str_lit("1"));
       sp_template_set(scope, sp_str_lit("ret_kind"), abi_val_kind(abi, export->ret));
@@ -310,6 +304,9 @@ static void bind_export(abi_t* abi, sp_template_scope_t* scope, abi_export_t* ex
     sp_template_set(child, sp_str_lit("ctype"), sp_cstr_as_str(arg_ctype(*arg)));
     if (arg->kind == ABI_VAL_STR_OPT) {
       sp_template_set(child, sp_str_lit("stropt"), sp_str_lit("1"));
+    }
+    if (arg->kind == ABI_VAL_OUT) {
+      sp_template_set(child, sp_str_lit("out"), sp_str_lit("1"));
     }
     if (arg->kind == ABI_VAL_HANDLE) {
       sp_template_set(child, sp_str_lit("handle"), sp_str_lit("1"));

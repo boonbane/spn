@@ -1,10 +1,6 @@
 [package]
-name = "W"
+name = "A"
 version = "0.0.1"
 
 [package.configure]
 source = ["tools/configure.c"]
-
-[[bin]]
-name = "W"
-source = ["main.c"]
