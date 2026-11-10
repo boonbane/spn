@@ -62,7 +62,7 @@ const spn_wasi_mount_t* spn_wasi_find_mount(const spn_wasi_mount_t* mounts, u32 
 static bool wasi_match(spn_wasi_t* w, sp_mem_t mem, sp_str_t guest, spn_path_t* host) {
   sp_str_t rest = sp_zero;
   const spn_wasi_mount_t* mount = spn_wasi_find_mount(w->mounts, sp_da_size(w->mounts), guest, &rest);
-  if (!mount) {
+  if (!mount || sp_fs_is_absolute(rest)) {
     return false;
   }
   *host = spn_path_join(mem, mount->host, rest);

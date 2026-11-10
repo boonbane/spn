@@ -3,13 +3,14 @@
 typedef struct {
   const c8* type;
   const c8* fail;
+  const c8* null;
 } abi_ret_row_t;
 
 static const abi_ret_row_t ABI_RETS[] = {
-  [ABI_VAL_ERR]     = { .type = "s32",  .fail = "return SPN_ERROR;" },
-  [ABI_VAL_STR]     = { .type = "u32",  .fail = "return 0;" },
-  [ABI_VAL_STR_OPT] = { .type = "u32",  .fail = "return 0;" },
-  [ABI_VAL_HANDLE]  = { .type = "u32",  .fail = "return 0;" },
+  [ABI_VAL_ERR]     = { .type = "s32",  .fail = "return SPN_ERROR;", .null = "return SPN_ERR_STR_NULL;" },
+  [ABI_VAL_STR]     = { .type = "u32",  .fail = "return 0;",         .null = "return 0;" },
+  [ABI_VAL_STR_OPT] = { .type = "u32",  .fail = "return 0;",         .null = "return 0;" },
+  [ABI_VAL_HANDLE]  = { .type = "u32",  .fail = "return 0;",         .null = "return 0;" },
 };
 
 static void* yj_malloc(void* ctx, size_t size) {
@@ -141,6 +142,9 @@ static bool parse_export(abi_t* abi, yyjson_val* val) {
       if (!parse_val(abi, export.name, arg, &parsed)) {
         return false;
       }
+      if (parsed.kind == ABI_VAL_OUT && export.ret.kind != ABI_VAL_ERR) {
+        return abi_fail(abi, export.name, "an out argument needs an err return");
+      }
       sp_da_push(export.args, parsed);
     }
   }
@@ -211,8 +215,7 @@ static sp_str_t export_sig(abi_t* abi, abi_export_t* export) {
 
   sp_fmt_io(&w.base, "(");
   sp_da_for(export->args, it) {
-    abi_val_kind_t kind = export->args[it].kind;
-    sp_fmt_io(&w.base, "{}", sp_fmt_cstr(kind == ABI_VAL_STR ? "$" : kind == ABI_VAL_OUT ? "*" : "i"));
+    sp_fmt_io(&w.base, "{}", sp_fmt_cstr(export->args[it].kind == ABI_VAL_OUT ? "*" : "i"));
   }
   sp_fmt_io(&w.base, ")i");
   return sp_io_dyn_mem_writer_take_str(&w);
@@ -223,12 +226,14 @@ static const c8* arg_prefix(abi_val_t val) {
     case ABI_VAL_HANDLE: {
       return "h";
     }
+    case ABI_VAL_STR:
     case ABI_VAL_STR_OPT: {
       return "s";
     }
-    case ABI_VAL_ERR:
-    case ABI_VAL_STR:
     case ABI_VAL_OUT: {
+      return "(void*)&o";
+    }
+    case ABI_VAL_ERR: {
       return "a";
     }
   }
@@ -252,13 +257,11 @@ static sp_str_t export_call(abi_t* abi, abi_export_t* export) {
 
 static const c8* arg_ctype(abi_val_t val) {
   switch (val.kind) {
-    case ABI_VAL_STR: {
-      return "const c8*";
-    }
     case ABI_VAL_OUT: {
       return "void*";
     }
     case ABI_VAL_ERR:
+    case ABI_VAL_STR:
     case ABI_VAL_STR_OPT:
     case ABI_VAL_HANDLE: {
       return "u32";
@@ -277,6 +280,7 @@ static void bind_export(abi_t* abi, sp_template_scope_t* scope, abi_export_t* ex
   sp_template_set(scope, sp_str_lit("call"), export_call(abi, export));
   sp_template_set(scope, sp_str_lit("ret_type"), sp_cstr_as_str(ret->type));
   sp_template_set(scope, sp_str_lit("fail"), sp_cstr_as_str(ret->fail));
+  sp_template_set(scope, sp_str_lit("null"), sp_cstr_as_str(ret->null));
 
   switch (export->ret.kind) {
     case ABI_VAL_ERR: {
@@ -302,8 +306,11 @@ static void bind_export(abi_t* abi, sp_template_scope_t* scope, abi_export_t* ex
     sp_template_scope_t* child = sp_template_push(scope, sp_str_lit("args"));
     sp_template_set(child, sp_str_lit("i"), sp_fmt(abi->mem, "{}", sp_fmt_uint(it)).value);
     sp_template_set(child, sp_str_lit("ctype"), sp_cstr_as_str(arg_ctype(*arg)));
-    if (arg->kind == ABI_VAL_STR_OPT) {
-      sp_template_set(child, sp_str_lit("stropt"), sp_str_lit("1"));
+    if (arg->kind == ABI_VAL_STR || arg->kind == ABI_VAL_STR_OPT) {
+      sp_template_set(child, sp_str_lit("str"), sp_str_lit("1"));
+    }
+    if (arg->kind == ABI_VAL_STR) {
+      sp_template_set(child, sp_str_lit("required"), sp_str_lit("1"));
     }
     if (arg->kind == ABI_VAL_OUT) {
       sp_template_set(child, sp_str_lit("out"), sp_str_lit("1"));

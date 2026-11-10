@@ -6,14 +6,20 @@
 static {{ .ret_type }} spn_abi_thunk_{{ .short }}(wasm_exec_env_t env{{ for .args }}, {{ .ctype }} a{{ .i }}{{ end }}) {
   spn_wasm_ctx_t abi = spn_wasm_ctx(env);
 {{ for .args }}
-{{ if .stropt }}
+{{ if .str }}
   const c8* s{{ .i }} = SP_NULLPTR;
   if (!spn_wasm_read_str(&abi, a{{ .i }}, &s{{ .i }})) {
     {{ .fail }}
   }
 {{ end }}
+{{ if .required }}
+  if (!s{{ .i }}) {
+    {{ .null }}
+  }
+{{ end }}
 {{ if .out }}
-  if (!wasm_runtime_validate_native_addr(abi.instance, a{{ .i }}, sizeof(s32))) {
+  u32 o{{ .i }} = 0;
+  if (!wasm_runtime_validate_native_addr(abi.instance, a{{ .i }}, sizeof(o{{ .i }}))) {
     {{ .fail }}
   }
 {{ end }}
@@ -29,7 +35,13 @@ static {{ .ret_type }} spn_abi_thunk_{{ .short }}(wasm_exec_env_t env{{ for .arg
 {{ end }}
 {{ end }}
 {{ if .r_err }}
-  return {{ .host }}({{ .call }});
+  spn_try({{ .host }}({{ .call }}));
+{{ for .args }}
+{{ if .out }}
+  sp_mem_copy(a{{ .i }}, &o{{ .i }}, sizeof(o{{ .i }}));
+{{ end }}
+{{ end }}
+  return SPN_OK;
 {{ end }}
 {{ if .r_str }}
   return spn_wasm_copy_str(&abi, {{ .host }}({{ .call }}));

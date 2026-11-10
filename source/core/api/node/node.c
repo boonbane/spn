@@ -50,6 +50,9 @@ static spn_err_t find_output(spn_pkg_unit_t* unit, sp_mem_t mem, sp_str_t guest,
   if (!mount || !mount->writable) {
     return SPN_ERR_OUTPUT_OUTSIDE;
   }
+  if (sp_fs_is_absolute_for(rest, SP_FS_PATH_WINDOWS)) {
+    return SPN_ERR_PATH_NOT_NORMAL;
+  }
   spn_path_t host = spn_path_join(mem, mount->host, rest);
   spn_dir_t roots [] = { SPN_DIR_WORK, SPN_DIR_LIB, SPN_DIR_BIN, SPN_DIR_VENDOR };
   sp_carr_for(roots, it) {
@@ -59,6 +62,9 @@ static spn_err_t find_output(spn_pkg_unit_t* unit, sp_mem_t mem, sp_str_t guest,
     }
     if (sp_str_empty(rel.sub)) {
       return SPN_ERR_OUTPUT_IS_ROOT;
+    }
+    if (sp_fs_is_absolute_for(rel.sub, SP_FS_PATH_WINDOWS)) {
+      return SPN_ERR_PATH_NOT_NORMAL;
     }
     *dir = roots[it];
     *sub = rel.sub;

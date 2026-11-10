@@ -105,6 +105,7 @@ static const code_t codes [] = {
   { .name = "output_outside",   .err = SPN_ERR_OUTPUT_OUTSIDE,   .code = 8 },
   { .name = "output_is_root",   .err = SPN_ERR_OUTPUT_IS_ROOT,   .code = 9 },
   { .name = "io_write",         .err = SPN_ERR_IO_WRITE,         .code = 10 },
+  { .name = "str_null",         .err = SPN_ERR_STR_NULL,         .code = 11 },
 };
 
 sp_test_each(schema, guest_codes, code_t, codes) {

@@ -510,12 +510,17 @@ static const command_test_t rejections [] = {
   { .name = "node_output_unnamed", .project = "test/integration/fixtures/script/node_output_unnamed", .args = { "build" } },
   { .name = "node_output_unmounted", .project = "test/integration/fixtures/script/node_output_unmounted", .args = { "build" } },
   { .name = "node_output_escape", .project = "test/integration/fixtures/script/node_output_escape", .args = { "build" } },
+  { .name = "node_output_drive", .project = "test/integration/fixtures/script/node_output_drive", .args = { "build" } },
+  { .name = "node_output_lib_drive", .project = "test/integration/fixtures/script/node_output_lib_drive", .args = { "build" } },
   { .name = "io_write_unmounted", .project = "test/integration/fixtures/script/io_write_unmounted", .args = { "build" } },
   { .name = "io_write_not_normal", .project = "test/integration/fixtures/script/io_write_not_normal", .args = { "build" } },
   { .name = "io_write_directory", .project = "test/integration/fixtures/script/io_write_directory", .args = { "build" } },
   { .name = "io_write_configure", .project = "test/integration/fixtures/script/io_write_configure", .args = { "build" } },
   { .name = "fmt_missing_arg", .project = "test/integration/fixtures/script/fmt_missing_arg", .args = { "build" } },
   { .name = "fmt_bad_placeholder", .project = "test/integration/fixtures/script/fmt_bad_placeholder", .args = { "build" } },
+  { .name = "fmt_null_passed_on", .project = "test/integration/fixtures/script/fmt_null_passed_on", .args = { "build" } },
+  { .name = "str_null", .project = "test/integration/fixtures/script/str_null", .args = { "build" } },
+  { .name = "out_misaligned", .project = "test/integration/fixtures/script/out_misaligned", .args = { "build" } },
 };
 
 sp_test_each(script, rejection, command_test_t, rejections) {

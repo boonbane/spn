@@ -1321,7 +1321,7 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           break;
         }
         case SPN_ERR_PATH_NOT_NORMAL: {
-          sp_tty_fmt(&w, "Build script {.cyan} used a path with '.', '..', or empty components", sp_fmt_str(contextual_path(mem, event->err.wasm.path)));
+          sp_tty_fmt(&w, "Build script {.cyan} used a path with '.', '..', or empty components, or with a component that is a drive letter or starts with a backslash", sp_fmt_str(contextual_path(mem, event->err.wasm.path)));
           break;
         }
         case SPN_ERR_PATH_NOT_MOUNTED: {
@@ -1338,6 +1338,10 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
         }
         case SPN_ERR_IO_WRITE: {
           sp_tty_fmt(&w, "Build script {.cyan} failed to write a file", sp_fmt_str(contextual_path(mem, event->err.wasm.path)));
+          break;
+        }
+        case SPN_ERR_STR_NULL: {
+          sp_tty_fmt(&w, "Build script {.cyan} passed a null string; {.yellow} returns one when its format is malformed or has more placeholders than arguments", sp_fmt_str(contextual_path(mem, event->err.wasm.path)), sp_fmt_cstr("spn_fmt"));
           break;
         }
         case SPN_ERR_WASM_EXPORT_NOT_FOUND: {
