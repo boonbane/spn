@@ -72,32 +72,28 @@ spn_event_subject_t spn_target_unit_subject(const spn_target_unit_t* unit) {
 // CONSTRUCTION //
 //////////////////
 static void announce_package(spn_dag_build_t* b, spn_dag_id_t action, spn_pkg_unit_t* pkg) {
-  sp_ht_insert(b->announce.pkgs, action, pkg);
-  if (!sp_ht_getp(b->announce.announced, pkg)) {
-    sp_ht_insert(b->announce.announced, pkg, (sp_atomic_s32_t)0);
+  si_om_insert(b->mem, b->announce.pkgs, pkg, ((spn_dag_announce_t) { .pkg = pkg }));
+  while (si_da_size(b->announce.actions) <= action.index) {
+    si_da_push(b->mem, b->announce.actions, SP_NULLPTR);
   }
+  b->announce.actions[action.index] = si_om_get(b->announce.pkgs, pkg);
 }
 
 static void dag_trace(const spn_dag_trace_event_t* event, void* user_data) {
   spn_dag_build_t* b = (spn_dag_build_t*)user_data;
-  if (event->kind != SPN_DAG_TRACE_EXECUTE) {
+  if (event->kind != SPN_DAG_TRACE_EXECUTE || event->action.index >= si_da_size(b->announce.actions)) {
     return;
   }
-  spn_dag_id_t action = event->action;
-  u64 index = 0;
-  spn_pkg_unit_t** pkg = sp_ht_get_ex(b->announce.pkgs, action, index);
-  if (!pkg) {
-    return;
-  }
-  if (!sp_atomic_s32_cas(sp_ht_get_ex(b->announce.announced, *pkg, index), 0, 1, SP_ATOMIC_SEQ_CST)) {
+  spn_dag_announce_t* announce = b->announce.actions[event->action.index];
+  if (!announce || !sp_atomic_s32_cas(&announce->announced, 0, 1, SP_ATOMIC_SEQ_CST)) {
     return;
   }
 
   spn_event_buffer_push(spn.events, (spn_event_t) {
     .kind = SPN_EVENT_COMPILE_START,
-    .pkg = (*pkg)->pkg.manifest->name.str,
+    .pkg = announce->pkg->pkg.manifest->name.str,
     .compile_start = {
-      .version = spn_semver_to_str(spn.events->mem, (*pkg)->pkg.manifest->version),
+      .version = spn_semver_to_str(spn.events->mem, announce->pkg->pkg.manifest->version),
     },
   });
 }
@@ -765,8 +761,6 @@ spn_dag_build_t* spn_dag_build_new(spn_op_t* op) {
   sp_ht_init(b->mem, b->ids.embeds);
   sp_ht_init(b->mem, b->ids.builds);
   sp_ht_init(b->mem, b->ids.warm);
-  sp_ht_init(b->mem, b->announce.pkgs);
-  sp_ht_init(b->mem, b->announce.announced);
 
   b->run = (spn_dag_run_t) {
     .g = b->graph,
