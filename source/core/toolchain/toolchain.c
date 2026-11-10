@@ -38,7 +38,8 @@ spn_toolchain_launcher_t spn_toolchain_launcher_with_root(sp_mem_t mem, spn_tool
 
 static sp_hash_t nonce(void) {
   sp_tm_epoch_t now = sp_tm_now_epoch();
-  return sp_hash_bytes(&now, sizeof(now), 0);
+  sp_tm_point_t point = sp_tm_now_point();
+  return sp_hash_bytes(&point, sizeof(point), sp_hash_bytes(&now, sizeof(now), 0));
 }
 
 static generation_err_t create_generation(const spn_path_roots_t* roots, sp_mem_t mem, spn_path_t file, sp_hash_t* generation, bool* created) {
