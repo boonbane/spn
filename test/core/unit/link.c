@@ -216,7 +216,7 @@ static sp_err_t expect_path_suffixes(sp_test_t* t, sp_da(spn_path_t) actual, con
   return SP_OK;
 }
 
-sp_test_each(unit_link, plan, test_t, tests, .setup = spn_test_ctx_setup) {
+sp_test_each(unit_link, plan, test_t, tests, .setup = spn_test_ctx_setup, .teardown = units_teardown) {
   units_t* u = units_new(t, &it->graph);
   si_da(spn_target_unit_t*) targets = sp_zero;
   sp_must_eq(t, SPN_OK, units_add_roots(u, &it->root, 1, &targets));

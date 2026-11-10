@@ -116,7 +116,7 @@ static const test_t tests [] = {
   },
 };
 
-sp_test_each(unit_staged, closure, test_t, tests, .setup = spn_test_ctx_setup) {
+sp_test_each(unit_staged, closure, test_t, tests, .setup = spn_test_ctx_setup, .teardown = units_teardown) {
   units_t* u = units_new(t, &it->graph);
   u32 roots = 0;
   sp_carr_detect_len(it->roots, roots, it->roots[roots].name);

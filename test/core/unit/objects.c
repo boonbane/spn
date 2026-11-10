@@ -49,7 +49,7 @@ static const test_t tests [] = {
 
 static const graph_t graph = { .pkgs = { { .name = "A" } } };
 
-sp_test_each(unit_objects, create, test_t, tests, .setup = spn_test_ctx_setup) {
+sp_test_each(unit_objects, create, test_t, tests, .setup = spn_test_ctx_setup, .teardown = units_teardown) {
   sp_mem_t mem = sp_test_arena(t);
   units_t* u = units_new(t, &graph);
   spn_resolved_pkg_t* resolved = units_resolved(u, "A");
