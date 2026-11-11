@@ -1,4 +1,4 @@
-set(SPN_SOURCES
+set(SPN_CORE_SOURCES
   core/api/api.c
   core/api/core.c
   core/core/core.c
@@ -6,19 +6,6 @@ set(SPN_SOURCES
   core/api/node/node.c
   core/project/project.c
   core/host/host.c
-  cli/commands/add.c
-  cli/commands/build.c
-  cli/commands/clean.c
-  cli/commands/commands.c
-  cli/commands/docs.c
-  cli/commands/index.c
-  cli/commands/init.c
-  cli/commands/profile.c
-  cli/commands/publish.c
-  cli/commands/self.c
-  cli/commands/test.c
-  cli/host/host.c
-  cli/main.c
   core/codegen/codegen.c
   core/toml/loader.c
   core/codegen/json.c
@@ -65,8 +52,6 @@ set(SPN_SOURCES
   core/index/jsonl.c
   core/index/json.c
   core/index/publish.c
-  cli/install/install.c
-  cli/install/plan.c
   core/intern/context.c
   core/intern/intern.c
   core/lock/lock.c
@@ -116,7 +101,6 @@ set(SPN_SOURCES
   util/io/io.c
   util/macho/macho.c
   util/os/os.c
-  cli/sp/prompt.c
   util/queue/queue.c
   util/sp/sp.c
   util/sp/sp_cli.c
@@ -145,7 +129,6 @@ set(SPN_SOURCES
   core/toolchain/libc.c
   core/triple/triple.c
   core/elf/elf.c
-  cli/tui/tui.c
   core/unit/fingerprint.c
   core/unit/closure/closure.c
   core/unit/pkg.c
@@ -153,25 +136,26 @@ set(SPN_SOURCES
   core/when/when.c
 )
 
-add_executable(spn ${SPN_SOURCES}
-  ${GEN_DIR}/config.gen.c
-  ${GEN_DIR}/errors.gen.c
-  ${GEN_DIR}/events.gen.c
-  ${GEN_DIR}/manifest.gen.c
-  ${GEN_DIR}/release.gen.c
-  ${GEN_DIR}/source_deps.gen.c
-  ${GEN_DIR}/abi.gen.c
-  )
-target_include_directories(spn PRIVATE
-  ${SRC}
-  ${UTIL}
-  ${SRC}/external
-  ${CMAKE_CURRENT_SOURCE_DIR}/cli
-  ${CMAKE_SOURCE_DIR}/include
-  ${GEN_INCLUDE}
-  ${GEN_DIR}
-  ${STORE}/include
+set(SPN_CLI_SOURCES
+  cli/commands/add.c
+  cli/commands/build.c
+  cli/commands/clean.c
+  cli/commands/commands.c
+  cli/commands/docs.c
+  cli/commands/index.c
+  cli/commands/init.c
+  cli/commands/profile.c
+  cli/commands/publish.c
+  cli/commands/self.c
+  cli/commands/test.c
+  cli/host/host.c
+  cli/main.c
+  cli/install/install.c
+  cli/install/plan.c
+  cli/sp/prompt.c
+  cli/tui/tui.c
 )
+
 add_library(spn_version STATIC util/version/version.c)
 target_include_directories(spn_version PRIVATE ${UTIL} ${STORE}/include)
 add_dependencies(spn_version headers)
@@ -179,7 +163,32 @@ if(SPN_STAMP_DEFS)
   target_compile_definitions(spn_version PRIVATE ${SPN_STAMP_DEFS})
 endif()
 
-target_link_libraries(spn PRIVATE m vmlib yyjson blake3 spn_version)
+# Everything but the CLI. Test binaries link this instead of recompiling the
+# sources they need; the archive only pulls in the objects they reference.
+add_library(spn_core STATIC ${SPN_CORE_SOURCES}
+  ${GEN_DIR}/config.gen.c
+  ${GEN_DIR}/errors.gen.c
+  ${GEN_DIR}/events.gen.c
+  ${GEN_DIR}/manifest.gen.c
+  ${GEN_DIR}/release.gen.c
+  ${GEN_DIR}/source_deps.gen.c
+  ${GEN_DIR}/abi.gen.c
+)
+target_include_directories(spn_core PUBLIC
+  ${SRC}
+  ${UTIL}
+  ${SRC}/external
+  ${CMAKE_SOURCE_DIR}/include
+  ${GEN_INCLUDE}
+  ${GEN_DIR}
+  ${STORE}/include
+)
+target_link_libraries(spn_core PUBLIC m vmlib yyjson blake3 spn_version)
+add_dependencies(spn_core headers spn_embed spn_codegen_gen)
+
+add_executable(spn ${SPN_CLI_SOURCES})
+target_include_directories(spn PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/cli)
+target_link_libraries(spn PRIVATE spn_core)
 if(WIN32)
   # cli/install/install.c touches HKCU\Environment and WM_SETTINGCHANGE
   target_link_libraries(spn PRIVATE advapi32 user32)
@@ -188,7 +197,7 @@ endif()
 # sources are all C, so CMake would link with the C driver and miss the C++
 # runtime; force the C++ driver (zig c++) to pull it in.
 set_target_properties(spn PROPERTIES LINKER_LANGUAGE CXX)
-add_dependencies(spn headers spn_embed spn_codegen_gen)
+add_dependencies(spn spn_embed)
 
 set_source_files_properties(${EMBED_OBJ} PROPERTIES EXTERNAL_OBJECT TRUE GENERATED TRUE)
 target_sources(spn PRIVATE ${EMBED_OBJ})

@@ -146,132 +146,10 @@ add_executable(core
   ${CMAKE_SOURCE_DIR}/tools/jtd.c
   ${CMAKE_SOURCE_DIR}/tools/gen/lower.c
   ${CMAKE_SOURCE_DIR}/tools/install/render.c
-  ${SRC}/codegen/codegen.c
-  ${SRC}/toml/loader.c
-  ${SRC}/codegen/json.c
-  ${SRC}/codegen/lower.c
-  ${SRC}/codegen/toolchain.c
-  ${SRC}/codegen/options.c
-  ${SRC}/codegen/when.c
-  ${GEN_DIR}/abi.gen.c
-  ${GEN_DIR}/config.gen.c
-  ${GEN_DIR}/errors.gen.c
-  ${GEN_DIR}/events.gen.c
-  ${GEN_DIR}/manifest.gen.c
-  ${GEN_DIR}/release.gen.c
-  ${GEN_DIR}/source_deps.gen.c
-  ${SRC}/compiler/driver.c
-  ${SRC}/compiler/exports.c
-  ${SRC}/compiler/gnu.c
-  ${SRC}/compiler/msvc.c
-  ${SRC}/compiler/occ.c
-  ${SRC}/compiler/rsp.c
-  ${SRC}/compiler/toc.c
-  ${SRC}/core/core.c
-  ${SRC}/ctx/ctx.c
-  ${SRC}/dag/dag.c
-  ${SRC}/dag/glob.c
-  ${UTIL}/glob/glob.c
-  ${SRC}/dag/run.c
-  ${SRC}/dag/stamp.c
-  ${SRC}/dag/store.c
-  ${SRC}/external/wasm/wasi.c
-  ${SRC}/enum/enum.c
-  ${SRC}/error/error.c
-  ${SRC}/error/json.c
-  ${SRC}/event/event.c
-  ${SRC}/external/git.c
-  ${SRC}/external/obj.c
-  ${SRC}/external/tom.c
-  ${SRC}/external/wasm/abi.c
-  ${SRC}/external/wasm/guest.c
-  ${SRC}/external/wasm/wasm.c
-  ${SRC}/external/zig.c
-  ${SRC}/api/api.c
-  ${SRC}/api/core.c
-  ${SRC}/api/node/node.c
-  ${SRC}/git/cache.c
-  ${SRC}/git/key.c
-  ${SRC}/git/url.c
-  ${SRC}/git/patch.c
-  ${SRC}/index/cache.c
-  ${SRC}/index/dir.c
-  ${SRC}/index/release.c
-  ${SRC}/index/index.c
-  ${SRC}/index/jsonl.c
-  ${SRC}/index/json.c
-  ${SRC}/index/publish.c
   ${CLI}/install/plan.c
-  ${SRC}/intern/context.c
-  ${SRC}/intern/intern.c
-  ${SRC}/lock/lock.c
-  ${UTIL}/lazy/lazy.c
-  ${SRC}/graph/build.c
-  ${SRC}/graph/dag.c
-  ${SRC}/graph/compile_commands.c
-  ${SRC}/graph/nodes/archive.c
-  ${SRC}/graph/nodes/embed.c
-  ${SRC}/graph/nodes/exports.c
-  ${SRC}/graph/nodes/libc.c
-  ${SRC}/graph/nodes/link.c
-  ${SRC}/graph/nodes/object.c
-  ${SRC}/graph/nodes/publish.c
-  ${SRC}/graph/nodes/rsp.c
-  ${SRC}/graph/nodes/user.c
-  ${SRC}/graph/nodes/warm.c
-  ${SRC}/external/cc.c
-  ${SRC}/paths/paths.c
-  ${SRC}/pkg/id.c
-  ${SRC}/options/options.c
-  ${SRC}/pkg/pkg.c
-  ${SRC}/profile/profile.c
-  ${SRC}/reflect/json.c
-  ${SRC}/semver/compare.c
-  ${SRC}/semver/convert.c
-  ${SRC}/semver/parser.c
-  ${SRC}/graph/invocation.c
-  ${SRC}/session/options.c
-  ${SRC}/session/session.c
-  ${SRC}/hash/digest/digest.c
-  ${SRC}/hash/sha256/sha256.c
-  ${UTIL}/coff/coff.c
-  ${UTIL}/macho/macho.c
-  ${UTIL}/sp_elf/sp_elf.c
-  ${UTIL}/fs/fs.c
-  ${UTIL}/io/io.c
-  ${UTIL}/os/os.c
-  ${UTIL}/queue/queue.c
-  ${UTIL}/str/str.c
-  ${UTIL}/array/array.c
-  ${UTIL}/mem/mem.c
-  ${UTIL}/hash_table/hash_table.c
-  ${SRC}/target/mutate.c
-  ${SRC}/target/select.c
-  ${UTIL}/thread_pool/thread_pool.c
-  ${SRC}/toml/edit.c
-  ${SRC}/pkg/load.c
-  ${SRC}/toolchain/catalog.c
-  ${SRC}/toolchain/probe.c
-  ${SRC}/toolchain/search.c
-  ${SRC}/toolchain/provision.c
-  ${SRC}/toolchain/select.c
-  ${SRC}/toolchain/toolchain.c
-  ${SRC}/toolchain/sdk.c
-  ${SRC}/toolchain/libc.c
-  ${UTIL}/sp/sp_msvc.c
-  ${SRC}/toolchain/linker.c
-  ${SRC}/triple/triple.c
-  ${SRC}/elf/elf.c
-  ${SRC}/unit/fingerprint.c
-  ${SRC}/unit/closure/closure.c
-  ${SRC}/unit/pkg.c
-  ${SRC}/unit/plan.c
-  ${UTIL}/version/version.c
-  ${SRC}/when/when.c
   ${TEST_TOOLS}/fixture.c
   ${TEST_TOOLS}/path_roots.c
   ${TEST_TOOLS}/sim/sim.c
-  ${TEST_TOOLS}/toml.c
   ${EMBED_OBJ}
 )
 set_source_files_properties(${EMBED_OBJ} PROPERTIES EXTERNAL_OBJECT TRUE GENERATED TRUE)
@@ -322,30 +200,12 @@ set_source_files_properties(
   toolchain/toolchain.c
   toolchain/zig.c
   PROPERTIES COMPILE_DEFINITIONS "TOOLCHAINS_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/toolchain/toolchains\"")
-target_link_libraries(core PRIVATE yyjson vmlib blake3)
+target_link_libraries(core PRIVATE spn_core)
 add_dependencies(core spn_embed spn_codegen_gen)
 add_test(NAME core COMMAND "$<TARGET_FILE:core>" WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
 
 # DAG tests: dag/*.c run in both binaries; dag/sim needs the sim's deterministic mtimes, dag/os needs a real filesystem.
 set(DAG_TEST_SOURCES
-  ${SRC}/core/core.c
-  ${SRC}/dag/dag.c
-  ${SRC}/dag/glob.c
-  ${UTIL}/glob/glob.c
-  ${SRC}/dag/run.c
-  ${SRC}/dag/stamp.c
-  ${SRC}/dag/store.c
-  ${SRC}/external/wasm/wasi.c
-  ${SRC}/stage/stage.c
-  ${SRC}/hash/digest/digest.c
-  ${SRC}/hash/sha256/sha256.c
-  ${SRC}/paths/paths.c
-  ${UTIL}/str/str.c
-  ${UTIL}/fs/fs.c
-  ${UTIL}/io/io.c
-  ${UTIL}/thread_pool/thread_pool.c
-  ${UTIL}/array/array.c
-  ${UTIL}/hash_table/hash_table.c
   ${TEST_TOOLS}/dag/track.c
   ${TEST_TOOLS}/sim/sim.c
   ${TEST_TOOLS}/path_roots.c
@@ -365,13 +225,14 @@ foreach(target dag dag_os)
     ${SOURCE_ROOT}/wamr/core/iwasm/include
     ${STORE}/include/sp
   )
-  target_link_libraries(${target} PRIVATE yyjson vmlib blake3)
+  target_link_libraries(${target} PRIVATE spn_core)
   add_dependencies(${target} spn_codegen_gen)
   add_test(NAME ${target} COMMAND "$<TARGET_FILE:${target}>" WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
 endforeach()
 
-add_executable(glob glob/shape.c ${UTIL}/glob/glob.c tools/main/unit.c)
+add_executable(glob glob/shape.c tools/main/unit.c)
 spn_test_binary(glob)
+target_link_libraries(glob PRIVATE spn_core)
 target_include_directories(glob PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/tools ${STORE}/include/sp)
 add_test(NAME glob COMMAND "$<TARGET_FILE:glob>" WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
 

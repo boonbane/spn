@@ -30,19 +30,20 @@ typedef struct {
 } codegen_t;
 
 // Targets that compile units rendered from source/core/codegen/schema. A target
-// with no units only sees the generated include directories.
+// with no units only sees the generated include directories; tests get the
+// units by linking lib spn.
 static const consumer_t core_consumers [] = {
   { "spn",           SPN_TARGET_KIND_LIB,    { "abi", "config", "errors", "events", "manifest", "release", "source_deps" } },
   { "smoke",         SPN_TARGET_KIND_SCRIPT },
   { "winvm",         SPN_TARGET_KIND_SCRIPT },
-  { "core",          SPN_TARGET_KIND_TEST,   { "abi", "config", "errors", "events", "manifest", "release", "source_deps" } },
-  { "resolver",      SPN_TARGET_KIND_TEST,   { "config", "errors", "events", "manifest", "release" } },
-  { "integration",   SPN_TARGET_KIND_TEST,   { "config", "errors", "events", "source_deps" } },
-  { "render",        SPN_TARGET_KIND_TEST,   { "config", "errors", "events", "source_deps" } },
+  { "core",          SPN_TARGET_KIND_TEST },
+  { "resolver",      SPN_TARGET_KIND_TEST },
+  { "integration",   SPN_TARGET_KIND_TEST },
+  { "render",        SPN_TARGET_KIND_TEST },
   { "fuzz_dag",      SPN_TARGET_KIND_TEST },
-  { "fuzz_resolver", SPN_TARGET_KIND_TEST,   { "config", "errors", "events", "manifest", "release" } },
-  { "toolchain",     SPN_TARGET_KIND_TEST,   { "config", "errors", "events" } },
-  { "unit",          SPN_TARGET_KIND_TEST,   { "config", "errors", "events", "source_deps" } },
+  { "fuzz_resolver", SPN_TARGET_KIND_TEST },
+  { "toolchain",     SPN_TARGET_KIND_TEST },
+  { "unit",          SPN_TARGET_KIND_TEST },
 };
 
 // Targets that compile units rendered from test/tools/schema.

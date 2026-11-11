@@ -1,64 +1,4 @@
 add_executable(fuzz_resolver
-  ${SRC}/core/core.c
-  ${SRC}/ctx/ctx.c
-  ${SRC}/intern/context.c
-  ${SRC}/intern/intern.c
-  ${SRC}/enum/enum.c
-  ${SRC}/error/error.c
-  ${SRC}/error/json.c
-  ${SRC}/event/event.c
-  ${UTIL}/lazy/lazy.c
-  ${SRC}/external/git.c
-  ${SRC}/external/tom.c
-  ${SRC}/codegen/codegen.c
-  ${SRC}/toml/loader.c
-  ${SRC}/codegen/json.c
-  ${SRC}/codegen/options.c
-  ${SRC}/codegen/when.c
-  ${SRC}/codegen/lower.c
-  ${SRC}/codegen/toolchain.c
-  ${SRC}/git/key.c
-  ${SRC}/git/url.c
-  ${SRC}/git/patch.c
-  ${SRC}/hash/digest/digest.c
-  ${SRC}/hash/sha256/sha256.c
-  ${SRC}/when/when.c
-  ${SRC}/toolchain/catalog.c
-  ${SRC}/toolchain/linker.c
-  ${GEN_DIR}/config.gen.c
-  ${GEN_DIR}/errors.gen.c
-  ${GEN_DIR}/events.gen.c
-  ${GEN_DIR}/manifest.gen.c
-  ${GEN_DIR}/release.gen.c
-  ${SRC}/index/dir.c
-  ${SRC}/index/release.c
-  ${SRC}/index/index.c
-  ${SRC}/index/jsonl.c
-  ${SRC}/index/json.c
-  ${UTIL}/fs/fs.c
-  ${UTIL}/io/io.c
-  ${SRC}/paths/paths.c
-  ${SRC}/pkg/id.c
-  ${SRC}/pkg/pkg.c
-  ${SRC}/options/options.c
-  ${SRC}/profile/profile.c
-  ${SRC}/pkg/load.c
-  ${SRC}/triple/triple.c
-  ${SRC}/elf/elf.c
-  ${SRC}/resolve/resolve.c
-  ${UTIL}/str/str.c
-  ${UTIL}/glob/glob.c
-  ${SRC}/semver/compare.c
-  ${SRC}/semver/convert.c
-  ${SRC}/semver/parser.c
-  ${SRC}/target/mutate.c
-  ${UTIL}/array/array.c
-  ${UTIL}/mem/mem.c
-  ${UTIL}/hash_table/hash_table.c
-  ${SRC}/target/select.c
-  ${SRC}/toolchain/toolchain.c
-  ${SRC}/toolchain/sdk.c
-  ${UTIL}/sp/sp_msvc.c
   main.c
   generator.c
   oracles/exhaustive.c
@@ -66,10 +6,9 @@ add_executable(fuzz_resolver
   checkers/units.c
   dump.c
   ${TEST_TOOLS}/fuzz/fuzz.c
-  ${TEST_TOOLS}/toml.c
 )
 spn_test_binary(fuzz_resolver)
 target_include_directories(fuzz_resolver PRIVATE ${GEN_DIR} ${CMAKE_SOURCE_DIR}/tools ${CMAKE_SOURCE_DIR}/test/core/tools ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(fuzz_resolver PRIVATE yyjson blake3)
+target_link_libraries(fuzz_resolver PRIVATE spn_core)
 add_dependencies(fuzz_resolver spn_codegen_gen)
 add_test(NAME fuzz_resolver COMMAND "$<TARGET_FILE:fuzz_resolver>" WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
