@@ -8,14 +8,13 @@ budget = {{.budget}}
 
 --- fixtures/repro_{{.iter}}/spn.toml
 [package]
-namespace = "test"
 name = "root"
 version = "0.0.1"
 {{for .root_kinds}}
 
 [deps.{{.table}}]
 {{for .deps}}
-'spn/{{.name}}' = { version = "{{.range}}"{{.attrs}} }
+{{.name}} = { version = "{{.range}}"{{.attrs}} }
 {{end}}
 {{end}}
 {{for .config}}
@@ -25,7 +24,7 @@ kind = "{{.kind}}"
 {{end}}
 {{for .pkgs}}
 
---- fixtures/repro_{{.iter}}/spn/{{.name}}.jsonl
+--- fixtures/repro_{{.iter}}/.spn/index/{{.name}}.jsonl
 {{for .releases}}
 {{.line}}
 {{end}}

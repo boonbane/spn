@@ -25,21 +25,9 @@ static void validate_name(spn_toml_loader_t* ctx, sp_str_t key, sp_str_t name) {
   }
 }
 
-static sp_intern_str_t lower_qualify(spn_toml_loader_t* ctx, sp_str_t namespace, sp_str_t name) {
-  if (sp_str_empty(name)) return sp_zero_s(sp_intern_str_t);
-  sp_str_t ns = sp_str_empty(namespace) ? sp_str_lit("core") : namespace;
-  return sp_intern(ctx->intern, sp_str_join(ctx->mem, ns, name, sp_str_lit("/")));
-}
-
-static sp_intern_str_t lower_canonicalize(spn_toml_loader_t* ctx, sp_str_t name) {
-  if (sp_str_empty(name)) return sp_zero_s(sp_intern_str_t);
-  sp_str_pair_t pair = sp_str_cleave_c8(name, '/');
-  if (sp_str_empty(pair.second)) {
-    validate_name(ctx, name, name);
-    return lower_qualify(ctx, sp_str_lit("core"), name);
-  }
-  validate_name(ctx, name, pair.second);
-  return lower_qualify(ctx, pair.first, pair.second);
+static sp_intern_str_t lower_pkg_name(spn_toml_loader_t* ctx, sp_str_t name) {
+  validate_name(ctx, name, name);
+  return sp_intern(ctx->intern, name);
 }
 
 static spn_linkage_set_t lower_linkages(sp_da(sp_str_t) kinds) {
@@ -245,7 +233,7 @@ static void lower_target(spn_toml_loader_t* ctx, const spn_cg_target_t* cg, si_t
     }
   }
   sp_da_for(cg->deps, it) {
-    si_da_push(ctx->mem, target->deps, ((spn_gated_str_t) { .value = cg->deps[it].pkg, .when = cg->deps[it].when }));
+    si_da_push(ctx->mem, target->deps, ((spn_gated_dep_t) { .name = sp_intern(ctx->intern, cg->deps[it].pkg), .when = cg->deps[it].when }));
   }
   sp_da_for(cg->embed, it) {
     const spn_cg_embed_entry_t* entry = &cg->embed[it];
@@ -310,7 +298,7 @@ static void lower_metaprogram(spn_toml_loader_t* ctx, const spn_cg_build_script_
 
 static void lower_dep(spn_toml_loader_t* ctx, sp_str_t name, const spn_cg_dep_t* cg, spn_dep_kind_t kind, si_pkg_info_t* out) {
   spn_requested_dep_t req = {
-    .qualified = lower_canonicalize(ctx, name),
+    .name = lower_pkg_name(ctx, name),
     .kind = kind,
     .private = sp_opt_is_null(cg->private) ? false : sp_opt_get(cg->private),
     .when = cg->when,
@@ -342,7 +330,6 @@ static void lower_dep(spn_toml_loader_t* ctx, sp_str_t name, const spn_cg_dep_t*
 static void lower_package(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, si_pkg_info_t* info) {
   const spn_cg_package_t* p = &cg->package;
   info->name = sp_intern(ctx->intern, p->name);
-  info->namespace = p->namespace;
   info->repo = p->repo;
   if (!sp_str_empty(p->upstream.url)) {
     info->upstream = (spn_pkg_root_t) {
@@ -352,7 +339,6 @@ static void lower_package(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, s
   }
   info->author = p->author;
   info->maintainer = p->maintainer;
-  info->qualified = lower_qualify(ctx, p->namespace, p->name);
   if (spn_semver_parse(p->version, &info->version)) {
     spn_toml_loader_push_key(ctx, "package");
     spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "version");
@@ -521,23 +507,9 @@ static void lower_options(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, s
 }
 
 static void lower_patches(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, spn_project_t* project) {
-  sp_da(sp_intern_id_t) seen = sp_da_new(ctx->mem, sp_intern_id_t);
   spn_toml_loader_push_key(ctx, "patch");
   sp_da_for(cg->patch, it) {
-    sp_intern_str_t qualified = lower_canonicalize(ctx, cg->patch[it].key);
-
-    bool duplicate = false;
-    sp_da_for(seen, jt) {
-      if (seen[jt] == qualified.id) {
-        duplicate = true;
-        break;
-      }
-    }
-    if (duplicate) {
-      spn_toml_loader_issue_at(ctx, SPN_ERR_CODEGEN_DUPLICATE_KEY, cg->patch[it].key);
-      continue;
-    }
-    sp_da_push(seen, qualified.id);
+    sp_intern_str_t name = lower_pkg_name(ctx, cg->patch[it].key);
 
     if (sp_da_empty(cg->patch[it].value.files)) {
       spn_toml_loader_push_key(ctx, sp_str_to_cstr(ctx->mem, cg->patch[it].key));
@@ -546,7 +518,7 @@ static void lower_patches(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, s
       continue;
     }
 
-    spn_pkg_patch_t patch = { .qualified = qualified };
+    spn_pkg_patch_t patch = { .name = name };
     si_da_for_value(cg->patch[it].value.files, file) {
       si_da_push(ctx->mem, patch.files, spn_path_resolve(ctx->mem, ctx->dir, file));
     }
@@ -1213,7 +1185,6 @@ static void validate_staged_names(spn_toml_loader_t* ctx, const spn_cg_manifest_
 static void validate_names(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg) {
   spn_toml_loader_push_key(ctx, "package");
   validate_name(ctx, sp_str_lit("name"), cg->package.name);
-  validate_name(ctx, sp_str_lit("namespace"), cg->package.namespace);
   spn_toml_loader_pop(ctx);
   validate_collection_names(ctx, cg->lib, "lib");
   validate_collection_names(ctx, cg->bin, "bin");

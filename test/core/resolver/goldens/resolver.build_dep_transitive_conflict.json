@@ -1,8 +1,7 @@
 {
-  "version": 2,
+  "version": 3,
   "requests": [
     {
-      "namespace": "test",
       "name": "root",
       "kind": "package",
       "source": "root"
@@ -10,35 +9,31 @@
   ],
   "packages": [
     {
-      "namespace": "spn",
       "name": "foo",
       "version": "1.0.0",
-      "hash": "cbcf4d04c9913a95",
+      "hash": "7249cb50930f08ee",
       "source": "index",
       "recipe": "none"
     },
     {
-      "namespace": "spn",
       "name": "foo",
       "version": "2.0.0",
-      "hash": "bb758326baa38ee8",
+      "hash": "adb2a8ea4f003832",
       "source": "index",
       "recipe": "none"
     },
     {
-      "namespace": "spn",
       "name": "renderer",
       "version": "1.0.0",
-      "hash": "c5f7e4b7c3c00804",
+      "hash": "0eda55c74e1c0c97",
       "source": "index",
       "recipe": "none",
       "edges": [
         {
           "to": {
-            "namespace": "spn",
             "name": "foo",
             "version": "1.0.0",
-            "hash": "cbcf4d04c9913a95"
+            "hash": "7249cb50930f08ee"
           },
           "kind": "build",
           "edge": "process"
@@ -46,29 +41,26 @@
       ]
     },
     {
-      "namespace": "test",
       "name": "root",
       "version": "0.0.1",
-      "hash": "f1c35501bb9f059c",
+      "hash": "d3420984d9fe3771",
       "source": "root",
       "recipe": "local",
       "edges": [
         {
           "to": {
-            "namespace": "spn",
             "name": "foo",
             "version": "2.0.0",
-            "hash": "bb758326baa38ee8"
+            "hash": "adb2a8ea4f003832"
           },
           "kind": "package",
           "edge": "scope"
         },
         {
           "to": {
-            "namespace": "spn",
             "name": "renderer",
             "version": "1.0.0",
-            "hash": "c5f7e4b7c3c00804"
+            "hash": "0eda55c74e1c0c97"
           },
           "kind": "package",
           "edge": "scope"

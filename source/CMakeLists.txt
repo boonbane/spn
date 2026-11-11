@@ -80,7 +80,6 @@ set(SPN_CORE_SOURCES
   core/op/scaffold.c
   core/op/publish.c
   core/paths/paths.c
-  core/pkg/id.c
   core/options/options.c
   core/pkg/pkg.c
   core/profile/profile.c

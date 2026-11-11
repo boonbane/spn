@@ -116,7 +116,7 @@ spn_err_t spn_op_build(spn_op_t* op) {
 
   spn_err_t hashed = SPN_OK;
   si_da_for_ptr(project->patches, decl) {
-    spn_patch_t patch = { .qualified = decl->qualified };
+    spn_patch_t patch = { .name = decl->name };
     si_da_for_value(decl->files, file) {
       si_da_push(session->mem, patch.set.files, spn_path_str(roots, session->mem, file));
     }
@@ -125,7 +125,7 @@ spn_err_t spn_op_build(spn_op_t* op) {
     if (!patch.set.hash) {
       spn_err_t kind = spn_err_emit(ctx, (spn_err_union_t) {
         .kind = SPN_ERR_PATCH_FILE_MISSING,
-        .subject = decl->qualified.str,
+        .subject = decl->name.str,
         .patch_file = { .path = patch.set.files[missing] },
       });
       if (!hashed) {
@@ -147,7 +147,7 @@ spn_err_t spn_op_build(spn_op_t* op) {
   si_da_for_ptr(session->patches, patch) {
     bool used = false;
     sp_ht_for_kv(session->resolve, it) {
-      if (it.key->qualified == patch->qualified.id) {
+      if (it.key->name == patch->name.id) {
         used = true;
         break;
       }
@@ -157,7 +157,7 @@ spn_err_t spn_op_build(spn_op_t* op) {
     }
     spn_err_t kind = spn_err_emit(ctx, (spn_err_union_t) {
       .kind = SPN_ERR_PATCH_UNUSED,
-      .subject = patch->qualified.str,
+      .subject = patch->name.str,
     });
     if (!unused) {
       unused = kind;

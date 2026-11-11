@@ -8,7 +8,6 @@
 #include "event/types.h"
 #include "core/types.h"
 #include "intern/intern.h"
-#include "pkg/id.h"
 #include "options/options.h"
 #include "profile/profile.h"
 #include "resolve/types.h"

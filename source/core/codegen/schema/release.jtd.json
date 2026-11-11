@@ -1,7 +1,6 @@
 {
   "metadata": { "format": "json" },
   "properties": {
-    "namespace": { "type": "string" },
     "name": { "type": "string" },
     "version": { "type": "string" },
     "yanked": { "type": "boolean" }
@@ -33,7 +32,6 @@
 
     "release_dep": {
       "properties": {
-        "namespace": { "type": "string" },
         "name": { "type": "string" },
         "version": { "type": "string" },
         "kind": { "ref": "index_dep_kind" }

@@ -770,7 +770,7 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           sp_tty_fmt(
             &w,
             "{} transitively includes itself",
-            sp_fmt_str(colored_name(w.color, mem, event->err.circular.id.name))
+            sp_fmt_str(colored_name(w.color, mem, event->err.subject))
           );
           break;
         }
@@ -778,7 +778,7 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           sp_tty_fmt(
             &w,
             "{} {.yellow} can't build: its build depends on a tool that links this same instance",
-            sp_fmt_str(colored_name(w.color, mem, event->err.unit_cycle.id.name)),
+            sp_fmt_str(colored_name(w.color, mem, event->err.subject)),
             sp_fmt_str(spn_semver_to_str(mem, event->err.unit_cycle.version))
           );
           break;
@@ -787,7 +787,7 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           sp_tty_fmt(
             &w,
             "{} {.yellow} and {.yellow} would both load into one process as shared libraries",
-            sp_fmt_str(colored_name(w.color, mem, event->err.dynamic_dup.id.name)),
+            sp_fmt_str(colored_name(w.color, mem, event->err.subject)),
             sp_fmt_str(spn_semver_to_str(mem, event->err.dynamic_dup.low)),
             sp_fmt_str(spn_semver_to_str(mem, event->err.dynamic_dup.high))
           );
@@ -797,7 +797,7 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           sp_tty_fmt(
             &w,
             "Resolving {} is too complex; pin a version to reduce the search",
-            sp_fmt_str(colored_name(w.color, mem, event->err.too_complex.id.name))
+            sp_fmt_str(colored_name(w.color, mem, event->err.subject))
           );
           break;
         }
@@ -1584,16 +1584,6 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
   return sp_io_dyn_mem_writer_take_str(&buf);
 }
 
-static sp_str_t get_short_name(sp_str_t qualified) {
-  sp_for(it, qualified.len) {
-    u32 index = qualified.len - it - 1;
-    if (qualified.data[index] == '/') {
-      return sp_str_sub(qualified, index + 1, qualified.len - index - 1);
-    }
-  }
-  return qualified;
-}
-
 static void write_event(sp_tty_t* tty, sp_str_t verb, sp_fmt_style_t style, sp_str_t pkg, sp_str_t detail) {
   sp_tty_fmt(tty, "{:>12 .bold .$}", sp_fmt_style(style), sp_fmt_str(verb));
 
@@ -1815,7 +1805,7 @@ void spn_tui_log_event(spn_tui_t* tui, spn_event_t* event) {
         tui->num_downloads++;
         write_event(
           tty, verb, sp_fmt_style_green,
-          get_short_name(event->sync.name),
+          event->sync.name,
           colored_fmt(tty->color, mem, "{.gray}", sp_fmt_str(event->sync.url))
         );
       }

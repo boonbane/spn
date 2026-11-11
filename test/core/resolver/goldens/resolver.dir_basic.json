@@ -1,8 +1,7 @@
 {
-  "version": 2,
+  "version": 3,
   "requests": [
     {
-      "namespace": "test",
       "name": "root",
       "kind": "package",
       "source": "root"
@@ -10,27 +9,24 @@
   ],
   "packages": [
     {
-      "namespace": "core",
       "name": "A",
       "version": "1.2.3",
-      "hash": "d332b4c35ea3b2bf",
+      "hash": "a1ac6929c9db9839",
       "source": "index",
       "recipe": "local"
     },
     {
-      "namespace": "test",
       "name": "root",
       "version": "0.0.1",
-      "hash": "d4b0011fcf70fb59",
+      "hash": "370fa67bd0c587d2",
       "source": "root",
       "recipe": "local",
       "edges": [
         {
           "to": {
-            "namespace": "core",
             "name": "A",
             "version": "1.2.3",
-            "hash": "d332b4c35ea3b2bf"
+            "hash": "a1ac6929c9db9839"
           },
           "kind": "package",
           "edge": "scope"

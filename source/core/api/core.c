@@ -18,7 +18,6 @@
 #include "external/wasm/wasm.h"
 #include "glob/glob.h"
 #include "intern/intern.h"
-#include "pkg/id.h"
 #include "str/str.h"
 #include "pkg/pkg.h"
 #include "target/mutate.h"
@@ -71,9 +70,9 @@ bool spn_api_path_rejected(const c8* fn, sp_str_t path) {
   return false;
 }
 
-static spn_pkg_unit_t* find_dep(spn_pkg_unit_t* pkg, sp_intern_id_t qualified, spn_dep_kind_t kind) {
+static spn_pkg_unit_t* find_dep(spn_pkg_unit_t* pkg, sp_intern_id_t name, spn_dep_kind_t kind) {
   sp_da_for_ptr(pkg->resolved->edges, edge) {
-    if (edge->kind != kind || edge->id.qualified != qualified) {
+    if (edge->kind != kind || edge->id.name != name) {
       continue;
     }
     spn_pkg_unit_id_t id = { .pkg = edge->id, .build = pkg->build->id };
@@ -91,7 +90,7 @@ static bool foreign(spn_pkg_unit_t* unit, spn_path_t path) {
   }
   si_da_for(unit->pkg.manifest->deps, it) {
     spn_requested_dep_t* dep = &unit->pkg.manifest->deps[it];
-    spn_pkg_unit_t* dep_unit = find_dep(unit, dep->qualified.id, dep->kind);
+    spn_pkg_unit_t* dep_unit = find_dep(unit, dep->name.id, dep->kind);
     if (dep_unit && spn_tree_rel(dep_unit->paths.roots, path).tree != SPN_TREE_NONE) {
       return false;
     }
@@ -129,7 +128,7 @@ static spn_target_t* wrap(spn_pkg_unit_t* unit, si_target_t* eval) {
 
 spn_target_t* spn_get_target(spn_t* spn, const c8* name, spn_target_kind_t kind) {
   spn_pkg_unit_t* unit = spn_api_unit(spn);
-  si_target_t* eval = spn_pkg_get_target(&unit->pkg, sp_cstr_as_str(name), kind);
+  si_target_t* eval = spn_pkg_get_target(&unit->pkg, spn_intern_cstr(name).id, kind);
   return eval ? wrap(unit, eval) : SP_NULLPTR;
 }
 
@@ -173,10 +172,14 @@ const spn_t* spn_get_dep(const spn_t* s, const c8* name) {
 
   si_da_for(unit->pkg.manifest->deps, it) {
     spn_requested_dep_t* dep = &unit->pkg.manifest->deps[it];
-    if (!sp_str_equal(spn_pkg_name_from_qualified(dep->qualified.str).name, key)) continue;
+    if (!sp_str_equal(dep->name.str, key)) {
+      continue;
+    }
 
-    spn_pkg_unit_t* dep_unit = find_dep(unit, dep->qualified.id, dep->kind);
-    if (dep_unit) return (const spn_t*)dep_unit;
+    spn_pkg_unit_t* dep_unit = find_dep(unit, dep->name.id, dep->kind);
+    if (dep_unit) {
+      return (const spn_t*)dep_unit;
+    }
   }
 
   return SP_NULLPTR;

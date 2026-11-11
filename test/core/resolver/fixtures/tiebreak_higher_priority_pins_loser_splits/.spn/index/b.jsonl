@@ -1,0 +1,2 @@
+{"name":"b","version":"1.0.0","yanked":false}
+{"name":"b","version":"2.0.0","yanked":false,"deps":[{"name":"c","version":"=2.0.0","kind":"normal"}]}

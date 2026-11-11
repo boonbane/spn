@@ -624,8 +624,9 @@ Let's say you have a project that uses `sqlite==3.51.0`. You like it. But then, 
 You want to start a new project and use it, but you still need `3.51.0`. You've graduated to a second directory. This time, it's a directory of JSONL metadata:
 
 ```
-index
-└── sqlite.jsonl
+.spn
+└── index
+    └── sqlite.jsonl
 ```
 
 Each JSONL entry is a release specifying the version, where the source code is, where the manifest is, etc.
@@ -675,8 +676,6 @@ If you've ever used Homebrew and waited multiple tens of seconds for kegs to be 
 ## Publishing
 
 ### spn publish
-
-### Namespaces
 
 ## The ecosystem
 

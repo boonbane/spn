@@ -170,8 +170,6 @@ typedef struct {
   const c8* name;
   const c8* manifest;
   const c8* pkg_name;
-  const c8* namespace;
-  const c8* qualified;
   const c8* url;
   const c8* repo;
   const c8* author;
@@ -316,49 +314,42 @@ static const test_t tests [] = {
     .name = "dep_index",
     .manifest = "dep_index",
     .deps = {
-      { .name = "core/foo", .source = SPN_PKG_SOURCE_INDEX }
+      { .name = "foo", .source = SPN_PKG_SOURCE_INDEX }
     }
   },
   {
     .name = "dep_file",
     .manifest = "dep_file",
     .deps = {
-      { .name = "core/foo", .source = SPN_PKG_SOURCE_FILE, .file = "/abs/foo/spn.toml" }
+      { .name = "foo", .source = SPN_PKG_SOURCE_FILE, .file = "/abs/foo/spn.toml" }
     }
   },
   {
     .name = "dep_file_relative",
     .manifest = "dep_file_relative",
     .deps = {
-      { .name = "core/foo", .source = SPN_PKG_SOURCE_FILE, .file = "vendor/foo/spn.toml" }
+      { .name = "foo", .source = SPN_PKG_SOURCE_FILE, .file = "vendor/foo/spn.toml" }
     }
   },
   {
     .name = "dep_test",
     .manifest = "dep_test",
     .deps = {
-      { .name = "core/bar", .source = SPN_PKG_SOURCE_INDEX, .test = 1 }
+      { .name = "bar", .source = SPN_PKG_SOURCE_INDEX, .test = 1 }
     }
   },
   {
     .name = "dep_build",
     .manifest = "dep_build",
     .deps = {
-      { .name = "core/baz", .source = SPN_PKG_SOURCE_INDEX, .build = 1 }
-    }
-  },
-  {
-    .name = "dep_namespaced",
-    .manifest = "dep_namespaced",
-    .deps = {
-      { .name = "ns/q", .source = SPN_PKG_SOURCE_INDEX }
+      { .name = "baz", .source = SPN_PKG_SOURCE_INDEX, .build = 1 }
     }
   },
   {
     .name = "dep_private",
     .manifest = "dep_private",
     .deps = {
-      { .name = "core/foo", .source = SPN_PKG_SOURCE_INDEX, .private = 1 }
+      { .name = "foo", .source = SPN_PKG_SOURCE_INDEX, .private = 1 }
     }
   },
   // The same name under two kinds must survive as two requests, not collapse
@@ -366,8 +357,8 @@ static const test_t tests [] = {
     .name = "dep_dual_kind",
     .manifest = "dep_dual_kind",
     .deps = {
-      { .name = "core/foo", .source = SPN_PKG_SOURCE_INDEX },
-      { .name = "core/foo", .source = SPN_PKG_SOURCE_INDEX, .build = 1 }
+      { .name = "foo", .source = SPN_PKG_SOURCE_INDEX },
+      { .name = "foo", .source = SPN_PKG_SOURCE_INDEX, .build = 1 }
     }
   },
   {
@@ -464,7 +455,6 @@ static const test_t tests [] = {
     .manifest = "validate_name_package",
     .issues = {
       { SPN_ERR_CODEGEN_INVALID, "package.name" },
-      { SPN_ERR_CODEGEN_INVALID, "package.namespace" },
     },
   },
   {
@@ -489,8 +479,8 @@ static const test_t tests [] = {
     .name = "validate_name_key",
     .manifest = "validate_name_key",
     .issues = {
-      { SPN_ERR_CODEGEN_INVALID, "A/B/C" },
-      { SPN_ERR_CODEGEN_INVALID, "patch.A//B" },
+      { SPN_ERR_CODEGEN_INVALID, "A/B" },
+      { SPN_ERR_CODEGEN_INVALID, "patch.A/B" },
     },
   },
   {
@@ -975,8 +965,6 @@ static const test_t tests [] = {
     .name = "package",
     .manifest = "package",
     .pkg_name = "p",
-    .namespace = "ns",
-    .qualified = "ns/p",
     .url = "u",
     .repo = "r",
     .author = "a",
@@ -1006,11 +994,6 @@ static const test_t tests [] = {
     .exes = {
       { .name = "t", .include = { { "" }, { "", .tree = SPN_TREE_MANIFEST } } }
     },
-  },
-  {
-    .name = "qualified_default_namespace",
-    .manifest = "qualified_default_namespace",
-    .qualified = "core/p",
   },
   {
     .name = "toolchain_inline",
@@ -1166,25 +1149,25 @@ static const test_t tests [] = {
     .name = "config",
     .manifest = "config",
     .config = {
-      { .key = "core/foo", .kind = SPN_LIB_KIND_STATIC }
+      { .key = "foo", .kind = SPN_LIB_KIND_STATIC }
     },
   },
   {
     .name = "when_dep",
     .manifest = "when_dep",
     .deps = {
-      { .name = "core/openssl", .source = SPN_PKG_SOURCE_INDEX, .when = "tls = \"openssl\"" },
-      { .name = "core/zstd", .source = SPN_PKG_SOURCE_INDEX, .when = "zstd = true, os != \"wasi\"" },
+      { .name = "openssl", .source = SPN_PKG_SOURCE_INDEX, .when = "tls = \"openssl\"" },
+      { .name = "zstd", .source = SPN_PKG_SOURCE_INDEX, .when = "zstd = true, os != \"wasi\"" },
     },
   },
   {
     .name = "when_new_facts",
     .manifest = "when_new_facts",
     .deps = {
-      { .name = "core/fast", .source = SPN_PKG_SOURCE_INDEX, .when = "opt = \"3\"" },
-      { .name = "core/asan", .source = SPN_PKG_SOURCE_INDEX, .when = "sanitize_address = true" },
-      { .name = "core/tidy", .source = SPN_PKG_SOURCE_INDEX, .when = "driver = \"clang\"" },
-      { .name = "core/icf", .source = SPN_PKG_SOURCE_INDEX, .when = "linker = \"lld\"" },
+      { .name = "fast", .source = SPN_PKG_SOURCE_INDEX, .when = "opt = \"3\"" },
+      { .name = "asan", .source = SPN_PKG_SOURCE_INDEX, .when = "sanitize_address = true" },
+      { .name = "tidy", .source = SPN_PKG_SOURCE_INDEX, .when = "driver = \"clang\"" },
+      { .name = "icf", .source = SPN_PKG_SOURCE_INDEX, .when = "linker = \"lld\"" },
     },
   },
   {
@@ -1264,7 +1247,7 @@ static const test_t tests [] = {
       },
     },
     .deps = {
-      { .name = "core/codec", .source = SPN_PKG_SOURCE_INDEX, .options = "audio = true, backend != \"vk\"" },
+      { .name = "codec", .source = SPN_PKG_SOURCE_INDEX, .options = "audio = true, backend != \"vk\"" },
     },
     .profiles = {
       { .name = "full", .options = "audio = true" },
@@ -1543,32 +1526,7 @@ static const test_t tests [] = {
     .name = "patch_table",
     .manifest = "patch_table",
     .patches = {
-      { .name = "ns/q", .files = { "patches/a.patch", "patches/b.patch" } },
-    },
-  },
-  {
-    .name = "patch_default_namespace",
-    .manifest = "patch_default_namespace",
-    .patches = {
-      { .name = "core/q", .files = { "patches/a.patch" } },
-    },
-  },
-  {
-    .name = "patch_duplicate_canonical_name",
-    .manifest = "patch_duplicate",
-    .issues = {
-      { SPN_ERR_CODEGEN_DUPLICATE_KEY, "patch" },
-    },
-    .patches = {
-      { .name = "core/q", .files = { "patches/a.patch" } },
-    },
-  },
-  {
-    .name = "patch_duplicate_after_empty_files",
-    .manifest = "patch_duplicate_empty",
-    .issues = {
-      { SPN_ERR_CODEGEN_MISSING_KEY, "patch.q.files" },
-      { SPN_ERR_CODEGEN_DUPLICATE_KEY, "patch" },
+      { .name = "q", .files = { "patches/a.patch", "patches/b.patch" } },
     },
   },
   {
@@ -1700,7 +1658,13 @@ static sp_err_t check_targets(sp_test_t* t, si_pkg_info_t* pkg, const target_t* 
     check_gated(t, info->link_flags, arr[i].link_flags);
     check_gated_paths(t, info->linker_script, arr[i].linker_script);
     check_gated(t, info->system_deps, arr[i].system_deps);
-    check_gated(t, info->deps, arr[i].deps);
+    u32 num_deps = 0;
+    sp_carr_detect_len(arr[i].deps, num_deps, arr[i].deps[num_deps].value);
+    sp_must_eq(t, num_deps, (u32)sp_da_size(info->deps));
+    sp_for(dt, num_deps) {
+      sp_expect_str_eq_c(t, info->deps[dt].name.str, arr[i].deps[dt].value);
+      sp_expect_str_eq_c(t, spn_when_to_str(sp_test_arena(t), &info->deps[dt].when), arr[i].deps[dt].when ? arr[i].deps[dt].when : "always");
+    }
     check_gated(t, info->macos.frameworks, arr[i].frameworks);
     u32 num_embeds = 0;
     sp_carr_detect_len(arr[i].embed, num_embeds, arr[i].embed[num_embeds].path);
@@ -1752,8 +1716,6 @@ sp_test_each(lower, cases, test_t, tests, .setup = spn_test_ctx_setup) {
 
   // Package scalars
   if (it->pkg_name)   sp_expect_str_eq_c(t, pkg->name.str, it->pkg_name);
-  if (it->namespace)  sp_expect_str_eq_c(t, pkg->namespace, it->namespace);
-  if (it->qualified)  sp_expect_str_eq_c(t, pkg->qualified.str, it->qualified);
   if (it->url)        sp_expect_str_eq_c(t, pkg->upstream.git.url, it->url);
   if (it->repo)       sp_expect_str_eq_c(t, pkg->repo, it->repo);
   if (it->author)     sp_expect_str_eq_c(t, pkg->author, it->author);
@@ -1798,7 +1760,7 @@ sp_test_each(lower, cases, test_t, tests, .setup = spn_test_ctx_setup) {
 
     spn_requested_dep_t* req = SP_NULLPTR;
     si_da_for(pkg->deps, j) {
-      if (sp_str_equal(pkg->deps[j].qualified.str, sp_cstr_as_str(expected.name)) && pkg->deps[j].kind == kind) {
+      if (sp_str_equal(pkg->deps[j].name.str, sp_cstr_as_str(expected.name)) && pkg->deps[j].kind == kind) {
         req = &pkg->deps[j];
         break;
       }
@@ -1919,7 +1881,7 @@ sp_test_each(lower, cases, test_t, tests, .setup = spn_test_ctx_setup) {
 
     spn_pkg_patch_t* patch = SP_NULLPTR;
     si_da_for(project.patches, j) {
-      if (sp_str_equal(project.patches[j].qualified.str, sp_cstr_as_str(expected.name))) {
+      if (sp_str_equal(project.patches[j].name.str, sp_cstr_as_str(expected.name))) {
         patch = &project.patches[j];
         break;
       }

@@ -52,7 +52,6 @@ static sp_str_t fz_release_line(sp_mem_t mem, fz_universe_t* u, u32 pkg, fz_rele
   yyjson_mut_val* root = yyjson_mut_obj(doc);
   yyjson_mut_doc_set_root(doc, root);
 
-  yyjson_mut_obj_add_strcpy(doc, root, "namespace", "spn");
   yyjson_mut_obj_add_strcpy(doc, root, "name", sp_str_to_cstr(mem, fz_pkg_name(pkg)));
   yyjson_mut_obj_add_strcpy(doc, root, "version", sp_str_to_cstr(mem, spn_semver_to_str(mem, release->version)));
   yyjson_mut_obj_add_bool(doc, root, "yanked", false);
@@ -62,7 +61,6 @@ static sp_str_t fz_release_line(sp_mem_t mem, fz_universe_t* u, u32 pkg, fz_rele
     sp_da_for(release->deps, it) {
       fz_dep_t dep = release->deps[it];
       yyjson_mut_val* entry = yyjson_mut_arr_add_obj(doc, deps);
-      yyjson_mut_obj_add_strcpy(doc, entry, "namespace", "spn");
       yyjson_mut_obj_add_strcpy(doc, entry, "name", sp_str_to_cstr(mem, fz_pkg_name(dep.pkg)));
       yyjson_mut_obj_add_strcpy(doc, entry, "version", sp_str_to_cstr(mem, fz_range_render(mem, dep)));
       yyjson_mut_obj_add_strcpy(doc, entry, "kind", fz_dep_kind_json(dep.kind));

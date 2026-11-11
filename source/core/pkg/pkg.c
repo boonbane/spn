@@ -1,6 +1,5 @@
 #include "pkg/pkg.h"
 
-#include "intern/intern.h"
 #include "paths/paths.h"
 #include "target/mutate.h"
 #include "when/when.h"
@@ -77,9 +76,14 @@ static si_target_t eval_target(eval_ctx_t* ctx, const si_target_info_t* decl) {
     .link_flags = eval_list(ctx, decl->link_flags),
     .linker_script = eval_paths(ctx, decl->linker_script),
     .system_deps = eval_list(ctx, decl->system_deps),
-    .deps = eval_list(ctx, decl->deps),
     .macos = { .frameworks = eval_list(ctx, decl->macos.frameworks) },
   };
+  si_da_for_value(decl->deps, dep) {
+    if (!spn_when_eval(&dep.when, ctx->env)) {
+      continue;
+    }
+    si_da_push(ctx->mem, target.deps, dep.name);
+  }
   si_da_for_value(decl->embed, embed) {
     if (!spn_when_eval(&embed.when, ctx->env)) {
       continue;
@@ -125,7 +129,7 @@ si_pkg_t si_evaluate_package(sp_mem_t mem, const si_pkg_info_t* manifest, const 
   return pkg;
 }
 
-si_target_t* spn_pkg_get_target(si_pkg_t* pkg, sp_str_t name, spn_target_kind_t kind) {
-  si_target_id_t id = { .name = spn_intern(name).id, .kind = kind };
+si_target_t* spn_pkg_get_target(si_pkg_t* pkg, sp_intern_id_t name, spn_target_kind_t kind) {
+  si_target_id_t id = { .name = name, .kind = kind };
   return si_om_get(pkg->targets, id);
 }

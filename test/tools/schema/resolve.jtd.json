@@ -12,7 +12,6 @@
     "resolve_error": {
       "optionalProperties": {
         "kind": { "type": "string" },
-        "namespace": { "type": "string" },
         "name": { "type": "string" },
         "range": { "type": "string" },
         "requester": { "type": "string" },
@@ -37,7 +36,6 @@
 
     "resolve_request": {
       "properties": {
-        "namespace": { "type": "string" },
         "name": { "type": "string" },
         "kind": { "ref": "dep_kind" },
         "source": { "ref": "pkg_source" }
@@ -49,7 +47,6 @@
 
     "resolve_ref": {
       "properties": {
-        "namespace": { "type": "string" },
         "name": { "type": "string" },
         "version": { "type": "string" },
         "hash": { "type": "string" }
@@ -69,7 +66,6 @@
 
     "resolve_pkg": {
       "properties": {
-        "namespace": { "type": "string" },
         "name": { "type": "string" },
         "version": { "type": "string" },
         "hash": { "type": "string" },

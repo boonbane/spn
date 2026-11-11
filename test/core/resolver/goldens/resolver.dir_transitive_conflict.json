@@ -1,8 +1,7 @@
 {
-  "version": 2,
+  "version": 3,
   "requests": [
     {
-      "namespace": "test",
       "name": "root",
       "kind": "package",
       "source": "root"
@@ -12,10 +11,9 @@
   "errors": [
     {
       "kind": "pkg_no_match",
-      "namespace": "core",
       "name": "B",
       "range": "^2.0.0",
-      "requester": "core/A"
+      "requester": "A"
     }
   ]
 }

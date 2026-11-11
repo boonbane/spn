@@ -4,7 +4,6 @@
 #include "event/event.h"
 #include "external/tom.h"
 #include "index/types.h"
-#include "intern/intern.h"
 #include "lock/lock.h"
 #include "semver/convert.h"
 #include "version/version.h"
@@ -20,7 +19,7 @@ static void spn_lock_build_dependents(spn_lock_file_t* lock) {
   }
 }
 
-spn_lock_file_t spn_build_lock_file(sp_mem_t mem, sp_intern_t* intern, spn_resolve_t resolve) {
+spn_lock_file_t spn_build_lock_file(sp_mem_t mem, spn_resolve_t resolve) {
   spn_lock_file_t lock = sp_zero;
   spn_lock_file_init(mem, &lock);
 
@@ -29,7 +28,7 @@ spn_lock_file_t spn_build_lock_file(sp_mem_t mem, sp_intern_t* intern, spn_resol
     if (pkg->source == SPN_PKG_SOURCE_ROOT) continue;
 
     spn_lock_entry_t entry = {
-      .name = sp_intern_find(intern, pkg->id.qualified),
+      .name = pkg->name.str,
       .version = pkg->id.version,
       .kind = pkg->source,
       .deps = sp_da_new(mem, sp_str_t),
@@ -37,7 +36,7 @@ spn_lock_file_t spn_build_lock_file(sp_mem_t mem, sp_intern_t* intern, spn_resol
     };
 
     sp_da_for(pkg->deps, d) {
-      sp_da_push(entry.deps, pkg->deps[d].qualified.str);
+      sp_da_push(entry.deps, pkg->deps[d].name.str);
     }
 
     if (pkg->source == SPN_PKG_SOURCE_INDEX) {

@@ -13,7 +13,6 @@
 #include "index/index.h"
 #include "index/types.h"
 #include "intern/intern.h"
-#include "pkg/id.h"
 #include "dump.h"
 #include "resolve/resolve.h"
 #include "resolve/types.h"
@@ -21,8 +20,6 @@
 #include "toml/loader.h"
 
 static sp_mem_arena_t* arena;
-
-static const c8* root_qualified = "test/root";
 
 typedef struct {
   sp_str_t skip;
@@ -61,7 +58,7 @@ static resolve_result_t execute_fixture(const fx_config_t* config, const spn_pro
   spn_pkg_registry_t registry = sp_zero;
   sp_ht_init(mem, registry);
 
-  sp_ht_insert(registry, ((spn_pkg_id_t) { .qualified = root->qualified.id }), ((spn_registry_pkg_t) {
+  sp_ht_insert(registry, ((spn_pkg_id_t) { .name = root->name.id }), ((spn_registry_pkg_t) {
     .source = SPN_PKG_SOURCE_ROOT,
     .manifest = root,
   }));
@@ -77,7 +74,7 @@ static resolve_result_t execute_fixture(const fx_config_t* config, const spn_pro
   result.intern = intern;
   spn_resolve_query_init(mem, &result.query);
   spn_resolve_query_add(&result.query, (spn_requested_dep_t) {
-    .qualified = sp_intern(intern, sp_cstr_as_str(root_qualified)),
+    .name = root->name,
     .source = SPN_PKG_SOURCE_ROOT,
   });
 

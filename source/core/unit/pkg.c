@@ -3,10 +3,8 @@
 #include "ctx/types.h"
 #include "enum/enum.h"
 #include "error/error.h"
-#include "intern/intern.h"
 #include "options/options.h"
 #include "paths/paths.h"
-#include "pkg/id.h"
 #include "pkg/pkg.h"
 #include "profile/profile.h"
 #include "target/mutate.h"
@@ -74,11 +72,10 @@ spn_err_t si_add_package_unit(spn_units_t* u, spn_build_unit_t* build, const spn
     }
     case SPN_PKG_SOURCE_INDEX: {
       sp_str_t fingerprint = spn_unit_fingerprint_str(mem, unit->fingerprint);
-      spn_pkg_name_t name = spn_pkg_name_from_qualified(resolved->manifest->qualified.str);
-      spn_path_t work = spn_path_s(mem, SPN_DIR_ID_BUILD, name.namespace);
-      spn_path_t store = spn_path_s(mem, SPN_DIR_ID_STORE, name.namespace);
-      unit->paths.work = spn_path_join(mem, spn_path_join(mem, work, name.name), fingerprint);
-      unit->paths.store = spn_path_join(mem, spn_path_join(mem, store, name.name), fingerprint);
+      spn_path_t work = spn_path_s(mem, SPN_DIR_ID_BUILD, resolved->manifest->name.str);
+      spn_path_t store = spn_path_s(mem, SPN_DIR_ID_STORE, resolved->manifest->name.str);
+      unit->paths.work = spn_path_join(mem, work, fingerprint);
+      unit->paths.store = spn_path_join(mem, store, fingerprint);
       break;
     }
   }
@@ -234,10 +231,9 @@ spn_err_t si_add_target_unit(spn_units_t* u, spn_pkg_unit_t* pkg, si_target_t* t
   }
 
   si_da_for_value(target->deps, name) {
-    sp_intern_id_t qualified = spn_intern(spn_pkg_canonicalize_name(name)).id;
     bool package = false;
     sp_da_for_ptr(pkg->resolved->edges, edge) {
-      if (edge->id.qualified == qualified) {
+      if (edge->id.name == name.id) {
         package = true;
         break;
       }
@@ -245,11 +241,11 @@ spn_err_t si_add_target_unit(spn_units_t* u, spn_pkg_unit_t* pkg, si_target_t* t
     if (package) {
       continue;
     }
-    si_target_t* lib = spn_pkg_get_target(&pkg->pkg, name, SPN_TARGET_KIND_LIB);
+    si_target_t* lib = spn_pkg_get_target(&pkg->pkg, name.id, SPN_TARGET_KIND_LIB);
     if (!lib) {
       return spn_err_emit(u->ctx, (spn_err_union_t) {
         .kind = SPN_ERR_TARGET_DEP,
-        .target = { .name = name },
+        .target = { .name = name.str },
       });
     }
     spn_target_unit_t* dep = SP_NULLPTR;

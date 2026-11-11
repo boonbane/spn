@@ -238,22 +238,16 @@ static sp_err_t setup_fixture_index_from_remote(sp_test_t* t, fixture_t* fixture
   }
 
   if (sp_fs_is_dir(raw)) {
-    sp_da(sp_str_t) namespaces = list_dir(mem, raw);
-    sp_da_for(namespaces, nt) {
-      sp_str_t ns = sp_fs_join_path(mem, raw, namespaces[nt]);
-      if (!sp_fs_is_dir(ns)) {
-        continue;
+    sp_str_t releases = sp_fs_join_path(mem, raw, sp_str_lit(".spn/index"));
+    sp_da(sp_str_t) files = list_dir(mem, releases);
+    sp_da_for(files, ft) {
+      sp_str_t content = test_read_file(mem, sp_fs_join_path(mem, releases, files[ft]));
+      sp_da_for(subs, st) {
+        content = str_replace_all(mem, content, subs[st].token, subs[st].value);
       }
-      sp_da(sp_str_t) files = list_dir(mem, ns);
-      sp_da_for(files, ft) {
-        sp_str_t content = test_read_file(mem, sp_fs_join_path(mem, ns, files[ft]));
-        sp_da_for(subs, st) {
-          content = str_replace_all(mem, content, subs[st].token, subs[st].value);
-        }
-        write_file(
-          sp_fs_join_path(mem, sp_fs_join_path(mem, fixture->paths.index, namespaces[nt]), files[ft]),
-          content);
-      }
+      write_file(
+        sp_fs_join_path(mem, sp_fs_join_path(mem, fixture->paths.index, sp_str_lit(".spn/index")), files[ft]),
+        content);
     }
     git_repo_stage_all(fixture->paths.index);
     git_repo_commit(fixture->paths.index, sp_str_lit("seed"));

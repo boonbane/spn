@@ -1,8 +1,7 @@
 {
-  "version": 2,
+  "version": 3,
   "requests": [
     {
-      "namespace": "test",
       "name": "root",
       "kind": "package",
       "source": "root"
@@ -10,27 +9,24 @@
   ],
   "packages": [
     {
-      "namespace": "spn",
       "name": "math",
       "version": "1.1.0",
-      "hash": "7a73725929ef71bc",
+      "hash": "bda08a805ad9476c",
       "source": "index",
       "recipe": "none"
     },
     {
-      "namespace": "test",
       "name": "root",
       "version": "0.0.1",
-      "hash": "2633a9abb8bbc157",
+      "hash": "6f0975b4c76899c2",
       "source": "root",
       "recipe": "local",
       "edges": [
         {
           "to": {
-            "namespace": "spn",
             "name": "math",
             "version": "1.1.0",
-            "hash": "7a73725929ef71bc"
+            "hash": "bda08a805ad9476c"
           },
           "kind": "package",
           "edge": "scope"

@@ -49,10 +49,6 @@ sp_intern_str_t spn_intern_cstr(const c8* cstr) {
   return sp_intern_cstr(spn_ctx_get_intern(), cstr);
 }
 
-sp_str_t spn_intern_find(sp_intern_id_t id) {
-  return sp_intern_find(spn_ctx_get_intern(), id);
-}
-
 spn_triple_t spn_host_detect() {
   spn_triple_t host = sp_zero;
 

@@ -9,7 +9,6 @@
 #include "spn/errors.h"
 #include "intern/intern.h"
 #include "options/options.h"
-#include "pkg/id.h"
 #include "profile/profile.h"
 #include "project/types.h"
 #include "session/session.h"
@@ -47,9 +46,9 @@ static spn_err_union_t violation_err(sp_mem_t mem, spn_option_violation_t violat
   };
 }
 
-static spn_resolved_dep_t* node_find_edge(spn_resolved_pkg_t* node, sp_intern_id_t qualified, spn_dep_kind_t kind) {
+static spn_resolved_dep_t* node_find_edge(spn_resolved_pkg_t* node, sp_intern_id_t name, spn_dep_kind_t kind) {
   sp_da_for(node->edges, it) {
-    if (node->edges[it].id.qualified == qualified && node->edges[it].kind == kind) {
+    if (node->edges[it].id.name == name && node->edges[it].kind == kind) {
       return &node->edges[it];
     }
   }
@@ -113,7 +112,7 @@ static spn_err_t validate_config_keys(spn_session_t* session) {
         break;
       }
       si_da_for(node->manifest->deps, dt) {
-        if (sp_str_equal(spn_pkg_name_from_qualified(node->manifest->deps[dt].qualified.str).name, config->name.str)) {
+        if (node->manifest->deps[dt].name.id == config->name.id) {
           known = true;
           break;
         }
@@ -152,7 +151,7 @@ spn_err_t spn_session_apply_options(spn_session_t* session, bool* reresolve) {
         if (si_da_empty(dep->options.clauses)) {
           continue;
         }
-        spn_resolved_dep_t* edge = node_find_edge(node, dep->qualified.id, dep->kind);
+        spn_resolved_dep_t* edge = node_find_edge(node, dep->name.id, dep->kind);
         if (!edge) {
           continue;
         }
@@ -167,12 +166,10 @@ spn_err_t spn_session_apply_options(spn_session_t* session, bool* reresolve) {
         }
         sp_da_push(*sp_ht_getp(requests, edge->id), request);
 
-        spn_resolved_pkg_t* target = sp_ht_getp(session->resolve, edge->id);
-        sp_intern_id_t seed_key = target ? target->id.qualified : dep->qualified.id;
-        if (!sp_ht_getp(session->gates.seeds, seed_key)) {
-          sp_ht_insert(session->gates.seeds, seed_key, sp_da_new(mem, spn_option_request_t));
+        if (!sp_ht_getp(session->gates.seeds, dep->name.id)) {
+          sp_ht_insert(session->gates.seeds, dep->name.id, sp_da_new(mem, spn_option_request_t));
         }
-        sp_da_push(*sp_ht_getp(session->gates.seeds, seed_key), request);
+        sp_da_push(*sp_ht_getp(session->gates.seeds, dep->name.id), request);
       }
     }
 
@@ -213,13 +210,13 @@ spn_err_t spn_session_apply_options(spn_session_t* session, bool* reresolve) {
         if (si_da_empty(dep->when.clauses)) {
           continue;
         }
-        spn_resolved_dep_t* edge = node_find_edge(node, dep->qualified.id, dep->kind);
+        spn_resolved_dep_t* edge = node_find_edge(node, dep->name.id, dep->kind);
         bool expected = spn_when_eval(&dep->when, &env);
         if (expected && !edge) {
           missing = true;
           if (sp_str_empty(missing_pkg)) {
             missing_pkg = node->name.str;
-            missing_dep = spn_pkg_name_from_qualified(dep->qualified.str).name;
+            missing_dep = dep->name.str;
           }
         }
         if (!expected && edge) {

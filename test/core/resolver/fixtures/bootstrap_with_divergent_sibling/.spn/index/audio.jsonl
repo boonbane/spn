@@ -1,0 +1,2 @@
+{"name":"audio","version":"1.0.0","yanked":false,"deps":[{"name":"zed","version":"^1.0.0","kind":"normal"}]}
+{"name":"audio","version":"2.0.0","yanked":false,"deps":[{"name":"zed","version":"^2.0.0","kind":"normal"},{"name":"tool","version":"^1.0.0","kind":"build"}]}

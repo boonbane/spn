@@ -130,7 +130,7 @@ static const test_t tests [] = {
     .actions = {
       { .kind = ACTION_INIT_REPO },
       { .kind = ACTION_RUN_CLI, .cli = { .cmd = "publish", .args = { "--dry", "--source-url", "https://example.com/x.git", "--source-rev", "abc123" } } },
-      { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = lit(".home/storage/spn/packages/core/index_package.jsonl") },
+      { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = lit(".home/storage/spn/packages/.spn/index/index_package.jsonl") },
     },
   },
   {

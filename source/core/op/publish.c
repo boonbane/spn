@@ -12,7 +12,6 @@
 #include "op/op.h"
 #include "paths/paths.h"
 #include "spn/host.h"
-#include "pkg/id.h"
 #include "project/types.h"
 #include "semver/convert.h"
 
@@ -37,7 +36,7 @@ static spn_err_t publish(spn_ctx_t* ctx, spn_publish_request_t request, spn_inde
   spn_index_info_t* index = spn_find_index(ctx, request.index);
 
   spn_event_publish_t evt = {
-    .name = spn_pkg_name_to_qualified(release->id),
+    .name = release->name.str,
     .version = spn_semver_to_str(ctx->events->mem, release->version),
     .index = index->name.str,
     .url = spn_index_publish_target(index),

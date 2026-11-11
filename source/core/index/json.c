@@ -9,22 +9,18 @@
 #include "sp.h"
 #include "str/str.h"
 
-static spn_err_t spn_index_parse_rel(sp_mem_t mem, spn_pkg_name_t id, sp_str_t json, spn_index_release_t* release) {
+static spn_err_t parse_release(sp_mem_t mem, sp_intern_t* intern, sp_intern_str_t name, sp_str_t json, spn_index_release_t* release) {
   spn_cg_release_t rel = sp_zero;
   if (!spn_release_read(json, &rel, mem)) {
     return SPN_ERROR;
   }
 
-  if (!sp_str_equal(rel.namespace, id.namespace)) {
-    return SPN_ERROR;
-  }
-  if (!sp_str_equal(rel.name, id.name)) {
+  if (!sp_str_equal(rel.name, name.str)) {
     return SPN_ERROR;
   }
   spn_try(spn_semver_parse(rel.version, &release->version));
 
-  release->id.namespace = rel.namespace;
-  release->id.name = rel.name;
+  release->name = name;
   release->yanked = rel.yanked;
   if (!sp_str_empty(rel.source.url)) {
     release->source = (spn_pkg_root_t) {
@@ -45,10 +41,7 @@ static spn_err_t spn_index_parse_rel(sp_mem_t mem, spn_pkg_name_t id, sp_str_t j
     spn_index_dep_t dep = {
       .kind = rel.deps[it].kind,
       .private = !sp_opt_is_null(rel.deps[it].private) && sp_opt_get(rel.deps[it].private),
-      .id = {
-        .namespace = rel.deps[it].namespace,
-        .name = rel.deps[it].name,
-      },
+      .name = sp_intern(intern, rel.deps[it].name),
       .when = rel.deps[it].when,
       .options = rel.deps[it].options,
     };
@@ -70,10 +63,10 @@ static spn_err_t spn_index_parse_rel(sp_mem_t mem, spn_pkg_name_t id, sp_str_t j
 
   sp_da_for(rel.options, it) {
     spn_cg_release_options_entry_t* entry = &rel.options[it];
-    sp_intern_str_t name = spn_intern(entry->key);
+    sp_intern_str_t key = sp_intern(intern, entry->key);
     spn_option_info_t option = {
-      .id = name.id,
-      .name = name,
+      .id = key.id,
+      .name = key,
       .type = entry->value.type,
       .additive = !sp_opt_is_null(entry->value.additive) && sp_opt_get(entry->value.additive),
       .defaults = entry->value.defaults,
@@ -95,8 +88,7 @@ static s32 sort_release_by_version(const void* a, const void* b) {
 
 sp_str_t spn_index_release_to_json(sp_mem_t mem, spn_index_release_t* rel) {
   spn_cg_release_t release = {
-    .namespace = rel->id.namespace,
-    .name = rel->id.name,
+    .name = rel->name.str,
     .version = spn_semver_to_str(mem, rel->version),
     .yanked = rel->yanked,
     .paths = { .manifest = rel->paths.manifest },
@@ -114,8 +106,7 @@ sp_str_t spn_index_release_to_json(sp_mem_t mem, spn_index_release_t* rel) {
 
   sp_da_for(rel->deps, it) {
     spn_cg_release_dep_t dep = {
-      .namespace = rel->deps[it].id.namespace,
-      .name = rel->deps[it].id.name,
+      .name = rel->deps[it].name.str,
       .version = spn_semver_range_to_str(mem, rel->deps[it].range),
       .kind = rel->deps[it].kind,
       .when = rel->deps[it].when,
@@ -156,8 +147,7 @@ sp_str_t spn_index_release_to_json(sp_mem_t mem, spn_index_release_t* rel) {
   return spn_release_write_compact(mem, &release);
 }
 
-spn_err_t spn_index_parse_pkg(sp_mem_t mem, spn_pkg_name_t id, sp_str_t blob, spn_index_pkg_t* pkg) {
-  pkg->id = id;
+spn_err_t spn_index_parse_pkg(sp_mem_t mem, sp_intern_t* intern, sp_intern_str_t name, sp_str_t blob, spn_index_pkg_t* pkg) {
   sp_da_init(mem, pkg->releases);
   sp_str_for_line(blob, it) {
     sp_str_t line = sp_str_trim(it.line);
@@ -166,7 +156,7 @@ spn_err_t spn_index_parse_pkg(sp_mem_t mem, spn_pkg_name_t id, sp_str_t blob, sp
     }
 
     spn_index_release_t release = sp_zero;
-    spn_try(spn_index_parse_rel(mem, id, line, &release));
+    spn_try(parse_release(mem, intern, name, line, &release));
 
     sp_da_for(pkg->releases, n) {
       if (spn_semver_eq(pkg->releases[n].version, release.version)) {

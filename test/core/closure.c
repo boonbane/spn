@@ -271,7 +271,7 @@ static spn_pkg_unit_t* build_pkg(sp_mem_t mem, u32 id, const pkg_t* spec) {
   manifest->name = spn_intern_cstr(spec->name);
 
   spn_pkg_unit_t* pkg = sp_alloc_type(mem, spn_pkg_unit_t);
-  pkg->id.pkg.qualified = id;
+  pkg->id.pkg.name = id;
   pkg->pkg.manifest = manifest;
 
   if (spec->kind != SPN_LIB_KIND_NONE) {

@@ -2,5 +2,5 @@
 name = "p"
 version = "1.0.0"
 
-[config.'core/foo']
+[config.foo]
 kind = "static"

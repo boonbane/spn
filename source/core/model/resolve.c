@@ -11,8 +11,6 @@
 #include "event/event.h"
 #include "index/cache.h"
 #include "op/types.h"
-#include "intern/intern.h"
-#include "pkg/id.h"
 #include "pkg/load.h"
 #include "paths/paths.h"
 #include "resolve/resolve.h"
@@ -28,7 +26,7 @@ static spn_err_t apply_patch_overrides(spn_session_t* session, spn_resolve_query
       continue;
     }
 
-    spn_path_t patch = spn_path_join(spn.mem, session->ctx->paths.patches, pkg->origin.release->id.name);
+    spn_path_t patch = spn_path_join(spn.mem, session->ctx->paths.patches, pkg->name.str);
     spn_path_t path = spn_path_join(spn.mem, patch, pkg->origin.paths.manifest);
     if (!sp_fs_exists_at(spn_path_at(&session->ctx->roots, path))) {
       continue;
@@ -37,14 +35,13 @@ static spn_err_t apply_patch_overrides(spn_session_t* session, spn_resolve_query
     si_pkg_info_t* manifest = sp_alloc_type(session->mem, si_pkg_info_t);
     spn_err_union_t err = sp_zero;
     if (spn_pkg_load(session->mem, session->ctx->intern, &session->ctx->roots, path, manifest, &err)) {
-      result = spn_err_emit(session->ctx, spn_err_about(err, sp_intern_find(session->ctx->intern, pkg->id.qualified)));
+      result = spn_err_emit(session->ctx, spn_err_about(err, pkg->name.str));
       continue;
     }
 
     pkg->origin.recipe = (spn_pkg_root_t) { .kind = SPN_PKG_ROOT_LOCAL, .local = patch };
     pkg->origin.source = manifest->upstream;
     pkg->origin.manifest = manifest;
-    pkg->name = manifest->name;
     pkg->options.decls = manifest->options;
   }
   return result;
@@ -52,7 +49,7 @@ static spn_err_t apply_patch_overrides(spn_session_t* session, spn_resolve_query
 
 static void add_root(spn_session_t* session, spn_resolve_query_t* query) {
   spn_resolve_query_add(query, (spn_requested_dep_t) {
-    .qualified = session->manifest->qualified,
+    .name = session->manifest->name,
     .source = SPN_PKG_SOURCE_ROOT,
   });
 }
@@ -62,7 +59,7 @@ static void emit_resolved(spn_resolve_query_t* query) {
     spn_event_buffer_push(spn.events, (spn_event_t) {
       .kind = SPN_EVENT_RESOLVE_PACKAGE,
       .resolve_pkg = {
-        .name = spn_intern_find(it.val->id.qualified),
+        .name = it.val->name.str,
         .version = spn_semver_to_str(spn.events->mem, it.val->id.version),
       }
     });
@@ -84,7 +81,7 @@ spn_err_t spn_resolve(spn_op_t* op) {
     .pkg = session->manifest->name.str,
   });
 
-  sp_ht_insert(session->registry, ((spn_pkg_id_t) { .qualified = session->manifest->qualified.id }), ((spn_registry_pkg_t) {
+  sp_ht_insert(session->registry, ((spn_pkg_id_t) { .name = session->manifest->name.id }), ((spn_registry_pkg_t) {
     .source = SPN_PKG_SOURCE_ROOT,
     .manifest = session->manifest,
     .path = session->project->paths.manifest,

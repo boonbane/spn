@@ -6,10 +6,10 @@ static const test_t tests [] = {
     .project = "test/integration/fixtures/deps/index/binary_static",
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { "build" } },
-      { .kind = ACTION_REMOVE_DIR, .rm = { .dir = ".home/storage/cache/store/core/spum" } },
+      { .kind = ACTION_REMOVE_DIR, .rm = { .dir = ".home/storage/cache/store/spum" } },
       { .kind = ACTION_REMOVE_DIR, .rm = { .dir = "build" } },
       { .kind = ACTION_RUN_CLI, .cli = { "build" } },
-      { .kind = ACTION_VERIFY_EXISTS, .exists = lit(".home/storage/cache/store/core/spum") },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = lit(".home/storage/cache/store/spum") },
       { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
     },
   },

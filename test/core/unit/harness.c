@@ -3,7 +3,6 @@
 #include "event/event.h"
 #include "hash/digest/digest.h"
 #include "paths/paths.h"
-#include "pkg/id.h"
 #include "profile/profile.h"
 #include "toolchain/toolchain.h"
 #include "toolchain/sdk.h"
@@ -93,7 +92,12 @@ static void declare_target(sp_mem_t mem, si_pkg_info_t* manifest, const graph_ta
   decl->linkages = spec->linkages;
   decl->no_link = spec->no_link;
   decl->source = gated_sources(mem, spec->source, UNIT_TEST_MAX_STRS);
-  decl->deps = gated_list(mem, spec->deps, UNIT_TEST_MAX_STRS);
+  sp_for(it, UNIT_TEST_MAX_STRS) {
+    if (!spec->deps[it]) {
+      break;
+    }
+    si_da_push(mem, decl->deps, ((spn_gated_dep_t) { .name = spn_intern_cstr(spec->deps[it]) }));
+  }
   decl->include = gated_paths(mem, spec->include, UNIT_TEST_MAX_STRS);
   decl->define = gated_list(mem, spec->define, UNIT_TEST_MAX_STRS);
   decl->system_deps = gated_list(mem, spec->system_deps, UNIT_TEST_MAX_STRS);
@@ -204,7 +208,7 @@ static void bind_cc(spn_toolchain_unit_t* unit) {
 }
 
 static spn_pkg_id_t pkg_id(const c8* name) {
-  return (spn_pkg_id_t) { .qualified = spn_intern(spn_pkg_canonicalize_name(sp_cstr_as_str(name))).id };
+  return (spn_pkg_id_t) { .name = spn_intern_cstr(name).id };
 }
 
 static const graph_pkg_t* pkg_spec(units_t* u, const c8* name) {
@@ -292,7 +296,6 @@ units_t* units_new(sp_test_t* t, const graph_t* g) {
 
     si_pkg_info_t* manifest = sp_alloc_type(mem, si_pkg_info_t);
     *manifest = test_manifest_make(sp_cstr_as_str(spec->name));
-    manifest->qualified = spn_intern(spn_pkg_canonicalize_name(manifest->name.str));
     manifest->include = gated_paths(mem, spec->include, UNIT_TEST_MAX_STRS);
     manifest->define = gated_list(mem, spec->define, UNIT_TEST_MAX_STRS);
     manifest->system_deps = gated_list(mem, spec->system_deps, UNIT_TEST_MAX_STRS);
@@ -391,7 +394,7 @@ spn_err_t units_add_package(units_t* u, const c8* pkg, spn_pkg_unit_t** unit) {
 }
 
 spn_err_t units_add_target(units_t* u, spn_pkg_unit_t* pkg, graph_root_t root, spn_target_unit_t** unit) {
-  si_target_t* target = spn_pkg_get_target(&pkg->pkg, sp_cstr_as_str(root.name), root.kind);
+  si_target_t* target = spn_pkg_get_target(&pkg->pkg, spn_intern_cstr(root.name).id, root.kind);
   sp_assert(target);
   return si_add_target_unit(&u->units, pkg, target, unit);
 }

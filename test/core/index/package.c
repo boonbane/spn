@@ -1,7 +1,6 @@
 #include "index.h"
 
 #include "index/release.h"
-#include "intern/intern.h"
 
 typedef struct {
   const c8* url;
@@ -90,7 +89,7 @@ sp_test_each(index_from_pkg, roots, test_t, tests, .setup = spn_test_ctx_setup) 
   sp_mem_t mem = sp_test_arena(t);
 
   si_pkg_info_t info = sp_zero;
-  info.qualified = spn_intern_lit("core/A");
+  info.name = spn_intern_lit("A");
   if (it->upstream.url) {
     info.upstream = (spn_pkg_root_t) {
       .kind = SPN_PKG_ROOT_GIT,

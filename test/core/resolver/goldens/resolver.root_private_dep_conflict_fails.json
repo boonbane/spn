@@ -1,8 +1,7 @@
 {
-  "version": 2,
+  "version": 3,
   "requests": [
     {
-      "namespace": "test",
       "name": "root",
       "kind": "package",
       "source": "root"
@@ -12,10 +11,9 @@
   "errors": [
     {
       "kind": "pkg_conflict",
-      "namespace": "spn",
       "name": "foo",
       "range": "^2.0.0",
-      "requester": "spn/gfx",
+      "requester": "gfx",
       "selected": "1.0.0"
     }
   ]

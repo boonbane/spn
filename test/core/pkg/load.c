@@ -6,7 +6,7 @@
 
 typedef struct {
   spn_err_t err;
-  const c8* qualified;
+  const c8* name;
   spn_err_t issue;
 } expect_t;
 
@@ -20,7 +20,7 @@ static const test_t tests [] = {
   {
     .name = "loads",
     .manifest = "A",
-    .expect = { .qualified = "core/A" },
+    .expect = { .name = "A" },
   },
   {
     .name = "issues",
@@ -45,7 +45,7 @@ sp_test_each(pkg_load, cases, test_t, tests, .setup = spn_test_ctx_setup) {
 
   switch (it->expect.err) {
     case SPN_OK: {
-      sp_expect_str_eq_c(t, pkg.qualified.str, it->expect.qualified);
+      sp_expect_str_eq_c(t, pkg.name.str, it->expect.name);
       break;
     }
     case SPN_ERR_MANIFEST_ISSUES: {

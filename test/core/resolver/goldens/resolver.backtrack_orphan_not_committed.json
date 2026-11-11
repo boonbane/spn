@@ -1,8 +1,7 @@
 {
-  "version": 2,
+  "version": 3,
   "requests": [
     {
-      "namespace": "test",
       "name": "root",
       "kind": "package",
       "source": "root"
@@ -10,27 +9,24 @@
   ],
   "packages": [
     {
-      "namespace": "spn",
       "name": "audio",
       "version": "1.0.0",
-      "hash": "4214aa67b9bf9490",
+      "hash": "96794014bac2950e",
       "source": "index",
       "recipe": "none"
     },
     {
-      "namespace": "test",
       "name": "root",
       "version": "0.0.1",
-      "hash": "66036fc97c6a74eb",
+      "hash": "9294572605cfae4f",
       "source": "root",
       "recipe": "local",
       "edges": [
         {
           "to": {
-            "namespace": "spn",
             "name": "audio",
             "version": "1.0.0",
-            "hash": "4214aa67b9bf9490"
+            "hash": "96794014bac2950e"
           },
           "kind": "package",
           "edge": "scope"

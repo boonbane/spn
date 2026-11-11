@@ -3,7 +3,7 @@ version = "1.0.0"
 commit = "00c0fa98"
 
 [[dep]]
-name = "core/toml"
+name = "toml"
 version = "1.5.1"
 commit = "2e8ffdfa215c"
 kind = "index"
@@ -16,13 +16,13 @@ manifest_file = "spn.toml"
 script_file = "spn.c"
 
 [[dep]]
-name = "core/wamr"
+name = "wamr"
 version = "2.4.1"
 commit = ""
 kind = "file"
 
 [[dep]]
-name = "core/yyjson"
+name = "yyjson"
 version = "0.13.0"
 commit = "92ae1e2216548eb1dee78c09145a9a9bd067e9e9"
 kind = "index"
@@ -35,7 +35,7 @@ manifest_file = "spn.toml"
 script_file = "spn.c"
 
 [[dep]]
-name = "spader/sp"
+name = "sp"
 version = "3.5.0"
 commit = ""
 kind = "file"

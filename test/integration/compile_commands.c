@@ -15,8 +15,8 @@ static const command_test_t commands [] = {
     .args = { "build" },
     .expect.cc = {
       { .file = lit("tools/configure.c") },
-      { .file = lit("tools/build.c"), .include = ".home/storage/cache/store/core/alpha/" },
-      { .include = ".home/storage/cache/store/core/beta/" },
+      { .file = lit("tools/build.c"), .include = ".home/storage/cache/store/alpha/" },
+      { .include = ".home/storage/cache/store/beta/" },
     },
   },
 };

@@ -422,7 +422,7 @@ static spn_err_t plan_new(spn_units_t* u, sp_mem_t scratch, spn_pkg_unit_t* root
           return spn_err_emit(u->ctx, (spn_err_union_t) {
             .kind = source.kind == SPN_SOURCE_FILE ? SPN_ERR_CONFIGURE_SOURCE_MISSING : SPN_ERR_CONFIGURE_SOURCE_GLOB,
             .configure_source = {
-              .name = target->pkg->pkg.manifest->qualified.str,
+              .name = target->pkg->pkg.manifest->name.str,
               .source = spn_path_str(&u->ctx->roots, u->ctx->events->mem, source.path),
             },
           });

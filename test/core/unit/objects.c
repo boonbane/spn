@@ -68,7 +68,7 @@ sp_test_each(unit_objects, create, test_t, tests, .setup = spn_test_ctx_setup, .
   test_manifest_target(mem, units_manifest(u, "A"), sp_str_lit("X"), SPN_TARGET_KIND_EXE);
   spn_pkg_unit_t* pkg = SP_NULLPTR;
   sp_must_eq(t, SPN_OK, units_add_package(u, "A", &pkg));
-  si_target_t* target = spn_pkg_get_target(&pkg->pkg, sp_str_lit("X"), SPN_TARGET_KIND_EXE);
+  si_target_t* target = spn_pkg_get_target(&pkg->pkg, spn_intern_lit("X").id, SPN_TARGET_KIND_EXE);
   sp_must(t, target);
   sp_carr_for(it->source, st) {
     if (!it->source[st].path) {

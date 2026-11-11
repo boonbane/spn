@@ -1,8 +1,7 @@
 {
-  "version": 2,
+  "version": 3,
   "requests": [
     {
-      "namespace": "test",
       "name": "root",
       "kind": "package",
       "source": "root"
@@ -10,19 +9,17 @@
   ],
   "packages": [
     {
-      "namespace": "core",
       "name": "A",
       "version": "1.0.0",
-      "hash": "1e247beefb24c7b2",
+      "hash": "0ecd4a0c158773b1",
       "source": "index",
       "recipe": "local",
       "edges": [
         {
           "to": {
-            "namespace": "core",
             "name": "C",
             "version": "1.0.0",
-            "hash": "907c9fda83641051"
+            "hash": "7c45c354a2d8c1df"
           },
           "kind": "package",
           "edge": "scope"
@@ -30,27 +27,24 @@
       ]
     },
     {
-      "namespace": "core",
       "name": "C",
       "version": "1.0.0",
-      "hash": "907c9fda83641051",
+      "hash": "7c45c354a2d8c1df",
       "source": "index",
       "recipe": "none"
     },
     {
-      "namespace": "test",
       "name": "root",
       "version": "0.0.1",
-      "hash": "f8f295a75f2839c3",
+      "hash": "479214db127db40f",
       "source": "root",
       "recipe": "local",
       "edges": [
         {
           "to": {
-            "namespace": "core",
             "name": "A",
             "version": "1.0.0",
-            "hash": "1e247beefb24c7b2"
+            "hash": "0ecd4a0c158773b1"
           },
           "kind": "package",
           "edge": "scope"

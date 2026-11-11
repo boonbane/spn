@@ -1,20 +1,17 @@
 #include "fuzz.h"
 
-#include "intern/intern.h"
-#include "pkg/id.h"
 #include "semver/compare.h"
 
-s32 fz_pkg_from_qualified(fz_universe_t* u, sp_str_t qualified) {
+s32 fz_pkg_from_name(fz_universe_t* u, sp_str_t name) {
   sp_da_for(u->pkgs, it) {
-    sp_str_t expected = spn_pkg_canonicalize_pair(sp_str_lit("spn"), fz_pkg_name((u32)it));
-    if (sp_str_equal(qualified, expected)) {
+    if (sp_str_equal(name, fz_pkg_name((u32)it))) {
       return (s32)it;
     }
   }
   return -1;
 }
 
-fz_err_t fz_check_solve(fz_universe_t* u, sp_intern_t* intern, spn_resolve_query_t* query) {
+fz_err_t fz_check_solve(fz_universe_t* u, spn_resolve_query_t* query) {
   s64 picks[FZ_MAX_PKGS];
   sp_carr_for(picks, it) {
     picks[it] = -1;
@@ -22,11 +19,11 @@ fz_err_t fz_check_solve(fz_universe_t* u, sp_intern_t* intern, spn_resolve_query
 
   sp_ht_for_kv(query->result, it) {
     spn_resolved_pkg_t* node = it.val;
-    if (sp_str_equal(sp_intern_find(intern, node->id.qualified), sp_cstr_as_str(fz_root_qualified))) {
+    if (sp_str_equal(node->name.str, sp_cstr_as_str(fz_root_name))) {
       continue;
     }
 
-    s32 pkg = fz_pkg_from_qualified(u, sp_intern_find(intern, node->id.qualified));
+    s32 pkg = fz_pkg_from_name(u, node->name.str);
     if (pkg < 0) {
       return FZ_ERR_SOLVE_FOREIGN_PKG;
     }
@@ -82,15 +79,15 @@ static s32 fz_sort_pick(const void* a, const void* b) {
   return 0;
 }
 
-fz_solution_t fz_solution(sp_mem_t mem, fz_universe_t* u, sp_intern_t* intern, spn_resolve_query_t* query) {
+fz_solution_t fz_solution(sp_mem_t mem, fz_universe_t* u, spn_resolve_query_t* query) {
   fz_solution_t solution = sp_da_new(mem, fz_pick_t);
   sp_ht_for_kv(query->result, it) {
     spn_resolved_pkg_t* node = it.val;
-    if (sp_str_equal(sp_intern_find(intern, node->id.qualified), sp_cstr_as_str(fz_root_qualified))) {
+    if (sp_str_equal(node->name.str, sp_cstr_as_str(fz_root_name))) {
       continue;
     }
     sp_da_push(solution, ((fz_pick_t) {
-      .pkg = fz_pkg_from_qualified(u, sp_intern_find(intern, node->id.qualified)),
+      .pkg = fz_pkg_from_name(u, node->name.str),
       .version = node->id.version,
       .hash = node->id.hash,
     }));

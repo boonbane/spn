@@ -33,9 +33,9 @@ static const test_t tests [] = {
   {
     .name = "index_package_lives_under_the_build_and_store_dirs",
     .source = SPN_PKG_SOURCE_INDEX,
-    .work =    { .root = SPN_PATH_ROOT_STORAGE, .prefix = "cache/build/core/A/" },
-    .store =   { .root = SPN_PATH_ROOT_STORAGE, .prefix = "cache/store/core/A/" },
-    .include = { .root = SPN_PATH_ROOT_STORAGE, .prefix = "cache/store/core/A/", .suffix = "/include" },
+    .work =    { .root = SPN_PATH_ROOT_STORAGE, .prefix = "cache/build/A/" },
+    .store =   { .root = SPN_PATH_ROOT_STORAGE, .prefix = "cache/store/A/" },
+    .include = { .root = SPN_PATH_ROOT_STORAGE, .prefix = "cache/store/A/", .suffix = "/include" },
   },
 };
 

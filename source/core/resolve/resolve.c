@@ -12,8 +12,6 @@
 #include "error/error.h"
 #include "index/cache.h"
 #include "index/index.h"
-#include "intern/intern.h"
-#include "pkg/id.h"
 #include "pkg/load.h"
 #include "resolve/resolve.h"
 #include "semver/compare.h"
@@ -145,17 +143,13 @@ static spn_dep_kind_t dep_kind_from_index(spn_index_dep_kind_t kind) {
   sp_unreachable_return(SPN_DEP_KIND_PACKAGE);
 }
 
-static spn_err_pkg_name_t err_pkg_name(spn_pkg_name_t id) {
-  return (spn_err_pkg_name_t) { .name = id.name, .namespace = id.namespace };
-}
-
 static spn_err_union_t unsatisfiable_err(spn_resolver_t* resolver, spn_resolved_pkg_t* from, spn_requested_dep_t* request, spn_err_t kind, spn_semver_t selected) {
   return (spn_err_union_t) {
     .kind = kind,
-    .subject = request->qualified.str,
+    .subject = request->name.str,
     .unsatisfiable = {
       .range = request->source == SPN_PKG_SOURCE_INDEX ? spn_semver_range_to_str(resolver->mem, request->index.range) : sp_str_lit(""),
-      .requester = from ? sp_intern_find(resolver->intern, from->id.qualified) : sp_str_lit(""),
+      .requester = from ? from->name.str : sp_str_lit(""),
       .requester_version = from ? from->id.version : sp_zero_s(spn_semver_t),
       .selected = selected,
     }
@@ -163,7 +157,7 @@ static spn_err_union_t unsatisfiable_err(spn_resolver_t* resolver, spn_resolved_
 }
 
 static spn_err_union_t load_file_pkg(spn_resolver_t* resolver, spn_requested_dep_t* request, spn_registry_pkg_t** pkg) {
-  spn_pkg_id_t id = { .qualified = request->qualified.id };
+  spn_pkg_id_t id = { .name = request->name.id };
   spn_registry_pkg_t* existing = sp_ht_getp(*resolver->registry, id);
   if (existing) {
     *pkg = existing;
@@ -176,7 +170,7 @@ static spn_err_union_t load_file_pkg(spn_resolver_t* resolver, spn_requested_dep
   if (!sp_fs_exists_at(spn_path_at(resolver->roots, path))) {
     return (spn_err_union_t) {
       .kind = SPN_ERR_NO_MANIFEST,
-      .subject = request->qualified.str,
+      .subject = request->name.str,
       .no_manifest = { .path = spn_path_str(resolver->roots, resolver->mem, path) },
     };
   }
@@ -184,15 +178,15 @@ static spn_err_union_t load_file_pkg(spn_resolver_t* resolver, spn_requested_dep
   si_pkg_info_t* manifest = sp_alloc_type(resolver->mem, si_pkg_info_t);
   spn_err_union_t err = sp_zero;
   if (spn_pkg_load(resolver->mem, resolver->intern, resolver->roots, path, manifest, &err)) {
-    return spn_err_about(err, request->qualified.str);
+    return spn_err_about(err, request->name.str);
   }
 
   // Option requests, config keys, and edge lookups all route by the name the
   // edge requested; a manifest declaring some other name would strand them
-  if (manifest->qualified.id != request->qualified.id) {
+  if (manifest->name.id != request->name.id) {
     return (spn_err_union_t) {
       .kind = SPN_ERR_PKG_MISMATCH,
-      .mismatch = { .path = spn_path_str(resolver->roots, resolver->mem, path), .declared = manifest->qualified.str, .requested = request->qualified.str },
+      .mismatch = { .path = spn_path_str(resolver->roots, resolver->mem, path), .declared = manifest->name.str, .requested = request->name.str },
     };
   }
 
@@ -234,7 +228,7 @@ static bool target_selects_shared(spn_linkage_set_t linkages, spn_kind_query_t q
 static void node_options_env(spn_resolver_t* resolver, spn_resolved_pkg_t* node, spn_when_env_t* env) {
   spn_option_requests_t* seeds = SP_NULLPTR;
   if (resolver->seeds) {
-    seeds = sp_ht_getp(resolver->seeds, node->id.qualified);
+    seeds = sp_ht_getp(resolver->seeds, node->id.name);
   }
   spn_option_subject_t subject = { .name = node->name, .is_root = node->source == SPN_PKG_SOURCE_ROOT, .options = node->options.decls };
   spn_merged_options_t merged = sp_zero;
@@ -288,7 +282,7 @@ static bool node_is_shared(spn_resolver_t* resolver, spn_resolved_pkg_t* node) {
     }
     case SPN_PKG_SOURCE_ROOT:
     case SPN_PKG_SOURCE_FILE: {
-      spn_registry_pkg_t* pkg = sp_ht_getp(*resolver->registry, ((spn_pkg_id_t) { .qualified = node->id.qualified }));
+      spn_registry_pkg_t* pkg = sp_ht_getp(*resolver->registry, ((spn_pkg_id_t) { .name = node->id.name }));
       if (!pkg) {
         return false;
       }
@@ -365,7 +359,7 @@ static s32 sort_req_canonical(const void* a, const void* b) {
   const spn_requested_dep_t* lhs = (const spn_requested_dep_t*)a;
   const spn_requested_dep_t* rhs = (const spn_requested_dep_t*)b;
 
-  s32 order = sp_str_compare_alphabetical(lhs->qualified.str, rhs->qualified.str);
+  s32 order = sp_str_compare_alphabetical(lhs->name.str, rhs->name.str);
   if (order) return order;
   if (lhs->kind != rhs->kind) return lhs->kind < rhs->kind ? -1 : 1;
   if (lhs->private != rhs->private) return lhs->private < rhs->private ? -1 : 1;
@@ -408,9 +402,13 @@ static bool find_pin(spn_scope_t* scope, sp_intern_id_t name, spn_semver_t* vers
   return found;
 }
 
+static bool pkg_id_eq(spn_pkg_id_t a, spn_pkg_id_t b) {
+  return a.name == b.name && spn_semver_eq(a.version, b.version);
+}
+
 static spn_scope_t* find_scope(spn_resolve_run_t* run, sp_intern_id_t root, spn_pkg_id_t from) {
   sp_da_for(run->scopes, it) {
-    if (run->scopes[it].root == root && spn_pkg_id_eq(run->scopes[it].from, from)) {
+    if (run->scopes[it].root == root && pkg_id_eq(run->scopes[it].from, from)) {
       return &run->scopes[it];
     }
   }
@@ -419,7 +417,7 @@ static spn_scope_t* find_scope(spn_resolve_run_t* run, sp_intern_id_t root, spn_
 
 static u32 find_or_create_scope(spn_resolver_t* resolver, spn_resolve_run_t* run, sp_intern_id_t root, spn_pkg_id_t from) {
   sp_da_for(run->scopes, it) {
-    if (run->scopes[it].root == root && spn_pkg_id_eq(run->scopes[it].from, from)) {
+    if (run->scopes[it].root == root && pkg_id_eq(run->scopes[it].from, from)) {
       return (u32)it;
     }
   }
@@ -438,13 +436,12 @@ static u32 find_or_create_scope(spn_resolver_t* resolver, spn_resolve_run_t* run
 
 static spn_err_union_t resolve_local_package(spn_resolver_t* resolver, spn_resolve_run_t* run, spn_resolved_pkg_t* from, spn_requested_dep_t* request) {
   spn_scope_t* scope = &run->scopes[run->scope];
-  sp_intern_id_t name = request->qualified.id;
+  sp_intern_id_t name = request->name.id;
 
   if (sp_ht_getp(run->visited, name)) {
     return (spn_err_union_t) {
       .kind = SPN_ERR_DEP_CYCLE,
-      .subject = request->qualified.str,
-      .circular.id = err_pkg_name(spn_pkg_name_from_qualified(request->qualified.str)),
+      .subject = request->name.str,
     };
   }
 
@@ -452,7 +449,7 @@ static spn_err_union_t resolve_local_package(spn_resolver_t* resolver, spn_resol
     return ok_union();
   }
 
-  spn_registry_pkg_t* pkg = sp_ht_getp(*resolver->registry, ((spn_pkg_id_t) { .qualified = name }));
+  spn_registry_pkg_t* pkg = sp_ht_getp(*resolver->registry, ((spn_pkg_id_t) { .name = name }));
 
   // If the package is local, just load it
   if (!pkg && request->source == SPN_PKG_SOURCE_FILE) {
@@ -462,7 +459,7 @@ static spn_err_union_t resolve_local_package(spn_resolver_t* resolver, spn_resol
   if (!pkg) {
     return (spn_err_union_t) {
       .kind = SPN_ERR_PKG_UNKNOWN,
-      .subject = request->qualified.str,
+      .subject = request->name.str,
     };
   }
 
@@ -477,7 +474,7 @@ static spn_err_union_t resolve_local_package(spn_resolver_t* resolver, spn_resol
 
   spn_resolved_pkg_t node = {
     .id = {
-      .qualified = pkg->manifest->qualified.id,
+      .name = pkg->manifest->name.id,
       .version = pkg->manifest->version,
     },
     .name = pkg->manifest->name,
@@ -516,22 +513,19 @@ static spn_err_union_t try_candidate(spn_resolver_t* resolver, spn_resolve_run_t
     run->fatal = true;
     return (spn_err_union_t) {
       .kind = SPN_ERR_RESOLVE_TOO_COMPLEX,
-      .subject = spn_pkg_name_to_qualified(release->id),
-      .too_complex.id = err_pkg_name(release->id),
+      .subject = release->name.str,
     };
   }
   run->budget--;
 
   spn_scope_t* scope = &run->scopes[run->scope];
-  sp_str_t qualified = spn_pkg_name_to_qualified(release->id);
-  sp_intern_id_t name = sp_intern(resolver->intern, qualified).id;
 
   spn_resolved_pkg_t node = {
     .id = {
-      .qualified = name,
+      .name = release->name.id,
       .version = release->version,
     },
-    .name = sp_intern(resolver->intern, release->id.name),
+    .name = release->name,
     .options = { .decls = release->options },
     .source = SPN_PKG_SOURCE_INDEX,
     .origin = {
@@ -552,7 +546,7 @@ static spn_err_union_t try_candidate(spn_resolver_t* resolver, spn_resolve_run_t
     }
 
     sp_da_push(node.deps, ((spn_requested_dep_t) {
-      .qualified = sp_intern(resolver->intern, spn_pkg_name_to_qualified(release->deps[it].id)),
+      .name = release->deps[it].name,
       .source = SPN_PKG_SOURCE_INDEX,
       .kind = dep_kind_from_index(release->deps[it].kind),
       .private = release->deps[it].private,
@@ -565,18 +559,17 @@ static spn_err_union_t try_candidate(spn_resolver_t* resolver, spn_resolve_run_t
   }
   sp_da_sort(node.deps, sort_req_canonical);
 
-  return solve_node(resolver, run, scope, name, &node);
+  return solve_node(resolver, run, scope, release->name.id, &node);
 }
 
 static spn_err_union_t resolve_index_package(spn_resolver_t* resolver, spn_resolve_run_t* run, spn_resolved_pkg_t* from, spn_requested_dep_t* request) {
   spn_scope_t* scope = &run->scopes[run->scope];
-  sp_intern_id_t name = request->qualified.id;
+  sp_intern_id_t name = request->name.id;
 
   if (sp_ht_getp(run->visited, name)) {
     return (spn_err_union_t) {
       .kind = SPN_ERR_DEP_CYCLE,
-      .subject = request->qualified.str,
-      .circular.id = err_pkg_name(spn_pkg_name_from_qualified(request->qualified.str)),
+      .subject = request->name.str,
     };
   }
 
@@ -593,13 +586,13 @@ static spn_err_union_t resolve_index_package(spn_resolver_t* resolver, spn_resol
 
   spn_index_pkg_t* pkg = SP_NULLPTR;
   spn_err_union_t err = sp_zero;
-  if (spn_index_cache_get_package(resolver->index, spn_pkg_name_from_qualified(request->qualified.str), &pkg, &err)) {
+  if (spn_index_cache_get_package(resolver->index, request->name, &pkg, &err)) {
     return err;
   }
   if (!pkg) {
     return (spn_err_union_t) {
       .kind = SPN_ERR_PKG_UNKNOWN,
-      .subject = request->qualified.str,
+      .subject = request->name.str,
       .unknown = {
         .range = spn_semver_range_to_str(resolver->mem, request->index.range),
       },
@@ -700,7 +693,7 @@ static spn_err_union_t resolve_dep(spn_resolver_t* resolver, spn_resolve_run_t* 
 }
 
 static spn_err_union_t resolve_deps(spn_resolver_t* resolver, spn_resolve_run_t* run, spn_resolved_pkg_t* node) {
-  sp_ht_insert(run->visited, node->id.qualified, (u8)true);
+  sp_ht_insert(run->visited, node->id.name, (u8)true);
 
   spn_err_union_t err = sp_zero;
   sp_da_for(node->deps, it) {
@@ -708,13 +701,12 @@ static spn_err_union_t resolve_deps(spn_resolver_t* resolver, spn_resolve_run_t*
     if (err.kind) break;
   }
 
-  sp_ht_erase(run->visited, node->id.qualified);
+  sp_ht_erase(run->visited, node->id.name);
   return err;
 }
 
 static spn_err_union_t solve_reqs(spn_resolver_t* resolver, spn_resolve_run_t* run, u64 from, u64 to) {
   spn_resolved_pkg_t root = {
-    .id = spn_pkg_id(resolver->intern, sp_str_lit("")),
     .source = SPN_PKG_SOURCE_ROOT,
   };
 
@@ -840,7 +832,7 @@ static spn_err_union_t resolve_scope(spn_resolver_t* resolver, spn_resolve_run_t
   sp_da(spn_pin_t) pins = sp_da_new(scratch.mem, spn_pin_t);
   sp_da_for(picks, it) {
     sp_da_push(pins, ((spn_pin_t) {
-      .name = picks[it]->id.qualified,
+      .name = picks[it]->id.name,
       .version = picks[it]->id.version,
     }));
   }
@@ -919,8 +911,8 @@ static void process_boundaries(spn_resolver_t* resolver, spn_resolve_run_t* run)
     spn_scope_boundary_t boundary = run->boundaries[it];
 
     sp_intern_id_t root = boundary.edge == SPN_DEP_EDGE_PRIVATE ?
-      boundary.from.qualified :
-      boundary.req.qualified.id;
+      boundary.from.name :
+      boundary.req.name.id;
     u32 target = find_or_create_scope(resolver, run, root, boundary.from);
 
     sp_da_push(run->edges, ((spn_scope_edge_t) {
@@ -994,10 +986,10 @@ static sp_da(spn_node_edge_t) collect_node_edges(spn_resolver_t* resolver, spn_r
       continue;
     }
 
-    sp_intern_id_t name = dep->qualified.id;
+    sp_intern_id_t name = dep->name.id;
     u32 target_scope = scope_index;
     if (edge != SPN_DEP_EDGE_SCOPE) {
-      spn_scope_t* found = find_scope(run, edge == SPN_DEP_EDGE_PRIVATE ? node->id.qualified : name, node->id);
+      spn_scope_t* found = find_scope(run, edge == SPN_DEP_EDGE_PRIVATE ? node->id.name : name, node->id);
       if (!found) {
         continue;
       }
@@ -1047,9 +1039,8 @@ static spn_err_union_t check_group_cycle(spn_resolver_t* resolver, spn_resolve_r
   if (state && *state == 1) {
     return (spn_err_union_t) {
       .kind = SPN_ERR_UNIT_CYCLE,
-      .subject = sp_intern_find(resolver->intern, node->id.qualified),
+      .subject = node->name.str,
       .unit_cycle = {
-        .id = err_pkg_name(spn_pkg_name_from_qualified(sp_intern_find(resolver->intern, node->id.qualified))),
         .version = node->id.version,
       }
     };
@@ -1092,8 +1083,8 @@ static spn_err_union_t check_group_cycles(spn_resolver_t* resolver, spn_resolve_
   return err;
 }
 
-static sp_hash_t leaf_hash(spn_resolver_t* resolver, spn_resolved_pkg_t* instance) {
-  sp_hash_t hash = sp_hash_str(sp_intern_find(resolver->intern, instance->id.qualified));
+static sp_hash_t leaf_hash(spn_resolved_pkg_t* instance) {
+  sp_hash_t hash = sp_hash_str(instance->name.str);
   return sp_hash_bytes(&instance->id.version, sizeof(spn_semver_t), hash);
 }
 
@@ -1115,7 +1106,7 @@ static sp_hash_t hash_group_node(spn_resolver_t* resolver, spn_resolve_run_t* ru
     return state->hash;
   }
   if (state && state->state == 1) {
-    return leaf_hash(resolver, node);
+    return leaf_hash(node);
   }
 
   sp_ht_insert(memo, key, ((spn_hash_state_t) { .state = 1 }));
@@ -1132,7 +1123,7 @@ static sp_hash_t hash_group_node(spn_resolver_t* resolver, spn_resolve_run_t* ru
   }
   sp_da_sort(records, sort_edge_record);
 
-  sp_hash_t hash = leaf_hash(resolver, node);
+  sp_hash_t hash = leaf_hash(node);
   if (!sp_da_empty(records)) {
     hash = sp_hash_bytes(records, sp_da_size(records) * sizeof(spn_edge_record_t), hash);
   }
@@ -1212,9 +1203,9 @@ static spn_err_union_t check_dynamic_duplicates(spn_resolver_t* resolver, spn_re
         }
 
         sp_hash_t hash = sp_ht_getp(memo, ((spn_group_node_t) { .scope = (u32)s, .name = *it.key }))->hash;
-        spn_shared_seen_t* prior = sp_ht_getp(shared, node->id.qualified);
+        spn_shared_seen_t* prior = sp_ht_getp(shared, node->id.name);
         if (!prior) {
-          sp_ht_insert(shared, node->id.qualified, ((spn_shared_seen_t) { .node = node, .hash = hash }));
+          sp_ht_insert(shared, node->id.name, ((spn_shared_seen_t) { .node = node, .hash = hash }));
           continue;
         }
 
@@ -1227,9 +1218,8 @@ static spn_err_union_t check_dynamic_duplicates(spn_resolver_t* resolver, spn_re
         spn_semver_t high = ordered ? node->id.version : prior->node->id.version;
         result = (spn_err_union_t) {
           .kind = SPN_ERR_DYNAMIC_DUPLICATE,
-          .subject = sp_intern_find(resolver->intern, node->id.qualified),
+          .subject = node->name.str,
           .dynamic_dup = {
-            .id = err_pkg_name(spn_pkg_name_from_qualified(sp_intern_find(resolver->intern, node->id.qualified))),
             .low = low,
             .high = high,
           }
@@ -1240,8 +1230,8 @@ static spn_err_union_t check_dynamic_duplicates(spn_resolver_t* resolver, spn_re
         // versions everywhere might satisfy every scope. The caller re-solves
         // under each candidate and keeps the first full success.
         if (!run->has_forced && !spn_semver_eq(low, high)) {
-          run->retry[0] = (spn_pin_t) { .name = node->id.qualified, .version = low };
-          run->retry[1] = (spn_pin_t) { .name = node->id.qualified, .version = high };
+          run->retry[0] = (spn_pin_t) { .name = node->id.name, .version = low };
+          run->retry[1] = (spn_pin_t) { .name = node->id.name, .version = high };
           run->retries = 2;
         }
         goto done;

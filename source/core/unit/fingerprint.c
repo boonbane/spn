@@ -8,7 +8,7 @@
 #include "when/when.h"
 
 typedef struct {
-  sp_hash_t qualified;
+  sp_hash_t name;
   sp_hash_t commit;
   sp_hash_t options;
   sp_hash_t deps;
@@ -144,7 +144,7 @@ sp_hash_t spn_unit_fingerprint(spn_units_t* u, spn_build_unit_t* build, const sp
   const si_pkg_info_t* manifest = resolved->manifest;
 
   fingerprint_input_t fingerprint = sp_zero;
-  fingerprint.qualified = spn_digest_hash_str(manifest->qualified.str);
+  fingerprint.name = spn_digest_hash_str(manifest->name.str);
   fingerprint.options = hash_options(resolved->options.values);
   fingerprint.version = manifest->version;
   if (manifest->upstream.kind == SPN_PKG_ROOT_GIT) {

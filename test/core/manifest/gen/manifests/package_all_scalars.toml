@@ -1,7 +1,6 @@
 [package]
 name = "fullpkg"
 version = "2.3.4"
-namespace = "core"
 repo = "https://github.com/acme/fullpkg"
 author = "Ada Lovelace"
 maintainer = "Grace Hopper"

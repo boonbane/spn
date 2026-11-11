@@ -1,6 +1,5 @@
 #include "index/release.h"
 
-#include "pkg/id.h"
 #include "target/mutate.h"
 
 static spn_index_dep_kind_t dep_kind_to_index(spn_dep_kind_t kind) {
@@ -14,7 +13,7 @@ static spn_index_dep_kind_t dep_kind_to_index(spn_dep_kind_t kind) {
 
 spn_err_t spn_index_release_from_manifest(sp_mem_t mem, const si_pkg_info_t* manifest, spn_pkg_root_t published, spn_index_release_t* release, spn_err_union_t* err) {
   *release = (spn_index_release_t) {
-    .id = spn_pkg_name_from_qualified(manifest->qualified.str),
+    .name = manifest->name,
     .version = manifest->version,
     .source = manifest->upstream,
     .paths = {
@@ -37,7 +36,7 @@ spn_err_t spn_index_release_from_manifest(sp_mem_t mem, const si_pkg_info_t* man
     if (req->source != SPN_PKG_SOURCE_INDEX) {
       *err = (spn_err_union_t) {
         .kind = SPN_ERR_INDEX_PATH_DEP,
-        .pkg = { .name = manifest->qualified.str, .requested = req->qualified.str },
+        .pkg = { .name = manifest->name.str, .requested = req->name.str },
       };
       return err->kind;
     }
@@ -45,7 +44,7 @@ spn_err_t spn_index_release_from_manifest(sp_mem_t mem, const si_pkg_info_t* man
     sp_da_push(release->deps, ((spn_index_dep_t) {
       .kind = dep_kind_to_index(req->kind),
       .private = req->private,
-      .id = spn_pkg_name_from_qualified(req->qualified.str),
+      .name = req->name,
       .range = req->index.range,
       .when = req->when,
       .options = req->options,

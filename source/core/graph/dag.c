@@ -36,7 +36,7 @@ static spn_dag_digest_t hash_embedding(const spn_path_roots_t* roots, spn_target
   spn_digest_ctx_t ctx = sp_zero;
   spn_digest_init(&ctx);
   spn_dag_hash_str(&ctx, sp_str_lit("spn.build.embed.v9"));
-  spn_dag_hash_str(&ctx, unit->pkg->pkg.manifest->qualified.str);
+  spn_dag_hash_str(&ctx, unit->pkg->pkg.manifest->name.str);
   spn_dag_hash_str(&ctx, unit->target->info->name.str);
   spn_dag_hash_u8(&ctx, (u8)unit->target->info->kind);
   spn_profile_info_t* profile = &unit->pkg->build->profile;
@@ -215,7 +215,7 @@ static void hash_link_deps(spn_digest_ctx_t* digest, const spn_link_plan_t* link
   si_da_for(link->deps, it) {
     spn_link_dep_t* dep = &link->deps[it];
     spn_dag_hash_u8(digest, (u8)dep->role);
-    spn_dag_hash_str(digest, dep->lib->pkg->pkg.manifest->qualified.str);
+    spn_dag_hash_str(digest, dep->lib->pkg->pkg.manifest->name.str);
     spn_dag_hash_str(digest, dep->lib->target->info->name.str);
   }
 }
@@ -319,7 +319,7 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
     spn_digest_init(&digest);
     spn_dag_hash_str(&digest, sp_str_lit("spn.build.rsp.v3"));
     spn_dag_hash_u8(&digest, (u8)rsp->style);
-    spn_dag_hash_str(&digest, unit->pkg->pkg.manifest->qualified.str);
+    spn_dag_hash_str(&digest, unit->pkg->pkg.manifest->name.str);
     spn_dag_hash_str(&digest, unit->target->info->name.str);
 
     spn_dag_id_t action = spn_dag_add_action(g, (spn_dag_action_config_t) {
@@ -610,7 +610,7 @@ spn_err_t spn_dag_build_lower(spn_dag_build_t* b, const spn_build_plan_t* plan) 
     spn_digest_ctx_t digest = sp_zero;
     spn_digest_init(&digest);
     spn_dag_hash_str(&digest, sp_str_lit("spn.build.publish.v2"));
-    spn_dag_hash_str(&digest, pkg->pkg.manifest->qualified.str);
+    spn_dag_hash_str(&digest, pkg->pkg.manifest->name.str);
     hash_pin(&digest, &pkg->pin);
     si_da_for(publish->entries, it) {
       hash_publish(&digest, g->roots, &publish->entries[it]);
@@ -648,7 +648,7 @@ spn_err_t spn_dag_build_lower(spn_dag_build_t* b, const spn_build_plan_t* plan) 
     spn_digest_ctx_t digest = sp_zero;
     spn_digest_init(&digest);
     spn_dag_hash_str(&digest, sp_str_lit("spn.build.user.v9"));
-    spn_dag_hash_str(&digest, pkg->pkg.manifest->qualified.str);
+    spn_dag_hash_str(&digest, pkg->pkg.manifest->name.str);
     spn_dag_hash_u64(&digest, pkg->fingerprint);
     hash_pin(&digest, &pkg->pin);
     spn_dag_hash_str(&digest, node->tag);

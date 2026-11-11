@@ -1,8 +1,7 @@
 {
-  "version": 2,
+  "version": 3,
   "requests": [
     {
-      "namespace": "test",
       "name": "root",
       "kind": "package",
       "source": "root"
@@ -12,10 +11,9 @@
   "errors": [
     {
       "kind": "pkg_conflict",
-      "namespace": "spn",
       "name": "math",
       "range": "^1.0.0",
-      "requester": "test/root",
+      "requester": "root",
       "selected": "2.0.0"
     }
   ]

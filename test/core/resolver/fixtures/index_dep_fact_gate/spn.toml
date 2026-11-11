@@ -1,7 +1,6 @@
 [package]
-namespace = "test"
 name = "root"
 version = "0.0.1"
 
 [deps.package]
-'spn/a' = { version = "^1.0.0" }
+a = { version = "^1.0.0" }
