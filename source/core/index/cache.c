@@ -1,34 +1,33 @@
 #include "index/cache.h"
 #include "index/index.h"
-#include "pkg/id.h"
 
 void spn_index_cache_init(spn_index_cache_t* cache, sp_mem_t mem, sp_intern_t* intern, const spn_path_roots_t* roots, sp_da(spn_index_info_t)* indexes) {
   cache->mem = mem;
   cache->intern = intern;
   cache->roots = roots;
   cache->indexes = indexes;
-  sp_str_om_new(cache->packages);
+  sp_ht_init(mem, cache->packages);
 }
 
-spn_err_t spn_index_cache_get_package(spn_index_cache_t* cache, spn_pkg_name_t id, spn_index_pkg_t** pkg, spn_err_union_t* err) {
+spn_err_t spn_index_cache_get_package(spn_index_cache_t* cache, sp_intern_str_t name, spn_index_pkg_t** pkg, spn_err_union_t* err) {
   *pkg = SP_NULLPTR;
 
-  sp_str_t qualified = spn_pkg_name_to_qualified(id);
-  if (sp_str_om_has(cache->packages, qualified)) {
-    *pkg = *sp_str_om_get(cache->packages, qualified);
+  spn_index_pkg_t** cached = sp_ht_getp(cache->packages, name.id);
+  if (cached) {
+    *pkg = *cached;
     return SPN_OK;
   }
 
   spn_index_pkg_t* package = SP_NULLPTR;
   sp_da_for(*cache->indexes, it) {
     spn_index_info_t* index = &(*cache->indexes)[it];
-    spn_try(spn_index_get_package(index, cache->mem, cache->intern, cache->roots, id, &package, err));
+    spn_try(spn_index_get_package(index, cache->mem, cache->intern, cache->roots, name, &package, err));
     if (package) {
       break;
     }
   }
 
-  sp_str_om_insert(cache->packages, qualified, package);
+  sp_ht_insert(cache->packages, name.id, package);
   *pkg = package;
   return SPN_OK;
 }

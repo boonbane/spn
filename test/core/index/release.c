@@ -1,7 +1,6 @@
 #include "index.h"
 
 typedef struct {
-  const c8* namespace;
   const c8* name;
   const c8* version;
   spn_index_dep_kind_t kind;
@@ -13,7 +12,6 @@ typedef struct {
 } release_target_t;
 
 typedef struct {
-  const c8* namespace;
   const c8* name;
   const c8* version;
   bool yanked;
@@ -42,7 +40,6 @@ static const release_test_t tests [] = {
     .expect = {
       .releases = {
         {
-          .namespace = "core",
           .name = "spum",
           .version = "1.0.0",
         },
@@ -55,7 +52,6 @@ static const release_test_t tests [] = {
     .expect = {
       .releases = {
         {
-          .namespace = "core",
           .name = "spum",
           .version = "2.1.0",
           .yanked = true,
@@ -63,9 +59,9 @@ static const release_test_t tests [] = {
           .manifest = { .url = "https://github.com/example/packages", .rev = "def456", .dir = "spum" },
           .paths = { .manifest = "spn.toml" },
           .deps = {
-            { .namespace = "core", .name = "curl", .version = "^1.0.0", .kind = SPN_INDEX_DEP_NORMAL },
-            { .namespace = "core", .name = "cmake", .version = "^3.0.0", .kind = SPN_INDEX_DEP_BUILD },
-            { .namespace = "core", .name = "utest", .version = "^1.0.0", .kind = SPN_INDEX_DEP_TEST },
+            { .name = "curl", .version = "^1.0.0", .kind = SPN_INDEX_DEP_NORMAL },
+            { .name = "cmake", .version = "^3.0.0", .kind = SPN_INDEX_DEP_BUILD },
+            { .name = "utest", .version = "^1.0.0", .kind = SPN_INDEX_DEP_TEST },
           },
           .targets = {
             { .name = "spum", .linkages = { SPN_LIB_KIND_SOURCE, SPN_LIB_KIND_STATIC, SPN_LIB_KIND_SHARED } },
@@ -81,7 +77,6 @@ static const release_test_t tests [] = {
     .expect = {
       .releases = {
         {
-          .namespace = "core",
           .name = "spum",
           .version = "1.0.0",
           .source = { .url = "https://github.com/example/spum" },
@@ -95,8 +90,8 @@ static const release_test_t tests [] = {
     .golden = true,
     .expect = {
       .releases = {
-        { .namespace = "core", .name = "spum", .version = "1.0.0" },
-        { .namespace = "core", .name = "spum", .version = "2.0.0" },
+        { .name = "spum", .version = "1.0.0" },
+        { .name = "spum", .version = "2.0.0" },
       },
     },
   },
@@ -105,7 +100,6 @@ static const release_test_t tests [] = {
     .expect = {
       .releases = {
         {
-          .namespace = "core",
           .name = "spum",
           .version = "1.0.0",
           .source = { .url = "git@github.com:A/B.git", .rev = "abc123" },
@@ -120,7 +114,6 @@ static const release_test_t tests [] = {
     .expect = {
       .releases = {
         {
-          .namespace = "core",
           .name = "spum",
           .version = "1.0.0",
           .targets = {
@@ -135,7 +128,6 @@ static const release_test_t tests [] = {
     .expect = {
       .releases = {
         {
-          .namespace = "core",
           .name = "spum",
           .version = "1.0.0",
           .targets = {
@@ -150,11 +142,10 @@ static const release_test_t tests [] = {
     .expect = {
       .releases = {
         {
-          .namespace = "core",
           .name = "spum",
           .version = "1.0.0",
           .deps = {
-            { .namespace = "core", .name = "curl", .version = "^1.0.0", .kind = SPN_INDEX_DEP_NORMAL },
+            { .name = "curl", .version = "^1.0.0", .kind = SPN_INDEX_DEP_NORMAL },
           },
         },
       },
@@ -165,11 +156,10 @@ static const release_test_t tests [] = {
     .expect = {
       .releases = {
         {
-          .namespace = "core",
           .name = "spum",
           .version = "1.0.0",
           .deps = {
-            { .namespace = "core", .name = "curl", .version = "^1.0.0", .kind = SPN_INDEX_DEP_NORMAL },
+            { .name = "curl", .version = "^1.0.0", .kind = SPN_INDEX_DEP_NORMAL },
           },
         },
       },
@@ -180,11 +170,10 @@ static const release_test_t tests [] = {
     .expect = {
       .releases = {
         {
-          .namespace = "core",
           .name = "spum",
           .version = "1.0.0",
           .deps = {
-            { .namespace = "core", .name = "curl", .version = "^1.0.0", .kind = SPN_INDEX_DEP_NORMAL },
+            { .name = "curl", .version = "^1.0.0", .kind = SPN_INDEX_DEP_NORMAL },
           },
         },
       },
@@ -194,7 +183,7 @@ static const release_test_t tests [] = {
     .name = "unknown_field",
     .expect = {
       .releases = {
-        { .namespace = "core", .name = "spum", .version = "1.0.0" },
+        { .name = "spum", .version = "1.0.0" },
       },
     },
   },
@@ -202,7 +191,7 @@ static const release_test_t tests [] = {
     .name = "targets_not_array",
     .expect = {
       .releases = {
-        { .namespace = "core", .name = "spum", .version = "1.0.0" },
+        { .name = "spum", .version = "1.0.0" },
       },
     },
   },
@@ -210,9 +199,9 @@ static const release_test_t tests [] = {
     .name = "unsorted",
     .expect = {
       .releases = {
-        { .namespace = "core", .name = "spum", .version = "1.0.0" },
-        { .namespace = "core", .name = "spum", .version = "2.0.0" },
-        { .namespace = "core", .name = "spum", .version = "3.0.0" },
+        { .name = "spum", .version = "1.0.0" },
+        { .name = "spum", .version = "2.0.0" },
+        { .name = "spum", .version = "3.0.0" },
       },
     },
   },
@@ -220,8 +209,8 @@ static const release_test_t tests [] = {
     .name = "blank_lines",
     .expect = {
       .releases = {
-        { .namespace = "core", .name = "spum", .version = "1.0.0" },
-        { .namespace = "core", .name = "spum", .version = "2.0.0" },
+        { .name = "spum", .version = "1.0.0" },
+        { .name = "spum", .version = "2.0.0" },
       },
     },
   },
@@ -254,10 +243,6 @@ static const release_test_t tests [] = {
     .expect = { .err = SPN_ERROR },
   },
   {
-    .name = "namespace_mismatch",
-    .expect = { .err = SPN_ERROR },
-  },
-  {
     .name = "empty",
     .expect = { .err = SPN_ERROR },
   },
@@ -273,10 +258,7 @@ static const release_test_t tests [] = {
 
 static spn_index_release_t release_build(sp_mem_t mem, const release_rel_t* rel) {
   spn_index_release_t built = {
-    .id = {
-      .namespace = sp_cstr_as_str(rel->namespace),
-      .name = sp_cstr_as_str(rel->name),
-    },
+    .name = spn_intern_cstr(rel->name),
     .version = spn_semver_from_str(sp_cstr_as_str(rel->version)),
     .yanked = rel->yanked,
   };
@@ -305,13 +287,10 @@ static spn_index_release_t release_build(sp_mem_t mem, const release_rel_t* rel)
 
   sp_da_init(mem, built.deps);
   sp_carr_for(rel->deps, it) {
-    if (!rel->deps[it].namespace) { break; }
+    if (!rel->deps[it].name) { break; }
     spn_index_dep_t dep = {
       .kind = rel->deps[it].kind,
-      .id = {
-        .namespace = sp_cstr_as_str(rel->deps[it].namespace),
-        .name = sp_cstr_as_str(rel->deps[it].name),
-      },
+      .name = spn_intern_cstr(rel->deps[it].name),
     };
     sp_assert(!spn_semver_parse_range(sp_cstr_as_str(rel->deps[it].version), &dep.range));
     sp_da_push(built.deps, dep);
@@ -335,8 +314,7 @@ static spn_index_release_t release_build(sp_mem_t mem, const release_rel_t* rel)
 }
 
 static sp_err_t release_check(sp_test_t* t, sp_mem_t mem, const release_rel_t* expected, spn_index_release_t* rel) {
-  sp_expect_str_eq_c(t, rel->id.namespace, expected->namespace);
-  sp_expect_str_eq_c(t, rel->id.name, expected->name);
+  sp_expect_str_eq_c(t, rel->name.str, expected->name);
   sp_expect_str_eq_c(t, spn_semver_to_str(mem, rel->version), expected->version);
   sp_expect_eq(t, expected->yanked, rel->yanked);
 
@@ -359,12 +337,11 @@ static sp_err_t release_check(sp_test_t* t, sp_mem_t mem, const release_rel_t* e
   if (expected->paths.manifest) { sp_expect_str_eq_c(t, rel->paths.manifest, expected->paths.manifest); }
 
   u32 num_deps = 0;
-  sp_carr_detect_len(expected->deps, num_deps, expected->deps[num_deps].namespace);
+  sp_carr_detect_len(expected->deps, num_deps, expected->deps[num_deps].name);
   sp_must_eq(t, num_deps, sp_da_size(rel->deps));
 
   sp_for(it, num_deps) {
-    sp_expect_str_eq_c(t, rel->deps[it].id.namespace, expected->deps[it].namespace);
-    sp_expect_str_eq_c(t, rel->deps[it].id.name, expected->deps[it].name);
+    sp_expect_str_eq_c(t, rel->deps[it].name.str, expected->deps[it].name);
     sp_expect_str_eq_c(t, spn_semver_range_to_str(mem, rel->deps[it].range), expected->deps[it].version);
     sp_expect_eq(t, expected->deps[it].kind, rel->deps[it].kind);
   }
@@ -410,13 +387,8 @@ sp_test_each(index_release, parse, release_test_t, tests, .setup = spn_test_ctx_
   sp_str_t blob = sp_zero;
   sp_io_read_file(mem, path, &blob);
 
-  spn_pkg_name_t id = {
-    .namespace = sp_str_lit("core"),
-    .name = sp_str_lit("spum"),
-  };
-
   spn_index_pkg_t pkg = sp_zero;
-  spn_err_t err = spn_index_parse_pkg(mem, id, blob, &pkg);
+  spn_err_t err = spn_index_parse_pkg(mem, spn.intern, spn_intern_lit("spum"), blob, &pkg);
   sp_expect_eq(t, it->expect.err, err);
   if (err != SPN_OK || it->expect.err != SPN_OK) { return SP_OK; }
 

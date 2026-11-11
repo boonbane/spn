@@ -49,7 +49,7 @@ sp_test_each(index_query, get_package, query_test_t, tests, .setup = spn_test_ct
   sp_str_t location = sp_fs_join_path(mem, test_dir_str(t), sp_str_lit("index"));
   sp_fs_create_dir(location);
 
-  sp_str_t file = sp_fs_join_path(mem, location, sp_str_lit("core/spum.jsonl"));
+  sp_str_t file = sp_fs_join_path(mem, location, sp_str_lit(".spn/index/spum.jsonl"));
   if (it->fixture) {
     sp_str_t fixture = test_repo_path(mem, sp_test_format(t, "test/core/index/releases/{}.jsonl", sp_fmt_cstr(it->fixture)));
     sp_str_t blob = sp_zero;
@@ -64,10 +64,7 @@ sp_test_each(index_query, get_package, query_test_t, tests, .setup = spn_test_ct
 
   spn_index_pkg_t* pkg = SP_NULLPTR;
   spn_err_union_t diag = sp_zero;
-  spn_err_t err = spn_index_get_package(&index, mem, spn.intern, &spn.roots, (spn_pkg_name_t) {
-    .namespace = sp_str_lit("core"),
-    .name = sp_str_lit("spum"),
-  }, &pkg, &diag);
+  spn_err_t err = spn_index_get_package(&index, mem, spn.intern, &spn.roots, spn_intern_lit("spum"), &pkg, &diag);
   sp_expect_eq(t, it->expect.exists, pkg != SP_NULLPTR);
   sp_expect_eq(t, it->expect.err, err);
   if (err == SPN_ERR_INDEX_CORRUPT) {

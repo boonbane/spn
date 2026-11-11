@@ -1,7 +1,6 @@
 [package]
-namespace = "test"
 name = "root"
 version = "0.0.1"
 
 [deps.package]
-'spn/renderer' = { version = "^1.0.0" }
+renderer = { version = "^1.0.0" }

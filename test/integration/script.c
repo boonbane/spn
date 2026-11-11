@@ -89,7 +89,7 @@ static const command_test_t apis [] = {
     .args = { "build" },
     .expect = {
       .exists = { exe("cross_package") },
-      .locked = { { .name = "core/spum" } },
+      .locked = { { .name = "spum" } },
     },
   },
   {
@@ -330,13 +330,13 @@ static const identity_test_t identities [] = {
     .name = "build_deps_lock",
     .project = "test/integration/fixtures/script/build_deps",
     .builds = { { "build" } },
-    .expect.locked = { { .name = "core/spum" } },
+    .expect.locked = { { .name = "spum" } },
   },
   {
     .name = "build_deps_get_one_store_entry",
     .project = "test/integration/fixtures/script/build_deps",
     .builds = { { "build" } },
-    .expect.store = { { "core/spum", 1 } },
+    .expect.store = { { "spum", 1 } },
   },
   {
     .name = "build_deps_do_not_configure",
@@ -348,31 +348,31 @@ static const identity_test_t identities [] = {
     .name = "build_dep_closure_locks",
     .project = "test/integration/fixtures/script/build_dep_closure",
     .builds = { { "build" } },
-    .expect.locked = { { .name = "core/alpha" }, { .name = "core/beta" } },
+    .expect.locked = { { .name = "alpha" }, { .name = "beta" } },
   },
   {
     .name = "build_dep_closure_gets_one_store_entry_each",
     .project = "test/integration/fixtures/script/build_dep_closure",
     .builds = { { "build" } },
-    .expect.store = { { "core/alpha", 1 }, { "core/beta", 1 } },
+    .expect.store = { { "alpha", 1 }, { "beta", 1 } },
   },
   {
     .name = "build_dep_static_gets_one_store_entry",
     .project = "test/integration/fixtures/script/build_dep_static",
     .builds = { { "build" } },
-    .expect.store = { { "core/spum", 1 } },
+    .expect.store = { { "spum", 1 } },
   },
   {
     .name = "build_dep_identity_ignores_profile",
     .project = "test/integration/fixtures/script/build_dep_static",
     .builds = { { "build" }, { "build", "-m", "release" } },
-    .expect.store = { { "core/spum", 1 } },
+    .expect.store = { { "spum", 1 } },
   },
   {
     .name = "dual_membership_gets_two_store_entries",
     .project = "test/integration/fixtures/script/dual_ctx",
     .builds = { { "build" } },
-    .expect.store = { { "core/gamma", 2 } },
+    .expect.store = { { "gamma", 2 } },
   },
   {
     .name = "dual_membership_configures_once",

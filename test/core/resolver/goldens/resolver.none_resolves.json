@@ -1,8 +1,7 @@
 {
-  "version": 2,
+  "version": 3,
   "requests": [
     {
-      "namespace": "test",
       "name": "root",
       "kind": "package",
       "source": "root"
@@ -10,10 +9,9 @@
   ],
   "packages": [
     {
-      "namespace": "test",
       "name": "root",
       "version": "0.0.1",
-      "hash": "09f7a6c070a9a523",
+      "hash": "f2ced7cd563ea834",
       "source": "root",
       "recipe": "local"
     }

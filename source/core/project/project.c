@@ -35,7 +35,7 @@ spn_err_t spn_project_load(spn_ctx_t* ctx, spn_project_t** project) {
 
 spn_err_t spn_project_update_lock(spn_ctx_t* ctx, spn_project_t* project, spn_resolve_t resolve) {
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  spn_lock_file_t lock = spn_build_lock_file(scratch.mem, ctx->intern, resolve);
+  spn_lock_file_t lock = spn_build_lock_file(scratch.mem, resolve);
 
   sp_str_t output = spn_lock_file_to_str(scratch.mem, &lock);
   sp_err_t written = sp_fs_write_atomic_at(spn_path_at(&ctx->roots, project->paths.lock), output);

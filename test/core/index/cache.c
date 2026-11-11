@@ -101,10 +101,7 @@ sp_test_each(index_cache, get_package, cache_test_t, tests, .setup = spn_test_ct
   spn_index_cache_t cache = sp_zero;
   spn_index_cache_init(&cache, mem, spn.intern, &spn.roots, &indexes);
 
-  spn_pkg_name_t request = {
-    .namespace = sp_str_lit("core"),
-    .name = sp_str_lit("A"),
-  };
+  sp_intern_str_t request = spn_intern_lit("A");
 
   spn_index_pkg_t* pkg = SP_NULLPTR;
   spn_err_union_t diag = sp_zero;

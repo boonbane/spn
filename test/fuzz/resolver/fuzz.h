@@ -121,7 +121,7 @@ typedef struct {
 
 typedef sp_da(fz_pick_t) fz_solution_t;
 
-extern const c8* fz_root_qualified;
+extern const c8* fz_root_name;
 
 #define try(expr) do { fz_err_t __err = (expr); if (__err) return __err; } while (0)
 #define must(expr, err) do { if (!(expr)) return err; } while (0)
@@ -133,7 +133,7 @@ bool          fz_pkg_shared(fz_universe_t* u, s32 pkg);
 bool          fz_ranges_agree(void);
 bool          fz_range_sat(fz_dep_t dep, spn_semver_t version);
 sp_str_t      fz_range_render(sp_mem_t mem, fz_dep_t dep);
-s32           fz_pkg_from_qualified(fz_universe_t* u, sp_str_t qualified);
+s32           fz_pkg_from_name(fz_universe_t* u, sp_str_t name);
 fz_profile_t  fz_gen_profile(sp_fuzz_prng_t* prng);
 fz_universe_t fz_gen_universe(sp_mem_t mem, sp_fuzz_prng_t* prng, fz_profile_t profile);
 fz_universe_t fz_shuffle_universe(sp_mem_t mem, sp_fuzz_prng_t* prng, fz_universe_t* u);
@@ -144,9 +144,9 @@ fz_universe_t fz_extend_universe(sp_mem_t mem, sp_fuzz_prng_t* prng, fz_universe
 bool fz_oracle_sat(fz_universe_t* u);
 bool fz_plan_sat(fz_universe_t* u);
 
-fz_err_t      fz_check_solve(fz_universe_t* u, sp_intern_t* intern, spn_resolve_query_t* query);
-fz_err_t      fz_check_units(sp_mem_t mem, fz_universe_t* u, sp_intern_t* intern, spn_resolve_query_t* query);
-fz_solution_t fz_solution(sp_mem_t mem, fz_universe_t* u, sp_intern_t* intern, spn_resolve_query_t* query);
+fz_err_t      fz_check_solve(fz_universe_t* u, spn_resolve_query_t* query);
+fz_err_t      fz_check_units(sp_mem_t mem, fz_universe_t* u, spn_resolve_query_t* query);
+fz_solution_t fz_solution(sp_mem_t mem, fz_universe_t* u, spn_resolve_query_t* query);
 bool          fz_solution_equal(fz_solution_t a, fz_solution_t b);
 
 void fz_dump(fz_universe_t* u, u64 iter);

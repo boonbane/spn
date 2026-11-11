@@ -5,10 +5,10 @@
 #include "event/event.h"
 #include "index/cache.h"
 #include "index/types.h"
+#include "intern/intern.h"
 #include "op/op.h"
 #include "paths/paths.h"
 #include "spn/host.h"
-#include "pkg/id.h"
 #include "pkg/types.h"
 #include "project/types.h"
 #include "semver/compare.h"
@@ -21,12 +21,12 @@ typedef struct {
   u32 num_segments;
 } site_t;
 
-static site_t find_site(spn_toml_edit_t* edit, sp_mem_t mem, sp_str_t table, sp_str_t name, sp_str_t qualified) {
+static site_t find_site(spn_toml_edit_t* edit, sp_mem_t mem, sp_str_t table, sp_str_t name) {
   sp_str_t deps [2] = { sp_str_lit("deps"), table };
   sp_da(sp_str_t) keys = spn_toml_edit_keys(edit, mem, deps, 2);
 
   sp_da_for(keys, it) {
-    if (!sp_str_equal(spn_pkg_canonicalize_name(keys[it]), qualified)) {
+    if (!sp_str_equal(keys[it], name)) {
       continue;
     }
 
@@ -50,7 +50,7 @@ static site_t find_site(spn_toml_edit_t* edit, sp_mem_t mem, sp_str_t table, sp_
 
 static spn_err_t add(spn_ctx_t* ctx, spn_add_request_t request, spn_semver_range_t range) {
 
-  spn_pkg_name_t name = spn_pkg_name_from_qualified(request.name);
+  sp_intern_str_t name = sp_intern(ctx->intern, request.name);
 
   spn_index_cache_t cache = sp_zero;
   spn_index_cache_init(&cache, ctx->heap, ctx->intern, &ctx->roots, &ctx->indexes);
@@ -61,7 +61,7 @@ static spn_err_t add(spn_ctx_t* ctx, spn_add_request_t request, spn_semver_range
     return spn_err_emit(ctx, err);
   }
   if (!pkg || sp_da_empty(pkg->releases)) {
-    return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_PKG_UNKNOWN, .subject = spn_pkg_name_to_qualified(name) });
+    return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_PKG_UNKNOWN, .subject = name.str });
   }
 
   spn_index_release_t* release = SP_NULLPTR;
@@ -80,7 +80,7 @@ static spn_err_t add(spn_ctx_t* ctx, spn_add_request_t request, spn_semver_range
   if (!release) {
     return spn_err_emit(ctx, (spn_err_union_t) {
       .kind = SPN_ERR_PKG_NO_MATCH,
-      .subject = spn_pkg_name_to_qualified(name),
+      .subject = name.str,
       .unsatisfiable = { .range = spn_semver_range_to_str(ctx->events->mem, range) },
     });
   }
@@ -114,7 +114,7 @@ static spn_err_t add(spn_ctx_t* ctx, spn_add_request_t request, spn_semver_range
     default:                 table = "package"; break;
   }
 
-  site_t site = find_site(&edit, s.mem, sp_cstr_as_str(table), request.name, spn_pkg_name_to_qualified(name));
+  site_t site = find_site(&edit, s.mem, sp_cstr_as_str(table), name.str);
   if (spn_toml_edit_set_str(&edit, site.path, site.num_segments, version)) {
     result = spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_MANIFEST_EDIT, .manifest_parse = { .path = spn_path_str(&ctx->roots, ctx->events->mem, manifest) } });
     goto cleanup;
@@ -129,7 +129,7 @@ static spn_err_t add(spn_ctx_t* ctx, spn_add_request_t request, spn_semver_range
   spn_event_buffer_push(ctx->events, (spn_event_t) {
     .kind = SPN_EVENT_ADDED,
     .added = {
-      .name = sp_str_copy(ctx->events->mem, site.path[2]),
+      .name = name.str,
       .version = version,
     },
   });

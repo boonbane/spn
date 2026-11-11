@@ -25,7 +25,6 @@ typedef struct {
 
   struct {
     spn_err_t kind;
-    const c8* namespace;
     const c8* name;
     spn_semver_t version;
     const c8* source_url;
@@ -48,7 +47,6 @@ static const case_t cases [] = {
           .files = {
             { "spn.toml",
               ts(package) "\n"
-              tkv(namespace, "core") "\n"
               tkv(name, "spum") "\n"
               tkv(version, "1.0.0") "\n"
             },
@@ -59,7 +57,6 @@ static const case_t cases [] = {
     },
     .expect = {
       .kind = SPN_OK,
-      .namespace = "core",
       .name = "spum",
       .version = { .major = 1 },
       .source_commit = 1,
@@ -76,7 +73,6 @@ static const case_t cases [] = {
           .files = {
             { "spn.toml",
               ts(package) "\n"
-              tkv(namespace, "core") "\n"
               tkv(name, "spum") "\n"
               tkv(version, "1.0.0") "\n"
             },
@@ -90,7 +86,6 @@ static const case_t cases [] = {
     },
     .expect = {
       .kind = SPN_OK,
-      .namespace = "core",
       .name = "spum",
       .version = { .major = 1 },
       .source_url = "https://github.com/A/B.git",
@@ -108,7 +103,6 @@ static const case_t cases [] = {
           .files = {
             { "spn.toml",
               ts(package) "\n"
-              tkv(namespace, "core") "\n"
               tkv(name, "spum") "\n"
               tkv(version, "1.0.0") "\n"
               ts(package.upstream) "\n"
@@ -125,7 +119,6 @@ static const case_t cases [] = {
     },
     .expect = {
       .kind = SPN_OK,
-      .namespace = "core",
       .name = "spum",
       .version = { .major = 1 },
       .source_url = "https://github.com/A/B.git",
@@ -143,7 +136,6 @@ static const case_t cases [] = {
           .files = {
             { "packages/spum/spn.toml",
               ts(package) "\n"
-              tkv(namespace, "core") "\n"
               tkv(name, "spum") "\n"
               tkv(version, "2.0.0") "\n"
             },
@@ -157,7 +149,6 @@ static const case_t cases [] = {
     },
     .expect = {
       .kind = SPN_OK,
-      .namespace = "core",
       .name = "spum",
       .version = { .major = 2 },
       .source_commit = 1,
@@ -174,7 +165,6 @@ static const case_t cases [] = {
           .files = {
             { "spn.toml",
               ts(package) "\n"
-              tkv(namespace, "core") "\n"
               tkv(name, "spum") "\n"
               tkv(version, "1.0.0") "\n"
             },
@@ -186,7 +176,6 @@ static const case_t cases [] = {
           .files = {
             { "spn.toml",
               ts(package) "\n"
-              tkv(namespace, "core") "\n"
               tkv(name, "spum") "\n"
               tkv(version, "2.0.0") "\n"
             },
@@ -200,7 +189,6 @@ static const case_t cases [] = {
     },
     .expect = {
       .kind = SPN_OK,
-      .namespace = "core",
       .name = "spum",
       .version = { .major = 2 },
       .source_commit = 2,
@@ -239,7 +227,6 @@ static const case_t cases [] = {
     },
     .expect = {
       .kind = SPN_OK,
-      .namespace = "core",
       .name = "toml",
       .version = { .major = 1, .minor = 2, .patch = 1 },
       .source_commit = 1,
@@ -276,7 +263,6 @@ static const case_t cases [] = {
     .generated_manifest = "spn.toml",
     .expect = {
       .kind = SPN_OK,
-      .namespace = "core",
       .name = "spum",
       .version = { .major = 1 },
       .source_commit = 1,
@@ -370,13 +356,10 @@ sp_test_each(cmd_publish, publish, case_t, cases, .setup = spn_test_ctx_setup) {
   }
   sp_expect_eq(t, c.expect.kind, result);
 
-  if (c.expect.namespace && result == SPN_OK) {
+  if (c.expect.name && result == SPN_OK) {
     spn_index_pkg_t* pkg = SP_NULLPTR;
     spn_err_union_t diag = sp_zero;
-    spn_index_get_package(&index, mem, spn.intern, &spn.roots, (spn_pkg_name_t) {
-      .namespace = sp_cstr_as_str(c.expect.namespace),
-      .name = sp_cstr_as_str(c.expect.name),
-    }, &pkg, &diag);
+    spn_index_get_package(&index, mem, spn.intern, &spn.roots, spn_intern_cstr(c.expect.name), &pkg, &diag);
 
     sp_must(t, pkg);
     sp_must(t, sp_da_size(pkg->releases));

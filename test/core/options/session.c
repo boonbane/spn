@@ -22,12 +22,6 @@ typedef struct {
 
 sp_test_suite(options_session, .serial = true);
 
-static spn_pkg_id_t make_id(sp_intern_t* intern, const c8* qualified) {
-  return (spn_pkg_id_t) {
-    .qualified = sp_intern(intern, sp_cstr_as_str(qualified)).id,
-  };
-}
-
 static const session_test_t tests [] = {
   {
     .name = "late_gate_resolve_cap",
@@ -58,12 +52,10 @@ static const session_test_t tests [] = {
 
 sp_test_each(options_session, apply, session_test_t, tests, .setup = spn_test_ctx_setup) {
   sp_mem_t mem = sp_test_arena(t);
-  sp_intern_t* intern = spn.intern;
 
   spn_project_t project = {
     .package = {
       .name = spn_intern_lit("test"),
-      .qualified = spn_intern_lit("core/test"),
     },
   };
   si_pkg_info_t* root = &project.package;
@@ -73,7 +65,7 @@ sp_test_each(options_session, apply, session_test_t, tests, .setup = spn_test_ct
   }
   if (it->direct_dep || it->gated_dep) {
     spn_requested_dep_t dep = {
-      .qualified = spn_intern_lit("core/spum"),
+      .name = spn_intern_lit("spum"),
       .kind = SPN_DEP_KIND_PACKAGE,
     };
     if (it->gated_dep) {
@@ -85,7 +77,7 @@ sp_test_each(options_session, apply, session_test_t, tests, .setup = spn_test_ct
     si_da_push(mem, root->deps, dep);
   }
 
-  spn_pkg_id_t root_id = make_id(intern, "core/test");
+  spn_pkg_id_t root_id = { .name = root->name.id };
   spn_resolved_pkg_t root_node = {
     .id = root_id,
     .name = root->name,

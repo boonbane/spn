@@ -1,8 +1,7 @@
 {
-  "version": 2,
+  "version": 3,
   "requests": [
     {
-      "namespace": "test",
       "name": "root",
       "kind": "package",
       "source": "root"
@@ -12,7 +11,6 @@
   "errors": [
     {
       "kind": "dynamic_duplicate",
-      "namespace": "spn",
       "name": "leaf",
       "versions": [
         "1.0.0",

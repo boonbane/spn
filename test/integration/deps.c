@@ -7,7 +7,7 @@ static const test_t tests [] = {
     .copy = { "packages/*" },
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { "build", .args = { "--force" } } },
-      { .kind = ACTION_VERIFY_PKG_LOCKED, .verify_locked = { .name = "core/spum", .version = "1.0.0" } },
+      { .kind = ACTION_VERIFY_PKG_LOCKED, .verify_locked = { .name = "spum", .version = "1.0.0" } },
     },
   },
   {
@@ -25,7 +25,7 @@ static const test_t tests [] = {
     .copy = { "vendor/spum/*" },
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { "build", .rc = 1 } },
-      { .kind = ACTION_VERIFY_EVENT, .verify_event = { .event = SPN_EVENT_ERR, .key = "requested", .value = "core/spum" } },
+      { .kind = ACTION_VERIFY_EVENT, .verify_event = { .event = SPN_EVENT_ERR, .key = "requested", .value = "spum" } },
       { .kind = ACTION_VERIFY_EVENT, .verify_event = { .event = SPN_EVENT_ERR, .key = "kind", .value = "pkg_mismatch" } },
     },
   },
@@ -44,7 +44,7 @@ static const test_t tests [] = {
     .copy = { "vendor/spum/spn.toml" },
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { "build" } },
-      { .kind = ACTION_VERIFY_PKG_LOCKED, .verify_locked = { .name = "core/spum", .version = "1.0.0" } },
+      { .kind = ACTION_VERIFY_PKG_LOCKED, .verify_locked = { .name = "spum", .version = "1.0.0" } },
       { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
     },
   },
@@ -53,7 +53,7 @@ static const test_t tests [] = {
     .project = "test/integration/fixtures/deps/index/name_mismatch",
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { "build", .rc = 1 } },
-      { .kind = ACTION_VERIFY_EVENT, .verify_event = { .event = SPN_EVENT_ERR, .key = "requested", .value = "core/spum" } },
+      { .kind = ACTION_VERIFY_EVENT, .verify_event = { .event = SPN_EVENT_ERR, .key = "requested", .value = "spum" } },
       { .kind = ACTION_VERIFY_EVENT, .verify_event = { .event = SPN_EVENT_ERR, .key = "kind", .value = "pkg_mismatch" } },
     },
   },
@@ -70,7 +70,7 @@ static const test_t tests [] = {
     .project = "test/integration/fixtures/deps/index/without_source",
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { "build" } },
-      { .kind = ACTION_VERIFY_PKG_LOCKED, .verify_locked = { .name = "core/spum", .version = "1.0.0" } },
+      { .kind = ACTION_VERIFY_PKG_LOCKED, .verify_locked = { .name = "spum", .version = "1.0.0" } },
       { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
     },
   },
@@ -79,7 +79,7 @@ static const test_t tests [] = {
     .project = "test/integration/fixtures/deps/index/binary_static",
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { "build" } },
-      { .kind = ACTION_VERIFY_PKG_LOCKED, .verify_locked = { .name = "core/spum", .version = "1.0.0" } },
+      { .kind = ACTION_VERIFY_PKG_LOCKED, .verify_locked = { .name = "spum", .version = "1.0.0" } },
       { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
     },
   },
@@ -88,7 +88,7 @@ static const test_t tests [] = {
     .project = "test/integration/fixtures/deps/index/binary_shared",
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { "build" } },
-      { .kind = ACTION_VERIFY_PKG_LOCKED, .verify_locked = { .name = "core/spum", .version = "1.0.0" } },
+      { .kind = ACTION_VERIFY_PKG_LOCKED, .verify_locked = { .name = "spum", .version = "1.0.0" } },
       { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
     },
   },
@@ -97,7 +97,7 @@ static const test_t tests [] = {
     .project = "test/integration/fixtures/deps/index/split_recipe",
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { "build" } },
-      { .kind = ACTION_VERIFY_PKG_LOCKED, .verify_locked = { .name = "core/spum", .version = "1.0.0" } },
+      { .kind = ACTION_VERIFY_PKG_LOCKED, .verify_locked = { .name = "spum", .version = "1.0.0" } },
       { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
     },
   },
@@ -111,12 +111,22 @@ static const test_t tests [] = {
     },
   },
   {
+    .name = "index_patched_name_mismatch",
+    .project = "test/integration/fixtures/deps/index/patched_name_mismatch",
+    .copy = { "patches/*" },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { "build", .rc = 1 } },
+      { .kind = ACTION_VERIFY_EVENT, .verify_event = { .event = SPN_EVENT_ERR, .key = "requested", .value = "spum" } },
+      { .kind = ACTION_VERIFY_EVENT, .verify_event = { .event = SPN_EVENT_ERR, .key = "kind", .value = "pkg_mismatch" } },
+    },
+  },
+  {
     .name = "index_fetch_fails",
     .project = "test/integration/fixtures/deps/index/fetch_fails",
     .actions = {
       { .kind = ACTION_REMOVE_DIR, .rm = { .dir = "remote/spum" } },
       { .kind = ACTION_RUN_CLI, .cli = { "build", .rc = 1 } },
-      { .kind = ACTION_VERIFY_EVENT, .verify_event = { .event = SPN_EVENT_SYNC_FAILED, .key = "name", .value = "core/spum" } },
+      { .kind = ACTION_VERIFY_EVENT, .verify_event = { .event = SPN_EVENT_SYNC_FAILED, .key = "name", .value = "spum" } },
     },
   },
   {
@@ -124,7 +134,7 @@ static const test_t tests [] = {
     .project = "test/integration/fixtures/deps/index/invalid_manifest",
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { "build", .rc = 1 } },
-      { .kind = ACTION_VERIFY_EVENT, .verify_event = { .event = SPN_EVENT_ERR, .key = "subject", .value = "core/spum" } },
+      { .kind = ACTION_VERIFY_EVENT, .verify_event = { .event = SPN_EVENT_ERR, .key = "subject", .value = "spum" } },
     },
   },
 };
@@ -156,7 +166,7 @@ static const rebuild_test_t rebuilds [] = {
           .args = { "build" },
           .expect = {
             .exists = { exe("editable_package") },
-            .locked = { { .name = "core/spum", .version = "1.0.0" } },
+            .locked = { { .name = "spum", .version = "1.0.0" } },
           },
         },
       },
@@ -167,14 +177,14 @@ static const rebuild_test_t rebuilds [] = {
     .project = "test/integration/fixtures/deps/index/basic",
     .first = {
       .args = { "build" },
-      .expect.locked = { { .name = "core/spum", .version = "1.0.0" } },
+      .expect.locked = { { .name = "spum", .version = "1.0.0" } },
     },
     .rebuilds = {
       {
         .change.remove_dirs = { "build" },
         .command = {
           .args = { "build" },
-          .expect.locked = { { .name = "core/spum", .version = "1.0.0" } },
+          .expect.locked = { { .name = "spum", .version = "1.0.0" } },
         },
       },
     },

@@ -1,8 +1,7 @@
 {
-  "version": 2,
+  "version": 3,
   "requests": [
     {
-      "namespace": "test",
       "name": "root",
       "kind": "package",
       "source": "root"
@@ -10,19 +9,17 @@
   ],
   "packages": [
     {
-      "namespace": "spn",
       "name": "audio",
       "version": "1.0.0",
-      "hash": "7c9a7909bca546c7",
+      "hash": "0aaf67921b98a464",
       "source": "index",
       "recipe": "none",
       "edges": [
         {
           "to": {
-            "namespace": "spn",
             "name": "math",
             "version": "1.9.0",
-            "hash": "40bf15d2ed99d89b"
+            "hash": "ad94ed02f8b8735d"
           },
           "kind": "package",
           "edge": "scope"
@@ -30,27 +27,24 @@
       ]
     },
     {
-      "namespace": "spn",
       "name": "math",
       "version": "1.9.0",
-      "hash": "40bf15d2ed99d89b",
+      "hash": "ad94ed02f8b8735d",
       "source": "index",
       "recipe": "none"
     },
     {
-      "namespace": "spn",
       "name": "renderer",
       "version": "1.0.0",
-      "hash": "63c66336da3920ba",
+      "hash": "037497481cf6364f",
       "source": "index",
       "recipe": "none",
       "edges": [
         {
           "to": {
-            "namespace": "spn",
             "name": "math",
             "version": "1.9.0",
-            "hash": "40bf15d2ed99d89b"
+            "hash": "ad94ed02f8b8735d"
           },
           "kind": "package",
           "edge": "scope"
@@ -58,29 +52,26 @@
       ]
     },
     {
-      "namespace": "test",
       "name": "root",
       "version": "0.0.1",
-      "hash": "31b4edced56e4390",
+      "hash": "4c2d52ca88641af3",
       "source": "root",
       "recipe": "local",
       "edges": [
         {
           "to": {
-            "namespace": "spn",
             "name": "audio",
             "version": "1.0.0",
-            "hash": "7c9a7909bca546c7"
+            "hash": "0aaf67921b98a464"
           },
           "kind": "package",
           "edge": "scope"
         },
         {
           "to": {
-            "namespace": "spn",
             "name": "renderer",
             "version": "1.0.0",
-            "hash": "63c66336da3920ba"
+            "hash": "037497481cf6364f"
           },
           "kind": "package",
           "edge": "scope"

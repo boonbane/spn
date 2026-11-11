@@ -1,8 +1,7 @@
 {
-  "version": 2,
+  "version": 3,
   "requests": [
     {
-      "namespace": "test",
       "name": "root",
       "kind": "package",
       "source": "root"
@@ -10,35 +9,31 @@
   ],
   "packages": [
     {
-      "namespace": "spn",
       "name": "foo",
       "version": "1.9.0",
-      "hash": "83fd4a8d0a1afc44",
+      "hash": "85e408a77ddc2f36",
       "source": "index",
       "recipe": "none"
     },
     {
-      "namespace": "spn",
       "name": "foo",
       "version": "2.0.0",
-      "hash": "bb758326baa38ee8",
+      "hash": "adb2a8ea4f003832",
       "source": "index",
       "recipe": "none"
     },
     {
-      "namespace": "spn",
       "name": "gfxa",
       "version": "1.0.0",
-      "hash": "1a4af15737f34ec7",
+      "hash": "2089050d8f879720",
       "source": "index",
       "recipe": "none",
       "edges": [
         {
           "to": {
-            "namespace": "spn",
             "name": "foo",
             "version": "1.9.0",
-            "hash": "83fd4a8d0a1afc44"
+            "hash": "85e408a77ddc2f36"
           },
           "kind": "package",
           "edge": "private",
@@ -47,19 +42,17 @@
       ]
     },
     {
-      "namespace": "spn",
       "name": "gfxb",
       "version": "1.0.0",
-      "hash": "2b3cf75608bc1332",
+      "hash": "4dc9419f461aaf18",
       "source": "index",
       "recipe": "none",
       "edges": [
         {
           "to": {
-            "namespace": "spn",
             "name": "foo",
             "version": "2.0.0",
-            "hash": "bb758326baa38ee8"
+            "hash": "adb2a8ea4f003832"
           },
           "kind": "package",
           "edge": "private",
@@ -68,39 +61,35 @@
       ]
     },
     {
-      "namespace": "test",
       "name": "root",
       "version": "0.0.1",
-      "hash": "8a014442f9c839ed",
+      "hash": "578fed7932fcccc0",
       "source": "root",
       "recipe": "local",
       "edges": [
         {
           "to": {
-            "namespace": "spn",
             "name": "foo",
             "version": "2.0.0",
-            "hash": "bb758326baa38ee8"
+            "hash": "adb2a8ea4f003832"
           },
           "kind": "package",
           "edge": "scope"
         },
         {
           "to": {
-            "namespace": "spn",
             "name": "gfxa",
             "version": "1.0.0",
-            "hash": "1a4af15737f34ec7"
+            "hash": "2089050d8f879720"
           },
           "kind": "package",
           "edge": "scope"
         },
         {
           "to": {
-            "namespace": "spn",
             "name": "gfxb",
             "version": "1.0.0",
-            "hash": "2b3cf75608bc1332"
+            "hash": "4dc9419f461aaf18"
           },
           "kind": "package",
           "edge": "scope"

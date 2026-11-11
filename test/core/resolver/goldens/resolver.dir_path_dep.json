@@ -1,8 +1,7 @@
 {
-  "version": 2,
+  "version": 3,
   "requests": [
     {
-      "namespace": "test",
       "name": "root",
       "kind": "package",
       "source": "root"
@@ -12,9 +11,8 @@
   "errors": [
     {
       "kind": "index_path_dep",
-      "namespace": "core",
       "name": "A",
-      "detail": "core/B"
+      "detail": "B"
     }
   ]
 }

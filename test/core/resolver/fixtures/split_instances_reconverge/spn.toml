@@ -1,12 +1,11 @@
 [package]
-namespace = "test"
 name = "root"
 version = "0.0.1"
 
 [deps.package]
-'spn/a' = { version = "^1.0.0" }
-'spn/b' = { version = "^1.0.0" }
+a = { version = "^1.0.0" }
+b = { version = "^1.0.0" }
 
 [deps.build]
-'spn/c1' = { version = "^1.0.0" }
-'spn/c2' = { version = "^1.0.0" }
+c1 = { version = "^1.0.0" }
+c2 = { version = "^1.0.0" }

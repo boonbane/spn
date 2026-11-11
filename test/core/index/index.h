@@ -8,6 +8,7 @@
 #include "external/git.h"
 #include "index/index.h"
 #include "index/json.h"
+#include "intern/intern.h"
 #include "semver/compare.h"
 #include "semver/convert.h"
 #include "semver/parser.h"

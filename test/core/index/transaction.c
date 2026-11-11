@@ -48,8 +48,8 @@ static const txn_test_t tests [] = {
       { .kind = TXN_ACTION_PUBLISH, .publish = { .name = "spum", .version = { 1, 0, 0 } } },
     },
     .expect = {
-      .files = { { .file = "core/spum.jsonl", .lines = 1 } },
-      .head = "core/spum 1.0.0",
+      .files = { { .file = ".spn/index/spum.jsonl", .lines = 1 } },
+      .head = "spum 1.0.0",
     },
   },
   {
@@ -59,7 +59,7 @@ static const txn_test_t tests [] = {
       { .kind = TXN_ACTION_PUBLISH, .publish = { .name = "spum", .version = { 1, 0, 0 }, .err = SPN_ERR_VERSION_EXISTS } },
     },
     .expect = {
-      .files = { { .file = "core/spum.jsonl", .lines = 1 } },
+      .files = { { .file = ".spn/index/spum.jsonl", .lines = 1 } },
     },
   },
   {
@@ -69,16 +69,16 @@ static const txn_test_t tests [] = {
       {
         .kind = TXN_ACTION_ADVANCE_REMOTE,
         .write = {
-          .file = "core/other.jsonl",
-          .line = "{" kv("namespace", "core") "," kv("name", "other") "," kv("version", "1.0.0") "," kv("yanked", false) "}",
+          .file = ".spn/index/other.jsonl",
+          .line = "{" kv("name", "other") "," kv("version", "1.0.0") "," kv("yanked", false) "}",
         },
       },
       { .kind = TXN_ACTION_PUBLISH, .publish = { .name = "spum", .version = { 1, 1, 0 } } },
     },
     .expect = {
       .files = {
-        { .file = "core/spum.jsonl", .lines = 2 },
-        { .file = "core/other.jsonl", .lines = 1 },
+        { .file = ".spn/index/spum.jsonl", .lines = 2 },
+        { .file = ".spn/index/other.jsonl", .lines = 1 },
       },
     },
   },
@@ -86,11 +86,11 @@ static const txn_test_t tests [] = {
     .name = "discards_tracked_damage",
     .actions = {
       { .kind = TXN_ACTION_PUBLISH, .publish = { .name = "spum", .version = { 1, 0, 0 } } },
-      { .kind = TXN_ACTION_APPEND_CLONE_FILE, .write = { .file = "core/spum.jsonl", .line = "not json" } },
+      { .kind = TXN_ACTION_APPEND_CLONE_FILE, .write = { .file = ".spn/index/spum.jsonl", .line = "not json" } },
       { .kind = TXN_ACTION_PUBLISH, .publish = { .name = "spum", .version = { 1, 1, 0 } } },
     },
     .expect = {
-      .files = { { .file = "core/spum.jsonl", .lines = 2 } },
+      .files = { { .file = ".spn/index/spum.jsonl", .lines = 2 } },
     },
   },
   {
@@ -100,8 +100,8 @@ static const txn_test_t tests [] = {
       { .kind = TXN_ACTION_PUBLISH, .publish = { .name = "spum", .version = { 1, 0, 0 } } },
     },
     .expect = {
-      .files = { { .file = "core/spum.jsonl", .lines = 1 } },
-      .head = "core/spum 1.0.0",
+      .files = { { .file = ".spn/index/spum.jsonl", .lines = 1 } },
+      .head = "spum 1.0.0",
     },
   },
   {
@@ -111,7 +111,7 @@ static const txn_test_t tests [] = {
       { .kind = TXN_ACTION_PUBLISH, .publish = { .name = "spum", .version = { 1, 0, 0 } } },
     },
     .expect = {
-      .files = { { .file = "core/spum.jsonl", .lines = 1 } },
+      .files = { { .file = ".spn/index/spum.jsonl", .lines = 1 } },
     },
   },
   {
@@ -121,19 +121,19 @@ static const txn_test_t tests [] = {
       { .kind = TXN_ACTION_PUBLISH, .publish = { .name = "spum", .version = { 1, 0, 0 } } },
     },
     .expect = {
-      .files = { { .file = "core/spum.jsonl", .lines = 1 } },
-      .head = "core/spum 1.0.0",
+      .files = { { .file = ".spn/index/spum.jsonl", .lines = 1 } },
+      .head = "spum 1.0.0",
     },
   },
   {
     .name = "cleans_untracked_damage",
     .actions = {
       { .kind = TXN_ACTION_SYNC },
-      { .kind = TXN_ACTION_CREATE_CLONE_FILE, .write = { .file = "core/spum.jsonl", .line = "not json" } },
+      { .kind = TXN_ACTION_CREATE_CLONE_FILE, .write = { .file = ".spn/index/spum.jsonl", .line = "not json" } },
       { .kind = TXN_ACTION_PUBLISH, .publish = { .name = "spum", .version = { 1, 0, 0 } } },
     },
     .expect = {
-      .files = { { .file = "core/spum.jsonl", .lines = 1 } },
+      .files = { { .file = ".spn/index/spum.jsonl", .lines = 1 } },
     },
   },
   {
@@ -151,7 +151,7 @@ static const txn_test_t tests [] = {
       { .kind = TXN_ACTION_PUBLISH, .publish = { .name = "spum", .version = { 1, 0, 0 } } },
     },
     .expect = {
-      .head = "core/spum 1.0.0",
+      .head = "spum 1.0.0",
     },
   },
 };
@@ -222,10 +222,7 @@ sp_test_each(index_transaction, publish, txn_test_t, tests, .setup = spn_test_ct
     switch (action.kind) {
       case TXN_ACTION_PUBLISH: {
         spn_index_release_t rel = {
-          .id = {
-            .namespace = sp_str_lit("core"),
-            .name = sp_cstr_as_str(action.publish.name),
-          },
+          .name = spn_intern_cstr(action.publish.name),
           .version = action.publish.version,
           .source = {
             .kind = SPN_PKG_ROOT_GIT,

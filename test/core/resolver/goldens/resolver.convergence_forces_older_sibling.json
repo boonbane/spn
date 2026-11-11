@@ -1,8 +1,7 @@
 {
-  "version": 2,
+  "version": 3,
   "requests": [
     {
-      "namespace": "test",
       "name": "root",
       "kind": "package",
       "source": "root"
@@ -10,19 +9,17 @@
   ],
   "packages": [
     {
-      "namespace": "spn",
       "name": "bar",
       "version": "1.0.0",
-      "hash": "191ab1f4039b8577",
+      "hash": "3ccd80667eba8804",
       "source": "index",
       "recipe": "none",
       "edges": [
         {
           "to": {
-            "namespace": "spn",
             "name": "foo",
             "version": "1.9.0",
-            "hash": "83fd4a8d0a1afc44"
+            "hash": "85e408a77ddc2f36"
           },
           "kind": "package",
           "edge": "scope"
@@ -30,60 +27,54 @@
       ]
     },
     {
-      "namespace": "spn",
       "name": "foo",
       "version": "1.9.0",
-      "hash": "83fd4a8d0a1afc44",
+      "hash": "85e408a77ddc2f36",
       "source": "index",
       "recipe": "none"
     },
     {
-      "namespace": "spn",
-      "name": "tool",
-      "version": "1.0.0",
-      "hash": "9046e3c90e633a7e",
-      "source": "index",
-      "recipe": "none",
-      "edges": [
-        {
-          "to": {
-            "namespace": "spn",
-            "name": "bar",
-            "version": "1.0.0",
-            "hash": "191ab1f4039b8577"
-          },
-          "kind": "package",
-          "edge": "scope"
-        }
-      ]
-    },
-    {
-      "namespace": "test",
       "name": "root",
       "version": "0.0.1",
-      "hash": "8eefa169597c5d38",
+      "hash": "3e722a3c9db75a0d",
       "source": "root",
       "recipe": "local",
       "edges": [
         {
           "to": {
-            "namespace": "spn",
             "name": "foo",
             "version": "1.9.0",
-            "hash": "83fd4a8d0a1afc44"
+            "hash": "85e408a77ddc2f36"
           },
           "kind": "package",
           "edge": "scope"
         },
         {
           "to": {
-            "namespace": "spn",
             "name": "tool",
             "version": "1.0.0",
-            "hash": "9046e3c90e633a7e"
+            "hash": "02eb804ccf51bf15"
           },
           "kind": "build",
           "edge": "process"
+        }
+      ]
+    },
+    {
+      "name": "tool",
+      "version": "1.0.0",
+      "hash": "02eb804ccf51bf15",
+      "source": "index",
+      "recipe": "none",
+      "edges": [
+        {
+          "to": {
+            "name": "bar",
+            "version": "1.0.0",
+            "hash": "3ccd80667eba8804"
+          },
+          "kind": "package",
+          "edge": "scope"
         }
       ]
     }

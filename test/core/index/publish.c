@@ -13,7 +13,6 @@ typedef struct {
   } fixture;
 
   struct {
-    const c8* namespace;
     const c8* name;
     spn_semver_t version;
     struct { const c8* url; const c8* rev; } source;
@@ -29,7 +28,6 @@ static const publish_test_t tests [] = {
   {
     .name = "to_empty_index",
     .release = {
-      .namespace = "core",
       .name = "spum",
       .version = { 1, 0, 0 },
       .source = { .url = "https://github.com/example/spum", .rev = "abc123" },
@@ -43,10 +41,9 @@ static const publish_test_t tests [] = {
     .fixture = {
       .files = {
         {
-          .path = "core/spum.jsonl",
+          .path = ".spn/index/spum.jsonl",
           .lines = {
             "{"
-              kv("namespace", "core") ","
               kv("name", "spum") ","
               kv("version", "1.0.0") ","
               kv("yanked", false)
@@ -56,7 +53,6 @@ static const publish_test_t tests [] = {
       },
     },
     .release = {
-      .namespace = "core",
       .name = "spum",
       .version = { 1, 1, 0 },
       .source = { .url = "https://github.com/example/spum", .rev = "def456" },
@@ -70,10 +66,9 @@ static const publish_test_t tests [] = {
     .fixture = {
       .files = {
         {
-          .path = "core/spum.jsonl",
+          .path = ".spn/index/spum.jsonl",
           .lines = {
             "{"
-              kv("namespace", "core") ","
               kv("name", "spum") ","
               kv("version", "1.0.0") ","
               kv("yanked", false)
@@ -83,7 +78,6 @@ static const publish_test_t tests [] = {
       },
     },
     .release = {
-      .namespace = "core",
       .name = "spum",
       .version = { 1, 0, 0 },
       .source = { .url = "https://github.com/example/spum", .rev = "abc123" },
@@ -98,10 +92,9 @@ static const publish_test_t tests [] = {
     .fixture = {
       .files = {
         {
-          .path = "core/other.jsonl",
+          .path = ".spn/index/other.jsonl",
           .lines = {
             "{"
-              kv("namespace", "core") ","
               kv("name", "other") ","
               kv("version", "1.0.0") ","
               kv("yanked", false)
@@ -111,7 +104,6 @@ static const publish_test_t tests [] = {
       },
     },
     .release = {
-      .namespace = "core",
       .name = "spum",
       .version = { 1, 0, 0 },
       .source = { .url = "https://github.com/example/spum", .rev = "abc123" },
@@ -161,10 +153,7 @@ sp_test_each(index_publish, publish, publish_test_t, tests, .setup = spn_test_ct
   };
 
   spn_index_release_t rel = {
-    .id = {
-      .namespace = sp_cstr_as_str(it->release.namespace),
-      .name = sp_cstr_as_str(it->release.name),
-    },
+    .name = spn_intern_cstr(it->release.name),
     .version = it->release.version,
   };
   if (it->release.source.url) {
@@ -181,12 +170,7 @@ sp_test_each(index_publish, publish, publish_test_t, tests, .setup = spn_test_ct
   sp_expect_eq(t, it->expect.result, result);
 
   if (it->expect.lines > 0) {
-    sp_str_t ns = sp_cstr_as_str(it->release.namespace);
-    sp_str_t nm = sp_cstr_as_str(it->release.name);
-    sp_str_t pkg_path = sp_fs_join_path(mem,
-      sp_fs_join_path(mem, index_root, ns),
-      sp_fmt(mem, "{}.jsonl", sp_fmt_str(nm)).value
-    );
+    sp_str_t pkg_path = sp_fs_join_path(mem, index_root, sp_fmt(mem, ".spn/index/{}.jsonl", sp_fmt_cstr(it->release.name)).value);
 
     sp_must(t, sp_fs_exists(pkg_path));
     sp_expect_eq(t, it->expect.lines, index_test_count_lines(test_read_file(mem, pkg_path)));
@@ -233,7 +217,7 @@ sp_test_each(index_publish, protocol, protocol_test_t, protocol_tests, .setup = 
   };
 
   spn_index_release_t rel = {
-    .id = { .namespace = sp_str_lit("core"), .name = sp_str_lit("A") },
+    .name = spn_intern_lit("A"),
     .version = { 1, 0, 0 },
   };
 

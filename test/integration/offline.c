@@ -36,7 +36,7 @@ static const test_t tests [] = {
       { .kind = ACTION_REMOVE_DIR, .rm = { .dir = "remote/spum" } },
       { .kind = ACTION_RUN_CLI, .cli = { "build", .cwd = "second" } },
       { .kind = ACTION_VERIFY_EXISTS, .exists = { PATH_EXE, .name = "main", .dir = "second" } },
-      { .kind = ACTION_VERIFY_STORE, .verify_store = { .pkg = "core/spum", .count = 1 } },
+      { .kind = ACTION_VERIFY_STORE, .verify_store = { .pkg = "spum", .count = 1 } },
     },
   },
 };
@@ -64,7 +64,7 @@ static const rebuild_test_t rebuilds [] = {
           .expect = {
             .events = { { .event = SPN_EVENT_SYNC_FAILED, .absent = true } },
             .exists = { exe("main") },
-            .locked = { { .name = "core/spum", .version = "1.0.0" } },
+            .locked = { { .name = "spum", .version = "1.0.0" } },
           },
         },
       },

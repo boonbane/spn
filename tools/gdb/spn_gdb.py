@@ -122,7 +122,7 @@ def fmt_range(val):
 
 
 def fmt_pkg_id(val):
-    return "%s@%s" % (intern_id_str(val["qualified"]), fmt_semver(val["version"]))
+    return "%s@%s" % (intern_id_str(val["name"]), fmt_semver(val["version"]))
 
 
 def fmt_triple(val):
@@ -143,7 +143,7 @@ def dep_tags(val):
 
 
 def fmt_requested(val):
-    qualified = fmt_str(val["qualified"])
+    name = fmt_str(val["name"])
     source = enum_short(val["source"])
     if source == "index":
         spec = fmt_range(val["index"]["range"])
@@ -151,7 +151,7 @@ def fmt_requested(val):
         spec = "file:" + fmt_str(val["file"]["path"])
     else:
         spec = source
-    return "%s %s%s" % (qualified, spec, dep_tags(val))
+    return "%s %s%s" % (name, spec, dep_tags(val))
 
 
 class InternIdPrinter:

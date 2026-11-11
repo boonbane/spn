@@ -103,7 +103,7 @@ static const test_t insert_tests [] = {
   {
     .name = "quoted_key",
     .manifest = "simple",
-    .set = { { .path = { "deps", "package", "spader/sp" }, .value = "3.0.0" } },
+    .set = { { .path = { "deps", "package", "A.B" }, .value = "3.0.0" } },
     .expect = { .golden = "set_insert_quoted_key" },
   },
   {

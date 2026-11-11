@@ -1,8 +1,7 @@
 [package]
-namespace = "test"
 name = "root"
 version = "0.0.1"
 
 [deps.build]
-'spn/gen' = { version = "^1.0.0" }
-'spn/opt' = { version = "^1.0.0" }
+gen = { version = "^1.0.0" }
+opt = { version = "^1.0.0" }

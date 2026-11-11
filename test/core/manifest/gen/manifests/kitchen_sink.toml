@@ -1,7 +1,6 @@
 [package]
 name = "everything"
 version = "1.0.0"
-namespace = "core"
 repo = "https://github.com/acme/everything"
 author = "Ada"
 maintainer = "Grace"

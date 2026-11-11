@@ -31,7 +31,7 @@ static const test_t tests [] = {
   {
     .name = "quoted_key",
     .manifest = "quoted_key",
-    .expect = { .path = { "deps", "package", "spader/sp" }, .value = "3.0.0" },
+    .expect = { .path = { "deps", "package", "A.B" }, .value = "3.0.0" },
   },
   {
     .name = "dotted_entry",

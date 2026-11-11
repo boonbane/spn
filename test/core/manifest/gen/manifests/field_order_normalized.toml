@@ -1,5 +1,4 @@
 [package]
 name = "ordered"
-namespace = "core"
-version = "9.9.9"
 author = "Zed"
+version = "9.9.9"

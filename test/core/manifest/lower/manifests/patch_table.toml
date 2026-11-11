@@ -2,5 +2,5 @@
 name = "p"
 version = "1.0.0"
 
-[patch."ns/q"]
+[patch.q]
 files = ["patches/a.patch", "patches/b.patch"]

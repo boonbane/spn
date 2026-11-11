@@ -15,7 +15,6 @@
 #include "fs/fs.h"
 #include "index/json.h"
 #include "index/jsonl.h"
-#include "pkg/id.h"
 #include "semver/compare.h"
 #include "semver/convert.h"
 #include "io/io.h"
@@ -121,41 +120,23 @@ spn_err_t spn_index_sync(spn_index_info_t* index, spn_index_plan_t plan) {
   return SPN_ERROR;
 }
 
-spn_err_t spn_index_get_package(spn_index_info_t* index, sp_mem_t mem, sp_intern_t* intern, const spn_path_roots_t* roots, spn_pkg_name_t id, spn_index_pkg_t** pkg, spn_err_union_t* err) {
+spn_err_t spn_index_get_package(spn_index_info_t* index, sp_mem_t mem, sp_intern_t* intern, const spn_path_roots_t* roots, sp_intern_str_t name, spn_index_pkg_t** pkg, spn_err_union_t* err) {
   switch (index->protocol) {
     case SPN_INDEX_PROTOCOL_GIT:
     case SPN_INDEX_PROTOCOL_HTTP: {
-      return spn_index_jsonl_get_package(index, mem, id, pkg, err);
+      return spn_index_jsonl_get_package(index, mem, intern, name, pkg, err);
     }
     case SPN_INDEX_PROTOCOL_DIR: {
-      return spn_index_dir_get_package(index, mem, intern, roots, id, pkg, err);
+      return spn_index_dir_get_package(index, mem, intern, roots, name, pkg, err);
     }
   }
   sp_unreachable_return(SPN_ERROR);
 }
 
-static spn_err_t index_release_exists(spn_index_info_t* index, sp_mem_t mem, spn_index_release_t* rel, bool* exists, spn_err_union_t* err) {
-  *exists = false;
-
-  spn_index_pkg_t* existing = SP_NULLPTR;
-  spn_try(spn_index_jsonl_get_package(index, mem, rel->id, &existing, err));
-  if (!existing) {
-    return SPN_OK;
-  }
-
-  sp_da_for(existing->releases, it) {
-    if (spn_semver_eq(existing->releases[it].version, rel->version)) {
-      *exists = true;
-      break;
-    }
-  }
-  return SPN_OK;
-}
-
 static void index_append_release(spn_index_info_t* index, spn_index_release_t* rel) {
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
 
-  sp_path_t path = sp_path_join(scratch.mem, index->location.at, spn_index_jsonl_path(scratch.mem, rel->id));
+  sp_path_t path = sp_path_join(scratch.mem, index->location.at, spn_index_jsonl_path(scratch.mem, rel->name));
   sp_fs_create_parent_at(path);
 
   sp_str_t json = spn_index_release_to_json(scratch.mem, rel);
@@ -174,9 +155,8 @@ static void index_append_release(spn_index_info_t* index, spn_index_release_t* r
 
 static spn_err_t publish_git(spn_index_info_t* index, spn_index_release_t* rel, bool* dirtied) {
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  sp_str_t message = sp_fmt(scratch.mem, "{}/{} {}",
-    sp_fmt_str(rel->id.namespace),
-    sp_fmt_str(rel->id.name),
+  sp_str_t message = sp_fmt(scratch.mem, "{} {}",
+    sp_fmt_str(rel->name.str),
     sp_fmt_str(spn_semver_to_str(scratch.mem, rel->version))).value;
   sp_str_t url = spn_index_publish_target(index);
   sp_str_t dir = index->location.dir;
@@ -194,17 +174,27 @@ static spn_err_t publish_git(spn_index_info_t* index, spn_index_release_t* rel, 
     }
     *dirtied = false;
 
-    bool exists = false;
+    spn_index_pkg_t* existing = SP_NULLPTR;
     spn_err_union_t err = sp_zero;
-    if (index_release_exists(index, spn.mem, rel, &exists, &err)) {
+    if (spn_index_jsonl_get_package(index, spn.mem, spn.intern, rel->name, &existing, &err)) {
       result = spn_err_emit(&spn, err);
       break;
+    }
+
+    bool exists = false;
+    if (existing) {
+      sp_da_for(existing->releases, it) {
+        if (spn_semver_eq(existing->releases[it].version, rel->version)) {
+          exists = true;
+          break;
+        }
+      }
     }
     if (exists) {
       result = spn_err_emit(&spn, (spn_err_union_t) {
         .kind = SPN_ERR_VERSION_EXISTS,
         .version_exists = {
-          .name = rel->id.name,
+          .name = rel->name.str,
           .version = spn_semver_to_str(spn.events->mem, rel->version),
         },
       });
@@ -226,7 +216,7 @@ static spn_err_t publish_git(spn_index_info_t* index, spn_index_release_t* rel, 
       break;
     }
 
-    sp_str_t path = sp_fs_join_path(scratch.mem, dir, spn_index_jsonl_path(scratch.mem, rel->id));
+    sp_str_t path = sp_fs_join_path(scratch.mem, dir, spn_index_jsonl_path(scratch.mem, rel->name));
     if (spn_git_add(dir, path)) {
       result = spn_err_emit(&spn, (spn_err_union_t) {
         .kind = SPN_ERR_GIT,

@@ -2,13 +2,11 @@
 
 #include "error/error.h"
 #include "intern/intern.h"
-#include "pkg/id.h"
 #include "semver/compare.h"
 #include "semver/convert.h"
 #include "toml/loader.h"
 
 typedef struct {
-  sp_str_t namespace;
   sp_str_t name;
   spn_semver_t version;
   sp_hash_t hash;
@@ -31,19 +29,15 @@ static sp_str_t dump_hash_str(sp_mem_t mem, sp_hash_t hash) {
 }
 
 static spn_dump_key_t dump_key(sp_intern_t* intern, spn_pkg_id_t id) {
-  spn_pkg_name_t name = spn_pkg_name_from_qualified(sp_intern_find(intern, id.qualified));
   return (spn_dump_key_t) {
-    .namespace = name.namespace,
-    .name = name.name,
+    .name = sp_intern_find(intern, id.name),
     .version = id.version,
     .hash = id.hash,
   };
 }
 
 static s32 dump_key_cmp(const spn_dump_key_t* lhs, const spn_dump_key_t* rhs) {
-  s32 order = sp_str_compare_alphabetical(lhs->namespace, rhs->namespace);
-  if (order) return order;
-  order = sp_str_compare_alphabetical(lhs->name, rhs->name);
+  s32 order = sp_str_compare_alphabetical(lhs->name, rhs->name);
   if (order) return order;
   order = spn_semver_cmp(lhs->version, rhs->version);
   if (order) return order;
@@ -69,9 +63,7 @@ static s32 sort_edge(const void* a, const void* b) {
 static s32 sort_request(const void* a, const void* b) {
   const spn_cg_resolve_request_t* lhs = (const spn_cg_resolve_request_t*)a;
   const spn_cg_resolve_request_t* rhs = (const spn_cg_resolve_request_t*)b;
-  s32 order = sp_str_compare_alphabetical(lhs->namespace, rhs->namespace);
-  if (order) return order;
-  order = sp_str_compare_alphabetical(lhs->name, rhs->name);
+  s32 order = sp_str_compare_alphabetical(lhs->name, rhs->name);
   if (order) return order;
   order = sp_str_compare_alphabetical(lhs->version, rhs->version);
   if (order) return order;
@@ -82,21 +74,10 @@ static s32 sort_request(const void* a, const void* b) {
 
 static spn_cg_resolve_ref_t dump_ref(sp_mem_t mem, const spn_dump_key_t* key) {
   return (spn_cg_resolve_ref_t) {
-    .namespace = key->namespace,
     .name = key->name,
     .version = spn_semver_to_str(mem, key->version),
     .hash = dump_hash_str(mem, key->hash),
   };
-}
-
-static void dump_error_pkg(spn_cg_resolve_error_t* error, spn_pkg_name_t id) {
-  error->namespace = id.namespace;
-  error->name = id.name;
-}
-
-static void dump_error_id(spn_cg_resolve_error_t* error, const spn_err_pkg_name_t* id) {
-  error->namespace = id->namespace;
-  error->name = id->name;
 }
 
 static sp_da(spn_cg_resolve_issue_t) dump_issues(sp_mem_t mem, sp_da(spn_toml_issue_t) issues) {
@@ -118,46 +99,46 @@ static spn_cg_resolve_error_t dump_error(sp_mem_t mem, const spn_err_union_t* er
 
   switch (err->kind) {
     case SPN_ERR_PKG_UNKNOWN: {
-      dump_error_pkg(&error, spn_pkg_name_from_qualified(err->subject));
+      error.name = err->subject;
       error.range = err->unknown.range;
       break;
     }
     case SPN_ERR_PKG_NO_MATCH: {
-      dump_error_pkg(&error, spn_pkg_name_from_qualified(err->subject));
+      error.name = err->subject;
       error.range = err->unsatisfiable.range;
       error.requester = err->unsatisfiable.requester;
       break;
     }
     case SPN_ERR_PKG_CONFLICT:
     case SPN_ERR_PKG_CONFLICT_EXACT: {
-      dump_error_pkg(&error, spn_pkg_name_from_qualified(err->subject));
+      error.name = err->subject;
       error.range = err->unsatisfiable.range;
       error.requester = err->unsatisfiable.requester;
       error.selected = spn_semver_to_str(mem, err->unsatisfiable.selected);
       break;
     }
     case SPN_ERR_DEP_CYCLE: {
-      dump_error_id(&error, &err->circular.id);
+      error.name = err->subject;
       break;
     }
     case SPN_ERR_UNIT_CYCLE: {
-      dump_error_id(&error, &err->unit_cycle.id);
+      error.name = err->subject;
       error.version = spn_semver_to_str(mem, err->unit_cycle.version);
       break;
     }
     case SPN_ERR_DYNAMIC_DUPLICATE: {
-      dump_error_id(&error, &err->dynamic_dup.id);
+      error.name = err->subject;
       error.versions = sp_da_new(mem, sp_str_t);
       sp_da_push(error.versions, spn_semver_to_str(mem, err->dynamic_dup.low));
       sp_da_push(error.versions, spn_semver_to_str(mem, err->dynamic_dup.high));
       break;
     }
     case SPN_ERR_RESOLVE_TOO_COMPLEX: {
-      dump_error_id(&error, &err->too_complex.id);
+      error.name = err->subject;
       break;
     }
     case SPN_ERR_MANIFEST_ISSUES: {
-      dump_error_pkg(&error, spn_pkg_name_from_qualified(err->subject));
+      error.name = err->subject;
       error.issues = dump_issues(mem, err->manifest.issues);
       break;
     }
@@ -166,16 +147,16 @@ static spn_cg_resolve_error_t dump_error(sp_mem_t mem, const spn_err_union_t* er
       break;
     }
     case SPN_ERR_PKG_MISMATCH: {
-      dump_error_pkg(&error, spn_pkg_name_from_qualified(err->mismatch.requested));
+      error.name = err->mismatch.requested;
       error.detail = err->mismatch.declared;
       break;
     }
     case SPN_ERR_INDEX_CORRUPT: {
-      dump_error_pkg(&error, spn_pkg_name_from_qualified(err->index_corrupt.name));
+      error.name = err->index_corrupt.name;
       break;
     }
     case SPN_ERR_INDEX_PATH_DEP: {
-      dump_error_pkg(&error, spn_pkg_name_from_qualified(err->pkg.name));
+      error.name = err->pkg.name;
       error.detail = err->pkg.requested;
       break;
     }
@@ -196,10 +177,8 @@ spn_cg_resolve_t spn_resolve_dump(sp_mem_t mem, sp_intern_t* intern, const spn_r
 
   sp_da_for(query->reqs, it) {
     const spn_requested_dep_t* req = &query->reqs[it];
-    spn_pkg_name_t name = spn_pkg_name_from_qualified(req->qualified.str);
     spn_cg_resolve_request_t request = {
-      .namespace = name.namespace,
-      .name = name.name,
+      .name = req->name.str,
       .kind = req->kind,
       .source = req->source,
     };
@@ -243,7 +222,6 @@ spn_cg_resolve_t spn_resolve_dump(sp_mem_t mem, sp_intern_t* intern, const spn_r
     sp_da_sort(edges, sort_edge);
 
     spn_cg_resolve_pkg_t pkg = {
-      .namespace = pkgs[it].key.namespace,
       .name = pkgs[it].key.name,
       .version = spn_semver_to_str(mem, pkgs[it].key.version),
       .hash = dump_hash_str(mem, pkgs[it].key.hash),

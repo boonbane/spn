@@ -2,7 +2,6 @@
   "package": {
     "name": "ordered",
     "version": "9.9.9",
-    "namespace": "core",
     "author": "Zed"
   }
 }

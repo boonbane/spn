@@ -1,8 +1,7 @@
 {
-  "version": 2,
+  "version": 3,
   "requests": [
     {
-      "namespace": "test",
       "name": "root",
       "kind": "package",
       "source": "root"
@@ -10,27 +9,24 @@
   ],
   "packages": [
     {
-      "namespace": "spn",
       "name": "audio",
       "version": "1.0.0",
-      "hash": "4214aa67b9bf9490",
+      "hash": "96794014bac2950e",
       "source": "index",
       "recipe": "none"
     },
     {
-      "namespace": "spn",
       "name": "audio",
       "version": "2.0.0",
-      "hash": "ab50e81e9756068e",
+      "hash": "5868a7165bca1d88",
       "source": "index",
       "recipe": "none",
       "edges": [
         {
           "to": {
-            "namespace": "spn",
             "name": "tool",
             "version": "1.0.0",
-            "hash": "861811e41fcec66a"
+            "hash": "e56f9aeca1210188"
           },
           "kind": "build",
           "edge": "process"
@@ -38,19 +34,17 @@
       ]
     },
     {
-      "namespace": "spn",
-      "name": "tool",
-      "version": "1.0.0",
-      "hash": "861811e41fcec66a",
-      "source": "index",
-      "recipe": "none",
+      "name": "root",
+      "version": "0.0.1",
+      "hash": "92b1bcd97596d111",
+      "source": "root",
+      "recipe": "local",
       "edges": [
         {
           "to": {
-            "namespace": "spn",
             "name": "audio",
-            "version": "1.0.0",
-            "hash": "4214aa67b9bf9490"
+            "version": "2.0.0",
+            "hash": "5868a7165bca1d88"
           },
           "kind": "package",
           "edge": "scope"
@@ -58,19 +52,17 @@
       ]
     },
     {
-      "namespace": "test",
-      "name": "root",
-      "version": "0.0.1",
-      "hash": "c48c2086d4dd7e79",
-      "source": "root",
-      "recipe": "local",
+      "name": "tool",
+      "version": "1.0.0",
+      "hash": "e56f9aeca1210188",
+      "source": "index",
+      "recipe": "none",
       "edges": [
         {
           "to": {
-            "namespace": "spn",
             "name": "audio",
-            "version": "2.0.0",
-            "hash": "ab50e81e9756068e"
+            "version": "1.0.0",
+            "hash": "96794014bac2950e"
           },
           "kind": "package",
           "edge": "scope"

@@ -1,0 +1,1 @@
+{"name":"a","version":"1.0.0","yanked":false,"deps":[{"name":"c","version":"=1.0.0","kind":"normal","when":{"x":true}}],"options":{"x":{"type":"bool"}}}

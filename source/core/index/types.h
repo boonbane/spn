@@ -20,7 +20,7 @@ typedef enum {
 typedef struct {
   spn_index_dep_kind_t kind;
   bool private;
-  spn_pkg_name_t id;
+  sp_intern_str_t name;
   spn_semver_range_t range;
   spn_when_t when;
   spn_when_t options;
@@ -36,7 +36,7 @@ typedef struct {
 } spn_index_target_t;
 
 typedef struct {
-  spn_pkg_name_t id;
+  sp_intern_str_t name;
   spn_semver_t version;
 
   bool yanked;
@@ -51,7 +51,6 @@ typedef struct {
 } spn_index_release_t;
 
 typedef struct {
-  spn_pkg_name_t id;
   sp_da(spn_index_release_t) releases;
 } spn_index_pkg_t;
 
@@ -87,7 +86,7 @@ typedef struct {
   sp_intern_t* intern;
   const spn_path_roots_t* roots;
   sp_da(spn_index_info_t)* indexes;
-  sp_str_om(spn_index_pkg_t*) packages;
+  sp_ht(sp_intern_id_t, spn_index_pkg_t*) packages;
 } spn_index_cache_t;
 
 #endif

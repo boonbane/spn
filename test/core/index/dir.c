@@ -1,7 +1,5 @@
 #include "index.h"
-#include "intern/intern.h"
 
-#include "pkg/id.h"
 #include "when/when.h"
 
 #define DIR_TEST_MAX_DEPS 4
@@ -14,7 +12,6 @@ typedef struct {
   spn_err_t err;
   spn_semver_t version;
   struct {
-    const c8* namespace;
     const c8* name;
     const c8* range;
     spn_index_dep_kind_t kind;
@@ -31,7 +28,6 @@ typedef struct {
   const c8* name;
   const c8* package;
   const c8* toml;
-  struct { const c8* namespace; const c8* name; } request;
   dir_expect_t expect;
 } dir_test_t;
 
@@ -53,8 +49,8 @@ static const dir_test_t tests [] = {
       .exists = true,
       .version = { 1, 0, 0 },
       .deps = {
-        { .namespace = "core", .name = "B", .range = "^1.0.0", .private = true, .when = "os = \"linux\"", .options = "O = true" },
-        { .namespace = "core", .name = "C", .range = "^2.0.0" },
+        { .name = "B", .range = "^1.0.0", .private = true, .when = "os = \"linux\"", .options = "O = true" },
+        { .name = "C", .range = "^2.0.0" },
       },
     },
   },
@@ -66,9 +62,9 @@ static const dir_test_t tests [] = {
       .exists = true,
       .version = { 1, 0, 0 },
       .deps = {
-        { .namespace = "core", .name = "B", .range = "^1.0.0" },
-        { .namespace = "core", .name = "D", .range = "^1.0.0", .kind = SPN_INDEX_DEP_TEST },
-        { .namespace = "core", .name = "C", .range = "^1.0.0", .kind = SPN_INDEX_DEP_BUILD },
+        { .name = "B", .range = "^1.0.0" },
+        { .name = "D", .range = "^1.0.0", .kind = SPN_INDEX_DEP_TEST },
+        { .name = "C", .range = "^1.0.0", .kind = SPN_INDEX_DEP_BUILD },
       },
     },
   },
@@ -97,18 +93,7 @@ static const dir_test_t tests [] = {
     },
   },
   {
-    .name = "namespaced",
-    .package = "A",
-    .toml = "namespaced",
-    .request = { .namespace = "N" },
-    .expect = {
-      .exists = true,
-      .version = { 1, 0, 0 },
-    },
-  },
-  {
     .name = "missing",
-    .request = { .name = "A" },
   },
   {
     .name = "empty_dir",
@@ -121,11 +106,6 @@ static const dir_test_t tests [] = {
     .expect = {
       .err = SPN_ERR_MANIFEST_ISSUES,
     },
-  },
-  {
-    .name = "namespace_mismatch",
-    .package = "A",
-    .toml = "namespaced",
   },
   {
     .name = "name_mismatch",
@@ -141,7 +121,7 @@ static const dir_test_t tests [] = {
     .toml = "path_dep",
     .expect = {
       .err = SPN_ERR_INDEX_PATH_DEP,
-      .dep = "core/B",
+      .dep = "B",
     },
   },
 };
@@ -171,10 +151,7 @@ sp_test_each(index_dir, get_package, dir_test_t, tests, .setup = spn_test_ctx_se
     .location = { .at = sp_path_from_str(location), .dir = location },
   };
 
-  spn_pkg_name_t request = {
-    .namespace = sp_cstr_as_str(it->request.namespace ? it->request.namespace : "core"),
-    .name = sp_cstr_as_str(it->request.name ? it->request.name : it->package),
-  };
+  sp_intern_str_t request = spn_intern_lit("A");
 
   spn_index_pkg_t* pkg = SP_NULLPTR;
   spn_err_union_t diag = sp_zero;
@@ -206,8 +183,7 @@ sp_test_each(index_dir, get_package, dir_test_t, tests, .setup = spn_test_ctx_se
     spn_index_release_t* release = &pkg->releases[0];
 
     sp_expect(t, spn_semver_eq(it->expect.version, release->version));
-    sp_expect_str_eq(t, release->id.namespace, request.namespace);
-    sp_expect_str_eq(t, release->id.name, request.name);
+    sp_expect_str_eq(t, release->name.str, request.str);
     sp_expect_str_eq_c(t, release->paths.manifest, "spn.toml");
 
     sp_must_eq(t, SPN_PKG_ROOT_LOCAL, release->source.kind);
@@ -217,8 +193,7 @@ sp_test_each(index_dir, get_package, dir_test_t, tests, .setup = spn_test_ctx_se
     sp_carr_detect_len(it->expect.deps, deps, it->expect.deps[deps].name);
     sp_must_eq(t, deps, sp_da_size(release->deps));
     sp_for(at, deps) {
-      sp_expect_str_eq_c(t, release->deps[at].id.namespace, it->expect.deps[at].namespace);
-      sp_expect_str_eq_c(t, release->deps[at].id.name, it->expect.deps[at].name);
+      sp_expect_str_eq_c(t, release->deps[at].name.str, it->expect.deps[at].name);
       sp_expect_str_eq_c(t, spn_semver_range_to_str(mem, release->deps[at].range), it->expect.deps[at].range);
       sp_expect_eq(t, it->expect.deps[at].kind, release->deps[at].kind);
       sp_expect_eq(t, it->expect.deps[at].private, release->deps[at].private);

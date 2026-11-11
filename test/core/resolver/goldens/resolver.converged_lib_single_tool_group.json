@@ -1,8 +1,7 @@
 {
-  "version": 2,
+  "version": 3,
   "requests": [
     {
-      "namespace": "test",
       "name": "root",
       "kind": "package",
       "source": "root"
@@ -10,27 +9,24 @@
   ],
   "packages": [
     {
-      "namespace": "spn",
       "name": "foo",
       "version": "1.9.0",
-      "hash": "83fd4a8d0a1afc44",
+      "hash": "85e408a77ddc2f36",
       "source": "index",
       "recipe": "none"
     },
     {
-      "namespace": "spn",
       "name": "gen",
       "version": "1.0.0",
-      "hash": "744e32cac55b1442",
+      "hash": "ca2eb8b030888810",
       "source": "index",
       "recipe": "none",
       "edges": [
         {
           "to": {
-            "namespace": "spn",
             "name": "foo",
             "version": "1.9.0",
-            "hash": "83fd4a8d0a1afc44"
+            "hash": "85e408a77ddc2f36"
           },
           "kind": "package",
           "edge": "scope"
@@ -38,19 +34,17 @@
       ]
     },
     {
-      "namespace": "spn",
       "name": "lib",
       "version": "1.0.0",
-      "hash": "f24dc13239c927cd",
+      "hash": "35d86f727e6a0a5e",
       "source": "index",
       "recipe": "none",
       "edges": [
         {
           "to": {
-            "namespace": "spn",
             "name": "gen",
             "version": "1.0.0",
-            "hash": "744e32cac55b1442"
+            "hash": "ca2eb8b030888810"
           },
           "kind": "build",
           "edge": "process"
@@ -58,52 +52,47 @@
       ]
     },
     {
-      "namespace": "spn",
-      "name": "wrap",
-      "version": "1.0.0",
-      "hash": "ba026dabccbeeabe",
-      "source": "index",
-      "recipe": "none",
-      "edges": [
-        {
-          "to": {
-            "namespace": "spn",
-            "name": "lib",
-            "version": "1.0.0",
-            "hash": "f24dc13239c927cd"
-          },
-          "kind": "package",
-          "edge": "scope"
-        }
-      ]
-    },
-    {
-      "namespace": "test",
       "name": "root",
       "version": "0.0.1",
-      "hash": "5c621c3d38d4e928",
+      "hash": "491946dc3f3a0abc",
       "source": "root",
       "recipe": "local",
       "edges": [
         {
           "to": {
-            "namespace": "spn",
             "name": "lib",
             "version": "1.0.0",
-            "hash": "f24dc13239c927cd"
+            "hash": "35d86f727e6a0a5e"
           },
           "kind": "package",
           "edge": "scope"
         },
         {
           "to": {
-            "namespace": "spn",
             "name": "wrap",
             "version": "1.0.0",
-            "hash": "ba026dabccbeeabe"
+            "hash": "6c9d5b8ebd2c0b95"
           },
           "kind": "build",
           "edge": "process"
+        }
+      ]
+    },
+    {
+      "name": "wrap",
+      "version": "1.0.0",
+      "hash": "6c9d5b8ebd2c0b95",
+      "source": "index",
+      "recipe": "none",
+      "edges": [
+        {
+          "to": {
+            "name": "lib",
+            "version": "1.0.0",
+            "hash": "35d86f727e6a0a5e"
+          },
+          "kind": "package",
+          "edge": "scope"
         }
       ]
     }

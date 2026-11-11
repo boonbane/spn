@@ -32,7 +32,6 @@ readme: false
 |---|---|---|
 | `name` | `string` | yes |
 | `version` | `string` | yes |
-| `namespace` | `string` | |
 | `repo` | `string` | |
 | `author` | `string` | |
 | `maintainer` | `string` | |

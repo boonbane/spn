@@ -34,15 +34,9 @@ typedef struct {
   };
 } spn_pkg_root_t;
 
-
-typedef struct {
-  sp_str_t namespace;
-  sp_str_t name;
-} spn_pkg_name_t;
-
 SPN_PACK_PUSH
 typedef struct {
-  sp_intern_id_t qualified;
+  sp_intern_id_t name;
   sp_hash_t hash;
   spn_semver_t version;
 } spn_pkg_id_t;
@@ -54,7 +48,7 @@ _Static_assert(
 );
 
 typedef struct {
-  sp_intern_str_t qualified;
+  sp_intern_str_t name;
   spn_pkg_source_t source;
   spn_dep_kind_t kind;
   bool private;
@@ -77,7 +71,7 @@ typedef struct {
 typedef si_om(sp_intern_id_t, spn_pkg_config_t) spn_pkg_config_map_t;
 
 typedef struct {
-  sp_intern_str_t qualified;
+  sp_intern_str_t name;
   si_da(spn_path_t) files;
 } spn_pkg_patch_t;
 
@@ -88,9 +82,7 @@ typedef struct {
 } spn_stage_copy_t;
 
 struct si_pkg_info {
-  sp_str_t namespace;
   sp_intern_str_t name;
-  sp_intern_str_t qualified;
   sp_str_t repo;
   sp_str_t author;
   sp_str_t maintainer;

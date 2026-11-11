@@ -5,7 +5,7 @@ version = "0.1.0"
 [deps.package]
 spum = { path = "vendor/spum" }
 
-[patch."core/spum"]
+[patch.spum]
 files = ["patches/spum.patch"]
 
 [[bin]]

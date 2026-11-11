@@ -20,7 +20,7 @@
 #include "unit/types.h"
 
 typedef struct {
-  sp_intern_str_t qualified;
+  sp_intern_str_t name;
   spn_git_patch_set_t set;
 } spn_patch_t;
 

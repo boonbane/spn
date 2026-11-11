@@ -3,7 +3,7 @@ name = "A"
 version = "1.0.0"
 
 [deps.package]
-"A/B/C" = "1.0.0"
+"A/B" = "1.0.0"
 
-[patch."A//B"]
+[patch."A/B"]
 files = ["A.patch"]

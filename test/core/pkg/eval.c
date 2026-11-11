@@ -306,7 +306,16 @@ sp_test_each(pkg_eval, lists, lists_test_t, lists_tests, .setup = spn_test_ctx_s
   exe->flags = make_list(mem, it->flags);
   exe->link_flags = make_list(mem, it->link_flags);
   exe->system_deps = make_list(mem, it->sys_target);
-  exe->deps = make_list(mem, it->deps);
+  sp_carr_for(it->deps.values, dt) {
+    const gated_t* dep = &it->deps.values[dt];
+    if (!dep->value) {
+      break;
+    }
+    si_da_push(mem, exe->deps, ((spn_gated_dep_t) {
+      .name = spn_intern_cstr(dep->value),
+      .when = make_when(mem, dep->when, sp_carr_len(dep->when)),
+    }));
+  }
   exe->macos.frameworks = make_list(mem, it->frameworks);
   manifest.system_deps = make_list(mem, it->sys);
   manifest.define = make_list(mem, it->pkg_define);
@@ -314,11 +323,11 @@ sp_test_each(pkg_eval, lists, lists_test_t, lists_tests, .setup = spn_test_ctx_s
 
   spn_when_env_t env = make_env(mem, it->facts);
   si_pkg_t pkg = eval(mem, &manifest, &env);
-  si_target_t* lib_eval = spn_pkg_get_target(&pkg, sp_str_lit("A"), SPN_TARGET_KIND_LIB);
-  si_target_t* exe_eval = spn_pkg_get_target(&pkg, sp_str_lit("main"), SPN_TARGET_KIND_EXE);
-  si_target_t* script_eval = spn_pkg_get_target(&pkg, sp_str_lit("B"), SPN_TARGET_KIND_SCRIPT);
-  si_target_t* test_eval = spn_pkg_get_target(&pkg, sp_str_lit("C"), SPN_TARGET_KIND_TEST);
-  si_target_t* build_eval = spn_pkg_get_target(&pkg, sp_str_lit("build"), SPN_TARGET_KIND_BUILD_METAPROGRAM);
+  si_target_t* lib_eval = spn_pkg_get_target(&pkg, spn_intern_lit("A").id, SPN_TARGET_KIND_LIB);
+  si_target_t* exe_eval = spn_pkg_get_target(&pkg, spn_intern_lit("main").id, SPN_TARGET_KIND_EXE);
+  si_target_t* script_eval = spn_pkg_get_target(&pkg, spn_intern_lit("B").id, SPN_TARGET_KIND_SCRIPT);
+  si_target_t* test_eval = spn_pkg_get_target(&pkg, spn_intern_lit("C").id, SPN_TARGET_KIND_TEST);
+  si_target_t* build_eval = spn_pkg_get_target(&pkg, spn_intern_lit("build").id, SPN_TARGET_KIND_BUILD_METAPROGRAM);
   sp_must(t, lib_eval && exe_eval && script_eval && test_eval && build_eval);
   sp_expect(t, exe_eval->info == exe);
 
@@ -333,7 +342,12 @@ sp_test_each(pkg_eval, lists, lists_test_t, lists_tests, .setup = spn_test_ctx_s
   sp_try(expect_list(t, exe_eval->flags, it->expect.flags));
   sp_try(expect_list(t, exe_eval->link_flags, it->expect.link_flags));
   sp_try(expect_list(t, exe_eval->system_deps, it->expect.sys_target));
-  sp_try(expect_list(t, exe_eval->deps, it->expect.deps));
+  u32 num_deps = 0;
+  sp_carr_detect_len(it->expect.deps, num_deps, it->expect.deps[num_deps]);
+  sp_must_eq(t, num_deps, si_da_size(exe_eval->deps));
+  sp_for(dt, num_deps) {
+    sp_expect_str_eq_c(t, exe_eval->deps[dt].str, it->expect.deps[dt]);
+  }
   sp_try(expect_list(t, exe_eval->macos.frameworks, it->expect.frameworks));
   sp_try(expect_list(t, pkg.system_deps, it->expect.sys));
   sp_try(expect_list(t, pkg.define, it->expect.pkg_define));
@@ -563,7 +577,7 @@ sp_test_each(pkg_eval, target_embeds, embed_test_t, embed_tests, .setup = spn_te
 
   spn_when_env_t env = make_env(mem, it->facts);
   si_pkg_t pkg = eval(mem, &manifest, &env);
-  si_target_t* target = spn_pkg_get_target(&pkg, sp_str_lit("main"), SPN_TARGET_KIND_EXE);
+  si_target_t* target = spn_pkg_get_target(&pkg, spn_intern_lit("main").id, SPN_TARGET_KIND_EXE);
   sp_must(t, target);
 
   u32 expected = 0;

@@ -1,6 +1,5 @@
 #include "fuzz.h"
 
-#include "intern/intern.h"
 #include "semver/compare.h"
 #include "str/str.h"
 
@@ -20,7 +19,7 @@ typedef struct {
 static s32 fz_find_inst(fz_instance_arr_t arr, spn_pkg_id_t id) {
   sp_da_for(arr, it) {
     spn_pkg_id_t other = arr[it].node->id;
-    if (other.qualified == id.qualified && spn_semver_eq(other.version, id.version) && other.hash == id.hash) {
+    if (other.name == id.name && spn_semver_eq(other.version, id.version) && other.hash == id.hash) {
       return (s32)it;
     }
   }
@@ -218,7 +217,7 @@ static s32 fz_sort_label_record(const void* a, const void* b) {
   return 0;
 }
 
-static sp_hash_t fz_label(sp_mem_t mem, sp_intern_t* intern, fz_instance_arr_t instances, sp_hash_t* labels, u8* done, s32 index) {
+static sp_hash_t fz_label(sp_mem_t mem, fz_instance_arr_t instances, sp_hash_t* labels, u8* done, s32 index) {
   if (done[index]) {
     return labels[index];
   }
@@ -228,14 +227,14 @@ static sp_hash_t fz_label(sp_mem_t mem, sp_intern_t* intern, fz_instance_arr_t i
   sp_da_for(node->edges, et) {
     spn_resolved_dep_t* edge = &node->edges[et];
     sp_da_push(records, ((fz_label_record_t) {
-      .label = fz_label(mem, intern, instances, labels, done, fz_find_inst(instances, edge->id)),
+      .label = fz_label(mem, instances, labels, done, fz_find_inst(instances, edge->id)),
       .kind = (u32)edge->kind,
       .private = (u32)edge->private,
     }));
   }
   sp_da_sort(records, fz_sort_label_record);
 
-  sp_hash_t label = sp_hash_str(sp_intern_find(intern, node->id.qualified));
+  sp_hash_t label = sp_hash_str(node->name.str);
   label = sp_hash_bytes(&node->id.version, sizeof(spn_semver_t), label);
   if (!sp_da_empty(records)) {
     label = sp_hash_bytes(records, sp_da_size(records) * sizeof(fz_label_record_t), label);
@@ -246,7 +245,7 @@ static sp_hash_t fz_label(sp_mem_t mem, sp_intern_t* intern, fz_instance_arr_t i
   return label;
 }
 
-fz_err_t fz_check_units(sp_mem_t mem, fz_universe_t* u, sp_intern_t* intern, spn_resolve_query_t* query) {
+fz_err_t fz_check_units(sp_mem_t mem, fz_universe_t* u, spn_resolve_query_t* query) {
   fz_instance_arr_t instances = sp_da_new(mem, fz_instance_t);
   s32 root = -1;
 
@@ -254,11 +253,11 @@ fz_err_t fz_check_units(sp_mem_t mem, fz_universe_t* u, sp_intern_t* intern, spn
     spn_resolved_pkg_t* node = it.val;
     fz_instance_t instance = { .node = node, .pkg = -1 };
 
-    if (sp_str_equal(sp_intern_find(intern, node->id.qualified), sp_cstr_as_str(fz_root_qualified))) {
+    if (sp_str_equal(node->name.str, sp_cstr_as_str(fz_root_name))) {
       root = sp_da_size(instances);
     }
     else {
-      instance.pkg = fz_pkg_from_qualified(u, sp_intern_find(intern, node->id.qualified));
+      instance.pkg = fz_pkg_from_name(u, node->name.str);
       must(instance.pkg >= 0, FZ_ERR_SOLVE_FOREIGN_PKG);
       must(fz_inst_release(u, &instance), FZ_ERR_SOLVE_FOREIGN_VERSION);
     }
@@ -332,7 +331,7 @@ fz_err_t fz_check_units(sp_mem_t mem, fz_universe_t* u, sp_intern_t* intern, spn
     sp_da_push(done, 0);
   }
   sp_da_for(instances, it) {
-    fz_label(mem, intern, instances, labels, done, it);
+    fz_label(mem, instances, labels, done, it);
   }
   sp_da_for(instances, it) {
     for (u64 jt = it + 1; jt < sp_da_size(instances); jt++) {

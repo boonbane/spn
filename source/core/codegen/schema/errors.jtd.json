@@ -101,7 +101,7 @@
     "dag_tree": { "properties": {} },
     "dag_stalled": { "properties": {} },
     "dag_cancelled": { "properties": {} },
-    "dep_cycle": { "ref": "circular" },
+    "dep_cycle": { "properties": {} },
     "unit_cycle": { "ref": "unit_cycle" },
     "target_linkage": { "ref": "target" },
     "target_duplicate": { "ref": "target" },
@@ -118,7 +118,7 @@
     "script_failed": { "ref": "script" },
     "triple_invalid": { "properties": {} },
     "dynamic_duplicate": { "ref": "dynamic_dup" },
-    "resolve_too_complex": { "ref": "too_complex" },
+    "resolve_too_complex": { "properties": {} },
     "option_undeclared": { "ref": "option" },
     "option_bad_value": { "ref": "option" },
     "option_conflict": { "ref": "option" },
@@ -304,35 +304,15 @@
         "path": { "type": "string" }
       }
     },
-    "pkg_name": {
-      "properties": {
-        "name": { "type": "string" }
-      },
-      "optionalProperties": {
-        "namespace": { "type": "string" }
-      }
-    },
-    "circular": {
-      "properties": {
-        "id": { "ref": "pkg_name" }
-      }
-    },
     "unit_cycle": {
       "properties": {
-        "id": { "ref": "pkg_name" },
         "version": { "metadata": { "extern": "semver" } }
       }
     },
     "dynamic_dup": {
       "properties": {
-        "id": { "ref": "pkg_name" },
         "low": { "metadata": { "extern": "semver" } },
         "high": { "metadata": { "extern": "semver" } }
-      }
-    },
-    "too_complex": {
-      "properties": {
-        "id": { "ref": "pkg_name" }
       }
     },
     "collision": {

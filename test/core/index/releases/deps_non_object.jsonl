@@ -1,1 +1,1 @@
-{"namespace":"core","name":"spum","version":"1.0.0","yanked":false,"deps":[69,{"namespace":"core","name":"curl","version":"^1.0.0","kind":"normal"}]}
+{"name":"spum","version":"1.0.0","yanked":false,"deps":[69,{"name":"curl","version":"^1.0.0","kind":"normal"}]}
