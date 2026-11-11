@@ -1,0 +1,181 @@
+diff --git a/core/shared/platform/windows/win_file.c b/core/shared/platform/windows/win_file.c
+index 878d6aa..db6b6f6 100644
+--- a/core/shared/platform/windows/win_file.c
++++ b/core/shared/platform/windows/win_file.c
+@@ -888,65 +888,54 @@ static __wasi_errno_t
+ read_data_at_offset(HANDLE handle, const struct __wasi_iovec_t *iov, int iovcnt,
+                     __wasi_filesize_t offset, size_t *nwritten)
+ {
+-    OVERLAPPED *read_operations =
+-        BH_MALLOC((uint32_t)(sizeof(OVERLAPPED) * (uint32_t)iovcnt));
++    // ReadFile marks the OVERLAPPED pending and resets its event before the
++    // read starts, which is how GetOverlappedResult knows to wait. ReadFileEx
++    // does neither, so a read that cannot finish inline gets reported as zero
++    // bytes while the kernel is still filling the buffer.
++    HANDLE event = CreateEventW(NULL, TRUE, FALSE, NULL);
+ 
+-    if (read_operations == NULL)
+-        return __WASI_ENOMEM;
++    if (event == NULL)
++        return convert_windows_error_code(GetLastError());
+ 
+     ULARGE_INTEGER query_offset = { .QuadPart = offset };
+     __wasi_errno_t error = __WASI_ESUCCESS;
+     size_t total_bytes_read = 0;
+ 
+     const __wasi_iovec_t *current = iov;
+-    int successful_read_count = 0;
+ 
+     for (int i = 0; i < iovcnt; ++i, ++current) {
+-        read_operations[i].Internal = 0;
+-        read_operations[i].InternalHigh = 0;
+-        read_operations[i].Offset = query_offset.LowPart;
+-        read_operations[i].OffsetHigh = query_offset.HighPart;
+-        read_operations[i].hEvent = NULL;
+-
+-        if (!ReadFileEx(handle, current->buf, (DWORD)current->buf_len,
+-                        &read_operations[i], NULL)) {
+-            DWORD win_error = GetLastError();
+-            if (win_error != ERROR_IO_PENDING) {
+-                error = convert_windows_error_code(win_error);
+-                break;
+-            }
+-        }
+-        ++successful_read_count;
+-        query_offset.QuadPart += (DWORD)current->buf_len;
+-    }
+-
+-    // Get the result of all the asynchronous read operations
+-    for (int i = 0; i < successful_read_count; ++i) {
++        OVERLAPPED read_operation = { 0 };
+         DWORD bytes_transferred = 0;
+-        if (!GetOverlappedResult(handle, &read_operations[i],
+-                                 &bytes_transferred, true)) {
++
++        read_operation.Offset = query_offset.LowPart;
++        read_operation.OffsetHigh = query_offset.HighPart;
++        read_operation.hEvent = event;
++
++        BOOL done = ReadFile(handle, current->buf, (DWORD)current->buf_len,
++                             NULL, &read_operation);
++
++        if (done || GetLastError() == ERROR_IO_PENDING)
++            done = GetOverlappedResult(handle, &read_operation,
++                                       &bytes_transferred, true);
++
++        if (!done) {
+             DWORD win_error = GetLastError();
+ 
+             if (win_error != ERROR_HANDLE_EOF)
+                 error = convert_windows_error_code(win_error);
+-            else
+-                total_bytes_read += (size_t)bytes_transferred;
+-
+-            CancelIo(handle);
+-
+-            for (int j = i + 1; j < iovcnt; ++j) {
+-                GetOverlappedResult(handle, &read_operations[j],
+-                                    &bytes_transferred, true);
+-            }
+             break;
+         }
+ 
+         total_bytes_read += (size_t)bytes_transferred;
++        query_offset.QuadPart += bytes_transferred;
++
++        if (bytes_transferred < (DWORD)current->buf_len)
++            break;
+     }
+ 
+-    *nwritten = total_bytes_read;
++    CloseHandle(event);
+ 
+-    BH_FREE(read_operations);
++    *nwritten = total_bytes_read;
+     return error;
+ }
+ 
+@@ -996,58 +985,48 @@ static __wasi_errno_t
+ write_data_at_offset(HANDLE handle, const struct __wasi_ciovec_t *iov,
+                      int iovcnt, __wasi_filesize_t offset, size_t *nwritten)
+ {
+-    OVERLAPPED *write_operations =
+-        BH_MALLOC((uint32_t)(sizeof(OVERLAPPED) * (uint32_t)iovcnt));
++    // See read_data_at_offset for why this is not WriteFileEx
++    HANDLE event = CreateEventW(NULL, TRUE, FALSE, NULL);
+ 
+-    if (write_operations == NULL)
+-        return __WASI_ENOMEM;
++    if (event == NULL)
++        return convert_windows_error_code(GetLastError());
+ 
+     ULARGE_INTEGER query_offset = { .QuadPart = offset };
+     __wasi_errno_t error = __WASI_ESUCCESS;
+     size_t total_bytes_written = 0;
+ 
+     const __wasi_ciovec_t *current = iov;
+-    int successful_write_count = 0;
+-    for (int i = 0; i < iovcnt; ++i, ++current) {
+-        write_operations[i].Internal = 0;
+-        write_operations[i].InternalHigh = 0;
+-        write_operations[i].Offset = query_offset.LowPart;
+-        write_operations[i].OffsetHigh = query_offset.HighPart;
+-        write_operations[i].hEvent = NULL;
+-
+-        if (!WriteFileEx(handle, current->buf, (DWORD)current->buf_len,
+-                         &write_operations[i], NULL)) {
+-            DWORD win_error = GetLastError();
+-            if (win_error != ERROR_IO_PENDING) {
+-                error = convert_windows_error_code(win_error);
+-                break;
+-            }
+-        }
+-        ++successful_write_count;
+-        query_offset.QuadPart += (DWORD)current->buf_len;
+-    }
+ 
+-    // Get the result of all the asynchronous writes
+-    for (int i = 0; i < successful_write_count; ++i) {
++    for (int i = 0; i < iovcnt; ++i, ++current) {
++        OVERLAPPED write_operation = { 0 };
+         DWORD bytes_transferred = 0;
+-        if (!GetOverlappedResult(handle, &write_operations[i],
+-                                 &bytes_transferred, true)) {
+-            error = convert_windows_error_code(GetLastError());
+-            CancelIo(handle);
+ 
+-            for (int j = i + 1; j < iovcnt; ++j) {
+-                GetOverlappedResult(handle, &write_operations[j],
+-                                    &bytes_transferred, true);
+-            }
++        write_operation.Offset = query_offset.LowPart;
++        write_operation.OffsetHigh = query_offset.HighPart;
++        write_operation.hEvent = event;
++
++        BOOL done = WriteFile(handle, current->buf, (DWORD)current->buf_len,
++                              NULL, &write_operation);
++
++        if (done || GetLastError() == ERROR_IO_PENDING)
++            done = GetOverlappedResult(handle, &write_operation,
++                                       &bytes_transferred, true);
++
++        if (!done) {
++            error = convert_windows_error_code(GetLastError());
+             break;
+         }
+ 
+         total_bytes_written += (size_t)bytes_transferred;
++        query_offset.QuadPart += bytes_transferred;
++
++        if (bytes_transferred < (DWORD)current->buf_len)
++            break;
+     }
+ 
+-    *nwritten = total_bytes_written;
++    CloseHandle(event);
+ 
+-    BH_FREE(write_operations);
++    *nwritten = total_bytes_written;
+     return error;
+ }
+ 

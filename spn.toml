@@ -49,6 +49,7 @@ files = [
   "tools/patches/wamr-musl-stack.patch",
   "tools/patches/wamr-mingw-tls.patch",
   "tools/patches/wamr-win-warnings.patch",
+  "tools/patches/wamr-win-overlapped.patch",
 ]
 
 [profile.default]
