@@ -1,73 +1,11 @@
 add_executable(resolver
-  ${SRC}/core/core.c
-  ${SRC}/ctx/ctx.c
-  ${SRC}/intern/context.c
-  ${SRC}/intern/intern.c
-  ${SRC}/enum/enum.c
-  ${SRC}/error/error.c
-  ${SRC}/error/json.c
-  ${SRC}/event/event.c
-  ${UTIL}/lazy/lazy.c
-  ${SRC}/external/git.c
-  ${SRC}/external/tom.c
-  ${SRC}/codegen/codegen.c
-  ${SRC}/toml/loader.c
-  ${SRC}/codegen/json.c
-  ${SRC}/codegen/options.c
-  ${SRC}/codegen/when.c
-  ${SRC}/codegen/lower.c
-  ${SRC}/codegen/toolchain.c
-  ${SRC}/git/key.c
-  ${SRC}/git/url.c
-  ${SRC}/git/patch.c
-  ${SRC}/hash/digest/digest.c
-  ${SRC}/hash/sha256/sha256.c
-  ${SRC}/when/when.c
-  ${SRC}/toolchain/catalog.c
-  ${SRC}/toolchain/linker.c
-  ${GEN_DIR}/config.gen.c
-  ${GEN_DIR}/errors.gen.c
-  ${GEN_DIR}/events.gen.c
-  ${GEN_DIR}/manifest.gen.c
-  ${GEN_DIR}/release.gen.c
-  ${SRC}/index/cache.c
-  ${SRC}/index/dir.c
-  ${SRC}/index/release.c
-  ${SRC}/index/index.c
-  ${SRC}/index/jsonl.c
-  ${SRC}/index/json.c
-  ${UTIL}/fs/fs.c
-  ${UTIL}/io/io.c
-  ${SRC}/paths/paths.c
-  ${SRC}/pkg/id.c
-  ${SRC}/pkg/pkg.c
-  ${SRC}/options/options.c
-  ${SRC}/profile/profile.c
-  ${SRC}/pkg/load.c
-  ${SRC}/triple/triple.c
-  ${SRC}/elf/elf.c
-  ${SRC}/resolve/resolve.c
   dump.c
   ${TEST_GEN_DIR}/resolve.gen.c
-  ${UTIL}/str/str.c
-  ${UTIL}/glob/glob.c
-  ${SRC}/semver/compare.c
-  ${SRC}/semver/convert.c
-  ${SRC}/semver/parser.c
-  ${SRC}/target/mutate.c
-  ${UTIL}/array/array.c
-  ${UTIL}/mem/mem.c
-  ${UTIL}/hash_table/hash_table.c
-  ${SRC}/target/select.c
-  ${SRC}/toolchain/toolchain.c
-  ${SRC}/toolchain/sdk.c
-  ${UTIL}/sp/sp_msvc.c
   main.c
   ${TEST_TOOLS}/fixture.c
-  ${TEST_TOOLS}/toml.c
 )
 spn_test_binary(resolver)
 target_include_directories(resolver PRIVATE ${GEN_DIR} ${TEST_GEN_DIR})
-target_link_libraries(resolver PRIVATE yyjson blake3)
+target_link_libraries(resolver PRIVATE spn_core)
 add_dependencies(resolver spn_codegen_gen spn_codegen_test_gen)
 add_test(NAME resolver COMMAND "$<TARGET_FILE:resolver>" WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")

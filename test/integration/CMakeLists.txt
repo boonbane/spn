@@ -1,51 +1,5 @@
 add_executable(integration
-  ${SRC}/compiler/driver.c
-  ${SRC}/compiler/exports.c
-  ${SRC}/compiler/gnu.c
-  ${SRC}/compiler/msvc.c
-  ${SRC}/compiler/occ.c
-  ${SRC}/compiler/rsp.c
-  ${SRC}/reflect/json.c
-  ${GEN_DIR}/errors.gen.c
-  ${GEN_DIR}/events.gen.c
-  ${GEN_DIR}/source_deps.gen.c
-  ${SRC}/codegen/json.c
-  ${SRC}/toml/loader.c
-  ${SRC}/codegen/toolchain.c
-  ${GEN_DIR}/config.gen.c
   ${TEST_GEN_DIR}/probe.gen.c
-  ${SRC}/core/core.c
-  ${UTIL}/array/array.c
-  ${UTIL}/mem/mem.c
-  ${UTIL}/hash_table/hash_table.c
-  ${UTIL}/fs/fs.c
-  ${UTIL}/io/io.c
-  ${SRC}/ctx/ctx.c
-  ${SRC}/enum/enum.c
-  ${SRC}/error/error.c
-  ${SRC}/error/json.c
-  ${SRC}/event/event.c
-  ${UTIL}/lazy/lazy.c
-  ${SRC}/external/tom.c
-  ${SRC}/intern/intern.c
-  ${SRC}/paths/paths.c
-  ${UTIL}/str/str.c
-  ${SRC}/toolchain/catalog.c
-  ${SRC}/toolchain/select.c
-  ${SRC}/profile/profile.c
-  ${SRC}/when/when.c
-  ${SRC}/toolchain/toolchain.c
-  ${SRC}/toolchain/sdk.c
-  ${UTIL}/sp/sp_msvc.c
-  ${SRC}/toolchain/linker.c
-  ${SRC}/toolchain/search.c
-  ${SRC}/triple/triple.c
-  ${SRC}/elf/elf.c
-  ${SRC}/lock/lock.c
-  ${SRC}/semver/compare.c
-  ${SRC}/semver/convert.c
-  ${SRC}/semver/parser.c
-  ${SRC}/../util/version/version.c
   main.c
   cli.c
   compile_commands.c
@@ -79,7 +33,6 @@ add_executable(integration
   ${TEST_TOOLS}/env.c
   tools/harness.c
   ${TEST_TOOLS}/fixture.c
-  ${TEST_TOOLS}/toml.c
 )
 spn_test_binary(integration)
 target_include_directories(integration PRIVATE
@@ -91,6 +44,6 @@ target_include_directories(integration PRIVATE
 target_compile_definitions(integration PRIVATE
   SPN_TEST_BIN=".build/store/${TRIPLE}${SPN_FLAVOR}/bin/spn${CMAKE_EXECUTABLE_SUFFIX}"
 )
-target_link_libraries(integration PRIVATE yyjson)
+target_link_libraries(integration PRIVATE spn_core)
 add_dependencies(integration spn spn_codegen_gen spn_codegen_test_gen)
 add_test(NAME integration COMMAND "$<TARGET_FILE:integration>" WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")

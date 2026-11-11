@@ -1,52 +1,10 @@
 add_executable(render
-  ${SRC}/compiler/driver.c
-  ${SRC}/compiler/exports.c
-  ${SRC}/compiler/gnu.c
-  ${SRC}/compiler/msvc.c
-  ${SRC}/compiler/occ.c
-  ${SRC}/compiler/rsp.c
-  ${SRC}/reflect/json.c
-  ${GEN_DIR}/errors.gen.c
-  ${GEN_DIR}/events.gen.c
-  ${GEN_DIR}/source_deps.gen.c
-  ${SRC}/codegen/json.c
-  ${SRC}/toml/loader.c
-  ${SRC}/codegen/toolchain.c
-  ${GEN_DIR}/config.gen.c
-  ${SRC}/core/core.c
-  ${UTIL}/array/array.c
-  ${UTIL}/mem/mem.c
-  ${UTIL}/hash_table/hash_table.c
-  ${UTIL}/fs/fs.c
-  ${UTIL}/io/io.c
-  ${SRC}/ctx/ctx.c
-  ${SRC}/enum/enum.c
-  ${SRC}/error/error.c
-  ${SRC}/error/json.c
-  ${SRC}/event/event.c
-  ${UTIL}/lazy/lazy.c
-  ${SRC}/external/tom.c
-  ${SRC}/intern/intern.c
-  ${SRC}/paths/paths.c
-  ${UTIL}/str/str.c
-  ${SRC}/toolchain/catalog.c
-  ${SRC}/toolchain/select.c
-  ${SRC}/profile/profile.c
-  ${SRC}/when/when.c
-  ${SRC}/toolchain/toolchain.c
-  ${SRC}/toolchain/sdk.c
-  ${UTIL}/sp/sp_msvc.c
-  ${SRC}/toolchain/linker.c
-  ${SRC}/toolchain/search.c
-  ${SRC}/triple/triple.c
-  ${SRC}/elf/elf.c
   main.c
   cases.c
   ${TEST_TOOLS}/caps.c
   ${TEST_TOOLS}/lanes.c
   ${TEST_TOOLS}/env.c
   ${TEST_TOOLS}/fixture.c
-  ${TEST_TOOLS}/toml.c
 )
 spn_test_binary(render)
 target_include_directories(render PRIVATE
@@ -57,6 +15,6 @@ target_include_directories(render PRIVATE
 target_compile_definitions(render PRIVATE
   SPN_TEST_BIN=".build/store/${TRIPLE}${SPN_FLAVOR}/bin/spn${CMAKE_EXECUTABLE_SUFFIX}"
 )
-target_link_libraries(render PRIVATE yyjson)
+target_link_libraries(render PRIVATE spn_core)
 add_dependencies(render spn spn_codegen_gen)
 add_test(NAME render COMMAND "$<TARGET_FILE:render>" WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
