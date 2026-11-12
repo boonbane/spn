@@ -123,7 +123,7 @@ static void bind_lanes(docker_t* docker) {
 }
 
 static bool sysroot_artifact(docker_t* docker, const sysroot_t* sysroot, spn_artifact_t* out) {
-  const spn_cg_toolchain_decl_t* lane = lane_decl(sysroot->artifact, &docker->builtin, &docker->lanes);
+  const spn_cg_toolchain_decl_t* lane = lane_decl(sysroot->artifact.lane, &docker->builtin, &docker->lanes);
   const spn_cg_artifact_t* artifact = lane_artifact(lane, docker->host);
   if (!artifact || sp_str_empty(artifact->url)) {
     return false;
@@ -298,7 +298,7 @@ static spn_err_t fetch(docker_t* docker, sp_str_t url, sp_str_t dest) {
 
 static docker_provision_err_t provision_artifact(docker_t* docker, const sysroot_t* sysroot) {
   spn_artifact_t artifact = sp_zero;
-  docker->err.artifact.name = lane_name(sysroot->artifact);
+  docker->err.artifact.name = lane_name(sysroot->artifact.lane);
   if (!sysroot_artifact(docker, sysroot, &artifact)) {
     return DOCKER_PROVISION_ERR_ARTIFACT;
   }
@@ -421,7 +421,11 @@ static sp_str_t artifact_dir(docker_t* docker, const sysroot_t* sysroot) {
   spn_artifact_t artifact = sp_zero;
   bool provisioned = sysroot_artifact(docker, sysroot, &artifact);
   sp_assert(provisioned);
-  return spn_path_str(&docker->roots, docker->mem, spn_toolchain_artifact_root(docker->mem, artifact));
+  sp_str_t root = spn_path_str(&docker->roots, docker->mem, spn_toolchain_artifact_root(docker->mem, artifact));
+  if (!sysroot->artifact.sub) {
+    return root;
+  }
+  return sp_fs_join_path(docker->mem, root, sp_cstr_as_str(sysroot->artifact.sub));
 }
 
 static void context(docker_t* docker, sp_ps_config_t* config, const sysroot_t* sysroot, sp_str_t dir) {
