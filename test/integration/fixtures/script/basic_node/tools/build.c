@@ -2,8 +2,10 @@
 
 SPN_EXPORT
 s32 generate_header(spn_t* spn) {
+  spn_root_t work = 0;
+  spn_try(spn_get_root_work(spn, &work));
   spn_log(spn, "generating version.h...");
-  spn_io_write("/work/version.h",
+  spn_io_write(work, "version.h",
     "#ifndef VERSION_H\n"
     "#define VERSION_H\n"
     "#define VERSION_MAJOR 69\n"

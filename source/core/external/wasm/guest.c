@@ -10,16 +10,10 @@
 
 #define SPN_GUEST_FMT_ARGS 4
 
-static spn_err_t write_file(spn_wasm_ctx_t* abi, sp_mem_t mem, const c8* path, const c8* contents) {
+static spn_err_t write_file(spn_wasm_ctx_t* abi, sp_mem_t mem, spn_root_t root, sp_str_t sub, const c8* contents) {
   spn_pkg_unit_t* unit = spn_api_unit(abi->handles->ctx);
-  sp_str_t guest = sp_cstr_as_str(path);
-  if (!spn_path_normal(guest)) {
-    return SPN_ERR_PATH_NOT_NORMAL;
-  }
   spn_path_t dst = sp_zero;
-  if (!spn_wasi_resolve(abi->instance, mem, guest, &dst)) {
-    return SPN_ERR_PATH_NOT_MOUNTED;
-  }
+  spn_try(spn_wasi_resolve(abi->instance, mem, root, sub, &dst));
 
   sp_path_t at = spn_path_at(&unit->units->ctx->roots, dst);
   sp_fs_create_parent_at(at);
@@ -35,9 +29,9 @@ static spn_err_t write_file(spn_wasm_ctx_t* abi, sp_mem_t mem, const c8* path, c
   return written || closed ? SPN_ERR_IO_WRITE : SPN_OK;
 }
 
-spn_err_t spn_abi_io_write(spn_wasm_ctx_t* abi, const c8* path, const c8* contents) {
+spn_err_t spn_abi_io_write(spn_wasm_ctx_t* abi, spn_root_t root, const c8* sub, const c8* contents) {
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  spn_err_t err = write_file(abi, scratch.mem, path, contents);
+  spn_err_t err = write_file(abi, scratch.mem, root, sp_cstr_as_str(sub), contents);
   sp_mem_end_scratch(scratch);
   return err;
 }

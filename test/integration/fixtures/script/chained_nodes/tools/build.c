@@ -12,28 +12,32 @@ static s32 read_int(const c8* path, s32* value) {
   return read == 1 ? 0 : 1;
 }
 
-static void write_int(const c8* path, s32 value) {
+static void write_int(spn_root_t root, const c8* sub, s32 value) {
   c8 line [16];
   snprintf(line, sizeof(line), "%d", value);
-  spn_io_write(path, line);
+  spn_io_write(root, sub, line);
 }
 
 SPN_EXPORT
 s32 gen_a(spn_t* spn) {
+  spn_root_t work = 0;
+  spn_try(spn_get_root_work(spn, &work));
   s32 a = 0;
   if (read_int("/source/a.txt", &a)) {
     return 1;
   }
-  write_int("/work/A.txt", a);
+  write_int(work, "A.txt", a);
   return 0;
 }
 
 SPN_EXPORT
 s32 gen_b(spn_t* spn) {
+  spn_root_t work = 0;
+  spn_try(spn_get_root_work(spn, &work));
   s32 a = 0;
   if (read_int("/work/A.txt", &a)) {
     return 1;
   }
-  write_int("/work/B.txt", a + 1);
+  write_int(work, "B.txt", a + 1);
   return 0;
 }

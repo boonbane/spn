@@ -1321,19 +1321,19 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           break;
         }
         case SPN_ERR_PATH_NOT_NORMAL: {
-          sp_tty_fmt(&w, "Build script {.cyan} used a path with '.', '..', or empty components, or with a component that is a drive letter or starts with a backslash", sp_fmt_str(contextual_path(mem, event->err.wasm.path)));
+          sp_tty_fmt(&w, "Build script {.cyan} used a path that is absolute, or has '.', '..', or empty components, or a component that is a drive letter or starts with a backslash; a path is relative to its root", sp_fmt_str(contextual_path(mem, event->err.wasm.path)));
           break;
         }
         case SPN_ERR_PATH_NOT_MOUNTED: {
-          sp_tty_fmt(&w, "Build script {.cyan} wrote outside its mounts; a node function has /work, /source, /manifest, and /store, and configure has none", sp_fmt_str(contextual_path(mem, event->err.wasm.path)));
+          sp_tty_fmt(&w, "Build script {.cyan} used a root that is not mounted; the roots are the four that {.yellow} hands out, and only a node function can write under one", sp_fmt_str(contextual_path(mem, event->err.wasm.path)), sp_fmt_cstr("spn_get_root_*"));
           break;
         }
         case SPN_ERR_OUTPUT_OUTSIDE: {
-          sp_tty_fmt(&w, "Build script {.cyan} declared an output that is not under /work, /store/lib, /store/bin, or /store/vendor", sp_fmt_str(contextual_path(mem, event->err.wasm.path)));
+          sp_tty_fmt(&w, "Build script {.cyan} declared an output that is not under the work root, or under lib, bin, or vendor in the store root", sp_fmt_str(contextual_path(mem, event->err.wasm.path)));
           break;
         }
         case SPN_ERR_OUTPUT_IS_ROOT: {
-          sp_tty_fmt(&w, "Build script {.cyan} declared an output that names a root instead of a path under it", sp_fmt_str(contextual_path(mem, event->err.wasm.path)));
+          sp_tty_fmt(&w, "Build script {.cyan} declared an output that names the work root, or lib, bin, or vendor in the store root, instead of a path under it", sp_fmt_str(contextual_path(mem, event->err.wasm.path)));
           break;
         }
         case SPN_ERR_IO_WRITE: {

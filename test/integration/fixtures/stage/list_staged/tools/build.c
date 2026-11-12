@@ -4,7 +4,9 @@
 
 SPN_EXPORT
 s32 gen(spn_t* spn) {
-  spn_io_write("/work/G/a.txt", "A");
+  spn_root_t work = 0;
+  spn_try(spn_get_root_work(spn, &work));
+  spn_io_write(work, "G/a.txt", "A");
   return 0;
 }
 

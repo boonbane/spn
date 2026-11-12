@@ -4,6 +4,8 @@
 
 SPN_EXPORT
 s32 gen_version(spn_t* spn) {
+  spn_root_t work = 0;
+  spn_try(spn_get_root_work(spn, &work));
   FILE* file = fopen("/source/version.txt", "r");
   if (!file) {
     return 1;
@@ -16,6 +18,6 @@ s32 gen_version(spn_t* spn) {
   }
   c8 header [64];
   snprintf(header, sizeof(header), "#define VERSION %d\n", version);
-  spn_io_write("/work/version.h", header);
+  spn_io_write(work, "version.h", header);
   return 0;
 }

@@ -124,6 +124,7 @@ typedef enum {
   ABI_VAL_STR,
   ABI_VAL_STR_OPT,
   ABI_VAL_OUT,
+  ABI_VAL_S32,
   ABI_VAL_HANDLE,
 } abi_val_kind_t;
 

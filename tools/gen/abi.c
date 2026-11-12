@@ -60,6 +60,9 @@ static bool parse_val(abi_t* abi, sp_str_t where, yyjson_val* val, abi_val_t* pa
   else if (sp_str_equal_cstr(name, "out")) {
     *parsed = (abi_val_t) { .kind = ABI_VAL_OUT };
   }
+  else if (sp_str_equal_cstr(name, "s32")) {
+    *parsed = (abi_val_t) { .kind = ABI_VAL_S32 };
+  }
   else if (is_handle(abi, name)) {
     *parsed = (abi_val_t) { .kind = ABI_VAL_HANDLE, .name = name };
   }
@@ -132,7 +135,7 @@ static bool parse_export(abi_t* abi, yyjson_val* val) {
   if (ret && !parse_val(abi, export.name, ret, &export.ret)) {
     return false;
   }
-  if (export.ret.kind == ABI_VAL_STR_OPT || export.ret.kind == ABI_VAL_OUT) {
+  if (export.ret.kind == ABI_VAL_STR_OPT || export.ret.kind == ABI_VAL_OUT || export.ret.kind == ABI_VAL_S32) {
     return abi_fail(abi, export.name, "export can only return str or a handle");
   }
   if (args) {
@@ -233,6 +236,7 @@ static const c8* arg_prefix(abi_val_t val) {
     case ABI_VAL_OUT: {
       return "(void*)&o";
     }
+    case ABI_VAL_S32:
     case ABI_VAL_ERR: {
       return "a";
     }
@@ -259,6 +263,9 @@ static const c8* arg_ctype(abi_val_t val) {
   switch (val.kind) {
     case ABI_VAL_OUT: {
       return "void*";
+    }
+    case ABI_VAL_S32: {
+      return "s32";
     }
     case ABI_VAL_ERR:
     case ABI_VAL_STR:
@@ -293,6 +300,7 @@ static void bind_export(abi_t* abi, sp_template_scope_t* scope, abi_export_t* ex
     }
     case ABI_VAL_STR_OPT:
     case ABI_VAL_OUT:
+    case ABI_VAL_S32:
     case ABI_VAL_HANDLE: {
       sp_template_set(scope, sp_str_lit("r_handle"), sp_str_lit("1"));
       sp_template_set(scope, sp_str_lit("ret_kind"), abi_val_kind(abi, export->ret));

@@ -15,45 +15,53 @@ static s32 read_value(const c8* path) {
   return value;
 }
 
-static void write_value(const c8* path, const c8* name, s32 value) {
+static void write_value(spn_root_t root, const c8* sub, const c8* name, s32 value) {
   c8 line [64];
   snprintf(line, sizeof(line), "#define %s %d\n", name, value);
-  spn_io_write(path, line);
+  spn_io_write(root, sub, line);
 }
 
 SPN_EXPORT
 s32 gen_a(spn_t* spn) {
-  write_value("/work/A.h", "A", 1);
+  spn_root_t work = 0;
+  spn_try(spn_get_root_work(spn, &work));
+  write_value(work, "A.h", "A", 1);
   return 0;
 }
 
 SPN_EXPORT
 s32 gen_l(spn_t* spn) {
+  spn_root_t work = 0;
+  spn_try(spn_get_root_work(spn, &work));
   s32 a = read_value("/work/A.h");
   if (a < 0) {
     return 1;
   }
-  write_value("/work/L.h", "L", a * 2);
+  write_value(work, "L.h", "L", a * 2);
   return 0;
 }
 
 SPN_EXPORT
 s32 gen_r(spn_t* spn) {
+  spn_root_t work = 0;
+  spn_try(spn_get_root_work(spn, &work));
   s32 a = read_value("/work/A.h");
   if (a < 0) {
     return 1;
   }
-  write_value("/work/R.h", "R", a * 3);
+  write_value(work, "R.h", "R", a * 3);
   return 0;
 }
 
 SPN_EXPORT
 s32 gen_f(spn_t* spn) {
+  spn_root_t work = 0;
+  spn_try(spn_get_root_work(spn, &work));
   s32 l = read_value("/work/L.h");
   s32 r = read_value("/work/R.h");
   if (l < 0 || r < 0) {
     return 1;
   }
-  write_value("/work/F.h", "F", l + r);
+  write_value(work, "F.h", "F", l + r);
   return 0;
 }
