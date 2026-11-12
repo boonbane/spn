@@ -19,7 +19,6 @@ foreach ($p in $excl) {
   catch { Write-Host "  (skipped exclusion for ${p}: $($_.Exception.Message))" }
 }
 
-# the harness keeps fetched toolchains under the work dir unless this exists, and the work dir is wiped every run
 New-Item -ItemType Directory -Force -Path "$env:LOCALAPPDATA\spn\cache\toolchain" | Out-Null
 
 Write-Host "== unpacking binaries =="
