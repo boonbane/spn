@@ -367,8 +367,7 @@ static sp_err_t release_check(sp_test_t* t, sp_mem_t mem, const release_rel_t* e
 
 sp_test_each(index_release, parse, release_test_t, tests, .setup = spn_test_ctx_setup) {
   sp_mem_t mem = sp_test_arena(t);
-  sp_str_t file = sp_test_format(t, "releases/{}.jsonl", sp_fmt_cstr(it->name));
-  sp_str_t path = test_repo_path(mem, sp_test_format(t, "test/core/index/{}", sp_fmt_str(file)));
+  sp_str_t path = test_repo_path(mem, sp_test_format(t, "test/core/index/releases/{}.jsonl", sp_fmt_cstr(it->name)));
 
   u32 num_releases = 0;
   sp_carr_detect_len(it->expect.releases, num_releases, it->expect.releases[num_releases].name);
@@ -381,7 +380,7 @@ sp_test_each(index_release, parse, release_test_t, tests, .setup = spn_test_ctx_
       sp_io_write_line(&rendered.base, spn_index_release_to_json(mem, &rel));
     }
 
-    sp_expect_golden(t, file, sp_io_dyn_mem_writer_as_str(&rendered));
+    sp_expect_golden(t, path, sp_io_dyn_mem_writer_as_str(&rendered));
   }
 
   sp_str_t blob = sp_zero;

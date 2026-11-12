@@ -268,7 +268,12 @@ sp_cli_result_t embed_run(sp_cli_t* cli) {
   sp_io_dyn_mem_writer_init(mem, &header);
   sp_da_for(entries, it) {
     embed_entry_t entry = entries[it];
-    sp_fmt_io(&header.base, "extern const unsigned char {}[{}];\n", sp_fmt_str(entry.symbol), sp_fmt_uint(entry.size));
+    if (entry.size) {
+      sp_fmt_io(&header.base, "extern const unsigned char {}[{}];\n", sp_fmt_str(entry.symbol), sp_fmt_uint(entry.size));
+    }
+    else {
+      sp_fmt_io(&header.base, "extern const unsigned char {}[];\n", sp_fmt_str(entry.symbol));
+    }
     sp_fmt_io(&header.base, "extern const unsigned long long {}_size;\n", sp_fmt_str(entry.symbol));
   }
   sp_fmt_io(&header.base, "\ntypedef struct {{\n  const char* path;\n  const void* data;\n  unsigned long long size;\n}} spn_embed_entry_t;\n");

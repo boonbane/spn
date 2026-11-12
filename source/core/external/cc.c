@@ -58,12 +58,21 @@ spn_err_t spn_cc_embed_ctx_write(spn_cc_embed_ctx_t* ctx, sp_path_t object, sp_p
   sp_io_writer_t* io = &writer.base;
   sp_da_for(ctx->entries, it) {
     spn_cc_embed_t entry = ctx->entries[it];
-    sp_fmt_io(io,
-      "extern const {} {} [{}];",
-      SP_FMT_STR(entry.types.data),
-      SP_FMT_STR(entry.symbol),
-      SP_FMT_U64(entry.size)
-    );
+    if (entry.size) {
+      sp_fmt_io(io,
+        "extern const {} {} [{}];",
+        SP_FMT_STR(entry.types.data),
+        SP_FMT_STR(entry.symbol),
+        SP_FMT_U64(entry.size)
+      );
+    }
+    else {
+      sp_fmt_io(io,
+        "extern const {} {} [];",
+        SP_FMT_STR(entry.types.data),
+        SP_FMT_STR(entry.symbol)
+      );
+    }
     sp_io_write_new_line(io);
 
     sp_fmt_io(io,

@@ -30,7 +30,7 @@ sp_test_each(gen_reader, release, read_test_t, tests) {
   bool ok = spn_release_read(json, &release, mem);
   sp_expect_eq(t, ok, !it->err);
   if (ok) {
-    sp_expect_golden(t, sp_test_format(t, "golden/{}.json", sp_fmt_cstr(it->name)), spn_release_write(mem, &release));
+    sp_expect_golden(t, test_repo_path(mem, sp_test_format(t, "test/core/gen/golden/{}.json", sp_fmt_cstr(it->name))), spn_release_write(mem, &release));
   }
 
   return SP_OK;

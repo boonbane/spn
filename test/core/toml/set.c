@@ -36,7 +36,7 @@ static sp_err_t run_set_test(sp_test_t* t, test_t* it) {
 
   sp_str_t rendered = spn_toml_edit_render(&edit, mem);
   if (it->expect.golden) {
-    sp_expect_golden(t, sp_test_format(t, "golden/{}.toml", sp_fmt_cstr(it->expect.golden)), rendered);
+    sp_expect_golden(t, test_repo_path(mem, sp_test_format(t, "test/core/toml/golden/{}.toml", sp_fmt_cstr(it->expect.golden))), rendered);
   }
   else if (it->expect.output) {
     sp_expect_str_eq(t, rendered, sp_cstr_as_str(it->expect.output));

@@ -1,0 +1,27 @@
+diff --git a/sp/sp_test.h b/sp/sp_test.h
+index ab909e1..2d74c6e 100644
+--- a/sp/sp_test.h
++++ b/sp/sp_test.h
+@@ -1195,6 +1195,10 @@ static void sp_test_golden_at(sp_test_t* t, sp_path_t path, sp_str_t actual, sp_
+ 
+ void sp_test_golden(sp_test_t* t, sp_str_t path, sp_str_t actual, sp_str_t file, u32 line) {
+   file = sp_fs_normalize_path(t->mem, file);
++  if (sp_fs_is_absolute(path)) {
++    sp_test_golden_at(t, sp_path_from_str(path), actual, file, line);
++    return;
++  }
+ 
+   sp_path_t src = sp_zero;
+   if (sp_fs_is_absolute_for(file, SP_FS_PATH_WINDOWS)) {
+@@ -1224,10 +1228,7 @@ void sp_test_golden(sp_test_t* t, sp_str_t path, sp_str_t actual, sp_str_t file,
+     return;
+   }
+ 
+-  sp_path_t golden = sp_fs_is_absolute(path) ?
+-    sp_path_from_str(path) :
+-    sp_path_join(t->mem, sp_path_parent(t->mem, src), path);
+-  sp_test_golden_at(t, golden, actual, file, line);
++  sp_test_golden_at(t, sp_path_join(t->mem, sp_path_parent(t->mem, src), path), actual, file, line);
+ }
+ 
+ 

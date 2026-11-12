@@ -208,6 +208,7 @@ set_source_files_properties(
   toolchain/toolchain.c
   toolchain/zig.c
   PROPERTIES COMPILE_DEFINITIONS "TOOLCHAINS_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/toolchain/toolchains\"")
+target_compile_definitions(core PRIVATE TEST_EMBED="core.embed.h")
 target_link_libraries(core PRIVATE spn_core)
 add_dependencies(core spn_embed core_embed spn_codegen_gen)
 add_test(NAME core COMMAND "$<TARGET_FILE:core>" WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")

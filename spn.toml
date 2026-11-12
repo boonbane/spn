@@ -41,7 +41,10 @@ sp = { path = "vendor/sp" }
 yyjson = { path = "vendor/yyjson"}
 
 [patch.sp]
-files = ["tools/patches/sp-ps-batch.patch"]
+files = [
+  "tools/patches/sp-golden-absolute.patch",
+  "tools/patches/sp-ps-batch.patch",
+]
 
 [patch.wamr]
 files = [
@@ -204,8 +207,13 @@ embed = [
   { path = "gen/codegen/gen/config.jtd.json", tree = "work", dest = "schema/config.jtd.json" },
   { path = "gen/codegen/gen/manifest.jtd.json", tree = "work", dest = "schema/manifest.jtd.json" },
   { path = "gen/codegen/gen/release.jtd.json", tree = "work", dest = "schema/release.jtd.json" },
+  { path = "test/core", dir = true, dest = "test/core" },
+  { path = "tools/install", dir = true, dest = "tools/install" },
+  { path = "source/core/codegen/schema/abi.json", dest = "source/core/codegen/schema/abi.json" },
+  { path = "spn.toml", dest = "spn.toml" },
 ]
 flags = [
+  '-DTEST_EMBED="core.embed.h"',
   '-DSCHEMA_DIR="source/core/codegen/schema"',
   '-DJTD_TEST_JSON_DIR="test/core/jtd/json"',
   '-DMANIFEST_DIR="test/core/manifest/lower/manifests"',
@@ -251,7 +259,11 @@ source = [
 ]
 include = ["include", "source/core", "source/util", "test/tools", { path = "gen/codegen/gen", tree = "work" }, { path = "gen/codegen/test", tree = "work" }]
 deps = ["spn"]
-flags = []
+embed = [
+  { path = "test/core/resolver/fixtures", dir = true, dest = "test/core/resolver/fixtures" },
+  { path = "test/core/resolver/goldens", dir = true, dest = "test/core/resolver/goldens" },
+]
+flags = ['-DTEST_EMBED="resolver.embed.h"']
 
 [[test]]
 name = "integration"
@@ -293,7 +305,16 @@ source = [
 ]
 include = ["include", "source/core", "source/util", "source/core/external", "test/integration/tools", "test/tools", { path = "gen/codegen/gen", tree = "work" }, { path = "gen/codegen/test", tree = "work" }]
 deps = ["spn"]
-flags = []
+embed = [
+  { path = "test/integration/fixtures", dir = true, dest = "test/integration/fixtures" },
+  { path = "example/kernel", dir = true, dest = "example/kernel" },
+  { path = "example/nolibc", dir = true, dest = "example/nolibc" },
+  { path = "include/spn.h", dest = "include/spn.h" },
+  { path = "include/spn/core.h", dest = "include/spn/core.h" },
+  { path = "test/tools/lanes.toml", dest = "test/tools/lanes.toml" },
+  { path = "source/core/toolchain/toolchains.toml", dest = "source/core/toolchain/toolchains.toml" },
+]
+flags = ['-DTEST_EMBED="integration.embed.h"']
 
 [[test]]
 name = "render"
@@ -307,7 +328,14 @@ source = [
 ]
 include = ["include", "source/core", "source/util", "source/core/external", "test/render", "test/tools", { path = "gen/codegen/gen", tree = "work" }]
 deps = ["spn"]
-flags = []
+embed = [
+  { path = "test/render/fixtures", dir = true, dest = "test/render/fixtures" },
+  { path = "include/spn.h", dest = "include/spn.h" },
+  { path = "include/spn/core.h", dest = "include/spn/core.h" },
+  { path = "test/tools/lanes.toml", dest = "test/tools/lanes.toml" },
+  { path = "source/core/toolchain/toolchains.toml", dest = "source/core/toolchain/toolchains.toml" },
+]
+flags = ['-DTEST_EMBED="render.embed.h"']
 
 [[test]]
 name = "fuzz_dag"
@@ -382,7 +410,11 @@ source = [
 ]
 include = ["include", "source/core", "source/util", "test/core", "test/core/tools", "test/tools", { path = "gen/codegen/gen", tree = "work" }]
 deps = ["spn"]
-flags = ['-DTOOLCHAINS_DIR="test/core/toolchain/toolchains"']
+embed = [
+  { path = "test/core/toolchain/toolchains", dir = true, dest = "test/core/toolchain/toolchains" },
+  { path = "source/core/toolchain/toolchains.toml", dest = "source/core/toolchain/toolchains.toml" },
+]
+flags = ['-DTEST_EMBED="toolchain.embed.h"', '-DTOOLCHAINS_DIR="test/core/toolchain/toolchains"']
 
 [[test]]
 name = "unit"
@@ -394,3 +426,5 @@ source = [
 ]
 include = ["include", "source/core", "source/util", "source/core/external", "test/core", "test/core/tools", "test/tools", { path = "gen/codegen/gen", tree = "work" }]
 deps = ["spn"]
+embed = [{ path = "source/core/toolchain/toolchains.toml", dest = "source/core/toolchain/toolchains.toml" }]
+flags = ['-DTEST_EMBED="unit.embed.h"']

@@ -107,6 +107,7 @@ add_custom_command(
 add_custom_target(spn_codegen_gen ALL DEPENDS ${GEN_FILES})
 add_dependencies(spn_embed spn_codegen_gen)
 
+file(GLOB_RECURSE TEST_CORE_FILES CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/test/core/* ${CMAKE_SOURCE_DIR}/tools/install/*)
 add_custom_command(
   OUTPUT ${CORE_EMBED_OBJ} ${CORE_EMBED_HDR}
   COMMAND $<TARGET_FILE:embed>
@@ -117,11 +118,60 @@ add_custom_command(
     ${GEN_DIR}/config.jtd.json=schema/config.jtd.json
     ${GEN_DIR}/manifest.jtd.json=schema/manifest.jtd.json
     ${GEN_DIR}/release.jtd.json=schema/release.jtd.json
-  DEPENDS embed ${GEN_DIR}/config.jtd.json ${GEN_DIR}/manifest.jtd.json ${GEN_DIR}/release.jtd.json
+    ${CMAKE_SOURCE_DIR}/test/core=test/core
+    ${CMAKE_SOURCE_DIR}/tools/install=tools/install
+    ${CMAKE_SOURCE_DIR}/source/core/codegen/schema/abi.json=source/core/codegen/schema/abi.json
+    ${CMAKE_SOURCE_DIR}/source/core/toolchain/toolchains.toml=source/core/toolchain/toolchains.toml
+    ${CMAKE_SOURCE_DIR}/spn.toml=spn.toml
+  DEPENDS embed ${GEN_DIR}/config.jtd.json ${GEN_DIR}/manifest.jtd.json ${GEN_DIR}/release.jtd.json ${TEST_CORE_FILES} ${CMAKE_SOURCE_DIR}/spn.toml
   COMMENT "core.embed.o"
   VERBATIM)
 add_custom_target(core_embed ALL DEPENDS ${CORE_EMBED_OBJ} ${CORE_EMBED_HDR})
 add_dependencies(core_embed spn_codegen_gen)
+
+function(spn_test_embed name)
+  set(args "")
+  set(deps "")
+  foreach(path ${ARGN})
+    list(APPEND args ${CMAKE_SOURCE_DIR}/${path}=${path})
+    if(IS_DIRECTORY ${CMAKE_SOURCE_DIR}/${path})
+      file(GLOB_RECURSE files CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/${path}/*)
+      list(APPEND deps ${files})
+    else()
+      list(APPEND deps ${CMAKE_SOURCE_DIR}/${path})
+    endif()
+  endforeach()
+  add_custom_command(
+    OUTPUT ${TEST_GEN_DIR}/${name}.embed.o ${TEST_GEN_DIR}/${name}.embed.h
+    COMMAND $<TARGET_FILE:embed>
+      --header ${TEST_GEN_DIR}/${name}.embed.h
+      --format ${EMBED_FORMAT}
+      --arch ${EMBED_ARCH}
+      ${TEST_GEN_DIR}/${name}.embed.o
+      ${args}
+    DEPENDS embed ${deps}
+    COMMENT "${name}.embed.o"
+    VERBATIM)
+  add_custom_target(${name}_embed ALL DEPENDS ${TEST_GEN_DIR}/${name}.embed.o ${TEST_GEN_DIR}/${name}.embed.h)
+endfunction()
+
+spn_test_embed(resolver
+  test/core/resolver/fixtures
+  test/core/resolver/goldens)
+spn_test_embed(integration
+  test/integration/fixtures
+  example/kernel
+  example/nolibc
+  include/spn.h
+  include/spn/core.h
+  test/tools/lanes.toml
+  source/core/toolchain/toolchains.toml)
+spn_test_embed(render
+  test/render/fixtures
+  include/spn.h
+  include/spn/core.h
+  test/tools/lanes.toml
+  source/core/toolchain/toolchains.toml)
 
 set(TEST_SCHEMA_DIR ${CMAKE_SOURCE_DIR}/test/tools/schema)
 set(TEST_GEN_FILES

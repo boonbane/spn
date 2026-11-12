@@ -33,7 +33,9 @@ add_executable(integration
   ${TEST_TOOLS}/env.c
   tools/harness.c
   ${TEST_TOOLS}/fixture.c
+  ${TEST_GEN_DIR}/integration.embed.o
 )
+set_source_files_properties(${TEST_GEN_DIR}/integration.embed.o PROPERTIES EXTERNAL_OBJECT TRUE GENERATED TRUE)
 spn_test_binary(integration)
 target_include_directories(integration PRIVATE
   ${GEN_DIR}
@@ -43,7 +45,8 @@ target_include_directories(integration PRIVATE
 )
 target_compile_definitions(integration PRIVATE
   SPN_TEST_BIN=".build/store/${TRIPLE}${SPN_FLAVOR}/bin/spn${CMAKE_EXECUTABLE_SUFFIX}"
+  TEST_EMBED="integration.embed.h"
 )
 target_link_libraries(integration PRIVATE spn_core)
-add_dependencies(integration spn spn_codegen_gen spn_codegen_test_gen)
+add_dependencies(integration spn spn_codegen_gen spn_codegen_test_gen integration_embed)
 add_test(NAME integration COMMAND "$<TARGET_FILE:integration>" WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
