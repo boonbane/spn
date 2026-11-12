@@ -25,7 +25,6 @@ typedef enum {
 
 typedef struct {
   sp_str_t spn;
-  sp_str_t src;
   sp_str_t bins;
   sp_str_t wintest;
   const c8* filter;
@@ -443,15 +442,6 @@ static step_t host_step(app_t* app, const c8* title, const c8* log_name, sp_str_
   return STEP_OK;
 }
 
-static sp_str_t worktree_ref(sp_mem_t mem, sp_str_t repo) {
-  sp_ps_config_t cfg = { .command = sp_str_lit("git"), .cwd = repo };
-  sp_ps_config_add_arg(mem, &cfg, sp_str_lit("stash"));
-  sp_ps_config_add_arg(mem, &cfg, sp_str_lit("create"));
-  sp_ps_output_t out = sp_ps_run(mem, cfg);
-  sp_str_t sha = sp_str_trim(out.out);
-  return (out.status.exit_code || sp_str_empty(sha)) ? sp_str_lit("HEAD") : sha;
-}
-
 static step_t prepare(app_t* app, suite_t suite) {
   winvm_t* vm = &app->vm;
   sp_mem_t mem = vm->mem;
@@ -468,14 +458,7 @@ static step_t prepare(app_t* app, suite_t suite) {
     return step;
   }
 
-  sp_fs_create_dir(sp_fs_parent_path(suite.src));
-  sp_str_t ref = worktree_ref(mem, vm->paths.repo);
-  const c8* a_src[] = { "archive", "--format=tar.gz", "-o", sp_str_to_cstr(mem, suite.src), sp_str_to_cstr(mem, ref), SP_NULLPTR };
-  step = host_step(app, "package source", "package-src", sp_str_lit("git"), a_src);
-  if (step != STEP_OK) {
-    return step;
-  }
-
+  sp_fs_create_dir(sp_fs_parent_path(suite.bins));
   const c8* a_bins[] = {
     "-czf", sp_str_to_cstr(mem, suite.bins), "-C", sp_str_to_cstr(mem, vm->paths.repo),
     WINVM_WIN_STORE "/spn.exe", WINVM_WIN_STORE "/test/integration.exe", SP_NULLPTR,
@@ -506,7 +489,7 @@ static step_t run_lanes(app_t* app, const winvm_variant_t* variant, suite_t suit
   sp_mem_t mem = vm->mem;
   const c8* name = variant->name;
 
-  sp_str_t payload[] = { suite.src, suite.bins, suite.wintest };
+  sp_str_t payload[] = { suite.bins, suite.wintest };
   sp_str_t log = winvm_log(vm, cfmt(mem, "ship-{}", sp_fmt_cstr(name)));
   s32 status = trace(app, cfmt(mem, "ship payload to {}", sp_fmt_cstr(name)), log,
     winvm_upload_config(vm, variant, payload, sp_carr_len(payload), vm->guest.home));
@@ -701,7 +684,6 @@ static sp_cli_result_t run_test(sp_cli_t* cli) {
   }
   suite_t suite = {
     .spn = canonical,
-    .src = sp_fs_join_path(mem, vm->paths.repo, sp_str_lit("build/winvm/spn-src.tar.gz")),
     .bins = sp_fs_join_path(mem, vm->paths.repo, sp_str_lit("build/winvm/spn-bins.tar.gz")),
     .wintest = sp_fs_join_path(mem, vm->paths.recipes, sp_str_lit("wintest.ps1")),
     .filter = args.filter ? args.filter : "*",
