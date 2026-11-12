@@ -1,0 +1,174 @@
+diff --git a/sp.h b/sp.h
+index 8169c1b..5668f4f 100644
+--- a/sp.h
++++ b/sp.h
+@@ -5056,6 +5056,7 @@ typedef struct {
+   sp_ps_io_t io;
+   sp_ps_os_t* os;
+   sp_mem_t mem;
++  sp_err_t error;
+ } sp_ps_t;
+ 
+ SP_API sp_ps_t         sp_ps_create(sp_mem_t mem, sp_ps_config_t config);
+@@ -5329,6 +5330,9 @@ SP_IMP void*              sp_posix_thread_launch(void* args);
+ #if defined(SP_WIN32)
+ SP_IMP void              sp_ps_win32_append_quoted_arg(sp_io_writer_t* builder, sp_str_t arg);
+ SP_IMP c8*               sp_ps_build_windows_cmdline(sp_mem_t mem, sp_ps_config_t* config);
++SP_IMP sp_err_t          sp_ps_win32_append_batch_arg(sp_io_writer_t* builder, sp_str_t arg);
++SP_IMP sp_err_t          sp_ps_build_windows_batch_cmdline(sp_mem_t mem, sp_str_t script, sp_ps_config_t* config, c8** cmdline);
++SP_IMP sp_err_t          sp_ps_win32_build_command(sp_mem_t mem, sp_ps_config_t* config, c8** application, c8** cmdline);
+ SP_IMP sp_str_t          sp_env_to_win32_block(sp_mem_t mem, sp_env_t* env);
+ SP_IMP sp_win32_handle_t sp_ps_win32_open_null(sp_win32_dword_t access);
+ SP_IMP sp_win32_handle_t sp_ps_win32_fd_to_handle(sp_sys_fd_t fd);
+@@ -16154,6 +16158,106 @@ c8* sp_ps_build_windows_cmdline(sp_mem_t mem, sp_ps_config_t* config) {
+   return (c8*)sp_io_dyn_mem_writer_as_str(&builder).data;
+ }
+ 
++sp_err_t sp_ps_win32_append_batch_arg(sp_io_writer_t* builder, sp_str_t arg) {
++  bool needs_quotes = sp_str_empty(arg) || arg.data[arg.len - 1] == '\\';
++  sp_for(i, arg.len) {
++    c8 c = arg.data[i];
++    if (c == '\0' || c == '\r' || c == '\n') {
++      return SP_ERR_SYS_INVALID;
++    }
++
++    bool plain = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9');
++    if (!plain && sp_str_find_c8(sp_str_lit("#$*+-./:?@\\_"), c) == SP_STR_NO_MATCH) {
++      needs_quotes = true;
++    }
++  }
++
++  if (needs_quotes) {
++    sp_io_write_c8(builder, '"');
++  }
++
++  u32 backslashes = 0;
++  sp_for(i, arg.len) {
++    c8 c = arg.data[i];
++    if (c == '\\') {
++      backslashes++;
++    }
++    else {
++      if (c == '"') {
++        sp_for(j, backslashes) {
++          sp_io_write_c8(builder, '\\');
++        }
++        sp_io_write_c8(builder, '"');
++      }
++      else if (c == '%') {
++        sp_io_write_cstr(builder, "%%cd:~,", SP_NULLPTR);
++      }
++      backslashes = 0;
++    }
++    sp_io_write_c8(builder, c);
++  }
++
++  if (needs_quotes) {
++    sp_for(i, backslashes) {
++      sp_io_write_c8(builder, '\\');
++    }
++    sp_io_write_c8(builder, '"');
++  }
++
++  return SP_OK;
++}
++
++sp_err_t sp_ps_build_windows_batch_cmdline(sp_mem_t mem, sp_str_t script, sp_ps_config_t* config, c8** cmdline) {
++  sp_io_dyn_mem_writer_t builder = sp_zero;
++  sp_io_dyn_mem_writer_init(mem, &builder);
++
++  sp_io_write_cstr(&builder.base, "cmd.exe /d /e:ON /v:OFF /c \"\"", SP_NULLPTR);
++  sp_io_write_str(&builder.base, script, SP_NULLPTR);
++  sp_io_write_c8(&builder.base, '"');
++
++  sp_carr_for(config->args, it) {
++    sp_str_t arg = config->args[it];
++    if (sp_str_empty(arg)) {
++      break;
++    }
++
++    sp_io_write_c8(&builder.base, ' ');
++    sp_try(sp_ps_win32_append_batch_arg(&builder.base, arg));
++  }
++
++  sp_da_for(config->dyn_args, it) {
++    sp_io_write_c8(&builder.base, ' ');
++    sp_try(sp_ps_win32_append_batch_arg(&builder.base, config->dyn_args[it]));
++  }
++
++  sp_io_write_c8(&builder.base, '"');
++  sp_io_write_c8(&builder.base, '\0');
++  *cmdline = (c8*)sp_io_dyn_mem_writer_as_str(&builder).data;
++  return SP_OK;
++}
++
++sp_err_t sp_ps_win32_build_command(sp_mem_t mem, sp_ps_config_t* config, c8** application, c8** cmdline) {
++  c8 script [SP_PATH_MAX] = sp_zero;
++  u32 len = GetFullPathNameA(sp_str_to_cstr(mem, config->command), SP_PATH_MAX, script, SP_NULLPTR);
++  if (!len) return sp_sys_err_from_win32(GetLastError());
++  if (len >= SP_PATH_MAX) return SP_ERR_SYS_NAME_TOO_LONG;
++
++  sp_str_t path = sp_str(script, len);
++  sp_str_t ext = sp_str_to_lower(mem, sp_str_suffix(path, (s32)sp_min(len, 4)));
++  if (!sp_str_equal(ext, sp_str_lit(".bat")) && !sp_str_equal(ext, sp_str_lit(".cmd"))) {
++    *cmdline = sp_ps_build_windows_cmdline(mem, config);
++    return SP_OK;
++  }
++
++  if (sp_fs_get_name(config->command).len == config->command.len) return SP_ERR_SYS_UNSUPPORTED;
++  if (GetFileAttributesA(script) == INVALID_FILE_ATTRIBUTES) return sp_sys_err_from_win32(GetLastError());
++
++  c8 system [SP_PATH_MAX] = sp_zero;
++  u32 system_len = GetSystemDirectoryA(system, SP_PATH_MAX);
++  *application = sp_str_to_cstr(mem, sp_fmt(mem, "{}\\cmd.exe", sp_fmt_str(sp_str(system, system_len))).value);
++  return sp_ps_build_windows_batch_cmdline(mem, path, config, cmdline);
++}
++
+ sp_win32_handle_t sp_ps_win32_open_null(sp_win32_dword_t access) {
+   SECURITY_ATTRIBUTES attrs = sp_zero;
+   attrs.nLength = sizeof(attrs);
+@@ -16406,7 +16510,8 @@ sp_ps_t sp_ps_create(sp_mem_t mem, sp_ps_config_t config) {
+   SP_ASSERT(!sp_str_empty(config.command));
+ 
+   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch_for(mem);
+-  c8* cmdline = sp_ps_build_windows_cmdline(scratch.mem, &config);
++  c8* application = SP_NULLPTR;
++  c8* cmdline = SP_NULLPTR;
+   sp_env_t env = sp_ps_build_env(&config.env, scratch.mem);
+   sp_str_t block = sp_env_to_win32_block(scratch.mem, &env);
+ 
+@@ -16423,6 +16528,7 @@ sp_ps_t sp_ps_create(sp_mem_t mem, sp_ps_config_t config) {
+   BOOL created = false;
+ 
+   sp_err_t error = SP_OK;
++  sp_try_goto(sp_ps_win32_build_command(scratch.mem, &config, &application, &cmdline), error, fail);
+   sp_try_goto(sp_ps_win32_configure_io_in(&proc.io.in, &io.in), error, fail);
+ 
+   if (proc.io.out.mode == SP_PS_IO_MODE_REDIRECT) {
+@@ -16442,7 +16548,7 @@ sp_ps_t sp_ps_create(sp_mem_t mem, sp_ps_config_t config) {
+   startup.hStdOutput = io.out.child;
+   startup.hStdError = io.err.child;
+ 
+-  created = CreateProcessA(SP_NULLPTR, cmdline, SP_NULLPTR, SP_NULLPTR, true, 0, (void*)block.data, cwd, &startup, &process_info);
++  created = CreateProcessA(application, cmdline, SP_NULLPTR, SP_NULLPTR, true, 0, (void*)block.data, cwd, &startup, &process_info);
+   sp_mem_end_scratch(scratch);
+ 
+   if (!created) {
+@@ -16468,7 +16574,7 @@ fail:
+   sp_mem_end_scratch(scratch);
+   sp_ps_win32_close_child_handles(&io);
+   sp_ps_win32_close_parent(&io);
+-  return sp_zero_s(sp_ps_t);
++  return (sp_ps_t) { .error = error };
+ }
+ 
+ sp_ps_output_t sp_ps_run(sp_mem_t mem, sp_ps_config_t config) {
+@@ -16481,7 +16587,7 @@ sp_ps_output_t sp_ps_run(sp_mem_t mem, sp_ps_config_t config) {
+     sp_ps_free(&ps);
+     return output;
+   }
+-  return (sp_ps_output_t) { .status = { .state = SP_PS_STATE_DONE, .exit_code = -1 } };
++  return (sp_ps_output_t) { .status = { .state = SP_PS_STATE_DONE, .exit_code = -1 }, .error = ps.error };
+ }
+ 
+ sp_io_stream_writer_t* sp_ps_io_in(sp_ps_t* ps) {

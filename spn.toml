@@ -40,6 +40,9 @@ blake3 = { path = "vendor/blake3"}
 sp = { path = "vendor/sp" }
 yyjson = { path = "vendor/yyjson"}
 
+[patch.sp]
+files = ["tools/patches/sp-ps-batch.patch"]
+
 [patch.wamr]
 files = [
   "tools/patches/wamr-wasi-hook.patch",
