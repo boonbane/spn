@@ -60,12 +60,6 @@ typedef struct {
 
 typedef struct {
   const c8* name;
-  const c8* when;
-  const c8* include [4];
-} target_dep_t;
-
-typedef struct {
-  const c8* name;
   spn_linkage_set_t linkages;
   bool no_link;
   source_t source [4];
@@ -76,7 +70,7 @@ typedef struct {
   gated_t link_flags [4];
   gated_t linker_script [4];
   gated_t system_deps [4];
-  target_dep_t deps [4];
+  gated_t deps [4];
   gated_t frameworks [4];
   embed_t embed [4];
   spn_cxx_options_t cxx;
@@ -269,24 +263,6 @@ static const test_t tests [] = {
         .linker_script = { { "a.ld" } },
         .deps = { { "spum" } },
       }
-    }
-  },
-  {
-    .name = "target_dep_include",
-    .manifest = "target_dep_include",
-    .exes = {
-      { .name = "T", .deps = { { "A" }, { "B", "os = \"linux\"", { "X", "Y/Z" } } } }
-    }
-  },
-  {
-    .name = "validate_dep_include_paths",
-    .manifest = "validate_dep_include_paths",
-    .issues = {
-      { SPN_ERR_CODEGEN_PATH },
-      { SPN_ERR_CODEGEN_ABSOLUTE },
-    },
-    .exes = {
-      { .name = "T", .deps = { { "A", .include = { "Z" } } } }
     }
   },
   {
@@ -1719,12 +1695,11 @@ static sp_err_t check_targets(sp_test_t* t, si_pkg_info_t* pkg, const target_t* 
     check_gated_paths(t, info->linker_script, arr[i].linker_script);
     check_gated(t, info->system_deps, arr[i].system_deps);
     u32 num_deps = 0;
-    sp_carr_detect_len(arr[i].deps, num_deps, arr[i].deps[num_deps].name);
-    sp_must_eq(t, num_deps, (u32)si_da_size(info->deps));
-    sp_for(d, num_deps) {
-      sp_expect_str_eq_c(t, info->deps[d].name.str, arr[i].deps[d].name);
-      sp_expect_str_eq_c(t, spn_when_to_str(sp_test_arena(t), &info->deps[d].when), arr[i].deps[d].when ? arr[i].deps[d].when : "always");
-      sp_must_strs_eq(t, info->deps[d].include, si_da_size(info->deps[d].include), arr[i].deps[d].include);
+    sp_carr_detect_len(arr[i].deps, num_deps, arr[i].deps[num_deps].value);
+    sp_must_eq(t, num_deps, (u32)sp_da_size(info->deps));
+    sp_for(dt, num_deps) {
+      sp_expect_str_eq_c(t, info->deps[dt].name.str, arr[i].deps[dt].value);
+      sp_expect_str_eq_c(t, spn_when_to_str(sp_test_arena(t), &info->deps[dt].when), arr[i].deps[dt].when ? arr[i].deps[dt].when : "always");
     }
     check_gated(t, info->macos.frameworks, arr[i].frameworks);
     u32 num_embeds = 0;

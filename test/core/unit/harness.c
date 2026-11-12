@@ -92,18 +92,11 @@ static void declare_target(sp_mem_t mem, si_pkg_info_t* manifest, const graph_ta
   decl->linkages = spec->linkages;
   decl->no_link = spec->no_link;
   decl->source = gated_sources(mem, spec->source, UNIT_TEST_MAX_STRS);
-  sp_carr_for(spec->deps, it) {
+  sp_for(it, UNIT_TEST_MAX_STRS) {
     if (!spec->deps[it]) {
       break;
     }
-    spn_gated_target_dep_t dep = { .name = spn_intern_cstr(spec->deps[it]) };
-    sp_carr_for(spec->dep_include[it], dt) {
-      if (!spec->dep_include[it][dt]) {
-        break;
-      }
-      si_da_push(mem, dep.include, sp_cstr_as_str(spec->dep_include[it][dt]));
-    }
-    si_da_push(mem, decl->deps, dep);
+    si_da_push(mem, decl->deps, ((spn_gated_dep_t) { .name = spn_intern_cstr(spec->deps[it]) }));
   }
   decl->include = gated_paths(mem, spec->include, UNIT_TEST_MAX_STRS);
   decl->define = gated_list(mem, spec->define, UNIT_TEST_MAX_STRS);

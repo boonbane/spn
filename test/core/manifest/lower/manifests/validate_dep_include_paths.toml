@@ -1,7 +1,0 @@
-[package]
-name = "P"
-version = "1.0.0"
-
-[[bin]]
-name = "T"
-deps = [{ pkg = "A", include = ["../X", "/Y", "Z"] }]

@@ -306,9 +306,15 @@ sp_test_each(pkg_eval, lists, lists_test_t, lists_tests, .setup = spn_test_ctx_s
   exe->flags = make_list(mem, it->flags);
   exe->link_flags = make_list(mem, it->link_flags);
   exe->system_deps = make_list(mem, it->sys_target);
-  spn_gated_list_t deps = make_list(mem, it->deps);
-  si_da_for_ptr(deps, dep) {
-    si_da_push(mem, exe->deps, ((spn_gated_target_dep_t) { .name = spn_intern(dep->value), .when = dep->when }));
+  sp_carr_for(it->deps.values, dt) {
+    const gated_t* dep = &it->deps.values[dt];
+    if (!dep->value) {
+      break;
+    }
+    si_da_push(mem, exe->deps, ((spn_gated_dep_t) {
+      .name = spn_intern_cstr(dep->value),
+      .when = make_when(mem, dep->when, sp_carr_len(dep->when)),
+    }));
   }
   exe->macos.frameworks = make_list(mem, it->frameworks);
   manifest.system_deps = make_list(mem, it->sys);
@@ -336,11 +342,12 @@ sp_test_each(pkg_eval, lists, lists_test_t, lists_tests, .setup = spn_test_ctx_s
   sp_try(expect_list(t, exe_eval->flags, it->expect.flags));
   sp_try(expect_list(t, exe_eval->link_flags, it->expect.link_flags));
   sp_try(expect_list(t, exe_eval->system_deps, it->expect.sys_target));
-  si_da(sp_str_t) dep_names = SP_NULLPTR;
-  si_da_for_ptr(exe_eval->deps, dep) {
-    si_da_push(mem, dep_names, dep->name.str);
+  u32 num_deps = 0;
+  sp_carr_detect_len(it->expect.deps, num_deps, it->expect.deps[num_deps]);
+  sp_must_eq(t, num_deps, si_da_size(exe_eval->deps));
+  sp_for(dt, num_deps) {
+    sp_expect_str_eq_c(t, exe_eval->deps[dt].str, it->expect.deps[dt]);
   }
-  sp_try(expect_list(t, dep_names, it->expect.deps));
   sp_try(expect_list(t, exe_eval->macos.frameworks, it->expect.frameworks));
   sp_try(expect_list(t, pkg.system_deps, it->expect.sys));
   sp_try(expect_list(t, pkg.define, it->expect.pkg_define));

@@ -56,6 +56,11 @@ typedef struct {
   spn_when_t when;
 } spn_gated_source_t;
 
+typedef struct {
+  sp_intern_str_t name;
+  spn_when_t when;
+} spn_gated_dep_t;
+
 typedef enum {
   SPN_PUBLISH_ROOT_INCLUDE,
   SPN_PUBLISH_ROOT_SHARE,
@@ -72,17 +77,6 @@ typedef struct {
   spn_gated_source_t source;
   sp_str_t dest;
 } spn_gated_publish_t;
-
-typedef struct {
-  sp_intern_str_t name;
-  si_da(sp_str_t) include;
-} spn_target_dep_t;
-
-typedef struct {
-  sp_intern_str_t name;
-  si_da(sp_str_t) include;
-  spn_when_t when;
-} spn_gated_target_dep_t;
 
 typedef struct {
   bool source;
@@ -120,7 +114,7 @@ struct si_target_info {
   spn_gated_list_t link_flags;
   spn_gated_path_list_t linker_script;
   spn_gated_list_t system_deps;
-  si_da(spn_gated_target_dep_t) deps;
+  si_da(spn_gated_dep_t) deps;
   si_da(spn_gated_embed_t) embed;
   struct {
     spn_gated_list_t frameworks;
@@ -141,7 +135,7 @@ struct si_target {
   si_da(sp_str_t) link_flags;
   si_da(spn_path_t) linker_script;
   si_da(sp_str_t) system_deps;
-  si_da(spn_target_dep_t) deps;
+  si_da(sp_intern_str_t) deps;
   si_da(spn_embed_t) embed;
   struct {
     si_da(sp_str_t) frameworks;

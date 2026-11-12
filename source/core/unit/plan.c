@@ -255,11 +255,8 @@ static spn_err_t lower_target(spn_units_t* u, spn_target_unit_t* unit) {
   si_da_for(target->include, it) {
     si_da_push(scratch.mem, compile.include, target->include[it]);
   }
-  si_da_for_ptr(unit->includes, edge) {
-    si_da_push(scratch.mem, compile.include, edge->pkg->paths.include);
-    si_da_for_value(edge->dirs, dir) {
-      si_da_push(scratch.mem, compile.include, spn_path_join(mem, edge->pkg->paths.include, dir));
-    }
+  si_da_for_value(unit->includes, dep) {
+    si_da_push(scratch.mem, compile.include, dep->paths.include);
   }
   sp_da_for(build->define, it) {
     si_da_push(scratch.mem, compile.define, build->define[it]);

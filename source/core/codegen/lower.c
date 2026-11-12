@@ -233,13 +233,7 @@ static void lower_target(spn_toml_loader_t* ctx, const spn_cg_target_t* cg, si_t
     }
   }
   sp_da_for(cg->deps, it) {
-    spn_gated_target_dep_t dep = { .name = sp_intern(ctx->intern, cg->deps[it].pkg), .when = cg->deps[it].when };
-    sp_da_for(cg->deps[it].include, jt) {
-      if (lower_path_ok(ctx, cg->deps[it].include[jt])) {
-        si_da_push(ctx->mem, dep.include, cg->deps[it].include[jt]);
-      }
-    }
-    si_da_push(ctx->mem, target->deps, dep);
+    si_da_push(ctx->mem, target->deps, ((spn_gated_dep_t) { .name = sp_intern(ctx->intern, cg->deps[it].pkg), .when = cg->deps[it].when }));
   }
   sp_da_for(cg->embed, it) {
     const spn_cg_embed_entry_t* entry = &cg->embed[it];

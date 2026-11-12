@@ -45,7 +45,6 @@ typedef struct {
   const c8* linker_script [UNIT_TEST_MAX_STRS];
   const c8* embed [UNIT_TEST_MAX_STRS];
   spn_os_version_t min_os;
-  const c8* dep_include [UNIT_TEST_MAX_STRS][UNIT_TEST_MAX_STRS];
 } graph_target_t;
 
 typedef struct {
