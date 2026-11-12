@@ -66,6 +66,16 @@ sp_str_t spn_msvc_arch_name(spn_arch_t arch) {
   sp_unreachable_return(sp_str_lit(""));
 }
 
+static sp_str_t dia_arch_name(spn_arch_t arch) {
+  switch (arch) {
+    case SPN_ARCH_X64: return sp_str_lit("amd64");
+    case SPN_ARCH_ARM64: return sp_str_lit("arm64");
+    case SPN_ARCH_WASM32:
+    case SPN_ARCH_NONE: sp_unreachable_case();
+  }
+  sp_unreachable_return(sp_str_lit(""));
+}
+
 spn_sdk_msvc_t spn_sdk_from_msvc(sp_mem_t mem, const sp_msvc_sdk_t* kits, const sp_msvc_vs_t* vs, spn_arch_t arch) {
   sp_msvc_sdk_paths_t kit = sp_msvc_sdk_render(mem, kits);
   sp_msvc_vs_paths_t tools = sp_msvc_vs_render(mem, vs);
@@ -98,12 +108,14 @@ spn_sdk_msvc_t spn_sdk_from_msvc(sp_mem_t mem, const sp_msvc_sdk_t* kits, const 
       .shared = absolute(kit.include_shared),
       .winrt = spn_path_join(mem, headers, sp_str_lit("winrt")),
       .cppwinrt = spn_path_join(mem, headers, sp_str_lit("cppwinrt")),
+      .dia = spn_path_join(mem, install, sp_str_lit("DIA SDK/include")),
     },
     .lib = {
       .vc = absolute(tools.lib),
       .atlmfc = spn_path_join(mem, toolset, sp_fmt(mem, "atlmfc/lib/{}", sp_fmt_str(spn_msvc_arch_name(arch))).value),
       .ucrt = absolute(kit.lib_ucrt),
       .um = absolute(kit.lib_um),
+      .dia = spn_path_join(mem, install, sp_fmt(mem, "DIA SDK/lib/{}", sp_fmt_str(dia_arch_name(arch))).value),
     },
     .install = {
       .vs = install,
@@ -139,6 +151,7 @@ spn_dir_list_t spn_msvc_include_dirs(const spn_sdk_msvc_t* msvc) {
   push_dir(&dirs, msvc->include.shared);
   push_dir(&dirs, msvc->include.winrt);
   push_dir(&dirs, msvc->include.cppwinrt);
+  push_dir(&dirs, msvc->include.dia);
   return dirs;
 }
 
@@ -148,6 +161,7 @@ spn_dir_list_t spn_msvc_lib_dirs(const spn_sdk_msvc_t* msvc) {
   push_dir(&dirs, msvc->lib.atlmfc);
   push_dir(&dirs, msvc->lib.ucrt);
   push_dir(&dirs, msvc->lib.um);
+  push_dir(&dirs, msvc->lib.dia);
   return dirs;
 }
 
@@ -420,7 +434,9 @@ bool spn_sdk_libc(spn_cc_cap_set_t caps, const spn_sdk_t* sdk, spn_libc_t* libc)
       push_dir(&libc->search.include, msvc->include.vs);
       push_dir(&libc->search.include, msvc->include.winrt);
       push_dir(&libc->search.include, msvc->include.cppwinrt);
+      push_dir(&libc->search.include, msvc->include.dia);
       push_dir(&libc->search.lib, msvc->lib.atlmfc);
+      push_dir(&libc->search.lib, msvc->lib.dia);
       return true;
     }
   }

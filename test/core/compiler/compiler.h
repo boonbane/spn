@@ -42,6 +42,7 @@ typedef struct {
   const c8* bin;
   const c8* tools;
   const c8* atl;
+  const c8* dia;
 } test_profile_t;
 
 spn_path_t         test_arg_path(const c8* value);

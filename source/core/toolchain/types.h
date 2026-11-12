@@ -62,12 +62,14 @@ typedef struct {
     spn_path_t shared;
     spn_path_t winrt;
     spn_path_t cppwinrt;
+    spn_path_t dia;
   } include;
   struct {
     spn_path_t vc;
     spn_path_t atlmfc;
     spn_path_t ucrt;
     spn_path_t um;
+    spn_path_t dia;
   } lib;
   struct {
     spn_path_t vs;
