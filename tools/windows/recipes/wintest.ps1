@@ -20,6 +20,9 @@ foreach ($p in $excl) {
   catch { Write-Host "  (skipped exclusion for ${p}: $($_.Exception.Message))" }
 }
 
+# the harness keeps fetched toolchains under the repo unless this exists, and the repo is wiped every run
+New-Item -ItemType Directory -Force -Path "$env:LOCALAPPDATA\spn\cache\toolchain" | Out-Null
+
 Write-Host "== unpacking repo + binaries =="
 if (Test-Path $Work) {
   & cmd /c "rmdir /s /q `"$Work`"" 2>$null
