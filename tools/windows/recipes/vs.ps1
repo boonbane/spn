@@ -1,6 +1,7 @@
 # vs.ps1 — install Visual Studio Build Tools with the C++ (MSVC) workload.
-# Args: the VS year, "2022" or "2026"; -Atl adds the ATL headers and libraries.
-param([string]$Year = '2022', [switch]$Atl)
+# Args: the VS year, "2022" or "2026"; -Minimal installs the workload at the
+# installer's defaults and nothing else, which leaves out ATL and the ARM64 tools.
+param([string]$Year = '2022', [switch]$Minimal)
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
@@ -26,12 +27,16 @@ if ($mz[0] -ne 0x4D -or $mz[1] -ne 0x5A) {
 $vsArgs = @(
   '--quiet', '--wait', '--norestart', '--nocache',
   '--add', 'Microsoft.VisualStudio.Workload.VCTools',
-  '--add', 'Microsoft.VisualStudio.Component.VC.Tools.x86.x64',
-  '--add', 'Microsoft.VisualStudio.Component.VC.Tools.ARM64',
-  '--add', 'Microsoft.VisualStudio.Component.Windows11SDK.22621',
   '--includeRecommended'
 )
-if ($Atl) { $vsArgs += '--add', 'Microsoft.VisualStudio.Component.VC.ATL' }
+if (-not $Minimal) {
+  $vsArgs += @(
+    '--add', 'Microsoft.VisualStudio.Component.VC.Tools.x86.x64',
+    '--add', 'Microsoft.VisualStudio.Component.VC.Tools.ARM64',
+    '--add', 'Microsoft.VisualStudio.Component.VC.ATL',
+    '--add', 'Microsoft.VisualStudio.Component.Windows11SDK.22621'
+  )
+}
 $proc = Start-Process -FilePath $exe -ArgumentList $vsArgs -Wait -PassThru
 Remove-Item -Force $exe
 if ($proc.ExitCode -ne 0 -and $proc.ExitCode -ne 3010) {
@@ -39,5 +44,10 @@ if ($proc.ExitCode -ne 0 -and $proc.ExitCode -ne 3010) {
 }
 
 $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
-& $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+$install = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+if (-not $install) { throw "no Visual Studio install with the x64 C++ tools after setup" }
+Write-Host $install
+if (-not $Minimal -and -not (Get-ChildItem "$install\VC\Tools\MSVC\*\atlmfc\include\atlbase.h" -ErrorAction SilentlyContinue)) {
+  throw "ATL was requested but atlbase.h is not under $install"
+}
 Write-Host "== Visual Studio $Year done =="

@@ -31,7 +31,7 @@ typedef struct {
 } suite_t;
 
 static struct {
-  sp_cli_choice_t variant;
+  const c8* variant;
   const c8* filter;
 } args;
 
@@ -301,12 +301,18 @@ static step_t build_session(app_t* app, sp_da(const winvm_variant_t*) selected) 
   return STEP_OK;
 }
 
+static sp_cli_result_t select_variant(sp_cli_t* cli, sp_mem_t mem, const c8* name, const winvm_variant_t** variant) {
+  *variant = winvm_variant_find(name);
+  if (!*variant) {
+    return sp_cli_set_error(cli, sp_fmt(mem, "unknown variant {.cyan}; see winvm list", sp_fmt_cstr(name)).value);
+  }
+  return SP_CLI_OK;
+}
+
 static sp_cli_result_t select_variants(sp_cli_t* cli, sp_mem_t mem, sp_da(const winvm_variant_t*)* selected) {
   for (const c8** it = cli->rest; *it; it++) {
-    const winvm_variant_t* variant = winvm_variant_find(*it);
-    if (!variant) {
-      return sp_cli_set_error(cli, sp_fmt(mem, "unknown variant {.cyan}; see winvm list", sp_fmt_cstr(*it)).value);
-    }
+    const winvm_variant_t* variant = SP_NULLPTR;
+    try(select_variant(cli, mem, *it, &variant));
     sp_da_push(*selected, variant);
   }
   return SP_CLI_OK;
@@ -334,7 +340,8 @@ static sp_cli_result_t run_build(sp_cli_t* cli) {
 static sp_cli_result_t run_up(sp_cli_t* cli) {
   app_t app = sp_zero;
   try(init(cli, &app));
-  const winvm_variant_t* variant = &winvm_variants[args.variant.value];
+  const winvm_variant_t* variant = SP_NULLPTR;
+  try(select_variant(cli, app.vm.mem, args.variant, &variant));
   try(built(cli, &app, variant));
   try(begin(cli, &app, "winvm up"));
   step_t step = up(&app, variant);
@@ -344,7 +351,8 @@ static sp_cli_result_t run_up(sp_cli_t* cli) {
 static sp_cli_result_t run_down(sp_cli_t* cli) {
   app_t app = sp_zero;
   try(init(cli, &app));
-  const winvm_variant_t* variant = &winvm_variants[args.variant.value];
+  const winvm_variant_t* variant = SP_NULLPTR;
+  try(select_variant(cli, app.vm.mem, args.variant, &variant));
   try(begin(cli, &app, "winvm down"));
   step_t step = down(&app, variant);
   return finish(cli, &app, step, cfmt(app.vm.mem, "{} is down", sp_fmt_cstr(variant->name)));
@@ -353,7 +361,8 @@ static sp_cli_result_t run_down(sp_cli_t* cli) {
 static sp_cli_result_t run_reset(sp_cli_t* cli) {
   app_t app = sp_zero;
   try(init(cli, &app));
-  const winvm_variant_t* variant = &winvm_variants[args.variant.value];
+  const winvm_variant_t* variant = SP_NULLPTR;
+  try(select_variant(cli, app.vm.mem, args.variant, &variant));
   try(built(cli, &app, variant));
   try(begin(cli, &app, "winvm reset"));
   step_t step = fresh(&app, variant);
@@ -365,7 +374,8 @@ static sp_cli_result_t run_ssh(sp_cli_t* cli) {
   try(init(cli, &app));
   winvm_t* vm = &app.vm;
   sp_mem_t mem = vm->mem;
-  const winvm_variant_t* variant = &winvm_variants[args.variant.value];
+  const winvm_variant_t* variant = SP_NULLPTR;
+  try(select_variant(cli, mem, args.variant, &variant));
   if (!winvm_running(vm, variant)) {
     return sp_cli_set_error(cli, sp_fmt(mem, "{} is not running; run winvm up {}", sp_fmt_cstr(variant->name), sp_fmt_cstr(variant->name)).value);
   }
@@ -698,8 +708,8 @@ s32 main(s32 num_args, const c8** argv) {
   sp_cli_arg_t one = {
     .name = "variant",
     .arity = SP_CLI_ARG_REQUIRED,
-    .kind = SP_CLI_OPT_CHOICE,
-    .summary = "which variant to act on",
+    .kind = SP_CLI_OPT_CSTR,
+    .summary = "which variant to act on; see winvm list",
     .ptr = &args.variant,
   };
   sp_cli_arg_t many = {
@@ -714,12 +724,6 @@ s32 main(s32 num_args, const c8** argv) {
     .kind = SP_CLI_OPT_CSTR,
     .summary = "variants to test; default is every variant with lanes",
   };
-  sp_for(it, winvm_num_variants) {
-    sp_cli_choice_t choice = { .name = winvm_variants[it].name, .value = (s32)it };
-    one.choices[it] = choice;
-    many.choices[it] = choice;
-    some.choices[it] = choice;
-  }
 
   sp_cli_cmd_t golden = {
     .name = "golden",

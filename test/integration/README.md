@@ -57,7 +57,8 @@ and skips with a reason otherwise.
   and `clang-bare` have none, since Debian ships no C++ runtime for those
   targets.
 - `.atl`: only where the lane's MSVC SDK has ATL installed. ATL is an optional
-  Visual Studio component, and the Windows VM images carry it on `vs2026` only.
+  Visual Studio component, and every Windows VM image with Visual Studio
+  carries it except `vs2026-min`.
 - `.sanitize` also skips where a system gcc or clang targets a libc other than
   the host's, since its sanitizer runtimes are built for the host libc.
 - `.driver`, `.os`, `.host`, and the rest are unchanged. `.programs`
