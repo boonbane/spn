@@ -19,6 +19,12 @@ static const command_test_t commands [] = {
     },
   },
   {
+    .name = "store",
+    .project = "test/integration/fixtures/stage/store",
+    .args = { "build" },
+    .expect.files = { { lit("gen/G.txt"), .content = "A" } },
+  },
+  {
     .name = "dep_ignored",
     .project = "test/integration/fixtures/stage/dep",
     .copy = { "packages/*" },

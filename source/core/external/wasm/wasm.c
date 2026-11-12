@@ -66,10 +66,10 @@ static spn_err_t fail(spn_pkg_unit_t* unit, spn_err_t err, spn_err_wasm_t wasm) 
 spn_wasm_mounts_t spn_wasm_mounts(const spn_pkg_unit_t* unit) {
   return (spn_wasm_mounts_t) {
     .dirs = {
-      { .guest = "/work",     .host = unit->paths.work,         .writable = true },
-      { .guest = "/source",   .host = unit->paths.roots.source },
-      { .guest = "/manifest", .host = unit->paths.roots.recipe },
-      { .guest = "/store",    .host = unit->paths.store,        .writable = true },
+      { .tree = SPN_TREE_WORK,     .guest = "/work",     .host = unit->paths.work,         .writable = true },
+      { .tree = SPN_TREE_SOURCE,   .guest = "/source",   .host = unit->paths.roots.source },
+      { .tree = SPN_TREE_MANIFEST, .guest = "/manifest", .host = unit->paths.roots.recipe },
+      { .tree = SPN_TREE_STORE,    .guest = "/store",    .host = unit->paths.store,        .writable = true },
     },
   };
 }

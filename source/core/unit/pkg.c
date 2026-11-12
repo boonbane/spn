@@ -88,6 +88,7 @@ spn_err_t si_add_package_unit(spn_units_t* u, spn_build_unit_t* build, const spn
     .recipe = resolved->roots.recipe,
     .source = resolved->roots.source,
     .work = unit->paths.work,
+    .store = unit->paths.store,
   };
   unit->pkg = evaluate(u, build, resolved, unit->paths.roots);
   si_da_for_ptr(unit->pkg.publish, entry) {

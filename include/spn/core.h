@@ -145,21 +145,8 @@ typedef enum {
   SPN_TREE_SOURCE,
   SPN_TREE_MANIFEST,
   SPN_TREE_WORK,
+  SPN_TREE_STORE,
 } spn_tree_t;
-
-typedef enum {
-  SPN_DIR_NONE = 0,
-  SPN_DIR_CACHE = 1,
-  SPN_DIR_STORE = 2,
-  SPN_DIR_INCLUDE = 3,
-  SPN_DIR_VENDOR = 4,
-  SPN_DIR_LIB = 5,
-  SPN_DIR_SOURCE = 6,
-  SPN_DIR_WORK = 7,
-  SPN_DIR_PROJECT = 8,
-  SPN_DIR_MANIFEST = 9,
-  SPN_DIR_BIN = 10,
-} spn_dir_t;
 
 typedef enum {
   SPN_C_STANDARD_NONE,

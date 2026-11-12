@@ -217,6 +217,7 @@ sp_str_t spn_tree_to_str(spn_tree_t tree) {
     case SPN_TREE_SOURCE:   return sp_str_lit("source");
     case SPN_TREE_MANIFEST: return sp_str_lit("manifest");
     case SPN_TREE_WORK:     return sp_str_lit("work");
+    case SPN_TREE_STORE:    return sp_str_lit("store");
     case SPN_TREE_NONE:     return sp_str_lit("");
   }
   SP_UNREACHABLE_RETURN(sp_str_lit(""));
@@ -228,32 +229,6 @@ sp_str_t spn_publish_root_to_str(spn_publish_root_t root) {
     case SPN_PUBLISH_ROOT_SHARE:   return sp_str_lit("share");
   }
   SP_UNREACHABLE_RETURN(sp_str_lit(""));
-}
-
-sp_str_t spn_dir_to_str(spn_dir_t dir) {
-  switch (dir) {
-    case SPN_DIR_NONE:     return sp_str_lit("");
-    case SPN_DIR_CACHE:    return sp_str_lit("cache");
-    case SPN_DIR_STORE:    return sp_str_lit("store");
-    case SPN_DIR_INCLUDE:  return sp_str_lit("include");
-    case SPN_DIR_VENDOR:   return sp_str_lit("vendor");
-    case SPN_DIR_LIB:      return sp_str_lit("lib");
-    case SPN_DIR_SOURCE:   return sp_str_lit("source");
-    case SPN_DIR_WORK:     return sp_str_lit("work");
-    case SPN_DIR_PROJECT:  return sp_str_lit("project");
-    case SPN_DIR_MANIFEST: return sp_str_lit("manifest");
-    case SPN_DIR_BIN:      return sp_str_lit("bin");
-  }
-  SP_UNREACHABLE_RETURN(sp_str_lit(""));
-}
-
-spn_dir_t spn_dir_from_str(sp_str_t str) {
-  for (spn_dir_t dir = SPN_DIR_CACHE; dir <= SPN_DIR_BIN; dir++) {
-    if (sp_str_equal(str, spn_dir_to_str(dir))) {
-      return dir;
-    }
-  }
-  return SPN_DIR_NONE;
 }
 
 spn_sanitizer_t spn_sanitizer_from_str(sp_str_t str) {

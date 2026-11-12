@@ -172,9 +172,10 @@ static void lower_stage(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, si_
     spn_toml_loader_push_index(ctx, it);
     spn_toml_loader_push_key(ctx, "from");
     sp_str_pair_t split = sp_str_cleave_c8(entry->from, '/');
-    spn_dir_t dir = spn_dir_from_str(split.first);
+    bool work = sp_str_equal_cstr(split.first, "work");
+    bool store = sp_str_equal_cstr(split.first, "lib") || sp_str_equal_cstr(split.first, "bin") || sp_str_equal_cstr(split.first, "vendor");
     bool ok = lower_path_ok(ctx, entry->from);
-    if (ok && dir == SPN_DIR_NONE) {
+    if (ok && !work && !store) {
       spn_toml_loader_issue_at(ctx, SPN_ERR_CODEGEN_INVALID, entry->from);
       ok = false;
     }
@@ -192,7 +193,11 @@ static void lower_stage(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, si_
     spn_toml_loader_pop(ctx);
     spn_toml_loader_pop(ctx);
     if (ok) {
-      si_da_push(ctx->mem, out->stage, ((spn_stage_copy_t) { .dir = dir, .sub = split.second, .to = entry->to }));
+      si_da_push(ctx->mem, out->stage, ((spn_stage_copy_t) {
+        .tree = work ? SPN_TREE_WORK : SPN_TREE_STORE,
+        .sub = work ? split.second : entry->from,
+        .to = entry->to,
+      }));
     }
   }
   spn_toml_loader_pop(ctx);

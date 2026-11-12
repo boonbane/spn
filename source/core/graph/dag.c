@@ -638,7 +638,7 @@ spn_err_t spn_dag_build_lower(spn_dag_build_t* b, const spn_build_plan_t* plan) 
 
     spn_digest_ctx_t digest = sp_zero;
     spn_digest_init(&digest);
-    spn_dag_hash_str(&digest, sp_str_lit("spn.build.user.v10"));
+    spn_dag_hash_str(&digest, sp_str_lit("spn.build.user.v11"));
     spn_dag_hash_str(&digest, pkg->pkg.manifest->name.str);
     spn_dag_hash_u64(&digest, pkg->fingerprint);
     hash_pin(&digest, &pkg->pin);
@@ -646,7 +646,7 @@ spn_err_t spn_dag_build_lower(spn_dag_build_t* b, const spn_build_plan_t* plan) 
     spn_dag_hash_str(&digest, node->fn);
     spn_dag_hash_u64(&digest, si_da_size(node->outputs));
     si_da_for(node->outputs, ot) {
-      spn_dag_hash_u64(&digest, node->outputs[ot].dir);
+      spn_dag_hash_u64(&digest, node->outputs[ot].tree);
       spn_dag_hash_str(&digest, node->outputs[ot].sub);
       spn_dag_hash_u64(&digest, node->outputs[ot].kind);
     }

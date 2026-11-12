@@ -84,7 +84,7 @@ typedef struct {
 } spn_node_ref_t;
 
 typedef struct {
-  spn_dir_t dir;
+  spn_tree_t tree;
   sp_str_t sub;
   spn_dag_artifact_kind_t kind;
   spn_path_t path;

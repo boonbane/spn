@@ -45,7 +45,7 @@ typedef struct {
 typedef struct {
   const c8* sub;
   const c8* to;
-  spn_dir_t dir;
+  spn_tree_t tree;
 } stage_t;
 
 typedef struct {
@@ -1360,8 +1360,8 @@ static const test_t tests [] = {
     .name = "stage_copy",
     .manifest = "stage_copy",
     .stage = {
-      { "G.txt", "gen/G.txt", SPN_DIR_WORK },
-      { "D", "share/D", SPN_DIR_VENDOR },
+      { "G.txt", "gen/G.txt", SPN_TREE_WORK },
+      { "vendor/D", "share/D", SPN_TREE_STORE },
     },
   },
   {
@@ -1609,7 +1609,7 @@ static sp_err_t check_publish_list(sp_test_t* t, sp_da(spn_gated_publish_t) actu
 static sp_err_t check_stage_list(sp_test_t* t, si_da(spn_stage_copy_t) actual, const stage_t* expected, u32 n) {
   sp_must_eq(t, n, (u32)si_da_size(actual));
   sp_for(it, n) {
-    sp_expect_eq(t, (u32)expected[it].dir, (u32)actual[it].dir);
+    sp_expect_eq(t, (u32)expected[it].tree, (u32)actual[it].tree);
     sp_expect_str_eq_c(t, actual[it].sub, expected[it].sub);
     sp_expect_str_eq_c(t, actual[it].to, expected[it].to);
   }

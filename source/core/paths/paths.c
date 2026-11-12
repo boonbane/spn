@@ -410,6 +410,7 @@ spn_path_t spn_tree_root(spn_tree_roots_t roots, spn_tree_t tree) {
     case SPN_TREE_MANIFEST: return roots.recipe;
     case SPN_TREE_SOURCE:   return roots.source;
     case SPN_TREE_WORK:     return roots.work;
+    case SPN_TREE_STORE:    return roots.store;
     case SPN_TREE_NONE:     break;
   }
   sp_unreachable_return(sp_zero_struct(spn_path_t));

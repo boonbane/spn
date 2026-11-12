@@ -29,6 +29,7 @@ typedef struct spn_wasi_t spn_wasi_t;
 #define SPN_WASM_MOUNT_COUNT 4
 
 typedef struct {
+  spn_tree_t tree;
   const c8* guest;
   spn_path_t host;
   bool writable;

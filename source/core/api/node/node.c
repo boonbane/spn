@@ -40,7 +40,7 @@ spn_node_t* spn_add_node(spn_config_t* config, const c8* tag) {
   return out;
 }
 
-static spn_err_t find_output(spn_pkg_unit_t* unit, sp_mem_t mem, sp_str_t guest, spn_dir_t* dir, sp_str_t* sub) {
+static spn_err_t find_output(spn_pkg_unit_t* unit, sp_mem_t mem, sp_str_t guest, spn_tree_t* tree, sp_str_t* sub) {
   if (!spn_path_normal(guest)) {
     return SPN_ERR_PATH_NOT_NORMAL;
   }
@@ -54,9 +54,9 @@ static spn_err_t find_output(spn_pkg_unit_t* unit, sp_mem_t mem, sp_str_t guest,
     return SPN_ERR_PATH_NOT_NORMAL;
   }
   spn_path_t host = spn_path_join(mem, mount->host, rest);
-  spn_dir_t roots [] = { SPN_DIR_WORK, SPN_DIR_LIB, SPN_DIR_BIN, SPN_DIR_VENDOR };
-  sp_carr_for(roots, it) {
-    spn_path_rel_t rel = spn_path_within(spn_api_dir_path(unit, roots[it]), host);
+  spn_path_t dirs [] = { unit->paths.work, unit->paths.lib, unit->paths.bin, unit->paths.vendor };
+  sp_carr_for(dirs, it) {
+    spn_path_rel_t rel = spn_path_within(dirs[it], host);
     if (!rel.within) {
       continue;
     }
@@ -66,8 +66,8 @@ static spn_err_t find_output(spn_pkg_unit_t* unit, sp_mem_t mem, sp_str_t guest,
     if (sp_fs_is_absolute_for(rel.sub, SP_FS_PATH_WINDOWS)) {
       return SPN_ERR_PATH_NOT_NORMAL;
     }
-    *dir = roots[it];
-    *sub = rel.sub;
+    *tree = mount->tree;
+    *sub = rest;
     return SPN_OK;
   }
   return SPN_ERR_OUTPUT_OUTSIDE;
@@ -77,15 +77,15 @@ static spn_err_t add_output(spn_node_t* node, const c8* path, spn_dag_artifact_k
   spn_user_node_t* info = spn_node_deref(node->ref);
   spn_pkg_unit_t* unit = node->ref.pkg;
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  spn_dir_t dir = SPN_DIR_NONE;
+  spn_tree_t tree = SPN_TREE_NONE;
   sp_str_t sub = sp_zero;
-  spn_err_t err = find_output(unit, scratch.mem, sp_cstr_as_str(path), &dir, &sub);
+  spn_err_t err = find_output(unit, scratch.mem, sp_cstr_as_str(path), &tree, &sub);
   if (!err) {
     si_da_push(unit->units->mem, info->outputs, ((spn_user_output_t) {
-      .dir = dir,
+      .tree = tree,
       .sub = sp_str_copy(spn.mem, sub),
       .kind = kind,
-      .path = spn_path_join(spn.mem, spn_api_dir_path(unit, dir), sub),
+      .path = spn_path_join(spn.mem, spn_tree_root(unit->paths.roots, tree), sub),
     }));
   }
   sp_mem_end_scratch(scratch);
