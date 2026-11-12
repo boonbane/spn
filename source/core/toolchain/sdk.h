@@ -18,6 +18,8 @@ bool           spn_sdk_libc(spn_cc_cap_set_t caps, const spn_sdk_t* sdk, spn_lib
 spn_dir_list_t spn_sdk_tool_dirs(const spn_sdk_t* sdk);
 spn_dir_list_t spn_msvc_include_dirs(const spn_sdk_msvc_t* msvc);
 spn_dir_list_t spn_msvc_lib_dirs(const spn_sdk_msvc_t* msvc);
+u32            spn_msvc_shell_vars(const c8* const** vars);
+bool           spn_msvc_leave_shell(sp_env_t* env);
 spn_wasi_spelling_t spn_sdk_wasi_spelling(const spn_path_roots_t* roots, sp_mem_t mem, const spn_sdk_t* sdk);
 
 #endif

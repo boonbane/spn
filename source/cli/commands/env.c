@@ -62,6 +62,9 @@ static sp_cli_result_t env(sp_cli_t* cli) {
         }
         dirs[it] = dir;
       }
+      if (env.clear.count) {
+        spn_print(&tui, "unset {}", sp_fmt_str(sp_str_join_n(s.mem, env.clear.items, env.clear.count, sp_str_lit(" "))));
+      }
       spn_print(&tui, "export PATH={}\":$PATH\"", sp_fmt_str(quoted(s.mem, sp_str_join_n(s.mem, dirs, env.path.count, sp_str_lit(":")), "'\\''")));
       sp_for(it, env.vars.count) {
         spn_print(&tui, "export {}={}", sp_fmt_str(env.vars.items[it].name), sp_fmt_str(quoted(s.mem, env.vars.items[it].value, "'\\''")));
@@ -70,6 +73,13 @@ static sp_cli_result_t env(sp_cli_t* cli) {
     }
     case FORMAT_POWERSHELL: {
       sp_str_t sep = windows ? sp_str_lit(";") : sp_str_lit(":");
+      if (env.clear.count) {
+        sp_str_t names [SPN_ENV_MAX_CLEAR] = sp_zero;
+        sp_for(it, env.clear.count) {
+          names[it] = sp_fmt(s.mem, "Env:{}", sp_fmt_str(env.clear.items[it])).value;
+        }
+        spn_print(&tui, "Remove-Item -ErrorAction Ignore {}", sp_fmt_str(sp_str_join_n(s.mem, names, env.clear.count, sp_str_lit(", "))));
+      }
       sp_str_t dirs = sp_fmt(s.mem, "{}{}", sp_fmt_str(sp_str_join_n(s.mem, env.path.items, env.path.count, sep)), sp_fmt_str(sep)).value;
       spn_print(&tui, "$env:PATH = {} + $env:PATH", sp_fmt_str(quoted(s.mem, dirs, "''")));
       sp_for(it, env.vars.count) {
@@ -110,10 +120,13 @@ static sp_cli_result_t run(sp_cli_t* cli) {
   }
 
   sp_env_t vars = sp_env_capture(s.mem);
+  sp_for(it, env.clear.count) {
+    sp_env_erase(&vars, env.clear.items[it]);
+  }
   sp_env_insert(&vars, sp_str_lit("PATH"), sp_fmt(s.mem, "{}{}{}",
     sp_fmt_str(sp_str_join_n(s.mem, env.path.items, env.path.count, sep)),
     sp_fmt_str(sep),
-    sp_fmt_str(sp_env_get(&vars, sp_str_lit("PATH")))).value);
+    sp_fmt_str(env.path.inherited)).value);
   sp_for(it, env.vars.count) {
     sp_env_insert(&vars, env.vars.items[it].name, env.vars.items[it].value);
   }

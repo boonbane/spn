@@ -139,6 +139,22 @@ sp_test_each(profile, cases, test_t, tests) {
 
 static const command_test_t commands [] = {
   {
+    .name = "env_outside_a_dev_shell_clears_nothing",
+    .project = "test/integration/fixtures/profile/override",
+    .args = { "env" },
+    .env = { "VSCMD_VER=" },
+    .human = true,
+    .expect.excludes = { "unset " },
+  },
+  {
+    .name = "env_inside_a_dev_shell_clears_it",
+    .project = "test/integration/fixtures/profile/override",
+    .args = { "env" },
+    .env = { "VSCMD_VER=17.0" },
+    .human = true,
+    .expect.contains = { "unset ", "EXTERNAL_INCLUDE" },
+  },
+  {
     .name = "cross_target_macos",
     .project = "test/integration/fixtures/profile/override",
     .when.driver = SPN_CC_DRIVER_ZIG,

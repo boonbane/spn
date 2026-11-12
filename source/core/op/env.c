@@ -19,6 +19,20 @@ static void push_var(spn_env_result_t* env, const c8* name, sp_str_t value) {
   env->vars.items[env->vars.count++] = (spn_env_var_t) { .name = sp_cstr_as_str(name), .value = value };
 }
 
+static bool sets(const spn_env_result_t* env, sp_str_t name) {
+  sp_for(it, env->vars.count) {
+    if (sp_str_equal(env->vars.items[it].name, name)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+static void push_clear(spn_env_result_t* env, sp_str_t name) {
+  sp_assert(env->clear.count < SPN_ENV_MAX_CLEAR);
+  env->clear.items[env->clear.count++] = name;
+}
+
 static sp_str_t search_list(const spn_path_roots_t* roots, sp_mem_t mem, spn_dir_list_t dirs) {
   sp_str_t items [SPN_DIR_LIST_MAX] = sp_zero;
   sp_for(it, dirs.count) {
@@ -74,6 +88,18 @@ spn_err_t spn_op_env(spn_op_t* op) {
     case SPN_SDK_NONE:
     case SPN_SDK_SYSROOT: {
       break;
+    }
+  }
+
+  env->path.inherited = sp_env_get_c(session->ctx->env, "PATH");
+  if (session->ctx->devshell) {
+    const c8* const* shell = SP_NULLPTR;
+    u32 count = spn_msvc_shell_vars(&shell);
+    sp_for(it, count) {
+      sp_str_t name = sp_cstr_as_str(shell[it]);
+      if (!sets(env, name)) {
+        push_clear(env, name);
+      }
     }
   }
   return SPN_OK;

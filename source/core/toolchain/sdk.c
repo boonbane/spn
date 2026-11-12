@@ -151,6 +151,74 @@ spn_dir_list_t spn_msvc_lib_dirs(const spn_sdk_msvc_t* msvc) {
   return dirs;
 }
 
+static const c8* const msvc_shell_vars [] = {
+  "__DOTNET_ADD_64BIT",
+  "__DOTNET_PREFERRED_BITNESS",
+  "__VSCMD_PREINIT_PATH",
+  "__VSCMD_PREINIT_VCToolsVersion",
+  "CommandPromptType",
+  "DevEnvDir",
+  "ExtensionSdkDir",
+  "EXTERNAL_INCLUDE",
+  "Framework40Version",
+  "FrameworkDir",
+  "FrameworkDir32",
+  "FrameworkDir64",
+  "FrameworkVersion",
+  "FrameworkVersion32",
+  "FrameworkVersion64",
+  "INCLUDE",
+  "LIB",
+  "LIBPATH",
+  "NETFXSDKDir",
+  "Platform",
+  "UCRTVersion",
+  "UniversalCRTSdkDir",
+  "VCIDEInstallDir",
+  "VCINSTALLDIR",
+  "VCPKG_ROOT",
+  "VCToolsInstallDir",
+  "VCToolsRedistDir",
+  "VCToolsVersion",
+  "VisualStudioVersion",
+  "VS150COMNTOOLS",
+  "VS160COMNTOOLS",
+  "VS170COMNTOOLS",
+  "VS180COMNTOOLS",
+  "VSCMD_ARG_app_plat",
+  "VSCMD_ARG_HOST_ARCH",
+  "VSCMD_ARG_TGT_ARCH",
+  "VSCMD_VER",
+  "VSINSTALLDIR",
+  "WindowsLibPath",
+  "WindowsSDK_ExecutablePath_x64",
+  "WindowsSDK_ExecutablePath_x86",
+  "WindowsSdkBinPath",
+  "WindowsSdkDir",
+  "WindowsSDKLibVersion",
+  "WindowsSdkVerBinPath",
+  "WindowsSDKVersion",
+};
+
+u32 spn_msvc_shell_vars(const c8* const** vars) {
+  *vars = msvc_shell_vars;
+  return sp_carr_len(msvc_shell_vars);
+}
+
+bool spn_msvc_leave_shell(sp_env_t* env) {
+  if (sp_str_empty(sp_env_get_c(env, "VSCMD_VER"))) {
+    return false;
+  }
+  sp_str_t path = sp_env_get_c(env, "__VSCMD_PREINIT_PATH");
+  if (!sp_str_empty(path)) {
+    sp_env_insert(env, sp_str_lit("PATH"), path);
+  }
+  sp_carr_for(msvc_shell_vars, it) {
+    sp_env_erase_c(env, msvc_shell_vars[it]);
+  }
+  return true;
+}
+
 spn_dir_list_t spn_sdk_tool_dirs(const spn_sdk_t* sdk) {
   spn_dir_list_t dirs = sp_zero;
   switch (sdk->kind) {

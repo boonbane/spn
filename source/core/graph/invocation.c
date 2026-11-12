@@ -86,6 +86,7 @@ static sp_ps_config_t invocation_ps(const spn_path_roots_t* roots, const spn_inv
     .command = spn_arg_str(roots, mem, invocation->program),
     .dyn_args = spn_invocation_args(roots, mem, invocation),
     .cwd = spn_path_str(roots, mem, invocation->cwd),
+    .env = { .env = *spn.env, .mode = SP_PS_ENV_EXISTING },
     .io = {
       .in.mode = SP_PS_IO_MODE_NULL,
       .out.mode = SP_PS_IO_MODE_CREATE,

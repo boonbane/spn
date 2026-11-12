@@ -126,6 +126,7 @@ add_executable(core
   toolchain/sdk_path.c
   toolchain/sdk_root.c
   toolchain/sdk_serve.c
+  toolchain/sdk_shell.c
   toolchain/sdk_wasi.c
   toolchain/search.c
   toolchain/select.c
@@ -198,6 +199,7 @@ set_source_files_properties(
   toolchain/sdk_path.c
   toolchain/sdk_root.c
   toolchain/sdk_serve.c
+  toolchain/sdk_shell.c
   toolchain/sdk_wasi.c
   toolchain/search.c
   toolchain/provision.c

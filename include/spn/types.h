@@ -178,6 +178,7 @@ typedef struct {
 
 #define SPN_ENV_MAX_PATH 4
 #define SPN_ENV_MAX_VARS 16
+#define SPN_ENV_MAX_CLEAR 48
 
 typedef struct {
   sp_str_t name;
@@ -188,11 +189,16 @@ typedef struct {
   struct {
     sp_str_t items [SPN_ENV_MAX_PATH];
     u32 count;
+    sp_str_t inherited;
   } path;
   struct {
     spn_env_var_t items [SPN_ENV_MAX_VARS];
     u32 count;
   } vars;
+  struct {
+    sp_str_t items [SPN_ENV_MAX_CLEAR];
+    u32 count;
+  } clear;
 } spn_env_result_t;
 
 typedef struct {
