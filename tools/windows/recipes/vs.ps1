@@ -1,6 +1,6 @@
 # vs.ps1 — install Visual Studio Build Tools with the C++ (MSVC) workload.
-# Arg: the VS year, "2022" or "2026".
-param([string]$Year = '2022')
+# Args: the VS year, "2022" or "2026"; -Atl adds the ATL headers and libraries.
+param([string]$Year = '2022', [switch]$Atl)
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
@@ -28,10 +28,10 @@ $vsArgs = @(
   '--add', 'Microsoft.VisualStudio.Workload.VCTools',
   '--add', 'Microsoft.VisualStudio.Component.VC.Tools.x86.x64',
   '--add', 'Microsoft.VisualStudio.Component.VC.Tools.ARM64',
-  '--add', 'Microsoft.VisualStudio.Component.VC.ATL',
   '--add', 'Microsoft.VisualStudio.Component.Windows11SDK.22621',
   '--includeRecommended'
 )
+if ($Atl) { $vsArgs += '--add', 'Microsoft.VisualStudio.Component.VC.ATL' }
 $proc = Start-Process -FilePath $exe -ArgumentList $vsArgs -Wait -PassThru
 Remove-Item -Force $exe
 if ($proc.ExitCode -ne 0 -and $proc.ExitCode -ne 3010) {

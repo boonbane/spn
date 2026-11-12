@@ -35,6 +35,7 @@ typedef struct {
   bool exports;
   bool cxx;
   bool deterministic;
+  bool atl;
 } test_when_t;
 
 typedef struct {

@@ -63,7 +63,7 @@ static const test_t tests [] = {
     .name = "atl",
     .project = "test/integration/fixtures/platform/atl",
     .copy = { "main.cpp" },
-    .when = { .driver = SPN_CC_DRIVER_MSVC, .cxx = true },
+    .when = { .driver = SPN_CC_DRIVER_MSVC, .cxx = true, .atl = true },
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
       { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },

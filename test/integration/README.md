@@ -56,6 +56,8 @@ and skips with a reason otherwise.
 - `.cxx`: only where the lane declares a C++ compiler. `musl-gcc`, `clang-musl`
   and `clang-bare` have none, since Debian ships no C++ runtime for those
   targets.
+- `.atl`: only where the lane's MSVC SDK has ATL installed. ATL is an optional
+  Visual Studio component, and the Windows VM images carry it on `vs2026` only.
 - `.sanitize` also skips where a system gcc or clang targets a libc other than
   the host's, since its sanitizer runtimes are built for the host libc.
 - `.driver`, `.os`, `.host`, and the rest are unchanged. `.programs`

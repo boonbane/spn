@@ -46,7 +46,7 @@ const winvm_variant_t winvm_variants[] = {
   },
   {
     .name = "vs2022",
-    .summary = "Visual Studio 2022 Build Tools (MSVC)",
+    .summary = "Visual Studio 2022 Build Tools (MSVC), no ATL",
     .memory_mb = 8192,
     .vcpus = 6,
     .octet = 206,
@@ -55,11 +55,11 @@ const winvm_variant_t winvm_variants[] = {
   },
   {
     .name = "vs2026",
-    .summary = "Visual Studio 2026 Build Tools (MSVC)",
+    .summary = "Visual Studio 2026 Build Tools (MSVC) with ATL",
     .memory_mb = 8192,
     .vcpus = 6,
     .octet = 207,
-    .steps = { { "vs", "2026" } },
+    .steps = { { "vs", "2026 -Atl" } },
     .lanes = { "msvc" },
   },
 };
