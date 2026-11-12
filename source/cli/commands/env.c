@@ -149,6 +149,9 @@ static sp_cli_result_t run(sp_cli_t* cli) {
   if (!ps.os) {
     sp_mem_end_scratch(s);
     host.code = 127;
+    if (ps.error == SP_ERR_SYS_INVALID) {
+      return spn_cli_usage("failed to run {.red}: batch file arguments can't contain CR, LF or NUL", sp_fmt_str(name));
+    }
     return spn_cli_usage("failed to run {.red}", sp_fmt_str(name));
   }
   s32 code = sp_ps_wait(&ps).exit_code;
