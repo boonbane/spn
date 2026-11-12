@@ -7,6 +7,9 @@ Write-Host "== common: base setup =="
 $Root = 'C:\toolchains'
 New-Item -ItemType Directory -Force -Path $Root | Out-Null
 
+# the golden carries a user config from an older spn, which a current one rejects
+Remove-Item -Recurse -Force "$env:APPDATA\spn" -ErrorAction SilentlyContinue
+
 $exclusions = @($Root, $env:TEMP, "$env:LOCALAPPDATA\spn", "$env:APPDATA\spn")
 foreach ($path in $exclusions) {
   try { Add-MpPreference -ExclusionPath $path -ErrorAction Stop }

@@ -56,6 +56,9 @@ and skips with a reason otherwise.
 - `.cxx`: only where the lane declares a C++ compiler. `musl-gcc`, `clang-musl`
   and `clang-bare` have none, since Debian ships no C++ runtime for those
   targets.
+- `.atl`: only where the lane's MSVC SDK has ATL installed. ATL is an optional
+  Visual Studio component, and every Windows VM image with Visual Studio
+  carries it except `vs2026-min`.
 - `.sanitize` also skips where a system gcc or clang targets a libc other than
   the host's, since its sanitizer runtimes are built for the host libc.
 - `.driver`, `.os`, `.host`, and the rest are unchanged. `.programs`
@@ -81,7 +84,10 @@ unpacks the arm64 libc and libgcc debs under `/sysroot/arm64`, and
 `debian-wasi` names `/usr` because Debian's wasi-libc is already laid out as
 one, and `debian-wasi-sdk` copies the wasi-sdk tree the tool provisions into
 spn's toolchain store to `/opt/wasi-sdk`
-for `wasi-sdk-local`. `wasi-sdk` names the same tarball as a hosted artifact,
+for `wasi-sdk-local`. `debian-arm` copies the `aarch64-none-linux-gnu/libc`
+tree out of the Arm GNU toolchain to `/sysroot/arm-gnu` for `arm-gnu-sysroot`:
+Arm's gcc is built without multiarch and against a newer glibc than Debian's,
+so it can only use a sysroot laid out like its own. `wasi-sdk` names the same tarball as a hosted artifact,
 so its `share/wasi-sysroot` is joined onto the artifact root by spn; that lane
 is the artifact-relative sysroot coverage. `musl-gcc` and `clang-cross` list
 a target with no sysroot and lean on the wrapper or on clang's gcc-cross
@@ -110,7 +116,7 @@ fact matches the family the lane declares.
 | `gcc-lld`     | gcc     | lld                        | `-fuse-ld=lld`                     | `debian-gcc`, `debian-llvm`                   |
 | `clang`       | clang   | native                     |                                    | `debian-clang`, `debian-llvm`, `alpine-clang`, macOS |
 | `llvm`        | clang   | lld                        | `-fuse-ld=lld`                     | `debian-llvm`, macOS with Homebrew llvm       |
-| `msvc`        | msvc    | msvc (fixed)               |                                    | Windows dev shell                             |
+| `msvc`        | msvc    | msvc (fixed)               |                                    | Windows with Visual Studio                    |
 | `clang-msvc`  | clang   | lld                        | `-fuse-ld=lld`                     | Windows with LLVM                             |
 | `aarch64-gnu` | gcc     | gnu                        |                                    | `debian-cross`                                |
 | `mingw-gnu`   | gcc     | gnu                        |                                    | `debian-mingw`                                |

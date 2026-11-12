@@ -63,6 +63,7 @@ typedef enum {
   SYSROOT_MUSL,
   SYSROOT_WASI,
   SYSROOT_ARM64,
+  SYSROOT_ARM_GNU,
   SYSROOT_WASI_SDK,
   SYSROOT_XWIN,
   SYSROOT_ZIG,
@@ -98,6 +99,11 @@ typedef struct {
 } sysroot_xwin_t;
 
 typedef struct {
+  lane_t lane;
+  const c8* sub;
+} sysroot_artifact_t;
+
+typedef struct {
   const c8* name;
   const c8* path;
   const c8* packages [SMOKE_MAX_PACKAGES];
@@ -105,7 +111,7 @@ typedef struct {
   union {
     sysroot_link_t links [SMOKE_MAX_LINKS];
     sysroot_debs_t debs;
-    lane_t artifact;
+    sysroot_artifact_t artifact;
     sysroot_xwin_t xwin;
   };
 } sysroot_t;

@@ -1,0 +1,14 @@
+[package]
+name = "A"
+version = "0.1.0"
+
+[[lib]]
+name = "A"
+kinds = ["static"]
+source = ["a.c"]
+publish.include = [{ from = "source/a.h", to = "X" }]
+
+[[test]]
+name = "T"
+source = ["main.c"]
+deps = ["A"]

@@ -33,6 +33,7 @@ static spn_err_t run_test(spn_session_t* session, spn_target_unit_t* unit, spn_p
   sp_ps_output_t output = sp_ps_run(session->mem, (sp_ps_config_t) {
     .command = command,
     .cwd = spn_path_str(&ctx->roots, session->mem, unit->pkg->paths.roots.source),
+    .env = { .env = *ctx->env, .mode = SP_PS_ENV_EXISTING },
     .io = {
       .in =  { .mode = SP_PS_IO_MODE_NULL },
       .out = { .mode = SP_PS_IO_MODE_CREATE },

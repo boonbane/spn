@@ -24,6 +24,11 @@ typedef struct {
 } si_dag_pkg_ids_t;
 
 typedef struct {
+  spn_pkg_unit_t* pkg;
+  sp_atomic_s32_t announced;
+} spn_dag_announce_t;
+
+typedef struct {
   sp_str_t key;
   spn_path_t to;
   spn_dag_id_t artifact;
@@ -47,8 +52,8 @@ struct spn_dag_build_t {
     sp_ht(spn_dag_digest_t, spn_dag_id_t) warm;
   } ids;
   struct {
-    sp_ht(spn_dag_id_t, spn_pkg_unit_t*) pkgs;
-    sp_ht(spn_pkg_unit_t*, sp_atomic_s32_t) announced;
+    si_om(spn_pkg_unit_t*, spn_dag_announce_t) pkgs;
+    si_da(spn_dag_announce_t*) actions;
   } announce;
   struct {
     si_da(spn_dag_stage_t) profile;

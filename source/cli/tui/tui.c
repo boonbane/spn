@@ -1304,6 +1304,46 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           );
           break;
         }
+        case SPN_ERR_HANDLE_NULL: {
+          sp_tty_fmt(&w, "Build script {.cyan} passed a null handle; {.yellow} returns one when its tag contains '/'", sp_fmt_str(contextual_path(mem, event->err.wasm.path)), sp_fmt_cstr("spn_add_node"));
+          break;
+        }
+        case SPN_ERR_HANDLE_KIND: {
+          sp_tty_fmt(&w, "Build script {.cyan} passed a handle of the wrong kind", sp_fmt_str(contextual_path(mem, event->err.wasm.path)));
+          break;
+        }
+        case SPN_ERR_NODE_NO_SCRIPT: {
+          sp_tty_fmt(&w, "Build script {.cyan} set a node function, but the package has no {.yellow} script", sp_fmt_str(contextual_path(mem, event->err.wasm.path)), sp_fmt_cstr("[package.build]"));
+          break;
+        }
+        case SPN_ERR_NODE_NO_OUTPUTS: {
+          sp_tty_fmt(&w, "Build script {.cyan} linked from a node that has declared no outputs", sp_fmt_str(contextual_path(mem, event->err.wasm.path)));
+          break;
+        }
+        case SPN_ERR_PATH_NOT_NORMAL: {
+          sp_tty_fmt(&w, "Build script {.cyan} used a path with '.', '..', or empty components, or with a component that is a drive letter or starts with a backslash", sp_fmt_str(contextual_path(mem, event->err.wasm.path)));
+          break;
+        }
+        case SPN_ERR_PATH_NOT_MOUNTED: {
+          sp_tty_fmt(&w, "Build script {.cyan} wrote outside its mounts; a node function has /work, /source, /manifest, and /store, and configure has none", sp_fmt_str(contextual_path(mem, event->err.wasm.path)));
+          break;
+        }
+        case SPN_ERR_OUTPUT_OUTSIDE: {
+          sp_tty_fmt(&w, "Build script {.cyan} declared an output that is not under /work, /store/lib, /store/bin, or /store/vendor", sp_fmt_str(contextual_path(mem, event->err.wasm.path)));
+          break;
+        }
+        case SPN_ERR_OUTPUT_IS_ROOT: {
+          sp_tty_fmt(&w, "Build script {.cyan} declared an output that names a root instead of a path under it", sp_fmt_str(contextual_path(mem, event->err.wasm.path)));
+          break;
+        }
+        case SPN_ERR_IO_WRITE: {
+          sp_tty_fmt(&w, "Build script {.cyan} failed to write a file", sp_fmt_str(contextual_path(mem, event->err.wasm.path)));
+          break;
+        }
+        case SPN_ERR_STR_NULL: {
+          sp_tty_fmt(&w, "Build script {.cyan} passed a null string; {.yellow} returns one when its format is malformed or has more placeholders than arguments", sp_fmt_str(contextual_path(mem, event->err.wasm.path)), sp_fmt_cstr("spn_fmt"));
+          break;
+        }
         case SPN_ERR_WASM_EXPORT_NOT_FOUND: {
           sp_tty_fmt(
             &w,
@@ -1523,13 +1563,6 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
     }
     case SPN_EVENT_USER_LOG: {
       sp_io_write_str(w.io, event->user_log.message, SP_NULLPTR);
-      break;
-    }
-    case SPN_EVENT_API_CALL: {
-      sp_tty_fmt(&w, "{}({})",
-        sp_fmt_str(event->api_call.fn),
-        sp_fmt_str(event->api_call.args)
-      );
       break;
     }
     case SPN_EVENT_INIT_BUILD_GRAPH: {

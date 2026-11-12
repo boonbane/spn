@@ -40,6 +40,8 @@ typedef struct {
   spn_sanitizer_set_t sanitizers;
   const c8* sdk;
   const c8* bin;
+  const c8* tools;
+  const c8* atl;
 } test_profile_t;
 
 spn_path_t         test_arg_path(const c8* value);

@@ -33,6 +33,7 @@ typedef struct {
 typedef struct {
   spn_path_t recipe;
   spn_path_t source;
+  spn_path_t work;
 } spn_tree_roots_t;
 
 typedef struct {
@@ -45,6 +46,13 @@ typedef struct {
   spn_path_t path;
   sp_str_t suffix;
 } spn_arg_t;
+
+#define SPN_DIR_LIST_MAX 8
+
+typedef struct {
+  spn_path_t items [SPN_DIR_LIST_MAX];
+  u32 count;
+} spn_dir_list_t;
 
 typedef struct {
   spn_path_t patches;

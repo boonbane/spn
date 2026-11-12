@@ -1,22 +1,50 @@
 #include "fixture.h"
+#include TEST_EMBED
 
-sp_str_t test_repo_root(sp_mem_t mem) {
-  sp_str_t path = sp_zero;
-  sp_fs_get_exe_path(mem, &path);
-  while (true) {
-    sp_assert(!sp_str_empty(path));
-    if (sp_fs_exists(sp_fs_join_path(mem, path, strl("spn.toml")))) {
-      return path;
+static sp_test_once_t root_once;
+static sp_str_t root;
+
+static sp_err_t find_root(void* user) {
+  sp_mem_t mem = sp_mem_os_new();
+  sp_str_t exe = sp_zero;
+  sp_fs_get_exe_path(mem, &exe);
+  for (sp_str_t dir = sp_fs_parent_path(exe); !sp_str_equal(dir, sp_fs_parent_path(dir)); dir = sp_fs_parent_path(dir)) {
+    if (sp_fs_exists(sp_fs_join_path(mem, dir, strl("spn.toml")))) {
+      root = dir;
+      return SP_OK;
     }
-    path = sp_fs_parent_path(path);
   }
+
+  sp_str_t cwd = sp_zero;
+  sp_try(sp_fs_get_cwd_path(mem, &cwd));
+  root = sp_fs_join_path(mem, sp_fs_join_path(mem, cwd, strl(".sp/root")), sp_fs_get_stem(exe));
+  sp_fs_remove_dir(root);
+  sp_carr_for(spn_embed_manifest, it) {
+    spn_embed_entry_t entry = spn_embed_manifest[it];
+    sp_str_t content = sp_str((const c8*)entry.data, entry.size);
+    sp_path_t path = sp_path_from_str(sp_fs_join_path(mem, root, sp_cstr_as_str(entry.path)));
+    sp_try(sp_fs_create_parent_at(path));
+    sp_try(sp_fs_create_file_str_at(path, content));
+    if (sp_str_starts_with(content, strl("#!"))) {
+      sp_sys_file_meta_t meta = sp_zero;
+      sp_try(sp_sys_get_path_metadata_s(path.dir, path.sub, &meta));
+      sp_sys_set_executable(&meta.perms, true);
+      sp_try(sp_sys_set_file_perms_s(path.dir, path.sub, meta.perms));
+    }
+  }
+  return SP_OK;
+}
+
+sp_str_t test_repo_root(void) {
+  sp_assert(!sp_test_once(&root_once, find_root, SP_NULLPTR));
+  return root;
 }
 
 sp_str_t test_repo_path(sp_mem_t mem, sp_str_t rel) {
   if (sp_fs_is_absolute(rel)) {
     return sp_str_copy(mem, rel);
   }
-  return sp_fs_join_path(mem, test_repo_root(mem), rel);
+  return sp_fs_join_path(mem, test_repo_root(), rel);
 }
 
 sp_ps_output_t git_repo_run(sp_str_t repo, const sp_str_t* args, u32 count) {

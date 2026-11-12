@@ -92,7 +92,7 @@ sp_test_each(manifest_gen, corpus, test_t, tests) {
   sp_mem_t mem = sp_test_arena(t);
 
   sp_str_t path = test_repo_path(mem, sp_fmt(mem, "test/core/manifest/gen/manifests/{}.toml", sp_fmt_cstr(it->name)).value);
-  sp_expect_golden(t, sp_test_format(t, "golden/{}.json", sp_fmt_cstr(it->name)), manifest_render(mem, path));
+  sp_expect_golden(t, test_repo_path(mem, sp_test_format(t, "test/core/manifest/gen/golden/{}.json", sp_fmt_cstr(it->name))), manifest_render(mem, path));
 
   return SP_OK;
 }

@@ -152,7 +152,7 @@ static const compile_test_t tests [] = {
     },
     .expect = {
       .command = "cc",
-      .args = { "--target=x86_64-windows-msvc", "-std=c99", "-fms-runtime-lib=static", "-c", "-gno-codeview-command-line", "-Werror=return-type", "main.c", "-Xclang", "-object-file-name=main.o", "-o", "main.o" },
+      .args = { "--target=x86_64-windows-msvc", "-std=c99", "-fms-runtime-lib=static", "-mno-incremental-linker-compatible", "-c", "-gno-codeview-command-line", "-Werror=return-type", "main.c", "-Xclang", "-object-file-name=main.o", "-o", "main.o" },
     },
   },
   {
@@ -318,8 +318,8 @@ static const compile_test_t tests [] = {
     },
     .expect = {
       .command = "/X/bin/arm64/cl.exe",
-      .args = { "/nologo", "/utf-8", "/Brepro", "/MT", "/c", "/I/X/crt/include", "/I/X/sdk/include/ucrt", "/I/X/sdk/include/um", "/I/X/sdk/include/shared", "/we4715", "/Fomain.o", "main.c" },
-      .env = { "INCLUDE=/X/crt/include;/X/sdk/include/ucrt;/X/sdk/include/um;/X/sdk/include/shared" },
+      .args = { "/nologo", "/utf-8", "/Brepro", "/MT", "/c", "/I/X/crt/include", "/I/X/sdk/include/ucrt", "/I/X/sdk/include/um", "/I/X/sdk/include/shared", "/I/X/sdk/include/winrt", "/I/X/sdk/include/cppwinrt", "/we4715", "/Fomain.o", "main.c" },
+      .env = { "INCLUDE=/X/crt/include;/X/sdk/include/ucrt;/X/sdk/include/um;/X/sdk/include/shared;/X/sdk/include/winrt;/X/sdk/include/cppwinrt" },
     },
   },
   {
@@ -444,12 +444,14 @@ static const compile_test_t tests [] = {
     .expect = {
       .command = "cc",
       .args = {
-        "--target=x86_64-windows-msvc", "-std=c99", "-fms-runtime-lib=static", "-c",
+        "--target=x86_64-windows-msvc", "-std=c99", "-fms-runtime-lib=static", "-mno-incremental-linker-compatible", "-c",
         "-nostdlibinc",
-        "-isystem", "/X/crt/include",
-        "-isystem", "/X/sdk/include/ucrt",
-        "-isystem", "/X/sdk/include/um",
-        "-isystem", "/X/sdk/include/shared",
+        "-isystem/X/crt/include",
+        "-isystem/X/sdk/include/ucrt",
+        "-isystem/X/sdk/include/um",
+        "-isystem/X/sdk/include/shared",
+        "-isystem/X/sdk/include/winrt",
+        "-isystem/X/sdk/include/cppwinrt",
         "-gno-codeview-command-line", "-Werror=return-type", "main.c", "-Xclang", "-object-file-name=main.o", "-o", "main.o"
       },
     },
@@ -466,7 +468,7 @@ static const compile_test_t tests [] = {
     .libc = "/L",
     .expect = {
       .command = "cc",
-      .args = { "--target=x86_64-windows-msvc", "-std=c99", "-fms-runtime-lib=static", "-c", "-gno-codeview-command-line", "-Werror=return-type", "main.c", "-Xclang", "-object-file-name=main.o", "-o", "main.o" },
+      .args = { "--target=x86_64-windows-msvc", "-std=c99", "-fms-runtime-lib=static", "-mno-incremental-linker-compatible", "-c", "-isystem/X/sdk/include/winrt", "-isystem/X/sdk/include/cppwinrt", "-gno-codeview-command-line", "-Werror=return-type", "main.c", "-Xclang", "-object-file-name=main.o", "-o", "main.o" },
       .env = { "ZIG_LIBC=/L" },
     },
   },
@@ -507,8 +509,8 @@ static const compile_test_t tests [] = {
     },
     .expect = {
       .command = "cc",
-      .args = { "/nologo", "/utf-8", "/Brepro", "/MT", "/c", "/I/X/crt/include", "/I/X/sdk/include/ucrt", "/I/X/sdk/include/um", "/I/X/sdk/include/shared", "/we4715", "/Fomain.o", "main.c" },
-      .env = { "INCLUDE=/X/crt/include;/X/sdk/include/ucrt;/X/sdk/include/um;/X/sdk/include/shared" },
+      .args = { "/nologo", "/utf-8", "/Brepro", "/MT", "/c", "/I/X/crt/include", "/I/X/sdk/include/ucrt", "/I/X/sdk/include/um", "/I/X/sdk/include/shared", "/I/X/sdk/include/winrt", "/I/X/sdk/include/cppwinrt", "/we4715", "/Fomain.o", "main.c" },
+      .env = { "INCLUDE=/X/crt/include;/X/sdk/include/ucrt;/X/sdk/include/um;/X/sdk/include/shared;/X/sdk/include/winrt;/X/sdk/include/cppwinrt" },
     },
   },
   {
@@ -645,7 +647,7 @@ sp_test_each(render_compile, render, compile_test_t, tests, .setup = spn_test_ct
   }
 
   spn_profile_info_t profile = test_profile(it->profile);
-  profile.sdk = spn_sdk_for_driver(spn_toolchain_driver_caps(it->driver), profile.sdk);
+  profile.libc.some = spn_sdk_libc(spn_toolchain_driver_caps(it->driver), &profile.sdk, &profile.libc.value);
   spn_cc_compile_plan_t plan = si_cc_render_compile(mem, &toolchain, &profile, it->lang, &compile);
 
   spn_cc_compile_files_t files = {
@@ -670,8 +672,8 @@ sp_test(render_compile, base_shared_across_commands, .setup = spn_test_ctx_setup
     .standard = SPN_C99,
     .sdk = "/sdk",
   });
-  profile.sdk = spn_sdk_for_driver(spn_toolchain_driver_caps(SPN_CC_DRIVER_ZIG), profile.sdk);
-  sp_must_eq(t, (u32)SPN_SDK_LIBC, (u32)profile.sdk.kind);
+  profile.libc.some = spn_sdk_libc(spn_toolchain_driver_caps(SPN_CC_DRIVER_ZIG), &profile.sdk, &profile.libc.value);
+  sp_must(t, profile.libc.some);
 
   spn_cc_compile_plan_t plan = si_cc_render_compile(mem, &toolchain, &profile, SPN_LANG_C, &compile);
   u64 args = sp_da_size(plan.base.args);

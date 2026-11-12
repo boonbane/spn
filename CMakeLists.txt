@@ -116,6 +116,8 @@ endif()
 
 set(EMBED_OBJ ${STORE}/lib/spn.embed.o)
 set(EMBED_HDR ${STORE}/include/spn.embed.h)
+set(CORE_EMBED_OBJ ${TEST_GEN_DIR}/core.embed.o)
+set(CORE_EMBED_HDR ${TEST_GEN_DIR}/core.embed.h)
 
 include(tools/cmake/version.cmake)
 include(tools/cmake/libs.cmake)

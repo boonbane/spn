@@ -409,6 +409,7 @@ spn_path_t spn_tree_root(spn_tree_roots_t roots, spn_tree_t tree) {
   switch (tree) {
     case SPN_TREE_MANIFEST: return roots.recipe;
     case SPN_TREE_SOURCE:   return roots.source;
+    case SPN_TREE_WORK:     return roots.work;
     case SPN_TREE_NONE:     break;
   }
   sp_unreachable_return(sp_zero_struct(spn_path_t));
@@ -424,14 +425,16 @@ spn_path_t spn_tree_path(sp_mem_t mem, const spn_path_roots_t* roots, spn_tree_r
 }
 
 spn_tree_rel_t spn_tree_rel(spn_tree_roots_t roots, spn_path_t path) {
-  spn_path_rel_t recipe = spn_path_within(roots.recipe, path);
-  spn_path_rel_t source = spn_path_within(roots.source, path);
-
-  if (recipe.within && (!source.within || roots.recipe.sub.len >= roots.source.sub.len)) {
-    return (spn_tree_rel_t) { .tree = SPN_TREE_MANIFEST, .sub = recipe.sub };
+  spn_tree_t trees [] = { SPN_TREE_MANIFEST, SPN_TREE_SOURCE, SPN_TREE_WORK };
+  spn_tree_rel_t nearest = { .tree = SPN_TREE_NONE, .sub = sp_str_strip_left(path.sub, sp_str_lit("/")) };
+  u32 depth = 0;
+  sp_carr_for(trees, it) {
+    spn_path_t root = spn_tree_root(roots, trees[it]);
+    spn_path_rel_t rel = spn_path_within(root, path);
+    if (rel.within && (nearest.tree == SPN_TREE_NONE || root.sub.len > depth)) {
+      nearest = (spn_tree_rel_t) { .tree = trees[it], .sub = rel.sub };
+      depth = root.sub.len;
+    }
   }
-  if (source.within) {
-    return (spn_tree_rel_t) { .tree = SPN_TREE_SOURCE, .sub = source.sub };
-  }
-  return (spn_tree_rel_t) { .tree = SPN_TREE_NONE, .sub = sp_str_strip_left(path.sub, sp_str_lit("/")) };
+  return nearest;
 }

@@ -131,17 +131,30 @@ static const test_t tests [] = {
     },
   },
   {
+    .name = "published_include_tree_orders_own_package_compiles",
+    .graph.pkgs = {
+      { .name = "P", .publish = { "p.h" }, .targets = { { "A", static_only, .source = { "a.c" } } } },
+    },
+    .roots = { { "A", SPN_TARGET_KIND_LIB } },
+    .actions = {
+      { NODE_PUBLISH, .produces = { "build/debug/store/P/include", "build/debug/store/P/share" } },
+      { NODE_COMPILE, .consumes = { "a.c" }, .orders = { "build/debug/store/P/include" }, .produces = { "a.c.o" } },
+      { NODE_ARCHIVE, .consumes = { "a.c.o" }, .produces = { "libA.a" } },
+      { NODE_PUBLISH_FILE, .consumes = { "libA.a" }, .produces = { "build/debug/store/P/lib/libA.a" } },
+    },
+  },
+  {
     .name = "user_node_outputs_order_the_package_compiles",
     .graph.pkgs = {
       {
         .name = "P",
         .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "main.c" } } },
-        .nodes = { { .tag = "N", .inputs = { "in.txt" }, .outputs = { "g/x.h" } } },
+        .nodes = { { .tag = "N", .outputs = { "g/x.h" } } },
       },
     },
     .roots = { { "A", SPN_TARGET_KIND_EXE } },
     .actions = {
-      { NODE_USER, .consumes = { "in.txt" }, .produces = { "build/debug/.spn/P/g/x.h" } },
+      { NODE_USER, .produces = { "build/debug/.spn/P/g/x.h" } },
       { NODE_COMPILE, .consumes = { "main.c" }, .orders = { "build/debug/.spn/P/g/x.h" }, .produces = { "main.c.o" } },
       { NODE_LINK, .consumes = { "main.c.o" }, .produces = { "A" } },
       { NODE_PUBLISH_FILE, .consumes = { "A" }, .produces = { "build/debug/store/P/bin/A" } },

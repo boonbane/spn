@@ -27,16 +27,10 @@ extern void (*spn_wasi_hook)(wasm_exec_env_t exec_env, s32 op, u32 fd,
                              const c8* path, u32 path_len, u16 error,
                              u32 new_fd, u32 oflags, u64 rights);
 
-typedef struct {
-  sp_str_t guest;
-  spn_path_t host;
-  bool writable;
-} spn_wasi_dir_t;
-
 struct spn_wasi_t {
   sp_mem_t mem;
   const spn_path_roots_t* roots;
-  sp_da(spn_wasi_dir_t) mounts;
+  sp_da(spn_wasi_mount_t) mounts;
   sp_ht(u32, sp_str_t) dirs;
   sp_ht(spn_path_t, u8) writes;
   spn_dag_obs_set_t* obs;
@@ -50,20 +44,29 @@ static sp_str_t wasi_guest_path(spn_wasi_t* w, sp_mem_t mem, u32 fd, const c8* p
   return sp_fmt(mem, "{}/{}", sp_fmt_str(*parent), sp_fmt_str(sp_str(path, path_len))).value;
 }
 
-static bool wasi_match(spn_wasi_t* w, sp_mem_t mem, sp_str_t guest, spn_path_t* host) {
-  sp_da_for(w->mounts, it) {
-    sp_str_t prefix = w->mounts[it].guest;
+const spn_wasi_mount_t* spn_wasi_find_mount(const spn_wasi_mount_t* mounts, u32 count, sp_str_t guest, sp_str_t* rest) {
+  sp_for(it, count) {
+    sp_str_t prefix = sp_cstr_as_str(mounts[it].guest);
     if (!sp_str_starts_with(guest, prefix)) {
       continue;
     }
     if (guest.len != prefix.len && guest.data[prefix.len] != '/') {
       continue;
     }
-    sp_str_t rest = guest.len == prefix.len ? sp_str_lit("") : sp_str_sub(guest, prefix.len + 1, guest.len - prefix.len - 1);
-    *host = spn_path_join(mem, w->mounts[it].host, rest);
-    return true;
+    *rest = guest.len == prefix.len ? sp_str_lit("") : sp_str_sub(guest, prefix.len + 1, guest.len - prefix.len - 1);
+    return &mounts[it];
   }
-  return false;
+  return SP_NULLPTR;
+}
+
+static bool wasi_match(spn_wasi_t* w, sp_mem_t mem, sp_str_t guest, spn_path_t* host) {
+  sp_str_t rest = sp_zero;
+  const spn_wasi_mount_t* mount = spn_wasi_find_mount(w->mounts, sp_da_size(w->mounts), guest, &rest);
+  if (!mount || sp_fs_is_absolute(rest)) {
+    return false;
+  }
+  *host = spn_path_join(mem, mount->host, rest);
+  return true;
 }
 
 static bool wasi_resolve(spn_wasi_t* w, sp_mem_t mem, sp_str_t guest, spn_path_t* host) {
@@ -254,12 +257,12 @@ spn_wasi_t* spn_wasi_new(sp_mem_t mem, const spn_path_roots_t* roots, const spn_
   sp_ht_set_fns(w->writes, spn_path_on_hash, spn_path_on_compare);
 
   sp_for(it, count) {
-    sp_da_push(w->mounts, ((spn_wasi_dir_t) {
-      .guest = sp_str_from_cstr(mem, mounts[it].guest),
+    sp_da_push(w->mounts, ((spn_wasi_mount_t) {
+      .guest = sp_cstr_copy(mem, mounts[it].guest),
       .host = spn_path_canonicalize_head(mem, roots, mounts[it].host),
       .writable = mounts[it].writable,
     }));
-    sp_ht_insert(w->dirs, SPN_WASI_PREOPEN_BASE_FD + it, w->mounts[it].guest);
+    sp_ht_insert(w->dirs, SPN_WASI_PREOPEN_BASE_FD + it, sp_cstr_as_str(w->mounts[it].guest));
   }
 
   return w;

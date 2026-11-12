@@ -7,6 +7,8 @@ extern sp_cli_cmd_t spn_cmd_add;
 extern sp_cli_cmd_t spn_cmd_clean;
 extern sp_cli_cmd_t spn_cmd_build;
 extern sp_cli_cmd_t spn_cmd_test;
+extern sp_cli_cmd_t spn_cmd_env;
+extern sp_cli_cmd_t spn_cmd_run;
 extern sp_cli_cmd_t spn_cmd_publish;
 extern sp_cli_cmd_t spn_cmd_index;
 extern sp_cli_cmd_t spn_cmd_self;
@@ -72,6 +74,8 @@ static sp_cli_cmd_t root = {
     &spn_cmd_clean,
     &spn_cmd_build,
     &spn_cmd_test,
+    &spn_cmd_env,
+    &spn_cmd_run,
     &spn_cmd_publish,
     &spn_cmd_index,
     &spn_cmd_self,

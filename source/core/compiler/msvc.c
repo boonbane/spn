@@ -4,6 +4,7 @@
 #include "enum/enum.h"
 #include "paths/paths.h"
 #include "reflect/reflect.h"
+#include "toolchain/sdk.h"
 #include "source_deps.gen.h"
 #include "macro/macro.h"
 
@@ -76,32 +77,19 @@ void spn_msvc_render_flags(sp_mem_t mem, const spn_profile_info_t* profile, spn_
   }
 }
 
-static void add_sdk_compile(sp_mem_t mem, const spn_sdk_msvc_t* sdk, spn_invocation_t* invocation) {
-  spn_path_t includes [] = { sdk->include.vc, sdk->include.ucrt, sdk->include.um, sdk->include.shared };
-  sp_carr_for(includes, it) {
-    spn_cc_push_glued(mem, invocation, "/I", includes[it]);
-  }
-  spn_cc_push_env_paths(mem, invocation, SPN_ENV_INCLUDE, includes, sp_carr_len(includes));
-}
-
-static void add_sdk_link(sp_mem_t mem, const spn_sdk_msvc_t* sdk, spn_invocation_t* invocation) {
-  spn_path_t libs [] = { sdk->lib.vc, sdk->lib.ucrt, sdk->lib.um };
-  spn_cc_push_env_paths(mem, invocation, SPN_ENV_LIB, libs, sp_carr_len(libs));
-}
-
 static spn_path_t sdk_bin(const spn_profile_info_t* profile) {
   return profile->sdk.kind == SPN_SDK_MSVC ? profile->sdk.msvc.bin : sp_zero_struct(spn_path_t);
 }
 
-static spn_arg_t program(sp_mem_t mem, const spn_profile_info_t* profile, spn_toolchain_launcher_t launcher, sp_str_t name) {
+spn_arg_t spn_msvc_program(sp_mem_t mem, const spn_profile_info_t* profile, spn_toolchain_launcher_t launcher, sp_str_t name) {
   sp_assert(!spn_arg_empty(launcher.program));
   spn_path_t bin = sdk_bin(profile);
   return spn_path_empty(bin) ? launcher.program : spn_arg_path(spn_path_join(mem, bin, name));
 }
 
 static void add_launcher(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, spn_lang_t lang, spn_invocation_t* invocation) {
-  spn_toolchain_launcher_t launcher = lang == SPN_LANG_CXX ? toolchain->cxx : toolchain->compiler;
-  invocation->program = program(mem, profile, launcher, sp_str_lit("cl.exe"));
+  spn_toolchain_launcher_t launcher = spn_cc_launcher(mem, toolchain, profile, lang);
+  invocation->program = launcher.program;
   spn_cc_push_strs(mem, invocation, launcher.args);
   spn_cc_push_c(mem, invocation, "/nologo");
 }
@@ -159,7 +147,9 @@ spn_cc_compile_plan_t spn_msvc_render_compile(sp_mem_t mem, const spn_cc_t* tool
     spn_cc_push_glued(mem, invocation, "/I", compile->include[it]);
   }
   if (profile->sdk.kind == SPN_SDK_MSVC) {
-    add_sdk_compile(mem, &profile->sdk.msvc, invocation);
+    spn_dir_list_t include = spn_msvc_include_dirs(&profile->sdk.msvc);
+    spn_cc_push_search(mem, invocation, "/I", include);
+    spn_cc_push_env_paths(mem, invocation, SPN_ENV_INCLUDE, include.items, include.count);
   }
   si_da_for(compile->define, it) {
     spn_cc_push_fmt(mem, invocation, "/D{}", sp_fmt_str(compile->define[it]));
@@ -241,7 +231,8 @@ spn_cc_link_plan_t spn_msvc_render_link(sp_mem_t mem, const spn_cc_t* toolchain,
     }
   }
   if (profile->sdk.kind == SPN_SDK_MSVC) {
-    add_sdk_link(mem, &profile->sdk.msvc, base);
+    spn_dir_list_t lib = spn_msvc_lib_dirs(&profile->sdk.msvc);
+    spn_cc_push_env_paths(mem, base, SPN_ENV_LIB, lib.items, lib.count);
   }
 
   si_da_for(link->system_libs, it) {
@@ -294,7 +285,7 @@ spn_cc_archive_plan_t spn_msvc_render_archive(sp_mem_t mem, const spn_cc_t* tool
     .driver = SPN_AR_DRIVER_MSVC,
   };
   spn_invocation_t* base = &plan.base;
-  base->program = program(mem, profile, toolchain->archiver, sp_str_lit("lib.exe"));
+  base->program = spn_msvc_program(mem, profile, toolchain->archiver, sp_str_lit("lib.exe"));
   spn_cc_push_strs(mem, base, toolchain->archiver.args);
   spn_cc_push_c(mem, base, "/nologo");
   return plan;

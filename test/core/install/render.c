@@ -172,7 +172,7 @@ sp_test_each(installer, render, render_test_t, tests) {
   }
 
   const c8* golden = it->expect.golden ? it->expect.golden : it->name;
-  expect_rendered(t, mem, test_dir_str(t), "install.sh", sp_test_format(t, "golden/{}.sh", sp_fmt_cstr(golden)));
-  expect_rendered(t, mem, test_dir_str(t), "install.ps1", sp_test_format(t, "golden/{}.ps1", sp_fmt_cstr(golden)));
+  expect_rendered(t, mem, test_dir_str(t), "install.sh", test_repo_path(mem, sp_test_format(t, "test/core/install/golden/{}.sh", sp_fmt_cstr(golden))));
+  expect_rendered(t, mem, test_dir_str(t), "install.ps1", test_repo_path(mem, sp_test_format(t, "test/core/install/golden/{}.ps1", sp_fmt_cstr(golden))));
   return SP_OK;
 }

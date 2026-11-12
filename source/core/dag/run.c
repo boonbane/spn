@@ -803,6 +803,7 @@ static void sched_init(sched_t* s, sp_mem_t mem, const spn_dag_run_t* run) {
   si_ht_init_ex(mem, s->by_path, spn_path_on_hash, spn_path_on_compare);
   si_ht_init_ex(mem, s->below, spn_path_on_hash, spn_path_on_compare);
 
+  spn_path_t build = spn_path_project_build();
   sp_da_for(g->artifacts, it) {
     const spn_dag_artifact_t* artifact = &g->artifacts[it];
     if (!artifact->producer.occupied || spn_path_empty(artifact->path)) {
@@ -821,6 +822,9 @@ static void sched_init(sched_t* s, sp_mem_t mem, const spn_dag_run_t* run) {
         below = si_ht_getp(s->below, dir);
       }
       si_da_push(mem, *below, artifact->producer.index);
+      if (spn_path_equal(dir, build)) {
+        break;
+      }
     }
   }
 

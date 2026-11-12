@@ -24,7 +24,7 @@
     "mode": { "enum": ["release", "debug"] },
     "opt_level": { "enum": ["0", "1", "2", "3", "s", "z"] },
     "win_subsystem": { "enum": ["console", "windows"] },
-    "tree": { "enum": ["manifest", "source"] },
+    "tree": { "enum": ["manifest", "source", "work"] },
 
     "platform_macos": {
       "optionalProperties": {

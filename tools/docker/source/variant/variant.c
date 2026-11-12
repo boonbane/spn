@@ -60,11 +60,17 @@ const sysroot_t sysroots [] = {
       .names = { "libc6", "libc6-dev", "linux-libc-dev", "libgcc-s1", "libgcc-12-dev" },
     },
   },
+  [SYSROOT_ARM_GNU] = {
+    .name = "arm-gnu",
+    .path = "/sysroot/arm-gnu",
+    .kind = INSTALL_ARTIFACT,
+    .artifact = { .lane = LANE_ARM_GNU_SYSROOT, .sub = "aarch64-none-linux-gnu/libc" },
+  },
   [SYSROOT_WASI_SDK] = {
     .name = "wasi-sdk",
     .path = "/opt/wasi-sdk",
     .kind = INSTALL_ARTIFACT,
-    .artifact = LANE_WASI_SDK,
+    .artifact = { .lane = LANE_WASI_SDK },
   },
   [SYSROOT_XWIN] = {
     .name = "xwin",
@@ -76,7 +82,7 @@ const sysroot_t sysroots [] = {
     .name = "zig",
     .path = "/opt/zig",
     .kind = INSTALL_ARTIFACT,
-    .artifact = LANE_ZIG,
+    .artifact = { .lane = LANE_ZIG },
   },
 };
 
@@ -204,7 +210,7 @@ const variant_t variants [] = {
   {
     .name = "debian-arm",
     .distro = DISTRO_DEBIAN,
-    .sysroots = { SYSROOT_ARM64 },
+    .sysroots = { SYSROOT_ARM_GNU },
     .lanes = { LANE_ARM_GNU_LINUX, LANE_ARM_GNU_ELF, LANE_ARM_GNU_SYSROOT },
   },
   {

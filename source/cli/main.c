@@ -101,6 +101,7 @@ s32 spn_main(s32 num_args, const c8** args) {
     help(out, &cli);
   }
 
-  return spn_cli_shutdown(status != SP_CLI_ERR);
+  s32 code = spn_cli_shutdown(status != SP_CLI_ERR);
+  return host.code ? host.code : code;
 }
 SP_MAIN(spn_main)

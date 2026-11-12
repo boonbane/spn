@@ -38,7 +38,6 @@ typedef enum {
   SPN_SDK_SYSROOT,
   SPN_SDK_MACOS,
   SPN_SDK_MSVC,
-  SPN_SDK_LIBC,
 } spn_sdk_kind_t;
 
 typedef enum {
@@ -51,16 +50,34 @@ typedef struct {
   sp_str_t version;
   spn_path_t bin;
   struct {
+    spn_path_t host;
+    spn_path_t sdk;
+  } tools;
+  struct {
     spn_path_t vc;
+    spn_path_t atlmfc;
+    spn_path_t vs;
     spn_path_t ucrt;
     spn_path_t um;
     spn_path_t shared;
+    spn_path_t winrt;
+    spn_path_t cppwinrt;
   } include;
   struct {
     spn_path_t vc;
+    spn_path_t atlmfc;
     spn_path_t ucrt;
     spn_path_t um;
   } lib;
+  struct {
+    spn_path_t vs;
+    spn_path_t toolset;
+    spn_arch_t host;
+    struct {
+      spn_path_t root;
+      sp_str_t version;
+    } kit;
+  } install;
 } spn_sdk_msvc_t;
 
 typedef struct {
@@ -76,6 +93,10 @@ typedef struct {
   spn_path_t msvc_lib;
   spn_path_t kernel32_lib;
   spn_path_t frameworks;
+  struct {
+    spn_dir_list_t include;
+    spn_dir_list_t lib;
+  } search;
 } spn_libc_t;
 
 typedef struct {
@@ -84,7 +105,6 @@ typedef struct {
     spn_path_t root;
     spn_sdk_macos_t macos;
     spn_sdk_msvc_t msvc;
-    spn_libc_t libc;
   };
 } spn_sdk_t;
 

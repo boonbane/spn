@@ -19,7 +19,9 @@
     </hyperv>
     <vmport state='off'/><smm state='on'/>
   </features>
-  <cpu mode='host-passthrough' check='none' migratable='on'/>
+  <cpu mode='host-passthrough' check='none' migratable='on'>
+    <topology sockets='1' cores='{{.vcpus}}' threads='1'/>
+  </cpu>
   <clock offset='localtime'>
     <timer name='rtc' tickpolicy='catchup'/>
     <timer name='pit' tickpolicy='delay'/>

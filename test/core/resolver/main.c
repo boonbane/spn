@@ -143,7 +143,7 @@ static sp_err_t run_fixture(sp_test_t* t) {
 
   resolve_result_t result = execute_fixture(&config, &project, dir, spn.intern);
   sp_str_t dump = dump_query(mem, &result);
-  sp_str_t golden = sp_fmt(mem, "goldens/{}.json", sp_fmt_str(sp_test_get_name(t))).value;
+  sp_str_t golden = test_repo_path(mem, sp_fmt(mem, "test/core/resolver/goldens/{}.json", sp_fmt_str(sp_test_get_name(t))).value);
   sp_expect_golden(t, golden, dump);
 
   return SP_OK;

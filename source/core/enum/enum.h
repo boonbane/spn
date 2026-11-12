@@ -19,8 +19,6 @@ spn_toolchain_detect_t spn_toolchain_detect_from_str(sp_str_t str);
 sp_str_t               spn_toolchain_detect_to_str(spn_toolchain_detect_t detect);
 sp_str_t        spn_ld_dialect_to_str(spn_ld_dialect_t dialect);
 
-spn_libc_kind_t spn_libc_kind_from_str(sp_str_t str);
-sp_str_t spn_libc_kind_to_str(spn_libc_kind_t libc);
 spn_mode_t spn_mode_from_str(sp_str_t str);
 sp_str_t spn_mode_to_str(spn_mode_t mode);
 spn_opt_level_t spn_opt_level_from_str(sp_str_t str);

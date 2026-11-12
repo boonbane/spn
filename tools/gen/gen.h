@@ -95,6 +95,7 @@ typedef struct {
   sp_str_t verb;
   sp_str_t verbosity;
   sp_str_t severity;
+  sp_str_t guest;
 } gen_kind_t;
 
 typedef struct {
@@ -119,30 +120,17 @@ typedef struct {
 } gen_t;
 
 typedef enum {
-  ABI_VAL_VOID,
-  ABI_VAL_S32,
+  ABI_VAL_ERR,
   ABI_VAL_STR,
   ABI_VAL_STR_OPT,
+  ABI_VAL_OUT,
   ABI_VAL_HANDLE,
-  ABI_VAL_STRUCT,
 } abi_val_kind_t;
 
 typedef struct {
   abi_val_kind_t kind;
   sp_str_t name;
 } abi_val_t;
-
-typedef struct {
-  sp_str_t name;
-  abi_val_t val;
-  u32 cap;
-} abi_field_t;
-
-typedef struct {
-  sp_str_t name;
-  bool fn;
-  sp_da(abi_field_t) fields;
-} abi_type_t;
 
 typedef struct {
   sp_str_t name;
@@ -155,7 +143,6 @@ typedef struct {
 typedef struct {
   sp_mem_t mem;
   sp_ht(sp_str_t, u8) handles;
-  sp_da(abi_type_t*) types;
   sp_da(abi_export_t) exports;
   sp_str_t err;
 } abi_t;
@@ -174,6 +161,7 @@ gen_render_t gen_render_common(gen_t* g);
 gen_render_t gen_render_decls(gen_t* g);
 gen_render_t gen_render_impl(gen_t* g);
 gen_render_t gen_render_union_codes(gen_t* g);
+gen_render_t gen_render_union_guest(gen_t* g);
 gen_render_t gen_render_union_decls(gen_t* g);
 gen_render_t gen_render_union_impl(gen_t* g);
 bool         gen_data_check(gen_t* g);
@@ -190,7 +178,6 @@ const c8* gen_format_name(gen_format_t format);
 
 yyjson_alc gen_yyjson_alc(sp_mem_t* mem);
 abi_t* abi_parse(sp_mem_t mem, sp_str_t path);
-gen_render_t abi_render_decls(abi_t* abi);
 gen_render_t abi_render_impl(abi_t* abi);
 
 #endif

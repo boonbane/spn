@@ -1,0 +1,10 @@
+[package]
+name = "A"
+version = "1.0.0"
+include = [{ path = "I", tree = "work" }]
+
+[[bin]]
+name = "B"
+source = [{ path = "C.c", tree = "work" }]
+include = [{ path = "I", tree = "work" }]
+embed = [{ path = "E.txt", tree = "work" }, { path = "D", dir = true, tree = "work" }]

@@ -1,5 +1,4 @@
 set(SPN_CORE_SOURCES
-  core/api/api.c
   core/api/core.c
   core/core/core.c
   util/cpu/cpu.c
@@ -74,6 +73,7 @@ set(SPN_CORE_SOURCES
   core/op/add.c
   core/op/build.c
   core/op/clean.c
+  core/op/env.c
   core/op/index.c
   core/op/op.c
   core/op/test.c
@@ -139,6 +139,7 @@ set(SPN_CLI_SOURCES
   cli/commands/add.c
   cli/commands/build.c
   cli/commands/clean.c
+  cli/commands/env.c
   cli/commands/commands.c
   cli/commands/docs.c
   cli/commands/index.c

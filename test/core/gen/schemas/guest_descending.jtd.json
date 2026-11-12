@@ -1,0 +1,7 @@
+{
+  "discriminator": "kind",
+  "mapping": {
+    "A": { "metadata": { "guest": "3" }, "properties": {} },
+    "B": { "metadata": { "guest": "2" }, "properties": {} }
+  }
+}

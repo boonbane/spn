@@ -9,18 +9,13 @@
 #include "event/types.h"
 #include "paths/paths.h"
 #include "pkg/types.h"
-#include "target/types.h"
 #include "unit/types.h"
 
 #include "enum/enum.h"
 #include "error/error.h"
 #include "event/event.h"
-#include "external/wasm/wasm.h"
-#include "glob/glob.h"
 #include "intern/intern.h"
 #include "str/str.h"
-#include "pkg/pkg.h"
-#include "target/mutate.h"
 #include "io/io.h"
 
 spn_pkg_unit_t* spn_api_unit(const void* opaque) {
@@ -46,169 +41,14 @@ spn_path_t spn_api_dir_path(spn_pkg_unit_t* unit, spn_dir_t dir) {
   SP_UNREACHABLE_RETURN(sp_zero_struct(spn_path_t));
 }
 
-sp_str_t spn_api_dir(spn_pkg_unit_t* unit, spn_dir_t dir) {
-  return spn_path_str(&unit->units->ctx->roots, spn.mem, spn_api_dir_path(unit, dir));
-}
-
-static void reject(const c8* fn, sp_str_t path, const c8* reason) {
-  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  sp_str_t message = sp_fmt(scratch.mem, "{}: {} {}", SP_FMT_CSTR(fn), SP_FMT_STR(path), SP_FMT_CSTR(reason)).value;
-  bool trapped = spn_wasm_trap(message);
-  sp_mem_end_scratch(scratch);
-  sp_assert(trapped);
-}
-
-bool spn_api_path_rejected(const c8* fn, sp_str_t path) {
-  if (!spn_path_normal(path)) {
-    reject(fn, path, "must not contain '.', '..', or empty components");
-    return true;
-  }
-  if (sp_fs_is_absolute(path)) {
-    reject(fn, path, "must be relative");
-    return true;
-  }
-  return false;
-}
-
-static spn_pkg_unit_t* find_dep(spn_pkg_unit_t* pkg, sp_intern_id_t name, spn_dep_kind_t kind) {
-  sp_da_for_ptr(pkg->resolved->edges, edge) {
-    if (edge->kind != kind || edge->id.name != name) {
-      continue;
-    }
-    spn_pkg_unit_id_t id = { .pkg = edge->id, .build = pkg->build->id };
-    if (!sp_om_has(pkg->units->packages, id)) {
-      return SP_NULLPTR;
-    }
-    return sp_om_get(pkg->units->packages, id);
-  }
-  return SP_NULLPTR;
-}
-
-static bool foreign(spn_pkg_unit_t* unit, spn_path_t path) {
-  if (path.root != SPN_PATH_ROOT_NONE || spn_tree_rel(unit->paths.roots, path).tree != SPN_TREE_NONE) {
-    return false;
-  }
-  si_da_for(unit->pkg.manifest->deps, it) {
-    spn_requested_dep_t* dep = &unit->pkg.manifest->deps[it];
-    spn_pkg_unit_t* dep_unit = find_dep(unit, dep->name.id, dep->kind);
-    if (dep_unit && spn_tree_rel(dep_unit->paths.roots, path).tree != SPN_TREE_NONE) {
-      return false;
-    }
-  }
-  return true;
-}
-
-spn_path_t spn_api_tree_path(spn_pkg_unit_t* unit, const c8* fn, const c8* path) {
-  sp_str_t str = sp_cstr_as_str(path);
-  if (!spn_path_normal(str)) {
-    reject(fn, str, "must not contain '.', '..', or empty components");
-    return sp_zero_struct(spn_path_t);
-  }
-  if (!sp_fs_is_absolute(str)) {
-    return spn_tree_path(spn.mem, &unit->units->ctx->roots, unit->paths.roots, SPN_TREE_SOURCE, str);
-  }
-  spn_path_t absolute = spn_path_make(&unit->units->ctx->roots, str);
-  if (foreign(unit, absolute)) {
-    reject(fn, str, "is outside every directory spn manages");
-    return sp_zero_struct(spn_path_t);
-  }
-  return spn_path_copy(spn.mem, absolute);
-}
-
-static spn_path_t api_path(spn_pkg_unit_t* unit, const c8* fn, const c8* path) {
-  return spn_api_tree_path(unit, fn, path);
-}
-
-static spn_target_t* wrap(spn_pkg_unit_t* unit, si_target_t* eval) {
-  spn_target_t* target = sp_alloc_type(spn.mem, spn_target_t);
-  target->unit = unit;
-  target->target = eval;
-  return target;
-}
-
-spn_target_t* spn_get_target(spn_t* spn, const c8* name, spn_target_kind_t kind) {
-  spn_pkg_unit_t* unit = spn_api_unit(spn);
-  si_target_t* eval = spn_pkg_get_target(&unit->pkg, spn_intern_cstr(name).id, kind);
-  return eval ? wrap(unit, eval) : SP_NULLPTR;
-}
-
-bool spn_api_name_rejected(const c8* fn, const c8* name) {
-  sp_str_t str = sp_cstr_as_str(name);
-  if (!sp_str_contains(str, sp_str_lit("/"))) {
-    return false;
-  }
-  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  sp_str_t message = sp_fmt(scratch.mem, "{}: {} may not contain '/'", SP_FMT_CSTR(fn), SP_FMT_STR(str)).value;
-  bool trapped = spn_wasm_trap(message);
-  sp_assert(trapped);
-  sp_mem_end_scratch(scratch);
-  return true;
-}
-
-void spn_add_include(spn_config_t* config, const c8* path) {
-  spn_pkg_unit_t* unit = spn_api_unit(config);
-  spn_path_t made = api_path(unit, "spn_add_include", path);
-  if (spn_path_empty(made)) {
-    return;
-  }
-  si_da_push(unit->units->mem, unit->pkg.configured.include, made);
-}
-
-void spn_add_define(spn_config_t* config, const c8* define) {
-  spn_pkg_unit_t* unit = spn_api_unit(config);
-  sp_mem_t mem = unit->units->mem;
-  si_da_push(mem, unit->pkg.define, sp_str_from_cstr(mem, define));
-}
-
-void spn_add_system_dep(spn_config_t* config, const c8* dep) {
-  spn_pkg_unit_t* unit = spn_api_unit(config);
-  sp_mem_t mem = unit->units->mem;
-  si_da_push(mem, unit->pkg.system_deps, sp_str_from_cstr(mem, dep));
-}
-
-const spn_t* spn_get_dep(const spn_t* s, const c8* name) {
-  spn_pkg_unit_t* unit = spn_api_unit(s);
-  sp_str_t key = sp_cstr_as_str(name);
-
-  si_da_for(unit->pkg.manifest->deps, it) {
-    spn_requested_dep_t* dep = &unit->pkg.manifest->deps[it];
-    if (!sp_str_equal(dep->name.str, key)) {
-      continue;
-    }
-
-    spn_pkg_unit_t* dep_unit = find_dep(unit, dep->name.id, dep->kind);
-    if (dep_unit) {
-      return (const spn_t*)dep_unit;
-    }
-  }
-
-  return SP_NULLPTR;
-}
-
-const c8* spn_get_dir(const spn_t* s, spn_dir_t dir) {
-  spn_pkg_unit_t* unit = spn_api_unit(s);
-  return sp_str_to_cstr(spn.mem, spn_api_dir(unit, dir));
-}
-
-const c8* spn_get_subdir(const spn_t* s, spn_dir_t base, const c8* path) {
-  spn_pkg_unit_t* unit = spn_api_unit(s);
-  if (spn_api_path_rejected("spn_get_subdir", sp_cstr_as_str(path))) {
-    return "";
-  }
-  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  sp_str_t joined = sp_fs_join_path(scratch.mem, spn_api_dir(unit, base), sp_cstr_as_str(path));
-  const c8* result = sp_str_to_cstr(spn.mem, joined);
-  sp_mem_end_scratch(scratch);
-  return result;
-}
-
-void spn_log(spn_t* s, const c8* message) {
+spn_err_t spn_log(spn_t* s, const c8* message) {
   spn_pkg_unit_t* unit = spn_api_unit(s);
   spn_event_buffer_push(spn.events, (spn_event_t) {
     .kind = SPN_EVENT_USER_LOG,
     .pkg = unit->pkg.manifest->name.str,
     .user_log = { .message = sp_str_from_cstr(spn.events->mem, message) },
   });
+  return SPN_OK;
 }
 
 spn_profile_t* spn_get_profile(spn_t* s) {
@@ -216,131 +56,22 @@ spn_profile_t* spn_get_profile(spn_t* s) {
   return sp_ptr_cast(spn_profile_t*, &unit->build->profile);
 }
 
-spn_libc_kind_t spn_profile_get_libc(spn_profile_t* profile) {
-  spn_profile_info_t* info = (spn_profile_info_t*)profile;
-  switch (info->target.abi) {
-    case SPN_ABI_MUSL: return SPN_LIBC_MUSL;
-    case SPN_ABI_BARE: return SPN_LIBC_NONE;
-    case SPN_ABI_ELF:  return SPN_LIBC_CUSTOM;
-    default:           return SPN_LIBC_GNU;
-  }
+spn_err_t spn_profile_get_os(spn_profile_t* profile, spn_os_t* os) {
+  *os = ((spn_profile_info_t*)profile)->target.os;
+  return SPN_OK;
 }
 
-spn_os_t spn_profile_get_os(spn_profile_t* profile) {
-  return ((spn_profile_info_t*)profile)->target.os;
+spn_err_t spn_profile_get_mode(spn_profile_t* profile, spn_mode_t* mode) {
+  *mode = ((spn_profile_info_t*)profile)->mode;
+  return SPN_OK;
 }
 
-spn_mode_t spn_profile_get_mode(spn_profile_t* profile) {
-  return ((spn_profile_info_t*)profile)->mode;
+spn_err_t spn_profile_get_opt(spn_profile_t* profile, spn_opt_level_t* opt) {
+  *opt = ((spn_profile_info_t*)profile)->opt;
+  return SPN_OK;
 }
 
-spn_opt_level_t spn_profile_get_opt(spn_profile_t* profile) {
-  return ((spn_profile_info_t*)profile)->opt;
-}
-
-spn_sanitizer_set_t spn_profile_get_sanitizers(spn_profile_t* profile) {
-  return ((spn_profile_info_t*)profile)->sanitizers;
-}
-
-void spn_target_add_source(spn_target_t* target, const c8* source) {
-  spn_path_t made = api_path(target->unit, "spn_target_add_source", source);
-  if (spn_path_empty(made)) {
-    return;
-  }
-  si_da_push(target->unit->units->mem, target->target->source, ((spn_source_t) {
-    .kind = sp_glob_parse_meta(sp_cstr_as_str(source)).literal ? SPN_SOURCE_FILE : SPN_SOURCE_GLOB,
-    .path = made,
-  }));
-}
-
-void spn_target_add_include(spn_target_t* target, const c8* include) {
-  spn_path_t made = api_path(target->unit, "spn_target_add_include", include);
-  if (spn_path_empty(made)) {
-    return;
-  }
-  si_da_push(target->unit->units->mem, target->target->configured.include, made);
-}
-
-void spn_target_add_define(spn_target_t* target, const c8* define) {
-  sp_mem_t mem = target->unit->units->mem;
-  si_da_push(mem, target->target->define, sp_str_from_cstr(mem, define));
-}
-
-void spn_target_add_define_path(spn_target_t* target, const c8* name, spn_dir_t dir, const c8* path) {
-  spn_pkg_unit_t* unit = target->unit;
-  sp_mem_t mem = unit->units->mem;
-
-  if (spn_api_path_rejected("spn_target_add_define_path", sp_cstr_as_str(path))) {
-    return;
-  }
-
-  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  spn_path_t joined = spn_path_join(scratch.mem, spn_api_dir_path(unit, dir), sp_cstr_as_str(path));
-  spn_path_rel_t rel = spn_path_within(spn_path_from_root(SPN_PATH_ROOT_PROJECT), joined);
-  if (rel.within) {
-    sp_str_t str = sp_fmt(mem, "{}=\"{}\"", sp_fmt_cstr(name), sp_fmt_str(rel.sub)).value;
-    si_da_push(mem, target->target->define, str);
-  }
-  else {
-    sp_str_t full = spn_path_str(&unit->units->ctx->roots, scratch.mem, joined);
-    sp_str_t message = sp_fmt(scratch.mem, "spn_target_add_define_path: {} is not inside the project", SP_FMT_STR(full)).value;
-    bool trapped = spn_wasm_trap(message);
-    sp_assert(trapped);
-  }
-  sp_mem_end_scratch(scratch);
-}
-
-void spn_target_add_flag(spn_target_t* target, const c8* flag) {
-  sp_mem_t mem = target->unit->units->mem;
-  si_da_push(mem, target->target->flags, sp_str_from_cstr(mem, flag));
-}
-
-static bool embed_dest_rejected(const c8* fn, sp_str_t dest) {
-  if (!sp_str_empty(dest) && !sp_fs_is_absolute(dest) && spn_path_normal(dest)) {
-    return false;
-  }
-  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  sp_str_t message = sp_fmt(scratch.mem, "{}: {} must be a relative, non-empty path without '.' or '..' components", SP_FMT_CSTR(fn), SP_FMT_STR(dest)).value;
-  bool trapped = spn_wasm_trap(message);
-  sp_assert(trapped);
-  sp_mem_end_scratch(scratch);
-  return true;
-}
-
-void spn_target_embed_file(spn_target_t* t, const c8* file) {
-  spn_path_t made = api_path(t->unit, "spn_target_embed_file", file);
-  if (spn_path_empty(made) || embed_dest_rejected("spn_target_embed_file", sp_cstr_as_str(file))) {
-    return;
-  }
-  spn_target_add_embed(t->unit->units->mem, t->target, (spn_embed_t) {
-    .kind = SPN_EMBED_FILE,
-    .path = made,
-    .dest = sp_cstr_as_str(file),
-  });
-}
-
-void spn_target_embed_file_ex(spn_target_t* t, const c8* file, const c8* dest, const c8* data_type, const c8* size_type) {
-  spn_path_t made = api_path(t->unit, "spn_target_embed_file_ex", file);
-  if (spn_path_empty(made) || embed_dest_rejected("spn_target_embed_file_ex", sp_cstr_as_str(dest))) {
-    return;
-  }
-  spn_target_add_embed(t->unit->units->mem, t->target, (spn_embed_t) {
-    .kind = SPN_EMBED_FILE,
-    .path = made,
-    .dest = sp_cstr_as_str(dest),
-    .types = { .data = sp_cstr_as_str(data_type), .size = sp_cstr_as_str(size_type) },
-  });
-}
-
-void spn_target_embed_dir_ex(spn_target_t* t, const c8* dir, const c8* dest, const c8* data_type, const c8* size_type) {
-  spn_path_t made = api_path(t->unit, "spn_target_embed_dir_ex", dir);
-  if (spn_path_empty(made) || embed_dest_rejected("spn_target_embed_dir_ex", sp_cstr_as_str(dest))) {
-    return;
-  }
-  spn_target_add_embed(t->unit->units->mem, t->target, (spn_embed_t) {
-    .kind = SPN_EMBED_DIR,
-    .path = made,
-    .dest = sp_cstr_as_str(dest),
-    .types = { .data = sp_cstr_as_str(data_type), .size = sp_cstr_as_str(size_type) },
-  });
+spn_err_t spn_profile_get_sanitizers(spn_profile_t* profile, spn_sanitizer_set_t* sanitizers) {
+  *sanitizers = ((spn_profile_info_t*)profile)->sanitizers;
+  return SPN_OK;
 }

@@ -31,6 +31,7 @@ struct spn_ctx_t {
   sp_mem_arena_t* arena;
   sp_mem_t heap;
   sp_env_t* env;
+  bool devshell;
   spn_system_paths_t paths;
   spn_path_roots_t roots;
   spn_triple_t host;

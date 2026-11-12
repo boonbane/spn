@@ -14,6 +14,7 @@ void spn_cc_push_glued(sp_mem_t mem, spn_invocation_t* invocation, const c8* pre
 void spn_cc_push_wrapped(sp_mem_t mem, spn_invocation_t* invocation, const c8* prefix, spn_path_t path, const c8* suffix);
 void spn_cc_push_strs(sp_mem_t mem, spn_invocation_t* invocation, sp_da(sp_str_t) values);
 void spn_cc_push_paths(sp_mem_t mem, spn_invocation_t* invocation, sp_da(spn_path_t) paths);
+void spn_cc_push_search(sp_mem_t mem, spn_invocation_t* invocation, const c8* flag, spn_dir_list_t dirs);
 void spn_cc_push_args(sp_mem_t mem, spn_invocation_t* invocation, sp_da(spn_arg_t) args);
 void spn_cc_push_env(sp_mem_t mem, spn_invocation_t* invocation, spn_env_key_t key, spn_arg_t value);
 void spn_cc_push_env_paths(sp_mem_t mem, spn_invocation_t* invocation, spn_env_key_t key, const spn_path_t* paths, u32 count);

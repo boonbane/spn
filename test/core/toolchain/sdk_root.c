@@ -1,8 +1,8 @@
 #include "toolchain.h"
 
 typedef struct {
-  test_path_t include [4];
-  test_path_t lib [3];
+  test_path_t include [SPN_DIR_LIST_MAX];
+  test_path_t lib [SPN_DIR_LIST_MAX];
 } msvc_expect_t;
 
 typedef struct {
@@ -43,8 +43,19 @@ static const test_t tests [] = {
     .sdk = { SPN_SDK_MSVC, { "/X" }, SPN_ARCH_X64 },
     .expect = {
       .msvc = {
-        .include = { { "/X/crt/include" }, { "/X/sdk/include/ucrt" }, { "/X/sdk/include/um" }, { "/X/sdk/include/shared" } },
-        .lib = { { "/X/crt/lib/x86_64" }, { "/X/sdk/lib/ucrt/x86_64" }, { "/X/sdk/lib/um/x86_64" } },
+        .include = {
+          { "/X/crt/include" },
+          { "/X/sdk/include/ucrt" },
+          { "/X/sdk/include/um" },
+          { "/X/sdk/include/shared" },
+          { "/X/sdk/include/winrt" },
+          { "/X/sdk/include/cppwinrt" },
+        },
+        .lib = {
+          { "/X/crt/lib/x86_64" },
+          { "/X/sdk/lib/ucrt/x86_64" },
+          { "/X/sdk/lib/um/x86_64" },
+        },
       },
     },
   },
@@ -53,8 +64,19 @@ static const test_t tests [] = {
     .sdk = { SPN_SDK_MSVC, { "/X" }, SPN_ARCH_ARM64 },
     .expect = {
       .msvc = {
-        .include = { { "/X/crt/include" }, { "/X/sdk/include/ucrt" }, { "/X/sdk/include/um" }, { "/X/sdk/include/shared" } },
-        .lib = { { "/X/crt/lib/aarch64" }, { "/X/sdk/lib/ucrt/aarch64" }, { "/X/sdk/lib/um/aarch64" } },
+        .include = {
+          { "/X/crt/include" },
+          { "/X/sdk/include/ucrt" },
+          { "/X/sdk/include/um" },
+          { "/X/sdk/include/shared" },
+          { "/X/sdk/include/winrt" },
+          { "/X/sdk/include/cppwinrt" },
+        },
+        .lib = {
+          { "/X/crt/lib/aarch64" },
+          { "/X/sdk/lib/ucrt/aarch64" },
+          { "/X/sdk/lib/um/aarch64" },
+        },
       },
     },
   },
@@ -63,24 +85,28 @@ static const test_t tests [] = {
     .sdk = { SPN_SDK_MSVC, { "aa/X", SPN_PATH_ROOT_TOOLCHAIN }, SPN_ARCH_X64 },
     .expect = {
       .msvc = {
-        .include = { { "aa/X/crt/include", SPN_PATH_ROOT_TOOLCHAIN }, { "aa/X/sdk/include/ucrt", SPN_PATH_ROOT_TOOLCHAIN }, { "aa/X/sdk/include/um", SPN_PATH_ROOT_TOOLCHAIN }, { "aa/X/sdk/include/shared", SPN_PATH_ROOT_TOOLCHAIN } },
-        .lib = { { "aa/X/crt/lib/x86_64", SPN_PATH_ROOT_TOOLCHAIN }, { "aa/X/sdk/lib/ucrt/x86_64", SPN_PATH_ROOT_TOOLCHAIN }, { "aa/X/sdk/lib/um/x86_64", SPN_PATH_ROOT_TOOLCHAIN } },
+        .include = {
+          { "aa/X/crt/include", SPN_PATH_ROOT_TOOLCHAIN },
+          { "aa/X/sdk/include/ucrt", SPN_PATH_ROOT_TOOLCHAIN },
+          { "aa/X/sdk/include/um", SPN_PATH_ROOT_TOOLCHAIN },
+          { "aa/X/sdk/include/shared", SPN_PATH_ROOT_TOOLCHAIN },
+          { "aa/X/sdk/include/winrt", SPN_PATH_ROOT_TOOLCHAIN },
+          { "aa/X/sdk/include/cppwinrt", SPN_PATH_ROOT_TOOLCHAIN },
+        },
+        .lib = {
+          { "aa/X/crt/lib/x86_64", SPN_PATH_ROOT_TOOLCHAIN },
+          { "aa/X/sdk/lib/ucrt/x86_64", SPN_PATH_ROOT_TOOLCHAIN },
+          { "aa/X/sdk/lib/um/x86_64", SPN_PATH_ROOT_TOOLCHAIN },
+        },
       },
     },
   },
 };
 
-static sp_err_t check_msvc(sp_test_t* t, const spn_sdk_msvc_t* msvc, const msvc_expect_t* expect, spn_arch_t arch) {
-  sp_expect_eq(t, (u32)arch, (u32)msvc->arch);
-  spn_path_t include [] = { msvc->include.vc, msvc->include.ucrt, msvc->include.um, msvc->include.shared };
-  sp_carr_for(include, it) {
-    if (test_check_path(t, include[it], expect->include[it])) {
-      return SP_ERR;
-    }
-  }
-  spn_path_t lib [] = { msvc->lib.vc, msvc->lib.ucrt, msvc->lib.um };
-  sp_carr_for(lib, it) {
-    if (test_check_path(t, lib[it], expect->lib[it])) {
+static sp_err_t check_dirs(sp_test_t* t, spn_dir_list_t dirs, const test_path_t* expect, u32 count) {
+  sp_must_eq(t, count, dirs.count);
+  sp_for(it, count) {
+    if (test_check_path(t, dirs.items[it], expect[it])) {
       return SP_ERR;
     }
   }
@@ -101,10 +127,17 @@ sp_test_each(sdk_root, layout, test_t, tests) {
       return test_check_path(t, sdk.macos.frameworks, it->expect.macos.frameworks);
     }
     case SPN_SDK_MSVC: {
-      return check_msvc(t, &sdk.msvc, &it->expect.msvc, it->sdk.arch);
+      sp_expect_eq(t, (u32)it->sdk.arch, (u32)sdk.msvc.arch);
+      u32 include = 0;
+      sp_carr_detect_len(it->expect.msvc.include, include, it->expect.msvc.include[include].path);
+      u32 lib = 0;
+      sp_carr_detect_len(it->expect.msvc.lib, lib, it->expect.msvc.lib[lib].path);
+      if (check_dirs(t, spn_msvc_include_dirs(&sdk.msvc), it->expect.msvc.include, include)) {
+        return SP_ERR;
+      }
+      return check_dirs(t, spn_msvc_lib_dirs(&sdk.msvc), it->expect.msvc.lib, lib);
     }
-    case SPN_SDK_NONE:
-    case SPN_SDK_LIBC: {
+    case SPN_SDK_NONE: {
       sp_unreachable_case();
     }
   }

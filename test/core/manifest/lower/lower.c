@@ -924,6 +924,42 @@ static const test_t tests [] = {
     }
   },
   {
+    .name = "tree_work",
+    .manifest = "tree_work",
+    .include = { { "I", .tree = SPN_TREE_WORK } },
+    .exes = {
+      {
+        .name = "B",
+        .source = { { "C.c", .tree = SPN_TREE_WORK } },
+        .include = { { "I", .tree = SPN_TREE_WORK } },
+        .embed = {
+          { "E.txt", .dest = "E.txt", .tree = SPN_TREE_WORK },
+          { "D", .dest = "D", .tree = SPN_TREE_WORK, .dir = true },
+        },
+      }
+    }
+  },
+  {
+    .name = "validate_tree_work_glob",
+    .manifest = "validate_tree_work_glob",
+    .issues = {
+      { SPN_ERR_CODEGEN_INVALID, "bin[0].source[1].path" },
+    }
+  },
+  {
+    .name = "validate_tree_work_unsupported",
+    .manifest = "validate_tree_work_unsupported",
+    .build_source = { { "C.c", .tree = SPN_TREE_WORK } },
+    .build_include = { { "I", .tree = SPN_TREE_WORK } },
+    .issues = {
+      { SPN_ERR_CODEGEN_INVALID, "lib[0].linker_script[0].tree" },
+      { SPN_ERR_CODEGEN_INVALID, "package.build.source[0].tree" },
+      { SPN_ERR_CODEGEN_INVALID, "package.build.include[0].tree" },
+      { SPN_ERR_CODEGEN_INVALID, "package.configure.source[0].tree" },
+      { SPN_ERR_CODEGEN_INVALID, "package.configure.include[0].tree" },
+    }
+  },
+  {
     .name = "script_tree",
     .manifest = "script_tree",
     .build_source = { { "b.c", .tree = SPN_TREE_MANIFEST }, { "c.c", .when = "os = \"linux\"" } },

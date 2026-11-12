@@ -179,14 +179,11 @@ static spn_profile_info_t program_profile(units_t* u, const graph_t* g, const sp
     profile.sdk = spn_sdk_at(u->mem, triple, (spn_path_t) { .sub = sp_cstr_as_str(g->sdk) });
   }
   if (g->sdk_libc) {
-    profile.sdk = (spn_sdk_t) {
-      .kind = SPN_SDK_LIBC,
-      .libc = {
-        .include = spn_path_make(&u->ctx.roots, sp_str_lit("/libc/include")),
-        .sys_include = spn_path_make(&u->ctx.roots, sp_str_lit("/libc/sys")),
-        .crt = spn_path_make(&u->ctx.roots, sp_str_lit("/libc/crt")),
-      },
-    };
+    sp_opt_set(profile.libc, ((spn_libc_t) {
+      .include = spn_path_make(&u->ctx.roots, sp_str_lit("/libc/include")),
+      .sys_include = spn_path_make(&u->ctx.roots, sp_str_lit("/libc/sys")),
+      .crt = spn_path_make(&u->ctx.roots, sp_str_lit("/libc/crt")),
+    }));
   }
   return profile;
 }
@@ -362,12 +359,6 @@ static void add_nodes(units_t* u, spn_pkg_unit_t* unit, const graph_pkg_t* spec)
       break;
     }
     spn_user_node_t made = { .unit = unit, .tag = sp_cstr_as_str(node->tag) };
-    sp_carr_for(node->inputs, it) {
-      if (!node->inputs[it]) {
-        break;
-      }
-      si_da_push(mem, made.inputs, spn_path_join(mem, unit->paths.roots.source, sp_cstr_as_str(node->inputs[it])));
-    }
     sp_carr_for(node->outputs, ot) {
       if (!node->outputs[ot]) {
         break;

@@ -184,13 +184,6 @@
         "cache_writes": { "type": "uint32" }
       }
     },
-    "api_call": {
-      "metadata": { "verb": "Calling", "verbosity": "debug" },
-      "properties": {
-        "fn": { "type": "string" },
-        "args": { "type": "string" }
-      }
-    },
     "user_log": {
       "metadata": { "verbosity": "verbose" },
       "properties": {

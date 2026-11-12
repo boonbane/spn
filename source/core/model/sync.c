@@ -156,7 +156,7 @@ static spn_err_t setup_artifact(spn_toolchain_store_t* store, spn_toolchain_unit
   return SPN_OK;
 }
 
-static spn_err_t setup_toolchain_unit(spn_toolchain_store_t* store, spn_toolchain_unit_t* unit) {
+spn_err_t spn_sync_toolchain(spn_toolchain_store_t* store, spn_toolchain_unit_t* unit) {
   switch (unit->info->support.kind) {
     case SPN_TOOLCHAIN_SUPPORT_LOCAL: {
       spn_try(setup_local(store, unit));
@@ -290,7 +290,7 @@ static void sync_toolchain_node(void* data) {
   if (sp_atomic_s32_load(&sync_failed, SP_ATOMIC_SEQ_CST) || spn_op_cancelled(job->op)) {
     return;
   }
-  job->err = setup_toolchain_unit(&spn.caches.toolchains, job->unit);
+  job->err = spn_sync_toolchain(&spn.caches.toolchains, job->unit);
   if (job->err) {
     sp_atomic_s32_store(&sync_failed, (s32)job->err, SP_ATOMIC_SEQ_CST);
   }

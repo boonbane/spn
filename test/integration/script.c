@@ -7,38 +7,25 @@ static const command_test_t graphs [] = {
   { .name = "multi_output", .project = "test/integration/fixtures/script/multi_output", .args = { "build" } },
   { .name = "node_linking", .project = "test/integration/fixtures/script/node_linking", .args = { "build" } },
   { .name = "orphan_outputs", .project = "test/integration/fixtures/script/orphan_outputs", .args = { "build" }, .expect.exists = { work_file("O/O.h") } },
+  { .name = "observed_list_root", .project = "test/integration/fixtures/script/observed_list_root", .args = { "build" } },
 };
 
 sp_test_each(script, graph, command_test_t, graphs) {
   return run_command_test(t, *it);
 }
 
+static const command_test_t work_trees [] = {
+  { .name = "source", .project = "test/integration/fixtures/script/work_source", .args = { "build" }, .expect.exists = { exe("A") } },
+  { .name = "include", .project = "test/integration/fixtures/script/work_include", .args = { "build" }, .expect.exists = { exe("A") } },
+  { .name = "embed", .project = "test/integration/fixtures/script/work_embed", .args = { "build" }, .expect.exists = { exe("A") } },
+  { .name = "embed_dir", .project = "test/integration/fixtures/script/work_embed_dir", .args = { "build" }, .expect.exists = { exe("A") } },
+};
+
+sp_test_each(script, work_tree, command_test_t, work_trees) {
+  return run_command_test(t, *it);
+}
+
 static const command_test_t apis [] = {
-  {
-    .name = "add_define",
-    .project = "test/integration/fixtures/script/add_define",
-    .args = { "build" },
-    .expect.exists = { exe("main") },
-  },
-  {
-    .name = "add_define_path",
-    .project = "test/integration/fixtures/script/add_define_path",
-    .args = { "build" },
-    .expect.cc = { { .args = { "-DG=\"build/debug/.spn/A/gen\"", "/DG=\"build/debug/.spn/A/gen\"" } } },
-  },
-  {
-    .name = "add_include",
-    .project = "test/integration/fixtures/script/add_include",
-    .copy = { "include/*" },
-    .args = { "build" },
-    .expect.exists = { exe("main") },
-  },
-  {
-    .name = "add_system_dep",
-    .project = "test/integration/fixtures/script/add_system_dep",
-    .args = { "build" },
-    .expect.exists = { exe("main") },
-  },
   {
     .name = "configure_table",
     .project = "test/integration/fixtures/script/configure_table",
@@ -47,10 +34,9 @@ static const command_test_t apis [] = {
     .expect.exists = { exe("configure_table") },
   },
   {
-    .name = "wrong_handle",
-    .project = "test/integration/fixtures/script/wrong_handle",
+    .name = "configure_unmounted",
+    .project = "test/integration/fixtures/script/configure_unmounted",
     .args = { "build" },
-    .expect.exists = { exe("wrong_handle") },
   },
   {
     .name = "program_name_context",
@@ -71,12 +57,6 @@ static const command_test_t apis [] = {
     .expect.exists = { pkg_store_file("B", "bin/R.txt") },
   },
   {
-    .name = "generated_source",
-    .project = "test/integration/fixtures/script/generated_source",
-    .args = { "build" },
-    .expect.exists = { exe("generated_source") },
-  },
-  {
     .name = "object_lib",
     .project = "test/integration/fixtures/script/object_lib",
     .copy = { "packages/*" },
@@ -94,16 +74,16 @@ static const command_test_t apis [] = {
   },
   {
     .name = "embed_cross_linux_aarch64",
-    .project = "test/integration/fixtures/script/embed",
-    .copy = { "hello.txt" },
+    .project = "test/integration/fixtures/target/embed",
+    .copy = { "A.txt" },
     .when.target = "aarch64-linux-musl",
     .args = { "build", "--target", "aarch64-linux-musl" },
     .expect.exists = { target_exe("main", "aarch64-linux-musl") },
   },
   {
     .name = "embed_cross_windows_aarch64",
-    .project = "test/integration/fixtures/script/embed",
-    .copy = { "hello.txt" },
+    .project = "test/integration/fixtures/target/embed",
+    .copy = { "A.txt" },
     .when.target = "aarch64-windows-gnu",
     .args = { "build", "--target", "aarch64-windows-gnu" },
     .expect.exists = { target_exe("main", "aarch64-windows-gnu") },
@@ -119,15 +99,6 @@ static const test_t embeds [] = {
     .name = "manifest",
     .project = "test/integration/fixtures/target/embed",
     .copy = { "A.txt" },
-    .actions = {
-      { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_RUN_BIN, .bin.file = exe("main") },
-    },
-  },
-  {
-    .name = "configure",
-    .project = "test/integration/fixtures/script/embed",
-    .copy = { "hello.txt" },
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
       { .kind = ACTION_RUN_BIN, .bin.file = exe("main") },
@@ -319,6 +290,147 @@ static const rebuild_test_t reruns [] = {
       { .file = exe("M"), .mtime = REBUILD_MTIME_CHANGED },
     },
   },
+  {
+    .name = "observed_read",
+    .project = "test/integration/fixtures/script/observed_read",
+    .copy = { "X" },
+    .first = {
+      .args = { "build" },
+      .expect.files = { { work_file("A/N.h"), .content = "#define A\n" } },
+    },
+    .rebuilds = {
+      {
+        .change.writes = { { .file = "X", .content = "B" } },
+        .command = {
+          .args = { "build" },
+          .expect = {
+            .events = {
+              { .event = SPN_EVENT_SCRIPT_USER_FN, .key = "tag", .value = "N" },
+              { .event = SPN_EVENT_TARGET_BUILD_PASSED, .key = "subject.target", .value = "M" },
+            },
+            .files = { { work_file("A/N.h"), .content = "#define B\n" } },
+          },
+        },
+      },
+    },
+  },
+  {
+    .name = "observed_list",
+    .project = "test/integration/fixtures/script/observed_list",
+    .copy = { "D" },
+    .first = {
+      .args = { "build" },
+      .expect.files = { { work_file("A/N"), .content = "A" } },
+    },
+    .rebuilds = {
+      {
+        .change.writes = { { .file = "D/B", .content = "B" } },
+        .command = {
+          .args = { "build" },
+          .expect = {
+            .events = { { .event = SPN_EVENT_SCRIPT_USER_FN, .key = "tag", .value = "N" } },
+            .files = { { work_file("A/N"), .content = "AB" } },
+          },
+        },
+      },
+      {
+        .change.remove_files = { lit("D/A") },
+        .command = {
+          .args = { "build" },
+          .expect = {
+            .events = { { .event = SPN_EVENT_SCRIPT_USER_FN, .key = "tag", .value = "N" } },
+            .files = { { work_file("A/N"), .content = "B" } },
+          },
+        },
+      },
+    },
+  },
+  {
+    .name = "observed_open_absent",
+    .project = "test/integration/fixtures/script/observed_open_absent",
+    .first = {
+      .args = { "build" },
+      .expect.files = { { work_file("A/N"), .content = "A" } },
+    },
+    .rebuilds = {
+      {
+        .change.writes = { { .file = "X", .content = "B" } },
+        .command = {
+          .args = { "build" },
+          .expect = {
+            .events = { { .event = SPN_EVENT_SCRIPT_USER_FN, .key = "tag", .value = "N" } },
+            .files = { { work_file("A/N"), .content = "B" } },
+          },
+        },
+      },
+    },
+  },
+  {
+    .name = "observed_stat_absent",
+    .project = "test/integration/fixtures/script/observed_stat_absent",
+    .first = {
+      .args = { "build" },
+      .expect.files = { { work_file("A/N"), .content = "A" } },
+    },
+    .rebuilds = {
+      {
+        .change.writes = { { .file = "X", .content = "B" } },
+        .command = {
+          .args = { "build" },
+          .expect = {
+            .events = { { .event = SPN_EVENT_SCRIPT_USER_FN, .key = "tag", .value = "N" } },
+            .files = { { work_file("A/N"), .content = "B" } },
+          },
+        },
+      },
+    },
+  },
+  {
+    .name = "observed_manifest_read",
+    .project = "test/integration/fixtures/script/observed_manifest",
+    .copy = { "X" },
+    .first = {
+      .args = { "build" },
+      .expect.files = { { work_file("A/N"), .content = "A" } },
+    },
+    .rebuilds = {
+      {
+        .change.writes = { { .file = "X", .content = "B" } },
+        .command = {
+          .args = { "build" },
+          .expect = {
+            .events = { { .event = SPN_EVENT_SCRIPT_USER_FN, .key = "tag", .value = "N" } },
+            .files = { { work_file("A/N"), .content = "B" } },
+          },
+        },
+      },
+    },
+  },
+  {
+    .name = "observed_unrelated",
+    .project = "test/integration/fixtures/script/observed_read",
+    .copy = { "X", "Y" },
+    .first = {
+      .args = { "build" },
+      .expect.events = { { .event = SPN_EVENT_SCRIPT_USER_FN, .key = "tag", .value = "N" } },
+    },
+    .rebuilds = {
+      {
+        .change.writes = { { .file = "Y", .content = "B" } },
+        .command = {
+          .args = { "build" },
+          .expect.events = { { .event = SPN_EVENT_SCRIPT_USER_FN, .absent = true } },
+        },
+      },
+      {
+        .change.writes = { { .file = "Z", .content = "A" } },
+        .command = {
+          .args = { "build" },
+          .expect.events = { { .event = SPN_EVENT_SCRIPT_USER_FN, .absent = true } },
+        },
+      },
+    },
+  },
 };
 
 sp_test_each(script, rerun, rebuild_test_t, reruns) {
@@ -386,20 +498,40 @@ sp_test_each(script, identity, identity_test_t, identities) {
   return run_identity_test(t, *it);
 }
 
+static const command_test_t rejections [] = {
+  { .name = "handle_null", .project = "test/integration/fixtures/script/handle_null", .args = { "build" } },
+  { .name = "handle_kind", .project = "test/integration/fixtures/script/handle_kind", .args = { "build" } },
+  { .name = "name_separator_node", .project = "test/integration/fixtures/script/name_separator_node", .args = { "build" } },
+  { .name = "node_fn_without_build_script", .project = "test/integration/fixtures/script/node_fn_without_build_script", .args = { "build" } },
+  { .name = "link_no_outputs", .project = "test/integration/fixtures/script/link_no_outputs", .args = { "build" } },
+  { .name = "node_output_root", .project = "test/integration/fixtures/script/node_output_root", .args = { "build" } },
+  { .name = "node_output_source", .project = "test/integration/fixtures/script/node_output_source", .args = { "build" } },
+  { .name = "node_output_include", .project = "test/integration/fixtures/script/node_output_include", .args = { "build" } },
+  { .name = "node_output_unnamed", .project = "test/integration/fixtures/script/node_output_unnamed", .args = { "build" } },
+  { .name = "node_output_unmounted", .project = "test/integration/fixtures/script/node_output_unmounted", .args = { "build" } },
+  { .name = "node_output_escape", .project = "test/integration/fixtures/script/node_output_escape", .args = { "build" } },
+  { .name = "node_output_drive", .project = "test/integration/fixtures/script/node_output_drive", .args = { "build" } },
+  { .name = "node_output_lib_drive", .project = "test/integration/fixtures/script/node_output_lib_drive", .args = { "build" } },
+  { .name = "io_write_unmounted", .project = "test/integration/fixtures/script/io_write_unmounted", .args = { "build" } },
+  { .name = "io_write_not_normal", .project = "test/integration/fixtures/script/io_write_not_normal", .args = { "build" } },
+  { .name = "io_write_directory", .project = "test/integration/fixtures/script/io_write_directory", .args = { "build" } },
+  { .name = "io_write_configure", .project = "test/integration/fixtures/script/io_write_configure", .args = { "build" } },
+  { .name = "fmt_missing_arg", .project = "test/integration/fixtures/script/fmt_missing_arg", .args = { "build" } },
+  { .name = "fmt_bad_placeholder", .project = "test/integration/fixtures/script/fmt_bad_placeholder", .args = { "build" } },
+  { .name = "fmt_null_passed_on", .project = "test/integration/fixtures/script/fmt_null_passed_on", .args = { "build" } },
+  { .name = "str_null", .project = "test/integration/fixtures/script/str_null", .args = { "build" } },
+  { .name = "out_misaligned", .project = "test/integration/fixtures/script/out_misaligned", .args = { "build" } },
+};
+
+sp_test_each(script, rejection, command_test_t, rejections) {
+  return run_command_test(t, *it);
+}
+
 static const command_test_t failures [] = {
-  { .name = "node_output_root", .project = "test/integration/fixtures/script/node_output_root", .args = { "build" }, .expect = { .rc = 1, .err = SPN_ERR_WASM_MODULE_CALL_FAILED } },
-  { .name = "node_output_source", .project = "test/integration/fixtures/script/node_output_source", .args = { "build" }, .expect = { .rc = 1, .err = SPN_ERR_WASM_MODULE_CALL_FAILED } },
-  { .name = "node_output_include", .project = "test/integration/fixtures/script/node_output_include", .args = { "build" }, .expect = { .rc = 1, .err = SPN_ERR_WASM_MODULE_CALL_FAILED } },
-  { .name = "node_output_unnamed", .project = "test/integration/fixtures/script/node_output_unnamed", .args = { "build" }, .expect = { .rc = 1, .err = SPN_ERR_WASM_MODULE_CALL_FAILED } },
-  { .name = "relative_path", .project = "test/integration/fixtures/script/relative_path", .args = { "build" }, .expect = { .rc = 1, .err = SPN_ERR_WASM_MODULE_CALL_FAILED } },
-  { .name = "foreign_path", .project = "test/integration/fixtures/script/foreign_path", .args = { "build" }, .expect = { .rc = 1, .err = SPN_ERR_WASM_MODULE_CALL_FAILED } },
-  { .name = "node_output_absolute", .project = "test/integration/fixtures/script/node_output_absolute", .args = { "build" }, .expect = { .rc = 1, .err = SPN_ERR_WASM_MODULE_CALL_FAILED } },
-  { .name = "name_separator_node", .project = "test/integration/fixtures/script/name_separator_node", .args = { "build" }, .expect = { .rc = 1, .err = SPN_ERR_WASM_MODULE_CALL_FAILED } },
   { .name = "nested_output", .project = "test/integration/fixtures/script/nested_output", .args = { "build" }, .expect = { .rc = 1, .err = SPN_ERR_DAG_NESTED_OUTPUT } },
   { .name = "configure_error", .project = "test/integration/fixtures/script/configure_error", .args = { "build" }, .expect = { .rc = 1, .err = SPN_ERR_WASM_SCRIPT_ERROR } },
+  { .name = "propagated_error", .project = "test/integration/fixtures/script/propagated_error", .args = { "build" }, .expect = { .rc = 1, .err = SPN_ERR_NODE_NO_OUTPUTS } },
   { .name = "missing_node_fn", .project = "test/integration/fixtures/script/missing_node_fn", .args = { "build" }, .expect = { .rc = 1, .err = SPN_ERR_WASM_EXPORT_NOT_FOUND } },
-  { .name = "node_fn_without_build_script", .project = "test/integration/fixtures/script/node_fn_without_build_script", .args = { "build" }, .expect = { .rc = 1, .err = SPN_ERR_WASM_MODULE_CALL_FAILED } },
-  { .name = "add_define_path_outside", .project = "test/integration/fixtures/script/add_define_path_outside", .args = { "build" }, .expect = { .rc = 1, .err = SPN_ERR_WASM_MODULE_CALL_FAILED } },
 };
 
 sp_test_each(script, failure, command_test_t, failures) {

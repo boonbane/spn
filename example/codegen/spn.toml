@@ -2,6 +2,12 @@
 name = "gen"
 version = "0.1.0"
 
+[package.configure]
+source = ["spn.c"]
+
+[package.build]
+source = ["spn.c"]
+
 [[bin]]
 name = "main"
-source = ["main.c"]
+source = ["main.c", { path = "generated/fibonacci.c", tree = "work" }]

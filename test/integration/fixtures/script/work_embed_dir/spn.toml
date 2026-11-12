@@ -1,0 +1,14 @@
+[package]
+name = "A"
+version = "0.0.1"
+
+[package.configure]
+source = ["tools/configure.c"]
+
+[package.build]
+source = ["tools/build.c"]
+
+[[bin]]
+name = "A"
+source = ["main.c"]
+embed = [{ path = "G", dir = true, tree = "work" }]

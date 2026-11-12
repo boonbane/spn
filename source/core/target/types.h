@@ -138,9 +138,6 @@ struct si_target {
   si_da(sp_intern_str_t) deps;
   si_da(spn_embed_t) embed;
   struct {
-    si_da(spn_path_t) include;
-  } configured;
-  struct {
     si_da(sp_str_t) frameworks;
   } macos;
 };

@@ -12,3 +12,4 @@ source = ["tools/build.c"]
 name = "gen"
 kinds = ["static"]
 source = ["gen.c"]
+include = [{ path = "gen", tree = "work" }]

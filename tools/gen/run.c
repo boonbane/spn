@@ -194,6 +194,7 @@ static bool render_union(codegen_t* c, sp_str_t path, sp_str_t json, gen_format_
 
   if (format == GEN_FORMAT_ERRORS) {
     try(render_one(c, out_path(c, c->paths.include, sp_str_lit("err"), ".h"), gen_render_union_codes(gen)));
+    try(render_one(c, out_path(c, c->paths.out, name, ".guest.h"), gen_render_union_guest(gen)));
   }
   try(render_one(c, out_path(c, c->paths.include, name, ".h"), gen_render_union_decls(gen)));
   try(render_one(c, out_path(c, c->paths.out, name, ".gen.c"), gen_render_union_impl(gen)));
@@ -295,7 +296,6 @@ static bool render_abi(codegen_t* c) {
     return fail(c, abi->err);
   }
 
-  try(render_one(c, out_path(c, c->paths.out, sp_str_lit("abi"), ".gen.h"), abi_render_decls(abi)));
   try(render_one(c, out_path(c, c->paths.out, sp_str_lit("abi"), ".gen.c"), abi_render_impl(abi)));
   emit(c, sp_fmt(c->mem, "wrote abi ({} exports)", sp_fmt_uint(sp_da_size(abi->exports))).value);
   return true;

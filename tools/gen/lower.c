@@ -373,6 +373,8 @@ bool gen_lower_union(gen_t* g, jtd_schema_t* root) {
     return false;
   }
 
+  u32 last = 1;
+  bool host = false;
   sp_da_for(root->as.discriminator.mapping, it) {
     jtd_mapping_t* mapping = &root->as.discriminator.mapping[it];
     sp_str_t name = mapping->schema->form == JTD_FORM_REF ? mapping->schema->as.ref.name : mapping->tag;
@@ -386,6 +388,22 @@ bool gen_lower_union(gen_t* g, jtd_schema_t* root) {
         return false;
       }
       add_arm(g, kind.payload);
+    }
+
+    if (g->format == GEN_FORMAT_ERRORS) {
+      sp_str_t guest = jtd_metadata(mapping->schema, "guest");
+      if (sp_str_empty(guest)) {
+        host = true;
+      }
+      else {
+        u32 code = 0;
+        if (host || !sp_parse_u32_ex(guest, &code) || code <= last) {
+          g->err = sp_fmt(g->mem, "{.cyan}: guest code {.red} must ascend from 2 and come before every host kind", sp_fmt_str(kind.tag), sp_fmt_str(guest)).value;
+          return false;
+        }
+        last = code;
+        kind.guest = sp_fmt(g->mem, "{}", sp_fmt_uint(code)).value;
+      }
     }
 
     if (g->format == GEN_FORMAT_EVENTS) {

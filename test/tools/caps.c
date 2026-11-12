@@ -117,6 +117,14 @@ static bool toolchain_deterministic_objects(const test_toolchain_t* toolchain) {
   return toolchain->info->driver != SPN_CC_DRIVER_MSVC;
 }
 
+static bool sdk_has_atl(sp_mem_t mem, const spn_sdk_t* sdk) {
+  if (sdk->kind != SPN_SDK_MSVC) {
+    return false;
+  }
+  spn_path_roots_t roots = sp_zero;
+  return sp_fs_is_file(spn_path_str(&roots, mem, spn_path_join(mem, sdk->msvc.include.atlmfc, sp_str_lit("atlbase.h"))));
+}
+
 static spn_search_rules_t host_rules() {
   return spn_search_rules(spn_host_detect().os);
 }
@@ -410,6 +418,10 @@ sp_str_t test_when_blocked(test_when_t when) {
   if (when.deterministic && !toolchain_deterministic_objects(toolchain)) {
     return sp_fmt(mem, "{} does not recompile objects byte-identically",
       sp_fmt_cstr(toolchain->name)).value;
+  }
+
+  if (when.atl && !sdk_has_atl(mem, &profile.sdk)) {
+    return sp_fmt(mem, "{}'s MSVC SDK has no ATL", sp_fmt_cstr(toolchain->name)).value;
   }
 
   return sp_str_lit("");

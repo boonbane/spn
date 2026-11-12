@@ -5,7 +5,7 @@
 #include "sp/sp_test.h"
 #include "macro/macro.h"
 
-sp_str_t test_repo_root(sp_mem_t mem);
+sp_str_t test_repo_root(void);
 sp_str_t test_repo_path(sp_mem_t mem, sp_str_t rel);
 
 static inline sp_str_t test_dir_str(sp_test_t* t) {

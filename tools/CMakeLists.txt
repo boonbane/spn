@@ -51,13 +51,13 @@ add_custom_command(
     --arch ${EMBED_ARCH}
     ${EMBED_OBJ}
     ${CMAKE_SOURCE_DIR}/include/spn.h=include/spn.h
-    ${CMAKE_SOURCE_DIR}/include/spn/core.h=include/spn/core.h
-    ${GEN_INCLUDE}/spn/err.h=include/spn/err.h
+    ${CMAKE_SOURCE_DIR}/include/spn/guest.h=include/spn/guest.h
+    ${GEN_DIR}/errors.guest.h=include/spn/err.h
     ${CMAKE_SOURCE_DIR}/source/core/toolchain/toolchains.toml=toolchains.toml
     ${CMAKE_SOURCE_DIR}/assets/zig/stub.c=zig/stub.c
     ${CMAKE_SOURCE_DIR}/assets/init=init
     ${CMAKE_SOURCE_DIR}/docs/content=docs
-  DEPENDS embed ${CMAKE_SOURCE_DIR}/include/spn.h ${CMAKE_SOURCE_DIR}/include/spn/core.h ${GEN_INCLUDE}/spn/err.h ${CMAKE_SOURCE_DIR}/source/core/toolchain/toolchains.toml ${CMAKE_SOURCE_DIR}/assets/zig/stub.c ${SPN_INIT_TEMPLATES} ${SPN_DOCS}
+  DEPENDS embed ${CMAKE_SOURCE_DIR}/include/spn.h ${CMAKE_SOURCE_DIR}/include/spn/guest.h ${GEN_DIR}/errors.guest.h ${CMAKE_SOURCE_DIR}/source/core/toolchain/toolchains.toml ${CMAKE_SOURCE_DIR}/assets/zig/stub.c ${SPN_INIT_TEMPLATES} ${SPN_DOCS}
   COMMENT "spn.embed.o"
   VERBATIM)
 add_custom_target(spn_embed ALL DEPENDS ${EMBED_OBJ} ${EMBED_HDR})
@@ -84,11 +84,11 @@ set(GEN_FILES
   ${GEN_DIR}/source_deps.gen.h
   ${GEN_DIR}/source_deps.gen.c
   ${GEN_DIR}/source_deps.jtd.json
-  ${GEN_DIR}/abi.gen.h
   ${GEN_DIR}/abi.gen.c
   ${INCLUDE_DIR}/err.h
   ${INCLUDE_DIR}/errors.h
   ${GEN_DIR}/errors.gen.c
+  ${GEN_DIR}/errors.guest.h
   ${INCLUDE_DIR}/events.h
   ${GEN_DIR}/events.gen.c)
 file(GLOB JTD_GEN_SCHEMAS CONFIGURE_DEPENDS ${SCHEMA_DIR}/*.json)
@@ -106,6 +106,72 @@ add_custom_command(
   VERBATIM)
 add_custom_target(spn_codegen_gen ALL DEPENDS ${GEN_FILES})
 add_dependencies(spn_embed spn_codegen_gen)
+
+file(GLOB_RECURSE TEST_CORE_FILES CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/test/core/* ${CMAKE_SOURCE_DIR}/tools/install/*)
+add_custom_command(
+  OUTPUT ${CORE_EMBED_OBJ} ${CORE_EMBED_HDR}
+  COMMAND $<TARGET_FILE:embed>
+    --header ${CORE_EMBED_HDR}
+    --format ${EMBED_FORMAT}
+    --arch ${EMBED_ARCH}
+    ${CORE_EMBED_OBJ}
+    ${GEN_DIR}/config.jtd.json=schema/config.jtd.json
+    ${GEN_DIR}/manifest.jtd.json=schema/manifest.jtd.json
+    ${GEN_DIR}/release.jtd.json=schema/release.jtd.json
+    ${CMAKE_SOURCE_DIR}/test/core=test/core
+    ${CMAKE_SOURCE_DIR}/tools/install=tools/install
+    ${CMAKE_SOURCE_DIR}/source/core/codegen/schema/abi.json=source/core/codegen/schema/abi.json
+    ${CMAKE_SOURCE_DIR}/source/core/toolchain/toolchains.toml=source/core/toolchain/toolchains.toml
+    ${CMAKE_SOURCE_DIR}/spn.toml=spn.toml
+  DEPENDS embed ${GEN_DIR}/config.jtd.json ${GEN_DIR}/manifest.jtd.json ${GEN_DIR}/release.jtd.json ${TEST_CORE_FILES} ${CMAKE_SOURCE_DIR}/spn.toml
+  COMMENT "core.embed.o"
+  VERBATIM)
+add_custom_target(core_embed ALL DEPENDS ${CORE_EMBED_OBJ} ${CORE_EMBED_HDR})
+add_dependencies(core_embed spn_codegen_gen)
+
+function(spn_test_embed name)
+  set(args "")
+  set(deps "")
+  foreach(path ${ARGN})
+    list(APPEND args ${CMAKE_SOURCE_DIR}/${path}=${path})
+    if(IS_DIRECTORY ${CMAKE_SOURCE_DIR}/${path})
+      file(GLOB_RECURSE files CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/${path}/*)
+      list(APPEND deps ${files})
+    else()
+      list(APPEND deps ${CMAKE_SOURCE_DIR}/${path})
+    endif()
+  endforeach()
+  add_custom_command(
+    OUTPUT ${TEST_GEN_DIR}/${name}.embed.o ${TEST_GEN_DIR}/${name}.embed.h
+    COMMAND $<TARGET_FILE:embed>
+      --header ${TEST_GEN_DIR}/${name}.embed.h
+      --format ${EMBED_FORMAT}
+      --arch ${EMBED_ARCH}
+      ${TEST_GEN_DIR}/${name}.embed.o
+      ${args}
+    DEPENDS embed ${deps}
+    COMMENT "${name}.embed.o"
+    VERBATIM)
+  add_custom_target(${name}_embed ALL DEPENDS ${TEST_GEN_DIR}/${name}.embed.o ${TEST_GEN_DIR}/${name}.embed.h)
+endfunction()
+
+spn_test_embed(resolver
+  test/core/resolver/fixtures
+  test/core/resolver/goldens)
+spn_test_embed(integration
+  test/integration/fixtures
+  example/kernel
+  example/nolibc
+  include/spn.h
+  include/spn/core.h
+  test/tools/lanes.toml
+  source/core/toolchain/toolchains.toml)
+spn_test_embed(render
+  test/render/fixtures
+  include/spn.h
+  include/spn/core.h
+  test/tools/lanes.toml
+  source/core/toolchain/toolchains.toml)
 
 set(TEST_SCHEMA_DIR ${CMAKE_SOURCE_DIR}/test/tools/schema)
 set(TEST_GEN_FILES

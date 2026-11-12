@@ -28,7 +28,7 @@ static sp_err_t copy_into(sp_str_t from, sp_str_t dir) {
 
 static void fixture_setup_paths(fixture_t* fixture) {
   sp_mem_t mem = fixture->mem;
-  fixture->paths.root = test_repo_root(mem);
+  fixture->paths.root = test_repo_root();
 #if defined(SPN_TEST_BIN)
   fixture->paths.spn = test_repo_path(mem, sp_str_lit(SPN_TEST_BIN));
 #else

@@ -94,7 +94,6 @@ struct spn_user_node_t {
   spn_pkg_unit_t* unit;
   sp_str_t tag;
   sp_str_t fn;
-  si_da(spn_path_t) inputs;
   si_da(spn_user_output_t) outputs;
   si_da(spn_node_ref_t) deps;
 };
@@ -166,6 +165,7 @@ struct spn_target_unit {
 
   si_da(spn_target_unit_t*) deps;
   si_da(spn_pkg_edge_t) edges;
+  si_da(spn_pkg_unit_t*) includes;
 
   sp_da(spn_compile_unit_t*) objects;
   spn_link_plan_t link;
@@ -196,6 +196,9 @@ struct spn_pkg_unit_t {
     spn_path_t bin;
     spn_path_t vendor;
   } paths;
+  struct {
+    bool include;
+  } publishes;
 
   si_da(spn_pkg_edge_t) deps;
   si_da(spn_target_unit_t*) libs;

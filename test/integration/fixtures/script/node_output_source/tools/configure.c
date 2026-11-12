@@ -2,8 +2,5 @@
 
 SPN_EXPORT
 spn_err_t configure(spn_t* spn, spn_config_t* config) {
-  spn_node_t* node = spn_add_node(config, "gen");
-  spn_node_set_fn(node, "gen");
-  spn_node_add_output(node, SPN_DIR_SOURCE, "x.c");
-  return SPN_OK;
+  return spn_node_add_output(spn_add_node(config, "N"), "/source/X.c") == SPN_ERR_OUTPUT_OUTSIDE ? SPN_OK : SPN_ERROR;
 }

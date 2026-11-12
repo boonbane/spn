@@ -1,0 +1,16 @@
+[package]
+name = "A"
+version = "1.0.0"
+
+[package.build]
+source = [{ path = "C.c", tree = "work" }]
+include = [{ path = "I", tree = "work" }]
+
+[package.configure]
+source = [{ path = "C.c", tree = "work" }]
+include = [{ path = "I", tree = "work" }]
+
+[[lib]]
+name = "B"
+kinds = ["shared"]
+linker_script = [{ path = "L.ld", tree = "work" }]

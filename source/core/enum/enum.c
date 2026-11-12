@@ -100,48 +100,6 @@ sp_str_t spn_ld_dialect_to_str(spn_ld_dialect_t dialect) {
   SP_UNREACHABLE_RETURN(sp_str_lit(""));
 }
 
-spn_libc_kind_t spn_libc_kind_from_str(sp_str_t str) {
-  if (sp_str_equal_cstr(str, "gnu")) {
-    return SPN_LIBC_GNU;
-  }
-  if (sp_str_equal_cstr(str, "musl")) {
-    return SPN_LIBC_MUSL;
-  }
-  if (sp_str_equal_cstr(str, "cosmopolitan")) {
-    return SPN_LIBC_COSMOPOLITAN;
-  }
-  if (sp_str_equal_cstr(str, "custom")) {
-    return SPN_LIBC_CUSTOM;
-  }
-  if (sp_str_equal_cstr(str, "none")) {
-    return SPN_LIBC_NONE;
-  }
-
-  SP_UNREACHABLE_RETURN(SPN_LIBC_GNU);
-}
-
-sp_str_t spn_libc_kind_to_str(spn_libc_kind_t libc) {
-  switch (libc) {
-    case SPN_LIBC_GNU: {
-      return SP_LIT("gnu");
-    }
-    case SPN_LIBC_MUSL: {
-      return SP_LIT("musl");
-    }
-    case SPN_LIBC_COSMOPOLITAN: {
-      return SP_LIT("cosmopolitan");
-    }
-    case SPN_LIBC_CUSTOM: {
-      return SP_LIT("custom");
-    }
-    case SPN_LIBC_NONE: {
-      return SP_LIT("none");
-    }
-  }
-
-  SP_UNREACHABLE_RETURN(sp_str_lit(""));
-}
-
 spn_mode_t spn_mode_from_str(sp_str_t str) {
   if (sp_str_equal_cstr(str, "release")) {
     return SPN_MODE_RELEASE;
@@ -247,6 +205,9 @@ spn_tree_t spn_tree_from_str(sp_str_t str) {
   if (sp_str_equal_cstr(str, "manifest")) {
     return SPN_TREE_MANIFEST;
   }
+  if (sp_str_equal_cstr(str, "work")) {
+    return SPN_TREE_WORK;
+  }
 
   return SPN_TREE_NONE;
 }
@@ -255,6 +216,7 @@ sp_str_t spn_tree_to_str(spn_tree_t tree) {
   switch (tree) {
     case SPN_TREE_SOURCE:   return sp_str_lit("source");
     case SPN_TREE_MANIFEST: return sp_str_lit("manifest");
+    case SPN_TREE_WORK:     return sp_str_lit("work");
     case SPN_TREE_NONE:     return sp_str_lit("");
   }
   SP_UNREACHABLE_RETURN(sp_str_lit(""));

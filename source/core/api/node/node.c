@@ -8,8 +8,8 @@
 #include "event/types.h"
 #include "unit/types.h"
 
-#include "enum/enum.h"
 #include "event/event.h"
+#include "external/wasm/wasi.h"
 #include "external/wasm/wasm.h"
 #include "paths/paths.h"
 #include "unit/unit.h"
@@ -17,7 +17,7 @@
 
 spn_node_t* spn_add_node(spn_config_t* config, const c8* tag) {
   spn_pkg_unit_t* unit = spn_api_unit(config);
-  if (spn_api_name_rejected("spn_add_node", tag)) {
+  if (sp_str_contains(sp_cstr_as_str(tag), sp_str_lit("/"))) {
     return SP_NULLPTR;
   }
 
@@ -40,97 +40,79 @@ spn_node_t* spn_add_node(spn_config_t* config, const c8* tag) {
   return out;
 }
 
-void spn_node_add_input(spn_node_t* node, const c8* input) {
-  spn_user_node_t* info = spn_node_deref(node->ref);
-  spn_path_t made = spn_api_tree_path(node->ref.pkg, "spn_node_add_input", input);
-  if (spn_path_empty(made)) {
-    return;
+static spn_err_t find_output(spn_pkg_unit_t* unit, sp_mem_t mem, sp_str_t guest, spn_dir_t* dir, sp_str_t* sub) {
+  if (!spn_path_normal(guest)) {
+    return SPN_ERR_PATH_NOT_NORMAL;
   }
-  si_da_push(node->ref.pkg->units->mem, info->inputs, made);
+  spn_wasm_mounts_t mounts = spn_wasm_mounts(unit);
+  sp_str_t rest = sp_zero;
+  const spn_wasi_mount_t* mount = spn_wasi_find_mount(mounts.dirs, sp_carr_len(mounts.dirs), guest, &rest);
+  if (!mount || !mount->writable) {
+    return SPN_ERR_OUTPUT_OUTSIDE;
+  }
+  if (sp_fs_is_absolute_for(rest, SP_FS_PATH_WINDOWS)) {
+    return SPN_ERR_PATH_NOT_NORMAL;
+  }
+  spn_path_t host = spn_path_join(mem, mount->host, rest);
+  spn_dir_t roots [] = { SPN_DIR_WORK, SPN_DIR_LIB, SPN_DIR_BIN, SPN_DIR_VENDOR };
+  sp_carr_for(roots, it) {
+    spn_path_rel_t rel = spn_path_within(spn_api_dir_path(unit, roots[it]), host);
+    if (!rel.within) {
+      continue;
+    }
+    if (sp_str_empty(rel.sub)) {
+      return SPN_ERR_OUTPUT_IS_ROOT;
+    }
+    if (sp_fs_is_absolute_for(rel.sub, SP_FS_PATH_WINDOWS)) {
+      return SPN_ERR_PATH_NOT_NORMAL;
+    }
+    *dir = roots[it];
+    *sub = rel.sub;
+    return SPN_OK;
+  }
+  return SPN_ERR_OUTPUT_OUTSIDE;
 }
 
-typedef enum {
-  OUTPUT_OK,
-  OUTPUT_UNNAMED,
-  OUTPUT_ROOT,
-} output_problem_t;
-
-static output_problem_t output_problem(spn_dir_t dir, sp_str_t sub) {
-  if (sp_str_empty(sub)) {
-    return OUTPUT_UNNAMED;
-  }
-  switch (dir) {
-    case SPN_DIR_VENDOR:
-    case SPN_DIR_LIB:
-    case SPN_DIR_BIN:
-    case SPN_DIR_WORK:     return OUTPUT_OK;
-    case SPN_DIR_NONE:
-    case SPN_DIR_CACHE:
-    case SPN_DIR_STORE:
-    case SPN_DIR_INCLUDE:
-    case SPN_DIR_SOURCE:
-    case SPN_DIR_PROJECT:
-    case SPN_DIR_MANIFEST: return OUTPUT_ROOT;
-  }
-  SP_UNREACHABLE_RETURN(OUTPUT_ROOT);
-}
-
-static sp_str_t output_problem_str(output_problem_t problem) {
-  switch (problem) {
-    case OUTPUT_OK:       return sp_str_lit("");
-    case OUTPUT_UNNAMED:  return sp_str_lit("must name a path under its root");
-    case OUTPUT_ROOT:     return sp_str_lit("must be rooted at vendor, lib, bin, or work");
-  }
-  SP_UNREACHABLE_RETURN(sp_str_lit(""));
-}
-
-static void add_output(spn_node_t* node, const c8* fn, spn_dir_t dir, const c8* path, spn_dag_artifact_kind_t kind) {
+static spn_err_t add_output(spn_node_t* node, const c8* path, spn_dag_artifact_kind_t kind) {
   spn_user_node_t* info = spn_node_deref(node->ref);
   spn_pkg_unit_t* unit = node->ref.pkg;
-  sp_str_t sub = sp_cstr_as_str(path);
-  if (spn_api_path_rejected(fn, sub)) {
-    return;
+  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+  spn_dir_t dir = SPN_DIR_NONE;
+  sp_str_t sub = sp_zero;
+  spn_err_t err = find_output(unit, scratch.mem, sp_cstr_as_str(path), &dir, &sub);
+  if (!err) {
+    si_da_push(unit->units->mem, info->outputs, ((spn_user_output_t) {
+      .dir = dir,
+      .sub = sp_str_copy(spn.mem, sub),
+      .kind = kind,
+      .path = spn_path_join(spn.mem, spn_api_dir_path(unit, dir), sub),
+    }));
   }
-  output_problem_t problem = output_problem(dir, sub);
-  if (problem != OUTPUT_OK) {
-    sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-    sp_str_t message = sp_fmt(scratch.mem, "{}: {}/{} {}", SP_FMT_CSTR(fn), SP_FMT_STR(spn_dir_to_str(dir)), SP_FMT_STR(sub), SP_FMT_STR(output_problem_str(problem))).value;
-    bool trapped = spn_wasm_trap(message);
-    sp_mem_end_scratch(scratch);
-    sp_assert(trapped);
-    return;
+  sp_mem_end_scratch(scratch);
+  return err;
+}
+
+spn_err_t spn_node_add_output(spn_node_t* node, const c8* path) {
+  return add_output(node, path, SPN_DAG_ARTIFACT_KIND_FILE);
+}
+
+spn_err_t spn_node_add_output_dir(spn_node_t* node, const c8* path) {
+  return add_output(node, path, SPN_DAG_ARTIFACT_KIND_TREE);
+}
+
+spn_err_t spn_node_link(spn_node_t* from, spn_node_t* to) {
+  if (si_da_empty(spn_node_deref(from->ref)->outputs)) {
+    return SPN_ERR_NODE_NO_OUTPUTS;
   }
-  si_da_push(unit->units->mem, info->outputs, ((spn_user_output_t) {
-    .dir = dir,
-    .sub = sp_str_copy(spn.mem, sub),
-    .kind = kind,
-    .path = spn_path_join(spn.mem, spn_api_dir_path(unit, dir), sub),
-  }));
-}
-
-void spn_node_add_output(spn_node_t* node, spn_dir_t dir, const c8* path) {
-  add_output(node, "spn_node_add_output", dir, path, SPN_DAG_ARTIFACT_KIND_FILE);
-}
-
-void spn_node_add_output_dir(spn_node_t* node, spn_dir_t dir, const c8* path) {
-  add_output(node, "spn_node_add_output_dir", dir, path, SPN_DAG_ARTIFACT_KIND_TREE);
-}
-
-void spn_node_link(spn_node_t* from, spn_node_t* to) {
   spn_user_node_t* info = spn_node_deref(to->ref);
   si_da_push(to->ref.pkg->units->mem, info->deps, from->ref);
+  return SPN_OK;
 }
 
-void spn_node_set_fn(spn_node_t* node, const c8* fn) {
-  spn_user_node_t* info = spn_node_deref(node->ref);
-  spn_pkg_unit_t* unit = node->ref.pkg;
-  if (!unit->metaprogram) {
-    sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-    sp_str_t message = sp_fmt(scratch.mem, "spn_node_set_fn: node {} runs {}, but {} has no [package.build] script", SP_FMT_STR(info->tag), SP_FMT_CSTR(fn), SP_FMT_STR(unit->pkg.manifest->name.str)).value;
-    bool trapped = spn_wasm_trap(message);
-    sp_mem_end_scratch(scratch);
-    sp_assert(trapped);
-    return;
+spn_err_t spn_node_set_fn(spn_node_t* node, const c8* fn) {
+  if (!node->ref.pkg->metaprogram) {
+    return SPN_ERR_NODE_NO_SCRIPT;
   }
-  info->fn = spn_intern_cstr(fn).str;
+  spn_node_deref(node->ref)->fn = spn_intern_cstr(fn).str;
+  return SPN_OK;
 }
