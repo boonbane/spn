@@ -966,6 +966,19 @@ static const link_test_t tests [] = {
     },
   },
   {
+    .name = "zig_msvc_libc_searches_dia",
+    .driver = SPN_CC_DRIVER_ZIG,
+    .host = HOST_X64_LINUX,
+    .profile = { .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC }, .linking.runtime = SPN_RUNTIME_STATIC, .sdk = "/X", .dia = "/D" },
+    .kind = SPN_CC_OUTPUT_EXE,
+    .libc = "/L",
+    .expect = {
+      .command = "cc",
+      .args = { "--target=x86_64-windows-msvc", "-fms-runtime-lib=static", "main.o", "-L/D", "-o", "main" },
+      .env = { "ZIG_LIBC=/L" },
+    },
+  },
+  {
     .name = "msvc_sdk_libs",
     .driver = SPN_CC_DRIVER_MSVC,
     .host = HOST_X64_WINDOWS,

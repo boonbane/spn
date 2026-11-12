@@ -47,7 +47,7 @@ typedef struct {
   sp_str_t suffix;
 } spn_arg_t;
 
-#define SPN_DIR_LIST_MAX 8
+#define SPN_DIR_LIST_MAX 16
 
 typedef struct {
   spn_path_t items [SPN_DIR_LIST_MAX];

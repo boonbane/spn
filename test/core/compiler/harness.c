@@ -45,6 +45,10 @@ spn_profile_info_t test_profile(test_profile_t desc) {
     sp_assert(profile.sdk.kind == SPN_SDK_MSVC);
     profile.sdk.msvc.lib.atlmfc = test_arg_path(desc.atl);
   }
+  if (desc.dia) {
+    sp_assert(profile.sdk.kind == SPN_SDK_MSVC);
+    profile.sdk.msvc.lib.dia = test_arg_path(desc.dia);
+  }
   return profile;
 }
 
