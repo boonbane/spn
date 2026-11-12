@@ -2,6 +2,18 @@
 
 #include "tui/tui.h"
 
+#if defined(SP_WIN32)
+  #ifndef WIN32_LEAN_AND_MEAN
+    #define WIN32_LEAN_AND_MEAN
+  #endif
+
+  #ifndef NOMINMAX
+    #define NOMINMAX
+  #endif
+
+  #include <windows.h>
+#endif
+
 typedef enum {
   FORMAT_SH,
   FORMAT_POWERSHELL,
@@ -92,6 +104,123 @@ static sp_cli_result_t env(sp_cli_t* cli) {
   return SP_CLI_OK;
 }
 
+#if defined(SP_WIN32)
+static bool batch_script(sp_mem_t mem, sp_str_t command, sp_str_t* script) {
+  c8 path [SP_PATH_MAX] = sp_zero;
+  u32 len = GetFullPathNameA(sp_str_to_cstr(mem, command), SP_PATH_MAX, path, SP_NULLPTR);
+  if (!len || len >= SP_PATH_MAX) {
+    return false;
+  }
+  *script = sp_str_copy(mem, sp_str(path, len));
+  sp_str_t ext = sp_str_to_lower(mem, sp_str_suffix(*script, (s32)sp_min(len, 4)));
+  return sp_str_equal(ext, sp_str_lit(".bat")) || sp_str_equal(ext, sp_str_lit(".cmd"));
+}
+
+static bool batch_arg(sp_io_writer_t* io, sp_str_t arg) {
+  bool quote = sp_str_empty(arg) || arg.data[arg.len - 1] == '\\';
+  sp_for(it, arg.len) {
+    c8 c = arg.data[it];
+    if (c == '\r' || c == '\n') {
+      return false;
+    }
+    bool plain = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9');
+    if (!plain && sp_str_find_c8(sp_str_lit("#$*+-./:?@\\_"), c) == SP_STR_NO_MATCH) {
+      quote = true;
+    }
+  }
+
+  if (quote) {
+    sp_io_write_c8(io, '"');
+  }
+  u32 backslashes = 0;
+  sp_for(it, arg.len) {
+    c8 c = arg.data[it];
+    if (c == '\\') {
+      backslashes++;
+    }
+    else {
+      if (c == '"') {
+        sp_for(at, backslashes) {
+          sp_io_write_c8(io, '\\');
+        }
+        sp_io_write_c8(io, '"');
+      }
+      else if (c == '%') {
+        sp_io_write_str(io, sp_str_lit("%%cd:~,"), SP_NULLPTR);
+      }
+      backslashes = 0;
+    }
+    sp_io_write_c8(io, c);
+  }
+  if (quote) {
+    sp_for(it, backslashes) {
+      sp_io_write_c8(io, '\\');
+    }
+    sp_io_write_c8(io, '"');
+  }
+  return true;
+}
+
+static sp_cli_result_t run_batch(sp_mem_t mem, sp_str_t name, sp_str_t command, sp_str_t script, const c8** args, sp_env_t* vars) {
+  host.code = 127;
+  if (sp_fs_get_name(command).len == command.len) {
+    sp_str_t path = sp_fmt(mem, ".\\{}", sp_fmt_str(command)).value;
+    return spn_cli_usage("failed to run {.red}: name a batch file by its path, like {.cyan}", sp_fmt_str(name), sp_fmt_str(path));
+  }
+  if (GetFileAttributesA(sp_str_to_cstr(mem, script)) == INVALID_FILE_ATTRIBUTES) {
+    return spn_cli_usage("failed to run {.red}", sp_fmt_str(name));
+  }
+
+  sp_io_dyn_mem_writer_t line = sp_zero;
+  sp_io_dyn_mem_writer_init(mem, &line);
+  sp_fmt_io(&line.base, "cmd.exe /d /e:ON /v:OFF /c \"\"{}\"", sp_fmt_str(script));
+  for (const c8** arg = args; *arg; arg++) {
+    sp_io_write_c8(&line.base, ' ');
+    if (!batch_arg(&line.base, sp_cstr_as_str(*arg))) {
+      return spn_cli_usage("failed to run {.red}: batch file arguments can't contain a line break", sp_fmt_str(name));
+    }
+  }
+  sp_io_write_c8(&line.base, '"');
+  sp_io_write_c8(&line.base, '\0');
+
+  sp_io_dyn_mem_writer_t block = sp_zero;
+  sp_io_dyn_mem_writer_init(mem, &block);
+  sp_str_ht_for(vars->vars, it) {
+    sp_fmt_io(&block.base, "{}={}", sp_fmt_str(*sp_str_ht_it_getkp(vars->vars, it)), sp_fmt_str(*sp_str_ht_it_getp(vars->vars, it)));
+    sp_io_write_c8(&block.base, '\0');
+  }
+  sp_io_write_c8(&block.base, '\0');
+  sp_io_write_c8(&block.base, '\0');
+
+  c8 system [SP_PATH_MAX] = sp_zero;
+  u32 len = GetSystemDirectoryA(system, SP_PATH_MAX);
+  c8* shell = sp_str_to_cstr(mem, sp_fmt(mem, "{}\\cmd.exe", sp_fmt_str(sp_str(system, len))).value);
+
+  STARTUPINFOA startup = { .cb = sizeof(STARTUPINFOA), .dwFlags = STARTF_USESTDHANDLES };
+  HANDLE self = GetCurrentProcess();
+  DuplicateHandle(self, GetStdHandle(STD_INPUT_HANDLE), self, &startup.hStdInput, 0, TRUE, DUPLICATE_SAME_ACCESS);
+  DuplicateHandle(self, GetStdHandle(STD_OUTPUT_HANDLE), self, &startup.hStdOutput, 0, TRUE, DUPLICATE_SAME_ACCESS);
+  DuplicateHandle(self, GetStdHandle(STD_ERROR_HANDLE), self, &startup.hStdError, 0, TRUE, DUPLICATE_SAME_ACCESS);
+
+  PROCESS_INFORMATION child = sp_zero;
+  BOOL created = CreateProcessA(shell, (c8*)sp_io_dyn_mem_writer_as_str(&line).data, SP_NULLPTR, SP_NULLPTR, TRUE, 0, (void*)sp_io_dyn_mem_writer_as_str(&block).data, SP_NULLPTR, &startup, &child);
+  CloseHandle(startup.hStdInput);
+  CloseHandle(startup.hStdOutput);
+  CloseHandle(startup.hStdError);
+  if (!created) {
+    return spn_cli_usage("failed to run {.red}", sp_fmt_str(name));
+  }
+
+  DWORD code = 0;
+  WaitForSingleObject(child.hProcess, INFINITE);
+  GetExitCodeProcess(child.hProcess, &code);
+  CloseHandle(child.hThread);
+  CloseHandle(child.hProcess);
+  host.code = (s32)code;
+  return SP_CLI_OK;
+}
+#endif
+
 static sp_cli_result_t run(sp_cli_t* cli) {
   if (!cli->rest[0]) {
     return spn_cli_usage("missing a command to run");
@@ -131,6 +260,15 @@ static sp_cli_result_t run(sp_cli_t* cli) {
     sp_env_insert(&vars, env.vars.items[it].name, env.vars.items[it].value);
   }
 
+#if defined(SP_WIN32)
+  sp_str_t script = sp_zero;
+  if (batch_script(s.mem, command, &script)) {
+    sp_cli_result_t result = run_batch(s.mem, name, command, script, cli->rest + 1, &vars);
+    sp_mem_end_scratch(s);
+    return result;
+  }
+#endif
+
   sp_ps_config_t config = {
     .command = command,
     .dyn_args = sp_da_new(s.mem, sp_str_t),
@@ -149,9 +287,6 @@ static sp_cli_result_t run(sp_cli_t* cli) {
   if (!ps.os) {
     sp_mem_end_scratch(s);
     host.code = 127;
-    if (ps.error == SP_ERR_SYS_INVALID) {
-      return spn_cli_usage("failed to run {.red}: batch file arguments can't contain CR, LF or NUL", sp_fmt_str(name));
-    }
     return spn_cli_usage("failed to run {.red}", sp_fmt_str(name));
   }
   s32 code = sp_ps_wait(&ps).exit_code;
