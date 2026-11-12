@@ -39,6 +39,21 @@ static const command_test_t apis [] = {
     .args = { "build" },
   },
   {
+    .name = "configure_roots",
+    .project = "test/integration/fixtures/script/configure_roots",
+    .args = { "build" },
+  },
+  {
+    .name = "node_roots",
+    .project = "test/integration/fixtures/script/node_roots",
+    .copy = { "X" },
+    .args = { "build" },
+    .expect.files = {
+      { work_file("A/W"), .content = "S" },
+      { pkg_store_file("A", "bin/R"), .content = "M" },
+    },
+  },
+  {
     .name = "program_name_context",
     .project = "test/integration/fixtures/script/module_name_collision",
     .args = { "build" },

@@ -30,6 +30,7 @@ typedef struct spn_wasi_t spn_wasi_t;
 
 typedef struct {
   spn_tree_t tree;
+  spn_root_t root;
   const c8* guest;
   spn_path_t host;
   bool writable;

@@ -25,6 +25,11 @@ typedef spn_err_t (*spn_node_fn_t)      (spn_t*);
 
 spn_err_t     spn_log(spn_t* spn, const c8* message);
 
+spn_err_t     spn_get_root_manifest(spn_t* spn, spn_root_t* root);
+spn_err_t     spn_get_root_source(spn_t* spn, spn_root_t* root);
+spn_err_t     spn_get_root_work(spn_t* spn, spn_root_t* root);
+spn_err_t     spn_get_root_store(spn_t* spn, spn_root_t* root);
+
 spn_err_t     spn_io_write(const c8* path, const c8* contents);
 const c8*     spn_fmt_ex(const c8* fmt, const c8* a0, const c8* a1, const c8* a2, const c8* a3);
 

@@ -17,6 +17,7 @@
 #define SPN_WASM_STACK_SIZE (8 * 1024 * 1024)
 #define SPN_WASM_HEAP_SIZE  (16 * 1024 * 1024)
 #define SPN_WASM_EXPORT_MAX 128
+#define SPN_WASI_PREOPEN_BASE_FD 3
 
 #define SPN_WASM_NO_ENV SP_NULL
 #define SPN_WASM_NO_DIRS SP_NULL
@@ -64,7 +65,7 @@ static spn_err_t fail(spn_pkg_unit_t* unit, spn_err_t err, spn_err_wasm_t wasm) 
 }
 
 spn_wasm_mounts_t spn_wasm_mounts(const spn_pkg_unit_t* unit) {
-  return (spn_wasm_mounts_t) {
+  spn_wasm_mounts_t mounts = {
     .dirs = {
       { .tree = SPN_TREE_WORK,     .guest = "/work",     .host = unit->paths.work,         .writable = true },
       { .tree = SPN_TREE_SOURCE,   .guest = "/source",   .host = unit->paths.roots.source },
@@ -72,6 +73,10 @@ spn_wasm_mounts_t spn_wasm_mounts(const spn_pkg_unit_t* unit) {
       { .tree = SPN_TREE_STORE,    .guest = "/store",    .host = unit->paths.store,        .writable = true },
     },
   };
+  sp_carr_for(mounts.dirs, it) {
+    mounts.dirs[it].root = (spn_root_t)(SPN_WASI_PREOPEN_BASE_FD + it);
+  }
+  return mounts;
 }
 
 static spn_err_t instantiate(spn_pkg_unit_t* unit, spn_path_t module, const spn_wasi_mount_t* mounts, u32 count, spn_dag_obs_set_t* obs, spn_wasm_script_t* script) {

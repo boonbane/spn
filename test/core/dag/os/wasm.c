@@ -196,9 +196,9 @@ sp_test_each(dag_wasm, wasi, test_t, tests) {
   sp_str_t root = roots.dirs[SPN_PATH_ROOT_PROJECT];
 
   spn_wasi_mount_t mounts [] = {
-    { .guest = "/work",   .host = { .root = SPN_PATH_ROOT_PROJECT, .sub = sp_str_lit("work") } },
-    { .guest = "/source", .host = { .root = SPN_PATH_ROOT_PROJECT, .sub = sp_str_lit("source") } },
-    { .guest = "/store",  .host = { .root = SPN_PATH_ROOT_PROJECT, .sub = sp_str_lit("store") } },
+    { .root = 3, .guest = "/work",   .host = { .root = SPN_PATH_ROOT_PROJECT, .sub = sp_str_lit("work") } },
+    { .root = 4, .guest = "/source", .host = { .root = SPN_PATH_ROOT_PROJECT, .sub = sp_str_lit("source") } },
+    { .root = 5, .guest = "/store",  .host = { .root = SPN_PATH_ROOT_PROJECT, .sub = sp_str_lit("store") } },
   };
   sp_carr_for(mounts, mt) {
     sp_fs_create_dir_at(spn_path_at(&roots, mounts[mt].host));

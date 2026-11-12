@@ -55,4 +55,6 @@ typedef enum {
 
 typedef u32 spn_sanitizer_set_t;
 
+typedef s32 spn_root_t;
+
 #endif
