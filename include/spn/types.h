@@ -121,6 +121,7 @@ typedef enum {
   SPN_OP_TEST,
   SPN_OP_CLEAN,
   SPN_OP_CLEAN_PROFILE,
+  SPN_OP_ENV,
 } spn_op_kind_t;
 
 typedef struct {
@@ -175,6 +176,25 @@ typedef struct {
   sp_str_t json;
 } spn_publish_result_t;
 
+#define SPN_ENV_MAX_PATH 4
+#define SPN_ENV_MAX_VARS 16
+
+typedef struct {
+  sp_str_t name;
+  sp_str_t value;
+} spn_env_var_t;
+
+typedef struct {
+  struct {
+    sp_str_t items [SPN_ENV_MAX_PATH];
+    u32 count;
+  } path;
+  struct {
+    spn_env_var_t items [SPN_ENV_MAX_VARS];
+    u32 count;
+  } vars;
+} spn_env_result_t;
+
 typedef struct {
   spn_op_kind_t kind;
   spn_err_t err;
@@ -182,6 +202,7 @@ typedef struct {
     spn_scaffold_result_t scaffold;
     spn_test_result_t test;
     spn_publish_result_t publish;
+    spn_env_result_t env;
   };
 } spn_op_result_t;
 

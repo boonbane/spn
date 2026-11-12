@@ -107,14 +107,6 @@ spn_err_t spn_session_init(spn_session_t* s, spn_ctx_t* ctx, sp_mem_t mem, spn_p
 
   sp_da_push(s->builds.metaprogram->include, spn_path(s->mem, SPN_DIR_ID_RUNTIME, "include"));
 
-  spn_path_t log_path = spn_path_join(s->mem, s->builds.program->paths.root, sp_str_lit(".spn/build.jsonl"));
-  if (spn_event_log_open(ctx->events, spn_path_at(&ctx->roots, log_path))) {
-    return spn_err_emit(ctx, (spn_err_union_t) {
-      .kind = SPN_ERR_FS_WRITE,
-      .fs = { .path = log_path },
-    });
-  }
-
   s->selection.kinds = config.selection.kinds;
   sp_for(it, config.selection.names.count) {
     sp_intern_str_t name = spn_intern(config.selection.names.items[it]);

@@ -16,6 +16,56 @@
     } \
   } while (0)
 
+#define spn_cli_target_opts \
+  { \
+    .name = "target", \
+    .kind = SP_CLI_OPT_STR, \
+    .summary = "Target triple (e.g. aarch64-linux-gnu)", \
+    .placeholder = "TRIPLE", \
+    .ptr = &host.args.profile.target, \
+  }, \
+  { \
+    .name = "os", \
+    .kind = SP_CLI_OPT_CHOICE, \
+    .summary = "Override target OS", \
+    .placeholder = "OS", \
+    .ptr = &host.args.profile.os, \
+    .choices = { \
+      { .name = "linux", .value = SPN_OS_LINUX }, \
+      { .name = "macos", .value = SPN_OS_MACOS }, \
+      { .name = "windows", .value = SPN_OS_WINDOWS }, \
+      { .name = "wasi", .value = SPN_OS_WASI }, \
+      { .name = "freestanding", .value = SPN_OS_FREESTANDING }, \
+    }, \
+  }, \
+  { \
+    .name = "arch", \
+    .kind = SP_CLI_OPT_CHOICE, \
+    .summary = "Override target architecture", \
+    .placeholder = "ARCH", \
+    .ptr = &host.args.profile.arch, \
+    .choices = { \
+      { .name = "x86_64", .value = SPN_ARCH_X64 }, \
+      { .name = "aarch64", .value = SPN_ARCH_ARM64 }, \
+      { .name = "wasm32", .value = SPN_ARCH_WASM32 }, \
+    }, \
+  }, \
+  { \
+    .name = "abi", \
+    .kind = SP_CLI_OPT_CHOICE, \
+    .summary = "Override target ABI", \
+    .placeholder = "ABI", \
+    .ptr = &host.args.profile.abi, \
+    .choices = { \
+      { .name = "gnu", .value = SPN_ABI_GNU }, \
+      { .name = "musl", .value = SPN_ABI_MUSL }, \
+      { .name = "msvc", .value = SPN_ABI_MSVC }, \
+      { .name = "apple", .value = SPN_ABI_APPLE }, \
+      { .name = "none", .value = SPN_ABI_BARE }, \
+      { .name = "elf", .value = SPN_ABI_ELF }, \
+    }, \
+  }
+
 typedef struct {
   sp_str_t name;
   sp_str_t toolchain;
@@ -45,6 +95,7 @@ typedef struct {
   sp_mem_t mem;
   sp_sys_event_t doorbell;
   sp_atomic_s32_t interrupted;
+  s32 code;
 } spn_cli_host_t;
 
 extern spn_cli_host_t host;

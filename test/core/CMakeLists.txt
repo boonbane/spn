@@ -33,8 +33,10 @@ add_executable(core
   compiler/rsp/gnu.c
   compiler/rsp/style.c
   compiler/rsp/windows.c
+  compiler/path.c
   compiler/run.c
   compiler/toc.c
+  compiler/tools.c
   config/config.c
   external/obj.c
   external/wasm.c

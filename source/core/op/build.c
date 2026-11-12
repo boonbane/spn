@@ -114,6 +114,14 @@ spn_err_t spn_op_build(spn_op_t* op) {
   spn_project_t* project = session->project;
   const spn_path_roots_t* roots = &ctx->roots;
 
+  spn_path_t log_path = spn_path_join(mem, session->builds.program->paths.root, sp_str_lit(".spn/build.jsonl"));
+  if (spn_event_log_open(ctx->events, spn_path_at(roots, log_path))) {
+    return spn_err_emit(ctx, (spn_err_union_t) {
+      .kind = SPN_ERR_FS_WRITE,
+      .fs = { .path = log_path },
+    });
+  }
+
   spn_err_t hashed = SPN_OK;
   si_da_for_ptr(project->patches, decl) {
     spn_patch_t patch = { .name = decl->name };

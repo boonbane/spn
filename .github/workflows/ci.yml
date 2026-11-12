@@ -82,10 +82,6 @@ jobs:
       - run: make ci
         if: needs.plan.outputs.bootstrap == 'true' || steps.driver.outputs.cache-matched-key == ''
 
-      - run: tools/devenv.ps1
-        if: runner.os == 'Windows'
-        shell: pwsh
-
       - run: make ci-selfhost
 
       - uses: actions/cache/save@v4

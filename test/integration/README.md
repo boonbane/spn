@@ -110,7 +110,7 @@ fact matches the family the lane declares.
 | `gcc-lld`     | gcc     | lld                        | `-fuse-ld=lld`                     | `debian-gcc`, `debian-llvm`                   |
 | `clang`       | clang   | native                     |                                    | `debian-clang`, `debian-llvm`, `alpine-clang`, macOS |
 | `llvm`        | clang   | lld                        | `-fuse-ld=lld`                     | `debian-llvm`, macOS with Homebrew llvm       |
-| `msvc`        | msvc    | msvc (fixed)               |                                    | Windows dev shell                             |
+| `msvc`        | msvc    | msvc (fixed)               |                                    | Windows with Visual Studio                    |
 | `clang-msvc`  | clang   | lld                        | `-fuse-ld=lld`                     | Windows with LLVM                             |
 | `aarch64-gnu` | gcc     | gnu                        |                                    | `debian-cross`                                |
 | `mingw-gnu`   | gcc     | gnu                        |                                    | `debian-mingw`                                |

@@ -39,6 +39,8 @@ static spn_sdk_msvc_t msvc_layout(sp_mem_t mem, spn_path_t root, spn_arch_t arch
       .ucrt = spn_path_join(mem, root, sp_str_lit("sdk/include/ucrt")),
       .um = spn_path_join(mem, root, sp_str_lit("sdk/include/um")),
       .shared = spn_path_join(mem, root, sp_str_lit("sdk/include/shared")),
+      .winrt = spn_path_join(mem, root, sp_str_lit("sdk/include/winrt")),
+      .cppwinrt = spn_path_join(mem, root, sp_str_lit("sdk/include/cppwinrt")),
     },
     .lib = {
       .vc = spn_path_join(mem, root, sp_fmt(scratch.mem, "crt/lib/{}", sp_fmt_str(name)).value),
@@ -54,25 +56,116 @@ static spn_path_t absolute(sp_str_t path) {
   return (spn_path_t) { .sub = path };
 }
 
+sp_str_t spn_msvc_arch_name(spn_arch_t arch) {
+  switch (arch) {
+    case SPN_ARCH_X64: return sp_str_lit("x64");
+    case SPN_ARCH_ARM64: return sp_str_lit("arm64");
+    case SPN_ARCH_WASM32:
+    case SPN_ARCH_NONE: sp_unreachable_case();
+  }
+  sp_unreachable_return(sp_str_lit(""));
+}
+
 spn_sdk_msvc_t spn_sdk_from_msvc(sp_mem_t mem, const sp_msvc_sdk_t* kits, const sp_msvc_vs_t* vs, spn_arch_t arch) {
   sp_msvc_sdk_paths_t kit = sp_msvc_sdk_render(mem, kits);
   sp_msvc_vs_paths_t tools = sp_msvc_vs_render(mem, vs);
-  return (spn_sdk_msvc_t) {
+  spn_arch_t host = SPN_ARCH_NONE;
+  switch (vs->host) {
+    case SP_MSVC_ARCH_X64: host = SPN_ARCH_X64; break;
+    case SP_MSVC_ARCH_ARM64: host = SPN_ARCH_ARM64; break;
+  }
+  sp_str_t host_name = spn_msvc_arch_name(host);
+  sp_str_t version = sp_str_copy(mem, sp_msvc_version_str(&vs->version.tools));
+  sp_str_t kit_version = sp_str_copy(mem, sp_msvc_version_str(&kits->version));
+  spn_path_t install = absolute(sp_str_copy(mem, sp_msvc_path_str(&vs->install_path)));
+  spn_path_t root = absolute(sp_str_copy(mem, sp_msvc_path_str(&kits->root)));
+  spn_path_t toolset = spn_path_join(mem, install, sp_fmt(mem, "VC/Tools/MSVC/{}", sp_fmt_str(version)).value);
+  spn_path_t headers = spn_path_join(mem, root, sp_fmt(mem, "Include/{}", sp_fmt_str(kit_version)).value);
+
+  spn_sdk_msvc_t msvc = {
     .arch = arch,
-    .version = sp_str_copy(mem, sp_msvc_version_str(&vs->version.tools)),
+    .version = version,
     .bin = absolute(tools.bin),
+    .tools = {
+      .sdk = spn_path_join(mem, root, sp_fmt(mem, "bin/{}/{}", sp_fmt_str(kit_version), sp_fmt_str(host_name)).value),
+    },
     .include = {
       .vc = absolute(tools.include),
+      .atlmfc = spn_path_join(mem, toolset, sp_str_lit("atlmfc/include")),
+      .vs = spn_path_join(mem, install, sp_str_lit("VC/Auxiliary/VS/include")),
       .ucrt = absolute(kit.include_ucrt),
       .um = absolute(kit.include_um),
       .shared = absolute(kit.include_shared),
+      .winrt = spn_path_join(mem, headers, sp_str_lit("winrt")),
+      .cppwinrt = spn_path_join(mem, headers, sp_str_lit("cppwinrt")),
     },
     .lib = {
       .vc = absolute(tools.lib),
+      .atlmfc = spn_path_join(mem, toolset, sp_fmt(mem, "atlmfc/lib/{}", sp_fmt_str(spn_msvc_arch_name(arch))).value),
       .ucrt = absolute(kit.lib_ucrt),
       .um = absolute(kit.lib_um),
     },
+    .install = {
+      .vs = install,
+      .toolset = toolset,
+      .host = host,
+      .kit = {
+        .root = root,
+        .version = kit_version,
+      },
+    },
   };
+  if (host != arch) {
+    msvc.tools.host = spn_path_join(mem, toolset, sp_fmt(mem, "bin/Host{}/{}", sp_fmt_str(host_name), sp_fmt_str(host_name)).value);
+  }
+  return msvc;
+}
+
+static void push_dir(spn_dir_list_t* dirs, spn_path_t dir) {
+  if (spn_path_empty(dir)) {
+    return;
+  }
+  sp_assert(dirs->count < SPN_DIR_LIST_MAX);
+  dirs->items[dirs->count++] = dir;
+}
+
+spn_dir_list_t spn_msvc_include_dirs(const spn_sdk_msvc_t* msvc) {
+  spn_dir_list_t dirs = sp_zero;
+  push_dir(&dirs, msvc->include.vc);
+  push_dir(&dirs, msvc->include.atlmfc);
+  push_dir(&dirs, msvc->include.vs);
+  push_dir(&dirs, msvc->include.ucrt);
+  push_dir(&dirs, msvc->include.um);
+  push_dir(&dirs, msvc->include.shared);
+  push_dir(&dirs, msvc->include.winrt);
+  push_dir(&dirs, msvc->include.cppwinrt);
+  return dirs;
+}
+
+spn_dir_list_t spn_msvc_lib_dirs(const spn_sdk_msvc_t* msvc) {
+  spn_dir_list_t dirs = sp_zero;
+  push_dir(&dirs, msvc->lib.vc);
+  push_dir(&dirs, msvc->lib.atlmfc);
+  push_dir(&dirs, msvc->lib.ucrt);
+  push_dir(&dirs, msvc->lib.um);
+  return dirs;
+}
+
+spn_dir_list_t spn_sdk_tool_dirs(const spn_sdk_t* sdk) {
+  spn_dir_list_t dirs = sp_zero;
+  switch (sdk->kind) {
+    case SPN_SDK_MSVC: {
+      push_dir(&dirs, sdk->msvc.tools.host);
+      push_dir(&dirs, sdk->msvc.tools.sdk);
+      break;
+    }
+    case SPN_SDK_NONE:
+    case SPN_SDK_SYSROOT:
+    case SPN_SDK_MACOS: {
+      break;
+    }
+  }
+  return dirs;
 }
 
 spn_sdk_t spn_sdk_at(sp_mem_t mem, spn_triple_t target, spn_path_t root) {
@@ -80,8 +173,7 @@ spn_sdk_t spn_sdk_at(sp_mem_t mem, spn_triple_t target, spn_path_t root) {
     case SPN_SDK_SYSROOT: return (spn_sdk_t) { .kind = SPN_SDK_SYSROOT, .root = root };
     case SPN_SDK_MACOS: return (spn_sdk_t) { .kind = SPN_SDK_MACOS, .macos = macos_layout(mem, root) };
     case SPN_SDK_MSVC: return (spn_sdk_t) { .kind = SPN_SDK_MSVC, .msvc = msvc_layout(mem, root, target.arch) };
-    case SPN_SDK_NONE:
-    case SPN_SDK_LIBC: sp_unreachable_case();
+    case SPN_SDK_NONE: sp_unreachable_case();
   }
   sp_unreachable_return(sp_zero_struct(spn_sdk_t));
 }
@@ -109,9 +201,6 @@ static spn_sdk_t from_host(const spn_sdk_host_t* host, spn_triple_t target) {
       const spn_sdk_msvc_t* msvc = msvc_for(host, target.arch);
       return msvc ? (spn_sdk_t) { .kind = SPN_SDK_MSVC, .msvc = *msvc } : none;
     }
-    case SPN_SDK_LIBC: {
-      sp_unreachable_case();
-    }
   }
   sp_unreachable_return(none);
 }
@@ -123,7 +212,6 @@ bool spn_sdk_default(const spn_sdk_host_t* sdks, spn_triple_t target, spn_sdk_t*
     case SPN_SDK_SYSROOT:
     case SPN_SDK_MACOS: return true;
     case SPN_SDK_MSVC: return sdk->kind != SPN_SDK_NONE;
-    case SPN_SDK_LIBC: sp_unreachable_case();
   }
   sp_unreachable_return(false);
 }
@@ -135,7 +223,6 @@ bool spn_sdk_served(const spn_sdk_host_t* sdks, spn_triple_t host, spn_triple_t 
     case SPN_SDK_SYSROOT: return spn_triple_equal(target, host);
     case SPN_SDK_MACOS:
     case SPN_SDK_MSVC: return sdk->kind != SPN_SDK_NONE;
-    case SPN_SDK_LIBC: sp_unreachable_case();
   }
   sp_unreachable_return(false);
 }
@@ -201,6 +288,15 @@ spn_wasi_spelling_t spn_sdk_wasi_spelling(const spn_path_roots_t* roots, sp_mem_
   return p1 ? SPN_WASI_SPELLING_WASIP1 : SPN_WASI_SPELLING_WASI;
 }
 
+static sp_hash_t hash_dirs(spn_dir_list_t dirs) {
+  sp_hash_t hash = dirs.count;
+  sp_for(it, dirs.count) {
+    sp_hash_t parts [] = { hash, spn_path_hash(dirs.items[it]) };
+    hash = sp_hash_combine(parts, sp_carr_len(parts));
+  }
+  return hash;
+}
+
 sp_hash_t spn_sdk_hash(const spn_sdk_t* sdk) {
   switch (sdk->kind) {
     case SPN_SDK_NONE: {
@@ -220,25 +316,9 @@ sp_hash_t spn_sdk_hash(const spn_sdk_t* sdk) {
         (sp_hash_t)sdk->msvc.arch,
         sp_hash_bytes(sdk->msvc.version.data, sdk->msvc.version.len, 0),
         spn_path_hash(sdk->msvc.bin),
-        spn_path_hash(sdk->msvc.include.vc),
-        spn_path_hash(sdk->msvc.include.ucrt),
-        spn_path_hash(sdk->msvc.include.um),
-        spn_path_hash(sdk->msvc.include.shared),
-        spn_path_hash(sdk->msvc.lib.vc),
-        spn_path_hash(sdk->msvc.lib.ucrt),
-        spn_path_hash(sdk->msvc.lib.um),
-      };
-      return sp_hash_combine(parts, sp_carr_len(parts));
-    }
-    case SPN_SDK_LIBC: {
-      sp_hash_t parts [] = {
-        (sp_hash_t)sdk->kind,
-        spn_path_hash(sdk->libc.include),
-        spn_path_hash(sdk->libc.sys_include),
-        spn_path_hash(sdk->libc.crt),
-        spn_path_hash(sdk->libc.msvc_lib),
-        spn_path_hash(sdk->libc.kernel32_lib),
-        spn_path_hash(sdk->libc.frameworks),
+        hash_dirs(spn_sdk_tool_dirs(sdk)),
+        hash_dirs(spn_msvc_include_dirs(&sdk->msvc)),
+        hash_dirs(spn_msvc_lib_dirs(&sdk->msvc)),
       };
       return sp_hash_combine(parts, sp_carr_len(parts));
     }
@@ -246,40 +326,39 @@ sp_hash_t spn_sdk_hash(const spn_sdk_t* sdk) {
   sp_unreachable_return(0);
 }
 
-spn_sdk_t spn_sdk_for_driver(spn_cc_cap_set_t caps, spn_sdk_t sdk) {
+bool spn_sdk_libc(spn_cc_cap_set_t caps, const spn_sdk_t* sdk, spn_libc_t* libc) {
   if (!(caps & SPN_CC_CAP_LIBC_FILE)) {
-    return sdk;
+    return false;
   }
-  switch (sdk.kind) {
+  switch (sdk->kind) {
     case SPN_SDK_NONE:
     case SPN_SDK_SYSROOT: {
-      return sdk;
+      return false;
     }
     case SPN_SDK_MACOS: {
-      return (spn_sdk_t) {
-        .kind = SPN_SDK_LIBC,
-        .libc = {
-          .include = sdk.macos.include,
-          .sys_include = sdk.macos.include,
-          .frameworks = sdk.macos.frameworks,
-        },
+      *libc = (spn_libc_t) {
+        .include = sdk->macos.include,
+        .sys_include = sdk->macos.include,
+        .frameworks = sdk->macos.frameworks,
       };
+      return true;
     }
     case SPN_SDK_MSVC: {
-      return (spn_sdk_t) {
-        .kind = SPN_SDK_LIBC,
-        .libc = {
-          .include = sdk.msvc.include.ucrt,
-          .sys_include = sdk.msvc.include.vc,
-          .crt = sdk.msvc.lib.ucrt,
-          .msvc_lib = sdk.msvc.lib.vc,
-          .kernel32_lib = sdk.msvc.lib.um,
-        },
+      const spn_sdk_msvc_t* msvc = &sdk->msvc;
+      *libc = (spn_libc_t) {
+        .include = msvc->include.ucrt,
+        .sys_include = msvc->include.vc,
+        .crt = msvc->lib.ucrt,
+        .msvc_lib = msvc->lib.vc,
+        .kernel32_lib = msvc->lib.um,
       };
-    }
-    case SPN_SDK_LIBC: {
-      sp_unreachable_case();
+      push_dir(&libc->search.include, msvc->include.atlmfc);
+      push_dir(&libc->search.include, msvc->include.vs);
+      push_dir(&libc->search.include, msvc->include.winrt);
+      push_dir(&libc->search.include, msvc->include.cppwinrt);
+      push_dir(&libc->search.lib, msvc->lib.atlmfc);
+      return true;
     }
   }
-  sp_unreachable_return(sp_zero_struct(spn_sdk_t));
+  sp_unreachable_return(false);
 }

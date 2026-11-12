@@ -59,6 +59,16 @@ static const test_t tests [] = {
       { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
     },
   },
+  {
+    .name = "atl",
+    .project = "test/integration/fixtures/platform/atl",
+    .copy = { "main.cpp" },
+    .when = { .driver = SPN_CC_DRIVER_MSVC, .cxx = true },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
+    },
+  },
 };
 
 sp_test_each(platform, cases, test_t, tests) {

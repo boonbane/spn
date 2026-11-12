@@ -124,9 +124,6 @@ static spn_sdk_t fixture_sdk(sp_mem_t mem, fixture_sdk_t sdk) {
       msvc.msvc.version = sp_cstr_as_str(sdk.version);
       return msvc;
     }
-    case SPN_SDK_LIBC: {
-      sp_unreachable_case();
-    }
   }
   sp_unreachable_return(sp_zero_struct(spn_sdk_t));
 }
@@ -159,9 +156,6 @@ static sp_err_t fixture_check_sdk(sp_test_t* t, spn_sdk_t sdk, fixture_sdk_expec
     }
     case SPN_SDK_MSVC: {
       return test_check_path(t, sdk.msvc.lib.vc, expect.vc);
-    }
-    case SPN_SDK_LIBC: {
-      sp_unreachable_case();
     }
   }
   sp_unreachable_return(SP_ERR);

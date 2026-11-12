@@ -5,6 +5,7 @@
 #include "enum/enum.h"
 #include "spn/core.h"
 #include "toolchain/linker.h"
+#include "toolchain/sdk.h"
 #include "toolchain/toolchain.h"
 #include "macro/macro.h"
 #include "paths/paths.h"
@@ -145,10 +146,14 @@ void spn_gnu_render_flags(sp_mem_t mem, const spn_cc_t* toolchain, const spn_pro
   }
 }
 
-static void add_sdk_compile(sp_mem_t mem, const spn_sdk_t* sdk, spn_invocation_t* invocation) {
+static void add_sdk_compile(sp_mem_t mem, const spn_profile_info_t* profile, spn_invocation_t* invocation) {
+  if (profile->libc.some) {
+    spn_cc_push_search(mem, invocation, "-isystem", profile->libc.value.search.include);
+    return;
+  }
+  const spn_sdk_t* sdk = &profile->sdk;
   switch (sdk->kind) {
-    case SPN_SDK_NONE:
-    case SPN_SDK_LIBC: {
+    case SPN_SDK_NONE: {
       break;
     }
     case SPN_SDK_SYSROOT: {
@@ -162,20 +167,23 @@ static void add_sdk_compile(sp_mem_t mem, const spn_sdk_t* sdk, spn_invocation_t
     }
     case SPN_SDK_MSVC: {
       spn_cc_push_c(mem, invocation, "-nostdlibinc");
-      spn_cc_push_c(mem, invocation, "-isystem");
-      spn_cc_push_path(mem, invocation, sdk->msvc.include.vc);
-      spn_cc_push_c(mem, invocation, "-isystem");
-      spn_cc_push_path(mem, invocation, sdk->msvc.include.ucrt);
-      spn_cc_push_c(mem, invocation, "-isystem");
-      spn_cc_push_path(mem, invocation, sdk->msvc.include.um);
-      spn_cc_push_c(mem, invocation, "-isystem");
-      spn_cc_push_path(mem, invocation, sdk->msvc.include.shared);
+      spn_cc_push_search(mem, invocation, "-isystem", spn_msvc_include_dirs(&sdk->msvc));
       break;
     }
   }
 }
 
-static void add_sdk_link(sp_mem_t mem, const spn_sdk_t* sdk, spn_invocation_t* base, spn_invocation_t* tail) {
+static void add_sdk_link(sp_mem_t mem, const spn_profile_info_t* profile, spn_invocation_t* base, spn_invocation_t* tail) {
+  if (profile->libc.some) {
+    const spn_libc_t* libc = &profile->libc.value;
+    spn_cc_push_search(mem, tail, "-L", libc->search.lib);
+    if (!spn_path_empty(libc->frameworks)) {
+      spn_cc_push_c(mem, tail, "-F");
+      spn_cc_push_path(mem, tail, libc->frameworks);
+    }
+    return;
+  }
+  const spn_sdk_t* sdk = &profile->sdk;
   switch (sdk->kind) {
     case SPN_SDK_NONE: {
       break;
@@ -190,15 +198,8 @@ static void add_sdk_link(sp_mem_t mem, const spn_sdk_t* sdk, spn_invocation_t* b
       break;
     }
     case SPN_SDK_MSVC: {
-      spn_path_t libs [] = { sdk->msvc.lib.vc, sdk->msvc.lib.ucrt, sdk->msvc.lib.um };
-      spn_cc_push_env_paths(mem, base, SPN_ENV_LIB, libs, sp_carr_len(libs));
-      break;
-    }
-    case SPN_SDK_LIBC: {
-      if (!spn_path_empty(sdk->libc.frameworks)) {
-        spn_cc_push_c(mem, tail, "-F");
-        spn_cc_push_path(mem, tail, sdk->libc.frameworks);
-      }
+      spn_dir_list_t lib = spn_msvc_lib_dirs(&sdk->msvc);
+      spn_cc_push_env_paths(mem, base, SPN_ENV_LIB, lib.items, lib.count);
       break;
     }
   }
@@ -214,8 +215,7 @@ static void add_cache(sp_mem_t mem, const spn_cc_t* toolchain, spn_invocation_t*
 
 static void add_launcher(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, spn_lang_t lang, spn_invocation_t* invocation) {
   add_cache(mem, toolchain, invocation);
-  spn_toolchain_launcher_t launcher = lang == SPN_LANG_CXX ? toolchain->cxx : toolchain->compiler;
-  sp_assert(!spn_arg_empty(launcher.program));
+  spn_toolchain_launcher_t launcher = spn_cc_launcher(mem, toolchain, profile, lang);
   invocation->program = launcher.program;
   spn_cc_push_strs(mem, invocation, launcher.args);
   if (spn_cc_has(toolchain, SPN_CC_CAP_TARGET_TRIPLE)) {
@@ -263,7 +263,7 @@ spn_cc_compile_plan_t spn_gnu_render_compile(sp_mem_t mem, const spn_cc_t* toolc
   if (compile->pic) {
     spn_cc_push_c(mem, invocation, "-fPIC");
   }
-  add_sdk_compile(mem, &profile->sdk, invocation);
+  add_sdk_compile(mem, profile, invocation);
   if (profile->target.os == SPN_OS_MACOS && is_os_version_present(compile->min_os)) {
     spn_cc_push_fmt(mem, invocation, "-mmacosx-version-min={}.{}", sp_fmt_uint(compile->min_os.major), sp_fmt_uint(compile->min_os.minor));
   }
@@ -520,7 +520,7 @@ spn_cc_link_plan_t spn_gnu_render_link(sp_mem_t mem, const spn_cc_t* toolchain, 
   si_da_for(link->system_libs, it) {
     spn_cc_push_fmt(mem, &tail, "-l{}", sp_fmt_str(link->system_libs[it]));
   }
-  add_sdk_link(mem, &profile->sdk, base, &tail);
+  add_sdk_link(mem, profile, base, &tail);
   if (profile->target.os == SPN_OS_MACOS) {
     if (is_os_version_present(link->min_os)) {
       spn_cc_push_fmt(mem, &tail, "-mmacosx-version-min={}.{}", sp_fmt_uint(link->min_os.major), sp_fmt_uint(link->min_os.minor));

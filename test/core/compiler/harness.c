@@ -37,6 +37,14 @@ spn_profile_info_t test_profile(test_profile_t desc) {
     sp_assert(profile.sdk.kind == SPN_SDK_MSVC);
     profile.sdk.msvc.bin = test_arg_path(desc.bin);
   }
+  if (desc.tools) {
+    sp_assert(profile.sdk.kind == SPN_SDK_MSVC);
+    profile.sdk.msvc.tools.sdk = test_arg_path(desc.tools);
+  }
+  if (desc.atl) {
+    sp_assert(profile.sdk.kind == SPN_SDK_MSVC);
+    profile.sdk.msvc.lib.atlmfc = test_arg_path(desc.atl);
+  }
   return profile;
 }
 
@@ -47,6 +55,7 @@ spn_cc_t test_toolchain(spn_cc_driver_t driver) {
     .compiler = { .program = spn_arg_lit(sp_str_lit("cc")) },
     .cxx = { .program = spn_arg_lit(sp_str_lit("c++")) },
     .archiver = { .program = spn_arg_lit(sp_str_lit("ar")) },
+    .archiver_driver = driver == SPN_CC_DRIVER_MSVC ? SPN_AR_DRIVER_MSVC : SPN_AR_DRIVER_GNU,
   };
 }
 

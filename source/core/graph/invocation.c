@@ -58,10 +58,14 @@ sp_str_t spn_invocation_to_str(const spn_path_roots_t* roots, sp_mem_t mem, cons
   return command;
 }
 
-static sp_env_var_t path_var(sp_mem_t mem, sp_str_t program) {
+static sp_env_var_t path_var(const spn_path_roots_t* roots, sp_mem_t mem, const spn_invocation_t* invocation, sp_str_t program) {
   sp_assert(sp_fs_is_absolute(program));
   spn_search_rules_t rules = spn_search_rules(spn.host.os);
   sp_str_t path = sp_env_get(spn.env, sp_str_lit("PATH"));
+  sp_for(it, invocation->path.count) {
+    spn_path_t dir = invocation->path.items[invocation->path.count - it - 1];
+    path = spn_search_prepend(rules, mem, spn_path_str(roots, mem, dir), path);
+  }
   return (sp_env_var_t) {
     .key = sp_str_lit("PATH"),
     .value = spn_search_prepend(rules, mem, sp_fs_parent_path(program), path),
@@ -91,7 +95,7 @@ static sp_ps_config_t invocation_ps(const spn_path_roots_t* roots, const spn_inv
   sp_da_for(invocation->env, it) {
     ps_env_push(&ps, spn_invocation_env_var(roots, mem, invocation->env[it]));
   }
-  ps_env_push(&ps, path_var(mem, ps.command));
+  ps_env_push(&ps, path_var(roots, mem, invocation, ps.command));
   return ps;
 }
 

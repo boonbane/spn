@@ -117,6 +117,10 @@ static void hash_invocation(spn_digest_ctx_t* digest, const spn_path_roots_t* ro
     spn_dag_hash_u64(digest, base->env[et].key);
     spn_dag_hash_args(digest, roots, base->env[et].values);
   }
+  spn_dag_hash_u64(digest, base->path.count);
+  sp_for(it, base->path.count) {
+    spn_dag_hash_path(digest, roots, base->path.items[it]);
+  }
 }
 
 static spn_dag_digest_t hash_compile(const spn_path_roots_t* roots, const spn_compile_unit_t* unit) {
@@ -552,37 +556,28 @@ spn_err_t spn_dag_build_lower(spn_dag_build_t* b, const spn_build_plan_t* plan) 
     spn_build_unit_t* build = target->pkg->build;
     if (!sp_ht_getp(b->ids.builds, build)) {
       spn_dag_id_t libc = sp_zero;
-      switch (build->profile.sdk.kind) {
-        case SPN_SDK_NONE:
-        case SPN_SDK_SYSROOT:
-        case SPN_SDK_MACOS:
-        case SPN_SDK_MSVC: {
-          break;
-        }
-        case SPN_SDK_LIBC: {
-          spn_libc_t* paths = &build->profile.sdk.libc;
+      if (build->profile.libc.some) {
+        spn_libc_t* paths = &build->profile.libc.value;
 
-          spn_digest_ctx_t digest = sp_zero;
-          spn_digest_init(&digest);
-          spn_dag_hash_str(&digest, sp_str_lit("spn.build.libc.v3"));
-          spn_dag_hash_path(&digest, g->roots, paths->include);
-          spn_dag_hash_path(&digest, g->roots, paths->sys_include);
-          spn_dag_hash_path(&digest, g->roots, paths->crt);
-          spn_dag_hash_path(&digest, g->roots, paths->msvc_lib);
-          spn_dag_hash_path(&digest, g->roots, paths->kernel32_lib);
+        spn_digest_ctx_t digest = sp_zero;
+        spn_digest_init(&digest);
+        spn_dag_hash_str(&digest, sp_str_lit("spn.build.libc.v3"));
+        spn_dag_hash_path(&digest, g->roots, paths->include);
+        spn_dag_hash_path(&digest, g->roots, paths->sys_include);
+        spn_dag_hash_path(&digest, g->roots, paths->crt);
+        spn_dag_hash_path(&digest, g->roots, paths->msvc_lib);
+        spn_dag_hash_path(&digest, g->roots, paths->kernel32_lib);
 
-          si_libc_t* ctx = sp_alloc_type(b->mem, si_libc_t);
-          *ctx = (si_libc_t) { .libc = paths };
-          spn_dag_id_t action = spn_dag_add_action(g, (spn_dag_action_config_t) {
-            .identity = spn_dag_hash_final(&digest),
-            .execute = si_on_write_libc,
-            .user_data = ctx,
-          });
-          libc = spn_dag_add_output(g, sp_str_lit("libc.txt"));
-          ctx->output = libc;
-          spn_try(spn_dag_action_add_output(g, action, libc));
-          break;
-        }
+        si_libc_t* ctx = sp_alloc_type(b->mem, si_libc_t);
+        *ctx = (si_libc_t) { .libc = paths };
+        spn_dag_id_t action = spn_dag_add_action(g, (spn_dag_action_config_t) {
+          .identity = spn_dag_hash_final(&digest),
+          .execute = si_on_write_libc,
+          .user_data = ctx,
+        });
+        libc = spn_dag_add_output(g, sp_str_lit("libc.txt"));
+        ctx->output = libc;
+        spn_try(spn_dag_action_add_output(g, action, libc));
       }
       sp_ht_insert(b->ids.builds, build, libc);
     }
