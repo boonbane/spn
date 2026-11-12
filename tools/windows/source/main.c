@@ -268,6 +268,7 @@ static step_t build_one(app_t* app, const winvm_variant_t* variant) {
 
   winvm_destroy(vm, variant);
   winvm_undefine(vm, variant);
+  sp_fs_remove_file(winvm_work(vm, variant));
   sp_str_t image = winvm_image(vm, variant);
   if (winvm_overlay(vm, vm->paths.golden, image)) {
     return failed(app, cfmt(mem, "failed to create overlay {.cyan}", sp_fmt_str(image)));
