@@ -1384,6 +1384,11 @@ static const test_t tests [] = {
     .issues = { { SPN_ERR_CODEGEN_PATH, "stage.copy[0].to" } },
   },
   {
+    .name = "validate_stage_to_backslash",
+    .manifest = "validate_stage_to_backslash",
+    .issues = { { SPN_ERR_CODEGEN_PATH, "stage.copy[0].to" } },
+  },
+  {
     .name = "validate_publish_tree_work",
     .manifest = "validate_publish_tree_work",
     .issues = {

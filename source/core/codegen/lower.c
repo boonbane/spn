@@ -53,7 +53,7 @@ static spn_cxx_options_t lower_cxx_options(const spn_cg_cxx_options_t* cg) {
 }
 
 static bool lower_path_ok(spn_toml_loader_t* ctx, sp_str_t path) {
-  if (sp_str_empty(path) || !spn_path_normal(path)) {
+  if (sp_str_empty(path) || !spn_path_normal(path) || sp_str_contains(path, sp_str_lit("\\"))) {
     spn_toml_loader_issue_at(ctx, SPN_ERR_CODEGEN_PATH, path);
     return false;
   }

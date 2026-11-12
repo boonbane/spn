@@ -521,6 +521,7 @@ static const command_test_t rejections [] = {
   { .name = "node_output_escape", .project = "test/integration/fixtures/script/node_output_escape", .args = { "build" } },
   { .name = "node_output_absolute", .project = "test/integration/fixtures/script/node_output_absolute", .args = { "build" } },
   { .name = "node_output_drive", .project = "test/integration/fixtures/script/node_output_drive", .args = { "build" } },
+  { .name = "node_output_backslash", .project = "test/integration/fixtures/script/node_output_backslash", .args = { "build" } },
   { .name = "fmt_missing_arg", .project = "test/integration/fixtures/script/fmt_missing_arg", .args = { "build" } },
   { .name = "fmt_bad_placeholder", .project = "test/integration/fixtures/script/fmt_bad_placeholder", .args = { "build" } },
   { .name = "fmt_null_passed_on", .project = "test/integration/fixtures/script/fmt_null_passed_on", .args = { "build" } },

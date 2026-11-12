@@ -1,0 +1,6 @@
+[package]
+name = "t"
+version = "0.0.1"
+
+[stage]
+copy = [{ from = "G.txt", to = "..\\G.txt" }]

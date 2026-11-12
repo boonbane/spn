@@ -152,7 +152,7 @@ static void write_issue(sp_tty_t* w, const spn_toml_issue_t* issue) {
       sp_tty_fmt(w, "Field {.cyan} is only allowed in the root manifest", SP_FMT_STR(field));
       break;
     case SPN_ERR_CODEGEN_PATH:
-      sp_tty_fmt(w, "Path {.red} at {.cyan} has a '.', '..', or empty component", SP_FMT_STR(issue->detail), SP_FMT_STR(field));
+      sp_tty_fmt(w, "Path {.red} at {.cyan} has a '.', '..', or empty component, or a backslash", SP_FMT_STR(issue->detail), SP_FMT_STR(field));
       break;
     case SPN_ERR_CODEGEN_UNROOTED:
       sp_tty_fmt(w, "Relative path {.red} at {.cyan} has no base directory; use an absolute path", SP_FMT_STR(issue->detail), SP_FMT_STR(field));
@@ -1321,7 +1321,7 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           break;
         }
         case SPN_ERR_PATH_NOT_NORMAL: {
-          sp_tty_fmt(&w, "Build script {.cyan} used a path that is absolute, or has '.', '..', or empty components, or a component that is a drive letter or starts with a backslash; a path is relative to its root", sp_fmt_str(contextual_path(mem, event->err.wasm.path)));
+          sp_tty_fmt(&w, "Build script {.cyan} used a path that is absolute, contains a backslash, or has '.', '..', or empty components, or a component that is a drive letter; a path is relative to its root", sp_fmt_str(contextual_path(mem, event->err.wasm.path)));
           break;
         }
         case SPN_ERR_PATH_NOT_MOUNTED: {
