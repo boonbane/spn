@@ -8,4 +8,4 @@ source = ["tools/configure.c"]
 [[lib]]
 name = "gamma"
 kinds = ["source"]
-publish.include = [{ from = "source/gamma.h" }]
+publish.include = [{ from = "gamma.h" }]

@@ -4,6 +4,6 @@ version = "1.0.0"
 
 [package.publish]
 include = [
-  { from = "source/a.h" },
-  { from = "source/b.h", to = "b", when = { os = "windows" } },
+  { from = "a.h" },
+  { from = "b.h", to = "b", when = { os = "windows" } },
 ]

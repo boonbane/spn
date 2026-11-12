@@ -9,4 +9,4 @@ P = { version = "1.0.0", private = true }
 name = "S"
 kinds = ["shared"]
 source = ["S.c"]
-publish.include = [{ from = "source/S.h" }]
+publish.include = [{ from = "S.h" }]

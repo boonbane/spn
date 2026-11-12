@@ -115,29 +115,24 @@ static void lower_publish_root(spn_toml_loader_t* ctx, sp_da(spn_cg_publish_entr
   spn_toml_loader_push_key(ctx, key);
   sp_da_for(entries, it) {
     const spn_cg_publish_entry_t* entry = &entries[it];
+    spn_tree_t tree = sp_opt_is_null(entry->tree) ? SPN_TREE_SOURCE : sp_opt_get(entry->tree);
     spn_toml_loader_push_index(ctx, it);
     spn_toml_loader_push_key(ctx, "from");
-    sp_str_pair_t split = sp_str_cleave_c8(entry->from, '/');
-    spn_tree_t tree = spn_tree_from_str(split.first);
     bool ok = lower_path_ok(ctx, entry->from);
-    if (ok && (tree == SPN_TREE_NONE || tree == SPN_TREE_WORK)) {
-      spn_toml_loader_issue_at(ctx, SPN_ERR_CODEGEN_INVALID, entry->from);
-      ok = false;
-    }
-    if (ok && sp_str_empty(split.second)) {
-      spn_toml_loader_issue_at(ctx, SPN_ERR_CODEGEN_PATH, entry->from);
-      ok = false;
-    }
     if (ok) {
       // @spader This is stupid but I need to fix sp_glob.h
       sp_mem_arena_marker_t s = sp_mem_begin_scratch();
-      ok = sp_glob_new_str(s.mem, split.second) != SP_NULLPTR;
+      ok = sp_glob_new_str(s.mem, entry->from) != SP_NULLPTR;
       sp_mem_end_scratch(s);
       if (!ok) {
         spn_toml_loader_issue_at(ctx, SPN_ERR_CODEGEN_INVALID, entry->from);
       }
     }
     spn_toml_loader_pop(ctx);
+    if (tree == SPN_TREE_NONE || tree == SPN_TREE_WORK) {
+      spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "tree");
+      ok = false;
+    }
     spn_toml_loader_push_key(ctx, "to");
     if (!sp_str_empty(entry->to)) {
       ok = lower_path_ok(ctx, entry->to) && ok;
@@ -148,8 +143,8 @@ static void lower_publish_root(spn_toml_loader_t* ctx, sp_da(spn_cg_publish_entr
       si_da_push(ctx->mem, *publish, ((spn_gated_publish_t) {
         .root = root,
         .source = {
-          .kind = sp_glob_parse_meta(split.second).literal ? SPN_SOURCE_FILE : SPN_SOURCE_GLOB,
-          .path = split.second,
+          .kind = sp_glob_parse_meta(entry->from).literal ? SPN_SOURCE_FILE : SPN_SOURCE_GLOB,
+          .path = entry->from,
           .tree = tree,
           .when = entry->when,
         },

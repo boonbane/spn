@@ -107,5 +107,5 @@ flags = [
 
 [package.publish]
 include = [
-  { from = "source/core/iwasm/include/*.h" },
+  { from = "core/iwasm/include/*.h" },
 ]

@@ -10,4 +10,4 @@ system_deps = [
 name = "spum"
 kinds = ["static"]
 source = ["spum.c"]
-publish.include = [{ from = "source/spum.h" }]
+publish.include = [{ from = "spum.h" }]

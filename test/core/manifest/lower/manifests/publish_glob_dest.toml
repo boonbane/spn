@@ -4,5 +4,5 @@ version = "1.0.0"
 
 [package.publish]
 include = [
-  { from = "source/sub/*.h", to = "s" },
+  { from = "sub/*.h", to = "s" },
 ]

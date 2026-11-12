@@ -3,10 +3,10 @@ name = "spum"
 version = "1.0.0"
 
 [package.publish]
-include = [{ from = "source/extra.h" }]
+include = [{ from = "extra.h" }]
 
 [[lib]]
 name = "spum"
 kinds = ["static"]
 source = ["spum.c"]
-publish.include = [{ from = "source/spum.h" }]
+publish.include = [{ from = "spum.h" }]

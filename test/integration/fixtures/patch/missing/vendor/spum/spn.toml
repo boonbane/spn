@@ -9,4 +9,4 @@ commit = "@spum.commit@"
 [[lib]]
 name = "spum"
 kinds = ["source"]
-publish.include = [{ from = "source/spum.h" }]
+publish.include = [{ from = "spum.h" }]

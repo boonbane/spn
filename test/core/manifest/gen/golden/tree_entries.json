@@ -61,13 +61,14 @@
       "publish": {
         "include": [
           {
-            "from": "source/a.h"
+            "from": "a.h"
           },
           {
-            "from": "manifest/m.h"
+            "from": "m.h",
+            "tree": "manifest"
           },
           {
-            "from": "source/w.h",
+            "from": "w.h",
             "when": {
               "os": "linux"
             }

@@ -4,4 +4,4 @@ version = "1.0.0"
 
 [[bin]]
 name = "t"
-publish.include = [{ from = "source/t.h" }]
+publish.include = [{ from = "t.h" }]

@@ -259,6 +259,7 @@ readme: false
 | Field | Type | Required |
 |---|---|---|
 | `from` | `string` | yes |
+| `tree` | `manifest` \| `source` \| `work` | |
 | `to` | `string` | |
 | `when` | [`when`](#extern-types) | |
 

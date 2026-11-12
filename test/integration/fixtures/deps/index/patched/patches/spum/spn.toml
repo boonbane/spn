@@ -5,4 +5,4 @@ version = "1.0.0"
 [[lib]]
 name = "spum"
 kinds = ["source"]
-publish.include = [{ from = "source/kram.h" }]
+publish.include = [{ from = "kram.h" }]

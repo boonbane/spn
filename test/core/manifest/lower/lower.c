@@ -889,7 +889,7 @@ static const test_t tests [] = {
         .name = "t",
         .linkages = { .static_lib = true, .shared = true },
         .source = { { "a.c" }, { "b.c", .tree = SPN_TREE_MANIFEST }, { "c.c", .tree = SPN_TREE_SOURCE } },
-        .publish = { { "a.h", "" }, { "b.h", "", .tree = SPN_TREE_MANIFEST } },
+        .publish = { { "a.h", "" }, { "b.h", "", .tree = SPN_TREE_MANIFEST }, { "c.h", "", .tree = SPN_TREE_SOURCE } },
         .include = { { "inc", .tree = SPN_TREE_MANIFEST } },
         .linker_script = { { "a.ld", .tree = SPN_TREE_MANIFEST } },
       }
@@ -1390,24 +1390,17 @@ static const test_t tests [] = {
     .issues = { { SPN_ERR_CODEGEN_PATH, "stage.copy[0].to" } },
   },
   {
-    .name = "validate_publish_from_tree",
-    .manifest = "validate_publish_from_tree",
+    .name = "validate_publish_tree_work",
+    .manifest = "validate_publish_tree_work",
     .issues = {
-      { SPN_ERR_CODEGEN_INVALID, "package.publish.include[0].from" },
+      { SPN_ERR_CODEGEN_INVALID, "package.publish.include[0].tree" },
     },
   },
   {
-    .name = "validate_publish_from_prefix",
-    .manifest = "validate_publish_from_prefix",
+    .name = "validate_publish_tree_invalid",
+    .manifest = "validate_publish_tree_invalid",
     .issues = {
-      { SPN_ERR_CODEGEN_INVALID, "package.publish.include[0].from" },
-    },
-  },
-  {
-    .name = "validate_publish_from_empty",
-    .manifest = "validate_publish_from_empty",
-    .issues = {
-      { SPN_ERR_CODEGEN_PATH, "package.publish.include[0].from" },
+      { SPN_ERR_CODEGEN_INVALID, "package.publish.include[0].tree" },
     },
   },
   {

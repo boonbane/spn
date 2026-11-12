@@ -4,4 +4,4 @@ version = "1.0.0"
 
 [[bin]]
 name = "t"
-publish.share = [{ from = "source/data/*", to = "d" }]
+publish.share = [{ from = "data/*", to = "d" }]
