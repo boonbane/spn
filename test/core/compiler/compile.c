@@ -152,7 +152,7 @@ static const compile_test_t tests [] = {
     },
     .expect = {
       .command = "cc",
-      .args = { "--target=x86_64-windows-msvc", "-std=c99", "-fms-runtime-lib=static", "-c", "-gno-codeview-command-line", "-Werror=return-type", "main.c", "-Xclang", "-object-file-name=main.o", "-o", "main.o" },
+      .args = { "--target=x86_64-windows-msvc", "-std=c99", "-fms-runtime-lib=static", "-mno-incremental-linker-compatible", "-c", "-gno-codeview-command-line", "-Werror=return-type", "main.c", "-Xclang", "-object-file-name=main.o", "-o", "main.o" },
     },
   },
   {
@@ -444,7 +444,7 @@ static const compile_test_t tests [] = {
     .expect = {
       .command = "cc",
       .args = {
-        "--target=x86_64-windows-msvc", "-std=c99", "-fms-runtime-lib=static", "-c",
+        "--target=x86_64-windows-msvc", "-std=c99", "-fms-runtime-lib=static", "-mno-incremental-linker-compatible", "-c",
         "-nostdlibinc",
         "-isystem/X/crt/include",
         "-isystem/X/sdk/include/ucrt",
@@ -468,7 +468,7 @@ static const compile_test_t tests [] = {
     .libc = "/L",
     .expect = {
       .command = "cc",
-      .args = { "--target=x86_64-windows-msvc", "-std=c99", "-fms-runtime-lib=static", "-c", "-isystem/X/sdk/include/winrt", "-isystem/X/sdk/include/cppwinrt", "-gno-codeview-command-line", "-Werror=return-type", "main.c", "-Xclang", "-object-file-name=main.o", "-o", "main.o" },
+      .args = { "--target=x86_64-windows-msvc", "-std=c99", "-fms-runtime-lib=static", "-mno-incremental-linker-compatible", "-c", "-isystem/X/sdk/include/winrt", "-isystem/X/sdk/include/cppwinrt", "-gno-codeview-command-line", "-Werror=return-type", "main.c", "-Xclang", "-object-file-name=main.o", "-o", "main.o" },
       .env = { "ZIG_LIBC=/L" },
     },
   },

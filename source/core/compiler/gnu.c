@@ -115,6 +115,7 @@ void spn_gnu_render_flags(sp_mem_t mem, const spn_cc_t* toolchain, const spn_pro
     sp_str_t crt = ms_runtime_flag(profile->linking.runtime);
     sp_da_push(flags->compile, crt);
     sp_da_push(flags->link, crt);
+    sp_da_push(flags->compile, sp_str_lit("-mno-incremental-linker-compatible"));
   }
   if (profile->mode == SPN_MODE_DEBUG) {
     sp_da_push(flags->compile, sp_str_lit("-g"));
