@@ -35,7 +35,7 @@ static {{ .ret_type }} spn_abi_thunk_{{ .short }}(wasm_exec_env_t env{{ for .arg
 {{ end }}
 {{ end }}
 {{ if .r_err }}
-  spn_try({{ .host }}({{ .call }}));
+  spn_try({{ .name }}({{ .call }}));
 {{ for .args }}
 {{ if .out }}
   sp_mem_copy(a{{ .i }}, &o{{ .i }}, sizeof(o{{ .i }}));
@@ -44,10 +44,10 @@ static {{ .ret_type }} spn_abi_thunk_{{ .short }}(wasm_exec_env_t env{{ for .arg
   return SPN_OK;
 {{ end }}
 {{ if .r_str }}
-  return spn_wasm_copy_str(&abi, {{ .host }}({{ .call }}));
+  return spn_wasm_copy_str(&abi, {{ .name }}({{ .call }}));
 {{ end }}
 {{ if .r_handle }}
-  void* result = (void*)({{ .host }}({{ .call }}));
+  void* result = (void*)({{ .name }}({{ .call }}));
   if (!result) return 0;
   return spn_wasm_add_handle(abi.handles, result, {{ .ret_kind }});
 {{ end }}

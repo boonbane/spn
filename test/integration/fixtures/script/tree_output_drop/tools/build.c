@@ -2,15 +2,15 @@
 
 #include <dirent.h>
 #include <stdio.h>
+#include <sys/stat.h>
 
 SPN_EXPORT
 s32 gen(spn_t* spn) {
-  spn_root_t work = 0;
-  spn_try(spn_get_root_work(spn, &work));
   DIR* dir = opendir("/source/H");
   if (!dir) {
     return 1;
   }
+  mkdir("/work/gen/G", 0755);
   for (struct dirent* entry = readdir(dir); entry; entry = readdir(dir)) {
     if (entry->d_name[0] == '.') {
       continue;
@@ -23,7 +23,13 @@ s32 gen(spn_t* spn) {
     c8 content [64] = { 0 };
     fread(content, 1, sizeof(content) - 1, file);
     fclose(file);
-    spn_io_write(work, spn_fmt("gen/G/{}", entry->d_name), content);
+    file = fopen(spn_fmt("/work/gen/G/{}", entry->d_name), "w");
+    if (!file) {
+      closedir(dir);
+      return 1;
+    }
+    fputs(content, file);
+    fclose(file);
   }
   closedir(dir);
   return 0;

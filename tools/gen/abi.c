@@ -94,18 +94,6 @@ static bool parse_export(abi_t* abi, yyjson_val* val) {
       }
       export.name = abi_str(abi, v);
     }
-    else if (sp_str_equal_cstr(key, "host")) {
-      if (!yyjson_is_str(v)) {
-        return abi_fail(abi, export.name, "host must be a string");
-      }
-      export.host = abi_str(abi, v);
-    }
-    else if (sp_str_equal_cstr(key, "wasm_ctx")) {
-      if (!yyjson_is_bool(v)) {
-        return abi_fail(abi, export.name, "wasm_ctx must be a boolean");
-      }
-      export.wasm_ctx = yyjson_get_bool(v);
-    }
     else if (sp_str_equal_cstr(key, "ret")) {
       ret = v;
     }
@@ -247,12 +235,9 @@ static const c8* arg_prefix(abi_val_t val) {
 static sp_str_t export_call(abi_t* abi, abi_export_t* export) {
   sp_io_dyn_mem_writer_t w = sp_zero;
   sp_io_dyn_mem_writer_init(abi->mem, &w);
-  if (export->wasm_ctx) {
-    sp_fmt_io(&w.base, "&abi");
-  }
   sp_da_for(export->args, it) {
     sp_fmt_io(&w.base, "{}{}{}",
-      sp_fmt_cstr((it || export->wasm_ctx) ? ", " : ""),
+      sp_fmt_cstr(it ? ", " : ""),
       sp_fmt_cstr(arg_prefix(export->args[it])),
       sp_fmt_uint(it));
   }
@@ -283,7 +268,6 @@ static void bind_export(abi_t* abi, sp_template_scope_t* scope, abi_export_t* ex
   sp_template_set(scope, sp_str_lit("name"), export->name);
   sp_template_set(scope, sp_str_lit("short"), sp_str_strip_left(export->name, sp_str_lit("spn_")));
   sp_template_set(scope, sp_str_lit("sig"), export_sig(abi, export));
-  sp_template_set(scope, sp_str_lit("host"), sp_str_empty(export->host) ? export->name : export->host);
   sp_template_set(scope, sp_str_lit("call"), export_call(abi, export));
   sp_template_set(scope, sp_str_lit("ret_type"), sp_cstr_as_str(ret->type));
   sp_template_set(scope, sp_str_lit("fail"), sp_cstr_as_str(ret->fail));

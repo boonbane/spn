@@ -4,22 +4,28 @@
 
 SPN_EXPORT
 s32 gen_p(spn_t* spn) {
-  spn_root_t work = 0;
-  spn_try(spn_get_root_work(spn, &work));
-  spn_io_write(work, "P.txt", "P");
+  FILE* file = fopen("/work/P.txt", "w");
+  if (!file) {
+    return 1;
+  }
+  fputs("P", file);
+  fclose(file);
   return 0;
 }
 
 SPN_EXPORT
 s32 check_p(spn_t* spn) {
-  spn_root_t work = 0;
-  spn_try(spn_get_root_work(spn, &work));
   FILE* file = fopen("/work/P.txt", "r");
   if (!file) {
     return 1;
   }
   fclose(file);
-  spn_io_write(work, "S.txt", "S");
+  file = fopen("/work/S.txt", "w");
+  if (!file) {
+    return 1;
+  }
+  fputs("S", file);
+  fclose(file);
   return 0;
 }
 
@@ -27,13 +33,16 @@ s32 check_p(spn_t* spn) {
 // run alongside P and find no S.txt
 SPN_EXPORT
 s32 gen_g(spn_t* spn) {
-  spn_root_t work = 0;
-  spn_try(spn_get_root_work(spn, &work));
   FILE* witness = fopen("/work/S.txt", "r");
   if (!witness) {
     return 1;
   }
   fclose(witness);
-  spn_io_write(work, "G.h", "#define G 1\n");
+  FILE* file = fopen("/work/G.h", "w");
+  if (!file) {
+    return 1;
+  }
+  fputs("#define G 1\n", file);
+  fclose(file);
   return 0;
 }

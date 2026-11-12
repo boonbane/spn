@@ -29,7 +29,6 @@ spn_err_t     spn_get_root_manifest(spn_t* spn, spn_root_t* root);
 spn_err_t     spn_get_root_source(spn_t* spn, spn_root_t* root);
 spn_err_t     spn_get_root_work(spn_t* spn, spn_root_t* root);
 
-spn_err_t     spn_io_write(spn_root_t root, const c8* sub, const c8* contents);
 const c8*     spn_fmt_ex(const c8* fmt, const c8* a0, const c8* a1, const c8* a2, const c8* a3);
 
 #define spn_fmt_select(fmt, a0, a1, a2, a3, ...) spn_fmt_ex(fmt, a0, a1, a2, a3)

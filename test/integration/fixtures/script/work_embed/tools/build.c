@@ -1,9 +1,14 @@
 #include "spn.h"
 
+#include <stdio.h>
+
 SPN_EXPORT
 s32 gen(spn_t* spn) {
-  spn_root_t work = 0;
-  spn_try(spn_get_root_work(spn, &work));
-  spn_io_write(work, "G.txt", "G");
+  FILE* file = fopen("/work/G.txt", "w");
+  if (!file) {
+    return 1;
+  }
+  fputs("G", file);
+  fclose(file);
   return 0;
 }

@@ -1325,7 +1325,7 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           break;
         }
         case SPN_ERR_PATH_NOT_MOUNTED: {
-          sp_tty_fmt(&w, "Build script {.cyan} used a root that is not mounted; the roots are the three that {.yellow} hands out, and only a node function can write under one", sp_fmt_str(contextual_path(mem, event->err.wasm.path)), sp_fmt_cstr("spn_get_root_*"));
+          sp_tty_fmt(&w, "Build script {.cyan} used a root that is not mounted; the roots are the three that {.yellow} hands out", sp_fmt_str(contextual_path(mem, event->err.wasm.path)), sp_fmt_cstr("spn_get_root_*"));
           break;
         }
         case SPN_ERR_OUTPUT_OUTSIDE: {

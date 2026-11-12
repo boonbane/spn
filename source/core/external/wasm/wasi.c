@@ -257,10 +257,6 @@ void spn_wasi_bind(spn_wasi_t* w, wasm_module_inst_t instance) {
   wasm_runtime_set_custom_data(instance, w);
 }
 
-static spn_wasi_t* wasi_of(wasm_module_inst_t instance) {
-  return (spn_wasi_t*)wasm_runtime_get_custom_data(instance);
-}
-
 spn_err_t spn_wasi_find_mount(const spn_wasi_mount_t* mounts, u32 count, spn_root_t root, sp_str_t sub, const spn_wasi_mount_t** mount) {
   if (!spn_path_normal(sub) || sp_fs_is_absolute_for(sub, SP_FS_PATH_WINDOWS)) {
     return SPN_ERR_PATH_NOT_NORMAL;
@@ -272,24 +268,6 @@ spn_err_t spn_wasi_find_mount(const spn_wasi_mount_t* mounts, u32 count, spn_roo
     }
   }
   return SPN_ERR_PATH_NOT_MOUNTED;
-}
-
-spn_err_t spn_wasi_resolve(wasm_module_inst_t instance, sp_mem_t mem, spn_root_t root, sp_str_t sub, spn_path_t* host) {
-  spn_wasi_t* w = wasi_of(instance);
-  const spn_wasi_mount_t* mount = SP_NULLPTR;
-  spn_try(spn_wasi_find_mount(w->mounts, sp_da_size(w->mounts), root, sub, &mount));
-  *host = spn_path_join(mem, mount->host, sub);
-  return SPN_OK;
-}
-
-void spn_wasi_observe_write(wasm_module_inst_t instance, spn_path_t host) {
-  spn_wasi_t* w = wasi_of(instance);
-  if (!w) {
-    return;
-  }
-  sp_mem_arena_marker_t s = sp_mem_begin_scratch();
-  wasi_record_write(w, spn_path_canonicalize_head(s.mem, w->roots, host));
-  sp_mem_end_scratch(s);
 }
 
 bool spn_wasi_stray_write(spn_wasi_t* w, spn_path_t* path) {

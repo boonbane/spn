@@ -4,23 +4,23 @@
 
 SPN_EXPORT
 s32 generate(spn_t* spn) {
-  spn_root_t work = 0;
-  spn_try(spn_get_root_work(spn, &work));
   spn_log(spn, "generating fibonacci.c");
 
-  char body [512] = { 0 };
-  int offset = snprintf(body, sizeof(body), "int fibonacci [] = {");
+  FILE* file = fopen("/work/generated/fibonacci.c", "w");
+  if (!file) {
+    return 1;
+  }
+  fprintf(file, "int fibonacci [] = {");
   int a = 0;
   int b = 1;
   for (int i = 0; i < 16; i++) {
-    offset += snprintf(body + offset, sizeof(body) - offset, "%s %d", i ? "," : "", a);
+    fprintf(file, "%s %d", i ? "," : "", a);
     int next = a + b;
     a = b;
     b = next;
   }
-  snprintf(body + offset, sizeof(body) - offset, " };\n");
-
-  spn_io_write(work, "generated/fibonacci.c", body);
+  fprintf(file, " };\n");
+  fclose(file);
   return 0;
 }
 

@@ -42,6 +42,17 @@ spn_err_t si_on_user_node(const si_dag_ctx_t* c, void* user_data) {
       });
       return SPN_ERR_DAG_ACTION;
     }
+    if (sp_fs_create_parent_at(declared)) {
+      spn_event_buffer_push(spn.events, (spn_event_t) {
+        .kind = SPN_EVENT_NODE_FAILED,
+        .pkg = unit->pkg.manifest->name.str,
+        .node_failed = {
+          .path = spn_path_str(roots, spn.events->mem, spn_path_parent(out->path)),
+          .message = sp_fmt(spn.events->mem, "could not be created before node {} ran", sp_fmt_str(node->tag)).value,
+        },
+      });
+      return SPN_ERR_DAG_ACTION;
+    }
   }
 
   if (ctx->script.occupied) {

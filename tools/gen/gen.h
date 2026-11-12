@@ -135,8 +135,6 @@ typedef struct {
 
 typedef struct {
   sp_str_t name;
-  sp_str_t host;
-  bool wasm_ctx;
   abi_val_t ret;
   sp_da(abi_val_t) args;
 } abi_export_t;

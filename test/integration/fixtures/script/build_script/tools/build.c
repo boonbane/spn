@@ -2,6 +2,8 @@
 #include "local.h"
 #include "probe.h"
 
+#include <stdio.h>
+
 #ifndef LOCAL_VALUE
 #error "local.h from [package.build] include was not on the include path"
 #endif
@@ -11,8 +13,11 @@
 #endif
 
 SPN_EXPORT s32 gen_version(spn_t* spn) {
-  spn_root_t work = 0;
-  spn_try(spn_get_root_work(spn, &work));
-  spn_io_write(work, "version.h", "#define BUILD_SCRIPT_VERSION 69\n");
+  FILE* file = fopen("/work/version.h", "w");
+  if (!file) {
+    return 1;
+  }
+  fputs("#define BUILD_SCRIPT_VERSION 69\n", file);
+  fclose(file);
   return 0;
 }
