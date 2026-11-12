@@ -1,9 +1,0 @@
-[package]
-name = "t"
-version = "0.0.1"
-
-[stage]
-copy = [
-  { from = "G.txt", tree = "source", to = "gen/G.txt" },
-  { from = "H.txt", tree = "manifest", to = "gen/H.txt" },
-]

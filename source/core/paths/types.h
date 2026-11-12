@@ -34,7 +34,6 @@ typedef struct {
   spn_path_t recipe;
   spn_path_t source;
   spn_path_t work;
-  spn_path_t store;
 } spn_tree_roots_t;
 
 typedef struct {

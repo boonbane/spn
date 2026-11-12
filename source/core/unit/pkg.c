@@ -83,12 +83,10 @@ spn_err_t si_add_package_unit(spn_units_t* u, spn_build_unit_t* build, const spn
   unit->paths.share = spn_path_join(mem, unit->paths.store, SP_LIT("share"));
   unit->paths.bin = spn_path_join(mem, unit->paths.store, SP_LIT("bin"));
   unit->paths.lib = spn_path_join(mem, unit->paths.store, SP_LIT("lib"));
-  unit->paths.vendor = spn_path_join(mem, unit->paths.store, SP_LIT("vendor"));
   unit->paths.roots = (spn_tree_roots_t) {
     .recipe = resolved->roots.recipe,
     .source = resolved->roots.source,
     .work = unit->paths.work,
-    .store = unit->paths.store,
   };
   unit->pkg = evaluate(u, build, resolved, unit->paths.roots);
   si_da_for_ptr(unit->pkg.publish, entry) {

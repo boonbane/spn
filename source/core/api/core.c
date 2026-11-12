@@ -32,33 +32,18 @@ spn_err_t spn_log(spn_t* s, const c8* message) {
   return SPN_OK;
 }
 
-static spn_root_t find_root(spn_t* s, spn_tree_t tree) {
-  spn_wasm_mounts_t mounts = spn_wasm_mounts(spn_api_unit(s));
-  sp_carr_for(mounts.dirs, it) {
-    if (mounts.dirs[it].tree == tree) {
-      return mounts.dirs[it].root;
-    }
-  }
-  sp_unreachable_return(0);
-}
-
 spn_err_t spn_get_root_manifest(spn_t* s, spn_root_t* root) {
-  *root = find_root(s, SPN_TREE_MANIFEST);
+  *root = spn_wasm_root(SPN_WASM_MOUNT_ID_MANIFEST);
   return SPN_OK;
 }
 
 spn_err_t spn_get_root_source(spn_t* s, spn_root_t* root) {
-  *root = find_root(s, SPN_TREE_SOURCE);
+  *root = spn_wasm_root(SPN_WASM_MOUNT_ID_SOURCE);
   return SPN_OK;
 }
 
 spn_err_t spn_get_root_work(spn_t* s, spn_root_t* root) {
-  *root = find_root(s, SPN_TREE_WORK);
-  return SPN_OK;
-}
-
-spn_err_t spn_get_root_store(spn_t* s, spn_root_t* root) {
-  *root = find_root(s, SPN_TREE_STORE);
+  *root = spn_wasm_root(SPN_WASM_MOUNT_ID_WORK);
   return SPN_OK;
 }
 

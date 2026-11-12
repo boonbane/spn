@@ -84,7 +84,6 @@ typedef struct {
 } spn_node_ref_t;
 
 typedef struct {
-  spn_tree_t tree;
   sp_str_t sub;
   spn_dag_artifact_kind_t kind;
   spn_path_t path;
@@ -194,7 +193,6 @@ struct spn_pkg_unit_t {
     spn_path_t share;
     spn_path_t lib;
     spn_path_t bin;
-    spn_path_t vendor;
   } paths;
   struct {
     bool include;

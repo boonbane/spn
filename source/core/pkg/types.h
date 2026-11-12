@@ -76,7 +76,6 @@ typedef struct {
 } spn_pkg_patch_t;
 
 typedef struct {
-  spn_tree_t tree;
   sp_str_t sub;
   sp_str_t to;
 } spn_stage_copy_t;

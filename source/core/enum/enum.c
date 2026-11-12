@@ -208,9 +208,6 @@ spn_tree_t spn_tree_from_str(sp_str_t str) {
   if (sp_str_equal_cstr(str, "work")) {
     return SPN_TREE_WORK;
   }
-  if (sp_str_equal_cstr(str, "store")) {
-    return SPN_TREE_STORE;
-  }
 
   return SPN_TREE_NONE;
 }
@@ -220,7 +217,6 @@ sp_str_t spn_tree_to_str(spn_tree_t tree) {
     case SPN_TREE_SOURCE:   return sp_str_lit("source");
     case SPN_TREE_MANIFEST: return sp_str_lit("manifest");
     case SPN_TREE_WORK:     return sp_str_lit("work");
-    case SPN_TREE_STORE:    return sp_str_lit("store");
     case SPN_TREE_NONE:     return sp_str_lit("");
   }
   SP_UNREACHABLE_RETURN(sp_str_lit(""));

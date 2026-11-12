@@ -55,7 +55,6 @@ sp_test_each(wasm_script, lifecycle, test_t, tests, .setup = spn_test_ctx_setup)
   sp_mem_t mem = sp_test_arena(t);
   spn_path_t sandbox = spn_path_make(&spn.roots, test_dir_str(t));
   spn_path_t source = spn_path_join(mem, sandbox, sp_str_lit("source"));
-  spn_path_t store = spn_path_join(mem, sandbox, sp_str_lit("store"));
   si_pkg_info_t manifest = test_manifest_make(sp_str_lit("A"));
   spn_units_t units = { .ctx = &spn };
   spn_pkg_unit_t unit = {
@@ -64,14 +63,9 @@ sp_test_each(wasm_script, lifecycle, test_t, tests, .setup = spn_test_ctx_setup)
     .paths = {
       .roots = { .recipe = source, .source = source },
       .work = spn_path_join(mem, sandbox, sp_str_lit("work")),
-      .store = store,
-      .lib = spn_path_join(mem, store, sp_str_lit("lib")),
-      .bin = spn_path_join(mem, store, sp_str_lit("bin")),
-      .vendor = spn_path_join(mem, store, sp_str_lit("vendor")),
     },
   };
   sp_fs_create_dir_at(spn_path_at(&spn.roots, source));
-  sp_fs_create_dir_at(spn_path_at(&spn.roots, store));
   sp_fs_create_dir_at(spn_path_at(&spn.roots, unit.paths.work));
   if (it->file) {
     sp_fs_create_file_str_at(spn_path_at(&spn.roots, spn_path_join(mem, unit.paths.work, sp_cstr_as_str(it->file))), sp_str_lit("A"));

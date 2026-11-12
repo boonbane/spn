@@ -9,7 +9,6 @@
     { "name": "spn_get_root_manifest", "args": ["ctx", "out"] },
     { "name": "spn_get_root_source", "args": ["ctx", "out"] },
     { "name": "spn_get_root_work", "args": ["ctx", "out"] },
-    { "name": "spn_get_root_store", "args": ["ctx", "out"] },
     { "name": "spn_log", "args": ["ctx", "str"] },
     { "name": "spn_add_node", "ret": "node", "args": ["config", "str"] },
     { "name": "spn_node_set_fn", "args": ["node", "str"] },

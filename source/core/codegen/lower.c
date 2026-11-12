@@ -177,20 +177,12 @@ static void lower_stage(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, si_
       ok = false;
     }
     spn_toml_loader_pop(ctx);
-    if (entry->tree != SPN_TREE_WORK && entry->tree != SPN_TREE_STORE) {
-      spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "tree");
-      ok = false;
-    }
     spn_toml_loader_push_key(ctx, "to");
     ok = lower_path_ok(ctx, entry->to) && ok;
     spn_toml_loader_pop(ctx);
     spn_toml_loader_pop(ctx);
     if (ok) {
-      si_da_push(ctx->mem, out->stage, ((spn_stage_copy_t) {
-        .tree = entry->tree,
-        .sub = entry->from,
-        .to = entry->to,
-      }));
+      si_da_push(ctx->mem, out->stage, ((spn_stage_copy_t) { .sub = entry->from, .to = entry->to }));
     }
   }
   spn_toml_loader_pop(ctx);
@@ -1030,8 +1022,7 @@ static void validate_collection_cxx(spn_toml_loader_t* ctx, spn_cg_target_om_t c
 static void validate_entry_trees(spn_toml_loader_t* ctx, sp_da(spn_cg_source_entry_t) entries, const c8* key) {
   spn_toml_loader_push_key(ctx, key);
   sp_da_for(entries, it) {
-    spn_tree_t tree = sp_opt_is_null(entries[it].tree) ? SPN_TREE_SOURCE : sp_opt_get(entries[it].tree);
-    if (tree == SPN_TREE_NONE || tree == SPN_TREE_STORE) {
+    if (!sp_opt_is_null(entries[it].tree) && sp_opt_get(entries[it].tree) == SPN_TREE_NONE) {
       spn_toml_loader_push_index(ctx, it);
       spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "tree");
       spn_toml_loader_pop(ctx);
@@ -1073,8 +1064,7 @@ static void validate_collection_trees(spn_toml_loader_t* ctx, spn_cg_target_om_t
     validate_entry_trees_no_work(ctx, target->linker_script, "linker_script");
     spn_toml_loader_push_key(ctx, "embed");
     sp_da_for(target->embed, jt) {
-      spn_tree_t tree = sp_opt_is_null(target->embed[jt].tree) ? SPN_TREE_SOURCE : sp_opt_get(target->embed[jt].tree);
-      if (tree == SPN_TREE_NONE || tree == SPN_TREE_STORE) {
+      if (!sp_opt_is_null(target->embed[jt].tree) && sp_opt_get(target->embed[jt].tree) == SPN_TREE_NONE) {
         spn_toml_loader_push_index(ctx, jt);
         spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "tree");
         spn_toml_loader_pop(ctx);

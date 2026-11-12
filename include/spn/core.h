@@ -145,7 +145,6 @@ typedef enum {
   SPN_TREE_SOURCE,
   SPN_TREE_MANIFEST,
   SPN_TREE_WORK,
-  SPN_TREE_STORE,
 } spn_tree_t;
 
 typedef enum {

@@ -57,7 +57,7 @@ spn_err_t si_on_user_node(const si_dag_ctx_t* c, void* user_data) {
         .pkg = unit->pkg.manifest->name.str,
         .node_failed = {
           .path = spn_path_str(roots, spn.events->mem, stray),
-          .message = sp_fmt(spn.events->mem, "was written by node {}, which may only write under /work and /store", sp_fmt_str(node->tag)).value,
+          .message = sp_fmt(spn.events->mem, "was written by node {}, which may only write under /work", sp_fmt_str(node->tag)).value,
         },
       });
       err = SPN_ERR_DAG_ACTION;

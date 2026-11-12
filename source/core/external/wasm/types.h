@@ -26,10 +26,14 @@ typedef struct WASMExecEnv spn_wasm_exec_env_t;
 typedef struct spn_wasm_handles_t spn_wasm_handles_t;
 typedef struct spn_wasi_t spn_wasi_t;
 
-#define SPN_WASM_MOUNT_COUNT 4
+typedef enum {
+  SPN_WASM_MOUNT_ID_WORK,
+  SPN_WASM_MOUNT_ID_SOURCE,
+  SPN_WASM_MOUNT_ID_MANIFEST,
+  SPN_WASM_MOUNT_ID_COUNT,
+} spn_wasm_mount_id_t;
 
 typedef struct {
-  spn_tree_t tree;
   spn_root_t root;
   const c8* guest;
   spn_path_t host;
@@ -37,7 +41,7 @@ typedef struct {
 } spn_wasi_mount_t;
 
 typedef struct {
-  spn_wasi_mount_t dirs [SPN_WASM_MOUNT_COUNT];
+  spn_wasi_mount_t dirs [SPN_WASM_MOUNT_ID_COUNT];
 } spn_wasm_mounts_t;
 
 typedef struct {

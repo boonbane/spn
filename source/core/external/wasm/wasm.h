@@ -7,6 +7,7 @@
 
 spn_err_t spn_wasm_init();
 void      spn_wasm_thread_exit(void);
+spn_root_t spn_wasm_root(spn_wasm_mount_id_t mount);
 spn_wasm_mounts_t spn_wasm_mounts(const spn_pkg_unit_t* unit);
 spn_err_t spn_wasm_script_open(spn_pkg_unit_t* unit, spn_path_t module, spn_dag_obs_set_t* obs, spn_wasm_script_t* script);
 void      spn_wasm_script_close(spn_wasm_script_t* script);

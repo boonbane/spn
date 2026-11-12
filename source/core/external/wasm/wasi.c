@@ -242,7 +242,6 @@ spn_wasi_t* spn_wasi_new(sp_mem_t mem, const spn_path_roots_t* roots, const spn_
 
   sp_for(it, count) {
     sp_da_push(w->mounts, ((spn_wasi_mount_t) {
-      .tree = mounts[it].tree,
       .root = mounts[it].root,
       .guest = sp_cstr_copy(mem, mounts[it].guest),
       .host = spn_path_canonicalize_head(mem, roots, mounts[it].host),

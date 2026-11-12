@@ -45,7 +45,6 @@ typedef struct {
 typedef struct {
   const c8* sub;
   const c8* to;
-  spn_tree_t tree;
 } stage_t;
 
 typedef struct {
@@ -186,7 +185,7 @@ typedef struct {
   gated_t frameworks [4];
   publish_t publish [4];
   stage_t stage [4];
-  issue_t issues [12];
+  issue_t issues [8];
   target_t libs [8];
   target_t exes [8];
   target_t scripts [8];
@@ -960,24 +959,6 @@ static const test_t tests [] = {
     }
   },
   {
-    .name = "validate_tree_store_unsupported",
-    .manifest = "validate_tree_store_unsupported",
-    .include = { { "I", .tree = SPN_TREE_STORE } },
-    .build_source = { { "C.c", .tree = SPN_TREE_STORE } },
-    .build_include = { { "I", .tree = SPN_TREE_STORE } },
-    .issues = {
-      { SPN_ERR_CODEGEN_INVALID, "lib[0].source[0].tree" },
-      { SPN_ERR_CODEGEN_INVALID, "lib[0].include[0].tree" },
-      { SPN_ERR_CODEGEN_INVALID, "lib[0].linker_script[0].tree" },
-      { SPN_ERR_CODEGEN_INVALID, "lib[0].embed[0].tree" },
-      { SPN_ERR_CODEGEN_INVALID, "package.include[0].tree" },
-      { SPN_ERR_CODEGEN_INVALID, "package.build.source[0].tree" },
-      { SPN_ERR_CODEGEN_INVALID, "package.build.include[0].tree" },
-      { SPN_ERR_CODEGEN_INVALID, "package.configure.source[0].tree" },
-      { SPN_ERR_CODEGEN_INVALID, "package.configure.include[0].tree" },
-    }
-  },
-  {
     .name = "script_tree",
     .manifest = "script_tree",
     .build_source = { { "b.c", .tree = SPN_TREE_MANIFEST }, { "c.c", .when = "os = \"linux\"" } },
@@ -1378,30 +1359,8 @@ static const test_t tests [] = {
     .name = "stage_copy",
     .manifest = "stage_copy",
     .stage = {
-      { "G.txt", "gen/G.txt", SPN_TREE_WORK },
-      { "vendor/D", "share/D", SPN_TREE_STORE },
-    },
-  },
-  {
-    .name = "validate_stage_tree_invalid",
-    .manifest = "validate_stage_tree_invalid",
-    .issues = { { SPN_ERR_CODEGEN_INVALID, "stage.copy[0].tree" } },
-  },
-  {
-    .name = "validate_stage_tree_unsupported",
-    .manifest = "validate_stage_tree_unsupported",
-    .issues = {
-      { SPN_ERR_CODEGEN_INVALID, "stage.copy[0].tree" },
-      { SPN_ERR_CODEGEN_INVALID, "stage.copy[1].tree" },
-    },
-  },
-  // A real load stops at the reader's issue; this executor lowers regardless
-  {
-    .name = "validate_stage_tree_missing",
-    .manifest = "validate_stage_tree_missing",
-    .issues = {
-      { SPN_ERR_CODEGEN_MISSING_KEY, "stage.copy[0].tree" },
-      { SPN_ERR_CODEGEN_INVALID, "stage.copy[0].tree" },
+      { "G.txt", "gen/G.txt" },
+      { "D", "share/D" },
     },
   },
   {
@@ -1427,13 +1386,6 @@ static const test_t tests [] = {
   {
     .name = "validate_publish_tree_work",
     .manifest = "validate_publish_tree_work",
-    .issues = {
-      { SPN_ERR_CODEGEN_INVALID, "package.publish.include[0].tree" },
-    },
-  },
-  {
-    .name = "validate_publish_tree_store",
-    .manifest = "validate_publish_tree_store",
     .issues = {
       { SPN_ERR_CODEGEN_INVALID, "package.publish.include[0].tree" },
     },
@@ -1651,7 +1603,6 @@ static sp_err_t check_publish_list(sp_test_t* t, sp_da(spn_gated_publish_t) actu
 static sp_err_t check_stage_list(sp_test_t* t, si_da(spn_stage_copy_t) actual, const stage_t* expected, u32 n) {
   sp_must_eq(t, n, (u32)si_da_size(actual));
   sp_for(it, n) {
-    sp_expect_eq(t, (u32)expected[it].tree, (u32)actual[it].tree);
     sp_expect_str_eq_c(t, actual[it].sub, expected[it].sub);
     sp_expect_str_eq_c(t, actual[it].to, expected[it].to);
   }

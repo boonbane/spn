@@ -13,4 +13,4 @@ name = "H"
 source = ["main.c"]
 
 [stage]
-copy = [{ from = "G.h", tree = "work", to = "gen/G.h" }]
+copy = [{ from = "G.h", to = "gen/G.h" }]
