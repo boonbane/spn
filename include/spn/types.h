@@ -189,7 +189,6 @@ typedef struct {
   struct {
     sp_str_t items [SPN_ENV_MAX_PATH];
     u32 count;
-    sp_str_t inherited;
   } path;
   struct {
     spn_env_var_t items [SPN_ENV_MAX_VARS];

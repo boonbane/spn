@@ -26,11 +26,11 @@ static const test_t tests [] = {
     },
   },
   {
-    .name = "shell_variables_go_and_path_is_restored",
+    .name = "shell_variables_go_and_path_stays",
     .env = {
       { "VSCMD_VER", "17.12.3" },
       { "__VSCMD_PREINIT_PATH", "C:/bin" },
-      { "PATH", "C:/VS/bin;C:/bin" },
+      { "PATH", "C:/mine;C:/VS/bin;C:/bin" },
       { "INCLUDE", "C:/VS/include" },
       { "EXTERNAL_INCLUDE", "C:/VS/include" },
       { "LIBPATH", "C:/VS/lib" },
@@ -39,17 +39,8 @@ static const test_t tests [] = {
     },
     .expect = {
       .left = true,
-      .env = { { "PATH", "C:/bin" }, { "USERPROFILE", "C:/Users/me" } },
+      .env = { { "PATH", "C:/mine;C:/VS/bin;C:/bin" }, { "USERPROFILE", "C:/Users/me" } },
       .gone = { "VSCMD_VER", "__VSCMD_PREINIT_PATH", "INCLUDE", "EXTERNAL_INCLUDE", "LIBPATH", "VS170COMNTOOLS" },
-    },
-  },
-  {
-    .name = "shell_without_a_saved_path_keeps_path",
-    .env = { { "VSCMD_VER", "17.12.3" }, { "PATH", "C:/VS/bin;C:/bin" }, { "LIB", "C:/VS/lib" } },
-    .expect = {
-      .left = true,
-      .env = { { "PATH", "C:/VS/bin;C:/bin" } },
-      .gone = { "VSCMD_VER", "LIB" },
     },
   },
 };

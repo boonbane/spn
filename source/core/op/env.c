@@ -91,7 +91,6 @@ spn_err_t spn_op_env(spn_op_t* op) {
     }
   }
 
-  env->path.inherited = sp_env_get_c(session->ctx->env, "PATH");
   if (session->ctx->devshell) {
     const c8* const* shell = SP_NULLPTR;
     u32 count = spn_msvc_shell_vars(&shell);

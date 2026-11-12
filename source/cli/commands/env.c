@@ -255,7 +255,7 @@ static sp_cli_result_t run(sp_cli_t* cli) {
   sp_env_insert(&vars, sp_str_lit("PATH"), sp_fmt(s.mem, "{}{}{}",
     sp_fmt_str(sp_str_join_n(s.mem, env.path.items, env.path.count, sep)),
     sp_fmt_str(sep),
-    sp_fmt_str(env.path.inherited)).value);
+    sp_fmt_str(sp_env_get(&vars, sp_str_lit("PATH")))).value);
   sp_for(it, env.vars.count) {
     sp_env_insert(&vars, env.vars.items[it].name, env.vars.items[it].value);
   }

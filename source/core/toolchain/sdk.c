@@ -209,10 +209,6 @@ bool spn_msvc_leave_shell(sp_env_t* env) {
   if (sp_str_empty(sp_env_get_c(env, "VSCMD_VER"))) {
     return false;
   }
-  sp_str_t path = sp_env_get_c(env, "__VSCMD_PREINIT_PATH");
-  if (!sp_str_empty(path)) {
-    sp_env_insert(env, sp_str_lit("PATH"), path);
-  }
   sp_carr_for(msvc_shell_vars, it) {
     sp_env_erase_c(env, msvc_shell_vars[it]);
   }
