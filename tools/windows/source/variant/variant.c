@@ -62,6 +62,15 @@ const winvm_variant_t winvm_variants[] = {
     .steps = { { "vs", "2026 -Atl" } },
     .lanes = { "msvc" },
   },
+  {
+    .name = "vs2022-llvm",
+    .summary = "LLVM/clang + lld-link on the Visual Studio 2022 SDK",
+    .memory_mb = 8192,
+    .vcpus = 6,
+    .octet = 208,
+    .steps = { { "vs", "2022" }, { "llvm" } },
+    .lanes = { "clang-msvc" },
+  },
 };
 
 const u32 winvm_num_variants = sp_carr_len(winvm_variants);
