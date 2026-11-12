@@ -152,7 +152,7 @@ readme: false
 | Field | Type | Required |
 |---|---|---|
 | `path` | `string` | yes |
-| `tree` | `manifest` \| `source` | |
+| `tree` | `manifest` \| `source` \| `work` \| `store` | |
 | `when` | [`when`](#extern-types) | |
 
 ## value_entry
@@ -203,6 +203,7 @@ readme: false
 | Field | Type | Required |
 |---|---|---|
 | `from` | `string` | yes |
+| `tree` | `manifest` \| `source` \| `work` \| `store` | yes |
 | `to` | `string` | yes |
 
 ## target_dep_entry
@@ -259,7 +260,7 @@ readme: false
 | Field | Type | Required |
 |---|---|---|
 | `from` | `string` | yes |
-| `tree` | `manifest` \| `source` \| `work` | |
+| `tree` | `manifest` \| `source` \| `work` \| `store` | |
 | `to` | `string` | |
 | `when` | [`when`](#extern-types) | |
 

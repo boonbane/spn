@@ -1,0 +1,20 @@
+[package]
+name = "A"
+version = "1.0.0"
+include = [{ path = "I", tree = "store" }]
+
+[package.build]
+source = [{ path = "C.c", tree = "store" }]
+include = [{ path = "I", tree = "store" }]
+
+[package.configure]
+source = [{ path = "C.c", tree = "store" }]
+include = [{ path = "I", tree = "store" }]
+
+[[lib]]
+name = "B"
+kinds = ["shared"]
+source = [{ path = "C.c", tree = "store" }]
+include = [{ path = "I", tree = "store" }]
+linker_script = [{ path = "L.ld", tree = "store" }]
+embed = [{ path = "E.txt", tree = "store" }]

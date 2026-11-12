@@ -4,6 +4,6 @@ version = "0.0.1"
 
 [stage]
 copy = [
-  { from = "work/G.txt", to = "gen/G.txt" },
-  { from = "vendor/D", to = "share/D" },
+  { from = "G.txt", tree = "work", to = "gen/G.txt" },
+  { from = "vendor/D", tree = "store", to = "share/D" },
 ]

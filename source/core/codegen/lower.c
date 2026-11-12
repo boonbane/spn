@@ -129,7 +129,7 @@ static void lower_publish_root(spn_toml_loader_t* ctx, sp_da(spn_cg_publish_entr
       }
     }
     spn_toml_loader_pop(ctx);
-    if (tree == SPN_TREE_NONE || tree == SPN_TREE_WORK) {
+    if (tree != SPN_TREE_SOURCE && tree != SPN_TREE_MANIFEST) {
       spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "tree");
       ok = false;
     }
@@ -171,31 +171,24 @@ static void lower_stage(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, si_
     const spn_cg_stage_entry_t* entry = &cg->stage.copy[it];
     spn_toml_loader_push_index(ctx, it);
     spn_toml_loader_push_key(ctx, "from");
-    sp_str_pair_t split = sp_str_cleave_c8(entry->from, '/');
-    bool work = sp_str_equal_cstr(split.first, "work");
-    bool store = sp_str_equal_cstr(split.first, "lib") || sp_str_equal_cstr(split.first, "bin") || sp_str_equal_cstr(split.first, "vendor");
     bool ok = lower_path_ok(ctx, entry->from);
-    if (ok && !work && !store) {
-      spn_toml_loader_issue_at(ctx, SPN_ERR_CODEGEN_INVALID, entry->from);
-      ok = false;
-    }
-    if (ok && sp_str_empty(split.second)) {
-      spn_toml_loader_issue_at(ctx, SPN_ERR_CODEGEN_PATH, entry->from);
-      ok = false;
-    }
-    if (ok && !sp_glob_parse_meta(split.second).literal) {
+    if (ok && !sp_glob_parse_meta(entry->from).literal) {
       spn_toml_loader_issue_at(ctx, SPN_ERR_CODEGEN_INVALID, entry->from);
       ok = false;
     }
     spn_toml_loader_pop(ctx);
+    if (entry->tree != SPN_TREE_WORK && entry->tree != SPN_TREE_STORE) {
+      spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "tree");
+      ok = false;
+    }
     spn_toml_loader_push_key(ctx, "to");
     ok = lower_path_ok(ctx, entry->to) && ok;
     spn_toml_loader_pop(ctx);
     spn_toml_loader_pop(ctx);
     if (ok) {
       si_da_push(ctx->mem, out->stage, ((spn_stage_copy_t) {
-        .tree = work ? SPN_TREE_WORK : SPN_TREE_STORE,
-        .sub = work ? split.second : entry->from,
+        .tree = entry->tree,
+        .sub = entry->from,
         .to = entry->to,
       }));
     }
@@ -1037,7 +1030,8 @@ static void validate_collection_cxx(spn_toml_loader_t* ctx, spn_cg_target_om_t c
 static void validate_entry_trees(spn_toml_loader_t* ctx, sp_da(spn_cg_source_entry_t) entries, const c8* key) {
   spn_toml_loader_push_key(ctx, key);
   sp_da_for(entries, it) {
-    if (!sp_opt_is_null(entries[it].tree) && sp_opt_get(entries[it].tree) == SPN_TREE_NONE) {
+    spn_tree_t tree = sp_opt_is_null(entries[it].tree) ? SPN_TREE_SOURCE : sp_opt_get(entries[it].tree);
+    if (tree == SPN_TREE_NONE || tree == SPN_TREE_STORE) {
       spn_toml_loader_push_index(ctx, it);
       spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "tree");
       spn_toml_loader_pop(ctx);
@@ -1079,7 +1073,8 @@ static void validate_collection_trees(spn_toml_loader_t* ctx, spn_cg_target_om_t
     validate_entry_trees_no_work(ctx, target->linker_script, "linker_script");
     spn_toml_loader_push_key(ctx, "embed");
     sp_da_for(target->embed, jt) {
-      if (!sp_opt_is_null(target->embed[jt].tree) && sp_opt_get(target->embed[jt].tree) == SPN_TREE_NONE) {
+      spn_tree_t tree = sp_opt_is_null(target->embed[jt].tree) ? SPN_TREE_SOURCE : sp_opt_get(target->embed[jt].tree);
+      if (tree == SPN_TREE_NONE || tree == SPN_TREE_STORE) {
         spn_toml_loader_push_index(ctx, jt);
         spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "tree");
         spn_toml_loader_pop(ctx);

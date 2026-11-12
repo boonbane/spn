@@ -208,6 +208,9 @@ spn_tree_t spn_tree_from_str(sp_str_t str) {
   if (sp_str_equal_cstr(str, "work")) {
     return SPN_TREE_WORK;
   }
+  if (sp_str_equal_cstr(str, "store")) {
+    return SPN_TREE_STORE;
+  }
 
   return SPN_TREE_NONE;
 }

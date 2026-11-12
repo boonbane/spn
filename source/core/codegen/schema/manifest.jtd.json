@@ -24,7 +24,7 @@
     "mode": { "enum": ["release", "debug"] },
     "opt_level": { "enum": ["0", "1", "2", "3", "s", "z"] },
     "win_subsystem": { "enum": ["console", "windows"] },
-    "tree": { "enum": ["manifest", "source", "work"] },
+    "tree": { "enum": ["manifest", "source", "work", "store"] },
 
     "platform_macos": {
       "optionalProperties": {
@@ -126,6 +126,7 @@
     "stage_entry": {
       "properties": {
         "from": { "type": "string" },
+        "tree": { "ref": "tree" },
         "to": { "type": "string" }
       }
     },
