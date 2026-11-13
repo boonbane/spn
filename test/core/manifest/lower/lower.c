@@ -38,6 +38,7 @@ typedef struct {
   const c8* dest;
   const c8* when;
   spn_tree_t tree;
+  bool tree_none;
   spn_publish_root_t root;
   spn_source_kind_t kind;
 } publish_t;
@@ -1391,6 +1392,7 @@ static const test_t tests [] = {
   {
     .name = "validate_publish_tree_work",
     .manifest = "validate_publish_tree_work",
+    .publish = { { "a.h", "", .tree = SPN_TREE_WORK } },
     .issues = {
       { SPN_ERR_CODEGEN_INVALID, "package.publish.include[0].tree" },
     },
@@ -1398,6 +1400,7 @@ static const test_t tests [] = {
   {
     .name = "validate_publish_tree_invalid",
     .manifest = "validate_publish_tree_invalid",
+    .publish = { { "a.h", "", .tree_none = true } },
     .issues = {
       { SPN_ERR_CODEGEN_INVALID, "package.publish.include[0].tree" },
     },
@@ -1588,7 +1591,7 @@ static sp_err_t check_gated_list(sp_test_t* t, spn_gated_list_t actual, const ga
 static sp_err_t check_publish_list(sp_test_t* t, sp_da(spn_gated_publish_t) actual, const publish_t* expected, u32 n) {
   sp_must_eq(t, n, (u32)sp_da_size(actual));
   sp_for(it, n) {
-    spn_tree_t tree = expected[it].tree ? expected[it].tree : SPN_TREE_SOURCE;
+    spn_tree_t tree = expected[it].tree_none ? SPN_TREE_NONE : expected[it].tree ? expected[it].tree : SPN_TREE_SOURCE;
     sp_expect_eq(t, (u32)expected[it].root, (u32)actual[it].root);
     sp_expect_eq(t, (u32)expected[it].kind, (u32)actual[it].source.kind);
     sp_expect_eq(t, (u32)tree, (u32)actual[it].source.tree);
