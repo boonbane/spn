@@ -34,7 +34,6 @@ typedef enum {
 } spn_wasm_mount_id_t;
 
 typedef struct {
-  spn_root_t root;
   const c8* guest;
   spn_path_t host;
   bool writable;

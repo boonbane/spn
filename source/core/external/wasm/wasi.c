@@ -21,6 +21,8 @@
 #define SPN_WASI_OFLAGS_TRUNC 0x8
 #define SPN_WASI_RIGHTS_FD_WRITE 0x40
 
+#define SPN_WASI_PREOPEN_BASE_FD 3
+
 extern void (*spn_wasi_hook)(wasm_exec_env_t exec_env, s32 op, u32 fd,
                              const c8* path, u32 path_len, u16 error,
                              u32 new_fd, u32 oflags, u64 rights);
@@ -230,6 +232,10 @@ spn_err_t spn_wasi_install(void) {
   return SPN_OK;
 }
 
+spn_root_t spn_wasi_root(u32 mount) {
+  return (spn_root_t)(SPN_WASI_PREOPEN_BASE_FD + mount);
+}
+
 spn_wasi_t* spn_wasi_new(sp_mem_t mem, const spn_path_roots_t* roots, const spn_wasi_mount_t* mounts, u32 count, spn_dag_obs_set_t* obs) {
   spn_wasi_t* w = sp_alloc_type(mem, spn_wasi_t);
   w->mem = mem;
@@ -242,12 +248,11 @@ spn_wasi_t* spn_wasi_new(sp_mem_t mem, const spn_path_roots_t* roots, const spn_
 
   sp_for(it, count) {
     sp_da_push(w->mounts, ((spn_wasi_mount_t) {
-      .root = mounts[it].root,
       .guest = sp_cstr_copy(mem, mounts[it].guest),
       .host = spn_path_canonicalize_head(mem, roots, mounts[it].host),
       .writable = mounts[it].writable,
     }));
-    sp_ht_insert(w->dirs, (u32)w->mounts[it].root, sp_cstr_as_str(w->mounts[it].guest));
+    sp_ht_insert(w->dirs, (u32)spn_wasi_root(it), sp_cstr_as_str(w->mounts[it].guest));
   }
 
   return w;
@@ -262,7 +267,7 @@ spn_err_t spn_wasi_find_mount(const spn_wasi_mount_t* mounts, u32 count, spn_roo
     return SPN_ERR_PATH_NOT_NORMAL;
   }
   sp_for(it, count) {
-    if (mounts[it].root == root) {
+    if (spn_wasi_root(it) == root) {
       *mount = &mounts[it];
       return SPN_OK;
     }

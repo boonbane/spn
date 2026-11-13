@@ -13,7 +13,7 @@
 #include "enum/enum.h"
 #include "error/error.h"
 #include "event/event.h"
-#include "external/wasm/wasm.h"
+#include "external/wasm/wasi.h"
 #include "intern/intern.h"
 #include "str/str.h"
 #include "io/io.h"
@@ -33,17 +33,17 @@ spn_err_t spn_log(spn_t* s, const c8* message) {
 }
 
 spn_err_t spn_get_root_manifest(spn_t* s, spn_root_t* root) {
-  *root = spn_wasm_root(SPN_WASM_MOUNT_ID_MANIFEST);
+  *root = spn_wasi_root(SPN_WASM_MOUNT_ID_MANIFEST);
   return SPN_OK;
 }
 
 spn_err_t spn_get_root_source(spn_t* s, spn_root_t* root) {
-  *root = spn_wasm_root(SPN_WASM_MOUNT_ID_SOURCE);
+  *root = spn_wasi_root(SPN_WASM_MOUNT_ID_SOURCE);
   return SPN_OK;
 }
 
 spn_err_t spn_get_root_work(spn_t* s, spn_root_t* root) {
-  *root = spn_wasm_root(SPN_WASM_MOUNT_ID_WORK);
+  *root = spn_wasi_root(SPN_WASM_MOUNT_ID_WORK);
   return SPN_OK;
 }
 
