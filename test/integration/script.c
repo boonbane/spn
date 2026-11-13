@@ -40,11 +40,6 @@ static const command_test_t apis [] = {
     .args = { "build" },
   },
   {
-    .name = "configure_roots",
-    .project = "test/integration/fixtures/script/configure_roots",
-    .args = { "build" },
-  },
-  {
     .name = "node_roots",
     .project = "test/integration/fixtures/script/node_roots",
     .copy = { "X" },

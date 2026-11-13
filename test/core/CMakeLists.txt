@@ -173,8 +173,6 @@ target_include_directories(core PRIVATE
   ${CMAKE_SOURCE_DIR}/tools/install
   ${STORE}/include/sp
 )
-set_source_files_properties(schema/schema.c PROPERTIES COMPILE_DEFINITIONS
-  "SCHEMA_DIR=\"source/core/codegen/schema\"")
 set_source_files_properties(jtd/harness.c jtd/conformance.c PROPERTIES COMPILE_DEFINITIONS
   "JTD_TEST_JSON_DIR=\"test/core/jtd/json\"")
 set_source_files_properties(manifest/lower/lower.c PROPERTIES COMPILE_DEFINITIONS

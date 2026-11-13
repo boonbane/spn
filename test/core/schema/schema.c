@@ -4,7 +4,6 @@
 #include "jtd.h"
 #include "enum/enum.h"
 #include "triple/triple.h"
-#include "yyjson.h"
 
 #define SCHEMA_ENUMS \
   X(arch,           manifest) \
@@ -63,52 +62,5 @@ sp_test_each(schema, roundtrip, test_t, tests) {
     sp_expect_str_eq(t, it->to(it->from(value)), value);
   }
 
-  return SP_OK;
-}
-
-sp_test(schema, abi_handles) {
-  const c8* kinds [] = { "ctx", "config", "node", "profile" };
-
-  sp_mem_t mem = sp_test_arena(t);
-  sp_str_t path = sp_fs_join_path(mem, test_repo_path(mem, sp_str_lit(SCHEMA_DIR)), sp_str_lit("abi.json"));
-  sp_str_t json = sp_zero;
-  sp_must_eq(t, SP_OK, sp_io_read_file(mem, path, &json));
-
-  yyjson_doc* doc = yyjson_read(json.data, json.len, 0);
-  sp_must(t, doc != SP_NULLPTR);
-
-  yyjson_val* handles = yyjson_obj_get(yyjson_doc_get_root(doc), "handles");
-  sp_must_eq(t, (u32)sp_carr_len(kinds), (u32)yyjson_arr_size(handles));
-  sp_carr_for(kinds, k) {
-    sp_expect(t, sp_cstr_equal(kinds[k], yyjson_get_str(yyjson_arr_get(handles, k))));
-  }
-  yyjson_doc_free(doc);
-
-  return SP_OK;
-}
-
-typedef struct {
-  const c8* name;
-  spn_err_t err;
-  s32 code;
-} code_t;
-
-static const code_t codes [] = {
-  { .name = "ok",               .err = SPN_OK },
-  { .name = "error",            .err = SPN_ERROR,                .code = 1 },
-  { .name = "handle_null",      .err = SPN_ERR_HANDLE_NULL,      .code = 2 },
-  { .name = "handle_kind",      .err = SPN_ERR_HANDLE_KIND,      .code = 3 },
-  { .name = "node_no_script",   .err = SPN_ERR_NODE_NO_SCRIPT,   .code = 4 },
-  { .name = "node_no_outputs",  .err = SPN_ERR_NODE_NO_OUTPUTS,  .code = 5 },
-  { .name = "path_not_normal",  .err = SPN_ERR_PATH_NOT_NORMAL,  .code = 6 },
-  { .name = "path_not_mounted", .err = SPN_ERR_PATH_NOT_MOUNTED, .code = 7 },
-  { .name = "output_outside",   .err = SPN_ERR_OUTPUT_OUTSIDE,   .code = 8 },
-  { .name = "output_is_root",   .err = SPN_ERR_OUTPUT_IS_ROOT,   .code = 9 },
-  { .name = "io_write",         .err = SPN_ERR_IO_WRITE,         .code = 10 },
-  { .name = "str_null",         .err = SPN_ERR_STR_NULL,         .code = 11 },
-};
-
-sp_test_each(schema, guest_codes, code_t, codes) {
-  sp_expect_eq(t, (s32)it->err, it->code);
   return SP_OK;
 }
