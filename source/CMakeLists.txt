@@ -33,6 +33,7 @@ set(SPN_CORE_SOURCES
   core/event/event.c
   core/external/cc.c
   core/external/git.c
+  core/external/git_cli.c
   core/external/http.c
   core/external/net.c
   core/external/obj.c
@@ -46,6 +47,7 @@ set(SPN_CORE_SOURCES
   core/git/key.c
   core/git/url.c
   core/git/patch.c
+  core/git/remote.c
   core/index/cache.c
   core/index/dir.c
   core/index/release.c

@@ -38,6 +38,7 @@ typedef struct {
   const c8* name;
   git_repo_fixture_t repo;
   checkout_req_t checkouts [CACHE_TEST_MAX_CHECKOUTS];
+  spn_git_transport_t transport;
   bool contended;
   cache_expect_t expect;
 } cache_test_t;
@@ -349,6 +350,47 @@ static const cache_test_t tests [] = {
       },
     },
   },
+  // the tip comes in shallow; the older commit then needs the history
+  {
+    .name = "system_git_fetches_tip_then_history",
+    .repo = {
+      .commits = {
+        {
+          .message = "A",
+          .files = {
+            { "F", "1\n" },
+          },
+        },
+        {
+          .message = "B",
+          .files = {
+            { "F", "2\n" },
+          },
+        },
+      },
+    },
+    .checkouts = {
+      { .rev = "1" },
+      { .rev = "0" },
+    },
+    .transport = SPN_GIT_TRANSPORT_SYSTEM,
+    .expect = {
+      .dbs = 1,
+      .checkouts = 2,
+      .detail = {
+        {
+          .files = {
+            { .file = "F", .content = "2\n" },
+          },
+        },
+        {
+          .files = {
+            { .file = "F", .content = "1\n" },
+          },
+        },
+      },
+    },
+  },
   // a db that another process holds locked is not created until it lets go
   {
     .name = "init_waits_for_the_lock",
@@ -440,6 +482,7 @@ sp_test_each(git_cache, ensure, cache_test_t, tests) {
 
   spn_git_cache_t cache = sp_zero;
   spn_git_cache_init(&cache, mem, SP_NULLPTR, &roots, spn_path_join(mem, cache_root, sp_str_lit("db")), spn_path_join(mem, cache_root, sp_str_lit("checkouts")));
+  cache.transport = it->transport;
 
   u32 num_checkouts = 0;
   sp_carr_detect_len(it->checkouts, num_checkouts, it->checkouts[num_checkouts].rev);

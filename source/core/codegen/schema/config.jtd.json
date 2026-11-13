@@ -9,7 +9,8 @@
     "net": {
       "optionalProperties": {
         "timeout": { "type": "uint64" },
-        "ca_bundle": { "type": "string" }
+        "ca_bundle": { "type": "string" },
+        "system_git": { "type": "boolean" }
       }
     }
   }

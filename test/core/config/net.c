@@ -8,6 +8,7 @@
 typedef struct {
   u32 timeout_s;
   const c8* ca_bundle;
+  bool system_git;
 } expect_t;
 
 typedef struct {
@@ -41,6 +42,11 @@ static const test_t tests [] = {
     .config = "net_ca_bundle",
     .expect = { .timeout_s = 30, .ca_bundle = "A" },
   },
+  {
+    .name = "system_git_is_read",
+    .config = "net_system_git",
+    .expect = { .timeout_s = 30, .system_git = true },
+  },
 };
 
 sp_test_each(config, net, test_t, tests) {
@@ -57,5 +63,6 @@ sp_test_each(config, net, test_t, tests) {
   spn_net_config_t net = spn_net_lower(&cg.net);
   sp_expect_eq(t, net.timeout_s, it->expect.timeout_s);
   sp_expect_str_eq_c(t, net.ca_bundle, it->expect.ca_bundle);
+  sp_expect_eq(t, net.system_git, it->expect.system_git);
   return SP_OK;
 }

@@ -286,6 +286,8 @@ spn_err_t spn_ctx_open(spn_ctx_t* ctx, spn_open_request_t request) {
     .timeout_s = net.timeout_s,
     .backoff = spn_net_default_backoff,
   };
+  spn_git_transport_t transport = net.system_git ? SPN_GIT_TRANSPORT_SYSTEM : SPN_GIT_TRANSPORT_BUILTIN;
+  ctx->caches.git.transport = transport;
   ctx->caches.git.backoff = spn_net_default_backoff;
   spn_probe_cache_load(&ctx->caches.toolchains.probes, &ctx->roots, (spn_path_t) { .root = SPN_PATH_ROOT_TOOLCHAIN, .sub = sp_str_lit("probe.cache") }, ctx->mem);
 
@@ -307,6 +309,7 @@ spn_err_t spn_ctx_open(spn_ctx_t* ctx, spn_open_request_t request) {
     spn_path_t location = spn_index_location(index, ctx->heap, &ctx->roots, spn_path_from_id(SPN_DIR_ID_INDEX));
     index->location.at = spn_path_at(&ctx->roots, location);
     index->location.dir = spn_path_str(&ctx->roots, ctx->heap, location);
+    index->transport = transport;
     index->backoff = spn_net_default_backoff;
     if (!index->refresh) {
       index->refresh = request.index_refresh_seconds ? request.index_refresh_seconds : SPN_INDEX_DEFAULT_REFRESH;

@@ -7,11 +7,6 @@
 
 #define spn_git_lock_poll_ms 20
 
-static c8* mirror_refspecs [] = {
-  "+refs/heads/*:refs/heads/*",
-  "+refs/tags/*:refs/tags/*",
-};
-
 static sp_str_t last_error(sp_mem_t mem) {
   const git_error* err = git_error_last();
   if (!err || !err->message) {
@@ -80,47 +75,22 @@ static s32 create_repo(git_repository** repo, const c8* path, s32 bare, void* us
   return err;
 }
 
-static spn_git_failure_kind_t classify(s32 err) {
+static spn_git_failure_t remote_failure(s32 err) {
   s32 klass = git_error_last()->klass;
+  spn_git_failure_kind_t kind = SPN_GIT_FAILED;
   if (err == GIT_ECERTIFICATE) {
-    return SPN_GIT_UNTRUSTED;
+    kind = SPN_GIT_UNTRUSTED;
   }
-  if (err == GIT_TIMEOUT || klass == GIT_ERROR_SSL || klass == GIT_ERROR_OS) {
-    return SPN_GIT_DROPPED;
+  else if (err == GIT_TIMEOUT || klass == GIT_ERROR_SSL || klass == GIT_ERROR_OS) {
+    kind = SPN_GIT_DROPPED;
   }
-  if (klass == GIT_ERROR_REFERENCE || klass == GIT_ERROR_ODB) {
-    return SPN_GIT_CORRUPT;
+  else if (klass == GIT_ERROR_REFERENCE || klass == GIT_ERROR_ODB) {
+    kind = SPN_GIT_CORRUPT;
   }
-  return SPN_GIT_FAILED;
-}
 
-static spn_err_t fetch_origin(sp_str_t path, c8** refspecs, u32 count, git_fetch_options* options, spn_net_backoff_t backoff, sp_atomic_s32_t* cancelled, spn_git_failure_t* failure) {
-  git_strarray specs = { .strings = refspecs, .count = count };
-  git_repository* repo = open_repo(path);
-  git_remote* remote = SP_NULLPTR;
-  s32 err = GIT_ERROR;
-  if (!repo || git_remote_lookup(&remote, repo, "origin")) {
-    *failure = last_failure(SPN_GIT_CORRUPT);
-  }
-  else if (is_missing_path(sp_cstr_as_str(git_remote_url(remote)))) {
-    *failure = last_failure(SPN_GIT_FAILED);
-  }
-  else {
-    u32 retry = 0;
-    while (!sp_atomic_s32_load(cancelled, SP_ATOMIC_SEQ_CST)) {
-      err = git_remote_fetch(remote, count ? &specs : SP_NULLPTR, options, SP_NULLPTR);
-      *failure = err ? last_failure(classify(err)) : sp_zero_s(spn_git_failure_t);
-      if (failure->kind != SPN_GIT_DROPPED || !spn_net_backoff_wait(backoff, retry++, cancelled)) {
-        break;
-      }
-    }
-  }
-  git_remote_free(remote);
-  git_repository_free(repo);
-  if (err && sp_atomic_s32_load(cancelled, SP_ATOMIC_SEQ_CST)) {
-    *failure = (spn_git_failure_t) { .kind = SPN_GIT_CANCELLED, .message = "cancelled" };
-  }
-  return err ? SPN_ERROR : SPN_OK;
+  spn_git_failure_t failure = last_failure(kind);
+  failure.remote = kind != SPN_GIT_CORRUPT;
+  return failure;
 }
 
 static bool relative_path(sp_mem_t mem, sp_str_t root, sp_str_t path, sp_str_t* relative) {
@@ -203,7 +173,7 @@ spn_err_t spn_git_lock(sp_path_t repo, sp_path_t gitdir, sp_atomic_s32_t* cancel
   return SPN_OK;
 }
 
-spn_err_t spn_git_clone(sp_str_t url, sp_str_t path, spn_net_backoff_t backoff, sp_atomic_s32_t* cancelled, spn_git_failure_t* failure) {
+spn_err_t spn_git_builtin_clone(sp_str_t url, sp_str_t path, sp_atomic_s32_t* cancelled, spn_git_failure_t* failure) {
   if (is_missing_path(url)) {
     *failure = last_failure(SPN_GIT_FAILED);
     return SPN_ERROR;
@@ -214,20 +184,52 @@ spn_err_t spn_git_clone(sp_str_t url, sp_str_t path, spn_net_backoff_t backoff, 
   options.fetch_opts = fetch_options(cancelled);
   options.repository_cb = create_repo;
   git_repository* repo = SP_NULLPTR;
-  s32 err = GIT_ERROR;
-  u32 retry = 0;
-  while (!sp_atomic_s32_load(cancelled, SP_ATOMIC_SEQ_CST)) {
-    err = git_clone(&repo, sp_str_to_cstr(scratch.mem, url), sp_str_to_cstr(scratch.mem, path), &options);
-    *failure = err ? last_failure(classify(err)) : sp_zero_s(spn_git_failure_t);
-    if (failure->kind != SPN_GIT_DROPPED || !spn_net_backoff_wait(backoff, retry++, cancelled)) {
+  s32 err = git_clone(&repo, sp_str_to_cstr(scratch.mem, url), sp_str_to_cstr(scratch.mem, path), &options);
+  *failure = err ? remote_failure(err) : sp_zero_s(spn_git_failure_t);
+  git_repository_free(repo);
+  sp_mem_end_scratch(scratch);
+  return err ? SPN_ERROR : SPN_OK;
+}
+
+spn_err_t spn_git_builtin_fetch(sp_str_t repo, spn_git_fetch_t fetch, sp_atomic_s32_t* cancelled, spn_git_failure_t* failure) {
+  git_fetch_options options = fetch_options(cancelled);
+  switch (fetch.depth) {
+    case SPN_GIT_DEPTH_FULL: {
+      break;
+    }
+    case SPN_GIT_DEPTH_TIP: {
+      options.depth = 1;
+      break;
+    }
+    case SPN_GIT_DEPTH_UNSHALLOW: {
+      options.depth = GIT_FETCH_DEPTH_UNSHALLOW;
       break;
     }
   }
-  git_repository_free(repo);
-  sp_mem_end_scratch(scratch);
-  if (err && sp_atomic_s32_load(cancelled, SP_ATOMIC_SEQ_CST)) {
-    *failure = (spn_git_failure_t) { .kind = SPN_GIT_CANCELLED, .message = "cancelled" };
+  if (fetch.no_tags) {
+    options.download_tags = GIT_REMOTE_DOWNLOAD_TAGS_NONE;
   }
+
+  git_strarray specs = { .strings = (c8**)fetch.refspecs };
+  while (specs.count < spn_git_max_refspecs && fetch.refspecs[specs.count]) {
+    specs.count++;
+  }
+
+  git_repository* r = open_repo(repo);
+  git_remote* remote = SP_NULLPTR;
+  s32 err = GIT_ERROR;
+  if (!r || git_remote_lookup(&remote, r, "origin")) {
+    *failure = last_failure(SPN_GIT_CORRUPT);
+  }
+  else if (is_missing_path(sp_cstr_as_str(git_remote_url(remote)))) {
+    *failure = last_failure(SPN_GIT_FAILED);
+  }
+  else {
+    err = git_remote_fetch(remote, specs.count ? &specs : SP_NULLPTR, &options, SP_NULLPTR);
+    *failure = err ? remote_failure(err) : sp_zero_s(spn_git_failure_t);
+  }
+  git_remote_free(remote);
+  git_repository_free(r);
   return err ? SPN_ERROR : SPN_OK;
 }
 
@@ -237,7 +239,7 @@ spn_err_t spn_git_init_bare(sp_str_t url, sp_str_t path, spn_git_failure_t* fail
   git_remote* remote = SP_NULLPTR;
   bool ok =
     !create_repo(&repo, sp_str_to_cstr(scratch.mem, path), 1, SP_NULLPTR) &&
-    !git_remote_create_with_fetchspec(&remote, repo, "origin", sp_str_to_cstr(scratch.mem, url), mirror_refspecs[0]);
+    !git_remote_create_with_fetchspec(&remote, repo, "origin", sp_str_to_cstr(scratch.mem, url), "+refs/heads/*:refs/heads/*");
   *failure = ok ? sp_zero_s(spn_git_failure_t) : last_failure(SPN_GIT_FAILED);
   git_remote_free(remote);
   git_repository_free(repo);
@@ -280,34 +282,11 @@ spn_err_t spn_git_clone_shared(sp_mem_t mem, sp_str_t source, sp_str_t path, sp_
   return ok ? SPN_OK : SPN_ERROR;
 }
 
-spn_err_t spn_git_fetch(sp_str_t repo, spn_net_backoff_t backoff, sp_atomic_s32_t* cancelled, spn_git_failure_t* failure) {
-  git_fetch_options options = fetch_options(cancelled);
-  return fetch_origin(repo, SP_NULLPTR, 0, &options, backoff, cancelled, failure);
-}
-
-spn_err_t spn_git_fetch_rev(sp_str_t repo, sp_str_t rev, spn_net_backoff_t backoff, sp_atomic_s32_t* cancelled, spn_git_failure_t* failure) {
-  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  c8* spec = sp_str_to_cstr(scratch.mem, rev);
-  git_fetch_options options = fetch_options(cancelled);
-  options.depth = 1;
-  options.download_tags = GIT_REMOTE_DOWNLOAD_TAGS_NONE;
-  spn_err_t shallow = fetch_origin(repo, &spec, 1, &options, backoff, cancelled, failure);
-  sp_mem_end_scratch(scratch);
-
-  if (shallow && failure->kind != SPN_GIT_FAILED) {
-    return SPN_ERROR;
-  }
-  if (spn_git_has_rev(repo, rev)) {
-    return SPN_OK;
-  }
-
+bool spn_git_is_shallow(sp_str_t repo) {
   git_repository* r = open_repo(repo);
-  git_fetch_options mirror = fetch_options(cancelled);
-  if (r && git_repository_is_shallow(r)) {
-    mirror.depth = GIT_FETCH_DEPTH_UNSHALLOW;
-  }
+  bool shallow = r && git_repository_is_shallow(r);
   git_repository_free(r);
-  return fetch_origin(repo, mirror_refspecs, sp_carr_len(mirror_refspecs), &mirror, backoff, cancelled, failure);
+  return shallow;
 }
 
 bool spn_git_has_rev(sp_str_t repo, sp_str_t rev) {
@@ -532,26 +511,6 @@ spn_err_t spn_git_commit(sp_str_t repo, sp_str_t message) {
   git_repository_free(r);
   sp_mem_end_scratch(scratch);
   return ok ? SPN_OK : SPN_ERROR;
-}
-
-spn_err_t spn_git_push(sp_mem_t mem, sp_str_t repo, sp_str_t url, sp_str_t refspec, sp_str_t* output) {
-  sp_ps_output_t result = sp_ps_run(mem, (sp_ps_config_t) {
-    .command = SP_LIT("git"),
-    .args = {
-      SP_LIT("-C"), repo,
-      SP_LIT("push"), SP_LIT("--quiet"),
-      url,
-      refspec
-    },
-  });
-
-  if (result.status.exit_code) {
-    if (output) {
-      *output = sp_str_trim_right(sp_str_empty(result.err) ? result.out : result.err);
-    }
-    return SPN_ERROR;
-  }
-  return SPN_OK;
 }
 
 bool spn_git_is_dirty(sp_str_t repo, sp_str_t dir) {

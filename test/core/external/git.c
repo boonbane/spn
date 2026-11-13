@@ -1,6 +1,7 @@
 #include "spn_test.h"
 
 #include "external/git.h"
+#include "git/remote.h"
 
 typedef enum {
   OP_NONE,
@@ -23,6 +24,7 @@ typedef enum {
 typedef struct {
   spn_err_t err;
   spn_git_failure_kind_t kind;
+  bool remote;
   u32 waited_ms;
 } expect_t;
 
@@ -30,6 +32,7 @@ typedef struct {
   const c8* name;
   op_t op;
   damage_t damage;
+  spn_git_transport_t transport;
   spn_net_backoff_t backoff;
   bool cancelled;
   expect_t expect;
@@ -74,20 +77,46 @@ static const test_t tests [] = {
     .name = "fetch_into_locked_ref_is_dropped",
     .op = OP_FETCH,
     .damage = DAMAGE_REF_LOCKED,
-    .expect = { .err = SPN_ERROR, .kind = SPN_GIT_DROPPED },
+    .expect = { .err = SPN_ERROR, .kind = SPN_GIT_DROPPED, .remote = true },
   },
   {
     .name = "fetch_from_refusing_remote_is_dropped",
     .op = OP_FETCH,
     .damage = DAMAGE_REMOTE_REFUSES,
-    .expect = { .err = SPN_ERROR, .kind = SPN_GIT_DROPPED },
+    .expect = { .err = SPN_ERROR, .kind = SPN_GIT_DROPPED, .remote = true },
   },
   {
     .name = "dropped_fetch_waits_out_the_backoff",
     .op = OP_FETCH,
     .damage = DAMAGE_REMOTE_REFUSES,
     .backoff = { .wait_ms = { 10, 20, 30 } },
-    .expect = { .err = SPN_ERROR, .kind = SPN_GIT_DROPPED, .waited_ms = 60 },
+    .expect = { .err = SPN_ERROR, .kind = SPN_GIT_DROPPED, .remote = true, .waited_ms = 60 },
+  },
+  {
+    .name = "system_fetch_succeeds",
+    .op = OP_FETCH,
+    .transport = SPN_GIT_TRANSPORT_SYSTEM,
+  },
+  {
+    .name = "system_clone_of_missing_path_is_remote",
+    .op = OP_CLONE,
+    .damage = DAMAGE_REMOTE_REMOVED,
+    .transport = SPN_GIT_TRANSPORT_SYSTEM,
+    .expect = { .err = SPN_ERROR, .remote = true },
+  },
+  {
+    .name = "system_fetch_from_refusing_remote_is_remote",
+    .op = OP_FETCH,
+    .damage = DAMAGE_REMOTE_REFUSES,
+    .transport = SPN_GIT_TRANSPORT_SYSTEM,
+    .expect = { .err = SPN_ERROR, .remote = true },
+  },
+  {
+    .name = "system_fetch_after_cancel_is_not_attempted",
+    .op = OP_FETCH,
+    .transport = SPN_GIT_TRANSPORT_SYSTEM,
+    .cancelled = true,
+    .expect = { .err = SPN_ERROR, .kind = SPN_GIT_CANCELLED },
   },
   {
     .name = "clone_after_cancel_is_cancelled",
@@ -130,7 +159,7 @@ sp_test_each(git, failure, test_t, tests, .setup = spn_test_ctx_setup) {
   sp_must_eq(t, (u32)spn_git_current_branch(mem, remote, &branch), (u32)SPN_OK);
   sp_str_t ref = sp_fs_join_path(mem, local, sp_fmt(mem, ".git/refs/remotes/origin/{}", sp_fmt_str(branch)).value);
   if (it->op == OP_FETCH) {
-    sp_must_eq(t, (u32)spn_git_clone(remote, local, spn_net_no_backoff, &cancelled, &failure), (u32)SPN_OK);
+    sp_must_eq(t, (u32)spn_git_clone(it->transport, remote, local, spn_net_no_backoff, &cancelled, &failure), (u32)SPN_OK);
   }
 
   switch (it->damage) {
@@ -178,11 +207,11 @@ sp_test_each(git, failure, test_t, tests, .setup = spn_test_ctx_setup) {
   sp_tm_timer_t timer = sp_tm_start_timer();
   switch (it->op) {
     case OP_CLONE: {
-      err = spn_git_clone(remote, local, it->backoff, &cancelled, &failure);
+      err = spn_git_clone(it->transport, remote, local, it->backoff, &cancelled, &failure);
       break;
     }
     case OP_FETCH: {
-      err = spn_git_fetch(local, it->backoff, &cancelled, &failure);
+      err = spn_git_fetch(it->transport, local, it->backoff, &cancelled, &failure);
       break;
     }
     case OP_INIT_BARE: {
@@ -201,6 +230,7 @@ sp_test_each(git, failure, test_t, tests, .setup = spn_test_ctx_setup) {
   sp_test_kv_c(t, "message", failure.message);
   sp_expect_eq(t, (u32)err, (u32)it->expect.err);
   sp_expect_eq(t, (u32)failure.kind, (u32)it->expect.kind);
+  sp_expect_eq(t, failure.remote, it->expect.remote);
   sp_expect_eq(t, failure.message[0] != 0, it->expect.err != SPN_OK);
   sp_expect_ge(t, sp_tm_ns_to_ms(waited), (u64)it->expect.waited_ms);
   return SP_OK;

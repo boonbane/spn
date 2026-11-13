@@ -1058,6 +1058,15 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           );
           break;
         }
+        case SPN_ERR_GIT_FETCH: {
+          sp_tty_fmt(
+            &w,
+            "Failed to fetch {.cyan} from {.gray}",
+            sp_fmt_str(event->err.subject),
+            sp_fmt_str(event->err.git_fetch.url)
+          );
+          break;
+        }
         case SPN_ERR_VERSION_EXISTS: {
           sp_tty_fmt(
             &w,
@@ -1808,6 +1817,40 @@ static void render_event_extra(sp_tty_t* w, spn_event_t* event) {
               );
               break;
             }
+          }
+          if (cert->git) {
+            sp_tty_fmt(
+              w,
+              "If git on this machine trusts it, set {.yellow} under {.yellow} in {.cyan} to fetch with git instead.\n",
+              sp_fmt_cstr("system_git = true"),
+              sp_fmt_cstr("[net]"),
+              sp_fmt_str(cert->config)
+            );
+          }
+          break;
+        }
+        case SPN_ERR_GIT_FETCH: {
+          const spn_err_git_fetch_t* fetch = &event->err.git_fetch;
+          sp_tty_fmt(w, "{}\n", sp_fmt_str(sp_str_trim_right(fetch->cause)));
+          if (fetch->system) {
+            sp_tty_fmt(
+              w,
+              "git is in use because {.yellow} is set under {.yellow} in {.cyan}.\nTo reproduce, run {.yellow} {.yellow}\n",
+              sp_fmt_cstr("system_git"),
+              sp_fmt_cstr("[net]"),
+              sp_fmt_str(fetch->config),
+              sp_fmt_cstr("git ls-remote"),
+              sp_fmt_str(fetch->url)
+            );
+          }
+          else {
+            sp_tty_fmt(
+              w,
+              "If git on this machine can fetch it, set {.yellow} under {.yellow} in {.cyan} to fetch with git instead.\n",
+              sp_fmt_cstr("system_git = true"),
+              sp_fmt_cstr("[net]"),
+              sp_fmt_str(fetch->config)
+            );
           }
           break;
         }

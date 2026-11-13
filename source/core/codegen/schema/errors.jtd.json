@@ -16,6 +16,7 @@
     "no_manifest": { "ref": "no_manifest" },
     "not_git_repo": { "ref": "not_git_repo" },
     "git": { "ref": "git" },
+    "git_fetch": { "ref": "git_fetch" },
     "version_exists": { "ref": "version_exists" },
     "toolchain_unknown": { "ref": "toolchain" },
     "toolchain_none": { "ref": "toolchain" },
@@ -177,6 +178,14 @@
         "command": { "type": "string" }
       }
     },
+    "git_fetch": {
+      "properties": {
+        "url": { "type": "string" },
+        "config": { "type": "string" },
+        "cause": { "type": "string" },
+        "system": { "type": "boolean" }
+      }
+    },
     "version_exists": {
       "properties": {
         "name": { "type": "string" },
@@ -228,7 +237,8 @@
         "url": { "type": "string" },
         "trust": { "metadata": { "extern": "net_trust" } },
         "config": { "type": "string" },
-        "cause": { "type": "string" }
+        "cause": { "type": "string" },
+        "git": { "type": "boolean" }
       }
     },
     "wasm": {

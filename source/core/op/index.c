@@ -116,6 +116,19 @@ static spn_err_t sync_indexes(spn_op_t* op) {
           .trust = ctx->trust,
           .config = spn_path_str(&ctx->roots, ctx->events->mem, ctx->paths.config),
           .cause = sp_str_copy(ctx->events->mem, sp_cstr_as_str(job->failure.message)),
+          .git = true,
+        }});
+    }
+
+    if (job->failure.remote) {
+      return spn_err_emit(ctx, (spn_err_union_t) {
+        .kind = SPN_ERR_GIT_FETCH,
+        .subject = job->index->name.str,
+        .git_fetch = {
+          .url = spn_index_source(job->index),
+          .config = spn_path_str(&ctx->roots, ctx->events->mem, ctx->paths.config),
+          .cause = sp_str_copy(ctx->events->mem, sp_cstr_as_str(job->failure.message)),
+          .system = job->index->transport == SPN_GIT_TRANSPORT_SYSTEM,
         }});
     }
 

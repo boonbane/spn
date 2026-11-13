@@ -8,6 +8,8 @@
 
 #include "error/error.h"
 #include "external/git.h"
+#include "external/git_cli.h"
+#include "git/remote.h"
 #include "git/key.h"
 #include "index/dir.h"
 #include "index/index.h"
@@ -50,7 +52,7 @@ static spn_err_t git_index_clone(spn_index_info_t* index, sp_atomic_s32_t* cance
 
   sp_path_t work = sp_path_from_str(staged.sub);
   sp_path_t old = sp_path_from_str(spn_path_staging(scratch.mem, base, sp_str_lit("old")).sub);
-  spn_err_t err = spn_git_clone(index->git.url, staged.sub, index->backoff, cancelled, failure);
+  spn_err_t err = spn_git_clone(index->transport, index->git.url, staged.sub, index->backoff, cancelled, failure);
   if (!err && sp_fs_replace_dir_at(work, index->location.at, old)) {
     *failure = (spn_git_failure_t) { .message = "failed to place the clone" };
     err = SPN_ERROR;
@@ -84,7 +86,7 @@ static spn_err_t git_index_freshen(spn_index_info_t* index, sp_atomic_s32_t* can
         break;
       }
     }
-    else if (spn_git_fetch(dir, spn_net_no_backoff, cancelled, failure)) {
+    else if (spn_git_fetch(index->transport, dir, spn_net_no_backoff, cancelled, failure)) {
       if (failure->kind == SPN_GIT_CORRUPT) {
         continue;
       }
@@ -155,7 +157,7 @@ static spn_err_t git_index_sync(spn_index_info_t* index, spn_index_plan_t plan, 
     spn_try(git_index_clone(index, cancelled, failure));
   }
   else if (plan.fetch) {
-    spn_try(spn_git_fetch(dir, spn_net_no_backoff, cancelled, failure));
+    spn_try(spn_git_fetch(index->transport, dir, spn_net_no_backoff, cancelled, failure));
   }
   return spn_git_checkout(dir, index->git.rev);
 }
@@ -309,7 +311,7 @@ static spn_err_t publish_git(spn_index_info_t* index, spn_index_release_t* rel, 
     }
 
     sp_str_t refspec = sp_fmt(scratch.mem, "HEAD:refs/heads/{}", sp_fmt_str(branch)).value;
-    if (!spn_git_push(scratch.mem, dir, url, refspec, &output)) {
+    if (!spn_git_cli_push(scratch.mem, dir, url, refspec, &output)) {
       sp_fs_create_file_at(git_index_stamp(scratch.mem, index));
       sp_mem_end_scratch(scratch);
       return SPN_OK;

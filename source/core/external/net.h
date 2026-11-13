@@ -18,6 +18,7 @@ typedef struct {
 typedef struct {
   u32 timeout_s;
   sp_str_t ca_bundle;
+  bool system_git;
 } spn_net_config_t;
 
 spn_net_trust_t spn_net_trust_find(sp_str_t ca_bundle, sp_str_t ssl_cert_file);
