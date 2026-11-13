@@ -6,10 +6,12 @@ typedef struct {
   spn_index_protocol_t protocol;
   bool cloned;
   bool mutate_remote;
+  bool remove_remote;
 
   struct {
     spn_err_t result;
     bool cached;
+    bool cause;
   } expect;
 } sync_test_t;
 
@@ -33,6 +35,14 @@ static const sync_test_t tests [] = {
     .protocol = SPN_INDEX_PROTOCOL_HTTP,
     .expect = {
       .result = SPN_ERROR,
+    },
+  },
+  {
+    .name = "failed_clone_reports_cause",
+    .remove_remote = true,
+    .expect = {
+      .result = SPN_ERROR,
+      .cause = true,
     },
   },
 };
@@ -81,7 +91,8 @@ sp_test_each(index_sync, dir, dir_sync_test_t, dir_tests) {
   };
 
   spn_index_plan_t plan = spn_index_plan(&index, false);
-  sp_expect_eq(t, it->expect.result, spn_index_sync(&index, plan));
+  spn_git_failure_t failure = sp_zero;
+  sp_expect_eq(t, it->expect.result, spn_index_sync(&index, plan, &failure));
   if (it->exists) {
     sp_expect_eq(t, false, plan.fetch);
   }
@@ -106,15 +117,20 @@ sp_test_each(index_sync, sync, sync_test_t, tests) {
     .location = { .at = sp_path_from_str(cache), .dir = cache },
   };
 
+  spn_git_failure_t failure = sp_zero;
   if (it->cloned) {
-    sp_expect_eq(t, SPN_OK, spn_index_sync(&index, spn_index_plan(&index, false)));
+    sp_expect_eq(t, SPN_OK, spn_index_sync(&index, spn_index_plan(&index, false), &failure));
   }
   if (it->mutate_remote) {
     commit_seed(mem, remote, it->name, 1);
   }
+  if (it->remove_remote) {
+    sp_fs_remove_dir(remote);
+  }
 
-  sp_expect_eq(t, it->expect.result, spn_index_sync(&index, spn_index_plan(&index, false)));
+  sp_expect_eq(t, it->expect.result, spn_index_sync(&index, spn_index_plan(&index, false), &failure));
   sp_expect_eq(t, it->expect.cached, sp_fs_exists(cache));
+  sp_expect_eq(t, it->expect.cause, failure.message[0] != 0);
 
   return SP_OK;
 }

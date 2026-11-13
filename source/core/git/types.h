@@ -5,6 +5,7 @@
 #include "sp_om/sp_om.h"
 
 #include "array/array.h"
+#include "external/git.h"
 #include "intern/types.h"
 #include "paths/types.h"
 #include "spn/core.h"
@@ -15,7 +16,7 @@ typedef struct {
   sp_mutex_t mutex;
   bool ready;
   spn_err_t err;
-  sp_str_t error;
+  spn_git_failure_t failure;
 } spn_git_db_t;
 
 // hash is the set's identity: derived from file contents in order, zero iff

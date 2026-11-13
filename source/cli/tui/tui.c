@@ -1743,6 +1743,10 @@ static void render_event_extra(sp_tty_t* w, spn_event_t* event) {
           sp_io_write_str(w->io, event->err.publish.output, SP_NULLPTR);
           break;
         }
+        case SPN_ERR_INDEX_SYNC: {
+          sp_io_write_str(w->io, event->err.index.cause, SP_NULLPTR);
+          break;
+        }
         case SPN_ERR_TOOLCHAIN_FETCH:
         case SPN_ERR_TOOLCHAIN_EXTRACT: {
           sp_io_write_str(w->io, event->err.artifact.output, SP_NULLPTR);

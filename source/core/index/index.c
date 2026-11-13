@@ -31,7 +31,7 @@ static bool git_index_stale(spn_index_info_t* index) {
   return mod_time.s + index->refresh <= now.s;
 }
 
-static spn_err_t git_index_freshen(spn_index_info_t* index) {
+static spn_err_t git_index_freshen(spn_index_info_t* index, spn_git_failure_t* failure) {
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   spn_err_t err = SPN_ERROR;
   sp_path_t at = index->location.at;
@@ -40,11 +40,11 @@ static spn_err_t git_index_freshen(spn_index_info_t* index) {
   sp_for(attempt, 2) {
     if (attempt || !sp_fs_is_dir_at(at)) {
       sp_fs_remove_dir_at(at);
-      if (spn_git_clone(index->git.url, dir)) {
+      if (spn_git_clone(index->git.url, dir, failure)) {
         break;
       }
     }
-    else if (spn_git_fetch(dir)) {
+    else if (spn_git_fetch(dir, failure)) {
       continue;
     }
 
@@ -92,23 +92,24 @@ spn_index_plan_t spn_index_plan(spn_index_info_t* index, bool force) {
   sp_unreachable_return(sp_zero_s(spn_index_plan_t));
 }
 
-spn_err_t spn_index_sync(spn_index_info_t* index, spn_index_plan_t plan) {
+spn_err_t spn_index_sync(spn_index_info_t* index, spn_index_plan_t plan, spn_git_failure_t* failure) {
+  *failure = sp_zero_s(spn_git_failure_t);
   switch (index->protocol) {
     case SPN_INDEX_PROTOCOL_GIT: {
       bool pinned = !sp_str_empty(index->git.rev);
       sp_str_t dir = index->location.dir;
       if (!plan.present) {
-        spn_try(spn_git_clone(index->git.url, dir));
+        spn_try(spn_git_clone(index->git.url, dir, failure));
         return pinned ? spn_git_checkout(dir, index->git.rev) : SPN_OK;
       }
       if (!plan.fetch) {
         return pinned ? spn_git_checkout(dir, index->git.rev) : SPN_OK;
       }
       if (pinned) {
-        spn_try(spn_git_fetch(dir));
+        spn_try(spn_git_fetch(dir, failure));
         return spn_git_checkout(dir, index->git.rev);
       }
-      return git_index_freshen(index);
+      return git_index_freshen(index, failure);
     }
     case SPN_INDEX_PROTOCOL_HTTP: {
       return SPN_ERROR;
@@ -167,10 +168,15 @@ static spn_err_t publish_git(spn_index_info_t* index, spn_index_release_t* rel, 
   sp_str_t output = sp_zero;
 
   sp_for(attempt, SPN_INDEX_PUBLISH_ATTEMPTS) {
-    if (git_index_freshen(index)) {
+    spn_git_failure_t failure = sp_zero;
+    if (git_index_freshen(index, &failure)) {
       result = spn_err_emit(&spn, (spn_err_union_t) {
         .kind = SPN_ERR_INDEX_SYNC,
-        .index = { .name = index->name.str, .url = index->git.url },
+        .index = {
+          .name = index->name.str,
+          .url = index->git.url,
+          .cause = sp_str_copy(spn.events->mem, sp_cstr_as_str(failure.message)),
+        },
       });
       break;
     }
@@ -271,7 +277,8 @@ spn_err_t spn_index_publish(spn_index_info_t* index, spn_index_release_t* rel) {
 
       // Leave the replica clean when the transaction died after mutating it
       if (err && dirtied) {
-        git_index_freshen(index);
+        spn_git_failure_t failure = sp_zero;
+        git_index_freshen(index, &failure);
       }
       return err;
     }

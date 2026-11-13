@@ -5,6 +5,7 @@
 #include "spn/core.h"
 #include "index/types.h"
 #include "spn/errors.h"
+#include "external/git.h"
 
 #define SPN_INDEX_DEFAULT_REFRESH 600
 
@@ -14,7 +15,7 @@ typedef struct {
 } spn_index_plan_t;
 
 spn_index_plan_t spn_index_plan(spn_index_info_t* index, bool force);
-spn_err_t        spn_index_sync(spn_index_info_t* index, spn_index_plan_t plan);
+spn_err_t        spn_index_sync(spn_index_info_t* index, spn_index_plan_t plan, spn_git_failure_t* failure);
 spn_path_t       spn_index_location(spn_index_info_t* index, sp_mem_t mem, const spn_path_roots_t* roots, spn_path_t store);
 void             spn_index_assemble(sp_mem_t mem, spn_index_map_t* workspace, sp_da(spn_index_info_t) user, sp_da(spn_index_info_t)* indexes);
 spn_err_t        spn_index_get_package(spn_index_info_t* index, sp_mem_t mem, sp_intern_t* intern, const spn_path_roots_t* roots, sp_intern_str_t name, spn_index_pkg_t** pkg, spn_err_union_t* err);

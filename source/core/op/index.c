@@ -24,6 +24,7 @@ typedef struct {
   bool force;
   spn_index_plan_t plan;
   spn_err_t err;
+  spn_git_failure_t failure;
 } job_t;
 
 static void sync_index_node(void* data) {
@@ -31,7 +32,7 @@ static void sync_index_node(void* data) {
   if (spn_op_cancelled(job->op)) {
     return;
   }
-  job->err = spn_index_sync(job->index, job->plan);
+  job->err = spn_index_sync(job->index, job->plan, &job->failure);
 }
 
 static spn_err_t sync_indexes(spn_op_t* op) {
@@ -112,6 +113,7 @@ static spn_err_t sync_indexes(spn_op_t* op) {
       .index = {
         .name = job->index->name.str,
         .url = spn_index_source(job->index),
+        .cause = sp_str_copy(ctx->events->mem, sp_cstr_as_str(job->failure.message)),
       }});
   }
 

@@ -5,12 +5,26 @@
 #include "spn/core.h"
 #include "external/net.h"
 
+#define spn_git_message_max 512
+
+typedef enum {
+  SPN_GIT_FAILED,
+  SPN_GIT_DROPPED,
+  SPN_GIT_UNTRUSTED,
+  SPN_GIT_CORRUPT,
+} spn_git_failure_kind_t;
+
+typedef struct {
+  spn_git_failure_kind_t kind;
+  c8 message [spn_git_message_max];
+} spn_git_failure_t;
+
 spn_err_t spn_git_init(spn_net_trust_t trust, u32 timeout_s);
-spn_err_t spn_git_clone(sp_str_t url, sp_str_t path);
-spn_err_t spn_git_init_bare(sp_mem_t mem, sp_str_t url, sp_str_t path, sp_str_t* error);
+spn_err_t spn_git_clone(sp_str_t url, sp_str_t path, spn_git_failure_t* failure);
+spn_err_t spn_git_init_bare(sp_str_t url, sp_str_t path, spn_git_failure_t* failure);
 spn_err_t spn_git_clone_shared(sp_mem_t mem, sp_str_t source, sp_str_t path, sp_str_t* error);
-spn_err_t spn_git_fetch(sp_str_t repo);
-spn_err_t spn_git_fetch_rev(sp_mem_t mem, sp_str_t repo, sp_str_t rev, sp_str_t* error);
+spn_err_t spn_git_fetch(sp_str_t repo, spn_git_failure_t* failure);
+spn_err_t spn_git_fetch_rev(sp_str_t repo, sp_str_t rev, spn_git_failure_t* failure);
 bool spn_git_has_rev(sp_str_t repo, sp_str_t rev);
 spn_err_t spn_git_checkout(sp_str_t repo, sp_str_t commit);
 spn_err_t spn_git_apply(sp_mem_t mem, sp_str_t repo, sp_str_t patch, sp_str_t* error);

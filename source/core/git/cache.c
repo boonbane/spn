@@ -50,7 +50,7 @@ spn_err_t spn_git_cache_ensure_db(spn_git_cache_t* cache, sp_str_t url, spn_git_
 
     if (!sp_fs_is_dir_at(spn_path_at(cache->roots, entry->path))) {
       sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-      entry->err = spn_git_init_bare(cache->mem, url, spn_path_str(cache->roots, scratch.mem, entry->path), &entry->error);
+      entry->err = spn_git_init_bare(url, spn_path_str(cache->roots, scratch.mem, entry->path), &entry->failure);
       sp_mem_end_scratch(scratch);
     }
   }
@@ -66,9 +66,13 @@ spn_err_t spn_git_db_ensure_rev(spn_git_cache_t* cache, spn_git_db_t* db, sp_str
 
   bool found = spn_git_has_rev(path, rev);
   if (!found) {
-    spn_err_t fetched = spn_git_fetch_rev(cache->mem, path, rev, error);
+    spn_git_failure_t failure = sp_zero;
+    spn_err_t fetched = spn_git_fetch_rev(path, rev, &failure);
     found = spn_git_has_rev(path, rev);
-    if (!found && !fetched) {
+    if (fetched) {
+      *error = sp_str_copy(cache->mem, sp_cstr_as_str(failure.message));
+    }
+    else if (!found) {
       *error = sp_fmt(cache->mem, "{} has no rev {}", sp_fmt_str(db->url), sp_fmt_str(rev)).value;
     }
   }
@@ -120,7 +124,7 @@ static spn_err_t spn_git_cache_fill_checkout(spn_git_cache_t* cache, spn_git_che
 static spn_err_t spn_git_cache_materialize_checkout(spn_git_cache_t* cache, spn_git_checkout_t* entry) {
   spn_git_db_t* db = SP_NULLPTR;
   if (spn_git_cache_ensure_db(cache, entry->id.url, &db)) {
-    entry->error = db->error;
+    entry->error = sp_cstr_as_str(db->failure.message);
     return SPN_ERROR;
   }
 

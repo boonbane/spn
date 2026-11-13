@@ -266,6 +266,9 @@
       "properties": {
         "name": { "type": "string" },
         "url": { "type": "string" }
+      },
+      "optionalProperties": {
+        "cause": { "type": "string" }
       }
     },
     "index_corrupt": {

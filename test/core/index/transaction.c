@@ -235,7 +235,8 @@ sp_test_each(index_transaction, publish, txn_test_t, tests, .setup = spn_test_ct
         break;
       }
       case TXN_ACTION_SYNC: {
-        sp_expect_eq(t, SPN_OK, spn_index_sync(&index, spn_index_plan(&index, false)));
+        spn_git_failure_t failure = sp_zero;
+        sp_expect_eq(t, SPN_OK, spn_index_sync(&index, spn_index_plan(&index, false), &failure));
         break;
       }
       case TXN_ACTION_ADVANCE_REMOTE: {
