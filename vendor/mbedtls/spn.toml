@@ -28,6 +28,6 @@ flags = [{ value = "-O2", when = { mode = "debug", abi = { not = "msvc" } } }]
 
 [package.publish]
 include = [
-  { from = "source/include/mbedtls/*", to = "mbedtls" },
-  { from = "source/include/psa/*", to = "psa" },
+  { from = "include/mbedtls/*", to = "mbedtls" },
+  { from = "include/psa/*", to = "psa" },
 ]

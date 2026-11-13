@@ -19,6 +19,15 @@ static c8* mirror_refspecs [] = {
   "+refs/tags/*:refs/tags/*",
 };
 
+#define SPN_GIT_TIMEOUT_MS 30000
+#define SPN_GIT_ATTEMPTS 4
+
+typedef enum {
+  FETCH_OK,
+  FETCH_FAILED,
+  FETCH_DROPPED,
+} fetch_t;
+
 static struct {
   bool no_ca_bundle;
 } git;
@@ -94,20 +103,34 @@ static s32 create_repo(git_repository** repo, const c8* path, s32 bare, void* us
   return err;
 }
 
-static spn_err_t fetch_origin(sp_mem_t mem, sp_str_t path, c8** refspecs, u32 count, git_fetch_options* options, sp_str_t* error) {
+static bool is_dropped(s32 err) {
+  const git_error* last = git_error_last();
+  if (!err || err == GIT_ECERTIFICATE || !last) {
+    return false;
+  }
+  return err == GIT_TIMEOUT || last->klass == GIT_ERROR_SSL || last->klass == GIT_ERROR_OS;
+}
+
+static fetch_t fetch_origin(sp_mem_t mem, sp_str_t path, c8** refspecs, u32 count, git_fetch_options* options, sp_str_t* error) {
   git_strarray specs = { .strings = refspecs, .count = count };
   git_repository* repo = open_repo(path);
   git_remote* remote = SP_NULLPTR;
-  bool ok = repo &&
-    !git_remote_lookup(&remote, repo, "origin") &&
-    !is_missing_path(sp_cstr_as_str(git_remote_url(remote))) &&
-    !git_remote_fetch(remote, count ? &specs : SP_NULLPTR, options, SP_NULLPTR);
-  if (!ok && error) {
+  fetch_t result = FETCH_FAILED;
+  if (repo && !git_remote_lookup(&remote, repo, "origin") && !is_missing_path(sp_cstr_as_str(git_remote_url(remote)))) {
+    sp_for(attempt, SPN_GIT_ATTEMPTS) {
+      s32 err = git_remote_fetch(remote, count ? &specs : SP_NULLPTR, options, SP_NULLPTR);
+      result = !err ? FETCH_OK : is_dropped(err) ? FETCH_DROPPED : FETCH_FAILED;
+      if (result != FETCH_DROPPED) {
+        break;
+      }
+    }
+  }
+  if (result != FETCH_OK && error) {
     *error = last_error(mem);
   }
   git_remote_free(remote);
   git_repository_free(repo);
-  return ok ? SPN_OK : SPN_ERROR;
+  return result;
 }
 
 static bool relative_path(sp_mem_t mem, sp_str_t root, sp_str_t path, sp_str_t* relative) {
@@ -149,6 +172,8 @@ spn_err_t spn_git_init(sp_env_t* env) {
     return SPN_ERROR;
   }
   git_libgit2_opts(GIT_OPT_SET_OWNER_VALIDATION, 0);
+  git_libgit2_opts(GIT_OPT_SET_SERVER_CONNECT_TIMEOUT, SPN_GIT_TIMEOUT_MS);
+  git_libgit2_opts(GIT_OPT_SET_SERVER_TIMEOUT, SPN_GIT_TIMEOUT_MS);
   if (!sp_str_equal_cstr(sp_cstr_as_str(git_libgit2_feature_backend(GIT_FEATURE_HTTPS)), "mbedtls")) {
     return SPN_OK;
   }
@@ -171,7 +196,13 @@ spn_err_t spn_git_clone(sp_str_t url, sp_str_t path) {
   options.fetch_opts = fetch_options();
   options.repository_cb = create_repo;
   git_repository* repo = SP_NULLPTR;
-  s32 err = git_clone(&repo, sp_str_to_cstr(scratch.mem, url), sp_str_to_cstr(scratch.mem, path), &options);
+  s32 err = 0;
+  sp_for(attempt, SPN_GIT_ATTEMPTS) {
+    err = git_clone(&repo, sp_str_to_cstr(scratch.mem, url), sp_str_to_cstr(scratch.mem, path), &options);
+    if (!is_dropped(err)) {
+      break;
+    }
+  }
   git_repository_free(repo);
   sp_mem_end_scratch(scratch);
 
@@ -234,28 +265,37 @@ spn_err_t spn_git_clone_shared(sp_mem_t mem, sp_str_t source, sp_str_t path, sp_
 
 spn_err_t spn_git_fetch(sp_str_t repo) {
   git_fetch_options options = fetch_options();
-  return fetch_origin(sp_zero_s(sp_mem_t), repo, SP_NULLPTR, 0, &options, SP_NULLPTR);
+  return fetch_origin(sp_zero_s(sp_mem_t), repo, SP_NULLPTR, 0, &options, SP_NULLPTR) ? SPN_ERROR : SPN_OK;
 }
 
-spn_err_t spn_git_fetch_rev(sp_str_t repo, sp_str_t rev) {
-  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  c8* spec = sp_str_to_cstr(scratch.mem, rev);
-  git_fetch_options options = fetch_options();
-  options.depth = 1;
-  options.download_tags = GIT_REMOTE_DOWNLOAD_TAGS_NONE;
-  spn_err_t err = fetch_origin(scratch.mem, repo, &spec, 1, &options, SP_NULLPTR);
-  sp_mem_end_scratch(scratch);
-  return err;
-}
-
-spn_err_t spn_git_fetch_mirror(sp_mem_t mem, sp_str_t repo, sp_str_t* error) {
+static spn_err_t fetch_mirror(sp_mem_t mem, sp_str_t repo, sp_str_t* error) {
   git_repository* r = open_repo(repo);
   git_fetch_options options = fetch_options();
   if (r && git_repository_is_shallow(r)) {
     options.depth = GIT_FETCH_DEPTH_UNSHALLOW;
   }
   git_repository_free(r);
-  return fetch_origin(mem, repo, mirror_refspecs, sp_carr_len(mirror_refspecs), &options, error);
+  return fetch_origin(mem, repo, mirror_refspecs, sp_carr_len(mirror_refspecs), &options, error) ? SPN_ERROR : SPN_OK;
+}
+
+spn_err_t spn_git_fetch_rev(sp_mem_t mem, sp_str_t repo, sp_str_t rev, sp_str_t* error) {
+  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+  c8* spec = sp_str_to_cstr(scratch.mem, rev);
+  git_fetch_options options = fetch_options();
+  options.depth = 1;
+  options.download_tags = GIT_REMOTE_DOWNLOAD_TAGS_NONE;
+  sp_str_t dropped = sp_zero;
+  fetch_t shallow = fetch_origin(mem, repo, &spec, 1, &options, &dropped);
+  sp_mem_end_scratch(scratch);
+
+  if (shallow == FETCH_DROPPED) {
+    *error = dropped;
+    return SPN_ERROR;
+  }
+  if (spn_git_has_rev(repo, rev)) {
+    return SPN_OK;
+  }
+  return fetch_mirror(mem, repo, error);
 }
 
 bool spn_git_has_rev(sp_str_t repo, sp_str_t rev) {

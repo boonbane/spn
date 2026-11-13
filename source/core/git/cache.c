@@ -64,21 +64,13 @@ spn_err_t spn_git_db_ensure_rev(spn_git_cache_t* cache, spn_git_db_t* db, sp_str
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   sp_str_t path = spn_path_str(cache->roots, scratch.mem, db->path);
 
-  // GitHub serves concurrent shallow fetches at a few hundred KB/s sometimes,
-  // so you just gotta serialize
   bool found = spn_git_has_rev(path, rev);
   if (!found) {
-    sp_mutex_lock(&cache->fetch);
-    spn_git_fetch_rev(path, rev);
+    spn_err_t fetched = spn_git_fetch_rev(cache->mem, path, rev, error);
     found = spn_git_has_rev(path, rev);
-    if (!found) {
-      spn_err_t fetched = spn_git_fetch_mirror(cache->mem, path, error);
-      found = spn_git_has_rev(path, rev);
-      if (!found && !fetched) {
-        *error = sp_fmt(cache->mem, "{} has no rev {}", sp_fmt_str(db->url), sp_fmt_str(rev)).value;
-      }
+    if (!found && !fetched) {
+      *error = sp_fmt(cache->mem, "{} has no rev {}", sp_fmt_str(db->url), sp_fmt_str(rev)).value;
     }
-    sp_mutex_unlock(&cache->fetch);
   }
 
   sp_mem_end_scratch(scratch);

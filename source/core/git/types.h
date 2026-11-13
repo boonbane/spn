@@ -47,7 +47,6 @@ typedef struct {
   sp_intern_t* intern;
   const spn_path_roots_t* roots;
   sp_mutex_t mutex;
-  sp_mutex_t fetch;
   struct {
     spn_path_t dir;
     sp_str_ht(spn_git_db_t*) entries;
