@@ -43,7 +43,10 @@ sp = { path = "vendor/sp" }
 yyjson = { path = "vendor/yyjson"}
 
 [patch.sp]
-files = ["tools/patches/sp-golden-absolute.patch"]
+files = [
+  "tools/patches/sp-golden-absolute.patch",
+  "tools/patches/sp-prompt-passive.patch",
+]
 
 [patch.wamr]
 files = [

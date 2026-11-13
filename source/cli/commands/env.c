@@ -229,6 +229,7 @@ static sp_cli_result_t run(sp_cli_t* cli) {
   spn_env_result_t env = sp_zero;
   try(resolve(&env));
   spn_tui_handoff(&tui);
+  sp_os_register_signal_handler(SP_OS_SIGNAL_INTERRUPT, SP_NULLPTR, SP_NULLPTR);
 
   sp_mem_arena_marker_t s = sp_mem_begin_scratch();
   bool windows = sp_os_get_path_kind() == SP_FS_PATH_WINDOWS;

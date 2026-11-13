@@ -14,8 +14,7 @@ static void on_wake(void* user_data) {
 static void on_signal(sp_os_signal_t signal, void* userdata) {
   switch (signal) {
     case SP_OS_SIGNAL_INTERRUPT: {
-      sp_atomic_s32_store(&host.interrupted, 1, SP_ATOMIC_SEQ_CST);
-      on_wake(SP_NULLPTR);
+      spn_cli_interrupt();
       break;
     }
     case SP_OS_SIGNAL_ABORT:

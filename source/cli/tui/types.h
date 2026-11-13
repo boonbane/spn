@@ -48,8 +48,6 @@ typedef struct {
   struct {
     sp_prompt_ctx_t* ctx;
     sp_app_t* app;
-    sp_prompt_widget_t widget;
-    spn_op_t* op;
     spn_progress_t last;
     bool started;
     bool on;

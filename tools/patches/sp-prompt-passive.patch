@@ -1,0 +1,87 @@
+diff --git a/sp/sp_prompt.h b/sp/sp_prompt.h
+index 3dabe42..60238fe 100644
+--- a/sp/sp_prompt.h
++++ b/sp/sp_prompt.h
+@@ -701,6 +701,7 @@ typedef struct {
+ 
+ typedef struct {
+   sp_prompt_fds_t fds;
++  bool passive;
+ } sp_prompt_config_t;
+ 
+ /////////
+@@ -710,6 +711,7 @@ typedef struct {
+ sp_prompt_ctx_t* sp_prompt_begin(sp_mem_t mem);
+ sp_prompt_ctx_t* sp_prompt_begin_ex(sp_mem_t mem, sp_prompt_config_t config);
+ void             sp_prompt_end(sp_prompt_ctx_t* ctx);
++void             sp_prompt_restore(sp_prompt_ctx_t* ctx);
+ 
+ // @widgets
+ void             sp_prompt_intro(sp_prompt_ctx_t* ctx, const c8* text);
+@@ -882,6 +884,7 @@ struct sp_prompt_ctx_t {
+     sp_prompt_fds_t fds;
+     sp_sys_tty_state_t cache;
+     bool raw;
++    bool passive;
+   } terminal;
+   sp_mem_arena_t* arena;
+   sp_mem_t mem;
+@@ -1003,7 +1006,8 @@ sp_prompt_ctx_t* sp_prompt_begin_ex(sp_mem_t mem, sp_prompt_config_t config) {
+ 
+   sp_tty_color_t color = sp_tty_color_detect(fds.out);
+   sp_sys_tty_state_t cache = sp_zero;
+-  if (sp_tty_set_mode(fds.in, fds.out, SP_SYS_TTY_MODE_RAW, &cache)) return SP_NULLPTR;
++  sp_sys_tty_mode_t mode = config.passive ? SP_SYS_TTY_MODE_NO_ECHO : SP_SYS_TTY_MODE_RAW;
++  if (sp_tty_set_mode(fds.in, fds.out, mode, &cache)) return SP_NULLPTR;
+ 
+   u32 cols = 0;
+   u32 rows = 0;
+@@ -1016,6 +1020,7 @@ sp_prompt_ctx_t* sp_prompt_begin_ex(sp_mem_t mem, sp_prompt_config_t config) {
+   ctx->terminal.fds = fds;
+   ctx->terminal.cache = cache;
+   ctx->terminal.raw = true;
++  ctx->terminal.passive = config.passive;
+ 
+   // Write buffering is really important, because our rendering algorithm is extremely
+   // naive. It's not much more than this:
+@@ -1075,6 +1080,13 @@ void sp_prompt_end(sp_prompt_ctx_t* ctx) {
+   sp_mem_arena_destroy(ctx->arena);
+ }
+ 
++void sp_prompt_restore(sp_prompt_ctx_t* ctx) {
++  if (!ctx->terminal.raw) return;
++
++  sp_sys_write(ctx->terminal.fds.out, SP_ANSI_SHOW_CURSOR, sizeof(SP_ANSI_SHOW_CURSOR) - 1, SP_NULLPTR);
++  sp_tty_restore(ctx->terminal.fds.in, ctx->terminal.fds.out, &ctx->terminal.cache);
++}
++
+ void sp_prompt_ctx_init(sp_prompt_ctx_t* ctx, sp_mem_t mem, u32 cols, u32 rows) {
+   *ctx = sp_zero_s(sp_prompt_ctx_t);
+   ctx->cols = cols;
+@@ -1616,7 +1628,7 @@ sp_app_result_t sp_prompt_app_on_poll(sp_app_t* app) {
+   }
+   sp_mutex_unlock(&ctx->channel.lock);
+ 
+-  while (true) {
++  while (!ctx->terminal.passive) {
+     sp_prompt_event_t event = sp_prompt_drain_stdin(ctx);
+     if (event.kind == SP_PROMPT_EVENT_NONE) break;
+ 
+@@ -1636,11 +1648,14 @@ sp_app_result_t sp_prompt_app_on_poll(sp_app_t* app) {
+   // clearing after the scan would drop any wake signaled in between.
+   if (sp_da_empty(events) && ctx->state == SP_PROMPT_STATE_ACTIVE) {
+     if (!ctx->widget.on_update) {
+-      sp_sys_fd_t fds [2] = { ctx->terminal.fds.in, ctx->wake.event.fd };
+-      u64 n = ctx->wake.event.fd != SP_SYS_INVALID_FD ? 2 : 1;
++      sp_sys_fd_t fds [2] = sp_zero;
++      u64 n = 0;
++      if (!ctx->terminal.passive) fds[n++] = ctx->terminal.fds.in;
++      u64 wake = n;
++      if (ctx->wake.event.fd != SP_SYS_INVALID_FD) fds[n++] = ctx->wake.event.fd;
+       u64 signaled = 0;
+ 
+-      if (sp_sys_wait(fds, n, 0, &signaled) == SP_OK && signaled == 1) {
++      if (n && sp_sys_wait(fds, n, 0, &signaled) == SP_OK && signaled == wake) {
+         sp_sys_event_clear(ctx->wake.event);
+         sp_atomic_s32_store(&ctx->wake.pending, SP_PROMPT_WAKE_NOT_PENDING, SP_ATOMIC_SEQ_CST);
+       }

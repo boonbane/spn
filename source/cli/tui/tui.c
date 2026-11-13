@@ -2163,8 +2163,7 @@ void spn_tui_flush(spn_tui_t* tui) {
         break;
       }
       case SPN_EVENT_BUILD_FAILED: {
-        bool cancelled = tui->prompt.op && spn_op_cancelled(tui->prompt.op);
-        spn_prompt_stop(tui, cancelled ? SP_PROMPT_STATE_CANCEL : SP_PROMPT_STATE_ERROR);
+        spn_prompt_stop(tui, SP_PROMPT_STATE_ERROR);
         break;
       }
       default: {
@@ -2203,26 +2202,6 @@ void spn_print_err(spn_tui_t* tui, const c8* fmt, ...) {
   va_end(args);
 }
 
-static spn_tui_t* prompt_tui;
-
-static void on_prompt_event(sp_prompt_ctx_t* ctx, sp_prompt_event_t event) {
-  switch (event.kind) {
-    case SP_PROMPT_EVENT_CTRL_C: {
-      if (prompt_tui->prompt.op) {
-        spn_op_cancel(prompt_tui->prompt.op);
-      }
-      break;
-    }
-    case SP_PROMPT_EVENT_ESCAPE: {
-      break;
-    }
-    default: {
-      prompt_tui->prompt.widget.on_event(ctx, event);
-      break;
-    }
-  }
-}
-
 static void prompt_start(spn_tui_t* tui) {
   if (tui->prompt.started) {
     return;
@@ -2233,19 +2212,16 @@ static void prompt_start(spn_tui_t* tui) {
     return;
   }
 
-  tui->prompt.ctx = sp_prompt_begin(tui->mem);
+  tui->prompt.ctx = sp_prompt_begin_ex(tui->mem, (sp_prompt_config_t) { .passive = true });
   if (!tui->prompt.ctx) {
     return;
   }
   sp_prompt_use_wake(tui->prompt.ctx, tui->wake);
 
-  prompt_tui = tui;
-  tui->prompt.widget = sp_prompt_progress_widget(tui->prompt.ctx, (sp_prompt_progress_t) {
+  sp_prompt_widget_t widget = sp_prompt_progress_widget(tui->prompt.ctx, (sp_prompt_progress_t) {
     .prompt = "Building",
     .color = { .rgb = { .r = 99, .g = 160, .b = 136 } },
   });
-  sp_prompt_widget_t widget = tui->prompt.widget;
-  widget.on_event = on_prompt_event;
   tui->prompt.app = sp_app_new(tui->mem, sp_prompt_app(tui->prompt.ctx, widget));
   tui->prompt.last = sp_zero_s(spn_progress_t);
   tui->prompt.on = true;
@@ -2266,11 +2242,6 @@ void spn_prompt_stop(spn_tui_t* tui, sp_prompt_state_t state) {
 }
 
 static void prompt_pump(spn_tui_t* tui, bool building, spn_progress_t progress) {
-  if (spn_op_cancelled(tui->prompt.op)) {
-    spn_prompt_stop(tui, SP_PROMPT_STATE_CANCEL);
-    return;
-  }
-
   if (!tui->prompt.on) {
     if (!building || (!progress.misses && !progress.warm)) return;
     prompt_start(tui);
@@ -2295,12 +2266,11 @@ static void prompt_pump(spn_tui_t* tui, bool building, spn_progress_t progress) 
   sp_app_tick(tui->prompt.app);
 }
 
-void spn_tui_poll(spn_tui_t* tui, spn_op_t* op) {
+void spn_tui_poll(spn_tui_t* tui) {
   if (tui->handoff.granted) {
     return;
   }
 
-  tui->prompt.op = op;
   spn_tui_flush(tui);
   spn_progress_t progress = sp_zero;
   bool building = spn_ctx_progress(tui->ctx, &progress);
@@ -2313,25 +2283,21 @@ bool spn_tui_wants_input(spn_tui_t* tui) {
 
 void spn_tui_op_done(spn_tui_t* tui, spn_op_t* op) {
   if (tui->handoff.granted) {
-    tui->prompt.op = SP_NULLPTR;
     return;
   }
 
-  tui->prompt.op = op;
   spn_tui_flush(tui);
-
-  sp_prompt_state_t state = SP_PROMPT_STATE_SUBMIT;
-  if (spn_op_cancelled(op)) {
-    state = SP_PROMPT_STATE_CANCEL;
-  } else if (spn_op_result(op).err) {
-    state = SP_PROMPT_STATE_ERROR;
-  }
-  spn_prompt_stop(tui, state);
-  tui->prompt.op = SP_NULLPTR;
+  spn_prompt_stop(tui, spn_op_result(op).err ? SP_PROMPT_STATE_ERROR : SP_PROMPT_STATE_SUBMIT);
 }
 
 void spn_tui_handoff(spn_tui_t* tui) {
   spn_prompt_stop(tui, SP_PROMPT_STATE_SUBMIT);
   spn_tui_flush(tui);
   tui->handoff.granted = true;
+}
+
+void spn_tui_restore_terminal(spn_tui_t* tui) {
+  if (tui->prompt.on) {
+    sp_prompt_restore(tui->prompt.ctx);
+  }
 }
