@@ -105,12 +105,12 @@ static const test_t tests [] = {
   },
   {
     .name = "mounts",
-    .files = { { "source/H" }, { "store/H" } },
+    .files = { { "source/H" }, { "manifest/H" } },
     .ops = {
       { WASM_EMIT_OPEN_READ, "H", .mount = 1 },
       { WASM_EMIT_OPEN_READ, "H", .mount = 2 },
     },
-    .expect = { .obs = { { .path = "source/H" }, { .path = "store/H" } } }
+    .expect = { .obs = { { .path = "source/H" }, { .path = "manifest/H" } } }
   },
   {
     .name = "rename_then_read",
@@ -196,9 +196,9 @@ sp_test_each(dag_wasm, wasi, test_t, tests) {
   sp_str_t root = roots.dirs[SPN_PATH_ROOT_PROJECT];
 
   spn_wasi_mount_t mounts [] = {
-    { .guest = "/work",   .host = { .root = SPN_PATH_ROOT_PROJECT, .sub = sp_str_lit("work") } },
-    { .guest = "/source", .host = { .root = SPN_PATH_ROOT_PROJECT, .sub = sp_str_lit("source") } },
-    { .guest = "/store",  .host = { .root = SPN_PATH_ROOT_PROJECT, .sub = sp_str_lit("store") } },
+    { .guest = "/work",     .host = { .root = SPN_PATH_ROOT_PROJECT, .sub = sp_str_lit("work") } },
+    { .guest = "/source",   .host = { .root = SPN_PATH_ROOT_PROJECT, .sub = sp_str_lit("source") } },
+    { .guest = "/manifest", .host = { .root = SPN_PATH_ROOT_PROJECT, .sub = sp_str_lit("manifest") } },
   };
   sp_carr_for(mounts, mt) {
     sp_fs_create_dir_at(spn_path_at(&roots, mounts[mt].host));
