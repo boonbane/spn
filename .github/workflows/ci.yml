@@ -121,7 +121,12 @@ jobs:
           chmod +x dist/installer_render
           version="$(sed -n 's/^version = "\(.*\)"$/\1/p' spn.toml)"
           dist/installer_render dist/SHASUMS256.txt tools/install dist "${version}" canary ${{ github.repository }}
-      - run: gh release upload canary dist/spn-* dist/SHASUMS256.txt dist/install.sh dist/install.ps1 --clobber --repo ${{ github.repository }}
+      - run: |
+          for attempt in 1 2 3 4 5; do
+            gh release upload canary dist/spn-* dist/SHASUMS256.txt dist/install.sh dist/install.ps1 --clobber --repo ${{ github.repository }} && break
+            test "$attempt" -lt 5 || exit 1
+            sleep 15
+          done
 
   ci:
     name: ci
