@@ -16,7 +16,7 @@ commit = "cafef00d"
 name = "everything"
 kinds = ["static", "shared"]
 source = ["lib.c"]
-publish.include = [{ from = "source/everything.h" }]
+publish.include = [{ from = "everything.h" }]
 include = ["include"]
 define = ["LIB=1"]
 flags = ["-Wall"]

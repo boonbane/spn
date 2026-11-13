@@ -1,6 +1,7 @@
 #include "spn.h"
 
 #include <dirent.h>
+#include <stdio.h>
 #include <stdlib.h>
 
 static s32 visible(const struct dirent* entry) {
@@ -20,6 +21,11 @@ s32 n(spn_t* spn) {
     free(entries[it]);
   }
   free(entries);
-  spn_io_write("/work/N", names);
+  FILE* file = fopen("/work/N", "w");
+  if (!file) {
+    return 1;
+  }
+  fputs(names, file);
+  fclose(file);
   return 0;
 }

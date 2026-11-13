@@ -3,9 +3,9 @@ name = "p"
 version = "1.0.0"
 
 [package.publish]
-include = [{ from = "source/a.h", when = { simd = "avx2" } }]
+include = [{ from = "a.h", when = { simd = "avx2" } }]
 
 [[lib]]
 name = "t"
 kinds = ["static"]
-publish.share = [{ from = "source/data/*", when = { simd = "avx2" } }]
+publish.share = [{ from = "data/*", when = { simd = "avx2" } }]

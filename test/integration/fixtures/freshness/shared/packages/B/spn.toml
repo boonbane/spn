@@ -6,4 +6,4 @@ version = "1.0.0"
 name = "B"
 kinds = ["shared"]
 source = ["b.c"]
-publish.include = [{ from = "source/b.h" }]
+publish.include = [{ from = "b.h" }]

@@ -6,7 +6,7 @@ version = "1.0.0"
 name = "t"
 kinds = ["static", "shared"]
 source = ["main.c"]
-publish.include = [{ from = "source/header.h" }]
+publish.include = [{ from = "header.h" }]
 include = ["include/dir"]
 define = ["SPUM"]
 flags = ["-flag"]

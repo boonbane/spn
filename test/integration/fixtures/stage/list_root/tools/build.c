@@ -1,10 +1,16 @@
 #include "spn.h"
 
 #include <dirent.h>
+#include <stdio.h>
 
 SPN_EXPORT
 s32 gen(spn_t* spn) {
-  spn_io_write("/work/G.txt", "A");
+  FILE* file = fopen("/work/G.txt", "w");
+  if (!file) {
+    return 1;
+  }
+  fputs("A", file);
+  fclose(file);
   return 0;
 }
 

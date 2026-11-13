@@ -1,8 +1,0 @@
-[package]
-name = "p"
-version = "1.0.0"
-
-[package.publish]
-include = [
-  { from = "source" },
-]

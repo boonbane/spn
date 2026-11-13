@@ -1,6 +1,7 @@
 #include "spn.h"
 
 #include <stdio.h>
+#include <sys/stat.h>
 
 SPN_EXPORT
 s32 gen(spn_t* spn) {
@@ -11,6 +12,12 @@ s32 gen(spn_t* spn) {
   c8 content [64] = { 0 };
   fread(content, 1, sizeof(content) - 1, file);
   fclose(file);
-  spn_io_write("/work/gen/G/a.h", content);
+  mkdir("/work/gen/G", 0755);
+  file = fopen("/work/gen/G/a.h", "w");
+  if (!file) {
+    return 1;
+  }
+  fputs(content, file);
+  fclose(file);
   return 0;
 }

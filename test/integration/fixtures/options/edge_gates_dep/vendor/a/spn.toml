@@ -14,4 +14,4 @@ b = { version = "1.0.0", when = { x = true } }
 name = "a"
 kinds = ["static"]
 source = ["a.c"]
-publish.include = [{ from = "source/a.h" }]
+publish.include = [{ from = "a.h" }]

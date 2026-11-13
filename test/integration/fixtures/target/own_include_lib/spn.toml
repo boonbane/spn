@@ -6,4 +6,4 @@ version = "0.1.0"
 name = "A"
 kinds = ["static"]
 source = ["a.c"]
-publish.include = [{ from = "source/include/a.h", to = "X" }]
+publish.include = [{ from = "include/a.h", to = "X" }]

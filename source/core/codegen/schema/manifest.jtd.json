@@ -135,6 +135,7 @@
         "from": { "type": "string" }
       },
       "optionalProperties": {
+        "tree": { "ref": "tree" },
         "to": { "type": "string" },
         "when": { "metadata": { "extern": "when", "include": "when/types.h" } }
       }

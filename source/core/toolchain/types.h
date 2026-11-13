@@ -115,13 +115,6 @@ typedef struct {
   sp_da(spn_sdk_msvc_t) msvc;
 } spn_sdk_host_t;
 
-typedef enum {
-  SPN_PATH_OK,
-  SPN_PATH_UNROOTED,
-  SPN_PATH_ABSOLUTE,
-  SPN_PATH_MALFORMED,
-} spn_path_check_t;
-
 typedef struct {
   spn_arg_t program;
   sp_da(sp_str_t) args;

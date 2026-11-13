@@ -1,0 +1,13 @@
+[package]
+name = "A"
+version = "0.0.1"
+
+[package.upstream]
+url = "@A.url@"
+commit = "@A.commit@"
+
+[package.configure]
+source = [{ path = "tools/configure.c", tree = "manifest" }]
+
+[package.build]
+source = [{ path = "tools/build.c", tree = "manifest" }]

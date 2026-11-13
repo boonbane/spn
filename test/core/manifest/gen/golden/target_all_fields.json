@@ -41,7 +41,7 @@
       "publish": {
         "include": [
           {
-            "from": "source/a.h"
+            "from": "a.h"
           }
         ]
       }

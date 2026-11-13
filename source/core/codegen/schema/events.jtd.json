@@ -146,8 +146,17 @@
     "node_failed": {
       "metadata": { "verb": "Failed", "severity": "error" },
       "properties": {
-        "path": { "type": "string" },
-        "message": { "type": "string" }
+        "tag": { "type": "string" },
+        "reason": { "ref": "node_failure" },
+        "path": { "metadata": { "extern": "path" } }
+      }
+    },
+    "publish_failed": {
+      "metadata": { "verb": "Failed", "severity": "error" },
+      "properties": {
+        "path": { "metadata": { "extern": "path" } },
+        "root": { "ref": "publish_root" },
+        "dest": { "type": "string" }
       }
     },
     "init_build_graph": { "metadata": { "verb": "Building" }, "ref": "graph_init" },
@@ -216,6 +225,8 @@
     }
   },
   "definitions": {
+    "node_failure": { "enum": ["remove", "create", "stray", "unproduced", "copy"] },
+    "publish_root": { "enum": ["include", "share"] },
     "subject": {
       "properties": {
         "pkg": { "type": "string" },

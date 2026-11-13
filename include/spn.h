@@ -25,15 +25,18 @@ typedef spn_err_t (*spn_node_fn_t)      (spn_t*);
 
 spn_err_t     spn_log(spn_t* spn, const c8* message);
 
-spn_err_t     spn_io_write(const c8* path, const c8* contents);
+spn_err_t     spn_get_root_manifest(spn_t* spn, spn_root_t* root);
+spn_err_t     spn_get_root_source(spn_t* spn, spn_root_t* root);
+spn_err_t     spn_get_root_work(spn_t* spn, spn_root_t* root);
+
 const c8*     spn_fmt_ex(const c8* fmt, const c8* a0, const c8* a1, const c8* a2, const c8* a3);
 
 #define spn_fmt_select(fmt, a0, a1, a2, a3, ...) spn_fmt_ex(fmt, a0, a1, a2, a3)
 #define spn_fmt(fmt, ...) spn_fmt_select(fmt, ##__VA_ARGS__, 0, 0, 0, 0, 0)
 
 spn_node_t*   spn_add_node(spn_config_t* config, const c8* tag);
-spn_err_t     spn_node_add_output(spn_node_t* node, const c8* path);
-spn_err_t     spn_node_add_output_dir(spn_node_t* node, const c8* path);
+spn_err_t     spn_node_add_output(spn_node_t* node, spn_root_t root, const c8* sub);
+spn_err_t     spn_node_add_output_dir(spn_node_t* node, spn_root_t root, const c8* sub);
 spn_err_t     spn_node_link(spn_node_t* from, spn_node_t* to);
 spn_err_t     spn_node_set_fn(spn_node_t* node, const c8* fn);
 

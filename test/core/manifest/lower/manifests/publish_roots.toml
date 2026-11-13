@@ -3,5 +3,5 @@ name = "p"
 version = "1.0.0"
 
 [package.publish]
-include = [{ from = "source/a.h" }]
-share = [{ from = "source/data/*", to = "d" }]
+include = [{ from = "a.h" }]
+share = [{ from = "data/*", to = "d" }]

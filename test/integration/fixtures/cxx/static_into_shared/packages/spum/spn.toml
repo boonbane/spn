@@ -9,4 +9,4 @@ spam = { path = "../spam" }
 name = "spum"
 kinds = ["shared"]
 source = ["spum.c"]
-publish.include = [{ from = "source/spum.h" }]
+publish.include = [{ from = "spum.h" }]

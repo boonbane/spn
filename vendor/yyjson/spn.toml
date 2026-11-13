@@ -6,7 +6,7 @@ maintainer = "tspader"
 
 [package.publish]
 include = [
-  { from = "source/src/yyjson.h" },
+  { from = "src/yyjson.h" },
 ]
 
 [package.upstream]

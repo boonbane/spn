@@ -4,5 +4,5 @@ version = "1.0.0"
 
 [package.publish]
 include = [
-  { from = "manifest/gen/a.h" },
+  { from = "gen/a.h", tree = "manifest" },
 ]

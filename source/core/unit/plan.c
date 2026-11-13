@@ -521,7 +521,7 @@ static spn_err_t plan_new(spn_units_t* u, sp_mem_t scratch, spn_pkg_unit_t* root
       spn_user_output_t* from = SP_NULLPTR;
       sp_da_for(root->user_nodes, nt) {
         si_da_for_ptr(root->user_nodes[nt].outputs, output) {
-          if (output->dir == copy.dir && sp_str_equal(output->sub, copy.sub)) {
+          if (sp_str_equal(output->sub, copy.sub)) {
             from = output;
           }
         }
@@ -529,7 +529,7 @@ static spn_err_t plan_new(spn_units_t* u, sp_mem_t scratch, spn_pkg_unit_t* root
       if (!from) {
         return spn_err_emit(u->ctx, (spn_err_union_t) {
           .kind = SPN_ERR_STAGE_UNPRODUCED,
-          .dag = { .path = sp_fmt(u->ctx->events->mem, "{}/{}", sp_fmt_str(spn_dir_to_str(copy.dir)), sp_fmt_str(copy.sub)).value },
+          .dag = { .path = copy.sub },
         });
       }
       spn_path_t to = spn_path_join(u->mem, spn_path_from_root(SPN_PATH_ROOT_PROJECT), copy.to);

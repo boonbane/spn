@@ -10,7 +10,6 @@
     "path_not_mounted": { "metadata": { "guest": "7" }, "ref": "wasm" },
     "output_outside": { "metadata": { "guest": "8" }, "ref": "wasm" },
     "output_is_root": { "metadata": { "guest": "9" }, "ref": "wasm" },
-    "io_write": { "metadata": { "guest": "10" }, "ref": "wasm" },
     "str_null": { "metadata": { "guest": "11" }, "ref": "wasm" },
     "manifest_parse": { "ref": "manifest_parse" },
     "manifest_issues": { "ref": "manifest" },

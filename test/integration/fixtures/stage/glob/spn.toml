@@ -13,4 +13,4 @@ name = "G"
 source = ["main.c", "gen/*.c"]
 
 [stage]
-copy = [{ from = "work/G.c", to = "gen/G.c" }]
+copy = [{ from = "G.c", to = "gen/G.c" }]

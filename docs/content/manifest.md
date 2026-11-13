@@ -152,7 +152,7 @@ readme: false
 | Field | Type | Required |
 |---|---|---|
 | `path` | `string` | yes |
-| `tree` | `manifest` \| `source` | |
+| `tree` | `manifest` \| `source` \| `work` | |
 | `when` | [`when`](#extern-types) | |
 
 ## value_entry
@@ -259,6 +259,7 @@ readme: false
 | Field | Type | Required |
 |---|---|---|
 | `from` | `string` | yes |
+| `tree` | `manifest` \| `source` \| `work` | |
 | `to` | `string` | |
 | `when` | [`when`](#extern-types) | |
 

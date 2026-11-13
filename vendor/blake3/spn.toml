@@ -6,7 +6,7 @@ maintainer = "tspader"
 
 [package.publish]
 include = [
-  { from = "source/c/blake3.h" },
+  { from = "c/blake3.h" },
 ]
 
 [package.upstream]

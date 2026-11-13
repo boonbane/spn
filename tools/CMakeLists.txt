@@ -120,7 +120,6 @@ add_custom_command(
     ${GEN_DIR}/release.jtd.json=schema/release.jtd.json
     ${CMAKE_SOURCE_DIR}/test/core=test/core
     ${CMAKE_SOURCE_DIR}/tools/install=tools/install
-    ${CMAKE_SOURCE_DIR}/source/core/codegen/schema/abi.json=source/core/codegen/schema/abi.json
     ${CMAKE_SOURCE_DIR}/source/core/toolchain/toolchains.toml=source/core/toolchain/toolchains.toml
     ${CMAKE_SOURCE_DIR}/spn.toml=spn.toml
   DEPENDS embed ${GEN_DIR}/config.jtd.json ${GEN_DIR}/manifest.jtd.json ${GEN_DIR}/release.jtd.json ${TEST_CORE_FILES} ${CMAKE_SOURCE_DIR}/spn.toml

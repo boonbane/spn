@@ -11,8 +11,8 @@
 #include "toolchain/libc.h"
 #include "common.gen.h"
 
-spn_path_check_t         spn_toolchain_sdk_path(spn_toolchain_source_t source, spn_path_root_t base, sp_str_t str, spn_arg_t* sdk);
-spn_path_check_t         spn_toolchain_program(spn_toolchain_source_t source, spn_path_root_t base, sp_str_t program, spn_arg_t* arg);
+spn_err_t                spn_toolchain_sdk_path(spn_toolchain_source_t source, spn_path_root_t base, sp_str_t str, spn_arg_t* sdk);
+spn_err_t                spn_toolchain_program(spn_toolchain_source_t source, spn_path_root_t base, sp_str_t program, spn_arg_t* arg);
 spn_cc_cap_set_t         spn_toolchain_driver_caps(spn_cc_driver_t driver);
 bool                     spn_toolchain_driver_retargets(spn_cc_driver_t driver);
 bool                     spn_toolchain_driver_composes(spn_cc_driver_t driver, spn_triple_t target);

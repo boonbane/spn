@@ -5,10 +5,10 @@
     "publish": {
       "include": [
         {
-          "from": "source/a.h"
+          "from": "a.h"
         },
         {
-          "from": "source/b.h",
+          "from": "b.h",
           "when": {
             "os": "windows"
           }

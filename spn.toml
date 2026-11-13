@@ -206,12 +206,10 @@ embed = [
   { path = "gen/codegen/gen/release.jtd.json", tree = "work", dest = "schema/release.jtd.json" },
   { path = "test/core", dir = true, dest = "test/core" },
   { path = "tools/install", dir = true, dest = "tools/install" },
-  { path = "source/core/codegen/schema/abi.json", dest = "source/core/codegen/schema/abi.json" },
   { path = "spn.toml", dest = "spn.toml" },
 ]
 flags = [
   '-DTEST_EMBED="core.embed.h"',
-  '-DSCHEMA_DIR="source/core/codegen/schema"',
   '-DJTD_TEST_JSON_DIR="test/core/jtd/json"',
   '-DMANIFEST_DIR="test/core/manifest/lower/manifests"',
   '-DPKG_MANIFEST_DIR="test/core/pkg/manifests"',

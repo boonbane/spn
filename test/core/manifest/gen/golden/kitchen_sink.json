@@ -45,7 +45,7 @@
       "publish": {
         "include": [
           {
-            "from": "source/everything.h"
+            "from": "everything.h"
           }
         ]
       }

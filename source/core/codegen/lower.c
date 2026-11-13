@@ -52,13 +52,12 @@ static spn_cxx_options_t lower_cxx_options(const spn_cg_cxx_options_t* cg) {
   };
 }
 
+#define lower_tree(tree) (sp_opt_is_null(tree) ? SPN_TREE_SOURCE : sp_opt_get(tree))
+
 static bool lower_path_ok(spn_toml_loader_t* ctx, sp_str_t path) {
-  if (sp_str_empty(path) || !spn_path_normal(path)) {
-    spn_toml_loader_issue_at(ctx, SPN_ERR_CODEGEN_PATH, path);
-    return false;
-  }
-  if (sp_fs_is_absolute(path)) {
-    spn_toml_loader_issue_at(ctx, SPN_ERR_CODEGEN_ABSOLUTE, path);
+  spn_err_t err = sp_str_empty(path) ? SPN_ERR_CODEGEN_PATH : spn_path_check_relative(path);
+  if (err) {
+    spn_toml_loader_issue_at(ctx, err, path);
     return false;
   }
   return true;
@@ -67,7 +66,7 @@ static bool lower_path_ok(spn_toml_loader_t* ctx, sp_str_t path) {
 static void push_gated_path(sp_mem_t mem, spn_gated_path_list_t* values, const spn_cg_source_entry_t* entry, sp_str_t path) {
   si_da_push(mem, *values, ((spn_gated_path_t) {
     .path = path,
-    .tree = sp_opt_is_null(entry->tree) ? SPN_TREE_SOURCE : sp_opt_get(entry->tree),
+    .tree = lower_tree(entry->tree),
     .when = entry->when,
   }));
 }
@@ -81,7 +80,7 @@ static si_da(spn_gated_source_t) lower_gated_sources(spn_toml_loader_t* ctx, sp_
     si_da_push(ctx->mem, values, ((spn_gated_source_t) {
       .kind = sp_glob_parse_meta(entries[it].path).literal ? SPN_SOURCE_FILE : SPN_SOURCE_GLOB,
       .path = entries[it].path,
-      .tree = sp_opt_is_null(entries[it].tree) ? SPN_TREE_SOURCE : sp_opt_get(entries[it].tree),
+      .tree = lower_tree(entries[it].tree),
       .when = entries[it].when,
     }));
   }
@@ -117,21 +116,11 @@ static void lower_publish_root(spn_toml_loader_t* ctx, sp_da(spn_cg_publish_entr
     const spn_cg_publish_entry_t* entry = &entries[it];
     spn_toml_loader_push_index(ctx, it);
     spn_toml_loader_push_key(ctx, "from");
-    sp_str_pair_t split = sp_str_cleave_c8(entry->from, '/');
-    spn_tree_t tree = spn_tree_from_str(split.first);
     bool ok = lower_path_ok(ctx, entry->from);
-    if (ok && (tree == SPN_TREE_NONE || tree == SPN_TREE_WORK)) {
-      spn_toml_loader_issue_at(ctx, SPN_ERR_CODEGEN_INVALID, entry->from);
-      ok = false;
-    }
-    if (ok && sp_str_empty(split.second)) {
-      spn_toml_loader_issue_at(ctx, SPN_ERR_CODEGEN_PATH, entry->from);
-      ok = false;
-    }
     if (ok) {
       // @spader This is stupid but I need to fix sp_glob.h
       sp_mem_arena_marker_t s = sp_mem_begin_scratch();
-      ok = sp_glob_new_str(s.mem, split.second) != SP_NULLPTR;
+      ok = sp_glob_new_str(s.mem, entry->from) != SP_NULLPTR;
       sp_mem_end_scratch(s);
       if (!ok) {
         spn_toml_loader_issue_at(ctx, SPN_ERR_CODEGEN_INVALID, entry->from);
@@ -148,9 +137,9 @@ static void lower_publish_root(spn_toml_loader_t* ctx, sp_da(spn_cg_publish_entr
       si_da_push(ctx->mem, *publish, ((spn_gated_publish_t) {
         .root = root,
         .source = {
-          .kind = sp_glob_parse_meta(split.second).literal ? SPN_SOURCE_FILE : SPN_SOURCE_GLOB,
-          .path = split.second,
-          .tree = tree,
+          .kind = sp_glob_parse_meta(entry->from).literal ? SPN_SOURCE_FILE : SPN_SOURCE_GLOB,
+          .path = entry->from,
+          .tree = lower_tree(entry->tree),
           .when = entry->when,
         },
         .dest = entry->to,
@@ -176,18 +165,8 @@ static void lower_stage(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, si_
     const spn_cg_stage_entry_t* entry = &cg->stage.copy[it];
     spn_toml_loader_push_index(ctx, it);
     spn_toml_loader_push_key(ctx, "from");
-    sp_str_pair_t split = sp_str_cleave_c8(entry->from, '/');
-    spn_dir_t dir = spn_dir_from_str(split.first);
     bool ok = lower_path_ok(ctx, entry->from);
-    if (ok && dir == SPN_DIR_NONE) {
-      spn_toml_loader_issue_at(ctx, SPN_ERR_CODEGEN_INVALID, entry->from);
-      ok = false;
-    }
-    if (ok && sp_str_empty(split.second)) {
-      spn_toml_loader_issue_at(ctx, SPN_ERR_CODEGEN_PATH, entry->from);
-      ok = false;
-    }
-    if (ok && !sp_glob_parse_meta(split.second).literal) {
+    if (ok && !sp_glob_parse_meta(entry->from).literal) {
       spn_toml_loader_issue_at(ctx, SPN_ERR_CODEGEN_INVALID, entry->from);
       ok = false;
     }
@@ -197,7 +176,7 @@ static void lower_stage(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, si_
     spn_toml_loader_pop(ctx);
     spn_toml_loader_pop(ctx);
     if (ok) {
-      si_da_push(ctx->mem, out->stage, ((spn_stage_copy_t) { .dir = dir, .sub = split.second, .to = entry->to }));
+      si_da_push(ctx->mem, out->stage, ((spn_stage_copy_t) { .sub = entry->from, .to = entry->to }));
     }
   }
   spn_toml_loader_pop(ctx);
@@ -244,7 +223,7 @@ static void lower_target(spn_toml_loader_t* ctx, const spn_cg_target_t* cg, si_t
     si_da_push(ctx->mem, target->embed, ((spn_gated_embed_t) {
       .kind = !sp_opt_is_null(entry->dir) && sp_opt_get(entry->dir) ? SPN_EMBED_DIR : SPN_EMBED_FILE,
       .path = entry->path,
-      .tree = sp_opt_is_null(entry->tree) ? SPN_TREE_SOURCE : sp_opt_get(entry->tree),
+      .tree = lower_tree(entry->tree),
       .dest = dest,
       .types = { .data = entry->data_type, .size = entry->size_type },
       .when = entry->when,
@@ -1059,6 +1038,26 @@ static void validate_entry_trees_no_work(spn_toml_loader_t* ctx, sp_da(spn_cg_so
   spn_toml_loader_pop(ctx);
 }
 
+static void validate_publish_entry_trees(spn_toml_loader_t* ctx, sp_da(spn_cg_publish_entry_t) entries, const c8* key) {
+  spn_toml_loader_push_key(ctx, key);
+  sp_da_for(entries, it) {
+    spn_tree_t tree = lower_tree(entries[it].tree);
+    if (tree == SPN_TREE_NONE || tree == SPN_TREE_WORK) {
+      spn_toml_loader_push_index(ctx, it);
+      spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "tree");
+      spn_toml_loader_pop(ctx);
+    }
+  }
+  spn_toml_loader_pop(ctx);
+}
+
+static void validate_publish_trees(spn_toml_loader_t* ctx, const spn_cg_publish_t* cg) {
+  spn_toml_loader_push_key(ctx, "publish");
+  validate_publish_entry_trees(ctx, cg->include, "include");
+  validate_publish_entry_trees(ctx, cg->share, "share");
+  spn_toml_loader_pop(ctx);
+}
+
 static void validate_collection_trees(spn_toml_loader_t* ctx, spn_cg_target_om_t cg, const c8* key) {
   spn_toml_loader_push_key(ctx, key);
   sp_om_for(cg, it) {
@@ -1075,6 +1074,7 @@ static void validate_collection_trees(spn_toml_loader_t* ctx, spn_cg_target_om_t
       }
     }
     spn_toml_loader_pop(ctx);
+    validate_publish_trees(ctx, &target->publish);
     validate_entry_trees(ctx, target->include, "include");
     validate_entry_trees_no_work(ctx, target->linker_script, "linker_script");
     spn_toml_loader_push_key(ctx, "embed");
@@ -1106,6 +1106,7 @@ static void validate_trees(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg) 
   validate_collection_trees(ctx, cg->example, "example");
   spn_toml_loader_push_key(ctx, "package");
   validate_entry_trees(ctx, cg->package.include, "include");
+  validate_publish_trees(ctx, &cg->package.publish);
   validate_script_trees(ctx, &cg->package.build, "build");
   validate_script_trees(ctx, &cg->package.configure, "configure");
   spn_toml_loader_pop(ctx);

@@ -6,25 +6,15 @@
 #include "toolchain/toolchain.h"
 #include "triple/triple.h"
 
-static spn_err_t path_issue(spn_path_check_t check) {
-  switch (check) {
-    case SPN_PATH_UNROOTED: return SPN_ERR_CODEGEN_UNROOTED;
-    case SPN_PATH_ABSOLUTE: return SPN_ERR_CODEGEN_ABSOLUTE;
-    case SPN_PATH_MALFORMED: return SPN_ERR_CODEGEN_PATH;
-    case SPN_PATH_OK: sp_unreachable_case();
-  }
-  sp_unreachable_return(SPN_ERROR);
-}
-
 static spn_arg_t lower_program(spn_toml_loader_t* ctx, const c8* key, spn_toolchain_source_t source, spn_path_root_t base, sp_str_t program) {
   spn_arg_t arg = sp_zero;
   program = spn_toml_loader_intern(ctx, sp_fs_normalize_path(ctx->mem, program));
-  spn_path_check_t check = spn_toolchain_program(source, base, program, &arg);
-  if (check == SPN_PATH_OK) {
+  spn_err_t err = spn_toolchain_program(source, base, program, &arg);
+  if (!err) {
     return arg;
   }
   spn_toml_loader_push_key(ctx, key);
-  spn_toml_loader_issue_at(ctx, path_issue(check), program);
+  spn_toml_loader_issue_at(ctx, err, program);
   spn_toml_loader_pop(ctx);
   return sp_zero_struct(spn_arg_t);
 }
@@ -32,12 +22,12 @@ static spn_arg_t lower_program(spn_toml_loader_t* ctx, const c8* key, spn_toolch
 static spn_arg_t lower_sdk_path(spn_toml_loader_t* ctx, spn_toolchain_source_t source, spn_path_root_t base, sp_str_t sdk) {
   spn_arg_t arg = sp_zero;
   sdk = spn_toml_loader_intern(ctx, sp_fs_normalize_path(ctx->mem, sdk));
-  spn_path_check_t check = spn_toolchain_sdk_path(source, base, sdk, &arg);
-  if (check == SPN_PATH_OK) {
+  spn_err_t err = spn_toolchain_sdk_path(source, base, sdk, &arg);
+  if (!err) {
     return arg;
   }
   spn_toml_loader_push_key(ctx, "sdk");
-  spn_toml_loader_issue_at(ctx, path_issue(check), sdk);
+  spn_toml_loader_issue_at(ctx, err, sdk);
   spn_toml_loader_pop(ctx);
   return sp_zero_struct(spn_arg_t);
 }

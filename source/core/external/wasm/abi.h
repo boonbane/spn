@@ -27,7 +27,6 @@ void           spn_wasm_remove_handle(spn_wasm_handles_t* handles, u32 token);
 spn_err_t      spn_wasm_resolve_handle(spn_wasm_handles_t* handles, u32 token, spn_abi_kind_t kind, void** ptr);
 bool           spn_wasm_read_str(spn_wasm_ctx_t* abi, u32 offset, const c8** out);
 spn_wasm_ptr_t spn_wasm_copy_str(spn_wasm_ctx_t* abi, const c8* str);
-spn_err_t   spn_abi_io_write(spn_wasm_ctx_t* abi, const c8* path, const c8* contents);
 bool        spn_wasm_register_api(void);
 
 #endif

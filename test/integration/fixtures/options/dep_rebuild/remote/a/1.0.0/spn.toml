@@ -12,4 +12,4 @@ public = true
 name = "a"
 kinds = ["static"]
 source = ["a.c"]
-publish.include = [{ from = "source/a.h" }]
+publish.include = [{ from = "a.h" }]

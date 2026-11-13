@@ -124,6 +124,7 @@ typedef enum {
   ABI_VAL_STR,
   ABI_VAL_STR_OPT,
   ABI_VAL_OUT,
+  ABI_VAL_S32,
   ABI_VAL_HANDLE,
 } abi_val_kind_t;
 
@@ -134,8 +135,6 @@ typedef struct {
 
 typedef struct {
   sp_str_t name;
-  sp_str_t host;
-  bool wasm_ctx;
   abi_val_t ret;
   sp_da(abi_val_t) args;
 } abi_export_t;

@@ -66,10 +66,9 @@ static spn_err_t fail(spn_pkg_unit_t* unit, spn_err_t err, spn_err_wasm_t wasm) 
 spn_wasm_mounts_t spn_wasm_mounts(const spn_pkg_unit_t* unit) {
   return (spn_wasm_mounts_t) {
     .dirs = {
-      { .guest = "/work",     .host = unit->paths.work,         .writable = true },
-      { .guest = "/source",   .host = unit->paths.roots.source },
-      { .guest = "/manifest", .host = unit->paths.roots.recipe },
-      { .guest = "/store",    .host = unit->paths.store,        .writable = true },
+      [SPN_WASM_MOUNT_ID_WORK]     = { .guest = "/work",     .host = unit->paths.work,         .writable = true },
+      [SPN_WASM_MOUNT_ID_SOURCE]   = { .guest = "/source",   .host = unit->paths.roots.source },
+      [SPN_WASM_MOUNT_ID_MANIFEST] = { .guest = "/manifest", .host = unit->paths.roots.recipe },
     },
   };
 }
@@ -100,7 +99,7 @@ static spn_err_t instantiate(spn_pkg_unit_t* unit, spn_path_t module, const spn_
     });
   }
 
-  const c8* preopens [SPN_WASM_MOUNT_COUNT] = sp_zero;
+  const c8* preopens [SPN_WASM_MOUNT_ID_COUNT] = sp_zero;
   sp_for(it, count) {
     preopens[it] = sp_fmt_mem_cstr(mem, "{}::{}", sp_fmt_cstr(mounts[it].guest), sp_fmt_str(spn_path_str(roots, mem, mounts[it].host)));
   }
@@ -143,10 +142,7 @@ static spn_err_t instantiate(spn_pkg_unit_t* unit, spn_path_t module, const spn_
 }
 
 spn_err_t spn_wasm_script_open(spn_pkg_unit_t* unit, spn_path_t module, spn_dag_obs_set_t* obs, spn_wasm_script_t* script) {
-  spn_path_t dirs [] = { unit->paths.work, unit->paths.lib, unit->paths.bin, unit->paths.vendor };
-  sp_carr_for(dirs, it) {
-    sp_fs_create_dir_at(spn_path_at(&unit->units->ctx->roots, dirs[it]));
-  }
+  sp_fs_create_dir_at(spn_path_at(&unit->units->ctx->roots, unit->paths.work));
   spn_wasm_mounts_t mounts = spn_wasm_mounts(unit);
   return instantiate(unit, module, mounts.dirs, sp_carr_len(mounts.dirs), obs, script);
 }

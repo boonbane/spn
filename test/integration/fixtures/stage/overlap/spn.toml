@@ -13,4 +13,4 @@ name = "O"
 source = ["main.c"]
 
 [stage]
-copy = [{ from = "work/G.txt", to = "main.c" }]
+copy = [{ from = "G.txt", to = "main.c" }]

@@ -38,6 +38,7 @@ typedef struct {
   const c8* dest;
   const c8* when;
   spn_tree_t tree;
+  bool tree_none;
   spn_publish_root_t root;
   spn_source_kind_t kind;
 } publish_t;
@@ -45,7 +46,6 @@ typedef struct {
 typedef struct {
   const c8* sub;
   const c8* to;
-  spn_dir_t dir;
 } stage_t;
 
 typedef struct {
@@ -889,7 +889,7 @@ static const test_t tests [] = {
         .name = "t",
         .linkages = { .static_lib = true, .shared = true },
         .source = { { "a.c" }, { "b.c", .tree = SPN_TREE_MANIFEST }, { "c.c", .tree = SPN_TREE_SOURCE } },
-        .publish = { { "a.h", "" }, { "b.h", "", .tree = SPN_TREE_MANIFEST } },
+        .publish = { { "a.h", "" }, { "b.h", "", .tree = SPN_TREE_MANIFEST }, { "c.h", "", .tree = SPN_TREE_SOURCE } },
         .include = { { "inc", .tree = SPN_TREE_MANIFEST } },
         .linker_script = { { "a.ld", .tree = SPN_TREE_MANIFEST } },
       }
@@ -1360,14 +1360,9 @@ static const test_t tests [] = {
     .name = "stage_copy",
     .manifest = "stage_copy",
     .stage = {
-      { "G.txt", "gen/G.txt", SPN_DIR_WORK },
-      { "D", "share/D", SPN_DIR_VENDOR },
+      { "G.txt", "gen/G.txt" },
+      { "D", "share/D" },
     },
-  },
-  {
-    .name = "validate_stage_from_unknown",
-    .manifest = "validate_stage_from_unknown",
-    .issues = { { SPN_ERR_CODEGEN_INVALID, "stage.copy[0].from" } },
   },
   {
     .name = "validate_stage_from_empty",
@@ -1390,24 +1385,24 @@ static const test_t tests [] = {
     .issues = { { SPN_ERR_CODEGEN_PATH, "stage.copy[0].to" } },
   },
   {
-    .name = "validate_publish_from_tree",
-    .manifest = "validate_publish_from_tree",
+    .name = "validate_stage_to_backslash",
+    .manifest = "validate_stage_to_backslash",
+    .issues = { { SPN_ERR_CODEGEN_PATH, "stage.copy[0].to" } },
+  },
+  {
+    .name = "validate_publish_tree_work",
+    .manifest = "validate_publish_tree_work",
+    .publish = { { "a.h", "", .tree = SPN_TREE_WORK } },
     .issues = {
-      { SPN_ERR_CODEGEN_INVALID, "package.publish.include[0].from" },
+      { SPN_ERR_CODEGEN_INVALID, "package.publish.include[0].tree" },
     },
   },
   {
-    .name = "validate_publish_from_prefix",
-    .manifest = "validate_publish_from_prefix",
+    .name = "validate_publish_tree_invalid",
+    .manifest = "validate_publish_tree_invalid",
+    .publish = { { "a.h", "", .tree_none = true } },
     .issues = {
-      { SPN_ERR_CODEGEN_INVALID, "package.publish.include[0].from" },
-    },
-  },
-  {
-    .name = "validate_publish_from_empty",
-    .manifest = "validate_publish_from_empty",
-    .issues = {
-      { SPN_ERR_CODEGEN_PATH, "package.publish.include[0].from" },
+      { SPN_ERR_CODEGEN_INVALID, "package.publish.include[0].tree" },
     },
   },
   {
@@ -1596,7 +1591,7 @@ static sp_err_t check_gated_list(sp_test_t* t, spn_gated_list_t actual, const ga
 static sp_err_t check_publish_list(sp_test_t* t, sp_da(spn_gated_publish_t) actual, const publish_t* expected, u32 n) {
   sp_must_eq(t, n, (u32)sp_da_size(actual));
   sp_for(it, n) {
-    spn_tree_t tree = expected[it].tree ? expected[it].tree : SPN_TREE_SOURCE;
+    spn_tree_t tree = expected[it].tree_none ? SPN_TREE_NONE : expected[it].tree ? expected[it].tree : SPN_TREE_SOURCE;
     sp_expect_eq(t, (u32)expected[it].root, (u32)actual[it].root);
     sp_expect_eq(t, (u32)expected[it].kind, (u32)actual[it].source.kind);
     sp_expect_eq(t, (u32)tree, (u32)actual[it].source.tree);
@@ -1616,7 +1611,6 @@ static sp_err_t check_publish_list(sp_test_t* t, sp_da(spn_gated_publish_t) actu
 static sp_err_t check_stage_list(sp_test_t* t, si_da(spn_stage_copy_t) actual, const stage_t* expected, u32 n) {
   sp_must_eq(t, n, (u32)si_da_size(actual));
   sp_for(it, n) {
-    sp_expect_eq(t, (u32)expected[it].dir, (u32)actual[it].dir);
     sp_expect_str_eq_c(t, actual[it].sub, expected[it].sub);
     sp_expect_str_eq_c(t, actual[it].to, expected[it].to);
   }

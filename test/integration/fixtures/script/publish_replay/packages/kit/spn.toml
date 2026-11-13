@@ -9,7 +9,7 @@ source = ["tools/configure.c"]
 source = ["tools/build.c"]
 
 [package.publish]
-include = [{ from = "source/kit.h" }]
+include = [{ from = "kit.h" }]
 
 [[lib]]
 name = "kit"

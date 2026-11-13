@@ -7,13 +7,13 @@ url = "@A.url@"
 commit = "@A.commit@"
 
 [package.publish]
-include = [{ from = "manifest/pub.h" }]
+include = [{ from = "pub.h", tree = "manifest" }]
 
 [[lib]]
 name = "A"
 kinds = ["static"]
 source = ["a.c"]
-publish.include = [{ from = "source/a.h" }, { from = "manifest/cfg.h" }]
+publish.include = [{ from = "a.h" }, { from = "cfg.h", tree = "manifest" }]
 
 [[example]]
 name = "E"

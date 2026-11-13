@@ -6,7 +6,7 @@ maintainer = "tspader"
 
 [package.publish]
 include = [
-  { from = "source/toml.h" },
+  { from = "toml.h" },
 ]
 
 [package.upstream]

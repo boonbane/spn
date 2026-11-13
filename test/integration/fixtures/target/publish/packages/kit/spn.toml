@@ -4,12 +4,12 @@ version = "1.0.0"
 
 [package.publish]
 include = [
-  { from = "source/kit.h" },
-  { from = "source/sub/*", to = "kit" },
-  { from = "source/deep/**", to = "kit/deep" },
-  { from = "source/kit.h", to = "lit" },
-  { from = "source/on.h", to = "kit", when = { mode = "debug" } },
-  { from = "source/off.h", to = "kit", when = { mode = "release" } },
+  { from = "kit.h" },
+  { from = "sub/*", to = "kit" },
+  { from = "deep/**", to = "kit/deep" },
+  { from = "kit.h", to = "lit" },
+  { from = "on.h", to = "kit", when = { mode = "debug" } },
+  { from = "off.h", to = "kit", when = { mode = "release" } },
 ]
 
 [[lib]]

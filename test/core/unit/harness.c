@@ -365,7 +365,6 @@ static void add_nodes(units_t* u, spn_pkg_unit_t* unit, const graph_pkg_t* spec)
       }
       sp_str_t sub = sp_cstr_as_str(node->outputs[ot]);
       si_da_push(mem, made.outputs, ((spn_user_output_t) {
-        .dir = SPN_DIR_WORK,
         .sub = sub,
         .kind = SPN_DAG_ARTIFACT_KIND_FILE,
         .path = spn_path_join(mem, unit->paths.work, sub),

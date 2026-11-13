@@ -3,7 +3,7 @@ name = "A"
 version = "0.1.0"
 
 [package.publish]
-include = [{ from = "source/*.h", to = "X" }]
+include = [{ from = "*.h", to = "X" }]
 
 [[lib]]
 name = "A"
