@@ -50,21 +50,7 @@ spn_err_t spn_git_cache_ensure_db(spn_git_cache_t* cache, sp_str_t url, spn_git_
 
     if (!sp_fs_is_dir_at(spn_path_at(cache->roots, entry->path))) {
       sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-      sp_ps_output_t result = sp_ps_run(scratch.mem, (sp_ps_config_t) {
-        .command = SP_LIT("git"),
-        .args = {
-          SP_LIT("clone"), SP_LIT("--bare"), SP_LIT("--quiet"),
-          SP_LIT("-c"), SP_LIT("core.autocrlf=false"),
-          url,
-          spn_path_str(cache->roots, scratch.mem, entry->path)
-        },
-        .io.err.mode = SP_PS_IO_MODE_REDIRECT,
-      });
-
-      if (result.status.exit_code) {
-        entry->err = SPN_ERROR;
-        entry->error = sp_str_copy(cache->mem, sp_str_trim_right(result.out));
-      }
+      entry->err = spn_git_init_bare(cache->mem, url, spn_path_str(cache->roots, scratch.mem, entry->path), &entry->error);
       sp_mem_end_scratch(scratch);
     }
   }
@@ -73,55 +59,31 @@ spn_err_t spn_git_cache_ensure_db(spn_git_cache_t* cache, sp_str_t url, spn_git_
   return entry->err;
 }
 
-spn_err_t spn_git_db_ensure_rev(spn_git_cache_t* cache, spn_git_db_t* db, sp_str_t rev) {
+spn_err_t spn_git_db_ensure_rev(spn_git_cache_t* cache, spn_git_db_t* db, sp_str_t rev, sp_str_t* error) {
   sp_mutex_lock(&db->mutex);
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   sp_str_t path = spn_path_str(cache->roots, scratch.mem, db->path);
 
-  sp_ps_config_t cat_file = {
-    .command = SP_LIT("git"),
-    .args = {
-      SP_LIT("-C"), path,
-      SP_LIT("cat-file"), SP_LIT("-t"), rev
-    },
-    .io.err.mode = SP_PS_IO_MODE_NULL,
-  };
-
-  sp_ps_output_t result = sp_ps_run(scratch.mem, cat_file);
-
-  if (result.status.exit_code) {
-    // Bare clones have no remote.origin.fetch refspec, so a plain fetch never
-    // brings in commits made after the clone. Ask for the rev itself, and if
-    // the remote won't serve it by hash, mirror all heads and tags.
-    result = sp_ps_run(scratch.mem, (sp_ps_config_t) {
-      .command = SP_LIT("git"),
-      .args = {
-        SP_LIT("-C"), path,
-        SP_LIT("fetch"), SP_LIT("--quiet"), SP_LIT("origin"), rev
-      },
-      .io.err.mode = SP_PS_IO_MODE_NULL,
-    });
-
-    if (result.status.exit_code) {
-      result = sp_ps_run(scratch.mem, (sp_ps_config_t) {
-        .command = SP_LIT("git"),
-        .args = {
-          SP_LIT("-C"), path,
-          SP_LIT("fetch"), SP_LIT("--quiet"), SP_LIT("origin"),
-          SP_LIT("+refs/heads/*:refs/heads/*"), SP_LIT("+refs/tags/*:refs/tags/*")
-        },
-        .io.err.mode = SP_PS_IO_MODE_NULL,
-      });
+  // GitHub serves concurrent shallow fetches at a few hundred KB/s sometimes,
+  // so you just gotta serialize
+  bool found = spn_git_has_rev(path, rev);
+  if (!found) {
+    sp_mutex_lock(&cache->fetch);
+    spn_git_fetch_rev(path, rev);
+    found = spn_git_has_rev(path, rev);
+    if (!found) {
+      spn_err_t fetched = spn_git_fetch_mirror(cache->mem, path, error);
+      found = spn_git_has_rev(path, rev);
+      if (!found && !fetched) {
+        *error = sp_fmt(cache->mem, "{} has no rev {}", sp_fmt_str(db->url), sp_fmt_str(rev)).value;
+      }
     }
-
-    if (!result.status.exit_code) {
-      result = sp_ps_run(scratch.mem, cat_file);
-    }
+    sp_mutex_unlock(&cache->fetch);
   }
 
   sp_mem_end_scratch(scratch);
   sp_mutex_unlock(&db->mutex);
-  return result.status.exit_code ? SPN_ERROR : SPN_OK;
+  return found ? SPN_OK : SPN_ERROR;
 }
 
 static sp_str_t checkout_error(spn_git_cache_t* cache, const c8* what, spn_path_t path) {
@@ -134,24 +96,8 @@ static sp_str_t checkout_error(spn_git_cache_t* cache, const c8* what, spn_path_
 static spn_err_t spn_git_cache_fill_checkout(spn_git_cache_t* cache, spn_git_checkout_t* entry, spn_git_db_t* db, spn_path_t staged) {
   sp_str_buf_t buf = sp_zero;
   sp_str_t work = spn_path_str(cache->roots, sp_str_buf_as_mem(&buf), staged);
-  // Checkouts must be byte-identical to the committed content no matter
-  // what the machine's autocrlf is; hashes and golden comparisons depend
-  // on it. -c on clone persists into the new repo's config.
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  sp_ps_output_t result = sp_ps_run(scratch.mem, (sp_ps_config_t) {
-    .command = SP_LIT("git"),
-    .args = {
-      SP_LIT("clone"), SP_LIT("--shared"), SP_LIT("--quiet"),
-      SP_LIT("-c"), SP_LIT("core.autocrlf=false"),
-      spn_path_str(cache->roots, scratch.mem, db->path),
-      work
-    },
-    .io.err.mode = SP_PS_IO_MODE_REDIRECT,
-  });
-  spn_err_t clone = result.status.exit_code ? SPN_ERROR : SPN_OK;
-  if (clone) {
-    entry->error = sp_str_copy(cache->mem, sp_str_trim_right(result.out));
-  }
+  spn_err_t clone = spn_git_clone_shared(cache->mem, spn_path_str(cache->roots, scratch.mem, db->path), work, &entry->error);
   sp_mem_end_scratch(scratch);
   if (clone) {
     return clone;
@@ -186,18 +132,19 @@ static spn_err_t spn_git_cache_materialize_checkout(spn_git_cache_t* cache, spn_
     return SPN_ERROR;
   }
 
-  if (spn_git_db_ensure_rev(cache, db, entry->id.rev)) {
-    entry->error = sp_fmt(cache->mem, "{} has no rev {}", sp_fmt_str(entry->id.url), sp_fmt_str(entry->id.rev)).value;
+  if (spn_git_db_ensure_rev(cache, db, entry->id.rev, &entry->error)) {
     return SPN_ERROR;
   }
 
   sp_path_t dest = spn_path_at(cache->roots, entry->path);
   if (entry->fetched) {
 
-    // Fill a claimed staging dir and rename into place, so a crash never
-    // leaves a partial tree that later runs mistake for a finished checkout
+    // libgit2 caps at 168 characters for the path of a repo, which of course
+    // is completely unconfigurable short of patching. Which I did, but then
+    // it turns out that cl.exe chokes on paths not much larger. So instead,
+    // write some stupid fucking code to shorten the path.
     spn_path_t staged = sp_zero;
-    if (spn_path_stage_dir(cache->mem, cache->roots, entry->path, sp_str_lit("tmp"), &staged)) {
+    if (spn_path_stage_dir(cache->mem, cache->roots, spn_path_join(cache->mem, cache->checkouts.dir, sp_str_lit("t")), sp_str_lit("tmp"), &staged)) {
       entry->error = checkout_error(cache, "stage", entry->path);
       return SPN_ERROR;
     }

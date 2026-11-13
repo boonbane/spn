@@ -35,6 +35,7 @@ wamr = { path = "vendor/wamr" }
 toml = { path = "vendor/toml" }
 yyjson = { path = "vendor/yyjson"}
 blake3 = { path = "vendor/blake3"}
+libgit2 = { path = "vendor/libgit2" }
 
 [deps.build]
 sp = { path = "vendor/sp" }
@@ -53,6 +54,11 @@ files = [
   "tools/patches/wamr-mingw-tls.patch",
   "tools/patches/wamr-win-warnings.patch",
   "tools/patches/wamr-win-overlapped.patch",
+]
+
+[patch.libgit2]
+files = [
+  "tools/patches/libgit2-apply-offset.patch",
 ]
 
 [profile.default]

@@ -9,6 +9,6 @@ void                spn_git_cache_init(spn_git_cache_t* cache, sp_mem_t mem, sp_
 spn_err_t           spn_git_cache_ensure_db(spn_git_cache_t* cache, sp_str_t url, spn_git_db_t** db);
 spn_git_checkout_t* spn_git_cache_checkout(spn_git_cache_t* cache, spn_git_checkout_id_t id, bool* fetching);
 spn_err_t           spn_git_checkout_ensure(spn_git_cache_t* cache, spn_git_checkout_t* checkout);
-spn_err_t           spn_git_db_ensure_rev(spn_git_cache_t* cache, spn_git_db_t* db, sp_str_t rev);
+spn_err_t           spn_git_db_ensure_rev(spn_git_cache_t* cache, spn_git_db_t* db, sp_str_t rev, sp_str_t* error);
 
 #endif
