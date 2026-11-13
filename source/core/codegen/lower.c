@@ -55,9 +55,9 @@ static spn_cxx_options_t lower_cxx_options(const spn_cg_cxx_options_t* cg) {
 #define lower_tree(tree) (sp_opt_is_null(tree) ? SPN_TREE_SOURCE : sp_opt_get(tree))
 
 static bool lower_path_ok(spn_toml_loader_t* ctx, sp_str_t path) {
-  spn_path_check_t check = sp_str_empty(path) ? SPN_PATH_MALFORMED : spn_path_check_relative(path);
-  if (check != SPN_PATH_OK) {
-    spn_toml_loader_issue_at(ctx, spn_codegen_path_issue(check), path);
+  spn_err_t err = sp_str_empty(path) ? SPN_ERR_CODEGEN_PATH : spn_path_check_relative(path);
+  if (err) {
+    spn_toml_loader_issue_at(ctx, err, path);
     return false;
   }
   return true;

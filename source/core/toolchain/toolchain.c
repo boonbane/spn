@@ -124,21 +124,21 @@ spn_err_t spn_toolchain_generation(const spn_path_roots_t* roots, spn_path_t cac
   return result;
 }
 
-static spn_path_check_t local_arg(spn_path_root_t base, sp_str_t str, spn_arg_t* arg) {
+static spn_err_t local_arg(spn_path_root_t base, sp_str_t str, spn_arg_t* arg) {
   if (sp_fs_is_absolute(str)) {
     *arg = spn_arg_path((spn_path_t) { .sub = str });
-    return SPN_PATH_OK;
+    return SPN_OK;
   }
   if (base == SPN_PATH_ROOT_NONE) {
-    return SPN_PATH_UNROOTED;
+    return SPN_ERR_CODEGEN_UNROOTED;
   }
   *arg = spn_arg_path((spn_path_t) { .root = base, .sub = str });
-  return SPN_PATH_OK;
+  return SPN_OK;
 }
 
-spn_path_check_t spn_toolchain_sdk_path(spn_toolchain_source_t source, spn_path_root_t base, sp_str_t str, spn_arg_t* sdk) {
+spn_err_t spn_toolchain_sdk_path(spn_toolchain_source_t source, spn_path_root_t base, sp_str_t str, spn_arg_t* sdk) {
   if (!spn_path_normal(str)) {
-    return SPN_PATH_MALFORMED;
+    return SPN_ERR_CODEGEN_PATH;
   }
   switch (source) {
     case SPN_TOOLCHAIN_SOURCE_LOCAL: {
@@ -147,34 +147,34 @@ spn_path_check_t spn_toolchain_sdk_path(spn_toolchain_source_t source, spn_path_
     case SPN_TOOLCHAIN_SOURCE_DISTRIBUTION:
     case SPN_TOOLCHAIN_SOURCE_DETECTED: {
       *sdk = sp_fs_is_absolute(str) ? spn_arg_path((spn_path_t) { .sub = str }) : spn_arg_lit(str);
-      return SPN_PATH_OK;
+      return SPN_OK;
     }
   }
-  SP_UNREACHABLE_RETURN(SPN_PATH_MALFORMED);
+  SP_UNREACHABLE_RETURN(SPN_ERROR);
 }
 
-spn_path_check_t spn_toolchain_program(spn_toolchain_source_t source, spn_path_root_t base, sp_str_t program, spn_arg_t* arg) {
+spn_err_t spn_toolchain_program(spn_toolchain_source_t source, spn_path_root_t base, sp_str_t program, spn_arg_t* arg) {
   if (!spn_path_normal(program)) {
-    return SPN_PATH_MALFORMED;
+    return SPN_ERR_CODEGEN_PATH;
   }
   switch (source) {
     case SPN_TOOLCHAIN_SOURCE_LOCAL: {
       if (sp_fs_get_name(program).len == program.len) {
         *arg = spn_arg_lit(program);
-        return SPN_PATH_OK;
+        return SPN_OK;
       }
       return local_arg(base, program, arg);
     }
     case SPN_TOOLCHAIN_SOURCE_DISTRIBUTION:
     case SPN_TOOLCHAIN_SOURCE_DETECTED: {
       if (sp_fs_is_absolute(program)) {
-        return SPN_PATH_ABSOLUTE;
+        return SPN_ERR_CODEGEN_ABSOLUTE;
       }
       *arg = spn_arg_lit(program);
-      return SPN_PATH_OK;
+      return SPN_OK;
     }
   }
-  SP_UNREACHABLE_RETURN(SPN_PATH_MALFORMED);
+  SP_UNREACHABLE_RETURN(SPN_ERROR);
 }
 
 spn_toolchain_ref_kind_t spn_toolchain_ref_kind(sp_str_t str) {

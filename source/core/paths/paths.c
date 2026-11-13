@@ -93,14 +93,14 @@ bool spn_path_normal(sp_str_t path) {
   return seg_normal(sp_str(path.data + start, it - start));
 }
 
-spn_path_check_t spn_path_check_relative(sp_str_t path) {
+spn_err_t spn_path_check_relative(sp_str_t path) {
   if (!spn_path_normal(path) || sp_str_contains(path, sp_str_lit("\\"))) {
-    return SPN_PATH_MALFORMED;
+    return SPN_ERR_CODEGEN_PATH;
   }
   if (sp_fs_is_absolute_for(path, SP_FS_PATH_WINDOWS)) {
-    return SPN_PATH_ABSOLUTE;
+    return SPN_ERR_CODEGEN_ABSOLUTE;
   }
-  return SPN_PATH_OK;
+  return SPN_OK;
 }
 
 static spn_path_t classify(sp_mem_t mem, const spn_path_roots_t* roots, spn_path_t path) {

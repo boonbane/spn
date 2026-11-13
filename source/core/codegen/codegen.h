@@ -4,7 +4,6 @@
 #include "codegen/types.h"
 #include "sp.h"
 #include "spn/core.h"
-#include "paths/types.h"
 #include "toml/loader.h"
 #include "when/types.h"
 #include "toml.h"
@@ -15,7 +14,6 @@ void               spn_toml_loader_write_option_value(sp_io_writer_t* out, spn_o
 void               spn_toml_loader_read_when(spn_toml_loader_t* t, toml_table_t* table, const c8* key, spn_when_t* out);
 void               spn_toml_loader_read_option_defaults(spn_toml_loader_t* t, toml_table_t* table, const c8* k, spn_option_defaults_t* out);
 void               spn_toml_loader_read_os_version(spn_toml_loader_t* t, toml_table_t* table, const c8* key, spn_os_version_t* out);
-spn_err_t          spn_codegen_path_issue(spn_path_check_t check);
 
 typedef struct yyjson_val yyjson_val;
 spn_option_value_t spn_json_option_value(yyjson_val* value, sp_mem_t mem);

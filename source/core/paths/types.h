@@ -30,13 +30,6 @@ typedef struct {
   sp_str_t sub;
 } spn_path_rel_t;
 
-typedef enum {
-  SPN_PATH_OK,
-  SPN_PATH_UNROOTED,
-  SPN_PATH_ABSOLUTE,
-  SPN_PATH_MALFORMED,
-} spn_path_check_t;
-
 typedef struct {
   spn_path_t recipe;
   spn_path_t source;

@@ -43,7 +43,7 @@ spn_node_t* spn_add_node(spn_config_t* config, const c8* tag) {
 static spn_err_t add_output(spn_node_t* node, spn_root_t root, sp_str_t sub, spn_dag_artifact_kind_t kind) {
   spn_user_node_t* info = spn_node_deref(node->ref);
   spn_pkg_unit_t* unit = node->ref.pkg;
-  if (spn_path_check_relative(sub) != SPN_PATH_OK) {
+  if (spn_path_check_relative(sub)) {
     return SPN_ERR_PATH_NOT_NORMAL;
   }
   spn_wasm_mounts_t mounts = spn_wasm_mounts(unit);
