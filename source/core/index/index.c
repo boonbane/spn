@@ -21,14 +21,45 @@
 #include "paths/paths.h"
 #include "str/str.h"
 
+#define spn_index_stamp ".git/spn-synced"
+
 static bool git_index_stale(spn_index_info_t* index) {
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  sp_path_t head = sp_path_join(scratch.mem, index->location.at, sp_str_lit(".git/FETCH_HEAD"));
-  sp_tm_epoch_t mod_time = sp_fs_get_mod_time_at(head);
+  sp_path_t stamp = sp_path_join(scratch.mem, index->location.at, sp_str_lit(spn_index_stamp));
+  sp_tm_epoch_t mod_time = sp_fs_get_mod_time_at(stamp);
   sp_mem_end_scratch(scratch);
 
   sp_tm_epoch_t now = sp_tm_now_epoch();
   return mod_time.s + index->refresh <= now.s;
+}
+
+static spn_err_t git_index_clone(spn_index_info_t* index, spn_git_failure_t* failure) {
+  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+  spn_path_t parent = spn_path_parent((spn_path_t) { .sub = index->location.dir });
+  spn_path_t base = spn_path_join(scratch.mem, parent, sp_str_lit("t"));
+  spn_path_t staged = sp_zero;
+  if (spn_path_stage_dir(scratch.mem, SP_NULLPTR, base, sp_str_lit("tmp"), &staged)) {
+    *failure = (spn_git_failure_t) { .message = "failed to stage the clone" };
+    sp_mem_end_scratch(scratch);
+    return SPN_ERROR;
+  }
+
+  sp_path_t at = index->location.at;
+  sp_path_t work = sp_path_from_str(staged.sub);
+  sp_path_t old = sp_path_from_str(spn_path_staging(scratch.mem, base, sp_str_lit("old")).sub);
+  spn_err_t err = spn_git_clone(index->git.url, staged.sub, failure);
+  if (!err) {
+    sp_sys_rename_s(at.dir, at.sub, old.dir, old.sub);
+    if (sp_sys_rename_s(work.dir, work.sub, at.dir, at.sub) && !sp_fs_is_dir_at(at)) {
+      sp_sys_rename_s(old.dir, old.sub, at.dir, at.sub);
+      *failure = (spn_git_failure_t) { .message = "failed to place the clone" };
+      err = SPN_ERROR;
+    }
+    sp_fs_remove_dir_at(old);
+  }
+  sp_fs_remove_dir_at(work);
+  sp_mem_end_scratch(scratch);
+  return err;
 }
 
 static spn_err_t git_index_freshen(spn_index_info_t* index, spn_git_failure_t* failure) {
@@ -39,13 +70,15 @@ static spn_err_t git_index_freshen(spn_index_info_t* index, spn_git_failure_t* f
 
   sp_for(attempt, 2) {
     if (attempt || !sp_fs_is_dir_at(at)) {
-      sp_fs_remove_dir_at(at);
-      if (spn_git_clone(index->git.url, dir, failure)) {
+      if (git_index_clone(index, failure)) {
         break;
       }
     }
     else if (spn_git_fetch(dir, failure)) {
-      continue;
+      if (failure->kind == SPN_GIT_CORRUPT) {
+        continue;
+      }
+      break;
     }
 
     sp_str_t branch = sp_zero;
@@ -57,12 +90,13 @@ static spn_err_t git_index_freshen(spn_index_info_t* index, spn_git_failure_t* f
       }
     }
     else if (spn_git_checkout_branch(dir, branch)) {
-      continue;
+      break;
     }
     if (spn_git_clean(dir)) {
-      continue;
+      break;
     }
 
+    sp_fs_create_file_at(sp_path_join(scratch.mem, at, sp_str_lit(spn_index_stamp)));
     err = SPN_OK;
     break;
   }
@@ -96,20 +130,17 @@ spn_err_t spn_index_sync(spn_index_info_t* index, spn_index_plan_t plan, spn_git
   *failure = sp_zero_s(spn_git_failure_t);
   switch (index->protocol) {
     case SPN_INDEX_PROTOCOL_GIT: {
-      bool pinned = !sp_str_empty(index->git.rev);
       sp_str_t dir = index->location.dir;
+      if (sp_str_empty(index->git.rev)) {
+        return plan.fetch ? git_index_freshen(index, failure) : SPN_OK;
+      }
       if (!plan.present) {
-        spn_try(spn_git_clone(index->git.url, dir, failure));
-        return pinned ? spn_git_checkout(dir, index->git.rev) : SPN_OK;
+        spn_try(git_index_clone(index, failure));
       }
-      if (!plan.fetch) {
-        return pinned ? spn_git_checkout(dir, index->git.rev) : SPN_OK;
-      }
-      if (pinned) {
+      else if (plan.fetch) {
         spn_try(spn_git_fetch(dir, failure));
-        return spn_git_checkout(dir, index->git.rev);
       }
-      return git_index_freshen(index, failure);
+      return spn_git_checkout(dir, index->git.rev);
     }
     case SPN_INDEX_PROTOCOL_HTTP: {
       return SPN_ERROR;
@@ -278,7 +309,9 @@ spn_err_t spn_index_publish(spn_index_info_t* index, spn_index_release_t* rel) {
       // Leave the replica clean when the transaction died after mutating it
       if (err && dirtied) {
         spn_git_failure_t failure = sp_zero;
-        git_index_freshen(index, &failure);
+        if (git_index_freshen(index, &failure)) {
+          sp_fs_remove_dir_at(index->location.at);
+        }
       }
       return err;
     }

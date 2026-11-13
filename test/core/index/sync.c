@@ -4,14 +4,17 @@ typedef struct {
   const c8* name;
 
   spn_index_protocol_t protocol;
+  u32 refresh;
   bool cloned;
   bool mutate_remote;
   bool remove_remote;
+  bool remove_repo;
 
   struct {
     spn_err_t result;
-    bool cached;
+    const c8* cached;
     bool cause;
+    bool fresh;
   } expect;
 } sync_test_t;
 
@@ -19,7 +22,7 @@ static const sync_test_t tests [] = {
   {
     .name = "clone_when_missing",
     .expect = {
-      .cached = true,
+      .cached = "A",
     },
   },
   {
@@ -27,7 +30,7 @@ static const sync_test_t tests [] = {
     .cloned = true,
     .mutate_remote = true,
     .expect = {
-      .cached = true,
+      .cached = "B",
     },
   },
   {
@@ -45,11 +48,48 @@ static const sync_test_t tests [] = {
       .cause = true,
     },
   },
+  {
+    .name = "failed_fetch_keeps_cache",
+    .cloned = true,
+    .remove_remote = true,
+    .expect = {
+      .result = SPN_ERROR,
+      .cached = "A",
+      .cause = true,
+    },
+  },
+  {
+    .name = "corrupt_repo_is_rebuilt",
+    .cloned = true,
+    .mutate_remote = true,
+    .remove_repo = true,
+    .expect = {
+      .cached = "B",
+    },
+  },
+  {
+    .name = "failed_rebuild_keeps_cache",
+    .cloned = true,
+    .remove_remote = true,
+    .remove_repo = true,
+    .expect = {
+      .result = SPN_ERROR,
+      .cached = "A",
+      .cause = true,
+    },
+  },
+  {
+    .name = "fresh_clone_is_not_stale",
+    .refresh = 600,
+    .expect = {
+      .cached = "A",
+      .fresh = true,
+    },
+  },
 };
 
-static void commit_seed(sp_mem_t mem, sp_str_t repo, const c8* name, u32 seq) {
-  sp_str_t file = sp_fs_join_path(mem, repo, sp_str_lit("seed.txt"));
-  sp_fs_create_file_str(file, sp_fmt(mem, "{}-{}", sp_fmt_cstr(name), sp_fmt_uint(seq)).value);
+static void commit_seed(sp_mem_t mem, sp_str_t repo, const c8* content) {
+  sp_fs_create_file_cstr(sp_fs_join_path(mem, repo, sp_str_lit("seed.txt")), content);
 
   git_repo_stage_all(repo);
   git_repo_commit(repo, sp_str_lit("seed"));
@@ -109,12 +149,13 @@ sp_test_each(index_sync, sync, sync_test_t, tests) {
 
   sp_fs_create_dir(remote);
   git_repo_init(remote);
-  commit_seed(mem, remote, it->name, 0);
+  commit_seed(mem, remote, "A");
 
   spn_index_info_t index = {
     .protocol = it->protocol,
     .git = { .url = remote },
     .location = { .at = sp_path_from_str(cache), .dir = cache },
+    .refresh = it->refresh,
   };
 
   spn_git_failure_t failure = sp_zero;
@@ -122,15 +163,21 @@ sp_test_each(index_sync, sync, sync_test_t, tests) {
     sp_expect_eq(t, SPN_OK, spn_index_sync(&index, spn_index_plan(&index, false), &failure));
   }
   if (it->mutate_remote) {
-    commit_seed(mem, remote, it->name, 1);
+    commit_seed(mem, remote, "B");
   }
   if (it->remove_remote) {
     sp_fs_remove_dir(remote);
   }
+  if (it->remove_repo) {
+    sp_fs_remove_dir(sp_fs_join_path(mem, cache, sp_str_lit(".git")));
+  }
 
   sp_expect_eq(t, it->expect.result, spn_index_sync(&index, spn_index_plan(&index, false), &failure));
-  sp_expect_eq(t, it->expect.cached, sp_fs_exists(cache));
+  sp_expect_str_eq(t, test_read_file(mem, sp_fs_join_path(mem, cache, sp_str_lit("seed.txt"))), sp_cstr_as_str(it->expect.cached));
   sp_expect_eq(t, it->expect.cause, failure.message[0] != 0);
+
+  spn_index_plan_t plan = spn_index_plan(&index, false);
+  sp_expect_eq(t, it->expect.fresh, plan.present && !plan.fetch);
 
   return SP_OK;
 }
