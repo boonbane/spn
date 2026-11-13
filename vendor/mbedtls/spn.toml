@@ -1,0 +1,33 @@
+[package]
+name = "mbedtls"
+version = "3.6.7"
+
+[package.upstream]
+url = "https://github.com/Mbed-TLS/mbedtls.git"
+commit = "0bebf8b8c7f07abe3571ded48a11aa907a1ffb20"
+
+[options.threading]
+type = "bool"
+default = true
+public = true
+define = "MBEDTLS_THREADING_PTHREAD"
+
+[options.threading_c]
+type = "bool"
+default = true
+public = true
+define = "MBEDTLS_THREADING_C"
+
+[[lib]]
+name = "mbedtls"
+kinds = ["static"]
+include = ["include", "library", { path = "config", tree = "manifest" }]
+source = ["library/*.c"]
+define = ['MBEDTLS_USER_CONFIG_FILE="spn_mbedtls_user_config.h"']
+flags = [{ value = "-O2", when = { mode = "debug", abi = { not = "msvc" } } }]
+
+[package.publish]
+include = [
+  { from = "include/mbedtls/*", to = "mbedtls" },
+  { from = "include/psa/*", to = "psa" },
+]

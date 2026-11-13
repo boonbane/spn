@@ -1,6 +1,7 @@
 #include "spn_test.h"
 
 #include "event/event.h"
+#include "external/git.h"
 #include "intern/intern.h"
 #include "codegen/toolchain.h"
 #include "toml/loader.h"
@@ -17,7 +18,7 @@ static sp_err_t spn_ctx_init(void* user) {
   spn.env = sp_alloc_type(spn.mem, sp_env_t);
   *spn.env = sp_env_capture(spn.mem);
   spn.host = spn_host_detect();
-  return SP_OK;
+  return spn_git_init(spn.env) ? SP_ERR : SP_OK;
 }
 
 sp_err_t spn_test_ctx_setup(sp_test_t* t) {
