@@ -7,6 +7,7 @@
 
 typedef struct {
   u32 timeout_s;
+  const c8* ca_bundle;
 } expect_t;
 
 typedef struct {
@@ -35,6 +36,11 @@ static const test_t tests [] = {
     .config = "net_timeout_over_max",
     .expect = { .timeout_s = 65535 },
   },
+  {
+    .name = "ca_bundle_is_read",
+    .config = "net_ca_bundle",
+    .expect = { .timeout_s = 30, .ca_bundle = "A" },
+  },
 };
 
 sp_test_each(config, net, test_t, tests) {
@@ -48,6 +54,8 @@ sp_test_each(config, net, test_t, tests) {
   spn_toml_load_config(&loader, (spn_path_t) { .sub = path }, &cg);
   sp_must(t, sp_da_empty(loader.issues));
 
-  sp_expect_eq(t, spn_net_lower(&cg.net).timeout_s, it->expect.timeout_s);
+  spn_net_config_t net = spn_net_lower(&cg.net);
+  sp_expect_eq(t, net.timeout_s, it->expect.timeout_s);
+  sp_expect_str_eq_c(t, net.ca_bundle, it->expect.ca_bundle);
   return SP_OK;
 }

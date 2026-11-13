@@ -8,7 +8,8 @@
   "definitions": {
     "net": {
       "optionalProperties": {
-        "timeout": { "type": "uint64" }
+        "timeout": { "type": "uint64" },
+        "ca_bundle": { "type": "string" }
       }
     }
   }

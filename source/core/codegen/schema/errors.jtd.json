@@ -28,7 +28,6 @@
     "toolchain_unavailable_for_host": { "ref": "toolchain" },
     "toolchain_not_installed": { "ref": "toolchain" },
     "toolchain_fetch": { "ref": "artifact" },
-    "toolchain_no_ca": { "ref": "artifact" },
     "toolchain_sha": { "ref": "artifact" },
     "toolchain_read": { "ref": "artifact" },
     "toolchain_extract": { "ref": "artifact" },
@@ -50,6 +49,7 @@
     "codegen_unrooted": { "properties": {} },
     "codegen_absolute": { "properties": {} },
     "http_init_failed": { "properties": {} },
+    "cert_untrusted": { "ref": "cert" },
     "wasm_init_failed": { "ref": "wasm" },
     "wasm_register_failed": { "ref": "wasm" },
     "wasm_module_load_failed": { "ref": "wasm" },
@@ -221,6 +221,14 @@
         "expected": { "type": "string" },
         "actual": { "type": "string" },
         "output": { "type": "string" }
+      }
+    },
+    "cert": {
+      "properties": {
+        "url": { "type": "string" },
+        "trust": { "metadata": { "extern": "net_trust" } },
+        "config": { "type": "string" },
+        "cause": { "type": "string" }
       }
     },
     "wasm": {

@@ -100,7 +100,7 @@ static spn_err_t setup_artifact(spn_toolchain_store_t* store, spn_toolchain_unit
   sp_str_t url = artifact.url;
   if (!cached) {
     spn_http_config_t http = {
-      .trust = store->trust,
+      .ca_bundle = store->trust.bundle,
       .timeout_s = store->timeout_s,
       .cancelled = cancelled,
     };
@@ -172,12 +172,15 @@ static spn_err_t setup_artifact(spn_toolchain_store_t* store, spn_toolchain_unit
         case SPN_HTTP_UNWRITABLE: {
           return spn_err_emit(&spn, (spn_err_union_t) { .kind = SPN_ERR_FS_WRITE, .fs = { .path = claim.tarball } });
         }
-        case SPN_HTTP_NO_CA: {
+        case SPN_HTTP_UNTRUSTED: {
           return spn_err_emit(&spn, (spn_err_union_t) {
-            .kind = SPN_ERR_TOOLCHAIN_NO_CA,
-            .artifact = {
-              .name = toolchain->name.str,
+            .kind = SPN_ERR_CERT_UNTRUSTED,
+            .subject = toolchain->name.str,
+            .cert = {
               .url = url,
+              .trust = store->trust,
+              .config = spn_path_str(store->roots, spn.events->mem, spn.paths.config),
+              .cause = sp_str_copy(spn.events->mem, sp_cstr_as_str(failure.message)),
             },
           });
         }

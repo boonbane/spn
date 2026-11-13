@@ -1144,12 +1144,11 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           );
           break;
         }
-        case SPN_ERR_TOOLCHAIN_NO_CA: {
+        case SPN_ERR_CERT_UNTRUSTED: {
           sp_tty_fmt(
             &w,
-            "Cannot download toolchain {} from {.gray} without CA certificates",
-            sp_fmt_str(colored_name(w.color, mem, event->err.artifact.name)),
-            sp_fmt_str(event->err.artifact.url)
+            "The certificate of {.gray} is not trusted",
+            sp_fmt_str(event->err.cert.url)
           );
           break;
         }
@@ -1752,8 +1751,64 @@ static void render_event_extra(sp_tty_t* w, spn_event_t* event) {
           sp_io_write_str(w->io, event->err.artifact.output, SP_NULLPTR);
           break;
         }
-        case SPN_ERR_TOOLCHAIN_NO_CA: {
-          sp_io_write_str(w->io, sp_str_lit("No CA bundle was found on this machine. Set SSL_CERT_FILE to a PEM file of trusted root certificates.\n"), SP_NULLPTR);
+        case SPN_ERR_CERT_UNTRUSTED: {
+          const spn_err_cert_t* cert = &event->err.cert;
+          sp_tty_fmt(w, "{}\n", sp_fmt_str(sp_str_trim_right(cert->cause)));
+          switch (cert->trust.kind) {
+            case SPN_NET_TRUST_NONE: {
+              sp_tty_fmt(
+                w,
+                "No CA bundle was found on this machine.\nSet {.yellow} under {.yellow} in {.cyan}, or {.yellow}, to a PEM file of trusted root certificates.\n",
+                sp_fmt_cstr("ca_bundle"),
+                sp_fmt_cstr("[net]"),
+                sp_fmt_str(cert->config),
+                sp_fmt_cstr("SSL_CERT_FILE")
+              );
+              break;
+            }
+            case SPN_NET_TRUST_SYSTEM: {
+              sp_io_write_str(w->io, sp_str_lit("The system certificate store is in use.\n"), SP_NULLPTR);
+              break;
+            }
+            case SPN_NET_TRUST_FOUND: {
+              sp_tty_fmt(
+                w,
+                "The CA bundle in use is {.cyan}.\nTo use another, set {.yellow} under {.yellow} in {.cyan}, or {.yellow}, to a PEM file of trusted root certificates.\n",
+                sp_fmt_str(cert->trust.bundle),
+                sp_fmt_cstr("ca_bundle"),
+                sp_fmt_cstr("[net]"),
+                sp_fmt_str(cert->config),
+                sp_fmt_cstr("SSL_CERT_FILE")
+              );
+              break;
+            }
+            case SPN_NET_TRUST_CONFIG: {
+              sp_tty_fmt(
+                w,
+                cert->trust.missing
+                  ? "The CA bundle {.cyan}, named by {.yellow} in {.cyan}, is not a file.\n"
+                  : "The CA bundle in use is {.cyan}, named by {.yellow} in {.cyan}.\n",
+                sp_fmt_str(cert->trust.bundle),
+                sp_fmt_cstr("ca_bundle"),
+                sp_fmt_str(cert->config)
+              );
+              break;
+            }
+            case SPN_NET_TRUST_ENV: {
+              sp_tty_fmt(
+                w,
+                cert->trust.missing
+                  ? "The CA bundle {.cyan}, named by {.yellow}, is not a file.\n{.yellow} overrides {.yellow} in {.cyan}.\n"
+                  : "The CA bundle in use is {.cyan}, named by {.yellow}.\n{.yellow} overrides {.yellow} in {.cyan}.\n",
+                sp_fmt_str(cert->trust.bundle),
+                sp_fmt_cstr("SSL_CERT_FILE"),
+                sp_fmt_cstr("SSL_CERT_FILE"),
+                sp_fmt_cstr("ca_bundle"),
+                sp_fmt_str(cert->config)
+              );
+              break;
+            }
+          }
           break;
         }
         case SPN_ERR_TOOLCHAIN_SHA: {

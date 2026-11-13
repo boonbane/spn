@@ -8,7 +8,7 @@
 #define spn_http_message_max 256
 
 typedef struct {
-  spn_net_trust_t trust;
+  sp_str_t ca_bundle;
   u32 timeout_s;
   sp_atomic_s32_t* cancelled;
 } spn_http_config_t;
@@ -17,7 +17,7 @@ typedef enum {
   SPN_HTTP_FAILED,
   SPN_HTTP_DROPPED,
   SPN_HTTP_CANCELLED,
-  SPN_HTTP_NO_CA,
+  SPN_HTTP_UNTRUSTED,
   SPN_HTTP_UNWRITABLE,
 } spn_http_failure_kind_t;
 

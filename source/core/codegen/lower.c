@@ -449,6 +449,7 @@ spn_index_info_t spn_index_lower(spn_toml_loader_t* ctx, u32 at, spn_index_kind_
 spn_net_config_t spn_net_lower(const spn_cg_net_t* cg) {
   return (spn_net_config_t) {
     .timeout_s = sp_opt_is_null(cg->timeout) ? spn_net_default_timeout_s : (u32)sp_min(sp_opt_get(cg->timeout), spn_net_max_timeout_s),
+    .ca_bundle = cg->ca_bundle,
   };
 }
 

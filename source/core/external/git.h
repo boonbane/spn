@@ -19,7 +19,7 @@ typedef struct {
   c8 message [spn_git_message_max];
 } spn_git_failure_t;
 
-spn_err_t spn_git_init(spn_net_trust_t trust, u32 timeout_s);
+spn_err_t spn_git_init(sp_str_t ca_bundle, u32 timeout_s);
 spn_err_t spn_git_clone(sp_str_t url, sp_str_t path, spn_git_failure_t* failure);
 spn_err_t spn_git_init_bare(sp_str_t url, sp_str_t path, spn_git_failure_t* failure);
 spn_err_t spn_git_clone_shared(sp_mem_t mem, sp_str_t source, sp_str_t path, sp_str_t* error);

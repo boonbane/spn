@@ -36,7 +36,7 @@ typedef struct {
   const c8* name;
   const c8* scheme;
   const c8* dest;
-  spn_net_trust_kind_t trust;
+  const c8* ca_bundle;
   connection_t connections [http_test_max_connections];
   expect_t expect;
 } test_t;
@@ -89,14 +89,12 @@ static const test_t tests [] = {
   {
     .name = "unanswered_tls_handshake_is_dropped",
     .scheme = "https",
-    .trust = SPN_NET_TRUST_SYSTEM,
     .connections = { { .kind = SERVE_HOLD, .reply = "" } },
     .expect = { .err = SPN_ERROR, .kind = SPN_HTTP_DROPPED, .connections = 1 },
   },
   {
     .name = "reset_tls_handshake_is_dropped",
     .scheme = "https",
-    .trust = SPN_NET_TRUST_SYSTEM,
     .connections = { { .kind = SERVE_RESET } },
     .expect = { .err = SPN_ERROR, .kind = SPN_HTTP_DROPPED, .connections = 1 },
   },
@@ -112,10 +110,11 @@ static const test_t tests [] = {
     .expect = { .err = SPN_ERROR, .kind = SPN_HTTP_UNWRITABLE },
   },
   {
-    .name = "https_without_ca_fails_before_connecting",
+    .name = "missing_ca_bundle_is_untrusted",
     .scheme = "https",
+    .ca_bundle = "B",
     .connections = { { .kind = SERVE_HOLD, .reply = "" } },
-    .expect = { .err = SPN_ERROR, .kind = SPN_HTTP_NO_CA },
+    .expect = { .err = SPN_ERROR, .kind = SPN_HTTP_UNTRUSTED, .connections = 1 },
   },
 };
 
@@ -200,7 +199,7 @@ sp_test_each(http, download, test_t, tests, .setup = spn_test_ctx_setup) {
   sp_thread_init(&thread, serve, &server);
 
   spn_http_config_t config = {
-    .trust = { .kind = it->trust },
+    .ca_bundle = it->ca_bundle ? sp_fs_join_path(mem, test_dir_str(t), sp_cstr_as_str(it->ca_bundle)) : sp_str_lit(""),
     .timeout_s = 1,
     .cancelled = &cancelled,
   };

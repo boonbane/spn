@@ -23,10 +23,6 @@ spn_err_t spn_http_init() {
 
 spn_err_t spn_http_download(const spn_http_config_t* config, sp_str_t url, sp_path_t dest, spn_http_failure_t* failure) {
   *failure = (spn_http_failure_t) { .kind = SPN_HTTP_FAILED };
-  if (config->trust.kind == SPN_NET_TRUST_NONE && sp_str_starts_with(url, sp_str_lit("https://"))) {
-    failure->kind = SPN_HTTP_NO_CA;
-    return SPN_ERROR;
-  }
 
   CURL* curl = curl_easy_init();
   if (!curl) {
@@ -58,8 +54,8 @@ spn_err_t spn_http_download(const spn_http_config_t* config, sp_str_t url, sp_pa
   curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
   curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, abort_if_cancelled);
   curl_easy_setopt(curl, CURLOPT_XFERINFODATA, config->cancelled);
-  if (config->trust.kind == SPN_NET_TRUST_BUNDLE) {
-    c8* bundle = sp_str_to_cstr(scratch.mem, config->trust.bundle);
+  if (!sp_str_empty(config->ca_bundle)) {
+    c8* bundle = sp_str_to_cstr(scratch.mem, config->ca_bundle);
     curl_easy_setopt(curl, CURLOPT_CAINFO, bundle);
     curl_easy_setopt(curl, CURLOPT_PROXY_CAINFO, bundle);
   }
@@ -96,10 +92,9 @@ spn_err_t spn_http_download(const spn_http_config_t* config, sp_str_t url, sp_pa
       failure->kind = SPN_HTTP_UNWRITABLE;
       break;
     }
-    case CURLE_PEER_FAILED_VERIFICATION: {
-      if (config->trust.kind == SPN_NET_TRUST_NONE) {
-        failure->kind = SPN_HTTP_NO_CA;
-      }
+    case CURLE_PEER_FAILED_VERIFICATION:
+    case CURLE_SSL_CACERT_BADFILE: {
+      failure->kind = SPN_HTTP_UNTRUSTED;
       break;
     }
     default: {

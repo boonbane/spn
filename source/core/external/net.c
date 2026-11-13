@@ -3,7 +3,7 @@
 #include "net.h"
 
 #if defined(SP_WIN32)
-spn_net_trust_t spn_net_trust_find(sp_str_t ssl_cert_file) {
+spn_net_trust_t spn_net_trust_find(sp_str_t ca_bundle, sp_str_t ssl_cert_file) {
   return (spn_net_trust_t) { .kind = SPN_NET_TRUST_SYSTEM };
 }
 #else
@@ -16,14 +16,17 @@ static const c8* bundles [] = {
   "/etc/ssl/cert.pem",
 };
 
-spn_net_trust_t spn_net_trust_find(sp_str_t ssl_cert_file) {
-  if (sp_fs_is_target_file(ssl_cert_file)) {
-    return (spn_net_trust_t) { .kind = SPN_NET_TRUST_BUNDLE, .bundle = ssl_cert_file };
+spn_net_trust_t spn_net_trust_find(sp_str_t ca_bundle, sp_str_t ssl_cert_file) {
+  if (!sp_str_empty(ssl_cert_file)) {
+    return (spn_net_trust_t) { .kind = SPN_NET_TRUST_ENV, .bundle = ssl_cert_file, .missing = !sp_fs_is_target_file(ssl_cert_file) };
+  }
+  if (!sp_str_empty(ca_bundle)) {
+    return (spn_net_trust_t) { .kind = SPN_NET_TRUST_CONFIG, .bundle = ca_bundle, .missing = !sp_fs_is_target_file(ca_bundle) };
   }
   sp_carr_for(bundles, it) {
     sp_str_t bundle = sp_cstr_as_str(bundles[it]);
     if (sp_fs_is_target_file(bundle)) {
-      return (spn_net_trust_t) { .kind = SPN_NET_TRUST_BUNDLE, .bundle = bundle };
+      return (spn_net_trust_t) { .kind = SPN_NET_TRUST_FOUND, .bundle = bundle };
     }
   }
   return (spn_net_trust_t) { .kind = SPN_NET_TRUST_NONE };

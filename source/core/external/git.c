@@ -10,17 +10,10 @@ static c8* mirror_refspecs [] = {
   "+refs/tags/*:refs/tags/*",
 };
 
-static struct {
-  bool no_ca_bundle;
-} git;
-
 static sp_str_t last_error(sp_mem_t mem) {
   const git_error* err = git_error_last();
   if (!err || !err->message) {
     return sp_str_lit("unknown git error");
-  }
-  if (err->klass == GIT_ERROR_SSL && git.no_ca_bundle) {
-    return sp_fmt(mem, "{} (no CA bundle was found; set SSL_CERT_FILE)", sp_fmt_cstr(err->message)).value;
   }
   return sp_str_copy(mem, sp_cstr_as_str(err->message));
 }
@@ -147,7 +140,7 @@ static bool is_repo_root(sp_str_t repo) {
   return ok;
 }
 
-spn_err_t spn_git_init(spn_net_trust_t trust, u32 timeout_s) {
+spn_err_t spn_git_init(sp_str_t ca_bundle, u32 timeout_s) {
   if (git_libgit2_init() < 0) {
     return SPN_ERROR;
   }
@@ -155,10 +148,9 @@ spn_err_t spn_git_init(spn_net_trust_t trust, u32 timeout_s) {
   git_libgit2_opts(GIT_OPT_SET_SERVER_CONNECT_TIMEOUT, (s32)(timeout_s * 1000));
   git_libgit2_opts(GIT_OPT_SET_SERVER_TIMEOUT, (s32)(timeout_s * 1000));
 
-  git.no_ca_bundle = trust.kind == SPN_NET_TRUST_NONE;
-  if (trust.kind == SPN_NET_TRUST_BUNDLE) {
+  if (!sp_str_empty(ca_bundle)) {
     sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-    git.no_ca_bundle = git_libgit2_opts(GIT_OPT_SET_SSL_CERT_LOCATIONS, sp_str_to_cstr(scratch.mem, trust.bundle), SP_NULLPTR) != 0;
+    git_libgit2_opts(GIT_OPT_SET_SSL_CERT_LOCATIONS, sp_str_to_cstr(scratch.mem, ca_bundle), SP_NULLPTR);
     sp_mem_end_scratch(scratch);
   }
   return SPN_OK;

@@ -16,6 +16,7 @@
 #include "external/wasm/wasm.h"
 #include "index/index.h"
 #include "op/op.h"
+#include "paths/paths.h"
 #include "thread_pool/thread_pool.h"
 
 typedef struct {
@@ -106,6 +107,18 @@ static spn_err_t sync_indexes(spn_op_t* op) {
           .url = spn_index_source(job->index),
         }});
       continue;
+    }
+
+    if (job->failure.kind == SPN_GIT_UNTRUSTED) {
+      return spn_err_emit(ctx, (spn_err_union_t) {
+        .kind = SPN_ERR_CERT_UNTRUSTED,
+        .subject = job->index->name.str,
+        .cert = {
+          .url = spn_index_source(job->index),
+          .trust = ctx->trust,
+          .config = spn_path_str(&ctx->roots, ctx->events->mem, ctx->paths.config),
+          .cause = sp_str_copy(ctx->events->mem, sp_cstr_as_str(job->failure.message)),
+        }});
     }
 
     return spn_err_emit(ctx, (spn_err_union_t) {

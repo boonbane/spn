@@ -271,8 +271,8 @@ spn_err_t spn_ctx_open(spn_ctx_t* ctx, spn_open_request_t request) {
   }
 
   spn_net_config_t net = spn_net_lower(&config.net);
-  spn_net_trust_t trust = spn_net_trust_find(sp_env_get(ctx->env, sp_str_lit("SSL_CERT_FILE")));
-  if (spn_git_init(trust, net.timeout_s)) {
+  ctx->trust = spn_net_trust_find(net.ca_bundle, sp_env_get(ctx->env, sp_str_lit("SSL_CERT_FILE")));
+  if (spn_git_init(ctx->trust.bundle, net.timeout_s)) {
     return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_GIT, .git.command = sp_str_lit("libgit2 init") });
   }
   if (spn_http_init()) {
@@ -282,7 +282,7 @@ spn_err_t spn_ctx_open(spn_ctx_t* ctx, spn_open_request_t request) {
     .mem = ctx->mem,
     .roots = &ctx->roots,
     .mirror = sp_env_get(ctx->env, sp_str_lit("SPN_MIRROR")),
-    .trust = trust,
+    .trust = ctx->trust,
     .timeout_s = net.timeout_s,
   };
   spn_probe_cache_load(&ctx->caches.toolchains.probes, &ctx->roots, (spn_path_t) { .root = SPN_PATH_ROOT_TOOLCHAIN, .sub = sp_str_lit("probe.cache") }, ctx->mem);
