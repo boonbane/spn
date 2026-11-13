@@ -63,6 +63,8 @@ static spn_err_t zig_warmup(sp_mem_t mem, const si_dag_ctx_t* c, si_zig_warmup_t
       if (sp_io_file_writer_from_path_at(&writer, spn_path_at(roots, files.exports))) {
         return SPN_ERR_DAG_OUTPUT_WRITE;
       }
+      u8 buffer [4096] = sp_zero;
+      sp_io_writer_set_buffer(&writer.base, buffer, sizeof(buffer));
       spn_cc_render_exports(&writer.base, roots, format, spn_rsp_style(cc->driver), sp_str_lit("stub"), SP_NULLPTR);
       sp_io_file_writer_close(&writer);
       if (spn_cc_link_implib(profile, warm->link.kind)) {

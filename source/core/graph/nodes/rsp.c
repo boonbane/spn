@@ -11,6 +11,8 @@ static spn_err_t write_rsp(sp_mem_t mem, const si_dag_ctx_t* c, si_rsp_t* rsp) {
   if (sp_io_file_writer_from_path_at(&writer, spn_path_at(c->roots, si_dag_resolve_output(c, rsp->output)))) {
     return SPN_ERR_DAG_OUTPUT_WRITE;
   }
+  u8 buffer [65536] = sp_zero;
+  sp_io_writer_set_buffer(&writer.base, buffer, sizeof(buffer));
   sp_da(spn_arg_t) args = sp_da_new(mem, spn_arg_t);
   si_da_for(rsp->objects, it) {
     sp_da_push(args, spn_arg_path(si_dag_resolve_input(c, rsp->objects[it])));

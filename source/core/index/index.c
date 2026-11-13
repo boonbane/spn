@@ -145,6 +145,8 @@ static void index_append_release(spn_index_info_t* index, spn_index_release_t* r
   sp_sys_open_s(path.dir, path.sub, SP_SYS_OPEN_MODE_WO, SP_SYS_OPEN_CREATE | SP_SYS_OPEN_APPEND, &fd);
   sp_io_stream_writer_t io;
   sp_io_stream_writer_from_fd(&io, fd, SP_IO_CLOSE_MODE_AUTO);
+  u8 buffer [4096] = sp_zero;
+  sp_io_writer_set_buffer(&io.base, buffer, sizeof(buffer));
   sp_io_write_line(&io.base, json);
   sp_io_stream_writer_close(&io);
 

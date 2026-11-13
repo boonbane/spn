@@ -81,6 +81,8 @@ static spn_err_t write_exports(sp_mem_t mem, const si_dag_ctx_t* c, si_exports_t
   if (sp_io_file_writer_from_path_at(&writer, spn_path_at(roots, output))) {
     return SPN_ERR_DAG_OUTPUT_WRITE;
   }
+  u8 buffer [65536] = sp_zero;
+  sp_io_writer_set_buffer(&writer.base, buffer, sizeof(buffer));
   spn_cc_render_exports(&writer.base, roots, exports->format, exports->rsp, exports->library, symbols);
   sp_io_file_writer_close(&writer);
   return SPN_OK;

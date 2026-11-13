@@ -237,9 +237,12 @@ sp_err_t sp_macho_write(sp_macho_t* macho, sp_io_writer_t* out) {
 sp_err_t sp_macho_write_to_file(sp_macho_t* macho, sp_path_t path) {
   sp_io_file_writer_t f = sp_zero;
   sp_try(sp_io_file_writer_from_path_at(&f, path));
+  u8 buffer [65536] = sp_zero;
+  sp_io_writer_set_buffer(&f.base, buffer, sizeof(buffer));
   sp_err_t err = sp_macho_write(macho, &f.base);
+  sp_err_t flushed = sp_io_flush(&f.base);
   sp_io_file_writer_close(&f);
-  return err;
+  return err ? err : flushed;
 }
 
 #endif // SP_MACHO_IMPLEMENTATION
