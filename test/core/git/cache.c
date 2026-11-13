@@ -383,6 +383,7 @@ static const cache_test_t tests [] = {
 typedef struct {
   spn_git_cache_t* cache;
   sp_str_t url;
+  sp_atomic_s32_t* cancelled;
   spn_git_db_t* db;
   spn_err_t err;
   sp_atomic_s32_t done;
@@ -390,7 +391,7 @@ typedef struct {
 
 static s32 run(void* user_data) {
   job_t* job = (job_t*)user_data;
-  job->err = spn_git_cache_ensure_db(job->cache, job->url, &job->db);
+  job->err = spn_git_cache_ensure_db(job->cache, job->url, job->cancelled, &job->db);
   sp_atomic_s32_store(&job->done, 1, SP_ATOMIC_SEQ_CST);
   return 0;
 }
@@ -456,7 +457,7 @@ sp_test_each(git_cache, ensure, cache_test_t, tests) {
   sp_for(c, num_checkouts) {
     checkout_expect_t* expect = &it->expect.detail[c];
 
-    job_t job = { .cache = &cache, .url = ids[c].url };
+    job_t job = { .cache = &cache, .url = ids[c].url, .cancelled = &cancelled };
     if (it->contended) {
       sp_str_t lock = sp_fmt(mem, "{}/db/{}.lock", sp_fmt_str(cache_root.sub), sp_fmt_str(spn_git_db_key(mem, job.url))).value;
       sp_try(test_run_contended(t, lock, run, &job, &job.done, true));
@@ -469,8 +470,8 @@ sp_test_each(git_cache, ensure, cache_test_t, tests) {
     sp_must_eq(t, err, SPN_OK);
     sp_must(t, db != SP_NULLPTR);
 
-    sp_str_t error = sp_zero;
-    err = spn_git_db_ensure_rev(&cache, db, ids[c].rev, &cancelled, &error);
+    spn_git_failure_t failure = sp_zero;
+    err = spn_git_db_ensure_rev(&cache, db, ids[c].rev, &cancelled, &failure);
     sp_must_eq(t, err, SPN_OK);
 
     bool fetching = false;
@@ -480,7 +481,7 @@ sp_test_each(git_cache, ensure, cache_test_t, tests) {
 
     if (expect->err) {
       sp_expect(t, err != SPN_OK);
-      sp_expect(t, !sp_str_empty(checkout->error));
+      sp_expect(t, checkout->failure.message[0] != 0);
       sp_expect(t, !sp_fs_is_dir_at(spn_path_at(&roots, checkout->path)));
     }
     else {

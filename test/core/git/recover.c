@@ -112,7 +112,7 @@ sp_test_each(git_recover, ensure, test_t, tests, .setup = spn_test_ctx_setup) {
   spn_git_cache_t before = sp_zero;
   spn_git_cache_init(&before, mem, SP_NULLPTR, &roots, dbs, checkouts);
   spn_git_db_t* db = SP_NULLPTR;
-  sp_must_eq(t, (u32)spn_git_cache_ensure_db(&before, remote, &db), (u32)SPN_OK);
+  sp_must_eq(t, (u32)spn_git_cache_ensure_db(&before, remote, &cancelled, &db), (u32)SPN_OK);
   if (it->checked_out) {
     sp_must_eq(t, (u32)spn_git_checkout_ensure(&before, spn_git_cache_checkout(&before, id, &fetching), &cancelled), (u32)SPN_OK);
   }
@@ -160,7 +160,7 @@ sp_test_each(git_recover, ensure, test_t, tests, .setup = spn_test_ctx_setup) {
     run(&job);
   }
 
-  sp_test_kv(t, "error", job.checkout->error);
+  sp_test_kv(t, "error", sp_cstr_as_str(job.checkout->failure.message));
   sp_expect_eq(t, (u32)job.err, (u32)it->expect.err);
   sp_expect_eq(t, !sp_fs_exists(witness), it->expect.rebuilt);
   sp_expect(t, !sp_fs_exists(leftover));

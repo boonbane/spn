@@ -215,7 +215,6 @@ docker_init_err_t docker_init(docker_t* docker, sp_mem_t mem) {
   docker->store = (spn_toolchain_store_t) {
     .mem = mem,
     .roots = &docker->roots,
-    .backoff = spn_net_default_backoff,
   };
 
   const c8* tools [] = { CONTAINER_SHELL_BIN, CONTAINER_CHECK_BIN };

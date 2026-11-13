@@ -155,6 +155,18 @@ static const sync_test_t tests [] = {
     },
   },
   {
+    .name = "cancel_ends_the_lock_wait",
+    .cloned = true,
+    .mutate_remote = true,
+    .cancelled = true,
+    .contended = true,
+    .expect = {
+      .result = SPN_ERROR,
+      .cached = "A",
+      .cause = true,
+    },
+  },
+  {
     .name = "fresh_index_takes_no_lock",
     .refresh = 600,
     .cloned = true,

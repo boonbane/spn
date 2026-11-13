@@ -40,7 +40,7 @@ typedef struct {
   bool ready;
   bool fetched;
   spn_err_t err;
-  sp_str_t error;
+  spn_git_failure_t failure;
 } spn_git_checkout_t;
 
 typedef struct {

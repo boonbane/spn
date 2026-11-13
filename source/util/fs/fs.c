@@ -103,6 +103,22 @@ sp_err_t sp_fs_lock_release(sp_fs_lock_t* lock) {
   return SP_OK;
 }
 
+sp_err_t sp_fs_replace_dir_at(sp_path_t fresh, sp_path_t live, sp_path_t retired) {
+  bool present = sp_fs_exists_at(live);
+  if (present) {
+    sp_try(sp_sys_rename_s(live.dir, live.sub, retired.dir, retired.sub));
+  }
+
+  sp_err_t placed = sp_sys_rename_s(fresh.dir, fresh.sub, live.dir, live.sub);
+  if (placed && present) {
+    sp_sys_rename_s(retired.dir, retired.sub, live.dir, live.sub);
+  }
+  if (!placed) {
+    sp_fs_remove_dir_at(retired);
+  }
+  return placed;
+}
+
 sp_err_t sp_fs_append(sp_path_t path, sp_str_t str) {
   sp_sys_fd_t fd = SP_SYS_INVALID_FD;
   sp_try(sp_sys_open_s(path.dir, path.sub, SP_SYS_OPEN_MODE_WO, SP_SYS_OPEN_CREATE | SP_SYS_OPEN_APPEND, &fd));
