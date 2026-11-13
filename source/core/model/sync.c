@@ -97,16 +97,8 @@ static spn_err_t setup_artifact(spn_toolchain_store_t* store, spn_toolchain_unit
   spn_toolchain_claim_t claim = spn_toolchain_claim(store, spn.mem, artifact);
   spn_path_t root = claim.root;
   bool cached = claim.present;
-  sp_str_t urls [2] = { spn_artifact_resolve_url(spn.events->mem, artifact, store->mirror), artifact.url };
-  u32 count = sp_str_equal(urls[0], urls[1]) ? 1 : 2;
-  sp_str_t url = urls[0];
+  sp_str_t url = artifact.url;
   if (!cached) {
-    spn_event_buffer_push(spn.events, (spn_event_t) {
-      .kind = SPN_EVENT_SYNC,
-      .sync = {
-        .name = toolchain->name.str,
-        .url = url,
-      }});
     spn_http_config_t http = {
       .trust = store->trust,
       .timeout_s = store->timeout_s,
@@ -114,17 +106,62 @@ static spn_err_t setup_artifact(spn_toolchain_store_t* store, spn_toolchain_unit
     };
     spn_http_failure_t failure = sp_zero;
     spn_err_t err = SPN_ERROR;
-    sp_for(it, count) {
+    sp_str_t actual = sp_zero;
+    sp_path_t download = spn_path_at(store->roots, claim.tarball);
+
+    sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+    sp_da(sp_str_t) urls = SP_NULLPTR;
+    if (!sp_str_empty(store->mirror)) {
+      urls = sp_da_new(scratch.mem, sp_str_t);
+      sp_da_push(urls, spn_artifact_resolve_url(scratch.mem, artifact, store->mirror));
+    }
+    else {
+      sp_str_t listing = sp_zero;
+      if (!sp_str_empty(artifact.mirror_list)) {
+        if (spn_http_download(&http, artifact.mirror_list, download, &failure) || sp_io_read_file_at(scratch.mem, download, &listing)) {
+          listing = artifact.mirror_snapshot;
+        }
+      }
+      urls = spn_artifact_mirror_urls(scratch.mem, artifact, listing, sp_tm_now_point());
+      sp_da_push(urls, artifact.url);
+    }
+
+    spn_event_buffer_push(spn.events, (spn_event_t) {
+      .kind = SPN_EVENT_SYNC,
+      .sync = {
+        .name = toolchain->name.str,
+        .url = sp_str_copy(spn.events->mem, urls[0]),
+      }});
+    sp_da_for(urls, it) {
       url = urls[it];
-      sp_for(attempt, spn_net_attempts) {
-        err = spn_http_download(&http, url, spn_path_at(store->roots, claim.tarball), &failure);
+      u32 attempts = it + 1 == sp_da_size(urls) ? spn_net_attempts : 1;
+      sp_for(attempt, attempts) {
+        err = spn_http_download(&http, url, download, &failure);
         if (!err || failure.kind != SPN_HTTP_DROPPED) {
           break;
         }
       }
-      if (!err || failure.kind == SPN_HTTP_CANCELLED) {
+      if (!err) {
+        err = spn_toolchain_verify(store, &claim, spn.events->mem, &actual);
+      }
+      if (!err || failure.kind == SPN_HTTP_CANCELLED || failure.kind == SPN_HTTP_UNWRITABLE) {
         break;
       }
+    }
+    url = sp_str_copy(spn.events->mem, url);
+    sp_mem_end_scratch(scratch);
+
+    if (err == SPN_ERR_TOOLCHAIN_READ || err == SPN_ERR_TOOLCHAIN_SHA) {
+      spn_toolchain_release(store, &claim);
+      return spn_err_emit(&spn, (spn_err_union_t) {
+        .kind = err,
+        .artifact = {
+          .name = toolchain->name.str,
+          .url = url,
+          .expected = artifact.sha256,
+          .actual = actual,
+        },
+      });
     }
     if (err) {
       spn_toolchain_release(store, &claim);

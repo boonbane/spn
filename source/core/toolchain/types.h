@@ -127,6 +127,7 @@ typedef struct {
   sp_str_t url;
   sp_str_t sha256;
   sp_str_t mirror_list;
+  sp_str_t mirror_snapshot;
 } spn_artifact_t;
 
 typedef struct {

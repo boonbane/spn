@@ -35,6 +35,7 @@ typedef struct {
   const c8* url;
   const c8* sha256;
   const c8* mirrors;
+  const c8* snapshot;
 } fixture_host_t;
 
 typedef struct {
@@ -197,6 +198,9 @@ static sp_err_t fixture_check_host(sp_test_t* t, spn_toolchain_host_t host, fixt
   }
   if (expect.mirrors) {
     sp_expect_str_eq_c(t, host.artifact.mirror_list, expect.mirrors);
+  }
+  if (expect.snapshot) {
+    sp_expect_str_eq_c(t, host.artifact.mirror_snapshot, expect.snapshot);
   }
 
   return SP_OK;

@@ -117,7 +117,9 @@ add_executable(core
   toolchain/builtins.c
   toolchain/catalog.c
   toolchain/driver.c
+  toolchain/fetch.c
   toolchain/linker.c
+  toolchain/mirrors.c
   toolchain/parse.c
   toolchain/probe.c
   toolchain/program.c
@@ -136,6 +138,7 @@ add_executable(core
   toolchain/select.c
   toolchain/sha256.c
   toolchain/toolchain.c
+  toolchain/verify.c
   toolchain/zig.c
   unit/harness.c
   unit/compile.c

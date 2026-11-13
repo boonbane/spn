@@ -37,12 +37,14 @@ static const parse_test_t tests [] = {
               .url = "https://example.com/linux.tar.xz",
               .sha256 = "aa",
               .mirrors = "https://example.com/mirrors.txt",
+              .snapshot = "https://A.example.com\nhttps://B.example.com\n",
             },
             {
               .triple = { SPN_ARCH_ARM64, SPN_OS_MACOS },
               .url = "https://example.com/macos.tar.xz",
               .sha256 = "bb",
               .mirrors = "https://example.com/mirrors.txt",
+              .snapshot = "https://A.example.com\nhttps://B.example.com\n",
             },
           },
           .targets = {

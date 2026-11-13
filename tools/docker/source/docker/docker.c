@@ -307,7 +307,8 @@ static docker_provision_err_t provision_artifact(docker_t* docker, const sysroot
   if (claim.present) {
     return DOCKER_PROVISION_OK;
   }
-  if (fetch(docker, artifact.url, spn_path_str(&docker->roots, docker->mem, claim.tarball))) {
+  sp_str_t actual = sp_zero;
+  if (fetch(docker, artifact.url, spn_path_str(&docker->roots, docker->mem, claim.tarball)) || spn_toolchain_verify(&docker->store, &claim, docker->mem, &actual)) {
     spn_toolchain_release(&docker->store, &claim);
     return DOCKER_PROVISION_ERR_FETCH;
   }

@@ -127,11 +127,44 @@ static sp_cli_result_t run(sp_cli_t* cli) {
   }
 
   sp_da(sp_str_t) lines = sp_str_split_c8(mem, content, '\n');
+  sp_da(sp_str_t) pinned = sp_da_new(mem, sp_str_t);
   bool hosts = false;
+  bool snapshot = false;
   sp_da_for(lines, it) {
     sp_str_t trimmed = sp_str_trim(lines[it]);
+    if (snapshot) {
+      snapshot = !sp_str_equal_cstr(trimmed, "'''");
+      continue;
+    }
+    if (sp_str_starts_with(trimmed, sp_str_lit("mirror_snapshot = '''"))) {
+      snapshot = true;
+      continue;
+    }
+    sp_da_push(pinned, lines[it]);
     if (sp_str_starts_with(trimmed, sp_str_lit("name = \""))) {
       sp_log("{.yellow}", sp_fmt_str(quoted_after(trimmed, "name = \"")));
+    }
+    if (sp_str_starts_with(trimmed, sp_str_lit("mirrors = \""))) {
+      sp_str_t url = quoted_after(trimmed, "mirrors = \"");
+      sp_log("{.cyan}: fetching {}", sp_fmt_cstr("mirrors"), sp_fmt_str(url));
+      sp_ps_output_t list = sp_ps_run_c(mem, (sp_ps_config_cstr_t) {
+        .command = "curl",
+        .args = { "-fsSL", "--retry", "3", sp_str_to_cstr(mem, url) }
+      });
+      if (list.status.exit_code) {
+        return sp_cli_set_error(cli, sp_fmt(mem, "download failed: {.cyan}", sp_fmt_str(url)).value);
+      }
+      sp_str_t listing = sp_str_trim(list.out);
+      bool listed = !sp_str_empty(listing);
+      sp_da(sp_str_t) mirrors = sp_str_split_c8(mem, listing, '\n');
+      sp_da_for(mirrors, at) {
+        listed &= sp_str_starts_with(mirrors[at], sp_str_lit("https://"));
+      }
+      if (!listed) {
+        return sp_cli_set_error(cli, sp_fmt(mem, "{.cyan} is not a list of https mirrors", sp_fmt_str(url)).value);
+      }
+      sp_da_push(pinned, sp_fmt(mem, "mirror_snapshot = '''\n{}\n'''", sp_fmt_str(listing)).value);
+      continue;
     }
     if (sp_str_starts_with(trimmed, sp_str_lit("["))) {
       hosts = sp_str_equal_cstr(trimmed, "[toolchain.host]");
@@ -143,10 +176,10 @@ static sp_cli_result_t run(sp_cli_t* cli) {
     }
     sp_str_t hash = sp_zero;
     try(pin(cli, mem, work, mirror, artifact, &hash));
-    lines[it] = with_sha256(mem, lines[it], hash);
+    pinned[sp_da_size(pinned) - 1] = with_sha256(mem, lines[it], hash);
   }
 
-  sp_str_t out = sp_str_join_n(mem, lines, (u32)sp_da_size(lines), sp_str_lit("\n"));
+  sp_str_t out = sp_str_join_n(mem, pinned, (u32)sp_da_size(pinned), sp_str_lit("\n"));
   if (sp_fs_create_file_str(manifest_path, out)) {
     return sp_cli_set_error(cli, sp_fmt(mem, "failed to write {.cyan}", sp_fmt_str(manifest_path)).value);
   }
@@ -160,7 +193,7 @@ s32 main(s32 num_args, const c8** args) {
 
   sp_cli_cmd_t root = {
     .name = "toolchain",
-    .summary = "Verify toolchain tarballs (minisign) and pin their sha256 into a [[toolchain]] file",
+    .summary = "Verify toolchain tarballs (minisign), pin their sha256 and snapshot their mirror list into a [[toolchain]] file",
     .opts = {
       {
         .name = "mirror",

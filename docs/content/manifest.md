@@ -79,6 +79,7 @@ readme: false
 | `detect` | `msvc` |
 | `host` | map of [`artifact`](#artifact) |
 | `mirrors` | `string` |
+| `mirror_snapshot` | `string` |
 | `target` | array of [`toolchain_target`](#toolchain_target) \| `string` |
 
 ## index
