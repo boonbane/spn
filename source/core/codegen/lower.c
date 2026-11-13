@@ -53,12 +53,9 @@ static spn_cxx_options_t lower_cxx_options(const spn_cg_cxx_options_t* cg) {
 }
 
 static bool lower_path_ok(spn_toml_loader_t* ctx, sp_str_t path) {
-  if (sp_str_empty(path) || !spn_path_normal(path) || sp_str_contains(path, sp_str_lit("\\"))) {
-    spn_toml_loader_issue_at(ctx, SPN_ERR_CODEGEN_PATH, path);
-    return false;
-  }
-  if (sp_fs_is_absolute(path)) {
-    spn_toml_loader_issue_at(ctx, SPN_ERR_CODEGEN_ABSOLUTE, path);
+  spn_path_check_t check = sp_str_empty(path) ? SPN_PATH_MALFORMED : spn_path_check_relative(path);
+  if (check != SPN_PATH_OK) {
+    spn_toml_loader_issue_at(ctx, spn_codegen_path_issue(check), path);
     return false;
   }
   return true;

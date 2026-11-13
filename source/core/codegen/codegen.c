@@ -11,6 +11,16 @@ static bool read_version_part(spn_toml_loader_t* ctx, toml_table_t* table, const
   return true;
 }
 
+spn_err_t spn_codegen_path_issue(spn_path_check_t check) {
+  switch (check) {
+    case SPN_PATH_UNROOTED: return SPN_ERR_CODEGEN_UNROOTED;
+    case SPN_PATH_ABSOLUTE: return SPN_ERR_CODEGEN_ABSOLUTE;
+    case SPN_PATH_MALFORMED: return SPN_ERR_CODEGEN_PATH;
+    case SPN_PATH_OK: sp_unreachable_case();
+  }
+  sp_unreachable_return(SPN_ERROR);
+}
+
 void spn_toml_loader_read_os_version(spn_toml_loader_t* ctx, toml_table_t* table, const c8* key, spn_os_version_t* out) {
   toml_table_t* child = toml_table_table(table, key);
   if (!child) {
