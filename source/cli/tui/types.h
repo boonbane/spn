@@ -38,6 +38,7 @@ typedef struct {
   sp_tty_t* err;
   sp_tty_t journal;
   spn_tui_line_writer_t writer;
+  u8 jsonl [65536];
   sp_sys_event_t wake;
   sp_str_ht(bool) seen_url;
   sp_da(spn_tui_buffered_log_t) buffered_logs;

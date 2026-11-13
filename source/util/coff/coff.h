@@ -249,9 +249,12 @@ sp_err_t sp_coff_write_to_file(sp_coff_t* coff, sp_path_t path) {
   sp_io_file_writer_t f = sp_zero;
   sp_err_t err = sp_io_file_writer_from_path_at(&f, path);
   if (err != SP_OK) return err;
+  u8 buffer [65536] = sp_zero;
+  sp_io_writer_set_buffer(&f.base, buffer, sizeof(buffer));
   err = sp_coff_write(coff, &f.base);
+  sp_err_t flushed = sp_io_flush(&f.base);
   sp_io_file_writer_close(&f);
-  return err;
+  return err ? err : flushed;
 }
 
 #endif // SP_COFF_IMPLEMENTATION

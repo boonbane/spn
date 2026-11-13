@@ -55,6 +55,8 @@ spn_err_t spn_cc_embed_ctx_write(spn_cc_embed_ctx_t* ctx, sp_path_t object, sp_p
   if (sp_io_file_writer_from_path_at(&writer, header)) {
     return SPN_ERROR;
   }
+  u8 buffer [65536] = sp_zero;
+  sp_io_writer_set_buffer(&writer.base, buffer, sizeof(buffer));
   sp_io_writer_t* io = &writer.base;
   sp_da_for(ctx->entries, it) {
     spn_cc_embed_t entry = ctx->entries[it];

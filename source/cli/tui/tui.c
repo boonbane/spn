@@ -2028,6 +2028,9 @@ void spn_tui_init(spn_tui_t* tui, spn_tui_desc_t desc) {
 
   tui->out = sp_tty_std_out();
   tui->err = sp_tty_std_err();
+  if (desc.json) {
+    sp_io_writer_set_buffer(tui->out->io, tui->jsonl, sizeof(tui->jsonl));
+  }
   if (desc.no_color) {
     tui->out->color = SP_TTY_COLOR_NONE;
     tui->err->color = SP_TTY_COLOR_NONE;
@@ -2095,6 +2098,7 @@ void spn_tui_flush(spn_tui_t* tui) {
 
     emit_event(tui, event);
   }
+  sp_io_flush(tui->out->io);
 }
 
 static void print_line(sp_tty_t* tty, const c8* fmt, va_list args) {
