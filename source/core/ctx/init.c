@@ -5,6 +5,7 @@
 #include "ctx/ctx.h"
 #include "error/error.h"
 #include "event/event.h"
+#include "external/git.h"
 #include "external/wasm/wasm.h"
 #include "git/cache.h"
 #include "hash/digest/digest.h"
@@ -218,6 +219,9 @@ spn_err_t spn_ctx_open(spn_ctx_t* ctx, spn_open_request_t request) {
   spn_try(open_roots(ctx, request));
   if (spn_wasm_init()) {
     return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_WASM_INIT_FAILED });
+  }
+  if (spn_git_init(ctx->env)) {
+    return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_GIT, .git.command = sp_str_lit("libgit2 init") });
   }
   spn_toolchain_catalog_init(&ctx->catalog, ctx->host, spn_sdk_detect(ctx->heap, &ctx->roots, ctx->env, ctx->host), ctx->heap);
   load_builtins(ctx);

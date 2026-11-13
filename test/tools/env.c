@@ -5,8 +5,7 @@
 #include "toolchain/search.h"
 #include "triple/triple.h"
 
-#define git_exe_max_path 259
-#define git_exe_checkout_depth 118
+#define libgit2_max_repo_path 168
 
 void write_file(sp_str_t path, sp_str_t content) {
   sp_fs_create_dir(sp_fs_parent_path(path));
@@ -92,6 +91,24 @@ static sp_da(sp_str_t) list_dir(sp_mem_t mem, sp_str_t path) {
   return names;
 }
 
+// The deepest repo spn makes under a fixture's storage is a dependency's
+// checkout, or the dir that checkout is staged in before the rename
+static u32 deepest_repo(sp_mem_t mem, sp_str_t project) {
+  u32 name = 0;
+  const c8* remotes [] = { "source", "remote" };
+  sp_carr_for(remotes, it) {
+    if (sp_str_empty(project)) {
+      break;
+    }
+    sp_da(sp_str_t) packages = list_dir(mem, sp_fs_join_path(mem, project, sp_cstr_as_str(remotes[it])));
+    sp_da_for(packages, at) {
+      name = sp_max(name, (u32)packages[at].len);
+    }
+  }
+  u32 checkout = sp_max(name + sp_cstr_len("-0123456789abcdef"), sp_cstr_len("t.0123456789abcdef.tmp"));
+  return sp_cstr_len("/cache/src/") + checkout + sp_cstr_len("/.git/");
+}
+
 typedef struct {
   sp_str_t token;
   sp_str_t value;
@@ -154,12 +171,6 @@ static sp_err_t setup_fixture_index_from_remote(sp_test_t* t, fixture_t* fixture
   }
 
   sp_must(t, sp_fs_is_dir(remote));
-  if (test_host().os == SPN_OS_WINDOWS && fixture->root.len + git_exe_checkout_depth > git_exe_max_path) {
-    return sp_test_skip(t, "git.exe caps paths at {} characters; this fixture's root is {} and a checkout under it needs {} more",
-      sp_fmt_uint(git_exe_max_path),
-      sp_fmt_uint(fixture->root.len),
-      sp_fmt_uint(git_exe_checkout_depth));
-  }
 
   sp_str_t raw = sp_fs_join_path(mem, project, sp_str_lit("index"));
 
@@ -422,7 +433,17 @@ sp_err_t prepare_test(sp_test_t* t, fixture_t* fixture, const c8* project, const
   sp_mem_t mem = fixture->mem;
 
   fixture->paths.config = fixture_path(fixture, sp_str_lit(".home/config"));
-  fixture->paths.storage = fixture_path(fixture, sp_str_lit(".home/storage"));
+  fixture->paths.storage = fixture_path(fixture, sp_str_lit(".st"));
+
+  sp_str_t from = project ? sp_fs_join_path(mem, fixture->paths.root, sp_cstr_as_str(project)) : sp_zero_s(sp_str_t);
+  u32 depth = deepest_repo(mem, from);
+  if (test_host().os == SPN_OS_WINDOWS && fixture->paths.storage.len + depth > libgit2_max_repo_path) {
+    return sp_test_skip(t, "libgit2 caps a repo path at {} characters on Windows; this fixture's storage is {} and a checkout under it needs {} more",
+      sp_fmt_uint(libgit2_max_repo_path),
+      sp_fmt_uint(fixture->paths.storage.len),
+      sp_fmt_uint(depth));
+  }
+
   fixture->paths.patches = fixture_path(fixture, sp_str_lit("patches"));
   fixture->paths.toolchain = pick_shared_toolchain_dir(mem, fixture->paths.root);
   fixture->paths.include = sp_fs_join_path(mem, fixture->paths.storage, sp_str_lit("spn/include"));

@@ -183,7 +183,7 @@ target_include_directories(spn_core PUBLIC
   ${GEN_DIR}
   ${STORE}/include
 )
-target_link_libraries(spn_core PUBLIC m vmlib yyjson blake3 spn_version)
+target_link_libraries(spn_core PUBLIC m vmlib yyjson blake3 git2 spn_version)
 add_dependencies(spn_core headers spn_embed spn_codegen_gen)
 
 add_executable(spn ${SPN_CLI_SOURCES})

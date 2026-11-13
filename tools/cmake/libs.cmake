@@ -54,3 +54,4 @@ set_target_properties(blake3 PROPERTIES ARCHIVE_OUTPUT_DIRECTORY ${STORE}/lib)
 # WAMR #
 ########
 add_subdirectory(${CMAKE_SOURCE_DIR}/tools/cmake/wamr ${CMAKE_BINARY_DIR}/wamr)
+add_subdirectory(${CMAKE_SOURCE_DIR}/tools/cmake/libgit2 ${CMAKE_BINARY_DIR}/libgit2)

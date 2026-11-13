@@ -365,7 +365,8 @@ static spn_git_checkout_id_t build_id(sp_test_t* t, git_repo_result_t* repo, con
       if (!edit->file) {
         break;
       }
-      sp_str_t text = sp_fmt(mem, "--- a/{}\n+++ b/{}\n@@ -1 +1 @@\n-{}+{}",
+      sp_str_t text = sp_fmt(mem, "diff --git a/{} b/{}\n--- a/{}\n+++ b/{}\n@@ -1 +1 @@\n-{}+{}",
+        sp_fmt_cstr(edit->file), sp_fmt_cstr(edit->file),
         sp_fmt_cstr(edit->file), sp_fmt_cstr(edit->file),
         sp_fmt_cstr(edit->from), sp_fmt_cstr(edit->to)).value;
       sp_str_t path = sp_fs_join_path(mem, test_dir_str(t),
@@ -413,7 +414,8 @@ sp_test_each(git_cache, ensure, cache_test_t, tests) {
     sp_must_eq(t, err, SPN_OK);
     sp_must(t, db != SP_NULLPTR);
 
-    err = spn_git_db_ensure_rev(&cache, db, ids[c].rev);
+    sp_str_t error = sp_zero;
+    err = spn_git_db_ensure_rev(&cache, db, ids[c].rev, &error);
     sp_must_eq(t, err, SPN_OK);
 
     bool fetching = false;

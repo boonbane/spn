@@ -7,6 +7,8 @@ set(DEPS
   "yyjson|https://github.com/ibireme/yyjson.git|ad58f21bee1213a8fdd614c2a11b4453815a73e9"
   "wamr|https://github.com/bytecodealliance/wasm-micro-runtime.git|0b9db98aea32f5d634de8268a57b442f41fffc45"
   "blake3|https://github.com/BLAKE3-team/BLAKE3.git|f3149ec5bb5449af877ba20377a11008ff499fa2"
+  "libgit2|https://github.com/libgit2/libgit2.git|0551dfd4ad989b6a3d5683c0d4cf326c6efef929"
+  "mbedtls|https://github.com/Mbed-TLS/mbedtls.git|0bebf8b8c7f07abe3571ded48a11aa907a1ffb20"
 )
 
 if(NOT DEFINED SOURCE_DIR)
