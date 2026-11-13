@@ -105,6 +105,14 @@ static spn_err_t git_index_freshen(spn_index_info_t* index, sp_atomic_s32_t* can
   return err;
 }
 
+static spn_err_t git_index_lock(spn_index_info_t* index, sp_fs_lock_t* lock, spn_git_failure_t* failure) {
+  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+  sp_path_t at = index->location.at;
+  spn_err_t err = spn_git_lock(at, sp_path_join(scratch.mem, at, sp_str_lit(".git")), lock, failure);
+  sp_mem_end_scratch(scratch);
+  return err;
+}
+
 spn_index_plan_t spn_index_plan(spn_index_info_t* index, bool force) {
   sp_path_t at = index->location.at;
   switch (index->protocol) {
@@ -114,33 +122,46 @@ spn_index_plan_t spn_index_plan(spn_index_info_t* index, bool force) {
       return (spn_index_plan_t) {
         .present = present,
         .fetch = !present || force || (!pinned && git_index_stale(index)),
+        .force = force,
       };
     }
     case SPN_INDEX_PROTOCOL_HTTP: {
-      return sp_zero_s(spn_index_plan_t);
+      return (spn_index_plan_t) { .force = force };
     }
     case SPN_INDEX_PROTOCOL_DIR: {
-      return (spn_index_plan_t) { .present = sp_fs_is_dir_at(at) };
+      return (spn_index_plan_t) { .present = sp_fs_is_dir_at(at), .force = force };
     }
   }
   sp_unreachable_return(sp_zero_s(spn_index_plan_t));
+}
+
+static spn_err_t git_index_sync(spn_index_info_t* index, spn_index_plan_t plan, sp_atomic_s32_t* cancelled, spn_git_failure_t* failure) {
+  sp_str_t dir = index->location.dir;
+  if (sp_str_empty(index->git.rev)) {
+    return plan.fetch ? git_index_freshen(index, cancelled, failure) : SPN_OK;
+  }
+  if (!plan.present) {
+    spn_try(git_index_clone(index, cancelled, failure));
+  }
+  else if (plan.fetch) {
+    spn_try(spn_git_fetch(dir, cancelled, failure));
+  }
+  return spn_git_checkout(dir, index->git.rev);
 }
 
 spn_err_t spn_index_sync(spn_index_info_t* index, spn_index_plan_t plan, sp_atomic_s32_t* cancelled, spn_git_failure_t* failure) {
   *failure = sp_zero_s(spn_git_failure_t);
   switch (index->protocol) {
     case SPN_INDEX_PROTOCOL_GIT: {
-      sp_str_t dir = index->location.dir;
-      if (sp_str_empty(index->git.rev)) {
-        return plan.fetch ? git_index_freshen(index, cancelled, failure) : SPN_OK;
+      if (sp_str_empty(index->git.rev) && !plan.fetch) {
+        return SPN_OK;
       }
-      if (!plan.present) {
-        spn_try(git_index_clone(index, cancelled, failure));
-      }
-      else if (plan.fetch) {
-        spn_try(spn_git_fetch(dir, cancelled, failure));
-      }
-      return spn_git_checkout(dir, index->git.rev);
+
+      sp_fs_lock_t lock = sp_zero;
+      spn_try(git_index_lock(index, &lock, failure));
+      spn_err_t err = git_index_sync(index, spn_index_plan(index, plan.force), cancelled, failure);
+      sp_fs_lock_release(&lock);
+      return err;
     }
     case SPN_INDEX_PROTOCOL_HTTP: {
       return SPN_ERROR;
@@ -307,6 +328,19 @@ spn_err_t spn_index_publish(spn_index_info_t* index, spn_index_release_t* rel, s
         });
       }
 
+      sp_fs_lock_t lock = sp_zero;
+      spn_git_failure_t refused = sp_zero;
+      if (git_index_lock(index, &lock, &refused)) {
+        return spn_err_emit(&spn, (spn_err_union_t) {
+          .kind = SPN_ERR_INDEX_SYNC,
+          .index = {
+            .name = index->name.str,
+            .url = index->git.url,
+            .cause = sp_str_copy(spn.events->mem, sp_cstr_as_str(refused.message)),
+          },
+        });
+      }
+
       bool dirtied = false;
       spn_err_t err = publish_git(index, rel, cancelled, &dirtied);
 
@@ -317,6 +351,7 @@ spn_err_t spn_index_publish(spn_index_info_t* index, spn_index_release_t* rel, s
           sp_fs_remove_dir_at(index->location.at);
         }
       }
+      sp_fs_lock_release(&lock);
       return err;
     }
 

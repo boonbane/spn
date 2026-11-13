@@ -48,10 +48,16 @@ spn_err_t spn_git_cache_ensure_db(spn_git_cache_t* cache, sp_str_t url, spn_git_
   if (!entry->ready) {
     entry->ready = true;
 
-    if (!sp_fs_is_dir_at(spn_path_at(cache->roots, entry->path))) {
-      sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-      entry->err = spn_git_init_bare(url, spn_path_str(cache->roots, scratch.mem, entry->path), &entry->failure);
-      sp_mem_end_scratch(scratch);
+    sp_path_t repo = spn_path_at(cache->roots, entry->path);
+    if (!sp_fs_is_dir_at(repo)) {
+      sp_fs_lock_t lock = sp_zero;
+      entry->err = spn_git_lock(repo, repo, &lock, &entry->failure);
+      if (!entry->err && !sp_fs_is_dir_at(repo)) {
+        sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+        entry->err = spn_git_init_bare(url, spn_path_str(cache->roots, scratch.mem, entry->path), &entry->failure);
+        sp_mem_end_scratch(scratch);
+      }
+      sp_fs_lock_release(&lock);
     }
   }
   sp_mutex_unlock(&entry->mutex);
@@ -162,9 +168,17 @@ static spn_err_t spn_git_cache_materialize_checkout(spn_git_cache_t* cache, spn_
     }
 
     sp_path_t work = spn_path_at(cache->roots, staged);
+    sp_path_t repo = spn_path_at(cache->roots, db->path);
+    sp_fs_lock_t lock = sp_zero;
+    spn_git_failure_t failure = sp_zero;
     sp_mutex_lock(&db->mutex);
-    bool filled = !spn_git_db_ensure_rev(cache, db, entry->id.rev, cancelled, &entry->error) && !spn_git_cache_fill_checkout(cache, entry, db, staged);
+    bool locked = !spn_git_lock(repo, repo, &lock, &failure);
+    bool filled = locked && !spn_git_db_ensure_rev(cache, db, entry->id.rev, cancelled, &entry->error) && !spn_git_cache_fill_checkout(cache, entry, db, staged);
+    sp_fs_lock_release(&lock);
     sp_mutex_unlock(&db->mutex);
+    if (!locked) {
+      entry->error = sp_str_copy(cache->mem, sp_cstr_as_str(failure.message));
+    }
     if (!filled) {
       sp_fs_remove_dir_at(work);
       return SPN_ERROR;

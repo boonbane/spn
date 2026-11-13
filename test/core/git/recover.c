@@ -1,5 +1,6 @@
 #include "git.h"
 
+#include "contend.h"
 #include "paths/paths.h"
 
 typedef enum {
@@ -13,6 +14,7 @@ typedef enum {
 typedef struct {
   spn_err_t err;
   bool rebuilt;
+  bool waited;
 } expect_t;
 
 typedef struct {
@@ -21,6 +23,7 @@ typedef struct {
   damage_t damage;
   bool unreachable;
   bool cancelled;
+  bool contended;
   expect_t expect;
 } test_t;
 
@@ -36,8 +39,13 @@ static const test_t tests [] = {
     .expect = { .rebuilt = true },
   },
   {
-    .name = "db_with_locked_ref_is_kept",
+    .name = "db_with_leftover_lock_is_swept",
     .damage = DAMAGE_REF_LOCKED,
+  },
+  {
+    .name = "db_locked_elsewhere_is_waited_for",
+    .contended = true,
+    .expect = { .waited = true },
   },
   {
     .name = "db_is_kept_when_rebuild_fails",
@@ -62,7 +70,27 @@ static const test_t tests [] = {
     .damage = DAMAGE_OBJECTS_REMOVED,
     .unreachable = true,
   },
+  {
+    .name = "finished_checkout_takes_no_lock",
+    .checked_out = true,
+    .contended = true,
+  },
 };
+
+typedef struct {
+  spn_git_cache_t* cache;
+  spn_git_checkout_t* checkout;
+  sp_atomic_s32_t* cancelled;
+  spn_err_t err;
+  sp_atomic_s32_t done;
+} job_t;
+
+static s32 run(void* user_data) {
+  job_t* job = (job_t*)user_data;
+  job->err = spn_git_checkout_ensure(job->cache, job->checkout, job->cancelled);
+  sp_atomic_s32_store(&job->done, 1, SP_ATOMIC_SEQ_CST);
+  return 0;
+}
 
 sp_test_each(git_recover, ensure, test_t, tests, .setup = spn_test_ctx_setup) {
   sp_mem_t mem = sp_test_arena(t);
@@ -90,7 +118,9 @@ sp_test_each(git_recover, ensure, test_t, tests, .setup = spn_test_ctx_setup) {
   }
 
   sp_str_t repo = spn_path_str(&roots, mem, db->path);
+  sp_str_t lock = sp_fmt(mem, "{}.lock", sp_fmt_str(repo)).value;
   sp_str_t ref = sp_fs_join_path(mem, repo, sp_fmt(mem, "refs/heads/{}", sp_fmt_str(branch)).value);
+  sp_str_t leftover = sp_fmt(mem, "{}.lock", sp_fmt_str(ref)).value;
   sp_str_t witness = sp_fs_join_path(mem, repo, sp_str_lit("A"));
   sp_must_ok(t, sp_fs_create_file_str(witness, sp_str_lit("A")));
 
@@ -107,7 +137,7 @@ sp_test_each(git_recover, ensure, test_t, tests, .setup = spn_test_ctx_setup) {
       break;
     }
     case DAMAGE_REF_LOCKED: {
-      sp_must_ok(t, sp_fs_create_file_str(sp_fmt(mem, "{}.lock", sp_fmt_str(ref)).value, sp_str_lit("")));
+      sp_must_ok(t, sp_fs_create_file_str(leftover, sp_str_lit("")));
       break;
     }
     case DAMAGE_OBJECTS_REMOVED: {
@@ -121,13 +151,20 @@ sp_test_each(git_recover, ensure, test_t, tests, .setup = spn_test_ctx_setup) {
 
   spn_git_cache_t cache = sp_zero;
   spn_git_cache_init(&cache, mem, SP_NULLPTR, &roots, dbs, checkouts);
-  spn_git_checkout_t* checkout = spn_git_cache_checkout(&cache, id, &fetching);
   sp_atomic_s32_store(&cancelled, it->cancelled, SP_ATOMIC_SEQ_CST);
-  spn_err_t err = spn_git_checkout_ensure(&cache, checkout, &cancelled);
+  job_t job = { .cache = &cache, .checkout = spn_git_cache_checkout(&cache, id, &fetching), .cancelled = &cancelled };
+  if (it->contended) {
+    sp_try(test_run_contended(t, lock, run, &job, &job.done, it->expect.waited));
+  }
+  else {
+    run(&job);
+  }
 
-  sp_test_kv(t, "error", checkout->error);
-  sp_expect_eq(t, (u32)err, (u32)it->expect.err);
+  sp_test_kv(t, "error", job.checkout->error);
+  sp_expect_eq(t, (u32)job.err, (u32)it->expect.err);
   sp_expect_eq(t, !sp_fs_exists(witness), it->expect.rebuilt);
+  sp_expect(t, !sp_fs_exists(leftover));
+  sp_expect(t, sp_fs_is_file(lock));
 
   u32 entries = 0;
   sp_sys_dir_t dir = sp_zero;
@@ -140,6 +177,6 @@ sp_test_each(git_recover, ensure, test_t, tests, .setup = spn_test_ctx_setup) {
   }
   sp_fs_dir_it_close(&walk);
   sp_fs_close_dir(dir);
-  sp_expect_eq(t, entries, 1u);
+  sp_expect_eq(t, entries, 2u);
   return SP_OK;
 }

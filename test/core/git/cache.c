@@ -1,5 +1,6 @@
 #include "git.h"
 
+#include "contend.h"
 #include "paths/paths.h"
 
 #define CACHE_TEST_MAX_PATCHES   4
@@ -37,6 +38,7 @@ typedef struct {
   const c8* name;
   git_repo_fixture_t repo;
   checkout_req_t checkouts [CACHE_TEST_MAX_CHECKOUTS];
+  bool contended;
   cache_expect_t expect;
 } cache_test_t;
 
@@ -347,7 +349,51 @@ static const cache_test_t tests [] = {
       },
     },
   },
+  // a db that another process holds locked is not created until it lets go
+  {
+    .name = "init_waits_for_the_lock",
+    .repo = {
+      .commits = {
+        {
+          .message = "initial",
+          .files = {
+            { "data.txt", "hello" },
+          },
+        },
+      },
+    },
+    .checkouts = {
+      { .rev = "0" },
+    },
+    .contended = true,
+    .expect = {
+      .dbs = 1,
+      .checkouts = 1,
+      .detail = {
+        {
+          .files = {
+            { .file = "data.txt", .content = "hello" },
+          },
+        },
+      },
+    },
+  },
 };
+
+typedef struct {
+  spn_git_cache_t* cache;
+  sp_str_t url;
+  spn_git_db_t* db;
+  spn_err_t err;
+  sp_atomic_s32_t done;
+} job_t;
+
+static s32 run(void* user_data) {
+  job_t* job = (job_t*)user_data;
+  job->err = spn_git_cache_ensure_db(job->cache, job->url, &job->db);
+  sp_atomic_s32_store(&job->done, 1, SP_ATOMIC_SEQ_CST);
+  return 0;
+}
 
 static spn_git_checkout_id_t build_id(sp_test_t* t, git_repo_result_t* repo, const checkout_req_t* req, u32 index) {
   sp_mem_t mem = sp_test_arena(t);
@@ -410,8 +456,16 @@ sp_test_each(git_cache, ensure, cache_test_t, tests) {
   sp_for(c, num_checkouts) {
     checkout_expect_t* expect = &it->expect.detail[c];
 
-    spn_git_db_t* db = SP_NULLPTR;
-    spn_err_t err = spn_git_cache_ensure_db(&cache, ids[c].url, &db);
+    job_t job = { .cache = &cache, .url = ids[c].url };
+    if (it->contended) {
+      sp_str_t lock = sp_fmt(mem, "{}/db/{}.lock", sp_fmt_str(cache_root.sub), sp_fmt_str(spn_git_db_key(mem, job.url))).value;
+      sp_try(test_run_contended(t, lock, run, &job, &job.done, true));
+    }
+    else {
+      run(&job);
+    }
+    spn_git_db_t* db = job.db;
+    spn_err_t err = job.err;
     sp_must_eq(t, err, SPN_OK);
     sp_must(t, db != SP_NULLPTR);
 

@@ -22,7 +22,6 @@
 typedef struct {
   spn_op_t* op;
   spn_index_info_t* index;
-  bool force;
   spn_index_plan_t plan;
   spn_err_t err;
   spn_git_failure_t failure;
@@ -70,7 +69,6 @@ static spn_err_t sync_indexes(spn_op_t* op) {
     *job = (job_t) {
       .op = op,
       .index = index,
-      .force = request.force,
       .plan = plan,
     };
     sp_da_push(jobs, job);
@@ -99,7 +97,7 @@ static spn_err_t sync_indexes(spn_op_t* op) {
       continue;
     }
 
-    if (!job->force && job->plan.present) {
+    if (!job->plan.force && job->plan.present) {
       spn_event_buffer_push(ctx->events, (spn_event_t) {
         .kind = SPN_EVENT_SYNC_STALE,
         .sync = {

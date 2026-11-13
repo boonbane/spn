@@ -1,5 +1,7 @@
 #include "index.h"
 
+#include "contend.h"
+
 typedef enum {
   TXN_ACTION_NONE,
   TXN_ACTION_PUBLISH,
@@ -14,7 +16,7 @@ typedef struct {
   txn_action_kind_t kind;
 
   union {
-    struct { const c8* name; spn_semver_t version; spn_err_t err; } publish;
+    struct { const c8* name; spn_semver_t version; spn_err_t err; bool contended; } publish;
     struct { const c8* file; const c8* line; } write;
   };
 } txn_action_t;
@@ -154,7 +156,31 @@ static const txn_test_t tests [] = {
       .head = "spum 1.0.0",
     },
   },
+  {
+    .name = "waits_for_the_lock",
+    .actions = {
+      { .kind = TXN_ACTION_PUBLISH, .publish = { .name = "spum", .version = { 1, 0, 0 }, .contended = true } },
+    },
+    .expect = {
+      .head = "spum 1.0.0",
+    },
+  },
 };
+
+typedef struct {
+  spn_index_info_t* index;
+  spn_index_release_t* rel;
+  sp_atomic_s32_t* cancelled;
+  spn_err_t err;
+  sp_atomic_s32_t done;
+} publish_job_t;
+
+static s32 run_publish(void* user_data) {
+  publish_job_t* job = (publish_job_t*)user_data;
+  job->err = spn_index_publish(job->index, job->rel, job->cancelled);
+  sp_atomic_s32_store(&job->done, 1, SP_ATOMIC_SEQ_CST);
+  return 0;
+}
 
 static u32 remote_line_count(sp_mem_t mem, sp_str_t remote, const c8* path) {
   sp_ps_output_t result = sp_ps_run(mem, (sp_ps_config_t) {
@@ -232,7 +258,14 @@ sp_test_each(index_transaction, publish, txn_test_t, tests, .setup = spn_test_ct
         };
         sp_da_init(mem, rel.deps);
         sp_da_init(mem, rel.targets);
-        sp_expect_eq(t, action.publish.err, spn_index_publish(&index, &rel, &cancelled));
+        publish_job_t job = { .index = &index, .rel = &rel, .cancelled = &cancelled };
+        if (action.publish.contended) {
+          sp_try(test_run_contended(t, sp_fmt(mem, "{}.lock", sp_fmt_str(clone)).value, run_publish, &job, &job.done, true));
+        }
+        else {
+          run_publish(&job);
+        }
+        sp_expect_eq(t, action.publish.err, job.err);
         break;
       }
       case TXN_ACTION_SYNC: {

@@ -173,6 +173,32 @@ spn_err_t spn_git_init(sp_str_t ca_bundle, u32 timeout_s) {
   return SPN_OK;
 }
 
+spn_err_t spn_git_lock(sp_path_t repo, sp_path_t gitdir, sp_fs_lock_t* lock, spn_git_failure_t* failure) {
+  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+  sp_path_t beside = sp_path(repo.dir, sp_str_concat(scratch.mem, repo.sub, sp_str_lit(".lock")));
+  sp_fs_create_parent_at(beside);
+  if (sp_fs_lock_acquire(lock, beside)) {
+    *failure = (spn_git_failure_t) { .message = "failed to lock the repository" };
+    sp_mem_end_scratch(scratch);
+    return SPN_ERROR;
+  }
+
+  sp_sys_dir_t dir = sp_zero;
+  if (!sp_fs_open_dir_at(gitdir, &dir)) {
+    sp_fs_it_t walk = sp_fs_it(scratch.mem, dir);
+    sp_fs_it_entry_t entry = sp_zero;
+    while (sp_fs_it_next(&walk, &entry)) {
+      if (entry.kind == SP_FS_KIND_FILE && sp_str_ends_with(entry.name, sp_str_lit(".lock"))) {
+        sp_fs_remove_file_at(entry.at);
+      }
+    }
+    sp_fs_it_deinit(&walk);
+    sp_fs_close_dir(dir);
+  }
+  sp_mem_end_scratch(scratch);
+  return SPN_OK;
+}
+
 spn_err_t spn_git_clone(sp_str_t url, sp_str_t path, sp_atomic_s32_t* cancelled, spn_git_failure_t* failure) {
   if (is_missing_path(url)) {
     *failure = last_failure(SPN_GIT_FAILED);
