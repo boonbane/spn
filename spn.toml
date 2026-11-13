@@ -61,6 +61,7 @@ files = [
 files = [
   "tools/patches/libgit2-apply-offset.patch",
   "tools/patches/libgit2-mbedtls-ciphers.patch",
+  "tools/patches/libgit2-winhttp-timeouts.patch",
 ]
 
 [patch.curl]
