@@ -52,7 +52,15 @@ static void version(sp_tty_t* tty) {
   sp_mem_end_scratch(scratch);
 }
 
+#if defined(SP_POSIX)
+static void on_pipe(s32 signal) {
+}
+#endif
+
 s32 spn_main(s32 num_args, const c8** args) {
+#if defined(SP_POSIX)
+  sigaction(SIGPIPE, &(struct sigaction) { .sa_handler = on_pipe }, SP_NULLPTR);
+#endif
   sp_mem_heap_t* heap = sp_mem_heap_new();
   host.mem = sp_mem_heap_as_allocator(heap);
   sp_sys_event_open(&host.doorbell);
