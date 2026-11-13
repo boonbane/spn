@@ -164,7 +164,7 @@ flags = [{ value = "-O2", when = { mode = "debug", abi = { not = "msvc" } } }]
 
 [package.publish]
 include = [
-  { from = "source/include/git2.h" },
-  { from = "source/include/git2/*", to = "git2" },
-  { from = "source/include/git2/sys/*", to = "git2/sys" },
+  { from = "include/git2.h" },
+  { from = "include/git2/*", to = "git2" },
+  { from = "include/git2/sys/*", to = "git2/sys" },
 ]
