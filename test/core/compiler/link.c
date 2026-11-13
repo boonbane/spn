@@ -223,8 +223,21 @@ static const link_test_t tests [] = {
     .libc = "/L",
     .expect = {
       .command = "cc",
-      .args = { "--target=aarch64-macos", "main.o", "-F", "/sdk/System/Library/Frameworks", "-Wl,-rpath,@loader_path", "-o", "main" },
+      .args = { "--target=aarch64-macos", "main.o", "-L/sdk/usr/lib", "-F", "/sdk/System/Library/Frameworks", "-Wl,-rpath,@loader_path", "-o", "main" },
       .env = { "ZIG_LIBC=/L" },
+    },
+  },
+  {
+    .name = "zig_macos_min_os",
+    .driver = SPN_CC_DRIVER_ZIG,
+    .profile = {
+      .target = { SPN_ARCH_ARM64, SPN_OS_MACOS },
+    },
+    .kind = SPN_CC_OUTPUT_EXE,
+    .min_os = { 13 },
+    .expect = {
+      .command = "cc",
+      .args = { "--target=aarch64-macos.13.0", "main.o", "-Wl,-rpath,@loader_path", "-o", "main" },
     },
   },
   {

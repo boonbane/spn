@@ -580,6 +580,19 @@ static const compile_test_t tests [] = {
     },
   },
   {
+    .name = "zig_macos_min_os",
+    .driver = SPN_CC_DRIVER_ZIG,
+    .profile = {
+      .target = { SPN_ARCH_ARM64, SPN_OS_MACOS, SPN_ABI_APPLE },
+      .standard = SPN_C99,
+    },
+    .min_os = { 13, 1 },
+    .expect = {
+      .command = "cc",
+      .args = { "--target=aarch64-macos.13.1", "-std=c99", "-c", "-Werror=return-type", "main.c", "-o", "main.o" },
+    },
+  },
+  {
     .name = "foreign_platform_config_never_renders",
     .driver = SPN_CC_DRIVER_GCC,
     .profile = {

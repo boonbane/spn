@@ -11,12 +11,14 @@ typedef struct {
   spn_lang_t lang;
   spn_runtime_t libc;
   const c8* libs [STUB_TEST_MAX_LIBS];
+  spn_os_version_t min_os;
 } link_t;
 
 typedef struct {
   bool is_static;
   bool sdk;
   const c8* libs [STUB_TEST_MAX_LIBS];
+  spn_os_version_t min_os;
 } expect_t;
 
 typedef struct {
@@ -95,6 +97,17 @@ static const test_t tests [] = {
     .triple = LINUX_MUSL,
     .link = { SPN_CC_OUTPUT_EXE, SPN_LANG_C, .libs = { "A", "B" } },
   },
+  {
+    .name = "macos_min_os_keyed",
+    .triple = ARM_MACOS,
+    .link = { SPN_CC_OUTPUT_EXE, SPN_LANG_C, .min_os = { 12, 1 } },
+    .expect = { .min_os = { 12, 1 } },
+  },
+  {
+    .name = "min_os_dropped_elsewhere",
+    .triple = LINUX_MUSL,
+    .link = { SPN_CC_OUTPUT_EXE, SPN_LANG_C, .min_os = { 12, 1 } },
+  },
 };
 
 sp_test_each(zig_stubs, tuple, test_t, tests) {
@@ -111,6 +124,7 @@ sp_test_each(zig_stubs, tuple, test_t, tests) {
   spn_cc_link_t link = {
     .kind = it->link.kind,
     .lang = it->link.lang,
+    .min_os = it->link.min_os,
   };
   u32 libs = 0;
   sp_carr_detect_len(it->link.libs, libs, it->link.libs[libs]);
@@ -125,6 +139,8 @@ sp_test_each(zig_stubs, tuple, test_t, tests) {
   sp_expect_eq(t, stub.is_static, it->expect.is_static);
   sp_expect_eq(t, stub.sanitizers, it->sanitizers);
   sp_expect_eq(t, stub.sdk != 0, it->expect.sdk);
+  sp_expect_eq(t, stub.min_os.major, it->expect.min_os.major);
+  sp_expect_eq(t, stub.min_os.minor, it->expect.min_os.minor);
 
   u32 expected = 0;
   sp_carr_detect_len(it->expect.libs, expected, it->expect.libs[expected]);

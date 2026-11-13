@@ -1,0 +1,8 @@
+[package]
+name = "platform_sdk_lib"
+version = "0.1.0"
+
+[[bin]]
+name = "main"
+source = ["main.c"]
+system_deps = ["iconv"]

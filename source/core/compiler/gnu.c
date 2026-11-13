@@ -79,11 +79,15 @@ static sp_str_t render_wasi(spn_wasi_spelling_t spelling) {
   sp_unreachable_return(sp_str_lit(""));
 }
 
-static sp_str_t render_target(sp_mem_t mem, const spn_cc_t* toolchain, spn_triple_t triple) {
+static sp_str_t render_target(sp_mem_t mem, const spn_cc_t* toolchain, spn_triple_t triple, spn_os_version_t min_os) {
   switch (triple.os) {
     case SPN_OS_MACOS: {
       triple.abi = SPN_ABI_NONE;
-      return spn_triple_to_str(mem, triple);
+      sp_str_t target = spn_triple_to_str(mem, triple);
+      if (spn_cc_has(toolchain, SPN_CC_CAP_TRIPLE_MIN_OS) && is_os_version_present(min_os)) {
+        return sp_fmt(mem, "{}.{}.{}", sp_fmt_str(target), sp_fmt_uint(min_os.major), sp_fmt_uint(min_os.minor)).value;
+      }
+      return target;
     }
     case SPN_OS_WASI: {
       return render_wasi(toolchain->wasi);
@@ -214,17 +218,24 @@ static void add_cache(sp_mem_t mem, const spn_cc_t* toolchain, spn_invocation_t*
   spn_cc_push_env(mem, invocation, SPN_ENV_ZIG_LOCAL_CACHE_DIR, spn_arg_path(toolchain->cache));
 }
 
-static void add_launcher(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, spn_lang_t lang, spn_invocation_t* invocation) {
+static void add_launcher(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, spn_lang_t lang, spn_os_version_t min_os, spn_invocation_t* invocation) {
   add_cache(mem, toolchain, invocation);
   spn_toolchain_launcher_t launcher = spn_cc_launcher(mem, toolchain, profile, lang);
   invocation->program = launcher.program;
   spn_cc_push_strs(mem, invocation, launcher.args);
   if (spn_cc_has(toolchain, SPN_CC_CAP_TARGET_TRIPLE)) {
-    sp_str_t target = render_target(mem, toolchain, profile->target);
+    sp_str_t target = render_target(mem, toolchain, profile->target, min_os);
     if (!sp_str_empty(target)) {
       spn_cc_push_fmt(mem, invocation, "--target={}", sp_fmt_str(target));
     }
   }
+}
+
+static void add_min_os(sp_mem_t mem, const spn_cc_t* toolchain, spn_os_version_t min_os, spn_invocation_t* invocation) {
+  if (!is_os_version_present(min_os) || spn_cc_has(toolchain, SPN_CC_CAP_TRIPLE_MIN_OS)) {
+    return;
+  }
+  spn_cc_push_fmt(mem, invocation, "-mmacosx-version-min={}.{}", sp_fmt_uint(min_os.major), sp_fmt_uint(min_os.minor));
 }
 
 spn_cc_compile_plan_t spn_gnu_render_compile(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, spn_lang_t lang, const spn_cc_compile_t* compile) {
@@ -235,7 +246,7 @@ spn_cc_compile_plan_t spn_gnu_render_compile(sp_mem_t mem, const spn_cc_t* toolc
     .prefix_map = profile->mode == SPN_MODE_DEBUG && !spn_cc_has(toolchain, SPN_CC_CAP_CLANG_FRONTEND),
   };
   spn_invocation_t* invocation = &plan.base;
-  add_launcher(mem, toolchain, profile, lang, invocation);
+  add_launcher(mem, toolchain, profile, lang, compile->min_os, invocation);
   spn_cc_flags_t flags = sp_zero;
   sp_da_init(mem, flags.compile);
   sp_da_init(mem, flags.link);
@@ -265,8 +276,8 @@ spn_cc_compile_plan_t spn_gnu_render_compile(sp_mem_t mem, const spn_cc_t* toolc
     spn_cc_push_c(mem, invocation, "-fPIC");
   }
   add_sdk_compile(mem, profile, invocation);
-  if (profile->target.os == SPN_OS_MACOS && is_os_version_present(compile->min_os)) {
-    spn_cc_push_fmt(mem, invocation, "-mmacosx-version-min={}.{}", sp_fmt_uint(compile->min_os.major), sp_fmt_uint(compile->min_os.minor));
+  if (profile->target.os == SPN_OS_MACOS) {
+    add_min_os(mem, toolchain, compile->min_os, invocation);
   }
   if (plan.codeview) {
     spn_cc_push_c(mem, invocation, "-gno-codeview-command-line");
@@ -458,7 +469,7 @@ spn_cc_link_plan_t spn_gnu_render_link(sp_mem_t mem, const spn_cc_t* toolchain, 
   spn_invocation_t* base = &plan.base;
   spn_invocation_t tail = sp_zero;
 
-  add_launcher(mem, toolchain, profile, link->lang, base);
+  add_launcher(mem, toolchain, profile, link->lang, link->min_os, base);
   spn_cc_push_strs(mem, base, toolchain->link_args);
   spn_cc_flags_t flags = sp_zero;
   sp_da_init(mem, flags.compile);
@@ -523,9 +534,7 @@ spn_cc_link_plan_t spn_gnu_render_link(sp_mem_t mem, const spn_cc_t* toolchain, 
   }
   add_sdk_link(mem, profile, base, &tail);
   if (profile->target.os == SPN_OS_MACOS) {
-    if (is_os_version_present(link->min_os)) {
-      spn_cc_push_fmt(mem, &tail, "-mmacosx-version-min={}.{}", sp_fmt_uint(link->min_os.major), sp_fmt_uint(link->min_os.minor));
-    }
+    add_min_os(mem, toolchain, link->min_os, &tail);
     si_da_for(link->frameworks, it) {
       spn_cc_push_c(mem, &tail, "-framework");
       spn_cc_push_str(mem, &tail, link->frameworks[it]);

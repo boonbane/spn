@@ -25,6 +25,7 @@ static spn_sdk_macos_t macos_layout(sp_mem_t mem, spn_path_t root) {
   return (spn_sdk_macos_t) {
     .root = root,
     .include = spn_path_join(mem, root, sp_str_lit("usr/include")),
+    .lib = spn_path_join(mem, root, sp_str_lit("usr/lib")),
     .frameworks = spn_path_join(mem, root, sp_str_lit("System/Library/Frameworks")),
   };
 }
@@ -385,7 +386,7 @@ sp_hash_t spn_sdk_hash(const spn_sdk_t* sdk) {
       return sp_hash_combine(parts, sp_carr_len(parts));
     }
     case SPN_SDK_MACOS: {
-      sp_hash_t parts [] = { (sp_hash_t)sdk->kind, spn_path_hash(sdk->macos.root), spn_path_hash(sdk->macos.include), spn_path_hash(sdk->macos.frameworks) };
+      sp_hash_t parts [] = { (sp_hash_t)sdk->kind, spn_path_hash(sdk->macos.root), spn_path_hash(sdk->macos.include), spn_path_hash(sdk->macos.lib), spn_path_hash(sdk->macos.frameworks) };
       return sp_hash_combine(parts, sp_carr_len(parts));
     }
     case SPN_SDK_MSVC: {
@@ -419,6 +420,7 @@ bool spn_sdk_libc(spn_cc_cap_set_t caps, const spn_sdk_t* sdk, spn_libc_t* libc)
         .sys_include = sdk->macos.include,
         .frameworks = sdk->macos.frameworks,
       };
+      push_dir(&libc->search.lib, sdk->macos.lib);
       return true;
     }
     case SPN_SDK_MSVC: {

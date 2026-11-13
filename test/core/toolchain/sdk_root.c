@@ -7,6 +7,7 @@ typedef struct {
 
 typedef struct {
   test_path_t include;
+  test_path_t lib;
   test_path_t frameworks;
 } macos_expect_t;
 
@@ -29,9 +30,9 @@ static const test_t tests [] = {
     .expect = { .root = { "/S" } },
   },
   {
-    .name = "macos_lays_out_headers_and_frameworks",
+    .name = "macos_lays_out_headers_libs_and_frameworks",
     .sdk = { SPN_SDK_MACOS, { "/S" } },
-    .expect = { .root = { "/S" }, .macos = { { "/S/usr/include" }, { "/S/System/Library/Frameworks" } } },
+    .expect = { .root = { "/S" }, .macos = { { "/S/usr/include" }, { "/S/usr/lib" }, { "/S/System/Library/Frameworks" } } },
   },
   {
     .name = "rooted_root_is_kept",
@@ -121,7 +122,7 @@ sp_test_each(sdk_root, layout, test_t, tests) {
       return test_check_path(t, sdk.root, it->expect.root);
     }
     case SPN_SDK_MACOS: {
-      if (test_check_path(t, sdk.macos.root, it->expect.root) || test_check_path(t, sdk.macos.include, it->expect.macos.include)) {
+      if (test_check_path(t, sdk.macos.root, it->expect.root) || test_check_path(t, sdk.macos.include, it->expect.macos.include) || test_check_path(t, sdk.macos.lib, it->expect.macos.lib)) {
         return SP_ERR;
       }
       return test_check_path(t, sdk.macos.frameworks, it->expect.macos.frameworks);

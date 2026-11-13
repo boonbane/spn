@@ -80,6 +80,7 @@ typedef enum {
   ACTION_VERIFY_NO_INTERP,
   ACTION_VERIFY_ELF_ENTRY,
   ACTION_VERIFY_ELF_NO_SYMBOL,
+  ACTION_VERIFY_MACHO_MIN_OS,
   ACTION_VERIFY_FILE_CONTAINS,
   ACTION_VERIFY_FILE_NOT_CONTAINS,
   ACTION_VERIFY_CC_ARG,
@@ -104,6 +105,7 @@ typedef struct {
     path_t verify_no_interp;
     struct { path_t file; u64 entry; } verify_elf_entry;
     struct { path_t file; const c8* prefix; } verify_elf_no_symbol;
+    struct { path_t file; spn_os_version_t min_os; } verify_macho_min_os;
     struct { const c8* file; const c8* needle; } verify_file_contains;
     const c8* verify_cc_arg [4];
     struct { const c8* name; const c8* version; } verify_locked;

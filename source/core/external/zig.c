@@ -111,6 +111,9 @@ spn_zig_stub_t spn_zig_stub(sp_mem_t mem, const spn_profile_info_t* profile, con
   if (profile->target.os == SPN_OS_WINDOWS) {
     stub.system_libs = canonical_libs(mem, link->system_libs);
   }
+  if (profile->target.os == SPN_OS_MACOS) {
+    stub.min_os = link->min_os;
+  }
   return stub;
 }
 
@@ -131,6 +134,9 @@ sp_str_t spn_zig_stub_name(sp_mem_t mem, const spn_zig_stub_t* stub) {
   sp_mem_arena_marker_t s = sp_mem_begin_scratch_for(mem);
   sp_da(sp_str_t) parts = sp_da_new(s.mem, sp_str_t);
   sp_da_push(parts, spn_triple_to_str(s.mem, stub->triple));
+  if (stub->min_os.major || stub->min_os.minor) {
+    sp_da_push(parts, sp_fmt(s.mem, "{}.{}", sp_fmt_uint(stub->min_os.major), sp_fmt_uint(stub->min_os.minor)).value);
+  }
   sp_da_push(parts, stub_kind_label(stub->kind));
   sp_da_push(parts, stub->lang == SPN_LANG_CXX ? sp_str_lit("cxx") : sp_str_lit("c"));
   if (stub->is_static) {

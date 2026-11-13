@@ -21,6 +21,7 @@ typedef enum {
   SPN_CC_CAP_DEFAULT_UBSAN  = 1 << 6,
   SPN_CC_CAP_BARE           = 1 << 7,
   SPN_CC_CAP_GNU_RUNTIME    = 1 << 8,
+  SPN_CC_CAP_TRIPLE_MIN_OS  = 1 << 9,
 } spn_cc_cap_t;
 
 typedef u32 spn_cc_cap_set_t;
@@ -85,6 +86,7 @@ typedef struct {
 typedef struct {
   spn_path_t root;
   spn_path_t include;
+  spn_path_t lib;
   spn_path_t frameworks;
 } spn_sdk_macos_t;
 

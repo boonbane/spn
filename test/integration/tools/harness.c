@@ -191,6 +191,66 @@ static sp_err_t expect_elf_no_symbol(sp_test_t* t, fixture_t* fixture, sp_str_t 
   return SP_ERR;
 }
 
+#define macho_magic_64 0xfeedfacfu
+#define macho_lc_build_version 0x32u
+
+typedef struct {
+  u32 magic;
+  u32 cpu_type;
+  u32 cpu_subtype;
+  u32 file_type;
+  u32 num_cmds;
+  u32 cmds_size;
+  u32 flags;
+  u32 reserved;
+} macho_header_t;
+
+typedef struct {
+  u32 cmd;
+  u32 size;
+  u32 platform;
+  u32 min_os;
+} macho_build_version_t;
+
+static sp_err_t expect_macho_min_os(sp_test_t* t, fixture_t* fixture, sp_str_t path, spn_os_version_t expected, const c8* file, u32 line) {
+  sp_str_t image = test_read_file(fixture->mem, path);
+  macho_header_t header = sp_zero;
+  if (image.len >= sizeof(header)) {
+    sp_mem_copy(&header, image.data, sizeof(header));
+  }
+  bool found = false;
+  spn_os_version_t min_os = sp_zero;
+  if (header.magic == macho_magic_64) {
+    u64 offset = sizeof(header);
+    sp_for(it, header.num_cmds) {
+      macho_build_version_t cmd = sp_zero;
+      if (offset + sizeof(cmd) > image.len) {
+        break;
+      }
+      sp_mem_copy(&cmd, image.data + offset, sizeof(cmd));
+      if (cmd.cmd == macho_lc_build_version) {
+        found = true;
+        min_os = (spn_os_version_t) { .major = (u16)(cmd.min_os >> 16), .minor = (u16)((cmd.min_os >> 8) & 0xff) };
+        break;
+      }
+      offset += cmd.size;
+    }
+  }
+  if (found && min_os.major == expected.major && min_os.minor == expected.minor) {
+    return SP_OK;
+  }
+
+  sp_test_kv(t, "root", fixture->root);
+  sp_test_kv(t, "path", display_path(fixture, path));
+  sp_test_record(t, (sp_test_failure_t) {
+    .file = sp_cstr_as_str(file),
+    .line = line,
+    .expected = sp_test_format(t, "a mach-o image with minimum os {}.{}", sp_fmt_uint(expected.major), sp_fmt_uint(expected.minor)),
+    .actual = found ? sp_test_format(t, "minimum os {}.{}", sp_fmt_uint(min_os.major), sp_fmt_uint(min_os.minor)) : sp_cstr_as_str("not a 64 bit mach-o image with a build version"),
+  });
+  return SP_ERR;
+}
+
 static yyjson_val* event_field(sp_mem_t mem, yyjson_val* obj, const c8* key) {
   sp_da(sp_str_t) parts = sp_str_split_c8(mem, sp_cstr_as_str(key), '.');
   sp_da_for(parts, it) {
@@ -827,6 +887,10 @@ sp_err_t run_actions(sp_test_t* t, fixture_t* fixture, const action_t* actions) 
       }
       case ACTION_VERIFY_ELF_NO_SYMBOL: {
         expect_elf_no_symbol(t, fixture, at(fixture, action.verify_elf_no_symbol.file), action.verify_elf_no_symbol.prefix, __FILE__, __LINE__);
+        break;
+      }
+      case ACTION_VERIFY_MACHO_MIN_OS: {
+        expect_macho_min_os(t, fixture, at(fixture, action.verify_macho_min_os.file), action.verify_macho_min_os.min_os, __FILE__, __LINE__);
         break;
       }
       case ACTION_VERIFY_FILE_CONTAINS:
