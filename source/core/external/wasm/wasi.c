@@ -262,19 +262,6 @@ void spn_wasi_bind(spn_wasi_t* w, wasm_module_inst_t instance) {
   wasm_runtime_set_custom_data(instance, w);
 }
 
-spn_err_t spn_wasi_find_mount(const spn_wasi_mount_t* mounts, u32 count, spn_root_t root, sp_str_t sub, const spn_wasi_mount_t** mount) {
-  if (!spn_path_normal(sub) || sp_str_contains(sub, sp_str_lit("\\")) || sp_fs_is_absolute_for(sub, SP_FS_PATH_WINDOWS)) {
-    return SPN_ERR_PATH_NOT_NORMAL;
-  }
-  sp_for(it, count) {
-    if (spn_wasi_root(it) == root) {
-      *mount = &mounts[it];
-      return SPN_OK;
-    }
-  }
-  return SPN_ERR_PATH_NOT_MOUNTED;
-}
-
 bool spn_wasi_stray_write(spn_wasi_t* w, spn_path_t* path) {
   sp_ht_for_kv(w->writes, it) {
     bool allowed = false;

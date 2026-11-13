@@ -43,9 +43,19 @@ spn_node_t* spn_add_node(spn_config_t* config, const c8* tag) {
 static spn_err_t add_output(spn_node_t* node, spn_root_t root, sp_str_t sub, spn_dag_artifact_kind_t kind) {
   spn_user_node_t* info = spn_node_deref(node->ref);
   spn_pkg_unit_t* unit = node->ref.pkg;
+  if (!spn_path_normal(sub) || sp_str_contains(sub, sp_str_lit("\\")) || sp_fs_is_absolute_for(sub, SP_FS_PATH_WINDOWS)) {
+    return SPN_ERR_PATH_NOT_NORMAL;
+  }
   spn_wasm_mounts_t mounts = spn_wasm_mounts(unit);
   const spn_wasi_mount_t* mount = SP_NULLPTR;
-  spn_try(spn_wasi_find_mount(mounts.dirs, sp_carr_len(mounts.dirs), root, sub, &mount));
+  sp_carr_for(mounts.dirs, it) {
+    if (spn_wasi_root(it) == root) {
+      mount = &mounts.dirs[it];
+    }
+  }
+  if (!mount) {
+    return SPN_ERR_PATH_NOT_MOUNTED;
+  }
   if (!mount->writable) {
     return SPN_ERR_OUTPUT_OUTSIDE;
   }
