@@ -37,6 +37,7 @@ u64  spn_zig_progress_ticks(const spn_zig_progress_t* progress);
 
 typedef struct {
   spn_triple_t triple;
+  spn_os_version_t min_os;
   spn_cc_output_kind_t kind;
   spn_lang_t lang;
   bool is_static;

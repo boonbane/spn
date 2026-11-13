@@ -481,6 +481,7 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
         .kind = link->cc.kind,
         .lang = link->cc.lang,
         .system_libs = link->cc.system_libs,
+        .min_os = link->cc.min_os,
       };
       spn_zig_stub_t stub = spn_zig_stub(b->mem, &build->profile, &stub_link);
 
@@ -492,6 +493,8 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
       spn_dag_hash_u8(&warm_digest, (u8)stub.triple.arch);
       spn_dag_hash_u8(&warm_digest, (u8)stub.triple.os);
       spn_dag_hash_u8(&warm_digest, (u8)stub.triple.abi);
+      spn_dag_hash_u64(&warm_digest, stub.min_os.major);
+      spn_dag_hash_u64(&warm_digest, stub.min_os.minor);
       spn_dag_hash_u8(&warm_digest, (u8)stub.kind);
       spn_dag_hash_u8(&warm_digest, (u8)stub.lang);
       spn_dag_hash_u8(&warm_digest, (u8)stub.is_static);

@@ -30,6 +30,26 @@ static const test_t tests [] = {
     },
   },
   {
+    .name = "sdk_lib",
+    .project = "test/integration/fixtures/platform/sdk_lib",
+    .copy = { "main.c" },
+    .when.os = SPN_OS_MACOS,
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
+    },
+  },
+  {
+    .name = "macos_min_os",
+    .project = "test/integration/fixtures/platform/inert",
+    .copy = { "main.c" },
+    .when.driver = SPN_CC_DRIVER_ZIG,
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build", .args = { "--target", "aarch64-macos" } } },
+      { .kind = ACTION_VERIFY_MACHO_MIN_OS, .verify_macho_min_os = { target_exe("main", "aarch64-macos-apple"), { 12 } } },
+    },
+  },
+  {
     .name = "win32",
     .project = "test/integration/fixtures/platform/win32",
     .copy = { "main.c" },
