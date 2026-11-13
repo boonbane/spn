@@ -1,0 +1,22 @@
+diff --git a/src/libgit2/streams/mbedtls.c b/src/libgit2/streams/mbedtls.c
+index ccf0f11..5028add 100644
+--- a/src/libgit2/streams/mbedtls.c
++++ b/src/libgit2/streams/mbedtls.c
+@@ -42,7 +42,7 @@
+ #define GIT_SSL_DEFAULT_CIPHERS "TLS1-3-AES-128-GCM-SHA256:TLS1-3-AES-256-GCM-SHA384:TLS1-3-CHACHA20-POLY1305-SHA256:TLS-ECDHE-ECDSA-WITH-AES-128-GCM-SHA256:TLS-ECDHE-RSA-WITH-AES-128-GCM-SHA256:TLS-ECDHE-ECDSA-WITH-AES-256-GCM-SHA384:TLS-ECDHE-RSA-WITH-AES-256-GCM-SHA384:TLS-ECDHE-ECDSA-WITH-CHACHA20-POLY1305-SHA256:TLS-ECDHE-RSA-WITH-CHACHA20-POLY1305-SHA256:TLS-DHE-RSA-WITH-AES-128-GCM-SHA256:TLS-DHE-RSA-WITH-AES-256-GCM-SHA384:TLS-DHE-RSA-WITH-CHACHA20-POLY1305-SHA256"
+ #define GIT_SSL_DEFAULT_CIPHERS_COUNT 12
+ 
+-static int ciphers_list[GIT_SSL_DEFAULT_CIPHERS_COUNT];
++static int ciphers_list[GIT_SSL_DEFAULT_CIPHERS_COUNT + 1];
+ 
+ static bool initialized = false;
+ static mbedtls_ssl_config mbedtls_config;
+@@ -117,7 +117,7 @@ int git_mbedtls_stream_global_init(void)
+ 		int cipherid = mbedtls_ssl_get_ciphersuite_id(cipher_name);
+ 		if (cipherid == 0) continue;
+ 
+-		if (ciphers_known >= ARRAY_SIZE(ciphers_list)) {
++		if (ciphers_known >= ARRAY_SIZE(ciphers_list) - 1) {
+ 			git_error_set(GIT_ERROR_SSL, "out of cipher list space");
+ 			goto cleanup;
+ 		}
