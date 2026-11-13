@@ -47,7 +47,7 @@ static spn_err_t git_index_clone(spn_index_info_t* index, sp_atomic_s32_t* cance
   sp_path_t at = index->location.at;
   sp_path_t work = sp_path_from_str(staged.sub);
   sp_path_t old = sp_path_from_str(spn_path_staging(scratch.mem, base, sp_str_lit("old")).sub);
-  spn_err_t err = spn_git_clone(index->git.url, staged.sub, cancelled, failure);
+  spn_err_t err = spn_git_clone(index->git.url, staged.sub, index->backoff, cancelled, failure);
   if (!err) {
     sp_sys_rename_s(at.dir, at.sub, old.dir, old.sub);
     if (sp_sys_rename_s(work.dir, work.sub, at.dir, at.sub) && !sp_fs_is_dir_at(at)) {
@@ -74,7 +74,7 @@ static spn_err_t git_index_freshen(spn_index_info_t* index, sp_atomic_s32_t* can
         break;
       }
     }
-    else if (spn_git_fetch(dir, cancelled, failure)) {
+    else if (spn_git_fetch(dir, spn_net_no_backoff, cancelled, failure)) {
       if (failure->kind == SPN_GIT_CORRUPT) {
         continue;
       }
@@ -144,7 +144,7 @@ static spn_err_t git_index_sync(spn_index_info_t* index, spn_index_plan_t plan, 
     spn_try(git_index_clone(index, cancelled, failure));
   }
   else if (plan.fetch) {
-    spn_try(spn_git_fetch(dir, cancelled, failure));
+    spn_try(spn_git_fetch(dir, spn_net_no_backoff, cancelled, failure));
   }
   return spn_git_checkout(dir, index->git.rev);
 }

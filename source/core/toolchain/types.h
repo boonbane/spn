@@ -276,6 +276,7 @@ struct spn_toolchain_store {
   sp_str_t mirror;
   spn_net_trust_t trust;
   u32 timeout_s;
+  spn_net_backoff_t backoff;
   spn_probe_cache_t probes;
 };
 

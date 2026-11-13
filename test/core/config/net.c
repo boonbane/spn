@@ -59,3 +59,11 @@ sp_test_each(config, net, test_t, tests) {
   sp_expect_str_eq_c(t, net.ca_bundle, it->expect.ca_bundle);
   return SP_OK;
 }
+
+sp_test(config, net_backoff) {
+  spn_cg_net_t cg = sp_zero;
+  u32 wait_ms [spn_net_max_retries] = { 1000, 3500, 6500 };
+  spn_net_config_t net = spn_net_lower(&cg);
+  sp_expect_arr_eq(t, net.backoff.wait_ms, wait_ms, spn_net_max_retries);
+  return SP_OK;
+}

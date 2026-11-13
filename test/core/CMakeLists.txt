@@ -39,6 +39,7 @@ add_executable(core
   compiler/tools.c
   config/config.c
   config/net.c
+  external/backoff.c
   external/git.c
   external/http.c
   external/net.c

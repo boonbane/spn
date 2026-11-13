@@ -284,7 +284,9 @@ spn_err_t spn_ctx_open(spn_ctx_t* ctx, spn_open_request_t request) {
     .mirror = sp_env_get(ctx->env, sp_str_lit("SPN_MIRROR")),
     .trust = ctx->trust,
     .timeout_s = net.timeout_s,
+    .backoff = net.backoff,
   };
+  ctx->caches.git.backoff = net.backoff;
   spn_probe_cache_load(&ctx->caches.toolchains.probes, &ctx->roots, (spn_path_t) { .root = SPN_PATH_ROOT_TOOLCHAIN, .sub = sp_str_lit("probe.cache") }, ctx->mem);
 
   spn_try(spn_project_load(ctx, &ctx->project));
@@ -305,6 +307,7 @@ spn_err_t spn_ctx_open(spn_ctx_t* ctx, spn_open_request_t request) {
     spn_path_t location = spn_index_location(index, ctx->heap, &ctx->roots, spn_path_from_id(SPN_DIR_ID_INDEX));
     index->location.at = spn_path_at(&ctx->roots, location);
     index->location.dir = spn_path_str(&ctx->roots, ctx->heap, location);
+    index->backoff = net.backoff;
     if (!index->refresh) {
       index->refresh = request.index_refresh_seconds ? request.index_refresh_seconds : SPN_INDEX_DEFAULT_REFRESH;
     }

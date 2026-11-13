@@ -23,11 +23,11 @@ typedef struct {
 
 spn_err_t spn_git_init(sp_str_t ca_bundle, u32 timeout_s);
 spn_err_t spn_git_lock(sp_path_t repo, sp_path_t gitdir, sp_fs_lock_t* lock, spn_git_failure_t* failure);
-spn_err_t spn_git_clone(sp_str_t url, sp_str_t path, sp_atomic_s32_t* cancelled, spn_git_failure_t* failure);
+spn_err_t spn_git_clone(sp_str_t url, sp_str_t path, spn_net_backoff_t backoff, sp_atomic_s32_t* cancelled, spn_git_failure_t* failure);
 spn_err_t spn_git_init_bare(sp_str_t url, sp_str_t path, spn_git_failure_t* failure);
 spn_err_t spn_git_clone_shared(sp_mem_t mem, sp_str_t source, sp_str_t path, sp_str_t* error);
-spn_err_t spn_git_fetch(sp_str_t repo, sp_atomic_s32_t* cancelled, spn_git_failure_t* failure);
-spn_err_t spn_git_fetch_rev(sp_str_t repo, sp_str_t rev, sp_atomic_s32_t* cancelled, spn_git_failure_t* failure);
+spn_err_t spn_git_fetch(sp_str_t repo, spn_net_backoff_t backoff, sp_atomic_s32_t* cancelled, spn_git_failure_t* failure);
+spn_err_t spn_git_fetch_rev(sp_str_t repo, sp_str_t rev, spn_net_backoff_t backoff, sp_atomic_s32_t* cancelled, spn_git_failure_t* failure);
 bool spn_git_has_rev(sp_str_t repo, sp_str_t rev);
 spn_err_t spn_git_checkout(sp_str_t repo, sp_str_t commit);
 spn_err_t spn_git_apply(sp_mem_t mem, sp_str_t repo, sp_str_t patch, sp_str_t* error);

@@ -72,7 +72,7 @@ spn_err_t spn_git_db_ensure_rev(spn_git_cache_t* cache, spn_git_db_t* db, sp_str
   bool found = spn_git_has_rev(path, rev);
   if (!found) {
     spn_git_failure_t failure = sp_zero;
-    spn_err_t fetched = spn_git_fetch_rev(path, rev, cancelled, &failure);
+    spn_err_t fetched = spn_git_fetch_rev(path, rev, cache->backoff, cancelled, &failure);
 
     spn_path_t staged = sp_zero;
     if (fetched && failure.kind == SPN_GIT_CORRUPT && !spn_path_stage_dir(scratch.mem, cache->roots, db->path, sp_str_lit("tmp"), &staged)) {
@@ -82,7 +82,7 @@ spn_err_t spn_git_db_ensure_rev(spn_git_cache_t* cache, spn_git_db_t* db, sp_str
       sp_str_t repo = spn_path_str(cache->roots, scratch.mem, staged);
 
       spn_git_failure_t rebuilt = sp_zero;
-      if (spn_git_init_bare(db->url, repo, &rebuilt) || spn_git_fetch_rev(repo, rev, cancelled, &rebuilt)) {
+      if (spn_git_init_bare(db->url, repo, &rebuilt) || spn_git_fetch_rev(repo, rev, cache->backoff, cancelled, &rebuilt)) {
         failure = rebuilt;
         sp_fs_remove_dir_at(fresh);
       }

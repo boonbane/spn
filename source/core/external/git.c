@@ -92,7 +92,7 @@ static spn_git_failure_kind_t classify(s32 err) {
   return SPN_GIT_FAILED;
 }
 
-static spn_err_t fetch_origin(sp_str_t path, c8** refspecs, u32 count, git_fetch_options* options, sp_atomic_s32_t* cancelled, spn_git_failure_t* failure) {
+static spn_err_t fetch_origin(sp_str_t path, c8** refspecs, u32 count, git_fetch_options* options, spn_net_backoff_t backoff, sp_atomic_s32_t* cancelled, spn_git_failure_t* failure) {
   git_strarray specs = { .strings = refspecs, .count = count };
   git_repository* repo = open_repo(path);
   git_remote* remote = SP_NULLPTR;
@@ -104,13 +104,11 @@ static spn_err_t fetch_origin(sp_str_t path, c8** refspecs, u32 count, git_fetch
     *failure = last_failure(SPN_GIT_FAILED);
   }
   else {
-    sp_for(attempt, spn_net_attempts) {
-      if (sp_atomic_s32_load(cancelled, SP_ATOMIC_SEQ_CST)) {
-        break;
-      }
+    u32 retry = 0;
+    while (!sp_atomic_s32_load(cancelled, SP_ATOMIC_SEQ_CST)) {
       err = git_remote_fetch(remote, count ? &specs : SP_NULLPTR, options, SP_NULLPTR);
       *failure = err ? last_failure(classify(err)) : sp_zero_s(spn_git_failure_t);
-      if (failure->kind != SPN_GIT_DROPPED) {
+      if (failure->kind != SPN_GIT_DROPPED || !spn_net_backoff_wait(backoff, retry++, cancelled)) {
         break;
       }
     }
@@ -199,7 +197,7 @@ spn_err_t spn_git_lock(sp_path_t repo, sp_path_t gitdir, sp_fs_lock_t* lock, spn
   return SPN_OK;
 }
 
-spn_err_t spn_git_clone(sp_str_t url, sp_str_t path, sp_atomic_s32_t* cancelled, spn_git_failure_t* failure) {
+spn_err_t spn_git_clone(sp_str_t url, sp_str_t path, spn_net_backoff_t backoff, sp_atomic_s32_t* cancelled, spn_git_failure_t* failure) {
   if (is_missing_path(url)) {
     *failure = last_failure(SPN_GIT_FAILED);
     return SPN_ERROR;
@@ -211,13 +209,11 @@ spn_err_t spn_git_clone(sp_str_t url, sp_str_t path, sp_atomic_s32_t* cancelled,
   options.repository_cb = create_repo;
   git_repository* repo = SP_NULLPTR;
   s32 err = GIT_ERROR;
-  sp_for(attempt, spn_net_attempts) {
-    if (sp_atomic_s32_load(cancelled, SP_ATOMIC_SEQ_CST)) {
-      break;
-    }
+  u32 retry = 0;
+  while (!sp_atomic_s32_load(cancelled, SP_ATOMIC_SEQ_CST)) {
     err = git_clone(&repo, sp_str_to_cstr(scratch.mem, url), sp_str_to_cstr(scratch.mem, path), &options);
     *failure = err ? last_failure(classify(err)) : sp_zero_s(spn_git_failure_t);
-    if (failure->kind != SPN_GIT_DROPPED) {
+    if (failure->kind != SPN_GIT_DROPPED || !spn_net_backoff_wait(backoff, retry++, cancelled)) {
       break;
     }
   }
@@ -278,18 +274,18 @@ spn_err_t spn_git_clone_shared(sp_mem_t mem, sp_str_t source, sp_str_t path, sp_
   return ok ? SPN_OK : SPN_ERROR;
 }
 
-spn_err_t spn_git_fetch(sp_str_t repo, sp_atomic_s32_t* cancelled, spn_git_failure_t* failure) {
+spn_err_t spn_git_fetch(sp_str_t repo, spn_net_backoff_t backoff, sp_atomic_s32_t* cancelled, spn_git_failure_t* failure) {
   git_fetch_options options = fetch_options(cancelled);
-  return fetch_origin(repo, SP_NULLPTR, 0, &options, cancelled, failure);
+  return fetch_origin(repo, SP_NULLPTR, 0, &options, backoff, cancelled, failure);
 }
 
-spn_err_t spn_git_fetch_rev(sp_str_t repo, sp_str_t rev, sp_atomic_s32_t* cancelled, spn_git_failure_t* failure) {
+spn_err_t spn_git_fetch_rev(sp_str_t repo, sp_str_t rev, spn_net_backoff_t backoff, sp_atomic_s32_t* cancelled, spn_git_failure_t* failure) {
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   c8* spec = sp_str_to_cstr(scratch.mem, rev);
   git_fetch_options options = fetch_options(cancelled);
   options.depth = 1;
   options.download_tags = GIT_REMOTE_DOWNLOAD_TAGS_NONE;
-  spn_err_t shallow = fetch_origin(repo, &spec, 1, &options, cancelled, failure);
+  spn_err_t shallow = fetch_origin(repo, &spec, 1, &options, backoff, cancelled, failure);
   sp_mem_end_scratch(scratch);
 
   if (shallow && failure->kind != SPN_GIT_FAILED) {
@@ -305,7 +301,7 @@ spn_err_t spn_git_fetch_rev(sp_str_t repo, sp_str_t rev, sp_atomic_s32_t* cancel
     mirror.depth = GIT_FETCH_DEPTH_UNSHALLOW;
   }
   git_repository_free(r);
-  return fetch_origin(repo, mirror_refspecs, sp_carr_len(mirror_refspecs), &mirror, cancelled, failure);
+  return fetch_origin(repo, mirror_refspecs, sp_carr_len(mirror_refspecs), &mirror, backoff, cancelled, failure);
 }
 
 bool spn_git_has_rev(sp_str_t repo, sp_str_t rev) {

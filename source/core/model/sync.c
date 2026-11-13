@@ -134,13 +134,11 @@ static spn_err_t setup_artifact(spn_toolchain_store_t* store, spn_toolchain_unit
       }});
     sp_da_for(urls, it) {
       url = urls[it];
-      u32 attempts = it + 1 == sp_da_size(urls) ? spn_net_attempts : 1;
-      sp_for(attempt, attempts) {
+      spn_net_backoff_t backoff = it + 1 == sp_da_size(urls) ? store->backoff : spn_net_no_backoff;
+      u32 retry = 0;
+      do {
         err = spn_http_download(&http, url, download, &failure);
-        if (!err || failure.kind != SPN_HTTP_DROPPED) {
-          break;
-        }
-      }
+      } while (err && failure.kind == SPN_HTTP_DROPPED && spn_net_backoff_wait(backoff, retry++, cancelled));
       if (!err) {
         err = spn_toolchain_verify(store, &claim, spn.events->mem, &actual);
       }

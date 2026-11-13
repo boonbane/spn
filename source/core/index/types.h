@@ -4,6 +4,7 @@
 #include "intern/types.h"
 #include "paths/types.h"
 #include "core/types.h"
+#include "external/net.h"
 #include "spn/types.h"
 #include "sp_om/sp_om.h"
 #include "pkg/types.h"
@@ -77,6 +78,7 @@ struct spn_index_info {
     sp_str_t dir;
   } location;
   u32 refresh;
+  spn_net_backoff_t backoff;
 };
 
 typedef si_om(spn_index_id_t, spn_index_info_t) spn_index_map_t;

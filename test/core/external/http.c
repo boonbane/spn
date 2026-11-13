@@ -11,6 +11,8 @@
 #define reply_ab_cut "HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nA"
 #define reply_redirect "HTTP/1.1 302 Found\r\nLocation: /B\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
 #define reply_404 "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+#define reply_429 "HTTP/1.1 429 Too Many Requests\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+#define reply_503 "HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
 
 typedef enum {
   SERVE_NONE,
@@ -35,8 +37,11 @@ typedef struct {
 typedef struct {
   const c8* name;
   const c8* scheme;
+  const c8* host;
   const c8* dest;
   const c8* ca_bundle;
+  bool closed;
+  bool cancelled;
   connection_t connections [http_test_max_connections];
   expect_t expect;
 } test_t;
@@ -65,6 +70,26 @@ static const test_t tests [] = {
     .name = "http_error_fails",
     .connections = { { .kind = SERVE_REPLY, .reply = reply_404 } },
     .expect = { .err = SPN_ERROR, .connections = 1 },
+  },
+  {
+    .name = "server_error_is_dropped",
+    .connections = { { .kind = SERVE_REPLY, .reply = reply_503 } },
+    .expect = { .err = SPN_ERROR, .kind = SPN_HTTP_DROPPED, .connections = 1 },
+  },
+  {
+    .name = "rate_limit_is_dropped",
+    .connections = { { .kind = SERVE_REPLY, .reply = reply_429 } },
+    .expect = { .err = SPN_ERROR, .kind = SPN_HTTP_DROPPED, .connections = 1 },
+  },
+  {
+    .name = "refused_connection_is_dropped",
+    .closed = true,
+    .expect = { .err = SPN_ERROR, .kind = SPN_HTTP_DROPPED },
+  },
+  {
+    .name = "unresolvable_host_is_dropped",
+    .host = "A.invalid",
+    .expect = { .err = SPN_ERROR, .kind = SPN_HTTP_DROPPED },
   },
   {
     .name = "cut_body_is_dropped",
@@ -102,6 +127,11 @@ static const test_t tests [] = {
     .name = "cancel_aborts_transfer",
     .connections = { { .kind = SERVE_CANCEL } },
     .expect = { .err = SPN_ERROR, .kind = SPN_HTTP_CANCELLED, .connections = 1 },
+  },
+  {
+    .name = "download_after_cancel_is_cancelled",
+    .cancelled = true,
+    .expect = { .err = SPN_ERROR, .kind = SPN_HTTP_CANCELLED },
   },
   {
     .name = "missing_directory_is_unwritable",
@@ -192,28 +222,33 @@ sp_test_each(http, download, test_t, tests, .setup = spn_test_ctx_setup) {
   server_t server = { .listener = SP_SYS_INVALID_SOCKET, .connections = it->connections, .cancelled = &cancelled };
   sp_must_ok(t, sp_sys_socket_open(&server.listener, (sp_sys_handle_desc_t) { .mode = SP_SYS_BLOCKING }));
   sp_must_ok(t, sp_sys_socket_bind(server.listener, local));
-  sp_must_ok(t, sp_sys_socket_listen(server.listener, http_test_max_connections));
   sp_must_ok(t, sp_sys_socket_local_port(server.listener, &local.port));
 
   sp_thread_t thread = sp_zero;
-  sp_thread_init(&thread, serve, &server);
+  if (!it->closed) {
+    sp_must_ok(t, sp_sys_socket_listen(server.listener, http_test_max_connections));
+    sp_thread_init(&thread, serve, &server);
+  }
 
   spn_http_config_t config = {
     .ca_bundle = it->ca_bundle ? sp_fs_join_path(mem, test_dir_str(t), sp_cstr_as_str(it->ca_bundle)) : sp_str_lit(""),
     .timeout_s = 1,
     .cancelled = &cancelled,
   };
-  sp_str_t url = sp_fmt(mem, "{}://127.0.0.1:{}/A", sp_fmt_cstr(it->scheme ? it->scheme : "http"), sp_fmt_uint(local.port)).value;
+  sp_str_t url = sp_fmt(mem, "{}://{}:{}/A", sp_fmt_cstr(it->scheme ? it->scheme : "http"), sp_fmt_cstr(it->host ? it->host : "127.0.0.1"), sp_fmt_uint(local.port)).value;
   sp_path_t dest = sp_path_join(mem, sp_test_dir(t), sp_cstr_as_str(it->dest ? it->dest : "A"));
   spn_http_failure_t failure = sp_zero;
+  sp_atomic_s32_store(&cancelled, it->cancelled, SP_ATOMIC_SEQ_CST);
   spn_err_t err = spn_http_download(&config, url, dest, &failure);
 
-  sp_atomic_s32_store(&server.stop, 1, SP_ATOMIC_SEQ_CST);
-  sp_sys_socket_t poke = SP_SYS_INVALID_SOCKET;
-  sp_must_ok(t, sp_sys_socket_open(&poke, (sp_sys_handle_desc_t) { .mode = SP_SYS_BLOCKING }));
-  sp_sys_socket_connect(poke, local);
-  sp_sys_socket_close(poke);
-  sp_thread_join(&thread);
+  if (!it->closed) {
+    sp_atomic_s32_store(&server.stop, 1, SP_ATOMIC_SEQ_CST);
+    sp_sys_socket_t poke = SP_SYS_INVALID_SOCKET;
+    sp_must_ok(t, sp_sys_socket_open(&poke, (sp_sys_handle_desc_t) { .mode = SP_SYS_BLOCKING }));
+    sp_sys_socket_connect(poke, local);
+    sp_sys_socket_close(poke);
+    sp_thread_join(&thread);
+  }
   sp_sys_socket_close(server.listener);
 
   sp_test_kv_c(t, "message", failure.message);

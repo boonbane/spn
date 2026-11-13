@@ -61,7 +61,9 @@ spn_err_t spn_http_download(const spn_http_config_t* config, sp_str_t url, sp_pa
     curl_easy_setopt(curl, CURLOPT_PROXY_CAINFO, bundle);
   }
 
+  long status = 0;
   CURLcode code = curl_easy_perform(curl);
+  curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &status);
   if (code && !failure->message[0]) {
     sp_cstr_copy_to(curl_easy_strerror(code), failure->message, spn_http_message_max);
   }
@@ -76,6 +78,15 @@ spn_err_t spn_http_download(const spn_http_config_t* config, sp_str_t url, sp_pa
     case CURLE_OK: {
       return SPN_OK;
     }
+    case CURLE_HTTP_RETURNED_ERROR: {
+      if (status >= 500 || status == 429) {
+        failure->kind = SPN_HTTP_DROPPED;
+      }
+      break;
+    }
+    case CURLE_COULDNT_RESOLVE_PROXY:
+    case CURLE_COULDNT_RESOLVE_HOST:
+    case CURLE_COULDNT_CONNECT:
     case CURLE_OPERATION_TIMEDOUT:
     case CURLE_SSL_CONNECT_ERROR:
     case CURLE_SEND_ERROR:
