@@ -256,7 +256,7 @@ spn_err_t spn_sync_toolchain(spn_toolchain_store_t* store, spn_toolchain_unit_t*
   return SPN_OK;
 }
 
-static spn_err_t materialize_tree(spn_session_t* session, sp_intern_str_t name, spn_pkg_root_t tree, spn_path_t* root, bool* fetched) {
+static spn_err_t materialize_tree(spn_session_t* session, sp_intern_str_t name, spn_pkg_root_t tree, sp_atomic_s32_t* cancelled, spn_path_t* root, bool* fetched) {
   switch (tree.kind) {
     case SPN_PKG_ROOT_LOCAL: {
       spn_path_t canonical = spn_path_canonicalize(spn.mem, &session->ctx->roots, tree.local);
@@ -282,7 +282,10 @@ static spn_err_t materialize_tree(spn_session_t* session, sp_intern_str_t name, 
         });
       }
 
-      if (spn_git_checkout_ensure(&session->ctx->caches.git, checkout)) {
+      if (spn_git_checkout_ensure(&session->ctx->caches.git, checkout, cancelled)) {
+        if (sp_atomic_s32_load(cancelled, SP_ATOMIC_SEQ_CST)) {
+          return SPN_ERR_CANCELLED;
+        }
         sp_str_t error = sp_str_lit("failed to fetch repository");
         if (!sp_str_empty(checkout->error)) {
           error = checkout->error;
@@ -329,12 +332,12 @@ static spn_err_t fetch_package(pkg_job_t* job) {
     }
   }
 
-  spn_try(materialize_tree(session, pkg->name, pkg->origin.recipe, &pkg->roots.recipe, fetched));
+  spn_try(materialize_tree(session, pkg->name, pkg->origin.recipe, &job->op->cancelled, &pkg->roots.recipe, fetched));
 
   if (pkg->origin.source.kind == SPN_PKG_ROOT_NONE) {
     pkg->roots.source = pkg->roots.recipe;
   } else {
-    spn_try(materialize_tree(session, pkg->name, pkg->origin.source, &pkg->roots.source, fetched));
+    spn_try(materialize_tree(session, pkg->name, pkg->origin.source, &job->op->cancelled, &pkg->roots.source, fetched));
   }
 
   return SPN_OK;

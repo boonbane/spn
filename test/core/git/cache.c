@@ -406,6 +406,7 @@ sp_test_each(git_cache, ensure, cache_test_t, tests) {
   }
 
   // for each checkout request: ensure db, ensure rev, ensure checkout
+  sp_atomic_s32_t cancelled = sp_zero;
   sp_for(c, num_checkouts) {
     checkout_expect_t* expect = &it->expect.detail[c];
 
@@ -415,12 +416,12 @@ sp_test_each(git_cache, ensure, cache_test_t, tests) {
     sp_must(t, db != SP_NULLPTR);
 
     sp_str_t error = sp_zero;
-    err = spn_git_db_ensure_rev(&cache, db, ids[c].rev, &error);
+    err = spn_git_db_ensure_rev(&cache, db, ids[c].rev, &cancelled, &error);
     sp_must_eq(t, err, SPN_OK);
 
     bool fetching = false;
     spn_git_checkout_t* checkout = spn_git_cache_checkout(&cache, ids[c], &fetching);
-    err = spn_git_checkout_ensure(&cache, checkout);
+    err = spn_git_checkout_ensure(&cache, checkout, &cancelled);
     sp_must(t, checkout != SP_NULLPTR);
 
     if (expect->err) {

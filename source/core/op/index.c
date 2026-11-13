@@ -33,7 +33,7 @@ static void sync_index_node(void* data) {
   if (spn_op_cancelled(job->op)) {
     return;
   }
-  job->err = spn_index_sync(job->index, job->plan, &job->failure);
+  job->err = spn_index_sync(job->index, job->plan, &job->op->cancelled, &job->failure);
 }
 
 static spn_err_t sync_indexes(spn_op_t* op) {

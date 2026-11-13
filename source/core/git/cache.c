@@ -59,14 +59,14 @@ spn_err_t spn_git_cache_ensure_db(spn_git_cache_t* cache, sp_str_t url, spn_git_
   return entry->err;
 }
 
-spn_err_t spn_git_db_ensure_rev(spn_git_cache_t* cache, spn_git_db_t* db, sp_str_t rev, sp_str_t* error) {
+spn_err_t spn_git_db_ensure_rev(spn_git_cache_t* cache, spn_git_db_t* db, sp_str_t rev, sp_atomic_s32_t* cancelled, sp_str_t* error) {
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   sp_str_t path = spn_path_str(cache->roots, scratch.mem, db->path);
 
   bool found = spn_git_has_rev(path, rev);
   if (!found) {
     spn_git_failure_t failure = sp_zero;
-    spn_err_t fetched = spn_git_fetch_rev(path, rev, &failure);
+    spn_err_t fetched = spn_git_fetch_rev(path, rev, cancelled, &failure);
 
     spn_path_t staged = sp_zero;
     if (fetched && failure.kind == SPN_GIT_CORRUPT && !spn_path_stage_dir(scratch.mem, cache->roots, db->path, sp_str_lit("tmp"), &staged)) {
@@ -76,7 +76,7 @@ spn_err_t spn_git_db_ensure_rev(spn_git_cache_t* cache, spn_git_db_t* db, sp_str
       sp_str_t repo = spn_path_str(cache->roots, scratch.mem, staged);
 
       spn_git_failure_t rebuilt = sp_zero;
-      if (spn_git_init_bare(db->url, repo, &rebuilt) || spn_git_fetch_rev(repo, rev, &rebuilt)) {
+      if (spn_git_init_bare(db->url, repo, &rebuilt) || spn_git_fetch_rev(repo, rev, cancelled, &rebuilt)) {
         failure = rebuilt;
         sp_fs_remove_dir_at(fresh);
       }
@@ -142,7 +142,7 @@ static spn_err_t spn_git_cache_fill_checkout(spn_git_cache_t* cache, spn_git_che
   return SPN_OK;
 }
 
-static spn_err_t spn_git_cache_materialize_checkout(spn_git_cache_t* cache, spn_git_checkout_t* entry) {
+static spn_err_t spn_git_cache_materialize_checkout(spn_git_cache_t* cache, spn_git_checkout_t* entry, sp_atomic_s32_t* cancelled) {
   sp_path_t dest = spn_path_at(cache->roots, entry->path);
   if (entry->fetched) {
     spn_git_db_t* db = SP_NULLPTR;
@@ -163,7 +163,7 @@ static spn_err_t spn_git_cache_materialize_checkout(spn_git_cache_t* cache, spn_
 
     sp_path_t work = spn_path_at(cache->roots, staged);
     sp_mutex_lock(&db->mutex);
-    bool filled = !spn_git_db_ensure_rev(cache, db, entry->id.rev, &entry->error) && !spn_git_cache_fill_checkout(cache, entry, db, staged);
+    bool filled = !spn_git_db_ensure_rev(cache, db, entry->id.rev, cancelled, &entry->error) && !spn_git_cache_fill_checkout(cache, entry, db, staged);
     sp_mutex_unlock(&db->mutex);
     if (!filled) {
       sp_fs_remove_dir_at(work);
@@ -216,11 +216,11 @@ spn_git_checkout_t* spn_git_cache_checkout(spn_git_cache_t* cache, spn_git_check
   return entry;
 }
 
-spn_err_t spn_git_checkout_ensure(spn_git_cache_t* cache, spn_git_checkout_t* checkout) {
+spn_err_t spn_git_checkout_ensure(spn_git_cache_t* cache, spn_git_checkout_t* checkout, sp_atomic_s32_t* cancelled) {
   sp_mutex_lock(&checkout->mutex);
   if (!checkout->ready) {
     checkout->ready = true;
-    checkout->err = spn_git_cache_materialize_checkout(cache, checkout);
+    checkout->err = spn_git_cache_materialize_checkout(cache, checkout, cancelled);
   }
   sp_mutex_unlock(&checkout->mutex);
   return checkout->err;

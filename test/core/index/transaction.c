@@ -213,6 +213,7 @@ sp_test_each(index_transaction, publish, txn_test_t, tests, .setup = spn_test_ct
       SP_FS_ATOMIC_REPLACE));
   }
 
+  sp_atomic_s32_t cancelled = sp_zero;
   sp_carr_for(it->actions, at) {
     txn_action_t action = it->actions[at];
     if (action.kind == TXN_ACTION_NONE) {
@@ -231,12 +232,12 @@ sp_test_each(index_transaction, publish, txn_test_t, tests, .setup = spn_test_ct
         };
         sp_da_init(mem, rel.deps);
         sp_da_init(mem, rel.targets);
-        sp_expect_eq(t, action.publish.err, spn_index_publish(&index, &rel));
+        sp_expect_eq(t, action.publish.err, spn_index_publish(&index, &rel, &cancelled));
         break;
       }
       case TXN_ACTION_SYNC: {
         spn_git_failure_t failure = sp_zero;
-        sp_expect_eq(t, SPN_OK, spn_index_sync(&index, spn_index_plan(&index, false), &failure));
+        sp_expect_eq(t, SPN_OK, spn_index_sync(&index, spn_index_plan(&index, false), &cancelled, &failure));
         break;
       }
       case TXN_ACTION_ADVANCE_REMOTE: {

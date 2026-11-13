@@ -32,7 +32,7 @@ static spn_err_t publish_build(spn_ctx_t* ctx, spn_publish_request_t request, sp
   return spn_publish_build(&opts, &ctx->project->package, release);
 }
 
-static spn_err_t publish(spn_ctx_t* ctx, spn_publish_request_t request, spn_index_release_t* release) {
+static spn_err_t publish(spn_ctx_t* ctx, spn_publish_request_t request, spn_index_release_t* release, sp_atomic_s32_t* cancelled) {
   spn_index_info_t* index = spn_find_index(ctx, request.index);
 
   spn_event_publish_t evt = {
@@ -47,7 +47,7 @@ static spn_err_t publish(spn_ctx_t* ctx, spn_publish_request_t request, spn_inde
     .publish = evt,
   });
 
-  spn_try(spn_index_publish(index, release));
+  spn_try(spn_index_publish(index, release, cancelled));
 
   spn_event_buffer_push(ctx->events, (spn_event_t) {
     .kind = SPN_EVENT_PUBLISH_END,
@@ -64,7 +64,7 @@ spn_err_t spn_op_publish(spn_op_t* op) {
     op->result.publish.json = spn_index_release_to_json(op->mem, &release);
     return SPN_OK;
   }
-  return publish(op->ctx, op->request.publish, &release);
+  return publish(op->ctx, op->request.publish, &release, &op->cancelled);
 }
 
 spn_op_t* spn_publish(spn_ctx_t* ctx, spn_publish_request_t request) {

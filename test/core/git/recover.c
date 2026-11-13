@@ -20,6 +20,7 @@ typedef struct {
   bool checked_out;
   damage_t damage;
   bool unreachable;
+  bool cancelled;
   expect_t expect;
 } test_t;
 
@@ -45,6 +46,17 @@ static const test_t tests [] = {
     .expect = { .err = SPN_ERROR },
   },
   {
+    .name = "cancelled_fetch_fails",
+    .cancelled = true,
+    .expect = { .err = SPN_ERROR },
+  },
+  {
+    .name = "db_without_origin_is_kept_when_cancelled",
+    .damage = DAMAGE_ORIGIN_REMOVED,
+    .cancelled = true,
+    .expect = { .err = SPN_ERROR },
+  },
+  {
     .name = "finished_checkout_needs_no_db",
     .checked_out = true,
     .damage = DAMAGE_OBJECTS_REMOVED,
@@ -67,13 +79,14 @@ sp_test_each(git_recover, ensure, test_t, tests, .setup = spn_test_ctx_setup) {
   spn_path_t checkouts = spn_path_join(mem, root, sp_str_lit("checkouts"));
   spn_path_roots_t roots = sp_zero;
   bool fetching = false;
+  sp_atomic_s32_t cancelled = sp_zero;
 
   spn_git_cache_t before = sp_zero;
   spn_git_cache_init(&before, mem, SP_NULLPTR, &roots, dbs, checkouts);
   spn_git_db_t* db = SP_NULLPTR;
   sp_must_eq(t, (u32)spn_git_cache_ensure_db(&before, remote, &db), (u32)SPN_OK);
   if (it->checked_out) {
-    sp_must_eq(t, (u32)spn_git_checkout_ensure(&before, spn_git_cache_checkout(&before, id, &fetching)), (u32)SPN_OK);
+    sp_must_eq(t, (u32)spn_git_checkout_ensure(&before, spn_git_cache_checkout(&before, id, &fetching), &cancelled), (u32)SPN_OK);
   }
 
   sp_str_t repo = spn_path_str(&roots, mem, db->path);
@@ -109,7 +122,8 @@ sp_test_each(git_recover, ensure, test_t, tests, .setup = spn_test_ctx_setup) {
   spn_git_cache_t cache = sp_zero;
   spn_git_cache_init(&cache, mem, SP_NULLPTR, &roots, dbs, checkouts);
   spn_git_checkout_t* checkout = spn_git_cache_checkout(&cache, id, &fetching);
-  spn_err_t err = spn_git_checkout_ensure(&cache, checkout);
+  sp_atomic_s32_store(&cancelled, it->cancelled, SP_ATOMIC_SEQ_CST);
+  spn_err_t err = spn_git_checkout_ensure(&cache, checkout, &cancelled);
 
   sp_test_kv(t, "error", checkout->error);
   sp_expect_eq(t, (u32)err, (u32)it->expect.err);

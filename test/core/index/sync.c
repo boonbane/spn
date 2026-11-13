@@ -9,6 +9,7 @@ typedef struct {
   bool mutate_remote;
   bool remove_remote;
   bool remove_repo;
+  bool cancelled;
 
   struct {
     spn_err_t result;
@@ -79,6 +80,37 @@ static const sync_test_t tests [] = {
     },
   },
   {
+    .name = "cancelled_clone_fails",
+    .cancelled = true,
+    .expect = {
+      .result = SPN_ERROR,
+      .cause = true,
+    },
+  },
+  {
+    .name = "cancelled_fetch_keeps_cache",
+    .cloned = true,
+    .mutate_remote = true,
+    .cancelled = true,
+    .expect = {
+      .result = SPN_ERROR,
+      .cached = "A",
+      .cause = true,
+    },
+  },
+  {
+    .name = "corrupt_repo_is_kept_when_cancelled",
+    .cloned = true,
+    .mutate_remote = true,
+    .remove_repo = true,
+    .cancelled = true,
+    .expect = {
+      .result = SPN_ERROR,
+      .cached = "A",
+      .cause = true,
+    },
+  },
+  {
     .name = "fresh_clone_is_not_stale",
     .refresh = 600,
     .expect = {
@@ -132,7 +164,8 @@ sp_test_each(index_sync, dir, dir_sync_test_t, dir_tests) {
 
   spn_index_plan_t plan = spn_index_plan(&index, false);
   spn_git_failure_t failure = sp_zero;
-  sp_expect_eq(t, it->expect.result, spn_index_sync(&index, plan, &failure));
+  sp_atomic_s32_t cancelled = sp_zero;
+  sp_expect_eq(t, it->expect.result, spn_index_sync(&index, plan, &cancelled, &failure));
   if (it->exists) {
     sp_expect_eq(t, false, plan.fetch);
   }
@@ -159,8 +192,9 @@ sp_test_each(index_sync, sync, sync_test_t, tests) {
   };
 
   spn_git_failure_t failure = sp_zero;
+  sp_atomic_s32_t cancelled = sp_zero;
   if (it->cloned) {
-    sp_expect_eq(t, SPN_OK, spn_index_sync(&index, spn_index_plan(&index, false), &failure));
+    sp_expect_eq(t, SPN_OK, spn_index_sync(&index, spn_index_plan(&index, false), &cancelled, &failure));
   }
   if (it->mutate_remote) {
     commit_seed(mem, remote, "B");
@@ -172,7 +206,8 @@ sp_test_each(index_sync, sync, sync_test_t, tests) {
     sp_fs_remove_dir(sp_fs_join_path(mem, cache, sp_str_lit(".git")));
   }
 
-  sp_expect_eq(t, it->expect.result, spn_index_sync(&index, spn_index_plan(&index, false), &failure));
+  sp_atomic_s32_store(&cancelled, it->cancelled, SP_ATOMIC_SEQ_CST);
+  sp_expect_eq(t, it->expect.result, spn_index_sync(&index, spn_index_plan(&index, false), &cancelled, &failure));
   sp_expect_str_eq(t, test_read_file(mem, sp_fs_join_path(mem, cache, sp_str_lit("seed.txt"))), sp_cstr_as_str(it->expect.cached));
   sp_expect_eq(t, it->expect.cause, failure.message[0] != 0);
 

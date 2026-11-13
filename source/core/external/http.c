@@ -44,6 +44,7 @@ spn_err_t spn_http_download(const spn_http_config_t* config, sp_str_t url, sp_pa
   curl_easy_setopt(curl, CURLOPT_MAXREDIRS, 10L);
   curl_easy_setopt(curl, CURLOPT_FAILONERROR, 1L);
   curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
+  curl_easy_setopt(curl, CURLOPT_QUICK_EXIT, 1L);
   curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, (long)config->timeout_s);
   curl_easy_setopt(curl, CURLOPT_LOW_SPEED_TIME, (long)config->timeout_s);
   curl_easy_setopt(curl, CURLOPT_LOW_SPEED_LIMIT, 1L);
