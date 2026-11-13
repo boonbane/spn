@@ -553,15 +553,40 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
       break;
     }
     case SPN_EVENT_NODE_FAILED: {
-      if (sp_str_empty(event->node_failed.path)) {
-        sp_io_write_str(w.io, event->node_failed.message, SP_NULLPTR);
+      sp_str_t path = contextual_path(mem, event->node_failed.path);
+      sp_str_t tag = event->node_failed.tag;
+      switch (event->node_failed.reason) {
+        case SPN_NODE_FAILURE_REMOVE: {
+          sp_tty_fmt(&w, "{.cyan} could not be removed before node {} ran", sp_fmt_str(path), sp_fmt_str(tag));
+          break;
+        }
+        case SPN_NODE_FAILURE_CREATE: {
+          sp_tty_fmt(&w, "{.cyan} could not be created before node {} ran", sp_fmt_str(path), sp_fmt_str(tag));
+          break;
+        }
+        case SPN_NODE_FAILURE_STRAY: {
+          sp_tty_fmt(&w, "{.cyan} was written by node {}, which may only write under the work root", sp_fmt_str(path), sp_fmt_str(tag));
+          break;
+        }
+        case SPN_NODE_FAILURE_UNPRODUCED: {
+          sp_tty_fmt(&w, "{.cyan} was declared as an output of node {} but was not produced", sp_fmt_str(path), sp_fmt_str(tag));
+          break;
+        }
+        case SPN_NODE_FAILURE_COPY: {
+          sp_tty_fmt(&w, "{.cyan} output of node {} could not be copied into the build", sp_fmt_str(path), sp_fmt_str(tag));
+          break;
+        }
+        case SPN_NODE_FAILURE_NONE: {
+          sp_unreachable_case();
+        }
       }
-      else {
-        sp_tty_fmt(&w, "{.cyan} {}",
-          sp_fmt_str(get_contextual_path(ctx, mem, event->node_failed.path)),
-          sp_fmt_str(event->node_failed.message)
-        );
-      }
+      break;
+    }
+    case SPN_EVENT_PUBLISH_FAILED: {
+      sp_tty_fmt(&w, "{.cyan} could not be published to {}",
+        sp_fmt_str(contextual_path(mem, event->publish_failed.path)),
+        sp_fmt_str(sp_fs_join_path(mem, spn_publish_root_to_str(event->publish_failed.root), event->publish_failed.dest))
+      );
       break;
     }
     case SPN_EVENT_SYNC_FAILED: {

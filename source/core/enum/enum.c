@@ -230,6 +230,18 @@ sp_str_t spn_publish_root_to_str(spn_publish_root_t root) {
   SP_UNREACHABLE_RETURN(sp_str_lit(""));
 }
 
+sp_str_t spn_node_failure_to_str(spn_node_failure_t failure) {
+  switch (failure) {
+    case SPN_NODE_FAILURE_REMOVE:     return sp_str_lit("remove");
+    case SPN_NODE_FAILURE_CREATE:     return sp_str_lit("create");
+    case SPN_NODE_FAILURE_STRAY:      return sp_str_lit("stray");
+    case SPN_NODE_FAILURE_UNPRODUCED: return sp_str_lit("unproduced");
+    case SPN_NODE_FAILURE_COPY:       return sp_str_lit("copy");
+    case SPN_NODE_FAILURE_NONE:       return sp_str_lit("");
+  }
+  SP_UNREACHABLE_RETURN(sp_str_lit(""));
+}
+
 spn_sanitizer_t spn_sanitizer_from_str(sp_str_t str) {
   if (sp_str_equal_cstr(str, "address")) {
     return SPN_SANITIZER_ADDRESS;

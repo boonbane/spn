@@ -5,7 +5,6 @@
 #include "core/core.h"
 #include "dag/glob.h"
 #include "dag/node.h"
-#include "enum/enum.h"
 #include "event/event.h"
 #include "graph/nodes/nodes.h"
 #include "paths/paths.h"
@@ -41,12 +40,9 @@ static spn_err_t publish_source(sp_mem_t mem, const si_dag_ctx_t* c, spn_path_t 
 static spn_err_t publish_entry(sp_mem_t mem, const si_dag_ctx_t* c, sp_str_t pkg, spn_path_t root, spn_publish_t* publish) {
   if (publish_source(mem, c, root, publish)) {
     spn_event_buffer_push(spn.events, (spn_event_t) {
-      .kind = SPN_EVENT_NODE_FAILED,
+      .kind = SPN_EVENT_PUBLISH_FAILED,
       .pkg = pkg,
-      .node_failed = {
-        .path = spn_path_str(c->roots, spn.events->mem, publish->source.path),
-        .message = sp_fmt(spn.events->mem, "could not be published to {}", sp_fmt_str(sp_fs_join_path(spn.events->mem, spn_publish_root_to_str(publish->root), publish->dest))).value,
-      },
+      .publish_failed = { .path = publish->source.path, .root = publish->root, .dest = publish->dest },
     });
     return SPN_ERR_DAG_ACTION;
   }

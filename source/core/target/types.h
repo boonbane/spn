@@ -61,11 +61,6 @@ typedef struct {
   spn_when_t when;
 } spn_gated_dep_t;
 
-typedef enum {
-  SPN_PUBLISH_ROOT_INCLUDE,
-  SPN_PUBLISH_ROOT_SHARE,
-} spn_publish_root_t;
-
 typedef struct {
   spn_publish_root_t root;
   spn_source_t source;

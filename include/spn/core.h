@@ -148,6 +148,20 @@ typedef enum {
 } spn_tree_t;
 
 typedef enum {
+  SPN_PUBLISH_ROOT_INCLUDE,
+  SPN_PUBLISH_ROOT_SHARE,
+} spn_publish_root_t;
+
+typedef enum {
+  SPN_NODE_FAILURE_NONE,
+  SPN_NODE_FAILURE_REMOVE,
+  SPN_NODE_FAILURE_CREATE,
+  SPN_NODE_FAILURE_STRAY,
+  SPN_NODE_FAILURE_UNPRODUCED,
+  SPN_NODE_FAILURE_COPY,
+} spn_node_failure_t;
+
+typedef enum {
   SPN_C_STANDARD_NONE,
   SPN_C11,
   SPN_C99,
