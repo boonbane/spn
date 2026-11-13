@@ -5,22 +5,10 @@
 #include <git2.h>
 #include <git2/sys/errors.h>
 
-static const c8* ca_bundles [] = {
-  "/etc/ssl/certs/ca-certificates.crt",
-  "/etc/pki/tls/certs/ca-bundle.crt",
-  "/etc/ssl/ca-bundle.pem",
-  "/etc/pki/tls/cacert.pem",
-  "/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem",
-  "/etc/ssl/cert.pem",
-};
-
 static c8* mirror_refspecs [] = {
   "+refs/heads/*:refs/heads/*",
   "+refs/tags/*:refs/tags/*",
 };
-
-#define SPN_GIT_TIMEOUT_MS 30000
-#define SPN_GIT_ATTEMPTS 4
 
 typedef enum {
   FETCH_OK,
@@ -31,25 +19,6 @@ typedef enum {
 static struct {
   bool no_ca_bundle;
 } git;
-
-static bool is_file(sp_mem_t mem, sp_str_t path) {
-  sp_str_t resolved = sp_zero;
-  return !sp_str_empty(path) && !sp_fs_canonicalize_path(mem, path, &resolved) && sp_fs_is_file(resolved);
-}
-
-static sp_str_t find_ca_bundle(sp_mem_t mem, sp_env_t* env) {
-  sp_str_t file = sp_env_get(env, sp_str_lit("SSL_CERT_FILE"));
-  if (is_file(mem, file)) {
-    return file;
-  }
-  sp_carr_for(ca_bundles, it) {
-    sp_str_t bundle = sp_cstr_as_str(ca_bundles[it]);
-    if (is_file(mem, bundle)) {
-      return bundle;
-    }
-  }
-  return sp_zero_s(sp_str_t);
-}
 
 static sp_str_t last_error(sp_mem_t mem) {
   const git_error* err = git_error_last();
@@ -117,7 +86,7 @@ static fetch_t fetch_origin(sp_mem_t mem, sp_str_t path, c8** refspecs, u32 coun
   git_remote* remote = SP_NULLPTR;
   fetch_t result = FETCH_FAILED;
   if (repo && !git_remote_lookup(&remote, repo, "origin") && !is_missing_path(sp_cstr_as_str(git_remote_url(remote)))) {
-    sp_for(attempt, SPN_GIT_ATTEMPTS) {
+    sp_for(attempt, spn_net_attempts) {
       s32 err = git_remote_fetch(remote, count ? &specs : SP_NULLPTR, options, SP_NULLPTR);
       result = !err ? FETCH_OK : is_dropped(err) ? FETCH_DROPPED : FETCH_FAILED;
       if (result != FETCH_DROPPED) {
@@ -167,22 +136,20 @@ static bool is_repo_root(sp_str_t repo) {
   return ok;
 }
 
-spn_err_t spn_git_init(sp_env_t* env) {
+spn_err_t spn_git_init(spn_net_trust_t trust) {
   if (git_libgit2_init() < 0) {
     return SPN_ERROR;
   }
   git_libgit2_opts(GIT_OPT_SET_OWNER_VALIDATION, 0);
-  git_libgit2_opts(GIT_OPT_SET_SERVER_CONNECT_TIMEOUT, SPN_GIT_TIMEOUT_MS);
-  git_libgit2_opts(GIT_OPT_SET_SERVER_TIMEOUT, SPN_GIT_TIMEOUT_MS);
-  if (!sp_str_equal_cstr(sp_cstr_as_str(git_libgit2_feature_backend(GIT_FEATURE_HTTPS)), "mbedtls")) {
-    return SPN_OK;
-  }
+  git_libgit2_opts(GIT_OPT_SET_SERVER_CONNECT_TIMEOUT, spn_net_timeout_s * 1000);
+  git_libgit2_opts(GIT_OPT_SET_SERVER_TIMEOUT, spn_net_timeout_s * 1000);
 
-  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  sp_str_t bundle = find_ca_bundle(scratch.mem, env);
-  git.no_ca_bundle = sp_str_empty(bundle) ||
-    git_libgit2_opts(GIT_OPT_SET_SSL_CERT_LOCATIONS, sp_str_to_cstr(scratch.mem, bundle), SP_NULLPTR);
-  sp_mem_end_scratch(scratch);
+  git.no_ca_bundle = trust.kind == SPN_NET_TRUST_NONE;
+  if (trust.kind == SPN_NET_TRUST_BUNDLE) {
+    sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+    git.no_ca_bundle = git_libgit2_opts(GIT_OPT_SET_SSL_CERT_LOCATIONS, sp_str_to_cstr(scratch.mem, trust.bundle), SP_NULLPTR) != 0;
+    sp_mem_end_scratch(scratch);
+  }
   return SPN_OK;
 }
 
@@ -197,7 +164,7 @@ spn_err_t spn_git_clone(sp_str_t url, sp_str_t path) {
   options.repository_cb = create_repo;
   git_repository* repo = SP_NULLPTR;
   s32 err = 0;
-  sp_for(attempt, SPN_GIT_ATTEMPTS) {
+  sp_for(attempt, spn_net_attempts) {
     err = git_clone(&repo, sp_str_to_cstr(scratch.mem, url), sp_str_to_cstr(scratch.mem, path), &options);
     if (!is_dropped(err)) {
       break;

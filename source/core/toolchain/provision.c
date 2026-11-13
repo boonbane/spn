@@ -43,24 +43,6 @@ static spn_err_t sha256_file(sp_mem_t mem, sp_path_t path, sp_str_t* hex) {
   return SPN_OK;
 }
 
-spn_err_t spn_fetch_curl(sp_mem_t mem, sp_str_t url, sp_str_t dest, sp_str_t* output) {
-  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  sp_ps_output_t result = sp_ps_run(scratch.mem, (sp_ps_config_t) {
-    .command = sp_str_lit("curl"),
-    .args = {
-      sp_str_lit("-fsSL"),
-      sp_str_lit("-o"), dest,
-      url,
-    },
-    .io = {
-      .err = { .mode = SP_PS_IO_MODE_CREATE },
-    },
-  });
-  *output = sp_str_copy(mem, sp_str_trim(result.err));
-  sp_mem_end_scratch(scratch);
-  return result.status.exit_code ? SPN_ERROR : SPN_OK;
-}
-
 sp_str_t spn_artifact_resolve_url(sp_mem_t mem, spn_artifact_t artifact, sp_str_t mirror) {
   if (sp_str_empty(mirror)) return artifact.url;
 

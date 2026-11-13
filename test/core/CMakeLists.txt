@@ -38,6 +38,8 @@ add_executable(core
   compiler/toc.c
   compiler/tools.c
   config/config.c
+  external/http.c
+  external/net.c
   external/obj.c
   external/wasm.c
   gen/lower.c

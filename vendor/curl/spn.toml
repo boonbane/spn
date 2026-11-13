@@ -1,0 +1,50 @@
+[package]
+name = "curl"
+version = "8.19.0"
+include = ["include"]
+system_deps = [
+  { lib = "ws2_32", when = { os = "windows" } },
+  { lib = "iphlpapi", when = { os = "windows" } },
+  { lib = "bcrypt", when = { os = "windows" } },
+  { lib = "advapi32", when = { os = "windows" } },
+  { lib = "crypt32", when = { os = "windows" } },
+  { lib = "secur32", when = { os = "windows" } },
+]
+
+[package.upstream]
+url = "https://github.com/curl/curl.git"
+commit = "8c908d2d0a6d32abdedda2c52e90bd56ec76c24d"
+
+[deps.package]
+mbedtls = { path = "../mbedtls", when = { os = { not = "windows" } } }
+
+[options.static]
+type = "bool"
+default = true
+public = true
+define = "CURL_STATICLIB"
+
+[[lib]]
+name = "curl"
+kinds = ["static"]
+include = ["lib", { path = "config", tree = "manifest" }]
+source = [
+  "lib/*.c",
+  "lib/curlx/*.c",
+  "lib/vauth/*.c",
+  "lib/vtls/*.c",
+  "lib/vquic/*.c",
+  "lib/vssh/*.c",
+]
+define = [
+  "BUILDING_LIBCURL",
+  "HAVE_CONFIG_H",
+  { value = "_GNU_SOURCE", when = { os = "linux" } },
+]
+flags = [{ value = "-O2", when = { mode = "debug", abi = { not = "msvc" } } }]
+deps = [{ pkg = "mbedtls", when = { os = { not = "windows" } } }]
+
+[package.publish]
+include = [
+  { from = "include/curl/*.h", to = "curl" },
+]

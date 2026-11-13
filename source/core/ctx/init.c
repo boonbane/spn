@@ -6,6 +6,7 @@
 #include "error/error.h"
 #include "event/event.h"
 #include "external/git.h"
+#include "external/http.h"
 #include "external/wasm/wasm.h"
 #include "git/cache.h"
 #include "hash/digest/digest.h"
@@ -220,8 +221,12 @@ spn_err_t spn_ctx_open(spn_ctx_t* ctx, spn_open_request_t request) {
   if (spn_wasm_init()) {
     return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_WASM_INIT_FAILED });
   }
-  if (spn_git_init(ctx->env)) {
+  spn_net_trust_t trust = spn_net_trust_find(sp_env_get(ctx->env, sp_str_lit("SSL_CERT_FILE")));
+  if (spn_git_init(trust)) {
     return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_GIT, .git.command = sp_str_lit("libgit2 init") });
+  }
+  if (spn_http_init()) {
+    return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_HTTP_INIT_FAILED });
   }
   spn_toolchain_catalog_init(&ctx->catalog, ctx->host, spn_sdk_detect(ctx->heap, &ctx->roots, ctx->env, ctx->host), ctx->heap);
   load_builtins(ctx);
@@ -232,6 +237,7 @@ spn_err_t spn_ctx_open(spn_ctx_t* ctx, spn_open_request_t request) {
     .mem = ctx->mem,
     .roots = &ctx->roots,
     .mirror = sp_env_get(ctx->env, sp_str_lit("SPN_MIRROR")),
+    .trust = trust,
   };
   spn_probe_cache_load(&ctx->caches.toolchains.probes, &ctx->roots, (spn_path_t) { .root = SPN_PATH_ROOT_TOOLCHAIN, .sub = sp_str_lit("probe.cache") }, ctx->mem);
 

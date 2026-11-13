@@ -9,6 +9,7 @@ set(DEPS
   "blake3|https://github.com/BLAKE3-team/BLAKE3.git|f3149ec5bb5449af877ba20377a11008ff499fa2"
   "libgit2|https://github.com/libgit2/libgit2.git|0551dfd4ad989b6a3d5683c0d4cf326c6efef929"
   "mbedtls|https://github.com/Mbed-TLS/mbedtls.git|0bebf8b8c7f07abe3571ded48a11aa907a1ffb20"
+  "curl|https://github.com/curl/curl.git|8c908d2d0a6d32abdedda2c52e90bd56ec76c24d"
 )
 
 if(NOT DEFINED SOURCE_DIR)

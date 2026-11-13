@@ -50,7 +50,7 @@ spn_err_t spn_op_env(spn_op_t* op) {
   const spn_path_roots_t* roots = &session->ctx->roots;
   sp_mem_t mem = op->mem;
   spn_build_unit_t* build = session->builds.program;
-  spn_try(spn_sync_toolchain(&session->ctx->caches.toolchains, build->toolchain));
+  spn_try(spn_sync_toolchain(&session->ctx->caches.toolchains, build->toolchain, &op->cancelled));
 
   spn_env_result_t* env = &op->result.env;
   const spn_sdk_t* sdk = &build->profile.sdk;

@@ -28,6 +28,7 @@
 #include "toolchain/provision.h"
 #include "toolchain/toolchain.h"
 #include "toolchain/types.h"
+#include "external/http.h"
 #include "unit/types.h"
 #include "unit/unit.h"
 #include "when/when.h"
@@ -88,7 +89,7 @@ static spn_wasi_spelling_t wasi_spelling(const spn_path_roots_t* roots, sp_mem_t
   return SPN_WASI_SPELLING_WASI;
 }
 
-static spn_err_t setup_artifact(spn_toolchain_store_t* store, spn_toolchain_unit_t* unit) {
+static spn_err_t setup_artifact(spn_toolchain_store_t* store, spn_toolchain_unit_t* unit, sp_atomic_s32_t* cancelled) {
   spn_toolchain_info_t* toolchain = unit->info;
   spn_artifact_t artifact = toolchain->support.artifact;
   sp_tm_timer_t timer = sp_tm_start_timer();
@@ -106,26 +107,55 @@ static spn_err_t setup_artifact(spn_toolchain_store_t* store, spn_toolchain_unit
         .name = toolchain->name.str,
         .url = url,
       }});
-    sp_str_t dest = spn_path_str(store->roots, spn.mem, claim.tarball);
-    sp_str_t output = sp_zero;
+    spn_http_config_t http = {
+      .trust = store->trust,
+      .timeout_s = spn_net_timeout_s,
+      .cancelled = cancelled,
+    };
+    spn_http_failure_t failure = sp_zero;
     spn_err_t err = SPN_ERROR;
     sp_for(it, count) {
       url = urls[it];
-      err = spn_fetch_curl(spn.events->mem, url, dest, &output);
-      if (!err) {
+      sp_for(attempt, spn_net_attempts) {
+        err = spn_http_download(&http, url, spn_path_at(store->roots, claim.tarball), &failure);
+        if (!err || failure.kind != SPN_HTTP_DROPPED) {
+          break;
+        }
+      }
+      if (!err || failure.kind == SPN_HTTP_CANCELLED) {
         break;
       }
     }
     if (err) {
       spn_toolchain_release(store, &claim);
-      return spn_err_emit(&spn, (spn_err_union_t) {
-        .kind = SPN_ERR_TOOLCHAIN_FETCH,
-        .artifact = {
-          .name = toolchain->name.str,
-          .url = url,
-          .output = output,
-        },
-      });
+      switch (failure.kind) {
+        case SPN_HTTP_CANCELLED: {
+          return SPN_ERR_CANCELLED;
+        }
+        case SPN_HTTP_UNWRITABLE: {
+          return spn_err_emit(&spn, (spn_err_union_t) { .kind = SPN_ERR_FS_WRITE, .fs = { .path = claim.tarball } });
+        }
+        case SPN_HTTP_NO_CA: {
+          return spn_err_emit(&spn, (spn_err_union_t) {
+            .kind = SPN_ERR_TOOLCHAIN_NO_CA,
+            .artifact = {
+              .name = toolchain->name.str,
+              .url = url,
+            },
+          });
+        }
+        case SPN_HTTP_DROPPED:
+        case SPN_HTTP_FAILED: {
+          return spn_err_emit(&spn, (spn_err_union_t) {
+            .kind = SPN_ERR_TOOLCHAIN_FETCH,
+            .artifact = {
+              .name = toolchain->name.str,
+              .url = url,
+              .output = sp_str_copy(spn.events->mem, sp_cstr_as_str(failure.message)),
+            },
+          });
+        }
+      }
     }
     spn_try(spn_toolchain_install(store, &claim, toolchain->name.str, url));
   }
@@ -156,14 +186,14 @@ static spn_err_t setup_artifact(spn_toolchain_store_t* store, spn_toolchain_unit
   return SPN_OK;
 }
 
-spn_err_t spn_sync_toolchain(spn_toolchain_store_t* store, spn_toolchain_unit_t* unit) {
+spn_err_t spn_sync_toolchain(spn_toolchain_store_t* store, spn_toolchain_unit_t* unit, sp_atomic_s32_t* cancelled) {
   switch (unit->info->support.kind) {
     case SPN_TOOLCHAIN_SUPPORT_LOCAL: {
       spn_try(setup_local(store, unit));
       break;
     }
     case SPN_TOOLCHAIN_SUPPORT_ARTIFACT: {
-      spn_try(setup_artifact(store, unit));
+      spn_try(setup_artifact(store, unit, cancelled));
       break;
     }
     case SPN_TOOLCHAIN_SUPPORT_DETECTED: {
@@ -290,7 +320,7 @@ static void sync_toolchain_node(void* data) {
   if (sp_atomic_s32_load(&sync_failed, SP_ATOMIC_SEQ_CST) || spn_op_cancelled(job->op)) {
     return;
   }
-  job->err = spn_sync_toolchain(&spn.caches.toolchains, job->unit);
+  job->err = spn_sync_toolchain(&spn.caches.toolchains, job->unit, &job->op->cancelled);
   if (job->err) {
     sp_atomic_s32_store(&sync_failed, (s32)job->err, SP_ATOMIC_SEQ_CST);
   }

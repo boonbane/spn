@@ -931,6 +931,10 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           sp_io_write_str(w.io, sp_str_lit("Failed to initialize the wasm runtime"), SP_NULLPTR);
           break;
         }
+        case SPN_ERR_HTTP_INIT_FAILED: {
+          sp_io_write_str(w.io, sp_str_lit("Failed to initialize libcurl"), SP_NULLPTR);
+          break;
+        }
         case SPN_ERR_CONFIGURE_SOURCE_GLOB: {
           sp_tty_fmt(
             &w,
@@ -1135,6 +1139,15 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           sp_tty_fmt(
             &w,
             "Failed to download toolchain {} from {.gray}",
+            sp_fmt_str(colored_name(w.color, mem, event->err.artifact.name)),
+            sp_fmt_str(event->err.artifact.url)
+          );
+          break;
+        }
+        case SPN_ERR_TOOLCHAIN_NO_CA: {
+          sp_tty_fmt(
+            &w,
+            "Cannot download toolchain {} from {.gray} without CA certificates",
             sp_fmt_str(colored_name(w.color, mem, event->err.artifact.name)),
             sp_fmt_str(event->err.artifact.url)
           );
@@ -1733,6 +1746,10 @@ static void render_event_extra(sp_tty_t* w, spn_event_t* event) {
         case SPN_ERR_TOOLCHAIN_FETCH:
         case SPN_ERR_TOOLCHAIN_EXTRACT: {
           sp_io_write_str(w->io, event->err.artifact.output, SP_NULLPTR);
+          break;
+        }
+        case SPN_ERR_TOOLCHAIN_NO_CA: {
+          sp_io_write_str(w->io, sp_str_lit("No CA bundle was found on this machine. Set SSL_CERT_FILE to a PEM file of trusted root certificates.\n"), SP_NULLPTR);
           break;
         }
         case SPN_ERR_TOOLCHAIN_SHA: {

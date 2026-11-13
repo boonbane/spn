@@ -6,6 +6,7 @@
 #include "spn/core.h"
 
 #include "core/types.h"
+#include "external/net.h"
 #include "paths/types.h"
 #include "sp_om/sp_om.h"
 #include "intern/types.h"
@@ -272,6 +273,7 @@ struct spn_toolchain_store {
   sp_mem_t mem;
   const spn_path_roots_t* roots;
   sp_str_t mirror;
+  spn_net_trust_t trust;
   spn_probe_cache_t probes;
 };
 
