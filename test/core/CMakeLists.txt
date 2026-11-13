@@ -51,6 +51,7 @@ add_executable(core
   git/cache.c
   git/key.c
   git/patch.c
+  git/recover.c
   git/url.c
   index/cache.c
   index/dir.c

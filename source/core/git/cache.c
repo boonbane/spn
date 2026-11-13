@@ -60,7 +60,6 @@ spn_err_t spn_git_cache_ensure_db(spn_git_cache_t* cache, sp_str_t url, spn_git_
 }
 
 spn_err_t spn_git_db_ensure_rev(spn_git_cache_t* cache, spn_git_db_t* db, sp_str_t rev, sp_str_t* error) {
-  sp_mutex_lock(&db->mutex);
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   sp_str_t path = spn_path_str(cache->roots, scratch.mem, db->path);
 
@@ -68,6 +67,29 @@ spn_err_t spn_git_db_ensure_rev(spn_git_cache_t* cache, spn_git_db_t* db, sp_str
   if (!found) {
     spn_git_failure_t failure = sp_zero;
     spn_err_t fetched = spn_git_fetch_rev(path, rev, &failure);
+
+    spn_path_t staged = sp_zero;
+    if (fetched && failure.kind == SPN_GIT_CORRUPT && !spn_path_stage_dir(scratch.mem, cache->roots, db->path, sp_str_lit("tmp"), &staged)) {
+      sp_path_t live = spn_path_at(cache->roots, db->path);
+      sp_path_t fresh = spn_path_at(cache->roots, staged);
+      sp_path_t retired = spn_path_at(cache->roots, spn_path_staging(scratch.mem, db->path, sp_str_lit("tmp")));
+      sp_str_t repo = spn_path_str(cache->roots, scratch.mem, staged);
+
+      spn_git_failure_t rebuilt = sp_zero;
+      if (spn_git_init_bare(db->url, repo, &rebuilt) || spn_git_fetch_rev(repo, rev, &rebuilt)) {
+        failure = rebuilt;
+        sp_fs_remove_dir_at(fresh);
+      }
+      else if (sp_sys_rename_s(live.dir, live.sub, retired.dir, retired.sub) || sp_sys_rename_s(fresh.dir, fresh.sub, live.dir, live.sub)) {
+        sp_sys_rename_s(retired.dir, retired.sub, live.dir, live.sub);
+        sp_fs_remove_dir_at(fresh);
+      }
+      else {
+        sp_fs_remove_dir_at(retired);
+        fetched = SPN_OK;
+      }
+    }
+
     found = spn_git_has_rev(path, rev);
     if (fetched) {
       *error = sp_str_copy(cache->mem, sp_cstr_as_str(failure.message));
@@ -78,7 +100,6 @@ spn_err_t spn_git_db_ensure_rev(spn_git_cache_t* cache, spn_git_db_t* db, sp_str
   }
 
   sp_mem_end_scratch(scratch);
-  sp_mutex_unlock(&db->mutex);
   return found ? SPN_OK : SPN_ERROR;
 }
 
@@ -122,18 +143,13 @@ static spn_err_t spn_git_cache_fill_checkout(spn_git_cache_t* cache, spn_git_che
 }
 
 static spn_err_t spn_git_cache_materialize_checkout(spn_git_cache_t* cache, spn_git_checkout_t* entry) {
-  spn_git_db_t* db = SP_NULLPTR;
-  if (spn_git_cache_ensure_db(cache, entry->id.url, &db)) {
-    entry->error = sp_cstr_as_str(db->failure.message);
-    return SPN_ERROR;
-  }
-
-  if (spn_git_db_ensure_rev(cache, db, entry->id.rev, &entry->error)) {
-    return SPN_ERROR;
-  }
-
   sp_path_t dest = spn_path_at(cache->roots, entry->path);
   if (entry->fetched) {
+    spn_git_db_t* db = SP_NULLPTR;
+    if (spn_git_cache_ensure_db(cache, entry->id.url, &db)) {
+      entry->error = sp_cstr_as_str(db->failure.message);
+      return SPN_ERROR;
+    }
 
     // libgit2 caps at 168 characters for the path of a repo, which of course
     // is completely unconfigurable short of patching. Which I did, but then
@@ -146,7 +162,10 @@ static spn_err_t spn_git_cache_materialize_checkout(spn_git_cache_t* cache, spn_
     }
 
     sp_path_t work = spn_path_at(cache->roots, staged);
-    if (spn_git_cache_fill_checkout(cache, entry, db, staged)) {
+    sp_mutex_lock(&db->mutex);
+    bool filled = !spn_git_db_ensure_rev(cache, db, entry->id.rev, &entry->error) && !spn_git_cache_fill_checkout(cache, entry, db, staged);
+    sp_mutex_unlock(&db->mutex);
+    if (!filled) {
       sp_fs_remove_dir_at(work);
       return SPN_ERROR;
     }
