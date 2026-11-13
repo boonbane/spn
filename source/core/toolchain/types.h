@@ -274,6 +274,7 @@ struct spn_toolchain_store {
   const spn_path_roots_t* roots;
   sp_str_t mirror;
   spn_net_trust_t trust;
+  u32 timeout_s;
   spn_probe_cache_t probes;
 };
 

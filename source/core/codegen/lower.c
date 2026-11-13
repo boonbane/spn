@@ -446,6 +446,12 @@ spn_index_info_t spn_index_lower(spn_toml_loader_t* ctx, u32 at, spn_index_kind_
   return info;
 }
 
+spn_net_config_t spn_net_lower(const spn_cg_net_t* cg) {
+  return (spn_net_config_t) {
+    .timeout_s = sp_opt_is_null(cg->timeout) ? spn_net_default_timeout_s : (u32)sp_min(sp_opt_get(cg->timeout), spn_net_max_timeout_s),
+  };
+}
+
 static void lower_indexes(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, spn_project_t* project) {
   sp_da_for(cg->index, it) {
     spn_index_info_t info = spn_index_lower(ctx, it, SPN_INDEX_KIND_WORKSPACE, &cg->index[it]);

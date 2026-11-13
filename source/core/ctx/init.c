@@ -221,25 +221,10 @@ spn_err_t spn_ctx_open(spn_ctx_t* ctx, spn_open_request_t request) {
   if (spn_wasm_init()) {
     return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_WASM_INIT_FAILED });
   }
-  spn_net_trust_t trust = spn_net_trust_find(sp_env_get(ctx->env, sp_str_lit("SSL_CERT_FILE")));
-  if (spn_git_init(trust)) {
-    return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_GIT, .git.command = sp_str_lit("libgit2 init") });
-  }
-  if (spn_http_init()) {
-    return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_HTTP_INIT_FAILED });
-  }
   spn_toolchain_catalog_init(&ctx->catalog, ctx->host, spn_sdk_detect(ctx->heap, &ctx->roots, ctx->env, ctx->host), ctx->heap);
   load_builtins(ctx);
 
   spn_git_cache_init(&ctx->caches.git, ctx->mem, ctx->intern, &ctx->roots, spn_path_from_id(SPN_DIR_ID_GIT_DB), spn_path_from_id(SPN_DIR_ID_CHECKOUTS));
-
-  ctx->caches.toolchains = (spn_toolchain_store_t) {
-    .mem = ctx->mem,
-    .roots = &ctx->roots,
-    .mirror = sp_env_get(ctx->env, sp_str_lit("SPN_MIRROR")),
-    .trust = trust,
-  };
-  spn_probe_cache_load(&ctx->caches.toolchains.probes, &ctx->roots, (spn_path_t) { .root = SPN_PATH_ROOT_TOOLCHAIN, .sub = sp_str_lit("probe.cache") }, ctx->mem);
 
   spn_try(extract_runtime(ctx));
 
@@ -263,9 +248,9 @@ spn_err_t spn_ctx_open(spn_ctx_t* ctx, spn_open_request_t request) {
   sp_mem_end_scratch(scratch);
 
   // Load the per-machine config file
+  spn_cg_config_t config = sp_zero;
   ctx->config.indexes = sp_da_new(ctx->heap, spn_index_info_t);
   if (sp_fs_exists_at(spn_path_at(&ctx->roots, ctx->paths.config))) {
-    spn_cg_config_t config = sp_zero;
     spn_toml_loader_t loader = spn_toml_loader(ctx->mem, ctx->intern, &ctx->roots);
     sp_da(spn_index_info_t) indexes = sp_da_new(ctx->heap, spn_index_info_t);
     sp_da(spn_toolchain_decl_t) toolchains = SP_NULLPTR;
@@ -284,6 +269,23 @@ spn_err_t spn_ctx_open(spn_ctx_t* ctx, spn_open_request_t request) {
       spn_toolchain_catalog_add(&ctx->catalog, toolchains[it]);
     }
   }
+
+  spn_net_config_t net = spn_net_lower(&config.net);
+  spn_net_trust_t trust = spn_net_trust_find(sp_env_get(ctx->env, sp_str_lit("SSL_CERT_FILE")));
+  if (spn_git_init(trust, net.timeout_s)) {
+    return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_GIT, .git.command = sp_str_lit("libgit2 init") });
+  }
+  if (spn_http_init()) {
+    return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_HTTP_INIT_FAILED });
+  }
+  ctx->caches.toolchains = (spn_toolchain_store_t) {
+    .mem = ctx->mem,
+    .roots = &ctx->roots,
+    .mirror = sp_env_get(ctx->env, sp_str_lit("SPN_MIRROR")),
+    .trust = trust,
+    .timeout_s = net.timeout_s,
+  };
+  spn_probe_cache_load(&ctx->caches.toolchains.probes, &ctx->roots, (spn_path_t) { .root = SPN_PATH_ROOT_TOOLCHAIN, .sub = sp_str_lit("probe.cache") }, ctx->mem);
 
   spn_try(spn_project_load(ctx, &ctx->project));
   if (!request.project_optional) {

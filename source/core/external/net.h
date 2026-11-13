@@ -3,8 +3,13 @@
 
 #include "sp.h"
 
-#define spn_net_timeout_s 30
+#define spn_net_default_timeout_s 30
+#define spn_net_max_timeout_s 65535
 #define spn_net_attempts 4
+
+typedef struct {
+  u32 timeout_s;
+} spn_net_config_t;
 
 typedef enum {
   SPN_NET_TRUST_NONE,

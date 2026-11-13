@@ -38,6 +38,7 @@ add_executable(core
   compiler/toc.c
   compiler/tools.c
   config/config.c
+  config/net.c
   external/http.c
   external/net.c
   external/obj.c
@@ -181,7 +182,7 @@ set_source_files_properties(manifest/lower/lower.c PROPERTIES COMPILE_DEFINITION
   "MANIFEST_DIR=\"test/core/manifest/lower/manifests\"")
 set_source_files_properties(pkg/load.c PROPERTIES COMPILE_DEFINITIONS
   "PKG_MANIFEST_DIR=\"test/core/pkg/manifests\"")
-set_source_files_properties(config/config.c PROPERTIES COMPILE_DEFINITIONS
+set_source_files_properties(config/config.c config/net.c PROPERTIES COMPILE_DEFINITIONS
   "CONFIG_DIR=\"test/core/config/configs\"")
 set_source_files_properties(
   toolchain/builtins.c

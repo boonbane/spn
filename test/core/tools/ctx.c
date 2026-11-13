@@ -19,7 +19,7 @@ static sp_err_t spn_ctx_init(void* user) {
   spn.env = sp_alloc_type(spn.mem, sp_env_t);
   *spn.env = sp_env_capture(spn.mem);
   spn.host = spn_host_detect();
-  return spn_git_init(spn_net_trust_find(sp_env_get(spn.env, sp_str_lit("SSL_CERT_FILE")))) || spn_http_init() ? SP_ERR : SP_OK;
+  return spn_git_init(spn_net_trust_find(sp_env_get(spn.env, sp_str_lit("SSL_CERT_FILE"))), spn_net_default_timeout_s) || spn_http_init() ? SP_ERR : SP_OK;
 }
 
 sp_err_t spn_test_ctx_setup(sp_test_t* t) {

@@ -109,7 +109,7 @@ static spn_err_t setup_artifact(spn_toolchain_store_t* store, spn_toolchain_unit
       }});
     spn_http_config_t http = {
       .trust = store->trust,
-      .timeout_s = spn_net_timeout_s,
+      .timeout_s = store->timeout_s,
       .cancelled = cancelled,
     };
     spn_http_failure_t failure = sp_zero;

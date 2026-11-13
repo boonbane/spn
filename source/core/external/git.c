@@ -136,13 +136,13 @@ static bool is_repo_root(sp_str_t repo) {
   return ok;
 }
 
-spn_err_t spn_git_init(spn_net_trust_t trust) {
+spn_err_t spn_git_init(spn_net_trust_t trust, u32 timeout_s) {
   if (git_libgit2_init() < 0) {
     return SPN_ERROR;
   }
   git_libgit2_opts(GIT_OPT_SET_OWNER_VALIDATION, 0);
-  git_libgit2_opts(GIT_OPT_SET_SERVER_CONNECT_TIMEOUT, spn_net_timeout_s * 1000);
-  git_libgit2_opts(GIT_OPT_SET_SERVER_TIMEOUT, spn_net_timeout_s * 1000);
+  git_libgit2_opts(GIT_OPT_SET_SERVER_CONNECT_TIMEOUT, (s32)(timeout_s * 1000));
+  git_libgit2_opts(GIT_OPT_SET_SERVER_TIMEOUT, (s32)(timeout_s * 1000));
 
   git.no_ca_bundle = trust.kind == SPN_NET_TRUST_NONE;
   if (trust.kind == SPN_NET_TRUST_BUNDLE) {
