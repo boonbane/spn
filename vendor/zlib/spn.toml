@@ -21,8 +21,26 @@ source = [
 ]
 flags = [{ value = "-O2", when = { mode = "debug", abi = { not = "msvc" } } }]
 
+[[lib]]
+name = "minizip"
+kinds = ["static"]
+include = ["."]
+source = [
+  "contrib/minizip/ioapi.c",
+  "contrib/minizip/unzip.c",
+]
+define = [
+  "NOUNCRYPT",
+  { value = "_GNU_SOURCE", when = { abi = { not = "msvc" } } },
+]
+flags = [{ value = "-O2", when = { mode = "debug", abi = { not = "msvc" } } }]
+deps = ["z"]
+
 [package.publish]
 include = [
   { from = "zlib.h" },
   { from = "zconf.h" },
+  { from = "contrib/minizip/unzip.h", to = "minizip" },
+  { from = "contrib/minizip/ioapi.h", to = "minizip" },
+  { from = "contrib/minizip/ints.h", to = "minizip" },
 ]
