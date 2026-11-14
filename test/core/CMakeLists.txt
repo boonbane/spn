@@ -45,6 +45,7 @@ add_executable(core
   external/net.c
   external/obj.c
   external/wasm.c
+  external/xz.c
   gen/lower.c
   gen/reader.c
   gen/union.c
