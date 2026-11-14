@@ -149,6 +149,7 @@ add_executable(core
   toolchain/select.c
   toolchain/sha256.c
   toolchain/toolchain.c
+  toolchain/unpack.c
   toolchain/verify.c
   toolchain/zig.c
   unit/harness.c

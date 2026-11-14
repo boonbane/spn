@@ -130,6 +130,7 @@ set(SPN_CORE_SOURCES
   core/toolchain/provision.c
   core/toolchain/select.c
   core/toolchain/toolchain.c
+  core/toolchain/unpack.c
   core/toolchain/sdk.c
   core/toolchain/libc.c
   core/triple/triple.c
