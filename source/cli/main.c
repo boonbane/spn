@@ -56,7 +56,7 @@ static void on_pipe(s32 signal) {
 }
 #endif
 
-s32 spn_main(s32 num_args, const c8** args) {
+static s32 run(s32 num_args, const c8** args) {
 #if defined(SP_POSIX)
   sigaction(SIGPIPE, &(struct sigaction) { .sa_handler = on_pipe }, SP_NULLPTR);
 #endif
@@ -110,5 +110,29 @@ s32 spn_main(s32 num_args, const c8** args) {
 
   s32 code = spn_cli_shutdown(status != SP_CLI_ERR);
   return host.code ? host.code : code;
+}
+
+s32 spn_main(s32 num_args, const c8** args) {
+#if defined(SP_WIN32)
+  HANDLE job = CreateJobObjectW(SP_NULLPTR, SP_NULLPTR);
+  JOBOBJECT_EXTENDED_LIMIT_INFORMATION limits = {
+    .BasicLimitInformation = { .LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE },
+  };
+  if (job && !(SetInformationJobObject(job, JobObjectExtendedLimitInformation, &limits, (DWORD)sizeof(limits)) && AssignProcessToJobObject(job, GetCurrentProcess()))) {
+    CloseHandle(job);
+    job = SP_NULLPTR;
+  }
+#endif
+
+  s32 code = run(num_args, args);
+
+#if defined(SP_WIN32)
+  if (job) {
+    limits = sp_zero_s(JOBOBJECT_EXTENDED_LIMIT_INFORMATION);
+    SetInformationJobObject(job, JobObjectExtendedLimitInformation, &limits, (DWORD)sizeof(limits));
+    CloseHandle(job);
+  }
+#endif
+  return code;
 }
 SP_MAIN(spn_main)
