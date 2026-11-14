@@ -52,6 +52,13 @@ static const test_t tests [] = {
     },
   },
   {
+    .name = "init_invalid_dir_name",
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { .cmd = "init", .args = { "A B" } } },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = lit("A B/spn.toml") },
+    },
+  },
+  {
     .name = "init_bare",
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { .cmd = "init", .args = { "sub", "--bare" } } },

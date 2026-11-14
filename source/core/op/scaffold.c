@@ -45,22 +45,34 @@ static iterator_t it_new(bool bare) {
   return it;
 }
 
-static bool is_name_valid(sp_str_t name) {
+static bool is_name_char(c8 c) {
+  return c != '"' && c != '\\' && c != '\n' && c != '\r' && c != '\t' && c != ' ' && c != '/';
+}
+
+bool spn_scaffold_name_valid(sp_str_t name) {
   if (sp_str_empty(name)) {
     return false;
   }
   sp_str_for(name, it) {
-    c8 c = name.data[it];
-    if (c == '"' || c == '\\' || c == '\n' || c == '\r' || c == '\t' || c == ' ' || c == '/') {
+    if (!is_name_char(name.data[it])) {
       return false;
     }
   }
   return true;
 }
 
+sp_str_t spn_scaffold_name(sp_mem_t mem, sp_str_t dir) {
+  sp_str_t base = sp_fs_get_name(dir);
+  c8* name = sp_alloc_n(mem, c8, base.len);
+  sp_str_for(base, it) {
+    name[it] = is_name_char(base.data[it]) ? base.data[it] : '-';
+  }
+  return sp_str(name, base.len);
+}
+
 static spn_err_t scaffold(spn_ctx_t* ctx, spn_scaffold_request_t request, sp_mem_t mem, spn_str_arr_t* files) {
   *files = sp_zero_s(spn_str_arr_t);
-  if (!is_name_valid(request.name)) {
+  if (!spn_scaffold_name_valid(request.name)) {
     return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_INIT_NAME, .pkg = { .name = request.name } });
   }
   spn_path_t dir = { .sub = request.dir };
