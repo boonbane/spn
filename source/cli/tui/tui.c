@@ -2338,9 +2338,3 @@ void spn_tui_handoff(spn_tui_t* tui) {
   spn_tui_flush(tui);
   tui->handoff.granted = true;
 }
-
-void spn_tui_restore_terminal(spn_tui_t* tui) {
-  if (tui->prompt.on) {
-    sp_prompt_restore(tui->prompt.ctx);
-  }
-}

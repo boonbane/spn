@@ -46,6 +46,7 @@ yyjson = { path = "vendor/yyjson"}
 files = [
   "tools/patches/sp-golden-absolute.patch",
   "tools/patches/sp-prompt-passive.patch",
+  "tools/patches/sp-macos-create-race.patch",
 ]
 
 [patch.wamr]

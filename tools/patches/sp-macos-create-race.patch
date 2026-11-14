@@ -1,0 +1,20 @@
+diff --git a/sp.h b/sp.h
+index 8169c1b..54c3425 100644
+--- a/sp.h
++++ b/sp.h
+@@ -8738,7 +8738,14 @@ sp_err_t sp_sys_open_p(sp_sys_dir_t dir, const c8* path, u32 len, sp_sys_open_mo
+ #elif defined(SP_MACOS) || defined(SP_COSMO)
+   c8 buf [SP_PATH_MAX];
+   sp_try(sp_sys_posix_path(path, len, buf));
+-  s32 rc = openat((int)dir.fd, buf, sp_sys_posix_open_flags(mode, flags), (mode_t)sp_sys_default_file_perms.value);
++  s32 o = sp_sys_posix_open_flags(mode, flags);
++  s32 rc = openat((int)dir.fd, buf, o, (mode_t)sp_sys_default_file_perms.value);
++
++  // XNU: vn_open_auth's retry after losing a create race drops the dirfd and
++  // returns ENOENT. The file exists now, so ask once more.
++  if (rc < 0 && errno == SP_ENOENT && (o & O_CREAT) && !(o & O_EXCL)) {
++    rc = openat((int)dir.fd, buf, o, (mode_t)sp_sys_default_file_perms.value);
++  }
+   if (rc < 0) return sp_sys_err_from_errno(errno);
+   *out = (sp_sys_fd_t)rc;
+   return SP_OK;

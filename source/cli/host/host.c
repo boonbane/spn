@@ -21,7 +21,6 @@ void spn_cli_interrupt() {
     return;
   }
 
-  spn_tui_restore_terminal(&tui);
   die();
 }
 
