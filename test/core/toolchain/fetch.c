@@ -28,53 +28,53 @@ static const test_t tests [] = {
   {
     .name = "origin_serves_without_mirrors",
     .serves = { "O" },
-    .expect = { .url = "O/T.tar.gz" },
+    .expect = { .url = "O/T.tar.xz" },
   },
   {
     .name = "listed_mirror_is_tried_before_origin",
     .serves = { "A", "O" },
     .live = { "A" },
-    .expect = { .url = "A/T.tar.gz?source=spn" },
+    .expect = { .url = "A/T.tar.xz?source=spn" },
   },
   {
     .name = "corrupt_mirror_falls_through_to_origin",
     .serves = { "O" },
     .corrupt = { "A" },
     .live = { "A" },
-    .expect = { .url = "O/T.tar.gz" },
+    .expect = { .url = "O/T.tar.xz" },
   },
   {
     .name = "missing_mirror_falls_through_to_origin",
     .serves = { "O" },
     .live = { "A" },
-    .expect = { .url = "O/T.tar.gz" },
+    .expect = { .url = "O/T.tar.xz" },
   },
   {
     .name = "unreachable_list_uses_the_snapshot",
     .serves = { "A" },
     .snapshot = { "A" },
-    .expect = { .url = "A/T.tar.gz?source=spn" },
+    .expect = { .url = "A/T.tar.xz?source=spn" },
   },
   {
     .name = "reachable_list_ignores_the_snapshot",
     .serves = { "B" },
     .live = { "A" },
     .snapshot = { "B" },
-    .expect = { .err = SPN_ERR_TOOLCHAIN_FETCH, .url = "O/T.tar.gz" },
+    .expect = { .err = SPN_ERR_TOOLCHAIN_FETCH, .url = "O/T.tar.xz" },
   },
   {
     .name = "explicit_mirror_is_strict",
     .serves = { "B", "O" },
     .live = { "B" },
     .mirror = "A",
-    .expect = { .err = SPN_ERR_TOOLCHAIN_FETCH, .url = "A/T.tar.gz" },
+    .expect = { .err = SPN_ERR_TOOLCHAIN_FETCH, .url = "A/T.tar.xz" },
   },
   {
     .name = "corrupt_origin_reports_both_hashes",
     .corrupt = { "O" },
     .expect = {
       .err = SPN_ERR_TOOLCHAIN_SHA,
-      .url = "O/T.tar.gz",
+      .url = "O/T.tar.xz",
       .actual = "559aead08264d5795d3909718cdd05abd49572e84fe55590eef31a88a08fdffd",
     },
   },
@@ -82,7 +82,7 @@ static const test_t tests [] = {
 
 static void place(sp_mem_t mem, sp_str_t dir, const c8* const* sources, sp_str_t content) {
   while (*sources) {
-    sp_str_t path = sp_fmt(mem, "{}/{}/T.tar.gz", sp_fmt_str(dir), sp_fmt_cstr(*sources)).value;
+    sp_str_t path = sp_fmt(mem, "{}/{}/T.tar.xz", sp_fmt_str(dir), sp_fmt_cstr(*sources)).value;
     sp_fs_create_dir(sp_fs_parent_path(path));
     sp_fs_write(path, content, SP_FS_WRITE_TRUNCATE);
     sources++;
@@ -103,26 +103,14 @@ sp_test_each(fetch, sources, test_t, tests, .setup = spn_test_ctx_setup) {
   sp_mem_t mem = sp_test_arena(t);
   sp_str_t dir = test_dir_str(t);
 
-  sp_str_t packed = sp_fs_join_path(mem, dir, sp_str_lit("T.tar.gz"));
-  sp_fs_create_dir(sp_fs_join_path(mem, dir, sp_str_lit("tree/T")));
-  sp_fs_write(sp_fs_join_path(mem, dir, sp_str_lit("tree/T/B")), sp_str_lit("B"), SP_FS_WRITE_TRUNCATE);
-  sp_ps_output_t tar = sp_ps_run(mem, (sp_ps_config_t) {
-    .command = sp_str_lit("tar"),
-    .args = {
-      sp_str_lit("czf"), packed,
-      sp_str_lit("-C"), sp_fs_join_path(mem, dir, sp_str_lit("tree")),
-      sp_str_lit("T"),
-    }
-  });
-  sp_must_eq(t, 0, tar.status.exit_code);
   sp_str_t tarball = sp_zero;
-  sp_must_ok(t, sp_fs_read(mem, packed, &tarball));
+  sp_must_ok(t, sp_fs_read(mem, test_repo_path(mem, sp_str_lit("test/core/toolchain/archives/file.tar.xz")), &tarball));
 
   place(mem, dir, it->serves, tarball);
   place(mem, dir, it->corrupt, sp_str_lit("A"));
 
   spn_artifact_t artifact = {
-    .url = sp_fmt(mem, "file://{}/O/T.tar.gz", sp_fmt_str(dir)).value,
+    .url = sp_fmt(mem, "file://{}/O/T.tar.xz", sp_fmt_str(dir)).value,
     .sha256 = test_sha256_hex(mem, tarball),
     .mirror_snapshot = list(mem, dir, it->snapshot),
   };
