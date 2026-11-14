@@ -62,6 +62,26 @@ static sp_cli_cmd_t root = {
   },
   .env = {
     {
+      .name = "SPN_CONFIG_DIR",
+      .kind = SP_CLI_OPT_STR,
+      .summary = "Directory containing spn/spn.toml, the user config",
+    },
+    {
+      .name = "SPN_STORAGE_DIR",
+      .kind = SP_CLI_OPT_STR,
+      .summary = "Directory for index checkouts, Git dependencies, and the build cache",
+    },
+    {
+      .name = "SPN_TOOLCHAIN_DIR",
+      .kind = SP_CLI_OPT_STR,
+      .summary = "Directory for downloaded toolchains",
+    },
+    {
+      .name = "SPN_MIRROR",
+      .kind = SP_CLI_OPT_STR,
+      .summary = "Base URL to download toolchains from",
+    },
+    {
       .name = "SPN_INDEX_REFRESH_SECONDS",
       .kind = SP_CLI_OPT_U32,
       .summary = "Number of seconds which must elapse before the index gets refreshed",

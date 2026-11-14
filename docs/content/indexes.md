@@ -91,6 +91,15 @@ If you've ever used Homebrew and waited multiple tens of seconds for kegs to be 
 
 ## Global configuration
 
+`[[index]]` entries in the [user config file](/docs/configuration) apply to every project on the machine. They take the same fields as `[[index]]` in a manifest.
+
+To find a package, `spn` checks each index in turn and takes every version of it from the first index that has it. The order is:
+1. The project manifest's indexes, in the order they're declared
+2. The user config's indexes, in the order they're declared
+3. `core`, the default index, which is `https://github.com/tspader/spandex.git`
+
+A user config index with the same name as one of the project's is ignored. An index named `core` in either file replaces the default. `spn index list` prints the indexes in this order.
+
 ## Publishing
 
 ### spn publish
