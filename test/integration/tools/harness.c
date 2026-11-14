@@ -2,6 +2,7 @@
 #include "elf/elf.h"
 #include "probe.gen.h"
 #include "error/error.h"
+#include "git/key.h"
 #include "lock/lock.h"
 #include "semver/convert.h"
 #include "triple/triple.h"
@@ -82,6 +83,10 @@ sp_str_t path_render(fixture_t* fixture, path_t path) {
     }
     case PATH_WORK: {
       rendered = layout_path(mem, path.triple, profile, sp_fs_join_path(mem, sp_str_lit(".spn"), name));
+      break;
+    }
+    case PATH_INDEX: {
+      rendered = sp_fs_join_path(mem, sp_str_lit(".st/index"), sp_fs_join_path(mem, spn_git_db_key(mem, fixture_index_url(fixture)), name));
       break;
     }
   }

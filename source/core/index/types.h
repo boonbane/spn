@@ -90,6 +90,7 @@ typedef struct {
   const spn_path_roots_t* roots;
   sp_da(spn_index_info_t)* indexes;
   sp_ht(sp_intern_id_t, spn_index_pkg_t*) packages;
+  u32 consulted;
 } spn_index_cache_t;
 
 #endif

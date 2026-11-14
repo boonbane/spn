@@ -10,6 +10,7 @@
 #include "error/error.h"
 #include "event/event.h"
 #include "index/cache.h"
+#include "op/op.h"
 #include "op/types.h"
 #include "pkg/load.h"
 #include "paths/paths.h"
@@ -87,26 +88,44 @@ spn_err_t spn_resolve(spn_op_t* op) {
     .path = session->project->paths.manifest,
   }));
 
-  spn_index_cache_t index = sp_zero;
-  spn_index_cache_init(&index, session->mem, session->ctx->intern, &session->ctx->roots, &spn.indexes);
-
-  spn_resolver_t resolver = sp_zero;
-  spn_resolver_init(&resolver, spn.mem, session->ctx->intern, &index, &session->registry, session->builds.program->profile, session->project->config, 0);
-  resolver.roots = &session->ctx->roots;
-  resolver.seeds = session->gates.seeds;
-
+  spn_ctx_t* ctx = session->ctx;
+  bool* synced = sp_alloc_n(session->mem, bool, sp_da_size(ctx->indexes));
   spn_resolve_query_t query = sp_zero_initialize();
-  spn_resolve_query_init(session->mem, &query);
-  add_root(session, &query);
+  spn_err_t err = SPN_OK;
+  while (true) {
+    spn_index_cache_t index = sp_zero;
+    spn_index_cache_init(&index, session->mem, ctx->intern, &ctx->roots, &ctx->indexes);
 
-  if (spn_resolve_from_solver(&resolver, &query)) {
+    spn_resolver_t resolver = sp_zero;
+    spn_resolver_init(&resolver, spn.mem, ctx->intern, &index, &session->registry, session->builds.program->profile, session->project->config, 0);
+    resolver.roots = &ctx->roots;
+    resolver.seeds = session->gates.seeds;
+
+    spn_resolve_query_init(session->mem, &query);
+    add_root(session, &query);
+    err = spn_resolve_from_solver(&resolver, &query);
+
+    sp_da(spn_index_info_t*) read = sp_da_new(session->mem, spn_index_info_t*);
+    sp_for(it, index.consulted) {
+      if (!synced[it]) {
+        synced[it] = true;
+        sp_da_push(read, &ctx->indexes[it]);
+      }
+    }
+    if (sp_da_empty(read)) {
+      break;
+    }
+    spn_try(spn_sync_index_list(op, read, false));
+  }
+
+  if (err) {
     sp_da_for(query.errors, it) {
-      spn_err_emit(session->ctx, query.errors[it]);
+      spn_err_emit(ctx, query.errors[it]);
     }
     return query.errors[0].kind;
   }
 
-  if (!spn_path_empty(session->ctx->paths.patches)) {
+  if (!spn_path_empty(ctx->paths.patches)) {
     spn_try(apply_patch_overrides(session, &query));
   }
   session->resolve = query.result;

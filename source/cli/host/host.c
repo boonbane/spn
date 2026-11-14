@@ -63,10 +63,6 @@ sp_cli_result_t spn_cli_session(spn_session_config_t config) {
   return spn_ctx_open_session(host.ctx, &config, &host.session) ? SP_CLI_ERR : SP_CLI_OK;
 }
 
-sp_cli_result_t spn_cli_refresh_indexes() {
-  return spn_cli_op(spn_sync_indexes(host.ctx, (spn_sync_request_t) sp_zero));
-}
-
 spn_err_t spn_cli_wait(spn_op_t* op) {
   while (true) {
     sp_sys_event_clear(host.doorbell);

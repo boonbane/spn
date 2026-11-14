@@ -34,6 +34,7 @@ typedef enum {
   PATH_STATIC_LIB,
   PATH_SHARED_LIB,
   PATH_WORK,
+  PATH_INDEX,
 } path_kind_t;
 
 typedef struct {
@@ -60,6 +61,7 @@ typedef struct {
 #define pkg_profile_static_lib(profile_, pkg_, name_) { PATH_STATIC_LIB, .pkg = pkg_, .name = name_, .profile = profile_ }
 #define pkg_shared_lib(pkg_, name_)                   { PATH_SHARED_LIB, .pkg = pkg_, .name = name_ }
 #define work_file(rest)                               { PATH_WORK, .name = rest }
+#define index_file(rest)                              { PATH_INDEX, .name = rest }
 
 typedef enum {
   BARE_EXPECT_RUNS,

@@ -39,6 +39,25 @@ static const test_t tests [] = {
       { .kind = ACTION_VERIFY_STORE, .verify_store = { .pkg = "spum", .count = 1 } },
     },
   },
+  {
+    .name = "index_not_needed",
+    .project = "test/integration/fixtures/freshness/bin",
+    .actions = {
+      { .kind = ACTION_REMOVE_DIR, .rm = { .dir = ".st/spn/packages" } },
+      { .kind = ACTION_RUN_CLI, .cli = { "build" } },
+      { .kind = ACTION_RUN_CLI, .cli = { "test" } },
+    },
+  },
+  {
+    .name = "index_unreachable",
+    .project = "test/integration/fixtures/deps/index/binary_static",
+    .actions = {
+      { .kind = ACTION_REMOVE_DIR, .rm = { .dir = ".st/index" } },
+      { .kind = ACTION_REMOVE_DIR, .rm = { .dir = ".st/spn/packages" } },
+      { .kind = ACTION_RUN_CLI, .cli = { "build", .rc = 1 } },
+      { .kind = ACTION_VERIFY_RESULT, .verify_result.err = SPN_ERR_INDEX_SYNC },
+    },
+  },
 };
 
 sp_test_each(offline, cases, test_t, tests) {
@@ -66,6 +85,37 @@ static const rebuild_test_t rebuilds [] = {
             .exists = { exe("main") },
             .locked = { { .name = "spum", .version = "1.0.0" } },
           },
+        },
+      },
+    },
+  },
+  {
+    .name = "stale_index_unreachable",
+    .project = "test/integration/fixtures/deps/index/binary_static",
+    .first.args = { "build" },
+    .rebuilds = {
+      {
+        .change = {
+          .remove_files = { index_file(".git/spn-synced") },
+          .remove_dirs = { ".st/spn/packages" },
+        },
+        .command = {
+          .args = { "build" },
+          .expect.events = { { .event = SPN_EVENT_SYNC_STALE } },
+        },
+      },
+    },
+  },
+  {
+    .name = "stale_index_missing_package",
+    .project = "test/integration/fixtures/deps/index/binary_static",
+    .first.args = { "build" },
+    .rebuilds = {
+      {
+        .change.remove_files = { index_file(".git/spn-synced"), index_file(".spn/index/spum.jsonl") },
+        .command = {
+          .args = { "build" },
+          .expect.events = { { .event = SPN_EVENT_SYNC, .key = "name", .value = "core" } },
         },
       },
     },

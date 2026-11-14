@@ -35,27 +35,13 @@ static void sync_index_node(void* data) {
   job->err = spn_index_sync(job->index, job->plan, &job->op->cancelled, &job->failure);
 }
 
-static spn_err_t sync_indexes(spn_op_t* op) {
+spn_err_t spn_sync_index_list(spn_op_t* op, sp_da(spn_index_info_t*) indexes, bool force) {
   spn_ctx_t* ctx = op->ctx;
-  spn_sync_request_t request = op->request.indexes;
-  if (!sp_str_empty(request.only) && !spn_find_index(ctx, request.only)) {
-    return spn_err_emit(ctx, (spn_err_union_t) {
-      .kind = SPN_ERR_INDEX_UNKNOWN,
-      .index = { .name = request.only },
-    });
-  }
-
   sp_da(job_t*) jobs = sp_da_new(ctx->mem, job_t*);
-  spn_index_id_t only = sp_intern(ctx->intern, request.only).id;
 
-  sp_da_for(ctx->indexes, it) {
-    spn_index_info_t* index = &ctx->indexes[it];
-
-    if (!sp_str_empty(request.only) && index->id != only) {
-      continue;
-    }
-
-    spn_index_plan_t plan = spn_index_plan(index, request.force);
+  sp_da_for(indexes, it) {
+    spn_index_info_t* index = indexes[it];
+    spn_index_plan_t plan = spn_index_plan(index, force);
     if (plan.fetch) {
       spn_event_buffer_push(ctx->events, (spn_event_t) {
         .kind = SPN_EVENT_SYNC,
@@ -145,7 +131,24 @@ static spn_err_t sync_indexes(spn_op_t* op) {
 }
 
 spn_err_t spn_op_sync_indexes(spn_op_t* op) {
-  return sync_indexes(op);
+  spn_ctx_t* ctx = op->ctx;
+  spn_sync_request_t request = op->request.indexes;
+  if (!sp_str_empty(request.only) && !spn_find_index(ctx, request.only)) {
+    return spn_err_emit(ctx, (spn_err_union_t) {
+      .kind = SPN_ERR_INDEX_UNKNOWN,
+      .index = { .name = request.only },
+    });
+  }
+
+  spn_index_id_t only = sp_intern(ctx->intern, request.only).id;
+  sp_da(spn_index_info_t*) indexes = sp_da_new(ctx->mem, spn_index_info_t*);
+  sp_da_for(ctx->indexes, it) {
+    if (!sp_str_empty(request.only) && ctx->indexes[it].id != only) {
+      continue;
+    }
+    sp_da_push(indexes, &ctx->indexes[it]);
+  }
+  return spn_sync_index_list(op, indexes, request.force);
 }
 
 spn_op_t* spn_sync_indexes(spn_ctx_t* ctx, spn_sync_request_t request) {

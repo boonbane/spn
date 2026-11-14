@@ -18,7 +18,7 @@ static sp_cli_result_t add(sp_cli_t* cli) {
     return spn_cli_usage("expected a package name");
   }
 
-  try(spn_cli_refresh_indexes());
+  try(spn_cli_op(spn_sync_indexes(host.ctx, (spn_sync_request_t) sp_zero)));
 
   return spn_cli_op(spn_add_dependency(host.ctx, (spn_add_request_t) {
     .name = spec.first,
