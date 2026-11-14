@@ -8,7 +8,6 @@ typedef struct {
   spn_err_t err;
   spn_unpack_reason_t unpack;
   const c8* entry;
-  bool output;
   const c8* file;
   bool present;
   u32 stored;
@@ -29,11 +28,6 @@ static const test_t tests [] = {
     .expect = { .file = "B", .stored = 2 },
   },
   {
-    .name = "other_formats_fall_back_to_tar",
-    .archive = "file.tar.gz",
-    .expect = { .file = "B", .stored = 2 },
-  },
-  {
     .name = "installed_artifact_is_present_to_the_next_claim",
     .archive = "file.tar.xz",
     .reclaim = true,
@@ -43,11 +37,6 @@ static const test_t tests [] = {
     .name = "unpack_failure_carries_its_reason_and_entry",
     .archive = "dotdot.tar.xz",
     .expect = { .err = SPN_ERR_TOOLCHAIN_EXTRACT, .unpack = SPN_UNPACK_UNSAFE, .entry = "A/../B", .stored = 1 },
-  },
-  {
-    .name = "tar_failure_carries_its_output",
-    .archive = "bytes",
-    .expect = { .err = SPN_ERR_TOOLCHAIN_EXTRACT, .output = true, .stored = 1 },
   },
   {
     .name = "archive_with_nothing_inside_is_empty",
@@ -99,7 +88,6 @@ sp_test_each(provision, install, test_t, tests, .setup = spn_test_ctx_setup) {
   sp_expect_eq(t, (u32)it->expect.err, (u32)failure.kind);
   sp_expect_eq(t, (u32)it->expect.unpack, (u32)failure.artifact.unpack);
   sp_expect_str_eq_c(t, failure.artifact.entry, it->expect.entry);
-  sp_expect_eq(t, it->expect.output, !sp_str_empty(failure.artifact.output));
 
   if (it->expect.file) {
     sp_sys_file_meta_t meta = sp_zero;

@@ -287,7 +287,6 @@ static void write_supported_targets(sp_tty_t* w, sp_da(spn_triple_t) triples) {
 static void write_unpack(sp_tty_t* w, const spn_err_artifact_t* artifact) {
   switch (artifact->unpack) {
     case SPN_UNPACK_NONE: {
-      sp_io_write_str(w->io, artifact->output, SP_NULLPTR);
       break;
     }
     case SPN_UNPACK_UNREADABLE: {
