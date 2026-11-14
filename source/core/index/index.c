@@ -86,7 +86,7 @@ static spn_err_t git_index_freshen(spn_index_info_t* index, sp_atomic_s32_t* can
         break;
       }
     }
-    else if (spn_git_fetch(index->transport, dir, spn_net_no_backoff, cancelled, failure)) {
+    else if (spn_git_fetch(index->transport, dir, index->git.url, spn_net_no_backoff, cancelled, failure)) {
       if (failure->kind == SPN_GIT_CORRUPT) {
         continue;
       }
@@ -157,7 +157,7 @@ static spn_err_t git_index_sync(spn_index_info_t* index, spn_index_plan_t plan, 
     spn_try(git_index_clone(index, cancelled, failure));
   }
   else if (plan.fetch) {
-    spn_try(spn_git_fetch(index->transport, dir, spn_net_no_backoff, cancelled, failure));
+    spn_try(spn_git_fetch(index->transport, dir, index->git.url, spn_net_no_backoff, cancelled, failure));
   }
   return spn_git_checkout(dir, index->git.rev);
 }

@@ -2,12 +2,28 @@
 #include "macro/macro.h"
 #include "net.h"
 
+#include "ctx/types.h"
+#include "event/event.h"
+
 #define spn_net_wait_slice_ms 20
 
-bool spn_net_backoff_wait(spn_net_backoff_t backoff, u32 retry, sp_atomic_s32_t* cancelled) {
+bool spn_net_backoff_wait(spn_net_backoff_t backoff, u32 retry, sp_str_t url, sp_str_t cause, sp_atomic_s32_t* cancelled) {
   if (retry >= spn_net_max_retries || !backoff.wait_ms[retry]) {
     return false;
   }
+
+  u32 last = retry;
+  while (last < spn_net_max_retries && backoff.wait_ms[last]) {
+    last++;
+  }
+  spn_event_buffer_push(spn.events, (spn_event_t) {
+    .kind = SPN_EVENT_SYNC_RETRY,
+    .sync_retry = {
+      .url = sp_str_copy(spn.events->mem, url),
+      .cause = sp_str_copy(spn.events->mem, cause),
+      .remaining = last - retry,
+    },
+  });
 
   u64 wait = sp_tm_ms_to_ns(backoff.wait_ms[retry]);
   u64 elapsed = 0;

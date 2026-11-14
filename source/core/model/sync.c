@@ -138,7 +138,7 @@ static spn_err_t setup_artifact(spn_toolchain_store_t* store, spn_toolchain_unit
       u32 retry = 0;
       do {
         err = spn_http_download(&http, url, download, &failure);
-      } while (err && failure.kind == SPN_HTTP_DROPPED && spn_net_backoff_wait(backoff, retry++, cancelled));
+      } while (err && failure.kind == SPN_HTTP_DROPPED && spn_net_backoff_wait(backoff, retry++, url, sp_cstr_as_str(failure.message), cancelled));
       if (!err) {
         err = spn_toolchain_verify(store, &claim, spn.events->mem, &actual);
       }

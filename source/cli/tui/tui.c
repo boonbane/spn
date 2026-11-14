@@ -608,6 +608,17 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
       );
       break;
     }
+    case SPN_EVENT_SYNC_RETRY: {
+      sp_tty_fmt(
+        &w,
+        "{.gray} ({} {} remaining): {}",
+        sp_fmt_str(event->sync_retry.url),
+        sp_fmt_uint(event->sync_retry.remaining),
+        sp_fmt_cstr(event->sync_retry.remaining == 1 ? "try" : "tries"),
+        sp_fmt_str(event->sync_retry.cause)
+      );
+      break;
+    }
     case SPN_EVENT_ERR: {
       switch (event->err.kind) {
         case SPN_ERR_PATCH_UNUSED: {

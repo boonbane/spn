@@ -31,6 +31,14 @@
       }
     },
     "sync_stale": { "metadata": { "verb": "Stale" }, "ref": "sync" },
+    "sync_retry": {
+      "metadata": { "verb": "Retrying" },
+      "properties": {
+        "url": { "type": "string" },
+        "cause": { "type": "string" },
+        "remaining": { "type": "uint32" }
+      }
+    },
     "sync_patch": { "metadata": { "verb": "Patching" }, "ref": "sync" },
     "sync_end": {
       "metadata": { "verb": "Downloaded" },

@@ -211,7 +211,7 @@ sp_test_each(git, failure, test_t, tests, .setup = spn_test_ctx_setup) {
       break;
     }
     case OP_FETCH: {
-      err = spn_git_fetch(it->transport, local, it->backoff, &cancelled, &failure);
+      err = spn_git_fetch(it->transport, local, remote, it->backoff, &cancelled, &failure);
       break;
     }
     case OP_INIT_BARE: {

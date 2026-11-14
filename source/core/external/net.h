@@ -22,6 +22,6 @@ typedef struct {
 } spn_net_config_t;
 
 spn_net_trust_t spn_net_trust_find(sp_str_t ca_bundle, sp_str_t ssl_cert_file);
-bool spn_net_backoff_wait(spn_net_backoff_t backoff, u32 retry, sp_atomic_s32_t* cancelled);
+bool spn_net_backoff_wait(spn_net_backoff_t backoff, u32 retry, sp_str_t url, sp_str_t cause, sp_atomic_s32_t* cancelled);
 
 #endif
