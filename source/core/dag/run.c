@@ -708,6 +708,7 @@ static spn_err_t execute_attempt(sp_mem_t mem, si_dag_action_handle_t* attempt, 
     .roots = g->roots,
     .scratch = staging,
     .obs = obs,
+    .children = run->children,
   };
   spn_err_t err = action->execute(&c, action->user_data);
   if (err) {

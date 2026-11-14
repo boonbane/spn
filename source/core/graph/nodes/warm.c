@@ -86,7 +86,7 @@ static spn_err_t zig_warmup(sp_mem_t mem, const si_dag_ctx_t* c, si_zig_warmup_t
   spn_invocation_t invocation = spn_cc_render_link_command(mem, &plan, &files);
 
   progress_writer_t progress = { .base = { .write = progress_write }, .c = c };
-  spn_invocation_result_t run = spn_invocation_run_progress(roots, &invocation, spn_path_join(mem, staging, sp_str_lit("log")), &progress.base);
+  spn_invocation_result_t run = spn_invocation_run_progress(roots, c->children, &invocation, spn_path_join(mem, staging, sp_str_lit("log")), &progress.base);
   if (progress.last) {
     si_dag_add_warm(c, -(s64)progress.last);
   }

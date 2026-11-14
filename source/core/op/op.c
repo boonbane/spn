@@ -22,6 +22,7 @@ spn_op_t* spn_op_new(spn_ctx_t* ctx, spn_session_t* session, spn_op_kind_t kind)
 
 void spn_op_cancel(spn_op_t* op) {
   sp_atomic_s32_store(&op->cancelled, 1, SP_ATOMIC_SEQ_CST);
+  spn_children_kill(&op->children);
 }
 
 bool spn_op_cancelled(spn_op_t* op) {

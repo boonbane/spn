@@ -22,6 +22,7 @@ struct spn_op_t {
 
   spn_op_result_t result;
   sp_atomic_s32_t cancelled;
+  spn_children_t children;
   sp_atomic_u32_t done;
 };
 

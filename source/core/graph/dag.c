@@ -770,6 +770,7 @@ spn_dag_build_t* spn_dag_build_new(spn_op_t* op) {
     .trace = dag_trace,
     .trace_data = b,
     .cancel = &op->cancelled,
+    .children = &op->children,
     .wake = &op->ctx->wake,
   };
 

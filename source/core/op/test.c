@@ -1,6 +1,6 @@
 #include "spn/host.h"
 
-#include "core/types.h"
+#include "core/core.h"
 #include "ctx/types.h"
 #include "error/error.h"
 #include "event/event.h"
@@ -9,7 +9,7 @@
 #include "session/types.h"
 #include "unit/types.h"
 
-static spn_err_t run_test(spn_session_t* session, spn_target_unit_t* unit, spn_path_t staged, bool* passed) {
+static spn_err_t run_test(spn_session_t* session, spn_children_t* children, spn_target_unit_t* unit, spn_path_t staged, bool* passed) {
   spn_ctx_t* ctx = session->ctx;
   sp_str_t command = spn_path_str(&ctx->roots, session->mem, staged);
 
@@ -30,7 +30,7 @@ static spn_err_t run_test(spn_session_t* session, spn_target_unit_t* unit, spn_p
   }
 
   sp_tm_timer_t timer = sp_tm_start_timer();
-  sp_ps_output_t output = sp_ps_run(session->mem, (sp_ps_config_t) {
+  sp_ps_output_t output = spn_children_run(children, session->mem, (sp_ps_config_t) {
     .command = command,
     .cwd = spn_path_str(&ctx->roots, session->mem, unit->pkg->paths.roots.source),
     .env = { .env = *ctx->env, .mode = SP_PS_ENV_EXISTING },
@@ -39,6 +39,7 @@ static spn_err_t run_test(spn_session_t* session, spn_target_unit_t* unit, spn_p
       .out = { .mode = SP_PS_IO_MODE_CREATE },
       .err = { .mode = SP_PS_IO_MODE_CREATE },
     },
+    .group = true,
   });
   u64 time = sp_tm_read_timer(&timer);
 
@@ -80,8 +81,11 @@ spn_err_t spn_op_test(spn_op_t* op) {
     if (unit->target->info->kind != SPN_TARGET_KIND_TEST) {
       continue;
     }
+    if (spn_op_cancelled(op)) {
+      return SPN_ERR_CANCELLED;
+    }
     bool test_passed = sp_zero;
-    spn_try(run_test(session, unit, closure->exe.path, &test_passed));
+    spn_try(run_test(session, &op->children, unit, closure->exe.path, &test_passed));
     if (test_passed) {
       result->passed++;
     }

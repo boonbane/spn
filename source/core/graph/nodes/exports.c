@@ -32,7 +32,7 @@ static spn_err_t write_exports(sp_mem_t mem, const si_dag_ctx_t* c, si_exports_t
   }
   spn_invocation_t invocation = spn_cc_render_archive_command(mem, exports->archive, &files);
 
-  spn_invocation_result_t run = spn_invocation_run(roots, &invocation);
+  spn_invocation_result_t run = spn_invocation_run(roots, c->children, &invocation);
   if (run.result.status.exit_code) {
     spn_event_buffer_push(spn.events, (spn_event_t) {
       .kind = SPN_EVENT_LINK_FAILED,

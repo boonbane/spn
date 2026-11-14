@@ -59,3 +59,47 @@ void spn_wake_pulse(spn_wake_t* wake) {
 void spn_wake_rearm(spn_wake_t* wake) {
   sp_atomic_u32_store(&wake->signaled, 0, SP_ATOMIC_SEQ_CST);
 }
+
+void spn_children_add(spn_children_t* children, spn_child_t* child) {
+  sp_mutex_lock(&children->mutex);
+  child->next = children->head;
+  children->head = child;
+  if (children->killed) {
+    sp_ps_kill_async(child->ps);
+  }
+  sp_mutex_unlock(&children->mutex);
+}
+
+void spn_children_remove(spn_children_t* children, spn_child_t* child) {
+  sp_mutex_lock(&children->mutex);
+  spn_child_t** it = &children->head;
+  while (*it != child) {
+    it = &(*it)->next;
+  }
+  *it = child->next;
+  sp_mutex_unlock(&children->mutex);
+}
+
+void spn_children_kill(spn_children_t* children) {
+  sp_mutex_lock(&children->mutex);
+  children->killed = true;
+  for (spn_child_t* it = children->head; it; it = it->next) {
+    sp_ps_kill_async(it->ps);
+  }
+  sp_mutex_unlock(&children->mutex);
+}
+
+sp_ps_output_t spn_children_run(spn_children_t* children, sp_mem_t mem, sp_ps_config_t config) {
+  sp_ps_t ps = sp_ps_create(mem, config);
+  if (!ps.os) {
+    return (sp_ps_output_t) { .status = { .state = SP_PS_STATE_DONE, .exit_code = -1 } };
+  }
+
+  spn_child_t child = { .ps = &ps };
+  spn_children_add(children, &child);
+  sp_ps_output_t output = sp_ps_drain(&ps);
+  spn_children_remove(children, &child);
+  output.status = sp_ps_wait(&ps);
+  sp_ps_free(&ps);
+  return output;
+}
