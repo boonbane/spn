@@ -11,6 +11,7 @@ set(DEPS
   "mbedtls|https://github.com/Mbed-TLS/mbedtls.git|0bebf8b8c7f07abe3571ded48a11aa907a1ffb20"
   "curl|https://github.com/curl/curl.git|8c908d2d0a6d32abdedda2c52e90bd56ec76c24d"
   "xz|https://github.com/tukaani-project/xz.git|d3e650e63c110e830fd5391e7f8b45df0b91d3da"
+  "zlib|https://github.com/madler/zlib.git|da607da739fa6047df13e66a2af6b8bec7c2a498"
 )
 
 if(NOT DEFINED SOURCE_DIR)

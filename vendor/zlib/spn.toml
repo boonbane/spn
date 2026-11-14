@@ -1,0 +1,28 @@
+[package]
+name = "zlib"
+version = "1.3.2"
+
+[package.upstream]
+url = "https://github.com/madler/zlib.git"
+commit = "da607da739fa6047df13e66a2af6b8bec7c2a498"
+
+[[lib]]
+name = "z"
+kinds = ["static"]
+source = [
+  "adler32.c",
+  "crc32.c",
+  "deflate.c",
+  "inffast.c",
+  "inflate.c",
+  "inftrees.c",
+  "trees.c",
+  "zutil.c",
+]
+flags = [{ value = "-O2", when = { mode = "debug", abi = { not = "msvc" } } }]
+
+[package.publish]
+include = [
+  { from = "zlib.h" },
+  { from = "zconf.h" },
+]
