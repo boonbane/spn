@@ -150,6 +150,12 @@ spn_toolchain_claim_t spn_toolchain_claim(spn_toolchain_store_t* store, sp_mem_t
     .root = spn_toolchain_artifact_root(mem, artifact),
   };
   claim.tarball = spn_path_staging(mem, claim.root, sp_str_lit("download"));
+  // An install is renamed into place, so a root that exists is complete
+  claim.present = sp_fs_is_dir_at(spn_path_at(store->roots, claim.root));
+  if (claim.present) {
+    return claim;
+  }
+
   sp_path_t lock_at = spn_path_at(store->roots, spn_path_concat(mem, claim.root, ".lock"));
   bool acquired = false;
   sp_err_t locked = sp_fs_lock_try_acquire(&claim.lock, lock_at, &acquired);

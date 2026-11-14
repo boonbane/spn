@@ -8,11 +8,13 @@
 
 typedef struct {
   u32 notices;
+  bool present;
 } expect_t;
 
 typedef struct {
   const c8* name;
   bool contended;
+  bool installed;
   expect_t expect;
 } test_t;
 
@@ -24,6 +26,12 @@ static const test_t tests [] = {
     .name = "held_claim_says_it_waits",
     .contended = true,
     .expect = { .notices = 1 },
+  },
+  {
+    .name = "installed_claim_ignores_the_lock",
+    .contended = true,
+    .installed = true,
+    .expect = { .present = true },
   },
 };
 
@@ -57,9 +65,13 @@ sp_test_each(claim, wait, test_t, tests, .setup = spn_test_ctx_setup) {
     .mem = mem,
     .artifact = { .sha256 = test_sha256_hex(mem, sp_str_lit("A")) },
   };
+  spn_path_t root = spn_toolchain_artifact_root(mem, job.artifact);
+  if (it->installed) {
+    sp_must_ok(t, sp_fs_create_dir_at(spn_path_at(&roots, root)));
+  }
   if (it->contended) {
-    spn_path_t lock = spn_path_concat(mem, spn_toolchain_artifact_root(mem, job.artifact), ".lock");
-    sp_try(test_run_contended(t, spn_path_str(&roots, mem, lock), run, &job, &job.done, true));
+    spn_path_t lock = spn_path_concat(mem, root, ".lock");
+    sp_try(test_run_contended(t, spn_path_str(&roots, mem, lock), run, &job, &job.done, !it->installed));
   }
   else {
     run(&job);
@@ -74,6 +86,7 @@ sp_test_each(claim, wait, test_t, tests, .setup = spn_test_ctx_setup) {
     }
   }
   sp_expect_eq(t, notices, it->expect.notices);
+  sp_expect_eq(t, job.claim.present, it->expect.present);
 
   spn_path_roots_close(&roots);
   return SP_OK;
