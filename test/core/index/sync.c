@@ -13,6 +13,9 @@ typedef struct {
   bool mutate_remote;
   bool remove_remote;
   bool remove_repo;
+  bool unsynced;
+  bool failed;
+  bool force;
   bool cancelled;
   const c8* leftover;
   bool contended;
@@ -22,6 +25,8 @@ typedef struct {
     const c8* cached;
     bool cause;
     bool fresh;
+    bool held;
+    bool failed;
     bool waited;
   } expect;
 } sync_test_t;
@@ -64,6 +69,7 @@ static const sync_test_t tests [] = {
       .result = SPN_ERROR,
       .cached = "A",
       .cause = true,
+      .failed = true,
     },
   },
   {
@@ -177,6 +183,72 @@ static const sync_test_t tests [] = {
       .fresh = true,
     },
   },
+  {
+    .name = "failed_refresh_is_held",
+    .refresh = 600,
+    .cloned = true,
+    .unsynced = true,
+    .remove_remote = true,
+    .expect = {
+      .result = SPN_ERROR,
+      .cached = "A",
+      .cause = true,
+      .fresh = true,
+      .held = true,
+      .failed = true,
+    },
+  },
+  {
+    .name = "held_refresh_is_not_attempted",
+    .refresh = 600,
+    .cloned = true,
+    .unsynced = true,
+    .failed = true,
+    .mutate_remote = true,
+    .expect = {
+      .result = SPN_ERROR,
+      .cached = "A",
+      .fresh = true,
+      .held = true,
+      .failed = true,
+    },
+  },
+  {
+    .name = "forced_refresh_ignores_the_hold",
+    .refresh = 600,
+    .cloned = true,
+    .unsynced = true,
+    .failed = true,
+    .force = true,
+    .mutate_remote = true,
+    .expect = {
+      .cached = "B",
+      .fresh = true,
+    },
+  },
+  {
+    .name = "hold_ends_with_the_interval",
+    .cloned = true,
+    .unsynced = true,
+    .failed = true,
+    .mutate_remote = true,
+    .expect = {
+      .cached = "B",
+    },
+  },
+  {
+    .name = "cancelled_refresh_is_not_held",
+    .refresh = 600,
+    .cloned = true,
+    .unsynced = true,
+    .mutate_remote = true,
+    .cancelled = true,
+    .expect = {
+      .result = SPN_ERROR,
+      .cached = "A",
+      .cause = true,
+    },
+  },
 };
 
 static void commit_seed(sp_mem_t mem, sp_str_t repo, const c8* content) {
@@ -256,6 +328,7 @@ sp_test_each(index_sync, sync, sync_test_t, tests, .setup = spn_test_ctx_setup) 
   sp_str_t cache = sp_fs_join_path(mem, tmp, sp_str_lit("cache/index"));
   sp_str_t lock = sp_fs_join_path(mem, tmp, sp_str_lit("cache/index.lock"));
   sp_str_t witness = sp_fs_join_path(mem, cache, sp_str_lit(".git/A"));
+  sp_str_t failed = sp_fs_join_path(mem, cache, sp_str_lit(".git/spn-failed"));
 
   sp_fs_create_dir(remote);
   git_repo_init(remote);
@@ -274,6 +347,12 @@ sp_test_each(index_sync, sync, sync_test_t, tests, .setup = spn_test_ctx_setup) 
   if (it->cloned) {
     sp_expect_eq(t, SPN_OK, spn_index_sync(&index, spn_index_plan(&index, false), &cancelled, &failure));
   }
+  if (it->unsynced) {
+    sp_must_ok(t, sp_fs_remove_file(sp_fs_join_path(mem, cache, sp_str_lit(".git/spn-synced"))));
+  }
+  if (it->failed) {
+    sp_must_ok(t, sp_fs_create_file_str(failed, sp_str_lit("")));
+  }
   if (it->mutate_remote) {
     commit_seed(mem, remote, "B");
   }
@@ -289,7 +368,7 @@ sp_test_each(index_sync, sync, sync_test_t, tests, .setup = spn_test_ctx_setup) 
   }
 
   sp_atomic_s32_store(&cancelled, it->cancelled, SP_ATOMIC_SEQ_CST);
-  sync_job_t job = { .index = &index, .plan = it->planned_early ? early : spn_index_plan(&index, false), .cancelled = &cancelled };
+  sync_job_t job = { .index = &index, .plan = it->planned_early ? early : spn_index_plan(&index, it->force), .cancelled = &cancelled };
   if (it->contended) {
     sp_try(test_run_contended(t, lock, run_sync, &job, &job.done, it->expect.waited));
   }
@@ -316,6 +395,8 @@ sp_test_each(index_sync, sync, sync_test_t, tests, .setup = spn_test_ctx_setup) 
 
   spn_index_plan_t plan = spn_index_plan(&index, false);
   sp_expect_eq(t, it->expect.fresh, plan.present && !plan.fetch);
+  sp_expect_eq(t, it->expect.held, plan.held);
+  sp_expect_eq(t, it->expect.failed, sp_fs_exists(failed));
 
   return SP_OK;
 }

@@ -12,6 +12,7 @@
 typedef struct {
   bool present;
   bool fetch;
+  bool held;
   bool force;
 } spn_index_plan_t;
 

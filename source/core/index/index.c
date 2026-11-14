@@ -23,17 +23,20 @@
 #include "paths/paths.h"
 #include "str/str.h"
 
-static sp_path_t git_index_stamp(sp_mem_t mem, spn_index_info_t* index) {
-  return sp_path_join(mem, index->location.at, sp_str_lit(".git/spn-synced"));
+#define git_index_synced ".git/spn-synced"
+#define git_index_failed ".git/spn-failed"
+
+static sp_path_t git_index_stamp(sp_mem_t mem, spn_index_info_t* index, const c8* stamp) {
+  return sp_path_join(mem, index->location.at, sp_cstr_as_str(stamp));
 }
 
 static spn_path_t git_index_staging(sp_mem_t mem, spn_index_info_t* index) {
   return spn_path_join(mem, spn_path_parent((spn_path_t) { .sub = index->location.dir }), sp_str_lit("t"));
 }
 
-static bool git_index_stale(spn_index_info_t* index) {
+static bool git_index_expired(spn_index_info_t* index, const c8* stamp) {
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  sp_tm_epoch_t mod_time = sp_fs_get_mod_time_at(git_index_stamp(scratch.mem, index));
+  sp_tm_epoch_t mod_time = sp_fs_get_mod_time_at(git_index_stamp(scratch.mem, index, stamp));
   sp_mem_end_scratch(scratch);
 
   sp_tm_epoch_t now = sp_tm_now_epoch();
@@ -109,9 +112,14 @@ static spn_err_t git_index_freshen(spn_index_info_t* index, sp_atomic_s32_t* can
       break;
     }
 
-    sp_fs_create_file_at(git_index_stamp(scratch.mem, index));
+    sp_fs_create_file_at(git_index_stamp(scratch.mem, index, git_index_synced));
+    sp_fs_remove_file_at(git_index_stamp(scratch.mem, index, git_index_failed));
     err = SPN_OK;
     break;
+  }
+
+  if (err && failure->kind != SPN_GIT_CANCELLED) {
+    sp_fs_create_file_at(git_index_stamp(scratch.mem, index, git_index_failed));
   }
 
   sp_mem_end_scratch(scratch);
@@ -131,10 +139,12 @@ spn_index_plan_t spn_index_plan(spn_index_info_t* index, bool force) {
   switch (index->protocol) {
     case SPN_INDEX_PROTOCOL_GIT: {
       bool present = sp_fs_exists_at(at);
-      bool pinned = !sp_str_empty(index->git.rev);
+      bool due = sp_str_empty(index->git.rev) && git_index_expired(index, git_index_synced);
+      bool held = present && !force && due && !git_index_expired(index, git_index_failed);
       return (spn_index_plan_t) {
         .present = present,
-        .fetch = !present || force || (!pinned && git_index_stale(index)),
+        .fetch = !present || force || (due && !held),
+        .held = held,
         .force = force,
       };
     }
@@ -151,7 +161,10 @@ spn_index_plan_t spn_index_plan(spn_index_info_t* index, bool force) {
 static spn_err_t git_index_sync(spn_index_info_t* index, spn_index_plan_t plan, sp_atomic_s32_t* cancelled, spn_git_failure_t* failure) {
   sp_str_t dir = index->location.dir;
   if (sp_str_empty(index->git.rev)) {
-    return plan.fetch ? git_index_freshen(index, cancelled, failure) : SPN_OK;
+    if (!plan.fetch) {
+      return plan.held ? SPN_ERROR : SPN_OK;
+    }
+    return git_index_freshen(index, cancelled, failure);
   }
   if (!plan.present) {
     spn_try(git_index_clone(index, cancelled, failure));
@@ -167,7 +180,7 @@ spn_err_t spn_index_sync(spn_index_info_t* index, spn_index_plan_t plan, sp_atom
   switch (index->protocol) {
     case SPN_INDEX_PROTOCOL_GIT: {
       if (sp_str_empty(index->git.rev) && !plan.fetch) {
-        return SPN_OK;
+        return plan.held ? SPN_ERROR : SPN_OK;
       }
 
       sp_fs_lock_t lock = sp_zero;
@@ -278,7 +291,7 @@ static spn_err_t publish_git(spn_index_info_t* index, spn_index_release_t* rel, 
       break;
     }
 
-    sp_fs_remove_file_at(git_index_stamp(scratch.mem, index));
+    sp_fs_remove_file_at(git_index_stamp(scratch.mem, index, git_index_synced));
     index_append_release(index, rel);
     *dirtied = true;
 
@@ -312,7 +325,7 @@ static spn_err_t publish_git(spn_index_info_t* index, spn_index_release_t* rel, 
 
     sp_str_t refspec = sp_fmt(scratch.mem, "HEAD:refs/heads/{}", sp_fmt_str(branch)).value;
     if (!spn_git_cli_push(scratch.mem, dir, url, refspec, &output)) {
-      sp_fs_create_file_at(git_index_stamp(scratch.mem, index));
+      sp_fs_create_file_at(git_index_stamp(scratch.mem, index, git_index_synced));
       sp_mem_end_scratch(scratch);
       return SPN_OK;
     }

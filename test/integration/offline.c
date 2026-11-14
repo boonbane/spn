@@ -120,6 +120,35 @@ static const rebuild_test_t rebuilds [] = {
       },
     },
   },
+  {
+    .name = "failed_refresh_is_not_retried",
+    .project = "test/integration/fixtures/deps/index/binary_static",
+    .first.args = { "add", "spum" },
+    .rebuilds = {
+      {
+        .change = {
+          .remove_files = { index_file(".git/spn-synced") },
+          .remove_dirs = { ".st/spn/packages" },
+        },
+        .command = {
+          .args = { "add", "spum" },
+          .expect.events = {
+            { .event = SPN_EVENT_SYNC, .key = "name", .value = "core" },
+            { .event = SPN_EVENT_SYNC_STALE },
+          },
+        },
+      },
+      {
+        .command = {
+          .args = { "add", "spum" },
+          .expect.events = {
+            { .event = SPN_EVENT_SYNC, .absent = true },
+            { .event = SPN_EVENT_SYNC_STALE },
+          },
+        },
+      },
+    },
+  },
 };
 
 sp_test_each(offline, rebuild, rebuild_test_t, rebuilds) {
