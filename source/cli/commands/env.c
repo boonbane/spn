@@ -106,13 +106,19 @@ static sp_cli_result_t env(sp_cli_t* cli) {
 
 #if defined(SP_WIN32)
 static bool batch_script(sp_mem_t mem, sp_str_t command, sp_str_t* script) {
-  c8 path [SP_PATH_MAX] = sp_zero;
-  u32 len = GetFullPathNameA(sp_str_to_cstr(mem, command), SP_PATH_MAX, path, SP_NULLPTR);
+  sp_wide_str_t wide = sp_zero;
+  if (sp_wtf8_to_wtf16(mem, command, &wide)) {
+    return false;
+  }
+  WCHAR path [SP_PATH_MAX] = sp_zero;
+  u32 len = GetFullPathNameW((LPCWSTR)wide.data, SP_PATH_MAX, path, SP_NULLPTR);
   if (!len || len >= SP_PATH_MAX) {
     return false;
   }
-  *script = sp_str_copy(mem, sp_str(path, len));
-  sp_str_t ext = sp_str_to_lower(mem, sp_str_suffix(*script, (s32)sp_min(len, 4)));
+  if (sp_wtf16_to_wtf8(mem, sp_wide_str((const u16*)path, len), script)) {
+    return false;
+  }
+  sp_str_t ext = sp_str_to_lower(mem, sp_str_suffix(*script, (s32)sp_min(script->len, 4)));
   return sp_str_equal(ext, sp_str_lit(".bat")) || sp_str_equal(ext, sp_str_lit(".cmd"));
 }
 
@@ -167,7 +173,8 @@ static sp_cli_result_t run_batch(sp_mem_t mem, sp_str_t name, sp_str_t command, 
     sp_str_t path = sp_fmt(mem, ".\\{}", sp_fmt_str(command)).value;
     return spn_cli_usage("failed to run {.red}: name a batch file by its path, like {.cyan}", sp_fmt_str(name), sp_fmt_str(path));
   }
-  if (GetFileAttributesA(sp_str_to_cstr(mem, script)) == INVALID_FILE_ATTRIBUTES) {
+  sp_wide_str_t wide_script = sp_zero;
+  if (sp_wtf8_to_wtf16(mem, script, &wide_script) || GetFileAttributesW((LPCWSTR)wide_script.data) == INVALID_FILE_ATTRIBUTES) {
     return spn_cli_usage("failed to run {.red}", sp_fmt_str(name));
   }
 
@@ -192,18 +199,27 @@ static sp_cli_result_t run_batch(sp_mem_t mem, sp_str_t name, sp_str_t command, 
   sp_io_write_c8(&block.base, '\0');
   sp_io_write_c8(&block.base, '\0');
 
-  c8 system [SP_PATH_MAX] = sp_zero;
-  u32 len = GetSystemDirectoryA(system, SP_PATH_MAX);
-  c8* shell = sp_str_to_cstr(mem, sp_fmt(mem, "{}\\cmd.exe", sp_fmt_str(sp_str(system, len))).value);
+  WCHAR system [SP_PATH_MAX] = sp_zero;
+  u32 len = GetSystemDirectoryW(system, SP_PATH_MAX);
+  sp_str_t dir = sp_zero;
+  sp_wide_str_t shell = sp_zero;
+  sp_wide_str_t wide_line = sp_zero;
+  sp_wide_str_t wide_block = sp_zero;
+  if (sp_wtf16_to_wtf8(mem, sp_wide_str((const u16*)system, len), &dir) ||
+      sp_wtf8_to_wtf16(mem, sp_fmt(mem, "{}\\cmd.exe", sp_fmt_str(dir)).value, &shell) ||
+      sp_wtf8_to_wtf16(mem, sp_io_dyn_mem_writer_as_str(&line), &wide_line) ||
+      sp_wtf8_to_wtf16(mem, sp_io_dyn_mem_writer_as_str(&block), &wide_block)) {
+    return spn_cli_usage("failed to run {.red}", sp_fmt_str(name));
+  }
 
-  STARTUPINFOA startup = { .cb = sizeof(STARTUPINFOA), .dwFlags = STARTF_USESTDHANDLES };
+  STARTUPINFOW startup = { .cb = sizeof(STARTUPINFOW), .dwFlags = STARTF_USESTDHANDLES };
   HANDLE self = GetCurrentProcess();
   DuplicateHandle(self, GetStdHandle(STD_INPUT_HANDLE), self, &startup.hStdInput, 0, TRUE, DUPLICATE_SAME_ACCESS);
   DuplicateHandle(self, GetStdHandle(STD_OUTPUT_HANDLE), self, &startup.hStdOutput, 0, TRUE, DUPLICATE_SAME_ACCESS);
   DuplicateHandle(self, GetStdHandle(STD_ERROR_HANDLE), self, &startup.hStdError, 0, TRUE, DUPLICATE_SAME_ACCESS);
 
   PROCESS_INFORMATION child = sp_zero;
-  BOOL created = CreateProcessA(shell, (c8*)sp_io_dyn_mem_writer_as_str(&line).data, SP_NULLPTR, SP_NULLPTR, TRUE, 0, (void*)sp_io_dyn_mem_writer_as_str(&block).data, SP_NULLPTR, &startup, &child);
+  BOOL created = CreateProcessW((LPCWSTR)shell.data, (LPWSTR)wide_line.data, SP_NULLPTR, SP_NULLPTR, TRUE, CREATE_UNICODE_ENVIRONMENT, (void*)wide_block.data, SP_NULLPTR, &startup, &child);
   CloseHandle(startup.hStdInput);
   CloseHandle(startup.hStdOutput);
   CloseHandle(startup.hStdError);

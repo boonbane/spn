@@ -9,6 +9,7 @@ system_deps = [
   # 0.4.3 and only applies package system deps
   { lib = "advapi32", when = { os = "windows" } },
   { lib = "user32", when = { os = "windows" } },
+  { lib = "shell32", when = { os = "windows" } },
 ]
 
 [package.configure]
@@ -48,6 +49,7 @@ files = [
   "tools/patches/sp-prompt-passive.patch",
   "tools/patches/sp-macos-create-race.patch",
   "tools/patches/sp-ps-group.patch",
+  "tools/patches/sp-ps-wide.patch",
 ]
 
 [patch.wamr]

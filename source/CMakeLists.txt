@@ -195,7 +195,7 @@ target_include_directories(spn PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/cli)
 target_link_libraries(spn PRIVATE spn_core)
 if(WIN32)
   # cli/install/install.c touches HKCU\Environment and WM_SETTINGCHANGE
-  target_link_libraries(spn PRIVATE advapi32 user32)
+  target_link_libraries(spn PRIVATE advapi32 user32 shell32)
 endif()
 # vmlib carries C++ objects (WAMR Fast JIT: asmjit + x86_64 codegen). spn's own
 # sources are all C, so CMake would link with the C driver and miss the C++
