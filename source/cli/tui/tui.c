@@ -2177,11 +2177,15 @@ void spn_tui_init(spn_tui_t* tui, spn_tui_desc_t desc) {
   if (desc.json) {
     sp_io_writer_set_buffer(tui->out->io, tui->jsonl, sizeof(tui->jsonl));
   }
-  if (desc.no_color) {
+  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+  sp_env_t env = sp_env_capture(scratch.mem);
+  bool dumb = sp_str_equal(sp_env_get_c(&env, "TERM"), sp_str_lit("dumb"));
+  sp_mem_end_scratch(scratch);
+  if (desc.no_color || dumb) {
     tui->out->color = SP_TTY_COLOR_NONE;
     tui->err->color = SP_TTY_COLOR_NONE;
   }
-  tui->interactive = !desc.json && sp_sys_is_tty(sp_sys_stderr) && sp_sys_is_tty(sp_sys_stdin);
+  tui->interactive = !desc.json && !dumb && sp_sys_is_tty(sp_sys_stderr) && sp_sys_is_tty(sp_sys_stdin);
 #ifdef SP_WIN32
   if (sp_sys_is_tty(sp_sys_stdout) || sp_sys_is_tty(sp_sys_stderr)) {
     SetConsoleCP(CP_UTF8);
