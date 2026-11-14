@@ -38,6 +38,7 @@
     "codegen_expected_bool": { "properties": {} },
     "codegen_expected_str": { "properties": {} },
     "codegen_expected_int": { "properties": {} },
+    "codegen_expected_positive": { "properties": {} },
     "codegen_expected_object": { "properties": {} },
     "codegen_missing_key": { "properties": {} },
     "codegen_duplicate_key": { "properties": {} },

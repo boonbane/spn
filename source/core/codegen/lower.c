@@ -450,7 +450,7 @@ spn_net_config_t spn_net_lower(spn_toml_loader_t* ctx, const spn_cg_net_t* cg) {
   u64 timeout = sp_opt_is_null(cg->timeout) ? spn_net_default_timeout_s : sp_opt_get(cg->timeout);
   if (!timeout) {
     spn_toml_loader_push_key(ctx, "net");
-    spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "timeout");
+    spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_EXPECTED_POSITIVE, "timeout");
     spn_toml_loader_pop(ctx);
   }
   return (spn_net_config_t) {

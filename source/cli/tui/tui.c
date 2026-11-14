@@ -111,6 +111,9 @@ static void write_issue(sp_tty_t* w, const spn_toml_issue_t* issue) {
     case SPN_ERR_CODEGEN_EXPECTED_INT:
       sp_tty_fmt(w, "Field {.cyan} must be a non-negative integer", SP_FMT_STR(field));
       break;
+    case SPN_ERR_CODEGEN_EXPECTED_POSITIVE:
+      sp_tty_fmt(w, "Field {.cyan} must be a positive integer", SP_FMT_STR(field));
+      break;
     case SPN_ERR_CODEGEN_EXPECTED_BOOL:
       sp_tty_fmt(w, "Field {.cyan} must be a boolean", SP_FMT_STR(field));
       break;

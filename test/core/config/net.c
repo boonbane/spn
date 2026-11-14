@@ -37,7 +37,7 @@ static const test_t tests [] = {
   {
     .name = "zero_timeout_is_invalid",
     .config = "net_timeout_zero",
-    .expect = { .issue = { SPN_ERR_CODEGEN_INVALID, "net.timeout" } },
+    .expect = { .issue = { SPN_ERR_CODEGEN_EXPECTED_POSITIVE, "net.timeout" } },
   },
   {
     .name = "timeout_above_max_saturates",
