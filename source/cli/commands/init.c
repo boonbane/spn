@@ -138,7 +138,7 @@ static spn_err_t scaffold(sp_mem_t mem, sp_str_t project) {
 }
 
 static sp_cli_result_t init(sp_cli_t* cli) {
-  try(spn_cli_open(true));
+  try(spn_cli_open_here());
 
   spn_tui_handoff(&tui);
   return scaffold(host.mem, spn_ctx_project_dir(host.ctx)) ? SP_CLI_ERR : SP_CLI_OK;

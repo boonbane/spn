@@ -50,13 +50,22 @@ spn_str_arr_t spn_cli_rest_names(sp_cli_t* cli) {
   return names;
 }
 
-sp_cli_result_t spn_cli_open(bool project_optional) {
+static sp_cli_result_t open_ctx(bool project_optional, bool search) {
   spn_err_t err = spn_ctx_open(host.ctx, (spn_open_request_t) {
     .dir = host.args.project_dir,
     .index_refresh_seconds = host.args.refresh,
     .project_optional = project_optional,
+    .search = search,
   });
   return err ? SP_CLI_ERR : SP_CLI_OK;
+}
+
+sp_cli_result_t spn_cli_open(bool project_optional) {
+  return open_ctx(project_optional, true);
+}
+
+sp_cli_result_t spn_cli_open_here() {
+  return open_ctx(true, false);
 }
 
 sp_cli_result_t spn_cli_session(spn_session_config_t config) {

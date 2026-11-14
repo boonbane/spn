@@ -147,12 +147,33 @@ static spn_err_t create_root(spn_ctx_t* ctx, spn_path_root_t kind, spn_path_t di
   return SPN_OK;
 }
 
+// The nearest directory with a manifest, from the working directory up
+static sp_str_t find_project(sp_mem_t mem) {
+  sp_str_t dir = sp_zero;
+  if (sp_fs_get_cwd_path(mem, &dir)) {
+    return sp_str_lit(".");
+  }
+  while (!sp_fs_is_file(sp_fs_join_path(mem, dir, sp_str_lit("spn.toml")))) {
+    if (sp_fs_is_root(dir)) {
+      return sp_str_lit(".");
+    }
+    dir = sp_fs_parent_path(dir);
+  }
+  return dir;
+}
+
 static spn_err_t open_roots(spn_ctx_t* ctx, spn_open_request_t request) {
   sp_str_t home = sp_zero;
   sp_fs_get_storage_path(ctx->heap, &home);
   sp_str_t storage = env_or(ctx, "SPN_STORAGE_DIR", sp_fs_join_path(ctx->heap, home, sp_str_lit("spn")));
   sp_str_t toolchain = sp_env_get(ctx->env, sp_str_lit("SPN_TOOLCHAIN_DIR"));
-  sp_str_t project = sp_str_valid(request.dir) ? request.dir : sp_str_lit(".");
+  sp_str_t project = sp_str_lit(".");
+  if (sp_str_valid(request.dir)) {
+    project = request.dir;
+  }
+  else if (request.search) {
+    project = find_project(ctx->heap);
+  }
   spn_try(create_root(ctx, SPN_PATH_ROOT_STORAGE, (spn_path_t) { .sub = storage }));
   spn_try(create_root(ctx, SPN_PATH_ROOT_TOOLCHAIN, sp_str_empty(toolchain) ? (spn_path_t) { .root = SPN_PATH_ROOT_STORAGE, .sub = sp_str_lit("cache/toolchain") } : (spn_path_t) { .sub = toolchain }));
   for (u32 it = SPN_DIR_ID_NONE + 1; it < SPN_DIR_ID_COUNT; it++) {

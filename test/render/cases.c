@@ -59,7 +59,7 @@ static cell_t cells [] = {
   },
   {
     .name = "build_no_manifest",
-    .args = { "build" },
+    .args = { "-C", ".", "build" },
   },
   {
     .name = "manifest_invalid",

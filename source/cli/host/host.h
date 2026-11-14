@@ -108,6 +108,7 @@ sp_cli_result_t spn_cli_usage(const c8* fmt, ...);
 sp_cli_result_t spn_cli_parse_profile(spn_profile_override_t* profile);
 spn_str_arr_t spn_cli_rest_names(sp_cli_t* cli);
 sp_cli_result_t spn_cli_open(bool project_optional);
+sp_cli_result_t spn_cli_open_here();
 sp_cli_result_t spn_cli_session(spn_session_config_t config);
 sp_cli_result_t spn_cli_op(spn_op_t* op);
 spn_err_t spn_cli_wait(spn_op_t* op);

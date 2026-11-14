@@ -26,6 +26,24 @@ static const test_t tests [] = {
     },
   },
   {
+    .name = "build_from_subdirectory",
+    .project = "test/integration/fixtures/freshness/bin",
+    .actions = {
+      { .kind = ACTION_CREATE_FILE, .create = { .file = "sub/A", .content = "A" } },
+      { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build", .cwd = "sub" } },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
+    },
+  },
+  {
+    .name = "init_in_subdirectory",
+    .project = "test/integration/fixtures/freshness/bin",
+    .actions = {
+      { .kind = ACTION_CREATE_FILE, .create = { .file = "sub/A", .content = "A" } },
+      { .kind = ACTION_RUN_CLI, .cli = { .cmd = "init", .cwd = "sub" } },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = lit("sub/spn.toml") },
+    },
+  },
+  {
     .name = "init",
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { .cmd = "init" } },

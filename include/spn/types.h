@@ -150,6 +150,7 @@ typedef struct {
   sp_str_t dir;
   u32 index_refresh_seconds;
   bool project_optional;
+  bool search;
 } spn_open_request_t;
 
 typedef struct {
