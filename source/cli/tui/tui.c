@@ -284,6 +284,53 @@ static void write_supported_targets(sp_tty_t* w, sp_da(spn_triple_t) triples) {
   sp_mem_end_scratch(scratch);
 }
 
+static void write_unpack(sp_tty_t* w, const spn_err_artifact_t* artifact) {
+  switch (artifact->unpack) {
+    case SPN_UNPACK_NONE: {
+      sp_io_write_str(w->io, artifact->output, SP_NULLPTR);
+      break;
+    }
+    case SPN_UNPACK_UNREADABLE: {
+      sp_tty_fmt(w, "The downloaded archive couldn't be read");
+      break;
+    }
+    case SPN_UNPACK_UNRECOGNIZED: {
+      sp_tty_fmt(w, "The downloaded file isn't an archive spn can extract");
+      break;
+    }
+    case SPN_UNPACK_CORRUPT: {
+      if (sp_str_empty(artifact->entry)) {
+        sp_tty_fmt(w, "The archive is corrupt");
+      }
+      else {
+        sp_tty_fmt(w, "The archive is corrupt at {.cyan}", sp_fmt_str(artifact->entry));
+      }
+      break;
+    }
+    case SPN_UNPACK_UNSUPPORTED: {
+      sp_tty_fmt(w, "The archive contains an entry that isn't a file, directory, or link");
+      break;
+    }
+    case SPN_UNPACK_UNSAFE: {
+      sp_tty_fmt(w, "{.cyan} would be written outside the toolchain directory", sp_fmt_str(artifact->entry));
+      break;
+    }
+    case SPN_UNPACK_UNWRITABLE: {
+      if (sp_str_empty(artifact->entry)) {
+        sp_tty_fmt(w, "The toolchain directory couldn't be written");
+      }
+      else {
+        sp_tty_fmt(w, "{.cyan} couldn't be written", sp_fmt_str(artifact->entry));
+      }
+      break;
+    }
+    case SPN_UNPACK_EMPTY: {
+      sp_tty_fmt(w, "The archive has nothing under its top-level directory");
+      break;
+    }
+  }
+}
+
 static void write_refusal(sp_tty_t* w, sp_mem_t mem, spn_triple_t target, spn_linking_refusal_t reason) {
   sp_str_t triple = spn_triple_to_str(mem, target);
   switch (reason) {
@@ -1782,9 +1829,12 @@ static void render_event_extra(sp_tty_t* w, spn_event_t* event) {
           sp_io_write_str(w->io, event->err.index.cause, SP_NULLPTR);
           break;
         }
-        case SPN_ERR_TOOLCHAIN_FETCH:
-        case SPN_ERR_TOOLCHAIN_EXTRACT: {
+        case SPN_ERR_TOOLCHAIN_FETCH: {
           sp_io_write_str(w->io, event->err.artifact.output, SP_NULLPTR);
+          break;
+        }
+        case SPN_ERR_TOOLCHAIN_EXTRACT: {
+          write_unpack(w, &event->err.artifact);
           break;
         }
         case SPN_ERR_CERT_UNTRUSTED: {

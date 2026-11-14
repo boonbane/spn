@@ -1,152 +1,70 @@
-#include "toolchain.h"
+#include "spn_test.h"
 
-#define PROVISION_MAX_TOOLCHAINS 2
-
-typedef enum {
-  PROVISION_TARBALL_TREE,
-  PROVISION_TARBALL_GARBAGE,
-  PROVISION_TARBALL_LOOSE,
-} provision_tarball_t;
+#include "paths/paths.h"
+#include "toolchain/provision.h"
+#include "toolchain/toolchain.h"
 
 typedef struct {
-  spn_err_t kind;
-  u32 installs;
-  bool extracted;
-  bool store_clean;
-} provision_expect_t;
-
-typedef struct {
-  const c8* name;
-  const c8* toolchains [PROVISION_MAX_TOOLCHAINS];
-  provision_tarball_t tarball;
-  bool dest_file;
-  provision_expect_t expect;
-} provision_test_t;
+  spn_err_t err;
+  spn_unpack_reason_t unpack;
+  const c8* entry;
+  bool output;
+  const c8* file;
+  bool present;
+  u32 stored;
+} expect_t;
 
 typedef struct {
   const c8* name;
-  const c8* url;
-  const c8* mirror;
-  const c8* expect;
-} resolve_test_t;
+  const c8* archive;
+  bool occupied;
+  bool reclaim;
+  expect_t expect;
+} test_t;
 
-static const provision_test_t tests [] = {
+static const test_t tests [] = {
   {
-    .name = "fresh_artifact_installs",
-    .expect = {
-      .installs = 1,
-      .extracted = true,
-    },
+    .name = "xz_archive_installs",
+    .archive = "file.tar.xz",
+    .expect = { .file = "B", .stored = 2 },
   },
   {
-    .name = "artifacts_share_store_by_sha",
-    .toolchains = { "A", "B" },
-    .expect = {
-      .installs = 1,
-      .extracted = true,
-    },
+    .name = "other_formats_fall_back_to_tar",
+    .archive = "file.tar.gz",
+    .expect = { .file = "B", .stored = 2 },
   },
   {
-    .name = "corrupt_archive_fails_and_leaves_no_store_entry",
-    .tarball = PROVISION_TARBALL_GARBAGE,
-    .expect = {
-      .kind = SPN_ERR_TOOLCHAIN_EXTRACT,
-      .installs = 1,
-      .store_clean = true,
-    },
+    .name = "installed_artifact_is_present_to_the_next_claim",
+    .archive = "file.tar.xz",
+    .reclaim = true,
+    .expect = { .present = true, .stored = 2 },
   },
   {
-    .name = "single_file_archive_fails_extract",
-    .tarball = PROVISION_TARBALL_LOOSE,
-    .expect = {
-      .kind = SPN_ERR_TOOLCHAIN_EXTRACT,
-      .installs = 1,
-      .store_clean = true,
-    },
+    .name = "unpack_failure_carries_its_reason_and_entry",
+    .archive = "dotdot.tar.xz",
+    .expect = { .err = SPN_ERR_TOOLCHAIN_EXTRACT, .unpack = SPN_UNPACK_UNSAFE, .entry = "A/../B", .stored = 1 },
   },
   {
-    .name = "dest_occupied_by_file_fails",
-    .dest_file = true,
-    .expect = {
-      .kind = SPN_ERR_TOOLCHAIN_EXTRACT,
-      .installs = 1,
-    },
+    .name = "tar_failure_carries_its_output",
+    .archive = "bytes",
+    .expect = { .err = SPN_ERR_TOOLCHAIN_EXTRACT, .output = true, .stored = 1 },
+  },
+  {
+    .name = "archive_with_nothing_inside_is_empty",
+    .archive = "loose.tar.xz",
+    .expect = { .err = SPN_ERR_TOOLCHAIN_EXTRACT, .unpack = SPN_UNPACK_EMPTY, .stored = 1 },
+  },
+  {
+    .name = "root_occupied_by_a_file_fails",
+    .archive = "file.tar.xz",
+    .occupied = true,
+    .expect = { .err = SPN_ERR_TOOLCHAIN_EXTRACT, .stored = 2 },
   },
 };
 
-static const resolve_test_t resolve_tests [] = {
-  {
-    .name = "mirror_rewrites_url",
-    .url = "https://tc.example.com/x/A.tar.gz",
-    .mirror = "https://mirror.example.com/M",
-    .expect = "https://mirror.example.com/M/A.tar.gz",
-  },
-  {
-    .name = "mirror_trailing_slash",
-    .url = "https://tc.example.com/x/A.tar.gz",
-    .mirror = "https://mirror.example.com/M/",
-    .expect = "https://mirror.example.com/M/A.tar.gz",
-  },
-  {
-    .name = "url_without_file_stays_on_mirror",
-    .url = "https://tc.example.com/",
-    .mirror = "https://mirror.example.com/M",
-    .expect = "https://mirror.example.com/M/",
-  },
-};
-
-static void provision_create(sp_mem_t mem, sp_str_t dir, const c8* rel, const c8* content) {
-  sp_str_t path = sp_fs_join_path(mem, dir, sp_cstr_as_str(rel));
-  sp_fs_create_dir(sp_fs_parent_path(path));
-  sp_fs_write(path, sp_cstr_as_str(content), SP_FS_WRITE_TRUNCATE);
-}
-
-sp_test_each(provision, store, provision_test_t, tests, .setup = spn_test_ctx_setup) {
+sp_test_each(provision, install, test_t, tests, .setup = spn_test_ctx_setup) {
   sp_mem_t mem = sp_test_arena(t);
-  sp_str_t dir = test_dir_str(t);
-  sp_str_t tarball = sp_fs_join_path(mem, dir, sp_str_lit("A.tar.gz"));
-
-  switch (it->tarball) {
-    case PROVISION_TARBALL_TREE: {
-      provision_create(mem, dir, "tree/A/B", "B");
-      provision_create(mem, dir, "tree/A/lib/C", "C");
-      sp_ps_output_t tar = sp_ps_run(mem, (sp_ps_config_t) {
-        .command = sp_str_lit("tar"),
-        .args = {
-          sp_str_lit("czf"), tarball,
-          sp_str_lit("-C"), sp_fs_join_path(mem, dir, sp_str_lit("tree")),
-          sp_str_lit("A"),
-        }
-      });
-      sp_must_eq(t, 0, tar.status.exit_code);
-      break;
-    }
-    case PROVISION_TARBALL_GARBAGE: {
-      provision_create(mem, dir, "A.tar.gz", "A");
-      break;
-    }
-    case PROVISION_TARBALL_LOOSE: {
-      provision_create(mem, dir, "B.txt", "B");
-      sp_ps_output_t tar = sp_ps_run(mem, (sp_ps_config_t) {
-        .command = sp_str_lit("tar"),
-        .args = {
-          sp_str_lit("czf"), tarball,
-          sp_str_lit("-C"), dir,
-          sp_str_lit("B.txt"),
-        }
-      });
-      sp_must_eq(t, 0, tar.status.exit_code);
-      break;
-    }
-  }
-
-  sp_str_t bytes = sp_zero;
-  sp_must_ok(t, sp_fs_read(mem, tarball, &bytes));
-  sp_str_t sha = test_sha256_hex(mem, bytes);
-  sp_must_eq(t, 64u, sha.len);
-
-  sp_path_t store_dir = sp_path_join(mem, sp_test_dir(t), sp_str_lit("store"));
-  sp_must_ok(t, sp_fs_create_dir_at(store_dir));
+  sp_must_ok(t, sp_fs_create_dir_at(sp_path_join(mem, sp_test_dir(t), sp_str_lit("store"))));
   spn_path_roots_t roots = sp_zero;
   spn_path_roots_set(&roots, mem, SPN_PATH_ROOT_TOOLCHAIN, sp_test_dir(t));
   spn_toolchain_store_t store = {
@@ -154,85 +72,58 @@ sp_test_each(provision, store, provision_test_t, tests, .setup = spn_test_ctx_se
     .roots = &roots,
   };
 
+  sp_path_t archive = sp_path_from_str(test_repo_path(mem, sp_test_format(t, "test/core/toolchain/archives/{}", sp_fmt_cstr(it->archive))));
+  sp_str_t bytes = sp_zero;
+  sp_must_ok(t, sp_fs_read_at(mem, archive, &bytes));
   spn_artifact_t artifact = {
-    .url = sp_fmt(mem, "https://tc.example.com/{}", sp_fmt_str(sp_fs_get_name(tarball))).value,
-    .sha256 = sha,
+    .url = sp_test_format(t, "https://A.example.com/{}", sp_fmt_cstr(it->archive)),
+    .sha256 = test_sha256_hex(mem, bytes),
   };
 
-  if (it->dest_file) {
-    sp_fs_write_at(spn_path_at(&roots, spn_toolchain_artifact_root(mem, artifact)), sp_str_lit("A"), SP_FS_WRITE_TRUNCATE);
+  sp_path_t root = spn_path_at(&roots, spn_toolchain_artifact_root(mem, artifact));
+  if (it->occupied) {
+    sp_must_ok(t, sp_fs_write_at(root, sp_str_lit("A"), SP_FS_WRITE_TRUNCATE));
   }
 
-  spn_err_union_t payload = sp_zero;
-  u32 installs = 0;
+  spn_toolchain_claim_t claim = spn_toolchain_claim(&store, mem, sp_str_lit("A"), artifact);
+  sp_must(t, !claim.present);
+  sp_must_ok(t, sp_fs_copy_file_at(archive, spn_path_at(&roots, claim.tarball), SP_FS_ATOMIC_REPLACE));
+  sp_expect_eq(t, (u32)it->expect.err, (u32)spn_toolchain_install(&store, &claim, sp_str_lit("A"), artifact.url));
 
-  sp_carr_for(it->toolchains, at) {
-    const c8* name = it->toolchains[at];
-    if (!name && !at) {
-      name = "A";
-    }
-    if (!name) {
-      break;
-    }
-
-    spn_err_t err = SPN_OK;
-    spn_toolchain_claim_t claim = spn_toolchain_claim(&store, mem, sp_cstr_as_str(name), artifact);
-    if (!claim.present) {
-      installs++;
-      sp_must_ok(t, sp_fs_copy_file_at(sp_path_from_str(tarball), spn_path_at(&roots, claim.tarball), SP_FS_ATOMIC_REPLACE));
-      err = spn_toolchain_install(&store, &claim, sp_cstr_as_str(name), artifact.url);
-    }
-    sp_must_eq(t, (u32)it->expect.kind, (u32)err);
-    if (err) {
-      sp_da(spn_event_t) errs = spn_test_drain_errs(mem);
-      sp_must_eq(t, 1, sp_da_size(errs));
-      payload = errs[0].err;
-      sp_expect_eq(t, payload.kind, err);
-      sp_expect_str_eq_c(t, payload.artifact.name, name);
-    }
+  spn_err_union_t failure = sp_zero;
+  sp_da(spn_event_t) errs = spn_test_drain_errs(mem);
+  sp_expect_eq(t, it->expect.err ? 1u : 0u, (u32)sp_da_size(errs));
+  if (!sp_da_empty(errs)) {
+    failure = errs[0].err;
   }
+  sp_expect_eq(t, (u32)it->expect.err, (u32)failure.kind);
+  sp_expect_eq(t, (u32)it->expect.unpack, (u32)failure.artifact.unpack);
+  sp_expect_str_eq_c(t, failure.artifact.entry, it->expect.entry);
+  sp_expect_eq(t, it->expect.output, !sp_str_empty(failure.artifact.output));
 
-  sp_expect_eq(t, it->expect.installs, installs);
-
-  if (it->expect.extracted) {
-    sp_path_t root = spn_path_at(&roots, spn_toolchain_artifact_root(mem, artifact));
+  if (it->expect.file) {
     sp_sys_file_meta_t meta = sp_zero;
-    sp_expect_ok(t, sp_fs_get_link_metadata_at(root, &meta));
-    sp_expect_eq(t, meta.kind, SP_FS_KIND_DIR);
-    sp_expect_ok(t, sp_fs_get_link_metadata_at(sp_path_join(mem, root, sp_str_lit("B")), &meta));
-    sp_expect_eq(t, meta.kind, SP_FS_KIND_FILE);
-    sp_expect_ok(t, sp_fs_get_link_metadata_at(sp_path_join(mem, root, sp_str_lit("lib/C")), &meta));
+    sp_expect_ok(t, sp_fs_get_link_metadata_at(sp_path_join(mem, root, sp_cstr_as_str(it->expect.file)), &meta));
     sp_expect_eq(t, meta.kind, SP_FS_KIND_FILE);
   }
-  if (it->expect.store_clean) {
-    sp_str_t lock = sp_fmt(mem, "{}.lock", sp_fmt_str(artifact.sha256)).value;
-    u32 entries = 0;
-    sp_sys_dir_t store = sp_zero;
-    sp_must_ok(t, sp_fs_open_dir_at(spn_path_at(&roots, spn_path_from_id(SPN_DIR_ID_TOOLCHAIN_STORE)), &store));
-    SP_ALIGNED u8 buf [SP_SYS_DIR_MIN_BUF];
-    sp_fs_dir_it_t walk = sp_fs_dir_it(store);
-    sp_fs_dir_entry_t entry = sp_zero;
-    while (sp_fs_dir_it_next(&walk, sp_mem_slice(buf, sizeof(buf)), &entry)) {
-      entries++;
-      sp_expect_str_eq(t, entry.name, lock);
-    }
-    sp_fs_dir_it_close(&walk);
-    sp_fs_close_dir(store);
-    sp_must_eq(t, 1u, entries);
+  if (it->reclaim) {
+    spn_toolchain_claim_t again = spn_toolchain_claim(&store, mem, sp_str_lit("A"), artifact);
+    sp_expect_eq(t, it->expect.present, again.present);
   }
+
+  u32 stored = 0;
+  sp_sys_dir_t dir = sp_zero;
+  sp_must_ok(t, sp_fs_open_dir_at(spn_path_at(&roots, spn_path_from_id(SPN_DIR_ID_TOOLCHAIN_STORE)), &dir));
+  SP_ALIGNED u8 buf [SP_SYS_DIR_MIN_BUF] = sp_zero;
+  sp_fs_dir_it_t walk = sp_fs_dir_it(dir);
+  sp_fs_dir_entry_t entry = sp_zero;
+  while (sp_fs_dir_it_next(&walk, sp_mem_slice(buf, sizeof(buf)), &entry)) {
+    stored++;
+  }
+  sp_fs_dir_it_close(&walk);
+  sp_fs_close_dir(dir);
+  sp_expect_eq(t, it->expect.stored, stored);
+
   spn_path_roots_close(&roots);
-
-  return SP_OK;
-}
-
-sp_test_each(provision, resolve_url, resolve_test_t, resolve_tests) {
-  sp_mem_t mem = sp_test_arena(t);
-
-  spn_artifact_t artifact = {
-    .url = sp_cstr_as_str(it->url),
-    .sha256 = sp_str_lit("aa"),
-  };
-  sp_expect_str_eq_c(t, spn_artifact_resolve_url(mem, artifact, sp_cstr_as_str(it->mirror)), it->expect);
-
   return SP_OK;
 }

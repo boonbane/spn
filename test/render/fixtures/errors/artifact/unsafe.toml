@@ -1,0 +1,10 @@
+
+[[toolchain]]
+name = "D"
+driver = "gcc"
+compiler = "bin/gcc"
+archiver = "bin/ar"
+target = [{ arch = "x86_64", os = "linux", abi = "gnu" }]
+
+[toolchain.host]
+x86_64-linux = { url = "file://@fixture@/unsafe.tar.xz", sha256 = "0aa2f21603fd82beb920627c41a873db9a4f24e6c4e5516f0cdffc16ae74d75e" }
