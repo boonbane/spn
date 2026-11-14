@@ -42,6 +42,7 @@ set(SPN_CORE_SOURCES
   core/external/toml.c
   core/external/xz.c
   core/external/zig.c
+  core/external/zip.c
   core/external/wasm/abi.c
   core/external/wasm/guest.c
   core/external/wasm/wasm.c
@@ -191,7 +192,7 @@ target_include_directories(spn_core PUBLIC
   ${GEN_DIR}
   ${STORE}/include
 )
-target_link_libraries(spn_core PUBLIC m vmlib yyjson blake3 git2 curl lzma z spn_version)
+target_link_libraries(spn_core PUBLIC m vmlib yyjson blake3 git2 curl lzma z minizip spn_version)
 add_dependencies(spn_core headers spn_embed spn_codegen_gen)
 
 add_executable(spn ${SPN_CLI_SOURCES})

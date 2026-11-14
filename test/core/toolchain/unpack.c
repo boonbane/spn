@@ -131,6 +131,48 @@ static const test_t tests [] = {
     .expect = { .entries = { { .path = "B", .content = "B" } } },
   },
   {
+    .name = "zip_archive_unpacks",
+    .archive = "file.zip",
+    .expect = { .entries = { { .path = "Z", .content = "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB" } } },
+  },
+  {
+    .name = "zip_directory_entry_becomes_a_directory",
+    .archive = "dir.zip",
+    .expect = { .entries = { { .path = "C", .dir = true } } },
+  },
+  {
+    .name = "zip_executable_bit_is_kept",
+    .archive = "executable.zip",
+    .modes = true,
+    .expect = { .entries = { { .path = "Y", .content = "B", .executable = true } } },
+  },
+  {
+    .name = "zip_symlink_keeps_its_target",
+    .archive = "symlink.zip",
+    .symlinks = true,
+    .expect = { .entries = { { .path = "D", .content = "B", .link = "B" } } },
+  },
+  {
+    .name = "zip_content_failing_its_checksum_is_corrupt",
+    .archive = "sum.zip",
+    .expect = { .err = SPN_ERROR, .reason = SPN_UNPACK_CORRUPT, .entry = "A/B" },
+  },
+  {
+    .name = "zip_entry_contradicting_the_directory_is_corrupt",
+    .archive = "header.zip",
+    .expect = { .err = SPN_ERROR, .reason = SPN_UNPACK_CORRUPT },
+  },
+  {
+    .name = "zip_without_a_directory_is_corrupt",
+    .archive = "cut.zip",
+    .expect = { .err = SPN_ERROR, .reason = SPN_UNPACK_CORRUPT },
+  },
+  {
+    .name = "zip_compression_other_than_deflate_is_unsupported",
+    .archive = "bzip2.zip",
+    .expect = { .err = SPN_ERROR, .reason = SPN_UNPACK_UNSUPPORTED },
+  },
+  {
     .name = "unknown_bytes_are_unrecognized",
     .archive = "bytes",
     .expect = { .err = SPN_ERROR, .reason = SPN_UNPACK_UNRECOGNIZED },

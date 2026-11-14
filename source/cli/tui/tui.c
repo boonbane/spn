@@ -308,7 +308,7 @@ static void write_unpack(sp_tty_t* w, const spn_err_artifact_t* artifact) {
       break;
     }
     case SPN_UNPACK_UNSUPPORTED: {
-      sp_tty_fmt(w, "The archive contains an entry that isn't a file, directory, or link");
+      sp_tty_fmt(w, "The archive contains an entry spn can't extract");
       break;
     }
     case SPN_UNPACK_UNSAFE: {

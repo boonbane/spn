@@ -99,3 +99,30 @@ seal fifo
 
 printf A > "$out/bytes"
 printf A | xz -T1 > "$out/bytes.xz"
+
+zipped() {
+  archive=$1
+  shift
+  rm -f "$out/$archive.zip"
+  TZ=UTC zip -q -X -y "$out/$archive.zip" "$@"
+}
+
+printf '%64s' '' | tr ' ' B > A/Z
+touch -h -d '2000-01-01 00:00:00Z' A A/B A/C A/D A/Y A/Z
+
+zipped file A A/Z
+head -c 40 "$out/file.zip" > "$out/cut.zip"
+
+zipped dir A A/C
+
+zipped executable A/Y
+
+zipped symlink A/B A/D
+
+zipped sum -0 A/B
+printf C | dd of="$out/sum.zip" bs=1 seek=33 conv=notrunc status=none
+
+zipped header -0 A/B
+printf '\010' | dd of="$out/header.zip" bs=1 seek=8 conv=notrunc status=none
+
+zipped bzip2 -Z bzip2 A/Z
