@@ -1958,6 +1958,11 @@ void spn_tui_log_event(spn_tui_t* tui, spn_event_t* event) {
     return;
   }
 
+  if (event->kind == SPN_EVENT_SYNC_PACKAGE && event->sync_pkg.fetched && !sp_str_ht_get(tui->seen_fetch, event->sync_pkg.name)) {
+    sp_str_ht_insert(tui->seen_fetch, sp_str_copy(tui->mem, event->sync_pkg.name), true);
+    tui->num_downloads++;
+  }
+
   const spn_event_info_t* info = &spn_event_info[event->kind];
   if (info->severity == SPN_EVENT_SEVERITY_INFO && info->verbosity > tui->verbosity) {
     if (event->kind == SPN_EVENT_USER_LOG) {
@@ -2002,7 +2007,6 @@ void spn_tui_log_event(spn_tui_t* tui, spn_event_t* event) {
     case SPN_EVENT_SYNC: {
       if (!sp_str_ht_get(tui->seen_url, event->sync.url)) {
         sp_str_ht_insert(tui->seen_url, sp_str_copy(tui->mem, event->sync.url), true);
-        tui->num_downloads++;
         write_event(
           tty, verb, sp_fmt_style_green,
           event->sync.name,
@@ -2203,6 +2207,7 @@ void spn_tui_init(spn_tui_t* tui, spn_tui_desc_t desc) {
   };
   sp_da_init(tui->mem, tui->writer.partial);
   sp_str_ht_init(tui->mem, tui->seen_url);
+  sp_str_ht_init(tui->mem, tui->seen_fetch);
   sp_da_init(tui->mem, tui->buffered_logs);
   sp_ht_init(tui->mem, tui->thread_ids);
 }
