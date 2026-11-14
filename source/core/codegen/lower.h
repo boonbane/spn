@@ -17,6 +17,6 @@
 void             spn_manifest_lower(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, si_pkg_info_t* pkg);
 void             spn_project_lower(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, spn_project_t* project);
 spn_index_info_t spn_index_lower(spn_toml_loader_t* ctx, u32 at, spn_index_kind_t kind, const spn_cg_index_t* decl);
-spn_net_config_t spn_net_lower(const spn_cg_net_t* cg);
+spn_net_config_t spn_net_lower(spn_toml_loader_t* ctx, const spn_cg_net_t* cg);
 
 #endif

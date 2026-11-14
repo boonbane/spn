@@ -6,9 +6,15 @@
 #include "toml/loader.h"
 
 typedef struct {
+  spn_err_t code;
+  const c8* path;
+} issue_t;
+
+typedef struct {
   u32 timeout_s;
   const c8* ca_bundle;
   bool system_git;
+  issue_t issue;
 } expect_t;
 
 typedef struct {
@@ -29,8 +35,9 @@ static const test_t tests [] = {
     .expect = { .timeout_s = 1 },
   },
   {
-    .name = "zero_timeout_is_not_the_default",
+    .name = "zero_timeout_is_invalid",
     .config = "net_timeout_zero",
+    .expect = { .issue = { SPN_ERR_CODEGEN_INVALID, "net.timeout" } },
   },
   {
     .name = "timeout_above_max_saturates",
@@ -60,7 +67,14 @@ sp_test_each(config, net, test_t, tests) {
   spn_toml_load_config(&loader, (spn_path_t) { .sub = path }, &cg);
   sp_must(t, sp_da_empty(loader.issues));
 
-  spn_net_config_t net = spn_net_lower(&cg.net);
+  spn_net_config_t net = spn_net_lower(&loader, &cg.net);
+  if (it->expect.issue.code) {
+    sp_must_eq(t, 1, (u32)sp_da_size(loader.issues));
+    sp_expect_eq(t, (u32)it->expect.issue.code, (u32)loader.issues[0].code);
+    sp_expect_str_eq_c(t, spn_toml_path_str(mem, &loader.issues[0].at), it->expect.issue.path);
+    return SP_OK;
+  }
+  sp_must(t, sp_da_empty(loader.issues));
   sp_expect_eq(t, net.timeout_s, it->expect.timeout_s);
   sp_expect_str_eq_c(t, net.ca_bundle, it->expect.ca_bundle);
   sp_expect_eq(t, net.system_git, it->expect.system_git);
