@@ -35,6 +35,7 @@ set(SPN_CORE_SOURCES
   core/external/git.c
   core/external/git_cli.c
   core/external/http.c
+  core/external/gzip.c
   core/external/net.c
   core/external/obj.c
   core/external/tom.c
@@ -190,7 +191,7 @@ target_include_directories(spn_core PUBLIC
   ${GEN_DIR}
   ${STORE}/include
 )
-target_link_libraries(spn_core PUBLIC m vmlib yyjson blake3 git2 curl lzma spn_version)
+target_link_libraries(spn_core PUBLIC m vmlib yyjson blake3 git2 curl lzma z spn_version)
 add_dependencies(spn_core headers spn_embed spn_codegen_gen)
 
 add_executable(spn ${SPN_CLI_SOURCES})

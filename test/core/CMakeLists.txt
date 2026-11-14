@@ -41,6 +41,7 @@ add_executable(core
   config/net.c
   external/backoff.c
   external/git.c
+  external/gzip.c
   external/http.c
   external/net.c
   external/obj.c
