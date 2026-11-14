@@ -619,6 +619,19 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
       );
       break;
     }
+    case SPN_EVENT_LOCK_WAIT: {
+      switch (event->lock_wait.lock) {
+        case SPN_FILE_LOCK_REPO: {
+          sp_tty_fmt(&w, "for another spn to release {.gray}", sp_fmt_str(event->lock_wait.name));
+          break;
+        }
+        case SPN_FILE_LOCK_TOOLCHAIN: {
+          sp_tty_fmt(&w, "for another spn to release toolchain {}", sp_fmt_str(colored_name(w.color, mem, event->lock_wait.name)));
+          break;
+        }
+      }
+      break;
+    }
     case SPN_EVENT_ERR: {
       switch (event->err.kind) {
         case SPN_ERR_PATCH_UNUSED: {

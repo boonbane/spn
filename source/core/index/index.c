@@ -121,7 +121,7 @@ static spn_err_t git_index_freshen(spn_index_info_t* index, sp_atomic_s32_t* can
 static spn_err_t git_index_lock(spn_index_info_t* index, sp_atomic_s32_t* cancelled, sp_fs_lock_t* lock, spn_git_failure_t* failure) {
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   sp_path_t at = index->location.at;
-  spn_err_t err = spn_git_lock(at, sp_path_join(scratch.mem, at, sp_str_lit(".git")), cancelled, lock, failure);
+  spn_err_t err = spn_git_lock(at, sp_path_join(scratch.mem, at, sp_str_lit(".git")), index->git.url, cancelled, lock, failure);
   sp_mem_end_scratch(scratch);
   return err;
 }

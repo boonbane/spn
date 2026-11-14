@@ -162,6 +162,11 @@ typedef enum {
 } spn_node_failure_t;
 
 typedef enum {
+  SPN_FILE_LOCK_REPO,
+  SPN_FILE_LOCK_TOOLCHAIN,
+} spn_file_lock_t;
+
+typedef enum {
   SPN_C_STANDARD_NONE,
   SPN_C11,
   SPN_C99,

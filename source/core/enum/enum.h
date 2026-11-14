@@ -29,6 +29,7 @@ spn_tree_t spn_tree_from_str(sp_str_t str);
 sp_str_t spn_tree_to_str(spn_tree_t tree);
 sp_str_t spn_publish_root_to_str(spn_publish_root_t root);
 sp_str_t spn_node_failure_to_str(spn_node_failure_t failure);
+sp_str_t spn_file_lock_to_str(spn_file_lock_t lock);
 spn_sanitizer_t spn_sanitizer_from_str(sp_str_t str);
 sp_str_t spn_sanitizer_to_str(spn_sanitizer_t sanitizer);
 sp_str_t spn_sanitizer_set_to_str(sp_mem_t mem, spn_sanitizer_set_t set);

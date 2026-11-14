@@ -242,6 +242,14 @@ sp_str_t spn_node_failure_to_str(spn_node_failure_t failure) {
   SP_UNREACHABLE_RETURN(sp_str_lit(""));
 }
 
+sp_str_t spn_file_lock_to_str(spn_file_lock_t lock) {
+  switch (lock) {
+    case SPN_FILE_LOCK_REPO:      return sp_str_lit("repo");
+    case SPN_FILE_LOCK_TOOLCHAIN: return sp_str_lit("toolchain");
+  }
+  SP_UNREACHABLE_RETURN(sp_str_lit(""));
+}
+
 spn_sanitizer_t spn_sanitizer_from_str(sp_str_t str) {
   if (sp_str_equal_cstr(str, "address")) {
     return SPN_SANITIZER_ADDRESS;

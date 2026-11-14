@@ -94,7 +94,7 @@ static spn_err_t setup_artifact(spn_toolchain_store_t* store, spn_toolchain_unit
   spn_artifact_t artifact = toolchain->support.artifact;
   sp_tm_timer_t timer = sp_tm_start_timer();
 
-  spn_toolchain_claim_t claim = spn_toolchain_claim(store, spn.mem, artifact);
+  spn_toolchain_claim_t claim = spn_toolchain_claim(store, spn.mem, toolchain->name.str, artifact);
   spn_path_t root = claim.root;
   bool cached = claim.present;
   sp_str_t url = artifact.url;

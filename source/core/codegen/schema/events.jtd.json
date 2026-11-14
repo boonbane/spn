@@ -40,6 +40,13 @@
       }
     },
     "sync_patch": { "metadata": { "verb": "Patching" }, "ref": "sync" },
+    "lock_wait": {
+      "metadata": { "verb": "Waiting" },
+      "properties": {
+        "lock": { "ref": "file_lock" },
+        "name": { "type": "string" }
+      }
+    },
     "sync_end": {
       "metadata": { "verb": "Downloaded" },
       "properties": {
@@ -235,6 +242,7 @@
   "definitions": {
     "node_failure": { "enum": ["remove", "create", "stray", "unproduced", "copy"] },
     "publish_root": { "enum": ["include", "share"] },
+    "file_lock": { "enum": ["repo", "toolchain"] },
     "subject": {
       "properties": {
         "pkg": { "type": "string" },

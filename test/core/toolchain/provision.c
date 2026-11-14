@@ -176,7 +176,7 @@ sp_test_each(provision, store, provision_test_t, tests, .setup = spn_test_ctx_se
     }
 
     spn_err_t err = SPN_OK;
-    spn_toolchain_claim_t claim = spn_toolchain_claim(&store, mem, artifact);
+    spn_toolchain_claim_t claim = spn_toolchain_claim(&store, mem, sp_cstr_as_str(name), artifact);
     if (!claim.present) {
       installs++;
       sp_must_ok(t, sp_fs_copy_file_at(sp_path_from_str(tarball), spn_path_at(&roots, claim.tarball), SP_FS_ATOMIC_REPLACE));

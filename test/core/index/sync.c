@@ -1,6 +1,7 @@
 #include "index.h"
 
 #include "contend.h"
+#include "event/event.h"
 
 typedef struct {
   const c8* name;
@@ -247,7 +248,7 @@ static s32 run_sync(void* user_data) {
   return 0;
 }
 
-sp_test_each(index_sync, sync, sync_test_t, tests) {
+sp_test_each(index_sync, sync, sync_test_t, tests, .setup = spn_test_ctx_setup) {
   sp_mem_t mem = sp_test_arena(t);
   sp_str_t tmp = test_dir_str(t);
 
@@ -295,6 +296,15 @@ sp_test_each(index_sync, sync, sync_test_t, tests) {
   else {
     run_sync(&job);
   }
+
+  u32 notices = 0;
+  sp_da(spn_event_t) events = spn_event_buffer_drain(mem, spn.events);
+  sp_da_for(events, at) {
+    if (events[at].kind == SPN_EVENT_LOCK_WAIT) {
+      notices++;
+    }
+  }
+  sp_expect_eq(t, notices, it->expect.waited ? 1u : 0u);
   sp_expect_eq(t, it->expect.result, job.result);
   sp_expect_str_eq(t, test_read_file(mem, sp_fs_join_path(mem, cache, sp_str_lit("seed.txt"))), sp_cstr_as_str(it->expect.cached));
   sp_expect_eq(t, it->expect.cause, job.failure.message[0] != 0);

@@ -40,7 +40,7 @@ sp_test_each(verify, download, test_t, tests) {
   };
 
   spn_artifact_t artifact = { .sha256 = test_sha256_hex(mem, sp_cstr_as_str(it->pinned)) };
-  spn_toolchain_claim_t claim = spn_toolchain_claim(&store, mem, artifact);
+  spn_toolchain_claim_t claim = spn_toolchain_claim(&store, mem, sp_str_lit("A"), artifact);
   if (it->download) {
     sp_must_ok(t, sp_fs_create_file_str_at(spn_path_at(&roots, claim.tarball), sp_cstr_as_str(it->download)));
   }

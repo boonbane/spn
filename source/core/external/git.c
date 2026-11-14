@@ -2,6 +2,9 @@
 #include "macro/macro.h"
 #include "git.h"
 
+#include "ctx/types.h"
+#include "event/event.h"
+
 #include <git2.h>
 #include <git2/sys/errors.h>
 
@@ -143,13 +146,21 @@ spn_err_t spn_git_init(sp_str_t ca_bundle, u32 timeout_s) {
   return SPN_OK;
 }
 
-spn_err_t spn_git_lock(sp_path_t repo, sp_path_t gitdir, sp_atomic_s32_t* cancelled, sp_fs_lock_t* lock, spn_git_failure_t* failure) {
+spn_err_t spn_git_lock(sp_path_t repo, sp_path_t gitdir, sp_str_t url, sp_atomic_s32_t* cancelled, sp_fs_lock_t* lock, spn_git_failure_t* failure) {
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   sp_path_t beside = sp_path(repo.dir, sp_str_concat(scratch.mem, repo.sub, sp_str_lit(".lock")));
   sp_fs_create_parent_at(beside);
 
   bool acquired = false;
+  bool waiting = false;
   while (!sp_fs_lock_try_acquire(lock, beside, &acquired) && !acquired && !sp_atomic_s32_load(cancelled, SP_ATOMIC_SEQ_CST)) {
+    if (!waiting) {
+      spn_event_buffer_push(spn.events, (spn_event_t) {
+        .kind = SPN_EVENT_LOCK_WAIT,
+        .lock_wait = { .lock = SPN_FILE_LOCK_REPO, .name = sp_str_copy(spn.events->mem, url) },
+      });
+      waiting = true;
+    }
     sp_os_sleep_ms(spn_git_lock_poll_ms);
   }
   if (!acquired) {

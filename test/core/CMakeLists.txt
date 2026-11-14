@@ -118,6 +118,7 @@ add_executable(core
   toml/set.c
   toolchain/builtins.c
   toolchain/catalog.c
+  toolchain/claim.c
   toolchain/driver.c
   toolchain/fetch.c
   toolchain/linker.c

@@ -471,7 +471,7 @@ static spn_git_checkout_id_t build_id(sp_test_t* t, git_repo_result_t* repo, con
   return id;
 }
 
-sp_test_each(git_cache, ensure, cache_test_t, tests) {
+sp_test_each(git_cache, ensure, cache_test_t, tests, .setup = spn_test_ctx_setup) {
   sp_mem_t mem = sp_test_arena(t);
 
   // build git repo fixture as "remote"

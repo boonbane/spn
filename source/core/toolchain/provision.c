@@ -2,6 +2,7 @@
 
 #include "ctx/types.h"
 #include "error/error.h"
+#include "event/event.h"
 #include "hash/digest/digest.h"
 #include "hash/sha256/sha256.h"
 #include "fs/fs.h"
@@ -143,14 +144,23 @@ static spn_err_t install(spn_toolchain_store_t* store, sp_mem_t scratch, spn_too
   return SPN_OK;
 }
 
-spn_toolchain_claim_t spn_toolchain_claim(spn_toolchain_store_t* store, sp_mem_t mem, spn_artifact_t artifact) {
+spn_toolchain_claim_t spn_toolchain_claim(spn_toolchain_store_t* store, sp_mem_t mem, sp_str_t name, spn_artifact_t artifact) {
   spn_toolchain_claim_t claim = {
     .artifact = artifact,
     .root = spn_toolchain_artifact_root(mem, artifact),
   };
   claim.tarball = spn_path_staging(mem, claim.root, sp_str_lit("download"));
-  bool locked = sp_fs_lock_acquire(&claim.lock, spn_path_at(store->roots, spn_path_concat(mem, claim.root, ".lock"))) == SP_OK;
-  claim.present = locked && sp_fs_is_dir_at(spn_path_at(store->roots, claim.root));
+  sp_path_t lock_at = spn_path_at(store->roots, spn_path_concat(mem, claim.root, ".lock"));
+  bool acquired = false;
+  sp_err_t locked = sp_fs_lock_try_acquire(&claim.lock, lock_at, &acquired);
+  if (!locked && !acquired) {
+    spn_event_buffer_push(spn.events, (spn_event_t) {
+      .kind = SPN_EVENT_LOCK_WAIT,
+      .lock_wait = { .lock = SPN_FILE_LOCK_TOOLCHAIN, .name = name },
+    });
+    locked = sp_fs_lock_acquire(&claim.lock, lock_at);
+  }
+  claim.present = !locked && sp_fs_is_dir_at(spn_path_at(store->roots, claim.root));
   if (claim.present) {
     sp_fs_lock_release(&claim.lock);
   }
