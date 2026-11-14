@@ -1,5 +1,6 @@
 #include "toolchain/unpack.h"
 
+#include "external/gzip.h"
 #include "external/xz.h"
 #include "tar/tar.h"
 
@@ -208,31 +209,43 @@ spn_err_t spn_artifact_unpack(sp_mem_t mem, sp_path_t archive, sp_path_t root, s
     return fail(&unpack, SPN_UNPACK_UNREADABLE, sp_str_lit(""));
   }
   sp_io_reader_set_buffer(&file.base, (u8*)sp_alloc(mem, spn_unpack_chunk_size), spn_unpack_chunk_size);
+  if (sp_fs_open_dir_at(root, &unpack.root)) {
+    sp_io_file_reader_close(&file);
+    return fail(&unpack, SPN_UNPACK_UNWRITABLE, sp_str_lit(""));
+  }
 
+  u8* decoded = (u8*)sp_alloc(mem, spn_unpack_chunk_size);
   sp_str_t head = sp_zero;
   sp_io_peek(&file.base, &head);
-  if (!spn_xz_is_stream(head)) {
-    sp_io_file_reader_close(&file);
-    return fail(&unpack, SPN_UNPACK_UNRECOGNIZED, sp_str_lit(""));
-  }
-
-  spn_xz_reader_t xz = sp_zero;
-  if (spn_xz_reader_init(&xz, mem, &file.base)) {
-    sp_io_file_reader_close(&file);
-    return fail(&unpack, SPN_UNPACK_UNREADABLE, sp_str_lit(""));
-  }
-  sp_io_reader_set_buffer(&xz.base, (u8*)sp_alloc(mem, spn_unpack_chunk_size), spn_unpack_chunk_size);
 
   spn_err_t err = SPN_OK;
-  if (sp_fs_open_dir_at(root, &unpack.root)) {
-    err = fail(&unpack, SPN_UNPACK_UNWRITABLE, sp_str_lit(""));
+  if (spn_xz_is_stream(head)) {
+    spn_xz_reader_t xz = sp_zero;
+    if (spn_xz_reader_init(&xz, mem, &file.base)) {
+      err = fail(&unpack, SPN_UNPACK_UNREADABLE, sp_str_lit(""));
+    }
+    else {
+      sp_io_reader_set_buffer(&xz.base, decoded, spn_unpack_chunk_size);
+      err = untar(&unpack, &xz.base);
+      spn_xz_reader_close(&xz);
+    }
+  }
+  else if (spn_gzip_is_stream(head)) {
+    spn_gzip_reader_t gzip = sp_zero;
+    if (spn_gzip_reader_init(&gzip, mem, &file.base)) {
+      err = fail(&unpack, SPN_UNPACK_UNREADABLE, sp_str_lit(""));
+    }
+    else {
+      sp_io_reader_set_buffer(&gzip.base, decoded, spn_unpack_chunk_size);
+      err = untar(&unpack, &gzip.base);
+      spn_gzip_reader_close(&gzip);
+    }
   }
   else {
-    err = untar(&unpack, &xz.base);
-    sp_fs_close_dir(unpack.root);
+    err = fail(&unpack, SPN_UNPACK_UNRECOGNIZED, sp_str_lit(""));
   }
 
-  spn_xz_reader_close(&xz);
+  sp_fs_close_dir(unpack.root);
   sp_io_file_reader_close(&file);
   return err;
 }

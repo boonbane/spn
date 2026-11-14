@@ -126,8 +126,13 @@ static const test_t tests [] = {
     .expect = { .err = SPN_ERROR, .reason = SPN_UNPACK_CORRUPT },
   },
   {
-    .name = "gzip_is_unrecognized",
+    .name = "gzip_archive_unpacks",
     .archive = "file.tar.gz",
+    .expect = { .entries = { { .path = "B", .content = "B" } } },
+  },
+  {
+    .name = "unknown_bytes_are_unrecognized",
+    .archive = "bytes",
     .expect = { .err = SPN_ERROR, .reason = SPN_UNPACK_UNRECOGNIZED },
   },
   {
