@@ -210,6 +210,7 @@ source = [
   "test/core/publish/publish.c",
   "test/core/reflect/*.c",
   "test/core/schema/schema.c",
+  "test/core/tar/*.c",
   "test/core/toml/*.c",
   "test/core/thread_pool/*.c",
   "test/core/zig/*.c",

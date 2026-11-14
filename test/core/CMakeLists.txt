@@ -115,6 +115,7 @@ add_executable(core
   reflect/read.c
   reflect/walk.c
   schema/schema.c
+  tar/read.c
   thread_pool/ops.c
   thread_pool/smoke.c
   toml/harness.c

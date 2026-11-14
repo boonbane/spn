@@ -113,6 +113,7 @@ set(SPN_CORE_SOURCES
   util/sp/sp_math.c
   util/sp_template/sp_template.c
   util/str/str.c
+  util/tar/tar.c
   util/array/array.c
   util/mem/mem.c
   util/hash_table/hash_table.c
