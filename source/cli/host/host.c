@@ -6,29 +6,30 @@
 spn_cli_host_t host;
 spn_tui_t tui;
 
-static void die() {
+static void die(s32 signal) {
 #if defined(SP_WIN32)
   TerminateProcess(GetCurrentProcess(), STATUS_CONTROL_C_EXIT);
 #else
-  sigaction(SIGINT, &(struct sigaction) { .sa_handler = SIG_DFL }, SP_NULLPTR);
-  raise(SIGINT);
+  sigaction(signal, &(struct sigaction) { .sa_handler = SIG_DFL }, SP_NULLPTR);
+  raise(signal);
 #endif
 }
 
 void spn_cli_interrupt() {
-  if (sp_atomic_s32_cas(&host.interrupted, 0, 1, SP_ATOMIC_SEQ_CST)) {
+  if (sp_atomic_s32_cas(&host.signal, 0, SIGINT, SP_ATOMIC_SEQ_CST)) {
     sp_sys_event_signal(host.doorbell);
     return;
   }
 
-  die();
+  die(SIGINT);
 }
 
 s32 spn_cli_shutdown(bool ok) {
   spn_prompt_stop(&tui, ok ? SP_PROMPT_STATE_SUBMIT : SP_PROMPT_STATE_ERROR);
   spn_ctx_close(host.ctx, ok);
-  if (sp_atomic_s32_load(&host.interrupted, SP_ATOMIC_SEQ_CST)) {
-    die();
+  s32 signal = sp_atomic_s32_load(&host.signal, SP_ATOMIC_SEQ_CST);
+  if (signal) {
+    die(signal);
   }
   spn_tui_flush(&tui);
   sp_io_flush(tui.err->io);
@@ -67,7 +68,7 @@ spn_err_t spn_cli_wait(spn_op_t* op) {
   while (true) {
     sp_sys_event_clear(host.doorbell);
 
-    if (sp_atomic_s32_load(&host.interrupted, SP_ATOMIC_SEQ_CST)) {
+    if (sp_atomic_s32_load(&host.signal, SP_ATOMIC_SEQ_CST)) {
       break;
     }
 
@@ -97,7 +98,7 @@ spn_err_t spn_cli_wait(spn_op_t* op) {
 
     u64 elapsed = sp_tm_ns_to_ms(sp_tm_read_timer(&timer));
     if (elapsed >= interrupt_grace_ms) {
-      die();
+      die(sp_atomic_s32_load(&host.signal, SP_ATOMIC_SEQ_CST));
     }
 
     sp_sys_fd_t fds [1] = { host.doorbell.fd };

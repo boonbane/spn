@@ -292,7 +292,10 @@ static sp_cli_result_t run(sp_cli_t* cli) {
   }
   s32 code = sp_ps_wait(&ps).exit_code;
   sp_mem_end_scratch(s);
-  host.code = !windows && code < 0 ? 128 - code : code;
+  if (!windows && code < 0) {
+    sp_atomic_s32_store(&host.signal, -code, SP_ATOMIC_SEQ_CST);
+  }
+  host.code = code;
   return SP_CLI_OK;
 }
 
