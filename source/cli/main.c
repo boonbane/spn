@@ -14,11 +14,14 @@ static void on_wake(void* user_data) {
 static void on_signal(sp_os_signal_t signal, void* userdata) {
   switch (signal) {
     case SP_OS_SIGNAL_INTERRUPT: {
-      spn_cli_interrupt();
+      spn_cli_interrupt(SIGINT);
       break;
     }
-    case SP_OS_SIGNAL_ABORT:
     case SP_OS_SIGNAL_TERMINATE: {
+      spn_cli_interrupt(SIGTERM);
+      break;
+    }
+    case SP_OS_SIGNAL_ABORT: {
       break;
     }
   }
@@ -54,6 +57,10 @@ static void version(sp_tty_t* tty) {
 #if defined(SP_POSIX)
 static void on_pipe(s32 signal) {
 }
+
+static void on_hangup(s32 signal) {
+  spn_cli_interrupt(SIGHUP);
+}
 #endif
 
 static s32 run(s32 num_args, const c8** args) {
@@ -65,6 +72,10 @@ static s32 run(s32 num_args, const c8** args) {
   sp_sys_event_open(&host.doorbell);
   host.ctx = spn_ctx_new(on_wake, SP_NULLPTR);
   sp_os_register_signal_handler(SP_OS_SIGNAL_INTERRUPT, on_signal, SP_NULLPTR);
+  sp_os_register_signal_handler(SP_OS_SIGNAL_TERMINATE, on_signal, SP_NULLPTR);
+#if defined(SP_POSIX)
+  sigaction(SIGHUP, &(struct sigaction) { .sa_handler = on_hangup }, SP_NULLPTR);
+#endif
 
   sp_cli_t cli = sp_zero;
   sp_cli_parse((sp_cli_desc_t) {

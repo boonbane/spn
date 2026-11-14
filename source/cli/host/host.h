@@ -111,6 +111,6 @@ sp_cli_result_t spn_cli_open(bool project_optional);
 sp_cli_result_t spn_cli_session(spn_session_config_t config);
 sp_cli_result_t spn_cli_op(spn_op_t* op);
 spn_err_t spn_cli_wait(spn_op_t* op);
-void spn_cli_interrupt();
+void spn_cli_interrupt(s32 signal);
 
 #endif

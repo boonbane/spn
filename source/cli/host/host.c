@@ -15,13 +15,13 @@ static void die(s32 signal) {
 #endif
 }
 
-void spn_cli_interrupt() {
-  if (sp_atomic_s32_cas(&host.signal, 0, SIGINT, SP_ATOMIC_SEQ_CST)) {
+void spn_cli_interrupt(s32 signal) {
+  if (sp_atomic_s32_cas(&host.signal, 0, signal, SP_ATOMIC_SEQ_CST)) {
     sp_sys_event_signal(host.doorbell);
     return;
   }
 
-  die(SIGINT);
+  die(signal);
 }
 
 s32 spn_cli_shutdown(bool ok) {
