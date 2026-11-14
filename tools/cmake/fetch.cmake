@@ -10,6 +10,7 @@ set(DEPS
   "libgit2|https://github.com/libgit2/libgit2.git|0551dfd4ad989b6a3d5683c0d4cf326c6efef929"
   "mbedtls|https://github.com/Mbed-TLS/mbedtls.git|0bebf8b8c7f07abe3571ded48a11aa907a1ffb20"
   "curl|https://github.com/curl/curl.git|8c908d2d0a6d32abdedda2c52e90bd56ec76c24d"
+  "xz|https://github.com/tukaani-project/xz.git|d3e650e63c110e830fd5391e7f8b45df0b91d3da"
 )
 
 if(NOT DEFINED SOURCE_DIR)

@@ -38,6 +38,7 @@ yyjson = { path = "vendor/yyjson"}
 blake3 = { path = "vendor/blake3"}
 libgit2 = { path = "vendor/libgit2" }
 curl = { path = "vendor/curl" }
+xz = { path = "vendor/xz" }
 
 [deps.build]
 sp = { path = "vendor/sp" }
