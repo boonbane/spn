@@ -1,0 +1,13 @@
+diff --git a/src/libgit2/transports/git.c b/src/libgit2/transports/git.c
+index 904de25..0a5671d 100644
+--- a/src/libgit2/transports/git.c
++++ b/src/libgit2/transports/git.c
+@@ -107,7 +107,7 @@ static int git_proto_stream_read(
+ 	ret = git_stream_read(s->io, buffer, min(buf_size, INT_MAX));
+ 
+ 	if (ret < 0)
+-		return -1;
++		return (int)ret;
+ 
+ 	*bytes_read = (size_t)ret;
+ 	return 0;
