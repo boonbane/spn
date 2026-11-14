@@ -460,6 +460,10 @@ static spn_dag_diag_t settle(si_dag_action_handle_t* a) {
 
 static bool try_restore(si_dag_action_handle_t* a, spn_dag_digest_t key) {
   spn_dag_run_t* run = a->run;
+  if (run->force) {
+    return false;
+  }
+
   const spn_dag_action_t* action = a->action;
   spn_dag_action_entry_t entry = sp_zero;
   bool present = spn_dag_action_cache_get(run->cache, key, &entry);

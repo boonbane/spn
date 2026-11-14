@@ -24,6 +24,25 @@ static const rebuild_test_t tests [] = {
     },
   },
   {
+    .name = "force",
+    .project = "test/integration/fixtures/freshness/bin",
+    .first = {
+      .args = { "build" },
+      .expect.exists = { exe("main") },
+    },
+    .rebuilds = {
+      {
+        .command = {
+          .args = { "build", "--force" },
+          .expect.events = {
+            { .event = SPN_EVENT_TARGET_BUILD_PASSED },
+            { .event = SPN_EVENT_LINK_PASSED },
+          },
+        },
+      },
+    },
+  },
+  {
     .name = "source_change",
     .project = "test/integration/fixtures/freshness/bin",
     .copy = { "main.change.c" },
