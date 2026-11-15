@@ -237,6 +237,26 @@ static sp_cli_result_t run_batch(sp_mem_t mem, sp_str_t name, sp_str_t command, 
 }
 #endif
 
+#if defined(SP_POSIX)
+static bool dumps_core(s32 signal) {
+  switch (signal) {
+    case SIGQUIT:
+    case SIGILL:
+    case SIGTRAP:
+    case SIGABRT:
+    case SIGBUS:
+    case SIGFPE:
+    case SIGSEGV:
+    case SIGSYS:
+    case SIGXCPU:
+    case SIGXFSZ: {
+      return true;
+    }
+  }
+  return false;
+}
+#endif
+
 static sp_cli_result_t run(sp_cli_t* cli) {
   if (!cli->rest[0]) {
     return spn_cli_usage("missing a command to run");
@@ -308,9 +328,17 @@ static sp_cli_result_t run(sp_cli_t* cli) {
   }
   s32 code = sp_ps_wait(&ps).exit_code;
   sp_mem_end_scratch(s);
-  if (!windows && code < 0) {
-    sp_atomic_s32_store(&host.signal, -code, SP_ATOMIC_SEQ_CST);
+#if defined(SP_POSIX)
+  if (code < 0) {
+    // Dying from a signal that dumps core would blame spn for the program's crash
+    if (dumps_core(-code)) {
+      code = 128 - code;
+    }
+    else {
+      sp_atomic_s32_store(&host.signal, -code, SP_ATOMIC_SEQ_CST);
+    }
   }
+#endif
   host.code = code;
   return SP_CLI_OK;
 }
