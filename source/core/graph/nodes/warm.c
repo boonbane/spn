@@ -103,7 +103,7 @@ static spn_err_t zig_warmup(sp_mem_t mem, const si_dag_ctx_t* c, si_zig_warmup_t
     });
     return SPN_ERR_DAG_ACTION;
   }
-  if (sp_fs_create_file_at(spn_path_at(roots, si_dag_resolve_output(c, warm->stamp)))) {
+  if (sp_fs_create_file_at(si_dag_output_at(c, warm->stamp))) {
     return SPN_ERR_DAG_OUTPUT_WRITE;
   }
   return SPN_OK;

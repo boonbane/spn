@@ -271,7 +271,8 @@ static spn_install_path_choice_t custom_file(sp_prompt_ctx_t* prompt, sp_mem_t m
     // a rejection is a typo, not a change of mind; ask again rather than
     // quietly dropping the file the user asked for
     sp_sys_file_meta_t meta = sp_zero;
-    if (!sp_fs_get_link_metadata(path, &meta) && meta.kind == SP_FS_KIND_DIR) {
+    bool exists = !sp_fs_get_path_metadata(path, &meta);
+    if (exists && meta.kind == SP_FS_KIND_DIR) {
       prose_error(prompt, "{.yellow} is a directory", sp_fmt_str(path));
       continue;
     }
@@ -280,7 +281,7 @@ static spn_install_path_choice_t custom_file(sp_prompt_ctx_t* prompt, sp_mem_t m
       continue;
     }
 
-    if (!sp_fs_get_path_metadata(path, &meta)) {
+    if (exists) {
       sp_str_t content = sp_zero;
       if (!sp_fs_read(mem, path, &content)) {
         choice.has_line = sp_str_contains(content, sp_str_lit(SPN_INSTALL_RC_LINE));

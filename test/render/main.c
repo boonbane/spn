@@ -92,9 +92,7 @@ static void rotate(void) {
   if (sp_fs_get_path_metadata(current, &meta)) {
     return;
   }
-  if (!sp_fs_get_path_metadata(previous, &meta)) {
-    sp_fs_remove_dir(previous);
-  }
+  sp_fs_remove_dir(previous);
   sp_sys_dir_t cwd = sp_sys_get_root(0);
   sp_assert(!sp_sys_rename_s(cwd, current, cwd, previous));
 }

@@ -78,8 +78,7 @@ static spn_err_t embed_files(sp_mem_t mem, const si_dag_ctx_t* c, si_embed_t* em
               si_dag_observe(c, (spn_dag_obs_t) { .kind = SPN_DAG_OBS_ENUMERATION, .path = spn_path_join(mem, root, rel) });
               continue;
             }
-            sp_sys_file_meta_t meta = sp_zero;
-            if (sp_fs_get_link_metadata_at(child.at, &meta) || meta.kind != SP_FS_KIND_FILE) {
+            if (child.kind != SP_FS_KIND_FILE) {
               continue;
             }
             spn_path_t file = spn_path_join(mem, root, rel);
@@ -120,7 +119,7 @@ static spn_err_t embed_files(sp_mem_t mem, const si_dag_ctx_t* c, si_embed_t* em
     }
   }
 
-  if (spn_cc_embed_ctx_write(embedder, spn_path_at(roots, si_dag_resolve_output(c, embed->object)), spn_path_at(roots, si_dag_resolve_output(c, embed->header)))) {
+  if (spn_cc_embed_ctx_write(embedder, si_dag_output_at(c, embed->object), si_dag_output_at(c, embed->header))) {
     spn_event_buffer_push(spn.events, (spn_event_t) {
       .kind = SPN_EVENT_EMBED_FAILED,
       .pkg = unit->pkg->pkg.manifest->name.str,

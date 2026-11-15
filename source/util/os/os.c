@@ -18,16 +18,14 @@ sp_str_t sp_fs_get_home_path(sp_mem_t mem) {
 #endif
 
 sp_err_t sp_fs_remove(sp_path_t path) {
-  sp_sys_file_meta_t meta = sp_zero;
-  if (sp_fs_get_link_metadata_at(path, &meta)) {
-    return SP_OK;
+  // sp_fs_remove_dir_at reads the kind itself, and says so when it is not a directory
+  sp_err_t err = sp_fs_remove_dir_at(path);
+  if (err == SP_ERR_SYS_NOT_DIR) {
+    err = sp_fs_remove_file_at(path);
   }
-  switch (meta.kind) {
-    case SP_FS_KIND_DIR:     return sp_fs_remove_dir_at(path);
-    case SP_FS_KIND_FILE:
-    case SP_FS_KIND_SYMLINK:
-    case SP_FS_KIND_UNKNOWN: return sp_fs_remove_file_at(path);
-    case SP_FS_KIND_NONE:    return SP_OK;
+  switch (err) {
+    case SP_ERR_SYS_NOT_FOUND:
+    case SP_ERR_SYS_NOT_DIR:   return SP_OK;
+    default:                   return err;
   }
-  sp_unreachable_return(SP_OK);
 }

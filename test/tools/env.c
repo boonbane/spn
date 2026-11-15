@@ -168,14 +168,13 @@ static sp_err_t setup_fixture_index_from_remote(sp_test_t* t, fixture_t* fixture
 
   sp_str_t remote = sp_fs_join_path(mem, project, sp_str_lit("remote"));
   sp_sys_file_meta_t meta = sp_zero;
-  if (sp_fs_get_path_metadata(remote, &meta)) {
+  if (sp_fs_get_link_metadata(remote, &meta)) {
     return SP_OK;
   }
-
-  sp_must_ok(t, sp_fs_get_link_metadata(remote, &meta));
   sp_must_eq(t, meta.kind, SP_FS_KIND_DIR);
 
   sp_str_t raw = sp_fs_join_path(mem, project, sp_str_lit("index"));
+  bool indexed = !sp_fs_get_link_metadata(raw, &meta) && meta.kind == SP_FS_KIND_DIR;
 
   sp_str_t recipes = sp_fs_join_path(mem, project, sp_str_lit("recipes"));
   sp_da(fixture_sub_t) subs = sp_da_new(mem, fixture_sub_t);
@@ -219,7 +218,7 @@ static sp_err_t setup_fixture_index_from_remote(sp_test_t* t, fixture_t* fixture
         .value = commit,
       }));
 
-      if (!sp_fs_get_link_metadata(raw, &meta) && meta.kind == SP_FS_KIND_DIR) {
+      if (indexed) {
         continue;
       }
 
@@ -252,7 +251,7 @@ static sp_err_t setup_fixture_index_from_remote(sp_test_t* t, fixture_t* fixture
     }
   }
 
-  if (!sp_fs_get_link_metadata(raw, &meta) && meta.kind == SP_FS_KIND_DIR) {
+  if (indexed) {
     sp_str_t releases = sp_fs_join_path(mem, raw, sp_str_lit(".spn/index"));
     sp_da(sp_str_t) files = list_dir(mem, releases);
     sp_da_for(files, ft) {
@@ -291,11 +290,9 @@ static sp_err_t setup_fixture_source_repos(sp_test_t* t, fixture_t* fixture, sp_
 
   sp_str_t source = sp_fs_join_path(mem, project, sp_str_lit("source"));
   sp_sys_file_meta_t meta = sp_zero;
-  if (sp_fs_get_path_metadata(source, &meta)) {
+  if (sp_fs_get_link_metadata(source, &meta)) {
     return SP_OK;
   }
-
-  sp_must_ok(t, sp_fs_get_link_metadata(source, &meta));
   sp_must_eq(t, meta.kind, SP_FS_KIND_DIR);
 
   struct { sp_str_t token; sp_str_t value; } subs[16];

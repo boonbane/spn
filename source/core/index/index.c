@@ -79,15 +79,13 @@ static spn_err_t git_index_reset(spn_index_info_t* index) {
   return reset ? SPN_OK : SPN_ERROR;
 }
 
-static spn_err_t git_index_freshen(spn_index_info_t* index, sp_atomic_s32_t* cancelled, spn_git_failure_t* failure) {
+static spn_err_t git_index_freshen(spn_index_info_t* index, bool present, sp_atomic_s32_t* cancelled, spn_git_failure_t* failure) {
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   spn_err_t err = SPN_ERROR;
-  sp_path_t at = index->location.at;
   sp_str_t dir = index->location.dir;
 
   sp_for(attempt, 2) {
-    sp_sys_file_meta_t meta = sp_zero;
-    if (attempt || sp_fs_get_link_metadata_at(at, &meta) || meta.kind != SP_FS_KIND_DIR) {
+    if (attempt || !present) {
       if (git_index_clone(index, cancelled, failure)) {
         break;
       }
@@ -142,7 +140,7 @@ spn_index_plan_t spn_index_plan(spn_index_info_t* index, bool force) {
   sp_sys_file_meta_t meta = sp_zero;
   switch (index->protocol) {
     case SPN_INDEX_PROTOCOL_GIT: {
-      bool present = !sp_fs_get_path_metadata_at(at, &meta);
+      bool present = !sp_fs_get_link_metadata_at(at, &meta) && meta.kind == SP_FS_KIND_DIR;
       bool due = sp_str_empty(index->git.rev) && git_index_expired(index, git_index_synced);
       bool held = present && !force && due && !git_index_expired(index, git_index_failed);
       return (spn_index_plan_t) {
@@ -169,7 +167,7 @@ static spn_err_t git_index_sync(spn_index_info_t* index, spn_index_plan_t plan, 
     if (!plan.fetch) {
       return plan.held ? SPN_ERROR : SPN_OK;
     }
-    return git_index_freshen(index, cancelled, failure);
+    return git_index_freshen(index, plan.present, cancelled, failure);
   }
   if (!plan.present) {
     spn_try(git_index_clone(index, cancelled, failure));
@@ -244,7 +242,9 @@ static spn_err_t publish_git(spn_index_info_t* index, spn_index_release_t* rel, 
 
   sp_for(attempt, SPN_INDEX_PUBLISH_ATTEMPTS) {
     spn_git_failure_t failure = sp_zero;
-    if (git_index_freshen(index, cancelled, &failure)) {
+    sp_sys_file_meta_t meta = sp_zero;
+    bool present = !sp_fs_get_link_metadata_at(index->location.at, &meta) && meta.kind == SP_FS_KIND_DIR;
+    if (git_index_freshen(index, present, cancelled, &failure)) {
       if (failure.kind == SPN_GIT_CANCELLED) {
         result = SPN_ERR_CANCELLED;
         break;

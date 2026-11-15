@@ -26,11 +26,7 @@ spn_err_t spn_op_clean(spn_op_t* op) {
   if (staged.err) {
     return spn_err_emit(ctx, (spn_err_union_t) { .kind = staged.err, .fs = { .path = staged.path } });
   }
-  spn_path_t commands = spn_path_project_compile_commands();
-  sp_sys_file_meta_t meta = sp_zero;
-  if (!sp_fs_get_path_metadata_at(spn_path_at(&ctx->roots, commands), &meta)) {
-    spn_try(remove_path(ctx, commands));
-  }
+  spn_try(remove_path(ctx, spn_path_project_compile_commands()));
   return remove_path(ctx, spn_path_project_build());
 }
 

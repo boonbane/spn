@@ -171,7 +171,7 @@ static spn_err_t execute_graph(const si_dag_ctx_t* c, void* user_data) {
 
   sp_da_for(c->consumes, it) {
     sp_sys_file_meta_t meta = sp_zero;
-    if (sp_fs_get_path_metadata_at(spn_path_at(roots, si_dag_resolve_input(c, c->consumes[it])), &meta)) {
+    if (sp_fs_get_path_metadata_at(si_dag_input_at(c, c->consumes[it]), &meta)) {
       return SPN_ERR_DAG_ACTION;
     }
   }

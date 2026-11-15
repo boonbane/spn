@@ -8,7 +8,7 @@
 
 static spn_err_t write_rsp(sp_mem_t mem, const si_dag_ctx_t* c, si_rsp_t* rsp) {
   sp_io_file_writer_t writer = sp_zero;
-  if (sp_io_file_writer_from_path_at(&writer, spn_path_at(c->roots, si_dag_resolve_output(c, rsp->output)))) {
+  if (sp_io_file_writer_from_path_at(&writer, si_dag_output_at(c, rsp->output))) {
     return SPN_ERR_DAG_OUTPUT_WRITE;
   }
   u8 buffer [65536] = sp_zero;

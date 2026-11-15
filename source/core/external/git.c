@@ -4,6 +4,7 @@
 
 #include "ctx/types.h"
 #include "event/event.h"
+#include "os/os.h"
 
 #include <git2.h>
 #include <git2/sys/errors.h>
@@ -471,10 +472,7 @@ spn_err_t spn_git_clean(sp_str_t repo) {
       continue;
     }
     sp_str_t path = sp_fs_join_path(scratch.mem, repo, sp_str_strip_right(sp_cstr_as_str(entry->index_to_workdir->new_file.path), sp_str_lit("/")));
-    sp_sys_file_meta_t meta = sp_zero;
-    bool dir = !sp_fs_get_link_metadata(path, &meta) && meta.kind == SP_FS_KIND_DIR;
-    sp_err_t removed = dir ? sp_fs_remove_dir(path) : sp_fs_remove_file(path);
-    ok = ok && !removed;
+    ok = ok && !sp_fs_remove(sp_path_from_str(path));
   }
   git_status_list_free(status);
   git_repository_free(r);

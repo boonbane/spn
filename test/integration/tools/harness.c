@@ -583,11 +583,9 @@ static sp_err_t expect_locked(sp_test_t* t, fixture_t* fixture, spn_lock_file_t*
 
 static spn_lock_file_t load_lock(sp_test_t* t, fixture_t* fixture) {
   sp_str_t path = fixture_path(fixture, sp_str_lit("spn.lock"));
-  expect_path(t, fixture, path);
   spn_lock_file_t lock = sp_zero;
   spn_lock_file_init(fixture->mem, &lock);
-  sp_sys_file_meta_t meta = sp_zero;
-  if (!sp_fs_get_path_metadata(path, &meta)) {
+  if (!expect_path(t, fixture, path)) {
     lock = spn_lock_file_load(fixture->mem, sp_path_cwd(path), SP_NULLPTR);
   }
   return lock;
