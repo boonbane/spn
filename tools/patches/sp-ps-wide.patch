@@ -1,8 +1,8 @@
 diff --git a/sp.h b/sp.h
-index a7a9049..6e4fa84 100644
+index b2a476f..bffa47d 100644
 --- a/sp.h
 +++ b/sp.h
-@@ -9062,21 +9062,24 @@ void sp_sys_futex_wake_all_p(u32* addr) {
+@@ -9061,21 +9061,24 @@ void sp_sys_futex_wake_all_p(u32* addr) {
  }
  
  #if defined(SP_WIN32)
@@ -33,7 +33,7 @@ index a7a9049..6e4fa84 100644
  }
  #else
  static sp_err_t sp_sys_xdg_or_home(sp_str_t xdg_var, sp_str_t home_suffix, c8* buf, u64 size, u64* len) {
-@@ -16437,7 +16440,9 @@ sp_ps_t sp_ps_create(sp_mem_t mem, sp_ps_config_t config) {
+@@ -16429,7 +16432,9 @@ sp_ps_t sp_ps_create(sp_mem_t mem, sp_ps_config_t config) {
    sp_env_t env = sp_ps_build_env(&config.env, scratch.mem);
    sp_str_t block = sp_env_to_win32_block(scratch.mem, &env);
  
@@ -44,7 +44,7 @@ index a7a9049..6e4fa84 100644
  
    sp_ps_win32_stdio_t io = {
      .in = { .parent_fd = SP_SYS_INVALID_FD },
-@@ -16445,11 +16450,14 @@ sp_ps_t sp_ps_create(sp_mem_t mem, sp_ps_config_t config) {
+@@ -16437,11 +16442,14 @@ sp_ps_t sp_ps_create(sp_mem_t mem, sp_ps_config_t config) {
      .err = { .parent_fd = SP_SYS_INVALID_FD },
    };
  
@@ -60,7 +60,7 @@ index a7a9049..6e4fa84 100644
    sp_try_goto(sp_ps_win32_configure_io_in(&proc.io.in, &io.in), error, fail);
  
    if (proc.io.out.mode == SP_PS_IO_MODE_REDIRECT) {
-@@ -16463,13 +16471,13 @@ sp_ps_t sp_ps_create(sp_mem_t mem, sp_ps_config_t config) {
+@@ -16455,13 +16463,13 @@ sp_ps_t sp_ps_create(sp_mem_t mem, sp_ps_config_t config) {
      sp_try_goto(sp_ps_win32_configure_io_out(&proc.io.err, STD_ERROR_HANDLE, GENERIC_WRITE, &io.err), error, fail);
    }
  

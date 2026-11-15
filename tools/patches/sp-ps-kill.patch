@@ -1,16 +1,8 @@
 diff --git a/sp.h b/sp.h
-index 54c3425..a7a9049 100644
+index 54c3425..b2a476f 100644
 --- a/sp.h
 +++ b/sp.h
-@@ -5011,6 +5011,7 @@ typedef struct {
-   sp_str_t cwd;
-   sp_ps_env_config_t env;
-   sp_ps_io_config_t io;
-+  bool group;
- } sp_ps_config_t;
- 
- typedef struct {
-@@ -5067,7 +5068,9 @@ SP_API void            sp_ps_config_add_arg(sp_mem_t mem, sp_ps_config_t* config
+@@ -5067,7 +5067,9 @@ SP_API void            sp_ps_config_add_arg(sp_mem_t mem, sp_ps_config_t* config
  SP_API sp_ps_status_t  sp_ps_wait(sp_ps_t* ps);
  SP_API sp_ps_status_t  sp_ps_poll(sp_ps_t* ps, u32 timeout_ms);
  SP_API sp_ps_output_t  sp_ps_output(sp_ps_t* ps);
@@ -20,35 +12,7 @@ index 54c3425..a7a9049 100644
  SP_API void            sp_ps_free(sp_ps_t* ps);
  SP_API void            sp_ps_output_free(sp_mem_t mem, sp_ps_output_t* output);
  SP_API sp_io_stream_writer_t* sp_ps_io_in(sp_ps_t* ps);
-@@ -15475,6 +15478,7 @@ typedef struct {
- 
- struct sp_ps_os {
-   s32 pid;
-+  bool group;
- };
- 
- SP_PRIVATE void sp_ps_set_cwd(posix_spawn_file_actions_t* fa, sp_str_t cwd);
-@@ -15656,6 +15660,11 @@ sp_ps_t sp_ps_create(sp_mem_t mem, sp_ps_config_t config) {
-     sp_ps_set_cwd(&fa, config.cwd);
-   }
- 
-+  if (config.group) {
-+    SP_ASSERT(posix_spawnattr_setpgroup(&attr, 0) == 0);
-+    SP_ASSERT(posix_spawnattr_setflags(&attr, POSIX_SPAWN_SETPGROUP) == 0);
-+  }
-+
-   sp_ps_stdio_config_t io = {
-     .in = (sp_ps_stdio_config_entry_t) {
-       .fa = &fa,
-@@ -15707,6 +15716,7 @@ sp_ps_t sp_ps_create(sp_mem_t mem, sp_ps_config_t config) {
- 
-   proc.os = sp_alloc_type(mem, sp_ps_os_t);
-   proc.os->pid = pid;
-+  proc.os->group = config.group;
- 
-   proc.io.in.fd = 0;
-   proc.io.out.fd = 0;
-@@ -15954,6 +15964,12 @@ sp_ps_status_t sp_ps_wait(sp_ps_t* ps) {
+@@ -15954,6 +15956,12 @@ sp_ps_status_t sp_ps_wait(sp_ps_t* ps) {
  }
  
  sp_ps_output_t sp_ps_output(sp_ps_t* ps) {
@@ -61,7 +25,7 @@ index 54c3425..a7a9049 100644
    sp_ps_output_t result = sp_zero;
    u8 buffer[4096];
  
-@@ -16023,7 +16039,6 @@ sp_ps_output_t sp_ps_output(sp_ps_t* ps) {
+@@ -16023,7 +16031,6 @@ sp_ps_output_t sp_ps_output(sp_ps_t* ps) {
  
    result.out = sp_io_dyn_mem_writer_take_str(&write.out);
    result.err = sp_io_dyn_mem_writer_take_str(&write.err);
@@ -69,19 +33,19 @@ index 54c3425..a7a9049 100644
    return result;
  }
  
-@@ -16034,6 +16049,11 @@ bool sp_ps_kill(sp_ps_t* ps) {
+@@ -16034,6 +16041,11 @@ bool sp_ps_kill(sp_ps_t* ps) {
    return true;
  }
  
 +bool sp_ps_kill_async(sp_ps_t* ps) {
 +  if (!ps || !ps->os) return false;
-+  return kill(ps->os->group ? -ps->os->pid : ps->os->pid, SIGKILL) == 0;
++  return kill(ps->os->pid, SIGKILL) == 0;
 +}
 +
  void sp_ps_free(sp_ps_t* ps) {
    if (!ps) return;
  
-@@ -16610,6 +16630,7 @@ sp_ps_status_t sp_ps_win32_finish_process(sp_ps_t* ps) {
+@@ -16610,6 +16622,7 @@ sp_ps_status_t sp_ps_win32_finish_process(sp_ps_t* ps) {
    }
  
    CloseHandle(ps->os->pid);
@@ -89,7 +53,7 @@ index 54c3425..a7a9049 100644
    return result;
  
  }
-@@ -16667,6 +16688,12 @@ typedef struct {
+@@ -16667,6 +16680,12 @@ typedef struct {
  } sp_ps_win32_pump_stream_t;
  
  sp_ps_output_t sp_ps_output(sp_ps_t* ps) {
@@ -102,7 +66,7 @@ index 54c3425..a7a9049 100644
    sp_ps_output_t result = sp_zero;
  
    sp_ps_close_owned_fd(&ps->io.in.fd, ps->io.in.mode);
-@@ -16681,9 +16708,6 @@ sp_ps_output_t sp_ps_output(sp_ps_t* ps) {
+@@ -16681,9 +16700,6 @@ sp_ps_output_t sp_ps_output(sp_ps_t* ps) {
      { .fd = ps->io.err.fd, .ov = &ps->os->err, .writer = &err.base, .open = sp_ps_is_fd_valid(ps->io.err.fd) },
    };
  
@@ -112,7 +76,7 @@ index 54c3425..a7a9049 100644
    while (true) {
      sp_carr_for(streams, it) {
        sp_ps_win32_pump_stream_t* s = &streams[it];
-@@ -16701,8 +16725,8 @@ sp_ps_output_t sp_ps_output(sp_ps_t* ps) {
+@@ -16701,8 +16717,8 @@ sp_ps_output_t sp_ps_output(sp_ps_t* ps) {
        s->pending = true;
      }
  
@@ -123,7 +87,7 @@ index 54c3425..a7a9049 100644
      DWORD num_handles = 0;
      sp_carr_for(streams, it) {
        if (!streams[it].pending) continue;
-@@ -16710,32 +16734,13 @@ sp_ps_output_t sp_ps_output(sp_ps_t* ps) {
+@@ -16710,32 +16726,13 @@ sp_ps_output_t sp_ps_output(sp_ps_t* ps) {
        sources[num_handles] = &streams[it];
        num_handles++;
      }
@@ -157,7 +121,7 @@ index 54c3425..a7a9049 100644
      s->pending = false;
      u64 num_read = 0;
      sp_err_t reap = sp_ps_win32_reap(s->fd, s->ov, &num_read);
-@@ -16768,17 +16773,8 @@ sp_ps_output_t sp_ps_output(sp_ps_t* ps) {
+@@ -16768,17 +16765,8 @@ sp_ps_output_t sp_ps_output(sp_ps_t* ps) {
    sp_ps_close_owned_fd(&ps->io.err.fd, ps->io.err.mode);
    sp_ps_win32_close_events(ps->os);
  
@@ -175,7 +139,7 @@ index 54c3425..a7a9049 100644
    return result;
  }
  
-@@ -16797,6 +16793,14 @@ bool sp_ps_kill(sp_ps_t* ps) {
+@@ -16797,6 +16785,14 @@ bool sp_ps_kill(sp_ps_t* ps) {
    return true;
  }
  
@@ -190,7 +154,7 @@ index 54c3425..a7a9049 100644
  void sp_ps_free(sp_ps_t* ps) {
    if (!ps) return;
  
-@@ -16897,12 +16901,24 @@ sp_ps_output_t sp_ps_output(sp_ps_t* ps) {
+@@ -16897,12 +16893,24 @@ sp_ps_output_t sp_ps_output(sp_ps_t* ps) {
    };
  }
  

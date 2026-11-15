@@ -39,7 +39,6 @@ static spn_err_t run_test(spn_session_t* session, spn_children_t* children, spn_
       .out = { .mode = SP_PS_IO_MODE_CREATE },
       .err = { .mode = SP_PS_IO_MODE_CREATE },
     },
-    .group = true,
   });
   u64 time = sp_tm_read_timer(&timer);
 

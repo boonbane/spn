@@ -92,8 +92,7 @@ static sp_ps_config_t invocation_ps(const spn_path_roots_t* roots, const spn_inv
       .in.mode = SP_PS_IO_MODE_NULL,
       .out.mode = SP_PS_IO_MODE_CREATE,
       .err.mode = SP_PS_IO_MODE_REDIRECT,
-    },
-    .group = true,
+    }
   };
   sp_da_for(invocation->env, it) {
     ps_env_push(&ps, spn_invocation_env_var(roots, mem, invocation->env[it]));

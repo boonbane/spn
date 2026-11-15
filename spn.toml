@@ -48,7 +48,7 @@ files = [
   "tools/patches/sp-golden-absolute.patch",
   "tools/patches/sp-prompt-passive.patch",
   "tools/patches/sp-macos-create-race.patch",
-  "tools/patches/sp-ps-group.patch",
+  "tools/patches/sp-ps-kill.patch",
   "tools/patches/sp-ps-wide.patch",
 ]
 
