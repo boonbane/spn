@@ -95,6 +95,7 @@ typedef struct {
   sp_mem_t mem;
   sp_sys_event_t doorbell;
   sp_atomic_s32_t signal;
+  sp_atomic_s32_t waiting;
   s32 code;
 } spn_cli_host_t;
 

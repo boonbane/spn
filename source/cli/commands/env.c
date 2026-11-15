@@ -246,10 +246,6 @@ static sp_cli_result_t run(sp_cli_t* cli) {
   try(resolve(&env));
   spn_tui_handoff(&tui);
   sp_os_register_signal_handler(SP_OS_SIGNAL_INTERRUPT, SP_NULLPTR, SP_NULLPTR);
-#if defined(SP_POSIX)
-  sigaction(SIGTERM, &(struct sigaction) { .sa_handler = SIG_DFL }, SP_NULLPTR);
-  sigaction(SIGHUP, &(struct sigaction) { .sa_handler = SIG_DFL }, SP_NULLPTR);
-#endif
 
   sp_mem_arena_marker_t s = sp_mem_begin_scratch();
   bool windows = sp_os_get_path_kind() == SP_FS_PATH_WINDOWS;

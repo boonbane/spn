@@ -16,7 +16,8 @@ static void die(s32 signal) {
 }
 
 void spn_cli_interrupt(s32 signal) {
-  if (sp_atomic_s32_cas(&host.signal, 0, signal, SP_ATOMIC_SEQ_CST)) {
+  // Only spn_cli_wait acts on the signal; with nothing waiting, nothing would
+  if (sp_atomic_s32_load(&host.waiting, SP_ATOMIC_SEQ_CST) && sp_atomic_s32_cas(&host.signal, 0, signal, SP_ATOMIC_SEQ_CST)) {
     sp_sys_event_signal(host.doorbell);
     return;
   }
@@ -73,7 +74,7 @@ sp_cli_result_t spn_cli_session(spn_session_config_t config) {
   return spn_ctx_open_session(host.ctx, &config, &host.session) ? SP_CLI_ERR : SP_CLI_OK;
 }
 
-spn_err_t spn_cli_wait(spn_op_t* op) {
+static spn_err_t wait_op(spn_op_t* op) {
   while (true) {
     sp_sys_event_clear(host.doorbell);
 
@@ -114,6 +115,13 @@ spn_err_t spn_cli_wait(spn_op_t* op) {
     u64 signaled = 0;
     sp_sys_wait(fds, 1, (u32)(interrupt_grace_ms - elapsed), &signaled);
   }
+}
+
+spn_err_t spn_cli_wait(spn_op_t* op) {
+  sp_atomic_s32_store(&host.waiting, 1, SP_ATOMIC_SEQ_CST);
+  spn_err_t err = wait_op(op);
+  sp_atomic_s32_store(&host.waiting, 0, SP_ATOMIC_SEQ_CST);
+  return err;
 }
 
 sp_cli_result_t spn_cli_op(spn_op_t* op) {
