@@ -74,7 +74,12 @@ static s32 run(s32 num_args, const c8** args) {
   sp_os_register_signal_handler(SP_OS_SIGNAL_INTERRUPT, on_signal, SP_NULLPTR);
   sp_os_register_signal_handler(SP_OS_SIGNAL_TERMINATE, on_signal, SP_NULLPTR);
 #if defined(SP_POSIX)
-  sigaction(SIGHUP, &(struct sigaction) { .sa_handler = on_hangup }, SP_NULLPTR);
+  // Under nohup the hangup stays ignored, for spn and for everything it starts
+  struct sigaction hangup = sp_zero;
+  sigaction(SIGHUP, SP_NULLPTR, &hangup);
+  if (hangup.sa_handler != SIG_IGN) {
+    sigaction(SIGHUP, &(struct sigaction) { .sa_handler = on_hangup }, SP_NULLPTR);
+  }
 #endif
 
   sp_cli_t cli = sp_zero;
