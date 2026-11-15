@@ -149,7 +149,8 @@ static void prepare_run(env_t* env, const run_t* run) {
       break;
     }
     sp_path_t path = dag_test_env_path(&env->dag, sp_cstr_as_str(run->removed[it]));
-    if (sp_fs_is_dir_at(path)) {
+    sp_sys_file_meta_t meta = sp_zero;
+    if (!sp_fs_get_link_metadata_at(path, &meta) && meta.kind == SP_FS_KIND_DIR) {
       sp_fs_remove_dir_at(path);
     } else {
       sp_fs_remove_file_at(path);

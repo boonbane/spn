@@ -163,31 +163,6 @@ sp_test(fs_lock, acquire_blocks_until_release, .serial = true) {
   return SP_OK;
 }
 
-sp_test(fs_append, creates) {
-  sp_mem_t mem = sp_test_arena(t);
-  sp_path_t path = sp_path_join(mem, sp_test_dir(t), sp_str_lit("rc"));
-
-  sp_must_ok(t, sp_fs_append(path, sp_str_lit("\nL\n")));
-
-  sp_str_t content = sp_zero;
-  sp_must_ok(t, sp_io_read_file_at(mem, path, &content));
-  sp_expect_str_eq_c(t, content, "\nL\n");
-  return SP_OK;
-}
-
-sp_test(fs_append, appends) {
-  sp_mem_t mem = sp_test_arena(t);
-  sp_path_t path = sp_path_join(mem, sp_test_dir(t), sp_str_lit("rc"));
-  sp_must_ok(t, sp_fs_create_file_cstr_at(path, "A\n"));
-
-  sp_must_ok(t, sp_fs_append(path, sp_str_lit("\nL\n")));
-
-  sp_str_t content = sp_zero;
-  sp_must_ok(t, sp_io_read_file_at(mem, path, &content));
-  sp_expect_str_eq_c(t, content, "A\n\nL\n");
-  return SP_OK;
-}
-
 sp_test(fs_copy_file, busy) {
   sp_test_skip_on_win32();
 
@@ -213,7 +188,7 @@ sp_test(fs_copy_file, busy) {
   sp_must(t, running.os);
 
   sp_path_t source = sp_path_join(mem, dir, sp_str_lit("src"));
-  sp_must_ok(t, sp_fs_create_file_cstr_at(source, "N"));
+  sp_must_ok(t, sp_fs_write_cstr_at(source, "N", SP_FS_WRITE_TRUNCATE));
 
   sp_err_t err = sp_fs_copy_file_at(source, target, SP_FS_ATOMIC_REPLACE);
 
@@ -223,7 +198,7 @@ sp_test(fs_copy_file, busy) {
 
   sp_must_ok(t, err);
   sp_str_t content = sp_zero;
-  sp_must_ok(t, sp_io_read_file_at(mem, target, &content));
+  sp_must_ok(t, sp_fs_read_at(mem, target, &content));
   sp_expect_str_eq_c(t, content, "N");
   return SP_OK;
 }
@@ -281,7 +256,8 @@ sp_test_each(fs_remove, kinds, fs_remove_test_t, fs_remove_tests) {
   }
 
   sp_must_ok(t, sp_fs_remove(path));
-  sp_expect_eq(t, sp_fs_get_kind_at(path), SP_FS_KIND_NONE);
-  sp_expect_eq(t, sp_fs_is_file_at(inside), it->kind == FS_REMOVE_LINK_TO_DIR);
+  sp_sys_file_meta_t meta = sp_zero;
+  sp_expect_err_eq(t, sp_fs_get_link_metadata_at(path, &meta), SP_ERR_SYS_NOT_FOUND);
+  sp_expect_eq(t, !sp_fs_get_link_metadata_at(inside, &meta) && meta.kind == SP_FS_KIND_FILE, it->kind == FS_REMOVE_LINK_TO_DIR);
   return SP_OK;
 }

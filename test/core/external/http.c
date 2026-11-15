@@ -258,7 +258,7 @@ sp_test_each(http, download, test_t, tests, .setup = spn_test_ctx_setup) {
   sp_expect_eq(t, server.expired, 0u);
   if (it->expect.body) {
     sp_str_t body = sp_zero;
-    sp_must_ok(t, sp_io_read_file_at(mem, dest, &body));
+    sp_must_ok(t, sp_fs_read_at(mem, dest, &body));
     sp_expect_str_eq_c(t, body, it->expect.body);
   }
   return SP_OK;
@@ -268,7 +268,7 @@ sp_test(http, downloads_file_url, .setup = spn_test_ctx_setup) {
   sp_mem_t mem = sp_test_arena(t);
   sp_str_t source = sp_fs_join_path(mem, test_dir_str(t), sp_str_lit("A"));
   sp_path_t dest = sp_path_join(mem, sp_test_dir(t), sp_str_lit("B"));
-  sp_must_ok(t, sp_fs_create_file_str(source, sp_str_lit("A")));
+  sp_must_ok(t, sp_fs_write(source, sp_str_lit("A"), SP_FS_WRITE_TRUNCATE));
 
   sp_atomic_s32_t cancelled = sp_zero;
   spn_http_config_t config = { .timeout_s = 1, .cancelled = &cancelled };
@@ -278,7 +278,7 @@ sp_test(http, downloads_file_url, .setup = spn_test_ctx_setup) {
   sp_test_kv_c(t, "message", failure.message);
   sp_must_eq(t, (u32)err, (u32)SPN_OK);
   sp_str_t body = sp_zero;
-  sp_must_ok(t, sp_io_read_file_at(mem, dest, &body));
+  sp_must_ok(t, sp_fs_read_at(mem, dest, &body));
   sp_expect_str_eq_c(t, body, "A");
   return SP_OK;
 }

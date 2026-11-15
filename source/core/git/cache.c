@@ -50,10 +50,11 @@ spn_err_t spn_git_cache_ensure_db(spn_git_cache_t* cache, sp_str_t url, sp_atomi
     entry->ready = true;
 
     sp_path_t repo = spn_path_at(cache->roots, entry->path);
-    if (!sp_fs_is_dir_at(repo)) {
+    sp_sys_file_meta_t meta = sp_zero;
+    if (sp_fs_get_link_metadata_at(repo, &meta) || meta.kind != SP_FS_KIND_DIR) {
       sp_fs_lock_t lock = sp_zero;
       entry->err = spn_git_lock(repo, repo, url, cancelled, &lock, &entry->failure);
-      if (!entry->err && !sp_fs_is_dir_at(repo)) {
+      if (!entry->err && (sp_fs_get_link_metadata_at(repo, &meta) || meta.kind != SP_FS_KIND_DIR)) {
         sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
         entry->err = spn_git_init_bare(url, spn_path_str(cache->roots, scratch.mem, entry->path), &entry->failure);
         sp_mem_end_scratch(scratch);
@@ -181,7 +182,8 @@ static spn_err_t spn_git_cache_materialize_checkout(spn_git_cache_t* cache, spn_
 
     if (sp_sys_rename_s(work.dir, work.sub, dest.dir, dest.sub)) {
       sp_fs_remove_dir_at(work);
-      if (!sp_fs_is_dir_at(dest)) {
+      sp_sys_file_meta_t meta = sp_zero;
+      if (sp_fs_get_link_metadata_at(dest, &meta) || meta.kind != SP_FS_KIND_DIR) {
         fail_at(cache, entry, "place");
         return SPN_ERROR;
       }
@@ -190,7 +192,8 @@ static spn_err_t spn_git_cache_materialize_checkout(spn_git_cache_t* cache, spn_
 
   if (!sp_str_empty(entry->id.dir)) {
     spn_path_t subdir = spn_path_join(cache->mem, entry->path, entry->id.dir);
-    if (!sp_fs_is_dir_at(spn_path_at(cache->roots, subdir))) {
+    sp_sys_file_meta_t meta = sp_zero;
+    if (sp_fs_get_link_metadata_at(spn_path_at(cache->roots, subdir), &meta) || meta.kind != SP_FS_KIND_DIR) {
       sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
       fail(&entry->failure, sp_fmt(scratch.mem, "{} does not exist in {}", sp_fmt_str(entry->id.dir), sp_fmt_str(entry->id.url)).value);
       sp_mem_end_scratch(scratch);
@@ -214,7 +217,8 @@ spn_git_checkout_t* spn_git_cache_checkout(spn_git_cache_t* cache, spn_git_check
     entry = sp_alloc_type(cache->mem, spn_git_checkout_t);
     entry->id = id;
     entry->path = spn_path_join(cache->mem, cache->checkouts.dir, owned);
-    entry->fetched = !sp_fs_is_dir_at(spn_path_at(cache->roots, entry->path));
+    sp_sys_file_meta_t meta = sp_zero;
+    entry->fetched = sp_fs_get_link_metadata_at(spn_path_at(cache->roots, entry->path), &meta) || meta.kind != SP_FS_KIND_DIR;
     sp_str_om_insert(cache->checkouts.entries, owned, entry);
   }
 

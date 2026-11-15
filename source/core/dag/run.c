@@ -727,7 +727,8 @@ static spn_err_t execute_attempt(sp_mem_t mem, si_dag_action_handle_t* attempt, 
     const spn_dag_artifact_t* artifact = spn_dag_find_artifact(g, action->produces[it]);
     sp_path_t output = spn_path_at(g->roots, attempt->outputs[it]);
     err = SPN_ERR_DAG_MISSING_OUTPUT;
-    if (sp_fs_exists_at(output)) {
+    sp_sys_file_meta_t meta = sp_zero;
+    if (!sp_fs_get_path_metadata_at(output, &meta)) {
       switch (artifact->kind) {
         case SPN_DAG_ARTIFACT_KIND_TREE: {
           err = spn_dag_store_put_tree(run->store, output, &attempt->digests[it]);

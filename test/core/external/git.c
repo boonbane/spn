@@ -188,15 +188,15 @@ sp_test_each(git, failure, test_t, tests, .setup = spn_test_ctx_setup) {
     }
     case DAMAGE_REF_LOCKED: {
       git_repo_commit(remote, sp_str_lit("B"));
-      sp_must_ok(t, sp_fs_create_file_str(sp_fmt(mem, "{}.lock", sp_fmt_str(ref)).value, sp_str_lit("")));
+      sp_must_ok(t, sp_fs_write(sp_fmt(mem, "{}.lock", sp_fmt_str(ref)).value, sp_str_lit(""), SP_FS_WRITE_TRUNCATE));
       break;
     }
     case DAMAGE_REF_GARBLED: {
-      sp_must_ok(t, sp_fs_create_file_str(ref, sp_str_lit("A")));
+      sp_must_ok(t, sp_fs_write(ref, sp_str_lit("A"), SP_FS_WRITE_TRUNCATE));
       break;
     }
     case DAMAGE_PATH_IS_FILE: {
-      sp_must_ok(t, sp_fs_create_file_str(local, sp_str_lit("A")));
+      sp_must_ok(t, sp_fs_write(local, sp_str_lit("A"), SP_FS_WRITE_TRUNCATE));
       break;
     }
   }

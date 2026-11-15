@@ -55,7 +55,7 @@ sp_test_each(reflect_read, deps, test_t, tests) {
 
   sp_str_t path = test_repo_path(mem, sp_fmt(mem, "test/core/reflect/deps/{}.json", sp_fmt_cstr(it->name)).value);
   sp_str_t json = sp_zero;
-  sp_must(t, !sp_io_read_file(mem, path, &json));
+  sp_must(t, !sp_fs_read(mem, path, &json));
 
   spn_cg_source_deps_t deps = sp_zero;
   sp_must_eq(t, SPN_OK, spn_reflect_json_read(json, &spn_reflect_source_deps, &deps, mem));

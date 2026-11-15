@@ -109,7 +109,8 @@ static sp_str_t display_path(fixture_t* fixture, sp_str_t path) {
 }
 
 sp_err_t expect_exists(sp_test_t* t, fixture_t* fixture, sp_str_t path, bool expected, const c8* file, u32 line) {
-  bool exists = sp_fs_exists(path);
+  sp_sys_file_meta_t meta = sp_zero;
+  bool exists = !sp_fs_get_path_metadata(path, &meta);
   if (exists == expected) {
     return SP_OK;
   }
@@ -585,7 +586,8 @@ static spn_lock_file_t load_lock(sp_test_t* t, fixture_t* fixture) {
   expect_path(t, fixture, path);
   spn_lock_file_t lock = sp_zero;
   spn_lock_file_init(fixture->mem, &lock);
-  if (sp_fs_exists(path)) {
+  sp_sys_file_meta_t meta = sp_zero;
+  if (!sp_fs_get_path_metadata(path, &meta)) {
     lock = spn_lock_file_load(fixture->mem, sp_path_cwd(path), SP_NULLPTR);
   }
   return lock;
@@ -770,14 +772,14 @@ sp_err_t run_rebuild_test(sp_test_t* t, rebuild_test_t test) {
   sp_try(prepare_test(t, &fixture, test.project, test.copy));
   sp_try(run_command(t, &fixture, test.first));
 
-  sp_tm_epoch_t mtimes [SPN_TEST_MAX_WATCHES] = sp_zero;
+  sp_sys_file_meta_t mtimes [SPN_TEST_MAX_WATCHES] = sp_zero;
   sp_carr_for(test.watches, it) {
     if (test.watches[it].file.kind == PATH_NONE) {
       break;
     }
     sp_str_t path = at(&fixture, test.watches[it].file);
     expect_path(t, &fixture, path);
-    mtimes[it] = sp_fs_get_mod_time(path);
+    sp_fs_get_path_metadata(path, &mtimes[it]);
   }
 
   sp_carr_for(test.rebuilds, it) {
@@ -794,8 +796,9 @@ sp_err_t run_rebuild_test(sp_test_t* t, rebuild_test_t test) {
       break;
     }
     sp_str_t path = at(&fixture, watch.file);
-    sp_tm_epoch_t now = sp_fs_get_mod_time(path);
-    bool unchanged = mtimes[it].s == now.s && mtimes[it].ns == now.ns;
+    sp_sys_file_meta_t now = sp_zero;
+    sp_fs_get_path_metadata(path, &now);
+    bool unchanged = mtimes[it].mtime.tv_sec == now.mtime.tv_sec && mtimes[it].mtime.tv_nsec == now.mtime.tv_nsec;
     if (watch.mtime == REBUILD_MTIME_CHANGED) {
       sp_expect(t, !unchanged);
     }
@@ -828,7 +831,7 @@ static sp_err_t stage_bare_run(sp_test_t* t, fixture_t* fixture, action_t action
   }
 
   spn_cg_probe_t probe = { .exe = exe_name, .expect = bare_expect_token(action.bare.expect) };
-  return sp_fs_create_file_str(sp_fs_join_path(mem, dir, sp_str_lit("probe.json")), spn_probe_write(mem, &probe));
+  return sp_fs_write(sp_fs_join_path(mem, dir, sp_str_lit("probe.json")), spn_probe_write(mem, &probe), SP_FS_WRITE_TRUNCATE);
 }
 
 static sp_str_t create_content(fixture_t* fixture, action_t action) {
@@ -1029,8 +1032,9 @@ static sp_err_t opt_set_manifest(sp_test_t* t, fixture_t* fixture, const c8* man
   sp_str_t content = test_read_file(fixture->mem, from);
   fixture_create(fixture, sp_str_lit("spn.toml"), content);
   sp_fs_remove_file(from);
-  sp_must(t, !sp_fs_exists(from));
-  sp_must(t, sp_fs_exists(to));
+  sp_sys_file_meta_t meta = sp_zero;
+  sp_must_err_eq(t, sp_fs_get_path_metadata(from, &meta), SP_ERR_SYS_NOT_FOUND);
+  sp_must_ok(t, sp_fs_get_path_metadata(to, &meta));
   return SP_OK;
 }
 

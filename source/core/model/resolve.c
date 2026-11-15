@@ -29,7 +29,8 @@ static spn_err_t apply_patch_overrides(spn_session_t* session, spn_resolve_query
 
     spn_path_t patch = spn_path_join(spn.mem, session->ctx->paths.patches, pkg->name.str);
     spn_path_t path = spn_path_join(spn.mem, patch, pkg->origin.paths.manifest);
-    if (!sp_fs_exists_at(spn_path_at(&session->ctx->roots, path))) {
+    sp_sys_file_meta_t meta = sp_zero;
+    if (sp_fs_get_path_metadata_at(spn_path_at(&session->ctx->roots, path), &meta) || meta.kind == SP_FS_KIND_UNKNOWN) {
       continue;
     }
 

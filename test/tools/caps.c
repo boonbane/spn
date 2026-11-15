@@ -122,7 +122,8 @@ static bool sdk_has_atl(sp_mem_t mem, const spn_sdk_t* sdk) {
     return false;
   }
   spn_path_roots_t roots = sp_zero;
-  return sp_fs_is_file(spn_path_str(&roots, mem, spn_path_join(mem, sdk->msvc.include.atlmfc, sp_str_lit("atlbase.h"))));
+  sp_sys_file_meta_t meta = sp_zero;
+  return !sp_fs_get_link_metadata(spn_path_str(&roots, mem, spn_path_join(mem, sdk->msvc.include.atlmfc, sp_str_lit("atlbase.h"))), &meta) && meta.kind == SP_FS_KIND_FILE;
 }
 
 static spn_search_rules_t host_rules() {

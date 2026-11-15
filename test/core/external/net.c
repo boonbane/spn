@@ -63,12 +63,12 @@ static sp_err_t place(sp_test_t* t, bundle_t bundle, sp_str_t name, sp_str_t tar
       return SP_OK;
     }
     case BUNDLE_FILE: {
-      sp_must_ok(t, sp_fs_create_file_str(named, sp_str_lit("A")));
+      sp_must_ok(t, sp_fs_write(named, sp_str_lit("A"), SP_FS_WRITE_TRUNCATE));
       break;
     }
     case BUNDLE_LINK: {
       sp_str_t linked = sp_fs_join_path(mem, test_dir_str(t), target);
-      sp_must_ok(t, sp_fs_create_file_str(linked, sp_str_lit("A")));
+      sp_must_ok(t, sp_fs_write(linked, sp_str_lit("A"), SP_FS_WRITE_TRUNCATE));
       sp_must_ok(t, sp_fs_create_sym_link(linked, named, SP_FS_KIND_FILE));
       break;
     }

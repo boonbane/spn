@@ -36,7 +36,7 @@ static sp_err_t remove_path(const spn_path_roots_t* roots, spn_path_t path) {
 
 spn_stage_diag_t spn_stage_apply(sp_mem_t scratch, const spn_path_roots_t* roots, spn_dag_file_cache_t* files, spn_path_t manifest, si_da(sp_str_t) declared, si_da(spn_stage_t) rows) {
   sp_str_t previous = sp_zero;
-  sp_err_t read = sp_io_read_file_at(scratch, spn_path_at(roots, manifest), &previous);
+  sp_err_t read = sp_fs_read_at(scratch, spn_path_at(roots, manifest), &previous);
   if (read && read != SP_ERR_SYS_NOT_FOUND) {
     return (spn_stage_diag_t) { .err = SPN_ERR_FS_READ, .path = manifest };
   }
@@ -118,7 +118,7 @@ spn_stage_diag_t spn_stage_apply(sp_mem_t scratch, const spn_path_roots_t* roots
   sp_str_t content = sp_io_dyn_mem_writer_as_str(&io);
   if (!sp_str_equal(previous, content)) {
     sp_fs_create_parent_at(spn_path_at(roots, manifest));
-    if (sp_fs_write_atomic_at(spn_path_at(roots, manifest), content)) {
+    if (sp_fs_write_at(spn_path_at(roots, manifest), content, SP_FS_WRITE_REPLACE)) {
       return (spn_stage_diag_t) { .err = SPN_ERR_FS_WRITE, .path = manifest };
     }
   }
@@ -127,7 +127,7 @@ spn_stage_diag_t spn_stage_apply(sp_mem_t scratch, const spn_path_roots_t* roots
 
 spn_stage_diag_t spn_stage_clean(sp_mem_t scratch, const spn_path_roots_t* roots, spn_path_t manifest) {
   sp_str_t content = sp_zero;
-  sp_err_t read = sp_io_read_file_at(scratch, spn_path_at(roots, manifest), &content);
+  sp_err_t read = sp_fs_read_at(scratch, spn_path_at(roots, manifest), &content);
   if (read == SP_ERR_SYS_NOT_FOUND) {
     return (spn_stage_diag_t) sp_zero;
   }

@@ -59,7 +59,7 @@ static bool render_one(codegen_t* c, sp_str_t path, gen_render_t render) {
 
 static bool write_file(codegen_t* c, sp_str_t path, sp_str_t contents) {
   sp_fs_create_dir(sp_fs_parent_path(path));
-  if (sp_fs_write_atomic(path, contents)) {
+  if (sp_fs_write(path, contents, SP_FS_WRITE_REPLACE)) {
     return fail(c, sp_fmt(c->mem, "failed to write {}", sp_fmt_str(path)).value);
   }
   return true;
@@ -71,7 +71,7 @@ static sp_str_t out_path(codegen_t* c, sp_str_t dir, sp_str_t name, const c8* su
 }
 
 static bool read_json(codegen_t* c, sp_str_t path, sp_str_t* json, yyjson_doc** doc) {
-  if (sp_io_read_file(c->mem, path, json)) {
+  if (sp_fs_read(c->mem, path, json)) {
     return fail(c, sp_fmt(c->mem, "failed to read {}", sp_fmt_str(path)).value);
   }
   *doc = yyjson_read_opts((c8*)json->data, json->len, 0, &c->alc, SP_NULLPTR);
@@ -287,7 +287,8 @@ static bool render_kind(codegen_t* c, sp_str_t path) {
 
 static bool render_abi(codegen_t* c) {
   sp_str_t path = sp_fs_join_path(c->mem, c->paths.schema, sp_str_lit("abi.json"));
-  if (!sp_fs_exists(path)) {
+  sp_sys_file_meta_t meta = sp_zero;
+  if (sp_fs_get_path_metadata(path, &meta)) {
     return true;
   }
 

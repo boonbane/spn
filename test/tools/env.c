@@ -49,7 +49,8 @@ fixture_t fixture_new(sp_test_t* t) {
 
 sp_err_t fixture_init(sp_test_t* t, fixture_t* fixture) {
   *fixture = fixture_new(t);
-  sp_must(t, sp_fs_exists(fixture->paths.spn));
+  sp_sys_file_meta_t meta = sp_zero;
+  sp_must_ok(t, sp_fs_get_path_metadata(fixture->paths.spn, &meta));
   return SP_OK;
 }
 
@@ -166,11 +167,13 @@ static sp_err_t setup_fixture_index_from_remote(sp_test_t* t, fixture_t* fixture
   sp_mem_t mem = fixture->mem;
 
   sp_str_t remote = sp_fs_join_path(mem, project, sp_str_lit("remote"));
-  if (!sp_fs_exists(remote)) {
+  sp_sys_file_meta_t meta = sp_zero;
+  if (sp_fs_get_path_metadata(remote, &meta)) {
     return SP_OK;
   }
 
-  sp_must(t, sp_fs_is_dir(remote));
+  sp_must_ok(t, sp_fs_get_link_metadata(remote, &meta));
+  sp_must_eq(t, meta.kind, SP_FS_KIND_DIR);
 
   sp_str_t raw = sp_fs_join_path(mem, project, sp_str_lit("index"));
 
@@ -181,7 +184,7 @@ static sp_err_t setup_fixture_index_from_remote(sp_test_t* t, fixture_t* fixture
   sp_da_for(packages, it) {
     sp_str_t package = packages[it];
     sp_str_t package_dir = sp_fs_join_path(mem, remote, package);
-    if (!sp_fs_is_dir(package_dir)) {
+    if (sp_fs_get_link_metadata(package_dir, &meta) || meta.kind != SP_FS_KIND_DIR) {
       continue;
     }
 
@@ -196,7 +199,7 @@ static sp_err_t setup_fixture_index_from_remote(sp_test_t* t, fixture_t* fixture
     }));
 
     sp_str_t recipe_versions = sp_fs_join_path(mem, recipes, package);
-    bool split = sp_fs_is_dir(recipe_versions);
+    bool split = !sp_fs_get_link_metadata(recipe_versions, &meta) && meta.kind == SP_FS_KIND_DIR;
     sp_str_t recipe_repo = sp_str_lit("");
     if (split) {
       recipe_repo = fixture_path(fixture, sp_fs_join_path(mem, sp_str_lit("recipes"), package));
@@ -206,7 +209,8 @@ static sp_err_t setup_fixture_index_from_remote(sp_test_t* t, fixture_t* fixture
     sp_da_for(versions, v) {
       sp_str_t version = versions[v];
       sp_str_t version_dir = sp_fs_join_path(mem, package_dir, version);
-      sp_must(t, sp_fs_is_dir(version_dir));
+      sp_must_ok(t, sp_fs_get_link_metadata(version_dir, &meta));
+      sp_must_eq(t, meta.kind, SP_FS_KIND_DIR);
 
       git_repo_commit_from_dir(version_dir, repo, version);
       sp_str_t commit = git_repo_head(repo);
@@ -215,14 +219,14 @@ static sp_err_t setup_fixture_index_from_remote(sp_test_t* t, fixture_t* fixture
         .value = commit,
       }));
 
-      if (sp_fs_is_dir(raw)) {
+      if (!sp_fs_get_link_metadata(raw, &meta) && meta.kind == SP_FS_KIND_DIR) {
         continue;
       }
 
       if (split) {
         sp_str_t recipe_dir = sp_fs_join_path(mem, recipe_versions, version);
         sp_str_t recipe_manifest = sp_fs_join_path(mem, recipe_dir, sp_str_lit("spn.toml"));
-        sp_must(t, sp_fs_exists(recipe_manifest));
+        sp_must_ok(t, sp_fs_get_path_metadata(recipe_manifest, &meta));
 
         git_repo_commit_from_dir(recipe_dir, recipe_repo, version);
 
@@ -241,14 +245,14 @@ static sp_err_t setup_fixture_index_from_remote(sp_test_t* t, fixture_t* fixture
       }
       else {
         sp_str_t source_manifest = sp_fs_join_path(mem, version_dir, sp_str_lit("spn.toml"));
-        sp_must(t, sp_fs_exists(source_manifest));
+        sp_must_ok(t, sp_fs_get_path_metadata(source_manifest, &meta));
 
         sp_try(fixture_publish(t, fixture, repo, repo, commit));
       }
     }
   }
 
-  if (sp_fs_is_dir(raw)) {
+  if (!sp_fs_get_link_metadata(raw, &meta) && meta.kind == SP_FS_KIND_DIR) {
     sp_str_t releases = sp_fs_join_path(mem, raw, sp_str_lit(".spn/index"));
     sp_da(sp_str_t) files = list_dir(mem, releases);
     sp_da_for(files, ft) {
@@ -286,11 +290,13 @@ static sp_err_t setup_fixture_source_repos(sp_test_t* t, fixture_t* fixture, sp_
   sp_mem_t mem = fixture->mem;
 
   sp_str_t source = sp_fs_join_path(mem, project, sp_str_lit("source"));
-  if (!sp_fs_exists(source)) {
+  sp_sys_file_meta_t meta = sp_zero;
+  if (sp_fs_get_path_metadata(source, &meta)) {
     return SP_OK;
   }
 
-  sp_must(t, sp_fs_is_dir(source));
+  sp_must_ok(t, sp_fs_get_link_metadata(source, &meta));
+  sp_must_eq(t, meta.kind, SP_FS_KIND_DIR);
 
   struct { sp_str_t token; sp_str_t value; } subs[16];
   s32 num_subs = 0;
@@ -303,7 +309,7 @@ static sp_err_t setup_fixture_source_repos(sp_test_t* t, fixture_t* fixture, sp_
   sp_da_for(entries, it) {
     sp_str_t name = entries[it];
     sp_str_t dir = sp_fs_join_path(mem, source, name);
-    if (!sp_fs_is_dir(dir)) {
+    if (sp_fs_get_link_metadata(dir, &meta) || meta.kind != SP_FS_KIND_DIR) {
       continue;
     }
 
@@ -326,16 +332,23 @@ static sp_err_t setup_fixture_source_repos(sp_test_t* t, fixture_t* fixture, sp_
     return SP_OK;
   }
 
-  sp_da(sp_fs_it_entry_t) files = sp_zero;
-  sp_fs_collect_recursive(mem, fixture->root, &files);
-  sp_da_for(files, it) {
-    sp_str_t path = sp_fs_join_path(mem, fixture->root, files[it].path);
-    if (sp_fs_is_dir(path)) {
-      continue;
+  sp_da(sp_str_t) files = sp_da_new(mem, sp_str_t);
+  sp_sys_dir_t root = sp_zero;
+  sp_must_ok(t, sp_fs_open_dir_at(sp_path_from_str(fixture->root), &root));
+  sp_fs_it_t walk = sp_fs_it(mem, root);
+  sp_fs_it_entry_t entry = sp_zero;
+  while (sp_fs_it_next(&walk, &entry)) {
+    if (entry.kind != SP_FS_KIND_DIR) {
+      sp_da_push(files, sp_fs_join_path(mem, fixture->root, entry.path));
     }
+  }
+  sp_fs_it_deinit(&walk);
+  sp_fs_close_dir(root);
 
+  sp_da_for(files, it) {
+    sp_str_t path = files[it];
     sp_str_t content = sp_zero;
-    sp_io_read_file(mem, path, &content);
+    sp_fs_read(mem, path, &content);
 
     bool changed = false;
     sp_for(s, num_subs) {
@@ -392,12 +405,14 @@ static sp_str_t pick_shared_toolchain_dir(sp_mem_t mem, sp_str_t root) {
   sp_str_t storage = sp_zero;
   sp_fs_get_storage_path(mem, &storage);
   sp_str_t global = sp_fs_join_path(mem, storage, sp_str_lit("spn/cache/toolchain"));
-  if (sp_fs_exists(global)) return global;
+  sp_sys_file_meta_t meta = sp_zero;
+  if (!sp_fs_get_path_metadata(global, &meta)) return global;
   return sp_fs_join_path(mem, root, sp_str_lit(".cache/toolchain"));
 }
 
 static sp_err_t fixture_copy_project(sp_test_t* t, fixture_t* fixture, sp_str_t project, const c8* const* copy) {
-  sp_must(t, sp_fs_exists(project));
+  sp_sys_file_meta_t meta = sp_zero;
+  sp_must_ok(t, sp_fs_get_path_metadata(project, &meta));
 
   const c8* defaults [] = {
     "main.c",
@@ -406,12 +421,12 @@ static sp_err_t fixture_copy_project(sp_test_t* t, fixture_t* fixture, sp_str_t 
 
   sp_carr_for(defaults, it) {
     sp_str_t from = sp_fs_join_path(fixture->mem, project, sp_cstr_as_str(defaults[it]));
-    if (sp_fs_exists(from)) {
+    if (!sp_fs_get_path_metadata(from, &meta)) {
       copy_into(from, fixture->root);
     }
   }
 
-  if (sp_fs_is_dir(sp_fs_join_path(fixture->mem, project, sp_str_lit("tools")))) {
+  if (!sp_fs_get_link_metadata(sp_fs_join_path(fixture->mem, project, sp_str_lit("tools")), &meta) && meta.kind == SP_FS_KIND_DIR) {
     sp_try(copy_project_path(t, fixture, project, sp_str_lit("tools")));
   }
 
@@ -426,7 +441,8 @@ static sp_err_t fixture_copy_project(sp_test_t* t, fixture_t* fixture, sp_str_t 
 sp_err_t fixture_config_append(sp_test_t* t, fixture_t* fixture, const c8* project, const c8* config) {
   sp_mem_t mem = fixture->mem;
   sp_str_t from = sp_fs_join_path(mem, sp_fs_join_path(mem, fixture->paths.root, sp_cstr_as_str(project)), sp_cstr_as_str(config));
-  sp_must(t, sp_fs_exists(from));
+  sp_sys_file_meta_t meta = sp_zero;
+  sp_must_ok(t, sp_fs_get_path_metadata(from, &meta));
 
   sp_str_t path = config_toml_path(fixture);
   write_file(path, sp_str_concat(mem, test_read_file(mem, path), test_read_file(mem, from)));
@@ -476,7 +492,8 @@ sp_err_t prepare_test(sp_test_t* t, fixture_t* fixture, const c8* project, const
     sp_try(setup_fixture_source_repos(t, fixture, path));
 
     sp_str_t workspace_index = fixture_path(fixture, sp_str_lit("index"));
-    if (sp_fs_is_dir(workspace_index)) {
+    sp_sys_file_meta_t meta = sp_zero;
+    if (!sp_fs_get_link_metadata(workspace_index, &meta) && meta.kind == SP_FS_KIND_DIR) {
       git_repo_init(workspace_index);
       git_repo_stage_all(workspace_index);
       git_repo_commit(workspace_index, sp_str_lit("seed"));

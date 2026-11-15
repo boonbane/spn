@@ -55,7 +55,7 @@ static sp_da(sp_str_t) write_patch_files(sp_test_t* t, const c8* tag, const c8* 
     }
     sp_str_t path = sp_fs_join_path(mem, test_dir_str(t),
       sp_fmt(mem, "{}_{}.patch", sp_fmt_cstr(tag), sp_fmt_uint(i)).value);
-    sp_fs_create_file_cstr(path, contents[i]);
+    sp_fs_write_cstr(path, contents[i], SP_FS_WRITE_TRUNCATE);
     sp_da_push(files, path);
   }
   return files;

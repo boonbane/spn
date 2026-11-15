@@ -171,7 +171,8 @@ static sp_cli_result_t load_config(sp_cli_t* cli, sp_mem_t mem, cli_t* config, s
   bool implied = !config->config;
   if (implied) {
     config->config = "fuzz.toml";
-    if (!sp_fs_is_file(sp_cstr_as_str(config->config))) {
+    sp_sys_file_meta_t meta = sp_zero;
+    if (sp_fs_get_link_metadata(sp_cstr_as_str(config->config), &meta) || meta.kind != SP_FS_KIND_FILE) {
       return sp_cli_set_error(cli, sp_fmt(mem,
         "{} implies {.cyan}, but there is no fuzz.toml in the current directory",
         sp_fmt_cstr(config->profile ? "--profile" : "--list-profiles"),

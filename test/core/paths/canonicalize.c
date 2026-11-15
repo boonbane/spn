@@ -156,7 +156,8 @@ sp_test_each(paths_canonicalize, resolve, canonicalize_test_t, canonicalize_test
       }
       case CANONICALIZE_SETUP_SYMLINK: {
         sp_path_t target = sp_path_join(mem, sandbox, sp_cstr_as_str(s->target));
-        sp_fs_kind_t kind = sp_fs_is_target_dir_at(target) ? SP_FS_KIND_DIR : SP_FS_KIND_FILE;
+        sp_sys_file_meta_t meta = sp_zero;
+        sp_fs_kind_t kind = (!sp_fs_get_path_metadata_at(target, &meta) && meta.kind == SP_FS_KIND_DIR) ? SP_FS_KIND_DIR : SP_FS_KIND_FILE;
         sp_must_ok(t, sp_fs_create_sym_link_at(sp_cstr_as_str(s->target), path, kind));
         break;
       }

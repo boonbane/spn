@@ -130,7 +130,8 @@ static spn_err_t install(spn_toolchain_store_t* store, sp_mem_t scratch, spn_too
   sp_path_t target = spn_path_at(store->roots, dest);
   if (sp_sys_rename_s(work.dir, work.sub, target.dir, target.sub)) {
     sp_fs_remove_dir_at(work);
-    if (!sp_fs_is_dir_at(target)) {
+    sp_sys_file_meta_t meta = sp_zero;
+    if (sp_fs_get_link_metadata_at(target, &meta) || meta.kind != SP_FS_KIND_DIR) {
       return spn_err_emit(&spn, (spn_err_union_t) {
         .kind = SPN_ERR_TOOLCHAIN_EXTRACT,
         .artifact = {
@@ -151,7 +152,9 @@ spn_toolchain_claim_t spn_toolchain_claim(spn_toolchain_store_t* store, sp_mem_t
   };
   claim.tarball = spn_path_staging(mem, claim.root, sp_str_lit("download"));
   // An install is renamed into place, so a root that exists is complete
-  claim.present = sp_fs_is_dir_at(spn_path_at(store->roots, claim.root));
+  sp_path_t root = spn_path_at(store->roots, claim.root);
+  sp_sys_file_meta_t meta = sp_zero;
+  claim.present = !sp_fs_get_link_metadata_at(root, &meta) && meta.kind == SP_FS_KIND_DIR;
   if (claim.present) {
     return claim;
   }
@@ -166,7 +169,7 @@ spn_toolchain_claim_t spn_toolchain_claim(spn_toolchain_store_t* store, sp_mem_t
     });
     locked = sp_fs_lock_acquire(&claim.lock, lock_at);
   }
-  claim.present = !locked && sp_fs_is_dir_at(spn_path_at(store->roots, claim.root));
+  claim.present = !locked && !sp_fs_get_link_metadata_at(root, &meta) && meta.kind == SP_FS_KIND_DIR;
   if (claim.present) {
     sp_fs_lock_release(&claim.lock);
   }

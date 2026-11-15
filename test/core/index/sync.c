@@ -252,7 +252,7 @@ static const sync_test_t tests [] = {
 };
 
 static void commit_seed(sp_mem_t mem, sp_str_t repo, const c8* content) {
-  sp_fs_create_file_cstr(sp_fs_join_path(mem, repo, sp_str_lit("seed.txt")), content);
+  sp_fs_write_cstr(sp_fs_join_path(mem, repo, sp_str_lit("seed.txt")), content, SP_FS_WRITE_TRUNCATE);
 
   git_repo_stage_all(repo);
   git_repo_commit(repo, sp_str_lit("seed"));
@@ -351,7 +351,7 @@ sp_test_each(index_sync, sync, sync_test_t, tests, .setup = spn_test_ctx_setup) 
     sp_must_ok(t, sp_fs_remove_file(sp_fs_join_path(mem, cache, sp_str_lit(".git/spn-synced"))));
   }
   if (it->failed) {
-    sp_must_ok(t, sp_fs_create_file_str(failed, sp_str_lit("")));
+    sp_must_ok(t, sp_fs_write(failed, sp_str_lit(""), SP_FS_WRITE_TRUNCATE));
   }
   if (it->mutate_remote) {
     commit_seed(mem, remote, "B");
@@ -363,8 +363,8 @@ sp_test_each(index_sync, sync, sync_test_t, tests, .setup = spn_test_ctx_setup) 
     sp_fs_remove_dir(sp_fs_join_path(mem, cache, sp_str_lit(".git")));
   }
   if (it->leftover) {
-    sp_must_ok(t, sp_fs_create_file_str(sp_fs_join_path(mem, cache, sp_cstr_as_str(it->leftover)), sp_str_lit("")));
-    sp_must_ok(t, sp_fs_create_file_str(witness, sp_str_lit("A")));
+    sp_must_ok(t, sp_fs_write(sp_fs_join_path(mem, cache, sp_cstr_as_str(it->leftover)), sp_str_lit(""), SP_FS_WRITE_TRUNCATE));
+    sp_must_ok(t, sp_fs_write(witness, sp_str_lit("A"), SP_FS_WRITE_TRUNCATE));
   }
 
   sp_atomic_s32_store(&cancelled, it->cancelled, SP_ATOMIC_SEQ_CST);
@@ -387,16 +387,17 @@ sp_test_each(index_sync, sync, sync_test_t, tests, .setup = spn_test_ctx_setup) 
   sp_expect_eq(t, it->expect.result, job.result);
   sp_expect_str_eq(t, test_read_file(mem, sp_fs_join_path(mem, cache, sp_str_lit("seed.txt"))), sp_cstr_as_str(it->expect.cached));
   sp_expect_eq(t, it->expect.cause, job.failure.message[0] != 0);
-  sp_expect_eq(t, sp_fs_is_file(lock), index.protocol == SPN_INDEX_PROTOCOL_GIT);
+  sp_sys_file_meta_t meta = sp_zero;
+  sp_expect_eq(t, !sp_fs_get_link_metadata(lock, &meta) && meta.kind == SP_FS_KIND_FILE, index.protocol == SPN_INDEX_PROTOCOL_GIT);
   if (it->leftover) {
-    sp_expect(t, !sp_fs_exists(sp_fs_join_path(mem, cache, sp_cstr_as_str(it->leftover))));
-    sp_expect(t, sp_fs_exists(witness));
+    sp_expect_err_eq(t, sp_fs_get_path_metadata(sp_fs_join_path(mem, cache, sp_cstr_as_str(it->leftover)), &meta), SP_ERR_SYS_NOT_FOUND);
+    sp_expect_ok(t, sp_fs_get_path_metadata(witness, &meta));
   }
 
   spn_index_plan_t plan = spn_index_plan(&index, false);
   sp_expect_eq(t, it->expect.fresh, plan.present && !plan.fetch);
   sp_expect_eq(t, it->expect.held, plan.held);
-  sp_expect_eq(t, it->expect.failed, sp_fs_exists(failed));
+  sp_expect_eq(t, it->expect.failed, !sp_fs_get_path_metadata(failed, &meta));
 
   return SP_OK;
 }

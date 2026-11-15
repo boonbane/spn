@@ -53,7 +53,8 @@ static sp_str_t with_sha256(sp_mem_t mem, sp_str_t line, sp_str_t hash) {
 }
 
 sp_cli_result_t fetch(sp_cli_t* cli, sp_mem_t mem, sp_str_t url, sp_str_t out) {
-  if (sp_fs_exists(out)) return SP_CLI_OK;
+  sp_sys_file_meta_t meta = sp_zero;
+  if (!sp_fs_get_path_metadata(out, &meta)) return SP_CLI_OK;
 
   sp_ps_output_t r = sp_ps_run_c(mem, (sp_ps_config_cstr_t) {
     .command = "curl",
@@ -95,7 +96,7 @@ sp_cli_result_t pin(sp_cli_t* cli, sp_mem_t mem, sp_str_t work, sp_str_t mirror,
   }
 
   sp_str_t sigtext = sp_zero;
-  sp_io_read_file(mem, sig, &sigtext);
+  sp_fs_read(mem, sig, &sigtext);
   if (!sp_str_contains(sigtext, filename)) {
     return sp_cli_set_error(cli, sp_fmt(mem, "trusted comment does not reference {} (possible downgrade)", sp_fmt_str(filename)).value);
   }
@@ -122,7 +123,7 @@ static sp_cli_result_t run(sp_cli_t* cli) {
   sp_fs_create_dir(work);
 
   sp_str_t content = sp_zero;
-  if (sp_io_read_file(mem, manifest_path, &content) != SP_OK) {
+  if (sp_fs_read(mem, manifest_path, &content) != SP_OK) {
     return sp_cli_set_error(cli, sp_fmt(mem, "failed to read {.cyan}", sp_fmt_str(manifest_path)).value);
   }
 
@@ -180,7 +181,7 @@ static sp_cli_result_t run(sp_cli_t* cli) {
   }
 
   sp_str_t out = sp_str_join_n(mem, pinned, (u32)sp_da_size(pinned), sp_str_lit("\n"));
-  if (sp_fs_create_file_str(manifest_path, out)) {
+  if (sp_fs_write(manifest_path, out, SP_FS_WRITE_TRUNCATE)) {
     return sp_cli_set_error(cli, sp_fmt(mem, "failed to write {.cyan}", sp_fmt_str(manifest_path)).value);
   }
 

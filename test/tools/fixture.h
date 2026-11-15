@@ -16,7 +16,7 @@ static inline sp_str_t test_dir_str(sp_test_t* t) {
 
 static inline sp_str_t test_read_file(sp_mem_t mem, sp_str_t path) {
   sp_str_t content = sp_zero;
-  sp_io_read_file(mem, path, &content);
+  sp_fs_read(mem, path, &content);
   return content;
 }
 

@@ -27,7 +27,8 @@ static spn_git_failure_t last_failure(spn_git_failure_kind_t kind) {
 }
 
 static bool is_missing_path(sp_str_t url) {
-  if (!sp_fs_is_absolute(url) || sp_fs_is_dir(url)) {
+  sp_sys_file_meta_t meta = sp_zero;
+  if (!sp_fs_is_absolute(url) || (!sp_fs_get_link_metadata(url, &meta) && meta.kind == SP_FS_KIND_DIR)) {
     return false;
   }
 
@@ -114,7 +115,8 @@ static bool relative_path(sp_mem_t mem, sp_str_t root, sp_str_t path, sp_str_t* 
 }
 
 static bool is_repo_root(sp_str_t repo) {
-  if (sp_str_empty(repo) || !sp_fs_is_dir(repo)) {
+  sp_sys_file_meta_t meta = sp_zero;
+  if (sp_str_empty(repo) || sp_fs_get_link_metadata(repo, &meta) || meta.kind != SP_FS_KIND_DIR) {
     return false;
   }
 
@@ -173,11 +175,14 @@ spn_err_t spn_git_lock(sp_path_t repo, sp_path_t gitdir, sp_str_t url, sp_atomic
 
   sp_sys_dir_t dir = sp_zero;
   if (!sp_fs_open_dir_at(gitdir, &dir)) {
-    sp_fs_for(scratch.mem, dir, it) {
-      if (it.entry.kind == SP_FS_KIND_FILE && sp_str_ends_with(it.entry.name, sp_str_lit(".lock"))) {
-        sp_fs_remove_file_at(it.entry.at);
+    sp_fs_it_t walk = sp_fs_it(scratch.mem, dir);
+    sp_fs_it_entry_t entry = sp_zero;
+    while (sp_fs_it_next(&walk, &entry)) {
+      if (entry.kind == SP_FS_KIND_FILE && sp_str_ends_with(entry.name, sp_str_lit(".lock"))) {
+        sp_fs_remove_file_at(entry.at);
       }
     }
+    sp_fs_it_deinit(&walk);
     sp_fs_close_dir(dir);
   }
   sp_mem_end_scratch(scratch);
@@ -275,15 +280,16 @@ spn_err_t spn_git_clone_shared(sp_mem_t mem, sp_str_t source, sp_str_t path, sp_
 
   if (ok) {
     ok = !sp_fs_canonicalize_path(scratch.mem, sp_fs_join_path(scratch.mem, source, sp_str_lit("objects")), &objects) &&
-      !sp_fs_create_file_str(
+      !sp_fs_write(
         sp_fs_join_path(scratch.mem, path, sp_str_lit(".git/objects/info/alternates")),
-        sp_fmt(scratch.mem, "{}\n", sp_fmt_str(sp_str_replace_c8(scratch.mem, objects, '\\', '/'))).value);
+        sp_fmt(scratch.mem, "{}\n", sp_fmt_str(sp_str_replace_c8(scratch.mem, objects, '\\', '/'))).value,
+        SP_FS_WRITE_TRUNCATE);
 
     // Borrowed objects stop at the source's shallow roots, so the roots have
     // to come along or git walks into parents that were never fetched
     sp_str_t shallow = sp_zero;
-    if (ok && !sp_io_read_file(scratch.mem, sp_fs_join_path(scratch.mem, source, sp_str_lit("shallow")), &shallow)) {
-      ok = !sp_fs_create_file_str(sp_fs_join_path(scratch.mem, path, sp_str_lit(".git/shallow")), shallow);
+    if (ok && !sp_fs_read(scratch.mem, sp_fs_join_path(scratch.mem, source, sp_str_lit("shallow")), &shallow)) {
+      ok = !sp_fs_write(sp_fs_join_path(scratch.mem, path, sp_str_lit(".git/shallow")), shallow, SP_FS_WRITE_TRUNCATE);
     }
     if (!ok) {
       *error = sp_fmt(mem, "failed to share objects from {}", sp_fmt_str(source)).value;
@@ -465,7 +471,9 @@ spn_err_t spn_git_clean(sp_str_t repo) {
       continue;
     }
     sp_str_t path = sp_fs_join_path(scratch.mem, repo, sp_str_strip_right(sp_cstr_as_str(entry->index_to_workdir->new_file.path), sp_str_lit("/")));
-    sp_err_t removed = sp_fs_is_dir(path) ? sp_fs_remove_dir(path) : sp_fs_remove_file(path);
+    sp_sys_file_meta_t meta = sp_zero;
+    bool dir = !sp_fs_get_link_metadata(path, &meta) && meta.kind == SP_FS_KIND_DIR;
+    sp_err_t removed = dir ? sp_fs_remove_dir(path) : sp_fs_remove_file(path);
     ok = ok && !removed;
   }
   git_status_list_free(status);
@@ -577,7 +585,7 @@ bool spn_git_rev_on_remote(sp_str_t repo, sp_str_t rev) {
 spn_err_t spn_git_apply(sp_mem_t mem, sp_str_t repo, sp_str_t patch, sp_str_t* error) {
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   sp_str_t content = sp_zero;
-  if (sp_io_read_file(scratch.mem, patch, &content)) {
+  if (sp_fs_read(scratch.mem, patch, &content)) {
     *error = sp_fmt(mem, "could not read {}", sp_fmt_str(patch)).value;
     sp_mem_end_scratch(scratch);
     return SPN_ERROR;

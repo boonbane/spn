@@ -22,7 +22,8 @@ static spn_err_t run_test(spn_session_t* session, spn_children_t* children, spn_
     },
   });
 
-  if (!sp_fs_exists_at(spn_path_at(&ctx->roots, staged))) {
+  sp_sys_file_meta_t meta = sp_zero;
+  if (sp_fs_get_path_metadata_at(spn_path_at(&ctx->roots, staged), &meta)) {
     return spn_err_emit(ctx, (spn_err_union_t) {
       .kind = SPN_ERR_TEST_MISSING,
       .script = { .name = unit->target->info->name.str, .path = command },

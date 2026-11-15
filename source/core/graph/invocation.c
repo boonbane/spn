@@ -171,7 +171,7 @@ spn_invocation_result_t spn_invocation_run_progress(const spn_path_roots_t* root
   sp_ps_free(&child);
   sp_sys_close(sink);
   if (output.status.exit_code) {
-    sp_io_read_file_at(spn.mem, at, &output.out);
+    sp_fs_read_at(spn.mem, at, &output.out);
   }
   sp_mem_end_scratch(scratch);
 

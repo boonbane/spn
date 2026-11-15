@@ -141,8 +141,8 @@ sp_test_each(index_dir, get_package, dir_test_t, tests, .setup = spn_test_ctx_se
     if (it->toml) {
       sp_str_t fixture = test_repo_path(mem, sp_test_format(t, "test/core/index/packages/{}.toml", sp_fmt_cstr(it->toml)));
       sp_str_t toml = sp_zero;
-      sp_io_read_file(mem, fixture, &toml);
-      sp_fs_create_file_str(manifest, toml);
+      sp_fs_read(mem, fixture, &toml);
+      sp_fs_write(manifest, toml, SP_FS_WRITE_TRUNCATE);
     }
   }
 

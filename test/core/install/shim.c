@@ -150,7 +150,8 @@ static sp_str_t which(sp_mem_t mem, const c8* tool) {
       continue;
     }
     sp_str_t candidate = sp_fs_join_path(mem, dirs[at], sp_cstr_as_str(tool));
-    if (sp_fs_is_target_file(candidate)) {
+    sp_sys_file_meta_t meta = sp_zero;
+    if (!sp_fs_get_path_metadata(candidate, &meta) && meta.kind == SP_FS_KIND_FILE) {
       return candidate;
     }
   }
@@ -176,7 +177,7 @@ static u32 count_entries(sp_str_t path) {
 
 static sp_err_t stub_at(sp_test_t* t, fixture_t* fx, sp_str_t path, sp_str_t body) {
   sp_fs_remove_file(path);
-  sp_must_eq(t, (u32)SP_OK, (u32)sp_fs_create_file_str(path, body));
+  sp_must_eq(t, (u32)SP_OK, (u32)sp_fs_write(path, body, SP_FS_WRITE_TRUNCATE));
   sp_ps_output_t chmod = sp_ps_run(fx->mem, (sp_ps_config_t) {
     .command = sp_str_lit("chmod"),
     .args = { sp_str_lit("+x"), path },
@@ -235,11 +236,11 @@ static sp_err_t build_fixture(sp_test_t* t, const test_t* it, fixture_t* fx) {
   sp_str_t corrupt = sp_fs_join_path(mem, bad, sp_str_lit(SHIM_LINUX_ASSET));
   sp_must_eq(t, (u32)SP_OK, (u32)sp_fs_copy_file_at(sp_path_cwd(asset), sp_path_cwd(corrupt), SP_FS_ATOMIC_REPLACE));
   sp_str_t bytes = sp_zero;
-  sp_must_eq(t, (u32)SP_OK, (u32)sp_io_read_file(mem, corrupt, &bytes));
-  sp_must_eq(t, (u32)SP_OK, (u32)sp_fs_create_file_str(corrupt, sp_str_concat(mem, bytes, sp_str_lit("x"))));
+  sp_must_eq(t, (u32)SP_OK, (u32)sp_fs_read(mem, corrupt, &bytes));
+  sp_must_eq(t, (u32)SP_OK, (u32)sp_fs_write(corrupt, sp_str_concat(mem, bytes, sp_str_lit("x")), SP_FS_WRITE_TRUNCATE));
 
   sp_str_t good = sp_zero;
-  sp_must_eq(t, (u32)SP_OK, (u32)sp_io_read_file(mem, asset, &good));
+  sp_must_eq(t, (u32)SP_OK, (u32)sp_fs_read(mem, asset, &good));
   fx->good_sha = test_sha256_hex(mem, good);
   fx->bad_sha = test_sha256_hex(mem, sp_str_concat(mem, bytes, sp_str_lit("x")));
 
@@ -393,21 +394,23 @@ sp_test_each(install_shim, cases, test_t, tests) {
   sp_str_t args = sp_fs_join_path(fx.mem, fx.dir, sp_str_lit("args"));
   if (it->expect.invoked) {
     sp_str_t content = sp_zero;
-    sp_must_eq(t, (u32)SP_OK, (u32)sp_io_read_file(fx.mem, args, &content));
+    sp_must_eq(t, (u32)SP_OK, (u32)sp_fs_read(fx.mem, args, &content));
     sp_expect_str_eq_c(t, content, "self\ninstall\n--auto\n");
   }
   else {
-    sp_expect(t, !sp_fs_exists(args));
+    sp_sys_file_meta_t meta = sp_zero;
+    sp_expect_err_eq(t, sp_fs_get_path_metadata(args, &meta), SP_ERR_SYS_NOT_FOUND);
   }
 
   sp_str_t ps_args = sp_fs_join_path(fx.mem, fx.dir, sp_str_lit("ps-args"));
   if (it->expect.trampoline) {
     sp_str_t content = sp_zero;
-    sp_must_eq(t, (u32)SP_OK, (u32)sp_io_read_file(fx.mem, ps_args, &content));
+    sp_must_eq(t, (u32)SP_OK, (u32)sp_fs_read(fx.mem, ps_args, &content));
     sp_expect_str_eq(t, content, sp_fmt(fx.mem, "-NoProfile -Command irm '{}/install.ps1' | iex\n", sp_fmt_str(fx.url)).value);
   }
   else {
-    sp_expect(t, !sp_fs_exists(ps_args));
+    sp_sys_file_meta_t meta = sp_zero;
+    sp_expect_err_eq(t, sp_fs_get_path_metadata(ps_args, &meta), SP_ERR_SYS_NOT_FOUND);
   }
 
   sp_expect_eq(t, 0u, count_entries(fx.tmp));

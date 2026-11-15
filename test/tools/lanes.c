@@ -6,7 +6,7 @@
 
 lanes_read_t lanes_read(sp_mem_t mem, sp_intern_t* intern, sp_str_t path, lanes_t* lanes) {
   *lanes = (lanes_t) { .mem = mem, .intern = intern, .path = path };
-  if (sp_io_read_file(mem, path, &lanes->text)) {
+  if (sp_fs_read(mem, path, &lanes->text)) {
     return LANES_READ_UNREADABLE;
   }
   spn_toml_loader_t loader = spn_toml_loader(mem, lanes->intern, SP_NULLPTR);

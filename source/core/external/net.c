@@ -50,15 +50,18 @@ static const c8* bundles [] = {
 };
 
 spn_net_trust_t spn_net_trust_find(sp_str_t ca_bundle, sp_str_t ssl_cert_file) {
+  sp_sys_file_meta_t meta = sp_zero;
   if (!sp_str_empty(ssl_cert_file)) {
-    return (spn_net_trust_t) { .kind = SPN_NET_TRUST_ENV, .bundle = ssl_cert_file, .missing = !sp_fs_is_target_file(ssl_cert_file) };
+    bool missing = sp_fs_get_path_metadata(ssl_cert_file, &meta) || meta.kind != SP_FS_KIND_FILE;
+    return (spn_net_trust_t) { .kind = SPN_NET_TRUST_ENV, .bundle = ssl_cert_file, .missing = missing };
   }
   if (!sp_str_empty(ca_bundle)) {
-    return (spn_net_trust_t) { .kind = SPN_NET_TRUST_CONFIG, .bundle = ca_bundle, .missing = !sp_fs_is_target_file(ca_bundle) };
+    bool missing = sp_fs_get_path_metadata(ca_bundle, &meta) || meta.kind != SP_FS_KIND_FILE;
+    return (spn_net_trust_t) { .kind = SPN_NET_TRUST_CONFIG, .bundle = ca_bundle, .missing = missing };
   }
   sp_carr_for(bundles, it) {
     sp_str_t bundle = sp_cstr_as_str(bundles[it]);
-    if (sp_fs_is_target_file(bundle)) {
+    if (!sp_fs_get_path_metadata(bundle, &meta) && meta.kind == SP_FS_KIND_FILE) {
       return (spn_net_trust_t) { .kind = SPN_NET_TRUST_FOUND, .bundle = bundle };
     }
   }

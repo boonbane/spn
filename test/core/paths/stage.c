@@ -49,7 +49,9 @@ sp_test_each(paths_stage, dir, stage_test_t, stage_tests) {
   sp_expect_eq(t, staged.root, target.root);
   sp_expect(t, sp_str_starts_with(staged.sub, target.sub));
   sp_expect(t, sp_str_ends_with(staged.sub, sp_str_lit("tmp")));
-  sp_expect(t, sp_fs_is_dir_at(spn_path_at(&roots, staged)));
+  sp_sys_file_meta_t meta = sp_zero;
+  sp_expect_ok(t, sp_fs_get_link_metadata_at(spn_path_at(&roots, staged), &meta));
+  sp_expect_eq(t, meta.kind, SP_FS_KIND_DIR);
   return SP_OK;
 }
 
@@ -64,7 +66,10 @@ sp_test(paths_stage, claims_are_distinct) {
   sp_must(t, spn_path_stage_dir(mem, &roots, target, sp_str_lit("tmp"), &a) == SPN_OK);
   sp_must(t, spn_path_stage_dir(mem, &roots, target, sp_str_lit("tmp"), &b) == SPN_OK);
   sp_expect(t, !spn_path_equal(a, b));
-  sp_expect(t, sp_fs_is_dir_at(spn_path_at(&roots, a)));
-  sp_expect(t, sp_fs_is_dir_at(spn_path_at(&roots, b)));
+  sp_sys_file_meta_t meta = sp_zero;
+  sp_expect_ok(t, sp_fs_get_link_metadata_at(spn_path_at(&roots, a), &meta));
+  sp_expect_eq(t, meta.kind, SP_FS_KIND_DIR);
+  sp_expect_ok(t, sp_fs_get_link_metadata_at(spn_path_at(&roots, b), &meta));
+  sp_expect_eq(t, meta.kind, SP_FS_KIND_DIR);
   return SP_OK;
 }

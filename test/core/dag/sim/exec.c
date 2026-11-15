@@ -172,7 +172,7 @@ static spn_err_t execute_action(const si_dag_ctx_t* c, void* user_data) {
       continue;
     }
     sp_str_t content = sp_fmt(ctx->env->dag.mem, "{}{}", sp_fmt_cstr(ctx->spec->write[it]), sp_fmt_uint(ctx->env->dag.runs)).value;
-    if (sp_fs_create_file_str_at(dag_test_at(&ctx->env->dag, si_dag_resolve_output(c, c->produces[it])), content)) {
+    if (sp_fs_write_at(dag_test_at(&ctx->env->dag, si_dag_resolve_output(c, c->produces[it])), content, SP_FS_WRITE_TRUNCATE)) {
       return SPN_ERR_DAG_ACTION;
     }
   }
@@ -288,7 +288,8 @@ static sp_err_t remove_outputs(sp_test_t* t, env_t* env, const action_t* action)
       return SP_OK;
     }
     spn_dag_file_cache_invalidate(&env->dag.files, rooted);
-    sp_expect(t, !sp_fs_exists_at(path));
+    sp_sys_file_meta_t meta = sp_zero;
+    sp_expect_err_eq(t, sp_fs_get_path_metadata_at(path, &meta), SP_ERR_SYS_NOT_FOUND);
   }
   return SP_OK;
 }

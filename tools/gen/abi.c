@@ -151,7 +151,7 @@ abi_t* abi_parse(sp_mem_t mem, sp_str_t path) {
   abi->exports = sp_da_new(mem, abi_export_t);
 
   sp_str_t json = sp_zero;
-  if (sp_io_read_file(mem, path, &json)) {
+  if (sp_fs_read(mem, path, &json)) {
     abi_fail(abi, path, "failed to read");
     return abi;
   }

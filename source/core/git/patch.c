@@ -8,7 +8,7 @@ sp_hash_t spn_git_patch_hash(si_da(sp_str_t) files, u32* missing) {
   sp_hash_t hash = 0;
   si_da_for(files, it) {
     sp_str_t content = sp_zero;
-    if (sp_io_read_file_at(scratch.mem, sp_path_from_str(files[it]), &content)) {
+    if (sp_fs_read_at(scratch.mem, sp_path_from_str(files[it]), &content)) {
       *missing = (u32)it;
       sp_mem_end_scratch(scratch);
       return 0;

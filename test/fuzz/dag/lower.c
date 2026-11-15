@@ -32,7 +32,7 @@ static spn_err_t fz_exec(const si_dag_ctx_t* c, void* user_data) {
         break;
       }
       case SPN_DAG_ARTIFACT_KIND_FILE: {
-        if (sp_io_read_file_at(low->mem, spn_path_at(c->roots, si_dag_resolve_input(c, id)), &inputs[it])) {
+        if (sp_fs_read_at(low->mem, spn_path_at(c->roots, si_dag_resolve_input(c, id)), &inputs[it])) {
           return SPN_ERR_DAG_ACTION;
         }
         break;
@@ -49,7 +49,7 @@ static spn_err_t fz_exec(const si_dag_ctx_t* c, void* user_data) {
       ? fz_phantom_sim_path(low->mem, fo.phantom)
       : fz_artifact_sim_path(low->mem, low->u, fo.artifact);
     sp_str_t bytes = sp_zero;
-    sp_err_t read = sp_io_read_file(low->mem, path, &bytes);
+    sp_err_t read = sp_fs_read(low->mem, path, &bytes);
     if (!read) {
       inputs[consumed + ot] = bytes;
       continue;
@@ -72,7 +72,7 @@ static spn_err_t fz_exec(const si_dag_ctx_t* c, void* user_data) {
     spn_dag_id_t id = low->ids[fz->produces[it]];
     const spn_dag_artifact_t* out = spn_dag_find_artifact(low->g, id);
     sp_str_t content = fz_output_content(low->mem, low->u->actions[ctx->action].identity, inputs, count, out->name);
-    if (sp_fs_create_file_str_at(spn_path_at(c->roots, si_dag_resolve_output(c, id)), content)) {
+    if (sp_fs_write_at(spn_path_at(c->roots, si_dag_resolve_output(c, id)), content, SP_FS_WRITE_TRUNCATE)) {
       return SPN_ERR_DAG_ACTION;
     }
   }

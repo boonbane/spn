@@ -52,13 +52,14 @@ static spn_err_t compile_discover(sp_mem_t mem, const si_dag_ctx_t* c, si_compil
   spn_try(run_compiler(mem, c, compile, &files));
 
   sp_path_t dep = spn_path_at(c->roots, files.depfile);
-  if (!sp_fs_exists_at(dep)) {
+  sp_sys_file_meta_t meta = sp_zero;
+  if (sp_fs_get_path_metadata_at(dep, &meta) || meta.kind == SP_FS_KIND_UNKNOWN) {
     return compile->plan->depfile == SPN_CC_DEPFILE_REQUIRED ? SPN_ERR_DAG_DEPFILE : SPN_OK;
   }
 
   sp_str_t content = sp_zero;
   sp_da(sp_str_t) prereqs = sp_zero;
-  if (sp_io_read_file_at(mem, dep, &content) || spn_cc_parse_depfile(mem, compile->plan->driver, content, &prereqs)) {
+  if (sp_fs_read_at(mem, dep, &content) || spn_cc_parse_depfile(mem, compile->plan->driver, content, &prereqs)) {
     return SPN_ERR_DAG_DEPFILE;
   }
   sp_da_for(prereqs, it) {

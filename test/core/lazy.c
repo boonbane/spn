@@ -47,7 +47,7 @@ sp_test_each(lazy_log, write, test_t, tests) {
   sp_mem_t mem = sp_test_arena(t);
   sp_path_t path = sp_path_join(mem, sp_test_dir(t), sp_str_lit("x.log"));
   if (it->seed) {
-    sp_fs_create_file_str_at(path, sp_cstr_as_str(it->seed));
+    sp_fs_write_at(path, sp_cstr_as_str(it->seed), SP_FS_WRITE_TRUNCATE);
   }
 
   spn_lazy_log_t log;
@@ -62,10 +62,11 @@ sp_test_each(lazy_log, write, test_t, tests) {
 
   sp_str_t content = sp_zero;
   if (it->expect.content) {
-    sp_must_ok(t, sp_io_read_file_at(mem, path, &content));
+    sp_must_ok(t, sp_fs_read_at(mem, path, &content));
     sp_expect_str_eq_c(t, content, it->expect.content);
   } else {
-    sp_expect(t, !sp_fs_exists_at(path));
+    sp_sys_file_meta_t meta = sp_zero;
+    sp_expect_err_eq(t, sp_fs_get_path_metadata_at(path, &meta), SP_ERR_SYS_NOT_FOUND);
   }
 
   return SP_OK;
@@ -82,7 +83,7 @@ sp_test(lazy_log, close_latches) {
 
   sp_expect_eq(t, sp_io_write_str(&log.writer, sp_str_lit("late"), SP_NULLPTR), SP_ERR_IO);
   sp_str_t content = sp_zero;
-  sp_must_ok(t, sp_io_read_file_at(mem, path, &content));
+  sp_must_ok(t, sp_fs_read_at(mem, path, &content));
   sp_expect_str_eq_c(t, content, "kept");
 
   return SP_OK;
@@ -97,7 +98,8 @@ sp_test(lazy_log, close_unopened_latches) {
   spn_lazy_log_close(&log);
 
   sp_expect_eq(t, sp_io_write_str(&log.writer, sp_str_lit("late"), SP_NULLPTR), SP_ERR_IO);
-  sp_expect(t, !sp_fs_exists_at(path));
+  sp_sys_file_meta_t meta = sp_zero;
+  sp_expect_err_eq(t, sp_fs_get_path_metadata_at(path, &meta), SP_ERR_SYS_NOT_FOUND);
 
   return SP_OK;
 }

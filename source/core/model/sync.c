@@ -118,7 +118,7 @@ static spn_err_t setup_artifact(spn_toolchain_store_t* store, spn_toolchain_unit
     else {
       sp_str_t listing = sp_zero;
       if (!sp_str_empty(artifact.mirror_list)) {
-        if (spn_http_download(&http, artifact.mirror_list, download, &failure) || sp_io_read_file_at(scratch.mem, download, &listing)) {
+        if (spn_http_download(&http, artifact.mirror_list, download, &failure) || sp_fs_read_at(scratch.mem, download, &listing)) {
           listing = artifact.mirror_snapshot;
         }
       }
@@ -258,7 +258,8 @@ static spn_err_t materialize_tree(spn_session_t* session, sp_intern_str_t name, 
   switch (tree.kind) {
     case SPN_PKG_ROOT_LOCAL: {
       spn_path_t canonical = spn_path_canonicalize(spn.mem, &session->ctx->roots, tree.local);
-      if (!sp_fs_exists_at(spn_path_at(&session->ctx->roots, canonical))) {
+      sp_sys_file_meta_t meta = sp_zero;
+      if (sp_fs_get_path_metadata_at(spn_path_at(&session->ctx->roots, canonical), &meta)) {
         return spn_err_emit(session->ctx, (spn_err_union_t) {
           .kind = SPN_ERR_NO_MANIFEST,
           .no_manifest = { .path = spn_path_str(&session->ctx->roots, spn.events->mem, tree.local) },
@@ -493,7 +494,8 @@ static spn_err_t sync_jobs(spn_op_t* op, sp_mem_t mem, bool* reresolve) {
 
     pkg->manifest = pkg->origin.manifest;
     if (!pkg->manifest) {
-      if (!sp_fs_exists_at(spn_path_at(roots, path))) {
+      sp_sys_file_meta_t meta = sp_zero;
+      if (sp_fs_get_path_metadata_at(spn_path_at(roots, path), &meta) || meta.kind == SP_FS_KIND_UNKNOWN) {
         return spn_err_emit(session->ctx, (spn_err_union_t) {
           .kind = SPN_ERR_NO_MANIFEST,
           .subject = pkg->name.str,

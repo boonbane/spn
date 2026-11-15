@@ -104,7 +104,8 @@ sp_err_t sp_fs_lock_release(sp_fs_lock_t* lock) {
 }
 
 sp_err_t sp_fs_replace_dir_at(sp_path_t fresh, sp_path_t live, sp_path_t retired) {
-  bool present = sp_fs_exists_at(live);
+  sp_sys_file_meta_t meta = sp_zero;
+  bool present = !sp_fs_get_path_metadata_at(live, &meta);
   if (present) {
     sp_try(sp_sys_rename_s(live.dir, live.sub, retired.dir, retired.sub));
   }
@@ -117,16 +118,6 @@ sp_err_t sp_fs_replace_dir_at(sp_path_t fresh, sp_path_t live, sp_path_t retired
     sp_fs_remove_dir_at(retired);
   }
   return placed;
-}
-
-sp_err_t sp_fs_append(sp_path_t path, sp_str_t str) {
-  sp_sys_fd_t fd = SP_SYS_INVALID_FD;
-  sp_try(sp_sys_open_s(path.dir, path.sub, SP_SYS_OPEN_MODE_WO, SP_SYS_OPEN_CREATE | SP_SYS_OPEN_APPEND, &fd));
-  sp_io_stream_writer_t io = sp_zero;
-  sp_io_stream_writer_from_fd(&io, fd, SP_IO_CLOSE_MODE_AUTO);
-  sp_err_t written = sp_io_write_all(&io.base, str.data, str.len, SP_NULLPTR);
-  sp_err_t closed = sp_io_stream_writer_close(&io);
-  return written ? written : closed;
 }
 
 sp_err_t sp_fs_set_readonly(sp_path_t path) {

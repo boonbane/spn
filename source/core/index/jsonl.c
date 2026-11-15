@@ -15,12 +15,13 @@ spn_err_t spn_index_jsonl_get_package(spn_index_info_t* index, sp_mem_t mem, sp_
 
   sp_str_t path = spn_index_jsonl_path(scratch.mem, name);
   sp_path_t at = sp_path_join(scratch.mem, index->location.at, path);
-  if (!sp_fs_exists_at(at)) {
+  sp_sys_file_meta_t meta = sp_zero;
+  if (sp_fs_get_path_metadata_at(at, &meta) || meta.kind == SP_FS_KIND_UNKNOWN) {
     goto cleanup;
   }
 
   sp_str_t blob = sp_zero;
-  sp_io_read_file_at(scratch.mem, at, &blob);
+  sp_fs_read_at(scratch.mem, at, &blob);
 
   spn_index_pkg_t* package = sp_alloc_type(mem, spn_index_pkg_t);
   if (spn_index_parse_pkg(mem, intern, name, blob, package) != SPN_OK) {

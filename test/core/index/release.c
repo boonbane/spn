@@ -384,7 +384,7 @@ sp_test_each(index_release, parse, release_test_t, tests, .setup = spn_test_ctx_
   }
 
   sp_str_t blob = sp_zero;
-  sp_io_read_file(mem, path, &blob);
+  sp_fs_read(mem, path, &blob);
 
   spn_index_pkg_t pkg = sp_zero;
   spn_err_t err = spn_index_parse_pkg(mem, spn.intern, spn_intern_lit("spum"), blob, &pkg);

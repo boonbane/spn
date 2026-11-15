@@ -84,7 +84,7 @@ static void place(sp_mem_t mem, sp_str_t dir, const c8* const* sources, sp_str_t
   while (*sources) {
     sp_str_t path = sp_fmt(mem, "{}/{}/T.tar.gz", sp_fmt_str(dir), sp_fmt_cstr(*sources)).value;
     sp_fs_create_dir(sp_fs_parent_path(path));
-    sp_fs_create_file_str(path, content);
+    sp_fs_write(path, content, SP_FS_WRITE_TRUNCATE);
     sources++;
   }
 }
@@ -105,7 +105,7 @@ sp_test_each(fetch, sources, test_t, tests, .setup = spn_test_ctx_setup) {
 
   sp_str_t packed = sp_fs_join_path(mem, dir, sp_str_lit("T.tar.gz"));
   sp_fs_create_dir(sp_fs_join_path(mem, dir, sp_str_lit("tree/T")));
-  sp_fs_create_file_str(sp_fs_join_path(mem, dir, sp_str_lit("tree/T/B")), sp_str_lit("B"));
+  sp_fs_write(sp_fs_join_path(mem, dir, sp_str_lit("tree/T/B")), sp_str_lit("B"), SP_FS_WRITE_TRUNCATE);
   sp_ps_output_t tar = sp_ps_run(mem, (sp_ps_config_t) {
     .command = sp_str_lit("tar"),
     .args = {
@@ -116,7 +116,7 @@ sp_test_each(fetch, sources, test_t, tests, .setup = spn_test_ctx_setup) {
   });
   sp_must_eq(t, 0, tar.status.exit_code);
   sp_str_t tarball = sp_zero;
-  sp_must_ok(t, sp_io_read_file(mem, packed, &tarball));
+  sp_must_ok(t, sp_fs_read(mem, packed, &tarball));
 
   place(mem, dir, it->serves, tarball);
   place(mem, dir, it->corrupt, sp_str_lit("A"));
@@ -130,7 +130,7 @@ sp_test_each(fetch, sources, test_t, tests, .setup = spn_test_ctx_setup) {
     artifact.mirror_list = sp_fmt(mem, "file://{}/L", sp_fmt_str(dir)).value;
   }
   if (it->live[0]) {
-    sp_fs_create_file_str(sp_fs_join_path(mem, dir, sp_str_lit("L")), list(mem, dir, it->live));
+    sp_fs_write(sp_fs_join_path(mem, dir, sp_str_lit("L")), list(mem, dir, it->live), SP_FS_WRITE_TRUNCATE);
   }
 
   sp_must_ok(t, sp_fs_create_dir_at(sp_path_join(mem, sp_test_dir(t), sp_str_lit("store"))));
@@ -183,7 +183,8 @@ sp_test_each(fetch, sources, test_t, tests, .setup = spn_test_ctx_setup) {
   }
 
   sp_path_t root = spn_path_at(&roots, spn_toolchain_artifact_root(mem, artifact));
-  sp_expect_eq(t, sp_fs_is_file_at(sp_path_join(mem, root, sp_str_lit("B"))), !it->expect.err);
+  sp_sys_file_meta_t meta = sp_zero;
+  sp_expect_eq(t, !sp_fs_get_link_metadata_at(sp_path_join(mem, root, sp_str_lit("B")), &meta) && meta.kind == SP_FS_KIND_FILE, !it->expect.err);
 
   u32 entries = 0;
   sp_sys_dir_t stored = sp_zero;

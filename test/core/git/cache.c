@@ -460,7 +460,7 @@ static spn_git_checkout_id_t build_id(sp_test_t* t, git_repo_result_t* repo, con
         sp_fmt_cstr(edit->from), sp_fmt_cstr(edit->to)).value;
       sp_str_t path = sp_fs_join_path(mem, test_dir_str(t),
         sp_fmt(mem, "patch_{}_{}.patch", sp_fmt_uint(index), sp_fmt_uint(jt)).value);
-      sp_fs_create_file_str(path, text);
+      sp_fs_write(path, text, SP_FS_WRITE_TRUNCATE);
       sp_da_push(files, path);
     }
     id.patches.files = files;
@@ -525,7 +525,8 @@ sp_test_each(git_cache, ensure, cache_test_t, tests, .setup = spn_test_ctx_setup
     if (expect->err) {
       sp_expect(t, err != SPN_OK);
       sp_expect(t, checkout->failure.message[0] != 0);
-      sp_expect(t, !sp_fs_is_dir_at(spn_path_at(&roots, checkout->path)));
+      sp_sys_file_meta_t meta = sp_zero;
+      sp_expect(t, sp_fs_get_link_metadata_at(spn_path_at(&roots, checkout->path), &meta) || meta.kind != SP_FS_KIND_DIR);
     }
     else {
       sp_must_eq(t, err, SPN_OK);
@@ -546,7 +547,9 @@ sp_test_each(git_cache, ensure, cache_test_t, tests, .setup = spn_test_ctx_setup
     bool fetching = false;
     spn_git_checkout_t* checkout = spn_git_cache_checkout(&cache, ids[c], &fetching);
     sp_must(t, checkout != SP_NULLPTR);
-    sp_expect(t, sp_fs_is_dir_at(spn_path_at(&roots, checkout->path)));
+    sp_sys_file_meta_t meta = sp_zero;
+    sp_expect_ok(t, sp_fs_get_link_metadata_at(spn_path_at(&roots, checkout->path), &meta));
+    sp_expect_eq(t, meta.kind, SP_FS_KIND_DIR);
 
     sp_carr_for(expect->files, f) {
       expect_file_t* file = &expect->files[f];
@@ -556,7 +559,7 @@ sp_test_each(git_cache, ensure, cache_test_t, tests, .setup = spn_test_ctx_setup
 
       sp_path_t path = spn_path_at(&roots, spn_path_join(mem, checkout->path, sp_cstr_as_str(file->file)));
       sp_str_t content = sp_zero;
-      sp_must_ok(t, sp_io_read_file_at(mem, path, &content));
+      sp_must_ok(t, sp_fs_read_at(mem, path, &content));
       sp_expect_str_eq_c(t, content, file->content);
     }
   }

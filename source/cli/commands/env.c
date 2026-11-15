@@ -278,7 +278,8 @@ static sp_cli_result_t run(sp_cli_t* cli) {
     sp_for(it, env.path.count) {
       sp_carr_for(suffixes, at) {
         sp_str_t candidate = sp_fmt(s.mem, "{}/{}{}", sp_fmt_str(env.path.items[it]), sp_fmt_str(name), sp_fmt_cstr(suffixes[at])).value;
-        if (sp_str_equal(command, name) && sp_fs_is_file(candidate)) {
+        sp_sys_file_meta_t meta = sp_zero;
+        if (sp_str_equal(command, name) && !sp_fs_get_link_metadata(candidate, &meta) && meta.kind == SP_FS_KIND_FILE) {
           command = candidate;
         }
       }

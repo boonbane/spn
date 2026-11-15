@@ -51,7 +51,7 @@ void spn_test_lower_toolchains(sp_test_t* t, sp_str_t toml, spn_path_root_t base
 sp_err_t spn_test_builtin_toml(sp_test_t* t, sp_str_t* toml) {
   sp_mem_t mem = sp_test_arena(t);
   sp_str_t path = test_repo_path(mem, sp_str_lit(SPN_LANES_BUILTIN));
-  sp_must_ok(t, sp_io_read_file(mem, path, toml));
+  sp_must_ok(t, sp_fs_read(mem, path, toml));
   return SP_OK;
 }
 

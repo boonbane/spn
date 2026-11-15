@@ -21,7 +21,8 @@ static sp_str_t find_repo(sp_mem_t mem) {
     return sp_str_lit("");
   }
   while (!sp_fs_is_root(dir)) {
-    if (sp_fs_is_dir(sp_fs_join_path(mem, dir, sp_str_lit("vendor/sp")))) {
+    sp_sys_file_meta_t meta = sp_zero;
+    if (!sp_fs_get_link_metadata(sp_fs_join_path(mem, dir, sp_str_lit("vendor/sp")), &meta) && meta.kind == SP_FS_KIND_DIR) {
       return dir;
     }
     dir = sp_fs_parent_path(dir);
@@ -90,7 +91,8 @@ static sp_ps_output_t id_of(sp_mem_t mem, const c8* flag) {
 }
 
 static bool missing(docker_t* docker, sp_str_t path, const c8* hint) {
-  if (sp_fs_is_file(path)) {
+  sp_sys_file_meta_t meta = sp_zero;
+  if (!sp_fs_get_link_metadata(path, &meta) && meta.kind == SP_FS_KIND_FILE) {
     return false;
   }
   docker->err.binary.path = path;
@@ -149,7 +151,7 @@ static bool render_config(docker_t* docker) {
   }
   sp_str_t config = sp_fs_join_path(docker->mem, docker->paths.config, sp_str_lit("spn/spn.toml"));
   sp_fs_create_dir(sp_fs_parent_path(config));
-  return !sp_fs_create_file_str(config, sp_io_dyn_mem_writer_as_str(&w));
+  return !sp_fs_write(config, sp_io_dyn_mem_writer_as_str(&w), SP_FS_WRITE_TRUNCATE);
 }
 
 static sp_ps_config_t launch(docker_t* docker, const variant_t* variant, const c8* option, const c8* command) {
@@ -303,7 +305,7 @@ static docker_provision_err_t provision_artifact(docker_t* docker, const sysroot
     return DOCKER_PROVISION_ERR_ARTIFACT;
   }
   docker->err.artifact.url = artifact.url;
-  spn_toolchain_claim_t claim = spn_toolchain_claim(&docker->store, docker->mem, artifact);
+  spn_toolchain_claim_t claim = spn_toolchain_claim(&docker->store, docker->mem, sp_cstr_as_str(docker->err.artifact.name), artifact);
   if (claim.present) {
     return DOCKER_PROVISION_OK;
   }
@@ -336,7 +338,8 @@ static sp_ps_config_t xwin_splat(docker_t* docker, const sysroot_t* sysroot) {
 }
 
 static docker_provision_err_t provision_xwin(docker_t* docker, const sysroot_t* sysroot) {
-  if (sp_fs_is_dir(sp_fs_join_path(docker->mem, docker->paths.xwin.splat, sp_str_lit("crt/include")))) {
+  sp_sys_file_meta_t meta = sp_zero;
+  if (!sp_fs_get_link_metadata(sp_fs_join_path(docker->mem, docker->paths.xwin.splat, sp_str_lit("crt/include")), &meta) && meta.kind == SP_FS_KIND_DIR) {
     return DOCKER_PROVISION_OK;
   }
   sp_fs_create_dir(docker->paths.xwin.cache);
@@ -410,7 +413,7 @@ docker_render_err_t docker_render(docker_t* docker, const variant_t* variant) {
     return DOCKER_RENDER_ERR_FAILED;
   }
 
-  sp_fs_create_file_str(manifest_path(docker, variant), sp_io_dyn_mem_writer_as_str(&writer));
+  sp_fs_write(manifest_path(docker, variant), sp_io_dyn_mem_writer_as_str(&writer), SP_FS_WRITE_TRUNCATE);
   return DOCKER_RENDER_OK;
 }
 

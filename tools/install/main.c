@@ -17,7 +17,7 @@ static sp_cli_result_t run_cli(sp_cli_t* cli) {
 
   sp_mem_t mem = sp_mem_heap_as_allocator(sp_mem_heap_new());
   sp_str_t shasums = sp_zero;
-  if (sp_io_read_file(mem, sp_cstr_as_str(args->shasums), &shasums)) {
+  if (sp_fs_read(mem, sp_cstr_as_str(args->shasums), &shasums)) {
     return sp_cli_set_error(cli, sp_fmt(mem, "failed to read {}", sp_fmt_cstr(args->shasums)).value);
   }
 

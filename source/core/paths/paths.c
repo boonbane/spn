@@ -271,7 +271,8 @@ spn_err_t spn_path_stage_dir(sp_mem_t mem, const spn_path_roots_t* roots, spn_pa
       *dir = candidate;
       return SPN_OK;
     }
-    if (!sp_fs_exists_at(at)) {
+    sp_sys_file_meta_t meta = sp_zero;
+    if (sp_fs_get_path_metadata_at(at, &meta)) {
       return SPN_ERROR;
     }
   }

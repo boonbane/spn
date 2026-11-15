@@ -46,7 +46,7 @@ static bool write_file(sp_path_t path, const void* data, u64 size) {
 
 static sp_str_t read_stamp(sp_mem_t mem, spn_ctx_t* ctx) {
   sp_str_t version = sp_zero;
-  sp_io_read_file_at(mem, spn_path_at(&ctx->roots, spn_path(mem, SPN_DIR_ID_RUNTIME, "version.stamp")), &version);
+  sp_fs_read_at(mem, spn_path_at(&ctx->roots, spn_path(mem, SPN_DIR_ID_RUNTIME, "version.stamp")), &version);
   return sp_str_trim(version);
 }
 
@@ -153,7 +153,8 @@ static sp_str_t find_project(sp_mem_t mem) {
   if (sp_fs_get_cwd_path(mem, &dir)) {
     return sp_str_lit(".");
   }
-  while (!sp_fs_is_file(sp_fs_join_path(mem, dir, sp_str_lit("spn.toml")))) {
+  sp_sys_file_meta_t meta = sp_zero;
+  while (sp_fs_get_link_metadata(sp_fs_join_path(mem, dir, sp_str_lit("spn.toml")), &meta) || meta.kind != SP_FS_KIND_FILE) {
     if (sp_fs_is_root(dir)) {
       return sp_str_lit(".");
     }
@@ -271,7 +272,8 @@ spn_err_t spn_ctx_open(spn_ctx_t* ctx, spn_open_request_t request) {
   // Load the per-machine config file
   spn_cg_config_t config = sp_zero;
   spn_toml_loader_t loader = spn_toml_loader(ctx->mem, ctx->intern, &ctx->roots);
-  if (sp_fs_exists_at(spn_path_at(&ctx->roots, ctx->paths.config))) {
+  sp_sys_file_meta_t meta = sp_zero;
+  if (!sp_fs_get_path_metadata_at(spn_path_at(&ctx->roots, ctx->paths.config), &meta) && meta.kind != SP_FS_KIND_UNKNOWN) {
     spn_toml_load_config(&loader, ctx->paths.config, &config);
   }
   sp_da(spn_index_info_t) indexes = sp_da_new(ctx->heap, spn_index_info_t);

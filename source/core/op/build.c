@@ -293,7 +293,8 @@ spn_err_t spn_op_build(spn_op_t* op) {
     result = written;
   }
   if (!result) {
-    if (!sp_fs_exists_at(spn_path_at(roots, project->paths.lock))) {
+    sp_sys_file_meta_t meta = sp_zero;
+    if (sp_fs_get_path_metadata_at(spn_path_at(roots, project->paths.lock), &meta)) {
       spn_try(spn_project_update_lock(ctx, project, session->resolve));
     }
     sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();

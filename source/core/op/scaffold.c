@@ -97,7 +97,7 @@ static spn_err_t scaffold(spn_ctx_t* ctx, spn_scaffold_request_t request, sp_mem
       err = spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_SCAFFOLD_TEMPLATE, .fs = { .path = spn_path_copy(ctx->events->mem, path) } });
       break;
     }
-    if (sp_fs_create_file_str_at(spn_path_at(&ctx->roots, path), sp_io_dyn_mem_writer_take_str(&writer)) != SP_OK) {
+    if (sp_fs_write_at(spn_path_at(&ctx->roots, path), sp_io_dyn_mem_writer_take_str(&writer), SP_FS_WRITE_TRUNCATE) != SP_OK) {
       err = spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_FS_WRITE, .fs = { .path = spn_path_copy(ctx->events->mem, path) } });
       break;
     }
@@ -117,7 +117,8 @@ static spn_err_t check(spn_ctx_t* ctx, spn_scaffold_request_t request) {
   spn_path_t dir = { .sub = request.dir };
   for (iterator_t it = it_new(request.bare); !it.done; it_next(&it)) {
     spn_path_t path = spn_path_join(s.mem, dir, it.rel);
-    if (sp_fs_exists_at(spn_path_at(&ctx->roots, path))) {
+    sp_sys_file_meta_t meta = sp_zero;
+    if (!sp_fs_get_path_metadata_at(spn_path_at(&ctx->roots, path), &meta)) {
       err = spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_INIT_EXISTS, .fs = { .path = spn_path_copy(ctx->events->mem, path) } });
       break;
     }

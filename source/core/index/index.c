@@ -36,11 +36,13 @@ static spn_path_t git_index_staging(sp_mem_t mem, spn_index_info_t* index) {
 
 static bool git_index_expired(spn_index_info_t* index, const c8* stamp) {
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  sp_tm_epoch_t mod_time = sp_fs_get_mod_time_at(git_index_stamp(scratch.mem, index, stamp));
+  // A stamp that was never written is as old as a stamp gets
+  sp_sys_file_meta_t meta = sp_zero;
+  u64 modified = sp_fs_get_path_metadata_at(git_index_stamp(scratch.mem, index, stamp), &meta) ? 0 : (u64)meta.mtime.tv_sec;
   sp_mem_end_scratch(scratch);
 
   sp_tm_epoch_t now = sp_tm_now_epoch();
-  return mod_time.s + index->refresh <= now.s;
+  return modified + index->refresh <= now.s;
 }
 
 static spn_err_t git_index_clone(spn_index_info_t* index, sp_atomic_s32_t* cancelled, spn_git_failure_t* failure) {
@@ -84,7 +86,8 @@ static spn_err_t git_index_freshen(spn_index_info_t* index, sp_atomic_s32_t* can
   sp_str_t dir = index->location.dir;
 
   sp_for(attempt, 2) {
-    if (attempt || !sp_fs_is_dir_at(at)) {
+    sp_sys_file_meta_t meta = sp_zero;
+    if (attempt || sp_fs_get_link_metadata_at(at, &meta) || meta.kind != SP_FS_KIND_DIR) {
       if (git_index_clone(index, cancelled, failure)) {
         break;
       }
@@ -136,9 +139,10 @@ static spn_err_t git_index_lock(spn_index_info_t* index, sp_atomic_s32_t* cancel
 
 spn_index_plan_t spn_index_plan(spn_index_info_t* index, bool force) {
   sp_path_t at = index->location.at;
+  sp_sys_file_meta_t meta = sp_zero;
   switch (index->protocol) {
     case SPN_INDEX_PROTOCOL_GIT: {
-      bool present = sp_fs_exists_at(at);
+      bool present = !sp_fs_get_path_metadata_at(at, &meta);
       bool due = sp_str_empty(index->git.rev) && git_index_expired(index, git_index_synced);
       bool held = present && !force && due && !git_index_expired(index, git_index_failed);
       return (spn_index_plan_t) {
@@ -152,7 +156,8 @@ spn_index_plan_t spn_index_plan(spn_index_info_t* index, bool force) {
       return (spn_index_plan_t) { .force = force };
     }
     case SPN_INDEX_PROTOCOL_DIR: {
-      return (spn_index_plan_t) { .present = sp_fs_is_dir_at(at), .force = force };
+      bool present = !sp_fs_get_link_metadata_at(at, &meta) && meta.kind == SP_FS_KIND_DIR;
+      return (spn_index_plan_t) { .present = present, .force = force };
     }
   }
   sp_unreachable_return(sp_zero_s(spn_index_plan_t));
@@ -219,15 +224,7 @@ static void index_append_release(spn_index_info_t* index, spn_index_release_t* r
   sp_fs_create_parent_at(path);
 
   sp_str_t json = spn_index_release_to_json(scratch.mem, rel);
-
-  sp_sys_fd_t fd = SP_SYS_INVALID_FD;
-  sp_sys_open_s(path.dir, path.sub, SP_SYS_OPEN_MODE_WO, SP_SYS_OPEN_CREATE | SP_SYS_OPEN_APPEND, &fd);
-  sp_io_stream_writer_t io;
-  sp_io_stream_writer_from_fd(&io, fd, SP_IO_CLOSE_MODE_AUTO);
-  u8 buffer [4096] = sp_zero;
-  sp_io_writer_set_buffer(&io.base, buffer, sizeof(buffer));
-  sp_io_write_line(&io.base, json);
-  sp_io_stream_writer_close(&io);
+  sp_fs_write_at(path, sp_fmt(scratch.mem, "{}\n", sp_fmt_str(json)).value, SP_FS_WRITE_APPEND);
 
   sp_mem_end_scratch(scratch);
 }

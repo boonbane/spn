@@ -10,7 +10,8 @@ spn_err_t spn_index_dir_get_package(spn_index_info_t* index, sp_mem_t mem, sp_in
 
   spn_path_t dir = spn_path_join(mem, (spn_path_t) { .sub = index->location.dir }, name.str);
   spn_path_t path = spn_path_join(mem, dir, sp_str_lit("spn.toml"));
-  if (!sp_fs_exists_at(spn_path_at(roots, path))) {
+  sp_sys_file_meta_t meta = sp_zero;
+  if (sp_fs_get_path_metadata_at(spn_path_at(roots, path), &meta) || meta.kind == SP_FS_KIND_UNKNOWN) {
     return SPN_OK;
   }
 

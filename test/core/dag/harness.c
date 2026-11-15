@@ -155,12 +155,12 @@ spn_err_t dag_test_exec_stamp(const si_dag_ctx_t* c, void* user_data) {
   dag_test_env_t* env = (dag_test_env_t*)user_data;
   env->runs++;
   sp_str_t content = sp_fmt(env->mem, "{}", sp_fmt_uint(env->runs)).value;
-  return sp_fs_create_file_str_at(dag_test_at(env, si_dag_resolve_output(c, c->produces[0])), content) ? SPN_ERR_DAG_ACTION : SPN_OK;
+  return sp_fs_write_at(dag_test_at(env, si_dag_resolve_output(c, c->produces[0])), content, SP_FS_WRITE_TRUNCATE) ? SPN_ERR_DAG_ACTION : SPN_OK;
 }
 
 sp_err_t dag_test_expect_file(sp_test_t* t, sp_mem_t mem, sp_path_t path, const c8* expected) {
   sp_str_t from_disk = sp_zero;
-  sp_must_eq(t, SP_OK, sp_io_read_file_at(mem, path, &from_disk));
+  sp_must_eq(t, SP_OK, sp_fs_read_at(mem, path, &from_disk));
   sp_expect_str_eq_c(t, from_disk, expected);
   return SP_OK;
 }

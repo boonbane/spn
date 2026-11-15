@@ -41,7 +41,7 @@ void spn_probe_cache_load(spn_probe_cache_t* cache, const spn_path_roots_t* root
 
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   sp_str_t contents = sp_zero;
-  if (sp_io_read_file_at(scratch.mem, spn_path_at(roots, file), &contents)) {
+  if (sp_fs_read_at(scratch.mem, spn_path_at(roots, file), &contents)) {
     sp_mem_end_scratch(scratch);
     return;
   }
@@ -84,7 +84,7 @@ spn_err_t spn_probe_cache_flush(spn_probe_cache_t* cache) {
       sp_fmt_uint(entry->hash),
       sp_fmt_str(entry->path)).value;
   }
-  spn_err_t result = sp_fs_create_file_str_at(spn_path_at(cache->roots, cache->file), contents) ? SPN_ERROR : SPN_OK;
+  spn_err_t result = sp_fs_write_at(spn_path_at(cache->roots, cache->file), contents, SP_FS_WRITE_TRUNCATE) ? SPN_ERROR : SPN_OK;
   sp_mem_end_scratch(scratch);
   return result;
 }
@@ -107,7 +107,7 @@ SP_PRIVATE spn_err_t probe_hash(spn_probe_cache_t* cache, sp_str_t path, sp_hash
 
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   sp_str_t contents = sp_zero;
-  spn_err_t err = sp_io_read_file_at(scratch.mem, at, &contents) ? SPN_ERROR : SPN_OK;
+  spn_err_t err = sp_fs_read_at(scratch.mem, at, &contents) ? SPN_ERROR : SPN_OK;
   sp_hash_t computed = err ? 0 : spn_digest_hash_str(contents);
   sp_mem_end_scratch(scratch);
   if (err) {

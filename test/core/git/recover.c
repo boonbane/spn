@@ -122,7 +122,7 @@ sp_test_each(git_recover, ensure, test_t, tests, .setup = spn_test_ctx_setup) {
   sp_str_t ref = sp_fs_join_path(mem, repo, sp_fmt(mem, "refs/heads/{}", sp_fmt_str(branch)).value);
   sp_str_t leftover = sp_fmt(mem, "{}.lock", sp_fmt_str(ref)).value;
   sp_str_t witness = sp_fs_join_path(mem, repo, sp_str_lit("A"));
-  sp_must_ok(t, sp_fs_create_file_str(witness, sp_str_lit("A")));
+  sp_must_ok(t, sp_fs_write(witness, sp_str_lit("A"), SP_FS_WRITE_TRUNCATE));
 
   switch (it->damage) {
     case DAMAGE_NONE: {
@@ -133,11 +133,11 @@ sp_test_each(git_recover, ensure, test_t, tests, .setup = spn_test_ctx_setup) {
       break;
     }
     case DAMAGE_REF_GARBLED: {
-      sp_must_ok(t, sp_fs_create_file_str(ref, sp_str_lit("A")));
+      sp_must_ok(t, sp_fs_write(ref, sp_str_lit("A"), SP_FS_WRITE_TRUNCATE));
       break;
     }
     case DAMAGE_REF_LOCKED: {
-      sp_must_ok(t, sp_fs_create_file_str(leftover, sp_str_lit("")));
+      sp_must_ok(t, sp_fs_write(leftover, sp_str_lit(""), SP_FS_WRITE_TRUNCATE));
       break;
     }
     case DAMAGE_OBJECTS_REMOVED: {
@@ -162,9 +162,11 @@ sp_test_each(git_recover, ensure, test_t, tests, .setup = spn_test_ctx_setup) {
 
   sp_test_kv(t, "error", sp_cstr_as_str(job.checkout->failure.message));
   sp_expect_eq(t, (u32)job.err, (u32)it->expect.err);
-  sp_expect_eq(t, !sp_fs_exists(witness), it->expect.rebuilt);
-  sp_expect(t, !sp_fs_exists(leftover));
-  sp_expect(t, sp_fs_is_file(lock));
+  sp_sys_file_meta_t meta = sp_zero;
+  sp_expect_eq(t, sp_fs_get_path_metadata(witness, &meta) != SP_OK, it->expect.rebuilt);
+  sp_expect_err_eq(t, sp_fs_get_path_metadata(leftover, &meta), SP_ERR_SYS_NOT_FOUND);
+  sp_expect_ok(t, sp_fs_get_link_metadata(lock, &meta));
+  sp_expect_eq(t, meta.kind, SP_FS_KIND_FILE);
 
   u32 entries = 0;
   sp_sys_dir_t dir = sp_zero;
