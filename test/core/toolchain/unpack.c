@@ -25,7 +25,6 @@ typedef struct {
   const c8* name;
   const c8* archive;
   bool symlinks;
-  bool modes;
   bool drives;
   bool nul;
   expect_t expect;
@@ -50,7 +49,6 @@ static const test_t tests [] = {
   {
     .name = "executable_bit_is_kept",
     .archive = "executable.tar.xz",
-    .modes = true,
     .expect = { .entries = { { .path = "B", .content = "B", .executable = true } } },
   },
   {
@@ -169,7 +167,6 @@ static const test_t tests [] = {
   {
     .name = "zip_executable_bit_is_kept",
     .archive = "executable.zip",
-    .modes = true,
     .expect = { .entries = { { .path = "Y", .content = "B", .executable = true } } },
   },
   {
@@ -205,22 +202,9 @@ static const test_t tests [] = {
   },
 };
 
-static bool executable(sp_path_t path) {
-#if defined(SP_WIN32)
-  return false;
-#else
-  sp_sys_file_meta_t meta = sp_zero;
-  sp_sys_get_path_metadata_s(path.dir, path.sub, &meta);
-  return (meta.perms.value & 0100) != 0;
-#endif
-}
-
 sp_test_each(unpack, archives, test_t, tests) {
   if (it->symlinks) {
     sp_test_skip_without_symlinks();
-  }
-  if (it->modes) {
-    sp_test_skip_on_win32();
   }
   if (it->drives) {
     sp_test_skip_on_linux();
@@ -254,7 +238,10 @@ sp_test_each(unpack, archives, test_t, tests) {
     sp_str_t content = sp_zero;
     sp_expect_ok(t, sp_fs_read_at(mem, path, &content));
     sp_expect_str_eq_c(t, content, entry.content);
-    sp_expect_eq(t, entry.executable, executable(path));
+#if !defined(SP_WIN32)
+    sp_sys_get_path_metadata_s(path.dir, path.sub, &meta);
+    sp_expect_eq(t, entry.executable, (meta.perms.value & 0100) != 0);
+#endif
 
     c8 target [SP_PATH_MAX] = sp_zero;
     sp_str_t link = sp_zero;
