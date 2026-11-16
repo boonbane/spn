@@ -50,6 +50,7 @@ files = [
   "tools/patches/sp-macos-create-race.patch",
   "tools/patches/sp-ps-kill.patch",
   "tools/patches/sp-ps-wide.patch",
+  "tools/patches/sp-test-dir-index.patch",
 ]
 
 [patch.wamr]
