@@ -74,6 +74,9 @@ static place_t place(sp_io_mem_writer_t* names, sp_str_t path, sp_str_t* rel) {
   }
 
   *rel = sp_str((const c8*)names->ptr + start, (u32)(names->pos - start));
+  if (sp_fs_is_absolute(*rel)) {
+    return PLACE_UNSAFE;
+  }
   return sp_str_empty(*rel) ? PLACE_ABOVE : PLACE_INSIDE;
 }
 

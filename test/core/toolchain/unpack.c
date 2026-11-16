@@ -26,6 +26,7 @@ typedef struct {
   const c8* archive;
   bool symlinks;
   bool modes;
+  bool drives;
   expect_t expect;
 } test_t;
 
@@ -77,6 +78,12 @@ static const test_t tests [] = {
     .name = "rooted_path_stays_under_root",
     .archive = "absolute.tar.xz",
     .expect = { .entries = { { .path = "B", .content = "B" } } },
+  },
+  {
+    .name = "drive_letter_path_is_unsafe",
+    .archive = "drive.tar.xz",
+    .drives = true,
+    .expect = { .err = SPN_ERROR, .reason = SPN_UNPACK_UNSAFE, .entry = "A/C:/B" },
   },
   {
     .name = "parent_component_is_unsafe",
@@ -205,6 +212,10 @@ sp_test_each(unpack, archives, test_t, tests) {
   }
   if (it->modes) {
     sp_test_skip_on_win32();
+  }
+  if (it->drives) {
+    sp_test_skip_on_linux();
+    sp_test_skip_on_macos();
   }
 
   sp_mem_t mem = sp_test_arena(t);

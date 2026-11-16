@@ -74,6 +74,9 @@ seal dot
 pack absolute -P --transform='s,^,/,' A/B
 seal absolute
 
+pack drive --transform='s,^A/B$,A/C:/B,' A/B
+seal drive
+
 pack dotdot --transform='s,^A/B$,A/../B,' A/B
 seal dotdot
 
