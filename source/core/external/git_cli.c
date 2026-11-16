@@ -133,6 +133,7 @@ spn_err_t spn_git_cli_push(sp_mem_t mem, sp_str_t repo, sp_str_t url, sp_str_t r
   sp_da_push(args, repo);
   sp_da_push(args, sp_str_lit("push"));
   sp_da_push(args, sp_str_lit("--quiet"));
+  sp_da_push(args, sp_str_lit("--"));
   sp_da_push(args, url);
   sp_da_push(args, refspec);
   sp_ps_output_t result = spawn(mem, args);
