@@ -7,6 +7,7 @@ trap 'rm -rf "$work"' EXIT
 cd "$work"
 
 long=$(printf 'G%.0s' $(seq 101))
+name=$(printf 'H%.0s' $(seq 200))
 pack() {
   format=$1
   archive=$2
@@ -38,6 +39,12 @@ ln -s "$long/F" D
 pack ustar ustar "$long/F"
 pack gnu gnu "$long/F" D
 pack pax pax "$long/F" D
+cd ..
+
+mkdir name && cd name
+printf H > "$name"
+chmod 644 "$name"
+pack gnu name "$name"
 cd ..
 
 mkdir fifo && cd fifo

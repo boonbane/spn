@@ -88,6 +88,13 @@ static const test_t tests [] = {
     },
   },
   {
+    .name = "name_exceeds_buffer",
+    .archive = "name",
+    .expect = {
+      .err = SP_ERR_IO_NO_SPACE,
+    },
+  },
+  {
     .name = "truncated",
     .archive = "kinds",
     .keep = 1736,
@@ -128,7 +135,7 @@ sp_test_each(tar, read, test_t, tests) {
   sp_io_reader_from_mem(&reader, archive.data, archive.len);
   sp_tar_it_t tar = sp_tar_it(&reader);
   sp_tar_entry_t entry = sp_zero;
-  u8 names [2 * SP_PATH_MAX] = sp_zero;
+  u8 names [192] = sp_zero;
   u32 index = 0;
   while (sp_tar_it_next(&tar, sp_mem_slice(names, sizeof(names)), &entry)) {
     sp_must_lt(t, index, count);

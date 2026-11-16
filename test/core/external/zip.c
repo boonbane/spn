@@ -68,10 +68,21 @@ static const test_t tests [] = {
     },
   },
   {
+    .name = "name_longer_than_the_buffer_is_an_error",
+    .archive = "name",
+    .expect = { .err = SP_ERR_IO_NO_SPACE },
+  },
+  {
     .name = "content_failing_its_checksum_is_an_error",
     .archive = "stored",
     .flip = 31,
     .expect = { .entries = { { .path = "B", .err = SP_ERR } } },
+  },
+  {
+    .name = "link_target_failing_its_checksum_is_an_error",
+    .archive = "symlink",
+    .flip = 31,
+    .expect = { .err = SP_ERR },
   },
   {
     .name = "header_contradicting_the_directory_is_an_error",
@@ -84,6 +95,12 @@ static const test_t tests [] = {
     .archive = "stored",
     .flip = 32,
     .expect = { .err = SP_ERR },
+  },
+  {
+    .name = "entry_from_a_non_unix_host_is_a_file",
+    .archive = "symlink",
+    .flip = 37,
+    .expect = { .entries = { { .path = "D", .content = "B" } } },
   },
 };
 
