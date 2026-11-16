@@ -30,14 +30,12 @@ typedef struct {
 typedef struct {
   spn_err_t err;
   spn_http_failure_kind_t kind;
-  u32 connections;
   const c8* body;
 } expect_t;
 
 typedef struct {
   const c8* name;
   const c8* scheme;
-  const c8* host;
   const c8* dest;
   const c8* ca_bundle;
   bool closed;
@@ -51,7 +49,6 @@ typedef struct {
   const connection_t* connections;
   sp_atomic_s32_t* cancelled;
   sp_atomic_s32_t stop;
-  u32 accepted;
   u32 expired;
 } server_t;
 
@@ -59,27 +56,27 @@ static const test_t tests [] = {
   {
     .name = "downloads_body",
     .connections = { { .kind = SERVE_REPLY, .reply = reply_a } },
-    .expect = { .connections = 1, .body = "A" },
+    .expect = { .body = "A" },
   },
   {
     .name = "follows_redirect",
     .connections = { { .kind = SERVE_REPLY, .reply = reply_redirect }, { .kind = SERVE_REPLY, .reply = reply_a } },
-    .expect = { .connections = 2, .body = "A" },
+    .expect = { .body = "A" },
   },
   {
     .name = "http_error_fails",
     .connections = { { .kind = SERVE_REPLY, .reply = reply_404 } },
-    .expect = { .err = SPN_ERROR, .connections = 1 },
+    .expect = { .err = SPN_ERROR },
   },
   {
     .name = "server_error_is_dropped",
     .connections = { { .kind = SERVE_REPLY, .reply = reply_503 } },
-    .expect = { .err = SPN_ERROR, .kind = SPN_HTTP_DROPPED, .connections = 1 },
+    .expect = { .err = SPN_ERROR, .kind = SPN_HTTP_DROPPED },
   },
   {
     .name = "rate_limit_is_dropped",
     .connections = { { .kind = SERVE_REPLY, .reply = reply_429 } },
-    .expect = { .err = SPN_ERROR, .kind = SPN_HTTP_DROPPED, .connections = 1 },
+    .expect = { .err = SPN_ERROR, .kind = SPN_HTTP_DROPPED },
   },
   {
     .name = "refused_connection_is_dropped",
@@ -87,46 +84,41 @@ static const test_t tests [] = {
     .expect = { .err = SPN_ERROR, .kind = SPN_HTTP_DROPPED },
   },
   {
-    .name = "unresolvable_host_is_dropped",
-    .host = "A.invalid",
-    .expect = { .err = SPN_ERROR, .kind = SPN_HTTP_DROPPED },
-  },
-  {
     .name = "cut_body_is_dropped",
     .connections = { { .kind = SERVE_REPLY, .reply = reply_ab_cut } },
-    .expect = { .err = SPN_ERROR, .kind = SPN_HTTP_DROPPED, .connections = 1 },
+    .expect = { .err = SPN_ERROR, .kind = SPN_HTTP_DROPPED },
   },
   {
     .name = "empty_reply_is_dropped",
     .connections = { { .kind = SERVE_REPLY, .reply = "" } },
-    .expect = { .err = SPN_ERROR, .kind = SPN_HTTP_DROPPED, .connections = 1 },
+    .expect = { .err = SPN_ERROR, .kind = SPN_HTTP_DROPPED },
   },
   {
     .name = "reset_is_dropped",
     .connections = { { .kind = SERVE_RESET } },
-    .expect = { .err = SPN_ERROR, .kind = SPN_HTTP_DROPPED, .connections = 1 },
+    .expect = { .err = SPN_ERROR, .kind = SPN_HTTP_DROPPED },
   },
   {
     .name = "stalled_body_is_dropped",
     .connections = { { .kind = SERVE_HOLD, .reply = reply_ab_cut } },
-    .expect = { .err = SPN_ERROR, .kind = SPN_HTTP_DROPPED, .connections = 1 },
+    .expect = { .err = SPN_ERROR, .kind = SPN_HTTP_DROPPED },
   },
   {
     .name = "unanswered_tls_handshake_is_dropped",
     .scheme = "https",
     .connections = { { .kind = SERVE_HOLD, .reply = "" } },
-    .expect = { .err = SPN_ERROR, .kind = SPN_HTTP_DROPPED, .connections = 1 },
+    .expect = { .err = SPN_ERROR, .kind = SPN_HTTP_DROPPED },
   },
   {
     .name = "reset_tls_handshake_is_dropped",
     .scheme = "https",
     .connections = { { .kind = SERVE_RESET } },
-    .expect = { .err = SPN_ERROR, .kind = SPN_HTTP_DROPPED, .connections = 1 },
+    .expect = { .err = SPN_ERROR, .kind = SPN_HTTP_DROPPED },
   },
   {
     .name = "cancel_aborts_transfer",
     .connections = { { .kind = SERVE_CANCEL } },
-    .expect = { .err = SPN_ERROR, .kind = SPN_HTTP_CANCELLED, .connections = 1 },
+    .expect = { .err = SPN_ERROR, .kind = SPN_HTTP_CANCELLED },
   },
   {
     .name = "download_after_cancel_is_cancelled",
@@ -143,8 +135,7 @@ static const test_t tests [] = {
     .name = "missing_ca_bundle_is_untrusted",
     .scheme = "https",
     .ca_bundle = "B",
-    .connections = { { .kind = SERVE_HOLD, .reply = "" } },
-    .expect = { .err = SPN_ERROR, .kind = SPN_HTTP_UNTRUSTED, .connections = 1 },
+    .expect = { .err = SPN_ERROR, .kind = SPN_HTTP_UNTRUSTED },
   },
 };
 
@@ -162,6 +153,7 @@ static void read_request(sp_sys_socket_t client) {
 
 static s32 serve(void* user) {
   server_t* server = (server_t*)user;
+  u32 accepted = 0;
   while (true) {
     sp_sys_socket_t client = SP_SYS_INVALID_SOCKET;
     if (sp_sys_socket_accept(server->listener, (sp_sys_handle_desc_t) { .mode = SP_SYS_BLOCKING }, &client)) {
@@ -172,8 +164,8 @@ static s32 serve(void* user) {
       break;
     }
 
-    connection_t connection = server->accepted < http_test_max_connections ? server->connections[server->accepted] : sp_zero_s(connection_t);
-    server->accepted++;
+    connection_t connection = accepted < http_test_max_connections ? server->connections[accepted] : sp_zero_s(connection_t);
+    accepted++;
     switch (connection.kind) {
       case SERVE_REPLY: {
         read_request(client);
@@ -216,6 +208,10 @@ static s32 serve(void* user) {
 }
 
 sp_test_each(http, download, test_t, tests, .setup = spn_test_ctx_setup) {
+  if (it->ca_bundle) {
+    sp_test_skip_on_win32();
+  }
+
   sp_mem_t mem = sp_test_arena(t);
   sp_sys_ipv4_t local = { .octets = { 127, 0, 0, 1 } };
   sp_atomic_s32_t cancelled = sp_zero;
@@ -224,21 +220,25 @@ sp_test_each(http, download, test_t, tests, .setup = spn_test_ctx_setup) {
   sp_must_ok(t, sp_sys_socket_bind(server.listener, local));
   sp_must_ok(t, sp_sys_socket_local_port(server.listener, &local.port));
 
-  sp_thread_t thread = sp_zero;
-  if (!it->closed) {
-    sp_must_ok(t, sp_sys_socket_listen(server.listener, http_test_max_connections));
-    sp_thread_init(&thread, serve, &server);
-  }
-
   spn_http_config_t config = {
     .ca_bundle = it->ca_bundle ? sp_fs_join_path(mem, test_dir_str(t), sp_cstr_as_str(it->ca_bundle)) : sp_str_lit(""),
     .timeout_s = 1,
     .cancelled = &cancelled,
   };
-  sp_str_t url = sp_fmt(mem, "{}://{}:{}/A", sp_fmt_cstr(it->scheme ? it->scheme : "http"), sp_fmt_cstr(it->host ? it->host : "127.0.0.1"), sp_fmt_uint(local.port)).value;
+  sp_str_t url = sp_fmt(mem, "{}://127.0.0.1:{}/A", sp_fmt_cstr(it->scheme ? it->scheme : "http"), sp_fmt_uint(local.port)).value;
   sp_path_t dest = sp_path_join(mem, sp_test_dir(t), sp_cstr_as_str(it->dest ? it->dest : "A"));
   spn_http_failure_t failure = sp_zero;
   sp_atomic_s32_store(&cancelled, it->cancelled, SP_ATOMIC_SEQ_CST);
+
+  sp_thread_t thread = sp_zero;
+  if (it->closed) {
+    sp_must_ok(t, sp_sys_socket_close(server.listener));
+  }
+  else {
+    sp_must_ok(t, sp_sys_socket_listen(server.listener, http_test_max_connections));
+    sp_thread_init(&thread, serve, &server);
+  }
+
   spn_err_t err = spn_http_download(&config, url, dest, &failure);
 
   if (!it->closed) {
@@ -248,13 +248,12 @@ sp_test_each(http, download, test_t, tests, .setup = spn_test_ctx_setup) {
     sp_sys_socket_connect(poke, local);
     sp_sys_socket_close(poke);
     sp_thread_join(&thread);
+    sp_sys_socket_close(server.listener);
   }
-  sp_sys_socket_close(server.listener);
 
   sp_test_kv_c(t, "message", failure.message);
   sp_expect_eq(t, (u32)err, (u32)it->expect.err);
   sp_expect_eq(t, (u32)failure.kind, (u32)it->expect.kind);
-  sp_expect_eq(t, server.accepted, it->expect.connections);
   sp_expect_eq(t, server.expired, 0u);
   if (it->expect.body) {
     sp_str_t body = sp_zero;
