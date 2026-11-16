@@ -302,6 +302,7 @@ static spn_err_t materialize_tree(spn_session_t* session, sp_intern_str_t name, 
           }
           case SPN_GIT_FAILED:
           case SPN_GIT_DROPPED:
+          case SPN_GIT_UNAUTHORIZED:
           case SPN_GIT_CORRUPT: {
             if (checkout->failure.remote) {
               return spn_err_emit(session->ctx, (spn_err_union_t) {

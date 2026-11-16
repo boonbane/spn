@@ -12,6 +12,7 @@ typedef enum {
   SPN_GIT_FAILED,
   SPN_GIT_DROPPED,
   SPN_GIT_UNTRUSTED,
+  SPN_GIT_UNAUTHORIZED,
   SPN_GIT_CORRUPT,
   SPN_GIT_CANCELLED,
 } spn_git_failure_kind_t;

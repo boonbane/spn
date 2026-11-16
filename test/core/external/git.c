@@ -4,6 +4,12 @@
 #include "external/git.h"
 #include "git/remote.h"
 
+#define git_test_request_max 4096
+#define git_test_quiet_ms 200
+#define git_test_backlog 4
+
+#define reply_401 "HTTP/1.1 401 Unauthorized\r\nWWW-Authenticate: Basic realm=A\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+
 typedef enum {
   OP_FETCH,
   OP_CLONE,
@@ -13,6 +19,7 @@ typedef enum {
   DAMAGE_NONE,
   DAMAGE_REMOTE_REMOVED,
   DAMAGE_REMOTE_ON_CLOSED_PORT,
+  DAMAGE_REMOTE_DEMANDS_LOGIN,
   DAMAGE_REPO_REMOVED,
   DAMAGE_ORIGIN_REMOVED,
   DAMAGE_REF_LOCKED,
@@ -34,6 +41,11 @@ typedef struct {
   bool cancelled;
   expect_t expect;
 } test_t;
+
+typedef struct {
+  sp_sys_socket_t listener;
+  sp_atomic_s32_t stop;
+} server_t;
 
 static const test_t tests [] = {
   {
@@ -77,6 +89,12 @@ static const test_t tests [] = {
     .expect = { .err = SPN_ERROR, .kind = SPN_GIT_DROPPED, .remote = true, .retries = 3 },
   },
   {
+    .name = "clone_from_server_demanding_login_is_unauthorized",
+    .op = OP_CLONE,
+    .damage = DAMAGE_REMOTE_DEMANDS_LOGIN,
+    .expect = { .err = SPN_ERROR, .kind = SPN_GIT_UNAUTHORIZED, .remote = true },
+  },
+  {
     .name = "system_clone_of_missing_path_is_remote",
     .op = OP_CLONE,
     .damage = DAMAGE_REMOTE_REMOVED,
@@ -96,6 +114,33 @@ static const test_t tests [] = {
   },
 };
 
+static s32 demand_login(void* user) {
+  server_t* server = (server_t*)user;
+  while (true) {
+    sp_sys_socket_t client = SP_SYS_INVALID_SOCKET;
+    if (sp_sys_socket_accept(server->listener, (sp_sys_handle_desc_t) { .mode = SP_SYS_BLOCKING }, &client)) {
+      break;
+    }
+    if (sp_atomic_s32_load(&server->stop, SP_ATOMIC_SEQ_CST)) {
+      sp_sys_socket_close(client);
+      break;
+    }
+
+    c8 request [git_test_request_max] = sp_zero;
+    u64 len = 0;
+    while (len < sizeof(request) && !sp_str_contains(sp_str(request, len), sp_str_lit("\r\n\r\n"))) {
+      u64 received = 0;
+      if (sp_sys_socket_wait(client, true, git_test_quiet_ms) || sp_sys_socket_recv(client, request + len, sizeof(request) - len, &received) || !received) {
+        break;
+      }
+      len += received;
+    }
+    sp_sys_socket_send(client, reply_401, sp_cstr_len(reply_401), SP_NULLPTR);
+    sp_sys_socket_close(client);
+  }
+  return 0;
+}
+
 sp_test_each(git, failure, test_t, tests, .setup = spn_test_ctx_setup) {
   sp_mem_t mem = sp_test_arena(t);
   sp_str_t remote = sp_fs_join_path(mem, test_dir_str(t), sp_str_lit("A"));
@@ -113,6 +158,9 @@ sp_test_each(git, failure, test_t, tests, .setup = spn_test_ctx_setup) {
   }
 
   sp_str_t url = remote;
+  sp_sys_ipv4_t address = { .octets = { 127, 0, 0, 1 } };
+  server_t server = { .listener = SP_SYS_INVALID_SOCKET };
+  sp_thread_t thread = sp_zero;
   switch (it->damage) {
     case DAMAGE_NONE: {
       break;
@@ -123,12 +171,20 @@ sp_test_each(git, failure, test_t, tests, .setup = spn_test_ctx_setup) {
     }
     case DAMAGE_REMOTE_ON_CLOSED_PORT: {
       sp_sys_socket_t probe = SP_SYS_INVALID_SOCKET;
-      sp_sys_ipv4_t address = { .octets = { 127, 0, 0, 1 } };
       sp_must_ok(t, sp_sys_socket_open(&probe, (sp_sys_handle_desc_t) { .mode = SP_SYS_BLOCKING }));
       sp_must_ok(t, sp_sys_socket_bind(probe, address));
       sp_must_ok(t, sp_sys_socket_local_port(probe, &address.port));
       sp_must_ok(t, sp_sys_socket_close(probe));
       url = sp_fmt(mem, "git://127.0.0.1:{}/A", sp_fmt_uint(address.port)).value;
+      break;
+    }
+    case DAMAGE_REMOTE_DEMANDS_LOGIN: {
+      sp_must_ok(t, sp_sys_socket_open(&server.listener, (sp_sys_handle_desc_t) { .mode = SP_SYS_BLOCKING }));
+      sp_must_ok(t, sp_sys_socket_bind(server.listener, address));
+      sp_must_ok(t, sp_sys_socket_local_port(server.listener, &address.port));
+      sp_must_ok(t, sp_sys_socket_listen(server.listener, git_test_backlog));
+      sp_thread_init(&thread, demand_login, &server);
+      url = sp_fmt(mem, "http://127.0.0.1:{}/A", sp_fmt_uint(address.port)).value;
       break;
     }
     case DAMAGE_REPO_REMOVED: {
@@ -163,6 +219,16 @@ sp_test_each(git, failure, test_t, tests, .setup = spn_test_ctx_setup) {
       err = spn_git_clone(it->transport, url, local, backoff, &cancelled, &failure);
       break;
     }
+  }
+
+  if (it->damage == DAMAGE_REMOTE_DEMANDS_LOGIN) {
+    sp_atomic_s32_store(&server.stop, 1, SP_ATOMIC_SEQ_CST);
+    sp_sys_socket_t poke = SP_SYS_INVALID_SOCKET;
+    sp_must_ok(t, sp_sys_socket_open(&poke, (sp_sys_handle_desc_t) { .mode = SP_SYS_BLOCKING }));
+    sp_sys_socket_connect(poke, address);
+    sp_sys_socket_close(poke);
+    sp_thread_join(&thread);
+    sp_sys_socket_close(server.listener);
   }
 
   u32 retries = 0;
