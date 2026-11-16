@@ -31,7 +31,7 @@ typedef struct {
 
   struct {
     bool empty;
-    bool reject_push;
+    const c8* hook;
     const c8* pin;
   } remote;
 
@@ -40,6 +40,7 @@ typedef struct {
   struct {
     txn_file_t files [2];
     const c8* head;
+    const c8* witness;
   } expect;
 } txn_test_t;
 
@@ -97,13 +98,23 @@ static const txn_test_t tests [] = {
   },
   {
     .name = "retries_rejected_push",
-    .remote = { .reject_push = true },
+    .remote = { .hook = "reject_once" },
     .actions = {
       { .kind = TXN_ACTION_PUBLISH, .publish = { .name = "spum", .version = { 1, 0, 0 } } },
     },
     .expect = {
       .files = { { .file = ".spn/index/spum.jsonl", .lines = 1 } },
       .head = "spum 1.0.0",
+    },
+  },
+  {
+    .name = "push_cannot_prompt",
+    .remote = { .hook = "note_unattended" },
+    .actions = {
+      { .kind = TXN_ACTION_PUBLISH, .publish = { .name = "spum", .version = { 1, 0, 0 } } },
+    },
+    .expect = {
+      .witness = "unattended",
     },
   },
   {
@@ -118,7 +129,7 @@ static const txn_test_t tests [] = {
   },
   {
     .name = "retries_rejected_bootstrap_push",
-    .remote = { .empty = true, .reject_push = true },
+    .remote = { .empty = true, .hook = "reject_once" },
     .actions = {
       { .kind = TXN_ACTION_PUBLISH, .publish = { .name = "spum", .version = { 1, 0, 0 } } },
     },
@@ -232,9 +243,9 @@ sp_test_each(index_transaction, publish, txn_test_t, tests, .setup = spn_test_ct
     git(tmp, "clone", "--quiet", "--bare", "seed", "remote.git");
   }
 
-  if (it->remote.reject_push) {
+  if (it->remote.hook) {
     sp_must_ok(t, sp_fs_copy_file_at(
-      sp_path_cwd(test_repo_path(mem, sp_str_lit("test/core/index/hooks/reject_once"))),
+      sp_path_cwd(test_repo_path(mem, sp_fs_join_path(mem, sp_str_lit("test/core/index/hooks"), sp_cstr_as_str(it->remote.hook)))),
       sp_path_cwd(sp_fs_join_path(mem, remote, sp_str_lit("hooks/pre-receive"))),
       SP_FS_ATOMIC_REPLACE));
   }
@@ -317,6 +328,10 @@ sp_test_each(index_transaction, publish, txn_test_t, tests, .setup = spn_test_ct
   }
   if (it->expect.head) {
     sp_expect_str_eq(t, remote_head_message(mem, remote), sp_cstr_as_str(it->expect.head));
+  }
+  if (it->expect.witness) {
+    sp_sys_file_meta_t witness = sp_zero;
+    sp_expect_ok(t, sp_fs_get_link_metadata(sp_fs_join_path(mem, remote, sp_cstr_as_str(it->expect.witness)), &witness));
   }
   sp_sys_file_meta_t meta = sp_zero;
   if (!sp_fs_get_link_metadata(clone, &meta) && meta.kind == SP_FS_KIND_DIR) {

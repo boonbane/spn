@@ -19,14 +19,26 @@ static sp_da(sp_str_t) command(sp_mem_t mem) {
   return args;
 }
 
-static spn_err_t run(sp_mem_t mem, sp_da(sp_str_t) args, spn_git_failure_t* failure) {
+static const struct {
+  const c8* name;
+  const c8* value;
+} unattended [] = {
+  { "GIT_TERMINAL_PROMPT", "0" },
+  { "GCM_INTERACTIVE", "never" },
+};
+
+static sp_ps_output_t spawn(sp_mem_t mem, sp_da(sp_str_t) args) {
   sp_env_t env = sp_env_capture(mem);
   sp_carr_for(inherited, it) {
     sp_env_erase_c(&env, inherited[it]);
   }
-  sp_env_insert_c(&env, "GIT_TERMINAL_PROMPT", "0");
+  sp_carr_for(unattended, it) {
+    if (!sp_env_contains_c(&env, unattended[it].name)) {
+      sp_env_insert_c(&env, unattended[it].name, unattended[it].value);
+    }
+  }
 
-  sp_ps_output_t result = sp_ps_run(mem, (sp_ps_config_t) {
+  return sp_ps_run(mem, (sp_ps_config_t) {
     .command = sp_str_lit("git"),
     .dyn_args = args,
     .env = { .env = env, .mode = SP_PS_ENV_EXISTING },
@@ -35,6 +47,10 @@ static spn_err_t run(sp_mem_t mem, sp_da(sp_str_t) args, spn_git_failure_t* fail
       .err = { .mode = SP_PS_IO_MODE_CREATE },
     },
   });
+}
+
+static spn_err_t run(sp_mem_t mem, sp_da(sp_str_t) args, spn_git_failure_t* failure) {
+  sp_ps_output_t result = spawn(mem, args);
 
   *failure = sp_zero_s(spn_git_failure_t);
   if (!result.status.exit_code) {
@@ -108,20 +124,17 @@ spn_err_t spn_git_cli_fetch(sp_str_t repo, spn_git_fetch_t fetch, spn_git_failur
 }
 
 spn_err_t spn_git_cli_push(sp_mem_t mem, sp_str_t repo, sp_str_t url, sp_str_t refspec, sp_str_t* output) {
-  sp_ps_output_t result = sp_ps_run(mem, (sp_ps_config_t) {
-    .command = SP_LIT("git"),
-    .args = {
-      SP_LIT("-C"), repo,
-      SP_LIT("push"), SP_LIT("--quiet"),
-      url,
-      refspec
-    },
-  });
+  sp_da(sp_str_t) args = command(mem);
+  sp_da_push(args, sp_str_lit("-C"));
+  sp_da_push(args, repo);
+  sp_da_push(args, sp_str_lit("push"));
+  sp_da_push(args, sp_str_lit("--quiet"));
+  sp_da_push(args, url);
+  sp_da_push(args, refspec);
+  sp_ps_output_t result = spawn(mem, args);
 
   if (result.status.exit_code) {
-    if (output) {
-      *output = sp_str_trim_right(sp_str_empty(result.err) ? result.out : result.err);
-    }
+    *output = sp_str_trim_right(sp_str_empty(result.err) ? result.out : result.err);
     return SPN_ERROR;
   }
   return SPN_OK;
