@@ -1,4 +1,4 @@
-#include "git.h"
+#include "../git.h"
 
 typedef struct {
   const c8* url;
