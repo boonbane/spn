@@ -184,11 +184,6 @@ static const test_t tests [] = {
     .expect = { .err = SPN_ERROR, .reason = SPN_UNPACK_CORRUPT, .entry = "A/B" },
   },
   {
-    .name = "zip_entry_contradicting_the_directory_is_corrupt",
-    .archive = "header.zip",
-    .expect = { .err = SPN_ERROR, .reason = SPN_UNPACK_CORRUPT },
-  },
-  {
     .name = "zip_without_a_directory_is_corrupt",
     .archive = "cut.zip",
     .expect = { .err = SPN_ERROR, .reason = SPN_UNPACK_CORRUPT },
