@@ -226,7 +226,11 @@ static spn_err_t untar(unpack_t* unpack, sp_io_reader_t* reader) {
       return SPN_ERROR;
     }
   }
-  return finish(unpack, tar.err);
+  sp_err_t err = tar.err;
+  if (!err && sp_io_discard(reader, SP_LIMIT_U64_MAX, SP_NULLPTR) != SP_ERR_IO_EOF) {
+    err = SP_ERR;
+  }
+  return finish(unpack, err);
 }
 
 static spn_err_t unzip(unpack_t* unpack, spn_zip_it_t* zip) {

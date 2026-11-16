@@ -131,6 +131,11 @@ static const test_t tests [] = {
     .expect = { .entries = { { .path = "B", .content = "B" } } },
   },
   {
+    .name = "gzip_without_its_trailer_is_corrupt",
+    .archive = "trailer.tar.gz",
+    .expect = { .err = SPN_ERROR, .reason = SPN_UNPACK_CORRUPT },
+  },
+  {
     .name = "zip_archive_unpacks",
     .archive = "file.zip",
     .expect = { .entries = { { .path = "Z", .content = "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB" } } },

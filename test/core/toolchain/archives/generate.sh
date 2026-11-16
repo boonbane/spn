@@ -45,6 +45,7 @@ mkfifo A/F
 pack file A A/B
 seal file
 gzip -n -c file.tar > "$out/file.tar.gz"
+head -c -8 "$out/file.tar.gz" > "$out/trailer.tar.gz"
 
 head -c 1024 file.tar > cut.tar
 seal cut
