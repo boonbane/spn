@@ -98,11 +98,24 @@ sp_str_t spn_git_url_web(sp_mem_t mem, sp_str_t url) {
   ).value;
 }
 
+static bool is_scheme(sp_str_t scheme, const c8* name) {
+  sp_str_t lower = sp_cstr_as_str(name);
+  if (scheme.len != lower.len) {
+    return false;
+  }
+  sp_for(it, scheme.len) {
+    if (sp_c8_to_lower(scheme.data[it]) != lower.data[it]) {
+      return false;
+    }
+  }
+  return true;
+}
+
 bool spn_git_url_is_ssh(sp_str_t url) {
-  if (sp_str_find(url, sp_str_lit("://")) == SP_STR_NO_MATCH) {
+  s32 scheme_end = sp_str_find(url, sp_str_lit("://"));
+  if (scheme_end == SP_STR_NO_MATCH) {
     return !sp_str_empty(parse_scp(url).host);
   }
-  return sp_str_starts_with(url, sp_str_lit("ssh://")) ||
-    sp_str_starts_with(url, sp_str_lit("git+ssh://")) ||
-    sp_str_starts_with(url, sp_str_lit("ssh+git://"));
+  sp_str_t scheme = sp_str_prefix(url, scheme_end);
+  return is_scheme(scheme, "ssh") || is_scheme(scheme, "git+ssh") || is_scheme(scheme, "ssh+git");
 }

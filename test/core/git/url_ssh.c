@@ -32,6 +32,11 @@ static const test_t tests [] = {
     .expect = { .ssh = true },
   },
   {
+    .name = "upper_scheme",
+    .url = "SSH://U@H/A/B.git",
+    .expect = { .ssh = true },
+  },
+  {
     .name = "https",
     .url = "https://H/A/B.git",
   },
