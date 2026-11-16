@@ -15,7 +15,7 @@ typedef struct {
   sp_str_t path;
   sp_str_t link;
   u64 size;
-  u32 mode;
+  bool executable;
 } spn_zip_entry_t;
 
 typedef struct {
@@ -27,7 +27,6 @@ typedef struct {
   u64 entries;
   u64 index;
   bool cut;
-  bool open;
   sp_err_t err;
 } spn_zip_it_t;
 

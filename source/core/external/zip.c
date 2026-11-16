@@ -74,7 +74,6 @@ static sp_err_t read_content(sp_io_reader_t* reader, void* ptr, u64 size, u64* b
     return SP_ERR;
   }
   if (!got) {
-    it->open = false;
     return unzCloseCurrentFile(it->archive) ? SP_ERR : SP_ERR_IO_EOF;
   }
 
@@ -123,11 +122,7 @@ spn_err_t spn_zip_it_init(spn_zip_it_t* it, sp_io_file_reader_t* file) {
 }
 
 bool spn_zip_it_next(spn_zip_it_t* it, sp_mem_slice_t buf, spn_zip_entry_t* entry) {
-  if (it->open) {
-    unzCloseCurrentFile(it->archive);
-    it->open = false;
-  }
-  if (it->err || it->index == it->entries) {
+  if (it->index == it->entries) {
     return false;
   }
   if (it->index ? unzGoToNextFile(it->archive) : unzGoToFirstFile(it->archive)) {
@@ -152,7 +147,6 @@ bool spn_zip_it_next(spn_zip_it_t* it, sp_mem_slice_t buf, spn_zip_entry_t* entr
     .kind = SPN_ZIP_DIR,
     .path = path,
     .size = info.uncompressed_size,
-    .mode = mode,
   };
   if (sp_str_ends_with(path, sp_str_lit("/"))) {
     return true;
@@ -161,9 +155,9 @@ bool spn_zip_it_next(spn_zip_it_t* it, sp_mem_slice_t buf, spn_zip_entry_t* entr
   if (unzOpenCurrentFile(it->archive)) {
     return stop(it, SP_ERR);
   }
-  it->open = true;
   entry->kind = SPN_ZIP_FILE;
   if ((mode & spn_zip_mode_kind) != spn_zip_mode_link) {
+    entry->executable = (mode & 0111) != 0;
     return true;
   }
 

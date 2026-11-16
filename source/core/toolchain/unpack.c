@@ -93,34 +93,6 @@ static bool crosses_link(unpack_t* unpack, sp_str_t rel) {
   return false;
 }
 
-static sp_err_t open_file(sp_path_t at, sp_io_file_writer_t* file) {
-  sp_err_t err = sp_io_file_writer_from_path_at(file, at);
-  if (err != SP_ERR_SYS_NOT_FOUND) {
-    return err;
-  }
-  sp_try(sp_fs_create_parent_at(at));
-  return sp_io_file_writer_from_path_at(file, at);
-}
-
-static sp_err_t mark_executable(sp_path_t at) {
-  sp_sys_file_meta_t meta = sp_zero;
-  sp_try(sp_sys_get_path_metadata_s(at.dir, at.sub, &meta));
-  sp_sys_set_executable(&meta.perms, true);
-  return sp_sys_set_file_perms_s(at.dir, at.sub, meta.perms);
-}
-
-static sp_fs_kind_t link_kind(unpack_t* unpack, sp_io_mem_writer_t* names, sp_str_t rel, sp_str_t link) {
-  u64 start = names->pos;
-  s32 slash = sp_str_find_c8_reverse(rel, '/');
-  if (slash >= 0) {
-    sp_io_write_str(&names->base, sp_str_prefix(rel, (u32)slash + 1), SP_NULLPTR);
-  }
-  sp_io_write_str(&names->base, link, SP_NULLPTR);
-  sp_path_t target = { .dir = unpack->root, .sub = sp_str((const c8*)names->ptr + start, (u32)(names->pos - start)) };
-  sp_sys_file_meta_t meta = sp_zero;
-  return (!sp_fs_get_link_metadata_at(target, &meta) && meta.kind == SP_FS_KIND_DIR) ? SP_FS_KIND_DIR : SP_FS_KIND_FILE;
-}
-
 static spn_err_t write_entry(unpack_t* unpack, entry_t entry) {
   u8 placed [2 * SP_PATH_MAX] = sp_zero;
   sp_io_mem_writer_t rels = sp_zero;
@@ -152,7 +124,11 @@ static spn_err_t write_entry(unpack_t* unpack, entry_t entry) {
     }
     case ENTRY_FILE: {
       sp_io_file_writer_t file = sp_zero;
-      if (open_file(at, &file)) {
+      sp_err_t opened = sp_io_file_writer_from_path_at(&file, at);
+      if (opened == SP_ERR_SYS_NOT_FOUND && !sp_fs_create_parent_at(at)) {
+        opened = sp_io_file_writer_from_path_at(&file, at);
+      }
+      if (opened) {
         return fail(unpack, SPN_UNPACK_UNWRITABLE, entry.path);
       }
 
@@ -173,13 +149,28 @@ static spn_err_t write_entry(unpack_t* unpack, entry_t entry) {
       if (read != SP_ERR_IO_EOF || copied != entry.size) {
         return fail(unpack, SPN_UNPACK_CORRUPT, entry.path);
       }
-      if (entry.executable && mark_executable(at)) {
-        return fail(unpack, SPN_UNPACK_UNWRITABLE, entry.path);
+      if (entry.executable) {
+        sp_sys_file_meta_t meta = sp_zero;
+        if (sp_sys_get_path_metadata_s(at.dir, at.sub, &meta)) {
+          return fail(unpack, SPN_UNPACK_UNWRITABLE, entry.path);
+        }
+        sp_sys_set_executable(&meta.perms, true);
+        if (sp_sys_set_file_perms_s(at.dir, at.sub, meta.perms)) {
+          return fail(unpack, SPN_UNPACK_UNWRITABLE, entry.path);
+        }
       }
       break;
     }
     case ENTRY_SYM_LINK: {
-      sp_fs_kind_t kind = link_kind(unpack, &rels, rel, entry.link);
+      u64 start = rels.pos;
+      s32 slash = sp_str_find_c8_reverse(rel, '/');
+      if (slash >= 0) {
+        sp_io_write_str(&rels.base, sp_str_prefix(rel, (u32)slash + 1), SP_NULLPTR);
+      }
+      sp_io_write_str(&rels.base, entry.link, SP_NULLPTR);
+      sp_path_t target = { .dir = unpack->root, .sub = sp_str((const c8*)rels.ptr + start, (u32)(rels.pos - start)) };
+      sp_sys_file_meta_t meta = sp_zero;
+      sp_fs_kind_t kind = (!sp_fs_get_link_metadata_at(target, &meta) && meta.kind == SP_FS_KIND_DIR) ? SP_FS_KIND_DIR : SP_FS_KIND_FILE;
       if (sp_fs_create_parent_at(at) || sp_fs_create_sym_link_at(entry.link, at, kind)) {
         return fail(unpack, SPN_UNPACK_UNWRITABLE, entry.path);
       }
@@ -197,6 +188,16 @@ static spn_err_t write_entry(unpack_t* unpack, entry_t entry) {
       }
       break;
     }
+  }
+  return SPN_OK;
+}
+
+static spn_err_t finish(unpack_t* unpack, sp_err_t err) {
+  if (err == SP_ERR_SYS_UNSUPPORTED) {
+    return fail(unpack, SPN_UNPACK_UNSUPPORTED, sp_str_lit(""));
+  }
+  if (err) {
+    return fail(unpack, SPN_UNPACK_CORRUPT, sp_str_lit(""));
   }
   return SPN_OK;
 }
@@ -225,14 +226,7 @@ static spn_err_t untar(unpack_t* unpack, sp_io_reader_t* reader) {
       return SPN_ERROR;
     }
   }
-
-  if (tar.err == SP_ERR_SYS_UNSUPPORTED) {
-    return fail(unpack, SPN_UNPACK_UNSUPPORTED, sp_str_lit(""));
-  }
-  if (tar.err) {
-    return fail(unpack, SPN_UNPACK_CORRUPT, sp_str_lit(""));
-  }
-  return SPN_OK;
+  return finish(unpack, tar.err);
 }
 
 static spn_err_t unzip(unpack_t* unpack, spn_zip_it_t* zip) {
@@ -250,21 +244,14 @@ static spn_err_t unzip(unpack_t* unpack, spn_zip_it_t* zip) {
       .path = entry.path,
       .link = entry.link,
       .size = entry.size,
-      .executable = (entry.mode & 0111) != 0,
+      .executable = entry.executable,
       .content = &zip->content,
     };
     if (write_entry(unpack, found)) {
       return SPN_ERROR;
     }
   }
-
-  if (zip->err == SP_ERR_SYS_UNSUPPORTED) {
-    return fail(unpack, SPN_UNPACK_UNSUPPORTED, sp_str_lit(""));
-  }
-  if (zip->err) {
-    return fail(unpack, SPN_UNPACK_CORRUPT, sp_str_lit(""));
-  }
-  return SPN_OK;
+  return finish(unpack, zip->err);
 }
 
 spn_err_t spn_artifact_unpack(sp_mem_t mem, sp_path_t archive, sp_path_t root, spn_unpack_failure_t* failure) {
