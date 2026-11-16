@@ -16,7 +16,6 @@ static void die(s32 signal) {
 }
 
 void spn_cli_interrupt(s32 signal) {
-  // Only spn_cli_wait acts on the signal; with nothing waiting, nothing would
   if (sp_atomic_s32_load(&host.waiting, SP_ATOMIC_SEQ_CST) && sp_atomic_s32_cas(&host.signal, 0, signal, SP_ATOMIC_SEQ_CST)) {
     sp_sys_event_signal(host.doorbell);
     return;
@@ -51,22 +50,23 @@ spn_str_arr_t spn_cli_rest_names(sp_cli_t* cli) {
   return names;
 }
 
-static sp_cli_result_t open_ctx(bool project_optional, bool search) {
+sp_cli_result_t spn_cli_open(bool project_optional) {
   spn_err_t err = spn_ctx_open(host.ctx, (spn_open_request_t) {
     .dir = host.args.project_dir,
     .index_refresh_seconds = host.args.refresh,
     .project_optional = project_optional,
-    .search = search,
+    .search = true,
   });
   return err ? SP_CLI_ERR : SP_CLI_OK;
 }
 
-sp_cli_result_t spn_cli_open(bool project_optional) {
-  return open_ctx(project_optional, true);
-}
-
 sp_cli_result_t spn_cli_open_here() {
-  return open_ctx(true, false);
+  spn_err_t err = spn_ctx_open(host.ctx, (spn_open_request_t) {
+    .dir = host.args.project_dir,
+    .index_refresh_seconds = host.args.refresh,
+    .project_optional = true,
+  });
+  return err ? SP_CLI_ERR : SP_CLI_OK;
 }
 
 sp_cli_result_t spn_cli_session(spn_session_config_t config) {

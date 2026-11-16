@@ -11,19 +11,17 @@
 
 #define spn_git_lock_poll_ms 20
 
-static sp_str_t last_error(sp_mem_t mem) {
+static sp_str_t last_error() {
   const git_error* err = git_error_last();
   if (!err || !err->message) {
     return sp_str_lit("unknown git error");
   }
-  return sp_str_copy(mem, sp_cstr_as_str(err->message));
+  return sp_cstr_as_str(err->message);
 }
 
 static spn_git_failure_t last_failure(spn_git_failure_kind_t kind) {
   spn_git_failure_t failure = { .kind = kind };
-  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  sp_str_copy_to(last_error(scratch.mem), failure.message, spn_git_message_max - 1);
-  sp_mem_end_scratch(scratch);
+  sp_str_copy_to(last_error(), failure.message, spn_git_message_max - 1);
   return failure;
 }
 
@@ -293,7 +291,7 @@ spn_err_t spn_git_clone_shared(sp_mem_t mem, sp_str_t source, sp_str_t path, sp_
   sp_str_t objects = sp_zero;
   bool ok = !create_repo(&repo, sp_str_to_cstr(scratch.mem, path), 0, SP_NULLPTR);
   if (!ok) {
-    *error = last_error(mem);
+    *error = sp_str_copy(mem, last_error());
   }
   git_repository_free(repo);
 
@@ -304,8 +302,6 @@ spn_err_t spn_git_clone_shared(sp_mem_t mem, sp_str_t source, sp_str_t path, sp_
         sp_fmt(scratch.mem, "{}\n", sp_fmt_str(sp_str_replace_c8(scratch.mem, objects, '\\', '/'))).value,
         SP_FS_WRITE_TRUNCATE);
 
-    // Borrowed objects stop at the source's shallow roots, so the roots have
-    // to come along or git walks into parents that were never fetched
     sp_str_t shallow = sp_zero;
     if (ok && !sp_fs_read(scratch.mem, sp_fs_join_path(scratch.mem, source, sp_str_lit("shallow")), &shallow)) {
       ok = !sp_fs_write(sp_fs_join_path(scratch.mem, path, sp_str_lit(".git/shallow")), shallow, SP_FS_WRITE_TRUNCATE);
@@ -617,7 +613,7 @@ spn_err_t spn_git_apply(sp_mem_t mem, sp_str_t repo, sp_str_t patch, sp_str_t* e
     !git_diff_from_buffer(&diff, content.data, content.len) &&
     !git_apply(r, diff, GIT_APPLY_LOCATION_WORKDIR, SP_NULLPTR);
   if (!ok) {
-    *error = last_error(mem);
+    *error = sp_str_copy(mem, last_error());
   }
   git_diff_free(diff);
   git_repository_free(r);

@@ -74,7 +74,6 @@ static s32 run(s32 num_args, const c8** args) {
   sp_os_register_signal_handler(SP_OS_SIGNAL_INTERRUPT, on_signal, SP_NULLPTR);
   sp_os_register_signal_handler(SP_OS_SIGNAL_TERMINATE, on_signal, SP_NULLPTR);
 #if defined(SP_POSIX)
-  // Under nohup the hangup stays ignored, for spn and for everything it starts
   struct sigaction hangup = sp_zero;
   sigaction(SIGHUP, SP_NULLPTR, &hangup);
   if (hangup.sa_handler != SIG_IGN) {
@@ -128,33 +127,24 @@ static s32 run(s32 num_args, const c8** args) {
   return host.code ? host.code : code;
 }
 
-#if defined(SP_WIN32)
-// main gets its arguments in the ANSI code page; everything past here is UTF-8
-static const c8** utf8_args(s32* num_args, const c8** args) {
-  s32 count = 0;
-  LPWSTR* wide = CommandLineToArgvW(GetCommandLineW(), &count);
-  if (!wide) {
-    return args;
-  }
-
-  sp_mem_t mem = sp_mem_os_new();
-  const c8** utf8 = sp_alloc_n(mem, const c8*, (u32)count + 1);
-  sp_for(it, (u32)count) {
-    sp_str_t arg = sp_zero;
-    sp_wtf16_to_wtf8(mem, sp_wide_str((const u16*)wide[it], (u32)wcslen(wide[it])), &arg);
-    utf8[it] = sp_str_to_cstr(mem, arg);
-  }
-  utf8[count] = SP_NULLPTR;
-  LocalFree(wide);
-
-  *num_args = count;
-  return utf8;
-}
-#endif
-
 s32 spn_main(s32 num_args, const c8** args) {
 #if defined(SP_WIN32)
-  args = utf8_args(&num_args, args);
+  s32 count = 0;
+  LPWSTR* wide = CommandLineToArgvW(GetCommandLineW(), &count);
+  if (wide) {
+    sp_mem_t mem = sp_mem_os_new();
+    const c8** utf8 = sp_alloc_n(mem, const c8*, (u32)count + 1);
+    sp_for(it, (u32)count) {
+      sp_str_t arg = sp_zero;
+      sp_wtf16_to_wtf8(mem, sp_wide_str((const u16*)wide[it], (u32)wcslen(wide[it])), &arg);
+      utf8[it] = sp_str_to_cstr(mem, arg);
+    }
+    utf8[count] = SP_NULLPTR;
+    LocalFree(wide);
+
+    args = utf8;
+    num_args = count;
+  }
 
   HANDLE job = CreateJobObjectW(SP_NULLPTR, SP_NULLPTR);
   JOBOBJECT_EXTENDED_LIMIT_INFORMATION limits = {

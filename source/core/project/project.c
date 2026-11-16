@@ -11,7 +11,6 @@ spn_err_t spn_project_load(spn_ctx_t* ctx, spn_project_t** project) {
   *project = SP_NULLPTR;
 
   spn_path_t manifest = { .root = SPN_PATH_ROOT_PROJECT, .sub = sp_str_lit("spn.toml") };
-  // A FIFO or device is not a manifest, and reading one would block
   sp_sys_file_meta_t meta = sp_zero;
   if (sp_fs_get_path_metadata_at(spn_path_at(&ctx->roots, manifest), &meta) || meta.kind == SP_FS_KIND_UNKNOWN) {
     return SPN_OK;

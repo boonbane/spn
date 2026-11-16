@@ -151,7 +151,6 @@ spn_toolchain_claim_t spn_toolchain_claim(spn_toolchain_store_t* store, sp_mem_t
     .root = spn_toolchain_artifact_root(mem, artifact),
   };
   claim.tarball = spn_path_staging(mem, claim.root, sp_str_lit("download"));
-  // An install is renamed into place, so a root that exists is complete
   sp_path_t root = spn_path_at(store->roots, claim.root);
   sp_sys_file_meta_t meta = sp_zero;
   claim.present = !sp_fs_get_link_metadata_at(root, &meta) && meta.kind == SP_FS_KIND_DIR;

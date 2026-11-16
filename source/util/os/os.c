@@ -18,7 +18,6 @@ sp_str_t sp_fs_get_home_path(sp_mem_t mem) {
 #endif
 
 sp_err_t sp_fs_remove(sp_path_t path) {
-  // sp_fs_remove_dir_at reads the kind itself, and says so when it is not a directory
   sp_err_t err = sp_fs_remove_dir_at(path);
   if (err == SP_ERR_SYS_NOT_DIR) {
     err = sp_fs_remove_file_at(path);

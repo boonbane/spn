@@ -37,7 +37,6 @@ static spn_path_t git_index_staging(sp_mem_t mem, spn_index_info_t* index) {
 
 static bool git_index_expired(spn_index_info_t* index, const c8* stamp) {
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  // A stamp that was never written is as old as a stamp gets
   sp_sys_file_meta_t meta = sp_zero;
   u64 modified = sp_fs_get_path_metadata_at(git_index_stamp(scratch.mem, index, stamp), &meta) ? 0 : (u64)meta.mtime.tv_sec;
   sp_mem_end_scratch(scratch);
@@ -64,14 +63,6 @@ static spn_err_t git_index_clone(spn_index_info_t* index, sp_atomic_s32_t* cance
     err = SPN_ERROR;
   }
   sp_fs_remove_dir_at(work);
-  sp_mem_end_scratch(scratch);
-  return err;
-}
-
-static spn_err_t git_index_lock(spn_index_info_t* index, sp_atomic_s32_t* cancelled, sp_fs_lock_t* lock, spn_git_failure_t* failure) {
-  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  sp_path_t at = index->location.at;
-  spn_err_t err = spn_git_lock(at, sp_path_join(scratch.mem, at, sp_str_lit(".git")), index->git.url, cancelled, lock, failure);
   sp_mem_end_scratch(scratch);
   return err;
 }
@@ -174,8 +165,13 @@ spn_err_t spn_index_sync(spn_index_info_t* index, spn_index_plan_t plan, sp_atom
       }
 
       sp_fs_lock_t lock = sp_zero;
-      spn_try(git_index_lock(index, cancelled, &lock, failure));
-      spn_err_t err = git_index_sync(index, spn_index_plan(index, plan.force), cancelled, failure);
+      sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+      sp_path_t at = index->location.at;
+      spn_err_t err = spn_git_lock(at, sp_path_join(scratch.mem, at, sp_str_lit(".git")), index->git.url, cancelled, &lock, failure);
+      sp_mem_end_scratch(scratch);
+      spn_try(err);
+
+      err = git_index_sync(index, spn_index_plan(index, plan.force), cancelled, failure);
       sp_fs_lock_release(&lock);
       return err;
     }
