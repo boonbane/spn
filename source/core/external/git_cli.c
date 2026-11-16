@@ -49,6 +49,16 @@ static sp_ps_output_t spawn(sp_mem_t mem, sp_da(sp_str_t) args) {
   });
 }
 
+static sp_str_t complaint(sp_mem_t mem, sp_ps_output_t result) {
+  sp_str_t said = sp_str_trim(sp_str_empty(result.err) ? result.out : result.err);
+  if (!sp_str_empty(said)) {
+    return said;
+  }
+  return result.status.exit_code == -1
+    ? sp_str_lit("git could not be run; it has to be installed and on the PATH")
+    : sp_fmt(mem, "git exited with {}", sp_fmt_int(result.status.exit_code)).value;
+}
+
 static spn_err_t run(sp_mem_t mem, sp_da(sp_str_t) args, spn_git_failure_t* failure) {
   sp_ps_output_t result = spawn(mem, args);
 
@@ -57,14 +67,8 @@ static spn_err_t run(sp_mem_t mem, sp_da(sp_str_t) args, spn_git_failure_t* fail
     return SPN_OK;
   }
 
-  sp_str_t said = sp_str_trim(sp_str_empty(result.err) ? result.out : result.err);
-  if (sp_str_empty(said)) {
-    said = result.status.exit_code == -1
-      ? sp_str_lit("git could not be run; it has to be installed and on the PATH")
-      : sp_fmt(mem, "git exited with {}", sp_fmt_int(result.status.exit_code)).value;
-  }
   failure->remote = true;
-  sp_str_copy_to(said, failure->message, spn_git_message_max - 1);
+  sp_str_copy_to(complaint(mem, result), failure->message, spn_git_message_max - 1);
   return SPN_ERROR;
 }
 
@@ -134,7 +138,7 @@ spn_err_t spn_git_cli_push(sp_mem_t mem, sp_str_t repo, sp_str_t url, sp_str_t r
   sp_ps_output_t result = spawn(mem, args);
 
   if (result.status.exit_code) {
-    *output = sp_str_trim_right(sp_str_empty(result.err) ? result.out : result.err);
+    *output = complaint(mem, result);
     return SPN_ERROR;
   }
   return SPN_OK;
