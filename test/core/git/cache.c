@@ -1,568 +1,119 @@
 #include "git.h"
 
-#include "contend.h"
 #include "paths/paths.h"
 
-#define CACHE_TEST_MAX_PATCHES   4
-#define CACHE_TEST_MAX_CHECKOUTS 4
+typedef struct {
+  const c8* commit;
+  const c8* dir;
+} request_t;
 
 typedef struct {
   const c8* file;
   const c8* content;
-} expect_file_t;
-
-typedef struct {
-  const c8* file;
-  const c8* from;
-  const c8* to;
-} patch_edit_t;
-
-typedef struct {
-  const c8* rev;
-  const c8* dir;
-  patch_edit_t patches [CACHE_TEST_MAX_PATCHES];
-} checkout_req_t;
-
-typedef struct {
-  expect_file_t files [8];
-  bool err;
-} checkout_expect_t;
-
-typedef struct {
-  u32 dbs;
-  u32 checkouts;
-  checkout_expect_t detail [CACHE_TEST_MAX_CHECKOUTS];
-} cache_expect_t;
+} expect_t;
 
 typedef struct {
   const c8* name;
   git_repo_fixture_t repo;
-  checkout_req_t checkouts [CACHE_TEST_MAX_CHECKOUTS];
-  spn_git_transport_t transport;
-  bool contended;
-  cache_expect_t expect;
-} cache_test_t;
+  request_t requests [2];
+  expect_t expect [2];
+} test_t;
 
-static const cache_test_t tests [] = {
+static const test_t tests [] = {
   {
-    .name = "single_full_repo",
+    .name = "each_commit_is_its_own_checkout",
     .repo = {
       .commits = {
-        {
-          .message = "initial",
-          .files = {
-            { "spn.toml", r("[package]") "name = \"spum\"" },
-            { "src/lib.c", "int add(int a, int b) { return a + b; }" },
-          },
-        },
+        { .message = "A", .files = { { "F", "A" } } },
+        { .message = "B", .files = { { "F", "B" } } },
       },
     },
-    .checkouts = {
-      { .rev = "0" },
+    .requests = {
+      { .commit = "A" },
+      { .commit = "B" },
     },
     .expect = {
-      .dbs = 1,
-      .checkouts = 1,
-      .detail = {
-        {
-          .files = {
-            { .file = "spn.toml", .content = r("[package]") "name = \"spum\"" },
-            { .file = "src/lib.c", .content = "int add(int a, int b) { return a + b; }" },
-          },
-        },
-      },
+      { .file = "F", .content = "A" },
+      { .file = "F", .content = "B" },
     },
   },
   {
-    .name = "monorepo_two_subdirs",
+    .name = "subdirectory_is_the_checkout",
     .repo = {
       .commits = {
-        {
-          .message = "initial",
-          .files = {
-            { "packages/math/spn.toml", r("[package]") "name = \"math\"" },
-            { "packages/math/src/math.c", "int add(int a, int b) { return a + b; }" },
-            { "packages/audio/spn.toml", r("[package]") "name = \"audio\"" },
-            { "packages/audio/src/audio.c", "void init() {}" },
-          },
-        },
+        { .message = "A", .files = { { "D/F", "A" } } },
       },
     },
-    .checkouts = {
-      { .rev = "0", .dir = "packages/math" },
-      { .rev = "0", .dir = "packages/audio" },
+    .requests = {
+      { .commit = "A", .dir = "D" },
     },
     .expect = {
-      .dbs = 1,
-      .checkouts = 2,
-      .detail = {
-        {
-          .files = {
-            { .file = "spn.toml", .content = r("[package]") "name = \"math\"" },
-            { .file = "src/math.c", .content = "int add(int a, int b) { return a + b; }" },
-          },
-        },
-        {
-          .files = {
-            { .file = "spn.toml", .content = r("[package]") "name = \"audio\"" },
-            { .file = "src/audio.c", .content = "void init() {}" },
-          },
-        },
-      },
+      { .file = "F", .content = "A" },
     },
   },
   {
-    .name = "different_commits",
+    .name = "same_request_is_the_same_checkout",
     .repo = {
       .commits = {
-        {
-          .message = "v1",
-          .files = {
-            { "lib.h", "#define VERSION 1" },
-          },
-        },
-        {
-          .message = "v2",
-          .files = {
-            { "lib.h", "#define VERSION 2" },
-          },
-        },
+        { .message = "A", .files = { { "D/F", "A" } } },
       },
     },
-    .checkouts = {
-      { .rev = "0" },
-      { .rev = "1" },
+    .requests = {
+      { .commit = "A", .dir = "D" },
+      { .commit = "A", .dir = "D" },
     },
     .expect = {
-      .dbs = 1,
-      .checkouts = 2,
-      .detail = {
-        {
-          .files = {
-            { .file = "lib.h", .content = "#define VERSION 1" },
-          },
-        },
-        {
-          .files = {
-            { .file = "lib.h", .content = "#define VERSION 2" },
-          },
-        },
-      },
-    },
-  },
-  {
-    .name = "patched_checkout_coexists_with_pristine",
-    .repo = {
-      .commits = {
-        {
-          .message = "initial",
-          .files = {
-            { "F", "1\n" },
-          },
-        },
-      },
-    },
-    .checkouts = {
-      { .rev = "0" },
-      {
-        .rev = "0",
-        .patches = {
-          { .file = "F", .from = "1\n", .to = "2\n" },
-        },
-      },
-    },
-    .expect = {
-      .dbs = 1,
-      .checkouts = 2,
-      .detail = {
-        {
-          .files = {
-            { .file = "F", .content = "1\n" },
-          },
-        },
-        {
-          .files = {
-            { .file = "F", .content = "2\n" },
-          },
-        },
-      },
-    },
-  },
-  {
-    .name = "patches_apply_in_order",
-    .repo = {
-      .commits = {
-        {
-          .message = "initial",
-          .files = {
-            { "F", "1\n" },
-          },
-        },
-      },
-    },
-    .checkouts = {
-      {
-        .rev = "0",
-        .patches = {
-          { .file = "F", .from = "1\n", .to = "2\n" },
-          { .file = "F", .from = "2\n", .to = "3\n" },
-        },
-      },
-    },
-    .expect = {
-      .dbs = 1,
-      .checkouts = 1,
-      .detail = {
-        {
-          .files = {
-            { .file = "F", .content = "3\n" },
-          },
-        },
-      },
-    },
-  },
-  {
-    .name = "patches_apply_at_repo_root_before_subdir",
-    .repo = {
-      .commits = {
-        {
-          .message = "initial",
-          .files = {
-            { "M/F", "1\n" },
-            { "A/F", "1\n" },
-          },
-        },
-      },
-    },
-    .checkouts = {
-      {
-        .rev = "0",
-        .dir = "M",
-        .patches = {
-          { .file = "M/F", .from = "1\n", .to = "2\n" },
-        },
-      },
-    },
-    .expect = {
-      .dbs = 1,
-      .checkouts = 1,
-      .detail = {
-        {
-          .files = {
-            { .file = "F", .content = "2\n" },
-          },
-        },
-      },
-    },
-  },
-  {
-    .name = "patch_conflict_fails_without_checkout",
-    .repo = {
-      .commits = {
-        {
-          .message = "initial",
-          .files = {
-            { "F", "1\n" },
-          },
-        },
-      },
-    },
-    .checkouts = {
-      {
-        .rev = "0",
-        .patches = {
-          { .file = "F", .from = "9\n", .to = "8\n" },
-        },
-      },
-    },
-    .expect = {
-      .dbs = 1,
-      .checkouts = 1,
-      .detail = {
-        { .err = true },
-      },
-    },
-  },
-  {
-    .name = "patched_idempotent_ensure",
-    .repo = {
-      .commits = {
-        {
-          .message = "initial",
-          .files = {
-            { "F", "1\n" },
-          },
-        },
-      },
-    },
-    .checkouts = {
-      {
-        .rev = "0",
-        .patches = {
-          { .file = "F", .from = "1\n", .to = "2\n" },
-        },
-      },
-      {
-        .rev = "0",
-        .patches = {
-          { .file = "F", .from = "1\n", .to = "2\n" },
-        },
-      },
-    },
-    .expect = {
-      .dbs = 1,
-      .checkouts = 1,
-      .detail = {
-        {
-          .files = {
-            { .file = "F", .content = "2\n" },
-          },
-        },
-      },
-    },
-  },
-  // requesting the same checkout twice yields the same result
-  {
-    .name = "idempotent_ensure",
-    .repo = {
-      .commits = {
-        {
-          .message = "initial",
-          .files = {
-            { "data.txt", "hello" },
-          },
-        },
-      },
-    },
-    .checkouts = {
-      { .rev = "0" },
-      { .rev = "0" },
-    },
-    .expect = {
-      .dbs = 1,
-      .checkouts = 1,
-      .detail = {
-        {
-          .files = {
-            { .file = "data.txt", .content = "hello" },
-          },
-        },
-      },
-    },
-  },
-  // the tip comes in shallow; the older commit then needs the history
-  {
-    .name = "system_git_fetches_tip_then_history",
-    .repo = {
-      .commits = {
-        {
-          .message = "A",
-          .files = {
-            { "F", "1\n" },
-          },
-        },
-        {
-          .message = "B",
-          .files = {
-            { "F", "2\n" },
-          },
-        },
-      },
-    },
-    .checkouts = {
-      { .rev = "1" },
-      { .rev = "0" },
-    },
-    .transport = SPN_GIT_TRANSPORT_SYSTEM,
-    .expect = {
-      .dbs = 1,
-      .checkouts = 2,
-      .detail = {
-        {
-          .files = {
-            { .file = "F", .content = "2\n" },
-          },
-        },
-        {
-          .files = {
-            { .file = "F", .content = "1\n" },
-          },
-        },
-      },
-    },
-  },
-  // a db that another process holds locked is not created until it lets go
-  {
-    .name = "init_waits_for_the_lock",
-    .repo = {
-      .commits = {
-        {
-          .message = "initial",
-          .files = {
-            { "data.txt", "hello" },
-          },
-        },
-      },
-    },
-    .checkouts = {
-      { .rev = "0" },
-    },
-    .contended = true,
-    .expect = {
-      .dbs = 1,
-      .checkouts = 1,
-      .detail = {
-        {
-          .files = {
-            { .file = "data.txt", .content = "hello" },
-          },
-        },
-      },
+      { .file = "F", .content = "A" },
     },
   },
 };
 
-typedef struct {
-  spn_git_cache_t* cache;
-  sp_str_t url;
-  sp_atomic_s32_t* cancelled;
-  spn_git_db_t* db;
-  spn_err_t err;
-  sp_atomic_s32_t done;
-} job_t;
-
-static s32 run(void* user_data) {
-  job_t* job = (job_t*)user_data;
-  job->err = spn_git_cache_ensure_db(job->cache, job->url, job->cancelled, &job->db);
-  sp_atomic_s32_store(&job->done, 1, SP_ATOMIC_SEQ_CST);
-  return 0;
-}
-
-static spn_git_checkout_id_t build_id(sp_test_t* t, git_repo_result_t* repo, const checkout_req_t* req, u32 index) {
+sp_test_each(git_cache, checkout, test_t, tests, .setup = spn_test_ctx_setup) {
   sp_mem_t mem = sp_test_arena(t);
-  u32 rev_idx = sp_parse_u32(sp_cstr_as_str(req->rev));
-  spn_git_checkout_id_t id = {
-    .url = repo->path,
-    .rev = repo->commits[rev_idx],
-    .dir = req->dir ? sp_cstr_as_str(req->dir) : SP_LIT(""),
-  };
+  git_repo_result_t remote = git_repo_build_at(test_dir_str(t), "A", &it->repo);
 
-  if (req->patches[0].file) {
-    sp_da(sp_str_t) files = sp_da_new(mem, sp_str_t);
-    sp_carr_for(req->patches, jt) {
-      const patch_edit_t* edit = &req->patches[jt];
-      if (!edit->file) {
-        break;
-      }
-      sp_str_t text = sp_fmt(mem, "diff --git a/{} b/{}\n--- a/{}\n+++ b/{}\n@@ -1 +1 @@\n-{}+{}",
-        sp_fmt_cstr(edit->file), sp_fmt_cstr(edit->file),
-        sp_fmt_cstr(edit->file), sp_fmt_cstr(edit->file),
-        sp_fmt_cstr(edit->from), sp_fmt_cstr(edit->to)).value;
-      sp_str_t path = sp_fs_join_path(mem, test_dir_str(t),
-        sp_fmt(mem, "patch_{}_{}.patch", sp_fmt_uint(index), sp_fmt_uint(jt)).value);
-      sp_fs_write(path, text, SP_FS_WRITE_TRUNCATE);
-      sp_da_push(files, path);
-    }
-    id.patches.files = files;
-    u32 missing = 0;
-    id.patches.hash = spn_git_patch_hash(id.patches.files, &missing);
-  }
-
-  return id;
-}
-
-sp_test_each(git_cache, ensure, cache_test_t, tests, .setup = spn_test_ctx_setup) {
-  sp_mem_t mem = sp_test_arena(t);
-
-  // build git repo fixture as "remote"
-  git_repo_result_t repo = git_repo_build_at(test_dir_str(t), "R", &it->repo);
-
-  spn_path_t cache_root = { .sub = sp_fs_join_path(mem, test_dir_str(t), sp_str_lit("cache")) };
+  spn_path_t root = { .sub = sp_fs_join_path(mem, test_dir_str(t), sp_str_lit("B")) };
   spn_path_roots_t roots = sp_zero;
-
   spn_git_cache_t cache = sp_zero;
-  spn_git_cache_init(&cache, mem, SP_NULLPTR, &roots, spn_path_join(mem, cache_root, sp_str_lit("db")), spn_path_join(mem, cache_root, sp_str_lit("checkouts")));
-  cache.transport = it->transport;
-
-  u32 num_checkouts = 0;
-  sp_carr_detect_len(it->checkouts, num_checkouts, it->checkouts[num_checkouts].rev);
-
-  spn_git_checkout_id_t ids [CACHE_TEST_MAX_CHECKOUTS] = sp_zero;
-  sp_for(c, num_checkouts) {
-    ids[c] = build_id(t, &repo, &it->checkouts[c], (u32)c);
-    if (it->checkouts[c].patches[0].file) {
-      sp_must_ne(t, ids[c].patches.hash, (sp_hash_t)0);
-    }
-  }
-
-  // for each checkout request: ensure db, ensure rev, ensure checkout
+  spn_git_cache_init(&cache, mem, SP_NULLPTR, &roots, spn_path_join(mem, root, sp_str_lit("db")), spn_path_join(mem, root, sp_str_lit("checkouts")));
   sp_atomic_s32_t cancelled = sp_zero;
-  sp_for(c, num_checkouts) {
-    checkout_expect_t* expect = &it->expect.detail[c];
 
-    job_t job = { .cache = &cache, .url = ids[c].url, .cancelled = &cancelled };
-    if (it->contended) {
-      sp_str_t lock = sp_fmt(mem, "{}/db/{}.lock", sp_fmt_str(cache_root.sub), sp_fmt_str(spn_git_db_key(mem, job.url))).value;
-      sp_try(test_run_contended(t, lock, run, &job, &job.done, true));
-    }
-    else {
-      run(&job);
-    }
-    spn_git_db_t* db = job.db;
-    spn_err_t err = job.err;
-    sp_must_eq(t, err, SPN_OK);
-    sp_must(t, db != SP_NULLPTR);
-
-    spn_git_failure_t failure = sp_zero;
-    err = spn_git_db_ensure_rev(&cache, db, ids[c].rev, &cancelled, &failure);
-    sp_must_eq(t, err, SPN_OK);
-
-    bool fetching = false;
-    spn_git_checkout_t* checkout = spn_git_cache_checkout(&cache, ids[c], &fetching);
-    err = spn_git_checkout_ensure(&cache, checkout, &cancelled);
-    sp_must(t, checkout != SP_NULLPTR);
-
-    if (expect->err) {
-      sp_expect(t, err != SPN_OK);
-      sp_expect(t, checkout->failure.message[0] != 0);
-      sp_sys_file_meta_t meta = sp_zero;
-      sp_expect(t, sp_fs_get_link_metadata_at(spn_path_at(&roots, checkout->path), &meta) || meta.kind != SP_FS_KIND_DIR);
-    }
-    else {
-      sp_must_eq(t, err, SPN_OK);
-    }
-  }
-
-  // assert db and checkout counts
-  sp_expect_eq(t, it->expect.dbs, sp_ht_size(cache.db.entries));
-  sp_expect_eq(t, it->expect.checkouts, sp_str_om_size(cache.checkouts.entries));
-
-  // verify each checkout's expected files on disk
-  sp_for(c, num_checkouts) {
-    checkout_expect_t* expect = &it->expect.detail[c];
-    if (expect->err || !expect->files[0].file) {
-      continue;
-    }
-
-    bool fetching = false;
-    spn_git_checkout_t* checkout = spn_git_cache_checkout(&cache, ids[c], &fetching);
-    sp_must(t, checkout != SP_NULLPTR);
-    sp_sys_file_meta_t meta = sp_zero;
-    sp_expect_ok(t, sp_fs_get_link_metadata_at(spn_path_at(&roots, checkout->path), &meta));
-    sp_expect_eq(t, meta.kind, SP_FS_KIND_DIR);
-
-    sp_carr_for(expect->files, f) {
-      expect_file_t* file = &expect->files[f];
-      if (!file->file) {
-        break;
+  u32 requests = 0;
+  sp_carr_detect_len(it->requests, requests, it->requests[requests].commit);
+  spn_path_t checkouts [sp_carr_len(it->requests)] = sp_zero;
+  u32 distinct = 0;
+  sp_for(at, requests) {
+    spn_git_checkout_id_t id = { .url = remote.path, .dir = sp_cstr_as_str(it->requests[at].dir) };
+    sp_for(commit, remote.commit_count) {
+      if (sp_cstr_equal(it->repo.commits[commit].message, it->requests[at].commit)) {
+        id.rev = remote.commits[commit];
       }
+    }
 
-      sp_path_t path = spn_path_at(&roots, spn_path_join(mem, checkout->path, sp_cstr_as_str(file->file)));
-      sp_str_t content = sp_zero;
-      sp_must_ok(t, sp_fs_read_at(mem, path, &content));
-      sp_expect_str_eq_c(t, content, file->content);
+    bool fetching = false;
+    spn_git_checkout_t* checkout = spn_git_cache_checkout(&cache, id, &fetching);
+    spn_err_t err = spn_git_checkout_ensure(&cache, checkout, &cancelled);
+    sp_test_kv_c(t, "message", checkout->failure.message);
+    sp_must_eq(t, (u32)err, (u32)SPN_OK);
+
+    u32 known = 0;
+    while (known < distinct && !spn_path_equal(checkouts[known], checkout->path)) {
+      known++;
+    }
+    bool fresh = known == distinct;
+    sp_expect_eq(t, fetching, fresh);
+    if (fresh) {
+      checkouts[distinct++] = checkout->path;
     }
   }
 
+  u32 expected = 0;
+  sp_carr_detect_len(it->expect, expected, it->expect[expected].file);
+  sp_must_eq(t, distinct, expected);
+  sp_for(at, expected) {
+    sp_str_t content = sp_zero;
+    sp_must_ok(t, sp_fs_read_at(mem, spn_path_at(&roots, spn_path_join(mem, checkouts[at], sp_cstr_as_str(it->expect[at].file))), &content));
+    sp_expect_str_eq_c(t, content, it->expect[at].content);
+  }
   return SP_OK;
 }

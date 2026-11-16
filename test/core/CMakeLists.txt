@@ -50,6 +50,10 @@ add_executable(core
   gen/union.c
   git/fixture.c
   git/cache.c
+  git/cache_failure.c
+  git/cache_lock.c
+  git/cache_patch.c
+  git/cache_system.c
   git/key.c
   git/patch.c
   git/recover.c
