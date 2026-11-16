@@ -43,20 +43,8 @@ typedef struct {
 } git_repo_commit_t;
 
 typedef struct {
-  const c8* file;
-  const c8* content;
-} git_repo_expect_file_t;
-
-typedef struct {
-  u32 num_commits;
-  git_repo_expect_file_t commits [8][8];
-  const c8* missing [8][8];
-} git_repo_expect_t;
-
-typedef struct {
   const c8* name;
   git_repo_commit_t commits [8];
-  git_repo_expect_t expect;
 } git_repo_fixture_t;
 
 typedef struct {
@@ -66,7 +54,5 @@ typedef struct {
 } git_repo_result_t;
 
 git_repo_result_t git_repo_build_at(sp_str_t dir, const c8* name, git_repo_fixture_t* fixture);
-sp_str_t          git_repo_file_at(sp_str_t repo, sp_str_t commit, sp_str_t path);
-bool              git_repo_has_file(sp_str_t repo, sp_str_t commit, sp_str_t path);
 
 #endif

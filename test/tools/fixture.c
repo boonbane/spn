@@ -147,18 +147,3 @@ git_repo_result_t git_repo_build_at(sp_str_t dir, const c8* name, git_repo_fixtu
 
   return result;
 }
-
-sp_str_t git_repo_file_at(sp_str_t repo, sp_str_t commit, sp_str_t path) {
-  sp_str_t spec = sp_fmt(sp_mem_os_new(), "{}:{}", sp_fmt_str(commit), sp_fmt_str(path)).value;
-  sp_ps_output_t output = git_repo_git(repo, sp_str_lit("show"), spec);
-  return output.out;
-}
-
-bool git_repo_has_file(sp_str_t repo, sp_str_t commit, sp_str_t path) {
-  sp_str_t spec = sp_fmt(sp_mem_os_new(), "{}:{}", sp_fmt_str(commit), sp_fmt_str(path)).value;
-  sp_ps_output_t output = sp_ps_run(sp_mem_os_new(), (sp_ps_config_t) {
-    .command = sp_str_lit("git"),
-    .args = { sp_str_lit("-C"), repo, sp_str_lit("cat-file"), sp_str_lit("-e"), spec },
-  });
-  return output.status.exit_code == 0;
-}

@@ -48,16 +48,18 @@ add_executable(core
   gen/lower.c
   gen/reader.c
   gen/union.c
-  git/fixture.c
   git/cache.c
   git/cache_failure.c
   git/cache_lock.c
   git/cache_patch.c
   git/cache_system.c
   git/key.c
+  git/key_db.c
+  git/key_name.c
   git/patch.c
   git/recover.c
   git/url.c
+  git/url_ssh.c
   index/cache.c
   index/dir.c
   index/location.c

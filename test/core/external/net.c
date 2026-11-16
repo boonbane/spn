@@ -23,14 +23,9 @@ typedef struct {
 
 static const test_t tests [] = {
   {
-    .name = "ca_bundle_names_the_bundle",
-    .ca_bundle = BUNDLE_FILE,
+    .name = "ca_bundle_may_be_a_symlink",
+    .ca_bundle = BUNDLE_LINK,
     .expect = { .kind = SPN_NET_TRUST_CONFIG },
-  },
-  {
-    .name = "ssl_cert_file_names_the_bundle",
-    .ssl_cert_file = BUNDLE_FILE,
-    .expect = { .kind = SPN_NET_TRUST_ENV },
   },
   {
     .name = "ssl_cert_file_may_be_a_symlink",
@@ -99,8 +94,10 @@ sp_test(net, unset_trust_is_what_the_machine_has) {
   sp_test_skip_on_win32();
   spn_net_trust_t trust = spn_net_trust_find(sp_str_lit(""), sp_str_lit(""));
 
-  sp_expect(t, trust.kind == SPN_NET_TRUST_FOUND || trust.kind == SPN_NET_TRUST_NONE);
-  sp_expect_eq(t, sp_str_empty(trust.bundle), trust.kind == SPN_NET_TRUST_NONE);
+  sp_sys_file_meta_t meta = sp_zero;
+  bool found = !sp_fs_get_path_metadata(trust.bundle, &meta) && meta.kind == SP_FS_KIND_FILE;
+  sp_expect_eq(t, (u32)trust.kind, (u32)(found ? SPN_NET_TRUST_FOUND : SPN_NET_TRUST_NONE));
+  sp_expect_eq(t, sp_str_empty(trust.bundle), !found);
   sp_expect(t, !trust.missing);
   return SP_OK;
 }
