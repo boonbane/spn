@@ -97,3 +97,12 @@ sp_str_t spn_git_url_web(sp_mem_t mem, sp_str_t url) {
     sp_fmt_str(parsed.path)
   ).value;
 }
+
+bool spn_git_url_is_ssh(sp_str_t url) {
+  if (sp_str_find(url, sp_str_lit("://")) == SP_STR_NO_MATCH) {
+    return !sp_str_empty(parse_scp(url).host);
+  }
+  return sp_str_starts_with(url, sp_str_lit("ssh://")) ||
+    sp_str_starts_with(url, sp_str_lit("git+ssh://")) ||
+    sp_str_starts_with(url, sp_str_lit("ssh+git://"));
+}

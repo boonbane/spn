@@ -5,5 +5,6 @@
 
 sp_str_t spn_git_url_name(sp_str_t url);
 sp_str_t spn_git_url_web(sp_mem_t mem, sp_str_t url);
+bool     spn_git_url_is_ssh(sp_str_t url);
 
 #endif

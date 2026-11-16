@@ -184,9 +184,10 @@
         "url": { "type": "string" },
         "config": { "type": "string" },
         "cause": { "type": "string" },
-        "system": { "type": "boolean" }
+        "route": { "ref": "git_route" }
       }
     },
+    "git_route": { "enum": ["builtin", "configured", "ssh", "login"] },
     "version_exists": {
       "properties": {
         "name": { "type": "string" },

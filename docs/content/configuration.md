@@ -22,7 +22,7 @@ system_git = false
 |---|---|---|---|
 | `timeout` | integer | `30` | Seconds to wait to connect to a server, and for a stalled transfer to make progress, before giving up. It must be at least `1`; values above `65535` are treated as `65535` |
 | `ca_bundle` | string | | Path to a PEM file of trusted root certificates |
-| `system_git` | bool | `false` | Clone and fetch indexes and Git dependencies with the `git` on your `PATH` instead of the built in Git client |
+| `system_git` | bool | `false` | Clone and fetch every index and Git dependency with the `git` on your `PATH`, not only the ones that need your credentials |
 
 These apply to Git, which `spn` uses for indexes and Git dependencies, and to downloads, which it uses for toolchains like Zig.
 
@@ -48,7 +48,17 @@ The built in Git client also reads git's proxy settings (`http.proxy`), which ta
 
 ### system_git
 
-With `system_git = true`, `spn` runs `git clone` and `git fetch` for indexes and Git dependencies. It runs them with your environment, and doesn't pass them `timeout` or `ca_bundle`. Downloads are unaffected. `spn publish` always pushes with `git`, whatever this is set to.
+`spn` has a built in Git client, and uses it for anything it can fetch anonymously over HTTPS. Your keys and saved logins belong to `git`, so `spn` runs the `git` on your `PATH` when a fetch needs them:
+
+- An SSH URL is always fetched with `git`
+- An HTTPS repository that asks for a login is fetched again with `git`
+- `spn publish` always pushes with `git`
+
+Nothing needs configuring for a private repository beyond what `git clone` of the same URL already needs.
+
+With `system_git = true`, `spn` runs `git` for every index and Git dependency. Use it when `git` is set up for a proxy or a certificate authority that `spn` isn't.
+
+`git` runs with your environment, and `spn` doesn't pass it `timeout` or `ca_bundle`. It can't prompt: `spn` sets `GIT_TERMINAL_PROMPT=0` and `GCM_INTERACTIVE=never` unless you've set them yourself. Downloads are unaffected.
 
 ## Environment variables
 

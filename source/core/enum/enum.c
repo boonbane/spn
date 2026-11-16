@@ -418,6 +418,24 @@ sp_str_t spn_linkage_requester_to_str(spn_linkage_requester_t requester) {
   SP_UNREACHABLE_RETURN(sp_str_lit(""));
 }
 
+sp_str_t spn_git_route_to_str(spn_git_route_t route) {
+  switch (route) {
+    case SPN_GIT_ROUTE_BUILTIN: {
+      return sp_str_lit("builtin");
+    }
+    case SPN_GIT_ROUTE_CONFIGURED: {
+      return sp_str_lit("configured");
+    }
+    case SPN_GIT_ROUTE_SSH: {
+      return sp_str_lit("ssh");
+    }
+    case SPN_GIT_ROUTE_LOGIN: {
+      return sp_str_lit("login");
+    }
+  }
+  SP_UNREACHABLE_RETURN(sp_str_lit(""));
+}
+
 sp_str_t spn_linking_refusal_to_str(spn_linking_refusal_t refusal) {
   switch (refusal) {
     case SPN_LINKING_REFUSAL_NONE: {

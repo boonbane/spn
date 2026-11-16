@@ -19,6 +19,7 @@ typedef enum {
 
 typedef struct {
   spn_git_failure_kind_t kind;
+  spn_git_route_t route;
   bool remote;
   c8 message [spn_git_message_max];
 } spn_git_failure_t;

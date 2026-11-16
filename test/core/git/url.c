@@ -4,48 +4,57 @@ typedef struct {
   const c8* name;
   const c8* url;
   const c8* expect;
+  bool ssh;
 } test_t;
 
 static const test_t tests [] = {
   {
     .name = "scp",
     .url = "git@github.com:A/B.git",
-    .expect = "https://github.com/A/B.git"
+    .expect = "https://github.com/A/B.git",
+    .ssh = true,
   },
   {
     .name = "scp_no_suffix",
     .url = "git@github.com:A/B",
-    .expect = "https://github.com/A/B"
+    .expect = "https://github.com/A/B",
+    .ssh = true,
   },
   {
     .name = "scp_deep_path",
     .url = "git@git.company.com:A/B/C/D.git",
-    .expect = "https://git.company.com/A/B/C/D.git"
+    .expect = "https://git.company.com/A/B/C/D.git",
+    .ssh = true,
   },
   {
     .name = "scp_absolute_path",
     .url = "git@github.com:/A/B.git",
-    .expect = "https://github.com/A/B.git"
+    .expect = "https://github.com/A/B.git",
+    .ssh = true,
   },
   {
     .name = "scp_host_case",
     .url = "git@GitHub.com:A/B.git",
-    .expect = "https://github.com/A/B.git"
+    .expect = "https://github.com/A/B.git",
+    .ssh = true,
   },
   {
     .name = "ssh",
     .url = "ssh://git@github.com/A/B.git",
-    .expect = "https://github.com/A/B.git"
+    .expect = "https://github.com/A/B.git",
+    .ssh = true,
   },
   {
     .name = "ssh_user",
     .url = "ssh://U@git.company.com/A/B.git",
-    .expect = "https://git.company.com/A/B.git"
+    .expect = "https://git.company.com/A/B.git",
+    .ssh = true,
   },
   {
     .name = "ssh_no_user",
     .url = "ssh://github.com/A/B.git",
-    .expect = "https://github.com/A/B.git"
+    .expect = "https://github.com/A/B.git",
+    .ssh = true,
   },
   {
     .name = "https",
@@ -79,7 +88,8 @@ static const test_t tests [] = {
   },
   {
     .name = "ssh_port",
-    .url = "ssh://git@github.com:2222/A/B.git"
+    .url = "ssh://git@github.com:2222/A/B.git",
+    .ssh = true,
   },
   {
     .name = "windows_drive",
@@ -108,5 +118,10 @@ sp_test_each(git_url, idempotent, test_t, tests) {
 
   sp_str_t web = spn_git_url_web(mem, sp_cstr_as_str(it->url));
   sp_expect_str_eq(t, spn_git_url_web(mem, web), web);
+  return SP_OK;
+}
+
+sp_test_each(git_url, ssh, test_t, tests) {
+  sp_expect_eq(t, spn_git_url_is_ssh(sp_cstr_as_str(it->url)), it->ssh);
   return SP_OK;
 }

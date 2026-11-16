@@ -93,6 +93,13 @@ typedef enum {
 } spn_linkage_requester_t;
 
 typedef enum {
+  SPN_GIT_ROUTE_BUILTIN,
+  SPN_GIT_ROUTE_CONFIGURED,
+  SPN_GIT_ROUTE_SSH,
+  SPN_GIT_ROUTE_LOGIN,
+} spn_git_route_t;
+
+typedef enum {
   SPN_LIB_KIND_NONE,
   SPN_LIB_KIND_SHARED,
   SPN_LIB_KIND_STATIC,

@@ -114,7 +114,7 @@ spn_err_t spn_sync_index_list(spn_op_t* op, sp_da(spn_index_info_t*) indexes, bo
           .url = spn_index_source(job->index),
           .config = spn_path_str(&ctx->roots, ctx->events->mem, ctx->paths.config),
           .cause = sp_str_copy(ctx->events->mem, sp_cstr_as_str(job->failure.message)),
-          .system = job->index->transport == SPN_GIT_TRANSPORT_SYSTEM,
+          .route = job->failure.route,
         }});
     }
 

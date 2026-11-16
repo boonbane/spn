@@ -20,6 +20,7 @@ typedef enum {
   DAMAGE_REMOTE_REMOVED,
   DAMAGE_REMOTE_ON_CLOSED_PORT,
   DAMAGE_REMOTE_DEMANDS_LOGIN,
+  DAMAGE_REMOTE_OVER_SSH,
   DAMAGE_REPO_REMOVED,
   DAMAGE_ORIGIN_REMOVED,
   DAMAGE_REF_LOCKED,
@@ -29,6 +30,7 @@ typedef enum {
 typedef struct {
   spn_err_t err;
   spn_git_failure_kind_t kind;
+  spn_git_route_t route;
   bool remote;
   u32 retries;
 } expect_t;
@@ -89,17 +91,23 @@ static const test_t tests [] = {
     .expect = { .err = SPN_ERROR, .kind = SPN_GIT_DROPPED, .remote = true, .retries = 3 },
   },
   {
-    .name = "clone_from_server_demanding_login_is_unauthorized",
+    .name = "clone_from_server_demanding_login_goes_to_git",
     .op = OP_CLONE,
     .damage = DAMAGE_REMOTE_DEMANDS_LOGIN,
-    .expect = { .err = SPN_ERROR, .kind = SPN_GIT_UNAUTHORIZED, .remote = true },
+    .expect = { .err = SPN_ERROR, .route = SPN_GIT_ROUTE_LOGIN, .remote = true },
+  },
+  {
+    .name = "clone_of_ssh_url_goes_to_git",
+    .op = OP_CLONE,
+    .damage = DAMAGE_REMOTE_OVER_SSH,
+    .expect = { .err = SPN_ERROR, .route = SPN_GIT_ROUTE_SSH, .remote = true },
   },
   {
     .name = "system_clone_of_missing_path_is_remote",
     .op = OP_CLONE,
     .damage = DAMAGE_REMOTE_REMOVED,
     .transport = SPN_GIT_TRANSPORT_SYSTEM,
-    .expect = { .err = SPN_ERROR, .remote = true },
+    .expect = { .err = SPN_ERROR, .route = SPN_GIT_ROUTE_CONFIGURED, .remote = true },
   },
   {
     .name = "clone_after_cancel_is_cancelled",
@@ -169,13 +177,14 @@ sp_test_each(git, failure, test_t, tests, .setup = spn_test_ctx_setup) {
       sp_must_ok(t, sp_fs_remove_dir(remote));
       break;
     }
-    case DAMAGE_REMOTE_ON_CLOSED_PORT: {
+    case DAMAGE_REMOTE_ON_CLOSED_PORT:
+    case DAMAGE_REMOTE_OVER_SSH: {
       sp_sys_socket_t probe = SP_SYS_INVALID_SOCKET;
       sp_must_ok(t, sp_sys_socket_open(&probe, (sp_sys_handle_desc_t) { .mode = SP_SYS_BLOCKING }));
       sp_must_ok(t, sp_sys_socket_bind(probe, address));
       sp_must_ok(t, sp_sys_socket_local_port(probe, &address.port));
       sp_must_ok(t, sp_sys_socket_close(probe));
-      url = sp_fmt(mem, "git://127.0.0.1:{}/A", sp_fmt_uint(address.port)).value;
+      url = sp_fmt(mem, "{}://127.0.0.1:{}/A", sp_fmt_cstr(it->damage == DAMAGE_REMOTE_OVER_SSH ? "ssh" : "git"), sp_fmt_uint(address.port)).value;
       break;
     }
     case DAMAGE_REMOTE_DEMANDS_LOGIN: {
@@ -242,6 +251,7 @@ sp_test_each(git, failure, test_t, tests, .setup = spn_test_ctx_setup) {
   sp_test_kv_c(t, "message", failure.message);
   sp_expect_eq(t, (u32)err, (u32)it->expect.err);
   sp_expect_eq(t, (u32)failure.kind, (u32)it->expect.kind);
+  sp_expect_eq(t, (u32)failure.route, (u32)it->expect.route);
   sp_expect_eq(t, failure.remote, it->expect.remote);
   sp_expect_eq(t, failure.message[0] != 0, it->expect.err != SPN_OK);
   sp_expect_eq(t, retries, it->expect.retries);

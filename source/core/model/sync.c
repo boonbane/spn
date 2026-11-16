@@ -312,7 +312,7 @@ static spn_err_t materialize_tree(spn_session_t* session, sp_intern_str_t name, 
                   .url = tree.git.url,
                   .config = spn_path_str(&session->ctx->roots, spn.events->mem, session->ctx->paths.config),
                   .cause = cause,
-                  .system = session->ctx->caches.git.transport == SPN_GIT_TRANSPORT_SYSTEM,
+                  .route = checkout->failure.route,
                 },
               });
             }

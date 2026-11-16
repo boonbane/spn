@@ -1859,25 +1859,47 @@ static void render_event_extra(sp_tty_t* w, spn_event_t* event) {
         case SPN_ERR_GIT_FETCH: {
           const spn_err_git_fetch_t* fetch = &event->err.git_fetch;
           sp_tty_fmt(w, "{}\n", sp_fmt_str(sp_str_trim_right(fetch->cause)));
-          if (fetch->system) {
-            sp_tty_fmt(
-              w,
-              "git is in use because {.yellow} is set under {.yellow} in {.cyan}.\nTo reproduce, run {.yellow} {.yellow}\n",
-              sp_fmt_cstr("system_git"),
-              sp_fmt_cstr("[net]"),
-              sp_fmt_str(fetch->config),
-              sp_fmt_cstr("git ls-remote"),
-              sp_fmt_str(fetch->url)
-            );
-          }
-          else {
-            sp_tty_fmt(
-              w,
-              "If git on this machine can fetch it, set {.yellow} under {.yellow} in {.cyan} to fetch with git instead.\n",
-              sp_fmt_cstr("system_git = true"),
-              sp_fmt_cstr("[net]"),
-              sp_fmt_str(fetch->config)
-            );
+          switch (fetch->route) {
+            case SPN_GIT_ROUTE_BUILTIN: {
+              sp_tty_fmt(
+                w,
+                "If git on this machine can fetch it, set {.yellow} under {.yellow} in {.cyan} to fetch with git instead.\n",
+                sp_fmt_cstr("system_git = true"),
+                sp_fmt_cstr("[net]"),
+                sp_fmt_str(fetch->config)
+              );
+              break;
+            }
+            case SPN_GIT_ROUTE_CONFIGURED: {
+              sp_tty_fmt(
+                w,
+                "git is in use because {.yellow} is set under {.yellow} in {.cyan}.\nTo reproduce, run {.yellow} {.yellow}\n",
+                sp_fmt_cstr("system_git"),
+                sp_fmt_cstr("[net]"),
+                sp_fmt_str(fetch->config),
+                sp_fmt_cstr("git ls-remote"),
+                sp_fmt_str(fetch->url)
+              );
+              break;
+            }
+            case SPN_GIT_ROUTE_SSH: {
+              sp_tty_fmt(
+                w,
+                "git is in use because the URL is SSH.\nTo reproduce, run {.yellow} {.yellow}\n",
+                sp_fmt_cstr("git ls-remote"),
+                sp_fmt_str(fetch->url)
+              );
+              break;
+            }
+            case SPN_GIT_ROUTE_LOGIN: {
+              sp_tty_fmt(
+                w,
+                "git is in use because the server asked for a login.\nTo reproduce, run {.yellow} {.yellow}\n",
+                sp_fmt_cstr("git ls-remote"),
+                sp_fmt_str(fetch->url)
+              );
+              break;
+            }
           }
           break;
         }
