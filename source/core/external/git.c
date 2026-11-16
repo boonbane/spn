@@ -68,6 +68,8 @@ static s32 note_challenge(git_credential** credential, const c8* url, const c8* 
 static git_fetch_options fetch_options(transfer_t* transfer) {
   git_fetch_options options = GIT_FETCH_OPTIONS_INIT;
   options.proxy_opts.type = GIT_PROXY_AUTO;
+  options.proxy_opts.credentials = note_challenge;
+  options.proxy_opts.payload = transfer;
   options.callbacks.transfer_progress = abort_transfer_if_cancelled;
   options.callbacks.sideband_progress = abort_sideband_if_cancelled;
   options.callbacks.credentials = note_challenge;
