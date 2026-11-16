@@ -7,6 +7,7 @@ typedef enum {
   TXN_ACTION_PUBLISH,
   TXN_ACTION_SYNC,
   TXN_ACTION_ADVANCE_REMOTE,
+  TXN_ACTION_REMOVE_REMOTE,
   TXN_ACTION_APPEND_CLONE_FILE,
   TXN_ACTION_CREATE_CLONE_FILE,
   TXN_ACTION_DETACH_HEAD,
@@ -17,6 +18,7 @@ typedef struct {
 
   union {
     struct { const c8* name; spn_semver_t version; spn_err_t err; bool contended; } publish;
+    struct { spn_err_t err; } sync;
     struct { const c8* file; const c8* line; } write;
   };
 } txn_action_t;
@@ -31,6 +33,7 @@ typedef struct {
 
   struct {
     bool empty;
+    bool aliased;
     const c8* hook;
     const c8* pin;
   } remote;
@@ -39,6 +42,7 @@ typedef struct {
 
   struct {
     txn_file_t files [2];
+    txn_file_t cached [2];
     const c8* head;
     const c8* witness;
   } expect;
@@ -115,6 +119,29 @@ static const txn_test_t tests [] = {
     },
     .expect = {
       .witness = "unattended",
+    },
+  },
+  {
+    .name = "pushes_through_publish_url",
+    .remote = { .aliased = true },
+    .actions = {
+      { .kind = TXN_ACTION_PUBLISH, .publish = { .name = "spum", .version = { 1, 0, 0 } } },
+    },
+    .expect = {
+      .files = { { .file = ".spn/index/spum.jsonl", .lines = 1 } },
+      .head = "spum 1.0.0",
+    },
+  },
+  {
+    .name = "release_survives_a_failed_refresh",
+    .remote = { .aliased = true },
+    .actions = {
+      { .kind = TXN_ACTION_PUBLISH, .publish = { .name = "spum", .version = { 1, 0, 0 } } },
+      { .kind = TXN_ACTION_REMOVE_REMOTE },
+      { .kind = TXN_ACTION_SYNC, .sync = { .err = SPN_ERROR } },
+    },
+    .expect = {
+      .cached = { { .file = ".spn/index/spum.jsonl", .lines = 1 } },
     },
   },
   {
@@ -229,6 +256,9 @@ sp_test_each(index_transaction, publish, txn_test_t, tests, .setup = spn_test_ct
   if (it->remote.pin) {
     index.git.rev = sp_cstr_as_str(it->remote.pin);
   }
+  if (it->remote.aliased) {
+    index.git.publish_url = sp_fs_join_path(mem, tmp, sp_str_lit("./remote.git"));
+  }
 
   if (it->remote.empty) {
     git(tmp, "init", "--quiet", "--bare", "remote.git");
@@ -281,7 +311,7 @@ sp_test_each(index_transaction, publish, txn_test_t, tests, .setup = spn_test_ct
       }
       case TXN_ACTION_SYNC: {
         spn_git_failure_t failure = sp_zero;
-        sp_expect_eq(t, SPN_OK, spn_index_sync(&index, spn_index_plan(&index, false), &cancelled, &failure));
+        sp_expect_eq(t, action.sync.err, spn_index_sync(&index, spn_index_plan(&index, false), &cancelled, &failure));
         break;
       }
       case TXN_ACTION_ADVANCE_REMOTE: {
@@ -292,6 +322,10 @@ sp_test_each(index_transaction, publish, txn_test_t, tests, .setup = spn_test_ct
         git_repo_stage_all(seed);
         git_repo_commit(seed, sp_str_lit("advance"));
         git_repo_push(seed, remote, "HEAD:refs/heads/main");
+        break;
+      }
+      case TXN_ACTION_REMOVE_REMOTE: {
+        sp_must_ok(t, sp_fs_remove_dir(remote));
         break;
       }
       case TXN_ACTION_APPEND_CLONE_FILE: {
@@ -325,6 +359,13 @@ sp_test_each(index_transaction, publish, txn_test_t, tests, .setup = spn_test_ct
       break;
     }
     sp_expect_eq(t, file.lines, remote_line_count(mem, remote, file.file));
+  }
+  sp_carr_for(it->expect.cached, at) {
+    txn_file_t file = it->expect.cached[at];
+    if (!file.file) {
+      break;
+    }
+    sp_expect_eq(t, file.lines, index_test_count_lines(test_read_file(mem, sp_fs_join_path(mem, clone, sp_cstr_as_str(file.file)))));
   }
   if (it->expect.head) {
     sp_expect_str_eq(t, remote_head_message(mem, remote), sp_cstr_as_str(it->expect.head));
