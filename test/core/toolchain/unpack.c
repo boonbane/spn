@@ -27,6 +27,7 @@ typedef struct {
   bool symlinks;
   bool modes;
   bool drives;
+  bool nul;
   expect_t expect;
 } test_t;
 
@@ -94,12 +95,25 @@ static const test_t tests [] = {
     .name = "entry_under_a_symlink_is_unsafe",
     .archive = "through.tar.xz",
     .symlinks = true,
-    .expect = { .err = SPN_ERROR, .reason = SPN_UNPACK_UNSAFE, .entry = "A/U/B", .absent = "B" },
+    .expect = { .err = SPN_ERROR, .reason = SPN_UNPACK_UNSAFE, .entry = "A/U", .absent = "B" },
+  },
+  {
+    .name = "symlink_under_a_symlink_is_unsafe",
+    .archive = "nested.tar.xz",
+    .symlinks = true,
+    .expect = { .err = SPN_ERROR, .reason = SPN_UNPACK_UNSAFE, .entry = "A/U", .absent = "U" },
   },
   {
     .name = "entry_replacing_a_symlink_is_unsafe",
     .archive = "onto.tar.xz",
     .symlinks = true,
+    .expect = { .err = SPN_ERROR, .reason = SPN_UNPACK_UNSAFE, .entry = "A/O", .absent = "B" },
+  },
+  {
+    .name = "entry_matching_a_symlink_up_to_a_nul_is_unsafe",
+    .archive = "nul.tar.xz",
+    .symlinks = true,
+    .nul = true,
     .expect = { .err = SPN_ERROR, .reason = SPN_UNPACK_UNSAFE, .entry = "A/O", .absent = "B" },
   },
   {
@@ -216,6 +230,9 @@ sp_test_each(unpack, archives, test_t, tests) {
   if (it->drives) {
     sp_test_skip_on_linux();
     sp_test_skip_on_macos();
+  }
+  if (it->nul) {
+    sp_test_skip_on_win32();
   }
 
   sp_mem_t mem = sp_test_arena(t);

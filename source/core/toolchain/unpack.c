@@ -30,9 +30,15 @@ typedef struct {
 } entry_t;
 
 typedef struct {
+  sp_str_t path;
+  sp_str_t target;
+  sp_path_t at;
+} link_t;
+
+typedef struct {
   sp_mem_t mem;
   sp_sys_dir_t root;
-  sp_str_ht(bool) links;
+  sp_da(link_t) links;
   u8* chunk;
   spn_unpack_failure_t* failure;
 } unpack_t;
@@ -80,22 +86,6 @@ static place_t place(sp_io_mem_writer_t* names, sp_str_t path, sp_str_t* rel) {
   return sp_str_empty(*rel) ? PLACE_ABOVE : PLACE_INSIDE;
 }
 
-static bool crosses_link(unpack_t* unpack, sp_str_t rel) {
-  if (sp_str_ht_empty(unpack->links)) {
-    return false;
-  }
-  sp_for(it, rel.len + 1) {
-    if (it < rel.len && rel.data[it] != '/') {
-      continue;
-    }
-    sp_str_t prefix = sp_str_prefix(rel, it);
-    if (sp_str_ht_get(unpack->links, prefix)) {
-      return true;
-    }
-  }
-  return false;
-}
-
 static spn_err_t write_entry(unpack_t* unpack, entry_t entry) {
   u8 placed [2 * SP_PATH_MAX] = sp_zero;
   sp_io_mem_writer_t rels = sp_zero;
@@ -112,9 +102,6 @@ static spn_err_t write_entry(unpack_t* unpack, entry_t entry) {
     case PLACE_INSIDE: {
       break;
     }
-  }
-  if (crosses_link(unpack, rel)) {
-    return fail(unpack, SPN_UNPACK_UNSAFE, entry.path);
   }
 
   sp_path_t at = { .dir = unpack->root, .sub = rel };
@@ -165,24 +152,16 @@ static spn_err_t write_entry(unpack_t* unpack, entry_t entry) {
       break;
     }
     case ENTRY_SYM_LINK: {
-      u64 start = rels.pos;
-      s32 slash = sp_str_find_c8_reverse(rel, '/');
-      if (slash >= 0) {
-        sp_io_write_str(&rels.base, sp_str_prefix(rel, (u32)slash + 1), SP_NULLPTR);
-      }
-      sp_io_write_str(&rels.base, entry.link, SP_NULLPTR);
-      sp_path_t target = { .dir = unpack->root, .sub = sp_str((const c8*)rels.ptr + start, (u32)(rels.pos - start)) };
-      sp_sys_file_meta_t meta = sp_zero;
-      sp_fs_kind_t kind = (!sp_fs_get_link_metadata_at(target, &meta) && meta.kind == SP_FS_KIND_DIR) ? SP_FS_KIND_DIR : SP_FS_KIND_FILE;
-      if (sp_fs_create_parent_at(at) || sp_fs_create_sym_link_at(entry.link, at, kind)) {
-        return fail(unpack, SPN_UNPACK_UNWRITABLE, entry.path);
-      }
-      sp_str_ht_insert(unpack->links, sp_str_copy(unpack->mem, rel), true);
+      sp_da_push(unpack->links, ((link_t) {
+        .path = sp_str_copy(unpack->mem, entry.path),
+        .target = sp_str_copy(unpack->mem, entry.link),
+        .at = { .dir = unpack->root, .sub = sp_str_copy(unpack->mem, rel) },
+      }));
       break;
     }
     case ENTRY_HARD_LINK: {
       sp_str_t target = sp_zero;
-      if (place(&rels, entry.link, &target) != PLACE_INSIDE || crosses_link(unpack, target)) {
+      if (place(&rels, entry.link, &target) != PLACE_INSIDE) {
         return fail(unpack, SPN_UNPACK_UNSAFE, entry.path);
       }
       sp_path_t existing = { .dir = unpack->root, .sub = target };
@@ -261,14 +240,45 @@ static spn_err_t unzip(unpack_t* unpack, spn_zip_it_t* zip) {
   return finish(unpack, zip->err);
 }
 
+static spn_err_t create_links(unpack_t* unpack) {
+  sp_da_for(unpack->links, it) {
+    if (sp_fs_create_parent_at(unpack->links[it].at)) {
+      return fail(unpack, SPN_UNPACK_UNWRITABLE, unpack->links[it].path);
+    }
+  }
+
+  u8 joined [2 * SP_PATH_MAX] = sp_zero;
+  sp_da_for(unpack->links, it) {
+    link_t link = unpack->links[it];
+    sp_io_mem_writer_t names = sp_zero;
+    sp_io_mem_writer_from_buffer(&names, joined, sizeof(joined));
+    s32 slash = sp_str_find_c8_reverse(link.at.sub, '/');
+    if (slash >= 0) {
+      sp_io_write_str(&names.base, sp_str_prefix(link.at.sub, (u32)slash + 1), SP_NULLPTR);
+    }
+    sp_io_write_str(&names.base, link.target, SP_NULLPTR);
+    sp_path_t resolved = { .dir = unpack->root, .sub = sp_io_mem_writer_as_str(&names) };
+    sp_sys_file_meta_t meta = sp_zero;
+    sp_fs_kind_t kind = (!sp_fs_get_link_metadata_at(resolved, &meta) && meta.kind == SP_FS_KIND_DIR) ? SP_FS_KIND_DIR : SP_FS_KIND_FILE;
+    sp_err_t made = sp_fs_create_sym_link_at(link.target, link.at, kind);
+    if (made == SP_ERR_SYS_EXISTS) {
+      return fail(unpack, SPN_UNPACK_UNSAFE, link.path);
+    }
+    if (made) {
+      return fail(unpack, SPN_UNPACK_UNWRITABLE, link.path);
+    }
+  }
+  return SPN_OK;
+}
+
 spn_err_t spn_artifact_unpack(sp_mem_t mem, sp_path_t archive, sp_path_t root, spn_unpack_failure_t* failure) {
   *failure = sp_zero_s(spn_unpack_failure_t);
   unpack_t unpack = {
     .mem = mem,
+    .links = sp_da_new(mem, link_t),
     .chunk = (u8*)sp_alloc(mem, spn_unpack_chunk_size),
     .failure = failure,
   };
-  sp_str_ht_init(mem, unpack.links);
 
   sp_io_file_reader_t file = sp_zero;
   if (sp_io_file_reader_from_path_at(&file, archive)) {
@@ -319,6 +329,10 @@ spn_err_t spn_artifact_unpack(sp_mem_t mem, sp_path_t archive, sp_path_t root, s
   }
   else {
     err = fail(&unpack, SPN_UNPACK_UNRECOGNIZED, sp_str_lit(""));
+  }
+
+  if (!err) {
+    err = create_links(&unpack);
   }
 
   sp_fs_close_dir(unpack.root);
