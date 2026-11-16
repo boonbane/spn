@@ -520,6 +520,7 @@ spn_err_t spn_git_commit(sp_str_t repo, sp_str_t message) {
   git_index* index = SP_NULLPTR;
   git_tree* tree = SP_NULLPTR;
   git_signature* author = SP_NULLPTR;
+  git_signature* committer = SP_NULLPTR;
   git_commit* parent = SP_NULLPTR;
   git_oid tree_id = sp_zero;
   git_oid parent_id = sp_zero;
@@ -527,19 +528,22 @@ spn_err_t spn_git_commit(sp_str_t repo, sp_str_t message) {
   bool ok = r &&
     !git_repository_index(&index, r) &&
     !git_index_write_tree(&tree_id, index) &&
-    !git_tree_lookup(&tree, r, &tree_id) &&
-    !git_signature_now(&author, "spn", "spn");
+    !git_tree_lookup(&tree, r, &tree_id);
+  if (ok && git_signature_default_from_env(&author, &committer, r)) {
+    ok = !git_signature_now(&author, "spn", "noreply@boonbane.com") && !git_signature_dup(&committer, author);
+  }
   if (ok && !git_reference_name_to_id(&parent_id, r, "HEAD")) {
     ok = !git_commit_lookup(&parent, r, &parent_id) && !git_oid_equal(git_commit_tree_id(parent), &tree_id);
   }
   if (ok) {
     const git_commit* parents [] = { parent };
     ok = !git_commit_create(
-      &commit_id, r, "HEAD", author, author, SP_NULLPTR,
+      &commit_id, r, "HEAD", author, committer, SP_NULLPTR,
       sp_str_to_cstr(scratch.mem, sp_fmt(scratch.mem, "{}\n", sp_fmt_str(message)).value),
       tree, parent ? 1 : 0, parents);
   }
   git_commit_free(parent);
+  git_signature_free(committer);
   git_signature_free(author);
   git_tree_free(tree);
   git_index_free(index);
