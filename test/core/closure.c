@@ -76,16 +76,16 @@ static const test_t tests [] = {
     },
     .expect = { { "C" }, { "B" }, { "D" } },
   },
-  // One shared lib makes the whole package its own link unit: none of its
-  // package deps are walked, whatever its other libs are
+  // Package deps are read off each lib: a static lib lands in the consumer
+  // and brings them, whatever the package's other libs are
   {
-    .name = "pkg_with_a_shared_lib_stops_for_all_its_libs",
+    .name = "static_lib_beside_a_shared_lib_walks_its_deps",
     .graph.pkgs = {
       { .name = "P", .deps = { { "B" } } },
       { .name = "B", .deps = { { "C" } }, .libs = { { "L", SPN_LIB_KIND_SHARED }, { "M", SPN_LIB_KIND_STATIC } } },
       { .name = "C", .kind = SPN_LIB_KIND_STATIC },
     },
-    .expect = { { "B" } },
+    .expect = { { "B" }, { "C" } },
   },
   {
     .name = "pkg_skips_unreferenced",
@@ -185,6 +185,31 @@ static const test_t tests [] = {
       },
     },
     .expect = { { "P", "M", .public = true }, { "P", "L", .public = true }, { "P", "N", .public = true } },
+  },
+  // A shared lib forwards its public deps: a shared lib behind one is linked
+  // by the consumer, a static one is already embedded and stays out
+  {
+    .name = "shared_forwards_public_shared_libs",
+    .yield = SI_CLOSURE_YIELD_LIB,
+    .graph.pkgs = {
+      { .name = "P", .deps = { { "B" } } },
+      { .name = "B", .kind = SPN_LIB_KIND_SHARED, .deps = { { "C", .public = true }, { "D", .public = true } } },
+      { .name = "C", .kind = SPN_LIB_KIND_SHARED },
+      { .name = "D", .kind = SPN_LIB_KIND_STATIC },
+    },
+    .expect = { { "B", "B" }, { "C", "C" } },
+  },
+  // Being embedded in a shared lib does not take a package off the consumer's
+  // own edge to it
+  {
+    .name = "embedded_package_still_links_directly",
+    .yield = SI_CLOSURE_YIELD_LIB,
+    .graph.pkgs = {
+      { .name = "P", .deps = { { "B" }, { "C" } } },
+      { .name = "B", .kind = SPN_LIB_KIND_SHARED, .deps = { { "C", .public = true } } },
+      { .name = "C", .kind = SPN_LIB_KIND_STATIC },
+    },
+    .expect = { { "C", "C" }, { "B", "B" } },
   },
   // Chasing crosses shared boundaries the link closure stops at: a shared
   // lib's own shared deps must still sit next to the executable
@@ -305,6 +330,9 @@ static built_t build_graph(sp_mem_t mem, const graph_t* spec) {
       sp_da_push(deps, ((spn_pkg_edge_t) { .pkg = find_pkg(&g, pkg->deps[d].name), .public = pkg->deps[d].public }));
     }
     g.pkgs[it]->deps = deps;
+    si_da_for_value(g.pkgs[it]->libs, lib) {
+      lib->edges = deps;
+    }
 
     sp_carr_for(pkg->libs, lt) {
       if (!pkg->libs[lt].name) {
