@@ -41,6 +41,15 @@ static void append(sp_mem_t mem, si_da(spn_requirement_t)* list, si_da(spn_requi
   }
 }
 
+static void push_include(sp_mem_t mem, spn_target_unit_t* unit, spn_pkg_unit_t* pkg) {
+  si_da_for_value(unit->includes, included) {
+    if (included == pkg) {
+      return;
+    }
+  }
+  si_da_push(mem, unit->includes, pkg);
+}
+
 static si_target_t* get_script(si_pkg_t* pkg, spn_target_kind_t kind) {
   si_om_for_each(pkg->targets, target) {
     if (target->info->kind == kind && !si_da_empty(target->source)) {
@@ -261,17 +270,15 @@ spn_err_t si_add_target_unit(spn_units_t* u, spn_pkg_unit_t* pkg, si_target_t* t
     si_da_push(u->mem, unit->edges, ((spn_pkg_edge_t) { .pkg = dep, .public = edge->public }));
     si_da_push(u->mem, unit->includes, dep);
   }
+  si_da_for_value(unit->deps, lib) {
+    si_da_for_ptr(lib->edges, edge) {
+      push_include(u->mem, unit, edge->pkg);
+    }
+  }
   si_da_for(unit->includes, it) {
     si_da_for_ptr(unit->includes[it]->deps, edge) {
-      if (!edge->public) {
-        continue;
-      }
-      bool included = false;
-      si_da_for(unit->includes, at) {
-        included = included || unit->includes[at] == edge->pkg;
-      }
-      if (!included) {
-        si_da_push(u->mem, unit->includes, edge->pkg);
+      if (edge->public) {
+        push_include(u->mem, unit, edge->pkg);
       }
     }
   }

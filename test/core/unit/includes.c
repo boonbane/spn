@@ -81,6 +81,26 @@ static const test_t tests [] = {
     .root = { "A", SPN_TARGET_KIND_EXE },
     .expect.pkgs = { "B", "C", "D" },
   },
+  {
+    .name = "tool_searches_tool_deps_only",
+    .graph.pkgs = {
+      { .name = "P", .deps = { { "D" }, { "T", SPN_DEP_KIND_TOOL } }, .targets = { { "A", .kind = SPN_TARGET_KIND_TOOL }, { "L", static_only } } },
+      { .name = "D" },
+      { .name = "T" },
+    },
+    .root = { "A", SPN_TARGET_KIND_TOOL },
+    .expect.pkgs = { "T" },
+  },
+  {
+    .name = "tool_searches_package_deps_of_a_sibling_lib",
+    .graph.pkgs = {
+      { .name = "P", .deps = { { "D" }, { "T", SPN_DEP_KIND_TOOL } }, .targets = { { "A", .kind = SPN_TARGET_KIND_TOOL, .deps = { "L" } }, { "L", static_only } } },
+      { .name = "D" },
+      { .name = "T" },
+    },
+    .root = { "A", SPN_TARGET_KIND_TOOL },
+    .expect.pkgs = { "T", "D" },
+  },
 };
 
 sp_test_each(unit_includes, search, test_t, tests, .setup = spn_test_ctx_setup) {
