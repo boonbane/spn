@@ -19,6 +19,7 @@
 #include "paths/paths.h"
 #include "pkg/pkg.h"
 #include "profile/types.h"
+#include "semver/compare.h"
 #include "toolchain/toolchain.h"
 #include "triple/triple.h"
 
@@ -263,6 +264,26 @@ static spn_err_t lower_target(spn_units_t* u, spn_target_unit_t* unit) {
     object->plan = si_cc_render_compile(mem, toolchain, profile, object->lang, &compile);
   }
   sp_mem_end_scratch(scratch);
+
+  si_da_for(link->deps, at) {
+    spn_pkg_unit_t* dep = link->deps[at].lib->pkg;
+    sp_for(bt, at) {
+      spn_pkg_unit_t* other = link->deps[bt].lib->pkg;
+      if (dep == other || dep->id.pkg.name != other->id.pkg.name) {
+        continue;
+      }
+      bool ordered = spn_semver_le(dep->id.pkg.version, other->id.pkg.version);
+      return spn_err_emit(u->ctx, (spn_err_union_t) {
+        .kind = SPN_ERR_STATIC_DUPLICATE,
+        .subject = dep->pkg.manifest->name.str,
+        .static_dup = {
+          .target = target->info->name.str,
+          .low = ordered ? dep->id.pkg.version : other->id.pkg.version,
+          .high = ordered ? other->id.pkg.version : dep->id.pkg.version,
+        },
+      });
+    }
+  }
 
   if (sp_da_empty(unit->objects)) {
     return SPN_OK;
