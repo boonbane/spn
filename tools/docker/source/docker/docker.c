@@ -64,7 +64,7 @@ static void arg_c(docker_t* docker, sp_ps_config_t* config, const c8* value) {
   arg(docker, config, sp_cstr_as_str(value));
 }
 
-static sp_str_t bind(docker_t* docker, sp_str_t host, const c8* guest) {
+static sp_str_t readonly(docker_t* docker, sp_str_t host, const c8* guest) {
   return sp_fmt(docker->mem, "{}:{}:ro", sp_fmt_str(host), sp_fmt_cstr(guest)).value;
 }
 
@@ -162,11 +162,11 @@ static sp_ps_config_t launch(docker_t* docker, const variant_t* variant, const c
   arg_c(docker, &config, "-e");
   arg_c(docker, &config, "SPN_CONFIG_DIR=" CONTAINER_CONFIG_DIR);
   arg_c(docker, &config, "-v");
-  arg(docker, &config, bind(docker, spn_dir(docker, variant->spn), CONTAINER_SPN_DIR));
+  arg(docker, &config, readonly(docker, spn_dir(docker, variant->spn), CONTAINER_SPN_DIR));
   arg_c(docker, &config, "-v");
-  arg(docker, &config, bind(docker, docker->paths.tools, CONTAINER_TOOL_DIR));
+  arg(docker, &config, readonly(docker, docker->paths.tools, CONTAINER_TOOL_DIR));
   arg_c(docker, &config, "-v");
-  arg(docker, &config, bind(docker, docker->paths.config, CONTAINER_CONFIG_DIR));
+  arg(docker, &config, readonly(docker, docker->paths.config, CONTAINER_CONFIG_DIR));
   arg_c(docker, &config, "-v");
   arg(docker, &config, cache(docker, variant));
   arg_c(docker, &config, "-w");
