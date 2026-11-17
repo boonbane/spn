@@ -51,16 +51,19 @@ static spn_err_t run_prompt(sp_prompt_ctx_t* prompt, sp_mem_t mem, sp_str_t dir,
 
   sp_prompt_intro(prompt, "spn init");
 
-  const c8* entered = sp_prompt_text(prompt, "name", sp_str_to_cstr(s.mem, name));
-  if (sp_prompt_cancelled(prompt)) {
-    sp_prompt_cancel(prompt, "cancelled");
-    err = SPN_ERROR;
-    goto cleanup;
-  }
-
-  sp_str_t response = sp_str_copy(s.mem, sp_cstr_as_str(entered));
-  if (!sp_str_empty(response)) {
-    name = response;
+  const c8* fallback = sp_str_to_cstr(s.mem, name);
+  while (true) {
+    sp_str_t entered = sp_cstr_as_str(sp_prompt_text(prompt, "name", fallback));
+    if (sp_prompt_cancelled(prompt)) {
+      sp_prompt_cancel(prompt, "cancelled");
+      err = SPN_ERROR;
+      goto cleanup;
+    }
+    if (spn_scaffold_name_valid(entered)) {
+      name = entered;
+      break;
+    }
+    sp_prompt_warn(prompt, sp_str_to_cstr(s.mem, sp_fmt(s.mem, "Invalid name {.quote}", sp_fmt_str(entered)).value));
   }
 
   spn_op_t* op = spn_scaffold_project(host.ctx, (spn_scaffold_request_t) {
@@ -121,7 +124,7 @@ static spn_err_t scaffold(sp_mem_t mem, sp_str_t project) {
     .bare = args.bare,
   }));
 
-  sp_str_t name = sp_fs_get_name(dir);
+  sp_str_t name = spn_scaffold_name(mem, dir);
   if (tui.interactive && sp_str_empty(args.path)) {
     sp_prompt_ctx_t* prompt = sp_prompt_begin(mem);
     if (prompt) {
@@ -135,7 +138,7 @@ static spn_err_t scaffold(sp_mem_t mem, sp_str_t project) {
 }
 
 static sp_cli_result_t init(sp_cli_t* cli) {
-  try(spn_cli_open(true));
+  try(spn_cli_open_here());
 
   spn_tui_handoff(&tui);
   return scaffold(host.mem, spn_ctx_project_dir(host.ctx)) ? SP_CLI_ERR : SP_CLI_OK;

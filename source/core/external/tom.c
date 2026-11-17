@@ -14,7 +14,7 @@ toml_table_t* spn_toml_parse(sp_path_t path) {
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   sp_str_t content = sp_zero;
   toml_table_t* toml = SP_NULLPTR;
-  if (!sp_io_read_file_at(scratch.mem, path, &content)) {
+  if (!sp_fs_read_at(scratch.mem, path, &content)) {
     toml = spn_toml_parse_str_diag(scratch.mem, content, SP_NULLPTR);
   }
   sp_mem_end_scratch(scratch);

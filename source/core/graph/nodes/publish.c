@@ -64,8 +64,8 @@ static spn_err_t publish_unit(sp_mem_t mem, const si_dag_ctx_t* c, si_publish_t*
 
 spn_err_t si_on_publish_file(const si_dag_ctx_t* c, void* user_data) {
   si_publish_file_t* file = (si_publish_file_t*)user_data;
-  sp_path_t source = spn_path_at(c->roots, si_dag_resolve_input(c, file->source));
-  sp_path_t dest = spn_path_at(c->roots, si_dag_resolve_output(c, file->dest));
+  sp_path_t source = si_dag_input_at(c, file->source);
+  sp_path_t dest = si_dag_output_at(c, file->dest);
   if (sp_fs_copy_file_at(source, dest, SP_FS_ATOMIC_REPLACE)) {
     return SPN_ERR_DAG_OUTPUT_WRITE;
   }

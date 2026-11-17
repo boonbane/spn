@@ -79,6 +79,7 @@ typedef struct {
   const spn_path_roots_t* roots;
   spn_path_t scratch;
   spn_dag_obs_set_t* obs;
+  spn_children_t* children;
 } si_dag_ctx_t;
 
 SP_TYPEDEF_FN(spn_err_t, si_dag_fn_t, const si_dag_ctx_t*, void*);
@@ -284,7 +285,9 @@ typedef struct {
   spn_dag_trace_fn_t trace;
   void* trace_data;
   sp_atomic_s32_t* cancel;
+  spn_children_t* children;
   spn_wake_t* wake;
+  bool force;
 
   spn_dag_artifact_state_t* artifacts;
   si_dag_run_state_t* state;

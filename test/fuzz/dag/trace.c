@@ -238,7 +238,7 @@ static spn_err_t run_world(world_t* w, fz_universe_t* u, fz_lowered_t* low) {
 }
 
 static void write_source(sp_mem_t mem, fz_universe_t* u, fz_state_t* state, u64 artifact) {
-  sp_fs_create_file_str(fz_artifact_sim_path(mem, u, artifact), fz_content(mem, state->contents[artifact]));
+  sp_fs_write(fz_artifact_sim_path(mem, u, artifact), fz_content(mem, state->contents[artifact]), SP_FS_WRITE_TRUNCATE);
 }
 
 static void mark_unrecorded(world_t* w, sp_mem_t mem, fz_universe_t* u) {
@@ -778,7 +778,7 @@ static fz_err_t trace_check_run(sp_mem_t mem, fz_universe_t* u, world_t* w, fz_s
   sp_da_for(u->outputs, ot) {
     u64 it = u->outputs[ot];
     sp_str_t disk = sp_zero;
-    bool read = !sp_io_read_file(mem, fz_artifact_sim_path(mem, u, it), &disk);
+    bool read = !sp_fs_read(mem, fz_artifact_sim_path(mem, u, it), &disk);
     disk_rows[ot] = (fz_bytes_row_t) {
       .artifact = it,
       .want = actual_disk[it],
@@ -802,7 +802,7 @@ static fz_err_t trace_check_run(sp_mem_t mem, fz_universe_t* u, world_t* w, fz_s
     spn_dag_digest_t want = spn_dag_digest(actual_disk[id].data, actual_disk[id].len);
     spn_path_t blob = sp_zero;
     sp_str_t blob_bytes = sp_zero;
-    bool blob_read = !spn_dag_store_locate(&w->store, mem, want, path, &blob) && !sp_io_read_file_at(mem, spn_path_at(&w->roots, blob), &blob_bytes);
+    bool blob_read = !spn_dag_store_locate(&w->store, mem, want, path, &blob) && !sp_fs_read_at(mem, spn_path_at(&w->roots, blob), &blob_bytes);
     fz_journal_blob(w->j, id, actual_disk[id], blob_read ? blob_bytes : sp_str_lit("missing"));
   }
 
@@ -889,7 +889,7 @@ static fz_err_t trace_body(sp_mem_t mem, sp_sim_t* sim, fz_universe_t* u, fz_tra
           phantom->present = false;
         }
         else {
-          sp_fs_create_file_str(path, fz_content(mem, step->content));
+          sp_fs_write(path, fz_content(mem, step->content), SP_FS_WRITE_TRUNCATE);
           phantom->present = true;
           phantom->content = step->content;
         }
@@ -958,7 +958,7 @@ static fz_err_t trace_body(sp_mem_t mem, sp_sim_t* sim, fz_universe_t* u, fz_tra
   sp_da_for(u->outputs, ot) {
     u64 it = u->outputs[ot];
     sp_str_t disk = sp_zero;
-    if (!sp_io_read_file(mem, fz_artifact_sim_path(mem, u, it), &disk)) {
+    if (!sp_fs_read(mem, fz_artifact_sim_path(mem, u, it), &disk)) {
       final[it] = disk;
     }
   }

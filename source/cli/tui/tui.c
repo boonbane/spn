@@ -111,6 +111,9 @@ static void write_issue(sp_tty_t* w, const spn_toml_issue_t* issue) {
     case SPN_ERR_CODEGEN_EXPECTED_INT:
       sp_tty_fmt(w, "Field {.cyan} must be a non-negative integer", SP_FMT_STR(field));
       break;
+    case SPN_ERR_CODEGEN_EXPECTED_POSITIVE:
+      sp_tty_fmt(w, "Field {.cyan} must be a positive integer", SP_FMT_STR(field));
+      break;
     case SPN_ERR_CODEGEN_EXPECTED_BOOL:
       sp_tty_fmt(w, "Field {.cyan} must be a boolean", SP_FMT_STR(field));
       break;
@@ -608,6 +611,30 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
       );
       break;
     }
+    case SPN_EVENT_SYNC_RETRY: {
+      sp_tty_fmt(
+        &w,
+        "{.gray} ({} {} remaining): {}",
+        sp_fmt_str(event->sync_retry.url),
+        sp_fmt_uint(event->sync_retry.remaining),
+        sp_fmt_cstr(event->sync_retry.remaining == 1 ? "try" : "tries"),
+        sp_fmt_str(event->sync_retry.cause)
+      );
+      break;
+    }
+    case SPN_EVENT_LOCK_WAIT: {
+      switch (event->lock_wait.lock) {
+        case SPN_FILE_LOCK_REPO: {
+          sp_tty_fmt(&w, "for another spn to release {.gray}", sp_fmt_str(event->lock_wait.name));
+          break;
+        }
+        case SPN_FILE_LOCK_TOOLCHAIN: {
+          sp_tty_fmt(&w, "for another spn to release toolchain {}", sp_fmt_str(colored_name(w.color, mem, event->lock_wait.name)));
+          break;
+        }
+      }
+      break;
+    }
     case SPN_EVENT_ERR: {
       switch (event->err.kind) {
         case SPN_ERR_PATCH_UNUSED: {
@@ -931,6 +958,10 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           sp_io_write_str(w.io, sp_str_lit("Failed to initialize the wasm runtime"), SP_NULLPTR);
           break;
         }
+        case SPN_ERR_HTTP_INIT_FAILED: {
+          sp_io_write_str(w.io, sp_str_lit("Failed to initialize libcurl"), SP_NULLPTR);
+          break;
+        }
         case SPN_ERR_CONFIGURE_SOURCE_GLOB: {
           sp_tty_fmt(
             &w,
@@ -1054,6 +1085,15 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           );
           break;
         }
+        case SPN_ERR_GIT_FETCH: {
+          sp_tty_fmt(
+            &w,
+            "Failed to fetch {.cyan} from {.gray}",
+            sp_fmt_str(event->err.subject),
+            sp_fmt_str(event->err.git_fetch.url)
+          );
+          break;
+        }
         case SPN_ERR_VERSION_EXISTS: {
           sp_tty_fmt(
             &w,
@@ -1137,6 +1177,14 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
             "Failed to download toolchain {} from {.gray}",
             sp_fmt_str(colored_name(w.color, mem, event->err.artifact.name)),
             sp_fmt_str(event->err.artifact.url)
+          );
+          break;
+        }
+        case SPN_ERR_CERT_UNTRUSTED: {
+          sp_tty_fmt(
+            &w,
+            "The certificate of {.gray} is not trusted",
+            sp_fmt_str(event->err.cert.url)
           );
           break;
         }
@@ -1730,9 +1778,129 @@ static void render_event_extra(sp_tty_t* w, spn_event_t* event) {
           sp_io_write_str(w->io, event->err.publish.output, SP_NULLPTR);
           break;
         }
+        case SPN_ERR_INDEX_SYNC: {
+          sp_io_write_str(w->io, event->err.index.cause, SP_NULLPTR);
+          break;
+        }
         case SPN_ERR_TOOLCHAIN_FETCH:
         case SPN_ERR_TOOLCHAIN_EXTRACT: {
           sp_io_write_str(w->io, event->err.artifact.output, SP_NULLPTR);
+          break;
+        }
+        case SPN_ERR_CERT_UNTRUSTED: {
+          const spn_err_cert_t* cert = &event->err.cert;
+          sp_tty_fmt(w, "{}\n", sp_fmt_str(sp_str_trim_right(cert->cause)));
+          switch (cert->trust.kind) {
+            case SPN_NET_TRUST_NONE: {
+              sp_tty_fmt(
+                w,
+                "No CA bundle was found on this machine.\nSet {.yellow} under {.yellow} in {.cyan}, or {.yellow}, to a PEM file of trusted root certificates.\n",
+                sp_fmt_cstr("ca_bundle"),
+                sp_fmt_cstr("[net]"),
+                sp_fmt_str(cert->config),
+                sp_fmt_cstr("SSL_CERT_FILE")
+              );
+              break;
+            }
+            case SPN_NET_TRUST_SYSTEM: {
+              sp_io_write_str(w->io, sp_str_lit("The system certificate store is in use.\n"), SP_NULLPTR);
+              break;
+            }
+            case SPN_NET_TRUST_FOUND: {
+              sp_tty_fmt(
+                w,
+                "The CA bundle in use is {.cyan}.\nTo use another, set {.yellow} under {.yellow} in {.cyan}, or {.yellow}, to a PEM file of trusted root certificates.\n",
+                sp_fmt_str(cert->trust.bundle),
+                sp_fmt_cstr("ca_bundle"),
+                sp_fmt_cstr("[net]"),
+                sp_fmt_str(cert->config),
+                sp_fmt_cstr("SSL_CERT_FILE")
+              );
+              break;
+            }
+            case SPN_NET_TRUST_CONFIG: {
+              sp_tty_fmt(
+                w,
+                cert->trust.missing
+                  ? "The CA bundle {.cyan}, named by {.yellow} in {.cyan}, is not a file.\n"
+                  : "The CA bundle in use is {.cyan}, named by {.yellow} in {.cyan}.\n",
+                sp_fmt_str(cert->trust.bundle),
+                sp_fmt_cstr("ca_bundle"),
+                sp_fmt_str(cert->config)
+              );
+              break;
+            }
+            case SPN_NET_TRUST_ENV: {
+              sp_tty_fmt(
+                w,
+                cert->trust.missing
+                  ? "The CA bundle {.cyan}, named by {.yellow}, is not a file.\n{.yellow} overrides {.yellow} in {.cyan}.\n"
+                  : "The CA bundle in use is {.cyan}, named by {.yellow}.\n{.yellow} overrides {.yellow} in {.cyan}.\n",
+                sp_fmt_str(cert->trust.bundle),
+                sp_fmt_cstr("SSL_CERT_FILE"),
+                sp_fmt_cstr("SSL_CERT_FILE"),
+                sp_fmt_cstr("ca_bundle"),
+                sp_fmt_str(cert->config)
+              );
+              break;
+            }
+          }
+          if (cert->git) {
+            sp_tty_fmt(
+              w,
+              "If git on this machine trusts it, set {.yellow} under {.yellow} in {.cyan} to fetch with git instead.\n",
+              sp_fmt_cstr("system_git = true"),
+              sp_fmt_cstr("[net]"),
+              sp_fmt_str(cert->config)
+            );
+          }
+          break;
+        }
+        case SPN_ERR_GIT_FETCH: {
+          const spn_err_git_fetch_t* fetch = &event->err.git_fetch;
+          sp_tty_fmt(w, "{}\n", sp_fmt_str(sp_str_trim_right(fetch->cause)));
+          switch (fetch->route) {
+            case SPN_GIT_ROUTE_BUILTIN: {
+              sp_tty_fmt(
+                w,
+                "If git on this machine can fetch it, set {.yellow} under {.yellow} in {.cyan} to fetch with git instead.\n",
+                sp_fmt_cstr("system_git = true"),
+                sp_fmt_cstr("[net]"),
+                sp_fmt_str(fetch->config)
+              );
+              break;
+            }
+            case SPN_GIT_ROUTE_CONFIGURED: {
+              sp_tty_fmt(
+                w,
+                "git is in use because {.yellow} is set under {.yellow} in {.cyan}.\nTo reproduce, run {.yellow} {.yellow}\n",
+                sp_fmt_cstr("system_git"),
+                sp_fmt_cstr("[net]"),
+                sp_fmt_str(fetch->config),
+                sp_fmt_cstr("git ls-remote"),
+                sp_fmt_str(fetch->url)
+              );
+              break;
+            }
+            case SPN_GIT_ROUTE_SSH: {
+              sp_tty_fmt(
+                w,
+                "git is in use because the URL is SSH.\nTo reproduce, run {.yellow} {.yellow}\n",
+                sp_fmt_cstr("git ls-remote"),
+                sp_fmt_str(fetch->url)
+              );
+              break;
+            }
+            case SPN_GIT_ROUTE_LOGIN: {
+              sp_tty_fmt(
+                w,
+                "git is in use because the server asked for a login.\nTo reproduce, run {.yellow} {.yellow}\n",
+                sp_fmt_cstr("git ls-remote"),
+                sp_fmt_str(fetch->url)
+              );
+              break;
+            }
+          }
           break;
         }
         case SPN_ERR_TOOLCHAIN_SHA: {
@@ -1812,6 +1980,11 @@ void spn_tui_log_event(spn_tui_t* tui, spn_event_t* event) {
     return;
   }
 
+  if (event->kind == SPN_EVENT_SYNC_PACKAGE && event->sync_pkg.fetched && !sp_str_ht_get(tui->seen_fetch, event->sync_pkg.name)) {
+    sp_str_ht_insert(tui->seen_fetch, sp_str_copy(tui->mem, event->sync_pkg.name), true);
+    tui->num_downloads++;
+  }
+
   const spn_event_info_t* info = &spn_event_info[event->kind];
   if (info->severity == SPN_EVENT_SEVERITY_INFO && info->verbosity > tui->verbosity) {
     if (event->kind == SPN_EVENT_USER_LOG) {
@@ -1856,7 +2029,6 @@ void spn_tui_log_event(spn_tui_t* tui, spn_event_t* event) {
     case SPN_EVENT_SYNC: {
       if (!sp_str_ht_get(tui->seen_url, event->sync.url)) {
         sp_str_ht_insert(tui->seen_url, sp_str_copy(tui->mem, event->sync.url), true);
-        tui->num_downloads++;
         write_event(
           tty, verb, sp_fmt_style_green,
           event->sync.name,
@@ -2031,11 +2203,15 @@ void spn_tui_init(spn_tui_t* tui, spn_tui_desc_t desc) {
   if (desc.json) {
     sp_io_writer_set_buffer(tui->out->io, tui->jsonl, sizeof(tui->jsonl));
   }
-  if (desc.no_color) {
+  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+  sp_env_t env = sp_env_capture(scratch.mem);
+  bool dumb = sp_str_equal(sp_env_get_c(&env, "TERM"), sp_str_lit("dumb"));
+  sp_mem_end_scratch(scratch);
+  if (desc.no_color || dumb) {
     tui->out->color = SP_TTY_COLOR_NONE;
     tui->err->color = SP_TTY_COLOR_NONE;
   }
-  tui->interactive = !desc.json && sp_sys_is_tty(sp_sys_stderr) && sp_sys_is_tty(sp_sys_stdin);
+  tui->interactive = !desc.json && !dumb && sp_sys_is_tty(sp_sys_stderr) && sp_sys_is_tty(sp_sys_stdin);
 #ifdef SP_WIN32
   if (sp_sys_is_tty(sp_sys_stdout) || sp_sys_is_tty(sp_sys_stderr)) {
     SetConsoleCP(CP_UTF8);
@@ -2053,6 +2229,7 @@ void spn_tui_init(spn_tui_t* tui, spn_tui_desc_t desc) {
   };
   sp_da_init(tui->mem, tui->writer.partial);
   sp_str_ht_init(tui->mem, tui->seen_url);
+  sp_str_ht_init(tui->mem, tui->seen_fetch);
   sp_da_init(tui->mem, tui->buffered_logs);
   sp_ht_init(tui->mem, tui->thread_ids);
 }
@@ -2087,8 +2264,7 @@ void spn_tui_flush(spn_tui_t* tui) {
         break;
       }
       case SPN_EVENT_BUILD_FAILED: {
-        bool cancelled = tui->prompt.op && spn_op_cancelled(tui->prompt.op);
-        spn_prompt_stop(tui, cancelled ? SP_PROMPT_STATE_CANCEL : SP_PROMPT_STATE_ERROR);
+        spn_prompt_stop(tui, SP_PROMPT_STATE_ERROR);
         break;
       }
       default: {
@@ -2127,26 +2303,6 @@ void spn_print_err(spn_tui_t* tui, const c8* fmt, ...) {
   va_end(args);
 }
 
-static spn_tui_t* prompt_tui;
-
-static void on_prompt_event(sp_prompt_ctx_t* ctx, sp_prompt_event_t event) {
-  switch (event.kind) {
-    case SP_PROMPT_EVENT_CTRL_C: {
-      if (prompt_tui->prompt.op) {
-        spn_op_cancel(prompt_tui->prompt.op);
-      }
-      break;
-    }
-    case SP_PROMPT_EVENT_ESCAPE: {
-      break;
-    }
-    default: {
-      prompt_tui->prompt.widget.on_event(ctx, event);
-      break;
-    }
-  }
-}
-
 static void prompt_start(spn_tui_t* tui) {
   if (tui->prompt.started) {
     return;
@@ -2157,19 +2313,16 @@ static void prompt_start(spn_tui_t* tui) {
     return;
   }
 
-  tui->prompt.ctx = sp_prompt_begin(tui->mem);
+  tui->prompt.ctx = sp_prompt_begin_ex(tui->mem, (sp_prompt_config_t) { .passive = true });
   if (!tui->prompt.ctx) {
     return;
   }
   sp_prompt_use_wake(tui->prompt.ctx, tui->wake);
 
-  prompt_tui = tui;
-  tui->prompt.widget = sp_prompt_progress_widget(tui->prompt.ctx, (sp_prompt_progress_t) {
+  sp_prompt_widget_t widget = sp_prompt_progress_widget(tui->prompt.ctx, (sp_prompt_progress_t) {
     .prompt = "Building",
     .color = { .rgb = { .r = 99, .g = 160, .b = 136 } },
   });
-  sp_prompt_widget_t widget = tui->prompt.widget;
-  widget.on_event = on_prompt_event;
   tui->prompt.app = sp_app_new(tui->mem, sp_prompt_app(tui->prompt.ctx, widget));
   tui->prompt.last = sp_zero_s(spn_progress_t);
   tui->prompt.on = true;
@@ -2190,11 +2343,6 @@ void spn_prompt_stop(spn_tui_t* tui, sp_prompt_state_t state) {
 }
 
 static void prompt_pump(spn_tui_t* tui, bool building, spn_progress_t progress) {
-  if (spn_op_cancelled(tui->prompt.op)) {
-    spn_prompt_stop(tui, SP_PROMPT_STATE_CANCEL);
-    return;
-  }
-
   if (!tui->prompt.on) {
     if (!building || (!progress.misses && !progress.warm)) return;
     prompt_start(tui);
@@ -2219,12 +2367,11 @@ static void prompt_pump(spn_tui_t* tui, bool building, spn_progress_t progress) 
   sp_app_tick(tui->prompt.app);
 }
 
-void spn_tui_poll(spn_tui_t* tui, spn_op_t* op) {
+void spn_tui_poll(spn_tui_t* tui) {
   if (tui->handoff.granted) {
     return;
   }
 
-  tui->prompt.op = op;
   spn_tui_flush(tui);
   spn_progress_t progress = sp_zero;
   bool building = spn_ctx_progress(tui->ctx, &progress);
@@ -2237,21 +2384,11 @@ bool spn_tui_wants_input(spn_tui_t* tui) {
 
 void spn_tui_op_done(spn_tui_t* tui, spn_op_t* op) {
   if (tui->handoff.granted) {
-    tui->prompt.op = SP_NULLPTR;
     return;
   }
 
-  tui->prompt.op = op;
   spn_tui_flush(tui);
-
-  sp_prompt_state_t state = SP_PROMPT_STATE_SUBMIT;
-  if (spn_op_cancelled(op)) {
-    state = SP_PROMPT_STATE_CANCEL;
-  } else if (spn_op_result(op).err) {
-    state = SP_PROMPT_STATE_ERROR;
-  }
-  spn_prompt_stop(tui, state);
-  tui->prompt.op = SP_NULLPTR;
+  spn_prompt_stop(tui, spn_op_result(op).err ? SP_PROMPT_STATE_ERROR : SP_PROMPT_STATE_SUBMIT);
 }
 
 void spn_tui_handoff(spn_tui_t* tui) {

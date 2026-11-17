@@ -46,7 +46,7 @@ static spn_err_t run_linker(sp_mem_t mem, const si_dag_ctx_t* c, si_link_t* link
     .link_start = { .subject = link->subject },
   });
 
-  spn_invocation_result_t run = spn_invocation_run(c->roots, &invocation);
+  spn_invocation_result_t run = spn_invocation_run(c->roots, c->children, &invocation);
   spn_event_run_t report = spn_event_run(c->roots, &invocation, &run);
 
   if (run.result.status.exit_code) {

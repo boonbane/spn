@@ -2,6 +2,16 @@
   "metadata": { "format": "toml" },
   "optionalProperties": {
     "index": { "elements": { "ref": "index" } },
-    "toolchain": { "elements": { "ref": "toolchain_decl" } }
+    "toolchain": { "elements": { "ref": "toolchain_decl" } },
+    "net": { "ref": "net" }
+  },
+  "definitions": {
+    "net": {
+      "optionalProperties": {
+        "timeout": { "type": "uint64" },
+        "ca_bundle": { "type": "string" },
+        "system_git": { "type": "boolean" }
+      }
+    }
   }
 }

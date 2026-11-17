@@ -31,6 +31,7 @@ typedef struct {
 fixture_t fixture_new(sp_test_t* t);
 sp_err_t  fixture_init(sp_test_t* t, fixture_t* fixture);
 sp_str_t  fixture_path(fixture_t* fixture, sp_str_t relative);
+sp_str_t  fixture_index_url(fixture_t* fixture);
 void      fixture_create(fixture_t* fixture, sp_str_t relative, sp_str_t content);
 void      write_file(sp_str_t path, sp_str_t content);
 sp_str_t  str_replace_all(sp_mem_t mem, sp_str_t str, sp_str_t needle, sp_str_t repl);

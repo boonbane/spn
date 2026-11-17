@@ -28,6 +28,7 @@
 #include "toolchain/provision.h"
 #include "toolchain/toolchain.h"
 #include "toolchain/types.h"
+#include "external/http.h"
 #include "unit/types.h"
 #include "unit/unit.h"
 #include "when/when.h"
@@ -88,44 +89,111 @@ static spn_wasi_spelling_t wasi_spelling(const spn_path_roots_t* roots, sp_mem_t
   return SPN_WASI_SPELLING_WASI;
 }
 
-static spn_err_t setup_artifact(spn_toolchain_store_t* store, spn_toolchain_unit_t* unit) {
+static spn_err_t setup_artifact(spn_toolchain_store_t* store, spn_toolchain_unit_t* unit, sp_atomic_s32_t* cancelled) {
   spn_toolchain_info_t* toolchain = unit->info;
   spn_artifact_t artifact = toolchain->support.artifact;
   sp_tm_timer_t timer = sp_tm_start_timer();
 
-  spn_toolchain_claim_t claim = spn_toolchain_claim(store, spn.mem, artifact);
+  spn_toolchain_claim_t claim = spn_toolchain_claim(store, spn.mem, toolchain->name.str, artifact);
   spn_path_t root = claim.root;
   bool cached = claim.present;
-  sp_str_t urls [2] = { spn_artifact_resolve_url(spn.events->mem, artifact, store->mirror), artifact.url };
-  u32 count = sp_str_equal(urls[0], urls[1]) ? 1 : 2;
-  sp_str_t url = urls[0];
+  sp_str_t url = artifact.url;
   if (!cached) {
+    spn_http_config_t http = {
+      .ca_bundle = store->trust.bundle,
+      .timeout_s = store->timeout_s,
+      .cancelled = cancelled,
+    };
+    spn_http_failure_t failure = sp_zero;
+    spn_err_t err = SPN_ERROR;
+    sp_str_t actual = sp_zero;
+    sp_path_t download = spn_path_at(store->roots, claim.tarball);
+
+    sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+    sp_da(sp_str_t) urls = SP_NULLPTR;
+    if (!sp_str_empty(store->mirror)) {
+      urls = sp_da_new(scratch.mem, sp_str_t);
+      sp_da_push(urls, spn_artifact_resolve_url(scratch.mem, artifact, store->mirror));
+    }
+    else {
+      sp_str_t listing = sp_zero;
+      if (!sp_str_empty(artifact.mirror_list)) {
+        if (spn_http_download(&http, artifact.mirror_list, download, &failure) || sp_fs_read_at(scratch.mem, download, &listing)) {
+          listing = artifact.mirror_snapshot;
+        }
+      }
+      urls = spn_artifact_mirror_urls(scratch.mem, artifact, listing, sp_tm_now_point());
+      sp_da_push(urls, artifact.url);
+    }
+
     spn_event_buffer_push(spn.events, (spn_event_t) {
       .kind = SPN_EVENT_SYNC,
       .sync = {
         .name = toolchain->name.str,
-        .url = url,
+        .url = sp_str_copy(spn.events->mem, urls[0]),
       }});
-    sp_str_t dest = spn_path_str(store->roots, spn.mem, claim.tarball);
-    sp_str_t output = sp_zero;
-    spn_err_t err = SPN_ERROR;
-    sp_for(it, count) {
+    sp_da_for(urls, it) {
       url = urls[it];
-      err = spn_fetch_curl(spn.events->mem, url, dest, &output);
+      spn_net_backoff_t backoff = it + 1 == sp_da_size(urls) ? store->backoff : spn_net_no_backoff;
+      u32 retry = 0;
+      do {
+        err = spn_http_download(&http, url, download, &failure);
+      } while (err && failure.kind == SPN_HTTP_DROPPED && spn_net_backoff_wait(backoff, retry++, url, sp_cstr_as_str(failure.message), cancelled));
       if (!err) {
+        err = spn_toolchain_verify(store, &claim, spn.events->mem, &actual);
+      }
+      if (!err || failure.kind == SPN_HTTP_CANCELLED || failure.kind == SPN_HTTP_UNWRITABLE) {
         break;
       }
     }
-    if (err) {
+    url = sp_str_copy(spn.events->mem, url);
+    sp_mem_end_scratch(scratch);
+
+    if (err == SPN_ERR_TOOLCHAIN_READ || err == SPN_ERR_TOOLCHAIN_SHA) {
       spn_toolchain_release(store, &claim);
       return spn_err_emit(&spn, (spn_err_union_t) {
-        .kind = SPN_ERR_TOOLCHAIN_FETCH,
+        .kind = err,
         .artifact = {
           .name = toolchain->name.str,
           .url = url,
-          .output = output,
+          .expected = artifact.sha256,
+          .actual = actual,
         },
       });
+    }
+    if (err) {
+      spn_toolchain_release(store, &claim);
+      switch (failure.kind) {
+        case SPN_HTTP_CANCELLED: {
+          return SPN_ERR_CANCELLED;
+        }
+        case SPN_HTTP_UNWRITABLE: {
+          return spn_err_emit(&spn, (spn_err_union_t) { .kind = SPN_ERR_FS_WRITE, .fs = { .path = claim.tarball } });
+        }
+        case SPN_HTTP_UNTRUSTED: {
+          return spn_err_emit(&spn, (spn_err_union_t) {
+            .kind = SPN_ERR_CERT_UNTRUSTED,
+            .subject = toolchain->name.str,
+            .cert = {
+              .url = url,
+              .trust = store->trust,
+              .config = spn_path_str(store->roots, spn.events->mem, spn.paths.config),
+              .cause = sp_str_copy(spn.events->mem, sp_cstr_as_str(failure.message)),
+            },
+          });
+        }
+        case SPN_HTTP_DROPPED:
+        case SPN_HTTP_FAILED: {
+          return spn_err_emit(&spn, (spn_err_union_t) {
+            .kind = SPN_ERR_TOOLCHAIN_FETCH,
+            .artifact = {
+              .name = toolchain->name.str,
+              .url = url,
+              .output = sp_str_copy(spn.events->mem, sp_cstr_as_str(failure.message)),
+            },
+          });
+        }
+      }
     }
     spn_try(spn_toolchain_install(store, &claim, toolchain->name.str, url));
   }
@@ -156,14 +224,14 @@ static spn_err_t setup_artifact(spn_toolchain_store_t* store, spn_toolchain_unit
   return SPN_OK;
 }
 
-spn_err_t spn_sync_toolchain(spn_toolchain_store_t* store, spn_toolchain_unit_t* unit) {
+spn_err_t spn_sync_toolchain(spn_toolchain_store_t* store, spn_toolchain_unit_t* unit, sp_atomic_s32_t* cancelled) {
   switch (unit->info->support.kind) {
     case SPN_TOOLCHAIN_SUPPORT_LOCAL: {
       spn_try(setup_local(store, unit));
       break;
     }
     case SPN_TOOLCHAIN_SUPPORT_ARTIFACT: {
-      spn_try(setup_artifact(store, unit));
+      spn_try(setup_artifact(store, unit, cancelled));
       break;
     }
     case SPN_TOOLCHAIN_SUPPORT_DETECTED: {
@@ -186,11 +254,12 @@ spn_err_t spn_sync_toolchain(spn_toolchain_store_t* store, spn_toolchain_unit_t*
   return SPN_OK;
 }
 
-static spn_err_t materialize_tree(spn_session_t* session, sp_intern_str_t name, spn_pkg_root_t tree, spn_path_t* root, bool* fetched) {
+static spn_err_t materialize_tree(spn_session_t* session, sp_intern_str_t name, spn_pkg_root_t tree, sp_atomic_s32_t* cancelled, spn_path_t* root, bool* fetched) {
   switch (tree.kind) {
     case SPN_PKG_ROOT_LOCAL: {
       spn_path_t canonical = spn_path_canonicalize(spn.mem, &session->ctx->roots, tree.local);
-      if (!sp_fs_exists_at(spn_path_at(&session->ctx->roots, canonical))) {
+      sp_sys_file_meta_t meta = sp_zero;
+      if (sp_fs_get_path_metadata_at(spn_path_at(&session->ctx->roots, canonical), &meta)) {
         return spn_err_emit(session->ctx, (spn_err_union_t) {
           .kind = SPN_ERR_NO_MANIFEST,
           .no_manifest = { .path = spn_path_str(&session->ctx->roots, spn.events->mem, tree.local) },
@@ -212,20 +281,52 @@ static spn_err_t materialize_tree(spn_session_t* session, sp_intern_str_t name, 
         });
       }
 
-      if (spn_git_checkout_ensure(&session->ctx->caches.git, checkout)) {
-        sp_str_t error = sp_str_lit("failed to fetch repository");
-        if (!sp_str_empty(checkout->error)) {
-          error = checkout->error;
-        }
-        spn_event_buffer_push(spn.events, (spn_event_t) {
-          .kind = SPN_EVENT_SYNC_FAILED,
-          .sync_failed = {
-              .name = name.str,
-              .url = tree.git.url,
-              .error = error,
+      if (spn_git_checkout_ensure(&session->ctx->caches.git, checkout, cancelled)) {
+        sp_str_t cause = sp_str_copy(spn.events->mem, sp_cstr_as_str(checkout->failure.message));
+        switch (checkout->failure.kind) {
+          case SPN_GIT_CANCELLED: {
+            return SPN_ERR_CANCELLED;
           }
-        });
-        return SPN_ERROR;
+          case SPN_GIT_UNTRUSTED: {
+            return spn_err_emit(session->ctx, (spn_err_union_t) {
+              .kind = SPN_ERR_CERT_UNTRUSTED,
+              .subject = name.str,
+              .cert = {
+                .url = tree.git.url,
+                .trust = session->ctx->trust,
+                .config = spn_path_str(&session->ctx->roots, spn.events->mem, session->ctx->paths.config),
+                .cause = cause,
+                .git = true,
+              },
+            });
+          }
+          case SPN_GIT_FAILED:
+          case SPN_GIT_DROPPED:
+          case SPN_GIT_UNAUTHORIZED:
+          case SPN_GIT_CORRUPT: {
+            if (checkout->failure.remote) {
+              return spn_err_emit(session->ctx, (spn_err_union_t) {
+                .kind = SPN_ERR_GIT_FETCH,
+                .subject = name.str,
+                .git_fetch = {
+                  .url = tree.git.url,
+                  .config = spn_path_str(&session->ctx->roots, spn.events->mem, session->ctx->paths.config),
+                  .cause = cause,
+                  .route = checkout->failure.route,
+                },
+              });
+            }
+            spn_event_buffer_push(spn.events, (spn_event_t) {
+              .kind = SPN_EVENT_SYNC_FAILED,
+              .sync_failed = {
+                  .name = name.str,
+                  .url = tree.git.url,
+                  .error = sp_str_empty(cause) ? sp_str_lit("failed to fetch repository") : cause,
+              }
+            });
+            return SPN_ERROR;
+          }
+        }
       }
 
       *root = checkout->path;
@@ -259,12 +360,12 @@ static spn_err_t fetch_package(pkg_job_t* job) {
     }
   }
 
-  spn_try(materialize_tree(session, pkg->name, pkg->origin.recipe, &pkg->roots.recipe, fetched));
+  spn_try(materialize_tree(session, pkg->name, pkg->origin.recipe, &job->op->cancelled, &pkg->roots.recipe, fetched));
 
   if (pkg->origin.source.kind == SPN_PKG_ROOT_NONE) {
     pkg->roots.source = pkg->roots.recipe;
   } else {
-    spn_try(materialize_tree(session, pkg->name, pkg->origin.source, &pkg->roots.source, fetched));
+    spn_try(materialize_tree(session, pkg->name, pkg->origin.source, &job->op->cancelled, &pkg->roots.source, fetched));
   }
 
   return SPN_OK;
@@ -290,7 +391,7 @@ static void sync_toolchain_node(void* data) {
   if (sp_atomic_s32_load(&sync_failed, SP_ATOMIC_SEQ_CST) || spn_op_cancelled(job->op)) {
     return;
   }
-  job->err = spn_sync_toolchain(&spn.caches.toolchains, job->unit);
+  job->err = spn_sync_toolchain(&spn.caches.toolchains, job->unit, &job->op->cancelled);
   if (job->err) {
     sp_atomic_s32_store(&sync_failed, (s32)job->err, SP_ATOMIC_SEQ_CST);
   }
@@ -394,7 +495,8 @@ static spn_err_t sync_jobs(spn_op_t* op, sp_mem_t mem, bool* reresolve) {
 
     pkg->manifest = pkg->origin.manifest;
     if (!pkg->manifest) {
-      if (!sp_fs_exists_at(spn_path_at(roots, path))) {
+      sp_sys_file_meta_t meta = sp_zero;
+      if (sp_fs_get_path_metadata_at(spn_path_at(roots, path), &meta) || meta.kind == SP_FS_KIND_UNKNOWN) {
         return spn_err_emit(session->ctx, (spn_err_union_t) {
           .kind = SPN_ERR_NO_MANIFEST,
           .subject = pkg->name.str,

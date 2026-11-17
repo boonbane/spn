@@ -93,7 +93,7 @@ sp_test_each(reflect_walk, docs, test_t, tests) {
 
   sp_str_t path = test_repo_path(mem, sp_fmt(mem, "test/core/reflect/walk/{}.json", sp_fmt_cstr(it->name)).value);
   sp_str_t json = sp_zero;
-  sp_must(t, !sp_io_read_file(mem, path, &json));
+  sp_must(t, !sp_fs_read(mem, path, &json));
 
   doc_t doc = sp_zero;
   sp_must_eq(t, it->expect.err, spn_reflect_json_read(json, &doc_type, &doc, mem));

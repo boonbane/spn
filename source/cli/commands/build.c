@@ -39,7 +39,6 @@ static sp_cli_result_t build(sp_cli_t* cli) {
     .force = args.force,
   };
 
-  try(spn_cli_refresh_indexes());
   try(spn_cli_session(config));
   return spn_cli_op(spn_build(host.session));
 }

@@ -58,7 +58,8 @@ static s32 diff(void) {
   sp_io_stream_writer_t w = sp_zero;
   sp_io_stream_writer_from_fd(&w, sp_sys_stdout, SP_IO_CLOSE_MODE_NONE);
 
-  if (!sp_fs_exists(render_out_path(mem, "previous"))) {
+  sp_sys_file_meta_t meta = sp_zero;
+  if (sp_fs_get_path_metadata(render_out_path(mem, "previous"), &meta)) {
     sp_fmt_io(&w.base, "no previous capture at {}; run render twice\n", sp_fmt_str(render_out_path(mem, "previous")));
     return 1;
   }
@@ -87,12 +88,11 @@ static void rotate(void) {
   sp_mem_t mem = sp_mem_os_new();
   sp_str_t current = render_out_path(mem, "current");
   sp_str_t previous = render_out_path(mem, "previous");
-  if (!sp_fs_exists(current)) {
+  sp_sys_file_meta_t meta = sp_zero;
+  if (sp_fs_get_path_metadata(current, &meta)) {
     return;
   }
-  if (sp_fs_exists(previous)) {
-    sp_fs_remove_dir(previous);
-  }
+  sp_fs_remove_dir(previous);
   sp_sys_dir_t cwd = sp_sys_get_root(0);
   sp_assert(!sp_sys_rename_s(cwd, current, cwd, previous));
 }

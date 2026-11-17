@@ -65,7 +65,7 @@ spn_err_t si_on_user_node(const si_dag_ctx_t* c, void* user_data) {
 
   si_da_for(node->outputs, it) {
     spn_user_output_t* out = &node->outputs[it];
-    sp_path_t target = spn_path_at(roots, si_dag_resolve_output(c, c->produces[it]));
+    sp_path_t target = si_dag_output_at(c, c->produces[it]);
     sp_path_t declared = spn_path_at(roots, out->path);
     sp_err_t err = SP_OK;
     switch (out->kind) {

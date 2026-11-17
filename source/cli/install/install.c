@@ -86,7 +86,7 @@ static sp_err_t set_user_path(spn_install_action_t* action) {
 
 static bool file_matches(sp_mem_t mem, sp_str_t path, sp_str_t text) {
   sp_str_t content = sp_zero;
-  if (sp_io_read_file(mem, path, &content)) {
+  if (sp_fs_read(mem, path, &content)) {
     return false;
   }
   return sp_str_equal(content, text);
@@ -102,11 +102,12 @@ static spn_install_facts_t probe_facts(sp_mem_t mem, spn_install_layout_t* layou
   if (sp_str_equal(canonical, facts.exe)) {
     facts.exe = layout->exe;
   }
+  sp_sys_file_meta_t meta = sp_zero;
   sp_for(it, layout->num_rc) {
-    facts.rc[it].exists = sp_fs_is_file(layout->rc[it].path);
+    facts.rc[it].exists = !sp_fs_get_link_metadata(layout->rc[it].path, &meta) && meta.kind == SP_FS_KIND_FILE;
     if (facts.rc[it].exists) {
       sp_str_t content = sp_zero;
-      if (!sp_io_read_file(scratch.mem, layout->rc[it].path, &content)) {
+      if (!sp_fs_read(scratch.mem, layout->rc[it].path, &content)) {
         facts.rc[it].has_line = sp_str_contains(content, sp_str_lit(SPN_INSTALL_RC_LINE));
       }
     }
@@ -115,10 +116,10 @@ static spn_install_facts_t probe_facts(sp_mem_t mem, spn_install_layout_t* layou
   facts.fish_current = file_matches(scratch.mem, layout->fish_conf, sp_str_lit(SPN_INSTALL_FISH_SH));
   sp_mem_end_scratch(scratch);
 
-  facts.fish = sp_fs_is_dir(layout->fish_dir);
+  facts.fish = !sp_fs_get_link_metadata(layout->fish_dir, &meta) && meta.kind == SP_FS_KIND_DIR;
 
   sp_da_for(layout->shadows, it) {
-    if (sp_fs_is_target_file(layout->shadows[it])) {
+    if (!sp_fs_get_path_metadata(layout->shadows[it], &meta) && meta.kind == SP_FS_KIND_FILE) {
       facts.shadow = layout->shadows[it];
       break;
     }
@@ -141,9 +142,9 @@ static sp_err_t apply(spn_install_action_t* action) {
     case SPN_INSTALL_ACTION_WRITE_FILE: {
       sp_path_t file = sp_path_from_str(action->path);
       sp_try(sp_fs_create_parent_at(file));
-      return sp_fs_write_atomic_at(file, action->text);
+      return sp_fs_write_at(file, action->text, SP_FS_WRITE_REPLACE);
     }
-    case SPN_INSTALL_ACTION_APPEND_LINE: return sp_fs_append(sp_path_from_str(action->path), action->text);
+    case SPN_INSTALL_ACTION_APPEND_LINE: return sp_fs_write(action->path, action->text, SP_FS_WRITE_APPEND);
     case SPN_INSTALL_ACTION_SET_USER_PATH: return set_user_path(action);
   }
   return SP_ERR;

@@ -35,8 +35,8 @@ sp_test_each(invocation, run_progress, test_t, tests, .setup = spn_test_ctx_setu
   sp_test_skip_on_win32();
   sp_mem_t mem = sp_test_arena(t);
   sp_str_t dir = test_dir_str(t);
-  sp_must_ok(t, sp_fs_create_file_str(sp_fs_join_path(mem, dir, sp_str_lit("progress")), sp_cstr_as_str(it->progress)));
-  sp_must_ok(t, sp_fs_create_file_str(sp_fs_join_path(mem, dir, sp_str_lit("err")), sp_cstr_as_str(it->err)));
+  sp_must_ok(t, sp_fs_write(sp_fs_join_path(mem, dir, sp_str_lit("progress")), sp_cstr_as_str(it->progress), SP_FS_WRITE_TRUNCATE));
+  sp_must_ok(t, sp_fs_write(sp_fs_join_path(mem, dir, sp_str_lit("err")), sp_cstr_as_str(it->err), SP_FS_WRITE_TRUNCATE));
 
   spn_invocation_t invocation = {
     .program = spn_arg_path((spn_path_t) { .sub = sp_str_lit("/bin/sh") }),
@@ -49,7 +49,8 @@ sp_test_each(invocation, run_progress, test_t, tests, .setup = spn_test_ctx_setu
   sp_io_dyn_mem_writer_t sink = sp_zero;
   sp_io_dyn_mem_writer_init(mem, &sink);
   spn_path_t log = { .sub = sp_fs_join_path(mem, dir, sp_str_lit("log")) };
-  spn_invocation_result_t run = spn_invocation_run_progress(&spn.roots, &invocation, log, &sink.base);
+  spn_children_t children = sp_zero;
+  spn_invocation_result_t run = spn_invocation_run_progress(&spn.roots, &children, &invocation, log, &sink.base);
 
   sp_expect_eq(t, run.result.status.exit_code, it->rc);
   sp_expect_str_eq_c(t, sp_io_dyn_mem_writer_as_str(&sink), it->progress);

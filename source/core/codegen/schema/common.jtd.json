@@ -53,6 +53,7 @@
         "detect": { "ref": "toolchain_detect" },
         "host": { "values": { "ref": "artifact" } },
         "mirrors": { "type": "string" },
+        "mirror_snapshot": { "type": "string" },
         "target": { "elements": { "ref": "toolchain_target" }, "metadata": { "shorthand": "kind" } }
       }
     },

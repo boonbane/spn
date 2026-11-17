@@ -223,6 +223,7 @@ static void lower_hosts(spn_toml_loader_t* ctx, const spn_cg_toolchain_decl_t* d
           .url = cell->value.url,
           .sha256 = cell->value.sha256,
           .mirror_list = decl->mirrors,
+          .mirror_snapshot = decl->mirror_snapshot,
         },
       }));
     }

@@ -8,7 +8,8 @@ static sp_str_t find_repo(sp_mem_t mem) {
   sp_fs_get_exe_path(mem, &path);
   while (true) {
     sp_assert(!sp_str_empty(path));
-    if (sp_fs_exists(sp_fs_join_path(mem, path, sp_str_lit("spn.toml")))) {
+    sp_sys_file_meta_t meta = sp_zero;
+    if (!sp_fs_get_path_metadata(sp_fs_join_path(mem, path, sp_str_lit("spn.toml")), &meta)) {
       return path;
     }
     path = sp_fs_parent_path(path);
@@ -168,7 +169,7 @@ static sp_str_t render_domain(winvm_t* vm, const winvm_variant_t* variant, sp_st
 
 s32 winvm_boot(winvm_t* vm, const winvm_variant_t* variant, sp_str_t disk) {
   sp_str_t path = sp_fs_join_path(vm->mem, vm->paths.domains, sp_fmt(vm->mem, "{}.xml", sp_fmt_str(winvm_domain(vm, variant))).value);
-  if (sp_fs_create_file_str(path, render_domain(vm, variant, disk))) {
+  if (sp_fs_write(path, render_domain(vm, variant, disk), SP_FS_WRITE_TRUNCATE)) {
     return -1;
   }
 
@@ -386,7 +387,7 @@ static winvm_probes_result_t read_lane(winvm_t* vm, const winvm_variant_t* varia
     sp_str_t content = sp_zero;
     spn_cg_probe_t cg = sp_zero;
     winvm_probe_t probe = { .variant = variant, .lane = lane, .name = name };
-    if (sp_io_read_file(vm->mem, manifest, &content) || !spn_probe_read(content, &cg, vm->mem) || !probe_expect(cg.expect, &probe.expect)) {
+    if (sp_fs_read(vm->mem, manifest, &content) || !spn_probe_read(content, &cg, vm->mem) || !probe_expect(cg.expect, &probe.expect)) {
       result = (winvm_probes_result_t) { .err = WINVM_PROBES_ERR_MANIFEST, .path = manifest };
       break;
     }

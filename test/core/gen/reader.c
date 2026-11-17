@@ -24,7 +24,7 @@ sp_test_each(gen_reader, release, read_test_t, tests) {
 
   sp_str_t path = test_repo_path(mem, sp_fmt(mem, "test/core/gen/releases/{}.json", sp_fmt_cstr(it->name)).value);
   sp_str_t json = sp_zero;
-  sp_must(t, !sp_io_read_file(mem, path, &json));
+  sp_must(t, !sp_fs_read(mem, path, &json));
 
   spn_cg_release_t release = sp_zero;
   bool ok = spn_release_read(json, &release, mem);

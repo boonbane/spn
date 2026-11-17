@@ -750,7 +750,7 @@ sp_err_t sp_elf_read(sp_mem_t mem, const u8* data, u64 size, sp_elf_t** out) {
 sp_err_t sp_elf_read_from_file(sp_mem_t mem, sp_path_t path, sp_elf_t** out) {
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch_for(mem);
   sp_str_t bytes = sp_zero;
-  sp_err_t err = sp_io_read_file_at(scratch.mem, path, &bytes);
+  sp_err_t err = sp_fs_read_at(scratch.mem, path, &bytes);
   if (err == SP_OK) {
     err = sp_elf_read(mem, (const u8*)bytes.data, bytes.len, out);
   }

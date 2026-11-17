@@ -9,27 +9,27 @@ typedef struct {
 static const distro_info_t distros [] = {
   [DISTRO_DEBIAN] = {
     .template = "debian",
-    .packages = "ca-certificates git curl xz-utils",
+    .packages = "ca-certificates git xz-utils",
     .label = "glibc",
   },
   [DISTRO_UBUNTU20] = {
     .template = "ubuntu20",
-    .packages = "ca-certificates git curl xz-utils",
+    .packages = "ca-certificates git xz-utils",
     .label = "glibc 2.31",
   },
   [DISTRO_UBUNTU19] = {
     .template = "ubuntu19",
-    .packages = "ca-certificates git curl xz-utils",
+    .packages = "ca-certificates git xz-utils",
     .label = "glibc 2.29",
   },
   [DISTRO_CENTOS7] = {
     .template = "centos7",
-    .packages = "ca-certificates git curl xz",
+    .packages = "ca-certificates git xz",
     .label = "glibc 2.17",
   },
   [DISTRO_ALPINE] = {
     .template = "alpine",
-    .packages = "ca-certificates git curl xz",
+    .packages = "ca-certificates git xz",
     .label = "musl, busybox /bin/sh",
   },
 };

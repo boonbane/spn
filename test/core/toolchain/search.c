@@ -77,7 +77,7 @@ sp_test_each(search, program, program_t, program_tests) {
   sp_fs_create_dir(sp_fs_join_path(mem, root, sp_str_lit("X")));
   sp_fs_create_dir(sp_fs_join_path(mem, root, sp_str_lit("Y")));
   sp_carr_for_until(it->files, at, it->files[at]) {
-    sp_fs_create_file_str(sp_fs_join_path(mem, root, sp_cstr_as_str(it->files[at])), sp_str_lit("A"));
+    sp_fs_write(sp_fs_join_path(mem, root, sp_cstr_as_str(it->files[at])), sp_str_lit("A"), SP_FS_WRITE_TRUNCATE);
   }
   sp_da(sp_str_t) dirs = sp_da_new(mem, sp_str_t);
   sp_carr_for_until(it->dirs, at, it->dirs[at]) {

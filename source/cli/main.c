@@ -14,12 +14,14 @@ static void on_wake(void* user_data) {
 static void on_signal(sp_os_signal_t signal, void* userdata) {
   switch (signal) {
     case SP_OS_SIGNAL_INTERRUPT: {
-      sp_atomic_s32_store(&host.interrupted, 1, SP_ATOMIC_SEQ_CST);
-      on_wake(SP_NULLPTR);
+      spn_cli_interrupt(SIGINT);
       break;
     }
-    case SP_OS_SIGNAL_ABORT:
     case SP_OS_SIGNAL_TERMINATE: {
+      spn_cli_interrupt(SIGTERM);
+      break;
+    }
+    case SP_OS_SIGNAL_ABORT: {
       break;
     }
   }
@@ -52,12 +54,32 @@ static void version(sp_tty_t* tty) {
   sp_mem_end_scratch(scratch);
 }
 
-s32 spn_main(s32 num_args, const c8** args) {
+#if defined(SP_POSIX)
+static void on_pipe(s32 signal) {
+}
+
+static void on_hangup(s32 signal) {
+  spn_cli_interrupt(SIGHUP);
+}
+#endif
+
+static s32 run(s32 num_args, const c8** args) {
+#if defined(SP_POSIX)
+  sigaction(SIGPIPE, &(struct sigaction) { .sa_handler = on_pipe }, SP_NULLPTR);
+#endif
   sp_mem_heap_t* heap = sp_mem_heap_new();
   host.mem = sp_mem_heap_as_allocator(heap);
   sp_sys_event_open(&host.doorbell);
   host.ctx = spn_ctx_new(on_wake, SP_NULLPTR);
   sp_os_register_signal_handler(SP_OS_SIGNAL_INTERRUPT, on_signal, SP_NULLPTR);
+  sp_os_register_signal_handler(SP_OS_SIGNAL_TERMINATE, on_signal, SP_NULLPTR);
+#if defined(SP_POSIX)
+  struct sigaction hangup = sp_zero;
+  sigaction(SIGHUP, SP_NULLPTR, &hangup);
+  if (hangup.sa_handler != SIG_IGN) {
+    sigaction(SIGHUP, &(struct sigaction) { .sa_handler = on_hangup }, SP_NULLPTR);
+  }
+#endif
 
   sp_cli_t cli = sp_zero;
   sp_cli_parse((sp_cli_desc_t) {
@@ -103,5 +125,46 @@ s32 spn_main(s32 num_args, const c8** args) {
 
   s32 code = spn_cli_shutdown(status != SP_CLI_ERR);
   return host.code ? host.code : code;
+}
+
+s32 spn_main(s32 num_args, const c8** args) {
+#if defined(SP_WIN32)
+  s32 count = 0;
+  LPWSTR* wide = CommandLineToArgvW(GetCommandLineW(), &count);
+  if (wide) {
+    sp_mem_t mem = sp_mem_os_new();
+    const c8** utf8 = sp_alloc_n(mem, const c8*, (u32)count + 1);
+    sp_for(it, (u32)count) {
+      sp_str_t arg = sp_zero;
+      sp_wtf16_to_wtf8(mem, sp_wide_str((const u16*)wide[it], (u32)wcslen(wide[it])), &arg);
+      utf8[it] = sp_str_to_cstr(mem, arg);
+    }
+    utf8[count] = SP_NULLPTR;
+    LocalFree(wide);
+
+    args = utf8;
+    num_args = count;
+  }
+
+  HANDLE job = CreateJobObjectW(SP_NULLPTR, SP_NULLPTR);
+  JOBOBJECT_EXTENDED_LIMIT_INFORMATION limits = {
+    .BasicLimitInformation = { .LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE },
+  };
+  if (job && !(SetInformationJobObject(job, JobObjectExtendedLimitInformation, &limits, (DWORD)sizeof(limits)) && AssignProcessToJobObject(job, GetCurrentProcess()))) {
+    CloseHandle(job);
+    job = SP_NULLPTR;
+  }
+#endif
+
+  s32 code = run(num_args, args);
+
+#if defined(SP_WIN32)
+  if (job) {
+    limits = sp_zero_s(JOBOBJECT_EXTENDED_LIMIT_INFORMATION);
+    SetInformationJobObject(job, JobObjectExtendedLimitInformation, &limits, (DWORD)sizeof(limits));
+    CloseHandle(job);
+  }
+#endif
+  return code;
 }
 SP_MAIN(spn_main)

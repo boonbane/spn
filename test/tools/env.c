@@ -5,8 +5,7 @@
 #include "toolchain/search.h"
 #include "triple/triple.h"
 
-#define git_exe_max_path 259
-#define git_exe_checkout_depth 118
+#define libgit2_max_repo_path 168
 
 void write_file(sp_str_t path, sp_str_t content) {
   sp_fs_create_dir(sp_fs_parent_path(path));
@@ -50,7 +49,8 @@ fixture_t fixture_new(sp_test_t* t) {
 
 sp_err_t fixture_init(sp_test_t* t, fixture_t* fixture) {
   *fixture = fixture_new(t);
-  sp_must(t, sp_fs_exists(fixture->paths.spn));
+  sp_sys_file_meta_t meta = sp_zero;
+  sp_must_ok(t, sp_fs_get_path_metadata(fixture->paths.spn, &meta));
   return SP_OK;
 }
 
@@ -90,6 +90,24 @@ static sp_da(sp_str_t) list_dir(sp_mem_t mem, sp_str_t path) {
   sp_fs_close_dir(dir);
   sp_da_sort(names, sp_str_sort_kernel_alphabetical);
   return names;
+}
+
+// The deepest repo spn makes under a fixture's storage is a dependency's
+// checkout, or the dir that checkout is staged in before the rename
+static u32 deepest_repo(sp_mem_t mem, sp_str_t project) {
+  u32 name = 0;
+  const c8* remotes [] = { "source", "remote" };
+  sp_carr_for(remotes, it) {
+    if (sp_str_empty(project)) {
+      break;
+    }
+    sp_da(sp_str_t) packages = list_dir(mem, sp_fs_join_path(mem, project, sp_cstr_as_str(remotes[it])));
+    sp_da_for(packages, at) {
+      name = sp_max(name, (u32)packages[at].len);
+    }
+  }
+  u32 checkout = sp_max(name + sp_cstr_len("-0123456789abcdef"), sp_cstr_len("t.0123456789abcdef.tmp"));
+  return sp_cstr_len("/cache/src/") + checkout + sp_cstr_len("/.git/");
 }
 
 typedef struct {
@@ -149,19 +167,14 @@ static sp_err_t setup_fixture_index_from_remote(sp_test_t* t, fixture_t* fixture
   sp_mem_t mem = fixture->mem;
 
   sp_str_t remote = sp_fs_join_path(mem, project, sp_str_lit("remote"));
-  if (!sp_fs_exists(remote)) {
+  sp_sys_file_meta_t meta = sp_zero;
+  if (sp_fs_get_link_metadata(remote, &meta)) {
     return SP_OK;
   }
-
-  sp_must(t, sp_fs_is_dir(remote));
-  if (test_host().os == SPN_OS_WINDOWS && fixture->root.len + git_exe_checkout_depth > git_exe_max_path) {
-    return sp_test_skip(t, "git.exe caps paths at {} characters; this fixture's root is {} and a checkout under it needs {} more",
-      sp_fmt_uint(git_exe_max_path),
-      sp_fmt_uint(fixture->root.len),
-      sp_fmt_uint(git_exe_checkout_depth));
-  }
+  sp_must_eq(t, meta.kind, SP_FS_KIND_DIR);
 
   sp_str_t raw = sp_fs_join_path(mem, project, sp_str_lit("index"));
+  bool indexed = !sp_fs_get_link_metadata(raw, &meta) && meta.kind == SP_FS_KIND_DIR;
 
   sp_str_t recipes = sp_fs_join_path(mem, project, sp_str_lit("recipes"));
   sp_da(fixture_sub_t) subs = sp_da_new(mem, fixture_sub_t);
@@ -170,7 +183,7 @@ static sp_err_t setup_fixture_index_from_remote(sp_test_t* t, fixture_t* fixture
   sp_da_for(packages, it) {
     sp_str_t package = packages[it];
     sp_str_t package_dir = sp_fs_join_path(mem, remote, package);
-    if (!sp_fs_is_dir(package_dir)) {
+    if (sp_fs_get_link_metadata(package_dir, &meta) || meta.kind != SP_FS_KIND_DIR) {
       continue;
     }
 
@@ -185,7 +198,7 @@ static sp_err_t setup_fixture_index_from_remote(sp_test_t* t, fixture_t* fixture
     }));
 
     sp_str_t recipe_versions = sp_fs_join_path(mem, recipes, package);
-    bool split = sp_fs_is_dir(recipe_versions);
+    bool split = !sp_fs_get_link_metadata(recipe_versions, &meta) && meta.kind == SP_FS_KIND_DIR;
     sp_str_t recipe_repo = sp_str_lit("");
     if (split) {
       recipe_repo = fixture_path(fixture, sp_fs_join_path(mem, sp_str_lit("recipes"), package));
@@ -195,7 +208,8 @@ static sp_err_t setup_fixture_index_from_remote(sp_test_t* t, fixture_t* fixture
     sp_da_for(versions, v) {
       sp_str_t version = versions[v];
       sp_str_t version_dir = sp_fs_join_path(mem, package_dir, version);
-      sp_must(t, sp_fs_is_dir(version_dir));
+      sp_must_ok(t, sp_fs_get_link_metadata(version_dir, &meta));
+      sp_must_eq(t, meta.kind, SP_FS_KIND_DIR);
 
       git_repo_commit_from_dir(version_dir, repo, version);
       sp_str_t commit = git_repo_head(repo);
@@ -204,14 +218,14 @@ static sp_err_t setup_fixture_index_from_remote(sp_test_t* t, fixture_t* fixture
         .value = commit,
       }));
 
-      if (sp_fs_is_dir(raw)) {
+      if (indexed) {
         continue;
       }
 
       if (split) {
         sp_str_t recipe_dir = sp_fs_join_path(mem, recipe_versions, version);
         sp_str_t recipe_manifest = sp_fs_join_path(mem, recipe_dir, sp_str_lit("spn.toml"));
-        sp_must(t, sp_fs_exists(recipe_manifest));
+        sp_must_ok(t, sp_fs_get_path_metadata(recipe_manifest, &meta));
 
         git_repo_commit_from_dir(recipe_dir, recipe_repo, version);
 
@@ -230,14 +244,14 @@ static sp_err_t setup_fixture_index_from_remote(sp_test_t* t, fixture_t* fixture
       }
       else {
         sp_str_t source_manifest = sp_fs_join_path(mem, version_dir, sp_str_lit("spn.toml"));
-        sp_must(t, sp_fs_exists(source_manifest));
+        sp_must_ok(t, sp_fs_get_path_metadata(source_manifest, &meta));
 
         sp_try(fixture_publish(t, fixture, repo, repo, commit));
       }
     }
   }
 
-  if (sp_fs_is_dir(raw)) {
+  if (indexed) {
     sp_str_t releases = sp_fs_join_path(mem, raw, sp_str_lit(".spn/index"));
     sp_da(sp_str_t) files = list_dir(mem, releases);
     sp_da_for(files, ft) {
@@ -275,11 +289,11 @@ static sp_err_t setup_fixture_source_repos(sp_test_t* t, fixture_t* fixture, sp_
   sp_mem_t mem = fixture->mem;
 
   sp_str_t source = sp_fs_join_path(mem, project, sp_str_lit("source"));
-  if (!sp_fs_exists(source)) {
+  sp_sys_file_meta_t meta = sp_zero;
+  if (sp_fs_get_link_metadata(source, &meta)) {
     return SP_OK;
   }
-
-  sp_must(t, sp_fs_is_dir(source));
+  sp_must_eq(t, meta.kind, SP_FS_KIND_DIR);
 
   struct { sp_str_t token; sp_str_t value; } subs[16];
   s32 num_subs = 0;
@@ -292,7 +306,7 @@ static sp_err_t setup_fixture_source_repos(sp_test_t* t, fixture_t* fixture, sp_
   sp_da_for(entries, it) {
     sp_str_t name = entries[it];
     sp_str_t dir = sp_fs_join_path(mem, source, name);
-    if (!sp_fs_is_dir(dir)) {
+    if (sp_fs_get_link_metadata(dir, &meta) || meta.kind != SP_FS_KIND_DIR) {
       continue;
     }
 
@@ -315,16 +329,23 @@ static sp_err_t setup_fixture_source_repos(sp_test_t* t, fixture_t* fixture, sp_
     return SP_OK;
   }
 
-  sp_da(sp_fs_it_entry_t) files = sp_zero;
-  sp_fs_collect_recursive(mem, fixture->root, &files);
-  sp_da_for(files, it) {
-    sp_str_t path = sp_fs_join_path(mem, fixture->root, files[it].path);
-    if (sp_fs_is_dir(path)) {
-      continue;
+  sp_da(sp_str_t) files = sp_da_new(mem, sp_str_t);
+  sp_sys_dir_t root = sp_zero;
+  sp_must_ok(t, sp_fs_open_dir_at(sp_path_from_str(fixture->root), &root));
+  sp_fs_it_t walk = sp_fs_it(mem, root);
+  sp_fs_it_entry_t entry = sp_zero;
+  while (sp_fs_it_next(&walk, &entry)) {
+    if (entry.kind != SP_FS_KIND_DIR) {
+      sp_da_push(files, sp_fs_join_path(mem, fixture->root, entry.path));
     }
+  }
+  sp_fs_it_deinit(&walk);
+  sp_fs_close_dir(root);
 
+  sp_da_for(files, it) {
+    sp_str_t path = files[it];
     sp_str_t content = sp_zero;
-    sp_io_read_file(mem, path, &content);
+    sp_fs_read(mem, path, &content);
 
     bool changed = false;
     sp_for(s, num_subs) {
@@ -359,7 +380,11 @@ static sp_str_t config_toml_path(fixture_t* fixture) {
   return sp_fs_join_path(fixture->mem, fixture->paths.config, sp_str_lit("spn/spn.toml"));
 }
 
-static void setup_fixture_config(fixture_t* fixture, sp_str_t index_dir) {
+sp_str_t fixture_index_url(fixture_t* fixture) {
+  return sp_str_replace_c8(fixture->mem, fixture->paths.index, '\\', '/');
+}
+
+static void setup_fixture_config(fixture_t* fixture) {
   sp_mem_t mem = fixture->mem;
   sp_str_t config_path = config_toml_path(fixture);
   sp_str_t content = sp_fmt(
@@ -368,7 +393,7 @@ static void setup_fixture_config(fixture_t* fixture, sp_str_t index_dir) {
     "name = \"core\"\n"
     "url = \"{}\"\n"
     "protocol = \"git\"\n",
-    sp_fmt_str(sp_str_replace_c8(mem, index_dir, '\\', '/'))
+    sp_fmt_str(fixture_index_url(fixture))
   ).value;
   write_file(config_path, sp_str_concat(mem, content, test_lanes_toml()));
 }
@@ -377,12 +402,14 @@ static sp_str_t pick_shared_toolchain_dir(sp_mem_t mem, sp_str_t root) {
   sp_str_t storage = sp_zero;
   sp_fs_get_storage_path(mem, &storage);
   sp_str_t global = sp_fs_join_path(mem, storage, sp_str_lit("spn/cache/toolchain"));
-  if (sp_fs_exists(global)) return global;
+  sp_sys_file_meta_t meta = sp_zero;
+  if (!sp_fs_get_path_metadata(global, &meta)) return global;
   return sp_fs_join_path(mem, root, sp_str_lit(".cache/toolchain"));
 }
 
 static sp_err_t fixture_copy_project(sp_test_t* t, fixture_t* fixture, sp_str_t project, const c8* const* copy) {
-  sp_must(t, sp_fs_exists(project));
+  sp_sys_file_meta_t meta = sp_zero;
+  sp_must_ok(t, sp_fs_get_path_metadata(project, &meta));
 
   const c8* defaults [] = {
     "main.c",
@@ -391,12 +418,12 @@ static sp_err_t fixture_copy_project(sp_test_t* t, fixture_t* fixture, sp_str_t 
 
   sp_carr_for(defaults, it) {
     sp_str_t from = sp_fs_join_path(fixture->mem, project, sp_cstr_as_str(defaults[it]));
-    if (sp_fs_exists(from)) {
+    if (!sp_fs_get_path_metadata(from, &meta)) {
       copy_into(from, fixture->root);
     }
   }
 
-  if (sp_fs_is_dir(sp_fs_join_path(fixture->mem, project, sp_str_lit("tools")))) {
+  if (!sp_fs_get_link_metadata(sp_fs_join_path(fixture->mem, project, sp_str_lit("tools")), &meta) && meta.kind == SP_FS_KIND_DIR) {
     sp_try(copy_project_path(t, fixture, project, sp_str_lit("tools")));
   }
 
@@ -411,7 +438,8 @@ static sp_err_t fixture_copy_project(sp_test_t* t, fixture_t* fixture, sp_str_t 
 sp_err_t fixture_config_append(sp_test_t* t, fixture_t* fixture, const c8* project, const c8* config) {
   sp_mem_t mem = fixture->mem;
   sp_str_t from = sp_fs_join_path(mem, sp_fs_join_path(mem, fixture->paths.root, sp_cstr_as_str(project)), sp_cstr_as_str(config));
-  sp_must(t, sp_fs_exists(from));
+  sp_sys_file_meta_t meta = sp_zero;
+  sp_must_ok(t, sp_fs_get_path_metadata(from, &meta));
 
   sp_str_t path = config_toml_path(fixture);
   write_file(path, sp_str_concat(mem, test_read_file(mem, path), test_read_file(mem, from)));
@@ -422,7 +450,17 @@ sp_err_t prepare_test(sp_test_t* t, fixture_t* fixture, const c8* project, const
   sp_mem_t mem = fixture->mem;
 
   fixture->paths.config = fixture_path(fixture, sp_str_lit(".home/config"));
-  fixture->paths.storage = fixture_path(fixture, sp_str_lit(".home/storage"));
+  fixture->paths.storage = fixture_path(fixture, sp_str_lit(".st"));
+
+  sp_str_t from = project ? sp_fs_join_path(mem, fixture->paths.root, sp_cstr_as_str(project)) : sp_zero_s(sp_str_t);
+  u32 depth = deepest_repo(mem, from);
+  if (test_host().os == SPN_OS_WINDOWS && fixture->paths.storage.len + depth > libgit2_max_repo_path) {
+    return sp_test_skip(t, "libgit2 caps a repo path at {} characters on Windows; this fixture's storage is {} and a checkout under it needs {} more",
+      sp_fmt_uint(libgit2_max_repo_path),
+      sp_fmt_uint(fixture->paths.storage.len),
+      sp_fmt_uint(depth));
+  }
+
   fixture->paths.patches = fixture_path(fixture, sp_str_lit("patches"));
   fixture->paths.toolchain = pick_shared_toolchain_dir(mem, fixture->paths.root);
   fixture->paths.include = sp_fs_join_path(mem, fixture->paths.storage, sp_str_lit("spn/include"));
@@ -437,7 +475,7 @@ sp_err_t prepare_test(sp_test_t* t, fixture_t* fixture, const c8* project, const
   git(fixture->paths.index, "config", "receive.denyCurrentBranch", "updateInstead");
   git_repo_commit(fixture->paths.index, sp_str_lit("init"));
   setup_fixture_envrc(fixture, fixture->paths.storage, fixture->paths.toolchain, fixture->paths.config);
-  setup_fixture_config(fixture, fixture->paths.index);
+  setup_fixture_config(fixture);
 
   copy_into(sp_fs_join_path(mem, fixture->paths.root, sp_str_lit("include/spn.h")), fixture->paths.include);
   sp_str_t include_spn = sp_fs_join_path(mem, fixture->paths.include, sp_str_lit("spn"));
@@ -451,7 +489,8 @@ sp_err_t prepare_test(sp_test_t* t, fixture_t* fixture, const c8* project, const
     sp_try(setup_fixture_source_repos(t, fixture, path));
 
     sp_str_t workspace_index = fixture_path(fixture, sp_str_lit("index"));
-    if (sp_fs_is_dir(workspace_index)) {
+    sp_sys_file_meta_t meta = sp_zero;
+    if (!sp_fs_get_link_metadata(workspace_index, &meta) && meta.kind == SP_FS_KIND_DIR) {
       git_repo_init(workspace_index);
       git_repo_stage_all(workspace_index);
       git_repo_commit(workspace_index, sp_str_lit("seed"));

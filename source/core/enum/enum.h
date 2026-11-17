@@ -29,6 +29,7 @@ spn_tree_t spn_tree_from_str(sp_str_t str);
 sp_str_t spn_tree_to_str(spn_tree_t tree);
 sp_str_t spn_publish_root_to_str(spn_publish_root_t root);
 sp_str_t spn_node_failure_to_str(spn_node_failure_t failure);
+sp_str_t spn_file_lock_to_str(spn_file_lock_t lock);
 spn_sanitizer_t spn_sanitizer_from_str(sp_str_t str);
 sp_str_t spn_sanitizer_to_str(spn_sanitizer_t sanitizer);
 sp_str_t spn_sanitizer_set_to_str(sp_mem_t mem, spn_sanitizer_set_t set);
@@ -45,6 +46,7 @@ spn_option_type_t spn_option_type_from_str(sp_str_t str);
 sp_str_t spn_option_type_to_str(spn_option_type_t type);
 sp_str_t spn_option_setter_kind_to_str(spn_option_setter_kind_t kind);
 sp_str_t spn_linkage_requester_to_str(spn_linkage_requester_t requester);
+sp_str_t spn_git_route_to_str(spn_git_route_t route);
 sp_str_t spn_linking_refusal_to_str(spn_linking_refusal_t refusal);
 sp_str_t spn_cc_feature_to_str(spn_cc_feature_t feature);
 

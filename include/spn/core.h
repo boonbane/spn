@@ -93,6 +93,13 @@ typedef enum {
 } spn_linkage_requester_t;
 
 typedef enum {
+  SPN_GIT_ROUTE_BUILTIN,
+  SPN_GIT_ROUTE_CONFIGURED,
+  SPN_GIT_ROUTE_SSH,
+  SPN_GIT_ROUTE_LOGIN,
+} spn_git_route_t;
+
+typedef enum {
   SPN_LIB_KIND_NONE,
   SPN_LIB_KIND_SHARED,
   SPN_LIB_KIND_STATIC,
@@ -160,6 +167,11 @@ typedef enum {
   SPN_NODE_FAILURE_UNPRODUCED,
   SPN_NODE_FAILURE_COPY,
 } spn_node_failure_t;
+
+typedef enum {
+  SPN_FILE_LOCK_REPO,
+  SPN_FILE_LOCK_TOOLCHAIN,
+} spn_file_lock_t;
 
 typedef enum {
   SPN_C_STANDARD_NONE,

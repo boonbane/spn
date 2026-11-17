@@ -1,0 +1,170 @@
+[package]
+name = "libgit2"
+version = "1.9.0"
+include = ["include"]
+define = [
+  { value = "_FILE_OFFSET_BITS=64", when = { os = { not = "windows" } } },
+  { value = "_GNU_SOURCE", when = { abi = { not = "msvc" } } },
+  { value = "WIN32", when = { os = "windows" } },
+  { value = "__USE_MINGW_ANSI_STDIO=1", when = { os = "windows", abi = "gnu" } },
+  { value = "_SCL_SECURE_NO_WARNINGS", when = { abi = "msvc" } },
+  { value = "_CRT_SECURE_NO_DEPRECATE", when = { abi = "msvc" } },
+  { value = "_CRT_NONSTDC_NO_DEPRECATE", when = { abi = "msvc" } },
+]
+system_deps = [
+  { lib = "ws2_32", when = { os = "windows" } },
+  { lib = "winhttp", when = { os = "windows" } },
+  { lib = "rpcrt4", when = { os = "windows" } },
+  { lib = "crypt32", when = { os = "windows" } },
+  { lib = "ole32", when = { os = "windows" } },
+]
+
+[package.upstream]
+url = "https://github.com/libgit2/libgit2.git"
+commit = "0551dfd4ad989b6a3d5683c0d4cf326c6efef929"
+
+[deps.package]
+mbedtls = { path = "../mbedtls", when = { os = { not = "windows" } } }
+
+[options.static]
+type = "bool"
+default = true
+public = true
+define = "GIT_STATIC"
+
+[[lib]]
+name = "git2"
+kinds = ["static"]
+include = [
+  "src/libgit2",
+  "src/util",
+  "deps/reftable",
+  "deps/xdiff",
+  "deps/llhttp",
+  "deps/pcre2",
+  "deps/zlib",
+  { path = "config", tree = "manifest" },
+  { path = "deps/winhttp", when = { os = "windows", abi = "gnu" } },
+]
+source = [
+  "src/libgit2/*.c",
+  "src/libgit2/streams/*.c",
+  "src/libgit2/transports/*.c",
+  "src/util/*.c",
+  "src/util/allocators/*.c",
+  { path = "src/util/unix/*.c", when = { os = { not = "windows" } } },
+  { path = "src/util/win32/*.c", when = { os = "windows" } },
+  "src/util/hash/collisiondetect.c",
+  "src/util/hash/sha1dc/*.c",
+  "src/util/hash/builtin.c",
+  "src/util/hash/rfc6234/*.c",
+  "deps/reftable/*.c",
+  "deps/xdiff/*.c",
+  "deps/llhttp/*.c",
+]
+define = [
+  "GIT_THREADS",
+  { value = "GIT_THREADS_PTHREADS", when = { os = { not = "windows" } } },
+  { value = "GIT_THREADS_WIN32", when = { os = "windows" } },
+  "GIT_HTTP",
+  "GIT_HTTPS",
+  { value = "GIT_HTTPS_MBEDTLS", when = { os = { not = "windows" } } },
+  { value = "GIT_HTTPS_WINHTTP", when = { os = "windows" } },
+  "GIT_SHA1_BUILTIN",
+  "SHA1DC_NO_STANDARD_INCLUDES=1",
+  'SHA1DC_CUSTOM_INCLUDE_SHA1_C="git2_util.h"',
+  'SHA1DC_CUSTOM_INCLUDE_UBC_CHECK_C="git2_util.h"',
+  "SHA1DC_FORCE_ALIGNED_ACCESS",
+  "GIT_SHA256_BUILTIN",
+  "GIT_HTTPPARSER_BUILTIN",
+  "GIT_REGEX_BUILTIN",
+  "PCRE2_STATIC",
+  "PCRE2_EXPORT=",
+  "PCRE2_EXP_DECL=",
+  "PCRE2_EXP_DEFN=",
+  "GIT_COMPRESSION_BUILTIN",
+  "GIT_SSH",
+  "GIT_SSH_EXEC",
+  "GIT_NSEC",
+  { value = "GIT_NSEC_MTIM", when = { os = "linux" } },
+  { value = "GIT_NSEC_MTIMESPEC", when = { os = "macos" } },
+  { value = "GIT_NSEC_WIN32", when = { os = "windows" } },
+]
+flags = [{ value = "-O2", when = { mode = "debug", abi = { not = "msvc" } } }]
+deps = [
+  { pkg = "mbedtls", when = { os = { not = "windows" } } },
+  "git2_pcre2",
+  "git2_zlib",
+]
+
+[[lib]]
+name = "git2_pcre2"
+kinds = ["static"]
+include = ["deps/pcre2", { path = "config/pcre2", tree = "manifest" }]
+source = [
+  "deps/pcre2/pcre2_auto_possess.c",
+  "deps/pcre2/pcre2_chartables.c",
+  "deps/pcre2/pcre2_chkdint.c",
+  "deps/pcre2/pcre2_compile.c",
+  "deps/pcre2/pcre2_compile_cgroup.c",
+  "deps/pcre2/pcre2_compile_class.c",
+  "deps/pcre2/pcre2_config.c",
+  "deps/pcre2/pcre2_context.c",
+  "deps/pcre2/pcre2_convert.c",
+  "deps/pcre2/pcre2_dfa_match.c",
+  "deps/pcre2/pcre2_error.c",
+  "deps/pcre2/pcre2_extuni.c",
+  "deps/pcre2/pcre2_find_bracket.c",
+  "deps/pcre2/pcre2_maketables.c",
+  "deps/pcre2/pcre2_match.c",
+  "deps/pcre2/pcre2_match_data.c",
+  "deps/pcre2/pcre2_match_next.c",
+  "deps/pcre2/pcre2_newline.c",
+  "deps/pcre2/pcre2_ord2utf.c",
+  "deps/pcre2/pcre2_pattern_info.c",
+  "deps/pcre2/pcre2_script_run.c",
+  "deps/pcre2/pcre2_serialize.c",
+  "deps/pcre2/pcre2_string_utils.c",
+  "deps/pcre2/pcre2_study.c",
+  "deps/pcre2/pcre2_substitute.c",
+  "deps/pcre2/pcre2_substring.c",
+  "deps/pcre2/pcre2_tables.c",
+  "deps/pcre2/pcre2_ucd.c",
+  "deps/pcre2/pcre2_valid_utf.c",
+  "deps/pcre2/pcre2_xclass.c",
+]
+define = [
+  "HAVE_CONFIG_H",
+  "PCRE2_CODE_UNIT_WIDTH=8",
+  "PCRE2_STATIC",
+  "PCRE2_EXPORT=",
+  "PCRE2_EXP_DECL=",
+  "PCRE2_EXP_DEFN=",
+  { value = "_CRT_SECURE_NO_WARNINGS", when = { abi = "msvc" } },
+]
+flags = [{ value = "-O2", when = { mode = "debug", abi = { not = "msvc" } } }]
+
+[[lib]]
+name = "git2_zlib"
+kinds = ["static"]
+include = ["deps/zlib"]
+source = ["deps/zlib/*.c"]
+define = [
+  "NO_VIZ",
+  "STDC",
+  "NO_GZIP",
+  "HAVE_SYS_TYPES_H",
+  "HAVE_STDINT_H",
+  "HAVE_STDDEF_H",
+  { value = "Z_HAVE_UNISTD_H", when = { os = "windows", abi = "gnu" } },
+  { value = "_LFS64_LARGEFILE", when = { os = "windows", abi = "gnu" } },
+  { value = "_LARGEFILE64_SOURCE=1", when = { os = "windows", abi = "gnu" } },
+]
+flags = [{ value = "-O2", when = { mode = "debug", abi = { not = "msvc" } } }]
+
+[package.publish]
+include = [
+  { from = "include/git2.h" },
+  { from = "include/git2/*", to = "git2" },
+  { from = "include/git2/sys/*", to = "git2/sys" },
+]

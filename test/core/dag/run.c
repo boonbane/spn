@@ -347,7 +347,8 @@ static spn_err_t execute_action(const si_dag_ctx_t* c, void* user_data) {
     return SPN_OK;
   }
   sp_da_for(c->consumes, it) {
-    if (!sp_fs_exists_at(dag_test_at(ctx->env, si_dag_resolve_input(c, c->consumes[it])))) {
+    sp_sys_file_meta_t meta = sp_zero;
+    if (sp_fs_get_path_metadata_at(dag_test_at(ctx->env, si_dag_resolve_input(c, c->consumes[it])), &meta)) {
       return SPN_ERR_DAG_ACTION;
     }
   }
@@ -355,7 +356,8 @@ static spn_err_t execute_action(const si_dag_ctx_t* c, void* user_data) {
     if (!ctx->spec->orders[it]) {
       break;
     }
-    if (!sp_fs_exists_at(dag_test_at(ctx->env, dag_test_env_rooted(ctx->env, sp_cstr_as_str(ctx->spec->orders[it]))))) {
+    sp_sys_file_meta_t meta = sp_zero;
+    if (sp_fs_get_path_metadata_at(dag_test_at(ctx->env, dag_test_env_rooted(ctx->env, sp_cstr_as_str(ctx->spec->orders[it]))), &meta)) {
       return SPN_ERR_DAG_ACTION;
     }
   }
@@ -366,9 +368,9 @@ static spn_err_t execute_action(const si_dag_ctx_t* c, void* user_data) {
     : sp_fmt(ctx->env->mem, "{}", sp_fmt_uint(ctx->env->runs)).value;
   if (ctx->spec->tree) {
     spn_path_t inside = spn_path_join(ctx->env->mem, output, sp_str_lit("H"));
-    return sp_fs_create_file_str_at(dag_test_at(ctx->env, inside), sp_str_lit("T")) ? SPN_ERR_DAG_ACTION : SPN_OK;
+    return sp_fs_write_at(dag_test_at(ctx->env, inside), sp_str_lit("T"), SP_FS_WRITE_TRUNCATE) ? SPN_ERR_DAG_ACTION : SPN_OK;
   }
-  return sp_fs_create_file_str_at(dag_test_at(ctx->env, output), content) ? SPN_ERR_DAG_ACTION : SPN_OK;
+  return sp_fs_write_at(dag_test_at(ctx->env, output), content, SP_FS_WRITE_TRUNCATE) ? SPN_ERR_DAG_ACTION : SPN_OK;
 }
 
 static sp_err_t build_graph(sp_test_t* t, dag_test_env_t* env, spn_dag_t* g, const test_t* test) {
@@ -423,7 +425,7 @@ sp_test_each(dag_run, builds, test_t, tests) {
       if (!build->sources[si].path) {
         break;
       }
-      sp_fs_create_file_str_at(dag_test_env_path(&env, sp_cstr_as_str(build->sources[si].path)), sp_cstr_as_str(build->sources[si].content));
+      sp_fs_write_at(dag_test_env_path(&env, sp_cstr_as_str(build->sources[si].path)), sp_cstr_as_str(build->sources[si].content), SP_FS_WRITE_TRUNCATE);
     }
     sp_carr_for(build->remove_dirs, si) {
       if (!build->remove_dirs[si]) {

@@ -1,0 +1,75 @@
+diff --git a/src/libgit2/transports/winhttp.c b/src/libgit2/transports/winhttp.c
+index 119981f..ea886fa 100644
+--- a/src/libgit2/transports/winhttp.c
++++ b/src/libgit2/transports/winhttp.c
+@@ -34,7 +34,6 @@
+ #define CACHED_POST_BODY_BUF_SIZE	4096
+ #define UUID_LENGTH_CCH	32
+ #define TIMEOUT_INFINITE -1
+-#define DEFAULT_CONNECT_TIMEOUT 60000
+ #ifndef WINHTTP_IGNORE_REQUEST_TOTAL_LENGTH
+ #define WINHTTP_IGNORE_REQUEST_TOTAL_LENGTH 0
+ #endif
+@@ -63,6 +62,9 @@
+ # define DWORD_MAX 0xffffffff
+ #endif
+
++extern int git_socket_stream__connect_timeout;
++extern int git_socket_stream__timeout;
++
+ static const char *prefix_https = "https://";
+ static const char *upload_pack_service = "upload-pack";
+ static const char *upload_pack_ls_service_url = "/info/refs?service=git-upload-pack";
+@@ -366,6 +368,16 @@ static int apply_credentials(
+ 	return error;
+ }
+
++static BOOL set_timeouts(HINTERNET handle)
++{
++	int connect_timeout = git_socket_stream__connect_timeout > 0 ?
++		git_socket_stream__connect_timeout : TIMEOUT_INFINITE;
++	int timeout = git_socket_stream__timeout > 0 ?
++		git_socket_stream__timeout : TIMEOUT_INFINITE;
++
++	return WinHttpSetTimeouts(handle, TIMEOUT_INFINITE, connect_timeout, timeout, timeout);
++}
++
+ static int winhttp_stream_connect(winhttp_stream *s)
+ {
+ 	winhttp_subtransport *t = OWNING_SUBTRANSPORT(s);
+@@ -376,8 +388,6 @@ static int winhttp_stream_connect(winhttp_stream *s)
+ 	BOOL peerdist = FALSE;
+ 	int error = -1;
+ 	unsigned long disable_redirects = WINHTTP_DISABLE_REDIRECTS;
+-	int default_timeout = TIMEOUT_INFINITE;
+-	int default_connect_timeout = DEFAULT_CONNECT_TIMEOUT;
+ 	DWORD autologon_policy = WINHTTP_AUTOLOGON_SECURITY_LEVEL_HIGH;
+
+ 	const char *service_url = s->service_url;
+@@ -418,7 +428,7 @@ static int winhttp_stream_connect(winhttp_stream *s)
+ 	if (!WinHttpSetOption(s->request, WINHTTP_OPTION_AUTOLOGON_POLICY, &autologon_policy, sizeof(DWORD)))
+ 		return -1;
+
+-	if (!WinHttpSetTimeouts(s->request, default_timeout, default_connect_timeout, default_timeout, default_timeout)) {
++	if (!set_timeouts(s->request)) {
+ 		git_error_set(GIT_ERROR_OS, "failed to set timeouts for WinHTTP");
+ 		goto on_error;
+ 	}
+@@ -780,8 +790,6 @@ static int winhttp_connect(
+ 	git_str ipv6 = GIT_STR_INIT, ua = GIT_STR_INIT;
+ 	const char *host;
+ 	int error = -1;
+-	int default_timeout = TIMEOUT_INFINITE;
+-	int default_connect_timeout = DEFAULT_CONNECT_TIMEOUT;
+ 	bool has_ua = true;
+ 	DWORD protocols =
+ 		WINHTTP_FLAG_SECURE_PROTOCOL_TLS1 |
+@@ -851,7 +859,7 @@ static int winhttp_connect(
+ 			sizeof(protocols));
+ 	}
+
+-	if (!WinHttpSetTimeouts(t->session, default_timeout, default_connect_timeout, default_timeout, default_timeout)) {
++	if (!set_timeouts(t->session)) {
+ 		git_error_set(GIT_ERROR_OS, "failed to set timeouts for WinHTTP");
+ 		goto on_error;
+ 	}

@@ -8,7 +8,7 @@ sp_err_t toml_read_source(sp_test_t* t, const c8* manifest, const c8* toml, sp_s
 
   sp_mem_t mem = sp_test_arena(t);
   sp_str_t path = test_repo_path(mem, sp_test_format(t, "test/core/toml/manifests/{}.toml", sp_fmt_cstr(manifest)));
-  sp_must_ok(t, sp_io_read_file(mem, path, source));
+  sp_must_ok(t, sp_fs_read(mem, path, source));
   return SP_OK;
 }
 

@@ -91,6 +91,20 @@ typedef struct {
   u32 count;
 } spn_index_arr_t;
 
+typedef enum {
+  SPN_NET_TRUST_NONE,
+  SPN_NET_TRUST_SYSTEM,
+  SPN_NET_TRUST_FOUND,
+  SPN_NET_TRUST_CONFIG,
+  SPN_NET_TRUST_ENV,
+} spn_net_trust_kind_t;
+
+typedef struct {
+  spn_net_trust_kind_t kind;
+  sp_str_t bundle;
+  bool missing;
+} spn_net_trust_t;
+
 typedef struct {
   u32 kinds;
   spn_str_arr_t names;
@@ -136,6 +150,7 @@ typedef struct {
   sp_str_t dir;
   u32 index_refresh_seconds;
   bool project_optional;
+  bool search;
 } spn_open_request_t;
 
 typedef struct {

@@ -295,7 +295,7 @@ static spn_toolchain_launcher_t launcher(sp_mem_t mem, sp_str_t root, fixture_la
 
 static void write_file(sp_mem_t mem, sp_str_t root, file_t file) {
   sp_str_t content = sp_cstr_as_str(file.content ? file.content : file.path);
-  sp_fs_create_file_str(file_path(mem, root, file.path), content);
+  sp_fs_write(file_path(mem, root, file.path), content, SP_FS_WRITE_TRUNCATE);
 }
 
 static sp_str_t search_path(sp_mem_t mem, sp_str_t root, const c8* const* dirs) {
@@ -380,7 +380,7 @@ sp_test_each(probe, resolve, test_t, tests, .setup = spn_test_ctx_setup) {
         break;
       }
       case PROBE_ACTION_CORRUPT: {
-        sp_fs_create_file_str(cache_file.sub, sp_str_lit("not a cache"));
+        sp_fs_write(cache_file.sub, sp_str_lit("not a cache"), SP_FS_WRITE_TRUNCATE);
         break;
       }
       case PROBE_ACTION_PROBE: {

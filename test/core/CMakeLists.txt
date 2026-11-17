@@ -38,16 +38,28 @@ add_executable(core
   compiler/toc.c
   compiler/tools.c
   config/config.c
+  config/net.c
+  external/backoff.c
+  external/git.c
+  external/http.c
+  external/net.c
   external/obj.c
   external/wasm.c
   gen/lower.c
   gen/reader.c
   gen/union.c
-  git/fixture.c
-  git/cache.c
-  git/key.c
+  git/cache/checkout.c
+  git/cache/failure.c
+  git/cache/lock.c
+  git/cache/patch.c
+  git/cache/system.c
+  git/key/checkout.c
+  git/key/db.c
+  git/key/name.c
   git/patch.c
-  git/url.c
+  git/recover.c
+  git/url/ssh.c
+  git/url/web.c
   index/cache.c
   index/dir.c
   index/location.c
@@ -112,8 +124,11 @@ add_executable(core
   toml/set.c
   toolchain/builtins.c
   toolchain/catalog.c
+  toolchain/claim.c
   toolchain/driver.c
+  toolchain/fetch.c
   toolchain/linker.c
+  toolchain/mirrors.c
   toolchain/parse.c
   toolchain/probe.c
   toolchain/program.c
@@ -132,6 +147,7 @@ add_executable(core
   toolchain/select.c
   toolchain/sha256.c
   toolchain/toolchain.c
+  toolchain/verify.c
   toolchain/zig.c
   unit/harness.c
   unit/compile.c
@@ -179,7 +195,7 @@ set_source_files_properties(manifest/lower/lower.c PROPERTIES COMPILE_DEFINITION
   "MANIFEST_DIR=\"test/core/manifest/lower/manifests\"")
 set_source_files_properties(pkg/load.c PROPERTIES COMPILE_DEFINITIONS
   "PKG_MANIFEST_DIR=\"test/core/pkg/manifests\"")
-set_source_files_properties(config/config.c PROPERTIES COMPILE_DEFINITIONS
+set_source_files_properties(config/config.c config/net.c PROPERTIES COMPILE_DEFINITIONS
   "CONFIG_DIR=\"test/core/config/configs\"")
 set_source_files_properties(
   toolchain/builtins.c

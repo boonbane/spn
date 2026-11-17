@@ -161,7 +161,7 @@ static sp_cli_result_t embed_one(
   sp_str_t embed_path
 ) {
   sp_str_t content = sp_zero;
-  if (sp_io_read_file(mem, src_path, &content) != SP_OK) {
+  if (sp_fs_read(mem, src_path, &content) != SP_OK) {
     return sp_cli_set_error(cli, sp_fmt(mem, "failed to read {.red}", sp_fmt_str(src_path)).value);
   }
 
@@ -242,18 +242,29 @@ sp_cli_result_t embed_run(sp_cli_t* cli) {
       dest = sp_str_sub(arg, eq + 1, arg.len - eq - 1);
     }
 
-    if (sp_fs_is_dir(src)) {
-      sp_da(sp_fs_it_entry_t) files = sp_zero;
-      if (sp_fs_collect_recursive(mem, src, &files)) {
+    sp_sys_file_meta_t meta = sp_zero;
+    if (!sp_fs_get_link_metadata(src, &meta) && meta.kind == SP_FS_KIND_DIR) {
+      sp_sys_dir_t dir = sp_zero;
+      if (sp_fs_open_dir_at(sp_path_from_str(src), &dir)) {
         return sp_cli_set_error(cli, sp_fmt(mem, "failed to read {.red}", sp_fmt_str(src)).value);
       }
-      sp_da_for(files, fit) {
-        sp_fs_it_entry_t ent = files[fit];
+      sp_cli_result_t embedded = SP_CLI_OK;
+      sp_fs_it_t walk = sp_fs_it(mem, dir);
+      sp_fs_it_entry_t ent = sp_zero;
+      while (embedded == SP_CLI_OK && sp_fs_it_next(&walk, &ent)) {
         if (ent.kind == SP_FS_KIND_DIR) continue;
-        sp_str_t embed_path = sp_str_empty(dest) ? ent.path : sp_fs_join_path(mem, dest, ent.path);
-        if (embed_one(cli, mem, &obj, &entries, sp_fs_join_path(mem, src, ent.path), embed_path) != SP_CLI_OK) {
-          return SP_CLI_ERR;
-        }
+        sp_str_t rel = sp_str_copy(mem, ent.path);
+        sp_str_t embed_path = sp_str_empty(dest) ? rel : sp_fs_join_path(mem, dest, rel);
+        embedded = embed_one(cli, mem, &obj, &entries, sp_fs_join_path(mem, src, rel), embed_path);
+      }
+      sp_err_t walked = walk.err;
+      sp_fs_it_deinit(&walk);
+      sp_fs_close_dir(dir);
+      if (embedded != SP_CLI_OK) {
+        return SP_CLI_ERR;
+      }
+      if (walked) {
+        return sp_cli_set_error(cli, sp_fmt(mem, "failed to read {.red}", sp_fmt_str(src)).value);
       }
     }
     else {
@@ -301,11 +312,11 @@ sp_cli_result_t embed_run(sp_cli_t* cli) {
     return sp_cli_set_error(cli, sp_fmt(mem, "failed to create {.red}", sp_fmt_str(hdr_dir)).value);
   }
 
-  if (sp_fs_create_file_slice(obj_path, (sp_mem_slice_t){ object.storage.data, object.storage.len }) != SP_OK) {
+  if (sp_fs_write_slice(obj_path, (sp_mem_slice_t){ object.storage.data, object.storage.len }, SP_FS_WRITE_TRUNCATE) != SP_OK) {
     return sp_cli_set_error(cli, sp_fmt(mem, "failed to write {.red}", sp_fmt_str(obj_path)).value);
   }
 
-  if (sp_fs_create_file_slice(hdr_path, (sp_mem_slice_t){ header.storage.data, header.storage.len }) != SP_OK) {
+  if (sp_fs_write_slice(hdr_path, (sp_mem_slice_t){ header.storage.data, header.storage.len }, SP_FS_WRITE_TRUNCATE) != SP_OK) {
     return sp_cli_set_error(cli, sp_fmt(mem, "failed to write {.red}", sp_fmt_str(hdr_path)).value);
   }
 

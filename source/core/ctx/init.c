@@ -5,6 +5,8 @@
 #include "ctx/ctx.h"
 #include "error/error.h"
 #include "event/event.h"
+#include "external/git.h"
+#include "external/http.h"
 #include "external/wasm/wasm.h"
 #include "git/cache.h"
 #include "hash/digest/digest.h"
@@ -44,7 +46,7 @@ static bool write_file(sp_path_t path, const void* data, u64 size) {
 
 static sp_str_t read_stamp(sp_mem_t mem, spn_ctx_t* ctx) {
   sp_str_t version = sp_zero;
-  sp_io_read_file_at(mem, spn_path_at(&ctx->roots, spn_path(mem, SPN_DIR_ID_RUNTIME, "version.stamp")), &version);
+  sp_fs_read_at(mem, spn_path_at(&ctx->roots, spn_path(mem, SPN_DIR_ID_RUNTIME, "version.stamp")), &version);
   return sp_str_trim(version);
 }
 
@@ -150,7 +152,25 @@ static spn_err_t open_roots(spn_ctx_t* ctx, spn_open_request_t request) {
   sp_fs_get_storage_path(ctx->heap, &home);
   sp_str_t storage = env_or(ctx, "SPN_STORAGE_DIR", sp_fs_join_path(ctx->heap, home, sp_str_lit("spn")));
   sp_str_t toolchain = sp_env_get(ctx->env, sp_str_lit("SPN_TOOLCHAIN_DIR"));
-  sp_str_t project = sp_str_valid(request.dir) ? request.dir : sp_str_lit(".");
+  sp_str_t project = sp_str_lit(".");
+  if (sp_str_valid(request.dir)) {
+    project = request.dir;
+  }
+  else if (request.search) {
+    sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+    sp_str_t dir = sp_zero;
+    sp_sys_file_meta_t meta = sp_zero;
+    bool searching = !sp_fs_get_cwd_path(ctx->heap, &dir);
+    while (searching) {
+      if (!sp_fs_get_link_metadata(sp_fs_join_path(scratch.mem, dir, sp_str_lit("spn.toml")), &meta) && meta.kind == SP_FS_KIND_FILE) {
+        project = dir;
+        break;
+      }
+      searching = !sp_fs_is_root(dir);
+      dir = sp_fs_parent_path(dir);
+    }
+    sp_mem_end_scratch(scratch);
+  }
   spn_try(create_root(ctx, SPN_PATH_ROOT_STORAGE, (spn_path_t) { .sub = storage }));
   spn_try(create_root(ctx, SPN_PATH_ROOT_TOOLCHAIN, sp_str_empty(toolchain) ? (spn_path_t) { .root = SPN_PATH_ROOT_STORAGE, .sub = sp_str_lit("cache/toolchain") } : (spn_path_t) { .sub = toolchain }));
   for (u32 it = SPN_DIR_ID_NONE + 1; it < SPN_DIR_ID_COUNT; it++) {
@@ -224,13 +244,6 @@ spn_err_t spn_ctx_open(spn_ctx_t* ctx, spn_open_request_t request) {
 
   spn_git_cache_init(&ctx->caches.git, ctx->mem, ctx->intern, &ctx->roots, spn_path_from_id(SPN_DIR_ID_GIT_DB), spn_path_from_id(SPN_DIR_ID_CHECKOUTS));
 
-  ctx->caches.toolchains = (spn_toolchain_store_t) {
-    .mem = ctx->mem,
-    .roots = &ctx->roots,
-    .mirror = sp_env_get(ctx->env, sp_str_lit("SPN_MIRROR")),
-  };
-  spn_probe_cache_load(&ctx->caches.toolchains.probes, &ctx->roots, (spn_path_t) { .root = SPN_PATH_ROOT_TOOLCHAIN, .sub = sp_str_lit("probe.cache") }, ctx->mem);
-
   spn_try(extract_runtime(ctx));
 
   spn_event_buffer_push(ctx->events, (spn_event_t) {
@@ -253,27 +266,49 @@ spn_err_t spn_ctx_open(spn_ctx_t* ctx, spn_open_request_t request) {
   sp_mem_end_scratch(scratch);
 
   // Load the per-machine config file
-  ctx->config.indexes = sp_da_new(ctx->heap, spn_index_info_t);
-  if (sp_fs_exists_at(spn_path_at(&ctx->roots, ctx->paths.config))) {
-    spn_cg_config_t config = sp_zero;
-    spn_toml_loader_t loader = spn_toml_loader(ctx->mem, ctx->intern, &ctx->roots);
-    sp_da(spn_index_info_t) indexes = sp_da_new(ctx->heap, spn_index_info_t);
-    sp_da(spn_toolchain_decl_t) toolchains = SP_NULLPTR;
+  spn_cg_config_t config = sp_zero;
+  spn_toml_loader_t loader = spn_toml_loader(ctx->mem, ctx->intern, &ctx->roots);
+  sp_sys_file_meta_t meta = sp_zero;
+  if (!sp_fs_get_path_metadata_at(spn_path_at(&ctx->roots, ctx->paths.config), &meta) && meta.kind != SP_FS_KIND_UNKNOWN) {
     spn_toml_load_config(&loader, ctx->paths.config, &config);
-    if (sp_da_empty(loader.issues)) {
-      sp_da_for(config.index, it) {
-        sp_da_push(indexes, spn_index_lower(&loader, it, SPN_INDEX_KIND_USER, &config.index[it]));
-      }
-      toolchains = spn_toolchains_lower_list(&loader, SPN_PATH_ROOT_NONE, config.toolchain);
-    }
-    if (!sp_da_empty(loader.issues)) {
-      return spn_err_emit(ctx, spn_toml_loader_err(&loader, ctx->paths.config));
-    }
-    ctx->config.indexes = indexes;
-    sp_da_for(toolchains, it) {
-      spn_toolchain_catalog_add(&ctx->catalog, toolchains[it]);
-    }
   }
+  sp_da(spn_index_info_t) indexes = sp_da_new(ctx->heap, spn_index_info_t);
+  sp_da(spn_toolchain_decl_t) toolchains = SP_NULLPTR;
+  spn_net_config_t net = sp_zero;
+  if (sp_da_empty(loader.issues)) {
+    sp_da_for(config.index, it) {
+      sp_da_push(indexes, spn_index_lower(&loader, it, SPN_INDEX_KIND_USER, &config.index[it]));
+    }
+    toolchains = spn_toolchains_lower_list(&loader, SPN_PATH_ROOT_NONE, config.toolchain);
+    net = spn_net_lower(&loader, &config.net);
+  }
+  if (!sp_da_empty(loader.issues)) {
+    return spn_err_emit(ctx, spn_toml_loader_err(&loader, ctx->paths.config));
+  }
+  ctx->config.indexes = indexes;
+  sp_da_for(toolchains, it) {
+    spn_toolchain_catalog_add(&ctx->catalog, toolchains[it]);
+  }
+
+  ctx->trust = spn_net_trust_find(net.ca_bundle, sp_env_get(ctx->env, sp_str_lit("SSL_CERT_FILE")));
+  if (spn_git_init(ctx->trust.bundle, net.timeout_s)) {
+    return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_GIT, .git.command = sp_str_lit("libgit2 init") });
+  }
+  if (spn_http_init()) {
+    return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_HTTP_INIT_FAILED });
+  }
+  ctx->caches.toolchains = (spn_toolchain_store_t) {
+    .mem = ctx->mem,
+    .roots = &ctx->roots,
+    .mirror = sp_env_get(ctx->env, sp_str_lit("SPN_MIRROR")),
+    .trust = ctx->trust,
+    .timeout_s = net.timeout_s,
+    .backoff = spn_net_default_backoff,
+  };
+  spn_git_transport_t transport = net.system_git ? SPN_GIT_TRANSPORT_SYSTEM : SPN_GIT_TRANSPORT_BUILTIN;
+  ctx->caches.git.transport = transport;
+  ctx->caches.git.backoff = spn_net_default_backoff;
+  spn_probe_cache_load(&ctx->caches.toolchains.probes, &ctx->roots, (spn_path_t) { .root = SPN_PATH_ROOT_TOOLCHAIN, .sub = sp_str_lit("probe.cache") }, ctx->mem);
 
   spn_try(spn_project_load(ctx, &ctx->project));
   if (!request.project_optional) {
@@ -293,6 +328,8 @@ spn_err_t spn_ctx_open(spn_ctx_t* ctx, spn_open_request_t request) {
     spn_path_t location = spn_index_location(index, ctx->heap, &ctx->roots, spn_path_from_id(SPN_DIR_ID_INDEX));
     index->location.at = spn_path_at(&ctx->roots, location);
     index->location.dir = spn_path_str(&ctx->roots, ctx->heap, location);
+    index->transport = transport;
+    index->backoff = spn_net_default_backoff;
     if (!index->refresh) {
       index->refresh = request.index_refresh_seconds ? request.index_refresh_seconds : SPN_INDEX_DEFAULT_REFRESH;
     }

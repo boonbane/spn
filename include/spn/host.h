@@ -44,6 +44,8 @@ bool spn_op_done(spn_op_t* op);
 spn_op_result_t spn_op_result(spn_op_t* op);
 void spn_op_free(spn_op_t* op);
 spn_err_t spn_scaffold_check(spn_ctx_t* ctx, spn_scaffold_request_t request);
+bool spn_scaffold_name_valid(sp_str_t name);
+sp_str_t spn_scaffold_name(sp_mem_t mem, sp_str_t dir);
 spn_err_t spn_triple_parse(sp_str_t str, spn_triple_t* triple);
 spn_triple_t spn_triple_merge(spn_triple_t base, spn_triple_t partial);
 sp_str_t spn_triple_to_str(sp_mem_t mem, spn_triple_t triple);

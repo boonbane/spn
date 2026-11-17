@@ -1,0 +1,5 @@
+#!/bin/sh
+if [ -n "$GIT_TERMINAL_PROMPT" ] && [ -n "$GCM_INTERACTIVE" ]; then
+  touch "$GIT_DIR/unattended"
+fi
+exit 0

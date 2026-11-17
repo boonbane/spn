@@ -187,7 +187,7 @@ sp_template_err_t sp_template_load_dir(sp_template_registry_t* reg, sp_str_t roo
     sp_str_t key = ext.len ? sp_str_sub(e.path, 0, (s32)(e.path.len - ext.len - 1)) : e.path;
 
     sp_str_t src = sp_zero;
-    if (sp_io_read_file_at(reg->mem, e.at, &src)) {
+    if (sp_fs_read_at(reg->mem, e.at, &src)) {
       err = SP_TEMPLATE_ERR_IO;
       break;
     }

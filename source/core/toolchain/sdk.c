@@ -362,7 +362,8 @@ spn_wasi_spelling_t spn_sdk_wasi_spelling(const spn_path_roots_t* roots, sp_mem_
     return SPN_WASI_SPELLING_WASI;
   }
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch_for(mem);
-  bool p1 = sp_fs_is_dir_at(spn_path_at(roots, spn_path_join(scratch.mem, sdk->root, sp_str_lit("lib/wasm32-wasip1"))));
+  sp_sys_file_meta_t meta = sp_zero;
+  bool p1 = !sp_fs_get_link_metadata_at(spn_path_at(roots, spn_path_join(scratch.mem, sdk->root, sp_str_lit("lib/wasm32-wasip1"))), &meta) && meta.kind == SP_FS_KIND_DIR;
   sp_mem_end_scratch(scratch);
   return p1 ? SPN_WASI_SPELLING_WASIP1 : SPN_WASI_SPELLING_WASI;
 }

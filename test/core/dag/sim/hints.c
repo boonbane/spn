@@ -62,7 +62,7 @@ sp_test_each(dag_hints, roundtrip, test_t, tests) {
   spn_dag_file_cache_flush(&env.files, path);
 
   sp_str_t content = sp_zero;
-  sp_must_eq(t, SP_OK, sp_io_read_file_at(env.mem, dag_test_at(&env, path), &content));
+  sp_must_eq(t, SP_OK, sp_fs_read_at(env.mem, dag_test_at(&env, path), &content));
   sp_expect(t, sp_str_starts_with(content, sp_str_lit("4\n")));
   sp_for(f, count) {
     spn_path_t key = make_key(&env, &it->files[f]);
@@ -145,7 +145,7 @@ sp_test(dag_hints, refreshed_on_hit) {
   }
 
   sp_str_t hints = sp_zero;
-  sp_must_eq(t, SP_OK, sp_io_read_file_at(env.dag.mem, dag_test_env_path(&env.dag, sp_str_lit("files")), &hints));
+  sp_must_eq(t, SP_OK, sp_fs_read_at(env.dag.mem, dag_test_env_path(&env.dag, sp_str_lit("files")), &hints));
   sp_sys_file_meta_t sys = sp_zero;
   sp_must_eq(t, SPN_OK, spn_dag_file_cache_stat(&env.dag.files, env.obs, &sys));
   sp_str_t mtime = sp_fmt(env.dag.mem, " {} {} ", sp_fmt_int((s64)sys.mtime.tv_sec), sp_fmt_int((s64)sys.mtime.tv_nsec)).value;
@@ -171,7 +171,7 @@ sp_test(dag_hints, pinned_obs_not_recorded) {
   spn_path_t path = dag_test_env_rooted(&env.dag, sp_str_lit("files"));
   spn_dag_file_cache_flush(&env.dag.files, path);
   sp_str_t hints = sp_zero;
-  sp_must_eq(t, SP_OK, sp_io_read_file_at(env.dag.mem, dag_test_at(&env.dag, path), &hints));
+  sp_must_eq(t, SP_OK, sp_fs_read_at(env.dag.mem, dag_test_at(&env.dag, path), &hints));
   sp_expect(t, sp_str_contains(hints, sp_fmt(env.dag.mem, " {} O", sp_fmt_uint(SPN_PATH_ROOT_PROJECT)).value));
   sp_expect(t, !sp_str_contains(hints, sp_str_lit("locked.h")));
   return SP_OK;

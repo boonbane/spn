@@ -20,7 +20,7 @@ static sp_str_t fz_repo_root(sp_mem_t mem) {
 static bool fz_load_template(sp_mem_t mem, sp_str_t* tmpl) {
   sp_str_t root = fz_repo_root(mem);
   sp_str_t path = sp_fs_join_path(mem, root, sp_str_lit("test/fuzz/resolver/templates/repro.tmpl"));
-  return !sp_io_read_file(mem, path, tmpl);
+  return !sp_fs_read(mem, path, tmpl);
 }
 
 static sp_str_t fz_root_attrs(fz_dep_t dep) {

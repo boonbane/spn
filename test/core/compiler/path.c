@@ -30,7 +30,8 @@ sp_test_each(invocation, path, test_t, tests, .setup = spn_test_ctx_setup) {
     invocation.path.items[invocation.path.count++] = test_arg_path(it->path[at]);
   }
 
-  spn_invocation_result_t run = spn_invocation_run(&spn.roots, &invocation);
+  spn_children_t children = sp_zero;
+  spn_invocation_result_t run = spn_invocation_run(&spn.roots, &children, &invocation);
   sp_expect_eq(t, run.result.status.exit_code, 0);
   sp_str_t prefix = sp_cstr_as_str(it->expect.prefix);
   sp_expect_str_eq(t, sp_str_prefix(run.result.out, sp_min(run.result.out.len, prefix.len)), prefix);

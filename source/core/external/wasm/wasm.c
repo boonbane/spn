@@ -84,7 +84,7 @@ static spn_err_t instantiate(spn_pkg_unit_t* unit, spn_path_t module, const spn_
 
   const spn_path_roots_t* roots = &unit->units->ctx->roots;
   sp_str_t blob = sp_zero;
-  if (sp_io_read_file_at(mem, spn_path_at(roots, module), &blob)) {
+  if (sp_fs_read_at(mem, spn_path_at(roots, module), &blob)) {
     sp_mem_arena_destroy(script->arena);
     return fail(unit, SPN_ERR_WASM_READ_FAILED, (spn_err_wasm_t) { .path = module });
   }

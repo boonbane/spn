@@ -37,6 +37,18 @@ typedef struct {
   sp_atomic_u32_t signaled;
 } spn_wake_t;
 
+typedef struct spn_child_t spn_child_t;
+struct spn_child_t {
+  sp_ps_t* ps;
+  spn_child_t* next;
+};
+
+typedef struct {
+  sp_mutex_t mutex;
+  spn_child_t* head;
+  bool killed;
+} spn_children_t;
+
 typedef struct toml_table_t toml_table_t;
 
 #define sp_da_value_t(arr) sp_type_of(arr[0])

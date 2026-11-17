@@ -221,7 +221,8 @@ sp_test_each(dag_stage, steps, test_t, tests) {
         break;
       }
       sp_test_kv(t, "path", sp_cstr_as_str(step->missing[mt]));
-      sp_expect(t, !sp_fs_exists_at(dag_test_env_path(&env, sp_cstr_as_str(step->missing[mt]))));
+      sp_sys_file_meta_t meta = sp_zero;
+      sp_expect_err_eq(t, sp_fs_get_path_metadata_at(dag_test_env_path(&env, sp_cstr_as_str(step->missing[mt])), &meta), SP_ERR_SYS_NOT_FOUND);
     }
   }
   return SP_OK;

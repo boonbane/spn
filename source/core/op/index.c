@@ -16,14 +16,15 @@
 #include "external/wasm/wasm.h"
 #include "index/index.h"
 #include "op/op.h"
+#include "paths/paths.h"
 #include "thread_pool/thread_pool.h"
 
 typedef struct {
   spn_op_t* op;
   spn_index_info_t* index;
-  bool force;
   spn_index_plan_t plan;
   spn_err_t err;
+  spn_git_failure_t failure;
 } job_t;
 
 static void sync_index_node(void* data) {
@@ -31,30 +32,16 @@ static void sync_index_node(void* data) {
   if (spn_op_cancelled(job->op)) {
     return;
   }
-  job->err = spn_index_sync(job->index, job->plan);
+  job->err = spn_index_sync(job->index, job->plan, &job->op->cancelled, &job->failure);
 }
 
-static spn_err_t sync_indexes(spn_op_t* op) {
+spn_err_t spn_sync_index_list(spn_op_t* op, sp_da(spn_index_info_t*) indexes, bool force) {
   spn_ctx_t* ctx = op->ctx;
-  spn_sync_request_t request = op->request.indexes;
-  if (!sp_str_empty(request.only) && !spn_find_index(ctx, request.only)) {
-    return spn_err_emit(ctx, (spn_err_union_t) {
-      .kind = SPN_ERR_INDEX_UNKNOWN,
-      .index = { .name = request.only },
-    });
-  }
-
   sp_da(job_t*) jobs = sp_da_new(ctx->mem, job_t*);
-  spn_index_id_t only = sp_intern(ctx->intern, request.only).id;
 
-  sp_da_for(ctx->indexes, it) {
-    spn_index_info_t* index = &ctx->indexes[it];
-
-    if (!sp_str_empty(request.only) && index->id != only) {
-      continue;
-    }
-
-    spn_index_plan_t plan = spn_index_plan(index, request.force);
+  sp_da_for(indexes, it) {
+    spn_index_info_t* index = indexes[it];
+    spn_index_plan_t plan = spn_index_plan(index, force);
     if (plan.fetch) {
       spn_event_buffer_push(ctx->events, (spn_event_t) {
         .kind = SPN_EVENT_SYNC,
@@ -68,7 +55,6 @@ static spn_err_t sync_indexes(spn_op_t* op) {
     *job = (job_t) {
       .op = op,
       .index = index,
-      .force = request.force,
       .plan = plan,
     };
     sp_da_push(jobs, job);
@@ -97,7 +83,7 @@ static spn_err_t sync_indexes(spn_op_t* op) {
       continue;
     }
 
-    if (!job->force && job->plan.present) {
+    if (!job->plan.force && job->plan.present) {
       spn_event_buffer_push(ctx->events, (spn_event_t) {
         .kind = SPN_EVENT_SYNC_STALE,
         .sync = {
@@ -107,11 +93,37 @@ static spn_err_t sync_indexes(spn_op_t* op) {
       continue;
     }
 
+    if (job->failure.kind == SPN_GIT_UNTRUSTED) {
+      return spn_err_emit(ctx, (spn_err_union_t) {
+        .kind = SPN_ERR_CERT_UNTRUSTED,
+        .subject = job->index->name.str,
+        .cert = {
+          .url = spn_index_source(job->index),
+          .trust = ctx->trust,
+          .config = spn_path_str(&ctx->roots, ctx->events->mem, ctx->paths.config),
+          .cause = sp_str_copy(ctx->events->mem, sp_cstr_as_str(job->failure.message)),
+          .git = true,
+        }});
+    }
+
+    if (job->failure.remote) {
+      return spn_err_emit(ctx, (spn_err_union_t) {
+        .kind = SPN_ERR_GIT_FETCH,
+        .subject = job->index->name.str,
+        .git_fetch = {
+          .url = spn_index_source(job->index),
+          .config = spn_path_str(&ctx->roots, ctx->events->mem, ctx->paths.config),
+          .cause = sp_str_copy(ctx->events->mem, sp_cstr_as_str(job->failure.message)),
+          .route = job->failure.route,
+        }});
+    }
+
     return spn_err_emit(ctx, (spn_err_union_t) {
       .kind = SPN_ERR_INDEX_SYNC,
       .index = {
         .name = job->index->name.str,
         .url = spn_index_source(job->index),
+        .cause = sp_str_copy(ctx->events->mem, sp_cstr_as_str(job->failure.message)),
       }});
   }
 
@@ -119,7 +131,24 @@ static spn_err_t sync_indexes(spn_op_t* op) {
 }
 
 spn_err_t spn_op_sync_indexes(spn_op_t* op) {
-  return sync_indexes(op);
+  spn_ctx_t* ctx = op->ctx;
+  spn_sync_request_t request = op->request.indexes;
+  if (!sp_str_empty(request.only) && !spn_find_index(ctx, request.only)) {
+    return spn_err_emit(ctx, (spn_err_union_t) {
+      .kind = SPN_ERR_INDEX_UNKNOWN,
+      .index = { .name = request.only },
+    });
+  }
+
+  spn_index_id_t only = sp_intern(ctx->intern, request.only).id;
+  sp_da(spn_index_info_t*) indexes = sp_da_new(ctx->mem, spn_index_info_t*);
+  sp_da_for(ctx->indexes, it) {
+    if (!sp_str_empty(request.only) && ctx->indexes[it].id != only) {
+      continue;
+    }
+    sp_da_push(indexes, &ctx->indexes[it]);
+  }
+  return spn_sync_index_list(op, indexes, request.force);
 }
 
 spn_op_t* spn_sync_indexes(spn_ctx_t* ctx, spn_sync_request_t request) {

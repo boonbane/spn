@@ -41,6 +41,7 @@ typedef struct {
   u8 jsonl [65536];
   sp_sys_event_t wake;
   sp_str_ht(bool) seen_url;
+  sp_str_ht(bool) seen_fetch;
   sp_da(spn_tui_buffered_log_t) buffered_logs;
   u32 num_downloads;
   sp_ht(u64, u32) thread_ids;
@@ -48,8 +49,6 @@ typedef struct {
   struct {
     sp_prompt_ctx_t* ctx;
     sp_app_t* app;
-    sp_prompt_widget_t widget;
-    spn_op_t* op;
     spn_progress_t last;
     bool started;
     bool on;

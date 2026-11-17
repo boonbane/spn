@@ -9,4 +9,9 @@ void spn_wake_ring(spn_wake_t* wake);
 void spn_wake_pulse(spn_wake_t* wake);
 void spn_wake_rearm(spn_wake_t* wake);
 
+void           spn_children_add(spn_children_t* children, spn_child_t* child);
+void           spn_children_remove(spn_children_t* children, spn_child_t* child);
+void           spn_children_kill(spn_children_t* children);
+sp_ps_output_t spn_children_run(spn_children_t* children, sp_mem_t mem, sp_ps_config_t config);
+
 #endif

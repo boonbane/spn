@@ -81,6 +81,39 @@ void spn_codegen_write_toml_issue(sp_io_writer_t* out, const spn_toml_issue_t* i
   sp_mem_end_scratch(scratch);
 }
 
+void spn_codegen_write_net_trust(sp_io_writer_t* out, const spn_net_trust_t* trust) {
+  bool first = true;
+  sp_io_write_c8(out, '{');
+  spn_codegen_json_key(out, &first, sp_str_lit("kind"));
+  switch (trust->kind) {
+    case SPN_NET_TRUST_NONE: {
+      spn_codegen_json_str(out, sp_str_lit("none"));
+      break;
+    }
+    case SPN_NET_TRUST_SYSTEM: {
+      spn_codegen_json_str(out, sp_str_lit("system"));
+      break;
+    }
+    case SPN_NET_TRUST_FOUND: {
+      spn_codegen_json_str(out, sp_str_lit("found"));
+      break;
+    }
+    case SPN_NET_TRUST_CONFIG: {
+      spn_codegen_json_str(out, sp_str_lit("config"));
+      break;
+    }
+    case SPN_NET_TRUST_ENV: {
+      spn_codegen_json_str(out, sp_str_lit("env"));
+      break;
+    }
+  }
+  spn_codegen_json_key(out, &first, sp_str_lit("bundle"));
+  spn_codegen_json_str(out, trust->bundle);
+  spn_codegen_json_key(out, &first, sp_str_lit("missing"));
+  spn_codegen_json_bool(out, trust->missing);
+  sp_io_write_c8(out, '}');
+}
+
 sp_str_t spn_toml_issues_to_str(sp_mem_t mem, sp_da(spn_toml_issue_t) issues) {
   sp_io_dyn_mem_writer_t sink;
   sp_io_dyn_mem_writer_init(mem, &sink);

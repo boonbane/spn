@@ -1,6 +1,8 @@
 #include "spn_test.h"
 
 #include "event/event.h"
+#include "external/git.h"
+#include "external/http.h"
 #include "intern/intern.h"
 #include "codegen/toolchain.h"
 #include "toml/loader.h"
@@ -17,7 +19,7 @@ static sp_err_t spn_ctx_init(void* user) {
   spn.env = sp_alloc_type(spn.mem, sp_env_t);
   *spn.env = sp_env_capture(spn.mem);
   spn.host = spn_host_detect();
-  return SP_OK;
+  return spn_git_init(spn_net_trust_find(sp_str_lit(""), sp_env_get(spn.env, sp_str_lit("SSL_CERT_FILE"))).bundle, spn_net_default_timeout_s) || spn_http_init() ? SP_ERR : SP_OK;
 }
 
 sp_err_t spn_test_ctx_setup(sp_test_t* t) {
@@ -49,7 +51,7 @@ void spn_test_lower_toolchains(sp_test_t* t, sp_str_t toml, spn_path_root_t base
 sp_err_t spn_test_builtin_toml(sp_test_t* t, sp_str_t* toml) {
   sp_mem_t mem = sp_test_arena(t);
   sp_str_t path = test_repo_path(mem, sp_str_lit(SPN_LANES_BUILTIN));
-  sp_must_ok(t, sp_io_read_file(mem, path, toml));
+  sp_must_ok(t, sp_fs_read(mem, path, toml));
   return SP_OK;
 }
 

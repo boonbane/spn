@@ -1,0 +1,75 @@
+diff --git a/sp/sp_prompt.h b/sp/sp_prompt.h
+index 3dabe42..5769f9a 100644
+--- a/sp/sp_prompt.h
++++ b/sp/sp_prompt.h
+@@ -701,6 +701,7 @@ typedef struct {
+ 
+ typedef struct {
+   sp_prompt_fds_t fds;
++  bool passive;
+ } sp_prompt_config_t;
+ 
+ /////////
+@@ -882,6 +883,7 @@ struct sp_prompt_ctx_t {
+     sp_prompt_fds_t fds;
+     sp_sys_tty_state_t cache;
+     bool raw;
++    bool passive;
+   } terminal;
+   sp_mem_arena_t* arena;
+   sp_mem_t mem;
+@@ -1003,7 +1005,7 @@ sp_prompt_ctx_t* sp_prompt_begin_ex(sp_mem_t mem, sp_prompt_config_t config) {
+ 
+   sp_tty_color_t color = sp_tty_color_detect(fds.out);
+   sp_sys_tty_state_t cache = sp_zero;
+-  if (sp_tty_set_mode(fds.in, fds.out, SP_SYS_TTY_MODE_RAW, &cache)) return SP_NULLPTR;
++  if (!config.passive && sp_tty_set_mode(fds.in, fds.out, SP_SYS_TTY_MODE_RAW, &cache)) return SP_NULLPTR;
+ 
+   u32 cols = 0;
+   u32 rows = 0;
+@@ -1015,7 +1017,8 @@ sp_prompt_ctx_t* sp_prompt_begin_ex(sp_mem_t mem, sp_prompt_config_t config) {
+   sp_prompt_ctx_init(ctx, mem, cols, rows);
+   ctx->terminal.fds = fds;
+   ctx->terminal.cache = cache;
+-  ctx->terminal.raw = true;
++  ctx->terminal.raw = !config.passive;
++  ctx->terminal.passive = config.passive;
+ 
+   // Write buffering is really important, because our rendering algorithm is extremely
+   // naive. It's not much more than this:
+@@ -1043,7 +1046,7 @@ sp_prompt_ctx_t* sp_prompt_begin_ex(sp_mem_t mem, sp_prompt_config_t config) {
+   sp_io_writer_set_buffer(ctx->tty.io, buffer, buffer_size);
+ 
+   sp_sys_event_open(&ctx->wake.event);
+-  sp_prompt_emit(ctx, SP_ANSI_HIDE_CURSOR);
++  if (ctx->terminal.raw) sp_prompt_emit(ctx, SP_ANSI_HIDE_CURSOR);
+   sp_io_flush(ctx->tty.io);
+   return ctx;
+ }
+@@ -1616,7 +1619,7 @@ sp_app_result_t sp_prompt_app_on_poll(sp_app_t* app) {
+   }
+   sp_mutex_unlock(&ctx->channel.lock);
+ 
+-  while (true) {
++  while (!ctx->terminal.passive) {
+     sp_prompt_event_t event = sp_prompt_drain_stdin(ctx);
+     if (event.kind == SP_PROMPT_EVENT_NONE) break;
+ 
+@@ -1636,11 +1639,14 @@ sp_app_result_t sp_prompt_app_on_poll(sp_app_t* app) {
+   // clearing after the scan would drop any wake signaled in between.
+   if (sp_da_empty(events) && ctx->state == SP_PROMPT_STATE_ACTIVE) {
+     if (!ctx->widget.on_update) {
+-      sp_sys_fd_t fds [2] = { ctx->terminal.fds.in, ctx->wake.event.fd };
+-      u64 n = ctx->wake.event.fd != SP_SYS_INVALID_FD ? 2 : 1;
++      sp_sys_fd_t fds [2] = sp_zero;
++      u64 n = 0;
++      if (!ctx->terminal.passive) fds[n++] = ctx->terminal.fds.in;
++      u64 wake = n;
++      if (ctx->wake.event.fd != SP_SYS_INVALID_FD) fds[n++] = ctx->wake.event.fd;
+       u64 signaled = 0;
+ 
+-      if (sp_sys_wait(fds, n, 0, &signaled) == SP_OK && signaled == 1) {
++      if (n && sp_sys_wait(fds, n, 0, &signaled) == SP_OK && signaled == wake) {
+         sp_sys_event_clear(ctx->wake.event);
+         sp_atomic_s32_store(&ctx->wake.pending, SP_PROMPT_WAKE_NOT_PENDING, SP_ATOMIC_SEQ_CST);
+       }

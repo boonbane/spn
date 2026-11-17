@@ -53,7 +53,8 @@ static sp_cli_result_t init(sp_cli_t* cli, app_t* app) {
 }
 
 static sp_cli_result_t built(sp_cli_t* cli, app_t* app, const winvm_variant_t* variant) {
-  if (sp_fs_is_file(winvm_image(&app->vm, variant))) {
+  sp_sys_file_meta_t meta = sp_zero;
+  if (!sp_fs_get_link_metadata(winvm_image(&app->vm, variant), &meta) && meta.kind == SP_FS_KIND_FILE) {
     return SP_CLI_OK;
   }
   return sp_cli_set_error(cli, sp_fmt(app->vm.mem, "{} is not built; run winvm build {}", sp_fmt_cstr(variant->name), sp_fmt_cstr(variant->name)).value);
@@ -200,7 +201,8 @@ static step_t up(app_t* app, const winvm_variant_t* variant) {
     return STEP_OK;
   }
   sp_str_t work = winvm_work(vm, variant);
-  if (!sp_fs_is_file(work) && winvm_overlay(vm, winvm_image(vm, variant), work)) {
+  sp_sys_file_meta_t meta = sp_zero;
+  if ((sp_fs_get_link_metadata(work, &meta) || meta.kind != SP_FS_KIND_FILE) && winvm_overlay(vm, winvm_image(vm, variant), work)) {
     return failed(app, cfmt(mem, "failed to create work overlay {.cyan}", sp_fmt_str(work)));
   }
   return boot(app, variant, work);
@@ -328,7 +330,8 @@ static sp_cli_result_t run_build(sp_cli_t* cli) {
   if (sp_da_empty(selected)) {
     return sp_cli_set_error_c(cli, "name at least one variant to build; see winvm list");
   }
-  if (!sp_fs_is_file(app.vm.paths.golden)) {
+  sp_sys_file_meta_t meta = sp_zero;
+  if (sp_fs_get_link_metadata(app.vm.paths.golden, &meta) || meta.kind != SP_FS_KIND_FILE) {
     return sp_cli_set_error(cli, sp_fmt(mem, "no golden at {.cyan}; run winvm golden", sp_fmt_str(app.vm.paths.golden)).value);
   }
 
@@ -403,10 +406,11 @@ static sp_cli_result_t run_list(sp_cli_t* cli) {
     const winvm_variant_t* variant = &winvm_variants[it];
     sp_str_t state = winvm_state(vm, variant);
     sp_str_t status;
+    sp_sys_file_meta_t meta = sp_zero;
     if (!sp_str_empty(state)) {
       status = sp_fmt(mem, "{} {}", sp_fmt_str(state), sp_fmt_str(winvm_ip(vm, variant))).value;
     }
-    else if (sp_fs_is_file(winvm_image(vm, variant))) {
+    else if (!sp_fs_get_link_metadata(winvm_image(vm, variant), &meta) && meta.kind == SP_FS_KIND_FILE) {
       status = sp_str_lit("built");
     }
     else {
@@ -689,7 +693,8 @@ static sp_cli_result_t run_test(sp_cli_t* cli) {
 
   sp_str_t spn = spn_bin(mem);
   sp_str_t canonical = sp_zero;
-  if (!sp_fs_is_file(spn) || sp_fs_canonicalize_path(mem, spn, &canonical)) {
+  sp_sys_file_meta_t meta = sp_zero;
+  if (sp_fs_get_link_metadata(spn, &meta) || meta.kind != SP_FS_KIND_FILE || sp_fs_canonicalize_path(mem, spn, &canonical)) {
     return sp_cli_set_error(cli, sp_fmt(mem, "no spn at {.cyan}; run spn build spn, or point SPN_BIN at one", sp_fmt_str(spn)).value);
   }
   suite_t suite = {

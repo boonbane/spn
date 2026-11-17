@@ -7,7 +7,10 @@
 #include "index/types.h"
 
 #include "error/error.h"
+#include "event/event.h"
 #include "external/git.h"
+#include "external/git_cli.h"
+#include "git/remote.h"
 #include "git/key.h"
 #include "index/dir.h"
 #include "index/index.h"
@@ -21,34 +24,110 @@
 #include "paths/paths.h"
 #include "str/str.h"
 
-static bool git_index_stale(spn_index_info_t* index) {
+#define git_index_synced ".git/spn-synced"
+#define git_index_failed ".git/spn-failed"
+
+static sp_path_t git_index_stamp(sp_mem_t mem, spn_index_info_t* index, const c8* stamp) {
+  return sp_path_join(mem, index->location.at, sp_cstr_as_str(stamp));
+}
+
+static spn_path_t git_index_staging(sp_mem_t mem, spn_index_info_t* index) {
+  return spn_path_join(mem, spn_path_parent((spn_path_t) { .sub = index->location.dir }), sp_str_lit("t"));
+}
+
+static bool git_index_expired(spn_index_info_t* index, const c8* stamp) {
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  sp_path_t head = sp_path_join(scratch.mem, index->location.at, sp_str_lit(".git/FETCH_HEAD"));
-  sp_tm_epoch_t mod_time = sp_fs_get_mod_time_at(head);
+  sp_sys_file_meta_t meta = sp_zero;
+  u64 modified = sp_fs_get_path_metadata_at(git_index_stamp(scratch.mem, index, stamp), &meta) ? 0 : (u64)meta.mtime.tv_sec;
   sp_mem_end_scratch(scratch);
 
   sp_tm_epoch_t now = sp_tm_now_epoch();
-  return mod_time.s + index->refresh <= now.s;
+  return modified + index->refresh <= now.s;
 }
 
-static spn_err_t git_index_freshen(spn_index_info_t* index) {
+static spn_err_t git_index_clone(spn_index_info_t* index, sp_atomic_s32_t* cancelled, spn_git_failure_t* failure) {
+  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+  spn_path_t base = git_index_staging(scratch.mem, index);
+  spn_path_t staged = sp_zero;
+  if (spn_path_stage_dir(scratch.mem, SP_NULLPTR, base, sp_str_lit("tmp"), &staged)) {
+    *failure = (spn_git_failure_t) { .message = "failed to stage the clone" };
+    sp_mem_end_scratch(scratch);
+    return SPN_ERROR;
+  }
+
+  sp_path_t work = sp_path_from_str(staged.sub);
+  sp_path_t old = sp_path_from_str(spn_path_staging(scratch.mem, base, sp_str_lit("old")).sub);
+  spn_err_t err = spn_git_clone(index->transport, index->git.url, staged.sub, index->backoff, cancelled, failure);
+  if (!err && sp_fs_replace_dir_at(work, index->location.at, old)) {
+    *failure = (spn_git_failure_t) { .message = "failed to place the clone" };
+    err = SPN_ERROR;
+  }
+  sp_fs_remove_dir_at(work);
+  sp_mem_end_scratch(scratch);
+  return err;
+}
+
+spn_index_plan_t spn_index_plan(spn_index_info_t* index, bool force) {
+  sp_path_t at = index->location.at;
+  sp_sys_file_meta_t meta = sp_zero;
+  switch (index->protocol) {
+    case SPN_INDEX_PROTOCOL_GIT: {
+      bool present = !sp_fs_get_link_metadata_at(at, &meta) && meta.kind == SP_FS_KIND_DIR;
+      bool due = sp_str_empty(index->git.rev) && git_index_expired(index, git_index_synced);
+      bool held = present && !force && due && !git_index_expired(index, git_index_failed);
+      return (spn_index_plan_t) {
+        .present = present,
+        .fetch = !present || force || (due && !held),
+        .held = held,
+        .force = force,
+      };
+    }
+    case SPN_INDEX_PROTOCOL_HTTP: {
+      return (spn_index_plan_t) { .force = force };
+    }
+    case SPN_INDEX_PROTOCOL_DIR: {
+      bool present = !sp_fs_get_link_metadata_at(at, &meta) && meta.kind == SP_FS_KIND_DIR;
+      return (spn_index_plan_t) { .present = present, .force = force };
+    }
+  }
+  sp_unreachable_return(sp_zero_s(spn_index_plan_t));
+}
+
+static spn_err_t git_index_sync(spn_index_info_t* index, spn_index_plan_t plan, sp_atomic_s32_t* cancelled, spn_git_failure_t* failure) {
+  sp_str_t dir = index->location.dir;
+  if (!sp_str_empty(index->git.rev)) {
+    if (!plan.present) {
+      spn_try(git_index_clone(index, cancelled, failure));
+    }
+    else if (plan.fetch) {
+      spn_try(spn_git_fetch(index->transport, dir, index->git.url, spn_net_no_backoff, cancelled, failure));
+    }
+    return spn_git_checkout(dir, index->git.rev);
+  }
+  if (!plan.fetch) {
+    return plan.held ? SPN_ERROR : SPN_OK;
+  }
+
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   spn_err_t err = SPN_ERROR;
-  sp_path_t at = index->location.at;
-  sp_str_t dir = index->location.dir;
 
   sp_for(attempt, 2) {
-    if (attempt || !sp_fs_is_dir_at(at)) {
-      sp_fs_remove_dir_at(at);
-      if (spn_git_clone(index->git.url, dir)) {
+    sp_str_t branch = sp_zero;
+    if (attempt || !plan.present) {
+      if (git_index_clone(index, cancelled, failure)) {
         break;
       }
     }
-    else if (spn_git_fetch(dir)) {
-      continue;
+    else if (spn_git_fetch(index->transport, dir, index->git.url, spn_net_no_backoff, cancelled, failure)) {
+      if (failure->kind == SPN_GIT_CORRUPT) {
+        continue;
+      }
+      if (!spn_git_default_branch(scratch.mem, dir, &branch) && !spn_git_checkout_branch(dir, branch)) {
+        spn_git_clean(dir);
+      }
+      break;
     }
 
-    sp_str_t branch = sp_zero;
     if (spn_git_default_branch(scratch.mem, dir, &branch)) {
       sp_str_t head = sp_zero;
       if (spn_git_has_remote_branches(dir) ||
@@ -57,58 +136,44 @@ static spn_err_t git_index_freshen(spn_index_info_t* index) {
       }
     }
     else if (spn_git_checkout_branch(dir, branch)) {
-      continue;
+      break;
     }
     if (spn_git_clean(dir)) {
-      continue;
+      break;
     }
 
+    sp_fs_create_file_at(git_index_stamp(scratch.mem, index, git_index_synced));
+    sp_fs_remove_file_at(git_index_stamp(scratch.mem, index, git_index_failed));
     err = SPN_OK;
     break;
+  }
+
+  if (err && failure->kind != SPN_GIT_CANCELLED) {
+    sp_fs_create_file_at(git_index_stamp(scratch.mem, index, git_index_failed));
   }
 
   sp_mem_end_scratch(scratch);
   return err;
 }
 
-spn_index_plan_t spn_index_plan(spn_index_info_t* index, bool force) {
-  sp_path_t at = index->location.at;
+spn_err_t spn_index_sync(spn_index_info_t* index, spn_index_plan_t plan, sp_atomic_s32_t* cancelled, spn_git_failure_t* failure) {
+  *failure = sp_zero_s(spn_git_failure_t);
   switch (index->protocol) {
     case SPN_INDEX_PROTOCOL_GIT: {
-      bool present = sp_fs_exists_at(at);
-      bool pinned = !sp_str_empty(index->git.rev);
-      return (spn_index_plan_t) {
-        .present = present,
-        .fetch = !present || force || (!pinned && git_index_stale(index)),
-      };
-    }
-    case SPN_INDEX_PROTOCOL_HTTP: {
-      return sp_zero_s(spn_index_plan_t);
-    }
-    case SPN_INDEX_PROTOCOL_DIR: {
-      return (spn_index_plan_t) { .present = sp_fs_is_dir_at(at) };
-    }
-  }
-  sp_unreachable_return(sp_zero_s(spn_index_plan_t));
-}
+      if (sp_str_empty(index->git.rev) && !plan.fetch) {
+        return plan.held ? SPN_ERROR : SPN_OK;
+      }
 
-spn_err_t spn_index_sync(spn_index_info_t* index, spn_index_plan_t plan) {
-  switch (index->protocol) {
-    case SPN_INDEX_PROTOCOL_GIT: {
-      bool pinned = !sp_str_empty(index->git.rev);
-      sp_str_t dir = index->location.dir;
-      if (!plan.present) {
-        spn_try(spn_git_clone(index->git.url, dir));
-        return pinned ? spn_git_checkout(dir, index->git.rev) : SPN_OK;
-      }
-      if (!plan.fetch) {
-        return pinned ? spn_git_checkout(dir, index->git.rev) : SPN_OK;
-      }
-      if (pinned) {
-        spn_try(spn_git_fetch(dir));
-        return spn_git_checkout(dir, index->git.rev);
-      }
-      return git_index_freshen(index);
+      sp_fs_lock_t lock = sp_zero;
+      sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+      sp_path_t at = index->location.at;
+      spn_err_t err = spn_git_lock(at, sp_path_join(scratch.mem, at, sp_str_lit(".git")), index->git.url, cancelled, &lock, failure);
+      sp_mem_end_scratch(scratch);
+      spn_try(err);
+
+      err = git_index_sync(index, spn_index_plan(index, plan.force), cancelled, failure);
+      sp_fs_lock_release(&lock);
+      return err;
     }
     case SPN_INDEX_PROTOCOL_HTTP: {
       return SPN_ERROR;
@@ -140,107 +205,111 @@ static void index_append_release(spn_index_info_t* index, spn_index_release_t* r
   sp_fs_create_parent_at(path);
 
   sp_str_t json = spn_index_release_to_json(scratch.mem, rel);
-
-  sp_sys_fd_t fd = SP_SYS_INVALID_FD;
-  sp_sys_open_s(path.dir, path.sub, SP_SYS_OPEN_MODE_WO, SP_SYS_OPEN_CREATE | SP_SYS_OPEN_APPEND, &fd);
-  sp_io_stream_writer_t io;
-  sp_io_stream_writer_from_fd(&io, fd, SP_IO_CLOSE_MODE_AUTO);
-  u8 buffer [4096] = sp_zero;
-  sp_io_writer_set_buffer(&io.base, buffer, sizeof(buffer));
-  sp_io_write_line(&io.base, json);
-  sp_io_stream_writer_close(&io);
+  sp_fs_write_at(path, sp_fmt(scratch.mem, "{}\n", sp_fmt_str(json)).value, SP_FS_WRITE_APPEND);
 
   sp_mem_end_scratch(scratch);
 }
 
 #define SPN_INDEX_PUBLISH_ATTEMPTS 3
 
-static spn_err_t publish_git(spn_index_info_t* index, spn_index_release_t* rel, bool* dirtied) {
-  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  sp_str_t message = sp_fmt(scratch.mem, "{} {}",
-    sp_fmt_str(rel->name.str),
-    sp_fmt_str(spn_semver_to_str(scratch.mem, rel->version))).value;
-  sp_str_t url = spn_index_publish_target(index);
-  sp_str_t dir = index->location.dir;
+static spn_err_t publish_from(sp_mem_t mem, spn_index_info_t* work, spn_index_release_t* rel, sp_str_t url, sp_atomic_s32_t* cancelled, sp_str_t* output) {
+  sp_str_t dir = work->location.dir;
 
-  spn_err_t result = SPN_OK;
-  sp_str_t output = sp_zero;
-
-  sp_for(attempt, SPN_INDEX_PUBLISH_ATTEMPTS) {
-    if (git_index_freshen(index)) {
-      result = spn_err_emit(&spn, (spn_err_union_t) {
-        .kind = SPN_ERR_INDEX_SYNC,
-        .index = { .name = index->name.str, .url = index->git.url },
-      });
-      break;
+  spn_git_failure_t failure = sp_zero;
+  if (spn_git_clone(work->transport, work->git.url, dir, work->backoff, cancelled, &failure)) {
+    if (failure.kind == SPN_GIT_CANCELLED) {
+      return SPN_ERR_CANCELLED;
     }
-    *dirtied = false;
+    return spn_err_emit(&spn, (spn_err_union_t) {
+      .kind = SPN_ERR_INDEX_SYNC,
+      .index = {
+        .name = work->name.str,
+        .url = work->git.url,
+        .cause = sp_str_copy(spn.events->mem, sp_cstr_as_str(failure.message)),
+      },
+    });
+  }
 
-    spn_index_pkg_t* existing = SP_NULLPTR;
-    spn_err_union_t err = sp_zero;
-    if (spn_index_jsonl_get_package(index, spn.mem, spn.intern, rel->name, &existing, &err)) {
-      result = spn_err_emit(&spn, err);
-      break;
-    }
-
-    bool exists = false;
-    if (existing) {
-      sp_da_for(existing->releases, it) {
-        if (spn_semver_eq(existing->releases[it].version, rel->version)) {
-          exists = true;
-          break;
-        }
+  spn_index_pkg_t* existing = SP_NULLPTR;
+  spn_err_union_t err = sp_zero;
+  if (spn_index_jsonl_get_package(work, spn.mem, spn.intern, rel->name, &existing, &err)) {
+    return spn_err_emit(&spn, err);
+  }
+  if (existing) {
+    sp_da_for(existing->releases, it) {
+      if (spn_semver_eq(existing->releases[it].version, rel->version)) {
+        return spn_err_emit(&spn, (spn_err_union_t) {
+          .kind = SPN_ERR_VERSION_EXISTS,
+          .version_exists = {
+            .name = rel->name.str,
+            .version = spn_semver_to_str(spn.events->mem, rel->version),
+          },
+        });
       }
     }
-    if (exists) {
+  }
+
+  index_append_release(work, rel);
+
+  // A clone of an empty remote has no origin/HEAD yet; the first push
+  // creates the branch the clone was born on
+  sp_str_t branch = sp_zero;
+  if (spn_git_default_branch(mem, dir, &branch) &&
+      spn_git_current_branch(mem, dir, &branch)) {
+    return spn_err_emit(&spn, (spn_err_union_t) {
+      .kind = SPN_ERR_GIT,
+      .git.command = sp_str_lit("git symbolic-ref HEAD"),
+    });
+  }
+
+  if (spn_git_add(dir, sp_fs_join_path(mem, dir, spn_index_jsonl_path(mem, rel->name)))) {
+    return spn_err_emit(&spn, (spn_err_union_t) {
+      .kind = SPN_ERR_GIT,
+      .git.command = sp_str_lit("git add"),
+    });
+  }
+  sp_str_t message = sp_fmt(mem, "{} {}",
+    sp_fmt_str(rel->name.str),
+    sp_fmt_str(spn_semver_to_str(mem, rel->version))).value;
+  if (spn_git_commit(dir, message)) {
+    return spn_err_emit(&spn, (spn_err_union_t) {
+      .kind = SPN_ERR_GIT,
+      .git.command = sp_str_lit("git commit"),
+    });
+  }
+
+  sp_str_t refspec = sp_fmt(mem, "HEAD:refs/heads/{}", sp_fmt_str(branch)).value;
+  return spn_git_cli_push(mem, dir, url, refspec, output) ? SPN_ERR_PUBLISH_PUSH : SPN_OK;
+}
+
+static spn_err_t publish_git(spn_index_info_t* index, spn_index_release_t* rel, sp_atomic_s32_t* cancelled) {
+  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+  sp_str_t url = spn_index_publish_target(index);
+  sp_str_t output = sp_zero;
+  spn_err_t result = SPN_ERR_PUBLISH_PUSH;
+
+  sp_for(attempt, SPN_INDEX_PUBLISH_ATTEMPTS) {
+    spn_path_t staged = sp_zero;
+    if (spn_path_stage_dir(scratch.mem, SP_NULLPTR, git_index_staging(scratch.mem, index), sp_str_lit("pub"), &staged)) {
       result = spn_err_emit(&spn, (spn_err_union_t) {
-        .kind = SPN_ERR_VERSION_EXISTS,
-        .version_exists = {
-          .name = rel->name.str,
-          .version = spn_semver_to_str(spn.events->mem, rel->version),
+        .kind = SPN_ERR_INDEX_SYNC,
+        .index = {
+          .name = index->name.str,
+          .url = index->git.url,
+          .cause = sp_str_lit("failed to stage the publish clone"),
         },
       });
       break;
     }
 
-    index_append_release(index, rel);
-    *dirtied = true;
-
-    // A clone of an empty remote has no origin/HEAD yet; the first push
-    // creates the branch the clone was born on
-    sp_str_t branch = sp_zero;
-    if (spn_git_default_branch(scratch.mem, dir, &branch) &&
-        spn_git_current_branch(scratch.mem, dir, &branch)) {
-      result = spn_err_emit(&spn, (spn_err_union_t) {
-        .kind = SPN_ERR_GIT,
-        .git.command = sp_str_lit("git symbolic-ref HEAD"),
-      });
+    spn_index_info_t work = *index;
+    work.location.at = sp_path_from_str(staged.sub);
+    work.location.dir = staged.sub;
+    result = publish_from(scratch.mem, &work, rel, url, cancelled, &output);
+    sp_fs_remove_dir_at(work.location.at);
+    if (result != SPN_ERR_PUBLISH_PUSH) {
       break;
     }
-
-    sp_str_t path = sp_fs_join_path(scratch.mem, dir, spn_index_jsonl_path(scratch.mem, rel->name));
-    if (spn_git_add(dir, path)) {
-      result = spn_err_emit(&spn, (spn_err_union_t) {
-        .kind = SPN_ERR_GIT,
-        .git.command = sp_str_lit("git add"),
-      });
-      break;
-    }
-    if (spn_git_commit(dir, message)) {
-      result = spn_err_emit(&spn, (spn_err_union_t) {
-        .kind = SPN_ERR_GIT,
-        .git.command = sp_str_lit("git commit"),
-      });
-      break;
-    }
-
-    sp_str_t refspec = sp_fmt(scratch.mem, "HEAD:refs/heads/{}", sp_fmt_str(branch)).value;
-    if (!spn_git_push(scratch.mem, dir, url, refspec, &output)) {
-      sp_mem_end_scratch(scratch);
-      return SPN_OK;
-    }
-
-    result = SPN_ERR_PUBLISH_PUSH;
   }
 
   if (result == SPN_ERR_PUBLISH_PUSH) {
@@ -256,7 +325,7 @@ static spn_err_t publish_git(spn_index_info_t* index, spn_index_release_t* rel, 
   return result;
 }
 
-spn_err_t spn_index_publish(spn_index_info_t* index, spn_index_release_t* rel) {
+spn_err_t spn_index_publish(spn_index_info_t* index, spn_index_release_t* rel, sp_atomic_s32_t* cancelled) {
   switch (index->protocol) {
     case SPN_INDEX_PROTOCOL_GIT: {
       if (!sp_str_empty(index->git.rev)) {
@@ -266,14 +335,22 @@ spn_err_t spn_index_publish(spn_index_info_t* index, spn_index_release_t* rel) {
         });
       }
 
-      bool dirtied = false;
-      spn_err_t err = publish_git(index, rel, &dirtied);
+      spn_try(publish_git(index, rel, cancelled));
 
-      // Leave the replica clean when the transaction died after mutating it
-      if (err && dirtied) {
-        git_index_freshen(index);
+      spn_index_plan_t plan = spn_index_plan(index, true);
+      spn_git_failure_t failure = sp_zero;
+      if (spn_index_sync(index, plan, cancelled, &failure)) {
+        if (failure.kind == SPN_GIT_CANCELLED) {
+          return SPN_ERR_CANCELLED;
+        }
+        if (plan.present) {
+          spn_event_buffer_push(spn.events, (spn_event_t) {
+            .kind = SPN_EVENT_SYNC_STALE,
+            .sync = { .name = index->name.str, .url = spn_index_source(index) },
+          });
+        }
       }
-      return err;
+      return SPN_OK;
     }
 
     case SPN_INDEX_PROTOCOL_HTTP:

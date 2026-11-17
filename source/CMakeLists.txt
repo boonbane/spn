@@ -33,6 +33,9 @@ set(SPN_CORE_SOURCES
   core/event/event.c
   core/external/cc.c
   core/external/git.c
+  core/external/git_cli.c
+  core/external/http.c
+  core/external/net.c
   core/external/obj.c
   core/external/tom.c
   core/external/toml.c
@@ -44,6 +47,7 @@ set(SPN_CORE_SOURCES
   core/git/key.c
   core/git/url.c
   core/git/patch.c
+  core/git/remote.c
   core/index/cache.c
   core/index/dir.c
   core/index/release.c
@@ -183,7 +187,7 @@ target_include_directories(spn_core PUBLIC
   ${GEN_DIR}
   ${STORE}/include
 )
-target_link_libraries(spn_core PUBLIC m vmlib yyjson blake3 spn_version)
+target_link_libraries(spn_core PUBLIC m vmlib yyjson blake3 git2 curl spn_version)
 add_dependencies(spn_core headers spn_embed spn_codegen_gen)
 
 add_executable(spn ${SPN_CLI_SOURCES})
@@ -191,7 +195,7 @@ target_include_directories(spn PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/cli)
 target_link_libraries(spn PRIVATE spn_core)
 if(WIN32)
   # cli/install/install.c touches HKCU\Environment and WM_SETTINGCHANGE
-  target_link_libraries(spn PRIVATE advapi32 user32)
+  target_link_libraries(spn PRIVATE advapi32 user32 shell32)
 endif()
 # vmlib carries C++ objects (WAMR Fast JIT: asmjit + x86_64 codegen). spn's own
 # sources are all C, so CMake would link with the C driver and miss the C++

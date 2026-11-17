@@ -64,7 +64,7 @@ sp_test_each(depfile, parse, depfile_test_t, tests) {
 
   sp_str_t path = test_repo_path(mem, sp_test_format(t, "test/core/compiler/depfile/{}.d", sp_fmt_cstr(it->name)));
   sp_str_t content = sp_zero;
-  sp_must(t, !sp_io_read_file(mem, path, &content));
+  sp_must(t, !sp_fs_read(mem, path, &content));
 
   sp_da(sp_str_t) prereqs = sp_zero;
   spn_err_t err = spn_cc_parse_depfile(mem, it->driver, content, &prereqs);

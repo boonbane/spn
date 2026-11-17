@@ -179,7 +179,8 @@ sp_test_each(paths_canonicalize_head, probe, head_test_t, head_tests) {
       }
       case HEAD_SETUP_SYMLINK: {
         sp_path_t target = sp_path_join(mem, sandbox, sp_cstr_as_str(s->target));
-        sp_fs_kind_t kind = sp_fs_is_target_dir_at(target) ? SP_FS_KIND_DIR : SP_FS_KIND_FILE;
+        sp_sys_file_meta_t meta = sp_zero;
+        sp_fs_kind_t kind = (!sp_fs_get_path_metadata_at(target, &meta) && meta.kind == SP_FS_KIND_DIR) ? SP_FS_KIND_DIR : SP_FS_KIND_FILE;
         sp_must_ok(t, sp_fs_create_sym_link_at(sp_cstr_as_str(s->target), path, kind));
         break;
       }
@@ -200,7 +201,8 @@ sp_test_each(paths_canonicalize_head, probe, head_test_t, head_tests) {
   spn_path_t result = spn_path_canonicalize_head(mem, &roots, input);
   sp_expect_eq(t, result.root, SPN_PATH_ROOT_PROJECT);
   sp_expect_str_eq_c(t, result.sub, expect->sub);
-  sp_expect_eq(t, sp_fs_exists_at(spn_path_at(&roots, result)), expect->exists);
+  sp_sys_file_meta_t meta = sp_zero;
+  sp_expect_eq(t, !sp_fs_get_path_metadata_at(spn_path_at(&roots, result), &meta), expect->exists);
 
   spn_path_t again = spn_path_canonicalize_head(mem, &roots, result);
   sp_expect(t, spn_path_equal(again, result));

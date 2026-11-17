@@ -11,7 +11,8 @@ spn_err_t spn_project_load(spn_ctx_t* ctx, spn_project_t** project) {
   *project = SP_NULLPTR;
 
   spn_path_t manifest = { .root = SPN_PATH_ROOT_PROJECT, .sub = sp_str_lit("spn.toml") };
-  if (!sp_fs_exists_at(spn_path_at(&ctx->roots, manifest))) {
+  sp_sys_file_meta_t meta = sp_zero;
+  if (sp_fs_get_path_metadata_at(spn_path_at(&ctx->roots, manifest), &meta) || meta.kind == SP_FS_KIND_UNKNOWN) {
     return SPN_OK;
   }
 
@@ -38,7 +39,7 @@ spn_err_t spn_project_update_lock(spn_ctx_t* ctx, spn_project_t* project, spn_re
   spn_lock_file_t lock = spn_build_lock_file(scratch.mem, resolve);
 
   sp_str_t output = spn_lock_file_to_str(scratch.mem, &lock);
-  sp_err_t written = sp_fs_write_atomic_at(spn_path_at(&ctx->roots, project->paths.lock), output);
+  sp_err_t written = sp_fs_write_at(spn_path_at(&ctx->roots, project->paths.lock), output, SP_FS_WRITE_REPLACE);
   sp_mem_end_scratch(scratch);
 
   if (written != SP_OK) {

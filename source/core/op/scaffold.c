@@ -45,22 +45,34 @@ static iterator_t it_new(bool bare) {
   return it;
 }
 
-static bool is_name_valid(sp_str_t name) {
+static bool is_name_char(c8 c) {
+  return c != '"' && c != '\\' && c != '\n' && c != '\r' && c != '\t' && c != ' ' && c != '/';
+}
+
+bool spn_scaffold_name_valid(sp_str_t name) {
   if (sp_str_empty(name)) {
     return false;
   }
   sp_str_for(name, it) {
-    c8 c = name.data[it];
-    if (c == '"' || c == '\\' || c == '\n' || c == '\r' || c == '\t' || c == ' ' || c == '/') {
+    if (!is_name_char(name.data[it])) {
       return false;
     }
   }
   return true;
 }
 
+sp_str_t spn_scaffold_name(sp_mem_t mem, sp_str_t dir) {
+  sp_str_t base = sp_fs_get_name(dir);
+  c8* name = sp_alloc_n(mem, c8, base.len);
+  sp_str_for(base, it) {
+    name[it] = is_name_char(base.data[it]) ? base.data[it] : '-';
+  }
+  return sp_str(name, base.len);
+}
+
 static spn_err_t scaffold(spn_ctx_t* ctx, spn_scaffold_request_t request, sp_mem_t mem, spn_str_arr_t* files) {
   *files = sp_zero_s(spn_str_arr_t);
-  if (!is_name_valid(request.name)) {
+  if (!spn_scaffold_name_valid(request.name)) {
     return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_INIT_NAME, .pkg = { .name = request.name } });
   }
   spn_path_t dir = { .sub = request.dir };
@@ -85,7 +97,7 @@ static spn_err_t scaffold(spn_ctx_t* ctx, spn_scaffold_request_t request, sp_mem
       err = spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_SCAFFOLD_TEMPLATE, .fs = { .path = spn_path_copy(ctx->events->mem, path) } });
       break;
     }
-    if (sp_fs_create_file_str_at(spn_path_at(&ctx->roots, path), sp_io_dyn_mem_writer_take_str(&writer)) != SP_OK) {
+    if (sp_fs_write_at(spn_path_at(&ctx->roots, path), sp_io_dyn_mem_writer_take_str(&writer), SP_FS_WRITE_TRUNCATE) != SP_OK) {
       err = spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_FS_WRITE, .fs = { .path = spn_path_copy(ctx->events->mem, path) } });
       break;
     }
@@ -105,7 +117,8 @@ static spn_err_t check(spn_ctx_t* ctx, spn_scaffold_request_t request) {
   spn_path_t dir = { .sub = request.dir };
   for (iterator_t it = it_new(request.bare); !it.done; it_next(&it)) {
     spn_path_t path = spn_path_join(s.mem, dir, it.rel);
-    if (sp_fs_exists_at(spn_path_at(&ctx->roots, path))) {
+    sp_sys_file_meta_t meta = sp_zero;
+    if (!sp_fs_get_path_metadata_at(spn_path_at(&ctx->roots, path), &meta)) {
       err = spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_INIT_EXISTS, .fs = { .path = spn_path_copy(ctx->events->mem, path) } });
       break;
     }

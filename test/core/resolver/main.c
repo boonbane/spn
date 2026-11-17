@@ -39,7 +39,8 @@ static resolve_result_t execute_fixture(const fx_config_t* config, const spn_pro
   sp_da(spn_index_info_t) indexes = sp_da_new(mem, spn_index_info_t);
 
   sp_str_t dir_index_location = sp_fs_join_path(mem, dir, sp_str_lit("index"));
-  if (sp_fs_is_dir(dir_index_location)) {
+  sp_sys_file_meta_t meta = sp_zero;
+  if (!sp_fs_get_link_metadata(dir_index_location, &meta) && meta.kind == SP_FS_KIND_DIR) {
     sp_da_push(indexes, ((spn_index_info_t) {
       .protocol = SPN_INDEX_PROTOCOL_DIR,
       .dir = { .path = { .sub = dir_index_location } },
@@ -90,7 +91,8 @@ static sp_str_t get_fixture_dir(sp_test_t* t, sp_mem_t mem) {
 
 static sp_err_t load_config(sp_test_t* t, sp_mem_t mem, sp_str_t dir, fx_config_t* config) {
   sp_str_t path = sp_fs_join_path(mem, dir, sp_str_lit("fixture.toml"));
-  if (!sp_fs_is_target_file(path)) {
+  sp_sys_file_meta_t meta = sp_zero;
+  if (sp_fs_get_path_metadata(path, &meta) || meta.kind != SP_FS_KIND_FILE) {
     return SP_OK;
   }
 
@@ -111,7 +113,9 @@ static sp_err_t load_config(sp_test_t* t, sp_mem_t mem, sp_str_t dir, fx_config_
 
 static sp_err_t load_manifest(sp_test_t* t, sp_mem_t mem, sp_str_t dir, spn_project_t* project) {
   sp_str_t manifest = sp_fs_join_path(mem, dir, sp_str_lit("spn.toml"));
-  sp_must(t, sp_fs_is_target_file(manifest));
+  sp_sys_file_meta_t meta = sp_zero;
+  sp_must_ok(t, sp_fs_get_path_metadata(manifest, &meta));
+  sp_must_eq(t, meta.kind, SP_FS_KIND_FILE);
 
   spn_path_roots_t roots = sp_zero;
   spn_toml_loader_t loader = spn_toml_loader(mem, spn.intern, &roots);

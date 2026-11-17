@@ -9,6 +9,7 @@ system_deps = [
   # 0.4.3 and only applies package system deps
   { lib = "advapi32", when = { os = "windows" } },
   { lib = "user32", when = { os = "windows" } },
+  { lib = "shell32", when = { os = "windows" } },
 ]
 
 [package.configure]
@@ -35,13 +36,22 @@ wamr = { path = "vendor/wamr" }
 toml = { path = "vendor/toml" }
 yyjson = { path = "vendor/yyjson"}
 blake3 = { path = "vendor/blake3"}
+libgit2 = { path = "vendor/libgit2" }
+curl = { path = "vendor/curl" }
 
 [deps.build]
 sp = { path = "vendor/sp" }
 yyjson = { path = "vendor/yyjson"}
 
 [patch.sp]
-files = ["tools/patches/sp-golden-absolute.patch"]
+files = [
+  "tools/patches/sp-golden-absolute.patch",
+  "tools/patches/sp-prompt-passive.patch",
+  "tools/patches/sp-macos-create-race.patch",
+  "tools/patches/sp-ps-kill.patch",
+  "tools/patches/sp-ps-wide.patch",
+  "tools/patches/sp-test-dir-index.patch",
+]
 
 [patch.wamr]
 files = [
@@ -53,6 +63,19 @@ files = [
   "tools/patches/wamr-mingw-tls.patch",
   "tools/patches/wamr-win-warnings.patch",
   "tools/patches/wamr-win-overlapped.patch",
+]
+
+[patch.libgit2]
+files = [
+  "tools/patches/libgit2-apply-offset.patch",
+  "tools/patches/libgit2-mbedtls-ciphers.patch",
+  "tools/patches/libgit2-winhttp-timeouts.patch",
+  "tools/patches/libgit2-git-timeout.patch",
+]
+
+[patch.curl]
+files = [
+  "tools/patches/curl-macos-frameworks.patch",
 ]
 
 [profile.default]
@@ -171,6 +194,9 @@ source = [
   "test/core/external/*.c",
   "test/core/gen/*.c",
   "test/core/git/*.c",
+  "test/core/git/cache/*.c",
+  "test/core/git/key/*.c",
+  "test/core/git/url/*.c",
   "test/core/index/*.c",
   "test/core/install/*.c",
   "test/core/jtd/*.c",

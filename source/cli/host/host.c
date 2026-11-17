@@ -1,12 +1,36 @@
 #include "host.h"
 #include "tui/tui.h"
 
+#define interrupt_grace_ms 300
+
 spn_cli_host_t host;
 spn_tui_t tui;
+
+static void die(s32 signal) {
+#if defined(SP_WIN32)
+  TerminateProcess(GetCurrentProcess(), STATUS_CONTROL_C_EXIT);
+#else
+  sigaction(signal, &(struct sigaction) { .sa_handler = SIG_DFL }, SP_NULLPTR);
+  raise(signal);
+#endif
+}
+
+void spn_cli_interrupt(s32 signal) {
+  if (sp_atomic_s32_load(&host.waiting, SP_ATOMIC_SEQ_CST) && sp_atomic_s32_cas(&host.signal, 0, signal, SP_ATOMIC_SEQ_CST)) {
+    sp_sys_event_signal(host.doorbell);
+    return;
+  }
+
+  die(signal);
+}
 
 s32 spn_cli_shutdown(bool ok) {
   spn_prompt_stop(&tui, ok ? SP_PROMPT_STATE_SUBMIT : SP_PROMPT_STATE_ERROR);
   spn_ctx_close(host.ctx, ok);
+  s32 signal = sp_atomic_s32_load(&host.signal, SP_ATOMIC_SEQ_CST);
+  if (signal) {
+    die(signal);
+  }
   spn_tui_flush(&tui);
   sp_io_flush(tui.err->io);
   sp_io_flush(tui.out->io);
@@ -31,6 +55,16 @@ sp_cli_result_t spn_cli_open(bool project_optional) {
     .dir = host.args.project_dir,
     .index_refresh_seconds = host.args.refresh,
     .project_optional = project_optional,
+    .search = true,
+  });
+  return err ? SP_CLI_ERR : SP_CLI_OK;
+}
+
+sp_cli_result_t spn_cli_open_here() {
+  spn_err_t err = spn_ctx_open(host.ctx, (spn_open_request_t) {
+    .dir = host.args.project_dir,
+    .index_refresh_seconds = host.args.refresh,
+    .project_optional = true,
   });
   return err ? SP_CLI_ERR : SP_CLI_OK;
 }
@@ -40,21 +74,18 @@ sp_cli_result_t spn_cli_session(spn_session_config_t config) {
   return spn_ctx_open_session(host.ctx, &config, &host.session) ? SP_CLI_ERR : SP_CLI_OK;
 }
 
-sp_cli_result_t spn_cli_refresh_indexes() {
-  return spn_cli_op(spn_sync_indexes(host.ctx, (spn_sync_request_t) sp_zero));
-}
-
-spn_err_t spn_cli_wait(spn_op_t* op) {
+static spn_err_t wait_op(spn_op_t* op) {
   while (true) {
     sp_sys_event_clear(host.doorbell);
 
-    if (sp_atomic_s32_load(&host.interrupted, SP_ATOMIC_SEQ_CST)) {
-      spn_op_cancel(op);
+    if (sp_atomic_s32_load(&host.signal, SP_ATOMIC_SEQ_CST)) {
+      break;
     }
 
-    spn_tui_poll(&tui, op);
+    spn_tui_poll(&tui);
     if (spn_op_done(op)) {
-      break;
+      spn_tui_op_done(&tui, op);
+      return spn_op_result(op).err;
     }
 
     if (!spn_tui_wants_input(&tui)) {
@@ -64,8 +95,33 @@ spn_err_t spn_cli_wait(spn_op_t* op) {
     }
   }
 
-  spn_tui_op_done(&tui, op);
-  return spn_op_result(op).err;
+  spn_op_cancel(op);
+  spn_prompt_stop(&tui, SP_PROMPT_STATE_CANCEL);
+
+  sp_tm_timer_t timer = sp_tm_start_timer();
+  while (true) {
+    sp_sys_event_clear(host.doorbell);
+
+    if (spn_op_done(op)) {
+      return SPN_ERR_CANCELLED;
+    }
+
+    u64 elapsed = sp_tm_ns_to_ms(sp_tm_read_timer(&timer));
+    if (elapsed >= interrupt_grace_ms) {
+      die(sp_atomic_s32_load(&host.signal, SP_ATOMIC_SEQ_CST));
+    }
+
+    sp_sys_fd_t fds [1] = { host.doorbell.fd };
+    u64 signaled = 0;
+    sp_sys_wait(fds, 1, (u32)(interrupt_grace_ms - elapsed), &signaled);
+  }
+}
+
+spn_err_t spn_cli_wait(spn_op_t* op) {
+  sp_atomic_s32_store(&host.waiting, 1, SP_ATOMIC_SEQ_CST);
+  spn_err_t err = wait_op(op);
+  sp_atomic_s32_store(&host.waiting, 0, SP_ATOMIC_SEQ_CST);
+  return err;
 }
 
 sp_cli_result_t spn_cli_op(spn_op_t* op) {

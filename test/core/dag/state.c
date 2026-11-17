@@ -40,7 +40,7 @@ static const fact_t facts [] = {
 
 static spn_err_t write_output(const si_dag_ctx_t* c, void* user_data) {
   write_t* write = (write_t*)user_data;
-  return sp_fs_create_file_str_at(dag_test_at(write->env, si_dag_resolve_output(c, c->produces[0])), sp_cstr_as_str(write->content)) ? SPN_ERR_DAG_ACTION : SPN_OK;
+  return sp_fs_write_at(dag_test_at(write->env, si_dag_resolve_output(c, c->produces[0])), sp_cstr_as_str(write->content), SP_FS_WRITE_TRUNCATE) ? SPN_ERR_DAG_ACTION : SPN_OK;
 }
 
 static sp_err_t check_fact(sp_test_t* t, spn_dag_store_kind_t kind, const fact_t* fact) {

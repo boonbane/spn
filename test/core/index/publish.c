@@ -18,6 +18,8 @@ typedef struct {
     struct { const c8* url; const c8* rev; } source;
   } release;
 
+  bool cancelled;
+
   struct {
     spn_err_t result;
     u32 lines;
@@ -112,6 +114,18 @@ static const publish_test_t tests [] = {
       .lines = 1,
     },
   },
+  {
+    .name = "cancelled_publish_stops",
+    .release = {
+      .name = "spum",
+      .version = { 1, 0, 0 },
+      .source = { .url = "https://github.com/example/spum", .rev = "abc123" },
+    },
+    .cancelled = true,
+    .expect = {
+      .result = SPN_ERR_CANCELLED,
+    },
+  },
 };
 
 static void write_publish_fixtures(sp_mem_t mem, sp_str_t index_root, const publish_file_t files [4]) {
@@ -129,7 +143,7 @@ static void write_publish_fixtures(sp_mem_t mem, sp_str_t index_root, const publ
 
     sp_str_t path = sp_fs_join_path(mem, index_root, sp_cstr_as_str(file.path));
     sp_fs_create_dir(sp_fs_parent_path(path));
-    sp_fs_create_file_str(path, sp_io_dyn_mem_writer_take_str(&builder));
+    sp_fs_write(path, sp_io_dyn_mem_writer_take_str(&builder), SP_FS_WRITE_TRUNCATE);
   }
 }
 
@@ -166,15 +180,12 @@ sp_test_each(index_publish, publish, publish_test_t, tests, .setup = spn_test_ct
     };
   }
 
-  spn_err_t result = spn_index_publish(&index, &rel);
+  sp_atomic_s32_t cancelled = it->cancelled;
+  spn_err_t result = spn_index_publish(&index, &rel, &cancelled);
   sp_expect_eq(t, it->expect.result, result);
 
-  if (it->expect.lines > 0) {
-    sp_str_t pkg_path = sp_fs_join_path(mem, index_root, sp_fmt(mem, ".spn/index/{}.jsonl", sp_fmt_cstr(it->release.name)).value);
-
-    sp_must(t, sp_fs_exists(pkg_path));
-    sp_expect_eq(t, it->expect.lines, index_test_count_lines(test_read_file(mem, pkg_path)));
-  }
+  sp_str_t pkg_path = sp_fs_join_path(mem, index_root, sp_fmt(mem, ".spn/index/{}.jsonl", sp_fmt_cstr(it->release.name)).value);
+  sp_expect_eq(t, it->expect.lines, index_test_count_lines(test_read_file(mem, pkg_path)));
 
   return SP_OK;
 }
@@ -221,7 +232,8 @@ sp_test_each(index_publish, protocol, protocol_test_t, protocol_tests, .setup = 
     .version = { 1, 0, 0 },
   };
 
-  sp_expect_eq(t, it->expect.result, spn_index_publish(&index, &rel));
+  sp_atomic_s32_t cancelled = sp_zero;
+  sp_expect_eq(t, it->expect.result, spn_index_publish(&index, &rel, &cancelled));
 
   return SP_OK;
 }

@@ -7,7 +7,7 @@
 
 void            spn_tui_init(spn_tui_t* tui, spn_tui_desc_t desc);
 void            spn_tui_flush(spn_tui_t* tui);
-void            spn_tui_poll(spn_tui_t* tui, spn_op_t* op);
+void            spn_tui_poll(spn_tui_t* tui);
 bool            spn_tui_wants_input(spn_tui_t* tui);
 void            spn_tui_op_done(spn_tui_t* tui, spn_op_t* op);
 void            spn_tui_handoff(spn_tui_t* tui);

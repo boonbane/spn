@@ -16,7 +16,7 @@ static inline sp_str_t test_dir_str(sp_test_t* t) {
 
 static inline sp_str_t test_read_file(sp_mem_t mem, sp_str_t path) {
   sp_str_t content = sp_zero;
-  sp_io_read_file(mem, path, &content);
+  sp_fs_read(mem, path, &content);
   return content;
 }
 
@@ -43,20 +43,8 @@ typedef struct {
 } git_repo_commit_t;
 
 typedef struct {
-  const c8* file;
-  const c8* content;
-} git_repo_expect_file_t;
-
-typedef struct {
-  u32 num_commits;
-  git_repo_expect_file_t commits [8][8];
-  const c8* missing [8][8];
-} git_repo_expect_t;
-
-typedef struct {
   const c8* name;
   git_repo_commit_t commits [8];
-  git_repo_expect_t expect;
 } git_repo_fixture_t;
 
 typedef struct {
@@ -66,7 +54,5 @@ typedef struct {
 } git_repo_result_t;
 
 git_repo_result_t git_repo_build_at(sp_str_t dir, const c8* name, git_repo_fixture_t* fixture);
-sp_str_t          git_repo_file_at(sp_str_t repo, sp_str_t commit, sp_str_t path);
-bool              git_repo_has_file(sp_str_t repo, sp_str_t commit, sp_str_t path);
 
 #endif

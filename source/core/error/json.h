@@ -14,6 +14,7 @@ void spn_codegen_write_sanitizer_set(sp_io_writer_t* out, const spn_sanitizer_se
 void spn_codegen_write_linkage(sp_io_writer_t* out, const spn_linkage_t* kind);
 void spn_codegen_write_path(sp_io_writer_t* out, const spn_path_t* path);
 void spn_codegen_write_toml_issue(sp_io_writer_t* out, const spn_toml_issue_t* issue);
+void spn_codegen_write_net_trust(sp_io_writer_t* out, const spn_net_trust_t* trust);
 sp_str_t spn_toml_issues_to_str(sp_mem_t mem, sp_da(spn_toml_issue_t) issues);
 
 #endif

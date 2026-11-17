@@ -1,0 +1,29 @@
+diff --git a/sp/sp_test.h b/sp/sp_test.h
+index 0fc0fda..ace2911 100644
+--- a/sp/sp_test.h
++++ b/sp/sp_test.h
+@@ -111,6 +111,7 @@ typedef struct {
+   sp_test_setup_fn_t setup;
+   sp_test_teardown_fn_t teardown;
+   const void* user;
++  u64 index;
+   bool serial;
+   bool keep;
+ } sp_test_instance_t;
+@@ -1043,7 +1044,7 @@ static sp_str_t sp_test_path_str(sp_mem_t mem, sp_path_t path) {
+ 
+ sp_path_t sp_test_dir(sp_test_t* t) {
+   if (sp_str_empty(t->dir.sub)) {
+-    sp_str_t leaf = sp_str_replace_c8(t->mem, sp_cstr_as_str(t->instance->name), '/', '_');
++    sp_str_t leaf = sp_test_format(t, "{}", sp_fmt_uint(t->instance->index));
+     t->dir = sp_path_join(t->mem, t->runner->dir_root, leaf);
+     sp_err_t err = sp_fs_create_dir_at(t->dir);
+     if (err) sp_test_fail(t, "failed to create test dir: {}", sp_fmt_str(sp_test_err_str(t, err)));
+@@ -2095,6 +2096,7 @@ s32 sp_test_main(s32 argc, const c8** argv, const sp_test_entry_t* entries) {
+     u64 begin = sp_da_size(instances);
+     sp_test_expand(runner->mem, decl, &instances);
+     for (u64 at = begin; at < sp_da_size(instances); at++) {
++      instances[at].index = at;
+       instances[at].serial = serial;
+     }
+   }

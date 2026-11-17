@@ -7,6 +7,8 @@
 
 spn_path_t si_dag_resolve_input(const si_dag_ctx_t* c, spn_dag_id_t id);
 spn_path_t si_dag_resolve_output(const si_dag_ctx_t* c, spn_dag_id_t id);
+sp_path_t  si_dag_input_at(const si_dag_ctx_t* c, spn_dag_id_t id);
+sp_path_t  si_dag_output_at(const si_dag_ctx_t* c, spn_dag_id_t id);
 spn_path_t si_dag_canonicalize_path(const si_dag_ctx_t* c, spn_path_t path);
 void       si_dag_observe(const si_dag_ctx_t* c, spn_dag_obs_t obs);
 void       si_dag_add_warm(const si_dag_ctx_t* c, s64 delta);

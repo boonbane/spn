@@ -171,7 +171,7 @@ static sp_str_t data_ps1(installer_t* in) {
 static bool render_one(installer_t* in, sp_str_t name, sp_str_t data) {
   sp_str_t source_path = sp_fs_join_path(in->mem, in->config.scripts, name);
   sp_str_t source = sp_zero;
-  if (sp_io_read_file(in->mem, source_path, &source)) {
+  if (sp_fs_read(in->mem, source_path, &source)) {
     return fail(in, INSTALLER_ERR_SCRIPT, 0, source_path);
   }
 

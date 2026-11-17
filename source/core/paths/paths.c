@@ -255,7 +255,7 @@ static sp_str_t staging_name(sp_mem_t mem, sp_str_t path, sp_str_t extension) {
   static sp_atomic_s32_t sequence;
   sp_tm_epoch_t now = sp_tm_now_epoch();
   u64 stamp = (((u64)now.s << 20) ^ (u64)now.ns) ^ ((u64)(u32)sp_atomic_s32_add(&sequence, 1, SP_ATOMIC_SEQ_CST) << 48);
-  return sp_fmt(mem, "{}.{}.{}", sp_fmt_str(path), sp_fmt_uint(stamp), sp_fmt_str(extension)).value;
+  return sp_fmt(mem, "{}.{:x}.{}", sp_fmt_str(path), sp_fmt_uint(stamp), sp_fmt_str(extension)).value;
 }
 
 spn_path_t spn_path_staging(sp_mem_t mem, spn_path_t path, sp_str_t extension) {
@@ -271,7 +271,8 @@ spn_err_t spn_path_stage_dir(sp_mem_t mem, const spn_path_roots_t* roots, spn_pa
       *dir = candidate;
       return SPN_OK;
     }
-    if (!sp_fs_exists_at(at)) {
+    sp_sys_file_meta_t meta = sp_zero;
+    if (sp_fs_get_path_metadata_at(at, &meta)) {
       return SPN_ERROR;
     }
   }
@@ -347,8 +348,8 @@ spn_path_t spn_path_from_id(spn_dir_id_t id) {
   switch (id) {
     case SPN_DIR_ID_STORE: return (spn_path_t) { SPN_PATH_ROOT_STORAGE,   sp_str_lit("cache/store") };
     case SPN_DIR_ID_BUILD: return (spn_path_t) { SPN_PATH_ROOT_STORAGE,   sp_str_lit("cache/build") };
-    case SPN_DIR_ID_CHECKOUTS: return (spn_path_t) { SPN_PATH_ROOT_STORAGE,   sp_str_lit("cache/source/checkouts") };
-    case SPN_DIR_ID_GIT_DB: return (spn_path_t) { SPN_PATH_ROOT_STORAGE,   sp_str_lit("cache/source/db") };
+    case SPN_DIR_ID_CHECKOUTS: return (spn_path_t) { SPN_PATH_ROOT_STORAGE,   sp_str_lit("cache/src") };
+    case SPN_DIR_ID_GIT_DB: return (spn_path_t) { SPN_PATH_ROOT_STORAGE,   sp_str_lit("cache/db") };
     case SPN_DIR_ID_DAG: return (spn_path_t) { SPN_PATH_ROOT_STORAGE,   sp_str_lit("cache/dag") };
     case SPN_DIR_ID_INDEX: return (spn_path_t) { SPN_PATH_ROOT_STORAGE,   sp_str_lit("index") };
     case SPN_DIR_ID_RUNTIME: return (spn_path_t) { SPN_PATH_ROOT_STORAGE,   sp_str_lit("runtime") };

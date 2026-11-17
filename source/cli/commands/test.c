@@ -11,7 +11,6 @@ static sp_cli_result_t test(sp_cli_t* cli) {
       .names = names,
     },
   };
-  try(spn_cli_refresh_indexes());
   try(spn_cli_session(config));
   try(spn_cli_op(spn_build(host.session)));
   return spn_cli_op(spn_run_tests(host.session));

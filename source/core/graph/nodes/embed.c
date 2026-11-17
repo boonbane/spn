@@ -44,7 +44,7 @@ static spn_err_t embed_files(sp_mem_t mem, const si_dag_ctx_t* c, si_embed_t* em
       case SPN_EMBED_FILE: {
         si_dag_observe(c, (spn_dag_obs_t) { .kind = SPN_DAG_OBS_FILE, .path = entry.path });
         sp_str_t content = sp_zero;
-        if (sp_io_read_file_at(embedder->mem, spn_path_at(roots, entry.path), &content) != SP_OK) {
+        if (sp_fs_read_at(embedder->mem, spn_path_at(roots, entry.path), &content) != SP_OK) {
           spn_event_buffer_push(spn.events, (spn_event_t) {
             .kind = SPN_EVENT_EMBED_FAILED,
             .pkg = unit->pkg->pkg.manifest->name.str,
@@ -78,13 +78,13 @@ static spn_err_t embed_files(sp_mem_t mem, const si_dag_ctx_t* c, si_embed_t* em
               si_dag_observe(c, (spn_dag_obs_t) { .kind = SPN_DAG_OBS_ENUMERATION, .path = spn_path_join(mem, root, rel) });
               continue;
             }
-            if (!sp_fs_is_file_at(child.at)) {
+            if (child.kind != SP_FS_KIND_FILE) {
               continue;
             }
             spn_path_t file = spn_path_join(mem, root, rel);
             si_dag_observe(c, (spn_dag_obs_t) { .kind = SPN_DAG_OBS_FILE, .path = file });
             sp_str_t content = sp_zero;
-            if (sp_io_read_file_at(embedder->mem, child.at, &content) != SP_OK) {
+            if (sp_fs_read_at(embedder->mem, child.at, &content) != SP_OK) {
               spn_event_buffer_push(spn.events, (spn_event_t) {
                 .kind = SPN_EVENT_EMBED_FAILED,
                 .pkg = unit->pkg->pkg.manifest->name.str,
@@ -119,7 +119,7 @@ static spn_err_t embed_files(sp_mem_t mem, const si_dag_ctx_t* c, si_embed_t* em
     }
   }
 
-  if (spn_cc_embed_ctx_write(embedder, spn_path_at(roots, si_dag_resolve_output(c, embed->object)), spn_path_at(roots, si_dag_resolve_output(c, embed->header)))) {
+  if (spn_cc_embed_ctx_write(embedder, si_dag_output_at(c, embed->object), si_dag_output_at(c, embed->header))) {
     spn_event_buffer_push(spn.events, (spn_event_t) {
       .kind = SPN_EVENT_EMBED_FAILED,
       .pkg = unit->pkg->pkg.manifest->name.str,

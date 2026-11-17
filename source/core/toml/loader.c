@@ -214,7 +214,7 @@ toml_table_t* spn_toml_loader_parse(spn_toml_loader_t* ctx, spn_path_t path) {
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   sp_str_t content = sp_zero;
   toml_table_t* table = SP_NULLPTR;
-  sp_err_t err = sp_io_read_file_at(scratch.mem, spn_path_at(ctx->roots, path), &content);
+  sp_err_t err = sp_fs_read_at(scratch.mem, spn_path_at(ctx->roots, path), &content);
   if (err) {
     spn_toml_loader_issue_at(ctx, SPN_ERR_FS_READ, sp_err_str(err));
   }

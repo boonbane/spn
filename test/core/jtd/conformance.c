@@ -62,7 +62,7 @@ sp_test_each(conformance, reject, conformance_case_t, cases) {
   sp_str_t repo = test_repo_path(mem, sp_str_lit(JTD_TEST_JSON_DIR));
   sp_str_t conformance = sp_fs_join_path(mem, repo, sp_str_lit("conformance"));
   sp_str_t path = sp_fs_join_path(mem, conformance, sp_fmt(mem, "{}.json", sp_fmt_cstr(it->name)).value);
-  sp_str_t json = sp_zero; sp_io_read_file(mem, path, &json);
+  sp_str_t json = sp_zero; sp_fs_read(mem, path, &json);
   sp_test_kv(t, "fixture", path);
   sp_must(t, !sp_str_empty(json));
 

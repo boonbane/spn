@@ -109,13 +109,13 @@ void spn_dag_file_cache_invalidate_all(spn_dag_file_cache_t* c) {
   sp_mutex_unlock(&c->mutex);
 }
 
-spn_err_t spn_dag_file_cache_stat(spn_dag_file_cache_t* c, spn_path_t path, sp_sys_file_meta_t* meta) {
+static sp_err_t file_cache_stat(spn_dag_file_cache_t* c, spn_path_t path, sp_sys_file_meta_t* meta) {
   sp_mutex_lock(&c->mutex);
   sp_sys_file_meta_t* cached = sp_ht_getp(c->metadata, path);
   if (cached) {
     *meta = *cached;
     sp_mutex_unlock(&c->mutex);
-    return SPN_OK;
+    return SP_OK;
   }
   sp_mutex_unlock(&c->mutex);
 
@@ -124,15 +124,17 @@ spn_err_t spn_dag_file_cache_stat(spn_dag_file_cache_t* c, spn_path_t path, sp_s
   }
   sp_path_t at = spn_path_at(c->roots, path);
   sp_sys_file_meta_t sys = sp_zero;
-  if (sp_sys_get_path_metadata_s(at.dir, at.sub, &sys)) {
-    return SPN_ERR_DAG_STAT;
-  }
+  sp_try(sp_sys_get_path_metadata_s(at.dir, at.sub, &sys));
 
   sp_mutex_lock(&c->mutex);
   sp_ht_insert(c->metadata, spn_path_copy(c->mem, path), sys);
   sp_mutex_unlock(&c->mutex);
   *meta = sys;
-  return SPN_OK;
+  return SP_OK;
+}
+
+spn_err_t spn_dag_file_cache_stat(spn_dag_file_cache_t* c, spn_path_t path, sp_sys_file_meta_t* meta) {
+  return file_cache_stat(c, path, meta) ? SPN_ERR_DAG_STAT : SPN_OK;
 }
 
 bool spn_dag_file_cache_recorded(spn_dag_file_cache_t* c, spn_path_t path) {
@@ -460,6 +462,10 @@ static spn_dag_diag_t settle(si_dag_action_handle_t* a) {
 
 static bool try_restore(si_dag_action_handle_t* a, spn_dag_digest_t key) {
   spn_dag_run_t* run = a->run;
+  if (run->force) {
+    return false;
+  }
+
   const spn_dag_action_t* action = a->action;
   spn_dag_action_entry_t entry = sp_zero;
   bool present = spn_dag_action_cache_get(run->cache, key, &entry);
@@ -584,25 +590,20 @@ static spn_err_t resolve_one(spn_dag_file_cache_t* files, const spn_dag_obs_t* o
     case SPN_DAG_OBS_ENUMERATION: {
       return membership_digest(spn_path_at(files->roots, o->path), o->filter, digest);
     }
-    case SPN_DAG_OBS_ABSENT: {
-      sp_path_t at = spn_path_at(files->roots, o->path);
-      sp_sys_file_meta_t sys = sp_zero;
-      sp_err_t rc = sp_sys_get_path_metadata_s(at.dir, at.sub, &sys);
-      if (rc == SP_ERR_SYS_NOT_FOUND) {
-        return SPN_OK;
-      }
-      if (rc) {
-        return SPN_ERR_DAG_STAT;
-      }
-      break;
-    }
+    case SPN_DAG_OBS_ABSENT:
     case SPN_DAG_OBS_FILE: {
       break;
     }
   }
 
   sp_sys_file_meta_t sys = sp_zero;
-  spn_try(spn_dag_file_cache_stat(files, o->path, &sys));
+  sp_err_t rc = file_cache_stat(files, o->path, &sys);
+  if (rc == SP_ERR_SYS_NOT_FOUND && o->kind == SPN_DAG_OBS_ABSENT) {
+    return SPN_OK;
+  }
+  if (rc) {
+    return SPN_ERR_DAG_STAT;
+  }
 
   if (sys.kind == SP_FS_KIND_DIR) {
     return membership_digest(spn_path_at(files->roots, o->path), sp_str_lit(""), digest);
@@ -664,6 +665,14 @@ spn_path_t si_dag_resolve_output(const si_dag_ctx_t* c, spn_dag_id_t id) {
   sp_unreachable_return(sp_zero_s(spn_path_t));
 }
 
+sp_path_t si_dag_input_at(const si_dag_ctx_t* c, spn_dag_id_t id) {
+  return spn_path_at(c->roots, si_dag_resolve_input(c, id));
+}
+
+sp_path_t si_dag_output_at(const si_dag_ctx_t* c, spn_dag_id_t id) {
+  return spn_path_at(c->roots, si_dag_resolve_output(c, id));
+}
+
 spn_path_t si_dag_canonicalize_path(const si_dag_ctx_t* c, spn_path_t path) {
   return file_cache_canonical(c->handle->run->files, path);
 }
@@ -708,6 +717,7 @@ static spn_err_t execute_attempt(sp_mem_t mem, si_dag_action_handle_t* attempt, 
     .roots = g->roots,
     .scratch = staging,
     .obs = obs,
+    .children = run->children,
   };
   spn_err_t err = action->execute(&c, action->user_data);
   if (err) {
@@ -722,7 +732,8 @@ static spn_err_t execute_attempt(sp_mem_t mem, si_dag_action_handle_t* attempt, 
     const spn_dag_artifact_t* artifact = spn_dag_find_artifact(g, action->produces[it]);
     sp_path_t output = spn_path_at(g->roots, attempt->outputs[it]);
     err = SPN_ERR_DAG_MISSING_OUTPUT;
-    if (sp_fs_exists_at(output)) {
+    sp_sys_file_meta_t meta = sp_zero;
+    if (!sp_fs_get_path_metadata_at(output, &meta)) {
       switch (artifact->kind) {
         case SPN_DAG_ARTIFACT_KIND_TREE: {
           err = spn_dag_store_put_tree(run->store, output, &attempt->digests[it]);

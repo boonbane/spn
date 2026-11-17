@@ -69,7 +69,7 @@ static generation_err_t create_generation(const spn_path_roots_t* roots, sp_mem_
 
 static generation_read_t read_generation(const spn_path_roots_t* roots, sp_mem_t mem, spn_path_t file, sp_hash_t* generation) {
   sp_str_t content = sp_zero;
-  if (sp_io_read_file_at(mem, spn_path_at(roots, file), &content)) {
+  if (sp_fs_read_at(mem, spn_path_at(roots, file), &content)) {
     return GENERATION_GONE;
   }
   content = sp_str_trim(content);

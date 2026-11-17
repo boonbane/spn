@@ -1,0 +1,78 @@
+diff --git a/sp.h b/sp.h
+index b2a476f..bffa47d 100644
+--- a/sp.h
++++ b/sp.h
+@@ -9061,21 +9061,24 @@ void sp_sys_futex_wake_all_p(u32* addr) {
+ }
+ 
+ #if defined(SP_WIN32)
+-static sp_err_t sp_sys_copy_env_path(const c8* name, c8* buf, u64 size, u64* len) {
++static sp_err_t sp_sys_copy_env_path(LPCWSTR name, c8* buf, u64 size, u64* len) {
+   *len = 0;
+-  DWORD n = GetEnvironmentVariableA(name, buf, (DWORD)size);
++  WCHAR wide [SP_PATH_MAX];
++  DWORD n = GetEnvironmentVariableW(name, wide, SP_PATH_MAX);
+   if (n == 0) return SP_ERR_SYS_NOT_FOUND;
+-  if (n >= size) return SP_ERR_SYS_NAME_TOO_LONG;
+-  *len = (u64)sp_sys_win32_copy_path(sp_fs_trim_path(sp_str(buf, n)), buf, size);
++  if (n >= SP_PATH_MAX) return SP_ERR_SYS_NAME_TOO_LONG;
++  s32 num_bytes = WideCharToMultiByte(CP_UTF8, 0, wide, (s32)n, buf, (s32)size, NULL, NULL);
++  if (num_bytes <= 0 || (u64)num_bytes >= size) return SP_ERR_SYS_NAME_TOO_LONG;
++  *len = (u64)sp_sys_win32_copy_path(sp_fs_trim_path(sp_str(buf, (u32)num_bytes)), buf, size);
+   return SP_OK;
+ }
+ 
+ sp_err_t sp_sys_get_storage_path_p(c8* buf, u64 size, u64* len) {
+-  return sp_sys_copy_env_path("LOCALAPPDATA", buf, size, len);
++  return sp_sys_copy_env_path(L"LOCALAPPDATA", buf, size, len);
+ }
+ 
+ sp_err_t sp_sys_get_config_path_p(c8* buf, u64 size, u64* len) {
+-  return sp_sys_copy_env_path("APPDATA", buf, size, len);
++  return sp_sys_copy_env_path(L"APPDATA", buf, size, len);
+ }
+ #else
+ static sp_err_t sp_sys_xdg_or_home(sp_str_t xdg_var, sp_str_t home_suffix, c8* buf, u64 size, u64* len) {
+@@ -16429,7 +16432,9 @@ sp_ps_t sp_ps_create(sp_mem_t mem, sp_ps_config_t config) {
+   sp_env_t env = sp_ps_build_env(&config.env, scratch.mem);
+   sp_str_t block = sp_env_to_win32_block(scratch.mem, &env);
+ 
+-  c8* cwd = sp_str_empty(config.cwd) ? SP_NULLPTR : sp_str_to_cstr(scratch.mem, config.cwd);
++  sp_wide_str_t wide_cmdline = sp_zero;
++  sp_wide_str_t wide_block = sp_zero;
++  sp_wide_str_t wide_cwd = sp_zero;
+ 
+   sp_ps_win32_stdio_t io = {
+     .in = { .parent_fd = SP_SYS_INVALID_FD },
+@@ -16437,11 +16442,14 @@ sp_ps_t sp_ps_create(sp_mem_t mem, sp_ps_config_t config) {
+     .err = { .parent_fd = SP_SYS_INVALID_FD },
+   };
+ 
+-  STARTUPINFOA startup = sp_zero;
++  STARTUPINFOW startup = sp_zero;
+   PROCESS_INFORMATION process_info = sp_zero;
+   BOOL created = false;
+ 
+   sp_err_t error = SP_OK;
++  sp_try_goto(sp_wtf8_to_wtf16(scratch.mem, sp_cstr_as_str(cmdline), &wide_cmdline), error, fail);
++  sp_try_goto(sp_wtf8_to_wtf16(scratch.mem, block, &wide_block), error, fail);
++  sp_try_goto(sp_wtf8_to_wtf16(scratch.mem, config.cwd, &wide_cwd), error, fail);
+   sp_try_goto(sp_ps_win32_configure_io_in(&proc.io.in, &io.in), error, fail);
+ 
+   if (proc.io.out.mode == SP_PS_IO_MODE_REDIRECT) {
+@@ -16455,13 +16463,13 @@ sp_ps_t sp_ps_create(sp_mem_t mem, sp_ps_config_t config) {
+     sp_try_goto(sp_ps_win32_configure_io_out(&proc.io.err, STD_ERROR_HANDLE, GENERIC_WRITE, &io.err), error, fail);
+   }
+ 
+-  startup.cb = sizeof(STARTUPINFOA);
++  startup.cb = sizeof(STARTUPINFOW);
+   startup.dwFlags = STARTF_USESTDHANDLES;
+   startup.hStdInput = io.in.child;
+   startup.hStdOutput = io.out.child;
+   startup.hStdError = io.err.child;
+ 
+-  created = CreateProcessA(SP_NULLPTR, cmdline, SP_NULLPTR, SP_NULLPTR, true, 0, (void*)block.data, cwd, &startup, &process_info);
++  created = CreateProcessW(SP_NULLPTR, (LPWSTR)wide_cmdline.data, SP_NULLPTR, SP_NULLPTR, true, CREATE_UNICODE_ENVIRONMENT, (void*)wide_block.data, (LPCWSTR)wide_cwd.data, &startup, &process_info);
+   sp_mem_end_scratch(scratch);
+ 
+   if (!created) {

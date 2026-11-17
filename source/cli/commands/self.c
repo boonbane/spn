@@ -270,7 +270,9 @@ static spn_install_path_choice_t custom_file(sp_prompt_ctx_t* prompt, sp_mem_t m
 
     // a rejection is a typo, not a change of mind; ask again rather than
     // quietly dropping the file the user asked for
-    if (sp_fs_is_dir(path)) {
+    sp_sys_file_meta_t meta = sp_zero;
+    bool exists = !sp_fs_get_path_metadata(path, &meta);
+    if (exists && meta.kind == SP_FS_KIND_DIR) {
       prose_error(prompt, "{.yellow} is a directory", sp_fmt_str(path));
       continue;
     }
@@ -279,9 +281,9 @@ static spn_install_path_choice_t custom_file(sp_prompt_ctx_t* prompt, sp_mem_t m
       continue;
     }
 
-    if (sp_fs_exists(path)) {
+    if (exists) {
       sp_str_t content = sp_zero;
-      if (!sp_io_read_file(mem, path, &content)) {
+      if (!sp_fs_read(mem, path, &content)) {
         choice.has_line = sp_str_contains(content, sp_str_lit(SPN_INSTALL_RC_LINE));
       }
     }
@@ -358,7 +360,8 @@ static sp_str_t action_label(spn_install_action_t* action) {
 }
 
 static bool action_creates(spn_install_action_t* action) {
-  return !sp_str_empty(action->path) && !sp_fs_exists(action->path);
+  sp_sys_file_meta_t meta = sp_zero;
+  return !sp_str_empty(action->path) && sp_fs_get_path_metadata(action->path, &meta);
 }
 
 static void prompt_plan(sp_prompt_ctx_t* prompt, sp_mem_t mem, spn_install_plan_t* plan) {
@@ -461,10 +464,8 @@ static bool use_prompt() {
 
   sp_mem_arena_marker_t s = sp_mem_begin_scratch();
   sp_env_t env = sp_env_capture(s.mem);
-  // SPN_INSTALL_AUTO is how a curl | sh with a terminal says yes to
-  // defaults; a dumb terminal cannot render the prompt at all
-  bool prompt = sp_str_empty(sp_env_get_c(&env, "SPN_INSTALL_AUTO"))
-    && !sp_str_equal(sp_env_get_c(&env, "TERM"), sp_str_lit("dumb"));
+  // SPN_INSTALL_AUTO is how a curl | sh with a terminal says yes to defaults
+  bool prompt = sp_str_empty(sp_env_get_c(&env, "SPN_INSTALL_AUTO"));
   sp_mem_end_scratch(s);
   return prompt;
 }

@@ -26,6 +26,24 @@ static const test_t tests [] = {
     },
   },
   {
+    .name = "build_from_subdirectory",
+    .project = "test/integration/fixtures/freshness/bin",
+    .actions = {
+      { .kind = ACTION_CREATE_FILE, .create = { .file = "sub/A", .content = "A" } },
+      { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build", .cwd = "sub" } },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
+    },
+  },
+  {
+    .name = "init_in_subdirectory",
+    .project = "test/integration/fixtures/freshness/bin",
+    .actions = {
+      { .kind = ACTION_CREATE_FILE, .create = { .file = "sub/A", .content = "A" } },
+      { .kind = ACTION_RUN_CLI, .cli = { .cmd = "init", .cwd = "sub" } },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = lit("sub/spn.toml") },
+    },
+  },
+  {
     .name = "init",
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { .cmd = "init" } },
@@ -49,6 +67,13 @@ static const test_t tests [] = {
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { .cmd = "init", .args = { "sub" } } },
       { .kind = ACTION_VERIFY_EXISTS, .exists = lit("sub/main.c") },
+    },
+  },
+  {
+    .name = "init_invalid_dir_name",
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { .cmd = "init", .args = { "A B" } } },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = lit("A B/spn.toml") },
     },
   },
   {
@@ -130,7 +155,7 @@ static const test_t tests [] = {
     .actions = {
       { .kind = ACTION_INIT_REPO },
       { .kind = ACTION_RUN_CLI, .cli = { .cmd = "publish", .args = { "--dry", "--source-url", "https://example.com/x.git", "--source-rev", "abc123" } } },
-      { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = lit(".home/storage/spn/packages/.spn/index/index_package.jsonl") },
+      { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = lit(".st/spn/packages/.spn/index/index_package.jsonl") },
     },
   },
   {

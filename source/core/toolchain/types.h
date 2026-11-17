@@ -6,6 +6,7 @@
 #include "spn/core.h"
 
 #include "core/types.h"
+#include "external/net.h"
 #include "paths/types.h"
 #include "sp_om/sp_om.h"
 #include "intern/types.h"
@@ -126,6 +127,7 @@ typedef struct {
   sp_str_t url;
   sp_str_t sha256;
   sp_str_t mirror_list;
+  sp_str_t mirror_snapshot;
 } spn_artifact_t;
 
 typedef struct {
@@ -272,6 +274,9 @@ struct spn_toolchain_store {
   sp_mem_t mem;
   const spn_path_roots_t* roots;
   sp_str_t mirror;
+  spn_net_trust_t trust;
+  u32 timeout_s;
+  spn_net_backoff_t backoff;
   spn_probe_cache_t probes;
 };
 

@@ -35,6 +35,7 @@ typedef struct {
   const c8* url;
   const c8* sha256;
   const c8* mirrors;
+  const c8* snapshot;
 } fixture_host_t;
 
 typedef struct {
@@ -198,6 +199,9 @@ static sp_err_t fixture_check_host(sp_test_t* t, spn_toolchain_host_t host, fixt
   if (expect.mirrors) {
     sp_expect_str_eq_c(t, host.artifact.mirror_list, expect.mirrors);
   }
+  if (expect.snapshot) {
+    sp_expect_str_eq_c(t, host.artifact.mirror_snapshot, expect.snapshot);
+  }
 
   return SP_OK;
 }
@@ -339,7 +343,7 @@ static sp_err_t fixture_check_entry(sp_test_t* t, spn_toolchain_info_t* info, fi
 static sp_err_t fixture_read_toml(sp_test_t* t, const c8* file, sp_str_t* toml) {
   sp_mem_t mem = sp_test_arena(t);
   sp_str_t path = sp_fs_join_path(mem, test_repo_path(mem, sp_str_lit(TOOLCHAINS_DIR)), sp_cstr_as_str(file));
-  sp_must_ok(t, sp_io_read_file(mem, path, toml));
+  sp_must_ok(t, sp_fs_read(mem, path, toml));
   return SP_OK;
 }
 

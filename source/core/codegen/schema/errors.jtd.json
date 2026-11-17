@@ -16,6 +16,7 @@
     "no_manifest": { "ref": "no_manifest" },
     "not_git_repo": { "ref": "not_git_repo" },
     "git": { "ref": "git" },
+    "git_fetch": { "ref": "git_fetch" },
     "version_exists": { "ref": "version_exists" },
     "toolchain_unknown": { "ref": "toolchain" },
     "toolchain_none": { "ref": "toolchain" },
@@ -37,6 +38,7 @@
     "codegen_expected_bool": { "properties": {} },
     "codegen_expected_str": { "properties": {} },
     "codegen_expected_int": { "properties": {} },
+    "codegen_expected_positive": { "properties": {} },
     "codegen_expected_object": { "properties": {} },
     "codegen_missing_key": { "properties": {} },
     "codegen_duplicate_key": { "properties": {} },
@@ -48,6 +50,8 @@
     "codegen_path": { "properties": {} },
     "codegen_unrooted": { "properties": {} },
     "codegen_absolute": { "properties": {} },
+    "http_init_failed": { "properties": {} },
+    "cert_untrusted": { "ref": "cert" },
     "wasm_init_failed": { "ref": "wasm" },
     "wasm_register_failed": { "ref": "wasm" },
     "wasm_module_load_failed": { "ref": "wasm" },
@@ -175,6 +179,15 @@
         "command": { "type": "string" }
       }
     },
+    "git_fetch": {
+      "properties": {
+        "url": { "type": "string" },
+        "config": { "type": "string" },
+        "cause": { "type": "string" },
+        "route": { "ref": "git_route" }
+      }
+    },
+    "git_route": { "enum": ["builtin", "configured", "ssh", "login"] },
     "version_exists": {
       "properties": {
         "name": { "type": "string" },
@@ -221,6 +234,15 @@
         "output": { "type": "string" }
       }
     },
+    "cert": {
+      "properties": {
+        "url": { "type": "string" },
+        "trust": { "metadata": { "extern": "net_trust" } },
+        "config": { "type": "string" },
+        "cause": { "type": "string" },
+        "git": { "type": "boolean" }
+      }
+    },
     "wasm": {
       "properties": {
         "path": { "metadata": { "extern": "path" } },
@@ -264,6 +286,9 @@
       "properties": {
         "name": { "type": "string" },
         "url": { "type": "string" }
+      },
+      "optionalProperties": {
+        "cause": { "type": "string" }
       }
     },
     "index_corrupt": {

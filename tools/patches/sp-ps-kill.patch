@@ -1,0 +1,181 @@
+diff --git a/sp.h b/sp.h
+index 54c3425..b2a476f 100644
+--- a/sp.h
++++ b/sp.h
+@@ -5067,7 +5067,9 @@ SP_API void            sp_ps_config_add_arg(sp_mem_t mem, sp_ps_config_t* config
+ SP_API sp_ps_status_t  sp_ps_wait(sp_ps_t* ps);
+ SP_API sp_ps_status_t  sp_ps_poll(sp_ps_t* ps, u32 timeout_ms);
+ SP_API sp_ps_output_t  sp_ps_output(sp_ps_t* ps);
++SP_API sp_ps_output_t  sp_ps_drain(sp_ps_t* ps);
+ SP_API bool            sp_ps_kill(sp_ps_t* ps);
++SP_API bool            sp_ps_kill_async(sp_ps_t* ps);
+ SP_API void            sp_ps_free(sp_ps_t* ps);
+ SP_API void            sp_ps_output_free(sp_mem_t mem, sp_ps_output_t* output);
+ SP_API sp_io_stream_writer_t* sp_ps_io_in(sp_ps_t* ps);
+@@ -15954,6 +15956,12 @@ sp_ps_status_t sp_ps_wait(sp_ps_t* ps) {
+ }
+ 
+ sp_ps_output_t sp_ps_output(sp_ps_t* ps) {
++  sp_ps_output_t result = sp_ps_drain(ps);
++  result.status = sp_ps_wait(ps);
++  return result;
++}
++
++sp_ps_output_t sp_ps_drain(sp_ps_t* ps) {
+   sp_ps_output_t result = sp_zero;
+   u8 buffer[4096];
+ 
+@@ -16023,7 +16031,6 @@ sp_ps_output_t sp_ps_output(sp_ps_t* ps) {
+ 
+   result.out = sp_io_dyn_mem_writer_take_str(&write.out);
+   result.err = sp_io_dyn_mem_writer_take_str(&write.err);
+-  result.status = sp_ps_wait(ps);
+   return result;
+ }
+ 
+@@ -16034,6 +16041,11 @@ bool sp_ps_kill(sp_ps_t* ps) {
+   return true;
+ }
+ 
++bool sp_ps_kill_async(sp_ps_t* ps) {
++  if (!ps || !ps->os) return false;
++  return kill(ps->os->pid, SIGKILL) == 0;
++}
++
+ void sp_ps_free(sp_ps_t* ps) {
+   if (!ps) return;
+ 
+@@ -16610,6 +16622,7 @@ sp_ps_status_t sp_ps_win32_finish_process(sp_ps_t* ps) {
+   }
+ 
+   CloseHandle(ps->os->pid);
++  ps->os->pid = SP_NULLPTR;
+   return result;
+ 
+ }
+@@ -16667,6 +16680,12 @@ typedef struct {
+ } sp_ps_win32_pump_stream_t;
+ 
+ sp_ps_output_t sp_ps_output(sp_ps_t* ps) {
++  sp_ps_output_t result = sp_ps_drain(ps);
++  result.status = sp_ps_wait(ps);
++  return result;
++}
++
++sp_ps_output_t sp_ps_drain(sp_ps_t* ps) {
+   sp_ps_output_t result = sp_zero;
+ 
+   sp_ps_close_owned_fd(&ps->io.in.fd, ps->io.in.mode);
+@@ -16681,9 +16700,6 @@ sp_ps_output_t sp_ps_output(sp_ps_t* ps) {
+     { .fd = ps->io.err.fd, .ov = &ps->os->err, .writer = &err.base, .open = sp_ps_is_fd_valid(ps->io.err.fd) },
+   };
+ 
+-  DWORD exit_code = (DWORD)-1;
+-  bool process_done = !ps->os->pid;
+-
+   while (true) {
+     sp_carr_for(streams, it) {
+       sp_ps_win32_pump_stream_t* s = &streams[it];
+@@ -16701,8 +16717,8 @@ sp_ps_output_t sp_ps_output(sp_ps_t* ps) {
+       s->pending = true;
+     }
+ 
+-    sp_win32_handle_t handles [3];
+-    sp_ps_win32_pump_stream_t* sources [3];
++    sp_win32_handle_t handles [2];
++    sp_ps_win32_pump_stream_t* sources [2];
+     DWORD num_handles = 0;
+     sp_carr_for(streams, it) {
+       if (!streams[it].pending) continue;
+@@ -16710,32 +16726,13 @@ sp_ps_output_t sp_ps_output(sp_ps_t* ps) {
+       sources[num_handles] = &streams[it];
+       num_handles++;
+     }
+-    if (!process_done) {
+-      handles[num_handles] = ps->os->pid;
+-      sources[num_handles] = SP_NULLPTR;
+-      num_handles++;
+-    }
+ 
+     if (!num_handles) break;
+ 
+     DWORD wait = WaitForMultipleObjects(num_handles, handles, false, INFINITE);
+-    if (wait == WAIT_FAILED) {
+-      if (process_done) break;
+-      process_done = true;
+-      continue;
+-    }
++    if (wait == WAIT_FAILED) break;
+ 
+     sp_ps_win32_pump_stream_t* s = sources[wait - WAIT_OBJECT_0];
+-    if (!s) {
+-      // The child can exit with pipe data still buffered; keep draining until
+-      // both streams break
+-      process_done = true;
+-      if (!GetExitCodeProcess(ps->os->pid, &exit_code)) {
+-        exit_code = (DWORD)-1;
+-      }
+-      continue;
+-    }
+-
+     s->pending = false;
+     u64 num_read = 0;
+     sp_err_t reap = sp_ps_win32_reap(s->fd, s->ov, &num_read);
+@@ -16768,17 +16765,8 @@ sp_ps_output_t sp_ps_output(sp_ps_t* ps) {
+   sp_ps_close_owned_fd(&ps->io.err.fd, ps->io.err.mode);
+   sp_ps_win32_close_events(ps->os);
+ 
+-  if (ps->os->pid) {
+-    CloseHandle(ps->os->pid);
+-    ps->os->pid = SP_NULLPTR;
+-  }
+-
+   result.out = sp_io_dyn_mem_writer_take_str(&out);
+   result.err = sp_io_dyn_mem_writer_take_str(&err);
+-  result.status = (sp_ps_status_t) {
+-    .state = SP_PS_STATE_DONE,
+-    .exit_code = (s32)exit_code,
+-  };
+   return result;
+ }
+ 
+@@ -16797,6 +16785,14 @@ bool sp_ps_kill(sp_ps_t* ps) {
+   return true;
+ }
+ 
++bool sp_ps_kill_async(sp_ps_t* ps) {
++  if (!ps || !ps->os) {
++    return false;
++  }
++
++  return TerminateProcess(ps->os->pid, 1);
++}
++
+ void sp_ps_free(sp_ps_t* ps) {
+   if (!ps) return;
+ 
+@@ -16897,12 +16893,24 @@ sp_ps_output_t sp_ps_output(sp_ps_t* ps) {
+   };
+ }
+ 
++sp_ps_output_t sp_ps_drain(sp_ps_t* ps) {
++  SP_UNIMPLEMENTED();
++  SP_UNUSED(ps);
++  return sp_zero_s(sp_ps_output_t);
++}
++
+ bool sp_ps_kill(sp_ps_t* ps) {
+   SP_UNIMPLEMENTED();
+   SP_UNUSED(ps);
+   return false;
+ }
+ 
++bool sp_ps_kill_async(sp_ps_t* ps) {
++  SP_UNIMPLEMENTED();
++  SP_UNUSED(ps);
++  return false;
++}
++
+ void sp_ps_free(sp_ps_t* ps) {
+   SP_UNIMPLEMENTED();
+   SP_UNUSED(ps);

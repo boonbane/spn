@@ -1,5 +1,6 @@
 #include "graph/invocation.h"
 
+#include "core/core.h"
 #include "ctx/types.h"
 #include "paths/paths.h"
 #include "toolchain/search.h"
@@ -100,12 +101,12 @@ static sp_ps_config_t invocation_ps(const spn_path_roots_t* roots, const spn_inv
   return ps;
 }
 
-spn_invocation_result_t spn_invocation_run(const spn_path_roots_t* roots, spn_invocation_t* invocation) {
+spn_invocation_result_t spn_invocation_run(const spn_path_roots_t* roots, spn_children_t* children, spn_invocation_t* invocation) {
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   sp_ps_config_t ps = invocation_ps(roots, invocation, scratch.mem);
 
   sp_tm_timer_t timer = sp_tm_start_timer();
-  sp_ps_output_t result = sp_ps_run(spn.mem, ps);
+  sp_ps_output_t result = spn_children_run(children, spn.mem, ps);
   u64 elapsed = sp_tm_read_timer(&timer);
   sp_mem_end_scratch(scratch);
 
@@ -115,9 +116,9 @@ spn_invocation_result_t spn_invocation_run(const spn_path_roots_t* roots, spn_in
   };
 }
 
-spn_invocation_result_t spn_invocation_run_progress(const spn_path_roots_t* roots, spn_invocation_t* invocation, spn_path_t log, sp_io_writer_t* progress) {
+spn_invocation_result_t spn_invocation_run_progress(const spn_path_roots_t* roots, spn_children_t* children, spn_invocation_t* invocation, spn_path_t log, sp_io_writer_t* progress) {
 #if defined(SP_WIN32)
-  return spn_invocation_run(roots, invocation);
+  return spn_invocation_run(roots, children, invocation);
 #else
   spn_invocation_result_t failed = { .result = { .status = { .state = SP_PS_STATE_DONE, .exit_code = -1 } } };
 
@@ -152,6 +153,8 @@ spn_invocation_result_t spn_invocation_run_progress(const spn_path_roots_t* root
     return failed;
   }
 
+  spn_child_t tracked = { .ps = &child };
+  spn_children_add(children, &tracked);
   u8 buf [4096];
   while (true) {
     u64 bytes = 0;
@@ -161,13 +164,14 @@ spn_invocation_result_t spn_invocation_run_progress(const spn_path_roots_t* root
     sp_io_write(progress, buf, bytes, SP_NULLPTR);
   }
   sp_sys_close(pipe.r);
+  spn_children_remove(children, &tracked);
 
   sp_ps_output_t output = { .status = sp_ps_wait(&child) };
   u64 elapsed = sp_tm_read_timer(&timer);
   sp_ps_free(&child);
   sp_sys_close(sink);
   if (output.status.exit_code) {
-    sp_io_read_file_at(spn.mem, at, &output.out);
+    sp_fs_read_at(spn.mem, at, &output.out);
   }
   sp_mem_end_scratch(scratch);
 

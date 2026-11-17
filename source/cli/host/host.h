@@ -94,7 +94,8 @@ typedef struct {
   spn_session_t* session;
   sp_mem_t mem;
   sp_sys_event_t doorbell;
-  sp_atomic_s32_t interrupted;
+  sp_atomic_s32_t signal;
+  sp_atomic_s32_t waiting;
   s32 code;
 } spn_cli_host_t;
 
@@ -108,9 +109,10 @@ sp_cli_result_t spn_cli_usage(const c8* fmt, ...);
 sp_cli_result_t spn_cli_parse_profile(spn_profile_override_t* profile);
 spn_str_arr_t spn_cli_rest_names(sp_cli_t* cli);
 sp_cli_result_t spn_cli_open(bool project_optional);
+sp_cli_result_t spn_cli_open_here();
 sp_cli_result_t spn_cli_session(spn_session_config_t config);
-sp_cli_result_t spn_cli_refresh_indexes();
 sp_cli_result_t spn_cli_op(spn_op_t* op);
 spn_err_t spn_cli_wait(spn_op_t* op);
+void spn_cli_interrupt(s32 signal);
 
 #endif
