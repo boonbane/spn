@@ -69,7 +69,12 @@ typedef struct {
   const c8* define [UNIT_TEST_MAX_STRS];
   const c8* system_deps [UNIT_TEST_MAX_STRS];
   const c8* frameworks [UNIT_TEST_MAX_STRS];
-  const c8* publish [UNIT_TEST_MAX_STRS];
+  struct {
+    const c8* include [UNIT_TEST_MAX_STRS];
+    const c8* define [UNIT_TEST_MAX_STRS];
+    const c8* system_deps [UNIT_TEST_MAX_STRS];
+    const c8* frameworks [UNIT_TEST_MAX_STRS];
+  } publish;
   graph_node_t nodes [UNIT_TEST_MAX_NODES];
   spn_os_version_t min_os;
 } graph_pkg_t;

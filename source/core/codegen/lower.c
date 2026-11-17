@@ -162,11 +162,11 @@ static void lower_publish_root(spn_toml_loader_t* ctx, sp_da(spn_cg_publish_entr
   spn_toml_loader_pop(ctx);
 }
 
-static si_da(spn_gated_publish_t) lower_publish(spn_toml_loader_t* ctx, const spn_cg_publish_t* cg) {
+static si_da(spn_gated_publish_t) lower_publish(spn_toml_loader_t* ctx, sp_da(spn_cg_publish_entry_t) include, sp_da(spn_cg_publish_entry_t) share) {
   si_da(spn_gated_publish_t) publish = SP_NULLPTR;
   spn_toml_loader_push_key(ctx, "publish");
-  lower_publish_root(ctx, cg->include, SPN_PUBLISH_ROOT_INCLUDE, "include", &publish);
-  lower_publish_root(ctx, cg->share, SPN_PUBLISH_ROOT_SHARE, "share", &publish);
+  lower_publish_root(ctx, include, SPN_PUBLISH_ROOT_INCLUDE, "include", &publish);
+  lower_publish_root(ctx, share, SPN_PUBLISH_ROOT_SHARE, "share", &publish);
   spn_toml_loader_pop(ctx);
   return publish;
 }
@@ -205,7 +205,7 @@ static void lower_target(spn_toml_loader_t* ctx, const spn_cg_target_t* cg, si_t
     .no_link = sp_opt_is_null(cg->link) ? false : !sp_opt_get(cg->link),
     .cxx = lower_cxx_options(&cg->cxx),
     .source = lower_gated_sources(ctx, cg->source),
-    .publish = lower_publish(ctx, &cg->publish),
+    .publish = lower_publish(ctx, cg->publish.include, cg->publish.share),
     .include = lower_gated_dirs(ctx, cg->include),
     .define = lower_gated_values(ctx, cg->define),
     .flags = lower_gated_values(ctx, cg->flags),
@@ -340,8 +340,10 @@ static void lower_package(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, s
   lower_system_deps(ctx->mem, p->system_deps, &info->system_deps, &info->macos.frameworks);
   info->macos.min_os = p->macos.min_os;
   spn_toml_loader_push_key(ctx, "package");
-  info->publish = lower_publish(ctx, &p->publish);
+  info->publish.entries = lower_publish(ctx, p->publish.include, p->publish.share);
   spn_toml_loader_pop(ctx);
+  info->publish.define = lower_gated_values(ctx, p->publish.define);
+  lower_system_deps(ctx->mem, p->publish.system_deps, &info->publish.system_deps, &info->publish.frameworks);
   lower_metaprogram(ctx, &p->build, sp_str_lit("build"), SPN_TARGET_KIND_BUILD_METAPROGRAM, info);
   lower_metaprogram(ctx, &p->configure, sp_str_lit("configure"), SPN_TARGET_KIND_CONFIGURE_METAPROGRAM, info);
 }
@@ -669,10 +671,10 @@ static void validate_publish_entry_whens(spn_toml_loader_t* ctx, sp_da(spn_cg_pu
   spn_toml_loader_pop(ctx);
 }
 
-static void validate_publish_whens(spn_toml_loader_t* ctx, const spn_cg_publish_t* cg, si_pkg_info_t* out) {
+static void validate_publish_whens(spn_toml_loader_t* ctx, sp_da(spn_cg_publish_entry_t) include, sp_da(spn_cg_publish_entry_t) share, si_pkg_info_t* out) {
   spn_toml_loader_push_key(ctx, "publish");
-  validate_publish_entry_whens(ctx, cg->include, "include", out);
-  validate_publish_entry_whens(ctx, cg->share, "share", out);
+  validate_publish_entry_whens(ctx, include, "include", out);
+  validate_publish_entry_whens(ctx, share, "share", out);
   spn_toml_loader_pop(ctx);
 }
 
@@ -682,7 +684,7 @@ static void validate_target_whens(spn_toml_loader_t* ctx, spn_cg_target_om_t tar
     const spn_cg_target_t* target = sp_str_om_at(targets, it);
     spn_toml_loader_push_index(ctx, it);
     validate_source_whens(ctx, target->source, "source", out);
-    validate_publish_whens(ctx, &target->publish, out);
+    validate_publish_whens(ctx, target->publish.include, target->publish.share, out);
     validate_source_whens(ctx, target->include, "include", out);
     validate_value_whens(ctx, target->define, "define", out);
     validate_value_whens(ctx, target->flags, "flags", out);
@@ -713,7 +715,11 @@ static void validate_pkg_whens(spn_toml_loader_t* ctx, const spn_cg_manifest_t* 
   validate_system_dep_whens(ctx, cg->package.system_deps, out);
   validate_source_whens(ctx, cg->package.include, "include", out);
   validate_value_whens(ctx, cg->package.define, "define", out);
-  validate_publish_whens(ctx, &cg->package.publish, out);
+  validate_publish_whens(ctx, cg->package.publish.include, cg->package.publish.share, out);
+  spn_toml_loader_push_key(ctx, "publish");
+  validate_system_dep_whens(ctx, cg->package.publish.system_deps, out);
+  validate_value_whens(ctx, cg->package.publish.define, "define", out);
+  spn_toml_loader_pop(ctx);
   spn_toml_loader_pop(ctx);
 }
 
@@ -1081,10 +1087,10 @@ static void validate_publish_entry_trees(spn_toml_loader_t* ctx, sp_da(spn_cg_pu
   spn_toml_loader_pop(ctx);
 }
 
-static void validate_publish_trees(spn_toml_loader_t* ctx, const spn_cg_publish_t* cg) {
+static void validate_publish_trees(spn_toml_loader_t* ctx, sp_da(spn_cg_publish_entry_t) include, sp_da(spn_cg_publish_entry_t) share) {
   spn_toml_loader_push_key(ctx, "publish");
-  validate_publish_entry_trees(ctx, cg->include, "include");
-  validate_publish_entry_trees(ctx, cg->share, "share");
+  validate_publish_entry_trees(ctx, include, "include");
+  validate_publish_entry_trees(ctx, share, "share");
   spn_toml_loader_pop(ctx);
 }
 
@@ -1104,7 +1110,7 @@ static void validate_collection_trees(spn_toml_loader_t* ctx, spn_cg_target_om_t
       }
     }
     spn_toml_loader_pop(ctx);
-    validate_publish_trees(ctx, &target->publish);
+    validate_publish_trees(ctx, target->publish.include, target->publish.share);
     validate_entry_trees(ctx, target->include, "include");
     validate_entry_trees_no_work(ctx, target->linker_script, "linker_script");
     spn_toml_loader_push_key(ctx, "embed");
@@ -1136,7 +1142,7 @@ static void validate_trees(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg) 
   validate_collection_trees(ctx, cg->example, "example");
   spn_toml_loader_push_key(ctx, "package");
   validate_entry_trees(ctx, cg->package.include, "include");
-  validate_publish_trees(ctx, &cg->package.publish);
+  validate_publish_trees(ctx, cg->package.publish.include, cg->package.publish.share);
   validate_script_trees(ctx, &cg->package.build, "build");
   validate_script_trees(ctx, &cg->package.configure, "configure");
   spn_toml_loader_pop(ctx);
@@ -1230,6 +1236,9 @@ static void validate_system_deps(spn_toml_loader_t* ctx, const spn_cg_manifest_t
 
   spn_toml_loader_push_key(ctx, "package");
   validate_system_dep_entries(ctx, cg->package.system_deps);
+  spn_toml_loader_push_key(ctx, "publish");
+  validate_system_dep_entries(ctx, cg->package.publish.system_deps);
+  spn_toml_loader_pop(ctx);
   spn_toml_loader_pop(ctx);
 }
 

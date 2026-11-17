@@ -62,7 +62,7 @@ readme: false
 | `cxx` | [`cxx_options`](#cxx_options) | |
 | `macos` | [`platform_macos`](#platform_macos) | |
 | `windows` | [`platform_windows`](#platform_windows) | |
-| `publish` | [`publish`](#publish) | |
+| `publish` | [`target_publish`](#target_publish) | |
 
 ## toolchain_decl
 
@@ -192,6 +192,8 @@ readme: false
 |---|---|
 | `include` | array of [`publish_entry`](#publish_entry) |
 | `share` | array of [`publish_entry`](#publish_entry) |
+| `system_deps` | array of [`system_dep_entry`](#system_dep_entry) \| `string` |
+| `define` | array of [`value_entry`](#value_entry) \| `string` |
 
 ## stage
 
@@ -226,6 +228,13 @@ readme: false
 | Field | Type |
 |---|---|
 | `subsystem` | `console` \| `windows` |
+
+## target_publish
+
+| Field | Type |
+|---|---|
+| `include` | array of [`publish_entry`](#publish_entry) |
+| `share` | array of [`publish_entry`](#publish_entry) |
 
 ## artifact
 

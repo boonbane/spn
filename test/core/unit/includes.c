@@ -15,7 +15,7 @@ static const test_t tests [] = {
   {
     .name = "lib_searches_its_published_include_last",
     .graph.pkgs = {
-      { .name = "P", .deps = { { "D" } }, .publish = { "p.h" }, .targets = { { "A", static_only } } },
+      { .name = "P", .deps = { { "D" } }, .publish.include = { "p.h" }, .targets = { { "A", static_only } } },
       { .name = "D" },
     },
     .root = { "A", SPN_TARGET_KIND_LIB },
@@ -24,7 +24,7 @@ static const test_t tests [] = {
   {
     .name = "test_searches_its_published_include_last",
     .graph.pkgs = {
-      { .name = "P", .deps = { { "D" } }, .publish = { "p.h" } },
+      { .name = "P", .deps = { { "D" } }, .publish.include = { "p.h" } },
       { .name = "D" },
     },
     .root = { "A", SPN_TARGET_KIND_TEST },
@@ -33,7 +33,7 @@ static const test_t tests [] = {
   {
     .name = "example_searches_its_package_once",
     .graph.pkgs = {
-      { .name = "P", .deps = { { "D" } }, .publish = { "p.h" } },
+      { .name = "P", .deps = { { "D" } }, .publish.include = { "p.h" } },
       { .name = "D" },
     },
     .root = { "A", SPN_TARGET_KIND_EXAMPLE },

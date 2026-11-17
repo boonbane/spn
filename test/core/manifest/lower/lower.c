@@ -184,7 +184,12 @@ typedef struct {
   gated_t define [8];
   gated_t system_deps [8];
   gated_t frameworks [4];
-  publish_t publish [4];
+  struct {
+    publish_t entries [4];
+    gated_t define [4];
+    gated_t system_deps [4];
+    gated_t frameworks [4];
+  } publish;
   stage_t stage [4];
   issue_t issues [8];
   target_t libs [8];
@@ -1376,6 +1381,10 @@ static const test_t tests [] = {
     .manifest = "validate_system_deps_both",
     .system_deps = { { "A" } },
     .frameworks = { { "B" } },
+    .publish = {
+      .system_deps = { { "A" } },
+      .frameworks = { { "B" } },
+    },
     .libs = {
       {
         .name = "t",
@@ -1388,6 +1397,7 @@ static const test_t tests [] = {
     .issues = {
       { SPN_ERR_CODEGEN_INVALID, "lib[0].system_deps[0].framework" },
       { SPN_ERR_CODEGEN_INVALID, "package.system_deps[0].framework" },
+      { SPN_ERR_CODEGEN_INVALID, "package.publish.system_deps[0].framework" },
     },
   },
   {
@@ -1403,12 +1413,13 @@ static const test_t tests [] = {
     .issues = {
       { SPN_ERR_CODEGEN_MISSING_KEY, "lib[0].system_deps[0].lib" },
       { SPN_ERR_CODEGEN_MISSING_KEY, "package.system_deps[0].lib" },
+      { SPN_ERR_CODEGEN_MISSING_KEY, "package.publish.system_deps[0].lib" },
     },
   },
   {
     .name = "publish_gated",
     .manifest = "publish_gated",
-    .publish = {
+    .publish.entries = {
       { "a.h", "" },
       { "b.h", "b", "os = \"windows\"" },
     },
@@ -1416,19 +1427,40 @@ static const test_t tests [] = {
   {
     .name = "publish_glob_dest",
     .manifest = "publish_glob_dest",
-    .publish = { { "sub/*.h", "s", .kind = SPN_SOURCE_GLOB } },
+    .publish.entries = { { "sub/*.h", "s", .kind = SPN_SOURCE_GLOB } },
   },
   {
     .name = "publish_manifest_tree",
     .manifest = "publish_manifest_tree",
-    .publish = { { "gen/a.h", "", .tree = SPN_TREE_MANIFEST } },
+    .publish.entries = { { "gen/a.h", "", .tree = SPN_TREE_MANIFEST } },
   },
   {
     .name = "publish_roots",
     .manifest = "publish_roots",
-    .publish = {
+    .publish.entries = {
       { "a.h", "" },
       { "data/*", "d", .root = SPN_PUBLISH_ROOT_SHARE, .kind = SPN_SOURCE_GLOB },
+    },
+  },
+  {
+    .name = "publish_system_deps",
+    .manifest = "publish_system_deps",
+    .publish = {
+      .system_deps = { { "A" } },
+      .frameworks = { { "B" } },
+    },
+  },
+  {
+    .name = "publish_define",
+    .manifest = "publish_define",
+    .publish.define = { { "A" }, { "B", "os = \"windows\"" } },
+  },
+  {
+    .name = "validate_target_publish_package_keys",
+    .manifest = "validate_target_publish_package_keys",
+    .issues = {
+      { SPN_ERR_CODEGEN_UNKNOWN_KEY, "lib[0].publish" },
+      { SPN_ERR_CODEGEN_UNKNOWN_KEY, "lib[0].publish" },
     },
   },
   {
@@ -1467,7 +1499,7 @@ static const test_t tests [] = {
   {
     .name = "validate_publish_tree_work",
     .manifest = "validate_publish_tree_work",
-    .publish = { { "a.h", "", .tree = SPN_TREE_WORK } },
+    .publish.entries = { { "a.h", "", .tree = SPN_TREE_WORK } },
     .issues = {
       { SPN_ERR_CODEGEN_INVALID, "package.publish.include[0].tree" },
     },
@@ -1475,7 +1507,7 @@ static const test_t tests [] = {
   {
     .name = "validate_publish_tree_invalid",
     .manifest = "validate_publish_tree_invalid",
-    .publish = { { "a.h", "", .tree_none = true } },
+    .publish.entries = { { "a.h", "", .tree_none = true } },
     .issues = {
       { SPN_ERR_CODEGEN_INVALID, "package.publish.include[0].tree" },
     },
@@ -1498,7 +1530,11 @@ static const test_t tests [] = {
   {
     .name = "validate_publish_when_unknown_key",
     .manifest = "validate_publish_when_unknown_key",
-    .publish = { { "a.h", "", "simd = \"avx2\"" } },
+    .publish = {
+      .entries = { { "a.h", "", "simd = \"avx2\"" } },
+      .define = { { "B", "simd = \"avx2\"" } },
+      .system_deps = { { "A", "simd = \"avx2\"" } },
+    },
     .libs = {
       {
         .name = "t",
@@ -1510,6 +1546,8 @@ static const test_t tests [] = {
     .issues = {
       { SPN_ERR_CODEGEN_INVALID, "lib[0].publish.share[0].when.simd" },
       { SPN_ERR_CODEGEN_INVALID, "package.publish.include[0].when.simd" },
+      { SPN_ERR_CODEGEN_INVALID, "package.publish.system_deps[0].when.simd" },
+      { SPN_ERR_CODEGEN_INVALID, "package.publish.define[0].when.simd" },
     },
   },
   {
@@ -1839,7 +1877,10 @@ sp_test_each(lower, cases, test_t, tests, .setup = spn_test_ctx_setup) {
   check_gated(t, pkg->define, it->define);
   check_gated(t, pkg->system_deps, it->system_deps);
   check_gated(t, pkg->macos.frameworks, it->frameworks);
-  check_publish(t, pkg->publish, it->publish);
+  check_publish(t, pkg->publish.entries, it->publish.entries);
+  check_gated(t, pkg->publish.define, it->publish.define);
+  check_gated(t, pkg->publish.system_deps, it->publish.system_deps);
+  check_gated(t, pkg->publish.frameworks, it->publish.frameworks);
   check_stage(t, pkg->stage, it->stage);
   check_gated_paths(t, pkg->include, it->include);
   const si_target_info_t* build = get_target(pkg, sp_str_lit("build"), SPN_TARGET_KIND_BUILD_METAPROGRAM);

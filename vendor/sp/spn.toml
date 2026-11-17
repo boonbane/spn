@@ -3,9 +3,6 @@ name = "sp"
 version = "3.5.0"
 author = "tspader"
 maintainer = "tspader"
-system_deps = [
-  { lib = "m", when = { os = "linux" } },
-]
 
 [package.upstream]
 url = "https://github.com/tspader/sp.git"
@@ -15,4 +12,7 @@ commit = "f9fc24e8705eca6eafc6ab99990e7755118a5673"
 include = [
   { from = "sp.h" },
   { from = "sp/*", to = "sp" },
+]
+system_deps = [
+  { lib = "m", when = { os = "linux" } },
 ]

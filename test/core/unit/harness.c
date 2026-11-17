@@ -298,7 +298,10 @@ units_t* units_new(sp_test_t* t, const graph_t* g) {
     manifest->system_deps = gated_list(mem, spec->system_deps, UNIT_TEST_MAX_STRS);
     manifest->macos.frameworks = gated_list(mem, spec->frameworks, UNIT_TEST_MAX_STRS);
     manifest->macos.min_os = spec->min_os;
-    manifest->publish = gated_publish(mem, spec->publish, UNIT_TEST_MAX_STRS);
+    manifest->publish.entries = gated_publish(mem, spec->publish.include, UNIT_TEST_MAX_STRS);
+    manifest->publish.define = gated_list(mem, spec->publish.define, UNIT_TEST_MAX_STRS);
+    manifest->publish.system_deps = gated_list(mem, spec->publish.system_deps, UNIT_TEST_MAX_STRS);
+    manifest->publish.frameworks = gated_list(mem, spec->publish.frameworks, UNIT_TEST_MAX_STRS);
     sp_carr_for(spec->targets, tt) {
       if (!spec->targets[tt].name) {
         break;

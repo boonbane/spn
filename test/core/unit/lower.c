@@ -103,7 +103,7 @@ static const test_t tests [] = {
     .name = "published_include_tree_orders_consumer_compiles",
     .graph.pkgs = {
       { .name = "P", .deps = { { "B" } }, .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "main.c" } } } },
-      { .name = "B", .publish = { "b.h" } },
+      { .name = "B", .publish.include = { "b.h" } },
     },
     .roots = { { "A", SPN_TARGET_KIND_EXE } },
     .actions = {
@@ -116,7 +116,7 @@ static const test_t tests [] = {
   {
     .name = "published_include_tree_orders_own_package_compiles",
     .graph.pkgs = {
-      { .name = "P", .publish = { "p.h" }, .targets = { { "A", static_only, .source = { "a.c" } } } },
+      { .name = "P", .publish.include = { "p.h" }, .targets = { { "A", static_only, .source = { "a.c" } } } },
     },
     .roots = { { "A", SPN_TARGET_KIND_LIB } },
     .actions = {

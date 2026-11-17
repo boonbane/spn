@@ -111,6 +111,15 @@
     "publish": {
       "optionalProperties": {
         "include": { "elements": { "ref": "publish_entry" } },
+        "share": { "elements": { "ref": "publish_entry" } },
+        "system_deps": { "elements": { "ref": "system_dep_entry" }, "metadata": { "shorthand": "lib" } },
+        "define": { "elements": { "ref": "value_entry" }, "metadata": { "shorthand": "value" } }
+      }
+    },
+
+    "target_publish": {
+      "optionalProperties": {
+        "include": { "elements": { "ref": "publish_entry" } },
         "share": { "elements": { "ref": "publish_entry" } }
       }
     },
@@ -187,7 +196,7 @@
         "cxx": { "ref": "cxx_options" },
         "macos": { "ref": "platform_macos" },
         "windows": { "ref": "platform_windows" },
-        "publish": { "ref": "publish" }
+        "publish": { "ref": "target_publish" }
       }
     },
 

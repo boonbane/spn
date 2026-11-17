@@ -183,46 +183,40 @@ static spn_err_t lower_target(spn_units_t* u, spn_target_unit_t* unit) {
   link->cc.min_os = max_os_version(link->cc.min_os, pkg->pkg.manifest->macos.min_os);
   push_unique(mem, &link->cc.frameworks, target->macos.frameworks);
   push_unique(mem, &link->cc.frameworks, pkg->pkg.macos.frameworks);
+  push_unique(mem, &link->cc.frameworks, pkg->pkg.publish.frameworks);
   push_unique(mem, &link->cc.system_libs, target->system_deps);
   push_unique(mem, &link->cc.system_libs, pkg->pkg.system_deps);
+  push_unique(mem, &link->cc.system_libs, pkg->pkg.publish.system_deps);
   si_da_rfor(entries, et) {
     si_closure_entry_t* entry = &entries[et];
     switch (entry->yield) {
       case SI_CLOSURE_YIELD_PKG: {
         spn_pkg_unit_t* dep = entry->pkg;
         link->cc.min_os = max_os_version(link->cc.min_os, dep->pkg.manifest->macos.min_os);
-        bool links_code = si_da_empty(dep->libs);
-        si_da_for_value(dep->libs, lib) {
-          links_code = links_code || (!lib->target->info->no_link && lib->lib_kind != SPN_LIB_KIND_SHARED);
-        }
-        if (links_code) {
-          push_unique(mem, &link->cc.frameworks, dep->pkg.macos.frameworks);
-        }
-        push_unique(mem, &link->cc.system_libs, dep->pkg.system_deps);
+        push_unique(mem, &link->cc.frameworks, dep->pkg.publish.frameworks);
+        push_unique(mem, &link->cc.system_libs, dep->pkg.publish.system_deps);
         break;
       }
       case SI_CLOSURE_YIELD_LIB: {
         spn_target_unit_t* lib = entry->lib;
         link->cc.min_os = max_os_version(link->cc.min_os, lib->target->info->macos.min_os);
-        if (lib->target->info->no_link) {
+        if (lib->target->info->no_link || sp_da_empty(lib->objects)) {
           break;
         }
         switch (lib->lib_kind) {
           case SPN_LIB_KIND_SHARED: {
-            if (!sp_da_empty(lib->objects)) {
-              si_da_push(mem, link->deps, ((spn_link_dep_t) { .lib = lib, .role = SPN_LINK_ROLE_SHARED }));
-            }
+            si_da_push(mem, link->deps, ((spn_link_dep_t) { .lib = lib, .role = SPN_LINK_ROLE_SHARED }));
             break;
           }
           case SPN_LIB_KIND_STATIC: {
-            if (!sp_da_empty(lib->objects)) {
-              spn_link_role_t role = dynamic && entry->public ? SPN_LINK_ROLE_WHOLE_ARCHIVE : SPN_LINK_ROLE_ARCHIVE;
-              si_da_push(mem, link->deps, ((spn_link_dep_t) { .lib = lib, .role = role }));
-            }
+            spn_link_role_t role = dynamic && entry->public ? SPN_LINK_ROLE_WHOLE_ARCHIVE : SPN_LINK_ROLE_ARCHIVE;
+            si_da_push(mem, link->deps, ((spn_link_dep_t) { .lib = lib, .role = role }));
             if (is_any_object_cxx(lib->objects)) {
               link->cc.lang = SPN_LANG_CXX;
             }
+            push_unique(mem, &link->cc.frameworks, lib->pkg->pkg.macos.frameworks);
             push_unique(mem, &link->cc.frameworks, lib->target->macos.frameworks);
+            push_unique(mem, &link->cc.system_libs, lib->pkg->pkg.system_deps);
             push_unique(mem, &link->cc.system_libs, lib->target->system_deps);
             break;
           }
@@ -364,7 +358,7 @@ static spn_err_t plan_new(spn_units_t* u, sp_mem_t scratch, spn_pkg_unit_t* root
     spn_pkg_unit_t* pkg = sp_om_at(u->packages, pt);
     si_da_push(u->mem, plan->pkgs, pkg);
     spn_publish_plan_t publish = { .pkg = pkg };
-    si_da_for_value(pkg->pkg.publish, entry) {
+    si_da_for_value(pkg->pkg.publish.entries, entry) {
       si_da_push(u->mem, publish.entries, entry);
     }
     si_om_for_each(pkg->pkg.targets, target) {

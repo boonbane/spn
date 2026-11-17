@@ -40,6 +40,11 @@ typedef struct {
   const c8* pkg_define [EVAL_TEST_MAX];
   const c8* frameworks [EVAL_TEST_MAX];
   const c8* pkg_frameworks [EVAL_TEST_MAX];
+  const c8* public_define [EVAL_TEST_MAX];
+  struct {
+    const c8* system_deps [EVAL_TEST_MAX];
+    const c8* frameworks [EVAL_TEST_MAX];
+  } publish;
 } lists_expect_t;
 
 typedef struct {
@@ -61,6 +66,11 @@ typedef struct {
   list_t pkg_define;
   list_t frameworks;
   list_t pkg_frameworks;
+  struct {
+    list_t define;
+    list_t system_deps;
+    list_t frameworks;
+  } publish;
   lists_expect_t expect;
 } lists_test_t;
 
@@ -278,6 +288,24 @@ static const lists_test_t lists_tests [] = {
     .pkg_frameworks = { .values = { { "A", { { "os", "macos" } } }, { "B", { { "os", "linux" } } } } },
     .expect = { .pkg_frameworks = { "A" } },
   },
+  {
+    .name = "publish_define",
+    .facts = { .os = SPN_OS_LINUX },
+    .publish.define = { .values = { { "A", { { "os", "linux" } } }, { "B", { { "os", "windows" } } } } },
+    .expect = { .pkg_define = { "A" }, .public_define = { "A" } },
+  },
+  {
+    .name = "publish_system_deps",
+    .facts = { .os = SPN_OS_LINUX },
+    .publish.system_deps = { .values = { { "A", { { "os", "linux" } } }, { "B", { { "os", "windows" } } } } },
+    .expect.publish.system_deps = { "A" },
+  },
+  {
+    .name = "publish_frameworks",
+    .facts = { .os = SPN_OS_MACOS },
+    .publish.frameworks = { .values = { { "A", { { "os", "macos" } } }, { "B", { { "os", "linux" } } } } },
+    .expect.publish.frameworks = { "A" },
+  },
 };
 
 sp_test_each(pkg_eval, lists, lists_test_t, lists_tests, .setup = spn_test_ctx_setup) {
@@ -320,6 +348,9 @@ sp_test_each(pkg_eval, lists, lists_test_t, lists_tests, .setup = spn_test_ctx_s
   manifest.system_deps = make_list(mem, it->sys);
   manifest.define = make_list(mem, it->pkg_define);
   manifest.macos.frameworks = make_list(mem, it->pkg_frameworks);
+  manifest.publish.define = make_list(mem, it->publish.define);
+  manifest.publish.system_deps = make_list(mem, it->publish.system_deps);
+  manifest.publish.frameworks = make_list(mem, it->publish.frameworks);
 
   spn_when_env_t env = make_env(mem, it->facts);
   si_pkg_t pkg = eval(mem, &manifest, &env);
@@ -352,6 +383,9 @@ sp_test_each(pkg_eval, lists, lists_test_t, lists_tests, .setup = spn_test_ctx_s
   sp_try(expect_list(t, pkg.system_deps, it->expect.sys));
   sp_try(expect_list(t, pkg.define, it->expect.pkg_define));
   sp_try(expect_list(t, pkg.macos.frameworks, it->expect.pkg_frameworks));
+  sp_try(expect_list(t, pkg.public_define, it->expect.public_define));
+  sp_try(expect_list(t, pkg.publish.system_deps, it->expect.publish.system_deps));
+  sp_try(expect_list(t, pkg.publish.frameworks, it->expect.publish.frameworks));
   return SP_OK;
 }
 
@@ -506,7 +540,7 @@ sp_test_each(pkg_eval, publish, publish_test_t, publish_tests, .setup = spn_test
     if (!it->entries[et].pattern) {
       break;
     }
-    si_da_push(mem, manifest.publish, ((spn_gated_publish_t) {
+    si_da_push(mem, manifest.publish.entries, ((spn_gated_publish_t) {
       .root = it->entries[et].root,
       .source = {
         .kind = it->entries[et].kind,
@@ -522,11 +556,11 @@ sp_test_each(pkg_eval, publish, publish_test_t, publish_tests, .setup = spn_test
 
   u32 expected = 0;
   sp_carr_detect_len(it->expect, expected, it->expect[expected].pattern);
-  sp_must_eq(t, expected, (u32)si_da_size(pkg.publish));
+  sp_must_eq(t, expected, (u32)si_da_size(pkg.publish.entries));
   sp_for(et, expected) {
-    sp_expect_str_eq_c(t, pkg.publish[et].source.path.sub, it->expect[et].pattern);
-    sp_expect_eq(t, (u32)it->expect[et].root, (u32)pkg.publish[et].root);
-    sp_expect_eq(t, (u32)it->expect[et].kind, (u32)pkg.publish[et].source.kind);
+    sp_expect_str_eq_c(t, pkg.publish.entries[et].source.path.sub, it->expect[et].pattern);
+    sp_expect_eq(t, (u32)it->expect[et].root, (u32)pkg.publish.entries[et].root);
+    sp_expect_eq(t, (u32)it->expect[et].kind, (u32)pkg.publish.entries[et].source.kind);
   }
   return SP_OK;
 }

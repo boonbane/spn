@@ -1,0 +1,6 @@
+[package]
+name = "p"
+version = "1.0.0"
+
+[package.publish]
+system_deps = ["A", { framework = "B" }]

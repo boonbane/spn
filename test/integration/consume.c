@@ -30,6 +30,13 @@ static const command_test_t tests [] = {
     .expect.exists = { pkg_profile_static_lib("static", "spum", "spum"), profile_exe("static", "main") },
   },
   {
+    .name = "publish_requirements",
+    .project = "test/integration/fixtures/consume/publish",
+    .copy = { "packages/*" },
+    .args = { "build", "-p", "debug" },
+    .expect.exists = { exe("main") },
+  },
+  {
     .name = "transitive",
     .project = "test/integration/fixtures/consume/transitive",
     .copy = { "packages/*" },

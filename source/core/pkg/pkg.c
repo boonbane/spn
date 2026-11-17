@@ -104,10 +104,18 @@ si_pkg_t si_evaluate_package(sp_mem_t mem, const si_pkg_info_t* manifest, const 
     .manifest = manifest,
     .include = eval_paths(&ctx, manifest->include),
     .define = eval_list(&ctx, manifest->define),
+    .public_define = eval_list(&ctx, manifest->publish.define),
     .system_deps = eval_list(&ctx, manifest->system_deps),
-    .publish = eval_publish(&ctx, manifest->publish),
+    .publish = {
+      .entries = eval_publish(&ctx, manifest->publish.entries),
+      .system_deps = eval_list(&ctx, manifest->publish.system_deps),
+      .frameworks = eval_list(&ctx, manifest->publish.frameworks),
+    },
     .macos = { .frameworks = eval_list(&ctx, manifest->macos.frameworks) },
   };
+  si_da_for_value(pkg.public_define, define) {
+    si_da_push(mem, pkg.define, define);
+  }
   si_om_for(manifest->targets, it) {
     const si_target_info_t* decl = si_om_at(manifest->targets, it);
     si_om_insert(mem, pkg.targets, decl->id, eval_target(&ctx, decl));

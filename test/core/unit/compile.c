@@ -26,7 +26,7 @@ static const test_t tests [] = {
     .name = "includes_go_package_then_target_then_deps",
     .graph.pkgs = {
       { .name = "P", .deps = { { "B" } }, .include = { "inc" }, .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "a.c" }, .include = { "tinc" } } } },
-      { .name = "B", .publish = { "b.h" } },
+      { .name = "B", .publish.include = { "b.h" } },
     },
     .root = { "A", SPN_TARGET_KIND_EXE },
     .expect.args = {
@@ -51,6 +51,23 @@ static const test_t tests [] = {
     },
     .root = { "A", SPN_TARGET_KIND_EXE },
     .expect = { .args = { { "-DBX" } }, .absent = { "-DBY" } },
+  },
+  {
+    .name = "publish_defines_reach_consumers",
+    .graph.pkgs = {
+      { .name = "P", .deps = { { "B" } }, .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "a.c" } } } },
+      { .name = "B", .publish.define = { "X" } },
+    },
+    .root = { "A", SPN_TARGET_KIND_EXE },
+    .expect.args = { { "-DX" } },
+  },
+  {
+    .name = "publish_defines_reach_own_targets",
+    .graph.pkgs = {
+      { .name = "P", .publish.define = { "X" }, .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "a.c" } } } },
+    },
+    .root = { "A", SPN_TARGET_KIND_EXE },
+    .expect.args = { { "-DX" } },
   },
   {
     .name = "libs_are_pic",

@@ -89,6 +89,7 @@ static sp_hash_t hash_platform(const si_pkg_info_t* manifest, const spn_profile_
     case SPN_OS_MACOS: {
       hash = hash_push(hash, spn_digest_hash(&manifest->macos.min_os, sizeof(manifest->macos.min_os)));
       hash = hash_gated(hash, manifest->macos.frameworks);
+      hash = hash_gated(hash, manifest->publish.frameworks);
       si_om_for(manifest->targets, it) {
         si_target_info_t* target = si_om_at(manifest->targets, it);
         hash = hash_push(hash, spn_digest_hash_str(target->name.str));

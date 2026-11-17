@@ -88,7 +88,7 @@ spn_err_t si_add_package_unit(spn_units_t* u, spn_build_unit_t* build, const spn
     .work = unit->paths.work,
   };
   unit->pkg = evaluate(u, build, resolved, unit->paths.roots);
-  si_da_for_ptr(unit->pkg.publish, entry) {
+  si_da_for_ptr(unit->pkg.publish.entries, entry) {
     unit->publishes.include = unit->publishes.include || entry->root == SPN_PUBLISH_ROOT_INCLUDE;
   }
   si_om_for_each(unit->pkg.targets, target) {

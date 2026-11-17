@@ -3,6 +3,9 @@ name = "p"
 version = "1.0.0"
 system_deps = [{ when = { os = "linux" } }]
 
+[package.publish]
+system_deps = [{ when = { os = "linux" } }]
+
 [[lib]]
 name = "t"
 kinds = ["static"]
