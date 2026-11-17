@@ -716,15 +716,18 @@ static spn_err_union_t resolve_dep(spn_resolver_t* resolver, spn_resolve_run_t* 
   sp_unreachable_return(ok_union());
 }
 
+static void declare(spn_resolver_t* resolver, spn_resolve_run_t* run, spn_resolved_pkg_t* from, spn_requested_dep_t* reqs, u64 num) {
+  sp_for(it, num) {
+    if (reqs[it].source == SPN_PKG_SOURCE_INDEX && classify_dep(resolver, from, &reqs[it]) == SPN_DEP_EDGE_SCOPE) {
+      sp_da_push(run->declared, ((spn_declared_t) { .from = from, .req = reqs[it] }));
+    }
+  }
+}
+
 static spn_err_union_t resolve_deps(spn_resolver_t* resolver, spn_resolve_run_t* run, spn_resolved_pkg_t* node) {
   sp_ht_insert(run->visited, node->id.name, (u8)true);
   u64 declared = sp_da_size(run->declared);
-  sp_da_for(node->deps, it) {
-    spn_requested_dep_t* dep = &node->deps[it];
-    if (dep->source == SPN_PKG_SOURCE_INDEX && classify_dep(resolver, node, dep) == SPN_DEP_EDGE_SCOPE) {
-      sp_da_push(run->declared, ((spn_declared_t) { .from = node, .req = *dep }));
-    }
-  }
+  declare(resolver, run, node, node->deps, sp_da_size(node->deps));
 
   spn_err_union_t err = sp_zero;
   sp_da_for(node->deps, it) {
@@ -742,12 +745,18 @@ static spn_err_union_t solve_reqs(spn_resolver_t* resolver, spn_resolve_run_t* r
     .source = SPN_PKG_SOURCE_ROOT,
   };
 
+  u64 declared = sp_da_size(run->declared);
+  declare(resolver, run, &root, run->scopes[run->scope].reqs + from, to - from);
+
+  spn_err_union_t err = sp_zero;
   for (u64 it = from; it < to; it++) {
     spn_requested_dep_t req = run->scopes[run->scope].reqs[it];
-    try_union(resolve_dep(resolver, run, &root, &req));
+    err = resolve_dep(resolver, run, &root, &req);
+    if (err.kind) break;
   }
 
-  return ok_union();
+  sp_da_head(run->declared)->size = declared;
+  return err;
 }
 
 // The full assignment for some feasibility check.

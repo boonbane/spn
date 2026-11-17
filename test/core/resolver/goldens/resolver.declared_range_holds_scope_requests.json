@@ -1,0 +1,64 @@
+{
+  "version": 3,
+  "requests": [
+    {
+      "name": "root",
+      "kind": "package",
+      "source": "root"
+    }
+  ],
+  "packages": [
+    {
+      "name": "a",
+      "version": "1.0.0",
+      "hash": "c3429172d5fcfd6d",
+      "source": "index",
+      "recipe": "none",
+      "edges": [
+        {
+          "to": {
+            "name": "c",
+            "version": "1.0.0",
+            "hash": "b0ef293f2497b905"
+          },
+          "kind": "package",
+          "edge": "scope"
+        }
+      ]
+    },
+    {
+      "name": "c",
+      "version": "1.0.0",
+      "hash": "b0ef293f2497b905",
+      "source": "index",
+      "recipe": "none"
+    },
+    {
+      "name": "root",
+      "version": "0.0.1",
+      "hash": "72e3a0ca2e36eafa",
+      "source": "root",
+      "recipe": "local",
+      "edges": [
+        {
+          "to": {
+            "name": "a",
+            "version": "1.0.0",
+            "hash": "c3429172d5fcfd6d"
+          },
+          "kind": "build",
+          "edge": "process"
+        },
+        {
+          "to": {
+            "name": "c",
+            "version": "1.0.0",
+            "hash": "b0ef293f2497b905"
+          },
+          "kind": "build",
+          "edge": "process"
+        }
+      ]
+    }
+  ]
+}
