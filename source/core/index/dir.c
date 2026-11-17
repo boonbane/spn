@@ -4,17 +4,20 @@
 #include "index/release.h"
 #include "paths/paths.h"
 #include "pkg/load.h"
+#include "semver/compare.h"
 
-spn_err_t spn_index_dir_get_package(spn_index_info_t* index, sp_mem_t mem, sp_intern_t* intern, const spn_path_roots_t* roots, sp_intern_str_t name, spn_index_pkg_t** pkg, spn_err_union_t* err) {
-  *pkg = SP_NULLPTR;
+static s32 sort_release_by_version(const void* a, const void* b) {
+  const spn_index_release_t* lhs = (const spn_index_release_t*)a;
+  const spn_index_release_t* rhs = (const spn_index_release_t*)b;
+  return spn_semver_cmp(lhs->version, rhs->version);
+}
 
-  spn_path_t dir = spn_path_join(mem, (spn_path_t) { .sub = index->location.dir }, name.str);
-  spn_path_t path = spn_path_join(mem, dir, sp_str_lit("spn.toml"));
+static bool has_manifest(const spn_path_roots_t* roots, spn_path_t path) {
   sp_sys_file_meta_t meta = sp_zero;
-  if (sp_fs_get_path_metadata_at(spn_path_at(roots, path), &meta) || meta.kind == SP_FS_KIND_UNKNOWN) {
-    return SPN_OK;
-  }
+  return !sp_fs_get_path_metadata_at(spn_path_at(roots, path), &meta) && meta.kind != SP_FS_KIND_UNKNOWN;
+}
 
+static spn_err_t add_release(sp_mem_t mem, sp_intern_t* intern, const spn_path_roots_t* roots, sp_intern_str_t name, spn_path_t path, spn_index_pkg_t* package, spn_err_union_t* err) {
   si_pkg_info_t* manifest = sp_alloc_type(mem, si_pkg_info_t);
   if (spn_pkg_load(mem, intern, roots, path, manifest, err)) {
     *err = spn_err_about(*err, name.str);
@@ -29,14 +32,68 @@ spn_err_t spn_index_dir_get_package(spn_index_info_t* index, sp_mem_t mem, sp_in
     return err->kind;
   }
 
-  spn_pkg_root_t published = { .kind = SPN_PKG_ROOT_LOCAL, .local = dir };
+  spn_pkg_root_t published = { .kind = SPN_PKG_ROOT_LOCAL, .local = spn_path_parent(path) };
 
   spn_index_release_t release = sp_zero;
   spn_try(spn_index_release_from_manifest(mem, manifest, published, &release, err));
+  sp_da_push(package->releases, release);
+  return SPN_OK;
+}
+
+spn_err_t spn_index_dir_get_package(spn_index_info_t* index, sp_mem_t mem, sp_intern_t* intern, const spn_path_roots_t* roots, sp_intern_str_t name, spn_index_pkg_t** pkg, spn_err_union_t* err) {
+  *pkg = SP_NULLPTR;
+
+  spn_path_t dir = spn_path_join(mem, (spn_path_t) { .sub = index->location.dir }, name.str);
+  spn_path_t flat = spn_path_join(mem, dir, sp_str_lit("spn.toml"));
+  if (has_manifest(roots, flat)) {
+    spn_index_pkg_t* package = sp_alloc_type(mem, spn_index_pkg_t);
+    sp_da_init(mem, package->releases);
+    spn_try(add_release(mem, intern, roots, name, flat, package, err));
+    *pkg = package;
+    return SPN_OK;
+  }
+
+  sp_sys_dir_t handle = sp_zero;
+  if (sp_fs_open_dir_at(spn_path_at(roots, dir), &handle)) {
+    return SPN_OK;
+  }
 
   spn_index_pkg_t* package = sp_alloc_type(mem, spn_index_pkg_t);
   sp_da_init(mem, package->releases);
-  sp_da_push(package->releases, release);
+
+  SP_ALIGNED u8 buffer [SP_SYS_DIR_MIN_BUF] = sp_zero;
+  sp_fs_dir_it_t it = sp_fs_dir_it(handle);
+  sp_fs_dir_entry_t entry = sp_zero;
+  spn_err_t result = SPN_OK;
+  while (!result && sp_fs_dir_it_next(&it, sp_mem_slice(buffer, sizeof(buffer)), &entry)) {
+    spn_path_t versioned = spn_path_join(mem, spn_path_join(mem, dir, entry.name), sp_str_lit("spn.toml"));
+    if (has_manifest(roots, versioned)) {
+      result = add_release(mem, intern, roots, name, versioned, package, err);
+    }
+  }
+  sp_fs_dir_it_close(&it);
+  sp_fs_close_dir(handle);
+  spn_try(result);
+
+  if (it.err) {
+    *err = (spn_err_union_t) { .kind = SPN_ERR_FS_READ, .fs = { .path = dir } };
+    return err->kind;
+  }
+  if (sp_da_empty(package->releases)) {
+    return SPN_OK;
+  }
+
+  sp_da_sort(package->releases, sort_release_by_version);
+  sp_for(at, sp_da_size(package->releases) - 1) {
+    if (spn_semver_eq(package->releases[at].version, package->releases[at + 1].version)) {
+      *err = (spn_err_union_t) {
+        .kind = SPN_ERR_INDEX_CORRUPT,
+        .index_corrupt = { .name = name.str, .path = spn_path_str(roots, mem, dir) },
+      };
+      return err->kind;
+    }
+  }
+
   *pkg = package;
   return SPN_OK;
 }
