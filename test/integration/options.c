@@ -90,6 +90,7 @@ static const opt_test_t tests [] = {
   {
     .name = "tool_dep_request_stays_off_package_dep",
     .project = "test/integration/fixtures/options/tool_dep",
+    .skip = "option values are outside instance identity, so both tables share one copy (SP-77)",
     .builds = { { .present = true } },
   },
   {

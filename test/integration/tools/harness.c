@@ -1037,6 +1037,10 @@ static sp_err_t opt_set_manifest(sp_test_t* t, fixture_t* fixture, const c8* man
 }
 
 sp_err_t run_opt_test(sp_test_t* t, opt_test_t test) {
+  if (test.skip) {
+    return sp_test_skip(t, "{}", sp_fmt_cstr(test.skip));
+  }
+
   fixture_t fixture = sp_zero;
   sp_try(begin_test(t, &fixture, test.when));
   fixture.project = test.project;

@@ -234,6 +234,7 @@ typedef struct {
   const c8* name;
   const c8* project;
   const c8* copy [4];
+  const c8* skip;
   test_when_t when;
   opt_build_t builds [SPN_TEST_MAX_BUILDS];
 } opt_test_t;

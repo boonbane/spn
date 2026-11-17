@@ -58,6 +58,14 @@ static const test_t tests [] = {
     },
   },
   {
+    .name = "file_one_path_two_spellings",
+    .project = "test/integration/fixtures/deps/file/two_spellings",
+    .copy = { "P/*", "B/*" },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { "build" } },
+    },
+  },
+  {
     .name = "index_name_mismatch",
     .project = "test/integration/fixtures/deps/index/name_mismatch",
     .actions = {
