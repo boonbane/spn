@@ -14,6 +14,7 @@ typedef struct {
 static const test_t tests [] = {
   { .name = "same_sdk_same_hash",      .a = { SPN_SDK_MACOS, { "/S" } },                .b = { SPN_SDK_MACOS, { "/S" } },                .expect = { .equal = true } },
   { .name = "none_differs_from_root",  .a = { SPN_SDK_NONE },                           .b = { SPN_SDK_MACOS, { "/S" } } },
+  { .name = "none_differs_from_host",  .a = { SPN_SDK_NONE },                           .b = { SPN_SDK_HOST } },
   { .name = "root_changes_hash",       .a = { SPN_SDK_MACOS, { "/S" } },                .b = { SPN_SDK_MACOS, { "/T" } } },
   { .name = "kind_changes_hash",       .a = { SPN_SDK_MACOS, { "/S" } },                .b = { SPN_SDK_SYSROOT, { "/S" } } },
   { .name = "path_root_changes_hash",  .a = { SPN_SDK_SYSROOT, { "S" } },               .b = { SPN_SDK_SYSROOT, { "S", SPN_PATH_ROOT_TOOLCHAIN } } },

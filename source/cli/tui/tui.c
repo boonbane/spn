@@ -1530,52 +1530,24 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           spn_err_host_deps_t* err = &event->err.host_deps;
           sp_str_t subject = subject_name(mem, err->pkg, err->name);
           sp_str_t libs = sp_str_join_n(mem, err->libs, (u32)sp_da_size(err->libs), sp_str_lit(", "));
-          switch (err->reason) {
-            case SPN_HOST_REFUSAL_TARGET: {
-              sp_tty_fmt(
-                &w,
-                "{.cyan} links host libraries ({.red}), which only exist for this machine, but the build targets {.yellow}. Pass {.cyan}",
-                sp_fmt_str(subject),
-                sp_fmt_str(libs),
-                sp_fmt_str(spn_triple_to_str(mem, err->target)),
-                sp_fmt_str(sp_fmt(mem, "--target {}", sp_fmt_str(spn_triple_to_str(mem, err->host))).value)
-              );
-              break;
-            }
-            case SPN_HOST_REFUSAL_OS: {
-              sp_tty_fmt(
-                &w,
-                "{.cyan} links host libraries ({.red}), which aren't supported on {.yellow} yet",
-                sp_fmt_str(subject),
-                sp_fmt_str(libs),
-                sp_fmt_str(spn_os_to_str(err->host.os))
-              );
-              break;
-            }
-            case SPN_HOST_REFUSAL_TOOLCHAIN: {
-              sp_tty_fmt(
-                &w,
-                "{.cyan} links host libraries ({.red}), which only exist for this machine, but toolchain {.yellow} doesn't build against this machine's libc",
-                sp_fmt_str(subject),
-                sp_fmt_str(libs),
-                sp_fmt_str(err->toolchain)
-              );
-              break;
-            }
-            case SPN_HOST_REFUSAL_SCRIPT: {
-              sp_tty_fmt(
-                &w,
-                "{.cyan} links host libraries ({.red}) into a build script, which is compiled to WebAssembly and can't use them. Gate them with {.cyan}",
-                sp_fmt_str(subject),
-                sp_fmt_str(libs),
-                sp_fmt_str(sp_str_lit("when"))
-              );
-              break;
-            }
-            case SPN_HOST_REFUSAL_NONE: {
-              sp_unreachable_case();
-            }
+          if (err->script) {
+            sp_tty_fmt(
+              &w,
+              "{.cyan} links host libraries ({.red}) into a build script, which is compiled to WebAssembly and can't use them. Gate them with {.cyan}",
+              sp_fmt_str(subject),
+              sp_fmt_str(libs),
+              sp_fmt_str(sp_str_lit("when"))
+            );
+            break;
           }
+          sp_tty_fmt(
+            &w,
+            "{.cyan} links host libraries ({.red}), which need a build against this machine, and toolchain {.yellow} targeting {.yellow} isn't one",
+            sp_fmt_str(subject),
+            sp_fmt_str(libs),
+            sp_fmt_str(err->toolchain),
+            sp_fmt_str(spn_triple_to_str(mem, err->target))
+          );
           break;
         }
         case SPN_ERR_TARGET_SELECTION: {
@@ -2030,11 +2002,18 @@ static void render_event_extra(sp_tty_t* w, spn_event_t* event) {
           break;
         }
         case SPN_ERR_TARGET_HOST_DEPS: {
-          list_t list = { .w = w, .label = sp_str_lit("toolchains that do"), .style = sp_fmt_style_green };
-          sp_da_for(event->err.host_deps.candidates, it) {
-            list_item(&list, event->err.host_deps.candidates[it]);
+          spn_err_host_deps_t* err = &event->err.host_deps;
+          if (err->script) {
+            break;
+          }
+          sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+          sp_str_t label = sp_fmt(scratch.mem, "toolchains that are, targeting {}", sp_fmt_str(spn_triple_to_str(scratch.mem, err->host))).value;
+          list_t list = { .w = w, .label = label, .style = sp_fmt_style_green };
+          sp_da_for(err->candidates, it) {
+            list_item(&list, err->candidates[it]);
           }
           list_end(&list);
+          sp_mem_end_scratch(scratch);
           break;
         }
         case SPN_ERR_TARGET_LINKAGE: {

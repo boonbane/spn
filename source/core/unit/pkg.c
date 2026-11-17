@@ -18,6 +18,12 @@ static si_pkg_t evaluate(spn_units_t* u, spn_build_unit_t* build, const spn_reso
   return si_evaluate_package(mem, resolved->manifest, &u->ctx->roots, trees, &env);
 }
 
+static void append(sp_mem_t mem, si_da(sp_str_t)* list, si_da(sp_str_t) values) {
+  si_da_for_value(values, value) {
+    si_da_push(mem, *list, value);
+  }
+}
+
 static si_target_t* get_script(si_pkg_t* pkg, spn_target_kind_t kind) {
   si_om_for_each(pkg->targets, target) {
     if (target->info->kind == kind && !si_da_empty(target->source)) {
@@ -224,16 +230,19 @@ spn_err_t si_add_target_unit(spn_units_t* u, spn_pkg_unit_t* pkg, si_target_t* t
 
   u32 take = 0;
   bool published = false;
+  si_da(sp_str_t) host = sp_zero;
   switch (target->info->kind) {
     case SPN_TARGET_KIND_LIB:
     case SPN_TARGET_KIND_EXE:
     case SPN_TARGET_KIND_SCRIPT: {
       take = 1u << SPN_DEP_KIND_PACKAGE;
       published = pkg->publishes.include;
+      host = pkg->pkg.host_deps;
       break;
     }
     case SPN_TARGET_KIND_EXAMPLE: {
       take = 1u << SPN_DEP_KIND_PACKAGE;
+      host = pkg->pkg.host_deps;
       spn_pkg_unit_t* self = SP_NULLPTR;
       spn_try(si_add_package_unit_closure(u, pkg->build, pkg->resolved, &self));
       si_da_push(u->mem, unit->edges, ((spn_pkg_edge_t) { .pkg = self }));
@@ -243,6 +252,7 @@ spn_err_t si_add_target_unit(spn_units_t* u, spn_pkg_unit_t* pkg, si_target_t* t
     case SPN_TARGET_KIND_TEST: {
       take = (1u << SPN_DEP_KIND_PACKAGE) | (1u << SPN_DEP_KIND_TEST);
       published = pkg->publishes.include;
+      host = pkg->pkg.host_deps;
       break;
     }
     case SPN_TARGET_KIND_BUILD_METAPROGRAM: {
@@ -279,6 +289,19 @@ spn_err_t si_add_target_unit(spn_units_t* u, spn_pkg_unit_t* pkg, si_target_t* t
   if (published) {
     si_da_push(u->mem, unit->includes, pkg);
   }
+
+  append(u->mem, &unit->requires.libs, target->system_deps);
+  append(u->mem, &unit->requires.libs, pkg->pkg.system_deps);
+  append(u->mem, &unit->requires.libs, pkg->pkg.publish.system_deps);
+  append(u->mem, &unit->requires.frameworks, target->macos.frameworks);
+  append(u->mem, &unit->requires.frameworks, pkg->pkg.macos.frameworks);
+  append(u->mem, &unit->requires.frameworks, pkg->pkg.publish.frameworks);
+  si_da_for_value(unit->includes, dep) {
+    append(u->mem, &unit->requires.libs, dep->pkg.publish.system_deps);
+    append(u->mem, &unit->requires.frameworks, dep->pkg.publish.frameworks);
+  }
+  append(u->mem, &unit->requires.host, target->host_deps);
+  append(u->mem, &unit->requires.host, host);
 
   *result = unit;
   return SPN_OK;

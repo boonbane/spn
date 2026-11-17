@@ -322,11 +322,14 @@ static const test_t tests [] = {
   // Host libs link like system libs, ahead of them
   {
     .name = "own_host_deps_reach_own_link",
-    .graph.pkgs = {
-      {
-        .name = "P",
-        .host_deps = { "H" },
-        .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "main.c" }, .system_deps = { "X" }, .host_deps = { "I" } } },
+    .graph = {
+      .sdk_host = true,
+      .pkgs = {
+        {
+          .name = "P",
+          .host_deps = { "H" },
+          .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "main.c" }, .system_deps = { "X" }, .host_deps = { "I" } } },
+        },
       },
     },
     .root = { "A", SPN_TARGET_KIND_EXE },
@@ -336,9 +339,12 @@ static const test_t tests [] = {
   },
   {
     .name = "static_lib_forwards_host_deps",
-    .graph.pkgs = {
-      { .name = "P", .deps = { { "B" } }, .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "main.c" } } } },
-      { .name = "B", .host_deps = { "H" }, .targets = { { "B", static_only, .source = { "b.c" }, .host_deps = { "I" } } } },
+    .graph = {
+      .sdk_host = true,
+      .pkgs = {
+        { .name = "P", .deps = { { "B" } }, .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "main.c" } } } },
+        { .name = "B", .host_deps = { "H" }, .targets = { { "B", static_only, .source = { "b.c" }, .host_deps = { "I" } } } },
+      },
     },
     .root = { "A", SPN_TARGET_KIND_EXE },
     .expect = {

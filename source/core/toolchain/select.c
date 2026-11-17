@@ -92,7 +92,8 @@ static spn_err_t sdk_refusal(spn_triple_t target) {
     case SPN_SDK_SYSROOT: return SPN_ERR_TOOLCHAIN_SYSROOT;
     case SPN_SDK_MACOS: return SPN_ERR_TOOLCHAIN_SDK_MACOS;
     case SPN_SDK_MSVC: return SPN_ERR_TOOLCHAIN_SDK_MSVC;
-    case SPN_SDK_NONE: sp_unreachable_case();
+    case SPN_SDK_NONE:
+    case SPN_SDK_HOST: sp_unreachable_case();
   }
   sp_unreachable_return(SPN_ERR_TOOLCHAIN_TARGET);
 }
@@ -111,6 +112,18 @@ static sp_da(sp_str_t) satisfying(spn_toolchain_catalog_t* catalog, spn_toolchai
     spn_toolchain_info_t* entry = si_om_at(catalog->entries, it);
     reach_t reach = sp_zero;
     if (satisfies(catalog, entry, query, &reach)) {
+      sp_da_push(names, entry->name.str);
+    }
+  }
+  return names;
+}
+
+sp_da(sp_str_t) spn_toolchain_host_candidates(sp_mem_t mem, spn_toolchain_catalog_t* catalog) {
+  sp_da(sp_str_t) names = sp_da_new(mem, sp_str_t);
+  si_om_for(catalog->entries, it) {
+    spn_toolchain_info_t* entry = si_om_at(catalog->entries, it);
+    const spn_toolchain_row_t* row = spn_toolchain_row(entry, catalog->host);
+    if (usable(entry) && row && row->sdk.kind == SPN_SDK_HOST) {
       sp_da_push(names, entry->name.str);
     }
   }

@@ -86,7 +86,8 @@ spn_err_t spn_op_env(spn_op_t* op) {
       break;
     }
     case SPN_SDK_NONE:
-    case SPN_SDK_SYSROOT: {
+    case SPN_SDK_SYSROOT:
+    case SPN_SDK_HOST: {
       break;
     }
   }

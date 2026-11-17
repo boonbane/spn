@@ -225,7 +225,6 @@
         "reason": { "ref": "linking_refusal" }
       }
     },
-    "host_refusal": { "enum": ["none", "os", "target", "toolchain", "script"] },
     "host_deps": {
       "properties": {
         "pkg": { "type": "string" },
@@ -235,7 +234,7 @@
         "candidates": { "elements": { "type": "string" } },
         "target": { "metadata": { "extern": "triple" } },
         "host": { "metadata": { "extern": "triple" } },
-        "reason": { "ref": "host_refusal" }
+        "script": { "type": "boolean" }
       }
     },
     "unpack_reason": { "enum": ["none", "unreadable", "unrecognized", "corrupt", "unsupported", "unsafe", "unwritable", "empty"] },

@@ -448,63 +448,23 @@ static spn_err_t plan_new(spn_units_t* u, sp_mem_t scratch, spn_pkg_unit_t* root
   }
 
   si_da_for_value(plan->targets, target) {
-    spn_pkg_unit_t* pkg = target->pkg;
-    spn_requirements_t requires = sp_zero;
-    push_unique(u->mem, &requires.libs, target->target->system_deps);
-    push_unique(u->mem, &requires.libs, pkg->pkg.system_deps);
-    push_unique(u->mem, &requires.libs, pkg->pkg.publish.system_deps);
-    push_unique(u->mem, &requires.frameworks, target->target->macos.frameworks);
-    push_unique(u->mem, &requires.frameworks, pkg->pkg.macos.frameworks);
-    push_unique(u->mem, &requires.frameworks, pkg->pkg.publish.frameworks);
-    si_da_for_value(target->includes, dep) {
-      push_unique(u->mem, &requires.libs, dep->pkg.publish.system_deps);
-      push_unique(u->mem, &requires.frameworks, dep->pkg.publish.frameworks);
-    }
-    push_unique(u->mem, &requires.host, target->target->host_deps);
-    switch (target->target->info->kind) {
-      case SPN_TARGET_KIND_LIB:
-      case SPN_TARGET_KIND_EXE:
-      case SPN_TARGET_KIND_SCRIPT:
-      case SPN_TARGET_KIND_TEST:
-      case SPN_TARGET_KIND_EXAMPLE: {
-        push_unique(u->mem, &requires.host, pkg->pkg.host_deps);
-        break;
-      }
-      case SPN_TARGET_KIND_CONFIGURE_METAPROGRAM:
-      case SPN_TARGET_KIND_BUILD_METAPROGRAM: {
-        break;
-      }
-    }
-    target->requires = requires;
-  }
-
-  si_da_for_value(plan->targets, target) {
     spn_build_unit_t* build = target->pkg->build;
-    if (si_da_empty(target->requires.host) || !build->profile.host_refusal) {
+    if (si_da_empty(target->requires.host) || sp_da_empty(target->objects) || build->profile.sdk.kind == SPN_SDK_HOST) {
       continue;
     }
-    sp_da(sp_str_t) candidates = sp_da_new(u->ctx->events->mem, sp_str_t);
-    if (build->profile.host_refusal == SPN_HOST_REFUSAL_TOOLCHAIN) {
-      si_om_for(u->ctx->catalog.entries, et) {
-        spn_toolchain_info_t* entry = si_om_at(u->ctx->catalog.entries, et);
-        sp_da_for(entry->rows, rt) {
-          if (entry->rows[rt].host && entry->support.kind != SPN_TOOLCHAIN_SUPPORT_NONE) {
-            sp_da_push(candidates, entry->name.str);
-          }
-        }
-      }
-    }
+    si_da(sp_str_t) libs = sp_zero;
+    push_unique(u->ctx->events->mem, &libs, target->requires.host);
     return spn_err_emit(u->ctx, (spn_err_union_t) {
       .kind = SPN_ERR_TARGET_HOST_DEPS,
       .host_deps = {
         .pkg = target->pkg->pkg.manifest->name.str,
         .name = target->target->info->name.str,
-        .libs = target->requires.host,
+        .libs = libs,
         .toolchain = build->toolchain->info->name.str,
-        .candidates = candidates,
+        .candidates = spn_toolchain_host_candidates(u->ctx->events->mem, &u->ctx->catalog),
         .target = build->profile.target,
         .host = u->ctx->host,
-        .reason = build->profile.host_refusal,
+        .script = !build->metabuild,
       },
     });
   }

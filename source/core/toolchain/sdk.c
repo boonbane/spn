@@ -240,7 +240,8 @@ spn_dir_list_t spn_sdk_tool_dirs(const spn_sdk_t* sdk) {
     }
     case SPN_SDK_NONE:
     case SPN_SDK_SYSROOT:
-    case SPN_SDK_MACOS: {
+    case SPN_SDK_MACOS:
+    case SPN_SDK_HOST: {
       break;
     }
   }
@@ -252,7 +253,8 @@ spn_sdk_t spn_sdk_at(sp_mem_t mem, spn_triple_t target, spn_path_t root) {
     case SPN_SDK_SYSROOT: return (spn_sdk_t) { .kind = SPN_SDK_SYSROOT, .root = root };
     case SPN_SDK_MACOS: return (spn_sdk_t) { .kind = SPN_SDK_MACOS, .macos = macos_layout(mem, root) };
     case SPN_SDK_MSVC: return (spn_sdk_t) { .kind = SPN_SDK_MSVC, .msvc = msvc_layout(mem, root, target.arch) };
-    case SPN_SDK_NONE: sp_unreachable_case();
+    case SPN_SDK_NONE:
+    case SPN_SDK_HOST: sp_unreachable_case();
   }
   sp_unreachable_return(sp_zero_struct(spn_sdk_t));
 }
@@ -280,6 +282,9 @@ static spn_sdk_t from_host(const spn_sdk_host_t* host, spn_triple_t target) {
       const spn_sdk_msvc_t* msvc = msvc_for(host, target.arch);
       return msvc ? (spn_sdk_t) { .kind = SPN_SDK_MSVC, .msvc = *msvc } : none;
     }
+    case SPN_SDK_HOST: {
+      sp_unreachable_case();
+    }
   }
   sp_unreachable_return(none);
 }
@@ -291,6 +296,7 @@ bool spn_sdk_default(const spn_sdk_host_t* sdks, spn_triple_t target, spn_sdk_t*
     case SPN_SDK_SYSROOT:
     case SPN_SDK_MACOS: return true;
     case SPN_SDK_MSVC: return sdk->kind != SPN_SDK_NONE;
+    case SPN_SDK_HOST: sp_unreachable_case();
   }
   sp_unreachable_return(false);
 }
@@ -299,9 +305,16 @@ bool spn_sdk_served(const spn_sdk_host_t* sdks, spn_triple_t host, spn_triple_t 
   *sdk = from_host(sdks, target);
   switch (spn_sdk_kind(target)) {
     case SPN_SDK_NONE: return true;
-    case SPN_SDK_SYSROOT: return spn_triple_equal(target, host);
+    case SPN_SDK_SYSROOT: {
+      if (!spn_triple_equal(target, host)) {
+        return false;
+      }
+      *sdk = (spn_sdk_t) { .kind = SPN_SDK_HOST };
+      return true;
+    }
     case SPN_SDK_MACOS:
     case SPN_SDK_MSVC: return sdk->kind != SPN_SDK_NONE;
+    case SPN_SDK_HOST: sp_unreachable_case();
   }
   sp_unreachable_return(false);
 }
@@ -382,6 +395,9 @@ sp_hash_t spn_sdk_hash(const spn_sdk_t* sdk) {
     case SPN_SDK_NONE: {
       return 0;
     }
+    case SPN_SDK_HOST: {
+      return (sp_hash_t)sdk->kind;
+    }
     case SPN_SDK_SYSROOT: {
       sp_hash_t parts [] = { (sp_hash_t)sdk->kind, spn_path_hash(sdk->root) };
       return sp_hash_combine(parts, sp_carr_len(parts));
@@ -412,7 +428,8 @@ bool spn_sdk_libc(spn_cc_cap_set_t caps, const spn_sdk_t* sdk, spn_libc_t* libc)
   }
   switch (sdk->kind) {
     case SPN_SDK_NONE:
-    case SPN_SDK_SYSROOT: {
+    case SPN_SDK_SYSROOT:
+    case SPN_SDK_HOST: {
       return false;
     }
     case SPN_SDK_MACOS: {

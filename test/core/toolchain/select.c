@@ -204,7 +204,7 @@ static const complete_test_t complete_tests [] = {
     .name = "derived_toolchain_reaches_the_host",
     .driver = SPN_CC_DRIVER_CLANG,
     .checks = {
-      { .target = X64_LINUX, .abis = { SPN_ABI_GNU }, .expect = { .triple = HOST_X64_LINUX } },
+      { .target = X64_LINUX, .abis = { SPN_ABI_GNU }, .expect = { .triple = HOST_X64_LINUX, .sdk = { SPN_SDK_HOST } } },
     },
   },
   {
@@ -370,7 +370,7 @@ static const complete_test_t complete_tests [] = {
     .host_row = true,
     .targets = { { TARGET_X64_BARE } },
     .checks = {
-      { .target = X64_LINUX, .abis = { SPN_ABI_GNU }, .expect = { .triple = HOST_X64_LINUX } },
+      { .target = X64_LINUX, .abis = { SPN_ABI_GNU }, .expect = { .triple = HOST_X64_LINUX, .sdk = { SPN_SDK_HOST } } },
       { .target = X64_FREESTANDING, .abis = { SPN_ABI_BARE }, .expect = { .triple = TARGET_X64_BARE } },
     },
   },
@@ -457,7 +457,7 @@ static const resolve_test_t resolve_tests [] = {
     .target = X64_LINUX,
     .abis = { SPN_ABI_GNU },
     .sanitizers = SPN_SANITIZER_ADDRESS,
-    .expect = { .name = "D", .triple = HOST_X64_LINUX },
+    .expect = { .name = "D", .triple = HOST_X64_LINUX, .sdk = { SPN_SDK_HOST } },
   },
   {
     .name = "auto_with_no_sanitizer_support_finds_none",

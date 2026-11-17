@@ -18,7 +18,7 @@
 #define UNIT_TEST_MAX_ROOTS 2
 #define UNIT_TEST_MAX_NODES 2
 #define UNIT_TEST_MAX_OPTIONS 2
-#define UNIT_TEST_MAX_TOOLCHAINS 2
+#define UNIT_TEST_MAX_TOOLCHAINS 3
 
 #define static_only { .static_lib = true }
 #define shared_only { .shared = true }
@@ -85,12 +85,12 @@ typedef struct {
 typedef struct {
   const c8* name;
   bool host_row;
+  bool foreign;
 } graph_toolchain_t;
 
 typedef struct {
   spn_os_t os;
   spn_abi_t abi;
-  spn_host_refusal_t host_refusal;
   graph_toolchain_t catalog [UNIT_TEST_MAX_TOOLCHAINS];
   spn_cc_driver_t driver;
   spn_mode_t mode;
@@ -101,6 +101,7 @@ typedef struct {
   const c8* link_args [UNIT_TEST_MAX_STRS];
   const c8* sdk;
   const c8* sha256;
+  bool sdk_host;
   bool sdk_libc;
   bool no_cxx;
   spn_linking_t request;

@@ -173,12 +173,14 @@ static spn_profile_info_t program_profile(units_t* u, const graph_t* g, const sp
     .linking.linkage = g->linkage,
     .linking.runtime = g->runtime,
     .linking.libc = g->libc,
-    .host_refusal = g->host_refusal,
   };
   spn_triple_t triple = profile.target;
   profile.linker = spn_ld_native(profile.driver, triple);
   if (g->sdk) {
     profile.sdk = spn_sdk_at(u->mem, triple, (spn_path_t) { .sub = sp_cstr_as_str(g->sdk) });
+  }
+  if (g->sdk_host) {
+    profile.sdk = (spn_sdk_t) { .kind = SPN_SDK_HOST };
   }
   if (g->sdk_libc) {
     sp_opt_set(profile.libc, ((spn_libc_t) {
@@ -261,9 +263,8 @@ units_t* units_new(sp_test_t* t, const graph_t* g) {
   spn_profile_info_t metaprogram = spn_profile_metaprogram();
   metaprogram.driver = profile.driver;
   metaprogram.linker = spn_ld_native(metaprogram.driver, metaprogram.target);
-  metaprogram.host_refusal = SPN_HOST_REFUSAL_SCRIPT;
 
-  spn_toolchain_catalog_init(&u->ctx.catalog, u->ctx.host, sp_zero_s(spn_sdk_host_t), mem);
+  spn_toolchain_catalog_init(&u->ctx.catalog, profile.target, sp_zero_s(spn_sdk_host_t), mem);
   sp_carr_for(g->catalog, it) {
     if (!g->catalog[it].name) {
       break;
@@ -273,6 +274,10 @@ units_t* units_new(sp_test_t* t, const graph_t* g) {
     sp_da_init(mem, decl.targets);
     if (!decl.host_row) {
       sp_da_push(decl.targets, ((spn_toolchain_target_t) { .triple = profile.target }));
+    }
+    sp_da_init(mem, decl.hosts);
+    if (g->catalog[it].foreign) {
+      sp_da_push(decl.hosts, ((spn_toolchain_host_t) { .triple = { SPN_ARCH_ARM64, SPN_OS_MACOS } }));
     }
     spn_toolchain_catalog_add(&u->ctx.catalog, decl);
   }
