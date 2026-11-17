@@ -48,6 +48,39 @@ static const test_t tests [] = {
     .root = { "A", SPN_TARGET_KIND_EXE },
     .expect.pkgs = { "D" },
   },
+  {
+    .name = "public_chain_is_searched",
+    .graph.pkgs = {
+      { .name = "P", .deps = { { "B" } } },
+      { .name = "B", .deps = { { "C", .public = true } } },
+      { .name = "C", .deps = { { "D", .public = true } } },
+      { .name = "D" },
+    },
+    .root = { "A", SPN_TARGET_KIND_EXE },
+    .expect.pkgs = { "B", "C", "D" },
+  },
+  {
+    .name = "private_edge_hides_its_subtree",
+    .graph.pkgs = {
+      { .name = "P", .deps = { { "B" } } },
+      { .name = "B", .deps = { { "C" } } },
+      { .name = "C", .deps = { { "D", .public = true } } },
+      { .name = "D" },
+    },
+    .root = { "A", SPN_TARGET_KIND_EXE },
+    .expect.pkgs = { "B" },
+  },
+  {
+    .name = "public_diamond_is_searched_once",
+    .graph.pkgs = {
+      { .name = "P", .deps = { { "B" }, { "C" } } },
+      { .name = "B", .deps = { { "D", .public = true } } },
+      { .name = "C", .deps = { { "D", .public = true } } },
+      { .name = "D" },
+    },
+    .root = { "A", SPN_TARGET_KIND_EXE },
+    .expect.pkgs = { "B", "C", "D" },
+  },
 };
 
 sp_test_each(unit_includes, search, test_t, tests, .setup = spn_test_ctx_setup) {

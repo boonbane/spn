@@ -210,7 +210,7 @@ static const test_t tests [] = {
     },
   },
   // Published requirements belong to the headers, so a package with no lib
-  // still hands them to an image that has it in its closure
+  // still hands them to an image that compiles against it
   {
     .name = "publish_requirements_reach_consumer_of_libless_package",
     .graph.pkgs = {
@@ -246,6 +246,77 @@ static const test_t tests [] = {
     .expect = {
       .system_libs = { "X" },
       .frameworks = { "F" },
+    },
+  },
+  // The walk stops at shared B, but A compiles against the headers B forwards
+  {
+    .name = "publish_requirements_follow_forwarded_headers",
+    .graph.pkgs = {
+      { .name = "P", .deps = { { "B" } }, .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "main.c" } } } },
+      { .name = "B", .deps = { { "C", .public = true } }, .targets = { { "B", shared_only, .source = { "b.c" } } } },
+      { .name = "C", .publish = { .system_deps = { "X" }, .frameworks = { "F" } } },
+    },
+    .root = { "A", SPN_TARGET_KIND_EXE },
+    .expect = {
+      .deps = { { "B", SPN_LINK_ROLE_SHARED } },
+      .system_libs = { "X" },
+      .frameworks = { "F" },
+    },
+  },
+  // A never sees D, but static B compiled against it and B's objects land in A
+  {
+    .name = "publish_requirements_follow_static_lib_objects",
+    .graph.pkgs = {
+      { .name = "P", .deps = { { "B" } }, .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "main.c" } } } },
+      { .name = "B", .deps = { { "C" } }, .targets = { { "B", static_only, .source = { "b.c" } } } },
+      { .name = "C", .deps = { { "D", .public = true } }, .targets = { { "C", shared_only, .source = { "c.c" } } } },
+      { .name = "D", .publish = { .system_deps = { "X" }, .frameworks = { "F" } } },
+    },
+    .root = { "A", SPN_TARGET_KIND_EXE },
+    .expect = {
+      .deps = { { "B" }, { "C", SPN_LINK_ROLE_SHARED } },
+      .system_libs = { "X" },
+      .frameworks = { "F" },
+    },
+  },
+  // A never sees C either, but C's own lib compiled against C's headers
+  {
+    .name = "publish_requirements_follow_own_lib_objects",
+    .graph.pkgs = {
+      { .name = "P", .deps = { { "B" } }, .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "main.c" } } } },
+      { .name = "B", .deps = { { "C" } } },
+      { .name = "C", .publish = { .system_deps = { "X" }, .frameworks = { "F" } }, .targets = { { "C", static_only, .source = { "c.c" } } } },
+    },
+    .root = { "A", SPN_TARGET_KIND_EXE },
+    .expect = {
+      .deps = { { "C" } },
+      .system_libs = { "X" },
+      .frameworks = { "F" },
+    },
+  },
+  // Nothing in A compiled against C: B has no objects, and its private edge
+  // keeps C's headers from A
+  {
+    .name = "publish_requirements_need_a_compile",
+    .graph.pkgs = {
+      { .name = "P", .deps = { { "B" } }, .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "main.c" } } } },
+      { .name = "B", .deps = { { "C" } } },
+      { .name = "C", .publish = { .system_deps = { "X" }, .frameworks = { "F" } } },
+    },
+    .root = { "A", SPN_TARGET_KIND_EXE },
+  },
+  // Seeing a package's headers through a dep does not put it on the link line:
+  // shared B already carries C, and A names no edge to C to re-export it by
+  {
+    .name = "forwarded_package_is_not_reexported",
+    .graph.pkgs = {
+      { .name = "P", .deps = { { "B" } }, .targets = { { "A", shared_only, .source = { "a.c" } } } },
+      { .name = "B", .deps = { { "C", .public = true } }, .targets = { { "B", shared_only, .source = { "b.c" } } } },
+      { .name = "C", .targets = { { "C", static_only, .source = { "c.c" } } } },
+    },
+    .root = { "A", SPN_TARGET_KIND_LIB },
+    .expect = {
+      .deps = { { "B", SPN_LINK_ROLE_SHARED } },
     },
   },
   // Link flags and linker scripts belong to the linked target alone; a dep's

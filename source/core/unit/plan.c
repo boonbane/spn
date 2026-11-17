@@ -187,14 +187,16 @@ static spn_err_t lower_target(spn_units_t* u, spn_target_unit_t* unit) {
   push_unique(mem, &link->cc.system_libs, target->system_deps);
   push_unique(mem, &link->cc.system_libs, pkg->pkg.system_deps);
   push_unique(mem, &link->cc.system_libs, pkg->pkg.publish.system_deps);
+  si_da_for_value(unit->includes, dep) {
+    push_unique(mem, &link->cc.frameworks, dep->pkg.publish.frameworks);
+    push_unique(mem, &link->cc.system_libs, dep->pkg.publish.system_deps);
+  }
   si_da_rfor(entries, et) {
     si_closure_entry_t* entry = &entries[et];
     switch (entry->yield) {
       case SI_CLOSURE_YIELD_PKG: {
         spn_pkg_unit_t* dep = entry->pkg;
         link->cc.min_os = max_os_version(link->cc.min_os, dep->pkg.manifest->macos.min_os);
-        push_unique(mem, &link->cc.frameworks, dep->pkg.publish.frameworks);
-        push_unique(mem, &link->cc.system_libs, dep->pkg.publish.system_deps);
         break;
       }
       case SI_CLOSURE_YIELD_LIB: {
@@ -218,6 +220,12 @@ static spn_err_t lower_target(spn_units_t* u, spn_target_unit_t* unit) {
             push_unique(mem, &link->cc.frameworks, lib->target->macos.frameworks);
             push_unique(mem, &link->cc.system_libs, lib->pkg->pkg.system_deps);
             push_unique(mem, &link->cc.system_libs, lib->target->system_deps);
+            push_unique(mem, &link->cc.frameworks, lib->pkg->pkg.publish.frameworks);
+            push_unique(mem, &link->cc.system_libs, lib->pkg->pkg.publish.system_deps);
+            si_da_for_value(lib->includes, dep) {
+              push_unique(mem, &link->cc.frameworks, dep->pkg.publish.frameworks);
+              push_unique(mem, &link->cc.system_libs, dep->pkg.publish.system_deps);
+            }
             break;
           }
           case SPN_LIB_KIND_NONE: sp_unreachable_case();
@@ -258,8 +266,11 @@ static spn_err_t lower_target(spn_units_t* u, spn_target_unit_t* unit) {
   si_da_for(target->flags, it) {
     si_da_push(scratch.mem, compile.args, target->flags[it]);
   }
-  si_da_for_ptr(unit->edges, edge) {
-    si_da_for_value(edge->pkg->pkg.public_define, define) {
+  si_da_for_value(unit->includes, dep) {
+    if (dep == pkg) {
+      continue;
+    }
+    si_da_for_value(dep->pkg.public_define, define) {
       si_da_push(scratch.mem, compile.define, define);
     }
   }

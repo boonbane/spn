@@ -262,6 +262,20 @@ spn_err_t si_add_target_unit(spn_units_t* u, spn_pkg_unit_t* pkg, si_target_t* t
     si_da_push(u->mem, unit->edges, ((spn_pkg_edge_t) { .pkg = dep, .public = edge->public }));
     si_da_push(u->mem, unit->includes, dep);
   }
+  si_da_for(unit->includes, it) {
+    si_da_for_ptr(unit->includes[it]->deps, edge) {
+      if (!edge->public) {
+        continue;
+      }
+      bool included = false;
+      si_da_for(unit->includes, at) {
+        included = included || unit->includes[at] == edge->pkg;
+      }
+      if (!included) {
+        si_da_push(u->mem, unit->includes, edge->pkg);
+      }
+    }
+  }
   if (published) {
     si_da_push(u->mem, unit->includes, pkg);
   }

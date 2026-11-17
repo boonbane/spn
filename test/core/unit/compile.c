@@ -62,6 +62,16 @@ static const test_t tests [] = {
     .expect.args = { { "-DX" } },
   },
   {
+    .name = "publish_defines_follow_public_edges",
+    .graph.pkgs = {
+      { .name = "P", .deps = { { "B" } }, .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "a.c" } } } },
+      { .name = "B", .deps = { { "C", .public = true } } },
+      { .name = "C", .publish.define = { "X" } },
+    },
+    .root = { "A", SPN_TARGET_KIND_EXE },
+    .expect.args = { { "-DX" } },
+  },
+  {
     .name = "publish_defines_reach_own_targets",
     .graph.pkgs = {
       { .name = "P", .publish.define = { "X" }, .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "a.c" } } } },
