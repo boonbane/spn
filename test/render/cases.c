@@ -410,6 +410,39 @@ static cell_t cells [] = {
     .config = "duplicate.toml",
     .args = { "build" },
   },
+  {
+    .name = "err_lock_invalid",
+    .project = "test/integration/fixtures/lock/invalid",
+    .copy = { "spn.lock" },
+    .args = { "build" },
+  },
+  {
+    .name = "err_lock_version",
+    .project = "test/integration/fixtures/lock/newer",
+    .copy = { "spn.lock" },
+    .args = { "build" },
+  },
+  {
+    .name = "err_lock_missing",
+    .project = "test/integration/fixtures/lock/invalid",
+    .args = { "build", "--locked" },
+  },
+  {
+    .name = "err_lock_unpinned",
+    .project = "test/integration/fixtures/lock/unpinned",
+    .args = { "build" },
+  },
+  {
+    .name = "err_lock_stale",
+    .project = "test/integration/fixtures/lock/pair",
+    .args = { "build", "--locked" },
+  },
+  {
+    .name = "err_lock_mismatch",
+    .project = "test/integration/fixtures/lock/moved",
+    .copy = { "spn.lock" },
+    .args = { "build" },
+  },
 };
 
 static sp_str_t scrub(sp_mem_t mem, fixture_t* fixture, sp_str_t text) {

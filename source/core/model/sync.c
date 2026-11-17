@@ -15,6 +15,7 @@
 #include "git/patch.h"
 #include "hash/digest/digest.h"
 #include "lazy/lazy.h"
+#include "lock/lock.h"
 #include "model/resolve.h"
 #include "op/op.h"
 #include "paths/paths.h"
@@ -584,9 +585,44 @@ spn_err_t spn_resolve_and_sync(spn_op_t* op) {
   }
   spn_try(hashed);
 
+  spn_path_t path = session->project->paths.lock;
+  spn_lock_t held = sp_zero;
+  spn_err_union_t failure = sp_zero;
+  if (spn_lock_load(session->mem, ctx->intern, roots, path, &held, &failure)) {
+    return spn_err_emit(ctx, failure);
+  }
+
+  spn_lock_t lock = sp_zero;
+  spn_try(spn_resolve_lock(op, &held, &lock));
+
+  spn_err_t moved = SPN_OK;
+  bool stale = held.version != lock.version;
+  sp_str_t changed = sp_zero;
+  spn_lock_diff_t diff = spn_lock_diff(&held, &lock);
+  while (spn_lock_diff_next(&diff)) {
+    if (diff.was && diff.now) {
+      spn_err_t kind = spn_err_emit(ctx, spn_lock_mismatch(diff.was, diff.now));
+      if (!moved) {
+        moved = kind;
+      }
+      continue;
+    }
+    if (sp_str_empty(changed)) {
+      changed = (diff.was ? diff.was : diff.now)->name.str;
+    }
+    stale = true;
+  }
+  spn_try(moved);
+  if (stale && session->locked) {
+    return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_LOCK_STALE, .subject = changed });
+  }
+  if (stale && spn_lock_save(roots, path, &lock, &failure)) {
+    return spn_err_emit(ctx, failure);
+  }
+
   bool reresolve = sp_zero;
   do {
-    spn_try(spn_resolve(op));
+    spn_try(spn_resolve(op, &lock));
     sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
     spn_err_t synced = sync_jobs(op, scratch.mem, &reresolve);
     sp_mem_end_scratch(scratch);

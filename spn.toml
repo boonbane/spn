@@ -316,6 +316,7 @@ source = [
   "test/integration/glob.c",
   "test/integration/layout.c",
   "test/integration/linker.c",
+  "test/integration/lock.c",
   "test/integration/log.c",
   "test/integration/offline.c",
   "test/integration/options.c",

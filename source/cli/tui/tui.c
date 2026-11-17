@@ -852,6 +852,21 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           );
           break;
         }
+        case SPN_ERR_LOCK_STALE: {
+          if (sp_str_empty(event->err.subject)) {
+            sp_tty_fmt(&w, "{.cyan} does not exist, and {.cyan} forbids writing it", sp_fmt_cstr("spn.lock"), sp_fmt_cstr("--locked"));
+          }
+          else {
+            sp_tty_fmt(
+              &w,
+              "{.cyan} is out of date for {}, and {.cyan} forbids updating it",
+              sp_fmt_cstr("spn.lock"),
+              sp_fmt_str(colored_name(w.color, mem, event->err.subject)),
+              sp_fmt_cstr("--locked")
+            );
+          }
+          break;
+        }
         case SPN_ERR_LOCK_MISMATCH: {
           spn_err_lock_mismatch_t* err = &event->err.lock_mismatch;
           sp_tty_fmt(
@@ -865,6 +880,16 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
             sp_fmt_str(err->found.rev),
             sp_fmt_str(lock_root_to_str(mem, &err->found)),
             sp_fmt_str(sp_fmt(mem, "spn update {}", sp_fmt_str(event->err.subject)).value)
+          );
+          break;
+        }
+        case SPN_ERR_LOCK_UNPINNED: {
+          sp_tty_fmt(
+            &w,
+            "This build selects {} {.yellow}, which {.cyan} does not pin; spn cannot build these dependencies from one lockfile yet",
+            sp_fmt_str(colored_name(w.color, mem, event->err.subject)),
+            sp_fmt_str(spn_semver_to_str(mem, event->err.lock_unpinned.version)),
+            sp_fmt_cstr("spn.lock")
           );
           break;
         }

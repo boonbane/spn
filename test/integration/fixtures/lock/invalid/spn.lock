@@ -1,0 +1,9 @@
+[spn]
+version = "1.0.0"
+commit = "C"
+
+[[dep]]
+name = "A"
+version = "1.0.0"
+commit = "C"
+kind = "index"

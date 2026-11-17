@@ -124,6 +124,7 @@ typedef struct spn_session_config_t {
   spn_target_selection_t selection;
   spn_profile_override_t profile;
   bool force;
+  bool locked;
 } spn_session_config_t;
 
 typedef enum {

@@ -38,6 +38,7 @@ struct spn_session_t {
   const si_pkg_info_t* manifest;
 
   bool force;
+  bool locked;
 
   spn_resolve_t resolve;
   spn_resolved_pkg_t* root;

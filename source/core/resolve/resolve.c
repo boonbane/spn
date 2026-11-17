@@ -106,18 +106,6 @@ static spn_err_union_t resolve_dep(spn_resolver_t* resolver, spn_resolve_run_t* 
 static spn_err_union_t resolve_deps(spn_resolver_t* resolver, spn_resolve_run_t* run, spn_resolved_pkg_t* node);
 static spn_err_union_t solve_node(spn_resolver_t* resolver, spn_resolve_run_t* run, spn_scope_t* scope, sp_intern_id_t name, spn_resolved_pkg_t* node);
 
-void spn_resolver_init(spn_resolver_t* r, sp_mem_t mem, sp_intern_t* intern, spn_index_cache_t* index, spn_pkg_registry_t* registry, spn_profile_info_t profile, spn_pkg_config_map_t config, u64 budget) {
-  *r = (spn_resolver_t){
-    .mem = mem,
-    .intern = intern,
-    .index = index,
-    .registry = registry,
-    .profile = profile,
-    .config = config,
-    .budget = budget ? budget : SPN_RESOLVE_DEFAULT_BUDGET,
-  };
-}
-
 void spn_resolve_query_init(sp_mem_t mem, spn_resolve_query_t* query) {
   *query = (spn_resolve_query_t) sp_zero_initialize();
   sp_da_init(mem, query->reqs);

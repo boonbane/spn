@@ -1,0 +1,15 @@
+[package]
+name = "R"
+version = "0.1.0"
+
+[options.x]
+type = "bool"
+default = false
+
+[deps.package]
+A = { version = "^1.0.0", when = { x = true } }
+B = ">=1.0.0"
+C = "^1.0.0"
+
+[deps.build]
+T = "^1.0.0"
