@@ -148,7 +148,6 @@ typedef struct {
 typedef struct {
   sp_str_t output;
   sp_str_t implib;
-  bool objects;
   sp_opt(spn_cc_link_plan_t) link;
   sp_opt(spn_cc_archive_plan_t) archive;
   sp_opt(spn_exports_plan_t) exports;

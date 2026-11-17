@@ -103,8 +103,6 @@ typedef enum {
   SPN_LIB_KIND_NONE,
   SPN_LIB_KIND_SHARED,
   SPN_LIB_KIND_STATIC,
-  SPN_LIB_KIND_SOURCE,
-  SPN_LIB_KIND_OBJECT,
 } spn_linkage_t;
 
 typedef enum {

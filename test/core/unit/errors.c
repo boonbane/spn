@@ -96,17 +96,6 @@ static const test_t tests [] = {
     .expect = { .err = SPN_ERR_TOOLCHAIN_NO_CXX },
   },
   {
-    .name = "object_lib_bypasses_profile_linkage",
-    .graph = {
-      .linkage = SPN_LIB_KIND_STATIC,
-      .pkgs = {
-        { .name = "P", .deps = { { "D" } }, .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "a.c" } } } },
-        { .name = "D", .targets = { { "D", object_only, .source = { "d.c" } } } },
-      },
-    },
-    .root = { "A", SPN_TARGET_KIND_EXE },
-  },
-  {
     .name = "config_kind_blames_the_root_manifest",
     .graph.pkgs = {
       { .name = "P", .deps = { { "D" } }, .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "a.c" } } } },

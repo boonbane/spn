@@ -131,7 +131,7 @@ readme: false
 
 | Field | Type |
 |---|---|
-| `kind` | `shared` \| `static` \| `source` \| `object` |
+| `kind` | `shared` \| `static` |
 | `options` | [`when`](#extern-types) |
 | `defaults` | `bool` |
 

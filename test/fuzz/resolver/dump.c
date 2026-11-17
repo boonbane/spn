@@ -32,8 +32,6 @@ static const c8* fz_linkage_json(spn_linkage_t kind) {
     case SPN_LIB_KIND_NONE:   return "none";
     case SPN_LIB_KIND_SHARED: return "shared";
     case SPN_LIB_KIND_STATIC: return "static";
-    case SPN_LIB_KIND_SOURCE: return "source";
-    case SPN_LIB_KIND_OBJECT: return "object";
   }
   sp_unreachable_return("none");
 }
@@ -71,14 +69,11 @@ static sp_str_t fz_release_line(sp_mem_t mem, fz_universe_t* u, u32 pkg, fz_rele
   }
 
   spn_linkage_set_t linkages = u->pkgs[pkg].linkages;
-  if (linkages.source || linkages.static_lib || linkages.shared) {
+  if (linkages.static_lib || linkages.shared) {
     yyjson_mut_val* targets = yyjson_mut_obj_add_arr(doc, root, "targets");
     yyjson_mut_val* target = yyjson_mut_arr_add_obj(doc, targets);
     yyjson_mut_obj_add_strcpy(doc, target, "name", sp_str_to_cstr(mem, fz_pkg_name(pkg)));
     yyjson_mut_val* names = yyjson_mut_obj_add_arr(doc, target, "linkages");
-    if (linkages.source) {
-      yyjson_mut_arr_add_strcpy(doc, names, "source");
-    }
     if (linkages.static_lib) {
       yyjson_mut_arr_add_strcpy(doc, names, "static");
     }

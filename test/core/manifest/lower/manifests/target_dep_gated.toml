@@ -4,6 +4,7 @@ version = "1.0.0"
 
 [[lib]]
 name = "A"
+source = ["a.c"]
 
 [[bin]]
 name = "B"

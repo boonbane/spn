@@ -1,3 +1,3 @@
 int spum_value() {
-  return missing_symbol;
+  return 69;
 }

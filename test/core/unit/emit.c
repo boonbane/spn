@@ -3,7 +3,6 @@
 typedef struct {
   const c8* output;
   const c8* implib;
-  bool objects;
   bool link;
   bool archive;
   bool exports;
@@ -85,17 +84,6 @@ static const test_t tests [] = {
     .expect = { .output = "A.dll", .implib = "A.lib", .link = true, .exports = true },
   },
   {
-    .name = "object_lib_emits_its_objects",
-    .graph.pkgs = { { .name = "P", .targets = { { "A", object_only, .source = { "a.c" } } } } },
-    .kind = SPN_TARGET_KIND_LIB,
-    .expect = { .objects = true },
-  },
-  {
-    .name = "source_lib_emits_nothing",
-    .graph.pkgs = { { .name = "P", .targets = { { "A", source_only, .source = { "a.c" } } } } },
-    .kind = SPN_TARGET_KIND_LIB,
-  },
-  {
     .name = "build_script_is_a_reactor",
     .graph.pkgs = { { .name = "P", .targets = { { "A", .kind = SPN_TARGET_KIND_BUILD_METAPROGRAM, .source = { "a.c" } } } } },
     .kind = SPN_TARGET_KIND_BUILD_METAPROGRAM,
@@ -121,7 +109,6 @@ sp_test_each(unit_emit, artifact, test_t, tests, .setup = spn_test_ctx_setup, .t
   spn_target_emit_t* emit = &unit->emit;
   sp_expect_str_eq_c(t, emit->output, it->expect.output ? it->expect.output : "");
   sp_expect_str_eq_c(t, emit->implib, it->expect.implib ? it->expect.implib : "");
-  sp_expect_eq(t, it->expect.objects, emit->objects);
   sp_expect_eq(t, it->expect.link, !sp_opt_is_null(emit->link));
   sp_expect_eq(t, it->expect.archive, !sp_opt_is_null(emit->archive));
   sp_expect_eq(t, it->expect.exports, !sp_opt_is_null(emit->exports));

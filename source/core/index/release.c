@@ -59,7 +59,7 @@ spn_err_t spn_index_release_from_manifest(sp_mem_t mem, const si_pkg_info_t* man
     spn_index_target_t target = { .name = lib->name.str };
     sp_da_init(mem, target.linkages);
 
-    const spn_linkage_t kinds [] = { SPN_LIB_KIND_SOURCE, SPN_LIB_KIND_STATIC, SPN_LIB_KIND_SHARED, SPN_LIB_KIND_OBJECT };
+    const spn_linkage_t kinds [] = { SPN_LIB_KIND_STATIC, SPN_LIB_KIND_SHARED };
     sp_carr_for(kinds, kind) {
       if (spn_linkage_set_has(lib->linkages, kinds[kind])) {
         sp_da_push(target.linkages, kinds[kind]);

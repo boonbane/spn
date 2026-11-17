@@ -73,23 +73,6 @@ static const test_t tests [] = {
     },
   },
   {
-    .name = "object_lib_publishes_each_object",
-    .graph.pkgs = {
-      { .name = "P", .deps = { { "B" } }, .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "main.c" } } } },
-      { .name = "B", .targets = { { "B", object_only, .source = { "b.c", "c.c" } } } },
-    },
-    .roots = { { "A", SPN_TARGET_KIND_EXE } },
-    .actions = {
-      { NODE_COMPILE, .consumes = { "main.c" }, .produces = { "main.c.o" } },
-      { NODE_COMPILE, .consumes = { "b.c" }, .produces = { "b.c.o" } },
-      { NODE_COMPILE, .consumes = { "c.c" }, .produces = { "c.c.o" } },
-      { NODE_PUBLISH_FILE, .consumes = { "b.c.o" }, .produces = { "build/debug/store/B/lib/manifest/b.c.o" } },
-      { NODE_PUBLISH_FILE, .consumes = { "c.c.o" }, .produces = { "build/debug/store/B/lib/manifest/c.c.o" } },
-      { NODE_LINK, .consumes = { "main.c.o" }, .produces = { "A" } },
-      { NODE_PUBLISH_FILE, .consumes = { "A" }, .produces = { "build/debug/store/P/bin/A" } },
-    },
-  },
-  {
     .name = "embed_feeds_its_header_to_compiles_and_its_object_to_the_link",
     .graph.pkgs = {
       { .name = "P", .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "main.c" }, .embed = { "e.txt" } } } },

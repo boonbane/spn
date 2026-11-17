@@ -11,10 +11,6 @@ system_deps = [
 url = "https://github.com/tspader/sp.git"
 commit = "f9fc24e8705eca6eafc6ab99990e7755118a5673"
 
-[[lib]]
-name = "sp"
-kinds = ["source"]
-
 [package.publish]
 include = [
   { from = "sp.h" },

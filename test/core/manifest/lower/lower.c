@@ -209,21 +209,14 @@ static const test_t tests [] = {
     .name = "lib_shared",
     .manifest = "shared_lib",
     .libs = {
-      { .name = "t", .linkages = { .shared = true } }
+      { .name = "t", .linkages = { .shared = true }, .source = { { "a.c" } } }
     }
   },
   {
-    .name = "lib_object",
-    .manifest = "object_lib",
+    .name = "lib_default_kinds",
+    .manifest = "default_kinds_lib",
     .libs = {
-      { .name = "t", .linkages = { .object = true } }
-    }
-  },
-  {
-    .name = "lib_source_static",
-    .manifest = "source_static",
-    .libs = {
-      { .name = "t", .linkages = { .source = true, .static_lib = true } }
+      { .name = "B", .linkages = { .static_lib = true }, .source = { { "C.c" } } }
     }
   },
   {
@@ -237,14 +230,14 @@ static const test_t tests [] = {
     .name = "lib_no_link",
     .manifest = "no_link_lib",
     .libs = {
-      { .name = "t", .linkages = { .static_lib = true }, .no_link = true }
+      { .name = "t", .linkages = { .static_lib = true }, .no_link = true, .source = { { "a.c" } } }
     }
   },
   {
     .name = "lib_link_true",
     .manifest = "link_true_lib",
     .libs = {
-      { .name = "t", .linkages = { .static_lib = true } }
+      { .name = "t", .linkages = { .static_lib = true }, .source = { { "a.c" } } }
     }
   },
   {
@@ -527,10 +520,17 @@ static const test_t tests [] = {
     },
   },
   {
-    .name = "validate_object_mixed",
-    .manifest = "validate_object_mixed",
+    .name = "validate_lib_kind_unknown",
+    .manifest = "validate_lib_kind_unknown",
     .issues = {
-      { SPN_ERR_CODEGEN_INVALID, "lib[0].kinds" }
+      { SPN_ERR_CODEGEN_INVALID, "lib[0].kinds[1]" }
+    }
+  },
+  {
+    .name = "validate_lib_source_missing",
+    .manifest = "validate_lib_source_missing",
+    .issues = {
+      { SPN_ERR_CODEGEN_MISSING_KEY, "lib[0].source" }
     }
   },
   {
@@ -1331,6 +1331,7 @@ static const test_t tests [] = {
       {
         .name = "t",
         .linkages = { .static_lib = true },
+        .source = { { "a.c" } },
         .frameworks = { { "Metal" }, { "IOKit", "os = \"macos\"" } },
       },
     },
@@ -1343,6 +1344,7 @@ static const test_t tests [] = {
       {
         .name = "t",
         .linkages = { .static_lib = true },
+        .source = { { "a.c" } },
         .frameworks = { { "Metal", "simd = \"avx2\"" } },
       },
     },
@@ -1364,6 +1366,7 @@ static const test_t tests [] = {
       {
         .name = "t",
         .linkages = { .static_lib = true },
+        .source = { { "a.c" } },
         .system_deps = { { "A" }, { "B" } },
       },
     },
@@ -1377,6 +1380,7 @@ static const test_t tests [] = {
       {
         .name = "t",
         .linkages = { .static_lib = true },
+        .source = { { "a.c" } },
         .system_deps = { { "A" } },
         .frameworks = { { "B" } },
       },
@@ -1393,6 +1397,7 @@ static const test_t tests [] = {
       {
         .name = "t",
         .linkages = { .static_lib = true },
+        .source = { { "a.c" } },
       },
     },
     .issues = {
@@ -1498,6 +1503,7 @@ static const test_t tests [] = {
       {
         .name = "t",
         .linkages = { .static_lib = true },
+        .source = { { "a.c" } },
         .publish = { { "data/*", "", "simd = \"avx2\"", .root = SPN_PUBLISH_ROOT_SHARE, .kind = SPN_SOURCE_GLOB } },
       },
     },
@@ -1745,10 +1751,8 @@ static sp_err_t check_targets(sp_test_t* t, si_pkg_info_t* pkg, const target_t* 
     const si_target_info_t* info = get_target(pkg, sp_cstr_as_str(arr[i].name), kind);
     sp_must(t, info);
     sp_expect_eq(t, (u32)kind, (u32)info->kind);
-    sp_expect_eq(t, arr[i].linkages.source, info->linkages.source);
     sp_expect_eq(t, arr[i].linkages.shared, info->linkages.shared);
     sp_expect_eq(t, arr[i].linkages.static_lib, info->linkages.static_lib);
-    sp_expect_eq(t, arr[i].linkages.object, info->linkages.object);
     sp_expect_eq(t, arr[i].no_link, info->no_link);
     check_gated_sources(t, info->source, arr[i].source);
     check_publish(t, info->publish, arr[i].publish);

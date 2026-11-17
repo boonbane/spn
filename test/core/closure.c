@@ -106,13 +106,11 @@ static const test_t tests [] = {
         .kind = SPN_LIB_KIND_STATIC,
         .libs = {
           { "L", SPN_LIB_KIND_SHARED },
-          { "M", SPN_LIB_KIND_OBJECT },
-          { "N", SPN_LIB_KIND_SOURCE },
-          { "O", SPN_LIB_KIND_STATIC, .no_link = true },
+          { "M", SPN_LIB_KIND_STATIC, .no_link = true },
         },
       },
     },
-    .expect = { { "B", "O" }, { "B", "N" }, { "B", "M" }, { "B", "L" }, { "B", "B" } },
+    .expect = { { "B", "M" }, { "B", "L" }, { "B", "B" } },
   },
   {
     .name = "lib_order_follows_closure",

@@ -9,4 +9,5 @@ type = "bool"
 [[lib]]
 name = "t"
 kinds = ["static"]
+source = ["a.c"]
 system_deps = [{ framework = "Metal" }, { framework = "IOKit", when = { os = "macos" } }]

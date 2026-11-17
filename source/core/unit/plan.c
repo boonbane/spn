@@ -226,13 +226,7 @@ static spn_err_t lower_target(spn_units_t* u, spn_target_unit_t* unit) {
             push_unique(mem, &link->cc.system_libs, lib->target->system_deps);
             break;
           }
-          case SPN_LIB_KIND_SOURCE:
-          case SPN_LIB_KIND_OBJECT:
-          case SPN_LIB_KIND_NONE: {
-            push_unique(mem, &link->cc.frameworks, lib->target->macos.frameworks);
-            push_unique(mem, &link->cc.system_libs, lib->target->system_deps);
-            break;
-          }
+          case SPN_LIB_KIND_NONE: sp_unreachable_case();
         }
         break;
       }
@@ -325,10 +319,6 @@ static spn_err_t lower_target(spn_units_t* u, spn_target_unit_t* unit) {
     case SPN_CC_OUTPUT_STATIC_LIB: {
       emit->output = sp_fmt(mem, triple.abi == SPN_ABI_MSVC ? "{}.lib" : "lib{}.a", sp_fmt_str(name)).value;
       sp_opt_set(emit->archive, si_cc_render_archive(mem, toolchain, profile));
-      break;
-    }
-    case SPN_CC_OUTPUT_OBJECT: {
-      emit->objects = true;
       break;
     }
   }
@@ -424,9 +414,6 @@ static spn_err_t plan_new(spn_units_t* u, sp_mem_t scratch, spn_pkg_unit_t* root
       }
     }
 
-    if (target->lib_kind == SPN_LIB_KIND_SOURCE) {
-      continue;
-    }
     si_da_for_value(target->target->source, source) {
       switch (source.kind) {
         case SPN_SOURCE_FILE: {

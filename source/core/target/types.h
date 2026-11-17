@@ -74,10 +74,8 @@ typedef struct {
 } spn_gated_publish_t;
 
 typedef struct {
-  bool source;
   bool shared;
   bool static_lib;
-  bool object;
 } spn_linkage_set_t;
 
 typedef sp_opt(spn_linkage_t) sp_opt_spn_linkage_t;

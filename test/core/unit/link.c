@@ -24,22 +24,20 @@ typedef struct {
 
 static const test_t tests [] = {
   // An executable takes everything on the link line: static and shared libs
-  // both, private or not, while object, source, and no_link libs stay off
+  // both, private or not, while no_link libs stay off
   {
     .name = "exe_places_all_deps_on_link_line",
     .graph.pkgs = {
       {
         .name = "P",
-        .deps = { { "B" }, { "C" }, { "D", .private = true }, { "E" }, { "F" }, { "G" } },
+        .deps = { { "B" }, { "C" }, { "D", .private = true }, { "E" } },
         .system_deps = { "pthread" },
         .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "main.c" } } },
       },
       { .name = "B", .targets = { { "B", static_only, .source = { "a.c" } } }, .system_deps = { "m" } },
       { .name = "C", .targets = { { "C", shared_only, .source = { "s.c" } } } },
       { .name = "D", .targets = { { "D", static_only, .source = { "p.c" } } } },
-      { .name = "E", .targets = { { "E", object_only, .source = { "b.c" } } } },
-      { .name = "F", .targets = { { "F", source_only, .source = { "r.c" } } } },
-      { .name = "G", .targets = { { "G", static_only, .no_link = true, .source = { "t.c" } } } },
+      { .name = "E", .targets = { { "E", static_only, .no_link = true, .source = { "t.c" } } } },
     },
     .root = { "A", SPN_TARGET_KIND_EXE },
     .expect = {

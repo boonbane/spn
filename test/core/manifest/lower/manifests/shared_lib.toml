@@ -5,3 +5,4 @@ version = "1.0.0"
 [[lib]]
 name = "t"
 kinds = ["shared"]
+source = ["a.c"]

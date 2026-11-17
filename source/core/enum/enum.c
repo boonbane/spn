@@ -335,12 +335,6 @@ spn_linkage_t spn_lib_kind_from_str(sp_str_t str) {
   if (sp_str_equal_cstr(str, "static")) {
     return SPN_LIB_KIND_STATIC;
   }
-  if (sp_str_equal_cstr(str, "source")) {
-    return SPN_LIB_KIND_SOURCE;
-  }
-  if (sp_str_equal_cstr(str, "object")) {
-    return SPN_LIB_KIND_OBJECT;
-  }
 
   return SPN_LIB_KIND_NONE;
 }
@@ -524,12 +518,6 @@ sp_str_t spn_linkage_to_str(spn_linkage_t kind) {
     }
     case SPN_LIB_KIND_STATIC: {
       return sp_str_lit("static");
-    }
-    case SPN_LIB_KIND_SOURCE: {
-      return sp_str_lit("source");
-    }
-    case SPN_LIB_KIND_OBJECT: {
-      return sp_str_lit("object");
     }
     case SPN_LIB_KIND_NONE: sp_unreachable_case();
   }

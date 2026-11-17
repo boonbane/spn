@@ -7,7 +7,6 @@
 #include "paths/paths.h"
 #include "pkg/pkg.h"
 #include "profile/profile.h"
-#include "target/mutate.h"
 #include "target/select.h"
 #include "when/when.h"
 
@@ -162,68 +161,44 @@ spn_err_t si_add_target_unit(spn_units_t* u, spn_pkg_unit_t* pkg, si_target_t* t
 
   switch (target->info->kind) {
     case SPN_TARGET_KIND_LIB: {
-      if (spn_linkage_set_has(target->info->linkages, SPN_LIB_KIND_OBJECT) || target->info->no_link) {
-        if (target->info->linkages.object) {
-          unit->lib_kind = SPN_LIB_KIND_OBJECT;
+      const spn_profile_info_t* profile = &pkg->build->profile;
+      const spn_pkg_config_t* config = pkg->resolved->config;
+      spn_kind_query_t query = { .linkage = profile->linking.linkage };
+      if (config && !sp_opt_is_null(config->kind)) {
+        sp_opt_set(query.config, config->kind.value);
+      }
+
+      if (spn_target_select_lib_kind(target->info->linkages, query, &unit->lib_kind)) {
+        spn_linkage_requester_t requester = SPN_LINKAGE_REQUESTER_TARGET;
+        if (profile->request.linkage) {
+          requester = SPN_LINKAGE_REQUESTER_PROFILE;
         }
-        if (target->info->linkages.source) {
-          unit->lib_kind = SPN_LIB_KIND_SOURCE;
+        else if (profile->request.libc == SPN_RUNTIME_STATIC) {
+          requester = SPN_LINKAGE_REQUESTER_LIBC;
+        }
+        sp_da(spn_linkage_t) supported = sp_da_new(u->ctx->events->mem, spn_linkage_t);
+        if (target->info->linkages.shared) {
+          sp_da_push(supported, SPN_LIB_KIND_SHARED);
         }
         if (target->info->linkages.static_lib) {
-          unit->lib_kind = SPN_LIB_KIND_STATIC;
+          sp_da_push(supported, SPN_LIB_KIND_STATIC);
         }
-        if (target->info->linkages.shared) {
-          unit->lib_kind = SPN_LIB_KIND_SHARED;
-        }
-      }
-      else {
-        const spn_profile_info_t* profile = &pkg->build->profile;
-        const spn_pkg_config_t* config = pkg->resolved->config;
-        spn_kind_query_t query = { .linkage = profile->linking.linkage };
-        if (config && !sp_opt_is_null(config->kind)) {
-          sp_opt_set(query.config, config->kind.value);
-        }
-
-        if (spn_target_select_lib_kind(target->info->linkages, query, &unit->lib_kind)) {
-          spn_linkage_requester_t requester = SPN_LINKAGE_REQUESTER_TARGET;
-          if (profile->request.linkage) {
-            requester = SPN_LINKAGE_REQUESTER_PROFILE;
-          }
-          else if (profile->request.libc == SPN_RUNTIME_STATIC) {
-            requester = SPN_LINKAGE_REQUESTER_LIBC;
-          }
-          sp_da(spn_linkage_t) supported = sp_da_new(u->ctx->events->mem, spn_linkage_t);
-          if (target->info->linkages.shared) {
-            sp_da_push(supported, SPN_LIB_KIND_SHARED);
-          }
-          if (target->info->linkages.static_lib) {
-            sp_da_push(supported, SPN_LIB_KIND_STATIC);
-          }
-          if (target->info->linkages.source) {
-            sp_da_push(supported, SPN_LIB_KIND_SOURCE);
-          }
-          if (target->info->linkages.object) {
-            sp_da_push(supported, SPN_LIB_KIND_OBJECT);
-          }
-          return spn_err_emit(u->ctx, (spn_err_union_t) {
-            .kind = SPN_ERR_TARGET_LINKAGE,
-            .target = {
-              .pkg = pkg->pkg.manifest->name.str,
-              .name = target->info->name.str,
-              .requested = spn_linkage_to_str(query.config.some ? query.config.value : query.linkage),
-              .requester = query.config.some ? SPN_LINKAGE_REQUESTER_ROOT_MANIFEST : requester,
-              .supported = supported,
-            },
-          });
-        }
+        return spn_err_emit(u->ctx, (spn_err_union_t) {
+          .kind = SPN_ERR_TARGET_LINKAGE,
+          .target = {
+            .pkg = pkg->pkg.manifest->name.str,
+            .name = target->info->name.str,
+            .requested = spn_linkage_to_str(query.config.some ? query.config.value : query.linkage),
+            .requester = query.config.some ? SPN_LINKAGE_REQUESTER_ROOT_MANIFEST : requester,
+            .supported = supported,
+          },
+        });
       }
 
       switch (unit->lib_kind) {
         case SPN_LIB_KIND_STATIC: unit->kind = SPN_CC_OUTPUT_STATIC_LIB; break;
         case SPN_LIB_KIND_SHARED: unit->kind = SPN_CC_OUTPUT_SHARED_LIB; break;
-        case SPN_LIB_KIND_SOURCE:
-        case SPN_LIB_KIND_OBJECT: unit->kind = SPN_CC_OUTPUT_OBJECT; break;
-        case SPN_LIB_KIND_NONE: break;
+        case SPN_LIB_KIND_NONE: sp_unreachable_case();
       }
       break;
     }

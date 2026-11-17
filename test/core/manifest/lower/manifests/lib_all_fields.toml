@@ -16,3 +16,4 @@ deps = ["spum"]
 
 [[lib]]
 name = "spum"
+source = ["spum.c"]

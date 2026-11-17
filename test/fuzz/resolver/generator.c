@@ -28,7 +28,7 @@ bool fz_pkg_shared(fz_universe_t* u, s32 pkg) {
   }
 
   fz_pkg_t* it = &u->pkgs[pkg];
-  if (!it->linkages.source && !it->linkages.static_lib && !it->linkages.shared) {
+  if (!it->linkages.static_lib && !it->linkages.shared) {
     return false;
   }
 
@@ -258,7 +258,7 @@ fz_profile_t fz_gen_profile(sp_fuzz_prng_t* prng) {
     profile.shared_pct = sp_fuzz_range(prng, 2, 12);
     profile.static_pct = sp_fuzz_below(prng, 8);
     profile.config_pct = sp_fuzz_below(prng, 4);
-    static const spn_linkage_t linkages[] = { SPN_LIB_KIND_NONE, SPN_LIB_KIND_STATIC, SPN_LIB_KIND_SHARED, SPN_LIB_KIND_SOURCE };
+    static const spn_linkage_t linkages[] = { SPN_LIB_KIND_NONE, SPN_LIB_KIND_STATIC, SPN_LIB_KIND_SHARED };
     profile.linkage = linkages[sp_fuzz_below(prng, SP_CARR_LEN(linkages))];
   }
   profile.planted = !profile.features && sp_fuzz_chance(prng, 1, 2);
@@ -282,9 +282,8 @@ fz_universe_t fz_gen_universe(sp_mem_t mem, sp_fuzz_prng_t* prng, fz_profile_t p
     if (profile.features) {
       pkg.linkages.shared = sp_fuzz_chance(prng, (u32)profile.shared_pct, 16);
       pkg.linkages.static_lib = sp_fuzz_chance(prng, (u32)profile.static_pct, 16);
-      pkg.linkages.source = sp_fuzz_chance(prng, (u32)profile.static_pct, 16);
       if (sp_fuzz_chance(prng, (u32)profile.config_pct, 16)) {
-        static const spn_linkage_t kinds[] = { SPN_LIB_KIND_SHARED, SPN_LIB_KIND_STATIC, SPN_LIB_KIND_SOURCE };
+        static const spn_linkage_t kinds[] = { SPN_LIB_KIND_SHARED, SPN_LIB_KIND_STATIC };
         pkg.has_config = true;
         pkg.config = kinds[sp_fuzz_below(prng, SP_CARR_LEN(kinds))];
       }

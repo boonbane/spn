@@ -21,8 +21,6 @@
 
 #define static_only { .static_lib = true }
 #define shared_only { .shared = true }
-#define object_only { .object = true }
-#define source_only { .source = true }
 
 typedef struct {
   const c8* to;

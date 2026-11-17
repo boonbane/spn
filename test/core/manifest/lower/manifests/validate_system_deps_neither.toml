@@ -6,4 +6,5 @@ system_deps = [{ when = { os = "linux" } }]
 [[lib]]
 name = "t"
 kinds = ["static"]
+source = ["a.c"]
 system_deps = [{ when = { os = "linux" } }]

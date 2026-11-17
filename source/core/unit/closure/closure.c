@@ -26,9 +26,7 @@ bool si_closure_it_next(si_closure_it_t* it) {
     if (frame->lib) {
       bool walk = frame->root || it->shared == SI_CLOSURE_CHASE_SHARED;
       switch (frame->lib->lib_kind) {
-        case SPN_LIB_KIND_STATIC:
-        case SPN_LIB_KIND_SOURCE:
-        case SPN_LIB_KIND_OBJECT: {
+        case SPN_LIB_KIND_STATIC: {
           walk = walk || !frame->lib->target->info->no_link;
           break;
         }

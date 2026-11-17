@@ -4,7 +4,3 @@ version = "1.0.0"
 
 [package.publish]
 include = [{ from = "include/**", to = "D" }]
-
-[[lib]]
-name = "D"
-kinds = ["source"]

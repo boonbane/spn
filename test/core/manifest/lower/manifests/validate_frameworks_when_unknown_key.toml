@@ -6,4 +6,5 @@ system_deps = [{ framework = "GSS", when = { simd = "avx2" } }]
 [[lib]]
 name = "t"
 kinds = ["static"]
+source = ["a.c"]
 system_deps = [{ framework = "Metal", when = { simd = "avx2" } }]

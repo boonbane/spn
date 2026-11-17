@@ -31,13 +31,14 @@ static sp_intern_str_t lower_pkg_name(spn_toml_loader_t* ctx, sp_str_t name) {
 }
 
 static spn_linkage_set_t lower_linkages(sp_da(sp_str_t) kinds) {
+  if (sp_da_empty(kinds)) {
+    return (spn_linkage_set_t) { .static_lib = true };
+  }
   spn_linkage_set_t set = sp_zero;
   sp_da_for(kinds, k) {
     switch (spn_linkage_from_str(kinds[k])) {
-      case SPN_LIB_KIND_SOURCE: set.source = true; break;
       case SPN_LIB_KIND_SHARED: set.shared = true; break;
       case SPN_LIB_KIND_STATIC: set.static_lib = true; break;
-      case SPN_LIB_KIND_OBJECT: set.object = true; break;
       case SPN_LIB_KIND_NONE: break;
     }
   }
@@ -200,7 +201,7 @@ static void lower_target(spn_toml_loader_t* ctx, const spn_cg_target_t* cg, si_t
     .id = target->id,
     .name = target->name,
     .kind = target->kind,
-    .linkages = lower_linkages(cg->kinds),
+    .linkages = target->kind == SPN_TARGET_KIND_LIB ? lower_linkages(cg->kinds) : sp_zero_s(spn_linkage_set_t),
     .no_link = sp_opt_is_null(cg->link) ? false : !sp_opt_get(cg->link),
     .cxx = lower_cxx_options(&cg->cxx),
     .source = lower_gated_sources(ctx, cg->source),
@@ -923,7 +924,7 @@ static void validate_profiles(spn_toml_loader_t* ctx, const spn_cg_manifest_t* c
     validate_candidates(ctx, "abi", p->abi);
     sp_da_for(p->linkage, ct) {
       spn_linkage_t linkage = spn_linkage_from_str(p->linkage[ct].value);
-      if (linkage == SPN_LIB_KIND_NONE || linkage == SPN_LIB_KIND_OBJECT) {
+      if (linkage == SPN_LIB_KIND_NONE) {
         issue_candidate_value(ctx, "linkage", ct);
       }
     }
@@ -971,8 +972,17 @@ static void validate_lib_linkages(spn_toml_loader_t* ctx, const spn_cg_manifest_
     const spn_cg_target_t* lib = sp_str_om_at(cg->lib, it);
     spn_linkage_set_t set = lower_linkages(lib->kinds);
     spn_toml_loader_push_index(ctx, it);
-    if (set.object && (set.source || set.shared || set.static_lib)) {
-      spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "kinds");
+    spn_toml_loader_push_key(ctx, "kinds");
+    sp_da_for(lib->kinds, kt) {
+      if (spn_linkage_from_str(lib->kinds[kt]) == SPN_LIB_KIND_NONE) {
+        spn_toml_loader_push_index(ctx, kt);
+        spn_toml_loader_issue_at(ctx, SPN_ERR_CODEGEN_INVALID, lib->kinds[kt]);
+        spn_toml_loader_pop(ctx);
+      }
+    }
+    spn_toml_loader_pop(ctx);
+    if (sp_da_empty(lib->source)) {
+      spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_MISSING_KEY, "source");
     }
     if (!set.shared && !sp_da_empty(lib->link_flags)) {
       spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "link_flags");

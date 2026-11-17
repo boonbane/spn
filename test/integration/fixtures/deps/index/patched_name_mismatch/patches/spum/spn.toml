@@ -1,7 +1,3 @@
 [package]
 name = "spork"
 version = "1.0.0"
-
-[[lib]]
-name = "spork"
-kinds = ["source"]

@@ -222,7 +222,7 @@ static bool shared_demand(const spn_project_t* project) {
       continue;
     }
     spn_linkage_set_t linkages = target->linkages;
-    if (linkages.shared && !linkages.static_lib && !linkages.source) {
+    if (linkages.shared && !linkages.static_lib) {
       return true;
     }
   }

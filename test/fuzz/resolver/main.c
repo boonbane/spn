@@ -103,7 +103,7 @@ static spn_requested_dep_t fz_req(sp_mem_t mem, sp_intern_t* intern, fz_universe
 }
 
 static bool fz_pkg_linked(fz_pkg_t* pkg) {
-  return pkg->linkages.source || pkg->linkages.static_lib || pkg->linkages.shared;
+  return pkg->linkages.static_lib || pkg->linkages.shared;
 }
 
 static fz_result_t fz_execute(sp_mem_t mem, fz_universe_t* u, sp_intern_t* intern) {
@@ -145,7 +145,6 @@ static fz_result_t fz_execute(sp_mem_t mem, fz_universe_t* u, sp_intern_t* inter
       if (fz_pkg_linked(&u->pkgs[it])) {
         spn_index_target_t target = { .name = fz_pkg_name((u32)it) };
         sp_da_init(mem, target.linkages);
-        if (u->pkgs[it].linkages.source) sp_da_push(target.linkages, SPN_LIB_KIND_SOURCE);
         if (u->pkgs[it].linkages.static_lib) sp_da_push(target.linkages, SPN_LIB_KIND_STATIC);
         if (u->pkgs[it].linkages.shared) sp_da_push(target.linkages, SPN_LIB_KIND_SHARED);
         sp_da_push(release.targets, target);

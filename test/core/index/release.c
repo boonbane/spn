@@ -64,8 +64,8 @@ static const release_test_t tests [] = {
             { .name = "utest", .version = "^1.0.0", .kind = SPN_INDEX_DEP_TEST },
           },
           .targets = {
-            { .name = "spum", .linkages = { SPN_LIB_KIND_SOURCE, SPN_LIB_KIND_STATIC, SPN_LIB_KIND_SHARED } },
-            { .name = "spum1", .linkages = { SPN_LIB_KIND_OBJECT } },
+            { .name = "spum", .linkages = { SPN_LIB_KIND_STATIC, SPN_LIB_KIND_SHARED } },
+            { .name = "spum1", .linkages = { SPN_LIB_KIND_STATIC } },
           },
         },
       },

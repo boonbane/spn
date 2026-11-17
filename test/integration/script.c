@@ -62,13 +62,6 @@ static const command_test_t apis [] = {
     .expect.files = { { work_file("S/V.txt"), .content = "1" } },
   },
   {
-    .name = "object_lib",
-    .project = "test/integration/fixtures/script/object_lib",
-    .copy = { "packages/*" },
-    .args = { "build" },
-    .expect.exists = { pkg_store_file("spum", "lib/manifest/rt/extra.c.o"), pkg_static_lib("spum", "blob"), exe("object_lib") },
-  },
-  {
     .name = "cross_package",
     .project = "test/integration/fixtures/script/cross_package",
     .args = { "build" },

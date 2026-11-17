@@ -104,11 +104,6 @@ static void hash_publish(spn_digest_ctx_t* digest, const spn_path_roots_t* roots
   spn_dag_hash_str(digest, publish->dest);
 }
 
-typedef struct {
-  spn_dag_id_t action;
-  spn_dag_id_t object;
-} object_ids_t;
-
 static void hash_invocation(spn_digest_ctx_t* digest, const spn_path_roots_t* roots, const spn_invocation_t* base) {
   spn_dag_hash_arg(digest, roots, base->program);
   spn_dag_hash_args(digest, roots, base->args);
@@ -131,62 +126,6 @@ static spn_dag_digest_t hash_compile(const spn_path_roots_t* roots, const spn_co
   hash_invocation(&digest, roots, &unit->plan.base);
   spn_dag_hash_path(&digest, roots, unit->file);
   return spn_dag_hash_final(&digest);
-}
-
-static spn_err_t add_object_compilation(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t* target, spn_dag_id_t libc, spn_dag_id_t header, si_da(spn_dag_id_t) orders, si_da(object_ids_t)* objects) {
-  spn_dag_t* g = b->graph;
-  spn_pkg_unit_t* pkg = target->pkg;
-
-  sp_da_for(target->objects, it) {
-    spn_compile_unit_t* unit = target->objects[it];
-
-    si_compile_t* ctx = sp_alloc_type(b->mem, si_compile_t);
-    *ctx = (si_compile_t) {
-      .plan = &unit->plan,
-      .source = unit->file,
-      .subject = spn_target_unit_subject(target),
-      .libc = libc,
-      .header = header,
-    };
-    spn_dag_action_config_t config = {
-      .identity = hash_compile(g->roots, unit),
-      .user_data = ctx,
-    };
-    switch (unit->plan.depfile) {
-      case SPN_CC_DEPFILE_NONE: {
-        config.kind = SPN_DAG_ACTION_STATIC;
-        config.execute = si_on_compile;
-        break;
-      }
-      case SPN_CC_DEPFILE_OPTIONAL:
-      case SPN_CC_DEPFILE_REQUIRED: {
-        config.kind = SPN_DAG_ACTION_DISCOVERED;
-        config.execute = si_on_compile_discover;
-        break;
-      }
-    }
-    object_ids_t ids = sp_zero;
-    ids.action = spn_dag_add_action(g, config);
-    announce_package(b, ids.action, pkg);
-    spn_dag_action_add_input(g, ids.action, spn_dag_add_file(g, unit->file));
-    if (libc.occupied) {
-      spn_dag_action_add_input(g, ids.action, libc);
-    }
-    if (header.occupied) {
-      spn_dag_action_add_input(g, ids.action, header);
-    }
-    si_da_for(orders, jt) {
-      spn_dag_action_add_order(g, ids.action, orders[jt]);
-    }
-
-    ids.object = spn_dag_add_output(g, sp_fs_get_name(unit->name));
-    ctx->object = ids.object;
-    spn_try(spn_dag_action_add_output(g, ids.action, ids.object));
-
-    si_da_push(mem, *objects, ids);
-  }
-
-  return SPN_OK;
 }
 
 static spn_err_t add_publish_file(spn_dag_build_t* b, spn_dag_id_t source, spn_path_t dest) {
@@ -250,15 +189,6 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
     return SPN_OK;
   }
 
-  si_da(object_ids_t) objects = sp_zero;
-  if (emit->objects) {
-    spn_try(add_object_compilation(b, mem, unit, libc, (spn_dag_id_t) sp_zero, needs, &objects));
-    si_da_for(objects, it) {
-      spn_try(add_publish_file(b, objects[it].object, spn_path_join(b->mem, unit->install, unit->objects[it]->name)));
-    }
-    return SPN_OK;
-  }
-
   spn_dag_target_ids_t* ids = sp_ht_getp(b->ids.targets, unit);
   sp_assert(ids);
 
@@ -293,11 +223,49 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
     }
   }
 
-  spn_try(add_object_compilation(b, mem, unit, libc, embed.header, needs, &objects));
-
   si_da(spn_dag_id_t) object_ids = sp_zero;
-  si_da_for(objects, it) {
-    si_da_push(b->mem, object_ids, objects[it].object);
+  sp_da_for_value(unit->objects, object) {
+    si_compile_t* ctx = sp_alloc_type(b->mem, si_compile_t);
+    *ctx = (si_compile_t) {
+      .plan = &object->plan,
+      .source = object->file,
+      .subject = spn_target_unit_subject(unit),
+      .libc = libc,
+      .header = embed.header,
+    };
+    spn_dag_action_config_t config = {
+      .identity = hash_compile(g->roots, object),
+      .user_data = ctx,
+    };
+    switch (object->plan.depfile) {
+      case SPN_CC_DEPFILE_NONE: {
+        config.kind = SPN_DAG_ACTION_STATIC;
+        config.execute = si_on_compile;
+        break;
+      }
+      case SPN_CC_DEPFILE_OPTIONAL:
+      case SPN_CC_DEPFILE_REQUIRED: {
+        config.kind = SPN_DAG_ACTION_DISCOVERED;
+        config.execute = si_on_compile_discover;
+        break;
+      }
+    }
+    spn_dag_id_t action = spn_dag_add_action(g, config);
+    announce_package(b, action, unit->pkg);
+    spn_dag_action_add_input(g, action, spn_dag_add_file(g, object->file));
+    if (libc.occupied) {
+      spn_dag_action_add_input(g, action, libc);
+    }
+    if (embed.header.occupied) {
+      spn_dag_action_add_input(g, action, embed.header);
+    }
+    si_da_for(needs, it) {
+      spn_dag_action_add_order(g, action, needs[it]);
+    }
+
+    ctx->object = spn_dag_add_output(g, sp_fs_get_name(object->name));
+    spn_try(spn_dag_action_add_output(g, action, ctx->object));
+    si_da_push(b->mem, object_ids, ctx->object);
   }
   if (embed.action.occupied) {
     si_da_push(b->mem, object_ids, embed.object);

@@ -11,7 +11,3 @@ include = [
   { from = "on.h", to = "kit", when = { mode = "debug" } },
   { from = "off.h", to = "kit", when = { mode = "release" } },
 ]
-
-[[lib]]
-name = "kit"
-kinds = ["source"]
