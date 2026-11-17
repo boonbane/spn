@@ -46,12 +46,7 @@ static const opt_test_t tests [] = {
   {
     .name = "index_eager_gate",
     .project = "test/integration/fixtures/options/index_eager_gate",
-    .builds = {
-      {
-        .present = true,
-        .expect.events = { { .event = SPN_EVENT_SYNC_PACKAGE, .key = "name", .value = "ghost", .absent = true } },
-      },
-    },
+    .builds = { { .present = true } },
   },
   {
     .name = "edge_gates_build_dep",

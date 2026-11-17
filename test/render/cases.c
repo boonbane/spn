@@ -428,8 +428,9 @@ static cell_t cells [] = {
     .args = { "build", "--locked" },
   },
   {
-    .name = "err_lock_unpinned",
-    .project = "test/integration/fixtures/lock/unpinned",
+    .name = "lock_relock",
+    .project = "test/integration/fixtures/lock/blocked",
+    .copy = { "spn.lock" },
     .args = { "build" },
   },
   {

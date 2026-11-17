@@ -1,6 +1,0 @@
-[package]
-name = "root"
-version = "0.0.1"
-
-[deps.package]
-a = { version = "^1.0.0" }

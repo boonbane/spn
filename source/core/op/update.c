@@ -2,25 +2,23 @@
 
 #include "ctx/types.h"
 #include "error/error.h"
-#include "event/event.h"
+#include "index/types.h"
 #include "intern/intern.h"
 #include "lock/lock.h"
-#include "model/resolve.h"
+#include "model/sync.h"
 #include "op/op.h"
 #include "project/types.h"
-#include "semver/convert.h"
 #include "session/types.h"
 
 static spn_err_t update(sp_mem_t scratch, spn_op_t* op) {
   spn_session_t* session = op->session;
   spn_ctx_t* ctx = session->ctx;
-  spn_path_t path = session->project->paths.lock;
   spn_str_arr_t named = op->request.update.names;
 
   spn_lock_t held = sp_zero;
-  spn_err_union_t failure = sp_zero;
-  if (spn_lock_load(session->mem, ctx->intern, &ctx->roots, path, &held, &failure)) {
-    return spn_err_emit(ctx, failure);
+  spn_err_union_t unreadable = sp_zero;
+  if (spn_lock_load(session->mem, ctx->intern, &ctx->roots, session->project->paths.lock, &held, &unreadable)) {
+    return spn_err_emit(ctx, unreadable);
   }
 
   spn_lock_t kept = spn_lock_new(scratch);
@@ -49,33 +47,13 @@ static spn_err_t update(sp_mem_t scratch, spn_op_t* op) {
     }
   }
 
-  spn_lock_t lock = sp_zero;
-  spn_try(spn_resolve_lock(op, &kept, &lock));
-  sp_da_for(kept.entries, it) {
-    spn_lock_entry_t* entry = spn_lock_find(&lock, kept.entries[it].name.id, kept.entries[it].version);
-    if (entry) {
-      *entry = kept.entries[it];
-    }
+  sp_da(spn_index_info_t*) indexes = sp_da_new(scratch, spn_index_info_t*);
+  sp_da_for(ctx->indexes, it) {
+    sp_da_push(indexes, &ctx->indexes[it]);
   }
+  spn_try(spn_sync_index_list(op, indexes, true));
 
-  bool changed = held.version != lock.version;
-  spn_lock_diff_t diff = spn_lock_diff(&held, &lock);
-  while (spn_lock_diff_next(&diff)) {
-    const spn_lock_entry_t* entry = diff.now ? diff.now : diff.was;
-    spn_event_buffer_push(ctx->events, (spn_event_t) {
-      .kind = diff.now ? SPN_EVENT_LOCK_ADDED : SPN_EVENT_LOCK_REMOVED,
-      .pkg = entry->name.str,
-      .resolve_pkg = {
-        .name = entry->name.str,
-        .version = spn_semver_to_str(ctx->events->mem, entry->version),
-      },
-    });
-    changed = true;
-  }
-  if (changed && spn_lock_save(&ctx->roots, path, &lock, &failure)) {
-    return spn_err_emit(ctx, failure);
-  }
-  return SPN_OK;
+  return spn_resolve_and_sync(op, &held, &kept);
 }
 
 spn_err_t spn_op_update(spn_op_t* op) {

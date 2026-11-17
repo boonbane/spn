@@ -85,6 +85,7 @@
     "publish_push": { "ref": "publish" },
     "publish_dirty": { "ref": "publish" },
     "publish_unpushed": { "ref": "publish" },
+    "publish_abbreviated": { "ref": "publish" },
     "index_path_dep": { "ref": "pkg" },
     "pkg_unknown": { "ref": "unknown" },
     "pkg_no_match": { "ref": "unsatisfiable" },
@@ -97,7 +98,6 @@
     "lock_version": { "ref": "lock_version" },
     "lock_stale": { "properties": {} },
     "lock_mismatch": { "ref": "lock_mismatch" },
-    "lock_unpinned": { "ref": "lock_unpinned" },
     "lock_absent": { "properties": {} },
     "manifest_edit": { "ref": "manifest_parse" },
     "dag_glob": { "properties": {} },
@@ -376,7 +376,8 @@
       "properties": {
         "version": { "metadata": { "extern": "semver" } },
         "locked": { "ref": "lock_root" },
-        "found": { "ref": "lock_root" }
+        "found": { "ref": "lock_root" },
+        "update": { "elements": { "type": "string" } }
       }
     },
     "lock_root": {
@@ -393,11 +394,6 @@
         "path": { "type": "string" },
         "version": { "type": "uint64" },
         "supported": { "type": "uint64" }
-      }
-    },
-    "lock_unpinned": {
-      "properties": {
-        "version": { "metadata": { "extern": "semver" } }
       }
     },
     "dag": {

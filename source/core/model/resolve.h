@@ -6,7 +6,6 @@
 #include "core/types.h"
 #include "lock/types.h"
 
-spn_err_t spn_resolve_lock(spn_op_t* op, const spn_lock_t* held, spn_lock_t* lock);
-spn_err_t spn_resolve(spn_op_t* op, const spn_lock_t* lock);
+spn_err_t spn_resolve(spn_op_t* op, spn_lock_t* lock);
 
 #endif

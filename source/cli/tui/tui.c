@@ -884,17 +884,7 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
             sp_fmt_str(lock_root_to_str(mem, &err->locked)),
             sp_fmt_str(err->found.rev),
             sp_fmt_str(lock_root_to_str(mem, &err->found)),
-            sp_fmt_str(sp_fmt(mem, "spn update {}", sp_fmt_str(event->err.subject)).value)
-          );
-          break;
-        }
-        case SPN_ERR_LOCK_UNPINNED: {
-          sp_tty_fmt(
-            &w,
-            "This build selects {} {.yellow}, which {.cyan} does not pin; spn cannot build these dependencies from one lockfile yet",
-            sp_fmt_str(colored_name(w.color, mem, event->err.subject)),
-            sp_fmt_str(spn_semver_to_str(mem, event->err.lock_unpinned.version)),
-            sp_fmt_cstr("spn.lock")
+            sp_fmt_str(sp_fmt(mem, "spn update {}", sp_fmt_str(sp_str_join_n(mem, err->update, sp_da_size(err->update), sp_str_lit(" ")))).value)
           );
           break;
         }
@@ -1324,6 +1314,16 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
             "Commit {.yellow} is not on any branch of {.gray}; push it first",
             sp_fmt_str(event->err.publish.rev),
             sp_fmt_str(event->err.publish.url)
+          );
+          break;
+        }
+        case SPN_ERR_PUBLISH_ABBREVIATED: {
+          sp_tty_fmt(
+            &w,
+            "Upstream commit {.yellow} of {.gray} is not a full commit; {.cyan} needs all 40 characters",
+            sp_fmt_str(event->err.publish.rev),
+            sp_fmt_str(event->err.publish.url),
+            sp_fmt_cstr("[package.upstream]")
           );
           break;
         }

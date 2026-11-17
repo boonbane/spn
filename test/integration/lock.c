@@ -22,21 +22,59 @@ static const command_test_t commands [] = {
     .project = "test/integration/fixtures/lock/gone",
     .copy = { "spn.lock" },
     .args = { "build" },
-    .expect.locked = { { .name = "A", .version = "1.1.0" } },
+    .expect.locked = {
+      { .name = "A", .version = "1.1.0" },
+      { .name = "A", .version = "1.5.0" },
+    },
   },
   {
-    .name = "unpinned_selection_rejected",
-    .project = "test/integration/fixtures/lock/unpinned",
-    .args = { "build" },
-    .expect = { .rc = 1, .err = SPN_ERR_LOCK_UNPINNED },
-  },
-  {
-    .name = "pins_closed_gates",
+    .name = "skips_closed_gates",
     .project = "test/integration/fixtures/options/index_eager_gate",
     .args = { "build" },
+    .expect.locked = { { .name = "a", .version = "1.0.0" } },
+  },
+  {
+    .name = "relocks_blocking_pin",
+    .project = "test/integration/fixtures/lock/blocked",
+    .copy = { "spn.lock" },
+    .args = { "build" },
     .expect.locked = {
-      { .name = "a", .version = "1.0.0" },
-      { .name = "ghost", .version = "1.0.0" },
+      { .name = "A", .version = "1.0.0" },
+      { .name = "C", .version = "1.4.0" },
+      { .name = "D", .version = "1.0.0" },
+    },
+  },
+  {
+    .name = "relock_reported",
+    .project = "test/integration/fixtures/lock/blocked",
+    .copy = { "spn.lock" },
+    .args = { "build" },
+    .expect.events = {
+      { .event = SPN_EVENT_LOCK_REMOVED, .key = "version", .value = "1.2.0" },
+      { .event = SPN_EVENT_LOCK_ADDED, .key = "version", .value = "1.4.0" },
+    },
+  },
+  {
+    .name = "locked_rejects_relock",
+    .project = "test/integration/fixtures/lock/blocked",
+    .copy = { "spn.lock" },
+    .args = { "build", "--locked" },
+    .expect = {
+      .rc = 1,
+      .err = SPN_ERR_LOCK_STALE,
+      .locked = { { .name = "C", .version = "1.2.0" } },
+    },
+  },
+  {
+    .name = "relocks_without_pins",
+    .project = "test/integration/fixtures/lock/stuck",
+    .copy = { "spn.lock" },
+    .args = { "build" },
+    .expect.locked = {
+      { .name = "A", .version = "1.1.0" },
+      { .name = "C", .version = "1.4.0" },
+      { .name = "D", .version = "1.0.0" },
+      { .name = "E", .version = "1.0.0" },
     },
   },
   {
@@ -80,6 +118,13 @@ static const command_test_t commands [] = {
     .project = "test/integration/fixtures/lock/pair",
     .args = { "path", "A", "--locked" },
     .expect = { .rc = 1, .err = SPN_ERR_LOCK_STALE },
+  },
+  {
+    .name = "update_rejects_unnamed_moved_source",
+    .project = "test/integration/fixtures/lock/moved",
+    .copy = { "spn.lock" },
+    .args = { "update", "B" },
+    .expect = { .rc = 1, .err = SPN_ERR_LOCK_MISMATCH },
   },
   {
     .name = "update_creates_lock",
@@ -130,7 +175,7 @@ static const rebuild_test_t rebuilds [] = {
     },
   },
   {
-    .name = "drops_removed_deps",
+    .name = "keeps_removed_deps",
     .project = "test/integration/fixtures/lock/pair",
     .copy = { "spn.less.toml" },
     .first.args = { "build" },
@@ -139,6 +184,24 @@ static const rebuild_test_t rebuilds [] = {
         .change.moves = { { .from = "spn.less.toml", .to = "spn.toml" } },
         .command = {
           .args = { "build" },
+          .expect.locked = {
+            { .name = "A", .version = "1.0.0" },
+            { .name = "B", .version = "1.0.0" },
+          },
+        },
+      },
+    },
+  },
+  {
+    .name = "update_drops_removed_deps",
+    .project = "test/integration/fixtures/lock/pair",
+    .copy = { "spn.less.toml" },
+    .first.args = { "build" },
+    .rebuilds = {
+      {
+        .change.moves = { { .from = "spn.less.toml", .to = "spn.toml" } },
+        .command = {
+          .args = { "update" },
           .expect.locked = { { .name = "B", .version = "1.0.0" } },
         },
       },
@@ -157,11 +220,11 @@ static const rebuild_test_t rebuilds [] = {
   {
     .name = "locked_rejects_stale",
     .project = "test/integration/fixtures/lock/pair",
-    .copy = { "spn.less.toml" },
+    .copy = { "spn.next.toml" },
     .first.args = { "build" },
     .rebuilds = {
       {
-        .change.moves = { { .from = "spn.less.toml", .to = "spn.toml" } },
+        .change.moves = { { .from = "spn.next.toml", .to = "spn.toml" } },
         .command = {
           .args = { "build", "--locked" },
           .expect = {
@@ -242,30 +305,16 @@ static const rebuild_test_t rebuilds [] = {
     },
   },
   {
-    .name = "update_leaves_unnamed",
-    .project = "test/integration/fixtures/lock/moved",
-    .copy = { "spn.lock" },
-    .first.args = { "update", "B" },
+    .name = "update_refreshes_index",
+    .project = "test/integration/fixtures/lock/pair",
+    .first.args = { "build" },
     .rebuilds = {
       {
+        .change.remove_dirs = { ".st/spn/packages" },
         .command = {
-          .args = { "build" },
-          .expect = { .rc = 1, .err = SPN_ERR_LOCK_MISMATCH },
+          .args = { "update" },
+          .expect = { .rc = 1, .err = SPN_ERR_INDEX_SYNC },
         },
-      },
-    },
-  },
-  {
-    .name = "update_named_converges",
-    .project = "test/integration/fixtures/lock/moved",
-    .copy = { "spn.lock" },
-    .first.args = { "update", "A" },
-    .rebuilds = {
-      {
-        .command.args = { "update", "B" },
-      },
-      {
-        .command.args = { "build", "--locked" },
       },
     },
   },
@@ -283,12 +332,28 @@ static const rebuild_test_t rebuilds [] = {
     },
   },
   {
-    .name = "locked_across_profiles",
+    .name = "locked_rejects_unbuilt_profile",
     .project = "test/integration/fixtures/options/gates_dep",
     .first.args = { "build" },
     .rebuilds = {
       {
-        .command.args = { "build", "-p", "tracing", "--locked" },
+        .command = {
+          .args = { "build", "-p", "tracing", "--locked" },
+          .expect = { .rc = 1, .err = SPN_ERR_LOCK_STALE },
+        },
+      },
+    },
+  },
+  {
+    .name = "keeps_other_profile_pins",
+    .project = "test/integration/fixtures/options/gates_dep",
+    .first.args = { "build", "-p", "tracing" },
+    .rebuilds = {
+      {
+        .command = {
+          .args = { "build" },
+          .expect.locked = { { .name = "tracer", .version = "1.0.0" } },
+        },
       },
     },
   },

@@ -107,7 +107,7 @@ static const case_t cases [] = {
               tkv(version, "1.0.0") "\n"
               ts(package.upstream) "\n"
               tkv(url, "git@github.com:A/B.git") "\n"
-              tkv(commit, "R") "\n"
+              tkv(commit, "0000000000000000000000000000000000000000") "\n"
             },
             { "spn.c", "void build() {}" },
           },
@@ -125,6 +125,28 @@ static const case_t cases [] = {
       .manifest_url = "https://github.com/C/D.git",
       .manifest_commit = 1,
     },
+  },
+  {
+    .name = "abbreviated_upstream",
+    .repo = {
+      .name = "wrapper",
+      .commits = {
+        {
+          .message = "v1",
+          .files = {
+            { "spn.toml",
+              ts(package) "\n"
+              tkv(name, "spum") "\n"
+              tkv(version, "1.0.0") "\n"
+              ts(package.upstream) "\n"
+              tkv(url, "U") "\n"
+              tkv(commit, "000000000000") "\n"
+            },
+          },
+        },
+      },
+    },
+    .expect.kind = SPN_ERR_PUBLISH_ABBREVIATED,
   },
   {
     .name = "monorepo_subdir",
@@ -342,7 +364,7 @@ sp_test_each(cmd_publish, publish, case_t, cases, .setup = spn_test_ctx_setup) {
     .roots = &spn.roots,
     .dir = { .sub = cwd },
     .url = c.opts.url ? sp_cstr_as_str(c.opts.url) : repo.path,
-    .revision = repo.commits[rev_idx],
+    .revision = sp_str_prefix(repo.commits[rev_idx], 12),
   };
 
   si_pkg_info_t pkg = sp_zero;

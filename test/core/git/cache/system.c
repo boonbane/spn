@@ -7,7 +7,7 @@ sp_test(git_cache, system_git_fetches_tip_then_history, .setup = spn_test_ctx_se
   sp_str_t remote = sp_fs_join_path(mem, test_dir_str(t), sp_str_lit("A"));
   git_repo_init(remote);
   git_repo_commit(remote, sp_str_lit("A"));
-  sp_str_t abbreviated = git_repo_head(remote);
+  sp_str_t abbreviated = sp_str_prefix(git_repo_head(remote), 12);
   git_repo_commit(remote, sp_str_lit("B"));
   sp_str_t tip = sp_str_trim_right(git(remote, "rev-parse", "HEAD").out);
 

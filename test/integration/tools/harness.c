@@ -919,6 +919,7 @@ sp_err_t run_actions(sp_test_t* t, fixture_t* fixture, const action_t* actions) 
       }
       case ACTION_INIT_REPO: {
         git_repo_init(fixture->root);
+        git_repo_commit(fixture->root, sp_str_lit("A"));
         break;
       }
       case ACTION_RUN_CLI: {

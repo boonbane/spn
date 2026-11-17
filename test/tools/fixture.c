@@ -109,7 +109,7 @@ void git_repo_commit_from_dir(sp_str_t source, sp_str_t repo, sp_str_t message) 
 }
 
 sp_str_t git_repo_head(sp_str_t repo) {
-  sp_ps_output_t output = git(repo, "rev-parse", "--short=12", "HEAD");
+  sp_ps_output_t output = git(repo, "rev-parse", "HEAD");
   return sp_str_trim_right(output.out);
 }
 

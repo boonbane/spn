@@ -603,7 +603,25 @@ static spn_err_union_t resolve_index_package(spn_resolver_t* resolver, spn_resol
         continue;
       }
 
-      spn_err_union_t err = try_candidate(resolver, run, release);
+      spn_err_union_t err = sp_zero;
+      sp_ht_for_kv(run->visited, vt) {
+        spn_resolved_pkg_t* declarer = sp_ht_getp(scope->named, *vt.key);
+        sp_da_for(declarer->deps, dt) {
+          spn_requested_dep_t* declared = &declarer->deps[dt];
+          if (err.kind || declared->name.id != name || declared->source != SPN_PKG_SOURCE_INDEX) {
+            continue;
+          }
+          if (classify_dep(resolver, declarer, declared) != SPN_DEP_EDGE_SCOPE) {
+            continue;
+          }
+          if (!spn_semver_in_range(release->version, declared->index.range)) {
+            err = unsatisfiable_err(resolver, declarer, declared, SPN_ERR_PKG_CONFLICT, release->version);
+          }
+        }
+      }
+      if (!err.kind) {
+        err = try_candidate(resolver, run, release);
+      }
       if (!err.kind || run->fatal) {
         return err;
       }
@@ -620,26 +638,24 @@ static spn_err_union_t resolve_index_package(spn_resolver_t* resolver, spn_resol
 }
 
 static spn_err_union_t solve_node(spn_resolver_t* resolver, spn_resolve_run_t* run, spn_scope_t* scope, sp_intern_id_t name, spn_resolved_pkg_t* node) {
-  if (!resolver->ungated) {
-    spn_option_requests_t* seeds = SP_NULLPTR;
-    if (resolver->seeds) {
-      seeds = sp_ht_getp(resolver->seeds, node->id.name);
-    }
-    spn_option_subject_t subject = { .name = node->name, .is_root = node->source == SPN_PKG_SOURCE_ROOT, .options = node->options.decls };
-    spn_merged_options_t merged = sp_zero;
-    spn_options_merge(resolver->mem, subject, seeds ? *seeds : SP_NULLPTR, spn_profile_facts(&resolver->profile), &resolver->profile.options, resolver->config, &merged);
-    spn_when_env_t env = sp_zero;
-    spn_profile_env(resolver->mem, &resolver->profile, &env);
-    spn_options_env_set(&env, &merged.options);
-
-    u64 kept = 0;
-    sp_da_for(node->deps, it) {
-      if (spn_when_eval(&node->deps[it].when, &env)) {
-        node->deps[kept++] = node->deps[it];
-      }
-    }
-    sp_da_head(node->deps)->size = kept;
+  spn_option_requests_t* seeds = SP_NULLPTR;
+  if (resolver->seeds) {
+    seeds = sp_ht_getp(resolver->seeds, node->id.name);
   }
+  spn_option_subject_t subject = { .name = node->name, .is_root = node->source == SPN_PKG_SOURCE_ROOT, .options = node->options.decls };
+  spn_merged_options_t merged = sp_zero;
+  spn_options_merge(resolver->mem, subject, seeds ? *seeds : SP_NULLPTR, spn_profile_facts(&resolver->profile), &resolver->profile.options, resolver->config, &merged);
+  spn_when_env_t env = sp_zero;
+  spn_profile_env(resolver->mem, &resolver->profile, &env);
+  spn_options_env_set(&env, &merged.options);
+
+  u64 kept = 0;
+  sp_da_for(node->deps, it) {
+    if (spn_when_eval(&node->deps[it].when, &env)) {
+      node->deps[kept++] = node->deps[it];
+    }
+  }
+  sp_da_head(node->deps)->size = kept;
   sp_da_sort(node->deps, sort_req_canonical);
 
   node->priority = run->picks++;

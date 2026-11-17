@@ -10,12 +10,13 @@
 #include "error/error.h"
 #include "event/event.h"
 #include "index/cache.h"
-#include "lock/lock.h"
+#include "intern/intern.h"
 #include "op/op.h"
 #include "op/types.h"
 #include "pkg/load.h"
 #include "paths/paths.h"
 #include "resolve/resolve.h"
+#include "semver/compare.h"
 #include "semver/convert.h"
 #include "session/session.h"
 #include "unit/types.h"
@@ -70,39 +71,25 @@ static void emit_resolved(spn_resolve_query_t* query) {
   });
 }
 
-static sp_da(spn_pin_t) pins(sp_mem_t mem, const spn_lock_t* lock) {
-  sp_da(spn_pin_t) pins = sp_da_new(mem, spn_pin_t);
+static spn_err_t resolve(sp_mem_t scratch, spn_op_t* op, spn_lock_t* lock) {
+  spn_session_t* session = op->session;
+  spn_ctx_t* ctx = session->ctx;
+  spn_event_buffer_push(spn.events, (spn_event_t) {
+    .kind = SPN_EVENT_RESOLVE_START,
+    .pkg = session->manifest->name.str,
+  });
+
+  sp_da(spn_pin_t) pins = sp_da_new(scratch, spn_pin_t);
   sp_da_for(lock->entries, it) {
     sp_da_push(pins, ((spn_pin_t) { .name = lock->entries[it].name.id, .version = lock->entries[it].version }));
   }
-  return pins;
-}
 
-static spn_lock_root_t pinned_root(spn_pkg_root_t root) {
-  if (root.kind != SPN_PKG_ROOT_GIT) {
-    return sp_zero_s(spn_lock_root_t);
-  }
-  return (spn_lock_root_t) { .url = root.git.url, .rev = root.git.rev, .dir = root.git.dir };
-}
-
-static spn_err_t emit_unsolved(spn_ctx_t* ctx, const spn_resolve_query_t* query) {
-  sp_da_for(query->errors, it) {
-    spn_err_emit(ctx, query->errors[it]);
-  }
-  return query->errors[0].kind;
-}
-
-spn_err_t spn_resolve_lock(spn_op_t* op, const spn_lock_t* held, spn_lock_t* lock) {
-  spn_session_t* session = op->session;
-  spn_ctx_t* ctx = session->ctx;
   bool* synced = sp_alloc_n(session->mem, bool, sp_da_size(ctx->indexes));
   spn_resolve_query_t query = sp_zero_initialize();
-  spn_err_t err = SPN_OK;
   while (true) {
     spn_index_cache_t index = sp_zero;
     spn_index_cache_init(&index, session->mem, ctx->intern, &ctx->roots, &ctx->indexes);
 
-    sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
     spn_resolver_t resolver = {
       .mem = spn.mem,
       .intern = ctx->intern,
@@ -111,16 +98,15 @@ spn_err_t spn_resolve_lock(spn_op_t* op, const spn_lock_t* held, spn_lock_t* loc
       .registry = &session->registry,
       .profile = session->builds.program->profile,
       .config = session->project->config,
-      .preferences = pins(scratch.mem, held),
-      .ungated = true,
+      .seeds = session->gates.seeds,
+      .preferences = pins,
     };
     spn_resolve_query_init(session->mem, &query);
     spn_resolve_query_add(&query, (spn_requested_dep_t) {
       .name = session->manifest->name,
       .source = SPN_PKG_SOURCE_ROOT,
     });
-    err = spn_resolve_from_solver(&resolver, &query);
-    sp_mem_end_scratch(scratch);
+    spn_err_t err = spn_resolve_from_solver(&resolver, &query);
 
     sp_da(spn_index_info_t*) read = sp_da_new(session->mem, spn_index_info_t*);
     sp_for(it, index.consulted) {
@@ -129,82 +115,55 @@ spn_err_t spn_resolve_lock(spn_op_t* op, const spn_lock_t* held, spn_lock_t* loc
         sp_da_push(read, &ctx->indexes[it]);
       }
     }
-    if (sp_da_empty(read)) {
+    if (!sp_da_empty(read)) {
+      spn_try(spn_sync_index_list(op, read, false));
+      continue;
+    }
+    if (!err) {
       break;
     }
-    spn_try(spn_sync_index_list(op, read, false));
-  }
-  if (err) {
-    return emit_unsolved(ctx, &query);
-  }
-
-  *lock = spn_lock_new(session->mem);
-  sp_ht_for_kv(query.result, it) {
-    const spn_resolved_pkg_t* pkg = it.val;
-    if (pkg->source != SPN_PKG_SOURCE_INDEX) {
-      continue;
+    if (sp_da_empty(pins)) {
+      sp_da_for(query.errors, it) {
+        spn_err_emit(ctx, query.errors[it]);
+      }
+      return query.errors[0].kind;
     }
-    spn_lock_insert(lock, (spn_lock_entry_t) {
-      .name = pkg->name,
-      .version = pkg->id.version,
-      .source = pinned_root(pkg->origin.release->source),
-      .manifest = pinned_root(pkg->origin.release->manifest),
-    });
-  }
-  return SPN_OK;
-}
 
-spn_err_t spn_resolve(spn_op_t* op, const spn_lock_t* lock) {
-  spn_session_t* session = op->session;
-  spn_ctx_t* ctx = session->ctx;
-  spn_event_buffer_push(spn.events, (spn_event_t) {
-    .kind = SPN_EVENT_RESOLVE_START,
-    .pkg = session->manifest->name.str,
-  });
-
-  spn_index_cache_t index = sp_zero;
-  spn_index_cache_init(&index, session->mem, ctx->intern, &ctx->roots, &ctx->indexes);
-
-  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  spn_resolver_t resolver = {
-    .mem = spn.mem,
-    .intern = ctx->intern,
-    .roots = &ctx->roots,
-    .index = &index,
-    .registry = &session->registry,
-    .profile = session->builds.program->profile,
-    .config = session->project->config,
-    .seeds = session->gates.seeds,
-    .preferences = pins(scratch.mem, lock),
-  };
-  spn_resolve_query_t query = sp_zero_initialize();
-  spn_resolve_query_init(session->mem, &query);
-  spn_resolve_query_add(&query, (spn_requested_dep_t) {
-    .name = session->manifest->name,
-    .source = SPN_PKG_SOURCE_ROOT,
-  });
-  spn_err_t err = spn_resolve_from_solver(&resolver, &query);
-  sp_mem_end_scratch(scratch);
-  if (err) {
-    return emit_unsolved(ctx, &query);
-  }
-
-  spn_err_t unpinned = SPN_OK;
-  sp_ht_for_kv(query.result, it) {
-    const spn_resolved_pkg_t* pkg = it.val;
-    if (pkg->source != SPN_PKG_SOURCE_INDEX || spn_lock_find(lock, pkg->id.name, pkg->id.version)) {
-      continue;
+    spn_err_union_t failure = query.errors[0];
+    sp_intern_id_t subject = spn_intern(failure.subject).id;
+    bool blocked = false;
+    sp_da_for(pins, it) {
+      blocked = blocked || (failure.kind == SPN_ERR_PKG_CONFLICT && pins[it].name == subject && spn_semver_eq(pins[it].version, failure.unsatisfiable.selected));
     }
-    spn_err_t kind = spn_err_emit(ctx, (spn_err_union_t) {
-      .kind = SPN_ERR_LOCK_UNPINNED,
-      .subject = pkg->name.str,
-      .lock_unpinned = { .version = pkg->id.version },
-    });
-    if (!unpinned) {
-      unpinned = kind;
+    u64 kept = 0;
+    sp_da_for(pins, it) {
+      if (blocked && pins[it].name != subject) {
+        pins[kept++] = pins[it];
+      }
+    }
+    sp_da_head(pins)->size = kept;
+  }
+
+  u64 kept = 0;
+  sp_da_for(lock->entries, it) {
+    spn_lock_entry_t entry = lock->entries[it];
+    bool offered = false;
+    sp_da_for(pins, pt) {
+      offered = offered || (pins[pt].name == entry.name.id && spn_semver_eq(pins[pt].version, entry.version));
+    }
+    bool reached = false;
+    bool selected = false;
+    sp_ht_for_kv(query.result, rt) {
+      if (rt.val->id.name == entry.name.id) {
+        reached = true;
+        selected = selected || spn_semver_eq(rt.val->id.version, entry.version);
+      }
+    }
+    if (offered || selected || !reached) {
+      lock->entries[kept++] = entry;
     }
   }
-  spn_try(unpinned);
+  sp_da_head(lock->entries)->size = kept;
 
   if (!spn_path_empty(ctx->paths.patches)) {
     spn_try(apply_patch_overrides(session, &query));
@@ -215,4 +174,11 @@ spn_err_t spn_resolve(spn_op_t* op, const spn_lock_t* lock) {
   emit_resolved(&query);
 
   return SPN_OK;
+}
+
+spn_err_t spn_resolve(spn_op_t* op, spn_lock_t* lock) {
+  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+  spn_err_t err = resolve(scratch.mem, op, lock);
+  sp_mem_end_scratch(scratch);
+  return err;
 }
