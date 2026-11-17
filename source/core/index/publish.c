@@ -52,24 +52,31 @@ spn_err_t spn_publish_build(spn_publish_opts_t* opts, const si_pkg_info_t* pkg, 
     }
   }
 
-  if (sp_str_empty(opts->revision) && !opts->allow_dirty && spn_git_is_dirty(repo, cwd)) {
-    return spn_err_emit(&spn, (spn_err_union_t) {
-      .kind = SPN_ERR_PUBLISH_DIRTY,
-      .publish.path = repo,
-    });
-  }
-  sp_str_t named = sp_str_empty(opts->revision) ? sp_str_lit("HEAD") : opts->revision;
   sp_str_t revision = sp_zero;
-  if (spn_git_get_commit_full(opts->mem, repo, named, &revision)) {
+  if (sp_str_empty(opts->revision)) {
+    if (!opts->allow_dirty && spn_git_is_dirty(repo, cwd)) {
+      return spn_err_emit(&spn, (spn_err_union_t) {
+        .kind = SPN_ERR_PUBLISH_DIRTY,
+        .publish.path = repo,
+      });
+    }
+    if (spn_git_get_commit_full(opts->mem, repo, sp_str_lit("HEAD"), &revision)) {
+      return spn_err_emit(&spn, (spn_err_union_t) {
+        .kind = SPN_ERR_GIT,
+        .git.command = sp_str_lit("git rev-parse HEAD"),
+      });
+    }
+    if (sp_str_empty(opts->url) && !spn_git_rev_on_remote(repo, revision)) {
+      return spn_err_emit(&spn, (spn_err_union_t) {
+        .kind = SPN_ERR_PUBLISH_UNPUSHED,
+        .publish = { .url = url, .rev = revision },
+      });
+    }
+  }
+  else if (spn_git_get_commit_full(opts->mem, repo, opts->revision, &revision)) {
     return spn_err_emit(&spn, (spn_err_union_t) {
       .kind = SPN_ERR_GIT,
-      .git.command = sp_fmt(opts->mem, "git rev-parse {}", sp_fmt_str(named)).value,
-    });
-  }
-  if (sp_str_empty(opts->revision) && sp_str_empty(opts->url) && !spn_git_rev_on_remote(repo, revision)) {
-    return spn_err_emit(&spn, (spn_err_union_t) {
-      .kind = SPN_ERR_PUBLISH_UNPUSHED,
-      .publish = { .url = url, .rev = revision },
+      .git.command = sp_fmt(opts->mem, "git rev-parse {}", sp_fmt_str(opts->revision)).value,
     });
   }
 
