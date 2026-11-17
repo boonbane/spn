@@ -492,9 +492,6 @@ static void lower_deps(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, si_p
   sp_da_for(cg->deps.package, i) {
     lower_dep(ctx, cg->deps.package[i].key, &cg->deps.package[i].value, SPN_DEP_KIND_PACKAGE, &out->deps);
   }
-  sp_da_for(cg->deps.test, i) {
-    lower_dep(ctx, cg->deps.test[i].key, &cg->deps.test[i].value, SPN_DEP_KIND_TEST, &out->deps);
-  }
   sp_da_for(cg->deps.build, i) {
     lower_dep(ctx, cg->deps.build[i].key, &cg->deps.build[i].value, SPN_DEP_KIND_BUILD, &out->deps);
   }
@@ -1378,16 +1375,27 @@ void spn_manifest_lower(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, si_
 
 void spn_project_lower(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, spn_project_t* project) {
   spn_manifest_lower(ctx, cg, &project->package);
-  sp_da_for(cg->deps.tool, it) {
-    lower_dep(ctx, cg->deps.tool[it].key, &cg->deps.tool[it].value, SPN_DEP_KIND_TOOL, &project->deps.tool);
+
+  si_da(spn_requested_dep_t) deps = sp_zero;
+  sp_da_for(cg->deps.test, it) {
+    lower_dep(ctx, cg->deps.test[it].key, &cg->deps.test[it].value, SPN_DEP_KIND_TEST, &deps);
   }
+  sp_da_for(cg->deps.tool, it) {
+    lower_dep(ctx, cg->deps.tool[it].key, &cg->deps.tool[it].value, SPN_DEP_KIND_TOOL, &deps);
+  }
+  project->root = project->package;
+  si_da_copy(ctx->mem, project->root.deps, project->package.deps);
+  si_da_for_value(deps, dep) {
+    si_da_push(ctx->mem, project->root.deps, dep);
+  }
+
   lower_toolchains(ctx, cg, project);
   lower_profiles(ctx, cg, project);
   lower_indexes(ctx, cg, project);
   lower_config(ctx, cg, project);
   lower_patches(ctx, cg, project);
 
-  validate_dep_whens(ctx, project->deps.tool, &project->package);
+  validate_dep_whens(ctx, deps, &project->package);
   validate_profiles(ctx, cg);
   validate_option_sets(ctx, cg, project);
 }

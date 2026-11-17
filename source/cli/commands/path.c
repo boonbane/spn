@@ -5,12 +5,20 @@
 static struct {
   sp_str_t name;
   bool tool;
+  bool tool_dep;
 } args;
 
 static sp_cli_result_t path(sp_cli_t* cli) {
   try(spn_cli_open(false));
 
-  spn_path_request_t request = { .name = args.name };
+  if (args.tool && args.tool_dep) {
+    return spn_cli_usage("pass at most one of {.cyan} and {.cyan}", sp_fmt_cstr("--tool"), sp_fmt_cstr("--tool-dep"));
+  }
+
+  spn_path_request_t request = {
+    .name = args.name,
+    .kind = args.tool_dep ? SPN_DEP_KIND_TOOL : SPN_DEP_KIND_PACKAGE,
+  };
   spn_op_t* op = SP_NULLPTR;
   if (args.tool) {
     try(spn_cli_session((spn_session_config_t) {
@@ -50,6 +58,12 @@ sp_cli_cmd_t spn_cmd_path = {
       .ptr = &args.tool,
     },
     {
+      .name = "tool-dep",
+      .summary = "Print the source tree of the tool dependency with this name",
+      .kind = SP_CLI_OPT_BOOLEAN,
+      .ptr = &args.tool_dep,
+    },
+    {
       .brief = 'p',
       .name = "profile",
       .kind = SP_CLI_OPT_STR,
@@ -69,7 +83,7 @@ sp_cli_cmd_t spn_cmd_path = {
     {
       .name = "name",
       .kind = SP_CLI_OPT_STR,
-      .summary = "A package in this build, or with --tool one of this package's tools",
+      .summary = "This package or one of its package dependencies; with a flag, a tool or tool dependency",
       .ptr = &args.name,
     },
   },

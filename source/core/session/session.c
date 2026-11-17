@@ -74,7 +74,7 @@ spn_err_t spn_session_init(spn_session_t* s, spn_ctx_t* ctx, sp_mem_t mem, spn_p
   s->project = project;
   s->arena = sp_mem_arena_new(mem);
   s->mem = sp_mem_arena_as_allocator(s->arena);
-  s->manifest = &project->package;
+  s->manifest = &project->root;
   s->force = config.force;
   s->paths.root = spn_path_from_root(SPN_PATH_ROOT_PROJECT);
   s->paths.build = spn_path_project_build();

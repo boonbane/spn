@@ -6,7 +6,7 @@ static spn_index_dep_kind_t dep_kind_to_index(spn_dep_kind_t kind) {
   switch (kind) {
     case SPN_DEP_KIND_PACKAGE: return SPN_INDEX_DEP_NORMAL;
     case SPN_DEP_KIND_BUILD:   return SPN_INDEX_DEP_BUILD;
-    case SPN_DEP_KIND_TEST:    return SPN_INDEX_DEP_TEST;
+    case SPN_DEP_KIND_TEST:
     case SPN_DEP_KIND_TOOL:    sp_unreachable_case();
   }
   sp_unreachable_return(SPN_INDEX_DEP_NORMAL);

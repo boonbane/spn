@@ -105,9 +105,6 @@ static spn_err_t validate_config_keys(spn_session_t* session) {
     spn_pkg_config_t* config = si_om_at(session->project->config, it);
 
     bool known = false;
-    si_da_for_ptr(session->project->deps.tool, dep) {
-      known = known || dep->name.id == config->name.id;
-    }
     sp_ht_for_kv(session->resolve, rt) {
       spn_resolved_pkg_t* node = rt.val;
       if (node->name.id == config->name.id) {

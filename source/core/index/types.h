@@ -15,7 +15,6 @@ typedef sp_intern_id_t spn_index_id_t;
 typedef enum {
   SPN_INDEX_DEP_NORMAL,
   SPN_INDEX_DEP_BUILD,
-  SPN_INDEX_DEP_TEST,
 } spn_index_dep_kind_t;
 
 typedef struct {

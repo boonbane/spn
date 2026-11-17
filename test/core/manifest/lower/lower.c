@@ -1952,7 +1952,7 @@ sp_test_each(lower, cases, test_t, tests, .setup = spn_test_ctx_setup) {
     if (!expected.name) break;
 
     spn_dep_kind_t kind = expected.build ? SPN_DEP_KIND_BUILD : expected.test ? SPN_DEP_KIND_TEST : expected.tool ? SPN_DEP_KIND_TOOL : SPN_DEP_KIND_PACKAGE;
-    si_da(spn_requested_dep_t) deps = expected.tool ? project.deps.tool : pkg->deps;
+    si_da(spn_requested_dep_t) deps = expected.test || expected.tool ? project.root.deps : pkg->deps;
 
     spn_requested_dep_t* req = SP_NULLPTR;
     si_da_for(deps, j) {

@@ -61,7 +61,6 @@ static const release_test_t tests [] = {
           .deps = {
             { .name = "curl", .version = "^1.0.0", .kind = SPN_INDEX_DEP_NORMAL },
             { .name = "cmake", .version = "^3.0.0", .kind = SPN_INDEX_DEP_BUILD },
-            { .name = "utest", .version = "^1.0.0", .kind = SPN_INDEX_DEP_TEST },
           },
           .targets = {
             { .name = "spum", .linkages = { SPN_LIB_KIND_STATIC, SPN_LIB_KIND_SHARED } },

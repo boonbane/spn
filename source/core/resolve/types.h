@@ -18,7 +18,6 @@ typedef enum {
   SPN_DEP_EDGE_SCOPE,
   SPN_DEP_EDGE_PROCESS,
   SPN_DEP_EDGE_PRIVATE,
-  SPN_DEP_EDGE_PRUNED,
 } spn_dep_edge_t;
 
 typedef struct {

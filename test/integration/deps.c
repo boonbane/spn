@@ -200,7 +200,7 @@ static const command_test_t tools [] = {
     .name = "unselected",
     .project = "test/integration/fixtures/deps/tool/index",
     .args = { "build" },
-    .expect.events = { { .event = SPN_EVENT_RESOLVE_PACKAGE, .key = "name", .value = "A", .absent = true } },
+    .expect.events = { { .event = SPN_EVENT_RESOLVE_PACKAGE, .key = "name", .value = "A" } },
   },
   {
     .name = "selected",

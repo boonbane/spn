@@ -15,9 +15,7 @@ struct spn_project_t {
     spn_path_t lock;
   } paths;
   si_pkg_info_t package;
-  struct {
-    si_da(spn_requested_dep_t) tool;
-  } deps;
+  si_pkg_info_t root;
   spn_profile_map_t profiles;
   spn_index_map_t indexes;
   spn_toolchain_map_t toolchains;

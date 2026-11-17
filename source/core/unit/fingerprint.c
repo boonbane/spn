@@ -154,25 +154,22 @@ sp_hash_t spn_unit_fingerprint(spn_units_t* u, spn_build_unit_t* build, const sp
   if (resolved->origin.source.kind == SPN_PKG_ROOT_GIT) {
     fingerprint.patches = resolved->origin.source.git.patches.hash;
   }
-  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  si_da(fingerprint_edge_t) edges = sp_zero;
-  sp_da_for(resolved->edges, it) {
-    if (resolved->edges[it].kind == SPN_DEP_KIND_TOOL) {
-      continue;
+  if (!sp_da_empty(resolved->edges)) {
+    sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+    si_da(fingerprint_edge_t) edges = sp_zero;
+    sp_da_for(resolved->edges, it) {
+      const spn_resolved_pkg_t* dep = sp_ht_getp(u->resolve, resolved->edges[it].id);
+      sp_assert(dep);
+      si_da_push(scratch.mem, edges, ((fingerprint_edge_t) {
+        .hash = spn_unit_fingerprint(u, build, dep),
+        .kind = (u32)resolved->edges[it].kind,
+        .public = (u32)resolved->edges[it].public,
+      }));
     }
-    const spn_resolved_pkg_t* dep = sp_ht_getp(u->resolve, resolved->edges[it].id);
-    sp_assert(dep);
-    si_da_push(scratch.mem, edges, ((fingerprint_edge_t) {
-      .hash = spn_unit_fingerprint(u, build, dep),
-      .kind = (u32)resolved->edges[it].kind,
-      .public = (u32)resolved->edges[it].public,
-    }));
-  }
-  if (!si_da_empty(edges)) {
     si_da_sort(edges, sort_fingerprint_edges);
     fingerprint.deps = spn_digest_hash(edges, si_da_size(edges) * sizeof(fingerprint_edge_t));
+    sp_mem_end_scratch(scratch);
   }
-  sp_mem_end_scratch(scratch);
 
   spn_toolchain_info_t* toolchain = build->toolchain->info;
 

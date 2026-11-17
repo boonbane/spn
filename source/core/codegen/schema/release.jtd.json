@@ -14,7 +14,7 @@
     "options": { "values": { "ref": "release_option" } }
   },
   "definitions": {
-    "index_dep_kind": { "enum": ["normal", "build", "test"], "metadata": { "include": "index/types.h" } },
+    "index_dep_kind": { "enum": ["normal", "build"], "metadata": { "include": "index/types.h" } },
 
     "release_source": {
       "optionalProperties": {

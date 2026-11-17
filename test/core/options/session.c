@@ -16,7 +16,6 @@ typedef struct {
   const c8* config;
   bool direct_dep;
   bool gated_dep;
-  bool tool_dep;
   u32 resolves;
   session_expect_t expect;
 } session_test_t;
@@ -49,11 +48,6 @@ static const session_test_t tests [] = {
     .config = "spum",
     .direct_dep = true,
   },
-  {
-    .name = "unresolved_tool_dependency_config_package",
-    .config = "spum",
-    .tool_dep = true,
-  },
 };
 
 sp_test_each(options_session, apply, session_test_t, tests, .setup = spn_test_ctx_setup) {
@@ -81,12 +75,6 @@ sp_test_each(options_session, apply, session_test_t, tests, .setup = spn_test_ct
       }));
     }
     si_da_push(mem, root->deps, dep);
-  }
-  if (it->tool_dep) {
-    si_da_push(mem, project.deps.tool, ((spn_requested_dep_t) {
-      .name = spn_intern_lit("spum"),
-      .kind = SPN_DEP_KIND_TOOL,
-    }));
   }
 
   spn_pkg_id_t root_id = { .name = root->name.id };

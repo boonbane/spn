@@ -556,7 +556,7 @@ static spn_err_t sync_jobs(spn_op_t* op, sp_mem_t mem, bool* reresolve) {
   return SPN_OK;
 }
 
-spn_err_t spn_resolve_and_sync(spn_op_t* op, const si_pkg_info_t* manifest) {
+spn_err_t spn_resolve_and_sync(spn_op_t* op) {
   spn_session_t* session = op->session;
   spn_ctx_t* ctx = session->ctx;
   const spn_path_roots_t* roots = &ctx->roots;
@@ -586,7 +586,7 @@ spn_err_t spn_resolve_and_sync(spn_op_t* op, const si_pkg_info_t* manifest) {
 
   bool reresolve = sp_zero;
   do {
-    spn_try(spn_resolve(op, manifest));
+    spn_try(spn_resolve(op));
     sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
     spn_err_t synced = sync_jobs(op, scratch.mem, &reresolve);
     sp_mem_end_scratch(scratch);
@@ -601,9 +601,6 @@ spn_err_t spn_resolve_and_sync(spn_op_t* op, const si_pkg_info_t* manifest) {
         used = true;
         break;
       }
-    }
-    si_da_for_ptr(session->project->deps.tool, dep) {
-      used = used || dep->name.id == patch->name.id;
     }
     if (used) {
       continue;

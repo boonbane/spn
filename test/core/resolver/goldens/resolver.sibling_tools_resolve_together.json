@@ -10,8 +10,8 @@
   "packages": [
     {
       "name": "foo",
-      "version": "1.0.0",
-      "hash": "7249cb50930f08ee",
+      "version": "1.9.0",
+      "hash": "85e408a77ddc2f36",
       "source": "index",
       "recipe": "none"
     },
@@ -23,9 +23,27 @@
       "recipe": "none"
     },
     {
-      "name": "harness",
+      "name": "gen",
       "version": "1.0.0",
-      "hash": "62d8f5008d6f808c",
+      "hash": "c203fe1334cec354",
+      "source": "index",
+      "recipe": "none",
+      "edges": [
+        {
+          "to": {
+            "name": "foo",
+            "version": "2.0.0",
+            "hash": "adb2a8ea4f003832"
+          },
+          "kind": "package",
+          "edge": "scope"
+        }
+      ]
+    },
+    {
+      "name": "opt",
+      "version": "1.0.0",
+      "hash": "8fbb9a44734e78e1",
       "source": "index",
       "recipe": "none",
       "edges": [
@@ -43,26 +61,35 @@
     {
       "name": "root",
       "version": "0.0.1",
-      "hash": "304c765b40cb91f4",
+      "hash": "b3e11e52a25c3194",
       "source": "root",
       "recipe": "local",
       "edges": [
         {
           "to": {
             "name": "foo",
-            "version": "1.0.0",
-            "hash": "7249cb50930f08ee"
+            "version": "1.9.0",
+            "hash": "85e408a77ddc2f36"
           },
           "kind": "package",
           "edge": "scope"
         },
         {
           "to": {
-            "name": "harness",
+            "name": "gen",
             "version": "1.0.0",
-            "hash": "62d8f5008d6f808c"
+            "hash": "c203fe1334cec354"
           },
-          "kind": "test",
+          "kind": "build",
+          "edge": "process"
+        },
+        {
+          "to": {
+            "name": "opt",
+            "version": "1.0.0",
+            "hash": "8fbb9a44734e78e1"
+          },
+          "kind": "build",
           "edge": "process"
         }
       ]

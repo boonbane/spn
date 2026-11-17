@@ -47,6 +47,10 @@ void spn_codegen_write_linkage(sp_io_writer_t* out, const spn_linkage_t* kind) {
   spn_codegen_json_str(out, spn_linkage_to_str(*kind));
 }
 
+void spn_codegen_write_dep_kind(sp_io_writer_t* out, const spn_dep_kind_t* kind) {
+  spn_codegen_json_str(out, spn_dep_kind_to_str(*kind));
+}
+
 void spn_codegen_write_path(sp_io_writer_t* out, const spn_path_t* path) {
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   spn_codegen_json_str(out, spn_path_str(&spn.roots, scratch.mem, *path));

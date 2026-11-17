@@ -2,8 +2,8 @@
 name = "A"
 version = "1.0.0"
 
-[deps.package]
+[deps.tool]
 B = { version = "^1.0.0" }
 
-[deps.tool]
-C = { path = "../C" }
+[deps.test]
+C = { version = "^1.0.0" }

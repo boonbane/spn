@@ -1,0 +1,64 @@
+{
+  "version": 3,
+  "requests": [
+    {
+      "name": "root",
+      "kind": "package",
+      "source": "root"
+    }
+  ],
+  "packages": [
+    {
+      "name": "harness",
+      "version": "1.0.0",
+      "hash": "c1e42f8d4ef2260a",
+      "source": "index",
+      "recipe": "none",
+      "edges": [
+        {
+          "to": {
+            "name": "zed",
+            "version": "1.0.0",
+            "hash": "caea1e374c92ddb6"
+          },
+          "kind": "package",
+          "edge": "scope"
+        }
+      ]
+    },
+    {
+      "name": "root",
+      "version": "0.0.1",
+      "hash": "715444fdf8316600",
+      "source": "root",
+      "recipe": "local",
+      "edges": [
+        {
+          "to": {
+            "name": "harness",
+            "version": "1.0.0",
+            "hash": "c1e42f8d4ef2260a"
+          },
+          "kind": "test",
+          "edge": "scope"
+        },
+        {
+          "to": {
+            "name": "zed",
+            "version": "1.0.0",
+            "hash": "caea1e374c92ddb6"
+          },
+          "kind": "package",
+          "edge": "scope"
+        }
+      ]
+    },
+    {
+      "name": "zed",
+      "version": "1.0.0",
+      "hash": "caea1e374c92ddb6",
+      "source": "index",
+      "recipe": "none"
+    }
+  ]
+}

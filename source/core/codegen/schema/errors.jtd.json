@@ -91,8 +91,7 @@
     "pkg_conflict": { "ref": "unsatisfiable" },
     "pkg_conflict_exact": { "ref": "unsatisfiable" },
     "pkg_mismatch": { "ref": "mismatch" },
-    "pkg_absent": { "properties": {} },
-    "pkg_ambiguous": { "properties": {} },
+    "pkg_absent": { "ref": "absent" },
     "manifest_edit": { "ref": "manifest_parse" },
     "dag_glob": { "properties": {} },
     "dag_output_name": { "properties": {} },
@@ -349,6 +348,11 @@
         "path": { "type": "string" },
         "declared": { "type": "string" },
         "requested": { "type": "string" }
+      }
+    },
+    "absent": {
+      "properties": {
+        "table": { "metadata": { "extern": "dep_kind" } }
       }
     },
     "dag": {

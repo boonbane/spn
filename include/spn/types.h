@@ -182,6 +182,7 @@ typedef struct {
 
 typedef struct {
   sp_str_t name;
+  spn_dep_kind_t kind;
 } spn_path_request_t;
 
 typedef struct {

@@ -35,24 +35,16 @@ static fz_release_t* fz_inst_release(fz_universe_t* u, fz_instance_t* instance) 
   return SP_NULLPTR;
 }
 
-static spn_dep_kind_t fz_dep_kind(spn_index_dep_kind_t kind) {
-  switch (kind) {
-    case SPN_INDEX_DEP_NORMAL: return SPN_DEP_KIND_PACKAGE;
-    case SPN_INDEX_DEP_BUILD:  return SPN_DEP_KIND_BUILD;
-    case SPN_INDEX_DEP_TEST:   return SPN_DEP_KIND_TEST;
-  }
-  sp_unreachable_return(SPN_DEP_KIND_PACKAGE);
-}
-
 static spn_dep_edge_t fz_classify(fz_universe_t* u, fz_instance_t* owner, fz_dep_t dep) {
   switch (dep.kind) {
-    case SPN_INDEX_DEP_BUILD: {
+    case SPN_DEP_KIND_BUILD:
+    case SPN_DEP_KIND_TOOL: {
       return SPN_DEP_EDGE_PROCESS;
     }
-    case SPN_INDEX_DEP_TEST: {
-      return owner->pkg < 0 ? SPN_DEP_EDGE_PROCESS : SPN_DEP_EDGE_PRUNED;
+    case SPN_DEP_KIND_TEST: {
+      return SPN_DEP_EDGE_SCOPE;
     }
-    case SPN_INDEX_DEP_NORMAL: {
+    case SPN_DEP_KIND_PACKAGE: {
       break;
     }
   }
@@ -70,15 +62,11 @@ static fz_err_t fz_check_edges(fz_universe_t* u, fz_instance_arr_t instances, s3
   sp_da_for(deps, dt) {
     fz_dep_t dep = deps[dt];
     spn_dep_edge_t edge_kind = fz_classify(u, instance, dep);
-    spn_dep_kind_t kind = fz_dep_kind(dep.kind);
-    if (edge_kind == SPN_DEP_EDGE_PRUNED) {
-      continue;
-    }
 
     bool counted = false;
     for (u64 jt = 0; jt < dt; jt++) {
       fz_dep_t prior = deps[jt];
-      if (prior.pkg == dep.pkg && fz_dep_kind(prior.kind) == kind && prior.public == dep.public && fz_classify(u, instance, prior) != SPN_DEP_EDGE_PRUNED) {
+      if (prior.pkg == dep.pkg && prior.kind == dep.kind && prior.public == dep.public) {
         counted = true;
         break;
       }
@@ -90,7 +78,7 @@ static fz_err_t fz_check_edges(fz_universe_t* u, fz_instance_arr_t instances, s3
     spn_resolved_dep_t* held = SP_NULLPTR;
     sp_da_for(instance->node->edges, et) {
       spn_resolved_dep_t* edge = &instance->node->edges[et];
-      if (edge->kind != kind || edge->public != dep.public) {
+      if (edge->kind != dep.kind || edge->public != dep.public) {
         continue;
       }
       s32 target = fz_find_inst(instances, edge->id);
@@ -292,24 +280,25 @@ fz_err_t fz_check_units(sp_mem_t mem, fz_universe_t* u, spn_resolve_query_t* que
 
   sp_da_for(instances, it) {
     sp_da(s32) privates = sp_da_new(mem, s32);
+    sp_da(s32) builds = sp_da_new(mem, s32);
     sp_da_for(instances[it].node->edges, et) {
       spn_resolved_dep_t* edge = &instances[it].node->edges[et];
       switch (edge->edge) {
         case SPN_DEP_EDGE_PROCESS: {
-          sp_da(s32) process = sp_da_new(mem, s32);
-          sp_da_push(process, fz_find_inst(instances, edge->id));
-          try(fz_check_unit(mem, u, instances, process));
+          sp_da_push(builds, fz_find_inst(instances, edge->id));
           break;
         }
         case SPN_DEP_EDGE_PRIVATE: {
           sp_da_push(privates, fz_find_inst(instances, edge->id));
           break;
         }
-        case SPN_DEP_EDGE_SCOPE:
-        case SPN_DEP_EDGE_PRUNED: {
+        case SPN_DEP_EDGE_SCOPE: {
           break;
         }
       }
+    }
+    if (!sp_da_empty(builds)) {
+      try(fz_check_unit(mem, u, instances, builds));
     }
     if (!sp_da_empty(privates)) {
       try(fz_check_unit(mem, u, instances, privates)); // :3

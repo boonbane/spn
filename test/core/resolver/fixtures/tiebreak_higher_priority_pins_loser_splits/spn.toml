@@ -7,4 +7,6 @@ c = { version = "=1.0.0" }
 
 [deps.build]
 mk = { version = "^1.0.0" }
+
+[deps.tool]
 use = { version = "^1.0.0" }

@@ -28,8 +28,20 @@ static const query_t queries [] = {
   {
     .name = "tool_dep_source",
     .project = "test/integration/fixtures/path/source",
-    .args = { "path", "B" },
+    .args = { "path", "--tool-dep", "B" },
     .expect.holds = "B.txt",
+  },
+  {
+    .name = "package_dep_named_like_a_tool_dep",
+    .project = "test/integration/fixtures/path/same_name",
+    .args = { "path", "A" },
+    .expect.holds = "P.txt",
+  },
+  {
+    .name = "tool_dep_named_like_a_package_dep",
+    .project = "test/integration/fixtures/path/same_name",
+    .args = { "path", "--tool-dep", "A" },
+    .expect.holds = "T.txt",
   },
   {
     .name = "tool_exe",
@@ -71,12 +83,6 @@ static const command_test_t commands [] = {
     .project = "test/integration/fixtures/path/source",
     .args = { "path", "C" },
     .expect = { .rc = 1, .err = SPN_ERR_PKG_ABSENT },
-  },
-  {
-    .name = "package_at_two_versions",
-    .project = "test/integration/fixtures/path/ambiguous",
-    .args = { "path", "A" },
-    .expect = { .rc = 1, .err = SPN_ERR_PKG_AMBIGUOUS },
   },
   {
     .name = "unknown_tool",

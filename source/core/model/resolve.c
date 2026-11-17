@@ -69,16 +69,16 @@ static void emit_resolved(spn_resolve_query_t* query) {
   });
 }
 
-spn_err_t spn_resolve(spn_op_t* op, const si_pkg_info_t* manifest) {
+spn_err_t spn_resolve(spn_op_t* op) {
   spn_session_t* session = op->session;
   spn_event_buffer_push(spn.events, (spn_event_t) {
     .kind = SPN_EVENT_RESOLVE_START,
-    .pkg = manifest->name.str,
+    .pkg = session->manifest->name.str,
   });
 
-  sp_ht_insert(session->registry, ((spn_pkg_id_t) { .name = manifest->name.id }), ((spn_registry_pkg_t) {
+  sp_ht_insert(session->registry, ((spn_pkg_id_t) { .name = session->manifest->name.id }), ((spn_registry_pkg_t) {
     .source = SPN_PKG_SOURCE_ROOT,
-    .manifest = manifest,
+    .manifest = session->manifest,
     .path = session->project->paths.manifest,
   }));
 
@@ -97,7 +97,7 @@ spn_err_t spn_resolve(spn_op_t* op, const si_pkg_info_t* manifest) {
 
     spn_resolve_query_init(session->mem, &query);
     spn_resolve_query_add(&query, (spn_requested_dep_t) {
-      .name = manifest->name,
+      .name = session->manifest->name,
       .source = SPN_PKG_SOURCE_ROOT,
     });
     err = spn_resolve_from_solver(&resolver, &query);

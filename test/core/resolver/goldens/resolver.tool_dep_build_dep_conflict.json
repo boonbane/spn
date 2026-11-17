@@ -10,42 +10,42 @@
   "packages": [
     {
       "name": "foo",
+      "version": "1.0.0",
+      "hash": "7249cb50930f08ee",
+      "source": "index",
+      "recipe": "none"
+    },
+    {
+      "name": "foo",
       "version": "2.0.0",
       "hash": "adb2a8ea4f003832",
       "source": "index",
       "recipe": "none"
     },
     {
-      "name": "renderer",
-      "version": "1.0.0",
-      "hash": "596d0a22ea42f010",
-      "source": "index",
-      "recipe": "none"
-    },
-    {
       "name": "root",
       "version": "0.0.1",
-      "hash": "393b2eed1f56134a",
+      "hash": "de17ed4456e37553",
       "source": "root",
       "recipe": "local",
       "edges": [
         {
           "to": {
             "name": "foo",
-            "version": "2.0.0",
-            "hash": "adb2a8ea4f003832"
+            "version": "1.0.0",
+            "hash": "7249cb50930f08ee"
           },
-          "kind": "package",
-          "edge": "scope"
+          "kind": "build",
+          "edge": "process"
         },
         {
           "to": {
-            "name": "renderer",
-            "version": "1.0.0",
-            "hash": "596d0a22ea42f010"
+            "name": "foo",
+            "version": "2.0.0",
+            "hash": "adb2a8ea4f003832"
           },
-          "kind": "package",
-          "edge": "scope"
+          "kind": "tool",
+          "edge": "process"
         }
       ]
     }

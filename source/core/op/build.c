@@ -108,24 +108,7 @@ spn_err_t spn_op_build(spn_op_t* op) {
     });
   }
 
-  si_da(const si_target_info_t*) selected = sp_zero;
-  bool tools = false;
-  si_om_for_each(session->manifest->targets, target) {
-    if (!(session->selection.kinds & spn_target_kind_bit(target->kind))) {
-      continue;
-    }
-    if (!si_om_empty(session->selection.names) && !si_om_has(session->selection.names, target->name.id)) {
-      continue;
-    }
-    si_da_push(mem, selected, target);
-    tools = tools || target->kind == SPN_TARGET_KIND_TOOL;
-  }
-
-  const si_pkg_info_t* manifest = session->manifest;
-  if (tools) {
-    manifest = spn_project_tool_manifest(mem, project);
-  }
-  spn_try(spn_resolve_and_sync(op, manifest));
+  spn_try(spn_resolve_and_sync(op));
 
   // Initialize shared state across the DAGs
   session->dag.files_path = spn_path_join(session->mem, session->paths.build, sp_str_lit(".spn/files"));
@@ -165,9 +148,16 @@ spn_err_t spn_op_build(spn_op_t* op) {
   spn_pkg_unit_t* root = SP_NULLPTR;
   spn_try(si_add_package_unit(&units, build, session->root, &root));
   si_da(spn_target_unit_t*) targets = sp_zero;
-  si_da_for_value(selected, target) {
+  si_om_for_each(root->pkg.targets, target) {
+    if (!(session->selection.kinds & spn_target_kind_bit(target->info->kind))) {
+      continue;
+    }
+    if (!si_om_empty(session->selection.names) && !si_om_has(session->selection.names, target->info->name.id)) {
+      continue;
+    }
+
     spn_target_unit_t* unit = sp_zero;
-    spn_try(si_add_target_unit(&units, root, spn_pkg_get_target(&root->pkg, target->name.id, target->kind), &unit));
+    spn_try(si_add_target_unit(&units, root, target, &unit));
     si_da_push(mem, targets, unit);
   }
 

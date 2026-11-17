@@ -67,7 +67,7 @@ typedef struct {
   u32 pkg;
   fz_range_shape_t shape;
   spn_semver_t version;
-  spn_index_dep_kind_t kind;
+  spn_dep_kind_t kind;
   bool public;
 } fz_dep_t;
 

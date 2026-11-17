@@ -6,30 +6,33 @@
 #include "model/sync.h"
 #include "op/op.h"
 #include "paths/paths.h"
-#include "project/project.h"
 #include "session/types.h"
 #include "unit/types.h"
 
 spn_err_t spn_op_source_path(spn_op_t* op) {
   spn_session_t* session = op->session;
   spn_ctx_t* ctx = session->ctx;
+  spn_dep_kind_t kind = op->request.path.kind;
   sp_intern_str_t name = spn_intern(op->request.path.name);
 
-  spn_try(spn_resolve_and_sync(op, spn_project_tool_manifest(session->mem, session->project)));
+  spn_try(spn_resolve_and_sync(op));
 
   const spn_resolved_pkg_t* pkg = SP_NULLPTR;
-  u32 versions = 0;
-  sp_ht_for_kv(session->resolve, it) {
-    if (it.key->name == name.id) {
-      pkg = it.val;
-      versions++;
+  if (kind == SPN_DEP_KIND_PACKAGE && name.id == session->root->name.id) {
+    pkg = session->root;
+  }
+  sp_da_for_ptr(session->root->edges, edge) {
+    if (edge->id.name == name.id && edge->kind == kind) {
+      pkg = sp_ht_getp(session->resolve, edge->id);
+      break;
     }
   }
-  if (!versions) {
-    return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_PKG_ABSENT, .subject = name.str });
-  }
-  if (versions > 1) {
-    return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_PKG_AMBIGUOUS, .subject = name.str });
+  if (!pkg) {
+    return spn_err_emit(ctx, (spn_err_union_t) {
+      .kind = SPN_ERR_PKG_ABSENT,
+      .subject = name.str,
+      .absent = { .table = kind },
+    });
   }
 
   op->result.path.path = spn_path_str(&ctx->roots, op->mem, pkg->roots.source);
@@ -53,7 +56,7 @@ spn_err_t spn_op_tool_path(spn_op_t* op) {
 
 spn_op_t* spn_source_path(spn_session_t* session, spn_path_request_t request) {
   spn_op_t* op = spn_op_new(session->ctx, session, SPN_OP_SOURCE_PATH);
-  op->request.path = (spn_path_request_t) { .name = sp_str_copy(op->mem, request.name) };
+  op->request.path = (spn_path_request_t) { .name = sp_str_copy(op->mem, request.name), .kind = request.kind };
   spn_op_submit(op);
   return op;
 }

@@ -47,13 +47,3 @@ spn_err_t spn_project_update_lock(spn_ctx_t* ctx, spn_project_t* project, spn_re
   }
   return SPN_OK;
 }
-
-const si_pkg_info_t* spn_project_tool_manifest(sp_mem_t mem, const spn_project_t* project) {
-  si_pkg_info_t* manifest = sp_alloc_type(mem, si_pkg_info_t);
-  *manifest = project->package;
-  si_da_copy(mem, manifest->deps, project->package.deps);
-  si_da_for_value(project->deps.tool, dep) {
-    si_da_push(mem, manifest->deps, dep);
-  }
-  return manifest;
-}

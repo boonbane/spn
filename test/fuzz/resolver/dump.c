@@ -36,11 +36,12 @@ static const c8* fz_linkage_json(spn_linkage_t kind) {
   sp_unreachable_return("none");
 }
 
-static const c8* fz_dep_kind_json(spn_index_dep_kind_t kind) {
+static const c8* fz_dep_kind_json(spn_dep_kind_t kind) {
   switch (kind) {
-    case SPN_INDEX_DEP_NORMAL: return "normal";
-    case SPN_INDEX_DEP_BUILD:  return "build";
-    case SPN_INDEX_DEP_TEST:   return "test";
+    case SPN_DEP_KIND_PACKAGE: return "normal";
+    case SPN_DEP_KIND_BUILD:   return "build";
+    case SPN_DEP_KIND_TEST:
+    case SPN_DEP_KIND_TOOL:    sp_unreachable_case();
   }
   sp_unreachable_return("normal");
 }
@@ -123,10 +124,10 @@ void fz_dump(fz_universe_t* u, u64 iter) {
     sp_template_set(budget, sp_str_lit("budget"), sp_fmt(mem, "{}", sp_fmt_uint(u->profile.budget)).value);
   }
 
-  static const struct { spn_index_dep_kind_t kind; const c8* table; } root_tables [] = {
-    { SPN_INDEX_DEP_NORMAL, "package" },
-    { SPN_INDEX_DEP_BUILD,  "build" },
-    { SPN_INDEX_DEP_TEST,   "test" },
+  static const struct { spn_dep_kind_t kind; const c8* table; } root_tables [] = {
+    { SPN_DEP_KIND_PACKAGE, "package" },
+    { SPN_DEP_KIND_BUILD,   "build" },
+    { SPN_DEP_KIND_TEST,    "test" },
   };
 
   sp_template_list(scope, sp_str_lit("root_kinds"));

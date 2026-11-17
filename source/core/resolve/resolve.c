@@ -47,8 +47,8 @@ typedef struct {
 } spn_pin_t;
 
 typedef struct {
-  sp_intern_id_t root;
   spn_pkg_id_t from;
+  spn_dep_kind_t kind;
   sp_da(spn_requested_dep_t) reqs;
   u64 cursor;
   sp_ht(sp_intern_id_t, spn_resolved_pkg_t) named;
@@ -138,7 +138,6 @@ static spn_dep_kind_t dep_kind_from_index(spn_index_dep_kind_t kind) {
   switch (kind) {
     case SPN_INDEX_DEP_NORMAL: return SPN_DEP_KIND_PACKAGE;
     case SPN_INDEX_DEP_BUILD:  return SPN_DEP_KIND_BUILD;
-    case SPN_INDEX_DEP_TEST:   return SPN_DEP_KIND_TEST;
   }
   sp_unreachable_return(SPN_DEP_KIND_PACKAGE);
 }
@@ -302,7 +301,7 @@ static spn_dep_edge_t classify_dep(spn_resolver_t* resolver, spn_resolved_pkg_t*
       return SPN_DEP_EDGE_PROCESS;
     }
     case SPN_DEP_KIND_TEST: {
-      return node->source == SPN_PKG_SOURCE_ROOT ? SPN_DEP_EDGE_PROCESS : SPN_DEP_EDGE_PRUNED;
+      return SPN_DEP_EDGE_SCOPE;
     }
     case SPN_DEP_KIND_PACKAGE: {
       break;
@@ -400,25 +399,25 @@ static bool pkg_id_eq(spn_pkg_id_t a, spn_pkg_id_t b) {
   return a.name == b.name && spn_semver_eq(a.version, b.version);
 }
 
-static spn_scope_t* find_scope(spn_resolve_run_t* run, sp_intern_id_t root, spn_pkg_id_t from) {
+static spn_scope_t* find_scope(spn_resolve_run_t* run, spn_pkg_id_t from, spn_dep_kind_t kind) {
   sp_da_for(run->scopes, it) {
-    if (run->scopes[it].root == root && pkg_id_eq(run->scopes[it].from, from)) {
+    if (run->scopes[it].kind == kind && pkg_id_eq(run->scopes[it].from, from)) {
       return &run->scopes[it];
     }
   }
   return SP_NULLPTR;
 }
 
-static u32 find_or_create_scope(spn_resolver_t* resolver, spn_resolve_run_t* run, sp_intern_id_t root, spn_pkg_id_t from) {
+static u32 find_or_create_scope(spn_resolver_t* resolver, spn_resolve_run_t* run, spn_pkg_id_t from, spn_dep_kind_t kind) {
   sp_da_for(run->scopes, it) {
-    if (run->scopes[it].root == root && pkg_id_eq(run->scopes[it].from, from)) {
+    if (run->scopes[it].kind == kind && pkg_id_eq(run->scopes[it].from, from)) {
       return (u32)it;
     }
   }
 
   spn_scope_t scope = {
-    .root = root,
     .from = from,
+    .kind = kind,
   };
   sp_da_init(resolver->mem, scope.reqs);
   sp_da_init(resolver->mem, scope.pins);
@@ -660,9 +659,6 @@ static spn_err_union_t solve_node(spn_resolver_t* resolver, spn_resolve_run_t* r
 static spn_err_union_t resolve_dep(spn_resolver_t* resolver, spn_resolve_run_t* run, spn_resolved_pkg_t* node, spn_requested_dep_t* dep) {
   spn_dep_edge_t edge = classify_dep(resolver, node, dep);
   switch (edge) {
-    case SPN_DEP_EDGE_PRUNED: {
-      return ok_union();
-    }
     case SPN_DEP_EDGE_PROCESS:
     case SPN_DEP_EDGE_PRIVATE: {
       sp_da_push(run->boundaries, ((spn_scope_boundary_t) {
@@ -904,10 +900,7 @@ static void process_boundaries(spn_resolver_t* resolver, spn_resolve_run_t* run)
   sp_da_for(run->boundaries, it) {
     spn_scope_boundary_t boundary = run->boundaries[it];
 
-    sp_intern_id_t root = boundary.edge == SPN_DEP_EDGE_PRIVATE ?
-      boundary.from.name :
-      boundary.req.name.id;
-    u32 target = find_or_create_scope(resolver, run, root, boundary.from);
+    u32 target = find_or_create_scope(resolver, run, boundary.from, boundary.req.kind);
 
     sp_da_push(run->edges, ((spn_scope_edge_t) {
       .from = from,
@@ -976,14 +969,11 @@ static sp_da(spn_node_edge_t) collect_node_edges(spn_resolver_t* resolver, spn_r
   sp_da_for(node->deps, it) {
     spn_requested_dep_t* dep = &node->deps[it];
     spn_dep_edge_t edge = classify_dep(resolver, node, dep);
-    if (edge == SPN_DEP_EDGE_PRUNED) {
-      continue;
-    }
 
     sp_intern_id_t name = dep->name.id;
     u32 target_scope = scope_index;
     if (edge != SPN_DEP_EDGE_SCOPE) {
-      spn_scope_t* found = find_scope(run, edge == SPN_DEP_EDGE_PRIVATE ? node->id.name : name, node->id);
+      spn_scope_t* found = find_scope(run, node->id, dep->kind);
       if (!found) {
         continue;
       }
@@ -1251,7 +1241,7 @@ static spn_err_union_t solve_once(spn_resolver_t* resolver, spn_resolve_query_t*
   sp_da_init(resolver->mem, run->edges);
   sp_ht_init(resolver->mem, run->visited);
 
-  u32 root = find_or_create_scope(resolver, run, 0, sp_zero_s(spn_pkg_id_t));
+  u32 root = find_or_create_scope(resolver, run, sp_zero_s(spn_pkg_id_t), SPN_DEP_KIND_PACKAGE);
   sp_da_for(query->reqs, it) {
     sp_da_push(run->scopes[root].reqs, query->reqs[it]);
   }

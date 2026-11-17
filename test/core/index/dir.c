@@ -63,15 +63,14 @@ static const dir_test_t tests [] = {
       .version = { 1, 0, 0 },
       .deps = {
         { .name = "B", .range = "^1.0.0" },
-        { .name = "D", .range = "^1.0.0", .kind = SPN_INDEX_DEP_TEST },
         { .name = "C", .range = "^1.0.0", .kind = SPN_INDEX_DEP_BUILD },
       },
     },
   },
   {
-    .name = "tool_deps",
+    .name = "project_deps",
     .package = "A",
-    .toml = "tool_deps",
+    .toml = "project_deps",
     .expect = {
       .exists = true,
       .version = { 1, 0, 0 },

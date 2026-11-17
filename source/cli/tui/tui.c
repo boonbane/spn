@@ -821,16 +821,9 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
         case SPN_ERR_PKG_ABSENT: {
           sp_tty_fmt(
             &w,
-            "{} is not a package in this build",
-            sp_fmt_str(colored_name(w.color, mem, event->err.subject))
-          );
-          break;
-        }
-        case SPN_ERR_PKG_AMBIGUOUS: {
-          sp_tty_fmt(
-            &w,
-            "{} is in this build at more than one version",
-            sp_fmt_str(colored_name(w.color, mem, event->err.subject))
+            "{} is not in {.cyan}",
+            sp_fmt_str(colored_name(w.color, mem, event->err.subject)),
+            sp_fmt_str(sp_fmt(mem, "[deps.{}]", sp_fmt_str(spn_dep_kind_to_str(event->err.absent.table))).value)
           );
           break;
         }

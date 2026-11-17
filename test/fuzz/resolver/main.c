@@ -76,19 +76,10 @@ typedef struct {
   spn_err_t err;
 } fz_result_t;
 
-static spn_dep_kind_t fz_root_dep_kind(spn_index_dep_kind_t kind) {
-  switch (kind) {
-    case SPN_INDEX_DEP_NORMAL: return SPN_DEP_KIND_PACKAGE;
-    case SPN_INDEX_DEP_BUILD:  return SPN_DEP_KIND_BUILD;
-    case SPN_INDEX_DEP_TEST:   return SPN_DEP_KIND_TEST;
-  }
-  sp_unreachable_return(SPN_DEP_KIND_PACKAGE);
-}
-
 static spn_requested_dep_t fz_req(sp_mem_t mem, sp_intern_t* intern, fz_universe_t* u, fz_dep_t dep) {
   spn_requested_dep_t req = {
     .name = sp_intern(intern, fz_pkg_name(dep.pkg)),
-    .kind = fz_root_dep_kind(dep.kind),
+    .kind = dep.kind,
     .public = dep.public,
   };
   if (u->pkgs[dep.pkg].local) {
@@ -134,7 +125,7 @@ static fz_result_t fz_execute(sp_mem_t mem, fz_universe_t* u, sp_intern_t* inter
 
       sp_da_for(source->deps, dt) {
         spn_index_dep_t dep = {
-          .kind = source->deps[dt].kind,
+          .kind = source->deps[dt].kind == SPN_DEP_KIND_BUILD ? SPN_INDEX_DEP_BUILD : SPN_INDEX_DEP_NORMAL,
           .public = source->deps[dt].public,
           .name = sp_intern(intern, fz_pkg_name(source->deps[dt].pkg)),
         };

@@ -799,9 +799,6 @@ sp_str_t spn_dep_edge_to_str(spn_dep_edge_t edge) {
     case SPN_DEP_EDGE_PRIVATE: {
       return sp_str_lit("private");
     }
-    case SPN_DEP_EDGE_PRUNED: {
-      return sp_str_lit("pruned");
-    }
   }
 
   SP_UNREACHABLE_RETURN(sp_str_lit(""));
@@ -816,9 +813,6 @@ spn_dep_edge_t spn_dep_edge_from_str(sp_str_t str) {
   }
   if (sp_str_equal_cstr(str, "private")) {
     return SPN_DEP_EDGE_PRIVATE;
-  }
-  if (sp_str_equal_cstr(str, "pruned")) {
-    return SPN_DEP_EDGE_PRUNED;
   }
 
   return SPN_DEP_EDGE_SCOPE;
@@ -862,9 +856,6 @@ sp_str_t spn_index_dep_kind_to_str(spn_index_dep_kind_t kind) {
     case SPN_INDEX_DEP_BUILD: {
       return sp_str_lit("build");
     }
-    case SPN_INDEX_DEP_TEST: {
-      return sp_str_lit("test");
-    }
   }
 
   SP_UNREACHABLE_RETURN(sp_str_lit(""));
@@ -876,9 +867,6 @@ spn_index_dep_kind_t spn_index_dep_kind_from_str(sp_str_t str) {
   }
   if (sp_str_equal_cstr(str, "build")) {
     return SPN_INDEX_DEP_BUILD;
-  }
-  if (sp_str_equal_cstr(str, "test")) {
-    return SPN_INDEX_DEP_TEST;
   }
 
   return SPN_INDEX_DEP_NORMAL;
