@@ -7,7 +7,7 @@ Settings that belong to a machine rather than a project live in the user config 
 - Linux and macOS: `$XDG_CONFIG_HOME`, or `~/.config` if it isn't set
 - Windows: `%APPDATA%`
 
-The file is optional. It holds [`[[index]]`](/docs/indexes#global-configuration) entries, `[[toolchain]]` entries, and `[net]`.
+The file is optional. It holds [`[[index]]`](/docs/indexes#global-configuration) entries, `[[toolchain]]` entries, `[net]`, and `[cache]`.
 
 ## [net]
 
@@ -59,6 +59,23 @@ Nothing needs configuring for a private repository beyond what `git clone` of th
 With `system_git = true`, `spn` runs `git` for every index and Git dependency. Use it when `git` is set up for a proxy or a certificate authority that `spn` isn't.
 
 `git` runs with your environment, and `spn` doesn't pass it `timeout` or `ca_bundle`. It can't prompt: `spn` sets `GIT_TERMINAL_PROMPT=0` and `GCM_INTERACTIVE=never` unless you've set them yourself. Downloads are unaffected.
+
+## [cache]
+
+```toml
+[cache]
+max_size = 10
+min_age = 3600
+sweep_interval = 600
+```
+
+| Field | Type | Default | Meaning |
+|---|---|---|---|
+| `max_size` | integer | `10` | Size in GiB the build cache may reach before `spn` evicts from it. `0` means no limit, and nothing is evicted automatically |
+| `min_age` | integer | `3600` | Seconds an entry is kept after its last use, whatever the size of the cache. Values below `600` are treated as `600` |
+| `sweep_interval` | integer | `600` | Seconds between checks of the size of the cache |
+
+`spn clean --cache` removes everything not used within `min_age`, regardless of `max_size`.
 
 ## Environment variables
 

@@ -350,7 +350,7 @@ spn_path_t spn_path_from_id(spn_dir_id_t id) {
     case SPN_DIR_ID_BUILD: return (spn_path_t) { SPN_PATH_ROOT_STORAGE,   sp_str_lit("cache/build") };
     case SPN_DIR_ID_CHECKOUTS: return (spn_path_t) { SPN_PATH_ROOT_STORAGE,   sp_str_lit("cache/src") };
     case SPN_DIR_ID_GIT_DB: return (spn_path_t) { SPN_PATH_ROOT_STORAGE,   sp_str_lit("cache/db") };
-    case SPN_DIR_ID_DAG: return (spn_path_t) { SPN_PATH_ROOT_STORAGE,   sp_str_lit("cache/dag") };
+    case SPN_DIR_ID_DAG: return (spn_path_t) { SPN_PATH_ROOT_STORAGE,   sp_str_lit("cache/dag/v2") };
     case SPN_DIR_ID_INDEX: return (spn_path_t) { SPN_PATH_ROOT_STORAGE,   sp_str_lit("index") };
     case SPN_DIR_ID_RUNTIME: return (spn_path_t) { SPN_PATH_ROOT_STORAGE,   sp_str_lit("runtime") };
     case SPN_DIR_ID_TOOLCHAIN_STORE: return (spn_path_t) { SPN_PATH_ROOT_TOOLCHAIN, sp_str_lit("store") };

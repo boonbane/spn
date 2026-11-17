@@ -30,6 +30,7 @@ static sp_err_t sim_get_exe_path(c8* buf, u64 size, u64* len) {
 
 s32 main(s32 argc, const c8** argv) {
   sp_sim_init(&sim, sp_mem_os_new());
+  sim.clock.tv_sec = 1000000000;
   sp_sim_install(&sim);
   sim_base = *sp_rt.vt;
   sim_vtable = *sp_rt.vt;

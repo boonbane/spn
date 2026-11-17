@@ -4,6 +4,8 @@
 
 #include "spn/host.h"
 #include "ctx/ctx.h"
+#include "dag/dag.h"
+#include "event/event.h"
 #include "op/op.h"
 #include "paths/paths.h"
 #include "profile/profile.h"
@@ -32,6 +34,34 @@ spn_err_t spn_op_clean(spn_op_t* op) {
 
 spn_op_t* spn_clean(spn_ctx_t* ctx) {
   spn_op_t* op = spn_op_new(ctx, SP_NULLPTR, SPN_OP_CLEAN);
+  spn_op_submit(op);
+  return op;
+}
+
+spn_err_t spn_op_clean_cache(spn_op_t* op) {
+  spn_ctx_t* ctx = op->ctx;
+  sp_tm_timer_t timer = sp_tm_start_timer();
+  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+  spn_dag_layout_t layout = spn_dag_layout(scratch.mem, spn_path_from_id(SPN_DIR_ID_DAG));
+  spn_dag_sweep_t sweep = spn_dag_sweep(scratch.mem, &ctx->roots, &layout, (spn_dag_sweep_limits_t) {
+    .min_age_s = ctx->config.cache.min_age_s,
+  });
+  sp_mem_end_scratch(scratch);
+
+  spn_event_buffer_push(ctx->events, (spn_event_t) {
+    .kind = SPN_EVENT_CACHE_CLEAN,
+    .sweep = {
+      .size = sweep.bytes,
+      .freed = sweep.freed,
+      .removed = sweep.removed,
+      .time = sp_tm_read_timer(&timer),
+    },
+  });
+  return SPN_OK;
+}
+
+spn_op_t* spn_clean_cache(spn_ctx_t* ctx) {
+  spn_op_t* op = spn_op_new(ctx, SP_NULLPTR, SPN_OP_CLEAN_CACHE);
   spn_op_submit(op);
   return op;
 }

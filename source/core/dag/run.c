@@ -305,6 +305,7 @@ static spn_dag_diag_t settle_tree(si_dag_action_handle_t* a, const spn_dag_artif
   spn_path_t* paths = sp_alloc_n(s.mem, spn_path_t, sp_da_size(entries) ? sp_da_size(entries) : 1);
   sp_da_for(entries, it) {
     paths[it] = spn_path_join(s.mem, artifact->path, entries[it].name);
+    spn_dag_store_touch(run->store, entries[it].digest);
   }
 
   sp_path_t dir = spn_path_at(g->roots, artifact->path);
@@ -414,6 +415,7 @@ static spn_dag_diag_t settle(si_dag_action_handle_t* a) {
   sp_da_for(action->produces, it) {
     const spn_dag_artifact_t* artifact = spn_dag_find_artifact(run->g, action->produces[it]);
     spn_dag_artifact_state_t* produced = artifact_state(run, artifact->id);
+    spn_dag_store_touch(run->store, produced->digest);
     if (spn_path_empty(artifact->path)) {
       sp_mutex_lock(&run->mutex);
       spn_err_t located = spn_dag_store_locate(run->store, run->mem, produced->digest, artifact->name, &produced->location);

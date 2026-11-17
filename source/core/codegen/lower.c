@@ -484,6 +484,16 @@ spn_net_config_t spn_net_lower(spn_toml_loader_t* ctx, const spn_cg_net_t* cg) {
   };
 }
 
+spn_cache_config_t spn_cache_lower(const spn_cg_cache_t* cg) {
+  u64 max_size = sp_opt_is_null(cg->max_size) ? spn_cache_default_max_size_gb : sp_opt_get(cg->max_size);
+  u64 min_age = sp_opt_is_null(cg->min_age) ? spn_cache_default_min_age_s : sp_opt_get(cg->min_age);
+  return (spn_cache_config_t) {
+    .max_bytes = sp_min(max_size, spn_cache_max_size_gb) << 30,
+    .min_age_s = sp_max(min_age, spn_cache_least_min_age_s),
+    .sweep_interval_s = sp_opt_is_null(cg->sweep_interval) ? spn_cache_default_sweep_interval_s : sp_opt_get(cg->sweep_interval),
+  };
+}
+
 static void lower_indexes(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, spn_project_t* project) {
   sp_da_for(cg->index, it) {
     spn_index_info_t info = spn_index_lower(ctx, it, SPN_INDEX_KIND_WORKSPACE, &cg->index[it]);

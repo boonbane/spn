@@ -286,6 +286,7 @@ spn_err_t spn_ctx_open(spn_ctx_t* ctx, spn_open_request_t request) {
     return spn_err_emit(ctx, spn_toml_loader_err(&loader, ctx->paths.config));
   }
   ctx->config.indexes = indexes;
+  ctx->config.cache = spn_cache_lower(&config.cache);
   sp_da_for(toolchains, it) {
     spn_toolchain_catalog_add(&ctx->catalog, toolchains[it]);
   }

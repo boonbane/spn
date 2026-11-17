@@ -720,8 +720,15 @@ static sp_err_t sp_sim_sys_set_file_perms(sp_sys_dir_t dir, const c8* path, u32 
 }
 
 static sp_err_t sp_sim_sys_set_times(sp_sys_dir_t dir, const c8* path, u32 len, sp_sys_timespec_t atime, sp_sys_timespec_t mtime) {
-  sp_sim_unexpected("set_times");
-  return SP_ERR_SYS;
+  sp_sim_syscall_at(dir);
+
+  c8 buf [SP_PATH_MAX];
+  sp_sim_inode_t* node = sp_sim_find(sp_sim_resolve(dir, path, len, buf));
+  if (!node) {
+    return SP_ERR_SYS_NOT_FOUND;
+  }
+  node->mtime = mtime;
+  return SP_OK;
 }
 
 static sp_err_t sp_sim_sys_clock_gettime(s32 clockid, sp_sys_timespec_t* ts) {

@@ -26,6 +26,7 @@ set(SPN_CORE_SOURCES
   core/dag/run.c
   core/dag/glob.c
   core/dag/stamp.c
+  core/dag/sweep.c
   core/external/wasm/wasi.c
   core/enum/enum.c
   core/error/error.c

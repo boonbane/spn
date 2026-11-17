@@ -124,6 +124,29 @@ static sp_path_t entry_at(const spn_path_roots_t* roots, spn_path_t dir, sp_mem_
   return spn_path_at(roots, spn_path_join(mem, dir, name));
 }
 
+static void touch(sp_path_t path) {
+  sp_sys_file_meta_t meta = sp_zero;
+  if (sp_fs_get_path_metadata_at(path, &meta)) {
+    return;
+  }
+  sp_tm_epoch_t now = sp_tm_now_epoch();
+  if (now.s - (u64)meta.mtime.tv_sec < spn_dag_touch_interval_s) {
+    return;
+  }
+  sp_sys_timespec_t time = { .tv_sec = (s64)now.s, .tv_nsec = now.ns };
+  sp_sys_set_times_s(path.dir, path.sub, time, time);
+}
+
+spn_dag_layout_t spn_dag_layout(sp_mem_t mem, spn_path_t dir) {
+  return (spn_dag_layout_t) {
+    .store = spn_path_join(mem, dir, sp_str_lit("store")),
+    .strong = spn_path_join(mem, dir, sp_str_lit("strong")),
+    .weak = spn_path_join(mem, dir, sp_str_lit("weak")),
+    .scratch = spn_path_join(mem, dir, sp_str_lit("tmp")),
+    .lock = spn_path_join(mem, dir, sp_str_lit("sweep.lock")),
+  };
+}
+
 static spn_err_t write_output_row(sp_io_writer_t* io, sp_mem_t mem, const spn_dag_action_output_t* output) {
   if (sp_fmt_io(io, "{} ", sp_fmt_str(spn_dag_digest_hex(mem, output->digest)))) {
     return SPN_ERR_DAG_STORE_WRITE;
@@ -240,7 +263,10 @@ static bool load_outputs(spn_dag_action_cache_t* c, spn_dag_digest_t key, sp_da(
   bool ok = false;
   if (!sp_fs_read_at(c->mem, path, &content)) {
     ok = parse_outputs(content, outputs);
-    if (!ok) {
+    if (ok) {
+      touch(path);
+    }
+    else {
       sp_fs_remove_file_at(path);
     }
   }
@@ -415,7 +441,10 @@ bool spn_dag_obs_table_get(spn_dag_obs_table_t* d, spn_dag_digest_t weak, spn_da
   }
   sp_mutex_unlock(&d->mutex);
 
-  if (!ok) {
+  if (ok) {
+    touch(path);
+  }
+  else {
     sp_fs_remove_file_at(path);
   }
   sp_mem_end_scratch(s);
@@ -629,6 +658,9 @@ spn_err_t spn_dag_store_put(spn_dag_store_t* store, const void* data, u64 len, s
           err = SPN_ERR_DAG_STORE_WRITE;
         }
       }
+      else {
+        touch(get_blob_dir_at(store, s.mem, *digest));
+      }
       sp_mem_end_scratch(s);
       return err;
     }
@@ -676,6 +708,9 @@ spn_err_t spn_dag_store_put_file(spn_dag_store_t* store, sp_path_t path, sp_str_
         if (!err && sp_fs_set_readonly(blob)) {
           err = SPN_ERR_DAG_STORE_WRITE;
         }
+      }
+      else {
+        touch(get_blob_dir_at(store, s.mem, *digest));
       }
       sp_mem_end_scratch(s);
       return err;
@@ -736,6 +771,19 @@ void spn_dag_store_drop(spn_dag_store_t* store, spn_dag_digest_t digest, sp_str_
     case SPN_DAG_STORE_FILESYSTEM: {
       sp_str_buf_t buf = sp_zero;
       sp_fs_remove_dir_at(get_blob_dir_at(store, sp_str_buf_as_mem(&buf), digest));
+      break;
+    }
+  }
+}
+
+void spn_dag_store_touch(spn_dag_store_t* store, spn_dag_digest_t digest) {
+  switch (store->kind) {
+    case SPN_DAG_STORE_MEM: {
+      break;
+    }
+    case SPN_DAG_STORE_FILESYSTEM: {
+      sp_str_buf_t buf = sp_zero;
+      touch(get_blob_dir_at(store, sp_str_buf_as_mem(&buf), digest));
       break;
     }
   }

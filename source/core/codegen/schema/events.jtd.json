@@ -208,6 +208,8 @@
         "cache_writes": { "type": "uint32" }
       }
     },
+    "cache_sweep": { "metadata": { "verb": "Evicted", "verbosity": "verbose" }, "ref": "sweep" },
+    "cache_clean": { "metadata": { "verb": "Evicted" }, "ref": "sweep" },
     "user_log": {
       "metadata": { "verbosity": "verbose" },
       "properties": {
@@ -245,6 +247,14 @@
     "node_failure": { "enum": ["remove", "create", "stray", "unproduced", "copy"] },
     "publish_root": { "enum": ["include", "share"] },
     "file_lock": { "enum": ["repo", "toolchain"] },
+    "sweep": {
+      "properties": {
+        "size": { "type": "uint64" },
+        "freed": { "type": "uint64" },
+        "removed": { "type": "uint32" },
+        "time_ns": { "type": "uint64", "metadata": { "field": "time" } }
+      }
+    },
     "subject": {
       "properties": {
         "pkg": { "type": "string" },

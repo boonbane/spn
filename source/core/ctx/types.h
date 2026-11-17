@@ -7,6 +7,7 @@
 
 #include "event/types.h"
 #include "core/types.h"
+#include "dag/types.h"
 #include "git/types.h"
 #include "index/types.h"
 #include "intern/types.h"
@@ -24,6 +25,7 @@ struct spn_ctx_t {
   sp_da(spn_index_info_t) indexes;
   struct {
     sp_da(spn_index_info_t) indexes;
+    spn_cache_config_t cache;
   } config;
   spn_event_buffer_t* events;
   sp_intern_t* intern;
