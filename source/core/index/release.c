@@ -2,16 +2,6 @@
 
 #include "target/mutate.h"
 
-static spn_index_dep_kind_t dep_kind_to_index(spn_dep_kind_t kind) {
-  switch (kind) {
-    case SPN_DEP_KIND_PACKAGE: return SPN_INDEX_DEP_NORMAL;
-    case SPN_DEP_KIND_BUILD:   return SPN_INDEX_DEP_BUILD;
-    case SPN_DEP_KIND_TEST:
-    case SPN_DEP_KIND_TOOL:    sp_unreachable_case();
-  }
-  sp_unreachable_return(SPN_INDEX_DEP_NORMAL);
-}
-
 spn_err_t spn_index_release_from_manifest(sp_mem_t mem, const si_pkg_info_t* manifest, spn_pkg_root_t published, spn_index_release_t* release, spn_err_union_t* err) {
   *release = (spn_index_release_t) {
     .name = manifest->name,
@@ -34,6 +24,13 @@ spn_err_t spn_index_release_from_manifest(sp_mem_t mem, const si_pkg_info_t* man
 
   si_da_for(manifest->deps, it) {
     spn_requested_dep_t* req = &manifest->deps[it];
+    spn_index_dep_kind_t kind = sp_zero;
+    switch (req->kind) {
+      case SPN_DEP_KIND_PACKAGE: kind = SPN_INDEX_DEP_NORMAL; break;
+      case SPN_DEP_KIND_BUILD:   kind = SPN_INDEX_DEP_BUILD; break;
+      case SPN_DEP_KIND_TEST:
+      case SPN_DEP_KIND_TOOL:    continue;
+    }
     if (req->source != SPN_PKG_SOURCE_INDEX) {
       *err = (spn_err_union_t) {
         .kind = SPN_ERR_INDEX_PATH_DEP,
@@ -43,7 +40,7 @@ spn_err_t spn_index_release_from_manifest(sp_mem_t mem, const si_pkg_info_t* man
     }
 
     sp_da_push(release->deps, ((spn_index_dep_t) {
-      .kind = dep_kind_to_index(req->kind),
+      .kind = kind,
       .public = req->public,
       .name = req->name,
       .range = req->index.range,

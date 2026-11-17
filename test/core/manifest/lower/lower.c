@@ -1802,6 +1802,27 @@ static sp_err_t check_gated_path_list(sp_test_t* t, spn_gated_path_list_t actual
   sp_try(check_gated_list(t, actual, expected, num_gated)); \
 } while (0)
 
+static sp_err_t check_requires_list(sp_test_t* t, si_da(spn_gated_requirement_t) actual, spn_requirement_kind_t kind, const gated_t* expected, u32 n) {
+  u32 at = 0;
+  si_da_for_ptr(actual, entry) {
+    if (entry->kind != kind) {
+      continue;
+    }
+    sp_must(t, at < n);
+    sp_expect_str_eq_c(t, entry->name, expected[at].value);
+    sp_expect_str_eq_c(t, spn_when_to_str(sp_test_arena(t), &entry->when), expected[at].when ? expected[at].when : "always");
+    at++;
+  }
+  sp_must_eq(t, n, at);
+  return SP_OK;
+}
+
+#define check_requires(t, actual, kind, expected) do { \
+  u32 num_requires = 0; \
+  sp_carr_detect_len(expected, num_requires, (expected)[num_requires].value); \
+  sp_try(check_requires_list(t, actual, kind, expected, num_requires)); \
+} while (0)
+
 static sp_err_t check_gated_source_list(sp_test_t* t, sp_da(spn_gated_source_t) actual, const source_t* expected, u32 n) {
   sp_must_eq(t, n, (u32)sp_da_size(actual));
   sp_for(it, n) {
@@ -1847,8 +1868,8 @@ static sp_err_t check_targets(sp_test_t* t, si_pkg_info_t* pkg, const target_t* 
     check_gated(t, info->flags, arr[i].flags);
     check_gated(t, info->link_flags, arr[i].link_flags);
     check_gated_paths(t, info->linker_script, arr[i].linker_script);
-    check_gated(t, info->system_deps, arr[i].system_deps);
-    check_gated(t, info->host_deps, arr[i].host_deps);
+    check_requires(t, info->requires, SPN_REQUIREMENT_LIB, arr[i].system_deps);
+    check_requires(t, info->requires, SPN_REQUIREMENT_HOST, arr[i].host_deps);
     u32 num_deps = 0;
     sp_carr_detect_len(arr[i].deps, num_deps, arr[i].deps[num_deps].value);
     sp_must_eq(t, num_deps, (u32)sp_da_size(info->deps));
@@ -1856,7 +1877,7 @@ static sp_err_t check_targets(sp_test_t* t, si_pkg_info_t* pkg, const target_t* 
       sp_expect_str_eq_c(t, info->deps[dt].name.str, arr[i].deps[dt].value);
       sp_expect_str_eq_c(t, spn_when_to_str(sp_test_arena(t), &info->deps[dt].when), arr[i].deps[dt].when ? arr[i].deps[dt].when : "always");
     }
-    check_gated(t, info->macos.frameworks, arr[i].frameworks);
+    check_requires(t, info->requires, SPN_REQUIREMENT_FRAMEWORK, arr[i].frameworks);
     u32 num_embeds = 0;
     sp_carr_detect_len(arr[i].embed, num_embeds, arr[i].embed[num_embeds].path);
     sp_must_eq(t, num_embeds, (u32)si_da_size(info->embed));
@@ -1924,13 +1945,13 @@ sp_test_each(lower, cases, test_t, tests, .setup = spn_test_ctx_setup) {
 
   // Package arrays
   check_gated(t, pkg->define, it->define);
-  check_gated(t, pkg->system_deps, it->system_deps);
-  check_gated(t, pkg->host_deps, it->host_deps);
-  check_gated(t, pkg->macos.frameworks, it->frameworks);
+  check_requires(t, pkg->requires, SPN_REQUIREMENT_LIB, it->system_deps);
+  check_requires(t, pkg->requires, SPN_REQUIREMENT_HOST, it->host_deps);
+  check_requires(t, pkg->requires, SPN_REQUIREMENT_FRAMEWORK, it->frameworks);
   check_publish(t, pkg->publish.entries, it->publish.entries);
   check_gated(t, pkg->publish.define, it->publish.define);
-  check_gated(t, pkg->publish.system_deps, it->publish.system_deps);
-  check_gated(t, pkg->publish.frameworks, it->publish.frameworks);
+  check_requires(t, pkg->publish.requires, SPN_REQUIREMENT_LIB, it->publish.system_deps);
+  check_requires(t, pkg->publish.requires, SPN_REQUIREMENT_FRAMEWORK, it->publish.frameworks);
   check_stage(t, pkg->stage, it->stage);
   check_gated_paths(t, pkg->include, it->include);
   const si_target_info_t* build = get_target(pkg, sp_str_lit("build"), SPN_TARGET_KIND_BUILD_METAPROGRAM);
@@ -1952,12 +1973,11 @@ sp_test_each(lower, cases, test_t, tests, .setup = spn_test_ctx_setup) {
     if (!expected.name) break;
 
     spn_dep_kind_t kind = expected.build ? SPN_DEP_KIND_BUILD : expected.test ? SPN_DEP_KIND_TEST : expected.tool ? SPN_DEP_KIND_TOOL : SPN_DEP_KIND_PACKAGE;
-    si_da(spn_requested_dep_t) deps = expected.test || expected.tool ? project.root.deps : pkg->deps;
 
     spn_requested_dep_t* req = SP_NULLPTR;
-    si_da_for(deps, j) {
-      if (sp_str_equal(deps[j].name.str, sp_cstr_as_str(expected.name)) && deps[j].kind == kind) {
-        req = &deps[j];
+    si_da_for(pkg->deps, j) {
+      if (sp_str_equal(pkg->deps[j].name.str, sp_cstr_as_str(expected.name)) && pkg->deps[j].kind == kind) {
+        req = &pkg->deps[j];
         break;
       }
     }

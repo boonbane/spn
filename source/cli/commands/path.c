@@ -27,7 +27,6 @@ static sp_cli_result_t path(sp_cli_t* cli) {
         .names = { .items = &args.name, .count = 1 },
       },
     }));
-    try(spn_cli_op(spn_build(host.session)));
     op = spn_tool_path(host.session, request);
   }
   else {

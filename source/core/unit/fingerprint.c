@@ -72,10 +72,13 @@ static sp_hash_t hash_push(sp_hash_t hash, sp_hash_t value) {
   return spn_digest_hash_combine(parts, sp_carr_len(parts));
 }
 
-static sp_hash_t hash_gated(sp_hash_t hash, spn_gated_list_t list) {
+static sp_hash_t hash_frameworks(sp_hash_t hash, si_da(spn_gated_requirement_t) requires) {
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  si_da_for_ptr(list, entry) {
-    hash = hash_push(hash, spn_digest_hash_str(entry->value));
+  si_da_for_ptr(requires, entry) {
+    if (entry->kind != SPN_REQUIREMENT_FRAMEWORK) {
+      continue;
+    }
+    hash = hash_push(hash, spn_digest_hash_str(entry->name));
     hash = hash_push(hash, spn_digest_hash_str(spn_when_to_str(scratch.mem, &entry->when)));
   }
   sp_mem_end_scratch(scratch);
@@ -88,14 +91,14 @@ static sp_hash_t hash_platform(const si_pkg_info_t* manifest, const spn_profile_
   switch (profile->target.os) {
     case SPN_OS_MACOS: {
       hash = hash_push(hash, spn_digest_hash(&manifest->macos.min_os, sizeof(manifest->macos.min_os)));
-      hash = hash_gated(hash, manifest->macos.frameworks);
-      hash = hash_gated(hash, manifest->publish.frameworks);
+      hash = hash_frameworks(hash, manifest->requires);
+      hash = hash_frameworks(hash, manifest->publish.requires);
       si_om_for(manifest->targets, it) {
         si_target_info_t* target = si_om_at(manifest->targets, it);
         hash = hash_push(hash, spn_digest_hash_str(target->name.str));
         hash = hash_push(hash, (sp_hash_t)target->kind);
         hash = hash_push(hash, spn_digest_hash(&target->macos.min_os, sizeof(target->macos.min_os)));
-        hash = hash_gated(hash, target->macos.frameworks);
+        hash = hash_frameworks(hash, target->requires);
       }
       break;
     }

@@ -6,19 +6,19 @@
 #include "paths/paths.h"
 #include "triple/triple.h"
 
-spn_sdk_kind_t spn_sdk_kind(spn_triple_t target) {
+spn_sdk_need_t spn_sdk_need(spn_triple_t target) {
   if (target.abi == SPN_ABI_BARE) {
-    return SPN_SDK_NONE;
+    return SPN_SDK_NEED_NONE;
   }
   switch (target.os) {
-    case SPN_OS_MACOS: return SPN_SDK_MACOS;
-    case SPN_OS_WINDOWS: return target.abi == SPN_ABI_MSVC ? SPN_SDK_MSVC : SPN_SDK_SYSROOT;
+    case SPN_OS_MACOS: return SPN_SDK_NEED_MACOS;
+    case SPN_OS_WINDOWS: return target.abi == SPN_ABI_MSVC ? SPN_SDK_NEED_MSVC : SPN_SDK_NEED_SYSROOT;
     case SPN_OS_LINUX:
     case SPN_OS_WASI:
-    case SPN_OS_FREESTANDING: return SPN_SDK_SYSROOT;
+    case SPN_OS_FREESTANDING: return SPN_SDK_NEED_SYSROOT;
     case SPN_OS_NONE: sp_unreachable_case();
   }
-  SP_UNREACHABLE_RETURN(SPN_SDK_NONE);
+  SP_UNREACHABLE_RETURN(SPN_SDK_NEED_NONE);
 }
 
 static spn_sdk_macos_t macos_layout(sp_mem_t mem, spn_path_t root) {
@@ -249,12 +249,11 @@ spn_dir_list_t spn_sdk_tool_dirs(const spn_sdk_t* sdk) {
 }
 
 spn_sdk_t spn_sdk_at(sp_mem_t mem, spn_triple_t target, spn_path_t root) {
-  switch (spn_sdk_kind(target)) {
-    case SPN_SDK_SYSROOT: return (spn_sdk_t) { .kind = SPN_SDK_SYSROOT, .root = root };
-    case SPN_SDK_MACOS: return (spn_sdk_t) { .kind = SPN_SDK_MACOS, .macos = macos_layout(mem, root) };
-    case SPN_SDK_MSVC: return (spn_sdk_t) { .kind = SPN_SDK_MSVC, .msvc = msvc_layout(mem, root, target.arch) };
-    case SPN_SDK_NONE:
-    case SPN_SDK_HOST: sp_unreachable_case();
+  switch (spn_sdk_need(target)) {
+    case SPN_SDK_NEED_SYSROOT: return (spn_sdk_t) { .kind = SPN_SDK_SYSROOT, .root = root };
+    case SPN_SDK_NEED_MACOS: return (spn_sdk_t) { .kind = SPN_SDK_MACOS, .macos = macos_layout(mem, root) };
+    case SPN_SDK_NEED_MSVC: return (spn_sdk_t) { .kind = SPN_SDK_MSVC, .msvc = msvc_layout(mem, root, target.arch) };
+    case SPN_SDK_NEED_NONE: sp_unreachable_case();
   }
   sp_unreachable_return(sp_zero_struct(spn_sdk_t));
 }
@@ -270,20 +269,17 @@ static const spn_sdk_msvc_t* msvc_for(const spn_sdk_host_t* host, spn_arch_t arc
 
 static spn_sdk_t from_host(const spn_sdk_host_t* host, spn_triple_t target) {
   spn_sdk_t none = sp_zero;
-  switch (spn_sdk_kind(target)) {
-    case SPN_SDK_NONE:
-    case SPN_SDK_SYSROOT: {
+  switch (spn_sdk_need(target)) {
+    case SPN_SDK_NEED_NONE:
+    case SPN_SDK_NEED_SYSROOT: {
       return none;
     }
-    case SPN_SDK_MACOS: {
+    case SPN_SDK_NEED_MACOS: {
       return spn_path_empty(host->macos.root) ? none : (spn_sdk_t) { .kind = SPN_SDK_MACOS, .macos = host->macos };
     }
-    case SPN_SDK_MSVC: {
+    case SPN_SDK_NEED_MSVC: {
       const spn_sdk_msvc_t* msvc = msvc_for(host, target.arch);
       return msvc ? (spn_sdk_t) { .kind = SPN_SDK_MSVC, .msvc = *msvc } : none;
-    }
-    case SPN_SDK_HOST: {
-      sp_unreachable_case();
     }
   }
   sp_unreachable_return(none);
@@ -291,30 +287,28 @@ static spn_sdk_t from_host(const spn_sdk_host_t* host, spn_triple_t target) {
 
 bool spn_sdk_default(const spn_sdk_host_t* sdks, spn_triple_t target, spn_sdk_t* sdk) {
   *sdk = from_host(sdks, target);
-  switch (spn_sdk_kind(target)) {
-    case SPN_SDK_NONE:
-    case SPN_SDK_SYSROOT:
-    case SPN_SDK_MACOS: return true;
-    case SPN_SDK_MSVC: return sdk->kind != SPN_SDK_NONE;
-    case SPN_SDK_HOST: sp_unreachable_case();
+  switch (spn_sdk_need(target)) {
+    case SPN_SDK_NEED_NONE:
+    case SPN_SDK_NEED_SYSROOT:
+    case SPN_SDK_NEED_MACOS: return true;
+    case SPN_SDK_NEED_MSVC: return sdk->kind != SPN_SDK_NONE;
   }
   sp_unreachable_return(false);
 }
 
 bool spn_sdk_served(const spn_sdk_host_t* sdks, spn_triple_t host, spn_triple_t target, spn_sdk_t* sdk) {
   *sdk = from_host(sdks, target);
-  switch (spn_sdk_kind(target)) {
-    case SPN_SDK_NONE: return true;
-    case SPN_SDK_SYSROOT: {
+  switch (spn_sdk_need(target)) {
+    case SPN_SDK_NEED_NONE: return true;
+    case SPN_SDK_NEED_SYSROOT: {
       if (!spn_triple_equal(target, host)) {
         return false;
       }
       *sdk = (spn_sdk_t) { .kind = SPN_SDK_HOST };
       return true;
     }
-    case SPN_SDK_MACOS:
-    case SPN_SDK_MSVC: return sdk->kind != SPN_SDK_NONE;
-    case SPN_SDK_HOST: sp_unreachable_case();
+    case SPN_SDK_NEED_MACOS:
+    case SPN_SDK_NEED_MSVC: return sdk->kind != SPN_SDK_NONE;
   }
   sp_unreachable_return(false);
 }

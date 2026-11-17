@@ -22,6 +22,17 @@ static si_da(sp_str_t) eval_list(eval_ctx_t* ctx, spn_gated_list_t gated) {
   return plain;
 }
 
+static si_da(spn_requirement_t) eval_requires(eval_ctx_t* ctx, si_da(spn_gated_requirement_t) gated) {
+  si_da(spn_requirement_t) plain = SP_NULLPTR;
+  si_da_for_ptr(gated, entry) {
+    if (!spn_when_eval(&entry->when, ctx->env)) {
+      continue;
+    }
+    si_da_push(ctx->mem, plain, ((spn_requirement_t) { .kind = entry->kind, .name = entry->name }));
+  }
+  return plain;
+}
+
 static si_da(spn_path_t) eval_paths(eval_ctx_t* ctx, spn_gated_path_list_t gated) {
   si_da(spn_path_t) plain = SP_NULLPTR;
   si_da_for_ptr(gated, entry) {
@@ -75,9 +86,7 @@ static si_target_t eval_target(eval_ctx_t* ctx, const si_target_info_t* decl) {
     .flags = eval_list(ctx, decl->flags),
     .link_flags = eval_list(ctx, decl->link_flags),
     .linker_script = eval_paths(ctx, decl->linker_script),
-    .system_deps = eval_list(ctx, decl->system_deps),
-    .host_deps = eval_list(ctx, decl->host_deps),
-    .macos = { .frameworks = eval_list(ctx, decl->macos.frameworks) },
+    .requires = eval_requires(ctx, decl->requires),
   };
   si_da_for_value(decl->deps, dep) {
     if (!spn_when_eval(&dep.when, ctx->env)) {
@@ -106,17 +115,17 @@ si_pkg_t si_evaluate_package(sp_mem_t mem, const si_pkg_info_t* manifest, const 
     .include = eval_paths(&ctx, manifest->include),
     .define = eval_list(&ctx, manifest->define),
     .public_define = eval_list(&ctx, manifest->publish.define),
-    .system_deps = eval_list(&ctx, manifest->system_deps),
-    .host_deps = eval_list(&ctx, manifest->host_deps),
+    .requires = eval_requires(&ctx, manifest->requires),
     .publish = {
       .entries = eval_publish(&ctx, manifest->publish.entries),
-      .system_deps = eval_list(&ctx, manifest->publish.system_deps),
-      .frameworks = eval_list(&ctx, manifest->publish.frameworks),
+      .requires = eval_requires(&ctx, manifest->publish.requires),
     },
-    .macos = { .frameworks = eval_list(&ctx, manifest->macos.frameworks) },
   };
   si_da_for_value(pkg.public_define, define) {
     si_da_push(mem, pkg.define, define);
+  }
+  si_da_for_value(pkg.publish.requires, require) {
+    si_da_push(mem, pkg.requires, require);
   }
   si_om_for(manifest->targets, it) {
     const si_target_info_t* decl = si_om_at(manifest->targets, it);

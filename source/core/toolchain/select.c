@@ -88,12 +88,11 @@ static reach_t reach_best(const spn_toolchain_catalog_t* catalog, const spn_tool
 }
 
 static spn_err_t sdk_refusal(spn_triple_t target) {
-  switch (spn_sdk_kind(target)) {
-    case SPN_SDK_SYSROOT: return SPN_ERR_TOOLCHAIN_SYSROOT;
-    case SPN_SDK_MACOS: return SPN_ERR_TOOLCHAIN_SDK_MACOS;
-    case SPN_SDK_MSVC: return SPN_ERR_TOOLCHAIN_SDK_MSVC;
-    case SPN_SDK_NONE:
-    case SPN_SDK_HOST: sp_unreachable_case();
+  switch (spn_sdk_need(target)) {
+    case SPN_SDK_NEED_SYSROOT: return SPN_ERR_TOOLCHAIN_SYSROOT;
+    case SPN_SDK_NEED_MACOS: return SPN_ERR_TOOLCHAIN_SDK_MACOS;
+    case SPN_SDK_NEED_MSVC: return SPN_ERR_TOOLCHAIN_SDK_MSVC;
+    case SPN_SDK_NEED_NONE: sp_unreachable_case();
   }
   sp_unreachable_return(SPN_ERR_TOOLCHAIN_TARGET);
 }

@@ -57,6 +57,15 @@ static si_da(spn_gated_source_t) gated_sources(sp_mem_t mem, const c8* const* it
   return list;
 }
 
+static void push_requires(sp_mem_t mem, si_da(spn_gated_requirement_t)* requires, spn_requirement_kind_t kind, const c8* const* items, u32 max) {
+  sp_for(it, max) {
+    if (!items[it]) {
+      break;
+    }
+    si_da_push(mem, *requires, ((spn_gated_requirement_t) { .kind = kind, .name = sp_cstr_as_str(items[it]) }));
+  }
+}
+
 static si_da(spn_gated_embed_t) gated_embeds(sp_mem_t mem, const c8* const* items, u32 max) {
   si_da(spn_gated_embed_t) list = SP_NULLPTR;
   sp_for(it, max) {
@@ -100,9 +109,9 @@ static void declare_target(sp_mem_t mem, si_pkg_info_t* manifest, const graph_ta
   }
   decl->include = gated_paths(mem, spec->include, UNIT_TEST_MAX_STRS);
   decl->define = gated_list(mem, spec->define, UNIT_TEST_MAX_STRS);
-  decl->system_deps = gated_list(mem, spec->system_deps, UNIT_TEST_MAX_STRS);
-  decl->host_deps = gated_list(mem, spec->host_deps, UNIT_TEST_MAX_STRS);
-  decl->macos.frameworks = gated_list(mem, spec->frameworks, UNIT_TEST_MAX_STRS);
+  push_requires(mem, &decl->requires, SPN_REQUIREMENT_LIB, spec->system_deps, UNIT_TEST_MAX_STRS);
+  push_requires(mem, &decl->requires, SPN_REQUIREMENT_HOST, spec->host_deps, UNIT_TEST_MAX_STRS);
+  push_requires(mem, &decl->requires, SPN_REQUIREMENT_FRAMEWORK, spec->frameworks, UNIT_TEST_MAX_STRS);
   decl->macos.min_os = spec->min_os;
   decl->link_flags = gated_list(mem, spec->link_flags, UNIT_TEST_MAX_STRS);
   decl->linker_script = gated_paths(mem, spec->linker_script, UNIT_TEST_MAX_STRS);
@@ -299,6 +308,7 @@ units_t* units_new(sp_test_t* t, const graph_t* g) {
     .id = 2,
     .profile = metaprogram,
     .toolchain = toolchain,
+    .script = true,
     .paths = { .root = spn_path_join(mem, project, sp_str_lit("build/wasm32-wasi")) },
     .define = spn_when_facts_to_defines(mem, spn_profile_facts(&metaprogram)),
   };
@@ -317,14 +327,14 @@ units_t* units_new(sp_test_t* t, const graph_t* g) {
     *manifest = test_manifest_make(sp_cstr_as_str(spec->name));
     manifest->include = gated_paths(mem, spec->include, UNIT_TEST_MAX_STRS);
     manifest->define = gated_list(mem, spec->define, UNIT_TEST_MAX_STRS);
-    manifest->system_deps = gated_list(mem, spec->system_deps, UNIT_TEST_MAX_STRS);
-    manifest->host_deps = gated_list(mem, spec->host_deps, UNIT_TEST_MAX_STRS);
-    manifest->macos.frameworks = gated_list(mem, spec->frameworks, UNIT_TEST_MAX_STRS);
+    push_requires(mem, &manifest->requires, SPN_REQUIREMENT_LIB, spec->system_deps, UNIT_TEST_MAX_STRS);
+    push_requires(mem, &manifest->requires, SPN_REQUIREMENT_HOST, spec->host_deps, UNIT_TEST_MAX_STRS);
+    push_requires(mem, &manifest->requires, SPN_REQUIREMENT_FRAMEWORK, spec->frameworks, UNIT_TEST_MAX_STRS);
     manifest->macos.min_os = spec->min_os;
     manifest->publish.entries = gated_publish(mem, spec->publish.include, UNIT_TEST_MAX_STRS);
     manifest->publish.define = gated_list(mem, spec->publish.define, UNIT_TEST_MAX_STRS);
-    manifest->publish.system_deps = gated_list(mem, spec->publish.system_deps, UNIT_TEST_MAX_STRS);
-    manifest->publish.frameworks = gated_list(mem, spec->publish.frameworks, UNIT_TEST_MAX_STRS);
+    push_requires(mem, &manifest->publish.requires, SPN_REQUIREMENT_LIB, spec->publish.system_deps, UNIT_TEST_MAX_STRS);
+    push_requires(mem, &manifest->publish.requires, SPN_REQUIREMENT_FRAMEWORK, spec->publish.frameworks, UNIT_TEST_MAX_STRS);
     sp_carr_for(spec->targets, tt) {
       if (!spec->targets[tt].name) {
         break;

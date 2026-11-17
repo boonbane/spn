@@ -61,6 +61,23 @@ typedef struct {
   spn_when_t when;
 } spn_gated_dep_t;
 
+typedef enum {
+  SPN_REQUIREMENT_LIB,
+  SPN_REQUIREMENT_FRAMEWORK,
+  SPN_REQUIREMENT_HOST,
+} spn_requirement_kind_t;
+
+typedef struct {
+  spn_requirement_kind_t kind;
+  sp_str_t name;
+} spn_requirement_t;
+
+typedef struct {
+  spn_requirement_kind_t kind;
+  sp_str_t name;
+  spn_when_t when;
+} spn_gated_requirement_t;
+
 typedef struct {
   spn_publish_root_t root;
   spn_source_t source;
@@ -106,12 +123,10 @@ struct si_target_info {
   spn_gated_list_t flags;
   spn_gated_list_t link_flags;
   spn_gated_path_list_t linker_script;
-  spn_gated_list_t system_deps;
-  spn_gated_list_t host_deps;
+  si_da(spn_gated_requirement_t) requires;
   si_da(spn_gated_dep_t) deps;
   si_da(spn_gated_embed_t) embed;
   struct {
-    spn_gated_list_t frameworks;
     spn_os_version_t min_os;
   } macos;
   struct {
@@ -128,13 +143,9 @@ struct si_target {
   si_da(sp_str_t) flags;
   si_da(sp_str_t) link_flags;
   si_da(spn_path_t) linker_script;
-  si_da(sp_str_t) system_deps;
-  si_da(sp_str_t) host_deps;
+  si_da(spn_requirement_t) requires;
   si_da(sp_intern_str_t) deps;
   si_da(spn_embed_t) embed;
-  struct {
-    si_da(sp_str_t) frameworks;
-  } macos;
 };
 
 typedef si_om(si_target_id_t, si_target_info_t) spn_target_info_map_t;

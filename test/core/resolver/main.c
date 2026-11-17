@@ -33,7 +33,7 @@ typedef struct {
 } resolve_result_t;
 
 static resolve_result_t execute_fixture(const fx_config_t* config, const spn_project_t* project, sp_str_t dir, sp_intern_t* intern) {
-  const si_pkg_info_t* root = &project->root;
+  const si_pkg_info_t* root = &project->package;
   sp_mem_t mem = sp_mem_arena_as_allocator(arena);
 
   sp_da(spn_index_info_t) indexes = sp_da_new(mem, spn_index_info_t);

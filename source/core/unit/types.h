@@ -21,6 +21,7 @@ struct spn_build_unit_t {
   spn_profile_info_t profile;
   spn_toolchain_unit_t* toolchain;
   spn_build_unit_t* metabuild;
+  bool script;
   sp_da(spn_path_t) include;
   sp_da(sp_str_t) define;
   struct {
@@ -138,12 +139,6 @@ typedef struct {
 } spn_link_plan_t;
 
 typedef struct {
-  si_da(sp_str_t) libs;
-  si_da(sp_str_t) frameworks;
-  si_da(sp_str_t) host;
-} spn_requirements_t;
-
-typedef struct {
   spn_cc_archive_plan_t archive;
   spn_cc_exports_format_t format;
   spn_rsp_style_t rsp;
@@ -172,7 +167,7 @@ struct spn_target_unit {
   si_da(spn_pkg_unit_t*) includes;
 
   sp_da(spn_compile_unit_t*) objects;
-  spn_requirements_t requires;
+  si_da(spn_requirement_t) requires;
   spn_link_plan_t link;
   spn_target_emit_t emit;
 };

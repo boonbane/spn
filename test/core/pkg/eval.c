@@ -167,6 +167,30 @@ static sp_err_t expect_list(sp_test_t* t, si_da(sp_str_t) actual, const c8* cons
   return SP_OK;
 }
 
+static void push_requires(sp_mem_t mem, si_da(spn_gated_requirement_t)* requires, spn_requirement_kind_t kind, list_t test) {
+  sp_carr_for(test.values, it) {
+    gated_t* value = &test.values[it];
+    if (!value->value) {
+      break;
+    }
+    si_da_push(mem, *requires, ((spn_gated_requirement_t) {
+      .kind = kind,
+      .name = sp_cstr_as_str(value->value),
+      .when = make_when(mem, value->when, sp_carr_len(value->when)),
+    }));
+  }
+}
+
+static sp_err_t expect_requires(sp_test_t* t, si_da(spn_requirement_t) actual, spn_requirement_kind_t kind, const c8* const* expected) {
+  si_da(sp_str_t) names = SP_NULLPTR;
+  si_da_for_value(actual, require) {
+    if (require.kind == kind) {
+      si_da_push(sp_test_arena(t), names, require.name);
+    }
+  }
+  return expect_list(t, names, expected);
+}
+
 static sp_err_t expect_paths(sp_test_t* t, si_da(spn_path_t) actual, const c8* const* expected) {
   sp_for(et, EVAL_TEST_MAX) {
     if (!expected[et]) {
@@ -314,13 +338,13 @@ static const lists_test_t lists_tests [] = {
     .name = "publish_system_deps",
     .facts = { .os = SPN_OS_LINUX },
     .publish.system_deps = { .values = { { "A", { { "os", "linux" } } }, { "B", { { "os", "windows" } } } } },
-    .expect.publish.system_deps = { "A" },
+    .expect = { .sys = { "A" }, .publish.system_deps = { "A" } },
   },
   {
     .name = "publish_frameworks",
     .facts = { .os = SPN_OS_MACOS },
     .publish.frameworks = { .values = { { "A", { { "os", "macos" } } }, { "B", { { "os", "linux" } } } } },
-    .expect.publish.frameworks = { "A" },
+    .expect = { .pkg_frameworks = { "A" }, .publish.frameworks = { "A" } },
   },
 };
 
@@ -349,8 +373,8 @@ sp_test_each(pkg_eval, lists, lists_test_t, lists_tests, .setup = spn_test_ctx_s
   exe->define = make_list(mem, it->define);
   exe->flags = make_list(mem, it->flags);
   exe->link_flags = make_list(mem, it->link_flags);
-  exe->system_deps = make_list(mem, it->sys_target);
-  exe->host_deps = make_list(mem, it->host_target);
+  push_requires(mem, &exe->requires, SPN_REQUIREMENT_LIB, it->sys_target);
+  push_requires(mem, &exe->requires, SPN_REQUIREMENT_HOST, it->host_target);
   sp_carr_for(it->deps.values, dt) {
     const gated_t* dep = &it->deps.values[dt];
     if (!dep->value) {
@@ -361,14 +385,14 @@ sp_test_each(pkg_eval, lists, lists_test_t, lists_tests, .setup = spn_test_ctx_s
       .when = make_when(mem, dep->when, sp_carr_len(dep->when)),
     }));
   }
-  exe->macos.frameworks = make_list(mem, it->frameworks);
-  manifest.system_deps = make_list(mem, it->sys);
-  manifest.host_deps = make_list(mem, it->host);
+  push_requires(mem, &exe->requires, SPN_REQUIREMENT_FRAMEWORK, it->frameworks);
+  push_requires(mem, &manifest.requires, SPN_REQUIREMENT_LIB, it->sys);
+  push_requires(mem, &manifest.requires, SPN_REQUIREMENT_HOST, it->host);
   manifest.define = make_list(mem, it->pkg_define);
-  manifest.macos.frameworks = make_list(mem, it->pkg_frameworks);
+  push_requires(mem, &manifest.requires, SPN_REQUIREMENT_FRAMEWORK, it->pkg_frameworks);
   manifest.publish.define = make_list(mem, it->publish.define);
-  manifest.publish.system_deps = make_list(mem, it->publish.system_deps);
-  manifest.publish.frameworks = make_list(mem, it->publish.frameworks);
+  push_requires(mem, &manifest.publish.requires, SPN_REQUIREMENT_LIB, it->publish.system_deps);
+  push_requires(mem, &manifest.publish.requires, SPN_REQUIREMENT_FRAMEWORK, it->publish.frameworks);
 
   spn_when_env_t env = make_env(mem, it->facts);
   si_pkg_t pkg = eval(mem, &manifest, &env);
@@ -390,22 +414,22 @@ sp_test_each(pkg_eval, lists, lists_test_t, lists_tests, .setup = spn_test_ctx_s
   sp_try(expect_list(t, exe_eval->define, it->expect.define));
   sp_try(expect_list(t, exe_eval->flags, it->expect.flags));
   sp_try(expect_list(t, exe_eval->link_flags, it->expect.link_flags));
-  sp_try(expect_list(t, exe_eval->system_deps, it->expect.sys_target));
-  sp_try(expect_list(t, exe_eval->host_deps, it->expect.host_target));
+  sp_try(expect_requires(t, exe_eval->requires, SPN_REQUIREMENT_LIB, it->expect.sys_target));
+  sp_try(expect_requires(t, exe_eval->requires, SPN_REQUIREMENT_HOST, it->expect.host_target));
   u32 num_deps = 0;
   sp_carr_detect_len(it->expect.deps, num_deps, it->expect.deps[num_deps]);
   sp_must_eq(t, num_deps, si_da_size(exe_eval->deps));
   sp_for(dt, num_deps) {
     sp_expect_str_eq_c(t, exe_eval->deps[dt].str, it->expect.deps[dt]);
   }
-  sp_try(expect_list(t, exe_eval->macos.frameworks, it->expect.frameworks));
-  sp_try(expect_list(t, pkg.system_deps, it->expect.sys));
-  sp_try(expect_list(t, pkg.host_deps, it->expect.host));
+  sp_try(expect_requires(t, exe_eval->requires, SPN_REQUIREMENT_FRAMEWORK, it->expect.frameworks));
+  sp_try(expect_requires(t, pkg.requires, SPN_REQUIREMENT_LIB, it->expect.sys));
+  sp_try(expect_requires(t, pkg.requires, SPN_REQUIREMENT_HOST, it->expect.host));
   sp_try(expect_list(t, pkg.define, it->expect.pkg_define));
-  sp_try(expect_list(t, pkg.macos.frameworks, it->expect.pkg_frameworks));
+  sp_try(expect_requires(t, pkg.requires, SPN_REQUIREMENT_FRAMEWORK, it->expect.pkg_frameworks));
   sp_try(expect_list(t, pkg.public_define, it->expect.public_define));
-  sp_try(expect_list(t, pkg.publish.system_deps, it->expect.publish.system_deps));
-  sp_try(expect_list(t, pkg.publish.frameworks, it->expect.publish.frameworks));
+  sp_try(expect_requires(t, pkg.publish.requires, SPN_REQUIREMENT_LIB, it->expect.publish.system_deps));
+  sp_try(expect_requires(t, pkg.publish.requires, SPN_REQUIREMENT_FRAMEWORK, it->expect.publish.frameworks));
   return SP_OK;
 }
 

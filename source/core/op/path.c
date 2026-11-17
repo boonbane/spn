@@ -44,6 +44,8 @@ spn_err_t spn_op_tool_path(spn_op_t* op) {
   spn_ctx_t* ctx = session->ctx;
   sp_intern_str_t name = spn_intern(op->request.path.name);
 
+  spn_try(spn_op_build(op));
+
   si_da_for_ptr(session->plan.closures, closure) {
     si_target_id_t target = closure->exe.target->id.target;
     if (target.kind == SPN_TARGET_KIND_TOOL && target.name == name.id) {

@@ -37,6 +37,13 @@ typedef enum {
 } spn_ld_dialect_t;
 
 typedef enum {
+  SPN_SDK_NEED_NONE,
+  SPN_SDK_NEED_SYSROOT,
+  SPN_SDK_NEED_MACOS,
+  SPN_SDK_NEED_MSVC,
+} spn_sdk_need_t;
+
+typedef enum {
   SPN_SDK_NONE,
   SPN_SDK_SYSROOT,
   SPN_SDK_MACOS,

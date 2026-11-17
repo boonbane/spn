@@ -64,19 +64,14 @@ static bool is_any_object_cxx(sp_da(spn_compile_unit_t*) objects) {
   return false;
 }
 
-static bool contains_str(si_da(sp_str_t) strs, sp_str_t str) {
-  si_da_for(strs, it) {
-    if (sp_str_equal(strs[it], str)) {
-      return true;
+static void push_requires(sp_mem_t mem, si_da(sp_str_t)* names, si_da(spn_requirement_t) requires, spn_requirement_kind_t kind) {
+  si_da_for_value(requires, require) {
+    bool present = require.kind != kind;
+    si_da_for(*names, it) {
+      present = present || sp_str_equal((*names)[it], require.name);
     }
-  }
-  return false;
-}
-
-static void push_unique(sp_mem_t mem, si_da(sp_str_t)* result, si_da(sp_str_t) values) {
-  si_da_for(values, it) {
-    if (!contains_str(*result, values[it])) {
-      si_da_push(mem, *result, values[it]);
+    if (!present) {
+      si_da_push(mem, *names, require.name);
     }
   }
 }
@@ -181,11 +176,10 @@ static spn_err_t lower_target(spn_units_t* u, spn_target_unit_t* unit) {
     },
   };
   link->cc.min_os = max_os_version(link->cc.min_os, pkg->pkg.manifest->macos.min_os);
-  si_da(sp_str_t) host = sp_zero;
-  si_da(sp_str_t) libs = sp_zero;
-  push_unique(scratch.mem, &host, unit->requires.host);
-  push_unique(scratch.mem, &libs, unit->requires.libs);
-  push_unique(mem, &link->cc.frameworks, unit->requires.frameworks);
+  si_da(spn_requirement_t) requires = sp_zero;
+  si_da_for_value(unit->requires, require) {
+    si_da_push(scratch.mem, requires, require);
+  }
   si_da_rfor(entries, et) {
     si_closure_entry_t* entry = &entries[et];
     switch (entry->yield) {
@@ -211,9 +205,9 @@ static spn_err_t lower_target(spn_units_t* u, spn_target_unit_t* unit) {
             if (is_any_object_cxx(lib->objects)) {
               link->cc.lang = SPN_LANG_CXX;
             }
-            push_unique(scratch.mem, &host, lib->requires.host);
-            push_unique(scratch.mem, &libs, lib->requires.libs);
-            push_unique(mem, &link->cc.frameworks, lib->requires.frameworks);
+            si_da_for_value(lib->requires, require) {
+              si_da_push(scratch.mem, requires, require);
+            }
             break;
           }
           case SPN_LIB_KIND_NONE: sp_unreachable_case();
@@ -222,8 +216,9 @@ static spn_err_t lower_target(spn_units_t* u, spn_target_unit_t* unit) {
       }
     }
   }
-  push_unique(mem, &link->cc.system_libs, host);
-  push_unique(mem, &link->cc.system_libs, libs);
+  push_requires(mem, &link->cc.system_libs, requires, SPN_REQUIREMENT_HOST);
+  push_requires(mem, &link->cc.system_libs, requires, SPN_REQUIREMENT_LIB);
+  push_requires(mem, &link->cc.frameworks, requires, SPN_REQUIREMENT_FRAMEWORK);
 
   spn_cc_compile_t compile = {
     .cxx = target->info->cxx,
@@ -445,15 +440,21 @@ static spn_err_t plan_new(spn_units_t* u, sp_mem_t scratch, spn_pkg_unit_t* root
         .toolchain = { .name = target->pkg->build->toolchain->info->name.str },
       });
     }
+    if (sp_da_empty(target->objects)) {
+      si_da_clear(target->requires);
+    }
   }
 
   si_da_for_value(plan->targets, target) {
     spn_build_unit_t* build = target->pkg->build;
-    if (si_da_empty(target->requires.host) || sp_da_empty(target->objects) || build->profile.sdk.kind == SPN_SDK_HOST) {
+    if (build->profile.sdk.kind == SPN_SDK_HOST) {
       continue;
     }
     si_da(sp_str_t) libs = sp_zero;
-    push_unique(u->ctx->events->mem, &libs, target->requires.host);
+    push_requires(u->ctx->events->mem, &libs, target->requires, SPN_REQUIREMENT_HOST);
+    if (si_da_empty(libs)) {
+      continue;
+    }
     return spn_err_emit(u->ctx, (spn_err_union_t) {
       .kind = SPN_ERR_TARGET_HOST_DEPS,
       .host_deps = {
@@ -464,7 +465,7 @@ static spn_err_t plan_new(spn_units_t* u, sp_mem_t scratch, spn_pkg_unit_t* root
         .candidates = spn_toolchain_host_candidates(u->ctx->events->mem, &u->ctx->catalog),
         .target = build->profile.target,
         .host = u->ctx->host,
-        .script = !build->metabuild,
+        .script = build->script,
       },
     });
   }

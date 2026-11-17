@@ -138,7 +138,8 @@ sp_test_each(sdk_root, layout, test_t, tests) {
       }
       return check_dirs(t, spn_msvc_lib_dirs(&sdk.msvc), it->expect.msvc.lib, lib);
     }
-    case SPN_SDK_NONE: {
+    case SPN_SDK_NONE:
+    case SPN_SDK_HOST: {
       sp_unreachable_case();
     }
   }

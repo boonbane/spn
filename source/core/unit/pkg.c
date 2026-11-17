@@ -18,7 +18,24 @@ static si_pkg_t evaluate(spn_units_t* u, spn_build_unit_t* build, const spn_reso
   return si_evaluate_package(mem, resolved->manifest, &u->ctx->roots, trees, &env);
 }
 
-static void append(sp_mem_t mem, si_da(sp_str_t)* list, si_da(sp_str_t) values) {
+typedef struct {
+  u32 take;
+  bool published;
+  bool self;
+  bool host;
+} consumes_t;
+
+static const consumes_t consumes [] = {
+  [SPN_TARGET_KIND_LIB] = { .take = 1u << SPN_DEP_KIND_PACKAGE, .published = true, .host = true },
+  [SPN_TARGET_KIND_EXE] = { .take = 1u << SPN_DEP_KIND_PACKAGE, .published = true, .host = true },
+  [SPN_TARGET_KIND_TOOL] = { .take = 1u << SPN_DEP_KIND_TOOL, .published = true, .host = true },
+  [SPN_TARGET_KIND_TEST] = { .take = (1u << SPN_DEP_KIND_PACKAGE) | (1u << SPN_DEP_KIND_TEST), .published = true, .host = true },
+  [SPN_TARGET_KIND_EXAMPLE] = { .take = 1u << SPN_DEP_KIND_PACKAGE, .self = true, .host = true },
+  [SPN_TARGET_KIND_BUILD_METAPROGRAM] = { .take = 1u << SPN_DEP_KIND_BUILD },
+  [SPN_TARGET_KIND_CONFIGURE_METAPROGRAM] = sp_zero,
+};
+
+static void append(sp_mem_t mem, si_da(spn_requirement_t)* list, si_da(spn_requirement_t) values) {
   si_da_for_value(values, value) {
     si_da_push(mem, *list, value);
   }
@@ -228,48 +245,15 @@ spn_err_t si_add_target_unit(spn_units_t* u, spn_pkg_unit_t* pkg, si_target_t* t
     si_da_push(u->mem, unit->deps, dep);
   }
 
-  u32 take = 0;
-  bool published = false;
-  si_da(sp_str_t) host = sp_zero;
-  switch (target->info->kind) {
-    case SPN_TARGET_KIND_LIB:
-    case SPN_TARGET_KIND_EXE: {
-      take = 1u << SPN_DEP_KIND_PACKAGE;
-      published = pkg->publishes.include;
-      host = pkg->pkg.host_deps;
-      break;
-    }
-    case SPN_TARGET_KIND_TOOL: {
-      take = 1u << SPN_DEP_KIND_TOOL;
-      published = pkg->publishes.include;
-      host = pkg->pkg.host_deps;
-      break;
-    }
-    case SPN_TARGET_KIND_EXAMPLE: {
-      take = 1u << SPN_DEP_KIND_PACKAGE;
-      host = pkg->pkg.host_deps;
-      spn_pkg_unit_t* self = SP_NULLPTR;
-      spn_try(si_add_package_unit_closure(u, pkg->build, pkg->resolved, &self));
-      si_da_push(u->mem, unit->edges, ((spn_pkg_edge_t) { .pkg = self }));
-      si_da_push(u->mem, unit->includes, self);
-      break;
-    }
-    case SPN_TARGET_KIND_TEST: {
-      take = (1u << SPN_DEP_KIND_PACKAGE) | (1u << SPN_DEP_KIND_TEST);
-      published = pkg->publishes.include;
-      host = pkg->pkg.host_deps;
-      break;
-    }
-    case SPN_TARGET_KIND_BUILD_METAPROGRAM: {
-      take = 1u << SPN_DEP_KIND_BUILD;
-      break;
-    }
-    case SPN_TARGET_KIND_CONFIGURE_METAPROGRAM: {
-      break;
-    }
+  const consumes_t* rule = &consumes[target->info->kind];
+  if (rule->self) {
+    spn_pkg_unit_t* self = SP_NULLPTR;
+    spn_try(si_add_package_unit_closure(u, pkg->build, pkg->resolved, &self));
+    si_da_push(u->mem, unit->edges, ((spn_pkg_edge_t) { .pkg = self }));
+    si_da_push(u->mem, unit->includes, self);
   }
   sp_da_for_ptr(pkg->resolved->edges, edge) {
-    if (!(take & (1u << edge->kind))) {
+    if (!(rule->take & (1u << edge->kind))) {
       continue;
     }
     spn_pkg_unit_t* dep = SP_NULLPTR;
@@ -291,22 +275,22 @@ spn_err_t si_add_target_unit(spn_units_t* u, spn_pkg_unit_t* pkg, si_target_t* t
       }
     }
   }
-  if (published) {
+  if (rule->published && pkg->publishes.include) {
     si_da_push(u->mem, unit->includes, pkg);
   }
 
-  append(u->mem, &unit->requires.libs, target->system_deps);
-  append(u->mem, &unit->requires.libs, pkg->pkg.system_deps);
-  append(u->mem, &unit->requires.libs, pkg->pkg.publish.system_deps);
-  append(u->mem, &unit->requires.frameworks, target->macos.frameworks);
-  append(u->mem, &unit->requires.frameworks, pkg->pkg.macos.frameworks);
-  append(u->mem, &unit->requires.frameworks, pkg->pkg.publish.frameworks);
-  si_da_for_value(unit->includes, dep) {
-    append(u->mem, &unit->requires.libs, dep->pkg.publish.system_deps);
-    append(u->mem, &unit->requires.frameworks, dep->pkg.publish.frameworks);
+  append(u->mem, &unit->requires, target->requires);
+  si_da_for_value(pkg->pkg.requires, require) {
+    if (require.kind == SPN_REQUIREMENT_HOST && !rule->host) {
+      continue;
+    }
+    si_da_push(u->mem, unit->requires, require);
   }
-  append(u->mem, &unit->requires.host, target->host_deps);
-  append(u->mem, &unit->requires.host, host);
+  si_da_for_value(unit->includes, dep) {
+    if (dep != pkg) {
+      append(u->mem, &unit->requires, dep->pkg.publish.requires);
+    }
+  }
 
   *result = unit;
   return SPN_OK;
