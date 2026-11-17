@@ -1552,13 +1552,13 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
               );
               break;
             }
-            case SPN_HOST_REFUSAL_SDK: {
+            case SPN_HOST_REFUSAL_TOOLCHAIN: {
               sp_tty_fmt(
                 &w,
-                "{.cyan} links host libraries ({.red}), but {.yellow} builds against a sysroot, which hides them",
+                "{.cyan} links host libraries ({.red}), which only exist for this machine, but toolchain {.yellow} doesn't build against this machine's libc",
                 sp_fmt_str(subject),
                 sp_fmt_str(libs),
-                sp_fmt_str(spn_triple_to_str(mem, err->target))
+                sp_fmt_str(err->toolchain)
               );
               break;
             }
@@ -2027,6 +2027,14 @@ static void render_event_extra(sp_tty_t* w, spn_event_t* event) {
         }
         case SPN_ERR_TARGET_ABI: {
           write_supported_targets(w, event->err.profile.targets);
+          break;
+        }
+        case SPN_ERR_TARGET_HOST_DEPS: {
+          list_t list = { .w = w, .label = sp_str_lit("toolchains that do"), .style = sp_fmt_style_green };
+          sp_da_for(event->err.host_deps.candidates, it) {
+            list_item(&list, event->err.host_deps.candidates[it]);
+          }
+          list_end(&list);
           break;
         }
         case SPN_ERR_TARGET_LINKAGE: {

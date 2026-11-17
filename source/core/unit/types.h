@@ -135,8 +135,13 @@ typedef struct {
 typedef struct {
   spn_cc_link_t cc;
   si_da(spn_link_dep_t) deps;
-  si_da(sp_str_t) host_libs;
 } spn_link_plan_t;
+
+typedef struct {
+  si_da(sp_str_t) libs;
+  si_da(sp_str_t) frameworks;
+  si_da(sp_str_t) host;
+} spn_requirements_t;
 
 typedef struct {
   spn_cc_archive_plan_t archive;
@@ -167,6 +172,7 @@ struct spn_target_unit {
   si_da(spn_pkg_unit_t*) includes;
 
   sp_da(spn_compile_unit_t*) objects;
+  spn_requirements_t requires;
   spn_link_plan_t link;
   spn_target_emit_t emit;
 };

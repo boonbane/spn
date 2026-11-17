@@ -912,7 +912,7 @@ sp_test_each(profile, resolve, test_t, tests, .setup = spn_test_ctx_setup) {
   if (spn_ld_linking(selected, demanded, &selection.linking)) {
     sp_must_eq(t, (u32)SPN_LINKING_REFUSAL_NONE, (u32)spn_ld_linking(selected, result.request, &selection.linking));
   }
-  spn_profile_finalize(&result, &selection);
+  spn_profile_finalize(&result, it->host, &selection);
   sp_expect_eq(t, (u32)it->expect.linking.linkage, (u32)result.linking.linkage);
   if (it->expect.linking.runtime) {
     sp_expect_eq(t, (u32)it->expect.linking.runtime, (u32)result.linking.runtime);
@@ -978,7 +978,7 @@ sp_test_each(profile, finalize, finalize_test_t, finalize_tests) {
   spn_profile_info_t profile = sp_zero;
   spn_toolchain_info_t info = { .driver = it->driver, .lld = it->lld };
   spn_toolchain_selection_t selection = { .toolchain = &info, .row.triple = it->target, .linking = it->linking };
-  spn_profile_finalize(&profile, &selection);
+  spn_profile_finalize(&profile, it->target, &selection);
   sp_expect_eq(t, (u32)it->expect.linking.linkage, (u32)profile.linking.linkage);
   sp_expect_eq(t, (u32)it->expect.linking.runtime, (u32)profile.linking.runtime);
   sp_expect_eq(t, (u32)it->expect.linking.libc, (u32)profile.linking.libc);

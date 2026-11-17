@@ -111,6 +111,7 @@ add_executable(core
   paths/stage.c
   paths/tree_path.c
   paths/tree_rel.c
+  profile/host.c
   profile/profile.c
   publish/publish.c
   queue/ops.c

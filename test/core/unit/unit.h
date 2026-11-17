@@ -18,6 +18,7 @@
 #define UNIT_TEST_MAX_ROOTS 2
 #define UNIT_TEST_MAX_NODES 2
 #define UNIT_TEST_MAX_OPTIONS 2
+#define UNIT_TEST_MAX_TOOLCHAINS 2
 
 #define static_only { .static_lib = true }
 #define shared_only { .shared = true }
@@ -82,9 +83,15 @@ typedef struct {
 } graph_pkg_t;
 
 typedef struct {
+  const c8* name;
+  bool host_row;
+} graph_toolchain_t;
+
+typedef struct {
   spn_os_t os;
   spn_abi_t abi;
-  spn_triple_t host;
+  spn_host_refusal_t host_refusal;
+  graph_toolchain_t catalog [UNIT_TEST_MAX_TOOLCHAINS];
   spn_cc_driver_t driver;
   spn_mode_t mode;
   spn_opt_level_t opt;

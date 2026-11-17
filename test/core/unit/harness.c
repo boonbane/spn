@@ -173,6 +173,7 @@ static spn_profile_info_t program_profile(units_t* u, const graph_t* g, const sp
     .linking.linkage = g->linkage,
     .linking.runtime = g->runtime,
     .linking.libc = g->libc,
+    .host_refusal = g->host_refusal,
   };
   spn_triple_t triple = profile.target;
   profile.linker = spn_ld_native(profile.driver, triple);
@@ -229,6 +230,7 @@ static void open_ctx(units_t* u, sp_test_t* t) {
     .heap = spn.heap,
     .intern = spn.intern,
     .env = spn.env,
+    .host = spn.host,
     .events = spn_event_buffer_new(mem),
   };
   sp_path_t storage = sp_path_join(mem, sp_test_dir(t), sp_str_lit("storage"));
@@ -256,10 +258,24 @@ units_t* units_new(sp_test_t* t, const graph_t* g) {
 
   spn_toolchain_info_t* info = toolchain_info(mem, g);
   spn_profile_info_t profile = program_profile(u, g, info);
-  u->ctx.host = g->host.os ? g->host : profile.target;
   spn_profile_info_t metaprogram = spn_profile_metaprogram();
   metaprogram.driver = profile.driver;
   metaprogram.linker = spn_ld_native(metaprogram.driver, metaprogram.target);
+  metaprogram.host_refusal = SPN_HOST_REFUSAL_SCRIPT;
+
+  spn_toolchain_catalog_init(&u->ctx.catalog, u->ctx.host, sp_zero_s(spn_sdk_host_t), mem);
+  sp_carr_for(g->catalog, it) {
+    if (!g->catalog[it].name) {
+      break;
+    }
+    sp_intern_str_t name = spn_intern_cstr(g->catalog[it].name);
+    spn_toolchain_decl_t decl = { .id = name.id, .name = name, .driver = SPN_CC_DRIVER_GCC, .host_row = g->catalog[it].host_row };
+    sp_da_init(mem, decl.targets);
+    if (!decl.host_row) {
+      sp_da_push(decl.targets, ((spn_toolchain_target_t) { .triple = profile.target }));
+    }
+    spn_toolchain_catalog_add(&u->ctx.catalog, decl);
+  }
 
   spn_path_t project = spn_path_from_root(SPN_PATH_ROOT_PROJECT);
   spn_toolchain_unit_t* toolchain = sp_alloc_type(mem, spn_toolchain_unit_t);

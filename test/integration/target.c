@@ -261,24 +261,19 @@ sp_test_each(target, rebuild, rebuild_test_t, rebuilds) {
 }
 
 sp_test(target, host_deps) {
-  const c8* triple = test_host_triple();
   return run_command_test(t, (command_test_t) {
     .project = "test/integration/fixtures/target/host_deps",
     .when = { .host = SPN_OS_LINUX, .host_libs = { "z" } },
-    .args = { "build", "--target", triple },
-    .expect.exists = { target_exe("main", triple) },
+    .args = { "build" },
+    .expect.exists = { exe("main") },
   });
 }
 
-sp_test(target, host_deps_cross_refused) {
-  const c8* triple = test_target_alternate();
-  if (!triple) {
-    return sp_test_skip(t, "lane has no cross target");
-  }
+sp_test(target, host_deps_refused_at_the_host_triple) {
   return run_command_test(t, (command_test_t) {
     .project = "test/integration/fixtures/target/host_deps",
-    .when.target = triple,
-    .args = { "build", "--target", triple },
+    .when = { .host = SPN_OS_LINUX, .driver = SPN_CC_DRIVER_ZIG },
+    .args = { "build", "--target", test_host_triple() },
     .expect = { .rc = 1, .err = SPN_ERR_TARGET_HOST_DEPS },
   });
 }

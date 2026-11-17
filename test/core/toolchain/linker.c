@@ -96,26 +96,6 @@ sp_test_each(linker, linking, linking_t, linking_tests) {
 
 typedef struct {
   const c8* name;
-  spn_triple_t host;
-  spn_triple_t target;
-  spn_sdk_kind_t sdk;
-  spn_host_refusal_t expect;
-} host_t;
-
-static const host_t host_tests [] = {
-  { "linux_host",             HOST_X64_LINUX, HOST_X64_LINUX },
-  { "abi_differs",            HOST_X64_LINUX, HOST_X64_LINUX_MUSL, .expect = SPN_HOST_REFUSAL_TARGET },
-  { "host_os_before_target",  HOST_ARM_MACOS, HOST_X64_LINUX,      .expect = SPN_HOST_REFUSAL_OS },
-  { "sysroot_hides_the_host", HOST_X64_LINUX, HOST_X64_LINUX,      SPN_SDK_SYSROOT, SPN_HOST_REFUSAL_SDK },
-};
-
-sp_test_each(linker, host, host_t, host_tests) {
-  sp_expect_eq(t, (u32)it->expect, (u32)spn_ld_host(it->host, it->target, it->sdk));
-  return SP_OK;
-}
-
-typedef struct {
-  const c8* name;
   spn_ld_family_t family;
   spn_obj_format_t format;
   bool expect;

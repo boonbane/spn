@@ -317,7 +317,7 @@ static spn_err_t lane_selects(sp_mem_t mem, const test_when_t* when, spn_triple_
   }
   spn_event_buffer_drain(mem, spn.events);
   if (!err) {
-    spn_profile_finalize(profile, selection);
+    spn_profile_finalize(profile, spn_host_detect(), selection);
   }
   return err;
 }
@@ -401,6 +401,12 @@ sp_str_t test_when_blocked(test_when_t when) {
       sp_fmt_str(spn_triple_to_str(mem, target)),
       sp_fmt_str(request),
       sp_fmt_cstr(select_reason(select))).value;
+  }
+  if (when.host_libs[0] && profile.host_refusal) {
+    return sp_fmt(mem, "{} can't link host libraries for {}: {}",
+      sp_fmt_cstr(toolchain->name),
+      sp_fmt_str(spn_triple_to_str(mem, target)),
+      sp_fmt_str(spn_host_refusal_to_str(profile.host_refusal))).value;
   }
   if (when.linker && when.linker != profile.linker) {
     return sp_fmt(mem, "{} links {} with {}, test needs {}",

@@ -21,7 +21,6 @@ typedef struct {
   const c8* script;
   const c8* libc;
   spn_os_version_t min_os;
-  bool native;
   spn_win_subsystem_t subsystem;
   render_expect_t expect;
 } link_test_t;
@@ -42,32 +41,6 @@ static const link_test_t tests [] = {
         "-lm",
         "-Wl,-rpath,$ORIGIN", "-o", "main"
       },
-    },
-  },
-  {
-    .name = "zig_linux_native",
-    .driver = SPN_CC_DRIVER_ZIG,
-    .profile = {
-      .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU },
-    },
-    .kind = SPN_CC_OUTPUT_EXE,
-    .native = true,
-    .expect = {
-      .command = "cc",
-      .args = { "--target=x86_64-native", "main.o", "-Wl,-rpath,$ORIGIN", "-o", "main" },
-    },
-  },
-  {
-    .name = "clang_linux_native",
-    .driver = SPN_CC_DRIVER_CLANG,
-    .profile = {
-      .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU },
-    },
-    .kind = SPN_CC_OUTPUT_EXE,
-    .native = true,
-    .expect = {
-      .command = "cc",
-      .args = { "--target=x86_64-linux-gnu", "main.o", "-Wl,-rpath,$ORIGIN", "-o", "main" },
     },
   },
   {
@@ -1058,7 +1031,6 @@ sp_test_each(render_link, render, link_test_t, tests, .setup = spn_test_ctx_setu
     .lang = SPN_LANG_C,
     .kind = it->kind,
     .min_os = it->min_os,
-    .native = it->native,
     .subsystem = it->subsystem,
   };
   spn_cc_link_files_t files = { .output = test_arg_path("main") };

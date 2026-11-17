@@ -450,19 +450,17 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
         .lang = link->cc.lang,
         .system_libs = link->cc.system_libs,
         .min_os = link->cc.min_os,
-        .native = link->cc.native,
       };
       spn_zig_stub_t stub = spn_zig_stub(b->mem, &build->profile, &stub_link);
 
       spn_digest_ctx_t warm_digest = sp_zero;
       spn_digest_init(&warm_digest);
-      spn_dag_hash_str(&warm_digest, sp_str_lit("spn.build.warm.v2"));
+      spn_dag_hash_str(&warm_digest, sp_str_lit("spn.build.warm.v1"));
       spn_dag_hash_u64(&warm_digest, toolchain->identity);
       spn_dag_hash_u64(&warm_digest, toolchain->generation);
       spn_dag_hash_u8(&warm_digest, (u8)stub.triple.arch);
       spn_dag_hash_u8(&warm_digest, (u8)stub.triple.os);
       spn_dag_hash_u8(&warm_digest, (u8)stub.triple.abi);
-      spn_dag_hash_u8(&warm_digest, (u8)stub.native);
       spn_dag_hash_u64(&warm_digest, stub.min_os.major);
       spn_dag_hash_u64(&warm_digest, stub.min_os.minor);
       spn_dag_hash_u8(&warm_digest, (u8)stub.kind);

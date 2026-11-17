@@ -88,14 +88,15 @@ spn_err_t spn_session_init(spn_session_t* s, spn_ctx_t* ctx, sp_mem_t mem, spn_p
   spn_try(spn_profile_query(&profile, ctx->host, &query));
   spn_toolchain_selection_t target = sp_zero;
   spn_try(spn_toolchain_select(&ctx->catalog, query, &target));
-  spn_profile_finalize(&profile, &target);
+  spn_profile_finalize(&profile, ctx->host, &target);
 
   spn_profile_info_t metaprogram = spn_profile_metaprogram();
   spn_toolchain_query_t metaprogram_query = sp_zero;
   spn_try(spn_profile_query(&metaprogram, ctx->host, &metaprogram_query));
   spn_toolchain_selection_t script = sp_zero;
   spn_try(spn_toolchain_select(&ctx->catalog, metaprogram_query, &script));
-  spn_profile_finalize(&metaprogram, &script);
+  spn_profile_finalize(&metaprogram, ctx->host, &script);
+  metaprogram.host_refusal = SPN_HOST_REFUSAL_SCRIPT;
 
   struct { spn_path_t build; spn_path_t metabuild; } roots = {
     .build = spn_path_join(s->mem, s->paths.build, spn_profile_build_dir(s->mem, &profile)),

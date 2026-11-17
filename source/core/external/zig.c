@@ -102,7 +102,6 @@ static si_da(sp_str_t) canonical_libs(sp_mem_t mem, si_da(sp_str_t) libs) {
 spn_zig_stub_t spn_zig_stub(sp_mem_t mem, const spn_profile_info_t* profile, const spn_cc_link_t* link) {
   spn_zig_stub_t stub = {
     .triple = profile->target,
-    .native = link->native,
     .kind = link->kind,
     .lang = link->lang,
     .is_static = spn_gnu_link_static(profile, link->kind),
@@ -134,9 +133,6 @@ sp_str_t spn_zig_stub_name(sp_mem_t mem, const spn_zig_stub_t* stub) {
   sp_mem_arena_marker_t s = sp_mem_begin_scratch_for(mem);
   sp_da(sp_str_t) parts = sp_da_new(s.mem, sp_str_t);
   sp_da_push(parts, spn_triple_to_str(s.mem, stub->triple));
-  if (stub->native) {
-    sp_da_push(parts, sp_str_lit("native"));
-  }
   if (stub->min_os.major || stub->min_os.minor) {
     sp_da_push(parts, sp_fmt(s.mem, "{}.{}", sp_fmt_uint(stub->min_os.major), sp_fmt_uint(stub->min_os.minor)).value);
   }

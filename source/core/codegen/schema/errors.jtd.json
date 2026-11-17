@@ -225,12 +225,14 @@
         "reason": { "ref": "linking_refusal" }
       }
     },
-    "host_refusal": { "enum": ["none", "os", "target", "sdk", "script"] },
+    "host_refusal": { "enum": ["none", "os", "target", "toolchain", "script"] },
     "host_deps": {
       "properties": {
         "pkg": { "type": "string" },
         "name": { "type": "string" },
         "libs": { "elements": { "type": "string" } },
+        "toolchain": { "type": "string" },
+        "candidates": { "elements": { "type": "string" } },
         "target": { "metadata": { "extern": "triple" } },
         "host": { "metadata": { "extern": "triple" } },
         "reason": { "ref": "host_refusal" }

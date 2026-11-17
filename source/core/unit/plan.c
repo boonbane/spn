@@ -136,9 +136,12 @@ static spn_exports_plan_t render_exports(sp_mem_t mem, const spn_cc_t* toolchain
   };
 }
 
-static void plan_target(spn_units_t* u, spn_target_unit_t* unit) {
+static spn_err_t lower_target(spn_units_t* u, spn_target_unit_t* unit) {
   spn_pkg_unit_t* pkg = unit->pkg;
+  spn_build_unit_t* build = pkg->build;
   si_target_t* target = unit->target;
+  spn_profile_info_t* profile = &build->profile;
+  spn_cc_t* toolchain = &build->toolchain->cc;
   sp_mem_t mem = u->mem;
 
   switch (target->info->kind) {
@@ -178,18 +181,11 @@ static void plan_target(spn_units_t* u, spn_target_unit_t* unit) {
     },
   };
   link->cc.min_os = max_os_version(link->cc.min_os, pkg->pkg.manifest->macos.min_os);
-  push_unique(mem, &link->cc.frameworks, target->macos.frameworks);
-  push_unique(mem, &link->cc.frameworks, pkg->pkg.macos.frameworks);
-  push_unique(mem, &link->cc.frameworks, pkg->pkg.publish.frameworks);
-  push_unique(mem, &link->cc.system_libs, target->system_deps);
-  push_unique(mem, &link->cc.system_libs, pkg->pkg.system_deps);
-  push_unique(mem, &link->cc.system_libs, pkg->pkg.publish.system_deps);
-  si_da_for_value(unit->includes, dep) {
-    push_unique(mem, &link->cc.frameworks, dep->pkg.publish.frameworks);
-    push_unique(mem, &link->cc.system_libs, dep->pkg.publish.system_deps);
-  }
-  push_unique(mem, &link->host_libs, target->host_deps);
-  push_unique(mem, &link->host_libs, pkg->pkg.host_deps);
+  si_da(sp_str_t) host = sp_zero;
+  si_da(sp_str_t) libs = sp_zero;
+  push_unique(scratch.mem, &host, unit->requires.host);
+  push_unique(scratch.mem, &libs, unit->requires.libs);
+  push_unique(mem, &link->cc.frameworks, unit->requires.frameworks);
   si_da_rfor(entries, et) {
     si_closure_entry_t* entry = &entries[et];
     switch (entry->yield) {
@@ -215,18 +211,9 @@ static void plan_target(spn_units_t* u, spn_target_unit_t* unit) {
             if (is_any_object_cxx(lib->objects)) {
               link->cc.lang = SPN_LANG_CXX;
             }
-            push_unique(mem, &link->cc.frameworks, lib->pkg->pkg.macos.frameworks);
-            push_unique(mem, &link->cc.frameworks, lib->target->macos.frameworks);
-            push_unique(mem, &link->cc.system_libs, lib->pkg->pkg.system_deps);
-            push_unique(mem, &link->cc.system_libs, lib->target->system_deps);
-            push_unique(mem, &link->cc.frameworks, lib->pkg->pkg.publish.frameworks);
-            push_unique(mem, &link->cc.system_libs, lib->pkg->pkg.publish.system_deps);
-            si_da_for_value(lib->includes, dep) {
-              push_unique(mem, &link->cc.frameworks, dep->pkg.publish.frameworks);
-              push_unique(mem, &link->cc.system_libs, dep->pkg.publish.system_deps);
-            }
-            push_unique(mem, &link->host_libs, lib->pkg->pkg.host_deps);
-            push_unique(mem, &link->host_libs, lib->target->host_deps);
+            push_unique(scratch.mem, &host, lib->requires.host);
+            push_unique(scratch.mem, &libs, lib->requires.libs);
+            push_unique(mem, &link->cc.frameworks, lib->requires.frameworks);
             break;
           }
           case SPN_LIB_KIND_NONE: sp_unreachable_case();
@@ -235,31 +222,12 @@ static void plan_target(spn_units_t* u, spn_target_unit_t* unit) {
       }
     }
   }
-  sp_mem_end_scratch(scratch);
+  push_unique(mem, &link->cc.system_libs, host);
+  push_unique(mem, &link->cc.system_libs, libs);
 
-  if (!si_da_empty(link->host_libs)) {
-    si_da(sp_str_t) libs = SP_NULLPTR;
-    push_unique(mem, &libs, link->host_libs);
-    push_unique(mem, &libs, link->cc.system_libs);
-    link->cc.system_libs = libs;
-    link->cc.native = true;
-  }
-}
-
-static spn_err_t lower_target(spn_units_t* u, spn_target_unit_t* unit) {
-  spn_pkg_unit_t* pkg = unit->pkg;
-  spn_build_unit_t* build = pkg->build;
-  si_target_t* target = unit->target;
-  spn_profile_info_t* profile = &build->profile;
-  spn_cc_t* toolchain = &build->toolchain->cc;
-  spn_link_plan_t* link = &unit->link;
-  sp_mem_t mem = u->mem;
-
-  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   spn_cc_compile_t compile = {
     .cxx = target->info->cxx,
     .pic = target->info->kind == SPN_TARGET_KIND_LIB && spn_ld_dynamic(profile->target) && spn_os_to_native_object_format(profile->target.os) != SPN_OBJ_COFF,
-    .native = link->cc.native,
   };
   if (profile->target.os == SPN_OS_MACOS) {
     compile.min_os = link->cc.min_os;
@@ -480,41 +448,65 @@ static spn_err_t plan_new(spn_units_t* u, sp_mem_t scratch, spn_pkg_unit_t* root
   }
 
   si_da_for_value(plan->targets, target) {
-    plan_target(u, target);
+    spn_pkg_unit_t* pkg = target->pkg;
+    spn_requirements_t requires = sp_zero;
+    push_unique(u->mem, &requires.libs, target->target->system_deps);
+    push_unique(u->mem, &requires.libs, pkg->pkg.system_deps);
+    push_unique(u->mem, &requires.libs, pkg->pkg.publish.system_deps);
+    push_unique(u->mem, &requires.frameworks, target->target->macos.frameworks);
+    push_unique(u->mem, &requires.frameworks, pkg->pkg.macos.frameworks);
+    push_unique(u->mem, &requires.frameworks, pkg->pkg.publish.frameworks);
+    si_da_for_value(target->includes, dep) {
+      push_unique(u->mem, &requires.libs, dep->pkg.publish.system_deps);
+      push_unique(u->mem, &requires.frameworks, dep->pkg.publish.frameworks);
+    }
+    push_unique(u->mem, &requires.host, target->target->host_deps);
+    switch (target->target->info->kind) {
+      case SPN_TARGET_KIND_LIB:
+      case SPN_TARGET_KIND_EXE:
+      case SPN_TARGET_KIND_SCRIPT:
+      case SPN_TARGET_KIND_TEST:
+      case SPN_TARGET_KIND_EXAMPLE: {
+        push_unique(u->mem, &requires.host, pkg->pkg.host_deps);
+        break;
+      }
+      case SPN_TARGET_KIND_CONFIGURE_METAPROGRAM:
+      case SPN_TARGET_KIND_BUILD_METAPROGRAM: {
+        break;
+      }
+    }
+    target->requires = requires;
   }
 
   si_da_for_value(plan->targets, target) {
-    if (si_da_empty(target->target->host_deps) && si_da_empty(target->pkg->pkg.host_deps)) {
+    spn_build_unit_t* build = target->pkg->build;
+    if (si_da_empty(target->requires.host) || !build->profile.host_refusal) {
       continue;
     }
-    spn_build_unit_t* build = target->pkg->build;
-    spn_host_refusal_t refusal = build->metabuild ? spn_ld_host(u->ctx->host, build->profile.target, build->profile.sdk.kind) : SPN_HOST_REFUSAL_SCRIPT;
-    if (refusal) {
-      return spn_err_emit(u->ctx, (spn_err_union_t) {
-        .kind = SPN_ERR_TARGET_HOST_DEPS,
-        .host_deps = {
-          .pkg = target->pkg->pkg.manifest->name.str,
-          .name = target->target->info->name.str,
-          .libs = target->link.host_libs,
-          .target = build->profile.target,
-          .host = u->ctx->host,
-          .reason = refusal,
-        },
-      });
-    }
-  }
-
-  bool spread = true;
-  while (spread) {
-    spread = false;
-    si_da_for_value(plan->targets, target) {
-      si_da_for_ptr(target->link.deps, dep) {
-        if (dep->role == SPN_LINK_ROLE_SHARED && dep->lib->link.cc.native && !target->link.cc.native) {
-          target->link.cc.native = true;
-          spread = true;
+    sp_da(sp_str_t) candidates = sp_da_new(u->ctx->events->mem, sp_str_t);
+    if (build->profile.host_refusal == SPN_HOST_REFUSAL_TOOLCHAIN) {
+      si_om_for(u->ctx->catalog.entries, et) {
+        spn_toolchain_info_t* entry = si_om_at(u->ctx->catalog.entries, et);
+        sp_da_for(entry->rows, rt) {
+          if (entry->rows[rt].host && entry->support.kind != SPN_TOOLCHAIN_SUPPORT_NONE) {
+            sp_da_push(candidates, entry->name.str);
+          }
         }
       }
     }
+    return spn_err_emit(u->ctx, (spn_err_union_t) {
+      .kind = SPN_ERR_TARGET_HOST_DEPS,
+      .host_deps = {
+        .pkg = target->pkg->pkg.manifest->name.str,
+        .name = target->target->info->name.str,
+        .libs = target->requires.host,
+        .toolchain = build->toolchain->info->name.str,
+        .candidates = candidates,
+        .target = build->profile.target,
+        .host = u->ctx->host,
+        .reason = build->profile.host_refusal,
+      },
+    });
   }
 
   si_da_for_value(plan->targets, target) {

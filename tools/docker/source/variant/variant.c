@@ -32,16 +32,6 @@ static const distro_info_t distros [] = {
     .packages = "ca-certificates git",
     .label = "musl, busybox /bin/sh",
   },
-  [DISTRO_FEDORA] = {
-    .template = "fedora",
-    .packages = "ca-certificates git",
-    .label = "glibc, lib64",
-  },
-  [DISTRO_ARCH] = {
-    .template = "arch",
-    .packages = "ca-certificates git",
-    .label = "glibc, /usr/lib",
-  },
 };
 
 const sysroot_t sysroots [] = {
@@ -297,49 +287,6 @@ const variant_t variants [] = {
     .check = LANE_ZIG,
     .lanes = { LANE_ZIG },
   },
-  {
-    .name = "debian-zig-host",
-    .distro = DISTRO_DEBIAN,
-    .compilers = COMPILER_GCC,
-    .check = LANE_ZIG,
-    .extra = { "zlib1g-dev" },
-    .host_libs = { "z" },
-    .lanes = { LANE_ZIG },
-  },
-  {
-    .name = "debian-zig-host-bare",
-    .distro = DISTRO_DEBIAN,
-    .check = LANE_ZIG,
-    .extra = { "zlib1g-dev" },
-    .host_libs = { "z" },
-    .lanes = { LANE_ZIG },
-  },
-  {
-    .name = "fedora-zig-host",
-    .distro = DISTRO_FEDORA,
-    .compilers = COMPILER_GCC,
-    .check = LANE_ZIG,
-    .extra = { "zlib-devel" },
-    .host_libs = { "z" },
-    .lanes = { LANE_ZIG },
-  },
-  {
-    .name = "arch-zig-host",
-    .distro = DISTRO_ARCH,
-    .compilers = COMPILER_GCC,
-    .check = LANE_ZIG,
-    .extra = { "zlib" },
-    .host_libs = { "z" },
-    .lanes = { LANE_ZIG },
-  },
-  {
-    .name = "alpine-zig-host",
-    .distro = DISTRO_ALPINE,
-    .check = LANE_ZIG,
-    .extra = { "zlib-dev", "zlib-static" },
-    .host_libs = { "z" },
-    .lanes = { LANE_ZIG },
-  },
 };
 
 const u32 num_variants = sp_carr_len(variants);
@@ -376,15 +323,6 @@ static const c8* packages(distro_t distro, compiler_t compiler) {
         case COMPILER_GCC:   return "gcc musl-dev binutils";
         case COMPILER_GXX:   return "g++";
         case COMPILER_CLANG: return "clang musl-dev gcc binutils";
-      }
-      break;
-    }
-    case DISTRO_FEDORA:
-    case DISTRO_ARCH: {
-      switch (compiler) {
-        case COMPILER_GCC:   return "gcc";
-        case COMPILER_GXX:   break;
-        case COMPILER_CLANG: break;
       }
       break;
     }

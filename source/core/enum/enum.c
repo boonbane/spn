@@ -468,8 +468,8 @@ sp_str_t spn_host_refusal_to_str(spn_host_refusal_t refusal) {
     case SPN_HOST_REFUSAL_TARGET: {
       return sp_str_lit("target");
     }
-    case SPN_HOST_REFUSAL_SDK: {
-      return sp_str_lit("sdk");
+    case SPN_HOST_REFUSAL_TOOLCHAIN: {
+      return sp_str_lit("toolchain");
     }
     case SPN_HOST_REFUSAL_SCRIPT: {
       return sp_str_lit("script");

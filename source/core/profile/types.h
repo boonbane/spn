@@ -28,6 +28,7 @@ struct spn_profile_info {
   bool targeted;
   spn_sdk_t sdk;
   sp_opt(spn_libc_t) libc;
+  spn_host_refusal_t host_refusal;
 };
 
 typedef struct {

@@ -12,7 +12,6 @@ typedef struct {
   spn_runtime_t libc;
   const c8* libs [STUB_TEST_MAX_LIBS];
   spn_os_version_t min_os;
-  bool native;
 } link_t;
 
 typedef struct {
@@ -20,7 +19,6 @@ typedef struct {
   bool sdk;
   const c8* libs [STUB_TEST_MAX_LIBS];
   spn_os_version_t min_os;
-  bool native;
 } expect_t;
 
 typedef struct {
@@ -110,12 +108,6 @@ static const test_t tests [] = {
     .triple = LINUX_MUSL,
     .link = { SPN_CC_OUTPUT_EXE, SPN_LANG_C, .min_os = { 12, 1 } },
   },
-  {
-    .name = "native_keyed",
-    .triple = LINUX_MUSL,
-    .link = { SPN_CC_OUTPUT_EXE, SPN_LANG_C, .native = true },
-    .expect = { .native = true },
-  },
 };
 
 sp_test_each(zig_stubs, tuple, test_t, tests) {
@@ -133,7 +125,6 @@ sp_test_each(zig_stubs, tuple, test_t, tests) {
     .kind = it->link.kind,
     .lang = it->link.lang,
     .min_os = it->link.min_os,
-    .native = it->link.native,
   };
   u32 libs = 0;
   sp_carr_detect_len(it->link.libs, libs, it->link.libs[libs]);
@@ -150,7 +141,6 @@ sp_test_each(zig_stubs, tuple, test_t, tests) {
   sp_expect_eq(t, stub.sdk != 0, it->expect.sdk);
   sp_expect_eq(t, stub.min_os.major, it->expect.min_os.major);
   sp_expect_eq(t, stub.min_os.minor, it->expect.min_os.minor);
-  sp_expect_eq(t, stub.native, it->expect.native);
 
   u32 expected = 0;
   sp_carr_detect_len(it->expect.libs, expected, it->expect.libs[expected]);

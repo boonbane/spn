@@ -80,15 +80,6 @@ static const test_t tests [] = {
     .expect.args = { { "-DX" } },
   },
   {
-    .name = "host_deps_compile_for_the_host",
-    .graph = {
-      .driver = SPN_CC_DRIVER_ZIG,
-      .pkgs = { { .name = "P", .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "a.c" }, .host_deps = { "H" } } } } },
-    },
-    .root = { "A", SPN_TARGET_KIND_EXE },
-    .expect.args = { { "--target=x86_64-native" } },
-  },
-  {
     .name = "libs_are_pic",
     .graph.pkgs = { { .name = "P", .targets = { { "A", static_only, .source = { "a.c" } } } } },
     .root = { "A", SPN_TARGET_KIND_LIB },
