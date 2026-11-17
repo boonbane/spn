@@ -18,6 +18,8 @@
   #define SP_EAGAIN EAGAIN
 #endif
 
+#define sp_fs_copy_buffer_size (64 * 1024)
+
 s32 sp_sys_flock(sp_sys_fd_t fd, s32 op) {
 #if defined(SP_WIN32)
   OVERLAPPED overlapped = sp_zero;
@@ -132,4 +134,48 @@ sp_err_t sp_fs_set_writable(sp_path_t path) {
   sp_try(sp_sys_get_path_metadata_s(path.dir, path.sub, &meta));
   sp_sys_set_read_only(&meta.perms, false);
   return sp_sys_set_file_perms_s(path.dir, path.sub, meta.perms);
+}
+
+sp_err_t sp_fs_copy_file_buffered_at(sp_path_t from, sp_path_t to, sp_fs_atomic_mode_t mode) {
+  sp_io_file_reader_t reader = sp_zero;
+  sp_try(sp_io_file_reader_from_path_at(&reader, from));
+
+  sp_sys_file_meta_t meta = sp_zero;
+  sp_err_t err = sp_sys_get_file_metadata(reader.file, &meta);
+  if (!err && meta.kind != SP_FS_KIND_FILE) {
+    err = meta.kind == SP_FS_KIND_DIR ? SP_ERR_SYS_IS_DIR : SP_ERR_SYS_UNSUPPORTED;
+  }
+
+  sp_fs_atomic_t af = sp_zero;
+  if (!err) {
+    err = sp_fs_atomic_open_at(&af, to);
+  }
+  if (err) {
+    sp_io_file_reader_close(&reader);
+    return err;
+  }
+
+  sp_mem_arena_marker_t s = sp_mem_begin_scratch();
+  sp_io_writer_t* writer = sp_fs_atomic_writer(&af);
+  sp_io_reader_set_buffer(&reader.base, sp_alloc_n(s.mem, u8, sp_fs_copy_buffer_size), sp_fs_copy_buffer_size);
+  err = sp_io_writer_set_buffer(writer, sp_alloc_n(s.mem, u8, sp_fs_copy_buffer_size), sp_fs_copy_buffer_size);
+  if (!err) {
+    err = sp_io_copy(writer, &reader.base, SP_NULLPTR);
+  }
+  sp_io_file_reader_close(&reader);
+
+  if (!err) {
+    err = sp_sys_set_file_perms_s(af.dir, af.temp, meta.perms);
+    if (err == SP_ERR_SYS_UNSUPPORTED) {
+      err = SP_OK;
+    }
+  }
+  if (err) {
+    sp_fs_atomic_abort(&af);
+  }
+  else {
+    err = sp_fs_atomic_commit(&af, mode);
+  }
+  sp_mem_end_scratch(s);
+  return err;
 }

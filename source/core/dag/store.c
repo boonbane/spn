@@ -701,7 +701,7 @@ spn_err_t spn_dag_store_put_file(spn_dag_store_t* store, sp_path_t path, sp_str_
       sp_sys_file_meta_t meta = sp_zero;
       if (sp_fs_get_link_metadata_at(blob, &meta) || meta.kind != SP_FS_KIND_FILE) {
         sp_fs_create_dir_at(get_blob_dir_at(store, s.mem, *digest));
-        if (sp_fs_create_hard_link_at(path, blob) && sp_fs_copy_file_at(path, blob, SP_FS_ATOMIC_REPLACE)) {
+        if (sp_fs_create_hard_link_at(path, blob) && sp_fs_copy_file_buffered_at(path, blob, SP_FS_ATOMIC_REPLACE)) {
           err = SPN_ERR_DAG_STORE_WRITE;
         }
         if (!err && sp_fs_set_readonly(blob)) {
@@ -739,40 +739,6 @@ spn_err_t spn_dag_store_locate(spn_dag_store_t* store, sp_mem_t mem, spn_dag_dig
   }
 
   SP_UNREACHABLE_RETURN(SPN_ERROR);
-}
-
-bool spn_dag_store_owns(spn_dag_store_t* store, spn_dag_digest_t digest, sp_str_t name, sp_sys_file_meta_t file) {
-  switch (store->kind) {
-    case SPN_DAG_STORE_MEM: {
-      return false;
-    }
-    case SPN_DAG_STORE_FILESYSTEM: {
-      sp_mem_arena_marker_t s = sp_mem_begin_scratch();
-      sp_path_t at = get_blob_at(store, s.mem, digest, name);
-      sp_sys_file_meta_t blob = sp_zero;
-      sp_err_t rc = sp_sys_get_path_metadata_s(at.dir, at.sub, &blob);
-      sp_mem_end_scratch(s);
-      return !rc && blob.device == file.device && blob.id == file.id;
-    }
-  }
-
-  SP_UNREACHABLE_RETURN(false);
-}
-
-void spn_dag_store_drop(spn_dag_store_t* store, spn_dag_digest_t digest, sp_str_t name) {
-  switch (store->kind) {
-    case SPN_DAG_STORE_MEM: {
-      sp_mutex_lock(&store->mutex);
-      sp_ht_erase(store->blobs, digest);
-      sp_mutex_unlock(&store->mutex);
-      break;
-    }
-    case SPN_DAG_STORE_FILESYSTEM: {
-      sp_str_buf_t buf = sp_zero;
-      sp_fs_remove_dir_at(get_blob_dir_at(store, sp_str_buf_as_mem(&buf), digest));
-      break;
-    }
-  }
 }
 
 void spn_dag_store_touch(spn_dag_store_t* store, spn_dag_digest_t digest) {
@@ -830,18 +796,8 @@ spn_err_t spn_dag_store_materialize(spn_dag_store_t* store, spn_dag_digest_t dig
     case SPN_DAG_STORE_FILESYSTEM: {
       sp_mem_arena_marker_t s = sp_mem_begin_scratch();
       sp_path_t stored = get_blob_at(store, s.mem, digest, name);
-      sp_path_t staged = spn_path_at(store->roots, spn_path_concat(s.mem, path, ".tmp"));
       sp_fs_create_parent_at(spn_path_at(store->roots, path));
-      sp_err_t rc = sp_fs_create_hard_link_at(stored, staged);
-      if (rc) {
-        rc = sp_fs_copy_file_at(stored, target, SP_FS_ATOMIC_REPLACE);
-      }
-      else {
-        rc = sp_sys_rename_s(staged.dir, staged.sub, target.dir, target.sub);
-        if (rc) {
-          sp_fs_remove_file_at(staged);
-        }
-      }
+      sp_err_t rc = sp_fs_copy_file_buffered_at(stored, target, SP_FS_ATOMIC_REPLACE);
       sp_mem_end_scratch(s);
       switch (rc) {
         case SP_OK:                return SPN_OK;

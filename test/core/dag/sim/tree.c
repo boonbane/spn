@@ -19,7 +19,7 @@ typedef struct {
   file_t files [DAG_TEST_MAX_OUTPUTS];
   bool remove_target;
   file_t write [DAG_TEST_MAX_OUTPUTS];
-  file_t poison;
+  file_t overwrite;
   expect_t expect;
 } run_t;
 
@@ -48,7 +48,7 @@ static const test_t tests [] = {
     }
   },
   {
-    .name = "deleted_target_relinked",
+    .name = "deleted_target_restored",
     .runs = {
       { .identity = "I", .files = { { "X.h", "A" } }, .expect = { .runs = 1, .hashes = 1 } },
       { .identity = "I", .files = { { "X.h", "A" } }, .remove_target = true, .expect = { .runs = 1, .files = { { "X.h", "A" } } } },
@@ -62,7 +62,7 @@ static const test_t tests [] = {
     }
   },
   {
-    .name = "replaced_entry_hashed_once_and_relinked",
+    .name = "replaced_entry_hashed_once_and_restored",
     .runs = {
       { .identity = "I", .files = { { "X.h", "A" }, { "B/Y.h", "B" } }, .expect = { .runs = 1, .hashes = 2 } },
       { .identity = "I", .files = { { "X.h", "A" }, { "B/Y.h", "B" } }, .write = { { "X.h", "T" } }, .expect = { .runs = 1, .hashes = 1, .files = { { "X.h", "A" } }, .kept = { "B/Y.h" } } },
@@ -97,10 +97,10 @@ static const test_t tests [] = {
     }
   },
   {
-    .name = "poisoned_blob_dropped_and_rerun",
+    .name = "overwritten_entry_restored_without_rerun",
     .runs = {
       { .identity = "I", .files = { { "X.h", "A" } }, .expect = { .runs = 1, .hashes = 1 } },
-      { .identity = "I", .files = { { "X.h", "A" } }, .poison = { "X.h", "T" }, .expect = { .runs = 2, .hashes = 2, .files = { { "X.h", "A" } } } },
+      { .identity = "I", .files = { { "X.h", "A" } }, .overwrite = { "X.h", "T" }, .expect = { .runs = 1, .hashes = 1, .files = { { "X.h", "A" } } } },
     }
   },
   {
@@ -154,10 +154,10 @@ sp_test_each(dag_tree, exec, test_t, tests) {
       }
       dag_test_create(sp_path_join(mem, target, sp_cstr_as_str(run->write[wt].path)), sp_cstr_as_str(run->write[wt].content));
     }
-    if (run->poison.path) {
-      sp_path_t path = sp_path_join(mem, target, sp_cstr_as_str(run->poison.path));
+    if (run->overwrite.path) {
+      sp_path_t path = sp_path_join(mem, target, sp_cstr_as_str(run->overwrite.path));
       sp_must_ok(t, sp_fs_set_writable(path));
-      sp_must_ok(t, sp_fs_write_at(path, sp_cstr_as_str(run->poison.content), SP_FS_WRITE_TRUNCATE));
+      sp_must_ok(t, sp_fs_write_at(path, sp_cstr_as_str(run->overwrite.content), SP_FS_WRITE_TRUNCATE));
     }
 
     sp_sys_file_meta_t before [DAG_TEST_MAX_OUTPUTS] = sp_zero;

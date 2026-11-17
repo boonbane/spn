@@ -11,7 +11,6 @@ typedef struct {
   sp_fs_kind_t kind;
   sp_sys_timespec_t used;
   u64 bytes;
-  bool linked;
 } item_t;
 
 static s32 item_order(const void* a, const void* b) {
@@ -26,7 +25,7 @@ static s32 item_order(const void* a, const void* b) {
   return 0;
 }
 
-static void collect(sp_mem_t mem, sp_path_t dir, sp_da(item_t)* items) {
+static void collect(sp_mem_t mem, sp_path_t dir, si_da(item_t)* items) {
   sp_sys_dir_t root = sp_zero;
   if (sp_fs_open_dir_at(dir, &root)) {
     return;
@@ -41,16 +40,14 @@ static void collect(sp_mem_t mem, sp_path_t dir, sp_da(item_t)* items) {
       continue;
     }
     if (sp_str_find_c8(entry.path, '/') == SP_STR_NO_MATCH) {
-      sp_da_push(*items, ((item_t) {
+      si_da_push(mem, *items, ((item_t) {
         .path = sp_path_join(mem, dir, entry.path),
         .kind = meta.kind,
         .used = meta.mtime,
       }));
     }
     if (meta.kind == SP_FS_KIND_FILE) {
-      item_t* item = sp_da_back(*items);
-      item->bytes += sp_align_offset((u64)meta.size, sweep_block_size);
-      item->linked |= meta.nlink > 1;
+      si_da_back(*items)->bytes += sp_align_offset((u64)meta.size, sweep_block_size);
     }
   }
   sp_fs_it_deinit(&walk);
@@ -58,31 +55,26 @@ static void collect(sp_mem_t mem, sp_path_t dir, sp_da(item_t)* items) {
 }
 
 spn_dag_sweep_t spn_dag_sweep(sp_mem_t mem, const spn_path_roots_t* roots, const spn_dag_layout_t* layout, spn_dag_sweep_limits_t limits) {
-  sp_da(item_t) items = sp_da_new(mem, item_t);
+  si_da(item_t) items = SP_NULLPTR;
   collect(mem, spn_path_at(roots, layout->strong), &items);
   collect(mem, spn_path_at(roots, layout->weak), &items);
   collect(mem, spn_path_at(roots, layout->store), &items);
 
   spn_dag_sweep_t sweep = sp_zero;
-  sp_da_for(items, it) {
-    if (!items[it].linked) {
-      sweep.bytes += items[it].bytes;
-    }
+  si_da_for(items, it) {
+    sweep.bytes += items[it].bytes;
   }
   if (sweep.bytes <= limits.max_bytes) {
     return sweep;
   }
 
-  sp_da_sort(items, item_order);
+  si_da_sort(items, item_order);
   u64 now = sp_tm_now_epoch().s;
-  sp_da_for(items, it) {
+  si_da_for(items, it) {
     item_t* item = &items[it];
     u64 used = (u64)item->used.tv_sec;
     if (sweep.bytes - sweep.freed <= limits.keep_bytes || used > now || now - used < limits.min_age_s) {
       break;
-    }
-    if (item->linked) {
-      continue;
     }
 
     sp_sys_file_meta_t meta = sp_zero;

@@ -259,25 +259,12 @@ static spn_dag_diag_t diag_at(si_dag_action_handle_t* a, spn_err_t err, const sp
   };
 }
 
-typedef enum {
-  TARGET_SETTLED,
-  TARGET_STALE,
-  TARGET_POISONED,
-} target_state_t;
-
-static target_state_t target_state(spn_dag_run_t* run, spn_path_t path, sp_str_t name, spn_dag_digest_t digest) {
-  sp_sys_file_meta_t sys = sp_zero;
+static bool is_target_settled(spn_dag_run_t* run, spn_path_t path, spn_dag_digest_t digest) {
   spn_dag_digest_t existing = sp_zero;
-  if (spn_dag_file_cache_stat(run->files, path, &sys) || spn_dag_file_cache_digest(run->files, path, &existing)) {
-    return TARGET_STALE;
-  }
-  if (spn_dag_digest_equal(existing, digest)) {
-    return TARGET_SETTLED;
-  }
-  return spn_dag_store_owns(run->store, digest, name, sys) ? TARGET_POISONED : TARGET_STALE;
+  return !spn_dag_file_cache_digest(run->files, path, &existing) && spn_dag_digest_equal(existing, digest);
 }
 
-static spn_err_t link_target(spn_dag_run_t* run, spn_path_t path, sp_str_t name, spn_dag_digest_t digest) {
+static spn_err_t materialize_target(spn_dag_run_t* run, spn_path_t path, sp_str_t name, spn_dag_digest_t digest) {
   spn_try(spn_dag_store_materialize(run->store, digest, name, path));
   return spn_dag_file_cache_seed(run->files, path, digest);
 }
@@ -313,7 +300,6 @@ static spn_dag_diag_t settle_tree(si_dag_action_handle_t* a, const spn_dag_artif
   bool exists = !sp_sys_get_path_metadata_s(dir.dir, dir.sub, &meta) && meta.kind == SP_FS_KIND_DIR;
   sp_da(extra_entry_t) extra = sp_da_new(s.mem, extra_entry_t);
   sp_da(u32) stale = sp_da_new(s.mem, u32);
-  sp_da(u32) poisoned = sp_da_new(s.mem, u32);
   if (exists) {
     sp_str_ht(bool) keep_files = SP_NULLPTR;
     sp_str_ht(bool) keep_dirs = SP_NULLPTR;
@@ -351,10 +337,8 @@ static spn_dag_diag_t settle_tree(si_dag_action_handle_t* a, const spn_dag_artif
       goto done;
     }
     sp_da_for(entries, it) {
-      switch (target_state(run, paths[it], entries[it].name, entries[it].digest)) {
-        case TARGET_SETTLED:  break;
-        case TARGET_STALE:    sp_da_push(stale, (u32)it); break;
-        case TARGET_POISONED: sp_da_push(poisoned, (u32)it); break;
+      if (!is_target_settled(run, paths[it], entries[it].digest)) {
+        sp_da_push(stale, (u32)it);
       }
     }
   }
@@ -368,19 +352,11 @@ static spn_dag_diag_t settle_tree(si_dag_action_handle_t* a, const spn_dag_artif
     }
   }
 
-  if (exists && sp_da_empty(stale) && sp_da_empty(poisoned) && sp_da_empty(extra)) {
+  if (exists && sp_da_empty(stale) && sp_da_empty(extra)) {
     trace_emit(run, (spn_dag_trace_event_t) { .kind = SPN_DAG_TRACE_SETTLE, .action = action->id, .producer = artifact->id, .key = digest, .hit = true });
     goto done;
   }
   a->wrote = true;
-
-  sp_da_for(poisoned, it) {
-    spn_dag_store_drop(run->store, entries[poisoned[it]].digest, entries[poisoned[it]].name);
-  }
-  if (!sp_da_empty(poisoned)) {
-    diag = diag_at(a, SPN_ERR_DAG_STORE_MISSING, artifact, paths[poisoned[0]]);
-    goto done;
-  }
 
   sp_da_for(extra, it) {
     spn_path_t path = spn_path_join(s.mem, artifact->path, extra[it].rel);
@@ -395,7 +371,7 @@ static spn_dag_diag_t settle_tree(si_dag_action_handle_t* a, const spn_dag_artif
 
   sp_da_for(stale, it) {
     spn_dag_action_output_t* entry = &entries[stale[it]];
-    err = link_target(run, paths[stale[it]], entry->name, entry->digest);
+    err = materialize_target(run, paths[stale[it]], entry->name, entry->digest);
     if (err) {
       diag = diag_at(a, err, artifact, paths[stale[it]]);
       goto done;
@@ -435,25 +411,16 @@ static spn_dag_diag_t settle(si_dag_action_handle_t* a) {
       }
       case SPN_DAG_ARTIFACT_KIND_VALUE:
       case SPN_DAG_ARTIFACT_KIND_FILE: {
-        switch (target_state(run, artifact->path, artifact->name, produced->digest)) {
-          case TARGET_SETTLED: {
-            trace_emit(run, (spn_dag_trace_event_t) { .kind = SPN_DAG_TRACE_SETTLE, .action = action->id, .producer = artifact->id, .key = produced->digest, .hit = true });
-            break;
-          }
-          case TARGET_POISONED: {
-            spn_dag_store_drop(run->store, produced->digest, artifact->name);
-            return diag_at(a, SPN_ERR_DAG_STORE_MISSING, artifact, artifact->path);
-          }
-          case TARGET_STALE: {
-            a->wrote = true;
-            spn_err_t err = link_target(run, artifact->path, artifact->name, produced->digest);
-            if (err) {
-              return diag_at(a, err, artifact, artifact->path);
-            }
-            trace_emit(run, (spn_dag_trace_event_t) { .kind = SPN_DAG_TRACE_SETTLE, .action = action->id, .producer = artifact->id, .key = produced->digest, .hit = false });
-            break;
-          }
+        if (is_target_settled(run, artifact->path, produced->digest)) {
+          trace_emit(run, (spn_dag_trace_event_t) { .kind = SPN_DAG_TRACE_SETTLE, .action = action->id, .producer = artifact->id, .key = produced->digest, .hit = true });
+          break;
         }
+        a->wrote = true;
+        spn_err_t err = materialize_target(run, artifact->path, artifact->name, produced->digest);
+        if (err) {
+          return diag_at(a, err, artifact, artifact->path);
+        }
+        trace_emit(run, (spn_dag_trace_event_t) { .kind = SPN_DAG_TRACE_SETTLE, .action = action->id, .producer = artifact->id, .key = produced->digest, .hit = false });
         break;
       }
     }

@@ -18,7 +18,6 @@ typedef struct {
   item_kind_t kind;
   const c8* id;
   u64 age_s;
-  bool linked;
   expect_t expect;
 } item_t;
 
@@ -65,21 +64,6 @@ static const test_t tests [] = {
     .limits = { .min_age_s = 60 },
   },
   {
-    .name = "linked_blob_is_kept",
-    .items = {
-      { .kind = ITEM_BLOB, .id = "A", .age_s = 300, .linked = true },
-      { .kind = ITEM_BLOB, .id = "B", .age_s = 200, .expect = { .evicted = true } },
-    },
-  },
-  {
-    .name = "linked_blob_is_not_counted",
-    .items = {
-      { .kind = ITEM_BLOB, .id = "A", .age_s = 200, .linked = true },
-      { .kind = ITEM_BLOB, .id = "B", .age_s = 300 },
-    },
-    .limits = { .max_bytes = sweep_test_block },
-  },
-  {
     .name = "entries_share_one_order_with_blobs",
     .items = {
       { .kind = ITEM_WEAK, .id = "A", .age_s = 300, .expect = { .evicted = true } },
@@ -113,7 +97,6 @@ sp_test_each(dag_sweep, evict, test_t, tests) {
 
   sp_tm_epoch_t now = sp_tm_now_epoch();
   sp_path_t paths [sweep_test_max_items] = sp_zero;
-  u32 evictable = 0;
   u32 evicted = 0;
   sp_for(i, count) {
     const item_t* item = &it->items[i];
@@ -144,21 +127,15 @@ sp_test_each(dag_sweep, evict, test_t, tests) {
         break;
       }
     }
-    if (item->linked) {
-      spn_path_t link = spn_path_join(mem, spn_path_from_root(SPN_PATH_ROOT_PROJECT), id);
-      sp_must_eq(t, SPN_OK, spn_dag_store_materialize(&store, key, sp_str_lit("blob"), link));
-    }
-
     paths[i] = spn_path_at(&roots, path);
     sp_sys_timespec_t used = { .tv_sec = (s64)(now.s - item->age_s) };
     sp_must_ok(t, sp_sys_set_times_s(paths[i].dir, paths[i].sub, used, used));
 
-    evictable += !item->linked;
     evicted += item->expect.evicted;
   }
 
   spn_dag_sweep_t sweep = spn_dag_sweep(mem, &roots, &layout, it->limits);
-  sp_expect_eq(t, sweep.bytes, (u64)evictable * sweep_test_block);
+  sp_expect_eq(t, sweep.bytes, (u64)count * sweep_test_block);
   sp_expect_eq(t, sweep.freed, (u64)evicted * sweep_test_block);
   sp_expect_eq(t, sweep.removed, evicted);
   sp_for(i, count) {
