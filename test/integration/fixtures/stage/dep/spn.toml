@@ -8,4 +8,3 @@ D = { path = "packages/D" }
 [[bin]]
 name = "R"
 source = ["main.c"]
-deps = ["D"]

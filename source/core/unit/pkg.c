@@ -242,25 +242,8 @@ spn_err_t si_add_target_unit(spn_units_t* u, spn_pkg_unit_t* pkg, si_target_t* t
   }
 
   si_da_for_value(target->deps, name) {
-    bool package = false;
-    sp_da_for_ptr(pkg->resolved->edges, edge) {
-      if (edge->id.name == name.id) {
-        package = true;
-        break;
-      }
-    }
-    if (package) {
-      continue;
-    }
-    si_target_t* lib = spn_pkg_get_target(&pkg->pkg, name.id, SPN_TARGET_KIND_LIB);
-    if (!lib) {
-      return spn_err_emit(u->ctx, (spn_err_union_t) {
-        .kind = SPN_ERR_TARGET_DEP,
-        .target = { .name = name.str },
-      });
-    }
     spn_target_unit_t* dep = SP_NULLPTR;
-    spn_try(si_add_target_unit(u, pkg, lib, &dep));
+    spn_try(si_add_target_unit(u, pkg, spn_pkg_get_target(&pkg->pkg, name.id, SPN_TARGET_KIND_LIB), &dep));
     si_da_push(u->mem, unit->deps, dep);
   }
 

@@ -13,3 +13,6 @@ flags = ["-flag"]
 link_flags = ["-A"]
 linker_script = ["a.ld"]
 deps = ["spum"]
+
+[[lib]]
+name = "spum"

@@ -1516,14 +1516,6 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           );
           break;
         }
-        case SPN_ERR_TARGET_DEP: {
-          sp_tty_fmt(
-            &w,
-            "Failed to find {.cyan} as a package or target",
-            sp_fmt_str(event->err.target.name)
-          );
-          break;
-        }
         case SPN_ERR_TARGET_SOURCE_GLOB: {
           sp_tty_fmt(
             &w,

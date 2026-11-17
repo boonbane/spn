@@ -1,0 +1,10 @@
+[package]
+name = "p"
+version = "1.0.0"
+
+[[lib]]
+name = "A"
+
+[[bin]]
+name = "B"
+deps = [{ lib = "A", when = { os = "linux" } }]

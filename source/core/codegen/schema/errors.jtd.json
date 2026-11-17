@@ -119,7 +119,6 @@
     "target_linkage": { "ref": "target" },
     "target_duplicate": { "ref": "target" },
     "target_reserved": { "ref": "target" },
-    "target_dep": { "ref": "target" },
     "target_selection": { "ref": "target" },
     "target_collision": { "ref": "collision" },
     "stage_unproduced": { "ref": "dag" },

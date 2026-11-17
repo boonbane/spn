@@ -210,7 +210,7 @@ readme: false
 
 | Field | Type | Required |
 |---|---|---|
-| `pkg` | `string` | yes |
+| `lib` | `string` | yes |
 | `when` | [`when`](#extern-types) | |
 
 ## cxx_options

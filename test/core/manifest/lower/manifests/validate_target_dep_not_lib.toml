@@ -1,0 +1,10 @@
+[package]
+name = "p"
+version = "1.0.0"
+
+[[bin]]
+name = "A"
+
+[[bin]]
+name = "B"
+deps = ["A"]

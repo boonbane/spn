@@ -103,7 +103,7 @@
 
     "target_dep_entry": {
       "properties": {
-        "pkg": { "type": "string" }
+        "lib": { "type": "string" }
       },
       "optionalProperties": {
         "when": { "metadata": { "extern": "when", "include": "when/types.h" } }
@@ -183,7 +183,7 @@
         "link_flags": { "elements": { "ref": "value_entry" }, "metadata": { "shorthand": "value" } },
         "linker_script": { "elements": { "ref": "source_entry" }, "metadata": { "shorthand": "path" } },
         "system_deps": { "elements": { "ref": "value_entry" }, "metadata": { "shorthand": "value" } },
-        "deps": { "elements": { "ref": "target_dep_entry" }, "metadata": { "shorthand": "pkg" } },
+        "deps": { "elements": { "ref": "target_dep_entry" }, "metadata": { "shorthand": "lib" } },
         "embed": { "elements": { "ref": "embed_entry" }, "metadata": { "shorthand": "path" } },
         "link": { "type": "boolean" },
         "cxx": { "ref": "cxx_options" },

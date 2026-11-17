@@ -38,9 +38,6 @@
       "flags": [
         "-Wall"
       ],
-      "deps": [
-        "libfoo"
-      ],
       "link": true,
       "publish": {
         "include": [

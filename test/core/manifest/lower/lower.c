@@ -484,6 +484,27 @@ static const test_t tests [] = {
     },
   },
   {
+    .name = "target_dep_gated",
+    .manifest = "target_dep_gated",
+    .exes = {
+      { .name = "B", .deps = { { "A", "os = \"linux\"" } } }
+    },
+  },
+  {
+    .name = "validate_target_dep_not_lib",
+    .manifest = "validate_target_dep_not_lib",
+    .issues = {
+      { SPN_ERR_CODEGEN_INVALID, "bin[1].deps[0]" },
+    },
+  },
+  {
+    .name = "validate_target_dep_package",
+    .manifest = "validate_target_dep_package",
+    .issues = {
+      { SPN_ERR_CODEGEN_INVALID, "bin[0].deps[0]" },
+    },
+  },
+  {
     .name = "validate_cxx_source_on_build_script",
     .manifest = "validate_cxx_source_on_build_script",
     .build_source = { { "tools/build.cpp" } },

@@ -212,7 +212,7 @@ static void lower_target(spn_toml_loader_t* ctx, const spn_cg_target_t* cg, si_t
     }
   }
   sp_da_for(cg->deps, it) {
-    si_da_push(ctx->mem, target->deps, ((spn_gated_dep_t) { .name = sp_intern(ctx->intern, cg->deps[it].pkg), .when = cg->deps[it].when }));
+    si_da_push(ctx->mem, target->deps, ((spn_gated_dep_t) { .name = sp_intern(ctx->intern, cg->deps[it].lib), .when = cg->deps[it].when }));
   }
   sp_da_for(cg->embed, it) {
     const spn_cg_embed_entry_t* entry = &cg->embed[it];
@@ -1232,6 +1232,38 @@ static void validate_names(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg) 
   validate_staged_names(ctx, cg);
 }
 
+static void validate_target_deps(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg) {
+  struct {
+    const c8* key;
+    spn_cg_target_om_t targets;
+  } collections [] = {
+    { "lib", cg->lib },
+    { "bin", cg->bin },
+    { "script", cg->script },
+    { "test", cg->test },
+    { "example", cg->example },
+  };
+
+  sp_carr_for(collections, ct) {
+    spn_toml_loader_push_key(ctx, collections[ct].key);
+    sp_om_for(collections[ct].targets, it) {
+      const spn_cg_target_t* target = sp_str_om_at(collections[ct].targets, it);
+      spn_toml_loader_push_index(ctx, it);
+      spn_toml_loader_push_key(ctx, "deps");
+      sp_da_for(target->deps, jt) {
+        if (!sp_str_om_has(cg->lib, target->deps[jt].lib)) {
+          spn_toml_loader_push_index(ctx, jt);
+          spn_toml_loader_issue_at(ctx, SPN_ERR_CODEGEN_INVALID, target->deps[jt].lib);
+          spn_toml_loader_pop(ctx);
+        }
+      }
+      spn_toml_loader_pop(ctx);
+      spn_toml_loader_pop(ctx);
+    }
+    spn_toml_loader_pop(ctx);
+  }
+}
+
 void spn_manifest_lower(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, si_pkg_info_t* pkg) {
   lower_package(ctx, cg, pkg);
   lower_targets(ctx, cg, pkg);
@@ -1240,6 +1272,7 @@ void spn_manifest_lower(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, si_
   lower_stage(ctx, cg, pkg);
 
   validate_names(ctx, cg);
+  validate_target_deps(ctx, cg);
   validate_lib_linkages(ctx, cg);
   validate_trees(ctx, cg);
   validate_cxx(ctx, cg);
