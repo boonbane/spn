@@ -114,8 +114,9 @@ static spn_err_t extract_runtime(spn_ctx_t* ctx) {
 
   if (!sp_str_equal(read_stamp(scratch.mem, ctx), stamp)) {
     sp_fs_lock_t lock = sp_zero;
-    spn_path_t lock_path = spn_path_concat(ctx->heap, spn_path_from_id(SPN_DIR_ID_RUNTIME), ".lock");
-    if (sp_fs_lock_acquire(&lock, spn_path_at(&ctx->roots, lock_path)) != SP_OK) {
+    spn_path_t lock_path = spn_path_lock(ctx->heap, spn_path_from_id(SPN_DIR_ID_RUNTIME));
+    sp_path_t lock_at = spn_path_at(&ctx->roots, lock_path);
+    if (sp_fs_create_parent_at(lock_at) || sp_fs_lock_acquire(&lock, lock_at) != SP_OK) {
       result = spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_FS_WRITE, .fs = { .path = lock_path } });
     }
     else {
@@ -172,7 +173,7 @@ static spn_err_t open_roots(spn_ctx_t* ctx, spn_open_request_t request) {
     sp_mem_end_scratch(scratch);
   }
   spn_try(create_root(ctx, SPN_PATH_ROOT_STORAGE, (spn_path_t) { .sub = storage }));
-  spn_try(create_root(ctx, SPN_PATH_ROOT_TOOLCHAIN, sp_str_empty(toolchain) ? (spn_path_t) { .root = SPN_PATH_ROOT_STORAGE, .sub = sp_str_lit("cache/toolchain") } : (spn_path_t) { .sub = toolchain }));
+  spn_try(create_root(ctx, SPN_PATH_ROOT_TOOLCHAIN, sp_str_empty(toolchain) ? (spn_path_t) { .root = SPN_PATH_ROOT_STORAGE, .sub = sp_str_lit("toolchain") } : (spn_path_t) { .sub = toolchain }));
   for (u32 it = SPN_DIR_ID_NONE + 1; it < SPN_DIR_ID_COUNT; it++) {
     spn_path_t dir = spn_path_from_id((spn_dir_id_t)it);
     if (sp_fs_create_dir_at(spn_path_at(&ctx->roots, dir))) {
@@ -242,7 +243,7 @@ spn_err_t spn_ctx_open(spn_ctx_t* ctx, spn_open_request_t request) {
   spn_toolchain_catalog_init(&ctx->catalog, ctx->host, spn_sdk_detect(ctx->heap, &ctx->roots, ctx->env, ctx->host), ctx->heap);
   load_builtins(ctx);
 
-  spn_git_cache_init(&ctx->caches.git, ctx->mem, ctx->intern, &ctx->roots, spn_path_from_id(SPN_DIR_ID_GIT_DB), spn_path_from_id(SPN_DIR_ID_CHECKOUTS));
+  spn_git_cache_init(&ctx->caches.git, ctx->mem, ctx->intern, &ctx->roots, spn_path_from_id(SPN_DIR_ID_GIT_DB), spn_path_from_id(SPN_DIR_ID_CHECKOUTS), spn_path_lock(ctx->heap, spn_path_from_id(SPN_DIR_ID_GIT_DB)));
 
   spn_try(extract_runtime(ctx));
 
@@ -326,9 +327,10 @@ spn_err_t spn_ctx_open(spn_ctx_t* ctx, spn_open_request_t request) {
 
   sp_da_for(ctx->indexes, it) {
     spn_index_info_t* index = &ctx->indexes[it];
-    spn_path_t location = spn_index_location(index, ctx->heap, &ctx->roots, spn_path_from_id(SPN_DIR_ID_INDEX));
-    index->location.at = spn_path_at(&ctx->roots, location);
-    index->location.dir = spn_path_str(&ctx->roots, ctx->heap, location);
+    spn_index_location_t location = spn_index_location(index, ctx->heap, &ctx->roots, spn_path_from_id(SPN_DIR_ID_INDEX));
+    index->location.at = spn_path_at(&ctx->roots, location.dir);
+    index->location.dir = spn_path_str(&ctx->roots, ctx->heap, location.dir);
+    index->location.lock = spn_path_at(&ctx->roots, location.lock);
     index->transport = transport;
     index->backoff = spn_net_default_backoff;
     if (!index->refresh) {

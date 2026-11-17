@@ -1061,7 +1061,7 @@ spn_err_t spn_dag_run_begin(spn_dag_run_t* run, sp_mem_t mem) {
   run->artifacts = sp_alloc_n(run->mem, spn_dag_artifact_state_t, artifacts ? artifacts : 1);
 
   sp_mem_arena_marker_t s = sp_mem_begin_scratch();
-  spn_path_t base = spn_path_join(s.mem, run->scratch, sp_str_lit("scratch/run"));
+  spn_path_t base = spn_path_join(s.mem, run->scratch, sp_str_lit("run"));
   spn_path_t scratch = sp_zero;
   spn_err_t err = spn_path_stage_dir(run->mem, g->roots, base, sp_str_lit("tmp"), &scratch);
   sp_mem_end_scratch(s);

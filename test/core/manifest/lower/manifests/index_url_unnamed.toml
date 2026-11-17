@@ -1,0 +1,12 @@
+[package]
+name = "p"
+version = "1.0.0"
+
+[[index]]
+name = "A"
+url = "https://B/.."
+
+[[index]]
+name = "C"
+protocol = "http"
+url = "https://D/.."

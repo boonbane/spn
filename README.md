@@ -775,7 +775,7 @@ With `system_git = true`, `spn` runs `git` for every index and Git dependency. U
 |---|---|
 | `SPN_CONFIG_DIR` | Replaces the config directory. `SPN_CONFIG_DIR=/tmp/a` reads `/tmp/a/spn/spn.toml` |
 | `SPN_STORAGE_DIR` | Where `spn` keeps index checkouts, Git dependencies, and its build cache. Defaults to `spn` under `$XDG_DATA_HOME` (or `~/.local/share`) on Linux and macOS, and under `%LOCALAPPDATA%` on Windows |
-| `SPN_TOOLCHAIN_DIR` | Where `spn` keeps the toolchains it downloads. Defaults to `cache/toolchain` under the storage directory |
+| `SPN_TOOLCHAIN_DIR` | Where `spn` keeps the toolchains it downloads. Defaults to `toolchain` under the storage directory |
 | `SPN_MIRROR` | Base URL to download toolchains from. `spn` appends the archive's file name, tries only that URL, and still checks the archive against its checksum |
 | `SPN_INDEX_REFRESH_SECONDS` | How long a synced Git index counts as fresh. Defaults to `600`. Once it's older, `spn add` fetches it again, and so does a build that can't resolve a dependency from the cached copy. Indexes pinned to a `rev` aren't refreshed, and `spn index sync` refreshes regardless |
 | `SSL_CERT_FILE` | See [Certificates](#certificates) |

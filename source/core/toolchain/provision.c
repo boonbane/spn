@@ -158,7 +158,8 @@ spn_toolchain_claim_t spn_toolchain_claim(spn_toolchain_store_t* store, sp_mem_t
     return claim;
   }
 
-  sp_path_t lock_at = spn_path_at(store->roots, spn_path_concat(mem, claim.root, ".lock"));
+  sp_path_t lock_at = spn_path_at(store->roots, spn_path_lock(mem, claim.root));
+  sp_fs_create_parent_at(lock_at);
   bool acquired = false;
   sp_err_t locked = sp_fs_lock_try_acquire(&claim.lock, lock_at, &acquired);
   if (!locked && !acquired) {

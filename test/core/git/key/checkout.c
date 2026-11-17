@@ -56,6 +56,6 @@ sp_test(git_key, checkout_key_golden) {
   sp_str_t key = spn_git_checkout_key(sp_test_arena(t), checkout_id((request_t) {
     .url = "https://A/B", .rev = "C"
   }));
-  sp_expect_str_eq_c(t, key, "B-c6e0966bfdb21106");
+  sp_expect_str_eq_c(t, key, "B/c6e0966bfdb21106");
   return SP_OK;
 }

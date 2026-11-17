@@ -139,11 +139,10 @@ static void touch(sp_path_t path) {
 
 spn_dag_layout_t spn_dag_layout(sp_mem_t mem, spn_path_t dir) {
   return (spn_dag_layout_t) {
-    .store = spn_path_join(mem, dir, sp_str_lit("store")),
+    .store = spn_path_join(mem, dir, sp_str_lit("blob")),
     .strong = spn_path_join(mem, dir, sp_str_lit("strong")),
     .weak = spn_path_join(mem, dir, sp_str_lit("weak")),
     .scratch = spn_path_join(mem, dir, sp_str_lit("tmp")),
-    .lock = spn_path_join(mem, dir, sp_str_lit("sweep.lock")),
   };
 }
 

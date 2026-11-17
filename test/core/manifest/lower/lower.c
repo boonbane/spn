@@ -918,6 +918,13 @@ static const test_t tests [] = {
     }
   },
   {
+    .name = "validate_upstream_url_unnamed",
+    .manifest = "validate_upstream_url_unnamed",
+    .issues = {
+      { SPN_ERR_CODEGEN_INVALID, "package.upstream.url" }
+    }
+  },
+  {
     .name = "target_tree",
     .manifest = "target_tree",
     .libs = {
@@ -1196,6 +1203,14 @@ static const test_t tests [] = {
         .kind = SPN_INDEX_KIND_WORKSPACE,
       },
     },
+  },
+  {
+    .name = "validate_index_url_unnamed",
+    .manifest = "index_url_unnamed",
+    .issues = {
+      { SPN_ERR_CODEGEN_INVALID, "index[0].url" },
+      { SPN_ERR_CODEGEN_INVALID, "index[1].url" },
+    }
   },
   {
     .name = "validate_index_sources",

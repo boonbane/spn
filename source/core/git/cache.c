@@ -9,12 +9,13 @@
 #include "paths/paths.h"
 #include "str/str.h"
 
-void spn_git_cache_init(spn_git_cache_t* cache, sp_mem_t mem, sp_intern_t* intern, const spn_path_roots_t* roots, spn_path_t db, spn_path_t checkouts) {
+void spn_git_cache_init(spn_git_cache_t* cache, sp_mem_t mem, sp_intern_t* intern, const spn_path_roots_t* roots, spn_path_t db, spn_path_t checkouts, spn_path_t locks) {
   *cache = (spn_git_cache_t) {
     .mem = mem,
     .intern = intern,
     .roots = roots,
     .db.dir = spn_path_copy(mem, db),
+    .db.locks = spn_path_copy(mem, locks),
     .checkouts.dir = spn_path_copy(mem, checkouts),
   };
 
@@ -34,6 +35,7 @@ static spn_git_db_t* spn_git_cache_db_entry(spn_git_cache_t* cache, sp_str_t url
     db = sp_alloc_type(cache->mem, spn_git_db_t);
     db->url = url;
     db->path = spn_path_join(cache->mem, cache->db.dir, key);
+    db->lock = spn_path_join(cache->mem, cache->db.locks, key);
     sp_str_ht_insert(cache->db.entries, key, db);
   }
 
@@ -53,7 +55,7 @@ spn_err_t spn_git_cache_ensure_db(spn_git_cache_t* cache, sp_str_t url, sp_atomi
     sp_sys_file_meta_t meta = sp_zero;
     if (sp_fs_get_link_metadata_at(repo, &meta) || meta.kind != SP_FS_KIND_DIR) {
       sp_fs_lock_t lock = sp_zero;
-      entry->err = spn_git_lock(repo, repo, url, cancelled, &lock, &entry->failure);
+      entry->err = spn_git_lock(spn_path_at(cache->roots, entry->lock), repo, url, cancelled, &lock, &entry->failure);
       if (!entry->err && (sp_fs_get_link_metadata_at(repo, &meta) || meta.kind != SP_FS_KIND_DIR)) {
         sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
         entry->err = spn_git_init_bare(url, spn_path_str(cache->roots, scratch.mem, entry->path), &entry->failure);
@@ -170,7 +172,7 @@ static spn_err_t spn_git_cache_materialize_checkout(spn_git_cache_t* cache, spn_
     sp_fs_lock_t lock = sp_zero;
     sp_mutex_lock(&db->mutex);
     bool filled =
-      !spn_git_lock(repo, repo, db->url, cancelled, &lock, &entry->failure) &&
+      !spn_git_lock(spn_path_at(cache->roots, db->lock), repo, db->url, cancelled, &lock, &entry->failure) &&
       !spn_git_db_ensure_rev(cache, db, entry->id.rev, cancelled, &entry->failure) &&
       !spn_git_cache_fill_checkout(cache, entry, db, staged);
     sp_fs_lock_release(&lock);
@@ -180,6 +182,7 @@ static spn_err_t spn_git_cache_materialize_checkout(spn_git_cache_t* cache, spn_
       return SPN_ERROR;
     }
 
+    sp_fs_create_parent_at(dest);
     if (sp_sys_rename_s(work.dir, work.sub, dest.dir, dest.sub)) {
       sp_fs_remove_dir_at(work);
       sp_sys_file_meta_t meta = sp_zero;

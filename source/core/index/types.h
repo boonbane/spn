@@ -75,11 +75,17 @@ struct spn_index_info {
   struct {
     sp_path_t at;
     sp_str_t dir;
+    sp_path_t lock;
   } location;
   u32 refresh;
   spn_git_transport_t transport;
   spn_net_backoff_t backoff;
 };
+
+typedef struct {
+  spn_path_t dir;
+  spn_path_t lock;
+} spn_index_location_t;
 
 typedef si_om(spn_index_id_t, spn_index_info_t) spn_index_map_t;
 

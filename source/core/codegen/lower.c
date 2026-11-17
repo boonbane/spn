@@ -5,6 +5,7 @@
 #include "manifest.gen.h"
 #include "paths/paths.h"
 #include "enum/enum.h"
+#include "git/url.h"
 #include "glob/glob.h"
 #include "semver/convert.h"
 #include "semver/parser.h"
@@ -324,6 +325,13 @@ static void lower_package(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, s
   info->name = sp_intern(ctx->intern, p->name);
   info->repo = p->repo;
   if (!sp_str_empty(p->upstream.url)) {
+    if (!spn_git_url_valid(p->upstream.url)) {
+      spn_toml_loader_push_key(ctx, "package");
+      spn_toml_loader_push_key(ctx, "upstream");
+      spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "url");
+      spn_toml_loader_pop(ctx);
+      spn_toml_loader_pop(ctx);
+    }
     info->upstream = (spn_pkg_root_t) {
       .kind = SPN_PKG_ROOT_GIT,
       .git = { .url = p->upstream.url, .rev = p->upstream.commit },
@@ -433,6 +441,8 @@ spn_index_info_t spn_index_lower(spn_toml_loader_t* ctx, u32 at, spn_index_kind_
       }
       if (!has_url) {
         spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_MISSING_KEY, "url");
+      } else if (!spn_git_url_valid(decl->url)) {
+        spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "url");
       }
       info.git.url = decl->url;
       info.git.rev = decl->rev;
@@ -445,6 +455,8 @@ spn_index_info_t spn_index_lower(spn_toml_loader_t* ctx, u32 at, spn_index_kind_
       }
       if (!has_url) {
         spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_MISSING_KEY, "url");
+      } else if (!spn_git_url_valid(decl->url)) {
+        spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "url");
       }
       info.http.url = decl->url;
       break;

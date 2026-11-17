@@ -346,19 +346,24 @@ bool spn_path_pinned(const spn_path_roots_t* roots, spn_path_t path) {
 
 spn_path_t spn_path_from_id(spn_dir_id_t id) {
   switch (id) {
-    case SPN_DIR_ID_STORE: return (spn_path_t) { SPN_PATH_ROOT_STORAGE,   sp_str_lit("cache/store") };
-    case SPN_DIR_ID_BUILD: return (spn_path_t) { SPN_PATH_ROOT_STORAGE,   sp_str_lit("cache/build") };
-    case SPN_DIR_ID_CHECKOUTS: return (spn_path_t) { SPN_PATH_ROOT_STORAGE,   sp_str_lit("cache/src") };
-    case SPN_DIR_ID_GIT_DB: return (spn_path_t) { SPN_PATH_ROOT_STORAGE,   sp_str_lit("cache/db") };
-    case SPN_DIR_ID_DAG: return (spn_path_t) { SPN_PATH_ROOT_STORAGE,   sp_str_lit("cache/dag/v2") };
+    case SPN_DIR_ID_PKG: return (spn_path_t) { SPN_PATH_ROOT_STORAGE,   sp_str_lit("pkg") };
+    case SPN_DIR_ID_WORK: return (spn_path_t) { SPN_PATH_ROOT_STORAGE,   sp_str_lit("work") };
+    case SPN_DIR_ID_CHECKOUTS: return (spn_path_t) { SPN_PATH_ROOT_STORAGE,   sp_str_lit("src") };
+    case SPN_DIR_ID_GIT_DB: return (spn_path_t) { SPN_PATH_ROOT_STORAGE,   sp_str_lit("db") };
+    case SPN_DIR_ID_DAG: return (spn_path_t) { SPN_PATH_ROOT_STORAGE,   sp_str_lit("store") };
     case SPN_DIR_ID_INDEX: return (spn_path_t) { SPN_PATH_ROOT_STORAGE,   sp_str_lit("index") };
     case SPN_DIR_ID_RUNTIME: return (spn_path_t) { SPN_PATH_ROOT_STORAGE,   sp_str_lit("runtime") };
     case SPN_DIR_ID_TOOLCHAIN_STORE: return (spn_path_t) { SPN_PATH_ROOT_TOOLCHAIN, sp_str_lit("store") };
-    case SPN_DIR_ID_TOOLCHAIN_EXTERNAL: return (spn_path_t) { SPN_PATH_ROOT_TOOLCHAIN, sp_str_lit("external") };
+    case SPN_DIR_ID_TOOLCHAIN_WORK: return (spn_path_t) { SPN_PATH_ROOT_TOOLCHAIN, sp_str_lit("work") };
     case SPN_DIR_ID_NONE:
     case SPN_DIR_ID_COUNT:              break;
   }
   sp_unreachable_return(sp_zero_struct(spn_path_t));
+}
+
+spn_path_t spn_path_lock(sp_mem_t mem, spn_path_t path) {
+  sp_assert(path.root != SPN_PATH_ROOT_NONE);
+  return (spn_path_t) { .root = path.root, .sub = sp_fs_join_path(mem, sp_str_lit("locks"), path.sub) };
 }
 
 spn_path_t spn_path(sp_mem_t mem, spn_dir_id_t id, const c8* sub) {

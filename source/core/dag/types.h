@@ -249,7 +249,6 @@ typedef struct {
   spn_path_t strong;
   spn_path_t weak;
   spn_path_t scratch;
-  spn_path_t lock;
 } spn_dag_layout_t;
 
 typedef struct {

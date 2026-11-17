@@ -31,11 +31,11 @@ static const test_t tests [] = {
     .include = { .root = SPN_PATH_ROOT_PROJECT, .sub = "build/debug/store/A/include" },
   },
   {
-    .name = "index_package_lives_under_the_build_and_store_dirs",
+    .name = "index_package_lives_under_the_work_and_pkg_dirs",
     .source = SPN_PKG_SOURCE_INDEX,
-    .work =    { .root = SPN_PATH_ROOT_STORAGE, .prefix = "cache/build/A/" },
-    .store =   { .root = SPN_PATH_ROOT_STORAGE, .prefix = "cache/store/A/" },
-    .include = { .root = SPN_PATH_ROOT_STORAGE, .prefix = "cache/store/A/", .suffix = "/include" },
+    .work =    { .root = SPN_PATH_ROOT_STORAGE, .prefix = "work/A/" },
+    .store =   { .root = SPN_PATH_ROOT_STORAGE, .prefix = "pkg/A/" },
+    .include = { .root = SPN_PATH_ROOT_STORAGE, .prefix = "pkg/A/", .suffix = "/include" },
   },
 };
 

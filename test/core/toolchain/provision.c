@@ -25,29 +25,29 @@ static const test_t tests [] = {
   {
     .name = "xz_archive_installs",
     .archive = "file.tar.xz",
-    .expect = { .file = "B", .stored = 2 },
+    .expect = { .file = "B", .stored = 1 },
   },
   {
     .name = "installed_artifact_is_present_to_the_next_claim",
     .archive = "file.tar.xz",
     .reclaim = true,
-    .expect = { .present = true, .stored = 2 },
+    .expect = { .present = true, .stored = 1 },
   },
   {
     .name = "unpack_failure_carries_its_reason_and_entry",
     .archive = "dotdot.tar.xz",
-    .expect = { .err = SPN_ERR_TOOLCHAIN_EXTRACT, .unpack = SPN_UNPACK_UNSAFE, .entry = "A/../B", .stored = 1 },
+    .expect = { .err = SPN_ERR_TOOLCHAIN_EXTRACT, .unpack = SPN_UNPACK_UNSAFE, .entry = "A/../B" },
   },
   {
     .name = "archive_with_nothing_inside_is_empty",
     .archive = "loose.tar.xz",
-    .expect = { .err = SPN_ERR_TOOLCHAIN_EXTRACT, .unpack = SPN_UNPACK_EMPTY, .stored = 1 },
+    .expect = { .err = SPN_ERR_TOOLCHAIN_EXTRACT, .unpack = SPN_UNPACK_EMPTY },
   },
   {
     .name = "root_occupied_by_a_file_fails",
     .archive = "file.tar.xz",
     .occupied = true,
-    .expect = { .err = SPN_ERR_TOOLCHAIN_EXTRACT, .stored = 2 },
+    .expect = { .err = SPN_ERR_TOOLCHAIN_EXTRACT, .stored = 1 },
   },
 };
 

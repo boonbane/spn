@@ -70,7 +70,8 @@ sp_test_each(claim, wait, test_t, tests, .setup = spn_test_ctx_setup) {
     sp_must_ok(t, sp_fs_create_dir_at(spn_path_at(&roots, root)));
   }
   if (it->contended) {
-    spn_path_t lock = spn_path_concat(mem, root, ".lock");
+    spn_path_t lock = spn_path_lock(mem, root);
+    sp_must_ok(t, sp_fs_create_parent_at(spn_path_at(&roots, lock)));
     sp_try(test_run_contended(t, spn_path_str(&roots, mem, lock), run, &job, &job.done, !it->installed));
   }
   else {

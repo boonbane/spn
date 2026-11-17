@@ -8,23 +8,32 @@ typedef struct {
   sp_str_t path;
 } git_url_t;
 
-sp_str_t spn_git_url_name(sp_str_t url) {
-  if (sp_str_ends_with(url, SP_LIT("/"))) {
+static sp_str_t trim_separators(sp_str_t url) {
+  while (url.len && (url.data[url.len - 1] == '/' || url.data[url.len - 1] == '\\')) {
     url = sp_str_prefix(url, url.len - 1);
   }
+  return url;
+}
 
+sp_str_t spn_git_url_name(sp_str_t url) {
+  url = trim_separators(url);
   if (sp_str_ends_with(url, SP_LIT(".git"))) {
-    url = sp_str_prefix(url, url.len - 4);
+    url = trim_separators(sp_str_prefix(url, url.len - 4));
   }
 
   u64 last_sep = 0;
   sp_for(it, url.len) {
-    if (url.data[it] == '/' || url.data[it] == ':') {
+    if (url.data[it] == '/' || url.data[it] == ':' || url.data[it] == '\\') {
       last_sep = it + 1;
     }
   }
 
   return sp_str_suffix(url, url.len - last_sep);
+}
+
+bool spn_git_url_valid(sp_str_t url) {
+  sp_str_t name = spn_git_url_name(url);
+  return !sp_str_empty(name) && !sp_str_equal(name, sp_str_lit(".")) && !sp_str_equal(name, sp_str_lit(".."));
 }
 
 static sp_str_t strip_user(sp_str_t authority) {

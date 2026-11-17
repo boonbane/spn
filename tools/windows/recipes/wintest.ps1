@@ -19,7 +19,7 @@ foreach ($p in $excl) {
   catch { Write-Host "  (skipped exclusion for ${p}: $($_.Exception.Message))" }
 }
 
-New-Item -ItemType Directory -Force -Path "$env:LOCALAPPDATA\spn\cache\toolchain" | Out-Null
+New-Item -ItemType Directory -Force -Path "$env:LOCALAPPDATA\spn\toolchain" | Out-Null
 
 Write-Host "== unpacking binaries =="
 if (Test-Path $Work) {

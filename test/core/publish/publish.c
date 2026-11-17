@@ -373,9 +373,10 @@ sp_test_each(cmd_publish, publish, case_t, cases, .setup = spn_test_ctx_setup) {
   git_repo_commit(index_root, sp_str_lit("seed"));
 
   sp_str_t clone = sp_fs_join_path(mem, test_dir_str(t), sp_str_lit("index_clone"));
+  sp_str_t lock = sp_fs_join_path(mem, test_dir_str(t), sp_str_lit("index_lock"));
   spn_index_info_t index = {
     .git = { .url = index_root },
-    .location = { .at = sp_path_from_str(clone), .dir = clone },
+    .location = { .at = sp_path_from_str(clone), .dir = clone, .lock = sp_path_from_str(lock) },
   };
 
   sp_str_t cwd = repo.path;

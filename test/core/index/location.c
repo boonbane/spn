@@ -72,7 +72,7 @@ sp_test_each(index_location, resolve, location_test_t, location_tests) {
 
   spn_path_roots_t roots = sp_zero;
   spn_path_t store = { .root = it->root, .sub = sp_cstr_as_str(it->root_sub ? it->root_sub : "") };
-  spn_path_t location = spn_index_location(&index, mem, &roots, store);
+  spn_path_t location = spn_index_location(&index, mem, &roots, store).dir;
 
   sp_str_t sub = sp_cstr_as_str(it->expect.sub ? it->expect.sub : "");
   if (it->expect.keyed) {

@@ -36,7 +36,7 @@ void dag_test_env_init(dag_test_env_t* env, sp_test_t* t, dag_test_env_config_t 
     .kind = config.store,
     .mem = env->mem,
     .roots = &env->roots,
-    .dir = dag_test_env_rooted(env, sp_str_lit("store"))
+    .dir = spn_dag_layout(env->mem, spn_path_from_root(SPN_PATH_ROOT_PROJECT)).store
   });
   env->store.stats = &env->stats;
   spn_dag_file_cache_init(&env->files, env->mem, &env->roots);

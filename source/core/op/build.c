@@ -288,13 +288,13 @@ spn_err_t spn_op_build(spn_op_t* op) {
   });
 
   spn_cache_config_t cache = ctx->config.cache;
-  sp_path_t gate = spn_path_at(roots, layout.lock);
+  sp_path_t gate = spn_path_at(roots, spn_path_lock(session->mem, spn_path_from_id(SPN_DIR_ID_DAG)));
   sp_tm_epoch_t now = sp_tm_now_epoch();
   sp_sys_file_meta_t swept = sp_zero;
   bool due = sp_fs_get_path_metadata_at(gate, &swept) || now.s - (u64)swept.mtime.tv_sec >= cache.sweep_interval_s;
   sp_fs_lock_t lock = sp_zero;
   bool acquired = false;
-  if (cache.max_bytes && due && !sp_fs_lock_try_acquire(&lock, gate, &acquired) && acquired) {
+  if (cache.max_bytes && due && !sp_fs_create_parent_at(gate) && !sp_fs_lock_try_acquire(&lock, gate, &acquired) && acquired) {
     sp_sys_timespec_t time = { .tv_sec = (s64)now.s, .tv_nsec = now.ns };
     sp_sys_set_times_s(gate.dir, gate.sub, time, time);
 
