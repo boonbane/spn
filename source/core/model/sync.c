@@ -680,15 +680,17 @@ spn_err_t spn_resolve_and_sync(spn_op_t* op, const spn_lock_t* held, const spn_l
   } while (reresolve);
 
   bool changed = held->version != lock.version;
-  bool unlocked = false;
   spn_lock_diff_t diff = spn_lock_diff(held, &lock);
   while (spn_lock_diff_next(&diff)) {
     changed = true;
-    unlocked = unlocked || diff.was;
-  }
-  diff = spn_lock_diff(held, &lock);
-  while (unlocked && spn_lock_diff_next(&diff)) {
     const spn_lock_entry_t* entry = diff.now ? diff.now : diff.was;
+    bool pinned = false;
+    sp_da_for(held->entries, it) {
+      pinned = pinned || held->entries[it].name.id == entry->name.id;
+    }
+    if (!pinned) {
+      continue;
+    }
     spn_event_buffer_push(ctx->events, (spn_event_t) {
       .kind = diff.now ? SPN_EVENT_LOCK_ADDED : SPN_EVENT_LOCK_REMOVED,
       .pkg = entry->name.str,

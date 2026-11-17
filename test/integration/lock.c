@@ -40,6 +40,7 @@ static const command_test_t commands [] = {
     .args = { "build" },
     .expect.locked = {
       { .name = "A", .version = "1.0.0" },
+      { .name = "C", .version = "1.2.0" },
       { .name = "C", .version = "1.4.0" },
       { .name = "D", .version = "1.0.0" },
     },
@@ -50,8 +51,8 @@ static const command_test_t commands [] = {
     .copy = { "spn.lock" },
     .args = { "build" },
     .expect.events = {
-      { .event = SPN_EVENT_LOCK_REMOVED, .key = "version", .value = "1.2.0" },
       { .event = SPN_EVENT_LOCK_ADDED, .key = "version", .value = "1.4.0" },
+      { .event = SPN_EVENT_LOCK_REMOVED, .key = "version", .value = "1.2.0", .absent = true },
     },
   },
   {
@@ -71,7 +72,9 @@ static const command_test_t commands [] = {
     .copy = { "spn.lock" },
     .args = { "build" },
     .expect.locked = {
+      { .name = "A", .version = "1.0.0" },
       { .name = "A", .version = "1.1.0" },
+      { .name = "C", .version = "1.2.0" },
       { .name = "C", .version = "1.4.0" },
       { .name = "D", .version = "1.0.0" },
       { .name = "E", .version = "1.0.0" },
@@ -232,6 +235,28 @@ static const rebuild_test_t rebuilds [] = {
             .err = SPN_ERR_LOCK_STALE,
             .locked = {
               { .name = "A", .version = "1.0.0" },
+              { .name = "B", .version = "1.0.0" },
+            },
+          },
+        },
+      },
+    },
+  },
+  {
+    .name = "narrowed_range_reported",
+    .project = "test/integration/fixtures/lock/pair",
+    .copy = { "spn.next.toml" },
+    .first.args = { "build" },
+    .rebuilds = {
+      {
+        .change.moves = { { .from = "spn.next.toml", .to = "spn.toml" } },
+        .command = {
+          .args = { "build" },
+          .expect = {
+            .events = { { .event = SPN_EVENT_LOCK_ADDED, .key = "version", .value = "1.1.0" } },
+            .locked = {
+              { .name = "A", .version = "1.0.0" },
+              { .name = "A", .version = "1.1.0" },
               { .name = "B", .version = "1.0.0" },
             },
           },

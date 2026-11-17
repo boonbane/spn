@@ -71,7 +71,7 @@ static void emit_resolved(spn_resolve_query_t* query) {
   });
 }
 
-static spn_err_t resolve(sp_mem_t scratch, spn_op_t* op, spn_lock_t* lock) {
+static spn_err_t resolve(sp_mem_t scratch, spn_op_t* op, const spn_lock_t* lock) {
   spn_session_t* session = op->session;
   spn_ctx_t* ctx = session->ctx;
   spn_event_buffer_push(spn.events, (spn_event_t) {
@@ -144,27 +144,6 @@ static spn_err_t resolve(sp_mem_t scratch, spn_op_t* op, spn_lock_t* lock) {
     sp_da_head(pins)->size = kept;
   }
 
-  u64 kept = 0;
-  sp_da_for(lock->entries, it) {
-    spn_lock_entry_t entry = lock->entries[it];
-    bool offered = false;
-    sp_da_for(pins, pt) {
-      offered = offered || (pins[pt].name == entry.name.id && spn_semver_eq(pins[pt].version, entry.version));
-    }
-    bool reached = false;
-    bool selected = false;
-    sp_ht_for_kv(query.result, rt) {
-      if (rt.val->id.name == entry.name.id) {
-        reached = true;
-        selected = selected || spn_semver_eq(rt.val->id.version, entry.version);
-      }
-    }
-    if (offered || selected || !reached) {
-      lock->entries[kept++] = entry;
-    }
-  }
-  sp_da_head(lock->entries)->size = kept;
-
   if (!spn_path_empty(ctx->paths.patches)) {
     spn_try(apply_patch_overrides(session, &query));
   }
@@ -176,7 +155,7 @@ static spn_err_t resolve(sp_mem_t scratch, spn_op_t* op, spn_lock_t* lock) {
   return SPN_OK;
 }
 
-spn_err_t spn_resolve(spn_op_t* op, spn_lock_t* lock) {
+spn_err_t spn_resolve(spn_op_t* op, const spn_lock_t* lock) {
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   spn_err_t err = resolve(scratch.mem, op, lock);
   sp_mem_end_scratch(scratch);
