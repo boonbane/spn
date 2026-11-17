@@ -2,7 +2,5 @@
 name = "A"
 version = "1.0.0"
 
-[[lib]]
-name = "A"
-kinds = ["source"]
-publish.include = [{ from = "A.h" }]
+[package.publish]
+include = [{ from = "A.h" }]

@@ -12,5 +12,5 @@ flags = [
   { value = "-fno-omit-frame-pointer", when = { mode = "debug", abi = { not = "msvc" } } },
 ]
 system_deps = [
-  { value = "ws2_32", when = { os = "windows" } },
+  { lib = "ws2_32", when = { os = "windows" } },
 ]

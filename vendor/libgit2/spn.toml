@@ -92,8 +92,6 @@ define = [
 ]
 flags = [{ value = "-O2", when = { mode = "debug", abi = { not = "msvc" } } }]
 deps = [
-  { pkg = "mbedtls", when = { os = { not = "windows" } } },
-  { pkg = "zlib" },
   "git2_pcre2",
 ]
 

@@ -371,6 +371,20 @@ sp_str_t test_when_blocked(test_when_t when) {
     }
   }
 
+  sp_da(sp_str_t) provided = sp_str_split_c8(mem, sp_os_env_get(sp_str_lit("SPN_TEST_HOST_LIBS")), ' ');
+  sp_carr_for(when.host_libs, it) {
+    if (!when.host_libs[it]) {
+      break;
+    }
+    bool found = false;
+    sp_da_for(provided, pt) {
+      found = found || sp_str_equal_cstr(provided[pt], when.host_libs[it]);
+    }
+    if (!found) {
+      return sp_fmt(mem, "host library {} isn't named in SPN_TEST_HOST_LIBS", sp_fmt_cstr(when.host_libs[it])).value;
+    }
+  }
+
   if (when.driver && when.driver != toolchain->info->driver) {
     return sp_fmt(mem, "{} isn't a {} driver",
       sp_fmt_cstr(toolchain->name),
@@ -387,6 +401,11 @@ sp_str_t test_when_blocked(test_when_t when) {
       sp_fmt_str(spn_triple_to_str(mem, target)),
       sp_fmt_str(request),
       sp_fmt_cstr(select_reason(select))).value;
+  }
+  if (when.host_libs[0] && profile.sdk.kind != SPN_SDK_HOST) {
+    return sp_fmt(mem, "{} doesn't build {} against this machine",
+      sp_fmt_cstr(toolchain->name),
+      sp_fmt_str(spn_triple_to_str(mem, target))).value;
   }
   if (when.linker && when.linker != profile.linker) {
     return sp_fmt(mem, "{} links {} with {}, test needs {}",

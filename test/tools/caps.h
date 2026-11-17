@@ -21,6 +21,7 @@
 
 #define SPN_TEST_MAX_PROGRAMS 4
 #define SPN_TEST_MAX_LANES 4
+#define SPN_TEST_MAX_HOST_LIBS 2
 
 typedef struct {
   spn_sanitizer_set_t sanitize;
@@ -32,6 +33,7 @@ typedef struct {
   const c8* target;
   const c8* lanes [SPN_TEST_MAX_LANES];
   const c8* programs [SPN_TEST_MAX_PROGRAMS];
+  const c8* host_libs [SPN_TEST_MAX_HOST_LIBS];
   bool exports;
   bool cxx;
   bool deterministic;

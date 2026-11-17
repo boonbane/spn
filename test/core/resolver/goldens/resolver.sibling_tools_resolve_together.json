@@ -1,0 +1,98 @@
+{
+  "version": 3,
+  "requests": [
+    {
+      "name": "root",
+      "kind": "package",
+      "source": "root"
+    }
+  ],
+  "packages": [
+    {
+      "name": "foo",
+      "version": "1.9.0",
+      "hash": "85e408a77ddc2f36",
+      "source": "index",
+      "recipe": "none"
+    },
+    {
+      "name": "foo",
+      "version": "2.0.0",
+      "hash": "adb2a8ea4f003832",
+      "source": "index",
+      "recipe": "none"
+    },
+    {
+      "name": "gen",
+      "version": "1.0.0",
+      "hash": "c203fe1334cec354",
+      "source": "index",
+      "recipe": "none",
+      "edges": [
+        {
+          "to": {
+            "name": "foo",
+            "version": "2.0.0",
+            "hash": "adb2a8ea4f003832"
+          },
+          "kind": "package",
+          "edge": "scope"
+        }
+      ]
+    },
+    {
+      "name": "opt",
+      "version": "1.0.0",
+      "hash": "8fbb9a44734e78e1",
+      "source": "index",
+      "recipe": "none",
+      "edges": [
+        {
+          "to": {
+            "name": "foo",
+            "version": "2.0.0",
+            "hash": "adb2a8ea4f003832"
+          },
+          "kind": "package",
+          "edge": "scope"
+        }
+      ]
+    },
+    {
+      "name": "root",
+      "version": "0.0.1",
+      "hash": "b3e11e52a25c3194",
+      "source": "root",
+      "recipe": "local",
+      "edges": [
+        {
+          "to": {
+            "name": "foo",
+            "version": "1.9.0",
+            "hash": "85e408a77ddc2f36"
+          },
+          "kind": "package",
+          "edge": "scope"
+        },
+        {
+          "to": {
+            "name": "gen",
+            "version": "1.0.0",
+            "hash": "c203fe1334cec354"
+          },
+          "kind": "build",
+          "edge": "process"
+        },
+        {
+          "to": {
+            "name": "opt",
+            "version": "1.0.0",
+            "hash": "8fbb9a44734e78e1"
+          },
+          "kind": "build",
+          "edge": "process"
+        }
+      ]
+    }
+  ]
+}

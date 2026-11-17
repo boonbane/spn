@@ -9,6 +9,7 @@
 #include "index/cache.h"
 #include "intern/intern.h"
 #include "manifest.h"
+#include "paths/paths.h"
 #include "resolve/resolve.h"
 #include "semver/parser.h"
 #include "spn/core.h"
@@ -76,24 +77,19 @@ typedef struct {
   spn_err_t err;
 } fz_result_t;
 
-static spn_dep_kind_t fz_root_dep_kind(spn_index_dep_kind_t kind) {
-  switch (kind) {
-    case SPN_INDEX_DEP_NORMAL: return SPN_DEP_KIND_PACKAGE;
-    case SPN_INDEX_DEP_BUILD:  return SPN_DEP_KIND_BUILD;
-    case SPN_INDEX_DEP_TEST:   return SPN_DEP_KIND_TEST;
-  }
-  sp_unreachable_return(SPN_DEP_KIND_PACKAGE);
+static spn_path_t fz_local_path(sp_mem_t mem, u32 pkg) {
+  return (spn_path_t) { .sub = sp_fmt(mem, "fz://{}", sp_fmt_str(fz_pkg_name(pkg))).value };
 }
 
 static spn_requested_dep_t fz_req(sp_mem_t mem, sp_intern_t* intern, fz_universe_t* u, fz_dep_t dep) {
   spn_requested_dep_t req = {
     .name = sp_intern(intern, fz_pkg_name(dep.pkg)),
-    .kind = fz_root_dep_kind(dep.kind),
-    .private = dep.private,
+    .kind = dep.kind,
+    .public = dep.public,
   };
   if (u->pkgs[dep.pkg].local) {
     req.source = SPN_PKG_SOURCE_FILE;
-    req.file.path = (spn_path_t) { .sub = sp_fmt(mem, "fz://{}", sp_fmt_str(fz_pkg_name(dep.pkg))).value };
+    req.file.path = fz_local_path(mem, dep.pkg);
   }
   else {
     req.source = SPN_PKG_SOURCE_INDEX;
@@ -103,7 +99,7 @@ static spn_requested_dep_t fz_req(sp_mem_t mem, sp_intern_t* intern, fz_universe
 }
 
 static bool fz_pkg_linked(fz_pkg_t* pkg) {
-  return pkg->linkages.source || pkg->linkages.static_lib || pkg->linkages.shared;
+  return pkg->linkages.static_lib || pkg->linkages.shared;
 }
 
 static fz_result_t fz_execute(sp_mem_t mem, fz_universe_t* u, sp_intern_t* intern) {
@@ -134,8 +130,8 @@ static fz_result_t fz_execute(sp_mem_t mem, fz_universe_t* u, sp_intern_t* inter
 
       sp_da_for(source->deps, dt) {
         spn_index_dep_t dep = {
-          .kind = source->deps[dt].kind,
-          .private = source->deps[dt].private,
+          .kind = source->deps[dt].kind == SPN_DEP_KIND_BUILD ? SPN_INDEX_DEP_BUILD : SPN_INDEX_DEP_NORMAL,
+          .public = source->deps[dt].public,
           .name = sp_intern(intern, fz_pkg_name(source->deps[dt].pkg)),
         };
         sp_assert(!spn_semver_parse_range(fz_range_render(mem, source->deps[dt]), &dep.range));
@@ -145,7 +141,6 @@ static fz_result_t fz_execute(sp_mem_t mem, fz_universe_t* u, sp_intern_t* inter
       if (fz_pkg_linked(&u->pkgs[it])) {
         spn_index_target_t target = { .name = fz_pkg_name((u32)it) };
         sp_da_init(mem, target.linkages);
-        if (u->pkgs[it].linkages.source) sp_da_push(target.linkages, SPN_LIB_KIND_SOURCE);
         if (u->pkgs[it].linkages.static_lib) sp_da_push(target.linkages, SPN_LIB_KIND_STATIC);
         if (u->pkgs[it].linkages.shared) sp_da_push(target.linkages, SPN_LIB_KIND_SHARED);
         sp_da_push(release.targets, target);
@@ -157,6 +152,7 @@ static fz_result_t fz_execute(sp_mem_t mem, fz_universe_t* u, sp_intern_t* inter
     sp_ht_insert(fz_state.cache, name.id, pkg);
   }
 
+  spn_path_roots_t roots = sp_zero;
   spn_pkg_registry_t registry = sp_zero;
   sp_ht_init(mem, registry);
 
@@ -186,6 +182,7 @@ static fz_result_t fz_execute(sp_mem_t mem, fz_universe_t* u, sp_intern_t* inter
     sp_ht_insert(registry, ((spn_pkg_id_t) { .name = info->name.id }), ((spn_registry_pkg_t) {
       .source = SPN_PKG_SOURCE_FILE,
       .manifest = info,
+      .path = spn_path_canonicalize(mem, &roots, fz_local_path(mem, (u32)it)),
     }));
   }
 
@@ -218,6 +215,7 @@ static fz_result_t fz_execute(sp_mem_t mem, fz_universe_t* u, sp_intern_t* inter
 
   spn_resolver_t resolver = sp_zero;
   spn_resolver_init(&resolver, mem, intern, &cache, &registry, (spn_profile_info_t) { .linking.linkage = u->profile.linkage }, config, u->profile.budget);
+  resolver.roots = &roots;
 
   fz_result_t result = sp_zero_s(fz_result_t);
   spn_resolve_query_init(mem, &result.query);

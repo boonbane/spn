@@ -5,7 +5,5 @@ version = "1.0.0"
 [package.configure]
 source = ["tools/configure.c"]
 
-[[lib]]
-name = "gamma"
-kinds = ["source"]
-publish.include = [{ from = "gamma.h" }]
+[package.publish]
+include = [{ from = "gamma.h" }]

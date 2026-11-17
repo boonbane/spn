@@ -82,6 +82,7 @@ typedef enum {
 #define SMOKE_MAX_LINKS 2
 #define SMOKE_MAX_DEBS 8
 #define SMOKE_MAX_PACKAGES 4
+#define SMOKE_MAX_HOST_LIBS 2
 
 typedef struct {
   const c8* dir;
@@ -123,6 +124,7 @@ typedef struct {
   lane_t check;
   spn_kind_t spn;
   const c8* extra [SMOKE_MAX_PACKAGES];
+  const c8* host_libs [SMOKE_MAX_HOST_LIBS];
   sysroot_kind_t sysroots [SMOKE_MAX_SYSROOTS];
   lane_t lanes [SMOKE_MAX_LANES];
 } variant_t;
@@ -160,6 +162,7 @@ bool                      variant_hosts(const variant_t* variant, lane_t lane);
 lane_t                    variant_seed(const variant_t* variant);
 sp_str_t                  variant_template(const variant_t* variant);
 sp_str_t                  variant_packages(sp_mem_t mem, const variant_t* variant);
+sp_str_t                  variant_host_libs(sp_mem_t mem, const variant_t* variant);
 sp_str_t                  variant_summary(sp_mem_t mem, const variant_t* variant);
 verify_t                  variant_verify(const variant_t* variant, const lanes_t* builtin, const lanes_t* lanes);
 

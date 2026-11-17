@@ -4,17 +4,11 @@
 
 bool spn_linkage_set_has(spn_linkage_set_t set, spn_linkage_t kind) {
   switch (kind) {
-    case SPN_LIB_KIND_SOURCE: {
-      return set.source;
-    }
     case SPN_LIB_KIND_SHARED: {
       return set.shared;
     }
     case SPN_LIB_KIND_STATIC: {
       return set.static_lib;
-    }
-    case SPN_LIB_KIND_OBJECT: {
-      return set.object;
     }
     case SPN_LIB_KIND_NONE: sp_unreachable_case();
   }

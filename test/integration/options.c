@@ -88,6 +88,12 @@ static const opt_test_t tests [] = {
     .builds = { { .present = true } },
   },
   {
+    .name = "tool_dep_request_stays_off_package_dep",
+    .project = "test/integration/fixtures/options/tool_dep",
+    .skip = "option values are outside instance identity, so both tables share one copy (SP-77)",
+    .builds = { { .present = true } },
+  },
+  {
     .name = "bool_demand_on_gated_edge",
     .project = "test/integration/fixtures/worlds/bool_demand_on_gated",
     .builds = { { .expect.cc = { { .args = { "-DSPUM_GRUM", "/DSPUM_GRUM" } } } } },

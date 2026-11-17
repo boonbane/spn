@@ -11,7 +11,7 @@
     {
       "name": "a",
       "version": "1.0.0",
-      "hash": "ca15c35facc44e47",
+      "hash": "c3429172d5fcfd6d",
       "source": "index",
       "recipe": "none",
       "edges": [
@@ -22,8 +22,7 @@
             "hash": "b0ef293f2497b905"
           },
           "kind": "package",
-          "edge": "private",
-          "private": true
+          "edge": "private"
         }
       ]
     },
@@ -37,7 +36,7 @@
     {
       "name": "root",
       "version": "0.0.1",
-      "hash": "7200f11e04a0fd43",
+      "hash": "cc27077e0983f6bf",
       "source": "root",
       "recipe": "local",
       "edges": [
@@ -45,7 +44,7 @@
           "to": {
             "name": "a",
             "version": "1.0.0",
-            "hash": "ca15c35facc44e47"
+            "hash": "c3429172d5fcfd6d"
           },
           "kind": "package",
           "edge": "scope"

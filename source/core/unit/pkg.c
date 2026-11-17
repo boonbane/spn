@@ -7,7 +7,6 @@
 #include "paths/paths.h"
 #include "pkg/pkg.h"
 #include "profile/profile.h"
-#include "target/mutate.h"
 #include "target/select.h"
 #include "when/when.h"
 
@@ -17,6 +16,38 @@ static si_pkg_t evaluate(spn_units_t* u, spn_build_unit_t* build, const spn_reso
   spn_profile_env(mem, &build->profile, &env);
   spn_options_env_set(&env, &resolved->options.values);
   return si_evaluate_package(mem, resolved->manifest, &u->ctx->roots, trees, &env);
+}
+
+typedef struct {
+  u32 take;
+  bool published;
+  bool self;
+  bool host;
+} consumes_t;
+
+static const consumes_t consumes [] = {
+  [SPN_TARGET_KIND_LIB] = { .take = 1u << SPN_DEP_KIND_PACKAGE, .published = true, .host = true },
+  [SPN_TARGET_KIND_EXE] = { .take = 1u << SPN_DEP_KIND_PACKAGE, .published = true, .host = true },
+  [SPN_TARGET_KIND_TOOL] = { .take = 1u << SPN_DEP_KIND_TOOL, .published = true, .host = true },
+  [SPN_TARGET_KIND_TEST] = { .take = (1u << SPN_DEP_KIND_PACKAGE) | (1u << SPN_DEP_KIND_TEST), .published = true, .host = true },
+  [SPN_TARGET_KIND_EXAMPLE] = { .take = 1u << SPN_DEP_KIND_PACKAGE, .self = true, .host = true },
+  [SPN_TARGET_KIND_BUILD_METAPROGRAM] = { .take = 1u << SPN_DEP_KIND_BUILD },
+  [SPN_TARGET_KIND_CONFIGURE_METAPROGRAM] = sp_zero,
+};
+
+static void append(sp_mem_t mem, si_da(spn_requirement_t)* list, si_da(spn_requirement_t) values) {
+  si_da_for_value(values, value) {
+    si_da_push(mem, *list, value);
+  }
+}
+
+static void push_include(sp_mem_t mem, spn_target_unit_t* unit, spn_pkg_unit_t* pkg) {
+  si_da_for_value(unit->includes, included) {
+    if (included == pkg) {
+      return;
+    }
+  }
+  si_da_push(mem, unit->includes, pkg);
 }
 
 static si_target_t* get_script(si_pkg_t* pkg, spn_target_kind_t kind) {
@@ -89,7 +120,7 @@ spn_err_t si_add_package_unit(spn_units_t* u, spn_build_unit_t* build, const spn
     .work = unit->paths.work,
   };
   unit->pkg = evaluate(u, build, resolved, unit->paths.roots);
-  si_da_for_ptr(unit->pkg.publish, entry) {
+  si_da_for_ptr(unit->pkg.publish.entries, entry) {
     unit->publishes.include = unit->publishes.include || entry->root == SPN_PUBLISH_ROOT_INCLUDE;
   }
   si_om_for_each(unit->pkg.targets, target) {
@@ -129,7 +160,7 @@ spn_err_t si_add_package_unit_closure(spn_units_t* u, spn_build_unit_t* build, c
     }
     spn_pkg_unit_t* dep = SP_NULLPTR;
     spn_try(si_add_package_unit_closure(u, build, sp_ht_getp(u->resolve, edge->id), &dep));
-    si_da_push(u->mem, pkg->deps, ((spn_pkg_edge_t) { .pkg = dep, .private = edge->private }));
+    si_da_push(u->mem, pkg->deps, ((spn_pkg_edge_t) { .pkg = dep, .public = edge->public }));
   }
 
   si_om_for_each(pkg->pkg.targets, target) {
@@ -162,73 +193,49 @@ spn_err_t si_add_target_unit(spn_units_t* u, spn_pkg_unit_t* pkg, si_target_t* t
 
   switch (target->info->kind) {
     case SPN_TARGET_KIND_LIB: {
-      if (spn_linkage_set_has(target->info->linkages, SPN_LIB_KIND_OBJECT) || target->info->no_link) {
-        if (target->info->linkages.object) {
-          unit->lib_kind = SPN_LIB_KIND_OBJECT;
+      const spn_profile_info_t* profile = &pkg->build->profile;
+      const spn_pkg_config_t* config = pkg->resolved->config;
+      spn_kind_query_t query = { .linkage = profile->linking.linkage };
+      if (config && !sp_opt_is_null(config->kind)) {
+        sp_opt_set(query.config, config->kind.value);
+      }
+
+      if (spn_target_select_lib_kind(target->info->linkages, query, &unit->lib_kind)) {
+        spn_linkage_requester_t requester = SPN_LINKAGE_REQUESTER_TARGET;
+        if (profile->request.linkage) {
+          requester = SPN_LINKAGE_REQUESTER_PROFILE;
         }
-        if (target->info->linkages.source) {
-          unit->lib_kind = SPN_LIB_KIND_SOURCE;
+        else if (profile->request.libc == SPN_RUNTIME_STATIC) {
+          requester = SPN_LINKAGE_REQUESTER_LIBC;
+        }
+        sp_da(spn_linkage_t) supported = sp_da_new(u->ctx->events->mem, spn_linkage_t);
+        if (target->info->linkages.shared) {
+          sp_da_push(supported, SPN_LIB_KIND_SHARED);
         }
         if (target->info->linkages.static_lib) {
-          unit->lib_kind = SPN_LIB_KIND_STATIC;
+          sp_da_push(supported, SPN_LIB_KIND_STATIC);
         }
-        if (target->info->linkages.shared) {
-          unit->lib_kind = SPN_LIB_KIND_SHARED;
-        }
-      }
-      else {
-        const spn_profile_info_t* profile = &pkg->build->profile;
-        const spn_pkg_config_t* config = pkg->resolved->config;
-        spn_kind_query_t query = { .linkage = profile->linking.linkage };
-        if (config && !sp_opt_is_null(config->kind)) {
-          sp_opt_set(query.config, config->kind.value);
-        }
-
-        if (spn_target_select_lib_kind(target->info->linkages, query, &unit->lib_kind)) {
-          spn_linkage_requester_t requester = SPN_LINKAGE_REQUESTER_TARGET;
-          if (profile->request.linkage) {
-            requester = SPN_LINKAGE_REQUESTER_PROFILE;
-          }
-          else if (profile->request.libc == SPN_RUNTIME_STATIC) {
-            requester = SPN_LINKAGE_REQUESTER_LIBC;
-          }
-          sp_da(spn_linkage_t) supported = sp_da_new(u->ctx->events->mem, spn_linkage_t);
-          if (target->info->linkages.shared) {
-            sp_da_push(supported, SPN_LIB_KIND_SHARED);
-          }
-          if (target->info->linkages.static_lib) {
-            sp_da_push(supported, SPN_LIB_KIND_STATIC);
-          }
-          if (target->info->linkages.source) {
-            sp_da_push(supported, SPN_LIB_KIND_SOURCE);
-          }
-          if (target->info->linkages.object) {
-            sp_da_push(supported, SPN_LIB_KIND_OBJECT);
-          }
-          return spn_err_emit(u->ctx, (spn_err_union_t) {
-            .kind = SPN_ERR_TARGET_LINKAGE,
-            .target = {
-              .pkg = pkg->pkg.manifest->name.str,
-              .name = target->info->name.str,
-              .requested = spn_linkage_to_str(query.config.some ? query.config.value : query.linkage),
-              .requester = query.config.some ? SPN_LINKAGE_REQUESTER_ROOT_MANIFEST : requester,
-              .supported = supported,
-            },
-          });
-        }
+        return spn_err_emit(u->ctx, (spn_err_union_t) {
+          .kind = SPN_ERR_TARGET_LINKAGE,
+          .target = {
+            .pkg = pkg->pkg.manifest->name.str,
+            .name = target->info->name.str,
+            .requested = spn_linkage_to_str(query.config.some ? query.config.value : query.linkage),
+            .requester = query.config.some ? SPN_LINKAGE_REQUESTER_ROOT_MANIFEST : requester,
+            .supported = supported,
+          },
+        });
       }
 
       switch (unit->lib_kind) {
         case SPN_LIB_KIND_STATIC: unit->kind = SPN_CC_OUTPUT_STATIC_LIB; break;
         case SPN_LIB_KIND_SHARED: unit->kind = SPN_CC_OUTPUT_SHARED_LIB; break;
-        case SPN_LIB_KIND_SOURCE:
-        case SPN_LIB_KIND_OBJECT: unit->kind = SPN_CC_OUTPUT_OBJECT; break;
-        case SPN_LIB_KIND_NONE: break;
+        case SPN_LIB_KIND_NONE: sp_unreachable_case();
       }
       break;
     }
     case SPN_TARGET_KIND_EXE:
-    case SPN_TARGET_KIND_SCRIPT:
+    case SPN_TARGET_KIND_TOOL:
     case SPN_TARGET_KIND_TEST:
     case SPN_TARGET_KIND_EXAMPLE: {
       unit->kind = SPN_CC_OUTPUT_EXE;
@@ -242,70 +249,54 @@ spn_err_t si_add_target_unit(spn_units_t* u, spn_pkg_unit_t* pkg, si_target_t* t
   }
 
   si_da_for_value(target->deps, name) {
-    bool package = false;
-    sp_da_for_ptr(pkg->resolved->edges, edge) {
-      if (edge->id.name == name.id) {
-        package = true;
-        break;
-      }
-    }
-    if (package) {
-      continue;
-    }
-    si_target_t* lib = spn_pkg_get_target(&pkg->pkg, name.id, SPN_TARGET_KIND_LIB);
-    if (!lib) {
-      return spn_err_emit(u->ctx, (spn_err_union_t) {
-        .kind = SPN_ERR_TARGET_DEP,
-        .target = { .name = name.str },
-      });
-    }
     spn_target_unit_t* dep = SP_NULLPTR;
-    spn_try(si_add_target_unit(u, pkg, lib, &dep));
+    spn_try(si_add_target_unit(u, pkg, spn_pkg_get_target(&pkg->pkg, name.id, SPN_TARGET_KIND_LIB), &dep));
     si_da_push(u->mem, unit->deps, dep);
   }
 
-  u32 take = 0;
-  bool published = false;
-  switch (target->info->kind) {
-    case SPN_TARGET_KIND_LIB:
-    case SPN_TARGET_KIND_EXE:
-    case SPN_TARGET_KIND_SCRIPT: {
-      take = 1u << SPN_DEP_KIND_PACKAGE;
-      published = pkg->publishes.include;
-      break;
-    }
-    case SPN_TARGET_KIND_EXAMPLE: {
-      take = 1u << SPN_DEP_KIND_PACKAGE;
-      spn_pkg_unit_t* self = SP_NULLPTR;
-      spn_try(si_add_package_unit_closure(u, pkg->build, pkg->resolved, &self));
-      si_da_push(u->mem, unit->edges, ((spn_pkg_edge_t) { .pkg = self }));
-      si_da_push(u->mem, unit->includes, self);
-      break;
-    }
-    case SPN_TARGET_KIND_TEST: {
-      take = (1u << SPN_DEP_KIND_PACKAGE) | (1u << SPN_DEP_KIND_TEST);
-      published = pkg->publishes.include;
-      break;
-    }
-    case SPN_TARGET_KIND_BUILD_METAPROGRAM: {
-      take = 1u << SPN_DEP_KIND_BUILD;
-      break;
-    }
-    case SPN_TARGET_KIND_CONFIGURE_METAPROGRAM: {
-      break;
-    }
+  const consumes_t* rule = &consumes[target->info->kind];
+  if (rule->self) {
+    spn_pkg_unit_t* self = SP_NULLPTR;
+    spn_try(si_add_package_unit_closure(u, pkg->build, pkg->resolved, &self));
+    si_da_push(u->mem, unit->edges, ((spn_pkg_edge_t) { .pkg = self }));
+    si_da_push(u->mem, unit->includes, self);
   }
   sp_da_for_ptr(pkg->resolved->edges, edge) {
-    if (!(take & (1u << edge->kind))) {
+    if (!(rule->take & (1u << edge->kind))) {
       continue;
     }
     spn_pkg_unit_t* dep = SP_NULLPTR;
     spn_try(si_add_package_unit_closure(u, pkg->build, sp_ht_getp(u->resolve, edge->id), &dep));
-    si_da_push(u->mem, unit->edges, ((spn_pkg_edge_t) { .pkg = dep, .private = edge->private }));
+    si_da_push(u->mem, unit->edges, ((spn_pkg_edge_t) { .pkg = dep, .public = edge->public }));
     si_da_push(u->mem, unit->includes, dep);
   }
-  if (published) {
+  si_da_for_value(unit->deps, lib) {
+    si_da_for_ptr(lib->edges, edge) {
+      push_include(u->mem, unit, edge->pkg);
+    }
+  }
+  si_da_for(unit->includes, it) {
+    si_da_for_ptr(unit->includes[it]->deps, edge) {
+      if (edge->public) {
+        push_include(u->mem, unit, edge->pkg);
+      }
+    }
+  }
+  if (rule->published && pkg->publishes.include) {
     si_da_push(u->mem, unit->includes, pkg);
+  }
+
+  append(u->mem, &unit->requires, target->requires);
+  si_da_for_value(pkg->pkg.requires, require) {
+    if (require.kind == SPN_REQUIREMENT_HOST && !rule->host) {
+      continue;
+    }
+    si_da_push(u->mem, unit->requires, require);
+  }
+  si_da_for_value(unit->includes, dep) {
+    if (dep != pkg) {
+      append(u->mem, &unit->requires, dep->pkg.publish.requires);
+    }
   }
 
   *result = unit;

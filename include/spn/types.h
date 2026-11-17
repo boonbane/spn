@@ -136,6 +136,8 @@ typedef enum {
   SPN_OP_CLEAN,
   SPN_OP_CLEAN_PROFILE,
   SPN_OP_ENV,
+  SPN_OP_SOURCE_PATH,
+  SPN_OP_TOOL_PATH,
 } spn_op_kind_t;
 
 typedef struct {
@@ -179,6 +181,11 @@ typedef struct {
 } spn_scaffold_request_t;
 
 typedef struct {
+  sp_str_t name;
+  spn_dep_kind_t kind;
+} spn_path_request_t;
+
+typedef struct {
   spn_str_arr_t files;
 } spn_scaffold_result_t;
 
@@ -216,6 +223,10 @@ typedef struct {
 } spn_env_result_t;
 
 typedef struct {
+  sp_str_t path;
+} spn_path_result_t;
+
+typedef struct {
   spn_op_kind_t kind;
   spn_err_t err;
   union {
@@ -223,6 +234,7 @@ typedef struct {
     spn_test_result_t test;
     spn_publish_result_t publish;
     spn_env_result_t env;
+    spn_path_result_t path;
   };
 } spn_op_result_t;
 

@@ -158,7 +158,8 @@ static void add_sdk_compile(sp_mem_t mem, const spn_profile_info_t* profile, spn
   }
   const spn_sdk_t* sdk = &profile->sdk;
   switch (sdk->kind) {
-    case SPN_SDK_NONE: {
+    case SPN_SDK_NONE:
+    case SPN_SDK_HOST: {
       break;
     }
     case SPN_SDK_SYSROOT: {
@@ -190,7 +191,8 @@ static void add_sdk_link(sp_mem_t mem, const spn_profile_info_t* profile, spn_in
   }
   const spn_sdk_t* sdk = &profile->sdk;
   switch (sdk->kind) {
-    case SPN_SDK_NONE: {
+    case SPN_SDK_NONE:
+    case SPN_SDK_HOST: {
       break;
     }
     case SPN_SDK_SYSROOT: {
@@ -520,7 +522,6 @@ spn_cc_link_plan_t spn_gnu_render_link(sp_mem_t mem, const spn_cc_t* toolchain, 
       }
       break;
     }
-    case SPN_CC_OUTPUT_OBJECT:
     case SPN_CC_OUTPUT_STATIC_LIB: {
       sp_unreachable_case();
     }

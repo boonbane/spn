@@ -2,7 +2,5 @@
 name = "spum"
 version = "1.0.0"
 
-[[lib]]
-name = "spum"
-kinds = ["source"]
-publish.include = [{ from = "kram.h" }]
+[package.publish]
+include = [{ from = "kram.h" }]

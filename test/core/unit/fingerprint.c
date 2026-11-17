@@ -40,9 +40,14 @@ static const test_t tests [] = {
     .b = { .pkgs = { { .name = "A", .config = SPN_LIB_KIND_STATIC } } },
   },
   {
+    .name = "publish_framework_changes_fingerprint",
+    .a = { .os = SPN_OS_MACOS, .pkgs = { { .name = "A" } } },
+    .b = { .os = SPN_OS_MACOS, .pkgs = { { .name = "A", .publish.frameworks = { "B" } } } },
+  },
+  {
     .name = "dep_privacy_changes_fingerprint",
     .a = { .pkgs = { { .name = "A", .deps = { { "B" } } }, { .name = "B" } } },
-    .b = { .pkgs = { { .name = "A", .deps = { { "B", .private = true } } }, { .name = "B" } } },
+    .b = { .pkgs = { { .name = "A", .deps = { { "B", .public = true } } }, { .name = "B" } } },
   },
   {
     .name = "dep_kind_changes_fingerprint",

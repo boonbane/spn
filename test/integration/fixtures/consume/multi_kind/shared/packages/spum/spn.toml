@@ -4,6 +4,6 @@ version = "1.0.0"
 
 [[lib]]
 name = "spum"
-kinds = ["static", "shared", "source"]
+kinds = ["static", "shared"]
 source = ["spum.c"]
 publish.include = [{ from = "spum.h" }]

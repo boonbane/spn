@@ -4,5 +4,5 @@ int main(int num_args, const char** args) {
   (void)num_args;
   (void)args;
 
-  return SPUM;
+  return spum_value();
 }

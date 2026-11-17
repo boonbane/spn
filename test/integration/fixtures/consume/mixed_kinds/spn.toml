@@ -1,0 +1,13 @@
+[package]
+name = "R"
+version = "0.1.0"
+
+[profile.default]
+linkage = "shared"
+
+[deps.package]
+A = { path = "packages/A" }
+
+[[bin]]
+name = "main"
+source = ["main.c"]

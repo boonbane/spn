@@ -1,0 +1,53 @@
+{
+  "version": 3,
+  "requests": [
+    {
+      "name": "root",
+      "kind": "package",
+      "source": "root"
+    }
+  ],
+  "packages": [
+    {
+      "name": "foo",
+      "version": "1.0.0",
+      "hash": "7249cb50930f08ee",
+      "source": "index",
+      "recipe": "none"
+    },
+    {
+      "name": "foo",
+      "version": "2.0.0",
+      "hash": "adb2a8ea4f003832",
+      "source": "index",
+      "recipe": "none"
+    },
+    {
+      "name": "root",
+      "version": "0.0.1",
+      "hash": "de17ed4456e37553",
+      "source": "root",
+      "recipe": "local",
+      "edges": [
+        {
+          "to": {
+            "name": "foo",
+            "version": "1.0.0",
+            "hash": "7249cb50930f08ee"
+          },
+          "kind": "build",
+          "edge": "process"
+        },
+        {
+          "to": {
+            "name": "foo",
+            "version": "2.0.0",
+            "hash": "adb2a8ea4f003832"
+          },
+          "kind": "tool",
+          "edge": "process"
+        }
+      ]
+    }
+  ]
+}

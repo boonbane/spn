@@ -25,7 +25,7 @@
     {
       "name": "gfxa",
       "version": "1.0.0",
-      "hash": "2089050d8f879720",
+      "hash": "d6c1af0b37d79253",
       "source": "index",
       "recipe": "none",
       "edges": [
@@ -36,15 +36,14 @@
             "hash": "85e408a77ddc2f36"
           },
           "kind": "package",
-          "edge": "private",
-          "private": true
+          "edge": "private"
         }
       ]
     },
     {
       "name": "gfxb",
       "version": "1.0.0",
-      "hash": "4dc9419f461aaf18",
+      "hash": "55401f2ee1665d1a",
       "source": "index",
       "recipe": "none",
       "edges": [
@@ -55,15 +54,14 @@
             "hash": "adb2a8ea4f003832"
           },
           "kind": "package",
-          "edge": "private",
-          "private": true
+          "edge": "private"
         }
       ]
     },
     {
       "name": "root",
       "version": "0.0.1",
-      "hash": "578fed7932fcccc0",
+      "hash": "9b25fb3f9625b20f",
       "source": "root",
       "recipe": "local",
       "edges": [
@@ -80,7 +78,7 @@
           "to": {
             "name": "gfxa",
             "version": "1.0.0",
-            "hash": "2089050d8f879720"
+            "hash": "d6c1af0b37d79253"
           },
           "kind": "package",
           "edge": "scope"
@@ -89,7 +87,7 @@
           "to": {
             "name": "gfxb",
             "version": "1.0.0",
-            "hash": "4dc9419f461aaf18"
+            "hash": "55401f2ee1665d1a"
           },
           "kind": "package",
           "edge": "scope"

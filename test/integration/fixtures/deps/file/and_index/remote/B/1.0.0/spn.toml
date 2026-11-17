@@ -1,0 +1,6 @@
+[package]
+name = "B"
+version = "1.0.0"
+
+[deps.package]
+A = "1.0.0"

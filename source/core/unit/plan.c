@@ -19,6 +19,7 @@
 #include "paths/paths.h"
 #include "pkg/pkg.h"
 #include "profile/types.h"
+#include "semver/compare.h"
 #include "toolchain/toolchain.h"
 #include "triple/triple.h"
 
@@ -64,19 +65,14 @@ static bool is_any_object_cxx(sp_da(spn_compile_unit_t*) objects) {
   return false;
 }
 
-static bool contains_str(si_da(sp_str_t) strs, sp_str_t str) {
-  si_da_for(strs, it) {
-    if (sp_str_equal(strs[it], str)) {
-      return true;
+static void push_requires(sp_mem_t mem, si_da(sp_str_t)* names, si_da(spn_requirement_t) requires, spn_requirement_kind_t kind) {
+  si_da_for_value(requires, require) {
+    bool present = require.kind != kind;
+    si_da_for(*names, it) {
+      present = present || sp_str_equal((*names)[it], require.name);
     }
-  }
-  return false;
-}
-
-static void push_unique(sp_mem_t mem, si_da(sp_str_t)* result, si_da(sp_str_t) values) {
-  si_da_for(values, it) {
-    if (!contains_str(*result, values[it])) {
-      si_da_push(mem, *result, values[it]);
+    if (!present) {
+      si_da_push(mem, *names, require.name);
     }
   }
 }
@@ -146,7 +142,7 @@ static spn_err_t lower_target(spn_units_t* u, spn_target_unit_t* unit) {
 
   switch (target->info->kind) {
     case SPN_TARGET_KIND_EXE:
-    case SPN_TARGET_KIND_SCRIPT: {
+    case SPN_TARGET_KIND_TOOL: {
       unit->install = pkg->paths.bin;
       break;
     }
@@ -181,63 +177,49 @@ static spn_err_t lower_target(spn_units_t* u, spn_target_unit_t* unit) {
     },
   };
   link->cc.min_os = max_os_version(link->cc.min_os, pkg->pkg.manifest->macos.min_os);
-  push_unique(mem, &link->cc.frameworks, target->macos.frameworks);
-  push_unique(mem, &link->cc.frameworks, pkg->pkg.macos.frameworks);
-  push_unique(mem, &link->cc.system_libs, target->system_deps);
-  push_unique(mem, &link->cc.system_libs, pkg->pkg.system_deps);
+  si_da(spn_requirement_t) requires = sp_zero;
+  si_da_for_value(unit->requires, require) {
+    si_da_push(scratch.mem, requires, require);
+  }
   si_da_rfor(entries, et) {
     si_closure_entry_t* entry = &entries[et];
     switch (entry->yield) {
       case SI_CLOSURE_YIELD_PKG: {
         spn_pkg_unit_t* dep = entry->pkg;
         link->cc.min_os = max_os_version(link->cc.min_os, dep->pkg.manifest->macos.min_os);
-        bool links_code = si_da_empty(dep->libs);
-        si_da_for_value(dep->libs, lib) {
-          links_code = links_code || (!lib->target->info->no_link && lib->lib_kind != SPN_LIB_KIND_SHARED);
-        }
-        if (links_code) {
-          push_unique(mem, &link->cc.frameworks, dep->pkg.macos.frameworks);
-        }
-        push_unique(mem, &link->cc.system_libs, dep->pkg.system_deps);
         break;
       }
       case SI_CLOSURE_YIELD_LIB: {
         spn_target_unit_t* lib = entry->lib;
         link->cc.min_os = max_os_version(link->cc.min_os, lib->target->info->macos.min_os);
-        if (lib->target->info->no_link) {
+        if (lib->target->info->no_link || sp_da_empty(lib->objects)) {
           break;
         }
         switch (lib->lib_kind) {
           case SPN_LIB_KIND_SHARED: {
-            if (!sp_da_empty(lib->objects)) {
-              si_da_push(mem, link->deps, ((spn_link_dep_t) { .lib = lib, .role = SPN_LINK_ROLE_SHARED }));
-            }
+            si_da_push(mem, link->deps, ((spn_link_dep_t) { .lib = lib, .role = SPN_LINK_ROLE_SHARED }));
             break;
           }
           case SPN_LIB_KIND_STATIC: {
-            if (!sp_da_empty(lib->objects)) {
-              spn_link_role_t role = dynamic && !entry->private ? SPN_LINK_ROLE_WHOLE_ARCHIVE : SPN_LINK_ROLE_ARCHIVE;
-              si_da_push(mem, link->deps, ((spn_link_dep_t) { .lib = lib, .role = role }));
-            }
+            spn_link_role_t role = dynamic && entry->public ? SPN_LINK_ROLE_WHOLE_ARCHIVE : SPN_LINK_ROLE_ARCHIVE;
+            si_da_push(mem, link->deps, ((spn_link_dep_t) { .lib = lib, .role = role }));
             if (is_any_object_cxx(lib->objects)) {
               link->cc.lang = SPN_LANG_CXX;
             }
-            push_unique(mem, &link->cc.frameworks, lib->target->macos.frameworks);
-            push_unique(mem, &link->cc.system_libs, lib->target->system_deps);
+            si_da_for_value(lib->requires, require) {
+              si_da_push(scratch.mem, requires, require);
+            }
             break;
           }
-          case SPN_LIB_KIND_SOURCE:
-          case SPN_LIB_KIND_OBJECT:
-          case SPN_LIB_KIND_NONE: {
-            push_unique(mem, &link->cc.frameworks, lib->target->macos.frameworks);
-            push_unique(mem, &link->cc.system_libs, lib->target->system_deps);
-            break;
-          }
+          case SPN_LIB_KIND_NONE: sp_unreachable_case();
         }
         break;
       }
     }
   }
+  push_requires(mem, &link->cc.system_libs, requires, SPN_REQUIREMENT_HOST);
+  push_requires(mem, &link->cc.system_libs, requires, SPN_REQUIREMENT_LIB);
+  push_requires(mem, &link->cc.frameworks, requires, SPN_REQUIREMENT_FRAMEWORK);
 
   spn_cc_compile_t compile = {
     .cxx = target->info->cxx,
@@ -270,8 +252,11 @@ static spn_err_t lower_target(spn_units_t* u, spn_target_unit_t* unit) {
   si_da_for(target->flags, it) {
     si_da_push(scratch.mem, compile.args, target->flags[it]);
   }
-  si_da_for_ptr(unit->edges, edge) {
-    si_da_for_value(edge->pkg->pkg.public_define, define) {
+  si_da_for_value(unit->includes, dep) {
+    if (dep == pkg) {
+      continue;
+    }
+    si_da_for_value(dep->pkg.public_define, define) {
       si_da_push(scratch.mem, compile.define, define);
     }
   }
@@ -279,6 +264,26 @@ static spn_err_t lower_target(spn_units_t* u, spn_target_unit_t* unit) {
     object->plan = si_cc_render_compile(mem, toolchain, profile, object->lang, &compile);
   }
   sp_mem_end_scratch(scratch);
+
+  si_da_for(link->deps, at) {
+    spn_pkg_unit_t* dep = link->deps[at].lib->pkg;
+    sp_for(bt, at) {
+      spn_pkg_unit_t* other = link->deps[bt].lib->pkg;
+      if (dep == other || dep->id.pkg.name != other->id.pkg.name) {
+        continue;
+      }
+      bool ordered = spn_semver_le(dep->id.pkg.version, other->id.pkg.version);
+      return spn_err_emit(u->ctx, (spn_err_union_t) {
+        .kind = SPN_ERR_STATIC_DUPLICATE,
+        .subject = dep->pkg.manifest->name.str,
+        .static_dup = {
+          .target = target->info->name.str,
+          .low = ordered ? dep->id.pkg.version : other->id.pkg.version,
+          .high = ordered ? other->id.pkg.version : dep->id.pkg.version,
+        },
+      });
+    }
+  }
 
   if (sp_da_empty(unit->objects)) {
     return SPN_OK;
@@ -327,10 +332,6 @@ static spn_err_t lower_target(spn_units_t* u, spn_target_unit_t* unit) {
       sp_opt_set(emit->archive, si_cc_render_archive(mem, toolchain, profile));
       break;
     }
-    case SPN_CC_OUTPUT_OBJECT: {
-      emit->objects = true;
-      break;
-    }
   }
   return SPN_OK;
 }
@@ -345,7 +346,7 @@ static spn_path_t staged_path(sp_mem_t mem, spn_target_unit_t* unit) {
   spn_path_t path = sp_zero;
   switch (unit->target->info->kind) {
     case SPN_TARGET_KIND_EXE:
-    case SPN_TARGET_KIND_SCRIPT: {
+    case SPN_TARGET_KIND_TOOL: {
       path = spn_path_join(mem, root, unit->emit.output);
       break;
     }
@@ -374,7 +375,7 @@ static spn_err_t plan_new(spn_units_t* u, sp_mem_t scratch, spn_pkg_unit_t* root
     spn_pkg_unit_t* pkg = sp_om_at(u->packages, pt);
     si_da_push(u->mem, plan->pkgs, pkg);
     spn_publish_plan_t publish = { .pkg = pkg };
-    si_da_for_value(pkg->pkg.publish, entry) {
+    si_da_for_value(pkg->pkg.publish.entries, entry) {
       si_da_push(u->mem, publish.entries, entry);
     }
     si_om_for_each(pkg->pkg.targets, target) {
@@ -424,9 +425,6 @@ static spn_err_t plan_new(spn_units_t* u, sp_mem_t scratch, spn_pkg_unit_t* root
       }
     }
 
-    if (target->lib_kind == SPN_LIB_KIND_SOURCE) {
-      continue;
-    }
     si_da_for_value(target->target->source, source) {
       switch (source.kind) {
         case SPN_SOURCE_FILE: {
@@ -463,6 +461,34 @@ static spn_err_t plan_new(spn_units_t* u, sp_mem_t scratch, spn_pkg_unit_t* root
         .toolchain = { .name = target->pkg->build->toolchain->info->name.str },
       });
     }
+    if (sp_da_empty(target->objects)) {
+      si_da_clear(target->requires);
+    }
+  }
+
+  si_da_for_value(plan->targets, target) {
+    spn_build_unit_t* build = target->pkg->build;
+    if (build->profile.sdk.kind == SPN_SDK_HOST) {
+      continue;
+    }
+    si_da(sp_str_t) libs = sp_zero;
+    push_requires(u->ctx->events->mem, &libs, target->requires, SPN_REQUIREMENT_HOST);
+    if (si_da_empty(libs)) {
+      continue;
+    }
+    return spn_err_emit(u->ctx, (spn_err_union_t) {
+      .kind = SPN_ERR_TARGET_HOST_DEPS,
+      .host_deps = {
+        .pkg = target->pkg->pkg.manifest->name.str,
+        .name = target->target->info->name.str,
+        .libs = libs,
+        .toolchain = build->toolchain->info->name.str,
+        .candidates = spn_toolchain_host_candidates(u->ctx->events->mem, &u->ctx->catalog),
+        .target = build->profile.target,
+        .host = u->ctx->host,
+        .script = build->script,
+      },
+    });
   }
 
   si_da_for_value(plan->targets, target) {

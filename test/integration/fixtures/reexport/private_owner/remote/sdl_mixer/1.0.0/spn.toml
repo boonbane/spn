@@ -3,7 +3,7 @@ name = "sdl_mixer"
 version = "1.0.0"
 
 [deps.package]
-sdl = { version = "1.0.0", private = true }
+sdl = "1.0.0"
 
 [[lib]]
 name = "sdl_mixer"

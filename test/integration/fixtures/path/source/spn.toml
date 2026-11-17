@@ -1,0 +1,13 @@
+[package]
+name = "R"
+version = "0.1.0"
+
+[package.upstream]
+url = "@R.url@"
+commit = "@R.commit@"
+
+[deps.package]
+A = "1.0.0"
+
+[deps.tool]
+B = "1.0.0"

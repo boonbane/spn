@@ -73,23 +73,6 @@ static const test_t tests [] = {
     },
   },
   {
-    .name = "object_lib_publishes_each_object",
-    .graph.pkgs = {
-      { .name = "P", .deps = { { "B" } }, .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "main.c" } } } },
-      { .name = "B", .targets = { { "B", object_only, .source = { "b.c", "c.c" } } } },
-    },
-    .roots = { { "A", SPN_TARGET_KIND_EXE } },
-    .actions = {
-      { NODE_COMPILE, .consumes = { "main.c" }, .produces = { "main.c.o" } },
-      { NODE_COMPILE, .consumes = { "b.c" }, .produces = { "b.c.o" } },
-      { NODE_COMPILE, .consumes = { "c.c" }, .produces = { "c.c.o" } },
-      { NODE_PUBLISH_FILE, .consumes = { "b.c.o" }, .produces = { "build/debug/store/B/lib/manifest/b.c.o" } },
-      { NODE_PUBLISH_FILE, .consumes = { "c.c.o" }, .produces = { "build/debug/store/B/lib/manifest/c.c.o" } },
-      { NODE_LINK, .consumes = { "main.c.o" }, .produces = { "A" } },
-      { NODE_PUBLISH_FILE, .consumes = { "A" }, .produces = { "build/debug/store/P/bin/A" } },
-    },
-  },
-  {
     .name = "embed_feeds_its_header_to_compiles_and_its_object_to_the_link",
     .graph.pkgs = {
       { .name = "P", .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "main.c" }, .embed = { "e.txt" } } } },
@@ -120,7 +103,7 @@ static const test_t tests [] = {
     .name = "published_include_tree_orders_consumer_compiles",
     .graph.pkgs = {
       { .name = "P", .deps = { { "B" } }, .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "main.c" } } } },
-      { .name = "B", .publish = { "b.h" } },
+      { .name = "B", .publish.include = { "b.h" } },
     },
     .roots = { { "A", SPN_TARGET_KIND_EXE } },
     .actions = {
@@ -133,7 +116,7 @@ static const test_t tests [] = {
   {
     .name = "published_include_tree_orders_own_package_compiles",
     .graph.pkgs = {
-      { .name = "P", .publish = { "p.h" }, .targets = { { "A", static_only, .source = { "a.c" } } } },
+      { .name = "P", .publish.include = { "p.h" }, .targets = { { "A", static_only, .source = { "a.c" } } } },
     },
     .roots = { { "A", SPN_TARGET_KIND_LIB } },
     .actions = {
@@ -201,7 +184,7 @@ static const test_t tests [] = {
   {
     .name = "public_static_deps_of_a_shared_lib_feed_its_exports",
     .graph.pkgs = {
-      { .name = "P", .deps = { { "B" } }, .targets = { { "A", shared_only, .source = { "a.c" } } } },
+      { .name = "P", .deps = { { "B", .public = true } }, .targets = { { "A", shared_only, .source = { "a.c" } } } },
       { .name = "B", .targets = { { "B", static_only, .source = { "b.c" } } } },
     },
     .roots = { { "A", SPN_TARGET_KIND_LIB } },

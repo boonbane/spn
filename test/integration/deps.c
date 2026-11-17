@@ -49,6 +49,50 @@ static const test_t tests [] = {
     },
   },
   {
+    .name = "file_two_paths_one_name",
+    .project = "test/integration/fixtures/deps/file/two_paths",
+    .copy = { "P/*", "Q/*", "B/*" },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { "build", .rc = 1 } },
+      { .kind = ACTION_VERIFY_RESULT, .verify_result = { .err = SPN_ERR_PKG_CONFLICT_PATH } },
+    },
+  },
+  {
+    .name = "file_one_path_two_spellings",
+    .project = "test/integration/fixtures/deps/file/two_spellings",
+    .copy = { "P/*", "B/*" },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { "build" } },
+    },
+  },
+  {
+    .name = "file_two_paths_two_tables",
+    .project = "test/integration/fixtures/deps/file/two_tables",
+    .copy = { "P/*", "T/*" },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { "build", .rc = 1 } },
+      { .kind = ACTION_VERIFY_RESULT, .verify_result = { .err = SPN_ERR_PKG_CONFLICT_PATH } },
+    },
+  },
+  {
+    .name = "file_and_index_one_name",
+    .project = "test/integration/fixtures/deps/file/and_index",
+    .copy = { "P/*" },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { "build", .rc = 1 } },
+      { .kind = ACTION_VERIFY_RESULT, .verify_result = { .err = SPN_ERR_PKG_CONFLICT_PATH } },
+    },
+  },
+  {
+    .name = "file_and_index_two_tables",
+    .project = "test/integration/fixtures/deps/file/and_index_tables",
+    .copy = { "T/*" },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { "build", .rc = 1 } },
+      { .kind = ACTION_VERIFY_RESULT, .verify_result = { .err = SPN_ERR_PKG_CONFLICT_PATH } },
+    },
+  },
+  {
     .name = "index_name_mismatch",
     .project = "test/integration/fixtures/deps/index/name_mismatch",
     .actions = {
@@ -193,4 +237,45 @@ static const rebuild_test_t rebuilds [] = {
 
 sp_test_each(deps, rebuild, rebuild_test_t, rebuilds) {
   return run_rebuild_test(t, *it);
+}
+
+static const command_test_t tools [] = {
+  {
+    .name = "unselected",
+    .project = "test/integration/fixtures/deps/tool/index",
+    .args = { "build" },
+    .expect.events = { { .event = SPN_EVENT_RESOLVE_PACKAGE, .key = "name", .value = "A" } },
+  },
+  {
+    .name = "selected",
+    .project = "test/integration/fixtures/deps/tool/index",
+    .copy = { "t.c" },
+    .args = { "build", "--tool" },
+    .expect.exists = { exe("T") },
+  },
+  {
+    .name = "source_only",
+    .project = "test/integration/fixtures/deps/tool/source_only",
+    .copy = { "t.c" },
+    .args = { "build", "--tool" },
+    .expect.events = { { .event = SPN_EVENT_SYNC_PACKAGE, .key = "name", .value = "A" } },
+  },
+  {
+    .name = "sibling_lib_links_package_deps",
+    .project = "test/integration/fixtures/deps/tool/sibling",
+    .copy = { "l.c", "t.c" },
+    .args = { "build", "--tool" },
+    .expect.exists = { exe("T") },
+  },
+  {
+    .name = "sibling_lib_dep_at_another_version",
+    .project = "test/integration/fixtures/deps/tool/sibling_conflict",
+    .copy = { "l.c", "t.c" },
+    .args = { "build", "--tool" },
+    .expect = { .rc = 1, .err = SPN_ERR_STATIC_DUPLICATE },
+  },
+};
+
+sp_test_each(deps, tool, command_test_t, tools) {
+  return run_command_test(t, *it);
 }

@@ -57,6 +57,15 @@ static si_da(spn_gated_source_t) gated_sources(sp_mem_t mem, const c8* const* it
   return list;
 }
 
+static void push_requires(sp_mem_t mem, si_da(spn_gated_requirement_t)* requires, spn_requirement_kind_t kind, const c8* const* items, u32 max) {
+  sp_for(it, max) {
+    if (!items[it]) {
+      break;
+    }
+    si_da_push(mem, *requires, ((spn_gated_requirement_t) { .kind = kind, .name = sp_cstr_as_str(items[it]) }));
+  }
+}
+
 static si_da(spn_gated_embed_t) gated_embeds(sp_mem_t mem, const c8* const* items, u32 max) {
   si_da(spn_gated_embed_t) list = SP_NULLPTR;
   sp_for(it, max) {
@@ -100,8 +109,9 @@ static void declare_target(sp_mem_t mem, si_pkg_info_t* manifest, const graph_ta
   }
   decl->include = gated_paths(mem, spec->include, UNIT_TEST_MAX_STRS);
   decl->define = gated_list(mem, spec->define, UNIT_TEST_MAX_STRS);
-  decl->system_deps = gated_list(mem, spec->system_deps, UNIT_TEST_MAX_STRS);
-  decl->macos.frameworks = gated_list(mem, spec->frameworks, UNIT_TEST_MAX_STRS);
+  push_requires(mem, &decl->requires, SPN_REQUIREMENT_LIB, spec->system_deps, UNIT_TEST_MAX_STRS);
+  push_requires(mem, &decl->requires, SPN_REQUIREMENT_HOST, spec->host_deps, UNIT_TEST_MAX_STRS);
+  push_requires(mem, &decl->requires, SPN_REQUIREMENT_FRAMEWORK, spec->frameworks, UNIT_TEST_MAX_STRS);
   decl->macos.min_os = spec->min_os;
   decl->link_flags = gated_list(mem, spec->link_flags, UNIT_TEST_MAX_STRS);
   decl->linker_script = gated_paths(mem, spec->linker_script, UNIT_TEST_MAX_STRS);
@@ -177,6 +187,9 @@ static spn_profile_info_t program_profile(units_t* u, const graph_t* g, const sp
   profile.linker = spn_ld_native(profile.driver, triple);
   if (g->sdk) {
     profile.sdk = spn_sdk_at(u->mem, triple, (spn_path_t) { .sub = sp_cstr_as_str(g->sdk) });
+  }
+  if (g->sdk_host) {
+    profile.sdk = (spn_sdk_t) { .kind = SPN_SDK_HOST };
   }
   if (g->sdk_libc) {
     sp_opt_set(profile.libc, ((spn_libc_t) {
@@ -260,6 +273,24 @@ units_t* units_new(sp_test_t* t, const graph_t* g) {
   metaprogram.driver = profile.driver;
   metaprogram.linker = spn_ld_native(metaprogram.driver, metaprogram.target);
 
+  spn_toolchain_catalog_init(&u->ctx.catalog, profile.target, sp_zero_s(spn_sdk_host_t), mem);
+  sp_carr_for(g->catalog, it) {
+    if (!g->catalog[it].name) {
+      break;
+    }
+    sp_intern_str_t name = spn_intern_cstr(g->catalog[it].name);
+    spn_toolchain_decl_t decl = { .id = name.id, .name = name, .driver = SPN_CC_DRIVER_GCC, .host_row = g->catalog[it].host_row };
+    sp_da_init(mem, decl.targets);
+    if (!decl.host_row) {
+      sp_da_push(decl.targets, ((spn_toolchain_target_t) { .triple = profile.target }));
+    }
+    sp_da_init(mem, decl.hosts);
+    if (g->catalog[it].foreign) {
+      sp_da_push(decl.hosts, ((spn_toolchain_host_t) { .triple = { SPN_ARCH_ARM64, SPN_OS_MACOS } }));
+    }
+    spn_toolchain_catalog_add(&u->ctx.catalog, decl);
+  }
+
   spn_path_t project = spn_path_from_root(SPN_PATH_ROOT_PROJECT);
   spn_toolchain_unit_t* toolchain = sp_alloc_type(mem, spn_toolchain_unit_t);
   *toolchain = (spn_toolchain_unit_t) { .info = info };
@@ -277,6 +308,7 @@ units_t* units_new(sp_test_t* t, const graph_t* g) {
     .id = 2,
     .profile = metaprogram,
     .toolchain = toolchain,
+    .script = true,
     .paths = { .root = spn_path_join(mem, project, sp_str_lit("build/wasm32-wasi")) },
     .define = spn_when_facts_to_defines(mem, spn_profile_facts(&metaprogram)),
   };
@@ -295,10 +327,14 @@ units_t* units_new(sp_test_t* t, const graph_t* g) {
     *manifest = test_manifest_make(sp_cstr_as_str(spec->name));
     manifest->include = gated_paths(mem, spec->include, UNIT_TEST_MAX_STRS);
     manifest->define = gated_list(mem, spec->define, UNIT_TEST_MAX_STRS);
-    manifest->system_deps = gated_list(mem, spec->system_deps, UNIT_TEST_MAX_STRS);
-    manifest->macos.frameworks = gated_list(mem, spec->frameworks, UNIT_TEST_MAX_STRS);
+    push_requires(mem, &manifest->requires, SPN_REQUIREMENT_LIB, spec->system_deps, UNIT_TEST_MAX_STRS);
+    push_requires(mem, &manifest->requires, SPN_REQUIREMENT_HOST, spec->host_deps, UNIT_TEST_MAX_STRS);
+    push_requires(mem, &manifest->requires, SPN_REQUIREMENT_FRAMEWORK, spec->frameworks, UNIT_TEST_MAX_STRS);
     manifest->macos.min_os = spec->min_os;
-    manifest->publish = gated_publish(mem, spec->publish, UNIT_TEST_MAX_STRS);
+    manifest->publish.entries = gated_publish(mem, spec->publish.include, UNIT_TEST_MAX_STRS);
+    manifest->publish.define = gated_list(mem, spec->publish.define, UNIT_TEST_MAX_STRS);
+    push_requires(mem, &manifest->publish.requires, SPN_REQUIREMENT_LIB, spec->publish.system_deps, UNIT_TEST_MAX_STRS);
+    push_requires(mem, &manifest->publish.requires, SPN_REQUIREMENT_FRAMEWORK, spec->publish.frameworks, UNIT_TEST_MAX_STRS);
     sp_carr_for(spec->targets, tt) {
       if (!spec->targets[tt].name) {
         break;
@@ -332,7 +368,7 @@ units_t* units_new(sp_test_t* t, const graph_t* g) {
       sp_da_push(resolved.edges, ((spn_resolved_dep_t) {
         .id = pkg_id(spec->deps[dt].to),
         .kind = spec->deps[dt].kind,
-        .private = spec->deps[dt].private,
+        .public = spec->deps[dt].public,
       }));
     }
     sp_ht_insert(u->resolve, resolved.id, resolved);

@@ -4,8 +4,11 @@ version = "1.0.0"
 
 [package.publish]
 include = [{ from = "a.h", when = { simd = "avx2" } }]
+system_deps = [{ lib = "A", when = { simd = "avx2" } }]
+define = [{ value = "B", when = { simd = "avx2" } }]
 
 [[lib]]
 name = "t"
 kinds = ["static"]
+source = ["a.c"]
 publish.share = [{ from = "data/*", when = { simd = "avx2" } }]

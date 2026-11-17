@@ -70,6 +70,7 @@ typedef struct {
   gated_t link_flags [4];
   gated_t linker_script [4];
   gated_t system_deps [4];
+  gated_t host_deps [4];
   gated_t deps [4];
   gated_t frameworks [4];
   embed_t embed [4];
@@ -82,7 +83,8 @@ typedef struct {
   const c8* file;
   u8 build;
   u8 test;
-  u8 private;
+  u8 tool;
+  u8 public;
   const c8* when;
   const c8* options;
 } dep_t;
@@ -183,13 +185,19 @@ typedef struct {
   gated_t build_flags [4];
   gated_t define [8];
   gated_t system_deps [8];
+  gated_t host_deps [8];
   gated_t frameworks [4];
-  publish_t publish [4];
+  struct {
+    publish_t entries [4];
+    gated_t define [4];
+    gated_t system_deps [4];
+    gated_t frameworks [4];
+  } publish;
   stage_t stage [4];
   issue_t issues [8];
   target_t libs [8];
   target_t exes [8];
-  target_t scripts [8];
+  target_t tools [8];
   target_t tests [8];
   target_t examples [8];
   dep_t deps [8];
@@ -209,21 +217,14 @@ static const test_t tests [] = {
     .name = "lib_shared",
     .manifest = "shared_lib",
     .libs = {
-      { .name = "t", .linkages = { .shared = true } }
+      { .name = "t", .linkages = { .shared = true }, .source = { { "a.c" } } }
     }
   },
   {
-    .name = "lib_object",
-    .manifest = "object_lib",
+    .name = "lib_default_kinds",
+    .manifest = "default_kinds_lib",
     .libs = {
-      { .name = "t", .linkages = { .object = true } }
-    }
-  },
-  {
-    .name = "lib_source_static",
-    .manifest = "source_static",
-    .libs = {
-      { .name = "t", .linkages = { .source = true, .static_lib = true } }
+      { .name = "B", .linkages = { .static_lib = true }, .source = { { "C.c" } } }
     }
   },
   {
@@ -237,14 +238,14 @@ static const test_t tests [] = {
     .name = "lib_no_link",
     .manifest = "no_link_lib",
     .libs = {
-      { .name = "t", .linkages = { .static_lib = true }, .no_link = true }
+      { .name = "t", .linkages = { .static_lib = true }, .no_link = true, .source = { { "a.c" } } }
     }
   },
   {
     .name = "lib_link_true",
     .manifest = "link_true_lib",
     .libs = {
-      { .name = "t", .linkages = { .static_lib = true } }
+      { .name = "t", .linkages = { .static_lib = true }, .source = { { "a.c" } } }
     }
   },
   {
@@ -290,9 +291,9 @@ static const test_t tests [] = {
     }
   },
   {
-    .name = "script",
-    .manifest = "script",
-    .scripts = {
+    .name = "tool",
+    .manifest = "tool",
+    .tools = {
       { .name = "t" }
     }
   },
@@ -346,10 +347,17 @@ static const test_t tests [] = {
     }
   },
   {
-    .name = "dep_private",
-    .manifest = "dep_private",
+    .name = "dep_tool",
+    .manifest = "dep_tool",
     .deps = {
-      { .name = "foo", .source = SPN_PKG_SOURCE_INDEX, .private = 1 }
+      { .name = "A", .source = SPN_PKG_SOURCE_INDEX, .tool = 1 }
+    }
+  },
+  {
+    .name = "dep_public",
+    .manifest = "dep_public",
+    .deps = {
+      { .name = "foo", .source = SPN_PKG_SOURCE_INDEX, .public = 1 }
     }
   },
   // The same name under two kinds must survive as two requests, not collapse
@@ -463,7 +471,7 @@ static const test_t tests [] = {
     .issues = {
       { SPN_ERR_CODEGEN_INVALID, "lib[0].name" },
       { SPN_ERR_CODEGEN_INVALID, "bin[0].name" },
-      { SPN_ERR_CODEGEN_INVALID, "script[0].name" },
+      { SPN_ERR_CODEGEN_INVALID, "tool[0].name" },
       { SPN_ERR_CODEGEN_INVALID, "test[0].name" },
       { SPN_ERR_CODEGEN_INVALID, "example[0].name" },
     },
@@ -481,6 +489,27 @@ static const test_t tests [] = {
     .issues = {
       { SPN_ERR_CODEGEN_INVALID, "A/B" },
       { SPN_ERR_CODEGEN_INVALID, "patch.A/B" },
+    },
+  },
+  {
+    .name = "target_dep_gated",
+    .manifest = "target_dep_gated",
+    .exes = {
+      { .name = "B", .deps = { { "A", "os = \"linux\"" } } }
+    },
+  },
+  {
+    .name = "validate_target_dep_not_lib",
+    .manifest = "validate_target_dep_not_lib",
+    .issues = {
+      { SPN_ERR_CODEGEN_INVALID, "bin[1].deps[0]" },
+    },
+  },
+  {
+    .name = "validate_target_dep_package",
+    .manifest = "validate_target_dep_package",
+    .issues = {
+      { SPN_ERR_CODEGEN_INVALID, "bin[0].deps[0]" },
     },
   },
   {
@@ -506,10 +535,17 @@ static const test_t tests [] = {
     },
   },
   {
-    .name = "validate_object_mixed",
-    .manifest = "validate_object_mixed",
+    .name = "validate_lib_kind_unknown",
+    .manifest = "validate_lib_kind_unknown",
     .issues = {
-      { SPN_ERR_CODEGEN_INVALID, "lib[0].kinds" }
+      { SPN_ERR_CODEGEN_INVALID, "lib[0].kinds[1]" }
+    }
+  },
+  {
+    .name = "validate_lib_source_missing",
+    .manifest = "validate_lib_source_missing",
+    .issues = {
+      { SPN_ERR_CODEGEN_MISSING_KEY, "lib[0].source" }
     }
   },
   {
@@ -528,10 +564,10 @@ static const test_t tests [] = {
     }
   },
   {
-    .name = "validate_link_on_script",
-    .manifest = "validate_link_on_script",
+    .name = "validate_link_on_tool",
+    .manifest = "validate_link_on_tool",
     .issues = {
-      { SPN_ERR_CODEGEN_INVALID, "script[0].link" }
+      { SPN_ERR_CODEGEN_INVALID, "tool[0].link" }
     }
   },
   {
@@ -852,19 +888,19 @@ static const test_t tests [] = {
     .name = "validate_duplicate_name",
     .manifest = "validate_duplicate_name",
     .exes = { { .name = "t" } },
-    .scripts = { { .name = "t" } },
+    .tools = { { .name = "t" } },
     .issues = {
-      { SPN_ERR_CODEGEN_DUPLICATE_KEY, "script[0]" }
+      { SPN_ERR_CODEGEN_DUPLICATE_KEY, "tool[0]" }
     }
   },
   {
     .name = "validate_reserved_name",
     .manifest = "validate_reserved_name",
     .exes = { { .name = "test" } },
-    .scripts = { { .name = "store" } },
+    .tools = { { .name = "store" } },
     .issues = {
       { SPN_ERR_CODEGEN_INVALID, "bin[0].name" },
-      { SPN_ERR_CODEGEN_INVALID, "script[0].name" },
+      { SPN_ERR_CODEGEN_INVALID, "tool[0].name" },
     }
   },
   {
@@ -1266,6 +1302,7 @@ static const test_t tests [] = {
         .link_flags = { { "-A", "os = \"linux\"" } },
         .linker_script = { { "a.ld", "arch = \"x86_64\"" } },
         .system_deps = { { "ws2_32", "os = \"windows\"" } },
+        .host_deps = { { "A", "os = \"linux\"" } },
       },
     },
   },
@@ -1298,6 +1335,36 @@ static const test_t tests [] = {
     .system_deps = { { "m" }, { "ws2_32", "os = \"windows\"" } },
   },
   {
+    .name = "package_host_deps_gated",
+    .manifest = "package_host_deps_gated",
+    .host_deps = { { "A" }, { "B", "os = \"linux\"" } },
+  },
+  {
+    .name = "validate_host_deps_when_unknown_key",
+    .manifest = "validate_host_deps_when_unknown_key",
+    .host_deps = { { "A", "simd = \"avx2\"" } },
+    .libs = {
+      {
+        .name = "t",
+        .linkages = { .static_lib = true },
+        .source = { { "a.c" } },
+        .host_deps = { { "B", "simd = \"avx2\"" } },
+      },
+    },
+    .issues = {
+      { SPN_ERR_CODEGEN_INVALID, "lib[0].host_deps[0].when.simd" },
+      { SPN_ERR_CODEGEN_INVALID, "package.host_deps[0].when.simd" },
+    },
+  },
+  {
+    .name = "validate_host_deps_framework",
+    .manifest = "validate_host_deps_framework",
+    .issues = {
+      { SPN_ERR_CODEGEN_UNKNOWN_KEY, "lib[0].host_deps[0]" },
+      { SPN_ERR_CODEGEN_MISSING_KEY, "lib[0].host_deps[0].lib" },
+    },
+  },
+  {
     .name = "package_define_gated",
     .manifest = "package_define_gated",
     .define = { { "A" }, { "B", "os = \"windows\"" } },
@@ -1310,6 +1377,7 @@ static const test_t tests [] = {
       {
         .name = "t",
         .linkages = { .static_lib = true },
+        .source = { { "a.c" } },
         .frameworks = { { "Metal" }, { "IOKit", "os = \"macos\"" } },
       },
     },
@@ -1322,18 +1390,77 @@ static const test_t tests [] = {
       {
         .name = "t",
         .linkages = { .static_lib = true },
+        .source = { { "a.c" } },
         .frameworks = { { "Metal", "simd = \"avx2\"" } },
       },
     },
     .issues = {
-      { SPN_ERR_CODEGEN_INVALID, "lib[0].macos.frameworks[0].when.simd" },
-      { SPN_ERR_CODEGEN_INVALID, "package.macos.frameworks[0].when.simd" },
+      { SPN_ERR_CODEGEN_INVALID, "lib[0].system_deps[0].when.simd" },
+      { SPN_ERR_CODEGEN_INVALID, "package.system_deps[0].when.simd" },
+    },
+  },
+  {
+    .name = "system_deps_framework",
+    .manifest = "system_deps_framework",
+    .system_deps = { { "A" } },
+    .frameworks = { { "B" } },
+  },
+  {
+    .name = "target_system_deps",
+    .manifest = "target_system_deps",
+    .libs = {
+      {
+        .name = "t",
+        .linkages = { .static_lib = true },
+        .source = { { "a.c" } },
+        .system_deps = { { "A" }, { "B" } },
+      },
+    },
+  },
+  {
+    .name = "validate_system_deps_both",
+    .manifest = "validate_system_deps_both",
+    .system_deps = { { "A" } },
+    .frameworks = { { "B" } },
+    .publish = {
+      .system_deps = { { "A" } },
+      .frameworks = { { "B" } },
+    },
+    .libs = {
+      {
+        .name = "t",
+        .linkages = { .static_lib = true },
+        .source = { { "a.c" } },
+        .system_deps = { { "A" } },
+        .frameworks = { { "B" } },
+      },
+    },
+    .issues = {
+      { SPN_ERR_CODEGEN_INVALID, "lib[0].system_deps[0].framework" },
+      { SPN_ERR_CODEGEN_INVALID, "package.system_deps[0].framework" },
+      { SPN_ERR_CODEGEN_INVALID, "package.publish.system_deps[0].framework" },
+    },
+  },
+  {
+    .name = "validate_system_deps_neither",
+    .manifest = "validate_system_deps_neither",
+    .libs = {
+      {
+        .name = "t",
+        .linkages = { .static_lib = true },
+        .source = { { "a.c" } },
+      },
+    },
+    .issues = {
+      { SPN_ERR_CODEGEN_MISSING_KEY, "lib[0].system_deps[0].lib" },
+      { SPN_ERR_CODEGEN_MISSING_KEY, "package.system_deps[0].lib" },
+      { SPN_ERR_CODEGEN_MISSING_KEY, "package.publish.system_deps[0].lib" },
     },
   },
   {
     .name = "publish_gated",
     .manifest = "publish_gated",
-    .publish = {
+    .publish.entries = {
       { "a.h", "" },
       { "b.h", "b", "os = \"windows\"" },
     },
@@ -1341,19 +1468,40 @@ static const test_t tests [] = {
   {
     .name = "publish_glob_dest",
     .manifest = "publish_glob_dest",
-    .publish = { { "sub/*.h", "s", .kind = SPN_SOURCE_GLOB } },
+    .publish.entries = { { "sub/*.h", "s", .kind = SPN_SOURCE_GLOB } },
   },
   {
     .name = "publish_manifest_tree",
     .manifest = "publish_manifest_tree",
-    .publish = { { "gen/a.h", "", .tree = SPN_TREE_MANIFEST } },
+    .publish.entries = { { "gen/a.h", "", .tree = SPN_TREE_MANIFEST } },
   },
   {
     .name = "publish_roots",
     .manifest = "publish_roots",
-    .publish = {
+    .publish.entries = {
       { "a.h", "" },
       { "data/*", "d", .root = SPN_PUBLISH_ROOT_SHARE, .kind = SPN_SOURCE_GLOB },
+    },
+  },
+  {
+    .name = "publish_system_deps",
+    .manifest = "publish_system_deps",
+    .publish = {
+      .system_deps = { { "A" } },
+      .frameworks = { { "B" } },
+    },
+  },
+  {
+    .name = "publish_define",
+    .manifest = "publish_define",
+    .publish.define = { { "A" }, { "B", "os = \"windows\"" } },
+  },
+  {
+    .name = "validate_target_publish_package_keys",
+    .manifest = "validate_target_publish_package_keys",
+    .issues = {
+      { SPN_ERR_CODEGEN_UNKNOWN_KEY, "lib[0].publish" },
+      { SPN_ERR_CODEGEN_UNKNOWN_KEY, "lib[0].publish" },
     },
   },
   {
@@ -1392,7 +1540,7 @@ static const test_t tests [] = {
   {
     .name = "validate_publish_tree_work",
     .manifest = "validate_publish_tree_work",
-    .publish = { { "a.h", "", .tree = SPN_TREE_WORK } },
+    .publish.entries = { { "a.h", "", .tree = SPN_TREE_WORK } },
     .issues = {
       { SPN_ERR_CODEGEN_INVALID, "package.publish.include[0].tree" },
     },
@@ -1400,7 +1548,7 @@ static const test_t tests [] = {
   {
     .name = "validate_publish_tree_invalid",
     .manifest = "validate_publish_tree_invalid",
-    .publish = { { "a.h", "", .tree_none = true } },
+    .publish.entries = { { "a.h", "", .tree_none = true } },
     .issues = {
       { SPN_ERR_CODEGEN_INVALID, "package.publish.include[0].tree" },
     },
@@ -1423,17 +1571,24 @@ static const test_t tests [] = {
   {
     .name = "validate_publish_when_unknown_key",
     .manifest = "validate_publish_when_unknown_key",
-    .publish = { { "a.h", "", "simd = \"avx2\"" } },
+    .publish = {
+      .entries = { { "a.h", "", "simd = \"avx2\"" } },
+      .define = { { "B", "simd = \"avx2\"" } },
+      .system_deps = { { "A", "simd = \"avx2\"" } },
+    },
     .libs = {
       {
         .name = "t",
         .linkages = { .static_lib = true },
+        .source = { { "a.c" } },
         .publish = { { "data/*", "", "simd = \"avx2\"", .root = SPN_PUBLISH_ROOT_SHARE, .kind = SPN_SOURCE_GLOB } },
       },
     },
     .issues = {
       { SPN_ERR_CODEGEN_INVALID, "lib[0].publish.share[0].when.simd" },
       { SPN_ERR_CODEGEN_INVALID, "package.publish.include[0].when.simd" },
+      { SPN_ERR_CODEGEN_INVALID, "package.publish.system_deps[0].when.simd" },
+      { SPN_ERR_CODEGEN_INVALID, "package.publish.define[0].when.simd" },
     },
   },
   {
@@ -1470,6 +1625,13 @@ static const test_t tests [] = {
     .manifest = "validate_when_unknown_key",
     .issues = {
       { SPN_ERR_CODEGEN_INVALID, "deps.package[0].when.simd" }
+    },
+  },
+  {
+    .name = "validate_tool_dep_when_unknown_key",
+    .manifest = "validate_tool_dep_when_unknown_key",
+    .issues = {
+      { SPN_ERR_CODEGEN_INVALID, "deps.tool[0].when.B" }
     },
   },
   {
@@ -1640,6 +1802,27 @@ static sp_err_t check_gated_path_list(sp_test_t* t, spn_gated_path_list_t actual
   sp_try(check_gated_list(t, actual, expected, num_gated)); \
 } while (0)
 
+static sp_err_t check_requires_list(sp_test_t* t, si_da(spn_gated_requirement_t) actual, spn_requirement_kind_t kind, const gated_t* expected, u32 n) {
+  u32 at = 0;
+  si_da_for_ptr(actual, entry) {
+    if (entry->kind != kind) {
+      continue;
+    }
+    sp_must(t, at < n);
+    sp_expect_str_eq_c(t, entry->name, expected[at].value);
+    sp_expect_str_eq_c(t, spn_when_to_str(sp_test_arena(t), &entry->when), expected[at].when ? expected[at].when : "always");
+    at++;
+  }
+  sp_must_eq(t, n, at);
+  return SP_OK;
+}
+
+#define check_requires(t, actual, kind, expected) do { \
+  u32 num_requires = 0; \
+  sp_carr_detect_len(expected, num_requires, (expected)[num_requires].value); \
+  sp_try(check_requires_list(t, actual, kind, expected, num_requires)); \
+} while (0)
+
 static sp_err_t check_gated_source_list(sp_test_t* t, sp_da(spn_gated_source_t) actual, const source_t* expected, u32 n) {
   sp_must_eq(t, n, (u32)sp_da_size(actual));
   sp_for(it, n) {
@@ -1675,10 +1858,8 @@ static sp_err_t check_targets(sp_test_t* t, si_pkg_info_t* pkg, const target_t* 
     const si_target_info_t* info = get_target(pkg, sp_cstr_as_str(arr[i].name), kind);
     sp_must(t, info);
     sp_expect_eq(t, (u32)kind, (u32)info->kind);
-    sp_expect_eq(t, arr[i].linkages.source, info->linkages.source);
     sp_expect_eq(t, arr[i].linkages.shared, info->linkages.shared);
     sp_expect_eq(t, arr[i].linkages.static_lib, info->linkages.static_lib);
-    sp_expect_eq(t, arr[i].linkages.object, info->linkages.object);
     sp_expect_eq(t, arr[i].no_link, info->no_link);
     check_gated_sources(t, info->source, arr[i].source);
     check_publish(t, info->publish, arr[i].publish);
@@ -1687,7 +1868,8 @@ static sp_err_t check_targets(sp_test_t* t, si_pkg_info_t* pkg, const target_t* 
     check_gated(t, info->flags, arr[i].flags);
     check_gated(t, info->link_flags, arr[i].link_flags);
     check_gated_paths(t, info->linker_script, arr[i].linker_script);
-    check_gated(t, info->system_deps, arr[i].system_deps);
+    check_requires(t, info->requires, SPN_REQUIREMENT_LIB, arr[i].system_deps);
+    check_requires(t, info->requires, SPN_REQUIREMENT_HOST, arr[i].host_deps);
     u32 num_deps = 0;
     sp_carr_detect_len(arr[i].deps, num_deps, arr[i].deps[num_deps].value);
     sp_must_eq(t, num_deps, (u32)sp_da_size(info->deps));
@@ -1695,7 +1877,7 @@ static sp_err_t check_targets(sp_test_t* t, si_pkg_info_t* pkg, const target_t* 
       sp_expect_str_eq_c(t, info->deps[dt].name.str, arr[i].deps[dt].value);
       sp_expect_str_eq_c(t, spn_when_to_str(sp_test_arena(t), &info->deps[dt].when), arr[i].deps[dt].when ? arr[i].deps[dt].when : "always");
     }
-    check_gated(t, info->macos.frameworks, arr[i].frameworks);
+    check_requires(t, info->requires, SPN_REQUIREMENT_FRAMEWORK, arr[i].frameworks);
     u32 num_embeds = 0;
     sp_carr_detect_len(arr[i].embed, num_embeds, arr[i].embed[num_embeds].path);
     sp_must_eq(t, num_embeds, (u32)si_da_size(info->embed));
@@ -1763,9 +1945,13 @@ sp_test_each(lower, cases, test_t, tests, .setup = spn_test_ctx_setup) {
 
   // Package arrays
   check_gated(t, pkg->define, it->define);
-  check_gated(t, pkg->system_deps, it->system_deps);
-  check_gated(t, pkg->macos.frameworks, it->frameworks);
-  check_publish(t, pkg->publish, it->publish);
+  check_requires(t, pkg->requires, SPN_REQUIREMENT_LIB, it->system_deps);
+  check_requires(t, pkg->requires, SPN_REQUIREMENT_HOST, it->host_deps);
+  check_requires(t, pkg->requires, SPN_REQUIREMENT_FRAMEWORK, it->frameworks);
+  check_publish(t, pkg->publish.entries, it->publish.entries);
+  check_gated(t, pkg->publish.define, it->publish.define);
+  check_requires(t, pkg->publish.requires, SPN_REQUIREMENT_LIB, it->publish.system_deps);
+  check_requires(t, pkg->publish.requires, SPN_REQUIREMENT_FRAMEWORK, it->publish.frameworks);
   check_stage(t, pkg->stage, it->stage);
   check_gated_paths(t, pkg->include, it->include);
   const si_target_info_t* build = get_target(pkg, sp_str_lit("build"), SPN_TARGET_KIND_BUILD_METAPROGRAM);
@@ -1777,7 +1963,7 @@ sp_test_each(lower, cases, test_t, tests, .setup = spn_test_ctx_setup) {
   // Targets
   sp_try(check_targets(t, pkg, it->libs,     SP_CARR_LEN(it->libs),     SPN_TARGET_KIND_LIB));
   sp_try(check_targets(t, pkg, it->exes,     SP_CARR_LEN(it->exes),     SPN_TARGET_KIND_EXE));
-  sp_try(check_targets(t, pkg, it->scripts,  SP_CARR_LEN(it->scripts),  SPN_TARGET_KIND_SCRIPT));
+  sp_try(check_targets(t, pkg, it->tools,    SP_CARR_LEN(it->tools),    SPN_TARGET_KIND_TOOL));
   sp_try(check_targets(t, pkg, it->tests,    SP_CARR_LEN(it->tests),    SPN_TARGET_KIND_TEST));
   sp_try(check_targets(t, pkg, it->examples, SP_CARR_LEN(it->examples), SPN_TARGET_KIND_EXAMPLE));
 
@@ -1786,7 +1972,7 @@ sp_test_each(lower, cases, test_t, tests, .setup = spn_test_ctx_setup) {
     dep_t expected = it->deps[d];
     if (!expected.name) break;
 
-    spn_dep_kind_t kind = expected.build ? SPN_DEP_KIND_BUILD : expected.test ? SPN_DEP_KIND_TEST : SPN_DEP_KIND_PACKAGE;
+    spn_dep_kind_t kind = expected.build ? SPN_DEP_KIND_BUILD : expected.test ? SPN_DEP_KIND_TEST : expected.tool ? SPN_DEP_KIND_TOOL : SPN_DEP_KIND_PACKAGE;
 
     spn_requested_dep_t* req = SP_NULLPTR;
     si_da_for(pkg->deps, j) {
@@ -1797,7 +1983,7 @@ sp_test_each(lower, cases, test_t, tests, .setup = spn_test_ctx_setup) {
     }
     sp_must(t, req);
     sp_expect_eq(t, (u32)expected.source, (u32)req->source);
-    sp_expect_eq(t, expected.private != 0, req->private);
+    sp_expect_eq(t, expected.public != 0, req->public);
 
     if (expected.file) sp_expect(t, sp_str_ends_with(req->file.path.sub, sp_cstr_as_str(expected.file)));
     if (expected.when) sp_expect_str_eq_c(t, spn_when_to_str(mem, &req->when), expected.when);

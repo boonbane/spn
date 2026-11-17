@@ -4,13 +4,14 @@ static struct {
   sp_str_t package;
   bool test;
   bool build;
+  bool tool;
 } args;
 
 static sp_cli_result_t add(sp_cli_t* cli) {
   try(spn_cli_open(false));
 
-  if (args.test && args.build) {
-    return spn_cli_usage("pass at most one of {.cyan} and {.cyan}", sp_fmt_cstr("--test"), sp_fmt_cstr("--build"));
+  if (args.test + args.build + args.tool > 1) {
+    return spn_cli_usage("pass at most one of {.cyan}, {.cyan} and {.cyan}", sp_fmt_cstr("--test"), sp_fmt_cstr("--build"), sp_fmt_cstr("--tool"));
   }
 
   sp_str_pair_t spec = sp_str_cleave_c8(args.package, '@');
@@ -23,7 +24,7 @@ static sp_cli_result_t add(sp_cli_t* cli) {
   return spn_cli_op(spn_add_dependency(host.ctx, (spn_add_request_t) {
     .name = spec.first,
     .version = spec.second,
-    .kind = args.test ? SPN_DEP_KIND_TEST : args.build ? SPN_DEP_KIND_BUILD : SPN_DEP_KIND_PACKAGE,
+    .kind = args.test ? SPN_DEP_KIND_TEST : args.build ? SPN_DEP_KIND_BUILD : args.tool ? SPN_DEP_KIND_TOOL : SPN_DEP_KIND_PACKAGE,
   }));
 }
 
@@ -42,6 +43,12 @@ sp_cli_cmd_t spn_cmd_add = {
       .summary = "Add to build dependencies",
       .kind = SP_CLI_OPT_BOOLEAN,
       .ptr = &args.build,
+    },
+    {
+      .name = "tool",
+      .summary = "Add to tool dependencies",
+      .kind = SP_CLI_OPT_BOOLEAN,
+      .ptr = &args.tool,
     },
   },
   .args = {

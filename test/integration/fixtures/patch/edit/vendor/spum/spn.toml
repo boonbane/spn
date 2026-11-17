@@ -6,7 +6,5 @@ version = "1.0.0"
 url = "@spum.url@"
 commit = "@spum.commit@"
 
-[[lib]]
-name = "spum"
-kinds = ["source"]
-publish.include = [{ from = "spum.h" }]
+[package.publish]
+include = [{ from = "spum.h" }]

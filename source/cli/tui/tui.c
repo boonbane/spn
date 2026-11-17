@@ -818,6 +818,15 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           );
           break;
         }
+        case SPN_ERR_PKG_ABSENT: {
+          sp_tty_fmt(
+            &w,
+            "{} is not in {.cyan}",
+            sp_fmt_str(colored_name(w.color, mem, event->err.subject)),
+            sp_fmt_str(sp_fmt(mem, "[deps.{}]", sp_fmt_str(spn_dep_kind_to_str(event->err.absent.table))).value)
+          );
+          break;
+        }
         case SPN_ERR_PKG_NO_MATCH: {
           spn_err_unsatisfiable_t* err = &event->err.unsatisfiable;
           sp_str_t requester = sp_str_empty(err->requester) ?
@@ -864,6 +873,25 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           );
           break;
         }
+        case SPN_ERR_PKG_CONFLICT_PATH: {
+          spn_err_path_conflict_t* err = &event->err.path_conflict;
+          sp_str_t requester = sp_str_empty(err->requester) ?
+            sp_str_lit("the project") :
+            sp_fmt(mem, "{} {}", sp_fmt_str(colored_name(w.color, mem, err->requester)), sp_fmt_str(spn_semver_to_str(mem, err->requester_version))).value;
+
+          sp_str_t selected = sp_str_empty(err->selected) ? sp_str_lit("an index") : get_contextual_path(ctx, mem, err->selected);
+          sp_str_t requested = sp_str_empty(err->requested) ? sp_str_lit("an index") : get_contextual_path(ctx, mem, err->requested);
+
+          sp_tty_fmt(
+            &w,
+            "{} is already selected from {.cyan}, but {} requires it from {.cyan}",
+            sp_fmt_str(colored_name(w.color, mem, event->err.subject)),
+            sp_fmt_str(selected),
+            sp_fmt_str(requester),
+            sp_fmt_str(requested)
+          );
+          break;
+        }
         case SPN_ERR_DEP_CYCLE: {
           sp_tty_fmt(
             &w,
@@ -888,6 +916,17 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
             sp_fmt_str(colored_name(w.color, mem, event->err.subject)),
             sp_fmt_str(spn_semver_to_str(mem, event->err.dynamic_dup.low)),
             sp_fmt_str(spn_semver_to_str(mem, event->err.dynamic_dup.high))
+          );
+          break;
+        }
+        case SPN_ERR_STATIC_DUPLICATE: {
+          sp_tty_fmt(
+            &w,
+            "{} {.yellow} and {.yellow} would both link into {.cyan}",
+            sp_fmt_str(colored_name(w.color, mem, event->err.subject)),
+            sp_fmt_str(spn_semver_to_str(mem, event->err.static_dup.low)),
+            sp_fmt_str(spn_semver_to_str(mem, event->err.static_dup.high)),
+            sp_fmt_str(event->err.static_dup.target)
           );
           break;
         }
@@ -1516,14 +1555,6 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           );
           break;
         }
-        case SPN_ERR_TARGET_DEP: {
-          sp_tty_fmt(
-            &w,
-            "Failed to find {.cyan} as a package or target",
-            sp_fmt_str(event->err.target.name)
-          );
-          break;
-        }
         case SPN_ERR_TARGET_SOURCE_GLOB: {
           sp_tty_fmt(
             &w,
@@ -1534,10 +1565,42 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           );
           break;
         }
+        case SPN_ERR_TARGET_HOST_DEPS: {
+          spn_err_host_deps_t* err = &event->err.host_deps;
+          sp_str_t subject = subject_name(mem, err->pkg, err->name);
+          sp_str_t libs = sp_str_join_n(mem, err->libs, (u32)sp_da_size(err->libs), sp_str_lit(", "));
+          if (err->script) {
+            sp_tty_fmt(
+              &w,
+              "{.cyan} links host libraries ({.red}) into a build script, which is compiled to WebAssembly and can't use them. Gate them with {.cyan}",
+              sp_fmt_str(subject),
+              sp_fmt_str(libs),
+              sp_fmt_str(sp_str_lit("when"))
+            );
+            break;
+          }
+          sp_tty_fmt(
+            &w,
+            "{.cyan} links host libraries ({.red}), which need a build against this machine, and toolchain {.yellow} targeting {.yellow} isn't one",
+            sp_fmt_str(subject),
+            sp_fmt_str(libs),
+            sp_fmt_str(err->toolchain),
+            sp_fmt_str(spn_triple_to_str(mem, err->target))
+          );
+          break;
+        }
         case SPN_ERR_TARGET_SELECTION: {
           sp_tty_fmt(
             &w,
             "Target {.yellow} is not defined for the selected target kinds",
+            sp_fmt_str(event->err.target.name)
+          );
+          break;
+        }
+        case SPN_ERR_TOOL_MISSING: {
+          sp_tty_fmt(
+            &w,
+            "Tool {.yellow} has no sources, so it has no executable",
             sp_fmt_str(event->err.target.name)
           );
           break;
@@ -1983,6 +2046,21 @@ static void render_event_extra(sp_tty_t* w, spn_event_t* event) {
         }
         case SPN_ERR_TARGET_ABI: {
           write_supported_targets(w, event->err.profile.targets);
+          break;
+        }
+        case SPN_ERR_TARGET_HOST_DEPS: {
+          spn_err_host_deps_t* err = &event->err.host_deps;
+          if (err->script) {
+            break;
+          }
+          sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+          sp_str_t label = sp_fmt(scratch.mem, "toolchains that are, targeting {}", sp_fmt_str(spn_triple_to_str(scratch.mem, err->host))).value;
+          list_t list = { .w = w, .label = label, .style = sp_fmt_style_green };
+          sp_da_for(err->candidates, it) {
+            list_item(&list, err->candidates[it]);
+          }
+          list_end(&list);
+          sp_mem_end_scratch(scratch);
           break;
         }
         case SPN_ERR_TARGET_LINKAGE: {

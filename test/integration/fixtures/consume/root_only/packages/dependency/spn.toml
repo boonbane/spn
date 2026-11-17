@@ -16,6 +16,6 @@ source = ["program.c"]
 name = "dependency-test"
 source = ["program.c"]
 
-[[script]]
-name = "dependency-script"
+[[tool]]
+name = "dependency-tool"
 source = ["program.c"]

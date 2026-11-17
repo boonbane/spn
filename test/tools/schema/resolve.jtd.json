@@ -31,8 +31,8 @@
       }
     },
 
-    "dep_kind": { "enum": ["package", "build", "test"], "metadata": { "include": "pkg/types.h" } },
-    "dep_edge": { "enum": ["scope", "process", "private", "pruned"], "metadata": { "include": "resolve/types.h" } },
+    "dep_kind": { "enum": ["package", "build", "test", "tool"], "metadata": { "include": "pkg/types.h" } },
+    "dep_edge": { "enum": ["scope", "process", "private"], "metadata": { "include": "resolve/types.h" } },
 
     "resolve_request": {
       "properties": {
@@ -60,7 +60,7 @@
         "edge": { "ref": "dep_edge" }
       },
       "optionalProperties": {
-        "private": { "type": "boolean" }
+        "public": { "type": "boolean" }
       }
     },
 

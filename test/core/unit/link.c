@@ -24,22 +24,20 @@ typedef struct {
 
 static const test_t tests [] = {
   // An executable takes everything on the link line: static and shared libs
-  // both, private or not, while object, source, and no_link libs stay off
+  // both, private or not, while no_link libs stay off
   {
     .name = "exe_places_all_deps_on_link_line",
     .graph.pkgs = {
       {
         .name = "P",
-        .deps = { { "B" }, { "C" }, { "D", .private = true }, { "E" }, { "F" }, { "G" } },
+        .deps = { { "B", .public = true }, { "C" }, { "D" }, { "E" } },
         .system_deps = { "pthread" },
         .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "main.c" } } },
       },
       { .name = "B", .targets = { { "B", static_only, .source = { "a.c" } } }, .system_deps = { "m" } },
       { .name = "C", .targets = { { "C", shared_only, .source = { "s.c" } } } },
       { .name = "D", .targets = { { "D", static_only, .source = { "p.c" } } } },
-      { .name = "E", .targets = { { "E", object_only, .source = { "b.c" } } } },
-      { .name = "F", .targets = { { "F", source_only, .source = { "r.c" } } } },
-      { .name = "G", .targets = { { "G", static_only, .no_link = true, .source = { "t.c" } } } },
+      { .name = "E", .targets = { { "E", static_only, .no_link = true, .source = { "t.c" } } } },
     },
     .root = { "A", SPN_TARGET_KIND_EXE },
     .expect = {
@@ -54,7 +52,7 @@ static const test_t tests [] = {
     .graph.pkgs = {
       {
         .name = "P",
-        .deps = { { "B" }, { "C" }, { "D", .private = true } },
+        .deps = { { "B", .public = true }, { "C" }, { "D" } },
         .targets = { { "A", shared_only, .source = { "app.c" } } },
       },
       { .name = "B", .targets = { { "B", static_only, .source = { "a.c" } } } },
@@ -128,46 +126,230 @@ static const test_t tests [] = {
       .min_os = { 14, 0 },
     },
   },
-  // Frameworks dedupe, and only packages that link code contribute their
-  // package-level frameworks: shared-only and no_link-only packages are skipped
+  // A target's own link takes what it names and what its package names
   {
-    .name = "frameworks_dedupe_and_respect_links_code",
-    .graph = {
-      .os = SPN_OS_MACOS,
-      .sdk = "/sdk",
-      .pkgs = {
-        { .name = "P", .deps = { { "B" }, { "C" }, { "D" }, { "E" } }, .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "main.c" }, .frameworks = { "Metal" } } } },
-        { .name = "B", .frameworks = { "Cocoa" }, .targets = { { "B", static_only, .source = { "a.c" }, .frameworks = { "Metal", "IOKit" } } } },
-        { .name = "C", .frameworks = { "AppKit" }, .targets = { { "C", shared_only, .source = { "s.c" }, .frameworks = { "CoreAudio" } } } },
-        { .name = "D", .frameworks = { "Carbon" }, .targets = { { "L", static_only, .no_link = true, .source = { "n.c" }, .frameworks = { "Cocoa" } } } },
-        { .name = "E", .frameworks = { "OpenGL" } },
-      },
-    },
-    .root = { "A", SPN_TARGET_KIND_EXE },
-    .expect = {
-      .deps = { { "C", SPN_LINK_ROLE_SHARED }, { "B" } },
-      .frameworks = { "Metal", "OpenGL", "Cocoa", "IOKit" },
-    },
-  },
-  {
-    .name = "system_deps_fold_over_targets",
+    .name = "own_requirements_reach_own_link",
     .graph.pkgs = {
       {
         .name = "P",
-        .deps = { { "B" }, { "C" }, { "D" } },
-        .targets = {
-          { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "main.c" }, .deps = { "L" }, .system_deps = { "m" } },
-          { "L", static_only, .source = { "u.c" }, .system_deps = { "pthread" } },
-        },
+        .system_deps = { "X" },
+        .frameworks = { "F" },
+        .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "main.c" }, .system_deps = { "Y" }, .frameworks = { "G" } } },
       },
-      { .name = "B", .system_deps = { "dl" }, .targets = { { "B", static_only, .source = { "a.c" }, .system_deps = { "m", "rt" } } } },
-      { .name = "C", .targets = { { "C", shared_only, .source = { "s.c" }, .system_deps = { "z" } } } },
-      { .name = "D", .targets = { { "M", static_only, .no_link = true, .source = { "n.c" }, .system_deps = { "png" } } } },
     },
     .root = { "A", SPN_TARGET_KIND_EXE },
     .expect = {
-      .deps = { { "L" }, { "C", SPN_LINK_ROLE_SHARED }, { "B" } },
-      .system_libs = { "m", "pthread", "dl", "rt" },
+      .system_libs = { "Y", "X" },
+      .frameworks = { "G", "F" },
+    },
+  },
+  // A statically linked lib brings its own requirements and its package's
+  {
+    .name = "static_lib_forwards_requirements",
+    .graph.pkgs = {
+      { .name = "P", .deps = { { "B" } }, .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "main.c" } } } },
+      { .name = "B", .system_deps = { "X" }, .frameworks = { "F" }, .targets = { { "B", static_only, .source = { "b.c" }, .system_deps = { "Y" }, .frameworks = { "G" } } } },
+    },
+    .root = { "A", SPN_TARGET_KIND_EXE },
+    .expect = {
+      .deps = { { "B" } },
+      .system_libs = { "Y", "X" },
+      .frameworks = { "G", "F" },
+    },
+  },
+  // A shared lib consumed its requirements at its own link; nothing passes through
+  {
+    .name = "shared_lib_forwards_no_requirements",
+    .graph.pkgs = {
+      { .name = "P", .deps = { { "B" } }, .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "main.c" } } } },
+      { .name = "B", .system_deps = { "X" }, .frameworks = { "F" }, .targets = { { "B", shared_only, .source = { "b.c" }, .system_deps = { "Y" }, .frameworks = { "G" } } } },
+    },
+    .root = { "A", SPN_TARGET_KIND_EXE },
+    .expect = {
+      .deps = { { "B", SPN_LINK_ROLE_SHARED } },
+    },
+  },
+  // A package with no lib has no code to carry its requirements to a consumer
+  {
+    .name = "libless_package_forwards_no_requirements",
+    .graph.pkgs = {
+      { .name = "P", .deps = { { "B" } }, .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "main.c" } } } },
+      { .name = "B", .system_deps = { "X" }, .frameworks = { "F" } },
+    },
+    .root = { "A", SPN_TARGET_KIND_EXE },
+  },
+  // A lib whose sources all gate off is absent: it brings nothing, and does
+  // not count as a linked lib for its package's requirements
+  {
+    .name = "objectless_lib_forwards_no_requirements",
+    .graph.pkgs = {
+      { .name = "P", .deps = { { "B" } }, .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "main.c" } } } },
+      { .name = "B", .system_deps = { "X" }, .frameworks = { "F" }, .targets = { { "B", static_only, .system_deps = { "Y" }, .frameworks = { "G" } } } },
+    },
+    .root = { "A", SPN_TARGET_KIND_EXE },
+  },
+  {
+    .name = "no_link_lib_forwards_no_requirements",
+    .graph.pkgs = {
+      { .name = "P", .deps = { { "B" } }, .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "main.c" } } } },
+      { .name = "B", .system_deps = { "X" }, .frameworks = { "F" }, .targets = { { "B", static_only, .no_link = true, .source = { "b.c" }, .system_deps = { "Y" }, .frameworks = { "G" } } } },
+    },
+    .root = { "A", SPN_TARGET_KIND_EXE },
+  },
+  {
+    .name = "requirements_dedupe",
+    .graph.pkgs = {
+      { .name = "P", .deps = { { "B" } }, .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "main.c" }, .system_deps = { "X" }, .frameworks = { "F" } } } },
+      { .name = "B", .targets = { { "B", static_only, .source = { "b.c" }, .system_deps = { "X" }, .frameworks = { "F" } } } },
+    },
+    .root = { "A", SPN_TARGET_KIND_EXE },
+    .expect = {
+      .deps = { { "B" } },
+      .system_libs = { "X" },
+      .frameworks = { "F" },
+    },
+  },
+  // Published requirements belong to the headers, so a package with no lib
+  // still hands them to an image that compiles against it
+  {
+    .name = "publish_requirements_reach_consumer_of_libless_package",
+    .graph.pkgs = {
+      { .name = "P", .deps = { { "B" } }, .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "main.c" } } } },
+      { .name = "B", .publish = { .system_deps = { "X" }, .frameworks = { "F" } } },
+    },
+    .root = { "A", SPN_TARGET_KIND_EXE },
+    .expect = {
+      .system_libs = { "X" },
+      .frameworks = { "F" },
+    },
+  },
+  {
+    .name = "publish_requirements_reach_consumer_of_shared_lib",
+    .graph.pkgs = {
+      { .name = "P", .deps = { { "B" } }, .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "main.c" } } } },
+      { .name = "B", .publish = { .system_deps = { "X" }, .frameworks = { "F" } }, .targets = { { "B", shared_only, .source = { "b.c" } } } },
+    },
+    .root = { "A", SPN_TARGET_KIND_EXE },
+    .expect = {
+      .deps = { { "B", SPN_LINK_ROLE_SHARED } },
+      .system_libs = { "X" },
+      .frameworks = { "F" },
+    },
+  },
+  // A package's own targets compile against its headers too
+  {
+    .name = "publish_requirements_reach_own_targets",
+    .graph.pkgs = {
+      { .name = "P", .publish = { .system_deps = { "X" }, .frameworks = { "F" } }, .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "main.c" } } } },
+    },
+    .root = { "A", SPN_TARGET_KIND_EXE },
+    .expect = {
+      .system_libs = { "X" },
+      .frameworks = { "F" },
+    },
+  },
+  // The walk stops at shared B, but A compiles against the headers B forwards
+  {
+    .name = "publish_requirements_follow_forwarded_headers",
+    .graph.pkgs = {
+      { .name = "P", .deps = { { "B" } }, .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "main.c" } } } },
+      { .name = "B", .deps = { { "C", .public = true } }, .targets = { { "B", shared_only, .source = { "b.c" } } } },
+      { .name = "C", .publish = { .system_deps = { "X" }, .frameworks = { "F" } } },
+    },
+    .root = { "A", SPN_TARGET_KIND_EXE },
+    .expect = {
+      .deps = { { "B", SPN_LINK_ROLE_SHARED } },
+      .system_libs = { "X" },
+      .frameworks = { "F" },
+    },
+  },
+  // A never sees D, but static B compiled against it and B's objects land in A
+  {
+    .name = "publish_requirements_follow_static_lib_objects",
+    .graph.pkgs = {
+      { .name = "P", .deps = { { "B" } }, .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "main.c" } } } },
+      { .name = "B", .deps = { { "C" } }, .targets = { { "B", static_only, .source = { "b.c" } } } },
+      { .name = "C", .deps = { { "D", .public = true } }, .targets = { { "C", shared_only, .source = { "c.c" } } } },
+      { .name = "D", .publish = { .system_deps = { "X" }, .frameworks = { "F" } } },
+    },
+    .root = { "A", SPN_TARGET_KIND_EXE },
+    .expect = {
+      .deps = { { "B" }, { "C", SPN_LINK_ROLE_SHARED } },
+      .system_libs = { "X" },
+      .frameworks = { "F" },
+    },
+  },
+  // A never sees C either, but C's own lib compiled against C's headers
+  {
+    .name = "publish_requirements_follow_own_lib_objects",
+    .graph.pkgs = {
+      { .name = "P", .deps = { { "B" } }, .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "main.c" } } } },
+      { .name = "B", .deps = { { "C" } } },
+      { .name = "C", .publish = { .system_deps = { "X" }, .frameworks = { "F" } }, .targets = { { "C", static_only, .source = { "c.c" } } } },
+    },
+    .root = { "A", SPN_TARGET_KIND_EXE },
+    .expect = {
+      .deps = { { "C" } },
+      .system_libs = { "X" },
+      .frameworks = { "F" },
+    },
+  },
+  // Nothing in A compiled against C: B has no objects, and its private edge
+  // keeps C's headers from A
+  {
+    .name = "publish_requirements_need_a_compile",
+    .graph.pkgs = {
+      { .name = "P", .deps = { { "B" } }, .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "main.c" } } } },
+      { .name = "B", .deps = { { "C" } } },
+      { .name = "C", .publish = { .system_deps = { "X" }, .frameworks = { "F" } } },
+    },
+    .root = { "A", SPN_TARGET_KIND_EXE },
+  },
+  // Seeing a package's headers through a dep does not put it on the link line:
+  // shared B already carries C, and A names no edge to C to re-export it by
+  {
+    .name = "forwarded_package_is_not_reexported",
+    .graph.pkgs = {
+      { .name = "P", .deps = { { "B" } }, .targets = { { "A", shared_only, .source = { "a.c" } } } },
+      { .name = "B", .deps = { { "C", .public = true } }, .targets = { { "B", shared_only, .source = { "b.c" } } } },
+      { .name = "C", .targets = { { "C", static_only, .source = { "c.c" } } } },
+    },
+    .root = { "A", SPN_TARGET_KIND_LIB },
+    .expect = {
+      .deps = { { "B", SPN_LINK_ROLE_SHARED } },
+    },
+  },
+  // Host libs link like system libs, ahead of them
+  {
+    .name = "own_host_deps_reach_own_link",
+    .graph = {
+      .sdk_host = true,
+      .pkgs = {
+        {
+          .name = "P",
+          .host_deps = { "H" },
+          .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "main.c" }, .system_deps = { "X" }, .host_deps = { "I" } } },
+        },
+      },
+    },
+    .root = { "A", SPN_TARGET_KIND_EXE },
+    .expect = {
+      .system_libs = { "I", "H", "X" },
+    },
+  },
+  {
+    .name = "static_lib_forwards_host_deps",
+    .graph = {
+      .sdk_host = true,
+      .pkgs = {
+        { .name = "P", .deps = { { "B" } }, .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "main.c" } } } },
+        { .name = "B", .host_deps = { "H" }, .targets = { { "B", static_only, .source = { "b.c" }, .host_deps = { "I" } } } },
+      },
+    },
+    .root = { "A", SPN_TARGET_KIND_EXE },
+    .expect = {
+      .deps = { { "B" } },
+      .system_libs = { "I", "H" },
     },
   },
   // Link flags and linker scripts belong to the linked target alone; a dep's
@@ -193,6 +375,24 @@ static const test_t tests [] = {
       { .name = "P", .targets = { { "A", { .static_lib = true, .shared = true }, .source = { "a.c" }, .link_flags = { "-A" }, .linker_script = { "A.ld" } } } },
     },
     .root = { "A", SPN_TARGET_KIND_LIB },
+  },
+  {
+    .name = "tool_links_sibling_package_deps",
+    .graph.pkgs = {
+      {
+        .name = "P",
+        .deps = { { "B" } },
+        .targets = {
+          { "A", .kind = SPN_TARGET_KIND_TOOL, .source = { "main.c" }, .deps = { "L" } },
+          { "L", static_only, .source = { "u.c" } },
+        },
+      },
+      { .name = "B", .targets = { { "B", static_only, .source = { "a.c" } } } },
+    },
+    .root = { "A", SPN_TARGET_KIND_TOOL },
+    .expect = {
+      .deps = { { "L" }, { "B" } },
+    },
   },
   {
     .name = "test_target_links_test_deps",

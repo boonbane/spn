@@ -68,7 +68,7 @@
     {
       "name": "root",
       "version": "0.0.1",
-      "hash": "9378319338edf837",
+      "hash": "86bccc31a4a58216",
       "source": "root",
       "recipe": "local",
       "edges": [
@@ -96,7 +96,7 @@
             "version": "1.0.0",
             "hash": "9c8016627aeac18b"
           },
-          "kind": "build",
+          "kind": "tool",
           "edge": "process"
         }
       ]

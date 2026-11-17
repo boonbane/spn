@@ -64,7 +64,7 @@ static void arg_c(docker_t* docker, sp_ps_config_t* config, const c8* value) {
   arg(docker, config, sp_cstr_as_str(value));
 }
 
-static sp_str_t bind(docker_t* docker, sp_str_t host, const c8* guest) {
+static sp_str_t readonly(docker_t* docker, sp_str_t host, const c8* guest) {
   return sp_fmt(docker->mem, "{}:{}:ro", sp_fmt_str(host), sp_fmt_cstr(guest)).value;
 }
 
@@ -162,11 +162,11 @@ static sp_ps_config_t launch(docker_t* docker, const variant_t* variant, const c
   arg_c(docker, &config, "-e");
   arg_c(docker, &config, "SPN_CONFIG_DIR=" CONTAINER_CONFIG_DIR);
   arg_c(docker, &config, "-v");
-  arg(docker, &config, bind(docker, spn_dir(docker, variant->spn), CONTAINER_SPN_DIR));
+  arg(docker, &config, readonly(docker, spn_dir(docker, variant->spn), CONTAINER_SPN_DIR));
   arg_c(docker, &config, "-v");
-  arg(docker, &config, bind(docker, docker->paths.tools, CONTAINER_TOOL_DIR));
+  arg(docker, &config, readonly(docker, docker->paths.tools, CONTAINER_TOOL_DIR));
   arg_c(docker, &config, "-v");
-  arg(docker, &config, bind(docker, docker->paths.config, CONTAINER_CONFIG_DIR));
+  arg(docker, &config, readonly(docker, docker->paths.config, CONTAINER_CONFIG_DIR));
   arg_c(docker, &config, "-v");
   arg(docker, &config, cache(docker, variant));
   arg_c(docker, &config, "-w");
@@ -221,7 +221,7 @@ docker_init_err_t docker_init(docker_t* docker, sp_mem_t mem) {
 
   const c8* tools [] = { CONTAINER_SHELL_BIN, CONTAINER_CHECK_BIN };
   sp_carr_for(tools, it) {
-    if (missing(docker, sp_fs_join_path(mem, docker->paths.tools, sp_cstr_as_str(tools[it])), "spn build --script")) {
+    if (missing(docker, sp_fs_join_path(mem, docker->paths.tools, sp_cstr_as_str(tools[it])), "spn build --tool")) {
       return DOCKER_INIT_ERR_BINARY;
     }
   }
@@ -522,6 +522,8 @@ sp_ps_config_t docker_test(docker_t* docker, const variant_t* variant, lane_t la
   arg(docker, &config, sp_fmt(mem, "HOME={}", sp_fmt_str(docker->paths.home)).value);
   arg_c(docker, &config, "-e");
   arg(docker, &config, sp_fmt(mem, "SPN_TEST_TOOLCHAIN={}", sp_fmt_cstr(lane_name(lane))).value);
+  arg_c(docker, &config, "-e");
+  arg(docker, &config, sp_fmt(mem, "SPN_TEST_HOST_LIBS={}", sp_fmt_str(variant_host_libs(mem, variant))).value);
   arg_c(docker, &config, "-v");
   arg(docker, &config, mirror(docker, docker->paths.repo));
   arg_c(docker, &config, "-v");

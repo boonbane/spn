@@ -114,7 +114,6 @@ static spn_cc_feature_t link_feature(spn_cc_output_kind_t kind) {
     case SPN_CC_OUTPUT_EXE: return SPN_CC_FEATURE_LINK_EXE;
     case SPN_CC_OUTPUT_SHARED_LIB: return SPN_CC_FEATURE_LINK_SHARED;
     case SPN_CC_OUTPUT_REACTOR: return SPN_CC_FEATURE_LINK_REACTOR;
-    case SPN_CC_OUTPUT_OBJECT:
     case SPN_CC_OUTPUT_STATIC_LIB: {
       sp_unreachable_case();
     }
@@ -343,7 +342,6 @@ spn_cc_exports_format_t spn_cc_exports_format(spn_cc_output_kind_t kind, spn_obj
       SP_UNREACHABLE_RETURN(SPN_CC_EXPORTS_VERSION_SCRIPT);
     }
     case SPN_CC_OUTPUT_EXE:
-    case SPN_CC_OUTPUT_OBJECT:
     case SPN_CC_OUTPUT_STATIC_LIB: {
       sp_unreachable_case();
     }

@@ -2,15 +2,6 @@
 
 #include "target/mutate.h"
 
-static spn_index_dep_kind_t dep_kind_to_index(spn_dep_kind_t kind) {
-  switch (kind) {
-    case SPN_DEP_KIND_PACKAGE: return SPN_INDEX_DEP_NORMAL;
-    case SPN_DEP_KIND_BUILD:   return SPN_INDEX_DEP_BUILD;
-    case SPN_DEP_KIND_TEST:    return SPN_INDEX_DEP_TEST;
-  }
-  sp_unreachable_return(SPN_INDEX_DEP_NORMAL);
-}
-
 spn_err_t spn_index_release_from_manifest(sp_mem_t mem, const si_pkg_info_t* manifest, spn_pkg_root_t published, spn_index_release_t* release, spn_err_union_t* err) {
   *release = (spn_index_release_t) {
     .name = manifest->name,
@@ -33,6 +24,13 @@ spn_err_t spn_index_release_from_manifest(sp_mem_t mem, const si_pkg_info_t* man
 
   si_da_for(manifest->deps, it) {
     spn_requested_dep_t* req = &manifest->deps[it];
+    spn_index_dep_kind_t kind = sp_zero;
+    switch (req->kind) {
+      case SPN_DEP_KIND_PACKAGE: kind = SPN_INDEX_DEP_NORMAL; break;
+      case SPN_DEP_KIND_BUILD:   kind = SPN_INDEX_DEP_BUILD; break;
+      case SPN_DEP_KIND_TEST:
+      case SPN_DEP_KIND_TOOL:    continue;
+    }
     if (req->source != SPN_PKG_SOURCE_INDEX) {
       *err = (spn_err_union_t) {
         .kind = SPN_ERR_INDEX_PATH_DEP,
@@ -42,8 +40,8 @@ spn_err_t spn_index_release_from_manifest(sp_mem_t mem, const si_pkg_info_t* man
     }
 
     sp_da_push(release->deps, ((spn_index_dep_t) {
-      .kind = dep_kind_to_index(req->kind),
-      .private = req->private,
+      .kind = kind,
+      .public = req->public,
       .name = req->name,
       .range = req->index.range,
       .when = req->when,
@@ -59,7 +57,7 @@ spn_err_t spn_index_release_from_manifest(sp_mem_t mem, const si_pkg_info_t* man
     spn_index_target_t target = { .name = lib->name.str };
     sp_da_init(mem, target.linkages);
 
-    const spn_linkage_t kinds [] = { SPN_LIB_KIND_SOURCE, SPN_LIB_KIND_STATIC, SPN_LIB_KIND_SHARED, SPN_LIB_KIND_OBJECT };
+    const spn_linkage_t kinds [] = { SPN_LIB_KIND_STATIC, SPN_LIB_KIND_SHARED };
     sp_carr_for(kinds, kind) {
       if (spn_linkage_set_has(lib->linkages, kinds[kind])) {
         sp_da_push(target.linkages, kinds[kind]);

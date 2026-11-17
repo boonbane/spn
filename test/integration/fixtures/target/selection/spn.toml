@@ -17,9 +17,9 @@ name = "test"
 source = ["main.c"]
 deps = ["spum"]
 
-[[script]]
-name = "script"
-source = ["script.c"]
+[[tool]]
+name = "tool"
+source = ["tool.c"]
 
 [[example]]
 name = "x"

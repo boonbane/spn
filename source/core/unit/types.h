@@ -21,6 +21,7 @@ struct spn_build_unit_t {
   spn_profile_info_t profile;
   spn_toolchain_unit_t* toolchain;
   spn_build_unit_t* metabuild;
+  bool script;
   sp_da(spn_path_t) include;
   sp_da(sp_str_t) define;
   struct {
@@ -75,7 +76,7 @@ typedef struct {
 
 typedef struct {
   spn_pkg_unit_t* pkg;
-  bool private;
+  bool public;
 } spn_pkg_edge_t;
 
 typedef struct {
@@ -148,7 +149,6 @@ typedef struct {
 typedef struct {
   sp_str_t output;
   sp_str_t implib;
-  bool objects;
   sp_opt(spn_cc_link_plan_t) link;
   sp_opt(spn_cc_archive_plan_t) archive;
   sp_opt(spn_exports_plan_t) exports;
@@ -167,6 +167,7 @@ struct spn_target_unit {
   si_da(spn_pkg_unit_t*) includes;
 
   sp_da(spn_compile_unit_t*) objects;
+  si_da(spn_requirement_t) requires;
   spn_link_plan_t link;
   spn_target_emit_t emit;
 };

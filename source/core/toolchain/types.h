@@ -23,6 +23,7 @@ typedef enum {
   SPN_CC_CAP_BARE           = 1 << 7,
   SPN_CC_CAP_GNU_RUNTIME    = 1 << 8,
   SPN_CC_CAP_TRIPLE_MIN_OS  = 1 << 9,
+  SPN_CC_CAP_HOST_SYSROOT   = 1 << 10,
 } spn_cc_cap_t;
 
 typedef u32 spn_cc_cap_set_t;
@@ -36,10 +37,18 @@ typedef enum {
 } spn_ld_dialect_t;
 
 typedef enum {
+  SPN_SDK_NEED_NONE,
+  SPN_SDK_NEED_SYSROOT,
+  SPN_SDK_NEED_MACOS,
+  SPN_SDK_NEED_MSVC,
+} spn_sdk_need_t;
+
+typedef enum {
   SPN_SDK_NONE,
   SPN_SDK_SYSROOT,
   SPN_SDK_MACOS,
   SPN_SDK_MSVC,
+  SPN_SDK_HOST,
 } spn_sdk_kind_t;
 
 typedef enum {

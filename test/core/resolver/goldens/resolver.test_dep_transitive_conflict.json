@@ -1,0 +1,20 @@
+{
+  "version": 3,
+  "requests": [
+    {
+      "name": "root",
+      "kind": "package",
+      "source": "root"
+    }
+  ],
+  "packages": [],
+  "errors": [
+    {
+      "kind": "pkg_conflict",
+      "name": "foo",
+      "range": "^2.0.0",
+      "requester": "harness",
+      "selected": "1.0.0"
+    }
+  ]
+}

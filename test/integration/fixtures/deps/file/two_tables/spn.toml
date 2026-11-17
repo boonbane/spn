@@ -1,0 +1,9 @@
+[package]
+name = "R"
+version = "0.1.0"
+
+[deps.package]
+A = { path = "P/A" }
+
+[deps.tool]
+A = { path = "T/A" }

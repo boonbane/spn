@@ -6,7 +6,3 @@ version = "1.0.0"
 include = [
   { from = "K.h" },
 ]
-
-[[lib]]
-name = "K"
-kinds = ["source"]

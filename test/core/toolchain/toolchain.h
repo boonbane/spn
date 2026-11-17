@@ -117,6 +117,7 @@ static spn_path_t fixture_path(test_path_t path) {
 static spn_sdk_t fixture_sdk(sp_mem_t mem, fixture_sdk_t sdk) {
   switch (sdk.kind) {
     case SPN_SDK_NONE: return sp_zero_struct(spn_sdk_t);
+    case SPN_SDK_HOST: return (spn_sdk_t) { .kind = SPN_SDK_HOST };
     case SPN_SDK_SYSROOT: return spn_sdk_at(mem, (spn_triple_t) HOST_X64_LINUX, fixture_path(sdk.root));
     case SPN_SDK_MACOS: return spn_sdk_at(mem, (spn_triple_t) HOST_ARM_MACOS, fixture_path(sdk.root));
     case SPN_SDK_MSVC: {
@@ -146,7 +147,8 @@ static spn_sdk_host_t fixture_sdks(sp_mem_t mem, fixture_sdks_t sdks) {
 static sp_err_t fixture_check_sdk(sp_test_t* t, spn_sdk_t sdk, fixture_sdk_expect_t expect) {
   sp_must_eq(t, (u32)expect.kind, (u32)sdk.kind);
   switch (sdk.kind) {
-    case SPN_SDK_NONE: {
+    case SPN_SDK_NONE:
+    case SPN_SDK_HOST: {
       return SP_OK;
     }
     case SPN_SDK_SYSROOT: {

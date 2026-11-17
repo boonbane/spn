@@ -24,7 +24,7 @@ static bool fz_load_template(sp_mem_t mem, sp_str_t* tmpl) {
 }
 
 static sp_str_t fz_root_attrs(fz_dep_t dep) {
-  return dep.private ? sp_str_lit(", private = true") : sp_str_lit("");
+  return dep.public ? sp_str_lit(", public = true") : sp_str_lit("");
 }
 
 static const c8* fz_linkage_json(spn_linkage_t kind) {
@@ -32,17 +32,16 @@ static const c8* fz_linkage_json(spn_linkage_t kind) {
     case SPN_LIB_KIND_NONE:   return "none";
     case SPN_LIB_KIND_SHARED: return "shared";
     case SPN_LIB_KIND_STATIC: return "static";
-    case SPN_LIB_KIND_SOURCE: return "source";
-    case SPN_LIB_KIND_OBJECT: return "object";
   }
   sp_unreachable_return("none");
 }
 
-static const c8* fz_dep_kind_json(spn_index_dep_kind_t kind) {
+static const c8* fz_dep_kind_json(spn_dep_kind_t kind) {
   switch (kind) {
-    case SPN_INDEX_DEP_NORMAL: return "normal";
-    case SPN_INDEX_DEP_BUILD:  return "build";
-    case SPN_INDEX_DEP_TEST:   return "test";
+    case SPN_DEP_KIND_PACKAGE: return "normal";
+    case SPN_DEP_KIND_BUILD:   return "build";
+    case SPN_DEP_KIND_TEST:
+    case SPN_DEP_KIND_TOOL:    sp_unreachable_case();
   }
   sp_unreachable_return("normal");
 }
@@ -64,21 +63,18 @@ static sp_str_t fz_release_line(sp_mem_t mem, fz_universe_t* u, u32 pkg, fz_rele
       yyjson_mut_obj_add_strcpy(doc, entry, "name", sp_str_to_cstr(mem, fz_pkg_name(dep.pkg)));
       yyjson_mut_obj_add_strcpy(doc, entry, "version", sp_str_to_cstr(mem, fz_range_render(mem, dep)));
       yyjson_mut_obj_add_strcpy(doc, entry, "kind", fz_dep_kind_json(dep.kind));
-      if (dep.private) {
-        yyjson_mut_obj_add_bool(doc, entry, "private", true);
+      if (dep.public) {
+        yyjson_mut_obj_add_bool(doc, entry, "public", true);
       }
     }
   }
 
   spn_linkage_set_t linkages = u->pkgs[pkg].linkages;
-  if (linkages.source || linkages.static_lib || linkages.shared) {
+  if (linkages.static_lib || linkages.shared) {
     yyjson_mut_val* targets = yyjson_mut_obj_add_arr(doc, root, "targets");
     yyjson_mut_val* target = yyjson_mut_arr_add_obj(doc, targets);
     yyjson_mut_obj_add_strcpy(doc, target, "name", sp_str_to_cstr(mem, fz_pkg_name(pkg)));
     yyjson_mut_val* names = yyjson_mut_obj_add_arr(doc, target, "linkages");
-    if (linkages.source) {
-      yyjson_mut_arr_add_strcpy(doc, names, "source");
-    }
     if (linkages.static_lib) {
       yyjson_mut_arr_add_strcpy(doc, names, "static");
     }
@@ -128,10 +124,10 @@ void fz_dump(fz_universe_t* u, u64 iter) {
     sp_template_set(budget, sp_str_lit("budget"), sp_fmt(mem, "{}", sp_fmt_uint(u->profile.budget)).value);
   }
 
-  static const struct { spn_index_dep_kind_t kind; const c8* table; } root_tables [] = {
-    { SPN_INDEX_DEP_NORMAL, "package" },
-    { SPN_INDEX_DEP_BUILD,  "build" },
-    { SPN_INDEX_DEP_TEST,   "test" },
+  static const struct { spn_dep_kind_t kind; const c8* table; } root_tables [] = {
+    { SPN_DEP_KIND_PACKAGE, "package" },
+    { SPN_DEP_KIND_BUILD,   "build" },
+    { SPN_DEP_KIND_TEST,    "test" },
   };
 
   sp_template_list(scope, sp_str_lit("root_kinds"));

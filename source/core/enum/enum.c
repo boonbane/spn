@@ -335,12 +335,6 @@ spn_linkage_t spn_lib_kind_from_str(sp_str_t str) {
   if (sp_str_equal_cstr(str, "static")) {
     return SPN_LIB_KIND_STATIC;
   }
-  if (sp_str_equal_cstr(str, "source")) {
-    return SPN_LIB_KIND_SOURCE;
-  }
-  if (sp_str_equal_cstr(str, "object")) {
-    return SPN_LIB_KIND_OBJECT;
-  }
 
   return SPN_LIB_KIND_NONE;
 }
@@ -524,12 +518,6 @@ sp_str_t spn_linkage_to_str(spn_linkage_t kind) {
     }
     case SPN_LIB_KIND_STATIC: {
       return sp_str_lit("static");
-    }
-    case SPN_LIB_KIND_SOURCE: {
-      return sp_str_lit("source");
-    }
-    case SPN_LIB_KIND_OBJECT: {
-      return sp_str_lit("object");
     }
     case SPN_LIB_KIND_NONE: sp_unreachable_case();
   }
@@ -775,6 +763,9 @@ sp_str_t spn_dep_kind_to_str(spn_dep_kind_t kind) {
     case SPN_DEP_KIND_TEST: {
       return sp_str_lit("test");
     }
+    case SPN_DEP_KIND_TOOL: {
+      return sp_str_lit("tool");
+    }
   }
 
   SP_UNREACHABLE_RETURN(sp_str_lit(""));
@@ -789,6 +780,9 @@ spn_dep_kind_t spn_dep_kind_from_str(sp_str_t str) {
   }
   if (sp_str_equal_cstr(str, "test")) {
     return SPN_DEP_KIND_TEST;
+  }
+  if (sp_str_equal_cstr(str, "tool")) {
+    return SPN_DEP_KIND_TOOL;
   }
 
   return SPN_DEP_KIND_PACKAGE;
@@ -805,9 +799,6 @@ sp_str_t spn_dep_edge_to_str(spn_dep_edge_t edge) {
     case SPN_DEP_EDGE_PRIVATE: {
       return sp_str_lit("private");
     }
-    case SPN_DEP_EDGE_PRUNED: {
-      return sp_str_lit("pruned");
-    }
   }
 
   SP_UNREACHABLE_RETURN(sp_str_lit(""));
@@ -822,9 +813,6 @@ spn_dep_edge_t spn_dep_edge_from_str(sp_str_t str) {
   }
   if (sp_str_equal_cstr(str, "private")) {
     return SPN_DEP_EDGE_PRIVATE;
-  }
-  if (sp_str_equal_cstr(str, "pruned")) {
-    return SPN_DEP_EDGE_PRUNED;
   }
 
   return SPN_DEP_EDGE_SCOPE;
@@ -868,9 +856,6 @@ sp_str_t spn_index_dep_kind_to_str(spn_index_dep_kind_t kind) {
     case SPN_INDEX_DEP_BUILD: {
       return sp_str_lit("build");
     }
-    case SPN_INDEX_DEP_TEST: {
-      return sp_str_lit("test");
-    }
   }
 
   SP_UNREACHABLE_RETURN(sp_str_lit(""));
@@ -882,9 +867,6 @@ spn_index_dep_kind_t spn_index_dep_kind_from_str(sp_str_t str) {
   }
   if (sp_str_equal_cstr(str, "build")) {
     return SPN_INDEX_DEP_BUILD;
-  }
-  if (sp_str_equal_cstr(str, "test")) {
-    return SPN_INDEX_DEP_TEST;
   }
 
   return SPN_INDEX_DEP_NORMAL;

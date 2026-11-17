@@ -46,7 +46,7 @@ static void lower_target_fields(spn_toml_loader_t* ctx, spn_toolchain_source_t s
     }
   }
   if (!sp_str_empty(cg->sdk)) {
-    if (source != SPN_TOOLCHAIN_SOURCE_DETECTED && spn_sdk_kind(target->triple) != SPN_SDK_NONE) {
+    if (source != SPN_TOOLCHAIN_SOURCE_DETECTED && spn_sdk_need(target->triple) != SPN_SDK_NEED_NONE) {
       target->sdk = lower_sdk_path(ctx, source, base, cg->sdk);
     }
     else {

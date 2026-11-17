@@ -1,0 +1,9 @@
+[package]
+name = "C"
+version = "1.0.0"
+
+[[lib]]
+name = "C"
+kinds = ["shared"]
+source = ["c.c"]
+publish.include = [{ from = "C.h" }]

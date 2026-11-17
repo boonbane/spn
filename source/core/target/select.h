@@ -10,9 +10,9 @@
 //
 // - config is the root manifest's [config.<pkg>] kind. It's a hard requirement: if the lib
 //   doesn't support it, selection fails.
-// - linkage is the profile's linkage. SPN_LIB_KIND_STATIC and SPN_LIB_KIND_SOURCE promise a
-//   build with no runtime library dependencies, so a shared-only lib fails selection. Otherwise
-//   it's a preference, and any supported kind can satisfy it.
+// - linkage is the profile's linkage. SPN_LIB_KIND_STATIC promises a build with no runtime
+//   library dependencies, so a shared-only lib fails selection. Otherwise it's a preference,
+//   and any supported kind can satisfy it.
 typedef struct {
   sp_opt_spn_linkage_t config;
   spn_linkage_t linkage;

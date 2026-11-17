@@ -18,16 +18,15 @@
 #define UNIT_TEST_MAX_ROOTS 2
 #define UNIT_TEST_MAX_NODES 2
 #define UNIT_TEST_MAX_OPTIONS 2
+#define UNIT_TEST_MAX_TOOLCHAINS 3
 
 #define static_only { .static_lib = true }
 #define shared_only { .shared = true }
-#define object_only { .object = true }
-#define source_only { .source = true }
 
 typedef struct {
   const c8* to;
   spn_dep_kind_t kind;
-  bool private;
+  bool public;
 } graph_dep_t;
 
 typedef struct {
@@ -40,6 +39,7 @@ typedef struct {
   const c8* include [UNIT_TEST_MAX_STRS];
   const c8* define [UNIT_TEST_MAX_STRS];
   const c8* system_deps [UNIT_TEST_MAX_STRS];
+  const c8* host_deps [UNIT_TEST_MAX_STRS];
   const c8* frameworks [UNIT_TEST_MAX_STRS];
   const c8* link_flags [UNIT_TEST_MAX_STRS];
   const c8* linker_script [UNIT_TEST_MAX_STRS];
@@ -70,15 +70,28 @@ typedef struct {
   const c8* include [UNIT_TEST_MAX_STRS];
   const c8* define [UNIT_TEST_MAX_STRS];
   const c8* system_deps [UNIT_TEST_MAX_STRS];
+  const c8* host_deps [UNIT_TEST_MAX_STRS];
   const c8* frameworks [UNIT_TEST_MAX_STRS];
-  const c8* publish [UNIT_TEST_MAX_STRS];
+  struct {
+    const c8* include [UNIT_TEST_MAX_STRS];
+    const c8* define [UNIT_TEST_MAX_STRS];
+    const c8* system_deps [UNIT_TEST_MAX_STRS];
+    const c8* frameworks [UNIT_TEST_MAX_STRS];
+  } publish;
   graph_node_t nodes [UNIT_TEST_MAX_NODES];
   spn_os_version_t min_os;
 } graph_pkg_t;
 
 typedef struct {
+  const c8* name;
+  bool host_row;
+  bool foreign;
+} graph_toolchain_t;
+
+typedef struct {
   spn_os_t os;
   spn_abi_t abi;
+  graph_toolchain_t catalog [UNIT_TEST_MAX_TOOLCHAINS];
   spn_cc_driver_t driver;
   spn_mode_t mode;
   spn_opt_level_t opt;
@@ -88,6 +101,7 @@ typedef struct {
   const c8* link_args [UNIT_TEST_MAX_STRS];
   const c8* sdk;
   const c8* sha256;
+  bool sdk_host;
   bool sdk_libc;
   bool no_cxx;
   spn_linking_t request;

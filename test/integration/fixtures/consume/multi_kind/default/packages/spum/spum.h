@@ -1,1 +1,1 @@
-#define SPUM 69
+int spum_value();

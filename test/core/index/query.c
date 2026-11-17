@@ -21,6 +21,14 @@ static const query_test_t tests [] = {
     },
   },
   {
+    .name = "sorted_by_version",
+    .fixture = "unsorted",
+    .expect = {
+      .exists = true,
+      .versions = { { 1, 0, 0 }, { 2, 0, 0 }, { 3, 0, 0 } },
+    },
+  },
+  {
     .name = "missing_file",
   },
   {

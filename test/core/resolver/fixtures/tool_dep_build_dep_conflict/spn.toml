@@ -1,0 +1,9 @@
+[package]
+name = "root"
+version = "0.0.1"
+
+[deps.build]
+foo = { version = "=1.0.0" }
+
+[deps.tool]
+foo = { version = "=2.0.0" }

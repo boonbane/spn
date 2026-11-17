@@ -8,9 +8,7 @@
 #include "error/error.h"
 #include "event/event.h"
 #include "external/wasm/wasm.h"
-#include "git/patch.h"
 #include "graph/dag.h"
-#include "model/resolve.h"
 #include "model/sync.h"
 #include "op/op.h"
 #include "paths/paths.h"
@@ -24,18 +22,6 @@
 #include "triple/triple.h"
 #include "unit/types.h"
 #include "unit/unit.h"
-
-static bool is_selected(si_target_selection_t* selection, const si_target_info_t* target) {
-  if (!(selection->kinds & spn_target_kind_bit(target->kind))) {
-    return false;
-  }
-  if (!si_om_empty(selection->names)) {
-    if (!si_om_has(selection->names, target->name.id)) {
-      return false;
-    }
-  }
-  return true;
-}
 
 static void claim_spn_files(sp_mem_t mem, spn_project_t* project, spn_build_plan_t* plan) {
   si_da_push(mem, plan->claims, ((spn_dag_claim_t) { .path = spn_path_project_compile_commands(), .kind = SPN_DAG_ARTIFACT_KIND_FILE }));
@@ -122,56 +108,7 @@ spn_err_t spn_op_build(spn_op_t* op) {
     });
   }
 
-  spn_err_t hashed = SPN_OK;
-  si_da_for_ptr(project->patches, decl) {
-    spn_patch_t patch = { .name = decl->name };
-    si_da_for_value(decl->files, file) {
-      si_da_push(session->mem, patch.set.files, spn_path_str(roots, session->mem, file));
-    }
-    u32 missing = 0;
-    patch.set.hash = spn_git_patch_hash(patch.set.files, &missing);
-    if (!patch.set.hash) {
-      spn_err_t kind = spn_err_emit(ctx, (spn_err_union_t) {
-        .kind = SPN_ERR_PATCH_FILE_MISSING,
-        .subject = decl->name.str,
-        .patch_file = { .path = patch.set.files[missing] },
-      });
-      if (!hashed) {
-        hashed = kind;
-      }
-      continue;
-    }
-    si_da_push(session->mem, session->patches, patch);
-  }
-  spn_try(hashed);
-
-  bool reresolve = sp_zero;
-  do {
-    spn_try(spn_resolve(op));
-    spn_try(spn_sync(op, &reresolve));
-  } while (reresolve);
-
-  spn_err_t unused = SPN_OK;
-  si_da_for_ptr(session->patches, patch) {
-    bool used = false;
-    sp_ht_for_kv(session->resolve, it) {
-      if (it.key->name == patch->name.id) {
-        used = true;
-        break;
-      }
-    }
-    if (used) {
-      continue;
-    }
-    spn_err_t kind = spn_err_emit(ctx, (spn_err_union_t) {
-      .kind = SPN_ERR_PATCH_UNUSED,
-      .subject = patch->name.str,
-    });
-    if (!unused) {
-      unused = kind;
-    }
-  }
-  spn_try(unused);
+  spn_try(spn_resolve_and_sync(op));
 
   // Initialize shared state across the DAGs
   session->dag.files_path = spn_path_join(session->mem, session->paths.build, sp_str_lit(".spn/files"));
@@ -212,7 +149,10 @@ spn_err_t spn_op_build(spn_op_t* op) {
   spn_try(si_add_package_unit(&units, build, session->root, &root));
   si_da(spn_target_unit_t*) targets = sp_zero;
   si_om_for_each(root->pkg.targets, target) {
-    if (!is_selected(&session->selection, target->info)) {
+    if (!(session->selection.kinds & spn_target_kind_bit(target->info->kind))) {
+      continue;
+    }
+    if (!si_om_empty(session->selection.names) && !si_om_has(session->selection.names, target->info->name.id)) {
       continue;
     }
 

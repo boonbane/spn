@@ -1,0 +1,9 @@
+[package]
+name = "root"
+version = "0.0.1"
+
+[deps.package]
+zed = { version = "^1.0.0" }
+
+[deps.test]
+harness = { version = "^1.0.0" }

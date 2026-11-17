@@ -45,6 +45,14 @@ zlib = { path = "vendor/zlib" }
 sp = { path = "vendor/sp" }
 yyjson = { path = "vendor/yyjson"}
 
+[deps.tool]
+sp = { path = "vendor/sp" }
+toml = { path = "vendor/toml" }
+yyjson = { path = "vendor/yyjson" }
+blake3 = { path = "vendor/blake3" }
+xz = { path = "vendor/xz" }
+zlib = { path = "vendor/zlib" }
+
 [patch.sp]
 files = [
   "tools/patches/sp-golden-absolute.patch",
@@ -141,17 +149,17 @@ deps = ["spn"]
 flags = []
 embed = [{ path = "docs/content", dir = true, dest = "docs" }]
 
-[[script]]
+[[tool]]
 name = "installer"
 source = ["tools/install/main.c", "tools/install/render.c"]
 include = ["tools/install"]
 
-[[script]]
+[[tool]]
 name = "docs"
 source = ["tools/gen/docs.c", "tools/jtd.c"]
 include = ["tools"]
 
-[[script]]
+[[tool]]
 name = "smoke"
 source = [
   "tools/docker/source/main.c",
@@ -163,7 +171,7 @@ source = [
 include = ["include", "source/core", "source/util", "test/tools", "tools/docker/source", { path = "gen/codegen/gen", tree = "work" }]
 deps = ["spn"]
 
-[[script]]
+[[tool]]
 name = "winvm"
 source = [
   "tools/windows/source/main.c",
@@ -175,12 +183,12 @@ source = [
 include = ["include", "source/core", "source/util", "tools/windows/source", "tools/docker/source", { path = "gen/codegen/gen", tree = "work" }, { path = "gen/codegen/test", tree = "work" }]
 deps = ["spn"]
 
-[[script]]
+[[tool]]
 name = "smoke-shell"
 source = ["tools/docker/source/container/shell.c"]
 include = ["tools/docker/source"]
 
-[[script]]
+[[tool]]
 name = "smoke-check"
 source = ["tools/docker/source/container/check.c"]
 include = ["tools/docker/source"]
@@ -311,6 +319,7 @@ source = [
   "test/integration/offline.c",
   "test/integration/options.c",
   "test/integration/patch.c",
+  "test/integration/path.c",
   "test/integration/platform.c",
   "test/integration/profile.c",
   "test/integration/reexport.c",

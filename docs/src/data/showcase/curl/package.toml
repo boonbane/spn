@@ -253,7 +253,6 @@ source = [
   "lib/vquic/*.c",
   "lib/vssh/*.c",
 ]
-deps = [{ pkg = "mbedtls", when = { mbedtls = true } }]
 macos = { frameworks = ["SystemConfiguration", "CoreFoundation", "CoreServices"] }
 
 [[bin]]

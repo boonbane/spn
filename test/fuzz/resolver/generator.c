@@ -28,7 +28,7 @@ bool fz_pkg_shared(fz_universe_t* u, s32 pkg) {
   }
 
   fz_pkg_t* it = &u->pkgs[pkg];
-  if (!it->linkages.source && !it->linkages.static_lib && !it->linkages.shared) {
+  if (!it->linkages.static_lib && !it->linkages.shared) {
     return false;
   }
 
@@ -179,17 +179,14 @@ static s32 fz_sort_release(const void* a, const void* b) {
   return spn_semver_cmp(lhs->version, rhs->version);
 }
 
-static spn_index_dep_kind_t fz_sample_kind(sp_fuzz_prng_t* prng, fz_profile_t* profile) {
+static spn_dep_kind_t fz_sample_kind(sp_fuzz_prng_t* prng, fz_profile_t* profile) {
   if (!profile->features) {
-    return SPN_INDEX_DEP_NORMAL;
+    return SPN_DEP_KIND_PACKAGE;
   }
   if (sp_fuzz_chance(prng, (u32)profile->build_pct, 16)) {
-    return SPN_INDEX_DEP_BUILD;
+    return SPN_DEP_KIND_BUILD;
   }
-  if (sp_fuzz_chance(prng, (u32)profile->test_pct, 16)) {
-    return SPN_INDEX_DEP_TEST;
-  }
-  return SPN_INDEX_DEP_NORMAL;
+  return SPN_DEP_KIND_PACKAGE;
 }
 
 static fz_dep_t fz_free_range(sp_fuzz_prng_t* prng, fz_universe_t* u, u32 target) {
@@ -199,7 +196,7 @@ static fz_dep_t fz_free_range(sp_fuzz_prng_t* prng, fz_universe_t* u, u32 target
       .pkg = target,
       .shape = FZ_RANGE_ANY,
       .kind = fz_sample_kind(prng, &u->profile),
-      .private = sp_fuzz_chance(prng, (u32)u->profile.private_pct, 16),
+      .public = !sp_fuzz_chance(prng, (u32)u->profile.private_pct, 16),
     };
   }
 
@@ -211,24 +208,32 @@ static fz_dep_t fz_free_range(sp_fuzz_prng_t* prng, fz_universe_t* u, u32 target
     .shape = (fz_range_shape_t)sp_fuzz_weighted(prng, u->profile.shapes, FZ_RANGE_COUNT),
     .version = anchor,
     .kind = fz_sample_kind(prng, &u->profile),
-    .private = sp_fuzz_chance(prng, (u32)u->profile.private_pct, 16),
+    .public = !sp_fuzz_chance(prng, (u32)u->profile.private_pct, 16),
   };
 }
 
 static fz_dep_t fz_sat_range(sp_fuzz_prng_t* prng, fz_universe_t* u, u32 target, spn_semver_t assigned) {
   if (u->pkgs[target].local) {
-    return (fz_dep_t) { .pkg = target, .shape = FZ_RANGE_ANY, .kind = SPN_INDEX_DEP_NORMAL };
+    return (fz_dep_t) { .pkg = target, .shape = FZ_RANGE_ANY, .kind = SPN_DEP_KIND_PACKAGE, .public = true };
   }
 
   for (u32 it = 0; it < 8; it++) {
     fz_dep_t dep = fz_free_range(prng, u, target);
-    dep.kind = SPN_INDEX_DEP_NORMAL;
-    dep.private = false;
+    dep.kind = SPN_DEP_KIND_PACKAGE;
+    dep.public = true;
     if (fz_range_sat(dep, assigned)) {
       return dep;
     }
   }
-  return (fz_dep_t) { .pkg = target, .shape = FZ_RANGE_EXACT, .version = assigned };
+  return (fz_dep_t) { .pkg = target, .shape = FZ_RANGE_EXACT, .version = assigned, .public = true };
+}
+
+static fz_dep_t fz_root_range(sp_fuzz_prng_t* prng, fz_universe_t* u, u32 target) {
+  fz_dep_t dep = fz_free_range(prng, u, target);
+  if (u->profile.features && sp_fuzz_chance(prng, (u32)u->profile.test_pct, 16)) {
+    dep.kind = SPN_DEP_KIND_TEST;
+  }
+  return dep;
 }
 
 static bool fz_can_dep(fz_universe_t* u, u64 owner, u64 target) {
@@ -258,7 +263,7 @@ fz_profile_t fz_gen_profile(sp_fuzz_prng_t* prng) {
     profile.shared_pct = sp_fuzz_range(prng, 2, 12);
     profile.static_pct = sp_fuzz_below(prng, 8);
     profile.config_pct = sp_fuzz_below(prng, 4);
-    static const spn_linkage_t linkages[] = { SPN_LIB_KIND_NONE, SPN_LIB_KIND_STATIC, SPN_LIB_KIND_SHARED, SPN_LIB_KIND_SOURCE };
+    static const spn_linkage_t linkages[] = { SPN_LIB_KIND_NONE, SPN_LIB_KIND_STATIC, SPN_LIB_KIND_SHARED };
     profile.linkage = linkages[sp_fuzz_below(prng, SP_CARR_LEN(linkages))];
   }
   profile.planted = !profile.features && sp_fuzz_chance(prng, 1, 2);
@@ -282,9 +287,8 @@ fz_universe_t fz_gen_universe(sp_mem_t mem, sp_fuzz_prng_t* prng, fz_profile_t p
     if (profile.features) {
       pkg.linkages.shared = sp_fuzz_chance(prng, (u32)profile.shared_pct, 16);
       pkg.linkages.static_lib = sp_fuzz_chance(prng, (u32)profile.static_pct, 16);
-      pkg.linkages.source = sp_fuzz_chance(prng, (u32)profile.static_pct, 16);
       if (sp_fuzz_chance(prng, (u32)profile.config_pct, 16)) {
-        static const spn_linkage_t kinds[] = { SPN_LIB_KIND_SHARED, SPN_LIB_KIND_STATIC, SPN_LIB_KIND_SOURCE };
+        static const spn_linkage_t kinds[] = { SPN_LIB_KIND_SHARED, SPN_LIB_KIND_STATIC };
         pkg.has_config = true;
         pkg.config = kinds[sp_fuzz_below(prng, SP_CARR_LEN(kinds))];
       }
@@ -375,20 +379,20 @@ fz_universe_t fz_gen_universe(sp_mem_t mem, sp_fuzz_prng_t* prng, fz_profile_t p
     spn_semver_t target = u.pkgs[it].releases[u.plan[it]].version;
     sp_da_push(u.roots, u.planted ?
       fz_sat_range(prng, &u, (u32)it, target) :
-      fz_free_range(prng, &u, (u32)it));
+      fz_root_range(prng, &u, (u32)it));
   }
   if (sp_da_empty(u.roots)) {
     spn_semver_t target = u.pkgs[0].releases[u.plan[0]].version;
     sp_da_push(u.roots, u.planted ?
       fz_sat_range(prng, &u, 0, target) :
-      fz_free_range(prng, &u, 0));
+      fz_root_range(prng, &u, 0));
   }
   if (sp_fuzz_chance(prng, 1, 8)) {
     u32 dup = u.roots[sp_fuzz_below(prng, sp_da_size(u.roots))].pkg;
     spn_semver_t target = u.pkgs[dup].releases[u.plan[dup]].version;
     sp_da_push(u.roots, u.planted ?
       fz_sat_range(prng, &u, dup, target) :
-      fz_free_range(prng, &u, dup));
+      fz_root_range(prng, &u, dup));
   }
 
   return u;

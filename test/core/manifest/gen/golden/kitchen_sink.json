@@ -38,9 +38,6 @@
       "flags": [
         "-Wall"
       ],
-      "deps": [
-        "libfoo"
-      ],
       "link": true,
       "publish": {
         "include": [
@@ -62,7 +59,7 @@
       ]
     }
   },
-  "script": {
+  "tool": {
     "postbuild": {
       "name": "postbuild",
       "source": [

@@ -52,11 +52,11 @@ static const test_t tests [] = {
     .expect = { { "build/debug/example/E", { "build/debug/example/libB.so" } } },
   },
   {
-    .name = "script_stages_at_the_root",
+    .name = "tool_stages_at_the_root",
     .graph.pkgs = {
-      { .name = "P", .targets = { { "S", .kind = SPN_TARGET_KIND_SCRIPT, .source = { "s.c" } } } },
+      { .name = "P", .targets = { { "S", .kind = SPN_TARGET_KIND_TOOL, .source = { "s.c" } } } },
     },
-    .roots = { { "S", SPN_TARGET_KIND_SCRIPT } },
+    .roots = { { "S", SPN_TARGET_KIND_TOOL } },
     .expect = { { "build/debug/S" } },
   },
   {

@@ -16,7 +16,7 @@ static const command_test_t tests [] = {
     .expect.exists = { pkg_shared_lib("spum", "spum"), exe("main") },
   },
   {
-    .name = "source_lib",
+    .name = "header_only",
     .project = "test/integration/fixtures/consume/source",
     .copy = { "packages/*" },
     .args = { "build", "-p", "debug" },
@@ -30,11 +30,25 @@ static const command_test_t tests [] = {
     .expect.exists = { pkg_profile_static_lib("static", "spum", "spum"), profile_exe("static", "main") },
   },
   {
+    .name = "publish_requirements",
+    .project = "test/integration/fixtures/consume/publish",
+    .copy = { "packages/*" },
+    .args = { "build", "-p", "debug" },
+    .expect.exists = { exe("main") },
+  },
+  {
     .name = "transitive",
     .project = "test/integration/fixtures/consume/transitive",
     .copy = { "packages/*" },
     .args = { "build", "-p", "debug" },
     .expect.exists = { pkg_static_lib("spum", "spum"), pkg_static_lib("spam", "spam"), exe("main") },
+  },
+  {
+    .name = "static_lib_beside_shared_lib",
+    .project = "test/integration/fixtures/consume/mixed_kinds",
+    .copy = { "packages/*" },
+    .args = { "build" },
+    .expect.exists = { exe("main") },
   },
   {
     .name = "explicit_root_with_package_dep",
@@ -43,7 +57,7 @@ static const command_test_t tests [] = {
     .args = { "build", "main" },
     .expect = {
       .exists = { pkg_static_lib("dependency", "dependency"), exe("main") },
-      .missing = { pkg_store_exe("dependency", "dependency-bin"), pkg_store_exe("dependency", "dependency-script"), test_exe("dependency-test") },
+      .missing = { pkg_store_exe("dependency", "dependency-bin"), pkg_store_exe("dependency", "dependency-tool"), test_exe("dependency-test") },
     },
   },
   {
@@ -62,7 +76,7 @@ static const command_test_t tests [] = {
     .project = "test/integration/fixtures/consume/multi_kind/default",
     .copy = { "packages/*" },
     .args = { "build" },
-    .expect.exists = { exe("main") },
+    .expect.exists = { pkg_static_lib("spum", "spum"), exe("main") },
   },
   {
     .name = "multi_kind_static",
@@ -77,13 +91,6 @@ static const command_test_t tests [] = {
     .copy = { "packages/*" },
     .args = { "build" },
     .expect.exists = { pkg_shared_lib("spum", "spum"), exe("main") },
-  },
-  {
-    .name = "multi_kind_source",
-    .project = "test/integration/fixtures/consume/multi_kind/source",
-    .copy = { "packages/*" },
-    .args = { "build" },
-    .expect.exists = { exe("main") },
   },
 };
 

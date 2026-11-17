@@ -4,11 +4,12 @@ version = "1.0.0"
 
 [[lib]]
 name = "A/B"
+source = ["K.c"]
 
 [[bin]]
 name = "C/D"
 
-[[script]]
+[[tool]]
 name = "E/F"
 
 [[test]]

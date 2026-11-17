@@ -4,7 +4,7 @@ version = "0.1.0"
 
 [deps.package]
 S = "1.0.0"
-P = { version = "1.0.0", private = true }
+P = "1.0.0"
 
 [profile.default]
 linkage = "shared"

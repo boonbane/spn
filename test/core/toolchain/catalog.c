@@ -73,7 +73,7 @@ static const add_test_t add_tests [] = {
           .name = "A",
           .driver = SPN_CC_DRIVER_GCC,
           .compiler = { .path = "/A" },
-          .rows = { { HOST_X64_LINUX, .sanitizers = SAN_GCC_LINUX }, { TARGET_X64_BARE }, { TARGET_X64_LINUX_NONE } },
+          .rows = { { HOST_X64_LINUX, { SPN_SDK_HOST }, SAN_GCC_LINUX }, { TARGET_X64_BARE }, { TARGET_X64_LINUX_NONE } },
         },
       },
     },
@@ -99,21 +99,21 @@ static const rows_test_t rows_tests [] = {
     .file = "drivers.toml",
     .host = HOST_X64_LINUX,
     .toolchain = "A",
-    .expect = { .rows = { { HOST_X64_LINUX, .sanitizers = SAN_GCC_LINUX }, { TARGET_X64_BARE }, { TARGET_X64_LINUX_NONE } } },
+    .expect = { .rows = { { HOST_X64_LINUX, { SPN_SDK_HOST }, SAN_GCC_LINUX }, { TARGET_X64_BARE }, { TARGET_X64_LINUX_NONE } } },
   },
   {
     .name = "clang_on_linux_targets_host_and_no_bare",
     .file = "multiple.toml",
     .host = HOST_ARM_LINUX,
     .toolchain = "B",
-    .expect = { .rows = { { HOST_ARM_LINUX, .sanitizers = SAN_CLANG_LINUX } } },
+    .expect = { .rows = { { HOST_ARM_LINUX, { SPN_SDK_HOST }, SAN_CLANG_LINUX } } },
   },
   {
     .name = "lld_does_not_add_bare",
     .file = "drivers.toml",
     .host = HOST_ARM_LINUX,
     .toolchain = "B",
-    .expect = { .rows = { { HOST_ARM_LINUX, .sanitizers = SAN_CLANG_LINUX } } },
+    .expect = { .rows = { { HOST_ARM_LINUX, { SPN_SDK_HOST }, SAN_CLANG_LINUX } } },
   },
   {
     .name = "gcc_on_macos_targets_host_only",
@@ -249,7 +249,7 @@ static const bind_test_t bind_tests [] = {
     .sdks = { .macos = { "/H" }, .msvc = { { { "/X" }, SPN_ARCH_X64 } } },
     .expect = {
       .rows = {
-        { HOST_X64_LINUX, .sanitizers = SAN_CLANG_LINUX },
+        { HOST_X64_LINUX, { SPN_SDK_HOST }, SAN_CLANG_LINUX },
         { HOST_X64_MACOS, { SPN_SDK_MACOS, { "/H" } } },
         { HOST_ARM_MACOS, { SPN_SDK_MACOS, { "/H" } } },
         { TARGET_WIN_MSVC, { SPN_SDK_MSVC, .vc = { "/X/crt/lib/x86_64" } } },
@@ -280,6 +280,12 @@ static const bind_test_t bind_tests [] = {
     .expect = { .rows = { { HOST_X64_LINUX, .sanitizers = SAN_ZIG_UT }, { TARGET_X64_BARE } } },
   },
   {
+    .name = "zig_host_row_brings_its_libc",
+    .driver = SPN_CC_DRIVER_ZIG,
+    .host = HOST_X64_LINUX,
+    .expect = { .rows = { { HOST_X64_LINUX }, { TARGET_X64_BARE }, { TARGET_X64_LINUX_NONE } } },
+  },
+  {
     .name = "coff_host_targets_no_bare",
     .driver = SPN_CC_DRIVER_CLANG,
     .lld = true,
@@ -292,7 +298,7 @@ static const bind_test_t bind_tests [] = {
     .driver = SPN_CC_DRIVER_GCC,
     .lld = true,
     .host = HOST_X64_LINUX,
-    .expect = { .rows = { { HOST_X64_LINUX, .sanitizers = SAN_GCC_LINUX }, { TARGET_X64_BARE }, { TARGET_X64_LINUX_NONE } } },
+    .expect = { .rows = { { HOST_X64_LINUX, { SPN_SDK_HOST }, SAN_GCC_LINUX }, { TARGET_X64_BARE }, { TARGET_X64_LINUX_NONE } } },
   },
   {
     .name = "host_row_adds_to_a_list",
@@ -300,7 +306,7 @@ static const bind_test_t bind_tests [] = {
     .host_row = true,
     .host = HOST_X64_LINUX,
     .targets = { { TARGET_X64_BARE } },
-    .expect = { .rows = { { TARGET_X64_BARE }, { HOST_X64_LINUX, .sanitizers = SAN_CLANG_LINUX } } },
+    .expect = { .rows = { { TARGET_X64_BARE }, { HOST_X64_LINUX, { SPN_SDK_HOST }, SAN_CLANG_LINUX } } },
   },
   {
     .name = "listed_row_wins_over_host",

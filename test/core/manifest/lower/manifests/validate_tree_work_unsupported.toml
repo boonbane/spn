@@ -13,4 +13,5 @@ include = [{ path = "I", tree = "work" }]
 [[lib]]
 name = "B"
 kinds = ["shared"]
+source = ["D.c"]
 linker_script = [{ path = "L.ld", tree = "work" }]

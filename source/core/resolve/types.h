@@ -18,14 +18,13 @@ typedef enum {
   SPN_DEP_EDGE_SCOPE,
   SPN_DEP_EDGE_PROCESS,
   SPN_DEP_EDGE_PRIVATE,
-  SPN_DEP_EDGE_PRUNED,
 } spn_dep_edge_t;
 
 typedef struct {
   spn_pkg_id_t id;
   spn_dep_kind_t kind;
   spn_dep_edge_t edge;
-  bool private;
+  bool public;
 } spn_resolved_dep_t;
 
 struct spn_resolved_pkg {

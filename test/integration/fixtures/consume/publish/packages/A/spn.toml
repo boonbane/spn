@@ -1,0 +1,11 @@
+[package]
+name = "A"
+version = "1.0.0"
+
+[package.publish]
+include = [{ from = "A.h" }]
+define = ["A_VALUE=4761"]
+system_deps = [
+  { lib = "m", when = { os = { not = "windows" } } },
+  { lib = "user32", when = { os = "windows" } },
+]

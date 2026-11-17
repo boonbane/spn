@@ -87,12 +87,6 @@ static const test_t tests [] = {
     .expect = { .err = SPN_ERR_COMPILER_FEATURE_UNSUPPORTED, .feature = SPN_CC_FEATURE_LINKER_SCRIPT },
   },
   {
-    .name = "unknown_target_dep",
-    .graph.pkgs = { { .name = "P", .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "a.c" }, .deps = { "Z" } } } } },
-    .root = { "A", SPN_TARGET_KIND_EXE },
-    .expect = { .err = SPN_ERR_TARGET_DEP },
-  },
-  {
     .name = "cxx_source_without_cxx_compiler",
     .graph = {
       .no_cxx = true,
@@ -102,17 +96,6 @@ static const test_t tests [] = {
     .expect = { .err = SPN_ERR_TOOLCHAIN_NO_CXX },
   },
   {
-    .name = "object_lib_bypasses_profile_linkage",
-    .graph = {
-      .linkage = SPN_LIB_KIND_STATIC,
-      .pkgs = {
-        { .name = "P", .deps = { { "D" } }, .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "a.c" } } } },
-        { .name = "D", .targets = { { "D", object_only, .source = { "d.c" } } } },
-      },
-    },
-    .root = { "A", SPN_TARGET_KIND_EXE },
-  },
-  {
     .name = "config_kind_blames_the_root_manifest",
     .graph.pkgs = {
       { .name = "P", .deps = { { "D" } }, .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "a.c" } } } },
@@ -120,14 +103,6 @@ static const test_t tests [] = {
     },
     .root = { "A", SPN_TARGET_KIND_EXE },
     .expect = { .err = SPN_ERR_TARGET_LINKAGE, .requester = SPN_LINKAGE_REQUESTER_ROOT_MANIFEST },
-  },
-  {
-    .name = "target_dep_naming_a_package_is_not_a_sibling",
-    .graph.pkgs = {
-      { .name = "P", .deps = { { "B" } }, .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "a.c" }, .deps = { "B" } } } },
-      { .name = "B", .targets = { { "B", static_only, .source = { "b.c" } } } },
-    },
-    .root = { "A", SPN_TARGET_KIND_EXE },
   },
   {
     .name = "malformed_source_glob",

@@ -185,17 +185,29 @@ spn_err_t spn_index_sync(spn_index_info_t* index, spn_index_plan_t plan, sp_atom
   return SPN_ERROR;
 }
 
+static s32 sort_release_by_version(const void* a, const void* b) {
+  const spn_index_release_t* lhs = (const spn_index_release_t*)a;
+  const spn_index_release_t* rhs = (const spn_index_release_t*)b;
+  return spn_semver_cmp(lhs->version, rhs->version);
+}
+
 spn_err_t spn_index_get_package(spn_index_info_t* index, sp_mem_t mem, sp_intern_t* intern, const spn_path_roots_t* roots, sp_intern_str_t name, spn_index_pkg_t** pkg, spn_err_union_t* err) {
   switch (index->protocol) {
     case SPN_INDEX_PROTOCOL_GIT:
     case SPN_INDEX_PROTOCOL_HTTP: {
-      return spn_index_jsonl_get_package(index, mem, intern, name, pkg, err);
+      spn_try(spn_index_jsonl_get_package(index, mem, intern, name, pkg, err));
+      break;
     }
     case SPN_INDEX_PROTOCOL_DIR: {
-      return spn_index_dir_get_package(index, mem, intern, roots, name, pkg, err);
+      spn_try(spn_index_dir_get_package(index, mem, intern, roots, name, pkg, err));
+      break;
     }
   }
-  sp_unreachable_return(SPN_ERROR);
+
+  if (*pkg) {
+    sp_da_sort((*pkg)->releases, sort_release_by_version);
+  }
+  return SPN_OK;
 }
 
 static void index_append_release(spn_index_info_t* index, spn_index_release_t* rel) {

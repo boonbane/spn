@@ -20,7 +20,6 @@ publish.include = [{ from = "everything.h" }]
 include = ["include"]
 define = ["LIB=1"]
 flags = ["-Wall"]
-deps = ["libfoo"]
 link = true
 
 [[bin]]
@@ -28,7 +27,7 @@ name = "everything-cli"
 source = ["main.c"]
 deps = ["everything"]
 
-[[script]]
+[[tool]]
 name = "postbuild"
 source = ["post.sh"]
 

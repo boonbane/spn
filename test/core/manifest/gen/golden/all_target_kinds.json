@@ -19,7 +19,7 @@
       ]
     }
   },
-  "script": {
+  "tool": {
     "gen": {
       "name": "gen",
       "source": [

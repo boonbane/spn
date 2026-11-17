@@ -47,8 +47,8 @@ typedef struct {
 } spn_pin_t;
 
 typedef struct {
-  sp_intern_id_t root;
   spn_pkg_id_t from;
+  spn_dep_kind_t kind;
   sp_da(spn_requested_dep_t) reqs;
   u64 cursor;
   sp_ht(sp_intern_id_t, spn_resolved_pkg_t) named;
@@ -95,7 +95,7 @@ typedef sp_ht(spn_group_node_t, spn_hash_state_t) spn_group_hash_t;
 typedef struct {
   sp_hash_t hash;
   u32 kind;
-  u32 private;
+  u32 public;
 } spn_edge_record_t;
 
 typedef struct {
@@ -104,7 +104,7 @@ typedef struct {
   spn_resolved_pkg_t* node;
   spn_dep_kind_t kind;
   spn_dep_edge_t edge;
-  bool private;
+  bool public;
 } spn_node_edge_t;
 
 static spn_err_union_t resolve_dep(spn_resolver_t* resolver, spn_resolve_run_t* run, spn_resolved_pkg_t* node, spn_requested_dep_t* dep);
@@ -138,7 +138,6 @@ static spn_dep_kind_t dep_kind_from_index(spn_index_dep_kind_t kind) {
   switch (kind) {
     case SPN_INDEX_DEP_NORMAL: return SPN_DEP_KIND_PACKAGE;
     case SPN_INDEX_DEP_BUILD:  return SPN_DEP_KIND_BUILD;
-    case SPN_INDEX_DEP_TEST:   return SPN_DEP_KIND_TEST;
   }
   sp_unreachable_return(SPN_DEP_KIND_PACKAGE);
 }
@@ -156,17 +155,52 @@ static spn_err_union_t unsatisfiable_err(spn_resolver_t* resolver, spn_resolved_
   };
 }
 
-static spn_err_union_t load_file_pkg(spn_resolver_t* resolver, spn_requested_dep_t* request, spn_registry_pkg_t** pkg) {
+static spn_resolved_pkg_t* find_picked(spn_resolve_run_t* run, sp_intern_id_t name) {
+  sp_da_for(run->scopes, it) {
+    spn_resolved_pkg_t* node = sp_ht_getp(run->scopes[it].named, name);
+    if (node) {
+      return node;
+    }
+  }
+  return SP_NULLPTR;
+}
+
+static spn_err_union_t path_conflict_err(spn_resolved_pkg_t* from, spn_requested_dep_t* request, sp_str_t selected, sp_str_t requested) {
+  return (spn_err_union_t) {
+    .kind = SPN_ERR_PKG_CONFLICT_PATH,
+    .subject = request->name.str,
+    .path_conflict = {
+      .selected = selected,
+      .requested = requested,
+      .requester = from->name.str,
+      .requester_version = from->id.version,
+    }
+  };
+}
+
+static spn_err_union_t load_file_pkg(spn_resolver_t* resolver, spn_resolve_run_t* run, sp_mem_t scratch, spn_resolved_pkg_t* from, spn_requested_dep_t* request) {
+  spn_path_t path = spn_path_canonicalize(scratch, resolver->roots, request->file.path);
+
+  spn_resolved_pkg_t* picked = find_picked(run, request->name.id);
+  if (picked && picked->source == SPN_PKG_SOURCE_INDEX) {
+    return path_conflict_err(from, request, sp_str_lit(""), spn_path_str(resolver->roots, resolver->mem, spn_path_parent(path)));
+  }
+
   spn_pkg_id_t id = { .name = request->name.id };
   spn_registry_pkg_t* existing = sp_ht_getp(*resolver->registry, id);
   if (existing) {
-    *pkg = existing;
-    return ok_union();
+    if (spn_path_equal(existing->path, path)) {
+      return ok_union();
+    }
+    return path_conflict_err(
+      from,
+      request,
+      spn_path_str(resolver->roots, resolver->mem, spn_path_parent(existing->path)),
+      spn_path_str(resolver->roots, resolver->mem, spn_path_parent(path))
+    );
   }
 
-  *pkg = SP_NULLPTR;
-
-  spn_path_t path = spn_path_canonicalize(resolver->mem, resolver->roots, request->file.path);
+  path = spn_path_copy(resolver->mem, path);
   sp_sys_file_meta_t meta = sp_zero;
   if (sp_fs_get_path_metadata_at(spn_path_at(resolver->roots, path), &meta) || meta.kind == SP_FS_KIND_UNKNOWN) {
     return (spn_err_union_t) {
@@ -196,8 +230,6 @@ static spn_err_union_t load_file_pkg(spn_resolver_t* resolver, spn_requested_dep
     .manifest = manifest,
     .path = path,
   }));
-
-  *pkg = sp_ht_getp(*resolver->registry, id);
   return ok_union();
 }
 
@@ -256,20 +288,12 @@ static bool node_is_shared(spn_resolver_t* resolver, spn_resolved_pkg_t* node) {
         spn_linkage_set_t linkages = sp_zero;
         sp_da_for_value(target->linkages, kind) {
           switch (kind) {
-            case SPN_LIB_KIND_SOURCE: {
-              linkages.source = true;
-              break;
-            }
             case SPN_LIB_KIND_SHARED: {
               linkages.shared = true;
               break;
             }
             case SPN_LIB_KIND_STATIC: {
               linkages.static_lib = true;
-              break;
-            }
-            case SPN_LIB_KIND_OBJECT: {
-              linkages.object = true;
               break;
             }
             case SPN_LIB_KIND_NONE: sp_unreachable_case();
@@ -305,18 +329,19 @@ static bool node_is_shared(spn_resolver_t* resolver, spn_resolved_pkg_t* node) {
 
 static spn_dep_edge_t classify_dep(spn_resolver_t* resolver, spn_resolved_pkg_t* node, spn_requested_dep_t* dep) {
   switch (dep->kind) {
-    case SPN_DEP_KIND_BUILD: {
+    case SPN_DEP_KIND_BUILD:
+    case SPN_DEP_KIND_TOOL: {
       return SPN_DEP_EDGE_PROCESS;
     }
     case SPN_DEP_KIND_TEST: {
-      return node->source == SPN_PKG_SOURCE_ROOT ? SPN_DEP_EDGE_PROCESS : SPN_DEP_EDGE_PRUNED;
+      return SPN_DEP_EDGE_SCOPE;
     }
     case SPN_DEP_KIND_PACKAGE: {
       break;
     }
   }
 
-  if (dep->private && node_is_shared(resolver, node)) {
+  if (!dep->public && node_is_shared(resolver, node)) {
     return SPN_DEP_EDGE_PRIVATE;
   }
   return SPN_DEP_EDGE_SCOPE;
@@ -363,7 +388,7 @@ static s32 sort_req_canonical(const void* a, const void* b) {
   s32 order = sp_str_compare_alphabetical(lhs->name.str, rhs->name.str);
   if (order) return order;
   if (lhs->kind != rhs->kind) return lhs->kind < rhs->kind ? -1 : 1;
-  if (lhs->private != rhs->private) return lhs->private < rhs->private ? -1 : 1;
+  if (lhs->public != rhs->public) return lhs->public ? -1 : 1;
   if (lhs->source != rhs->source) return lhs->source < rhs->source ? -1 : 1;
 
   switch (lhs->source) {
@@ -407,25 +432,25 @@ static bool pkg_id_eq(spn_pkg_id_t a, spn_pkg_id_t b) {
   return a.name == b.name && spn_semver_eq(a.version, b.version);
 }
 
-static spn_scope_t* find_scope(spn_resolve_run_t* run, sp_intern_id_t root, spn_pkg_id_t from) {
+static spn_scope_t* find_scope(spn_resolve_run_t* run, spn_pkg_id_t from, spn_dep_kind_t kind) {
   sp_da_for(run->scopes, it) {
-    if (run->scopes[it].root == root && pkg_id_eq(run->scopes[it].from, from)) {
+    if (run->scopes[it].kind == kind && pkg_id_eq(run->scopes[it].from, from)) {
       return &run->scopes[it];
     }
   }
   return SP_NULLPTR;
 }
 
-static u32 find_or_create_scope(spn_resolver_t* resolver, spn_resolve_run_t* run, sp_intern_id_t root, spn_pkg_id_t from) {
+static u32 find_or_create_scope(spn_resolver_t* resolver, spn_resolve_run_t* run, spn_pkg_id_t from, spn_dep_kind_t kind) {
   sp_da_for(run->scopes, it) {
-    if (run->scopes[it].root == root && pkg_id_eq(run->scopes[it].from, from)) {
+    if (run->scopes[it].kind == kind && pkg_id_eq(run->scopes[it].from, from)) {
       return (u32)it;
     }
   }
 
   spn_scope_t scope = {
-    .root = root,
     .from = from,
+    .kind = kind,
   };
   sp_da_init(resolver->mem, scope.reqs);
   sp_da_init(resolver->mem, scope.pins);
@@ -439,24 +464,11 @@ static spn_err_union_t resolve_local_package(spn_resolver_t* resolver, spn_resol
   spn_scope_t* scope = &run->scopes[run->scope];
   sp_intern_id_t name = request->name.id;
 
-  if (sp_ht_getp(run->visited, name)) {
-    return (spn_err_union_t) {
-      .kind = SPN_ERR_DEP_CYCLE,
-      .subject = request->name.str,
-    };
-  }
-
   if (sp_ht_getp(scope->named, name)) {
     return ok_union();
   }
 
   spn_registry_pkg_t* pkg = sp_ht_getp(*resolver->registry, ((spn_pkg_id_t) { .name = name }));
-
-  // If the package is local, just load it
-  if (!pkg && request->source == SPN_PKG_SOURCE_FILE) {
-    try_union(load_file_pkg(resolver, request, &pkg));
-  }
-
   if (!pkg) {
     return (spn_err_union_t) {
       .kind = SPN_ERR_PKG_UNKNOWN,
@@ -550,7 +562,7 @@ static spn_err_union_t try_candidate(spn_resolver_t* resolver, spn_resolve_run_t
       .name = release->deps[it].name,
       .source = SPN_PKG_SOURCE_INDEX,
       .kind = dep_kind_from_index(release->deps[it].kind),
-      .private = release->deps[it].private,
+      .public = release->deps[it].public,
       .when = release->deps[it].when,
       .options = release->deps[it].options,
       .index = {
@@ -567,11 +579,9 @@ static spn_err_union_t resolve_index_package(spn_resolver_t* resolver, spn_resol
   spn_scope_t* scope = &run->scopes[run->scope];
   sp_intern_id_t name = request->name.id;
 
-  if (sp_ht_getp(run->visited, name)) {
-    return (spn_err_union_t) {
-      .kind = SPN_ERR_DEP_CYCLE,
-      .subject = request->name.str,
-    };
+  spn_resolved_pkg_t* picked = find_picked(run, name);
+  if (picked && picked->source != SPN_PKG_SOURCE_INDEX) {
+    return path_conflict_err(from, request, spn_path_str(resolver->roots, resolver->mem, picked->origin.recipe.local), sp_str_lit(""));
   }
 
   // If this scope already resolved a version for this package, check if that version satisfies
@@ -667,9 +677,6 @@ static spn_err_union_t solve_node(spn_resolver_t* resolver, spn_resolve_run_t* r
 static spn_err_union_t resolve_dep(spn_resolver_t* resolver, spn_resolve_run_t* run, spn_resolved_pkg_t* node, spn_requested_dep_t* dep) {
   spn_dep_edge_t edge = classify_dep(resolver, node, dep);
   switch (edge) {
-    case SPN_DEP_EDGE_PRUNED: {
-      return ok_union();
-    }
     case SPN_DEP_EDGE_PROCESS:
     case SPN_DEP_EDGE_PRIVATE: {
       sp_da_push(run->boundaries, ((spn_scope_boundary_t) {
@@ -684,10 +691,27 @@ static spn_err_union_t resolve_dep(spn_resolver_t* resolver, spn_resolve_run_t* 
     }
   }
 
+  if (sp_ht_getp(run->visited, dep->name.id)) {
+    return (spn_err_union_t) {
+      .kind = SPN_ERR_DEP_CYCLE,
+      .subject = dep->name.str,
+    };
+  }
+
   switch (dep->source) {
-    case SPN_PKG_SOURCE_INDEX: return resolve_index_package(resolver, run, node, dep);
-    case SPN_PKG_SOURCE_ROOT:
-    case SPN_PKG_SOURCE_FILE:  return resolve_local_package(resolver, run, node, dep);
+    case SPN_PKG_SOURCE_INDEX: {
+      return resolve_index_package(resolver, run, node, dep);
+    }
+    case SPN_PKG_SOURCE_FILE: {
+      sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+      spn_err_union_t err = load_file_pkg(resolver, run, scratch.mem, node, dep);
+      sp_mem_end_scratch(scratch);
+      try_union(err);
+      return resolve_local_package(resolver, run, node, dep);
+    }
+    case SPN_PKG_SOURCE_ROOT: {
+      return resolve_local_package(resolver, run, node, dep);
+    }
   }
 
   sp_unreachable_return(ok_union());
@@ -911,10 +935,7 @@ static void process_boundaries(spn_resolver_t* resolver, spn_resolve_run_t* run)
   sp_da_for(run->boundaries, it) {
     spn_scope_boundary_t boundary = run->boundaries[it];
 
-    sp_intern_id_t root = boundary.edge == SPN_DEP_EDGE_PRIVATE ?
-      boundary.from.name :
-      boundary.req.name.id;
-    u32 target = find_or_create_scope(resolver, run, root, boundary.from);
+    u32 target = find_or_create_scope(resolver, run, boundary.from, boundary.req.kind);
 
     sp_da_push(run->edges, ((spn_scope_edge_t) {
       .from = from,
@@ -924,7 +945,7 @@ static void process_boundaries(spn_resolver_t* resolver, spn_resolve_run_t* run)
 
     spn_requested_dep_t req = boundary.req;
     req.kind = SPN_DEP_KIND_PACKAGE;
-    req.private = false;
+    req.public = true;
     sp_da_push(run->scopes[target].reqs, req);
   }
 
@@ -983,14 +1004,11 @@ static sp_da(spn_node_edge_t) collect_node_edges(spn_resolver_t* resolver, spn_r
   sp_da_for(node->deps, it) {
     spn_requested_dep_t* dep = &node->deps[it];
     spn_dep_edge_t edge = classify_dep(resolver, node, dep);
-    if (edge == SPN_DEP_EDGE_PRUNED) {
-      continue;
-    }
 
     sp_intern_id_t name = dep->name.id;
     u32 target_scope = scope_index;
     if (edge != SPN_DEP_EDGE_SCOPE) {
-      spn_scope_t* found = find_scope(run, edge == SPN_DEP_EDGE_PRIVATE ? node->id.name : name, node->id);
+      spn_scope_t* found = find_scope(run, node->id, dep->kind);
       if (!found) {
         continue;
       }
@@ -1004,7 +1022,7 @@ static sp_da(spn_node_edge_t) collect_node_edges(spn_resolver_t* resolver, spn_r
 
     bool present = false;
     sp_da_for(edges, jt) {
-      if (edges[jt].scope == target_scope && edges[jt].name == name && edges[jt].kind == dep->kind && edges[jt].private == dep->private) {
+      if (edges[jt].scope == target_scope && edges[jt].name == name && edges[jt].kind == dep->kind && edges[jt].public == dep->public) {
         present = true;
         break;
       }
@@ -1016,7 +1034,7 @@ static sp_da(spn_node_edge_t) collect_node_edges(spn_resolver_t* resolver, spn_r
         .node = target,
         .kind = dep->kind,
         .edge = edge,
-        .private = dep->private,
+        .public = dep->public,
       }));
     }
   }
@@ -1094,7 +1112,7 @@ static s32 sort_edge_record(const void* a, const void* b) {
   const spn_edge_record_t* rhs = (const spn_edge_record_t*)b;
   if (lhs->hash != rhs->hash) return lhs->hash < rhs->hash ? -1 : 1;
   if (lhs->kind != rhs->kind) return lhs->kind < rhs->kind ? -1 : 1;
-  if (lhs->private != rhs->private) return lhs->private < rhs->private ? -1 : 1;
+  if (lhs->public != rhs->public) return lhs->public < rhs->public ? -1 : 1;
   return 0;
 }
 
@@ -1119,7 +1137,7 @@ static sp_hash_t hash_group_node(spn_resolver_t* resolver, spn_resolve_run_t* ru
     sp_da_push(records, ((spn_edge_record_t) {
       .hash = hash_group_node(resolver, run, memo, edges[it].scope, edges[it].name),
       .kind = (u32)edges[it].kind,
-      .private = (u32)edges[it].private,
+      .public = (u32)edges[it].public,
     }));
   }
   sp_da_sort(records, sort_edge_record);
@@ -1166,7 +1184,7 @@ static void commit_instances(spn_resolver_t* resolver, spn_resolve_run_t* run, s
           .id = target,
           .kind = edges[jt].kind,
           .edge = edges[jt].edge,
-          .private = edges[jt].private,
+          .public = edges[jt].public,
         }));
       }
       sp_mem_end_scratch(scratch);
@@ -1258,7 +1276,7 @@ static spn_err_union_t solve_once(spn_resolver_t* resolver, spn_resolve_query_t*
   sp_da_init(resolver->mem, run->edges);
   sp_ht_init(resolver->mem, run->visited);
 
-  u32 root = find_or_create_scope(resolver, run, 0, sp_zero_s(spn_pkg_id_t));
+  u32 root = find_or_create_scope(resolver, run, sp_zero_s(spn_pkg_id_t), SPN_DEP_KIND_PACKAGE);
   sp_da_for(query->reqs, it) {
     sp_da_push(run->scopes[root].reqs, query->reqs[it]);
   }

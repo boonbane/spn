@@ -6,7 +6,7 @@ int main(void) {
     return 1;
   }
 
-  fputs("script\n", file);
+  fputs("tool\n", file);
   fclose(file);
   return 0;
 }

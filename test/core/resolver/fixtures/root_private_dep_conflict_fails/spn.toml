@@ -3,5 +3,5 @@ name = "root"
 version = "0.0.1"
 
 [deps.package]
-foo = { version = "=1.0.0", private = true }
+foo = { version = "=1.0.0" }
 gfx = { version = "^1.0.0" }

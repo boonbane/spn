@@ -16,7 +16,3 @@ commit = "9b5f922de150c9eb6c4c7de28cae3c244633d9f1"
 [options.strict]
 type = "bool"
 default = false
-
-[[lib]]
-name = "toml"
-kinds = ["source"]

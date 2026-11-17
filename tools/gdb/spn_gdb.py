@@ -137,8 +137,8 @@ def dep_tags(val):
     kind = enum_short(val["kind"])
     if kind != "package":
         tags.append(kind)
-    if bool(val["private"]):
-        tags.append("private")
+    if bool(val["public"]):
+        tags.append("public")
     return " [%s]" % ", ".join(tags) if tags else ""
 
 

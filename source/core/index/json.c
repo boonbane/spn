@@ -40,7 +40,7 @@ static spn_err_t parse_release(sp_mem_t mem, sp_intern_t* intern, sp_intern_str_
   sp_da_for(rel.deps, it) {
     spn_index_dep_t dep = {
       .kind = rel.deps[it].kind,
-      .private = !sp_opt_is_null(rel.deps[it].private) && sp_opt_get(rel.deps[it].private),
+      .public = !sp_opt_is_null(rel.deps[it].public) && sp_opt_get(rel.deps[it].public),
       .name = sp_intern(intern, rel.deps[it].name),
       .when = rel.deps[it].when,
       .options = rel.deps[it].options,
@@ -80,12 +80,6 @@ static spn_err_t parse_release(sp_mem_t mem, sp_intern_t* intern, sp_intern_str_
   return SPN_OK;
 }
 
-static s32 sort_release_by_version(const void* a, const void* b) {
-  const spn_index_release_t* lhs = (const spn_index_release_t*)a;
-  const spn_index_release_t* rhs = (const spn_index_release_t*)b;
-  return spn_semver_cmp(lhs->version, rhs->version);
-}
-
 sp_str_t spn_index_release_to_json(sp_mem_t mem, spn_index_release_t* rel) {
   spn_cg_release_t release = {
     .name = rel->name.str,
@@ -112,8 +106,8 @@ sp_str_t spn_index_release_to_json(sp_mem_t mem, spn_index_release_t* rel) {
       .when = rel->deps[it].when,
       .options = rel->deps[it].options,
     };
-    if (rel->deps[it].private) {
-      sp_opt_set(dep.private, true);
+    if (rel->deps[it].public) {
+      sp_opt_set(dep.public, true);
     }
     sp_da_push(release.deps, dep);
   }
@@ -171,6 +165,5 @@ spn_err_t spn_index_parse_pkg(sp_mem_t mem, sp_intern_t* intern, sp_intern_str_t
     return SPN_ERROR;
   }
 
-  sp_da_sort(pkg->releases, sort_release_by_version);
   return SPN_OK;
 }

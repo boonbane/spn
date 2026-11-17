@@ -49,13 +49,6 @@ static spn_err_t apply_patch_overrides(spn_session_t* session, spn_resolve_query
   return result;
 }
 
-static void add_root(spn_session_t* session, spn_resolve_query_t* query) {
-  spn_resolve_query_add(query, (spn_requested_dep_t) {
-    .name = session->manifest->name,
-    .source = SPN_PKG_SOURCE_ROOT,
-  });
-}
-
 static void emit_resolved(spn_resolve_query_t* query) {
   sp_ht_for_kv(query->result, it) {
     spn_event_buffer_push(spn.events, (spn_event_t) {
@@ -103,7 +96,10 @@ spn_err_t spn_resolve(spn_op_t* op) {
     resolver.seeds = session->gates.seeds;
 
     spn_resolve_query_init(session->mem, &query);
-    add_root(session, &query);
+    spn_resolve_query_add(&query, (spn_requested_dep_t) {
+      .name = session->manifest->name,
+      .source = SPN_PKG_SOURCE_ROOT,
+    });
     err = spn_resolve_from_solver(&resolver, &query);
 
     sp_da(spn_index_info_t*) read = sp_da_new(session->mem, spn_index_info_t*);

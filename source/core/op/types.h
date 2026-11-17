@@ -18,6 +18,7 @@ struct spn_op_t {
     spn_publish_request_t publish;
     spn_sync_request_t indexes;
     spn_scaffold_request_t scaffold;
+    spn_path_request_t path;
   } request;
 
   spn_op_result_t result;

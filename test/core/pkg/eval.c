@@ -26,7 +26,7 @@ typedef struct {
 typedef struct {
   const c8* lib_source [EVAL_TEST_MAX];
   const c8* source [EVAL_TEST_MAX];
-  const c8* script_source [EVAL_TEST_MAX];
+  const c8* tool_source [EVAL_TEST_MAX];
   const c8* test_source [EVAL_TEST_MAX];
   const c8* build_source [EVAL_TEST_MAX];
   const c8* include [EVAL_TEST_MAX];
@@ -35,11 +35,18 @@ typedef struct {
   const c8* link_flags [EVAL_TEST_MAX];
   const c8* linker_script [EVAL_TEST_MAX];
   const c8* sys_target [EVAL_TEST_MAX];
+  const c8* host_target [EVAL_TEST_MAX];
   const c8* deps [EVAL_TEST_MAX];
   const c8* sys [EVAL_TEST_MAX];
+  const c8* host [EVAL_TEST_MAX];
   const c8* pkg_define [EVAL_TEST_MAX];
   const c8* frameworks [EVAL_TEST_MAX];
   const c8* pkg_frameworks [EVAL_TEST_MAX];
+  const c8* public_define [EVAL_TEST_MAX];
+  struct {
+    const c8* system_deps [EVAL_TEST_MAX];
+    const c8* frameworks [EVAL_TEST_MAX];
+  } publish;
 } lists_expect_t;
 
 typedef struct {
@@ -47,7 +54,7 @@ typedef struct {
   spn_when_facts_t facts;
   list_t lib_source;
   list_t source;
-  list_t script_source;
+  list_t tool_source;
   list_t test_source;
   list_t build_source;
   list_t include;
@@ -56,11 +63,18 @@ typedef struct {
   list_t link_flags;
   list_t linker_script;
   list_t sys_target;
+  list_t host_target;
   list_t deps;
   list_t sys;
+  list_t host;
   list_t pkg_define;
   list_t frameworks;
   list_t pkg_frameworks;
+  struct {
+    list_t define;
+    list_t system_deps;
+    list_t frameworks;
+  } publish;
   lists_expect_t expect;
 } lists_test_t;
 
@@ -153,6 +167,30 @@ static sp_err_t expect_list(sp_test_t* t, si_da(sp_str_t) actual, const c8* cons
   return SP_OK;
 }
 
+static void push_requires(sp_mem_t mem, si_da(spn_gated_requirement_t)* requires, spn_requirement_kind_t kind, list_t test) {
+  sp_carr_for(test.values, it) {
+    gated_t* value = &test.values[it];
+    if (!value->value) {
+      break;
+    }
+    si_da_push(mem, *requires, ((spn_gated_requirement_t) {
+      .kind = kind,
+      .name = sp_cstr_as_str(value->value),
+      .when = make_when(mem, value->when, sp_carr_len(value->when)),
+    }));
+  }
+}
+
+static sp_err_t expect_requires(sp_test_t* t, si_da(spn_requirement_t) actual, spn_requirement_kind_t kind, const c8* const* expected) {
+  si_da(sp_str_t) names = SP_NULLPTR;
+  si_da_for_value(actual, require) {
+    if (require.kind == kind) {
+      si_da_push(sp_test_arena(t), names, require.name);
+    }
+  }
+  return expect_list(t, names, expected);
+}
+
 static sp_err_t expect_paths(sp_test_t* t, si_da(spn_path_t) actual, const c8* const* expected) {
   sp_for(et, EVAL_TEST_MAX) {
     if (!expected[et]) {
@@ -195,10 +233,10 @@ static const lists_test_t lists_tests [] = {
     .expect = { .source = { "A", "C" } },
   },
   {
-    .name = "script_source",
+    .name = "tool_source",
     .facts = { .os = SPN_OS_LINUX },
-    .script_source = { .values = { { "A" }, { "B", { { "os", "windows" } } }, { "C", { { "os", "linux" } } } } },
-    .expect = { .script_source = { "A", "C" } },
+    .tool_source = { .values = { { "A" }, { "B", { { "os", "windows" } } }, { "C", { { "os", "linux" } } } } },
+    .expect = { .tool_source = { "A", "C" } },
   },
   {
     .name = "test_source",
@@ -249,6 +287,12 @@ static const lists_test_t lists_tests [] = {
     .expect = { .sys_target = { "A" } },
   },
   {
+    .name = "target_host_deps",
+    .facts = { .os = SPN_OS_LINUX },
+    .host_target = { .values = { { "A", { { "os", "linux" } } }, { "B", { { "os", "windows" } } } } },
+    .expect = { .host_target = { "A" } },
+  },
+  {
     .name = "target_deps",
     .facts = { .os = SPN_OS_LINUX },
     .deps = { .values = { { "A", { { "os", "linux" } } } } },
@@ -259,6 +303,12 @@ static const lists_test_t lists_tests [] = {
     .facts = { .os = SPN_OS_LINUX },
     .sys = { .values = { { "A", { { "os", "linux" } } } } },
     .expect = { .sys = { "A" } },
+  },
+  {
+    .name = "package_host_deps",
+    .facts = { .os = SPN_OS_LINUX },
+    .host = { .values = { { "A", { { "os", "linux" } } }, { "B", { { "os", "windows" } } } } },
+    .expect = { .host = { "A" } },
   },
   {
     .name = "package_define",
@@ -278,6 +328,24 @@ static const lists_test_t lists_tests [] = {
     .pkg_frameworks = { .values = { { "A", { { "os", "macos" } } }, { "B", { { "os", "linux" } } } } },
     .expect = { .pkg_frameworks = { "A" } },
   },
+  {
+    .name = "publish_define",
+    .facts = { .os = SPN_OS_LINUX },
+    .publish.define = { .values = { { "A", { { "os", "linux" } } }, { "B", { { "os", "windows" } } } } },
+    .expect = { .pkg_define = { "A" }, .public_define = { "A" } },
+  },
+  {
+    .name = "publish_system_deps",
+    .facts = { .os = SPN_OS_LINUX },
+    .publish.system_deps = { .values = { { "A", { { "os", "linux" } } }, { "B", { { "os", "windows" } } } } },
+    .expect = { .sys = { "A" }, .publish.system_deps = { "A" } },
+  },
+  {
+    .name = "publish_frameworks",
+    .facts = { .os = SPN_OS_MACOS },
+    .publish.frameworks = { .values = { { "A", { { "os", "macos" } } }, { "B", { { "os", "linux" } } } } },
+    .expect = { .pkg_frameworks = { "A" }, .publish.frameworks = { "A" } },
+  },
 };
 
 sp_test_each(pkg_eval, lists, lists_test_t, lists_tests, .setup = spn_test_ctx_setup) {
@@ -286,18 +354,18 @@ sp_test_each(pkg_eval, lists, lists_test_t, lists_tests, .setup = spn_test_ctx_s
   si_pkg_info_t manifest = test_manifest_make(sp_str_lit("P"));
   si_target_info_t* lib = SP_NULLPTR;
   si_target_info_t* exe = SP_NULLPTR;
-  si_target_info_t* script = SP_NULLPTR;
+  si_target_info_t* tool = SP_NULLPTR;
   si_target_info_t* unit_test = SP_NULLPTR;
   si_target_info_t* build = SP_NULLPTR;
   lib = test_manifest_target(mem, &manifest, sp_str_lit("A"), SPN_TARGET_KIND_LIB);
   exe = test_manifest_target(mem, &manifest, sp_str_lit("main"), SPN_TARGET_KIND_EXE);
-  script = test_manifest_target(mem, &manifest, sp_str_lit("B"), SPN_TARGET_KIND_SCRIPT);
+  tool = test_manifest_target(mem, &manifest, sp_str_lit("B"), SPN_TARGET_KIND_TOOL);
   unit_test = test_manifest_target(mem, &manifest, sp_str_lit("C"), SPN_TARGET_KIND_TEST);
   build = test_manifest_target(mem, &manifest, sp_str_lit("build"), SPN_TARGET_KIND_BUILD_METAPROGRAM);
 
   lib->source = make_sources(mem, it->lib_source);
   exe->source = make_sources(mem, it->source);
-  script->source = make_sources(mem, it->script_source);
+  tool->source = make_sources(mem, it->tool_source);
   unit_test->source = make_sources(mem, it->test_source);
   build->source = make_sources(mem, it->build_source);
   exe->include = make_paths(mem, it->include);
@@ -305,7 +373,8 @@ sp_test_each(pkg_eval, lists, lists_test_t, lists_tests, .setup = spn_test_ctx_s
   exe->define = make_list(mem, it->define);
   exe->flags = make_list(mem, it->flags);
   exe->link_flags = make_list(mem, it->link_flags);
-  exe->system_deps = make_list(mem, it->sys_target);
+  push_requires(mem, &exe->requires, SPN_REQUIREMENT_LIB, it->sys_target);
+  push_requires(mem, &exe->requires, SPN_REQUIREMENT_HOST, it->host_target);
   sp_carr_for(it->deps.values, dt) {
     const gated_t* dep = &it->deps.values[dt];
     if (!dep->value) {
@@ -316,24 +385,28 @@ sp_test_each(pkg_eval, lists, lists_test_t, lists_tests, .setup = spn_test_ctx_s
       .when = make_when(mem, dep->when, sp_carr_len(dep->when)),
     }));
   }
-  exe->macos.frameworks = make_list(mem, it->frameworks);
-  manifest.system_deps = make_list(mem, it->sys);
+  push_requires(mem, &exe->requires, SPN_REQUIREMENT_FRAMEWORK, it->frameworks);
+  push_requires(mem, &manifest.requires, SPN_REQUIREMENT_LIB, it->sys);
+  push_requires(mem, &manifest.requires, SPN_REQUIREMENT_HOST, it->host);
   manifest.define = make_list(mem, it->pkg_define);
-  manifest.macos.frameworks = make_list(mem, it->pkg_frameworks);
+  push_requires(mem, &manifest.requires, SPN_REQUIREMENT_FRAMEWORK, it->pkg_frameworks);
+  manifest.publish.define = make_list(mem, it->publish.define);
+  push_requires(mem, &manifest.publish.requires, SPN_REQUIREMENT_LIB, it->publish.system_deps);
+  push_requires(mem, &manifest.publish.requires, SPN_REQUIREMENT_FRAMEWORK, it->publish.frameworks);
 
   spn_when_env_t env = make_env(mem, it->facts);
   si_pkg_t pkg = eval(mem, &manifest, &env);
   si_target_t* lib_eval = spn_pkg_get_target(&pkg, spn_intern_lit("A").id, SPN_TARGET_KIND_LIB);
   si_target_t* exe_eval = spn_pkg_get_target(&pkg, spn_intern_lit("main").id, SPN_TARGET_KIND_EXE);
-  si_target_t* script_eval = spn_pkg_get_target(&pkg, spn_intern_lit("B").id, SPN_TARGET_KIND_SCRIPT);
+  si_target_t* tool_eval = spn_pkg_get_target(&pkg, spn_intern_lit("B").id, SPN_TARGET_KIND_TOOL);
   si_target_t* test_eval = spn_pkg_get_target(&pkg, spn_intern_lit("C").id, SPN_TARGET_KIND_TEST);
   si_target_t* build_eval = spn_pkg_get_target(&pkg, spn_intern_lit("build").id, SPN_TARGET_KIND_BUILD_METAPROGRAM);
-  sp_must(t, lib_eval && exe_eval && script_eval && test_eval && build_eval);
+  sp_must(t, lib_eval && exe_eval && tool_eval && test_eval && build_eval);
   sp_expect(t, exe_eval->info == exe);
 
   sp_try(expect_sources(t, lib_eval->source, it->expect.lib_source));
   sp_try(expect_sources(t, exe_eval->source, it->expect.source));
-  sp_try(expect_sources(t, script_eval->source, it->expect.script_source));
+  sp_try(expect_sources(t, tool_eval->source, it->expect.tool_source));
   sp_try(expect_sources(t, test_eval->source, it->expect.test_source));
   sp_try(expect_sources(t, build_eval->source, it->expect.build_source));
   sp_try(expect_paths(t, exe_eval->include, it->expect.include));
@@ -341,17 +414,22 @@ sp_test_each(pkg_eval, lists, lists_test_t, lists_tests, .setup = spn_test_ctx_s
   sp_try(expect_list(t, exe_eval->define, it->expect.define));
   sp_try(expect_list(t, exe_eval->flags, it->expect.flags));
   sp_try(expect_list(t, exe_eval->link_flags, it->expect.link_flags));
-  sp_try(expect_list(t, exe_eval->system_deps, it->expect.sys_target));
+  sp_try(expect_requires(t, exe_eval->requires, SPN_REQUIREMENT_LIB, it->expect.sys_target));
+  sp_try(expect_requires(t, exe_eval->requires, SPN_REQUIREMENT_HOST, it->expect.host_target));
   u32 num_deps = 0;
   sp_carr_detect_len(it->expect.deps, num_deps, it->expect.deps[num_deps]);
   sp_must_eq(t, num_deps, si_da_size(exe_eval->deps));
   sp_for(dt, num_deps) {
     sp_expect_str_eq_c(t, exe_eval->deps[dt].str, it->expect.deps[dt]);
   }
-  sp_try(expect_list(t, exe_eval->macos.frameworks, it->expect.frameworks));
-  sp_try(expect_list(t, pkg.system_deps, it->expect.sys));
+  sp_try(expect_requires(t, exe_eval->requires, SPN_REQUIREMENT_FRAMEWORK, it->expect.frameworks));
+  sp_try(expect_requires(t, pkg.requires, SPN_REQUIREMENT_LIB, it->expect.sys));
+  sp_try(expect_requires(t, pkg.requires, SPN_REQUIREMENT_HOST, it->expect.host));
   sp_try(expect_list(t, pkg.define, it->expect.pkg_define));
-  sp_try(expect_list(t, pkg.macos.frameworks, it->expect.pkg_frameworks));
+  sp_try(expect_requires(t, pkg.requires, SPN_REQUIREMENT_FRAMEWORK, it->expect.pkg_frameworks));
+  sp_try(expect_list(t, pkg.public_define, it->expect.public_define));
+  sp_try(expect_requires(t, pkg.publish.requires, SPN_REQUIREMENT_LIB, it->expect.publish.system_deps));
+  sp_try(expect_requires(t, pkg.publish.requires, SPN_REQUIREMENT_FRAMEWORK, it->expect.publish.frameworks));
   return SP_OK;
 }
 
@@ -506,7 +584,7 @@ sp_test_each(pkg_eval, publish, publish_test_t, publish_tests, .setup = spn_test
     if (!it->entries[et].pattern) {
       break;
     }
-    si_da_push(mem, manifest.publish, ((spn_gated_publish_t) {
+    si_da_push(mem, manifest.publish.entries, ((spn_gated_publish_t) {
       .root = it->entries[et].root,
       .source = {
         .kind = it->entries[et].kind,
@@ -522,11 +600,11 @@ sp_test_each(pkg_eval, publish, publish_test_t, publish_tests, .setup = spn_test
 
   u32 expected = 0;
   sp_carr_detect_len(it->expect, expected, it->expect[expected].pattern);
-  sp_must_eq(t, expected, (u32)si_da_size(pkg.publish));
+  sp_must_eq(t, expected, (u32)si_da_size(pkg.publish.entries));
   sp_for(et, expected) {
-    sp_expect_str_eq_c(t, pkg.publish[et].source.path.sub, it->expect[et].pattern);
-    sp_expect_eq(t, (u32)it->expect[et].root, (u32)pkg.publish[et].root);
-    sp_expect_eq(t, (u32)it->expect[et].kind, (u32)pkg.publish[et].source.kind);
+    sp_expect_str_eq_c(t, pkg.publish.entries[et].source.path.sub, it->expect[et].pattern);
+    sp_expect_eq(t, (u32)it->expect[et].root, (u32)pkg.publish.entries[et].root);
+    sp_expect_eq(t, (u32)it->expect[et].kind, (u32)pkg.publish.entries[et].source.kind);
   }
   return SP_OK;
 }

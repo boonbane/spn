@@ -51,7 +51,7 @@ typedef struct {
   sp_intern_str_t name;
   spn_pkg_source_t source;
   spn_dep_kind_t kind;
-  bool private;
+  bool public;
   spn_when_t when;
   spn_when_t options;
   union {
@@ -92,11 +92,14 @@ struct si_pkg_info {
   spn_option_map_t options;
   spn_gated_path_list_t include;
   spn_gated_list_t define;
-  spn_gated_list_t system_deps;
-  si_da(spn_gated_publish_t) publish;
+  si_da(spn_gated_requirement_t) requires;
+  struct {
+    si_da(spn_gated_publish_t) entries;
+    spn_gated_list_t define;
+    si_da(spn_gated_requirement_t) requires;
+  } publish;
   si_da(spn_stage_copy_t) stage;
   struct {
-    spn_gated_list_t frameworks;
     spn_os_version_t min_os;
   } macos;
 };
@@ -107,11 +110,11 @@ struct si_pkg {
   si_da(spn_path_t) include;
   si_da(sp_str_t) define;
   si_da(sp_str_t) public_define;
-  si_da(sp_str_t) system_deps;
-  si_da(spn_publish_t) publish;
+  si_da(spn_requirement_t) requires;
   struct {
-    si_da(sp_str_t) frameworks;
-  } macos;
+    si_da(spn_publish_t) entries;
+    si_da(spn_requirement_t) requires;
+  } publish;
 };
 
 #endif

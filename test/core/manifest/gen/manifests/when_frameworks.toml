@@ -1,15 +1,11 @@
 [package]
 name = "p"
 version = "1.0.0"
-
-[package.macos]
-frameworks = ["Cocoa", { value = "GSS", when = { negotiate = true } }]
+system_deps = [{ framework = "Cocoa" }, { framework = "GSS", when = { negotiate = true } }]
 
 [options.negotiate]
 type = "bool"
 
 [[lib]]
 name = "t"
-
-[lib.macos]
-frameworks = [{ value = "Metal", when = { os = "macos" } }]
+system_deps = [{ framework = "Metal", when = { os = "macos" } }]

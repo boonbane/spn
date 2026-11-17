@@ -551,7 +551,7 @@ static sp_ps_output_t run_spn_ex(sp_test_t* t, fixture_t* fixture, const c8* for
   if (args) {
     sp_ps_config_add_arg(mem, &config, sp_cstr_as_str(args[0]));
     const c8* toolchain = toolchain_arg(fixture);
-    bool takes_toolchain = sp_cstr_equal(args[0], "build") || sp_cstr_equal(args[0], "test");
+    bool takes_toolchain = sp_cstr_equal(args[0], "build") || sp_cstr_equal(args[0], "test") || sp_cstr_equal(args[0], "path");
     if (takes_toolchain && toolchain) {
       sp_ps_config_add_arg(mem, &config, sp_str_lit("--toolchain"));
       sp_ps_config_add_arg(mem, &config, sp_cstr_as_str(toolchain));

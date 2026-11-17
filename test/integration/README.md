@@ -65,6 +65,12 @@ and skips with a reason otherwise.
   is for cases that need a program by name that the lane doesn't provide, like
   a fixture-local toolchain's `compiler = "gcc"`, never as a stand-in for a
   lane.
+- `.host_libs = { "z" }`: only where the lane builds against the machine's
+  libc, and the environment says the machine has that library and its headers
+  installed, by naming it in `SPN_TEST_HOST_LIBS` (space separated). A
+  container variant declares its own in `host_libs` beside the package that
+  installs it, and the container tool sets the variable from that; natively
+  you set it yourself. Nothing is probed.
 
 A case whose fixture declares its own `[[toolchain]]` names it with
 `.toolchain = "F"` on the case; that is what `--toolchain` receives instead of
@@ -95,6 +101,17 @@ discovery instead.
 clang hands an `x86_64-none-elf` link to `gcc`, so `clang-bare` lives where
 both are installed. Debian names its mingw libgcc directory `12-win32`, which clang 14 does not
 parse as a version, so both clang mingw lanes name it with `-L`.
+
+## host libraries
+
+`target.host_deps` links zlib from the machine. `debian-gcc`, `debian-clang`
+and `debian-llvm` install zlib's development package, so the case runs under
+the system drivers there. A lane whose toolchain brings its own libc skips it;
+`target.host_deps_refused_at_the_host_triple` is the zig side.
+
+```
+build/debug/smoke test -f 'target.host_deps*' debian-gcc debian-clang debian-llvm
+```
 
 ## what a lane proves
 

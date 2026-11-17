@@ -42,7 +42,6 @@ define = [
   { value = "_GNU_SOURCE", when = { os = "linux" } },
 ]
 flags = [{ value = "-O2", when = { mode = "debug", abi = { not = "msvc" } } }]
-deps = [{ pkg = "mbedtls", when = { os = { not = "windows" } } }]
 
 [package.publish]
 include = [

@@ -7,47 +7,14 @@
       "source": "root"
     }
   ],
-  "packages": [
+  "packages": [],
+  "errors": [
     {
+      "kind": "pkg_conflict",
       "name": "foo",
-      "version": "1.0.0",
-      "hash": "7249cb50930f08ee",
-      "source": "index",
-      "recipe": "none"
-    },
-    {
-      "name": "foo",
-      "version": "2.0.0",
-      "hash": "adb2a8ea4f003832",
-      "source": "index",
-      "recipe": "none"
-    },
-    {
-      "name": "root",
-      "version": "0.0.1",
-      "hash": "aea431fb2cb460be",
-      "source": "root",
-      "recipe": "local",
-      "edges": [
-        {
-          "to": {
-            "name": "foo",
-            "version": "1.0.0",
-            "hash": "7249cb50930f08ee"
-          },
-          "kind": "test",
-          "edge": "process"
-        },
-        {
-          "to": {
-            "name": "foo",
-            "version": "2.0.0",
-            "hash": "adb2a8ea4f003832"
-          },
-          "kind": "package",
-          "edge": "scope"
-        }
-      ]
+      "range": "^1.0.0",
+      "requester": "root",
+      "selected": "2.0.0"
     }
   ]
 }

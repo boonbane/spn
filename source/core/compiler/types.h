@@ -11,7 +11,6 @@ typedef struct {
 } spn_cc_flags_t;
 
 typedef enum {
-  SPN_CC_OUTPUT_OBJECT,
   SPN_CC_OUTPUT_SHARED_LIB,
   SPN_CC_OUTPUT_STATIC_LIB,
   SPN_CC_OUTPUT_EXE,

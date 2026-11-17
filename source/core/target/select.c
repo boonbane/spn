@@ -2,17 +2,6 @@
 
 #include "target/mutate.h"
 
-static spn_err_t select_first_supported(spn_linkage_set_t supported, const spn_linkage_t* order, u32 len, spn_linkage_t* kind) {
-  sp_for(it, len) {
-    if (spn_linkage_set_has(supported, order[it])) {
-      *kind = order[it];
-      return SPN_OK;
-    }
-  }
-
-  return SPN_ERROR;
-}
-
 spn_err_t spn_target_select_lib_kind(spn_linkage_set_t supported, spn_kind_query_t query, spn_linkage_t* kind) {
 
   if (query.config.some) {
@@ -24,23 +13,16 @@ spn_err_t spn_target_select_lib_kind(spn_linkage_set_t supported, spn_kind_query
     return SPN_OK;
   }
 
-  // The profile's linkage is a constraint, not a preference: a static or source build promises
-  // no runtime library dependencies, so shared libs are excluded outright. Within whatever is
-  // allowed, source is always the cheapest and safest choice, so the order is fixed.
-  switch (query.linkage) {
-    case SPN_LIB_KIND_STATIC:
-    case SPN_LIB_KIND_SOURCE: {
-      static const spn_linkage_t order [] = { SPN_LIB_KIND_SOURCE, SPN_LIB_KIND_STATIC };
-      return select_first_supported(supported, order, SP_CARR_LEN(order), kind);
-    }
-    case SPN_LIB_KIND_SHARED:
-    case SPN_LIB_KIND_NONE: {
-      static const spn_linkage_t order [] = { SPN_LIB_KIND_SOURCE, SPN_LIB_KIND_STATIC, SPN_LIB_KIND_SHARED };
-      return select_first_supported(supported, order, SP_CARR_LEN(order), kind);
-    }
-    // A profile can't request object linkage; object libs never reach selection
-    case SPN_LIB_KIND_OBJECT: sp_unreachable_case();
+  // The profile's linkage is a constraint, not a preference: a static build promises no runtime
+  // library dependencies, so shared libs are excluded outright. Within whatever is allowed,
+  // static comes first.
+  if (supported.static_lib) {
+    *kind = SPN_LIB_KIND_STATIC;
+    return SPN_OK;
   }
-
-  SP_UNREACHABLE_RETURN(SPN_ERROR);
+  if (supported.shared && query.linkage != SPN_LIB_KIND_STATIC) {
+    *kind = SPN_LIB_KIND_SHARED;
+    return SPN_OK;
+  }
+  return SPN_ERROR;
 }

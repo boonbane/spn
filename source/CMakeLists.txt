@@ -83,6 +83,7 @@ set(SPN_CORE_SOURCES
   core/op/env.c
   core/op/index.c
   core/op/op.c
+  core/op/path.c
   core/op/test.c
   core/op/scaffold.c
   core/op/publish.c
@@ -153,6 +154,7 @@ set(SPN_CLI_SOURCES
   cli/commands/docs.c
   cli/commands/index.c
   cli/commands/init.c
+  cli/commands/path.c
   cli/commands/profile.c
   cli/commands/publish.c
   cli/commands/self.c

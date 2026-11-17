@@ -75,7 +75,6 @@ static spn_err_t zig_warmup(sp_mem_t mem, const si_dag_ctx_t* c, si_zig_warmup_t
     case SPN_CC_OUTPUT_EXE: {
       break;
     }
-    case SPN_CC_OUTPUT_OBJECT:
     case SPN_CC_OUTPUT_STATIC_LIB: {
       sp_unreachable_case();
     }
