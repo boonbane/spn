@@ -110,6 +110,18 @@ static spn_gated_list_t lower_gated_values(spn_toml_loader_t* ctx, sp_da(spn_cg_
   return values;
 }
 
+static void lower_system_deps(sp_mem_t mem, sp_da(spn_cg_system_dep_entry_t) entries, spn_gated_list_t* libs, spn_gated_list_t* frameworks) {
+  sp_da_for(entries, it) {
+    const spn_cg_system_dep_entry_t* entry = &entries[it];
+    if (!sp_str_empty(entry->lib)) {
+      si_da_push(mem, *libs, ((spn_gated_str_t) { .value = entry->lib, .when = entry->when }));
+    }
+    if (!sp_str_empty(entry->framework)) {
+      si_da_push(mem, *frameworks, ((spn_gated_str_t) { .value = entry->framework, .when = entry->when }));
+    }
+  }
+}
+
 static void lower_publish_root(spn_toml_loader_t* ctx, sp_da(spn_cg_publish_entry_t) entries, spn_publish_root_t root, const c8* key, si_da(spn_gated_publish_t)* publish) {
   spn_toml_loader_push_key(ctx, key);
   sp_da_for(entries, it) {
@@ -197,15 +209,14 @@ static void lower_target(spn_toml_loader_t* ctx, const spn_cg_target_t* cg, si_t
     .define = lower_gated_values(ctx, cg->define),
     .flags = lower_gated_values(ctx, cg->flags),
     .link_flags = lower_gated_values(ctx, cg->link_flags),
-    .system_deps = lower_gated_values(ctx, cg->system_deps),
     .macos = {
-      .frameworks = lower_gated_values(ctx, cg->macos.frameworks),
       .min_os = cg->macos.min_os,
     },
     .windows = {
       .subsystem = sp_opt_is_null(cg->windows.subsystem) ? SPN_WIN_SUBSYSTEM_NONE : sp_opt_get(cg->windows.subsystem),
     },
   };
+  lower_system_deps(ctx->mem, cg->system_deps, &target->system_deps, &target->macos.frameworks);
   sp_da_for(cg->linker_script, it) {
     if (lower_path_ok(ctx, cg->linker_script[it].path)) {
       push_gated_path(ctx->mem, &target->linker_script, &cg->linker_script[it], cg->linker_script[it].path);
@@ -325,10 +336,7 @@ static void lower_package(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, s
   }
   info->include = lower_gated_dirs(ctx, p->include);
   info->define = lower_gated_values(ctx, p->define);
-  sp_da_for(p->system_deps, it) {
-    si_da_push(ctx->mem, info->system_deps, ((spn_gated_str_t) { .value = p->system_deps[it].lib, .when = p->system_deps[it].when }));
-  }
-  info->macos.frameworks = lower_gated_values(ctx, p->macos.frameworks);
+  lower_system_deps(ctx->mem, p->system_deps, &info->system_deps, &info->macos.frameworks);
   info->macos.min_os = p->macos.min_os;
   spn_toml_loader_push_key(ctx, "package");
   info->publish = lower_publish(ctx, &p->publish);
@@ -640,6 +648,16 @@ static void validate_value_whens(spn_toml_loader_t* ctx, sp_da(spn_cg_value_entr
   spn_toml_loader_pop(ctx);
 }
 
+static void validate_system_dep_whens(spn_toml_loader_t* ctx, sp_da(spn_cg_system_dep_entry_t) entries, si_pkg_info_t* out) {
+  spn_toml_loader_push_key(ctx, "system_deps");
+  sp_da_for(entries, it) {
+    spn_toml_loader_push_index(ctx, it);
+    validate_when(ctx, &entries[it].when, out);
+    spn_toml_loader_pop(ctx);
+  }
+  spn_toml_loader_pop(ctx);
+}
+
 static void validate_publish_entry_whens(spn_toml_loader_t* ctx, sp_da(spn_cg_publish_entry_t) entries, const c8* key, si_pkg_info_t* out) {
   spn_toml_loader_push_key(ctx, key);
   sp_da_for(entries, it) {
@@ -669,10 +687,7 @@ static void validate_target_whens(spn_toml_loader_t* ctx, spn_cg_target_om_t tar
     validate_value_whens(ctx, target->flags, "flags", out);
     validate_value_whens(ctx, target->link_flags, "link_flags", out);
     validate_source_whens(ctx, target->linker_script, "linker_script", out);
-    validate_value_whens(ctx, target->system_deps, "system_deps", out);
-    spn_toml_loader_push_key(ctx, "macos");
-    validate_value_whens(ctx, target->macos.frameworks, "frameworks", out);
-    spn_toml_loader_pop(ctx);
+    validate_system_dep_whens(ctx, target->system_deps, out);
     spn_toml_loader_push_key(ctx, "deps");
     sp_da_for(target->deps, jt) {
       spn_toml_loader_push_index(ctx, jt);
@@ -694,18 +709,9 @@ static void validate_target_whens(spn_toml_loader_t* ctx, spn_cg_target_om_t tar
 
 static void validate_pkg_whens(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, si_pkg_info_t* out) {
   spn_toml_loader_push_key(ctx, "package");
-  spn_toml_loader_push_key(ctx, "system_deps");
-  sp_da_for(cg->package.system_deps, it) {
-    spn_toml_loader_push_index(ctx, it);
-    validate_when(ctx, &cg->package.system_deps[it].when, out);
-    spn_toml_loader_pop(ctx);
-  }
-  spn_toml_loader_pop(ctx);
+  validate_system_dep_whens(ctx, cg->package.system_deps, out);
   validate_source_whens(ctx, cg->package.include, "include", out);
   validate_value_whens(ctx, cg->package.define, "define", out);
-  spn_toml_loader_push_key(ctx, "macos");
-  validate_value_whens(ctx, cg->package.macos.frameworks, "frameworks", out);
-  spn_toml_loader_pop(ctx);
   validate_publish_whens(ctx, &cg->package.publish, out);
   spn_toml_loader_pop(ctx);
 }
@@ -1173,6 +1179,50 @@ static void validate_platform(spn_toml_loader_t* ctx, const spn_cg_manifest_t* c
   validate_collection_platform(ctx, cg->example, "example", false);
 }
 
+static void validate_system_dep_entries(spn_toml_loader_t* ctx, sp_da(spn_cg_system_dep_entry_t) entries) {
+  spn_toml_loader_push_key(ctx, "system_deps");
+  sp_da_for(entries, it) {
+    bool lib = !sp_str_empty(entries[it].lib);
+    bool framework = !sp_str_empty(entries[it].framework);
+    spn_toml_loader_push_index(ctx, it);
+    if (lib && framework) {
+      spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "framework");
+    }
+    if (!lib && !framework) {
+      spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_MISSING_KEY, "lib");
+    }
+    spn_toml_loader_pop(ctx);
+  }
+  spn_toml_loader_pop(ctx);
+}
+
+static void validate_system_deps(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg) {
+  struct {
+    const c8* key;
+    spn_cg_target_om_t targets;
+  } collections [] = {
+    { "lib", cg->lib },
+    { "bin", cg->bin },
+    { "script", cg->script },
+    { "test", cg->test },
+    { "example", cg->example },
+  };
+
+  sp_carr_for(collections, ct) {
+    spn_toml_loader_push_key(ctx, collections[ct].key);
+    sp_om_for(collections[ct].targets, it) {
+      spn_toml_loader_push_index(ctx, it);
+      validate_system_dep_entries(ctx, sp_str_om_at(collections[ct].targets, it)->system_deps);
+      spn_toml_loader_pop(ctx);
+    }
+    spn_toml_loader_pop(ctx);
+  }
+
+  spn_toml_loader_push_key(ctx, "package");
+  validate_system_dep_entries(ctx, cg->package.system_deps);
+  spn_toml_loader_pop(ctx);
+}
+
 static void validate_collection_names(spn_toml_loader_t* ctx, spn_cg_target_om_t cg, const c8* key) {
   spn_toml_loader_push_key(ctx, key);
   sp_om_for(cg, it) {
@@ -1279,6 +1329,7 @@ void spn_manifest_lower(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, si_
   validate_lib_only(ctx, cg);
   validate_c_only_scripts(ctx, cg);
   validate_platform(ctx, cg);
+  validate_system_deps(ctx, cg);
   validate_options(ctx, cg, pkg);
   validate_whens(ctx, cg, pkg);
 }

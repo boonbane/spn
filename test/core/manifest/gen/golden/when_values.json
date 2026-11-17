@@ -30,7 +30,7 @@
       ],
       "system_deps": [
         {
-          "value": "ws2_32",
+          "lib": "ws2_32",
           "when": {
             "os": "windows"
           }

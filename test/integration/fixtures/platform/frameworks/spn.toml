@@ -5,6 +5,8 @@ version = "0.1.0"
 [[bin]]
 name = "main"
 source = ["main.c"]
-
-[bin.macos]
-frameworks = ["CoreFoundation", "Security", { value = "Foundation", when = { os = "macos" } }]
+system_deps = [
+  { framework = "CoreFoundation" },
+  { framework = "Security" },
+  { framework = "Foundation", when = { os = "macos" } },
+]

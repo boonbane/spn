@@ -1347,8 +1347,57 @@ static const test_t tests [] = {
       },
     },
     .issues = {
-      { SPN_ERR_CODEGEN_INVALID, "lib[0].macos.frameworks[0].when.simd" },
-      { SPN_ERR_CODEGEN_INVALID, "package.macos.frameworks[0].when.simd" },
+      { SPN_ERR_CODEGEN_INVALID, "lib[0].system_deps[0].when.simd" },
+      { SPN_ERR_CODEGEN_INVALID, "package.system_deps[0].when.simd" },
+    },
+  },
+  {
+    .name = "system_deps_framework",
+    .manifest = "system_deps_framework",
+    .system_deps = { { "A" } },
+    .frameworks = { { "B" } },
+  },
+  {
+    .name = "target_system_deps",
+    .manifest = "target_system_deps",
+    .libs = {
+      {
+        .name = "t",
+        .linkages = { .static_lib = true },
+        .system_deps = { { "A" }, { "B" } },
+      },
+    },
+  },
+  {
+    .name = "validate_system_deps_both",
+    .manifest = "validate_system_deps_both",
+    .system_deps = { { "A" } },
+    .frameworks = { { "B" } },
+    .libs = {
+      {
+        .name = "t",
+        .linkages = { .static_lib = true },
+        .system_deps = { { "A" } },
+        .frameworks = { { "B" } },
+      },
+    },
+    .issues = {
+      { SPN_ERR_CODEGEN_INVALID, "lib[0].system_deps[0].framework" },
+      { SPN_ERR_CODEGEN_INVALID, "package.system_deps[0].framework" },
+    },
+  },
+  {
+    .name = "validate_system_deps_neither",
+    .manifest = "validate_system_deps_neither",
+    .libs = {
+      {
+        .name = "t",
+        .linkages = { .static_lib = true },
+      },
+    },
+    .issues = {
+      { SPN_ERR_CODEGEN_MISSING_KEY, "lib[0].system_deps[0].lib" },
+      { SPN_ERR_CODEGEN_MISSING_KEY, "package.system_deps[0].lib" },
     },
   },
   {

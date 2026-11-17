@@ -7,8 +7,8 @@ name = "mathy"
 kinds = ["static"]
 source = ["mathy.c"]
 system_deps = [
-  { value = "m", when = { os = { not = "windows" } } },
-  { value = "user32", when = { os = "windows" } },
+  { lib = "m", when = { os = { not = "windows" } } },
+  { lib = "user32", when = { os = "windows" } },
 ]
 
 [[bin]]
@@ -20,6 +20,6 @@ deps = ["mathy"]
 name = "direct"
 source = ["direct.c"]
 system_deps = [
-  { value = "m", when = { os = { not = "windows" } } },
-  { value = "user32", when = { os = "windows" } },
+  { lib = "m", when = { os = { not = "windows" } } },
+  { lib = "user32", when = { os = "windows" } },
 ]

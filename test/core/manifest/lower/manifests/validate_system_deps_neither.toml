@@ -1,0 +1,9 @@
+[package]
+name = "p"
+version = "1.0.0"
+system_deps = [{ when = { os = "linux" } }]
+
+[[lib]]
+name = "t"
+kinds = ["static"]
+system_deps = [{ when = { os = "linux" } }]

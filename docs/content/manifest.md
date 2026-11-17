@@ -56,7 +56,7 @@ readme: false
 | `flags` | array of [`value_entry`](#value_entry) \| `string` | |
 | `link_flags` | array of [`value_entry`](#value_entry) \| `string` | |
 | `linker_script` | array of [`source_entry`](#source_entry) \| `string` | |
-| `system_deps` | array of [`value_entry`](#value_entry) \| `string` | |
+| `system_deps` | array of [`system_dep_entry`](#system_dep_entry) \| `string` | |
 | `deps` | array of [`target_dep_entry`](#target_dep_entry) \| `string` | |
 | `link` | `bool` | |
 | `cxx` | [`cxx_options`](#cxx_options) | |
@@ -165,16 +165,16 @@ readme: false
 
 ## system_dep_entry
 
-| Field | Type | Required |
-|---|---|---|
-| `lib` | `string` | yes |
-| `when` | [`when`](#extern-types) | |
+| Field | Type |
+|---|---|
+| `lib` | `string` |
+| `framework` | `string` |
+| `when` | [`when`](#extern-types) |
 
 ## platform_macos
 
 | Field | Type |
 |---|---|
-| `frameworks` | array of [`value_entry`](#value_entry) \| `string` |
 | `min_os` | [`os_version`](#extern-types) |
 
 ## build_script
