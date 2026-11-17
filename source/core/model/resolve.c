@@ -10,13 +10,11 @@
 #include "error/error.h"
 #include "event/event.h"
 #include "index/cache.h"
-#include "intern/intern.h"
 #include "op/op.h"
 #include "op/types.h"
 #include "pkg/load.h"
 #include "paths/paths.h"
 #include "resolve/resolve.h"
-#include "semver/compare.h"
 #include "semver/convert.h"
 #include "session/session.h"
 #include "unit/types.h"
@@ -129,16 +127,12 @@ static spn_err_t resolve(sp_mem_t scratch, spn_op_t* op, const spn_lock_t* lock)
       return query.errors[0].kind;
     }
 
-    spn_err_union_t failure = query.errors[0];
-    sp_intern_id_t subject = spn_intern(failure.subject).id;
-    bool blocked = false;
-    sp_da_for(pins, it) {
-      blocked = blocked || (failure.kind == SPN_ERR_PKG_CONFLICT && pins[it].name == subject && spn_semver_eq(pins[it].version, failure.unsatisfiable.selected));
-    }
     u64 kept = 0;
-    sp_da_for(pins, it) {
-      if (blocked && pins[it].name != subject) {
-        pins[kept++] = pins[it];
+    if (!sp_opt_is_null(query.blocker)) {
+      sp_da_for(pins, it) {
+        if (pins[it].name != sp_opt_get(query.blocker).name) {
+          pins[kept++] = pins[it];
+        }
       }
     }
     sp_da_head(pins)->size = kept;

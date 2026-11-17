@@ -304,6 +304,15 @@ static bool node_is_shared(spn_resolver_t* resolver, spn_resolved_pkg_t* node) {
   sp_unreachable_return(false);
 }
 
+static bool is_preferred(spn_resolver_t* resolver, sp_intern_id_t name, spn_semver_t version) {
+  sp_da_for(resolver->preferences, it) {
+    if (resolver->preferences[it].name == name && spn_semver_eq(resolver->preferences[it].version, version)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 static spn_dep_edge_t classify_dep(spn_resolver_t* resolver, spn_resolved_pkg_t* node, spn_requested_dep_t* dep) {
   switch (dep->kind) {
     case SPN_DEP_KIND_BUILD:
@@ -554,6 +563,9 @@ static spn_err_union_t resolve_index_package(spn_resolver_t* resolver, spn_resol
       return ok_union();
     }
 
+    if (sp_opt_is_null(run->query->blocker) && is_preferred(resolver, name, existing->id.version)) {
+      sp_opt_set(run->query->blocker, ((spn_pin_t) { .name = name, .version = existing->id.version }));
+    }
     return unsatisfiable_err(resolver, from, request, SPN_ERR_PKG_CONFLICT, existing->id.version);
   }
 
@@ -598,10 +610,7 @@ static spn_err_union_t resolve_index_package(spn_resolver_t* resolver, spn_resol
   sp_carr_for(passes, pass) {
     sp_da_rfor(pkg->releases, it) {
       spn_index_release_t* release = &pkg->releases[it];
-      bool preferred = false;
-      sp_da_for(resolver->preferences, pt) {
-        preferred = preferred || (resolver->preferences[pt].name == name && spn_semver_eq(resolver->preferences[pt].version, release->version));
-      }
+      bool preferred = is_preferred(resolver, name, release->version);
       if (preferred != passes[pass] || (release->yanked && !preferred)) {
         continue;
       }

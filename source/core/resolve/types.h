@@ -63,6 +63,7 @@ typedef struct {
   spn_resolve_t result;
   spn_pkg_id_t root;
   sp_da(spn_err_union_t) errors;
+  sp_opt(spn_pin_t) blocker;
   u64 time;
 } spn_resolve_query_t;
 
