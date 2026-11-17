@@ -49,6 +49,14 @@ static const test_t tests [] = {
     },
   },
   {
+    .name = "file_two_paths_one_name",
+    .project = "test/integration/fixtures/deps/file/two_paths",
+    .copy = { "P/*", "Q/*", "B/*" },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { "build", .rc = 1 } },
+    },
+  },
+  {
     .name = "index_name_mismatch",
     .project = "test/integration/fixtures/deps/index/name_mismatch",
     .actions = {
@@ -215,6 +223,20 @@ static const command_test_t tools [] = {
     .copy = { "t.c" },
     .args = { "build", "--tool" },
     .expect.events = { { .event = SPN_EVENT_SYNC_PACKAGE, .key = "name", .value = "A" } },
+  },
+  {
+    .name = "sibling_lib_links_package_deps",
+    .project = "test/integration/fixtures/deps/tool/sibling",
+    .copy = { "l.c", "t.c" },
+    .args = { "build", "--tool" },
+    .expect.exists = { exe("T") },
+  },
+  {
+    .name = "sibling_lib_dep_at_another_version",
+    .project = "test/integration/fixtures/deps/tool/sibling_conflict",
+    .copy = { "l.c", "t.c" },
+    .args = { "build", "--tool" },
+    .expect.rc = 1,
   },
 };
 

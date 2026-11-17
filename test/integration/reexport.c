@@ -10,6 +10,14 @@ static const test_t tests [] = {
     },
   },
   {
+    .name = "public_shared",
+    .project = "test/integration/fixtures/reexport/public_shared",
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { "build" } },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
+    },
+  },
+  {
     .name = "private_hidden",
     .project = "test/integration/fixtures/reexport/private_hidden",
     .actions = {

@@ -44,6 +44,13 @@ static const command_test_t tests [] = {
     .expect.exists = { pkg_static_lib("spum", "spum"), pkg_static_lib("spam", "spam"), exe("main") },
   },
   {
+    .name = "static_lib_beside_shared_lib",
+    .project = "test/integration/fixtures/consume/mixed_kinds",
+    .copy = { "packages/*" },
+    .args = { "build" },
+    .expect.exists = { exe("main") },
+  },
+  {
     .name = "explicit_root_with_package_dep",
     .project = "test/integration/fixtures/consume/root_only",
     .copy = { "packages/*" },

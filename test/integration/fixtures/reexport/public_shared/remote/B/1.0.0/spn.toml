@@ -1,0 +1,11 @@
+[package]
+name = "B"
+version = "1.0.0"
+
+[deps.package]
+C = { version = "1.0.0", public = true }
+
+[[lib]]
+name = "B"
+kinds = ["shared"]
+source = ["b.c"]
