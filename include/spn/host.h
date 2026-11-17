@@ -36,6 +36,8 @@ spn_op_t* spn_run_tests(spn_session_t* session);
 spn_op_t* spn_clean(spn_ctx_t* ctx);
 spn_op_t* spn_clean_profile(spn_session_t* session);
 spn_op_t* spn_env(spn_session_t* session);
+spn_op_t* spn_source_path(spn_session_t* session, spn_path_request_t request);
+spn_op_t* spn_tool_path(spn_session_t* session, spn_path_request_t request);
 spn_op_t* spn_op_new(spn_ctx_t* ctx, spn_session_t* session, spn_op_kind_t kind);
 void spn_op_submit(spn_op_t* op);
 void spn_op_cancel(spn_op_t* op);

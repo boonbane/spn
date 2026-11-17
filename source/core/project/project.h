@@ -10,5 +10,6 @@
 
 spn_err_t spn_project_load(spn_ctx_t* ctx, spn_project_t** project);
 spn_err_t spn_project_update_lock(spn_ctx_t* ctx, spn_project_t* project, spn_resolve_t resolve);
+const si_pkg_info_t* spn_project_tool_manifest(sp_mem_t mem, const spn_project_t* project);
 
 #endif

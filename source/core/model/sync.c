@@ -12,8 +12,10 @@
 #include "event/event.h"
 #include "core/types.h"
 #include "git/cache.h"
+#include "git/patch.h"
 #include "hash/digest/digest.h"
 #include "lazy/lazy.h"
+#include "model/resolve.h"
 #include "op/op.h"
 #include "paths/paths.h"
 #include "pkg/load.h"
@@ -554,9 +556,65 @@ static spn_err_t sync_jobs(spn_op_t* op, sp_mem_t mem, bool* reresolve) {
   return SPN_OK;
 }
 
-spn_err_t spn_sync(spn_op_t* op, bool* reresolve) {
-  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  spn_err_t err = sync_jobs(op, scratch.mem, reresolve);
-  sp_mem_end_scratch(scratch);
-  return err;
+spn_err_t spn_resolve_and_sync(spn_op_t* op, const si_pkg_info_t* manifest) {
+  spn_session_t* session = op->session;
+  spn_ctx_t* ctx = session->ctx;
+  const spn_path_roots_t* roots = &ctx->roots;
+
+  spn_err_t hashed = SPN_OK;
+  si_da_for_ptr(session->project->patches, decl) {
+    spn_patch_t patch = { .name = decl->name };
+    si_da_for_value(decl->files, file) {
+      si_da_push(session->mem, patch.set.files, spn_path_str(roots, session->mem, file));
+    }
+    u32 missing = 0;
+    patch.set.hash = spn_git_patch_hash(patch.set.files, &missing);
+    if (!patch.set.hash) {
+      spn_err_t kind = spn_err_emit(ctx, (spn_err_union_t) {
+        .kind = SPN_ERR_PATCH_FILE_MISSING,
+        .subject = decl->name.str,
+        .patch_file = { .path = patch.set.files[missing] },
+      });
+      if (!hashed) {
+        hashed = kind;
+      }
+      continue;
+    }
+    si_da_push(session->mem, session->patches, patch);
+  }
+  spn_try(hashed);
+
+  bool reresolve = sp_zero;
+  do {
+    spn_try(spn_resolve(op, manifest));
+    sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+    spn_err_t synced = sync_jobs(op, scratch.mem, &reresolve);
+    sp_mem_end_scratch(scratch);
+    spn_try(synced);
+  } while (reresolve);
+
+  spn_err_t unused = SPN_OK;
+  si_da_for_ptr(session->patches, patch) {
+    bool used = false;
+    sp_ht_for_kv(session->resolve, it) {
+      if (it.key->name == patch->name.id) {
+        used = true;
+        break;
+      }
+    }
+    si_da_for_ptr(session->project->deps.tool, dep) {
+      used = used || dep->name.id == patch->name.id;
+    }
+    if (used) {
+      continue;
+    }
+    spn_err_t kind = spn_err_emit(ctx, (spn_err_union_t) {
+      .kind = SPN_ERR_PATCH_UNUSED,
+      .subject = patch->name.str,
+    });
+    if (!unused) {
+      unused = kind;
+    }
+  }
+  return unused;
 }

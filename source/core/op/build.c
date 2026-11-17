@@ -8,9 +8,7 @@
 #include "error/error.h"
 #include "event/event.h"
 #include "external/wasm/wasm.h"
-#include "git/patch.h"
 #include "graph/dag.h"
-#include "model/resolve.h"
 #include "model/sync.h"
 #include "op/op.h"
 #include "paths/paths.h"
@@ -110,29 +108,6 @@ spn_err_t spn_op_build(spn_op_t* op) {
     });
   }
 
-  spn_err_t hashed = SPN_OK;
-  si_da_for_ptr(project->patches, decl) {
-    spn_patch_t patch = { .name = decl->name };
-    si_da_for_value(decl->files, file) {
-      si_da_push(session->mem, patch.set.files, spn_path_str(roots, session->mem, file));
-    }
-    u32 missing = 0;
-    patch.set.hash = spn_git_patch_hash(patch.set.files, &missing);
-    if (!patch.set.hash) {
-      spn_err_t kind = spn_err_emit(ctx, (spn_err_union_t) {
-        .kind = SPN_ERR_PATCH_FILE_MISSING,
-        .subject = decl->name.str,
-        .patch_file = { .path = patch.set.files[missing] },
-      });
-      if (!hashed) {
-        hashed = kind;
-      }
-      continue;
-    }
-    si_da_push(session->mem, session->patches, patch);
-  }
-  spn_try(hashed);
-
   si_da(const si_target_info_t*) selected = sp_zero;
   bool tools = false;
   si_om_for_each(session->manifest->targets, target) {
@@ -147,48 +122,10 @@ spn_err_t spn_op_build(spn_op_t* op) {
   }
 
   const si_pkg_info_t* manifest = session->manifest;
-  si_da(spn_requested_dep_t) unasked = project->deps.tool;
   if (tools) {
-    si_pkg_info_t* with_tools = sp_alloc_type(mem, si_pkg_info_t);
-    *with_tools = *session->manifest;
-    si_da_copy(mem, with_tools->deps, session->manifest->deps);
-    si_da_for_value(project->deps.tool, dep) {
-      si_da_push(mem, with_tools->deps, dep);
-    }
-    manifest = with_tools;
-    unasked = SP_NULLPTR;
+    manifest = spn_project_tool_manifest(mem, project);
   }
-
-  bool reresolve = sp_zero;
-  do {
-    spn_try(spn_resolve(op, manifest));
-    spn_try(spn_sync(op, &reresolve));
-  } while (reresolve);
-
-  spn_err_t unused = SPN_OK;
-  si_da_for_ptr(session->patches, patch) {
-    bool used = false;
-    sp_ht_for_kv(session->resolve, it) {
-      if (it.key->name == patch->name.id) {
-        used = true;
-        break;
-      }
-    }
-    si_da_for_ptr(unasked, dep) {
-      used = used || dep->name.id == patch->name.id;
-    }
-    if (used) {
-      continue;
-    }
-    spn_err_t kind = spn_err_emit(ctx, (spn_err_union_t) {
-      .kind = SPN_ERR_PATCH_UNUSED,
-      .subject = patch->name.str,
-    });
-    if (!unused) {
-      unused = kind;
-    }
-  }
-  spn_try(unused);
+  spn_try(spn_resolve_and_sync(op, manifest));
 
   // Initialize shared state across the DAGs
   session->dag.files_path = spn_path_join(session->mem, session->paths.build, sp_str_lit(".spn/files"));

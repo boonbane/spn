@@ -818,6 +818,22 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           );
           break;
         }
+        case SPN_ERR_PKG_ABSENT: {
+          sp_tty_fmt(
+            &w,
+            "{} is not a package in this build",
+            sp_fmt_str(colored_name(w.color, mem, event->err.subject))
+          );
+          break;
+        }
+        case SPN_ERR_PKG_AMBIGUOUS: {
+          sp_tty_fmt(
+            &w,
+            "{} is in this build at more than one version",
+            sp_fmt_str(colored_name(w.color, mem, event->err.subject))
+          );
+          break;
+        }
         case SPN_ERR_PKG_NO_MATCH: {
           spn_err_unsatisfiable_t* err = &event->err.unsatisfiable;
           sp_str_t requester = sp_str_empty(err->requester) ?
@@ -1554,6 +1570,14 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           sp_tty_fmt(
             &w,
             "Target {.yellow} is not defined for the selected target kinds",
+            sp_fmt_str(event->err.target.name)
+          );
+          break;
+        }
+        case SPN_ERR_TOOL_MISSING: {
+          sp_tty_fmt(
+            &w,
+            "Tool {.yellow} has no sources, so it has no executable",
             sp_fmt_str(event->err.target.name)
           );
           break;

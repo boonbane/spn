@@ -319,6 +319,7 @@ source = [
   "test/integration/offline.c",
   "test/integration/options.c",
   "test/integration/patch.c",
+  "test/integration/path.c",
   "test/integration/platform.c",
   "test/integration/profile.c",
   "test/integration/reexport.c",

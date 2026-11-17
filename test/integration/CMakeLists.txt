@@ -19,6 +19,7 @@ add_executable(integration
   offline.c
   options.c
   patch.c
+  path.c
   platform.c
   profile.c
   reexport.c
