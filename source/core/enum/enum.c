@@ -457,6 +457,27 @@ sp_str_t spn_linking_refusal_to_str(spn_linking_refusal_t refusal) {
   SP_UNREACHABLE_RETURN(sp_str_lit(""));
 }
 
+sp_str_t spn_host_refusal_to_str(spn_host_refusal_t refusal) {
+  switch (refusal) {
+    case SPN_HOST_REFUSAL_NONE: {
+      return sp_str_lit("none");
+    }
+    case SPN_HOST_REFUSAL_OS: {
+      return sp_str_lit("os");
+    }
+    case SPN_HOST_REFUSAL_TARGET: {
+      return sp_str_lit("target");
+    }
+    case SPN_HOST_REFUSAL_SDK: {
+      return sp_str_lit("sdk");
+    }
+    case SPN_HOST_REFUSAL_SCRIPT: {
+      return sp_str_lit("script");
+    }
+  }
+  SP_UNREACHABLE_RETURN(sp_str_lit(""));
+}
+
 sp_str_t spn_unpack_reason_to_str(spn_unpack_reason_t reason) {
   switch (reason) {
     case SPN_UNPACK_NONE: {

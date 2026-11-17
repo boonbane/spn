@@ -48,6 +48,7 @@ sp_str_t spn_option_setter_kind_to_str(spn_option_setter_kind_t kind);
 sp_str_t spn_linkage_requester_to_str(spn_linkage_requester_t requester);
 sp_str_t spn_git_route_to_str(spn_git_route_t route);
 sp_str_t spn_linking_refusal_to_str(spn_linking_refusal_t refusal);
+sp_str_t spn_host_refusal_to_str(spn_host_refusal_t refusal);
 sp_str_t spn_unpack_reason_to_str(spn_unpack_reason_t reason);
 sp_str_t spn_cc_feature_to_str(spn_cc_feature_t feature);
 

@@ -226,6 +226,11 @@ static cell_t cells [] = {
     .project = "test/render/fixtures/errors/lib",
     .args = { "build" },
   },
+  {
+    .name = "err_target_host_deps",
+    .project = "test/render/fixtures/errors/host",
+    .args = { "build", "--target", "wasm32-wasi" },
+  },
   // error: toolchain zig can't build for x86_64-linux-musl with address
   // it supports: thread, undefined
   //

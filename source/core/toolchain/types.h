@@ -23,6 +23,7 @@ typedef enum {
   SPN_CC_CAP_BARE           = 1 << 7,
   SPN_CC_CAP_GNU_RUNTIME    = 1 << 8,
   SPN_CC_CAP_TRIPLE_MIN_OS  = 1 << 9,
+  SPN_CC_CAP_NATIVE_TRIPLE  = 1 << 10,
 } spn_cc_cap_t;
 
 typedef u32 spn_cc_cap_set_t;

@@ -136,12 +136,9 @@ static spn_exports_plan_t render_exports(sp_mem_t mem, const spn_cc_t* toolchain
   };
 }
 
-static spn_err_t lower_target(spn_units_t* u, spn_target_unit_t* unit) {
+static void plan_target(spn_units_t* u, spn_target_unit_t* unit) {
   spn_pkg_unit_t* pkg = unit->pkg;
-  spn_build_unit_t* build = pkg->build;
   si_target_t* target = unit->target;
-  spn_profile_info_t* profile = &build->profile;
-  spn_cc_t* toolchain = &build->toolchain->cc;
   sp_mem_t mem = u->mem;
 
   switch (target->info->kind) {
@@ -191,6 +188,8 @@ static spn_err_t lower_target(spn_units_t* u, spn_target_unit_t* unit) {
     push_unique(mem, &link->cc.frameworks, dep->pkg.publish.frameworks);
     push_unique(mem, &link->cc.system_libs, dep->pkg.publish.system_deps);
   }
+  push_unique(mem, &link->host_libs, target->host_deps);
+  push_unique(mem, &link->host_libs, pkg->pkg.host_deps);
   si_da_rfor(entries, et) {
     si_closure_entry_t* entry = &entries[et];
     switch (entry->yield) {
@@ -226,6 +225,8 @@ static spn_err_t lower_target(spn_units_t* u, spn_target_unit_t* unit) {
               push_unique(mem, &link->cc.frameworks, dep->pkg.publish.frameworks);
               push_unique(mem, &link->cc.system_libs, dep->pkg.publish.system_deps);
             }
+            push_unique(mem, &link->host_libs, lib->pkg->pkg.host_deps);
+            push_unique(mem, &link->host_libs, lib->target->host_deps);
             break;
           }
           case SPN_LIB_KIND_NONE: sp_unreachable_case();
@@ -234,10 +235,31 @@ static spn_err_t lower_target(spn_units_t* u, spn_target_unit_t* unit) {
       }
     }
   }
+  sp_mem_end_scratch(scratch);
 
+  if (!si_da_empty(link->host_libs)) {
+    si_da(sp_str_t) libs = SP_NULLPTR;
+    push_unique(mem, &libs, link->host_libs);
+    push_unique(mem, &libs, link->cc.system_libs);
+    link->cc.system_libs = libs;
+    link->cc.native = true;
+  }
+}
+
+static spn_err_t lower_target(spn_units_t* u, spn_target_unit_t* unit) {
+  spn_pkg_unit_t* pkg = unit->pkg;
+  spn_build_unit_t* build = pkg->build;
+  si_target_t* target = unit->target;
+  spn_profile_info_t* profile = &build->profile;
+  spn_cc_t* toolchain = &build->toolchain->cc;
+  spn_link_plan_t* link = &unit->link;
+  sp_mem_t mem = u->mem;
+
+  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   spn_cc_compile_t compile = {
     .cxx = target->info->cxx,
     .pic = target->info->kind == SPN_TARGET_KIND_LIB && spn_ld_dynamic(profile->target) && spn_os_to_native_object_format(profile->target.os) != SPN_OBJ_COFF,
+    .native = link->cc.native,
   };
   if (profile->target.os == SPN_OS_MACOS) {
     compile.min_os = link->cc.min_os;
@@ -454,6 +476,44 @@ static spn_err_t plan_new(spn_units_t* u, sp_mem_t scratch, spn_pkg_unit_t* root
         .kind = SPN_ERR_TOOLCHAIN_NO_CXX,
         .toolchain = { .name = target->pkg->build->toolchain->info->name.str },
       });
+    }
+  }
+
+  si_da_for_value(plan->targets, target) {
+    plan_target(u, target);
+  }
+
+  si_da_for_value(plan->targets, target) {
+    if (si_da_empty(target->target->host_deps) && si_da_empty(target->pkg->pkg.host_deps)) {
+      continue;
+    }
+    spn_build_unit_t* build = target->pkg->build;
+    spn_host_refusal_t refusal = build->metabuild ? spn_ld_host(u->ctx->host, build->profile.target, build->profile.sdk.kind) : SPN_HOST_REFUSAL_SCRIPT;
+    if (refusal) {
+      return spn_err_emit(u->ctx, (spn_err_union_t) {
+        .kind = SPN_ERR_TARGET_HOST_DEPS,
+        .host_deps = {
+          .pkg = target->pkg->pkg.manifest->name.str,
+          .name = target->target->info->name.str,
+          .libs = target->link.host_libs,
+          .target = build->profile.target,
+          .host = u->ctx->host,
+          .reason = refusal,
+        },
+      });
+    }
+  }
+
+  bool spread = true;
+  while (spread) {
+    spread = false;
+    si_da_for_value(plan->targets, target) {
+      si_da_for_ptr(target->link.deps, dep) {
+        if (dep->role == SPN_LINK_ROLE_SHARED && dep->lib->link.cc.native && !target->link.cc.native) {
+          target->link.cc.native = true;
+          spread = true;
+        }
+      }
     }
   }
 

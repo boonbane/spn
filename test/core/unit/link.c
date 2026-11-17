@@ -8,11 +8,13 @@ typedef struct {
 typedef struct {
   dep_t deps [UNIT_TEST_MAX_STRS];
   const c8* system_libs [UNIT_TEST_MAX_STRS];
+  const c8* host_libs [UNIT_TEST_MAX_STRS];
   const c8* frameworks [UNIT_TEST_MAX_STRS];
   const c8* args [UNIT_TEST_MAX_STRS];
   const c8* scripts [UNIT_TEST_MAX_STRS];
   spn_os_version_t min_os;
   spn_lang_t lang;
+  bool native;
 } expect_t;
 
 typedef struct {
@@ -319,6 +321,54 @@ static const test_t tests [] = {
       .deps = { { "B", SPN_LINK_ROLE_SHARED } },
     },
   },
+  // Host libs link like system libs, ahead of them, and build whatever links
+  // them against the host
+  {
+    .name = "own_host_deps_reach_own_link",
+    .graph.pkgs = {
+      {
+        .name = "P",
+        .host_deps = { "H" },
+        .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "main.c" }, .system_deps = { "X" }, .host_deps = { "I" } } },
+      },
+    },
+    .root = { "A", SPN_TARGET_KIND_EXE },
+    .expect = {
+      .system_libs = { "I", "H", "X" },
+      .host_libs = { "I", "H" },
+      .native = true,
+    },
+  },
+  {
+    .name = "static_lib_forwards_host_deps",
+    .graph.pkgs = {
+      { .name = "P", .deps = { { "B" } }, .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "main.c" } } } },
+      { .name = "B", .host_deps = { "H" }, .targets = { { "B", static_only, .source = { "b.c" }, .host_deps = { "I" } } } },
+    },
+    .root = { "A", SPN_TARGET_KIND_EXE },
+    .expect = {
+      .deps = { { "B" } },
+      .system_libs = { "H", "I" },
+      .host_libs = { "H", "I" },
+      .native = true,
+    },
+  },
+  // A shared lib consumed its host libs at its own link, but it was built
+  // against the host's libc, so everything that links it is too
+  {
+    .name = "native_spreads_through_shared_libs",
+    .graph.pkgs = {
+      { .name = "P", .deps = { { "B" } }, .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "main.c" } } } },
+      { .name = "B", .deps = { { "C" } }, .targets = { { "B", shared_only, .source = { "b.c" } } } },
+      { .name = "C", .deps = { { "D" } }, .targets = { { "C", shared_only, .source = { "c.c" } } } },
+      { .name = "D", .targets = { { "D", static_only, .source = { "d.c" }, .host_deps = { "H" } } } },
+    },
+    .root = { "A", SPN_TARGET_KIND_EXE },
+    .expect = {
+      .deps = { { "B", SPN_LINK_ROLE_SHARED } },
+      .native = true,
+    },
+  },
   // Link flags and linker scripts belong to the linked target alone; a dep's
   // own never reach the consumer's link line
   {
@@ -380,6 +430,7 @@ sp_test_each(unit_link, plan, test_t, tests, .setup = spn_test_ctx_setup, .teard
     sp_expect_eq(t, it->expect.deps[dt].role, plan->deps[dt].role);
   }
   sp_must_strs_eq(t, plan->cc.system_libs, sp_da_size(plan->cc.system_libs), it->expect.system_libs);
+  sp_must_strs_eq(t, plan->host_libs, sp_da_size(plan->host_libs), it->expect.host_libs);
   sp_must_strs_eq(t, plan->cc.frameworks, sp_da_size(plan->cc.frameworks), it->expect.frameworks);
   sp_must_strs_eq(t, plan->cc.args, sp_da_size(plan->cc.args), it->expect.args);
   u32 num_scripts = 0;
@@ -388,5 +439,6 @@ sp_test_each(unit_link, plan, test_t, tests, .setup = spn_test_ctx_setup, .teard
   sp_expect_eq(t, it->expect.min_os.major, plan->cc.min_os.major);
   sp_expect_eq(t, it->expect.min_os.minor, plan->cc.min_os.minor);
   sp_expect_eq(t, it->expect.lang, plan->cc.lang);
+  sp_expect_eq(t, it->expect.native, plan->cc.native);
   return SP_OK;
 }

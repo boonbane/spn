@@ -93,6 +93,7 @@ struct si_pkg_info {
   spn_gated_path_list_t include;
   spn_gated_list_t define;
   spn_gated_list_t system_deps;
+  spn_gated_list_t host_deps;
   struct {
     si_da(spn_gated_publish_t) entries;
     spn_gated_list_t define;
@@ -113,6 +114,7 @@ struct si_pkg {
   si_da(sp_str_t) define;
   si_da(sp_str_t) public_define;
   si_da(sp_str_t) system_deps;
+  si_da(sp_str_t) host_deps;
   struct {
     si_da(spn_publish_t) entries;
     si_da(sp_str_t) system_deps;

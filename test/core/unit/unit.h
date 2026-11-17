@@ -38,6 +38,7 @@ typedef struct {
   const c8* include [UNIT_TEST_MAX_STRS];
   const c8* define [UNIT_TEST_MAX_STRS];
   const c8* system_deps [UNIT_TEST_MAX_STRS];
+  const c8* host_deps [UNIT_TEST_MAX_STRS];
   const c8* frameworks [UNIT_TEST_MAX_STRS];
   const c8* link_flags [UNIT_TEST_MAX_STRS];
   const c8* linker_script [UNIT_TEST_MAX_STRS];
@@ -68,6 +69,7 @@ typedef struct {
   const c8* include [UNIT_TEST_MAX_STRS];
   const c8* define [UNIT_TEST_MAX_STRS];
   const c8* system_deps [UNIT_TEST_MAX_STRS];
+  const c8* host_deps [UNIT_TEST_MAX_STRS];
   const c8* frameworks [UNIT_TEST_MAX_STRS];
   struct {
     const c8* include [UNIT_TEST_MAX_STRS];
@@ -82,6 +84,7 @@ typedef struct {
 typedef struct {
   spn_os_t os;
   spn_abi_t abi;
+  spn_triple_t host;
   spn_cc_driver_t driver;
   spn_mode_t mode;
   spn_opt_level_t opt;

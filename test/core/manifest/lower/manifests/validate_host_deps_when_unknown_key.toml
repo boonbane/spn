@@ -1,0 +1,10 @@
+[package]
+name = "p"
+version = "1.0.0"
+host_deps = [{ lib = "A", when = { simd = "avx2" } }]
+
+[[lib]]
+name = "t"
+kinds = ["static"]
+source = ["a.c"]
+host_deps = [{ lib = "B", when = { simd = "avx2" } }]

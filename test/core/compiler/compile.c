@@ -18,6 +18,7 @@ typedef struct {
   const c8* embed_include;
   const c8* cwd;
   spn_os_version_t min_os;
+  bool native;
   render_expect_t expect;
 } compile_test_t;
 
@@ -140,6 +141,19 @@ static const compile_test_t tests [] = {
     .expect = {
       .command = "cc",
       .args = { "--target=x86_64-linux-musl", "-std=c99", "-c", "-Werror=return-type", "main.c", "-o", "main.o" },
+    },
+  },
+  {
+    .name = "zig_linux_native",
+    .driver = SPN_CC_DRIVER_ZIG,
+    .profile = {
+      .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU },
+      .standard = SPN_C99,
+    },
+    .native = true,
+    .expect = {
+      .command = "cc",
+      .args = { "--target=x86_64-native", "-std=c99", "-c", "-Werror=return-type", "main.c", "-o", "main.o" },
     },
   },
   {
@@ -644,6 +658,7 @@ sp_test_each(render_compile, render, compile_test_t, tests, .setup = spn_test_ct
     .cxx = it->cxx,
     .pic = it->pic,
     .min_os = it->min_os,
+    .native = it->native,
   };
   sp_da_init(mem, toolchain.link_args);
   if (it->arg) {

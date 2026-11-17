@@ -101,6 +101,7 @@ static void declare_target(sp_mem_t mem, si_pkg_info_t* manifest, const graph_ta
   decl->include = gated_paths(mem, spec->include, UNIT_TEST_MAX_STRS);
   decl->define = gated_list(mem, spec->define, UNIT_TEST_MAX_STRS);
   decl->system_deps = gated_list(mem, spec->system_deps, UNIT_TEST_MAX_STRS);
+  decl->host_deps = gated_list(mem, spec->host_deps, UNIT_TEST_MAX_STRS);
   decl->macos.frameworks = gated_list(mem, spec->frameworks, UNIT_TEST_MAX_STRS);
   decl->macos.min_os = spec->min_os;
   decl->link_flags = gated_list(mem, spec->link_flags, UNIT_TEST_MAX_STRS);
@@ -228,7 +229,6 @@ static void open_ctx(units_t* u, sp_test_t* t) {
     .heap = spn.heap,
     .intern = spn.intern,
     .env = spn.env,
-    .host = spn.host,
     .events = spn_event_buffer_new(mem),
   };
   sp_path_t storage = sp_path_join(mem, sp_test_dir(t), sp_str_lit("storage"));
@@ -256,6 +256,7 @@ units_t* units_new(sp_test_t* t, const graph_t* g) {
 
   spn_toolchain_info_t* info = toolchain_info(mem, g);
   spn_profile_info_t profile = program_profile(u, g, info);
+  u->ctx.host = g->host.os ? g->host : profile.target;
   spn_profile_info_t metaprogram = spn_profile_metaprogram();
   metaprogram.driver = profile.driver;
   metaprogram.linker = spn_ld_native(metaprogram.driver, metaprogram.target);
@@ -296,6 +297,7 @@ units_t* units_new(sp_test_t* t, const graph_t* g) {
     manifest->include = gated_paths(mem, spec->include, UNIT_TEST_MAX_STRS);
     manifest->define = gated_list(mem, spec->define, UNIT_TEST_MAX_STRS);
     manifest->system_deps = gated_list(mem, spec->system_deps, UNIT_TEST_MAX_STRS);
+    manifest->host_deps = gated_list(mem, spec->host_deps, UNIT_TEST_MAX_STRS);
     manifest->macos.frameworks = gated_list(mem, spec->frameworks, UNIT_TEST_MAX_STRS);
     manifest->macos.min_os = spec->min_os;
     manifest->publish.entries = gated_publish(mem, spec->publish.include, UNIT_TEST_MAX_STRS);

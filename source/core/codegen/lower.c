@@ -123,6 +123,14 @@ static void lower_system_deps(sp_mem_t mem, sp_da(spn_cg_system_dep_entry_t) ent
   }
 }
 
+static spn_gated_list_t lower_host_deps(sp_mem_t mem, sp_da(spn_cg_host_dep_entry_t) entries) {
+  spn_gated_list_t libs = SP_NULLPTR;
+  sp_da_for(entries, it) {
+    si_da_push(mem, libs, ((spn_gated_str_t) { .value = entries[it].lib, .when = entries[it].when }));
+  }
+  return libs;
+}
+
 static void lower_publish_root(spn_toml_loader_t* ctx, sp_da(spn_cg_publish_entry_t) entries, spn_publish_root_t root, const c8* key, si_da(spn_gated_publish_t)* publish) {
   spn_toml_loader_push_key(ctx, key);
   sp_da_for(entries, it) {
@@ -210,6 +218,7 @@ static void lower_target(spn_toml_loader_t* ctx, const spn_cg_target_t* cg, si_t
     .define = lower_gated_values(ctx, cg->define),
     .flags = lower_gated_values(ctx, cg->flags),
     .link_flags = lower_gated_values(ctx, cg->link_flags),
+    .host_deps = lower_host_deps(ctx->mem, cg->host_deps),
     .macos = {
       .min_os = cg->macos.min_os,
     },
@@ -338,6 +347,7 @@ static void lower_package(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, s
   info->include = lower_gated_dirs(ctx, p->include);
   info->define = lower_gated_values(ctx, p->define);
   lower_system_deps(ctx->mem, p->system_deps, &info->system_deps, &info->macos.frameworks);
+  info->host_deps = lower_host_deps(ctx->mem, p->host_deps);
   info->macos.min_os = p->macos.min_os;
   spn_toml_loader_push_key(ctx, "package");
   info->publish.entries = lower_publish(ctx, p->publish.include, p->publish.share);
@@ -661,6 +671,16 @@ static void validate_system_dep_whens(spn_toml_loader_t* ctx, sp_da(spn_cg_syste
   spn_toml_loader_pop(ctx);
 }
 
+static void validate_host_dep_whens(spn_toml_loader_t* ctx, sp_da(spn_cg_host_dep_entry_t) entries, si_pkg_info_t* out) {
+  spn_toml_loader_push_key(ctx, "host_deps");
+  sp_da_for(entries, it) {
+    spn_toml_loader_push_index(ctx, it);
+    validate_when(ctx, &entries[it].when, out);
+    spn_toml_loader_pop(ctx);
+  }
+  spn_toml_loader_pop(ctx);
+}
+
 static void validate_publish_entry_whens(spn_toml_loader_t* ctx, sp_da(spn_cg_publish_entry_t) entries, const c8* key, si_pkg_info_t* out) {
   spn_toml_loader_push_key(ctx, key);
   sp_da_for(entries, it) {
@@ -691,6 +711,7 @@ static void validate_target_whens(spn_toml_loader_t* ctx, spn_cg_target_om_t tar
     validate_value_whens(ctx, target->link_flags, "link_flags", out);
     validate_source_whens(ctx, target->linker_script, "linker_script", out);
     validate_system_dep_whens(ctx, target->system_deps, out);
+    validate_host_dep_whens(ctx, target->host_deps, out);
     spn_toml_loader_push_key(ctx, "deps");
     sp_da_for(target->deps, jt) {
       spn_toml_loader_push_index(ctx, jt);
@@ -713,6 +734,7 @@ static void validate_target_whens(spn_toml_loader_t* ctx, spn_cg_target_om_t tar
 static void validate_pkg_whens(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, si_pkg_info_t* out) {
   spn_toml_loader_push_key(ctx, "package");
   validate_system_dep_whens(ctx, cg->package.system_deps, out);
+  validate_host_dep_whens(ctx, cg->package.host_deps, out);
   validate_source_whens(ctx, cg->package.include, "include", out);
   validate_value_whens(ctx, cg->package.define, "define", out);
   validate_publish_whens(ctx, cg->package.publish.include, cg->package.publish.share, out);

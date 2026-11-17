@@ -70,6 +70,7 @@ typedef struct {
   gated_t link_flags [4];
   gated_t linker_script [4];
   gated_t system_deps [4];
+  gated_t host_deps [4];
   gated_t deps [4];
   gated_t frameworks [4];
   embed_t embed [4];
@@ -183,6 +184,7 @@ typedef struct {
   gated_t build_flags [4];
   gated_t define [8];
   gated_t system_deps [8];
+  gated_t host_deps [8];
   gated_t frameworks [4];
   struct {
     publish_t entries [4];
@@ -1292,6 +1294,7 @@ static const test_t tests [] = {
         .link_flags = { { "-A", "os = \"linux\"" } },
         .linker_script = { { "a.ld", "arch = \"x86_64\"" } },
         .system_deps = { { "ws2_32", "os = \"windows\"" } },
+        .host_deps = { { "A", "os = \"linux\"" } },
       },
     },
   },
@@ -1322,6 +1325,36 @@ static const test_t tests [] = {
     .name = "package_system_deps_gated",
     .manifest = "package_system_deps_gated",
     .system_deps = { { "m" }, { "ws2_32", "os = \"windows\"" } },
+  },
+  {
+    .name = "package_host_deps_gated",
+    .manifest = "package_host_deps_gated",
+    .host_deps = { { "A" }, { "B", "os = \"linux\"" } },
+  },
+  {
+    .name = "validate_host_deps_when_unknown_key",
+    .manifest = "validate_host_deps_when_unknown_key",
+    .host_deps = { { "A", "simd = \"avx2\"" } },
+    .libs = {
+      {
+        .name = "t",
+        .linkages = { .static_lib = true },
+        .source = { { "a.c" } },
+        .host_deps = { { "B", "simd = \"avx2\"" } },
+      },
+    },
+    .issues = {
+      { SPN_ERR_CODEGEN_INVALID, "lib[0].host_deps[0].when.simd" },
+      { SPN_ERR_CODEGEN_INVALID, "package.host_deps[0].when.simd" },
+    },
+  },
+  {
+    .name = "validate_host_deps_framework",
+    .manifest = "validate_host_deps_framework",
+    .issues = {
+      { SPN_ERR_CODEGEN_UNKNOWN_KEY, "lib[0].host_deps[0]" },
+      { SPN_ERR_CODEGEN_MISSING_KEY, "lib[0].host_deps[0].lib" },
+    },
   },
   {
     .name = "package_define_gated",
@@ -1800,6 +1833,7 @@ static sp_err_t check_targets(sp_test_t* t, si_pkg_info_t* pkg, const target_t* 
     check_gated(t, info->link_flags, arr[i].link_flags);
     check_gated_paths(t, info->linker_script, arr[i].linker_script);
     check_gated(t, info->system_deps, arr[i].system_deps);
+    check_gated(t, info->host_deps, arr[i].host_deps);
     u32 num_deps = 0;
     sp_carr_detect_len(arr[i].deps, num_deps, arr[i].deps[num_deps].value);
     sp_must_eq(t, num_deps, (u32)sp_da_size(info->deps));
@@ -1876,6 +1910,7 @@ sp_test_each(lower, cases, test_t, tests, .setup = spn_test_ctx_setup) {
   // Package arrays
   check_gated(t, pkg->define, it->define);
   check_gated(t, pkg->system_deps, it->system_deps);
+  check_gated(t, pkg->host_deps, it->host_deps);
   check_gated(t, pkg->macos.frameworks, it->frameworks);
   check_publish(t, pkg->publish.entries, it->publish.entries);
   check_gated(t, pkg->publish.define, it->publish.define);

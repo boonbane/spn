@@ -260,6 +260,29 @@ sp_test_each(target, rebuild, rebuild_test_t, rebuilds) {
   return run_rebuild_test(t, *it);
 }
 
+sp_test(target, host_deps) {
+  const c8* triple = test_host_triple();
+  return run_command_test(t, (command_test_t) {
+    .project = "test/integration/fixtures/target/host_deps",
+    .when = { .host = SPN_OS_LINUX, .host_libs = { "z" } },
+    .args = { "build", "--target", triple },
+    .expect.exists = { target_exe("main", triple) },
+  });
+}
+
+sp_test(target, host_deps_cross_refused) {
+  const c8* triple = test_target_alternate();
+  if (!triple) {
+    return sp_test_skip(t, "lane has no cross target");
+  }
+  return run_command_test(t, (command_test_t) {
+    .project = "test/integration/fixtures/target/host_deps",
+    .when.target = triple,
+    .args = { "build", "--target", triple },
+    .expect = { .rc = 1, .err = SPN_ERR_TARGET_HOST_DEPS },
+  });
+}
+
 sp_test(target, cross_exe) {
   const c8* triple = test_target_alternate();
   if (!triple) {

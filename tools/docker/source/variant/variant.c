@@ -32,6 +32,16 @@ static const distro_info_t distros [] = {
     .packages = "ca-certificates git",
     .label = "musl, busybox /bin/sh",
   },
+  [DISTRO_FEDORA] = {
+    .template = "fedora",
+    .packages = "ca-certificates git",
+    .label = "glibc, lib64",
+  },
+  [DISTRO_ARCH] = {
+    .template = "arch",
+    .packages = "ca-certificates git",
+    .label = "glibc, /usr/lib",
+  },
 };
 
 const sysroot_t sysroots [] = {
@@ -127,7 +137,8 @@ const variant_t variants [] = {
     .distro = DISTRO_DEBIAN,
     .compilers = COMPILER_GCC | COMPILER_GXX,
     .check = LANE_GCC,
-    .extra = { "lld" },
+    .extra = { "lld", "zlib1g-dev" },
+    .host_libs = { "z" },
     .lanes = { LANE_GCC, LANE_GCC_LLD },
   },
   {
@@ -135,6 +146,8 @@ const variant_t variants [] = {
     .distro = DISTRO_DEBIAN,
     .compilers = COMPILER_CLANG,
     .check = LANE_CLANG,
+    .extra = { "zlib1g-dev" },
+    .host_libs = { "z" },
     .lanes = { LANE_CLANG },
   },
   {
@@ -142,7 +155,8 @@ const variant_t variants [] = {
     .distro = DISTRO_DEBIAN,
     .compilers = COMPILER_GCC | COMPILER_CLANG,
     .check = LANE_CLANG,
-    .extra = { "lld", "llvm" },
+    .extra = { "lld", "llvm", "zlib1g-dev" },
+    .host_libs = { "z" },
     .lanes = { LANE_LLVM, LANE_CLANG, LANE_GCC, LANE_GCC_LLD, LANE_CLANG_BARE },
   },
   {
@@ -283,6 +297,49 @@ const variant_t variants [] = {
     .check = LANE_ZIG,
     .lanes = { LANE_ZIG },
   },
+  {
+    .name = "debian-zig-host",
+    .distro = DISTRO_DEBIAN,
+    .compilers = COMPILER_GCC,
+    .check = LANE_ZIG,
+    .extra = { "zlib1g-dev" },
+    .host_libs = { "z" },
+    .lanes = { LANE_ZIG },
+  },
+  {
+    .name = "debian-zig-host-bare",
+    .distro = DISTRO_DEBIAN,
+    .check = LANE_ZIG,
+    .extra = { "zlib1g-dev" },
+    .host_libs = { "z" },
+    .lanes = { LANE_ZIG },
+  },
+  {
+    .name = "fedora-zig-host",
+    .distro = DISTRO_FEDORA,
+    .compilers = COMPILER_GCC,
+    .check = LANE_ZIG,
+    .extra = { "zlib-devel" },
+    .host_libs = { "z" },
+    .lanes = { LANE_ZIG },
+  },
+  {
+    .name = "arch-zig-host",
+    .distro = DISTRO_ARCH,
+    .compilers = COMPILER_GCC,
+    .check = LANE_ZIG,
+    .extra = { "zlib" },
+    .host_libs = { "z" },
+    .lanes = { LANE_ZIG },
+  },
+  {
+    .name = "alpine-zig-host",
+    .distro = DISTRO_ALPINE,
+    .check = LANE_ZIG,
+    .extra = { "zlib-dev", "zlib-static" },
+    .host_libs = { "z" },
+    .lanes = { LANE_ZIG },
+  },
 };
 
 const u32 num_variants = sp_carr_len(variants);
@@ -319,6 +376,15 @@ static const c8* packages(distro_t distro, compiler_t compiler) {
         case COMPILER_GCC:   return "gcc musl-dev binutils";
         case COMPILER_GXX:   return "g++";
         case COMPILER_CLANG: return "clang musl-dev gcc binutils";
+      }
+      break;
+    }
+    case DISTRO_FEDORA:
+    case DISTRO_ARCH: {
+      switch (compiler) {
+        case COMPILER_GCC:   return "gcc";
+        case COMPILER_GXX:   break;
+        case COMPILER_CLANG: break;
       }
       break;
     }
@@ -429,6 +495,12 @@ sp_str_t variant_packages(sp_mem_t mem, const variant_t* variant) {
   return sp_str_join_n(mem, pieces, (u32)sp_da_size(pieces), sp_str_lit(" "));
 }
 
+sp_str_t variant_host_libs(sp_mem_t mem, const variant_t* variant) {
+  sp_da(sp_str_t) names = sp_da_new(mem, sp_str_t);
+  push_cstrs(&names, variant->host_libs, SMOKE_MAX_HOST_LIBS);
+  return sp_str_join_n(mem, names, (u32)sp_da_size(names), sp_str_lit(" "));
+}
+
 sp_str_t sysroot_links_setup(sp_mem_t mem, const sysroot_t* sysroot) {
   sp_da(sp_str_t) steps = sp_da_new(mem, sp_str_t);
   sp_da_push(steps, sp_fmt(mem, "mkdir -p {}", sp_fmt_cstr(sysroot->path)).value);
@@ -482,6 +554,9 @@ sp_str_t variant_summary(sp_mem_t mem, const variant_t* variant) {
       sp_da_push(names, sp_cstr_as_str(sysroots[variant->sysroots[it]].name));
     }
     sp_da_push(pieces, sp_fmt(mem, "sysroots {}", sp_fmt_str(sp_str_join_n(mem, names, (u32)sp_da_size(names), sp_str_lit(" ")))).value);
+  }
+  if (variant->host_libs[0]) {
+    sp_da_push(pieces, sp_fmt(mem, "host libs {}", sp_fmt_str(variant_host_libs(mem, variant))).value);
   }
   if (variant->lanes[0]) {
     sp_da(sp_str_t) names = sp_da_new(mem, sp_str_t);

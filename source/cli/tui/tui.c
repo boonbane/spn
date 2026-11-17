@@ -1526,6 +1526,58 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           );
           break;
         }
+        case SPN_ERR_TARGET_HOST_DEPS: {
+          spn_err_host_deps_t* err = &event->err.host_deps;
+          sp_str_t subject = subject_name(mem, err->pkg, err->name);
+          sp_str_t libs = sp_str_join_n(mem, err->libs, (u32)sp_da_size(err->libs), sp_str_lit(", "));
+          switch (err->reason) {
+            case SPN_HOST_REFUSAL_TARGET: {
+              sp_tty_fmt(
+                &w,
+                "{.cyan} links host libraries ({.red}), which only exist for this machine, but the build targets {.yellow}. Pass {.cyan}",
+                sp_fmt_str(subject),
+                sp_fmt_str(libs),
+                sp_fmt_str(spn_triple_to_str(mem, err->target)),
+                sp_fmt_str(sp_fmt(mem, "--target {}", sp_fmt_str(spn_triple_to_str(mem, err->host))).value)
+              );
+              break;
+            }
+            case SPN_HOST_REFUSAL_OS: {
+              sp_tty_fmt(
+                &w,
+                "{.cyan} links host libraries ({.red}), which aren't supported on {.yellow} yet",
+                sp_fmt_str(subject),
+                sp_fmt_str(libs),
+                sp_fmt_str(spn_os_to_str(err->host.os))
+              );
+              break;
+            }
+            case SPN_HOST_REFUSAL_SDK: {
+              sp_tty_fmt(
+                &w,
+                "{.cyan} links host libraries ({.red}), but {.yellow} builds against a sysroot, which hides them",
+                sp_fmt_str(subject),
+                sp_fmt_str(libs),
+                sp_fmt_str(spn_triple_to_str(mem, err->target))
+              );
+              break;
+            }
+            case SPN_HOST_REFUSAL_SCRIPT: {
+              sp_tty_fmt(
+                &w,
+                "{.cyan} links host libraries ({.red}) into a build script, which is compiled to WebAssembly and can't use them. Gate them with {.cyan}",
+                sp_fmt_str(subject),
+                sp_fmt_str(libs),
+                sp_fmt_str(sp_str_lit("when"))
+              );
+              break;
+            }
+            case SPN_HOST_REFUSAL_NONE: {
+              sp_unreachable_case();
+            }
+          }
+          break;
+        }
         case SPN_ERR_TARGET_SELECTION: {
           sp_tty_fmt(
             &w,

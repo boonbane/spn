@@ -137,6 +137,19 @@ spn_linking_refusal_t spn_ld_linking(spn_triple_t target, spn_linking_t request,
   return SPN_LINKING_REFUSAL_NONE;
 }
 
+spn_host_refusal_t spn_ld_host(spn_triple_t host, spn_triple_t target, spn_sdk_kind_t sdk) {
+  if (host.os != SPN_OS_LINUX) {
+    return SPN_HOST_REFUSAL_OS;
+  }
+  if (!spn_triple_equal(host, target)) {
+    return SPN_HOST_REFUSAL_TARGET;
+  }
+  if (sdk != SPN_SDK_NONE) {
+    return SPN_HOST_REFUSAL_SDK;
+  }
+  return SPN_HOST_REFUSAL_NONE;
+}
+
 spn_ld_dialect_t spn_ld_dialect(spn_triple_t target) {
   switch (target.os) {
     case SPN_OS_LINUX:

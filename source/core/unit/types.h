@@ -135,6 +135,7 @@ typedef struct {
 typedef struct {
   spn_cc_link_t cc;
   si_da(spn_link_dep_t) deps;
+  si_da(sp_str_t) host_libs;
 } spn_link_plan_t;
 
 typedef struct {

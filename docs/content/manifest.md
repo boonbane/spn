@@ -39,6 +39,7 @@ readme: false
 | `include` | array of [`source_entry`](#source_entry) \| `string` | |
 | `define` | array of [`value_entry`](#value_entry) \| `string` | |
 | `system_deps` | array of [`system_dep_entry`](#system_dep_entry) \| `string` | |
+| `host_deps` | array of [`host_dep_entry`](#host_dep_entry) \| `string` | |
 | `macos` | [`platform_macos`](#platform_macos) | |
 | `build` | [`build_script`](#build_script) | |
 | `configure` | [`build_script`](#build_script) | |
@@ -57,6 +58,7 @@ readme: false
 | `link_flags` | array of [`value_entry`](#value_entry) \| `string` | |
 | `linker_script` | array of [`source_entry`](#source_entry) \| `string` | |
 | `system_deps` | array of [`system_dep_entry`](#system_dep_entry) \| `string` | |
+| `host_deps` | array of [`host_dep_entry`](#host_dep_entry) \| `string` | |
 | `deps` | array of [`target_dep_entry`](#target_dep_entry) \| `string` | |
 | `link` | `bool` | |
 | `cxx` | [`cxx_options`](#cxx_options) | |
@@ -170,6 +172,13 @@ readme: false
 | `lib` | `string` |
 | `framework` | `string` |
 | `when` | [`when`](#extern-types) |
+
+## host_dep_entry
+
+| Field | Type | Required |
+|---|---|---|
+| `lib` | `string` | yes |
+| `when` | [`when`](#extern-types) | |
 
 ## platform_macos
 

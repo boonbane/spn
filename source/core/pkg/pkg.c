@@ -76,6 +76,7 @@ static si_target_t eval_target(eval_ctx_t* ctx, const si_target_info_t* decl) {
     .link_flags = eval_list(ctx, decl->link_flags),
     .linker_script = eval_paths(ctx, decl->linker_script),
     .system_deps = eval_list(ctx, decl->system_deps),
+    .host_deps = eval_list(ctx, decl->host_deps),
     .macos = { .frameworks = eval_list(ctx, decl->macos.frameworks) },
   };
   si_da_for_value(decl->deps, dep) {
@@ -106,6 +107,7 @@ si_pkg_t si_evaluate_package(sp_mem_t mem, const si_pkg_info_t* manifest, const 
     .define = eval_list(&ctx, manifest->define),
     .public_define = eval_list(&ctx, manifest->publish.define),
     .system_deps = eval_list(&ctx, manifest->system_deps),
+    .host_deps = eval_list(&ctx, manifest->host_deps),
     .publish = {
       .entries = eval_publish(&ctx, manifest->publish.entries),
       .system_deps = eval_list(&ctx, manifest->publish.system_deps),

@@ -128,6 +128,14 @@ typedef enum {
 } spn_linking_refusal_t;
 
 typedef enum {
+  SPN_HOST_REFUSAL_NONE,
+  SPN_HOST_REFUSAL_OS,
+  SPN_HOST_REFUSAL_TARGET,
+  SPN_HOST_REFUSAL_SDK,
+  SPN_HOST_REFUSAL_SCRIPT,
+} spn_host_refusal_t;
+
+typedef enum {
   SPN_UNPACK_NONE,
   SPN_UNPACK_UNREADABLE,
   SPN_UNPACK_UNRECOGNIZED,

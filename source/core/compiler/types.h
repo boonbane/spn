@@ -47,6 +47,7 @@ typedef struct {
   spn_cxx_options_t cxx;
   bool pic;
   spn_os_version_t min_os;
+  bool native;
 } spn_cc_compile_t;
 
 typedef struct {
@@ -93,6 +94,7 @@ typedef struct {
   si_da(sp_str_t) args;
   si_da(spn_path_t) scripts;
   spn_os_version_t min_os;
+  bool native;
   spn_win_subsystem_t subsystem;
 } spn_cc_link_t;
 

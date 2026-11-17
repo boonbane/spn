@@ -65,6 +65,11 @@ and skips with a reason otherwise.
   is for cases that need a program by name that the lane doesn't provide, like
   a fixture-local toolchain's `compiler = "gcc"`, never as a stand-in for a
   lane.
+- `.host_libs = { "z" }`: only where the environment says the machine has that
+  library and its headers installed, by naming it in `SPN_TEST_HOST_LIBS`
+  (space separated). A container variant declares its own in `host_libs` beside
+  the package that installs it, and the container tool sets the variable from
+  that; natively you set it yourself. Nothing is probed.
 
 A case whose fixture declares its own `[[toolchain]]` names it with
 `.toolchain = "F"` on the case; that is what `--toolchain` receives instead of
@@ -96,6 +101,22 @@ clang hands an `x86_64-none-elf` link to `gcc`, so `clang-bare` lives where
 both are installed. Debian names its mingw libgcc directory `12-win32`, which clang 14 does not
 parse as a version, so both clang mingw lanes name it with `-L`.
 
+## host libraries
+
+`target.host_deps` links zlib from the machine. The `*-zig-host` variants exist
+for it: each installs zlib's development package and hosts the `zig` lane, so
+the case builds with `--target=<arch>-native` against a different layout in
+each: Debian's multiarch dirs with a system compiler (`debian-zig-host`) and
+without one (`debian-zig-host-bare`), Fedora's `lib64`, Arch's `/usr/lib`, and
+Alpine's musl with a static zlib. zig finds the machine's libc through the
+system compiler when there is one and falls back to its own otherwise, so both
+are kept. `debian-gcc`, `debian-clang` and `debian-llvm` install zlib too, which
+runs the same case under the system drivers.
+
+```
+build/debug/smoke test -f 'target.host_deps*' debian-zig-host debian-zig-host-bare fedora-zig-host arch-zig-host alpine-zig-host
+```
+
 ## what a lane proves
 
 A lane declares its driver, `linker = "lld"` when its linker is lld, and the
@@ -111,7 +132,7 @@ fact matches the family the lane declares.
 
 | lane          | driver  | linker family              | link_args                          | hosted by                                     |
 |---------------|---------|----------------------------|------------------------------------|-----------------------------------------------|
-| `zig`         | zig     | lld (fixed)                |                                    | any host, `debian-zig`, `alpine-zig`          |
+| `zig`         | zig     | lld (fixed)                |                                    | any host, `debian-zig`, `alpine-zig`, `*-zig-host` |
 | `gcc`         | gcc     | native                     |                                    | `debian-gcc`, `debian-llvm`, `alpine`, ...    |
 | `gcc-lld`     | gcc     | lld                        | `-fuse-ld=lld`                     | `debian-gcc`, `debian-llvm`                   |
 | `clang`       | clang   | native                     |                                    | `debian-clang`, `debian-llvm`, `alpine-clang`, macOS |

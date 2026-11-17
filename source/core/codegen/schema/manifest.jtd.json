@@ -99,6 +99,15 @@
       }
     },
 
+    "host_dep_entry": {
+      "properties": {
+        "lib": { "type": "string" }
+      },
+      "optionalProperties": {
+        "when": { "metadata": { "extern": "when", "include": "when/types.h" } }
+      }
+    },
+
     "target_dep_entry": {
       "properties": {
         "lib": { "type": "string" }
@@ -161,6 +170,7 @@
         "include": { "elements": { "ref": "source_entry" }, "metadata": { "shorthand": "path" } },
         "define": { "elements": { "ref": "value_entry" }, "metadata": { "shorthand": "value" } },
         "system_deps": { "elements": { "ref": "system_dep_entry" }, "metadata": { "shorthand": "lib" } },
+        "host_deps": { "elements": { "ref": "host_dep_entry" }, "metadata": { "shorthand": "lib" } },
         "macos": { "ref": "platform_macos" },
         "build": { "ref": "build_script" },
         "configure": { "ref": "build_script" },
@@ -190,6 +200,7 @@
         "link_flags": { "elements": { "ref": "value_entry" }, "metadata": { "shorthand": "value" } },
         "linker_script": { "elements": { "ref": "source_entry" }, "metadata": { "shorthand": "path" } },
         "system_deps": { "elements": { "ref": "system_dep_entry" }, "metadata": { "shorthand": "lib" } },
+        "host_deps": { "elements": { "ref": "host_dep_entry" }, "metadata": { "shorthand": "lib" } },
         "deps": { "elements": { "ref": "target_dep_entry" }, "metadata": { "shorthand": "lib" } },
         "embed": { "elements": { "ref": "embed_entry" }, "metadata": { "shorthand": "path" } },
         "link": { "type": "boolean" },
