@@ -41,10 +41,13 @@ add_executable(core
   config/net.c
   external/backoff.c
   external/git.c
+  external/gzip.c
   external/http.c
   external/net.c
   external/obj.c
   external/wasm.c
+  external/xz.c
+  external/zip.c
   gen/lower.c
   gen/reader.c
   gen/union.c
@@ -115,6 +118,7 @@ add_executable(core
   reflect/read.c
   reflect/walk.c
   schema/schema.c
+  tar/read.c
   thread_pool/ops.c
   thread_pool/smoke.c
   toml/harness.c
@@ -147,6 +151,7 @@ add_executable(core
   toolchain/select.c
   toolchain/sha256.c
   toolchain/toolchain.c
+  toolchain/unpack.c
   toolchain/verify.c
   toolchain/zig.c
   unit/harness.c

@@ -1,0 +1,119 @@
+[package]
+name = "xz"
+version = "5.8.4"
+include = ["src/common", "src/liblzma/api"]
+system_deps = [
+  { lib = "pthread", when = { os = { not = "windows" } } },
+]
+
+[package.upstream]
+url = "https://github.com/tukaani-project/xz.git"
+commit = "d3e650e63c110e830fd5391e7f8b45df0b91d3da"
+
+[options.static]
+type = "bool"
+default = true
+public = true
+define = "LZMA_API_STATIC"
+
+[[lib]]
+name = "lzma"
+kinds = ["static"]
+include = [
+  "src/liblzma/common",
+  "src/liblzma/check",
+  "src/liblzma/lz",
+  "src/liblzma/rangecoder",
+  "src/liblzma/lzma",
+  "src/liblzma/delta",
+  "src/liblzma/simple",
+]
+source = [
+  "src/common/tuklib_physmem.c",
+  "src/common/tuklib_cpucores.c",
+  "src/liblzma/check/check.c",
+  "src/liblzma/check/crc32_fast.c",
+  "src/liblzma/check/crc64_fast.c",
+  "src/liblzma/check/sha256.c",
+  "src/liblzma/common/block_util.c",
+  "src/liblzma/common/common.c",
+  "src/liblzma/common/easy_preset.c",
+  "src/liblzma/common/filter_common.c",
+  "src/liblzma/common/hardware_physmem.c",
+  "src/liblzma/common/hardware_cputhreads.c",
+  "src/liblzma/common/index.c",
+  "src/liblzma/common/outqueue.c",
+  "src/liblzma/common/stream_flags_common.c",
+  "src/liblzma/common/string_conversion.c",
+  "src/liblzma/common/vli_size.c",
+  "src/liblzma/common/*_decoder.c",
+  "src/liblzma/common/easy_decoder_memusage.c",
+  "src/liblzma/common/file_info.c",
+  "src/liblzma/common/index_hash.c",
+  "src/liblzma/common/stream_decoder_mt.c",
+  "src/liblzma/delta/delta_common.c",
+  "src/liblzma/delta/delta_decoder.c",
+  "src/liblzma/lz/lz_decoder.c",
+  "src/liblzma/lzma/lzma_decoder.c",
+  "src/liblzma/lzma/lzma2_decoder.c",
+  "src/liblzma/lzma/lzma_encoder_presets.c",
+  "src/liblzma/simple/simple_coder.c",
+  "src/liblzma/simple/simple_decoder.c",
+  "src/liblzma/simple/x86.c",
+  "src/liblzma/simple/arm.c",
+  "src/liblzma/simple/armthumb.c",
+  "src/liblzma/simple/arm64.c",
+  "src/liblzma/simple/powerpc.c",
+  "src/liblzma/simple/ia64.c",
+  "src/liblzma/simple/sparc.c",
+  "src/liblzma/simple/riscv.c",
+]
+define = [
+  "HAVE_STDBOOL_H",
+  "HAVE_INTTYPES_H",
+  "HAVE_CHECK_CRC32",
+  "HAVE_CHECK_CRC64",
+  "HAVE_CHECK_SHA256",
+  "HAVE_DECODERS",
+  "HAVE_DECODER_LZMA1",
+  "HAVE_DECODER_LZMA2",
+  "HAVE_DECODER_DELTA",
+  "HAVE_DECODER_X86",
+  "HAVE_DECODER_ARM",
+  "HAVE_DECODER_ARMTHUMB",
+  "HAVE_DECODER_ARM64",
+  "HAVE_DECODER_POWERPC",
+  "HAVE_DECODER_IA64",
+  "HAVE_DECODER_SPARC",
+  "HAVE_DECODER_RISCV",
+  "HAVE_LZIP_DECODER",
+  "TUKLIB_SYMBOL_PREFIX=lzma_",
+  { value = "MYTHREAD_POSIX", when = { os = { not = "windows" } } },
+  { value = "MYTHREAD_VISTA", when = { os = "windows" } },
+  { value = "HAVE_CLOCK_GETTIME", when = { os = { not = "windows" } } },
+  { value = "HAVE_CLOCK_MONOTONIC", when = { os = "linux" } },
+  { value = "HAVE_PTHREAD_CONDATTR_SETCLOCK", when = { os = "linux" } },
+  { value = "TUKLIB_PHYSMEM_SYSCONF", when = { os = { not = "windows" } } },
+  { value = "TUKLIB_CPUCORES_SCHED_GETAFFINITY", when = { os = "linux" } },
+  { value = "TUKLIB_CPUCORES_SYSCTL", when = { os = "macos" } },
+  { value = "HAVE_SYS_PARAM_H", when = { os = "macos" } },
+  { value = "TUKLIB_FAST_UNALIGNED_ACCESS", when = { arch = "x86_64" } },
+  { value = "TUKLIB_FAST_UNALIGNED_ACCESS", when = { arch = "aarch64" } },
+  { value = "HAVE___BUILTIN_BSWAPXX", when = { driver = { not = "msvc" } } },
+  { value = "HAVE___BUILTIN_ASSUME_ALIGNED", when = { driver = { not = "msvc" } } },
+  { value = "HAVE_FUNC_ATTRIBUTE_CONSTRUCTOR", when = { driver = { not = "msvc" } } },
+  { value = "HAVE_CPUID_H", when = { arch = "x86_64", driver = { not = "msvc" } } },
+  { value = "HAVE_IMMINTRIN_H", when = { arch = "x86_64" } },
+  { value = "HAVE_USABLE_CLMUL", when = { arch = "x86_64" } },
+  { value = "HAVE_ARM64_CRC32", when = { arch = "aarch64", os = { not = "windows" } } },
+  { value = "HAVE_GETAUXVAL", when = { arch = "aarch64", os = "linux" } },
+  { value = "HAVE_HWCAP_CRC32", when = { arch = "aarch64", os = "linux" } },
+  { value = "_GNU_SOURCE", when = { abi = { not = "msvc" } } },
+]
+flags = [{ value = "-O2", when = { mode = "debug", abi = { not = "msvc" } } }]
+
+[package.publish]
+include = [
+  { from = "src/liblzma/api/lzma.h" },
+  { from = "src/liblzma/api/lzma/*.h", to = "lzma" },
+]

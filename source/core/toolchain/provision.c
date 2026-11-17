@@ -8,6 +8,7 @@
 #include "fs/fs.h"
 #include "paths/paths.h"
 #include "toolchain/toolchain.h"
+#include "toolchain/unpack.h"
 
 spn_err_t spn_toolchain_verify(spn_toolchain_store_t* store, const spn_toolchain_claim_t* claim, sp_mem_t mem, sp_str_t* actual) {
   sp_io_file_reader_t reader = sp_zero;
@@ -73,10 +74,23 @@ sp_da(sp_str_t) spn_artifact_mirror_urls(sp_mem_t mem, spn_artifact_t artifact, 
   return urls;
 }
 
+static bool empty(sp_path_t root) {
+  sp_sys_dir_t dir = sp_zero;
+  if (sp_fs_open_dir_at(root, &dir)) {
+    return true;
+  }
+  SP_ALIGNED u8 buf [SP_SYS_DIR_MIN_BUF];
+  sp_fs_dir_it_t it = sp_fs_dir_it(dir);
+  sp_fs_dir_entry_t entry = sp_zero;
+  bool found = sp_fs_dir_it_next(&it, sp_mem_slice(buf, sizeof(buf)), &entry);
+  sp_fs_dir_it_close(&it);
+  sp_fs_close_dir(dir);
+  return !found;
+}
+
 static spn_err_t install(spn_toolchain_store_t* store, sp_mem_t scratch, spn_toolchain_claim_t* claim, sp_str_t name, sp_str_t url) {
   spn_path_t dest = claim->root;
-  spn_path_t tarball = claim->tarball;
-  sp_path_t tarball_at = spn_path_at(store->roots, tarball);
+  sp_path_t tarball_at = spn_path_at(store->roots, claim->tarball);
 
   spn_path_t staged = sp_zero;
   if (spn_path_stage_dir(scratch, store->roots, dest, sp_str_lit("tmp"), &staged)) {
@@ -91,38 +105,24 @@ static spn_err_t install(spn_toolchain_store_t* store, sp_mem_t scratch, spn_too
   }
 
   sp_path_t work = spn_path_at(store->roots, staged);
-  sp_ps_output_t extract = sp_ps_run(scratch, (sp_ps_config_t) {
-    .command = sp_str_lit("tar"),
-    .args = {
-      sp_str_lit("xf"), spn_path_str(store->roots, scratch, tarball),
-      sp_str_lit("--strip-components=1"),
-      sp_str_lit("-C"), spn_path_str(store->roots, scratch, staged),
-    },
-    .io = {
-      .err = { .mode = SP_PS_IO_MODE_CREATE },
-    },
-  });
+  spn_unpack_failure_t failure = sp_zero;
+  spn_err_t err = spn_artifact_unpack(scratch, tarball_at, work, &failure);
+  if (!err && empty(work)) {
+    failure.reason = SPN_UNPACK_EMPTY;
+    err = SPN_ERROR;
+  }
 
   sp_fs_remove_file_at(tarball_at);
 
-  bool empty = true;
-  sp_sys_dir_t extracted = sp_zero;
-  if (!sp_fs_open_dir_at(work, &extracted)) {
-    SP_ALIGNED u8 buf [SP_SYS_DIR_MIN_BUF];
-    sp_fs_dir_it_t it = sp_fs_dir_it(extracted);
-    sp_fs_dir_entry_t entry = sp_zero;
-    empty = !sp_fs_dir_it_next(&it, sp_mem_slice(buf, sizeof(buf)), &entry);
-    sp_fs_dir_it_close(&it);
-    sp_fs_close_dir(extracted);
-  }
-  if (extract.status.exit_code || empty) {
+  if (err) {
     sp_fs_remove_dir_at(work);
     return spn_err_emit(&spn, (spn_err_union_t) {
       .kind = SPN_ERR_TOOLCHAIN_EXTRACT,
       .artifact = {
         .name = name,
         .url = url,
-        .output = sp_str_copy(spn.events->mem, sp_str_trim(extract.err)),
+        .unpack = failure.reason,
+        .entry = sp_str_copy(spn.events->mem, failure.entry),
       },
     });
   }

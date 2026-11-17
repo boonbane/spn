@@ -225,13 +225,16 @@
         "reason": { "ref": "linking_refusal" }
       }
     },
+    "unpack_reason": { "enum": ["none", "unreadable", "unrecognized", "corrupt", "unsupported", "unsafe", "unwritable", "empty"] },
     "artifact": {
       "properties": {
         "name": { "type": "string" },
         "url": { "type": "string" },
         "expected": { "type": "string" },
         "actual": { "type": "string" },
-        "output": { "type": "string" }
+        "output": { "type": "string" },
+        "unpack": { "ref": "unpack_reason" },
+        "entry": { "type": "string" }
       }
     },
     "cert": {

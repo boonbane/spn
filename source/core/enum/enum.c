@@ -463,6 +463,36 @@ sp_str_t spn_linking_refusal_to_str(spn_linking_refusal_t refusal) {
   SP_UNREACHABLE_RETURN(sp_str_lit(""));
 }
 
+sp_str_t spn_unpack_reason_to_str(spn_unpack_reason_t reason) {
+  switch (reason) {
+    case SPN_UNPACK_NONE: {
+      return sp_str_lit("none");
+    }
+    case SPN_UNPACK_UNREADABLE: {
+      return sp_str_lit("unreadable");
+    }
+    case SPN_UNPACK_UNRECOGNIZED: {
+      return sp_str_lit("unrecognized");
+    }
+    case SPN_UNPACK_CORRUPT: {
+      return sp_str_lit("corrupt");
+    }
+    case SPN_UNPACK_UNSUPPORTED: {
+      return sp_str_lit("unsupported");
+    }
+    case SPN_UNPACK_UNSAFE: {
+      return sp_str_lit("unsafe");
+    }
+    case SPN_UNPACK_UNWRITABLE: {
+      return sp_str_lit("unwritable");
+    }
+    case SPN_UNPACK_EMPTY: {
+      return sp_str_lit("empty");
+    }
+  }
+  SP_UNREACHABLE_RETURN(sp_str_lit(""));
+}
+
 sp_str_t spn_cc_feature_to_str(spn_cc_feature_t feature) {
   switch (feature) {
     case SPN_CC_FEATURE_LINK_EXE: {

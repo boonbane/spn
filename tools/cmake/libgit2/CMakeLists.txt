@@ -72,23 +72,6 @@ if(MSVC)
   target_compile_definitions(git2_pcre2 PRIVATE _CRT_SECURE_NO_WARNINGS)
 endif()
 
-file(GLOB GIT2_ZLIB_SOURCES ${GIT2_ROOT}/deps/zlib/*.c)
-add_library(git2_zlib OBJECT ${GIT2_ZLIB_SOURCES})
-target_include_directories(git2_zlib PRIVATE ${GIT2_ROOT}/deps/zlib)
-target_compile_definitions(git2_zlib PRIVATE
-  ${GIT2_PLATFORM_DEFINES}
-  NO_VIZ
-  STDC
-  NO_GZIP
-  HAVE_SYS_TYPES_H
-  HAVE_STDINT_H
-  HAVE_STDDEF_H
-)
-target_compile_options(git2_zlib PRIVATE ${GIT2_OPTIMIZE})
-if(MINGW)
-  target_compile_definitions(git2_zlib PRIVATE Z_HAVE_UNISTD_H _LFS64_LARGEFILE _LARGEFILE64_SOURCE=1)
-endif()
-
 file(GLOB GIT2_SOURCES
   ${GIT2_ROOT}/src/libgit2/*.c
   ${GIT2_ROOT}/src/libgit2/streams/*.c
@@ -109,7 +92,8 @@ else()
   file(GLOB GIT2_OS_SOURCES ${GIT2_ROOT}/src/util/unix/*.c)
 endif()
 
-add_library(git2 STATIC ${GIT2_SOURCES} ${GIT2_OS_SOURCES} $<TARGET_OBJECTS:git2_pcre2> $<TARGET_OBJECTS:git2_zlib>)
+add_library(git2 STATIC ${GIT2_SOURCES} ${GIT2_OS_SOURCES} $<TARGET_OBJECTS:git2_pcre2>)
+target_link_libraries(git2 PUBLIC z)
 target_include_directories(git2 PUBLIC ${GIT2_ROOT}/include)
 target_include_directories(git2 PRIVATE
   ${GIT2_ROOT}/src/libgit2
@@ -118,7 +102,6 @@ target_include_directories(git2 PRIVATE
   ${GIT2_ROOT}/deps/xdiff
   ${GIT2_ROOT}/deps/llhttp
   ${GIT2_ROOT}/deps/pcre2
-  ${GIT2_ROOT}/deps/zlib
   ${GIT2_CONFIG}
 )
 target_compile_definitions(git2 PUBLIC GIT_STATIC)
@@ -139,7 +122,7 @@ target_compile_definitions(git2 PRIVATE
   PCRE2_EXPORT=
   PCRE2_EXP_DECL=
   PCRE2_EXP_DEFN=
-  GIT_COMPRESSION_BUILTIN
+  GIT_COMPRESSION_ZLIB
   GIT_SSH
   GIT_SSH_EXEC
   GIT_NSEC

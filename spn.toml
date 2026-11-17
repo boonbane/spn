@@ -38,6 +38,8 @@ yyjson = { path = "vendor/yyjson"}
 blake3 = { path = "vendor/blake3"}
 libgit2 = { path = "vendor/libgit2" }
 curl = { path = "vendor/curl" }
+xz = { path = "vendor/xz" }
+zlib = { path = "vendor/zlib" }
 
 [deps.build]
 sp = { path = "vendor/sp" }
@@ -209,6 +211,7 @@ source = [
   "test/core/publish/publish.c",
   "test/core/reflect/*.c",
   "test/core/schema/schema.c",
+  "test/core/tar/*.c",
   "test/core/toml/*.c",
   "test/core/thread_pool/*.c",
   "test/core/zig/*.c",
@@ -433,6 +436,7 @@ include = ["include", "source/core", "source/util", "test/core", "test/core/tool
 deps = ["spn"]
 embed = [
   { path = "test/core/toolchain/toolchains", dir = true, dest = "test/core/toolchain/toolchains" },
+  { path = "test/core/toolchain/archives", dir = true, dest = "test/core/toolchain/archives" },
   { path = "source/core/toolchain/toolchains.toml", dest = "source/core/toolchain/toolchains.toml" },
 ]
 flags = ['-DTEST_EMBED="toolchain.embed.h"', '-DTOOLCHAINS_DIR="test/core/toolchain/toolchains"']

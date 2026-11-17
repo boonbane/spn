@@ -7,4 +7,4 @@ archiver = "bin/ar"
 target = [{ arch = "x86_64", os = "linux", abi = "gnu" }]
 
 [toolchain.host]
-x86_64-linux = { url = "file://@fixture@/payload.tar.gz", sha256 = "904330787961428ffcb3dc757d9f319755fb279da86413e97d37ad356a2cf8cf" }
+x86_64-linux = { url = "file://@fixture@/unsafe.tar.xz", sha256 = "0aa2f21603fd82beb920627c41a873db9a4f24e6c4e5516f0cdffc16ae74d75e" }

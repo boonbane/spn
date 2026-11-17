@@ -25,6 +25,7 @@ commit = "0551dfd4ad989b6a3d5683c0d4cf326c6efef929"
 
 [deps.package]
 mbedtls = { path = "../mbedtls", when = { os = { not = "windows" } } }
+zlib = { path = "../zlib" }
 
 [options.static]
 type = "bool"
@@ -42,7 +43,6 @@ include = [
   "deps/xdiff",
   "deps/llhttp",
   "deps/pcre2",
-  "deps/zlib",
   { path = "config", tree = "manifest" },
   { path = "deps/winhttp", when = { os = "windows", abi = "gnu" } },
 ]
@@ -82,7 +82,7 @@ define = [
   "PCRE2_EXPORT=",
   "PCRE2_EXP_DECL=",
   "PCRE2_EXP_DEFN=",
-  "GIT_COMPRESSION_BUILTIN",
+  "GIT_COMPRESSION_ZLIB",
   "GIT_SSH",
   "GIT_SSH_EXEC",
   "GIT_NSEC",
@@ -93,8 +93,8 @@ define = [
 flags = [{ value = "-O2", when = { mode = "debug", abi = { not = "msvc" } } }]
 deps = [
   { pkg = "mbedtls", when = { os = { not = "windows" } } },
+  { pkg = "zlib" },
   "git2_pcre2",
-  "git2_zlib",
 ]
 
 [[lib]]
@@ -141,24 +141,6 @@ define = [
   "PCRE2_EXP_DECL=",
   "PCRE2_EXP_DEFN=",
   { value = "_CRT_SECURE_NO_WARNINGS", when = { abi = "msvc" } },
-]
-flags = [{ value = "-O2", when = { mode = "debug", abi = { not = "msvc" } } }]
-
-[[lib]]
-name = "git2_zlib"
-kinds = ["static"]
-include = ["deps/zlib"]
-source = ["deps/zlib/*.c"]
-define = [
-  "NO_VIZ",
-  "STDC",
-  "NO_GZIP",
-  "HAVE_SYS_TYPES_H",
-  "HAVE_STDINT_H",
-  "HAVE_STDDEF_H",
-  { value = "Z_HAVE_UNISTD_H", when = { os = "windows", abi = "gnu" } },
-  { value = "_LFS64_LARGEFILE", when = { os = "windows", abi = "gnu" } },
-  { value = "_LARGEFILE64_SOURCE=1", when = { os = "windows", abi = "gnu" } },
 ]
 flags = [{ value = "-O2", when = { mode = "debug", abi = { not = "msvc" } } }]
 

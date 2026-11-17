@@ -206,11 +206,11 @@ static cell_t cells [] = {
     .args = { "build" },
   },
   {
-    .name = "err_toolchain_extract",
+    .name = "err_toolchain_unpack",
     .project = "test/render/fixtures/errors/artifact",
-    .config = "extract.toml",
+    .config = "unsafe.toml",
     .toolchain = "D",
-    .copy = { "payload.tar.gz" },
+    .copy = { "unsafe.tar.xz" },
     .args = { "build" },
   },
   {
