@@ -26,6 +26,7 @@ typedef struct {
   sp_str_t skip;
   spn_linkage_t linkage;
   u64 budget;
+  bool ungated;
   sp_da(spn_pin_t) preferences;
 } fx_config_t;
 
@@ -78,6 +79,7 @@ static resolve_result_t execute_fixture(const fx_config_t* config, const spn_pro
     },
     .config = project->config,
     .preferences = config->preferences,
+    .ungated = config->ungated,
     .budget = config->budget,
   };
 
@@ -122,6 +124,9 @@ static sp_err_t load_config(sp_test_t* t, sp_mem_t mem, sp_str_t dir, fx_config_
   if (budget.ok) {
     config->budget = (u64)budget.u.i;
   }
+
+  toml_value_t ungated = toml_table_bool(table, "ungated");
+  config->ungated = ungated.ok && ungated.u.b;
 
   toml_array_t* prefer = toml_table_array(table, "prefer");
   u32 num_preferred = prefer ? (u32)toml_array_len(prefer) : 0;

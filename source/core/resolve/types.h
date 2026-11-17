@@ -76,6 +76,7 @@ typedef struct spn_resolver_t {
   spn_pkg_config_map_t config;
   spn_option_seeds_t seeds;
   sp_da(spn_pin_t) preferences;
+  bool ungated;
   u64 budget;
 } spn_resolver_t;
 

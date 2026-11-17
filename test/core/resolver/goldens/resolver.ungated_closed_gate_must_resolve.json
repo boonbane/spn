@@ -1,0 +1,18 @@
+{
+  "version": 3,
+  "requests": [
+    {
+      "name": "root",
+      "kind": "package",
+      "source": "root"
+    }
+  ],
+  "packages": [],
+  "errors": [
+    {
+      "kind": "pkg_unknown",
+      "name": "w",
+      "range": "^1.0.0"
+    }
+  ]
+}
