@@ -109,7 +109,7 @@ static const test_t tests [] = {
   },
   {
     .name = "entry_matching_a_symlink_up_to_a_nul_is_unsafe",
-    .archive = "nul.tar.xz",
+    .archive = "zero.tar.xz",
     .symlinks = true,
     .nul = true,
     .expect = { .err = SPN_ERROR, .reason = SPN_UNPACK_UNSAFE, .entry = "A/O", .absent = "B" },

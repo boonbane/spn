@@ -92,10 +92,10 @@ pack onto A/O
 append onto --transform='s,^A/B$,A/O,' A/B
 seal onto
 
-pack nul --format=pax --pax-option='exthdr.name=%d/PaxHeaders/%f,delete=atime,ctime:=0' A/O
-append nul --format=pax --pax-option='exthdr.name=%d/PaxHeaders/%f,delete=atime,ctime:=0,path:=A/OX' A/B
-printf '\0' | dd of=nul.tar bs=1 seek=2059 conv=notrunc status=none
-seal nul
+pack zero --format=pax --pax-option='exthdr.name=%d/PaxHeaders/%f,delete=atime,ctime:=0' A/O
+append zero --format=pax --pax-option='exthdr.name=%d/PaxHeaders/%f,delete=atime,ctime:=0,path:=A/OX' A/B
+printf '\0' | dd of=zero.tar bs=1 seek=2059 conv=notrunc status=none
+seal zero
 
 pack outlink -P --transform='s,^A/B$,A/../B,RS' A/B A/E
 seal outlink
