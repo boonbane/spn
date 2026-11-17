@@ -1,0 +1,37 @@
+{
+  "version": 3,
+  "requests": [
+    {
+      "name": "root",
+      "kind": "package",
+      "source": "root"
+    }
+  ],
+  "packages": [
+    {
+      "name": "a",
+      "version": "1.0.0",
+      "hash": "b7a94fe237471b90",
+      "source": "index",
+      "recipe": "none"
+    },
+    {
+      "name": "root",
+      "version": "0.0.1",
+      "hash": "4066cbf6f0271bc7",
+      "source": "root",
+      "recipe": "local",
+      "edges": [
+        {
+          "to": {
+            "name": "a",
+            "version": "1.0.0",
+            "hash": "b7a94fe237471b90"
+          },
+          "kind": "package",
+          "edge": "scope"
+        }
+      ]
+    }
+  ]
+}

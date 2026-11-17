@@ -42,11 +42,6 @@ typedef struct {
 } spn_scope_boundary_t;
 
 typedef struct {
-  sp_intern_id_t name;
-  spn_semver_t version;
-} spn_pin_t;
-
-typedef struct {
   spn_pkg_id_t from;
   spn_dep_kind_t kind;
   sp_da(spn_requested_dep_t) reqs;
@@ -632,21 +627,28 @@ static spn_err_union_t resolve_index_package(spn_resolver_t* resolver, spn_resol
   // If the name is totally free, just pick the newest legal version. This
   // is just a simple, greedy heuristic, not for correctness.
   spn_err_union_t first = sp_zero;
-  sp_da_rfor(pkg->releases, it) {
-    spn_index_release_t* release = &pkg->releases[it];
-    if (release->yanked) {
-      continue;
-    }
-    if (!spn_semver_in_range(release->version, request->index.range)) {
-      continue;
-    }
+  const bool passes [] = { true, false };
+  sp_carr_for(passes, pass) {
+    sp_da_rfor(pkg->releases, it) {
+      spn_index_release_t* release = &pkg->releases[it];
+      bool preferred = false;
+      sp_da_for(resolver->preferences, pt) {
+        preferred = preferred || (resolver->preferences[pt].name == name && spn_semver_eq(resolver->preferences[pt].version, release->version));
+      }
+      if (preferred != passes[pass] || (release->yanked && !preferred)) {
+        continue;
+      }
+      if (!spn_semver_in_range(release->version, request->index.range)) {
+        continue;
+      }
 
-    spn_err_union_t err = try_candidate(resolver, run, release);
-    if (!err.kind || run->fatal) {
-      return err;
-    }
-    if (!first.kind) {
-      first = err;
+      spn_err_union_t err = try_candidate(resolver, run, release);
+      if (!err.kind || run->fatal) {
+        return err;
+      }
+      if (!first.kind) {
+        first = err;
+      }
     }
   }
 
@@ -802,7 +804,7 @@ static spn_err_union_t resolve_scope(spn_resolver_t* resolver, spn_resolve_run_t
   u64 from = scope->cursor;
   u64 to = sp_da_size(scope->reqs);
   scope->cursor = to;
-  run->budget = resolver->budget;
+  run->budget = resolver->budget ? resolver->budget : SPN_RESOLVE_DEFAULT_BUDGET;
   sp_os_qsort(scope->reqs + from, to - from, sizeof(spn_requested_dep_t), sort_req_canonical);
 
   // Re-entered scopes solve under their kept pins; re-pushed requests are a

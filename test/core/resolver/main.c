@@ -16,6 +16,7 @@
 #include "dump.h"
 #include "resolve/resolve.h"
 #include "resolve/types.h"
+#include "semver/parser.h"
 #include "spn/core.h"
 #include "toml/loader.h"
 
@@ -25,6 +26,7 @@ typedef struct {
   sp_str_t skip;
   spn_linkage_t linkage;
   u64 budget;
+  sp_da(spn_pin_t) preferences;
 } fx_config_t;
 
 typedef struct {
@@ -64,12 +66,20 @@ static resolve_result_t execute_fixture(const fx_config_t* config, const spn_pro
     .manifest = root,
   }));
 
-  spn_resolver_t resolver = sp_zero;
-  spn_resolver_init(&resolver, mem, intern, &cache, &registry, (spn_profile_info_t) {
-    .linking.linkage = config->linkage,
-    .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU },
-  }, project->config, config->budget);
-  resolver.roots = &roots;
+  spn_resolver_t resolver = {
+    .mem = mem,
+    .intern = intern,
+    .roots = &roots,
+    .index = &cache,
+    .registry = &registry,
+    .profile = {
+      .linking.linkage = config->linkage,
+      .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU },
+    },
+    .config = project->config,
+    .preferences = config->preferences,
+    .budget = config->budget,
+  };
 
   resolve_result_t result = sp_zero_s(resolve_result_t);
   result.intern = intern;
@@ -111,6 +121,21 @@ static sp_err_t load_config(sp_test_t* t, sp_mem_t mem, sp_str_t dir, fx_config_
   toml_value_t budget = toml_table_int(table, "budget");
   if (budget.ok) {
     config->budget = (u64)budget.u.i;
+  }
+
+  toml_array_t* prefer = toml_table_array(table, "prefer");
+  u32 num_preferred = prefer ? (u32)toml_array_len(prefer) : 0;
+  sp_da_init(mem, config->preferences);
+  sp_for(it, num_preferred) {
+    toml_table_t* entry = toml_array_table(prefer, (s32)it);
+    sp_must(t, entry != SP_NULLPTR);
+    toml_value_t name = toml_table_string(entry, "name");
+    toml_value_t version = toml_table_string(entry, "version");
+    sp_must(t, name.ok && version.ok);
+
+    spn_pin_t pin = { .name = sp_intern(spn.intern, sp_str(name.u.s, (u32)name.u.sl)).id };
+    sp_must_eq(t, SPN_OK, spn_semver_parse(sp_str(version.u.s, (u32)version.u.sl), &pin.version));
+    sp_da_push(config->preferences, pin);
   }
 
   toml_free(table);

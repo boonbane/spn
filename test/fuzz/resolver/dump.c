@@ -191,6 +191,9 @@ void fz_dump(fz_universe_t* u, u64 iter) {
   if (locals) {
     sp_fmt_io(out, "fuzz: universe holds local packages; the fixture renders them as index entries, replay with --iter {}\n", sp_fmt_uint(iter));
   }
+  if (!sp_da_empty(u->locked)) {
+    sp_fmt_io(out, "fuzz: universe holds a lock; the fixture leaves it out, replay with --iter {}\n", sp_fmt_uint(iter));
+  }
 
   sp_mem_end_scratch(scratch);
 }

@@ -48,6 +48,8 @@ sp_str_t fz_err_to_str(fz_err_t err) {
     case FZ_ERR_PIN_VERDICT:              return sp_str_lit("solve is unreachable when the index holds only its releases");
     case FZ_ERR_PIN_SOLUTION:             return sp_str_lit("solve changed when the index holds only its releases");
     case FZ_ERR_EXTEND_VERDICT:           return sp_str_lit("adding a release broke a satisfiable universe");
+    case FZ_ERR_LOCK_VERDICT:             return sp_str_lit("a locked solve failed after the index gained a release");
+    case FZ_ERR_LOCK_SOLUTION:            return sp_str_lit("a locked solve moved after the index gained a release");
     case FZ_ERR_COUNT:                    break;
   }
   sp_unreachable_return(sp_str_lit("unknown"));
@@ -213,9 +215,23 @@ static fz_result_t fz_execute(sp_mem_t mem, fz_universe_t* u, sp_intern_t* inter
     si_om_insert(mem, config, name.id, entry);
   }
 
-  spn_resolver_t resolver = sp_zero;
-  spn_resolver_init(&resolver, mem, intern, &cache, &registry, (spn_profile_info_t) { .linking.linkage = u->profile.linkage }, config, u->profile.budget);
-  resolver.roots = &roots;
+  spn_resolver_t resolver = {
+    .mem = mem,
+    .intern = intern,
+    .roots = &roots,
+    .index = &cache,
+    .registry = &registry,
+    .profile = { .linking.linkage = u->profile.linkage },
+    .config = config,
+    .preferences = sp_da_new(mem, spn_pin_t),
+    .budget = u->profile.budget,
+  };
+  sp_da_for(u->locked, it) {
+    sp_da_push(resolver.preferences, ((spn_pin_t) {
+      .name = sp_intern(intern, fz_pkg_name((u32)u->locked[it].pkg)).id,
+      .version = u->locked[it].version,
+    }));
+  }
 
   fz_result_t result = sp_zero_s(fz_result_t);
   spn_resolve_query_init(mem, &result.query);
@@ -374,6 +390,17 @@ static fz_err_t fz_run_iteration(sp_fuzz_prng_t base, u64 iter) {
       fz_result_t extended_result = fz_execute(mem, &extended, SP_NULLPTR);
       if (extended_result.err && !fz_failed_with(&extended_result, SPN_ERR_DYNAMIC_DUPLICATE)) {
         err = FZ_ERR_EXTEND_VERDICT;
+        dumped = extended;
+      }
+
+      extended.locked = solution;
+      fz_result_t locked_result = fz_execute(mem, &extended, SP_NULLPTR);
+      if (!err && locked_result.err) {
+        err = FZ_ERR_LOCK_VERDICT;
+        dumped = extended;
+      }
+      else if (!err && !fz_solution_equal(solution, fz_solution(mem, &extended, &locked_result.query))) {
+        err = FZ_ERR_LOCK_SOLUTION;
         dumped = extended;
       }
     }
