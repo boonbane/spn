@@ -139,6 +139,7 @@ typedef enum {
   SPN_OP_ENV,
   SPN_OP_SOURCE_PATH,
   SPN_OP_TOOL_PATH,
+  SPN_OP_UPDATE,
 } spn_op_kind_t;
 
 typedef struct {
@@ -185,6 +186,10 @@ typedef struct {
   sp_str_t name;
   spn_dep_kind_t kind;
 } spn_path_request_t;
+
+typedef struct {
+  spn_str_arr_t names;
+} spn_update_request_t;
 
 typedef struct {
   spn_str_arr_t files;

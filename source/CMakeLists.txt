@@ -84,6 +84,7 @@ set(SPN_CORE_SOURCES
   core/op/index.c
   core/op/op.c
   core/op/path.c
+  core/op/update.c
   core/op/test.c
   core/op/scaffold.c
   core/op/publish.c
@@ -159,6 +160,7 @@ set(SPN_CLI_SOURCES
   cli/commands/publish.c
   cli/commands/self.c
   cli/commands/test.c
+  cli/commands/update.c
   cli/host/host.c
   cli/main.c
   cli/install/install.c

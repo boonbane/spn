@@ -443,6 +443,17 @@ static cell_t cells [] = {
     .copy = { "spn.lock" },
     .args = { "build" },
   },
+  {
+    .name = "err_lock_absent",
+    .project = "test/integration/fixtures/lock/pair",
+    .args = { "update", "C" },
+  },
+  {
+    .name = "update",
+    .project = "test/integration/fixtures/lock/moved",
+    .copy = { "spn.lock" },
+    .args = { "update" },
+  },
 };
 
 static sp_str_t scrub(sp_mem_t mem, fixture_t* fixture, sp_str_t text) {

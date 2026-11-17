@@ -51,6 +51,7 @@ static s32 op_thread(void* data) {
           case SPN_OP_ENV:           op->result.err = spn_op_env(op); break;
           case SPN_OP_SOURCE_PATH:   op->result.err = spn_op_source_path(op); break;
           case SPN_OP_TOOL_PATH:     op->result.err = spn_op_tool_path(op); break;
+          case SPN_OP_UPDATE:        op->result.err = spn_op_update(op); break;
         }
       }
 

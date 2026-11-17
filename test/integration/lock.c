@@ -82,6 +82,15 @@ static const command_test_t commands [] = {
     .expect = { .rc = 1, .err = SPN_ERR_LOCK_STALE },
   },
   {
+    .name = "update_creates_lock",
+    .project = "test/integration/fixtures/lock/pair",
+    .args = { "update" },
+    .expect.locked = {
+      { .name = "A", .version = "1.0.0" },
+      { .name = "B", .version = "1.0.0" },
+    },
+  },
+  {
     .name = "invalid_rejected",
     .project = "test/integration/fixtures/lock/invalid",
     .copy = { "spn.lock" },
@@ -163,6 +172,112 @@ static const rebuild_test_t rebuilds [] = {
               { .name = "B", .version = "1.0.0" },
             },
           },
+        },
+      },
+    },
+  },
+  {
+    .name = "update_moves_all",
+    .project = "test/integration/fixtures/lock/pair",
+    .copy = { "spn.wide.toml" },
+    .first.args = { "build" },
+    .rebuilds = {
+      {
+        .change.moves = { { .from = "spn.wide.toml", .to = "spn.toml" } },
+        .command = {
+          .args = { "update" },
+          .expect.locked = {
+            { .name = "A", .version = "1.1.0" },
+            { .name = "B", .version = "1.1.0" },
+          },
+        },
+      },
+    },
+  },
+  {
+    .name = "update_moves_named",
+    .project = "test/integration/fixtures/lock/pair",
+    .copy = { "spn.wide.toml" },
+    .first.args = { "build" },
+    .rebuilds = {
+      {
+        .change.moves = { { .from = "spn.wide.toml", .to = "spn.toml" } },
+        .command = {
+          .args = { "update", "A" },
+          .expect.locked = {
+            { .name = "A", .version = "1.1.0" },
+            { .name = "B", .version = "1.0.0" },
+          },
+        },
+      },
+    },
+  },
+  {
+    .name = "update_reports_changes",
+    .project = "test/integration/fixtures/lock/pair",
+    .copy = { "spn.wide.toml" },
+    .first.args = { "build" },
+    .rebuilds = {
+      {
+        .change.moves = { { .from = "spn.wide.toml", .to = "spn.toml" } },
+        .command = {
+          .args = { "update", "A" },
+          .expect.events = {
+            { .event = SPN_EVENT_LOCK_REMOVED, .key = "version", .value = "1.0.0" },
+            { .event = SPN_EVENT_LOCK_ADDED, .key = "version", .value = "1.1.0" },
+          },
+        },
+      },
+    },
+  },
+  {
+    .name = "update_accepts_moved_source",
+    .project = "test/integration/fixtures/lock/moved",
+    .copy = { "spn.lock" },
+    .first.args = { "update" },
+    .rebuilds = {
+      {
+        .command.args = { "build", "--locked" },
+      },
+    },
+  },
+  {
+    .name = "update_leaves_unnamed",
+    .project = "test/integration/fixtures/lock/moved",
+    .copy = { "spn.lock" },
+    .first.args = { "update", "B" },
+    .rebuilds = {
+      {
+        .command = {
+          .args = { "build" },
+          .expect = { .rc = 1, .err = SPN_ERR_LOCK_MISMATCH },
+        },
+      },
+    },
+  },
+  {
+    .name = "update_named_converges",
+    .project = "test/integration/fixtures/lock/moved",
+    .copy = { "spn.lock" },
+    .first.args = { "update", "A" },
+    .rebuilds = {
+      {
+        .command.args = { "update", "B" },
+      },
+      {
+        .command.args = { "build", "--locked" },
+      },
+    },
+  },
+  {
+    .name = "update_unknown_name",
+    .project = "test/integration/fixtures/lock/pair",
+    .first.args = { "build" },
+    .rebuilds = {
+      {
+        .command = {
+          .args = { "update", "C" },
+          .expect = { .rc = 1, .err = SPN_ERR_LOCK_ABSENT },
         },
       },
     },

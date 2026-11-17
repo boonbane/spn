@@ -519,6 +519,11 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
       );
       break;
     }
+    case SPN_EVENT_LOCK_ADDED:
+    case SPN_EVENT_LOCK_REMOVED: {
+      sp_tty_fmt(&w, "{.gray}", sp_fmt_str(event->resolve_pkg.version));
+      break;
+    }
     case SPN_EVENT_ADDED: {
       sp_tty_fmt(&w, "{.cyan}=={.green}",
         sp_fmt_str(event->added.name),
@@ -889,6 +894,15 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
             "This build selects {} {.yellow}, which {.cyan} does not pin; spn cannot build these dependencies from one lockfile yet",
             sp_fmt_str(colored_name(w.color, mem, event->err.subject)),
             sp_fmt_str(spn_semver_to_str(mem, event->err.lock_unpinned.version)),
+            sp_fmt_cstr("spn.lock")
+          );
+          break;
+        }
+        case SPN_ERR_LOCK_ABSENT: {
+          sp_tty_fmt(
+            &w,
+            "{} is not in {.cyan}",
+            sp_fmt_str(colored_name(w.color, mem, event->err.subject)),
             sp_fmt_cstr("spn.lock")
           );
           break;
