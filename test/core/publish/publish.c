@@ -20,6 +20,7 @@ typedef struct {
   struct {
     const c8* subdir;
     const c8* url;
+    const c8* tag;
     u32 source_commit;
   } opts;
 
@@ -124,6 +125,32 @@ static const case_t cases [] = {
       .source_url = "https://github.com/A/B.git",
       .manifest_url = "https://github.com/C/D.git",
       .manifest_commit = 1,
+    },
+  },
+  {
+    .name = "annotated_tag_revision",
+    .repo = {
+      .name = "spum",
+      .commits = {
+        {
+          .message = "v1",
+          .files = {
+            { "spn.toml",
+              ts(package) "\n"
+              tkv(name, "spum") "\n"
+              tkv(version, "1.0.0") "\n"
+            },
+            { "spn.c", "void build() {}" },
+          },
+        },
+      },
+    },
+    .opts.tag = "v1.0.0",
+    .expect = {
+      .kind = SPN_OK,
+      .name = "spum",
+      .version = { .major = 1 },
+      .source_commit = 1,
     },
   },
   {
@@ -359,12 +386,18 @@ sp_test_each(cmd_publish, publish, case_t, cases, .setup = spn_test_ctx_setup) {
   u32 rev_idx = c.opts.source_commit ? c.opts.source_commit - 1 : 0;
   SP_ASSERT(rev_idx < repo.commit_count);
 
+  sp_str_t revision = sp_str_prefix(repo.commits[rev_idx], 12);
+  if (c.opts.tag) {
+    git(repo.path, "tag", "-a", c.opts.tag, "-m", c.opts.tag, sp_str_to_cstr(mem, repo.commits[rev_idx]));
+    revision = sp_cstr_as_str(c.opts.tag);
+  }
+
   spn_publish_opts_t opts = {
     .mem = mem,
     .roots = &spn.roots,
     .dir = { .sub = cwd },
     .url = c.opts.url ? sp_cstr_as_str(c.opts.url) : repo.path,
-    .revision = sp_str_prefix(repo.commits[rev_idx], 12),
+    .revision = revision,
   };
 
   si_pkg_info_t pkg = sp_zero;

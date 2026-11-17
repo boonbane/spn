@@ -360,10 +360,14 @@ spn_err_t spn_git_get_commit_full(sp_mem_t mem, sp_str_t repo, sp_str_t id, sp_s
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   git_repository* r = open_repo(repo);
   git_object* object = SP_NULLPTR;
-  bool ok = r && !git_revparse_single(&object, r, sp_str_to_cstr(scratch.mem, id));
+  git_object* commit = SP_NULLPTR;
+  bool ok = r &&
+    !git_revparse_single(&object, r, sp_str_to_cstr(scratch.mem, id)) &&
+    !git_object_peel(&commit, object, GIT_OBJECT_COMMIT);
   if (ok) {
-    *sha = sp_str_copy(mem, sp_cstr_as_str(git_oid_tostr_s(git_object_id(object))));
+    *sha = sp_str_copy(mem, sp_cstr_as_str(git_oid_tostr_s(git_object_id(commit))));
   }
+  git_object_free(commit);
   git_object_free(object);
   git_repository_free(r);
   sp_mem_end_scratch(scratch);
