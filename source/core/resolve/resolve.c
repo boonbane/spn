@@ -431,13 +431,6 @@ static spn_err_union_t resolve_local_package(spn_resolver_t* resolver, spn_resol
   spn_scope_t* scope = &run->scopes[run->scope];
   sp_intern_id_t name = request->name.id;
 
-  if (sp_ht_getp(run->visited, name)) {
-    return (spn_err_union_t) {
-      .kind = SPN_ERR_DEP_CYCLE,
-      .subject = request->name.str,
-    };
-  }
-
   if (sp_ht_getp(scope->named, name)) {
     return ok_union();
   }
@@ -559,13 +552,6 @@ static spn_err_union_t resolve_index_package(spn_resolver_t* resolver, spn_resol
   spn_scope_t* scope = &run->scopes[run->scope];
   sp_intern_id_t name = request->name.id;
 
-  if (sp_ht_getp(run->visited, name)) {
-    return (spn_err_union_t) {
-      .kind = SPN_ERR_DEP_CYCLE,
-      .subject = request->name.str,
-    };
-  }
-
   // If this scope already resolved a version for this package, check if that version satisfies
   // this request, too. If not, the scope is unsatisfiable; a caller with alternatives backtracks.
   spn_resolved_pkg_t* existing = sp_ht_getp(scope->named, name);
@@ -671,6 +657,13 @@ static spn_err_union_t resolve_dep(spn_resolver_t* resolver, spn_resolve_run_t* 
     case SPN_DEP_EDGE_SCOPE: {
       break;
     }
+  }
+
+  if (sp_ht_getp(run->visited, dep->name.id)) {
+    return (spn_err_union_t) {
+      .kind = SPN_ERR_DEP_CYCLE,
+      .subject = dep->name.str,
+    };
   }
 
   switch (dep->source) {
