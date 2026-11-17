@@ -50,26 +50,26 @@ static const test_t tests [] = {
   {
     .name = "selection_default",
     .project = "test/integration/fixtures/target/selection",
-    .copy = { "spum.c", "script.c", "x.c" },
+    .copy = { "spum.c", "tool.c", "x.c" },
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
       { .kind = ACTION_VERIFY_EXISTS, .exists = pkg_static_lib("test", "spum") },
       { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
       { .kind = ACTION_VERIFY_EXISTS, .exists = test_exe("test") },
       { .kind = ACTION_VERIFY_EXISTS, .exists = example_exe("x") },
-      { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = pkg_store_exe("test", "script") },
+      { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = pkg_store_exe("test", "tool") },
     },
   },
   {
     .name = "selection_example",
     .project = "test/integration/fixtures/target/selection",
-    .copy = { "spum.c", "script.c", "x.c" },
+    .copy = { "spum.c", "tool.c", "x.c" },
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { "build", .args = { "--example" } } },
       { .kind = ACTION_VERIFY_EXISTS, .exists = example_exe("x") },
       { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = pkg_store_exe("test", "main") },
       { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = test_exe("test") },
-      { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = pkg_store_exe("test", "script") },
+      { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = pkg_store_exe("test", "tool") },
     },
   },
   {
@@ -85,20 +85,20 @@ static const test_t tests [] = {
   {
     .name = "selection_multiple_kinds",
     .project = "test/integration/fixtures/target/selection",
-    .copy = { "spum.c", "script.c" },
+    .copy = { "spum.c", "tool.c" },
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { "build", .args = { "--bin", "--test" } } },
       { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
       { .kind = ACTION_VERIFY_EXISTS, .exists = pkg_static_lib("test", "spum") },
       { .kind = ACTION_VERIFY_EXISTS, .exists = test_exe("test") },
-      { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = pkg_store_exe("test", "script") },
+      { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = pkg_store_exe("test", "tool") },
       { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = example_exe("x") },
     },
   },
   {
     .name = "selection_name_respects_kind",
     .project = "test/integration/fixtures/target/selection",
-    .copy = { "spum.c", "script.c" },
+    .copy = { "spum.c", "tool.c" },
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { "build", .args = { "--lib", "main" }, .rc = 1 } },
       { .kind = ACTION_VERIFY_RESULT, .verify_result = { .err = SPN_ERR_TARGET_SELECTION } },
@@ -108,22 +108,22 @@ static const test_t tests [] = {
   {
     .name = "selection_test_command",
     .project = "test/integration/fixtures/target/selection",
-    .copy = { "spum.c", "script.c" },
+    .copy = { "spum.c", "tool.c" },
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { "test", .args = { "test" } } },
       { .kind = ACTION_VERIFY_EXISTS, .exists = test_exe("test") },
       { .kind = ACTION_VERIFY_EXISTS, .exists = pkg_static_lib("test", "spum") },
       { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = pkg_store_exe("test", "main") },
-      { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = pkg_store_exe("test", "script") },
+      { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = pkg_store_exe("test", "tool") },
     },
   },
   {
-    .name = "selection_named_script",
+    .name = "selection_named_tool",
     .project = "test/integration/fixtures/target/selection",
-    .copy = { "spum.c", "script.c" },
+    .copy = { "spum.c", "tool.c" },
     .actions = {
-      { .kind = ACTION_RUN_CLI, .cli = { "build", .args = { "script" } } },
-      { .kind = ACTION_VERIFY_EXISTS, .exists = exe("script") },
+      { .kind = ACTION_RUN_CLI, .cli = { "build", .args = { "tool" } } },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = exe("tool") },
       { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = pkg_store_exe("test", "main") },
       { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = test_exe("test") },
     },

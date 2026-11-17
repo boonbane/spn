@@ -26,7 +26,7 @@ typedef struct {
 typedef struct {
   const c8* lib_source [EVAL_TEST_MAX];
   const c8* source [EVAL_TEST_MAX];
-  const c8* script_source [EVAL_TEST_MAX];
+  const c8* tool_source [EVAL_TEST_MAX];
   const c8* test_source [EVAL_TEST_MAX];
   const c8* build_source [EVAL_TEST_MAX];
   const c8* include [EVAL_TEST_MAX];
@@ -54,7 +54,7 @@ typedef struct {
   spn_when_facts_t facts;
   list_t lib_source;
   list_t source;
-  list_t script_source;
+  list_t tool_source;
   list_t test_source;
   list_t build_source;
   list_t include;
@@ -209,10 +209,10 @@ static const lists_test_t lists_tests [] = {
     .expect = { .source = { "A", "C" } },
   },
   {
-    .name = "script_source",
+    .name = "tool_source",
     .facts = { .os = SPN_OS_LINUX },
-    .script_source = { .values = { { "A" }, { "B", { { "os", "windows" } } }, { "C", { { "os", "linux" } } } } },
-    .expect = { .script_source = { "A", "C" } },
+    .tool_source = { .values = { { "A" }, { "B", { { "os", "windows" } } }, { "C", { { "os", "linux" } } } } },
+    .expect = { .tool_source = { "A", "C" } },
   },
   {
     .name = "test_source",
@@ -330,18 +330,18 @@ sp_test_each(pkg_eval, lists, lists_test_t, lists_tests, .setup = spn_test_ctx_s
   si_pkg_info_t manifest = test_manifest_make(sp_str_lit("P"));
   si_target_info_t* lib = SP_NULLPTR;
   si_target_info_t* exe = SP_NULLPTR;
-  si_target_info_t* script = SP_NULLPTR;
+  si_target_info_t* tool = SP_NULLPTR;
   si_target_info_t* unit_test = SP_NULLPTR;
   si_target_info_t* build = SP_NULLPTR;
   lib = test_manifest_target(mem, &manifest, sp_str_lit("A"), SPN_TARGET_KIND_LIB);
   exe = test_manifest_target(mem, &manifest, sp_str_lit("main"), SPN_TARGET_KIND_EXE);
-  script = test_manifest_target(mem, &manifest, sp_str_lit("B"), SPN_TARGET_KIND_SCRIPT);
+  tool = test_manifest_target(mem, &manifest, sp_str_lit("B"), SPN_TARGET_KIND_TOOL);
   unit_test = test_manifest_target(mem, &manifest, sp_str_lit("C"), SPN_TARGET_KIND_TEST);
   build = test_manifest_target(mem, &manifest, sp_str_lit("build"), SPN_TARGET_KIND_BUILD_METAPROGRAM);
 
   lib->source = make_sources(mem, it->lib_source);
   exe->source = make_sources(mem, it->source);
-  script->source = make_sources(mem, it->script_source);
+  tool->source = make_sources(mem, it->tool_source);
   unit_test->source = make_sources(mem, it->test_source);
   build->source = make_sources(mem, it->build_source);
   exe->include = make_paths(mem, it->include);
@@ -374,15 +374,15 @@ sp_test_each(pkg_eval, lists, lists_test_t, lists_tests, .setup = spn_test_ctx_s
   si_pkg_t pkg = eval(mem, &manifest, &env);
   si_target_t* lib_eval = spn_pkg_get_target(&pkg, spn_intern_lit("A").id, SPN_TARGET_KIND_LIB);
   si_target_t* exe_eval = spn_pkg_get_target(&pkg, spn_intern_lit("main").id, SPN_TARGET_KIND_EXE);
-  si_target_t* script_eval = spn_pkg_get_target(&pkg, spn_intern_lit("B").id, SPN_TARGET_KIND_SCRIPT);
+  si_target_t* tool_eval = spn_pkg_get_target(&pkg, spn_intern_lit("B").id, SPN_TARGET_KIND_TOOL);
   si_target_t* test_eval = spn_pkg_get_target(&pkg, spn_intern_lit("C").id, SPN_TARGET_KIND_TEST);
   si_target_t* build_eval = spn_pkg_get_target(&pkg, spn_intern_lit("build").id, SPN_TARGET_KIND_BUILD_METAPROGRAM);
-  sp_must(t, lib_eval && exe_eval && script_eval && test_eval && build_eval);
+  sp_must(t, lib_eval && exe_eval && tool_eval && test_eval && build_eval);
   sp_expect(t, exe_eval->info == exe);
 
   sp_try(expect_sources(t, lib_eval->source, it->expect.lib_source));
   sp_try(expect_sources(t, exe_eval->source, it->expect.source));
-  sp_try(expect_sources(t, script_eval->source, it->expect.script_source));
+  sp_try(expect_sources(t, tool_eval->source, it->expect.tool_source));
   sp_try(expect_sources(t, test_eval->source, it->expect.test_source));
   sp_try(expect_sources(t, build_eval->source, it->expect.build_source));
   sp_try(expect_paths(t, exe_eval->include, it->expect.include));

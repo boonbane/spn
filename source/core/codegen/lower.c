@@ -361,7 +361,7 @@ static void lower_package(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, s
 static void lower_targets(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, si_pkg_info_t* out) {
   lower_collection(ctx, cg->lib, "lib", out, SPN_TARGET_KIND_LIB);
   lower_collection(ctx, cg->bin, "bin", out, SPN_TARGET_KIND_EXE);
-  lower_collection(ctx, cg->script, "script", out, SPN_TARGET_KIND_SCRIPT);
+  lower_collection(ctx, cg->tool, "tool", out, SPN_TARGET_KIND_TOOL);
   lower_collection(ctx, cg->test, "test", out, SPN_TARGET_KIND_TEST);
   lower_collection(ctx, cg->example, "example", out, SPN_TARGET_KIND_EXAMPLE);
 }
@@ -885,7 +885,7 @@ static void validate_whens(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, 
   validate_dep_whens(ctx, out);
   validate_target_whens(ctx, cg->lib, "lib", out);
   validate_target_whens(ctx, cg->bin, "bin", out);
-  validate_target_whens(ctx, cg->script, "script", out);
+  validate_target_whens(ctx, cg->tool, "tool", out);
   validate_target_whens(ctx, cg->test, "test", out);
   validate_target_whens(ctx, cg->example, "example", out);
   validate_pkg_whens(ctx, cg, out);
@@ -1043,7 +1043,7 @@ static void validate_collection_lib_only(spn_toml_loader_t* ctx, spn_cg_target_o
 
 static void validate_lib_only(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg) {
   validate_collection_lib_only(ctx, cg->bin, "bin");
-  validate_collection_lib_only(ctx, cg->script, "script");
+  validate_collection_lib_only(ctx, cg->tool, "tool");
   validate_collection_lib_only(ctx, cg->test, "test");
   validate_collection_lib_only(ctx, cg->example, "example");
 }
@@ -1159,7 +1159,7 @@ static void validate_script_trees(spn_toml_loader_t* ctx, const spn_cg_build_scr
 static void validate_trees(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg) {
   validate_collection_trees(ctx, cg->lib, "lib");
   validate_collection_trees(ctx, cg->bin, "bin");
-  validate_collection_trees(ctx, cg->script, "script");
+  validate_collection_trees(ctx, cg->tool, "tool");
   validate_collection_trees(ctx, cg->test, "test");
   validate_collection_trees(ctx, cg->example, "example");
   spn_toml_loader_push_key(ctx, "package");
@@ -1173,7 +1173,7 @@ static void validate_trees(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg) 
 static void validate_cxx(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg) {
   validate_collection_cxx(ctx, cg->lib, "lib");
   validate_collection_cxx(ctx, cg->bin, "bin");
-  validate_collection_cxx(ctx, cg->script, "script");
+  validate_collection_cxx(ctx, cg->tool, "tool");
   validate_collection_cxx(ctx, cg->test, "test");
   validate_collection_cxx(ctx, cg->example, "example");
 }
@@ -1212,7 +1212,7 @@ static void validate_collection_platform(spn_toml_loader_t* ctx, spn_cg_target_o
 static void validate_platform(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg) {
   validate_collection_platform(ctx, cg->lib, "lib", true);
   validate_collection_platform(ctx, cg->bin, "bin", false);
-  validate_collection_platform(ctx, cg->script, "script", false);
+  validate_collection_platform(ctx, cg->tool, "tool", false);
   validate_collection_platform(ctx, cg->test, "test", false);
   validate_collection_platform(ctx, cg->example, "example", false);
 }
@@ -1241,7 +1241,7 @@ static void validate_system_deps(spn_toml_loader_t* ctx, const spn_cg_manifest_t
   } collections [] = {
     { "lib", cg->lib },
     { "bin", cg->bin },
-    { "script", cg->script },
+    { "tool", cg->tool },
     { "test", cg->test },
     { "example", cg->example },
   };
@@ -1281,7 +1281,7 @@ static void validate_staged_names(spn_toml_loader_t* ctx, const spn_cg_manifest_
     spn_cg_target_om_t targets;
   } staged [] = {
     { "bin", cg->bin },
-    { "script", cg->script },
+    { "tool", cg->tool },
   };
 
   sp_carr_for(staged, st) {
@@ -1299,12 +1299,12 @@ static void validate_staged_names(spn_toml_loader_t* ctx, const spn_cg_manifest_
     spn_toml_loader_pop(ctx);
   }
 
-  spn_toml_loader_push_key(ctx, "script");
-  sp_om_for(cg->script, it) {
-    const spn_cg_target_t* script = sp_str_om_at(cg->script, it);
-    if (sp_str_om_has(cg->bin, script->name)) {
+  spn_toml_loader_push_key(ctx, "tool");
+  sp_om_for(cg->tool, it) {
+    const spn_cg_target_t* tool = sp_str_om_at(cg->tool, it);
+    if (sp_str_om_has(cg->bin, tool->name)) {
       spn_toml_loader_push_index(ctx, it);
-      spn_toml_loader_issue_at(ctx, SPN_ERR_CODEGEN_DUPLICATE_KEY, script->name);
+      spn_toml_loader_issue_at(ctx, SPN_ERR_CODEGEN_DUPLICATE_KEY, tool->name);
       spn_toml_loader_pop(ctx);
     }
   }
@@ -1317,7 +1317,7 @@ static void validate_names(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg) 
   spn_toml_loader_pop(ctx);
   validate_collection_names(ctx, cg->lib, "lib");
   validate_collection_names(ctx, cg->bin, "bin");
-  validate_collection_names(ctx, cg->script, "script");
+  validate_collection_names(ctx, cg->tool, "tool");
   validate_collection_names(ctx, cg->test, "test");
   validate_collection_names(ctx, cg->example, "example");
   validate_staged_names(ctx, cg);
@@ -1330,7 +1330,7 @@ static void validate_target_deps(spn_toml_loader_t* ctx, const spn_cg_manifest_t
   } collections [] = {
     { "lib", cg->lib },
     { "bin", cg->bin },
-    { "script", cg->script },
+    { "tool", cg->tool },
     { "test", cg->test },
     { "example", cg->example },
   };

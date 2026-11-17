@@ -31,7 +31,7 @@ sp_test_each(layout, cases, test_t, tests) {
 
 static const command_test_t commands [] = {
   {
-    .name = "staged_script",
+    .name = "staged_tool",
     .project = "test/integration/fixtures/script/staged",
     .args = { "build", "main" },
     .expect.exists = { exe("main") },

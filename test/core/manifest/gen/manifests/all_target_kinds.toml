@@ -10,7 +10,7 @@ source = ["lib.c"]
 name = "cli"
 source = ["main.c"]
 
-[[script]]
+[[tool]]
 name = "gen"
 source = ["gen.sh"]
 

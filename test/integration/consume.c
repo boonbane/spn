@@ -50,7 +50,7 @@ static const command_test_t tests [] = {
     .args = { "build", "main" },
     .expect = {
       .exists = { pkg_static_lib("dependency", "dependency"), exe("main") },
-      .missing = { pkg_store_exe("dependency", "dependency-bin"), pkg_store_exe("dependency", "dependency-script"), test_exe("dependency-test") },
+      .missing = { pkg_store_exe("dependency", "dependency-bin"), pkg_store_exe("dependency", "dependency-tool"), test_exe("dependency-test") },
     },
   },
   {

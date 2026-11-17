@@ -196,7 +196,7 @@ typedef struct {
   issue_t issues [8];
   target_t libs [8];
   target_t exes [8];
-  target_t scripts [8];
+  target_t tools [8];
   target_t tests [8];
   target_t examples [8];
   dep_t deps [8];
@@ -290,9 +290,9 @@ static const test_t tests [] = {
     }
   },
   {
-    .name = "script",
-    .manifest = "script",
-    .scripts = {
+    .name = "tool",
+    .manifest = "tool",
+    .tools = {
       { .name = "t" }
     }
   },
@@ -463,7 +463,7 @@ static const test_t tests [] = {
     .issues = {
       { SPN_ERR_CODEGEN_INVALID, "lib[0].name" },
       { SPN_ERR_CODEGEN_INVALID, "bin[0].name" },
-      { SPN_ERR_CODEGEN_INVALID, "script[0].name" },
+      { SPN_ERR_CODEGEN_INVALID, "tool[0].name" },
       { SPN_ERR_CODEGEN_INVALID, "test[0].name" },
       { SPN_ERR_CODEGEN_INVALID, "example[0].name" },
     },
@@ -556,10 +556,10 @@ static const test_t tests [] = {
     }
   },
   {
-    .name = "validate_link_on_script",
-    .manifest = "validate_link_on_script",
+    .name = "validate_link_on_tool",
+    .manifest = "validate_link_on_tool",
     .issues = {
-      { SPN_ERR_CODEGEN_INVALID, "script[0].link" }
+      { SPN_ERR_CODEGEN_INVALID, "tool[0].link" }
     }
   },
   {
@@ -880,19 +880,19 @@ static const test_t tests [] = {
     .name = "validate_duplicate_name",
     .manifest = "validate_duplicate_name",
     .exes = { { .name = "t" } },
-    .scripts = { { .name = "t" } },
+    .tools = { { .name = "t" } },
     .issues = {
-      { SPN_ERR_CODEGEN_DUPLICATE_KEY, "script[0]" }
+      { SPN_ERR_CODEGEN_DUPLICATE_KEY, "tool[0]" }
     }
   },
   {
     .name = "validate_reserved_name",
     .manifest = "validate_reserved_name",
     .exes = { { .name = "test" } },
-    .scripts = { { .name = "store" } },
+    .tools = { { .name = "store" } },
     .issues = {
       { SPN_ERR_CODEGEN_INVALID, "bin[0].name" },
-      { SPN_ERR_CODEGEN_INVALID, "script[0].name" },
+      { SPN_ERR_CODEGEN_INVALID, "tool[0].name" },
     }
   },
   {
@@ -1927,7 +1927,7 @@ sp_test_each(lower, cases, test_t, tests, .setup = spn_test_ctx_setup) {
   // Targets
   sp_try(check_targets(t, pkg, it->libs,     SP_CARR_LEN(it->libs),     SPN_TARGET_KIND_LIB));
   sp_try(check_targets(t, pkg, it->exes,     SP_CARR_LEN(it->exes),     SPN_TARGET_KIND_EXE));
-  sp_try(check_targets(t, pkg, it->scripts,  SP_CARR_LEN(it->scripts),  SPN_TARGET_KIND_SCRIPT));
+  sp_try(check_targets(t, pkg, it->tools,    SP_CARR_LEN(it->tools),    SPN_TARGET_KIND_TOOL));
   sp_try(check_targets(t, pkg, it->tests,    SP_CARR_LEN(it->tests),    SPN_TARGET_KIND_TEST));
   sp_try(check_targets(t, pkg, it->examples, SP_CARR_LEN(it->examples), SPN_TARGET_KIND_EXAMPLE));
 

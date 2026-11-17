@@ -59,7 +59,7 @@
       ]
     }
   },
-  "script": {
+  "tool": {
     "postbuild": {
       "name": "postbuild",
       "source": [

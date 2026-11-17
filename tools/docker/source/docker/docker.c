@@ -221,7 +221,7 @@ docker_init_err_t docker_init(docker_t* docker, sp_mem_t mem) {
 
   const c8* tools [] = { CONTAINER_SHELL_BIN, CONTAINER_CHECK_BIN };
   sp_carr_for(tools, it) {
-    if (missing(docker, sp_fs_join_path(mem, docker->paths.tools, sp_cstr_as_str(tools[it])), "spn build --script")) {
+    if (missing(docker, sp_fs_join_path(mem, docker->paths.tools, sp_cstr_as_str(tools[it])), "spn build --tool")) {
       return DOCKER_INIT_ERR_BINARY;
     }
   }

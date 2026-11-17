@@ -2,5 +2,5 @@
 name = "p"
 version = "1.0.0"
 
-[[script]]
+[[tool]]
 name = "t"

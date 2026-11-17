@@ -9,7 +9,7 @@ source = ["K.c"]
 [[bin]]
 name = "C/D"
 
-[[script]]
+[[tool]]
 name = "E/F"
 
 [[test]]

@@ -6,7 +6,7 @@
   "optionalProperties": {
     "lib": { "elements": { "ref": "target" }, "metadata": { "key": "name" } },
     "bin": { "elements": { "ref": "target" }, "metadata": { "key": "name" } },
-    "script": { "elements": { "ref": "target" }, "metadata": { "key": "name" } },
+    "tool": { "elements": { "ref": "target" }, "metadata": { "key": "name" } },
     "test": { "elements": { "ref": "target" }, "metadata": { "key": "name" } },
     "example": { "elements": { "ref": "target" }, "metadata": { "key": "name" } },
     "toolchain": { "elements": { "ref": "toolchain_decl" } },

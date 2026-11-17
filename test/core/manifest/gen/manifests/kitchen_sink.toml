@@ -27,7 +27,7 @@ name = "everything-cli"
 source = ["main.c"]
 deps = ["everything"]
 
-[[script]]
+[[tool]]
 name = "postbuild"
 source = ["post.sh"]
 

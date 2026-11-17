@@ -146,7 +146,7 @@ static spn_err_t lower_target(spn_units_t* u, spn_target_unit_t* unit) {
 
   switch (target->info->kind) {
     case SPN_TARGET_KIND_EXE:
-    case SPN_TARGET_KIND_SCRIPT: {
+    case SPN_TARGET_KIND_TOOL: {
       unit->install = pkg->paths.bin;
       break;
     }
@@ -330,7 +330,7 @@ static spn_path_t staged_path(sp_mem_t mem, spn_target_unit_t* unit) {
   spn_path_t path = sp_zero;
   switch (unit->target->info->kind) {
     case SPN_TARGET_KIND_EXE:
-    case SPN_TARGET_KIND_SCRIPT: {
+    case SPN_TARGET_KIND_TOOL: {
       path = spn_path_join(mem, root, unit->emit.output);
       break;
     }

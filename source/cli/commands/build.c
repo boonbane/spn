@@ -6,7 +6,7 @@ static struct {
     bool test;
     bool bin;
     bool lib;
-    bool script;
+    bool tool;
     bool example;
   } only;
 } args;
@@ -17,7 +17,7 @@ enum {
     spn_target_kind_bit(SPN_TARGET_KIND_EXE) |
     spn_target_kind_bit(SPN_TARGET_KIND_TEST) |
     spn_target_kind_bit(SPN_TARGET_KIND_EXAMPLE),
-  named_kinds = default_kinds | spn_target_kind_bit(SPN_TARGET_KIND_SCRIPT),
+  named_kinds = default_kinds | spn_target_kind_bit(SPN_TARGET_KIND_TOOL),
 };
 
 static sp_cli_result_t build(sp_cli_t* cli) {
@@ -28,7 +28,7 @@ static sp_cli_result_t build(sp_cli_t* cli) {
     (args.only.bin     ? spn_target_kind_bit(SPN_TARGET_KIND_EXE)     : 0) |
     (args.only.lib     ? spn_target_kind_bit(SPN_TARGET_KIND_LIB)     : 0) |
     (args.only.test    ? spn_target_kind_bit(SPN_TARGET_KIND_TEST)    : 0) |
-    (args.only.script  ? spn_target_kind_bit(SPN_TARGET_KIND_SCRIPT)  : 0) |
+    (args.only.tool    ? spn_target_kind_bit(SPN_TARGET_KIND_TOOL)    : 0) |
     (args.only.example ? spn_target_kind_bit(SPN_TARGET_KIND_EXAMPLE) : 0);
 
   spn_session_config_t config = {
@@ -81,10 +81,10 @@ sp_cli_cmd_t spn_cmd_build = {
       .ptr = &args.only.test,
     },
     {
-      .name = "script",
-      .summary = "Build only script targets",
+      .name = "tool",
+      .summary = "Build only tool targets",
       .kind = SP_CLI_OPT_BOOLEAN,
-      .ptr = &args.only.script,
+      .ptr = &args.only.tool,
     },
     {
       .name = "example",
