@@ -8,7 +8,6 @@ typedef struct {
 typedef struct {
   const c8* name;
   const c8* project;
-  const c8* copy [SPN_TEST_MAX_COPY];
   const c8* args [SPN_TEST_COMMAND_MAX_ARGS];
   expect_t expect;
 } query_t;
@@ -45,20 +44,6 @@ static const query_t queries [] = {
     .expect.holds = "T.txt",
   },
   {
-    .name = "file_package_dep_named_like_a_tool_dep",
-    .project = "test/integration/fixtures/path/same_name_file",
-    .copy = { "P/*", "T/*" },
-    .args = { "path", "A" },
-    .expect.holds = "P.txt",
-  },
-  {
-    .name = "file_tool_dep_named_like_a_package_dep",
-    .project = "test/integration/fixtures/path/same_name_file",
-    .copy = { "P/*", "T/*" },
-    .args = { "path", "--tool-dep", "A" },
-    .expect.holds = "T.txt",
-  },
-  {
     .name = "tool_exe",
     .project = "test/integration/fixtures/path/tool",
     .args = { "path", "--tool", "T" },
@@ -70,7 +55,7 @@ sp_test_each(path, located, query_t, queries) {
   fixture_t fixture = sp_zero;
   sp_try(fixture_init(t, &fixture));
   sp_try(test_when(t, sp_zero_s(test_when_t)));
-  sp_try(prepare_test(t, &fixture, it->project, it->copy));
+  sp_try(prepare_test(t, &fixture, it->project, SP_NULLPTR));
 
   sp_ps_output_t output = run_spn(t, &fixture, it->args, SP_NULLPTR);
   sp_must_eq(t, 0, output.status.exit_code);

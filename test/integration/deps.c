@@ -66,6 +66,15 @@ static const test_t tests [] = {
     },
   },
   {
+    .name = "file_two_paths_two_tables",
+    .project = "test/integration/fixtures/deps/file/two_tables",
+    .copy = { "P/*", "T/*" },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { "build", .rc = 1 } },
+      { .kind = ACTION_VERIFY_RESULT, .verify_result = { .err = SPN_ERR_PKG_CONFLICT_PATH } },
+    },
+  },
+  {
     .name = "index_name_mismatch",
     .project = "test/integration/fixtures/deps/index/name_mismatch",
     .actions = {

@@ -9,6 +9,7 @@
 #include "index/cache.h"
 #include "intern/intern.h"
 #include "manifest.h"
+#include "paths/paths.h"
 #include "resolve/resolve.h"
 #include "semver/parser.h"
 #include "spn/core.h"
@@ -76,6 +77,10 @@ typedef struct {
   spn_err_t err;
 } fz_result_t;
 
+static spn_path_t fz_local_path(sp_mem_t mem, u32 pkg) {
+  return (spn_path_t) { .sub = sp_fmt(mem, "fz://{}", sp_fmt_str(fz_pkg_name(pkg))).value };
+}
+
 static spn_requested_dep_t fz_req(sp_mem_t mem, sp_intern_t* intern, fz_universe_t* u, fz_dep_t dep) {
   spn_requested_dep_t req = {
     .name = sp_intern(intern, fz_pkg_name(dep.pkg)),
@@ -84,7 +89,7 @@ static spn_requested_dep_t fz_req(sp_mem_t mem, sp_intern_t* intern, fz_universe
   };
   if (u->pkgs[dep.pkg].local) {
     req.source = SPN_PKG_SOURCE_FILE;
-    req.file.path = (spn_path_t) { .sub = sp_fmt(mem, "fz://{}", sp_fmt_str(fz_pkg_name(dep.pkg))).value };
+    req.file.path = fz_local_path(mem, dep.pkg);
   }
   else {
     req.source = SPN_PKG_SOURCE_INDEX;
@@ -147,6 +152,7 @@ static fz_result_t fz_execute(sp_mem_t mem, fz_universe_t* u, sp_intern_t* inter
     sp_ht_insert(fz_state.cache, name.id, pkg);
   }
 
+  spn_path_roots_t roots = sp_zero;
   spn_pkg_registry_t registry = sp_zero;
   sp_ht_init(mem, registry);
 
@@ -176,6 +182,7 @@ static fz_result_t fz_execute(sp_mem_t mem, fz_universe_t* u, sp_intern_t* inter
     sp_ht_insert(registry, ((spn_pkg_id_t) { .name = info->name.id }), ((spn_registry_pkg_t) {
       .source = SPN_PKG_SOURCE_FILE,
       .manifest = info,
+      .path = spn_path_canonicalize(mem, &roots, fz_local_path(mem, (u32)it)),
     }));
   }
 
@@ -208,6 +215,7 @@ static fz_result_t fz_execute(sp_mem_t mem, fz_universe_t* u, sp_intern_t* inter
 
   spn_resolver_t resolver = sp_zero;
   spn_resolver_init(&resolver, mem, intern, &cache, &registry, (spn_profile_info_t) { .linking.linkage = u->profile.linkage }, config, u->profile.budget);
+  resolver.roots = &roots;
 
   fz_result_t result = sp_zero_s(fz_result_t);
   spn_resolve_query_init(mem, &result.query);

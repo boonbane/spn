@@ -155,17 +155,37 @@ static spn_err_union_t unsatisfiable_err(spn_resolver_t* resolver, spn_resolved_
   };
 }
 
-static spn_err_union_t load_file_pkg(spn_resolver_t* resolver, spn_requested_dep_t* request, spn_registry_pkg_t** pkg) {
+static spn_err_union_t path_conflict_err(spn_resolved_pkg_t* from, spn_requested_dep_t* request, sp_str_t selected, sp_str_t requested) {
+  return (spn_err_union_t) {
+    .kind = SPN_ERR_PKG_CONFLICT_PATH,
+    .subject = request->name.str,
+    .path_conflict = {
+      .selected = selected,
+      .requested = requested,
+      .requester = from->name.str,
+      .requester_version = from->id.version,
+    }
+  };
+}
+
+static spn_err_union_t load_file_pkg(spn_resolver_t* resolver, sp_mem_t scratch, spn_resolved_pkg_t* from, spn_requested_dep_t* request) {
+  spn_path_t path = spn_path_canonicalize(scratch, resolver->roots, request->file.path);
+
   spn_pkg_id_t id = { .name = request->name.id };
   spn_registry_pkg_t* existing = sp_ht_getp(*resolver->registry, id);
   if (existing) {
-    *pkg = existing;
-    return ok_union();
+    if (spn_path_equal(existing->path, path)) {
+      return ok_union();
+    }
+    return path_conflict_err(
+      from,
+      request,
+      spn_path_str(resolver->roots, resolver->mem, spn_path_parent(existing->path)),
+      spn_path_str(resolver->roots, resolver->mem, spn_path_parent(path))
+    );
   }
 
-  *pkg = SP_NULLPTR;
-
-  spn_path_t path = spn_path_canonicalize(resolver->mem, resolver->roots, request->file.path);
+  path = spn_path_copy(resolver->mem, path);
   sp_sys_file_meta_t meta = sp_zero;
   if (sp_fs_get_path_metadata_at(spn_path_at(resolver->roots, path), &meta) || meta.kind == SP_FS_KIND_UNKNOWN) {
     return (spn_err_union_t) {
@@ -195,8 +215,6 @@ static spn_err_union_t load_file_pkg(spn_resolver_t* resolver, spn_requested_dep
     .manifest = manifest,
     .path = path,
   }));
-
-  *pkg = sp_ht_getp(*resolver->registry, id);
   return ok_union();
 }
 
@@ -436,12 +454,6 @@ static spn_err_union_t resolve_local_package(spn_resolver_t* resolver, spn_resol
   }
 
   spn_registry_pkg_t* pkg = sp_ht_getp(*resolver->registry, ((spn_pkg_id_t) { .name = name }));
-
-  // If the package is local, just load it
-  if (!pkg && request->source == SPN_PKG_SOURCE_FILE) {
-    try_union(load_file_pkg(resolver, request, &pkg));
-  }
-
   if (!pkg) {
     return (spn_err_union_t) {
       .kind = SPN_ERR_PKG_UNKNOWN,
@@ -667,9 +679,19 @@ static spn_err_union_t resolve_dep(spn_resolver_t* resolver, spn_resolve_run_t* 
   }
 
   switch (dep->source) {
-    case SPN_PKG_SOURCE_INDEX: return resolve_index_package(resolver, run, node, dep);
-    case SPN_PKG_SOURCE_ROOT:
-    case SPN_PKG_SOURCE_FILE:  return resolve_local_package(resolver, run, node, dep);
+    case SPN_PKG_SOURCE_INDEX: {
+      return resolve_index_package(resolver, run, node, dep);
+    }
+    case SPN_PKG_SOURCE_FILE: {
+      sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+      spn_err_union_t err = load_file_pkg(resolver, scratch.mem, node, dep);
+      sp_mem_end_scratch(scratch);
+      try_union(err);
+      return resolve_local_package(resolver, run, node, dep);
+    }
+    case SPN_PKG_SOURCE_ROOT: {
+      return resolve_local_package(resolver, run, node, dep);
+    }
   }
 
   sp_unreachable_return(ok_union());
