@@ -21,7 +21,7 @@ static const command_test_t commands [] = {
     .expect.files = { { .file = lit("spn.lock"), .content = "version = 1\n" } },
   },
   {
-    .name = "replaces_missing_pin",
+    .name = "keeps_missing_pin",
     .project = "test/integration/fixtures/lock/gone",
     .copy = { "spn.lock" },
     .args = { "build" },
