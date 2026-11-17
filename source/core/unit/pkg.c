@@ -233,9 +233,14 @@ spn_err_t si_add_target_unit(spn_units_t* u, spn_pkg_unit_t* pkg, si_target_t* t
   si_da(sp_str_t) host = sp_zero;
   switch (target->info->kind) {
     case SPN_TARGET_KIND_LIB:
-    case SPN_TARGET_KIND_EXE:
-    case SPN_TARGET_KIND_TOOL: {
+    case SPN_TARGET_KIND_EXE: {
       take = 1u << SPN_DEP_KIND_PACKAGE;
+      published = pkg->publishes.include;
+      host = pkg->pkg.host_deps;
+      break;
+    }
+    case SPN_TARGET_KIND_TOOL: {
+      take = 1u << SPN_DEP_KIND_TOOL;
       published = pkg->publishes.include;
       host = pkg->pkg.host_deps;
       break;

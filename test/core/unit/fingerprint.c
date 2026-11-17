@@ -55,6 +55,12 @@ static const test_t tests [] = {
     .b = { .pkgs = { { .name = "A", .deps = { { "B", SPN_DEP_KIND_TEST } } }, { .name = "B" } } },
   },
   {
+    .name = "tool_dep_is_inert",
+    .a = { .pkgs = { { .name = "A" }, { .name = "B" } } },
+    .b = { .pkgs = { { .name = "A", .deps = { { "B", SPN_DEP_KIND_TOOL } } }, { .name = "B" } } },
+    .equal = true,
+  },
+  {
     .name = "dep_order_is_inert",
     .a = { .pkgs = { { .name = "A", .deps = { { "B" }, { "C" } } }, { .name = "B" }, { .name = "C" } } },
     .b = { .pkgs = { { .name = "A", .deps = { { "C" }, { "B" } } }, { .name = "B" }, { .name = "C" } } },

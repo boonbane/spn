@@ -222,6 +222,7 @@ typedef enum {
   SPN_DEP_KIND_PACKAGE,
   SPN_DEP_KIND_BUILD,
   SPN_DEP_KIND_TEST,
+  SPN_DEP_KIND_TOOL,
 } spn_dep_kind_t;
 
 #endif

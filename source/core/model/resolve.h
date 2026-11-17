@@ -5,6 +5,6 @@
 #include "spn/core.h"
 #include "core/types.h"
 
-spn_err_t spn_resolve(spn_op_t* op);
+spn_err_t spn_resolve(spn_op_t* op, const si_pkg_info_t* manifest);
 
 #endif

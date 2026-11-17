@@ -69,6 +69,18 @@ static const dir_test_t tests [] = {
     },
   },
   {
+    .name = "tool_deps",
+    .package = "A",
+    .toml = "tool_deps",
+    .expect = {
+      .exists = true,
+      .version = { 1, 0, 0 },
+      .deps = {
+        { .name = "B", .range = "^1.0.0" },
+      },
+    },
+  },
+  {
     .name = "targets",
     .package = "A",
     .toml = "targets",

@@ -22,6 +22,15 @@ static const test_t tests [] = {
     },
   },
   {
+    .name = "unselected_tool_dep_entry_passes",
+    .project = "test/integration/fixtures/patch/tool_dep",
+    .copy = { "patches/*" },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { "build" } },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
+    },
+  },
+  {
     .name = "missing_file_fails",
     .project = "test/integration/fixtures/patch/missing",
     .copy = { "vendor/spum/spn.toml" },

@@ -194,3 +194,30 @@ static const rebuild_test_t rebuilds [] = {
 sp_test_each(deps, rebuild, rebuild_test_t, rebuilds) {
   return run_rebuild_test(t, *it);
 }
+
+static const command_test_t tools [] = {
+  {
+    .name = "unselected",
+    .project = "test/integration/fixtures/deps/tool/index",
+    .args = { "build" },
+    .expect.events = { { .event = SPN_EVENT_RESOLVE_PACKAGE, .key = "name", .value = "A", .absent = true } },
+  },
+  {
+    .name = "selected",
+    .project = "test/integration/fixtures/deps/tool/index",
+    .copy = { "t.c" },
+    .args = { "build", "--tool" },
+    .expect.exists = { exe("T") },
+  },
+  {
+    .name = "source_only",
+    .project = "test/integration/fixtures/deps/tool/source_only",
+    .copy = { "t.c" },
+    .args = { "build", "--tool" },
+    .expect.events = { { .event = SPN_EVENT_SYNC_PACKAGE, .key = "name", .value = "A" } },
+  },
+};
+
+sp_test_each(deps, tool, command_test_t, tools) {
+  return run_command_test(t, *it);
+}

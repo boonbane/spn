@@ -297,7 +297,8 @@ static bool node_is_shared(spn_resolver_t* resolver, spn_resolved_pkg_t* node) {
 
 static spn_dep_edge_t classify_dep(spn_resolver_t* resolver, spn_resolved_pkg_t* node, spn_requested_dep_t* dep) {
   switch (dep->kind) {
-    case SPN_DEP_KIND_BUILD: {
+    case SPN_DEP_KIND_BUILD:
+    case SPN_DEP_KIND_TOOL: {
       return SPN_DEP_EDGE_PROCESS;
     }
     case SPN_DEP_KIND_TEST: {

@@ -83,6 +83,7 @@ typedef struct {
   const c8* file;
   u8 build;
   u8 test;
+  u8 tool;
   u8 public;
   const c8* when;
   const c8* options;
@@ -343,6 +344,13 @@ static const test_t tests [] = {
     .manifest = "dep_build",
     .deps = {
       { .name = "baz", .source = SPN_PKG_SOURCE_INDEX, .build = 1 }
+    }
+  },
+  {
+    .name = "dep_tool",
+    .manifest = "dep_tool",
+    .deps = {
+      { .name = "A", .source = SPN_PKG_SOURCE_INDEX, .tool = 1 }
     }
   },
   {
@@ -1620,6 +1628,13 @@ static const test_t tests [] = {
     },
   },
   {
+    .name = "validate_tool_dep_when_unknown_key",
+    .manifest = "validate_tool_dep_when_unknown_key",
+    .issues = {
+      { SPN_ERR_CODEGEN_INVALID, "deps.tool[0].when.B" }
+    },
+  },
+  {
     .name = "validate_when_bad_fact",
     .manifest = "validate_when_bad_fact",
     .issues = {
@@ -1936,12 +1951,13 @@ sp_test_each(lower, cases, test_t, tests, .setup = spn_test_ctx_setup) {
     dep_t expected = it->deps[d];
     if (!expected.name) break;
 
-    spn_dep_kind_t kind = expected.build ? SPN_DEP_KIND_BUILD : expected.test ? SPN_DEP_KIND_TEST : SPN_DEP_KIND_PACKAGE;
+    spn_dep_kind_t kind = expected.build ? SPN_DEP_KIND_BUILD : expected.test ? SPN_DEP_KIND_TEST : expected.tool ? SPN_DEP_KIND_TOOL : SPN_DEP_KIND_PACKAGE;
+    si_da(spn_requested_dep_t) deps = expected.tool ? project.deps.tool : pkg->deps;
 
     spn_requested_dep_t* req = SP_NULLPTR;
-    si_da_for(pkg->deps, j) {
-      if (sp_str_equal(pkg->deps[j].name.str, sp_cstr_as_str(expected.name)) && pkg->deps[j].kind == kind) {
-        req = &pkg->deps[j];
+    si_da_for(deps, j) {
+      if (sp_str_equal(deps[j].name.str, sp_cstr_as_str(expected.name)) && deps[j].kind == kind) {
+        req = &deps[j];
         break;
       }
     }

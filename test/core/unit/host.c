@@ -48,6 +48,14 @@ static const refused_t refused_tests [] = {
     .expect = { .pkg = "P", .lib = "H" },
   },
   {
+    .name = "tool_takes_package_host_deps",
+    .graph.pkgs = {
+      { .name = "P", .host_deps = { "H" }, .targets = { { "A", .kind = SPN_TARGET_KIND_TOOL, .source = { "a.c" } } } },
+    },
+    .root = { "A", SPN_TARGET_KIND_TOOL },
+    .expect = { .pkg = "P", .lib = "H" },
+  },
+  {
     .name = "build_dep_in_a_script",
     .graph.pkgs = {
       {

@@ -240,7 +240,8 @@
       "optionalProperties": {
         "package": { "values": { "ref": "dep" }, "metadata": { "shorthand": "version" } },
         "test": { "values": { "ref": "dep" }, "metadata": { "shorthand": "version" } },
-        "build": { "values": { "ref": "dep" }, "metadata": { "shorthand": "version" } }
+        "build": { "values": { "ref": "dep" }, "metadata": { "shorthand": "version" } },
+        "tool": { "values": { "ref": "dep" }, "metadata": { "shorthand": "version" } }
       }
     },
 

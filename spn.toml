@@ -45,6 +45,14 @@ zlib = { path = "vendor/zlib" }
 sp = { path = "vendor/sp" }
 yyjson = { path = "vendor/yyjson"}
 
+[deps.tool]
+sp = { path = "vendor/sp" }
+toml = { path = "vendor/toml" }
+yyjson = { path = "vendor/yyjson" }
+blake3 = { path = "vendor/blake3" }
+xz = { path = "vendor/xz" }
+zlib = { path = "vendor/zlib" }
+
 [patch.sp]
 files = [
   "tools/patches/sp-golden-absolute.patch",

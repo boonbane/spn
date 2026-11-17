@@ -1,0 +1,6 @@
+[package]
+name = "A"
+version = "1.0.0"
+
+[deps.tool]
+B = { version = "^1.0.0" }

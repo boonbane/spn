@@ -377,6 +377,24 @@ static const test_t tests [] = {
     .root = { "A", SPN_TARGET_KIND_LIB },
   },
   {
+    .name = "tool_links_siblings_without_package_deps",
+    .graph.pkgs = {
+      {
+        .name = "P",
+        .deps = { { "B" } },
+        .targets = {
+          { "A", .kind = SPN_TARGET_KIND_TOOL, .source = { "main.c" }, .deps = { "L" } },
+          { "L", static_only, .source = { "u.c" } },
+        },
+      },
+      { .name = "B", .targets = { { "B", static_only, .source = { "a.c" } } } },
+    },
+    .root = { "A", SPN_TARGET_KIND_TOOL },
+    .expect = {
+      .deps = { { "L" } },
+    },
+  },
+  {
     .name = "test_target_links_test_deps",
     .graph.pkgs = {
       { .name = "P", .deps = { { "T", SPN_DEP_KIND_TEST }, { "B" } }, .targets = { { "A", .kind = SPN_TARGET_KIND_TEST, .source = { "main.c" } } } },

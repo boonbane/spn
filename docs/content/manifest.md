@@ -131,6 +131,7 @@ readme: false
 | `package` | map of [`dep`](#dep) \| `string` |
 | `test` | map of [`dep`](#dep) \| `string` |
 | `build` | map of [`dep`](#dep) \| `string` |
+| `tool` | map of [`dep`](#dep) \| `string` |
 
 ## config_entry
 

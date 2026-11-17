@@ -1,0 +1,10 @@
+[package]
+name = "test"
+version = "0.1.0"
+
+[deps.tool]
+A = "1.0.0"
+
+[[tool]]
+name = "T"
+source = ["t.c"]

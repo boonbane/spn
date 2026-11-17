@@ -106,6 +106,16 @@ static const test_t tests [] = {
     },
   },
   {
+    .name = "add_tool_dep",
+    .project = "test/integration/fixtures/cli/add_tool",
+    .copy = { "t.c" },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { .cmd = "add", .args = { "A", "--tool" } } },
+      { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build", .args = { "--tool" } } },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = exe("T") },
+    },
+  },
+  {
     .name = "add_unknown_package",
     .project = "test/integration/fixtures/cli/add",
     .actions = {

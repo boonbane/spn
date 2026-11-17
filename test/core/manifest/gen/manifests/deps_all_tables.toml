@@ -10,3 +10,6 @@ libfoo = "1.0.0"
 
 [deps.test]
 utest = "1.0.0"
+
+[deps.tool]
+T = "1.0.0"

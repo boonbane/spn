@@ -1,0 +1,6 @@
+[package]
+name = "A"
+version = "1.0.0"
+
+[package.publish]
+include = [{ from = "A.h" }]

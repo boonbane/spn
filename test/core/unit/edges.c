@@ -13,7 +13,7 @@ static const graph_t graph = {
   .pkgs = {
     {
       .name = "A",
-      .deps = { { "D" }, { "T", SPN_DEP_KIND_TEST }, { "G", SPN_DEP_KIND_BUILD } },
+      .deps = { { "D" }, { "T", SPN_DEP_KIND_TEST }, { "G", SPN_DEP_KIND_BUILD }, { "L", SPN_DEP_KIND_TOOL } },
       .targets = {
         { "B", .kind = SPN_TARGET_KIND_BUILD_METAPROGRAM, .source = { "b.c" } },
         { "C", .kind = SPN_TARGET_KIND_CONFIGURE_METAPROGRAM, .source = { "c.c" } },
@@ -22,12 +22,14 @@ static const graph_t graph = {
     { .name = "D" },
     { .name = "T" },
     { .name = "G" },
+    { .name = "L" },
   },
 };
 
 static const test_t tests [] = {
   { .name = "exe_consumes_package_deps", .kind = SPN_TARGET_KIND_EXE, .expect = { "D" } },
   { .name = "test_consumes_package_and_test_deps", .kind = SPN_TARGET_KIND_TEST, .expect = { "D", "T" } },
+  { .name = "tool_consumes_tool_deps", .kind = SPN_TARGET_KIND_TOOL, .expect = { "L" } },
   { .name = "example_consumes_its_own_package", .kind = SPN_TARGET_KIND_EXAMPLE, .expect = { "A", "D" } },
   { .name = "build_script_consumes_build_deps", .kind = SPN_TARGET_KIND_BUILD_METAPROGRAM, .script = true, .expect = { "G" } },
   { .name = "configure_script_consumes_nothing", .kind = SPN_TARGET_KIND_CONFIGURE_METAPROGRAM, .script = true },

@@ -111,6 +111,7 @@ static spn_err_t add(spn_ctx_t* ctx, spn_add_request_t request, spn_semver_range
   switch (request.kind) {
     case SPN_DEP_KIND_TEST:  table = "test";    break;
     case SPN_DEP_KIND_BUILD: table = "build";   break;
+    case SPN_DEP_KIND_TOOL:  table = "tool";    break;
     default:                 table = "package"; break;
   }
 

@@ -763,6 +763,9 @@ sp_str_t spn_dep_kind_to_str(spn_dep_kind_t kind) {
     case SPN_DEP_KIND_TEST: {
       return sp_str_lit("test");
     }
+    case SPN_DEP_KIND_TOOL: {
+      return sp_str_lit("tool");
+    }
   }
 
   SP_UNREACHABLE_RETURN(sp_str_lit(""));
@@ -777,6 +780,9 @@ spn_dep_kind_t spn_dep_kind_from_str(sp_str_t str) {
   }
   if (sp_str_equal_cstr(str, "test")) {
     return SPN_DEP_KIND_TEST;
+  }
+  if (sp_str_equal_cstr(str, "tool")) {
+    return SPN_DEP_KIND_TOOL;
   }
 
   return SPN_DEP_KIND_PACKAGE;

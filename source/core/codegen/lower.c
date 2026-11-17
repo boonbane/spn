@@ -296,7 +296,7 @@ static void lower_metaprogram(spn_toml_loader_t* ctx, const spn_cg_build_script_
   target->flags = lower_gated_values(ctx, cg->flags);
 }
 
-static void lower_dep(spn_toml_loader_t* ctx, sp_str_t name, const spn_cg_dep_t* cg, spn_dep_kind_t kind, si_pkg_info_t* out) {
+static void lower_dep(spn_toml_loader_t* ctx, sp_str_t name, const spn_cg_dep_t* cg, spn_dep_kind_t kind, si_da(spn_requested_dep_t)* deps) {
   spn_requested_dep_t req = {
     .name = lower_pkg_name(ctx, name),
     .kind = kind,
@@ -324,7 +324,7 @@ static void lower_dep(spn_toml_loader_t* ctx, sp_str_t name, const spn_cg_dep_t*
     }
   }
 
-  si_da_push(ctx->mem, out->deps, req);
+  si_da_push(ctx->mem, *deps, req);
 }
 
 static void lower_package(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, si_pkg_info_t* info) {
@@ -490,13 +490,13 @@ static void lower_indexes(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, s
 
 static void lower_deps(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, si_pkg_info_t* out) {
   sp_da_for(cg->deps.package, i) {
-    lower_dep(ctx, cg->deps.package[i].key, &cg->deps.package[i].value, SPN_DEP_KIND_PACKAGE, out);
+    lower_dep(ctx, cg->deps.package[i].key, &cg->deps.package[i].value, SPN_DEP_KIND_PACKAGE, &out->deps);
   }
   sp_da_for(cg->deps.test, i) {
-    lower_dep(ctx, cg->deps.test[i].key, &cg->deps.test[i].value, SPN_DEP_KIND_TEST, out);
+    lower_dep(ctx, cg->deps.test[i].key, &cg->deps.test[i].value, SPN_DEP_KIND_TEST, &out->deps);
   }
   sp_da_for(cg->deps.build, i) {
-    lower_dep(ctx, cg->deps.build[i].key, &cg->deps.build[i].value, SPN_DEP_KIND_BUILD, out);
+    lower_dep(ctx, cg->deps.build[i].key, &cg->deps.build[i].value, SPN_DEP_KIND_BUILD, &out->deps);
   }
 }
 
@@ -623,18 +623,19 @@ static const c8* dep_kind_key(spn_dep_kind_t kind) {
     case SPN_DEP_KIND_PACKAGE: return "package";
     case SPN_DEP_KIND_TEST:    return "test";
     case SPN_DEP_KIND_BUILD:   return "build";
+    case SPN_DEP_KIND_TOOL:    return "tool";
   }
   SP_UNREACHABLE_RETURN("package");
 }
 
-static void validate_dep_whens(spn_toml_loader_t* ctx, si_pkg_info_t* out) {
-  u32 counters [3] = sp_zero;
+static void validate_dep_whens(spn_toml_loader_t* ctx, si_da(spn_requested_dep_t) deps, si_pkg_info_t* pkg) {
+  u32 counters [4] = sp_zero;
   spn_toml_loader_push_key(ctx, "deps");
-  si_da_for(out->deps, it) {
-    spn_requested_dep_t* req = &out->deps[it];
+  si_da_for(deps, it) {
+    spn_requested_dep_t* req = &deps[it];
     spn_toml_loader_push_key(ctx, dep_kind_key(req->kind));
     spn_toml_loader_push_index(ctx, counters[req->kind]++);
-    validate_when(ctx, &req->when, out);
+    validate_when(ctx, &req->when, pkg);
     spn_toml_loader_pop(ctx);
     spn_toml_loader_pop(ctx);
   }
@@ -882,7 +883,7 @@ static void validate_options(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg
 }
 
 static void validate_whens(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, si_pkg_info_t* out) {
-  validate_dep_whens(ctx, out);
+  validate_dep_whens(ctx, out->deps, out);
   validate_target_whens(ctx, cg->lib, "lib", out);
   validate_target_whens(ctx, cg->bin, "bin", out);
   validate_target_whens(ctx, cg->tool, "tool", out);
@@ -1377,12 +1378,16 @@ void spn_manifest_lower(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, si_
 
 void spn_project_lower(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, spn_project_t* project) {
   spn_manifest_lower(ctx, cg, &project->package);
+  sp_da_for(cg->deps.tool, it) {
+    lower_dep(ctx, cg->deps.tool[it].key, &cg->deps.tool[it].value, SPN_DEP_KIND_TOOL, &project->deps.tool);
+  }
   lower_toolchains(ctx, cg, project);
   lower_profiles(ctx, cg, project);
   lower_indexes(ctx, cg, project);
   lower_config(ctx, cg, project);
   lower_patches(ctx, cg, project);
 
+  validate_dep_whens(ctx, project->deps.tool, &project->package);
   validate_profiles(ctx, cg);
   validate_option_sets(ctx, cg, project);
 }
