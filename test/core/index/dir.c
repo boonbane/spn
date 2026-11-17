@@ -257,7 +257,7 @@ static const versioned_test_t versioned_tests [] = {
     },
   },
   {
-    .name = "sorted_by_version",
+    .name = "release_per_dir",
     .dirs = {
       { .dir = "A/B", .toml = "minimal" },
       { .dir = "A/C", .toml = "newer" },

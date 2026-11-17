@@ -6,12 +6,6 @@
 #include "pkg/load.h"
 #include "semver/compare.h"
 
-static s32 sort_release_by_version(const void* a, const void* b) {
-  const spn_index_release_t* lhs = (const spn_index_release_t*)a;
-  const spn_index_release_t* rhs = (const spn_index_release_t*)b;
-  return spn_semver_cmp(lhs->version, rhs->version);
-}
-
 static bool has_manifest(const spn_path_roots_t* roots, spn_path_t path) {
   sp_sys_file_meta_t meta = sp_zero;
   return !sp_fs_get_path_metadata_at(spn_path_at(roots, path), &meta) && meta.kind != SP_FS_KIND_UNKNOWN;
@@ -83,14 +77,15 @@ spn_err_t spn_index_dir_get_package(spn_index_info_t* index, sp_mem_t mem, sp_in
     return SPN_OK;
   }
 
-  sp_da_sort(package->releases, sort_release_by_version);
-  sp_for(at, sp_da_size(package->releases) - 1) {
-    if (spn_semver_eq(package->releases[at].version, package->releases[at + 1].version)) {
-      *err = (spn_err_union_t) {
-        .kind = SPN_ERR_INDEX_CORRUPT,
-        .index_corrupt = { .name = name.str, .path = spn_path_str(roots, mem, dir) },
-      };
-      return err->kind;
+  sp_da_for(package->releases, at) {
+    sp_for(prior, at) {
+      if (spn_semver_eq(package->releases[prior].version, package->releases[at].version)) {
+        *err = (spn_err_union_t) {
+          .kind = SPN_ERR_INDEX_CORRUPT,
+          .index_corrupt = { .name = name.str, .path = spn_path_str(roots, mem, dir) },
+        };
+        return err->kind;
+      }
     }
   }
 

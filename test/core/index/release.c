@@ -196,16 +196,6 @@ static const release_test_t tests [] = {
     },
   },
   {
-    .name = "unsorted",
-    .expect = {
-      .releases = {
-        { .name = "spum", .version = "1.0.0" },
-        { .name = "spum", .version = "2.0.0" },
-        { .name = "spum", .version = "3.0.0" },
-      },
-    },
-  },
-  {
     .name = "blank_lines",
     .expect = {
       .releases = {
