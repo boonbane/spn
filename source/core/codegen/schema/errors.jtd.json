@@ -346,11 +346,10 @@
       }
     },
     "path_conflict": {
-      "properties": {
-        "selected": { "type": "string" },
-        "requested": { "type": "string" }
-      },
+      "properties": {},
       "optionalProperties": {
+        "selected": { "type": "string" },
+        "requested": { "type": "string" },
         "requester": { "type": "string" },
         "requester_version": { "metadata": { "extern": "semver" } }
       }

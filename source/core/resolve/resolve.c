@@ -155,6 +155,16 @@ static spn_err_union_t unsatisfiable_err(spn_resolver_t* resolver, spn_resolved_
   };
 }
 
+static spn_resolved_pkg_t* find_picked(spn_resolve_run_t* run, sp_intern_id_t name) {
+  sp_da_for(run->scopes, it) {
+    spn_resolved_pkg_t* node = sp_ht_getp(run->scopes[it].named, name);
+    if (node) {
+      return node;
+    }
+  }
+  return SP_NULLPTR;
+}
+
 static spn_err_union_t path_conflict_err(spn_resolved_pkg_t* from, spn_requested_dep_t* request, sp_str_t selected, sp_str_t requested) {
   return (spn_err_union_t) {
     .kind = SPN_ERR_PKG_CONFLICT_PATH,
@@ -168,8 +178,13 @@ static spn_err_union_t path_conflict_err(spn_resolved_pkg_t* from, spn_requested
   };
 }
 
-static spn_err_union_t load_file_pkg(spn_resolver_t* resolver, sp_mem_t scratch, spn_resolved_pkg_t* from, spn_requested_dep_t* request) {
+static spn_err_union_t load_file_pkg(spn_resolver_t* resolver, spn_resolve_run_t* run, sp_mem_t scratch, spn_resolved_pkg_t* from, spn_requested_dep_t* request) {
   spn_path_t path = spn_path_canonicalize(scratch, resolver->roots, request->file.path);
+
+  spn_resolved_pkg_t* picked = find_picked(run, request->name.id);
+  if (picked && picked->source == SPN_PKG_SOURCE_INDEX) {
+    return path_conflict_err(from, request, sp_str_lit(""), spn_path_str(resolver->roots, resolver->mem, spn_path_parent(path)));
+  }
 
   spn_pkg_id_t id = { .name = request->name.id };
   spn_registry_pkg_t* existing = sp_ht_getp(*resolver->registry, id);
@@ -564,6 +579,11 @@ static spn_err_union_t resolve_index_package(spn_resolver_t* resolver, spn_resol
   spn_scope_t* scope = &run->scopes[run->scope];
   sp_intern_id_t name = request->name.id;
 
+  spn_resolved_pkg_t* picked = find_picked(run, name);
+  if (picked && picked->source != SPN_PKG_SOURCE_INDEX) {
+    return path_conflict_err(from, request, spn_path_str(resolver->roots, resolver->mem, picked->origin.recipe.local), sp_str_lit(""));
+  }
+
   // If this scope already resolved a version for this package, check if that version satisfies
   // this request, too. If not, the scope is unsatisfiable; a caller with alternatives backtracks.
   spn_resolved_pkg_t* existing = sp_ht_getp(scope->named, name);
@@ -684,7 +704,7 @@ static spn_err_union_t resolve_dep(spn_resolver_t* resolver, spn_resolve_run_t* 
     }
     case SPN_PKG_SOURCE_FILE: {
       sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-      spn_err_union_t err = load_file_pkg(resolver, scratch.mem, node, dep);
+      spn_err_union_t err = load_file_pkg(resolver, run, scratch.mem, node, dep);
       sp_mem_end_scratch(scratch);
       try_union(err);
       return resolve_local_package(resolver, run, node, dep);

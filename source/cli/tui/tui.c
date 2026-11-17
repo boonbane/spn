@@ -879,13 +879,16 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
             sp_str_lit("the project") :
             sp_fmt(mem, "{} {}", sp_fmt_str(colored_name(w.color, mem, err->requester)), sp_fmt_str(spn_semver_to_str(mem, err->requester_version))).value;
 
+          sp_str_t selected = sp_str_empty(err->selected) ? sp_str_lit("an index") : get_contextual_path(ctx, mem, err->selected);
+          sp_str_t requested = sp_str_empty(err->requested) ? sp_str_lit("an index") : get_contextual_path(ctx, mem, err->requested);
+
           sp_tty_fmt(
             &w,
             "{} is already selected from {.cyan}, but {} requires it from {.cyan}",
             sp_fmt_str(colored_name(w.color, mem, event->err.subject)),
-            sp_fmt_str(get_contextual_path(ctx, mem, err->selected)),
+            sp_fmt_str(selected),
             sp_fmt_str(requester),
-            sp_fmt_str(get_contextual_path(ctx, mem, err->requested))
+            sp_fmt_str(requested)
           );
           break;
         }
