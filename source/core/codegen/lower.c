@@ -291,7 +291,7 @@ static void lower_dep(spn_toml_loader_t* ctx, sp_str_t name, const spn_cg_dep_t*
   spn_requested_dep_t req = {
     .name = lower_pkg_name(ctx, name),
     .kind = kind,
-    .private = sp_opt_is_null(cg->private) ? false : sp_opt_get(cg->private),
+    .public = sp_opt_is_null(cg->public) ? false : sp_opt_get(cg->public),
     .when = cg->when,
     .options = cg->options,
   };

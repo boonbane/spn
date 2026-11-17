@@ -25,7 +25,7 @@ typedef struct {
   spn_pkg_id_t id;
   spn_dep_kind_t kind;
   spn_dep_edge_t edge;
-  bool private;
+  bool public;
 } spn_resolved_dep_t;
 
 struct spn_resolved_pkg {

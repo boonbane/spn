@@ -40,7 +40,7 @@ static spn_err_t parse_release(sp_mem_t mem, sp_intern_t* intern, sp_intern_str_
   sp_da_for(rel.deps, it) {
     spn_index_dep_t dep = {
       .kind = rel.deps[it].kind,
-      .private = !sp_opt_is_null(rel.deps[it].private) && sp_opt_get(rel.deps[it].private),
+      .public = !sp_opt_is_null(rel.deps[it].public) && sp_opt_get(rel.deps[it].public),
       .name = sp_intern(intern, rel.deps[it].name),
       .when = rel.deps[it].when,
       .options = rel.deps[it].options,
@@ -112,8 +112,8 @@ sp_str_t spn_index_release_to_json(sp_mem_t mem, spn_index_release_t* rel) {
       .when = rel->deps[it].when,
       .options = rel->deps[it].options,
     };
-    if (rel->deps[it].private) {
-      sp_opt_set(dep.private, true);
+    if (rel->deps[it].public) {
+      sp_opt_set(dep.public, true);
     }
     sp_da_push(release.deps, dep);
   }

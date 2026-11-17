@@ -15,7 +15,7 @@ typedef struct {
     const c8* name;
     const c8* range;
     spn_index_dep_kind_t kind;
-    bool private;
+    bool public;
     const c8* when;
     const c8* options;
   } deps [DIR_TEST_MAX_DEPS];
@@ -49,7 +49,7 @@ static const dir_test_t tests [] = {
       .exists = true,
       .version = { 1, 0, 0 },
       .deps = {
-        { .name = "B", .range = "^1.0.0", .private = true, .when = "os = \"linux\"", .options = "O = true" },
+        { .name = "B", .range = "^1.0.0", .public = true, .when = "os = \"linux\"", .options = "O = true" },
         { .name = "C", .range = "^2.0.0" },
       },
     },
@@ -196,7 +196,7 @@ sp_test_each(index_dir, get_package, dir_test_t, tests, .setup = spn_test_ctx_se
       sp_expect_str_eq_c(t, release->deps[at].name.str, it->expect.deps[at].name);
       sp_expect_str_eq_c(t, spn_semver_range_to_str(mem, release->deps[at].range), it->expect.deps[at].range);
       sp_expect_eq(t, it->expect.deps[at].kind, release->deps[at].kind);
-      sp_expect_eq(t, it->expect.deps[at].private, release->deps[at].private);
+      sp_expect_eq(t, it->expect.deps[at].public, release->deps[at].public);
       sp_expect_str_eq_c(t, spn_when_to_str(mem, &release->deps[at].when), it->expect.deps[at].when ? it->expect.deps[at].when : "always");
       sp_expect_str_eq_c(t, spn_when_to_str(mem, &release->deps[at].options), it->expect.deps[at].options ? it->expect.deps[at].options : "always");
     }

@@ -89,7 +89,7 @@ static spn_requested_dep_t fz_req(sp_mem_t mem, sp_intern_t* intern, fz_universe
   spn_requested_dep_t req = {
     .name = sp_intern(intern, fz_pkg_name(dep.pkg)),
     .kind = fz_root_dep_kind(dep.kind),
-    .private = dep.private,
+    .public = dep.public,
   };
   if (u->pkgs[dep.pkg].local) {
     req.source = SPN_PKG_SOURCE_FILE;
@@ -135,7 +135,7 @@ static fz_result_t fz_execute(sp_mem_t mem, fz_universe_t* u, sp_intern_t* inter
       sp_da_for(source->deps, dt) {
         spn_index_dep_t dep = {
           .kind = source->deps[dt].kind,
-          .private = source->deps[dt].private,
+          .public = source->deps[dt].public,
           .name = sp_intern(intern, fz_pkg_name(source->deps[dt].pkg)),
         };
         sp_assert(!spn_semver_parse_range(fz_range_render(mem, source->deps[dt]), &dep.range));

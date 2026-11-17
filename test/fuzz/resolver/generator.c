@@ -199,7 +199,7 @@ static fz_dep_t fz_free_range(sp_fuzz_prng_t* prng, fz_universe_t* u, u32 target
       .pkg = target,
       .shape = FZ_RANGE_ANY,
       .kind = fz_sample_kind(prng, &u->profile),
-      .private = sp_fuzz_chance(prng, (u32)u->profile.private_pct, 16),
+      .public = !sp_fuzz_chance(prng, (u32)u->profile.private_pct, 16),
     };
   }
 
@@ -211,24 +211,24 @@ static fz_dep_t fz_free_range(sp_fuzz_prng_t* prng, fz_universe_t* u, u32 target
     .shape = (fz_range_shape_t)sp_fuzz_weighted(prng, u->profile.shapes, FZ_RANGE_COUNT),
     .version = anchor,
     .kind = fz_sample_kind(prng, &u->profile),
-    .private = sp_fuzz_chance(prng, (u32)u->profile.private_pct, 16),
+    .public = !sp_fuzz_chance(prng, (u32)u->profile.private_pct, 16),
   };
 }
 
 static fz_dep_t fz_sat_range(sp_fuzz_prng_t* prng, fz_universe_t* u, u32 target, spn_semver_t assigned) {
   if (u->pkgs[target].local) {
-    return (fz_dep_t) { .pkg = target, .shape = FZ_RANGE_ANY, .kind = SPN_INDEX_DEP_NORMAL };
+    return (fz_dep_t) { .pkg = target, .shape = FZ_RANGE_ANY, .kind = SPN_INDEX_DEP_NORMAL, .public = true };
   }
 
   for (u32 it = 0; it < 8; it++) {
     fz_dep_t dep = fz_free_range(prng, u, target);
     dep.kind = SPN_INDEX_DEP_NORMAL;
-    dep.private = false;
+    dep.public = true;
     if (fz_range_sat(dep, assigned)) {
       return dep;
     }
   }
-  return (fz_dep_t) { .pkg = target, .shape = FZ_RANGE_EXACT, .version = assigned };
+  return (fz_dep_t) { .pkg = target, .shape = FZ_RANGE_EXACT, .version = assigned, .public = true };
 }
 
 static bool fz_can_dep(fz_universe_t* u, u64 owner, u64 target) {

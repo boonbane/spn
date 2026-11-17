@@ -11,7 +11,7 @@
 
 typedef struct {
   const c8* name;
-  bool private;
+  bool public;
 } dep_t;
 
 typedef struct {
@@ -36,7 +36,7 @@ typedef struct {
 typedef struct {
   const c8* pkg;
   const c8* lib;
-  bool private;
+  bool public;
 } entry_t;
 
 typedef struct {
@@ -128,11 +128,12 @@ static const test_t tests [] = {
     .name = "lib_carries_privacy",
     .yield = SI_CLOSURE_YIELD_LIB,
     .graph.pkgs = {
-      { .name = "P", .deps = { { "B", .private = true } } },
+      { .name = "P", .deps = { { "B", .public = true } } },
       { .name = "B", .kind = SPN_LIB_KIND_STATIC, .deps = { { "C" } } },
-      { .name = "C", .kind = SPN_LIB_KIND_STATIC },
+      { .name = "C", .kind = SPN_LIB_KIND_STATIC, .deps = { { "D", .public = true } } },
+      { .name = "D", .kind = SPN_LIB_KIND_STATIC },
     },
-    .expect = { { "B", "B", .private = true }, { "C", "C", .private = true } },
+    .expect = { { "B", "B", .public = true }, { "C", "C" }, { "D", "D" } },
   },
   {
     .name = "lib_leads_with_siblings",
@@ -152,7 +153,7 @@ static const test_t tests [] = {
         { .name = "B", .kind = SPN_LIB_KIND_STATIC },
       },
     },
-    .expect = { { "P", "L" }, { "P", "M" }, { "B", "B" } },
+    .expect = { { "P", "L", .public = true }, { "P", "M", .public = true }, { "B", "B" } },
   },
   // A shared sibling is its own link unit: it appears, but its deps are its
   // own problem and are not walked into the consumer
@@ -165,7 +166,7 @@ static const test_t tests [] = {
         { .name = "P", .libs = { { "L", SPN_LIB_KIND_SHARED, .deps = { "M" } }, { "M", SPN_LIB_KIND_STATIC } } },
       },
     },
-    .expect = { { "P", "L" } },
+    .expect = { { "P", "L", .public = true } },
   },
   {
     .name = "sibling_dedupes_diamond",
@@ -183,7 +184,7 @@ static const test_t tests [] = {
         },
       },
     },
-    .expect = { { "P", "M" }, { "P", "L" }, { "P", "N" } },
+    .expect = { { "P", "M", .public = true }, { "P", "L", .public = true }, { "P", "N", .public = true } },
   },
   // Chasing crosses shared boundaries the link closure stops at: a shared
   // lib's own shared deps must still sit next to the executable
@@ -209,7 +210,7 @@ static const test_t tests [] = {
         { .name = "P", .libs = { { "L", SPN_LIB_KIND_SHARED, .deps = { "M" } }, { "M", SPN_LIB_KIND_STATIC } } },
       },
     },
-    .expect = { { "P", "L" }, { "P", "M" } },
+    .expect = { { "P", "L", .public = true }, { "P", "M", .public = true } },
   },
 };
 
@@ -301,7 +302,7 @@ static built_t build_graph(sp_mem_t mem, const graph_t* spec) {
       if (!pkg->deps[d].name) {
         break;
       }
-      sp_da_push(deps, ((spn_pkg_edge_t) { .pkg = find_pkg(&g, pkg->deps[d].name), .private = pkg->deps[d].private }));
+      sp_da_push(deps, ((spn_pkg_edge_t) { .pkg = find_pkg(&g, pkg->deps[d].name), .public = pkg->deps[d].public }));
     }
     g.pkgs[it]->deps = deps;
 
@@ -359,7 +360,7 @@ sp_test_each(closure, iterate, test_t, tests, .setup = spn_test_ctx_setup) {
     if (expect->lib) {
       sp_expect_str_eq_c(t, entry->lib->target->info->name.str, expect->lib);
     }
-    sp_expect_eq(t, expect->private, entry->private);
+    sp_expect_eq(t, expect->public, entry->public);
   }
   return SP_OK;
 }

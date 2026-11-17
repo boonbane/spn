@@ -51,7 +51,7 @@ typedef struct {
   sp_intern_str_t name;
   spn_pkg_source_t source;
   spn_dep_kind_t kind;
-  bool private;
+  bool public;
   spn_when_t when;
   spn_when_t options;
   union {

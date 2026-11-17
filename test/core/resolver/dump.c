@@ -21,7 +21,7 @@ typedef struct {
   spn_dump_key_t key;
   spn_dep_kind_t kind;
   spn_dep_edge_t edge;
-  bool private;
+  bool public;
 } spn_dump_edge_t;
 
 static sp_str_t dump_hash_str(sp_mem_t mem, sp_hash_t hash) {
@@ -56,7 +56,7 @@ static s32 sort_edge(const void* a, const void* b) {
   if (order) return order;
   if (lhs->kind != rhs->kind) return lhs->kind < rhs->kind ? -1 : 1;
   if (lhs->edge != rhs->edge) return lhs->edge < rhs->edge ? -1 : 1;
-  if (lhs->private != rhs->private) return lhs->private < rhs->private ? -1 : 1;
+  if (lhs->public != rhs->public) return lhs->public < rhs->public ? -1 : 1;
   return 0;
 }
 
@@ -216,7 +216,7 @@ spn_cg_resolve_t spn_resolve_dump(sp_mem_t mem, sp_intern_t* intern, const spn_r
         .key = dump_key(intern, dep->id),
         .kind = dep->kind,
         .edge = dep->edge,
-        .private = dep->private,
+        .public = dep->public,
       }));
     }
     sp_da_sort(edges, sort_edge);
@@ -236,8 +236,8 @@ spn_cg_resolve_t spn_resolve_dump(sp_mem_t mem, sp_intern_t* intern, const spn_r
         .kind = edges[jt].kind,
         .edge = edges[jt].edge,
       };
-      if (edges[jt].private) {
-        sp_opt_set(edge.private, true);
+      if (edges[jt].public) {
+        sp_opt_set(edge.public, true);
       }
       sp_da_push(pkg.edges, edge);
     }

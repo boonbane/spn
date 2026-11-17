@@ -114,7 +114,7 @@ static const test_t insert_tests [] = {
   },
   {
     .name = "into_inline_table",
-    .manifest = "inline_private",
+    .manifest = "inline_public",
     .set = { { .path = { "foo", "version" }, .value = "1.0.0" } },
     .expect = { .golden = "set_insert_into_inline_table" },
   },
@@ -202,7 +202,7 @@ static const test_t error_tests [] = {
     .manifest = "inline_empty",
     .set = {
       { .path = { "foo", "version" }, .value = "1.0.0" },
-      { .path = { "foo", "private" }, .value = "x", .err = SPN_ERROR },
+      { .path = { "foo", "public" }, .value = "x", .err = SPN_ERROR },
     },
     .expect = { .golden = "set_insert_into_empty_inline_table" },
   },

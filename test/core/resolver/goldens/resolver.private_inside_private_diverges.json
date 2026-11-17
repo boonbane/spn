@@ -11,7 +11,7 @@
     {
       "name": "gfx",
       "version": "1.0.0",
-      "hash": "9450ac373baea7d9",
+      "hash": "b595c2d0a252337f",
       "source": "index",
       "recipe": "none",
       "edges": [
@@ -19,18 +19,17 @@
           "to": {
             "name": "inner",
             "version": "1.0.0",
-            "hash": "54f3e6a7ad8d3297"
+            "hash": "3f4aff8b2cc6d54a"
           },
           "kind": "package",
-          "edge": "private",
-          "private": true
+          "edge": "private"
         }
       ]
     },
     {
       "name": "inner",
       "version": "1.0.0",
-      "hash": "54f3e6a7ad8d3297",
+      "hash": "3f4aff8b2cc6d54a",
       "source": "index",
       "recipe": "none",
       "edges": [
@@ -41,8 +40,7 @@
             "hash": "b181e5d12d206221"
           },
           "kind": "package",
-          "edge": "private",
-          "private": true
+          "edge": "private"
         }
       ]
     },
@@ -63,7 +61,7 @@
     {
       "name": "root",
       "version": "0.0.1",
-      "hash": "c1e944bf9d86a8fa",
+      "hash": "e39db85490b903c7",
       "source": "root",
       "recipe": "local",
       "edges": [
@@ -71,7 +69,7 @@
           "to": {
             "name": "gfx",
             "version": "1.0.0",
-            "hash": "9450ac373baea7d9"
+            "hash": "b595c2d0a252337f"
           },
           "kind": "package",
           "edge": "scope"

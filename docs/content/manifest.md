@@ -251,7 +251,7 @@ readme: false
 |---|---|
 | `version` | `string` |
 | `path` | `string` |
-| `private` | `bool` |
+| `public` | `bool` |
 | `when` | [`when`](#extern-types) |
 | `options` | [`when`](#extern-types) |
 

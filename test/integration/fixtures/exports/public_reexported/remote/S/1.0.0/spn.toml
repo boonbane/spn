@@ -3,7 +3,7 @@ name = "S"
 version = "1.0.0"
 
 [deps.package]
-D = "1.0.0"
+D = { version = "1.0.0", public = true }
 
 [[lib]]
 name = "S"

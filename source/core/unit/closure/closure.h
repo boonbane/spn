@@ -21,7 +21,7 @@ typedef struct {
   si_closure_yield_t yield;
   spn_pkg_unit_t* pkg;
   spn_target_unit_t* lib;
-  bool private;
+  bool public;
 } si_closure_entry_t;
 
 typedef struct {
@@ -29,7 +29,7 @@ typedef struct {
   spn_target_unit_t* lib;
   u32 edge;
   u32 child;
-  bool private;
+  bool public;
   bool root;
 } si_closure_frame_t;
 

@@ -25,7 +25,7 @@
     {
       "name": "gfx",
       "version": "1.0.0",
-      "hash": "b30c3cf15ee0a876",
+      "hash": "39527429fb790574",
       "source": "index",
       "recipe": "none",
       "edges": [
@@ -36,15 +36,14 @@
             "hash": "7249cb50930f08ee"
           },
           "kind": "package",
-          "edge": "private",
-          "private": true
+          "edge": "private"
         }
       ]
     },
     {
       "name": "root",
       "version": "0.0.1",
-      "hash": "c59b76663615149d",
+      "hash": "5e9883ee67359b3d",
       "source": "root",
       "recipe": "local",
       "edges": [
@@ -61,7 +60,7 @@
           "to": {
             "name": "gfx",
             "version": "1.0.0",
-            "hash": "b30c3cf15ee0a876"
+            "hash": "39527429fb790574"
           },
           "kind": "package",
           "edge": "scope"

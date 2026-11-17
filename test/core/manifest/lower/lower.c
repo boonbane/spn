@@ -82,7 +82,7 @@ typedef struct {
   const c8* file;
   u8 build;
   u8 test;
-  u8 private;
+  u8 public;
   const c8* when;
   const c8* options;
 } dep_t;
@@ -339,10 +339,10 @@ static const test_t tests [] = {
     }
   },
   {
-    .name = "dep_private",
-    .manifest = "dep_private",
+    .name = "dep_public",
+    .manifest = "dep_public",
     .deps = {
-      { .name = "foo", .source = SPN_PKG_SOURCE_INDEX, .private = 1 }
+      { .name = "foo", .source = SPN_PKG_SOURCE_INDEX, .public = 1 }
     }
   },
   // The same name under two kinds must survive as two requests, not collapse
@@ -1871,7 +1871,7 @@ sp_test_each(lower, cases, test_t, tests, .setup = spn_test_ctx_setup) {
     }
     sp_must(t, req);
     sp_expect_eq(t, (u32)expected.source, (u32)req->source);
-    sp_expect_eq(t, expected.private != 0, req->private);
+    sp_expect_eq(t, expected.public != 0, req->public);
 
     if (expected.file) sp_expect(t, sp_str_ends_with(req->file.path.sub, sp_cstr_as_str(expected.file)));
     if (expected.when) sp_expect_str_eq_c(t, spn_when_to_str(mem, &req->when), expected.when);

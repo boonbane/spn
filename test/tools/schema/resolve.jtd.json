@@ -60,7 +60,7 @@
         "edge": { "ref": "dep_edge" }
       },
       "optionalProperties": {
-        "private": { "type": "boolean" }
+        "public": { "type": "boolean" }
       }
     },
 

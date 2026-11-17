@@ -228,7 +228,7 @@
       "optionalProperties": {
         "version": { "type": "string" },
         "path": { "type": "string" },
-        "private": { "type": "boolean" },
+        "public": { "type": "boolean" },
         "when": { "metadata": { "extern": "when", "include": "when/types.h" } },
         "options": { "metadata": { "extern": "when", "include": "when/types.h" } }
       }

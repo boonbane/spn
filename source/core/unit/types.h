@@ -75,7 +75,7 @@ typedef struct {
 
 typedef struct {
   spn_pkg_unit_t* pkg;
-  bool private;
+  bool public;
 } spn_pkg_edge_t;
 
 typedef struct {

@@ -95,7 +95,7 @@ typedef sp_ht(spn_group_node_t, spn_hash_state_t) spn_group_hash_t;
 typedef struct {
   sp_hash_t hash;
   u32 kind;
-  u32 private;
+  u32 public;
 } spn_edge_record_t;
 
 typedef struct {
@@ -104,7 +104,7 @@ typedef struct {
   spn_resolved_pkg_t* node;
   spn_dep_kind_t kind;
   spn_dep_edge_t edge;
-  bool private;
+  bool public;
 } spn_node_edge_t;
 
 static spn_err_union_t resolve_dep(spn_resolver_t* resolver, spn_resolve_run_t* run, spn_resolved_pkg_t* node, spn_requested_dep_t* dep);
@@ -308,7 +308,7 @@ static spn_dep_edge_t classify_dep(spn_resolver_t* resolver, spn_resolved_pkg_t*
     }
   }
 
-  if (dep->private && node_is_shared(resolver, node)) {
+  if (!dep->public && node_is_shared(resolver, node)) {
     return SPN_DEP_EDGE_PRIVATE;
   }
   return SPN_DEP_EDGE_SCOPE;
@@ -355,7 +355,7 @@ static s32 sort_req_canonical(const void* a, const void* b) {
   s32 order = sp_str_compare_alphabetical(lhs->name.str, rhs->name.str);
   if (order) return order;
   if (lhs->kind != rhs->kind) return lhs->kind < rhs->kind ? -1 : 1;
-  if (lhs->private != rhs->private) return lhs->private < rhs->private ? -1 : 1;
+  if (lhs->public != rhs->public) return lhs->public ? -1 : 1;
   if (lhs->source != rhs->source) return lhs->source < rhs->source ? -1 : 1;
 
   switch (lhs->source) {
@@ -542,7 +542,7 @@ static spn_err_union_t try_candidate(spn_resolver_t* resolver, spn_resolve_run_t
       .name = release->deps[it].name,
       .source = SPN_PKG_SOURCE_INDEX,
       .kind = dep_kind_from_index(release->deps[it].kind),
-      .private = release->deps[it].private,
+      .public = release->deps[it].public,
       .when = release->deps[it].when,
       .options = release->deps[it].options,
       .index = {
@@ -916,7 +916,7 @@ static void process_boundaries(spn_resolver_t* resolver, spn_resolve_run_t* run)
 
     spn_requested_dep_t req = boundary.req;
     req.kind = SPN_DEP_KIND_PACKAGE;
-    req.private = false;
+    req.public = true;
     sp_da_push(run->scopes[target].reqs, req);
   }
 
@@ -996,7 +996,7 @@ static sp_da(spn_node_edge_t) collect_node_edges(spn_resolver_t* resolver, spn_r
 
     bool present = false;
     sp_da_for(edges, jt) {
-      if (edges[jt].scope == target_scope && edges[jt].name == name && edges[jt].kind == dep->kind && edges[jt].private == dep->private) {
+      if (edges[jt].scope == target_scope && edges[jt].name == name && edges[jt].kind == dep->kind && edges[jt].public == dep->public) {
         present = true;
         break;
       }
@@ -1008,7 +1008,7 @@ static sp_da(spn_node_edge_t) collect_node_edges(spn_resolver_t* resolver, spn_r
         .node = target,
         .kind = dep->kind,
         .edge = edge,
-        .private = dep->private,
+        .public = dep->public,
       }));
     }
   }
@@ -1086,7 +1086,7 @@ static s32 sort_edge_record(const void* a, const void* b) {
   const spn_edge_record_t* rhs = (const spn_edge_record_t*)b;
   if (lhs->hash != rhs->hash) return lhs->hash < rhs->hash ? -1 : 1;
   if (lhs->kind != rhs->kind) return lhs->kind < rhs->kind ? -1 : 1;
-  if (lhs->private != rhs->private) return lhs->private < rhs->private ? -1 : 1;
+  if (lhs->public != rhs->public) return lhs->public < rhs->public ? -1 : 1;
   return 0;
 }
 
@@ -1111,7 +1111,7 @@ static sp_hash_t hash_group_node(spn_resolver_t* resolver, spn_resolve_run_t* ru
     sp_da_push(records, ((spn_edge_record_t) {
       .hash = hash_group_node(resolver, run, memo, edges[it].scope, edges[it].name),
       .kind = (u32)edges[it].kind,
-      .private = (u32)edges[it].private,
+      .public = (u32)edges[it].public,
     }));
   }
   sp_da_sort(records, sort_edge_record);
@@ -1158,7 +1158,7 @@ static void commit_instances(spn_resolver_t* resolver, spn_resolve_run_t* run, s
           .id = target,
           .kind = edges[jt].kind,
           .edge = edges[jt].edge,
-          .private = edges[jt].private,
+          .public = edges[jt].public,
         }));
       }
       sp_mem_end_scratch(scratch);

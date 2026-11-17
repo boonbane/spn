@@ -12,7 +12,7 @@ si_closure_it_t si_closure_it(sp_mem_t mem, si_closure_shared_t shared) {
 void si_closure_it_push(si_closure_it_t* it, spn_target_unit_t* root) {
   si_ht_insert(it->mem, it->libs, root, (u8)true);
   si_ht_insert(it->mem, it->pkgs, root->pkg, (u8)true);
-  si_closure_frame_t frame = { .lib = root, .root = true };
+  si_closure_frame_t frame = { .lib = root, .public = true, .root = true };
   si_da_push(it->mem, it->stack, frame);
 }
 
@@ -61,7 +61,7 @@ bool si_closure_it_next(si_closure_it_t* it) {
         continue;
       }
       si_ht_insert(it->mem, it->pkgs, edge->pkg, (u8)true);
-      si_closure_frame_t child = { .pkg = edge->pkg, .private = frame->private || edge->private };
+      si_closure_frame_t child = { .pkg = edge->pkg, .public = frame->public && edge->public };
       si_da_push(it->mem, it->stack, child);
       break;
     }
@@ -75,7 +75,7 @@ bool si_closure_it_next(si_closure_it_t* it) {
         continue;
       }
       si_ht_insert(it->mem, it->libs, lib, (u8)true);
-      si_closure_frame_t child = { .lib = lib, .private = frame->private };
+      si_closure_frame_t child = { .lib = lib, .public = frame->public };
       si_da_push(it->mem, it->stack, child);
       break;
     }
@@ -92,7 +92,7 @@ bool si_closure_it_next(si_closure_it_t* it) {
       .yield = done.lib ? SI_CLOSURE_YIELD_LIB : SI_CLOSURE_YIELD_PKG,
       .pkg = done.lib ? done.lib->pkg : done.pkg,
       .lib = done.lib,
-      .private = done.private,
+      .public = done.public,
     };
     return true;
   }

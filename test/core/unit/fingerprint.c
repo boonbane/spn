@@ -42,7 +42,7 @@ static const test_t tests [] = {
   {
     .name = "dep_privacy_changes_fingerprint",
     .a = { .pkgs = { { .name = "A", .deps = { { "B" } } }, { .name = "B" } } },
-    .b = { .pkgs = { { .name = "A", .deps = { { "B", .private = true } } }, { .name = "B" } } },
+    .b = { .pkgs = { { .name = "A", .deps = { { "B", .public = true } } }, { .name = "B" } } },
   },
   {
     .name = "dep_kind_changes_fingerprint",

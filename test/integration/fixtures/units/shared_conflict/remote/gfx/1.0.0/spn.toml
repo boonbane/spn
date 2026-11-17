@@ -3,7 +3,7 @@ name = "gfx"
 version = "1.0.0"
 
 [deps.package]
-foo = "1.0.0"
+foo = { version = "1.0.0", public = true }
 
 [[lib]]
 name = "gfx"

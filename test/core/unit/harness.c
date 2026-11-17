@@ -332,7 +332,7 @@ units_t* units_new(sp_test_t* t, const graph_t* g) {
       sp_da_push(resolved.edges, ((spn_resolved_dep_t) {
         .id = pkg_id(spec->deps[dt].to),
         .kind = spec->deps[dt].kind,
-        .private = spec->deps[dt].private,
+        .public = spec->deps[dt].public,
       }));
     }
     sp_ht_insert(u->resolve, resolved.id, resolved);

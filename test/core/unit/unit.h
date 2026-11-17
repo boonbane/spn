@@ -25,7 +25,7 @@
 typedef struct {
   const c8* to;
   spn_dep_kind_t kind;
-  bool private;
+  bool public;
 } graph_dep_t;
 
 typedef struct {

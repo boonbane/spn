@@ -13,7 +13,7 @@ typedef sp_da(fz_instance_t) fz_instance_arr_t;
 typedef struct {
   sp_hash_t label;
   u32 kind;
-  u32 private;
+  u32 public;
 } fz_label_record_t;
 
 static s32 fz_find_inst(fz_instance_arr_t arr, spn_pkg_id_t id) {
@@ -56,7 +56,7 @@ static spn_dep_edge_t fz_classify(fz_universe_t* u, fz_instance_t* owner, fz_dep
       break;
     }
   }
-  if (dep.private && fz_pkg_shared(u, owner->pkg)) {
+  if (!dep.public && fz_pkg_shared(u, owner->pkg)) {
     return SPN_DEP_EDGE_PRIVATE;
   }
   return SPN_DEP_EDGE_SCOPE;
@@ -78,7 +78,7 @@ static fz_err_t fz_check_edges(fz_universe_t* u, fz_instance_arr_t instances, s3
     bool counted = false;
     for (u64 jt = 0; jt < dt; jt++) {
       fz_dep_t prior = deps[jt];
-      if (prior.pkg == dep.pkg && fz_dep_kind(prior.kind) == kind && prior.private == dep.private && fz_classify(u, instance, prior) != SPN_DEP_EDGE_PRUNED) {
+      if (prior.pkg == dep.pkg && fz_dep_kind(prior.kind) == kind && prior.public == dep.public && fz_classify(u, instance, prior) != SPN_DEP_EDGE_PRUNED) {
         counted = true;
         break;
       }
@@ -90,7 +90,7 @@ static fz_err_t fz_check_edges(fz_universe_t* u, fz_instance_arr_t instances, s3
     spn_resolved_dep_t* held = SP_NULLPTR;
     sp_da_for(instance->node->edges, et) {
       spn_resolved_dep_t* edge = &instance->node->edges[et];
-      if (edge->kind != kind || edge->private != dep.private) {
+      if (edge->kind != kind || edge->public != dep.public) {
         continue;
       }
       s32 target = fz_find_inst(instances, edge->id);
@@ -213,7 +213,7 @@ static s32 fz_sort_label_record(const void* a, const void* b) {
   const fz_label_record_t* rhs = (const fz_label_record_t*)b;
   if (lhs->label != rhs->label) return lhs->label < rhs->label ? -1 : 1;
   if (lhs->kind != rhs->kind) return lhs->kind < rhs->kind ? -1 : 1;
-  if (lhs->private != rhs->private) return lhs->private < rhs->private ? -1 : 1;
+  if (lhs->public != rhs->public) return lhs->public < rhs->public ? -1 : 1;
   return 0;
 }
 
@@ -229,7 +229,7 @@ static sp_hash_t fz_label(sp_mem_t mem, fz_instance_arr_t instances, sp_hash_t* 
     sp_da_push(records, ((fz_label_record_t) {
       .label = fz_label(mem, instances, labels, done, fz_find_inst(instances, edge->id)),
       .kind = (u32)edge->kind,
-      .private = (u32)edge->private,
+      .public = (u32)edge->public,
     }));
   }
   sp_da_sort(records, fz_sort_label_record);

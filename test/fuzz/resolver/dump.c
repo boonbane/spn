@@ -24,7 +24,7 @@ static bool fz_load_template(sp_mem_t mem, sp_str_t* tmpl) {
 }
 
 static sp_str_t fz_root_attrs(fz_dep_t dep) {
-  return dep.private ? sp_str_lit(", private = true") : sp_str_lit("");
+  return dep.public ? sp_str_lit(", public = true") : sp_str_lit("");
 }
 
 static const c8* fz_linkage_json(spn_linkage_t kind) {
@@ -62,8 +62,8 @@ static sp_str_t fz_release_line(sp_mem_t mem, fz_universe_t* u, u32 pkg, fz_rele
       yyjson_mut_obj_add_strcpy(doc, entry, "name", sp_str_to_cstr(mem, fz_pkg_name(dep.pkg)));
       yyjson_mut_obj_add_strcpy(doc, entry, "version", sp_str_to_cstr(mem, fz_range_render(mem, dep)));
       yyjson_mut_obj_add_strcpy(doc, entry, "kind", fz_dep_kind_json(dep.kind));
-      if (dep.private) {
-        yyjson_mut_obj_add_bool(doc, entry, "private", true);
+      if (dep.public) {
+        yyjson_mut_obj_add_bool(doc, entry, "public", true);
       }
     }
   }

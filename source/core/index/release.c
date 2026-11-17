@@ -43,7 +43,7 @@ spn_err_t spn_index_release_from_manifest(sp_mem_t mem, const si_pkg_info_t* man
 
     sp_da_push(release->deps, ((spn_index_dep_t) {
       .kind = dep_kind_to_index(req->kind),
-      .private = req->private,
+      .public = req->public,
       .name = req->name,
       .range = req->index.range,
       .when = req->when,

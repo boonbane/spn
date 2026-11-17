@@ -128,7 +128,7 @@ spn_err_t si_add_package_unit_closure(spn_units_t* u, spn_build_unit_t* build, c
     }
     spn_pkg_unit_t* dep = SP_NULLPTR;
     spn_try(si_add_package_unit_closure(u, build, sp_ht_getp(u->resolve, edge->id), &dep));
-    si_da_push(u->mem, pkg->deps, ((spn_pkg_edge_t) { .pkg = dep, .private = edge->private }));
+    si_da_push(u->mem, pkg->deps, ((spn_pkg_edge_t) { .pkg = dep, .public = edge->public }));
   }
 
   si_om_for_each(pkg->pkg.targets, target) {
@@ -259,7 +259,7 @@ spn_err_t si_add_target_unit(spn_units_t* u, spn_pkg_unit_t* pkg, si_target_t* t
     }
     spn_pkg_unit_t* dep = SP_NULLPTR;
     spn_try(si_add_package_unit_closure(u, pkg->build, sp_ht_getp(u->resolve, edge->id), &dep));
-    si_da_push(u->mem, unit->edges, ((spn_pkg_edge_t) { .pkg = dep, .private = edge->private }));
+    si_da_push(u->mem, unit->edges, ((spn_pkg_edge_t) { .pkg = dep, .public = edge->public }));
     si_da_push(u->mem, unit->includes, dep);
   }
   if (published) {

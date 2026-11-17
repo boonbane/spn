@@ -30,7 +30,7 @@ static const test_t tests [] = {
     .graph.pkgs = {
       {
         .name = "P",
-        .deps = { { "B" }, { "C" }, { "D", .private = true }, { "E" } },
+        .deps = { { "B", .public = true }, { "C" }, { "D" }, { "E" } },
         .system_deps = { "pthread" },
         .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "main.c" } } },
       },
@@ -52,7 +52,7 @@ static const test_t tests [] = {
     .graph.pkgs = {
       {
         .name = "P",
-        .deps = { { "B" }, { "C" }, { "D", .private = true } },
+        .deps = { { "B", .public = true }, { "C" }, { "D" } },
         .targets = { { "A", shared_only, .source = { "app.c" } } },
       },
       { .name = "B", .targets = { { "B", static_only, .source = { "a.c" } } } },

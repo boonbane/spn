@@ -3,4 +3,4 @@ name = "p"
 version = "1.0.0"
 
 [deps.package]
-foo = { version = "^1.0.0", private = true }
+foo = { version = "^1.0.0", public = true }

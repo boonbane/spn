@@ -68,7 +68,7 @@ typedef struct {
   fz_range_shape_t shape;
   spn_semver_t version;
   spn_index_dep_kind_t kind;
-  bool private;
+  bool public;
 } fz_dep_t;
 
 typedef struct {

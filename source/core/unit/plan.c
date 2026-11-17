@@ -216,7 +216,7 @@ static spn_err_t lower_target(spn_units_t* u, spn_target_unit_t* unit) {
           }
           case SPN_LIB_KIND_STATIC: {
             if (!sp_da_empty(lib->objects)) {
-              spn_link_role_t role = dynamic && !entry->private ? SPN_LINK_ROLE_WHOLE_ARCHIVE : SPN_LINK_ROLE_ARCHIVE;
+              spn_link_role_t role = dynamic && entry->public ? SPN_LINK_ROLE_WHOLE_ARCHIVE : SPN_LINK_ROLE_ARCHIVE;
               si_da_push(mem, link->deps, ((spn_link_dep_t) { .lib = lib, .role = role }));
             }
             if (is_any_object_cxx(lib->objects)) {

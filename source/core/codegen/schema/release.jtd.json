@@ -37,7 +37,7 @@
         "kind": { "ref": "index_dep_kind" }
       },
       "optionalProperties": {
-        "private": { "type": "boolean" },
+        "public": { "type": "boolean" },
         "when": { "metadata": { "extern": "when", "include": "when/types.h" } },
         "options": { "metadata": { "extern": "when", "include": "when/types.h" } }
       }

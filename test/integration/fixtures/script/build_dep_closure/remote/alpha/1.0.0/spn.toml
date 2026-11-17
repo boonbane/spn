@@ -3,7 +3,7 @@ name = "alpha"
 version = "1.0.0"
 
 [deps.package]
-beta = { version = "1.0.0", private = true }
+beta = "1.0.0"
 
 [[lib]]
 name = "alpha"

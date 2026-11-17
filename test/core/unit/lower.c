@@ -184,7 +184,7 @@ static const test_t tests [] = {
   {
     .name = "public_static_deps_of_a_shared_lib_feed_its_exports",
     .graph.pkgs = {
-      { .name = "P", .deps = { { "B" } }, .targets = { { "A", shared_only, .source = { "a.c" } } } },
+      { .name = "P", .deps = { { "B", .public = true } }, .targets = { { "A", shared_only, .source = { "a.c" } } } },
       { .name = "B", .targets = { { "B", static_only, .source = { "b.c" } } } },
     },
     .roots = { { "A", SPN_TARGET_KIND_LIB } },

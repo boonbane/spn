@@ -20,7 +20,7 @@ typedef enum {
 
 typedef struct {
   spn_index_dep_kind_t kind;
-  bool private;
+  bool public;
   sp_intern_str_t name;
   spn_semver_range_t range;
   spn_when_t when;
