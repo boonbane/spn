@@ -3,11 +3,9 @@
 #include "ctx/types.h"
 #include "error/error.h"
 #include "intern/intern.h"
-#include "lock/lock.h"
 #include "model/sync.h"
 #include "op/op.h"
 #include "paths/paths.h"
-#include "project/types.h"
 #include "session/types.h"
 #include "unit/types.h"
 
@@ -17,12 +15,7 @@ spn_err_t spn_op_source_path(spn_op_t* op) {
   spn_dep_kind_t kind = op->request.path.kind;
   sp_intern_str_t name = spn_intern(op->request.path.name);
 
-  spn_lock_t held = sp_zero;
-  spn_err_union_t unreadable = sp_zero;
-  if (spn_lock_load(session->mem, ctx->intern, &ctx->roots, session->project->paths.lock, &held, &unreadable)) {
-    return spn_err_emit(ctx, unreadable);
-  }
-  spn_try(spn_resolve_and_sync(op, &held, &held));
+  spn_try(spn_resolve_and_sync(op));
 
   const spn_resolved_pkg_t* pkg = SP_NULLPTR;
   if (kind == SPN_DEP_KIND_PACKAGE && name.id == session->root->name.id) {

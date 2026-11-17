@@ -2,12 +2,14 @@
 
 #include "ctx/types.h"
 #include "error/error.h"
+#include "event/event.h"
 #include "index/types.h"
 #include "intern/intern.h"
 #include "lock/lock.h"
 #include "model/sync.h"
 #include "op/op.h"
 #include "project/types.h"
+#include "semver/convert.h"
 #include "session/types.h"
 
 static spn_err_t update(sp_mem_t scratch, spn_op_t* op) {
@@ -53,7 +55,22 @@ static spn_err_t update(sp_mem_t scratch, spn_op_t* op) {
   }
   spn_try(spn_sync_index_list(op, indexes, true));
 
-  return spn_resolve_and_sync(op, &held, &kept);
+  spn_lock_t lock = sp_zero;
+  spn_try(spn_resolve_and_sync_pins(op, &held, &kept, &lock));
+
+  spn_lock_diff_t diff = spn_lock_diff(&held, &lock);
+  while (spn_lock_diff_next(&diff)) {
+    const spn_lock_entry_t* entry = diff.now ? diff.now : diff.was;
+    spn_event_buffer_push(ctx->events, (spn_event_t) {
+      .kind = diff.now ? SPN_EVENT_LOCK_ADDED : SPN_EVENT_LOCK_REMOVED,
+      .pkg = entry->name.str,
+      .resolve_pkg = {
+        .name = entry->name.str,
+        .version = spn_semver_to_str(ctx->events->mem, entry->version),
+      },
+    });
+  }
+  return SPN_OK;
 }
 
 spn_err_t spn_op_update(spn_op_t* op) {

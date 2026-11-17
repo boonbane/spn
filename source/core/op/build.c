@@ -9,7 +9,6 @@
 #include "event/event.h"
 #include "external/wasm/wasm.h"
 #include "graph/dag.h"
-#include "lock/lock.h"
 #include "model/sync.h"
 #include "op/op.h"
 #include "paths/paths.h"
@@ -108,12 +107,7 @@ spn_err_t spn_op_build(spn_op_t* op) {
     });
   }
 
-  spn_lock_t held = sp_zero;
-  spn_err_union_t unreadable = sp_zero;
-  if (spn_lock_load(mem, ctx->intern, roots, project->paths.lock, &held, &unreadable)) {
-    return spn_err_emit(ctx, unreadable);
-  }
-  spn_try(spn_resolve_and_sync(op, &held, &held));
+  spn_try(spn_resolve_and_sync(op));
 
   // Initialize shared state across the DAGs
   session->dag.files_path = spn_path_join(session->mem, session->paths.build, sp_str_lit(".spn/files"));

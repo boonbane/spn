@@ -5,9 +5,12 @@ static const command_test_t commands [] = {
     .name = "pins_index_deps",
     .project = "test/integration/fixtures/lock/pair",
     .args = { "build" },
-    .expect.locked = {
-      { .name = "A", .version = "1.0.0" },
-      { .name = "B", .version = "1.0.0" },
+    .expect = {
+      .events = { { .event = SPN_EVENT_LOCK_ADDED, .key = "name", .value = "A", .absent = true } },
+      .locked = {
+        { .name = "A", .version = "1.0.0" },
+        { .name = "B", .version = "1.0.0" },
+      },
     },
   },
   {
@@ -133,9 +136,15 @@ static const command_test_t commands [] = {
     .name = "update_creates_lock",
     .project = "test/integration/fixtures/lock/pair",
     .args = { "update" },
-    .expect.locked = {
-      { .name = "A", .version = "1.0.0" },
-      { .name = "B", .version = "1.0.0" },
+    .expect = {
+      .events = {
+        { .event = SPN_EVENT_LOCK_ADDED, .key = "name", .value = "A" },
+        { .event = SPN_EVENT_LOCK_ADDED, .key = "name", .value = "B" },
+      },
+      .locked = {
+        { .name = "A", .version = "1.0.0" },
+        { .name = "B", .version = "1.0.0" },
+      },
     },
   },
   {

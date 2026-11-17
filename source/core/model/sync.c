@@ -631,7 +631,7 @@ static spn_err_t pin(sp_mem_t scratch, spn_ctx_t* ctx, spn_resolve_t resolve, bo
   return SPN_OK;
 }
 
-spn_err_t spn_resolve_and_sync(spn_op_t* op, const spn_lock_t* held, const spn_lock_t* pins) {
+spn_err_t spn_resolve_and_sync_pins(spn_op_t* op, const spn_lock_t* held, const spn_lock_t* pins, spn_lock_t* lock) {
   spn_session_t* session = op->session;
   spn_ctx_t* ctx = session->ctx;
   const spn_path_roots_t* roots = &ctx->roots;
@@ -659,17 +659,17 @@ spn_err_t spn_resolve_and_sync(spn_op_t* op, const spn_lock_t* held, const spn_l
   }
   spn_try(hashed);
 
-  spn_lock_t lock = spn_lock_new(session->mem);
+  *lock = spn_lock_new(session->mem);
   sp_da_for(pins->entries, it) {
-    spn_lock_insert(&lock, pins->entries[it]);
+    spn_lock_insert(lock, pins->entries[it]);
   }
 
   bool reresolve = sp_zero;
   do {
-    spn_try(spn_resolve(op, &lock));
+    spn_try(spn_resolve(op, lock));
 
     sp_mem_arena_marker_t pinning = sp_mem_begin_scratch();
-    spn_err_t pinned = pin(pinning.mem, ctx, session->resolve, session->locked, held, &lock);
+    spn_err_t pinned = pin(pinning.mem, ctx, session->resolve, session->locked, held, lock);
     sp_mem_end_scratch(pinning);
     spn_try(pinned);
 
@@ -679,29 +679,10 @@ spn_err_t spn_resolve_and_sync(spn_op_t* op, const spn_lock_t* held, const spn_l
     spn_try(synced);
   } while (reresolve);
 
-  bool changed = held->version != lock.version;
-  spn_lock_diff_t diff = spn_lock_diff(held, &lock);
-  while (spn_lock_diff_next(&diff)) {
-    changed = true;
-    const spn_lock_entry_t* entry = diff.now ? diff.now : diff.was;
-    bool pinned = false;
-    sp_da_for(held->entries, it) {
-      pinned = pinned || held->entries[it].name.id == entry->name.id;
-    }
-    if (!pinned) {
-      continue;
-    }
-    spn_event_buffer_push(ctx->events, (spn_event_t) {
-      .kind = diff.now ? SPN_EVENT_LOCK_ADDED : SPN_EVENT_LOCK_REMOVED,
-      .pkg = entry->name.str,
-      .resolve_pkg = {
-        .name = entry->name.str,
-        .version = spn_semver_to_str(ctx->events->mem, entry->version),
-      },
-    });
-  }
+  spn_lock_diff_t diff = spn_lock_diff(held, lock);
+  bool changed = held->version != lock->version || spn_lock_diff_next(&diff);
   spn_err_union_t unwritten = sp_zero;
-  if (changed && spn_lock_save(roots, session->project->paths.lock, &lock, &unwritten)) {
+  if (changed && spn_lock_save(roots, session->project->paths.lock, lock, &unwritten)) {
     return spn_err_emit(ctx, unwritten);
   }
 
@@ -726,4 +707,38 @@ spn_err_t spn_resolve_and_sync(spn_op_t* op, const spn_lock_t* held, const spn_l
     }
   }
   return unused;
+}
+
+spn_err_t spn_resolve_and_sync(spn_op_t* op) {
+  spn_session_t* session = op->session;
+  spn_ctx_t* ctx = session->ctx;
+
+  spn_lock_t held = sp_zero;
+  spn_err_union_t unreadable = sp_zero;
+  if (spn_lock_load(session->mem, ctx->intern, &ctx->roots, session->project->paths.lock, &held, &unreadable)) {
+    return spn_err_emit(ctx, unreadable);
+  }
+
+  spn_lock_t lock = sp_zero;
+  spn_try(spn_resolve_and_sync_pins(op, &held, &held, &lock));
+
+  spn_lock_diff_t diff = spn_lock_diff(&held, &lock);
+  while (spn_lock_diff_next(&diff)) {
+    bool pinned = false;
+    sp_da_for(held.entries, it) {
+      pinned = pinned || held.entries[it].name.id == diff.now->name.id;
+    }
+    if (!pinned) {
+      continue;
+    }
+    spn_event_buffer_push(ctx->events, (spn_event_t) {
+      .kind = SPN_EVENT_LOCK_ADDED,
+      .pkg = diff.now->name.str,
+      .resolve_pkg = {
+        .name = diff.now->name.str,
+        .version = spn_semver_to_str(ctx->events->mem, diff.now->version),
+      },
+    });
+  }
+  return SPN_OK;
 }
