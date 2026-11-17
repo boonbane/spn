@@ -4,44 +4,38 @@
 #include "sp.h"
 #include "spn/core.h"
 
-#include "pkg/types.h"
+#include "intern/types.h"
 #include "semver/types.h"
 
-typedef enum {
-  SPN_DEP_IMPORT_KIND_EXPLICIT,
-  SPN_DEP_IMPORT_KIND_TRANSITIVE
-} spn_dep_import_kind_t;
+#define spn_lock_version 1
 
 typedef struct {
-  sp_str_t name;
+  sp_str_t url;
+  sp_str_t rev;
+  sp_str_t dir;
+} spn_lock_root_t;
+
+typedef struct {
+  sp_intern_str_t name;
   spn_semver_t version;
-  sp_str_t commit;
-  spn_dep_import_kind_t import_kind;
-  spn_pkg_source_t kind;
-  struct {
-    sp_str_t url;
-    sp_str_t rev;
-    sp_str_t dir;
-  } source;
-  struct {
-    sp_str_t url;
-    sp_str_t rev;
-    sp_str_t dir;
-  } manifest;
-  struct {
-    sp_str_t manifest;
-    sp_str_t script;
-  } paths;
-  sp_da(sp_str_t) deps;
-  sp_da(sp_str_t) dependents;
+  spn_lock_root_t source;
+  spn_lock_root_t manifest;
 } spn_lock_entry_t;
 
 typedef struct {
-  sp_mem_t mem;
-  spn_semver_t version;
-  sp_str_t commit;
-  sp_ht(sp_str_t, spn_lock_entry_t) entries;
-  sp_ht(sp_str_t, bool) system_deps;
-} spn_lock_file_t;
+  u64 version;
+  sp_da(spn_lock_entry_t) entries;
+} spn_lock_t;
+
+typedef struct {
+  const spn_lock_t* held;
+  const spn_lock_t* next;
+  struct {
+    u32 held;
+    u32 next;
+  } at;
+  const spn_lock_entry_t* was;
+  const spn_lock_entry_t* now;
+} spn_lock_diff_t;
 
 #endif

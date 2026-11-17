@@ -1,218 +1,201 @@
-#include "enum/enum.h"
-#include "sp.h"
-#include "spn/core.h"
-#include "event/event.h"
-#include "external/tom.h"
-#include "index/types.h"
 #include "lock/lock.h"
+
+#include "sp.h"
+#include "intern/intern.h"
+#include "lock.gen.h"
+#include "paths/paths.h"
+#include "semver/compare.h"
 #include "semver/convert.h"
-#include "version/version.h"
+#include "semver/parser.h"
+#include "toml/edit.h"
+#include "toml/loader.h"
 
-static void spn_lock_build_dependents(spn_lock_file_t* lock) {
-  sp_ht_for_kv(lock->entries, it) {
-    sp_da_for(it.val->deps, dep_it) {
-      spn_lock_entry_t* dep = sp_ht_getp(lock->entries, it.val->deps[dep_it]);
-      if (dep) {
-        sp_da_push(dep->dependents, it.val->name);
-      }
-    }
+static s32 order(const spn_lock_entry_t* a, const spn_lock_entry_t* b) {
+  s32 by_name = sp_str_compare_alphabetical(a->name.str, b->name.str);
+  if (by_name) {
+    return by_name;
   }
+  return spn_semver_cmp(a->version, b->version);
 }
 
-spn_lock_file_t spn_build_lock_file(sp_mem_t mem, spn_resolve_t resolve) {
-  spn_lock_file_t lock = sp_zero;
-  spn_lock_file_init(mem, &lock);
+static bool root_eq(spn_lock_root_t a, spn_lock_root_t b) {
+  return sp_str_equal(a.url, b.url) && sp_str_equal(a.rev, b.rev) && sp_str_equal(a.dir, b.dir);
+}
 
-  sp_ht_for_kv(resolve, it) {
-    spn_resolved_pkg_t* pkg = it.val;
-    if (pkg->source == SPN_PKG_SOURCE_ROOT) continue;
+static spn_lock_root_t root_from_cg(spn_cg_lock_root_t cg) {
+  return (spn_lock_root_t) { .url = cg.url, .rev = cg.rev, .dir = cg.dir };
+}
 
-    spn_lock_entry_t entry = {
-      .name = pkg->name.str,
-      .version = pkg->id.version,
-      .kind = pkg->source,
-      .deps = sp_da_new(mem, sp_str_t),
-      .dependents = sp_da_new(mem, sp_str_t),
+static void write_root(sp_io_writer_t* io, const c8* key, spn_lock_root_t root) {
+  if (sp_str_empty(root.url)) {
+    return;
+  }
+  sp_io_write_cstr(io, key, SP_NULLPTR);
+  sp_io_write_cstr(io, " = { url = ", SP_NULLPTR);
+  spn_toml_write_str(io, root.url);
+  sp_io_write_cstr(io, ", rev = ", SP_NULLPTR);
+  spn_toml_write_str(io, root.rev);
+  if (!sp_str_empty(root.dir)) {
+    sp_io_write_cstr(io, ", dir = ", SP_NULLPTR);
+    spn_toml_write_str(io, root.dir);
+  }
+  sp_io_write_cstr(io, " }\n", SP_NULLPTR);
+}
+
+spn_lock_t spn_lock_new(sp_mem_t mem) {
+  return (spn_lock_t) { .version = spn_lock_version, .entries = sp_da_new(mem, spn_lock_entry_t) };
+}
+
+spn_lock_entry_t* spn_lock_find(const spn_lock_t* lock, sp_intern_id_t name, spn_semver_t version) {
+  sp_da_for(lock->entries, it) {
+    if (lock->entries[it].name.id == name && spn_semver_eq(lock->entries[it].version, version)) {
+      return &lock->entries[it];
+    }
+  }
+  return SP_NULLPTR;
+}
+
+bool spn_lock_insert(spn_lock_t* lock, spn_lock_entry_t entry) {
+  u64 at = 0;
+  sp_da_for(lock->entries, it) {
+    s32 side = order(&lock->entries[it], &entry);
+    if (!side) {
+      return false;
+    }
+    if (side < 0) {
+      at = it + 1;
+    }
+  }
+
+  sp_da_push(lock->entries, entry);
+  sp_da_rfor(lock->entries, it) {
+    if (it == at) {
+      break;
+    }
+    lock->entries[it] = lock->entries[it - 1];
+  }
+  lock->entries[at] = entry;
+  return true;
+}
+
+spn_err_t spn_lock_load(sp_mem_t mem, sp_intern_t* intern, const spn_path_roots_t* roots, spn_path_t path, spn_lock_t* lock, spn_err_union_t* err) {
+  *lock = (spn_lock_t) { .entries = sp_da_new(mem, spn_lock_entry_t) };
+
+  sp_sys_file_meta_t meta = sp_zero;
+  if (sp_fs_get_path_metadata_at(spn_path_at(roots, path), &meta) || meta.kind == SP_FS_KIND_UNKNOWN) {
+    return SPN_OK;
+  }
+
+  spn_toml_loader_t t = spn_toml_loader(mem, intern, roots);
+  spn_cg_lock_t cg = sp_zero;
+  spn_toml_load_lock(&t, path, &cg);
+  if (sp_da_empty(t.issues) && cg.version != spn_lock_version) {
+    *err = (spn_err_union_t) {
+      .kind = SPN_ERR_LOCK_VERSION,
+      .lock_version = { .path = spn_path_str(roots, mem, path), .version = cg.version, .supported = spn_lock_version },
     };
-
-    sp_da_for(pkg->deps, d) {
-      sp_da_push(entry.deps, pkg->deps[d].name.str);
-    }
-
-    if (pkg->source == SPN_PKG_SOURCE_INDEX) {
-      spn_index_release_t* release = pkg->origin.release;
-      if (release->source.kind == SPN_PKG_ROOT_GIT) {
-        entry.commit = release->source.git.rev;
-        entry.source.url = release->source.git.url;
-        entry.source.rev = release->source.git.rev;
-        entry.source.dir = release->source.git.dir;
-      }
-      if (release->manifest.kind == SPN_PKG_ROOT_GIT) {
-        entry.manifest.url = release->manifest.git.url;
-        entry.manifest.rev = release->manifest.git.rev;
-        entry.manifest.dir = release->manifest.git.dir;
-      }
-      entry.paths.manifest = release->paths.manifest;
-    }
-
-    sp_ht_insert(lock.entries, entry.name, entry);
+    return err->kind;
   }
 
-  spn_lock_build_dependents(&lock);
-
-  return lock;
-}
-
-void spn_lock_file_init(sp_mem_t mem, spn_lock_file_t* lock) {
-  lock->mem = mem;
-  sp_ht_init(mem, lock->entries);
-  sp_ht_set_fns(lock->entries, sp_ht_on_hash_str_key, sp_ht_on_compare_str_key);
-  sp_ht_init(mem, lock->system_deps);
-  sp_ht_set_fns(lock->system_deps, sp_ht_on_hash_str_key, sp_ht_on_compare_str_key);
-}
-
-spn_lock_file_t spn_lock_file_parse(sp_mem_t mem, sp_str_t toml, spn_event_buffer_t* events) {
-  spn_lock_file_t lock = sp_zero;
-  spn_lock_file_init(mem, &lock);
-
-  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch_for(mem);
-  c8 parse_err[1024] = {0};
-  toml_table_t* root = toml_parse(sp_str_to_cstr(scratch.mem, toml), parse_err, SP_CARR_LEN(parse_err));
-  sp_mem_end_scratch(scratch);
-  if (!root) {
-    if (events) {
-      spn_event_buffer_push(events, (spn_event_t) {
-        .kind = SPN_EVENT_ERR,
-        .err = {
-          .kind = SPN_ERR_MANIFEST_PARSE,
-        },
-      });
-    }
-
-    return lock;
-  }
-
-  toml_table_t* pkg_table = toml_table_table(root, "package");
-  if (pkg_table) {
-    scratch = sp_mem_begin_scratch_for(mem);
-    sp_da(sp_str_t) sys_deps = spn_toml_arr_to_str_arr(scratch.mem, toml_table_array(pkg_table, "system_deps"));
-    sp_da_for(sys_deps, it) {
-      sp_ht_insert(lock.system_deps, sys_deps[it], true);
-    }
-    sp_mem_end_scratch(scratch);
-  }
-
-  toml_array_t* deps = toml_table_array(root, "dep");
-  if (!deps) {
-    toml_free(root);
-    return lock;
-  }
-
-  spn_toml_arr_for(deps, it) {
-    toml_table_t* pkg = toml_array_table(deps, it);
-    SP_ASSERT(pkg);
-
+  lock->version = cg.version;
+  spn_toml_loader_push_key(&t, "package");
+  sp_da_for(cg.package, it) {
     spn_lock_entry_t entry = {
-      .name = spn_toml_str(mem, pkg, "name"),
-      .version = spn_semver_from_str(spn_toml_str(mem, pkg, "version")),
-      .commit = spn_toml_str(mem, pkg, "commit"),
-      .kind = spn_pkg_source_from_str(spn_toml_str(mem, pkg, "kind")),
-      .deps = spn_toml_arr_to_str_arr(mem, toml_table_array(pkg, "deps")),
-      .dependents = sp_da_new(mem, sp_str_t),
-      .source = {
-        .url = spn_toml_str_opt(mem, pkg, "source_url", ""),
-        .rev = spn_toml_str_opt(mem, pkg, "source_rev", ""),
-        .dir = spn_toml_str_opt(mem, pkg, "source_dir", ""),
-      },
-      .manifest = {
-        .url = spn_toml_str_opt(mem, pkg, "manifest_url", ""),
-        .rev = spn_toml_str_opt(mem, pkg, "manifest_rev", ""),
-        .dir = spn_toml_str_opt(mem, pkg, "manifest_dir", ""),
-      },
-      .paths = {
-        .manifest = spn_toml_str_opt(mem, pkg, "manifest_file", "spn.toml"),
-      },
+      .name = sp_intern(intern, cg.package[it].name),
+      .source = root_from_cg(cg.package[it].source),
+      .manifest = root_from_cg(cg.package[it].manifest),
     };
-    sp_ht_insert(lock.entries, entry.name, entry);
+    spn_toml_loader_push_index(&t, (u32)it);
+    if (spn_semver_parse(cg.package[it].version, &entry.version)) {
+      spn_toml_loader_issue(&t, SPN_ERR_CODEGEN_INVALID, "version");
+    }
+    else if (!spn_lock_insert(lock, entry)) {
+      spn_toml_loader_issue_at(&t, SPN_ERR_CODEGEN_DUPLICATE_KEY, entry.name.str);
+    }
+    spn_toml_loader_pop(&t);
+  }
+  spn_toml_loader_pop(&t);
+  if (sp_da_empty(t.issues)) {
+    return SPN_OK;
   }
 
-  toml_free(root);
-  spn_lock_build_dependents(&lock);
-
-  return lock;
+  *err = spn_toml_loader_err(&t, path);
+  err->kind = SPN_ERR_LOCK_INVALID;
+  return err->kind;
 }
 
-spn_lock_file_t spn_lock_file_load(sp_mem_t mem, sp_path_t path, spn_event_buffer_t* events) {
-  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch_for(mem);
-  sp_str_t contents = sp_zero;
-  sp_fs_read_at(scratch.mem, path, &contents);
-  spn_lock_file_t lock = spn_lock_file_parse(mem, contents, events);
+spn_err_t spn_lock_save(const spn_path_roots_t* roots, spn_path_t path, const spn_lock_t* lock, spn_err_union_t* err) {
+  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+  sp_io_dyn_mem_writer_t out = sp_zero;
+  sp_io_dyn_mem_writer_init(scratch.mem, &out);
+
+  sp_fmt_io(&out.base, "version = {}\n", sp_fmt_uint(lock->version));
+  sp_da_for(lock->entries, it) {
+    const spn_lock_entry_t* entry = &lock->entries[it];
+    sp_io_write_cstr(&out.base, "\n[[package]]\nname = ", SP_NULLPTR);
+    spn_toml_write_str(&out.base, entry->name.str);
+    sp_io_write_cstr(&out.base, "\nversion = ", SP_NULLPTR);
+    spn_toml_write_str(&out.base, spn_semver_to_str(scratch.mem, entry->version));
+    sp_io_write_c8(&out.base, '\n');
+    write_root(&out.base, "source", entry->source);
+    write_root(&out.base, "manifest", entry->manifest);
+  }
+
+  sp_err_t written = sp_fs_write_at(spn_path_at(roots, path), sp_io_dyn_mem_writer_as_str(&out), SP_FS_WRITE_REPLACE);
   sp_mem_end_scratch(scratch);
-  return lock;
+  if (written) {
+    *err = (spn_err_union_t) { .kind = SPN_ERR_FS_WRITE, .fs = { .path = path } };
+    return err->kind;
+  }
+  return SPN_OK;
 }
 
-sp_str_t spn_lock_file_to_str(sp_mem_t mem, spn_lock_file_t* lock) {
-  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch_for(mem);
-  sp_da(sp_str_t) keys = sp_da_new(scratch.mem, sp_str_t);
-  sp_ht_for_kv(lock->entries, it) {
-    sp_da_push(keys, *it.key);
-  }
-  sp_da_sort(keys, sp_str_sort_kernel_alphabetical);
+spn_lock_diff_t spn_lock_diff(const spn_lock_t* held, const spn_lock_t* next) {
+  return (spn_lock_diff_t) { .held = held, .next = next };
+}
 
-  spn_toml_writer_t toml = spn_toml_writer_new(mem);
-
-  spn_toml_begin_table_cstr(&toml, "spn");
-  spn_toml_append_str_cstr(&toml, "version", sp_str_lit(SPN_VERSION));
-  spn_toml_append_str_cstr(&toml, "commit", sp_cstr_as_str(spn_build_commit));
-  spn_toml_end_table(&toml);
-
-  if (sp_ht_size(lock->system_deps)) {
-    spn_toml_begin_table_cstr(&toml, "package");
-    sp_da(sp_str_t) sys_deps = sp_da_new(scratch.mem, sp_str_t);
-    sp_ht_for_kv(lock->system_deps, it) {
-      sp_da_push(sys_deps, *it.key);
+bool spn_lock_diff_next(spn_lock_diff_t* diff) {
+  u32 num_held = (u32)sp_da_size(diff->held->entries);
+  u32 num_next = (u32)sp_da_size(diff->next->entries);
+  while (diff->at.held < num_held || diff->at.next < num_next) {
+    const spn_lock_entry_t* was = diff->at.held < num_held ? &diff->held->entries[diff->at.held] : SP_NULLPTR;
+    const spn_lock_entry_t* now = diff->at.next < num_next ? &diff->next->entries[diff->at.next] : SP_NULLPTR;
+    s32 side = !was ? 1 : !now ? -1 : order(was, now);
+    if (side < 0) {
+      diff->at.held++;
+      diff->was = was;
+      diff->now = SP_NULLPTR;
+      return true;
     }
-    sp_da_sort(sys_deps, sp_str_sort_kernel_alphabetical);
-    spn_toml_append_str_array_cstr(&toml, "system_deps", sys_deps);
-    spn_toml_end_table(&toml);
-  }
-
-  spn_toml_begin_array_cstr(&toml, "dep");
-  sp_da_for(keys, it) {
-    spn_lock_entry_t* entry = sp_ht_getp(lock->entries, keys[it]);
-
-    spn_toml_append_array_table(&toml);
-    spn_toml_append_str_cstr(&toml, "name", entry->name);
-    spn_toml_append_str_cstr(&toml, "version", spn_semver_to_str(scratch.mem, entry->version));
-    spn_toml_append_str_cstr(&toml, "commit", entry->commit);
-    spn_toml_append_str_cstr(&toml, "kind", spn_pkg_source_to_str(entry->kind));
-
-    if (!sp_str_empty(entry->source.url)) {
-      spn_toml_append_str_cstr(&toml, "source_url", entry->source.url);
-      spn_toml_append_str_cstr(&toml, "source_rev", entry->source.rev);
-      if (!sp_str_empty(entry->source.dir)) {
-        spn_toml_append_str_cstr(&toml, "source_dir", entry->source.dir);
-      }
+    if (side > 0) {
+      diff->at.next++;
+      diff->was = SP_NULLPTR;
+      diff->now = now;
+      return true;
     }
 
-    if (!sp_str_empty(entry->manifest.url)) {
-      spn_toml_append_str_cstr(&toml, "manifest_url", entry->manifest.url);
-      spn_toml_append_str_cstr(&toml, "manifest_rev", entry->manifest.rev);
-      if (!sp_str_empty(entry->manifest.dir)) {
-        spn_toml_append_str_cstr(&toml, "manifest_dir", entry->manifest.dir);
-      }
-    }
-
-    if (!sp_str_empty(entry->paths.manifest)) {
-      spn_toml_append_str_cstr(&toml, "manifest_file", entry->paths.manifest);
-    }
-
-    if (sp_da_size(entry->deps)) {
-      spn_toml_append_str_array_cstr(&toml, "deps", entry->deps);
+    diff->at.held++;
+    diff->at.next++;
+    if (!root_eq(was->source, now->source) || !root_eq(was->manifest, now->manifest)) {
+      diff->was = was;
+      diff->now = now;
+      return true;
     }
   }
-  spn_toml_end_array(&toml);
+  return false;
+}
 
-  sp_mem_end_scratch(scratch);
-  return spn_toml_writer_write(&toml);
+spn_err_union_t spn_lock_mismatch(const spn_lock_entry_t* was, const spn_lock_entry_t* now) {
+  bool source = !root_eq(was->source, now->source);
+  spn_lock_root_t locked = source ? was->source : was->manifest;
+  spn_lock_root_t found = source ? now->source : now->manifest;
+  return (spn_err_union_t) {
+    .kind = SPN_ERR_LOCK_MISMATCH,
+    .subject = was->name.str,
+    .lock_mismatch = {
+      .version = was->version,
+      .locked = { .url = locked.url, .rev = locked.rev, .dir = locked.dir },
+      .found = { .url = found.url, .rev = found.rev, .dir = found.dir },
+    },
+  };
 }

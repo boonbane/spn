@@ -7,7 +7,6 @@ static const test_t tests [] = {
     .copy = { "packages/*" },
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { "build", .args = { "--force" } } },
-      { .kind = ACTION_VERIFY_PKG_LOCKED, .verify_locked = { .name = "spum", .version = "1.0.0" } },
     },
   },
   {
@@ -44,7 +43,6 @@ static const test_t tests [] = {
     .copy = { "vendor/spum/spn.toml" },
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { "build" } },
-      { .kind = ACTION_VERIFY_PKG_LOCKED, .verify_locked = { .name = "spum", .version = "1.0.0" } },
       { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
     },
   },
@@ -114,7 +112,6 @@ static const test_t tests [] = {
     .project = "test/integration/fixtures/deps/index/without_source",
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { "build" } },
-      { .kind = ACTION_VERIFY_PKG_LOCKED, .verify_locked = { .name = "spum", .version = "1.0.0" } },
       { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
     },
   },
@@ -123,7 +120,6 @@ static const test_t tests [] = {
     .project = "test/integration/fixtures/deps/index/binary_static",
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { "build" } },
-      { .kind = ACTION_VERIFY_PKG_LOCKED, .verify_locked = { .name = "spum", .version = "1.0.0" } },
       { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
     },
   },
@@ -132,7 +128,6 @@ static const test_t tests [] = {
     .project = "test/integration/fixtures/deps/index/binary_shared",
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { "build" } },
-      { .kind = ACTION_VERIFY_PKG_LOCKED, .verify_locked = { .name = "spum", .version = "1.0.0" } },
       { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
     },
   },
@@ -141,7 +136,6 @@ static const test_t tests [] = {
     .project = "test/integration/fixtures/deps/index/split_recipe",
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { "build" } },
-      { .kind = ACTION_VERIFY_PKG_LOCKED, .verify_locked = { .name = "spum", .version = "1.0.0" } },
       { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
     },
   },
@@ -208,27 +202,7 @@ static const rebuild_test_t rebuilds [] = {
         },
         .command = {
           .args = { "build" },
-          .expect = {
-            .exists = { exe("editable_package") },
-            .locked = { { .name = "spum", .version = "1.0.0" } },
-          },
-        },
-      },
-    },
-  },
-  {
-    .name = "index_relocks_after_clean",
-    .project = "test/integration/fixtures/deps/index/basic",
-    .first = {
-      .args = { "build" },
-      .expect.locked = { { .name = "spum", .version = "1.0.0" } },
-    },
-    .rebuilds = {
-      {
-        .change.remove_dirs = { "build" },
-        .command = {
-          .args = { "build" },
-          .expect.locked = { { .name = "spum", .version = "1.0.0" } },
+          .expect.exists = { exe("editable_package") },
         },
       },
     },

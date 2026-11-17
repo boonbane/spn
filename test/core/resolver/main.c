@@ -99,8 +99,14 @@ static sp_err_t load_config(sp_test_t* t, sp_mem_t mem, sp_str_t dir, fx_config_
   toml_table_t* table = spn_toml_parse(sp_path_from_str(path));
   sp_must(t, table != SP_NULLPTR);
 
-  config->skip = spn_toml_str_opt(mem, table, "skip", "");
-  config->linkage = spn_linkage_from_str(spn_toml_str_opt(mem, table, "linkage", ""));
+  toml_value_t skip = toml_table_string(table, "skip");
+  if (skip.ok) {
+    config->skip = sp_str_copy(mem, sp_str(skip.u.s, (u32)skip.u.sl));
+  }
+  toml_value_t linkage = toml_table_string(table, "linkage");
+  if (linkage.ok) {
+    config->linkage = spn_linkage_from_str(sp_str(linkage.u.s, (u32)linkage.u.sl));
+  }
 
   toml_value_t budget = toml_table_int(table, "budget");
   if (budget.ok) {

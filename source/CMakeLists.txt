@@ -180,6 +180,7 @@ add_library(spn_core STATIC ${SPN_CORE_SOURCES}
   ${GEN_DIR}/config.gen.c
   ${GEN_DIR}/errors.gen.c
   ${GEN_DIR}/events.gen.c
+  ${GEN_DIR}/lock.gen.c
   ${GEN_DIR}/manifest.gen.c
   ${GEN_DIR}/release.gen.c
   ${GEN_DIR}/source_deps.gen.c

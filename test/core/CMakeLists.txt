@@ -91,7 +91,10 @@ add_executable(core
   jtd/type.c
   jtd/values.c
   jtd/walk.c
-  lock/lock.c
+  lock/diff.c
+  lock/load.c
+  lock/mismatch.c
+  lock/save.c
   manifest/gen/gen.c
   manifest/lower/lower.c
   options/merge.c

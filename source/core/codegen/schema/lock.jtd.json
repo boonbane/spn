@@ -1,0 +1,31 @@
+{
+  "metadata": { "format": "toml" },
+  "properties": {
+    "version": { "type": "uint64" }
+  },
+  "optionalProperties": {
+    "package": { "elements": { "ref": "lock_package" } }
+  },
+  "definitions": {
+    "lock_root": {
+      "properties": {
+        "url": { "type": "string" },
+        "rev": { "type": "string" }
+      },
+      "optionalProperties": {
+        "dir": { "type": "string" }
+      }
+    },
+
+    "lock_package": {
+      "properties": {
+        "name": { "type": "string" },
+        "version": { "type": "string" }
+      },
+      "optionalProperties": {
+        "source": { "ref": "lock_root" },
+        "manifest": { "ref": "lock_root" }
+      }
+    }
+  }
+}

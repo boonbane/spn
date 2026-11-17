@@ -127,6 +127,7 @@ source = [
   { path = "gen/codegen/gen/config.gen.c", tree = "work" },
   { path = "gen/codegen/gen/errors.gen.c", tree = "work" },
   { path = "gen/codegen/gen/events.gen.c", tree = "work" },
+  { path = "gen/codegen/gen/lock.gen.c", tree = "work" },
   { path = "gen/codegen/gen/manifest.gen.c", tree = "work" },
   { path = "gen/codegen/gen/release.gen.c", tree = "work" },
   { path = "gen/codegen/gen/source_deps.gen.c", tree = "work" },

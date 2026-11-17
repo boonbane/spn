@@ -169,6 +169,13 @@ static void write_issue(sp_tty_t* w, const spn_toml_issue_t* issue) {
   sp_mem_end_scratch(scratch);
 }
 
+static sp_str_t lock_root_to_str(sp_mem_t mem, const spn_err_lock_root_t* root) {
+  if (sp_str_empty(root->dir)) {
+    return root->url;
+  }
+  return sp_fmt(mem, "{}/{}", sp_fmt_str(root->url), sp_fmt_str(root->dir)).value;
+}
+
 static sp_str_t get_issue_scope(sp_da(spn_toml_issue_t) issues) {
   sp_str_t scope = sp_da_empty(issues) ? sp_str_lit("") : issues[0].scope;
   sp_da_for(issues, it) {
@@ -824,6 +831,40 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
             "{} is not in {.cyan}",
             sp_fmt_str(colored_name(w.color, mem, event->err.subject)),
             sp_fmt_str(sp_fmt(mem, "[deps.{}]", sp_fmt_str(spn_dep_kind_to_str(event->err.absent.table))).value)
+          );
+          break;
+        }
+        case SPN_ERR_LOCK_INVALID: {
+          sp_tty_fmt(
+            &w,
+            "Invalid lockfile ({.gray}); delete it and build again to make a new one",
+            sp_fmt_str(get_contextual_path(ctx, mem, event->err.manifest.path))
+          );
+          break;
+        }
+        case SPN_ERR_LOCK_VERSION: {
+          sp_tty_fmt(
+            &w,
+            "{.cyan} is lockfile version {.yellow}, but this spn reads version {.yellow}",
+            sp_fmt_str(get_contextual_path(ctx, mem, event->err.lock_version.path)),
+            sp_fmt_uint(event->err.lock_version.version),
+            sp_fmt_uint(event->err.lock_version.supported)
+          );
+          break;
+        }
+        case SPN_ERR_LOCK_MISMATCH: {
+          spn_err_lock_mismatch_t* err = &event->err.lock_mismatch;
+          sp_tty_fmt(
+            &w,
+            "{.cyan} has {} {.yellow} at {.yellow} ({.gray}), but the index has it at {.yellow} ({.gray}); run {.cyan} to accept the change",
+            sp_fmt_cstr("spn.lock"),
+            sp_fmt_str(colored_name(w.color, mem, event->err.subject)),
+            sp_fmt_str(spn_semver_to_str(mem, err->version)),
+            sp_fmt_str(err->locked.rev),
+            sp_fmt_str(lock_root_to_str(mem, &err->locked)),
+            sp_fmt_str(err->found.rev),
+            sp_fmt_str(lock_root_to_str(mem, &err->found)),
+            sp_fmt_str(sp_fmt(mem, "spn update {}", sp_fmt_str(event->err.subject)).value)
           );
           break;
         }
@@ -1863,6 +1904,7 @@ static void render_event_extra(sp_tty_t* w, spn_event_t* event) {
     }
     case SPN_EVENT_ERR: {
       switch (event->err.kind) {
+        case SPN_ERR_LOCK_INVALID:
         case SPN_ERR_MANIFEST_ISSUES: {
           sp_da(spn_toml_issue_t) issues = event->err.manifest.issues;
           if (sp_str_empty(get_issue_scope(issues))) {
