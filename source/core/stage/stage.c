@@ -95,11 +95,8 @@ spn_stage_diag_t spn_stage_apply(sp_mem_t scratch, const spn_path_roots_t* roots
 
   si_da_for(rows, it) {
     const spn_stage_t* row = &rows[it];
-    sp_sys_file_meta_t meta = sp_zero;
     spn_dag_digest_t digest = sp_zero;
-    if (!spn_dag_file_cache_stat(files, row->to, &meta) && meta.nlink == 1 &&
-        !spn_dag_file_cache_digest(files, row->to, &digest) &&
-        spn_dag_digest_equal(digest, row->digest)) {
+    if (!spn_dag_file_cache_digest(files, row->to, &digest) && spn_dag_digest_equal(digest, row->digest)) {
       continue;
     }
     sp_fs_create_parent_at(spn_path_at(roots, row->to));
