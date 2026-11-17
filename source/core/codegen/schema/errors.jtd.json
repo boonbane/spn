@@ -90,6 +90,7 @@
     "pkg_no_match": { "ref": "unsatisfiable" },
     "pkg_conflict": { "ref": "unsatisfiable" },
     "pkg_conflict_exact": { "ref": "unsatisfiable" },
+    "pkg_conflict_path": { "ref": "path_conflict" },
     "pkg_mismatch": { "ref": "mismatch" },
     "pkg_absent": { "ref": "absent" },
     "manifest_edit": { "ref": "manifest_parse" },
@@ -133,6 +134,7 @@
     "script_failed": { "ref": "script" },
     "triple_invalid": { "properties": {} },
     "dynamic_duplicate": { "ref": "dynamic_dup" },
+    "static_duplicate": { "ref": "static_dup" },
     "resolve_too_complex": { "properties": {} },
     "option_undeclared": { "ref": "option" },
     "option_bad_value": { "ref": "option" },
@@ -343,6 +345,16 @@
         "selected": { "metadata": { "extern": "semver" } }
       }
     },
+    "path_conflict": {
+      "properties": {
+        "selected": { "type": "string" },
+        "requested": { "type": "string" }
+      },
+      "optionalProperties": {
+        "requester": { "type": "string" },
+        "requester_version": { "metadata": { "extern": "semver" } }
+      }
+    },
     "mismatch": {
       "properties": {
         "path": { "type": "string" },
@@ -367,6 +379,13 @@
     },
     "dynamic_dup": {
       "properties": {
+        "low": { "metadata": { "extern": "semver" } },
+        "high": { "metadata": { "extern": "semver" } }
+      }
+    },
+    "static_dup": {
+      "properties": {
+        "target": { "type": "string" },
         "low": { "metadata": { "extern": "semver" } },
         "high": { "metadata": { "extern": "semver" } }
       }

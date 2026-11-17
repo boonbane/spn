@@ -873,6 +873,22 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           );
           break;
         }
+        case SPN_ERR_PKG_CONFLICT_PATH: {
+          spn_err_path_conflict_t* err = &event->err.path_conflict;
+          sp_str_t requester = sp_str_empty(err->requester) ?
+            sp_str_lit("the project") :
+            sp_fmt(mem, "{} {}", sp_fmt_str(colored_name(w.color, mem, err->requester)), sp_fmt_str(spn_semver_to_str(mem, err->requester_version))).value;
+
+          sp_tty_fmt(
+            &w,
+            "{} is already selected from {.cyan}, but {} requires it from {.cyan}",
+            sp_fmt_str(colored_name(w.color, mem, event->err.subject)),
+            sp_fmt_str(get_contextual_path(ctx, mem, err->selected)),
+            sp_fmt_str(requester),
+            sp_fmt_str(get_contextual_path(ctx, mem, err->requested))
+          );
+          break;
+        }
         case SPN_ERR_DEP_CYCLE: {
           sp_tty_fmt(
             &w,
@@ -897,6 +913,17 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
             sp_fmt_str(colored_name(w.color, mem, event->err.subject)),
             sp_fmt_str(spn_semver_to_str(mem, event->err.dynamic_dup.low)),
             sp_fmt_str(spn_semver_to_str(mem, event->err.dynamic_dup.high))
+          );
+          break;
+        }
+        case SPN_ERR_STATIC_DUPLICATE: {
+          sp_tty_fmt(
+            &w,
+            "{} {.yellow} and {.yellow} would both link into {.cyan}",
+            sp_fmt_str(colored_name(w.color, mem, event->err.subject)),
+            sp_fmt_str(spn_semver_to_str(mem, event->err.static_dup.low)),
+            sp_fmt_str(spn_semver_to_str(mem, event->err.static_dup.high)),
+            sp_fmt_str(event->err.static_dup.target)
           );
           break;
         }

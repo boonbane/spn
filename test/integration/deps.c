@@ -54,6 +54,7 @@ static const test_t tests [] = {
     .copy = { "P/*", "Q/*", "B/*" },
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { "build", .rc = 1 } },
+      { .kind = ACTION_VERIFY_RESULT, .verify_result = { .err = SPN_ERR_PKG_CONFLICT_PATH } },
     },
   },
   {
@@ -236,7 +237,7 @@ static const command_test_t tools [] = {
     .project = "test/integration/fixtures/deps/tool/sibling_conflict",
     .copy = { "l.c", "t.c" },
     .args = { "build", "--tool" },
-    .expect.rc = 1,
+    .expect = { .rc = 1, .err = SPN_ERR_STATIC_DUPLICATE },
   },
 };
 

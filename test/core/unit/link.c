@@ -377,7 +377,7 @@ static const test_t tests [] = {
     .root = { "A", SPN_TARGET_KIND_LIB },
   },
   {
-    .name = "tool_links_siblings_without_package_deps",
+    .name = "tool_links_sibling_package_deps",
     .graph.pkgs = {
       {
         .name = "P",
@@ -391,7 +391,7 @@ static const test_t tests [] = {
     },
     .root = { "A", SPN_TARGET_KIND_TOOL },
     .expect = {
-      .deps = { { "L" } },
+      .deps = { { "L" }, { "B" } },
     },
   },
   {
