@@ -58,11 +58,17 @@ typedef struct {
 } spn_scope_edge_t;
 
 typedef struct {
+  spn_resolved_pkg_t* from;
+  spn_requested_dep_t req;
+} spn_declared_t;
+
+typedef struct {
   spn_resolve_query_t* query;
   sp_da(spn_scope_t) scopes;
   sp_da(spn_scope_boundary_t) boundaries;
   sp_da(spn_scope_edge_t) edges;
   sp_ht(sp_intern_id_t, u8) visited;
+  sp_da(spn_declared_t) declared;
   u32 scope;
   u64 picks;
   u64 budget;
@@ -604,19 +610,11 @@ static spn_err_union_t resolve_index_package(spn_resolver_t* resolver, spn_resol
       }
 
       spn_err_union_t err = sp_zero;
-      sp_ht_for_kv(run->visited, vt) {
-        spn_resolved_pkg_t* declarer = sp_ht_getp(scope->named, *vt.key);
-        sp_da_for(declarer->deps, dt) {
-          spn_requested_dep_t* declared = &declarer->deps[dt];
-          if (err.kind || declared->name.id != name || declared->source != SPN_PKG_SOURCE_INDEX) {
-            continue;
-          }
-          if (classify_dep(resolver, declarer, declared) != SPN_DEP_EDGE_SCOPE) {
-            continue;
-          }
-          if (!spn_semver_in_range(release->version, declared->index.range)) {
-            err = unsatisfiable_err(resolver, declarer, declared, SPN_ERR_PKG_CONFLICT, release->version);
-          }
+      sp_da_for(run->declared, dt) {
+        spn_declared_t* declared = &run->declared[dt];
+        if (declared->req.name.id == name && !spn_semver_in_range(release->version, declared->req.index.range)) {
+          err = unsatisfiable_err(resolver, declared->from, &declared->req, SPN_ERR_PKG_CONFLICT, release->version);
+          break;
         }
       }
       if (!err.kind) {
@@ -720,6 +718,13 @@ static spn_err_union_t resolve_dep(spn_resolver_t* resolver, spn_resolve_run_t* 
 
 static spn_err_union_t resolve_deps(spn_resolver_t* resolver, spn_resolve_run_t* run, spn_resolved_pkg_t* node) {
   sp_ht_insert(run->visited, node->id.name, (u8)true);
+  u64 declared = sp_da_size(run->declared);
+  sp_da_for(node->deps, it) {
+    spn_requested_dep_t* dep = &node->deps[it];
+    if (dep->source == SPN_PKG_SOURCE_INDEX && classify_dep(resolver, node, dep) == SPN_DEP_EDGE_SCOPE) {
+      sp_da_push(run->declared, ((spn_declared_t) { .from = node, .req = *dep }));
+    }
+  }
 
   spn_err_union_t err = sp_zero;
   sp_da_for(node->deps, it) {
@@ -727,6 +732,7 @@ static spn_err_union_t resolve_deps(spn_resolver_t* resolver, spn_resolve_run_t*
     if (err.kind) break;
   }
 
+  sp_da_head(run->declared)->size = declared;
   sp_ht_erase(run->visited, node->id.name);
   return err;
 }
@@ -1276,6 +1282,7 @@ static spn_err_union_t solve_once(spn_resolver_t* resolver, spn_resolve_query_t*
   sp_da_init(resolver->mem, run->boundaries);
   sp_da_init(resolver->mem, run->edges);
   sp_ht_init(resolver->mem, run->visited);
+  sp_da_init(resolver->mem, run->declared);
 
   u32 root = find_or_create_scope(resolver, run, sp_zero_s(spn_pkg_id_t), SPN_DEP_KIND_PACKAGE);
   sp_da_for(query->reqs, it) {
