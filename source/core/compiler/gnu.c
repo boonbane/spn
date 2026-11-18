@@ -454,7 +454,7 @@ bool spn_gnu_link_static(const spn_profile_info_t* profile, spn_cc_output_kind_t
 spn_cc_link_plan_t spn_gnu_render_link(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, const spn_cc_link_t* link) {
   spn_triple_t triple = profile->target;
   spn_obj_format_t format = spn_triple_object_format(profile->target);
-  bool is_gnu_runtime_static = profile->linking.runtime == SPN_RUNTIME_STATIC && triple.abi != SPN_ABI_MSVC && spn_cc_has(toolchain, SPN_CC_CAP_GNU_RUNTIME);
+  bool is_gnu_runtime_static = profile->linking.runtime == SPN_RUNTIME_STATIC && triple.abi != SPN_ABI_MSVC && format != SPN_OBJ_WASM && spn_cc_has(toolchain, SPN_CC_CAP_GNU_RUNTIME);
 
   spn_cc_link_plan_t plan = {
     .driver = toolchain->driver,
@@ -474,7 +474,7 @@ spn_cc_link_plan_t spn_gnu_render_link(sp_mem_t mem, const spn_cc_t* toolchain, 
     case SPN_CC_OUTPUT_REACTOR: {
       spn_cc_push_c(mem, base, "-mexec-model=reactor");
       spn_cc_push_c(mem, base, "-Wl,--no-entry");
-      spn_cc_push_c(mem, base, "-Wl,--import-symbols");
+      spn_cc_push_c(mem, base, spn_cc_has(toolchain, SPN_CC_CAP_IMPORT_SYMBOLS) ? "-Wl,--import-symbols" : "-Wl,--import-undefined");
       plan.exports = spn_cc_exports_format(link->kind, format);
       break;
     }

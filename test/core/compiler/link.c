@@ -55,9 +55,42 @@ static const link_test_t tests [] = {
       .args = {
         "--target=wasm32-wasi",
         "-mexec-model=reactor",
+        "-Wl,--no-entry", "-Wl,--import-undefined", "@S.rsp",
+        "main.o", "-o", "main"
+      },
+    },
+  },
+  {
+    .name = "zig_wasi_reactor",
+    .driver = SPN_CC_DRIVER_ZIG,
+    .profile = {
+      .target = { SPN_ARCH_WASM32, SPN_OS_WASI },
+    },
+    .kind = SPN_CC_OUTPUT_REACTOR,
+    .exports = "S.rsp",
+    .expect = {
+      .command = "cc",
+      .args = {
+        "--target=wasm32-wasi",
+        "-mexec-model=reactor",
         "-Wl,--no-entry", "-Wl,--import-symbols", "@S.rsp",
         "main.o", "-o", "main"
       },
+    },
+  },
+  {
+    .name = "clang_wasi_static_runtime_has_no_gnu_runtime",
+    .driver = SPN_CC_DRIVER_CLANG,
+    .profile = {
+      .target = { SPN_ARCH_WASM32, SPN_OS_WASI },
+      .linking.linkage = SPN_LIB_KIND_STATIC,
+      .linking.runtime = SPN_RUNTIME_STATIC,
+      .linking.libc = SPN_RUNTIME_STATIC,
+    },
+    .kind = SPN_CC_OUTPUT_EXE,
+    .expect = {
+      .command = "cc",
+      .args = { "--target=wasm32-wasi", "main.o", "-o", "main" },
     },
   },
   {
@@ -74,7 +107,7 @@ static const link_test_t tests [] = {
       .args = {
         "--target=wasm32-wasip1",
         "-mexec-model=reactor",
-        "-Wl,--no-entry", "-Wl,--import-symbols", "@S.rsp",
+        "-Wl,--no-entry", "-Wl,--import-undefined", "@S.rsp",
         "main.o", "-o", "main"
       },
     },
@@ -696,7 +729,7 @@ static const link_test_t tests [] = {
       .args = {
         "--target=wasm32-wasi",
         "-mexec-model=reactor",
-        "-Wl,--no-entry", "-Wl,--import-symbols",
+        "-Wl,--no-entry", "-Wl,--import-undefined",
         "@S.rsp",
         "main.o", "-o", "main"
       },
@@ -896,7 +929,7 @@ static const link_test_t tests [] = {
       .args = {
         "--target=wasm32-wasi",
         "-mexec-model=reactor",
-        "-Wl,--no-entry", "-Wl,--import-symbols", "@S.rsp",
+        "-Wl,--no-entry", "-Wl,--import-undefined", "@S.rsp",
         "main.o",
         "-Wl,--whole-archive", "libD.a", "-Wl,--no-whole-archive",
         "-o", "main"

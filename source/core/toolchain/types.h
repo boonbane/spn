@@ -25,6 +25,7 @@ typedef enum {
   SPN_CC_CAP_GNU_RUNTIME    = 1 << 8,
   SPN_CC_CAP_TRIPLE_MIN_OS  = 1 << 9,
   SPN_CC_CAP_HOST_SYSROOT   = 1 << 10,
+  SPN_CC_CAP_IMPORT_SYMBOLS = 1 << 11,
 } spn_cc_cap_t;
 
 typedef u32 spn_cc_cap_set_t;
