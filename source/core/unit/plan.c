@@ -314,7 +314,7 @@ static spn_err_t lower_target(spn_units_t* u, spn_target_unit_t* unit) {
   }
   sp_mem_end_scratch(scratch);
 
-  if (unlinkable) {
+  if (links && unlinkable) {
     return linkage_err(u, unlinkable, SPN_LIB_KIND_STATIC, static_requester(profile), target->info->name.str);
   }
 

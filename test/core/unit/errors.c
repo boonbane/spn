@@ -23,7 +23,9 @@ static const test_t tests [] = {
   {
     .name = "derived_static_blames_the_target",
     .graph = {
+      .abi = SPN_ABI_MUSL,
       .linkage = SPN_LIB_KIND_STATIC,
+      .libc = SPN_RUNTIME_STATIC,
       .pkgs = {
         { .name = "P", .deps = { { "D" } }, .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "a.c" } } } },
         { .name = "D", .targets = { { "D", shared_only, .source = { "d.c" } } } },
@@ -35,8 +37,10 @@ static const test_t tests [] = {
   {
     .name = "static_libc_blames_libc",
     .graph = {
+      .abi = SPN_ABI_MUSL,
       .request = { .libc = SPN_RUNTIME_STATIC },
       .linkage = SPN_LIB_KIND_STATIC,
+      .libc = SPN_RUNTIME_STATIC,
       .pkgs = {
         { .name = "P", .deps = { { "D" } }, .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "a.c" } } } },
         { .name = "D", .targets = { { "D", shared_only, .source = { "d.c" } } } },
@@ -59,10 +63,11 @@ static const test_t tests [] = {
     .expect = { .err = SPN_ERR_TARGET_LINKAGE, .requester = SPN_LINKAGE_REQUESTER_PROFILE, .consumer = "A" },
   },
   {
-    .name = "missing_loader_blames_the_target",
+    .name = "missing_loader_outranks_the_profile",
     .graph = {
       .os = SPN_OS_WASI,
       .abi = SPN_ABI_MUSL,
+      .request = { .linkage = SPN_LIB_KIND_SHARED },
       .linkage = SPN_LIB_KIND_STATIC,
       .pkgs = {
         { .name = "P", .deps = { { "D" } }, .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "a.c" } } } },
@@ -75,6 +80,7 @@ static const test_t tests [] = {
   {
     .name = "root_lib_with_no_producible_kind",
     .graph = {
+      .abi = SPN_ABI_MUSL,
       .request = { .libc = SPN_RUNTIME_STATIC },
       .linkage = SPN_LIB_KIND_STATIC,
       .libc = SPN_RUNTIME_STATIC,
@@ -82,6 +88,53 @@ static const test_t tests [] = {
     },
     .root = { "A", SPN_TARGET_KIND_LIB },
     .expect = { .err = SPN_ERR_TARGET_LINKAGE, .requester = SPN_LINKAGE_REQUESTER_LIBC },
+  },
+  {
+    .name = "pinned_shared_lib_without_a_loader",
+    .graph = {
+      .abi = SPN_ABI_MUSL,
+      .linkage = SPN_LIB_KIND_STATIC,
+      .libc = SPN_RUNTIME_STATIC,
+      .pkgs = {
+        { .name = "P", .deps = { { "D" } }, .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "a.c" } } } },
+        { .name = "D", .config = SPN_LIB_KIND_SHARED, .targets = { { "D", shared_only, .source = { "d.c" } } } },
+      },
+    },
+    .root = { "A", SPN_TARGET_KIND_EXE },
+    .expect = { .err = SPN_ERR_TARGET_LINKAGE, .requester = SPN_LINKAGE_REQUESTER_TARGET, .consumer = "A" },
+  },
+  {
+    .name = "pinned_shared_lib_admitted_under_static_profile",
+    .graph = {
+      .request = { .linkage = SPN_LIB_KIND_STATIC },
+      .linkage = SPN_LIB_KIND_STATIC,
+      .pkgs = {
+        { .name = "P", .deps = { { "D" } }, .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "a.c" } } } },
+        { .name = "D", .config = SPN_LIB_KIND_SHARED, .targets = { { "D", shared_only, .source = { "d.c" } } } },
+      },
+    },
+    .root = { "A", SPN_TARGET_KIND_EXE },
+  },
+  {
+    .name = "unlinked_shared_lib_is_not_refused",
+    .graph = {
+      .request = { .linkage = SPN_LIB_KIND_STATIC },
+      .linkage = SPN_LIB_KIND_STATIC,
+      .pkgs = { { .name = "P", .targets = { { "A", shared_only, .source = { "a.c" } } } } },
+    },
+    .root = { "A", SPN_TARGET_KIND_LIB },
+  },
+  {
+    .name = "archive_does_not_link_its_shared_dep",
+    .graph = {
+      .request = { .linkage = SPN_LIB_KIND_STATIC },
+      .linkage = SPN_LIB_KIND_STATIC,
+      .pkgs = {
+        { .name = "P", .deps = { { "D" } }, .targets = { { "A", static_only, .source = { "a.c" } } } },
+        { .name = "D", .targets = { { "D", shared_only, .source = { "d.c" } } } },
+      },
+    },
+    .root = { "A", SPN_TARGET_KIND_LIB },
   },
   {
     .name = "derived_shared_admits_a_shared_lib",
