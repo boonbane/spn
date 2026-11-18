@@ -129,7 +129,7 @@ sp_err_t sp_fs_set_readonly(sp_path_t path) {
   return sp_sys_set_file_perms_s(path.dir, path.sub, meta.perms);
 }
 
-sp_err_t sp_fs_copy_file_buffered_at(sp_path_t from, sp_path_t to, sp_fs_atomic_mode_t mode) {
+sp_err_t sp_fs_copy_file_buffered_at(sp_path_t from, sp_path_t to) {
   sp_io_file_reader_t reader = sp_zero;
   sp_try(sp_io_file_reader_from_path_at(&reader, from));
 
@@ -161,7 +161,7 @@ sp_err_t sp_fs_copy_file_buffered_at(sp_path_t from, sp_path_t to, sp_fs_atomic_
     sp_fs_atomic_abort(&af);
   }
   else {
-    err = sp_fs_atomic_commit(&af, mode);
+    err = sp_fs_atomic_commit(&af, SP_FS_ATOMIC_REPLACE);
   }
   sp_mem_end_scratch(s);
   return err;

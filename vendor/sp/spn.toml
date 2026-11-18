@@ -6,7 +6,7 @@ maintainer = "tspader"
 
 [package.upstream]
 url = "https://github.com/tspader/sp.git"
-commit = "93290600c2f3cd3c6f36b07503c3f0594794114f"
+commit = "e9d8c901c69780c2e74e31fba32ffdabd259a81e"
 
 [package.publish]
 include = [
