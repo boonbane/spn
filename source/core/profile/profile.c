@@ -151,17 +151,20 @@ spn_err_t spn_profile_query(const spn_profile_info_t* profile, spn_triple_t host
     }
   }
 
-  spn_linking_t request = profile->request;
-  spn_linking_t demanded = request;
-  demanded.linkage = request.linkage ? request.linkage : profile->demand;
+  spn_linking_t demanded = profile->request;
+  demanded.linkage = demanded.linkage ? demanded.linkage : profile->demand;
+  spn_linking_t relaxed = profile->request;
+  if (relaxed.linkage == SPN_LIB_KIND_SHARED) {
+    relaxed.linkage = SPN_LIB_KIND_NONE;
+  }
 
   spn_err_refusal_t refused [SPN_ABI_COUNT] = sp_zero;
   u32 refusals = 0;
   sp_for(it, abis.count) {
     spn_toolchain_candidate_t candidate = { .triple = { profile->target.arch, profile->target.os, abis.items[it] } };
     spn_linking_refusal_t refusal = spn_ld_linking(candidate.triple, demanded, &candidate.linking);
-    if (refusal && demanded.linkage != request.linkage) {
-      refusal = spn_ld_linking(candidate.triple, request, &candidate.linking);
+    if (refusal == SPN_LINKING_REFUSAL_NO_LOADER || (refusal && !profile->request.linkage)) {
+      refusal = spn_ld_linking(candidate.triple, relaxed, &candidate.linking);
     }
     if (refusal) {
       refused[refusals++] = (spn_err_refusal_t) { .triple = candidate.triple, .reason = refusal };

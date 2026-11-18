@@ -728,11 +728,11 @@ static const query_test_t query_tests [] = {
     .expect = { .abis = { SPN_ABI_MUSL }, .linking = { LINKING_STATIC } },
   },
   {
-    .name = "explicit_shared_on_bare_is_refused",
+    .name = "explicit_shared_without_a_loader_is_moot",
     .target = { SPN_ARCH_ARM64, SPN_OS_FREESTANDING, SPN_ABI_BARE },
     .linking.linkage = SPN_LIB_KIND_SHARED,
     .host = PROFILE_HOST_LINUX_GNU,
-    .expect = { .err = SPN_ERR_PROFILE_LINKING, .refusals = { { SPN_ABI_BARE, SPN_LINKING_REFUSAL_NO_LOADER } } },
+    .expect = { .abis = { SPN_ABI_BARE }, .linking = { LINKING_STATIC } },
   },
   {
     .name = "explicit_static_runtime_on_macos_is_refused",
