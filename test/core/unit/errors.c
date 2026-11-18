@@ -5,6 +5,7 @@
 typedef struct {
   spn_err_t err;
   spn_linkage_requester_t requester;
+  const c8* consumer;
   spn_cc_feature_t feature;
   const c8* frameworks [UNIT_TEST_MAX_STRS];
   const c8* source;
@@ -29,7 +30,7 @@ static const test_t tests [] = {
       },
     },
     .root = { "A", SPN_TARGET_KIND_EXE },
-    .expect = { .err = SPN_ERR_TARGET_LINKAGE, .requester = SPN_LINKAGE_REQUESTER_TARGET },
+    .expect = { .err = SPN_ERR_TARGET_LINKAGE, .requester = SPN_LINKAGE_REQUESTER_TARGET, .consumer = "A" },
   },
   {
     .name = "static_libc_blames_libc",
@@ -42,7 +43,7 @@ static const test_t tests [] = {
       },
     },
     .root = { "A", SPN_TARGET_KIND_EXE },
-    .expect = { .err = SPN_ERR_TARGET_LINKAGE, .requester = SPN_LINKAGE_REQUESTER_LIBC },
+    .expect = { .err = SPN_ERR_TARGET_LINKAGE, .requester = SPN_LINKAGE_REQUESTER_LIBC, .consumer = "A" },
   },
   {
     .name = "profile_linkage_blames_the_profile",
@@ -55,7 +56,32 @@ static const test_t tests [] = {
       },
     },
     .root = { "A", SPN_TARGET_KIND_EXE },
-    .expect = { .err = SPN_ERR_TARGET_LINKAGE, .requester = SPN_LINKAGE_REQUESTER_PROFILE },
+    .expect = { .err = SPN_ERR_TARGET_LINKAGE, .requester = SPN_LINKAGE_REQUESTER_PROFILE, .consumer = "A" },
+  },
+  {
+    .name = "missing_loader_blames_the_target",
+    .graph = {
+      .os = SPN_OS_WASI,
+      .abi = SPN_ABI_MUSL,
+      .linkage = SPN_LIB_KIND_STATIC,
+      .pkgs = {
+        { .name = "P", .deps = { { "D" } }, .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "a.c" } } } },
+        { .name = "D", .targets = { { "D", shared_only, .source = { "d.c" } } } },
+      },
+    },
+    .root = { "A", SPN_TARGET_KIND_EXE },
+    .expect = { .err = SPN_ERR_TARGET_LINKAGE, .requester = SPN_LINKAGE_REQUESTER_NO_LOADER, .consumer = "A" },
+  },
+  {
+    .name = "root_lib_with_no_producible_kind",
+    .graph = {
+      .request = { .libc = SPN_RUNTIME_STATIC },
+      .linkage = SPN_LIB_KIND_STATIC,
+      .libc = SPN_RUNTIME_STATIC,
+      .pkgs = { { .name = "P", .targets = { { "A", shared_only, .source = { "a.c" } } } } },
+    },
+    .root = { "A", SPN_TARGET_KIND_LIB },
+    .expect = { .err = SPN_ERR_TARGET_LINKAGE, .requester = SPN_LINKAGE_REQUESTER_LIBC },
   },
   {
     .name = "derived_shared_admits_a_shared_lib",
@@ -188,6 +214,7 @@ sp_test_each(unit_errors, plan, test_t, tests, .setup = spn_test_ctx_setup, .tea
   switch (err) {
     case SPN_ERR_TARGET_LINKAGE: {
       sp_expect_eq(t, it->expect.requester, errs[0].err.target.requester);
+      sp_expect_str_eq_c(t, errs[0].err.target.consumer, it->expect.consumer ? it->expect.consumer : "");
       break;
     }
     case SPN_ERR_COMPILER_FEATURE_UNSUPPORTED: {

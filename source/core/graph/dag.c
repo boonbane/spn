@@ -191,6 +191,9 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
 
   spn_dag_target_ids_t* ids = sp_ht_getp(b->ids.targets, unit);
   sp_assert(ids);
+  if (!ids->archive.occupied && !ids->link.occupied) {
+    return SPN_OK;
+  }
 
   spn_dag_embed_ids_t embed = sp_zero;
   if (!si_da_empty(unit->target->embed)) {

@@ -405,6 +405,32 @@ static const test_t tests [] = {
     .root = { "A", SPN_TARGET_KIND_LIB },
   },
   {
+    .name = "config_pin_links_shared",
+    .graph.pkgs = {
+      { .name = "P", .deps = { { "B" } }, .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "main.c" } } } },
+      { .name = "B", .config = SPN_LIB_KIND_SHARED, .targets = { { "B", { .static_lib = true, .shared = true }, .source = { "a.c" } } } },
+    },
+    .root = { "A", SPN_TARGET_KIND_EXE },
+    .expect = {
+      .deps = { { "B", SPN_LINK_ROLE_SHARED } },
+    },
+  },
+  {
+    .name = "config_pin_without_a_loader_links_static",
+    .graph = {
+      .linkage = SPN_LIB_KIND_STATIC,
+      .libc = SPN_RUNTIME_STATIC,
+      .pkgs = {
+        { .name = "P", .deps = { { "B" } }, .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "main.c" } } } },
+        { .name = "B", .config = SPN_LIB_KIND_SHARED, .targets = { { "B", { .static_lib = true, .shared = true }, .source = { "a.c" } } } },
+      },
+    },
+    .root = { "A", SPN_TARGET_KIND_EXE },
+    .expect = {
+      .deps = { { "B" } },
+    },
+  },
+  {
     .name = "tool_links_sibling_package_deps",
     .graph.pkgs = {
       {

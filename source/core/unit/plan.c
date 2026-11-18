@@ -20,6 +20,7 @@
 #include "pkg/pkg.h"
 #include "profile/types.h"
 #include "semver/compare.h"
+#include "target/mutate.h"
 #include "toolchain/toolchain.h"
 #include "triple/triple.h"
 
@@ -75,6 +76,41 @@ static void push_requires(sp_mem_t mem, si_da(sp_str_t)* names, si_da(spn_requir
       si_da_push(mem, *names, require.name);
     }
   }
+}
+
+static spn_linkage_requester_t static_requester(const spn_profile_info_t* profile) {
+  if (!spn_ld_dynamic(profile->target)) {
+    return SPN_LINKAGE_REQUESTER_NO_LOADER;
+  }
+  if (profile->request.linkage == SPN_LIB_KIND_STATIC) {
+    return SPN_LINKAGE_REQUESTER_PROFILE;
+  }
+  if (profile->request.libc == SPN_RUNTIME_STATIC) {
+    return SPN_LINKAGE_REQUESTER_LIBC;
+  }
+  return SPN_LINKAGE_REQUESTER_TARGET;
+}
+
+static spn_err_t linkage_err(spn_units_t* u, const spn_target_unit_t* lib, spn_linkage_t requested, spn_linkage_requester_t requester, sp_str_t consumer) {
+  spn_linkage_set_t linkages = lib->target->info->linkages;
+  sp_da(spn_linkage_t) supported = sp_da_new(u->ctx->events->mem, spn_linkage_t);
+  if (linkages.shared) {
+    sp_da_push(supported, SPN_LIB_KIND_SHARED);
+  }
+  if (linkages.static_lib) {
+    sp_da_push(supported, SPN_LIB_KIND_STATIC);
+  }
+  return spn_err_emit(u->ctx, (spn_err_union_t) {
+    .kind = SPN_ERR_TARGET_LINKAGE,
+    .target = {
+      .pkg = lib->pkg->pkg.manifest->name.str,
+      .name = lib->target->info->name.str,
+      .requested = spn_linkage_to_str(requested),
+      .requester = requester,
+      .consumer = consumer,
+      .supported = supported,
+    },
+  });
 }
 
 static spn_err_t lower_link(spn_units_t* u, spn_target_unit_t* unit) {
@@ -190,6 +226,7 @@ static spn_err_t lower_target(spn_units_t* u, spn_target_unit_t* unit) {
   si_da_for_value(unit->requires, require) {
     si_da_push(scratch.mem, requires, require);
   }
+  const spn_target_unit_t* unlinkable = SP_NULLPTR;
   si_da_rfor(entries, et) {
     si_closure_entry_t* entry = &entries[et];
     switch (entry->yield) {
@@ -220,7 +257,10 @@ static spn_err_t lower_target(spn_units_t* u, spn_target_unit_t* unit) {
             }
             break;
           }
-          case SPN_LIB_KIND_NONE: sp_unreachable_case();
+          case SPN_LIB_KIND_NONE: {
+            unlinkable = lib;
+            break;
+          }
         }
         break;
       }
@@ -273,6 +313,10 @@ static spn_err_t lower_target(spn_units_t* u, spn_target_unit_t* unit) {
     object->plan = si_cc_render_compile(mem, toolchain, profile, object->lang, &compile);
   }
   sp_mem_end_scratch(scratch);
+
+  if (unlinkable) {
+    return linkage_err(u, unlinkable, SPN_LIB_KIND_STATIC, static_requester(profile), target->info->name.str);
+  }
 
   si_da_for(link->deps, at) {
     spn_pkg_unit_t* dep = link->deps[at].lib->pkg;
@@ -508,6 +552,16 @@ static spn_err_t plan_new(spn_units_t* u, sp_mem_t scratch, spn_pkg_unit_t* root
     });
   }
 
+  si_da_for_value(plan->targets, target) {
+    const spn_pkg_config_t* config = target->pkg->resolved->config;
+    if (target->target->info->kind != SPN_TARGET_KIND_LIB || !config || sp_opt_is_null(config->kind)) {
+      continue;
+    }
+    if (!spn_linkage_set_has(target->target->info->linkages, config->kind.value)) {
+      return linkage_err(u, target, config->kind.value, SPN_LINKAGE_REQUESTER_ROOT_MANIFEST, sp_str_lit(""));
+    }
+  }
+
   si_da_for_value(roots, target) {
     if (target->target->info->kind != SPN_TARGET_KIND_LIB) {
       continue;
@@ -519,6 +573,9 @@ static spn_err_t plan_new(spn_units_t* u, sp_mem_t scratch, spn_pkg_unit_t* root
       .static_lib = declared.static_lib,
       .shared = declared.shared && image,
     };
+    if (!target->products.static_lib && !target->products.shared && !sp_da_empty(target->objects)) {
+      return linkage_err(u, target, SPN_LIB_KIND_STATIC, static_requester(profile), sp_str_lit(""));
+    }
   }
 
   si_da_for_value(plan->targets, target) {

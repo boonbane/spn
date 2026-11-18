@@ -98,14 +98,15 @@ static const test_t tests [] = {
     .expect = { .archive = "libA.a" },
   },
   {
-    .name = "root_lib_on_wasi_links_a_module",
+    .name = "shared_root_lib_on_wasi_is_a_module",
     .graph = {
       .os = SPN_OS_WASI,
       .abi = SPN_ABI_MUSL,
-      .pkgs = { { .name = "P", .targets = { { "A", { .static_lib = true, .shared = true }, .source = { "a.c" } } } } },
+      .linkage = SPN_LIB_KIND_STATIC,
+      .pkgs = { { .name = "P", .targets = { { "A", shared_only, .source = { "a.c" } } } } },
     },
     .kind = SPN_TARGET_KIND_LIB,
-    .expect = { .archive = "libA.a", .link = "A.wasm", .exports = true },
+    .expect = { .link = "A.wasm", .exports = true },
   },
   {
     .name = "build_script_is_a_reactor",

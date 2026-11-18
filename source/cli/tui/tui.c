@@ -197,6 +197,7 @@ static sp_str_t requester_to_str(spn_linkage_requester_t requester) {
     case SPN_LINKAGE_REQUESTER_ROOT_MANIFEST: return sp_str_lit("the root manifest");
     case SPN_LINKAGE_REQUESTER_LIBC: return sp_str_lit("libc = \"static\"");
     case SPN_LINKAGE_REQUESTER_TARGET: return sp_str_lit("the target");
+    case SPN_LINKAGE_REQUESTER_NO_LOADER: return sp_str_lit("a target with no dynamic loader");
   }
   SP_UNREACHABLE_RETURN(sp_str_lit(""));
 }
@@ -1624,6 +1625,9 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
             sp_fmt_str(event->err.target.requested),
             sp_fmt_str(requester_to_str(event->err.target.requester))
           );
+          if (!sp_str_empty(event->err.target.consumer)) {
+            sp_tty_fmt(&w, ", but {.cyan} links it", sp_fmt_str(event->err.target.consumer));
+          }
           switch (event->err.target.requester) {
             case SPN_LINKAGE_REQUESTER_TARGET: {
               sp_str_t kind = spn_linkage_to_str(event->err.target.supported[0]);
@@ -1637,7 +1641,8 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
             }
             case SPN_LINKAGE_REQUESTER_PROFILE:
             case SPN_LINKAGE_REQUESTER_ROOT_MANIFEST:
-            case SPN_LINKAGE_REQUESTER_LIBC: {
+            case SPN_LINKAGE_REQUESTER_LIBC:
+            case SPN_LINKAGE_REQUESTER_NO_LOADER: {
               break;
             }
           }
