@@ -37,6 +37,7 @@ typedef struct {
   spn_c_standard_t standard;
   spn_mode_t mode;
   spn_opt_level_t opt;
+  spn_strip_t strip;
   spn_sanitizer_set_t sanitizers;
   const c8* sdk;
   const c8* spelling;

@@ -105,6 +105,7 @@ spn_zig_stub_t spn_zig_stub(sp_mem_t mem, const spn_profile_info_t* profile, con
     .kind = link->kind,
     .lang = link->lang,
     .is_static = spn_gnu_link_static(profile, link->kind),
+    .strip = profile->strip,
     .sanitizers = profile->sanitizers,
     .sdk = spn_sdk_hash(&profile->sdk),
   };

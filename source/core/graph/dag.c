@@ -469,6 +469,7 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
       spn_dag_hash_u8(&warm_digest, (u8)stub.kind);
       spn_dag_hash_u8(&warm_digest, (u8)stub.lang);
       spn_dag_hash_u8(&warm_digest, (u8)stub.is_static);
+      spn_dag_hash_u8(&warm_digest, (u8)stub.strip);
       spn_dag_hash_u64(&warm_digest, stub.sanitizers);
       spn_dag_hash_u64(&warm_digest, stub.sdk);
       spn_dag_hash_strs(&warm_digest, stub.system_libs);

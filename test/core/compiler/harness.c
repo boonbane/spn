@@ -28,6 +28,7 @@ spn_profile_info_t test_profile(test_profile_t desc) {
     .standard = desc.standard,
     .mode = desc.mode,
     .opt = desc.opt,
+    .strip = desc.strip,
     .sanitizers = desc.sanitizers,
     .spelling = sp_cstr_as_str(desc.spelling),
     .exceptions = {

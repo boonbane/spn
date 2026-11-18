@@ -460,6 +460,7 @@ static spn_profile_decl_t lower_profile(spn_toml_loader_t* ctx, sp_str_t name, c
     .standard = lower_gated_values(ctx, p->standard),
     .mode = lower_gated_values(ctx, p->mode),
     .opt = lower_gated_values(ctx, p->opt),
+    .strip = lower_gated_values(ctx, p->strip),
     .sanitizers = spn_sanitizer_set_from_list(p->sanitize),
     .sanitizers_set = p->sanitize != SP_NULLPTR,
     .emit = lower_emit(p->emit),
@@ -1038,6 +1039,7 @@ static void validate_profiles(spn_toml_loader_t* ctx, const spn_cg_manifest_t* c
     validate_candidates(ctx, "toolchain", p->toolchain);
     validate_candidates(ctx, "mode", p->mode);
     validate_candidates(ctx, "opt", p->opt);
+    validate_candidates(ctx, "strip", p->strip);
     validate_candidates(ctx, "abi", p->abi);
     sp_da_for(p->runtime, ct) {
       if (spn_runtime_from_str(p->runtime[ct].value) == SPN_RUNTIME_NONE) {
@@ -1062,6 +1064,11 @@ static void validate_profiles(spn_toml_loader_t* ctx, const spn_cg_manifest_t* c
     sp_da_for(p->opt, ct) {
       if (spn_opt_level_from_str(p->opt[ct].value) == SPN_OPT_LEVEL_NONE) {
         issue_candidate_value(ctx, "opt", ct);
+      }
+    }
+    sp_da_for(p->strip, ct) {
+      if (spn_strip_from_str(p->strip[ct].value) == SPN_STRIP_UNSET) {
+        issue_candidate_value(ctx, "strip", ct);
       }
     }
     sp_da_for(p->abi, ct) {

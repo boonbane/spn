@@ -107,6 +107,7 @@ typedef struct {
   spn_cc_driver_t driver;
   spn_mode_t mode;
   spn_opt_level_t opt;
+  spn_strip_t strip;
   spn_c_standard_t standard;
   spn_sanitizer_t sanitize;
   const c8* cc;

@@ -178,6 +178,20 @@ sp_str_t spn_opt_level_to_str(spn_opt_level_t level) {
   SP_UNREACHABLE_RETURN(sp_str_lit(""));
 }
 
+spn_strip_t spn_strip_from_str(sp_str_t str) {
+  if (sp_str_equal_cstr(str, "none")) {
+    return SPN_STRIP_NONE;
+  }
+  if (sp_str_equal_cstr(str, "debuginfo")) {
+    return SPN_STRIP_DEBUGINFO;
+  }
+  if (sp_str_equal_cstr(str, "symbols")) {
+    return SPN_STRIP_SYMBOLS;
+  }
+
+  return SPN_STRIP_UNSET;
+}
+
 spn_win_subsystem_t spn_win_subsystem_from_str(sp_str_t str) {
   if (sp_str_equal_cstr(str, "console")) {
     return SPN_WIN_SUBSYSTEM_CONSOLE;

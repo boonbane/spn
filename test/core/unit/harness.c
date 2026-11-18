@@ -196,6 +196,7 @@ static spn_profile_info_t program_profile(units_t* u, const graph_t* g, const sp
     .standard = g->standard ? g->standard : SPN_C11,
     .mode = g->mode ? g->mode : SPN_MODE_DEBUG,
     .opt = g->opt,
+    .strip = g->strip,
     .sanitizers = g->sanitize ? 1u << g->sanitize : 0,
     .target = {
       .arch = g->arch ? g->arch : SPN_ARCH_X64,

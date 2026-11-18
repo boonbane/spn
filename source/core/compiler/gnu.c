@@ -484,6 +484,31 @@ spn_cc_link_plan_t spn_gnu_render_link(sp_mem_t mem, const spn_cc_t* toolchain, 
   if (link->exceptions) {
     spn_cc_push_strs(mem, base, profile->exceptions.link_flags);
   }
+  if (profile->strip == SPN_STRIP_DEBUGINFO || profile->strip == SPN_STRIP_SYMBOLS) {
+    if (spn_cc_has(toolchain, SPN_CC_CAP_STRIP_ALL)) {
+      spn_cc_push_c(mem, base, "-s");
+    }
+    else {
+      bool symbols = profile->strip == SPN_STRIP_SYMBOLS;
+      switch (plan.dialect) {
+        case SPN_LD_DIALECT_GNU:
+        case SPN_LD_DIALECT_WASM: {
+          spn_cc_push_c(mem, base, symbols ? "-s" : "-Wl,-S");
+          break;
+        }
+        case SPN_LD_DIALECT_DARWIN: {
+          spn_cc_push_c(mem, base, symbols ? "-Wl,-S,-x" : "-Wl,-S");
+          break;
+        }
+        case SPN_LD_DIALECT_LINK: {
+          break;
+        }
+        case SPN_LD_DIALECT_COUNT: {
+          sp_unreachable_case();
+        }
+      }
+    }
+  }
   switch (link->kind) {
     case SPN_CC_OUTPUT_REACTOR: {
       spn_cc_push_c(mem, base, "-mexec-model=reactor");

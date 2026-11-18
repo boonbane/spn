@@ -42,6 +42,9 @@ static void overlay_profile(spn_profile_info_t* to, const spn_profile_info_t* fr
   if (from->opt) {
     to->opt = from->opt;
   }
+  if (from->strip) {
+    to->strip = from->strip;
+  }
   if (from->sanitizers_set || from->sanitizers) {
     to->sanitizers = from->sanitizers;
     to->sanitizers_set = true;
@@ -106,6 +109,7 @@ static spn_profile_info_t evaluate(const spn_profile_decl_t* decl, spn_when_env_
     .standard = spn_c_standard_from_str(pick(decl->standard, env)),
     .mode = spn_mode_from_str(pick(decl->mode, env)),
     .opt = spn_opt_level_from_str(pick(decl->opt, env)),
+    .strip = spn_strip_from_str(pick(decl->strip, env)),
     .sanitizers = decl->sanitizers,
     .sanitizers_set = decl->sanitizers_set,
     .emit = decl->emit,
@@ -327,6 +331,9 @@ spn_err_t spn_profile_resolve(const spn_profile_override_t* override, spn_triple
   if (!merged.opt) {
     merged.opt = merged.mode == SPN_MODE_RELEASE ? SPN_OPT_LEVEL_2 : SPN_OPT_LEVEL_0;
   }
+  if (!merged.strip) {
+    merged.strip = merged.mode == SPN_MODE_RELEASE ? SPN_STRIP_DEBUGINFO : SPN_STRIP_NONE;
+  }
 
   spn_triple_t pinned = { .arch = platform.arch, .os = platform.os, .abi = merged.target.abi };
   spn_triple_t full = sp_zero;
@@ -391,6 +398,7 @@ spn_err_t spn_profile_resolve(const spn_profile_override_t* override, spn_triple
     .standard    = merged.standard,
     .mode        = merged.mode,
     .opt         = merged.opt,
+    .strip       = merged.strip,
     .sanitizers  = merged.sanitizers,
     .emit        = merged.emit,
     .options     = merged.options,
@@ -408,6 +416,7 @@ spn_profile_info_t spn_profile_metaprogram(void) {
     .target = { SPN_ARCH_WASM32, SPN_OS_WASI, SPN_ABI_MUSL },
     .mode = SPN_MODE_DEBUG,
     .opt = SPN_OPT_LEVEL_2,
+    .strip = SPN_STRIP_NONE,
     .standard = SPN_C99,
     .request = { .linkage = SPN_LIB_KIND_STATIC, .runtime = SPN_RUNTIME_STATIC, .libc = SPN_RUNTIME_STATIC },
   };

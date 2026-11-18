@@ -200,6 +200,13 @@ typedef enum {
 } spn_c_standard_t;
 
 typedef enum {
+  SPN_STRIP_UNSET,
+  SPN_STRIP_NONE,
+  SPN_STRIP_DEBUGINFO,
+  SPN_STRIP_SYMBOLS,
+} spn_strip_t;
+
+typedef enum {
   SPN_CXX_STANDARD_NONE,
   SPN_CXX11,
   SPN_CXX14,

@@ -41,6 +41,7 @@ typedef struct {
   spn_cc_output_kind_t kind;
   spn_lang_t lang;
   bool is_static;
+  spn_strip_t strip;
   spn_sanitizer_set_t sanitizers;
   sp_hash_t sdk;
   si_da(sp_str_t) system_libs;

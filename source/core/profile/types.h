@@ -22,6 +22,7 @@ struct spn_profile_info {
   spn_c_standard_t standard;
   spn_mode_t mode;
   spn_opt_level_t opt;
+  spn_strip_t strip;
   spn_sanitizer_set_t sanitizers;
   bool sanitizers_set;
   spn_linkage_set_t emit;
@@ -48,6 +49,7 @@ typedef struct {
   spn_gated_list_t standard;
   spn_gated_list_t mode;
   spn_gated_list_t opt;
+  spn_gated_list_t strip;
   spn_sanitizer_set_t sanitizers;
   bool sanitizers_set;
   spn_linkage_set_t emit;

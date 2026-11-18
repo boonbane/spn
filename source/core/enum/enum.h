@@ -23,6 +23,7 @@ spn_mode_t spn_mode_from_str(sp_str_t str);
 sp_str_t spn_mode_to_str(spn_mode_t mode);
 spn_opt_level_t spn_opt_level_from_str(sp_str_t str);
 sp_str_t spn_opt_level_to_str(spn_opt_level_t level);
+spn_strip_t spn_strip_from_str(sp_str_t str);
 spn_win_subsystem_t spn_win_subsystem_from_str(sp_str_t str);
 sp_str_t spn_win_subsystem_to_str(spn_win_subsystem_t subsystem);
 spn_tree_t spn_tree_from_str(sp_str_t str);

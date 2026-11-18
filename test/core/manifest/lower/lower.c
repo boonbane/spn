@@ -142,6 +142,7 @@ typedef struct {
   gated_t standard [4];
   gated_t mode [4];
   gated_t opt [4];
+  gated_t strip [4];
   gated_t abi [4];
   spn_sanitizer_set_t sanitizers;
   bool sanitizers_set;
@@ -206,7 +207,7 @@ typedef struct {
     gated_t frameworks [4];
   } publish;
   stage_t stage [4];
-  issue_t issues [8];
+  issue_t issues [16];
   target_t libs [8];
   target_t exes [8];
   target_t tools [8];
@@ -1217,6 +1218,7 @@ static const test_t tests [] = {
         .standard = { { "c99" } },
         .mode = { { "release" } },
         .opt = { { "3" } },
+        .strip = { { "symbols" } },
         .sanitizers = SPN_SANITIZER_ADDRESS | SPN_SANITIZER_UNDEFINED,
         .sanitizers_set = true,
         .emit = { .shared = true, .static_lib = true },
@@ -1261,6 +1263,7 @@ static const test_t tests [] = {
       { SPN_ERR_CODEGEN_INVALID, "profile[0].standard[0].value" },
       { SPN_ERR_CODEGEN_INVALID, "profile[0].mode[0].value" },
       { SPN_ERR_CODEGEN_INVALID, "profile[0].opt[0].value" },
+      { SPN_ERR_CODEGEN_INVALID, "profile[0].strip[0].value" },
       { SPN_ERR_CODEGEN_INVALID, "profile[0].abi[0].value" },
     },
   },
@@ -2223,6 +2226,7 @@ sp_test_each(lower, cases, test_t, tests, .setup = spn_test_ctx_setup) {
     check_gated(t, p->standard, expected.standard);
     check_gated(t, p->mode, expected.mode);
     check_gated(t, p->opt, expected.opt);
+    check_gated(t, p->strip, expected.strip);
     check_gated(t, p->abi, expected.abi);
     sp_expect_eq(t, expected.sanitizers, p->sanitizers);
     sp_expect_eq(t, expected.sanitizers_set, p->sanitizers_set);

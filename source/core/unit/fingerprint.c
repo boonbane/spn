@@ -16,6 +16,7 @@ typedef struct {
   spn_semver_t version;
   spn_mode_t mode;
   spn_opt_level_t opt;
+  spn_strip_t strip;
   spn_sanitizer_set_t sanitizers;
   spn_linking_t linking;
   spn_c_standard_t standard;
@@ -183,6 +184,7 @@ sp_hash_t spn_unit_fingerprint(spn_units_t* u, spn_build_unit_t* build, const sp
 
   fingerprint.mode = build->profile.mode;
   fingerprint.opt = build->profile.opt;
+  fingerprint.strip = build->profile.strip;
   fingerprint.sanitizers = build->profile.sanitizers;
   fingerprint.linking = build->profile.linking;
   if (resolved->config && !sp_opt_is_null(resolved->config->kind)) {

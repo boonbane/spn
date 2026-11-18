@@ -8,4 +8,5 @@ libc = [{ value = "loose" }]
 standard = "c2x"
 mode = [{ value = "fast", when = { os = "linux" } }]
 opt = "9"
+strip = "all"
 abi = [{ value = "bogus" }]

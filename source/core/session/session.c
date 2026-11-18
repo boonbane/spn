@@ -54,6 +54,7 @@ static spn_build_unit_t* add_build(spn_session_t* s, spn_profile_info_t profile,
     (sp_hash_t)profile.standard,
     (sp_hash_t)profile.mode,
     (sp_hash_t)profile.opt,
+    (sp_hash_t)profile.strip,
     (sp_hash_t)profile.targeted,
     spn_digest_hash(&profile.sanitizers, sizeof(profile.sanitizers)),
   };
