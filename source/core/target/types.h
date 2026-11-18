@@ -91,6 +91,18 @@ typedef struct {
 } spn_gated_publish_t;
 
 typedef struct {
+  spn_path_t path;
+  spn_path_t stub;
+} spn_prebuilt_t;
+
+typedef struct {
+  sp_str_t path;
+  sp_str_t stub;
+  spn_tree_t tree;
+  spn_when_t when;
+} spn_gated_prebuilt_t;
+
+typedef struct {
   bool shared;
   bool static_lib;
 } spn_linkage_set_t;
@@ -123,7 +135,7 @@ struct si_target_info {
   spn_gated_list_t flags;
   spn_gated_list_t link_flags;
   spn_gated_path_list_t linker_script;
-  spn_gated_path_list_t stub;
+  si_da(spn_gated_prebuilt_t) prebuilt;
   si_da(spn_gated_requirement_t) requires;
   si_da(spn_gated_dep_t) deps;
   si_da(spn_gated_embed_t) embed;
@@ -144,7 +156,7 @@ struct si_target {
   si_da(sp_str_t) flags;
   si_da(sp_str_t) link_flags;
   si_da(spn_path_t) linker_script;
-  si_da(spn_path_t) stub;
+  si_da(spn_prebuilt_t) prebuilt;
   si_da(spn_requirement_t) requires;
   si_da(sp_intern_str_t) deps;
   si_da(spn_embed_t) embed;

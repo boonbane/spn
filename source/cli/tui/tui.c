@@ -103,7 +103,12 @@ static void write_issue(sp_tty_t* w, const spn_toml_issue_t* issue) {
   sp_str_t field = spn_toml_path_str(scratch.mem, &issue->at);
   switch (issue->code) {
     case SPN_ERR_CODEGEN_MISSING_KEY:
-      sp_tty_fmt(w, "Missing required field {.cyan}", SP_FMT_STR(field));
+      if (sp_da_empty(issue->choices)) {
+        sp_tty_fmt(w, "Missing required field {.cyan}", SP_FMT_STR(field));
+      } else {
+        sp_str_t choices = sp_str_join_n(scratch.mem, issue->choices, (u32)sp_da_size(issue->choices), sp_str_lit(", "));
+        sp_tty_fmt(w, "Missing field {.cyan}, or {.cyan} in its place", SP_FMT_STR(field), SP_FMT_STR(choices));
+      }
       break;
     case SPN_ERR_CODEGEN_EXPECTED_STR:
       sp_tty_fmt(w, "Field {.cyan} must be a string", SP_FMT_STR(field));
@@ -155,7 +160,7 @@ static void write_issue(sp_tty_t* w, const spn_toml_issue_t* issue) {
       sp_tty_fmt(w, "Field {.cyan} is only allowed in the root manifest", SP_FMT_STR(field));
       break;
     case SPN_ERR_CODEGEN_PATH:
-      sp_tty_fmt(w, "Path {.red} at {.cyan} has a '.', '..', or empty component, or a backslash", SP_FMT_STR(issue->detail), SP_FMT_STR(field));
+      sp_tty_fmt(w, "Path {.red} at {.cyan} has a '.', '..', or empty component", SP_FMT_STR(issue->detail), SP_FMT_STR(field));
       break;
     case SPN_ERR_CODEGEN_UNROOTED:
       sp_tty_fmt(w, "Relative path {.red} at {.cyan} has no base directory; use an absolute path", SP_FMT_STR(issue->detail), SP_FMT_STR(field));
@@ -1619,6 +1624,23 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
             sp_fmt_str(event->err.target.requested),
             sp_fmt_str(requester_to_str(event->err.target.requester))
           );
+          switch (event->err.target.requester) {
+            case SPN_LINKAGE_REQUESTER_TARGET: {
+              sp_str_t kind = spn_linkage_to_str(event->err.target.supported[0]);
+              sp_tty_fmt(
+                &w,
+                ". Set {.cyan} in the root manifest to link it as {}",
+                sp_fmt_str(sp_fmt(mem, "[config.{}] kind = \"{}\"", sp_fmt_str(event->err.target.pkg), sp_fmt_str(kind)).value),
+                sp_fmt_str(kind)
+              );
+              break;
+            }
+            case SPN_LINKAGE_REQUESTER_PROFILE:
+            case SPN_LINKAGE_REQUESTER_ROOT_MANIFEST:
+            case SPN_LINKAGE_REQUESTER_LIBC: {
+              break;
+            }
+          }
           break;
         }
         case SPN_ERR_TARGET_DUPLICATE: {
@@ -1660,10 +1682,21 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           );
           break;
         }
-        case SPN_ERR_TARGET_STUBS: {
+        case SPN_ERR_TARGET_STUB_REQUIRED: {
           sp_tty_fmt(
             &w,
-            "{.cyan} declares more than one stub for {.yellow} in this build, including {.yellow}",
+            "{.cyan} ships {.yellow} for {.yellow} with no {.cyan}, but this target links a DLL through its import library",
+            sp_fmt_str(event->err.target_source.pkg),
+            sp_fmt_str(event->err.target_source.source),
+            sp_fmt_str(event->err.target_source.name),
+            sp_fmt_str(sp_str_lit("stub"))
+          );
+          break;
+        }
+        case SPN_ERR_TARGET_PREBUILTS: {
+          sp_tty_fmt(
+            &w,
+            "{.cyan} declares more than one shared entry for {.yellow} in this build, including {.yellow}",
             sp_fmt_str(event->err.target_source.pkg),
             sp_fmt_str(event->err.target_source.name),
             sp_fmt_str(event->err.target_source.source)

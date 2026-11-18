@@ -61,6 +61,15 @@
       }
     },
 
+    "shared_entry": {
+      "optionalProperties": {
+        "path": { "type": "string" },
+        "stub": { "type": "string" },
+        "tree": { "ref": "tree" },
+        "when": { "metadata": { "extern": "when", "include": "when/types.h" } }
+      }
+    },
+
     "upstream": {
       "properties": {
         "url": { "type": "string" },
@@ -199,7 +208,7 @@
         "flags": { "elements": { "ref": "value_entry" }, "metadata": { "shorthand": "value" } },
         "link_flags": { "elements": { "ref": "value_entry" }, "metadata": { "shorthand": "value" } },
         "linker_script": { "elements": { "ref": "source_entry" }, "metadata": { "shorthand": "path" } },
-        "stub": { "elements": { "ref": "source_entry" }, "metadata": { "shorthand": "path" } },
+        "shared": { "elements": { "ref": "shared_entry" }, "metadata": { "shorthand": "path" } },
         "system_deps": { "elements": { "ref": "system_dep_entry" }, "metadata": { "shorthand": "lib" } },
         "host_deps": { "elements": { "ref": "host_dep_entry" }, "metadata": { "shorthand": "lib" } },
         "deps": { "elements": { "ref": "target_dep_entry" }, "metadata": { "shorthand": "lib" } },

@@ -4,4 +4,5 @@ version = "1.0.0"
 
 [[lib]]
 name = "B"
-stub = [{ path = "libB.tbd", tree = "work" }]
+shared = ["libB.so"]
+source = ["C.c"]

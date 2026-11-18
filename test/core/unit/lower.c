@@ -144,6 +144,32 @@ static const test_t tests [] = {
     },
   },
   {
+    .name = "shared_file_links_its_stub",
+    .graph.pkgs = {
+      { .name = "P", .deps = { { "B" } }, .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "main.c" } } } },
+      { .name = "B", .targets = { { "B", shared_only, .shared = { { .path = "B.so", .stub = "B.tbd" } } } } },
+    },
+    .roots = { { "A", SPN_TARGET_KIND_EXE } },
+    .actions = {
+      { NODE_COMPILE, .consumes = { "main.c" }, .produces = { "main.c.o" } },
+      { NODE_LINK, .consumes = { "main.c.o", "B.tbd" }, .produces = { "A" } },
+      { NODE_PUBLISH_FILE, .consumes = { "A" }, .produces = { "build/debug/store/P/bin/A" } },
+    },
+  },
+  {
+    .name = "shared_file_without_stub_links_itself",
+    .graph.pkgs = {
+      { .name = "P", .deps = { { "B" } }, .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "main.c" } } } },
+      { .name = "B", .targets = { { "B", shared_only, .shared = { { .path = "B.so" } } } } },
+    },
+    .roots = { { "A", SPN_TARGET_KIND_EXE } },
+    .actions = {
+      { NODE_COMPILE, .consumes = { "main.c" }, .produces = { "main.c.o" } },
+      { NODE_LINK, .consumes = { "main.c.o", "B.so" }, .produces = { "A" } },
+      { NODE_PUBLISH_FILE, .consumes = { "A" }, .produces = { "build/debug/store/P/bin/A" } },
+    },
+  },
+  {
     .name = "msvc_shared_dep_links_its_implib",
     .graph = {
       .os = SPN_OS_WINDOWS,

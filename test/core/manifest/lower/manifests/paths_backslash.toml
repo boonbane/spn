@@ -1,0 +1,22 @@
+[package]
+name = "A"
+version = "1.0.0"
+include = ['C\D']
+
+[package.publish]
+include = [{ from = 'C\*.h', to = 'D\E' }]
+
+[[lib]]
+name = "B"
+kinds = ["shared"]
+source = ['C\b.c']
+include = ['C\D']
+linker_script = ['C\b.ld']
+embed = [{ path = 'C\b.bin', dest = 'D\b.bin' }]
+
+[[lib]]
+name = "F"
+shared = [{ path = 'C\F.dll', stub = 'C\F.lib' }]
+
+[stage]
+copy = [{ from = 'C\G.txt', to = 'D\G.txt' }]

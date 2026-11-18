@@ -4,4 +4,4 @@ version = "0.1.0"
 
 [[lib]]
 name = "B"
-stub = ["libB.tbd"]
+shared = [{ stub = "libB.tbd" }]

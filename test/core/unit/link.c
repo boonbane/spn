@@ -112,7 +112,7 @@ static const test_t tests [] = {
     .name = "stub_lib_links_shared",
     .graph.pkgs = {
       { .name = "P", .deps = { { "B" } }, .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "main.c" } } } },
-      { .name = "B", .targets = { { "B", shared_only, .stub = { { "B.tbd" } } } } },
+      { .name = "B", .targets = { { "B", shared_only, .shared = { { .stub = "B.tbd" } } } } },
     },
     .root = { "A", SPN_TARGET_KIND_EXE },
     .expect = {
@@ -208,7 +208,7 @@ static const test_t tests [] = {
       .linkage = SPN_LIB_KIND_STATIC,
       .pkgs = {
         { .name = "P", .deps = { { "B" } }, .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "main.c" } } } },
-        { .name = "B", .targets = { { "B", shared_only, .stub = { { "B.tbd", SPN_OS_MACOS } } } } },
+        { .name = "B", .targets = { { "B", shared_only, .shared = { { .stub = "B.tbd", .os = SPN_OS_MACOS } } } } },
       },
     },
     .root = { "A", SPN_TARGET_KIND_EXE },

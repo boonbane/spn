@@ -1,0 +1,11 @@
+[package]
+name = "A"
+version = "1.0.0"
+
+[[lib]]
+name = "B"
+shared = [
+  { path = "B.dll", stub = "B.lib", tree = "manifest", when = { os = "windows" } },
+  "libB.so",
+  { stub = "libB.tbd", when = { os = "macos" } },
+]

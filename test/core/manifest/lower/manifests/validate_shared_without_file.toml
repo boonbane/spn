@@ -4,5 +4,4 @@ version = "1.0.0"
 
 [[lib]]
 name = "B"
-stub = ["libB.tbd"]
-source = ["C.c"]
+shared = [{ tree = "manifest" }]

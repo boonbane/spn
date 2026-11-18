@@ -192,7 +192,7 @@ static spn_err_t lower_target(spn_units_t* u, spn_target_unit_t* unit) {
       case SI_CLOSURE_YIELD_LIB: {
         spn_target_unit_t* lib = entry->lib;
         link->cc.min_os = max_os_version(link->cc.min_os, lib->target->info->macos.min_os);
-        if (lib->target->info->no_link || (sp_da_empty(lib->objects) && spn_path_empty(lib->stub))) {
+        if (lib->target->info->no_link || (sp_da_empty(lib->objects) && sp_opt_is_null(lib->prebuilt))) {
           break;
         }
         switch (lib->lib_kind) {
@@ -285,11 +285,14 @@ static spn_err_t lower_target(spn_units_t* u, spn_target_unit_t* unit) {
     }
   }
 
+  spn_target_emit_t* emit = &unit->emit;
   if (sp_da_empty(unit->objects)) {
+    if (!spn_path_empty(unit->prebuilt.value.path)) {
+      emit->output = sp_fs_get_name(unit->prebuilt.value.path.sub);
+    }
     return SPN_OK;
   }
 
-  spn_target_emit_t* emit = &unit->emit;
   spn_triple_t triple = profile->target;
   sp_str_t name = target->info->name.str;
   switch (unit->kind) {

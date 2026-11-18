@@ -5,4 +5,4 @@ version = "1.0.0"
 [[bin]]
 name = "B"
 source = ["C.c"]
-stub = ["libB.tbd"]
+shared = ["libB.so"]

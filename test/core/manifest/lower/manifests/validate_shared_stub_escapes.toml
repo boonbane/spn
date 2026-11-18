@@ -4,4 +4,4 @@ version = "1.0.0"
 
 [[lib]]
 name = "B"
-stub = ["*.tbd"]
+shared = [{ path = "B.dll", stub = '..\B.lib' }]
