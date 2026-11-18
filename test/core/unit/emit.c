@@ -83,6 +83,31 @@ static const test_t tests [] = {
     .expect = { .link = "A.dll", .implib = "A.dll.lib", .exports = true },
   },
   {
+    .name = "root_lib_emits_every_declared_kind",
+    .graph.pkgs = { { .name = "P", .targets = { { "A", { .static_lib = true, .shared = true }, .source = { "a.c" } } } } },
+    .kind = SPN_TARGET_KIND_LIB,
+    .expect = { .archive = "libA.a", .link = "libA.so", .exports = true },
+  },
+  {
+    .name = "root_lib_without_a_loader_only_archives",
+    .graph = {
+      .libc = SPN_RUNTIME_STATIC,
+      .pkgs = { { .name = "P", .targets = { { "A", { .static_lib = true, .shared = true }, .source = { "a.c" } } } } },
+    },
+    .kind = SPN_TARGET_KIND_LIB,
+    .expect = { .archive = "libA.a" },
+  },
+  {
+    .name = "root_lib_on_wasi_links_a_module",
+    .graph = {
+      .os = SPN_OS_WASI,
+      .abi = SPN_ABI_MUSL,
+      .pkgs = { { .name = "P", .targets = { { "A", { .static_lib = true, .shared = true }, .source = { "a.c" } } } } },
+    },
+    .kind = SPN_TARGET_KIND_LIB,
+    .expect = { .archive = "libA.a", .link = "A.wasm", .exports = true },
+  },
+  {
     .name = "build_script_is_a_reactor",
     .graph.pkgs = { { .name = "P", .targets = { { "A", .kind = SPN_TARGET_KIND_BUILD_METAPROGRAM, .source = { "a.c" } } } } },
     .kind = SPN_TARGET_KIND_BUILD_METAPROGRAM,

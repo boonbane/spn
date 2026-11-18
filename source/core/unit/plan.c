@@ -151,9 +151,9 @@ static spn_err_t lower_target(spn_units_t* u, spn_target_unit_t* unit) {
     }
     case SPN_TARGET_KIND_LIB: {
       unit->install = pkg->paths.lib;
-      kind = SPN_CC_OUTPUT_SHARED_LIB;
-      links = unit->lib_kind == SPN_LIB_KIND_SHARED;
-      archives = unit->lib_kind == SPN_LIB_KIND_STATIC;
+      kind = spn_os_to_native_object_format(profile->target.os) == SPN_OBJ_WASM ? SPN_CC_OUTPUT_REACTOR : SPN_CC_OUTPUT_SHARED_LIB;
+      links = unit->lib_kind == SPN_LIB_KIND_SHARED || unit->products.shared;
+      archives = unit->lib_kind == SPN_LIB_KIND_STATIC || unit->products.static_lib;
       break;
     }
     case SPN_TARGET_KIND_TEST:
@@ -506,6 +506,19 @@ static spn_err_t plan_new(spn_units_t* u, sp_mem_t scratch, spn_pkg_unit_t* root
         .script = build->script,
       },
     });
+  }
+
+  si_da_for_value(roots, target) {
+    if (target->target->info->kind != SPN_TARGET_KIND_LIB) {
+      continue;
+    }
+    const spn_profile_info_t* profile = &target->pkg->build->profile;
+    bool image = spn_os_to_native_object_format(profile->target.os) == SPN_OBJ_WASM || spn_ld_loader(profile->target, profile->linking);
+    spn_linkage_set_t declared = target->target->info->linkages;
+    target->products = (spn_linkage_set_t) {
+      .static_lib = declared.static_lib,
+      .shared = declared.shared && image,
+    };
   }
 
   si_da_for_value(plan->targets, target) {

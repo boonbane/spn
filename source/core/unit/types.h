@@ -163,6 +163,7 @@ struct spn_target_unit {
   spn_pkg_unit_t* pkg;
   si_target_t* target;
   spn_linkage_t lib_kind;
+  spn_linkage_set_t products;
   spn_path_t install;
   sp_opt(spn_prebuilt_t) prebuilt;
 

@@ -396,8 +396,11 @@ static const test_t tests [] = {
   // so its link inputs stay off the plan
   {
     .name = "static_selection_drops_link_inputs",
-    .graph.pkgs = {
-      { .name = "P", .targets = { { "A", { .static_lib = true, .shared = true }, .source = { "a.c" }, .link_flags = { "-A" }, .linker_script = { "A.ld" } } } },
+    .graph = {
+      .libc = SPN_RUNTIME_STATIC,
+      .pkgs = {
+        { .name = "P", .targets = { { "A", { .static_lib = true, .shared = true }, .source = { "a.c" }, .link_flags = { "-A" }, .linker_script = { "A.ld" } } } },
+      },
     },
     .root = { "A", SPN_TARGET_KIND_LIB },
   },
