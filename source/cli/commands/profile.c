@@ -10,17 +10,6 @@ static sp_cli_result_t invalid(sp_str_t value, const c8* flag, const c8* expecte
 sp_cli_result_t spn_cli_parse_profile(spn_profile_override_t* profile) {
   spn_cli_profile_t* cmd = &host.args.profile;
 
-  spn_triple_t target = sp_zero;
-  if (!sp_str_empty(cmd->target) && spn_triple_parse(cmd->target, &target)) {
-    return invalid(cmd->target, "--target", "an <arch>-<os>-<abi> triple like x86_64-linux-gnu");
-  }
-
-  spn_triple_t parts = {
-    .arch = (spn_arch_t)cmd->arch.value,
-    .os = (spn_os_t)cmd->os.value,
-    .abi = (spn_abi_t)cmd->abi.value,
-  };
-
   spn_sanitizer_set_t sanitizers = sp_zero;
   bool sanitizers_set = false;
   if (sp_str_equal_cstr(cmd->sanitize, "none")) {
@@ -50,7 +39,12 @@ sp_cli_result_t spn_cli_parse_profile(spn_profile_override_t* profile) {
     .opt = (spn_opt_level_t)cmd->opt.value,
     .sanitizers = sanitizers,
     .sanitizers_set = sanitizers_set,
-    .triple = spn_triple_merge(target, parts),
+    .target = cmd->target,
+    .triple = {
+      .arch = (spn_arch_t)cmd->arch.value,
+      .os = (spn_os_t)cmd->os.value,
+      .abi = (spn_abi_t)cmd->abi.value,
+    },
   };
   return SP_CLI_OK;
 }

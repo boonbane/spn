@@ -11,10 +11,17 @@ typedef struct {
 } triple_expect_t;
 
 typedef struct {
+  spn_arch_t arch;
+  spn_os_t os;
+  spn_abi_t abi;
+  spn_triple_segment_t invalid;
+  const c8* text;
+} scan_expect_t;
+
+typedef struct {
   const c8* name;
   const c8* triple;
-  spn_err_t err;
-  triple_expect_t expect;
+  scan_expect_t expect;
 } parse_t;
 
 static const parse_t parse_tests [] = {
@@ -30,24 +37,26 @@ static const parse_t parse_tests [] = {
   { "x64_freestanding",        "x86_64-freestanding",       .expect = { SPN_ARCH_X64,   SPN_OS_FREESTANDING } },
   { "x64_linux_no_abi",        "x86_64-linux",              .expect = { SPN_ARCH_X64,   SPN_OS_LINUX } },
   { "x64_bare",                "x86_64",                    .expect = { SPN_ARCH_X64 } },
-  { "mingw_is_not_an_abi",     "x86_64-windows-mingw",      SPN_ERR_TRIPLE_INVALID },
-  { "unknown_abi",             "x86_64-linux-banana",       SPN_ERR_TRIPLE_INVALID },
-  { "unknown_arch",            "x86-linux",                 SPN_ERR_TRIPLE_INVALID },
-  { "unknown_os",              "x86_64-plan9",              SPN_ERR_TRIPLE_INVALID },
-  { "too_many_parts",          "x86_64-linux-gnu-extra",    SPN_ERR_TRIPLE_INVALID },
-  { "empty_part",              "x86_64--gnu",               SPN_ERR_TRIPLE_INVALID },
-  { "empty",                   "",                          SPN_ERR_TRIPLE_INVALID },
+  { "mingw_is_not_an_abi",     "x86_64-windows-mingw",      .expect = { SPN_ARCH_X64,   SPN_OS_WINDOWS, .invalid = SPN_TRIPLE_SEGMENT_ABI, .text = "mingw" } },
+  { "unknown_abi",             "x86_64-linux-A",            .expect = { SPN_ARCH_X64,   SPN_OS_LINUX,   .invalid = SPN_TRIPLE_SEGMENT_ABI, .text = "A" } },
+  { "unknown_arch",            "A-linux",                   .expect = { .invalid = SPN_TRIPLE_SEGMENT_ARCH, .text = "A" } },
+  { "unknown_os",              "x86_64-A",                  .expect = { SPN_ARCH_X64,   .invalid = SPN_TRIPLE_SEGMENT_OS, .text = "A" } },
+  { "unknown_arch_before_os",  "A-B",                       .expect = { .invalid = SPN_TRIPLE_SEGMENT_ARCH, .text = "A" } },
+  { "too_many_parts",          "x86_64-linux-gnu-A",        .expect = { SPN_ARCH_X64,   SPN_OS_LINUX,   SPN_ABI_GNU, SPN_TRIPLE_SEGMENT_EXTRA, "A" } },
+  { "extra_is_the_remainder",  "x86_64-linux-gnu-A-B",      .expect = { SPN_ARCH_X64,   SPN_OS_LINUX,   SPN_ABI_GNU, SPN_TRIPLE_SEGMENT_EXTRA, "A-B" } },
+  { "trailing_separator",      "x86_64-linux-gnu-",         .expect = { SPN_ARCH_X64,   SPN_OS_LINUX,   SPN_ABI_GNU, SPN_TRIPLE_SEGMENT_EXTRA } },
+  { "empty_part",              "x86_64--gnu",               .expect = { SPN_ARCH_X64,   .invalid = SPN_TRIPLE_SEGMENT_OS } },
+  { "empty_abi",               "x86_64-linux-",             .expect = { SPN_ARCH_X64,   SPN_OS_LINUX,   .invalid = SPN_TRIPLE_SEGMENT_ABI } },
+  { "empty",                   "",                          .expect = { .invalid = SPN_TRIPLE_SEGMENT_ARCH } },
 };
 
 sp_test_each(triple, parse, parse_t, parse_tests) {
-  spn_triple_t triple = sp_zero;
-  spn_err_t err = spn_triple_parse(sp_cstr_as_str(it->triple), &triple);
-  sp_expect_eq(t, (u32)it->err, (u32)err);
-  if (!err) {
-    sp_expect_eq(t, triple.arch, it->expect.arch);
-    sp_expect_eq(t, triple.os, it->expect.os);
-    sp_expect_eq(t, triple.abi, it->expect.abi);
-  }
+  spn_triple_scan_t scan = spn_triple_scan(sp_cstr_as_str(it->triple));
+  sp_expect_eq(t, (u32)it->expect.invalid, (u32)scan.invalid);
+  sp_expect_str_eq_c(t, scan.text, it->expect.text);
+  sp_expect_eq(t, scan.triple.arch, it->expect.arch);
+  sp_expect_eq(t, scan.triple.os, it->expect.os);
+  sp_expect_eq(t, scan.triple.abi, it->expect.abi);
   return SP_OK;
 }
 

@@ -203,42 +203,48 @@ spn_obj_format_t spn_triple_object_format(spn_triple_t triple) {
   SP_UNREACHABLE_RETURN(SPN_OBJ_ELF);
 }
 
-spn_err_t spn_triple_parse(sp_str_t str, spn_triple_t* triple) {
-  *triple = sp_zero_s(spn_triple_t);
-
+spn_triple_scan_t spn_triple_scan(sp_str_t str) {
   sp_str_t segments [3] = sp_zero;
   u32 num_segments = 0;
   sp_str_t remaining = str;
-  while (true) {
-    s32 sep = sp_str_find_c8(remaining, '-');
-    sp_str_t segment = sep < 0 ? remaining : sp_str_prefix(remaining, sep);
-    if (sp_str_empty(segment) || num_segments == sp_carr_len(segments)) {
-      return SPN_ERR_TRIPLE_INVALID;
-    }
-    segments[num_segments++] = segment;
+  s32 sep = 0;
+  while (sep >= 0 && num_segments < sp_carr_len(segments)) {
+    sep = sp_str_find_c8(remaining, '-');
     if (sep < 0) {
-      break;
+      segments[num_segments++] = remaining;
     }
-    remaining = sp_str_suffix(remaining, remaining.len - sep - 1);
+    else {
+      segments[num_segments++] = sp_str_prefix(remaining, sep);
+      remaining = sp_str_suffix(remaining, remaining.len - sep - 1);
+    }
   }
 
-  triple->arch = spn_arch_from_str(segments[0]);
-  if (!triple->arch) {
-    return SPN_ERR_TRIPLE_INVALID;
+  spn_triple_t triple = { .arch = spn_arch_from_str(segments[0]) };
+  if (!triple.arch) {
+    return (spn_triple_scan_t) { .invalid = SPN_TRIPLE_SEGMENT_ARCH, .text = segments[0] };
   }
   if (num_segments > 1) {
-    triple->os = spn_os_from_str(segments[1]);
-    if (!triple->os) {
-      return SPN_ERR_TRIPLE_INVALID;
+    triple.os = spn_os_from_str(segments[1]);
+    if (!triple.os) {
+      return (spn_triple_scan_t) { .triple = triple, .invalid = SPN_TRIPLE_SEGMENT_OS, .text = segments[1] };
     }
   }
   if (num_segments > 2) {
-    triple->abi = spn_abi_from_str(segments[2]);
-    if (!triple->abi) {
-      return SPN_ERR_TRIPLE_INVALID;
+    triple.abi = spn_abi_from_str(segments[2]);
+    if (!triple.abi) {
+      return (spn_triple_scan_t) { .triple = triple, .invalid = SPN_TRIPLE_SEGMENT_ABI, .text = segments[2] };
     }
   }
-  return SPN_OK;
+  if (sep >= 0) {
+    return (spn_triple_scan_t) { .triple = triple, .invalid = SPN_TRIPLE_SEGMENT_EXTRA, .text = remaining };
+  }
+  return (spn_triple_scan_t) { .triple = triple };
+}
+
+spn_err_t spn_triple_parse(sp_str_t str, spn_triple_t* triple) {
+  spn_triple_scan_t scan = spn_triple_scan(str);
+  *triple = scan.triple;
+  return scan.invalid ? SPN_ERR_TRIPLE_INVALID : SPN_OK;
 }
 
 sp_str_t spn_triple_to_str(sp_mem_t mem, spn_triple_t triple) {

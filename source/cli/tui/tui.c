@@ -1050,6 +1050,19 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           sp_tty_fmt(&w, "{.yellow} isn't a valid target", sp_fmt_str(spn_triple_to_str(mem, event->err.profile.target)));
           break;
         }
+        case SPN_ERR_TRIPLE_INVALID: {
+          spn_err_triple_parse_t* err = &event->err.triple_parse;
+          if (err->segment == SPN_TRIPLE_SEGMENT_EXTRA) {
+            sp_tty_fmt(&w, "Target {.yellow} has too many segments; expected {.cyan}", sp_fmt_str(err->value), sp_fmt_cstr("<arch>-<os>-<abi>"));
+          }
+          else if (sp_str_empty(err->text)) {
+            sp_tty_fmt(&w, "Target {.yellow} has an empty {}", sp_fmt_str(err->value), sp_fmt_str(spn_triple_segment_to_str(err->segment)));
+          }
+          else {
+            sp_tty_fmt(&w, "Unknown {} {.red} in target {.yellow}", sp_fmt_str(spn_triple_segment_to_str(err->segment)), sp_fmt_str(err->text), sp_fmt_str(err->value));
+          }
+          break;
+        }
         case SPN_ERR_PROFILE_LINKING: {
           spn_err_profile_t* err = &event->err.profile;
           if (sp_da_size(err->refusals) == 1) {
@@ -2234,6 +2247,28 @@ static void render_event_extra(sp_tty_t* w, spn_event_t* event) {
         case SPN_ERR_PROFILE_ARCH:
         case SPN_ERR_PROFILE_ABI: {
           write_supported_targets(w, event->err.profile.targets);
+          break;
+        }
+        case SPN_ERR_TRIPLE_INVALID: {
+          spn_err_triple_parse_t* err = &event->err.triple_parse;
+          list_t archs = { .w = w, .label = sp_str_lit("supported arches"), .style = sp_fmt_style_green };
+          sp_da_for(err->archs, it) {
+            list_item(&archs, spn_arch_to_str(err->archs[it]));
+          }
+          list_end(&archs);
+          list_t oses = { .w = w, .label = sp_str_lit("supported oses"), .style = sp_fmt_style_green };
+          sp_da_for(err->oses, it) {
+            list_item(&oses, spn_os_to_str(err->oses[it]));
+          }
+          list_end(&oses);
+          sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+          sp_str_t label = sp_fmt(scratch.mem, "abis for {}", sp_fmt_str(spn_triple_to_str(scratch.mem, err->parsed))).value;
+          list_t abis = { .w = w, .label = label, .style = sp_fmt_style_green };
+          sp_da_for(err->abis, it) {
+            list_item(&abis, spn_abi_to_str(err->abis[it]));
+          }
+          list_end(&abis);
+          sp_mem_end_scratch(scratch);
           break;
         }
         case SPN_ERR_PROFILE_LINKING: {

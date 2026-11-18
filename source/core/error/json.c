@@ -33,6 +33,14 @@ void spn_codegen_write_triple(sp_io_writer_t* out, const spn_triple_t* triple) {
   sp_mem_end_scratch(scratch);
 }
 
+void spn_codegen_write_arch(sp_io_writer_t* out, const spn_arch_t* arch) {
+  spn_codegen_json_str(out, spn_arch_to_str(*arch));
+}
+
+void spn_codegen_write_os(sp_io_writer_t* out, const spn_os_t* os) {
+  spn_codegen_json_str(out, spn_os_to_str(*os));
+}
+
 void spn_codegen_write_abi(sp_io_writer_t* out, const spn_abi_t* abi) {
   spn_codegen_json_str(out, spn_abi_to_str(*abi));
 }

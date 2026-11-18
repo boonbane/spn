@@ -504,6 +504,27 @@ sp_str_t spn_unpack_reason_to_str(spn_unpack_reason_t reason) {
   SP_UNREACHABLE_RETURN(sp_str_lit(""));
 }
 
+sp_str_t spn_triple_segment_to_str(spn_triple_segment_t segment) {
+  switch (segment) {
+    case SPN_TRIPLE_SEGMENT_NONE: {
+      return sp_str_lit("none");
+    }
+    case SPN_TRIPLE_SEGMENT_ARCH: {
+      return sp_str_lit("arch");
+    }
+    case SPN_TRIPLE_SEGMENT_OS: {
+      return sp_str_lit("os");
+    }
+    case SPN_TRIPLE_SEGMENT_ABI: {
+      return sp_str_lit("abi");
+    }
+    case SPN_TRIPLE_SEGMENT_EXTRA: {
+      return sp_str_lit("extra");
+    }
+  }
+  SP_UNREACHABLE_RETURN(sp_str_lit(""));
+}
+
 sp_str_t spn_cc_feature_to_str(spn_cc_feature_t feature) {
   switch (feature) {
     case SPN_CC_FEATURE_LINK_EXE: {

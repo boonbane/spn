@@ -140,7 +140,7 @@
     "target_host_deps": { "ref": "host_deps" },
     "script_missing": { "ref": "script" },
     "script_failed": { "ref": "script" },
-    "triple_invalid": { "properties": {} },
+    "triple_invalid": { "ref": "triple_parse" },
     "dynamic_duplicate": { "ref": "dynamic_dup" },
     "static_duplicate": { "ref": "static_dup" },
     "resolve_too_complex": { "properties": {} },
@@ -283,6 +283,18 @@
         "target": { "metadata": { "extern": "triple" } },
         "targets": { "elements": { "metadata": { "extern": "triple" } } },
         "refusals": { "elements": { "ref": "refusal" } }
+      }
+    },
+    "triple_segment": { "enum": ["none", "arch", "os", "abi", "extra"] },
+    "triple_parse": {
+      "properties": {
+        "value": { "type": "string" },
+        "segment": { "ref": "triple_segment" },
+        "text": { "type": "string" },
+        "parsed": { "metadata": { "extern": "triple" } },
+        "archs": { "elements": { "metadata": { "extern": "arch" } } },
+        "oses": { "elements": { "metadata": { "extern": "os" } } },
+        "abis": { "elements": { "metadata": { "extern": "abi" } } }
       }
     },
     "sanitizer": {

@@ -53,6 +53,7 @@ typedef struct {
   const c8* name;
   const c8* toolchain;
   spn_mode_t mode;
+  const c8* target;
   spn_os_t os;
   spn_arch_t arch;
   spn_abi_t abi;
@@ -675,6 +676,16 @@ static const test_t tests [] = {
     .expect = { .err = SPN_ERR_PROFILE_ABI },
   },
   {
+    .name = "abi_override_beats_target_string",
+    .overrides = { .target = "aarch64-linux-musl", .abi = SPN_ABI_GNU },
+    .host = PROFILE_HOST_LINUX_GNU,
+    .expect = {
+      .target = { SPN_ARCH_ARM64, SPN_OS_LINUX, SPN_ABI_GNU },
+      .linking.linkage = SPN_LIB_KIND_SHARED,
+      .targeted = true,
+    },
+  },
+  {
     .name = "explicit_shared_runtime_survives",
     .profile = { .name = "default", .runtime = { { "shared" } } },
     .host = PROFILE_HOST_LINUX_GNU,
@@ -964,6 +975,7 @@ static spn_profile_override_t desc_to_override(const override_t* d) {
     .name = d->name ? sp_cstr_as_str(d->name) : (sp_str_t) sp_zero,
     .toolchain = d->toolchain ? sp_cstr_as_str(d->toolchain) : (sp_str_t) sp_zero,
     .mode = d->mode,
+    .target = sp_cstr_as_str(d->target),
     .triple = { .arch = d->arch, .os = d->os, .abi = d->abi },
   };
 }
@@ -1105,5 +1117,102 @@ sp_test_each(profile, finalize, finalize_test_t, finalize_tests) {
   sp_expect_eq(t, (u32)it->expect.linking.libc, (u32)profile.linking.libc);
   sp_expect_eq(t, (u32)it->expect.driver, (u32)profile.driver);
   sp_expect_eq(t, (u32)it->expect.linker, (u32)profile.linker);
+  return SP_OK;
+}
+
+#define PROFILE_MAX_CHOICES 6
+
+typedef struct {
+  spn_triple_segment_t segment;
+  const c8* text;
+  spn_triple_t parsed;
+  spn_arch_t archs [PROFILE_MAX_CHOICES];
+  spn_os_t oses [PROFILE_MAX_CHOICES];
+  spn_abi_t abis [PROFILE_MAX_CHOICES];
+} target_expect_t;
+
+typedef struct {
+  const c8* name;
+  const c8* target;
+  target_expect_t expect;
+} target_test_t;
+
+static const target_test_t target_tests [] = {
+  {
+    .name = "unknown_abi_lists_abis_of_os",
+    .target = "x86_64-windows-A",
+    .expect = {
+      .segment = SPN_TRIPLE_SEGMENT_ABI,
+      .text = "A",
+      .parsed = { SPN_ARCH_X64, SPN_OS_WINDOWS },
+      .abis = { SPN_ABI_GNU, SPN_ABI_MSVC },
+    },
+  },
+  {
+    .name = "unknown_os_lists_oses",
+    .target = "wasm32-A",
+    .expect = {
+      .segment = SPN_TRIPLE_SEGMENT_OS,
+      .text = "A",
+      .parsed = { SPN_ARCH_WASM32 },
+      .oses = { SPN_OS_LINUX, SPN_OS_WINDOWS, SPN_OS_MACOS, SPN_OS_WASI, SPN_OS_FREESTANDING },
+    },
+  },
+  {
+    .name = "unknown_arch_lists_archs",
+    .target = "A-linux",
+    .expect = {
+      .segment = SPN_TRIPLE_SEGMENT_ARCH,
+      .text = "A",
+      .archs = { SPN_ARCH_X64, SPN_ARCH_ARM64, SPN_ARCH_WASM32 },
+    },
+  },
+  {
+    .name = "extra_segment_lists_nothing",
+    .target = "x86_64-linux-gnu-A",
+    .expect = {
+      .segment = SPN_TRIPLE_SEGMENT_EXTRA,
+      .text = "A",
+      .parsed = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU },
+    },
+  },
+};
+
+sp_test_each(profile, target, target_test_t, target_tests, .setup = spn_test_ctx_setup) {
+  spn_profile_override_t overrides = { .target = sp_cstr_as_str(it->target) };
+  spn_project_t project = { .package = test_manifest_make(sp_str_lit("P")) };
+  spn_profile_info_t result = sp_zero;
+  spn_err_t err = spn_profile_resolve(&overrides, (spn_triple_t) PROFILE_HOST_LINUX_GNU, &project, &result);
+  sp_must_eq(t, (u32)SPN_ERR_TRIPLE_INVALID, (u32)err);
+
+  sp_da(spn_event_t) errs = spn_test_drain_errs(spn.mem);
+  sp_must_eq(t, 1, sp_da_size(errs));
+  sp_expect_eq(t, errs[0].err.kind, err);
+  spn_err_triple_parse_t* parse = &errs[0].err.triple_parse;
+  sp_expect_str_eq_c(t, parse->value, it->target);
+  sp_expect_eq(t, (u32)it->expect.segment, (u32)parse->segment);
+  sp_expect_str_eq_c(t, parse->text, it->expect.text);
+  sp_expect(t, spn_triple_equal(it->expect.parsed, parse->parsed));
+
+  u32 archs = 0;
+  sp_carr_detect_len(it->expect.archs, archs, it->expect.archs[archs]);
+  sp_must_eq(t, archs, (u32)sp_da_size(parse->archs));
+  sp_for(at, archs) {
+    sp_expect_eq(t, it->expect.archs[at], parse->archs[at]);
+  }
+
+  u32 oses = 0;
+  sp_carr_detect_len(it->expect.oses, oses, it->expect.oses[oses]);
+  sp_must_eq(t, oses, (u32)sp_da_size(parse->oses));
+  sp_for(at, oses) {
+    sp_expect_eq(t, it->expect.oses[at], parse->oses[at]);
+  }
+
+  u32 abis = 0;
+  sp_carr_detect_len(it->expect.abis, abis, it->expect.abis[abis]);
+  sp_must_eq(t, abis, (u32)sp_da_size(parse->abis));
+  sp_for(at, abis) {
+    sp_expect_eq(t, it->expect.abis[at], parse->abis[at]);
+  }
   return SP_OK;
 }

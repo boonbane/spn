@@ -306,6 +306,16 @@ static cell_t cells [] = {
     .project = "test/render/fixtures/errors/base",
     .args = { "build", "--target", "bogus" },
   },
+  {
+    .name = "err_triple_os",
+    .project = "test/render/fixtures/errors/base",
+    .args = { "build", "--target", "wasm32-wasip1" },
+  },
+  {
+    .name = "err_triple_abi",
+    .project = "test/render/fixtures/errors/base",
+    .args = { "build", "--target", "x86_64-windows-blu" },
+  },
   // error: invalid target x86_64-linux-msvc; linux has no msvc abi
   //
   // Kind of weird. I get it, but the ABI isn't a property of the OS. It's a property

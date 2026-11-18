@@ -28,6 +28,14 @@ typedef struct {
 } spn_triple_t;
 
 typedef enum {
+  SPN_TRIPLE_SEGMENT_NONE,
+  SPN_TRIPLE_SEGMENT_ARCH,
+  SPN_TRIPLE_SEGMENT_OS,
+  SPN_TRIPLE_SEGMENT_ABI,
+  SPN_TRIPLE_SEGMENT_EXTRA,
+} spn_triple_segment_t;
+
+typedef enum {
   SPN_CC_DRIVER_NONE,
   SPN_CC_DRIVER_GCC,
   SPN_CC_DRIVER_CLANG,
