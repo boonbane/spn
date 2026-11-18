@@ -1,0 +1,19 @@
+[package]
+name = "B"
+version = "1.0.0"
+
+[package.configure]
+source = ["tools/configure.c"]
+
+[package.build]
+source = ["tools/build.c"]
+
+[deps.build]
+C = "1.0.0"
+
+[[lib]]
+name = "B"
+kinds = ["static"]
+source = ["B.c"]
+include = [{ path = "I", tree = "work" }]
+publish.include = [{ from = "B.h" }]

@@ -20,7 +20,6 @@ struct spn_build_unit_t {
   spn_build_id_t id;
   spn_profile_info_t profile;
   spn_toolchain_unit_t* toolchain;
-  spn_build_unit_t* metabuild;
   bool script;
   sp_da(spn_path_t) include;
   sp_da(sp_str_t) define;
@@ -222,8 +221,10 @@ struct spn_units_t {
   spn_ctx_t* ctx;
   sp_mem_t mem;
   spn_resolve_t resolve;
+  spn_build_unit_t* metabuild;
   spn_units_t* configure;
   sp_om(spn_pkg_unit_id_t, spn_pkg_unit_t) packages;
+  sp_om(spn_pkg_id_t, spn_pkg_unit_t) scripts;
   sp_om(spn_target_unit_id_t, spn_target_unit_t) targets;
   sp_om(spn_compile_unit_id_t, spn_compile_unit_t) objects;
   si_ht(spn_pkg_unit_id_t, sp_hash_t) fingerprints;

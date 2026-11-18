@@ -371,6 +371,10 @@ static spn_path_t staged_path(sp_mem_t mem, spn_target_unit_t* unit) {
 static spn_err_t plan_new(spn_units_t* u, sp_mem_t scratch, spn_pkg_unit_t* root, si_da(spn_target_unit_t*) roots, spn_build_plan_t* plan) {
   *plan = sp_zero_s(spn_build_plan_t);
 
+  sp_om_for(u->scripts, pt) {
+    si_da_push(u->mem, plan->pkgs, sp_om_at(u->scripts, pt));
+  }
+
   sp_om_for(u->packages, pt) {
     spn_pkg_unit_t* pkg = sp_om_at(u->packages, pt);
     si_da_push(u->mem, plan->pkgs, pkg);

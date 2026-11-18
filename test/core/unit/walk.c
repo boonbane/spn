@@ -5,6 +5,7 @@
 typedef enum {
   UNIT_PROGRAM,
   UNIT_METAPROGRAM,
+  UNIT_SCRIPT,
   UNIT_CONFIGURE,
 } where_t;
 
@@ -60,13 +61,13 @@ static const test_t tests [] = {
     .expect = { { "R" }, { "A" } },
   },
   {
-    .name = "build_script_lands_in_metabuild_with_its_build_deps",
+    .name = "build_script_lands_in_script_units_and_its_build_deps_in_metabuild",
     .graph.pkgs = {
       { .name = "R", .deps = { { "T", SPN_DEP_KIND_BUILD } }, .targets = { { "B", .kind = SPN_TARGET_KIND_BUILD_METAPROGRAM, .source = { "b.c" } } } },
       { .name = "T" },
     },
     .roots = { { "X", SPN_TARGET_KIND_EXE } },
-    .expect = { { "R" }, { "R", UNIT_METAPROGRAM }, { "T", UNIT_METAPROGRAM } },
+    .expect = { { "R" }, { "R", UNIT_SCRIPT }, { "T", UNIT_METAPROGRAM } },
   },
   {
     .name = "build_dep_without_build_script_excluded",
@@ -88,7 +89,7 @@ static const test_t tests [] = {
     .expect = { { "R" }, { "A" }, { "R", UNIT_CONFIGURE } },
   },
   // A build dep is consumed as a library, so only its package deps follow;
-  // its own build deps belong to its build script, which nothing here roots
+  // its own build deps belong to its build script, and T has none
   {
     .name = "build_dep_follows_package_deps_only",
     .graph.pkgs = {
@@ -98,7 +99,26 @@ static const test_t tests [] = {
       { .name = "G" },
     },
     .roots = { { "X", SPN_TARGET_KIND_EXE } },
-    .expect = { { "R" }, { "R", UNIT_METAPROGRAM }, { "T", UNIT_METAPROGRAM }, { "U", UNIT_METAPROGRAM } },
+    .expect = { { "R" }, { "R", UNIT_SCRIPT }, { "T", UNIT_METAPROGRAM }, { "U", UNIT_METAPROGRAM } },
+  },
+  {
+    .name = "build_dep_build_script_follows_its_own_build_deps",
+    .graph.pkgs = {
+      { .name = "R", .deps = { { "T", SPN_DEP_KIND_BUILD } }, .targets = { { "B", .kind = SPN_TARGET_KIND_BUILD_METAPROGRAM, .source = { "b.c" } } } },
+      { .name = "T", .deps = { { "G", SPN_DEP_KIND_BUILD } }, .targets = { { "B", .kind = SPN_TARGET_KIND_BUILD_METAPROGRAM, .source = { "b.c" } } } },
+      { .name = "G" },
+    },
+    .roots = { { "X", SPN_TARGET_KIND_EXE } },
+    .expect = { { "R" }, { "R", UNIT_SCRIPT }, { "T", UNIT_METAPROGRAM }, { "T", UNIT_SCRIPT }, { "G", UNIT_METAPROGRAM } },
+  },
+  {
+    .name = "build_dep_configure_script_lands_in_configure_units",
+    .graph.pkgs = {
+      { .name = "R", .deps = { { "T", SPN_DEP_KIND_BUILD } }, .targets = { { "B", .kind = SPN_TARGET_KIND_BUILD_METAPROGRAM, .source = { "b.c" } } } },
+      { .name = "T", .targets = { { "C", .kind = SPN_TARGET_KIND_CONFIGURE_METAPROGRAM, .source = { "c.c" } } } },
+    },
+    .roots = { { "X", SPN_TARGET_KIND_EXE } },
+    .expect = { { "R" }, { "R", UNIT_SCRIPT }, { "T", UNIT_METAPROGRAM }, { "T", UNIT_CONFIGURE } },
   },
   {
     .name = "dual_membership_gets_two_units",
@@ -107,7 +127,7 @@ static const test_t tests [] = {
       { .name = "A" },
     },
     .roots = { { "X", SPN_TARGET_KIND_EXE } },
-    .expect = { { "R" }, { "A" }, { "R", UNIT_METAPROGRAM }, { "A", UNIT_METAPROGRAM } },
+    .expect = { { "R" }, { "A" }, { "R", UNIT_SCRIPT }, { "A", UNIT_METAPROGRAM } },
   },
 };
 
@@ -118,8 +138,12 @@ static u32 count_units(units_t* u, const expect_t* expect) {
     where_t where = unit->build == u->session.builds.metaprogram ? UNIT_METAPROGRAM : UNIT_PROGRAM;
     count += where == expect->where && sp_str_equal_cstr(unit->pkg.manifest->name.str, expect->pkg);
   }
-  sp_om_for(u->configure.packages, pt) {
-    spn_pkg_unit_t* unit = sp_om_at(u->configure.packages, pt);
+  sp_om_for(u->units.scripts, pt) {
+    spn_pkg_unit_t* unit = sp_om_at(u->units.scripts, pt);
+    count += expect->where == UNIT_SCRIPT && sp_str_equal_cstr(unit->pkg.manifest->name.str, expect->pkg);
+  }
+  sp_om_for(u->configure.scripts, pt) {
+    spn_pkg_unit_t* unit = sp_om_at(u->configure.scripts, pt);
     count += expect->where == UNIT_CONFIGURE && sp_str_equal_cstr(unit->pkg.manifest->name.str, expect->pkg);
   }
   return count;
@@ -134,7 +158,7 @@ sp_test_each(unit_walk, packages, test_t, tests, .setup = spn_test_ctx_setup, .t
 
   u32 expected = 0;
   sp_carr_detect_len(it->expect, expected, it->expect[expected].pkg);
-  sp_must_eq(t, expected, (u32)(sp_om_size(u->units.packages) + sp_om_size(u->configure.packages)));
+  sp_must_eq(t, expected, (u32)(sp_om_size(u->units.packages) + sp_om_size(u->units.scripts) + sp_om_size(u->configure.packages) + sp_om_size(u->configure.scripts)));
   sp_for(et, expected) {
     sp_test_kv_c(t, "pkg", it->expect[et].pkg);
     sp_expect_eq(t, 1, count_units(u, &it->expect[et]));

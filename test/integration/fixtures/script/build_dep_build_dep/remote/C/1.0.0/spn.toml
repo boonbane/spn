@@ -1,0 +1,6 @@
+[package]
+name = "C"
+version = "1.0.0"
+
+[package.publish]
+include = [{ from = "C.h" }]

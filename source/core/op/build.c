@@ -137,11 +137,13 @@ spn_err_t spn_op_build(spn_op_t* op) {
     .ctx = ctx,
     .mem = mem,
     .resolve = session->resolve,
+    .metabuild = session->builds.metaprogram,
   };
   spn_units_t units = {
     .ctx = ctx,
     .mem = mem,
     .resolve = session->resolve,
+    .metabuild = session->builds.metaprogram,
     .configure = &configure,
   };
 
