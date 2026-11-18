@@ -336,6 +336,7 @@ sp_test_each(index_sync, sync, sync_test_t, tests, .setup = spn_test_ctx_setup) 
 
   spn_index_info_t index = {
     .protocol = it->protocol,
+    .remote = spn_git_remote(SPN_GIT_TRANSPORT_BUILTIN),
     .git = { .url = remote },
     .location = { .at = sp_path_from_str(cache), .dir = cache, .lock = sp_path_from_str(lock) },
     .refresh = it->refresh,

@@ -14,6 +14,7 @@ void spn_git_cache_init(spn_git_cache_t* cache, sp_mem_t mem, sp_intern_t* inter
     .mem = mem,
     .intern = intern,
     .roots = roots,
+    .remote = spn_git_remote(SPN_GIT_TRANSPORT_BUILTIN),
     .db.dir = spn_path_copy(mem, db),
     .db.locks = spn_path_copy(mem, locks),
     .checkouts.dir = spn_path_copy(mem, checkouts),
@@ -75,12 +76,14 @@ static void fail(spn_git_failure_t* failure, sp_str_t message) {
 }
 
 spn_err_t spn_git_db_ensure_rev(spn_git_cache_t* cache, spn_git_db_t* db, sp_str_t rev, sp_atomic_s32_t* cancelled, spn_git_failure_t* failure) {
+  sp_assert(cache->remote.fetch);
+  sp_assert(!cache->backoff.wait_ms[0] || cache->backoff.wait);
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   sp_str_t path = spn_path_str(cache->roots, scratch.mem, db->path);
 
   bool found = spn_git_has_rev(path, rev);
   if (!found) {
-    spn_err_t fetched = spn_git_fetch_rev(cache->transport, path, db->url, rev, cache->backoff, cancelled, failure);
+    spn_err_t fetched = spn_git_fetch_rev(cache->remote, path, db->url, rev, cache->backoff, cancelled, failure);
 
     spn_path_t staged = sp_zero;
     if (fetched && failure->kind == SPN_GIT_CORRUPT && !spn_path_stage_dir(scratch.mem, cache->roots, db->path, sp_str_lit("tmp"), &staged)) {
@@ -90,7 +93,7 @@ spn_err_t spn_git_db_ensure_rev(spn_git_cache_t* cache, spn_git_db_t* db, sp_str
       sp_str_t repo = spn_path_str(cache->roots, scratch.mem, staged);
 
       spn_git_failure_t rebuilt = sp_zero;
-      if (spn_git_init_bare(db->url, repo, &rebuilt) || spn_git_fetch_rev(cache->transport, repo, db->url, rev, cache->backoff, cancelled, &rebuilt)) {
+      if (spn_git_init_bare(db->url, repo, &rebuilt) || spn_git_fetch_rev(cache->remote, repo, db->url, rev, cache->backoff, cancelled, &rebuilt)) {
         *failure = rebuilt;
       }
       else if (!sp_fs_replace_dir_at(fresh, live, retired)) {

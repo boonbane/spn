@@ -10,9 +10,11 @@
 
 typedef struct {
   u32 wait_ms [spn_net_max_retries];
+  void (*wait)(void* user, u32 ms, sp_atomic_s32_t* cancelled);
+  void* user;
 } spn_net_backoff_t;
 
-#define spn_net_default_backoff ((spn_net_backoff_t) { .wait_ms = { 1000, 3500, 6500 } })
+#define spn_net_default_backoff ((spn_net_backoff_t) { .wait_ms = { 1000, 3500, 6500 }, .wait = spn_net_wait })
 #define spn_net_no_backoff sp_zero_s(spn_net_backoff_t)
 
 typedef struct {
@@ -22,6 +24,7 @@ typedef struct {
 } spn_net_config_t;
 
 spn_net_trust_t spn_net_trust_find(sp_str_t ca_bundle, sp_str_t ssl_cert_file);
+void spn_net_wait(void* user, u32 ms, sp_atomic_s32_t* cancelled);
 bool spn_net_backoff_wait(spn_net_backoff_t backoff, u32 retry, sp_str_t url, sp_str_t cause, sp_atomic_s32_t* cancelled);
 
 #endif

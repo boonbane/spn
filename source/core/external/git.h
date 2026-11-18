@@ -43,6 +43,13 @@ typedef struct {
   bool no_tags;
 } spn_git_fetch_t;
 
+typedef struct {
+  spn_git_transport_t transport;
+  spn_err_t (*clone)(void* user, spn_git_route_t route, sp_str_t url, sp_str_t path, sp_atomic_s32_t* cancelled, spn_git_failure_t* failure);
+  spn_err_t (*fetch)(void* user, spn_git_route_t route, sp_str_t repo, spn_git_fetch_t fetch, sp_atomic_s32_t* cancelled, spn_git_failure_t* failure);
+  void* user;
+} spn_git_remote_t;
+
 spn_err_t spn_git_init(sp_str_t ca_bundle, u32 timeout_s);
 spn_err_t spn_git_lock(sp_path_t at, sp_path_t gitdir, sp_str_t url, sp_atomic_s32_t* cancelled, sp_fs_lock_t* lock, spn_git_failure_t* failure);
 spn_err_t spn_git_builtin_clone(sp_str_t url, sp_str_t path, sp_atomic_s32_t* cancelled, spn_git_failure_t* failure);

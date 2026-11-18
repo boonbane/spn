@@ -9,6 +9,7 @@
 #include "external/http.h"
 #include "external/wasm/wasm.h"
 #include "git/cache.h"
+#include "git/remote.h"
 #include "hash/digest/digest.h"
 #include "index/index.h"
 #include "intern/intern.h"
@@ -305,10 +306,11 @@ spn_err_t spn_ctx_open(spn_ctx_t* ctx, spn_open_request_t request) {
     .mirror = sp_env_get(ctx->env, sp_str_lit("SPN_MIRROR")),
     .trust = ctx->trust,
     .timeout_s = net.timeout_s,
+    .http = { .download = spn_http_download },
     .backoff = spn_net_default_backoff,
   };
-  spn_git_transport_t transport = net.system_git ? SPN_GIT_TRANSPORT_SYSTEM : SPN_GIT_TRANSPORT_BUILTIN;
-  ctx->caches.git.transport = transport;
+  spn_git_remote_t remote = spn_git_remote(net.system_git ? SPN_GIT_TRANSPORT_SYSTEM : SPN_GIT_TRANSPORT_BUILTIN);
+  ctx->caches.git.remote = remote;
   ctx->caches.git.backoff = spn_net_default_backoff;
   spn_probe_cache_load(&ctx->caches.toolchains.probes, &ctx->roots, (spn_path_t) { .root = SPN_PATH_ROOT_TOOLCHAIN, .sub = sp_str_lit("probe.cache") }, ctx->mem);
 
@@ -331,7 +333,7 @@ spn_err_t spn_ctx_open(spn_ctx_t* ctx, spn_open_request_t request) {
     index->location.at = spn_path_at(&ctx->roots, location.dir);
     index->location.dir = spn_path_str(&ctx->roots, ctx->heap, location.dir);
     index->location.lock = spn_path_at(&ctx->roots, location.lock);
-    index->transport = transport;
+    index->remote = remote;
     index->backoff = spn_net_default_backoff;
     if (!index->refresh) {
       index->refresh = request.index_refresh_seconds ? request.index_refresh_seconds : SPN_INDEX_DEFAULT_REFRESH;

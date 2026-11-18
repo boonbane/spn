@@ -465,3 +465,16 @@ include = ["include", "source/core", "source/util", "source/core/external", "tes
 deps = ["spn"]
 embed = [{ path = "source/core/toolchain/toolchains.toml", dest = "source/core/toolchain/toolchains.toml" }]
 flags = ['-DTEST_EMBED="unit.embed.h"']
+
+[[test]]
+name = "live"
+source = [
+  "test/live/*.c",
+  "test/core/tools/ctx.c",
+  "test/tools/fixture.c",
+  "test/core/tools/main/live.c",
+]
+include = ["include", "source/core", "source/util", "source/core/external", "test/core", "test/core/tools", "test/tools", { path = "gen/codegen/gen", tree = "work" }]
+deps = ["spn"]
+embed = [{ path = "source/core/toolchain/toolchains.toml", dest = "source/core/toolchain/toolchains.toml" }]
+flags = ['-DTEST_EMBED="live.embed.h"']

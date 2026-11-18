@@ -57,7 +57,7 @@ static spn_err_t git_index_clone(spn_index_info_t* index, sp_atomic_s32_t* cance
 
   sp_path_t work = sp_path_from_str(staged.sub);
   sp_path_t old = sp_path_from_str(spn_path_staging(scratch.mem, base, sp_str_lit("old")).sub);
-  spn_err_t err = spn_git_clone(index->transport, index->git.url, staged.sub, index->backoff, cancelled, failure);
+  spn_err_t err = spn_git_clone(index->remote, index->git.url, staged.sub, index->backoff, cancelled, failure);
   if (!err && sp_fs_replace_dir_at(work, index->location.at, old)) {
     *failure = (spn_git_failure_t) { .message = "failed to place the clone" };
     err = SPN_ERROR;
@@ -100,7 +100,7 @@ static spn_err_t git_index_sync(spn_index_info_t* index, spn_index_plan_t plan, 
       spn_try(git_index_clone(index, cancelled, failure));
     }
     else if (plan.fetch) {
-      spn_try(spn_git_fetch(index->transport, dir, index->git.url, spn_net_no_backoff, cancelled, failure));
+      spn_try(spn_git_fetch(index->remote, dir, index->git.url, spn_net_no_backoff, cancelled, failure));
     }
     return spn_git_checkout(dir, index->git.rev);
   }
@@ -118,7 +118,7 @@ static spn_err_t git_index_sync(spn_index_info_t* index, spn_index_plan_t plan, 
         break;
       }
     }
-    else if (spn_git_fetch(index->transport, dir, index->git.url, spn_net_no_backoff, cancelled, failure)) {
+    else if (spn_git_fetch(index->remote, dir, index->git.url, spn_net_no_backoff, cancelled, failure)) {
       if (failure->kind == SPN_GIT_CORRUPT) {
         continue;
       }
@@ -160,6 +160,9 @@ spn_err_t spn_index_sync(spn_index_info_t* index, spn_index_plan_t plan, sp_atom
   *failure = sp_zero_s(spn_git_failure_t);
   switch (index->protocol) {
     case SPN_INDEX_PROTOCOL_GIT: {
+      sp_assert(index->remote.clone);
+      sp_assert(index->remote.fetch);
+      sp_assert(!index->backoff.wait_ms[0] || index->backoff.wait);
       if (sp_str_empty(index->git.rev) && !plan.fetch) {
         return plan.held ? SPN_ERROR : SPN_OK;
       }
@@ -228,7 +231,7 @@ static spn_err_t publish_from(sp_mem_t mem, spn_index_info_t* work, spn_index_re
   sp_str_t dir = work->location.dir;
 
   spn_git_failure_t failure = sp_zero;
-  if (spn_git_clone(work->transport, work->git.url, dir, work->backoff, cancelled, &failure)) {
+  if (spn_git_clone(work->remote, work->git.url, dir, work->backoff, cancelled, &failure)) {
     if (failure.kind == SPN_GIT_CANCELLED) {
       return SPN_ERR_CANCELLED;
     }

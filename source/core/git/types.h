@@ -48,7 +48,7 @@ typedef struct {
   sp_mem_t mem;
   sp_intern_t* intern;
   const spn_path_roots_t* roots;
-  spn_git_transport_t transport;
+  spn_git_remote_t remote;
   spn_net_backoff_t backoff;
   sp_mutex_t mutex;
   struct {

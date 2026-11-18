@@ -26,7 +26,12 @@ typedef struct {
   c8 message [spn_http_message_max];
 } spn_http_failure_t;
 
+typedef struct {
+  spn_err_t (*download)(void* user, const spn_http_config_t* config, sp_str_t url, sp_path_t dest, spn_http_failure_t* failure);
+  void* user;
+} spn_http_t;
+
 spn_err_t spn_http_init();
-spn_err_t spn_http_download(const spn_http_config_t* config, sp_str_t url, sp_path_t dest, spn_http_failure_t* failure);
+spn_err_t spn_http_download(void* user, const spn_http_config_t* config, sp_str_t url, sp_path_t dest, spn_http_failure_t* failure);
 
 #endif

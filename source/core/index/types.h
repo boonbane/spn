@@ -78,7 +78,7 @@ struct spn_index_info {
     sp_path_t lock;
   } location;
   u32 refresh;
-  spn_git_transport_t transport;
+  spn_git_remote_t remote;
   spn_net_backoff_t backoff;
 };
 

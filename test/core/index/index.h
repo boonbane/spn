@@ -6,6 +6,7 @@
 #include "sp.h"
 #include "spn/core.h"
 #include "external/git.h"
+#include "git/remote.h"
 #include "index/index.h"
 #include "index/json.h"
 #include "intern/intern.h"

@@ -44,7 +44,6 @@ add_executable(core
   external/backoff.c
   external/git.c
   external/gzip.c
-  external/http.c
   external/net.c
   external/obj.c
   external/wasm.c
@@ -63,6 +62,7 @@ add_executable(core
   git/key/name.c
   git/patch.c
   git/recover.c
+  git/remote.c
   git/url/ssh.c
   git/url/valid.c
   git/url/web.c

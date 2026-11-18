@@ -94,6 +94,8 @@ static spn_wasi_spelling_t wasi_spelling(const spn_path_roots_t* roots, sp_mem_t
 }
 
 static spn_err_t setup_artifact(spn_toolchain_store_t* store, spn_toolchain_unit_t* unit, sp_atomic_s32_t* cancelled) {
+  sp_assert(store->http.download);
+  sp_assert(!store->backoff.wait_ms[0] || store->backoff.wait);
   spn_toolchain_info_t* toolchain = unit->info;
   spn_artifact_t artifact = toolchain->support.artifact;
   sp_tm_timer_t timer = sp_tm_start_timer();
@@ -122,7 +124,7 @@ static spn_err_t setup_artifact(spn_toolchain_store_t* store, spn_toolchain_unit
     else {
       sp_str_t listing = sp_zero;
       if (!sp_str_empty(artifact.mirror_list)) {
-        if (spn_http_download(&http, artifact.mirror_list, download, &failure) || sp_fs_read_at(scratch.mem, download, &listing)) {
+        if (store->http.download(store->http.user, &http, artifact.mirror_list, download, &failure) || sp_fs_read_at(scratch.mem, download, &listing)) {
           listing = artifact.mirror_snapshot;
         }
       }
@@ -141,7 +143,7 @@ static spn_err_t setup_artifact(spn_toolchain_store_t* store, spn_toolchain_unit
       spn_net_backoff_t backoff = it + 1 == sp_da_size(urls) ? store->backoff : spn_net_no_backoff;
       u32 retry = 0;
       do {
-        err = spn_http_download(&http, url, download, &failure);
+        err = store->http.download(store->http.user, &http, url, download, &failure);
       } while (err && failure.kind == SPN_HTTP_DROPPED && spn_net_backoff_wait(backoff, retry++, url, sp_cstr_as_str(failure.message), cancelled));
       if (!err) {
         err = spn_toolchain_verify(store, &claim, spn.events->mem, &actual);

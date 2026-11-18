@@ -21,7 +21,7 @@ spn_err_t spn_http_init() {
   return curl_global_init(CURL_GLOBAL_DEFAULT) ? SPN_ERROR : SPN_OK;
 }
 
-spn_err_t spn_http_download(const spn_http_config_t* config, sp_str_t url, sp_path_t dest, spn_http_failure_t* failure) {
+spn_err_t spn_http_download(void* user, const spn_http_config_t* config, sp_str_t url, sp_path_t dest, spn_http_failure_t* failure) {
   *failure = (spn_http_failure_t) { .kind = SPN_HTTP_FAILED };
 
   CURL* curl = curl_easy_init();
