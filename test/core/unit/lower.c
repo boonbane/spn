@@ -225,6 +225,27 @@ static const test_t tests [] = {
     },
   },
   {
+    .name = "consumer_links_the_archive_of_a_root_lib",
+    .graph.pkgs = {
+      { .name = "P", .targets = {
+        { "E", .kind = SPN_TARGET_KIND_EXE, .source = { "main.c" }, .deps = { "A" } },
+        { "A", both_kinds, .source = { "a.c" } },
+      } },
+    },
+    .roots = { { "E", SPN_TARGET_KIND_EXE }, { "A", SPN_TARGET_KIND_LIB } },
+    .actions = {
+      { NODE_COMPILE, .consumes = { "main.c" }, .produces = { "main.c.o" } },
+      { NODE_COMPILE, .consumes = { "a.c" }, .produces = { "a.c.o" } },
+      { NODE_ARCHIVE, .consumes = { "a.c.o" }, .produces = { "libA.a" } },
+      { NODE_EXPORTS, .consumes = { "a.c.o" } },
+      { NODE_LINK, .consumes = { "a.c.o", "@exports" }, .produces = { "libA.so" } },
+      { NODE_LINK, .consumes = { "main.c.o", "libA.a" }, .produces = { "E" } },
+      { NODE_PUBLISH_FILE, .consumes = { "libA.a" }, .produces = { "build/debug/store/P/lib/libA.a" } },
+      { NODE_PUBLISH_FILE, .consumes = { "libA.so" }, .produces = { "build/debug/store/P/lib/libA.so" } },
+      { NODE_PUBLISH_FILE, .consumes = { "E" }, .produces = { "build/debug/store/P/bin/E" } },
+    },
+  },
+  {
     .name = "zig_links_share_one_warm_stub",
     .graph = {
       .driver = SPN_CC_DRIVER_ZIG,

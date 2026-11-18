@@ -23,6 +23,7 @@
 
 #define static_only { .static_lib = true }
 #define shared_only { .shared = true }
+#define both_kinds { .shared = true, .static_lib = true }
 
 typedef struct {
   const c8* to;

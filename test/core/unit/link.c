@@ -395,20 +395,47 @@ static const test_t tests [] = {
   // A lib that could be shared but is selected static is archived, not linked,
   // so its link inputs stay off the plan
   {
-    .name = "static_selection_drops_link_inputs",
+    .name = "archive_only_lib_drops_link_inputs",
     .graph = {
+      .abi = SPN_ABI_MUSL,
+      .linkage = SPN_LIB_KIND_STATIC,
       .libc = SPN_RUNTIME_STATIC,
       .pkgs = {
-        { .name = "P", .targets = { { "A", { .static_lib = true, .shared = true }, .source = { "a.c" }, .link_flags = { "-A" }, .linker_script = { "A.ld" } } } },
+        { .name = "P", .targets = { { "A", both_kinds, .source = { "a.c" }, .link_flags = { "-A" }, .linker_script = { "A.ld" } } } },
       },
     },
     .root = { "A", SPN_TARGET_KIND_LIB },
   },
   {
+    .name = "both_kinds_dep_links_static_under_shared_profile",
+    .graph = {
+      .linkage = SPN_LIB_KIND_SHARED,
+      .pkgs = {
+        { .name = "P", .deps = { { "B" } }, .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "main.c" } } } },
+        { .name = "B", .targets = { { "B", both_kinds, .source = { "a.c" } } } },
+      },
+    },
+    .root = { "A", SPN_TARGET_KIND_EXE },
+    .expect = {
+      .deps = { { "B" } },
+    },
+  },
+  {
+    .name = "root_lib_image_embeds_public_static_deps_whole",
+    .graph.pkgs = {
+      { .name = "P", .deps = { { "B", .public = true } }, .targets = { { "A", both_kinds, .source = { "a.c" } } } },
+      { .name = "B", .targets = { { "B", static_only, .source = { "b.c" } } } },
+    },
+    .root = { "A", SPN_TARGET_KIND_LIB },
+    .expect = {
+      .deps = { { "B", SPN_LINK_ROLE_WHOLE_ARCHIVE } },
+    },
+  },
+  {
     .name = "config_pin_links_shared",
     .graph.pkgs = {
       { .name = "P", .deps = { { "B" } }, .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "main.c" } } } },
-      { .name = "B", .config = SPN_LIB_KIND_SHARED, .targets = { { "B", { .static_lib = true, .shared = true }, .source = { "a.c" } } } },
+      { .name = "B", .config = SPN_LIB_KIND_SHARED, .targets = { { "B", both_kinds, .source = { "a.c" } } } },
     },
     .root = { "A", SPN_TARGET_KIND_EXE },
     .expect = {
@@ -418,11 +445,12 @@ static const test_t tests [] = {
   {
     .name = "config_pin_without_a_loader_links_static",
     .graph = {
+      .abi = SPN_ABI_MUSL,
       .linkage = SPN_LIB_KIND_STATIC,
       .libc = SPN_RUNTIME_STATIC,
       .pkgs = {
         { .name = "P", .deps = { { "B" } }, .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "main.c" } } } },
-        { .name = "B", .config = SPN_LIB_KIND_SHARED, .targets = { { "B", { .static_lib = true, .shared = true }, .source = { "a.c" } } } },
+        { .name = "B", .config = SPN_LIB_KIND_SHARED, .targets = { { "B", both_kinds, .source = { "a.c" } } } },
       },
     },
     .root = { "A", SPN_TARGET_KIND_EXE },

@@ -10,6 +10,7 @@ typedef struct {
 typedef struct {
   const c8* name;
   graph_t graph;
+  graph_root_t root;
   spn_target_kind_t kind;
   expect_t expect;
 } test_t;
@@ -84,15 +85,39 @@ static const test_t tests [] = {
   },
   {
     .name = "root_lib_emits_every_declared_kind",
-    .graph.pkgs = { { .name = "P", .targets = { { "A", { .static_lib = true, .shared = true }, .source = { "a.c" } } } } },
+    .graph.pkgs = { { .name = "P", .targets = { { "A", both_kinds, .source = { "a.c" } } } } },
     .kind = SPN_TARGET_KIND_LIB,
     .expect = { .archive = "libA.a", .link = "libA.so", .exports = true },
   },
   {
+    .name = "root_lib_for_msvc_keeps_archive_and_implib_apart",
+    .graph = {
+      .os = SPN_OS_WINDOWS,
+      .abi = SPN_ABI_MSVC,
+      .driver = SPN_CC_DRIVER_ZIG,
+      .runtime = SPN_RUNTIME_STATIC,
+      .pkgs = { { .name = "P", .targets = { { "A", both_kinds, .source = { "a.c" } } } } },
+    },
+    .kind = SPN_TARGET_KIND_LIB,
+    .expect = { .archive = "A.lib", .link = "A.dll", .implib = "A.dll.lib", .exports = true },
+  },
+  {
+    .name = "unselected_lib_emits_only_its_binding",
+    .graph.pkgs = { { .name = "P", .targets = {
+      { "E", .kind = SPN_TARGET_KIND_EXE, .source = { "e.c" }, .deps = { "A" } },
+      { "A", both_kinds, .source = { "a.c" } },
+    } } },
+    .root = { "E", SPN_TARGET_KIND_EXE },
+    .kind = SPN_TARGET_KIND_LIB,
+    .expect = { .archive = "libA.a" },
+  },
+  {
     .name = "root_lib_without_a_loader_only_archives",
     .graph = {
+      .abi = SPN_ABI_MUSL,
+      .linkage = SPN_LIB_KIND_STATIC,
       .libc = SPN_RUNTIME_STATIC,
-      .pkgs = { { .name = "P", .targets = { { "A", { .static_lib = true, .shared = true }, .source = { "a.c" } } } } },
+      .pkgs = { { .name = "P", .targets = { { "A", both_kinds, .source = { "a.c" } } } } },
     },
     .kind = SPN_TARGET_KIND_LIB,
     .expect = { .archive = "libA.a" },
@@ -124,8 +149,8 @@ sp_test_each(unit_emit, artifact, test_t, tests, .setup = spn_test_ctx_setup, .t
     sp_must_eq(t, SPN_OK, units_add_package(u, "P", &pkg));
   }
   else {
-    graph_root_t roots [] = { { "A", it->kind } };
-    sp_must_eq(t, SPN_OK, units_add_roots(u, roots, sp_carr_len(roots), &targets));
+    graph_root_t root = it->root.name ? it->root : (graph_root_t) { "A", it->kind };
+    sp_must_eq(t, SPN_OK, units_add_roots(u, &root, 1, &targets));
   }
   sp_must_eq(t, SPN_OK, units_plan(u, targets));
 
