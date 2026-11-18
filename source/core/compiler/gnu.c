@@ -85,10 +85,13 @@ static sp_str_t render_target(sp_mem_t mem, const spn_cc_t* toolchain, spn_tripl
       return sp_str_lit("wasm32-wasi");
     }
     case SPN_OS_FREESTANDING: {
-      if (spn_cc_has(toolchain, SPN_CC_CAP_LLVM_TRIPLE)) {
-        return sp_fmt(mem, "{}-none-elf", sp_fmt_str(spn_arch_to_str(triple.arch))).value;
+      if (!spn_cc_has(toolchain, SPN_CC_CAP_LLVM_TRIPLE)) {
+        return spn_triple_to_str(mem, triple);
       }
-      return spn_triple_to_str(mem, triple);
+      if (triple.arch == SPN_ARCH_WASM32) {
+        return sp_str_lit("wasm32-unknown-unknown");
+      }
+      return sp_fmt(mem, "{}-none-elf", sp_fmt_str(spn_arch_to_str(triple.arch))).value;
     }
     case SPN_OS_LINUX:
     case SPN_OS_WINDOWS:
@@ -138,8 +141,13 @@ void spn_gnu_render_flags(sp_mem_t mem, const spn_cc_t* toolchain, const spn_pro
     if (spn_cc_has(toolchain, SPN_CC_CAP_DEFAULT_UBSAN)) {
       sp_da_push(flags->compile, sp_str_lit("-fno-sanitize=undefined"));
     }
-    sp_da_push(flags->link, sp_str_lit("-nostartfiles"));
-    sp_da_push(flags->link, sp_str_lit("-nolibc"));
+    if (spn_triple_object_format(profile->target) == SPN_OBJ_WASM) {
+      sp_da_push(flags->link, sp_str_lit("-nostdlib"));
+    }
+    else {
+      sp_da_push(flags->link, sp_str_lit("-nostartfiles"));
+      sp_da_push(flags->link, sp_str_lit("-nolibc"));
+    }
   }
 }
 

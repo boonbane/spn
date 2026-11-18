@@ -88,11 +88,11 @@ static void push_hosted(spn_toolchain_info_t* info, spn_toolchain_catalog_t* cat
   static const spn_os_t hosted [] = { SPN_OS_LINUX, SPN_OS_MACOS, SPN_OS_WINDOWS };
   sp_carr_for(hosted, os) {
     const spn_arch_t* arches = SP_NULLPTR;
-    const spn_abi_t* abis = SP_NULLPTR;
     u32 num_arches = spn_os_archs(hosted[os], &arches);
-    u32 num_abis = spn_os_completions(hosted[os], &abis);
     bool own = hosted[os] == catalog->host.os;
     sp_for(arch, num_arches) {
+      const spn_abi_t* abis = SP_NULLPTR;
+      u32 num_abis = spn_os_completions(arches[arch], hosted[os], &abis);
       sp_for(abi, num_abis) {
         spn_toolchain_row_t row = { .triple = { arches[arch], hosted[os], abis[abi] } };
         if (own) {

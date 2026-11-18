@@ -197,7 +197,7 @@ static spn_profile_info_t program_profile(units_t* u, const graph_t* g, const sp
     .opt = g->opt,
     .sanitizers = g->sanitize ? 1u << g->sanitize : 0,
     .target = {
-      .arch = SPN_ARCH_X64,
+      .arch = g->arch ? g->arch : SPN_ARCH_X64,
       .os = g->os ? g->os : SPN_OS_LINUX,
       .abi = g->abi ? g->abi : (g->os == SPN_OS_MACOS ? SPN_ABI_NONE : SPN_ABI_GNU),
     },

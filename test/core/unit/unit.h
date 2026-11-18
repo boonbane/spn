@@ -98,6 +98,7 @@ typedef struct {
 } graph_toolchain_t;
 
 typedef struct {
+  spn_arch_t arch;
   spn_os_t os;
   spn_abi_t abi;
   graph_toolchain_t catalog [UNIT_TEST_MAX_TOOLCHAINS];

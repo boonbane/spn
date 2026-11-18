@@ -96,12 +96,13 @@ typedef struct {
   u32 completions;
 } os_abis_t;
 
-static os_abis_t os_abis(spn_os_t os) {
+static os_abis_t os_abis(spn_arch_t arch, spn_os_t os) {
   static const spn_abi_t linux_abis [] = { SPN_ABI_GNU, SPN_ABI_MUSL, SPN_ABI_BARE };
   static const spn_abi_t windows_abis [] = { SPN_ABI_GNU, SPN_ABI_MSVC };
   static const spn_abi_t macos_abis [] = { SPN_ABI_APPLE };
   static const spn_abi_t wasi_abis [] = { SPN_ABI_MUSL };
   static const spn_abi_t freestanding_abis [] = { SPN_ABI_BARE, SPN_ABI_ELF };
+  static const spn_abi_t wasm_freestanding_abis [] = { SPN_ABI_BARE };
 
   switch (os) {
     case SPN_OS_LINUX: {
@@ -117,6 +118,9 @@ static os_abis_t os_abis(spn_os_t os) {
       return (os_abis_t) { .abis = wasi_abis, .count = sp_carr_len(wasi_abis), .completions = sp_carr_len(wasi_abis) };
     }
     case SPN_OS_FREESTANDING: {
+      if (arch == SPN_ARCH_WASM32) {
+        return (os_abis_t) { .abis = wasm_freestanding_abis, .count = sp_carr_len(wasm_freestanding_abis), .completions = sp_carr_len(wasm_freestanding_abis) };
+      }
       return (os_abis_t) { .abis = freestanding_abis, .count = sp_carr_len(freestanding_abis), .completions = sp_carr_len(freestanding_abis) };
     }
     case SPN_OS_NONE: {
@@ -126,14 +130,14 @@ static os_abis_t os_abis(spn_os_t os) {
   sp_unreachable_return(sp_zero_s(os_abis_t));
 }
 
-u32 spn_os_abis(spn_os_t os, const spn_abi_t** abis) {
-  os_abis_t row = os_abis(os);
+u32 spn_os_abis(spn_arch_t arch, spn_os_t os, const spn_abi_t** abis) {
+  os_abis_t row = os_abis(arch, os);
   *abis = row.abis;
   return row.count;
 }
 
-u32 spn_os_completions(spn_os_t os, const spn_abi_t** abis) {
-  os_abis_t row = os_abis(os);
+u32 spn_os_completions(spn_arch_t arch, spn_os_t os, const spn_abi_t** abis) {
+  os_abis_t row = os_abis(arch, os);
   *abis = row.abis;
   return row.completions;
 }
@@ -141,14 +145,18 @@ u32 spn_os_completions(spn_os_t os, const spn_abi_t** abis) {
 u32 spn_os_archs(spn_os_t os, const spn_arch_t** archs) {
   static const spn_arch_t machine_archs [] = { SPN_ARCH_X64, SPN_ARCH_ARM64 };
   static const spn_arch_t wasi_archs [] = { SPN_ARCH_WASM32 };
+  static const spn_arch_t freestanding_archs [] = { SPN_ARCH_X64, SPN_ARCH_ARM64, SPN_ARCH_WASM32 };
 
   switch (os) {
     case SPN_OS_LINUX:
     case SPN_OS_WINDOWS:
-    case SPN_OS_MACOS:
-    case SPN_OS_FREESTANDING: {
+    case SPN_OS_MACOS: {
       *archs = machine_archs;
       return sp_carr_len(machine_archs);
+    }
+    case SPN_OS_FREESTANDING: {
+      *archs = freestanding_archs;
+      return sp_carr_len(freestanding_archs);
     }
     case SPN_OS_WASI: {
       *archs = wasi_archs;
@@ -173,8 +181,8 @@ static bool os_has_arch(spn_os_t os, spn_arch_t arch) {
   return false;
 }
 
-static bool os_has_abi(spn_os_t os, spn_abi_t abi) {
-  os_abis_t row = os_abis(os);
+static bool os_has_abi(spn_arch_t arch, spn_os_t os, spn_abi_t abi) {
+  os_abis_t row = os_abis(arch, os);
   sp_for(it, row.count) {
     if (row.abis[it] == abi) {
       return true;
@@ -272,7 +280,7 @@ spn_triple_entry_t spn_triple_entry(spn_triple_t partial, spn_triple_t* full) {
   }
 
   if (partial.abi) {
-    if (!os_has_abi(partial.os, partial.abi)) {
+    if (!os_has_abi(partial.arch, partial.os, partial.abi)) {
       return SPN_TRIPLE_ENTRY_FOREIGN_ABI;
     }
     *full = partial;
@@ -280,7 +288,7 @@ spn_triple_entry_t spn_triple_entry(spn_triple_t partial, spn_triple_t* full) {
   }
 
   const spn_abi_t* abis = SP_NULLPTR;
-  u32 count = spn_os_completions(partial.os, &abis);
+  u32 count = spn_os_completions(partial.arch, partial.os, &abis);
   if (count != 1) {
     return SPN_TRIPLE_ENTRY_MISSING_ABI;
   }

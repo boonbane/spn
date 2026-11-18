@@ -42,6 +42,17 @@ static const test_t tests [] = {
     .expect = { .link = "A.elf" },
   },
   {
+    .name = "exe_on_freestanding_wasm_is_a_module",
+    .graph = {
+      .arch = SPN_ARCH_WASM32,
+      .os = SPN_OS_FREESTANDING,
+      .abi = SPN_ABI_BARE,
+      .pkgs = { { .name = "P", .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "a.c" } } } } },
+    },
+    .kind = SPN_TARGET_KIND_EXE,
+    .expect = { .link = "A.wasm" },
+  },
+  {
     .name = "static_lib_archives",
     .graph.pkgs = { { .name = "P", .targets = { { "A", static_only, .source = { "a.c" } } } } },
     .kind = SPN_TARGET_KIND_LIB,

@@ -153,7 +153,7 @@ spn_err_t spn_profile_query(const spn_profile_info_t* profile, spn_triple_t host
       push_abi(&abis, host.abi);
     }
     const spn_abi_t* completions = SP_NULLPTR;
-    u32 count = spn_os_completions(profile->target.os, &completions);
+    u32 count = spn_os_completions(profile->target.arch, profile->target.os, &completions);
     sp_for(it, count) {
       push_abi(&abis, completions[it]);
     }
@@ -242,7 +242,7 @@ static bool shared_demand(const spn_project_t* project, spn_linkage_set_t emit) 
 
 static void push_os_triples(sp_da(spn_triple_t)* triples, spn_arch_t arch, spn_os_t os) {
   const spn_abi_t* abis = SP_NULLPTR;
-  u32 count = spn_os_abis(os, &abis);
+  u32 count = spn_os_abis(arch, os, &abis);
   sp_for(it, count) {
     sp_da_push(*triples, ((spn_triple_t) { .arch = arch, .os = os, .abi = abis[it] }));
   }

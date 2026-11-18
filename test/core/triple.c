@@ -142,6 +142,8 @@ static const entry_t entry_tests [] = {
   { "freestanding_none",       { SPN_ARCH_ARM64,  SPN_OS_FREESTANDING, SPN_ABI_BARE },  { .full = { SPN_ARCH_ARM64,  SPN_OS_FREESTANDING, SPN_ABI_BARE } } },
   { "freestanding_elf",        { SPN_ARCH_ARM64,  SPN_OS_FREESTANDING, SPN_ABI_ELF },   { .full = { SPN_ARCH_ARM64,  SPN_OS_FREESTANDING, SPN_ABI_ELF } } },
   { "freestanding_needs_abi",  { SPN_ARCH_ARM64,  SPN_OS_FREESTANDING },                { .result = SPN_TRIPLE_ENTRY_MISSING_ABI } },
+  { "wasm_freestanding_filled", { SPN_ARCH_WASM32, SPN_OS_FREESTANDING },               { .full = { SPN_ARCH_WASM32, SPN_OS_FREESTANDING, SPN_ABI_BARE } } },
+  { "wasm_freestanding_elf",   { SPN_ARCH_WASM32, SPN_OS_FREESTANDING, SPN_ABI_ELF },   { .result = SPN_TRIPLE_ENTRY_FOREIGN_ABI } },
   { "linux_none",              { SPN_ARCH_X64,    SPN_OS_LINUX,        SPN_ABI_BARE },  { .full = { SPN_ARCH_X64,    SPN_OS_LINUX,        SPN_ABI_BARE } } },
   { "ambiguous_abi",           { SPN_ARCH_X64,    SPN_OS_LINUX },                       { .result = SPN_TRIPLE_ENTRY_MISSING_ABI } },
   { "missing_os",              { SPN_ARCH_X64 },                                        { .result = SPN_TRIPLE_ENTRY_MISSING_OS } },
@@ -169,17 +171,19 @@ sp_test_each(triple, entry, entry_t, entry_tests) {
 
 typedef struct {
   const c8* name;
+  spn_arch_t arch;
   spn_os_t os;
   spn_abi_t expect [TRIPLE_MAX_ABIS];
 } os_abis_t;
 
 static const os_abis_t os_abis_tests [] = {
-  { "linux",        SPN_OS_LINUX,        { SPN_ABI_GNU, SPN_ABI_MUSL, SPN_ABI_BARE } },
-  { "windows",      SPN_OS_WINDOWS,      { SPN_ABI_GNU, SPN_ABI_MSVC } },
-  { "macos",        SPN_OS_MACOS,        { SPN_ABI_APPLE } },
-  { "wasi",         SPN_OS_WASI,         { SPN_ABI_MUSL } },
-  { "freestanding", SPN_OS_FREESTANDING, { SPN_ABI_BARE, SPN_ABI_ELF } },
-  { "none",         SPN_OS_NONE },
+  { "linux",             SPN_ARCH_X64,    SPN_OS_LINUX,        { SPN_ABI_GNU, SPN_ABI_MUSL, SPN_ABI_BARE } },
+  { "windows",           SPN_ARCH_X64,    SPN_OS_WINDOWS,      { SPN_ABI_GNU, SPN_ABI_MSVC } },
+  { "macos",             SPN_ARCH_ARM64,  SPN_OS_MACOS,        { SPN_ABI_APPLE } },
+  { "wasi",              SPN_ARCH_WASM32, SPN_OS_WASI,         { SPN_ABI_MUSL } },
+  { "freestanding",      SPN_ARCH_X64,    SPN_OS_FREESTANDING, { SPN_ABI_BARE, SPN_ABI_ELF } },
+  { "freestanding_wasm", SPN_ARCH_WASM32, SPN_OS_FREESTANDING, { SPN_ABI_BARE } },
+  { "none",              SPN_ARCH_X64,    SPN_OS_NONE },
 };
 
 sp_test_each(triple, os_abis, os_abis_t, os_abis_tests) {
@@ -187,7 +191,7 @@ sp_test_each(triple, os_abis, os_abis_t, os_abis_tests) {
   sp_carr_detect_len(it->expect, expected, it->expect[expected]);
 
   const spn_abi_t* abis = SP_NULLPTR;
-  u32 count = spn_os_abis(it->os, &abis);
+  u32 count = spn_os_abis(it->arch, it->os, &abis);
   sp_must_eq(t, expected, count);
   sp_for(at, count) {
     sp_expect_eq(t, it->expect[at], abis[at]);
@@ -196,12 +200,13 @@ sp_test_each(triple, os_abis, os_abis_t, os_abis_tests) {
 }
 
 static const os_abis_t os_completions_tests [] = {
-  { "linux",        SPN_OS_LINUX,        { SPN_ABI_GNU, SPN_ABI_MUSL } },
-  { "windows",      SPN_OS_WINDOWS,      { SPN_ABI_GNU, SPN_ABI_MSVC } },
-  { "macos",        SPN_OS_MACOS,        { SPN_ABI_APPLE } },
-  { "wasi",         SPN_OS_WASI,         { SPN_ABI_MUSL } },
-  { "freestanding", SPN_OS_FREESTANDING, { SPN_ABI_BARE, SPN_ABI_ELF } },
-  { "none",         SPN_OS_NONE },
+  { "linux",             SPN_ARCH_X64,    SPN_OS_LINUX,        { SPN_ABI_GNU, SPN_ABI_MUSL } },
+  { "windows",           SPN_ARCH_X64,    SPN_OS_WINDOWS,      { SPN_ABI_GNU, SPN_ABI_MSVC } },
+  { "macos",             SPN_ARCH_ARM64,  SPN_OS_MACOS,        { SPN_ABI_APPLE } },
+  { "wasi",              SPN_ARCH_WASM32, SPN_OS_WASI,         { SPN_ABI_MUSL } },
+  { "freestanding",      SPN_ARCH_X64,    SPN_OS_FREESTANDING, { SPN_ABI_BARE, SPN_ABI_ELF } },
+  { "freestanding_wasm", SPN_ARCH_WASM32, SPN_OS_FREESTANDING, { SPN_ABI_BARE } },
+  { "none",              SPN_ARCH_X64,    SPN_OS_NONE },
 };
 
 sp_test_each(triple, os_completions, os_abis_t, os_completions_tests) {
@@ -209,7 +214,7 @@ sp_test_each(triple, os_completions, os_abis_t, os_completions_tests) {
   sp_carr_detect_len(it->expect, expected, it->expect[expected]);
 
   const spn_abi_t* abis = SP_NULLPTR;
-  u32 count = spn_os_completions(it->os, &abis);
+  u32 count = spn_os_completions(it->arch, it->os, &abis);
   sp_must_eq(t, expected, count);
   sp_for(at, count) {
     sp_expect_eq(t, it->expect[at], abis[at]);
@@ -231,7 +236,7 @@ static const os_archs_t os_archs_tests [] = {
   { "windows",      SPN_OS_WINDOWS,      { SPN_ARCH_X64, SPN_ARCH_ARM64 } },
   { "macos",        SPN_OS_MACOS,        { SPN_ARCH_X64, SPN_ARCH_ARM64 } },
   { "wasi",         SPN_OS_WASI,         { SPN_ARCH_WASM32 } },
-  { "freestanding", SPN_OS_FREESTANDING, { SPN_ARCH_X64, SPN_ARCH_ARM64 } },
+  { "freestanding", SPN_OS_FREESTANDING, { SPN_ARCH_X64, SPN_ARCH_ARM64, SPN_ARCH_WASM32 } },
   { "none",         SPN_OS_NONE },
 };
 

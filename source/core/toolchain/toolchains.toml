@@ -20,6 +20,7 @@ target = [
   { arch = "aarch64", os = "windows",      abi = "msvc",  sanitizers = ["undefined"] },
   { arch = "x86_64",  os = "freestanding", abi = "none" },
   { arch = "aarch64", os = "freestanding", abi = "none" },
+  { arch = "wasm32",  os = "freestanding", abi = "none" },
   { arch = "x86_64",  os = "linux",        abi = "none" },
   { arch = "aarch64", os = "linux",        abi = "none" },
 ]
@@ -83,6 +84,7 @@ archiver = "bin/llvm-ar"
 cxx = "bin/clang++"
 target = [
   { arch = "wasm32", os = "wasi", abi = "musl", sdk = "share/wasi-sysroot", spelling = "wasm32-wasip1" },
+  { arch = "wasm32", os = "freestanding", abi = "none" },
 ]
 
 [toolchain.host]

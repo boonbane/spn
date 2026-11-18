@@ -362,7 +362,7 @@ static spn_err_t lower_target(spn_units_t* u, spn_target_unit_t* unit) {
       switch (triple.os) {
         case SPN_OS_WINDOWS:      emit->link.output = sp_fmt(mem, "{}.exe", sp_fmt_str(name)).value; break;
         case SPN_OS_WASI:         emit->link.output = sp_fmt(mem, "{}.wasm", sp_fmt_str(name)).value; break;
-        case SPN_OS_FREESTANDING: emit->link.output = sp_fmt(mem, "{}.elf", sp_fmt_str(name)).value; break;
+        case SPN_OS_FREESTANDING: emit->link.output = sp_fmt(mem, spn_triple_object_format(triple) == SPN_OBJ_WASM ? "{}.wasm" : "{}.elf", sp_fmt_str(name)).value; break;
         case SPN_OS_LINUX:
         case SPN_OS_MACOS:        emit->link.output = name; break;
         case SPN_OS_NONE:         sp_unreachable_case();

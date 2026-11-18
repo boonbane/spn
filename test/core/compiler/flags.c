@@ -133,6 +133,14 @@ static const flags_test_t tests [] = {
     .expect = { .compile = { "-ffreestanding", "-fno-stack-protector" }, .link = { "-nostartfiles", "-nolibc" } },
   },
   {
+    .name = "freestanding_wasm_strips_every_library",
+    .profile = {
+      .target = { SPN_ARCH_WASM32, SPN_OS_FREESTANDING, SPN_ABI_BARE },
+    },
+    .driver = SPN_CC_DRIVER_CLANG,
+    .expect = { .compile = { "-ffreestanding", "-fno-stack-protector" }, .link = { "-nostdlib" } },
+  },
+  {
     .name = "freestanding_elf_strips_nothing",
     .profile = {
       .target = { SPN_ARCH_ARM64, SPN_OS_FREESTANDING, SPN_ABI_ELF },
