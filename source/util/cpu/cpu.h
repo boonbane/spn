@@ -3,6 +3,7 @@
 
 #include "sp.h"
 
-u32 spn_cpu_count(void);
+u32 spn_cpu_count();
+u64 spn_cpu_cgroup_quota(sp_mem_t mem, sp_path_t proc, sp_path_t root);
 
 #endif
