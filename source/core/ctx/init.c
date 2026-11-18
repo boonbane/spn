@@ -305,6 +305,7 @@ spn_err_t spn_ctx_open(spn_ctx_t* ctx, spn_open_request_t request) {
     .mirror = sp_env_get(ctx->env, sp_str_lit("SPN_MIRROR")),
     .trust = ctx->trust,
     .timeout_s = net.timeout_s,
+    .http = { .download = spn_http_download },
     .backoff = spn_net_default_backoff,
   };
   spn_git_transport_t transport = net.system_git ? SPN_GIT_TRANSPORT_SYSTEM : SPN_GIT_TRANSPORT_BUILTIN;

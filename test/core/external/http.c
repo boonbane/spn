@@ -240,7 +240,7 @@ sp_test_each(http, download, test_t, tests, .setup = spn_test_ctx_setup) {
     sp_thread_init(&thread, serve, &server);
   }
 
-  spn_err_t err = spn_http_download(&config, url, dest, &failure);
+  spn_err_t err = spn_http_download(SP_NULLPTR, &config, url, dest, &failure);
 
   if (!it->closed) {
     sp_atomic_s32_store(&server.stop, 1, SP_ATOMIC_SEQ_CST);
@@ -273,7 +273,7 @@ sp_test(http, downloads_file_url, .setup = spn_test_ctx_setup) {
   sp_atomic_s32_t cancelled = sp_zero;
   spn_http_config_t config = { .timeout_s = 1, .cancelled = &cancelled };
   spn_http_failure_t failure = sp_zero;
-  spn_err_t err = spn_http_download(&config, sp_fmt(mem, "file://{}", sp_fmt_str(source)).value, dest, &failure);
+  spn_err_t err = spn_http_download(SP_NULLPTR, &config, sp_fmt(mem, "file://{}", sp_fmt_str(source)).value, dest, &failure);
 
   sp_test_kv_c(t, "message", failure.message);
   sp_must_eq(t, (u32)err, (u32)SPN_OK);

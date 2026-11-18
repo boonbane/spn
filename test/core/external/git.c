@@ -153,7 +153,7 @@ sp_test_each(git, failure, test_t, tests, .setup = spn_test_ctx_setup) {
 
   failure = (spn_git_failure_t) { .kind = SPN_GIT_DROPPED, .message = "A" };
   sp_atomic_s32_store(&cancelled, it->cancelled, SP_ATOMIC_SEQ_CST);
-  spn_net_backoff_t backoff = { .wait_ms = { 1, 1, 1 } };
+  spn_net_backoff_t backoff = { .wait_ms = { 1, 1, 1 }, .wait = spn_net_wait };
   spn_err_t err = SPN_OK;
   switch (it->op) {
     case OP_FETCH: {
