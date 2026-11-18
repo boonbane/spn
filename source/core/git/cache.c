@@ -76,6 +76,8 @@ static void fail(spn_git_failure_t* failure, sp_str_t message) {
 }
 
 spn_err_t spn_git_db_ensure_rev(spn_git_cache_t* cache, spn_git_db_t* db, sp_str_t rev, sp_atomic_s32_t* cancelled, spn_git_failure_t* failure) {
+  sp_assert(cache->remote.fetch);
+  sp_assert(!cache->backoff.wait_ms[0] || cache->backoff.wait);
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   sp_str_t path = spn_path_str(cache->roots, scratch.mem, db->path);
 

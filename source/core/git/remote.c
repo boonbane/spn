@@ -50,6 +50,8 @@ spn_git_remote_t spn_git_remote(spn_git_transport_t transport) {
 }
 
 static spn_err_t fetch(spn_git_remote_t remote, spn_git_route_t* route, sp_str_t repo, sp_str_t url, spn_git_fetch_t what, spn_net_backoff_t backoff, sp_atomic_s32_t* cancelled, spn_git_failure_t* failure) {
+  sp_assert(remote.fetch);
+  sp_assert(!backoff.wait_ms[0] || backoff.wait);
   spn_err_t err = SPN_ERROR;
   u32 retry = 0;
   while (!sp_atomic_s32_load(cancelled, SP_ATOMIC_SEQ_CST)) {
@@ -70,6 +72,8 @@ static spn_err_t fetch(spn_git_remote_t remote, spn_git_route_t* route, sp_str_t
 }
 
 spn_err_t spn_git_clone(spn_git_remote_t remote, sp_str_t url, sp_str_t path, spn_net_backoff_t backoff, sp_atomic_s32_t* cancelled, spn_git_failure_t* failure) {
+  sp_assert(remote.clone);
+  sp_assert(!backoff.wait_ms[0] || backoff.wait);
   spn_git_route_t route = route_for(remote.transport, url);
   spn_err_t err = SPN_ERROR;
   u32 retry = 0;

@@ -21,6 +21,7 @@ bool spn_net_backoff_wait(spn_net_backoff_t backoff, u32 retry, sp_str_t url, sp
   if (retry >= spn_net_max_retries || !backoff.wait_ms[retry]) {
     return false;
   }
+  sp_assert(backoff.wait);
 
   u32 last = retry;
   while (last < spn_net_max_retries && backoff.wait_ms[last]) {

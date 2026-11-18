@@ -94,6 +94,8 @@ static spn_wasi_spelling_t wasi_spelling(const spn_path_roots_t* roots, sp_mem_t
 }
 
 static spn_err_t setup_artifact(spn_toolchain_store_t* store, spn_toolchain_unit_t* unit, sp_atomic_s32_t* cancelled) {
+  sp_assert(store->http.download);
+  sp_assert(!store->backoff.wait_ms[0] || store->backoff.wait);
   spn_toolchain_info_t* toolchain = unit->info;
   spn_artifact_t artifact = toolchain->support.artifact;
   sp_tm_timer_t timer = sp_tm_start_timer();
