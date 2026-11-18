@@ -71,8 +71,12 @@ static spn_err_t setup_local(spn_toolchain_store_t* store, spn_toolchain_unit_t*
   sp_tm_timer_t timer = sp_tm_start_timer();
 
   unit->cc = cc_toolchain(toolchain, toolchain->compiler, toolchain->cxx, toolchain->archiver);
-  spn_try(spn_toolchain_probe(&unit->cc, store->roots, spn_search_rules(spn.host.os), sp_env_get(spn.env, sp_str_lit("PATH")), &store->probes, spn.mem, &unit->identity));
+  sp_hash_t programs = sp_zero;
+  spn_try(spn_toolchain_probe(&unit->cc, store->roots, spn_search_rules(spn.host.os), sp_env_get(spn.env, sp_str_lit("PATH")), &store->probes, spn.mem, &programs));
   spn_probe_cache_flush(&store->probes);
+  sp_hash_t identity [] = { programs, spn_digest_hash_str(toolchain->version) };
+  unit->identity = spn_digest_hash_combine(identity, sp_carr_len(identity));
+  unit->version = toolchain->version;
 
   spn_event_buffer_push(spn.events, (spn_event_t) {
     .kind = SPN_EVENT_SYNC_PACKAGE,
