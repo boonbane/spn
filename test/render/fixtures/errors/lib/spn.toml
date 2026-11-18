@@ -7,5 +7,10 @@ name = "L"
 source = ["main.c"]
 kinds = ["shared"]
 
+[[bin]]
+name = "A"
+source = ["main.c"]
+deps = ["L"]
+
 [profile.debug]
 linkage = "static"

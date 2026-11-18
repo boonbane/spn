@@ -7,7 +7,7 @@ name = "A"
 source = ["main.c"]
 
 [profile.no_loader]
-linkage = "shared"
+runtime = "shared"
 
 [profile.os_libc]
 libc = "static"
