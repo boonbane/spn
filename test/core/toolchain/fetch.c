@@ -54,6 +54,8 @@ typedef struct {
   u32 waited;
 } script_t;
 
+sp_test_suite(fetch, .serial = true);
+
 static const test_t tests [] = {
   {
     .name = "origin_serves_without_mirrors",

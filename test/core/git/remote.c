@@ -45,6 +45,8 @@ typedef struct {
   u32 waited;
 } script_t;
 
+sp_test_suite(git_remote, .serial = true);
+
 static const test_t tests [] = {
   {
     .name = "builtin_transport_uses_libgit2",
