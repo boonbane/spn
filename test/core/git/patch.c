@@ -40,7 +40,7 @@ static sp_err_t hash_patch_files(sp_test_t* t, u32 set, const c8* const* content
   si_da(sp_str_t) files = SP_NULLPTR;
   sp_for(at, count) {
     sp_str_t path = sp_fs_join_path(mem, test_dir_str(t), sp_fmt(mem, "{}.{}.patch", sp_fmt_uint(set), sp_fmt_uint(at)).value);
-    sp_must_ok(t, sp_fs_write(path, sp_cstr_as_str(contents[at]), SP_FS_WRITE_TRUNCATE));
+    sp_must_ok(t, sp_fs_write(path, sp_cstr_as_str(contents[at]), SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms));
     si_da_push(mem, files, path);
   }
 
@@ -68,7 +68,7 @@ sp_test_each(git_patch, set_hash, test_t, tests) {
 sp_test(git_patch, missing_file) {
   sp_mem_t mem = sp_test_arena(t);
   sp_str_t present = sp_fs_join_path(mem, test_dir_str(t), sp_str_lit("A"));
-  sp_must_ok(t, sp_fs_write(present, sp_str_lit("A"), SP_FS_WRITE_TRUNCATE));
+  sp_must_ok(t, sp_fs_write(present, sp_str_lit("A"), SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms));
   si_da(sp_str_t) files = SP_NULLPTR;
   si_da_push(mem, files, present);
   si_da_push(mem, files, sp_fs_join_path(mem, test_dir_str(t), sp_str_lit("B")));

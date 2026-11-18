@@ -84,7 +84,7 @@ static void place(sp_mem_t mem, sp_str_t dir, const c8* const* sources, sp_str_t
   while (*sources) {
     sp_str_t path = sp_fmt(mem, "{}/{}/T.tar.xz", sp_fmt_str(dir), sp_fmt_cstr(*sources)).value;
     sp_fs_create_dir(sp_fs_parent_path(path));
-    sp_fs_write(path, content, SP_FS_WRITE_TRUNCATE);
+    sp_fs_write(path, content, SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms);
     sources++;
   }
 }
@@ -118,7 +118,7 @@ sp_test_each(fetch, sources, test_t, tests, .setup = spn_test_ctx_setup) {
     artifact.mirror_list = sp_fmt(mem, "file://{}/L", sp_fmt_str(dir)).value;
   }
   if (it->live[0]) {
-    sp_fs_write(sp_fs_join_path(mem, dir, sp_str_lit("L")), list(mem, dir, it->live), SP_FS_WRITE_TRUNCATE);
+    sp_fs_write(sp_fs_join_path(mem, dir, sp_str_lit("L")), list(mem, dir, it->live), SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms);
   }
 
   sp_must_ok(t, sp_fs_create_dir_at(sp_path_join(mem, sp_test_dir(t), sp_str_lit("store"))));

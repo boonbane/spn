@@ -33,7 +33,7 @@ sp_test_each(paths_stage, dir, stage_test_t, stage_tests) {
       break;
     }
     case STAGE_PARENT_FILE: {
-      sp_must_ok(t, sp_fs_create_file_at(spn_path_at(&roots, spn_path_parent(target))));
+      sp_must_ok(t, sp_fs_write_at(spn_path_at(&roots, spn_path_parent(target)), sp_str_lit(""), SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms));
       break;
     }
   }

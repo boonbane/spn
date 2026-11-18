@@ -299,11 +299,11 @@ spn_err_t spn_git_clone_shared(sp_mem_t mem, sp_str_t source, sp_str_t path, sp_
       !sp_fs_write(
         sp_fs_join_path(scratch.mem, path, sp_str_lit(".git/objects/info/alternates")),
         sp_fmt(scratch.mem, "{}\n", sp_fmt_str(sp_str_replace_c8(scratch.mem, objects, '\\', '/'))).value,
-        SP_FS_WRITE_TRUNCATE);
+        SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms);
 
     sp_str_t shallow = sp_zero;
     if (ok && !sp_fs_read(scratch.mem, sp_fs_join_path(scratch.mem, source, sp_str_lit("shallow")), &shallow)) {
-      ok = !sp_fs_write(sp_fs_join_path(scratch.mem, path, sp_str_lit(".git/shallow")), shallow, SP_FS_WRITE_TRUNCATE);
+      ok = !sp_fs_write(sp_fs_join_path(scratch.mem, path, sp_str_lit(".git/shallow")), shallow, SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms);
     }
     if (!ok) {
       *error = sp_fmt(mem, "failed to share objects from {}", sp_fmt_str(source)).value;

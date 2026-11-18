@@ -20,7 +20,7 @@ static void seed_profile(sp_mem_t mem, const c8* body) {
     return;
   }
   sp_str_t profile = sp_fmt(mem, "\n[profile.default]\n{}", sp_fmt_cstr(body)).value;
-  sp_fs_write(manifest, sp_str_concat(mem, content, profile), SP_FS_WRITE_TRUNCATE);
+  sp_fs_write(manifest, sp_str_concat(mem, content, profile), SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms);
 }
 
 s32 main(s32 num_args, const c8** args) {

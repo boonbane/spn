@@ -45,7 +45,7 @@ static sp_hash_t nonce(void) {
 static generation_err_t create_generation(const spn_path_roots_t* roots, sp_mem_t mem, spn_path_t file, sp_hash_t* generation, bool* created) {
   sp_path_t at = spn_path_at(roots, file);
   sp_sys_fd_t fd = SP_SYS_INVALID_FD;
-  sp_err_t err = sp_sys_open_s(at.dir, at.sub, SP_SYS_OPEN_MODE_WO, SP_SYS_OPEN_CREATE | SP_SYS_OPEN_EXCLUSIVE, &fd);
+  sp_err_t err = sp_sys_open_s(at.dir, at.sub, SP_SYS_OPEN_MODE_WO, SP_SYS_OPEN_CREATE | SP_SYS_OPEN_EXCLUSIVE, sp_sys_default_file_perms, &fd);
   if (err == SP_ERR_SYS_EXISTS) {
     *created = false;
     return sp_zero_struct(generation_err_t);

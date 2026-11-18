@@ -25,7 +25,7 @@ static sp_err_t find_root(void* user) {
     sp_str_t content = sp_str((const c8*)entry.data, entry.size);
     sp_path_t path = sp_path_from_str(sp_fs_join_path(mem, root, sp_cstr_as_str(entry.path)));
     sp_try(sp_fs_create_parent_at(path));
-    sp_try(sp_fs_write_at(path, content, SP_FS_WRITE_TRUNCATE));
+    sp_try(sp_fs_write_at(path, content, SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms));
     if (sp_str_starts_with(content, strl("#!"))) {
       sp_sys_file_meta_t meta = sp_zero;
       sp_try(sp_sys_get_path_metadata_s(path.dir, path.sub, &meta));
@@ -103,7 +103,7 @@ void git_repo_commit_from_dir(sp_str_t source, sp_str_t repo, sp_str_t message) 
 
   git(repo, "rm", "-r", "--quiet", "--ignore-unmatch", ".");
 
-  SP_ASSERT(!sp_fs_copy_tree_at(sp_path_from_str(source), sp_path_from_str(repo), SP_FS_ATOMIC_REPLACE));
+  SP_ASSERT(!sp_fs_copy_tree_at(sp_path_from_str(source), sp_path_from_str(repo), SP_FS_WRITE_REPLACE));
   git_repo_stage_all(repo);
   git_repo_commit(repo, message);
 }
@@ -116,7 +116,7 @@ sp_str_t git_repo_head(sp_str_t repo) {
 static void git_repo_write_file(sp_str_t repo, const c8* path, const c8* content) {
   sp_str_t full = sp_fs_join_path(sp_mem_os_new(), repo, sp_cstr_as_str(path));
   sp_fs_create_dir(sp_fs_parent_path(full));
-  sp_fs_write(full, content ? sp_cstr_as_str(content) : sp_str_lit(""), SP_FS_WRITE_TRUNCATE);
+  sp_fs_write(full, content ? sp_cstr_as_str(content) : sp_str_lit(""), SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms);
 }
 
 git_repo_result_t git_repo_build_at(sp_str_t dir, const c8* name, git_repo_fixture_t* fixture) {

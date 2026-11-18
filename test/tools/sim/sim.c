@@ -14,6 +14,7 @@ struct sp_sim_inode {
 
 #define SP_SIM_PERMS_FILE ((sp_sys_file_perms_t) { .value = 0644 })
 #define SP_SIM_PERMS_DIR ((sp_sys_file_perms_t) { .value = 0755 })
+#define sp_sim_umask 022
 
 struct sp_sim_fd {
   sp_sim_inode_t* node;
@@ -413,7 +414,7 @@ static u64 sp_sim_dirent_read(const u8* data, sp_sys_dir_entry_t* out) {
   return SP_SIM_DIRENT_HEADER + name_len;
 }
 
-static sp_err_t sp_sim_sys_open(sp_sys_dir_t dir, const c8* path, u32 len, sp_sys_open_mode_t mode, u32 flags, sp_sys_fd_t* out) {
+static sp_err_t sp_sim_sys_open(sp_sys_dir_t dir, const c8* path, u32 len, sp_sys_open_mode_t mode, u32 flags, sp_sys_file_perms_t perms, sp_sys_fd_t* out) {
   *out = SP_SYS_INVALID_FD;
   sp_sim_t* sim = sp_sim_syscall_at(dir);
   if (sp_sim_fail()) {
@@ -428,6 +429,7 @@ static sp_err_t sp_sim_sys_open(sp_sys_dir_t dir, const c8* path, u32 len, sp_sy
     return SP_ERR_SYS;
   }
 
+  bool created = false;
   if (!node) {
     if (!(flags & SP_SYS_OPEN_CREATE)) {
       return SP_ERR_SYS_NOT_FOUND;
@@ -437,14 +439,16 @@ static sp_err_t sp_sim_sys_open(sp_sys_dir_t dir, const c8* path, u32 len, sp_sy
       return SP_ERR_SYS_NOT_FOUND;
     }
     node = sp_sim_inode(SP_FS_KIND_FILE);
+    node->perms = (sp_sys_file_perms_t) { .value = perms.value & ~sp_sim_umask };
     sp_sim_insert(norm, node);
     sp_sim_log(norm);
+    created = true;
   }
 
   if (node->kind == SP_FS_KIND_DIR && mode != SP_SYS_OPEN_MODE_RO && mode != SP_SYS_OPEN_MODE_PATH) {
     return SP_ERR_SYS;
   }
-  if (node->kind == SP_FS_KIND_FILE && mode != SP_SYS_OPEN_MODE_RO && mode != SP_SYS_OPEN_MODE_PATH && sp_sys_is_read_only(node->perms)) {
+  if (!created && node->kind == SP_FS_KIND_FILE && mode != SP_SYS_OPEN_MODE_RO && mode != SP_SYS_OPEN_MODE_PATH && sp_sys_is_read_only(node->perms)) {
     return SP_ERR_SYS_ACCESS_DENIED;
   }
 
@@ -571,7 +575,7 @@ static sp_err_t sp_sim_sys_unlink(sp_sys_dir_t dir, const c8* path, u32 len) {
   return SP_OK;
 }
 
-static sp_err_t sp_sim_sys_rename(sp_sys_dir_t from_dir, const c8* from, u32 from_len, sp_sys_dir_t to_dir, const c8* to, u32 to_len) {
+static sp_err_t sp_sim_sys_rename(sp_sys_dir_t from_dir, const c8* from, u32 from_len, sp_sys_dir_t to_dir, const c8* to, u32 to_len, u32 flags) {
   sp_sim_t* sim = sp_sim_syscall_at(from_dir);
   if (sp_sim_fail()) {
     return SP_ERR_SYS;
@@ -585,6 +589,9 @@ static sp_err_t sp_sim_sys_rename(sp_sys_dir_t from_dir, const c8* from, u32 fro
   sp_sim_inode_t* src = sp_sim_find(from_norm);
   if (!src) {
     return SP_ERR_SYS_NOT_FOUND;
+  }
+  if ((flags & SP_SYS_RENAME_NO_REPLACE) && sp_sim_find(to_norm)) {
+    return SP_ERR_SYS_EXISTS;
   }
   if (sp_str_equal(from_norm, to_norm)) {
     return SP_OK;
@@ -683,6 +690,11 @@ static sp_err_t sp_sim_sys_readlink(sp_sys_dir_t dir, const c8* path, u32 len, c
   return SP_ERR_SYS;
 }
 
+static sp_err_t sp_sim_sys_copy_link(sp_sys_dir_t from_dir, const c8* from, u32 from_len, sp_sys_dir_t to_dir, const c8* to, u32 to_len) {
+  sp_sim_unexpected("copy_link");
+  return SP_ERR_SYS;
+}
+
 static sp_err_t sp_sim_sys_get_path_metadata(sp_sys_dir_t dir, const c8* path, u32 len, sp_sys_file_meta_t* st) {
   sp_sim_syscall_at(dir);
   if (sp_sim_fail()) {
@@ -731,7 +743,7 @@ static sp_err_t sp_sim_sys_set_times(sp_sys_dir_t dir, const c8* path, u32 len, 
   return SP_OK;
 }
 
-static sp_err_t sp_sim_sys_clock_gettime(s32 clockid, sp_sys_timespec_t* ts) {
+static sp_err_t sp_sim_sys_clock_gettime(sp_sys_clock_t clockid, sp_sys_timespec_t* ts) {
   sp_sim_syscall();
   *ts = sp_sim_active->clock;
   return SP_OK;
@@ -867,15 +879,15 @@ static sp_err_t sp_sim_sys_socket_local_port(sp_sys_socket_t socket, u16* out) {
   return SP_ERR_SYS;
 }
 
-static sp_err_t sp_sim_sys_lseek(sp_sys_fd_t fd, s64 offset, s32 whence, s64* position) {
+static sp_err_t sp_sim_sys_lseek(sp_sys_fd_t fd, s64 offset, sp_sys_seek_t whence, s64* position) {
   sp_sim_syscall();
   sp_sim_fd_t* entry = sp_sim_fd(fd);
 
   s64 base = 0;
   switch (whence) {
-    case SP_SEEK_SET: base = 0; break;
-    case SP_SEEK_CUR: base = (s64)entry->offset; break;
-    case SP_SEEK_END: base = (s64)sp_da_size(entry->node->bytes); break;
+    case SP_SYS_SEEK_SET: base = 0; break;
+    case SP_SYS_SEEK_CUR: base = (s64)entry->offset; break;
+    case SP_SYS_SEEK_END: base = (s64)sp_da_size(entry->node->bytes); break;
     default: return SP_ERR_SYS_INVALID;
   }
 
@@ -983,6 +995,7 @@ static const sp_sys_vtable_t sp_sim_vtable = {
   .link                   = sp_sim_sys_link,
   .symlink                = sp_sim_sys_symlink,
   .readlink               = sp_sim_sys_readlink,
+  .copy_link              = sp_sim_sys_copy_link,
   .get_path_metadata      = sp_sim_sys_get_path_metadata,
   .get_link_metadata      = sp_sim_sys_get_path_metadata,
   .get_file_metadata      = sp_sim_sys_get_file_metadata,

@@ -71,12 +71,12 @@ sp_test_each(provision, install, test_t, tests, .setup = spn_test_ctx_setup) {
 
   sp_path_t root = spn_path_at(&roots, spn_toolchain_artifact_root(mem, artifact));
   if (it->occupied) {
-    sp_must_ok(t, sp_fs_write_at(root, sp_str_lit("A"), SP_FS_WRITE_TRUNCATE));
+    sp_must_ok(t, sp_fs_write_at(root, sp_str_lit("A"), SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms));
   }
 
   spn_toolchain_claim_t claim = spn_toolchain_claim(&store, mem, sp_str_lit("A"), artifact);
   sp_must(t, !claim.present);
-  sp_must_ok(t, sp_fs_copy_file_at(archive, spn_path_at(&roots, claim.tarball), SP_FS_ATOMIC_REPLACE));
+  sp_must_ok(t, sp_fs_copy_file_at(archive, spn_path_at(&roots, claim.tarball), SP_FS_WRITE_REPLACE));
   sp_expect_eq(t, (u32)it->expect.err, (u32)spn_toolchain_install(&store, &claim, sp_str_lit("A"), artifact.url));
 
   spn_err_union_t failure = sp_zero;

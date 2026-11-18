@@ -68,7 +68,7 @@ sp_test_each(wasm_script, lifecycle, test_t, tests, .setup = spn_test_ctx_setup)
   sp_fs_create_dir_at(spn_path_at(&spn.roots, source));
   sp_fs_create_dir_at(spn_path_at(&spn.roots, unit.paths.work));
   if (it->file) {
-    sp_fs_write_at(spn_path_at(&spn.roots, spn_path_join(mem, unit.paths.work, sp_cstr_as_str(it->file))), sp_str_lit("A"), SP_FS_WRITE_TRUNCATE);
+    sp_fs_write_at(spn_path_at(&spn.roots, spn_path_join(mem, unit.paths.work, sp_cstr_as_str(it->file))), sp_str_lit("A"), SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms);
   }
 
   spn_path_t module = spn_path_join(mem, sandbox, sp_str_lit("M.wasm"));
@@ -77,11 +77,11 @@ sp_test_each(wasm_script, lifecycle, test_t, tests, .setup = spn_test_ctx_setup)
       u32 num_ops = 0;
       sp_carr_detect_len(it->ops, num_ops, it->ops[num_ops].kind);
       wasm_emit_fn_t run = { .name = "run", .ops = it->ops, .count = num_ops };
-      sp_fs_write_at(spn_path_at(&spn.roots, module), wasm_emit_module(mem, &run, 1), SP_FS_WRITE_TRUNCATE);
+      sp_fs_write_at(spn_path_at(&spn.roots, module), wasm_emit_module(mem, &run, 1), SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms);
       break;
     }
     case MODULE_INVALID: {
-      sp_fs_write_at(spn_path_at(&spn.roots, module), sp_str_lit("A"), SP_FS_WRITE_TRUNCATE);
+      sp_fs_write_at(spn_path_at(&spn.roots, module), sp_str_lit("A"), SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms);
       break;
     }
     case MODULE_MISSING: {

@@ -193,7 +193,7 @@ sp_test_each(dag_action_cache, ops, test_t, tests) {
       }
       case CACHE_OP_CORRUPT: {
         sp_str_t hex = spn_dag_digest_hex(mem, dag_test_digest(op.key));
-        sp_must_eq(t, SP_OK, sp_fs_write_cstr_at(sp_path_join(mem, sandbox, sp_fmt(mem, "strong/{}.txt", sp_fmt_str(hex)).value), "not json\n", SP_FS_WRITE_TRUNCATE));
+        sp_must_eq(t, SP_OK, sp_fs_write_cstr_at(sp_path_join(mem, sandbox, sp_fmt(mem, "strong/{}.txt", sp_fmt_str(hex)).value), "not json\n", SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms));
         break;
       }
     }

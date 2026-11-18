@@ -170,7 +170,7 @@ sp_test_each(paths_canonicalize_head, probe, head_test_t, head_tests) {
     sp_path_t path = sp_path_join(mem, sandbox, sp_cstr_as_str(s->path));
     switch (s->kind) {
       case HEAD_SETUP_FILE: {
-        sp_must_ok(t, sp_fs_create_file_at(path));
+        sp_must_ok(t, sp_fs_write_at(path, sp_str_lit(""), SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms));
         break;
       }
       case HEAD_SETUP_DIR: {

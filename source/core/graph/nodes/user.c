@@ -69,8 +69,8 @@ spn_err_t si_on_user_node(const si_dag_ctx_t* c, void* user_data) {
     sp_path_t declared = spn_path_at(roots, out->path);
     sp_err_t err = SP_OK;
     switch (out->kind) {
-      case SPN_DAG_ARTIFACT_KIND_FILE:  err = sp_fs_copy_file_at(declared, target, SP_FS_ATOMIC_REPLACE); break;
-      case SPN_DAG_ARTIFACT_KIND_TREE:  err = sp_fs_copy_tree_at(declared, target, SP_FS_ATOMIC_REPLACE); break;
+      case SPN_DAG_ARTIFACT_KIND_FILE:  err = sp_fs_copy_file_at(declared, target, SP_FS_WRITE_REPLACE); break;
+      case SPN_DAG_ARTIFACT_KIND_TREE:  err = sp_fs_copy_tree_at(declared, target, SP_FS_WRITE_REPLACE); break;
       case SPN_DAG_ARTIFACT_KIND_VALUE: sp_unreachable_case();
     }
     if (err) {

@@ -9,11 +9,11 @@ static bool rooted(sp_path_t path) {
   return path.dir.fd != SP_SYS_INVALID_FD;
 }
 
-static sp_err_t wasi_open(sp_sys_dir_t dir, const c8* path, u32 len, sp_sys_open_mode_t mode, u32 flags, sp_sys_fd_t* out) {
+static sp_err_t wasi_open(sp_sys_dir_t dir, const c8* path, u32 len, sp_sys_open_mode_t mode, u32 flags, sp_sys_file_perms_t perms, sp_sys_fd_t* out) {
   *out = SP_SYS_INVALID_FD;
   sp_path_t at = resolve(dir, path, len);
   if (!rooted(at)) return SP_ERR_SYS_NOT_FOUND;
-  return sp_sys_open_p(at.dir, at.sub.data, at.sub.len, mode, flags, out);
+  return sp_sys_open_p(at.dir, at.sub.data, at.sub.len, mode, flags, perms, out);
 }
 
 static sp_err_t wasi_open_dir(sp_sys_dir_t dir, const c8* path, u32 len, u32 flags, sp_sys_dir_t* out) {
@@ -41,11 +41,11 @@ static sp_err_t wasi_unlink(sp_sys_dir_t dir, const c8* path, u32 len) {
   return sp_sys_unlink_p(at.dir, at.sub.data, at.sub.len);
 }
 
-static sp_err_t wasi_rename(sp_sys_dir_t from_dir, const c8* from, u32 from_len, sp_sys_dir_t to_dir, const c8* to, u32 to_len) {
+static sp_err_t wasi_rename(sp_sys_dir_t from_dir, const c8* from, u32 from_len, sp_sys_dir_t to_dir, const c8* to, u32 to_len, u32 flags) {
   sp_path_t src = resolve(from_dir, from, from_len);
   sp_path_t dst = resolve(to_dir, to, to_len);
   if (!rooted(src) || !rooted(dst)) return SP_ERR_SYS_NOT_FOUND;
-  return sp_sys_rename_p(src.dir, src.sub.data, src.sub.len, dst.dir, dst.sub.data, dst.sub.len);
+  return sp_sys_rename_p(src.dir, src.sub.data, src.sub.len, dst.dir, dst.sub.data, dst.sub.len, flags);
 }
 
 static sp_err_t wasi_link(sp_sys_dir_t from_dir, const c8* existing, u32 existing_len, sp_sys_dir_t to_dir, const c8* alias, u32 alias_len) {
@@ -59,6 +59,13 @@ static sp_err_t wasi_symlink(const c8* existing, u32 existing_len, sp_sys_dir_t 
   sp_path_t dst = resolve(to_dir, alias, alias_len);
   if (!rooted(dst)) return SP_ERR_SYS_NOT_FOUND;
   return sp_sys_symlink_p(existing, existing_len, dst.dir, dst.sub.data, dst.sub.len, kind);
+}
+
+static sp_err_t wasi_copy_link(sp_sys_dir_t from_dir, const c8* from, u32 from_len, sp_sys_dir_t to_dir, const c8* to, u32 to_len) {
+  sp_path_t src = resolve(from_dir, from, from_len);
+  sp_path_t dst = resolve(to_dir, to, to_len);
+  if (!rooted(src) || !rooted(dst)) return SP_ERR_SYS_NOT_FOUND;
+  return sp_sys_copy_link_p(src.dir, src.sub.data, src.sub.len, dst.dir, dst.sub.data, dst.sub.len);
 }
 
 static sp_err_t wasi_get_path_metadata(sp_sys_dir_t dir, const c8* path, u32 len, sp_sys_file_meta_t* st) {
@@ -86,6 +93,7 @@ static void install() {
   vtable.rename = wasi_rename;
   vtable.link = wasi_link;
   vtable.symlink = wasi_symlink;
+  vtable.copy_link = wasi_copy_link;
   vtable.get_path_metadata = wasi_get_path_metadata;
   vtable.get_link_metadata = wasi_get_link_metadata;
   sp_sys_set_vtable(&vtable);

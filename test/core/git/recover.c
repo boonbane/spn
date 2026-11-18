@@ -118,7 +118,7 @@ sp_test_each(git_recover, ensure, test_t, tests, .setup = spn_test_ctx_setup) {
   sp_str_t lock = spn_path_str(&roots, mem, db->lock);
   sp_str_t leftover = sp_fs_join_path(mem, repo, sp_fmt(mem, "refs/heads/{}.lock", sp_fmt_str(branch)).value);
   sp_str_t witness = sp_fs_join_path(mem, repo, sp_str_lit("A"));
-  sp_must_ok(t, sp_fs_write(witness, sp_str_lit("A"), SP_FS_WRITE_TRUNCATE));
+  sp_must_ok(t, sp_fs_write(witness, sp_str_lit("A"), SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms));
 
   switch (it->damage) {
     case DAMAGE_NONE: {
@@ -129,7 +129,7 @@ sp_test_each(git_recover, ensure, test_t, tests, .setup = spn_test_ctx_setup) {
       break;
     }
     case DAMAGE_REF_LOCKED: {
-      sp_must_ok(t, sp_fs_write(leftover, sp_str_lit(""), SP_FS_WRITE_TRUNCATE));
+      sp_must_ok(t, sp_fs_write(leftover, sp_str_lit(""), SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms));
       break;
     }
     case DAMAGE_OBJECTS_REMOVED: {

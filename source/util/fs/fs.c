@@ -58,7 +58,7 @@ s32 sp_sys_flock(sp_sys_fd_t fd, s32 op) {
 
 static sp_err_t sp_fs_lock_open(sp_fs_lock_t* lock, sp_path_t path) {
   *lock = sp_zero_s(sp_fs_lock_t);
-  if (sp_sys_open_s(path.dir, path.sub, SP_SYS_OPEN_MODE_RW, SP_SYS_OPEN_CREATE, &lock->fd)) {
+  if (sp_sys_open_s(path.dir, path.sub, SP_SYS_OPEN_MODE_RW, SP_SYS_OPEN_CREATE, sp_sys_default_file_perms, &lock->fd)) {
     return SP_ERR_SYS;
   }
   return SP_OK;
@@ -109,12 +109,12 @@ sp_err_t sp_fs_replace_dir_at(sp_path_t fresh, sp_path_t live, sp_path_t retired
   sp_sys_file_meta_t meta = sp_zero;
   bool present = !sp_fs_get_path_metadata_at(live, &meta);
   if (present) {
-    sp_try(sp_sys_rename_s(live.dir, live.sub, retired.dir, retired.sub));
+    sp_try(sp_sys_rename_s(live.dir, live.sub, retired.dir, retired.sub, 0));
   }
 
-  sp_err_t placed = sp_sys_rename_s(fresh.dir, fresh.sub, live.dir, live.sub);
+  sp_err_t placed = sp_sys_rename_s(fresh.dir, fresh.sub, live.dir, live.sub, 0);
   if (placed && present) {
-    sp_sys_rename_s(retired.dir, retired.sub, live.dir, live.sub);
+    sp_sys_rename_s(retired.dir, retired.sub, live.dir, live.sub, 0);
   }
   if (!placed) {
     sp_fs_remove_dir_at(retired);
@@ -141,7 +141,7 @@ sp_err_t sp_fs_copy_file_buffered_at(sp_path_t from, sp_path_t to, sp_fs_atomic_
 
   sp_fs_atomic_t af = sp_zero;
   if (!err) {
-    err = sp_fs_atomic_open_at(&af, to);
+    err = sp_fs_atomic_open_at(&af, to, meta.perms);
   }
   if (err) {
     sp_io_file_reader_close(&reader);
@@ -157,12 +157,6 @@ sp_err_t sp_fs_copy_file_buffered_at(sp_path_t from, sp_path_t to, sp_fs_atomic_
   }
   sp_io_file_reader_close(&reader);
 
-  if (!err) {
-    err = sp_sys_set_file_perms_s(af.dir, af.temp, meta.perms);
-    if (err == SP_ERR_SYS_UNSUPPORTED) {
-      err = SP_OK;
-    }
-  }
   if (err) {
     sp_fs_atomic_abort(&af);
   }

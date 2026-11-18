@@ -58,7 +58,7 @@ typedef struct {
 static spn_err_t read_at(sp_io_seeking_reader_t* elf, u64 offset, void* data, u64 size) {
   s64 position = 0;
   u64 bytes = 0;
-  if (sp_io_seeking_reader_seek(elf, (s64)offset, SP_IO_SEEK_SET, &position)) {
+  if (sp_io_seeking_reader_seek(elf, (s64)offset, SP_SYS_SEEK_SET, &position)) {
     return SPN_ERROR;
   }
   if (sp_io_read_all(elf->reader, data, size, &bytes) || bytes != size) {

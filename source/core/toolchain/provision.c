@@ -128,7 +128,7 @@ static spn_err_t install(spn_toolchain_store_t* store, sp_mem_t scratch, spn_too
   }
 
   sp_path_t target = spn_path_at(store->roots, dest);
-  if (sp_sys_rename_s(work.dir, work.sub, target.dir, target.sub)) {
+  if (sp_sys_rename_s(work.dir, work.sub, target.dir, target.sub, 0)) {
     sp_fs_remove_dir_at(work);
     sp_sys_file_meta_t meta = sp_zero;
     if (sp_fs_get_link_metadata_at(target, &meta) || meta.kind != SP_FS_KIND_DIR) {

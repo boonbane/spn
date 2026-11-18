@@ -114,7 +114,7 @@ sp_test_each(zip, read, test_t, tests) {
   }
 
   sp_path_t path = sp_path_join(mem, sp_test_dir(t), sp_str_lit("A"));
-  sp_must_ok(t, sp_fs_write_at(path, archive, SP_FS_WRITE_TRUNCATE));
+  sp_must_ok(t, sp_fs_write_at(path, archive, SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms));
   sp_io_file_reader_t file = sp_zero;
   sp_must_ok(t, sp_io_file_reader_from_path_at(&file, path));
 

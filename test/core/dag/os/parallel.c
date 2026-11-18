@@ -183,7 +183,7 @@ static spn_err_t execute_graph(const si_dag_ctx_t* c, void* user_data) {
   spn_path_t target = ctx->spec->tree
     ? spn_path_join(s.mem, output, sp_str_lit("H"))
     : output;
-  sp_err_t err = sp_fs_write_at(spn_path_at(roots, target), content, SP_FS_WRITE_TRUNCATE);
+  sp_err_t err = sp_fs_write_at(spn_path_at(roots, target), content, SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms);
   sp_mem_end_scratch(s);
   return err ? SPN_ERR_DAG_ACTION : SPN_OK;
 }

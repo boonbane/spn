@@ -100,7 +100,7 @@ spn_stage_diag_t spn_stage_apply(sp_mem_t scratch, const spn_path_roots_t* roots
       continue;
     }
     sp_fs_create_parent_at(spn_path_at(roots, row->to));
-    sp_err_t copied = sp_fs_copy_file_at(spn_path_at(roots, row->location), spn_path_at(roots, row->to), SP_FS_ATOMIC_REPLACE);
+    sp_err_t copied = sp_fs_copy_file_at(spn_path_at(roots, row->location), spn_path_at(roots, row->to), SP_FS_WRITE_REPLACE);
     if (copied || spn_dag_file_cache_seed(files, row->to, row->digest)) {
       spn_dag_file_cache_invalidate(files, row->to);
       return (spn_stage_diag_t) { .err = SPN_ERR_FS_WRITE, .path = row->to };
@@ -115,7 +115,7 @@ spn_stage_diag_t spn_stage_apply(sp_mem_t scratch, const spn_path_roots_t* roots
   sp_str_t content = sp_io_dyn_mem_writer_as_str(&io);
   if (!sp_str_equal(previous, content)) {
     sp_fs_create_parent_at(spn_path_at(roots, manifest));
-    if (sp_fs_write_at(spn_path_at(roots, manifest), content, SP_FS_WRITE_REPLACE)) {
+    if (sp_fs_write_at(spn_path_at(roots, manifest), content, SP_FS_WRITE_REPLACE, sp_sys_default_file_perms)) {
       return (spn_stage_diag_t) { .err = SPN_ERR_FS_WRITE, .path = manifest };
     }
   }

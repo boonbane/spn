@@ -47,7 +47,7 @@ sp_test_each(lazy_log, write, test_t, tests) {
   sp_mem_t mem = sp_test_arena(t);
   sp_path_t path = sp_path_join(mem, sp_test_dir(t), sp_str_lit("x.log"));
   if (it->seed) {
-    sp_fs_write_at(path, sp_cstr_as_str(it->seed), SP_FS_WRITE_TRUNCATE);
+    sp_fs_write_at(path, sp_cstr_as_str(it->seed), SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms);
   }
 
   spn_lazy_log_t log;

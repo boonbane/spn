@@ -181,7 +181,7 @@ static sp_cli_result_t run(sp_cli_t* cli) {
   }
 
   sp_str_t out = sp_str_join_n(mem, pinned, (u32)sp_da_size(pinned), sp_str_lit("\n"));
-  if (sp_fs_write(manifest_path, out, SP_FS_WRITE_TRUNCATE)) {
+  if (sp_fs_write(manifest_path, out, SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms)) {
     return sp_cli_set_error(cli, sp_fmt(mem, "failed to write {.cyan}", sp_fmt_str(manifest_path)).value);
   }
 

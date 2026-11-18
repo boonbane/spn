@@ -42,7 +42,7 @@ sp_test(toolchain_zig, generation_reads_the_writer, .setup = spn_test_ctx_setup)
   spn_path_t cache = { .sub = sp_fs_join_path(mem, test_dir_str(t), sp_str_lit("cache")) };
   sp_str_t file = spn_path_str(&roots, mem, generation_file(mem, cache));
   sp_fs_create_dir(sp_fs_parent_path(file));
-  sp_must_ok(t, sp_fs_write(file, sp_str_lit("42\n"), SP_FS_WRITE_TRUNCATE));
+  sp_must_ok(t, sp_fs_write(file, sp_str_lit("42\n"), SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms));
 
   sp_hash_t generation = 0;
   sp_must_eq(t, (u32)SPN_OK, (u32)spn_toolchain_generation(&roots, cache, &generation));
@@ -56,7 +56,7 @@ sp_test(toolchain_zig, generation_unreadable_is_an_error, .setup = spn_test_ctx_
   spn_path_t cache = { .sub = sp_fs_join_path(mem, test_dir_str(t), sp_str_lit("cache")) };
   sp_str_t file = spn_path_str(&roots, mem, generation_file(mem, cache));
   sp_fs_create_dir(sp_fs_parent_path(file));
-  sp_must_ok(t, sp_fs_write(file, sp_str_lit("not a number\n"), SP_FS_WRITE_TRUNCATE));
+  sp_must_ok(t, sp_fs_write(file, sp_str_lit("not a number\n"), SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms));
 
   sp_hash_t generation = 0;
   sp_expect(t, spn_toolchain_generation(&roots, cache, &generation) != SPN_OK);

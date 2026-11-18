@@ -122,7 +122,7 @@ static spn_err_t add(spn_ctx_t* ctx, spn_add_request_t request, spn_semver_range
   }
 
   sp_str_t updated = spn_toml_edit_render(&edit, s.mem);
-  if (sp_fs_write_at(spn_path_at(&ctx->roots, manifest), updated, SP_FS_WRITE_REPLACE) != SP_OK) {
+  if (sp_fs_write_at(spn_path_at(&ctx->roots, manifest), updated, SP_FS_WRITE_REPLACE, sp_sys_default_file_perms) != SP_OK) {
     result = spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_FS_WRITE, .fs = { .path = manifest } });
     goto cleanup;
   }

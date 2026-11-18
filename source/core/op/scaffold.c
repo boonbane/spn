@@ -97,7 +97,7 @@ static spn_err_t scaffold(spn_ctx_t* ctx, spn_scaffold_request_t request, sp_mem
       err = spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_SCAFFOLD_TEMPLATE, .fs = { .path = spn_path_copy(ctx->events->mem, path) } });
       break;
     }
-    if (sp_fs_write_at(spn_path_at(&ctx->roots, path), sp_io_dyn_mem_writer_take_str(&writer), SP_FS_WRITE_TRUNCATE) != SP_OK) {
+    if (sp_fs_write_at(spn_path_at(&ctx->roots, path), sp_io_dyn_mem_writer_take_str(&writer), SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms) != SP_OK) {
       err = spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_FS_WRITE, .fs = { .path = spn_path_copy(ctx->events->mem, path) } });
       break;
     }

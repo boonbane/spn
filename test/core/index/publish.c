@@ -143,7 +143,7 @@ static void write_publish_fixtures(sp_mem_t mem, sp_str_t index_root, const publ
 
     sp_str_t path = sp_fs_join_path(mem, index_root, sp_cstr_as_str(file.path));
     sp_fs_create_dir(sp_fs_parent_path(path));
-    sp_fs_write(path, sp_io_dyn_mem_writer_take_str(&builder), SP_FS_WRITE_TRUNCATE);
+    sp_fs_write(path, sp_io_dyn_mem_writer_take_str(&builder), SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms);
   }
 }
 

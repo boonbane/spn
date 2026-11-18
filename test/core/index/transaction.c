@@ -268,7 +268,7 @@ sp_test_each(index_transaction, publish, txn_test_t, tests, .setup = spn_test_ct
     sp_fs_create_dir(seed);
     git_repo_init(seed);
     git(seed, "symbolic-ref", "HEAD", "refs/heads/main");
-    sp_fs_write(sp_fs_join_path(mem, seed, sp_str_lit("README.md")), sp_str_lit("index\n"), SP_FS_WRITE_TRUNCATE);
+    sp_fs_write(sp_fs_join_path(mem, seed, sp_str_lit("README.md")), sp_str_lit("index\n"), SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms);
     git_repo_stage_all(seed);
     git_repo_commit(seed, sp_str_lit("init"));
     git(tmp, "clone", "--quiet", "--bare", "seed", "remote.git");
@@ -278,7 +278,7 @@ sp_test_each(index_transaction, publish, txn_test_t, tests, .setup = spn_test_ct
     sp_must_ok(t, sp_fs_copy_file_at(
       sp_path_cwd(test_repo_path(mem, sp_fs_join_path(mem, sp_str_lit("test/core/index/hooks"), sp_cstr_as_str(it->remote.hook)))),
       sp_path_cwd(sp_fs_join_path(mem, remote, sp_str_lit("hooks/pre-receive"))),
-      SP_FS_ATOMIC_REPLACE));
+      SP_FS_WRITE_REPLACE));
   }
 
   sp_atomic_s32_t cancelled = sp_zero;
@@ -319,7 +319,7 @@ sp_test_each(index_transaction, publish, txn_test_t, tests, .setup = spn_test_ct
         git_repo_pull(seed, remote, "main");
         sp_str_t file = sp_fs_join_path(mem, seed, sp_cstr_as_str(action.write.file));
         sp_fs_create_dir(sp_fs_parent_path(file));
-        sp_fs_write(file, sp_fmt(mem, "{}\n", sp_fmt_cstr(action.write.line)).value, SP_FS_WRITE_TRUNCATE);
+        sp_fs_write(file, sp_fmt(mem, "{}\n", sp_fmt_cstr(action.write.line)).value, SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms);
         git_repo_stage_all(seed);
         git_repo_commit(seed, sp_str_lit("advance"));
         git_repo_push(seed, remote, "HEAD:refs/heads/main");
@@ -333,13 +333,13 @@ sp_test_each(index_transaction, publish, txn_test_t, tests, .setup = spn_test_ct
         sp_str_t file = sp_fs_join_path(mem, clone, sp_cstr_as_str(action.write.file));
         sp_fs_write(file, sp_fmt(mem, "{}{}\n",
           sp_fmt_str(test_read_file(mem, file)),
-          sp_fmt_cstr(action.write.line)).value, SP_FS_WRITE_TRUNCATE);
+          sp_fmt_cstr(action.write.line)).value, SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms);
         break;
       }
       case TXN_ACTION_CREATE_CLONE_FILE: {
         sp_str_t file = sp_fs_join_path(mem, clone, sp_cstr_as_str(action.write.file));
         sp_fs_create_dir(sp_fs_parent_path(file));
-        sp_fs_write(file, sp_fmt(mem, "{}\n", sp_fmt_cstr(action.write.line)).value, SP_FS_WRITE_TRUNCATE);
+        sp_fs_write(file, sp_fmt(mem, "{}\n", sp_fmt_cstr(action.write.line)).value, SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms);
         break;
       }
       case TXN_ACTION_DETACH_HEAD: {

@@ -86,7 +86,7 @@ static spn_err_t extract(spn_ctx_t* ctx, sp_mem_t mem, sp_str_t stamp) {
 
   sp_path_t runtime_at = spn_path_at(&ctx->roots, runtime);
   sp_fs_remove_dir_at(runtime_at);
-  if (sp_sys_rename_s(staging_at.dir, staging_at.sub, runtime_at.dir, runtime_at.sub)) {
+  if (sp_sys_rename_s(staging_at.dir, staging_at.sub, runtime_at.dir, runtime_at.sub, 0)) {
     sp_fs_remove_dir_at(staging_at);
     return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_FS_WRITE, .fs = { .path = runtime } });
   }
