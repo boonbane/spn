@@ -511,9 +511,13 @@ spn_cc_link_plan_t spn_gnu_render_link(sp_mem_t mem, const spn_cc_t* toolchain, 
   }
   switch (link->kind) {
     case SPN_CC_OUTPUT_REACTOR: {
-      spn_cc_push_c(mem, base, "-mexec-model=reactor");
+      if (triple.os == SPN_OS_WASI) {
+        spn_cc_push_c(mem, base, "-mexec-model=reactor");
+      }
       spn_cc_push_c(mem, base, "-Wl,--no-entry");
-      spn_cc_push_c(mem, base, spn_cc_has(toolchain, SPN_CC_CAP_IMPORT_SYMBOLS) ? "-Wl,--import-symbols" : "-Wl,--import-undefined");
+      if (link->import_undefined) {
+        spn_cc_push_c(mem, base, spn_cc_has(toolchain, SPN_CC_CAP_IMPORT_SYMBOLS) ? "-Wl,--import-symbols" : "-Wl,--import-undefined");
+      }
       plan.exports = spn_cc_exports_format(link->kind, format);
       break;
     }

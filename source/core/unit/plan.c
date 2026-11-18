@@ -218,6 +218,7 @@ static spn_err_t lower_target(spn_units_t* u, spn_target_unit_t* unit) {
       .kind = kind,
       .lang = is_any_object_cxx(unit->objects) ? SPN_LANG_CXX : SPN_LANG_C,
       .exceptions = unit->exceptions,
+      .import_undefined = build->script,
       .min_os = target->info->macos.min_os,
       .subsystem = target->info->windows.subsystem,
     },

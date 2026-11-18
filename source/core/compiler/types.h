@@ -87,6 +87,7 @@ typedef struct {
   spn_lang_t lang;
   spn_cc_output_kind_t kind;
   bool exceptions;
+  bool import_undefined;
   si_da(sp_str_t) system_libs;
   si_da(sp_str_t) frameworks;
   si_da(sp_str_t) args;

@@ -306,7 +306,7 @@ spn_cc_link_refusal_t spn_cc_validate_link(const spn_cc_t* toolchain, spn_triple
   spn_cc_feature_t feature = link_feature(link->kind);
   spn_triple_t target = profile->target;
 
-  if (link->kind == SPN_CC_OUTPUT_REACTOR && profile->target.os != SPN_OS_WASI) {
+  if (link->kind == SPN_CC_OUTPUT_REACTOR && spn_triple_object_format(target) != SPN_OBJ_WASM) {
     return (spn_cc_link_refusal_t) { .err = SPN_ERR_COMPILER_FEATURE_UNSUPPORTED, .feature = feature };
   }
   if (link->kind == SPN_CC_OUTPUT_SHARED_LIB && !spn_ld_dynamic(target)) {

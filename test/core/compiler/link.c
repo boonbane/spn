@@ -10,6 +10,7 @@ typedef struct {
   test_profile_t profile;
   spn_cc_output_kind_t kind;
   bool exceptions;
+  bool import_undefined;
   const c8* exports;
   const c8* implib;
   const c8* archive;
@@ -56,18 +57,56 @@ static const link_test_t tests [] = {
       .args = {
         "--target=wasm32-wasi",
         "-mexec-model=reactor",
+        "-Wl,--no-entry", "@S.rsp",
+        "main.o", "-o", "main"
+      },
+    },
+  },
+  {
+    .name = "clang_reactor_imports_undefined",
+    .driver = SPN_CC_DRIVER_CLANG,
+    .profile = {
+      .target = { SPN_ARCH_WASM32, SPN_OS_WASI },
+    },
+    .kind = SPN_CC_OUTPUT_REACTOR,
+    .import_undefined = true,
+    .exports = "S.rsp",
+    .expect = {
+      .command = "cc",
+      .args = {
+        "--target=wasm32-wasi",
+        "-mexec-model=reactor",
         "-Wl,--no-entry", "-Wl,--import-undefined", "@S.rsp",
         "main.o", "-o", "main"
       },
     },
   },
   {
-    .name = "zig_wasi_reactor",
+    .name = "freestanding_wasm_reactor_has_no_exec_model",
+    .driver = SPN_CC_DRIVER_ZIG,
+    .profile = {
+      .target = { SPN_ARCH_WASM32, SPN_OS_FREESTANDING, SPN_ABI_BARE },
+    },
+    .kind = SPN_CC_OUTPUT_REACTOR,
+    .exports = "S.rsp",
+    .expect = {
+      .command = "cc",
+      .args = {
+        "--target=wasm32-freestanding-none",
+        "-nostdlib",
+        "-Wl,--no-entry", "@S.rsp",
+        "main.o", "-o", "main"
+      },
+    },
+  },
+  {
+    .name = "zig_reactor_imports_symbols",
     .driver = SPN_CC_DRIVER_ZIG,
     .profile = {
       .target = { SPN_ARCH_WASM32, SPN_OS_WASI },
     },
     .kind = SPN_CC_OUTPUT_REACTOR,
+    .import_undefined = true,
     .exports = "S.rsp",
     .expect = {
       .command = "cc",
@@ -135,7 +174,7 @@ static const link_test_t tests [] = {
       .args = {
         "--target=wasm32-wasip1",
         "-mexec-model=reactor",
-        "-Wl,--no-entry", "-Wl,--import-undefined", "@S.rsp",
+        "-Wl,--no-entry", "@S.rsp",
         "main.o", "-o", "main"
       },
     },
@@ -757,7 +796,7 @@ static const link_test_t tests [] = {
       .args = {
         "--target=wasm32-wasi",
         "-mexec-model=reactor",
-        "-Wl,--no-entry", "-Wl,--import-undefined",
+        "-Wl,--no-entry",
         "@S.rsp",
         "main.o", "-o", "main"
       },
@@ -957,7 +996,7 @@ static const link_test_t tests [] = {
       .args = {
         "--target=wasm32-wasi",
         "-mexec-model=reactor",
-        "-Wl,--no-entry", "-Wl,--import-undefined", "@S.rsp",
+        "-Wl,--no-entry", "@S.rsp",
         "main.o",
         "-Wl,--whole-archive", "libD.a", "-Wl,--no-whole-archive",
         "-o", "main"
@@ -1223,6 +1262,7 @@ sp_test_each(render_link, render, link_test_t, tests, .setup = spn_test_ctx_setu
     .lang = SPN_LANG_C,
     .kind = it->kind,
     .exceptions = it->exceptions,
+    .import_undefined = it->import_undefined,
     .min_os = it->min_os,
     .subsystem = it->subsystem,
   };
