@@ -9,6 +9,8 @@ static const command_test_t graphs [] = {
   { .name = "node_linking", .project = "test/integration/fixtures/script/node_linking", .args = { "build" } },
   { .name = "orphan_outputs", .project = "test/integration/fixtures/script/orphan_outputs", .args = { "build" }, .expect.exists = { work_file("O/O.h") } },
   { .name = "observed_list_root", .project = "test/integration/fixtures/script/observed_list_root", .args = { "build" } },
+  { .name = "build_dep_node", .project = "test/integration/fixtures/script/build_dep_node", .args = { "build" } },
+  { .name = "build_dep_build_dep", .project = "test/integration/fixtures/script/build_dep_build_dep", .args = { "build" } },
 };
 
 sp_test_each(script, graph, command_test_t, graphs) {
@@ -449,10 +451,10 @@ static const identity_test_t identities [] = {
     .expect.store = { { "spum", 1 } },
   },
   {
-    .name = "build_deps_do_not_configure",
+    .name = "build_deps_configure",
     .project = "test/integration/fixtures/script/build_deps",
     .builds = { { "build" } },
-    .expect.configured = { { "spum", 0 } },
+    .expect.configured = { { "spum", 1 } },
   },
   {
     .name = "build_dep_closure_locks",
@@ -485,10 +487,16 @@ static const identity_test_t identities [] = {
     .expect.store = { { "gamma", 2 } },
   },
   {
-    .name = "dual_membership_configures_once",
+    .name = "dual_membership_configures_per_build",
     .project = "test/integration/fixtures/script/dual_ctx",
     .builds = { { "build" } },
-    .expect.configured = { { "gamma", 1 } },
+    .expect.configured = { { "gamma", 2 } },
+  },
+  {
+    .name = "scripted_root_configures_once",
+    .project = "test/integration/fixtures/script/scripted_root",
+    .builds = { { "build" } },
+    .expect.configured = { { "A", 1 } },
   },
 };
 

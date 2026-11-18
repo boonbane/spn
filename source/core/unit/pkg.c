@@ -59,23 +59,9 @@ static si_target_t* get_script(si_pkg_t* pkg, spn_target_kind_t kind) {
   return SP_NULLPTR;
 }
 
-static spn_err_t add_script(spn_units_t* u, spn_build_unit_t* metabuild, const spn_resolved_pkg_t* resolved, spn_target_kind_t kind, spn_target_unit_t** result) {
-  spn_pkg_unit_t* pkg = SP_NULLPTR;
-  spn_try(si_add_package_unit(u, metabuild, resolved, &pkg));
-  return si_add_target_unit(u, pkg, get_script(&pkg->pkg, kind), result);
-}
-
-spn_err_t si_add_package_unit(spn_units_t* u, spn_build_unit_t* build, const spn_resolved_pkg_t* resolved, spn_pkg_unit_t** result) {
-  spn_pkg_unit_id_t uid = { .pkg = resolved->id, .build = build->id };
-  if (sp_om_has(u->packages, uid)) {
-    *result = sp_om_get(u->packages, uid);
-    return SPN_OK;
-  }
-
+static void init_package_unit(spn_units_t* u, spn_build_unit_t* build, const spn_resolved_pkg_t* resolved, spn_pkg_unit_t* unit) {
   sp_mem_t mem = u->mem;
-  sp_om_insert(u->packages, uid, sp_zero_struct(spn_pkg_unit_t));
-  spn_pkg_unit_t* unit = sp_om_back(u->packages);
-  unit->id = uid;
+  unit->id = (spn_pkg_unit_id_t) { .pkg = resolved->id, .build = build->id };
   unit->build = build;
   unit->units = u;
   unit->resolved = resolved;
@@ -128,19 +114,35 @@ spn_err_t si_add_package_unit(spn_units_t* u, spn_build_unit_t* build, const spn
       unit->publishes.include = unit->publishes.include || entry->root == SPN_PUBLISH_ROOT_INCLUDE;
     }
   }
-  *result = unit;
+}
 
-  spn_build_unit_t* metabuild = unit->build->metabuild;
-  if (!metabuild) {
+static spn_err_t add_script(spn_units_t* u, const spn_resolved_pkg_t* resolved, spn_target_kind_t kind, spn_target_unit_t** result) {
+  if (!sp_om_has(u->scripts, resolved->id)) {
+    sp_om_insert(u->scripts, resolved->id, sp_zero_struct(spn_pkg_unit_t));
+    init_package_unit(u, u->metabuild, resolved, sp_om_back(u->scripts));
+  }
+  spn_pkg_unit_t* pkg = sp_om_get(u->scripts, resolved->id);
+  return si_add_target_unit(u, pkg, get_script(&pkg->pkg, kind), result);
+}
+
+spn_err_t si_add_package_unit(spn_units_t* u, spn_build_unit_t* build, const spn_resolved_pkg_t* resolved, spn_pkg_unit_t** result) {
+  spn_pkg_unit_id_t uid = { .pkg = resolved->id, .build = build->id };
+  if (sp_om_has(u->packages, uid)) {
+    *result = sp_om_get(u->packages, uid);
     return SPN_OK;
   }
 
-  si_pkg_t meta = evaluate(u, metabuild, resolved, unit->paths.roots);
+  sp_om_insert(u->packages, uid, sp_zero_struct(spn_pkg_unit_t));
+  spn_pkg_unit_t* unit = sp_om_back(u->packages);
+  init_package_unit(u, build, resolved, unit);
+  *result = unit;
+
+  si_pkg_t meta = evaluate(u, u->metabuild, resolved, unit->paths.roots);
   if (get_script(&meta, SPN_TARGET_KIND_CONFIGURE_METAPROGRAM)) {
-    spn_try(add_script(u->configure, metabuild, resolved, SPN_TARGET_KIND_CONFIGURE_METAPROGRAM, &unit->reactor));
+    spn_try(add_script(u->configure, resolved, SPN_TARGET_KIND_CONFIGURE_METAPROGRAM, &unit->reactor));
   }
   if (get_script(&meta, SPN_TARGET_KIND_BUILD_METAPROGRAM)) {
-    spn_try(add_script(u, metabuild, resolved, SPN_TARGET_KIND_BUILD_METAPROGRAM, &unit->metaprogram));
+    spn_try(add_script(u, resolved, SPN_TARGET_KIND_BUILD_METAPROGRAM, &unit->metaprogram));
   }
   return SPN_OK;
 }

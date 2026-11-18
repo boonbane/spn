@@ -313,7 +313,6 @@ units_t* units_new(sp_test_t* t, const graph_t* g) {
     .define = spn_when_facts_to_defines(mem, spn_profile_facts(&metaprogram)),
   };
   sp_da_init(mem, metabuild->include);
-  program->metabuild = metabuild;
   u->session.builds.program = program;
   u->session.builds.metaprogram = metabuild;
   bind_cc(program->toolchain);
@@ -374,8 +373,8 @@ units_t* units_new(sp_test_t* t, const graph_t* g) {
     sp_ht_insert(u->resolve, resolved.id, resolved);
   }
 
-  u->configure = (spn_units_t) { .ctx = &u->ctx, .mem = mem, .resolve = u->resolve };
-  u->units = (spn_units_t) { .ctx = &u->ctx, .mem = mem, .resolve = u->resolve, .configure = &u->configure };
+  u->configure = (spn_units_t) { .ctx = &u->ctx, .mem = mem, .resolve = u->resolve, .metabuild = u->session.builds.metaprogram };
+  u->units = (spn_units_t) { .ctx = &u->ctx, .mem = mem, .resolve = u->resolve, .metabuild = u->session.builds.metaprogram, .configure = &u->configure };
   return u;
 }
 
