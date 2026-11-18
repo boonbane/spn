@@ -473,7 +473,6 @@ static spn_err_t sync_jobs(spn_op_t* op, sp_mem_t mem, bool* reresolve) {
 
   spn_thread_pool_wait(&pool);
   spn_thread_pool_deinit(&pool);
-  u64 elapsed = sp_tm_read_timer(&timer);
 
   if (spn_op_cancelled(op)) {
     return SPN_ERR_CANCELLED;
@@ -544,11 +543,25 @@ static spn_err_t sync_jobs(spn_op_t* op, sp_mem_t mem, bool* reresolve) {
     return SPN_OK;
   }
 
+  bool scripted = false;
+  sp_ht_for_kv(session->resolve, it) {
+    si_om_for_each(it.val->manifest->targets, target) {
+      scripted = scripted || target->kind == SPN_TARGET_KIND_BUILD_METAPROGRAM || target->kind == SPN_TARGET_KIND_CONFIGURE_METAPROGRAM;
+    }
+  }
+  if (scripted) {
+    spn_try(spn_session_add_metaprogram(session));
+    spn_toolchain_unit_t* toolchain = session->builds.metaprogram->toolchain;
+    if (toolchain != session->builds.program->toolchain) {
+      spn_try(spn_sync_toolchain(&spn.caches.toolchains, toolchain, &op->cancelled));
+    }
+  }
+
   spn_event_buffer_push(spn.events, (spn_event_t) {
     .kind = SPN_EVENT_SYNC_END,
     .sync_end = {
       .num_synced = si_da_size(packages),
-      .time = elapsed,
+      .time = sp_tm_read_timer(&timer),
     }});
 
   return SPN_OK;

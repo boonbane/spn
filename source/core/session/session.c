@@ -97,22 +97,8 @@ spn_err_t spn_session_init(spn_session_t* s, spn_ctx_t* ctx, sp_mem_t mem, spn_p
   spn_try(spn_toolchain_select(&ctx->catalog, query, &target));
   spn_profile_finalize(&profile, &target);
 
-  spn_profile_info_t metaprogram = spn_profile_metaprogram();
-  spn_toolchain_query_t metaprogram_query = sp_zero;
-  spn_try(spn_profile_query(&metaprogram, ctx->host, &metaprogram_query));
-  spn_toolchain_selection_t script = sp_zero;
-  spn_try(spn_toolchain_select(&ctx->catalog, metaprogram_query, &script));
-  spn_profile_finalize(&metaprogram, &script);
-
-  struct { spn_path_t build; spn_path_t metabuild; } roots = {
-    .build = spn_path_join(s->mem, s->paths.build, spn_profile_build_dir(s->mem, &profile)),
-    .metabuild = spn_path_join(s->mem, s->paths.build, spn_triple_to_str(s->mem, metaprogram.target))
-  };
-  s->builds.program = add_build(s, profile, roots.build, target.toolchain);
-  s->builds.metaprogram = add_build(s, metaprogram, roots.metabuild, script.toolchain);
-  s->builds.metaprogram->script = true;
-
-  sp_da_push(s->builds.metaprogram->include, spn_path(s->mem, SPN_DIR_ID_RUNTIME, "include"));
+  spn_path_t root = spn_path_join(s->mem, s->paths.build, spn_profile_build_dir(s->mem, &profile));
+  s->builds.program = add_build(s, profile, root, target.toolchain);
 
   s->selection.kinds = config.selection.kinds;
   sp_for(it, config.selection.names.count) {
@@ -120,5 +106,20 @@ spn_err_t spn_session_init(spn_session_t* s, spn_ctx_t* ctx, sp_mem_t mem, spn_p
     si_om_insert(s->mem, s->selection.names, name.id, name);
   }
 
+  return SPN_OK;
+}
+
+spn_err_t spn_session_add_metaprogram(spn_session_t* s) {
+  spn_profile_info_t profile = spn_profile_metaprogram();
+  spn_toolchain_query_t query = sp_zero;
+  spn_try(spn_profile_query(&profile, s->ctx->host, &query));
+  spn_toolchain_selection_t selection = sp_zero;
+  spn_try(spn_toolchain_select(&s->ctx->catalog, query, &selection));
+  spn_profile_finalize(&profile, &selection);
+
+  spn_path_t root = spn_path_join(s->mem, s->paths.build, spn_triple_to_str(s->mem, profile.target));
+  s->builds.metaprogram = add_build(s, profile, root, selection.toolchain);
+  s->builds.metaprogram->script = true;
+  sp_da_push(s->builds.metaprogram->include, spn_path(s->mem, SPN_DIR_ID_RUNTIME, "include"));
   return SPN_OK;
 }

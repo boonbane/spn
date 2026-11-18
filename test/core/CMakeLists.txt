@@ -139,6 +139,7 @@ add_executable(core
   toolchain/fetch.c
   toolchain/linker.c
   toolchain/local.c
+  toolchain/metaprogram.c
   toolchain/mirrors.c
   toolchain/parse.c
   toolchain/probe.c
