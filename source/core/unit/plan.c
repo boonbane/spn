@@ -118,7 +118,7 @@ static spn_err_t lower_link(spn_units_t* u, spn_target_unit_t* unit) {
       sp_unreachable_return(SPN_ERROR);
     }
   }
-  sp_opt_set(unit->emit.link, si_cc_render_link(u->mem, toolchain, profile, cc));
+  sp_opt_set(unit->emit.link.plan, si_cc_render_link(u->mem, toolchain, profile, cc));
   return SPN_OK;
 }
 
@@ -140,6 +140,9 @@ static spn_err_t lower_target(spn_units_t* u, spn_target_unit_t* unit) {
   spn_cc_t* toolchain = &build->toolchain->cc;
   sp_mem_t mem = u->mem;
 
+  spn_cc_output_kind_t kind = SPN_CC_OUTPUT_EXE;
+  bool links = true;
+  bool archives = false;
   switch (target->info->kind) {
     case SPN_TARGET_KIND_EXE:
     case SPN_TARGET_KIND_TOOL: {
@@ -148,12 +151,18 @@ static spn_err_t lower_target(spn_units_t* u, spn_target_unit_t* unit) {
     }
     case SPN_TARGET_KIND_LIB: {
       unit->install = pkg->paths.lib;
+      kind = SPN_CC_OUTPUT_SHARED_LIB;
+      links = unit->lib_kind == SPN_LIB_KIND_SHARED;
+      archives = unit->lib_kind == SPN_LIB_KIND_STATIC;
       break;
     }
     case SPN_TARGET_KIND_TEST:
-    case SPN_TARGET_KIND_EXAMPLE:
+    case SPN_TARGET_KIND_EXAMPLE: {
+      break;
+    }
     case SPN_TARGET_KIND_CONFIGURE_METAPROGRAM:
     case SPN_TARGET_KIND_BUILD_METAPROGRAM: {
+      kind = SPN_CC_OUTPUT_REACTOR;
       break;
     }
   }
@@ -165,12 +174,12 @@ static spn_err_t lower_target(spn_units_t* u, spn_target_unit_t* unit) {
   while (si_closure_it_next(&it)) {
     si_da_push(scratch.mem, entries, it.entry);
   }
-  bool dynamic = unit->kind == SPN_CC_OUTPUT_SHARED_LIB || unit->kind == SPN_CC_OUTPUT_REACTOR;
+  bool dynamic = links && kind != SPN_CC_OUTPUT_EXE;
 
   spn_link_plan_t* link = &unit->link;
   *link = (spn_link_plan_t) {
     .cc = {
-      .kind = unit->kind,
+      .kind = kind,
       .lang = is_any_object_cxx(unit->objects) ? SPN_LANG_CXX : SPN_LANG_C,
       .min_os = target->info->macos.min_os,
       .subsystem = target->info->windows.subsystem,
@@ -288,51 +297,52 @@ static spn_err_t lower_target(spn_units_t* u, spn_target_unit_t* unit) {
   spn_target_emit_t* emit = &unit->emit;
   if (sp_da_empty(unit->objects)) {
     if (!spn_path_empty(unit->prebuilt.value.path)) {
-      emit->output = sp_fs_get_name(unit->prebuilt.value.path.sub);
+      emit->link.output = sp_fs_get_name(unit->prebuilt.value.path.sub);
     }
     return SPN_OK;
   }
 
   spn_triple_t triple = profile->target;
   sp_str_t name = target->info->name.str;
-  switch (unit->kind) {
+  if (archives) {
+    emit->archive.output = sp_fmt(mem, triple.abi == SPN_ABI_MSVC ? "{}.lib" : "lib{}.a", sp_fmt_str(name)).value;
+    sp_opt_set(emit->archive.plan, si_cc_render_archive(mem, toolchain, profile));
+  }
+  if (!links) {
+    return SPN_OK;
+  }
+
+  spn_try(lower_link(u, unit));
+  switch (kind) {
     case SPN_CC_OUTPUT_EXE: {
-      spn_try(lower_link(u, unit));
       switch (triple.os) {
-        case SPN_OS_WINDOWS:      emit->output = sp_fmt(mem, "{}.exe", sp_fmt_str(name)).value; break;
-        case SPN_OS_WASI:         emit->output = sp_fmt(mem, "{}.wasm", sp_fmt_str(name)).value; break;
-        case SPN_OS_FREESTANDING: emit->output = sp_fmt(mem, "{}.elf", sp_fmt_str(name)).value; break;
+        case SPN_OS_WINDOWS:      emit->link.output = sp_fmt(mem, "{}.exe", sp_fmt_str(name)).value; break;
+        case SPN_OS_WASI:         emit->link.output = sp_fmt(mem, "{}.wasm", sp_fmt_str(name)).value; break;
+        case SPN_OS_FREESTANDING: emit->link.output = sp_fmt(mem, "{}.elf", sp_fmt_str(name)).value; break;
         case SPN_OS_LINUX:
-        case SPN_OS_MACOS:        emit->output = name; break;
+        case SPN_OS_MACOS:        emit->link.output = name; break;
         case SPN_OS_NONE:         sp_unreachable_case();
       }
       break;
     }
     case SPN_CC_OUTPUT_SHARED_LIB: {
-      spn_try(lower_link(u, unit));
       switch (triple.os) {
-        case SPN_OS_WINDOWS: emit->output = sp_fmt(mem, "{}.dll", sp_fmt_str(name)).value; break;
-        case SPN_OS_MACOS:   emit->output = sp_fmt(mem, "lib{}.dylib", sp_fmt_str(name)).value; break;
-        case SPN_OS_LINUX:   emit->output = sp_fmt(mem, "lib{}.so", sp_fmt_str(name)).value; break;
+        case SPN_OS_WINDOWS: emit->link.output = sp_fmt(mem, "{}.dll", sp_fmt_str(name)).value; break;
+        case SPN_OS_MACOS:   emit->link.output = sp_fmt(mem, "lib{}.dylib", sp_fmt_str(name)).value; break;
+        case SPN_OS_LINUX:   emit->link.output = sp_fmt(mem, "lib{}.so", sp_fmt_str(name)).value; break;
         case SPN_OS_WASI:
         case SPN_OS_FREESTANDING:
         case SPN_OS_NONE:    sp_unreachable_case();
       }
-      if (spn_cc_link_implib(profile, unit->kind)) {
-        emit->implib = sp_fmt(mem, "{}.dll.lib", sp_fmt_str(name)).value;
+      if (spn_cc_link_implib(profile, kind)) {
+        emit->link.implib = sp_fmt(mem, "{}.dll.lib", sp_fmt_str(name)).value;
       }
-      sp_opt_set(emit->exports, render_exports(mem, toolchain, profile, &emit->link.value, name));
+      sp_opt_set(emit->link.exports, render_exports(mem, toolchain, profile, &emit->link.plan.value, name));
       break;
     }
     case SPN_CC_OUTPUT_REACTOR: {
-      spn_try(lower_link(u, unit));
-      emit->output = sp_fmt(mem, "{}.wasm", sp_fmt_str(name)).value;
-      sp_opt_set(emit->exports, render_exports(mem, toolchain, profile, &emit->link.value, name));
-      break;
-    }
-    case SPN_CC_OUTPUT_STATIC_LIB: {
-      emit->output = sp_fmt(mem, triple.abi == SPN_ABI_MSVC ? "{}.lib" : "lib{}.a", sp_fmt_str(name)).value;
-      sp_opt_set(emit->archive, si_cc_render_archive(mem, toolchain, profile));
+      emit->link.output = sp_fmt(mem, "{}.wasm", sp_fmt_str(name)).value;
+      sp_opt_set(emit->link.exports, render_exports(mem, toolchain, profile, &emit->link.plan.value, name));
       break;
     }
   }
@@ -340,7 +350,7 @@ static spn_err_t lower_target(spn_units_t* u, spn_target_unit_t* unit) {
 }
 
 static spn_path_t staged_path(sp_mem_t mem, spn_target_unit_t* unit) {
-  if (sp_str_empty(unit->emit.output)) {
+  if (sp_str_empty(unit->emit.link.output)) {
     return sp_zero_s(spn_path_t);
   }
 
@@ -350,15 +360,15 @@ static spn_path_t staged_path(sp_mem_t mem, spn_target_unit_t* unit) {
   switch (unit->target->info->kind) {
     case SPN_TARGET_KIND_EXE:
     case SPN_TARGET_KIND_TOOL: {
-      path = spn_path_join(mem, root, unit->emit.output);
+      path = spn_path_join(mem, root, unit->emit.link.output);
       break;
     }
     case SPN_TARGET_KIND_TEST: {
-      path = spn_path_join(mem, spn_path_join(s.mem, root, SP_LIT("test")), unit->emit.output);
+      path = spn_path_join(mem, spn_path_join(s.mem, root, SP_LIT("test")), unit->emit.link.output);
       break;
     }
     case SPN_TARGET_KIND_EXAMPLE: {
-      path = spn_path_join(mem, spn_path_join(s.mem, root, SP_LIT("example")), unit->emit.output);
+      path = spn_path_join(mem, spn_path_join(s.mem, root, SP_LIT("example")), unit->emit.link.output);
       break;
     }
     case SPN_TARGET_KIND_LIB:
@@ -524,10 +534,10 @@ static spn_err_t plan_new(spn_units_t* u, sp_mem_t scratch, spn_pkg_unit_t* root
         continue;
       }
       spn_target_unit_t* lib = it.entry.lib;
-      if (lib->lib_kind != SPN_LIB_KIND_SHARED || lib->target->info->no_link || sp_str_empty(lib->emit.output)) {
+      if (lib->lib_kind != SPN_LIB_KIND_SHARED || lib->target->info->no_link || sp_str_empty(lib->emit.link.output)) {
         continue;
       }
-      spn_path_t path = spn_path_join(u->mem, dir, lib->emit.output);
+      spn_path_t path = spn_path_join(u->mem, dir, lib->emit.link.output);
       spn_target_unit_t** owner = si_ht_getp(claimed, path);
       if (owner && *owner != lib) {
         return spn_err_emit(u->ctx, (spn_err_union_t) {
@@ -536,7 +546,7 @@ static spn_err_t plan_new(spn_units_t* u, sp_mem_t scratch, spn_pkg_unit_t* root
             .exe = exe->target->info->name.str,
             .pkg = (*owner)->pkg->pkg.manifest->name.str,
             .other = lib->pkg->pkg.manifest->name.str,
-            .name = lib->emit.output,
+            .name = lib->emit.link.output,
           },
         });
       }

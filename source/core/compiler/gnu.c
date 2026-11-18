@@ -522,9 +522,6 @@ spn_cc_link_plan_t spn_gnu_render_link(sp_mem_t mem, const spn_cc_t* toolchain, 
       }
       break;
     }
-    case SPN_CC_OUTPUT_STATIC_LIB: {
-      sp_unreachable_case();
-    }
   }
   si_da_for(link->args, it) {
     spn_cc_push_str(mem, base, link->args[it]);

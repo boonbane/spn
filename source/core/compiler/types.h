@@ -12,7 +12,6 @@ typedef struct {
 
 typedef enum {
   SPN_CC_OUTPUT_SHARED_LIB,
-  SPN_CC_OUTPUT_STATIC_LIB,
   SPN_CC_OUTPUT_EXE,
   SPN_CC_OUTPUT_REACTOR,
 } spn_cc_output_kind_t;

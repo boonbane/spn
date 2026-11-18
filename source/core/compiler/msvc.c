@@ -224,8 +224,7 @@ spn_cc_link_plan_t spn_msvc_render_link(sp_mem_t mem, const spn_cc_t* toolchain,
     case SPN_CC_OUTPUT_EXE: {
       break;
     }
-    case SPN_CC_OUTPUT_REACTOR:
-    case SPN_CC_OUTPUT_STATIC_LIB: {
+    case SPN_CC_OUTPUT_REACTOR: {
       sp_unreachable_case();
     }
   }

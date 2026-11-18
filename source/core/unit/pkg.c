@@ -258,24 +258,14 @@ spn_err_t si_add_target_unit(spn_units_t* u, spn_pkg_unit_t* pkg, si_target_t* t
           },
         });
       }
-
-      switch (unit->lib_kind) {
-        case SPN_LIB_KIND_STATIC: unit->kind = SPN_CC_OUTPUT_STATIC_LIB; break;
-        case SPN_LIB_KIND_SHARED: unit->kind = SPN_CC_OUTPUT_SHARED_LIB; break;
-        case SPN_LIB_KIND_NONE: sp_unreachable_case();
-      }
       break;
     }
     case SPN_TARGET_KIND_EXE:
     case SPN_TARGET_KIND_TOOL:
     case SPN_TARGET_KIND_TEST:
-    case SPN_TARGET_KIND_EXAMPLE: {
-      unit->kind = SPN_CC_OUTPUT_EXE;
-      break;
-    }
+    case SPN_TARGET_KIND_EXAMPLE:
     case SPN_TARGET_KIND_CONFIGURE_METAPROGRAM:
     case SPN_TARGET_KIND_BUILD_METAPROGRAM: {
-      unit->kind = SPN_CC_OUTPUT_REACTOR;
       break;
     }
   }
