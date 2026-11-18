@@ -974,6 +974,26 @@ sp_err_t run_actions(sp_test_t* t, fixture_t* fixture, const action_t* actions) 
         sp_fs_close_dir(dir);
         break;
       }
+      case ACTION_AGE_CACHE: {
+        sp_sys_timespec_t used = { .tv_sec = (s64)(sp_tm_now_epoch().s - action.age.seconds) };
+        const c8* kinds [] = { "store/blob", "store/strong", "store/weak" };
+        sp_carr_for(kinds, kt) {
+          sp_str_t entries = sp_fs_join_path(mem, fixture->paths.storage, sp_cstr_as_str(kinds[kt]));
+          sp_sys_dir_t dir = sp_zero;
+          if (sp_fs_open_dir_at(sp_path_from_str(entries), &dir)) {
+            continue;
+          }
+          SP_ALIGNED u8 buf [SP_SYS_DIR_MIN_BUF];
+          sp_fs_dir_it_t it = sp_fs_dir_it(dir);
+          sp_fs_dir_entry_t entry = sp_zero;
+          while (sp_fs_dir_it_next(&it, sp_mem_slice(buf, sizeof(buf)), &entry)) {
+            sp_expect_ok(t, sp_sys_set_times_s(dir, entry.name, used, used));
+          }
+          sp_fs_dir_it_close(&it);
+          sp_fs_close_dir(dir);
+        }
+        break;
+      }
       case ACTION_INIT_REPO: {
         git_repo_init(fixture->root);
         git_repo_commit(fixture->root, sp_str_lit("A"));

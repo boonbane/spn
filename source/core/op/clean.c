@@ -40,11 +40,16 @@ spn_op_t* spn_clean(spn_ctx_t* ctx) {
 
 spn_err_t spn_op_clean_cache(spn_op_t* op) {
   spn_ctx_t* ctx = op->ctx;
+  u64 min_age = ctx->config.cache.min_age_s;
+  if (op->request.clean.min_age_seconds) {
+    min_age = sp_max(op->request.clean.min_age_seconds, spn_cache_least_min_age_s);
+  }
+
   sp_tm_timer_t timer = sp_tm_start_timer();
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   spn_dag_layout_t layout = spn_dag_layout(scratch.mem, spn_path_from_id(SPN_DIR_ID_DAG));
   spn_dag_sweep_t sweep = spn_dag_sweep(scratch.mem, &ctx->roots, &layout, (spn_dag_sweep_limits_t) {
-    .min_age_s = ctx->config.cache.min_age_s,
+    .min_age_s = spn_dag_sweep_min_age(min_age),
   });
   sp_mem_end_scratch(scratch);
 
@@ -60,8 +65,9 @@ spn_err_t spn_op_clean_cache(spn_op_t* op) {
   return SPN_OK;
 }
 
-spn_op_t* spn_clean_cache(spn_ctx_t* ctx) {
+spn_op_t* spn_clean_cache(spn_ctx_t* ctx, spn_clean_request_t request) {
   spn_op_t* op = spn_op_new(ctx, SP_NULLPTR, SPN_OP_CLEAN_CACHE);
+  op->request.clean = request;
   spn_op_submit(op);
   return op;
 }

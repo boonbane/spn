@@ -75,7 +75,7 @@ sweep_interval = 600
 | `min_age` | integer | `3600` | Seconds an entry is kept after its last use, whatever the size of the cache. Values below `600` are treated as `600` |
 | `sweep_interval` | integer | `600` | Seconds between checks of the size of the cache |
 
-`spn clean --cache` removes everything not used within `min_age`, regardless of `max_size`.
+`spn clean --cache` removes everything not used within `min_age`, regardless of `max_size`. `--min-age SECONDS` replaces `min_age` for that run, with the same floor.
 
 ## Environment variables
 

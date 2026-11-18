@@ -52,6 +52,7 @@ bool                spn_dag_digest_parse(sp_str_t hex, spn_dag_digest_t* digest)
 
 spn_dag_layout_t    spn_dag_layout(sp_mem_t mem, spn_path_t dir);
 spn_dag_sweep_t     spn_dag_sweep(sp_mem_t mem, const spn_path_roots_t* roots, const spn_dag_layout_t* layout, spn_dag_sweep_limits_t limits);
+u64                 spn_dag_sweep_min_age(u64 min_age_s);
 
 void                spn_dag_store_init(spn_dag_store_t* store, spn_dag_store_config_t config);
 spn_err_t           spn_dag_store_put(spn_dag_store_t* store, const void* data, u64 len, sp_str_t name, spn_dag_digest_t* digest);

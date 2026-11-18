@@ -54,6 +54,10 @@ static void collect(sp_mem_t mem, sp_path_t dir, si_da(item_t)* items) {
   sp_fs_close_dir(root);
 }
 
+u64 spn_dag_sweep_min_age(u64 min_age_s) {
+  return sp_min(min_age_s, SP_LIMIT_U64_MAX - spn_dag_touch_interval_s) + spn_dag_touch_interval_s;
+}
+
 spn_dag_sweep_t spn_dag_sweep(sp_mem_t mem, const spn_path_roots_t* roots, const spn_dag_layout_t* layout, spn_dag_sweep_limits_t limits) {
   si_da(item_t) items = SP_NULLPTR;
   collect(mem, spn_path_at(roots, layout->strong), &items);

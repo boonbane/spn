@@ -34,7 +34,7 @@ spn_op_t* spn_scaffold_project(spn_ctx_t* ctx, spn_scaffold_request_t request);
 spn_op_t* spn_build(spn_session_t* session);
 spn_op_t* spn_run_tests(spn_session_t* session);
 spn_op_t* spn_clean(spn_ctx_t* ctx);
-spn_op_t* spn_clean_cache(spn_ctx_t* ctx);
+spn_op_t* spn_clean_cache(spn_ctx_t* ctx, spn_clean_request_t request);
 spn_op_t* spn_clean_profile(spn_session_t* session);
 spn_op_t* spn_env(spn_session_t* session);
 spn_op_t* spn_source_path(spn_session_t* session, spn_path_request_t request);

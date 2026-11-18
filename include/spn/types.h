@@ -193,6 +193,10 @@ typedef struct {
 } spn_update_request_t;
 
 typedef struct {
+  u64 min_age_seconds;
+} spn_clean_request_t;
+
+typedef struct {
   spn_str_arr_t files;
 } spn_scaffold_result_t;
 

@@ -305,7 +305,7 @@ spn_err_t spn_op_build(spn_op_t* op) {
     spn_dag_sweep_t sweep = spn_dag_sweep(scratch.mem, roots, &layout, (spn_dag_sweep_limits_t) {
       .max_bytes = cache.max_bytes,
       .keep_bytes = cache.max_bytes / 5 * 4,
-      .min_age_s = cache.min_age_s,
+      .min_age_s = spn_dag_sweep_min_age(cache.min_age_s),
     });
     sp_mem_end_scratch(scratch);
     sp_fs_lock_release(&lock);

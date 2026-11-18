@@ -147,3 +147,20 @@ sp_test_each(dag_sweep, evict, test_t, tests) {
   spn_path_roots_close(&roots);
   return SP_OK;
 }
+
+typedef struct {
+  const c8* name;
+  u64 min_age_s;
+  u64 expect;
+} min_age_test_t;
+
+static const min_age_test_t min_age_tests [] = {
+  { .name = "zero_is_the_touch_interval", .min_age_s = 0, .expect = spn_dag_touch_interval_s },
+  { .name = "adds_the_touch_interval", .min_age_s = 3600, .expect = 3600 + spn_dag_touch_interval_s },
+  { .name = "saturates_at_max", .min_age_s = SP_LIMIT_U64_MAX, .expect = SP_LIMIT_U64_MAX },
+};
+
+sp_test_each(dag_sweep, min_age, min_age_test_t, min_age_tests) {
+  sp_expect_eq(t, spn_dag_sweep_min_age(it->min_age_s), it->expect);
+  return SP_OK;
+}

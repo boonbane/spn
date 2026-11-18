@@ -74,6 +74,7 @@ typedef enum {
   ACTION_CREATE_FILE,
   ACTION_REMOVE_DIR,
   ACTION_CLEAR_WARM,
+  ACTION_AGE_CACHE,
   ACTION_INIT_REPO,
   ACTION_RUN_CLI,
   ACTION_RUN_BIN,
@@ -101,6 +102,7 @@ typedef struct {
   union {
     struct { const c8* file; const c8* content; const c8* from; } create;
     struct { const c8* dir; } rm;
+    struct { u64 seconds; } age;
     struct { const c8* cmd; const c8* args [8]; const c8* env [4]; const c8* path; const c8* cwd; s32 rc; } cli;
     struct { path_t file; s32 rc; } bin;
     struct { path_t file; path_t with [SPN_TEST_MAX_WITH]; bare_expect_t expect; } bare;
