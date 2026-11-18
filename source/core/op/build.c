@@ -7,6 +7,7 @@
 #include "dag/run.h"
 #include "error/error.h"
 #include "event/event.h"
+#include "fs/fs.h"
 #include "external/wasm/wasm.h"
 #include "graph/dag.h"
 #include "model/sync.h"
@@ -114,17 +115,17 @@ spn_err_t spn_op_build(spn_op_t* op) {
   spn_dag_file_cache_init(&session->dag.files, session->mem, roots);
   spn_dag_file_cache_load(&session->dag.files, session->dag.files_path);
 
-  spn_path_t dag = spn_path_anchor(session->mem, roots, spn_path_from_id(SPN_DIR_ID_DAG));
-  session->dag.scratch = spn_path_join(session->mem, dag, sp_str_lit("tmp"));
+  spn_dag_layout_t layout = spn_dag_layout(session->mem, spn_path_anchor(session->mem, roots, spn_path_from_id(SPN_DIR_ID_DAG)));
+  session->dag.scratch = layout.scratch;
   sp_fs_create_dir_at(spn_path_at(roots, session->dag.scratch));
   spn_dag_store_init(&session->dag.store, (spn_dag_store_config_t) {
     .kind = SPN_DAG_STORE_FILESYSTEM,
     .mem = spn.mem,
     .roots = roots,
-    .dir = spn_path_join(session->mem, dag, sp_str_lit("store")),
+    .dir = layout.store,
   });
-  spn_dag_action_cache_init(&session->dag.actions, spn.mem, roots, spn_path_join(session->mem, dag, sp_str_lit("strong")));
-  spn_dag_obs_table_init(&session->dag.discovery, spn.mem, roots, spn_path_join(session->mem, dag, sp_str_lit("weak")));
+  spn_dag_action_cache_init(&session->dag.actions, spn.mem, roots, layout.strong);
+  spn_dag_obs_table_init(&session->dag.discovery, spn.mem, roots, layout.weak);
   session->dag.files.stats = &session->dag.stats;
   session->dag.actions.stats = &session->dag.stats;
   session->dag.discovery.stats = &session->dag.stats;
@@ -285,6 +286,38 @@ spn_err_t spn_op_build(spn_op_t* op) {
       .cache_writes = sp_atomic_u32_load(&session->dag.stats.cache_writes, SP_ATOMIC_SEQ_CST),
     },
   });
+
+  spn_cache_config_t cache = ctx->config.cache;
+  sp_path_t gate = spn_path_at(roots, spn_path_lock(session->mem, spn_path_from_id(SPN_DIR_ID_DAG)));
+  sp_tm_epoch_t now = sp_tm_now_epoch();
+  sp_sys_file_meta_t swept = sp_zero;
+  bool due = sp_fs_get_path_metadata_at(gate, &swept) || now.s - (u64)swept.mtime.tv_sec >= cache.sweep_interval_s;
+  sp_fs_lock_t lock = sp_zero;
+  bool acquired = false;
+  if (cache.max_bytes && due && !sp_fs_create_parent_at(gate) && !sp_fs_lock_try_acquire(&lock, gate, &acquired) && acquired) {
+    sp_sys_timespec_t time = { .tv_sec = (s64)now.s, .tv_nsec = now.ns };
+    sp_sys_set_times_s(gate.dir, gate.sub, time, time);
+
+    sp_tm_timer_t sweep_timer = sp_tm_start_timer();
+    sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+    spn_dag_sweep_t sweep = spn_dag_sweep(scratch.mem, roots, &layout, (spn_dag_sweep_limits_t) {
+      .max_bytes = cache.max_bytes,
+      .keep_bytes = cache.max_bytes / 5 * 4,
+      .min_age_s = cache.min_age_s,
+    });
+    sp_mem_end_scratch(scratch);
+    sp_fs_lock_release(&lock);
+
+    spn_event_buffer_push(ctx->events, (spn_event_t) {
+      .kind = SPN_EVENT_CACHE_SWEEP,
+      .sweep = {
+        .size = sweep.bytes,
+        .freed = sweep.freed,
+        .removed = sweep.removed,
+        .time = sp_tm_read_timer(&sweep_timer),
+      },
+    });
+  }
 
   return result;
 }

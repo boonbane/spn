@@ -591,7 +591,7 @@ static void expect_lock(sp_test_t* t, fixture_t* fixture, const command_lock_t* 
 
 static void expect_store(sp_test_t* t, fixture_t* fixture, const c8* pkg, u32 count) {
   sp_mem_t mem = fixture->mem;
-  sp_str_t path = sp_fs_join_path(mem, fixture->paths.storage, sp_fmt(mem, "cache/store/{}", sp_fmt_cstr(pkg)).value);
+  sp_str_t path = sp_fs_join_path(mem, fixture->paths.storage, sp_fmt(mem, "pkg/{}", sp_fmt_cstr(pkg)).value);
   u32 dirs = 0;
   sp_sys_dir_t dir = sp_zero;
   if (!sp_fs_open_dir_at(sp_path_from_str(path), &dir)) {
@@ -902,7 +902,7 @@ sp_err_t run_actions(sp_test_t* t, fixture_t* fixture, const action_t* actions) 
         break;
       }
       case ACTION_CLEAR_WARM: {
-        sp_str_t caches = sp_fs_join_path(mem, fixture->paths.toolchain, sp_str_lit("external/zig/cache"));
+        sp_str_t caches = sp_fs_join_path(mem, fixture->paths.toolchain, sp_str_lit("work/zig"));
         sp_sys_dir_t dir = sp_zero;
         if (sp_fs_open_dir_at(sp_path_from_str(caches), &dir)) {
           break;

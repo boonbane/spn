@@ -232,6 +232,14 @@ static const release_test_t tests [] = {
     .expect = { .err = SPN_ERROR },
   },
   {
+    .name = "source_url_unnamed",
+    .expect = { .err = SPN_ERROR },
+  },
+  {
+    .name = "manifest_url_unnamed",
+    .expect = { .err = SPN_ERROR },
+  },
+  {
     .name = "empty",
     .expect = { .err = SPN_ERROR },
   },

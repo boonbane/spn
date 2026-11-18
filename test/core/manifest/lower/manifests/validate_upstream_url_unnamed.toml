@@ -1,0 +1,7 @@
+[package]
+name = "p"
+version = "1.0.0"
+
+[package.upstream]
+url = "https://A/.."
+commit = "deadbeef"

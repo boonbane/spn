@@ -1,5 +1,6 @@
 #include "macro/macro.h"
 #include "index/json.h"
+#include "git/url.h"
 #include "intern/intern.h"
 
 #include "release.gen.h"
@@ -23,12 +24,18 @@ static spn_err_t parse_release(sp_mem_t mem, sp_intern_t* intern, sp_intern_str_
   release->name = name;
   release->yanked = rel.yanked;
   if (!sp_str_empty(rel.source.url)) {
+    if (!spn_git_url_valid(rel.source.url)) {
+      return SPN_ERROR;
+    }
     release->source = (spn_pkg_root_t) {
       .kind = SPN_PKG_ROOT_GIT,
       .git = { .url = rel.source.url, .rev = rel.source.rev, .dir = rel.source.dir },
     };
   }
   if (!sp_str_empty(rel.manifest.url)) {
+    if (!spn_git_url_valid(rel.manifest.url)) {
+      return SPN_ERROR;
+    }
     release->manifest = (spn_pkg_root_t) {
       .kind = SPN_PKG_ROOT_GIT,
       .git = { .url = rel.manifest.url, .rev = rel.manifest.rev, .dir = rel.manifest.dir },

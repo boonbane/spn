@@ -1,6 +1,7 @@
 add_executable(integration
   ${TEST_GEN_DIR}/probe.gen.c
   main.c
+  cache.c
   cli.c
   compile_commands.c
   config.c

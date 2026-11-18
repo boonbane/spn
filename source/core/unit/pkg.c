@@ -101,8 +101,8 @@ spn_err_t si_add_package_unit(spn_units_t* u, spn_build_unit_t* build, const spn
     }
     case SPN_PKG_SOURCE_INDEX: {
       sp_str_t fingerprint = spn_unit_fingerprint_str(mem, unit->fingerprint);
-      spn_path_t work = spn_path_s(mem, SPN_DIR_ID_BUILD, resolved->manifest->name.str);
-      spn_path_t store = spn_path_s(mem, SPN_DIR_ID_STORE, resolved->manifest->name.str);
+      spn_path_t work = spn_path_s(mem, SPN_DIR_ID_WORK, resolved->manifest->name.str);
+      spn_path_t store = spn_path_s(mem, SPN_DIR_ID_PKG, resolved->manifest->name.str);
       unit->paths.work = spn_path_join(mem, work, fingerprint);
       unit->paths.store = spn_path_join(mem, store, fingerprint);
       break;

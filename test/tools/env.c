@@ -106,8 +106,8 @@ static u32 deepest_repo(sp_mem_t mem, sp_str_t project) {
       name = sp_max(name, (u32)packages[at].len);
     }
   }
-  u32 checkout = sp_max(name + sp_cstr_len("-0123456789abcdef"), sp_cstr_len("t.0123456789abcdef.tmp"));
-  return sp_cstr_len("/cache/src/") + checkout + sp_cstr_len("/.git/");
+  u32 checkout = sp_max(name + sp_cstr_len("/0123456789abcdef"), sp_cstr_len("t.0123456789abcdef.tmp"));
+  return sp_cstr_len("/src/") + checkout + sp_cstr_len("/.git/");
 }
 
 typedef struct {
@@ -401,7 +401,7 @@ static void setup_fixture_config(fixture_t* fixture) {
 static sp_str_t pick_shared_toolchain_dir(sp_mem_t mem, sp_str_t root) {
   sp_str_t storage = sp_zero;
   sp_fs_get_storage_path(mem, &storage);
-  sp_str_t global = sp_fs_join_path(mem, storage, sp_str_lit("spn/cache/toolchain"));
+  sp_str_t global = sp_fs_join_path(mem, storage, sp_str_lit("spn/toolchain"));
   sp_sys_file_meta_t meta = sp_zero;
   if (!sp_fs_get_path_metadata(global, &meta)) return global;
   return sp_fs_join_path(mem, root, sp_str_lit(".cache/toolchain"));

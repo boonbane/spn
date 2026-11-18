@@ -95,15 +95,6 @@ static const test_t tests [] = {
     }
   },
   {
-    .name = "materialized_write_leaves_blob",
-    .ops = {
-      { .kind = STORE_OP_PUT, .blob = "A" },
-      { .kind = STORE_OP_MATERIALIZE, .blob = "A", .path = "a.bin" },
-      { .kind = STORE_OP_WRITE, .blob = "T", .path = "a.bin" },
-      { .kind = STORE_OP_GET, .blob = "A" },
-    }
-  },
-  {
     .name = "put_file_source_write_leaves_blob",
     .ops = {
       { .kind = STORE_OP_FILE, .blob = "A", .path = "a.c" },

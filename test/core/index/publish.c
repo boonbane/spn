@@ -161,9 +161,10 @@ sp_test_each(index_publish, publish, publish_test_t, tests, .setup = spn_test_ct
   git_repo_commit(index_root, sp_str_lit("seed"));
 
   sp_str_t clone = sp_fs_join_path(mem, test_dir_str(t), sp_str_lit("clone"));
+  sp_str_t lock = sp_fs_join_path(mem, test_dir_str(t), sp_str_lit("lock"));
   spn_index_info_t index = {
     .git = { .url = index_root },
-    .location = { .at = sp_path_from_str(clone), .dir = clone },
+    .location = { .at = sp_path_from_str(clone), .dir = clone, .lock = sp_path_from_str(lock) },
   };
 
   spn_index_release_t rel = {

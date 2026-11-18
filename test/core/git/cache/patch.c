@@ -91,7 +91,7 @@ sp_test_each(git_cache, patch, test_t, tests, .setup = spn_test_ctx_setup) {
   spn_path_t root = { .sub = sp_fs_join_path(mem, test_dir_str(t), sp_str_lit("B")) };
   spn_path_roots_t roots = sp_zero;
   spn_git_cache_t cache = sp_zero;
-  spn_git_cache_init(&cache, mem, SP_NULLPTR, &roots, spn_path_join(mem, root, sp_str_lit("db")), spn_path_join(mem, root, sp_str_lit("checkouts")));
+  spn_git_cache_init(&cache, mem, SP_NULLPTR, &roots, spn_path_join(mem, root, sp_str_lit("db")), spn_path_join(mem, root, sp_str_lit("checkouts")), spn_path_join(mem, root, sp_str_lit("locks")));
   sp_atomic_s32_t cancelled = sp_zero;
 
   u32 requests = 0;

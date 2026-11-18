@@ -524,6 +524,21 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
       sp_tty_fmt(&w, "{.gray}", sp_fmt_str(event->resolve_pkg.version));
       break;
     }
+    case SPN_EVENT_CACHE_SWEEP:
+    case SPN_EVENT_CACHE_CLEAN: {
+      c8 freed [64] = sp_zero;
+      c8 size [64] = sp_zero;
+      c8 duration [64] = sp_zero;
+      sp_fmt_write_size_buf(freed, sizeof(freed), event->sweep.freed);
+      sp_fmt_write_size_buf(size, sizeof(size), event->sweep.size);
+      sp_fmt_write_duration_buf(duration, sizeof(duration), event->sweep.time);
+      sp_tty_fmt(&w, "{} of {} cached in {.gray}",
+        sp_fmt_cstr(freed),
+        sp_fmt_cstr(size),
+        sp_fmt_cstr(duration)
+      );
+      break;
+    }
     case SPN_EVENT_ADDED: {
       sp_tty_fmt(&w, "{.cyan}=={.green}",
         sp_fmt_str(event->added.name),

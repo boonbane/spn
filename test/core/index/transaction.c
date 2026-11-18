@@ -247,11 +247,12 @@ sp_test_each(index_transaction, publish, txn_test_t, tests, .setup = spn_test_ct
   sp_str_t seed = sp_fs_join_path(mem, tmp, sp_str_lit("seed"));
   sp_str_t remote = sp_fs_join_path(mem, tmp, sp_str_lit("remote.git"));
   sp_str_t clone = sp_fs_join_path(mem, tmp, sp_str_lit("clone"));
+  sp_str_t lock = sp_fs_join_path(mem, tmp, sp_str_lit("lock"));
 
   spn_index_info_t index = {
     .protocol = SPN_INDEX_PROTOCOL_GIT,
     .git = { .url = remote },
-    .location = { .at = sp_path_from_str(clone), .dir = clone },
+    .location = { .at = sp_path_from_str(clone), .dir = clone, .lock = sp_path_from_str(lock) },
   };
   if (it->remote.pin) {
     index.git.rev = sp_cstr_as_str(it->remote.pin);
@@ -301,7 +302,7 @@ sp_test_each(index_transaction, publish, txn_test_t, tests, .setup = spn_test_ct
         sp_da_init(mem, rel.targets);
         publish_job_t job = { .index = &index, .rel = &rel, .cancelled = &cancelled };
         if (action.publish.contended) {
-          sp_try(test_run_contended(t, sp_fmt(mem, "{}.lock", sp_fmt_str(clone)).value, run_publish, &job, &job.done, true));
+          sp_try(test_run_contended(t, lock, run_publish, &job, &job.done, true));
         }
         else {
           run_publish(&job);

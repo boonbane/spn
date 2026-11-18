@@ -230,6 +230,39 @@ typedef struct {
   spn_dag_stats_t* stats;
 } spn_dag_store_t;
 
+#define spn_dag_touch_interval_s 300
+
+#define spn_cache_default_max_size_gb 10
+#define spn_cache_max_size_gb ((u64)1 << 33)
+#define spn_cache_default_min_age_s 3600
+#define spn_cache_least_min_age_s (2 * spn_dag_touch_interval_s)
+#define spn_cache_default_sweep_interval_s 600
+
+typedef struct {
+  u64 max_bytes;
+  u64 min_age_s;
+  u64 sweep_interval_s;
+} spn_cache_config_t;
+
+typedef struct {
+  spn_path_t store;
+  spn_path_t strong;
+  spn_path_t weak;
+  spn_path_t scratch;
+} spn_dag_layout_t;
+
+typedef struct {
+  u64 max_bytes;
+  u64 keep_bytes;
+  u64 min_age_s;
+} spn_dag_sweep_limits_t;
+
+typedef struct {
+  u64 bytes;
+  u64 freed;
+  u32 removed;
+} spn_dag_sweep_t;
+
 typedef struct {
   sp_atomic_s32_t total;
   sp_atomic_s32_t completed;

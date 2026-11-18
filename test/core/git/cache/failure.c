@@ -74,7 +74,7 @@ sp_test_each(git_cache, failure, test_t, tests, .setup = spn_test_ctx_setup) {
   bool fetching = false;
   sp_for(attempt, 2) {
     spn_git_cache_t cache = sp_zero;
-    spn_git_cache_init(&cache, mem, SP_NULLPTR, &roots, spn_path_join(mem, root, sp_str_lit("db")), spn_path_join(mem, root, sp_str_lit("checkouts")));
+    spn_git_cache_init(&cache, mem, SP_NULLPTR, &roots, spn_path_join(mem, root, sp_str_lit("db")), spn_path_join(mem, root, sp_str_lit("checkouts")), spn_path_join(mem, root, sp_str_lit("locks")));
 
     spn_git_checkout_t* control = spn_git_cache_checkout(&cache, sound, &fetching);
     spn_err_t err = spn_git_checkout_ensure(&cache, control, &cancelled);

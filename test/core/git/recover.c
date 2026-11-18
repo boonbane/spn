@@ -101,12 +101,13 @@ sp_test_each(git_recover, ensure, test_t, tests, .setup = spn_test_ctx_setup) {
   spn_path_t root = { .sub = sp_fs_join_path(mem, test_dir_str(t), sp_str_lit("B")) };
   spn_path_t dbs = spn_path_join(mem, root, sp_str_lit("db"));
   spn_path_t checkouts = spn_path_join(mem, root, sp_str_lit("checkouts"));
+  spn_path_t locks = spn_path_join(mem, root, sp_str_lit("locks"));
   spn_path_roots_t roots = sp_zero;
   bool fetching = false;
   sp_atomic_s32_t cancelled = sp_zero;
 
   spn_git_cache_t before = sp_zero;
-  spn_git_cache_init(&before, mem, SP_NULLPTR, &roots, dbs, checkouts);
+  spn_git_cache_init(&before, mem, SP_NULLPTR, &roots, dbs, checkouts, locks);
   spn_git_db_t* db = SP_NULLPTR;
   sp_must_eq(t, (u32)spn_git_cache_ensure_db(&before, remote, &cancelled, &db), (u32)SPN_OK);
   if (it->checked_out) {
@@ -114,7 +115,7 @@ sp_test_each(git_recover, ensure, test_t, tests, .setup = spn_test_ctx_setup) {
   }
 
   sp_str_t repo = spn_path_str(&roots, mem, db->path);
-  sp_str_t lock = sp_fmt(mem, "{}.lock", sp_fmt_str(repo)).value;
+  sp_str_t lock = spn_path_str(&roots, mem, db->lock);
   sp_str_t leftover = sp_fs_join_path(mem, repo, sp_fmt(mem, "refs/heads/{}.lock", sp_fmt_str(branch)).value);
   sp_str_t witness = sp_fs_join_path(mem, repo, sp_str_lit("A"));
   sp_must_ok(t, sp_fs_write(witness, sp_str_lit("A"), SP_FS_WRITE_TRUNCATE));
@@ -141,7 +142,7 @@ sp_test_each(git_recover, ensure, test_t, tests, .setup = spn_test_ctx_setup) {
   }
 
   spn_git_cache_t cache = sp_zero;
-  spn_git_cache_init(&cache, mem, SP_NULLPTR, &roots, dbs, checkouts);
+  spn_git_cache_init(&cache, mem, SP_NULLPTR, &roots, dbs, checkouts, locks);
   sp_atomic_s32_store(&cancelled, it->cancelled, SP_ATOMIC_SEQ_CST);
   job_t job = { .cache = &cache, .checkout = spn_git_cache_checkout(&cache, id, &fetching), .cancelled = &cancelled };
   if (it->contended) {
@@ -176,13 +177,13 @@ sp_test_each(git_recover, ensure, test_t, tests, .setup = spn_test_ctx_setup) {
   sp_expect_eq(t, meta.kind, SP_FS_KIND_FILE);
 
   sp_sys_dir_t dir = sp_zero;
-  sp_must_ok(t, sp_fs_open_dir_at(spn_path_at(&roots, dbs), &dir));
+  sp_must_ok(t, sp_fs_open_dir_at(sp_path_from_str(sp_fs_parent_path(repo)), &dir));
   SP_ALIGNED u8 buf [SP_SYS_DIR_MIN_BUF];
   sp_fs_dir_it_t walk = sp_fs_dir_it(dir);
   sp_fs_dir_entry_t entry = sp_zero;
   while (sp_fs_dir_it_next(&walk, sp_mem_slice(buf, sizeof(buf)), &entry)) {
     sp_test_kv(t, "beside", entry.name);
-    sp_expect(t, sp_str_equal(entry.name, sp_fs_get_name(repo)) || sp_str_equal(entry.name, sp_fs_get_name(lock)));
+    sp_expect(t, sp_str_equal(entry.name, sp_fs_get_name(repo)));
   }
   sp_fs_dir_it_close(&walk);
   sp_fs_close_dir(dir);

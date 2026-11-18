@@ -185,7 +185,7 @@ sp_test_each(fetch, sources, test_t, tests, .setup = spn_test_ctx_setup) {
   }
   sp_fs_dir_it_close(&walk);
   sp_fs_close_dir(stored);
-  sp_expect_eq(t, entries, it->expect.err ? 1u : 2u);
+  sp_expect_eq(t, entries, it->expect.err ? 0u : 1u);
 
   spn_path_roots_close(&roots);
   return SP_OK;

@@ -50,13 +50,15 @@ bool                spn_dag_digest_valid(spn_dag_digest_t digest);
 sp_str_t            spn_dag_digest_hex(sp_mem_t mem, spn_dag_digest_t digest);
 bool                spn_dag_digest_parse(sp_str_t hex, spn_dag_digest_t* digest);
 
+spn_dag_layout_t    spn_dag_layout(sp_mem_t mem, spn_path_t dir);
+spn_dag_sweep_t     spn_dag_sweep(sp_mem_t mem, const spn_path_roots_t* roots, const spn_dag_layout_t* layout, spn_dag_sweep_limits_t limits);
+
 void                spn_dag_store_init(spn_dag_store_t* store, spn_dag_store_config_t config);
 spn_err_t           spn_dag_store_put(spn_dag_store_t* store, const void* data, u64 len, sp_str_t name, spn_dag_digest_t* digest);
 spn_err_t           spn_dag_store_put_file(spn_dag_store_t* store, sp_path_t path, sp_str_t name, spn_dag_digest_t* digest);
 spn_err_t           spn_dag_store_put_tree(spn_dag_store_t* store, sp_path_t dir, spn_dag_digest_t* digest);
 spn_err_t           spn_dag_store_locate(spn_dag_store_t* store, sp_mem_t mem, spn_dag_digest_t digest, sp_str_t name, spn_path_t* path);
-bool                spn_dag_store_owns(spn_dag_store_t* store, spn_dag_digest_t digest, sp_str_t name, sp_sys_file_meta_t file);
-void                spn_dag_store_drop(spn_dag_store_t* store, spn_dag_digest_t digest, sp_str_t name);
+void                spn_dag_store_touch(spn_dag_store_t* store, spn_dag_digest_t digest);
 spn_err_t           spn_dag_store_get(spn_dag_store_t* store, spn_dag_digest_t digest, sp_str_t name, sp_mem_t mem, sp_mem_slice_t* data);
 spn_err_t           spn_dag_store_materialize(spn_dag_store_t* store, spn_dag_digest_t digest, sp_str_t name, spn_path_t path);
 spn_err_t           spn_dag_tree_entries(spn_dag_store_t* store, spn_dag_digest_t digest, sp_mem_t mem, sp_da(spn_dag_action_output_t)* entries);

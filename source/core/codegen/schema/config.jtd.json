@@ -3,7 +3,8 @@
   "optionalProperties": {
     "index": { "elements": { "ref": "index" } },
     "toolchain": { "elements": { "ref": "toolchain_decl" } },
-    "net": { "ref": "net" }
+    "net": { "ref": "net" },
+    "cache": { "ref": "cache" }
   },
   "definitions": {
     "net": {
@@ -11,6 +12,13 @@
         "timeout": { "type": "uint64" },
         "ca_bundle": { "type": "string" },
         "system_git": { "type": "boolean" }
+      }
+    },
+    "cache": {
+      "optionalProperties": {
+        "max_size": { "type": "uint64" },
+        "min_age": { "type": "uint64" },
+        "sweep_interval": { "type": "uint64" }
       }
     }
   }

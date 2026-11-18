@@ -135,6 +135,7 @@ static const test_t tests [] = {
     .name = "missing_ca_bundle_is_untrusted",
     .scheme = "https",
     .ca_bundle = "B",
+    .connections = { { .kind = SERVE_HOLD, .reply = "" } },
     .expect = { .err = SPN_ERROR, .kind = SPN_HTTP_UNTRUSTED },
   },
 };

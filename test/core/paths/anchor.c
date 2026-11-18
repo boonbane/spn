@@ -16,14 +16,14 @@ static const anchor_test_t anchor_tests [] = {
   {
     .name = "storage_relative_is_identity",
     .roots = { .storage = "/S" },
-    .path = { SPN_PATH_ROOT_STORAGE, "cache/store/pkg/fp/include/a.h" },
-    .expect = { SPN_PATH_ROOT_STORAGE, "cache/store/pkg/fp/include/a.h" }
+    .path = { SPN_PATH_ROOT_STORAGE, "pkg/A/B/include/a.h" },
+    .expect = { SPN_PATH_ROOT_STORAGE, "pkg/A/B/include/a.h" }
   },
   {
     .name = "storage_relative_is_identity_outside_nested_roots",
-    .roots = { .storage = "/S", .toolchain = "/S/cache/toolchain" },
-    .path = { SPN_PATH_ROOT_STORAGE, "cache/dag" },
-    .expect = { SPN_PATH_ROOT_STORAGE, "cache/dag" }
+    .roots = { .storage = "/S", .toolchain = "/S/toolchain" },
+    .path = { SPN_PATH_ROOT_STORAGE, "store" },
+    .expect = { SPN_PATH_ROOT_STORAGE, "store" }
   },
   {
     .name = "sub_reaching_into_a_nested_root_takes_it",

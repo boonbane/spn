@@ -199,10 +199,10 @@ docker_init_err_t docker_init(docker_t* docker, sp_mem_t mem) {
   if (sp_fs_get_storage_path(mem, &storage)) {
     return DOCKER_INIT_ERR_STORE;
   }
-  sp_str_t cache = sp_fs_join_path(mem, storage, sp_str_lit("spn/cache"));
-  docker->paths.xwin.cache = sp_fs_join_path(mem, cache, sp_str_lit("xwin/cache"));
-  docker->paths.xwin.splat = sp_fs_join_path(mem, cache, sp_str_lit("xwin/splat"));
-  docker->paths.toolchain = sp_fs_join_path(mem, cache, sp_str_lit("toolchain"));
+  sp_str_t spn_dir = sp_fs_join_path(mem, storage, sp_str_lit("spn"));
+  docker->paths.xwin.cache = sp_fs_join_path(mem, spn_dir, sp_str_lit("xwin/cache"));
+  docker->paths.xwin.splat = sp_fs_join_path(mem, spn_dir, sp_str_lit("xwin/splat"));
+  docker->paths.toolchain = sp_fs_join_path(mem, spn_dir, sp_str_lit("toolchain"));
 
   sp_fs_create_dir(docker->paths.toolchain);
   if (spn_path_roots_set(&docker->roots, mem, SPN_PATH_ROOT_TOOLCHAIN, sp_path_from_str(docker->paths.toolchain))) {

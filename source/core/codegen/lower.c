@@ -5,6 +5,7 @@
 #include "manifest.gen.h"
 #include "paths/paths.h"
 #include "enum/enum.h"
+#include "git/url.h"
 #include "glob/glob.h"
 #include "semver/convert.h"
 #include "semver/parser.h"
@@ -324,6 +325,13 @@ static void lower_package(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, s
   info->name = sp_intern(ctx->intern, p->name);
   info->repo = p->repo;
   if (!sp_str_empty(p->upstream.url)) {
+    if (!spn_git_url_valid(p->upstream.url)) {
+      spn_toml_loader_push_key(ctx, "package");
+      spn_toml_loader_push_key(ctx, "upstream");
+      spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "url");
+      spn_toml_loader_pop(ctx);
+      spn_toml_loader_pop(ctx);
+    }
     info->upstream = (spn_pkg_root_t) {
       .kind = SPN_PKG_ROOT_GIT,
       .git = { .url = p->upstream.url, .rev = p->upstream.commit },
@@ -433,6 +441,8 @@ spn_index_info_t spn_index_lower(spn_toml_loader_t* ctx, u32 at, spn_index_kind_
       }
       if (!has_url) {
         spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_MISSING_KEY, "url");
+      } else if (!spn_git_url_valid(decl->url)) {
+        spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "url");
       }
       info.git.url = decl->url;
       info.git.rev = decl->rev;
@@ -445,6 +455,8 @@ spn_index_info_t spn_index_lower(spn_toml_loader_t* ctx, u32 at, spn_index_kind_
       }
       if (!has_url) {
         spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_MISSING_KEY, "url");
+      } else if (!spn_git_url_valid(decl->url)) {
+        spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "url");
       }
       info.http.url = decl->url;
       break;
@@ -481,6 +493,16 @@ spn_net_config_t spn_net_lower(spn_toml_loader_t* ctx, const spn_cg_net_t* cg) {
     .timeout_s = (u32)sp_min(timeout, spn_net_max_timeout_s),
     .ca_bundle = cg->ca_bundle,
     .system_git = !sp_opt_is_null(cg->system_git) && sp_opt_get(cg->system_git),
+  };
+}
+
+spn_cache_config_t spn_cache_lower(const spn_cg_cache_t* cg) {
+  u64 max_size = sp_opt_is_null(cg->max_size) ? spn_cache_default_max_size_gb : sp_opt_get(cg->max_size);
+  u64 min_age = sp_opt_is_null(cg->min_age) ? spn_cache_default_min_age_s : sp_opt_get(cg->min_age);
+  return (spn_cache_config_t) {
+    .max_bytes = sp_min(max_size, spn_cache_max_size_gb) << 30,
+    .min_age_s = sp_max(min_age, spn_cache_least_min_age_s),
+    .sweep_interval_s = sp_opt_is_null(cg->sweep_interval) ? spn_cache_default_sweep_interval_s : sp_opt_get(cg->sweep_interval),
   };
 }
 

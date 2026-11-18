@@ -302,6 +302,7 @@ flags = ['-DTEST_EMBED="resolver.embed.h"']
 name = "integration"
 source = [
   "test/integration/main.c",
+  "test/integration/cache.c",
   "test/integration/cli.c",
   "test/integration/compile_commands.c",
   "test/integration/config.c",

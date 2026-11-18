@@ -51,20 +51,20 @@ static const roots_test_t roots_tests [] = {
   {
     .name = "storage_keeps_the_layout_prefix",
     .roots = { .storage = "/S" },
-    .path = "/S/cache/dag/store/H",
-    .expect = { .root = SPN_PATH_ROOT_STORAGE, .sub = "cache/dag/store/H" }
+    .path = "/S/store/blob/H",
+    .expect = { .root = SPN_PATH_ROOT_STORAGE, .sub = "store/blob/H" }
   },
   {
     .name = "toolchain_wins_inside_storage",
-    .roots = { .storage = "/S", .toolchain = "/S/cache/toolchain" },
-    .path = "/S/cache/toolchain/store/D/bin/cc",
+    .roots = { .storage = "/S", .toolchain = "/S/toolchain" },
+    .path = "/S/toolchain/store/D/bin/cc",
     .expect = { .root = SPN_PATH_ROOT_TOOLCHAIN, .sub = "store/D/bin/cc" }
   },
   {
     .name = "storage_keeps_siblings_of_toolchain",
-    .roots = { .storage = "/S", .toolchain = "/S/cache/toolchain" },
-    .path = "/S/cache/dag/H",
-    .expect = { .root = SPN_PATH_ROOT_STORAGE, .sub = "cache/dag/H" }
+    .roots = { .storage = "/S", .toolchain = "/S/toolchain" },
+    .path = "/S/store/H",
+    .expect = { .root = SPN_PATH_ROOT_STORAGE, .sub = "store/H" }
   },
   {
     .name = "relocated_toolchain_collapses",

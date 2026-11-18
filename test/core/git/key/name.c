@@ -15,6 +15,8 @@ static const test_t tests [] = {
   { .name = "https_no_suffix",  .url = "https://A/B",     .expect = { .name = "B" } },
   { .name = "ssh",              .url = "U@A:B",           .expect = { .name = "B" } },
   { .name = "trailing_slash",   .url = "https://A/B/",    .expect = { .name = "B" } },
+  { .name = "git_dir",          .url = "/A/B/.git",       .expect = { .name = "B" } },
+  { .name = "backslashes",      .url = "A:\\B\\C",        .expect = { .name = "C" } },
 };
 
 sp_test_each(git_key, url_name, test_t, tests) {

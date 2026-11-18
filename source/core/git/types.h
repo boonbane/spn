@@ -13,6 +13,7 @@
 typedef struct {
   sp_str_t url;
   spn_path_t path;
+  spn_path_t lock;
   sp_mutex_t mutex;
   bool ready;
   spn_err_t err;
@@ -52,6 +53,7 @@ typedef struct {
   sp_mutex_t mutex;
   struct {
     spn_path_t dir;
+    spn_path_t locks;
     sp_str_ht(spn_git_db_t*) entries;
   } db;
   struct {
