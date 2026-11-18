@@ -182,6 +182,10 @@ spn_invocation_result_t spn_invocation_run_progress(const spn_path_roots_t* root
 #endif
 }
 
+spn_err_t spn_invocation_write_log(sp_path_t path, const spn_invocation_result_t* run) {
+  return sp_fs_write_at(path, run->result.out, SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms) ? SPN_ERR_DAG_OUTPUT_WRITE : SPN_OK;
+}
+
 spn_event_run_t spn_event_run(const spn_path_roots_t* roots, const spn_invocation_t* invocation, const spn_invocation_result_t* run) {
   return (spn_event_run_t) {
     .command = spn_invocation_to_str(roots, spn.events->mem, invocation),

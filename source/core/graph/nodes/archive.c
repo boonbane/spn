@@ -39,6 +39,7 @@ static spn_err_t run_archiver(sp_mem_t mem, const si_dag_ctx_t* c, si_archive_t*
     return SPN_ERR_DAG_ACTION;
   }
 
+  spn_try(spn_invocation_write_log(si_dag_output_at(c, archive->log), &run));
   spn_event_buffer_push(spn.events, (spn_event_t) {
     .kind = SPN_EVENT_LINK_PASSED,
     .link_passed = { .subject = archive->subject, .file_name = archive->file_name, .run = report },
