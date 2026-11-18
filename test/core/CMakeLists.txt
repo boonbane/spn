@@ -6,6 +6,7 @@ add_executable(core
   drain.c
   elf.c
   fs.c
+  cpu.c
   copy.c
   wake.c
   sim.c
