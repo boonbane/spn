@@ -20,6 +20,16 @@ static const test_t tests [] = {
     },
   },
   {
+    .name = "both_kinds_lib",
+    .project = "test/integration/fixtures/target/both_kinds",
+    .copy = { "a.c" },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = pkg_static_lib("A", "A") },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = pkg_shared_lib("A", "A") },
+    },
+  },
+  {
     .name = "shared_source",
     .project = "test/integration/fixtures/target/shared_source",
     .actions = {
