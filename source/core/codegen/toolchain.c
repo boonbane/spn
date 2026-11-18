@@ -32,6 +32,14 @@ static spn_arg_t lower_sdk_path(spn_toml_loader_t* ctx, spn_toolchain_source_t s
   return sp_zero_struct(spn_arg_t);
 }
 
+static sp_da(sp_str_t) lower_strs(spn_toml_loader_t* ctx, sp_da(sp_str_t) values) {
+  sp_da(sp_str_t) out = sp_da_new(ctx->mem, sp_str_t);
+  sp_da_for(values, it) {
+    sp_da_push(out, spn_toml_loader_intern(ctx, values[it]));
+  }
+  return out;
+}
+
 static bool sanitizable(spn_triple_t triple) {
   return triple.abi != SPN_ABI_BARE && triple.abi != SPN_ABI_ELF;
 }
@@ -60,6 +68,13 @@ static void lower_target_fields(spn_toml_loader_t* ctx, spn_toolchain_source_t s
     else {
       spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "spelling");
     }
+  }
+  if (!sp_da_empty(cg->exceptions.flags) || !sp_da_empty(cg->exceptions.link_flags)) {
+    target->exceptions = (spn_toolchain_exceptions_t) {
+      .declared = true,
+      .flags = lower_strs(ctx, cg->exceptions.flags),
+      .link_flags = lower_strs(ctx, cg->exceptions.link_flags),
+    };
   }
 }
 
@@ -131,7 +146,7 @@ static bool lower_linker(spn_toml_loader_t* ctx, spn_ld_family_t declared, spn_c
 }
 
 static bool target_has_fields(const spn_cg_toolchain_target_t* cg) {
-  return !sp_opt_is_null(cg->arch) || !sp_opt_is_null(cg->os) || !sp_opt_is_null(cg->abi) || !sp_str_empty(cg->sdk) || !sp_str_empty(cg->spelling) || !sp_da_empty(cg->sanitizers);
+  return !sp_opt_is_null(cg->arch) || !sp_opt_is_null(cg->os) || !sp_opt_is_null(cg->abi) || !sp_str_empty(cg->sdk) || !sp_str_empty(cg->spelling) || !sp_da_empty(cg->exceptions.flags) || !sp_da_empty(cg->exceptions.link_flags) || !sp_da_empty(cg->sanitizers);
 }
 
 static bool targeted(sp_da(spn_toolchain_target_t) targets, spn_triple_t triple) {
@@ -190,14 +205,6 @@ static void lower_toolchain_targets(spn_toml_loader_t* ctx, spn_path_root_t base
   }
   spn_toml_loader_pop(ctx);
   toolchain->targets = targets;
-}
-
-static sp_da(sp_str_t) lower_strs(spn_toml_loader_t* ctx, sp_da(sp_str_t) values) {
-  sp_da(sp_str_t) out = sp_da_new(ctx->mem, sp_str_t);
-  sp_da_for(values, it) {
-    sp_da_push(out, spn_toml_loader_intern(ctx, values[it]));
-  }
-  return out;
 }
 
 static void lower_hosts(spn_toml_loader_t* ctx, const spn_cg_toolchain_decl_t* decl, spn_toolchain_decl_t* toolchain) {

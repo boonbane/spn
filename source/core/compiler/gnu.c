@@ -267,7 +267,10 @@ spn_cc_compile_plan_t spn_gnu_render_compile(sp_mem_t mem, const spn_cc_t* toolc
     spn_cc_push_str(mem, invocation, render_define(mem, compile->define[it]));
   }
   if (lang == SPN_LANG_CXX) {
-    if (compile->cxx.no_exceptions) {
+    if (compile->cxx.exceptions) {
+      spn_cc_push_strs(mem, invocation, profile->exceptions.flags);
+    }
+    else {
       spn_cc_push_c(mem, invocation, "-fno-exceptions");
     }
     if (compile->cxx.no_rtti) {
@@ -478,6 +481,9 @@ spn_cc_link_plan_t spn_gnu_render_link(sp_mem_t mem, const spn_cc_t* toolchain, 
   sp_da_init(mem, flags.link);
   spn_gnu_render_flags(mem, toolchain, profile, &flags);
   spn_cc_push_strs(mem, base, flags.link);
+  if (link->exceptions) {
+    spn_cc_push_strs(mem, base, profile->exceptions.link_flags);
+  }
   switch (link->kind) {
     case SPN_CC_OUTPUT_REACTOR: {
       spn_cc_push_c(mem, base, "-mexec-model=reactor");

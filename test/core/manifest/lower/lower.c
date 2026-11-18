@@ -82,7 +82,7 @@ typedef struct {
   gated_t deps [4];
   gated_t frameworks [4];
   embed_t embed [4];
-  spn_cxx_options_t cxx;
+  spn_cxx_decl_t cxx;
 } target_t;
 
 typedef struct {
@@ -422,7 +422,19 @@ static const test_t tests [] = {
         .name = "t",
         .linkages = { .static_lib = true },
         .source = { { "spum.cpp" } },
-        .cxx = { .standard = SPN_CXX14, .no_exceptions = true, .no_rtti = true },
+        .cxx = { .standard = SPN_CXX14, .exceptions = SPN_CXX_EXCEPTIONS_OFF, .no_rtti = true },
+      }
+    }
+  },
+  {
+    .name = "cxx_exceptions",
+    .manifest = "cxx_exceptions",
+    .libs = {
+      {
+        .name = "t",
+        .linkages = { .static_lib = true },
+        .source = { { "spum.cpp" } },
+        .cxx = { .exceptions = SPN_CXX_EXCEPTIONS_ON },
       }
     }
   },
@@ -2033,7 +2045,7 @@ static sp_err_t check_targets(sp_test_t* t, si_pkg_info_t* pkg, const target_t* 
       sp_expect_str_eq_c(t, spn_when_to_str(sp_test_arena(t), &actual->when), expected->when ? expected->when : "always");
     }
     sp_expect_eq(t, (u32)arr[i].cxx.standard, (u32)info->cxx.standard);
-    sp_expect_eq(t, arr[i].cxx.no_exceptions, info->cxx.no_exceptions);
+    sp_expect_eq(t, (u32)arr[i].cxx.exceptions, (u32)info->cxx.exceptions);
     sp_expect_eq(t, arr[i].cxx.no_rtti, info->cxx.no_rtti);
   }
   return SP_OK;

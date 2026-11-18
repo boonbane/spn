@@ -21,7 +21,7 @@ static spn_path_t sdk_root(spn_toolchain_catalog_t* catalog, spn_toolchain_suppo
 }
 
 static void bind_target(spn_toolchain_catalog_t* catalog, spn_toolchain_info_t* info, spn_toolchain_support_t support, spn_toolchain_target_t target) {
-  spn_toolchain_row_t row = { .triple = target.triple, .spelling = target.spelling, .sanitizers = target.sanitizers };
+  spn_toolchain_row_t row = { .triple = target.triple, .spelling = target.spelling, .exceptions = target.exceptions, .sanitizers = target.sanitizers };
   if (!spn_arg_empty(target.sdk)) {
     row.sdk = spn_sdk_at(catalog->mem, target.triple, sdk_root(catalog, support, target.sdk));
     sp_da_push(info->rows, row);

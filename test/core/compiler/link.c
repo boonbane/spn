@@ -9,6 +9,7 @@ typedef struct {
   spn_triple_t host;
   test_profile_t profile;
   spn_cc_output_kind_t kind;
+  bool exceptions;
   const c8* exports;
   const c8* implib;
   const c8* archive;
@@ -86,6 +87,33 @@ static const link_test_t tests [] = {
       .linking.linkage = SPN_LIB_KIND_STATIC,
       .linking.runtime = SPN_RUNTIME_STATIC,
       .linking.libc = SPN_RUNTIME_STATIC,
+    },
+    .kind = SPN_CC_OUTPUT_EXE,
+    .expect = {
+      .command = "cc",
+      .args = { "--target=wasm32-wasi", "main.o", "-o", "main" },
+    },
+  },
+  {
+    .name = "exceptions_take_the_row_link_flags",
+    .driver = SPN_CC_DRIVER_CLANG,
+    .profile = {
+      .target = { SPN_ARCH_WASM32, SPN_OS_WASI },
+      .exceptions.link_flags = { "-fA", "-lB" },
+    },
+    .kind = SPN_CC_OUTPUT_EXE,
+    .exceptions = true,
+    .expect = {
+      .command = "cc",
+      .args = { "--target=wasm32-wasi", "-fA", "-lB", "main.o", "-o", "main" },
+    },
+  },
+  {
+    .name = "row_link_flags_stay_off_without_exceptions",
+    .driver = SPN_CC_DRIVER_CLANG,
+    .profile = {
+      .target = { SPN_ARCH_WASM32, SPN_OS_WASI },
+      .exceptions.link_flags = { "-fA", "-lB" },
     },
     .kind = SPN_CC_OUTPUT_EXE,
     .expect = {
@@ -1061,6 +1089,7 @@ sp_test_each(render_link, render, link_test_t, tests, .setup = spn_test_ctx_setu
   spn_cc_link_t link = {
     .lang = SPN_LANG_C,
     .kind = it->kind,
+    .exceptions = it->exceptions,
     .min_os = it->min_os,
     .subsystem = it->subsystem,
   };

@@ -164,6 +164,7 @@ add_executable(core
   unit/edges.c
   unit/emit.c
   unit/errors.c
+  unit/exceptions.c
   unit/fingerprint.c
   unit/host.c
   unit/includes.c

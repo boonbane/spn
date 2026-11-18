@@ -71,10 +71,10 @@ static spn_linkage_set_t lower_emit(sp_da(spn_linkage_t) kinds) {
   return set;
 }
 
-static spn_cxx_options_t lower_cxx_options(const spn_cg_cxx_options_t* cg) {
-  return (spn_cxx_options_t) {
+static spn_cxx_decl_t lower_cxx_options(const spn_cg_cxx_options_t* cg) {
+  return (spn_cxx_decl_t) {
     .standard = sp_opt_is_null(cg->standard) ? SPN_CXX_STANDARD_NONE : sp_opt_get(cg->standard),
-    .no_exceptions = sp_opt_is_null(cg->exceptions) ? false : !sp_opt_get(cg->exceptions),
+    .exceptions = sp_opt_is_null(cg->exceptions) ? SPN_CXX_EXCEPTIONS_UNSET : sp_opt_get(cg->exceptions) ? SPN_CXX_EXCEPTIONS_ON : SPN_CXX_EXCEPTIONS_OFF,
     .no_rtti = sp_opt_is_null(cg->rtti) ? false : !sp_opt_get(cg->rtti),
   };
 }

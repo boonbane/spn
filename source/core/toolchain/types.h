@@ -142,9 +142,16 @@ typedef struct {
 } spn_toolchain_host_t;
 
 typedef struct {
+  bool declared;
+  sp_da(sp_str_t) flags;
+  sp_da(sp_str_t) link_flags;
+} spn_toolchain_exceptions_t;
+
+typedef struct {
   spn_triple_t triple;
   spn_arg_t sdk;
   sp_str_t spelling;
+  spn_toolchain_exceptions_t exceptions;
   spn_sanitizer_set_t sanitizers;
 } spn_toolchain_target_t;
 
@@ -152,6 +159,7 @@ typedef struct {
   spn_triple_t triple;
   spn_sdk_t sdk;
   sp_str_t spelling;
+  spn_toolchain_exceptions_t exceptions;
   spn_sanitizer_set_t sanitizers;
 } spn_toolchain_row_t;
 

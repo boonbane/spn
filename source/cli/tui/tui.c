@@ -1119,6 +1119,10 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
               sp_tty_fmt(&w, "Toolchain {} can't build static archives for {.yellow}", sp_fmt_str(toolchain), sp_fmt_str(target));
               break;
             }
+            case SPN_CC_FEATURE_EXCEPTIONS: {
+              sp_tty_fmt(&w, "{.cyan} enables C++ exceptions, but toolchain {} doesn't support them for {.yellow}", sp_fmt_str(subject), sp_fmt_str(toolchain), sp_fmt_str(target));
+              break;
+            }
           }
           break;
         }
@@ -2190,6 +2194,18 @@ static void render_event_extra(sp_tty_t* w, spn_event_t* event) {
         }
         case SPN_ERR_TARGET_ABI: {
           write_supported_targets(w, event->err.profile.targets);
+          break;
+        }
+        case SPN_ERR_COMPILER_FEATURE_UNSUPPORTED: {
+          spn_err_compiler_t* err = &event->err.compiler;
+          sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+          sp_str_t label = sp_fmt(scratch.mem, "toolchains that do, targeting {}", sp_fmt_str(spn_triple_to_str(scratch.mem, err->target))).value;
+          list_t list = { .w = w, .label = label, .style = sp_fmt_style_green };
+          sp_da_for(err->candidates, it) {
+            list_item(&list, err->candidates[it]);
+          }
+          list_end(&list);
+          sp_mem_end_scratch(scratch);
           break;
         }
         case SPN_ERR_TARGET_HOST_DEPS: {

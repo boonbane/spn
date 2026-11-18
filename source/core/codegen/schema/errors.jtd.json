@@ -228,7 +228,7 @@
         "program": { "type": "string" }
       }
     },
-    "cc_feature": { "enum": ["link_exe", "link_shared", "link_reactor", "archive", "frameworks", "linker_script"] },
+    "cc_feature": { "enum": ["link_exe", "link_shared", "link_reactor", "archive", "frameworks", "linker_script", "exceptions"] },
     "linkage_requester": { "enum": ["profile", "root_manifest", "libc", "target", "no_loader"] },
     "linking_refusal": { "enum": ["none", "no_loader", "os_libc", "os_runtime", "shared_runtime", "hybrid_crt", "shared_deps"] },
     "refusal": {
@@ -301,7 +301,8 @@
         "feature": { "ref": "cc_feature" },
         "pkg": { "type": "string" },
         "name": { "type": "string" },
-        "frameworks": { "elements": { "type": "string" } }
+        "frameworks": { "elements": { "type": "string" } },
+        "candidates": { "elements": { "type": "string" } }
       }
     },
     "fs": {

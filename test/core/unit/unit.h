@@ -54,6 +54,7 @@ typedef struct {
   graph_prebuilt_t shared [UNIT_TEST_MAX_PREBUILT];
   const c8* embed [UNIT_TEST_MAX_STRS];
   spn_os_version_t min_os;
+  spn_cxx_exceptions_t exceptions;
 } graph_target_t;
 
 typedef struct {
@@ -95,6 +96,7 @@ typedef struct {
   const c8* name;
   bool host_row;
   bool foreign;
+  bool exceptions;
 } graph_toolchain_t;
 
 typedef struct {
@@ -114,6 +116,7 @@ typedef struct {
   bool sdk_host;
   bool sdk_libc;
   bool no_cxx;
+  const c8* exceptions [UNIT_TEST_MAX_STRS];
   spn_linking_t request;
   spn_linkage_t linkage;
   spn_runtime_t runtime;

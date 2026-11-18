@@ -8,6 +8,7 @@ typedef struct {
   const c8* consumer;
   spn_cc_feature_t feature;
   const c8* frameworks [UNIT_TEST_MAX_STRS];
+  const c8* candidates [UNIT_TEST_MAX_TOOLCHAINS + 1];
   const c8* source;
 } expect_t;
 
@@ -193,6 +194,18 @@ static const test_t tests [] = {
     .expect = { .err = SPN_ERR_COMPILER_FEATURE_UNSUPPORTED, .feature = SPN_CC_FEATURE_LINKER_SCRIPT },
   },
   {
+    .name = "wasm_exceptions_without_a_declaring_row",
+    .graph = {
+      .arch = SPN_ARCH_WASM32,
+      .os = SPN_OS_WASI,
+      .abi = SPN_ABI_MUSL,
+      .catalog = { { "Z" }, { "E", .exceptions = true } },
+      .pkgs = { { .name = "P", .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "a.cpp" }, .exceptions = SPN_CXX_EXCEPTIONS_ON } } } },
+    },
+    .root = { "A", SPN_TARGET_KIND_EXE },
+    .expect = { .err = SPN_ERR_COMPILER_FEATURE_UNSUPPORTED, .feature = SPN_CC_FEATURE_EXCEPTIONS, .candidates = { "E" } },
+  },
+  {
     .name = "cxx_source_without_cxx_compiler",
     .graph = {
       .no_cxx = true,
@@ -304,6 +317,7 @@ sp_test_each(unit_errors, plan, test_t, tests, .setup = spn_test_ctx_setup, .tea
       sp_expect_str_eq_c(t, refusal->name, "A");
       sp_expect(t, spn_triple_equal(refusal->target, u->session.builds.program->profile.target));
       sp_must_strs_eq(t, refusal->frameworks, sp_da_size(refusal->frameworks), it->expect.frameworks);
+      sp_must_strs_eq(t, refusal->candidates, sp_da_size(refusal->candidates), it->expect.candidates);
       break;
     }
     case SPN_ERR_TARGET_STUB_REQUIRED:

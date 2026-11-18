@@ -38,11 +38,19 @@ typedef struct {
   const c8* snapshot;
 } fixture_host_t;
 
+#define FIXTURE_MAX_FLAGS 3
+
+typedef struct {
+  const c8* flags [FIXTURE_MAX_FLAGS];
+  const c8* link_flags [FIXTURE_MAX_FLAGS];
+} fixture_exceptions_t;
+
 typedef struct {
   spn_triple_t triple;
   test_arg_t sdk;
   spn_sanitizer_set_t sanitizers;
   const c8* spelling;
+  fixture_exceptions_t exceptions;
 } fixture_target_t;
 
 typedef struct {
@@ -64,6 +72,7 @@ typedef struct {
   fixture_sdk_expect_t sdk;
   spn_sanitizer_set_t sanitizers;
   const c8* spelling;
+  fixture_exceptions_t exceptions;
 } fixture_row_t;
 
 typedef struct {
@@ -176,8 +185,35 @@ static spn_arg_t fixture_sdk_arg(test_arg_t sdk) {
   return sp_zero_struct(spn_arg_t);
 }
 
-static spn_toolchain_target_t fixture_target(fixture_target_t target) {
-  return (spn_toolchain_target_t) { .triple = target.triple, .sdk = fixture_sdk_arg(target.sdk), .spelling = sp_cstr_as_str(target.spelling), .sanitizers = target.sanitizers };
+static sp_da(sp_str_t) fixture_flags(sp_mem_t mem, const c8* const* flags) {
+  sp_da(sp_str_t) out = sp_da_new(mem, sp_str_t);
+  sp_for(it, FIXTURE_MAX_FLAGS) {
+    if (flags[it]) {
+      sp_da_push(out, sp_cstr_as_str(flags[it]));
+    }
+  }
+  return out;
+}
+
+static spn_toolchain_target_t fixture_target(sp_mem_t mem, fixture_target_t target) {
+  return (spn_toolchain_target_t) {
+    .triple = target.triple,
+    .sdk = fixture_sdk_arg(target.sdk),
+    .spelling = sp_cstr_as_str(target.spelling),
+    .exceptions = {
+      .declared = target.exceptions.flags[0] || target.exceptions.link_flags[0],
+      .flags = fixture_flags(mem, target.exceptions.flags),
+      .link_flags = fixture_flags(mem, target.exceptions.link_flags),
+    },
+    .sanitizers = target.sanitizers,
+  };
+}
+
+static sp_err_t fixture_check_exceptions(sp_test_t* t, spn_toolchain_exceptions_t exceptions, fixture_exceptions_t expect) {
+  sp_expect_eq(t, expect.flags[0] || expect.link_flags[0], exceptions.declared);
+  sp_must_strs_eq(t, exceptions.flags, sp_da_size(exceptions.flags), expect.flags);
+  sp_must_strs_eq(t, exceptions.link_flags, sp_da_size(exceptions.link_flags), expect.link_flags);
+  return SP_OK;
 }
 
 static sp_err_t fixture_check_launcher(sp_test_t* t, spn_toolchain_launcher_t launcher, fixture_launcher_t expect) {
@@ -221,10 +257,12 @@ static sp_err_t fixture_check_triples(sp_test_t* t, sp_da(spn_triple_t) triples,
 static sp_err_t fixture_check_targets(sp_test_t* t, sp_da(spn_toolchain_target_t) targets, const fixture_target_t* expect, u32 count) {
   sp_must_eq(t, count, (u32)sp_da_size(targets));
   sp_for(it, count) {
-    spn_toolchain_target_t want = fixture_target(expect[it]);
-    sp_expect(t, spn_triple_equal(want.triple, targets[it].triple));
-    sp_expect_eq(t, want.sanitizers, targets[it].sanitizers);
-    sp_expect_str_eq(t, targets[it].spelling, want.spelling);
+    sp_expect(t, spn_triple_equal(expect[it].triple, targets[it].triple));
+    sp_expect_eq(t, expect[it].sanitizers, targets[it].sanitizers);
+    sp_expect_str_eq_c(t, targets[it].spelling, expect[it].spelling);
+    if (fixture_check_exceptions(t, targets[it].exceptions, expect[it].exceptions)) {
+      return SP_ERR;
+    }
     if (!expect[it].sdk.name && !expect[it].sdk.path) {
       sp_expect(t, spn_arg_empty(targets[it].sdk));
     }
@@ -242,6 +280,9 @@ static sp_err_t fixture_check_rows(sp_test_t* t, sp_da(spn_toolchain_row_t) rows
     sp_expect_str_eq(t, spn_triple_to_str(mem, rows[it].triple), spn_triple_to_str(mem, expect[it].triple));
     sp_expect_eq(t, expect[it].sanitizers, rows[it].sanitizers);
     sp_expect_str_eq_c(t, rows[it].spelling, expect[it].spelling);
+    if (fixture_check_exceptions(t, rows[it].exceptions, expect[it].exceptions)) {
+      return SP_ERR;
+    }
     if (fixture_check_sdk(t, rows[it].sdk, expect[it].sdk)) {
       return SP_ERR;
     }

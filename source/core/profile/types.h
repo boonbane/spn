@@ -32,6 +32,7 @@ struct spn_profile_info {
   bool targeted;
   spn_sdk_t sdk;
   sp_str_t spelling;
+  spn_toolchain_exceptions_t exceptions;
   sp_opt(spn_libc_t) libc;
 };
 

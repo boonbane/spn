@@ -164,6 +164,7 @@ struct spn_target_unit {
   si_target_t* target;
   spn_linkage_t lib_kind;
   spn_linkage_set_t products;
+  bool exceptions;
   spn_path_t install;
   sp_opt(spn_prebuilt_t) prebuilt;
 

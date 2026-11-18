@@ -22,6 +22,7 @@ static const test_t tests [] = {
   { .name = "sanitizer_changes_fingerprint",    .a = sp_zero,                                             .b = { .sanitize = SPN_SANITIZER_ADDRESS } },
   { .name = "compiler_program_changes_fingerprint", .a = { .cc = "cc" },                                  .b = { .cc = "gcc" } },
   { .name = "link_args_change_fingerprint",     .a = sp_zero,                                             .b = { .link_args = { "-fuse-ld=lld" } } },
+  { .name = "exception_flags_change_fingerprint", .a = sp_zero,                                           .b = { .exceptions = { "-fA" } } },
   // Default option values ride the manifest; only a non-default value is identity
   {
     .name = "default_option_is_inert",

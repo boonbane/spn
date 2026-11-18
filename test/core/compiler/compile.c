@@ -407,6 +407,7 @@ static const compile_test_t tests [] = {
       .linking.runtime = SPN_RUNTIME_STATIC,
     },
     .lang = SPN_LANG_CXX,
+    .cxx = { .exceptions = true },
     .expect = {
       .command = "c++",
       .args = { "/nologo", "/utf-8", "/Brepro", "/std:c++17", "/MT", "/c", "/EHsc", "/we4715", "/Fomain.o", "main.c" },
@@ -420,7 +421,7 @@ static const compile_test_t tests [] = {
       .linking.runtime = SPN_RUNTIME_STATIC,
     },
     .lang = SPN_LANG_CXX,
-    .cxx = { .standard = SPN_CXX20, .no_exceptions = true, .no_rtti = true },
+    .cxx = { .standard = SPN_CXX20, .no_rtti = true },
     .expect = {
       .command = "c++",
       .args = { "/nologo", "/utf-8", "/Brepro", "/std:c++20", "/MT", "/c", "/GR-", "/we4715", "/Fomain.o", "main.c" },
@@ -543,7 +544,7 @@ static const compile_test_t tests [] = {
       .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU },
     },
     .lang = SPN_LANG_CXX,
-    .cxx = { .no_exceptions = true, .no_rtti = true },
+    .cxx = { .no_rtti = true },
     .expect = {
       .command = "c++",
       .args = { "-std=c++17", "-c", "-fno-exceptions", "-fno-rtti", "-Werror=return-type", "main.c", "-o", "main.o" },
@@ -556,10 +557,24 @@ static const compile_test_t tests [] = {
       .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU },
     },
     .lang = SPN_LANG_CXX,
-    .cxx = { .standard = SPN_CXX20 },
+    .cxx = { .standard = SPN_CXX20, .exceptions = true },
     .expect = {
       .command = "c++",
       .args = { "-std=c++20", "-c", "-Werror=return-type", "main.c", "-o", "main.o" },
+    },
+  },
+  {
+    .name = "cxx_exceptions_take_the_row_flags",
+    .driver = SPN_CC_DRIVER_CLANG,
+    .profile = {
+      .target = { SPN_ARCH_WASM32, SPN_OS_WASI },
+      .exceptions.flags = { "-fA", "-fB" },
+    },
+    .lang = SPN_LANG_CXX,
+    .cxx = { .exceptions = true },
+    .expect = {
+      .command = "c++",
+      .args = { "--target=wasm32-wasi", "-std=c++17", "-c", "-fA", "-fB", "-Werror=return-type", "main.c", "-o", "main.o" },
     },
   },
   {

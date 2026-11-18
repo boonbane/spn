@@ -30,7 +30,21 @@ spn_profile_info_t test_profile(test_profile_t desc) {
     .opt = desc.opt,
     .sanitizers = desc.sanitizers,
     .spelling = sp_cstr_as_str(desc.spelling),
+    .exceptions = {
+      .flags = sp_da_new(spn.mem, sp_str_t),
+      .link_flags = sp_da_new(spn.mem, sp_str_t),
+    },
   };
+  sp_carr_for(desc.exceptions.flags, it) {
+    if (desc.exceptions.flags[it]) {
+      sp_da_push(profile.exceptions.flags, sp_cstr_as_str(desc.exceptions.flags[it]));
+    }
+  }
+  sp_carr_for(desc.exceptions.link_flags, it) {
+    if (desc.exceptions.link_flags[it]) {
+      sp_da_push(profile.exceptions.link_flags, sp_cstr_as_str(desc.exceptions.link_flags[it]));
+    }
+  }
   if (desc.sdk) {
     profile.sdk = spn_sdk_at(spn.mem, desc.target, test_arg_path(desc.sdk));
   }

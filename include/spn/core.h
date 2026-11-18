@@ -74,6 +74,7 @@ typedef enum {
   SPN_CC_FEATURE_ARCHIVE,
   SPN_CC_FEATURE_FRAMEWORKS,
   SPN_CC_FEATURE_LINKER_SCRIPT,
+  SPN_CC_FEATURE_EXCEPTIONS,
 } spn_cc_feature_t;
 
 typedef enum {

@@ -83,7 +83,7 @@ compiler = "bin/clang"
 archiver = "bin/llvm-ar"
 cxx = "bin/clang++"
 target = [
-  { arch = "wasm32", os = "wasi", abi = "musl", sdk = "share/wasi-sysroot", spelling = "wasm32-wasip1" },
+  { arch = "wasm32", os = "wasi", abi = "musl", sdk = "share/wasi-sysroot", spelling = "wasm32-wasip1", exceptions = { flags = ["-fwasm-exceptions", "-mllvm", "-wasm-use-legacy-eh=false"], link_flags = ["-fwasm-exceptions", "-lunwind"] } },
   { arch = "wasm32", os = "freestanding", abi = "none" },
 ]
 

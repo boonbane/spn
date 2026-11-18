@@ -381,6 +381,22 @@ static const parse_test_t tests [] = {
     },
   },
   {
+    .name = "exceptions",
+    .file = "exceptions.toml",
+    .expect = {
+      .entries = 1,
+      .toolchains = {
+        {
+          .name = "A",
+          .driver = SPN_CC_DRIVER_CLANG,
+          .compiler = { .name = "A" },
+          .archiver = { .name = "A" },
+          .targets = { { .triple = TARGET_WASM, .exceptions = { .flags = { "-fA" }, .link_flags = { "-fA", "-lB" } } } },
+        },
+      },
+    },
+  },
+  {
     .name = "spelling_on_a_driver_without_target",
     .file = "spelling_fixed.toml",
     .expect = { .err = SPN_ERROR },
