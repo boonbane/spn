@@ -151,7 +151,7 @@ static bool render_config(docker_t* docker) {
   }
   sp_str_t config = sp_fs_join_path(docker->mem, docker->paths.config, sp_str_lit("spn/spn.toml"));
   sp_fs_create_dir(sp_fs_parent_path(config));
-  return !sp_fs_write(config, sp_io_dyn_mem_writer_as_str(&w), SP_FS_WRITE_TRUNCATE);
+  return !sp_fs_write(config, sp_io_dyn_mem_writer_as_str(&w), SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms);
 }
 
 static sp_ps_config_t launch(docker_t* docker, const variant_t* variant, const c8* option, const c8* command) {
@@ -413,7 +413,7 @@ docker_render_err_t docker_render(docker_t* docker, const variant_t* variant) {
     return DOCKER_RENDER_ERR_FAILED;
   }
 
-  sp_fs_write(manifest_path(docker, variant), sp_io_dyn_mem_writer_as_str(&writer), SP_FS_WRITE_TRUNCATE);
+  sp_fs_write(manifest_path(docker, variant), sp_io_dyn_mem_writer_as_str(&writer), SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms);
   return DOCKER_RENDER_OK;
 }
 

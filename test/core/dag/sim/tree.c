@@ -122,7 +122,7 @@ static spn_err_t execute_action(const si_dag_ctx_t* c, void* user_data) {
     }
     sp_path_t path = dag_test_at(&env->dag, spn_path_join(env->dag.mem, output, sp_cstr_as_str(env->run->files[it].path)));
     sp_fs_create_parent_at(path);
-    if (sp_fs_write_at(path, sp_cstr_as_str(env->run->files[it].content), SP_FS_WRITE_TRUNCATE)) {
+    if (sp_fs_write_at(path, sp_cstr_as_str(env->run->files[it].content), SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms)) {
       return SPN_ERR_DAG_ACTION;
     }
   }
@@ -159,7 +159,7 @@ sp_test_each(dag_tree, exec, test_t, tests) {
       sp_must_ok(t, sp_sys_get_path_metadata_s(path.dir, path.sub, &meta));
       sp_sys_set_read_only(&meta.perms, false);
       sp_must_ok(t, sp_sys_set_file_perms_s(path.dir, path.sub, meta.perms));
-      sp_must_ok(t, sp_fs_write_at(path, sp_cstr_as_str(run->overwrite.content), SP_FS_WRITE_TRUNCATE));
+      sp_must_ok(t, sp_fs_write_at(path, sp_cstr_as_str(run->overwrite.content), SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms));
     }
 
     sp_sys_file_meta_t before [DAG_TEST_MAX_OUTPUTS] = sp_zero;

@@ -62,7 +62,7 @@ sp_test_each(unit_objects, create, test_t, tests, .setup = spn_test_ctx_setup, .
     if (!it->files[ft]) {
       break;
     }
-    sp_fs_create_file(sp_fs_join_path(mem, root, sp_cstr_as_str(it->files[ft])));
+    sp_fs_write(sp_fs_join_path(mem, root, sp_cstr_as_str(it->files[ft])), sp_str_lit(""), SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms);
   }
 
   test_manifest_target(mem, units_manifest(u, "A"), sp_str_lit("X"), SPN_TARGET_KIND_EXE);

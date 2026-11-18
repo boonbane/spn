@@ -274,7 +274,7 @@ sp_test_each(dag_discovery, table, test_t, tests) {
   if (it->plant.key) {
     sp_str_t hex = spn_dag_digest_hex(mem, dag_test_digest(it->plant.key));
     sp_path_t path = sp_path_join(mem, sandbox, sp_fmt(mem, "manifests/{}.txt", sp_fmt_str(hex)).value);
-    sp_must_eq(t, SP_OK, sp_fs_write_cstr_at(path, it->plant.content, SP_FS_WRITE_TRUNCATE));
+    sp_must_eq(t, SP_OK, sp_fs_write_cstr_at(path, it->plant.content, SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms));
   }
 
   if (it->reload) {

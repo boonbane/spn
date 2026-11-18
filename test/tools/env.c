@@ -20,7 +20,7 @@ static sp_err_t copy_into(sp_str_t from, sp_str_t dir) {
   sp_mem_arena_marker_t s = sp_mem_begin_scratch();
   sp_path_t into = sp_path_from_str(dir);
   sp_fs_create_dir_at(into);
-  sp_err_t err = sp_fs_copy_at(sp_path_from_str(from), sp_path_join(s.mem, into, sp_fs_get_name(from)), SP_FS_ATOMIC_REPLACE);
+  sp_err_t err = sp_fs_copy_at(sp_path_from_str(from), sp_path_join(s.mem, into, sp_fs_get_name(from)), SP_FS_WRITE_REPLACE);
   sp_mem_end_scratch(s);
   return err;
 }
@@ -67,7 +67,7 @@ static sp_err_t copy_project_path(sp_test_t* t, fixture_t* fixture, sp_str_t pro
   sp_str_t to = fixture_path(fixture, sp_fs_parent_path(relative));
 
   if (sp_str_equal(sp_fs_get_name(relative), sp_str_lit("*"))) {
-    sp_must_ok(t, sp_fs_copy_tree_at(sp_path_from_str(sp_fs_parent_path(from)), sp_path_from_str(to), SP_FS_ATOMIC_REPLACE));
+    sp_must_ok(t, sp_fs_copy_tree_at(sp_path_from_str(sp_fs_parent_path(from)), sp_path_from_str(to), SP_FS_WRITE_REPLACE));
   } else {
     sp_must_ok(t, copy_into(from, to));
   }

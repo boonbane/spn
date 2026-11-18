@@ -142,11 +142,11 @@ sp_test_each(git, failure, test_t, tests, .setup = spn_test_ctx_setup) {
     }
     case DAMAGE_REF_LOCKED: {
       git_repo_commit(remote, sp_str_lit("B"));
-      sp_must_ok(t, sp_fs_write(sp_fmt(mem, "{}.lock", sp_fmt_str(ref)).value, sp_str_lit(""), SP_FS_WRITE_TRUNCATE));
+      sp_must_ok(t, sp_fs_write(sp_fmt(mem, "{}.lock", sp_fmt_str(ref)).value, sp_str_lit(""), SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms));
       break;
     }
     case DAMAGE_REF_GARBLED: {
-      sp_must_ok(t, sp_fs_write(ref, sp_str_lit("A"), SP_FS_WRITE_TRUNCATE));
+      sp_must_ok(t, sp_fs_write(ref, sp_str_lit("A"), SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms));
       break;
     }
   }
@@ -186,7 +186,7 @@ sp_test_each(git, failure, test_t, tests, .setup = spn_test_ctx_setup) {
 
 sp_test(git, init_bare_over_file_fails, .setup = spn_test_ctx_setup) {
   sp_str_t path = sp_fs_join_path(sp_test_arena(t), test_dir_str(t), sp_str_lit("A"));
-  sp_must_ok(t, sp_fs_write(path, sp_str_lit("A"), SP_FS_WRITE_TRUNCATE));
+  sp_must_ok(t, sp_fs_write(path, sp_str_lit("A"), SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms));
 
   spn_git_failure_t failure = { .kind = SPN_GIT_DROPPED, .message = "A" };
   spn_err_t err = spn_git_init_bare(sp_str_lit("B"), path, &failure);

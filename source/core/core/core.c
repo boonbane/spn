@@ -30,7 +30,7 @@ spn_err_t spn_fs_update_file(sp_path_t from, sp_path_t to) {
   spn_err_t err = SPN_OK;
   if (!matches) {
     sp_fs_create_parent_at(to);
-    if (sp_fs_copy_file_at(from, to, SP_FS_ATOMIC_REPLACE)) {
+    if (sp_fs_copy_file_at(from, to, SP_FS_WRITE_REPLACE)) {
       err = SPN_ERROR;
     }
   }

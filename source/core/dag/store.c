@@ -280,7 +280,7 @@ static void save_outputs(spn_dag_action_cache_t* c, spn_dag_digest_t key, const 
   sp_io_dyn_mem_writer_t sink = sp_zero;
   sp_io_dyn_mem_writer_init(s.mem, &sink);
   if (!write_outputs(&sink.base, s.mem, outputs, count)) {
-    sp_fs_write_at(entry_at(c->roots, c->dir, s.mem, key), sp_io_dyn_mem_writer_as_str(&sink), SP_FS_WRITE_REPLACE);
+    sp_fs_write_at(entry_at(c->roots, c->dir, s.mem, key), sp_io_dyn_mem_writer_as_str(&sink), SP_FS_WRITE_REPLACE, sp_sys_default_file_perms);
   }
 
   sp_mem_end_scratch(s);
@@ -292,7 +292,7 @@ static void save_obs(spn_dag_obs_table_t* d, spn_dag_digest_t key, const spn_dag
   sp_io_dyn_mem_writer_t sink = sp_zero;
   sp_io_dyn_mem_writer_init(s.mem, &sink);
   if (!write_obs(&sink.base, s.mem, set)) {
-    sp_fs_write_at(entry_at(d->roots, d->dir, s.mem, key), sp_io_dyn_mem_writer_as_str(&sink), SP_FS_WRITE_REPLACE);
+    sp_fs_write_at(entry_at(d->roots, d->dir, s.mem, key), sp_io_dyn_mem_writer_as_str(&sink), SP_FS_WRITE_REPLACE, sp_sys_default_file_perms);
     if (d->stats) {
       sp_atomic_u32_add(&d->stats->cache_writes, 1, SP_ATOMIC_RELAXED);
     }
@@ -572,7 +572,7 @@ void spn_dag_file_cache_flush(spn_dag_file_cache_t* c, spn_path_t path) {
   }
   if (!err) {
     sp_fs_create_parent_at(spn_path_at(c->roots, path));
-    sp_fs_write_at(spn_path_at(c->roots, path), sp_io_dyn_mem_writer_as_str(&sink), SP_FS_WRITE_REPLACE);
+    sp_fs_write_at(spn_path_at(c->roots, path), sp_io_dyn_mem_writer_as_str(&sink), SP_FS_WRITE_REPLACE, sp_sys_default_file_perms);
     c->hints_dirty = false;
   }
 
@@ -653,7 +653,9 @@ spn_err_t spn_dag_store_put(spn_dag_store_t* store, const void* data, u64 len, s
       sp_sys_file_meta_t meta = sp_zero;
       if (sp_fs_get_link_metadata_at(blob, &meta) || meta.kind != SP_FS_KIND_FILE) {
         sp_fs_create_dir_at(get_blob_dir_at(store, s.mem, *digest));
-        if (sp_fs_write_slice_at(blob, sp_mem_slice((u8*)data, len), SP_FS_WRITE_REPLACE) || sp_fs_set_readonly(blob)) {
+        sp_sys_file_perms_t perms = sp_sys_default_file_perms;
+        sp_sys_set_read_only(&perms, true);
+        if (sp_fs_write_slice_at(blob, sp_mem_slice((u8*)data, len), SP_FS_WRITE_REPLACE, perms)) {
           err = SPN_ERR_DAG_STORE_WRITE;
         }
       }
@@ -701,7 +703,7 @@ spn_err_t spn_dag_store_put_file(spn_dag_store_t* store, sp_path_t path, sp_str_
       sp_sys_file_meta_t meta = sp_zero;
       if (sp_fs_get_link_metadata_at(blob, &meta) || meta.kind != SP_FS_KIND_FILE) {
         sp_fs_create_dir_at(get_blob_dir_at(store, s.mem, *digest));
-        if (sp_fs_create_hard_link_at(path, blob) && sp_fs_copy_file_buffered_at(path, blob, SP_FS_ATOMIC_REPLACE)) {
+        if (sp_fs_create_hard_link_at(path, blob) && sp_fs_copy_file_buffered_at(path, blob)) {
           err = SPN_ERR_DAG_STORE_WRITE;
         }
         if (!err && sp_fs_set_readonly(blob)) {
@@ -791,13 +793,13 @@ spn_err_t spn_dag_store_materialize(spn_dag_store_t* store, spn_dag_digest_t dig
         return SPN_ERR_DAG_STORE_MISSING;
       }
       sp_fs_create_parent_at(spn_path_at(store->roots, path));
-      return sp_fs_write_slice_at(target, blob, SP_FS_WRITE_REPLACE) ? SPN_ERR_DAG_STORE_WRITE : SPN_OK;
+      return sp_fs_write_slice_at(target, blob, SP_FS_WRITE_REPLACE, sp_sys_default_file_perms) ? SPN_ERR_DAG_STORE_WRITE : SPN_OK;
     }
     case SPN_DAG_STORE_FILESYSTEM: {
       sp_mem_arena_marker_t s = sp_mem_begin_scratch();
       sp_path_t stored = get_blob_at(store, s.mem, digest, name);
       sp_fs_create_parent_at(spn_path_at(store->roots, path));
-      sp_err_t rc = sp_fs_copy_file_buffered_at(stored, target, SP_FS_ATOMIC_REPLACE);
+      sp_err_t rc = sp_fs_copy_file_buffered_at(stored, target);
       sp_mem_end_scratch(s);
       switch (rc) {
         case SP_OK:                return SPN_OK;

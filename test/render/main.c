@@ -94,7 +94,7 @@ static void rotate(void) {
   }
   sp_fs_remove_dir(previous);
   sp_sys_dir_t cwd = sp_sys_get_root(0);
-  sp_assert(!sp_sys_rename_s(cwd, current, cwd, previous));
+  sp_assert(!sp_sys_rename_s(cwd, current, cwd, previous, 0));
 }
 
 s32 main(s32 argc, const c8** argv) {

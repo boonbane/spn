@@ -129,7 +129,7 @@ spn_invocation_result_t spn_invocation_run_progress(const spn_path_roots_t* root
 
   sp_path_t at = spn_path_at(roots, log);
   sp_sys_fd_t sink = SP_SYS_INVALID_FD;
-  if (sp_sys_open_s(at.dir, at.sub, SP_SYS_OPEN_MODE_WO, SP_SYS_OPEN_CREATE | SP_SYS_OPEN_TRUNCATE, &sink)) {
+  if (sp_sys_open_s(at.dir, at.sub, SP_SYS_OPEN_MODE_WO, SP_SYS_OPEN_CREATE | SP_SYS_OPEN_TRUNCATE, sp_sys_default_file_perms, &sink)) {
     sp_sys_close(pipe.r);
     sp_sys_close(pipe.w);
     return failed;

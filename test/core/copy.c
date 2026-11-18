@@ -100,7 +100,7 @@ sp_test_each(fs_update, cases, test_t, tests) {
     file_t file = it->setup.files[i];
     sp_path_t path = sp_path_join(mem, root, sp_cstr_as_str(file.path));
     sp_must_ok(t, sp_fs_create_parent_at(path));
-    sp_must_ok(t, sp_fs_write_cstr_at(path, file.content, SP_FS_WRITE_TRUNCATE));
+    sp_must_ok(t, sp_fs_write_cstr_at(path, file.content, SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms));
   }
 
   u32 hardlinks = 0;

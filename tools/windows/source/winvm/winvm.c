@@ -169,7 +169,7 @@ static sp_str_t render_domain(winvm_t* vm, const winvm_variant_t* variant, sp_st
 
 s32 winvm_boot(winvm_t* vm, const winvm_variant_t* variant, sp_str_t disk) {
   sp_str_t path = sp_fs_join_path(vm->mem, vm->paths.domains, sp_fmt(vm->mem, "{}.xml", sp_fmt_str(winvm_domain(vm, variant))).value);
-  if (sp_fs_write(path, render_domain(vm, variant, disk), SP_FS_WRITE_TRUNCATE)) {
+  if (sp_fs_write(path, render_domain(vm, variant, disk), SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms)) {
     return -1;
   }
 

@@ -63,7 +63,7 @@ sp_test_each(index_query, get_package, query_test_t, tests, .setup = spn_test_ct
     sp_str_t blob = sp_zero;
     sp_fs_read(mem, fixture, &blob);
     sp_fs_create_dir(sp_fs_parent_path(file));
-    sp_fs_write(file, blob, SP_FS_WRITE_TRUNCATE);
+    sp_fs_write(file, blob, SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms);
   }
 
   spn_index_info_t index = {

@@ -268,7 +268,7 @@ sp_test(http, downloads_file_url, .setup = spn_test_ctx_setup) {
   sp_mem_t mem = sp_test_arena(t);
   sp_str_t source = sp_fs_join_path(mem, test_dir_str(t), sp_str_lit("A"));
   sp_path_t dest = sp_path_join(mem, sp_test_dir(t), sp_str_lit("B"));
-  sp_must_ok(t, sp_fs_write(source, sp_str_lit("A"), SP_FS_WRITE_TRUNCATE));
+  sp_must_ok(t, sp_fs_write(source, sp_str_lit("A"), SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms));
 
   sp_atomic_s32_t cancelled = sp_zero;
   spn_http_config_t config = { .timeout_s = 1, .cancelled = &cancelled };

@@ -148,7 +148,7 @@ sp_test_each(dag_fence, ops, test_t, tests) {
         break;
       }
       case FENCE_OP_FILE: {
-        sp_fs_write(rendered, sp_cstr_as_str(op->blob), SP_FS_WRITE_TRUNCATE);
+        sp_fs_write(rendered, sp_cstr_as_str(op->blob), SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms);
         break;
       }
       case FENCE_OP_STEALTH: {

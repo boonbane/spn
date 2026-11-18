@@ -39,7 +39,7 @@ static spn_err_t execute_action(const si_dag_ctx_t* c, void* user_data) {
   if (env->output == OUTPUT_TREE) {
     output = sp_path_join(env->dag.mem, output, sp_str_lit("A"));
   }
-  return sp_fs_write_at(output, sp_str_lit("A"), SP_FS_WRITE_TRUNCATE) ? SPN_ERR_DAG_ACTION : SPN_OK;
+  return sp_fs_write_at(output, sp_str_lit("A"), SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms) ? SPN_ERR_DAG_ACTION : SPN_OK;
 }
 
 static sp_err_t run_once(sp_test_t* t, env_t* env) {

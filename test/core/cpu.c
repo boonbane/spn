@@ -128,7 +128,7 @@ sp_test_each(cpu, cgroup_quota, cpu_quota_test_t, cpu_quota_tests) {
 
   sp_must_ok(t, sp_fs_create_dir_at(root));
   if (it->cgroup) {
-    sp_must_ok(t, sp_fs_write_cstr_at(proc, it->cgroup, SP_FS_WRITE_TRUNCATE));
+    sp_must_ok(t, sp_fs_write_cstr_at(proc, it->cgroup, SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms));
   }
 
   sp_carr_for(it->files, i) {
@@ -139,7 +139,7 @@ sp_test_each(cpu, cgroup_quota, cpu_quota_test_t, cpu_quota_tests) {
 
     sp_path_t path = sp_path_join(mem, root, sp_cstr_as_str(file.path));
     sp_must_ok(t, sp_fs_create_dir_at(sp_path_parent(mem, path)));
-    sp_must_ok(t, sp_fs_write_cstr_at(path, file.content, SP_FS_WRITE_TRUNCATE));
+    sp_must_ok(t, sp_fs_write_cstr_at(path, file.content, SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms));
   }
 
   sp_expect_eq(t, spn_cpu_cgroup_quota(mem, proc, root), it->quota);

@@ -252,7 +252,7 @@ static const sync_test_t tests [] = {
 };
 
 static void commit_seed(sp_mem_t mem, sp_str_t repo, const c8* content) {
-  sp_fs_write_cstr(sp_fs_join_path(mem, repo, sp_str_lit("seed.txt")), content, SP_FS_WRITE_TRUNCATE);
+  sp_fs_write_cstr(sp_fs_join_path(mem, repo, sp_str_lit("seed.txt")), content, SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms);
 
   git_repo_stage_all(repo);
   git_repo_commit(repo, sp_str_lit("seed"));
@@ -351,7 +351,7 @@ sp_test_each(index_sync, sync, sync_test_t, tests, .setup = spn_test_ctx_setup) 
     sp_must_ok(t, sp_fs_remove_file(sp_fs_join_path(mem, cache, sp_str_lit(".git/spn-synced"))));
   }
   if (it->failed) {
-    sp_must_ok(t, sp_fs_write(failed, sp_str_lit(""), SP_FS_WRITE_TRUNCATE));
+    sp_must_ok(t, sp_fs_write(failed, sp_str_lit(""), SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms));
   }
   if (it->mutate_remote) {
     commit_seed(mem, remote, "B");
@@ -363,8 +363,8 @@ sp_test_each(index_sync, sync, sync_test_t, tests, .setup = spn_test_ctx_setup) 
     sp_fs_remove_dir(sp_fs_join_path(mem, cache, sp_str_lit(".git")));
   }
   if (it->leftover) {
-    sp_must_ok(t, sp_fs_write(sp_fs_join_path(mem, cache, sp_cstr_as_str(it->leftover)), sp_str_lit(""), SP_FS_WRITE_TRUNCATE));
-    sp_must_ok(t, sp_fs_write(witness, sp_str_lit("A"), SP_FS_WRITE_TRUNCATE));
+    sp_must_ok(t, sp_fs_write(sp_fs_join_path(mem, cache, sp_cstr_as_str(it->leftover)), sp_str_lit(""), SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms));
+    sp_must_ok(t, sp_fs_write(witness, sp_str_lit("A"), SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms));
   }
 
   sp_atomic_s32_store(&cancelled, it->cancelled, SP_ATOMIC_SEQ_CST);

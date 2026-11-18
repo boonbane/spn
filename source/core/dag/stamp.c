@@ -15,7 +15,7 @@ spn_err_t spn_dag_stamp_probe(sp_path_t dir, sp_sys_timespec_t* fence) {
   sp_mem_arena_marker_t s = sp_mem_begin_scratch();
   sp_path_t path = sp_path_join(s.mem, dir, sp_str_lit(".fence"));
   spn_err_t err = SPN_OK;
-  if (sp_fs_write_at(path, sp_str_lit("fence"), SP_FS_WRITE_TRUNCATE)) {
+  if (sp_fs_write_at(path, sp_str_lit("fence"), SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms)) {
     err = SPN_ERR_DAG_SCRATCH;
   }
   else {

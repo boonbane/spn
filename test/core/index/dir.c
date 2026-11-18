@@ -153,7 +153,7 @@ sp_test_each(index_dir, get_package, dir_test_t, tests, .setup = spn_test_ctx_se
       sp_str_t fixture = test_repo_path(mem, sp_test_format(t, "test/core/index/packages/{}.toml", sp_fmt_cstr(it->toml)));
       sp_str_t toml = sp_zero;
       sp_fs_read(mem, fixture, &toml);
-      sp_fs_write(manifest, toml, SP_FS_WRITE_TRUNCATE);
+      sp_fs_write(manifest, toml, SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms);
     }
   }
 
@@ -354,7 +354,7 @@ sp_test_each(index_dir, versioned, versioned_test_t, versioned_tests, .setup = s
       sp_must_ok(t, sp_fs_copy_file_at(
         sp_path_from_str(test_repo_path(mem, sp_test_format(t, "test/core/index/packages/{}.toml", sp_fmt_cstr(it->dirs[at].toml)))),
         sp_path_from_str(sp_fs_join_path(mem, dir, sp_str_lit("spn.toml"))),
-        SP_FS_ATOMIC_REPLACE));
+        SP_FS_WRITE_REPLACE));
     }
   }
 

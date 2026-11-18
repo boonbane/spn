@@ -312,11 +312,11 @@ sp_cli_result_t embed_run(sp_cli_t* cli) {
     return sp_cli_set_error(cli, sp_fmt(mem, "failed to create {.red}", sp_fmt_str(hdr_dir)).value);
   }
 
-  if (sp_fs_write_slice(obj_path, (sp_mem_slice_t){ object.storage.data, object.storage.len }, SP_FS_WRITE_TRUNCATE) != SP_OK) {
+  if (sp_fs_write_slice(obj_path, (sp_mem_slice_t){ object.storage.data, object.storage.len }, SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms) != SP_OK) {
     return sp_cli_set_error(cli, sp_fmt(mem, "failed to write {.red}", sp_fmt_str(obj_path)).value);
   }
 
-  if (sp_fs_write_slice(hdr_path, (sp_mem_slice_t){ header.storage.data, header.storage.len }, SP_FS_WRITE_TRUNCATE) != SP_OK) {
+  if (sp_fs_write_slice(hdr_path, (sp_mem_slice_t){ header.storage.data, header.storage.len }, SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms) != SP_OK) {
     return sp_cli_set_error(cli, sp_fmt(mem, "failed to write {.red}", sp_fmt_str(hdr_path)).value);
   }
 

@@ -141,7 +141,7 @@ spn_err_t spn_lock_save(const spn_path_roots_t* roots, spn_path_t path, const sp
     write_root(&out.base, "manifest", entry->manifest);
   }
 
-  sp_err_t written = sp_fs_write_at(spn_path_at(roots, path), sp_io_dyn_mem_writer_as_str(&out), SP_FS_WRITE_REPLACE);
+  sp_err_t written = sp_fs_write_at(spn_path_at(roots, path), sp_io_dyn_mem_writer_as_str(&out), SP_FS_WRITE_REPLACE, sp_sys_default_file_perms);
   sp_mem_end_scratch(scratch);
   if (written) {
     *err = (spn_err_union_t) { .kind = SPN_ERR_FS_WRITE, .fs = { .path = path } };

@@ -137,14 +137,14 @@ static sp_err_t apply(spn_install_action_t* action) {
     case SPN_INSTALL_ACTION_INSTALL_EXE: {
       sp_path_t exe = sp_path_from_str(action->path);
       sp_try(sp_fs_create_parent_at(exe));
-      return sp_fs_copy_file_at(sp_path_from_str(action->src), exe, SP_FS_ATOMIC_REPLACE);
+      return sp_fs_copy_file_at(sp_path_from_str(action->src), exe, SP_FS_WRITE_REPLACE);
     }
     case SPN_INSTALL_ACTION_WRITE_FILE: {
       sp_path_t file = sp_path_from_str(action->path);
       sp_try(sp_fs_create_parent_at(file));
-      return sp_fs_write_at(file, action->text, SP_FS_WRITE_REPLACE);
+      return sp_fs_write_at(file, action->text, SP_FS_WRITE_REPLACE, sp_sys_default_file_perms);
     }
-    case SPN_INSTALL_ACTION_APPEND_LINE: return sp_fs_write(action->path, action->text, SP_FS_WRITE_APPEND);
+    case SPN_INSTALL_ACTION_APPEND_LINE: return sp_fs_append(action->path, action->text, sp_sys_default_file_perms);
     case SPN_INSTALL_ACTION_SET_USER_PATH: return set_user_path(action);
   }
   return SP_ERR;

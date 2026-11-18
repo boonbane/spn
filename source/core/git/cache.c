@@ -183,7 +183,7 @@ static spn_err_t spn_git_cache_materialize_checkout(spn_git_cache_t* cache, spn_
     }
 
     sp_fs_create_parent_at(dest);
-    if (sp_sys_rename_s(work.dir, work.sub, dest.dir, dest.sub)) {
+    if (sp_sys_rename_s(work.dir, work.sub, dest.dir, dest.sub, 0)) {
       sp_fs_remove_dir_at(work);
       sp_sys_file_meta_t meta = sp_zero;
       if (sp_fs_get_link_metadata_at(dest, &meta) || meta.kind != SP_FS_KIND_DIR) {

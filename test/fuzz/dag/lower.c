@@ -72,7 +72,7 @@ static spn_err_t fz_exec(const si_dag_ctx_t* c, void* user_data) {
     spn_dag_id_t id = low->ids[fz->produces[it]];
     const spn_dag_artifact_t* out = spn_dag_find_artifact(low->g, id);
     sp_str_t content = fz_output_content(low->mem, low->u->actions[ctx->action].identity, inputs, count, out->name);
-    if (sp_fs_write_at(si_dag_output_at(c, id), content, SP_FS_WRITE_TRUNCATE)) {
+    if (sp_fs_write_at(si_dag_output_at(c, id), content, SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms)) {
       return SPN_ERR_DAG_ACTION;
     }
   }

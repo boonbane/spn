@@ -66,7 +66,7 @@ spn_err_t spn_dag_build_write_compile_commands(spn_session_t* session, const spn
   sp_fs_read_at(s.mem, spn_path_at(roots, path), &existing);
 
   spn_err_t err = SPN_OK;
-  if (!sp_str_equal(existing, rendered) && sp_fs_write_at(spn_path_at(roots, path), rendered, SP_FS_WRITE_REPLACE)) {
+  if (!sp_str_equal(existing, rendered) && sp_fs_write_at(spn_path_at(roots, path), rendered, SP_FS_WRITE_REPLACE, sp_sys_default_file_perms)) {
     err = spn_err_emit(session->ctx, (spn_err_union_t) {
       .kind = SPN_ERR_DAG_OUTPUT_WRITE,
       .dag = { .path = spn_path_str(roots, session->ctx->events->mem, path) },

@@ -84,7 +84,7 @@ spn_err_t spn_probe_cache_flush(spn_probe_cache_t* cache) {
       sp_fmt_uint(entry->hash),
       sp_fmt_str(entry->path)).value;
   }
-  spn_err_t result = sp_fs_write_at(spn_path_at(cache->roots, cache->file), contents, SP_FS_WRITE_TRUNCATE) ? SPN_ERROR : SPN_OK;
+  spn_err_t result = sp_fs_write_at(spn_path_at(cache->roots, cache->file), contents, SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms) ? SPN_ERROR : SPN_OK;
   sp_mem_end_scratch(scratch);
   return result;
 }

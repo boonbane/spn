@@ -48,7 +48,7 @@ sp_test_each(paths_set, root, set_test_t, set_tests) {
       break;
     }
     case SET_SETUP_FILE: {
-      sp_must_ok(t, sp_fs_create_file_at(sp_path_join(mem, sandbox, sp_str_lit("F"))));
+      sp_must_ok(t, sp_fs_write_at(sp_path_join(mem, sandbox, sp_str_lit("F")), sp_str_lit(""), SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms));
       break;
     }
   }
@@ -77,7 +77,7 @@ sp_test_each(paths_set, root, set_test_t, set_tests) {
 sp_test(paths_set, unrooted_relative_resolves_from_cwd) {
   sp_mem_t mem = sp_test_arena(t);
   sp_path_t sandbox = sp_test_dir(t);
-  sp_must_ok(t, sp_fs_create_file_at(sp_path_join(mem, sandbox, sp_str_lit("F"))));
+  sp_must_ok(t, sp_fs_write_at(sp_path_join(mem, sandbox, sp_str_lit("F")), sp_str_lit(""), SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms));
 
   spn_path_roots_t roots = sp_zero;
   spn_path_t path = { .sub = sp_fs_join_path(mem, sandbox.sub, sp_str_lit("F")) };

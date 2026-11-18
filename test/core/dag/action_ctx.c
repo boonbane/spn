@@ -27,7 +27,7 @@ static const resolve_test_t resolve_tests [] = {
 
 static spn_err_t produce(const si_dag_ctx_t* c, void* user_data) {
   resolve_env_t* env = (resolve_env_t*)user_data;
-  return sp_fs_write_at(dag_test_at(&env->dag, si_dag_resolve_output(c, env->middle)), sp_str_lit("A"), SP_FS_WRITE_TRUNCATE) ? SPN_ERR_DAG_ACTION : SPN_OK;
+  return sp_fs_write_at(dag_test_at(&env->dag, si_dag_resolve_output(c, env->middle)), sp_str_lit("A"), SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms) ? SPN_ERR_DAG_ACTION : SPN_OK;
 }
 
 static spn_err_t consume(const si_dag_ctx_t* c, void* user_data) {
@@ -45,7 +45,7 @@ static spn_err_t consume(const si_dag_ctx_t* c, void* user_data) {
     return SPN_ERR_DAG_ACTION;
   }
   env->seen.input_content = sp_str_copy(env->dag.mem, content);
-  return sp_fs_write_at(dag_test_at(&env->dag, output), content, SP_FS_WRITE_TRUNCATE) ? SPN_ERR_DAG_ACTION : SPN_OK;
+  return sp_fs_write_at(dag_test_at(&env->dag, output), content, SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms) ? SPN_ERR_DAG_ACTION : SPN_OK;
 }
 
 sp_test_each(dag_action_ctx, resolve, resolve_test_t, resolve_tests) {

@@ -142,14 +142,14 @@ static spn_err_t git_index_sync(spn_index_info_t* index, spn_index_plan_t plan, 
       break;
     }
 
-    sp_fs_create_file_at(git_index_stamp(scratch.mem, index, git_index_synced));
+    sp_fs_write_at(git_index_stamp(scratch.mem, index, git_index_synced), sp_str_lit(""), SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms);
     sp_fs_remove_file_at(git_index_stamp(scratch.mem, index, git_index_failed));
     err = SPN_OK;
     break;
   }
 
   if (err && failure->kind != SPN_GIT_CANCELLED) {
-    sp_fs_create_file_at(git_index_stamp(scratch.mem, index, git_index_failed));
+    sp_fs_write_at(git_index_stamp(scratch.mem, index, git_index_failed), sp_str_lit(""), SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms);
   }
 
   sp_mem_end_scratch(scratch);
@@ -217,7 +217,7 @@ static void index_append_release(spn_index_info_t* index, spn_index_release_t* r
   sp_fs_create_parent_at(path);
 
   sp_str_t json = spn_index_release_to_json(scratch.mem, rel);
-  sp_fs_write_at(path, sp_fmt(scratch.mem, "{}\n", sp_fmt_str(json)).value, SP_FS_WRITE_APPEND);
+  sp_fs_append_at(path, sp_fmt(scratch.mem, "{}\n", sp_fmt_str(json)).value, sp_sys_default_file_perms);
 
   sp_mem_end_scratch(scratch);
 }

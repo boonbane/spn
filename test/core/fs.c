@@ -178,7 +178,7 @@ sp_test(fs_copy_file, busy) {
 
   sp_path_t target = sp_path_join(mem, dir, sp_str_lit("bin/spn"));
   sp_must_ok(t, sp_fs_create_dir_at(sp_path_join(mem, dir, sp_str_lit("bin"))));
-  sp_must_ok(t, sp_fs_copy_file_at(sp_path_from_str(sleep_bin), target, SP_FS_ATOMIC_REPLACE));
+  sp_must_ok(t, sp_fs_copy_file_at(sp_path_from_str(sleep_bin), target, SP_FS_WRITE_REPLACE));
 
   sp_ps_t running = sp_ps_create(mem, (sp_ps_config_t) {
     .command = target.sub,
@@ -188,9 +188,9 @@ sp_test(fs_copy_file, busy) {
   sp_must(t, running.os);
 
   sp_path_t source = sp_path_join(mem, dir, sp_str_lit("src"));
-  sp_must_ok(t, sp_fs_write_cstr_at(source, "N", SP_FS_WRITE_TRUNCATE));
+  sp_must_ok(t, sp_fs_write_cstr_at(source, "N", SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms));
 
-  sp_err_t err = sp_fs_copy_file_at(source, target, SP_FS_ATOMIC_REPLACE);
+  sp_err_t err = sp_fs_copy_file_at(source, target, SP_FS_WRITE_REPLACE);
 
   sp_ps_kill(&running);
   sp_ps_wait(&running);
@@ -239,17 +239,17 @@ sp_test_each(fs_remove, kinds, fs_remove_test_t, fs_remove_tests) {
       break;
     }
     case FS_REMOVE_FILE: {
-      sp_must_ok(t, sp_fs_create_file_at(path));
+      sp_must_ok(t, sp_fs_write_at(path, sp_str_lit(""), SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms));
       break;
     }
     case FS_REMOVE_DIR: {
       sp_must_ok(t, sp_fs_create_dir_at(path));
-      sp_must_ok(t, sp_fs_create_file_at(sp_path_join(mem, path, sp_str_lit("F"))));
+      sp_must_ok(t, sp_fs_write_at(sp_path_join(mem, path, sp_str_lit("F")), sp_str_lit(""), SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms));
       break;
     }
     case FS_REMOVE_LINK_TO_DIR: {
       sp_must_ok(t, sp_fs_create_dir_at(target));
-      sp_must_ok(t, sp_fs_create_file_at(inside));
+      sp_must_ok(t, sp_fs_write_at(inside, sp_str_lit(""), SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms));
       sp_must_ok(t, sp_fs_create_sym_link_at(sp_str_lit("T"), path, SP_FS_KIND_DIR));
       break;
     }

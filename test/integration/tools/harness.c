@@ -804,17 +804,17 @@ static sp_err_t stage_bare_run(sp_test_t* t, fixture_t* fixture, action_t action
   sp_try(sp_fs_create_dir(dir));
 
   sp_str_t exe_name = sp_fs_get_name(path_render(fixture, action.bare.file));
-  sp_try(sp_fs_copy_file_at(sp_path_cwd(at(fixture, action.bare.file)), sp_path_cwd(sp_fs_join_path(mem, dir, exe_name)), SP_FS_ATOMIC_REPLACE));
+  sp_try(sp_fs_copy_file_at(sp_path_cwd(at(fixture, action.bare.file)), sp_path_cwd(sp_fs_join_path(mem, dir, exe_name)), SP_FS_WRITE_REPLACE));
   sp_carr_for(action.bare.with, it) {
     if (action.bare.with[it].kind == PATH_NONE) {
       break;
     }
     sp_str_t name = sp_fs_get_name(path_render(fixture, action.bare.with[it]));
-    sp_try(sp_fs_copy_file_at(sp_path_cwd(at(fixture, action.bare.with[it])), sp_path_cwd(sp_fs_join_path(mem, dir, name)), SP_FS_ATOMIC_REPLACE));
+    sp_try(sp_fs_copy_file_at(sp_path_cwd(at(fixture, action.bare.with[it])), sp_path_cwd(sp_fs_join_path(mem, dir, name)), SP_FS_WRITE_REPLACE));
   }
 
   spn_cg_probe_t probe = { .exe = exe_name, .expect = bare_expect_token(action.bare.expect) };
-  return sp_fs_write(sp_fs_join_path(mem, dir, sp_str_lit("probe.json")), spn_probe_write(mem, &probe), SP_FS_WRITE_TRUNCATE);
+  return sp_fs_write(sp_fs_join_path(mem, dir, sp_str_lit("probe.json")), spn_probe_write(mem, &probe), SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms);
 }
 
 static sp_str_t create_content(fixture_t* fixture, action_t action) {

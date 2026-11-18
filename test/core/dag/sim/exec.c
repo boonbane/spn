@@ -172,7 +172,7 @@ static spn_err_t execute_action(const si_dag_ctx_t* c, void* user_data) {
       continue;
     }
     sp_str_t content = sp_fmt(ctx->env->dag.mem, "{}{}", sp_fmt_cstr(ctx->spec->write[it]), sp_fmt_uint(ctx->env->dag.runs)).value;
-    if (sp_fs_write_at(dag_test_at(&ctx->env->dag, si_dag_resolve_output(c, c->produces[it])), content, SP_FS_WRITE_TRUNCATE)) {
+    if (sp_fs_write_at(dag_test_at(&ctx->env->dag, si_dag_resolve_output(c, c->produces[it])), content, SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms)) {
       return SPN_ERR_DAG_ACTION;
     }
   }

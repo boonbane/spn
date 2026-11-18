@@ -238,7 +238,7 @@ static spn_err_t run_world(world_t* w, fz_universe_t* u, fz_lowered_t* low) {
 }
 
 static void write_source(sp_mem_t mem, fz_universe_t* u, fz_state_t* state, u64 artifact) {
-  sp_fs_write(fz_artifact_sim_path(mem, u, artifact), fz_content(mem, state->contents[artifact]), SP_FS_WRITE_TRUNCATE);
+  sp_fs_write(fz_artifact_sim_path(mem, u, artifact), fz_content(mem, state->contents[artifact]), SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms);
 }
 
 static void mark_unrecorded(world_t* w, sp_mem_t mem, fz_universe_t* u) {
@@ -889,7 +889,7 @@ static fz_err_t trace_body(sp_mem_t mem, sp_sim_t* sim, fz_universe_t* u, fz_tra
           phantom->present = false;
         }
         else {
-          sp_fs_write(path, fz_content(mem, step->content), SP_FS_WRITE_TRUNCATE);
+          sp_fs_write(path, fz_content(mem, step->content), SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms);
           phantom->present = true;
           phantom->content = step->content;
         }
