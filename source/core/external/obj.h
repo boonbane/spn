@@ -5,6 +5,7 @@
 #include "coff/coff.h"
 #include "sp_elf/sp_elf.h"
 #include "macho/macho.h"
+#include "sp_wasm/sp_wasm.h"
 #include "spn/core.h"
 
 typedef struct {
@@ -13,6 +14,7 @@ typedef struct {
     struct { sp_coff_t* coff; sp_coff_section_t* section; } coff;
     struct { sp_elf_t* elf; u32 rodata; } elf;
     struct { sp_macho_t* macho; sp_macho_section_t* section; } macho;
+    sp_wasm_t* wasm;
   };
 } spn_obj_builder_t;
 
