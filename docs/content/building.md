@@ -111,6 +111,11 @@ Different platforms have different stances on some or all of these knobs, and th
 - GNU's libc is famously antagonistic to static linkage, so `libc = "static"` requires (and infers) musl
 - Some sanitizers require the loader to be available, and produce an error otherwise
 
+`linkage` constrains how your dependencies are linked. It doesn't pick a kind for them:
+- `static` means nothing is loaded at runtime, so linking a library that is only `shared` is an error
+- `shared` asks for a target with a dynamic loader. A dependency that offers `static` is still linked statically; set `[config.foo] kind = "shared"` to load that one instead
+- On a target with no loader, like WebAssembly, `shared` and `kind = "shared"` have no effect and everything is linked statically
+
 Generally, though, we aim to allow you to express any build you might need. Let's look at some examples:
 
 | Build | Dependencies | Runtime | Libc | ABI | |
@@ -118,7 +123,7 @@ Generally, though, we aim to allow you to express any build you might need. Let'
 | A Linux binary that runs anywhere | `static` | `static` | `static` | `musl`| This is a completely self contained binary that will run on any Linux system you'll find in the wild; `spn` does this by default |
 | A portable Linux video game       | any | `static` | `shared` | `gnu`| Games need Vulkan or OpenGL, which must be used from a shared library, but otherwise bundle everything else they need inside the binary |
 | A Windows binary which doesn't need redistributables | any | `static` | `static` | `msvc` | Like `/MT`; The UCRT, vcruntime, and the C++ STL all live inside the executable |
-| A plugin that gets loaded by a DAW | `shared` | `shared` | `shared` |  | You *want* to share the host's runtime, so that an e.g. `std::string` can cross between your DLL and the host cleanly |
+| A plugin that gets loaded by a DAW | any | `shared` | `shared` |  | You *want* to share the host's runtime, so that an e.g. `std::string` can cross between your DLL and the host cleanly |
 | A fully sanitized build (ASan, TSan, MSan)|  |  | `shared` | any | These sanitizers don't work without a loader |
 
 
