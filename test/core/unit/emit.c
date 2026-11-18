@@ -81,7 +81,7 @@ static const test_t tests [] = {
       .pkgs = { { .name = "P", .targets = { { "A", shared_only, .source = { "a.c" } } } } },
     },
     .kind = SPN_TARGET_KIND_LIB,
-    .expect = { .output = "A.dll", .implib = "A.lib", .link = true, .exports = true },
+    .expect = { .output = "A.dll", .implib = "A.dll.lib", .link = true, .exports = true },
   },
   {
     .name = "build_script_is_a_reactor",

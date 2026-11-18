@@ -319,7 +319,7 @@ static spn_err_t lower_target(spn_units_t* u, spn_target_unit_t* unit) {
         case SPN_OS_NONE:    sp_unreachable_case();
       }
       if (spn_cc_link_implib(profile, unit->kind)) {
-        emit->implib = sp_fmt(mem, "{}.lib", sp_fmt_str(name)).value;
+        emit->implib = sp_fmt(mem, "{}.dll.lib", sp_fmt_str(name)).value;
       }
       sp_opt_set(emit->exports, render_exports(mem, toolchain, profile, &emit->link.value, name));
       break;
