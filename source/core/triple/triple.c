@@ -183,10 +183,10 @@ static bool os_has_abi(spn_os_t os, spn_abi_t abi) {
   return false;
 }
 
-spn_obj_format_t spn_os_to_native_object_format(spn_os_t os) {
-  switch (os) {
-    case SPN_OS_LINUX:
-    case SPN_OS_FREESTANDING: return SPN_OBJ_ELF;
+spn_obj_format_t spn_triple_object_format(spn_triple_t triple) {
+  switch (triple.os) {
+    case SPN_OS_LINUX: return SPN_OBJ_ELF;
+    case SPN_OS_FREESTANDING: return triple.arch == SPN_ARCH_WASM32 ? SPN_OBJ_WASM : SPN_OBJ_ELF;
     case SPN_OS_WINDOWS: return SPN_OBJ_COFF;
     case SPN_OS_MACOS: return SPN_OBJ_MACHO;
     case SPN_OS_WASI: return SPN_OBJ_WASM;

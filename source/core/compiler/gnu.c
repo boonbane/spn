@@ -456,12 +456,12 @@ static void add_static_runtime(sp_mem_t mem, spn_os_t os, spn_invocation_t* invo
 // zig only builds a static libc when the executable asks for one; the stub that
 // warms its cache has to make the same call
 bool spn_gnu_link_static(const spn_profile_info_t* profile, spn_cc_output_kind_t kind) {
-  return kind == SPN_CC_OUTPUT_EXE && profile->linking.libc == SPN_RUNTIME_STATIC && spn_os_to_native_object_format(profile->target.os) == SPN_OBJ_ELF;
+  return kind == SPN_CC_OUTPUT_EXE && profile->linking.libc == SPN_RUNTIME_STATIC && spn_triple_object_format(profile->target) == SPN_OBJ_ELF;
 }
 
 spn_cc_link_plan_t spn_gnu_render_link(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, const spn_cc_link_t* link) {
   spn_triple_t triple = profile->target;
-  spn_obj_format_t format = spn_os_to_native_object_format(profile->target.os);
+  spn_obj_format_t format = spn_triple_object_format(profile->target);
   bool is_gnu_runtime_static = profile->linking.runtime == SPN_RUNTIME_STATIC && triple.abi != SPN_ABI_MSVC && spn_cc_has(toolchain, SPN_CC_CAP_GNU_RUNTIME);
 
   spn_cc_link_plan_t plan = {

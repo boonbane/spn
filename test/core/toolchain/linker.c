@@ -14,6 +14,7 @@ static const dialect_t dialect_tests [] = {
   { "windows_msvc", TARGET_WIN_MSVC,     SPN_LD_DIALECT_LINK },
   { "macos",        HOST_ARM_MACOS,      SPN_LD_DIALECT_DARWIN },
   { "wasi",         TARGET_WASM,         SPN_LD_DIALECT_WASM },
+  { "wasm_bare",    TARGET_WASM_BARE,    SPN_LD_DIALECT_WASM },
 };
 
 sp_test_each(linker, dialect, dialect_t, dialect_tests) {

@@ -187,7 +187,7 @@ static spn_err_t lower_target(spn_units_t* u, spn_target_unit_t* unit) {
     }
     case SPN_TARGET_KIND_LIB: {
       unit->install = pkg->paths.lib;
-      kind = spn_os_to_native_object_format(profile->target.os) == SPN_OBJ_WASM ? SPN_CC_OUTPUT_REACTOR : SPN_CC_OUTPUT_SHARED_LIB;
+      kind = spn_triple_object_format(profile->target) == SPN_OBJ_WASM ? SPN_CC_OUTPUT_REACTOR : SPN_CC_OUTPUT_SHARED_LIB;
       links = unit->lib_kind == SPN_LIB_KIND_SHARED || unit->products.shared;
       archives = unit->products.static_lib;
       break;
@@ -272,7 +272,7 @@ static spn_err_t lower_target(spn_units_t* u, spn_target_unit_t* unit) {
 
   spn_cc_compile_t compile = {
     .cxx = target->info->cxx,
-    .pic = target->info->kind == SPN_TARGET_KIND_LIB && spn_ld_dynamic(profile->target) && spn_os_to_native_object_format(profile->target.os) != SPN_OBJ_COFF,
+    .pic = target->info->kind == SPN_TARGET_KIND_LIB && spn_ld_dynamic(profile->target) && spn_triple_object_format(profile->target) != SPN_OBJ_COFF,
   };
   if (profile->target.os == SPN_OS_MACOS) {
     compile.min_os = link->cc.min_os;
@@ -571,7 +571,7 @@ static spn_err_t plan_new(spn_units_t* u, sp_mem_t scratch, spn_pkg_unit_t* root
       continue;
     }
     const spn_profile_info_t* profile = &target->pkg->build->profile;
-    bool image = spn_os_to_native_object_format(profile->target.os) == SPN_OBJ_WASM || spn_ld_loader(profile->target, profile->linking);
+    bool image = spn_triple_object_format(profile->target) == SPN_OBJ_WASM || spn_ld_loader(profile->target, profile->linking);
     spn_linkage_set_t declared = target->target->info->linkages;
     target->products = (spn_linkage_set_t) {
       .static_lib = declared.static_lib && profile->emit.static_lib,

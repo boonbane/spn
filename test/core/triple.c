@@ -107,20 +107,21 @@ sp_test_each(triple, merge, merge_t, merge_tests) {
 
 typedef struct {
   const c8* name;
-  spn_os_t os;
+  spn_triple_t triple;
   spn_obj_format_t expect;
 } format_t;
 
 static const format_t format_tests [] = {
-  { "linux",        SPN_OS_LINUX,        SPN_OBJ_ELF },
-  { "freestanding", SPN_OS_FREESTANDING, SPN_OBJ_ELF },
-  { "windows",      SPN_OS_WINDOWS,      SPN_OBJ_COFF },
-  { "macos",        SPN_OS_MACOS,        SPN_OBJ_MACHO },
-  { "wasi",         SPN_OS_WASI,         SPN_OBJ_WASM },
+  { "linux",             { SPN_ARCH_X64,    SPN_OS_LINUX,        SPN_ABI_GNU },   SPN_OBJ_ELF },
+  { "freestanding",      { SPN_ARCH_X64,    SPN_OS_FREESTANDING, SPN_ABI_BARE },  SPN_OBJ_ELF },
+  { "freestanding_wasm", { SPN_ARCH_WASM32, SPN_OS_FREESTANDING, SPN_ABI_BARE },  SPN_OBJ_WASM },
+  { "windows",           { SPN_ARCH_X64,    SPN_OS_WINDOWS,      SPN_ABI_MSVC },  SPN_OBJ_COFF },
+  { "macos",             { SPN_ARCH_ARM64,  SPN_OS_MACOS,        SPN_ABI_APPLE }, SPN_OBJ_MACHO },
+  { "wasi",              { SPN_ARCH_WASM32, SPN_OS_WASI,         SPN_ABI_MUSL },  SPN_OBJ_WASM },
 };
 
 sp_test_each(triple, format, format_t, format_tests) {
-  sp_expect_eq(t, (u32)it->expect, (u32)spn_os_to_native_object_format(it->os));
+  sp_expect_eq(t, (u32)it->expect, (u32)spn_triple_object_format(it->triple));
   return SP_OK;
 }
 

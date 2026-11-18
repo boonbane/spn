@@ -30,7 +30,7 @@ bool spn_ld_dynamic(spn_triple_t target) {
 }
 
 bool spn_ld_loader(spn_triple_t target, spn_linking_t linking) {
-  return spn_ld_dynamic(target) && !(spn_os_to_native_object_format(target.os) == SPN_OBJ_ELF && linking.libc == SPN_RUNTIME_STATIC);
+  return spn_ld_dynamic(target) && !(spn_triple_object_format(target) == SPN_OBJ_ELF && linking.libc == SPN_RUNTIME_STATIC);
 }
 
 static u32 first(spn_triple_t target, rows_t table, spn_linking_t request) {
@@ -138,19 +138,11 @@ spn_linking_refusal_t spn_ld_linking(spn_triple_t target, spn_linking_t request,
 }
 
 spn_ld_dialect_t spn_ld_dialect(spn_triple_t target) {
-  switch (target.os) {
-    case SPN_OS_LINUX:
-    case SPN_OS_FREESTANDING: return SPN_LD_DIALECT_GNU;
-    case SPN_OS_MACOS: return SPN_LD_DIALECT_DARWIN;
-    case SPN_OS_WASI: return SPN_LD_DIALECT_WASM;
-    case SPN_OS_WINDOWS: {
-      if (target.abi == SPN_ABI_MSVC) {
-        return SPN_LD_DIALECT_LINK;
-      } else {
-        return SPN_LD_DIALECT_GNU;
-      }
-    }
-    case SPN_OS_NONE: sp_unreachable_case();
+  switch (spn_triple_object_format(target)) {
+    case SPN_OBJ_ELF: return SPN_LD_DIALECT_GNU;
+    case SPN_OBJ_MACHO: return SPN_LD_DIALECT_DARWIN;
+    case SPN_OBJ_WASM: return SPN_LD_DIALECT_WASM;
+    case SPN_OBJ_COFF: return target.abi == SPN_ABI_MSVC ? SPN_LD_DIALECT_LINK : SPN_LD_DIALECT_GNU;
   }
   SP_UNREACHABLE_RETURN(SPN_LD_DIALECT_GNU);
 }

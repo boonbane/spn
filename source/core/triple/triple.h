@@ -22,7 +22,7 @@ sp_str_t           spn_abi_to_str(spn_abi_t abi);
 u32                spn_os_archs(spn_os_t os, const spn_arch_t** archs);
 u32                spn_os_abis(spn_os_t os, const spn_abi_t** abis);
 u32                spn_os_completions(spn_os_t os, const spn_abi_t** abis);
-spn_obj_format_t   spn_os_to_native_object_format(spn_os_t os);
+spn_obj_format_t   spn_triple_object_format(spn_triple_t triple);
 spn_err_t          spn_triple_parse(sp_str_t str, spn_triple_t* triple);
 sp_str_t           spn_triple_to_str(sp_mem_t mem, spn_triple_t triple);
 bool               spn_triple_equal(spn_triple_t a, spn_triple_t b);
