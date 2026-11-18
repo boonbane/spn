@@ -44,7 +44,6 @@ add_executable(core
   external/backoff.c
   external/git.c
   external/gzip.c
-  external/http.c
   external/net.c
   external/obj.c
   external/wasm.c

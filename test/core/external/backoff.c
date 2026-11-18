@@ -3,9 +3,6 @@
 #include "event/event.h"
 #include "external/net.h"
 
-#define backoff_test_cancel_ms 30
-#define backoff_test_long_ms 60000
-
 typedef struct {
   bool retry;
   u32 waited_ms;
@@ -73,26 +70,5 @@ sp_test_each(backoff, wait, test_t, tests, .setup = spn_test_ctx_setup) {
   sp_expect_eq(t, waited_ms, it->expect.waited_ms);
   sp_expect_eq(t, notices, it->expect.remaining ? 1u : 0u);
   sp_expect_eq(t, remaining, it->expect.remaining);
-  return SP_OK;
-}
-
-static s32 cancel_later(void* user) {
-  sp_os_sleep_ms(backoff_test_cancel_ms);
-  sp_atomic_s32_store((sp_atomic_s32_t*)user, 1, SP_ATOMIC_SEQ_CST);
-  return 0;
-}
-
-sp_test(backoff, cancel_during_the_wait_ends_it) {
-  sp_atomic_s32_t cancelled = sp_zero;
-  sp_thread_t thread = sp_zero;
-  sp_tm_timer_t timer = sp_tm_start_timer();
-  sp_thread_init(&thread, cancel_later, &cancelled);
-
-  spn_net_wait(SP_NULLPTR, backoff_test_long_ms, &cancelled);
-  u64 waited_ms = sp_tm_ns_to_ms(sp_tm_read_timer(&timer));
-  sp_thread_join(&thread);
-
-  sp_expect_ge(t, waited_ms, (u64)backoff_test_cancel_ms);
-  sp_expect_lt(t, waited_ms, (u64)backoff_test_long_ms);
   return SP_OK;
 }

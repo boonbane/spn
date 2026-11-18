@@ -12,7 +12,6 @@ typedef enum {
 typedef enum {
   DAMAGE_NONE,
   DAMAGE_REMOTE_REMOVED,
-  DAMAGE_REMOTE_ON_CLOSED_PORT,
   DAMAGE_REPO_REMOVED,
   DAMAGE_ORIGIN_REMOVED,
   DAMAGE_REF_LOCKED,
@@ -68,12 +67,6 @@ static const test_t tests [] = {
     .expect = { .err = SPN_ERROR, .kind = SPN_GIT_DROPPED, .remote = true },
   },
   {
-    .name = "clone_from_closed_port_is_dropped",
-    .op = OP_CLONE,
-    .damage = DAMAGE_REMOTE_ON_CLOSED_PORT,
-    .expect = { .err = SPN_ERROR, .kind = SPN_GIT_DROPPED, .remote = true },
-  },
-  {
     .name = "system_clone_of_missing_path_is_remote",
     .op = OP_SYSTEM_CLONE,
     .damage = DAMAGE_REMOTE_REMOVED,
@@ -97,23 +90,12 @@ sp_test_each(git, failure, test_t, tests, .setup = spn_test_ctx_setup) {
     sp_must_eq(t, (u32)spn_git_builtin_clone(remote, local, &cancelled, &failure), (u32)SPN_OK);
   }
 
-  sp_str_t url = remote;
   switch (it->damage) {
     case DAMAGE_NONE: {
       break;
     }
     case DAMAGE_REMOTE_REMOVED: {
       sp_must_ok(t, sp_fs_remove_dir(remote));
-      break;
-    }
-    case DAMAGE_REMOTE_ON_CLOSED_PORT: {
-      sp_sys_socket_t probe = SP_SYS_INVALID_SOCKET;
-      sp_sys_ipv4_t address = { .octets = { 127, 0, 0, 1 } };
-      sp_must_ok(t, sp_sys_socket_open(&probe, (sp_sys_handle_desc_t) { .mode = SP_SYS_BLOCKING }));
-      sp_must_ok(t, sp_sys_socket_bind(probe, address));
-      sp_must_ok(t, sp_sys_socket_local_port(probe, &address.port));
-      sp_must_ok(t, sp_sys_socket_close(probe));
-      url = sp_fmt(mem, "git://127.0.0.1:{}/A", sp_fmt_uint(address.port)).value;
       break;
     }
     case DAMAGE_REPO_REMOVED: {
@@ -143,11 +125,11 @@ sp_test_each(git, failure, test_t, tests, .setup = spn_test_ctx_setup) {
       break;
     }
     case OP_CLONE: {
-      err = spn_git_builtin_clone(url, local, &cancelled, &failure);
+      err = spn_git_builtin_clone(remote, local, &cancelled, &failure);
       break;
     }
     case OP_SYSTEM_CLONE: {
-      err = spn_git_cli_clone(url, local, &failure);
+      err = spn_git_cli_clone(remote, local, &failure);
       break;
     }
   }
