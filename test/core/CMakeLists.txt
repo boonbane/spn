@@ -63,6 +63,7 @@ add_executable(core
   git/key/name.c
   git/patch.c
   git/recover.c
+  git/remote.c
   git/url/ssh.c
   git/url/valid.c
   git/url/web.c

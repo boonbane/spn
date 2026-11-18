@@ -17,22 +17,43 @@ static spn_git_route_t route_for(spn_git_transport_t transport, sp_str_t url) {
   sp_unreachable_return(SPN_GIT_ROUTE_BUILTIN);
 }
 
-static spn_err_t fetch(spn_git_route_t* route, sp_str_t repo, sp_str_t url, spn_git_fetch_t what, spn_net_backoff_t backoff, sp_atomic_s32_t* cancelled, spn_git_failure_t* failure) {
+static spn_err_t clone_over(void* user, spn_git_route_t route, sp_str_t url, sp_str_t path, sp_atomic_s32_t* cancelled, spn_git_failure_t* failure) {
+  switch (route) {
+    case SPN_GIT_ROUTE_BUILTIN: {
+      return spn_git_builtin_clone(url, path, cancelled, failure);
+    }
+    case SPN_GIT_ROUTE_CONFIGURED:
+    case SPN_GIT_ROUTE_SSH:
+    case SPN_GIT_ROUTE_LOGIN: {
+      return spn_git_cli_clone(url, path, failure);
+    }
+  }
+  sp_unreachable_return(SPN_ERROR);
+}
+
+static spn_err_t fetch_over(void* user, spn_git_route_t route, sp_str_t repo, spn_git_fetch_t what, sp_atomic_s32_t* cancelled, spn_git_failure_t* failure) {
+  switch (route) {
+    case SPN_GIT_ROUTE_BUILTIN: {
+      return spn_git_builtin_fetch(repo, what, cancelled, failure);
+    }
+    case SPN_GIT_ROUTE_CONFIGURED:
+    case SPN_GIT_ROUTE_SSH:
+    case SPN_GIT_ROUTE_LOGIN: {
+      return spn_git_cli_fetch(repo, what, failure);
+    }
+  }
+  sp_unreachable_return(SPN_ERROR);
+}
+
+spn_git_remote_t spn_git_remote(spn_git_transport_t transport) {
+  return (spn_git_remote_t) { .transport = transport, .clone = clone_over, .fetch = fetch_over };
+}
+
+static spn_err_t fetch(spn_git_remote_t remote, spn_git_route_t* route, sp_str_t repo, sp_str_t url, spn_git_fetch_t what, spn_net_backoff_t backoff, sp_atomic_s32_t* cancelled, spn_git_failure_t* failure) {
   spn_err_t err = SPN_ERROR;
   u32 retry = 0;
   while (!sp_atomic_s32_load(cancelled, SP_ATOMIC_SEQ_CST)) {
-    switch (*route) {
-      case SPN_GIT_ROUTE_BUILTIN: {
-        err = spn_git_builtin_fetch(repo, what, cancelled, failure);
-        break;
-      }
-      case SPN_GIT_ROUTE_CONFIGURED:
-      case SPN_GIT_ROUTE_SSH:
-      case SPN_GIT_ROUTE_LOGIN: {
-        err = spn_git_cli_fetch(repo, what, failure);
-        break;
-      }
-    }
+    err = remote.fetch(remote.user, *route, repo, what, cancelled, failure);
     if (failure->kind == SPN_GIT_UNAUTHORIZED) {
       *route = SPN_GIT_ROUTE_LOGIN;
       continue;
@@ -48,23 +69,12 @@ static spn_err_t fetch(spn_git_route_t* route, sp_str_t repo, sp_str_t url, spn_
   return err;
 }
 
-spn_err_t spn_git_clone(spn_git_transport_t transport, sp_str_t url, sp_str_t path, spn_net_backoff_t backoff, sp_atomic_s32_t* cancelled, spn_git_failure_t* failure) {
-  spn_git_route_t route = route_for(transport, url);
+spn_err_t spn_git_clone(spn_git_remote_t remote, sp_str_t url, sp_str_t path, spn_net_backoff_t backoff, sp_atomic_s32_t* cancelled, spn_git_failure_t* failure) {
+  spn_git_route_t route = route_for(remote.transport, url);
   spn_err_t err = SPN_ERROR;
   u32 retry = 0;
   while (!sp_atomic_s32_load(cancelled, SP_ATOMIC_SEQ_CST)) {
-    switch (route) {
-      case SPN_GIT_ROUTE_BUILTIN: {
-        err = spn_git_builtin_clone(url, path, cancelled, failure);
-        break;
-      }
-      case SPN_GIT_ROUTE_CONFIGURED:
-      case SPN_GIT_ROUTE_SSH:
-      case SPN_GIT_ROUTE_LOGIN: {
-        err = spn_git_cli_clone(url, path, failure);
-        break;
-      }
-    }
+    err = remote.clone(remote.user, route, url, path, cancelled, failure);
     if (failure->kind == SPN_GIT_UNAUTHORIZED) {
       route = SPN_GIT_ROUTE_LOGIN;
       continue;
@@ -80,20 +90,20 @@ spn_err_t spn_git_clone(spn_git_transport_t transport, sp_str_t url, sp_str_t pa
   return err;
 }
 
-spn_err_t spn_git_fetch(spn_git_transport_t transport, sp_str_t repo, sp_str_t url, spn_net_backoff_t backoff, sp_atomic_s32_t* cancelled, spn_git_failure_t* failure) {
-  spn_git_route_t route = route_for(transport, url);
-  return fetch(&route, repo, url, sp_zero_s(spn_git_fetch_t), backoff, cancelled, failure);
+spn_err_t spn_git_fetch(spn_git_remote_t remote, sp_str_t repo, sp_str_t url, spn_net_backoff_t backoff, sp_atomic_s32_t* cancelled, spn_git_failure_t* failure) {
+  spn_git_route_t route = route_for(remote.transport, url);
+  return fetch(remote, &route, repo, url, sp_zero_s(spn_git_fetch_t), backoff, cancelled, failure);
 }
 
-spn_err_t spn_git_fetch_rev(spn_git_transport_t transport, sp_str_t repo, sp_str_t url, sp_str_t rev, spn_net_backoff_t backoff, sp_atomic_s32_t* cancelled, spn_git_failure_t* failure) {
-  spn_git_route_t route = route_for(transport, url);
+spn_err_t spn_git_fetch_rev(spn_git_remote_t remote, sp_str_t repo, sp_str_t url, sp_str_t rev, spn_net_backoff_t backoff, sp_atomic_s32_t* cancelled, spn_git_failure_t* failure) {
+  spn_git_route_t route = route_for(remote.transport, url);
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   spn_git_fetch_t tip = {
     .refspecs = { sp_str_to_cstr(scratch.mem, rev) },
     .depth = SPN_GIT_DEPTH_TIP,
     .no_tags = true,
   };
-  spn_err_t shallow = fetch(&route, repo, url, tip, backoff, cancelled, failure);
+  spn_err_t shallow = fetch(remote, &route, repo, url, tip, backoff, cancelled, failure);
   sp_mem_end_scratch(scratch);
 
   if (shallow && failure->kind != SPN_GIT_FAILED) {
@@ -107,5 +117,5 @@ spn_err_t spn_git_fetch_rev(spn_git_transport_t transport, sp_str_t repo, sp_str
     .refspecs = { "+refs/heads/*:refs/heads/*", "+refs/tags/*:refs/tags/*" },
     .depth = spn_git_is_shallow(repo) ? SPN_GIT_DEPTH_UNSHALLOW : SPN_GIT_DEPTH_FULL,
   };
-  return fetch(&route, repo, url, mirror, backoff, cancelled, failure);
+  return fetch(remote, &route, repo, url, mirror, backoff, cancelled, failure);
 }

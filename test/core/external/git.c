@@ -1,12 +1,12 @@
 #include "spn_test.h"
 
-#include "event/event.h"
 #include "external/git.h"
-#include "git/remote.h"
+#include "external/git_cli.h"
 
 typedef enum {
   OP_FETCH,
   OP_CLONE,
+  OP_SYSTEM_CLONE,
 } op_t;
 
 typedef enum {
@@ -22,17 +22,13 @@ typedef enum {
 typedef struct {
   spn_err_t err;
   spn_git_failure_kind_t kind;
-  spn_git_route_t route;
   bool remote;
-  u32 retries;
 } expect_t;
 
 typedef struct {
   const c8* name;
   op_t op;
   damage_t damage;
-  spn_git_transport_t transport;
-  bool cancelled;
   expect_t expect;
 } test_t;
 
@@ -69,31 +65,19 @@ static const test_t tests [] = {
   {
     .name = "fetch_into_locked_ref_is_dropped",
     .damage = DAMAGE_REF_LOCKED,
-    .expect = { .err = SPN_ERROR, .kind = SPN_GIT_DROPPED, .remote = true, .retries = 3 },
+    .expect = { .err = SPN_ERROR, .kind = SPN_GIT_DROPPED, .remote = true },
   },
   {
     .name = "clone_from_closed_port_is_dropped",
     .op = OP_CLONE,
     .damage = DAMAGE_REMOTE_ON_CLOSED_PORT,
-    .expect = { .err = SPN_ERROR, .kind = SPN_GIT_DROPPED, .remote = true, .retries = 3 },
+    .expect = { .err = SPN_ERROR, .kind = SPN_GIT_DROPPED, .remote = true },
   },
   {
     .name = "system_clone_of_missing_path_is_remote",
-    .op = OP_CLONE,
+    .op = OP_SYSTEM_CLONE,
     .damage = DAMAGE_REMOTE_REMOVED,
-    .transport = SPN_GIT_TRANSPORT_SYSTEM,
-    .expect = { .err = SPN_ERROR, .route = SPN_GIT_ROUTE_CONFIGURED, .remote = true },
-  },
-  {
-    .name = "clone_after_cancel_is_cancelled",
-    .op = OP_CLONE,
-    .cancelled = true,
-    .expect = { .err = SPN_ERROR, .kind = SPN_GIT_CANCELLED },
-  },
-  {
-    .name = "fetch_after_cancel_is_not_attempted",
-    .cancelled = true,
-    .expect = { .err = SPN_ERROR, .kind = SPN_GIT_CANCELLED },
+    .expect = { .err = SPN_ERROR, .remote = true },
   },
 };
 
@@ -152,35 +136,27 @@ sp_test_each(git, failure, test_t, tests, .setup = spn_test_ctx_setup) {
   }
 
   failure = (spn_git_failure_t) { .kind = SPN_GIT_DROPPED, .message = "A" };
-  sp_atomic_s32_store(&cancelled, it->cancelled, SP_ATOMIC_SEQ_CST);
-  spn_net_backoff_t backoff = { .wait_ms = { 1, 1, 1 }, .wait = spn_net_wait };
   spn_err_t err = SPN_OK;
   switch (it->op) {
     case OP_FETCH: {
-      err = spn_git_fetch(it->transport, local, url, backoff, &cancelled, &failure);
+      err = spn_git_builtin_fetch(local, sp_zero_s(spn_git_fetch_t), &cancelled, &failure);
       break;
     }
     case OP_CLONE: {
-      err = spn_git_clone(it->transport, url, local, backoff, &cancelled, &failure);
+      err = spn_git_builtin_clone(url, local, &cancelled, &failure);
       break;
     }
-  }
-
-  u32 retries = 0;
-  sp_da(spn_event_t) events = spn_event_buffer_drain(mem, spn.events);
-  sp_da_for(events, at) {
-    if (events[at].kind == SPN_EVENT_SYNC_RETRY) {
-      retries++;
+    case OP_SYSTEM_CLONE: {
+      err = spn_git_cli_clone(url, local, &failure);
+      break;
     }
   }
 
   sp_test_kv_c(t, "message", failure.message);
   sp_expect_eq(t, (u32)err, (u32)it->expect.err);
   sp_expect_eq(t, (u32)failure.kind, (u32)it->expect.kind);
-  sp_expect_eq(t, (u32)failure.route, (u32)it->expect.route);
   sp_expect_eq(t, failure.remote, it->expect.remote);
   sp_expect_eq(t, failure.message[0] != 0, it->expect.err != SPN_OK);
-  sp_expect_eq(t, retries, it->expect.retries);
   return SP_OK;
 }
 
