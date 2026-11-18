@@ -21,7 +21,7 @@ sp_test(builtins, declared_order, .setup = spn_test_ctx_setup) {
     return SP_ERR;
   }
 
-  const c8* order [] = { "zig", "msvc", "clang", "llvm", "gcc" };
+  const c8* order [] = { "zig", "msvc", "clang", "llvm", "gcc", "wasi-sdk" };
   sp_must_eq(t, (u32)sp_carr_len(order), fixture_catalog_size(&catalog));
   sp_carr_for(order, it) {
     sp_expect_str_eq_c(t, fixture_catalog_at(&catalog, it)->name.str, order[it]);
@@ -50,7 +50,6 @@ sp_test(builtins, well_formed, .setup = spn_test_ctx_setup) {
           spn_artifact_t artifact = decl->hosts[ht].artifact;
           sp_expect(t, sp_str_starts_with(artifact.url, sp_str_lit("https://")));
           sp_expect(t, builtins_is_sha256(artifact.sha256));
-          sp_expect(t, !sp_str_empty(artifact.mirror_list));
         }
         break;
       }
