@@ -19,6 +19,7 @@
 #define UNIT_TEST_MAX_NODES 2
 #define UNIT_TEST_MAX_OPTIONS 2
 #define UNIT_TEST_MAX_TOOLCHAINS 3
+#define UNIT_TEST_MAX_PREBUILT 2
 
 #define static_only { .static_lib = true }
 #define shared_only { .shared = true }
@@ -28,6 +29,12 @@ typedef struct {
   spn_dep_kind_t kind;
   bool public;
 } graph_dep_t;
+
+typedef struct {
+  const c8* path;
+  const c8* stub;
+  spn_os_t os;
+} graph_prebuilt_t;
 
 typedef struct {
   const c8* name;
@@ -43,6 +50,7 @@ typedef struct {
   const c8* frameworks [UNIT_TEST_MAX_STRS];
   const c8* link_flags [UNIT_TEST_MAX_STRS];
   const c8* linker_script [UNIT_TEST_MAX_STRS];
+  graph_prebuilt_t shared [UNIT_TEST_MAX_PREBUILT];
   const c8* embed [UNIT_TEST_MAX_STRS];
   spn_os_version_t min_os;
 } graph_target_t;

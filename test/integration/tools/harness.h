@@ -54,6 +54,7 @@ typedef struct {
 #define test_exe(name_)                               { PATH_TEST_EXE, .name = name_ }
 #define example_exe(name_)                            { PATH_EXAMPLE_EXE, .name = name_ }
 #define staged_lib(name_)                             { PATH_STAGED_LIB, .name = name_ }
+#define target_staged_lib(name_, triple_)             { PATH_STAGED_LIB, .name = name_, .triple = triple_ }
 #define test_lib(name_)                               { PATH_TEST_LIB, .name = name_ }
 #define pkg_store_file(pkg_, rest)                    { PATH_STORE, .pkg = pkg_, .name = rest }
 #define pkg_store_exe(pkg_, name_)                    { PATH_STORE, .pkg = pkg_, .name = name_, .exe = true }
@@ -83,6 +84,7 @@ typedef enum {
   ACTION_VERIFY_ELF_ENTRY,
   ACTION_VERIFY_ELF_NO_SYMBOL,
   ACTION_VERIFY_MACHO_MIN_OS,
+  ACTION_VERIFY_MACHO_DYLIB,
   ACTION_VERIFY_FILE_CONTAINS,
   ACTION_VERIFY_FILE_NOT_CONTAINS,
   ACTION_VERIFY_CC_ARG,
@@ -107,6 +109,7 @@ typedef struct {
     struct { path_t file; u64 entry; } verify_elf_entry;
     struct { path_t file; const c8* prefix; } verify_elf_no_symbol;
     struct { path_t file; spn_os_version_t min_os; } verify_macho_min_os;
+    struct { path_t file; const c8* name; } verify_macho_dylib;
     struct { const c8* file; const c8* needle; } verify_file_contains;
     const c8* verify_cc_arg [4];
     struct { const c8* pkg; u32 count; } verify_store;

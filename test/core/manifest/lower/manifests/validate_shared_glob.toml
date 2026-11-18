@@ -1,0 +1,10 @@
+[package]
+name = "A"
+version = "1.0.0"
+
+[[lib]]
+name = "B"
+shared = [
+  "*.so",
+  { path = "B.dll", stub = "*.lib" },
+]

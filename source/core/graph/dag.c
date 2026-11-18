@@ -553,6 +553,17 @@ spn_err_t spn_dag_build_lower(spn_dag_build_t* b, const spn_build_plan_t* plan) 
       sp_ht_insert(b->ids.builds, build, libc);
     }
 
+    if (!sp_opt_is_null(target->prebuilt)) {
+      spn_dag_target_ids_t ids = sp_zero;
+      if (!spn_path_empty(target->prebuilt.value.path)) {
+        ids.output = spn_dag_add_file(g, target->prebuilt.value.path);
+      }
+      if (!spn_path_empty(target->prebuilt.value.stub)) {
+        ids.implib = spn_dag_add_file(g, target->prebuilt.value.stub);
+      }
+      sp_ht_insert(b->ids.targets, target, ids);
+      continue;
+    }
     if (sp_str_empty(target->emit.output)) {
       continue;
     }

@@ -88,6 +88,19 @@ static si_target_t eval_target(eval_ctx_t* ctx, const si_target_info_t* decl) {
     .linker_script = eval_paths(ctx, decl->linker_script),
     .requires = eval_requires(ctx, decl->requires),
   };
+  si_da_for_value(decl->prebuilt, entry) {
+    if (!spn_when_eval(&entry.when, ctx->env)) {
+      continue;
+    }
+    spn_prebuilt_t prebuilt = sp_zero;
+    if (!sp_str_empty(entry.path)) {
+      prebuilt.path = spn_tree_path(ctx->mem, ctx->roots, ctx->trees, entry.tree, entry.path);
+    }
+    if (!sp_str_empty(entry.stub)) {
+      prebuilt.stub = spn_tree_path(ctx->mem, ctx->roots, ctx->trees, entry.tree, entry.stub);
+    }
+    si_da_push(ctx->mem, target.prebuilt, prebuilt);
+  }
   si_da_for_value(decl->deps, dep) {
     if (!spn_when_eval(&dep.when, ctx->env)) {
       continue;

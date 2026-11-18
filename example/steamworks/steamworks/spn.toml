@@ -1,0 +1,15 @@
+[package]
+name = "steamworks"
+version = "1.65.0"
+
+[package.publish]
+include = [{ from = "sdk/public/steam/*.h", to = "steam" }]
+
+[[lib]]
+name = "steam_api"
+shared = [
+  { path = "sdk/redistributable_bin/linux64/libsteam_api.so", when = { os = "linux", arch = "x86_64" } },
+  { path = "sdk/redistributable_bin/linuxarm64/libsteam_api.so", when = { os = "linux", arch = "aarch64" } },
+  { path = "sdk/redistributable_bin/osx/libsteam_api.dylib", when = { os = "macos" } },
+  { path = "sdk/redistributable_bin/win64/steam_api64.dll", stub = "sdk/redistributable_bin/win64/steam_api64.lib", when = { os = "windows", arch = "x86_64" } },
+]

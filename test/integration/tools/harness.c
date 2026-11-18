@@ -258,6 +258,59 @@ static sp_err_t expect_macho_min_os(sp_test_t* t, fixture_t* fixture, sp_str_t p
   return SP_ERR;
 }
 
+#define macho_lc_load_dylib 0xcu
+
+typedef struct {
+  u32 cmd;
+  u32 size;
+  u32 name;
+} macho_dylib_t;
+
+static sp_err_t expect_macho_dylib(sp_test_t* t, fixture_t* fixture, sp_str_t path, const c8* expected, const c8* file, u32 line) {
+  sp_str_t image = test_read_file(fixture->mem, path);
+  macho_header_t header = sp_zero;
+  if (image.len >= sizeof(header)) {
+    sp_mem_copy(&header, image.data, sizeof(header));
+  }
+  bool macho = header.magic == macho_magic_64;
+  bool found = false;
+  if (macho) {
+    u64 offset = sizeof(header);
+    sp_for(it, header.num_cmds) {
+      macho_dylib_t cmd = sp_zero;
+      if (offset + sizeof(cmd) > image.len) {
+        break;
+      }
+      sp_mem_copy(&cmd, image.data + offset, sizeof(cmd));
+      if (cmd.cmd == macho_lc_load_dylib && cmd.name < cmd.size && offset + cmd.size <= image.len) {
+        sp_str_t name = sp_str(image.data + offset + cmd.name, cmd.size - cmd.name);
+        s32 end = sp_str_find_c8(name, 0);
+        if (end != SP_STR_NO_MATCH) {
+          name = sp_str_prefix(name, end);
+        }
+        if (sp_str_equal_cstr(name, expected)) {
+          found = true;
+          break;
+        }
+      }
+      offset += cmd.size;
+    }
+  }
+  if (found) {
+    return SP_OK;
+  }
+
+  sp_test_kv(t, "root", fixture->root);
+  sp_test_kv(t, "path", display_path(fixture, path));
+  sp_test_record(t, (sp_test_failure_t) {
+    .file = sp_cstr_as_str(file),
+    .line = line,
+    .expected = sp_test_format(t, "a mach-o image that loads {}", sp_fmt_cstr(expected)),
+    .actual = sp_cstr_as_str(macho ? "no LC_LOAD_DYLIB with that name" : "not a 64 bit mach-o image"),
+  });
+  return SP_ERR;
+}
+
 static yyjson_val* event_field(sp_mem_t mem, yyjson_val* obj, const c8* key) {
   sp_da(sp_str_t) parts = sp_str_split_c8(mem, sp_cstr_as_str(key), '.');
   sp_da_for(parts, it) {
@@ -882,6 +935,10 @@ sp_err_t run_actions(sp_test_t* t, fixture_t* fixture, const action_t* actions) 
       }
       case ACTION_VERIFY_MACHO_MIN_OS: {
         expect_macho_min_os(t, fixture, at(fixture, action.verify_macho_min_os.file), action.verify_macho_min_os.min_os, __FILE__, __LINE__);
+        break;
+      }
+      case ACTION_VERIFY_MACHO_DYLIB: {
+        expect_macho_dylib(t, fixture, at(fixture, action.verify_macho_dylib.file), action.verify_macho_dylib.name, __FILE__, __LINE__);
         break;
       }
       case ACTION_VERIFY_FILE_CONTAINS:

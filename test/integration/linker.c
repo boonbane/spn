@@ -50,6 +50,28 @@ static const test_t tests [] = {
     },
   },
   {
+    .name = "stub_links_by_install_name",
+    .project = "test/integration/fixtures/linker/stub",
+    .copy = { "B/*" },
+    .when.driver = SPN_CC_DRIVER_ZIG,
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build", .args = { "--target", "aarch64-macos" } } },
+      { .kind = ACTION_VERIFY_MACHO_DYLIB, .verify_macho_dylib = { target_exe("A", "aarch64-macos-apple"), "@rpath/libB.dylib" } },
+      { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = target_staged_lib("B", "aarch64-macos-apple") },
+    },
+  },
+  {
+    .name = "shared_file_links_stub_and_is_staged",
+    .project = "test/integration/fixtures/linker/shared",
+    .copy = { "B/*" },
+    .when.driver = SPN_CC_DRIVER_ZIG,
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build", .args = { "--target", "aarch64-macos" } } },
+      { .kind = ACTION_VERIFY_MACHO_DYLIB, .verify_macho_dylib = { target_exe("A", "aarch64-macos-apple"), "@rpath/libB.dylib" } },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = target_staged_lib("B", "aarch64-macos-apple") },
+    },
+  },
+  {
     .name = "mingw_gcc_honors_script",
     .project = "test/integration/fixtures/linker/mingw",
     .copy = { "main.ld" },

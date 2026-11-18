@@ -44,6 +44,13 @@ typedef struct {
 } publish_t;
 
 typedef struct {
+  const c8* path;
+  const c8* stub;
+  const c8* when;
+  spn_tree_t tree;
+} prebuilt_t;
+
+typedef struct {
   const c8* sub;
   const c8* to;
 } stage_t;
@@ -69,6 +76,7 @@ typedef struct {
   gated_t flags [4];
   gated_t link_flags [4];
   gated_t linker_script [4];
+  prebuilt_t prebuilt [4];
   gated_t system_deps [4];
   gated_t host_deps [4];
   gated_t deps [4];
@@ -161,6 +169,7 @@ typedef struct {
 typedef struct {
   spn_err_t code;
   const c8* path;
+  const c8* either;
 } issue_t;
 
 typedef struct {
@@ -246,6 +255,39 @@ static const test_t tests [] = {
     .manifest = "link_true_lib",
     .libs = {
       { .name = "t", .linkages = { .static_lib = true }, .source = { { "a.c" } } }
+    }
+  },
+  {
+    .name = "lib_shared_file",
+    .manifest = "shared_file_lib",
+    .libs = {
+      { .name = "B", .linkages = { .shared = true }, .prebuilt = {
+        { "B.dll", "B.lib", "os = \"windows\"", SPN_TREE_MANIFEST },
+        { "libB.so" },
+        { .stub = "libB.tbd", .when = "os = \"macos\"" },
+      } }
+    }
+  },
+  {
+    .name = "backslashes_are_separators",
+    .manifest = "paths_backslash",
+    .include = { { "C/D" } },
+    .publish.entries = { { "C/*.h", "D/E", .kind = SPN_SOURCE_GLOB } },
+    .stage = { { "C/G.txt", "D/G.txt" } },
+    .libs = {
+      {
+        .name = "B",
+        .linkages = { .shared = true },
+        .source = { { "C/b.c" } },
+        .include = { { "C/D" } },
+        .linker_script = { { "C/b.ld" } },
+        .embed = { { "C/b.bin", .dest = "D/b.bin" } },
+      },
+      {
+        .name = "F",
+        .linkages = { .shared = true },
+        .prebuilt = { { "C/F.dll", "C/F.lib" } },
+      },
     }
   },
   {
@@ -575,6 +617,64 @@ static const test_t tests [] = {
     .manifest = "validate_link_on_test",
     .issues = {
       { SPN_ERR_CODEGEN_INVALID, "test[0].link" }
+    }
+  },
+  {
+    .name = "validate_shared_with_source",
+    .manifest = "validate_shared_with_source",
+    .issues = {
+      { SPN_ERR_CODEGEN_INVALID, "lib[0].source" }
+    }
+  },
+  {
+    .name = "validate_shared_with_kinds",
+    .manifest = "validate_shared_with_kinds",
+    .issues = {
+      { SPN_ERR_CODEGEN_INVALID, "lib[0].kinds" }
+    }
+  },
+  {
+    .name = "validate_link_inputs_on_shared_file_lib",
+    .manifest = "validate_link_inputs_on_shared_file_lib",
+    .issues = {
+      { SPN_ERR_CODEGEN_INVALID, "lib[0].link_flags" },
+      { SPN_ERR_CODEGEN_INVALID, "lib[0].linker_script" },
+    }
+  },
+  {
+    .name = "validate_shared_on_bin",
+    .manifest = "validate_shared_on_bin",
+    .issues = {
+      { SPN_ERR_CODEGEN_INVALID, "bin[0].shared" }
+    }
+  },
+  {
+    .name = "validate_shared_glob",
+    .manifest = "validate_shared_glob",
+    .issues = {
+      { SPN_ERR_CODEGEN_INVALID, "lib[0].shared[0].path" },
+      { SPN_ERR_CODEGEN_INVALID, "lib[0].shared[1].stub" },
+    }
+  },
+  {
+    .name = "validate_shared_without_file",
+    .manifest = "validate_shared_without_file",
+    .issues = {
+      { SPN_ERR_CODEGEN_MISSING_KEY, "lib[0].shared[0].path", "stub" }
+    }
+  },
+  {
+    .name = "validate_shared_stub_escapes",
+    .manifest = "validate_shared_stub_escapes",
+    .issues = {
+      { SPN_ERR_CODEGEN_PATH, "lib[0].shared[0].stub" }
+    }
+  },
+  {
+    .name = "validate_shared_tree_work",
+    .manifest = "validate_shared_tree_work",
+    .issues = {
+      { SPN_ERR_CODEGEN_INVALID, "lib[0].shared[0].tree" }
     }
   },
   {
@@ -1467,9 +1567,9 @@ static const test_t tests [] = {
       },
     },
     .issues = {
-      { SPN_ERR_CODEGEN_MISSING_KEY, "lib[0].system_deps[0].lib" },
-      { SPN_ERR_CODEGEN_MISSING_KEY, "package.system_deps[0].lib" },
-      { SPN_ERR_CODEGEN_MISSING_KEY, "package.publish.system_deps[0].lib" },
+      { SPN_ERR_CODEGEN_MISSING_KEY, "lib[0].system_deps[0].lib", "framework" },
+      { SPN_ERR_CODEGEN_MISSING_KEY, "package.system_deps[0].lib", "framework" },
+      { SPN_ERR_CODEGEN_MISSING_KEY, "package.publish.system_deps[0].lib", "framework" },
     },
   },
   {
@@ -1883,6 +1983,17 @@ static sp_err_t check_targets(sp_test_t* t, si_pkg_info_t* pkg, const target_t* 
     check_gated(t, info->flags, arr[i].flags);
     check_gated(t, info->link_flags, arr[i].link_flags);
     check_gated_paths(t, info->linker_script, arr[i].linker_script);
+    u32 num_prebuilt = 0;
+    sp_carr_detect_len(arr[i].prebuilt, num_prebuilt, arr[i].prebuilt[num_prebuilt].path || arr[i].prebuilt[num_prebuilt].stub);
+    sp_must_eq(t, num_prebuilt, (u32)si_da_size(info->prebuilt));
+    sp_for(pt, num_prebuilt) {
+      const prebuilt_t* expected = &arr[i].prebuilt[pt];
+      spn_gated_prebuilt_t* actual = &info->prebuilt[pt];
+      sp_expect_str_eq_c(t, actual->path, expected->path ? expected->path : "");
+      sp_expect_str_eq_c(t, actual->stub, expected->stub ? expected->stub : "");
+      sp_expect_eq(t, (u32)(expected->tree ? expected->tree : SPN_TREE_SOURCE), (u32)actual->tree);
+      sp_expect_str_eq_c(t, spn_when_to_str(sp_test_arena(t), &actual->when), expected->when ? expected->when : "always");
+    }
     check_requires(t, info->requires, SPN_REQUIREMENT_LIB, arr[i].system_deps);
     check_requires(t, info->requires, SPN_REQUIREMENT_HOST, arr[i].host_deps);
     u32 num_deps = 0;
@@ -1939,6 +2050,10 @@ sp_test_each(lower, cases, test_t, tests, .setup = spn_test_ctx_setup) {
   sp_for(i, num_issues) {
     sp_expect_eq(t, (u32)it->issues[i].code, (u32)ctx.issues[i].code);
     if (it->issues[i].path) sp_expect_str_eq_c(t, spn_toml_path_str(mem, &ctx.issues[i].at), it->issues[i].path);
+    if (it->issues[i].either) {
+      sp_must_eq(t, 1, (u32)sp_da_size(ctx.issues[i].choices));
+      sp_expect_str_eq_c(t, ctx.issues[i].choices[0], it->issues[i].either);
+    }
   }
 
   // Package scalars

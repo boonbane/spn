@@ -1,0 +1,8 @@
+[package]
+name = "A"
+version = "1.0.0"
+
+[[bin]]
+name = "B"
+source = ["C.c"]
+shared = ["libB.so"]

@@ -1,0 +1,13 @@
+[package]
+name = "achievements"
+version = "0.1.0"
+
+[[bin]]
+name = "main"
+source = ["main.cpp"]
+
+[deps.package]
+steamworks = { path = "steamworks" }
+
+[config.steamworks]
+kind = "shared"

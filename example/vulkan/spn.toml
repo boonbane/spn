@@ -1,0 +1,13 @@
+[package]
+name = "devices"
+version = "0.1.0"
+
+[[bin]]
+name = "main"
+source = ["main.c"]
+
+[deps.package]
+vulkan = "1.4.362"
+
+[config.vulkan]
+kind = "shared"

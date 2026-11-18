@@ -6,6 +6,7 @@
 #include "profile/profile.h"
 #include "toolchain/toolchain.h"
 #include "toolchain/sdk.h"
+#include "triple/triple.h"
 #include "when/when.h"
 
 static sp_da(sp_str_t) strs(sp_mem_t mem, const c8* const* items, u32 max) {
@@ -37,6 +38,27 @@ static spn_gated_path_list_t gated_paths(sp_mem_t mem, const c8* const* items, u
       break;
     }
     si_da_push(mem, list, ((spn_gated_path_t) { .path = sp_cstr_as_str(items[it]), .tree = SPN_TREE_SOURCE }));
+  }
+  return list;
+}
+
+static si_da(spn_gated_prebuilt_t) gated_prebuilt(sp_mem_t mem, const graph_prebuilt_t* items, u32 max) {
+  si_da(spn_gated_prebuilt_t) list = SP_NULLPTR;
+  sp_for(it, max) {
+    if (!items[it].path && !items[it].stub) {
+      break;
+    }
+    spn_gated_prebuilt_t prebuilt = { .tree = SPN_TREE_SOURCE };
+    if (items[it].path) {
+      prebuilt.path = sp_cstr_as_str(items[it].path);
+    }
+    if (items[it].stub) {
+      prebuilt.stub = sp_cstr_as_str(items[it].stub);
+    }
+    if (items[it].os) {
+      si_da_push(mem, prebuilt.when.clauses, ((spn_when_clause_t) { .key = sp_str_lit("os"), .value = spn_option_value_str(spn_os_to_str(items[it].os)) }));
+    }
+    si_da_push(mem, list, prebuilt);
   }
   return list;
 }
@@ -115,6 +137,7 @@ static void declare_target(sp_mem_t mem, si_pkg_info_t* manifest, const graph_ta
   decl->macos.min_os = spec->min_os;
   decl->link_flags = gated_list(mem, spec->link_flags, UNIT_TEST_MAX_STRS);
   decl->linker_script = gated_paths(mem, spec->linker_script, UNIT_TEST_MAX_STRS);
+  decl->prebuilt = gated_prebuilt(mem, spec->shared, UNIT_TEST_MAX_PREBUILT);
   decl->embed = gated_embeds(mem, spec->embed, UNIT_TEST_MAX_STRS);
 }
 

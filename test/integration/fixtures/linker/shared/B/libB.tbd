@@ -1,0 +1,8 @@
+--- !tapi-tbd
+tbd-version:     4
+targets:         [ x86_64-macos, arm64-macos ]
+install-name:    '@rpath/libB.dylib'
+exports:
+  - targets:         [ x86_64-macos, arm64-macos ]
+    symbols:         [ _B ]
+...
