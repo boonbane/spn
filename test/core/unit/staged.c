@@ -93,6 +93,15 @@ static const test_t tests [] = {
     .expect = { { "build/debug/A" } },
   },
   {
+    .name = "stub_lib_not_staged",
+    .graph.pkgs = {
+      { .name = "P", .deps = { { "B" } }, .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "a.c" } } } },
+      { .name = "B", .targets = { { "B", shared_only, .stub = { { "B.tbd" } } } } },
+    },
+    .roots = { { "A", SPN_TARGET_KIND_EXE } },
+    .expect = { { "build/debug/A" } },
+  },
+  {
     .name = "lib_root_not_staged",
     .graph.pkgs = {
       { .name = "P", .targets = { { "L", static_only, .source = { "l.c" } } } },

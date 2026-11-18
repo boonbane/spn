@@ -7,6 +7,7 @@ typedef struct {
   spn_linkage_requester_t requester;
   spn_cc_feature_t feature;
   const c8* frameworks [UNIT_TEST_MAX_STRS];
+  const c8* source;
 } expect_t;
 
 typedef struct {
@@ -121,6 +122,15 @@ static const test_t tests [] = {
     .expect = { .err = SPN_ERR_TARGET_COLLISION },
   },
   {
+    .name = "two_stubs_survive",
+    .graph.pkgs = {
+      { .name = "P", .deps = { { "B" } }, .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "a.c" } } } },
+      { .name = "B", .targets = { { "B", shared_only, .stub = { { "B.tbd" }, { "C.tbd" } } } } },
+    },
+    .root = { "A", SPN_TARGET_KIND_EXE },
+    .expect = { .err = SPN_ERR_TARGET_STUBS, .source = "C.tbd" },
+  },
+  {
     .name = "configure_source_missing",
     .graph.pkgs = {
       { .name = "P", .targets = {
@@ -173,6 +183,13 @@ sp_test_each(unit_errors, plan, test_t, tests, .setup = spn_test_ctx_setup, .tea
       sp_expect_str_eq_c(t, refusal->name, "A");
       sp_expect(t, spn_triple_equal(refusal->target, u->session.builds.program->profile.target));
       sp_must_strs_eq(t, refusal->frameworks, sp_da_size(refusal->frameworks), it->expect.frameworks);
+      break;
+    }
+    case SPN_ERR_TARGET_STUBS: {
+      spn_err_target_source_t* stubs = &errs[0].err.target_source;
+      sp_expect_str_eq_c(t, stubs->pkg, "B");
+      sp_expect_str_eq_c(t, stubs->name, "B");
+      sp_expect(t, sp_str_ends_with(stubs->source, sp_cstr_as_str(it->expect.source)));
       break;
     }
     default: {

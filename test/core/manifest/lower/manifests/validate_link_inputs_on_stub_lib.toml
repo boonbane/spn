@@ -1,0 +1,9 @@
+[package]
+name = "A"
+version = "1.0.0"
+
+[[lib]]
+name = "B"
+stub = ["libB.tbd"]
+link_flags = ["-A"]
+linker_script = ["C.ld"]

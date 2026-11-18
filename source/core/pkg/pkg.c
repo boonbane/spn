@@ -86,6 +86,7 @@ static si_target_t eval_target(eval_ctx_t* ctx, const si_target_info_t* decl) {
     .flags = eval_list(ctx, decl->flags),
     .link_flags = eval_list(ctx, decl->link_flags),
     .linker_script = eval_paths(ctx, decl->linker_script),
+    .stub = eval_paths(ctx, decl->stub),
     .requires = eval_requires(ctx, decl->requires),
   };
   si_da_for_value(decl->deps, dep) {

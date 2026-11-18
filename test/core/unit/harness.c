@@ -6,6 +6,7 @@
 #include "profile/profile.h"
 #include "toolchain/toolchain.h"
 #include "toolchain/sdk.h"
+#include "triple/triple.h"
 #include "when/when.h"
 
 static sp_da(sp_str_t) strs(sp_mem_t mem, const c8* const* items, u32 max) {
@@ -37,6 +38,21 @@ static spn_gated_path_list_t gated_paths(sp_mem_t mem, const c8* const* items, u
       break;
     }
     si_da_push(mem, list, ((spn_gated_path_t) { .path = sp_cstr_as_str(items[it]), .tree = SPN_TREE_SOURCE }));
+  }
+  return list;
+}
+
+static spn_gated_path_list_t gated_stubs(sp_mem_t mem, const graph_stub_t* items, u32 max) {
+  spn_gated_path_list_t list = SP_NULLPTR;
+  sp_for(it, max) {
+    if (!items[it].path) {
+      break;
+    }
+    spn_gated_path_t stub = { .path = sp_cstr_as_str(items[it].path), .tree = SPN_TREE_SOURCE };
+    if (items[it].os) {
+      si_da_push(mem, stub.when.clauses, ((spn_when_clause_t) { .key = sp_str_lit("os"), .value = spn_option_value_str(spn_os_to_str(items[it].os)) }));
+    }
+    si_da_push(mem, list, stub);
   }
   return list;
 }
@@ -115,6 +131,7 @@ static void declare_target(sp_mem_t mem, si_pkg_info_t* manifest, const graph_ta
   decl->macos.min_os = spec->min_os;
   decl->link_flags = gated_list(mem, spec->link_flags, UNIT_TEST_MAX_STRS);
   decl->linker_script = gated_paths(mem, spec->linker_script, UNIT_TEST_MAX_STRS);
+  decl->stub = gated_stubs(mem, spec->stub, UNIT_TEST_MAX_STUBS);
   decl->embed = gated_embeds(mem, spec->embed, UNIT_TEST_MAX_STRS);
 }
 

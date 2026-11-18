@@ -160,6 +160,7 @@ struct spn_target_unit {
   spn_cc_output_kind_t kind;
   spn_linkage_t lib_kind;
   spn_path_t install;
+  spn_path_t stub;
 
   si_da(spn_target_unit_t*) deps;
   si_da(spn_pkg_edge_t) edges;

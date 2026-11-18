@@ -41,13 +41,16 @@ static sp_intern_str_t lower_pkg_name(spn_toml_loader_t* ctx, sp_str_t name) {
   return sp_intern(ctx->intern, name);
 }
 
-static spn_linkage_set_t lower_linkages(sp_da(sp_str_t) kinds) {
-  if (sp_da_empty(kinds)) {
+static spn_linkage_set_t lower_linkages(const spn_cg_target_t* lib) {
+  if (!sp_da_empty(lib->stub)) {
+    return (spn_linkage_set_t) { .shared = true };
+  }
+  if (sp_da_empty(lib->kinds)) {
     return (spn_linkage_set_t) { .static_lib = true };
   }
   spn_linkage_set_t set = sp_zero;
-  sp_da_for(kinds, k) {
-    switch (spn_linkage_from_str(kinds[k])) {
+  sp_da_for(lib->kinds, k) {
+    switch (spn_linkage_from_str(lib->kinds[k])) {
       case SPN_LIB_KIND_SHARED: set.shared = true; break;
       case SPN_LIB_KIND_STATIC: set.static_lib = true; break;
       case SPN_LIB_KIND_NONE: break;
@@ -218,7 +221,7 @@ static void lower_target(spn_toml_loader_t* ctx, const spn_cg_target_t* cg, si_t
     .id = target->id,
     .name = target->name,
     .kind = target->kind,
-    .linkages = target->kind == SPN_TARGET_KIND_LIB ? lower_linkages(cg->kinds) : sp_zero_s(spn_linkage_set_t),
+    .linkages = target->kind == SPN_TARGET_KIND_LIB ? lower_linkages(cg) : sp_zero_s(spn_linkage_set_t),
     .no_link = sp_opt_is_null(cg->link) ? false : !sp_opt_get(cg->link),
     .cxx = lower_cxx_options(&cg->cxx),
     .source = lower_gated_sources(ctx, cg->source),
@@ -239,6 +242,11 @@ static void lower_target(spn_toml_loader_t* ctx, const spn_cg_target_t* cg, si_t
   sp_da_for(cg->linker_script, it) {
     if (lower_path_ok(ctx, cg->linker_script[it].path)) {
       push_gated_path(ctx->mem, &target->linker_script, &cg->linker_script[it], cg->linker_script[it].path);
+    }
+  }
+  sp_da_for(cg->stub, it) {
+    if (lower_path_ok(ctx, cg->stub[it].path)) {
+      push_gated_path(ctx->mem, &target->stub, &cg->stub[it], cg->stub[it].path);
     }
   }
   sp_da_for(cg->deps, it) {
@@ -886,6 +894,7 @@ static void validate_whens(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, 
       validate_value_whens(ctx, target->flags, "flags", out);
       validate_value_whens(ctx, target->link_flags, "link_flags", out);
       validate_source_whens(ctx, target->linker_script, "linker_script", out);
+      validate_source_whens(ctx, target->stub, "stub", out);
       validate_system_dep_whens(ctx, target->system_deps, out);
       validate_host_dep_whens(ctx, target->host_deps, out);
       spn_toml_loader_push_key(ctx, "deps");
@@ -1016,7 +1025,7 @@ static void validate_lib_linkages(spn_toml_loader_t* ctx, const spn_cg_manifest_
   spn_toml_loader_push_key(ctx, "lib");
   sp_om_for(cg->lib, it) {
     const spn_cg_target_t* lib = sp_str_om_at(cg->lib, it);
-    spn_linkage_set_t set = lower_linkages(lib->kinds);
+    spn_linkage_set_t set = lower_linkages(lib);
     spn_toml_loader_push_index(ctx, it);
     spn_toml_loader_push_key(ctx, "kinds");
     sp_da_for(lib->kinds, kt) {
@@ -1027,13 +1036,30 @@ static void validate_lib_linkages(spn_toml_loader_t* ctx, const spn_cg_manifest_
       }
     }
     spn_toml_loader_pop(ctx);
-    if (sp_da_empty(lib->source)) {
+    bool stub = !sp_da_empty(lib->stub);
+    spn_toml_loader_push_key(ctx, "stub");
+    sp_da_for(lib->stub, st) {
+      if (!sp_glob_parse_meta(lib->stub[st].path).literal) {
+        spn_toml_loader_push_index(ctx, st);
+        spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "path");
+        spn_toml_loader_pop(ctx);
+      }
+    }
+    spn_toml_loader_pop(ctx);
+    if (!stub && sp_da_empty(lib->source)) {
       spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_MISSING_KEY, "source");
     }
-    if (!set.shared && !sp_da_empty(lib->link_flags)) {
+    if (stub && !sp_da_empty(lib->source)) {
+      spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "source");
+    }
+    if (stub && !sp_da_empty(lib->kinds)) {
+      spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "kinds");
+    }
+    bool linked = set.shared && !stub;
+    if (!linked && !sp_da_empty(lib->link_flags)) {
       spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "link_flags");
     }
-    if (!set.shared && !sp_da_empty(lib->linker_script)) {
+    if (!linked && !sp_da_empty(lib->linker_script)) {
       spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "linker_script");
     }
     spn_toml_loader_pop(ctx);
@@ -1053,6 +1079,9 @@ static void validate_lib_only(spn_toml_loader_t* ctx, const collections_t* colle
       spn_toml_loader_push_index(ctx, it);
       if (!sp_opt_is_null(target->link)) {
         spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "link");
+      }
+      if (!sp_da_empty(target->stub)) {
+        spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "stub");
       }
       if (!sp_da_empty(target->publish.include)) {
         spn_toml_loader_push_key(ctx, "publish");
@@ -1146,6 +1175,7 @@ static void validate_trees(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, 
       validate_publish_trees(ctx, target->publish.include, target->publish.share);
       validate_entry_trees(ctx, target->include, "include");
       validate_entry_trees_no_work(ctx, target->linker_script, "linker_script");
+      validate_entry_trees_no_work(ctx, target->stub, "stub");
       spn_toml_loader_push_key(ctx, "embed");
       sp_da_for(target->embed, jt) {
         if (!sp_opt_is_null(target->embed[jt].tree) && sp_opt_get(target->embed[jt].tree) == SPN_TREE_NONE) {

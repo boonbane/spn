@@ -553,6 +553,10 @@ spn_err_t spn_dag_build_lower(spn_dag_build_t* b, const spn_build_plan_t* plan) 
       sp_ht_insert(b->ids.builds, build, libc);
     }
 
+    if (!spn_path_empty(target->stub)) {
+      sp_ht_insert(b->ids.targets, target, ((spn_dag_target_ids_t) { .output = spn_dag_add_file(g, target->stub) }));
+      continue;
+    }
     if (sp_str_empty(target->emit.output)) {
       continue;
     }

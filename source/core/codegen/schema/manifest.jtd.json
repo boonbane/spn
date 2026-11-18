@@ -199,6 +199,7 @@
         "flags": { "elements": { "ref": "value_entry" }, "metadata": { "shorthand": "value" } },
         "link_flags": { "elements": { "ref": "value_entry" }, "metadata": { "shorthand": "value" } },
         "linker_script": { "elements": { "ref": "source_entry" }, "metadata": { "shorthand": "path" } },
+        "stub": { "elements": { "ref": "source_entry" }, "metadata": { "shorthand": "path" } },
         "system_deps": { "elements": { "ref": "system_dep_entry" }, "metadata": { "shorthand": "lib" } },
         "host_deps": { "elements": { "ref": "host_dep_entry" }, "metadata": { "shorthand": "lib" } },
         "deps": { "elements": { "ref": "target_dep_entry" }, "metadata": { "shorthand": "lib" } },

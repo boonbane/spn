@@ -195,6 +195,23 @@ spn_err_t si_add_target_unit(spn_units_t* u, spn_pkg_unit_t* pkg, si_target_t* t
 
   switch (target->info->kind) {
     case SPN_TARGET_KIND_LIB: {
+      if (si_da_size(target->stub) > 1) {
+        return spn_err_emit(u->ctx, (spn_err_union_t) {
+          .kind = SPN_ERR_TARGET_STUBS,
+          .target_source = {
+            .pkg = pkg->pkg.manifest->name.str,
+            .name = target->info->name.str,
+            .source = spn_path_str(&u->ctx->roots, u->ctx->events->mem, target->stub[1]),
+          },
+        });
+      }
+      if (!si_da_empty(target->info->stub)) {
+        if (si_da_empty(target->stub)) {
+          break;
+        }
+        unit->stub = target->stub[0];
+      }
+
       const spn_profile_info_t* profile = &pkg->build->profile;
       const spn_pkg_config_t* config = pkg->resolved->config;
       spn_kind_query_t query = { .linkage = profile->linking.linkage };

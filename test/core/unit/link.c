@@ -107,6 +107,18 @@ static const test_t tests [] = {
       .deps = { { "B", SPN_LINK_ROLE_SHARED } },
     },
   },
+  // A stub has no objects, but it is still a shared lib to link against
+  {
+    .name = "stub_lib_links_shared",
+    .graph.pkgs = {
+      { .name = "P", .deps = { { "B" } }, .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "main.c" } } } },
+      { .name = "B", .targets = { { "B", shared_only, .stub = { { "B.tbd" } } } } },
+    },
+    .root = { "A", SPN_TARGET_KIND_EXE },
+    .expect = {
+      .deps = { { "B", SPN_LINK_ROLE_SHARED } },
+    },
+  },
   // min_os is the max over the target, every closure package, and every closure
   // lib, including shared boundaries the recursion otherwise stops at
   {
@@ -185,6 +197,19 @@ static const test_t tests [] = {
     .graph.pkgs = {
       { .name = "P", .deps = { { "B" } }, .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "main.c" } } } },
       { .name = "B", .system_deps = { "X" }, .frameworks = { "F" }, .targets = { { "B", static_only, .system_deps = { "Y" }, .frameworks = { "G" } } } },
+    },
+    .root = { "A", SPN_TARGET_KIND_EXE },
+  },
+  // A lib whose stubs all gate off is absent: it takes no link slot, and no
+  // linkage is selected for it, so a static profile does not refuse it
+  {
+    .name = "gated_off_stub_lib_is_absent",
+    .graph = {
+      .linkage = SPN_LIB_KIND_STATIC,
+      .pkgs = {
+        { .name = "P", .deps = { { "B" } }, .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "main.c" } } } },
+        { .name = "B", .targets = { { "B", shared_only, .stub = { { "B.tbd", SPN_OS_MACOS } } } } },
+      },
     },
     .root = { "A", SPN_TARGET_KIND_EXE },
   },

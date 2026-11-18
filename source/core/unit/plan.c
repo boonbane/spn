@@ -192,7 +192,7 @@ static spn_err_t lower_target(spn_units_t* u, spn_target_unit_t* unit) {
       case SI_CLOSURE_YIELD_LIB: {
         spn_target_unit_t* lib = entry->lib;
         link->cc.min_os = max_os_version(link->cc.min_os, lib->target->info->macos.min_os);
-        if (lib->target->info->no_link || sp_da_empty(lib->objects)) {
+        if (lib->target->info->no_link || (sp_da_empty(lib->objects) && spn_path_empty(lib->stub))) {
           break;
         }
         switch (lib->lib_kind) {

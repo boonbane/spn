@@ -69,6 +69,7 @@ typedef struct {
   gated_t flags [4];
   gated_t link_flags [4];
   gated_t linker_script [4];
+  gated_t stub [4];
   gated_t system_deps [4];
   gated_t host_deps [4];
   gated_t deps [4];
@@ -246,6 +247,13 @@ static const test_t tests [] = {
     .manifest = "link_true_lib",
     .libs = {
       { .name = "t", .linkages = { .static_lib = true }, .source = { { "a.c" } } }
+    }
+  },
+  {
+    .name = "lib_stub",
+    .manifest = "stub_lib",
+    .libs = {
+      { .name = "B", .linkages = { .shared = true }, .stub = { { "libB.tbd", "os = \"macos\"" } } }
     }
   },
   {
@@ -575,6 +583,49 @@ static const test_t tests [] = {
     .manifest = "validate_link_on_test",
     .issues = {
       { SPN_ERR_CODEGEN_INVALID, "test[0].link" }
+    }
+  },
+  {
+    .name = "validate_stub_with_source",
+    .manifest = "validate_stub_with_source",
+    .issues = {
+      { SPN_ERR_CODEGEN_INVALID, "lib[0].source" }
+    }
+  },
+  {
+    .name = "validate_stub_with_kinds",
+    .manifest = "validate_stub_with_kinds",
+    .issues = {
+      { SPN_ERR_CODEGEN_INVALID, "lib[0].kinds" }
+    }
+  },
+  {
+    .name = "validate_link_inputs_on_stub_lib",
+    .manifest = "validate_link_inputs_on_stub_lib",
+    .issues = {
+      { SPN_ERR_CODEGEN_INVALID, "lib[0].link_flags" },
+      { SPN_ERR_CODEGEN_INVALID, "lib[0].linker_script" },
+    }
+  },
+  {
+    .name = "validate_stub_on_bin",
+    .manifest = "validate_stub_on_bin",
+    .issues = {
+      { SPN_ERR_CODEGEN_INVALID, "bin[0].stub" }
+    }
+  },
+  {
+    .name = "validate_stub_glob",
+    .manifest = "validate_stub_glob",
+    .issues = {
+      { SPN_ERR_CODEGEN_INVALID, "lib[0].stub[0].path" }
+    }
+  },
+  {
+    .name = "validate_stub_tree_work",
+    .manifest = "validate_stub_tree_work",
+    .issues = {
+      { SPN_ERR_CODEGEN_INVALID, "lib[0].stub[0].tree" }
     }
   },
   {
@@ -1883,6 +1934,7 @@ static sp_err_t check_targets(sp_test_t* t, si_pkg_info_t* pkg, const target_t* 
     check_gated(t, info->flags, arr[i].flags);
     check_gated(t, info->link_flags, arr[i].link_flags);
     check_gated_paths(t, info->linker_script, arr[i].linker_script);
+    check_gated_paths(t, info->stub, arr[i].stub);
     check_requires(t, info->requires, SPN_REQUIREMENT_LIB, arr[i].system_deps);
     check_requires(t, info->requires, SPN_REQUIREMENT_HOST, arr[i].host_deps);
     u32 num_deps = 0;
