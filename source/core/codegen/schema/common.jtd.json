@@ -29,6 +29,7 @@
         "os": { "ref": "os" },
         "abi": { "ref": "abi" },
         "sdk": { "type": "string" },
+        "spelling": { "type": "string" },
         "sanitizers": { "elements": { "ref": "sanitizer" } }
       }
     },

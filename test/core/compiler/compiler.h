@@ -39,6 +39,7 @@ typedef struct {
   spn_opt_level_t opt;
   spn_sanitizer_set_t sanitizers;
   const c8* sdk;
+  const c8* spelling;
   const c8* bin;
   const c8* tools;
   const c8* atl;

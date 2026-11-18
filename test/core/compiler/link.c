@@ -4,7 +4,6 @@
 typedef struct {
   const c8* name;
   spn_cc_driver_t driver;
-  spn_wasi_spelling_t wasi;
   bool lld;
   const c8* link_args [2];
   spn_triple_t host;
@@ -64,9 +63,9 @@ static const link_test_t tests [] = {
   {
     .name = "clang_wasi_p1_reactor",
     .driver = SPN_CC_DRIVER_CLANG,
-    .wasi = SPN_WASI_SPELLING_WASIP1,
     .profile = {
       .target = { SPN_ARCH_WASM32, SPN_OS_WASI },
+      .spelling = "wasm32-wasip1",
     },
     .kind = SPN_CC_OUTPUT_REACTOR,
     .exports = "S.rsp",
@@ -1020,7 +1019,6 @@ static const link_test_t tests [] = {
 sp_test_each(render_link, render, link_test_t, tests, .setup = spn_test_ctx_setup) {
   sp_mem_t mem = sp_test_arena(t);
   spn_cc_t toolchain = test_toolchain(it->driver);
-  toolchain.wasi = it->wasi;
   spn_triple_t triple = it->profile.target;
   toolchain.link_args = sp_da_new(mem, sp_str_t);
   sp_carr_for(it->link_args, at) {

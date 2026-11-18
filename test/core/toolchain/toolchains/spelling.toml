@@ -1,0 +1,6 @@
+[[toolchain]]
+name = "A"
+driver = "clang"
+compiler = "A"
+archiver = "A"
+target = [{ arch = "wasm32", os = "wasi", abi = "musl", spelling = "wasm32-wasip1" }]

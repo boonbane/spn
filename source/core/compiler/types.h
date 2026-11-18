@@ -35,7 +35,6 @@ typedef struct {
   spn_toolchain_launcher_t archiver;
   sp_da(sp_str_t) link_args;
   spn_ar_driver_t archiver_driver;
-  spn_wasi_spelling_t wasi;
   spn_path_t cache;
 } spn_cc_t;
 

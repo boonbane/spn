@@ -364,17 +364,6 @@ spn_sdk_host_t spn_sdk_detect(sp_mem_t mem, const spn_path_roots_t* roots, sp_en
   return sdks;
 }
 
-spn_wasi_spelling_t spn_sdk_wasi_spelling(const spn_path_roots_t* roots, sp_mem_t mem, const spn_sdk_t* sdk) {
-  if (sdk->kind != SPN_SDK_SYSROOT) {
-    return SPN_WASI_SPELLING_WASI;
-  }
-  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch_for(mem);
-  sp_sys_file_meta_t meta = sp_zero;
-  bool p1 = !sp_fs_get_link_metadata_at(spn_path_at(roots, spn_path_join(scratch.mem, sdk->root, sp_str_lit("lib/wasm32-wasip1"))), &meta) && meta.kind == SP_FS_KIND_DIR;
-  sp_mem_end_scratch(scratch);
-  return p1 ? SPN_WASI_SPELLING_WASIP1 : SPN_WASI_SPELLING_WASI;
-}
-
 static sp_hash_t hash_dirs(spn_dir_list_t dirs) {
   sp_hash_t hash = dirs.count;
   sp_for(it, dirs.count) {

@@ -280,6 +280,13 @@ static const bind_test_t bind_tests [] = {
     .expect = { .rows = { { HOST_X64_LINUX, .sanitizers = SAN_ZIG_UT }, { TARGET_X64_BARE } } },
   },
   {
+    .name = "listed_rows_keep_their_spelling",
+    .driver = SPN_CC_DRIVER_CLANG,
+    .host = HOST_X64_LINUX,
+    .targets = { { .triple = TARGET_WASM, .sdk = { .path = "/S" }, .spelling = "wasm32-wasip1" } },
+    .expect = { .rows = { { TARGET_WASM, { SPN_SDK_SYSROOT, { "/S" } }, .spelling = "wasm32-wasip1" } } },
+  },
+  {
     .name = "zig_host_row_brings_its_libc",
     .driver = SPN_CC_DRIVER_ZIG,
     .host = HOST_X64_LINUX,

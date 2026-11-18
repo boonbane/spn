@@ -31,6 +31,7 @@ struct spn_profile_info {
   spn_when_t options;
   bool targeted;
   spn_sdk_t sdk;
+  sp_str_t spelling;
   sp_opt(spn_libc_t) libc;
 };
 

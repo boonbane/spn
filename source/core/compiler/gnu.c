@@ -71,14 +71,6 @@ static bool is_os_version_present(spn_os_version_t version) {
 // clang writes CodeView for the msvc abi and DWARF for mingw; zig writes
 // CodeView for every Windows target. Only CodeView records the command line
 // and object name, and only clang 15 and later knows the flag that drops them
-static sp_str_t render_wasi(spn_wasi_spelling_t spelling) {
-  switch (spelling) {
-    case SPN_WASI_SPELLING_WASI: return sp_str_lit("wasm32-wasi");
-    case SPN_WASI_SPELLING_WASIP1: return sp_str_lit("wasm32-wasip1");
-  }
-  sp_unreachable_return(sp_str_lit(""));
-}
-
 static sp_str_t render_target(sp_mem_t mem, const spn_cc_t* toolchain, spn_triple_t triple, spn_os_version_t min_os) {
   switch (triple.os) {
     case SPN_OS_MACOS: {
@@ -90,7 +82,7 @@ static sp_str_t render_target(sp_mem_t mem, const spn_cc_t* toolchain, spn_tripl
       return target;
     }
     case SPN_OS_WASI: {
-      return render_wasi(toolchain->wasi);
+      return sp_str_lit("wasm32-wasi");
     }
     case SPN_OS_FREESTANDING: {
       if (spn_cc_has(toolchain, SPN_CC_CAP_LLVM_TRIPLE)) {
@@ -226,7 +218,7 @@ static void add_launcher(sp_mem_t mem, const spn_cc_t* toolchain, const spn_prof
   invocation->program = launcher.program;
   spn_cc_push_strs(mem, invocation, launcher.args);
   if (spn_cc_has(toolchain, SPN_CC_CAP_TARGET_TRIPLE)) {
-    sp_str_t target = render_target(mem, toolchain, profile->target, min_os);
+    sp_str_t target = sp_str_empty(profile->spelling) ? render_target(mem, toolchain, profile->target, min_os) : profile->spelling;
     if (!sp_str_empty(target)) {
       spn_cc_push_fmt(mem, invocation, "--target={}", sp_fmt_str(target));
     }

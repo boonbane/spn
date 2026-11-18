@@ -84,15 +84,6 @@ static spn_err_t setup_local(spn_toolchain_store_t* store, spn_toolchain_unit_t*
   return SPN_OK;
 }
 
-static spn_wasi_spelling_t wasi_spelling(const spn_path_roots_t* roots, sp_mem_t mem, const spn_toolchain_info_t* toolchain) {
-  sp_da_for(toolchain->rows, it) {
-    if (toolchain->rows[it].triple.os == SPN_OS_WASI) {
-      return spn_sdk_wasi_spelling(roots, mem, &toolchain->rows[it].sdk);
-    }
-  }
-  return SPN_WASI_SPELLING_WASI;
-}
-
 static spn_err_t setup_artifact(spn_toolchain_store_t* store, spn_toolchain_unit_t* unit, sp_atomic_s32_t* cancelled) {
   sp_assert(store->http.download);
   sp_assert(!store->backoff.wait_ms[0] || store->backoff.wait);
@@ -250,7 +241,6 @@ spn_err_t spn_sync_toolchain(spn_toolchain_store_t* store, spn_toolchain_unit_t*
     }
   }
 
-  unit->cc.wasi = wasi_spelling(store->roots, spn.mem, unit->info);
   if (unit->info->driver == SPN_CC_DRIVER_ZIG) {
     sp_assert(unit->identity);
     sp_str_t id = sp_fmt(spn.mem, "{:0>16x}", sp_fmt_uint(unit->identity)).value;

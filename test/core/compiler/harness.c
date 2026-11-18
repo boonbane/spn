@@ -29,6 +29,7 @@ spn_profile_info_t test_profile(test_profile_t desc) {
     .mode = desc.mode,
     .opt = desc.opt,
     .sanitizers = desc.sanitizers,
+    .spelling = sp_cstr_as_str(desc.spelling),
   };
   if (desc.sdk) {
     profile.sdk = spn_sdk_at(spn.mem, desc.target, test_arg_path(desc.sdk));

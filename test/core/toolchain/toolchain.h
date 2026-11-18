@@ -42,6 +42,7 @@ typedef struct {
   spn_triple_t triple;
   test_arg_t sdk;
   spn_sanitizer_set_t sanitizers;
+  const c8* spelling;
 } fixture_target_t;
 
 typedef struct {
@@ -62,6 +63,7 @@ typedef struct {
   spn_triple_t triple;
   fixture_sdk_expect_t sdk;
   spn_sanitizer_set_t sanitizers;
+  const c8* spelling;
 } fixture_row_t;
 
 typedef struct {
@@ -175,7 +177,7 @@ static spn_arg_t fixture_sdk_arg(test_arg_t sdk) {
 }
 
 static spn_toolchain_target_t fixture_target(fixture_target_t target) {
-  return (spn_toolchain_target_t) { .triple = target.triple, .sdk = fixture_sdk_arg(target.sdk), .sanitizers = target.sanitizers };
+  return (spn_toolchain_target_t) { .triple = target.triple, .sdk = fixture_sdk_arg(target.sdk), .spelling = sp_cstr_as_str(target.spelling), .sanitizers = target.sanitizers };
 }
 
 static sp_err_t fixture_check_launcher(sp_test_t* t, spn_toolchain_launcher_t launcher, fixture_launcher_t expect) {
@@ -222,6 +224,7 @@ static sp_err_t fixture_check_targets(sp_test_t* t, sp_da(spn_toolchain_target_t
     spn_toolchain_target_t want = fixture_target(expect[it]);
     sp_expect(t, spn_triple_equal(want.triple, targets[it].triple));
     sp_expect_eq(t, want.sanitizers, targets[it].sanitizers);
+    sp_expect_str_eq(t, targets[it].spelling, want.spelling);
     if (!expect[it].sdk.name && !expect[it].sdk.path) {
       sp_expect(t, spn_arg_empty(targets[it].sdk));
     }
@@ -238,6 +241,7 @@ static sp_err_t fixture_check_rows(sp_test_t* t, sp_da(spn_toolchain_row_t) rows
   sp_for(it, count) {
     sp_expect_str_eq(t, spn_triple_to_str(mem, rows[it].triple), spn_triple_to_str(mem, expect[it].triple));
     sp_expect_eq(t, expect[it].sanitizers, rows[it].sanitizers);
+    sp_expect_str_eq_c(t, rows[it].spelling, expect[it].spelling);
     if (fixture_check_sdk(t, rows[it].sdk, expect[it].sdk)) {
       return SP_ERR;
     }
