@@ -4,7 +4,8 @@
 #include "sp.h"
 #include "spn/core.h"
 #include "core/types.h"
+#include "lock/types.h"
 
-spn_err_t spn_resolve(spn_op_t* op);
+spn_err_t spn_resolve(spn_op_t* op, const spn_lock_t* lock);
 
 #endif

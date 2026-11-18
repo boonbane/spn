@@ -69,6 +69,7 @@ sp_cli_cmd_t spn_cmd_test = {
       .placeholder = "LIST",
       .ptr = &host.args.profile.sanitize,
     },
+    spn_cli_locked_opt,
   },
   .args = {
     {

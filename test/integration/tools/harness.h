@@ -14,7 +14,7 @@
 #define SPN_TEST_MAX_EVENTS 4
 #define SPN_TEST_MAX_FILES 4
 #define SPN_TEST_MAX_CC 4
-#define SPN_TEST_MAX_PACKAGES 4
+#define SPN_TEST_MAX_PACKAGES 8
 #define SPN_TEST_MAX_REBUILDS 3
 #define SPN_TEST_MAX_CHANGES 4
 #define SPN_TEST_MAX_WATCHES 4
@@ -87,7 +87,6 @@ typedef enum {
   ACTION_VERIFY_FILE_NOT_CONTAINS,
   ACTION_VERIFY_CC_ARG,
   ACTION_VERIFY_NO_CC_ARG,
-  ACTION_VERIFY_PKG_LOCKED,
   ACTION_VERIFY_STORE,
   ACTION_VERIFY_EVENT,
   ACTION_VERIFY_NO_EVENT,
@@ -110,7 +109,6 @@ typedef struct {
     struct { path_t file; spn_os_version_t min_os; } verify_macho_min_os;
     struct { const c8* file; const c8* needle; } verify_file_contains;
     const c8* verify_cc_arg [4];
-    struct { const c8* name; const c8* version; } verify_locked;
     struct { const c8* pkg; u32 count; } verify_store;
     struct { spn_event_kind_t event; const c8* key; const c8* value; bool lane; } verify_event;
     struct { spn_err_t err; } verify_result;

@@ -3,7 +3,6 @@
 #include "codegen/lower.h"
 #include "manifest.gen.h"
 #include "error/error.h"
-#include "lock/lock.h"
 #include "paths/paths.h"
 #include "toml/loader.h"
 
@@ -31,19 +30,5 @@ spn_err_t spn_project_load(spn_ctx_t* ctx, spn_project_t** project) {
   }
 
   *project = loaded;
-  return SPN_OK;
-}
-
-spn_err_t spn_project_update_lock(spn_ctx_t* ctx, spn_project_t* project, spn_resolve_t resolve) {
-  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  spn_lock_file_t lock = spn_build_lock_file(scratch.mem, resolve);
-
-  sp_str_t output = spn_lock_file_to_str(scratch.mem, &lock);
-  sp_err_t written = sp_fs_write_at(spn_path_at(&ctx->roots, project->paths.lock), output, SP_FS_WRITE_REPLACE);
-  sp_mem_end_scratch(scratch);
-
-  if (written != SP_OK) {
-    return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_FS_WRITE, .fs = { .path = project->paths.lock } });
-  }
   return SPN_OK;
 }

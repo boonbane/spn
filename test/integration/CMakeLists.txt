@@ -15,6 +15,7 @@ add_executable(integration
   glob.c
   layout.c
   linker.c
+  lock.c
   log.c
   offline.c
   options.c

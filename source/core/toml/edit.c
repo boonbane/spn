@@ -743,7 +743,7 @@ static void spn_toml_edit_write_key_path(sp_io_writer_t* io, const sp_str_t* pat
   }
 }
 
-static void spn_toml_edit_write_str_value(sp_io_writer_t* io, sp_str_t value) {
+void spn_toml_write_str(sp_io_writer_t* io, sp_str_t value) {
   sp_io_write_c8(io, '"');
   sp_str_for(value, it) {
     c8 c = value.data[it];
@@ -795,7 +795,7 @@ static bool spn_toml_edit_splice(spn_toml_edit_t* edit, u32 at, u32 remove, sp_s
 static sp_str_t spn_toml_edit_quoted(spn_toml_edit_t* edit, sp_str_t value) {
   sp_io_dyn_mem_writer_t quoted = sp_zero;
   sp_io_dyn_mem_writer_init(edit->mem, &quoted);
-  spn_toml_edit_write_str_value(&quoted.base, value);
+  spn_toml_write_str(&quoted.base, value);
   return sp_io_dyn_mem_writer_take_str(&quoted);
 }
 

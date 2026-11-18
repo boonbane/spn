@@ -77,6 +77,7 @@ sp_cli_cmd_t spn_cmd_path = {
       .placeholder = "NAME",
       .ptr = &host.args.profile.toolchain,
     },
+    spn_cli_locked_opt,
   },
   .args = {
     {

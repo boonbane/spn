@@ -21,5 +21,6 @@ spn_err_t spn_op_clean_profile(spn_op_t* op);
 spn_err_t spn_op_env(spn_op_t* op);
 spn_err_t spn_op_source_path(spn_op_t* op);
 spn_err_t spn_op_tool_path(spn_op_t* op);
+spn_err_t spn_op_update(spn_op_t* op);
 
 #endif

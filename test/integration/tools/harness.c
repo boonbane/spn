@@ -3,6 +3,7 @@
 #include "probe.gen.h"
 #include "error/error.h"
 #include "git/key.h"
+#include "intern/intern.h"
 #include "lock/lock.h"
 #include "semver/convert.h"
 #include "triple/triple.h"
@@ -560,48 +561,32 @@ static void expect_command_file(sp_test_t* t, fixture_t* fixture, command_file_t
   }
 }
 
-static sp_err_t expect_locked(sp_test_t* t, fixture_t* fixture, spn_lock_file_t* lock, const c8* name, const c8* version, const c8* file, u32 line) {
-  sp_str_t key = sp_cstr_as_str(name);
-  spn_lock_entry_t* entry = sp_ht_getp(lock->entries, key);
-  sp_test_kv(t, "package", key);
-  if (!entry) {
-    sp_test_record(t, (sp_test_failure_t) {
-      .file = sp_cstr_as_str(file),
-      .line = line,
-      .expected = sp_cstr_as_str("package locked"),
-      .actual = sp_cstr_as_str("it is not"),
-    });
-    return SP_ERR;
-  }
-  if (version) {
-    sp_str_t actual = spn_semver_to_str(fixture->mem, entry->version);
-    sp_test_kv(t, "version", actual);
-    sp_expect(t, sp_str_equal_cstr(actual, version));
-  }
-  return SP_OK;
-}
-
-static spn_lock_file_t load_lock(sp_test_t* t, fixture_t* fixture) {
-  sp_str_t path = fixture_path(fixture, sp_str_lit("spn.lock"));
-  spn_lock_file_t lock = sp_zero;
-  spn_lock_file_init(fixture->mem, &lock);
-  if (!expect_path(t, fixture, path)) {
-    lock = spn_lock_file_load(fixture->mem, sp_path_cwd(path), SP_NULLPTR);
-  }
-  return lock;
-}
-
 static void expect_lock(sp_test_t* t, fixture_t* fixture, const command_lock_t* locked) {
-  spn_lock_file_t lock = load_lock(t, fixture);
+  spn_path_roots_t roots = sp_zero;
+  spn_lock_t lock = sp_zero;
+  spn_err_union_t err = sp_zero;
+  spn_path_t path = { .sub = fixture_path(fixture, sp_str_lit("spn.lock")) };
+  sp_expect_eq(t, SPN_OK, spn_lock_load(fixture->mem, sp_intern_new(fixture->mem), &roots, path, &lock, &err));
+
   u32 num = 0;
   sp_for(it, SPN_TEST_MAX_PACKAGES) {
     if (!locked[it].name) {
       break;
     }
     num++;
-    expect_locked(t, fixture, &lock, locked[it].name, locked[it].version, __FILE__, __LINE__);
+
+    bool found = false;
+    sp_da_for(lock.entries, et) {
+      spn_lock_entry_t* entry = &lock.entries[et];
+      if (!sp_str_equal_cstr(entry->name.str, locked[it].name)) {
+        continue;
+      }
+      found = found || !locked[it].version || sp_str_equal_cstr(spn_semver_to_str(fixture->mem, entry->version), locked[it].version);
+    }
+    sp_test_kv(t, "package", sp_cstr_as_str(locked[it].name));
+    sp_expect(t, found);
   }
-  sp_expect_eq(t, num, (u32)sp_ht_size(lock.entries));
+  sp_expect_eq(t, num, (u32)sp_da_size(lock.entries));
 }
 
 static void expect_store(sp_test_t* t, fixture_t* fixture, const c8* pkg, u32 count) {
@@ -934,6 +919,7 @@ sp_err_t run_actions(sp_test_t* t, fixture_t* fixture, const action_t* actions) 
       }
       case ACTION_INIT_REPO: {
         git_repo_init(fixture->root);
+        git_repo_commit(fixture->root, sp_str_lit("A"));
         break;
       }
       case ACTION_RUN_CLI: {
@@ -964,11 +950,6 @@ sp_err_t run_actions(sp_test_t* t, fixture_t* fixture, const action_t* actions) 
       }
       case ACTION_VERIFY_RESULT: {
         expect_result(t, fixture, action.verify_result.err, __FILE__, __LINE__);
-        break;
-      }
-      case ACTION_VERIFY_PKG_LOCKED: {
-        spn_lock_file_t lock = load_lock(t, fixture);
-        expect_locked(t, fixture, &lock, action.verify_locked.name, action.verify_locked.version, __FILE__, __LINE__);
         break;
       }
       case ACTION_VERIFY_STORE: {

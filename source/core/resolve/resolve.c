@@ -42,11 +42,6 @@ typedef struct {
 } spn_scope_boundary_t;
 
 typedef struct {
-  sp_intern_id_t name;
-  spn_semver_t version;
-} spn_pin_t;
-
-typedef struct {
   spn_pkg_id_t from;
   spn_dep_kind_t kind;
   sp_da(spn_requested_dep_t) reqs;
@@ -63,11 +58,17 @@ typedef struct {
 } spn_scope_edge_t;
 
 typedef struct {
+  spn_resolved_pkg_t* from;
+  spn_requested_dep_t req;
+} spn_declared_t;
+
+typedef struct {
   spn_resolve_query_t* query;
   sp_da(spn_scope_t) scopes;
   sp_da(spn_scope_boundary_t) boundaries;
   sp_da(spn_scope_edge_t) edges;
   sp_ht(sp_intern_id_t, u8) visited;
+  sp_da(spn_declared_t) declared;
   u32 scope;
   u64 picks;
   u64 budget;
@@ -110,18 +111,6 @@ typedef struct {
 static spn_err_union_t resolve_dep(spn_resolver_t* resolver, spn_resolve_run_t* run, spn_resolved_pkg_t* node, spn_requested_dep_t* dep);
 static spn_err_union_t resolve_deps(spn_resolver_t* resolver, spn_resolve_run_t* run, spn_resolved_pkg_t* node);
 static spn_err_union_t solve_node(spn_resolver_t* resolver, spn_resolve_run_t* run, spn_scope_t* scope, sp_intern_id_t name, spn_resolved_pkg_t* node);
-
-void spn_resolver_init(spn_resolver_t* r, sp_mem_t mem, sp_intern_t* intern, spn_index_cache_t* index, spn_pkg_registry_t* registry, spn_profile_info_t profile, spn_pkg_config_map_t config, u64 budget) {
-  *r = (spn_resolver_t){
-    .mem = mem,
-    .intern = intern,
-    .index = index,
-    .registry = registry,
-    .profile = profile,
-    .config = config,
-    .budget = budget ? budget : SPN_RESOLVE_DEFAULT_BUDGET,
-  };
-}
 
 void spn_resolve_query_init(sp_mem_t mem, spn_resolve_query_t* query) {
   *query = (spn_resolve_query_t) sp_zero_initialize();
@@ -258,18 +247,6 @@ static bool target_selects_shared(spn_linkage_set_t linkages, spn_kind_query_t q
   return kind == SPN_LIB_KIND_SHARED;
 }
 
-static void node_options_env(spn_resolver_t* resolver, spn_resolved_pkg_t* node, spn_when_env_t* env) {
-  spn_option_requests_t* seeds = SP_NULLPTR;
-  if (resolver->seeds) {
-    seeds = sp_ht_getp(resolver->seeds, node->id.name);
-  }
-  spn_option_subject_t subject = { .name = node->name, .is_root = node->source == SPN_PKG_SOURCE_ROOT, .options = node->options.decls };
-  spn_merged_options_t merged = sp_zero;
-  spn_options_merge(resolver->mem, subject, seeds ? *seeds : SP_NULLPTR, spn_profile_facts(&resolver->profile), &resolver->profile.options, resolver->config, &merged);
-  spn_profile_env(resolver->mem, &resolver->profile, env);
-  spn_options_env_set(env, &merged.options);
-}
-
 static bool node_is_shared(spn_resolver_t* resolver, spn_resolved_pkg_t* node) {
   spn_kind_query_t query = kind_query(resolver, node->name);
 
@@ -325,6 +302,15 @@ static bool node_is_shared(spn_resolver_t* resolver, spn_resolved_pkg_t* node) {
     }
   }
   sp_unreachable_return(false);
+}
+
+static bool is_preferred(spn_resolver_t* resolver, sp_intern_id_t name, spn_semver_t version) {
+  sp_da_for(resolver->preferences, it) {
+    if (resolver->preferences[it].name == name && spn_semver_eq(resolver->preferences[it].version, version)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 static spn_dep_edge_t classify_dep(spn_resolver_t* resolver, spn_resolved_pkg_t* node, spn_requested_dep_t* dep) {
@@ -507,16 +493,9 @@ static spn_err_union_t resolve_local_package(spn_resolver_t* resolver, spn_resol
   };
 
   sp_da_init(resolver->mem, node.deps);
-
-  spn_when_env_t env;
-  node_options_env(resolver, &node, &env);
   si_da_for(pkg->manifest->deps, it) {
-    if (!spn_when_eval(&pkg->manifest->deps[it].when, &env)) {
-      continue;
-    }
     sp_da_push(node.deps, pkg->manifest->deps[it]);
   }
-  sp_da_sort(node.deps, sort_req_canonical);
 
   return solve_node(resolver, run, scope, name, &node);
 }
@@ -549,15 +528,8 @@ static spn_err_union_t try_candidate(spn_resolver_t* resolver, spn_resolve_run_t
     }
   };
 
-  spn_when_env_t env;
-  node_options_env(resolver, &node, &env);
-
   sp_da_init(resolver->mem, node.deps);
   sp_da_for(release->deps, it) {
-    if (!spn_when_eval(&release->deps[it].when, &env)) {
-      continue;
-    }
-
     sp_da_push(node.deps, ((spn_requested_dep_t) {
       .name = release->deps[it].name,
       .source = SPN_PKG_SOURCE_INDEX,
@@ -570,7 +542,6 @@ static spn_err_union_t try_candidate(spn_resolver_t* resolver, spn_resolve_run_t
       }
     }));
   }
-  sp_da_sort(node.deps, sort_req_canonical);
 
   return solve_node(resolver, run, scope, release->name.id, &node);
 }
@@ -592,6 +563,9 @@ static spn_err_union_t resolve_index_package(spn_resolver_t* resolver, spn_resol
       return ok_union();
     }
 
+    if (sp_opt_is_null(run->query->blocker) && is_preferred(resolver, name, existing->id.version)) {
+      sp_opt_set(run->query->blocker, ((spn_pin_t) { .name = name, .version = existing->id.version }));
+    }
     return unsatisfiable_err(resolver, from, request, SPN_ERR_PKG_CONFLICT, existing->id.version);
   }
 
@@ -632,21 +606,35 @@ static spn_err_union_t resolve_index_package(spn_resolver_t* resolver, spn_resol
   // If the name is totally free, just pick the newest legal version. This
   // is just a simple, greedy heuristic, not for correctness.
   spn_err_union_t first = sp_zero;
-  sp_da_rfor(pkg->releases, it) {
-    spn_index_release_t* release = &pkg->releases[it];
-    if (release->yanked) {
-      continue;
-    }
-    if (!spn_semver_in_range(release->version, request->index.range)) {
-      continue;
-    }
+  const bool passes [] = { true, false };
+  sp_carr_for(passes, pass) {
+    sp_da_rfor(pkg->releases, it) {
+      spn_index_release_t* release = &pkg->releases[it];
+      bool preferred = is_preferred(resolver, name, release->version);
+      if (preferred != passes[pass] || (release->yanked && !preferred)) {
+        continue;
+      }
+      if (!spn_semver_in_range(release->version, request->index.range)) {
+        continue;
+      }
 
-    spn_err_union_t err = try_candidate(resolver, run, release);
-    if (!err.kind || run->fatal) {
-      return err;
-    }
-    if (!first.kind) {
-      first = err;
+      spn_err_union_t err = sp_zero;
+      sp_da_for(run->declared, dt) {
+        spn_declared_t* declared = &run->declared[dt];
+        if (declared->req.name.id == name && !spn_semver_in_range(release->version, declared->req.index.range)) {
+          err = unsatisfiable_err(resolver, declared->from, &declared->req, SPN_ERR_PKG_CONFLICT, release->version);
+          break;
+        }
+      }
+      if (!err.kind) {
+        err = try_candidate(resolver, run, release);
+      }
+      if (!err.kind || run->fatal) {
+        return err;
+      }
+      if (!first.kind) {
+        first = err;
+      }
     }
   }
 
@@ -657,6 +645,26 @@ static spn_err_union_t resolve_index_package(spn_resolver_t* resolver, spn_resol
 }
 
 static spn_err_union_t solve_node(spn_resolver_t* resolver, spn_resolve_run_t* run, spn_scope_t* scope, sp_intern_id_t name, spn_resolved_pkg_t* node) {
+  spn_option_requests_t* seeds = SP_NULLPTR;
+  if (resolver->seeds) {
+    seeds = sp_ht_getp(resolver->seeds, node->id.name);
+  }
+  spn_option_subject_t subject = { .name = node->name, .is_root = node->source == SPN_PKG_SOURCE_ROOT, .options = node->options.decls };
+  spn_merged_options_t merged = sp_zero;
+  spn_options_merge(resolver->mem, subject, seeds ? *seeds : SP_NULLPTR, spn_profile_facts(&resolver->profile), &resolver->profile.options, resolver->config, &merged);
+  spn_when_env_t env = sp_zero;
+  spn_profile_env(resolver->mem, &resolver->profile, &env);
+  spn_options_env_set(&env, &merged.options);
+
+  u64 kept = 0;
+  sp_da_for(node->deps, it) {
+    if (spn_when_eval(&node->deps[it].when, &env)) {
+      node->deps[kept++] = node->deps[it];
+    }
+  }
+  sp_da_head(node->deps)->size = kept;
+  sp_da_sort(node->deps, sort_req_canonical);
+
   node->priority = run->picks++;
 
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
@@ -717,8 +725,18 @@ static spn_err_union_t resolve_dep(spn_resolver_t* resolver, spn_resolve_run_t* 
   sp_unreachable_return(ok_union());
 }
 
+static void declare(spn_resolver_t* resolver, spn_resolve_run_t* run, spn_resolved_pkg_t* from, spn_requested_dep_t* reqs, u64 num) {
+  sp_for(it, num) {
+    if (reqs[it].source == SPN_PKG_SOURCE_INDEX && classify_dep(resolver, from, &reqs[it]) == SPN_DEP_EDGE_SCOPE) {
+      sp_da_push(run->declared, ((spn_declared_t) { .from = from, .req = reqs[it] }));
+    }
+  }
+}
+
 static spn_err_union_t resolve_deps(spn_resolver_t* resolver, spn_resolve_run_t* run, spn_resolved_pkg_t* node) {
   sp_ht_insert(run->visited, node->id.name, (u8)true);
+  u64 declared = sp_da_size(run->declared);
+  declare(resolver, run, node, node->deps, sp_da_size(node->deps));
 
   spn_err_union_t err = sp_zero;
   sp_da_for(node->deps, it) {
@@ -726,6 +744,7 @@ static spn_err_union_t resolve_deps(spn_resolver_t* resolver, spn_resolve_run_t*
     if (err.kind) break;
   }
 
+  sp_da_head(run->declared)->size = declared;
   sp_ht_erase(run->visited, node->id.name);
   return err;
 }
@@ -735,12 +754,18 @@ static spn_err_union_t solve_reqs(spn_resolver_t* resolver, spn_resolve_run_t* r
     .source = SPN_PKG_SOURCE_ROOT,
   };
 
+  u64 declared = sp_da_size(run->declared);
+  declare(resolver, run, &root, run->scopes[run->scope].reqs + from, to - from);
+
+  spn_err_union_t err = sp_zero;
   for (u64 it = from; it < to; it++) {
     spn_requested_dep_t req = run->scopes[run->scope].reqs[it];
-    try_union(resolve_dep(resolver, run, &root, &req));
+    err = resolve_dep(resolver, run, &root, &req);
+    if (err.kind) break;
   }
 
-  return ok_union();
+  sp_da_head(run->declared)->size = declared;
+  return err;
 }
 
 // The full assignment for some feasibility check.
@@ -802,7 +827,7 @@ static spn_err_union_t resolve_scope(spn_resolver_t* resolver, spn_resolve_run_t
   u64 from = scope->cursor;
   u64 to = sp_da_size(scope->reqs);
   scope->cursor = to;
-  run->budget = resolver->budget;
+  run->budget = resolver->budget ? resolver->budget : SPN_RESOLVE_DEFAULT_BUDGET;
   sp_os_qsort(scope->reqs + from, to - from, sizeof(spn_requested_dep_t), sort_req_canonical);
 
   // Re-entered scopes solve under their kept pins; re-pushed requests are a
@@ -1275,6 +1300,7 @@ static spn_err_union_t solve_once(spn_resolver_t* resolver, spn_resolve_query_t*
   sp_da_init(resolver->mem, run->boundaries);
   sp_da_init(resolver->mem, run->edges);
   sp_ht_init(resolver->mem, run->visited);
+  sp_da_init(resolver->mem, run->declared);
 
   u32 root = find_or_create_scope(resolver, run, sp_zero_s(spn_pkg_id_t), SPN_DEP_KIND_PACKAGE);
   sp_da_for(query->reqs, it) {

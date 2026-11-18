@@ -75,6 +75,9 @@ set(GEN_FILES
   ${GEN_DIR}/config.gen.h
   ${GEN_DIR}/config.gen.c
   ${GEN_DIR}/config.jtd.json
+  ${GEN_DIR}/lock.gen.h
+  ${GEN_DIR}/lock.gen.c
+  ${GEN_DIR}/lock.jtd.json
   ${GEN_DIR}/manifest.gen.h
   ${GEN_DIR}/manifest.gen.c
   ${GEN_DIR}/manifest.jtd.json

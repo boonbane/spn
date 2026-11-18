@@ -1,0 +1,7 @@
+[package]
+name = "R"
+version = "0.1.0"
+
+[deps.package]
+A = "^1.0.0"
+B = "^1.0.0"

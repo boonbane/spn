@@ -1,0 +1,64 @@
+{
+  "version": 3,
+  "requests": [
+    {
+      "name": "root",
+      "kind": "package",
+      "source": "root"
+    }
+  ],
+  "packages": [
+    {
+      "name": "a",
+      "version": "1.0.0",
+      "hash": "0ce2ddb82eb556c7",
+      "source": "index",
+      "recipe": "none",
+      "edges": [
+        {
+          "to": {
+            "name": "c",
+            "version": "1.4.0",
+            "hash": "5211b23df2dfcf70"
+          },
+          "kind": "package",
+          "edge": "scope"
+        }
+      ]
+    },
+    {
+      "name": "c",
+      "version": "1.4.0",
+      "hash": "5211b23df2dfcf70",
+      "source": "index",
+      "recipe": "none"
+    },
+    {
+      "name": "root",
+      "version": "0.0.1",
+      "hash": "d50d22fa96531713",
+      "source": "root",
+      "recipe": "local",
+      "edges": [
+        {
+          "to": {
+            "name": "a",
+            "version": "1.0.0",
+            "hash": "0ce2ddb82eb556c7"
+          },
+          "kind": "package",
+          "edge": "scope"
+        },
+        {
+          "to": {
+            "name": "c",
+            "version": "1.4.0",
+            "hash": "5211b23df2dfcf70"
+          },
+          "kind": "package",
+          "edge": "scope"
+        }
+      ]
+    }
+  ]
+}

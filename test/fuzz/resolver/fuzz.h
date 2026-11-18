@@ -44,6 +44,8 @@ typedef enum {
   FZ_ERR_PIN_VERDICT,
   FZ_ERR_PIN_SOLUTION,
   FZ_ERR_EXTEND_VERDICT,
+  FZ_ERR_LOCK_VERDICT,
+  FZ_ERR_LOCK_SOLUTION,
   FZ_ERR_COUNT,
 } fz_err_t;
 
@@ -106,20 +108,21 @@ typedef struct {
 } fz_profile_t;
 
 typedef struct {
-  fz_profile_t profile;
-  sp_da(fz_pkg_t) pkgs;
-  sp_da(fz_dep_t) roots;
-  sp_da(u32) plan;
-  bool planted;
-} fz_universe_t;
-
-typedef struct {
   s32 pkg;
   spn_semver_t version;
   sp_hash_t hash;
 } fz_pick_t;
 
 typedef sp_da(fz_pick_t) fz_solution_t;
+
+typedef struct {
+  fz_profile_t profile;
+  sp_da(fz_pkg_t) pkgs;
+  sp_da(fz_dep_t) roots;
+  sp_da(u32) plan;
+  fz_solution_t locked;
+  bool planted;
+} fz_universe_t;
 
 extern const c8* fz_root_name;
 

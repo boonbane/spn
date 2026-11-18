@@ -14,7 +14,6 @@
 #include "paths/paths.h"
 #include "pkg/pkg.h"
 #include "profile/types.h"
-#include "project/project.h"
 #include "project/types.h"
 #include "session/session.h"
 #include "session/types.h"
@@ -233,10 +232,6 @@ spn_err_t spn_op_build(spn_op_t* op) {
     result = written;
   }
   if (!result) {
-    sp_sys_file_meta_t meta = sp_zero;
-    if (sp_fs_get_path_metadata_at(spn_path_at(roots, project->paths.lock), &meta)) {
-      spn_try(spn_project_update_lock(ctx, project, session->resolve));
-    }
     sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
     result = stage(scratch.mem, b, root);
     sp_mem_end_scratch(scratch);

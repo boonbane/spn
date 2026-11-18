@@ -15,6 +15,7 @@
 #include "git/patch.h"
 #include "hash/digest/digest.h"
 #include "lazy/lazy.h"
+#include "lock/lock.h"
 #include "model/resolve.h"
 #include "op/op.h"
 #include "paths/paths.h"
@@ -22,6 +23,7 @@
 #include "pkg/types.h"
 #include "project/types.h"
 #include "resolve/types.h"
+#include "semver/convert.h"
 #include "session/session.h"
 #include "session/types.h"
 #include "spn/core.h"
@@ -556,7 +558,80 @@ static spn_err_t sync_jobs(spn_op_t* op, sp_mem_t mem, bool* reresolve) {
   return SPN_OK;
 }
 
-spn_err_t spn_resolve_and_sync(spn_op_t* op) {
+static void add_name(sp_da(sp_str_t)* names, sp_str_t name) {
+  sp_da_for(*names, it) {
+    if (sp_str_equal((*names)[it], name)) {
+      return;
+    }
+  }
+  sp_da_push(*names, name);
+}
+
+static spn_lock_root_t pinned_root(spn_pkg_root_t root) {
+  if (root.kind != SPN_PKG_ROOT_GIT) {
+    return sp_zero_s(spn_lock_root_t);
+  }
+  return (spn_lock_root_t) { .url = root.git.url, .rev = root.git.rev, .dir = root.git.dir };
+}
+
+static spn_err_t pin(sp_mem_t scratch, spn_ctx_t* ctx, spn_resolve_t resolve, bool locked, const spn_lock_t* held, spn_lock_t* lock) {
+  spn_lock_t selected = spn_lock_new(scratch);
+  sp_ht_for_kv(resolve, it) {
+    const spn_resolved_pkg_t* pkg = it.val;
+    if (pkg->source != SPN_PKG_SOURCE_INDEX) {
+      continue;
+    }
+    spn_lock_insert(&selected, (spn_lock_entry_t) {
+      .name = pkg->name,
+      .version = pkg->id.version,
+      .source = pinned_root(pkg->origin.release->source),
+      .manifest = pinned_root(pkg->origin.release->manifest),
+    });
+  }
+
+  sp_da(spn_err_union_t) moved = sp_da_new(scratch, spn_err_union_t);
+  spn_lock_diff_t drift = spn_lock_diff(lock, &selected);
+  while (spn_lock_diff_next(&drift)) {
+    if (drift.was && drift.now) {
+      sp_da_push(moved, spn_lock_mismatch(drift.was, drift.now));
+    }
+  }
+  if (!sp_da_empty(moved)) {
+    sp_da(sp_str_t) accept = sp_da_new(ctx->events->mem, sp_str_t);
+    spn_lock_diff_t unpinned = spn_lock_diff(held, lock);
+    while (spn_lock_diff_next(&unpinned)) {
+      if (unpinned.was) {
+        add_name(&accept, unpinned.was->name.str);
+      }
+    }
+    sp_da_for(moved, it) {
+      add_name(&accept, moved[it].subject);
+    }
+    sp_da_for(moved, it) {
+      moved[it].lock_mismatch.update = accept;
+      spn_err_emit(ctx, moved[it]);
+    }
+    return SPN_ERR_LOCK_MISMATCH;
+  }
+
+  sp_da_for(selected.entries, it) {
+    spn_lock_insert(lock, selected.entries[it]);
+  }
+
+  if (locked && held->version != lock->version) {
+    return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_LOCK_STALE });
+  }
+  spn_lock_diff_t stale = spn_lock_diff(held, lock);
+  if (locked && spn_lock_diff_next(&stale)) {
+    return spn_err_emit(ctx, (spn_err_union_t) {
+      .kind = SPN_ERR_LOCK_STALE,
+      .subject = (stale.was ? stale.was : stale.now)->name.str,
+    });
+  }
+  return SPN_OK;
+}
+
+spn_err_t spn_resolve_and_sync_pins(spn_op_t* op, const spn_lock_t* held, const spn_lock_t* pins, spn_lock_t* lock) {
   spn_session_t* session = op->session;
   spn_ctx_t* ctx = session->ctx;
   const spn_path_roots_t* roots = &ctx->roots;
@@ -584,14 +659,32 @@ spn_err_t spn_resolve_and_sync(spn_op_t* op) {
   }
   spn_try(hashed);
 
+  *lock = spn_lock_new(session->mem);
+  sp_da_for(pins->entries, it) {
+    spn_lock_insert(lock, pins->entries[it]);
+  }
+
   bool reresolve = sp_zero;
   do {
-    spn_try(spn_resolve(op));
+    spn_try(spn_resolve(op, lock));
+
+    sp_mem_arena_marker_t pinning = sp_mem_begin_scratch();
+    spn_err_t pinned = pin(pinning.mem, ctx, session->resolve, session->locked, held, lock);
+    sp_mem_end_scratch(pinning);
+    spn_try(pinned);
+
     sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
     spn_err_t synced = sync_jobs(op, scratch.mem, &reresolve);
     sp_mem_end_scratch(scratch);
     spn_try(synced);
   } while (reresolve);
+
+  spn_lock_diff_t diff = spn_lock_diff(held, lock);
+  bool changed = held->version != lock->version || spn_lock_diff_next(&diff);
+  spn_err_union_t unwritten = sp_zero;
+  if (changed && spn_lock_save(roots, session->project->paths.lock, lock, &unwritten)) {
+    return spn_err_emit(ctx, unwritten);
+  }
 
   spn_err_t unused = SPN_OK;
   si_da_for_ptr(session->patches, patch) {
@@ -614,4 +707,38 @@ spn_err_t spn_resolve_and_sync(spn_op_t* op) {
     }
   }
   return unused;
+}
+
+spn_err_t spn_resolve_and_sync(spn_op_t* op) {
+  spn_session_t* session = op->session;
+  spn_ctx_t* ctx = session->ctx;
+
+  spn_lock_t held = sp_zero;
+  spn_err_union_t unreadable = sp_zero;
+  if (spn_lock_load(session->mem, ctx->intern, &ctx->roots, session->project->paths.lock, &held, &unreadable)) {
+    return spn_err_emit(ctx, unreadable);
+  }
+
+  spn_lock_t lock = sp_zero;
+  spn_try(spn_resolve_and_sync_pins(op, &held, &held, &lock));
+
+  spn_lock_diff_t diff = spn_lock_diff(&held, &lock);
+  while (spn_lock_diff_next(&diff)) {
+    bool pinned = false;
+    sp_da_for(held.entries, it) {
+      pinned = pinned || held.entries[it].name.id == diff.now->name.id;
+    }
+    if (!pinned) {
+      continue;
+    }
+    spn_event_buffer_push(ctx->events, (spn_event_t) {
+      .kind = SPN_EVENT_LOCK_ADDED,
+      .pkg = diff.now->name.str,
+      .resolve_pkg = {
+        .name = diff.now->name.str,
+        .version = spn_semver_to_str(ctx->events->mem, diff.now->version),
+      },
+    });
+  }
+  return SPN_OK;
 }

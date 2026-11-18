@@ -66,6 +66,14 @@
     }, \
   }
 
+#define spn_cli_locked_opt \
+  { \
+    .name = "locked", \
+    .kind = SP_CLI_OPT_BOOLEAN, \
+    .summary = "Fail if spn.lock is out of date instead of updating it", \
+    .ptr = &host.args.locked, \
+  }
+
 typedef struct {
   sp_str_t name;
   sp_str_t toolchain;
@@ -87,6 +95,7 @@ typedef struct {
     bool quiet;
     bool version;
     u32 refresh;
+    bool locked;
     spn_cli_profile_t profile;
   } args;
 

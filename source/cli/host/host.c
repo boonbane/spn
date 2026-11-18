@@ -71,6 +71,7 @@ sp_cli_result_t spn_cli_open_here() {
 
 sp_cli_result_t spn_cli_session(spn_session_config_t config) {
   try(spn_cli_parse_profile(&config.profile));
+  config.locked = host.args.locked;
   return spn_ctx_open_session(host.ctx, &config, &host.session) ? SP_CLI_ERR : SP_CLI_OK;
 }
 

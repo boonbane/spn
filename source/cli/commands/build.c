@@ -133,6 +133,7 @@ sp_cli_cmd_t spn_cmd_build = {
       .placeholder = "LIST",
       .ptr = &host.args.profile.sanitize,
     },
+    spn_cli_locked_opt,
     spn_cli_target_opts,
   },
   .args = {

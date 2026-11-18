@@ -27,6 +27,11 @@ typedef struct {
   bool public;
 } spn_resolved_dep_t;
 
+typedef struct {
+  sp_intern_id_t name;
+  spn_semver_t version;
+} spn_pin_t;
+
 struct spn_resolved_pkg {
   spn_pkg_id_t id;
   sp_intern_str_t name;
@@ -58,6 +63,7 @@ typedef struct {
   spn_resolve_t result;
   spn_pkg_id_t root;
   sp_da(spn_err_union_t) errors;
+  sp_opt(spn_pin_t) blocker;
   u64 time;
 } spn_resolve_query_t;
 
@@ -70,6 +76,7 @@ typedef struct spn_resolver_t {
   spn_profile_info_t profile;
   spn_pkg_config_map_t config;
   spn_option_seeds_t seeds;
+  sp_da(spn_pin_t) preferences;
   u64 budget;
 } spn_resolver_t;
 

@@ -85,6 +85,7 @@
     "publish_push": { "ref": "publish" },
     "publish_dirty": { "ref": "publish" },
     "publish_unpushed": { "ref": "publish" },
+    "publish_abbreviated": { "ref": "publish" },
     "index_path_dep": { "ref": "pkg" },
     "pkg_unknown": { "ref": "unknown" },
     "pkg_no_match": { "ref": "unsatisfiable" },
@@ -93,6 +94,11 @@
     "pkg_conflict_path": { "ref": "path_conflict" },
     "pkg_mismatch": { "ref": "mismatch" },
     "pkg_absent": { "ref": "absent" },
+    "lock_invalid": { "ref": "manifest" },
+    "lock_version": { "ref": "lock_version" },
+    "lock_stale": { "properties": {} },
+    "lock_mismatch": { "ref": "lock_mismatch" },
+    "lock_absent": { "properties": {} },
     "manifest_edit": { "ref": "manifest_parse" },
     "dag_glob": { "properties": {} },
     "dag_output_name": { "properties": {} },
@@ -364,6 +370,30 @@
     "absent": {
       "properties": {
         "table": { "metadata": { "extern": "dep_kind" } }
+      }
+    },
+    "lock_mismatch": {
+      "properties": {
+        "version": { "metadata": { "extern": "semver" } },
+        "locked": { "ref": "lock_root" },
+        "found": { "ref": "lock_root" },
+        "update": { "elements": { "type": "string" } }
+      }
+    },
+    "lock_root": {
+      "properties": {
+        "url": { "type": "string" },
+        "rev": { "type": "string" }
+      },
+      "optionalProperties": {
+        "dir": { "type": "string" }
+      }
+    },
+    "lock_version": {
+      "properties": {
+        "path": { "type": "string" },
+        "version": { "type": "uint64" },
+        "supported": { "type": "uint64" }
       }
     },
     "dag": {

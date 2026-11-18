@@ -6,9 +6,7 @@
 #include "spn/core.h"
 #include "core/types.h"
 #include "project/types.h"
-#include "resolve/types.h"
 
 spn_err_t spn_project_load(spn_ctx_t* ctx, spn_project_t** project);
-spn_err_t spn_project_update_lock(spn_ctx_t* ctx, spn_project_t* project, spn_resolve_t resolve);
 
 #endif

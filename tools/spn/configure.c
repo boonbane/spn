@@ -1,6 +1,6 @@
 #include "spn.h"
 
-#define SPN_CODEGEN_MAX_OUTPUTS 20
+#define SPN_CODEGEN_MAX_OUTPUTS 24
 
 #define countof(array) (sizeof(array) / sizeof((array)[0]))
 
@@ -21,6 +21,9 @@ static const codegen_t codegens [] = {
       "gen/codegen/gen/errors.gen.c",
       "gen/codegen/gen/errors.guest.h",
       "gen/codegen/gen/events.gen.c",
+      "gen/codegen/gen/lock.gen.c",
+      "gen/codegen/gen/lock.gen.h",
+      "gen/codegen/gen/lock.jtd.json",
       "gen/codegen/gen/manifest.gen.c",
       "gen/codegen/gen/manifest.gen.h",
       "gen/codegen/gen/manifest.jtd.json",
