@@ -389,7 +389,11 @@ spn_err_t spn_index_publish(spn_index_info_t* index, spn_index_release_t* rel, s
 spn_index_location_t spn_index_location(spn_index_info_t* index, sp_mem_t mem, const spn_path_roots_t* roots, spn_path_t store) {
   switch (index->protocol) {
     case SPN_INDEX_PROTOCOL_GIT: {
-      spn_path_t dir = spn_path_join(mem, store, spn_git_db_key(mem, index->git.url));
+      sp_str_t key = spn_git_db_key(mem, index->git.url);
+      if (!sp_str_empty(index->git.rev)) {
+        key = spn_git_checkout_key(mem, (spn_git_checkout_id_t) { .url = index->git.url, .rev = index->git.rev });
+      }
+      spn_path_t dir = spn_path_join(mem, store, key);
       return (spn_index_location_t) { .dir = dir, .lock = spn_path_lock(mem, dir) };
     }
     case SPN_INDEX_PROTOCOL_HTTP: {
@@ -400,6 +404,13 @@ spn_index_location_t spn_index_location(spn_index_info_t* index, sp_mem_t mem, c
     }
   }
   sp_unreachable_return(sp_zero_struct(spn_index_location_t));
+}
+
+void spn_index_locate(spn_index_info_t* index, sp_mem_t mem, const spn_path_roots_t* roots, spn_path_t store) {
+  spn_index_location_t location = spn_index_location(index, mem, roots, store);
+  index->location.at = spn_path_at(roots, location.dir);
+  index->location.dir = spn_path_str(roots, mem, location.dir);
+  index->location.lock = spn_path_at(roots, location.lock);
 }
 
 static spn_index_info_t* find_index(sp_da(spn_index_info_t)* indexes, spn_index_id_t id) {
