@@ -17,7 +17,9 @@
 #include "index/index.h"
 #include "op/op.h"
 #include "paths/paths.h"
+#include "project/types.h"
 #include "thread_pool/thread_pool.h"
+#include "toml/edit.h"
 
 typedef struct {
   spn_op_t* op;
@@ -130,6 +132,74 @@ spn_err_t spn_sync_index_list(spn_op_t* op, sp_da(spn_index_info_t*) indexes, bo
   return SPN_OK;
 }
 
+static spn_path_t declared_in(spn_ctx_t* ctx, spn_index_info_t* index) {
+  switch (index->kind) {
+    case SPN_INDEX_KIND_WORKSPACE: {
+      return ctx->project->paths.manifest;
+    }
+    case SPN_INDEX_KIND_USER: {
+      return ctx->paths.config;
+    }
+    case SPN_INDEX_KIND_BUILTIN: {
+      break;
+    }
+  }
+  sp_unreachable_return(sp_zero_s(spn_path_t));
+}
+
+static spn_err_t write_pin(spn_ctx_t* ctx, spn_index_info_t* index, sp_str_t rev) {
+  spn_path_t declared = declared_in(ctx, index);
+  sp_path_t at = spn_path_at(&ctx->roots, declared);
+  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+  spn_err_t result = SPN_OK;
+
+  sp_str_t source = sp_zero;
+  spn_toml_edit_t edit = sp_zero;
+  if (sp_fs_read_at(scratch.mem, at, &source)) {
+    result = spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_FS_READ, .fs = { .path = declared } });
+  }
+  else if (spn_toml_edit_init(&edit, scratch.mem, source)) {
+    result = spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_MANIFEST_PARSE, .manifest_parse = { .path = spn_path_str(&ctx->roots, ctx->events->mem, declared) } });
+  }
+  else if (spn_toml_edit_set_element_str(&edit, sp_str_lit("index"), sp_str_lit("name"), index->name.str, sp_str_lit("rev"), rev)) {
+    result = spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_MANIFEST_EDIT, .manifest_parse = { .path = spn_path_str(&ctx->roots, ctx->events->mem, declared) } });
+  }
+  else if (sp_fs_write_at(at, spn_toml_edit_render(&edit, scratch.mem), SP_FS_WRITE_REPLACE, sp_sys_default_file_perms)) {
+    result = spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_FS_WRITE, .fs = { .path = declared } });
+  }
+
+  sp_mem_end_scratch(scratch);
+  return result;
+}
+
+static spn_err_t repin(spn_op_t* op, spn_index_info_t* index) {
+  spn_ctx_t* ctx = op->ctx;
+  spn_path_t store = spn_path_from_id(SPN_DIR_ID_INDEX);
+
+  sp_str_t rev = sp_zero;
+  spn_git_failure_t failure = sp_zero;
+  if (spn_index_tip(index, ctx->heap, &ctx->roots, store, &op->cancelled, &rev, &failure)) {
+    if (failure.kind == SPN_GIT_CANCELLED) {
+      return SPN_ERR_CANCELLED;
+    }
+    return spn_err_emit(ctx, (spn_err_union_t) {
+      .kind = SPN_ERR_INDEX_SYNC,
+      .index = {
+        .name = index->name.str,
+        .url = index->git.url,
+        .cause = sp_str_copy(ctx->events->mem, sp_cstr_as_str(failure.message)),
+      }});
+  }
+  if (sp_str_equal(rev, index->git.rev)) {
+    return SPN_OK;
+  }
+
+  spn_try(write_pin(ctx, index, rev));
+  index->git.rev = rev;
+  spn_index_locate(index, ctx->heap, &ctx->roots, store);
+  return SPN_OK;
+}
+
 spn_err_t spn_op_sync_indexes(spn_op_t* op) {
   spn_ctx_t* ctx = op->ctx;
   spn_sync_request_t request = op->request.indexes;
@@ -145,6 +215,9 @@ spn_err_t spn_op_sync_indexes(spn_op_t* op) {
   sp_da_for(ctx->indexes, it) {
     if (!sp_str_empty(request.only) && ctx->indexes[it].id != only) {
       continue;
+    }
+    if (request.force && spn_index_is_snapshot(&ctx->indexes[it])) {
+      spn_try(repin(op, &ctx->indexes[it]));
     }
     sp_da_push(indexes, &ctx->indexes[it]);
   }

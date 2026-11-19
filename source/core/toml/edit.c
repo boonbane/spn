@@ -853,6 +853,10 @@ static spn_toml_edit_site_t spn_toml_edit_find_site(spn_toml_edit_t* edit, const
   return site;
 }
 
+spn_err_t spn_toml_edit_set_element_str(spn_toml_edit_t* edit, sp_str_t array, sp_str_t key, sp_str_t match, sp_str_t field, sp_str_t value) {
+  return SPN_ERROR;
+}
+
 spn_err_t spn_toml_edit_set_str(spn_toml_edit_t* edit, const sp_str_t* path, u32 num_segments, sp_str_t value) {
   if (!num_segments) {
     return SPN_ERROR;

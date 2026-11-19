@@ -227,6 +227,14 @@ spn_err_t spn_index_get_package(spn_index_info_t* index, sp_mem_t mem, sp_intern
   return SPN_OK;
 }
 
+spn_err_t spn_index_tip(spn_index_info_t* index, sp_mem_t mem, const spn_path_roots_t* roots, spn_path_t store, sp_atomic_s32_t* cancelled, sp_str_t* rev, spn_git_failure_t* failure) {
+  spn_index_info_t tracked = *index;
+  tracked.git.rev = sp_zero_s(sp_str_t);
+  spn_index_locate(&tracked, mem, roots, store);
+  spn_try(spn_index_sync(&tracked, spn_index_plan(&tracked, true), cancelled, failure));
+  return spn_git_get_commit_full(mem, tracked.location.dir, sp_str_lit("HEAD"), rev);
+}
+
 static void index_append_release(spn_index_info_t* index, spn_index_release_t* rel) {
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
 
