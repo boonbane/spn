@@ -146,6 +146,8 @@ typedef struct {
   gated_t abi [4];
   spn_sanitizer_set_t sanitizers;
   bool sanitizers_set;
+  spn_linkage_set_t emit;
+  bool emit_set;
   spn_os_t os;
   spn_arch_t arch;
   const c8* options;
@@ -1205,6 +1207,8 @@ static const test_t tests [] = {
         .opt = { { "3" } },
         .sanitizers = SPN_SANITIZER_ADDRESS | SPN_SANITIZER_UNDEFINED,
         .sanitizers_set = true,
+        .emit = { .shared = true, .static_lib = true },
+        .emit_set = true,
         .os = SPN_OS_LINUX,
         .arch = SPN_ARCH_X64,
         .abi = { { "gnu" } },
@@ -1212,6 +1216,7 @@ static const test_t tests [] = {
       {
         .name = "clean",
         .sanitizers_set = true,
+        .emit_set = true,
       },
     },
   },
@@ -1379,6 +1384,13 @@ static const test_t tests [] = {
     .manifest = "validate_profile_bad_sanitizer",
     .issues = {
       { SPN_ERR_CODEGEN_INVALID, "profile.dev.sanitize[0]" },
+    },
+  },
+  {
+    .name = "validate_profile_bad_emit",
+    .manifest = "validate_profile_bad_emit",
+    .issues = {
+      { SPN_ERR_CODEGEN_INVALID, "profile.dev.emit[0]" },
     },
   },
   {
@@ -2202,6 +2214,9 @@ sp_test_each(lower, cases, test_t, tests, .setup = spn_test_ctx_setup) {
     check_gated(t, p->abi, expected.abi);
     sp_expect_eq(t, expected.sanitizers, p->sanitizers);
     sp_expect_eq(t, expected.sanitizers_set, p->sanitizers_set);
+    sp_expect_eq(t, expected.emit.shared, p->emit.shared);
+    sp_expect_eq(t, expected.emit.static_lib, p->emit.static_lib);
+    sp_expect_eq(t, expected.emit_set, p->emit_set);
     sp_expect_eq(t, (u32)expected.os, (u32)p->os);
     sp_expect_eq(t, (u32)expected.arch, (u32)p->arch);
     if (expected.options) sp_expect_str_eq_c(t, spn_when_to_str(mem, &p->options), expected.options);

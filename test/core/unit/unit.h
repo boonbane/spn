@@ -117,6 +117,7 @@ typedef struct {
   spn_linkage_t linkage;
   spn_runtime_t runtime;
   spn_runtime_t libc;
+  spn_linkage_set_t emit;
   graph_pkg_t pkgs [UNIT_TEST_MAX_PKGS];
 } graph_t;
 

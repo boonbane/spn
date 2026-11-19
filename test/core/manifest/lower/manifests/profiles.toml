@@ -9,9 +9,11 @@ standard = "c99"
 mode = "release"
 opt = "3"
 sanitize = ["address", "undefined"]
+emit = ["static", "shared"]
 os = "linux"
 arch = "x86_64"
 abi = "gnu"
 
 [profile.clean]
 sanitize = []
+emit = []

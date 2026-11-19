@@ -239,6 +239,7 @@
         "mode": { "elements": { "ref": "value_entry" }, "metadata": { "shorthand": "value" } },
         "opt": { "elements": { "ref": "value_entry" }, "metadata": { "shorthand": "value" } },
         "sanitize": { "elements": { "ref": "sanitizer" } },
+        "emit": { "elements": { "ref": "linkage" } },
         "os": { "ref": "os" },
         "arch": { "ref": "arch" },
         "abi": { "elements": { "ref": "value_entry" }, "metadata": { "shorthand": "value" } },

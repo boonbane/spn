@@ -59,6 +59,18 @@ static spn_linkage_set_t lower_linkages(const spn_cg_target_t* lib) {
   return set;
 }
 
+static spn_linkage_set_t lower_emit(sp_da(spn_linkage_t) kinds) {
+  spn_linkage_set_t set = sp_zero;
+  sp_da_for(kinds, k) {
+    switch (kinds[k]) {
+      case SPN_LIB_KIND_SHARED: set.shared = true; break;
+      case SPN_LIB_KIND_STATIC: set.static_lib = true; break;
+      case SPN_LIB_KIND_NONE: break;
+    }
+  }
+  return set;
+}
+
 static spn_cxx_options_t lower_cxx_options(const spn_cg_cxx_options_t* cg) {
   return (spn_cxx_options_t) {
     .standard = sp_opt_is_null(cg->standard) ? SPN_CXX_STANDARD_NONE : sp_opt_get(cg->standard),
@@ -451,6 +463,8 @@ static spn_profile_decl_t lower_profile(spn_toml_loader_t* ctx, sp_str_t name, c
     .opt = lower_gated_values(ctx, p->opt),
     .sanitizers = spn_sanitizer_set_from_list(p->sanitize),
     .sanitizers_set = p->sanitize != SP_NULLPTR,
+    .emit = lower_emit(p->emit),
+    .emit_set = p->emit != SP_NULLPTR,
     .options = p->options,
   };
 }

@@ -189,7 +189,7 @@ static spn_err_t lower_target(spn_units_t* u, spn_target_unit_t* unit) {
       unit->install = pkg->paths.lib;
       kind = spn_os_to_native_object_format(profile->target.os) == SPN_OBJ_WASM ? SPN_CC_OUTPUT_REACTOR : SPN_CC_OUTPUT_SHARED_LIB;
       links = unit->lib_kind == SPN_LIB_KIND_SHARED || unit->products.shared;
-      archives = unit->lib_kind == SPN_LIB_KIND_STATIC || unit->products.static_lib;
+      archives = unit->products.static_lib;
       break;
     }
     case SPN_TARGET_KIND_TEST:
@@ -562,6 +562,10 @@ static spn_err_t plan_new(spn_units_t* u, sp_mem_t scratch, spn_pkg_unit_t* root
     }
   }
 
+  si_da_for_value(plan->targets, target) {
+    target->products.static_lib = target->lib_kind == SPN_LIB_KIND_STATIC;
+  }
+
   si_da_for_value(roots, target) {
     if (target->target->info->kind != SPN_TARGET_KIND_LIB) {
       continue;
@@ -570,11 +574,30 @@ static spn_err_t plan_new(spn_units_t* u, sp_mem_t scratch, spn_pkg_unit_t* root
     bool image = spn_os_to_native_object_format(profile->target.os) == SPN_OBJ_WASM || spn_ld_loader(profile->target, profile->linking);
     spn_linkage_set_t declared = target->target->info->linkages;
     target->products = (spn_linkage_set_t) {
-      .static_lib = declared.static_lib,
-      .shared = declared.shared && image,
+      .static_lib = declared.static_lib && profile->emit.static_lib,
+      .shared = declared.shared && profile->emit.shared && image,
     };
+    if (!target->products.static_lib && !target->products.shared) {
+      target->products = (spn_linkage_set_t) {
+        .static_lib = target->lib_kind == SPN_LIB_KIND_STATIC,
+        .shared = target->lib_kind != SPN_LIB_KIND_STATIC && image,
+      };
+    }
     if (!target->products.static_lib && !target->products.shared && !sp_da_empty(target->objects)) {
       return linkage_err(u, target, SPN_LIB_KIND_STATIC, static_requester(profile), sp_str_lit(""));
+    }
+  }
+
+  si_da_for_value(plan->targets, target) {
+    if (target->target->info->kind == SPN_TARGET_KIND_LIB && target->lib_kind != SPN_LIB_KIND_SHARED && !target->products.shared) {
+      continue;
+    }
+    si_closure_it_t it = si_closure_it(scratch, SI_CLOSURE_STOP_AT_SHARED);
+    si_closure_it_push(&it, target);
+    while (si_closure_it_next(&it)) {
+      if (it.entry.yield == SI_CLOSURE_YIELD_LIB && it.entry.lib->lib_kind == SPN_LIB_KIND_STATIC) {
+        it.entry.lib->products.static_lib = true;
+      }
     }
   }
 

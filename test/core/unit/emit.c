@@ -84,39 +84,77 @@ static const test_t tests [] = {
     .expect = { .link = "A.dll", .implib = "A.dll.lib", .exports = true },
   },
   {
-    .name = "root_lib_emits_every_declared_kind",
+    .name = "root_lib_emits_the_kind_it_links_as",
     .graph.pkgs = { { .name = "P", .targets = { { "A", both_kinds, .source = { "a.c" } } } } },
+    .kind = SPN_TARGET_KIND_LIB,
+    .expect = { .archive = "libA.a" },
+  },
+  {
+    .name = "pinned_root_lib_emits_its_shared_kind",
+    .graph.pkgs = { { .name = "P", .config = SPN_LIB_KIND_SHARED, .targets = { { "A", both_kinds, .source = { "a.c" } } } } },
+    .kind = SPN_TARGET_KIND_LIB,
+    .expect = { .link = "libA.so", .exports = true },
+  },
+  {
+    .name = "emit_lists_the_kinds_a_root_lib_builds",
+    .graph = {
+      .emit = { .shared = true, .static_lib = true },
+      .pkgs = { { .name = "P", .targets = { { "A", both_kinds, .source = { "a.c" } } } } },
+    },
     .kind = SPN_TARGET_KIND_LIB,
     .expect = { .archive = "libA.a", .link = "libA.so", .exports = true },
   },
   {
-    .name = "root_lib_for_msvc_keeps_archive_and_implib_apart",
+    .name = "emit_shared_alone_builds_no_archive",
+    .graph = {
+      .emit = { .shared = true },
+      .pkgs = { { .name = "P", .targets = { { "A", both_kinds, .source = { "a.c" } } } } },
+    },
+    .kind = SPN_TARGET_KIND_LIB,
+    .expect = { .link = "libA.so", .exports = true },
+  },
+  {
+    .name = "lib_with_one_kind_ignores_emit",
+    .graph = {
+      .emit = { .shared = true },
+      .pkgs = { { .name = "P", .targets = { { "A", static_only, .source = { "a.c" } } } } },
+    },
+    .kind = SPN_TARGET_KIND_LIB,
+    .expect = { .archive = "libA.a" },
+  },
+  {
+    .name = "emit_for_msvc_keeps_archive_and_implib_apart",
     .graph = {
       .os = SPN_OS_WINDOWS,
       .abi = SPN_ABI_MSVC,
       .driver = SPN_CC_DRIVER_ZIG,
       .runtime = SPN_RUNTIME_STATIC,
+      .emit = { .shared = true, .static_lib = true },
       .pkgs = { { .name = "P", .targets = { { "A", both_kinds, .source = { "a.c" } } } } },
     },
     .kind = SPN_TARGET_KIND_LIB,
     .expect = { .archive = "A.lib", .link = "A.dll", .implib = "A.dll.lib", .exports = true },
   },
   {
-    .name = "unselected_lib_emits_only_its_binding",
-    .graph.pkgs = { { .name = "P", .targets = {
-      { "E", .kind = SPN_TARGET_KIND_EXE, .source = { "e.c" }, .deps = { "A" } },
-      { "A", both_kinds, .source = { "a.c" } },
-    } } },
+    .name = "emit_does_not_reach_an_unselected_lib",
+    .graph = {
+      .emit = { .shared = true },
+      .pkgs = { { .name = "P", .targets = {
+        { "E", .kind = SPN_TARGET_KIND_EXE, .source = { "e.c" }, .deps = { "A" } },
+        { "A", both_kinds, .source = { "a.c" } },
+      } } },
+    },
     .root = { "E", SPN_TARGET_KIND_EXE },
     .kind = SPN_TARGET_KIND_LIB,
     .expect = { .archive = "libA.a" },
   },
   {
-    .name = "root_lib_without_a_loader_only_archives",
+    .name = "emit_without_a_loader_only_archives",
     .graph = {
       .abi = SPN_ABI_MUSL,
       .linkage = SPN_LIB_KIND_STATIC,
       .libc = SPN_RUNTIME_STATIC,
+      .emit = { .shared = true },
       .pkgs = { { .name = "P", .targets = { { "A", both_kinds, .source = { "a.c" } } } } },
     },
     .kind = SPN_TARGET_KIND_LIB,

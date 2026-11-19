@@ -102,11 +102,6 @@ typedef struct {
   spn_when_t when;
 } spn_gated_prebuilt_t;
 
-typedef struct {
-  bool shared;
-  bool static_lib;
-} spn_linkage_set_t;
-
 typedef sp_opt(spn_linkage_t) sp_opt_spn_linkage_t;
 
 SPN_PACK_PUSH

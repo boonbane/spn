@@ -43,6 +43,8 @@ typedef struct {
   candidate_t standard [2];
   candidate_t mode [2];
   candidate_t opt [2];
+  spn_linkage_set_t emit;
+  bool emit_set;
 } decl_t;
 
 typedef struct {
@@ -65,6 +67,7 @@ typedef struct {
   spn_opt_level_t opt;
   bool targeted;
   spn_linkage_t demand;
+  spn_linkage_set_t emit;
 } expect_t;
 
 typedef struct {
@@ -187,6 +190,56 @@ static const test_t tests [] = {
   },
   {
     .name = "lib_with_both_kinds_raises_no_demand",
+    .host = PROFILE_HOST_LINUX_GNU,
+    .lib = { .shared = true, .static_lib = true },
+    .abi = SPN_ABI_MUSL,
+    .expect = {
+      .target = { SPN_ARCH_X64, SPN_OS_LINUX },
+      .linking.linkage = SPN_LIB_KIND_STATIC,
+    },
+  },
+  {
+    .name = "emitted_shared_kind_raises_demand",
+    .profile = { .name = "default", .emit = { .shared = true }, .emit_set = true },
+    .host = PROFILE_HOST_LINUX_GNU,
+    .lib = { .shared = true, .static_lib = true },
+    .abi = SPN_ABI_GNU,
+    .expect = {
+      .target = { SPN_ARCH_X64, SPN_OS_LINUX },
+      .linking.linkage = SPN_LIB_KIND_SHARED,
+      .demand = SPN_LIB_KIND_SHARED,
+      .emit = { .shared = true },
+    },
+  },
+  {
+    .name = "emit_raises_no_demand_for_a_static_lib",
+    .profile = { .name = "default", .emit = { .shared = true }, .emit_set = true },
+    .host = PROFILE_HOST_LINUX_GNU,
+    .lib = { .static_lib = true },
+    .abi = SPN_ABI_MUSL,
+    .expect = {
+      .target = { SPN_ARCH_X64, SPN_OS_LINUX },
+      .linking.linkage = SPN_LIB_KIND_STATIC,
+      .emit = { .shared = true },
+    },
+  },
+  {
+    .name = "selected_emit_replaces_default",
+    .profile = { .name = "default", .emit = { .shared = true, .static_lib = true }, .emit_set = true },
+    .derived = { .name = "debug", .emit = { .static_lib = true }, .emit_set = true },
+    .host = PROFILE_HOST_LINUX_GNU,
+    .lib = { .shared = true, .static_lib = true },
+    .abi = SPN_ABI_MUSL,
+    .expect = {
+      .target = { SPN_ARCH_X64, SPN_OS_LINUX },
+      .linking.linkage = SPN_LIB_KIND_STATIC,
+      .emit = { .static_lib = true },
+    },
+  },
+  {
+    .name = "empty_emit_clears_default",
+    .profile = { .name = "default", .emit = { .shared = true }, .emit_set = true },
+    .derived = { .name = "debug", .emit_set = true },
     .host = PROFILE_HOST_LINUX_GNU,
     .lib = { .shared = true, .static_lib = true },
     .abi = SPN_ABI_MUSL,
@@ -871,6 +924,8 @@ static spn_profile_decl_t desc_to_decl(sp_mem_t mem, const decl_t* d) {
     .standard = candidates(mem, d->standard),
     .mode = candidates(mem, d->mode),
     .opt = candidates(mem, d->opt),
+    .emit = d->emit,
+    .emit_set = d->emit_set,
   };
 }
 
@@ -933,6 +988,8 @@ sp_test_each(profile, resolve, test_t, tests, .setup = spn_test_ctx_setup) {
   }
 
   sp_expect_eq(t, (u32)it->expect.demand, (u32)result.demand);
+  sp_expect_eq(t, it->expect.emit.shared, result.emit.shared);
+  sp_expect_eq(t, it->expect.emit.static_lib, result.emit.static_lib);
 
   spn_toolchain_info_t info = { .driver = SPN_CC_DRIVER_ZIG };
   spn_triple_t selected = { result.target.arch, result.target.os, it->abi ? it->abi : result.target.abi };

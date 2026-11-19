@@ -7,5 +7,5 @@ name = "A"
 kinds = ["static", "shared"]
 source = ["a.c"]
 
-[profile.default]
-linkage = "shared"
+[profile.both]
+emit = ["static", "shared"]

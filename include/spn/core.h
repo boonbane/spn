@@ -106,6 +106,11 @@ typedef enum {
   SPN_LIB_KIND_STATIC,
 } spn_linkage_t;
 
+typedef struct {
+  bool shared;
+  bool static_lib;
+} spn_linkage_set_t;
+
 typedef enum {
   SPN_RUNTIME_NONE,
   SPN_RUNTIME_STATIC,

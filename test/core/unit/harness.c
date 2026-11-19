@@ -205,6 +205,7 @@ static spn_profile_info_t program_profile(units_t* u, const graph_t* g, const sp
     .linking.linkage = g->linkage,
     .linking.runtime = g->runtime,
     .linking.libc = g->libc,
+    .emit = g->emit,
   };
   spn_triple_t triple = profile.target;
   profile.linker = spn_ld_native(profile.driver, triple);

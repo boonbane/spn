@@ -395,16 +395,25 @@ static const test_t tests [] = {
   // A lib that could be shared but is selected static is archived, not linked,
   // so its link inputs stay off the plan
   {
-    .name = "archive_only_lib_drops_link_inputs",
+    .name = "static_selection_drops_link_inputs",
+    .graph.pkgs = {
+      { .name = "P", .targets = { { "A", both_kinds, .source = { "a.c" }, .link_flags = { "-A" }, .linker_script = { "A.ld" } } } },
+    },
+    .root = { "A", SPN_TARGET_KIND_LIB },
+  },
+  {
+    .name = "emitted_shared_kind_keeps_link_inputs",
     .graph = {
-      .abi = SPN_ABI_MUSL,
-      .linkage = SPN_LIB_KIND_STATIC,
-      .libc = SPN_RUNTIME_STATIC,
+      .emit = { .shared = true },
       .pkgs = {
         { .name = "P", .targets = { { "A", both_kinds, .source = { "a.c" }, .link_flags = { "-A" }, .linker_script = { "A.ld" } } } },
       },
     },
     .root = { "A", SPN_TARGET_KIND_LIB },
+    .expect = {
+      .args = { "-A" },
+      .scripts = { "A.ld" },
+    },
   },
   {
     .name = "both_kinds_dep_links_static_under_shared_profile",
@@ -422,9 +431,12 @@ static const test_t tests [] = {
   },
   {
     .name = "root_lib_image_embeds_public_static_deps_whole",
-    .graph.pkgs = {
-      { .name = "P", .deps = { { "B", .public = true } }, .targets = { { "A", both_kinds, .source = { "a.c" } } } },
-      { .name = "B", .targets = { { "B", static_only, .source = { "b.c" } } } },
+    .graph = {
+      .emit = { .shared = true },
+      .pkgs = {
+        { .name = "P", .deps = { { "B", .public = true } }, .targets = { { "A", both_kinds, .source = { "a.c" } } } },
+        { .name = "B", .targets = { { "B", static_only, .source = { "b.c" } } } },
+      },
     },
     .root = { "A", SPN_TARGET_KIND_LIB },
     .expect = {

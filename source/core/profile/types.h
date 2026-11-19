@@ -24,6 +24,8 @@ struct spn_profile_info {
   spn_opt_level_t opt;
   spn_sanitizer_set_t sanitizers;
   bool sanitizers_set;
+  spn_linkage_set_t emit;
+  bool emit_set;
   spn_when_t options;
   bool targeted;
   spn_sdk_t sdk;
@@ -45,6 +47,8 @@ typedef struct {
   spn_gated_list_t opt;
   spn_sanitizer_set_t sanitizers;
   bool sanitizers_set;
+  spn_linkage_set_t emit;
+  bool emit_set;
   spn_when_t options;
 } spn_profile_decl_t;
 

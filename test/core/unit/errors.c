@@ -137,6 +137,32 @@ static const test_t tests [] = {
     .root = { "A", SPN_TARGET_KIND_LIB },
   },
   {
+    .name = "unasked_shared_kind_does_not_link_a_shared_dep",
+    .graph = {
+      .request = { .linkage = SPN_LIB_KIND_STATIC },
+      .linkage = SPN_LIB_KIND_STATIC,
+      .pkgs = {
+        { .name = "P", .deps = { { "D" } }, .targets = { { "A", both_kinds, .source = { "a.c" } } } },
+        { .name = "D", .targets = { { "D", shared_only, .source = { "d.c" } } } },
+      },
+    },
+    .root = { "A", SPN_TARGET_KIND_LIB },
+  },
+  {
+    .name = "emitted_shared_kind_links_its_deps",
+    .graph = {
+      .request = { .linkage = SPN_LIB_KIND_STATIC },
+      .linkage = SPN_LIB_KIND_STATIC,
+      .emit = { .shared = true },
+      .pkgs = {
+        { .name = "P", .deps = { { "D" } }, .targets = { { "A", both_kinds, .source = { "a.c" } } } },
+        { .name = "D", .targets = { { "D", shared_only, .source = { "d.c" } } } },
+      },
+    },
+    .root = { "A", SPN_TARGET_KIND_LIB },
+    .expect = { .err = SPN_ERR_TARGET_LINKAGE, .requester = SPN_LINKAGE_REQUESTER_PROFILE, .consumer = "A" },
+  },
+  {
     .name = "derived_shared_admits_a_shared_lib",
     .graph = {
       .linkage = SPN_LIB_KIND_SHARED,

@@ -61,6 +61,7 @@ typedef struct {
 #define pkg_static_lib(pkg_, name_)                   { PATH_STATIC_LIB, .pkg = pkg_, .name = name_ }
 #define pkg_profile_static_lib(profile_, pkg_, name_) { PATH_STATIC_LIB, .pkg = pkg_, .name = name_, .profile = profile_ }
 #define pkg_shared_lib(pkg_, name_)                   { PATH_SHARED_LIB, .pkg = pkg_, .name = name_ }
+#define pkg_profile_shared_lib(profile_, pkg_, name_) { PATH_SHARED_LIB, .pkg = pkg_, .name = name_, .profile = profile_ }
 #define work_file(rest)                               { PATH_WORK, .name = rest }
 #define index_file(rest)                              { PATH_INDEX, .name = rest }
 
