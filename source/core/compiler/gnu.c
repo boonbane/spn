@@ -625,10 +625,10 @@ void spn_gnu_render_link_locations(sp_mem_t mem, const spn_cc_link_plan_t* plan,
   add_output(mem, files->output, invocation);
 }
 
-sp_da(spn_arg_t) spn_gnu_render_exports(sp_mem_t mem, si_da(sp_str_t) symbols) {
+sp_da(spn_arg_t) spn_gnu_render_exports(sp_mem_t mem, si_da(spn_cc_export_t) symbols) {
   sp_da(spn_arg_t) args = sp_da_new(mem, spn_arg_t);
   si_da_for(symbols, it) {
-    sp_da_push(args, spn_arg_lit(sp_fmt(mem, "-Wl,--export={}", sp_fmt_str(symbols[it])).value));
+    sp_da_push(args, spn_arg_lit(sp_fmt(mem, "-Wl,--export={}", sp_fmt_str(symbols[it].name)).value));
   }
   return args;
 }

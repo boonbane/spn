@@ -367,7 +367,7 @@ sp_str_t spn_cc_exports_extension(spn_cc_exports_format_t format) {
   SP_UNREACHABLE_RETURN(sp_str_lit(""));
 }
 
-void spn_cc_render_exports(sp_io_writer_t* io, const spn_path_roots_t* roots, spn_cc_exports_format_t format, spn_rsp_style_t rsp, sp_str_t library, si_da(sp_str_t) symbols) {
+void spn_cc_render_exports(sp_io_writer_t* io, const spn_path_roots_t* roots, spn_cc_exports_format_t format, spn_rsp_style_t rsp, sp_str_t library, si_da(spn_cc_export_t) symbols) {
   switch (format) {
     case SPN_CC_EXPORTS_VERSION_SCRIPT: {
       spn_exports_render_version_script(io, symbols);

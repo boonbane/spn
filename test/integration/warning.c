@@ -45,6 +45,16 @@ static const command_test_t commands [] = {
     },
   },
   {
+    .name = "silent_cxx_shared",
+    .project = "test/integration/fixtures/warning/cxx_shared",
+    .copy = { "a.cpp" },
+    .when.driver = SPN_CC_DRIVER_MSVC,
+    .args = { "build" },
+    .expect.events = {
+      { .event = SPN_EVENT_LINK_WARNED, .absent = true },
+    },
+  },
+  {
     .name = "silent_masm",
     .project = "test/integration/fixtures/platform/masm",
     .copy = { "answer.asm" },

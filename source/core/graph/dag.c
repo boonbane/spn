@@ -411,7 +411,7 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
 
       spn_digest_ctx_t digest = sp_zero;
       spn_digest_init(&digest);
-      spn_dag_hash_cstr(&digest, "spn.build.exports.v7");
+      spn_dag_hash_cstr(&digest, "spn.build.exports.v8");
       spn_dag_hash_u64(&digest, toolchain->identity);
       spn_dag_hash_s32(&digest, exports->format);
       spn_dag_hash_s32(&digest, exports->rsp);

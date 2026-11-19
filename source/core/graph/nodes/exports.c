@@ -2,6 +2,7 @@
 #include "ctx/types.h"
 #include "spn/errors.h"
 
+#include "compiler/coff.h"
 #include "compiler/driver.h"
 #include "compiler/toc.h"
 #include "dag/node.h"
@@ -13,6 +14,20 @@
 #include "intern/intern.h"
 #include "paths/paths.h"
 #include "graph/invocation.h"
+
+typedef struct {
+  si_str_ht(u8) seen;
+  si_da(spn_cc_export_t) symbols;
+} exports_t;
+
+static void add_export(sp_mem_t mem, exports_t* found, sp_str_t name, bool data) {
+  sp_str_t interned = spn_intern(name).str;
+  if (si_str_ht_get(found->seen, interned)) {
+    return;
+  }
+  si_str_ht_insert(mem, found->seen, interned, (u8)true);
+  si_da_push(mem, found->symbols, ((spn_cc_export_t) { .name = interned, .data = data }));
+}
 
 static spn_err_t write_exports(sp_mem_t mem, const si_dag_ctx_t* c, si_exports_t* exports) {
   const spn_path_roots_t* roots = c->roots;
@@ -47,8 +62,7 @@ static spn_err_t write_exports(sp_mem_t mem, const si_dag_ctx_t* c, si_exports_t
     si_da_push(mem, archives, si_dag_resolve_input(c, exports->whole_archives[it]));
   }
 
-  si_str_ht(u8) seen = sp_zero;
-  si_da(sp_str_t) symbols = sp_zero;
+  exports_t found = sp_zero;
   si_da_for(archives, it) {
     sp_io_file_reader_t reader = sp_zero;
     if (sp_io_file_reader_from_path_at(&reader, spn_path_at(roots, archives[it]))) {
@@ -56,19 +70,44 @@ static spn_err_t write_exports(sp_mem_t mem, const si_dag_ctx_t* c, si_exports_t
       return SPN_ERR_DAG_ACTION;
     }
 
-    spn_toc_parser_t toc = sp_zero;
-    spn_err_t err = spn_toc_init(&toc, &reader.base);
-    sp_str_t symbol = sp_zero;
-    while (spn_toc_next(&toc, &symbol)) {
-      sp_str_t interned = spn_intern(symbol).str;
-      if (si_str_ht_get(seen, interned)) {
-        continue;
+    spn_err_t err = SPN_OK;
+    switch (exports->format) {
+      case SPN_CC_EXPORTS_DEF: {
+        // A .def has to say which exports are data, and nothing in a COFF
+        // link corrects the list, so the index's bare names are not enough
+        spn_ar_members_t members = sp_zero;
+        err = spn_ar_members_init(&members, &reader.base, mem);
+        sp_str_t object = sp_zero;
+        while (!err && spn_ar_members_next(&members, &object)) {
+          spn_coff_parser_t coff = sp_zero;
+          err = spn_coff_init(&coff, object);
+          spn_coff_symbol_t symbol = sp_zero;
+          while (spn_coff_next(&coff, &symbol)) {
+            add_export(mem, &found, symbol.name, symbol.data);
+          }
+          if (!err) {
+            err = coff.err;
+          }
+        }
+        if (!err) {
+          err = members.err;
+        }
+        break;
       }
-      si_str_ht_insert(mem, seen, interned, (u8)true);
-      si_da_push(mem, symbols, interned);
-    }
-    if (!err) {
-      err = toc.err;
+      case SPN_CC_EXPORTS_VERSION_SCRIPT:
+      case SPN_CC_EXPORTS_SYMBOL_LIST:
+      case SPN_CC_EXPORTS_WASM: {
+        spn_toc_parser_t toc = sp_zero;
+        err = spn_toc_init(&toc, &reader.base);
+        sp_str_t symbol = sp_zero;
+        while (spn_toc_next(&toc, &symbol)) {
+          add_export(mem, &found, symbol, false);
+        }
+        if (!err) {
+          err = toc.err;
+        }
+        break;
+      }
     }
     sp_io_file_reader_close(&reader);
     if (err) {
@@ -83,7 +122,7 @@ static spn_err_t write_exports(sp_mem_t mem, const si_dag_ctx_t* c, si_exports_t
   }
   u8 buffer [65536] = sp_zero;
   sp_io_writer_set_buffer(&writer.base, buffer, sizeof(buffer));
-  spn_cc_render_exports(&writer.base, roots, exports->format, exports->rsp, exports->library, symbols);
+  spn_cc_render_exports(&writer.base, roots, exports->format, exports->rsp, exports->library, found.symbols);
   sp_io_file_writer_close(&writer);
   return SPN_OK;
 }

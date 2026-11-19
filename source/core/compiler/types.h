@@ -108,6 +108,11 @@ typedef enum {
   SPN_CC_EXPORTS_WASM,
 } spn_cc_exports_format_t;
 
+typedef struct {
+  sp_str_t name;
+  bool data;
+} spn_cc_export_t;
+
 typedef enum {
   SPN_ENV_INCLUDE,
   SPN_ENV_LIB,
