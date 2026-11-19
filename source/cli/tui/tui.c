@@ -193,10 +193,11 @@ static sp_str_t get_issue_scope(sp_da(spn_toml_issue_t) issues) {
 
 static sp_str_t requester_to_str(spn_linkage_requester_t requester) {
   switch (requester) {
-    case SPN_LINKAGE_REQUESTER_PROFILE: return sp_str_lit("the profile");
+    case SPN_LINKAGE_REQUESTER_PROFILE: return sp_str_lit("static_deps = true");
     case SPN_LINKAGE_REQUESTER_ROOT_MANIFEST: return sp_str_lit("the root manifest");
     case SPN_LINKAGE_REQUESTER_LIBC: return sp_str_lit("libc = \"static\"");
     case SPN_LINKAGE_REQUESTER_TARGET: return sp_str_lit("the target");
+    case SPN_LINKAGE_REQUESTER_NO_LOADER: return sp_str_lit("a target with no dynamic loader");
   }
   SP_UNREACHABLE_RETURN(sp_str_lit(""));
 }
@@ -366,7 +367,7 @@ static void write_refusal(sp_tty_t* w, sp_mem_t mem, spn_triple_t target, spn_li
       break;
     }
     case SPN_LINKING_REFUSAL_SHARED_DEPS: {
-      sp_tty_fmt(w, "Target {.yellow} can't use {.red} with {.red}; a static libc removes the dynamic loader", sp_fmt_str(triple), sp_fmt_str(sp_str_lit("linkage = \"shared\"")), sp_fmt_str(sp_str_lit("libc = \"static\"")));
+      sp_tty_fmt(w, "Target {.yellow} can't load shared libraries with {.red}; a static libc removes the dynamic loader", sp_fmt_str(triple), sp_fmt_str(sp_str_lit("libc = \"static\"")));
       break;
     }
     case SPN_LINKING_REFUSAL_NONE: {
@@ -1624,6 +1625,9 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
             sp_fmt_str(event->err.target.requested),
             sp_fmt_str(requester_to_str(event->err.target.requester))
           );
+          if (!sp_str_empty(event->err.target.consumer)) {
+            sp_tty_fmt(&w, ", but {.cyan} links it", sp_fmt_str(event->err.target.consumer));
+          }
           switch (event->err.target.requester) {
             case SPN_LINKAGE_REQUESTER_TARGET: {
               sp_str_t kind = spn_linkage_to_str(event->err.target.supported[0]);
@@ -1637,7 +1641,8 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
             }
             case SPN_LINKAGE_REQUESTER_PROFILE:
             case SPN_LINKAGE_REQUESTER_ROOT_MANIFEST:
-            case SPN_LINKAGE_REQUESTER_LIBC: {
+            case SPN_LINKAGE_REQUESTER_LIBC:
+            case SPN_LINKAGE_REQUESTER_NO_LOADER: {
               break;
             }
           }

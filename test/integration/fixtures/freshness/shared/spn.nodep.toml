@@ -3,7 +3,7 @@ name = "A"
 version = "0.1.0"
 
 [profile.default]
-linkage = "shared"
+libc = { value = "shared", when = { os = "linux" } }
 
 [[bin]]
 name = "main"

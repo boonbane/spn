@@ -146,19 +146,24 @@ typedef struct {
 } spn_exports_plan_t;
 
 typedef struct {
-  sp_str_t output;
-  sp_str_t implib;
-  sp_opt(spn_cc_link_plan_t) link;
-  sp_opt(spn_cc_archive_plan_t) archive;
-  sp_opt(spn_exports_plan_t) exports;
+  struct {
+    sp_str_t output;
+    sp_opt(spn_cc_archive_plan_t) plan;
+  } archive;
+  struct {
+    sp_str_t output;
+    sp_str_t implib;
+    sp_opt(spn_cc_link_plan_t) plan;
+    sp_opt(spn_exports_plan_t) exports;
+  } link;
 } spn_target_emit_t;
 
 struct spn_target_unit {
   spn_target_unit_id_t id;
   spn_pkg_unit_t* pkg;
   si_target_t* target;
-  spn_cc_output_kind_t kind;
   spn_linkage_t lib_kind;
+  spn_linkage_set_t products;
   spn_path_t install;
   sp_opt(spn_prebuilt_t) prebuilt;
 

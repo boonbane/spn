@@ -100,7 +100,7 @@ readme: false
 
 | Field | Type |
 |---|---|
-| `linkage` | array of [`value_entry`](#value_entry) \| `string` |
+| `static_deps` | `bool` |
 | `runtime` | array of [`value_entry`](#value_entry) \| `string` |
 | `libc` | array of [`value_entry`](#value_entry) \| `string` |
 | `standard` | array of [`value_entry`](#value_entry) \| `string` |
@@ -108,6 +108,7 @@ readme: false
 | `mode` | array of [`value_entry`](#value_entry) \| `string` |
 | `opt` | array of [`value_entry`](#value_entry) \| `string` |
 | `sanitize` | array of `address` \| `thread` \| `undefined` \| `memory` \| `leak` |
+| `emit` | array of `shared` \| `static` |
 | `os` | `windows` \| `linux` \| `macos` \| `wasi` \| `freestanding` |
 | `arch` | `x86_64` \| `aarch64` \| `wasm32` |
 | `abi` | array of [`value_entry`](#value_entry) \| `string` |

@@ -23,8 +23,9 @@ static void overlay_profile(spn_profile_info_t* to, const spn_profile_info_t* fr
   if (from->toolchain.kind) {
     to->toolchain = from->toolchain;
   }
-  if (from->request.linkage) {
-    to->request.linkage = from->request.linkage;
+  if (from->static_deps_set) {
+    to->static_deps = from->static_deps;
+    to->static_deps_set = true;
   }
   if (from->request.runtime) {
     to->request.runtime = from->request.runtime;
@@ -44,6 +45,10 @@ static void overlay_profile(spn_profile_info_t* to, const spn_profile_info_t* fr
   if (from->sanitizers_set || from->sanitizers) {
     to->sanitizers = from->sanitizers;
     to->sanitizers_set = true;
+  }
+  if (from->emit_set) {
+    to->emit = from->emit;
+    to->emit_set = true;
   }
   if (from->target.os) {
     to->target.os = from->target.os;
@@ -95,7 +100,6 @@ static spn_profile_info_t evaluate(const spn_profile_decl_t* decl, spn_when_env_
       .abi = spn_abi_from_str(pick(decl->abi, env)),
     },
     .request = {
-      .linkage = spn_linkage_from_str(pick(decl->linkage, env)),
       .runtime = spn_runtime_from_str(pick(decl->runtime, env)),
       .libc = spn_runtime_from_str(pick(decl->libc, env)),
     },
@@ -104,6 +108,10 @@ static spn_profile_info_t evaluate(const spn_profile_decl_t* decl, spn_when_env_
     .opt = spn_opt_level_from_str(pick(decl->opt, env)),
     .sanitizers = decl->sanitizers,
     .sanitizers_set = decl->sanitizers_set,
+    .emit = decl->emit,
+    .emit_set = decl->emit_set,
+    .static_deps = decl->static_deps,
+    .static_deps_set = decl->static_deps_set,
     .options = decl->options,
   };
 }
@@ -151,21 +159,23 @@ spn_err_t spn_profile_query(const spn_profile_info_t* profile, spn_triple_t host
     }
   }
 
-  spn_linking_t request = profile->request;
-  spn_linking_t demanded = request;
-  demanded.linkage = request.linkage ? request.linkage : profile->demand;
+  spn_linking_t demanded = profile->request;
+  demanded.linkage = profile->demand;
 
   spn_err_refusal_t refused [SPN_ABI_COUNT] = sp_zero;
   u32 refusals = 0;
   sp_for(it, abis.count) {
     spn_toolchain_candidate_t candidate = { .triple = { profile->target.arch, profile->target.os, abis.items[it] } };
     spn_linking_refusal_t refusal = spn_ld_linking(candidate.triple, demanded, &candidate.linking);
-    if (refusal && demanded.linkage != request.linkage) {
-      refusal = spn_ld_linking(candidate.triple, request, &candidate.linking);
+    if (refusal && profile->demand) {
+      refusal = spn_ld_linking(candidate.triple, profile->request, &candidate.linking);
     }
     if (refusal) {
       refused[refusals++] = (spn_err_refusal_t) { .triple = candidate.triple, .reason = refusal };
       continue;
+    }
+    if (profile->request.linkage) {
+      candidate.linking.linkage = profile->request.linkage;
     }
     query->candidates.items[query->candidates.count++] = candidate;
   }
@@ -209,7 +219,7 @@ void spn_profile_finalize(spn_profile_info_t* profile, const spn_toolchain_selec
   profile->linking = selection->linking;
 }
 
-static bool shared_demand(const spn_project_t* project) {
+static bool shared_demand(const spn_project_t* project, spn_linkage_set_t emit) {
   si_om_for(project->config, it) {
     const spn_pkg_config_t* config = si_om_at(project->config, it);
     if (!sp_opt_is_null(config->kind) && config->kind.value == SPN_LIB_KIND_SHARED) {
@@ -222,7 +232,7 @@ static bool shared_demand(const spn_project_t* project) {
       continue;
     }
     spn_linkage_set_t linkages = target->linkages;
-    if (linkages.shared && !linkages.static_lib) {
+    if (linkages.shared && (emit.shared || !linkages.static_lib)) {
       return true;
     }
   }
@@ -367,17 +377,20 @@ spn_err_t spn_profile_resolve(const spn_profile_override_t* override, spn_triple
     }
   }
 
+  merged.request.linkage = merged.static_deps ? SPN_LIB_KIND_STATIC : SPN_LIB_KIND_NONE;
+
   *result = (spn_profile_info_t) {
     .id          = name.id,
     .name        = name,
     .toolchain   = merged.toolchain,
     .target      = pinned,
     .request     = merged.request,
-    .demand      = shared_demand(project) ? SPN_LIB_KIND_SHARED : SPN_LIB_KIND_NONE,
+    .demand      = shared_demand(project, merged.emit) ? SPN_LIB_KIND_SHARED : SPN_LIB_KIND_NONE,
     .standard    = merged.standard,
     .mode        = merged.mode,
     .opt         = merged.opt,
     .sanitizers  = merged.sanitizers,
+    .emit        = merged.emit,
     .options     = merged.options,
     .targeted    = targeted,
   };

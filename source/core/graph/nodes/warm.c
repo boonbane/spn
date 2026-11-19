@@ -75,9 +75,6 @@ static spn_err_t zig_warmup(sp_mem_t mem, const si_dag_ctx_t* c, si_zig_warmup_t
     case SPN_CC_OUTPUT_EXE: {
       break;
     }
-    case SPN_CC_OUTPUT_STATIC_LIB: {
-      sp_unreachable_case();
-    }
   }
   si_da_push(mem, files.objects, spn_path(mem, SPN_DIR_ID_RUNTIME, "zig/stub.c"));
 

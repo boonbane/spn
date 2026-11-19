@@ -221,7 +221,7 @@ static fz_result_t fz_execute(sp_mem_t mem, fz_universe_t* u, sp_intern_t* inter
     .roots = &roots,
     .index = &cache,
     .registry = &registry,
-    .profile = { .linking.linkage = u->profile.linkage },
+    .profile = { .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU }, .linking.linkage = u->profile.linkage },
     .config = config,
     .preferences = sp_da_new(mem, spn_pin_t),
     .budget = u->profile.budget,

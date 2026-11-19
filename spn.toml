@@ -90,7 +90,7 @@ files = [
 
 [profile.default]
 toolchain = "zig"
-linkage = "static"
+static_deps = true
 standard = "c11"
 mode = "debug"
 
@@ -101,7 +101,7 @@ abi = "musl"
 [profile.gnu]
 toolchain = "zig"
 abi = "gnu"
-linkage = "shared"
+static_deps = false
 
 [profile.mingw]
 toolchain = "zig"
@@ -114,7 +114,8 @@ abi = "msvc"
 
 [profile.sanitizer]
 toolchain = "clang"
-linkage = "shared"
+static_deps = false
+libc = { value = "shared", when = { os = "linux" } }
 sanitize = ["address", "undefined"]
 
 [[lib]]

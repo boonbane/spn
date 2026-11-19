@@ -2,13 +2,13 @@
 
 #include "compiler/driver.h"
 #include "ctx/types.h"
-#include "enum/enum.h"
 #include "error/error.h"
 #include "options/options.h"
 #include "paths/paths.h"
 #include "pkg/pkg.h"
 #include "profile/profile.h"
 #include "target/select.h"
+#include "toolchain/linker.h"
 #include "when/when.h"
 
 static si_pkg_t evaluate(spn_units_t* u, spn_build_unit_t* build, const spn_resolved_pkg_t* resolved, spn_tree_roots_t trees) {
@@ -227,55 +227,22 @@ spn_err_t si_add_target_unit(spn_units_t* u, spn_pkg_unit_t* pkg, si_target_t* t
       }
 
       const spn_pkg_config_t* config = pkg->resolved->config;
-      spn_kind_query_t query = { .linkage = profile->linking.linkage };
+      spn_kind_query_t query = {
+        .linkage = profile->linking.linkage,
+        .loader = spn_ld_loader(profile->target, profile->linking),
+      };
       if (config && !sp_opt_is_null(config->kind)) {
         sp_opt_set(query.config, config->kind.value);
       }
-
-      if (spn_target_select_lib_kind(target->info->linkages, query, &unit->lib_kind)) {
-        spn_linkage_requester_t requester = SPN_LINKAGE_REQUESTER_TARGET;
-        if (profile->request.linkage) {
-          requester = SPN_LINKAGE_REQUESTER_PROFILE;
-        }
-        else if (profile->request.libc == SPN_RUNTIME_STATIC) {
-          requester = SPN_LINKAGE_REQUESTER_LIBC;
-        }
-        sp_da(spn_linkage_t) supported = sp_da_new(u->ctx->events->mem, spn_linkage_t);
-        if (target->info->linkages.shared) {
-          sp_da_push(supported, SPN_LIB_KIND_SHARED);
-        }
-        if (target->info->linkages.static_lib) {
-          sp_da_push(supported, SPN_LIB_KIND_STATIC);
-        }
-        return spn_err_emit(u->ctx, (spn_err_union_t) {
-          .kind = SPN_ERR_TARGET_LINKAGE,
-          .target = {
-            .pkg = pkg->pkg.manifest->name.str,
-            .name = target->info->name.str,
-            .requested = spn_linkage_to_str(query.config.some ? query.config.value : query.linkage),
-            .requester = query.config.some ? SPN_LINKAGE_REQUESTER_ROOT_MANIFEST : requester,
-            .supported = supported,
-          },
-        });
-      }
-
-      switch (unit->lib_kind) {
-        case SPN_LIB_KIND_STATIC: unit->kind = SPN_CC_OUTPUT_STATIC_LIB; break;
-        case SPN_LIB_KIND_SHARED: unit->kind = SPN_CC_OUTPUT_SHARED_LIB; break;
-        case SPN_LIB_KIND_NONE: sp_unreachable_case();
-      }
+      unit->lib_kind = spn_target_select_lib_kind(target->info->linkages, query);
       break;
     }
     case SPN_TARGET_KIND_EXE:
     case SPN_TARGET_KIND_TOOL:
     case SPN_TARGET_KIND_TEST:
-    case SPN_TARGET_KIND_EXAMPLE: {
-      unit->kind = SPN_CC_OUTPUT_EXE;
-      break;
-    }
+    case SPN_TARGET_KIND_EXAMPLE:
     case SPN_TARGET_KIND_CONFIGURE_METAPROGRAM:
     case SPN_TARGET_KIND_BUILD_METAPROGRAM: {
-      unit->kind = SPN_CC_OUTPUT_REACTOR;
       break;
     }
   }

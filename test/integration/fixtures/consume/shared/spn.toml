@@ -6,10 +6,10 @@ version = "0.1.0"
 spum = { path = "packages/spum" }
 
 [profile.default]
-linkage = "shared"
+libc = { value = "shared", when = { os = "linux" } }
 
 [profile.static]
-linkage = "static"
+static_deps = true
 
 [[bin]]
 name = "main"

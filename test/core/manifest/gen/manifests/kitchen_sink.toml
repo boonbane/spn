@@ -62,7 +62,7 @@ standard = "c11"
 
 [profile.release]
 mode = "release"
-linkage = "static"
+static_deps = true
 
 [deps.package]
 libfoo = "^1.0.0"

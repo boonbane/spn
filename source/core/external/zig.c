@@ -122,9 +122,6 @@ static sp_str_t stub_kind_label(spn_cc_output_kind_t kind) {
     case SPN_CC_OUTPUT_EXE: return sp_str_lit("exe");
     case SPN_CC_OUTPUT_SHARED_LIB: return sp_str_lit("shared");
     case SPN_CC_OUTPUT_REACTOR: return sp_str_lit("reactor");
-    case SPN_CC_OUTPUT_STATIC_LIB: {
-      sp_unreachable_case();
-    }
   }
   SP_UNREACHABLE_RETURN(sp_str_lit(""));
 }

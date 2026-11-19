@@ -90,6 +90,7 @@ typedef enum {
   SPN_LINKAGE_REQUESTER_ROOT_MANIFEST,
   SPN_LINKAGE_REQUESTER_LIBC,
   SPN_LINKAGE_REQUESTER_TARGET,
+  SPN_LINKAGE_REQUESTER_NO_LOADER,
 } spn_linkage_requester_t;
 
 typedef enum {
@@ -104,6 +105,11 @@ typedef enum {
   SPN_LIB_KIND_SHARED,
   SPN_LIB_KIND_STATIC,
 } spn_linkage_t;
+
+typedef struct {
+  bool shared;
+  bool static_lib;
+} spn_linkage_set_t;
 
 typedef enum {
   SPN_RUNTIME_NONE,

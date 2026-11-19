@@ -3,9 +3,9 @@ name = "A"
 version = "0.1.0"
 
 [[lib]]
-name = "L"
-source = ["main.c"]
+name = "A"
 kinds = ["static", "shared"]
+source = ["a.c"]
 
-[config.A]
-kind = "shared"
+[profile.both]
+emit = ["static", "shared"]

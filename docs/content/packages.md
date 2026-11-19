@@ -42,6 +42,26 @@ A `[[bin]]` and a `[[tool]]`, for instance, are both executables, but their diff
 
 ### kinds
 
+`kinds` lists what a library can be built as. The default is `["static"]`.
+
+| Kind | Output |
+|---|---|
+| `static` | An archive (`libfoo.a`, or `foo.lib` for MSVC) |
+| `shared` | `libfoo.so`, `libfoo.dylib`, or `foo.dll` with `foo.dll.lib` to link against. On WebAssembly, a module (`foo.wasm`) that exports the library's functions |
+
+Anything that links the library uses one kind: `static` when the library offers it, unless the root manifest sets `[config.foo] kind = "shared"`. A WebAssembly module can't be linked against, so a library that other targets link needs `static` there.
+
+When you build the package itself, a library is built as `static` when it offers it. A profile's `emit` lists the kinds to build instead:
+
+```toml
+[profile.release]
+emit = ["static", "shared"]
+```
+
+`emit` only chooses for a library that offers both kinds. An archive that an executable in the same build links is built either way.
+
+A `shared` kind needs a dynamic loader, so asking for one moves the default Linux build off its static libc, and executables in that build link libc dynamically too. Where there is no loader, as with `libc = "static"`, the `shared` kind is skipped.
+
 ### cxx
 
 ## System dependencies

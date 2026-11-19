@@ -114,9 +114,7 @@
       ]
     },
     "release": {
-      "linkage": [
-        "static"
-      ],
+      "static_deps": true,
       "mode": [
         "release"
       ]

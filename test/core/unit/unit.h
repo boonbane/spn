@@ -23,6 +23,7 @@
 
 #define static_only { .static_lib = true }
 #define shared_only { .shared = true }
+#define both_kinds { .shared = true, .static_lib = true }
 
 typedef struct {
   const c8* to;
@@ -116,6 +117,7 @@ typedef struct {
   spn_linkage_t linkage;
   spn_runtime_t runtime;
   spn_runtime_t libc;
+  spn_linkage_set_t emit;
   graph_pkg_t pkgs [UNIT_TEST_MAX_PKGS];
 } graph_t;
 

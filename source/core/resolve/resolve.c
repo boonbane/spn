@@ -23,6 +23,7 @@
 #include "profile/profile.h"
 #include "target/mutate.h"
 #include "target/select.h"
+#include "toolchain/linker.h"
 #include "when/when.h"
 
 #define try_union(expr) \
@@ -231,20 +232,15 @@ static bool find_forced(spn_resolve_run_t* run, sp_intern_id_t name, spn_semver_
 }
 
 static spn_kind_query_t kind_query(spn_resolver_t* resolver, sp_intern_str_t name) {
-  spn_kind_query_t query = { .linkage = resolver->profile.linking.linkage };
+  spn_kind_query_t query = {
+    .linkage = resolver->profile.linking.linkage,
+    .loader = spn_ld_loader(resolver->profile.target, resolver->profile.linking),
+  };
   spn_pkg_config_t* config = si_om_get(resolver->config, name.id);
   if (config && !sp_opt_is_null(config->kind)) {
     sp_opt_set(query.config, config->kind.value);
   }
   return query;
-}
-
-static bool target_selects_shared(spn_linkage_set_t linkages, spn_kind_query_t query) {
-  spn_linkage_t kind = SPN_LIB_KIND_NONE;
-  if (spn_target_select_lib_kind(linkages, query, &kind)) {
-    return false;
-  }
-  return kind == SPN_LIB_KIND_SHARED;
 }
 
 static bool node_is_shared(spn_resolver_t* resolver, spn_resolved_pkg_t* node) {
@@ -276,7 +272,7 @@ static bool node_is_shared(spn_resolver_t* resolver, spn_resolved_pkg_t* node) {
             case SPN_LIB_KIND_NONE: sp_unreachable_case();
           }
         }
-        if (target_selects_shared(linkages, query)) {
+        if (spn_target_select_lib_kind(linkages, query) == SPN_LIB_KIND_SHARED) {
           return true;
         }
       }
@@ -294,7 +290,7 @@ static bool node_is_shared(spn_resolver_t* resolver, spn_resolved_pkg_t* node) {
         if (target->kind != SPN_TARGET_KIND_LIB) {
           continue;
         }
-        if (target_selects_shared(target->linkages, query)) {
+        if (spn_target_select_lib_kind(target->linkages, query) == SPN_LIB_KIND_SHARED) {
           return true;
         }
       }

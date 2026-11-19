@@ -448,7 +448,7 @@ Packages are compiled against a profile, which contains the target triple, toolc
 ```toml
 [profile.default]
 toolchain = "zig"
-linkage = "static"
+static_deps = true
 standard = "c11"
 mode = "debug"
 ```

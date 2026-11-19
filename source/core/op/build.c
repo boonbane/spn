@@ -195,7 +195,7 @@ spn_err_t spn_op_build(spn_op_t* op) {
     }
     spn_dag_target_ids_t* ids = sp_ht_getp(reactors->ids.targets, pkg->reactor);
     sp_assert(ids);
-    spn_try(spn_wasm_configure(pkg, spn_dag_run_artifact(&reactors->run, ids->output)->location));
+    spn_try(spn_wasm_configure(pkg, spn_dag_run_artifact(&reactors->run, ids->link)->location));
   }
 
   spn_try(spn_plan_new(&units, root, targets, &session->plan));

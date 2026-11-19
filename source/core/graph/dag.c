@@ -191,6 +191,9 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
 
   spn_dag_target_ids_t* ids = sp_ht_getp(b->ids.targets, unit);
   sp_assert(ids);
+  if (!ids->archive.occupied && !ids->link.occupied) {
+    return SPN_OK;
+  }
 
   spn_dag_embed_ids_t embed = sp_zero;
   if (!si_da_empty(unit->target->embed)) {
@@ -306,21 +309,21 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
     link_objects = (spn_dag_build_objects_t) { .kind = SPN_DAG_BUILD_OBJECTS_RSP, .rsp = file };
   }
 
-  if (!sp_opt_is_null(emit->archive)) {
+  if (!sp_opt_is_null(emit->archive.plan)) {
     si_archive_t* ctx = sp_alloc_type(b->mem, si_archive_t);
     *ctx = (si_archive_t) {
-      .plan = &emit->archive.value,
-      .file_name = emit->output,
+      .plan = &emit->archive.plan.value,
+      .file_name = emit->archive.output,
       .subject = spn_target_unit_subject(unit),
       .objects = link_objects,
-      .output = ids->output,
+      .output = ids->archive,
     };
 
     spn_digest_ctx_t digest = sp_zero;
     spn_digest_init(&digest);
     spn_dag_hash_str(&digest, sp_str_lit("spn.build.archive.v3"));
     spn_dag_hash_u64(&digest, toolchain->identity);
-    hash_invocation(&digest, g->roots, &emit->archive.value.base);
+    hash_invocation(&digest, g->roots, &emit->archive.plan.value.base);
     spn_dag_id_t action = spn_dag_add_action(g, (spn_dag_action_config_t) {
       .identity = spn_dag_hash_final(&digest),
       .execute = si_on_archive,
@@ -330,19 +333,19 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
     si_da_for(link_inputs, it) {
       spn_dag_action_add_input(g, action, link_inputs[it]);
     }
-    spn_try(spn_dag_action_add_output(g, action, ids->output));
+    spn_try(spn_dag_action_add_output(g, action, ids->archive));
   }
 
-  if (!sp_opt_is_null(emit->link)) {
-    const spn_cc_link_plan_t* plan = &emit->link.value;
+  if (!sp_opt_is_null(emit->link.plan)) {
+    const spn_cc_link_plan_t* plan = &emit->link.plan.value;
     si_link_t* ctx = sp_alloc_type(b->mem, si_link_t);
     *ctx = (si_link_t) {
       .plan = plan,
-      .file_name = emit->output,
+      .file_name = emit->link.output,
       .subject = spn_target_unit_subject(unit),
       .objects = link_objects,
       .libc = libc,
-      .output = ids->output,
+      .output = ids->link,
       .implib = ids->implib,
     };
     si_da_for(link->deps, it) {
@@ -351,22 +354,22 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
       sp_assert(lib);
       switch (dep->role) {
         case SPN_LINK_ROLE_ARCHIVE: {
-          si_da_push(b->mem, ctx->deps.archives, lib->output);
+          si_da_push(b->mem, ctx->deps.archives, lib->archive);
           break;
         }
         case SPN_LINK_ROLE_SHARED: {
-          si_da_push(b->mem, ctx->deps.shared, lib->implib.occupied ? lib->implib : lib->output);
+          si_da_push(b->mem, ctx->deps.shared, lib->implib.occupied ? lib->implib : lib->link);
           break;
         }
         case SPN_LINK_ROLE_WHOLE_ARCHIVE: {
-          si_da_push(b->mem, ctx->deps.whole_archives, lib->output);
+          si_da_push(b->mem, ctx->deps.whole_archives, lib->archive);
           break;
         }
       }
     }
 
-    if (!sp_opt_is_null(emit->exports)) {
-      const spn_exports_plan_t* exports = &emit->exports.value;
+    if (!sp_opt_is_null(emit->link.exports)) {
+      const spn_exports_plan_t* exports = &emit->link.exports.value;
       si_exports_t* exports_ctx = sp_alloc_type(b->mem, si_exports_t);
       *exports_ctx = (si_exports_t) {
         .archive = &exports->archive,
@@ -437,7 +440,7 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
     if (libc.occupied) {
       spn_dag_action_add_input(g, action, libc);
     }
-    spn_try(spn_dag_action_add_output(g, action, ids->output));
+    spn_try(spn_dag_action_add_output(g, action, ids->link));
     if (ids->implib.occupied) {
       spn_try(spn_dag_action_add_output(g, action, ids->implib));
     }
@@ -507,9 +510,14 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
   }
 
   if (!spn_path_empty(unit->install)) {
-    spn_try(add_publish_file(b, ids->output, spn_path_join(b->mem, unit->install, emit->output)));
+    if (ids->archive.occupied) {
+      spn_try(add_publish_file(b, ids->archive, spn_path_join(b->mem, unit->install, emit->archive.output)));
+    }
+    if (ids->link.occupied) {
+      spn_try(add_publish_file(b, ids->link, spn_path_join(b->mem, unit->install, emit->link.output)));
+    }
     if (ids->implib.occupied) {
-      spn_try(add_publish_file(b, ids->implib, spn_path_join(b->mem, unit->install, emit->implib)));
+      spn_try(add_publish_file(b, ids->implib, spn_path_join(b->mem, unit->install, emit->link.implib)));
     }
   }
 
@@ -556,7 +564,7 @@ spn_err_t spn_dag_build_lower(spn_dag_build_t* b, const spn_build_plan_t* plan) 
     if (!sp_opt_is_null(target->prebuilt)) {
       spn_dag_target_ids_t ids = sp_zero;
       if (!spn_path_empty(target->prebuilt.value.path)) {
-        ids.output = spn_dag_add_file(g, target->prebuilt.value.path);
+        ids.link = spn_dag_add_file(g, target->prebuilt.value.path);
       }
       if (!spn_path_empty(target->prebuilt.value.stub)) {
         ids.implib = spn_dag_add_file(g, target->prebuilt.value.stub);
@@ -564,14 +572,15 @@ spn_err_t spn_dag_build_lower(spn_dag_build_t* b, const spn_build_plan_t* plan) 
       sp_ht_insert(b->ids.targets, target, ids);
       continue;
     }
-    if (sp_str_empty(target->emit.output)) {
-      continue;
+    spn_dag_target_ids_t ids = sp_zero;
+    if (!sp_str_empty(target->emit.archive.output)) {
+      ids.archive = spn_dag_add_output(g, target->emit.archive.output);
     }
-    spn_dag_target_ids_t ids = {
-      .output = spn_dag_add_output(g, target->emit.output),
-    };
-    if (!sp_str_empty(target->emit.implib)) {
-      ids.implib = spn_dag_add_output(g, target->emit.implib);
+    if (!sp_str_empty(target->emit.link.output)) {
+      ids.link = spn_dag_add_output(g, target->emit.link.output);
+    }
+    if (!sp_str_empty(target->emit.link.implib)) {
+      ids.implib = spn_dag_add_output(g, target->emit.link.implib);
     }
     sp_ht_insert(b->ids.targets, target, ids);
   }
@@ -615,7 +624,7 @@ spn_err_t spn_dag_build_lower(spn_dag_build_t* b, const spn_build_plan_t* plan) 
     if (!sp_str_empty(node->fn)) {
       spn_dag_target_ids_t* ids = sp_ht_getp(b->ids.targets, pkg->metaprogram);
       sp_assert(ids);
-      script = ids->output;
+      script = ids->link;
     }
 
     spn_digest_ctx_t digest = sp_zero;
@@ -708,13 +717,13 @@ spn_err_t spn_dag_build_lower(spn_dag_build_t* b, const spn_build_plan_t* plan) 
     si_da_push(b->mem, b->stages.profile, ((spn_dag_stage_t) {
       .key = key,
       .to = closure.exe.path,
-      .artifact = sp_ht_getp(b->ids.targets, closure.exe.target)->output,
+      .artifact = sp_ht_getp(b->ids.targets, closure.exe.target)->link,
     }));
     si_da_for_value(closure.libs, lib) {
       si_da_push(b->mem, b->stages.profile, ((spn_dag_stage_t) {
         .key = key,
         .to = lib.path,
-        .artifact = sp_ht_getp(b->ids.targets, lib.target)->output,
+        .artifact = sp_ht_getp(b->ids.targets, lib.target)->link,
       }));
     }
   }

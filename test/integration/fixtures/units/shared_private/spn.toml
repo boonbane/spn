@@ -3,7 +3,7 @@ name = "units_shared_private"
 version = "0.1.0"
 
 [profile.default]
-linkage = "shared"
+libc = { value = "shared", when = { os = "linux" } }
 
 [deps.package]
 gfx = "1.0.0"

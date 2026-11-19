@@ -33,16 +33,12 @@ bool fz_pkg_shared(fz_universe_t* u, s32 pkg) {
   }
 
 
-  spn_kind_query_t query = { .linkage = u->profile.linkage };
+  spn_kind_query_t query = { .linkage = u->profile.linkage, .loader = true };
   if (it->has_config) {
     sp_opt_set(query.config, it->config);
   }
 
-  spn_linkage_t kind = SPN_LIB_KIND_NONE;
-  if (spn_target_select_lib_kind(it->linkages, query, &kind)) {
-    return false;
-  }
-  return kind == SPN_LIB_KIND_SHARED;
+  return spn_target_select_lib_kind(it->linkages, query) == SPN_LIB_KIND_SHARED;
 }
 
 static bool fz_caret_sat(spn_semver_t low, spn_semver_t version) {

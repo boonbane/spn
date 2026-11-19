@@ -271,17 +271,6 @@ static cell_t cells [] = {
   },
   // @spader
   //
-  // error: toolchain zig can't link shared libraries for wasm32-wasi-musl
-  //
-  // Because nobody can, right? It's a property of WASM, not Zig
-  {
-    .name = "err_feature_link_shared",
-    .project = "test/render/fixtures/errors/shared_lib",
-    .toolchain = "zig",
-    .args = { "build", "--target", "wasm32-wasi-musl" },
-  },
-  // @spader
-  //
   // error: toolchain zig can't link frameworks without a macOS SDK for aarch64-macos-apple
   //
   // This is a natural, unavoidable footgun. You're cross compiling any macOS code that uses
@@ -352,11 +341,6 @@ static cell_t cells [] = {
     .name = "err_profile_linking_hybrid_crt",
     .project = "test/render/fixtures/errors/linking",
     .args = { "build", "-p", "hybrid_crt", "--target", "x86_64-windows-msvc" },
-  },
-  {
-    .name = "err_profile_linking_shared_deps",
-    .project = "test/render/fixtures/errors/linking",
-    .args = { "build", "-p", "shared_deps", "--target", "x86_64-linux-musl" },
   },
   {
     .name = "err_profile_linking_every_abi",
