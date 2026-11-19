@@ -194,7 +194,7 @@ static cell_t cells [] = {
     .name = "err_toolchain_sysroot",
     .project = "test/render/fixtures/errors/base",
     .toolchain = "clang",
-    .args = { "build", "--os", "windows" },
+    .args = { "build", "--target", "x86_64-windows-gnu" },
   },
   // error: toolchain llvm needs the MSVC SDK to build for x86_64-windows-msvc
   // it can build for: x86_64-linux-gnu
@@ -205,7 +205,7 @@ static cell_t cells [] = {
     .name = "err_toolchain_sdk_msvc",
     .project = "test/render/fixtures/errors/base",
     .toolchain = "llvm",
-    .args = { "build", "--os", "windows" },
+    .args = { "build", "--target", "x86_64-windows-msvc" },
   },
   {
     .name = "err_toolchain_sdk_macos",
@@ -310,8 +310,8 @@ static cell_t cells [] = {
   {
     .name = "err_sanitizer_static",
     .project = "test/render/fixtures/errors/static",
-    .toolchain = "gcc",
-    .args = { "build", "--sanitize", "address" },
+    .toolchain = "zig",
+    .args = { "build", "--sanitize", "thread", "--target", "x86_64-linux-musl" },
   },
   // @spader
   //
@@ -485,7 +485,8 @@ static cell_t cells [] = {
   },
   {
     .name = "err_lock_stale",
-    .project = "test/integration/fixtures/lock/pair",
+    .project = "test/integration/fixtures/lock/blocked",
+    .copy = { "spn.lock" },
     .args = { "build", "--locked" },
   },
   {
@@ -497,6 +498,7 @@ static cell_t cells [] = {
   {
     .name = "err_lock_absent",
     .project = "test/integration/fixtures/lock/pair",
+    .setup = { { "build" } },
     .args = { "update", "C" },
   },
   {
