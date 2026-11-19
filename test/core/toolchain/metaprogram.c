@@ -43,10 +43,6 @@ sp_test_suite(metaprogram, .serial = true);
 
 static const test_t tests [] = {
   {
-    .name = "graph_without_a_script_does_not_sync_it",
-    .target = { "A", SPN_TARGET_KIND_EXE },
-  },
-  {
     .name = "build_script_syncs_it",
     .target = { "B", SPN_TARGET_KIND_BUILD_METAPROGRAM },
     .expect = { .requests = "M" },

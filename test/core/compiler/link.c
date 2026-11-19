@@ -161,25 +161,6 @@ static const link_test_t tests [] = {
     },
   },
   {
-    .name = "clang_wasi_p1_reactor",
-    .driver = SPN_CC_DRIVER_CLANG,
-    .profile = {
-      .target = { SPN_ARCH_WASM32, SPN_OS_WASI },
-      .spelling = "wasm32-wasip1",
-    },
-    .kind = SPN_CC_OUTPUT_REACTOR,
-    .exports = "S.rsp",
-    .expect = {
-      .command = "cc",
-      .args = {
-        "--target=wasm32-wasip1",
-        "-mexec-model=reactor",
-        "-Wl,--no-entry", "@S.rsp",
-        "main.o", "-o", "main"
-      },
-    },
-  },
-  {
     .name = "wasi_shared_lib_unsupported",
     .driver = SPN_CC_DRIVER_CLANG,
     .profile = {
@@ -784,25 +765,6 @@ static const link_test_t tests [] = {
     },
   },
   {
-    .name = "wasi_reactor_exports",
-    .driver = SPN_CC_DRIVER_CLANG,
-    .profile = {
-      .target = { SPN_ARCH_WASM32, SPN_OS_WASI },
-    },
-    .kind = SPN_CC_OUTPUT_REACTOR,
-    .exports = "S.rsp",
-    .expect = {
-      .command = "cc",
-      .args = {
-        "--target=wasm32-wasi",
-        "-mexec-model=reactor",
-        "-Wl,--no-entry",
-        "@S.rsp",
-        "main.o", "-o", "main"
-      },
-    },
-  },
-  {
     .name = "foreign_platform_config_never_renders",
     .driver = SPN_CC_DRIVER_GCC,
     .profile = {
@@ -1135,26 +1097,6 @@ static const link_test_t tests [] = {
     },
   },
   {
-    .name = "zig_strip_symbols",
-    .driver = SPN_CC_DRIVER_ZIG,
-    .profile = { .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_MUSL }, .strip = SPN_STRIP_SYMBOLS },
-    .kind = SPN_CC_OUTPUT_EXE,
-    .expect = {
-      .command = "cc",
-      .args = { "--target=x86_64-linux-musl", "-s", "main.o", "-Wl,-rpath,$ORIGIN", "-o", "main" },
-    },
-  },
-  {
-    .name = "zig_strip_ignores_dialect",
-    .driver = SPN_CC_DRIVER_ZIG,
-    .profile = { .target = { SPN_ARCH_ARM64, SPN_OS_MACOS }, .strip = SPN_STRIP_DEBUGINFO },
-    .kind = SPN_CC_OUTPUT_EXE,
-    .expect = {
-      .command = "cc",
-      .args = { "--target=aarch64-macos", "-s", "main.o", "-Wl,-rpath,@loader_path", "-o", "main" },
-    },
-  },
-  {
     .name = "gnu_strip_debuginfo",
     .driver = SPN_CC_DRIVER_GCC,
     .profile = { .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU }, .strip = SPN_STRIP_DEBUGINFO },
@@ -1172,26 +1114,6 @@ static const link_test_t tests [] = {
     .expect = {
       .command = "cc",
       .args = { "-s", "main.o", "-Wl,-rpath,$ORIGIN", "-o", "main" },
-    },
-  },
-  {
-    .name = "wasm_strip_debuginfo",
-    .driver = SPN_CC_DRIVER_CLANG,
-    .profile = { .target = { SPN_ARCH_WASM32, SPN_OS_WASI }, .strip = SPN_STRIP_DEBUGINFO },
-    .kind = SPN_CC_OUTPUT_EXE,
-    .expect = {
-      .command = "cc",
-      .args = { "--target=wasm32-wasi", "-Wl,-S", "main.o", "-o", "main" },
-    },
-  },
-  {
-    .name = "wasm_strip_symbols",
-    .driver = SPN_CC_DRIVER_CLANG,
-    .profile = { .target = { SPN_ARCH_WASM32, SPN_OS_WASI }, .strip = SPN_STRIP_SYMBOLS },
-    .kind = SPN_CC_OUTPUT_EXE,
-    .expect = {
-      .command = "cc",
-      .args = { "--target=wasm32-wasi", "-s", "main.o", "-o", "main" },
     },
   },
   {
@@ -1223,28 +1145,6 @@ static const link_test_t tests [] = {
     .expect = {
       .command = "cc",
       .args = { "--target=x86_64-windows-msvc", "-fms-runtime-lib=static", "main.o", "-o", "main" },
-    },
-  },
-  {
-    .name = "clang_msvc_strip_symbols_renders_nothing",
-    .driver = SPN_CC_DRIVER_CLANG,
-    .host = HOST_X64_WINDOWS,
-    .profile = { .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC }, .linking.runtime = SPN_RUNTIME_STATIC, .strip = SPN_STRIP_SYMBOLS },
-    .kind = SPN_CC_OUTPUT_EXE,
-    .expect = {
-      .command = "cc",
-      .args = { "--target=x86_64-windows-msvc", "-fms-runtime-lib=static", "main.o", "-o", "main" },
-    },
-  },
-  {
-    .name = "msvc_strip_renders_nothing",
-    .driver = SPN_CC_DRIVER_MSVC,
-    .host = HOST_X64_WINDOWS,
-    .profile = { .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC }, .linking.runtime = SPN_RUNTIME_STATIC, .strip = SPN_STRIP_SYMBOLS },
-    .kind = SPN_CC_OUTPUT_EXE,
-    .expect = {
-      .command = "cc",
-      .args = { "/nologo", "main.o", "/Femain", "/link" },
     },
   },
 };

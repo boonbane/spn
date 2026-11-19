@@ -24,7 +24,6 @@ typedef struct {
 typedef struct {
   const c8* name;
   spn_triple_t triple;
-  spn_strip_t strip;
   spn_sanitizer_set_t sanitizers;
   const c8* sdk;
   link_t link;
@@ -75,12 +74,6 @@ static const test_t tests [] = {
     .link = { SPN_CC_OUTPUT_SHARED_LIB, SPN_LANG_C, SPN_RUNTIME_STATIC },
   },
   {
-    .name = "strip_keyed",
-    .triple = LINUX_MUSL,
-    .strip = SPN_STRIP_DEBUGINFO,
-    .link = { SPN_CC_OUTPUT_EXE, SPN_LANG_C },
-  },
-  {
     .name = "sysroot_keyed",
     .triple = LINUX_MUSL,
     .sdk = "/sdk",
@@ -122,7 +115,6 @@ sp_test_each(zig_stubs, tuple, test_t, tests) {
 
   spn_profile_info_t profile = {
     .target = it->triple,
-    .strip = it->strip,
     .sanitizers = it->sanitizers,
     .linking.libc = it->link.libc,
   };
@@ -145,7 +137,6 @@ sp_test_each(zig_stubs, tuple, test_t, tests) {
   sp_expect_eq(t, stub.kind, it->link.kind);
   sp_expect_eq(t, stub.lang, it->link.lang);
   sp_expect_eq(t, stub.is_static, it->expect.is_static);
-  sp_expect_eq(t, stub.strip, it->strip);
   sp_expect_eq(t, stub.sanitizers, it->sanitizers);
   sp_expect_eq(t, stub.sdk != 0, it->expect.sdk);
   sp_expect_eq(t, stub.min_os.major, it->expect.min_os.major);

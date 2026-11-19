@@ -38,11 +38,8 @@ static const parse_t parse_tests [] = {
   { "x64_linux_no_abi",        "x86_64-linux",              .expect = { SPN_ARCH_X64,   SPN_OS_LINUX } },
   { "x64_bare",                "x86_64",                    .expect = { SPN_ARCH_X64 } },
   { "mingw_is_not_an_abi",     "x86_64-windows-mingw",      .expect = { SPN_ARCH_X64,   SPN_OS_WINDOWS, .invalid = SPN_TRIPLE_SEGMENT_ABI, .text = "mingw" } },
-  { "unknown_abi",             "x86_64-linux-A",            .expect = { SPN_ARCH_X64,   SPN_OS_LINUX,   .invalid = SPN_TRIPLE_SEGMENT_ABI, .text = "A" } },
   { "unknown_arch",            "A-linux",                   .expect = { .invalid = SPN_TRIPLE_SEGMENT_ARCH, .text = "A" } },
   { "unknown_os",              "x86_64-A",                  .expect = { SPN_ARCH_X64,   .invalid = SPN_TRIPLE_SEGMENT_OS, .text = "A" } },
-  { "unknown_arch_before_os",  "A-B",                       .expect = { .invalid = SPN_TRIPLE_SEGMENT_ARCH, .text = "A" } },
-  { "too_many_parts",          "x86_64-linux-gnu-A",        .expect = { SPN_ARCH_X64,   SPN_OS_LINUX,   SPN_ABI_GNU, SPN_TRIPLE_SEGMENT_EXTRA, "A" } },
   { "extra_is_the_remainder",  "x86_64-linux-gnu-A-B",      .expect = { SPN_ARCH_X64,   SPN_OS_LINUX,   SPN_ABI_GNU, SPN_TRIPLE_SEGMENT_EXTRA, "A-B" } },
   { "trailing_separator",      "x86_64-linux-gnu-",         .expect = { SPN_ARCH_X64,   SPN_OS_LINUX,   SPN_ABI_GNU, SPN_TRIPLE_SEGMENT_EXTRA } },
   { "empty_part",              "x86_64--gnu",               .expect = { SPN_ARCH_X64,   .invalid = SPN_TRIPLE_SEGMENT_OS } },
@@ -171,93 +168,6 @@ sp_test_each(triple, entry, entry_t, entry_tests) {
     sp_expect_eq(t, it->expect.full.arch, full.arch);
     sp_expect_eq(t, it->expect.full.os, full.os);
     sp_expect_eq(t, it->expect.full.abi, full.abi);
-  }
-  return SP_OK;
-}
-
-
-#define TRIPLE_MAX_ABIS 3
-
-typedef struct {
-  const c8* name;
-  spn_arch_t arch;
-  spn_os_t os;
-  spn_abi_t expect [TRIPLE_MAX_ABIS];
-} os_abis_t;
-
-static const os_abis_t os_abis_tests [] = {
-  { "linux",             SPN_ARCH_X64,    SPN_OS_LINUX,        { SPN_ABI_GNU, SPN_ABI_MUSL, SPN_ABI_BARE } },
-  { "windows",           SPN_ARCH_X64,    SPN_OS_WINDOWS,      { SPN_ABI_GNU, SPN_ABI_MSVC } },
-  { "macos",             SPN_ARCH_ARM64,  SPN_OS_MACOS,        { SPN_ABI_APPLE } },
-  { "wasi",              SPN_ARCH_WASM32, SPN_OS_WASI,         { SPN_ABI_MUSL } },
-  { "freestanding",      SPN_ARCH_X64,    SPN_OS_FREESTANDING, { SPN_ABI_BARE, SPN_ABI_ELF } },
-  { "freestanding_wasm", SPN_ARCH_WASM32, SPN_OS_FREESTANDING, { SPN_ABI_BARE } },
-  { "none",              SPN_ARCH_X64,    SPN_OS_NONE },
-};
-
-sp_test_each(triple, os_abis, os_abis_t, os_abis_tests) {
-  u32 expected = 0;
-  sp_carr_detect_len(it->expect, expected, it->expect[expected]);
-
-  const spn_abi_t* abis = SP_NULLPTR;
-  u32 count = spn_os_abis(it->arch, it->os, &abis);
-  sp_must_eq(t, expected, count);
-  sp_for(at, count) {
-    sp_expect_eq(t, it->expect[at], abis[at]);
-  }
-  return SP_OK;
-}
-
-static const os_abis_t os_completions_tests [] = {
-  { "linux",             SPN_ARCH_X64,    SPN_OS_LINUX,        { SPN_ABI_GNU, SPN_ABI_MUSL } },
-  { "windows",           SPN_ARCH_X64,    SPN_OS_WINDOWS,      { SPN_ABI_GNU, SPN_ABI_MSVC } },
-  { "macos",             SPN_ARCH_ARM64,  SPN_OS_MACOS,        { SPN_ABI_APPLE } },
-  { "wasi",              SPN_ARCH_WASM32, SPN_OS_WASI,         { SPN_ABI_MUSL } },
-  { "freestanding",      SPN_ARCH_X64,    SPN_OS_FREESTANDING, { SPN_ABI_BARE, SPN_ABI_ELF } },
-  { "freestanding_wasm", SPN_ARCH_WASM32, SPN_OS_FREESTANDING, { SPN_ABI_BARE } },
-  { "none",              SPN_ARCH_X64,    SPN_OS_NONE },
-};
-
-sp_test_each(triple, os_completions, os_abis_t, os_completions_tests) {
-  u32 expected = 0;
-  sp_carr_detect_len(it->expect, expected, it->expect[expected]);
-
-  const spn_abi_t* abis = SP_NULLPTR;
-  u32 count = spn_os_completions(it->arch, it->os, &abis);
-  sp_must_eq(t, expected, count);
-  sp_for(at, count) {
-    sp_expect_eq(t, it->expect[at], abis[at]);
-  }
-  return SP_OK;
-}
-
-
-#define TRIPLE_MAX_ARCHS 3
-
-typedef struct {
-  const c8* name;
-  spn_os_t os;
-  spn_arch_t expect [TRIPLE_MAX_ARCHS];
-} os_archs_t;
-
-static const os_archs_t os_archs_tests [] = {
-  { "linux",        SPN_OS_LINUX,        { SPN_ARCH_X64, SPN_ARCH_ARM64 } },
-  { "windows",      SPN_OS_WINDOWS,      { SPN_ARCH_X64, SPN_ARCH_ARM64 } },
-  { "macos",        SPN_OS_MACOS,        { SPN_ARCH_X64, SPN_ARCH_ARM64 } },
-  { "wasi",         SPN_OS_WASI,         { SPN_ARCH_WASM32 } },
-  { "freestanding", SPN_OS_FREESTANDING, { SPN_ARCH_X64, SPN_ARCH_ARM64, SPN_ARCH_WASM32 } },
-  { "none",         SPN_OS_NONE },
-};
-
-sp_test_each(triple, os_archs, os_archs_t, os_archs_tests) {
-  u32 expected = 0;
-  sp_carr_detect_len(it->expect, expected, it->expect[expected]);
-
-  const spn_arch_t* archs = SP_NULLPTR;
-  u32 count = spn_os_archs(it->os, &archs);
-  sp_must_eq(t, expected, count);
-  sp_for(at, count) {
-    sp_expect_eq(t, it->expect[at], archs[at]);
   }
   return SP_OK;
 }

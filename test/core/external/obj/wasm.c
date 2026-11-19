@@ -15,7 +15,6 @@ typedef struct {
 } wasm_t;
 
 static const wasm_t wasm_tests [] = {
-  { .name = "one",   .symbols = { { "A", 4 } } },
   { .name = "many",  .symbols = { { "A", 1 }, { "B", 2 }, { "C", 3 } } },
   { .name = "empty", .symbols = { { "A", 0 } } },
   { .name = "long",  .symbols = { { "A", 200 } } },

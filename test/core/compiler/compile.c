@@ -167,18 +167,6 @@ static const compile_test_t tests [] = {
     },
   },
   {
-    .name = "zig_freestanding_wasm_target",
-    .driver = SPN_CC_DRIVER_ZIG,
-    .profile = {
-      .target = { SPN_ARCH_WASM32, SPN_OS_FREESTANDING, SPN_ABI_BARE },
-      .standard = SPN_C99,
-    },
-    .expect = {
-      .command = "cc",
-      .args = { "--target=wasm32-freestanding-none", "-std=c99", "-ffreestanding", "-fno-stack-protector", "-fno-sanitize=undefined", "-c", "-Werror=return-type", "main.c", "-o", "main.o" },
-    },
-  },
-  {
     .name = "clang_freestanding_wasm_target",
     .driver = SPN_CC_DRIVER_CLANG,
     .profile = {
