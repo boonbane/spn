@@ -55,6 +55,16 @@ static const command_test_t commands [] = {
     },
   },
   {
+    .name = "unicode_output",
+    .project = "test/integration/fixtures/warning/root",
+    .when.driver = SPN_CC_DRIVER_MSVC,
+    .args = { "build" },
+    .env = { "VS_UNICODE_OUTPUT=1" },
+    .expect.events = {
+      { .event = SPN_EVENT_TARGET_BUILD_WARNED, .key = "subject.target", .value = "A" },
+    },
+  },
+  {
     .name = "dependency",
     .project = "test/integration/fixtures/warning/dep",
     .copy = { "B/*" },
