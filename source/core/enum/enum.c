@@ -942,3 +942,27 @@ spn_index_protocol_t spn_index_protocol_from_str(sp_str_t str) {
 
   SP_UNREACHABLE_RETURN(SPN_INDEX_PROTOCOL_GIT);
 }
+
+sp_str_t spn_index_format_to_str(spn_index_format_t format) {
+  switch (format) {
+    case SPN_INDEX_FORMAT_RELEASES: {
+      return sp_str_lit("releases");
+    }
+    case SPN_INDEX_FORMAT_MANIFESTS: {
+      return sp_str_lit("manifests");
+    }
+  }
+
+  SP_UNREACHABLE_RETURN(sp_str_lit(""));
+}
+
+spn_index_format_t spn_index_format_from_str(sp_str_t str) {
+  if (sp_str_equal_cstr(str, "releases")) {
+    return SPN_INDEX_FORMAT_RELEASES;
+  }
+  if (sp_str_equal_cstr(str, "manifests")) {
+    return SPN_INDEX_FORMAT_MANIFESTS;
+  }
+
+  SP_UNREACHABLE_RETURN(SPN_INDEX_FORMAT_RELEASES);
+}

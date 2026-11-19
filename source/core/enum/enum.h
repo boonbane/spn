@@ -75,6 +75,9 @@ spn_dep_edge_t spn_dep_edge_from_str(sp_str_t str);
 sp_str_t spn_index_protocol_to_str(spn_index_protocol_t protocol);
 spn_index_protocol_t spn_index_protocol_from_str(sp_str_t str);
 
+sp_str_t spn_index_format_to_str(spn_index_format_t format);
+spn_index_format_t spn_index_format_from_str(sp_str_t str);
+
 sp_str_t spn_index_kind_to_str(spn_index_kind_t kind);
 spn_index_kind_t spn_index_kind_from_str(sp_str_t str);
 

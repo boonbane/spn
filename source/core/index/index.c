@@ -195,13 +195,12 @@ static s32 sort_release_by_version(const void* a, const void* b) {
 }
 
 spn_err_t spn_index_get_package(spn_index_info_t* index, sp_mem_t mem, sp_intern_t* intern, const spn_path_roots_t* roots, sp_intern_str_t name, spn_index_pkg_t** pkg, spn_err_union_t* err) {
-  switch (index->protocol) {
-    case SPN_INDEX_PROTOCOL_GIT:
-    case SPN_INDEX_PROTOCOL_HTTP: {
+  switch (index->format) {
+    case SPN_INDEX_FORMAT_RELEASES: {
       spn_try(spn_index_jsonl_get_package(index, mem, intern, name, pkg, err));
       break;
     }
-    case SPN_INDEX_PROTOCOL_DIR: {
+    case SPN_INDEX_FORMAT_MANIFESTS: {
       spn_try(spn_index_dir_get_package(index, mem, intern, roots, name, pkg, err));
       break;
     }
@@ -341,6 +340,13 @@ static spn_err_t publish_git(spn_index_info_t* index, spn_index_release_t* rel, 
 }
 
 spn_err_t spn_index_publish(spn_index_info_t* index, spn_index_release_t* rel, sp_atomic_s32_t* cancelled) {
+  if (index->format == SPN_INDEX_FORMAT_MANIFESTS) {
+    return spn_err_emit(&spn, (spn_err_union_t) {
+      .kind = SPN_ERR_INDEX_PUBLISH_PROTOCOL,
+      .index = { .name = index->name.str, .url = spn_index_source(index) },
+    });
+  }
+
   switch (index->protocol) {
     case SPN_INDEX_PROTOCOL_GIT: {
       if (!sp_str_empty(index->git.rev)) {

@@ -10,35 +10,41 @@ static void render_list() {
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   spn_index_arr_t indexes = spn_get_indexes(scratch.mem, host.ctx);
 
-  struct { u32 name; u32 kind; u32 protocol; } width = sp_zero;
+  struct { u32 name; u32 kind; u32 protocol; u32 format; } width = sp_zero;
   sp_for(it, indexes.count) {
     width.name = sp_max(width.name, indexes.items[it].name.len);
     width.kind = sp_max(width.kind, spn_index_kind_to_str(indexes.items[it].kind).len);
     width.protocol = sp_max(width.protocol, spn_index_protocol_to_str(indexes.items[it].protocol).len);
+    width.format = sp_max(width.format, spn_index_format_to_str(indexes.items[it].format).len);
   }
-  const c8* headers [] = { "name", "kind", "protocol", "source" };
+  const c8* headers [] = { "name", "kind", "protocol", "format", "source" };
   width.name = sp_max(width.name, sp_cstr_len(headers[0]));
   width.kind = sp_max(width.kind, sp_cstr_len(headers[1]));
   width.protocol = sp_max(width.protocol, sp_cstr_len(headers[2]));
+  width.format = sp_max(width.format, sp_cstr_len(headers[3]));
 
-  spn_print(&tui, "{:<$ .gray} {:<$ .gray} {:<$ .gray} {.gray}",
+  spn_print(&tui, "{:<$ .gray} {:<$ .gray} {:<$ .gray} {:<$ .gray} {.gray}",
     sp_fmt_uint(width.name),
     sp_fmt_cstr(headers[0]),
     sp_fmt_uint(width.kind),
     sp_fmt_cstr(headers[1]),
     sp_fmt_uint(width.protocol),
     sp_fmt_cstr(headers[2]),
-    sp_fmt_cstr(headers[3]));
+    sp_fmt_uint(width.format),
+    sp_fmt_cstr(headers[3]),
+    sp_fmt_cstr(headers[4]));
 
   sp_for(it, indexes.count) {
     spn_index_desc_t* index = &indexes.items[it];
-    spn_print(&tui, "{:<$} {:<$} {:<$} {}",
+    spn_print(&tui, "{:<$} {:<$} {:<$} {:<$} {}",
       sp_fmt_uint(width.name),
       sp_fmt_str(index->name),
       sp_fmt_uint(width.kind),
       sp_fmt_str(spn_index_kind_to_str(index->kind)),
       sp_fmt_uint(width.protocol),
       sp_fmt_str(spn_index_protocol_to_str(index->protocol)),
+      sp_fmt_uint(width.format),
+      sp_fmt_str(spn_index_format_to_str(index->format)),
       sp_fmt_str(index->source));
   }
 

@@ -67,6 +67,7 @@ sp_str_t spn_publish_root_to_str(spn_publish_root_t root);
 sp_str_t spn_semver_to_str(sp_mem_t mem, spn_semver_t version);
 sp_str_t spn_index_kind_to_str(spn_index_kind_t kind);
 sp_str_t spn_index_protocol_to_str(spn_index_protocol_t protocol);
+sp_str_t spn_index_format_to_str(spn_index_format_t format);
 
 SP_END_EXTERN_C()
 

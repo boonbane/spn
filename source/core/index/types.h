@@ -59,6 +59,7 @@ struct spn_index_info {
   sp_intern_str_t name;
   spn_index_kind_t kind;
   spn_index_protocol_t protocol;
+  spn_index_format_t format;
   union {
     struct {
       sp_str_t url;

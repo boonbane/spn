@@ -10,6 +10,7 @@
     "toolchain_detect": { "enum": ["msvc"] },
     "sanitizer": { "enum": ["address", "thread", "undefined", "memory", "leak"] },
     "index_protocol": { "enum": ["git", "http", "dir"], "metadata": { "include": "index/types.h" } },
+    "index_format": { "enum": ["releases", "manifests"], "metadata": { "include": "index/types.h" } },
     "option_type": { "enum": ["bool", "enum"], "metadata": { "include": "when/types.h" } },
     "pkg_source": { "enum": ["root", "file", "index"], "metadata": { "include": "pkg/types.h" } },
     "pkg_root_kind": { "enum": ["none", "local", "git"], "metadata": { "include": "pkg/types.h" } },
@@ -75,6 +76,7 @@
         "url": { "type": "string" },
         "path": { "type": "string" },
         "protocol": { "ref": "index_protocol" },
+        "format": { "ref": "index_format" },
         "rev": { "type": "string" },
         "publish_url": { "type": "string" }
       }

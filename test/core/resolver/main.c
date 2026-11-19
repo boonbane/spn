@@ -45,6 +45,7 @@ static resolve_result_t execute_fixture(const fx_config_t* config, const spn_pro
   if (!sp_fs_get_link_metadata(dir_index_location, &meta) && meta.kind == SP_FS_KIND_DIR) {
     sp_da_push(indexes, ((spn_index_info_t) {
       .protocol = SPN_INDEX_PROTOCOL_DIR,
+      .format = SPN_INDEX_FORMAT_MANIFESTS,
       .dir = { .path = { .sub = dir_index_location } },
       .location = { .at = sp_path_from_str(dir_index_location), .dir = dir_index_location },
     }));
