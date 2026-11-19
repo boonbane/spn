@@ -36,6 +36,15 @@ static const command_test_t commands [] = {
     },
   },
   {
+    .name = "silent_exports",
+    .project = "test/integration/fixtures/warning/exports",
+    .when.os = SPN_OS_WINDOWS,
+    .args = { "build" },
+    .expect.events = {
+      { .event = SPN_EVENT_LINK_WARNED, .absent = true },
+    },
+  },
+  {
     .name = "silent_masm",
     .project = "test/integration/fixtures/platform/masm",
     .copy = { "answer.asm" },

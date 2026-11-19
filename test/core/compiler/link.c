@@ -238,7 +238,7 @@ static const link_test_t tests [] = {
     .kind = SPN_CC_OUTPUT_EXE,
     .expect = {
       .command = "cc",
-      .args = { "/nologo", "main.o", "/Femain", "/link", "/DEBUG" },
+      .args = { "/nologo", "main.o", "/Femain", "/link", "/DEBUG", "/NOIMPLIB", "/NOEXP" },
     },
   },
   {
@@ -253,7 +253,7 @@ static const link_test_t tests [] = {
     .subsystem = SPN_WIN_SUBSYSTEM_WINDOWS,
     .expect = {
       .command = "cc",
-      .args = { "/nologo", "main.o", "/Femain", "/link", "/SUBSYSTEM:WINDOWS", "/ENTRY:mainCRTStartup" },
+      .args = { "/nologo", "main.o", "/Femain", "/link", "/SUBSYSTEM:WINDOWS", "/ENTRY:mainCRTStartup", "/NOIMPLIB", "/NOEXP" },
     },
   },
   {
@@ -371,7 +371,7 @@ static const link_test_t tests [] = {
     .arg = "/A",
     .expect = {
       .command = "cc",
-      .args = { "/nologo", "main.o", "/Femain", "/link", "/A" },
+      .args = { "/nologo", "main.o", "/Femain", "/link", "/A", "/NOIMPLIB", "/NOEXP" },
     },
   },
   {
@@ -864,7 +864,7 @@ static const link_test_t tests [] = {
     .arg = "/A",
     .expect = {
       .command = "cc",
-      .args = { "/nologo", "main.o", "/Femain", "/link", "/B", "/A" },
+      .args = { "/nologo", "main.o", "/Femain", "/link", "/B", "/A", "/NOIMPLIB", "/NOEXP" },
     },
   },
   {
@@ -1061,7 +1061,7 @@ static const link_test_t tests [] = {
     .system_lib = "user32",
     .expect = {
       .command = "cc",
-      .args = { "/nologo", "main.o", "/Femain", "user32.lib", "/link" },
+      .args = { "/nologo", "main.o", "/Femain", "user32.lib", "/link", "/NOIMPLIB", "/NOEXP" },
       .env = { "LIB=/X/crt/lib/x86_64;/X/sdk/lib/ucrt/x86_64;/X/sdk/lib/um/x86_64" },
     },
   },

@@ -251,6 +251,10 @@ spn_cc_link_plan_t spn_msvc_render_link(sp_mem_t mem, const spn_cc_t* toolchain,
   si_da_for(link->args, it) {
     spn_cc_push_str(mem, &tail, link->args[it]);
   }
+  if (link->kind == SPN_CC_OUTPUT_EXE) {
+    spn_cc_push_c(mem, &tail, "/NOIMPLIB");
+    spn_cc_push_c(mem, &tail, "/NOEXP");
+  }
   plan.tail = tail.args;
   return plan;
 }
