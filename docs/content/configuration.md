@@ -2,11 +2,18 @@
 title: Configuration
 ---
 
-Settings that belong to a machine rather than a project live in the user config file, `spn/spn.toml` under the config directory:
-- Linux and macOS: `$XDG_CONFIG_HOME`, or `~/.config` if it isn't set
-- Windows: `%APPDATA%`
+Global machine configuration lives in `$config/spn/spn.toml`, where `$config` is:
+- `$XDG_CONFIG_HOME` (or `~/.config` if it isn't set) on Linux and macOS
+- `%APPDATA%` on Windows
 
-The file is optional. It holds [`[[index]]`](/docs/indexes#global-configuration) entries, `[[toolchain]]` entries, `[net]`, and `[cache]`.
+The file is optional. It holds:
+
+| Key | Description |
+|---|---|
+| [`[[index]]`](/docs/indexes#global-configuration) | Package indexes for every project on the machine |
+| `[[toolchain]]` | Toolchains for every project on the machine |
+| `[net]` | Network settings: timeout, certificates, and system `git` |
+| `[cache]` | Limits for the shared build cache |
 
 ## [net]
 

@@ -44,6 +44,25 @@ build/debug/
     └── build.jsonl
 ```
 
+### JSON event stream
+
+When given `--json`, every command writes the JSONL event stream instead of normal, human readable output. `.spn/build.jsonl` contains the last build's events, regardless of whether you passed the flag.
+
+Each event in the stream is a tagged union:
+
+```json
+{
+  "event": "target_build_passed",
+  "level": "debug",
+  "data": { ... }
+}
+```
+
+- `--json` writes every event to stdout as JSONL. It's a global flag, so it works on any command.
+- The last build's events are also in `.spn/build.jsonl` inside the build directory, whether or not you passed `--json`.
+- Each line is one event with an `event` name, a `level`, a timestamp, and its `data`.
+- Compiles, errors, and test results are all events, so CI never has to scrape text.
+
 ## Selecting targets
 
 ### Profiles
@@ -150,23 +169,48 @@ Generally, though, we aim to allow you to express any build you might need. Let'
 
 ### Modes and optimization
 
+- `mode` is `debug` or `release`. Set it with `--mode` (`-m`), or `mode` in a profile.
+- `debug` compiles at `-O0` with debug info.
+- `release` compiles at `-O2`, defines `NDEBUG` (so `assert` is off), and has no debug info.
+- `--opt`, or `opt` in a profile, overrides the level: `0`, `1`, `2`, `3`, `s`, or `z`.
+- `strip` in a profile is `none`, `debuginfo`, or `symbols`. `release` defaults to `debuginfo` and `debug` to `none`. There's no flag for it.
+
 ### Sanitizers
+
+- `--sanitize address,undefined`, or `sanitize = ["address", "undefined"]` in a profile. `--sanitize none` clears the profile's list.
+- The names are `address`, `thread`, `undefined`, `memory`, and `leak`.
+- The bundled zig only has `undefined` and `thread`, and only `undefined` on Windows.
+- `address` and `leak` need a system clang or gcc, and `memory` needs clang. MSVC has `address`.
+- With no `--toolchain`, `spn` moves to a toolchain that has what you asked for: `--sanitize address` on Linux builds with your system clang.
+- Everything but `undefined` needs a dynamic loader. A native Linux build switches from static musl to glibc, and `libc = "static"` is an error.
+- zig debug builds already have UBSan on. Undefined behavior aborts the program with a `panic:` message and a stack trace; a release build doesn't check.
 
 ## Cross compilation
 
-### Target triples
+- `--target <arch>-<os>-<abi>` builds for another platform, e.g. `spn build --target aarch64-linux-musl`.
+- The names are `spn`'s own. LLVM triples like `x86_64-unknown-linux-gnu` or `arm64-apple-darwin` are rejected.
+  - arch: `x86_64`, `aarch64`, `wasm32`
+  - os: `linux`, `macos`, `windows`, `wasi`, `freestanding`
+  - abi: `gnu`, `musl`, `msvc`, `apple`, `none`, `elf`
+- Linux is `gnu` or `musl`, and Windows is `gnu` (MinGW) or `msvc`. macOS and WASI have one ABI, so `aarch64-macos` is a full target.
+- `--os`, `--arch`, and `--abi` set one part each. `os`, `arch`, and `abi` in a profile make the target permanent.
+- The bundled zig cross compiles to Linux, Windows (MinGW), macOS, and WebAssembly from any host, with nothing else installed.
+- System gcc, clang, and MSVC only build for the machine they run on, unless you declare a cross [toolchain](/docs/toolchains).
+- Two targets need more than zig:
+  - A macOS program that links frameworks needs a macOS SDK: the Xcode Command Line Tools on a Mac, or `SPN_MACOS_SDK` pointing at one.
+  - The MSVC ABI needs Visual Studio and the Windows SDK.
+- A cross build lands in `build/<target>/<profile>/`, as in [Build output](/docs/building#build-output).
 
-### --os, --arch, --abi
+## Running tests
 
-## CI
-
-`spn` was built for CI from day one:
-- The build cache is designed to scale to your entire team
-- First class cross compilation destroys your insane matrix of runners
-- Out of the box, zero configuration integrations with GitHub Actions
-- The CLI can output a structured JSONL stream. You never have to scrape an error message
-- If it doesn't work how you want, write your own CLI that links to `libspn` instead
-- @spader Are these weak? People care about fast builds mostly but we got that elsewhere...
+- `spn test` builds every `[[test]]` target and runs each one. `spn test NAME...` runs only the ones you name.
+- A test passes when it exits `0`.
+- Each test runs from the package's source directory, with no arguments and no stdin.
+- Output is shown only for a test that fails.
+- Every test runs even after one fails, and `spn test` exits `1` if any did.
+- To pass arguments to a test, run its binary yourself from `test/` in the build directory.
+- `spn test` takes `-p`, `-m`, `--opt`, `--sanitize`, and `--toolchain`, but not `--target`: it can't run a cross compiled test.
+- `spn build` compiles tests without running them.
 
 ## Caching
 
@@ -217,12 +261,16 @@ This is the exact principle behind Bazel, BuildXL, and Nix, and it's the fundame
 
 ### --force
 
-## Running tests
+- `spn build --force` (`-f`) runs every step again instead of restoring it from the cache.
+- It's rarely needed. Inputs are compared by content, so touching a file or switching branches rebuilds nothing.
+- Deleting `build/` doesn't force a rebuild either. The next build restores everything from the shared cache.
 
-## Output
+### spn clean
 
-### compile_commands.json
-
-### JSON event stream
+- `spn clean` removes `build/`, `compile_commands.json`, and any files [`[stage]`](/docs/metaprograms#staging) copied into your project.
+- `spn clean -p NAME` removes only that profile's build directory.
+- Neither touches the shared cache. It lives in `spn`'s storage directory, is shared by every project on the machine, and is trimmed on its own at 10 GiB (see [`[cache]`](/docs/configuration#cache)).
+- `spn clean --cache` evicts cache entries that haven't been used in the last hour. It isn't a full wipe, and it frees nothing right after a build.
+- `--min-age SECONDS` changes the hour, down to ten minutes.
 
 [^1]: There are more, of course, like the mess of versioned symbols in glibc. But for our purposes, three is fine.
