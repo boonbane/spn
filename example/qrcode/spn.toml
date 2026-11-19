@@ -6,5 +6,10 @@ version = "0.1.0"
 name = "main"
 source = ["main.c"]
 
+[[index]]
+name = "spam"
+url = "https://github.com/tspader/spam.git"
+format = "manifests"
+
 [deps.package]
 qrcodegen = "1.8.0"

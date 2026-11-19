@@ -4,6 +4,7 @@ typedef struct {
   spn_err_t err;
   spn_err_t issue;
   u64 version;
+  pin_t indexes [LOCK_TEST_MAX_INDEXES];
   entry_t entries [LOCK_TEST_MAX_ENTRIES];
 } expect_t;
 
@@ -67,6 +68,19 @@ static const test_t tests [] = {
     },
   },
   {
+    .name = "indexed",
+    .file = "golden/indexed.lock",
+    .expect = {
+      .version = 1,
+      .indexes = { { .name = "I", .url = "U", .rev = "R" } },
+    },
+  },
+  {
+    .name = "index_duplicate",
+    .file = "locks/duplicate_index.lock",
+    .expect = { .err = SPN_ERR_LOCK_INVALID, .issue = SPN_ERR_CODEGEN_DUPLICATE_KEY },
+  },
+  {
     .name = "version_unsupported",
     .file = "locks/version.lock",
     .expect.err = SPN_ERR_LOCK_VERSION,
@@ -112,5 +126,6 @@ sp_test_each(lock, load, test_t, tests, .setup = spn_test_ctx_setup) {
   u32 len = 0;
   sp_carr_detect_len(it->expect.entries, len, it->expect.entries[len].name);
   sp_expect_eq(t, it->expect.version, lock.version);
+  sp_try(expect_pins(t, &lock, it->expect.indexes));
   return expect_entries(t, &lock, it->expect.entries, len);
 }

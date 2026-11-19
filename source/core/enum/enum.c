@@ -864,9 +864,6 @@ sp_str_t spn_index_kind_to_str(spn_index_kind_t kind) {
     case SPN_INDEX_KIND_WORKSPACE: {
       return sp_str_lit("workspace");
     }
-    case SPN_INDEX_KIND_BUILTIN: {
-      return sp_str_lit("builtin");
-    }
     case SPN_INDEX_KIND_USER: {
       return sp_str_lit("user");
     }
@@ -878,9 +875,6 @@ sp_str_t spn_index_kind_to_str(spn_index_kind_t kind) {
 spn_index_kind_t spn_index_kind_from_str(sp_str_t str) {
   if (sp_str_equal_cstr(str, "workspace")) {
     return SPN_INDEX_KIND_WORKSPACE;
-  }
-  if (sp_str_equal_cstr(str, "builtin")) {
-    return SPN_INDEX_KIND_BUILTIN;
   }
   if (sp_str_equal_cstr(str, "user")) {
     return SPN_INDEX_KIND_USER;

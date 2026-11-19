@@ -43,7 +43,60 @@ static void write_root(sp_io_writer_t* io, const c8* key, spn_lock_root_t root) 
 }
 
 spn_lock_t spn_lock_new(sp_mem_t mem) {
-  return (spn_lock_t) { .version = spn_lock_version, .entries = sp_da_new(mem, spn_lock_entry_t) };
+  return (spn_lock_t) {
+    .version = spn_lock_version,
+    .indexes = sp_da_new(mem, spn_lock_index_t),
+    .entries = sp_da_new(mem, spn_lock_entry_t),
+  };
+}
+
+spn_lock_index_t* spn_lock_find_index(const spn_lock_t* lock, sp_intern_id_t name) {
+  sp_da_for(lock->indexes, it) {
+    if (lock->indexes[it].name.id == name) {
+      return &lock->indexes[it];
+    }
+  }
+  return SP_NULLPTR;
+}
+
+void spn_lock_pin_index(spn_lock_t* lock, spn_lock_index_t index) {
+  spn_lock_index_t* pinned = spn_lock_find_index(lock, index.name.id);
+  if (pinned) {
+    *pinned = index;
+    return;
+  }
+
+  u64 at = 0;
+  sp_da_for(lock->indexes, it) {
+    if (sp_str_compare_alphabetical(lock->indexes[it].name.str, index.name.str) < 0) {
+      at = it + 1;
+    }
+  }
+
+  sp_da_push(lock->indexes, index);
+  sp_da_rfor(lock->indexes, it) {
+    if (it == at) {
+      break;
+    }
+    lock->indexes[it] = lock->indexes[it - 1];
+  }
+  lock->indexes[at] = index;
+}
+
+static const spn_lock_index_t* unpinned_in(const spn_lock_t* from, const spn_lock_t* other) {
+  sp_da_for(from->indexes, it) {
+    const spn_lock_index_t* index = &from->indexes[it];
+    const spn_lock_index_t* pinned = spn_lock_find_index(other, index->name.id);
+    if (!pinned || !sp_str_equal(pinned->url, index->url) || !sp_str_equal(pinned->rev, index->rev)) {
+      return index;
+    }
+  }
+  return SP_NULLPTR;
+}
+
+const spn_lock_index_t* spn_lock_index_drift(const spn_lock_t* held, const spn_lock_t* next) {
+  const spn_lock_index_t* moved = unpinned_in(next, held);
+  return moved ? moved : unpinned_in(held, next);
 }
 
 spn_lock_entry_t* spn_lock_find(const spn_lock_t* lock, sp_intern_id_t name, spn_semver_t version) {
@@ -79,7 +132,10 @@ bool spn_lock_insert(spn_lock_t* lock, spn_lock_entry_t entry) {
 }
 
 spn_err_t spn_lock_load(sp_mem_t mem, sp_intern_t* intern, const spn_path_roots_t* roots, spn_path_t path, spn_lock_t* lock, spn_err_union_t* err) {
-  *lock = (spn_lock_t) { .entries = sp_da_new(mem, spn_lock_entry_t) };
+  *lock = (spn_lock_t) {
+    .indexes = sp_da_new(mem, spn_lock_index_t),
+    .entries = sp_da_new(mem, spn_lock_entry_t),
+  };
 
   sp_sys_file_meta_t meta = sp_zero;
   if (sp_fs_get_path_metadata_at(spn_path_at(roots, path), &meta) || meta.kind == SP_FS_KIND_UNKNOWN) {
@@ -98,6 +154,23 @@ spn_err_t spn_lock_load(sp_mem_t mem, sp_intern_t* intern, const spn_path_roots_
   }
 
   lock->version = cg.version;
+  spn_toml_loader_push_key(&t, "index");
+  sp_da_for(cg.index, it) {
+    spn_lock_index_t index = {
+      .name = sp_intern(intern, cg.index[it].name),
+      .url = cg.index[it].url,
+      .rev = cg.index[it].rev,
+    };
+    spn_toml_loader_push_index(&t, (u32)it);
+    if (spn_lock_find_index(lock, index.name.id)) {
+      spn_toml_loader_issue_at(&t, SPN_ERR_CODEGEN_DUPLICATE_KEY, index.name.str);
+    }
+    else {
+      spn_lock_pin_index(lock, index);
+    }
+    spn_toml_loader_pop(&t);
+  }
+  spn_toml_loader_pop(&t);
   spn_toml_loader_push_key(&t, "package");
   sp_da_for(cg.package, it) {
     spn_lock_entry_t entry = {
@@ -130,6 +203,16 @@ spn_err_t spn_lock_save(const spn_path_roots_t* roots, spn_path_t path, const sp
   sp_io_dyn_mem_writer_init(scratch.mem, &out);
 
   sp_fmt_io(&out.base, "version = {}\n", sp_fmt_uint(lock->version));
+  sp_da_for(lock->indexes, it) {
+    const spn_lock_index_t* index = &lock->indexes[it];
+    sp_io_write_cstr(&out.base, "\n[[index]]\nname = ", SP_NULLPTR);
+    spn_toml_write_str(&out.base, index->name.str);
+    sp_io_write_cstr(&out.base, "\nurl = ", SP_NULLPTR);
+    spn_toml_write_str(&out.base, index->url);
+    sp_io_write_cstr(&out.base, "\nrev = ", SP_NULLPTR);
+    spn_toml_write_str(&out.base, index->rev);
+    sp_io_write_c8(&out.base, '\n');
+  }
   sp_da_for(lock->entries, it) {
     const spn_lock_entry_t* entry = &lock->entries[it];
     sp_io_write_cstr(&out.base, "\n[[package]]\nname = ", SP_NULLPTR);

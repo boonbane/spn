@@ -8,6 +8,13 @@
 #include "semver/compare.h"
 
 #define LOCK_TEST_MAX_ENTRIES 4
+#define LOCK_TEST_MAX_INDEXES 2
+
+typedef struct {
+  const c8* name;
+  const c8* url;
+  const c8* rev;
+} pin_t;
 
 typedef struct {
   const c8* url;
@@ -45,6 +52,35 @@ static inline spn_lock_t lock_of(sp_mem_t mem, const entry_t* entries, u32 len) 
     spn_lock_insert(&lock, entry(entries[it]));
   }
   return lock;
+}
+
+static inline u32 count_pins(const pin_t* pins) {
+  u32 len = 0;
+  while (len < LOCK_TEST_MAX_INDEXES && pins[len].name) {
+    len++;
+  }
+  return len;
+}
+
+static inline void pin_all(spn_lock_t* lock, const pin_t* pins) {
+  sp_for(it, count_pins(pins)) {
+    spn_lock_pin_index(lock, (spn_lock_index_t) {
+      .name = spn_intern(sp_cstr_as_str(pins[it].name)),
+      .url = text(pins[it].url),
+      .rev = text(pins[it].rev),
+    });
+  }
+}
+
+static inline sp_err_t expect_pins(sp_test_t* t, const spn_lock_t* lock, const pin_t* expected) {
+  u32 len = count_pins(expected);
+  sp_must_eq(t, len, sp_da_size(lock->indexes));
+  sp_for(it, len) {
+    sp_expect_str_eq_c(t, lock->indexes[it].name.str, expected[it].name);
+    sp_expect_str_eq(t, lock->indexes[it].url, text(expected[it].url));
+    sp_expect_str_eq(t, lock->indexes[it].rev, text(expected[it].rev));
+  }
+  return SP_OK;
 }
 
 static inline void expect_root(sp_test_t* t, spn_lock_root_t actual, root_t expected) {

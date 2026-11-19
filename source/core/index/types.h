@@ -66,6 +66,7 @@ struct spn_index_info {
       sp_str_t url;
       sp_str_t rev;
       sp_str_t publish_url;
+      bool frozen;
     } git;
     struct {
       sp_str_t url;

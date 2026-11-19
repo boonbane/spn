@@ -7,5 +7,10 @@ name = "main"
 source = ["main.cpp"]
 cxx = { standard = "c++17" }
 
+[[index]]
+name = "spam"
+url = "https://github.com/tspader/spam.git"
+format = "manifests"
+
 [deps.package]
 fmt = "10.2.1"

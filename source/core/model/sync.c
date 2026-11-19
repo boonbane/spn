@@ -584,6 +584,36 @@ static spn_lock_root_t pinned_root(spn_pkg_root_t root) {
   return (spn_lock_root_t) { .url = root.git.url, .rev = root.git.rev, .dir = root.git.dir };
 }
 
+static void record_pins(spn_ctx_t* ctx, spn_lock_t* lock) {
+  sp_da_for(ctx->indexes, it) {
+    spn_index_info_t* index = &ctx->indexes[it];
+    if (spn_index_follows_lock(index) && !sp_str_empty(index->git.rev)) {
+      spn_lock_pin_index(lock, (spn_lock_index_t) { .name = index->name, .url = index->git.url, .rev = index->git.rev });
+    }
+  }
+}
+
+spn_err_t spn_save_index_pins(spn_ctx_t* ctx) {
+  spn_path_t path = ctx->project->paths.lock;
+
+  spn_lock_t held = sp_zero;
+  spn_err_union_t failed = sp_zero;
+  if (spn_lock_load(ctx->heap, ctx->intern, &ctx->roots, path, &held, &failed)) {
+    return spn_err_emit(ctx, failed);
+  }
+
+  spn_lock_t lock = spn_lock_new(ctx->heap);
+  sp_da_for(held.entries, it) {
+    spn_lock_insert(&lock, held.entries[it]);
+  }
+  record_pins(ctx, &lock);
+
+  if (spn_lock_index_drift(&held, &lock) && spn_lock_save(&ctx->roots, path, &lock, &failed)) {
+    return spn_err_emit(ctx, failed);
+  }
+  return SPN_OK;
+}
+
 static bool follows_pin(spn_ctx_t* ctx, const spn_resolved_pkg_t* pkg) {
   spn_index_info_t* index = spn_index_find(&ctx->indexes, pkg->origin.release->index);
   return index && spn_index_is_snapshot(index);
@@ -637,9 +667,17 @@ static spn_err_t pin(sp_mem_t scratch, spn_ctx_t* ctx, spn_resolve_t resolve, bo
   sp_da_for(selected.entries, it) {
     spn_lock_insert(lock, selected.entries[it]);
   }
+  record_pins(ctx, lock);
 
   if (locked && held->version != lock->version) {
     return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_LOCK_STALE });
+  }
+  const spn_lock_index_t* repinned = spn_lock_index_drift(held, lock);
+  if (locked && repinned) {
+    return spn_err_emit(ctx, (spn_err_union_t) {
+      .kind = SPN_ERR_LOCK_STALE,
+      .subject = repinned->name.str,
+    });
   }
   spn_lock_diff_t stale = spn_lock_diff(held, lock);
   if (locked && spn_lock_diff_next(&stale)) {
@@ -700,7 +738,7 @@ spn_err_t spn_resolve_and_sync_pins(spn_op_t* op, const spn_lock_t* held, const 
   } while (reresolve);
 
   spn_lock_diff_t diff = spn_lock_diff(held, lock);
-  bool changed = held->version != lock->version || spn_lock_diff_next(&diff);
+  bool changed = held->version != lock->version || spn_lock_diff_next(&diff) || spn_lock_index_drift(held, lock);
   spn_err_union_t unwritten = sp_zero;
   if (changed && spn_lock_save(roots, session->project->paths.lock, lock, &unwritten)) {
     return spn_err_emit(ctx, unwritten);

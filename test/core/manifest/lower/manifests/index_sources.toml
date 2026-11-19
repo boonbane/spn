@@ -20,3 +20,9 @@ name = "D"
 protocol = "dir"
 url = "https://x"
 rev = "abc"
+
+[[index]]
+name = "E"
+protocol = "http"
+url = "https://x"
+format = "manifests"

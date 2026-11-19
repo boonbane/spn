@@ -198,6 +198,10 @@ bool spn_index_is_snapshot(const spn_index_info_t* index) {
   return index->protocol == SPN_INDEX_PROTOCOL_GIT && index->format == SPN_INDEX_FORMAT_MANIFESTS;
 }
 
+bool spn_index_follows_lock(const spn_index_info_t* index) {
+  return spn_index_is_snapshot(index) && !index->git.frozen;
+}
+
 spn_index_format_t spn_index_detect_format(spn_index_info_t* index) {
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   sp_sys_file_meta_t meta = sp_zero;
@@ -467,17 +471,6 @@ void spn_index_assemble(sp_mem_t mem, spn_index_map_t* workspace, sp_da(spn_inde
     if (!spn_index_find(indexes, user[it].id)) {
       sp_da_push(*indexes, user[it]);
     }
-  }
-
-  sp_intern_str_t core = spn_intern_lit("core");
-  if (!spn_index_find(indexes, core.id)) {
-    sp_da_push(*indexes, ((spn_index_info_t) {
-      .id = core.id,
-      .name = core,
-      .protocol = SPN_INDEX_PROTOCOL_GIT,
-      .kind = SPN_INDEX_KIND_BUILTIN,
-      .git = { .url = sp_str_lit("https://github.com/tspader/spandex.git") },
-    }));
   }
 }
 

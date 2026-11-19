@@ -68,7 +68,6 @@ typedef enum {
 
 typedef enum {
   SPN_INDEX_KIND_WORKSPACE,
-  SPN_INDEX_KIND_BUILTIN,
   SPN_INDEX_KIND_USER,
 } spn_index_kind_t;
 

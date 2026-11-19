@@ -23,7 +23,14 @@ typedef struct {
 } spn_lock_entry_t;
 
 typedef struct {
+  sp_intern_str_t name;
+  sp_str_t url;
+  sp_str_t rev;
+} spn_lock_index_t;
+
+typedef struct {
   u64 version;
+  sp_da(spn_lock_index_t) indexes;
   sp_da(spn_lock_entry_t) entries;
 } spn_lock_t;
 

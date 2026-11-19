@@ -521,6 +521,7 @@ spn_index_info_t spn_index_lower(spn_toml_loader_t* ctx, u32 at, spn_index_kind_
       }
       info.git.url = decl->url;
       info.git.rev = decl->rev;
+      info.git.frozen = has_rev;
       info.git.publish_url = decl->publish_url;
       break;
     }

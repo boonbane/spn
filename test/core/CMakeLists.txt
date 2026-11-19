@@ -99,6 +99,7 @@ add_executable(core
   lock/diff.c
   lock/load.c
   lock/mismatch.c
+  lock/pins.c
   lock/save.c
   manifest/gen/gen.c
   manifest/lower/lower.c
