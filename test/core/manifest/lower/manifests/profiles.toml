@@ -4,7 +4,7 @@ version = "1.0.0"
 
 [profile.release]
 toolchain = "zig"
-linkage = "shared"
+static_deps = true
 standard = "c99"
 mode = "release"
 opt = "3"
@@ -17,3 +17,4 @@ abi = "gnu"
 [profile.clean]
 sanitize = []
 emit = []
+static_deps = false

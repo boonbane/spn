@@ -139,7 +139,6 @@ typedef struct {
 typedef struct {
   const c8* name;
   gated_t toolchain [4];
-  gated_t linkage [4];
   gated_t standard [4];
   gated_t mode [4];
   gated_t opt [4];
@@ -148,6 +147,8 @@ typedef struct {
   bool sanitizers_set;
   spn_linkage_set_t emit;
   bool emit_set;
+  bool static_deps;
+  bool static_deps_set;
   spn_os_t os;
   spn_arch_t arch;
   const c8* options;
@@ -1201,7 +1202,6 @@ static const test_t tests [] = {
       {
         .name = "release",
         .toolchain = { { "zig" } },
-        .linkage = { { "shared" } },
         .standard = { { "c99" } },
         .mode = { { "release" } },
         .opt = { { "3" } },
@@ -1209,6 +1209,8 @@ static const test_t tests [] = {
         .sanitizers_set = true,
         .emit = { .shared = true, .static_lib = true },
         .emit_set = true,
+        .static_deps = true,
+        .static_deps_set = true,
         .os = SPN_OS_LINUX,
         .arch = SPN_ARCH_X64,
         .abi = { { "gnu" } },
@@ -1217,6 +1219,7 @@ static const test_t tests [] = {
         .name = "clean",
         .sanitizers_set = true,
         .emit_set = true,
+        .static_deps_set = true,
       },
     },
   },
@@ -1227,7 +1230,6 @@ static const test_t tests [] = {
       {
         .name = "default",
         .toolchain = { { "clang", "os = \"macos\"" } },
-        .linkage = { { "static", "os = \"linux\"" } },
         .mode = { { "debug" } },
         .abi = {
           { "gnu", "os = \"linux\"" },
@@ -1241,9 +1243,8 @@ static const test_t tests [] = {
     .name = "validate_profile_candidate_value",
     .manifest = "validate_profile_candidate_value",
     .issues = {
-      { SPN_ERR_CODEGEN_INVALID, "profile[0].linkage[0].value" },
-      { SPN_ERR_CODEGEN_INVALID, "profile[0].linkage[1].value" },
       { SPN_ERR_CODEGEN_INVALID, "profile[0].runtime[0].value" },
+      { SPN_ERR_CODEGEN_INVALID, "profile[0].runtime[1].value" },
       { SPN_ERR_CODEGEN_INVALID, "profile[0].libc[0].value" },
       { SPN_ERR_CODEGEN_INVALID, "profile[0].standard[0].value" },
       { SPN_ERR_CODEGEN_INVALID, "profile[0].mode[0].value" },
@@ -2207,7 +2208,6 @@ sp_test_each(lower, cases, test_t, tests, .setup = spn_test_ctx_setup) {
     sp_must(t, p);
     sp_expect_str_eq_c(t, p->name.str, expected.name);
     check_gated(t, p->toolchain, expected.toolchain);
-    check_gated(t, p->linkage, expected.linkage);
     check_gated(t, p->standard, expected.standard);
     check_gated(t, p->mode, expected.mode);
     check_gated(t, p->opt, expected.opt);
@@ -2217,6 +2217,8 @@ sp_test_each(lower, cases, test_t, tests, .setup = spn_test_ctx_setup) {
     sp_expect_eq(t, expected.emit.shared, p->emit.shared);
     sp_expect_eq(t, expected.emit.static_lib, p->emit.static_lib);
     sp_expect_eq(t, expected.emit_set, p->emit_set);
+    sp_expect_eq(t, expected.static_deps, p->static_deps);
+    sp_expect_eq(t, expected.static_deps_set, p->static_deps_set);
     sp_expect_eq(t, (u32)expected.os, (u32)p->os);
     sp_expect_eq(t, (u32)expected.arch, (u32)p->arch);
     if (expected.options) sp_expect_str_eq_c(t, spn_when_to_str(mem, &p->options), expected.options);

@@ -13,4 +13,4 @@ source = ["main.c"]
 deps = ["L"]
 
 [profile.debug]
-linkage = "static"
+static_deps = true

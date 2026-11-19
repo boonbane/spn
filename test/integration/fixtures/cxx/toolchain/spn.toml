@@ -14,7 +14,7 @@ cxx = "c++"
 
 [profile.default]
 toolchain = "custom"
-linkage = "shared"
+libc = { value = "shared", when = { os = "linux" } }
 
 [[bin]]
 name = "main"

@@ -9,5 +9,4 @@ abi = [
   "musl",
 ]
 toolchain = [{ value = "clang", when = { os = "macos" } }]
-linkage = { value = "static", when = { os = "linux" } }
 mode = ["debug"]

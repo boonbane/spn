@@ -23,8 +23,9 @@ static void overlay_profile(spn_profile_info_t* to, const spn_profile_info_t* fr
   if (from->toolchain.kind) {
     to->toolchain = from->toolchain;
   }
-  if (from->request.linkage) {
-    to->request.linkage = from->request.linkage;
+  if (from->static_deps_set) {
+    to->static_deps = from->static_deps;
+    to->static_deps_set = true;
   }
   if (from->request.runtime) {
     to->request.runtime = from->request.runtime;
@@ -99,7 +100,6 @@ static spn_profile_info_t evaluate(const spn_profile_decl_t* decl, spn_when_env_
       .abi = spn_abi_from_str(pick(decl->abi, env)),
     },
     .request = {
-      .linkage = spn_linkage_from_str(pick(decl->linkage, env)),
       .runtime = spn_runtime_from_str(pick(decl->runtime, env)),
       .libc = spn_runtime_from_str(pick(decl->libc, env)),
     },
@@ -110,6 +110,8 @@ static spn_profile_info_t evaluate(const spn_profile_decl_t* decl, spn_when_env_
     .sanitizers_set = decl->sanitizers_set,
     .emit = decl->emit,
     .emit_set = decl->emit_set,
+    .static_deps = decl->static_deps,
+    .static_deps_set = decl->static_deps_set,
     .options = decl->options,
   };
 }
@@ -158,23 +160,22 @@ spn_err_t spn_profile_query(const spn_profile_info_t* profile, spn_triple_t host
   }
 
   spn_linking_t demanded = profile->request;
-  demanded.linkage = demanded.linkage ? demanded.linkage : profile->demand;
-  spn_linking_t relaxed = profile->request;
-  if (relaxed.linkage == SPN_LIB_KIND_SHARED) {
-    relaxed.linkage = SPN_LIB_KIND_NONE;
-  }
+  demanded.linkage = profile->demand;
 
   spn_err_refusal_t refused [SPN_ABI_COUNT] = sp_zero;
   u32 refusals = 0;
   sp_for(it, abis.count) {
     spn_toolchain_candidate_t candidate = { .triple = { profile->target.arch, profile->target.os, abis.items[it] } };
     spn_linking_refusal_t refusal = spn_ld_linking(candidate.triple, demanded, &candidate.linking);
-    if (refusal == SPN_LINKING_REFUSAL_NO_LOADER || (refusal && !profile->request.linkage)) {
-      refusal = spn_ld_linking(candidate.triple, relaxed, &candidate.linking);
+    if (refusal && profile->demand) {
+      refusal = spn_ld_linking(candidate.triple, profile->request, &candidate.linking);
     }
     if (refusal) {
       refused[refusals++] = (spn_err_refusal_t) { .triple = candidate.triple, .reason = refusal };
       continue;
+    }
+    if (profile->request.linkage) {
+      candidate.linking.linkage = profile->request.linkage;
     }
     query->candidates.items[query->candidates.count++] = candidate;
   }
@@ -375,6 +376,8 @@ spn_err_t spn_profile_resolve(const spn_profile_override_t* override, spn_triple
       sp_unreachable_case();
     }
   }
+
+  merged.request.linkage = merged.static_deps ? SPN_LIB_KIND_STATIC : SPN_LIB_KIND_NONE;
 
   *result = (spn_profile_info_t) {
     .id          = name.id,

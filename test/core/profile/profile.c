@@ -37,7 +37,6 @@ typedef struct {
   spn_arch_t arch;
   candidate_t toolchain [2];
   candidate_t abi [2];
-  candidate_t linkage [2];
   candidate_t runtime [2];
   candidate_t libc [2];
   candidate_t standard [2];
@@ -45,6 +44,8 @@ typedef struct {
   candidate_t opt [2];
   spn_linkage_set_t emit;
   bool emit_set;
+  bool static_deps;
+  bool static_deps_set;
 } decl_t;
 
 typedef struct {
@@ -158,18 +159,8 @@ static const test_t tests [] = {
     },
   },
   {
-    .name = "explicit_shared_is_kept",
-    .profile = { .name = "default", .linkage = { { "shared" } } },
-    .host = PROFILE_HOST_LINUX_GNU,
-    .abi = SPN_ABI_GNU,
-    .expect = {
-      .target = { SPN_ARCH_X64, SPN_OS_LINUX },
-      .linking.linkage = SPN_LIB_KIND_SHARED,
-    },
-  },
-  {
-    .name = "explicit_static_is_kept",
-    .profile = { .name = "default", .linkage = { { "static" } } },
+    .name = "static_deps_is_kept",
+    .profile = { .name = "default", .static_deps = true, .static_deps_set = true },
     .host = PROFILE_HOST_LINUX_GNU,
     .abi = SPN_ABI_MUSL,
     .expect = {
@@ -249,15 +240,27 @@ static const test_t tests [] = {
     },
   },
   {
-    .name = "explicit_static_ignores_shared_demand",
-    .profile = { .name = "default", .linkage = { { "static" } } },
+    .name = "static_deps_keeps_shared_demand",
+    .profile = { .name = "default", .static_deps = true, .static_deps_set = true },
     .host = PROFILE_HOST_LINUX_GNU,
     .lib = { .shared = true },
     .abi = SPN_ABI_MUSL,
     .expect = {
       .target = { SPN_ARCH_X64, SPN_OS_LINUX },
       .linking.linkage = SPN_LIB_KIND_STATIC,
+      .linking.libc = SPN_RUNTIME_SHARED,
       .demand = SPN_LIB_KIND_SHARED,
+    },
+  },
+  {
+    .name = "static_deps_false_clears_default",
+    .profile = { .name = "default", .static_deps = true, .static_deps_set = true },
+    .derived = { .name = "debug", .static_deps_set = true },
+    .host = PROFILE_HOST_LINUX_GNU,
+    .abi = SPN_ABI_GNU,
+    .expect = {
+      .target = { SPN_ARCH_X64, SPN_OS_LINUX },
+      .linking.linkage = SPN_LIB_KIND_SHARED,
     },
   },
   {
@@ -293,19 +296,8 @@ static const test_t tests [] = {
     },
   },
   {
-    .name = "explicit_musl_shared_is_honored",
-    .profile = { .name = "default", .linkage = { { "shared" } } },
-    .overrides = { .abi = SPN_ABI_MUSL },
-    .host = PROFILE_HOST_LINUX_GNU,
-    .expect = {
-      .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_MUSL },
-      .linking.linkage = SPN_LIB_KIND_SHARED,
-      .targeted = true,
-    },
-  },
-  {
-    .name = "explicit_gnu_static_is_honored",
-    .profile = { .name = "default", .linkage = { { "static" } } },
+    .name = "static_deps_on_gnu_is_honored",
+    .profile = { .name = "default", .static_deps = true, .static_deps_set = true },
     .overrides = { .abi = SPN_ABI_GNU },
     .host = PROFILE_HOST_LINUX_GNU,
     .expect = {
@@ -601,12 +593,13 @@ static const test_t tests [] = {
       .name = "fast",
       .toolchain = { { "gcc", { { "os", "linux" } } } },
       .abi = { { "musl", { { "os", "linux" } } } },
-      .linkage = { { "static", { { "os", "linux" } } } },
       .runtime = { { "static", { { "os", "linux" } } } },
       .libc = { { "static", { { "os", "linux" } } } },
       .standard = { { "c99", { { "os", "linux" } } } },
       .mode = { { "release", { { "os", "linux" } } } },
       .opt = { { "3", { { "os", "linux" } } } },
+      .static_deps = true,
+      .static_deps_set = true,
     },
     .overrides = { .name = "fast" },
     .host = PROFILE_HOST_LINUX_GNU,
@@ -700,13 +693,6 @@ static const query_test_t query_tests [] = {
     .expect = { .abis = { SPN_ABI_MUSL, SPN_ABI_GNU }, .linking = { LINKING_STATIC, { SPN_LIB_KIND_STATIC, SPN_RUNTIME_SHARED, SPN_RUNTIME_SHARED } } },
   },
   {
-    .name = "native_shared_prefers_host_libc",
-    .target = { SPN_ARCH_X64, SPN_OS_LINUX },
-    .linking.linkage = SPN_LIB_KIND_SHARED,
-    .host = PROFILE_HOST_LINUX_GNU,
-    .expect = { .abis = { SPN_ABI_GNU, SPN_ABI_MUSL }, .linking = { LINKING_SHARED, { SPN_LIB_KIND_SHARED, SPN_RUNTIME_STATIC, SPN_RUNTIME_SHARED } } },
-  },
-  {
     .name = "native_shared_runtime_prefers_host_libc",
     .target = { SPN_ARCH_X64, SPN_OS_LINUX },
     .linking.runtime = SPN_RUNTIME_SHARED,
@@ -765,9 +751,9 @@ static const query_test_t query_tests [] = {
     .expect = { .abis = { SPN_ABI_GNU }, .linking = { { SPN_LIB_KIND_STATIC, SPN_RUNTIME_SHARED, SPN_RUNTIME_SHARED } } },
   },
   {
-    .name = "native_shared_on_musl_host_prefers_musl",
+    .name = "shared_demand_on_musl_host_prefers_musl",
     .target = { SPN_ARCH_X64, SPN_OS_LINUX },
-    .linking.linkage = SPN_LIB_KIND_SHARED,
+    .demand = SPN_LIB_KIND_SHARED,
     .host = PROFILE_HOST_LINUX_MUSL,
     .expect = { .abis = { SPN_ABI_MUSL, SPN_ABI_GNU }, .linking = { { SPN_LIB_KIND_SHARED, SPN_RUNTIME_STATIC, SPN_RUNTIME_SHARED }, LINKING_SHARED } },
   },
@@ -778,16 +764,16 @@ static const query_test_t query_tests [] = {
     .expect = { .abis = { SPN_ABI_GNU }, .linking = { LINKING_SHARED } },
   },
   {
-    .name = "explicit_abi_ignores_linkage",
+    .name = "explicit_abi_keeps_shared_demand",
     .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_MUSL },
-    .linking.linkage = SPN_LIB_KIND_SHARED,
+    .demand = SPN_LIB_KIND_SHARED,
     .host = PROFILE_HOST_LINUX_GNU,
     .expect = { .abis = { SPN_ABI_MUSL }, .linking = { { SPN_LIB_KIND_SHARED, SPN_RUNTIME_STATIC, SPN_RUNTIME_SHARED } } },
   },
   {
-    .name = "native_windows_ignores_linkage",
+    .name = "native_windows_ignores_shared_demand",
     .target = { SPN_ARCH_X64, SPN_OS_WINDOWS },
-    .linking.linkage = SPN_LIB_KIND_SHARED,
+    .demand = SPN_LIB_KIND_SHARED,
     .host = PROFILE_HOST_WIN_MSVC,
     .expect = { .abis = { SPN_ABI_GNU, SPN_ABI_MSVC }, .linking = { { SPN_LIB_KIND_SHARED, SPN_RUNTIME_STATIC, SPN_RUNTIME_SHARED }, { SPN_LIB_KIND_SHARED, SPN_RUNTIME_STATIC, SPN_RUNTIME_STATIC } } },
   },
@@ -798,25 +784,27 @@ static const query_test_t query_tests [] = {
     .expect = { .abis = { SPN_ABI_MUSL }, .linking = { LINKING_STATIC } },
   },
   {
-    .name = "explicit_shared_without_a_loader_is_moot",
+    .name = "shared_demand_without_a_loader_is_moot",
     .target = { SPN_ARCH_ARM64, SPN_OS_FREESTANDING, SPN_ABI_BARE },
-    .linking.linkage = SPN_LIB_KIND_SHARED,
+    .demand = SPN_LIB_KIND_SHARED,
     .host = PROFILE_HOST_LINUX_GNU,
     .expect = { .abis = { SPN_ABI_BARE }, .linking = { LINKING_STATIC } },
   },
   {
-    .name = "explicit_shared_does_not_rescue_a_shared_runtime",
+    .name = "shared_demand_does_not_rescue_a_shared_runtime",
     .target = { SPN_ARCH_WASM32, SPN_OS_WASI, SPN_ABI_MUSL },
-    .linking = { .linkage = SPN_LIB_KIND_SHARED, .runtime = SPN_RUNTIME_SHARED },
+    .linking.runtime = SPN_RUNTIME_SHARED,
+    .demand = SPN_LIB_KIND_SHARED,
     .host = PROFILE_HOST_LINUX_GNU,
     .expect = { .err = SPN_ERR_PROFILE_LINKING, .refusals = { { SPN_ABI_MUSL, SPN_LINKING_REFUSAL_NO_LOADER } } },
   },
   {
-    .name = "explicit_shared_with_static_libc_is_refused",
-    .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_MUSL },
-    .linking = { .linkage = SPN_LIB_KIND_SHARED, .libc = SPN_RUNTIME_STATIC },
+    .name = "static_deps_keeps_shared_demand",
+    .target = { SPN_ARCH_X64, SPN_OS_LINUX },
+    .linking.linkage = SPN_LIB_KIND_STATIC,
+    .demand = SPN_LIB_KIND_SHARED,
     .host = PROFILE_HOST_LINUX_GNU,
-    .expect = { .err = SPN_ERR_PROFILE_LINKING, .refusals = { { SPN_ABI_MUSL, SPN_LINKING_REFUSAL_SHARED_DEPS } } },
+    .expect = { .abis = { SPN_ABI_GNU, SPN_ABI_MUSL }, .linking = { { SPN_LIB_KIND_STATIC, SPN_RUNTIME_SHARED, SPN_RUNTIME_SHARED }, { SPN_LIB_KIND_STATIC, SPN_RUNTIME_STATIC, SPN_RUNTIME_SHARED } } },
   },
   {
     .name = "explicit_static_runtime_on_macos_is_refused",
@@ -918,7 +906,6 @@ static spn_profile_decl_t desc_to_decl(sp_mem_t mem, const decl_t* d) {
     .arch = d->arch,
     .toolchain = candidates(mem, d->toolchain),
     .abi = candidates(mem, d->abi),
-    .linkage = candidates(mem, d->linkage),
     .runtime = candidates(mem, d->runtime),
     .libc = candidates(mem, d->libc),
     .standard = candidates(mem, d->standard),
@@ -926,6 +913,8 @@ static spn_profile_decl_t desc_to_decl(sp_mem_t mem, const decl_t* d) {
     .opt = candidates(mem, d->opt),
     .emit = d->emit,
     .emit_set = d->emit_set,
+    .static_deps = d->static_deps,
+    .static_deps_set = d->static_deps_set,
   };
 }
 
@@ -994,11 +983,12 @@ sp_test_each(profile, resolve, test_t, tests, .setup = spn_test_ctx_setup) {
   spn_toolchain_info_t info = { .driver = SPN_CC_DRIVER_ZIG };
   spn_triple_t selected = { result.target.arch, result.target.os, it->abi ? it->abi : result.target.abi };
   spn_toolchain_selection_t selection = { .toolchain = &info, .row.triple = selected };
-  spn_linking_t demanded = result.request;
-  demanded.linkage = demanded.linkage ? demanded.linkage : result.demand;
-  if (spn_ld_linking(selected, demanded, &selection.linking)) {
-    sp_must_eq(t, (u32)SPN_LINKING_REFUSAL_NONE, (u32)spn_ld_linking(selected, result.request, &selection.linking));
-  }
+  spn_profile_info_t pinned = result;
+  pinned.target = selected;
+  spn_toolchain_query_t query = sp_zero;
+  sp_must_eq(t, SPN_OK, spn_profile_query(&pinned, it->host, &query));
+  sp_must_eq(t, 1, query.candidates.count);
+  selection.linking = query.candidates.items[0].linking;
   spn_profile_finalize(&result, &selection);
   sp_expect_eq(t, (u32)it->expect.linking.linkage, (u32)result.linking.linkage);
   if (it->expect.linking.runtime) {

@@ -100,7 +100,7 @@ readme: false
 
 | Field | Type |
 |---|---|
-| `linkage` | array of [`value_entry`](#value_entry) \| `string` |
+| `static_deps` | `bool` |
 | `runtime` | array of [`value_entry`](#value_entry) \| `string` |
 | `libc` | array of [`value_entry`](#value_entry) \| `string` |
 | `standard` | array of [`value_entry`](#value_entry) \| `string` |

@@ -52,7 +52,7 @@ Packages are compiled against a profile, which contains the target triple, toolc
 ```toml
 [profile.default]
 toolchain = "zig"
-linkage = "static"
+static_deps = true
 standard = "c11"
 mode = "debug"
 
@@ -93,7 +93,7 @@ By default, `spn build` produces the most self contained binary that it can. The
 
 | Field | What it links | How it can break |
 |---|---|---|
-| `linkage` | Your dependencies (e.g `libcurl`)| If a program links to the system's `libcurl.so`, then it won't run on a system without it|
+| `static_deps` | Your dependencies (e.g `libcurl`)| If a program links to the system's `libcurl.so`, then it won't run on a system without it|
 | `runtime` | Runtime support libraries (e.g. `libstdc++`, `libgcc`, or the CRT on Windows)| The ubiquitous "redistributables" problem on Windows, `libstdc++` on old Ubuntu, Yocto/Buildroot minimal systems |
 | `libc` | The C standard library | The mess of distributing Linux binaries that spawned entire ecosystems of tools like AppImage or Snap |
 
@@ -101,20 +101,20 @@ Specify them like this:
 
 ```toml
 [profile.whatver]
-linkage = "static"
+static_deps = true
 runtime = "static"
 libc = "shared"
 ```
 
-Different platforms have different stances on some or all of these knobs, and there's a huge variety in what's needed across different kinds of C programs. `spn` allows you to toggle each between `static` and `shared`, plus toggle individual dependencies. Where the platform or toolchain doesn't support one of these, `spn` errors appropriately. For example:
+Different platforms have different stances on some or all of these knobs, and there's a huge variety in what's needed across different kinds of C programs. `spn` allows you to toggle `runtime` and `libc` between `static` and `shared`, plus toggle individual dependencies. Where the platform or toolchain doesn't support one of these, `spn` errors appropriately. For example:
 - macOS forces you to link dynamically to `libSystem.dylib` (i.e. libc)
 - GNU's libc is famously antagonistic to static linkage, so `libc = "static"` requires (and infers) musl
 - Some sanitizers require the loader to be available, and produce an error otherwise
 
-`linkage` constrains how your dependencies are linked. It doesn't pick a kind for them:
-- `static` means nothing is loaded at runtime, so linking a library that is only `shared` is an error
-- `shared` asks for a target with a dynamic loader. A dependency that offers `static` is still linked statically; set `[config.foo] kind = "shared"` to load that one instead
-- On a target with no loader, like WebAssembly, `shared` and `kind = "shared"` have no effect and everything is linked statically
+A dependency is linked statically when it offers `static`; set `[config.foo] kind = "shared"` to load that one at runtime instead. `static_deps = true` makes a dependency that can only be `shared` an error:
+- It is only a check. It doesn't change how anything is linked or which target is built
+- A dependency you set to `kind = "shared"` yourself is still allowed
+- On a target with no loader, like WebAssembly, `kind = "shared"` has no effect and everything is linked statically
 
 Generally, though, we aim to allow you to express any build you might need. Let's look at some examples:
 

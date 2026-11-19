@@ -3,7 +3,7 @@ name = "options_private_versions"
 version = "0.1.0"
 
 [profile.default]
-linkage = "shared"
+libc = { value = "shared", when = { os = "linux" } }
 
 [deps.package]
 a = "1.0.0"

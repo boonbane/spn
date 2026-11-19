@@ -9,5 +9,4 @@ abi = [
   "musl",
 ]
 toolchain = "zig"
-linkage = { value = "static", when = { os = "linux" } }
 mode = ["debug"]

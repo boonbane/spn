@@ -26,6 +26,8 @@ struct spn_profile_info {
   bool sanitizers_set;
   spn_linkage_set_t emit;
   bool emit_set;
+  bool static_deps;
+  bool static_deps_set;
   spn_when_t options;
   bool targeted;
   spn_sdk_t sdk;
@@ -39,7 +41,6 @@ typedef struct {
   spn_arch_t arch;
   spn_gated_list_t toolchain;
   spn_gated_list_t abi;
-  spn_gated_list_t linkage;
   spn_gated_list_t runtime;
   spn_gated_list_t libc;
   spn_gated_list_t standard;
@@ -49,6 +50,8 @@ typedef struct {
   bool sanitizers_set;
   spn_linkage_set_t emit;
   bool emit_set;
+  bool static_deps;
+  bool static_deps_set;
   spn_when_t options;
 } spn_profile_decl_t;
 

@@ -3,7 +3,7 @@ name = "prof"
 version = "1.0.0"
 
 [profile.debug]
-linkage = "static"
+static_deps = true
 runtime = "static"
 libc = "static"
 standard = "c11"

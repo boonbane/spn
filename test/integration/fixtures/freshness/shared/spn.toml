@@ -6,7 +6,7 @@ version = "0.1.0"
 B = { path = "packages/B" }
 
 [profile.default]
-linkage = "shared"
+libc = { value = "shared", when = { os = "linux" } }
 
 [[bin]]
 name = "main"

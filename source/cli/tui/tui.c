@@ -193,7 +193,7 @@ static sp_str_t get_issue_scope(sp_da(spn_toml_issue_t) issues) {
 
 static sp_str_t requester_to_str(spn_linkage_requester_t requester) {
   switch (requester) {
-    case SPN_LINKAGE_REQUESTER_PROFILE: return sp_str_lit("the profile");
+    case SPN_LINKAGE_REQUESTER_PROFILE: return sp_str_lit("static_deps = true");
     case SPN_LINKAGE_REQUESTER_ROOT_MANIFEST: return sp_str_lit("the root manifest");
     case SPN_LINKAGE_REQUESTER_LIBC: return sp_str_lit("libc = \"static\"");
     case SPN_LINKAGE_REQUESTER_TARGET: return sp_str_lit("the target");
@@ -367,7 +367,7 @@ static void write_refusal(sp_tty_t* w, sp_mem_t mem, spn_triple_t target, spn_li
       break;
     }
     case SPN_LINKING_REFUSAL_SHARED_DEPS: {
-      sp_tty_fmt(w, "Target {.yellow} can't use {.red} with {.red}; a static libc removes the dynamic loader", sp_fmt_str(triple), sp_fmt_str(sp_str_lit("linkage = \"shared\"")), sp_fmt_str(sp_str_lit("libc = \"static\"")));
+      sp_tty_fmt(w, "Target {.yellow} can't load shared libraries with {.red}; a static libc removes the dynamic loader", sp_fmt_str(triple), sp_fmt_str(sp_str_lit("libc = \"static\"")));
       break;
     }
     case SPN_LINKING_REFUSAL_NONE: {

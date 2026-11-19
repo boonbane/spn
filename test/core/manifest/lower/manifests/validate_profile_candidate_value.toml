@@ -3,8 +3,7 @@ name = "p"
 version = "1.0.0"
 
 [profile.dev]
-linkage = [{ value = "loose", when = { os = "linux" } }, { value = "object" }]
-runtime = [{ value = "loose" }]
+runtime = [{ value = "loose", when = { os = "linux" } }, { value = "object" }]
 libc = [{ value = "loose" }]
 standard = "c2x"
 mode = [{ value = "fast", when = { os = "linux" } }]

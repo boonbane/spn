@@ -22,7 +22,3 @@ libc = "static"
 [profile.hybrid_crt]
 runtime = "static"
 libc = "shared"
-
-[profile.shared_deps]
-linkage = "shared"
-libc = "static"

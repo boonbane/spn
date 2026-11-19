@@ -231,7 +231,7 @@
 
     "profile": {
       "optionalProperties": {
-        "linkage": { "elements": { "ref": "value_entry" }, "metadata": { "shorthand": "value" } },
+        "static_deps": { "type": "boolean" },
         "runtime": { "elements": { "ref": "value_entry" }, "metadata": { "shorthand": "value" } },
         "libc": { "elements": { "ref": "value_entry" }, "metadata": { "shorthand": "value" } },
         "standard": { "elements": { "ref": "value_entry" }, "metadata": { "shorthand": "value" } },

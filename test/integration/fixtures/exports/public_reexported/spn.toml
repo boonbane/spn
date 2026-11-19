@@ -7,7 +7,7 @@ system_deps = [{ lib = "dl", when = { os = { not = "windows" } } }]
 S = "1.0.0"
 
 [profile.default]
-linkage = "shared"
+libc = { value = "shared", when = { os = "linux" } }
 
 [[bin]]
 name = "main"
