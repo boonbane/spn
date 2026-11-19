@@ -26,6 +26,25 @@ static const command_test_t commands [] = {
     },
   },
   {
+    .name = "silent_shared",
+    .project = "test/integration/fixtures/warning/shared",
+    .copy = { "a.c" },
+    .args = { "build" },
+    .expect.events = {
+      { .event = SPN_EVENT_LINK_WARNED, .absent = true },
+    },
+  },
+  {
+    .name = "silent_masm",
+    .project = "test/integration/fixtures/platform/masm",
+    .copy = { "answer.asm" },
+    .when.driver = SPN_CC_DRIVER_MSVC,
+    .args = { "build" },
+    .expect.events = {
+      { .event = SPN_EVENT_TARGET_BUILD_WARNED, .absent = true },
+    },
+  },
+  {
     .name = "dependency",
     .project = "test/integration/fixtures/warning/dep",
     .copy = { "B/*" },

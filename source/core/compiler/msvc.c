@@ -124,11 +124,13 @@ spn_cc_compile_plan_t spn_msvc_render_compile(sp_mem_t mem, const spn_cc_t* tool
   spn_invocation_t* invocation = &plan.base;
   if (lang == SPN_LANG_ASM) {
     invocation->program = assembler(mem, toolchain, profile);
+    sp_opt_set(invocation->echo, sp_str_lit(" Assembling: "));
     spn_cc_push_c(mem, invocation, "/nologo");
     spn_cc_push_c(mem, invocation, "/c");
     return plan;
   }
   add_launcher(mem, toolchain, profile, lang, invocation);
+  sp_opt_set(invocation->echo, sp_str_lit(""));
   spn_cc_push_c(mem, invocation, "/utf-8");
   spn_cc_push_c(mem, invocation, "/Brepro");
   spn_cc_flags_t flags = sp_zero;
@@ -218,6 +220,7 @@ spn_cc_link_plan_t spn_msvc_render_link(sp_mem_t mem, const spn_cc_t* toolchain,
   switch (link->kind) {
     case SPN_CC_OUTPUT_SHARED_LIB: {
       spn_cc_push_c(mem, base, "/LD");
+      sp_opt_set(base->echo, sp_str_lit("   Creating library "));
       plan.exports = spn_cc_exports_format(link->kind, SPN_OBJ_COFF);
       break;
     }
