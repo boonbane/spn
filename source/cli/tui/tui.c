@@ -603,10 +603,17 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
         "profile {.cyan} in {.gray} {.gray}",
         sp_fmt_str(event->build_passed.profile),
         sp_fmt_cstr(buffer),
-        sp_fmt_str(sp_fmt(mem, "({} executed, {} cached)",
+        sp_fmt_str(sp_fmt(mem, "({} executed, {} cached",
           sp_fmt_uint(event->build_passed.misses),
           sp_fmt_uint(event->build_passed.hits)).value)
       );
+      if (event->build_passed.warned) {
+        sp_tty_fmt(&w, "{.gray}{.yellow}",
+          sp_fmt_cstr(", "),
+          sp_fmt_str(sp_fmt(mem, "{} with warnings", sp_fmt_uint(event->build_passed.warned)).value)
+        );
+      }
+      sp_tty_fmt(&w, "{.gray}", sp_fmt_cstr(")"));
       break;
     }
     case SPN_EVENT_SCRIPT_CRASHED: {
@@ -624,6 +631,10 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
     }
     case SPN_EVENT_TARGET_BUILD_FAILED: {
       sp_tty_fmt(&w, "could not compile {.cyan}", sp_fmt_str(contextual_path(mem, event->target_failed.source_file)));
+      break;
+    }
+    case SPN_EVENT_TARGET_BUILD_WARNED: {
+      sp_tty_fmt(&w, "{.cyan}", sp_fmt_str(contextual_path(mem, event->target_warned.source_file)));
       break;
     }
     case SPN_EVENT_WARM_START: {
@@ -1930,6 +1941,10 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
       sp_tty_fmt(&w, "could not link {.cyan}", sp_fmt_str(event->link_failed.subject.target));
       break;
     }
+    case SPN_EVENT_LINK_WARNED: {
+      sp_tty_fmt(&w, "{.cyan}", sp_fmt_str(event->link_warned.file_name));
+      break;
+    }
     case SPN_EVENT_CONFIGURE_OK: {
       c8 buffer [64] = sp_zero;
       sp_fmt_write_duration_buf(buffer, sizeof(buffer), event->configure.time);
@@ -1986,9 +2001,11 @@ static sp_str_t event_subject(spn_event_t* event) {
     }
     case SPN_EVENT_TARGET_BUILD_PASSED:       return event->target_passed.subject.pkg;
     case SPN_EVENT_TARGET_BUILD_FAILED:       return event->target_failed.subject.pkg;
+    case SPN_EVENT_TARGET_BUILD_WARNED:       return event->target_warned.subject.pkg;
     case SPN_EVENT_LINK_START:                return event->link_start.subject.pkg;
     case SPN_EVENT_LINK_PASSED:               return event->link_passed.subject.pkg;
     case SPN_EVENT_LINK_FAILED:               return event->link_failed.subject.pkg;
+    case SPN_EVENT_LINK_WARNED:               return event->link_warned.subject.pkg;
     default:                                  return event->pkg;
   }
 }
@@ -2010,6 +2027,14 @@ static void render_event_extra(sp_tty_t* w, spn_event_t* event) {
     }
     case SPN_EVENT_LINK_FAILED: {
       write_run_output(w, &event->link_failed.run);
+      break;
+    }
+    case SPN_EVENT_TARGET_BUILD_WARNED: {
+      sp_io_write_str(w->io, event->target_warned.output, SP_NULLPTR);
+      break;
+    }
+    case SPN_EVENT_LINK_WARNED: {
+      sp_io_write_str(w->io, event->link_warned.output, SP_NULLPTR);
       break;
     }
     case SPN_EVENT_TEST_FAILED: {

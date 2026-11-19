@@ -1,0 +1,3 @@
+int bad() {
+  return missing;
+}

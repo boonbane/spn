@@ -83,6 +83,7 @@
     "warm_failed": { "metadata": { "verb": "Failed", "severity": "error" }, "ref": "warm_failed" },
     "target_build_passed": { "metadata": { "verb": "Compiled", "verbosity": "debug" }, "ref": "target_passed" },
     "target_build_failed": { "metadata": { "verb": "Failed", "severity": "error" }, "ref": "target_failed" },
+    "target_build_warned": { "metadata": { "verb": "Warning", "severity": "warning" }, "ref": "target_warned" },
     "target_run": {
       "metadata": { "verb": "Running" },
       "properties": {
@@ -136,6 +137,14 @@
         "run": { "ref": "run" }
       }
     },
+    "link_warned": {
+      "metadata": { "verb": "Warning", "severity": "warning" },
+      "properties": {
+        "subject": { "ref": "subject" },
+        "file_name": { "type": "string" },
+        "output": { "type": "string" }
+      }
+    },
     "embed_start": {
       "metadata": { "verb": "Embedding", "verbosity": "verbose" },
       "properties": {
@@ -181,7 +190,8 @@
         "profile": { "type": "string" },
         "time_ns": { "type": "uint64", "metadata": { "field": "time" } },
         "hits": { "type": "uint32" },
-        "misses": { "type": "uint32" }
+        "misses": { "type": "uint32" },
+        "warned": { "type": "uint32" }
       }
     },
     "build_failed": {
@@ -320,6 +330,13 @@
         "subject": { "ref": "subject" },
         "source_file": { "metadata": { "extern": "path" } },
         "run": { "ref": "run" }
+      }
+    },
+    "target_warned": {
+      "properties": {
+        "subject": { "ref": "subject" },
+        "source_file": { "metadata": { "extern": "path" } },
+        "output": { "type": "string" }
       }
     },
     "warm": {

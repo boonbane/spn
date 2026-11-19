@@ -31,6 +31,7 @@ add_executable(integration
   units.c
   upstream.c
   warm.c
+  warning.c
   ${TEST_TOOLS}/caps.c
   ${TEST_TOOLS}/lanes.c
   ${TEST_TOOLS}/env.c

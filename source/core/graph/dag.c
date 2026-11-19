@@ -169,6 +169,7 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
   spn_toolchain_unit_t* toolchain = build->toolchain;
   const spn_link_plan_t* link = &unit->link;
   const spn_target_emit_t* emit = &unit->emit;
+  bool root = unit->pkg->resolved->source == SPN_PKG_SOURCE_ROOT;
 
   spn_dag_id_t* found_libc = sp_ht_getp(b->ids.builds, build);
   sp_assert(found_libc);
@@ -275,6 +276,14 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
     ctx->log = add_log(g);
     spn_try(spn_dag_action_add_output(g, action, ctx->log));
     si_da_push(b->mem, object_ids, ctx->object);
+    if (root) {
+      si_da_push(b->mem, b->logs, ((spn_dag_log_t) {
+        .kind = SPN_DAG_LOG_COMPILE,
+        .subject = ctx->subject,
+        .source = object->file,
+        .artifact = ctx->log,
+      }));
+    }
   }
   if (embed.action.occupied) {
     si_da_push(b->mem, object_ids, embed.object);
@@ -342,6 +351,14 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
     }
     spn_try(spn_dag_action_add_output(g, action, ids->archive));
     spn_try(spn_dag_action_add_output(g, action, ctx->log));
+    if (root) {
+      si_da_push(b->mem, b->logs, ((spn_dag_log_t) {
+        .kind = SPN_DAG_LOG_LINK,
+        .subject = ctx->subject,
+        .file_name = ctx->file_name,
+        .artifact = ctx->log,
+      }));
+    }
   }
 
   if (!sp_opt_is_null(emit->link.plan)) {
@@ -454,6 +471,14 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
       spn_try(spn_dag_action_add_output(g, action, ids->implib));
     }
     spn_try(spn_dag_action_add_output(g, action, ctx->log));
+    if (root) {
+      si_da_push(b->mem, b->logs, ((spn_dag_log_t) {
+        .kind = SPN_DAG_LOG_LINK,
+        .subject = ctx->subject,
+        .file_name = ctx->file_name,
+        .artifact = ctx->log,
+      }));
+    }
 
     if (toolchain->cc.driver == SPN_CC_DRIVER_ZIG) {
       sp_assert(!spn_path_pinned(g->roots, toolchain->cc.cache));
