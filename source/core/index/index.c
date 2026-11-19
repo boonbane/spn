@@ -219,6 +219,9 @@ spn_err_t spn_index_get_package(spn_index_info_t* index, sp_mem_t mem, sp_intern
   }
 
   if (*pkg) {
+    sp_da_for((*pkg)->releases, it) {
+      (*pkg)->releases[it].index = index->id;
+    }
     sp_da_sort((*pkg)->releases, sort_release_by_version);
   }
   return SPN_OK;
@@ -425,7 +428,7 @@ void spn_index_locate(spn_index_info_t* index, sp_mem_t mem, const spn_path_root
   index->location.lock = spn_path_at(roots, location.lock);
 }
 
-static spn_index_info_t* find_index(sp_da(spn_index_info_t)* indexes, spn_index_id_t id) {
+spn_index_info_t* spn_index_find(sp_da(spn_index_info_t)* indexes, spn_index_id_t id) {
   sp_da_for(*indexes, it) {
     if ((*indexes)[it].id == id) {
       return &(*indexes)[it];
@@ -444,13 +447,13 @@ void spn_index_assemble(sp_mem_t mem, spn_index_map_t* workspace, sp_da(spn_inde
   }
 
   sp_da_for(user, it) {
-    if (!find_index(indexes, user[it].id)) {
+    if (!spn_index_find(indexes, user[it].id)) {
       sp_da_push(*indexes, user[it]);
     }
   }
 
   sp_intern_str_t core = spn_intern_lit("core");
-  if (!find_index(indexes, core.id)) {
+  if (!spn_index_find(indexes, core.id)) {
     sp_da_push(*indexes, ((spn_index_info_t) {
       .id = core.id,
       .name = core,

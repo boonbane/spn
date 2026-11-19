@@ -14,6 +14,7 @@
 #include "git/cache.h"
 #include "git/patch.h"
 #include "hash/digest/digest.h"
+#include "index/index.h"
 #include "lazy/lazy.h"
 #include "lock/lock.h"
 #include "model/resolve.h"
@@ -583,6 +584,11 @@ static spn_lock_root_t pinned_root(spn_pkg_root_t root) {
   return (spn_lock_root_t) { .url = root.git.url, .rev = root.git.rev, .dir = root.git.dir };
 }
 
+static bool follows_pin(spn_ctx_t* ctx, const spn_resolved_pkg_t* pkg) {
+  spn_index_info_t* index = spn_index_find(&ctx->indexes, pkg->origin.release->index);
+  return index && spn_index_is_snapshot(index);
+}
+
 static spn_err_t pin(sp_mem_t scratch, spn_ctx_t* ctx, spn_resolve_t resolve, bool locked, const spn_lock_t* held, spn_lock_t* lock) {
   spn_lock_t selected = spn_lock_new(scratch);
   sp_ht_for_kv(resolve, it) {
@@ -590,12 +596,17 @@ static spn_err_t pin(sp_mem_t scratch, spn_ctx_t* ctx, spn_resolve_t resolve, bo
     if (pkg->source != SPN_PKG_SOURCE_INDEX) {
       continue;
     }
-    spn_lock_insert(&selected, (spn_lock_entry_t) {
+    spn_lock_entry_t entry = {
       .name = pkg->name,
       .version = pkg->id.version,
       .source = pinned_root(pkg->origin.release->source),
       .manifest = pinned_root(pkg->origin.release->manifest),
-    });
+    };
+    spn_lock_entry_t* was = spn_lock_find(lock, pkg->name.id, pkg->id.version);
+    if (was && follows_pin(ctx, pkg)) {
+      *was = entry;
+    }
+    spn_lock_insert(&selected, entry);
   }
 
   sp_da(spn_err_union_t) moved = sp_da_new(scratch, spn_err_union_t);
