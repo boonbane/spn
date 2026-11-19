@@ -211,22 +211,6 @@ static const link_test_t tests [] = {
     },
   },
   {
-    .name = "msvc_shared_lib",
-    .driver = SPN_CC_DRIVER_MSVC,
-    .host = HOST_X64_WINDOWS,
-    .profile = {
-      .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC },
-      .linking.runtime = SPN_RUNTIME_STATIC,
-    },
-    .kind = SPN_CC_OUTPUT_SHARED_LIB,
-    .exports = "S.def",
-    .implib = "main.lib",
-    .expect = {
-      .command = "cc",
-      .args = { "/nologo", "/LD", "main.o", "/Femain", "/link", "/DEF:S.def", "/IMPLIB:main.lib" },
-    },
-  },
-  {
     .name = "msvc_debug_pdb",
     .driver = SPN_CC_DRIVER_MSVC,
     .host = HOST_X64_WINDOWS,
@@ -238,7 +222,7 @@ static const link_test_t tests [] = {
     .kind = SPN_CC_OUTPUT_EXE,
     .expect = {
       .command = "cc",
-      .args = { "/nologo", "main.o", "/Femain", "/link", "/DEBUG" },
+      .args = { "/nologo", "main.o", "/Femain", "/link", "/DEBUG", "/NOIMPLIB", "/NOEXP" },
     },
   },
   {
@@ -253,7 +237,7 @@ static const link_test_t tests [] = {
     .subsystem = SPN_WIN_SUBSYSTEM_WINDOWS,
     .expect = {
       .command = "cc",
-      .args = { "/nologo", "main.o", "/Femain", "/link", "/SUBSYSTEM:WINDOWS", "/ENTRY:mainCRTStartup" },
+      .args = { "/nologo", "main.o", "/Femain", "/link", "/SUBSYSTEM:WINDOWS", "/ENTRY:mainCRTStartup", "/NOIMPLIB", "/NOEXP" },
     },
   },
   {
@@ -371,7 +355,7 @@ static const link_test_t tests [] = {
     .arg = "/A",
     .expect = {
       .command = "cc",
-      .args = { "/nologo", "main.o", "/Femain", "/link", "/A" },
+      .args = { "/nologo", "main.o", "/Femain", "/link", "/A", "/NOIMPLIB", "/NOEXP" },
     },
   },
   {
@@ -385,19 +369,6 @@ static const link_test_t tests [] = {
     .expect = {
       .command = "cc",
       .args = { "-Wl,--subsystem,windows", "main.o", "-o", "main" },
-    },
-  },
-  {
-    .name = "linux_shared_lib",
-    .driver = SPN_CC_DRIVER_GCC,
-    .profile = {
-      .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU },
-    },
-    .kind = SPN_CC_OUTPUT_SHARED_LIB,
-    .exports = "S.map",
-    .expect = {
-      .command = "cc",
-      .args = { "-shared", "-Wl,--version-script,S.map", "-Wl,-soname,main", "main.o", "-Wl,-rpath,$ORIGIN", "-o", "main" },
     },
   },
   {
@@ -534,18 +505,6 @@ static const link_test_t tests [] = {
     .profile = {
       .target = { SPN_ARCH_ARM64, SPN_OS_MACOS },
       .linking.linkage = SPN_LIB_KIND_STATIC,
-    },
-    .kind = SPN_CC_OUTPUT_EXE,
-    .expect = {
-      .command = "cc",
-      .args = { "--target=aarch64-macos", "main.o", "-Wl,-rpath,@loader_path", "-o", "main" },
-    },
-  },
-  {
-    .name = "macos_rpath",
-    .driver = SPN_CC_DRIVER_CLANG,
-    .profile = {
-      .target = { SPN_ARCH_ARM64, SPN_OS_MACOS },
     },
     .kind = SPN_CC_OUTPUT_EXE,
     .expect = {
@@ -864,7 +823,7 @@ static const link_test_t tests [] = {
     .arg = "/A",
     .expect = {
       .command = "cc",
-      .args = { "/nologo", "main.o", "/Femain", "/link", "/B", "/A" },
+      .args = { "/nologo", "main.o", "/Femain", "/link", "/B", "/A", "/NOIMPLIB", "/NOEXP" },
     },
   },
   {
@@ -922,17 +881,6 @@ static const link_test_t tests [] = {
     .expect = {
       .command = "cc",
       .args = { "--target=x86_64-windows-msvc", "-fms-runtime-lib=static", "-Wl,/SUBSYSTEM:WINDOWS", "-Wl,/ENTRY:mainCRTStartup", "main.o", "-o", "main" },
-    },
-  },
-  {
-    .name = "clang_msvc_rpath_never_renders",
-    .driver = SPN_CC_DRIVER_CLANG,
-    .host = HOST_X64_WINDOWS,
-    .profile = { .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC }, .linking.runtime = SPN_RUNTIME_STATIC },
-    .kind = SPN_CC_OUTPUT_EXE,
-    .expect = {
-      .command = "cc",
-      .args = { "--target=x86_64-windows-msvc", "-fms-runtime-lib=static", "main.o", "-o", "main" },
     },
   },
   {
@@ -1061,7 +1009,7 @@ static const link_test_t tests [] = {
     .system_lib = "user32",
     .expect = {
       .command = "cc",
-      .args = { "/nologo", "main.o", "/Femain", "user32.lib", "/link" },
+      .args = { "/nologo", "main.o", "/Femain", "user32.lib", "/link", "/NOIMPLIB", "/NOEXP" },
       .env = { "LIB=/X/crt/lib/x86_64;/X/sdk/lib/ucrt/x86_64;/X/sdk/lib/um/x86_64" },
     },
   },

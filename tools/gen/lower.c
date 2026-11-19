@@ -414,7 +414,7 @@ bool gen_lower_union(gen_t* g, jtd_schema_t* root) {
         return false;
       }
 
-      static const c8* severities[] = { "info", "error", "fatal" };
+      static const c8* severities[] = { "info", "warning", "error", "fatal" };
       if (!lower_metadata_enum(g, mapping->schema, kind.tag, "severity", "info", severities, sp_carr_len(severities), "SPN_EVENT_SEVERITY", &kind.severity)) {
         return false;
       }

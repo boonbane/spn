@@ -29,6 +29,21 @@ typedef struct {
   sp_atomic_s32_t announced;
 } spn_dag_announce_t;
 
+typedef enum {
+  SPN_DAG_LOG_COMPILE,
+  SPN_DAG_LOG_LINK,
+} spn_dag_log_kind_t;
+
+typedef struct {
+  spn_dag_log_kind_t kind;
+  spn_event_subject_t subject;
+  union {
+    spn_path_t source;
+    sp_str_t file_name;
+  };
+  spn_dag_id_t artifact;
+} spn_dag_log_t;
+
 typedef struct {
   sp_str_t key;
   spn_path_t to;
@@ -60,6 +75,7 @@ struct spn_dag_build_t {
     si_da(spn_dag_stage_t) profile;
     si_da(spn_dag_stage_t) checkout;
   } stages;
+  si_da(spn_dag_log_t) logs;
   spn_dag_run_t run;
 };
 

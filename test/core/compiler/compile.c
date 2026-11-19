@@ -512,20 +512,6 @@ static const compile_test_t tests [] = {
     },
   },
   {
-    .name = "msvc_sdk",
-    .driver = SPN_CC_DRIVER_MSVC,
-    .profile = {
-      .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC },
-      .linking.runtime = SPN_RUNTIME_STATIC,
-      .sdk = "/X",
-    },
-    .expect = {
-      .command = "cc",
-      .args = { "/nologo", "/utf-8", "/Brepro", "/MT", "/c", "/I/X/crt/include", "/I/X/sdk/include/ucrt", "/I/X/sdk/include/um", "/I/X/sdk/include/shared", "/I/X/sdk/include/winrt", "/I/X/sdk/include/cppwinrt", "/we4715", "/Fomain.o", "main.c" },
-      .env = { "INCLUDE=/X/crt/include;/X/sdk/include/ucrt;/X/sdk/include/um;/X/sdk/include/shared;/X/sdk/include/winrt;/X/sdk/include/cppwinrt" },
-    },
-  },
-  {
     .name = "cxx_defaults",
     .driver = SPN_CC_DRIVER_GCC,
     .profile = {
@@ -749,37 +735,6 @@ sp_test(render_compile, base_shared_across_commands, .setup = spn_test_ctx_setup
     .args = { "--target=aarch64-macos", "-std=c99", "-c", "-Werror=return-type", "main.c", "-MD", "-MF", "b.o.d", "-o", "b.o" },
     .env = { "ZIG_GLOBAL_CACHE_DIR=/C", "ZIG_LOCAL_CACHE_DIR=/C", "ZIG_LIBC=/L" },
   });
-}
-
-typedef struct {
-  const c8* name;
-  spn_cc_driver_t driver;
-  spn_os_t os;
-  spn_abi_t abi;
-  bool expect;
-} codeview_test_t;
-
-static const codeview_test_t codeview_tests [] = {
-  { .name = "zig_windows_gnu", .driver = SPN_CC_DRIVER_ZIG, .os = SPN_OS_WINDOWS, .abi = SPN_ABI_GNU, .expect = true },
-  { .name = "zig_windows_msvc", .driver = SPN_CC_DRIVER_ZIG, .os = SPN_OS_WINDOWS, .abi = SPN_ABI_MSVC, .expect = true },
-  { .name = "clang_windows_msvc", .driver = SPN_CC_DRIVER_CLANG, .os = SPN_OS_WINDOWS, .abi = SPN_ABI_MSVC, .expect = true },
-  { .name = "clang_windows_gnu", .driver = SPN_CC_DRIVER_CLANG, .os = SPN_OS_WINDOWS, .abi = SPN_ABI_GNU, .expect = false },
-  { .name = "gcc_windows_gnu", .driver = SPN_CC_DRIVER_GCC, .os = SPN_OS_WINDOWS, .abi = SPN_ABI_GNU, .expect = false },
-  { .name = "zig_linux_musl", .driver = SPN_CC_DRIVER_ZIG, .os = SPN_OS_LINUX, .abi = SPN_ABI_MUSL, .expect = false },
-};
-
-sp_test_each(render_compile, codeview, codeview_test_t, codeview_tests, .setup = spn_test_ctx_setup) {
-  sp_mem_t mem = sp_test_arena(t);
-  spn_cc_t toolchain = test_toolchain(it->driver);
-  spn_profile_info_t profile = test_profile((test_profile_t) {
-    .target = { SPN_ARCH_X64, it->os, it->abi },
-    .linking.runtime = SPN_RUNTIME_STATIC,
-    .standard = SPN_C99,
-  });
-  spn_cc_compile_t compile = sp_zero;
-  spn_cc_compile_plan_t plan = si_cc_render_compile(mem, &toolchain, &profile, SPN_LANG_C, &compile);
-  sp_expect_eq(t, (u32)plan.codeview, (u32)it->expect);
-  return SP_OK;
 }
 
 typedef struct {

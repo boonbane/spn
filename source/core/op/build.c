@@ -93,6 +93,43 @@ static spn_err_t stage(sp_mem_t scratch, spn_dag_build_t* b, spn_pkg_unit_t* roo
   return SPN_OK;
 }
 
+static spn_err_t emit_warnings(spn_dag_build_t* b, u32* warned) {
+  spn_ctx_t* ctx = b->session->ctx;
+  const spn_path_roots_t* roots = b->graph->roots;
+  spn_dag_digest_t silent = spn_dag_digest("", 0);
+
+  si_da_for_ptr(b->logs, log) {
+    const spn_dag_artifact_state_t* state = spn_dag_run_artifact(&b->run, log->artifact);
+    if (spn_dag_digest_equal(state->digest, silent)) {
+      continue;
+    }
+
+    sp_str_t output = sp_zero;
+    if (sp_fs_read_at(ctx->events->mem, spn_path_at(roots, state->location), &output)) {
+      return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_FS_READ, .fs = { .path = state->location } });
+    }
+
+    switch (log->kind) {
+      case SPN_DAG_LOG_COMPILE: {
+        spn_event_buffer_push(ctx->events, (spn_event_t) {
+          .kind = SPN_EVENT_TARGET_BUILD_WARNED,
+          .target_warned = { .subject = log->subject, .source_file = log->source, .output = output },
+        });
+        break;
+      }
+      case SPN_DAG_LOG_LINK: {
+        spn_event_buffer_push(ctx->events, (spn_event_t) {
+          .kind = SPN_EVENT_LINK_WARNED,
+          .link_warned = { .subject = log->subject, .file_name = log->file_name, .output = output },
+        });
+        break;
+      }
+    }
+    (*warned)++;
+  }
+  return SPN_OK;
+}
+
 spn_err_t spn_op_build(spn_op_t* op) {
   spn_session_t* session = op->session;
   spn_ctx_t* ctx = session->ctx;
@@ -240,6 +277,13 @@ spn_err_t spn_op_build(spn_op_t* op) {
     sp_mem_end_scratch(scratch);
     spn_dag_file_cache_flush(b->run.files, session->dag.files_path);
   }
+  u32 warned = 0;
+  if (!result) {
+    result = emit_warnings(reactors, &warned);
+  }
+  if (!result) {
+    result = emit_warnings(b, &warned);
+  }
 
   bool failed = result != SPN_OK;
   u32 hits = (u32)sp_atomic_s32_load(&b->run.progress.hits, SP_ATOMIC_SEQ_CST);
@@ -266,6 +310,7 @@ spn_err_t spn_op_build(spn_op_t* op) {
         .time = elapsed,
         .hits = hits,
         .misses = misses,
+        .warned = warned,
       },
     });
   }

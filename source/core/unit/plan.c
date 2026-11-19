@@ -39,7 +39,8 @@ static void add_object(spn_units_t* u, spn_target_unit_t* target, spn_path_t fil
 
   spn_tree_rel_t rel = spn_tree_rel(target->pkg->paths.roots, file);
   sp_str_t prefix = rel.tree == SPN_TREE_NONE ? spn_path_root_label(file.root) : spn_tree_to_str(rel.tree);
-  sp_str_t name = sp_fmt(u->mem, "{}/{}.o", sp_fmt_str(prefix), sp_fmt_str(rel.sub)).value;
+  sp_str_t extension = spn_cc_object_extension(target->pkg->build->toolchain->cc.driver);
+  sp_str_t name = sp_fmt(u->mem, "{}/{}.{}", sp_fmt_str(prefix), sp_fmt_str(rel.sub), sp_fmt_str(extension)).value;
   sp_om_insert(u->objects, id, ((spn_compile_unit_t) {
     .id = id,
     .target = target,

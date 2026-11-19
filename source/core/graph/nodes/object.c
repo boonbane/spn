@@ -24,6 +24,7 @@ static spn_err_t run_compiler(sp_mem_t mem, const si_dag_ctx_t* c, si_compile_t*
     return SPN_ERR_DAG_ACTION;
   }
 
+  spn_try(spn_invocation_write_log(si_dag_output_at(c, compile->log), &run));
   spn_event_buffer_push(spn.events, (spn_event_t) {
     .kind = SPN_EVENT_TARGET_BUILD_PASSED,
     .target_passed = { .subject = compile->subject, .source_file = compile->source, .run = report },

@@ -17,6 +17,7 @@ typedef struct {
   exports_render_t render;
   const c8* library;
   const c8* symbols [render_syms_max];
+  const c8* data [render_syms_max];
   render_exports_expect_t expect;
 } render_exports_test_t;
 
@@ -45,12 +46,22 @@ static const render_exports_test_t tests [] = {
     },
   },
   {
-    .name = "def",
+    .name = "def_marks_data",
     .render = EXPORTS_RENDER_DEF,
     .library = "S",
-    .symbols = { "A", "B" },
+    .symbols = { "A" },
+    .data = { "B" },
     .expect = {
-      .rendered = "LIBRARY S\nEXPORTS\n  A\n  B\n",
+      .rendered = "LIBRARY S\nEXPORTS\n  A\n  B DATA\n",
+    },
+  },
+  {
+    .name = "def_leaves_out_deleting_destructors",
+    .render = EXPORTS_RENDER_DEF,
+    .library = "S",
+    .symbols = { "??_GA", "A", "??_EA" },
+    .expect = {
+      .rendered = "LIBRARY S\nEXPORTS\n  A\n",
     },
   },
 };
@@ -58,10 +69,14 @@ static const render_exports_test_t tests [] = {
 sp_test_each(exports_render, render, render_exports_test_t, tests) {
   sp_mem_t mem = sp_test_arena(t);
 
-  si_da(sp_str_t) symbols = sp_zero;
+  si_da(spn_cc_export_t) symbols = sp_zero;
   sp_carr_for(it->symbols, s) {
     if (!it->symbols[s]) break;
-    si_da_push(mem, symbols, sp_cstr_as_str(it->symbols[s]));
+    si_da_push(mem, symbols, ((spn_cc_export_t) { .name = sp_cstr_as_str(it->symbols[s]) }));
+  }
+  sp_carr_for(it->data, s) {
+    if (!it->data[s]) break;
+    si_da_push(mem, symbols, ((spn_cc_export_t) { .name = sp_cstr_as_str(it->data[s]), .data = true }));
   }
 
   sp_io_dyn_mem_writer_t buf;

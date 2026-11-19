@@ -26,6 +26,7 @@ typedef struct {
   spn_dag_id_t libc;
   spn_dag_id_t output;
   spn_dag_id_t implib;
+  spn_dag_id_t log;
 } si_link_t;
 
 typedef struct {
@@ -34,6 +35,7 @@ typedef struct {
   spn_event_subject_t subject;
   spn_dag_build_objects_t objects;
   spn_dag_id_t output;
+  spn_dag_id_t log;
 } si_archive_t;
 
 typedef struct {
@@ -54,6 +56,7 @@ typedef struct {
   spn_dag_id_t libc;
   spn_dag_id_t header;
   spn_dag_id_t object;
+  spn_dag_id_t log;
 } si_compile_t;
 
 typedef struct {

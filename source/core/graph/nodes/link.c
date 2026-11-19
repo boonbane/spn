@@ -57,6 +57,7 @@ static spn_err_t run_linker(sp_mem_t mem, const si_dag_ctx_t* c, si_link_t* link
     return SPN_ERR_DAG_ACTION;
   }
 
+  spn_try(spn_invocation_write_log(si_dag_output_at(c, link->log), &run));
   spn_event_buffer_push(spn.events, (spn_event_t) {
     .kind = SPN_EVENT_LINK_PASSED,
     .link_passed = { .subject = link->subject, .file_name = link->file_name, .run = report },

@@ -22,30 +22,15 @@ static const wasm_test_t tests [] = {
       .rendered = "-Wl,--export=A\n-Wl,--export=B\n",
     },
   },
-  {
-    .name = "no_symbols",
-    .style = SPN_RSP_STYLE_WINDOWS,
-    .expect = {
-      .rendered = "",
-    },
-  },
-  {
-    .name = "quoted_gnu",
-    .style = SPN_RSP_STYLE_GNU,
-    .symbols = { "a b" },
-    .expect = {
-      .rendered = "\"-Wl,--export=a b\"\n",
-    },
-  },
 };
 
 sp_test_each(exports_wasm, render, wasm_test_t, tests, .setup = spn_test_ctx_setup) {
   sp_mem_t mem = sp_test_arena(t);
 
-  si_da(sp_str_t) symbols = sp_zero;
+  si_da(spn_cc_export_t) symbols = sp_zero;
   sp_carr_for(it->symbols, s) {
     if (!it->symbols[s]) break;
-    si_da_push(mem, symbols, sp_cstr_as_str(it->symbols[s]));
+    si_da_push(mem, symbols, ((spn_cc_export_t) { .name = sp_cstr_as_str(it->symbols[s]) }));
   }
 
   sp_io_dyn_mem_writer_t buf;

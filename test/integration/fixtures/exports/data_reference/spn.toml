@@ -1,0 +1,10 @@
+[package]
+name = "exports_data_reference"
+version = "0.1.0"
+
+[deps.package]
+B = { path = "B" }
+
+[[bin]]
+name = "main"
+source = ["main.c"]

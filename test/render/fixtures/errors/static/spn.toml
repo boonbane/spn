@@ -7,4 +7,4 @@ name = "A"
 source = ["main.c"]
 
 [profile.debug]
-static_deps = true
+libc = "static"

@@ -35,6 +35,25 @@ static const test_t tests [] = {
     },
   },
   {
+    .name = "data_imported",
+    .project = "test/integration/fixtures/exports/data_imported",
+    .copy = { "B/*" },
+    .when.os = SPN_OS_WINDOWS,
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { "build" } },
+    },
+  },
+  {
+    .name = "data_reference_does_not_bind_to_a_thunk",
+    .project = "test/integration/fixtures/exports/data_reference",
+    .copy = { "B/*" },
+    .when.driver = SPN_CC_DRIVER_MSVC,
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { "build", .rc = 1 } },
+      { .kind = ACTION_VERIFY_EVENT, .verify_event = { .event = SPN_EVENT_LINK_FAILED } },
+    },
+  },
+  {
     .name = "no_interference",
     .project = "test/integration/fixtures/exports/no_interference",
     .actions = {

@@ -194,3 +194,68 @@ bool spn_toc_next(spn_toc_parser_t* toc, sp_str_t* symbol) {
   }
   sp_unreachable_return(false);
 }
+
+spn_err_t spn_ar_members_init(spn_ar_members_t* members, sp_io_reader_t* io, sp_mem_t mem) {
+  *members = (spn_ar_members_t) { .io = io, .mem = mem };
+
+  u8 magic [8];
+  u64 bytes = 0;
+  if (sp_io_read_all(io, magic, 8, &bytes) || bytes < 8) {
+    members->err = SPN_ERR_TOC_MAGIC;
+  }
+  else if (!memcmp(magic, "!<thin>\n", 8)) {
+    members->err = SPN_ERR_TOC_OPAQUE;
+  }
+  else if (memcmp(magic, "!<arch>\n", 8)) {
+    members->err = SPN_ERR_TOC_MAGIC;
+  }
+  return members->err;
+}
+
+bool spn_ar_members_next(spn_ar_members_t* members, sp_str_t* member) {
+  while (!members->err) {
+    u64 bytes = 0;
+    if (members->pad) {
+      sp_io_discard(members->io, members->pad, &bytes);
+    }
+
+    u8 header [60];
+    sp_err_t io_err = sp_io_read_all(members->io, header, 60, &bytes);
+    if (io_err == SP_ERR_IO_EOF && !bytes) {
+      return false;
+    }
+    u64 size = 0;
+    if (io_err || bytes < 60 || header[58] != 0x60 || header[59] != '\n' || !toc_parse_u64(toc_field(header + 48, 10), &size)) {
+      members->err = SPN_ERR_TOC_TRUNCATED;
+      return false;
+    }
+    members->pad = size & 1;
+
+    // "/" and "//" are the indexes and the long name table; "/12" is a member
+    // whose name lives in that table
+    sp_str_t name = toc_field(header, 16);
+    if (name.len && name.data[0] == '/' && (name.len == 1 || name.data[1] < '0' || name.data[1] > '9')) {
+      if (sp_io_discard(members->io, size, &bytes) || bytes < size) {
+        members->err = SPN_ERR_TOC_TRUNCATED;
+        return false;
+      }
+      continue;
+    }
+
+    if (size > SP_LIMIT_U32_MAX) {
+      members->err = SPN_ERR_TOC_OPAQUE;
+      return false;
+    }
+    if (size > members->capacity) {
+      members->capacity = sp_max(size, members->capacity * 2);
+      members->data = sp_alloc(members->mem, members->capacity);
+    }
+    if (sp_io_read_all(members->io, members->data, size, &bytes) || bytes < size) {
+      members->err = SPN_ERR_TOC_TRUNCATED;
+      return false;
+    }
+    *member = sp_str((const c8*)members->data, (u32)size);
+    return true;
+  }
+  return false;
+}

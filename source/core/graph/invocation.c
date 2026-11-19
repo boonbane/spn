@@ -91,7 +91,7 @@ static sp_ps_config_t invocation_ps(const spn_path_roots_t* roots, const spn_inv
     .io = {
       .in.mode = SP_PS_IO_MODE_NULL,
       .out.mode = SP_PS_IO_MODE_CREATE,
-      .err.mode = SP_PS_IO_MODE_REDIRECT,
+      .err.mode = sp_opt_is_null(invocation->echo) ? SP_PS_IO_MODE_REDIRECT : SP_PS_IO_MODE_CREATE,
     }
   };
   sp_da_for(invocation->env, it) {
@@ -109,6 +109,26 @@ spn_invocation_result_t spn_invocation_run(const spn_path_roots_t* roots, spn_ch
   sp_ps_output_t result = spn_children_run(children, spn.mem, ps);
   u64 elapsed = sp_tm_read_timer(&timer);
   sp_mem_end_scratch(scratch);
+
+  if (!sp_opt_is_null(invocation->echo)) {
+    u32 at = 0;
+    while (at < result.out.len && !sp_str_starts_with(sp_str_skip(result.out, at), invocation->echo.value)) {
+      s32 end = sp_str_find_c8(sp_str_skip(result.out, at), '\n');
+      at = end == SP_STR_NO_MATCH ? result.out.len : at + end + 1;
+    }
+    sp_str_t head = sp_str_prefix(result.out, at);
+    sp_str_t tail = sp_str_cleave_c8(sp_str_skip(result.out, at), '\n').second;
+    if (sp_str_empty(head) && sp_str_empty(tail)) {
+      result.out = result.err;
+    }
+    else if (sp_str_empty(result.err) && sp_str_empty(head)) {
+      result.out = tail;
+    }
+    else {
+      result.out = sp_fmt(spn.mem, "{}{}{}", sp_fmt_str(result.err), sp_fmt_str(head), sp_fmt_str(tail)).value;
+    }
+    result.err = sp_zero_s(sp_str_t);
+  }
 
   return (spn_invocation_result_t) {
     .result = result,
@@ -180,6 +200,10 @@ spn_invocation_result_t spn_invocation_run_progress(const spn_path_roots_t* root
     .elapsed = elapsed,
   };
 #endif
+}
+
+spn_err_t spn_invocation_write_log(sp_path_t path, const spn_invocation_result_t* run) {
+  return sp_fs_write_at(path, run->result.out, SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms) ? SPN_ERR_DAG_OUTPUT_WRITE : SPN_OK;
 }
 
 spn_event_run_t spn_event_run(const spn_path_roots_t* roots, const spn_invocation_t* invocation, const spn_invocation_result_t* run) {

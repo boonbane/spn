@@ -165,6 +165,7 @@ static spn_invocation_t invocation_from_base(sp_mem_t mem, const spn_invocation_
   spn_invocation_t invocation = {
     .program = base->program,
     .path = base->path,
+    .echo = base->echo,
   };
   sp_da_init(mem, invocation.args);
   sp_da_reserve(invocation.args, sp_da_size(base->args) + 1);
@@ -345,6 +346,17 @@ spn_cc_exports_format_t spn_cc_exports_format(spn_cc_output_kind_t kind, spn_obj
   SP_UNREACHABLE_RETURN(SPN_CC_EXPORTS_VERSION_SCRIPT);
 }
 
+sp_str_t spn_cc_object_extension(spn_cc_driver_t driver) {
+  switch (driver) {
+    case SPN_CC_DRIVER_GCC:
+    case SPN_CC_DRIVER_CLANG:
+    case SPN_CC_DRIVER_ZIG:  return sp_str_lit("o");
+    case SPN_CC_DRIVER_MSVC: return sp_str_lit("obj");
+    case SPN_CC_DRIVER_NONE: sp_unreachable_case();
+  }
+  sp_unreachable_return(sp_str_lit(""));
+}
+
 sp_str_t spn_cc_exports_extension(spn_cc_exports_format_t format) {
   switch (format) {
     case SPN_CC_EXPORTS_VERSION_SCRIPT: return sp_str_lit("map");
@@ -355,7 +367,7 @@ sp_str_t spn_cc_exports_extension(spn_cc_exports_format_t format) {
   SP_UNREACHABLE_RETURN(sp_str_lit(""));
 }
 
-void spn_cc_render_exports(sp_io_writer_t* io, const spn_path_roots_t* roots, spn_cc_exports_format_t format, spn_rsp_style_t rsp, sp_str_t library, si_da(sp_str_t) symbols) {
+void spn_cc_render_exports(sp_io_writer_t* io, const spn_path_roots_t* roots, spn_cc_exports_format_t format, spn_rsp_style_t rsp, sp_str_t library, si_da(spn_cc_export_t) symbols) {
   switch (format) {
     case SPN_CC_EXPORTS_VERSION_SCRIPT: {
       spn_exports_render_version_script(io, symbols);

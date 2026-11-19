@@ -8,7 +8,6 @@ typedef enum {
   TOC_AR_BSD,
   TOC_AR_BSD_SORTED,
   TOC_AR_THIN,
-  TOC_AR_COFF,
   TOC_AR_NO_SYMTAB,
   TOC_AR_EMPTY,
   TOC_AR_BAD_MAGIC,
@@ -144,22 +143,6 @@ static void build_bsd(ar_buf_t* b, const c8* const* symbols, u32 n, bool sorted)
   ar_object(b);
 }
 
-static void build_coff(ar_buf_t* b, const c8* const* symbols, u32 n) {
-  u32 first_size = 4 + 4 * n + names_size(symbols, n);
-  u32 first_end = 8 + 60 + first_size + (first_size & 1);
-  u32 object_offset = first_end + 60 + 4;
-
-  ar_cstr(b, "!<arch>\n");
-  ar_header(b, "/", first_size);
-  ar_u32be(b, n);
-  sp_for(it, n) { ar_u32be(b, object_offset); }
-  ar_names(b, symbols, n);
-  ar_pad_even(b);
-  ar_header(b, "/", 4);
-  ar_u32le(b, 0);
-  ar_object(b);
-}
-
 static void build_archive(ar_buf_t* b, toc_format_t format, const c8* const* symbols, u32 n) {
   switch (format) {
     case TOC_AR_GNU: {
@@ -180,10 +163,6 @@ static void build_archive(ar_buf_t* b, toc_format_t format, const c8* const* sym
     }
     case TOC_AR_BSD_SORTED: {
       build_bsd(b, symbols, n, true);
-      break;
-    }
-    case TOC_AR_COFF: {
-      build_coff(b, symbols, n);
       break;
     }
     case TOC_AR_NO_SYMTAB: {
@@ -254,14 +233,6 @@ static const toc_test_t tests [] = {
     },
   },
   {
-    .name = "coff_second_linker_member_ignored",
-    .format = TOC_AR_COFF,
-    .symbols = { "A", "B" },
-    .expect = {
-      .symbols = { "A", "B" },
-    },
-  },
-  {
     .name = "empty_archive",
     .format = TOC_AR_EMPTY,
   },
@@ -316,6 +287,91 @@ sp_test_each(toc, parse, toc_test_t, tests) {
 
   if (!it->expect.err) {
     sp_must_strs_eq(t, symbols, sp_da_size(symbols), it->expect.symbols);
+  }
+
+  return SP_OK;
+}
+
+#define members_max 4
+
+typedef struct {
+  const c8* name;
+  const c8* body;
+} member_t;
+
+typedef struct {
+  spn_err_t err;
+  const c8* members [members_max];
+} members_expect_t;
+
+typedef struct {
+  const c8* name;
+  const c8* magic;
+  member_t members [members_max];
+  u32 missing;
+  members_expect_t expect;
+} members_test_t;
+
+static const members_test_t members_tests [] = {
+  {
+    .name = "objects_in_order",
+    .magic = "!<arch>\n",
+    .members = { { "A.o/", "A" }, { "B.o/", "BB" }, { "C.o/", "C" } },
+    .expect.members = { "A", "BB", "C" },
+  },
+  {
+    .name = "indexes_and_name_table_are_skipped",
+    .magic = "!<arch>\n",
+    .members = { { "/", "X" }, { "/", "XX" }, { "//", "X" }, { "/0", "A" } },
+    .expect.members = { "A" },
+  },
+  {
+    .name = "thin_archive_holds_no_objects",
+    .magic = "!<thin>\n",
+    .members = { { "A.o/", "A" } },
+    .expect.err = SPN_ERR_TOC_OPAQUE,
+  },
+  {
+    .name = "member_cut_short",
+    .magic = "!<arch>\n",
+    .members = { { "A.o/", "AAAA" } },
+    .missing = 2,
+    .expect.err = SPN_ERR_TOC_TRUNCATED,
+  },
+};
+
+sp_test_each(toc, members, members_test_t, members_tests) {
+  sp_mem_t mem = sp_test_arena(t);
+
+  ar_buf_t buf = sp_zero;
+  sp_io_dyn_mem_writer_init(mem, &buf);
+  ar_cstr(&buf, it->magic);
+  sp_carr_for(it->members, m) {
+    if (!it->members[m].name) break;
+    ar_header(&buf, it->members[m].name, sp_cstr_len(it->members[m].body));
+    ar_cstr(&buf, it->members[m].body);
+    ar_pad_even(&buf);
+  }
+
+  sp_str_t bytes = sp_io_dyn_mem_writer_as_str(&buf);
+  sp_io_reader_t reader = sp_zero;
+  sp_io_reader_from_mem(&reader, bytes.data, bytes.len - it->missing);
+
+  spn_ar_members_t members;
+  spn_err_t err = spn_ar_members_init(&members, &reader, mem);
+
+  sp_da(sp_str_t) found = sp_da_new(mem, sp_str_t);
+  sp_str_t member = sp_zero;
+  while (spn_ar_members_next(&members, &member)) {
+    sp_da_push(found, sp_str_copy(mem, member));
+  }
+  if (!err) {
+    err = members.err;
+  }
+  sp_expect_eq(t, err, it->expect.err);
+
+  if (!it->expect.err) {
+    sp_must_strs_eq(t, found, sp_da_size(found), it->expect.members);
   }
 
   return SP_OK;

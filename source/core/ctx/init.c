@@ -199,6 +199,7 @@ spn_ctx_t* spn_ctx_new(spn_wake_fn_t wake, void* wake_data) {
   ctx->intern = sp_intern_new(ctx->mem);
   ctx->env = sp_alloc_type(ctx->heap, sp_env_t);
   *ctx->env = sp_env_capture(ctx->heap);
+  sp_env_erase_c(ctx->env, "VS_UNICODE_OUTPUT");
   ctx->devshell = spn_msvc_leave_shell(ctx->env);
   ctx->events = spn_event_buffer_new(ctx->mem);
   ctx->events->wake = &ctx->wake;

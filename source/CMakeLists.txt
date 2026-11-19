@@ -12,6 +12,7 @@ set(SPN_CORE_SOURCES
   core/codegen/toolchain.c
   core/codegen/options.c
   core/codegen/when.c
+  core/compiler/coff.c
   core/compiler/driver.c
   core/compiler/exports.c
   core/compiler/gnu.c
