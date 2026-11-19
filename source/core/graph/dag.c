@@ -116,6 +116,8 @@ static void hash_invocation(spn_digest_ctx_t* digest, const spn_path_roots_t* ro
   sp_for(it, base->path.count) {
     spn_dag_hash_path(digest, roots, base->path.items[it]);
   }
+  spn_dag_hash_u8(digest, (u8)base->echo.some);
+  spn_dag_hash_str(digest, base->echo.value);
 }
 
 static spn_dag_digest_t hash_compile(const spn_path_roots_t* roots, const spn_compile_unit_t* unit) {

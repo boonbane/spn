@@ -127,6 +127,7 @@ typedef struct {
   spn_path_t cwd;
   sp_da(spn_invocation_env_t) env;
   spn_dir_list_t path;
+  sp_opt(sp_str_t) echo;
 } spn_invocation_t;
 
 typedef struct {

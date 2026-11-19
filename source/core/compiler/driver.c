@@ -165,6 +165,7 @@ static spn_invocation_t invocation_from_base(sp_mem_t mem, const spn_invocation_
   spn_invocation_t invocation = {
     .program = base->program,
     .path = base->path,
+    .echo = base->echo,
   };
   sp_da_init(mem, invocation.args);
   sp_da_reserve(invocation.args, sp_da_size(base->args) + 1);
