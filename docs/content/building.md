@@ -58,10 +58,12 @@ Each event in the stream is a tagged union:
 }
 ```
 
-- `--json` writes every event to stdout as JSONL. It's a global flag, so it works on any command.
-- The last build's events are also in `.spn/build.jsonl` inside the build directory, whether or not you passed `--json`.
-- Each line is one event with an `event` name, a `level`, a timestamp, and its `data`.
-- Compiles, errors, and test results are all events, so CI never has to scrape text.
+For a full list of events emitted and their shape, see the [Events reference](/docs/events), but some useful data emitted in this event stream is:
+- Every invocation of the compiler or linker, with full command line and timing
+- Every call to the guest API
+- Every package resolve and download, with URL and timing
+
+The event stream is a simple rendering of the events delivered to any in process consumer of [libspn](/docs/libspn).
 
 ## Selecting targets
 
