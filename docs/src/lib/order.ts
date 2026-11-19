@@ -11,6 +11,7 @@ export const order = [
   'indexes',
   'configuration',
   'manifest',
+  'config',
   'embedding',
   'workspaces',
   'why',
