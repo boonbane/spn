@@ -138,9 +138,8 @@ static sp_cli_cmd_t cmd_path = {
   .args = {
     {
       .name = "name",
-      .arity = SP_CLI_ARG_OPTIONAL,
       .kind = SP_CLI_OPT_STR,
-      .summary = "Index name (default: core)",
+      .summary = "Index name",
       .ptr = &args.name,
     },
   },

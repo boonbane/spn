@@ -37,6 +37,10 @@ static sp_cli_result_t publish_dry() {
 static sp_cli_result_t publish(sp_cli_t* cli) {
   try(spn_cli_open(false));
 
+  if (sp_str_empty(args.index)) {
+    return spn_cli_usage("pass an index with {.cyan}", sp_fmt_cstr("--index"));
+  }
+
   if (args.dry) {
     return publish_dry();
   }

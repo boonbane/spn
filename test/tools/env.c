@@ -148,6 +148,8 @@ static sp_err_t fixture_publish(sp_test_t* t, fixture_t* fixture, sp_str_t repo,
   };
   sp_ps_config_add_arg(mem, &config, sp_str_lit("--json"));
   sp_ps_config_add_arg(mem, &config, sp_str_lit("publish"));
+  sp_ps_config_add_arg(mem, &config, sp_str_lit("--index"));
+  sp_ps_config_add_arg(mem, &config, sp_str_lit("core"));
   sp_ps_config_add_arg(mem, &config, sp_str_lit("--source-url"));
   sp_ps_config_add_arg(mem, &config, sp_str_replace_c8(mem, url, '\\', '/'));
   sp_ps_config_add_arg(mem, &config, sp_str_lit("--source-rev"));

@@ -145,7 +145,8 @@ static const test_t tests [] = {
     .name = "index_path",
     .project = "test/integration/fixtures/deps/index/basic",
     .actions = {
-      { .kind = ACTION_RUN_CLI, .cli = { .cmd = "index", .args = { "path" } } },
+      { .kind = ACTION_RUN_CLI, .cli = { .cmd = "index", .args = { "path", "core" } } },
+      { .kind = ACTION_RUN_CLI, .cli = { .cmd = "index", .args = { "path" }, .rc = 1 } },
       { .kind = ACTION_RUN_CLI, .cli = { .cmd = "index", .args = { "path", "nope" }, .rc = 1 } },
       { .kind = ACTION_VERIFY_RESULT, .verify_result.err = SPN_ERROR },
     },
@@ -164,7 +165,8 @@ static const test_t tests [] = {
     .project = "test/integration/fixtures/deps/index/basic",
     .actions = {
       { .kind = ACTION_INIT_REPO },
-      { .kind = ACTION_RUN_CLI, .cli = { .cmd = "publish", .args = { "--dry", "--source-url", "https://example.com/x.git", "--source-rev", "HEAD" } } },
+      { .kind = ACTION_RUN_CLI, .cli = { .cmd = "publish", .args = { "--dry", "--source-url", "https://example.com/x.git", "--source-rev", "HEAD" }, .rc = 1 } },
+      { .kind = ACTION_RUN_CLI, .cli = { .cmd = "publish", .args = { "--dry", "--index", "core", "--source-url", "https://example.com/x.git", "--source-rev", "HEAD" } } },
       { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = lit(".st/spn/packages/.spn/index/index_package.jsonl") },
     },
   },
