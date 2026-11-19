@@ -1216,6 +1216,14 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           );
           break;
         }
+        case SPN_ERR_TOC_OPAQUE: {
+          sp_tty_fmt(
+            &w,
+            "{.cyan} holds an object with no readable symbol table",
+            sp_fmt_str(contextual_path(mem, event->err.fs.path))
+          );
+          break;
+        }
         case SPN_ERR_SCAFFOLD_TEMPLATE: {
           sp_tty_fmt(
             &w,

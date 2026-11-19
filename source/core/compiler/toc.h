@@ -21,7 +21,18 @@ typedef struct {
   u8 buf [SPN_TOC_SYMBOL_MAX];
 } spn_toc_parser_t;
 
+typedef struct {
+  sp_io_reader_t* io;
+  sp_mem_t mem;
+  u8* data;
+  u64 capacity;
+  u64 pad;
+  spn_err_t err;
+} spn_ar_members_t;
+
 spn_err_t spn_toc_init(spn_toc_parser_t* toc, sp_io_reader_t* io);
 bool      spn_toc_next(spn_toc_parser_t* toc, sp_str_t* symbol);
+spn_err_t spn_ar_members_init(spn_ar_members_t* members, sp_io_reader_t* io, sp_mem_t mem);
+bool      spn_ar_members_next(spn_ar_members_t* members, sp_str_t* member);
 
 #endif

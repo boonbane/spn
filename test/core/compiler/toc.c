@@ -320,3 +320,97 @@ sp_test_each(toc, parse, toc_test_t, tests) {
 
   return SP_OK;
 }
+
+#define members_max 4
+
+typedef struct {
+  const c8* name;
+  const c8* body;
+} member_t;
+
+typedef struct {
+  spn_err_t err;
+  const c8* members [members_max];
+} members_expect_t;
+
+typedef struct {
+  const c8* name;
+  const c8* magic;
+  member_t members [members_max];
+  u32 missing;
+  members_expect_t expect;
+} members_test_t;
+
+static const members_test_t members_tests [] = {
+  {
+    .name = "objects_in_order",
+    .magic = "!<arch>\n",
+    .members = { { "A.o/", "A" }, { "B.o/", "BB" }, { "C.o/", "C" } },
+    .expect.members = { "A", "BB", "C" },
+  },
+  {
+    .name = "indexes_and_name_table_are_skipped",
+    .magic = "!<arch>\n",
+    .members = { { "/", "X" }, { "/", "XX" }, { "//", "X" }, { "/0", "A" } },
+    .expect.members = { "A" },
+  },
+  {
+    .name = "no_members",
+    .magic = "!<arch>\n",
+  },
+  {
+    .name = "thin_archive_holds_no_objects",
+    .magic = "!<thin>\n",
+    .members = { { "A.o/", "A" } },
+    .expect.err = SPN_ERR_TOC_OPAQUE,
+  },
+  {
+    .name = "bad_magic",
+    .magic = "!<arch~\n",
+    .expect.err = SPN_ERR_TOC_MAGIC,
+  },
+  {
+    .name = "member_cut_short",
+    .magic = "!<arch>\n",
+    .members = { { "A.o/", "AAAA" } },
+    .missing = 2,
+    .expect.err = SPN_ERR_TOC_TRUNCATED,
+  },
+};
+
+sp_test_each(toc, members, members_test_t, members_tests) {
+  sp_mem_t mem = sp_test_arena(t);
+
+  ar_buf_t buf = sp_zero;
+  sp_io_dyn_mem_writer_init(mem, &buf);
+  ar_cstr(&buf, it->magic);
+  sp_carr_for(it->members, m) {
+    if (!it->members[m].name) break;
+    ar_header(&buf, it->members[m].name, sp_cstr_len(it->members[m].body));
+    ar_cstr(&buf, it->members[m].body);
+    ar_pad_even(&buf);
+  }
+
+  sp_str_t bytes = sp_io_dyn_mem_writer_as_str(&buf);
+  sp_io_reader_t reader = sp_zero;
+  sp_io_reader_from_mem(&reader, bytes.data, bytes.len - it->missing);
+
+  spn_ar_members_t members;
+  spn_err_t err = spn_ar_members_init(&members, &reader, mem);
+
+  sp_da(sp_str_t) found = sp_da_new(mem, sp_str_t);
+  sp_str_t member = sp_zero;
+  while (spn_ar_members_next(&members, &member)) {
+    sp_da_push(found, sp_str_copy(mem, member));
+  }
+  if (!err) {
+    err = members.err;
+  }
+  sp_expect_eq(t, err, it->expect.err);
+
+  if (!it->expect.err) {
+    sp_must_strs_eq(t, found, sp_da_size(found), it->expect.members);
+  }
+
+  return SP_OK;
+}

@@ -73,6 +73,7 @@
     "toc_magic": { "ref": "fs" },
     "toc_truncated": { "ref": "fs" },
     "toc_missing": { "ref": "fs" },
+    "toc_opaque": { "ref": "fs" },
     "fs_remove": { "ref": "fs" },
     "fs_read": { "ref": "fs" },
     "fs_write": { "ref": "fs" },
