@@ -2308,7 +2308,7 @@ void spn_tui_log_event(spn_tui_t* tui, spn_event_t* event) {
   }
 
   const spn_event_info_t* info = &spn_event_info[event->kind];
-  if (info->severity == SPN_EVENT_SEVERITY_INFO && info->verbosity > tui->verbosity) {
+  if (info->severity < SPN_EVENT_SEVERITY_ERROR && info->verbosity > tui->verbosity) {
     if (event->kind == SPN_EVENT_USER_LOG) {
       sp_da_push(tui->buffered_logs, ((spn_tui_buffered_log_t) {
         .pkg = sp_str_copy(tui->mem, event->pkg),
@@ -2323,7 +2323,15 @@ void spn_tui_log_event(spn_tui_t* tui, spn_event_t* event) {
   sp_tty_t* tty = &tui->journal;
   sp_str_t verb = sp_cstr_as_str(info->verb);
 
-  if (info->severity != SPN_EVENT_SEVERITY_INFO) {
+  if (info->severity == SPN_EVENT_SEVERITY_WARNING) {
+    write_event(tty, verb, sp_fmt_style_yellow, event_subject(event), render_event_detail(tui, mem, event));
+    render_event_extra(tty, event);
+    flush_writer(&tui->writer);
+    sp_mem_end_scratch(scratch);
+    return;
+  }
+
+  if (info->severity >= SPN_EVENT_SEVERITY_ERROR) {
     sp_da_for(tui->buffered_logs, it) {
       spn_tui_buffered_log_t* log = &tui->buffered_logs[it];
       write_event(tty, sp_str_lit(""), sp_fmt_style_green, log->pkg, log->message);

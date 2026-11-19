@@ -30,13 +30,19 @@ const c8* spn_event_name(spn_event_kind_t kind) {
 }
 
 static const c8* level_name(const spn_event_info_t* info) {
-  if (info->severity != SPN_EVENT_SEVERITY_INFO) {
-    return "error";
+  switch (info->severity) {
+    case SPN_EVENT_SEVERITY_INFO: {
+      return info->verbosity == SPN_VERBOSITY_DEBUG ? "debug" : "info";
+    }
+    case SPN_EVENT_SEVERITY_WARNING: {
+      return "warning";
+    }
+    case SPN_EVENT_SEVERITY_ERROR:
+    case SPN_EVENT_SEVERITY_FATAL: {
+      return "error";
+    }
   }
-  if (info->verbosity == SPN_VERBOSITY_DEBUG) {
-    return "debug";
-  }
-  return "info";
+  sp_unreachable_return("");
 }
 
 void spn_event_log_jsonl(sp_io_writer_t* json, spn_event_t* event) {
