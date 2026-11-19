@@ -519,6 +519,9 @@ spn_index_info_t spn_index_lower(spn_toml_loader_t* ctx, u32 at, spn_index_kind_
       } else if (!spn_git_url_valid(decl->url)) {
         spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "url");
       }
+      if (kind == SPN_INDEX_KIND_USER && format == SPN_INDEX_FORMAT_MANIFESTS && !has_rev) {
+        spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_MISSING_KEY, "rev");
+      }
       info.git.url = decl->url;
       info.git.rev = decl->rev;
       info.git.frozen = has_rev;

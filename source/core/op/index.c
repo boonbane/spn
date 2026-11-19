@@ -63,13 +63,22 @@ static spn_err_t repin(spn_op_t* op, spn_index_info_t* index) {
   return SPN_OK;
 }
 
+spn_err_t spn_repin_index_list(spn_op_t* op, sp_da(spn_index_info_t*) indexes) {
+  sp_da_for(indexes, it) {
+    if (spn_index_follows_lock(indexes[it])) {
+      spn_try(repin(op, indexes[it]));
+    }
+  }
+  return SPN_OK;
+}
+
 spn_err_t spn_sync_index_list(spn_op_t* op, sp_da(spn_index_info_t*) indexes, bool force) {
   spn_ctx_t* ctx = op->ctx;
   sp_da(job_t*) jobs = sp_da_new(ctx->mem, job_t*);
 
   sp_da_for(indexes, it) {
     spn_index_info_t* index = indexes[it];
-    if (spn_index_follows_lock(index) && (force || sp_str_empty(index->git.rev))) {
+    if (spn_index_follows_lock(index) && sp_str_empty(index->git.rev)) {
       spn_try(repin(op, index));
     }
     spn_index_plan_t plan = spn_index_plan(index, force);
@@ -208,6 +217,10 @@ static spn_err_t declare(spn_ctx_t* ctx, spn_index_info_t* index) {
     spn_toml_write_str(&out.base, index->git.url);
     sp_io_write_cstr(&out.base, "\nformat = ", SP_NULLPTR);
     spn_toml_write_str(&out.base, spn_index_format_to_str(index->format));
+    if (!sp_str_empty(index->git.rev)) {
+      sp_io_write_cstr(&out.base, "\nrev = ", SP_NULLPTR);
+      spn_toml_write_str(&out.base, index->git.rev);
+    }
     sp_io_write_c8(&out.base, '\n');
 
     sp_fs_create_parent_at(at);
@@ -249,6 +262,12 @@ spn_err_t spn_op_add_index(spn_op_t* op) {
   spn_try(spn_sync_index_list(op, fetched, true));
 
   index.format = spn_index_detect_format(&index);
+  if (request.global && spn_index_is_snapshot(&index) && spn_git_get_commit_full(ctx->heap, index.location.dir, sp_str_lit("HEAD"), &index.git.rev)) {
+    return spn_err_emit(ctx, (spn_err_union_t) {
+      .kind = SPN_ERR_INDEX_SYNC,
+      .index = { .name = name.str, .url = request.url },
+    });
+  }
   spn_try(declare(ctx, &index));
   spn_event_buffer_push(ctx->events, (spn_event_t) {
     .kind = SPN_EVENT_INDEX_ADDED,
