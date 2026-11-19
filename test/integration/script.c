@@ -88,6 +88,14 @@ static const command_test_t apis [] = {
     .args = { "build", "--target", "aarch64-windows-gnu" },
     .expect.exists = { target_exe("main", "aarch64-windows-gnu") },
   },
+  {
+    .name = "embed_cross_wasm32_wasi",
+    .project = "test/integration/fixtures/target/embed",
+    .copy = { "A.txt" },
+    .when.target = "wasm32-wasi-musl",
+    .args = { "build", "--target", "wasm32-wasi-musl" },
+    .expect.exists = { target_exe("main", "wasm32-wasi-musl") },
+  },
 };
 
 sp_test_each(script, api, command_test_t, apis) {

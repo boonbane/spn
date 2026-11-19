@@ -21,7 +21,7 @@ static spn_path_t sdk_root(spn_toolchain_catalog_t* catalog, spn_toolchain_suppo
 }
 
 static void bind_target(spn_toolchain_catalog_t* catalog, spn_toolchain_info_t* info, spn_toolchain_support_t support, spn_toolchain_target_t target) {
-  spn_toolchain_row_t row = { .triple = target.triple, .sanitizers = target.sanitizers };
+  spn_toolchain_row_t row = { .triple = target.triple, .spelling = target.spelling, .exceptions = target.exceptions, .sanitizers = target.sanitizers };
   if (!spn_arg_empty(target.sdk)) {
     row.sdk = spn_sdk_at(catalog->mem, target.triple, sdk_root(catalog, support, target.sdk));
     sp_da_push(info->rows, row);
@@ -88,11 +88,11 @@ static void push_hosted(spn_toolchain_info_t* info, spn_toolchain_catalog_t* cat
   static const spn_os_t hosted [] = { SPN_OS_LINUX, SPN_OS_MACOS, SPN_OS_WINDOWS };
   sp_carr_for(hosted, os) {
     const spn_arch_t* arches = SP_NULLPTR;
-    const spn_abi_t* abis = SP_NULLPTR;
     u32 num_arches = spn_os_archs(hosted[os], &arches);
-    u32 num_abis = spn_os_completions(hosted[os], &abis);
     bool own = hosted[os] == catalog->host.os;
     sp_for(arch, num_arches) {
+      const spn_abi_t* abis = SP_NULLPTR;
+      u32 num_abis = spn_os_completions(arches[arch], hosted[os], &abis);
       sp_for(abi, num_abis) {
         spn_toolchain_row_t row = { .triple = { arches[arch], hosted[os], abis[abi] } };
         if (own) {
@@ -107,7 +107,7 @@ static void push_hosted(spn_toolchain_info_t* info, spn_toolchain_catalog_t* cat
 }
 
 static void push_bare(spn_toolchain_info_t* info, spn_cc_driver_t driver, spn_triple_t host) {
-  if (!(spn_toolchain_driver_caps(driver) & SPN_CC_CAP_BARE) || spn_os_to_native_object_format(host.os) != SPN_OBJ_ELF) {
+  if (!(spn_toolchain_driver_caps(driver) & SPN_CC_CAP_BARE) || spn_triple_object_format(host) != SPN_OBJ_ELF) {
     return;
   }
   push_row(info, (spn_toolchain_row_t) { .triple = { host.arch, SPN_OS_FREESTANDING, SPN_ABI_BARE } });

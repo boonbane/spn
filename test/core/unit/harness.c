@@ -139,6 +139,7 @@ static void declare_target(sp_mem_t mem, si_pkg_info_t* manifest, const graph_ta
   decl->linker_script = gated_paths(mem, spec->linker_script, UNIT_TEST_MAX_STRS);
   decl->prebuilt = gated_prebuilt(mem, spec->shared, UNIT_TEST_MAX_PREBUILT);
   decl->embed = gated_embeds(mem, spec->embed, UNIT_TEST_MAX_STRS);
+  decl->cxx.exceptions = spec->exceptions;
 }
 
 static void declare_options(sp_mem_t mem, si_pkg_info_t* manifest, spn_resolved_pkg_t* resolved, const graph_pkg_t* spec) {
@@ -195,9 +196,10 @@ static spn_profile_info_t program_profile(units_t* u, const graph_t* g, const sp
     .standard = g->standard ? g->standard : SPN_C11,
     .mode = g->mode ? g->mode : SPN_MODE_DEBUG,
     .opt = g->opt,
+    .strip = g->strip,
     .sanitizers = g->sanitize ? 1u << g->sanitize : 0,
     .target = {
-      .arch = SPN_ARCH_X64,
+      .arch = g->arch ? g->arch : SPN_ARCH_X64,
       .os = g->os ? g->os : SPN_OS_LINUX,
       .abi = g->abi ? g->abi : (g->os == SPN_OS_MACOS ? SPN_ABI_NONE : SPN_ABI_GNU),
     },
@@ -206,6 +208,10 @@ static spn_profile_info_t program_profile(units_t* u, const graph_t* g, const sp
     .linking.runtime = g->runtime,
     .linking.libc = g->libc,
     .emit = g->emit,
+    .exceptions = {
+      .declared = g->exceptions[0],
+      .flags = strs(u->mem, g->exceptions, UNIT_TEST_MAX_STRS),
+    },
   };
   spn_triple_t triple = profile.target;
   profile.linker = spn_ld_native(profile.driver, triple);
@@ -306,7 +312,7 @@ units_t* units_new(sp_test_t* t, const graph_t* g) {
     spn_toolchain_decl_t decl = { .id = name.id, .name = name, .driver = SPN_CC_DRIVER_GCC, .host_row = g->catalog[it].host_row };
     sp_da_init(mem, decl.targets);
     if (!decl.host_row) {
-      sp_da_push(decl.targets, ((spn_toolchain_target_t) { .triple = profile.target }));
+      sp_da_push(decl.targets, ((spn_toolchain_target_t) { .triple = profile.target, .exceptions.declared = g->catalog[it].exceptions }));
     }
     sp_da_init(mem, decl.hosts);
     if (g->catalog[it].foreign) {

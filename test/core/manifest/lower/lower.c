@@ -82,7 +82,7 @@ typedef struct {
   gated_t deps [4];
   gated_t frameworks [4];
   embed_t embed [4];
-  spn_cxx_options_t cxx;
+  spn_cxx_decl_t cxx;
 } target_t;
 
 typedef struct {
@@ -142,6 +142,7 @@ typedef struct {
   gated_t standard [4];
   gated_t mode [4];
   gated_t opt [4];
+  gated_t strip [4];
   gated_t abi [4];
   spn_sanitizer_set_t sanitizers;
   bool sanitizers_set;
@@ -206,7 +207,7 @@ typedef struct {
     gated_t frameworks [4];
   } publish;
   stage_t stage [4];
-  issue_t issues [8];
+  issue_t issues [16];
   target_t libs [8];
   target_t exes [8];
   target_t tools [8];
@@ -422,7 +423,19 @@ static const test_t tests [] = {
         .name = "t",
         .linkages = { .static_lib = true },
         .source = { { "spum.cpp" } },
-        .cxx = { .standard = SPN_CXX14, .no_exceptions = true, .no_rtti = true },
+        .cxx = { .standard = SPN_CXX14, .exceptions = SPN_CXX_EXCEPTIONS_OFF, .no_rtti = true },
+      }
+    }
+  },
+  {
+    .name = "cxx_exceptions",
+    .manifest = "cxx_exceptions",
+    .libs = {
+      {
+        .name = "t",
+        .linkages = { .static_lib = true },
+        .source = { { "spum.cpp" } },
+        .cxx = { .exceptions = SPN_CXX_EXCEPTIONS_ON },
       }
     }
   },
@@ -1205,6 +1218,7 @@ static const test_t tests [] = {
         .standard = { { "c99" } },
         .mode = { { "release" } },
         .opt = { { "3" } },
+        .strip = { { "symbols" } },
         .sanitizers = SPN_SANITIZER_ADDRESS | SPN_SANITIZER_UNDEFINED,
         .sanitizers_set = true,
         .emit = { .shared = true, .static_lib = true },
@@ -1249,6 +1263,7 @@ static const test_t tests [] = {
       { SPN_ERR_CODEGEN_INVALID, "profile[0].standard[0].value" },
       { SPN_ERR_CODEGEN_INVALID, "profile[0].mode[0].value" },
       { SPN_ERR_CODEGEN_INVALID, "profile[0].opt[0].value" },
+      { SPN_ERR_CODEGEN_INVALID, "profile[0].strip[0].value" },
       { SPN_ERR_CODEGEN_INVALID, "profile[0].abi[0].value" },
     },
   },
@@ -2033,7 +2048,7 @@ static sp_err_t check_targets(sp_test_t* t, si_pkg_info_t* pkg, const target_t* 
       sp_expect_str_eq_c(t, spn_when_to_str(sp_test_arena(t), &actual->when), expected->when ? expected->when : "always");
     }
     sp_expect_eq(t, (u32)arr[i].cxx.standard, (u32)info->cxx.standard);
-    sp_expect_eq(t, arr[i].cxx.no_exceptions, info->cxx.no_exceptions);
+    sp_expect_eq(t, (u32)arr[i].cxx.exceptions, (u32)info->cxx.exceptions);
     sp_expect_eq(t, arr[i].cxx.no_rtti, info->cxx.no_rtti);
   }
   return SP_OK;
@@ -2211,6 +2226,7 @@ sp_test_each(lower, cases, test_t, tests, .setup = spn_test_ctx_setup) {
     check_gated(t, p->standard, expected.standard);
     check_gated(t, p->mode, expected.mode);
     check_gated(t, p->opt, expected.opt);
+    check_gated(t, p->strip, expected.strip);
     check_gated(t, p->abi, expected.abi);
     sp_expect_eq(t, expected.sanitizers, p->sanitizers);
     sp_expect_eq(t, expected.sanitizers_set, p->sanitizers_set);

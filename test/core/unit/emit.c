@@ -5,6 +5,7 @@ typedef struct {
   const c8* link;
   const c8* implib;
   bool exports;
+  bool import_undefined;
 } expect_t;
 
 typedef struct {
@@ -40,6 +41,17 @@ static const test_t tests [] = {
     },
     .kind = SPN_TARGET_KIND_EXE,
     .expect = { .link = "A.elf" },
+  },
+  {
+    .name = "exe_on_freestanding_wasm_is_a_module",
+    .graph = {
+      .arch = SPN_ARCH_WASM32,
+      .os = SPN_OS_FREESTANDING,
+      .abi = SPN_ABI_BARE,
+      .pkgs = { { .name = "P", .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "a.c" } } } } },
+    },
+    .kind = SPN_TARGET_KIND_EXE,
+    .expect = { .link = "A.wasm" },
   },
   {
     .name = "static_lib_archives",
@@ -175,7 +187,7 @@ static const test_t tests [] = {
     .name = "build_script_is_a_reactor",
     .graph.pkgs = { { .name = "P", .targets = { { "A", .kind = SPN_TARGET_KIND_BUILD_METAPROGRAM, .source = { "a.c" } } } } },
     .kind = SPN_TARGET_KIND_BUILD_METAPROGRAM,
-    .expect = { .link = "A.wasm", .exports = true },
+    .expect = { .link = "A.wasm", .exports = true, .import_undefined = true },
   },
 };
 
@@ -201,5 +213,6 @@ sp_test_each(unit_emit, artifact, test_t, tests, .setup = spn_test_ctx_setup, .t
   sp_expect_str_eq_c(t, emit->link.implib, it->expect.implib ? it->expect.implib : "");
   sp_expect_eq(t, it->expect.link != SP_NULLPTR, !sp_opt_is_null(emit->link.plan));
   sp_expect_eq(t, it->expect.exports, !sp_opt_is_null(emit->link.exports));
+  sp_expect_eq(t, it->expect.import_undefined, unit->link.cc.import_undefined);
   return SP_OK;
 }

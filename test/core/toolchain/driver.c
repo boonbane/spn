@@ -3,24 +3,6 @@
 typedef struct {
   const c8* name;
   spn_cc_driver_t driver;
-  spn_cc_cap_set_t expect;
-} caps_t;
-
-static const caps_t caps_tests [] = {
-  { "gcc",   SPN_CC_DRIVER_GCC,   SPN_CC_CAP_FUSE_LD | SPN_CC_CAP_BARE | SPN_CC_CAP_GNU_RUNTIME | SPN_CC_CAP_HOST_SYSROOT },
-  { "clang", SPN_CC_DRIVER_CLANG, SPN_CC_CAP_TARGET_TRIPLE | SPN_CC_CAP_LLVM_TRIPLE | SPN_CC_CAP_CLANG_FRONTEND | SPN_CC_CAP_FUSE_LD | SPN_CC_CAP_GNU_RUNTIME | SPN_CC_CAP_HOST_SYSROOT },
-  { "zig",   SPN_CC_DRIVER_ZIG,   SPN_CC_CAP_TARGET_TRIPLE | SPN_CC_CAP_CLANG_FRONTEND | SPN_CC_CAP_CODEVIEW | SPN_CC_CAP_LIBC_FILE | SPN_CC_CAP_DEFAULT_UBSAN | SPN_CC_CAP_BARE | SPN_CC_CAP_TRIPLE_MIN_OS },
-  { "msvc",  SPN_CC_DRIVER_MSVC,  0 },
-};
-
-sp_test_each(driver, caps, caps_t, caps_tests) {
-  sp_expect_eq(t, it->expect, spn_toolchain_driver_caps(it->driver));
-  return SP_OK;
-}
-
-typedef struct {
-  const c8* name;
-  spn_cc_driver_t driver;
   spn_triple_t target;
   bool expect;
 } composes_t;

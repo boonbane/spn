@@ -155,7 +155,7 @@ spn_cc_compile_plan_t spn_msvc_render_compile(sp_mem_t mem, const spn_cc_t* tool
     spn_cc_push_fmt(mem, invocation, "/D{}", sp_fmt_str(compile->define[it]));
   }
   if (lang == SPN_LANG_CXX) {
-    if (!compile->cxx.no_exceptions) {
+    if (compile->cxx.exceptions) {
       spn_cc_push_c(mem, invocation, "/EHsc");
     }
     if (compile->cxx.no_rtti) {

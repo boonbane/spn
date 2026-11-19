@@ -23,6 +23,7 @@ spn_mode_t spn_mode_from_str(sp_str_t str);
 sp_str_t spn_mode_to_str(spn_mode_t mode);
 spn_opt_level_t spn_opt_level_from_str(sp_str_t str);
 sp_str_t spn_opt_level_to_str(spn_opt_level_t level);
+spn_strip_t spn_strip_from_str(sp_str_t str);
 spn_win_subsystem_t spn_win_subsystem_from_str(sp_str_t str);
 sp_str_t spn_win_subsystem_to_str(spn_win_subsystem_t subsystem);
 spn_tree_t spn_tree_from_str(sp_str_t str);
@@ -49,6 +50,7 @@ sp_str_t spn_linkage_requester_to_str(spn_linkage_requester_t requester);
 sp_str_t spn_git_route_to_str(spn_git_route_t route);
 sp_str_t spn_linking_refusal_to_str(spn_linking_refusal_t refusal);
 sp_str_t spn_unpack_reason_to_str(spn_unpack_reason_t reason);
+sp_str_t spn_triple_segment_to_str(spn_triple_segment_t segment);
 sp_str_t spn_cc_feature_to_str(spn_cc_feature_t feature);
 
 spn_cc_kind_t spn_cc_kind_from_str(sp_str_t str);

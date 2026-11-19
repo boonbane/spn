@@ -117,6 +117,7 @@ typedef struct {
   spn_opt_level_t opt;
   spn_sanitizer_set_t sanitizers;
   bool sanitizers_set;
+  sp_str_t target;
   spn_triple_t triple;
 } spn_profile_override_t;
 

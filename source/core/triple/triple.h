@@ -13,6 +13,12 @@ typedef enum {
   SPN_TRIPLE_ENTRY_FOREIGN_ABI,
 } spn_triple_entry_t;
 
+typedef struct {
+  spn_triple_t triple;
+  spn_triple_segment_t invalid;
+  sp_str_t text;
+} spn_triple_scan_t;
+
 spn_arch_t         spn_arch_from_str(sp_str_t str);
 sp_str_t           spn_arch_to_str(spn_arch_t arch);
 spn_os_t           spn_os_from_str(sp_str_t str);
@@ -20,9 +26,10 @@ sp_str_t           spn_os_to_str(spn_os_t os);
 spn_abi_t          spn_abi_from_str(sp_str_t str);
 sp_str_t           spn_abi_to_str(spn_abi_t abi);
 u32                spn_os_archs(spn_os_t os, const spn_arch_t** archs);
-u32                spn_os_abis(spn_os_t os, const spn_abi_t** abis);
-u32                spn_os_completions(spn_os_t os, const spn_abi_t** abis);
-spn_obj_format_t   spn_os_to_native_object_format(spn_os_t os);
+u32                spn_os_abis(spn_arch_t arch, spn_os_t os, const spn_abi_t** abis);
+u32                spn_os_completions(spn_arch_t arch, spn_os_t os, const spn_abi_t** abis);
+spn_obj_format_t   spn_triple_object_format(spn_triple_t triple);
+spn_triple_scan_t  spn_triple_scan(sp_str_t str);
 spn_err_t          spn_triple_parse(sp_str_t str, spn_triple_t* triple);
 sp_str_t           spn_triple_to_str(sp_mem_t mem, spn_triple_t triple);
 bool               spn_triple_equal(spn_triple_t a, spn_triple_t b);

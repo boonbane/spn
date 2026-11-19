@@ -61,6 +61,14 @@ static const test_t tests [] = {
     },
   },
   {
+    .name = "target_with_unknown_abi",
+    .project = "test/integration/fixtures/profile/override",
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build", .args = { "--target", "x86_64-windows-A" }, .rc = 1 } },
+      { .kind = ACTION_VERIFY_RESULT, .verify_result = { .err = SPN_ERR_TRIPLE_INVALID } },
+    },
+  },
+  {
     .name = "freestanding_exe_has_no_interp",
     .project = "test/integration/fixtures/profile/freestanding",
     .copy = { "a.c" },

@@ -114,6 +114,7 @@ set(SPN_CORE_SOURCES
   util/sp/sp.c
   util/sp/sp_cli.c
   util/sp_elf/sp_elf.c
+  util/sp_wasm/sp_wasm.c
   util/sp/sp_glob.c
   util/sp/sp_msvc.c
   util/sp/sp_math.c

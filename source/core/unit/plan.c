@@ -187,7 +187,7 @@ static spn_err_t lower_target(spn_units_t* u, spn_target_unit_t* unit) {
     }
     case SPN_TARGET_KIND_LIB: {
       unit->install = pkg->paths.lib;
-      kind = spn_os_to_native_object_format(profile->target.os) == SPN_OBJ_WASM ? SPN_CC_OUTPUT_REACTOR : SPN_CC_OUTPUT_SHARED_LIB;
+      kind = spn_triple_object_format(profile->target) == SPN_OBJ_WASM ? SPN_CC_OUTPUT_REACTOR : SPN_CC_OUTPUT_SHARED_LIB;
       links = unit->lib_kind == SPN_LIB_KIND_SHARED || unit->products.shared;
       archives = unit->products.static_lib;
       break;
@@ -217,6 +217,8 @@ static spn_err_t lower_target(spn_units_t* u, spn_target_unit_t* unit) {
     .cc = {
       .kind = kind,
       .lang = is_any_object_cxx(unit->objects) ? SPN_LANG_CXX : SPN_LANG_C,
+      .exceptions = unit->exceptions,
+      .import_undefined = build->script,
       .min_os = target->info->macos.min_os,
       .subsystem = target->info->windows.subsystem,
     },
@@ -252,6 +254,7 @@ static spn_err_t lower_target(spn_units_t* u, spn_target_unit_t* unit) {
             if (is_any_object_cxx(lib->objects)) {
               link->cc.lang = SPN_LANG_CXX;
             }
+            link->cc.exceptions = link->cc.exceptions || lib->exceptions;
             si_da_for_value(lib->requires, require) {
               si_da_push(scratch.mem, requires, require);
             }
@@ -271,8 +274,12 @@ static spn_err_t lower_target(spn_units_t* u, spn_target_unit_t* unit) {
   push_requires(mem, &link->cc.frameworks, requires, SPN_REQUIREMENT_FRAMEWORK);
 
   spn_cc_compile_t compile = {
-    .cxx = target->info->cxx,
-    .pic = target->info->kind == SPN_TARGET_KIND_LIB && spn_ld_dynamic(profile->target) && spn_os_to_native_object_format(profile->target.os) != SPN_OBJ_COFF,
+    .cxx = {
+      .standard = target->info->cxx.standard,
+      .exceptions = unit->exceptions,
+      .no_rtti = target->info->cxx.no_rtti,
+    },
+    .pic = target->info->kind == SPN_TARGET_KIND_LIB && spn_ld_dynamic(profile->target) && spn_triple_object_format(profile->target) != SPN_OBJ_COFF,
   };
   if (profile->target.os == SPN_OS_MACOS) {
     compile.min_os = link->cc.min_os;
@@ -362,7 +369,7 @@ static spn_err_t lower_target(spn_units_t* u, spn_target_unit_t* unit) {
       switch (triple.os) {
         case SPN_OS_WINDOWS:      emit->link.output = sp_fmt(mem, "{}.exe", sp_fmt_str(name)).value; break;
         case SPN_OS_WASI:         emit->link.output = sp_fmt(mem, "{}.wasm", sp_fmt_str(name)).value; break;
-        case SPN_OS_FREESTANDING: emit->link.output = sp_fmt(mem, "{}.elf", sp_fmt_str(name)).value; break;
+        case SPN_OS_FREESTANDING: emit->link.output = sp_fmt(mem, spn_triple_object_format(triple) == SPN_OBJ_WASM ? "{}.wasm" : "{}.elf", sp_fmt_str(name)).value; break;
         case SPN_OS_LINUX:
         case SPN_OS_MACOS:        emit->link.output = name; break;
         case SPN_OS_NONE:         sp_unreachable_case();
@@ -516,11 +523,31 @@ static spn_err_t plan_new(spn_units_t* u, sp_mem_t scratch, spn_pkg_unit_t* root
         }
       }
     }
-    if (is_any_object_cxx(target->objects) && spn_arg_empty(target->pkg->build->toolchain->cc.cxx.program)) {
-      return spn_err_emit(u->ctx, (spn_err_union_t) {
-        .kind = SPN_ERR_TOOLCHAIN_NO_CXX,
-        .toolchain = { .name = target->pkg->build->toolchain->info->name.str },
-      });
+    if (is_any_object_cxx(target->objects)) {
+      spn_build_unit_t* build = target->pkg->build;
+      if (spn_arg_empty(build->toolchain->cc.cxx.program)) {
+        return spn_err_emit(u->ctx, (spn_err_union_t) {
+          .kind = SPN_ERR_TOOLCHAIN_NO_CXX,
+          .toolchain = { .name = build->toolchain->info->name.str },
+        });
+      }
+      spn_cxx_exceptions_t exceptions = target->target->info->cxx.exceptions;
+      bool wasm = spn_triple_object_format(build->profile.target) == SPN_OBJ_WASM;
+      target->exceptions = wasm ? exceptions == SPN_CXX_EXCEPTIONS_ON : exceptions != SPN_CXX_EXCEPTIONS_OFF;
+      if (wasm && target->exceptions && !build->profile.exceptions.declared) {
+        return spn_err_emit(u->ctx, (spn_err_union_t) {
+          .kind = SPN_ERR_COMPILER_FEATURE_UNSUPPORTED,
+          .compiler = {
+            .toolchain = build->toolchain->info->name.str,
+            .target = build->profile.target,
+            .host = u->ctx->host,
+            .feature = SPN_CC_FEATURE_EXCEPTIONS,
+            .pkg = target->pkg->pkg.manifest->name.str,
+            .name = target->target->info->name.str,
+            .candidates = spn_toolchain_exceptions_candidates(u->ctx->events->mem, &u->ctx->catalog, build->profile.target),
+          },
+        });
+      }
     }
     if (sp_da_empty(target->objects)) {
       si_da_clear(target->requires);
@@ -571,7 +598,7 @@ static spn_err_t plan_new(spn_units_t* u, sp_mem_t scratch, spn_pkg_unit_t* root
       continue;
     }
     const spn_profile_info_t* profile = &target->pkg->build->profile;
-    bool image = spn_os_to_native_object_format(profile->target.os) == SPN_OBJ_WASM || spn_ld_loader(profile->target, profile->linking);
+    bool image = spn_triple_object_format(profile->target) == SPN_OBJ_WASM || spn_ld_loader(profile->target, profile->linking);
     spn_linkage_set_t declared = target->target->info->linkages;
     target->products = (spn_linkage_set_t) {
       .static_lib = declared.static_lib && profile->emit.static_lib,

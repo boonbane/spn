@@ -37,8 +37,14 @@ typedef struct {
   spn_c_standard_t standard;
   spn_mode_t mode;
   spn_opt_level_t opt;
+  spn_strip_t strip;
   spn_sanitizer_set_t sanitizers;
   const c8* sdk;
+  const c8* spelling;
+  struct {
+    const c8* flags [4];
+    const c8* link_flags [4];
+  } exceptions;
   const c8* bin;
   const c8* tools;
   const c8* atl;

@@ -71,8 +71,12 @@ static spn_err_t setup_local(spn_toolchain_store_t* store, spn_toolchain_unit_t*
   sp_tm_timer_t timer = sp_tm_start_timer();
 
   unit->cc = cc_toolchain(toolchain, toolchain->compiler, toolchain->cxx, toolchain->archiver);
-  spn_try(spn_toolchain_probe(&unit->cc, store->roots, spn_search_rules(spn.host.os), sp_env_get(spn.env, sp_str_lit("PATH")), &store->probes, spn.mem, &unit->identity));
+  sp_hash_t programs = sp_zero;
+  spn_try(spn_toolchain_probe(&unit->cc, store->roots, spn_search_rules(spn.host.os), sp_env_get(spn.env, sp_str_lit("PATH")), &store->probes, spn.mem, &programs));
   spn_probe_cache_flush(&store->probes);
+  sp_hash_t identity [] = { programs, spn_digest_hash_str(toolchain->version) };
+  unit->identity = spn_digest_hash_combine(identity, sp_carr_len(identity));
+  unit->version = toolchain->version;
 
   spn_event_buffer_push(spn.events, (spn_event_t) {
     .kind = SPN_EVENT_SYNC_PACKAGE,
@@ -82,15 +86,6 @@ static spn_err_t setup_local(spn_toolchain_store_t* store, spn_toolchain_unit_t*
     }
   });
   return SPN_OK;
-}
-
-static spn_wasi_spelling_t wasi_spelling(const spn_path_roots_t* roots, sp_mem_t mem, const spn_toolchain_info_t* toolchain) {
-  sp_da_for(toolchain->rows, it) {
-    if (toolchain->rows[it].triple.os == SPN_OS_WASI) {
-      return spn_sdk_wasi_spelling(roots, mem, &toolchain->rows[it].sdk);
-    }
-  }
-  return SPN_WASI_SPELLING_WASI;
 }
 
 static spn_err_t setup_artifact(spn_toolchain_store_t* store, spn_toolchain_unit_t* unit, sp_atomic_s32_t* cancelled) {
@@ -250,7 +245,6 @@ spn_err_t spn_sync_toolchain(spn_toolchain_store_t* store, spn_toolchain_unit_t*
     }
   }
 
-  unit->cc.wasi = wasi_spelling(store->roots, spn.mem, unit->info);
   if (unit->info->driver == SPN_CC_DRIVER_ZIG) {
     sp_assert(unit->identity);
     sp_str_t id = sp_fmt(spn.mem, "{:0>16x}", sp_fmt_uint(unit->identity)).value;
@@ -479,7 +473,6 @@ static spn_err_t sync_jobs(spn_op_t* op, sp_mem_t mem, bool* reresolve) {
 
   spn_thread_pool_wait(&pool);
   spn_thread_pool_deinit(&pool);
-  u64 elapsed = sp_tm_read_timer(&timer);
 
   if (spn_op_cancelled(op)) {
     return SPN_ERR_CANCELLED;
@@ -550,11 +543,25 @@ static spn_err_t sync_jobs(spn_op_t* op, sp_mem_t mem, bool* reresolve) {
     return SPN_OK;
   }
 
+  bool scripted = false;
+  sp_ht_for_kv(session->resolve, it) {
+    si_om_for_each(it.val->manifest->targets, target) {
+      scripted = scripted || target->kind == SPN_TARGET_KIND_BUILD_METAPROGRAM || target->kind == SPN_TARGET_KIND_CONFIGURE_METAPROGRAM;
+    }
+  }
+  if (scripted) {
+    spn_try(spn_session_add_metaprogram(session));
+    spn_toolchain_unit_t* toolchain = session->builds.metaprogram->toolchain;
+    if (toolchain != session->builds.program->toolchain) {
+      spn_try(spn_sync_toolchain(&spn.caches.toolchains, toolchain, &op->cancelled));
+    }
+  }
+
   spn_event_buffer_push(spn.events, (spn_event_t) {
     .kind = SPN_EVENT_SYNC_END,
     .sync_end = {
       .num_synced = si_da_size(packages),
-      .time = elapsed,
+      .time = sp_tm_read_timer(&timer),
     }});
 
   return SPN_OK;

@@ -18,7 +18,7 @@ typedef enum {
 
 typedef struct {
   spn_cxx_standard_t standard;
-  bool no_exceptions;
+  bool exceptions;
   bool no_rtti;
 } spn_cxx_options_t;
 
@@ -35,7 +35,6 @@ typedef struct {
   spn_toolchain_launcher_t archiver;
   sp_da(sp_str_t) link_args;
   spn_ar_driver_t archiver_driver;
-  spn_wasi_spelling_t wasi;
   spn_path_t cache;
 } spn_cc_t;
 
@@ -87,6 +86,8 @@ typedef struct {
 typedef struct {
   spn_lang_t lang;
   spn_cc_output_kind_t kind;
+  bool exceptions;
+  bool import_undefined;
   si_da(sp_str_t) system_libs;
   si_da(sp_str_t) frameworks;
   si_da(sp_str_t) args;

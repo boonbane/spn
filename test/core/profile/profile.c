@@ -46,12 +46,14 @@ typedef struct {
   bool emit_set;
   bool static_deps;
   bool static_deps_set;
+  candidate_t strip [2];
 } decl_t;
 
 typedef struct {
   const c8* name;
   const c8* toolchain;
   spn_mode_t mode;
+  const c8* target;
   spn_os_t os;
   spn_arch_t arch;
   spn_abi_t abi;
@@ -66,6 +68,7 @@ typedef struct {
   spn_c_standard_t standard;
   spn_mode_t mode;
   spn_opt_level_t opt;
+  spn_strip_t strip;
   bool targeted;
   spn_linkage_t demand;
   spn_linkage_set_t emit;
@@ -131,6 +134,42 @@ static const test_t tests [] = {
       .linking.linkage = SPN_LIB_KIND_STATIC,
       .toolchain = "gcc",
       .mode = SPN_MODE_RELEASE,
+    },
+  },
+  {
+    .name = "debug_strips_nothing",
+    .host = PROFILE_HOST_LINUX_GNU,
+    .abi = SPN_ABI_MUSL,
+    .expect = {
+      .target = { SPN_ARCH_X64, SPN_OS_LINUX },
+      .linking.linkage = SPN_LIB_KIND_STATIC,
+      .mode = SPN_MODE_DEBUG,
+      .strip = SPN_STRIP_NONE,
+    },
+  },
+  {
+    .name = "release_strips_debuginfo",
+    .overrides = { .mode = SPN_MODE_RELEASE },
+    .host = PROFILE_HOST_LINUX_GNU,
+    .abi = SPN_ABI_MUSL,
+    .expect = {
+      .target = { SPN_ARCH_X64, SPN_OS_LINUX },
+      .linking.linkage = SPN_LIB_KIND_STATIC,
+      .mode = SPN_MODE_RELEASE,
+      .strip = SPN_STRIP_DEBUGINFO,
+    },
+  },
+  {
+    .name = "explicit_strip_beats_release_default",
+    .derived = { .name = "release", .strip = { { "none" } } },
+    .overrides = { .mode = SPN_MODE_RELEASE },
+    .host = PROFILE_HOST_LINUX_GNU,
+    .abi = SPN_ABI_MUSL,
+    .expect = {
+      .target = { SPN_ARCH_X64, SPN_OS_LINUX },
+      .linking.linkage = SPN_LIB_KIND_STATIC,
+      .mode = SPN_MODE_RELEASE,
+      .strip = SPN_STRIP_NONE,
     },
   },
   {
@@ -600,6 +639,7 @@ static const test_t tests [] = {
       .opt = { { "3", { { "os", "linux" } } } },
       .static_deps = true,
       .static_deps_set = true,
+      .strip = { { "symbols", { { "os", "linux" } } } },
     },
     .overrides = { .name = "fast" },
     .host = PROFILE_HOST_LINUX_GNU,
@@ -613,6 +653,7 @@ static const test_t tests [] = {
       .standard = SPN_C99,
       .mode = SPN_MODE_RELEASE,
       .opt = SPN_OPT_LEVEL_3,
+      .strip = SPN_STRIP_SYMBOLS,
       .targeted = true,
     },
   },
@@ -633,6 +674,16 @@ static const test_t tests [] = {
     .overrides = { .os = SPN_OS_MACOS, .abi = SPN_ABI_GNU },
     .host = PROFILE_HOST_LINUX_GNU,
     .expect = { .err = SPN_ERR_PROFILE_ABI },
+  },
+  {
+    .name = "abi_override_beats_target_string",
+    .overrides = { .target = "aarch64-linux-musl", .abi = SPN_ABI_GNU },
+    .host = PROFILE_HOST_LINUX_GNU,
+    .expect = {
+      .target = { SPN_ARCH_ARM64, SPN_OS_LINUX, SPN_ABI_GNU },
+      .linking.linkage = SPN_LIB_KIND_SHARED,
+      .targeted = true,
+    },
   },
   {
     .name = "explicit_shared_runtime_survives",
@@ -915,6 +966,7 @@ static spn_profile_decl_t desc_to_decl(sp_mem_t mem, const decl_t* d) {
     .emit_set = d->emit_set,
     .static_deps = d->static_deps,
     .static_deps_set = d->static_deps_set,
+    .strip = candidates(mem, d->strip),
   };
 }
 
@@ -923,6 +975,7 @@ static spn_profile_override_t desc_to_override(const override_t* d) {
     .name = d->name ? sp_cstr_as_str(d->name) : (sp_str_t) sp_zero,
     .toolchain = d->toolchain ? sp_cstr_as_str(d->toolchain) : (sp_str_t) sp_zero,
     .mode = d->mode,
+    .target = sp_cstr_as_str(d->target),
     .triple = { .arch = d->arch, .os = d->os, .abi = d->abi },
   };
 }
@@ -974,6 +1027,9 @@ sp_test_each(profile, resolve, test_t, tests, .setup = spn_test_ctx_setup) {
   }
   if (it->expect.opt) {
     sp_expect_eq(t, (u32)it->expect.opt, (u32)result.opt);
+  }
+  if (it->expect.strip) {
+    sp_expect_eq(t, (u32)it->expect.strip, (u32)result.strip);
   }
 
   sp_expect_eq(t, (u32)it->expect.demand, (u32)result.demand);

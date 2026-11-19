@@ -18,10 +18,12 @@ static const test_t tests [] = {
   { .name = "libc_changes_fingerprint",         .a = { .libc = SPN_RUNTIME_STATIC },                      .b = { .libc = SPN_RUNTIME_SHARED } },
   { .name = "mode_changes_fingerprint",         .a = { .mode = SPN_MODE_DEBUG },                          .b = { .mode = SPN_MODE_RELEASE } },
   { .name = "opt_level_changes_fingerprint",    .a = { .opt = SPN_OPT_LEVEL_0 },                          .b = { .opt = SPN_OPT_LEVEL_2 } },
+  { .name = "strip_changes_fingerprint",        .a = { .strip = SPN_STRIP_NONE },                         .b = { .strip = SPN_STRIP_DEBUGINFO } },
   { .name = "standard_changes_fingerprint",     .a = { .standard = SPN_C11 },                             .b = { .standard = SPN_C99 } },
   { .name = "sanitizer_changes_fingerprint",    .a = sp_zero,                                             .b = { .sanitize = SPN_SANITIZER_ADDRESS } },
   { .name = "compiler_program_changes_fingerprint", .a = { .cc = "cc" },                                  .b = { .cc = "gcc" } },
   { .name = "link_args_change_fingerprint",     .a = sp_zero,                                             .b = { .link_args = { "-fuse-ld=lld" } } },
+  { .name = "exception_flags_change_fingerprint", .a = sp_zero,                                           .b = { .exceptions = { "-fA" } } },
   // Default option values ride the manifest; only a non-default value is identity
   {
     .name = "default_option_is_inert",

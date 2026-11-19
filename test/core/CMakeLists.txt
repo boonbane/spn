@@ -138,6 +138,7 @@ add_executable(core
   toolchain/driver.c
   toolchain/fetch.c
   toolchain/linker.c
+  toolchain/metaprogram.c
   toolchain/mirrors.c
   toolchain/parse.c
   toolchain/probe.c
@@ -152,7 +153,6 @@ add_executable(core
   toolchain/sdk_root.c
   toolchain/sdk_serve.c
   toolchain/sdk_shell.c
-  toolchain/sdk_wasi.c
   toolchain/search.c
   toolchain/select.c
   toolchain/sha256.c
@@ -165,6 +165,7 @@ add_executable(core
   unit/edges.c
   unit/emit.c
   unit/errors.c
+  unit/exceptions.c
   unit/fingerprint.c
   unit/host.c
   unit/includes.c
@@ -226,7 +227,6 @@ set_source_files_properties(
   toolchain/sdk_root.c
   toolchain/sdk_serve.c
   toolchain/sdk_shell.c
-  toolchain/sdk_wasi.c
   toolchain/search.c
   toolchain/provision.c
   toolchain/select.c

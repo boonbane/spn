@@ -28,6 +28,14 @@ typedef struct {
 } spn_triple_t;
 
 typedef enum {
+  SPN_TRIPLE_SEGMENT_NONE,
+  SPN_TRIPLE_SEGMENT_ARCH,
+  SPN_TRIPLE_SEGMENT_OS,
+  SPN_TRIPLE_SEGMENT_ABI,
+  SPN_TRIPLE_SEGMENT_EXTRA,
+} spn_triple_segment_t;
+
+typedef enum {
   SPN_CC_DRIVER_NONE,
   SPN_CC_DRIVER_GCC,
   SPN_CC_DRIVER_CLANG,
@@ -74,6 +82,7 @@ typedef enum {
   SPN_CC_FEATURE_ARCHIVE,
   SPN_CC_FEATURE_FRAMEWORKS,
   SPN_CC_FEATURE_LINKER_SCRIPT,
+  SPN_CC_FEATURE_EXCEPTIONS,
 } spn_cc_feature_t;
 
 typedef enum {
@@ -197,6 +206,13 @@ typedef enum {
   SPN_GNU99,
   SPN_GNU89,
 } spn_c_standard_t;
+
+typedef enum {
+  SPN_STRIP_UNSET,
+  SPN_STRIP_NONE,
+  SPN_STRIP_DEBUGINFO,
+  SPN_STRIP_SYMBOLS,
+} spn_strip_t;
 
 typedef enum {
   SPN_CXX_STANDARD_NONE,

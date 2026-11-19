@@ -25,6 +25,8 @@ typedef enum {
   SPN_CC_CAP_GNU_RUNTIME    = 1 << 8,
   SPN_CC_CAP_TRIPLE_MIN_OS  = 1 << 9,
   SPN_CC_CAP_HOST_SYSROOT   = 1 << 10,
+  SPN_CC_CAP_IMPORT_SYMBOLS = 1 << 11,
+  SPN_CC_CAP_STRIP_ALL      = 1 << 12,
 } spn_cc_cap_t;
 
 typedef u32 spn_cc_cap_set_t;
@@ -51,11 +53,6 @@ typedef enum {
   SPN_SDK_MSVC,
   SPN_SDK_HOST,
 } spn_sdk_kind_t;
-
-typedef enum {
-  SPN_WASI_SPELLING_WASI,
-  SPN_WASI_SPELLING_WASIP1,
-} spn_wasi_spelling_t;
 
 typedef struct {
   spn_arch_t arch;
@@ -146,14 +143,24 @@ typedef struct {
 } spn_toolchain_host_t;
 
 typedef struct {
+  bool declared;
+  sp_da(sp_str_t) flags;
+  sp_da(sp_str_t) link_flags;
+} spn_toolchain_exceptions_t;
+
+typedef struct {
   spn_triple_t triple;
   spn_arg_t sdk;
+  sp_str_t spelling;
+  spn_toolchain_exceptions_t exceptions;
   spn_sanitizer_set_t sanitizers;
 } spn_toolchain_target_t;
 
 typedef struct {
   spn_triple_t triple;
   spn_sdk_t sdk;
+  sp_str_t spelling;
+  spn_toolchain_exceptions_t exceptions;
   spn_sanitizer_set_t sanitizers;
 } spn_toolchain_row_t;
 

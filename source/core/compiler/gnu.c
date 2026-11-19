@@ -71,14 +71,6 @@ static bool is_os_version_present(spn_os_version_t version) {
 // clang writes CodeView for the msvc abi and DWARF for mingw; zig writes
 // CodeView for every Windows target. Only CodeView records the command line
 // and object name, and only clang 15 and later knows the flag that drops them
-static sp_str_t render_wasi(spn_wasi_spelling_t spelling) {
-  switch (spelling) {
-    case SPN_WASI_SPELLING_WASI: return sp_str_lit("wasm32-wasi");
-    case SPN_WASI_SPELLING_WASIP1: return sp_str_lit("wasm32-wasip1");
-  }
-  sp_unreachable_return(sp_str_lit(""));
-}
-
 static sp_str_t render_target(sp_mem_t mem, const spn_cc_t* toolchain, spn_triple_t triple, spn_os_version_t min_os) {
   switch (triple.os) {
     case SPN_OS_MACOS: {
@@ -90,13 +82,16 @@ static sp_str_t render_target(sp_mem_t mem, const spn_cc_t* toolchain, spn_tripl
       return target;
     }
     case SPN_OS_WASI: {
-      return render_wasi(toolchain->wasi);
+      return sp_str_lit("wasm32-wasi");
     }
     case SPN_OS_FREESTANDING: {
-      if (spn_cc_has(toolchain, SPN_CC_CAP_LLVM_TRIPLE)) {
-        return sp_fmt(mem, "{}-none-elf", sp_fmt_str(spn_arch_to_str(triple.arch))).value;
+      if (!spn_cc_has(toolchain, SPN_CC_CAP_LLVM_TRIPLE)) {
+        return spn_triple_to_str(mem, triple);
       }
-      return spn_triple_to_str(mem, triple);
+      if (triple.arch == SPN_ARCH_WASM32) {
+        return sp_str_lit("wasm32-unknown-unknown");
+      }
+      return sp_fmt(mem, "{}-none-elf", sp_fmt_str(spn_arch_to_str(triple.arch))).value;
     }
     case SPN_OS_LINUX:
     case SPN_OS_WINDOWS:
@@ -146,8 +141,13 @@ void spn_gnu_render_flags(sp_mem_t mem, const spn_cc_t* toolchain, const spn_pro
     if (spn_cc_has(toolchain, SPN_CC_CAP_DEFAULT_UBSAN)) {
       sp_da_push(flags->compile, sp_str_lit("-fno-sanitize=undefined"));
     }
-    sp_da_push(flags->link, sp_str_lit("-nostartfiles"));
-    sp_da_push(flags->link, sp_str_lit("-nolibc"));
+    if (spn_triple_object_format(profile->target) == SPN_OBJ_WASM) {
+      sp_da_push(flags->link, sp_str_lit("-nostdlib"));
+    }
+    else {
+      sp_da_push(flags->link, sp_str_lit("-nostartfiles"));
+      sp_da_push(flags->link, sp_str_lit("-nolibc"));
+    }
   }
 }
 
@@ -226,7 +226,7 @@ static void add_launcher(sp_mem_t mem, const spn_cc_t* toolchain, const spn_prof
   invocation->program = launcher.program;
   spn_cc_push_strs(mem, invocation, launcher.args);
   if (spn_cc_has(toolchain, SPN_CC_CAP_TARGET_TRIPLE)) {
-    sp_str_t target = render_target(mem, toolchain, profile->target, min_os);
+    sp_str_t target = sp_str_empty(profile->spelling) ? render_target(mem, toolchain, profile->target, min_os) : profile->spelling;
     if (!sp_str_empty(target)) {
       spn_cc_push_fmt(mem, invocation, "--target={}", sp_fmt_str(target));
     }
@@ -267,7 +267,10 @@ spn_cc_compile_plan_t spn_gnu_render_compile(sp_mem_t mem, const spn_cc_t* toolc
     spn_cc_push_str(mem, invocation, render_define(mem, compile->define[it]));
   }
   if (lang == SPN_LANG_CXX) {
-    if (compile->cxx.no_exceptions) {
+    if (compile->cxx.exceptions) {
+      spn_cc_push_strs(mem, invocation, profile->exceptions.flags);
+    }
+    else {
       spn_cc_push_c(mem, invocation, "-fno-exceptions");
     }
     if (compile->cxx.no_rtti) {
@@ -456,13 +459,13 @@ static void add_static_runtime(sp_mem_t mem, spn_os_t os, spn_invocation_t* invo
 // zig only builds a static libc when the executable asks for one; the stub that
 // warms its cache has to make the same call
 bool spn_gnu_link_static(const spn_profile_info_t* profile, spn_cc_output_kind_t kind) {
-  return kind == SPN_CC_OUTPUT_EXE && profile->linking.libc == SPN_RUNTIME_STATIC && spn_os_to_native_object_format(profile->target.os) == SPN_OBJ_ELF;
+  return kind == SPN_CC_OUTPUT_EXE && profile->linking.libc == SPN_RUNTIME_STATIC && spn_triple_object_format(profile->target) == SPN_OBJ_ELF;
 }
 
 spn_cc_link_plan_t spn_gnu_render_link(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, const spn_cc_link_t* link) {
   spn_triple_t triple = profile->target;
-  spn_obj_format_t format = spn_os_to_native_object_format(profile->target.os);
-  bool is_gnu_runtime_static = profile->linking.runtime == SPN_RUNTIME_STATIC && triple.abi != SPN_ABI_MSVC && spn_cc_has(toolchain, SPN_CC_CAP_GNU_RUNTIME);
+  spn_obj_format_t format = spn_triple_object_format(profile->target);
+  bool is_gnu_runtime_static = profile->linking.runtime == SPN_RUNTIME_STATIC && triple.abi != SPN_ABI_MSVC && format != SPN_OBJ_WASM && spn_cc_has(toolchain, SPN_CC_CAP_GNU_RUNTIME);
 
   spn_cc_link_plan_t plan = {
     .driver = toolchain->driver,
@@ -478,11 +481,43 @@ spn_cc_link_plan_t spn_gnu_render_link(sp_mem_t mem, const spn_cc_t* toolchain, 
   sp_da_init(mem, flags.link);
   spn_gnu_render_flags(mem, toolchain, profile, &flags);
   spn_cc_push_strs(mem, base, flags.link);
+  if (link->exceptions) {
+    spn_cc_push_strs(mem, base, profile->exceptions.link_flags);
+  }
+  if (profile->strip == SPN_STRIP_DEBUGINFO || profile->strip == SPN_STRIP_SYMBOLS) {
+    if (spn_cc_has(toolchain, SPN_CC_CAP_STRIP_ALL)) {
+      spn_cc_push_c(mem, base, "-s");
+    }
+    else {
+      bool symbols = profile->strip == SPN_STRIP_SYMBOLS;
+      switch (plan.dialect) {
+        case SPN_LD_DIALECT_GNU:
+        case SPN_LD_DIALECT_WASM: {
+          spn_cc_push_c(mem, base, symbols ? "-s" : "-Wl,-S");
+          break;
+        }
+        case SPN_LD_DIALECT_DARWIN: {
+          spn_cc_push_c(mem, base, symbols ? "-Wl,-S,-x" : "-Wl,-S");
+          break;
+        }
+        case SPN_LD_DIALECT_LINK: {
+          break;
+        }
+        case SPN_LD_DIALECT_COUNT: {
+          sp_unreachable_case();
+        }
+      }
+    }
+  }
   switch (link->kind) {
     case SPN_CC_OUTPUT_REACTOR: {
-      spn_cc_push_c(mem, base, "-mexec-model=reactor");
+      if (triple.os == SPN_OS_WASI) {
+        spn_cc_push_c(mem, base, "-mexec-model=reactor");
+      }
       spn_cc_push_c(mem, base, "-Wl,--no-entry");
-      spn_cc_push_c(mem, base, "-Wl,--import-symbols");
+      if (link->import_undefined) {
+        spn_cc_push_c(mem, base, spn_cc_has(toolchain, SPN_CC_CAP_IMPORT_SYMBOLS) ? "-Wl,--import-symbols" : "-Wl,--import-undefined");
+      }
       plan.exports = spn_cc_exports_format(link->kind, format);
       break;
     }

@@ -138,6 +138,10 @@ spn_err_t si_add_package_unit(spn_units_t* u, spn_build_unit_t* build, const spn
   init_package_unit(u, build, resolved, unit);
   *result = unit;
 
+  if (!u->metabuild) {
+    return SPN_OK;
+  }
+
   si_pkg_t meta = evaluate(u, u->metabuild, resolved, unit->paths.roots);
   if (get_script(&meta, SPN_TARGET_KIND_CONFIGURE_METAPROGRAM)) {
     spn_try(add_script(u->configure, resolved, SPN_TARGET_KIND_CONFIGURE_METAPROGRAM, &unit->reactor));

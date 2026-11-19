@@ -306,7 +306,7 @@ spn_cc_link_refusal_t spn_cc_validate_link(const spn_cc_t* toolchain, spn_triple
   spn_cc_feature_t feature = link_feature(link->kind);
   spn_triple_t target = profile->target;
 
-  if (link->kind == SPN_CC_OUTPUT_REACTOR && profile->target.os != SPN_OS_WASI) {
+  if (link->kind == SPN_CC_OUTPUT_REACTOR && spn_triple_object_format(target) != SPN_OBJ_WASM) {
     return (spn_cc_link_refusal_t) { .err = SPN_ERR_COMPILER_FEATURE_UNSUPPORTED, .feature = feature };
   }
   if (link->kind == SPN_CC_OUTPUT_SHARED_LIB && !spn_ld_dynamic(target)) {
@@ -315,7 +315,7 @@ spn_cc_link_refusal_t spn_cc_validate_link(const spn_cc_t* toolchain, spn_triple
   if (profile->target.os == SPN_OS_MACOS && !si_da_empty(link->frameworks) && profile->sdk.kind == SPN_SDK_NONE) {
     return (spn_cc_link_refusal_t) { .err = SPN_ERR_COMPILER_FEATURE_UNSUPPORTED, .feature = SPN_CC_FEATURE_FRAMEWORKS };
   }
-  if (!si_da_empty(link->scripts) && !spn_ld_scripts(profile->linker, spn_os_to_native_object_format(profile->target.os))) {
+  if (!si_da_empty(link->scripts) && !spn_ld_scripts(profile->linker, spn_triple_object_format(profile->target))) {
     return (spn_cc_link_refusal_t) { .err = SPN_ERR_COMPILER_FEATURE_UNSUPPORTED, .feature = SPN_CC_FEATURE_LINKER_SCRIPT };
   }
   if (profile->linker == SPN_LD_FAMILY_MSVC && host.os != SPN_OS_WINDOWS) {

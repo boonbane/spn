@@ -50,8 +50,8 @@ void spn_obj_init(spn_obj_builder_t* obj, sp_mem_t mem, spn_obj_format_t kind, s
       obj->macho.section = sp_macho_add_section(obj->macho.macho, sp_str_lit("__DATA"), sp_str_lit("__const"), 3);
     } break;
     case SPN_OBJ_WASM: {
-      sp_unreachable_case();
-    }
+      obj->wasm = sp_wasm_new(mem);
+    } break;
   }
 }
 
@@ -86,8 +86,12 @@ void spn_obj_add_symbol(spn_obj_builder_t* obj, sp_str_t name, const void* data,
       sp_mem_end_scratch(scratch);
     } break;
     case SPN_OBJ_WASM: {
-      sp_unreachable_case();
-    }
+      sp_mem_arena_marker_t scratch = sp_mem_begin_scratch_for(obj->wasm->mem);
+      u32 segment = sp_wasm_add_segment(obj->wasm, sp_fmt(scratch.mem, ".rodata.{}", sp_fmt_str(name)).value, 3);
+      sp_mem_end_scratch(scratch);
+      sp_io_write(&obj->wasm->segments[segment].writer.base, data, size, SP_NULLPTR);
+      sp_wasm_add_symbol(obj->wasm, name, segment, 0, size);
+    } break;
   }
 }
 
@@ -97,7 +101,7 @@ spn_err_t spn_obj_write(spn_obj_builder_t* obj, sp_path_t path) {
     case SPN_OBJ_COFF:  err = sp_coff_write_to_file(obj->coff.coff, path); break;
     case SPN_OBJ_ELF:   err = sp_elf_write_to_file(obj->elf.elf, path); break;
     case SPN_OBJ_MACHO: err = sp_macho_write_to_file(obj->macho.macho, path); break;
-    case SPN_OBJ_WASM: sp_unreachable_case();
+    case SPN_OBJ_WASM:  err = sp_wasm_write_to_file(obj->wasm, path); break;
   }
   return err ? SPN_ERROR : SPN_OK;
 }

@@ -129,6 +129,18 @@ sp_da(sp_str_t) spn_toolchain_host_candidates(sp_mem_t mem, spn_toolchain_catalo
   return names;
 }
 
+sp_da(sp_str_t) spn_toolchain_exceptions_candidates(sp_mem_t mem, spn_toolchain_catalog_t* catalog, spn_triple_t target) {
+  sp_da(sp_str_t) names = sp_da_new(mem, sp_str_t);
+  si_om_for(catalog->entries, it) {
+    spn_toolchain_info_t* entry = si_om_at(catalog->entries, it);
+    const spn_toolchain_row_t* row = spn_toolchain_row(entry, target);
+    if (usable(entry) && row && row->exceptions.declared) {
+      sp_da_push(names, entry->name.str);
+    }
+  }
+  return names;
+}
+
 static spn_err_t emit(spn_err_t kind, spn_toolchain_catalog_t* catalog, spn_toolchain_query_t query, spn_triple_t target, sp_da(sp_str_t) candidates, sp_da(spn_triple_t) targets) {
   return spn_err_emit(&spn, (spn_err_union_t) {
     .kind = kind,

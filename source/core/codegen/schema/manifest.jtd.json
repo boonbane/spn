@@ -238,6 +238,7 @@
         "toolchain": { "elements": { "ref": "value_entry" }, "metadata": { "shorthand": "value" } },
         "mode": { "elements": { "ref": "value_entry" }, "metadata": { "shorthand": "value" } },
         "opt": { "elements": { "ref": "value_entry" }, "metadata": { "shorthand": "value" } },
+        "strip": { "elements": { "ref": "value_entry" }, "metadata": { "shorthand": "value" } },
         "sanitize": { "elements": { "ref": "sanitizer" } },
         "emit": { "elements": { "ref": "linkage" } },
         "os": { "ref": "os" },

@@ -4,12 +4,13 @@
 typedef struct {
   const c8* name;
   spn_cc_driver_t driver;
-  spn_wasi_spelling_t wasi;
   bool lld;
   const c8* link_args [2];
   spn_triple_t host;
   test_profile_t profile;
   spn_cc_output_kind_t kind;
+  bool exceptions;
+  bool import_undefined;
   const c8* exports;
   const c8* implib;
   const c8* archive;
@@ -56,28 +57,107 @@ static const link_test_t tests [] = {
       .args = {
         "--target=wasm32-wasi",
         "-mexec-model=reactor",
-        "-Wl,--no-entry", "-Wl,--import-symbols", "@S.rsp",
+        "-Wl,--no-entry", "@S.rsp",
         "main.o", "-o", "main"
       },
     },
   },
   {
-    .name = "clang_wasi_p1_reactor",
+    .name = "clang_reactor_imports_undefined",
     .driver = SPN_CC_DRIVER_CLANG,
-    .wasi = SPN_WASI_SPELLING_WASIP1,
     .profile = {
       .target = { SPN_ARCH_WASM32, SPN_OS_WASI },
+    },
+    .kind = SPN_CC_OUTPUT_REACTOR,
+    .import_undefined = true,
+    .exports = "S.rsp",
+    .expect = {
+      .command = "cc",
+      .args = {
+        "--target=wasm32-wasi",
+        "-mexec-model=reactor",
+        "-Wl,--no-entry", "-Wl,--import-undefined", "@S.rsp",
+        "main.o", "-o", "main"
+      },
+    },
+  },
+  {
+    .name = "freestanding_wasm_reactor_has_no_exec_model",
+    .driver = SPN_CC_DRIVER_ZIG,
+    .profile = {
+      .target = { SPN_ARCH_WASM32, SPN_OS_FREESTANDING, SPN_ABI_BARE },
     },
     .kind = SPN_CC_OUTPUT_REACTOR,
     .exports = "S.rsp",
     .expect = {
       .command = "cc",
       .args = {
-        "--target=wasm32-wasip1",
+        "--target=wasm32-freestanding-none",
+        "-nostdlib",
+        "-Wl,--no-entry", "@S.rsp",
+        "main.o", "-o", "main"
+      },
+    },
+  },
+  {
+    .name = "zig_reactor_imports_symbols",
+    .driver = SPN_CC_DRIVER_ZIG,
+    .profile = {
+      .target = { SPN_ARCH_WASM32, SPN_OS_WASI },
+    },
+    .kind = SPN_CC_OUTPUT_REACTOR,
+    .import_undefined = true,
+    .exports = "S.rsp",
+    .expect = {
+      .command = "cc",
+      .args = {
+        "--target=wasm32-wasi",
         "-mexec-model=reactor",
         "-Wl,--no-entry", "-Wl,--import-symbols", "@S.rsp",
         "main.o", "-o", "main"
       },
+    },
+  },
+  {
+    .name = "clang_wasi_static_runtime_has_no_gnu_runtime",
+    .driver = SPN_CC_DRIVER_CLANG,
+    .profile = {
+      .target = { SPN_ARCH_WASM32, SPN_OS_WASI },
+      .linking.linkage = SPN_LIB_KIND_STATIC,
+      .linking.runtime = SPN_RUNTIME_STATIC,
+      .linking.libc = SPN_RUNTIME_STATIC,
+    },
+    .kind = SPN_CC_OUTPUT_EXE,
+    .expect = {
+      .command = "cc",
+      .args = { "--target=wasm32-wasi", "main.o", "-o", "main" },
+    },
+  },
+  {
+    .name = "exceptions_take_the_row_link_flags",
+    .driver = SPN_CC_DRIVER_CLANG,
+    .profile = {
+      .target = { SPN_ARCH_WASM32, SPN_OS_WASI },
+      .exceptions.link_flags = { "-fA", "-lB" },
+    },
+    .kind = SPN_CC_OUTPUT_EXE,
+    .exceptions = true,
+    .expect = {
+      .command = "cc",
+      .args = { "--target=wasm32-wasi", "-fA", "-lB", "main.o", "-o", "main" },
+    },
+  },
+  {
+    .name = "row_link_flags_stay_off_without_exceptions",
+    .driver = SPN_CC_DRIVER_CLANG,
+    .profile = {
+      .target = { SPN_ARCH_WASM32, SPN_OS_WASI },
+      .exceptions.link_flags = { "-fA", "-lB" },
+    },
+    .kind = SPN_CC_OUTPUT_EXE,
+    .expect = {
+      .command = "cc",
+      .args = { "--target=wasm32-wasi", "main.o", "-o", "main" },
     },
   },
   {
@@ -685,25 +765,6 @@ static const link_test_t tests [] = {
     },
   },
   {
-    .name = "wasi_reactor_exports",
-    .driver = SPN_CC_DRIVER_CLANG,
-    .profile = {
-      .target = { SPN_ARCH_WASM32, SPN_OS_WASI },
-    },
-    .kind = SPN_CC_OUTPUT_REACTOR,
-    .exports = "S.rsp",
-    .expect = {
-      .command = "cc",
-      .args = {
-        "--target=wasm32-wasi",
-        "-mexec-model=reactor",
-        "-Wl,--no-entry", "-Wl,--import-symbols",
-        "@S.rsp",
-        "main.o", "-o", "main"
-      },
-    },
-  },
-  {
     .name = "foreign_platform_config_never_renders",
     .driver = SPN_CC_DRIVER_GCC,
     .profile = {
@@ -897,7 +958,7 @@ static const link_test_t tests [] = {
       .args = {
         "--target=wasm32-wasi",
         "-mexec-model=reactor",
-        "-Wl,--no-entry", "-Wl,--import-symbols", "@S.rsp",
+        "-Wl,--no-entry", "@S.rsp",
         "main.o",
         "-Wl,--whole-archive", "libD.a", "-Wl,--no-whole-archive",
         "-o", "main"
@@ -1015,12 +1076,82 @@ static const link_test_t tests [] = {
       .args = { "--target=x86_64-windows-gnu", "main.o", "-o", "main" },
     },
   },
+  {
+    .name = "strip_none_renders_nothing",
+    .driver = SPN_CC_DRIVER_GCC,
+    .profile = { .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU }, .strip = SPN_STRIP_NONE },
+    .kind = SPN_CC_OUTPUT_EXE,
+    .expect = {
+      .command = "cc",
+      .args = { "main.o", "-Wl,-rpath,$ORIGIN", "-o", "main" },
+    },
+  },
+  {
+    .name = "zig_strip_debuginfo",
+    .driver = SPN_CC_DRIVER_ZIG,
+    .profile = { .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_MUSL }, .strip = SPN_STRIP_DEBUGINFO },
+    .kind = SPN_CC_OUTPUT_EXE,
+    .expect = {
+      .command = "cc",
+      .args = { "--target=x86_64-linux-musl", "-s", "main.o", "-Wl,-rpath,$ORIGIN", "-o", "main" },
+    },
+  },
+  {
+    .name = "gnu_strip_debuginfo",
+    .driver = SPN_CC_DRIVER_GCC,
+    .profile = { .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU }, .strip = SPN_STRIP_DEBUGINFO },
+    .kind = SPN_CC_OUTPUT_EXE,
+    .expect = {
+      .command = "cc",
+      .args = { "-Wl,-S", "main.o", "-Wl,-rpath,$ORIGIN", "-o", "main" },
+    },
+  },
+  {
+    .name = "gnu_strip_symbols",
+    .driver = SPN_CC_DRIVER_GCC,
+    .profile = { .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU }, .strip = SPN_STRIP_SYMBOLS },
+    .kind = SPN_CC_OUTPUT_EXE,
+    .expect = {
+      .command = "cc",
+      .args = { "-s", "main.o", "-Wl,-rpath,$ORIGIN", "-o", "main" },
+    },
+  },
+  {
+    .name = "darwin_strip_debuginfo",
+    .driver = SPN_CC_DRIVER_CLANG,
+    .profile = { .target = { SPN_ARCH_ARM64, SPN_OS_MACOS }, .strip = SPN_STRIP_DEBUGINFO },
+    .kind = SPN_CC_OUTPUT_EXE,
+    .expect = {
+      .command = "cc",
+      .args = { "--target=aarch64-macos", "-Wl,-S", "main.o", "-Wl,-rpath,@loader_path", "-o", "main" },
+    },
+  },
+  {
+    .name = "darwin_strip_symbols",
+    .driver = SPN_CC_DRIVER_CLANG,
+    .profile = { .target = { SPN_ARCH_ARM64, SPN_OS_MACOS }, .strip = SPN_STRIP_SYMBOLS },
+    .kind = SPN_CC_OUTPUT_EXE,
+    .expect = {
+      .command = "cc",
+      .args = { "--target=aarch64-macos", "-Wl,-S,-x", "main.o", "-Wl,-rpath,@loader_path", "-o", "main" },
+    },
+  },
+  {
+    .name = "clang_msvc_strip_debuginfo_renders_nothing",
+    .driver = SPN_CC_DRIVER_CLANG,
+    .host = HOST_X64_WINDOWS,
+    .profile = { .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC }, .linking.runtime = SPN_RUNTIME_STATIC, .strip = SPN_STRIP_DEBUGINFO },
+    .kind = SPN_CC_OUTPUT_EXE,
+    .expect = {
+      .command = "cc",
+      .args = { "--target=x86_64-windows-msvc", "-fms-runtime-lib=static", "main.o", "-o", "main" },
+    },
+  },
 };
 
 sp_test_each(render_link, render, link_test_t, tests, .setup = spn_test_ctx_setup) {
   sp_mem_t mem = sp_test_arena(t);
   spn_cc_t toolchain = test_toolchain(it->driver);
-  toolchain.wasi = it->wasi;
   spn_triple_t triple = it->profile.target;
   toolchain.link_args = sp_da_new(mem, sp_str_t);
   sp_carr_for(it->link_args, at) {
@@ -1030,6 +1161,8 @@ sp_test_each(render_link, render, link_test_t, tests, .setup = spn_test_ctx_setu
   spn_cc_link_t link = {
     .lang = SPN_LANG_C,
     .kind = it->kind,
+    .exceptions = it->exceptions,
+    .import_undefined = it->import_undefined,
     .min_os = it->min_os,
     .subsystem = it->subsystem,
   };

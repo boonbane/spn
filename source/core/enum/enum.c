@@ -178,6 +178,20 @@ sp_str_t spn_opt_level_to_str(spn_opt_level_t level) {
   SP_UNREACHABLE_RETURN(sp_str_lit(""));
 }
 
+spn_strip_t spn_strip_from_str(sp_str_t str) {
+  if (sp_str_equal_cstr(str, "none")) {
+    return SPN_STRIP_NONE;
+  }
+  if (sp_str_equal_cstr(str, "debuginfo")) {
+    return SPN_STRIP_DEBUGINFO;
+  }
+  if (sp_str_equal_cstr(str, "symbols")) {
+    return SPN_STRIP_SYMBOLS;
+  }
+
+  return SPN_STRIP_UNSET;
+}
+
 spn_win_subsystem_t spn_win_subsystem_from_str(sp_str_t str) {
   if (sp_str_equal_cstr(str, "console")) {
     return SPN_WIN_SUBSYSTEM_CONSOLE;
@@ -490,6 +504,27 @@ sp_str_t spn_unpack_reason_to_str(spn_unpack_reason_t reason) {
   SP_UNREACHABLE_RETURN(sp_str_lit(""));
 }
 
+sp_str_t spn_triple_segment_to_str(spn_triple_segment_t segment) {
+  switch (segment) {
+    case SPN_TRIPLE_SEGMENT_NONE: {
+      return sp_str_lit("none");
+    }
+    case SPN_TRIPLE_SEGMENT_ARCH: {
+      return sp_str_lit("arch");
+    }
+    case SPN_TRIPLE_SEGMENT_OS: {
+      return sp_str_lit("os");
+    }
+    case SPN_TRIPLE_SEGMENT_ABI: {
+      return sp_str_lit("abi");
+    }
+    case SPN_TRIPLE_SEGMENT_EXTRA: {
+      return sp_str_lit("extra");
+    }
+  }
+  SP_UNREACHABLE_RETURN(sp_str_lit(""));
+}
+
 sp_str_t spn_cc_feature_to_str(spn_cc_feature_t feature) {
   switch (feature) {
     case SPN_CC_FEATURE_LINK_EXE: {
@@ -509,6 +544,9 @@ sp_str_t spn_cc_feature_to_str(spn_cc_feature_t feature) {
     }
     case SPN_CC_FEATURE_LINKER_SCRIPT: {
       return sp_str_lit("linker_script");
+    }
+    case SPN_CC_FEATURE_EXCEPTIONS: {
+      return sp_str_lit("exceptions");
     }
   }
   SP_UNREACHABLE_RETURN(sp_str_lit(""));

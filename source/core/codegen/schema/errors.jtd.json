@@ -140,7 +140,7 @@
     "target_host_deps": { "ref": "host_deps" },
     "script_missing": { "ref": "script" },
     "script_failed": { "ref": "script" },
-    "triple_invalid": { "properties": {} },
+    "triple_invalid": { "ref": "triple_parse" },
     "dynamic_duplicate": { "ref": "dynamic_dup" },
     "static_duplicate": { "ref": "static_dup" },
     "resolve_too_complex": { "properties": {} },
@@ -228,7 +228,7 @@
         "program": { "type": "string" }
       }
     },
-    "cc_feature": { "enum": ["link_exe", "link_shared", "link_reactor", "archive", "frameworks", "linker_script"] },
+    "cc_feature": { "enum": ["link_exe", "link_shared", "link_reactor", "archive", "frameworks", "linker_script", "exceptions"] },
     "linkage_requester": { "enum": ["profile", "root_manifest", "libc", "target", "no_loader"] },
     "linking_refusal": { "enum": ["none", "no_loader", "os_libc", "os_runtime", "shared_runtime", "hybrid_crt", "shared_deps"] },
     "refusal": {
@@ -285,6 +285,18 @@
         "refusals": { "elements": { "ref": "refusal" } }
       }
     },
+    "triple_segment": { "enum": ["none", "arch", "os", "abi", "extra"] },
+    "triple_parse": {
+      "properties": {
+        "value": { "type": "string" },
+        "segment": { "ref": "triple_segment" },
+        "text": { "type": "string" },
+        "parsed": { "metadata": { "extern": "triple" } },
+        "archs": { "elements": { "metadata": { "extern": "arch" } } },
+        "oses": { "elements": { "metadata": { "extern": "os" } } },
+        "abis": { "elements": { "metadata": { "extern": "abi" } } }
+      }
+    },
     "sanitizer": {
       "properties": {
         "toolchain": { "type": "string" },
@@ -301,7 +313,8 @@
         "feature": { "ref": "cc_feature" },
         "pkg": { "type": "string" },
         "name": { "type": "string" },
-        "frameworks": { "elements": { "type": "string" } }
+        "frameworks": { "elements": { "type": "string" } },
+        "candidates": { "elements": { "type": "string" } }
       }
     },
     "fs": {

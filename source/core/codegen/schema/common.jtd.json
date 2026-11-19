@@ -22,6 +22,13 @@
       }
     },
 
+    "toolchain_exceptions": {
+      "optionalProperties": {
+        "flags": { "elements": { "type": "string" } },
+        "link_flags": { "elements": { "type": "string" } }
+      }
+    },
+
     "toolchain_target": {
       "optionalProperties": {
         "kind": { "type": "string" },
@@ -29,6 +36,8 @@
         "os": { "ref": "os" },
         "abi": { "ref": "abi" },
         "sdk": { "type": "string" },
+        "spelling": { "type": "string" },
+        "exceptions": { "ref": "toolchain_exceptions" },
         "sanitizers": { "elements": { "ref": "sanitizer" } }
       }
     },

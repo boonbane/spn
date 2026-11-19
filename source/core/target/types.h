@@ -116,13 +116,25 @@ _Static_assert(
   "spn_target_id_t is byte-hashed as a key; it must have no padding"
 );
 
+typedef enum {
+  SPN_CXX_EXCEPTIONS_UNSET,
+  SPN_CXX_EXCEPTIONS_ON,
+  SPN_CXX_EXCEPTIONS_OFF,
+} spn_cxx_exceptions_t;
+
+typedef struct {
+  spn_cxx_standard_t standard;
+  spn_cxx_exceptions_t exceptions;
+  bool no_rtti;
+} spn_cxx_decl_t;
+
 struct si_target_info {
   si_target_id_t id;
   sp_intern_str_t name;
   spn_target_kind_t kind;
   spn_linkage_set_t linkages;
   bool no_link; // @spader A hack for libtcc1.a (building an unlinked library)
-  spn_cxx_options_t cxx;
+  spn_cxx_decl_t cxx;
   si_da(spn_gated_source_t) source;
   si_da(spn_gated_publish_t) publish;
   spn_gated_path_list_t include;

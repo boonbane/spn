@@ -42,6 +42,9 @@ static void overlay_profile(spn_profile_info_t* to, const spn_profile_info_t* fr
   if (from->opt) {
     to->opt = from->opt;
   }
+  if (from->strip) {
+    to->strip = from->strip;
+  }
   if (from->sanitizers_set || from->sanitizers) {
     to->sanitizers = from->sanitizers;
     to->sanitizers_set = true;
@@ -106,6 +109,7 @@ static spn_profile_info_t evaluate(const spn_profile_decl_t* decl, spn_when_env_
     .standard = spn_c_standard_from_str(pick(decl->standard, env)),
     .mode = spn_mode_from_str(pick(decl->mode, env)),
     .opt = spn_opt_level_from_str(pick(decl->opt, env)),
+    .strip = spn_strip_from_str(pick(decl->strip, env)),
     .sanitizers = decl->sanitizers,
     .sanitizers_set = decl->sanitizers_set,
     .emit = decl->emit,
@@ -116,14 +120,14 @@ static spn_profile_info_t evaluate(const spn_profile_decl_t* decl, spn_when_env_
   };
 }
 
-static spn_profile_info_t override_to_info(const spn_profile_override_t* override) {
+static spn_profile_info_t override_to_info(const spn_profile_override_t* override, spn_triple_t target) {
   return (spn_profile_info_t) {
     .toolchain = spn_toolchain_ref_from_str(override->toolchain),
     .mode = override->mode,
     .opt = override->opt,
     .sanitizers = override->sanitizers,
     .sanitizers_set = override->sanitizers_set,
-    .target = override->triple,
+    .target = target,
   };
 }
 
@@ -153,7 +157,7 @@ spn_err_t spn_profile_query(const spn_profile_info_t* profile, spn_triple_t host
       push_abi(&abis, host.abi);
     }
     const spn_abi_t* completions = SP_NULLPTR;
-    u32 count = spn_os_completions(profile->target.os, &completions);
+    u32 count = spn_os_completions(profile->target.arch, profile->target.os, &completions);
     sp_for(it, count) {
       push_abi(&abis, completions[it]);
     }
@@ -215,6 +219,8 @@ void spn_profile_finalize(spn_profile_info_t* profile, const spn_toolchain_selec
   profile->driver = selection->toolchain->driver;
   profile->linker = selection->toolchain->lld ? SPN_LD_FAMILY_LLD : spn_ld_native(selection->toolchain->driver, selection->row.triple);
   profile->sdk = selection->row.sdk;
+  profile->spelling = selection->row.spelling;
+  profile->exceptions = selection->row.exceptions;
   profile->libc.some = spn_sdk_libc(spn_toolchain_driver_caps(profile->driver), &profile->sdk, &profile->libc.value);
   profile->linking = selection->linking;
 }
@@ -239,15 +245,77 @@ static bool shared_demand(const spn_project_t* project, spn_linkage_set_t emit) 
   return false;
 }
 
+static const spn_os_t oses [] = { SPN_OS_LINUX, SPN_OS_WINDOWS, SPN_OS_MACOS, SPN_OS_WASI, SPN_OS_FREESTANDING };
+
 static void push_os_triples(sp_da(spn_triple_t)* triples, spn_arch_t arch, spn_os_t os) {
   const spn_abi_t* abis = SP_NULLPTR;
-  u32 count = spn_os_abis(os, &abis);
+  u32 count = spn_os_abis(arch, os, &abis);
   sp_for(it, count) {
     sp_da_push(*triples, ((spn_triple_t) { .arch = arch, .os = os, .abi = abis[it] }));
   }
 }
 
 spn_err_t spn_profile_resolve(const spn_profile_override_t* override, spn_triple_t host, const spn_project_t* project, spn_profile_info_t* result) {
+  spn_triple_t requested = override->triple;
+  if (!sp_str_empty(override->target)) {
+    spn_triple_scan_t scan = spn_triple_scan(override->target);
+    if (scan.invalid) {
+      sp_mem_t mem = spn.events->mem;
+      spn_err_triple_parse_t err = {
+        .value = sp_str_copy(mem, override->target),
+        .segment = scan.invalid,
+        .text = sp_str_copy(mem, scan.text),
+        .parsed = scan.triple,
+      };
+      switch (scan.invalid) {
+        case SPN_TRIPLE_SEGMENT_ARCH: {
+          err.archs = sp_da_new(mem, spn_arch_t);
+          sp_carr_for(oses, it) {
+            const spn_arch_t* archs = SP_NULLPTR;
+            u32 count = spn_os_archs(oses[it], &archs);
+            sp_for(at, count) {
+              bool listed = false;
+              sp_da_for(err.archs, known) {
+                listed |= err.archs[known] == archs[at];
+              }
+              if (!listed) {
+                sp_da_push(err.archs, archs[at]);
+              }
+            }
+          }
+          break;
+        }
+        case SPN_TRIPLE_SEGMENT_OS: {
+          err.oses = sp_da_new(mem, spn_os_t);
+          sp_carr_for(oses, it) {
+            sp_da_push(err.oses, oses[it]);
+          }
+          break;
+        }
+        case SPN_TRIPLE_SEGMENT_ABI: {
+          err.abis = sp_da_new(mem, spn_abi_t);
+          const spn_abi_t* abis = SP_NULLPTR;
+          u32 count = spn_os_abis(scan.triple.arch, scan.triple.os, &abis);
+          sp_for(it, count) {
+            sp_da_push(err.abis, abis[it]);
+          }
+          break;
+        }
+        case SPN_TRIPLE_SEGMENT_EXTRA: {
+          break;
+        }
+        case SPN_TRIPLE_SEGMENT_NONE: {
+          sp_unreachable_case();
+        }
+      }
+      return spn_err_emit(&spn, (spn_err_union_t) {
+        .kind = SPN_ERR_TRIPLE_INVALID,
+        .triple_parse = err,
+      });
+    }
+    requested = spn_triple_merge(scan.triple, override->triple);
+  }
+
   sp_intern_str_t name = sp_zero;
   if (!sp_str_empty(override->name)) {
     name = spn_intern(override->name);
@@ -298,7 +366,7 @@ spn_err_t spn_profile_resolve(const spn_profile_override_t* override, spn_triple
 
   platform = spn_triple_merge(platform, (spn_triple_t) { .arch = base->arch, .os = base->os });
   platform = spn_triple_merge(platform, (spn_triple_t) { .arch = selected->arch, .os = selected->os });
-  platform = spn_triple_merge(platform, (spn_triple_t) { .arch = override->triple.arch, .os = override->triple.os });
+  platform = spn_triple_merge(platform, (spn_triple_t) { .arch = requested.arch, .os = requested.os });
 
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   spn_when_env_t env;
@@ -309,7 +377,7 @@ spn_err_t spn_profile_resolve(const spn_profile_override_t* override, spn_triple
   sp_mem_end_scratch(scratch);
 
   spn_profile_info_t builtin = { .mode = builtin_mode(name.str) };
-  spn_profile_info_t lifted = override_to_info(override);
+  spn_profile_info_t lifted = override_to_info(override, requested);
   spn_profile_info_t merged = {
     .toolchain = { .kind = SPN_TOOLCHAIN_REF_AUTO },
     .standard = SPN_C11,
@@ -324,6 +392,9 @@ spn_err_t spn_profile_resolve(const spn_profile_override_t* override, spn_triple
 
   if (!merged.opt) {
     merged.opt = merged.mode == SPN_MODE_RELEASE ? SPN_OPT_LEVEL_2 : SPN_OPT_LEVEL_0;
+  }
+  if (!merged.strip) {
+    merged.strip = merged.mode == SPN_MODE_RELEASE ? SPN_STRIP_DEBUGINFO : SPN_STRIP_NONE;
   }
 
   spn_triple_t pinned = { .arch = platform.arch, .os = platform.os, .abi = merged.target.abi };
@@ -347,7 +418,6 @@ spn_err_t spn_profile_resolve(const spn_profile_override_t* override, spn_triple
       break;
     }
     case SPN_TRIPLE_ENTRY_FOREIGN_ARCH: {
-      static const spn_os_t oses [] = { SPN_OS_LINUX, SPN_OS_WINDOWS, SPN_OS_MACOS, SPN_OS_WASI, SPN_OS_FREESTANDING };
       sp_da(spn_triple_t) targets = sp_da_new(spn.events->mem, spn_triple_t);
       sp_carr_for(oses, it) {
         const spn_arch_t* archs = SP_NULLPTR;
@@ -389,6 +459,7 @@ spn_err_t spn_profile_resolve(const spn_profile_override_t* override, spn_triple
     .standard    = merged.standard,
     .mode        = merged.mode,
     .opt         = merged.opt,
+    .strip       = merged.strip,
     .sanitizers  = merged.sanitizers,
     .emit        = merged.emit,
     .options     = merged.options,
@@ -406,6 +477,7 @@ spn_profile_info_t spn_profile_metaprogram(void) {
     .target = { SPN_ARCH_WASM32, SPN_OS_WASI, SPN_ABI_MUSL },
     .mode = SPN_MODE_DEBUG,
     .opt = SPN_OPT_LEVEL_2,
+    .strip = SPN_STRIP_NONE,
     .standard = SPN_C99,
     .request = { .linkage = SPN_LIB_KIND_STATIC, .runtime = SPN_RUNTIME_STATIC, .libc = SPN_RUNTIME_STATIC },
   };

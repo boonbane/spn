@@ -16,11 +16,17 @@ typedef struct {
   spn_semver_t version;
   spn_mode_t mode;
   spn_opt_level_t opt;
+  spn_strip_t strip;
   spn_sanitizer_set_t sanitizers;
   spn_linking_t linking;
   spn_c_standard_t standard;
   spn_triple_t target;
   sp_hash_t sdk;
+  sp_hash_t spelling;
+  struct {
+    sp_hash_t flags;
+    sp_hash_t link_flags;
+  } exceptions;
   sp_hash_t platform;
   struct {
     sp_hash_t name;
@@ -178,6 +184,7 @@ sp_hash_t spn_unit_fingerprint(spn_units_t* u, spn_build_unit_t* build, const sp
 
   fingerprint.mode = build->profile.mode;
   fingerprint.opt = build->profile.opt;
+  fingerprint.strip = build->profile.strip;
   fingerprint.sanitizers = build->profile.sanitizers;
   fingerprint.linking = build->profile.linking;
   if (resolved->config && !sp_opt_is_null(resolved->config->kind)) {
@@ -186,6 +193,9 @@ sp_hash_t spn_unit_fingerprint(spn_units_t* u, spn_build_unit_t* build, const sp
   fingerprint.standard = build->profile.standard;
   fingerprint.target = build->profile.target;
   fingerprint.sdk = spn_sdk_hash(&build->profile.sdk);
+  fingerprint.spelling = spn_digest_hash_str(build->profile.spelling);
+  fingerprint.exceptions.flags = hash_strs(build->profile.exceptions.flags);
+  fingerprint.exceptions.link_flags = hash_strs(build->profile.exceptions.link_flags);
   fingerprint.platform = hash_platform(manifest, &build->profile);
   fingerprint.toolchain.name = spn_digest_hash_str(toolchain->name.str);
   fingerprint.toolchain.cc = hash_arg(toolchain->compiler.program);
