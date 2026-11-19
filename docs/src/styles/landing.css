@@ -1,9 +1,9 @@
 .container {
-  max-width: 1080px;
+  max-width: 67.5rem;
   margin-inline: auto;
   padding-inline: var(--s-8);
 
-  @media (max-width: 480px) {
+  @media (max-width: 30rem) {
     padding-inline: var(--s-6);
   }
 }
@@ -28,12 +28,12 @@ main h2 {
   padding-block: var(--s-11) var(--s-10);
   border-bottom: var(--border);
 
-  @media (max-width: 1024px) {
+  @media (max-width: 64rem) {
     grid-template-columns: minmax(0, 1fr);
     row-gap: var(--s-7);
   }
 
-  @media (max-width: 480px) {
+  @media (max-width: 30rem) {
     padding-block: var(--s-9) var(--s-8);
   }
 
@@ -41,11 +41,11 @@ main h2 {
     font-size: var(--text-4xl);
     letter-spacing: var(--tracking-tighter);
 
-    @media (max-width: 900px) {
+    @media (max-width: 56.25rem) {
       font-size: var(--text-3xl);
     }
 
-    @media (max-width: 480px) {
+    @media (max-width: 30rem) {
       font-size: var(--text-2xl);
     }
 
@@ -72,7 +72,7 @@ main h2 {
     grid-row: 2;
     grid-column: 1 / -1;
 
-    @media (max-width: 1024px) {
+    @media (max-width: 64rem) {
       margin-bottom: var(--s-7);
     }
   }

@@ -6,7 +6,7 @@
   margin-inline: auto;
   padding-block: var(--s-11) var(--s-12);
 
-  @media (max-width: 480px) {
+  @media (max-width: 30rem) {
     padding-block: var(--s-9) var(--s-10);
   }
 
@@ -17,7 +17,7 @@
     letter-spacing: var(--tracking-tighter);
     text-wrap: balance;
 
-    @media (max-width: 480px) {
+    @media (max-width: 30rem) {
       font-size: var(--text-2xl);
     }
   }

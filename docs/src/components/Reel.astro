@@ -55,8 +55,8 @@ const items = ['make', 'cmake', 'conan', 'vcpkg', 'git submodules', 'pkg-config'
 <style>
   .reel {
     --size: var(--text-3xl);
-    --row: 56px;
-    --fade: 62px;
+    --row: 3.5rem;
+    --fade: 3.875rem;
 
     display: flex;
     flex-direction: column;
@@ -67,11 +67,11 @@ const items = ['make', 'cmake', 'conan', 'vcpkg', 'git submodules', 'pkg-config'
     font-weight: var(--weight-heavy);
     letter-spacing: var(--tracking-tight);
 
-    @media (max-width: 1024px) {
+    @media (max-width: 64rem) {
       text-align: center;
     }
 
-    @media (max-width: 900px) {
+    @media (max-width: 56.25rem) {
       --size: var(--text-2xl);
     }
   }
@@ -94,7 +94,7 @@ const items = ['make', 'cmake', 'conan', 'vcpkg', 'git submodules', 'pkg-config'
     color: var(--accent);
     white-space: nowrap;
 
-    @media (max-width: 1024px) {
+    @media (max-width: 64rem) {
       justify-content: center;
     }
   }
