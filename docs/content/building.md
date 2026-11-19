@@ -90,11 +90,10 @@ Because of (2), you can omit the ABI when you aren't crossing. This has some rea
 
 ### Linkage
 
-By default, `spn build` produces the most self contained binary that it can. There are three things that programs control that affect their portability[^1]:
+By default, `spn build` produces the most self contained binary that it can. Besides their dependencies, there are two things that programs control that affect their portability[^1]:
 
 | Field | What it links | How it can break |
 |---|---|---|
-| `static_deps` | Force dependencies to link statically unless explicitly asked | If a program links to the system's `libcurl.so`, then it won't run on a system without it |
 | `runtime` | Runtime support libraries (e.g. `libstdc++`, `libgcc`, or the CRT on Windows)| The ubiquitous "redistributables" problem on Windows, `libstdc++` on old Ubuntu, Yocto/Buildroot minimal systems |
 | `libc` | The C standard library | The mess of distributing Linux binaries that spawned entire ecosystems of tools like AppImage or Snap |
 
@@ -102,18 +101,37 @@ Specify them like this:
 
 ```toml
 [profile.whatever]
-static_deps = true
 runtime = "static"
 libc = "shared"
 ```
 
-
-`spn` allows you to toggle `runtime` and `libc` between `static` and `shared`, plus toggle individual dependencies.
-
-Different platforms have different stances on some or all of these knobs. Where the platform or toolchain doesn't support one of these, `spn` errors appropriately. For example:
+Both fields can be `static` or `shared`. Different platforms have different stances on some or all of these knobs. Where the platform or toolchain doesn't support one of these, `spn` errors appropriately. For example:
 - macOS forces you to link dynamically to `libSystem.dylib` (i.e. libc)
 - GNU's libc is famously antagonistic to static linkage, so `libc = "static"` requires (and infers) musl
 - Some sanitizers require the loader to be available, and produce an error otherwise
+
+### Dependencies
+
+By default, dependencies are linked statically. If a package can only be compiled dynamically and your target has a loader, it will be compiled as a shared library. If your target doesn't have a loader, the build will fail.
+
+You can force dynamic linkage for a library like this:
+
+```toml
+[config.foo]
+kind = "shared"
+```
+
+Finally, it is often desirable to statically link to all of your dependencies while linking dynamically to libc. For example, a program which wants to be hermetic against the versions of libraries on the user's machine, but which wants to load plugins at runtime. To this end, you'd like to compile your dependencies statically or fail the build:
+
+```toml
+[profile.whatever]
+static_deps = true
+```
+
+This tells `spn` to fail instead of switching to dynamic linkage. Dependencies explicitly marked `shared` in `[config]` are still perfectly fine.
+
+
+#### WASM
 
 A dependency is linked statically when it offers `static`; set `[config.foo] kind = "shared"` to load that one at runtime instead. `static_deps = true` makes a dependency that can only be `shared` an error:
 - It is only a check. It doesn't change how anything is linked or which target is built

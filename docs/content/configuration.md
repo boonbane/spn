@@ -1,6 +1,5 @@
 ---
 title: Configuration
-order: 8.5
 ---
 
 Settings that belong to a machine rather than a project live in the user config file, `spn/spn.toml` under the config directory:

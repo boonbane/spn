@@ -9,6 +9,7 @@ export const order = [
   'tools',
   'toolchains',
   'indexes',
+  'configuration',
   'manifest',
   'embedding',
   'workspaces',
