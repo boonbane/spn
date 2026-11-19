@@ -346,6 +346,17 @@ spn_cc_exports_format_t spn_cc_exports_format(spn_cc_output_kind_t kind, spn_obj
   SP_UNREACHABLE_RETURN(SPN_CC_EXPORTS_VERSION_SCRIPT);
 }
 
+sp_str_t spn_cc_object_extension(spn_cc_driver_t driver) {
+  switch (driver) {
+    case SPN_CC_DRIVER_GCC:
+    case SPN_CC_DRIVER_CLANG:
+    case SPN_CC_DRIVER_ZIG:  return sp_str_lit("o");
+    case SPN_CC_DRIVER_MSVC: return sp_str_lit("obj");
+    case SPN_CC_DRIVER_NONE: sp_unreachable_case();
+  }
+  sp_unreachable_return(sp_str_lit(""));
+}
+
 sp_str_t spn_cc_exports_extension(spn_cc_exports_format_t format) {
   switch (format) {
     case SPN_CC_EXPORTS_VERSION_SCRIPT: return sp_str_lit("map");

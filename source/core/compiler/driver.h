@@ -19,6 +19,7 @@ spn_invocation_t spn_cc_render_archive_command(sp_mem_t mem, const spn_cc_archiv
 bool spn_cc_has(const spn_cc_t* toolchain, spn_cc_cap_t cap);
 spn_err_t spn_cc_parse_depfile(sp_mem_t mem, spn_cc_driver_t driver, sp_str_t content, sp_da(sp_str_t)* prereqs);
 spn_cc_exports_format_t spn_cc_exports_format(spn_cc_output_kind_t kind, spn_obj_format_t format);
+sp_str_t spn_cc_object_extension(spn_cc_driver_t driver);
 sp_str_t spn_cc_exports_extension(spn_cc_exports_format_t format);
 void spn_cc_render_exports(sp_io_writer_t* io, const spn_path_roots_t* roots, spn_cc_exports_format_t format, spn_rsp_style_t rsp, sp_str_t library, si_da(sp_str_t) symbols);
 bool spn_cc_link_implib(const spn_profile_info_t* profile, spn_cc_output_kind_t kind);

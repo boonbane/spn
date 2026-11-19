@@ -23,6 +23,7 @@ static const command_test_t commands [] = {
     .args = { "build" },
     .expect.events = {
       { .event = SPN_EVENT_TARGET_BUILD_WARNED, .absent = true },
+      { .event = SPN_EVENT_LINK_WARNED, .absent = true },
     },
   },
   {

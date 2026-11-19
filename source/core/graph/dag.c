@@ -208,7 +208,7 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
     si_embed_t* ctx = sp_alloc_type(b->mem, si_embed_t);
     *ctx = (si_embed_t) {
       .unit = unit,
-      .object = spn_dag_add_output(g, sp_fmt(b->mem, "{}.embed.o", sp_fmt_str(name)).value),
+      .object = spn_dag_add_output(g, sp_fmt(b->mem, "{}.embed.{}", sp_fmt_str(name), sp_fmt_str(spn_cc_object_extension(toolchain->cc.driver))).value),
       .header = spn_dag_add_output(g, sp_fmt(b->mem, "{}.embed.h", sp_fmt_str(name)).value),
     };
     embed = (spn_dag_embed_ids_t) {
