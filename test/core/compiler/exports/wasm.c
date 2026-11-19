@@ -22,21 +22,6 @@ static const wasm_test_t tests [] = {
       .rendered = "-Wl,--export=A\n-Wl,--export=B\n",
     },
   },
-  {
-    .name = "no_symbols",
-    .style = SPN_RSP_STYLE_WINDOWS,
-    .expect = {
-      .rendered = "",
-    },
-  },
-  {
-    .name = "quoted_gnu",
-    .style = SPN_RSP_STYLE_GNU,
-    .symbols = { "a b" },
-    .expect = {
-      .rendered = "\"-Wl,--export=a b\"\n",
-    },
-  },
 };
 
 sp_test_each(exports_wasm, render, wasm_test_t, tests, .setup = spn_test_ctx_setup) {

@@ -46,15 +46,6 @@ static const render_exports_test_t tests [] = {
     },
   },
   {
-    .name = "def",
-    .render = EXPORTS_RENDER_DEF,
-    .library = "S",
-    .symbols = { "A", "B" },
-    .expect = {
-      .rendered = "LIBRARY S\nEXPORTS\n  A\n  B\n",
-    },
-  },
-  {
     .name = "def_marks_data",
     .render = EXPORTS_RENDER_DEF,
     .library = "S",

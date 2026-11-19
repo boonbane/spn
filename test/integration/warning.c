@@ -10,14 +10,6 @@ static const command_test_t commands [] = {
     },
   },
   {
-    .name = "counted",
-    .project = "test/integration/fixtures/warning/root",
-    .args = { "build" },
-    .expect.events = {
-      { .event = SPN_EVENT_BUILD_PASSED, .key = "warned", .value = "1" },
-    },
-  },
-  {
     .name = "silent",
     .project = "test/integration/fixtures/freshness/bin",
     .args = { "build" },

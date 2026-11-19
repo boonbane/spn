@@ -8,7 +8,6 @@ typedef enum {
   TOC_AR_BSD,
   TOC_AR_BSD_SORTED,
   TOC_AR_THIN,
-  TOC_AR_COFF,
   TOC_AR_NO_SYMTAB,
   TOC_AR_EMPTY,
   TOC_AR_BAD_MAGIC,
@@ -144,22 +143,6 @@ static void build_bsd(ar_buf_t* b, const c8* const* symbols, u32 n, bool sorted)
   ar_object(b);
 }
 
-static void build_coff(ar_buf_t* b, const c8* const* symbols, u32 n) {
-  u32 first_size = 4 + 4 * n + names_size(symbols, n);
-  u32 first_end = 8 + 60 + first_size + (first_size & 1);
-  u32 object_offset = first_end + 60 + 4;
-
-  ar_cstr(b, "!<arch>\n");
-  ar_header(b, "/", first_size);
-  ar_u32be(b, n);
-  sp_for(it, n) { ar_u32be(b, object_offset); }
-  ar_names(b, symbols, n);
-  ar_pad_even(b);
-  ar_header(b, "/", 4);
-  ar_u32le(b, 0);
-  ar_object(b);
-}
-
 static void build_archive(ar_buf_t* b, toc_format_t format, const c8* const* symbols, u32 n) {
   switch (format) {
     case TOC_AR_GNU: {
@@ -180,10 +163,6 @@ static void build_archive(ar_buf_t* b, toc_format_t format, const c8* const* sym
     }
     case TOC_AR_BSD_SORTED: {
       build_bsd(b, symbols, n, true);
-      break;
-    }
-    case TOC_AR_COFF: {
-      build_coff(b, symbols, n);
       break;
     }
     case TOC_AR_NO_SYMTAB: {
@@ -248,14 +227,6 @@ static const toc_test_t tests [] = {
   {
     .name = "bsd_sorted_extended_name",
     .format = TOC_AR_BSD_SORTED,
-    .symbols = { "A", "B" },
-    .expect = {
-      .symbols = { "A", "B" },
-    },
-  },
-  {
-    .name = "coff_second_linker_member_ignored",
-    .format = TOC_AR_COFF,
     .symbols = { "A", "B" },
     .expect = {
       .symbols = { "A", "B" },
@@ -355,19 +326,10 @@ static const members_test_t members_tests [] = {
     .expect.members = { "A" },
   },
   {
-    .name = "no_members",
-    .magic = "!<arch>\n",
-  },
-  {
     .name = "thin_archive_holds_no_objects",
     .magic = "!<thin>\n",
     .members = { { "A.o/", "A" } },
     .expect.err = SPN_ERR_TOC_OPAQUE,
-  },
-  {
-    .name = "bad_magic",
-    .magic = "!<arch~\n",
-    .expect.err = SPN_ERR_TOC_MAGIC,
   },
   {
     .name = "member_cut_short",

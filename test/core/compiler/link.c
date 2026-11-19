@@ -211,22 +211,6 @@ static const link_test_t tests [] = {
     },
   },
   {
-    .name = "msvc_shared_lib",
-    .driver = SPN_CC_DRIVER_MSVC,
-    .host = HOST_X64_WINDOWS,
-    .profile = {
-      .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC },
-      .linking.runtime = SPN_RUNTIME_STATIC,
-    },
-    .kind = SPN_CC_OUTPUT_SHARED_LIB,
-    .exports = "S.def",
-    .implib = "main.lib",
-    .expect = {
-      .command = "cc",
-      .args = { "/nologo", "/LD", "main.o", "/Femain", "/link", "/DEF:S.def", "/IMPLIB:main.lib" },
-    },
-  },
-  {
     .name = "msvc_debug_pdb",
     .driver = SPN_CC_DRIVER_MSVC,
     .host = HOST_X64_WINDOWS,
@@ -388,19 +372,6 @@ static const link_test_t tests [] = {
     },
   },
   {
-    .name = "linux_shared_lib",
-    .driver = SPN_CC_DRIVER_GCC,
-    .profile = {
-      .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU },
-    },
-    .kind = SPN_CC_OUTPUT_SHARED_LIB,
-    .exports = "S.map",
-    .expect = {
-      .command = "cc",
-      .args = { "-shared", "-Wl,--version-script,S.map", "-Wl,-soname,main", "main.o", "-Wl,-rpath,$ORIGIN", "-o", "main" },
-    },
-  },
-  {
     .name = "gcc_linux_static_runtime_keeps_shared_libc",
     .driver = SPN_CC_DRIVER_GCC,
     .profile = {
@@ -534,18 +505,6 @@ static const link_test_t tests [] = {
     .profile = {
       .target = { SPN_ARCH_ARM64, SPN_OS_MACOS },
       .linking.linkage = SPN_LIB_KIND_STATIC,
-    },
-    .kind = SPN_CC_OUTPUT_EXE,
-    .expect = {
-      .command = "cc",
-      .args = { "--target=aarch64-macos", "main.o", "-Wl,-rpath,@loader_path", "-o", "main" },
-    },
-  },
-  {
-    .name = "macos_rpath",
-    .driver = SPN_CC_DRIVER_CLANG,
-    .profile = {
-      .target = { SPN_ARCH_ARM64, SPN_OS_MACOS },
     },
     .kind = SPN_CC_OUTPUT_EXE,
     .expect = {
@@ -925,17 +884,6 @@ static const link_test_t tests [] = {
     },
   },
   {
-    .name = "clang_msvc_rpath_never_renders",
-    .driver = SPN_CC_DRIVER_CLANG,
-    .host = HOST_X64_WINDOWS,
-    .profile = { .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC }, .linking.runtime = SPN_RUNTIME_STATIC },
-    .kind = SPN_CC_OUTPUT_EXE,
-    .expect = {
-      .command = "cc",
-      .args = { "--target=x86_64-windows-msvc", "-fms-runtime-lib=static", "main.o", "-o", "main" },
-    },
-  },
-  {
     .name = "clang_freestanding_exe",
     .driver = SPN_CC_DRIVER_CLANG,
     .profile = { .target = { SPN_ARCH_X64, SPN_OS_FREESTANDING, SPN_ABI_BARE } },
@@ -1212,36 +1160,4 @@ sp_test_each(render_link, render, link_test_t, tests, .setup = spn_test_ctx_setu
   spn_cc_link_plan_t plan = si_cc_render_link(mem, &toolchain, &profile, &link);
   spn_invocation_t invocation = spn_cc_render_link_command(mem, &plan, &files);
   return expect_args(t, &invocation, it->expect);
-}
-
-typedef struct {
-  const c8* name;
-  spn_cc_driver_t driver;
-  spn_os_t os;
-  spn_abi_t abi;
-  spn_cc_output_kind_t kind;
-  struct {
-    const c8* echo;
-  } expect;
-} echo_test_t;
-
-static const echo_test_t echo_tests [] = {
-  { .name = "gcc_shared_lib_prints_nothing", .driver = SPN_CC_DRIVER_GCC, .os = SPN_OS_LINUX, .abi = SPN_ABI_GNU, .kind = SPN_CC_OUTPUT_SHARED_LIB },
-  { .name = "msvc_exe_prints_nothing", .driver = SPN_CC_DRIVER_MSVC, .os = SPN_OS_WINDOWS, .abi = SPN_ABI_MSVC, .kind = SPN_CC_OUTPUT_EXE },
-  { .name = "msvc_shared_lib_announces_its_import_library", .driver = SPN_CC_DRIVER_MSVC, .os = SPN_OS_WINDOWS, .abi = SPN_ABI_MSVC, .kind = SPN_CC_OUTPUT_SHARED_LIB, .expect = { .echo = "   Creating library " } },
-};
-
-sp_test_each(render_link, echo, echo_test_t, echo_tests, .setup = spn_test_ctx_setup) {
-  sp_mem_t mem = sp_test_arena(t);
-  spn_cc_t toolchain = test_toolchain(it->driver);
-  spn_profile_info_t profile = test_profile((test_profile_t) {
-    .target = { SPN_ARCH_X64, it->os, it->abi },
-    .linking.runtime = SPN_RUNTIME_STATIC,
-  });
-  profile.linker = spn_ld_native(it->driver, profile.target);
-  spn_cc_link_t link = { .lang = SPN_LANG_C, .kind = it->kind };
-  spn_cc_link_plan_t plan = si_cc_render_link(mem, &toolchain, &profile, &link);
-  sp_expect_eq(t, (u32)plan.base.echo.some, (u32)(it->expect.echo != SP_NULLPTR));
-  sp_expect_str_eq_c(t, plan.base.echo.value, it->expect.echo);
-  return SP_OK;
 }

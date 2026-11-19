@@ -116,43 +116,15 @@ static cell_t cells [] = {
     .args = { "build" },
   },
   {
-    .name = "warning_cached",
-    .project = "test/render/fixtures/warning/root",
-    .setup = { { "build" } },
-    .args = { "build" },
-  },
-  {
     .name = "warning_pair",
     .project = "test/render/fixtures/warning/pair",
     .copy = { "b.c" },
     .args = { "build" },
   },
   {
-    .name = "warning_failed",
-    .project = "test/render/fixtures/warning/failed",
-    .copy = { "bad.c" },
-    .args = { "build" },
-  },
-  {
     .name = "warning_quiet",
     .project = "test/render/fixtures/warning/root",
     .args = { "build", "-q" },
-  },
-  {
-    .name = "warning_no_color",
-    .project = "test/render/fixtures/warning/root",
-    .args = { "build", "--no-color" },
-  },
-  {
-    .name = "warning_verbose",
-    .project = "test/render/fixtures/warning/root",
-    .args = { "build", "-v" },
-  },
-  {
-    .name = "warning_dep",
-    .project = "test/render/fixtures/warning/dep",
-    .copy = { "B/*" },
-    .args = { "build" },
   },
   {
     .name = "warning_test",

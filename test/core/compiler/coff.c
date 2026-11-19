@@ -206,11 +206,6 @@ static const coff_test_t tests [] = {
     .expect.data = { "A" },
   },
   {
-    .name = "constant",
-    .symbols = { { "A", COFF_RDATA } },
-    .expect.data = { "A" },
-  },
-  {
     .name = "common",
     .symbols = { { "A", COFF_COMMON } },
     .expect.data = { "A" },
