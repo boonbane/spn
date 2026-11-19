@@ -24,6 +24,7 @@ add_executable(core
   closure.c
   compiler/harness.c
   compiler/invocation.c
+  compiler/coff.c
   compiler/compile.c
   compiler/depfile.c
   compiler/echo.c
