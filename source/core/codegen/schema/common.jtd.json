@@ -31,39 +31,130 @@
 
     "toolchain_target": {
       "optionalProperties": {
-        "kind": { "type": "string" },
+        "kind": {
+          "type": "string",
+          "metadata": {
+            "doc": "`host` is the only kind: the machine the toolchain runs on. It takes no other fields"
+          }
+        },
         "arch": { "ref": "arch" },
         "os": { "ref": "os" },
         "abi": { "ref": "abi" },
-        "sdk": { "type": "string" },
-        "spelling": { "type": "string" },
-        "exceptions": { "ref": "toolchain_exceptions" },
-        "sanitizers": { "elements": { "ref": "sanitizer" } }
+        "sdk": {
+          "type": "string",
+          "metadata": {
+            "doc": "Path to the SDK or sysroot for this target"
+          }
+        },
+        "spelling": {
+          "type": "string",
+          "metadata": {
+            "doc": "The triple to pass to the compiler, when it isn't `spn`'s spelling"
+          }
+        },
+        "exceptions": {
+          "ref": "toolchain_exceptions",
+          "metadata": {
+            "doc": "Flags that turn C++ exceptions on, for a target that has them off by default"
+          }
+        },
+        "sanitizers": {
+          "elements": { "ref": "sanitizer" },
+          "metadata": {
+            "doc": "The sanitizers the toolchain has for this target"
+          }
+        }
       }
     },
 
     "artifact": {
       "optionalProperties": {
-        "url": { "type": "string" },
-        "sha256": { "type": "string" }
+        "url": {
+          "type": "string",
+          "metadata": {
+            "doc": "An archive of the toolchain for `spn` to download"
+          }
+        },
+        "sha256": {
+          "type": "string",
+          "metadata": {
+            "doc": "Required with `url`"
+          }
+        }
       }
     },
 
     "toolchain_decl": {
       "optionalProperties": {
-        "name": { "type": "string" },
+        "name": {
+          "type": "string",
+          "metadata": {
+            "doc": "Required. A built in toolchain of the same name is replaced"
+          }
+        },
         "version": { "type": "string" },
-        "compiler": { "type": "string" },
+        "compiler": {
+          "type": "string",
+          "metadata": {
+            "doc": "Required. The C compiler"
+          }
+        },
         "linker": { "ref": "ld_family" },
-        "link_args": { "elements": { "type": "string" } },
-        "archiver": { "type": "string" },
-        "driver": { "ref": "cc_driver" },
-        "cxx": { "type": "string" },
-        "detect": { "ref": "toolchain_detect" },
-        "host": { "values": { "ref": "artifact" } },
-        "mirrors": { "type": "string" },
-        "mirror_snapshot": { "type": "string" },
-        "target": { "elements": { "ref": "toolchain_target" }, "metadata": { "shorthand": "kind" } }
+        "link_args": {
+          "elements": { "type": "string" },
+          "metadata": {
+            "doc": "Arguments added to every link"
+          }
+        },
+        "archiver": {
+          "type": "string",
+          "metadata": {
+            "doc": "Required"
+          }
+        },
+        "driver": {
+          "ref": "cc_driver",
+          "metadata": {
+            "doc": "Required. The command line the compiler speaks"
+          }
+        },
+        "cxx": {
+          "type": "string",
+          "metadata": {
+            "doc": "The C++ compiler"
+          }
+        },
+        "detect": {
+          "ref": "toolchain_detect",
+          "metadata": {
+            "doc": "Find the toolchain through a Visual Studio installation. Excludes `host`"
+          }
+        },
+        "host": {
+          "values": { "ref": "artifact" },
+          "metadata": {
+            "doc": "The hosts the toolchain runs on, keyed like `x86_64-linux`"
+          }
+        },
+        "mirrors": {
+          "type": "string",
+          "metadata": {
+            "doc": "URL of a list of mirrors to download from"
+          }
+        },
+        "mirror_snapshot": {
+          "type": "string",
+          "metadata": {
+            "doc": "The mirror list to use when `mirrors` can't be fetched"
+          }
+        },
+        "target": {
+          "elements": { "ref": "toolchain_target" },
+          "metadata": {
+            "shorthand": "kind",
+            "doc": "What the toolchain can build for. Without it, only the host"
+          }
+        }
       }
     },
 
@@ -72,11 +163,36 @@
         "name": { "type": "string" }
       },
       "optionalProperties": {
-        "url": { "type": "string" },
-        "path": { "type": "string" },
-        "protocol": { "ref": "index_protocol" },
-        "rev": { "type": "string" },
-        "publish_url": { "type": "string" }
+        "url": {
+          "type": "string",
+          "metadata": {
+            "doc": "A Git repository of releases"
+          }
+        },
+        "path": {
+          "type": "string",
+          "metadata": {
+            "doc": "A directory of `<name>/spn.toml` packages, relative to the file that declares the index"
+          }
+        },
+        "protocol": {
+          "ref": "index_protocol",
+          "metadata": {
+            "doc": "Defaults to `dir` when `path` is set, and `git` otherwise"
+          }
+        },
+        "rev": {
+          "type": "string",
+          "metadata": {
+            "doc": "A commit to hold a Git index at. A pinned index is never refreshed, and can't be published to"
+          }
+        },
+        "publish_url": {
+          "type": "string",
+          "metadata": {
+            "doc": "Where `spn publish` pushes, when it isn't `url`"
+          }
+        }
       }
     }
   }

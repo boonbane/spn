@@ -1,5 +1,5 @@
 ---
-title: Manifest reference
+title: Manifest
 group: Reference
 readme: false
 ---
@@ -8,165 +8,171 @@ readme: false
 
 ## Top level
 
-| Table | Contents |
-|---|---|
-| `[package]` | [`package`](#package) — required |
-| `[[lib]]` | array of [`target`](#target) |
-| `[[bin]]` | array of [`target`](#target) |
-| `[[tool]]` | array of [`target`](#target) |
-| `[[test]]` | array of [`target`](#target) |
-| `[[example]]` | array of [`target`](#target) |
-| `[[toolchain]]` | array of [`toolchain_decl`](#toolchain_decl) |
-| `[[index]]` | array of [`index`](#index) |
-| `[profile.<name>]` | map of [`profile`](#profile) |
-| `[options.<name>]` | map of [`option`](#option) |
-| `[deps]` | [`deps`](#deps) |
-| `[config.<name>]` | map of [`config_entry`](#config_entry) |
-| `[patch.<name>]` | map of [`patch_entry`](#patch_entry) |
-| `[stage]` | [`stage`](#stage) |
+| Table | Contents | Required | Description |
+|---|---|---|---|
+| `[package]` | [`package`](#package) | yes | |
+| `[[lib]]` | [`target[]`](#target) | | Libraries. A package that depends on this one links all of them, and none of its other targets are built |
+| `[[bin]]` | [`target[]`](#target) | | |
+| `[[tool]]` | [`target[]`](#target) | | Executables built only on request, by name or with `--tool`. They link `[deps.tool]`, not `[deps.package]` |
+| `[[test]]` | [`target[]`](#target) | | Executables that `spn test` runs. They also link `[deps.test]` |
+| `[[example]]` | [`target[]`](#target) | | Executables built into `example/` in the build directory |
+| `[[toolchain]]` | [`toolchain_decl[]`](#toolchain_decl) | | Compilers to add to the built in ones. Read from the root package only |
+| `[[index]]` | [`index[]`](#index) | | Package indexes, searched before the user config's. Read from the root package only |
+| `[profile.<name>]` | map of [`profile`](#profile) | | Build settings, selected with `--profile`. `default` is the base of every other profile. Read from the root package only |
+| `[options.<name>]` | map of [`option`](#option) | | Options this package offers. Each name is also a key for `when` |
+| `[deps]` | [`deps`](#deps) | | |
+| `[config.<name>]` | map of [`config_entry`](#config_entry) | | Settings for the dependency called `<name>`. Read from the root package only |
+| `[patch.<name>]` | map of [`patch_entry`](#patch_entry) | | Patches for the source of the dependency called `<name>`. An error anywhere but the root package |
+| `[stage]` | [`stage`](#stage) | | Read from the root package only |
 
 ## package
 
-| Field | Type | Required |
-|---|---|---|
-| `name` | `string` | yes |
-| `version` | `string` | yes |
-| `repo` | `string` | |
-| `author` | `string` | |
-| `maintainer` | `string` | |
-| `upstream` | [`upstream`](#upstream) | |
-| `include` | array of [`source_entry`](#source_entry) \| `string` | |
-| `define` | array of [`value_entry`](#value_entry) \| `string` | |
-| `system_deps` | array of [`system_dep_entry`](#system_dep_entry) \| `string` | |
-| `host_deps` | array of [`host_dep_entry`](#host_dep_entry) \| `string` | |
-| `macos` | [`platform_macos`](#platform_macos) | |
-| `build` | [`build_script`](#build_script) | |
-| `configure` | [`build_script`](#build_script) | |
-| `publish` | [`publish`](#publish) | |
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `name` | `string` | yes | |
+| `version` | `string` | yes | A semantic version |
+| `repo` | `string` | | |
+| `author` | `string` | | |
+| `maintainer` | `string` | | |
+| `upstream` | [`upstream`](#upstream) | | The Git repository holding the source, for a manifest that lives apart from the code it builds |
+| `include` | ([`source_entry`](#source_entry) \| `string`)`[]` | | Include directories for every target. Dependents don't get them; see `publish` |
+| `define` | ([`value_entry`](#value_entry) \| `string`)`[]` | | Preprocessor definitions for every target. Dependents don't get them; see `publish` |
+| `system_deps` | ([`system_dep_entry`](#system_dep_entry) \| `string`)`[]` | | System libraries for every target |
+| `host_deps` | ([`host_dep_entry`](#host_dep_entry) \| `string`)`[]` | | Libraries installed on the build machine, for every target. An error when cross compiling, and with a toolchain that doesn't link against the machine's own libraries, like the bundled zig |
+| `macos` | [`platform_macos`](#platform_macos) | | |
+| `build` | [`build_script`](#build_script) | | The build metaprogram, holding the functions that nodes call. It links `[deps.build]` |
+| `configure` | [`build_script`](#build_script) | | The configure metaprogram, which runs on every build and declares nodes. It links no dependencies |
+| `publish` | [`publish`](#publish) | | |
 
 ## target
 
-| Field | Type | Required |
-|---|---|---|
-| `name` | `string` | yes |
-| `kinds` | array of `string` | |
-| `source` | array of [`source_entry`](#source_entry) \| `string` | |
-| `include` | array of [`source_entry`](#source_entry) \| `string` | |
-| `define` | array of [`value_entry`](#value_entry) \| `string` | |
-| `flags` | array of [`value_entry`](#value_entry) \| `string` | |
-| `link_flags` | array of [`value_entry`](#value_entry) \| `string` | |
-| `linker_script` | array of [`source_entry`](#source_entry) \| `string` | |
-| `system_deps` | array of [`system_dep_entry`](#system_dep_entry) \| `string` | |
-| `host_deps` | array of [`host_dep_entry`](#host_dep_entry) \| `string` | |
-| `deps` | array of [`target_dep_entry`](#target_dep_entry) \| `string` | |
-| `embed` | array of [`embed_entry`](#embed_entry) \| `string` | |
-| `link` | `bool` | |
-| `cxx` | [`cxx_options`](#cxx_options) | |
-| `macos` | [`platform_macos`](#platform_macos) | |
-| `windows` | [`platform_windows`](#platform_windows) | |
-| `publish` | [`target_publish`](#target_publish) | |
+| Field | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `name` | `string` | yes | | |
+| `kinds` | `string[]` | | `["static"]` | `[[lib]]` only. Any of `static` and `shared` |
+| `source` | ([`source_entry`](#source_entry) \| `string`)`[]` | | | Files and globs to compile. The language comes from each file's extension |
+| `include` | ([`source_entry`](#source_entry) \| `string`)`[]` | | | Include directories. Dependents don't get them |
+| `define` | ([`value_entry`](#value_entry) \| `string`)`[]` | | | Preprocessor definitions, spelled for whichever compiler is in use. Dependents don't get them |
+| `flags` | ([`value_entry`](#value_entry) \| `string`)`[]` | | | Compiler flags, passed as written |
+| `link_flags` | ([`value_entry`](#value_entry) \| `string`)`[]` | | | Linker flags, passed as written, for this target's own link. On a `[[lib]]` they require `shared` in `kinds` |
+| `linker_script` | ([`source_entry`](#source_entry) \| `string`)`[]` | | | Linker scripts for this target's own link. On a `[[lib]]` they require `shared` in `kinds` |
+| `shared` | ([`shared_entry`](#shared_entry) \| `string`)`[]` | | | `[[lib]]` only. Prebuilt shared libraries to use in place of `source` and `kinds` |
+| `system_deps` | ([`system_dep_entry`](#system_dep_entry) \| `string`)`[]` | | | System libraries to link. A static library's follow it to whatever links it |
+| `host_deps` | ([`host_dep_entry`](#host_dep_entry) \| `string`)`[]` | | | Libraries installed on the build machine. See `host_deps` in `[package]` |
+| `deps` | ([`target_dep_entry`](#target_dep_entry) \| `string`)`[]` | | | Libraries of this package to link. Other packages come from `[deps]` |
+| `embed` | ([`embed_entry`](#embed_entry) \| `string`)`[]` | | | Files to embed in the binary, declared in `<name>.embed.h` |
+| `link` | `bool` | | `true` | `[[lib]]` only. `false` compiles the library but links it into nothing |
+| `cxx` | [`cxx_options`](#cxx_options) | | | |
+| `macos` | [`platform_macos`](#platform_macos) | | | |
+| `windows` | [`platform_windows`](#platform_windows) | | | |
+| `publish` | [`target_publish`](#target_publish) | | | |
 
 ## toolchain_decl
 
-| Field | Type |
-|---|---|
-| `name` | `string` |
-| `version` | `string` |
-| `compiler` | `string` |
-| `linker` | `gnu` \| `lld` \| `ld64` \| `msvc` |
-| `link_args` | array of `string` |
-| `archiver` | `string` |
-| `driver` | `gcc` \| `clang` \| `msvc` \| `zig` |
-| `cxx` | `string` |
-| `detect` | `msvc` |
-| `host` | map of [`artifact`](#artifact) |
-| `mirrors` | `string` |
-| `mirror_snapshot` | `string` |
-| `target` | array of [`toolchain_target`](#toolchain_target) \| `string` |
+| Field | Type | Description |
+|---|---|---|
+| `name` | `string` | Required. A built in toolchain of the same name is replaced |
+| `version` | `string` | |
+| `compiler` | `string` | Required. The C compiler |
+| `linker` | `gnu` \| `lld` \| `ld64` \| `msvc` | |
+| `link_args` | `string[]` | Arguments added to every link |
+| `archiver` | `string` | Required |
+| `driver` | `gcc` \| `clang` \| `msvc` \| `zig` | Required. The command line the compiler speaks |
+| `cxx` | `string` | The C++ compiler |
+| `detect` | `msvc` | Find the toolchain through a Visual Studio installation. Excludes `host` |
+| `host` | map of [`artifact`](#artifact) | The hosts the toolchain runs on, keyed like `x86_64-linux` |
+| `mirrors` | `string` | URL of a list of mirrors to download from |
+| `mirror_snapshot` | `string` | The mirror list to use when `mirrors` can't be fetched |
+| `target` | ([`toolchain_target`](#toolchain_target) \| `string`)`[]` | What the toolchain can build for. Without it, only the host |
 
 ## index
 
-| Field | Type | Required |
-|---|---|---|
-| `name` | `string` | yes |
-| `url` | `string` | |
-| `path` | `string` | |
-| `protocol` | `git` \| `http` \| `dir` | |
-| `rev` | `string` | |
-| `publish_url` | `string` | |
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `name` | `string` | yes | |
+| `url` | `string` | | A Git repository of releases |
+| `path` | `string` | | A directory of `<name>/spn.toml` packages, relative to the file that declares the index |
+| `protocol` | `git` \| `http` \| `dir` | | Defaults to `dir` when `path` is set, and `git` otherwise |
+| `rev` | `string` | | A commit to hold a Git index at. A pinned index is never refreshed, and can't be published to |
+| `publish_url` | `string` | | Where `spn publish` pushes, when it isn't `url` |
 
 ## profile
 
-| Field | Type |
-|---|---|
-| `static_deps` | `bool` |
-| `runtime` | array of [`value_entry`](#value_entry) \| `string` |
-| `libc` | array of [`value_entry`](#value_entry) \| `string` |
-| `standard` | array of [`value_entry`](#value_entry) \| `string` |
-| `toolchain` | array of [`value_entry`](#value_entry) \| `string` |
-| `mode` | array of [`value_entry`](#value_entry) \| `string` |
-| `opt` | array of [`value_entry`](#value_entry) \| `string` |
-| `sanitize` | array of `address` \| `thread` \| `undefined` \| `memory` \| `leak` |
-| `emit` | array of `shared` \| `static` |
-| `os` | `windows` \| `linux` \| `macos` \| `wasi` \| `freestanding` |
-| `arch` | `x86_64` \| `aarch64` \| `wasm32` |
-| `abi` | array of [`value_entry`](#value_entry) \| `string` |
-| `options` | [`when`](#extern-types) |
+Fields that take a list are tried in order. The first entry whose `when` matches wins, only the last may omit `when`, and `when` accepts only `os` and `arch`.
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `static_deps` | `bool` | `false` | Fail the build if a dependency can only be linked as a shared library. One set to `shared` in `[config]` is still allowed |
+| `runtime` | ([`value_entry`](#value_entry) \| `string`)`[]` | | `static` or `shared`. How the compiler runtime, the C++ standard library, and the Windows CRT are linked |
+| `libc` | ([`value_entry`](#value_entry) \| `string`)`[]` | | `static` or `shared`. How the C library is linked |
+| `standard` | ([`value_entry`](#value_entry) \| `string`)`[]` | `c11` | The C standard for every package in the build: `c89`, `c99`, `c11`, `gnu89`, `gnu99`, or `gnu11` |
+| `toolchain` | ([`value_entry`](#value_entry) \| `string`)`[]` | | Name of the toolchain to use. Without it, `spn` takes the first that can build the target |
+| `mode` | ([`value_entry`](#value_entry) \| `string`)`[]` | `debug` | `debug` or `release` |
+| `opt` | ([`value_entry`](#value_entry) \| `string`)`[]` | | `0`, `1`, `2`, `3`, `s`, or `z`. Defaults to `0` in `debug` and `2` in `release` |
+| `strip` | ([`value_entry`](#value_entry) \| `string`)`[]` | | `none`, `debuginfo`, or `symbols`. Defaults to `none` in `debug` and `debuginfo` in `release` |
+| `sanitize` | (`address` \| `thread` \| `undefined` \| `memory` \| `leak`)`[]` | | |
+| `emit` | (`shared` \| `static`)`[]` | | Which kinds to build this package's own libraries as, for a library that offers both. Without it, `static` |
+| `os` | `windows` \| `linux` \| `macos` \| `wasi` \| `freestanding` | | Defaults to the host's |
+| `arch` | `x86_64` \| `aarch64` \| `wasm32` | | Defaults to the host's |
+| `abi` | ([`value_entry`](#value_entry) \| `string`)`[]` | | `gnu`, `musl`, `msvc`, `apple`, `none`, or `elf`. Required when cross compiling to an OS that has more than one |
+| `options` | [`when`](#extern-types) | | Values for this package's own options |
 
 ## option
 
-| Field | Type | Required |
-|---|---|---|
-| `type` | `bool` \| `enum` | yes |
-| `values` | array of `string` | |
-| `default` | [`option_defaults`](#extern-types) | |
-| `additive` | `bool` | |
-| `define` | `string` | |
-| `public` | `bool` | |
+| Field | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `type` | `bool` \| `enum` | yes | | |
+| `values` | `string[]` | | | The allowed values. Required for `enum`, and not allowed for `bool` |
+| `default` | [`option_defaults`](#extern-types) | | | A `bool` with no default is `false` |
+| `additive` | `bool` | | `false` | `bool` only. The option is on if any package asks for it, where requests would otherwise have to agree |
+| `define` | `string` | | | `bool` only. A macro defined for this package's own compiles while the option is on |
+| `public` | `bool` | | `false` | Define the macro for dependents too. Requires `define` |
 
 ## deps
 
-| Field | Type |
-|---|---|
-| `package` | map of [`dep`](#dep) \| `string` |
-| `test` | map of [`dep`](#dep) \| `string` |
-| `build` | map of [`dep`](#dep) \| `string` |
-| `tool` | map of [`dep`](#dep) \| `string` |
+| Field | Type | Description |
+|---|---|---|
+| `package` | map of [`dep`](#dep) \| `string` | Linked into every target but tools |
+| `test` | map of [`dep`](#dep) \| `string` | Linked into `[[test]]` targets as well. Read from the root package only |
+| `build` | map of [`dep`](#dep) \| `string` | Linked into the build metaprogram only |
+| `tool` | map of [`dep`](#dep) \| `string` | Linked into `[[tool]]` targets. Read from the root package only |
 
 ## config_entry
 
-| Field | Type |
-|---|---|
-| `kind` | `shared` \| `static` |
-| `options` | [`when`](#extern-types) |
-| `defaults` | `bool` |
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `kind` | `shared` \| `static` | | Which kind of the dependency's libraries to link. Without it, `static` when the library offers it |
+| `options` | [`when`](#extern-types) | | Option values for the dependency. They win over every other request |
+| `defaults` | `bool` | `true` | `false` ignores the dependency's own option defaults |
 
 ## patch_entry
 
-| Field | Type | Required |
-|---|---|---|
-| `files` | array of `string` | yes |
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `files` | `string[]` | yes | Patches in Git's diff format, relative to this manifest, applied in order |
 
 ## stage
 
+Copies metaprogram outputs into the project after a successful build.
+
 | Field | Type |
 |---|---|
-| `copy` | array of [`stage_entry`](#stage_entry) |
+| `copy` | [`stage_entry[]`](#stage_entry) |
 
 ## upstream
 
-| Field | Type | Required |
-|---|---|---|
-| `url` | `string` | yes |
-| `commit` | `string` | yes |
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `url` | `string` | yes | |
+| `commit` | `string` | yes | The full 40 character hash. `spn publish` refuses anything shorter |
 
 ## source_entry
 
-| Field | Type | Required |
-|---|---|---|
-| `path` | `string` | yes |
-| `tree` | `manifest` \| `source` \| `work` | |
-| `when` | [`when`](#extern-types) | |
+| Field | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `path` | `string` | yes | | Relative, with no `..` segments. In `source` it may be a glob, where `*` matches within one directory and `**` at any depth |
+| `tree` | `manifest` \| `source` \| `work` | | `source` | |
+| `when` | [`when`](#extern-types) | | | |
 
 ## value_entry
 
@@ -177,11 +183,13 @@ readme: false
 
 ## system_dep_entry
 
-| Field | Type |
-|---|---|
-| `lib` | `string` |
-| `framework` | `string` |
-| `when` | [`when`](#extern-types) |
+Exactly one of `lib` and `framework`.
+
+| Field | Type | Description |
+|---|---|---|
+| `lib` | `string` | The name as you'd pass it to `-l` |
+| `framework` | `string` | A macOS framework. Ignored for every other target |
+| `when` | [`when`](#extern-types) | |
 
 ## host_dep_entry
 
@@ -192,111 +200,135 @@ readme: false
 
 ## platform_macos
 
-| Field | Type |
-|---|---|
-| `min_os` | [`os_version`](#extern-types) |
+| Field | Type | Description |
+|---|---|---|
+| `min_os` | [`os_version`](#extern-types) | Oldest macOS the binary runs on. A binary takes the highest value among everything linked into it |
 
 ## build_script
 
-| Field | Type |
-|---|---|
-| `source` | array of [`source_entry`](#source_entry) \| `string` |
-| `include` | array of [`source_entry`](#source_entry) \| `string` |
-| `define` | array of [`value_entry`](#value_entry) \| `string` |
-| `flags` | array of [`value_entry`](#value_entry) \| `string` |
+`when` on these entries accepts build facts only, not options.
+
+| Field | Type | Description |
+|---|---|---|
+| `source` | ([`source_entry`](#source_entry) \| `string`)`[]` | C only |
+| `include` | ([`source_entry`](#source_entry) \| `string`)`[]` | |
+| `define` | ([`value_entry`](#value_entry) \| `string`)`[]` | |
+| `flags` | ([`value_entry`](#value_entry) \| `string`)`[]` | |
 
 ## publish
 
-| Field | Type |
-|---|---|
-| `include` | array of [`publish_entry`](#publish_entry) |
-| `share` | array of [`publish_entry`](#publish_entry) |
-| `system_deps` | array of [`system_dep_entry`](#system_dep_entry) \| `string` |
-| `define` | array of [`value_entry`](#value_entry) \| `string` |
+What packages that depend on this one get. Not related to `spn publish`.
+
+| Field | Type | Description |
+|---|---|---|
+| `include` | [`publish_entry[]`](#publish_entry) | Headers to copy into the include directory dependents compile against |
+| `share` | [`publish_entry[]`](#publish_entry) | Files to copy into the package's `share` directory |
+| `system_deps` | ([`system_dep_entry`](#system_dep_entry) \| `string`)`[]` | System libraries that dependents link |
+| `define` | ([`value_entry`](#value_entry) \| `string`)`[]` | Preprocessor definitions that dependents compile with |
+
+## shared_entry
+
+A prebuilt shared library. At most one entry may match a build.
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `path` | `string` | | The shared library. It's copied next to the executables that link it |
+| `stub` | `string` | | What to link against in place of `path`. Required where linking goes through an import library, as on Windows. With no `path`, nothing is copied and the library has to be on the machine at run time |
+| `tree` | `manifest` \| `source` \| `work` | `source` | |
+| `when` | [`when`](#extern-types) | | |
 
 ## target_dep_entry
 
-| Field | Type | Required |
-|---|---|---|
-| `lib` | `string` | yes |
-| `when` | [`when`](#extern-types) | |
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `lib` | `string` | yes | Name of a `[[lib]]` in this package |
+| `when` | [`when`](#extern-types) | | |
 
 ## embed_entry
 
-| Field | Type | Required |
-|---|---|---|
-| `path` | `string` | yes |
-| `tree` | `manifest` \| `source` \| `work` | |
-| `dir` | `bool` | |
-| `dest` | `string` | |
-| `data_type` | `string` | |
-| `size_type` | `string` | |
-| `when` | [`when`](#extern-types) | |
+| Field | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `path` | `string` | yes | | |
+| `tree` | `manifest` \| `source` \| `work` | | `source` | |
+| `dir` | `bool` | | `false` | Embed every file under `path` |
+| `dest` | `string` | | | Path the file is embedded as, which also names its symbol. Defaults to `path` |
+| `data_type` | `string` | | `unsigned char` | C type of the array's elements |
+| `size_type` | `string` | | `unsigned long long` | C type of the size symbol |
+| `when` | [`when`](#extern-types) | | | |
 
 ## cxx_options
 
-| Field | Type |
-|---|---|
-| `standard` | `c++11` \| `c++14` \| `c++17` \| `c++20` \| `c++23` |
-| `exceptions` | `bool` |
-| `rtti` | `bool` |
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `standard` | `c++11` \| `c++14` \| `c++17` \| `c++20` \| `c++23` | `c++17` | |
+| `exceptions` | `bool` | `true` | Off by default on WebAssembly |
+| `rtti` | `bool` | `true` | |
 
 ## platform_windows
 
-| Field | Type |
-|---|---|
-| `subsystem` | `console` \| `windows` |
+| Field | Type | Default |
+|---|---|---|
+| `subsystem` | `console` \| `windows` | `console` |
 
 ## target_publish
 
-| Field | Type |
-|---|---|
-| `include` | array of [`publish_entry`](#publish_entry) |
-| `share` | array of [`publish_entry`](#publish_entry) |
+| Field | Type | Description |
+|---|---|---|
+| `include` | [`publish_entry[]`](#publish_entry) | `[[lib]]` only. Same as `include` in `[package.publish]` |
+| `share` | [`publish_entry[]`](#publish_entry) | |
 
 ## artifact
 
-| Field | Type |
-|---|---|
-| `url` | `string` |
-| `sha256` | `string` |
+| Field | Type | Description |
+|---|---|---|
+| `url` | `string` | An archive of the toolchain for `spn` to download |
+| `sha256` | `string` | Required with `url` |
 
 ## toolchain_target
 
-| Field | Type |
-|---|---|
-| `kind` | `string` |
-| `arch` | `x86_64` \| `aarch64` \| `wasm32` |
-| `os` | `windows` \| `linux` \| `macos` \| `wasi` \| `freestanding` |
-| `abi` | `gnu` \| `musl` \| `msvc` \| `apple` \| `none` \| `elf` |
-| `sdk` | `string` |
-| `sanitizers` | array of `address` \| `thread` \| `undefined` \| `memory` \| `leak` |
+| Field | Type | Description |
+|---|---|---|
+| `kind` | `string` | `host` is the only kind: the machine the toolchain runs on. It takes no other fields |
+| `arch` | `x86_64` \| `aarch64` \| `wasm32` | |
+| `os` | `windows` \| `linux` \| `macos` \| `wasi` \| `freestanding` | |
+| `abi` | `gnu` \| `musl` \| `msvc` \| `apple` \| `none` \| `elf` | |
+| `sdk` | `string` | Path to the SDK or sysroot for this target |
+| `spelling` | `string` | The triple to pass to the compiler, when it isn't `spn`'s spelling |
+| `exceptions` | [`toolchain_exceptions`](#toolchain_exceptions) | Flags that turn C++ exceptions on, for a target that has them off by default |
+| `sanitizers` | (`address` \| `thread` \| `undefined` \| `memory` \| `leak`)`[]` | The sanitizers the toolchain has for this target |
 
 ## dep
 
-| Field | Type |
-|---|---|
-| `version` | `string` |
-| `path` | `string` |
-| `public` | `bool` |
-| `when` | [`when`](#extern-types) |
-| `options` | [`when`](#extern-types) |
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `version` | `string` | | A version requirement. A bare version means compatible with it, so `1.4.2` allows `>=1.4.2, <2.0.0`. Excludes `path` |
+| `path` | `string` | | Directory holding the dependency's `spn.toml`, relative to this manifest. Excludes `version` |
+| `public` | `bool` | `false` | Pass the dependency's headers and definitions on to packages that depend on this one |
+| `when` | [`when`](#extern-types) | | |
+| `options` | [`when`](#extern-types) | | Option values to ask the dependency for. Every package that asks must agree |
 
 ## stage_entry
 
-| Field | Type | Required |
-|---|---|---|
-| `from` | `string` | yes |
-| `to` | `string` | yes |
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `from` | `string` | yes | A declared node output, file or directory, relative to the work tree |
+| `to` | `string` | yes | Destination, relative to the project directory |
 
 ## publish_entry
 
-| Field | Type | Required |
-|---|---|---|
-| `from` | `string` | yes |
-| `tree` | `manifest` \| `source` \| `work` | |
-| `to` | `string` | |
-| `when` | [`when`](#extern-types) | |
+| Field | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `from` | `string` | yes | | A file or a glob. Matching nothing fails the build |
+| `tree` | `manifest` \| `source` \| `work` | | `source` | `work` isn't allowed |
+| `to` | `string` | | | Subdirectory to copy into. A file keeps its name, and a glob match keeps its path below the glob's fixed prefix |
+| `when` | [`when`](#extern-types) | | | |
+
+## toolchain_exceptions
+
+| Field | Type |
+|---|---|
+| `flags` | `string[]` |
+| `link_flags` | `string[]` |
 
 ## Extern types
 

@@ -4,19 +4,78 @@
     "package": { "ref": "package" }
   },
   "optionalProperties": {
-    "lib": { "elements": { "ref": "target" }, "metadata": { "key": "name" } },
+    "lib": {
+      "elements": { "ref": "target" },
+      "metadata": {
+        "key": "name",
+        "doc": "Libraries. A package that depends on this one links all of them, and none of its other targets are built"
+      }
+    },
     "bin": { "elements": { "ref": "target" }, "metadata": { "key": "name" } },
-    "tool": { "elements": { "ref": "target" }, "metadata": { "key": "name" } },
-    "test": { "elements": { "ref": "target" }, "metadata": { "key": "name" } },
-    "example": { "elements": { "ref": "target" }, "metadata": { "key": "name" } },
-    "toolchain": { "elements": { "ref": "toolchain_decl" } },
-    "index": { "elements": { "ref": "index" } },
-    "profile": { "values": { "ref": "profile" } },
-    "options": { "values": { "ref": "option" } },
+    "tool": {
+      "elements": { "ref": "target" },
+      "metadata": {
+        "key": "name",
+        "doc": "Executables built only on request, by name or with `--tool`. They link `[deps.tool]`, not `[deps.package]`"
+      }
+    },
+    "test": {
+      "elements": { "ref": "target" },
+      "metadata": {
+        "key": "name",
+        "doc": "Executables that `spn test` runs. They also link `[deps.test]`"
+      }
+    },
+    "example": {
+      "elements": { "ref": "target" },
+      "metadata": {
+        "key": "name",
+        "doc": "Executables built into `example/` in the build directory"
+      }
+    },
+    "toolchain": {
+      "elements": { "ref": "toolchain_decl" },
+      "metadata": {
+        "doc": "Compilers to add to the built in ones. Read from the root package only"
+      }
+    },
+    "index": {
+      "elements": { "ref": "index" },
+      "metadata": {
+        "doc": "Package indexes, searched before the user config's. Read from the root package only"
+      }
+    },
+    "profile": {
+      "values": { "ref": "profile" },
+      "metadata": {
+        "doc": "Build settings, selected with `--profile`. `default` is the base of every other profile. Read from the root package only"
+      }
+    },
+    "options": {
+      "values": { "ref": "option" },
+      "metadata": {
+        "doc": "Options this package offers. Each name is also a key for `when`"
+      }
+    },
     "deps": { "ref": "deps" },
-    "config": { "values": { "ref": "config_entry" } },
-    "patch": { "values": { "ref": "patch_entry" } },
-    "stage": { "ref": "stage" }
+    "config": {
+      "values": { "ref": "config_entry" },
+      "metadata": {
+        "doc": "Settings for the dependency called `<name>`. Read from the root package only"
+      }
+    },
+    "patch": {
+      "values": { "ref": "patch_entry" },
+      "metadata": {
+        "doc": "Patches for the source of the dependency called `<name>`. An error anywhere but the root package"
+      }
+    },
+    "stage": {
+      "ref": "stage",
+      "metadata": {
+        "doc": "Read from the root package only"
+      }
+    }
   },
   "definitions": {
     "c_standard": { "enum": ["c89", "c99", "c11", "gnu89", "gnu99", "gnu11"] },
@@ -28,13 +87,18 @@
 
     "platform_macos": {
       "optionalProperties": {
-        "min_os": { "metadata": { "extern": "os_version" } }
+        "min_os": {
+          "metadata": {
+            "extern": "os_version",
+            "doc": "Oldest macOS the binary runs on. A binary takes the highest value among everything linked into it"
+          }
+        }
       }
     },
 
     "platform_windows": {
       "optionalProperties": {
-        "subsystem": { "ref": "win_subsystem" }
+        "subsystem": { "ref": "win_subsystem", "metadata": { "default": "console" } }
       }
     },
 
@@ -43,29 +107,76 @@
         "type": { "ref": "option_type" }
       },
       "optionalProperties": {
-        "values": { "elements": { "type": "string" } },
-        "default": { "metadata": { "extern": "option_defaults", "field": "defaults", "include": "when/types.h" } },
-        "additive": { "type": "boolean" },
-        "define": { "type": "string" },
-        "public": { "type": "boolean" }
+        "values": {
+          "elements": { "type": "string" },
+          "metadata": {
+            "doc": "The allowed values. Required for `enum`, and not allowed for `bool`"
+          }
+        },
+        "default": {
+          "metadata": {
+            "extern": "option_defaults",
+            "field": "defaults",
+            "include": "when/types.h",
+            "doc": "A `bool` with no default is `false`"
+          }
+        },
+        "additive": {
+          "type": "boolean",
+          "metadata": {
+            "default": false,
+            "doc": "`bool` only. The option is on if any package asks for it, where requests would otherwise have to agree"
+          }
+        },
+        "define": {
+          "type": "string",
+          "metadata": {
+            "doc": "`bool` only. A macro defined for this package's own compiles while the option is on"
+          }
+        },
+        "public": {
+          "type": "boolean",
+          "metadata": {
+            "default": false,
+            "doc": "Define the macro for dependents too. Requires `define`"
+          }
+        }
       }
     },
 
     "source_entry": {
       "properties": {
-        "path": { "type": "string" }
+        "path": {
+          "type": "string",
+          "metadata": {
+            "doc": "Relative, with no `..` segments. In `source` it may be a glob, where `*` matches within one directory and `**` at any depth"
+          }
+        }
       },
       "optionalProperties": {
-        "tree": { "ref": "tree" },
+        "tree": { "ref": "tree", "metadata": { "default": "source" } },
         "when": { "metadata": { "extern": "when", "include": "when/types.h" } }
       }
     },
 
     "shared_entry": {
+      "metadata": {
+        "doc": "A prebuilt shared library. At most one entry may match a build."
+      },
       "optionalProperties": {
-        "path": { "type": "string" },
-        "stub": { "type": "string" },
-        "tree": { "ref": "tree" },
+        "path": {
+          "type": "string",
+          "metadata": {
+            "doc": "The shared library. It's copied next to the executables that link it"
+          }
+        },
+        "stub": {
+          "type": "string",
+          "metadata": {
+            "doc": "What to link against in place of `path`. Required where linking goes through an import library, as on Windows. With no `path`, nothing is copied and the library has to be on the machine at run time"
+          }
+        },
+        "tree": { "ref": "tree", "metadata": { "default": "source" } },
         "when": { "metadata": { "extern": "when", "include": "when/types.h" } }
       }
     },
@@ -73,7 +184,12 @@
     "upstream": {
       "properties": {
         "url": { "type": "string" },
-        "commit": { "type": "string" }
+        "commit": {
+          "type": "string",
+          "metadata": {
+            "doc": "The full 40 character hash. `spn publish` refuses anything shorter"
+          }
+        }
       }
     },
 
@@ -91,19 +207,55 @@
         "path": { "type": "string" }
       },
       "optionalProperties": {
-        "tree": { "ref": "tree" },
-        "dir": { "type": "boolean" },
-        "dest": { "type": "string" },
-        "data_type": { "type": "string" },
-        "size_type": { "type": "string" },
+        "tree": { "ref": "tree", "metadata": { "default": "source" } },
+        "dir": {
+          "type": "boolean",
+          "metadata": {
+            "default": false,
+            "doc": "Embed every file under `path`"
+          }
+        },
+        "dest": {
+          "type": "string",
+          "metadata": {
+            "doc": "Path the file is embedded as, which also names its symbol. Defaults to `path`"
+          }
+        },
+        "data_type": {
+          "type": "string",
+          "metadata": {
+            "default": "unsigned char",
+            "doc": "C type of the array's elements"
+          }
+        },
+        "size_type": {
+          "type": "string",
+          "metadata": {
+            "default": "unsigned long long",
+            "doc": "C type of the size symbol"
+          }
+        },
         "when": { "metadata": { "extern": "when", "include": "when/types.h" } }
       }
     },
 
     "system_dep_entry": {
+      "metadata": {
+        "doc": "Exactly one of `lib` and `framework`."
+      },
       "optionalProperties": {
-        "lib": { "type": "string" },
-        "framework": { "type": "string" },
+        "lib": {
+          "type": "string",
+          "metadata": {
+            "doc": "The name as you'd pass it to `-l`"
+          }
+        },
+        "framework": {
+          "type": "string",
+          "metadata": {
+            "doc": "A macOS framework. Ignored for every other target"
+          }
+        },
         "when": { "metadata": { "extern": "when", "include": "when/types.h" } }
       }
     },
@@ -119,7 +271,12 @@
 
     "target_dep_entry": {
       "properties": {
-        "lib": { "type": "string" }
+        "lib": {
+          "type": "string",
+          "metadata": {
+            "doc": "Name of a `[[lib]]` in this package"
+          }
+        }
       },
       "optionalProperties": {
         "when": { "metadata": { "extern": "when", "include": "when/types.h" } }
@@ -127,22 +284,55 @@
     },
 
     "publish": {
+      "metadata": {
+        "doc": "What packages that depend on this one get. Not related to `spn publish`."
+      },
       "optionalProperties": {
-        "include": { "elements": { "ref": "publish_entry" } },
-        "share": { "elements": { "ref": "publish_entry" } },
-        "system_deps": { "elements": { "ref": "system_dep_entry" }, "metadata": { "shorthand": "lib" } },
-        "define": { "elements": { "ref": "value_entry" }, "metadata": { "shorthand": "value" } }
+        "include": {
+          "elements": { "ref": "publish_entry" },
+          "metadata": {
+            "doc": "Headers to copy into the include directory dependents compile against"
+          }
+        },
+        "share": {
+          "elements": { "ref": "publish_entry" },
+          "metadata": {
+            "doc": "Files to copy into the package's `share` directory"
+          }
+        },
+        "system_deps": {
+          "elements": { "ref": "system_dep_entry" },
+          "metadata": {
+            "shorthand": "lib",
+            "doc": "System libraries that dependents link"
+          }
+        },
+        "define": {
+          "elements": { "ref": "value_entry" },
+          "metadata": {
+            "shorthand": "value",
+            "doc": "Preprocessor definitions that dependents compile with"
+          }
+        }
       }
     },
 
     "target_publish": {
       "optionalProperties": {
-        "include": { "elements": { "ref": "publish_entry" } },
+        "include": {
+          "elements": { "ref": "publish_entry" },
+          "metadata": {
+            "doc": "`[[lib]]` only. Same as `include` in `[package.publish]`"
+          }
+        },
         "share": { "elements": { "ref": "publish_entry" } }
       }
     },
 
     "stage": {
+      "metadata": {
+        "doc": "Copies metaprogram outputs into the project after a successful build."
+      },
       "optionalProperties": {
         "copy": { "elements": { "ref": "stage_entry" } }
       }
@@ -150,18 +340,44 @@
 
     "stage_entry": {
       "properties": {
-        "from": { "type": "string" },
-        "to": { "type": "string" }
+        "from": {
+          "type": "string",
+          "metadata": {
+            "doc": "A declared node output, file or directory, relative to the work tree"
+          }
+        },
+        "to": {
+          "type": "string",
+          "metadata": {
+            "doc": "Destination, relative to the project directory"
+          }
+        }
       }
     },
 
     "publish_entry": {
       "properties": {
-        "from": { "type": "string" }
+        "from": {
+          "type": "string",
+          "metadata": {
+            "doc": "A file or a glob. Matching nothing fails the build"
+          }
+        }
       },
       "optionalProperties": {
-        "tree": { "ref": "tree" },
-        "to": { "type": "string" },
+        "tree": {
+          "ref": "tree",
+          "metadata": {
+            "default": "source",
+            "doc": "`work` isn't allowed"
+          }
+        },
+        "to": {
+          "type": "string",
+          "metadata": {
+            "doc": "Subdirectory to copy into. A file keeps its name, and a glob match keeps its path below the glob's fixed prefix"
+          }
+        },
         "when": { "metadata": { "extern": "when", "include": "when/types.h" } }
       }
     },
@@ -169,27 +385,80 @@
     "package": {
       "properties": {
         "name": { "type": "string" },
-        "version": { "type": "string" }
+        "version": {
+          "type": "string",
+          "metadata": {
+            "doc": "A semantic version"
+          }
+        }
       },
       "optionalProperties": {
         "repo": { "type": "string" },
         "author": { "type": "string" },
         "maintainer": { "type": "string" },
-        "upstream": { "ref": "upstream" },
-        "include": { "elements": { "ref": "source_entry" }, "metadata": { "shorthand": "path" } },
-        "define": { "elements": { "ref": "value_entry" }, "metadata": { "shorthand": "value" } },
-        "system_deps": { "elements": { "ref": "system_dep_entry" }, "metadata": { "shorthand": "lib" } },
-        "host_deps": { "elements": { "ref": "host_dep_entry" }, "metadata": { "shorthand": "lib" } },
+        "upstream": {
+          "ref": "upstream",
+          "metadata": {
+            "doc": "The Git repository holding the source, for a manifest that lives apart from the code it builds"
+          }
+        },
+        "include": {
+          "elements": { "ref": "source_entry" },
+          "metadata": {
+            "shorthand": "path",
+            "doc": "Include directories for every target. Dependents don't get them; see `publish`"
+          }
+        },
+        "define": {
+          "elements": { "ref": "value_entry" },
+          "metadata": {
+            "shorthand": "value",
+            "doc": "Preprocessor definitions for every target. Dependents don't get them; see `publish`"
+          }
+        },
+        "system_deps": {
+          "elements": { "ref": "system_dep_entry" },
+          "metadata": {
+            "shorthand": "lib",
+            "doc": "System libraries for every target"
+          }
+        },
+        "host_deps": {
+          "elements": { "ref": "host_dep_entry" },
+          "metadata": {
+            "shorthand": "lib",
+            "doc": "Libraries installed on the build machine, for every target. An error when cross compiling, and with a toolchain that doesn't link against the machine's own libraries, like the bundled zig"
+          }
+        },
         "macos": { "ref": "platform_macos" },
-        "build": { "ref": "build_script" },
-        "configure": { "ref": "build_script" },
+        "build": {
+          "ref": "build_script",
+          "metadata": {
+            "doc": "The build metaprogram, holding the functions that nodes call. It links `[deps.build]`"
+          }
+        },
+        "configure": {
+          "ref": "build_script",
+          "metadata": {
+            "doc": "The configure metaprogram, which runs on every build and declares nodes. It links no dependencies"
+          }
+        },
         "publish": { "ref": "publish" }
       }
     },
 
     "build_script": {
+      "metadata": {
+        "doc": "`when` on these entries accepts build facts only, not options."
+      },
       "optionalProperties": {
-        "source": { "elements": { "ref": "source_entry" }, "metadata": { "shorthand": "path" } },
+        "source": {
+          "elements": { "ref": "source_entry" },
+          "metadata": {
+            "shorthand": "path",
+            "doc": "C only"
+          }
+        },
         "include": { "elements": { "ref": "source_entry" }, "metadata": { "shorthand": "path" } },
         "define": { "elements": { "ref": "value_entry" }, "metadata": { "shorthand": "value" } },
         "flags": { "elements": { "ref": "value_entry" }, "metadata": { "shorthand": "value" } }
@@ -201,19 +470,97 @@
         "name": { "type": "string" }
       },
       "optionalProperties": {
-        "kinds": { "elements": { "type": "string" } },
-        "source": { "elements": { "ref": "source_entry" }, "metadata": { "shorthand": "path" } },
-        "include": { "elements": { "ref": "source_entry" }, "metadata": { "shorthand": "path" } },
-        "define": { "elements": { "ref": "value_entry" }, "metadata": { "shorthand": "value" } },
-        "flags": { "elements": { "ref": "value_entry" }, "metadata": { "shorthand": "value" } },
-        "link_flags": { "elements": { "ref": "value_entry" }, "metadata": { "shorthand": "value" } },
-        "linker_script": { "elements": { "ref": "source_entry" }, "metadata": { "shorthand": "path" } },
-        "shared": { "elements": { "ref": "shared_entry" }, "metadata": { "shorthand": "path" } },
-        "system_deps": { "elements": { "ref": "system_dep_entry" }, "metadata": { "shorthand": "lib" } },
-        "host_deps": { "elements": { "ref": "host_dep_entry" }, "metadata": { "shorthand": "lib" } },
-        "deps": { "elements": { "ref": "target_dep_entry" }, "metadata": { "shorthand": "lib" } },
-        "embed": { "elements": { "ref": "embed_entry" }, "metadata": { "shorthand": "path" } },
-        "link": { "type": "boolean" },
+        "kinds": {
+          "elements": { "type": "string" },
+          "metadata": {
+            "default": "[\"static\"]",
+            "doc": "`[[lib]]` only. Any of `static` and `shared`"
+          }
+        },
+        "source": {
+          "elements": { "ref": "source_entry" },
+          "metadata": {
+            "shorthand": "path",
+            "doc": "Files and globs to compile. The language comes from each file's extension"
+          }
+        },
+        "include": {
+          "elements": { "ref": "source_entry" },
+          "metadata": {
+            "shorthand": "path",
+            "doc": "Include directories. Dependents don't get them"
+          }
+        },
+        "define": {
+          "elements": { "ref": "value_entry" },
+          "metadata": {
+            "shorthand": "value",
+            "doc": "Preprocessor definitions, spelled for whichever compiler is in use. Dependents don't get them"
+          }
+        },
+        "flags": {
+          "elements": { "ref": "value_entry" },
+          "metadata": {
+            "shorthand": "value",
+            "doc": "Compiler flags, passed as written"
+          }
+        },
+        "link_flags": {
+          "elements": { "ref": "value_entry" },
+          "metadata": {
+            "shorthand": "value",
+            "doc": "Linker flags, passed as written, for this target's own link. On a `[[lib]]` they require `shared` in `kinds`"
+          }
+        },
+        "linker_script": {
+          "elements": { "ref": "source_entry" },
+          "metadata": {
+            "shorthand": "path",
+            "doc": "Linker scripts for this target's own link. On a `[[lib]]` they require `shared` in `kinds`"
+          }
+        },
+        "shared": {
+          "elements": { "ref": "shared_entry" },
+          "metadata": {
+            "shorthand": "path",
+            "doc": "`[[lib]]` only. Prebuilt shared libraries to use in place of `source` and `kinds`"
+          }
+        },
+        "system_deps": {
+          "elements": { "ref": "system_dep_entry" },
+          "metadata": {
+            "shorthand": "lib",
+            "doc": "System libraries to link. A static library's follow it to whatever links it"
+          }
+        },
+        "host_deps": {
+          "elements": { "ref": "host_dep_entry" },
+          "metadata": {
+            "shorthand": "lib",
+            "doc": "Libraries installed on the build machine. See `host_deps` in `[package]`"
+          }
+        },
+        "deps": {
+          "elements": { "ref": "target_dep_entry" },
+          "metadata": {
+            "shorthand": "lib",
+            "doc": "Libraries of this package to link. Other packages come from `[deps]`"
+          }
+        },
+        "embed": {
+          "elements": { "ref": "embed_entry" },
+          "metadata": {
+            "shorthand": "path",
+            "doc": "Files to embed in the binary, declared in `<name>.embed.h`"
+          }
+        },
+        "link": {
+          "type": "boolean",
+          "metadata": {
+            "default": true,
+            "doc": "`[[lib]]` only. `false` compiles the library but links it into nothing"
+          }
+        },
         "cxx": { "ref": "cxx_options" },
         "macos": { "ref": "platform_macos" },
         "windows": { "ref": "platform_windows" },
@@ -223,61 +570,215 @@
 
     "cxx_options": {
       "optionalProperties": {
-        "standard": { "ref": "cxx_standard" },
-        "exceptions": { "type": "boolean" },
-        "rtti": { "type": "boolean" }
+        "standard": { "ref": "cxx_standard", "metadata": { "default": "c++17" } },
+        "exceptions": {
+          "type": "boolean",
+          "metadata": {
+            "default": true,
+            "doc": "Off by default on WebAssembly"
+          }
+        },
+        "rtti": { "type": "boolean", "metadata": { "default": true } }
       }
     },
 
     "profile": {
+      "metadata": {
+        "doc": "Fields that take a list are tried in order. The first entry whose `when` matches wins, only the last may omit `when`, and `when` accepts only `os` and `arch`."
+      },
       "optionalProperties": {
-        "static_deps": { "type": "boolean" },
-        "runtime": { "elements": { "ref": "value_entry" }, "metadata": { "shorthand": "value" } },
-        "libc": { "elements": { "ref": "value_entry" }, "metadata": { "shorthand": "value" } },
-        "standard": { "elements": { "ref": "value_entry" }, "metadata": { "shorthand": "value" } },
-        "toolchain": { "elements": { "ref": "value_entry" }, "metadata": { "shorthand": "value" } },
-        "mode": { "elements": { "ref": "value_entry" }, "metadata": { "shorthand": "value" } },
-        "opt": { "elements": { "ref": "value_entry" }, "metadata": { "shorthand": "value" } },
-        "strip": { "elements": { "ref": "value_entry" }, "metadata": { "shorthand": "value" } },
+        "static_deps": {
+          "type": "boolean",
+          "metadata": {
+            "default": false,
+            "doc": "Fail the build if a dependency can only be linked as a shared library. One set to `shared` in `[config]` is still allowed"
+          }
+        },
+        "runtime": {
+          "elements": { "ref": "value_entry" },
+          "metadata": {
+            "shorthand": "value",
+            "doc": "`static` or `shared`. How the compiler runtime, the C++ standard library, and the Windows CRT are linked"
+          }
+        },
+        "libc": {
+          "elements": { "ref": "value_entry" },
+          "metadata": {
+            "shorthand": "value",
+            "doc": "`static` or `shared`. How the C library is linked"
+          }
+        },
+        "standard": {
+          "elements": { "ref": "value_entry" },
+          "metadata": {
+            "shorthand": "value",
+            "default": "c11",
+            "doc": "The C standard for every package in the build: `c89`, `c99`, `c11`, `gnu89`, `gnu99`, or `gnu11`"
+          }
+        },
+        "toolchain": {
+          "elements": { "ref": "value_entry" },
+          "metadata": {
+            "shorthand": "value",
+            "doc": "Name of the toolchain to use. Without it, `spn` takes the first that can build the target"
+          }
+        },
+        "mode": {
+          "elements": { "ref": "value_entry" },
+          "metadata": {
+            "shorthand": "value",
+            "default": "debug",
+            "doc": "`debug` or `release`"
+          }
+        },
+        "opt": {
+          "elements": { "ref": "value_entry" },
+          "metadata": {
+            "shorthand": "value",
+            "doc": "`0`, `1`, `2`, `3`, `s`, or `z`. Defaults to `0` in `debug` and `2` in `release`"
+          }
+        },
+        "strip": {
+          "elements": { "ref": "value_entry" },
+          "metadata": {
+            "shorthand": "value",
+            "doc": "`none`, `debuginfo`, or `symbols`. Defaults to `none` in `debug` and `debuginfo` in `release`"
+          }
+        },
         "sanitize": { "elements": { "ref": "sanitizer" } },
-        "emit": { "elements": { "ref": "linkage" } },
-        "os": { "ref": "os" },
-        "arch": { "ref": "arch" },
-        "abi": { "elements": { "ref": "value_entry" }, "metadata": { "shorthand": "value" } },
-        "options": { "metadata": { "extern": "when", "include": "when/types.h" } }
+        "emit": {
+          "elements": { "ref": "linkage" },
+          "metadata": {
+            "doc": "Which kinds to build this package's own libraries as, for a library that offers both. Without it, `static`"
+          }
+        },
+        "os": {
+          "ref": "os",
+          "metadata": {
+            "doc": "Defaults to the host's"
+          }
+        },
+        "arch": {
+          "ref": "arch",
+          "metadata": {
+            "doc": "Defaults to the host's"
+          }
+        },
+        "abi": {
+          "elements": { "ref": "value_entry" },
+          "metadata": {
+            "shorthand": "value",
+            "doc": "`gnu`, `musl`, `msvc`, `apple`, `none`, or `elf`. Required when cross compiling to an OS that has more than one"
+          }
+        },
+        "options": {
+          "metadata": {
+            "extern": "when",
+            "include": "when/types.h",
+            "doc": "Values for this package's own options"
+          }
+        }
       }
     },
 
     "deps": {
       "optionalProperties": {
-        "package": { "values": { "ref": "dep" }, "metadata": { "shorthand": "version" } },
-        "test": { "values": { "ref": "dep" }, "metadata": { "shorthand": "version" } },
-        "build": { "values": { "ref": "dep" }, "metadata": { "shorthand": "version" } },
-        "tool": { "values": { "ref": "dep" }, "metadata": { "shorthand": "version" } }
+        "package": {
+          "values": { "ref": "dep" },
+          "metadata": {
+            "shorthand": "version",
+            "doc": "Linked into every target but tools"
+          }
+        },
+        "test": {
+          "values": { "ref": "dep" },
+          "metadata": {
+            "shorthand": "version",
+            "doc": "Linked into `[[test]]` targets as well. Read from the root package only"
+          }
+        },
+        "build": {
+          "values": { "ref": "dep" },
+          "metadata": {
+            "shorthand": "version",
+            "doc": "Linked into the build metaprogram only"
+          }
+        },
+        "tool": {
+          "values": { "ref": "dep" },
+          "metadata": {
+            "shorthand": "version",
+            "doc": "Linked into `[[tool]]` targets. Read from the root package only"
+          }
+        }
       }
     },
 
     "dep": {
       "optionalProperties": {
-        "version": { "type": "string" },
-        "path": { "type": "string" },
-        "public": { "type": "boolean" },
+        "version": {
+          "type": "string",
+          "metadata": {
+            "doc": "A version requirement. A bare version means compatible with it, so `1.4.2` allows `>=1.4.2, <2.0.0`. Excludes `path`"
+          }
+        },
+        "path": {
+          "type": "string",
+          "metadata": {
+            "doc": "Directory holding the dependency's `spn.toml`, relative to this manifest. Excludes `version`"
+          }
+        },
+        "public": {
+          "type": "boolean",
+          "metadata": {
+            "default": false,
+            "doc": "Pass the dependency's headers and definitions on to packages that depend on this one"
+          }
+        },
         "when": { "metadata": { "extern": "when", "include": "when/types.h" } },
-        "options": { "metadata": { "extern": "when", "include": "when/types.h" } }
+        "options": {
+          "metadata": {
+            "extern": "when",
+            "include": "when/types.h",
+            "doc": "Option values to ask the dependency for. Every package that asks must agree"
+          }
+        }
       }
     },
 
     "patch_entry": {
       "properties": {
-        "files": { "elements": { "type": "string" } }
+        "files": {
+          "elements": { "type": "string" },
+          "metadata": {
+            "doc": "Patches in Git's diff format, relative to this manifest, applied in order"
+          }
+        }
       }
     },
 
     "config_entry": {
       "optionalProperties": {
-        "kind": { "ref": "linkage" },
-        "options": { "metadata": { "extern": "when", "include": "when/types.h" } },
-        "defaults": { "type": "boolean" }
+        "kind": {
+          "ref": "linkage",
+          "metadata": {
+            "doc": "Which kind of the dependency's libraries to link. Without it, `static` when the library offers it"
+          }
+        },
+        "options": {
+          "metadata": {
+            "extern": "when",
+            "include": "when/types.h",
+            "doc": "Option values for the dependency. They win over every other request"
+          }
+        },
+        "defaults": {
+          "type": "boolean",
+          "metadata": {
+            "default": true,
+            "doc": "`false` ignores the dependency's own option defaults"
+          }
+        }
       }
     }
   }
