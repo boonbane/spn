@@ -81,6 +81,7 @@
     "index_unknown": { "ref": "index" },
     "index_sync": { "ref": "index" },
     "index_pinned": { "ref": "index" },
+    "index_unpinned": { "ref": "index" },
     "index_corrupt": { "ref": "index_corrupt" },
     "index_publish_protocol": { "ref": "index" },
     "publish_push": { "ref": "publish" },

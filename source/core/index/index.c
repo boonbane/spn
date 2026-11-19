@@ -194,7 +194,19 @@ static s32 sort_release_by_version(const void* a, const void* b) {
   return spn_semver_cmp(lhs->version, rhs->version);
 }
 
+bool spn_index_is_snapshot(const spn_index_info_t* index) {
+  return index->protocol == SPN_INDEX_PROTOCOL_GIT && index->format == SPN_INDEX_FORMAT_MANIFESTS;
+}
+
 spn_err_t spn_index_get_package(spn_index_info_t* index, sp_mem_t mem, sp_intern_t* intern, const spn_path_roots_t* roots, sp_intern_str_t name, spn_index_pkg_t** pkg, spn_err_union_t* err) {
+  if (spn_index_is_snapshot(index) && sp_str_empty(index->git.rev)) {
+    *err = (spn_err_union_t) {
+      .kind = SPN_ERR_INDEX_UNPINNED,
+      .index = { .name = index->name.str, .url = index->git.url },
+    };
+    return err->kind;
+  }
+
   switch (index->format) {
     case SPN_INDEX_FORMAT_RELEASES: {
       spn_try(spn_index_jsonl_get_package(index, mem, intern, name, pkg, err));
