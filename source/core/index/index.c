@@ -198,6 +198,15 @@ bool spn_index_is_snapshot(const spn_index_info_t* index) {
   return index->protocol == SPN_INDEX_PROTOCOL_GIT && index->format == SPN_INDEX_FORMAT_MANIFESTS;
 }
 
+spn_index_format_t spn_index_detect_format(spn_index_info_t* index) {
+  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+  sp_sys_file_meta_t meta = sp_zero;
+  bool releases = !sp_fs_get_path_metadata_at(sp_path_join(scratch.mem, index->location.at, sp_str_lit(".spn/index")), &meta) && meta.kind == SP_FS_KIND_DIR;
+  bool manifests = !releases && spn_index_dir_has_packages(scratch.mem, index);
+  sp_mem_end_scratch(scratch);
+  return manifests ? SPN_INDEX_FORMAT_MANIFESTS : SPN_INDEX_FORMAT_RELEASES;
+}
+
 spn_err_t spn_index_get_package(spn_index_info_t* index, sp_mem_t mem, sp_intern_t* intern, const spn_path_roots_t* roots, sp_intern_str_t name, spn_index_pkg_t** pkg, spn_err_union_t* err) {
   if (spn_index_is_snapshot(index) && sp_str_empty(index->git.rev)) {
     *err = (spn_err_union_t) {

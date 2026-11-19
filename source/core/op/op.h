@@ -12,6 +12,7 @@ bool spn_op_cancelled(spn_op_t* op);
 spn_err_t spn_op_add(spn_op_t* op);
 spn_err_t spn_op_publish(spn_op_t* op);
 spn_err_t spn_op_sync_indexes(spn_op_t* op);
+spn_err_t spn_op_add_index(spn_op_t* op);
 spn_err_t spn_sync_index_list(spn_op_t* op, sp_da(spn_index_info_t*) indexes, bool force);
 spn_err_t spn_op_scaffold(spn_op_t* op);
 spn_err_t spn_op_build(spn_op_t* op);

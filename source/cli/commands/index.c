@@ -4,6 +4,8 @@
 
 static struct {
   sp_str_t name;
+  sp_str_t url;
+  bool global;
 } args;
 
 static void render_list() {
@@ -86,6 +88,44 @@ static sp_cli_result_t refresh(sp_cli_t* cli) {
   }));
 }
 
+static sp_cli_result_t add(sp_cli_t* cli) {
+  try(spn_cli_open(args.global));
+
+  return spn_cli_op(spn_add_index(host.ctx, (spn_index_add_request_t) {
+    .url = args.url,
+    .name = args.name,
+    .global = args.global,
+  }));
+}
+
+static sp_cli_cmd_t cmd_add = {
+  .name = "add",
+  .summary = "Declare a package index from a Git repository",
+  .opts = {
+    {
+      .name = "global",
+      .summary = "Write to the user config instead of the project manifest",
+      .kind = SP_CLI_OPT_BOOLEAN,
+      .ptr = &args.global,
+    },
+    {
+      .name = "name",
+      .summary = "Index name (default: the repository's name)",
+      .kind = SP_CLI_OPT_STR,
+      .ptr = &args.name,
+    },
+  },
+  .args = {
+    {
+      .name = "url",
+      .kind = SP_CLI_OPT_STR,
+      .summary = "Repository to add",
+      .ptr = &args.url,
+    },
+  },
+  .handler = add,
+};
+
 static sp_cli_cmd_t cmd_list = {
   .name = "list",
   .summary = "List configured indexes",
@@ -126,6 +166,7 @@ sp_cli_cmd_t spn_cmd_index = {
   .name = "index",
   .summary = "Inspect and manage package indexes",
   .commands = {
+    &cmd_add,
     &cmd_list,
     &cmd_path,
     &cmd_sync,

@@ -11,6 +11,36 @@ static bool has_manifest(const spn_path_roots_t* roots, spn_path_t path) {
   return !sp_fs_get_path_metadata_at(spn_path_at(roots, path), &meta) && meta.kind != SP_FS_KIND_UNKNOWN;
 }
 
+static bool holds_manifest(sp_mem_t mem, sp_path_t dir, u32 depth) {
+  sp_sys_dir_t handle = sp_zero;
+  if (sp_fs_open_dir_at(dir, &handle)) {
+    return false;
+  }
+
+  SP_ALIGNED u8 buffer [SP_SYS_DIR_MIN_BUF] = sp_zero;
+  sp_fs_dir_it_t it = sp_fs_dir_it(handle);
+  sp_fs_dir_entry_t entry = sp_zero;
+  bool found = false;
+  while (!found && sp_fs_dir_it_next(&it, sp_mem_slice(buffer, sizeof(buffer)), &entry)) {
+    if (sp_str_starts_with(entry.name, sp_str_lit("."))) {
+      continue;
+    }
+    sp_path_t child = sp_path_join(mem, dir, entry.name);
+    sp_sys_file_meta_t meta = sp_zero;
+    found = !sp_fs_get_path_metadata_at(sp_path_join(mem, child, sp_str_lit("spn.toml")), &meta) && meta.kind != SP_FS_KIND_UNKNOWN;
+    if (!found && depth) {
+      found = holds_manifest(mem, child, depth - 1);
+    }
+  }
+  sp_fs_dir_it_close(&it);
+  sp_fs_close_dir(handle);
+  return found;
+}
+
+bool spn_index_dir_has_packages(sp_mem_t mem, spn_index_info_t* index) {
+  return holds_manifest(mem, index->location.at, 1);
+}
+
 static spn_pkg_root_t published_root(spn_index_info_t* index, spn_path_t dir, sp_str_t sub) {
   switch (index->protocol) {
     case SPN_INDEX_PROTOCOL_GIT: {

@@ -395,7 +395,8 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
 
   switch (event->kind) {
     case SPN_EVENT_SYNC:
-    case SPN_EVENT_SYNC_PATCH: {
+    case SPN_EVENT_SYNC_PATCH:
+    case SPN_EVENT_INDEX_ADDED: {
       sp_tty_fmt(&w, "{} {.gray}", sp_fmt_str(event->sync.name), sp_fmt_str(event->sync.url));
       break;
     }
@@ -1338,6 +1339,15 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
             sp_fmt_str(event->err.index.name),
             sp_fmt_cstr("rev"),
             sp_fmt_cstr("spn index sync")
+          );
+          break;
+        }
+        case SPN_ERR_INDEX_EXISTS: {
+          sp_tty_fmt(
+            &w,
+            "Index {.cyan} is already declared; pick another with {.cyan}",
+            sp_fmt_str(event->err.index.name),
+            sp_fmt_cstr("--name")
           );
           break;
         }

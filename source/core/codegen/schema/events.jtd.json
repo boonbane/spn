@@ -233,6 +233,7 @@
         "version": { "type": "string" }
       }
     },
+    "index_added": { "metadata": { "verb": "Added" }, "ref": "sync" },
     "update_incompatible": { "ref": "update" },
     "lock_added": { "metadata": { "verb": "Locked" }, "ref": "resolve_pkg" },
     "lock_removed": { "metadata": { "verb": "Unlocked" }, "ref": "resolve_pkg" },
