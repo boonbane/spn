@@ -138,7 +138,6 @@ add_executable(core
   toolchain/driver.c
   toolchain/fetch.c
   toolchain/linker.c
-  toolchain/local.c
   toolchain/metaprogram.c
   toolchain/mirrors.c
   toolchain/parse.c

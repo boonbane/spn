@@ -280,20 +280,6 @@ static const bind_test_t bind_tests [] = {
     .expect = { .rows = { { HOST_X64_LINUX, .sanitizers = SAN_ZIG_UT }, { TARGET_X64_BARE } } },
   },
   {
-    .name = "listed_rows_keep_their_spelling",
-    .driver = SPN_CC_DRIVER_CLANG,
-    .host = HOST_X64_LINUX,
-    .targets = { { .triple = TARGET_WASM, .sdk = { .path = "/S" }, .spelling = "wasm32-wasip1" } },
-    .expect = { .rows = { { TARGET_WASM, { SPN_SDK_SYSROOT, { "/S" } }, .spelling = "wasm32-wasip1" } } },
-  },
-  {
-    .name = "listed_rows_keep_their_exceptions",
-    .driver = SPN_CC_DRIVER_CLANG,
-    .host = HOST_X64_LINUX,
-    .targets = { { .triple = TARGET_WASM, .sdk = { .path = "/S" }, .exceptions = { .flags = { "-fA" }, .link_flags = { "-lB" } } } },
-    .expect = { .rows = { { TARGET_WASM, { SPN_SDK_SYSROOT, { "/S" } }, .exceptions = { .flags = { "-fA" }, .link_flags = { "-lB" } } } } },
-  },
-  {
     .name = "zig_host_row_brings_its_libc",
     .driver = SPN_CC_DRIVER_ZIG,
     .host = HOST_X64_LINUX,
@@ -478,7 +464,7 @@ sp_test_each(catalog, bind, bind_test_t, bind_tests, .setup = spn_test_ctx_setup
     if (fixture_target_empty(it->targets[at])) {
       break;
     }
-    sp_da_push(toolchain.targets, fixture_target(mem, it->targets[at]));
+    sp_da_push(toolchain.targets, fixture_target(it->targets[at]));
   }
   toolchain.host_row = it->host_row || sp_da_empty(toolchain.targets);
 

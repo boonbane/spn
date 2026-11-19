@@ -616,7 +616,7 @@ sp_test_each(select, complete, complete_test_t, complete_tests, .setup = spn_tes
   if (declared) {
     toolchain.targets = sp_da_new(mem, spn_toolchain_target_t);
     sp_for(at, declared) {
-      sp_da_push(toolchain.targets, fixture_target(mem, it->targets[at]));
+      sp_da_push(toolchain.targets, fixture_target(it->targets[at]));
     }
   }
   toolchain.host_row = it->host_row || !declared;
