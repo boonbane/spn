@@ -458,17 +458,11 @@ sp_str_t spn_linking_refusal_to_str(spn_linking_refusal_t refusal) {
     case SPN_LINKING_REFUSAL_OS_LIBC: {
       return sp_str_lit("os_libc");
     }
-    case SPN_LINKING_REFUSAL_OS_RUNTIME: {
-      return sp_str_lit("os_runtime");
-    }
     case SPN_LINKING_REFUSAL_SHARED_RUNTIME: {
       return sp_str_lit("shared_runtime");
     }
     case SPN_LINKING_REFUSAL_HYBRID_CRT: {
       return sp_str_lit("hybrid_crt");
-    }
-    case SPN_LINKING_REFUSAL_SHARED_DEPS: {
-      return sp_str_lit("shared_deps");
     }
   }
   SP_UNREACHABLE_RETURN(sp_str_lit(""));

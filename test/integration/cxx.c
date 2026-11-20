@@ -129,6 +129,56 @@ static const test_t tests [] = {
     },
   },
   {
+    .name = "zig_refuses_runtime_shared",
+    .project = "test/integration/fixtures/cxx/runtime_shared",
+    .copy = { "main.cpp" },
+    .when = { .cxx = true, .driver = SPN_CC_DRIVER_ZIG, .target = SPN_TEST_TRIPLE },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build", .args = { "-p", "A", "--target", SPN_TEST_TRIPLE }, .rc = 1 } },
+      { .kind = ACTION_VERIFY_RESULT, .verify_result.err = SPN_ERR_RUNTIME_UNSUPPORTED },
+    },
+  },
+  {
+    .name = "w64devkit_refuses_runtime_shared",
+    .project = "test/integration/fixtures/cxx/runtime_shared",
+    .copy = { "main.cpp" },
+    .when = { .cxx = true, .lanes = { "w64devkit" } },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build", .rc = 1 } },
+      { .kind = ACTION_VERIFY_RESULT, .verify_result.err = SPN_ERR_RUNTIME_UNSUPPORTED },
+    },
+  },
+  {
+    .name = "msvc_sysroot_refuses_runtime_shared",
+    .project = "test/integration/fixtures/cxx/runtime_shared",
+    .copy = { "main.cpp" },
+    .when = { .cxx = true, .lanes = { "clang-xwin", "zig-xwin" }, .target = "x86_64-windows-msvc" },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build", .args = { "--target", "x86_64-windows-msvc" }, .rc = 1 } },
+      { .kind = ACTION_VERIFY_RESULT, .verify_result.err = SPN_ERR_RUNTIME_UNSUPPORTED },
+    },
+  },
+  {
+    .name = "zig_builds_runtime_static_on_macos",
+    .project = "test/integration/fixtures/cxx/runtime_static",
+    .copy = { "main.cpp" },
+    .when = { .cxx = true, .os = SPN_OS_MACOS, .driver = SPN_CC_DRIVER_ZIG },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
+    },
+  },
+  {
+    .name = "apple_clang_refuses_runtime_static",
+    .project = "test/integration/fixtures/cxx/runtime_static",
+    .copy = { "main.cpp" },
+    .when = { .cxx = true, .os = SPN_OS_MACOS, .driver = SPN_CC_DRIVER_CLANG },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build", .rc = 1 } },
+      { .kind = ACTION_VERIFY_RESULT, .verify_result.err = SPN_ERR_RUNTIME_UNSUPPORTED },
+    },
+  },
+  {
     .name = "bare_threads",
     .project = "test/integration/fixtures/cxx/bare_threads",
     .copy = { "main.cpp" },

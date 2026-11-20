@@ -71,6 +71,7 @@
     "profile_linking": { "ref": "profile" },
     "sanitizer_unsupported": { "ref": "sanitizer" },
     "sanitizer_static": { "ref": "sanitizer" },
+    "runtime_unsupported": { "ref": "runtime" },
     "compiler_feature_unsupported": { "ref": "compiler" },
     "toc_magic": { "ref": "fs" },
     "toc_truncated": { "ref": "fs" },
@@ -232,6 +233,9 @@
         "candidates": { "elements": { "type": "string" } },
         "targets": { "elements": { "metadata": { "extern": "triple" } } },
         "query": { "metadata": { "extern": "triple" } }
+      },
+      "optionalProperties": {
+        "runtime": { "metadata": { "extern": "runtime" } }
       }
     },
     "msvc": {
@@ -255,7 +259,7 @@
     },
     "cc_feature": { "enum": ["link_exe", "link_shared", "link_reactor", "archive", "frameworks", "linker_script", "exceptions", "static_runtime"] },
     "linkage_requester": { "enum": ["profile", "root_manifest", "libc", "target", "no_loader"] },
-    "linking_refusal": { "enum": ["none", "no_loader", "os_libc", "os_runtime", "shared_runtime", "hybrid_crt", "shared_deps"] },
+    "linking_refusal": { "enum": ["none", "no_loader", "os_libc", "shared_runtime", "hybrid_crt"] },
     "refusal": {
       "properties": {
         "triple": { "metadata": { "extern": "triple" } },
@@ -328,6 +332,14 @@
         "target": { "metadata": { "extern": "triple" } },
         "unsupported": { "metadata": { "extern": "sanitizer_set" } },
         "supported": { "metadata": { "extern": "sanitizer_set" } }
+      }
+    },
+    "runtime": {
+      "properties": {
+        "toolchain": { "type": "string" },
+        "target": { "metadata": { "extern": "triple" } },
+        "requested": { "metadata": { "extern": "runtime" } },
+        "supported": { "elements": { "metadata": { "extern": "runtime" } } }
       }
     },
     "compiler": {

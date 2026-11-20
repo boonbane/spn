@@ -196,6 +196,7 @@ typedef struct {
   spn_sdk_t sdk;
   sp_str_t spelling;
   spn_toolchain_exceptions_t exceptions;
+  spn_runtime_set_t runtimes;
   spn_sanitizer_set_t sanitizers;
   spn_toolchain_files_t files;
 } spn_toolchain_row_t;
@@ -284,9 +285,16 @@ typedef struct {
   sp_intern_str_t name;
 } spn_toolchain_ref_t;
 
+#define si_linkings_max 3
+
+typedef struct {
+  spn_linking_t items [si_linkings_max];
+  u32 count;
+} spn_linkings_t;
+
 typedef struct {
   spn_triple_t triple;
-  spn_linking_t linking;
+  spn_linkings_t linkings;
 } spn_toolchain_candidate_t;
 
 typedef struct {

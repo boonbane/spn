@@ -55,6 +55,14 @@ void spn_codegen_write_linkage(sp_io_writer_t* out, const spn_linkage_t* kind) {
   spn_codegen_json_str(out, spn_linkage_to_str(*kind));
 }
 
+void spn_codegen_write_runtime(sp_io_writer_t* out, const spn_runtime_t* runtime) {
+  spn_codegen_json_str(out, spn_runtime_to_str(*runtime));
+}
+
+bool spn_codegen_runtime_present(const spn_runtime_t* runtime) {
+  return *runtime != SPN_RUNTIME_NONE;
+}
+
 void spn_codegen_write_dep_kind(sp_io_writer_t* out, const spn_dep_kind_t* kind) {
   spn_codegen_json_str(out, spn_dep_kind_to_str(*kind));
 }

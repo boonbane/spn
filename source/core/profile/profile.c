@@ -172,23 +172,14 @@ spn_err_t si_profile_query(const spn_profile_info_t* profile, spn_triple_t host,
     }
   }
 
-  spn_linking_t demanded = profile->request;
-  demanded.linkage = profile->demand;
-
   spn_err_refusal_t refused [SPN_ABI_COUNT] = sp_zero;
   u32 refusals = 0;
   sp_for(it, abis.count) {
     spn_toolchain_candidate_t candidate = { .triple = { profile->target.arch, profile->target.os, abis.items[it] } };
-    spn_linking_refusal_t refusal = spn_ld_linking(candidate.triple, demanded, &candidate.linking);
-    if (refusal && profile->demand) {
-      refusal = spn_ld_linking(candidate.triple, profile->request, &candidate.linking);
-    }
+    spn_linking_refusal_t refusal = si_ld_linkings(candidate.triple, profile->request, profile->demand, &candidate.linkings);
     if (refusal) {
       refused[refusals++] = (spn_err_refusal_t) { .triple = candidate.triple, .reason = refusal };
       continue;
-    }
-    if (profile->request.linkage) {
-      candidate.linking.linkage = profile->request.linkage;
     }
     query->candidates.items[query->candidates.count++] = candidate;
   }
@@ -208,13 +199,13 @@ spn_err_t si_profile_query(const spn_profile_info_t* profile, spn_triple_t host,
     spn_toolchain_candidates_t ordered = sp_zero;
     sp_for(it, query->candidates.count) {
       spn_toolchain_candidate_t candidate = query->candidates.items[it];
-      if (candidate.triple.abi == SPN_ABI_MUSL && candidate.linking.libc == SPN_RUNTIME_STATIC) {
+      if (candidate.triple.abi == SPN_ABI_MUSL && candidate.linkings.items[0].libc == SPN_RUNTIME_STATIC) {
         ordered.items[ordered.count++] = candidate;
       }
     }
     sp_for(it, query->candidates.count) {
       spn_toolchain_candidate_t candidate = query->candidates.items[it];
-      if (candidate.triple.abi != SPN_ABI_MUSL || candidate.linking.libc != SPN_RUNTIME_STATIC) {
+      if (candidate.triple.abi != SPN_ABI_MUSL || candidate.linkings.items[0].libc != SPN_RUNTIME_STATIC) {
         ordered.items[ordered.count++] = candidate;
       }
     }

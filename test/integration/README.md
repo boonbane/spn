@@ -49,7 +49,8 @@ and skips with a reason otherwise.
   `["host"]`. `clang-bare` and `clang-sysroot` list `"host"` beside their one
   cross row. `clang-musl` lists its host row by hand instead: `link_args` apply
   to every row, and its `-unwindlib=none` is the musl row's, so the host row
-  must not claim the sanitizers a bare `host` would.
+  must not claim the sanitizers a bare `host` would. It does declare the
+  runtimes a bare `host` has, so its default runtime stays shared.
 - `.linker = SPN_LD_FAMILY_LLD`: only where the lane's linker family for the
   target is that one. Cases about what a family accepts gate on this, never on
   a lane or driver name.

@@ -366,9 +366,15 @@ static cell_t cells [] = {
     .args = { "build", "-p", "os_libc", "--target", "x86_64-windows-gnu" },
   },
   {
-    .name = "err_profile_linking_os_runtime",
+    .name = "err_runtime_unsupported",
     .project = "test/render/fixtures/errors/linking",
-    .args = { "build", "-p", "os_runtime", "--target", "aarch64-macos-apple" },
+    .toolchain = "zig",
+    .args = { "build", "-p", "runtime_unsupported", "--target", "x86_64-linux-gnu" },
+  },
+  {
+    .name = "err_toolchain_none_runtime",
+    .project = "test/render/fixtures/errors/linking",
+    .args = { "build", "-p", "runtime_unsupported", "--target", "x86_64-linux-musl" },
   },
   {
     .name = "err_profile_linking_shared_runtime",

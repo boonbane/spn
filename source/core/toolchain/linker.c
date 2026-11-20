@@ -33,24 +33,7 @@ bool spn_ld_loader(spn_triple_t target, spn_linking_t linking) {
   return spn_ld_dynamic(target) && !(spn_triple_object_format(target) == SPN_OBJ_ELF && linking.libc == SPN_RUNTIME_STATIC);
 }
 
-static u32 first(spn_triple_t target, rows_t table, spn_linking_t request) {
-  sp_for(it, table.count) {
-    spn_linking_t row = table.items[it];
-    if (request.runtime && row.runtime != request.runtime) {
-      continue;
-    }
-    if (request.libc && row.libc != request.libc) {
-      continue;
-    }
-    if (request.linkage == SPN_LIB_KIND_SHARED && !spn_ld_loader(target, row)) {
-      continue;
-    }
-    return it;
-  }
-  return table.count;
-}
-
-spn_linking_refusal_t spn_ld_linking(spn_triple_t target, spn_linking_t request, spn_linking_t* linking) {
+spn_linking_refusal_t si_ld_linkings(spn_triple_t target, spn_linking_t request, spn_linkage_t demand, spn_linkings_t* linkings) {
   static const spn_linking_t linux_gnu [] = {
     { .runtime = SPN_RUNTIME_SHARED, .libc = SPN_RUNTIME_SHARED },
     { .runtime = SPN_RUNTIME_STATIC, .libc = SPN_RUNTIME_SHARED },
@@ -70,6 +53,7 @@ spn_linking_refusal_t spn_ld_linking(spn_triple_t target, spn_linking_t request,
   };
   static const spn_linking_t macos [] = {
     { .runtime = SPN_RUNTIME_SHARED, .libc = SPN_RUNTIME_SHARED },
+    { .runtime = SPN_RUNTIME_STATIC, .libc = SPN_RUNTIME_SHARED },
   };
   static const spn_linking_t loaderless [] = {
     { .runtime = SPN_RUNTIME_STATIC, .libc = SPN_RUNTIME_STATIC },
@@ -109,31 +93,46 @@ spn_linking_refusal_t spn_ld_linking(spn_triple_t target, spn_linking_t request,
     case SPN_OS_NONE: sp_unreachable_case();
   }
 
-  u32 index = first(target, table, request);
-  if (index == table.count) {
-    if (first(target, table, (spn_linking_t) { .linkage = SPN_LIB_KIND_SHARED }) == table.count) {
+  sp_assert(table.count <= si_linkings_max);
+
+  spn_linkings_t preferred = sp_zero;
+  spn_linkings_t unloadable = sp_zero;
+  bool static_libc = false;
+  sp_for(it, table.count) {
+    spn_linking_t entry = table.items[it];
+    static_libc |= entry.libc == SPN_RUNTIME_STATIC;
+    if (request.runtime && entry.runtime != request.runtime) {
+      continue;
+    }
+    if (request.libc && entry.libc != request.libc) {
+      continue;
+    }
+    bool loader = spn_ld_loader(target, entry);
+    entry.linkage = request.linkage;
+    if (!entry.linkage) {
+      entry.linkage = loader ? SPN_LIB_KIND_SHARED : SPN_LIB_KIND_STATIC;
+    }
+    spn_linkings_t* group = demand == SPN_LIB_KIND_SHARED && !loader ? &unloadable : &preferred;
+    group->items[group->count++] = entry;
+  }
+
+  if (!preferred.count && !unloadable.count) {
+    if (!spn_ld_dynamic(target)) {
       return SPN_LINKING_REFUSAL_NO_LOADER;
     }
-    if (request.libc == SPN_RUNTIME_STATIC && first(target, table, (spn_linking_t) { .libc = SPN_RUNTIME_STATIC }) == table.count) {
+    if (request.libc == SPN_RUNTIME_STATIC && !static_libc) {
       return SPN_LINKING_REFUSAL_OS_LIBC;
-    }
-    if (request.runtime == SPN_RUNTIME_STATIC && first(target, table, (spn_linking_t) { .runtime = SPN_RUNTIME_STATIC }) == table.count) {
-      return SPN_LINKING_REFUSAL_OS_RUNTIME;
     }
     if (request.libc == SPN_RUNTIME_STATIC && request.runtime == SPN_RUNTIME_SHARED) {
       return SPN_LINKING_REFUSAL_SHARED_RUNTIME;
     }
-    if (request.runtime && request.libc && request.runtime != request.libc) {
-      return SPN_LINKING_REFUSAL_HYBRID_CRT;
-    }
-    return SPN_LINKING_REFUSAL_SHARED_DEPS;
+    return SPN_LINKING_REFUSAL_HYBRID_CRT;
   }
-  spn_linking_t resolved = table.items[index];
-  resolved.linkage = request.linkage;
-  if (!resolved.linkage) {
-    resolved.linkage = spn_ld_loader(target, resolved) ? SPN_LIB_KIND_SHARED : SPN_LIB_KIND_STATIC;
+
+  *linkings = preferred;
+  sp_for(it, unloadable.count) {
+    linkings->items[linkings->count++] = unloadable.items[it];
   }
-  *linking = resolved;
   return SPN_LINKING_REFUSAL_NONE;
 }
 

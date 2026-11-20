@@ -12,6 +12,7 @@ typedef enum {
   REACH_UNSERVED,
   REACH_UNLISTED,
   REACH_DROPPED,
+  REACH_RUNTIME,
   REACH_SANITIZERS,
   REACH_OK,
 } reach_kind_t;
@@ -36,7 +37,15 @@ static sp_da(spn_triple_t) triples(sp_mem_t mem, sp_da(spn_toolchain_row_t) rows
   return out;
 }
 
-static reach_t supports(spn_toolchain_row_t row, spn_toolchain_query_t query, spn_linking_t linking) {
+static reach_t supports(spn_toolchain_row_t row, spn_toolchain_query_t query, spn_linkings_t linkings) {
+  u32 pick = 0;
+  while (pick < linkings.count && !(row.runtimes & si_runtime_bit(linkings.items[pick].runtime))) {
+    pick++;
+  }
+  if (pick == linkings.count) {
+    return (reach_t) { .kind = REACH_RUNTIME, .row = row, .linking = linkings.items[0] };
+  }
+  spn_linking_t linking = linkings.items[pick];
   spn_sanitizer_set_t missing = query.sanitizers & ~row.sanitizers;
   if (missing) {
     return (reach_t) { .kind = REACH_SANITIZERS, .err = SPN_ERR_SANITIZER_UNSUPPORTED, .row = row, .unsupported = missing };
@@ -62,7 +71,7 @@ static reach_kind_t absence(const spn_toolchain_catalog_t* catalog, const spn_to
 static reach_t attempt(const spn_toolchain_catalog_t* catalog, const spn_toolchain_info_t* toolchain, spn_toolchain_query_t query, spn_toolchain_candidate_t candidate) {
   const spn_toolchain_row_t* row = spn_toolchain_row(toolchain, candidate.triple);
   if (row) {
-    return supports(*row, query, candidate.linking);
+    return supports(*row, query, candidate.linkings);
   }
   return (reach_t) { .kind = absence(catalog, toolchain, candidate.triple), .row = { .triple = candidate.triple } };
 }
@@ -160,6 +169,24 @@ static spn_err_t emit(spn_err_t kind, spn_toolchain_catalog_t* catalog, spn_tool
 
 static spn_err_t emit_reach(spn_toolchain_catalog_t* catalog, spn_toolchain_query_t query, const spn_toolchain_info_t* toolchain, reach_t reach, sp_da(sp_str_t) candidates) {
   switch (reach.kind) {
+    case REACH_RUNTIME: {
+      static const spn_runtime_t runtimes [] = { SPN_RUNTIME_STATIC, SPN_RUNTIME_SHARED };
+      sp_da(spn_runtime_t) supported = sp_da_new(spn.events->mem, spn_runtime_t);
+      sp_carr_for(runtimes, it) {
+        if (reach.row.runtimes & si_runtime_bit(runtimes[it])) {
+          sp_da_push(supported, runtimes[it]);
+        }
+      }
+      return spn_err_emit(&spn, (spn_err_union_t) {
+        .kind = SPN_ERR_RUNTIME_UNSUPPORTED,
+        .runtime = {
+          .toolchain = toolchain->name.str,
+          .target = reach.row.triple,
+          .requested = reach.linking.runtime,
+          .supported = supported,
+        },
+      });
+    }
     case REACH_SANITIZERS: {
       return spn_err_emit(&spn, (spn_err_union_t) {
         .kind = reach.err,
@@ -186,6 +213,7 @@ static spn_err_t emit_reach(spn_toolchain_catalog_t* catalog, spn_toolchain_quer
 }
 
 static spn_err_t select_auto(spn_toolchain_catalog_t* catalog, spn_toolchain_query_t query, spn_toolchain_selection_t* selection) {
+  reach_t closest = sp_zero;
   si_om_for(catalog->entries, it) {
     spn_toolchain_info_t* entry = si_om_at(catalog->entries, it);
     reach_t reach = sp_zero;
@@ -193,9 +221,22 @@ static spn_err_t select_auto(spn_toolchain_catalog_t* catalog, spn_toolchain_que
       *selection = (spn_toolchain_selection_t) { .toolchain = entry, .row = reach.row, .linking = reach.linking };
       return SPN_OK;
     }
+    if (closer(reach, closest)) {
+      closest = reach;
+    }
   }
 
-  return emit(SPN_ERR_TOOLCHAIN_NONE, catalog, query, query.target, SP_NULLPTR, SP_NULLPTR);
+  return spn_err_emit(&spn, (spn_err_union_t) {
+    .kind = SPN_ERR_TOOLCHAIN_NONE,
+    .toolchain = {
+      .name = query.toolchain.name.str,
+      .target = query.target,
+      .query = query.target,
+      .host = catalog->host,
+      .sanitizers = query.sanitizers,
+      .runtime = closest.kind == REACH_RUNTIME ? closest.linking.runtime : SPN_RUNTIME_NONE,
+    },
+  });
 }
 
 static spn_err_t select_named(spn_toolchain_catalog_t* catalog, spn_toolchain_query_t query, spn_toolchain_selection_t* selection) {

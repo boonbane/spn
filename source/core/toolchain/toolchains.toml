@@ -16,8 +16,8 @@ target = [
   { arch = "aarch64", os = "macos",        abi = "apple", sanitizers = { supported = ["undefined", "thread"] } },
   { arch = "x86_64",  os = "windows",      abi = "gnu",   sanitizers = { supported = ["undefined"] } },
   { arch = "aarch64", os = "windows",      abi = "gnu",   sanitizers = { supported = ["undefined"] } },
-  { arch = "x86_64",  os = "windows",      abi = "msvc",  sanitizers = { supported = ["undefined"] } },
-  { arch = "aarch64", os = "windows",      abi = "msvc",  sanitizers = { supported = ["undefined"] } },
+  { arch = "x86_64",  os = "windows",      abi = "msvc",  runtime = { supported = ["static", "shared"] }, sanitizers = { supported = ["undefined"] } },
+  { arch = "aarch64", os = "windows",      abi = "msvc",  runtime = { supported = ["static", "shared"] }, sanitizers = { supported = ["undefined"] } },
   { arch = "x86_64",  os = "freestanding", abi = "none" },
   { arch = "aarch64", os = "freestanding", abi = "none" },
   { arch = "wasm32",  os = "freestanding", abi = "none" },
@@ -41,8 +41,8 @@ archiver = "lib"
 cxx = "cl"
 detect = "msvc"
 target = [
-  { arch = "x86_64",  os = "windows", abi = "msvc", sanitizers = { supported = ["address"] } },
-  { arch = "aarch64", os = "windows", abi = "msvc" },
+  { arch = "x86_64",  os = "windows", abi = "msvc", runtime = { supported = ["static", "shared"] }, sanitizers = { supported = ["address"] } },
+  { arch = "aarch64", os = "windows", abi = "msvc", runtime = { supported = ["static", "shared"] } },
 ]
 
 [[toolchain]]
@@ -64,8 +64,8 @@ link_args = ["-fuse-ld=lld"]
 host = { x86_64-linux = {}, aarch64-linux = {}, x86_64-macos = {}, aarch64-macos = {}, x86_64-windows = {}, aarch64-windows = {} }
 target = [
   "host",
-  { arch = "x86_64",  os = "windows", abi = "msvc" },
-  { arch = "aarch64", os = "windows", abi = "msvc" },
+  { arch = "x86_64",  os = "windows", abi = "msvc", runtime = { supported = ["static", "shared"] } },
+  { arch = "aarch64", os = "windows", abi = "msvc", runtime = { supported = ["static", "shared"] } },
 ]
 
 [[toolchain]]

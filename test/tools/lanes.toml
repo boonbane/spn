@@ -114,7 +114,7 @@ archiver = "ar"
 link_args = ["-rtlib=compiler-rt", "-unwindlib=none"]
 host = { x86_64-linux = {} }
 target = [
-  { arch = "x86_64", os = "linux", abi = "gnu" },
+  { arch = "x86_64", os = "linux", abi = "gnu", runtime = { supported = ["static", "shared"] } },
   { arch = "x86_64", os = "linux", abi = "musl", sdk = "/sysroot/musl" },
 ]
 

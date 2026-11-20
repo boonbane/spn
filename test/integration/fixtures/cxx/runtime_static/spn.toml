@@ -1,0 +1,11 @@
+[package]
+name = "test"
+version = "0.1.0"
+
+[profile.default]
+runtime = "static"
+
+[[bin]]
+name = "main"
+source = ["main.cpp"]
+cxx = { standard = "c++14" }

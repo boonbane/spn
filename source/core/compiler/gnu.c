@@ -365,8 +365,10 @@ static void add_rpath(sp_mem_t mem, spn_os_t os, spn_invocation_t* invocation) {
   }
 }
 
-static void add_static_runtime(sp_mem_t mem, spn_os_t os, spn_invocation_t* invocation) {
-  spn_cc_push_c(mem, invocation, "-static-libstdc++");
+static void add_static_runtime(sp_mem_t mem, spn_lang_t lang, spn_os_t os, spn_invocation_t* invocation) {
+  if (lang == SPN_LANG_CXX) {
+    spn_cc_push_c(mem, invocation, "-static-libstdc++");
+  }
   spn_cc_push_c(mem, invocation, "-static-libgcc");
   if (os == SPN_OS_WINDOWS) {
     spn_cc_push_c(mem, invocation, "-Wl,-Bstatic,--whole-archive");
@@ -460,7 +462,7 @@ spn_cc_link_plan_t si_gnu_render_link(sp_mem_t mem, const spn_cc_t* toolchain, c
         }
       }
       if (is_gnu_runtime_static) {
-        add_static_runtime(mem, profile->target.os, base);
+        add_static_runtime(mem, link->lang, profile->target.os, base);
       }
       break;
     }
@@ -469,7 +471,7 @@ spn_cc_link_plan_t si_gnu_render_link(sp_mem_t mem, const spn_cc_t* toolchain, c
         spn_cc_push_c(mem, base, "-static");
       }
       else if (is_gnu_runtime_static) {
-        add_static_runtime(mem, profile->target.os, base);
+        add_static_runtime(mem, link->lang, profile->target.os, base);
       }
       if (link->subsystem == SPN_WIN_SUBSYSTEM_WINDOWS && format == SPN_OBJ_COFF) {
         switch (plan.dialect) {

@@ -59,7 +59,7 @@ sp_test_each(select_files, msvc, test_t, tests, .setup = spn_test_ctx_setup) {
   spn_toolchain_catalog_add(&catalog, toolchain);
 
   spn_toolchain_candidate_t candidate = { .triple = TARGET_WIN_MSVC };
-  sp_must_eq(t, (u32)SPN_LINKING_REFUSAL_NONE, (u32)spn_ld_linking(candidate.triple, sp_zero_s(spn_linking_t), &candidate.linking));
+  sp_must_eq(t, (u32)SPN_LINKING_REFUSAL_NONE, (u32)si_ld_linkings(candidate.triple, sp_zero_s(spn_linking_t), SPN_LIB_KIND_NONE, &candidate.linkings));
   spn_toolchain_query_t query = {
     .toolchain = spn_toolchain_ref_from_str(sp_str_lit("A")),
     .target = TARGET_WIN_MSVC,

@@ -22,6 +22,10 @@
 #define SAN_CLANG_MACOS (SPN_SANITIZER_ADDRESS | SPN_SANITIZER_THREAD | SPN_SANITIZER_UNDEFINED | SPN_SANITIZER_LEAK)
 #define SAN_ZIG_UT      (SPN_SANITIZER_UNDEFINED | SPN_SANITIZER_THREAD)
 
+#define rt_static (si_runtime_bit(SPN_RUNTIME_STATIC))
+#define rt_shared (si_runtime_bit(SPN_RUNTIME_SHARED))
+#define rt_both   (rt_static | rt_shared)
+
 typedef struct {
   const c8* name;
   const c8* path;
@@ -33,6 +37,7 @@ typedef struct {
   spn_triple_t triple;
   test_arg_t sdk;
   spn_sanitizer_set_t sanitizers;
+  spn_runtime_set_t runtimes;
 } fixture_target_t;
 
 typedef struct {
@@ -184,7 +189,7 @@ static spn_arg_t fixture_sdk_arg(test_arg_t sdk) {
 }
 
 static spn_toolchain_target_t fixture_target(fixture_target_t target) {
-  return (spn_toolchain_target_t) { .triple = target.triple, .sdk = fixture_sdk_arg(target.sdk), .sanitizers.supported = target.sanitizers };
+  return (spn_toolchain_target_t) { .triple = target.triple, .sdk = fixture_sdk_arg(target.sdk), .runtime.supported = target.runtimes, .sanitizers.supported = target.sanitizers };
 }
 
 static sp_err_t fixture_check_triples(sp_test_t* t, sp_da(spn_triple_t) triples, const spn_triple_t* expect, u32 count) {

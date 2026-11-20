@@ -5,6 +5,9 @@ version = "0.1.0"
 [profile.default]
 runtime = "shared"
 
+[profile.A]
+toolchain = "zig"
+
 [[bin]]
 name = "main"
 source = ["main.cpp"]

@@ -896,11 +896,11 @@ static const query_test_t query_tests [] = {
     .expect = { .abis = { SPN_ABI_GNU, SPN_ABI_MUSL }, .linking = { { SPN_LIB_KIND_STATIC, SPN_RUNTIME_SHARED, SPN_RUNTIME_SHARED }, { SPN_LIB_KIND_STATIC, SPN_RUNTIME_STATIC, SPN_RUNTIME_SHARED } } },
   },
   {
-    .name = "explicit_static_runtime_on_macos_is_refused",
+    .name = "explicit_static_runtime_on_macos_is_left_to_the_toolchain",
     .target = { SPN_ARCH_ARM64, SPN_OS_MACOS, SPN_ABI_APPLE },
     .linking.runtime = SPN_RUNTIME_STATIC,
     .host = PROFILE_HOST_LINUX_GNU,
-    .expect = { .err = SPN_ERR_PROFILE_LINKING, .refusals = { { SPN_ABI_APPLE, SPN_LINKING_REFUSAL_OS_RUNTIME } } },
+    .expect = { .abis = { SPN_ABI_APPLE }, .linking = { { SPN_LIB_KIND_SHARED, SPN_RUNTIME_STATIC, SPN_RUNTIME_SHARED } } },
   },
   {
     .name = "explicit_shared_runtime_on_wasi_is_refused",
@@ -952,7 +952,7 @@ static const finalize_test_t finalize_tests [] = {
   { .name = "gnu_links_with_ld",     .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU },      .linking = LINKING_SHARED, .driver = SPN_CC_DRIVER_GCC,   .expect = { .linking = LINKING_SHARED, .driver = SPN_CC_DRIVER_GCC,   .linker = SPN_LD_FAMILY_GNU } },
   { .name = "msvc_links_with_link",  .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC },   .linking = { SPN_LIB_KIND_SHARED, SPN_RUNTIME_STATIC, SPN_RUNTIME_STATIC }, .driver = SPN_CC_DRIVER_MSVC,  .expect = { .linking = { SPN_LIB_KIND_SHARED, SPN_RUNTIME_STATIC, SPN_RUNTIME_STATIC }, .driver = SPN_CC_DRIVER_MSVC,  .linker = SPN_LD_FAMILY_MSVC } },
   { .name = "apple_links_with_ld64", .target = { SPN_ARCH_ARM64, SPN_OS_MACOS, SPN_ABI_APPLE },  .linking = LINKING_SHARED, .driver = SPN_CC_DRIVER_CLANG, .expect = { .linking = LINKING_SHARED, .driver = SPN_CC_DRIVER_CLANG, .linker = SPN_LD_FAMILY_LD64 } },
-  { .name = "records_driver",        .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU },      .linking = LINKING_SHARED, .driver = SPN_CC_DRIVER_ZIG,   .expect = { .linking = LINKING_SHARED, .driver = SPN_CC_DRIVER_ZIG,   .linker = SPN_LD_FAMILY_LLD } },
+  { .name = "records_driver",        .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU },      .linking = { SPN_LIB_KIND_SHARED, SPN_RUNTIME_STATIC, SPN_RUNTIME_SHARED }, .driver = SPN_CC_DRIVER_ZIG, .expect = { .linking = { SPN_LIB_KIND_SHARED, SPN_RUNTIME_STATIC, SPN_RUNTIME_SHARED }, .driver = SPN_CC_DRIVER_ZIG, .linker = SPN_LD_FAMILY_LLD } },
   { .name = "records_linker",        .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU },      .linking = LINKING_SHARED, .driver = SPN_CC_DRIVER_GCC,   .lld = true, .expect = { .linking = LINKING_SHARED, .driver = SPN_CC_DRIVER_GCC, .linker = SPN_LD_FAMILY_LLD } },
 };
 
@@ -1092,7 +1092,7 @@ sp_test_each(profile, resolve, test_t, tests, .setup = spn_test_ctx_setup) {
   spn_toolchain_query_t query = sp_zero;
   sp_must_eq(t, SPN_OK, si_profile_query(&pinned, it->host, &query));
   sp_must_eq(t, 1, query.candidates.count);
-  selection.linking = query.candidates.items[0].linking;
+  selection.linking = query.candidates.items[0].linkings.items[0];
   si_profile_finalize(&result, &selection);
   sp_expect_eq(t, (u32)it->expect.linking.linkage, (u32)result.linking.linkage);
   if (it->expect.linking.runtime) {
@@ -1148,9 +1148,10 @@ sp_test_each(profile, query, query_test_t, query_tests, .setup = spn_test_ctx_se
   sp_for(at, abis) {
     const spn_toolchain_candidate_t* candidate = &query.candidates.items[at];
     sp_expect(t, spn_triple_equal((spn_triple_t) { it->target.arch, it->target.os, it->expect.abis[at] }, candidate->triple));
-    sp_expect_eq(t, (u32)it->expect.linking[at].linkage, (u32)candidate->linking.linkage);
-    sp_expect_eq(t, (u32)it->expect.linking[at].runtime, (u32)candidate->linking.runtime);
-    sp_expect_eq(t, (u32)it->expect.linking[at].libc, (u32)candidate->linking.libc);
+    sp_must(t, candidate->linkings.count);
+    sp_expect_eq(t, (u32)it->expect.linking[at].linkage, (u32)candidate->linkings.items[0].linkage);
+    sp_expect_eq(t, (u32)it->expect.linking[at].runtime, (u32)candidate->linkings.items[0].runtime);
+    sp_expect_eq(t, (u32)it->expect.linking[at].libc, (u32)candidate->linkings.items[0].libc);
   }
   return SP_OK;
 }

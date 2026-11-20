@@ -207,6 +207,17 @@ spn_cc_cap_set_t si_toolchain_driver_caps(spn_cc_driver_t driver) {
   SP_UNREACHABLE_RETURN(0);
 }
 
+spn_runtime_set_t si_toolchain_driver_runtimes(spn_cc_driver_t driver, spn_triple_t target) {
+  switch (driver) {
+    case SPN_CC_DRIVER_ZIG: return target.abi == SPN_ABI_MSVC ? 0 : si_runtime_bit(SPN_RUNTIME_STATIC);
+    case SPN_CC_DRIVER_GCC:
+    case SPN_CC_DRIVER_CLANG:
+    case SPN_CC_DRIVER_MSVC: return 0;
+    case SPN_CC_DRIVER_NONE: sp_unreachable_case();
+  }
+  SP_UNREACHABLE_RETURN(0);
+}
+
 bool spn_toolchain_driver_retargets(spn_cc_driver_t driver) {
   return si_toolchain_driver_caps(driver) & SPN_CC_CAP_TARGET_TRIPLE;
 }

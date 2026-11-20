@@ -20,8 +20,19 @@ static spn_path_t sdk_root(spn_toolchain_catalog_t* catalog, spn_toolchain_suppo
   sp_unreachable_return(sdk.path);
 }
 
+static spn_runtime_set_t runtimes(spn_cc_driver_t driver, spn_triple_t target, spn_runtime_set_t declared) {
+  spn_runtime_set_t own = si_toolchain_driver_runtimes(driver, target);
+  if (own) {
+    return own;
+  }
+  if (declared) {
+    return declared;
+  }
+  return si_runtime_bit(target.os == SPN_OS_MACOS ? SPN_RUNTIME_SHARED : SPN_RUNTIME_STATIC);
+}
+
 static void bind_target(spn_toolchain_catalog_t* catalog, spn_toolchain_info_t* info, spn_toolchain_support_t support, spn_toolchain_target_t target) {
-  spn_toolchain_row_t row = { .triple = target.triple, .spelling = target.spelling, .exceptions = target.exceptions, .sanitizers = target.sanitizers.supported };
+  spn_toolchain_row_t row = { .triple = target.triple, .spelling = target.spelling, .exceptions = target.exceptions, .runtimes = runtimes(info->driver, target.triple, target.runtime.supported), .sanitizers = target.sanitizers.supported };
   if (!spn_arg_empty(target.sdk)) {
     row.sdk = spn_sdk_at(catalog->mem, target.triple, sdk_root(catalog, support, target.sdk));
     sp_da_push(info->rows, row);
@@ -69,16 +80,29 @@ static spn_sanitizer_set_t stock_sanitizers(spn_cc_driver_t driver, spn_triple_t
   SP_UNREACHABLE_RETURN(0);
 }
 
+static spn_runtime_set_t stock_runtimes(spn_triple_t target) {
+  spn_runtime_set_t both = si_runtime_bit(SPN_RUNTIME_STATIC) | si_runtime_bit(SPN_RUNTIME_SHARED);
+  switch (target.os) {
+    case SPN_OS_LINUX: return both;
+    case SPN_OS_MACOS: return si_runtime_bit(SPN_RUNTIME_SHARED);
+    case SPN_OS_WINDOWS: return target.abi == SPN_ABI_MSVC ? both : si_runtime_bit(SPN_RUNTIME_STATIC);
+    case SPN_OS_WASI:
+    case SPN_OS_FREESTANDING: return si_runtime_bit(SPN_RUNTIME_STATIC);
+    case SPN_OS_NONE: sp_unreachable_case();
+  }
+  SP_UNREACHABLE_RETURN(0);
+}
+
 static void push_stock(spn_toolchain_catalog_t* catalog, spn_toolchain_info_t* info, const spn_toolchain_decl_t* decl) {
   spn_triple_t host = catalog->host;
   host.abi = host.abi ? host.abi : spn_default_abi(decl->driver, host.os);
   if (!host.abi || !spn_toolchain_driver_composes(decl->driver, host) || spn_toolchain_row(info, host) || spn_toolchain_unserved(info, host)) {
     return;
   }
-  spn_toolchain_target_t stock = { .triple = host, .sanitizers.supported = stock_sanitizers(decl->driver, host) };
+  spn_toolchain_target_t stock = { .triple = host, .runtime.supported = stock_runtimes(host), .sanitizers.supported = stock_sanitizers(decl->driver, host) };
   spn_sdk_t sdk = sp_zero;
   if ((si_toolchain_driver_caps(decl->driver) & SPN_CC_CAP_HOST_SYSROOT) && si_sdk_served(catalog->mem, &catalog->sdks, catalog->host, host, &sdk)) {
-    sp_da_push(info->rows, ((spn_toolchain_row_t) { .triple = host, .sdk = sdk, .sanitizers = stock.sanitizers.supported }));
+    sp_da_push(info->rows, ((spn_toolchain_row_t) { .triple = host, .sdk = sdk, .runtimes = runtimes(decl->driver, host, stock.runtime.supported), .sanitizers = stock.sanitizers.supported }));
     return;
   }
   bind_target(catalog, info, sp_zero_struct(spn_toolchain_support_t), stock);
@@ -94,7 +118,8 @@ static void push_hosted(spn_toolchain_info_t* info, spn_toolchain_catalog_t* cat
       const spn_abi_t* abis = SP_NULLPTR;
       u32 num_abis = spn_os_completions(arches[arch], hosted[os], &abis);
       sp_for(abi, num_abis) {
-        spn_toolchain_row_t row = { .triple = { arches[arch], hosted[os], abis[abi] } };
+        spn_triple_t triple = { arches[arch], hosted[os], abis[abi] };
+        spn_toolchain_row_t row = { .triple = triple, .runtimes = runtimes(driver, triple, stock_runtimes(triple)) };
         if (own) {
           row.sanitizers = stock_sanitizers(driver, row.triple);
         }
@@ -110,8 +135,8 @@ static void push_bare(spn_toolchain_info_t* info, spn_cc_driver_t driver, spn_tr
   if (!(si_toolchain_driver_caps(driver) & SPN_CC_CAP_BARE) || spn_triple_object_format(host) != SPN_OBJ_ELF) {
     return;
   }
-  push_row(info, (spn_toolchain_row_t) { .triple = { host.arch, SPN_OS_FREESTANDING, SPN_ABI_BARE } });
-  push_row(info, (spn_toolchain_row_t) { .triple = { host.arch, SPN_OS_LINUX, SPN_ABI_BARE } });
+  push_row(info, (spn_toolchain_row_t) { .triple = { host.arch, SPN_OS_FREESTANDING, SPN_ABI_BARE }, .runtimes = si_runtime_bit(SPN_RUNTIME_STATIC) });
+  push_row(info, (spn_toolchain_row_t) { .triple = { host.arch, SPN_OS_LINUX, SPN_ABI_BARE }, .runtimes = si_runtime_bit(SPN_RUNTIME_STATIC) });
 }
 
 static void bind_rows(spn_toolchain_catalog_t* catalog, const spn_toolchain_decl_t* decl, spn_toolchain_support_t support, spn_toolchain_info_t* info) {

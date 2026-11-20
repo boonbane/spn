@@ -274,7 +274,21 @@ static const test_t tests [] = {
     .kind = SPN_CC_OUTPUT_EXE,
     .expect = {
       .command = "cc",
-      .args = { "-static-libstdc++", "-static-libgcc", "main.o", "-Wl,-rpath,$ORIGIN", "-o", "main" },
+      .args = { "-static-libgcc", "main.o", "-Wl,-rpath,$ORIGIN", "-o", "main" },
+    },
+  },
+  {
+    .name = "clang_linux_static_runtime_cxx_link",
+    .driver = SPN_CC_DRIVER_CLANG,
+    .profile = {
+      .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU },
+      .request.runtime = SPN_RUNTIME_STATIC,
+    },
+    .lang = SPN_LANG_CXX,
+    .kind = SPN_CC_OUTPUT_EXE,
+    .expect = {
+      .command = "c++",
+      .args = { "--target=x86_64-linux-gnu", "-static-libstdc++", "-static-libgcc", "main.o", "-Wl,-rpath,$ORIGIN", "-o", "main" },
     },
   },
   {
@@ -299,7 +313,7 @@ static const test_t tests [] = {
     .kind = SPN_CC_OUTPUT_SHARED_LIB,
     .expect = {
       .command = "cc",
-      .args = { "-shared", "-static-libstdc++", "-static-libgcc", "-Wl,-soname,main", "main.o", "-Wl,-rpath,$ORIGIN", "-o", "main" },
+      .args = { "-shared", "-static-libgcc", "-Wl,-soname,main", "main.o", "-Wl,-rpath,$ORIGIN", "-o", "main" },
     },
   },
   {
@@ -311,7 +325,7 @@ static const test_t tests [] = {
     .kind = SPN_CC_OUTPUT_EXE,
     .expect = {
       .command = "cc",
-      .args = { "-static-libstdc++", "-static-libgcc", "-Wl,-Bstatic,--whole-archive", "-lwinpthread", "-Wl,--no-whole-archive,-Bdynamic", "main.o", "-o", "main" },
+      .args = { "-static-libgcc", "-Wl,-Bstatic,--whole-archive", "-lwinpthread", "-Wl,--no-whole-archive,-Bdynamic", "main.o", "-o", "main" },
     },
   },
   {

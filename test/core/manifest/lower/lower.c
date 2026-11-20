@@ -1021,6 +1021,13 @@ static const test_t tests [] = {
     },
   },
   {
+    .name = "validate_toolchain_zig_runtime_shared_off_msvc",
+    .manifest = "toolchain_runtime_zig_shared",
+    .issues = {
+      { SPN_ERR_CODEGEN_INVALID, "target[0].runtime.supported" },
+    },
+  },
+  {
     .name = "validate_toolchain_runtime_file_malformed",
     .manifest = "toolchain_runtime_malformed",
     .issues = {

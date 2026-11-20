@@ -209,7 +209,11 @@ static void lower_toolchain_targets(spn_toml_loader_t* ctx, spn_path_root_t base
       target.runtime.supported |= si_runtime_bit(row->runtime.supported[rt]);
     }
     bool shared = target.runtime.supported & si_runtime_bit(SPN_RUNTIME_SHARED);
+    spn_runtime_set_t own = si_toolchain_driver_runtimes(driver, target.triple);
     spn_toml_loader_push_key(ctx, "runtime");
+    if (own && (target.runtime.supported & ~own)) {
+      spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "supported");
+    }
     if (row->runtime.c) {
       if (!detected && shared) {
         target.runtime.c = lower_files(ctx, "c", source, base, row->runtime.c);

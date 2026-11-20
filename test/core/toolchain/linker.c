@@ -44,53 +44,72 @@ sp_test_each(linker, loader, loader_t, loader_tests) {
 
 typedef struct {
   spn_linking_refusal_t refusal;
-  spn_linking_t linking;
+  spn_linking_t linkings [si_linkings_max];
 } expect_t;
 
 typedef struct {
   const c8* name;
   spn_triple_t target;
   spn_linking_t request;
+  spn_linkage_t demand;
   expect_t expect;
 } linking_t;
 
-static const linking_t linking_tests [] = {
-  { "gnu_defaults",        HOST_X64_LINUX,        .expect = { .linking = { SPN_LIB_KIND_SHARED, SPN_RUNTIME_SHARED, SPN_RUNTIME_SHARED } } },
-  { "musl_defaults",       HOST_X64_LINUX_MUSL,   .expect = { .linking = { SPN_LIB_KIND_STATIC, SPN_RUNTIME_STATIC, SPN_RUNTIME_STATIC } } },
-  { "msvc_defaults",       TARGET_WIN_MSVC,       .expect = { .linking = { SPN_LIB_KIND_SHARED, SPN_RUNTIME_STATIC, SPN_RUNTIME_STATIC } } },
-  { "mingw_defaults",      TARGET_WIN_GNU,        .expect = { .linking = { SPN_LIB_KIND_SHARED, SPN_RUNTIME_STATIC, SPN_RUNTIME_SHARED } } },
-  { "apple_defaults",      HOST_ARM_MACOS,        .expect = { .linking = { SPN_LIB_KIND_SHARED, SPN_RUNTIME_SHARED, SPN_RUNTIME_SHARED } } },
-  { "wasi_defaults",       TARGET_WASM,           .expect = { .linking = { SPN_LIB_KIND_STATIC, SPN_RUNTIME_STATIC, SPN_RUNTIME_STATIC } } },
-  { "bare_defaults",       TARGET_X64_BARE,       .expect = { .linking = { SPN_LIB_KIND_STATIC, SPN_RUNTIME_STATIC, SPN_RUNTIME_STATIC } } },
-  { "elf_defaults",        TARGET_ARM_ELF,        .expect = { .linking = { SPN_LIB_KIND_STATIC, SPN_RUNTIME_STATIC, SPN_RUNTIME_STATIC } } },
-  { "linux_none_defaults", TARGET_X64_LINUX_NONE, .expect = { .linking = { SPN_LIB_KIND_STATIC, SPN_RUNTIME_STATIC, SPN_RUNTIME_STATIC } } },
+#define shared_shared_shared { SPN_LIB_KIND_SHARED, SPN_RUNTIME_SHARED, SPN_RUNTIME_SHARED }
+#define shared_static_shared { SPN_LIB_KIND_SHARED, SPN_RUNTIME_STATIC, SPN_RUNTIME_SHARED }
+#define shared_static_static { SPN_LIB_KIND_SHARED, SPN_RUNTIME_STATIC, SPN_RUNTIME_STATIC }
+#define static_shared_shared { SPN_LIB_KIND_STATIC, SPN_RUNTIME_SHARED, SPN_RUNTIME_SHARED }
+#define static_static_shared { SPN_LIB_KIND_STATIC, SPN_RUNTIME_STATIC, SPN_RUNTIME_SHARED }
+#define static_static_static { SPN_LIB_KIND_STATIC, SPN_RUNTIME_STATIC, SPN_RUNTIME_STATIC }
 
-  { "musl_shared_runtime_takes_a_loader",     HOST_X64_LINUX_MUSL, .request = { .runtime = SPN_RUNTIME_SHARED },                                  .expect = { .linking = { SPN_LIB_KIND_SHARED, SPN_RUNTIME_SHARED, SPN_RUNTIME_SHARED } } },
-  { "gnu_static_runtime_keeps_shared_libc",   HOST_X64_LINUX,      .request = { .runtime = SPN_RUNTIME_STATIC },                                  .expect = { .linking = { SPN_LIB_KIND_SHARED, SPN_RUNTIME_STATIC, SPN_RUNTIME_SHARED } } },
-  { "gnu_static_deps_and_runtime_keep_libc",  HOST_X64_LINUX,      .request = { .linkage = SPN_LIB_KIND_STATIC, .runtime = SPN_RUNTIME_STATIC }, .expect = { .linking = { SPN_LIB_KIND_STATIC, SPN_RUNTIME_STATIC, SPN_RUNTIME_SHARED } } },
-  { "musl_static_libc_derives_the_rest",      HOST_X64_LINUX_MUSL, .request = { .libc = SPN_RUNTIME_STATIC },                                     .expect = { .linking = { SPN_LIB_KIND_STATIC, SPN_RUNTIME_STATIC, SPN_RUNTIME_STATIC } } },
-  { "msvc_static_libc_keeps_a_loader",        TARGET_WIN_MSVC,     .request = { .libc = SPN_RUNTIME_STATIC },                                     .expect = { .linking = { SPN_LIB_KIND_SHARED, SPN_RUNTIME_STATIC, SPN_RUNTIME_STATIC } } },
-  { "msvc_shared_deps_with_static_runtime",   TARGET_WIN_MSVC,     .request = { .linkage = SPN_LIB_KIND_SHARED, .runtime = SPN_RUNTIME_STATIC }, .expect = { .linking = { SPN_LIB_KIND_SHARED, SPN_RUNTIME_STATIC, SPN_RUNTIME_STATIC } } },
+static const linking_t linking_tests [] = {
+  { "gnu_defaults",        HOST_X64_LINUX,        .expect = { .linkings = { shared_shared_shared, shared_static_shared } } },
+  { "musl_defaults",       HOST_X64_LINUX_MUSL,   .expect = { .linkings = { static_static_static, shared_static_shared, shared_shared_shared } } },
+  { "msvc_defaults",       TARGET_WIN_MSVC,       .expect = { .linkings = { shared_static_static, shared_shared_shared } } },
+  { "mingw_defaults",      TARGET_WIN_GNU,        .expect = { .linkings = { shared_static_shared, shared_shared_shared } } },
+  { "apple_defaults",      HOST_ARM_MACOS,        .expect = { .linkings = { shared_shared_shared, shared_static_shared } } },
+  { "wasi_defaults",       TARGET_WASM,           .expect = { .linkings = { static_static_static } } },
+  { "bare_defaults",       TARGET_X64_BARE,       .expect = { .linkings = { static_static_static } } },
+  { "elf_defaults",        TARGET_ARM_ELF,        .expect = { .linkings = { static_static_static } } },
+  { "linux_none_defaults", TARGET_X64_LINUX_NONE, .expect = { .linkings = { static_static_static } } },
+
+  { "musl_shared_runtime_takes_a_loader",    HOST_X64_LINUX_MUSL, .request = { .runtime = SPN_RUNTIME_SHARED },                                  .expect = { .linkings = { shared_shared_shared } } },
+  { "gnu_static_runtime_keeps_shared_libc",  HOST_X64_LINUX,      .request = { .runtime = SPN_RUNTIME_STATIC },                                  .expect = { .linkings = { shared_static_shared } } },
+  { "apple_static_runtime_keeps_shared_libc", HOST_ARM_MACOS,     .request = { .runtime = SPN_RUNTIME_STATIC },                                  .expect = { .linkings = { shared_static_shared } } },
+  { "gnu_static_deps_keep_every_runtime",    HOST_X64_LINUX,      .request = { .linkage = SPN_LIB_KIND_STATIC },                                 .expect = { .linkings = { static_shared_shared, static_static_shared } } },
+  { "gnu_static_deps_and_runtime_keep_libc", HOST_X64_LINUX,      .request = { .linkage = SPN_LIB_KIND_STATIC, .runtime = SPN_RUNTIME_STATIC }, .expect = { .linkings = { static_static_shared } } },
+  { "musl_static_libc_derives_the_rest",     HOST_X64_LINUX_MUSL, .request = { .libc = SPN_RUNTIME_STATIC },                                     .expect = { .linkings = { static_static_static } } },
+  { "musl_shared_libc_keeps_every_runtime",  HOST_X64_LINUX_MUSL, .request = { .libc = SPN_RUNTIME_SHARED },                                     .expect = { .linkings = { shared_static_shared, shared_shared_shared } } },
+  { "msvc_static_libc_keeps_a_loader",       TARGET_WIN_MSVC,     .request = { .libc = SPN_RUNTIME_STATIC },                                     .expect = { .linkings = { shared_static_static } } },
+  { "msvc_shared_libc_takes_the_runtime",    TARGET_WIN_MSVC,     .request = { .libc = SPN_RUNTIME_SHARED },                                     .expect = { .linkings = { shared_shared_shared } } },
+
+  { "demand_prefers_a_loader",          HOST_X64_LINUX_MUSL, .demand = SPN_LIB_KIND_SHARED,                                              .expect = { .linkings = { shared_static_shared, shared_shared_shared, static_static_static } } },
+  { "demand_yields_to_static_libc",     HOST_X64_LINUX_MUSL, .request = { .libc = SPN_RUNTIME_STATIC }, .demand = SPN_LIB_KIND_SHARED,    .expect = { .linkings = { static_static_static } } },
+  { "demand_keeps_static_deps",         HOST_X64_LINUX_MUSL, .request = { .linkage = SPN_LIB_KIND_STATIC }, .demand = SPN_LIB_KIND_SHARED, .expect = { .linkings = { static_static_shared, static_shared_shared, static_static_static } } },
+  { "demand_without_a_loader_is_moot",  TARGET_WASM,         .demand = SPN_LIB_KIND_SHARED,                                              .expect = { .linkings = { static_static_static } } },
 
   { "musl_static_libc_shared_runtime", HOST_X64_LINUX_MUSL, .request = { .runtime = SPN_RUNTIME_SHARED, .libc = SPN_RUNTIME_STATIC }, .expect = { .refusal = SPN_LINKING_REFUSAL_SHARED_RUNTIME } },
 
-  { "no_loader",                     TARGET_WASM,     .request = { .linkage = SPN_LIB_KIND_SHARED },                                .expect = { .refusal = SPN_LINKING_REFUSAL_NO_LOADER } },
+  { "no_loader",                     TARGET_WASM,     .request = { .runtime = SPN_RUNTIME_SHARED },                                 .expect = { .refusal = SPN_LINKING_REFUSAL_NO_LOADER } },
   { "os_libc",                       HOST_X64_LINUX,  .request = { .libc = SPN_RUNTIME_STATIC },                                    .expect = { .refusal = SPN_LINKING_REFUSAL_OS_LIBC } },
-  { "os_runtime",                    HOST_ARM_MACOS,  .request = { .runtime = SPN_RUNTIME_STATIC },                                 .expect = { .refusal = SPN_LINKING_REFUSAL_OS_RUNTIME } },
   { "hybrid_crt",                    TARGET_WIN_MSVC, .request = { .runtime = SPN_RUNTIME_STATIC, .libc = SPN_RUNTIME_SHARED },     .expect = { .refusal = SPN_LINKING_REFUSAL_HYBRID_CRT } },
-  { "shared_deps",                   HOST_X64_LINUX_MUSL, .request = { .linkage = SPN_LIB_KIND_SHARED, .libc = SPN_RUNTIME_STATIC }, .expect = { .refusal = SPN_LINKING_REFUSAL_SHARED_DEPS } },
   { "no_loader_before_shared_runtime", TARGET_WASM,   .request = { .runtime = SPN_RUNTIME_SHARED, .libc = SPN_RUNTIME_STATIC },     .expect = { .refusal = SPN_LINKING_REFUSAL_NO_LOADER } },
-  { "os_libc_before_os_runtime",     HOST_ARM_MACOS,  .request = { .runtime = SPN_RUNTIME_STATIC, .libc = SPN_RUNTIME_STATIC },     .expect = { .refusal = SPN_LINKING_REFUSAL_OS_LIBC } },
+  { "os_libc_with_a_static_runtime", HOST_ARM_MACOS,  .request = { .runtime = SPN_RUNTIME_STATIC, .libc = SPN_RUNTIME_STATIC },     .expect = { .refusal = SPN_LINKING_REFUSAL_OS_LIBC } },
   { "os_libc_before_shared_runtime", HOST_X64_LINUX,  .request = { .runtime = SPN_RUNTIME_SHARED, .libc = SPN_RUNTIME_STATIC },     .expect = { .refusal = SPN_LINKING_REFUSAL_OS_LIBC } },
   { "msvc_static_libc_shared_runtime_before_hybrid_crt", TARGET_WIN_MSVC, .request = { .runtime = SPN_RUNTIME_SHARED, .libc = SPN_RUNTIME_STATIC }, .expect = { .refusal = SPN_LINKING_REFUSAL_SHARED_RUNTIME } },
 };
 
-sp_test_each(linker, linking, linking_t, linking_tests) {
-  spn_linking_t linking = sp_zero;
-  sp_must_eq(t, (u32)it->expect.refusal, (u32)spn_ld_linking(it->target, it->request, &linking));
-  sp_expect_eq(t, (u32)it->expect.linking.linkage, (u32)linking.linkage);
-  sp_expect_eq(t, (u32)it->expect.linking.runtime, (u32)linking.runtime);
-  sp_expect_eq(t, (u32)it->expect.linking.libc, (u32)linking.libc);
+sp_test_each(linker, linkings, linking_t, linking_tests) {
+  spn_linkings_t linkings = sp_zero;
+  sp_must_eq(t, (u32)it->expect.refusal, (u32)si_ld_linkings(it->target, it->request, it->demand, &linkings));
+  u32 count = 0;
+  sp_carr_detect_len(it->expect.linkings, count, it->expect.linkings[count].linkage);
+  sp_must_eq(t, count, linkings.count);
+  sp_for(at, count) {
+    sp_expect_eq(t, (u32)it->expect.linkings[at].linkage, (u32)linkings.items[at].linkage);
+    sp_expect_eq(t, (u32)it->expect.linkings[at].runtime, (u32)linkings.items[at].runtime);
+    sp_expect_eq(t, (u32)it->expect.linkings[at].libc, (u32)linkings.items[at].libc);
+  }
   return SP_OK;
 }
 
