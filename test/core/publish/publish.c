@@ -4,6 +4,7 @@
 #include "event/event.h"
 #include "git/remote.h"
 #include "index/index.h"
+#include "index/marker.h"
 #include "index/publish.h"
 #include "intern/intern.h"
 #include "paths/paths.h"
@@ -371,6 +372,10 @@ sp_test_each(cmd_publish, publish, case_t, cases, .setup = spn_test_ctx_setup) {
   git_repo_init(index_root);
   git(index_root, "symbolic-ref", "HEAD", "refs/heads/main");
   git(index_root, "config", "receive.denyCurrentBranch", "updateInstead");
+  si_index_marker_t marker = { .version = si_index_marker_version, .format = SPN_INDEX_FORMAT_RELEASES };
+  spn_err_union_t unwritten = sp_zero;
+  sp_must_eq(t, SPN_OK, si_index_marker_save(mem, &spn.roots, (spn_path_t) { .sub = index_root }, marker, &unwritten));
+  git_repo_stage_all(index_root);
   git_repo_commit(index_root, sp_str_lit("seed"));
 
   sp_str_t clone = sp_fs_join_path(mem, test_dir_str(t), sp_str_lit("index_clone"));
@@ -411,15 +416,14 @@ sp_test_each(cmd_publish, publish, case_t, cases, .setup = spn_test_ctx_setup) {
   spn_err_t result = spn_publish_build(&opts, &pkg, &release);
   if (!result) {
     sp_atomic_s32_t cancelled = sp_zero;
-    result = spn_index_publish(&index, &release, &cancelled);
+    result = si_index_publish(&index, &release, &cancelled);
   }
   sp_expect_eq(t, c.expect.kind, result);
 
   if (c.expect.name && result == SPN_OK) {
     spn_index_pkg_t* pkg = SP_NULLPTR;
     spn_err_union_t diag = sp_zero;
-    sp_str_t records = sp_fs_join_path(mem, index.location.dir, sp_str_lit(".spn/index"));
-    si_index_place_t cloned = { .at = sp_path_from_str(records), .dir = records };
+    si_index_place_t cloned = { .at = index.location.at, .dir = index.location.dir };
     si_index_get_package(&cloned, mem, spn.intern, &spn.roots, spn_intern_cstr(c.expect.name), &pkg, &diag);
 
     sp_must(t, pkg);

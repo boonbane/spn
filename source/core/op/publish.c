@@ -47,7 +47,7 @@ static spn_err_t publish(spn_ctx_t* ctx, spn_publish_request_t request, spn_inde
     .publish = evt,
   });
 
-  spn_try(spn_index_publish(index, release, cancelled));
+  spn_try(si_index_publish(index, release, cancelled));
 
   spn_event_buffer_push(ctx->events, (spn_event_t) {
     .kind = SPN_EVENT_PUBLISH_END,

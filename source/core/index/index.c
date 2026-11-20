@@ -18,6 +18,7 @@
 #include "fs/fs.h"
 #include "index/json.h"
 #include "index/jsonl.h"
+#include "index/marker.h"
 #include "lock/lock.h"
 #include "semver/compare.h"
 #include "semver/convert.h"
@@ -256,10 +257,50 @@ static spn_err_t publish_from(sp_mem_t mem, spn_index_info_t* index, sp_str_t di
     });
   }
 
-  sp_str_t root = sp_fs_join_path(mem, dir, sp_str_lit(".spn/index"));
+  sp_str_t branch = sp_zero;
+  bool empty = spn_git_default_branch(mem, dir, &branch) != SPN_OK;
+  if (empty && spn_git_current_branch(mem, dir, &branch)) {
+    return spn_err_emit(&spn, (spn_err_union_t) {
+      .kind = SPN_ERR_GIT,
+      .git.command = sp_str_lit("git symbolic-ref HEAD"),
+    });
+  }
+
+  spn_path_t staged = { .sub = dir };
+  si_index_marker_t marker = sp_zero;
+  spn_err_union_t err = sp_zero;
+  if (si_index_marker_load(spn.mem, spn.intern, &spn.roots, staged, &marker, &err)) {
+    return spn_err_emit(&spn, err);
+  }
+  if (!marker.version) {
+    if (!empty) {
+      return spn_err_emit(&spn, (spn_err_union_t) {
+        .kind = SPN_ERR_INDEX_UNMARKED,
+        .index = { .name = index->name.str, .url = index->git.url },
+      });
+    }
+
+    marker = (si_index_marker_t) { .version = si_index_marker_version, .format = SPN_INDEX_FORMAT_RELEASES };
+    if (si_index_marker_save(spn.mem, &spn.roots, staged, marker, &err)) {
+      return spn_err_emit(&spn, err);
+    }
+    if (spn_git_add(dir, sp_fs_join_path(mem, dir, sp_str_lit(si_index_marker_file)))) {
+      return spn_err_emit(&spn, (spn_err_union_t) {
+        .kind = SPN_ERR_GIT,
+        .git.command = sp_str_lit("git add"),
+      });
+    }
+  }
+  if (marker.format == SPN_INDEX_FORMAT_MANIFESTS) {
+    return spn_err_emit(&spn, (spn_err_union_t) {
+      .kind = SPN_ERR_INDEX_PUBLISH_PROTOCOL,
+      .index = { .name = index->name.str, .url = index->git.url },
+    });
+  }
+
+  sp_str_t root = sp_fs_join_path(mem, dir, marker.path);
   si_index_place_t work = { .at = sp_path_from_str(root), .dir = root };
   spn_index_pkg_t* existing = SP_NULLPTR;
-  spn_err_union_t err = sp_zero;
   if (si_index_jsonl_get_package(&work, spn.mem, spn.intern, rel->name, &existing, &err)) {
     return spn_err_emit(&spn, err);
   }
@@ -280,17 +321,6 @@ static spn_err_t publish_from(sp_mem_t mem, spn_index_info_t* index, sp_str_t di
   sp_str_t records = sp_fs_join_path(mem, root, si_index_jsonl_path(mem, rel->name));
   sp_fs_create_parent_at(sp_path_from_str(records));
   sp_fs_append_at(sp_path_from_str(records), sp_fmt(mem, "{}\n", sp_fmt_str(si_index_release_to_json(mem, rel))).value, sp_sys_default_file_perms);
-
-  // A clone of an empty remote has no origin/HEAD yet; the first push
-  // creates the branch the clone was born on
-  sp_str_t branch = sp_zero;
-  if (spn_git_default_branch(mem, dir, &branch) &&
-      spn_git_current_branch(mem, dir, &branch)) {
-    return spn_err_emit(&spn, (spn_err_union_t) {
-      .kind = SPN_ERR_GIT,
-      .git.command = sp_str_lit("git symbolic-ref HEAD"),
-    });
-  }
 
   if (spn_git_add(dir, records)) {
     return spn_err_emit(&spn, (spn_err_union_t) {
@@ -352,14 +382,7 @@ static spn_err_t publish_git(spn_index_info_t* index, spn_index_release_t* rel, 
   return result;
 }
 
-spn_err_t spn_index_publish(spn_index_info_t* index, spn_index_release_t* rel, sp_atomic_s32_t* cancelled) {
-  if (index->format == SPN_INDEX_FORMAT_MANIFESTS) {
-    return spn_err_emit(&spn, (spn_err_union_t) {
-      .kind = SPN_ERR_INDEX_PUBLISH_PROTOCOL,
-      .index = { .name = index->name.str, .url = spn_index_source(index) },
-    });
-  }
-
+spn_err_t si_index_publish(spn_index_info_t* index, spn_index_release_t* rel, sp_atomic_s32_t* cancelled) {
   switch (index->protocol) {
     case SPN_INDEX_PROTOCOL_GIT: {
       if (!sp_str_empty(index->git.rev)) {

@@ -1,6 +1,7 @@
 #include "index.h"
 
 #include "contend.h"
+#include "index/marker.h"
 
 typedef enum {
   TXN_ACTION_NONE,
@@ -33,9 +34,12 @@ typedef struct {
 
   struct {
     bool empty;
+    bool unmarked;
     bool aliased;
     const c8* hook;
     const c8* pin;
+    spn_index_format_t format;
+    const c8* path;
   } remote;
 
   txn_action_t actions [8];
@@ -55,7 +59,7 @@ static const txn_test_t tests [] = {
       { .kind = TXN_ACTION_PUBLISH, .publish = { .name = "spum", .version = { 1, 0, 0 } } },
     },
     .expect = {
-      .files = { { .file = ".spn/index/spum.jsonl", .lines = 1 } },
+      .files = { { .file = "spum.jsonl", .lines = 1 } },
       .head = "spum 1.0.0",
     },
   },
@@ -66,7 +70,7 @@ static const txn_test_t tests [] = {
       { .kind = TXN_ACTION_PUBLISH, .publish = { .name = "spum", .version = { 1, 0, 0 }, .err = SPN_ERR_VERSION_EXISTS } },
     },
     .expect = {
-      .files = { { .file = ".spn/index/spum.jsonl", .lines = 1 } },
+      .files = { { .file = "spum.jsonl", .lines = 1 } },
     },
   },
   {
@@ -76,7 +80,7 @@ static const txn_test_t tests [] = {
       {
         .kind = TXN_ACTION_ADVANCE_REMOTE,
         .write = {
-          .file = ".spn/index/other.jsonl",
+          .file = "other.jsonl",
           .line = "{" kv("name", "other") "," kv("version", "1.0.0") "," kv("yanked", false) "}",
         },
       },
@@ -84,8 +88,8 @@ static const txn_test_t tests [] = {
     },
     .expect = {
       .files = {
-        { .file = ".spn/index/spum.jsonl", .lines = 2 },
-        { .file = ".spn/index/other.jsonl", .lines = 1 },
+        { .file = "spum.jsonl", .lines = 2 },
+        { .file = "other.jsonl", .lines = 1 },
       },
     },
   },
@@ -93,11 +97,11 @@ static const txn_test_t tests [] = {
     .name = "discards_tracked_damage",
     .actions = {
       { .kind = TXN_ACTION_PUBLISH, .publish = { .name = "spum", .version = { 1, 0, 0 } } },
-      { .kind = TXN_ACTION_APPEND_CLONE_FILE, .write = { .file = ".spn/index/spum.jsonl", .line = "not json" } },
+      { .kind = TXN_ACTION_APPEND_CLONE_FILE, .write = { .file = "spum.jsonl", .line = "not json" } },
       { .kind = TXN_ACTION_PUBLISH, .publish = { .name = "spum", .version = { 1, 1, 0 } } },
     },
     .expect = {
-      .files = { { .file = ".spn/index/spum.jsonl", .lines = 2 } },
+      .files = { { .file = "spum.jsonl", .lines = 2 } },
     },
   },
   {
@@ -107,7 +111,7 @@ static const txn_test_t tests [] = {
       { .kind = TXN_ACTION_PUBLISH, .publish = { .name = "spum", .version = { 1, 0, 0 } } },
     },
     .expect = {
-      .files = { { .file = ".spn/index/spum.jsonl", .lines = 1 } },
+      .files = { { .file = "spum.jsonl", .lines = 1 } },
       .head = "spum 1.0.0",
     },
   },
@@ -128,7 +132,7 @@ static const txn_test_t tests [] = {
       { .kind = TXN_ACTION_PUBLISH, .publish = { .name = "spum", .version = { 1, 0, 0 } } },
     },
     .expect = {
-      .files = { { .file = ".spn/index/spum.jsonl", .lines = 1 } },
+      .files = { { .file = "spum.jsonl", .lines = 1 } },
       .head = "spum 1.0.0",
     },
   },
@@ -141,7 +145,7 @@ static const txn_test_t tests [] = {
       { .kind = TXN_ACTION_SYNC, .sync = { .err = SPN_ERROR } },
     },
     .expect = {
-      .cached = { { .file = ".spn/index/spum.jsonl", .lines = 1 } },
+      .cached = { { .file = "spum.jsonl", .lines = 1 } },
     },
   },
   {
@@ -151,7 +155,10 @@ static const txn_test_t tests [] = {
       { .kind = TXN_ACTION_PUBLISH, .publish = { .name = "spum", .version = { 1, 0, 0 } } },
     },
     .expect = {
-      .files = { { .file = ".spn/index/spum.jsonl", .lines = 1 } },
+      .files = {
+        { .file = "spum.jsonl", .lines = 1 },
+        { .file = "spn.index.toml", .lines = 2 },
+      },
     },
   },
   {
@@ -161,7 +168,7 @@ static const txn_test_t tests [] = {
       { .kind = TXN_ACTION_PUBLISH, .publish = { .name = "spum", .version = { 1, 0, 0 } } },
     },
     .expect = {
-      .files = { { .file = ".spn/index/spum.jsonl", .lines = 1 } },
+      .files = { { .file = "spum.jsonl", .lines = 1 } },
       .head = "spum 1.0.0",
     },
   },
@@ -169,11 +176,41 @@ static const txn_test_t tests [] = {
     .name = "cleans_untracked_damage",
     .actions = {
       { .kind = TXN_ACTION_SYNC },
-      { .kind = TXN_ACTION_CREATE_CLONE_FILE, .write = { .file = ".spn/index/spum.jsonl", .line = "not json" } },
+      { .kind = TXN_ACTION_CREATE_CLONE_FILE, .write = { .file = "spum.jsonl", .line = "not json" } },
       { .kind = TXN_ACTION_PUBLISH, .publish = { .name = "spum", .version = { 1, 0, 0 } } },
     },
     .expect = {
-      .files = { { .file = ".spn/index/spum.jsonl", .lines = 1 } },
+      .files = { { .file = "spum.jsonl", .lines = 1 } },
+    },
+  },
+  {
+    .name = "writes_under_marker_path",
+    .remote = { .path = "A" },
+    .actions = {
+      { .kind = TXN_ACTION_PUBLISH, .publish = { .name = "spum", .version = { 1, 0, 0 } } },
+    },
+    .expect = {
+      .files = { { .file = "A/spum.jsonl", .lines = 1 } },
+    },
+  },
+  {
+    .name = "manifests_rejected",
+    .remote = { .format = SPN_INDEX_FORMAT_MANIFESTS },
+    .actions = {
+      { .kind = TXN_ACTION_PUBLISH, .publish = { .name = "spum", .version = { 1, 0, 0 }, .err = SPN_ERR_INDEX_PUBLISH_PROTOCOL } },
+    },
+    .expect = {
+      .head = "init",
+    },
+  },
+  {
+    .name = "unmarked_rejected",
+    .remote = { .unmarked = true },
+    .actions = {
+      { .kind = TXN_ACTION_PUBLISH, .publish = { .name = "spum", .version = { 1, 0, 0 }, .err = SPN_ERR_INDEX_UNMARKED } },
+    },
+    .expect = {
+      .head = "init",
     },
   },
   {
@@ -224,7 +261,7 @@ typedef struct {
 
 static s32 run_publish(void* user_data) {
   publish_job_t* job = (publish_job_t*)user_data;
-  job->err = spn_index_publish(job->index, job->rel, job->cancelled);
+  job->err = si_index_publish(job->index, job->rel, job->cancelled);
   sp_atomic_s32_store(&job->done, 1, SP_ATOMIC_SEQ_CST);
   return 0;
 }
@@ -279,6 +316,15 @@ sp_test_each(index_transaction, publish, txn_test_t, tests, .setup = spn_test_ct
     git_repo_init(seed);
     git(seed, "symbolic-ref", "HEAD", "refs/heads/main");
     sp_fs_write(sp_fs_join_path(mem, seed, sp_str_lit("README.md")), sp_str_lit("index\n"), SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms);
+    if (!it->remote.unmarked) {
+      si_index_marker_t marker = {
+        .version = si_index_marker_version,
+        .format = it->remote.format,
+        .path = sp_cstr_as_str(it->remote.path),
+      };
+      spn_err_union_t unwritten = sp_zero;
+      sp_must_eq(t, SPN_OK, si_index_marker_save(mem, &spn.roots, (spn_path_t) { .sub = seed }, marker, &unwritten));
+    }
     git_repo_stage_all(seed);
     git_repo_commit(seed, sp_str_lit("init"));
     git(tmp, "clone", "--quiet", "--bare", "seed", "remote.git");
