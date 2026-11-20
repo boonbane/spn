@@ -1,0 +1,11 @@
+{
+  "metadata": { "format": "toml" },
+  "additionalProperties": true,
+  "properties": {
+    "version": { "type": "uint64" },
+    "format": { "type": "string" }
+  },
+  "optionalProperties": {
+    "path": { "type": "string" }
+  }
+}

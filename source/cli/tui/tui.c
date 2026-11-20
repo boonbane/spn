@@ -1341,6 +1341,43 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           );
           break;
         }
+        case SPN_ERR_INDEX_UNMARKED: {
+          sp_tty_fmt(
+            &w,
+            "{.gray} is not a package index; index {.cyan} has no {.cyan}",
+            sp_fmt_str(event->err.index.url),
+            sp_fmt_str(event->err.index.name),
+            sp_fmt_cstr("spn.index.toml")
+          );
+          break;
+        }
+        case SPN_ERR_INDEX_MARKER_INVALID: {
+          sp_tty_fmt(
+            &w,
+            "Invalid index marker ({.gray})",
+            sp_fmt_str(get_contextual_path(ctx, mem, event->err.manifest.path))
+          );
+          break;
+        }
+        case SPN_ERR_INDEX_VERSION: {
+          sp_tty_fmt(
+            &w,
+            "{.cyan} is index version {.yellow}, but this spn reads version {.yellow}; update spn",
+            sp_fmt_str(get_contextual_path(ctx, mem, event->err.index_version.path)),
+            sp_fmt_uint(event->err.index_version.version),
+            sp_fmt_uint(event->err.index_version.supported)
+          );
+          break;
+        }
+        case SPN_ERR_INDEX_FORMAT: {
+          sp_tty_fmt(
+            &w,
+            "{.cyan} is a {.yellow} index, which this spn does not read; update spn",
+            sp_fmt_str(get_contextual_path(ctx, mem, event->err.index_format.path)),
+            sp_fmt_str(event->err.index_format.format)
+          );
+          break;
+        }
         case SPN_ERR_INDEX_PUBLISH_PROTOCOL: {
           sp_tty_fmt(
             &w,
@@ -2067,6 +2104,7 @@ static void render_event_extra(sp_tty_t* w, spn_event_t* event) {
     case SPN_EVENT_ERR: {
       switch (event->err.kind) {
         case SPN_ERR_LOCK_INVALID:
+        case SPN_ERR_INDEX_MARKER_INVALID:
         case SPN_ERR_MANIFEST_ISSUES: {
           sp_da(spn_toml_issue_t) issues = event->err.manifest.issues;
           if (sp_str_empty(get_issue_scope(issues))) {

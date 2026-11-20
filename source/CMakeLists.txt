@@ -58,6 +58,7 @@ set(SPN_CORE_SOURCES
   core/index/release.c
   core/index/index.c
   core/index/jsonl.c
+  core/index/marker.c
   core/index/json.c
   core/index/publish.c
   core/intern/context.c
@@ -185,6 +186,7 @@ add_library(spn_core STATIC ${SPN_CORE_SOURCES}
   ${GEN_DIR}/config.gen.c
   ${GEN_DIR}/errors.gen.c
   ${GEN_DIR}/events.gen.c
+  ${GEN_DIR}/index_marker.gen.c
   ${GEN_DIR}/lock.gen.c
   ${GEN_DIR}/manifest.gen.c
   ${GEN_DIR}/release.gen.c
