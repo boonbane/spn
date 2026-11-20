@@ -891,7 +891,7 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           break;
         }
         case SPN_ERR_LOCK_STALE: {
-          if (sp_str_empty(event->err.subject)) {
+          if (event->err.lock_stale.missing) {
             sp_tty_fmt(&w, "{.cyan} does not exist, and {.cyan} forbids writing it", sp_fmt_cstr("spn.lock"), sp_fmt_cstr("--locked"));
           }
           else {

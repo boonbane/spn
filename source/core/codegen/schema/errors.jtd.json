@@ -98,7 +98,7 @@
     "pkg_absent": { "ref": "absent" },
     "lock_invalid": { "ref": "manifest" },
     "lock_version": { "ref": "lock_version" },
-    "lock_stale": { "properties": {} },
+    "lock_stale": { "ref": "lock_stale" },
     "lock_mismatch": { "ref": "lock_mismatch" },
     "lock_absent": { "properties": {} },
     "manifest_edit": { "ref": "manifest_parse" },
@@ -411,6 +411,11 @@
         "path": { "type": "string" },
         "version": { "type": "uint64" },
         "supported": { "type": "uint64" }
+      }
+    },
+    "lock_stale": {
+      "properties": {
+        "missing": { "type": "boolean" }
       }
     },
     "dag": {

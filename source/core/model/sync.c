@@ -623,10 +623,15 @@ static spn_err_t relock(sp_mem_t scratch, spn_session_t* session, const spn_lock
     return SPN_ERR_LOCK_MISMATCH;
   }
 
+  bool missing = !held->version;
   sp_str_t stale = sp_zero;
-  *changed = si_lock_changed(held, lock, &stale);
+  *changed = missing || si_lock_changed(held, lock, &stale);
   if (session->locked && *changed) {
-    return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_LOCK_STALE, .subject = stale });
+    return spn_err_emit(ctx, (spn_err_union_t) {
+      .kind = SPN_ERR_LOCK_STALE,
+      .subject = stale,
+      .lock_stale = { .missing = missing },
+    });
   }
   return SPN_OK;
 }

@@ -12,7 +12,6 @@ typedef struct {
 
 typedef struct {
   const c8* name;
-  bool absent;
   state_t held;
   state_t next;
   expect_t expect;
@@ -68,11 +67,6 @@ static const test_t tests [] = {
     .next.indexes = { { .name = "I", .url = "U", .rev = "R" } },
     .expect = { .changed = true, .what = "I" },
   },
-  {
-    .name = "absent_lock_names_nothing",
-    .absent = true,
-    .expect.changed = true,
-  },
 };
 
 static spn_lock_t lock_from(sp_mem_t mem, const state_t* state) {
@@ -89,9 +83,6 @@ static spn_lock_t lock_from(sp_mem_t mem, const state_t* state) {
 sp_test_each(lock, changed, test_t, tests, .setup = spn_test_ctx_setup) {
   sp_mem_t mem = sp_test_arena(t);
   spn_lock_t held = lock_from(mem, &it->held);
-  if (it->absent) {
-    held.version = 0;
-  }
   spn_lock_t next = lock_from(mem, &it->next);
 
   sp_str_t what = sp_zero;

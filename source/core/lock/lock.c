@@ -302,11 +302,6 @@ si_da(si_lock_move_t) si_lock_merge(sp_mem_t mem, spn_lock_t* lock, si_da(si_loc
 }
 
 bool si_lock_changed(const spn_lock_t* held, const spn_lock_t* next, sp_str_t* what) {
-  *what = sp_str_lit("");
-  if (held->version != next->version) {
-    return true;
-  }
-
   const spn_lock_index_t* repinned = unpinned_in(next, held);
   if (!repinned) {
     repinned = unpinned_in(held, next);
