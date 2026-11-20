@@ -279,7 +279,7 @@ static spn_err_t publish_from(sp_mem_t mem, spn_index_info_t* index, sp_str_t di
 
   sp_str_t records = sp_fs_join_path(mem, root, si_index_jsonl_path(mem, rel->name));
   sp_fs_create_parent_at(sp_path_from_str(records));
-  sp_fs_append_at(sp_path_from_str(records), sp_fmt(mem, "{}\n", sp_fmt_str(spn_index_release_to_json(mem, rel))).value, sp_sys_default_file_perms);
+  sp_fs_append_at(sp_path_from_str(records), sp_fmt(mem, "{}\n", sp_fmt_str(si_index_release_to_json(mem, rel))).value, sp_sys_default_file_perms);
 
   // A clone of an empty remote has no origin/HEAD yet; the first push
   // creates the branch the clone was born on

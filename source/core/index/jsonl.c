@@ -24,7 +24,7 @@ spn_err_t si_index_jsonl_get_package(const si_index_place_t* index, sp_mem_t mem
   sp_fs_read_at(scratch.mem, at, &blob);
 
   spn_index_pkg_t* package = sp_alloc_type(mem, spn_index_pkg_t);
-  if (spn_index_parse_pkg(mem, intern, name, blob, package) != SPN_OK) {
+  if (si_index_parse_pkg(mem, intern, name, blob, package) != SPN_OK) {
     *err = (spn_err_union_t) {
       .kind = SPN_ERR_INDEX_CORRUPT,
       .index_corrupt = { .name = name.str, .path = sp_fs_join_path(mem, index->dir, path) },
@@ -33,7 +33,9 @@ spn_err_t si_index_jsonl_get_package(const si_index_place_t* index, sp_mem_t mem
     goto cleanup;
   }
 
-  *pkg = package;
+  if (!sp_da_empty(package->releases)) {
+    *pkg = package;
+  }
 
 cleanup:
   sp_mem_end_scratch(scratch);

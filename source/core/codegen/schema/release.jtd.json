@@ -6,6 +6,7 @@
     "yanked": { "type": "boolean" }
   },
   "optionalProperties": {
+    "v": { "type": "uint64" },
     "source": { "ref": "release_source" },
     "manifest": { "ref": "release_source" },
     "paths": { "ref": "release_paths" },

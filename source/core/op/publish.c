@@ -61,7 +61,7 @@ spn_err_t spn_op_publish(spn_op_t* op) {
   spn_index_release_t release = sp_zero;
   spn_try(publish_build(op->ctx, op->request.publish, &release));
   if (op->request.publish.dry) {
-    op->result.publish.json = spn_index_release_to_json(op->mem, &release);
+    op->result.publish.json = si_index_release_to_json(op->mem, &release);
     return SPN_OK;
   }
   return publish(op->ctx, op->request.publish, &release, &op->cancelled);

@@ -204,6 +204,15 @@ static const release_test_t tests [] = {
     },
   },
   {
+    .name = "v_newer",
+    .expect = {
+      .releases = {
+        { .name = "spum", .version = "1.0.0" },
+        { .name = "spum", .version = "2.0.0" },
+      },
+    },
+  },
+  {
     .name = "duplicate_version",
     .expect = { .err = SPN_ERROR },
   },
@@ -374,7 +383,7 @@ sp_test_each(index_release, parse, release_test_t, tests, .setup = spn_test_ctx_
     sp_io_dyn_mem_writer_init(mem, &rendered);
     sp_for(at, num_releases) {
       spn_index_release_t rel = release_build(mem, &it->expect.releases[at]);
-      sp_io_write_line(&rendered.base, spn_index_release_to_json(mem, &rel));
+      sp_io_write_line(&rendered.base, si_index_release_to_json(mem, &rel));
     }
 
     sp_expect_golden(t, path, sp_io_dyn_mem_writer_as_str(&rendered));
@@ -384,7 +393,7 @@ sp_test_each(index_release, parse, release_test_t, tests, .setup = spn_test_ctx_
   sp_fs_read(mem, path, &blob);
 
   spn_index_pkg_t pkg = sp_zero;
-  spn_err_t err = spn_index_parse_pkg(mem, spn.intern, spn_intern_lit("spum"), blob, &pkg);
+  spn_err_t err = si_index_parse_pkg(mem, spn.intern, spn_intern_lit("spum"), blob, &pkg);
   sp_expect_eq(t, it->expect.err, err);
   if (err != SPN_OK || it->expect.err != SPN_OK) { return SP_OK; }
 

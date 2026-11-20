@@ -32,6 +32,10 @@ static const query_test_t tests [] = {
     .name = "missing_file",
   },
   {
+    .name = "newer_only",
+    .fixture = "v_newer_only",
+  },
+  {
     .name = "empty_blob",
     .fixture = "empty",
     .expect = {
