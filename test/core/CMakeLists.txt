@@ -165,6 +165,7 @@ add_executable(core
   toolchain/sdk_shell.c
   toolchain/search.c
   toolchain/select.c
+  toolchain/select_msvc.c
   toolchain/sha256.c
   toolchain/toolchain.c
   toolchain/unpack.c
@@ -225,6 +226,9 @@ set_source_files_properties(
   toolchain/catalog.c
   toolchain/driver.c
   toolchain/linker.c
+  toolchain/msvc_installs.c
+  toolchain/msvc_match.c
+  toolchain/msvc_request.c
   toolchain/parse.c
   toolchain/probe.c
   toolchain/program.c
@@ -240,6 +244,7 @@ set_source_files_properties(
   toolchain/search.c
   toolchain/provision.c
   toolchain/select.c
+  toolchain/select_msvc.c
   toolchain/sha256.c
   toolchain/toolchain.c
   toolchain/zig.c

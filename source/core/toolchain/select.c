@@ -214,20 +214,53 @@ static spn_err_t select_named(spn_toolchain_catalog_t* catalog, spn_toolchain_qu
   return SPN_OK;
 }
 
+static spn_err_t emit_msvc(spn_err_t kind, spn_triple_t target, sp_str_t request, sp_da(sp_str_t) installed) {
+  return spn_err_emit(&spn, (spn_err_union_t) {
+    .kind = kind,
+    .msvc = {
+      .target = target,
+      .request = sp_str_copy(spn.events->mem, request),
+      .installed = installed,
+    },
+  });
+}
+
+static spn_err_t pin_sdk(spn_toolchain_catalog_t* catalog, spn_toolchain_query_t query, spn_toolchain_selection_t* selection) {
+  sp_mem_t mem = spn.events->mem;
+  spn_triple_t target = selection->row.triple;
+  bool compiler = selection->toolchain->driver == SPN_CC_DRIVER_MSVC;
+  switch (spn_sdk_pin(catalog->mem, &catalog->sdks, query.msvc, compiler, &selection->row.sdk)) {
+    case SPN_MSVC_MATCH_OK: {
+      return SPN_OK;
+    }
+    case SPN_MSVC_MATCH_ABSENT: {
+      return emit(SPN_ERR_TOOLCHAIN_SDK_MSVC, catalog, query, target, SP_NULLPTR, SP_NULLPTR);
+    }
+    case SPN_MSVC_MATCH_TOOLSET: {
+      return emit_msvc(SPN_ERR_MSVC_TOOLSET, target, query.msvc.toolset, spn_msvc_installed_toolsets(mem, &catalog->sdks.msvc, target.arch, compiler));
+    }
+    case SPN_MSVC_MATCH_SDK: {
+      return emit_msvc(SPN_ERR_MSVC_SDK, target, query.msvc.sdk, spn_msvc_installed_sdks(mem, &catalog->sdks.msvc, target.arch));
+    }
+  }
+  sp_unreachable_return(SPN_ERROR);
+}
+
 spn_err_t spn_toolchain_select(spn_toolchain_catalog_t* catalog, spn_toolchain_query_t query, spn_toolchain_selection_t* selection) {
   sp_assert(query.candidates.count);
   *selection = sp_zero_s(spn_toolchain_selection_t);
   switch (query.toolchain.kind) {
     case SPN_TOOLCHAIN_REF_AUTO: {
-      return select_auto(catalog, query, selection);
+      spn_try(select_auto(catalog, query, selection));
+      break;
     }
     case SPN_TOOLCHAIN_REF_NAMED: {
-      return select_named(catalog, query, selection);
+      spn_try(select_named(catalog, query, selection));
+      break;
     }
     case SPN_TOOLCHAIN_REF_NONE: {
       sp_unreachable_case();
     }
   }
-
-  sp_unreachable_return(SPN_ERROR);
+  return pin_sdk(catalog, query, selection);
 }

@@ -24,6 +24,8 @@
     "toolchain_sysroot": { "ref": "toolchain" },
     "toolchain_sdk_macos": { "ref": "toolchain" },
     "toolchain_sdk_msvc": { "ref": "toolchain" },
+    "msvc_toolset": { "ref": "msvc" },
+    "msvc_sdk": { "ref": "msvc" },
     "toolchain_msvc_linker_host": { "ref": "toolchain" },
     "target_abi": { "ref": "profile" },
     "toolchain_unavailable_for_host": { "ref": "toolchain" },
@@ -227,6 +229,13 @@
         "candidates": { "elements": { "type": "string" } },
         "targets": { "elements": { "metadata": { "extern": "triple" } } },
         "query": { "metadata": { "extern": "triple" } }
+      }
+    },
+    "msvc": {
+      "properties": {
+        "target": { "metadata": { "extern": "triple" } },
+        "request": { "type": "string" },
+        "installed": { "elements": { "type": "string" } }
       }
     },
     "program": {

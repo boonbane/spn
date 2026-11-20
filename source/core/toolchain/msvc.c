@@ -144,6 +144,46 @@ void spn_msvc_installs_add(spn_msvc_installs_t* installs, const sp_msvc_t* found
   }
 }
 
+static void push_unique(sp_da(sp_str_t)* list, sp_str_t item) {
+  sp_da_for(*list, it) {
+    if (sp_str_equal((*list)[it], item)) {
+      return;
+    }
+  }
+  sp_da_push(*list, item);
+}
+
+sp_da(sp_str_t) spn_msvc_installed_toolsets(sp_mem_t mem, const spn_msvc_installs_t* installs, spn_arch_t arch, bool compiler) {
+  sp_da(sp_str_t) list = sp_da_new(mem, sp_str_t);
+  sp_da_for(installs->toolsets, it) {
+    const sp_msvc_vs_t* toolset = &installs->toolsets[it];
+    if (toolset->target != spn_msvc_arch(arch) || (compiler && !toolset->compiler)) {
+      continue;
+    }
+    sp_str_t text = sp_msvc_version_str(&toolset->version.tools);
+    version_t version = version_of(text);
+    sp_str_t label = sp_str_copy(mem, text);
+    sp_carr_for(generations, at) {
+      if (pinned((pin_t) { .kind = PIN_GENERATION, .generation = &generations[at] }, version)) {
+        label = sp_fmt(mem, "{} ({})", sp_fmt_str(text), sp_fmt_cstr(generations[at].name)).value;
+      }
+    }
+    push_unique(&list, label);
+  }
+  return list;
+}
+
+sp_da(sp_str_t) spn_msvc_installed_sdks(sp_mem_t mem, const spn_msvc_installs_t* installs, spn_arch_t arch) {
+  sp_da(sp_str_t) list = sp_da_new(mem, sp_str_t);
+  sp_da_for(installs->kits, it) {
+    const sp_msvc_sdk_t* kit = &installs->kits[it];
+    if (kit->arch == spn_msvc_arch(arch)) {
+      push_unique(&list, sp_str_copy(mem, sp_msvc_version_str(&kit->version)));
+    }
+  }
+  return list;
+}
+
 bool spn_msvc_toolset_valid(sp_str_t toolset) {
   return parse_toolset(toolset).kind != PIN_INVALID;
 }
