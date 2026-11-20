@@ -308,18 +308,6 @@ bool si_sdk_served(sp_mem_t mem, const spn_sdk_host_t* sdks, spn_triple_t host, 
   sp_unreachable_return(false);
 }
 
-spn_msvc_match_t spn_sdk_pin(sp_mem_t mem, const spn_sdk_host_t* sdks, spn_msvc_request_t request, bool compiler, spn_sdk_t* sdk) {
-  if (sdk->kind != SPN_SDK_MSVC || spn_path_empty(sdk->msvc.install.vs)) {
-    return SPN_MSVC_MATCH_OK;
-  }
-  spn_msvc_pick_t pick = sp_zero;
-  spn_msvc_match_t match = si_msvc_match(&sdks->msvc, sdk->msvc.arch, request, compiler, &pick);
-  if (match == SPN_MSVC_MATCH_OK) {
-    sdk->msvc = spn_sdk_from_msvc(mem, pick.kit, pick.toolset, sdk->msvc.arch);
-  }
-  return match;
-}
-
 static sp_str_t xcrun_sdk(sp_mem_t mem) {
   sp_ps_output_t result = sp_ps_run(mem, (sp_ps_config_t) {
     .command = sp_str_lit("xcrun"),

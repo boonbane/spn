@@ -4,7 +4,6 @@
 #include "sp.h"
 #include "sp/sp_msvc.h"
 #include "paths/types.h"
-#include "toolchain/msvc.h"
 #include "toolchain/types.h"
 
 spn_sdk_need_t spn_sdk_need(spn_triple_t target);
@@ -14,7 +13,6 @@ spn_sdk_host_t si_sdk_detect(sp_mem_t mem, const spn_path_roots_t* roots, sp_env
 spn_sdk_t      spn_sdk_at(sp_mem_t mem, spn_triple_t target, spn_path_t root);
 bool           si_sdk_served(sp_mem_t mem, const spn_sdk_host_t* sdks, spn_triple_t host, spn_triple_t target, spn_sdk_t* sdk);
 bool           si_sdk_default(sp_mem_t mem, const spn_sdk_host_t* sdks, spn_triple_t target, spn_sdk_t* sdk);
-spn_msvc_match_t spn_sdk_pin(sp_mem_t mem, const spn_sdk_host_t* sdks, spn_msvc_request_t request, bool compiler, spn_sdk_t* sdk);
 sp_hash_t      spn_sdk_hash(const spn_sdk_t* sdk);
 bool           spn_sdk_libc(spn_cc_cap_set_t caps, const spn_sdk_t* sdk, spn_libc_t* libc);
 spn_dir_list_t spn_sdk_tool_dirs(const spn_sdk_t* sdk);

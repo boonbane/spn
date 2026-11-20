@@ -2,7 +2,9 @@
 
 #include "ctx/types.h"
 #include "error/error.h"
+#include "paths/paths.h"
 #include "toolchain/catalog.h"
+#include "toolchain/msvc.h"
 #include "toolchain/toolchain.h"
 #include "triple/triple.h"
 
@@ -214,38 +216,6 @@ static spn_err_t select_named(spn_toolchain_catalog_t* catalog, spn_toolchain_qu
   return SPN_OK;
 }
 
-static spn_err_t emit_msvc(spn_err_t kind, spn_triple_t target, sp_str_t request, sp_da(sp_str_t) installed) {
-  return spn_err_emit(&spn, (spn_err_union_t) {
-    .kind = kind,
-    .msvc = {
-      .target = target,
-      .request = sp_str_copy(spn.events->mem, request),
-      .installed = installed,
-    },
-  });
-}
-
-static spn_err_t pin_sdk(spn_toolchain_catalog_t* catalog, spn_toolchain_query_t query, spn_toolchain_selection_t* selection) {
-  sp_mem_t mem = spn.events->mem;
-  spn_triple_t target = selection->row.triple;
-  bool compiler = selection->toolchain->driver == SPN_CC_DRIVER_MSVC;
-  switch (spn_sdk_pin(catalog->mem, &catalog->sdks, query.msvc, compiler, &selection->row.sdk)) {
-    case SPN_MSVC_MATCH_OK: {
-      return SPN_OK;
-    }
-    case SPN_MSVC_MATCH_ABSENT: {
-      return emit(SPN_ERR_TOOLCHAIN_SDK_MSVC, catalog, query, target, SP_NULLPTR, SP_NULLPTR);
-    }
-    case SPN_MSVC_MATCH_TOOLSET: {
-      return emit_msvc(SPN_ERR_MSVC_TOOLSET, target, query.msvc.toolset, si_msvc_installed_toolsets(mem, &catalog->sdks.msvc, target.arch, compiler));
-    }
-    case SPN_MSVC_MATCH_SDK: {
-      return emit_msvc(SPN_ERR_MSVC_SDK, target, query.msvc.sdk, si_msvc_installed_sdks(mem, &catalog->sdks.msvc, target.arch));
-    }
-  }
-  sp_unreachable_return(SPN_ERROR);
-}
-
 spn_err_t si_toolchain_select(spn_toolchain_catalog_t* catalog, spn_toolchain_query_t query, spn_toolchain_selection_t* selection) {
   sp_assert(query.candidates.count);
   *selection = sp_zero_s(spn_toolchain_selection_t);
@@ -262,5 +232,45 @@ spn_err_t si_toolchain_select(spn_toolchain_catalog_t* catalog, spn_toolchain_qu
       sp_unreachable_case();
     }
   }
-  return pin_sdk(catalog, query, selection);
+
+  spn_sdk_t* sdk = &selection->row.sdk;
+  if (sdk->kind != SPN_SDK_MSVC || spn_path_empty(sdk->msvc.install.vs)) {
+    return SPN_OK;
+  }
+
+  sp_mem_t mem = spn.events->mem;
+  const spn_msvc_installs_t* installs = &catalog->sdks.msvc;
+  spn_triple_t target = selection->row.triple;
+  bool compiler = selection->toolchain->driver == SPN_CC_DRIVER_MSVC;
+  spn_msvc_pick_t pick = sp_zero;
+  switch (si_msvc_match(installs, target.arch, query.msvc, compiler, &pick)) {
+    case SPN_MSVC_MATCH_OK: {
+      sdk->msvc = spn_sdk_from_msvc(catalog->mem, pick.kit, pick.toolset, target.arch);
+      return SPN_OK;
+    }
+    case SPN_MSVC_MATCH_ABSENT: {
+      return emit(SPN_ERR_TOOLCHAIN_SDK_MSVC, catalog, query, target, SP_NULLPTR, SP_NULLPTR);
+    }
+    case SPN_MSVC_MATCH_TOOLSET: {
+      return spn_err_emit(&spn, (spn_err_union_t) {
+        .kind = SPN_ERR_MSVC_TOOLSET,
+        .msvc = {
+          .target = target,
+          .request = sp_str_copy(mem, query.msvc.toolset),
+          .installed = si_msvc_installed_toolsets(mem, installs, target.arch, compiler),
+        },
+      });
+    }
+    case SPN_MSVC_MATCH_SDK: {
+      return spn_err_emit(&spn, (spn_err_union_t) {
+        .kind = SPN_ERR_MSVC_SDK,
+        .msvc = {
+          .target = target,
+          .request = sp_str_copy(mem, query.msvc.sdk),
+          .installed = si_msvc_installed_sdks(mem, installs, target.arch),
+        },
+      });
+    }
+  }
+  sp_unreachable_return(SPN_ERROR);
 }
