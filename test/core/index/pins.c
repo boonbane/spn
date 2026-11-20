@@ -75,7 +75,7 @@ sp_test_each(index_pins, sync, test_t, tests, .setup = spn_test_ctx_setup) {
     .protocol = SPN_INDEX_PROTOCOL_GIT,
     .format = SPN_INDEX_FORMAT_MANIFESTS,
     .git = { .url = remote.path, .rev = commit_of(&fixture, &remote, it->rev) },
-    .remote = spn_git_remote(SPN_GIT_TRANSPORT_BUILTIN),
+    .remote = si_git_remote(SPN_GIT_TRANSPORT_BUILTIN),
   }));
   spn_index_info_t* index = &ctx.indexes[0];
 

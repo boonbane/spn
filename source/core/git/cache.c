@@ -14,7 +14,7 @@ void spn_git_cache_init(spn_git_cache_t* cache, sp_mem_t mem, sp_intern_t* inter
     .mem = mem,
     .intern = intern,
     .roots = roots,
-    .remote = spn_git_remote(SPN_GIT_TRANSPORT_BUILTIN),
+    .remote = si_git_remote(SPN_GIT_TRANSPORT_BUILTIN),
     .db.dir = spn_path_copy(mem, db),
     .db.locks = spn_path_copy(mem, locks),
     .checkouts.dir = spn_path_copy(mem, checkouts),

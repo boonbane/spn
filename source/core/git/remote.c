@@ -59,7 +59,7 @@ static spn_err_t tip_over(void* user, spn_git_route_t route, sp_mem_t mem, sp_st
   sp_unreachable_return(SPN_ERROR);
 }
 
-spn_git_remote_t spn_git_remote(spn_git_transport_t transport) {
+spn_git_remote_t si_git_remote(spn_git_transport_t transport) {
   return (spn_git_remote_t) { .transport = transport, .clone = clone_over, .fetch = fetch_over, .tip = tip_over };
 }
 
@@ -99,7 +99,7 @@ static spn_err_t fetch(spn_git_remote_t remote, spn_git_route_t* route, sp_str_t
   return settle(attempt, err, cancelled, failure);
 }
 
-spn_err_t spn_git_clone(spn_git_remote_t remote, sp_str_t url, sp_str_t path, spn_net_backoff_t backoff, sp_atomic_s32_t* cancelled, spn_git_failure_t* failure) {
+spn_err_t si_git_clone(spn_git_remote_t remote, sp_str_t url, sp_str_t path, spn_net_backoff_t backoff, sp_atomic_s32_t* cancelled, spn_git_failure_t* failure) {
   sp_assert(remote.clone);
   sp_assert(!backoff.wait_ms[0] || backoff.wait);
   attempt_t attempt = { .route = route_for(remote.transport, url) };

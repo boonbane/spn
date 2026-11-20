@@ -38,7 +38,7 @@ static void sync_index_node(void* data) {
   job->err = spn_index_sync(job->index, job->plan, &job->op->cancelled, &job->failure);
 }
 
-spn_err_t spn_sync_index_list(spn_op_t* op, sp_da(spn_index_info_t*) indexes, bool force) {
+spn_err_t si_sync_index_list(spn_op_t* op, sp_da(spn_index_info_t*) indexes, bool force) {
   spn_ctx_t* ctx = op->ctx;
   sp_da(job_t*) jobs = sp_da_new(ctx->mem, job_t*);
 
@@ -225,7 +225,7 @@ spn_err_t spn_op_add_index(spn_op_t* op) {
 
   sp_da(spn_index_info_t*) fetched = sp_da_new(ctx->mem, spn_index_info_t*);
   sp_da_push(fetched, &index);
-  spn_try(spn_sync_index_list(op, fetched, true));
+  spn_try(si_sync_index_list(op, fetched, true));
 
   index.format = spn_index_detect_format(&index);
   if (request.global && spn_index_is_snapshot(&index) && spn_git_get_commit_full(ctx->heap, index.location.dir, sp_str_lit("HEAD"), &index.git.rev)) {
@@ -253,7 +253,7 @@ spn_op_t* spn_add_index(spn_ctx_t* ctx, spn_index_add_request_t request) {
   return op;
 }
 
-spn_err_t spn_op_sync_indexes(spn_op_t* op) {
+spn_err_t si_op_sync_indexes(spn_op_t* op) {
   spn_ctx_t* ctx = op->ctx;
   spn_sync_request_t request = op->request.indexes;
   if (!sp_str_empty(request.only) && !spn_find_index(ctx, request.only)) {
@@ -271,7 +271,7 @@ spn_err_t spn_op_sync_indexes(spn_op_t* op) {
     }
     sp_da_push(indexes, &ctx->indexes[it]);
   }
-  return spn_sync_index_list(op, indexes, request.force);
+  return si_sync_index_list(op, indexes, request.force);
 }
 
 spn_op_t* spn_sync_indexes(spn_ctx_t* ctx, spn_sync_request_t request) {

@@ -58,7 +58,7 @@ static spn_err_t git_index_clone(spn_index_info_t* index, sp_atomic_s32_t* cance
 
   sp_path_t work = sp_path_from_str(staged.sub);
   sp_path_t old = sp_path_from_str(spn_path_staging(scratch.mem, base, sp_str_lit("old")).sub);
-  spn_err_t err = spn_git_clone(index->remote, index->git.url, staged.sub, index->backoff, cancelled, failure);
+  spn_err_t err = si_git_clone(index->remote, index->git.url, staged.sub, index->backoff, cancelled, failure);
   if (!err && sp_fs_replace_dir_at(work, index->location.at, old)) {
     *failure = (spn_git_failure_t) { .message = "failed to place the clone" };
     err = SPN_ERROR;
@@ -220,7 +220,7 @@ spn_index_format_t spn_index_detect_format(spn_index_info_t* index) {
   return manifests ? SPN_INDEX_FORMAT_MANIFESTS : SPN_INDEX_FORMAT_RELEASES;
 }
 
-spn_err_t spn_index_get_package(spn_index_info_t* index, sp_mem_t mem, sp_intern_t* intern, const spn_path_roots_t* roots, sp_intern_str_t name, spn_index_pkg_t** pkg, spn_err_union_t* err) {
+spn_err_t si_index_get_package(spn_index_info_t* index, sp_mem_t mem, sp_intern_t* intern, const spn_path_roots_t* roots, sp_intern_str_t name, spn_index_pkg_t** pkg, spn_err_union_t* err) {
   switch (index->format) {
     case SPN_INDEX_FORMAT_RELEASES: {
       spn_try(spn_index_jsonl_get_package(index, mem, intern, name, pkg, err));
@@ -259,7 +259,7 @@ static spn_err_t publish_from(sp_mem_t mem, spn_index_info_t* work, spn_index_re
   sp_str_t dir = work->location.dir;
 
   spn_git_failure_t failure = sp_zero;
-  if (spn_git_clone(work->remote, work->git.url, dir, work->backoff, cancelled, &failure)) {
+  if (si_git_clone(work->remote, work->git.url, dir, work->backoff, cancelled, &failure)) {
     if (failure.kind == SPN_GIT_CANCELLED) {
       return SPN_ERR_CANCELLED;
     }

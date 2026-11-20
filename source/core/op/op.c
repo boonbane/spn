@@ -40,9 +40,9 @@ static s32 op_thread(void* data) {
       }
       else {
         switch (op->result.kind) {
-          case SPN_OP_ADD:           op->result.err = spn_op_add(op); break;
+          case SPN_OP_ADD:           op->result.err = si_op_add(op); break;
           case SPN_OP_PUBLISH:       op->result.err = spn_op_publish(op); break;
-          case SPN_OP_SYNC_INDEXES:  op->result.err = spn_op_sync_indexes(op); break;
+          case SPN_OP_SYNC_INDEXES:  op->result.err = si_op_sync_indexes(op); break;
           case SPN_OP_ADD_INDEX:     op->result.err = spn_op_add_index(op); break;
           case SPN_OP_SCAFFOLD:      op->result.err = spn_op_scaffold(op); break;
           case SPN_OP_BUILD:         op->result.err = spn_op_build(op); break;

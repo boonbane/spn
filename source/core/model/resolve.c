@@ -114,7 +114,7 @@ static spn_err_t resolve(sp_mem_t scratch, spn_op_t* op, const spn_lock_t* lock)
       }
     }
     if (!sp_da_empty(read)) {
-      spn_try(spn_sync_index_list(op, read, false));
+      spn_try(si_sync_index_list(op, read, false));
       continue;
     }
     if (!err) {

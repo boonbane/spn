@@ -72,7 +72,7 @@ sp_test_each(index_query, get_package, query_test_t, tests, .setup = spn_test_ct
 
   spn_index_pkg_t* pkg = SP_NULLPTR;
   spn_err_union_t diag = sp_zero;
-  spn_err_t err = spn_index_get_package(&index, mem, spn.intern, &spn.roots, spn_intern_lit("spum"), &pkg, &diag);
+  spn_err_t err = si_index_get_package(&index, mem, spn.intern, &spn.roots, spn_intern_lit("spum"), &pkg, &diag);
   sp_expect_eq(t, it->expect.exists, pkg != SP_NULLPTR);
   sp_expect_eq(t, it->expect.err, err);
   if (err == SPN_ERR_INDEX_CORRUPT) {

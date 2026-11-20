@@ -478,7 +478,7 @@ static void lower_profiles(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, 
   }
 }
 
-spn_index_info_t spn_index_lower(spn_toml_loader_t* ctx, u32 at, spn_index_kind_t kind, const spn_cg_index_t* decl) {
+spn_index_info_t si_index_lower(spn_toml_loader_t* ctx, u32 at, spn_index_kind_t kind, const spn_cg_index_t* decl) {
   bool has_url = !sp_str_empty(decl->url);
   bool has_path = !sp_str_empty(decl->path);
   bool has_rev = !sp_str_empty(decl->rev);
@@ -586,7 +586,7 @@ spn_cache_config_t spn_cache_lower(const spn_cg_cache_t* cg) {
 
 static void lower_indexes(spn_toml_loader_t* ctx, const spn_cg_manifest_t* cg, spn_project_t* project) {
   sp_da_for(cg->index, it) {
-    spn_index_info_t info = spn_index_lower(ctx, it, SPN_INDEX_KIND_WORKSPACE, &cg->index[it]);
+    spn_index_info_t info = si_index_lower(ctx, it, SPN_INDEX_KIND_WORKSPACE, &cg->index[it]);
     si_om_insert(ctx->mem, project->indexes, info.id, info);
   }
 }

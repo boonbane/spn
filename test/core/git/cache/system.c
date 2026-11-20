@@ -17,7 +17,7 @@ sp_test(git_cache, system_git_fetches_tip_then_history, .setup = spn_test_ctx_se
   spn_path_roots_t roots = sp_zero;
   spn_git_cache_t cache = sp_zero;
   spn_git_cache_init(&cache, mem, SP_NULLPTR, &roots, dbs, spn_path_join(mem, root, sp_str_lit("checkouts")), spn_path_join(mem, root, sp_str_lit("locks")));
-  cache.remote = spn_git_remote(SPN_GIT_TRANSPORT_SYSTEM);
+  cache.remote = si_git_remote(SPN_GIT_TRANSPORT_SYSTEM);
   sp_str_t db = spn_path_str(&roots, mem, spn_path_join(mem, dbs, spn_git_db_key(mem, remote)));
   sp_atomic_s32_t cancelled = sp_zero;
   bool fetching = false;

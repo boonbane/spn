@@ -24,7 +24,7 @@ spn_err_t spn_index_cache_get_package(spn_index_cache_t* cache, sp_intern_str_t 
   sp_da_for(*cache->indexes, it) {
     spn_index_info_t* index = &(*cache->indexes)[it];
     cache->consulted = sp_max(cache->consulted, (u32)it + 1);
-    spn_try(spn_index_get_package(index, cache->mem, cache->intern, cache->roots, name, &package, err));
+    spn_try(si_index_get_package(index, cache->mem, cache->intern, cache->roots, name, &package, err));
     if (package) {
       break;
     }

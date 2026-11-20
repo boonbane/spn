@@ -324,7 +324,7 @@ sp_test_each(index_sync, sync, sync_test_t, tests, .setup = spn_test_ctx_setup) 
   commit_seed(mem, remote, "A");
 
   spn_index_info_t index = {
-    .remote = spn_git_remote(SPN_GIT_TRANSPORT_BUILTIN),
+    .remote = si_git_remote(SPN_GIT_TRANSPORT_BUILTIN),
     .git = { .url = remote },
     .location = { .at = sp_path_from_str(cache), .dir = cache, .lock = sp_path_from_str(lock) },
     .refresh = it->refresh,

@@ -185,7 +185,7 @@ sp_test_each(index_dir, get_package, dir_test_t, tests, .setup = spn_test_ctx_se
 
   spn_index_pkg_t* pkg = SP_NULLPTR;
   spn_err_union_t diag = sp_zero;
-  spn_err_t err = spn_index_get_package(&index, mem, spn.intern, &spn.roots, request, &pkg, &diag);
+  spn_err_t err = si_index_get_package(&index, mem, spn.intern, &spn.roots, request, &pkg, &diag);
 
   sp_expect_eq(t, it->expect.err, err);
   sp_must_eq(t, it->expect.exists, pkg != SP_NULLPTR);
@@ -393,7 +393,7 @@ sp_test_each(index_dir, versioned, versioned_test_t, versioned_tests, .setup = s
 
   spn_index_pkg_t* pkg = SP_NULLPTR;
   spn_err_union_t diag = sp_zero;
-  spn_err_t err = spn_index_get_package(&index, mem, spn.intern, &spn.roots, spn_intern_lit("A"), &pkg, &diag);
+  spn_err_t err = si_index_get_package(&index, mem, spn.intern, &spn.roots, spn_intern_lit("A"), &pkg, &diag);
 
   sp_expect_eq(t, it->expect.err, err);
 

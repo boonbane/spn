@@ -260,7 +260,7 @@ sp_test_each(index_transaction, publish, txn_test_t, tests, .setup = spn_test_ct
 
   spn_index_info_t index = {
     .protocol = SPN_INDEX_PROTOCOL_GIT,
-    .remote = spn_git_remote(SPN_GIT_TRANSPORT_BUILTIN),
+    .remote = si_git_remote(SPN_GIT_TRANSPORT_BUILTIN),
     .git = { .url = remote },
     .location = { .at = sp_path_from_str(clone), .dir = clone, .lock = sp_path_from_str(lock) },
   };

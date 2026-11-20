@@ -45,7 +45,7 @@ sp_test_each(config, index, test_t, tests) {
   sp_must(t, sp_da_empty(loader.issues));
 
   sp_must_eq(t, 1, (u32)sp_da_size(cg.index));
-  spn_index_lower(&loader, 0, SPN_INDEX_KIND_USER, &cg.index[0]);
+  si_index_lower(&loader, 0, SPN_INDEX_KIND_USER, &cg.index[0]);
   if (it->issue.code) {
     sp_must_eq(t, 1, (u32)sp_da_size(loader.issues));
     sp_expect_eq(t, (u32)it->issue.code, (u32)loader.issues[0].code);

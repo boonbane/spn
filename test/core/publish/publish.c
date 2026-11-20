@@ -376,7 +376,7 @@ sp_test_each(cmd_publish, publish, case_t, cases, .setup = spn_test_ctx_setup) {
   sp_str_t clone = sp_fs_join_path(mem, test_dir_str(t), sp_str_lit("index_clone"));
   sp_str_t lock = sp_fs_join_path(mem, test_dir_str(t), sp_str_lit("index_lock"));
   spn_index_info_t index = {
-    .remote = spn_git_remote(SPN_GIT_TRANSPORT_BUILTIN),
+    .remote = si_git_remote(SPN_GIT_TRANSPORT_BUILTIN),
     .git = { .url = index_root },
     .location = { .at = sp_path_from_str(clone), .dir = clone, .lock = sp_path_from_str(lock) },
   };
@@ -418,7 +418,7 @@ sp_test_each(cmd_publish, publish, case_t, cases, .setup = spn_test_ctx_setup) {
   if (c.expect.name && result == SPN_OK) {
     spn_index_pkg_t* pkg = SP_NULLPTR;
     spn_err_union_t diag = sp_zero;
-    spn_index_get_package(&index, mem, spn.intern, &spn.roots, spn_intern_cstr(c.expect.name), &pkg, &diag);
+    si_index_get_package(&index, mem, spn.intern, &spn.roots, spn_intern_cstr(c.expect.name), &pkg, &diag);
 
     sp_must(t, pkg);
     sp_must(t, sp_da_size(pkg->releases));

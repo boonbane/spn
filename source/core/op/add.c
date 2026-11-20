@@ -142,7 +142,7 @@ cleanup:
   return result;
 }
 
-spn_err_t spn_op_add(spn_op_t* op) {
+spn_err_t si_op_add(spn_op_t* op) {
   spn_ctx_t* ctx = op->ctx;
   spn_add_request_t request = op->request.add;
 

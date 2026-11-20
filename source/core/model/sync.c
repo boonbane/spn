@@ -667,7 +667,7 @@ static spn_err_t relock(sp_mem_t scratch, spn_session_t* session, const spn_lock
   return SPN_OK;
 }
 
-spn_err_t spn_resolve_and_sync_pins(spn_op_t* op, const spn_lock_t* held, const spn_lock_t* kept, spn_lock_t* lock) {
+spn_err_t si_resolve_and_sync_pins(spn_op_t* op, const spn_lock_t* held, const spn_lock_t* kept, spn_lock_t* lock) {
   spn_session_t* session = op->session;
   spn_ctx_t* ctx = session->ctx;
   const spn_path_roots_t* roots = &ctx->roots;
@@ -756,7 +756,7 @@ spn_err_t spn_resolve_and_sync(spn_op_t* op) {
   }
 
   spn_lock_t lock = sp_zero;
-  spn_try(spn_resolve_and_sync_pins(op, &held, &held, &lock));
+  spn_try(si_resolve_and_sync_pins(op, &held, &held, &lock));
 
   spn_lock_diff_t diff = spn_lock_diff(&held, &lock);
   while (spn_lock_diff_next(&diff)) {

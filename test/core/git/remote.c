@@ -170,7 +170,7 @@ sp_test_each(git_remote, attempts, test_t, tests, .setup = spn_test_ctx_setup) {
     spn_err_t err = SPN_OK;
     switch ((op_t)op) {
       case OP_CLONE: {
-        err = spn_git_clone(remote, url, sp_str_lit("B"), backoff, &cancelled, &failure);
+        err = si_git_clone(remote, url, sp_str_lit("B"), backoff, &cancelled, &failure);
         break;
       }
       case OP_FETCH: {
