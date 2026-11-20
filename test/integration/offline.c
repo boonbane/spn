@@ -71,6 +71,17 @@ static const test_t tests [] = {
     },
   },
   {
+    .name = "pinned_index_unreachable",
+    .project = "test/integration/fixtures/cli/workspace_manifests_index",
+    .copy = { "index/*" },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { "build" } },
+      { .kind = ACTION_REMOVE_DIR, .rm = { .dir = ".st/index" } },
+      { .kind = ACTION_REMOVE_DIR, .rm = { .dir = "index" } },
+      { .kind = ACTION_RUN_CLI, .cli = { "build" } },
+    },
+  },
+  {
     .name = "index_unreachable",
     .project = "test/integration/fixtures/deps/index/binary_static",
     .actions = {
