@@ -143,27 +143,7 @@ spn_err_t si_sync_index_list(spn_op_t* op, sp_da(spn_index_info_t*) indexes, boo
   return SPN_OK;
 }
 
-static spn_path_t declared_in(spn_ctx_t* ctx, spn_index_info_t* index) {
-  switch (index->kind) {
-    case SPN_INDEX_KIND_WORKSPACE: {
-      return ctx->project->paths.manifest;
-    }
-    case SPN_INDEX_KIND_USER: {
-      return ctx->paths.config;
-    }
-  }
-  sp_unreachable_return(sp_zero_s(spn_path_t));
-}
-
-static bool is_declared(spn_ctx_t* ctx, bool global, spn_index_id_t id) {
-  if (global) {
-    return spn_index_find(&ctx->config.indexes, id) != SP_NULLPTR;
-  }
-  return si_om_get(ctx->project->indexes, id) != SP_NULLPTR;
-}
-
-static spn_err_t declare(spn_ctx_t* ctx, spn_index_info_t* index) {
-  spn_path_t declared = declared_in(ctx, index);
+static spn_err_t declare(spn_ctx_t* ctx, spn_path_t declared, spn_index_info_t* index) {
   sp_path_t at = spn_path_at(&ctx->roots, declared);
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   spn_err_t result = SPN_OK;
@@ -211,7 +191,10 @@ spn_err_t spn_op_add_index(spn_op_t* op) {
   spn_index_add_request_t request = op->request.index;
 
   sp_intern_str_t name = sp_intern(ctx->intern, sp_str_empty(request.name) ? spn_git_url_name(request.url) : request.name);
-  if (is_declared(ctx, request.global, name.id)) {
+  bool exists = request.global
+    ? spn_index_find(&ctx->config.indexes, name.id) != SP_NULLPTR
+    : si_om_get(ctx->project->indexes, name.id) != SP_NULLPTR;
+  if (exists) {
     return spn_err_emit(ctx, (spn_err_union_t) {
       .kind = SPN_ERR_INDEX_EXISTS,
       .index = { .name = name.str, .url = request.url },
@@ -221,7 +204,6 @@ spn_err_t spn_op_add_index(spn_op_t* op) {
   spn_index_info_t index = {
     .id = name.id,
     .name = name,
-    .kind = request.global ? SPN_INDEX_KIND_USER : SPN_INDEX_KIND_WORKSPACE,
     .protocol = SPN_INDEX_PROTOCOL_GIT,
     .git = { .url = request.url },
     .refresh = SPN_INDEX_DEFAULT_REFRESH,
@@ -241,7 +223,7 @@ spn_err_t spn_op_add_index(spn_op_t* op) {
       .index = { .name = name.str, .url = request.url },
     });
   }
-  spn_try(declare(ctx, &index));
+  spn_try(declare(ctx, request.global ? ctx->paths.config : ctx->project->paths.manifest, &index));
   spn_event_buffer_push(ctx->events, (spn_event_t) {
     .kind = SPN_EVENT_INDEX_ADDED,
     .sync = { .name = name.str, .url = request.url },
