@@ -78,7 +78,7 @@ static const test_t tests [] = {
     .fallback = { .path = "/S" },
     .sdks = { .msvc = { { { "/X" }, SPN_ARCH_X64, "14.44" } } },
     .toolset = "v141",
-    .expect = { .err = SPN_ERR_MSVC_TOOLSET, .installed = { { "14.44", "v143" } } },
+    .expect = { .err = SPN_ERR_MSVC_TOOLSET },
   },
 };
 

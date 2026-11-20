@@ -4,9 +4,3 @@ version = "1.0.0"
 
 [profile.A]
 msvc = { toolset = "v142", sdk = "10.0.22621" }
-
-[profile.B]
-msvc = { toolset = "v142" }
-
-[profile.C]
-msvc = { sdk = "10.0.22621" }

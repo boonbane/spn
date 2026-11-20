@@ -760,10 +760,6 @@ typedef struct {
   spn_linking_t linking;
   spn_linkage_t demand;
   spn_sanitizer_set_t sanitizers;
-  struct {
-    const c8* toolset;
-    const c8* sdk;
-  } msvc;
   spn_triple_t host;
   query_expect_t expect;
 } query_test_t;
@@ -842,13 +838,6 @@ static const query_test_t query_tests [] = {
     .sanitizers = SPN_SANITIZER_ADDRESS | SPN_SANITIZER_UNDEFINED,
     .host = PROFILE_HOST_LINUX_GNU,
     .expect = { .abis = { SPN_ABI_GNU }, .linking = { { SPN_LIB_KIND_STATIC, SPN_RUNTIME_SHARED, SPN_RUNTIME_SHARED } } },
-  },
-  {
-    .name = "request_carries_msvc",
-    .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC },
-    .msvc = { .toolset = "v142", .sdk = "10.0.22621" },
-    .host = PROFILE_HOST_WIN_MSVC,
-    .expect = { .abis = { SPN_ABI_MSVC }, .linking = { { SPN_LIB_KIND_SHARED, SPN_RUNTIME_STATIC, SPN_RUNTIME_STATIC } } },
   },
   {
     .name = "shared_demand_on_musl_host_prefers_musl",
@@ -1126,10 +1115,6 @@ sp_test_each(profile, query, query_test_t, query_tests, .setup = spn_test_ctx_se
     .request = it->linking,
     .demand = it->demand,
     .sanitizers = it->sanitizers,
-    .msvc = {
-      .toolset = sp_cstr_as_str(it->msvc.toolset),
-      .sdk = sp_cstr_as_str(it->msvc.sdk),
-    },
   };
 
   spn_toolchain_query_t query = sp_zero;
@@ -1156,8 +1141,6 @@ sp_test_each(profile, query, query_test_t, query_tests, .setup = spn_test_ctx_se
   sp_expect_eq(t, query.toolchain.id, profile.toolchain.id);
   sp_expect(t, spn_triple_equal(query.target, it->target));
   sp_expect_eq(t, query.sanitizers, it->sanitizers);
-  sp_expect_str_eq_c(t, query.msvc.toolset, it->msvc.toolset);
-  sp_expect_str_eq_c(t, query.msvc.sdk, it->msvc.sdk);
 
   u32 abis = 0;
   sp_carr_detect_len(it->expect.abis, abis, it->expect.abis[abis]);

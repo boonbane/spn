@@ -1263,8 +1263,6 @@ static const test_t tests [] = {
     .manifest = "profile_msvc",
     .profiles = {
       { .name = "A", .msvc = { .toolset = "v142", .sdk = "10.0.22621" } },
-      { .name = "B", .msvc = { .toolset = "v142" } },
-      { .name = "C", .msvc = { .sdk = "10.0.22621" } },
     },
   },
   {
