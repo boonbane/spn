@@ -241,41 +241,28 @@ spn_err_t si_index_get_package(const si_index_place_t* index, sp_mem_t mem, sp_i
   return SPN_OK;
 }
 
-static void index_append_release(spn_index_info_t* index, spn_index_release_t* rel) {
-  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-
-  sp_path_t path = sp_path_join(scratch.mem, index->location.at, spn_index_jsonl_path(scratch.mem, rel->name));
-  sp_fs_create_parent_at(path);
-
-  sp_str_t json = spn_index_release_to_json(scratch.mem, rel);
-  sp_fs_append_at(path, sp_fmt(scratch.mem, "{}\n", sp_fmt_str(json)).value, sp_sys_default_file_perms);
-
-  sp_mem_end_scratch(scratch);
-}
-
 #define SPN_INDEX_PUBLISH_ATTEMPTS 3
 
-static spn_err_t publish_from(sp_mem_t mem, spn_index_info_t* work, spn_index_release_t* rel, sp_str_t url, sp_atomic_s32_t* cancelled, sp_str_t* output) {
-  sp_str_t dir = work->location.dir;
-
+static spn_err_t publish_from(sp_mem_t mem, spn_index_info_t* index, sp_str_t dir, spn_index_release_t* rel, sp_str_t url, sp_atomic_s32_t* cancelled, sp_str_t* output) {
   spn_git_failure_t failure = sp_zero;
-  if (si_git_clone(work->remote, work->git.url, dir, work->backoff, cancelled, &failure)) {
+  if (si_git_clone(index->remote, index->git.url, dir, index->backoff, cancelled, &failure)) {
     if (failure.kind == SPN_GIT_CANCELLED) {
       return SPN_ERR_CANCELLED;
     }
     return spn_err_emit(&spn, (spn_err_union_t) {
       .kind = SPN_ERR_INDEX_SYNC,
       .index = {
-        .name = work->name.str,
-        .url = work->git.url,
+        .name = index->name.str,
+        .url = index->git.url,
         .cause = sp_str_copy(spn.events->mem, sp_cstr_as_str(failure.message)),
       },
     });
   }
 
+  si_index_place_t work = { .at = sp_path_from_str(dir), .dir = dir };
   spn_index_pkg_t* existing = SP_NULLPTR;
   spn_err_union_t err = sp_zero;
-  if (spn_index_jsonl_get_package(work, spn.mem, spn.intern, rel->name, &existing, &err)) {
+  if (si_index_jsonl_get_package(&work, spn.mem, spn.intern, rel->name, &existing, &err)) {
     return spn_err_emit(&spn, err);
   }
   if (existing) {
@@ -292,7 +279,9 @@ static spn_err_t publish_from(sp_mem_t mem, spn_index_info_t* work, spn_index_re
     }
   }
 
-  index_append_release(work, rel);
+  sp_str_t records = sp_fs_join_path(mem, dir, spn_index_jsonl_path(mem, rel->name));
+  sp_fs_create_parent_at(sp_path_from_str(records));
+  sp_fs_append_at(sp_path_from_str(records), sp_fmt(mem, "{}\n", sp_fmt_str(spn_index_release_to_json(mem, rel))).value, sp_sys_default_file_perms);
 
   // A clone of an empty remote has no origin/HEAD yet; the first push
   // creates the branch the clone was born on
@@ -305,7 +294,7 @@ static spn_err_t publish_from(sp_mem_t mem, spn_index_info_t* work, spn_index_re
     });
   }
 
-  if (spn_git_add(dir, sp_fs_join_path(mem, dir, spn_index_jsonl_path(mem, rel->name)))) {
+  if (spn_git_add(dir, records)) {
     return spn_err_emit(&spn, (spn_err_union_t) {
       .kind = SPN_ERR_GIT,
       .git.command = sp_str_lit("git add"),
@@ -345,11 +334,8 @@ static spn_err_t publish_git(spn_index_info_t* index, spn_index_release_t* rel, 
       break;
     }
 
-    spn_index_info_t work = *index;
-    work.location.at = sp_path_from_str(staged.sub);
-    work.location.dir = staged.sub;
-    result = publish_from(scratch.mem, &work, rel, url, cancelled, &output);
-    sp_fs_remove_dir_at(work.location.at);
+    result = publish_from(scratch.mem, index, staged.sub, rel, url, cancelled, &output);
+    sp_fs_remove_dir_at(sp_path_from_str(staged.sub));
     if (result != SPN_ERR_PUBLISH_PUSH) {
       break;
     }
