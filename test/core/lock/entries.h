@@ -8,6 +8,13 @@
 #include "semver/compare.h"
 
 #define LOCK_TEST_MAX_ENTRIES 4
+#define LOCK_TEST_MAX_INDEXES 2
+
+typedef struct {
+  const c8* name;
+  const c8* url;
+  const c8* rev;
+} pin_t;
 
 typedef struct {
   const c8* url;
@@ -47,19 +54,43 @@ static inline spn_lock_t lock_of(sp_mem_t mem, const entry_t* entries, u32 len) 
   return lock;
 }
 
+static inline void pin_all(spn_lock_t* lock, const pin_t* pins, u32 len) {
+  sp_for(it, len) {
+    spn_lock_pin_index(lock, (spn_lock_index_t) {
+      .name = spn_intern(sp_cstr_as_str(pins[it].name)),
+      .url = text(pins[it].url),
+      .rev = text(pins[it].rev),
+    });
+  }
+}
+
+static inline sp_err_t expect_pins(sp_test_t* t, const spn_lock_t* lock, const pin_t* expected, u32 len) {
+  sp_must_eq(t, len, sp_da_size(lock->indexes));
+  sp_for(it, len) {
+    sp_expect_str_eq_c(t, lock->indexes[it].name.str, expected[it].name);
+    sp_expect_str_eq(t, lock->indexes[it].url, text(expected[it].url));
+    sp_expect_str_eq(t, lock->indexes[it].rev, text(expected[it].rev));
+  }
+  return SP_OK;
+}
+
 static inline void expect_root(sp_test_t* t, spn_lock_root_t actual, root_t expected) {
   sp_expect_str_eq(t, actual.url, text(expected.url));
   sp_expect_str_eq(t, actual.rev, text(expected.rev));
   sp_expect_str_eq(t, actual.dir, text(expected.dir));
 }
 
+static inline void expect_entry(sp_test_t* t, spn_lock_entry_t actual, entry_t expected) {
+  sp_expect_str_eq_c(t, actual.name.str, expected.name);
+  sp_expect(t, spn_semver_eq(actual.version, expected.version));
+  expect_root(t, actual.source, expected.source);
+  expect_root(t, actual.manifest, expected.manifest);
+}
+
 static inline sp_err_t expect_entries(sp_test_t* t, const spn_lock_t* lock, const entry_t* expected, u32 len) {
   sp_must_eq(t, len, sp_da_size(lock->entries));
   sp_for(it, len) {
-    sp_expect_str_eq_c(t, lock->entries[it].name.str, expected[it].name);
-    sp_expect(t, spn_semver_eq(lock->entries[it].version, expected[it].version));
-    expect_root(t, lock->entries[it].source, expected[it].source);
-    expect_root(t, lock->entries[it].manifest, expected[it].manifest);
+    expect_entry(t, lock->entries[it], expected[it]);
   }
   return SP_OK;
 }

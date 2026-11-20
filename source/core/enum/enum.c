@@ -864,9 +864,6 @@ sp_str_t spn_index_kind_to_str(spn_index_kind_t kind) {
     case SPN_INDEX_KIND_WORKSPACE: {
       return sp_str_lit("workspace");
     }
-    case SPN_INDEX_KIND_BUILTIN: {
-      return sp_str_lit("builtin");
-    }
     case SPN_INDEX_KIND_USER: {
       return sp_str_lit("user");
     }
@@ -878,9 +875,6 @@ sp_str_t spn_index_kind_to_str(spn_index_kind_t kind) {
 spn_index_kind_t spn_index_kind_from_str(sp_str_t str) {
   if (sp_str_equal_cstr(str, "workspace")) {
     return SPN_INDEX_KIND_WORKSPACE;
-  }
-  if (sp_str_equal_cstr(str, "builtin")) {
-    return SPN_INDEX_KIND_BUILTIN;
   }
   if (sp_str_equal_cstr(str, "user")) {
     return SPN_INDEX_KIND_USER;
@@ -941,4 +935,28 @@ spn_index_protocol_t spn_index_protocol_from_str(sp_str_t str) {
   }
 
   SP_UNREACHABLE_RETURN(SPN_INDEX_PROTOCOL_GIT);
+}
+
+sp_str_t spn_index_format_to_str(spn_index_format_t format) {
+  switch (format) {
+    case SPN_INDEX_FORMAT_RELEASES: {
+      return sp_str_lit("releases");
+    }
+    case SPN_INDEX_FORMAT_MANIFESTS: {
+      return sp_str_lit("manifests");
+    }
+  }
+
+  SP_UNREACHABLE_RETURN(sp_str_lit(""));
+}
+
+spn_index_format_t spn_index_format_from_str(sp_str_t str) {
+  if (sp_str_equal_cstr(str, "releases")) {
+    return SPN_INDEX_FORMAT_RELEASES;
+  }
+  if (sp_str_equal_cstr(str, "manifests")) {
+    return SPN_INDEX_FORMAT_MANIFESTS;
+  }
+
+  SP_UNREACHABLE_RETURN(SPN_INDEX_FORMAT_RELEASES);
 }

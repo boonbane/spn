@@ -68,7 +68,6 @@ typedef enum {
 
 typedef enum {
   SPN_INDEX_KIND_WORKSPACE,
-  SPN_INDEX_KIND_BUILTIN,
   SPN_INDEX_KIND_USER,
 } spn_index_kind_t;
 
@@ -78,10 +77,16 @@ typedef enum {
   SPN_INDEX_PROTOCOL_DIR,
 } spn_index_protocol_t;
 
+typedef enum {
+  SPN_INDEX_FORMAT_RELEASES,
+  SPN_INDEX_FORMAT_MANIFESTS,
+} spn_index_format_t;
+
 typedef struct {
   sp_str_t name;
   spn_index_kind_t kind;
   spn_index_protocol_t protocol;
+  spn_index_format_t format;
   sp_str_t source;
   sp_str_t location;
 } spn_index_desc_t;
@@ -132,6 +137,7 @@ typedef enum {
   SPN_OP_ADD,
   SPN_OP_PUBLISH,
   SPN_OP_SYNC_INDEXES,
+  SPN_OP_ADD_INDEX,
   SPN_OP_SCAFFOLD,
   SPN_OP_BUILD,
   SPN_OP_TEST,
@@ -169,6 +175,12 @@ typedef struct {
   bool force;
   sp_str_t only;
 } spn_sync_request_t;
+
+typedef struct {
+  sp_str_t url;
+  sp_str_t name;
+  bool global;
+} spn_index_add_request_t;
 
 typedef struct {
   sp_str_t index;

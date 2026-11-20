@@ -280,7 +280,7 @@ spn_err_t spn_ctx_open(spn_ctx_t* ctx, spn_open_request_t request) {
   spn_net_config_t net = sp_zero;
   if (sp_da_empty(loader.issues)) {
     sp_da_for(config.index, it) {
-      sp_da_push(indexes, spn_index_lower(&loader, it, SPN_INDEX_KIND_USER, &config.index[it]));
+      sp_da_push(indexes, si_index_lower(&loader, it, SPN_INDEX_KIND_USER, &config.index[it]));
     }
     toolchains = spn_toolchains_lower_list(&loader, SPN_PATH_ROOT_NONE, config.toolchain);
     net = spn_net_lower(&loader, &config.net);
@@ -310,7 +310,7 @@ spn_err_t spn_ctx_open(spn_ctx_t* ctx, spn_open_request_t request) {
     .http = { .download = spn_http_download },
     .backoff = spn_net_default_backoff,
   };
-  spn_git_remote_t remote = spn_git_remote(net.system_git ? SPN_GIT_TRANSPORT_SYSTEM : SPN_GIT_TRANSPORT_BUILTIN);
+  spn_git_remote_t remote = si_git_remote(net.system_git ? SPN_GIT_TRANSPORT_SYSTEM : SPN_GIT_TRANSPORT_BUILTIN);
   ctx->caches.git.remote = remote;
   ctx->caches.git.backoff = spn_net_default_backoff;
   spn_probe_cache_load(&ctx->caches.toolchains.probes, &ctx->roots, (spn_path_t) { .root = SPN_PATH_ROOT_TOOLCHAIN, .sub = sp_str_lit("probe.cache") }, ctx->mem);
@@ -330,10 +330,9 @@ spn_err_t spn_ctx_open(spn_ctx_t* ctx, spn_open_request_t request) {
 
   sp_da_for(ctx->indexes, it) {
     spn_index_info_t* index = &ctx->indexes[it];
-    spn_index_location_t location = spn_index_location(index, ctx->heap, &ctx->roots, spn_path_from_id(SPN_DIR_ID_INDEX));
-    index->location.at = spn_path_at(&ctx->roots, location.dir);
-    index->location.dir = spn_path_str(&ctx->roots, ctx->heap, location.dir);
-    index->location.lock = spn_path_at(&ctx->roots, location.lock);
+    if (!spn_index_is_snapshot(index)) {
+      si_index_locate(index, ctx->heap, &ctx->roots, spn_path_from_id(SPN_DIR_ID_INDEX));
+    }
     index->remote = remote;
     index->backoff = spn_net_default_backoff;
     if (!index->refresh) {

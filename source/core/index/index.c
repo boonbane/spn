@@ -18,6 +18,7 @@
 #include "fs/fs.h"
 #include "index/json.h"
 #include "index/jsonl.h"
+#include "lock/lock.h"
 #include "semver/compare.h"
 #include "semver/convert.h"
 #include "io/io.h"
@@ -57,7 +58,7 @@ static spn_err_t git_index_clone(spn_index_info_t* index, sp_atomic_s32_t* cance
 
   sp_path_t work = sp_path_from_str(staged.sub);
   sp_path_t old = sp_path_from_str(spn_path_staging(scratch.mem, base, sp_str_lit("old")).sub);
-  spn_err_t err = spn_git_clone(index->remote, index->git.url, staged.sub, index->backoff, cancelled, failure);
+  spn_err_t err = si_git_clone(index->remote, index->git.url, staged.sub, index->backoff, cancelled, failure);
   if (!err && sp_fs_replace_dir_at(work, index->location.at, old)) {
     *failure = (spn_git_failure_t) { .message = "failed to place the clone" };
     err = SPN_ERROR;
@@ -194,15 +195,39 @@ static s32 sort_release_by_version(const void* a, const void* b) {
   return spn_semver_cmp(lhs->version, rhs->version);
 }
 
-spn_err_t spn_index_get_package(spn_index_info_t* index, sp_mem_t mem, sp_intern_t* intern, const spn_path_roots_t* roots, sp_intern_str_t name, spn_index_pkg_t** pkg, spn_err_union_t* err) {
-  switch (index->protocol) {
-    case SPN_INDEX_PROTOCOL_GIT:
-    case SPN_INDEX_PROTOCOL_HTTP: {
-      spn_try(spn_index_jsonl_get_package(index, mem, intern, name, pkg, err));
+bool spn_index_is_snapshot(const spn_index_info_t* index) {
+  return index->protocol == SPN_INDEX_PROTOCOL_GIT && index->format == SPN_INDEX_FORMAT_MANIFESTS;
+}
+
+sp_str_t si_index_pin(const spn_index_info_t* index, const spn_lock_t* lock) {
+  if (!sp_str_empty(index->git.rev)) {
+    return index->git.rev;
+  }
+
+  const spn_lock_index_t* held = spn_lock_find_index(lock, index->id);
+  if (held && sp_str_equal(held->url, index->git.url)) {
+    return held->rev;
+  }
+  return sp_str_lit("");
+}
+
+spn_index_format_t spn_index_detect_format(spn_index_info_t* index) {
+  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+  sp_sys_file_meta_t meta = sp_zero;
+  bool releases = !sp_fs_get_path_metadata_at(sp_path_join(scratch.mem, index->location.at, sp_str_lit(".spn/index")), &meta) && meta.kind == SP_FS_KIND_DIR;
+  bool manifests = !releases && spn_index_dir_has_packages(scratch.mem, index);
+  sp_mem_end_scratch(scratch);
+  return manifests ? SPN_INDEX_FORMAT_MANIFESTS : SPN_INDEX_FORMAT_RELEASES;
+}
+
+spn_err_t si_index_get_package(const si_index_place_t* index, sp_mem_t mem, sp_intern_t* intern, const spn_path_roots_t* roots, sp_intern_str_t name, spn_index_pkg_t** pkg, spn_err_union_t* err) {
+  switch (index->format) {
+    case SPN_INDEX_FORMAT_RELEASES: {
+      spn_try(si_index_jsonl_get_package(index, mem, intern, name, pkg, err));
       break;
     }
-    case SPN_INDEX_PROTOCOL_DIR: {
-      spn_try(spn_index_dir_get_package(index, mem, intern, roots, name, pkg, err));
+    case SPN_INDEX_FORMAT_MANIFESTS: {
+      spn_try(si_index_dir_get_package(index, mem, intern, roots, name, pkg, err));
       break;
     }
   }
@@ -213,41 +238,28 @@ spn_err_t spn_index_get_package(spn_index_info_t* index, sp_mem_t mem, sp_intern
   return SPN_OK;
 }
 
-static void index_append_release(spn_index_info_t* index, spn_index_release_t* rel) {
-  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-
-  sp_path_t path = sp_path_join(scratch.mem, index->location.at, spn_index_jsonl_path(scratch.mem, rel->name));
-  sp_fs_create_parent_at(path);
-
-  sp_str_t json = spn_index_release_to_json(scratch.mem, rel);
-  sp_fs_append_at(path, sp_fmt(scratch.mem, "{}\n", sp_fmt_str(json)).value, sp_sys_default_file_perms);
-
-  sp_mem_end_scratch(scratch);
-}
-
 #define SPN_INDEX_PUBLISH_ATTEMPTS 3
 
-static spn_err_t publish_from(sp_mem_t mem, spn_index_info_t* work, spn_index_release_t* rel, sp_str_t url, sp_atomic_s32_t* cancelled, sp_str_t* output) {
-  sp_str_t dir = work->location.dir;
-
+static spn_err_t publish_from(sp_mem_t mem, spn_index_info_t* index, sp_str_t dir, spn_index_release_t* rel, sp_str_t url, sp_atomic_s32_t* cancelled, sp_str_t* output) {
   spn_git_failure_t failure = sp_zero;
-  if (spn_git_clone(work->remote, work->git.url, dir, work->backoff, cancelled, &failure)) {
+  if (si_git_clone(index->remote, index->git.url, dir, index->backoff, cancelled, &failure)) {
     if (failure.kind == SPN_GIT_CANCELLED) {
       return SPN_ERR_CANCELLED;
     }
     return spn_err_emit(&spn, (spn_err_union_t) {
       .kind = SPN_ERR_INDEX_SYNC,
       .index = {
-        .name = work->name.str,
-        .url = work->git.url,
+        .name = index->name.str,
+        .url = index->git.url,
         .cause = sp_str_copy(spn.events->mem, sp_cstr_as_str(failure.message)),
       },
     });
   }
 
+  si_index_place_t work = { .at = sp_path_from_str(dir), .dir = dir };
   spn_index_pkg_t* existing = SP_NULLPTR;
   spn_err_union_t err = sp_zero;
-  if (spn_index_jsonl_get_package(work, spn.mem, spn.intern, rel->name, &existing, &err)) {
+  if (si_index_jsonl_get_package(&work, spn.mem, spn.intern, rel->name, &existing, &err)) {
     return spn_err_emit(&spn, err);
   }
   if (existing) {
@@ -264,7 +276,9 @@ static spn_err_t publish_from(sp_mem_t mem, spn_index_info_t* work, spn_index_re
     }
   }
 
-  index_append_release(work, rel);
+  sp_str_t records = sp_fs_join_path(mem, dir, spn_index_jsonl_path(mem, rel->name));
+  sp_fs_create_parent_at(sp_path_from_str(records));
+  sp_fs_append_at(sp_path_from_str(records), sp_fmt(mem, "{}\n", sp_fmt_str(spn_index_release_to_json(mem, rel))).value, sp_sys_default_file_perms);
 
   // A clone of an empty remote has no origin/HEAD yet; the first push
   // creates the branch the clone was born on
@@ -277,7 +291,7 @@ static spn_err_t publish_from(sp_mem_t mem, spn_index_info_t* work, spn_index_re
     });
   }
 
-  if (spn_git_add(dir, sp_fs_join_path(mem, dir, spn_index_jsonl_path(mem, rel->name)))) {
+  if (spn_git_add(dir, records)) {
     return spn_err_emit(&spn, (spn_err_union_t) {
       .kind = SPN_ERR_GIT,
       .git.command = sp_str_lit("git add"),
@@ -317,11 +331,8 @@ static spn_err_t publish_git(spn_index_info_t* index, spn_index_release_t* rel, 
       break;
     }
 
-    spn_index_info_t work = *index;
-    work.location.at = sp_path_from_str(staged.sub);
-    work.location.dir = staged.sub;
-    result = publish_from(scratch.mem, &work, rel, url, cancelled, &output);
-    sp_fs_remove_dir_at(work.location.at);
+    result = publish_from(scratch.mem, index, staged.sub, rel, url, cancelled, &output);
+    sp_fs_remove_dir_at(sp_path_from_str(staged.sub));
     if (result != SPN_ERR_PUBLISH_PUSH) {
       break;
     }
@@ -341,6 +352,13 @@ static spn_err_t publish_git(spn_index_info_t* index, spn_index_release_t* rel, 
 }
 
 spn_err_t spn_index_publish(spn_index_info_t* index, spn_index_release_t* rel, sp_atomic_s32_t* cancelled) {
+  if (index->format == SPN_INDEX_FORMAT_MANIFESTS) {
+    return spn_err_emit(&spn, (spn_err_union_t) {
+      .kind = SPN_ERR_INDEX_PUBLISH_PROTOCOL,
+      .index = { .name = index->name.str, .url = spn_index_source(index) },
+    });
+  }
+
   switch (index->protocol) {
     case SPN_INDEX_PROTOCOL_GIT: {
       if (!sp_str_empty(index->git.rev)) {
@@ -380,23 +398,30 @@ spn_err_t spn_index_publish(spn_index_info_t* index, spn_index_release_t* rel, s
   sp_unreachable_return(SPN_ERROR);
 }
 
-spn_index_location_t spn_index_location(spn_index_info_t* index, sp_mem_t mem, const spn_path_roots_t* roots, spn_path_t store) {
+void si_index_locate(spn_index_info_t* index, sp_mem_t mem, const spn_path_roots_t* roots, spn_path_t store) {
+  spn_path_t dir = sp_zero;
+  spn_path_t lock = sp_zero;
   switch (index->protocol) {
     case SPN_INDEX_PROTOCOL_GIT: {
-      spn_path_t dir = spn_path_join(mem, store, spn_git_db_key(mem, index->git.url));
-      return (spn_index_location_t) { .dir = dir, .lock = spn_path_lock(mem, dir) };
+      dir = spn_path_join(mem, store, spn_git_db_key(mem, index->git.url));
+      lock = spn_path_lock(mem, dir);
+      break;
     }
     case SPN_INDEX_PROTOCOL_HTTP: {
-      return (spn_index_location_t) { .dir = spn_path_join(mem, store, spn_git_db_key(mem, index->http.url)) };
+      dir = spn_path_join(mem, store, spn_git_db_key(mem, index->http.url));
+      break;
     }
     case SPN_INDEX_PROTOCOL_DIR: {
-      return (spn_index_location_t) { .dir = spn_path_canonicalize(mem, roots, index->dir.path) };
+      dir = spn_path_canonicalize(mem, roots, index->dir.path);
+      break;
     }
   }
-  sp_unreachable_return(sp_zero_struct(spn_index_location_t));
+  index->location.at = spn_path_at(roots, dir);
+  index->location.dir = spn_path_str(roots, mem, dir);
+  index->location.lock = spn_path_at(roots, lock);
 }
 
-static spn_index_info_t* find_index(sp_da(spn_index_info_t)* indexes, spn_index_id_t id) {
+spn_index_info_t* spn_index_find(sp_da(spn_index_info_t)* indexes, spn_index_id_t id) {
   sp_da_for(*indexes, it) {
     if ((*indexes)[it].id == id) {
       return &(*indexes)[it];
@@ -415,20 +440,9 @@ void spn_index_assemble(sp_mem_t mem, spn_index_map_t* workspace, sp_da(spn_inde
   }
 
   sp_da_for(user, it) {
-    if (!find_index(indexes, user[it].id)) {
+    if (!spn_index_find(indexes, user[it].id)) {
       sp_da_push(*indexes, user[it]);
     }
-  }
-
-  sp_intern_str_t core = spn_intern_lit("core");
-  if (!find_index(indexes, core.id)) {
-    sp_da_push(*indexes, ((spn_index_info_t) {
-      .id = core.id,
-      .name = core,
-      .protocol = SPN_INDEX_PROTOCOL_GIT,
-      .kind = SPN_INDEX_KIND_BUILTIN,
-      .git = { .url = sp_str_lit("https://github.com/tspader/spandex.git") },
-    }));
   }
 }
 

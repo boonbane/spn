@@ -30,6 +30,7 @@ spn_index_arr_t spn_get_indexes(sp_mem_t mem, spn_ctx_t* ctx);
 spn_op_t* spn_add_dependency(spn_ctx_t* ctx, spn_add_request_t request);
 spn_op_t* spn_publish(spn_ctx_t* ctx, spn_publish_request_t request);
 spn_op_t* spn_sync_indexes(spn_ctx_t* ctx, spn_sync_request_t request);
+spn_op_t* spn_add_index(spn_ctx_t* ctx, spn_index_add_request_t request);
 spn_op_t* spn_scaffold_project(spn_ctx_t* ctx, spn_scaffold_request_t request);
 spn_op_t* spn_build(spn_session_t* session);
 spn_op_t* spn_run_tests(spn_session_t* session);
@@ -67,6 +68,7 @@ sp_str_t spn_publish_root_to_str(spn_publish_root_t root);
 sp_str_t spn_semver_to_str(sp_mem_t mem, spn_semver_t version);
 sp_str_t spn_index_kind_to_str(spn_index_kind_t kind);
 sp_str_t spn_index_protocol_to_str(spn_index_protocol_t protocol);
+sp_str_t spn_index_format_to_str(spn_index_format_t format);
 
 SP_END_EXTERN_C()
 

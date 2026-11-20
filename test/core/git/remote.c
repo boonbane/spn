@@ -9,6 +9,7 @@
 typedef enum {
   OP_CLONE,
   OP_FETCH,
+  OP_TIP,
 } op_t;
 
 typedef enum {
@@ -139,6 +140,10 @@ static spn_err_t try_fetch(void* user, spn_git_route_t route, sp_str_t repo, spn
   return attempt((script_t*)user, route, cancelled, failure);
 }
 
+static spn_err_t try_tip(void* user, spn_git_route_t route, sp_mem_t mem, sp_str_t url, sp_atomic_s32_t* cancelled, sp_str_t* rev, spn_git_failure_t* failure) {
+  return attempt((script_t*)user, route, cancelled, failure);
+}
+
 static void record_wait(void* user, u32 ms, sp_atomic_s32_t* cancelled) {
   script_t* script = (script_t*)user;
   sp_assert(script->waited < spn_net_max_retries);
@@ -149,13 +154,14 @@ sp_test_each(git_remote, attempts, test_t, tests, .setup = spn_test_ctx_setup) {
   static const c8* ops [] = {
     [OP_CLONE] = "clone",
     [OP_FETCH] = "fetch",
+    [OP_TIP] = "tip",
   };
   sp_str_t url = sp_cstr_as_str(it->url ? it->url : "A");
 
   sp_carr_for(ops, op) {
     sp_test_kv_c(t, "op", ops[op]);
     script_t script = { .test = it };
-    spn_git_remote_t remote = { .transport = it->transport, .clone = try_clone, .fetch = try_fetch, .user = &script };
+    spn_git_remote_t remote = { .transport = it->transport, .clone = try_clone, .fetch = try_fetch, .tip = try_tip, .user = &script };
     spn_net_backoff_t backoff = { .wait_ms = { 1, 2, 3 }, .wait = record_wait, .user = &script };
     spn_git_failure_t failure = sp_zero;
     sp_atomic_s32_t cancelled = sp_zero;
@@ -164,11 +170,16 @@ sp_test_each(git_remote, attempts, test_t, tests, .setup = spn_test_ctx_setup) {
     spn_err_t err = SPN_OK;
     switch ((op_t)op) {
       case OP_CLONE: {
-        err = spn_git_clone(remote, url, sp_str_lit("B"), backoff, &cancelled, &failure);
+        err = si_git_clone(remote, url, sp_str_lit("B"), backoff, &cancelled, &failure);
         break;
       }
       case OP_FETCH: {
         err = spn_git_fetch(remote, sp_str_lit("B"), url, backoff, &cancelled, &failure);
+        break;
+      }
+      case OP_TIP: {
+        sp_str_t rev = sp_zero;
+        err = si_git_tip(remote, sp_test_arena(t), url, backoff, &cancelled, &rev, &failure);
         break;
       }
     }

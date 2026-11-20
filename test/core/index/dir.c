@@ -22,12 +22,14 @@ typedef struct {
   struct { const c8* name; spn_linkage_t linkages [DIR_TEST_MAX_LINKAGES]; } targets [DIR_TEST_MAX_TARGETS];
   struct { const c8* name; spn_option_type_t type; u32 defaults; } options [DIR_TEST_MAX_OPTIONS];
   const c8* dep;
+  struct { const c8* url; const c8* rev; const c8* dir; } root;
 } dir_expect_t;
 
 typedef struct {
   const c8* name;
   const c8* package;
   const c8* toml;
+  struct { const c8* url; const c8* rev; } git;
   dir_expect_t expect;
 } dir_test_t;
 
@@ -104,6 +106,17 @@ static const dir_test_t tests [] = {
     },
   },
   {
+    .name = "git_release",
+    .package = "A",
+    .toml = "minimal",
+    .git = { .url = "U", .rev = "R" },
+    .expect = {
+      .exists = true,
+      .version = { 1, 2, 3 },
+      .root = { .url = "U", .rev = "R", .dir = "A" },
+    },
+  },
+  {
     .name = "missing",
   },
   {
@@ -157,16 +170,21 @@ sp_test_each(index_dir, get_package, dir_test_t, tests, .setup = spn_test_ctx_se
     }
   }
 
-  spn_index_info_t index = {
-    .protocol = SPN_INDEX_PROTOCOL_DIR,
-    .location = { .at = sp_path_from_str(location), .dir = location },
+  si_index_place_t index = {
+    .format = SPN_INDEX_FORMAT_MANIFESTS,
+    .at = sp_path_from_str(location),
+    .dir = location,
   };
+  if (it->git.url) {
+    index.git.url = sp_cstr_as_str(it->git.url);
+    index.git.rev = sp_cstr_as_str(it->git.rev);
+  }
 
   sp_intern_str_t request = spn_intern_lit("A");
 
   spn_index_pkg_t* pkg = SP_NULLPTR;
   spn_err_union_t diag = sp_zero;
-  spn_err_t err = spn_index_get_package(&index, mem, spn.intern, &spn.roots, request, &pkg, &diag);
+  spn_err_t err = si_index_get_package(&index, mem, spn.intern, &spn.roots, request, &pkg, &diag);
 
   sp_expect_eq(t, it->expect.err, err);
   sp_must_eq(t, it->expect.exists, pkg != SP_NULLPTR);
@@ -197,8 +215,17 @@ sp_test_each(index_dir, get_package, dir_test_t, tests, .setup = spn_test_ctx_se
     sp_expect_str_eq(t, release->name.str, request.str);
     sp_expect_str_eq_c(t, release->paths.manifest, "spn.toml");
 
-    sp_must_eq(t, SPN_PKG_ROOT_LOCAL, release->source.kind);
-    sp_expect_str_eq(t, release->source.local.sub, package);
+    sp_expect_eq(t, it->expect.root.url != SP_NULLPTR, release->follows);
+    if (it->expect.root.url) {
+      sp_must_eq(t, SPN_PKG_ROOT_GIT, release->source.kind);
+      sp_expect_str_eq_c(t, release->source.git.url, it->expect.root.url);
+      sp_expect_str_eq_c(t, release->source.git.rev, it->expect.root.rev);
+      sp_expect_str_eq_c(t, release->source.git.dir, it->expect.root.dir);
+    }
+    else {
+      sp_must_eq(t, SPN_PKG_ROOT_LOCAL, release->source.kind);
+      sp_expect_str_eq(t, release->source.local.sub, package);
+    }
 
     u32 deps = 0;
     sp_carr_detect_len(it->expect.deps, deps, it->expect.deps[deps].name);
@@ -358,14 +385,15 @@ sp_test_each(index_dir, versioned, versioned_test_t, versioned_tests, .setup = s
     }
   }
 
-  spn_index_info_t index = {
-    .protocol = SPN_INDEX_PROTOCOL_DIR,
-    .location = { .at = sp_path_from_str(location), .dir = location },
+  si_index_place_t index = {
+    .format = SPN_INDEX_FORMAT_MANIFESTS,
+    .at = sp_path_from_str(location),
+    .dir = location,
   };
 
   spn_index_pkg_t* pkg = SP_NULLPTR;
   spn_err_union_t diag = sp_zero;
-  spn_err_t err = spn_index_get_package(&index, mem, spn.intern, &spn.roots, spn_intern_lit("A"), &pkg, &diag);
+  spn_err_t err = si_index_get_package(&index, mem, spn.intern, &spn.roots, spn_intern_lit("A"), &pkg, &diag);
 
   sp_expect_eq(t, it->expect.err, err);
 

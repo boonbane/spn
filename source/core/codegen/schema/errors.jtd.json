@@ -81,6 +81,7 @@
     "index_unknown": { "ref": "index" },
     "index_sync": { "ref": "index" },
     "index_pinned": { "ref": "index" },
+    "index_exists": { "ref": "index" },
     "index_corrupt": { "ref": "index_corrupt" },
     "index_publish_protocol": { "ref": "index" },
     "publish_push": { "ref": "publish" },
@@ -97,7 +98,7 @@
     "pkg_absent": { "ref": "absent" },
     "lock_invalid": { "ref": "manifest" },
     "lock_version": { "ref": "lock_version" },
-    "lock_stale": { "properties": {} },
+    "lock_stale": { "ref": "lock_stale" },
     "lock_mismatch": { "ref": "lock_mismatch" },
     "lock_absent": { "properties": {} },
     "manifest_edit": { "ref": "manifest_parse" },
@@ -410,6 +411,11 @@
         "path": { "type": "string" },
         "version": { "type": "uint64" },
         "supported": { "type": "uint64" }
+      }
+    },
+    "lock_stale": {
+      "properties": {
+        "missing": { "type": "boolean" }
       }
     },
     "dag": {

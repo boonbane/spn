@@ -65,7 +65,7 @@ typedef struct {
 
 static fz_state_t fz_state;
 
-void spn_index_cache_init(spn_index_cache_t* cache, sp_mem_t mem, sp_intern_t* intern, const spn_path_roots_t* roots, sp_da(spn_index_info_t)* indexes) {
+void si_index_cache_init(spn_index_cache_t* cache, sp_mem_t mem, sp_intern_t* intern, const spn_path_roots_t* roots, si_da(si_index_place_t) indexes) {
 
 }
 

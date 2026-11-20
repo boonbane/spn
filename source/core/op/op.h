@@ -1,6 +1,8 @@
 #ifndef SPN_OP_OP_H
 #define SPN_OP_OP_H
 
+#include "index/types.h"
+#include "lock/types.h"
 #include "op/types.h"
 
 void spn_op_thread_start(spn_ctx_t* ctx);
@@ -9,10 +11,12 @@ void spn_op_thread_stop(spn_ctx_t* ctx);
 void spn_op_cancel(spn_op_t* op);
 bool spn_op_cancelled(spn_op_t* op);
 
-spn_err_t spn_op_add(spn_op_t* op);
+spn_err_t si_op_add(spn_op_t* op);
 spn_err_t spn_op_publish(spn_op_t* op);
-spn_err_t spn_op_sync_indexes(spn_op_t* op);
-spn_err_t spn_sync_index_list(spn_op_t* op, sp_da(spn_index_info_t*) indexes, bool force);
+spn_err_t si_op_sync_indexes(spn_op_t* op);
+spn_err_t spn_op_add_index(spn_op_t* op);
+spn_err_t si_sync_index_list(spn_op_t* op, sp_da(spn_index_info_t*) indexes, bool force);
+spn_err_t si_place_indexes(spn_op_t* op, sp_mem_t mem, const spn_lock_t* held, si_da(si_index_place_t)* placed);
 spn_err_t spn_op_scaffold(spn_op_t* op);
 spn_err_t spn_op_build(spn_op_t* op);
 spn_err_t spn_op_test(spn_op_t* op);

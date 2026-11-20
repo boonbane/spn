@@ -59,9 +59,7 @@ static sp_str_t complaint(sp_mem_t mem, sp_ps_output_t result) {
     : sp_fmt(mem, "git exited with {}", sp_fmt_int(result.status.exit_code)).value;
 }
 
-static spn_err_t run(sp_mem_t mem, sp_da(sp_str_t) args, spn_git_failure_t* failure) {
-  sp_ps_output_t result = spawn(mem, args);
-
+static spn_err_t settle(sp_mem_t mem, sp_ps_output_t result, spn_git_failure_t* failure) {
   *failure = sp_zero_s(spn_git_failure_t);
   if (!result.status.exit_code) {
     return SPN_OK;
@@ -70,6 +68,10 @@ static spn_err_t run(sp_mem_t mem, sp_da(sp_str_t) args, spn_git_failure_t* fail
   failure->remote = true;
   sp_str_copy_to(complaint(mem, result), failure->message, spn_git_message_max - 1);
   return SPN_ERROR;
+}
+
+static spn_err_t run(sp_mem_t mem, sp_da(sp_str_t) args, spn_git_failure_t* failure) {
+  return settle(mem, spawn(mem, args), failure);
 }
 
 spn_err_t spn_git_cli_clone(sp_str_t url, sp_str_t path, spn_git_failure_t* failure) {
@@ -123,6 +125,30 @@ spn_err_t spn_git_cli_fetch(sp_str_t repo, spn_git_fetch_t fetch, spn_git_failur
     }
   }
   spn_err_t err = run(scratch.mem, args, failure);
+  sp_mem_end_scratch(scratch);
+  return err;
+}
+
+spn_err_t si_git_cli_tip(sp_mem_t mem, sp_str_t url, sp_str_t* rev, spn_git_failure_t* failure) {
+  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+  sp_da(sp_str_t) args = command(scratch.mem);
+  sp_da_push(args, sp_str_lit("ls-remote"));
+  sp_da_push(args, sp_str_lit("--quiet"));
+  sp_da_push(args, sp_str_lit("--"));
+  sp_da_push(args, url);
+  sp_da_push(args, sp_str_lit("HEAD"));
+  sp_ps_output_t result = spawn(scratch.mem, args);
+  spn_err_t err = settle(scratch.mem, result, failure);
+
+  sp_str_t head = sp_str_trim(sp_str_cleave_c8(result.out, '\t').first);
+  if (!err && sp_str_empty(head)) {
+    failure->remote = true;
+    sp_str_copy_to(sp_fmt(scratch.mem, "{} has no commits", sp_fmt_str(url)).value, failure->message, spn_git_message_max - 1);
+    err = SPN_ERROR;
+  }
+  if (!err) {
+    *rev = sp_str_copy(mem, head);
+  }
   sp_mem_end_scratch(scratch);
   return err;
 }

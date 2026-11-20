@@ -7,6 +7,7 @@
 #include "external/net.h"
 #include "spn/types.h"
 #include "sp_om/sp_om.h"
+#include "array/array.h"
 #include "pkg/types.h"
 #include "semver/types.h"
 
@@ -40,6 +41,7 @@ typedef struct {
   spn_semver_t version;
 
   bool yanked;
+  bool follows;
 
   spn_pkg_root_t source;
   spn_pkg_root_t manifest;
@@ -59,6 +61,7 @@ struct spn_index_info {
   sp_intern_str_t name;
   spn_index_kind_t kind;
   spn_index_protocol_t protocol;
+  spn_index_format_t format;
   union {
     struct {
       sp_str_t url;
@@ -82,18 +85,23 @@ struct spn_index_info {
   spn_net_backoff_t backoff;
 };
 
-typedef struct {
-  spn_path_t dir;
-  spn_path_t lock;
-} spn_index_location_t;
-
 typedef si_om(spn_index_id_t, spn_index_info_t) spn_index_map_t;
+
+typedef struct {
+  spn_index_format_t format;
+  sp_path_t at;
+  sp_str_t dir;
+  struct {
+    sp_str_t url;
+    sp_str_t rev;
+  } git;
+} si_index_place_t;
 
 typedef struct {
   sp_mem_t mem;
   sp_intern_t* intern;
   const spn_path_roots_t* roots;
-  sp_da(spn_index_info_t)* indexes;
+  si_da(si_index_place_t) indexes;
   sp_ht(sp_intern_id_t, spn_index_pkg_t*) packages;
   u32 consulted;
 } spn_index_cache_t;

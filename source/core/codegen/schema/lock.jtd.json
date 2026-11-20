@@ -4,9 +4,18 @@
     "version": { "type": "uint64" }
   },
   "optionalProperties": {
+    "index": { "elements": { "ref": "lock_index" } },
     "package": { "elements": { "ref": "lock_package" } }
   },
   "definitions": {
+    "lock_index": {
+      "properties": {
+        "name": { "type": "string" },
+        "url": { "type": "string" },
+        "rev": { "type": "string" }
+      }
+    },
+
     "lock_root": {
       "properties": {
         "url": { "type": "string" },

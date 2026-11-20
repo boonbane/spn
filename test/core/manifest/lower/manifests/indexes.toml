@@ -14,3 +14,8 @@ url = "https://y"
 [[index]]
 name = "local"
 path = "index"
+
+[[index]]
+name = "tree"
+url = "https://z"
+format = "manifests"

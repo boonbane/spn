@@ -6,7 +6,6 @@
 typedef struct {
   const c8* name;
 
-  spn_index_protocol_t protocol;
   u32 refresh;
   bool planned_early;
   bool cloned;
@@ -44,13 +43,6 @@ static const sync_test_t tests [] = {
     .mutate_remote = true,
     .expect = {
       .cached = "B",
-    },
-  },
-  {
-    .name = "http_unimplemented",
-    .protocol = SPN_INDEX_PROTOCOL_HTTP,
-    .expect = {
-      .result = SPN_ERROR,
     },
   },
   {
@@ -297,9 +289,6 @@ sp_test_each(index_sync, dir, dir_sync_test_t, dir_tests) {
   spn_git_failure_t failure = sp_zero;
   sp_atomic_s32_t cancelled = sp_zero;
   sp_expect_eq(t, it->expect.result, spn_index_sync(&index, plan, &cancelled, &failure));
-  if (it->exists) {
-    sp_expect_eq(t, false, plan.fetch);
-  }
 
   return SP_OK;
 }
@@ -335,8 +324,7 @@ sp_test_each(index_sync, sync, sync_test_t, tests, .setup = spn_test_ctx_setup) 
   commit_seed(mem, remote, "A");
 
   spn_index_info_t index = {
-    .protocol = it->protocol,
-    .remote = spn_git_remote(SPN_GIT_TRANSPORT_BUILTIN),
+    .remote = si_git_remote(SPN_GIT_TRANSPORT_BUILTIN),
     .git = { .url = remote },
     .location = { .at = sp_path_from_str(cache), .dir = cache, .lock = sp_path_from_str(lock) },
     .refresh = it->refresh,
@@ -389,7 +377,7 @@ sp_test_each(index_sync, sync, sync_test_t, tests, .setup = spn_test_ctx_setup) 
   sp_expect_str_eq(t, test_read_file(mem, sp_fs_join_path(mem, cache, sp_str_lit("seed.txt"))), sp_cstr_as_str(it->expect.cached));
   sp_expect_eq(t, it->expect.cause, job.failure.message[0] != 0);
   sp_sys_file_meta_t meta = sp_zero;
-  sp_expect_eq(t, !sp_fs_get_link_metadata(lock, &meta) && meta.kind == SP_FS_KIND_FILE, index.protocol == SPN_INDEX_PROTOCOL_GIT);
+  sp_expect(t, !sp_fs_get_link_metadata(lock, &meta) && meta.kind == SP_FS_KIND_FILE);
   if (it->leftover) {
     sp_expect_err_eq(t, sp_fs_get_path_metadata(sp_fs_join_path(mem, cache, sp_cstr_as_str(it->leftover)), &meta), SP_ERR_SYS_NOT_FOUND);
     sp_expect_ok(t, sp_fs_get_path_metadata(witness, &meta));

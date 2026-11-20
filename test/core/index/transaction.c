@@ -17,7 +17,7 @@ typedef struct {
   txn_action_kind_t kind;
 
   union {
-    struct { const c8* name; spn_semver_t version; spn_err_t err; bool contended; } publish;
+    struct { const c8* name; spn_semver_t version; spn_err_t err; bool contended; bool cancelled; } publish;
     struct { spn_err_t err; } sync;
     struct { const c8* file; const c8* line; } write;
   };
@@ -195,6 +195,15 @@ static const txn_test_t tests [] = {
     },
   },
   {
+    .name = "cancelled_publish_stops",
+    .actions = {
+      { .kind = TXN_ACTION_PUBLISH, .publish = { .name = "spum", .version = { 1, 0, 0 }, .err = SPN_ERR_CANCELLED, .cancelled = true } },
+    },
+    .expect = {
+      .head = "init",
+    },
+  },
+  {
     .name = "waits_for_the_lock",
     .actions = {
       { .kind = TXN_ACTION_PUBLISH, .publish = { .name = "spum", .version = { 1, 0, 0 }, .contended = true } },
@@ -251,7 +260,7 @@ sp_test_each(index_transaction, publish, txn_test_t, tests, .setup = spn_test_ct
 
   spn_index_info_t index = {
     .protocol = SPN_INDEX_PROTOCOL_GIT,
-    .remote = spn_git_remote(SPN_GIT_TRANSPORT_BUILTIN),
+    .remote = si_git_remote(SPN_GIT_TRANSPORT_BUILTIN),
     .git = { .url = remote },
     .location = { .at = sp_path_from_str(clone), .dir = clone, .lock = sp_path_from_str(lock) },
   };
@@ -301,6 +310,7 @@ sp_test_each(index_transaction, publish, txn_test_t, tests, .setup = spn_test_ct
         };
         sp_da_init(mem, rel.deps);
         sp_da_init(mem, rel.targets);
+        sp_atomic_s32_store(&cancelled, action.publish.cancelled, SP_ATOMIC_SEQ_CST);
         publish_job_t job = { .index = &index, .rel = &rel, .cancelled = &cancelled };
         if (action.publish.contended) {
           sp_try(test_run_contended(t, lock, run_publish, &job, &job.done, true));

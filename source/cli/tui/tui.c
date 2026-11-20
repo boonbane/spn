@@ -395,7 +395,8 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
 
   switch (event->kind) {
     case SPN_EVENT_SYNC:
-    case SPN_EVENT_SYNC_PATCH: {
+    case SPN_EVENT_SYNC_PATCH:
+    case SPN_EVENT_INDEX_ADDED: {
       sp_tty_fmt(&w, "{} {.gray}", sp_fmt_str(event->sync.name), sp_fmt_str(event->sync.url));
       break;
     }
@@ -890,7 +891,7 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           break;
         }
         case SPN_ERR_LOCK_STALE: {
-          if (sp_str_empty(event->err.subject)) {
+          if (event->err.lock_stale.missing) {
             sp_tty_fmt(&w, "{.cyan} does not exist, and {.cyan} forbids writing it", sp_fmt_cstr("spn.lock"), sp_fmt_cstr("--locked"));
           }
           else {
@@ -1328,6 +1329,15 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
             &w,
             "Index {.cyan} is pinned to a revision and cannot be published to",
             sp_fmt_str(event->err.index.name)
+          );
+          break;
+        }
+        case SPN_ERR_INDEX_EXISTS: {
+          sp_tty_fmt(
+            &w,
+            "Index {.cyan} is already declared; pick another with {.cyan}",
+            sp_fmt_str(event->err.index.name),
+            sp_fmt_cstr("--name")
           );
           break;
         }

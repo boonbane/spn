@@ -5,7 +5,7 @@
 typedef struct {
   const c8* name;
   struct {
-    spn_index_protocol_t protocol;
+    spn_index_format_t format;
     const c8* fixture;
   } indexes [2];
   bool memoized;
@@ -21,7 +21,7 @@ static const cache_test_t tests [] = {
   {
     .name = "first_wins_dir_first",
     .indexes = {
-      { .protocol = SPN_INDEX_PROTOCOL_DIR, .fixture = "dir" },
+      { .format = SPN_INDEX_FORMAT_MANIFESTS, .fixture = "dir" },
       { .fixture = "jsonl" },
     },
     .expect = {
@@ -33,7 +33,7 @@ static const cache_test_t tests [] = {
     .name = "first_wins_jsonl_first",
     .indexes = {
       { .fixture = "jsonl" },
-      { .protocol = SPN_INDEX_PROTOCOL_DIR, .fixture = "dir" },
+      { .format = SPN_INDEX_FORMAT_MANIFESTS, .fixture = "dir" },
     },
     .expect = {
       .exists = true,
@@ -43,8 +43,8 @@ static const cache_test_t tests [] = {
   {
     .name = "fallthrough_when_absent",
     .indexes = {
-      { .protocol = SPN_INDEX_PROTOCOL_DIR },
-      { .protocol = SPN_INDEX_PROTOCOL_DIR, .fixture = "dir" },
+      { .format = SPN_INDEX_FORMAT_MANIFESTS },
+      { .format = SPN_INDEX_FORMAT_MANIFESTS, .fixture = "dir" },
     },
     .expect = {
       .exists = true,
@@ -54,7 +54,7 @@ static const cache_test_t tests [] = {
   {
     .name = "error_stops_fallthrough",
     .indexes = {
-      { .protocol = SPN_INDEX_PROTOCOL_DIR, .fixture = "broken" },
+      { .format = SPN_INDEX_FORMAT_MANIFESTS, .fixture = "broken" },
       { .fixture = "jsonl" },
     },
     .expect = {
@@ -64,7 +64,7 @@ static const cache_test_t tests [] = {
   {
     .name = "memoized",
     .indexes = {
-      { .protocol = SPN_INDEX_PROTOCOL_DIR, .fixture = "dir" },
+      { .format = SPN_INDEX_FORMAT_MANIFESTS, .fixture = "dir" },
       { .fixture = "jsonl" },
     },
     .memoized = true,
@@ -79,9 +79,9 @@ sp_test_each(index_cache, get_package, cache_test_t, tests, .setup = spn_test_ct
   sp_mem_t mem = sp_test_arena(t);
 
   u32 slots = 0;
-  sp_carr_detect_len(it->indexes, slots, it->indexes[slots].protocol || it->indexes[slots].fixture);
+  sp_carr_detect_len(it->indexes, slots, it->indexes[slots].format || it->indexes[slots].fixture);
 
-  sp_da(spn_index_info_t) indexes = sp_da_new(mem, spn_index_info_t);
+  si_da(si_index_place_t) indexes = sp_zero;
   sp_for(slot, slots) {
     sp_str_t location = sp_zero;
     if (it->indexes[slot].fixture) {
@@ -91,15 +91,15 @@ sp_test_each(index_cache, get_package, cache_test_t, tests, .setup = spn_test_ct
       sp_fs_create_dir(location);
     }
 
-    spn_index_info_t index = {
-      .location = { .at = sp_path_from_str(location), .dir = location },
-      .protocol = it->indexes[slot].protocol,
-    };
-    sp_da_push(indexes, index);
+    si_da_push(mem, indexes, ((si_index_place_t) {
+      .format = it->indexes[slot].format,
+      .at = sp_path_from_str(location),
+      .dir = location,
+    }));
   }
 
   spn_index_cache_t cache = sp_zero;
-  spn_index_cache_init(&cache, mem, spn.intern, &spn.roots, &indexes);
+  si_index_cache_init(&cache, mem, spn.intern, &spn.roots, indexes);
 
   sp_intern_str_t request = spn_intern_lit("A");
 
@@ -119,9 +119,6 @@ sp_test_each(index_cache, get_package, cache_test_t, tests, .setup = spn_test_ct
     spn_index_pkg_t* again = SP_NULLPTR;
     spn_index_cache_get_package(&cache, request, &again, &diag);
     sp_must(t, again == pkg);
-  }
-
-  sp_da_for(indexes, at) {
   }
   return SP_OK;
 }

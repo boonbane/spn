@@ -47,16 +47,19 @@ static spn_err_t update(sp_mem_t scratch, spn_op_t* op) {
         spn_lock_insert(&kept, held.entries[it]);
       }
     }
+    sp_da_for(held.indexes, it) {
+      spn_lock_pin_index(&kept, held.indexes[it]);
+    }
   }
 
   sp_da(spn_index_info_t*) indexes = sp_da_new(scratch, spn_index_info_t*);
   sp_da_for(ctx->indexes, it) {
     sp_da_push(indexes, &ctx->indexes[it]);
   }
-  spn_try(spn_sync_index_list(op, indexes, true));
+  spn_try(si_sync_index_list(op, indexes, true));
 
   spn_lock_t lock = sp_zero;
-  spn_try(spn_resolve_and_sync_pins(op, &held, &kept, &lock));
+  spn_try(si_resolve_and_sync_pins(op, &held, &kept, &lock));
 
   spn_lock_diff_t diff = spn_lock_diff(&held, &lock);
   while (spn_lock_diff_next(&diff)) {

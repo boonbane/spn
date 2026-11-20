@@ -45,53 +45,86 @@ static spn_err_t fetch_over(void* user, spn_git_route_t route, sp_str_t repo, sp
   sp_unreachable_return(SPN_ERROR);
 }
 
-spn_git_remote_t spn_git_remote(spn_git_transport_t transport) {
-  return (spn_git_remote_t) { .transport = transport, .clone = clone_over, .fetch = fetch_over };
+static spn_err_t tip_over(void* user, spn_git_route_t route, sp_mem_t mem, sp_str_t url, sp_atomic_s32_t* cancelled, sp_str_t* rev, spn_git_failure_t* failure) {
+  switch (route) {
+    case SPN_GIT_ROUTE_BUILTIN: {
+      return si_git_builtin_tip(mem, url, cancelled, rev, failure);
+    }
+    case SPN_GIT_ROUTE_CONFIGURED:
+    case SPN_GIT_ROUTE_SSH:
+    case SPN_GIT_ROUTE_LOGIN: {
+      return si_git_cli_tip(mem, url, rev, failure);
+    }
+  }
+  sp_unreachable_return(SPN_ERROR);
+}
+
+spn_git_remote_t si_git_remote(spn_git_transport_t transport) {
+  return (spn_git_remote_t) { .transport = transport, .clone = clone_over, .fetch = fetch_over, .tip = tip_over };
+}
+
+typedef struct {
+  spn_git_route_t route;
+  u32 retries;
+} attempt_t;
+
+static bool again(attempt_t* attempt, const spn_git_failure_t* failure, spn_net_backoff_t backoff, sp_str_t url, sp_atomic_s32_t* cancelled) {
+  if (failure->kind == SPN_GIT_UNAUTHORIZED) {
+    attempt->route = SPN_GIT_ROUTE_LOGIN;
+    return true;
+  }
+  return failure->kind == SPN_GIT_DROPPED && spn_net_backoff_wait(backoff, attempt->retries++, url, sp_cstr_as_str(failure->message), cancelled);
+}
+
+static spn_err_t settle(attempt_t attempt, spn_err_t err, sp_atomic_s32_t* cancelled, spn_git_failure_t* failure) {
+  if (err && sp_atomic_s32_load(cancelled, SP_ATOMIC_SEQ_CST)) {
+    *failure = (spn_git_failure_t) { .kind = SPN_GIT_CANCELLED, .message = "cancelled" };
+  }
+  failure->route = attempt.route;
+  return err;
 }
 
 static spn_err_t fetch(spn_git_remote_t remote, spn_git_route_t* route, sp_str_t repo, sp_str_t url, spn_git_fetch_t what, spn_net_backoff_t backoff, sp_atomic_s32_t* cancelled, spn_git_failure_t* failure) {
   sp_assert(remote.fetch);
   sp_assert(!backoff.wait_ms[0] || backoff.wait);
+  attempt_t attempt = { .route = *route };
   spn_err_t err = SPN_ERROR;
-  u32 retry = 0;
   while (!sp_atomic_s32_load(cancelled, SP_ATOMIC_SEQ_CST)) {
-    err = remote.fetch(remote.user, *route, repo, what, cancelled, failure);
-    if (failure->kind == SPN_GIT_UNAUTHORIZED) {
-      *route = SPN_GIT_ROUTE_LOGIN;
-      continue;
-    }
-    if (failure->kind != SPN_GIT_DROPPED || !spn_net_backoff_wait(backoff, retry++, url, sp_cstr_as_str(failure->message), cancelled)) {
+    err = remote.fetch(remote.user, attempt.route, repo, what, cancelled, failure);
+    if (!again(&attempt, failure, backoff, url, cancelled)) {
       break;
     }
   }
-  if (err && sp_atomic_s32_load(cancelled, SP_ATOMIC_SEQ_CST)) {
-    *failure = (spn_git_failure_t) { .kind = SPN_GIT_CANCELLED, .message = "cancelled" };
-  }
-  failure->route = *route;
-  return err;
+  *route = attempt.route;
+  return settle(attempt, err, cancelled, failure);
 }
 
-spn_err_t spn_git_clone(spn_git_remote_t remote, sp_str_t url, sp_str_t path, spn_net_backoff_t backoff, sp_atomic_s32_t* cancelled, spn_git_failure_t* failure) {
+spn_err_t si_git_clone(spn_git_remote_t remote, sp_str_t url, sp_str_t path, spn_net_backoff_t backoff, sp_atomic_s32_t* cancelled, spn_git_failure_t* failure) {
   sp_assert(remote.clone);
   sp_assert(!backoff.wait_ms[0] || backoff.wait);
-  spn_git_route_t route = route_for(remote.transport, url);
+  attempt_t attempt = { .route = route_for(remote.transport, url) };
   spn_err_t err = SPN_ERROR;
-  u32 retry = 0;
   while (!sp_atomic_s32_load(cancelled, SP_ATOMIC_SEQ_CST)) {
-    err = remote.clone(remote.user, route, url, path, cancelled, failure);
-    if (failure->kind == SPN_GIT_UNAUTHORIZED) {
-      route = SPN_GIT_ROUTE_LOGIN;
-      continue;
-    }
-    if (failure->kind != SPN_GIT_DROPPED || !spn_net_backoff_wait(backoff, retry++, url, sp_cstr_as_str(failure->message), cancelled)) {
+    err = remote.clone(remote.user, attempt.route, url, path, cancelled, failure);
+    if (!again(&attempt, failure, backoff, url, cancelled)) {
       break;
     }
   }
-  if (err && sp_atomic_s32_load(cancelled, SP_ATOMIC_SEQ_CST)) {
-    *failure = (spn_git_failure_t) { .kind = SPN_GIT_CANCELLED, .message = "cancelled" };
+  return settle(attempt, err, cancelled, failure);
+}
+
+spn_err_t si_git_tip(spn_git_remote_t remote, sp_mem_t mem, sp_str_t url, spn_net_backoff_t backoff, sp_atomic_s32_t* cancelled, sp_str_t* rev, spn_git_failure_t* failure) {
+  sp_assert(remote.tip);
+  sp_assert(!backoff.wait_ms[0] || backoff.wait);
+  attempt_t attempt = { .route = route_for(remote.transport, url) };
+  spn_err_t err = SPN_ERROR;
+  while (!sp_atomic_s32_load(cancelled, SP_ATOMIC_SEQ_CST)) {
+    err = remote.tip(remote.user, attempt.route, mem, url, cancelled, rev, failure);
+    if (!again(&attempt, failure, backoff, url, cancelled)) {
+      break;
+    }
   }
-  failure->route = route;
-  return err;
+  return settle(attempt, err, cancelled, failure);
 }
 
 spn_err_t spn_git_fetch(spn_git_remote_t remote, sp_str_t repo, sp_str_t url, spn_net_backoff_t backoff, sp_atomic_s32_t* cancelled, spn_git_failure_t* failure) {

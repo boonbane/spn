@@ -4,6 +4,7 @@
 #include "sp.h"
 #include "spn/core.h"
 
+#include "array/array.h"
 #include "intern/types.h"
 #include "semver/types.h"
 
@@ -23,7 +24,14 @@ typedef struct {
 } spn_lock_entry_t;
 
 typedef struct {
+  sp_intern_str_t name;
+  sp_str_t url;
+  sp_str_t rev;
+} spn_lock_index_t;
+
+typedef struct {
   u64 version;
+  sp_da(spn_lock_index_t) indexes;
   sp_da(spn_lock_entry_t) entries;
 } spn_lock_t;
 
@@ -37,5 +45,15 @@ typedef struct {
   const spn_lock_entry_t* was;
   const spn_lock_entry_t* now;
 } spn_lock_diff_t;
+
+typedef struct {
+  spn_lock_entry_t entry;
+  bool follows;
+} si_lock_pick_t;
+
+typedef struct {
+  spn_lock_entry_t was;
+  spn_lock_entry_t now;
+} si_lock_move_t;
 
 #endif

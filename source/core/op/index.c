@@ -14,10 +14,15 @@
 
 #include "event/event.h"
 #include "external/wasm/wasm.h"
+#include "git/cache.h"
+#include "git/remote.h"
+#include "git/url.h"
 #include "index/index.h"
 #include "op/op.h"
 #include "paths/paths.h"
+#include "project/types.h"
 #include "thread_pool/thread_pool.h"
+#include "toml/edit.h"
 
 typedef struct {
   spn_op_t* op;
@@ -27,6 +32,44 @@ typedef struct {
   spn_git_failure_t failure;
 } job_t;
 
+static spn_err_t report(spn_ctx_t* ctx, spn_index_info_t* index, const spn_git_failure_t* failure) {
+  if (failure->kind == SPN_GIT_CANCELLED) {
+    return SPN_ERR_CANCELLED;
+  }
+
+  sp_str_t cause = sp_str_copy(ctx->events->mem, sp_cstr_as_str(failure->message));
+  if (failure->kind == SPN_GIT_UNTRUSTED) {
+    return spn_err_emit(ctx, (spn_err_union_t) {
+      .kind = SPN_ERR_CERT_UNTRUSTED,
+      .subject = index->name.str,
+      .cert = {
+        .url = spn_index_source(index),
+        .trust = ctx->trust,
+        .config = spn_path_str(&ctx->roots, ctx->events->mem, ctx->paths.config),
+        .cause = cause,
+        .git = true,
+      }});
+  }
+  if (failure->remote) {
+    return spn_err_emit(ctx, (spn_err_union_t) {
+      .kind = SPN_ERR_GIT_FETCH,
+      .subject = index->name.str,
+      .git_fetch = {
+        .url = spn_index_source(index),
+        .config = spn_path_str(&ctx->roots, ctx->events->mem, ctx->paths.config),
+        .cause = cause,
+        .route = failure->route,
+      }});
+  }
+  return spn_err_emit(ctx, (spn_err_union_t) {
+    .kind = SPN_ERR_INDEX_SYNC,
+    .index = {
+      .name = index->name.str,
+      .url = spn_index_source(index),
+      .cause = cause,
+    }});
+}
+
 static void sync_index_node(void* data) {
   job_t* job = (job_t*)data;
   if (spn_op_cancelled(job->op)) {
@@ -35,12 +78,15 @@ static void sync_index_node(void* data) {
   job->err = spn_index_sync(job->index, job->plan, &job->op->cancelled, &job->failure);
 }
 
-spn_err_t spn_sync_index_list(spn_op_t* op, sp_da(spn_index_info_t*) indexes, bool force) {
+spn_err_t si_sync_index_list(spn_op_t* op, sp_da(spn_index_info_t*) indexes, bool force) {
   spn_ctx_t* ctx = op->ctx;
   sp_da(job_t*) jobs = sp_da_new(ctx->mem, job_t*);
 
   sp_da_for(indexes, it) {
     spn_index_info_t* index = indexes[it];
+    if (spn_index_is_snapshot(index)) {
+      continue;
+    }
     spn_index_plan_t plan = spn_index_plan(index, force);
     if (plan.fetch) {
       spn_event_buffer_push(ctx->events, (spn_event_t) {
@@ -93,44 +139,151 @@ spn_err_t spn_sync_index_list(spn_op_t* op, sp_da(spn_index_info_t*) indexes, bo
       continue;
     }
 
-    if (job->failure.kind == SPN_GIT_UNTRUSTED) {
-      return spn_err_emit(ctx, (spn_err_union_t) {
-        .kind = SPN_ERR_CERT_UNTRUSTED,
-        .subject = job->index->name.str,
-        .cert = {
-          .url = spn_index_source(job->index),
-          .trust = ctx->trust,
-          .config = spn_path_str(&ctx->roots, ctx->events->mem, ctx->paths.config),
-          .cause = sp_str_copy(ctx->events->mem, sp_cstr_as_str(job->failure.message)),
-          .git = true,
-        }});
-    }
-
-    if (job->failure.remote) {
-      return spn_err_emit(ctx, (spn_err_union_t) {
-        .kind = SPN_ERR_GIT_FETCH,
-        .subject = job->index->name.str,
-        .git_fetch = {
-          .url = spn_index_source(job->index),
-          .config = spn_path_str(&ctx->roots, ctx->events->mem, ctx->paths.config),
-          .cause = sp_str_copy(ctx->events->mem, sp_cstr_as_str(job->failure.message)),
-          .route = job->failure.route,
-        }});
-    }
-
-    return spn_err_emit(ctx, (spn_err_union_t) {
-      .kind = SPN_ERR_INDEX_SYNC,
-      .index = {
-        .name = job->index->name.str,
-        .url = spn_index_source(job->index),
-        .cause = sp_str_copy(ctx->events->mem, sp_cstr_as_str(job->failure.message)),
-      }});
+    return report(ctx, job->index, &job->failure);
   }
 
   return SPN_OK;
 }
 
-spn_err_t spn_op_sync_indexes(spn_op_t* op) {
+spn_err_t si_place_indexes(spn_op_t* op, sp_mem_t mem, const spn_lock_t* held, si_da(si_index_place_t)* placed) {
+  spn_ctx_t* ctx = op->ctx;
+  sp_da_for(ctx->indexes, it) {
+    spn_index_info_t* index = &ctx->indexes[it];
+    if (!spn_index_is_snapshot(index)) {
+      si_da_push(mem, *placed, ((si_index_place_t) { .format = index->format, .at = index->location.at, .dir = index->location.dir }));
+      continue;
+    }
+
+    sp_str_t rev = si_index_pin(index, held);
+    spn_git_failure_t failure = sp_zero;
+    if (sp_str_empty(rev) && si_git_tip(index->remote, mem, index->git.url, index->backoff, &op->cancelled, &rev, &failure)) {
+      return report(ctx, index, &failure);
+    }
+
+    bool fetching = false;
+    spn_git_checkout_t* checkout = spn_git_cache_checkout(&ctx->caches.git, (spn_git_checkout_id_t) { .url = index->git.url, .rev = rev }, &fetching);
+    if (fetching) {
+      spn_event_buffer_push(ctx->events, (spn_event_t) {
+        .kind = SPN_EVENT_SYNC,
+        .sync = {
+          .name = index->name.str,
+          .url = index->git.url,
+        }});
+    }
+    if (spn_git_checkout_ensure(&ctx->caches.git, checkout, &op->cancelled)) {
+      return report(ctx, index, &checkout->failure);
+    }
+
+    si_da_push(mem, *placed, ((si_index_place_t) {
+      .format = index->format,
+      .at = spn_path_at(&ctx->roots, checkout->path),
+      .dir = spn_path_str(&ctx->roots, mem, checkout->path),
+      .git = { .url = index->git.url, .rev = rev },
+    }));
+  }
+  return SPN_OK;
+}
+
+static spn_err_t declare(spn_ctx_t* ctx, spn_path_t declared, spn_index_info_t* index) {
+  sp_path_t at = spn_path_at(&ctx->roots, declared);
+  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+  spn_err_t result = SPN_OK;
+
+  sp_str_t source = sp_zero;
+  sp_sys_file_meta_t meta = sp_zero;
+  bool exists = !sp_fs_get_path_metadata_at(at, &meta) && meta.kind != SP_FS_KIND_UNKNOWN;
+  if (exists && sp_fs_read_at(scratch.mem, at, &source)) {
+    result = spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_FS_READ, .fs = { .path = declared } });
+  }
+  else {
+    sp_io_dyn_mem_writer_t out = sp_zero;
+    sp_io_dyn_mem_writer_init(scratch.mem, &out);
+    sp_fmt_io(&out.base, "{}", sp_fmt_str(source));
+    if (source.len && source.data[source.len - 1] != '\n') {
+      sp_io_write_c8(&out.base, '\n');
+    }
+    if (source.len) {
+      sp_io_write_c8(&out.base, '\n');
+    }
+    sp_io_write_cstr(&out.base, "[[index]]\nname = ", SP_NULLPTR);
+    spn_toml_write_str(&out.base, index->name.str);
+    sp_io_write_cstr(&out.base, "\nurl = ", SP_NULLPTR);
+    spn_toml_write_str(&out.base, index->git.url);
+    sp_io_write_cstr(&out.base, "\nformat = ", SP_NULLPTR);
+    spn_toml_write_str(&out.base, spn_index_format_to_str(index->format));
+    if (!sp_str_empty(index->git.rev)) {
+      sp_io_write_cstr(&out.base, "\nrev = ", SP_NULLPTR);
+      spn_toml_write_str(&out.base, index->git.rev);
+    }
+    sp_io_write_c8(&out.base, '\n');
+
+    sp_fs_create_parent_at(at);
+    if (sp_fs_write_at(at, sp_io_dyn_mem_writer_as_str(&out), SP_FS_WRITE_REPLACE, sp_sys_default_file_perms)) {
+      result = spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_FS_WRITE, .fs = { .path = declared } });
+    }
+  }
+
+  sp_mem_end_scratch(scratch);
+  return result;
+}
+
+spn_err_t spn_op_add_index(spn_op_t* op) {
+  spn_ctx_t* ctx = op->ctx;
+  spn_index_add_request_t request = op->request.index;
+
+  sp_intern_str_t name = sp_intern(ctx->intern, sp_str_empty(request.name) ? spn_git_url_name(request.url) : request.name);
+  bool exists = request.global
+    ? spn_index_find(&ctx->config.indexes, name.id) != SP_NULLPTR
+    : si_om_get(ctx->project->indexes, name.id) != SP_NULLPTR;
+  if (exists) {
+    return spn_err_emit(ctx, (spn_err_union_t) {
+      .kind = SPN_ERR_INDEX_EXISTS,
+      .index = { .name = name.str, .url = request.url },
+    });
+  }
+
+  spn_index_info_t index = {
+    .id = name.id,
+    .name = name,
+    .protocol = SPN_INDEX_PROTOCOL_GIT,
+    .git = { .url = request.url },
+    .refresh = SPN_INDEX_DEFAULT_REFRESH,
+    .remote = ctx->caches.git.remote,
+    .backoff = spn_net_default_backoff,
+  };
+  si_index_locate(&index, ctx->heap, &ctx->roots, spn_path_from_id(SPN_DIR_ID_INDEX));
+
+  sp_da(spn_index_info_t*) fetched = sp_da_new(ctx->mem, spn_index_info_t*);
+  sp_da_push(fetched, &index);
+  spn_try(si_sync_index_list(op, fetched, true));
+
+  index.format = spn_index_detect_format(&index);
+  if (request.global && spn_index_is_snapshot(&index) && spn_git_get_commit_full(ctx->heap, index.location.dir, sp_str_lit("HEAD"), &index.git.rev)) {
+    return spn_err_emit(ctx, (spn_err_union_t) {
+      .kind = SPN_ERR_INDEX_SYNC,
+      .index = { .name = name.str, .url = request.url },
+    });
+  }
+  spn_try(declare(ctx, request.global ? ctx->paths.config : ctx->project->paths.manifest, &index));
+  spn_event_buffer_push(ctx->events, (spn_event_t) {
+    .kind = SPN_EVENT_INDEX_ADDED,
+    .sync = { .name = name.str, .url = request.url },
+  });
+  return SPN_OK;
+}
+
+spn_op_t* spn_add_index(spn_ctx_t* ctx, spn_index_add_request_t request) {
+  spn_op_t* op = spn_op_new(ctx, SP_NULLPTR, SPN_OP_ADD_INDEX);
+  op->request.index = (spn_index_add_request_t) {
+    .url = sp_str_copy(ctx->heap, request.url),
+    .name = sp_str_copy(ctx->heap, request.name),
+    .global = request.global,
+  };
+  spn_op_submit(op);
+  return op;
+}
+
+spn_err_t si_op_sync_indexes(spn_op_t* op) {
   spn_ctx_t* ctx = op->ctx;
   spn_sync_request_t request = op->request.indexes;
   if (!sp_str_empty(request.only) && !spn_find_index(ctx, request.only)) {
@@ -148,7 +301,7 @@ spn_err_t spn_op_sync_indexes(spn_op_t* op) {
     }
     sp_da_push(indexes, &ctx->indexes[it]);
   }
-  return spn_sync_index_list(op, indexes, request.force);
+  return si_sync_index_list(op, indexes, request.force);
 }
 
 spn_op_t* spn_sync_indexes(spn_ctx_t* ctx, spn_sync_request_t request) {

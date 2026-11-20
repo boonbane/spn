@@ -42,6 +42,7 @@ add_executable(core
   compiler/tools.c
   config/cache.c
   config/config.c
+  config/index.c
   config/net.c
   external/backoff.c
   external/git.c
@@ -70,8 +71,8 @@ add_executable(core
   git/url/web.c
   index/cache.c
   index/dir.c
-  index/location.c
   index/package.c
+  index/pin.c
   index/query.c
   index/publish.c
   index/release.c
@@ -96,8 +97,10 @@ add_executable(core
   jtd/type.c
   jtd/values.c
   jtd/walk.c
+  lock/changed.c
   lock/diff.c
   lock/load.c
+  lock/merge.c
   lock/mismatch.c
   lock/save.c
   manifest/gen/gen.c
@@ -210,7 +213,7 @@ set_source_files_properties(manifest/lower/lower.c PROPERTIES COMPILE_DEFINITION
   "MANIFEST_DIR=\"test/core/manifest/lower/manifests\"")
 set_source_files_properties(pkg/load.c PROPERTIES COMPILE_DEFINITIONS
   "PKG_MANIFEST_DIR=\"test/core/pkg/manifests\"")
-set_source_files_properties(config/cache.c config/config.c config/net.c PROPERTIES COMPILE_DEFINITIONS
+set_source_files_properties(config/cache.c config/config.c config/index.c config/net.c PROPERTIES COMPILE_DEFINITIONS
   "CONFIG_DIR=\"test/core/config/configs\"")
 set_source_files_properties(
   toolchain/builtins.c

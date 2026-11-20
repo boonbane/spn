@@ -265,6 +265,45 @@ spn_err_t spn_git_builtin_fetch(sp_str_t repo, spn_git_fetch_t fetch, sp_atomic_
   return err ? SPN_ERROR : SPN_OK;
 }
 
+spn_err_t si_git_builtin_tip(sp_mem_t mem, sp_str_t url, sp_atomic_s32_t* cancelled, sp_str_t* rev, spn_git_failure_t* failure) {
+  if (is_missing_path(url)) {
+    *failure = last_failure(SPN_GIT_FAILED);
+    return SPN_ERROR;
+  }
+
+  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+  transfer_t transfer = { .cancelled = cancelled };
+  git_fetch_options options = fetch_options(&transfer);
+  git_remote* remote = SP_NULLPTR;
+  const git_remote_head** heads = SP_NULLPTR;
+  size_t count = 0;
+  s32 err = git_remote_create_detached(&remote, sp_str_to_cstr(scratch.mem, url));
+  if (!err) {
+    err = git_remote_connect(remote, GIT_DIRECTION_FETCH, &options.callbacks, &options.proxy_opts, SP_NULLPTR);
+  }
+  if (!err) {
+    err = git_remote_ls(&heads, &count, remote);
+  }
+  *failure = err ? remote_failure(err, &transfer) : sp_zero_s(spn_git_failure_t);
+
+  const git_remote_head* head = SP_NULLPTR;
+  sp_for(it, count) {
+    if (sp_cstr_equal(heads[it]->name, "HEAD")) {
+      head = heads[it];
+    }
+  }
+  if (head) {
+    *rev = sp_str_copy(mem, sp_cstr_as_str(git_oid_tostr_s(&head->oid)));
+  }
+  else if (!err) {
+    *failure = (spn_git_failure_t) { .remote = true };
+    sp_str_copy_to(sp_fmt(scratch.mem, "{} has no commits", sp_fmt_str(url)).value, failure->message, spn_git_message_max - 1);
+  }
+  git_remote_free(remote);
+  sp_mem_end_scratch(scratch);
+  return head ? SPN_OK : SPN_ERROR;
+}
+
 spn_err_t spn_git_init_bare(sp_str_t url, sp_str_t path, spn_git_failure_t* failure) {
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   git_repository* repo = SP_NULLPTR;
