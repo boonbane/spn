@@ -79,6 +79,7 @@ add_executable(core
   index/publish.c
   index/release.c
   index/sync.c
+  index/tip.c
   index/transaction.c
   install/harness.c
   install/plan.c

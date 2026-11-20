@@ -61,6 +61,7 @@ set(SPN_CORE_SOURCES
   core/index/marker.c
   core/index/json.c
   core/index/publish.c
+  core/index/tip.c
   core/intern/context.c
   core/intern/intern.c
   core/lock/lock.c
