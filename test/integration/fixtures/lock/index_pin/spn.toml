@@ -1,0 +1,10 @@
+[package]
+name = "R"
+version = "0.1.0"
+
+[[index]]
+name = "I"
+url = "@fixture.dir@/index"
+
+[deps.package]
+A = "1.0.0"
