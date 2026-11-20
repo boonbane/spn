@@ -39,9 +39,9 @@ typedef struct {
 typedef struct {
   sp_intern_str_t name;
   spn_semver_t version;
-  spn_index_id_t index;
 
   bool yanked;
+  bool follows;
 
   spn_pkg_root_t source;
   spn_pkg_root_t manifest;

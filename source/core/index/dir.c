@@ -68,6 +68,7 @@ static spn_err_t add_release(const si_index_place_t* index, sp_mem_t mem, sp_int
 
   spn_index_release_t release = sp_zero;
   spn_try(spn_index_release_from_manifest(mem, manifest, published, &release, err));
+  release.follows = published.kind == SPN_PKG_ROOT_GIT;
   sp_da_push(package->releases, release);
   return SPN_OK;
 }

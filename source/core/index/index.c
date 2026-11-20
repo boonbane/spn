@@ -233,9 +233,6 @@ spn_err_t si_index_get_package(const si_index_place_t* index, sp_mem_t mem, sp_i
   }
 
   if (*pkg) {
-    sp_da_for((*pkg)->releases, it) {
-      (*pkg)->releases[it].index = index->id;
-    }
     sp_da_sort((*pkg)->releases, sort_release_by_version);
   }
   return SPN_OK;

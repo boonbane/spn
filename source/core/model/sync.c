@@ -635,7 +635,7 @@ static spn_err_t relock(sp_mem_t scratch, spn_session_t* session, const spn_lock
         .source = pinned_root(pkg->origin.release->source),
         .manifest = pinned_root(pkg->origin.release->manifest),
       },
-      .follows = spn_index_is_snapshot(spn_index_find(&ctx->indexes, pkg->origin.release->index)),
+      .follows = pkg->origin.release->follows,
     }));
   }
 
