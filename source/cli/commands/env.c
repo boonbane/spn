@@ -42,7 +42,7 @@ static struct {
   spn_cli_target_opts
 
 static sp_cli_result_t resolve(spn_env_result_t* env) {
-  try(spn_cli_open(false));
+  try(spn_cli_open(true));
   try(spn_cli_session(sp_zero_s(spn_session_config_t)));
   spn_op_t* op = spn_env(host.session);
   spn_err_t err = spn_cli_wait(op);

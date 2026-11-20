@@ -163,6 +163,16 @@ static const command_test_t commands [] = {
     .expect.contains = { "unset ", "EXTERNAL_INCLUDE" },
   },
   {
+    .name = "env_without_a_manifest",
+    .args = { "env", "-C", "." },
+    .human = true,
+  },
+  {
+    .name = "env_without_a_manifest_has_no_named_profiles",
+    .args = { "env", "-C", ".", "-p", "A" },
+    .expect = { .rc = 1, .err = SPN_ERR_PROFILE_UNDEFINED },
+  },
+  {
     .name = "run_batch_plain",
     .project = "test/integration/fixtures/profile/batch",
     .copy = { "echo.cmd" },
