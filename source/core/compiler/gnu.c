@@ -100,20 +100,26 @@ static sp_str_t render_target(sp_mem_t mem, const spn_cc_t* toolchain, spn_tripl
   SP_UNREACHABLE_RETURN(sp_str_lit(""));
 }
 
-static sp_str_t ms_runtime_flag(spn_runtime_t runtime) {
-  switch (runtime) {
-    case SPN_RUNTIME_SHARED: return sp_str_lit("-fms-runtime-lib=dll");
-    case SPN_RUNTIME_STATIC: return sp_str_lit("-fms-runtime-lib=static");
-    case SPN_RUNTIME_NONE: sp_unreachable_case();
-  }
-  SP_UNREACHABLE_RETURN(sp_str_lit(""));
-}
-
 static void render_flags(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, spn_cc_flags_t* flags) {
   if (profile->target.abi == SPN_ABI_MSVC && spn_cc_has(toolchain, SPN_CC_CAP_CLANG_FRONTEND)) {
-    sp_str_t crt = ms_runtime_flag(profile->linking.runtime);
-    sp_da_push(flags->compile, crt);
-    sp_da_push(flags->link, crt);
+    switch (profile->linking.runtime) {
+      case SPN_RUNTIME_SHARED: {
+        sp_da_push(flags->compile, sp_str_lit("-fms-runtime-lib=dll"));
+        sp_da_push(flags->link, sp_str_lit("-fms-runtime-lib=dll"));
+        if (spn_cc_has(toolchain, SPN_CC_CAP_LINK_MODE_CRT)) {
+          sp_da_push(flags->link, sp_str_lit("-dynamic"));
+        }
+        break;
+      }
+      case SPN_RUNTIME_STATIC: {
+        sp_da_push(flags->compile, sp_str_lit("-fms-runtime-lib=static"));
+        sp_da_push(flags->link, sp_str_lit("-fms-runtime-lib=static"));
+        break;
+      }
+      case SPN_RUNTIME_NONE: {
+        sp_unreachable_case();
+      }
+    }
     sp_da_push(flags->compile, sp_str_lit("-mno-incremental-linker-compatible"));
   }
   if (profile->mode == SPN_MODE_DEBUG) {
@@ -338,93 +344,6 @@ spn_err_t spn_gnu_parse_depfile(sp_mem_t mem, sp_str_t content, sp_da(sp_str_t)*
   return parser.err ? SPN_ERROR : SPN_OK;
 }
 
-static void add_def(sp_mem_t mem, spn_ld_dialect_t dialect, spn_path_t def, spn_invocation_t* invocation) {
-  switch (dialect) {
-    case SPN_LD_DIALECT_GNU: {
-      spn_cc_push_path(mem, invocation, def);
-      break;
-    }
-    case SPN_LD_DIALECT_LINK: {
-      spn_cc_push_glued(mem, invocation, "-Wl,/DEF:", def);
-      break;
-    }
-    case SPN_LD_DIALECT_DARWIN:
-    case SPN_LD_DIALECT_WASM:
-    case SPN_LD_DIALECT_COUNT: {
-      sp_unreachable_case();
-    }
-  }
-}
-
-static void add_exports(sp_mem_t mem, spn_cc_exports_format_t format, spn_ld_dialect_t dialect, spn_path_t exports, spn_invocation_t* invocation) {
-  switch (format) {
-    case SPN_CC_EXPORTS_VERSION_SCRIPT: {
-      spn_cc_push_glued(mem, invocation, "-Wl,--version-script,", exports);
-      break;
-    }
-    case SPN_CC_EXPORTS_DEF: {
-      add_def(mem, dialect, exports, invocation);
-      break;
-    }
-    case SPN_CC_EXPORTS_SYMBOL_LIST: {
-      spn_cc_push_glued(mem, invocation, "-Wl,-exported_symbols_list,", exports);
-      break;
-    }
-    case SPN_CC_EXPORTS_WASM: {
-      spn_cc_push_glued(mem, invocation, "@", exports);
-      break;
-    }
-  }
-}
-
-static void add_whole_archives(sp_mem_t mem, spn_ld_dialect_t dialect, si_da(spn_path_t) archives, spn_invocation_t* invocation) {
-  switch (dialect) {
-    case SPN_LD_DIALECT_GNU:
-    case SPN_LD_DIALECT_WASM: {
-      spn_cc_push_c(mem, invocation, "-Wl,--whole-archive");
-      si_da_for(archives, it) {
-        spn_cc_push_path(mem, invocation, archives[it]);
-      }
-      spn_cc_push_c(mem, invocation, "-Wl,--no-whole-archive");
-      break;
-    }
-    case SPN_LD_DIALECT_LINK: {
-      si_da_for(archives, it) {
-        spn_cc_push_glued(mem, invocation, "-Wl,/WHOLEARCHIVE:", archives[it]);
-      }
-      break;
-    }
-    case SPN_LD_DIALECT_DARWIN: {
-      si_da_for(archives, it) {
-        spn_cc_push_glued(mem, invocation, "-Wl,-force_load,", archives[it]);
-      }
-      break;
-    }
-    case SPN_LD_DIALECT_COUNT: {
-      sp_unreachable_case();
-    }
-  }
-}
-
-static void add_subsystem(sp_mem_t mem, spn_ld_dialect_t dialect, spn_invocation_t* invocation) {
-  switch (dialect) {
-    case SPN_LD_DIALECT_GNU: {
-      spn_cc_push_c(mem, invocation, "-Wl,--subsystem,windows");
-      break;
-    }
-    case SPN_LD_DIALECT_LINK: {
-      spn_cc_push_c(mem, invocation, "-Wl,/SUBSYSTEM:WINDOWS");
-      spn_cc_push_c(mem, invocation, "-Wl,/ENTRY:mainCRTStartup");
-      break;
-    }
-    case SPN_LD_DIALECT_DARWIN:
-    case SPN_LD_DIALECT_WASM:
-    case SPN_LD_DIALECT_COUNT: {
-      sp_unreachable_case();
-    }
-  }
-}
-
 static void add_rpath(sp_mem_t mem, spn_os_t os, spn_invocation_t* invocation) {
   switch (os) {
     case SPN_OS_LINUX: {
@@ -462,14 +381,14 @@ bool spn_gnu_link_static(const spn_profile_info_t* profile, spn_cc_output_kind_t
   return kind == SPN_CC_OUTPUT_EXE && profile->linking.libc == SPN_RUNTIME_STATIC && spn_triple_object_format(profile->target) == SPN_OBJ_ELF;
 }
 
-spn_cc_link_plan_t spn_gnu_render_link(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, const spn_cc_link_t* link) {
+spn_cc_link_plan_t si_gnu_render_link(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, const spn_cc_link_t* link) {
   spn_triple_t triple = profile->target;
   spn_obj_format_t format = spn_triple_object_format(profile->target);
   bool is_gnu_runtime_static = profile->linking.runtime == SPN_RUNTIME_STATIC && triple.abi != SPN_ABI_MSVC && format != SPN_OBJ_WASM && spn_cc_has(toolchain, SPN_CC_CAP_GNU_RUNTIME);
 
   spn_cc_link_plan_t plan = {
     .driver = toolchain->driver,
-    .dialect = spn_ld_dialect(triple),
+    .dialect = si_ld_dialect(toolchain->driver, triple),
   };
   spn_invocation_t* base = &plan.base;
   spn_invocation_t tail = sp_zero;
@@ -553,7 +472,24 @@ spn_cc_link_plan_t spn_gnu_render_link(sp_mem_t mem, const spn_cc_t* toolchain, 
         add_static_runtime(mem, profile->target.os, base);
       }
       if (link->subsystem == SPN_WIN_SUBSYSTEM_WINDOWS && format == SPN_OBJ_COFF) {
-        add_subsystem(mem, plan.dialect, base);
+        switch (plan.dialect) {
+          case SPN_LD_DIALECT_GNU: {
+            spn_cc_push_c(mem, base, "-Wl,--subsystem,windows");
+            break;
+          }
+          case SPN_LD_DIALECT_LINK: {
+            spn_cc_push_c(mem, base, "-Wl,/SUBSYSTEM:WINDOWS");
+            break;
+          }
+          case SPN_LD_DIALECT_DARWIN:
+          case SPN_LD_DIALECT_WASM:
+          case SPN_LD_DIALECT_COUNT: {
+            sp_unreachable_case();
+          }
+        }
+        if (triple.abi == SPN_ABI_MSVC) {
+          spn_cc_push_c(mem, base, plan.dialect == SPN_LD_DIALECT_LINK ? "-Wl,/ENTRY:mainCRTStartup" : "-Wl,-e,mainCRTStartup");
+        }
       }
       break;
     }
@@ -580,12 +516,57 @@ spn_cc_link_plan_t spn_gnu_render_link(sp_mem_t mem, const spn_cc_t* toolchain, 
   return plan;
 }
 
-void spn_gnu_render_link_locations(sp_mem_t mem, const spn_cc_link_plan_t* plan, const spn_cc_link_files_t* files, spn_invocation_t* invocation) {
+void si_gnu_render_link_locations(sp_mem_t mem, const spn_cc_link_plan_t* plan, const spn_cc_link_files_t* files, spn_invocation_t* invocation) {
   if (!spn_path_empty(files->exports)) {
-    add_exports(mem, plan->exports, plan->dialect, files->exports, invocation);
+    switch (plan->exports) {
+      case SPN_CC_EXPORTS_VERSION_SCRIPT: {
+        spn_cc_push_glued(mem, invocation, "-Wl,--version-script,", files->exports);
+        break;
+      }
+      case SPN_CC_EXPORTS_DEF: {
+        switch (plan->dialect) {
+          case SPN_LD_DIALECT_GNU: {
+            spn_cc_push_path(mem, invocation, files->exports);
+            break;
+          }
+          case SPN_LD_DIALECT_LINK: {
+            spn_cc_push_glued(mem, invocation, "-Wl,/DEF:", files->exports);
+            break;
+          }
+          case SPN_LD_DIALECT_DARWIN:
+          case SPN_LD_DIALECT_WASM:
+          case SPN_LD_DIALECT_COUNT: {
+            sp_unreachable_case();
+          }
+        }
+        break;
+      }
+      case SPN_CC_EXPORTS_SYMBOL_LIST: {
+        spn_cc_push_glued(mem, invocation, "-Wl,-exported_symbols_list,", files->exports);
+        break;
+      }
+      case SPN_CC_EXPORTS_WASM: {
+        spn_cc_push_glued(mem, invocation, "@", files->exports);
+        break;
+      }
+    }
   }
   if (!spn_path_empty(files->implib)) {
-    spn_cc_push_glued(mem, invocation, "-Wl,/IMPLIB:", files->implib);
+    switch (plan->dialect) {
+      case SPN_LD_DIALECT_GNU: {
+        spn_cc_push_glued(mem, invocation, "-Wl,--out-implib,", files->implib);
+        break;
+      }
+      case SPN_LD_DIALECT_LINK: {
+        spn_cc_push_glued(mem, invocation, "-Wl,/IMPLIB:", files->implib);
+        break;
+      }
+      case SPN_LD_DIALECT_DARWIN:
+      case SPN_LD_DIALECT_WASM:
+      case SPN_LD_DIALECT_COUNT: {
+        sp_unreachable_case();
+      }
+    }
   }
   switch (plan->soname) {
     case SPN_CC_SONAME_NONE: {
@@ -610,7 +591,32 @@ void spn_gnu_render_link_locations(sp_mem_t mem, const spn_cc_link_plan_t* plan,
     spn_cc_push_path(mem, invocation, files->objects[it]);
   }
   if (!si_da_empty(files->whole_archives)) {
-    add_whole_archives(mem, plan->dialect, files->whole_archives, invocation);
+    switch (plan->dialect) {
+      case SPN_LD_DIALECT_GNU:
+      case SPN_LD_DIALECT_WASM: {
+        spn_cc_push_c(mem, invocation, "-Wl,--whole-archive");
+        si_da_for(files->whole_archives, it) {
+          spn_cc_push_path(mem, invocation, files->whole_archives[it]);
+        }
+        spn_cc_push_c(mem, invocation, "-Wl,--no-whole-archive");
+        break;
+      }
+      case SPN_LD_DIALECT_LINK: {
+        si_da_for(files->whole_archives, it) {
+          spn_cc_push_glued(mem, invocation, "-Wl,/WHOLEARCHIVE:", files->whole_archives[it]);
+        }
+        break;
+      }
+      case SPN_LD_DIALECT_DARWIN: {
+        si_da_for(files->whole_archives, it) {
+          spn_cc_push_glued(mem, invocation, "-Wl,-force_load,", files->whole_archives[it]);
+        }
+        break;
+      }
+      case SPN_LD_DIALECT_COUNT: {
+        sp_unreachable_case();
+      }
+    }
   }
   si_da_for(files->archives, it) {
     spn_cc_push_path(mem, invocation, files->archives[it]);

@@ -540,6 +540,26 @@ static const test_t tests [] = {
     },
   },
   {
+    .name = "zig_msvc_shared_lib_takes_gnu_link_args",
+    .driver = SPN_CC_DRIVER_ZIG,
+    .profile = { .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC }, .request.runtime = SPN_RUNTIME_SHARED },
+    .kind = SPN_CC_OUTPUT_SHARED_LIB,
+    .exports = "S.def",
+    .implib = "main.lib",
+    .whole_archive = "libD.a",
+    .expect = {
+      .command = "cc",
+      .args = {
+        "--target=x86_64-windows-msvc",
+        "-fms-runtime-lib=dll", "-dynamic",
+        "-shared", "S.def", "-Wl,--out-implib,main.lib",
+        "main.o",
+        "-Wl,--whole-archive", "libD.a", "-Wl,--no-whole-archive",
+        "-o", "main"
+      },
+    },
+  },
+  {
     .name = "clang_msvc_subsystem",
     .driver = SPN_CC_DRIVER_CLANG,
     .profile = { .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC } },
@@ -548,6 +568,17 @@ static const test_t tests [] = {
     .expect = {
       .command = "cc",
       .args = { "--target=x86_64-windows-msvc", "-fms-runtime-lib=static", "-Wl,/SUBSYSTEM:WINDOWS", "-Wl,/ENTRY:mainCRTStartup", "main.o", "-o", "main" },
+    },
+  },
+  {
+    .name = "zig_msvc_subsystem_enters_main",
+    .driver = SPN_CC_DRIVER_ZIG,
+    .profile = { .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC } },
+    .kind = SPN_CC_OUTPUT_EXE,
+    .subsystem = SPN_WIN_SUBSYSTEM_WINDOWS,
+    .expect = {
+      .command = "cc",
+      .args = { "--target=x86_64-windows-msvc", "-fms-runtime-lib=static", "-Wl,--subsystem,windows", "-Wl,-e,mainCRTStartup", "main.o", "-o", "main" },
     },
   },
   {

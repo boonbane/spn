@@ -88,7 +88,7 @@ void spn_cc_push_env_paths(sp_mem_t mem, spn_invocation_t* invocation, spn_env_k
 }
 
 bool spn_cc_has(const spn_cc_t* toolchain, spn_cc_cap_t cap) {
-  return (spn_toolchain_driver_caps(toolchain->driver) & cap) == (spn_cc_cap_set_t)cap;
+  return (si_toolchain_driver_caps(toolchain->driver) & cap) == (spn_cc_cap_set_t)cap;
 }
 
 spn_err_t spn_cc_parse_depfile(sp_mem_t mem, spn_cc_driver_t driver, sp_str_t content, sp_da(sp_str_t)* prereqs) {
@@ -107,15 +107,6 @@ spn_err_t spn_cc_parse_depfile(sp_mem_t mem, spn_cc_driver_t driver, sp_str_t co
     }
   }
   SP_UNREACHABLE_RETURN(SPN_ERROR);
-}
-
-static spn_cc_feature_t link_feature(spn_cc_output_kind_t kind) {
-  switch (kind) {
-    case SPN_CC_OUTPUT_EXE: return SPN_CC_FEATURE_LINK_EXE;
-    case SPN_CC_OUTPUT_SHARED_LIB: return SPN_CC_FEATURE_LINK_SHARED;
-    case SPN_CC_OUTPUT_REACTOR: return SPN_CC_FEATURE_LINK_REACTOR;
-  }
-  SP_UNREACHABLE_RETURN(SPN_CC_FEATURE_LINK_EXE);
 }
 
 spn_toolchain_launcher_t spn_cc_launcher(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, spn_lang_t lang) {
@@ -265,7 +256,7 @@ spn_cc_link_plan_t si_cc_render_link(sp_mem_t mem, const spn_cc_t* toolchain, co
     case SPN_CC_DRIVER_GCC:
     case SPN_CC_DRIVER_CLANG:
     case SPN_CC_DRIVER_ZIG: {
-      plan = spn_gnu_render_link(mem, toolchain, profile, link);
+      plan = si_gnu_render_link(mem, toolchain, profile, link);
       break;
     }
     case SPN_CC_DRIVER_MSVC: {
@@ -289,7 +280,7 @@ spn_invocation_t spn_cc_render_link_command(sp_mem_t mem, const spn_cc_link_plan
     case SPN_CC_DRIVER_GCC:
     case SPN_CC_DRIVER_CLANG:
     case SPN_CC_DRIVER_ZIG: {
-      spn_gnu_render_link_locations(mem, plan, files, &invocation);
+      si_gnu_render_link_locations(mem, plan, files, &invocation);
       break;
     }
     case SPN_CC_DRIVER_MSVC: {
@@ -303,15 +294,17 @@ spn_invocation_t spn_cc_render_link_command(sp_mem_t mem, const spn_cc_link_plan
   return invocation;
 }
 
-spn_cc_link_refusal_t spn_cc_validate_link(spn_triple_t host, const spn_profile_info_t* profile, const spn_cc_link_t* link) {
-  spn_cc_feature_t feature = link_feature(link->kind);
+spn_cc_link_refusal_t si_cc_validate_link(const spn_cc_t* toolchain, spn_triple_t host, const spn_profile_info_t* profile, const spn_cc_link_t* link) {
   spn_triple_t target = profile->target;
 
   if (link->kind == SPN_CC_OUTPUT_REACTOR && spn_triple_object_format(target) != SPN_OBJ_WASM) {
-    return (spn_cc_link_refusal_t) { .err = SPN_ERR_COMPILER_FEATURE_UNSUPPORTED, .feature = feature };
+    return (spn_cc_link_refusal_t) { .err = SPN_ERR_COMPILER_FEATURE_UNSUPPORTED, .feature = SPN_CC_FEATURE_LINK_REACTOR };
   }
   if (link->kind == SPN_CC_OUTPUT_SHARED_LIB && !spn_ld_dynamic(target)) {
-    return (spn_cc_link_refusal_t) { .err = SPN_ERR_COMPILER_FEATURE_UNSUPPORTED, .feature = feature };
+    return (spn_cc_link_refusal_t) { .err = SPN_ERR_COMPILER_FEATURE_UNSUPPORTED, .feature = SPN_CC_FEATURE_LINK_SHARED };
+  }
+  if (link->kind == SPN_CC_OUTPUT_SHARED_LIB && target.abi == SPN_ABI_MSVC && profile->linking.runtime == SPN_RUNTIME_STATIC && spn_cc_has(toolchain, SPN_CC_CAP_LINK_MODE_CRT)) {
+    return (spn_cc_link_refusal_t) { .err = SPN_ERR_COMPILER_FEATURE_UNSUPPORTED, .feature = SPN_CC_FEATURE_STATIC_RUNTIME };
   }
   if (profile->target.os == SPN_OS_MACOS && !si_da_empty(link->frameworks) && profile->sdk.kind == SPN_SDK_NONE) {
     return (spn_cc_link_refusal_t) { .err = SPN_ERR_COMPILER_FEATURE_UNSUPPORTED, .feature = SPN_CC_FEATURE_FRAMEWORKS };
@@ -390,6 +383,6 @@ void spn_cc_render_exports(sp_io_writer_t* io, const spn_path_roots_t* roots, sp
   }
 }
 
-bool spn_cc_link_implib(const spn_profile_info_t* profile, spn_cc_output_kind_t kind) {
-  return kind == SPN_CC_OUTPUT_SHARED_LIB && spn_ld_dialect(profile->target) == SPN_LD_DIALECT_LINK;
+bool si_cc_link_implib(const spn_profile_info_t* profile, spn_cc_output_kind_t kind) {
+  return kind == SPN_CC_OUTPUT_SHARED_LIB && profile->target.abi == SPN_ABI_MSVC;
 }

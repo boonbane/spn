@@ -81,6 +81,55 @@ static const test_t tests [] = {
       { .kind = ACTION_VERIFY_EXISTS, .exists = target_exe("main", "x86_64-windows-gnu") },
     },
   },
+  {
+    .name = "zig_msvc_exe_links_shared_runtime",
+    .project = "test/integration/fixtures/linker/runtime_exe",
+    .when = { .lanes = { "zig" }, .target = "x86_64-windows-msvc" },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build", .args = { "--target", "x86_64-windows-msvc" } } },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = target_exe("A", "x86_64-windows-msvc") },
+    },
+  },
+  {
+    .name = "zig_msvc_shared_lib_refuses_static_runtime",
+    .project = "test/integration/fixtures/linker/runtime_lib",
+    .copy = { "a.c" },
+    .when = { .lanes = { "zig" }, .target = "x86_64-windows-msvc" },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build", .args = { "--target", "x86_64-windows-msvc" }, .rc = 1 } },
+      { .kind = ACTION_VERIFY_RESULT, .verify_result.err = SPN_ERR_COMPILER_FEATURE_UNSUPPORTED },
+      { .kind = ACTION_VERIFY_EVENT, .verify_event = { .event = SPN_EVENT_ERR, .key = "feature", .value = "static_runtime" } },
+    },
+  },
+  {
+    .name = "zig_msvc_shared_lib_links_shared_runtime",
+    .project = "test/integration/fixtures/linker/runtime_lib",
+    .copy = { "a.c" },
+    .when = { .lanes = { "zig" }, .target = "x86_64-windows-msvc" },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build", .args = { "-p", "shared", "--target", "x86_64-windows-msvc" } } },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = { PATH_SHARED_LIB, .pkg = "A", .name = "A", .profile = "shared", .triple = "x86_64-windows-msvc" } },
+    },
+  },
+  {
+    .name = "zig_msvc_shared_lib_embeds_public_static_dep",
+    .project = "test/integration/fixtures/linker/whole_archive",
+    .copy = { "a.c", "B/*" },
+    .when = { .lanes = { "zig" }, .target = "x86_64-windows-msvc" },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build", .args = { "--target", "x86_64-windows-msvc" } } },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = { PATH_SHARED_LIB, .pkg = "A", .name = "A", .triple = "x86_64-windows-msvc" } },
+    },
+  },
+  {
+    .name = "zig_msvc_windows_subsystem_enters_main",
+    .project = "test/integration/fixtures/linker/subsystem",
+    .when = { .lanes = { "zig" }, .target = "x86_64-windows-msvc" },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build", .args = { "--target", "x86_64-windows-msvc" } } },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = target_exe("A", "x86_64-windows-msvc") },
+    },
+  },
 };
 
 sp_test_each(linker, cases, test_t, tests) {

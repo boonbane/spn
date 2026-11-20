@@ -137,12 +137,20 @@ spn_linking_refusal_t spn_ld_linking(spn_triple_t target, spn_linking_t request,
   return SPN_LINKING_REFUSAL_NONE;
 }
 
-spn_ld_dialect_t spn_ld_dialect(spn_triple_t target) {
+spn_ld_dialect_t si_ld_dialect(spn_cc_driver_t driver, spn_triple_t target) {
   switch (spn_triple_object_format(target)) {
     case SPN_OBJ_ELF: return SPN_LD_DIALECT_GNU;
     case SPN_OBJ_MACHO: return SPN_LD_DIALECT_DARWIN;
     case SPN_OBJ_WASM: return SPN_LD_DIALECT_WASM;
-    case SPN_OBJ_COFF: return target.abi == SPN_ABI_MSVC ? SPN_LD_DIALECT_LINK : SPN_LD_DIALECT_GNU;
+    case SPN_OBJ_COFF: {
+      switch (driver) {
+        case SPN_CC_DRIVER_ZIG: return SPN_LD_DIALECT_GNU;
+        case SPN_CC_DRIVER_GCC:
+        case SPN_CC_DRIVER_CLANG:
+        case SPN_CC_DRIVER_MSVC: return target.abi == SPN_ABI_MSVC ? SPN_LD_DIALECT_LINK : SPN_LD_DIALECT_GNU;
+        case SPN_CC_DRIVER_NONE: sp_unreachable_case();
+      }
+    }
   }
   SP_UNREACHABLE_RETURN(SPN_LD_DIALECT_GNU);
 }
@@ -172,7 +180,7 @@ static spn_ld_family_t native(spn_ld_dialect_t dialect) {
 bool spn_ld_accepts(spn_cc_driver_t driver, spn_ld_family_t declared) {
   switch (declared) {
     case SPN_LD_FAMILY_NONE: return true;
-    case SPN_LD_FAMILY_LLD: return spn_toolchain_driver_caps(driver) & SPN_CC_CAP_FUSE_LD;
+    case SPN_LD_FAMILY_LLD: return si_toolchain_driver_caps(driver) & SPN_CC_CAP_FUSE_LD;
     case SPN_LD_FAMILY_GNU:
     case SPN_LD_FAMILY_LD64:
     case SPN_LD_FAMILY_MSVC: return false;
@@ -185,7 +193,7 @@ spn_ld_family_t spn_ld_native(spn_cc_driver_t driver, spn_triple_t target) {
     case SPN_CC_DRIVER_ZIG: return SPN_LD_FAMILY_LLD;
     case SPN_CC_DRIVER_GCC:
     case SPN_CC_DRIVER_CLANG:
-    case SPN_CC_DRIVER_MSVC: return native(spn_ld_dialect(target));
+    case SPN_CC_DRIVER_MSVC: return native(si_ld_dialect(driver, target));
     case SPN_CC_DRIVER_NONE: sp_unreachable_case();
   }
   SP_UNREACHABLE_RETURN(SPN_LD_FAMILY_NONE);

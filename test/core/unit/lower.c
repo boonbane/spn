@@ -175,7 +175,7 @@ static const test_t tests [] = {
       .os = SPN_OS_WINDOWS,
       .abi = SPN_ABI_MSVC,
       .driver = SPN_CC_DRIVER_ZIG,
-      .runtime = SPN_RUNTIME_STATIC,
+      .runtime = SPN_RUNTIME_SHARED,
       .pkgs = {
         { .name = "P", .deps = { { "B" } }, .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "main.c" } } } },
         { .name = "B", .targets = { { "B", shared_only, .source = { "b.c" } } } },

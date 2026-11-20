@@ -1148,6 +1148,10 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
               sp_tty_fmt(&w, "{.cyan} enables C++ exceptions, but toolchain {} doesn't support them for {.yellow}", sp_fmt_str(subject), sp_fmt_str(toolchain), sp_fmt_str(target));
               break;
             }
+            case SPN_CC_FEATURE_STATIC_RUNTIME: {
+              sp_tty_fmt(&w, "Library {.cyan} is linked dynamically, but toolchain {} can't link a shared library against a static runtime for {.yellow}. Use {.cyan}", sp_fmt_str(subject), sp_fmt_str(toolchain), sp_fmt_str(target), sp_fmt_str(sp_str_lit("runtime = \"shared\"")));
+              break;
+            }
           }
           break;
         }

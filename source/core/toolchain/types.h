@@ -29,6 +29,7 @@ typedef enum {
   SPN_CC_CAP_HOST_SYSROOT   = 1 << 10,
   SPN_CC_CAP_IMPORT_SYMBOLS = 1 << 11,
   SPN_CC_CAP_STRIP_ALL      = 1 << 12,
+  SPN_CC_CAP_LINK_MODE_CRT  = 1 << 13,
 } spn_cc_cap_t;
 
 typedef u32 spn_cc_cap_set_t;

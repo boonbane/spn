@@ -196,11 +196,11 @@ spn_toolchain_ref_t spn_toolchain_ref_from_str(sp_str_t str) {
   return ref;
 }
 
-spn_cc_cap_set_t spn_toolchain_driver_caps(spn_cc_driver_t driver) {
+spn_cc_cap_set_t si_toolchain_driver_caps(spn_cc_driver_t driver) {
   switch (driver) {
     case SPN_CC_DRIVER_GCC: return SPN_CC_CAP_FUSE_LD | SPN_CC_CAP_BARE | SPN_CC_CAP_GNU_RUNTIME | SPN_CC_CAP_HOST_SYSROOT;
     case SPN_CC_DRIVER_CLANG: return SPN_CC_CAP_TARGET_TRIPLE | SPN_CC_CAP_LLVM_TRIPLE | SPN_CC_CAP_CLANG_FRONTEND | SPN_CC_CAP_FUSE_LD | SPN_CC_CAP_GNU_RUNTIME | SPN_CC_CAP_HOST_SYSROOT;
-    case SPN_CC_DRIVER_ZIG: return SPN_CC_CAP_TARGET_TRIPLE | SPN_CC_CAP_CLANG_FRONTEND | SPN_CC_CAP_CODEVIEW | SPN_CC_CAP_LIBC_FILE | SPN_CC_CAP_DEFAULT_UBSAN | SPN_CC_CAP_BARE | SPN_CC_CAP_TRIPLE_MIN_OS | SPN_CC_CAP_IMPORT_SYMBOLS | SPN_CC_CAP_STRIP_ALL;
+    case SPN_CC_DRIVER_ZIG: return SPN_CC_CAP_TARGET_TRIPLE | SPN_CC_CAP_CLANG_FRONTEND | SPN_CC_CAP_CODEVIEW | SPN_CC_CAP_LIBC_FILE | SPN_CC_CAP_DEFAULT_UBSAN | SPN_CC_CAP_BARE | SPN_CC_CAP_TRIPLE_MIN_OS | SPN_CC_CAP_IMPORT_SYMBOLS | SPN_CC_CAP_STRIP_ALL | SPN_CC_CAP_LINK_MODE_CRT;
     case SPN_CC_DRIVER_MSVC: return 0;
     case SPN_CC_DRIVER_NONE: sp_unreachable_case();
   }
@@ -208,7 +208,7 @@ spn_cc_cap_set_t spn_toolchain_driver_caps(spn_cc_driver_t driver) {
 }
 
 bool spn_toolchain_driver_retargets(spn_cc_driver_t driver) {
-  return spn_toolchain_driver_caps(driver) & SPN_CC_CAP_TARGET_TRIPLE;
+  return si_toolchain_driver_caps(driver) & SPN_CC_CAP_TARGET_TRIPLE;
 }
 
 spn_abi_t spn_default_abi(spn_cc_driver_t driver, spn_os_t os) {
@@ -233,7 +233,7 @@ spn_abi_t spn_default_abi(spn_cc_driver_t driver, spn_os_t os) {
 }
 
 bool spn_toolchain_driver_composes(spn_cc_driver_t driver, spn_triple_t target) {
-  spn_ld_dialect_t dialect = spn_ld_dialect(target);
+  spn_ld_dialect_t dialect = si_ld_dialect(driver, target);
   switch (driver) {
     case SPN_CC_DRIVER_GCC: return dialect == SPN_LD_DIALECT_GNU || dialect == SPN_LD_DIALECT_DARWIN;
     case SPN_CC_DRIVER_MSVC: return dialect == SPN_LD_DIALECT_LINK;

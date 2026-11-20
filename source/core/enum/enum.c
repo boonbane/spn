@@ -548,6 +548,9 @@ sp_str_t spn_cc_feature_to_str(spn_cc_feature_t feature) {
     case SPN_CC_FEATURE_EXCEPTIONS: {
       return sp_str_lit("exceptions");
     }
+    case SPN_CC_FEATURE_STATIC_RUNTIME: {
+      return sp_str_lit("static_runtime");
+    }
   }
   SP_UNREACHABLE_RETURN(sp_str_lit(""));
 }

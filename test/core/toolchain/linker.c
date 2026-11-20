@@ -2,20 +2,22 @@
 
 typedef struct {
   const c8* name;
+  spn_cc_driver_t driver;
   spn_triple_t target;
   spn_ld_dialect_t expect;
 } dialect_t;
 
 static const dialect_t dialect_tests [] = {
-  { "linux_gnu",    HOST_X64_LINUX,      SPN_LD_DIALECT_GNU },
-  { "windows_gnu",  TARGET_WIN_GNU,      SPN_LD_DIALECT_GNU },
-  { "windows_msvc", TARGET_WIN_MSVC,     SPN_LD_DIALECT_LINK },
-  { "macos",        HOST_ARM_MACOS,      SPN_LD_DIALECT_DARWIN },
-  { "wasi",         TARGET_WASM,         SPN_LD_DIALECT_WASM },
+  { "linux_gnu",        SPN_CC_DRIVER_GCC,   HOST_X64_LINUX,  SPN_LD_DIALECT_GNU },
+  { "windows_gnu",      SPN_CC_DRIVER_GCC,   TARGET_WIN_GNU,  SPN_LD_DIALECT_GNU },
+  { "windows_msvc",     SPN_CC_DRIVER_CLANG, TARGET_WIN_MSVC, SPN_LD_DIALECT_LINK },
+  { "zig_windows_msvc", SPN_CC_DRIVER_ZIG,   TARGET_WIN_MSVC, SPN_LD_DIALECT_GNU },
+  { "macos",            SPN_CC_DRIVER_CLANG, HOST_ARM_MACOS,  SPN_LD_DIALECT_DARWIN },
+  { "wasi",             SPN_CC_DRIVER_CLANG, TARGET_WASM,     SPN_LD_DIALECT_WASM },
 };
 
 sp_test_each(linker, dialect, dialect_t, dialect_tests) {
-  sp_expect_eq(t, (u32)it->expect, (u32)spn_ld_dialect(it->target));
+  sp_expect_eq(t, (u32)it->expect, (u32)si_ld_dialect(it->driver, it->target));
   return SP_OK;
 }
 

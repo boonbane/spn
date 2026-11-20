@@ -122,7 +122,7 @@ static spn_err_t lower_link(spn_units_t* u, spn_target_unit_t* unit) {
   cc->args = unit->target->link_flags;
   cc->scripts = unit->target->linker_script;
 
-  spn_cc_link_refusal_t refusal = spn_cc_validate_link(spn.host, profile, cc);
+  spn_cc_link_refusal_t refusal = si_cc_validate_link(toolchain, spn.host, profile, cc);
   switch (refusal.err) {
     case SPN_OK: {
       break;
@@ -386,7 +386,7 @@ static spn_err_t lower_target(spn_units_t* u, spn_target_unit_t* unit) {
         case SPN_OS_FREESTANDING:
         case SPN_OS_NONE:    sp_unreachable_case();
       }
-      if (spn_cc_link_implib(profile, kind)) {
+      if (si_cc_link_implib(profile, kind)) {
         emit->link.implib = sp_fmt(mem, "{}.dll.lib", sp_fmt_str(name)).value;
       }
       sp_opt_set(emit->link.exports, render_exports(mem, toolchain, profile, &emit->link.plan.value, name));

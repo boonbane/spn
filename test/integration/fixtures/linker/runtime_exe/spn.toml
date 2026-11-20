@@ -1,0 +1,10 @@
+[package]
+name = "A"
+version = "0.1.0"
+
+[profile.default]
+runtime = "shared"
+
+[[bin]]
+name = "A"
+source = ["main.c"]

@@ -7,8 +7,10 @@ typedef struct {
 
 typedef struct {
   const c8* name;
+  spn_cc_driver_t driver;
   spn_triple_t host;
   spn_triple_t target;
+  spn_runtime_t runtime;
   spn_ld_family_t linker;
   spn_sdk_kind_t sdk;
   spn_cc_output_kind_t kind;
@@ -38,6 +40,21 @@ static const test_t tests [] = {
   {
     .name = "loader_links_a_shared_lib",
     .target = HOST_X64_LINUX,
+    .kind = SPN_CC_OUTPUT_SHARED_LIB,
+  },
+  {
+    .name = "zig_msvc_shared_lib_refuses_static_runtime",
+    .driver = SPN_CC_DRIVER_ZIG,
+    .target = TARGET_WIN_MSVC,
+    .runtime = SPN_RUNTIME_STATIC,
+    .kind = SPN_CC_OUTPUT_SHARED_LIB,
+    .expect = { .err = SPN_ERR_COMPILER_FEATURE_UNSUPPORTED, .feature = SPN_CC_FEATURE_STATIC_RUNTIME },
+  },
+  {
+    .name = "zig_msvc_shared_lib_links_a_shared_runtime",
+    .driver = SPN_CC_DRIVER_ZIG,
+    .target = TARGET_WIN_MSVC,
+    .runtime = SPN_RUNTIME_SHARED,
     .kind = SPN_CC_OUTPUT_SHARED_LIB,
   },
   {
@@ -101,8 +118,10 @@ static const test_t tests [] = {
 
 sp_test_each(validate_link, refusal, test_t, tests) {
   sp_mem_t mem = sp_test_arena(t);
+  spn_cc_t toolchain = test_toolchain(it->driver);
   spn_profile_info_t profile = {
     .target = it->target,
+    .linking.runtime = it->runtime,
     .linker = it->linker,
     .sdk = { .kind = it->sdk },
   };
@@ -110,7 +129,7 @@ sp_test_each(validate_link, refusal, test_t, tests) {
   test_push_str(mem, &link.frameworks, it->framework);
   test_push_path(mem, &link.scripts, it->script);
 
-  spn_cc_link_refusal_t refusal = spn_cc_validate_link(it->host, &profile, &link);
+  spn_cc_link_refusal_t refusal = si_cc_validate_link(&toolchain, it->host, &profile, &link);
   sp_expect_eq(t, refusal.err, it->expect.err);
   sp_expect_eq(t, refusal.feature, it->expect.feature);
   return SP_OK;
