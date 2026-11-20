@@ -18,7 +18,6 @@
 #include "git/remote.h"
 #include "git/url.h"
 #include "index/index.h"
-#include "index/marker.h"
 #include "index/tip.h"
 #include "lock/lock.h"
 #include "op/op.h"
@@ -148,10 +147,10 @@ spn_err_t si_sync_index_list(spn_op_t* op, sp_da(spn_index_info_t*) indexes, boo
   return SPN_OK;
 }
 
-static spn_err_t read_marker(spn_ctx_t* ctx, sp_mem_t mem, spn_path_t dir, si_index_marker_t* marker) {
-  spn_err_union_t invalid = sp_zero;
-  if (si_index_marker_load(mem, ctx->intern, &ctx->roots, dir, marker, &invalid)) {
-    return spn_err_emit(ctx, invalid);
+static spn_err_t read_marker(spn_ctx_t* ctx, sp_mem_t mem, spn_index_info_t* index, spn_path_t dir, si_index_marker_t* marker) {
+  spn_err_union_t unread = sp_zero;
+  if (si_index_read_marker(index, mem, ctx->intern, &ctx->roots, dir, marker, &unread)) {
+    return spn_err_emit(ctx, unread);
   }
   return SPN_OK;
 }
@@ -201,13 +200,7 @@ spn_err_t si_place_index(spn_op_t* op, sp_mem_t mem, const spn_lock_t* held, spn
       }
 
       si_index_marker_t marker = sp_zero;
-      spn_try(read_marker(ctx, mem, checkout->path, &marker));
-      if (!marker.version) {
-        return spn_err_emit(ctx, (spn_err_union_t) {
-          .kind = SPN_ERR_INDEX_UNMARKED,
-          .index = { .name = index->name.str, .url = index->git.url },
-        });
-      }
+      spn_try(read_marker(ctx, mem, index, checkout->path, &marker));
 
       *place = (si_index_place_t) {
         .format = marker.format,
@@ -238,10 +231,7 @@ spn_err_t si_place_index(spn_op_t* op, sp_mem_t mem, const spn_lock_t* held, spn
       }
 
       si_index_marker_t marker = sp_zero;
-      spn_try(read_marker(ctx, mem, (spn_path_t) { .sub = index->location.dir }, &marker));
-      if (!marker.version) {
-        marker.format = SPN_INDEX_FORMAT_MANIFESTS;
-      }
+      spn_try(read_marker(ctx, mem, index, (spn_path_t) { .sub = index->location.dir }, &marker));
       *place = (si_index_place_t) {
         .format = marker.format,
         .at = sp_path_join(mem, index->location.at, marker.path),

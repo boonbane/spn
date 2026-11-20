@@ -145,6 +145,8 @@ static const test_t tests [] = {
     .name = "index_path",
     .project = "test/integration/fixtures/deps/index/basic",
     .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { .cmd = "index", .args = { "path", "core" }, .rc = 1 } },
+      { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build" } },
       { .kind = ACTION_RUN_CLI, .cli = { .cmd = "index", .args = { "path", "core" } } },
       { .kind = ACTION_RUN_CLI, .cli = { .cmd = "index", .args = { "path" }, .rc = 1 } },
       { .kind = ACTION_RUN_CLI, .cli = { .cmd = "index", .args = { "path", "nope" }, .rc = 1 } },

@@ -8,6 +8,10 @@ static struct {
   bool global;
 } args;
 
+static sp_str_t format(const spn_index_desc_t* index) {
+  return sp_str_empty(index->location) ? sp_str_lit("") : spn_index_format_to_str(index->format);
+}
+
 static void render_list() {
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   spn_index_arr_t indexes = spn_get_indexes(scratch.mem, host.ctx);
@@ -17,7 +21,7 @@ static void render_list() {
     width.name = sp_max(width.name, indexes.items[it].name.len);
     width.kind = sp_max(width.kind, spn_index_kind_to_str(indexes.items[it].kind).len);
     width.protocol = sp_max(width.protocol, spn_index_protocol_to_str(indexes.items[it].protocol).len);
-    width.format = sp_max(width.format, spn_index_format_to_str(indexes.items[it].format).len);
+    width.format = sp_max(width.format, format(&indexes.items[it]).len);
   }
   const c8* headers [] = { "name", "kind", "protocol", "format", "source" };
   width.name = sp_max(width.name, sp_cstr_len(headers[0]));
@@ -46,7 +50,7 @@ static void render_list() {
       sp_fmt_uint(width.protocol),
       sp_fmt_str(spn_index_protocol_to_str(index->protocol)),
       sp_fmt_uint(width.format),
-      sp_fmt_str(spn_index_format_to_str(index->format)),
+      sp_fmt_str(format(index)),
       sp_fmt_str(index->source));
   }
 

@@ -212,6 +212,23 @@ sp_str_t si_index_pin(const spn_index_info_t* index, const spn_lock_t* lock) {
   return sp_str_lit("");
 }
 
+spn_err_t si_index_read_marker(spn_index_info_t* index, sp_mem_t mem, sp_intern_t* intern, const spn_path_roots_t* roots, spn_path_t dir, si_index_marker_t* marker, spn_err_union_t* err) {
+  spn_try(si_index_marker_load(mem, intern, roots, dir, marker, err));
+  if (marker->version) {
+    return SPN_OK;
+  }
+  if (index->protocol == SPN_INDEX_PROTOCOL_DIR) {
+    *marker = (si_index_marker_t) { .version = si_index_marker_version, .format = SPN_INDEX_FORMAT_MANIFESTS };
+    return SPN_OK;
+  }
+
+  *err = (spn_err_union_t) {
+    .kind = SPN_ERR_INDEX_UNMARKED,
+    .index = { .name = index->name.str, .url = spn_index_source(index) },
+  };
+  return err->kind;
+}
+
 spn_index_format_t spn_index_detect_format(spn_index_info_t* index) {
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   sp_sys_file_meta_t meta = sp_zero;
