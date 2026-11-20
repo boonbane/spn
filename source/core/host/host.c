@@ -32,7 +32,7 @@ static spn_index_desc_t describe_index(sp_mem_t mem, spn_ctx_t* ctx, const spn_l
     case SPN_INDEX_PROTOCOL_GIT: {
       sp_str_t rev = si_index_pin(index, held);
       if (sp_str_empty(rev)) {
-        rev = si_index_tip_plan(mem, index, false).rev;
+        rev = si_index_tip_plan(mem, index).rev;
       }
       if (sp_str_empty(rev)) {
         return desc;

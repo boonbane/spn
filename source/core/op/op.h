@@ -15,7 +15,7 @@ spn_err_t si_op_add(spn_op_t* op);
 spn_err_t spn_op_publish(spn_op_t* op);
 spn_err_t si_op_sync_indexes(spn_op_t* op);
 spn_err_t si_op_add_index(spn_op_t* op);
-spn_err_t si_read_index_tips(spn_op_t* op, sp_da(spn_index_info_t*) indexes);
+spn_err_t si_refresh_indexes(spn_op_t* op, sp_da(spn_index_info_t*) indexes);
 spn_err_t si_place_index(spn_op_t* op, sp_mem_t mem, const spn_lock_t* held, spn_index_info_t* index, si_index_place_t* place);
 spn_err_t si_place_indexes(spn_op_t* op, sp_mem_t mem, const spn_lock_t* held, si_da(si_index_place_t) placed, u32 consulted, bool* grew);
 spn_err_t spn_op_scaffold(spn_op_t* op);

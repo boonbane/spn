@@ -49,6 +49,28 @@ static const test_t tests [] = {
     },
   },
   {
+    .name = "synced_index_unreachable",
+    .project = "test/integration/fixtures/deps/index/binary_static",
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { "index", .args = { "sync" } } },
+      { .kind = ACTION_REMOVE_DIR, .rm = { .dir = ".st/spn/packages" } },
+      { .kind = ACTION_RUN_CLI, .cli = { "build" } },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
+    },
+  },
+  {
+    .name = "published_index_unreachable",
+    .project = "test/integration/fixtures/deps/index/basic",
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { "build" } },
+      { .kind = ACTION_INIT_REPO },
+      { .kind = ACTION_RUN_CLI, .cli = { "publish", .args = { "--index", "core", "--source-url", "https://example.com/x.git", "--source-rev", "HEAD" } } },
+      { .kind = ACTION_REMOVE_DIR, .rm = { .dir = ".st/spn/packages" } },
+      { .kind = ACTION_RUN_CLI, .cli = { "build" } },
+      { .kind = ACTION_VERIFY_EVENT, .verify_event = { .event = SPN_EVENT_SYNC_STALE } },
+    },
+  },
+  {
     .name = "index_unreachable",
     .project = "test/integration/fixtures/deps/index/binary_static",
     .actions = {

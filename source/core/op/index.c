@@ -69,24 +69,43 @@ static spn_err_t read_marker(spn_ctx_t* ctx, sp_mem_t mem, spn_index_info_t* ind
   return SPN_OK;
 }
 
+static spn_err_t refresh(spn_op_t* op, sp_mem_t mem, spn_index_info_t* index, sp_str_t* rev, spn_git_failure_t* failure) {
+  spn_git_cache_t* git = &op->ctx->caches.git;
+  sp_str_t tip = sp_zero;
+  spn_err_t err = si_git_tip(index->remote, mem, index->git.url, index->backoff, &op->cancelled, &tip, failure);
+  if (!err) {
+    bool fetching = false;
+    spn_git_checkout_t* checkout = spn_git_cache_checkout(git, (spn_git_checkout_id_t) { .url = index->git.url, .rev = tip }, &fetching);
+    err = spn_git_checkout_ensure(git, checkout, &op->cancelled);
+    *failure = checkout->failure;
+  }
+
+  if (!err) {
+    si_index_tip_save(index, tip);
+    *rev = tip;
+  }
+  else if (failure->kind != SPN_GIT_CANCELLED) {
+    si_index_tip_hold(index);
+  }
+  return err;
+}
+
 spn_err_t si_place_index(spn_op_t* op, sp_mem_t mem, const spn_lock_t* held, spn_index_info_t* index, si_index_place_t* place) {
   spn_ctx_t* ctx = op->ctx;
   switch (index->protocol) {
     case SPN_INDEX_PROTOCOL_GIT: {
       sp_str_t rev = si_index_pin(index, held);
-      bool announced = false;
       if (sp_str_empty(rev)) {
-        si_index_tip_t tip = si_index_tip_plan(mem, index, false);
+        si_index_tip_t tip = si_index_tip_plan(mem, index);
         rev = tip.rev;
         if (tip.fetch) {
           spn_event_buffer_push(ctx->events, (spn_event_t) {
             .kind = SPN_EVENT_SYNC,
             .sync = { .name = index->name.str, .url = index->git.url },
           });
-          announced = true;
 
           spn_git_failure_t failure = sp_zero;
-          if (si_index_tip_fetch(mem, index, &op->cancelled, &rev, &failure)) {
+          if (refresh(op, mem, index, &rev, &failure)) {
             if (sp_str_empty(tip.rev) || failure.kind == SPN_GIT_CANCELLED) {
               return report(ctx, index, &failure);
             }
@@ -103,7 +122,7 @@ spn_err_t si_place_index(spn_op_t* op, sp_mem_t mem, const spn_lock_t* held, spn
 
       bool fetching = false;
       spn_git_checkout_t* checkout = spn_git_cache_checkout(&ctx->caches.git, (spn_git_checkout_id_t) { .url = index->git.url, .rev = rev }, &fetching);
-      if (fetching && !announced) {
+      if (fetching) {
         spn_event_buffer_push(ctx->events, (spn_event_t) {
           .kind = SPN_EVENT_SYNC,
           .sync = { .name = index->name.str, .url = index->git.url },
@@ -170,7 +189,7 @@ spn_err_t si_place_indexes(spn_op_t* op, sp_mem_t mem, const spn_lock_t* held, s
   return SPN_OK;
 }
 
-spn_err_t si_read_index_tips(spn_op_t* op, sp_da(spn_index_info_t*) indexes) {
+spn_err_t si_refresh_indexes(spn_op_t* op, sp_da(spn_index_info_t*) indexes) {
   spn_ctx_t* ctx = op->ctx;
   sp_da_for(indexes, it) {
     spn_index_info_t* index = indexes[it];
@@ -182,12 +201,9 @@ spn_err_t si_read_index_tips(spn_op_t* op, sp_da(spn_index_info_t*) indexes) {
       .sync = { .name = index->name.str, .url = index->git.url },
     });
 
-    sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
     sp_str_t rev = sp_zero;
     spn_git_failure_t failure = sp_zero;
-    spn_err_t err = si_index_tip_fetch(scratch.mem, index, &op->cancelled, &rev, &failure);
-    sp_mem_end_scratch(scratch);
-    if (err) {
+    if (refresh(op, op->mem, index, &rev, &failure)) {
       return report(ctx, index, &failure);
     }
   }
@@ -304,7 +320,7 @@ spn_err_t si_op_sync_indexes(spn_op_t* op) {
     }
     sp_da_push(indexes, &ctx->indexes[it]);
   }
-  return si_read_index_tips(op, indexes);
+  return si_refresh_indexes(op, indexes);
 }
 
 spn_op_t* spn_sync_indexes(spn_ctx_t* ctx, spn_sync_request_t request) {

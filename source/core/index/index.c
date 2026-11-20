@@ -7,7 +7,6 @@
 #include "index/types.h"
 
 #include "error/error.h"
-#include "event/event.h"
 #include "external/git.h"
 #include "external/git_cli.h"
 #include "git/remote.h"
@@ -235,22 +234,7 @@ spn_err_t si_index_publish(spn_index_info_t* index, spn_index_release_t* rel, sp
       }
 
       spn_try(publish_git(index, rel, cancelled));
-
-      sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-      sp_str_t rev = si_index_tip_plan(scratch.mem, index, true).rev;
-      bool cached = !sp_str_empty(rev);
-      spn_git_failure_t failure = sp_zero;
-      spn_err_t unread = si_index_tip_fetch(scratch.mem, index, cancelled, &rev, &failure);
-      sp_mem_end_scratch(scratch);
-      if (unread && failure.kind == SPN_GIT_CANCELLED) {
-        return SPN_ERR_CANCELLED;
-      }
-      if (unread && cached) {
-        spn_event_buffer_push(spn.events, (spn_event_t) {
-          .kind = SPN_EVENT_SYNC_STALE,
-          .sync = { .name = index->name.str, .url = spn_index_source(index) },
-        });
-      }
+      si_index_tip_expire(index);
       return SPN_OK;
     }
 
