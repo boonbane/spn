@@ -20,6 +20,7 @@
 #include "index/index.h"
 #include "index/marker.h"
 #include "index/tip.h"
+#include "lock/lock.h"
 #include "op/op.h"
 #include "paths/paths.h"
 #include "project/types.h"
@@ -313,8 +314,6 @@ static spn_err_t declare(spn_ctx_t* ctx, spn_path_t declared, spn_index_info_t* 
     spn_toml_write_str(&out.base, index->name.str);
     sp_io_write_cstr(&out.base, "\nurl = ", SP_NULLPTR);
     spn_toml_write_str(&out.base, index->git.url);
-    sp_io_write_cstr(&out.base, "\nformat = ", SP_NULLPTR);
-    spn_toml_write_str(&out.base, spn_index_format_to_str(index->format));
     if (!sp_str_empty(index->git.rev)) {
       sp_io_write_cstr(&out.base, "\nrev = ", SP_NULLPTR);
       spn_toml_write_str(&out.base, index->git.rev);
@@ -357,16 +356,11 @@ spn_err_t spn_op_add_index(spn_op_t* op) {
   };
   si_index_locate(&index, ctx->heap, &ctx->roots, spn_path_from_id(SPN_DIR_ID_INDEX));
 
-  sp_da(spn_index_info_t*) fetched = sp_da_new(ctx->mem, spn_index_info_t*);
-  sp_da_push(fetched, &index);
-  spn_try(si_sync_index_list(op, fetched, true));
-
-  index.format = spn_index_detect_format(&index);
-  if (request.global && spn_index_is_snapshot(&index) && spn_git_get_commit_full(ctx->heap, index.location.dir, sp_str_lit("HEAD"), &index.git.rev)) {
-    return spn_err_emit(ctx, (spn_err_union_t) {
-      .kind = SPN_ERR_INDEX_SYNC,
-      .index = { .name = name.str, .url = request.url },
-    });
+  spn_lock_t unpinned = spn_lock_new(op->mem);
+  si_index_place_t place = sp_zero;
+  spn_try(si_place_index(op, op->mem, &unpinned, &index, &place));
+  if (request.global) {
+    index.git.rev = place.git.rev;
   }
   spn_try(declare(ctx, request.global ? ctx->paths.config : ctx->project->paths.manifest, &index));
   spn_event_buffer_push(ctx->events, (spn_event_t) {

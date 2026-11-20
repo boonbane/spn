@@ -198,6 +198,26 @@ static const test_t tests [] = {
     },
   },
   {
+    .name = "index_add",
+    .project = "test/integration/fixtures/cli/workspace_manifests_index",
+    .copy = { "index/*" },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { .cmd = "index", .args = { "add", "index", "--name", "other" } } },
+      { .kind = ACTION_VERIFY_EVENT, .verify_event = { .event = SPN_EVENT_INDEX_ADDED } },
+      { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build" } },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
+    },
+  },
+  {
+    .name = "index_add_unmarked",
+    .project = "test/integration/fixtures/cli/workspace_manifests_index",
+    .copy = { "index/P/*" },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { .cmd = "index", .args = { "add", "index", "--name", "other" }, .rc = 1 } },
+      { .kind = ACTION_VERIFY_RESULT, .verify_result.err = SPN_ERR_INDEX_UNMARKED },
+    },
+  },
+  {
     .name = "unmarked_index",
     .project = "test/integration/fixtures/cli/workspace_manifests_index",
     .copy = { "index/P/*" },
