@@ -16,6 +16,20 @@
     } \
   } while (0)
 
+#define spn_cli_arch_opt \
+  { \
+    .name = "arch", \
+    .kind = SP_CLI_OPT_CHOICE, \
+    .summary = "Override target architecture", \
+    .placeholder = "ARCH", \
+    .ptr = &host.args.profile.arch, \
+    .choices = { \
+      { .name = "x86_64", .value = SPN_ARCH_X64 }, \
+      { .name = "aarch64", .value = SPN_ARCH_ARM64 }, \
+      { .name = "wasm32", .value = SPN_ARCH_WASM32 }, \
+    }, \
+  }
+
 #define spn_cli_target_opts \
   { \
     .name = "target", \
@@ -38,18 +52,7 @@
       { .name = "freestanding", .value = SPN_OS_FREESTANDING }, \
     }, \
   }, \
-  { \
-    .name = "arch", \
-    .kind = SP_CLI_OPT_CHOICE, \
-    .summary = "Override target architecture", \
-    .placeholder = "ARCH", \
-    .ptr = &host.args.profile.arch, \
-    .choices = { \
-      { .name = "x86_64", .value = SPN_ARCH_X64 }, \
-      { .name = "aarch64", .value = SPN_ARCH_ARM64 }, \
-      { .name = "wasm32", .value = SPN_ARCH_WASM32 }, \
-    }, \
-  }, \
+  spn_cli_arch_opt, \
   { \
     .name = "abi", \
     .kind = SP_CLI_OPT_CHOICE, \
@@ -84,6 +87,10 @@ typedef struct {
   sp_cli_choice_t os;
   sp_cli_choice_t arch;
   sp_cli_choice_t abi;
+  struct {
+    sp_str_t toolset;
+    sp_str_t sdk;
+  } msvc;
 } spn_cli_profile_t;
 
 typedef struct {

@@ -173,6 +173,18 @@ static const command_test_t commands [] = {
     .expect = { .rc = 1, .err = SPN_ERR_PROFILE_UNDEFINED },
   },
   {
+    .name = "msvc_needs_an_install",
+    .when.host = SPN_OS_LINUX,
+    .args = { "msvc", "-C", "." },
+    .expect = { .rc = 1, .err = SPN_ERR_TOOLCHAIN_NOT_INSTALLED },
+  },
+  {
+    .name = "msvc_arch_needs_no_abi",
+    .when.host = SPN_OS_LINUX,
+    .args = { "msvc", "-C", ".", "--arch", "aarch64" },
+    .expect = { .rc = 1, .err = SPN_ERR_TOOLCHAIN_NOT_INSTALLED },
+  },
+  {
     .name = "run_batch_plain",
     .project = "test/integration/fixtures/profile/batch",
     .copy = { "echo.cmd" },

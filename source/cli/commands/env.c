@@ -23,7 +23,7 @@ static struct {
   sp_cli_choice_t format;
 } args;
 
-#define selection_opts \
+#define profile_opt \
   { \
     .brief = 'p', \
     .name = "profile", \
@@ -31,7 +31,30 @@ static struct {
     .summary = "Profile whose toolchain to use", \
     .placeholder = "PROFILE", \
     .ptr = &host.args.profile.name, \
-  }, \
+  }
+
+#define format_opt \
+  { \
+    .name = "format", \
+    .kind = SP_CLI_OPT_CHOICE, \
+    .summary = "Shell syntax to print", \
+    .placeholder = "SHELL", \
+    .ptr = &args.format, \
+    .choices = { \
+      { .name = "sh", .value = FORMAT_SH }, \
+      { .name = "powershell", .value = FORMAT_POWERSHELL }, \
+    }, \
+  }
+
+#define command_arg \
+  { \
+    .name = "command", \
+    .arity = SP_CLI_ARG_REST, \
+    .summary = "Command to run, and its arguments", \
+  }
+
+#define selection_opts \
+  profile_opt, \
   { \
     .name = "toolchain", \
     .kind = SP_CLI_OPT_STR, \
@@ -336,22 +359,19 @@ static sp_cli_result_t run(sp_cli_t* cli) {
   return SP_CLI_OK;
 }
 
+static sp_cli_result_t msvc(sp_cli_t* cli) {
+  host.args.profile.toolchain = sp_str_lit("msvc");
+  host.args.profile.os.value = SPN_OS_WINDOWS;
+  host.args.profile.abi.value = SPN_ABI_MSVC;
+  return cli->rest[0] ? run(cli) : env(cli);
+}
+
 sp_cli_cmd_t spn_cmd_env = {
   .name = "env",
   .summary = "Print the environment that puts a profile's toolchain in a shell",
   .opts = {
     selection_opts,
-    {
-      .name = "format",
-      .kind = SP_CLI_OPT_CHOICE,
-      .summary = "Shell syntax to print",
-      .placeholder = "SHELL",
-      .ptr = &args.format,
-      .choices = {
-        { .name = "sh", .value = FORMAT_SH },
-        { .name = "powershell", .value = FORMAT_POWERSHELL },
-      },
-    },
+    format_opt,
   },
   .handler = env,
 };
@@ -363,11 +383,35 @@ sp_cli_cmd_t spn_cmd_run = {
     selection_opts,
   },
   .args = {
-    {
-      .name = "command",
-      .arity = SP_CLI_ARG_REST,
-      .summary = "Command to run, and its arguments",
-    },
+    command_arg,
   },
   .handler = run,
+};
+
+sp_cli_cmd_t spn_cmd_msvc = {
+  .name = "msvc",
+  .summary = "Print the MSVC environment, or run a command in it",
+  .opts = {
+    {
+      .name = "toolset",
+      .kind = SP_CLI_OPT_STR,
+      .summary = "Toolset generation, year or version (v143, 2022, 14.44)",
+      .placeholder = "TOOLSET",
+      .ptr = &host.args.profile.msvc.toolset,
+    },
+    {
+      .name = "sdk",
+      .kind = SP_CLI_OPT_STR,
+      .summary = "Windows SDK version (10.0.22621)",
+      .placeholder = "VERSION",
+      .ptr = &host.args.profile.msvc.sdk,
+    },
+    spn_cli_arch_opt,
+    profile_opt,
+    format_opt,
+  },
+  .args = {
+    command_arg,
+  },
+  .handler = msvc,
 };
