@@ -36,6 +36,6 @@ sp_test_each(sdk_detect, env, test_t, tests) {
 
   spn_path_roots_t roots = sp_zero;
   spn_sdk_host_t host = spn_sdk_detect(mem, &roots, &env, it->host);
-  sp_expect_eq(t, 0u, (u32)sp_da_size(host.msvc));
+  sp_expect_eq(t, 0u, (u32)sp_da_size(host.msvc.toolsets));
   return test_check_path(t, host.macos.root, it->expect.macos);
 }

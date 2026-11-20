@@ -27,7 +27,7 @@ static void bind_target(spn_toolchain_catalog_t* catalog, spn_toolchain_info_t* 
     sp_da_push(info->rows, row);
     return;
   }
-  if (spn_sdk_default(&catalog->sdks, target.triple, &row.sdk)) {
+  if (spn_sdk_default(catalog->mem, &catalog->sdks, target.triple, &row.sdk)) {
     sp_da_push(info->rows, row);
     return;
   }
@@ -77,7 +77,7 @@ static void push_stock(spn_toolchain_catalog_t* catalog, spn_toolchain_info_t* i
   }
   spn_toolchain_target_t stock = { .triple = host, .sanitizers = stock_sanitizers(decl->driver, host) };
   spn_sdk_t sdk = sp_zero;
-  if ((spn_toolchain_driver_caps(decl->driver) & SPN_CC_CAP_HOST_SYSROOT) && spn_sdk_served(&catalog->sdks, catalog->host, host, &sdk)) {
+  if ((spn_toolchain_driver_caps(decl->driver) & SPN_CC_CAP_HOST_SYSROOT) && spn_sdk_served(catalog->mem, &catalog->sdks, catalog->host, host, &sdk)) {
     sp_da_push(info->rows, ((spn_toolchain_row_t) { .triple = host, .sdk = sdk, .sanitizers = stock.sanitizers }));
     return;
   }
@@ -98,7 +98,7 @@ static void push_hosted(spn_toolchain_info_t* info, spn_toolchain_catalog_t* cat
         if (own) {
           row.sanitizers = stock_sanitizers(driver, row.triple);
         }
-        if (spn_sdk_served(&catalog->sdks, catalog->host, row.triple, &row.sdk)) {
+        if (spn_sdk_served(catalog->mem, &catalog->sdks, catalog->host, row.triple, &row.sdk)) {
           push_row(info, row);
         }
       }
@@ -164,7 +164,7 @@ static spn_toolchain_support_t bind_support(spn_toolchain_catalog_t* catalog, co
     case SPN_TOOLCHAIN_SOURCE_DETECTED: {
       switch (decl->detect) {
         case SPN_TOOLCHAIN_DETECT_MSVC: {
-          if (sp_da_empty(catalog->sdks.msvc)) {
+          if (sp_da_empty(catalog->sdks.msvc.toolsets)) {
             return (spn_toolchain_support_t) { .kind = SPN_TOOLCHAIN_SUPPORT_NONE, .err = SPN_ERR_TOOLCHAIN_NOT_INSTALLED };
           }
           return (spn_toolchain_support_t) { .kind = SPN_TOOLCHAIN_SUPPORT_DETECTED };

@@ -134,6 +134,7 @@ set(SPN_CORE_SOURCES
   core/pkg/load.c
   core/toolchain/catalog.c
   core/toolchain/linker.c
+  core/toolchain/msvc.c
   core/toolchain/probe.c
   core/toolchain/search.c
   core/toolchain/provision.c

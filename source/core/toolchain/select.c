@@ -51,7 +51,7 @@ static reach_kind_t absence(const spn_toolchain_catalog_t* catalog, const spn_to
     return REACH_DROPPED;
   }
   spn_sdk_t sdk = sp_zero;
-  if (spn_toolchain_driver_retargets(toolchain->driver) && !spn_sdk_served(&catalog->sdks, catalog->host, triple, &sdk)) {
+  if (spn_toolchain_driver_retargets(toolchain->driver) && !spn_sdk_served(catalog->mem, &catalog->sdks, catalog->host, triple, &sdk)) {
     return REACH_UNSERVED;
   }
   return REACH_UNLISTED;

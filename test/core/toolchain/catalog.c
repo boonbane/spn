@@ -219,7 +219,7 @@ static const bind_test_t bind_tests [] = {
     .host = HOST_X64_WINDOWS,
     .sdks = { .msvc = { { { "/X" }, SPN_ARCH_X64 } } },
     .targets = { { TARGET_WIN_MSVC } },
-    .expect = { .rows = { { TARGET_WIN_MSVC, { SPN_SDK_MSVC, .vc = { "/X/crt/lib/x86_64" } } } } },
+    .expect = { .rows = { { TARGET_WIN_MSVC, { SPN_SDK_MSVC, .vc = { "/X/VC/Tools/MSVC/14.0/Lib/x64" } } } } },
   },
   {
     .name = "absent_msvc_without_a_host_sdk_is_unserved",
@@ -252,7 +252,7 @@ static const bind_test_t bind_tests [] = {
         { HOST_X64_LINUX, { SPN_SDK_HOST }, SAN_CLANG_LINUX },
         { HOST_X64_MACOS, { SPN_SDK_MACOS, { "/H" } } },
         { HOST_ARM_MACOS, { SPN_SDK_MACOS, { "/H" } } },
-        { TARGET_WIN_MSVC, { SPN_SDK_MSVC, .vc = { "/X/crt/lib/x86_64" } } },
+        { TARGET_WIN_MSVC, { SPN_SDK_MSVC, .vc = { "/X/VC/Tools/MSVC/14.0/Lib/x64" } } },
       },
     },
   },
@@ -326,7 +326,7 @@ static const bind_test_t bind_tests [] = {
     .driver = SPN_CC_DRIVER_CLANG,
     .host = HOST_X64_WINDOWS,
     .sdks = { .msvc = { { { "/X" }, SPN_ARCH_X64 } } },
-    .expect = { .rows = { { TARGET_WIN_MSVC, { SPN_SDK_MSVC, .vc = { "/X/crt/lib/x86_64" } } } } },
+    .expect = { .rows = { { TARGET_WIN_MSVC, { SPN_SDK_MSVC, .vc = { "/X/VC/Tools/MSVC/14.0/Lib/x64" } } } } },
   },
   {
     .name = "macos_host_with_sdk_reaches_both_arches_with_sanitizers",

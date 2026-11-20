@@ -8,6 +8,7 @@
 #include "paths/paths.h"
 #include "enum/enum.h"
 #include "intern/intern.h"
+#include "toolchain/msvc.h"
 #include "toolchain/toolchain.h"
 #include "triple/triple.h"
 
@@ -139,8 +140,22 @@ static spn_sdk_t fixture_sdk(sp_mem_t mem, fixture_sdk_t sdk) {
   sp_unreachable_return(sp_zero_struct(spn_sdk_t));
 }
 
+static sp_msvc_path_t fixture_msvc_path(const c8* str) {
+  sp_msvc_path_t path = sp_zero;
+  sp_str_copy_to(sp_cstr_as_str(str), path.data, SP_MSVC_PATH_MAX);
+  path.len = (u32)sp_cstr_len(str);
+  return path;
+}
+
+static sp_msvc_version_t fixture_msvc_version(const c8* str) {
+  sp_msvc_version_t version = sp_zero;
+  sp_str_copy_to(sp_cstr_as_str(str), version.str, SP_MSVC_VERSION_MAX);
+  version.str_len = (u32)sp_cstr_len(str);
+  return version;
+}
+
 static spn_sdk_host_t fixture_sdks(sp_mem_t mem, fixture_sdks_t sdks) {
-  spn_sdk_host_t host = { .msvc = sp_da_new(mem, spn_sdk_msvc_t) };
+  spn_sdk_host_t host = { .msvc = { .toolsets = sp_da_new(mem, spn_msvc_toolset_t), .kits = sp_da_new(mem, sp_msvc_sdk_t) } };
   if (sdks.macos.path) {
     host.macos = spn_sdk_at(mem, (spn_triple_t) HOST_ARM_MACOS, fixture_path(sdks.macos)).macos;
   }
@@ -148,7 +163,14 @@ static spn_sdk_host_t fixture_sdks(sp_mem_t mem, fixture_sdks_t sdks) {
     if (!sdks.msvc[it].root.path) {
       break;
     }
-    sp_da_push(host.msvc, spn_sdk_at(mem, (spn_triple_t) { sdks.msvc[it].arch, SPN_OS_WINDOWS, SPN_ABI_MSVC }, fixture_path(sdks.msvc[it].root)).msvc);
+    sp_msvc_arch_t arch = spn_msvc_arch(sdks.msvc[it].arch);
+    sp_msvc_path_t root = fixture_msvc_path(sdks.msvc[it].root.path);
+    sp_da_push(host.msvc.toolsets, ((spn_msvc_toolset_t) {
+      .vs = { .version.tools = fixture_msvc_version("14.0"), .install_path = root, .target = arch },
+      .preferred = true,
+      .compiler = true,
+    }));
+    sp_da_push(host.msvc.kits, ((sp_msvc_sdk_t) { .version = fixture_msvc_version("10.0"), .root = root, .arch = arch }));
   }
   return host;
 }
