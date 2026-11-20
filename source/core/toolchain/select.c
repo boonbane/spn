@@ -246,13 +246,22 @@ spn_err_t si_toolchain_select(spn_toolchain_catalog_t* catalog, spn_toolchain_qu
   switch (si_msvc_match(installs, target.arch, query.msvc, compiler, &pick)) {
     case SPN_MSVC_MATCH_OK: {
       sdk->msvc = si_sdk_from_msvc(catalog->mem, pick.kit, pick.toolset, target.arch);
-      if (compiler && !spn_path_empty(sdk->msvc.runtime.asan)) {
-        sp_for(st, si_sanitizer_count) {
-          if (SPN_SANITIZER_ADDRESS == 1u << st) {
-            si_da(spn_path_t)* files = &selection->row.files.sanitizers[st];
-            si_da_copy(catalog->mem, *files, *files);
-            si_da_push(catalog->mem, *files, sdk->msvc.runtime.asan);
-          }
+      si_da(spn_path_t) redist = installs->redist[pick.toolset - installs->toolsets];
+      spn_toolchain_files_t* files = &selection->row.files;
+      si_da_copy(catalog->mem, files->c, files->c);
+      si_da_for_value(redist, file) {
+        si_da_push(catalog->mem, files->c, file);
+      }
+      sp_for(st, si_sanitizer_count) {
+        si_da_copy(catalog->mem, files->sanitizers[st], files->sanitizers[st]);
+        if (compiler && SPN_SANITIZER_ADDRESS == 1u << st && !spn_path_empty(sdk->msvc.runtime.asan)) {
+          si_da_push(catalog->mem, files->sanitizers[st], sdk->msvc.runtime.asan);
+        }
+        if (si_da_empty(files->sanitizers[st])) {
+          continue;
+        }
+        si_da_for_value(redist, file) {
+          si_da_push(catalog->mem, files->sanitizers[st], file);
         }
       }
       return SPN_OK;

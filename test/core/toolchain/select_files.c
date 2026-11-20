@@ -11,6 +11,13 @@ typedef struct {
 
 static const test_t tests [] = {
   {
+    .name = "detected_install_lists_the_redist_of_the_selected_toolset",
+    .driver = SPN_CC_DRIVER_CLANG,
+    .sdks = { .msvc = { { { "/X" }, SPN_ARCH_X64, "14.44", .redist = { "/X/A", "/X/B" } }, { { "/Y" }, SPN_ARCH_X64, "14.29", .redist = { "/Y/A" } } } },
+    .toolset = "v142",
+    .expect.c = { "/Y/A" },
+  },
+  {
     .name = "msvc_driver_lists_the_asan_runtime_of_the_selected_toolset",
     .driver = SPN_CC_DRIVER_MSVC,
     .sdks = { .msvc = { { { "/X" }, SPN_ARCH_X64, "14.44" }, { { "/Y" }, SPN_ARCH_X64, "14.29" } } },
@@ -23,10 +30,19 @@ static const test_t tests [] = {
     .sdks = { .msvc = { { { "/X" }, SPN_ARCH_X64, "14.44" } } },
   },
   {
-    .name = "msvc_driver_on_an_explicit_sdk_lists_no_asan_runtime",
+    .name = "sanitizer_runtime_brings_the_redist_of_the_install",
+    .driver = SPN_CC_DRIVER_MSVC,
+    .sdks = { .msvc = { { { "/X" }, SPN_ARCH_X64, "14.44", .redist = { "/X/A" } } } },
+    .expect = {
+      .c = { "/X/A" },
+      .sanitizers = { { SPN_SANITIZER_ADDRESS, { "/X/VC/Tools/MSVC/14.44/bin/Hostx64/x64/clang_rt.asan_dynamic-x86_64.dll", "/X/A" } } },
+    },
+  },
+  {
+    .name = "explicit_sdk_lists_no_runtime",
     .driver = SPN_CC_DRIVER_MSVC,
     .sdk = { .path = "/S" },
-    .sdks = { .msvc = { { { "/X" }, SPN_ARCH_X64, "14.44" } } },
+    .sdks = { .msvc = { { { "/X" }, SPN_ARCH_X64, "14.44", .redist = { "/X/A" } } } },
   },
 };
 

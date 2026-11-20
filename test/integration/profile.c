@@ -148,6 +148,26 @@ static const test_t tests [] = {
     },
   },
   {
+    .name = "sanitizer_runtime_runs_on_a_bare_machine",
+    .project = "test/integration/fixtures/profile/runtime",
+    .when = { .sanitize = SPN_SANITIZER_ADDRESS, .lanes = { "msvc" } },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build", .args = { "-p", "asan" } } },
+      { .kind = ACTION_STAGE_BARE_RUN, .bare = { .file = profile_exe("asan", "main"), .expect = BARE_EXPECT_RUNS } },
+    },
+  },
+  {
+    .name = "shared_runtime_staged_beside_the_exe",
+    .project = "test/integration/fixtures/profile/runtime",
+    .when.lanes = { "msvc" },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build" } },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = staged_file("vcruntime140.dll") },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = staged_file("msvcp140.dll") },
+      { .kind = ACTION_STAGE_BARE_RUN, .bare = { .file = exe("main"), .expect = BARE_EXPECT_RUNS } },
+    },
+  },
+  {
     .name = "flags",
     .project = "test/integration/fixtures/profile/sanitize",
     .actions = {

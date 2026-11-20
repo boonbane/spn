@@ -55,6 +55,7 @@ typedef struct {
 } fixture_row_t;
 
 typedef struct {
+  const c8* c [FIXTURE_MAX_ARGS];
   struct {
     spn_sanitizer_t sanitizer;
     const c8* files [FIXTURE_MAX_ARGS];
@@ -66,6 +67,7 @@ typedef struct {
   spn_arch_t arch;
   const c8* version;
   bool bare;
+  const c8* redist [FIXTURE_MAX_ARGS];
 } fixture_msvc_t;
 
 typedef struct {
@@ -138,6 +140,14 @@ static spn_sdk_host_t fixture_sdks(sp_mem_t mem, fixture_sdks_t sdks) {
     sp_msvc_path_t root = fixture_msvc_path(sdks.msvc[it].root.path);
     si_da_push(mem, host.msvc.toolsets, ((sp_msvc_vs_t) { .version.tools = fixture_msvc_version(sdks.msvc[it].version ? sdks.msvc[it].version : "14.0"), .install_path = root, .target = arch, .preferred = true, .compiler = !sdks.msvc[it].bare }));
     si_da_push(mem, host.msvc.kits, ((sp_msvc_sdk_t) { .version = fixture_msvc_version("10.0"), .root = root, .arch = arch }));
+    si_da(spn_path_t) redist = sp_zero;
+    sp_carr_for(sdks.msvc[it].redist, at) {
+      if (!sdks.msvc[it].redist[at]) {
+        break;
+      }
+      si_da_push(mem, redist, ((spn_path_t) { .sub = sp_cstr_as_str(sdks.msvc[it].redist[at]) }));
+    }
+    si_da_push(mem, host.msvc.redist, redist);
   }
   return host;
 }
@@ -202,20 +212,29 @@ static sp_err_t fixture_check_rows(sp_test_t* t, sp_da(spn_toolchain_row_t) rows
   return SP_OK;
 }
 
+static sp_err_t fixture_check_paths(sp_test_t* t, si_da(spn_path_t) paths, const c8* const* expect) {
+  u32 count = 0;
+  while (count < FIXTURE_MAX_ARGS && expect[count]) {
+    count++;
+  }
+  sp_must_eq(t, count, (u32)si_da_size(paths));
+  sp_for(it, count) {
+    sp_expect_str_eq_c(t, paths[it].sub, expect[it]);
+  }
+  return SP_OK;
+}
+
 static sp_err_t fixture_check_files(sp_test_t* t, const spn_toolchain_files_t* files, const fixture_files_t* expect) {
+  static const c8* const none [FIXTURE_MAX_ARGS] = sp_zero;
+  sp_try(fixture_check_paths(t, files->c, expect->c));
   sp_for(slot, si_sanitizer_count) {
-    u32 at = 0;
-    while (at < si_sanitizer_count && (u32)expect->sanitizers[at].sanitizer != 1u << slot) {
-      at++;
+    const c8* const* listed = none;
+    sp_carr_for(expect->sanitizers, at) {
+      if ((u32)expect->sanitizers[at].sanitizer == 1u << slot) {
+        listed = expect->sanitizers[at].files;
+      }
     }
-    u32 count = 0;
-    if (at < si_sanitizer_count) {
-      sp_carr_detect_len(expect->sanitizers[at].files, count, expect->sanitizers[at].files[count]);
-    }
-    sp_must_eq(t, count, (u32)si_da_size(files->sanitizers[slot]));
-    sp_for(ft, count) {
-      sp_expect_str_eq_c(t, files->sanitizers[slot][ft].sub, expect->sanitizers[at].files[ft]);
-    }
+    sp_try(fixture_check_paths(t, files->sanitizers[slot], listed));
   }
   return SP_OK;
 }

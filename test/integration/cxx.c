@@ -110,7 +110,18 @@ static const test_t tests [] = {
     .name = "runtime_shared",
     .project = "test/integration/fixtures/cxx/runtime_shared",
     .copy = { "main.cpp" },
-    .when = { .cxx = true, .lanes = { "clang64", "mingw64", "ucrt64", "msvc" } },
+    .when = { .cxx = true, .lanes = { "msvc", "clang-msvc" } },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
+      { .kind = ACTION_STAGE_BARE_RUN, .bare = { .file = exe("main"), .expect = BARE_EXPECT_RUNS } },
+    },
+  },
+  {
+    .name = "runtime_shared_unstaged",
+    .project = "test/integration/fixtures/cxx/runtime_shared",
+    .copy = { "main.cpp" },
+    .when = { .cxx = true, .lanes = { "clang64", "mingw64", "ucrt64" } },
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
       { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
