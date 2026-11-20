@@ -121,8 +121,8 @@ sp_test_each(select_msvc, pin, test_t, tests, .setup = spn_test_ctx_setup) {
   if (!count) {
     return SP_OK;
   }
-  sp_da(spn_err_msvc_install_t) installed = errs[0].err.msvc.installed;
-  sp_must_eq(t, count, (u32)sp_da_size(installed));
+  si_da(spn_err_msvc_install_t) installed = errs[0].err.msvc.installed;
+  sp_must_eq(t, count, (u32)si_da_size(installed));
   sp_for(at, count) {
     sp_expect_str_eq_c(t, installed[at].version, it->expect.installed[at].version);
     sp_expect_str_eq_c(t, installed[at].generation, it->expect.installed[at].generation);

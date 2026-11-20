@@ -164,7 +164,7 @@ static spn_toolchain_support_t bind_support(spn_toolchain_catalog_t* catalog, co
     case SPN_TOOLCHAIN_SOURCE_DETECTED: {
       switch (decl->detect) {
         case SPN_TOOLCHAIN_DETECT_MSVC: {
-          if (sp_da_empty(catalog->sdks.msvc.toolsets)) {
+          if (si_da_empty(catalog->sdks.msvc.toolsets)) {
             return (spn_toolchain_support_t) { .kind = SPN_TOOLCHAIN_SUPPORT_NONE, .err = SPN_ERR_TOOLCHAIN_NOT_INSTALLED };
           }
           return (spn_toolchain_support_t) { .kind = SPN_TOOLCHAIN_SUPPORT_DETECTED };

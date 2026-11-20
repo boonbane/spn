@@ -135,18 +135,18 @@ static bool preferable(pin_t pin, const sp_msvc_vs_t* candidate, const sp_msvc_v
   return newer(version_of(sp_msvc_version_str(&candidate->version.tools)), version_of(sp_msvc_version_str(&best->version.tools)));
 }
 
-static void push_install(sp_da(spn_err_msvc_install_t)* list, spn_err_msvc_install_t install) {
-  sp_da_for(*list, it) {
+static void push_install(sp_mem_t mem, si_da(spn_err_msvc_install_t)* list, spn_err_msvc_install_t install) {
+  si_da_for(*list, it) {
     if (sp_str_equal((*list)[it].version, install.version)) {
       return;
     }
   }
-  sp_da_push(*list, install);
+  si_da_push(mem, *list, install);
 }
 
-sp_da(spn_err_msvc_install_t) si_msvc_installed_toolsets(sp_mem_t mem, const spn_msvc_installs_t* installs, spn_arch_t arch, bool compiler) {
-  sp_da(spn_err_msvc_install_t) list = sp_da_new(mem, spn_err_msvc_install_t);
-  sp_da_for(installs->toolsets, it) {
+si_da(spn_err_msvc_install_t) si_msvc_installed_toolsets(sp_mem_t mem, const spn_msvc_installs_t* installs, spn_arch_t arch, bool compiler) {
+  si_da(spn_err_msvc_install_t) list = sp_zero;
+  si_da_for(installs->toolsets, it) {
     const sp_msvc_vs_t* toolset = &installs->toolsets[it];
     if (toolset->target != si_msvc_arch(arch) || (compiler && !toolset->compiler)) {
       continue;
@@ -159,17 +159,17 @@ sp_da(spn_err_msvc_install_t) si_msvc_installed_toolsets(sp_mem_t mem, const spn
         install.generation = sp_cstr_as_str(generations[at].name);
       }
     }
-    push_install(&list, install);
+    push_install(mem, &list, install);
   }
   return list;
 }
 
-sp_da(spn_err_msvc_install_t) si_msvc_installed_sdks(sp_mem_t mem, const spn_msvc_installs_t* installs, spn_arch_t arch) {
-  sp_da(spn_err_msvc_install_t) list = sp_da_new(mem, spn_err_msvc_install_t);
-  sp_da_for(installs->kits, it) {
+si_da(spn_err_msvc_install_t) si_msvc_installed_sdks(sp_mem_t mem, const spn_msvc_installs_t* installs, spn_arch_t arch) {
+  si_da(spn_err_msvc_install_t) list = sp_zero;
+  si_da_for(installs->kits, it) {
     const sp_msvc_sdk_t* kit = &installs->kits[it];
     if (kit->arch == si_msvc_arch(arch)) {
-      push_install(&list, (spn_err_msvc_install_t) { .version = sp_str_copy(mem, sp_msvc_version_str(&kit->version)) });
+      push_install(mem, &list, (spn_err_msvc_install_t) { .version = sp_str_copy(mem, sp_msvc_version_str(&kit->version)) });
     }
   }
   return list;
@@ -190,7 +190,7 @@ spn_msvc_match_t si_msvc_match(const spn_msvc_installs_t* installs, spn_arch_t a
   pin_t sdk = parse_sdk(request.sdk);
 
   bool any_toolset = false;
-  sp_da_for(installs->toolsets, it) {
+  si_da_for(installs->toolsets, it) {
     const sp_msvc_vs_t* candidate = &installs->toolsets[it];
     if (candidate->target != target || (compiler && !candidate->compiler)) {
       continue;
@@ -205,7 +205,7 @@ spn_msvc_match_t si_msvc_match(const spn_msvc_installs_t* installs, spn_arch_t a
   }
 
   bool any_kit = false;
-  sp_da_for(installs->kits, it) {
+  si_da_for(installs->kits, it) {
     const sp_msvc_sdk_t* candidate = &installs->kits[it];
     if (candidate->arch != target) {
       continue;

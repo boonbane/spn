@@ -156,7 +156,7 @@ static sp_msvc_version_t fixture_msvc_version(const c8* str) {
 }
 
 static spn_sdk_host_t fixture_sdks(sp_mem_t mem, fixture_sdks_t sdks) {
-  spn_sdk_host_t host = { .msvc = { .toolsets = sp_da_new(mem, sp_msvc_vs_t), .kits = sp_da_new(mem, sp_msvc_sdk_t) } };
+  spn_sdk_host_t host = sp_zero;
   if (sdks.macos.path) {
     host.macos = spn_sdk_at(mem, (spn_triple_t) HOST_ARM_MACOS, fixture_path(sdks.macos)).macos;
   }
@@ -166,8 +166,8 @@ static spn_sdk_host_t fixture_sdks(sp_mem_t mem, fixture_sdks_t sdks) {
     }
     sp_msvc_arch_t arch = si_msvc_arch(sdks.msvc[it].arch);
     sp_msvc_path_t root = fixture_msvc_path(sdks.msvc[it].root.path);
-    sp_da_push(host.msvc.toolsets, ((sp_msvc_vs_t) { .version.tools = fixture_msvc_version(sdks.msvc[it].version ? sdks.msvc[it].version : "14.0"), .install_path = root, .target = arch, .preferred = true, .compiler = !sdks.msvc[it].bare }));
-    sp_da_push(host.msvc.kits, ((sp_msvc_sdk_t) { .version = fixture_msvc_version("10.0"), .root = root, .arch = arch }));
+    si_da_push(mem, host.msvc.toolsets, ((sp_msvc_vs_t) { .version.tools = fixture_msvc_version(sdks.msvc[it].version ? sdks.msvc[it].version : "14.0"), .install_path = root, .target = arch, .preferred = true, .compiler = !sdks.msvc[it].bare }));
+    si_da_push(mem, host.msvc.kits, ((sp_msvc_sdk_t) { .version = fixture_msvc_version("10.0"), .root = root, .arch = arch }));
   }
   return host;
 }

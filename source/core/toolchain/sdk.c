@@ -321,7 +321,7 @@ static sp_str_t xcrun_sdk(sp_mem_t mem) {
 }
 
 spn_sdk_host_t si_sdk_detect(sp_mem_t mem, const spn_path_roots_t* roots, sp_env_t* env, spn_triple_t host) {
-  spn_sdk_host_t sdks = { .msvc = { .toolsets = sp_da_new(mem, sp_msvc_vs_t), .kits = sp_da_new(mem, sp_msvc_sdk_t) } };
+  spn_sdk_host_t sdks = sp_zero;
   sp_str_t macos = sp_env_get(env, sp_str_lit("SPN_MACOS_SDK"));
   if (sp_str_empty(macos) && host.os == SPN_OS_MACOS) {
     macos = xcrun_sdk(mem);
@@ -339,10 +339,10 @@ spn_sdk_host_t si_sdk_detect(sp_mem_t mem, const spn_path_roots_t* roots, sp_env
         continue;
       }
       sp_for(at, found->num_installations) {
-        sp_da_push(sdks.msvc.toolsets, found->installations[at]);
+        si_da_push(mem, sdks.msvc.toolsets, found->installations[at]);
       }
       sp_for(at, found->num_sdks) {
-        sp_da_push(sdks.msvc.kits, found->sdks[at]);
+        si_da_push(mem, sdks.msvc.kits, found->sdks[at]);
       }
     }
     sp_mem_end_scratch(scratch);
