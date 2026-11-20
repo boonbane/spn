@@ -73,7 +73,6 @@ add_executable(core
   index/dir.c
   index/package.c
   index/pin.c
-  index/pins.c
   index/query.c
   index/publish.c
   index/release.c

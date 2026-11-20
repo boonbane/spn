@@ -69,7 +69,7 @@ static void emit_resolved(spn_resolve_query_t* query) {
   });
 }
 
-static spn_err_t resolve(sp_mem_t scratch, spn_op_t* op, const spn_lock_t* lock) {
+static spn_err_t resolve(sp_mem_t scratch, spn_op_t* op, const spn_lock_t* lock, si_da(si_index_place_t) placed) {
   spn_session_t* session = op->session;
   spn_ctx_t* ctx = session->ctx;
   spn_event_buffer_push(spn.events, (spn_event_t) {
@@ -86,7 +86,7 @@ static spn_err_t resolve(sp_mem_t scratch, spn_op_t* op, const spn_lock_t* lock)
   spn_resolve_query_t query = sp_zero_initialize();
   while (true) {
     spn_index_cache_t index = sp_zero;
-    spn_index_cache_init(&index, session->mem, ctx->intern, &ctx->roots, &ctx->indexes);
+    si_index_cache_init(&index, session->mem, ctx->intern, &ctx->roots, placed);
 
     spn_resolver_t resolver = {
       .mem = spn.mem,
@@ -149,9 +149,9 @@ static spn_err_t resolve(sp_mem_t scratch, spn_op_t* op, const spn_lock_t* lock)
   return SPN_OK;
 }
 
-spn_err_t spn_resolve(spn_op_t* op, const spn_lock_t* lock) {
+spn_err_t si_resolve(spn_op_t* op, const spn_lock_t* lock, si_da(si_index_place_t) placed) {
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  spn_err_t err = resolve(scratch.mem, op, lock);
+  spn_err_t err = resolve(scratch.mem, op, lock, placed);
   sp_mem_end_scratch(scratch);
   return err;
 }

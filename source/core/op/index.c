@@ -14,6 +14,8 @@
 
 #include "event/event.h"
 #include "external/wasm/wasm.h"
+#include "git/cache.h"
+#include "git/remote.h"
 #include "git/url.h"
 #include "index/index.h"
 #include "op/op.h"
@@ -140,6 +142,45 @@ spn_err_t si_sync_index_list(spn_op_t* op, sp_da(spn_index_info_t*) indexes, boo
     return report(ctx, job->index, &job->failure);
   }
 
+  return SPN_OK;
+}
+
+spn_err_t si_place_indexes(spn_op_t* op, sp_mem_t mem, const spn_lock_t* held, si_da(si_index_place_t)* placed) {
+  spn_ctx_t* ctx = op->ctx;
+  sp_da_for(ctx->indexes, it) {
+    spn_index_info_t* index = &ctx->indexes[it];
+    if (!spn_index_is_snapshot(index)) {
+      si_da_push(mem, *placed, ((si_index_place_t) { .format = index->format, .at = index->location.at, .dir = index->location.dir }));
+      continue;
+    }
+
+    sp_str_t rev = si_index_pin(index, held);
+    spn_git_failure_t failure = sp_zero;
+    if (sp_str_empty(rev) && si_git_tip(index->remote, mem, index->git.url, index->backoff, &op->cancelled, &rev, &failure)) {
+      return report(ctx, index, &failure);
+    }
+
+    bool fetching = false;
+    spn_git_checkout_t* checkout = spn_git_cache_checkout(&ctx->caches.git, (spn_git_checkout_id_t) { .url = index->git.url, .rev = rev }, &fetching);
+    if (fetching) {
+      spn_event_buffer_push(ctx->events, (spn_event_t) {
+        .kind = SPN_EVENT_SYNC,
+        .sync = {
+          .name = index->name.str,
+          .url = index->git.url,
+        }});
+    }
+    if (spn_git_checkout_ensure(&ctx->caches.git, checkout, &op->cancelled)) {
+      return report(ctx, index, &checkout->failure);
+    }
+
+    si_da_push(mem, *placed, ((si_index_place_t) {
+      .format = index->format,
+      .at = spn_path_at(&ctx->roots, checkout->path),
+      .dir = spn_path_str(&ctx->roots, mem, checkout->path),
+      .git = { .url = index->git.url, .rev = rev },
+    }));
+  }
   return SPN_OK;
 }
 

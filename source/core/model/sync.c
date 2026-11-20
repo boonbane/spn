@@ -13,9 +13,7 @@
 #include "core/types.h"
 #include "git/cache.h"
 #include "git/patch.h"
-#include "git/remote.h"
 #include "hash/digest/digest.h"
-#include "index/index.h"
 #include "lazy/lazy.h"
 #include "lock/lock.h"
 #include "model/resolve.h"
@@ -590,35 +588,6 @@ static spn_lock_root_t pinned_root(spn_pkg_root_t root) {
   return (spn_lock_root_t) { .url = root.git.url, .rev = root.git.rev, .dir = root.git.dir };
 }
 
-spn_err_t si_sync_index_pins(spn_ctx_t* ctx, sp_atomic_s32_t* cancelled, const spn_lock_t* kept, spn_lock_t* lock) {
-  sp_da_for(ctx->indexes, it) {
-    spn_index_info_t* index = &ctx->indexes[it];
-    if (!spn_index_is_snapshot(index)) {
-      continue;
-    }
-
-    sp_str_t rev = si_index_pin(index, kept);
-    if (sp_str_empty(rev)) {
-      spn_git_failure_t failure = sp_zero;
-      if (si_git_tip(index->remote, ctx->heap, index->git.url, index->backoff, cancelled, &rev, &failure)) {
-        return report_git(ctx, index->name, index->git.url, &failure);
-      }
-    }
-    if (sp_str_empty(index->git.rev)) {
-      spn_lock_pin_index(lock, (spn_lock_index_t) { .name = index->name, .url = index->git.url, .rev = rev });
-    }
-
-    spn_pkg_root_t tree = { .kind = SPN_PKG_ROOT_GIT, .git = { .url = index->git.url, .rev = rev } };
-    spn_path_t dir = sp_zero;
-    bool fetched = false;
-    spn_try(materialize_tree(ctx, index->name, tree, cancelled, &dir, &fetched));
-    index->location.at = spn_path_at(&ctx->roots, dir);
-    index->location.dir = spn_path_str(&ctx->roots, ctx->heap, dir);
-    index->location.rev = rev;
-  }
-  return SPN_OK;
-}
-
 static spn_err_t relock(sp_mem_t scratch, spn_session_t* session, const spn_lock_t* held, const spn_lock_t* kept, spn_lock_t* lock, bool* changed) {
   spn_ctx_t* ctx = session->ctx;
 
@@ -699,12 +668,21 @@ spn_err_t si_resolve_and_sync_pins(spn_op_t* op, const spn_lock_t* held, const s
   sp_da_for(kept->entries, it) {
     spn_lock_insert(lock, kept->entries[it]);
   }
-  spn_try(si_sync_index_pins(ctx, &op->cancelled, kept, lock));
+
+  si_da(si_index_place_t) placed = sp_zero;
+  spn_try(si_place_indexes(op, session->mem, kept, &placed));
+  si_da_for(placed, it) {
+    const spn_index_info_t* index = &ctx->indexes[it];
+    si_index_place_t place = placed[it];
+    if (!sp_str_empty(place.git.rev) && sp_str_empty(index->git.rev)) {
+      spn_lock_pin_index(lock, (spn_lock_index_t) { .name = index->name, .url = place.git.url, .rev = place.git.rev });
+    }
+  }
 
   bool changed = false;
   bool reresolve = sp_zero;
   do {
-    spn_try(spn_resolve(op, lock));
+    spn_try(si_resolve(op, lock, placed));
 
     sp_mem_arena_marker_t picking = sp_mem_begin_scratch();
     spn_err_t relocked = relock(picking.mem, session, held, kept, lock, &changed);

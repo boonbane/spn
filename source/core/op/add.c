@@ -7,7 +7,6 @@
 #include "index/types.h"
 #include "intern/intern.h"
 #include "lock/lock.h"
-#include "model/sync.h"
 #include "op/op.h"
 #include "paths/paths.h"
 #include "spn/host.h"
@@ -50,12 +49,12 @@ static site_t find_site(spn_toml_edit_t* edit, sp_mem_t mem, sp_str_t table, sp_
   };
 }
 
-static spn_err_t add(spn_ctx_t* ctx, spn_add_request_t request, spn_semver_range_t range) {
+static spn_err_t add(spn_ctx_t* ctx, spn_add_request_t request, spn_semver_range_t range, si_da(si_index_place_t) placed) {
 
   sp_intern_str_t name = sp_intern(ctx->intern, request.name);
 
   spn_index_cache_t cache = sp_zero;
-  spn_index_cache_init(&cache, ctx->heap, ctx->intern, &ctx->roots, &ctx->indexes);
+  si_index_cache_init(&cache, ctx->heap, ctx->intern, &ctx->roots, placed);
 
   spn_index_pkg_t* pkg = SP_NULLPTR;
   spn_err_union_t err = sp_zero;
@@ -159,10 +158,10 @@ spn_err_t si_op_add(spn_op_t* op) {
   if (spn_lock_load(op->mem, ctx->intern, &ctx->roots, ctx->project->paths.lock, &held, &unreadable)) {
     return spn_err_emit(ctx, unreadable);
   }
-  spn_lock_t pinned = spn_lock_new(op->mem);
-  spn_try(si_sync_index_pins(ctx, &op->cancelled, &held, &pinned));
+  si_da(si_index_place_t) placed = sp_zero;
+  spn_try(si_place_indexes(op, op->mem, &held, &placed));
 
-  return add(ctx, request, range);
+  return add(ctx, request, range, placed);
 }
 
 spn_op_t* spn_add_dependency(spn_ctx_t* ctx, spn_add_request_t request) {
