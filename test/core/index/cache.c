@@ -121,8 +121,5 @@ sp_test_each(index_cache, get_package, cache_test_t, tests, .setup = spn_test_ct
     spn_index_cache_get_package(&cache, request, &again, &diag);
     sp_must(t, again == pkg);
   }
-
-  sp_da_for(indexes, at) {
-  }
   return SP_OK;
 }
