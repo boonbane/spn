@@ -2,13 +2,13 @@
 title: Toolchains
 ---
 
-## Defaults
+## System toolchains
 
 ## Zig
 
 ## Probing
 
-## Bring your own
+## Custom toolchains
 
 ### [[toolchain]]
 

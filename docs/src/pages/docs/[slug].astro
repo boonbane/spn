@@ -13,7 +13,8 @@ const { doc, docs } = Astro.props
 const { Content } = await render(doc)
 
 const groups = Map.groupBy(docs, (doc) => doc.data.group)
-const outline = async (entry: typeof doc) => (await render(entry)).headings.filter((heading) => heading.depth === 2 || heading.depth === 3)
+// remark-gfm's footnotes section carries a visually hidden "Footnotes" h2, which doesn't belong in the outline.
+const outline = async (entry: typeof doc) => (await render(entry)).headings.filter((heading) => (heading.depth === 2 || heading.depth === 3) && heading.slug !== 'footnote-label')
 const outlines = new Map(await Promise.all(docs.map(async (entry) => [entry.id, await outline(entry)] as const)))
 ---
 
