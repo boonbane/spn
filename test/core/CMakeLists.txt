@@ -42,7 +42,6 @@ add_executable(core
   compiler/tools.c
   config/cache.c
   config/config.c
-  config/index.c
   config/net.c
   external/backoff.c
   external/git.c
@@ -78,7 +77,6 @@ add_executable(core
   index/query.c
   index/publish.c
   index/release.c
-  index/sync.c
   index/tip.c
   index/transaction.c
   install/harness.c
@@ -216,7 +214,7 @@ set_source_files_properties(manifest/lower/lower.c PROPERTIES COMPILE_DEFINITION
   "MANIFEST_DIR=\"test/core/manifest/lower/manifests\"")
 set_source_files_properties(pkg/load.c PROPERTIES COMPILE_DEFINITIONS
   "PKG_MANIFEST_DIR=\"test/core/pkg/manifests\"")
-set_source_files_properties(config/cache.c config/config.c config/index.c config/net.c PROPERTIES COMPILE_DEFINITIONS
+set_source_files_properties(config/cache.c config/config.c config/net.c PROPERTIES COMPILE_DEFINITIONS
   "CONFIG_DIR=\"test/core/config/configs\"")
 set_source_files_properties(
   toolchain/builtins.c

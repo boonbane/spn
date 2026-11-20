@@ -1,5 +1,0 @@
-[[index]]
-name = "A"
-url = "https://example.com/A.git"
-format = "manifests"
-rev = "R"

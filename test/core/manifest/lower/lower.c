@@ -1322,13 +1322,6 @@ static const test_t tests [] = {
         .name = "local",
         .path = "index",
         .protocol = SPN_INDEX_PROTOCOL_DIR,
-        .format = SPN_INDEX_FORMAT_MANIFESTS,
-        .kind = SPN_INDEX_KIND_WORKSPACE,
-      },
-      {
-        .name = "tree",
-        .url = "https://z",
-        .format = SPN_INDEX_FORMAT_MANIFESTS,
         .kind = SPN_INDEX_KIND_WORKSPACE,
       },
     },
@@ -2258,7 +2251,6 @@ sp_test_each(lower, cases, test_t, tests, .setup = spn_test_ctx_setup) {
     if (expected.url) sp_expect_str_eq_c(t, idx->protocol == SPN_INDEX_PROTOCOL_HTTP ? idx->http.url : idx->git.url, expected.url);
     if (expected.path) sp_expect_str_eq(t, idx->dir.path.sub, sp_fs_join_path(mem, ctx.dir.sub, sp_cstr_as_str(expected.path)));
     sp_expect_eq(t, (u32)expected.protocol, (u32)idx->protocol);
-    sp_expect_eq(t, (u32)expected.format, (u32)idx->format);
     sp_expect_eq(t, (u32)expected.kind, (u32)idx->kind);
   }
 

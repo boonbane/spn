@@ -567,7 +567,7 @@ static spn_err_union_t resolve_index_package(spn_resolver_t* resolver, spn_resol
 
   spn_index_pkg_t* pkg = SP_NULLPTR;
   spn_err_union_t err = sp_zero;
-  if (spn_index_cache_get_package(resolver->index, request->name, &pkg, &err)) {
+  if (si_index_cache_get_package(resolver->index, request->name, &pkg, &err)) {
     return err;
   }
   if (!pkg) {

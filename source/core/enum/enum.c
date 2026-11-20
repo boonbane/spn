@@ -949,14 +949,3 @@ sp_str_t spn_index_format_to_str(spn_index_format_t format) {
 
   SP_UNREACHABLE_RETURN(sp_str_lit(""));
 }
-
-spn_index_format_t spn_index_format_from_str(sp_str_t str) {
-  if (sp_str_equal_cstr(str, "releases")) {
-    return SPN_INDEX_FORMAT_RELEASES;
-  }
-  if (sp_str_equal_cstr(str, "manifests")) {
-    return SPN_INDEX_FORMAT_MANIFESTS;
-  }
-
-  SP_UNREACHABLE_RETURN(SPN_INDEX_FORMAT_RELEASES);
-}

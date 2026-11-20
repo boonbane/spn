@@ -162,7 +162,7 @@ spn_err_t si_op_add(spn_op_t* op) {
     si_index_cache_init(&cache, ctx->heap, ctx->intern, &ctx->roots, placed);
 
     spn_err_union_t err = sp_zero;
-    if (spn_index_cache_get_package(&cache, sp_intern(ctx->intern, request.name), &pkg, &err)) {
+    if (si_index_cache_get_package(&cache, sp_intern(ctx->intern, request.name), &pkg, &err)) {
       return spn_err_emit(ctx, err);
     }
     spn_try(si_place_indexes(op, op->mem, &held, placed, cache.consulted, &grew));

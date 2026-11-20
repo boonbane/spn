@@ -490,18 +490,12 @@ spn_index_info_t si_index_lower(spn_toml_loader_t* ctx, u32 at, spn_index_kind_t
     protocol = SPN_INDEX_PROTOCOL_DIR;
   }
 
-  spn_index_format_t format = protocol == SPN_INDEX_PROTOCOL_DIR ? SPN_INDEX_FORMAT_MANIFESTS : SPN_INDEX_FORMAT_RELEASES;
-  if (!sp_opt_is_null(decl->format)) {
-    format = sp_opt_get(decl->format);
-  }
-
   sp_intern_str_t name = sp_intern(ctx->intern, decl->name);
   spn_index_info_t info = {
     .id = name.id,
     .name = name,
     .kind = kind,
     .protocol = protocol,
-    .format = format,
   };
 
   spn_toml_loader_push_key(ctx, "index");
