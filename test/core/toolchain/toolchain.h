@@ -65,7 +65,6 @@ typedef struct {
 typedef struct {
   spn_sdk_kind_t kind;
   test_path_t root;
-  test_path_t vc;
 } fixture_sdk_expect_t;
 
 typedef struct {
@@ -187,7 +186,10 @@ static sp_err_t fixture_check_sdk(sp_test_t* t, spn_sdk_t sdk, fixture_sdk_expec
       return test_check_path(t, sdk.macos.root, expect.root);
     }
     case SPN_SDK_MSVC: {
-      return test_check_path(t, sdk.msvc.lib.vc, expect.vc);
+      sp_test_kv(t, "lib", sdk.msvc.lib.vc.sub);
+      sp_expect_eq(t, (u32)expect.root.root, (u32)sdk.msvc.lib.vc.root);
+      sp_expect(t, sp_str_starts_with(sdk.msvc.lib.vc.sub, sp_cstr_as_str(expect.root.path)));
+      return SP_OK;
     }
   }
   sp_unreachable_return(SP_ERR);

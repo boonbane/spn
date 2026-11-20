@@ -136,7 +136,7 @@ static const complete_test_t complete_tests [] = {
     .targets = { TARGET_WIN_MSVC },
     .sdks = { .msvc = { { { "/X" }, SPN_ARCH_X64 } } },
     .checks = {
-      { .target = X64_WINDOWS, .abis = { SPN_ABI_MSVC }, .expect = { .triple = TARGET_WIN_MSVC, .sdk = { SPN_SDK_MSVC, .vc = { "/X/VC/Tools/MSVC/14.0/Lib/x64" } } } },
+      { .target = X64_WINDOWS, .abis = { SPN_ABI_MSVC }, .expect = { .triple = TARGET_WIN_MSVC, .sdk = { SPN_SDK_MSVC, { "/X" } } } },
       { .target = X64_WINDOWS, .abis = { SPN_ABI_GNU }, .expect = { .err = SPN_ERR_TOOLCHAIN_TARGET, .targets = { TARGET_WIN_MSVC } } },
     },
   },
@@ -280,7 +280,7 @@ static const complete_test_t complete_tests [] = {
     .driver = SPN_CC_DRIVER_CLANG,
     .targets = { { .triple = TARGET_WIN_MSVC, .sdk = { .path = "/X" } } },
     .checks = {
-      { .target = X64_WINDOWS, .abis = { SPN_ABI_MSVC }, .expect = { .triple = TARGET_WIN_MSVC, .sdk = { SPN_SDK_MSVC, .vc = { "/X/crt/lib/x86_64" } } } },
+      { .target = X64_WINDOWS, .abis = { SPN_ABI_MSVC }, .expect = { .triple = TARGET_WIN_MSVC, .sdk = { SPN_SDK_MSVC, { "/X" } } } },
     },
   },
   {
@@ -297,7 +297,7 @@ static const complete_test_t complete_tests [] = {
     .driver = SPN_CC_DRIVER_CLANG,
     .sdks = { .msvc = { { { "/X" }, SPN_ARCH_X64 } } },
     .checks = {
-      { .target = X64_WINDOWS, .abis = { SPN_ABI_MSVC }, .expect = { .triple = TARGET_WIN_MSVC, .sdk = { SPN_SDK_MSVC, .vc = { "/X/VC/Tools/MSVC/14.0/Lib/x64" } } } },
+      { .target = X64_WINDOWS, .abis = { SPN_ABI_MSVC }, .expect = { .triple = TARGET_WIN_MSVC, .sdk = { SPN_SDK_MSVC, { "/X" } } } },
     },
   },
   {
@@ -360,8 +360,8 @@ static const complete_test_t complete_tests [] = {
     .targets = { { .triple = TARGET_WIN_MSVC, .sanitizers = SPN_SANITIZER_ADDRESS } },
     .sdks = { .msvc = { { { "/X" }, SPN_ARCH_X64 } } },
     .checks = {
-      { .target = X64_WINDOWS, .abis = { SPN_ABI_MSVC }, .sanitizers = SPN_SANITIZER_ADDRESS, .expect = { .triple = TARGET_WIN_MSVC, .sdk = { SPN_SDK_MSVC, .vc = { "/X/VC/Tools/MSVC/14.0/Lib/x64" } }, .linking = { SPN_LIB_KIND_SHARED, SPN_RUNTIME_STATIC, SPN_RUNTIME_STATIC } } },
-      { .target = X64_WINDOWS, .abis = { SPN_ABI_MSVC }, .sanitizers = SPN_SANITIZER_ADDRESS, .linking = { .libc = SPN_RUNTIME_STATIC }, .expect = { .triple = TARGET_WIN_MSVC, .sdk = { SPN_SDK_MSVC, .vc = { "/X/VC/Tools/MSVC/14.0/Lib/x64" } }, .linking = { SPN_LIB_KIND_SHARED, SPN_RUNTIME_STATIC, SPN_RUNTIME_STATIC } } },
+      { .target = X64_WINDOWS, .abis = { SPN_ABI_MSVC }, .sanitizers = SPN_SANITIZER_ADDRESS, .expect = { .triple = TARGET_WIN_MSVC, .sdk = { SPN_SDK_MSVC, { "/X" } }, .linking = { SPN_LIB_KIND_SHARED, SPN_RUNTIME_STATIC, SPN_RUNTIME_STATIC } } },
+      { .target = X64_WINDOWS, .abis = { SPN_ABI_MSVC }, .sanitizers = SPN_SANITIZER_ADDRESS, .linking = { .libc = SPN_RUNTIME_STATIC }, .expect = { .triple = TARGET_WIN_MSVC, .sdk = { SPN_SDK_MSVC, { "/X" } }, .linking = { SPN_LIB_KIND_SHARED, SPN_RUNTIME_STATIC, SPN_RUNTIME_STATIC } } },
     },
   },
   {

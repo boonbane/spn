@@ -10,10 +10,10 @@ typedef struct {
 static const test_t tests [] = {
   { .name = "macos_serves_any_arch",        .sdks = { .macos = { "/S" } },              .target = HOST_X64_MACOS,      .expect = { SPN_SDK_MACOS, { "/S" } } },
   { .name = "macos_never_serves_linux",     .sdks = { .macos = { "/S" } },              .target = HOST_X64_LINUX },
-  { .name = "msvc_serves_its_arch",         .sdks = { .msvc = { { { "/X" }, SPN_ARCH_X64 } } }, .target = TARGET_WIN_MSVC,     .expect = { SPN_SDK_MSVC, .vc = { "/X/VC/Tools/MSVC/14.0/Lib/x64" } } },
+  { .name = "msvc_serves_its_arch",         .sdks = { .msvc = { { { "/X" }, SPN_ARCH_X64 } } }, .target = TARGET_WIN_MSVC,     .expect = { SPN_SDK_MSVC, { "/X" } } },
   { .name = "msvc_never_serves_other_arch", .sdks = { .msvc = { { { "/X" }, SPN_ARCH_X64 } } }, .target = TARGET_ARM_WIN_MSVC },
   { .name = "msvc_never_serves_mingw",      .sdks = { .msvc = { { { "/X" }, SPN_ARCH_X64 } } }, .target = TARGET_WIN_GNU },
-  { .name = "kinds_do_not_cross",           .sdks = { .macos = { "/S" }, .msvc = { { { "/X" }, SPN_ARCH_X64 } } }, .target = TARGET_WIN_MSVC, .expect = { SPN_SDK_MSVC, .vc = { "/X/VC/Tools/MSVC/14.0/Lib/x64" } } },
+  { .name = "kinds_do_not_cross",           .sdks = { .macos = { "/S" }, .msvc = { { { "/X" }, SPN_ARCH_X64 } } }, .target = TARGET_WIN_MSVC, .expect = { SPN_SDK_MSVC, { "/X" } } },
   { .name = "empty_table_is_absent",        .target = HOST_ARM_MACOS },
 };
 

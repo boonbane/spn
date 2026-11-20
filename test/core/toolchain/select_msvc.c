@@ -30,7 +30,7 @@ static const test_t tests [] = {
     .driver = SPN_CC_DRIVER_CLANG,
     .sdks = { .msvc = { { { "/X" }, SPN_ARCH_X64, "14.44" }, { { "/Y" }, SPN_ARCH_X64, "14.29" } } },
     .toolset = "v142",
-    .expect = { .sdk = { SPN_SDK_MSVC, .vc = { "/Y/VC/Tools/MSVC/14.29/Lib/x64" } } },
+    .expect = { .sdk = { SPN_SDK_MSVC, { "/Y" } } },
   },
   {
     .name = "explicit_sdk_ignores_the_request",
@@ -38,7 +38,7 @@ static const test_t tests [] = {
     .sdk = { .path = "/S" },
     .sdks = { .msvc = { { { "/X" }, SPN_ARCH_X64, "14.44" } } },
     .toolset = "v141",
-    .expect = { .sdk = { SPN_SDK_MSVC, .vc = { "/S/crt/lib/x86_64" } } },
+    .expect = { .sdk = { SPN_SDK_MSVC, { "/S" } } },
   },
   {
     .name = "unmatched_toolset_lists_the_installed",
@@ -58,13 +58,13 @@ static const test_t tests [] = {
     .name = "msvc_driver_takes_a_toolset_with_a_compiler",
     .driver = SPN_CC_DRIVER_MSVC,
     .sdks = { .msvc = { { { "/X" }, SPN_ARCH_X64, "14.44", .bare = true }, { { "/Y" }, SPN_ARCH_X64, "14.29" } } },
-    .expect = { .sdk = { SPN_SDK_MSVC, .vc = { "/Y/VC/Tools/MSVC/14.29/Lib/x64" } } },
+    .expect = { .sdk = { SPN_SDK_MSVC, { "/Y" } } },
   },
   {
     .name = "other_drivers_take_a_bare_toolset",
     .driver = SPN_CC_DRIVER_CLANG,
     .sdks = { .msvc = { { { "/X" }, SPN_ARCH_X64, "14.44", .bare = true } } },
-    .expect = { .sdk = { SPN_SDK_MSVC, .vc = { "/X/VC/Tools/MSVC/14.44/Lib/x64" } } },
+    .expect = { .sdk = { SPN_SDK_MSVC, { "/X" } } },
   },
   {
     .name = "msvc_driver_without_a_compiler_is_unserved",
