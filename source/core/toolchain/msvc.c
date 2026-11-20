@@ -128,11 +128,20 @@ static bool pinned(pin_t pin, version_t version) {
   sp_unreachable_return(false);
 }
 
-static bool preferable(pin_t pin, const spn_msvc_toolset_t* candidate, const spn_msvc_toolset_t* best) {
+static bool preferable(pin_t pin, const sp_msvc_vs_t* candidate, const sp_msvc_vs_t* best) {
   if (pin.kind == PIN_ANY) {
     return candidate->preferred && !best->preferred;
   }
-  return newer(version_of(sp_msvc_version_str(&candidate->vs.version.tools)), version_of(sp_msvc_version_str(&best->vs.version.tools)));
+  return newer(version_of(sp_msvc_version_str(&candidate->version.tools)), version_of(sp_msvc_version_str(&best->version.tools)));
+}
+
+void spn_msvc_installs_add(spn_msvc_installs_t* installs, const sp_msvc_t* found) {
+  sp_for(it, found->num_installations) {
+    sp_da_push(installs->toolsets, found->installations[it]);
+  }
+  sp_for(it, found->num_sdks) {
+    sp_da_push(installs->kits, found->sdks[it]);
+  }
 }
 
 bool spn_msvc_toolset_valid(sp_str_t toolset) {
@@ -151,12 +160,12 @@ spn_msvc_match_t spn_msvc_match(const spn_msvc_installs_t* installs, spn_arch_t 
 
   bool any_toolset = false;
   sp_da_for(installs->toolsets, it) {
-    const spn_msvc_toolset_t* candidate = &installs->toolsets[it];
-    if (candidate->vs.target != target || (compiler && !candidate->compiler)) {
+    const sp_msvc_vs_t* candidate = &installs->toolsets[it];
+    if (candidate->target != target || (compiler && !candidate->compiler)) {
       continue;
     }
     any_toolset = true;
-    if (!pinned(toolset, version_of(sp_msvc_version_str(&candidate->vs.version.tools)))) {
+    if (!pinned(toolset, version_of(sp_msvc_version_str(&candidate->version.tools)))) {
       continue;
     }
     if (!pick->toolset || preferable(toolset, candidate, pick->toolset)) {

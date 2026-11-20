@@ -61,6 +61,7 @@ files = [
   "tools/patches/sp-ps-kill.patch",
   "tools/patches/sp-ps-wide.patch",
   "tools/patches/sp-test-dir-index.patch",
+  "tools/patches/sp-msvc-toolsets.patch",
 ]
 
 [patch.wamr]

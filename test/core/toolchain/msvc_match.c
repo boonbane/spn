@@ -143,14 +143,16 @@ static spn_arch_t arch_of(bool arm64) {
 
 sp_test_each(msvc_match, pick, test_t, tests) {
   sp_mem_t mem = sp_test_arena(t);
-  spn_msvc_installs_t installs = { .toolsets = sp_da_new(mem, spn_msvc_toolset_t), .kits = sp_da_new(mem, sp_msvc_sdk_t) };
+  spn_msvc_installs_t installs = { .toolsets = sp_da_new(mem, sp_msvc_vs_t), .kits = sp_da_new(mem, sp_msvc_sdk_t) };
   sp_carr_for(it->toolsets, at) {
     const toolset_t* toolset = &it->toolsets[at];
     if (!toolset->install) {
       break;
     }
-    sp_da_push(installs.toolsets, ((spn_msvc_toolset_t) {
-      .vs = { .version.tools = fixture_msvc_version(toolset->version), .install_path = fixture_msvc_path(toolset->install), .target = spn_msvc_arch(arch_of(toolset->arm64)) },
+    sp_da_push(installs.toolsets, ((sp_msvc_vs_t) {
+      .version.tools = fixture_msvc_version(toolset->version),
+      .install_path = fixture_msvc_path(toolset->install),
+      .target = spn_msvc_arch(arch_of(toolset->arm64)),
       .preferred = toolset->preferred,
       .compiler = !toolset->bare,
     }));
@@ -168,8 +170,8 @@ sp_test_each(msvc_match, pick, test_t, tests) {
   if (it->expect.match) {
     return SP_OK;
   }
-  sp_expect_str_eq_c(t, sp_msvc_path_str(&pick.toolset->vs.install_path), it->expect.install);
-  sp_expect_str_eq_c(t, sp_msvc_version_str(&pick.toolset->vs.version.tools), it->expect.toolset);
+  sp_expect_str_eq_c(t, sp_msvc_path_str(&pick.toolset->install_path), it->expect.install);
+  sp_expect_str_eq_c(t, sp_msvc_version_str(&pick.toolset->version.tools), it->expect.toolset);
   sp_expect_str_eq_c(t, sp_msvc_version_str(&pick.kit->version), it->expect.kit);
   return SP_OK;
 }

@@ -147,6 +147,7 @@ add_executable(core
   toolchain/linker.c
   toolchain/metaprogram.c
   toolchain/mirrors.c
+  toolchain/msvc_installs.c
   toolchain/msvc_match.c
   toolchain/msvc_request.c
   toolchain/parse.c

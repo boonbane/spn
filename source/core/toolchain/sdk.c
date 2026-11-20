@@ -274,7 +274,7 @@ static spn_sdk_t from_host(sp_mem_t mem, const spn_sdk_host_t* host, spn_triple_
       if (spn_msvc_match(&host->msvc, target.arch, sp_zero_s(spn_msvc_request_t), false, &pick)) {
         return none;
       }
-      return (spn_sdk_t) { .kind = SPN_SDK_MSVC, .msvc = spn_sdk_from_msvc(mem, pick.kit, &pick.toolset->vs, target.arch) };
+      return (spn_sdk_t) { .kind = SPN_SDK_MSVC, .msvc = spn_sdk_from_msvc(mem, pick.kit, pick.toolset, target.arch) };
     }
   }
   sp_unreachable_return(none);
@@ -329,14 +329,13 @@ static void detect_msvc(sp_mem_t mem, spn_msvc_installs_t* msvc) {
     if (sp_msvc_find_ex(spn_msvc_arch(arches[it]), found) != SP_MSVC_OK) {
       continue;
     }
-    sp_da_push(msvc->toolsets, ((spn_msvc_toolset_t) { .vs = found->installations[0], .preferred = true, .compiler = true }));
-    sp_da_push(msvc->kits, found->sdks[0]);
+    spn_msvc_installs_add(msvc, found);
   }
   sp_mem_end_scratch(scratch);
 }
 
 spn_sdk_host_t spn_sdk_detect(sp_mem_t mem, const spn_path_roots_t* roots, sp_env_t* env, spn_triple_t host) {
-  spn_sdk_host_t sdks = { .msvc = { .toolsets = sp_da_new(mem, spn_msvc_toolset_t), .kits = sp_da_new(mem, sp_msvc_sdk_t) } };
+  spn_sdk_host_t sdks = { .msvc = { .toolsets = sp_da_new(mem, sp_msvc_vs_t), .kits = sp_da_new(mem, sp_msvc_sdk_t) } };
   sp_str_t macos = sp_env_get(env, sp_str_lit("SPN_MACOS_SDK"));
   if (sp_str_empty(macos) && host.os == SPN_OS_MACOS) {
     macos = xcrun_sdk(mem);
