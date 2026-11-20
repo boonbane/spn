@@ -490,25 +490,16 @@ spn_index_info_t si_index_lower(spn_toml_loader_t* ctx, u32 at, spn_index_kind_t
     protocol = SPN_INDEX_PROTOCOL_DIR;
   }
 
-  spn_index_format_t format = protocol == SPN_INDEX_PROTOCOL_DIR ? SPN_INDEX_FORMAT_MANIFESTS : SPN_INDEX_FORMAT_RELEASES;
-  if (!sp_opt_is_null(decl->format)) {
-    format = sp_opt_get(decl->format);
-  }
-
   sp_intern_str_t name = sp_intern(ctx->intern, decl->name);
   spn_index_info_t info = {
     .id = name.id,
     .name = name,
     .kind = kind,
     .protocol = protocol,
-    .format = format,
   };
 
   spn_toml_loader_push_key(ctx, "index");
   spn_toml_loader_push_index(ctx, at);
-  if (protocol == SPN_INDEX_PROTOCOL_HTTP && format == SPN_INDEX_FORMAT_MANIFESTS) {
-    spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "format");
-  }
   switch (protocol) {
     case SPN_INDEX_PROTOCOL_GIT: {
       if (has_path) {
@@ -518,9 +509,6 @@ spn_index_info_t si_index_lower(spn_toml_loader_t* ctx, u32 at, spn_index_kind_t
         spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_MISSING_KEY, "url");
       } else if (!spn_git_url_valid(decl->url)) {
         spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "url");
-      }
-      if (kind == SPN_INDEX_KIND_USER && format == SPN_INDEX_FORMAT_MANIFESTS && !has_rev) {
-        spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_MISSING_KEY, "rev");
       }
       info.git.url = decl->url;
       info.git.rev = decl->rev;

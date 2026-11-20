@@ -49,6 +49,39 @@ static const test_t tests [] = {
     },
   },
   {
+    .name = "synced_index_unreachable",
+    .project = "test/integration/fixtures/deps/index/binary_static",
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { "index", .args = { "sync" } } },
+      { .kind = ACTION_REMOVE_DIR, .rm = { .dir = ".st/spn/packages" } },
+      { .kind = ACTION_RUN_CLI, .cli = { "build" } },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
+    },
+  },
+  {
+    .name = "published_index_unreachable",
+    .project = "test/integration/fixtures/deps/index/basic",
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { "build" } },
+      { .kind = ACTION_INIT_REPO },
+      { .kind = ACTION_RUN_CLI, .cli = { "publish", .args = { "--index", "core", "--source-url", "https://example.com/x.git", "--source-rev", "HEAD" } } },
+      { .kind = ACTION_REMOVE_DIR, .rm = { .dir = ".st/spn/packages" } },
+      { .kind = ACTION_RUN_CLI, .cli = { "build" } },
+      { .kind = ACTION_VERIFY_EVENT, .verify_event = { .event = SPN_EVENT_SYNC_STALE } },
+    },
+  },
+  {
+    .name = "pinned_index_unreachable",
+    .project = "test/integration/fixtures/cli/workspace_manifests_index",
+    .copy = { "index/*" },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { "build" } },
+      { .kind = ACTION_REMOVE_DIR, .rm = { .dir = ".st/index" } },
+      { .kind = ACTION_REMOVE_DIR, .rm = { .dir = "index" } },
+      { .kind = ACTION_RUN_CLI, .cli = { "build" } },
+    },
+  },
+  {
     .name = "index_unreachable",
     .project = "test/integration/fixtures/deps/index/binary_static",
     .actions = {
@@ -96,7 +129,7 @@ static const rebuild_test_t rebuilds [] = {
     .rebuilds = {
       {
         .change = {
-          .remove_files = { index_file(".git/spn-synced") },
+          .age_files = { index_file("spn-tip") },
           .remove_dirs = { ".st/spn/packages" },
         },
         .command = {
@@ -107,12 +140,12 @@ static const rebuild_test_t rebuilds [] = {
     },
   },
   {
-    .name = "stale_index_missing_package",
+    .name = "aged_tip_is_read",
     .project = "test/integration/fixtures/deps/index/binary_static",
     .first.args = { "build" },
     .rebuilds = {
       {
-        .change.remove_files = { index_file(".git/spn-synced"), index_file(".spn/index/spum.jsonl") },
+        .change.age_files = { index_file("spn-tip") },
         .command = {
           .args = { "build" },
           .expect.events = { { .event = SPN_EVENT_SYNC, .key = "name", .value = "core" } },
@@ -127,7 +160,7 @@ static const rebuild_test_t rebuilds [] = {
     .rebuilds = {
       {
         .change = {
-          .remove_files = { index_file(".git/spn-synced") },
+          .age_files = { index_file("spn-tip") },
           .remove_dirs = { ".st/spn/packages" },
         },
         .command = {

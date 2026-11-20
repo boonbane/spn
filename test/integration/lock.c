@@ -339,6 +339,17 @@ static const rebuild_test_t rebuilds [] = {
     },
   },
   {
+    .name = "update_moves_index_pin",
+    .project = "test/integration/fixtures/lock/index_pin",
+    .copy = { "index/*", "spn.lock" },
+    .first.args = { "update" },
+    .rebuilds = {
+      {
+        .command.args = { "build", "--locked" },
+      },
+    },
+  },
+  {
     .name = "update_refreshes_index",
     .project = "test/integration/fixtures/lock/pair",
     .first.args = { "build" },

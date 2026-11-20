@@ -40,7 +40,6 @@ sp_test_each(index, pin, test_t, tests, .setup = spn_test_ctx_setup) {
   spn_index_info_t index = {
     .id = name.id,
     .name = name,
-    .format = SPN_INDEX_FORMAT_MANIFESTS,
     .git = { .url = sp_str_lit("U"), .rev = sp_cstr_as_str(it->rev ? it->rev : "") },
   };
 

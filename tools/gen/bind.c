@@ -412,6 +412,9 @@ void gen_bind_type_impls(gen_t* g, sp_template_scope_t* scope) {
     sp_template_set(child, sp_str_lit("name"), type->name);
     sp_template_set(child, sp_str_lit("self"), gen_undecorated(g, type->name));
     sp_template_set(child, sp_str_lit("type"), struct_type(g, type->name));
+    if (!type->schema->as.properties.additional) {
+      sp_template_set(child, sp_str_lit("closed"), sp_str_lit("1"));
+    }
     sp_template_list(child, sp_str_lit("fields"));
     sp_da_for(type->fields, field) {
       bind_field(g, sp_template_push(child, sp_str_lit("fields")), &type->fields[field]);

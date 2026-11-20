@@ -330,9 +330,7 @@ spn_err_t spn_ctx_open(spn_ctx_t* ctx, spn_open_request_t request) {
 
   sp_da_for(ctx->indexes, it) {
     spn_index_info_t* index = &ctx->indexes[it];
-    if (!spn_index_is_snapshot(index)) {
-      si_index_locate(index, ctx->heap, &ctx->roots, spn_path_from_id(SPN_DIR_ID_INDEX));
-    }
+    si_index_locate(index, ctx->heap, &ctx->roots, spn_path_from_id(SPN_DIR_ID_INDEX));
     index->remote = remote;
     index->backoff = spn_net_default_backoff;
     if (!index->refresh) {

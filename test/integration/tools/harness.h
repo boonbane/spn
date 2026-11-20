@@ -198,6 +198,7 @@ typedef struct {
 
 typedef struct {
   path_t remove_files [SPN_TEST_MAX_CHANGES];
+  path_t age_files [SPN_TEST_MAX_CHANGES];
   rebuild_move_t moves [SPN_TEST_MAX_CHANGES];
   rebuild_write_t writes [SPN_TEST_MAX_CHANGES];
   const c8* remove_dirs [SPN_TEST_MAX_CHANGES];

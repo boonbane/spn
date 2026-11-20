@@ -9,7 +9,6 @@ source = ["main.c"]
 [[index]]
 name = "spam"
 url = "https://github.com/tspader/spam.git"
-format = "manifests"
 
 [deps.package]
 vulkan = "1.4.362"

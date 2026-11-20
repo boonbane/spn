@@ -56,7 +56,7 @@ static spn_err_t update(sp_mem_t scratch, spn_op_t* op) {
   sp_da_for(ctx->indexes, it) {
     sp_da_push(indexes, &ctx->indexes[it]);
   }
-  spn_try(si_sync_index_list(op, indexes, true));
+  spn_try(si_refresh_indexes(op, indexes));
 
   spn_lock_t lock = sp_zero;
   spn_try(si_resolve_and_sync_pins(op, &held, &kept, &lock));

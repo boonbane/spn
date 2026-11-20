@@ -2,6 +2,7 @@
 #include "caps.h"
 #include "enum/enum.h"
 #include "ctx/ctx.h"
+#include "index/marker.h"
 #include "toolchain/search.h"
 #include "triple/triple.h"
 
@@ -475,6 +476,15 @@ sp_err_t prepare_test(sp_test_t* t, fixture_t* fixture, const c8* project, const
   git_repo_init(fixture->paths.index);
   git(fixture->paths.index, "symbolic-ref", "HEAD", "refs/heads/main");
   git(fixture->paths.index, "config", "receive.denyCurrentBranch", "updateInstead");
+  spn_path_roots_t roots = sp_zero;
+  si_index_marker_t marker = {
+    .version = si_index_marker_version,
+    .format = SPN_INDEX_FORMAT_RELEASES,
+    .path = sp_str_lit(".spn/index"),
+  };
+  spn_err_union_t unwritten = sp_zero;
+  sp_must_eq(t, SPN_OK, si_index_marker_save(mem, &roots, (spn_path_t) { .sub = fixture->paths.index }, marker, &unwritten));
+  git_repo_stage_all(fixture->paths.index);
   git_repo_commit(fixture->paths.index, sp_str_lit("init"));
   setup_fixture_envrc(fixture, fixture->paths.storage, fixture->paths.toolchain, fixture->paths.config);
   setup_fixture_config(fixture);

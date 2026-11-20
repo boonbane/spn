@@ -11,7 +11,7 @@ void si_index_cache_init(spn_index_cache_t* cache, sp_mem_t mem, sp_intern_t* in
   sp_ht_init(mem, cache->packages);
 }
 
-spn_err_t spn_index_cache_get_package(spn_index_cache_t* cache, sp_intern_str_t name, spn_index_pkg_t** pkg, spn_err_union_t* err) {
+spn_err_t si_index_cache_get_package(spn_index_cache_t* cache, sp_intern_str_t name, spn_index_pkg_t** pkg, spn_err_union_t* err) {
   *pkg = SP_NULLPTR;
 
   spn_index_pkg_t** cached = sp_ht_getp(cache->packages, name.id);
@@ -23,6 +23,9 @@ spn_err_t spn_index_cache_get_package(spn_index_cache_t* cache, sp_intern_str_t 
   spn_index_pkg_t* package = SP_NULLPTR;
   si_da_for(cache->indexes, it) {
     cache->consulted = sp_max(cache->consulted, (u32)it + 1);
+    if (sp_str_empty(cache->indexes[it].dir)) {
+      break;
+    }
     spn_try(si_index_get_package(&cache->indexes[it], cache->mem, cache->intern, cache->roots, name, &package, err));
     if (package) {
       break;

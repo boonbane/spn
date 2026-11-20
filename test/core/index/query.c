@@ -32,6 +32,10 @@ static const query_test_t tests [] = {
     .name = "missing_file",
   },
   {
+    .name = "newer_only",
+    .fixture = "v_newer_only",
+  },
+  {
     .name = "empty_blob",
     .fixture = "empty",
     .expect = {
@@ -57,12 +61,11 @@ sp_test_each(index_query, get_package, query_test_t, tests, .setup = spn_test_ct
   sp_str_t location = sp_fs_join_path(mem, test_dir_str(t), sp_str_lit("index"));
   sp_fs_create_dir(location);
 
-  sp_str_t file = sp_fs_join_path(mem, location, sp_str_lit(".spn/index/spum.jsonl"));
+  sp_str_t file = sp_fs_join_path(mem, location, sp_str_lit("spum.jsonl"));
   if (it->fixture) {
     sp_str_t fixture = test_repo_path(mem, sp_test_format(t, "test/core/index/releases/{}.jsonl", sp_fmt_cstr(it->fixture)));
     sp_str_t blob = sp_zero;
     sp_fs_read(mem, fixture, &blob);
-    sp_fs_create_dir(sp_fs_parent_path(file));
     sp_fs_write(file, blob, SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms);
   }
 

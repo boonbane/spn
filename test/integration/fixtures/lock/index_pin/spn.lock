@@ -1,0 +1,6 @@
+version = 1
+
+[[index]]
+name = "I"
+url = "@fixture.dir@/index"
+rev = "R"

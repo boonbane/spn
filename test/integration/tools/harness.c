@@ -768,6 +768,15 @@ static sp_err_t apply_rebuild_change(sp_test_t* t, fixture_t* fixture, rebuild_c
     expect_no_path(t, fixture, path);
   }
 
+  sp_carr_for(change.age_files, it) {
+    if (change.age_files[it].kind == PATH_NONE) {
+      break;
+    }
+    sp_path_t path = sp_path_from_str(at(fixture, change.age_files[it]));
+    sp_sys_timespec_t old = { .tv_sec = 1 };
+    sp_must_eq(t, SP_OK, sp_sys_set_times_s(path.dir, path.sub, old, old));
+  }
+
   sp_carr_for(change.moves, it) {
     if (!change.moves[it].from) {
       break;

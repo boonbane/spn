@@ -1,0 +1,10 @@
+[package]
+name = "A"
+version = "1.0.0"
+
+[package.upstream]
+url = "@A.url@"
+commit = "@A.commit@"
+
+[package.publish]
+include = [{ from = "A.h" }]

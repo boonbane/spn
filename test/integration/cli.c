@@ -145,6 +145,8 @@ static const test_t tests [] = {
     .name = "index_path",
     .project = "test/integration/fixtures/deps/index/basic",
     .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { .cmd = "index", .args = { "path", "core" }, .rc = 1 } },
+      { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build" } },
       { .kind = ACTION_RUN_CLI, .cli = { .cmd = "index", .args = { "path", "core" } } },
       { .kind = ACTION_RUN_CLI, .cli = { .cmd = "index", .args = { "path" }, .rc = 1 } },
       { .kind = ACTION_RUN_CLI, .cli = { .cmd = "index", .args = { "path", "nope" }, .rc = 1 } },
@@ -189,12 +191,51 @@ static const test_t tests [] = {
     },
   },
   {
+    .name = "workspace_manifests_index",
+    .project = "test/integration/fixtures/cli/workspace_manifests_index",
+    .copy = { "index/*" },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build" } },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
+    },
+  },
+  {
+    .name = "index_add",
+    .project = "test/integration/fixtures/cli/workspace_manifests_index",
+    .copy = { "index/*" },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { .cmd = "index", .args = { "add", "index", "--name", "other" } } },
+      { .kind = ACTION_VERIFY_EVENT, .verify_event = { .event = SPN_EVENT_INDEX_ADDED } },
+      { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build" } },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
+    },
+  },
+  {
+    .name = "index_add_unmarked",
+    .project = "test/integration/fixtures/cli/workspace_manifests_index",
+    .copy = { "index/P/*" },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { .cmd = "index", .args = { "add", "index", "--name", "other" }, .rc = 1 } },
+      { .kind = ACTION_VERIFY_RESULT, .verify_result.err = SPN_ERR_INDEX_UNMARKED },
+    },
+  },
+  {
+    .name = "unmarked_index",
+    .project = "test/integration/fixtures/cli/workspace_manifests_index",
+    .copy = { "index/P/*" },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build", .rc = 1 } },
+      { .kind = ACTION_VERIFY_RESULT, .verify_result.err = SPN_ERR_INDEX_UNMARKED },
+    },
+  },
+  {
     .name = "user_dir_index",
     .project = "test/integration/fixtures/cli/user_dir_index",
     .config = "config.toml",
     .actions = {
-      { .kind = ACTION_CREATE_FILE, .create = { .file = ".home/config/spn/index/A/spn.toml", .from = "A/spn.toml" } },
-      { .kind = ACTION_CREATE_FILE, .create = { .file = ".home/config/spn/index/A/A.h", .from = "A/A.h" } },
+      { .kind = ACTION_CREATE_FILE, .create = { .file = ".home/config/spn/index/spn.index.toml", .from = "spn.index.toml" } },
+      { .kind = ACTION_CREATE_FILE, .create = { .file = ".home/config/spn/index/P/A/spn.toml", .from = "A/spn.toml" } },
+      { .kind = ACTION_CREATE_FILE, .create = { .file = ".home/config/spn/index/P/A/A.h", .from = "A/A.h" } },
       { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build" } },
       { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
     },

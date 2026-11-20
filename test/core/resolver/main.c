@@ -50,7 +50,8 @@ static resolve_result_t execute_fixture(const fx_config_t* config, const spn_pro
     }));
   }
 
-  si_da_push(mem, indexes, ((si_index_place_t) { .at = sp_path_from_str(dir), .dir = dir }));
+  sp_str_t records = sp_fs_join_path(mem, dir, sp_str_lit(".spn/index"));
+  si_da_push(mem, indexes, ((si_index_place_t) { .at = sp_path_from_str(records), .dir = records }));
 
   spn_path_roots_t roots = sp_zero;
   spn_index_cache_t cache = sp_zero;

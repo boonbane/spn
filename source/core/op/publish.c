@@ -47,7 +47,7 @@ static spn_err_t publish(spn_ctx_t* ctx, spn_publish_request_t request, spn_inde
     .publish = evt,
   });
 
-  spn_try(spn_index_publish(index, release, cancelled));
+  spn_try(si_index_publish(index, release, cancelled));
 
   spn_event_buffer_push(ctx->events, (spn_event_t) {
     .kind = SPN_EVENT_PUBLISH_END,
@@ -61,7 +61,7 @@ spn_err_t spn_op_publish(spn_op_t* op) {
   spn_index_release_t release = sp_zero;
   spn_try(publish_build(op->ctx, op->request.publish, &release));
   if (op->request.publish.dry) {
-    op->result.publish.json = spn_index_release_to_json(op->mem, &release);
+    op->result.publish.json = si_index_release_to_json(op->mem, &release);
     return SPN_OK;
   }
   return publish(op->ctx, op->request.publish, &release, &op->cancelled);

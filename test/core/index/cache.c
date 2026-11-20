@@ -7,6 +7,7 @@ typedef struct {
   struct {
     spn_index_format_t format;
     const c8* fixture;
+    bool unplaced;
   } indexes [2];
   bool memoized;
 
@@ -14,6 +15,7 @@ typedef struct {
     bool exists;
     spn_err_t err;
     spn_semver_t version;
+    u32 consulted;
   } expect;
 } cache_test_t;
 
@@ -62,6 +64,16 @@ static const cache_test_t tests [] = {
     },
   },
   {
+    .name = "unplaced_stops_the_lookup",
+    .indexes = {
+      { .unplaced = true },
+      { .fixture = "jsonl" },
+    },
+    .expect = {
+      .consulted = 1,
+    },
+  },
+  {
     .name = "memoized",
     .indexes = {
       { .format = SPN_INDEX_FORMAT_MANIFESTS, .fixture = "dir" },
@@ -79,10 +91,15 @@ sp_test_each(index_cache, get_package, cache_test_t, tests, .setup = spn_test_ct
   sp_mem_t mem = sp_test_arena(t);
 
   u32 slots = 0;
-  sp_carr_detect_len(it->indexes, slots, it->indexes[slots].format || it->indexes[slots].fixture);
+  sp_carr_detect_len(it->indexes, slots, it->indexes[slots].format || it->indexes[slots].fixture || it->indexes[slots].unplaced);
 
   si_da(si_index_place_t) indexes = sp_zero;
   sp_for(slot, slots) {
+    if (it->indexes[slot].unplaced) {
+      si_da_push(mem, indexes, sp_zero_s(si_index_place_t));
+      continue;
+    }
+
     sp_str_t location = sp_zero;
     if (it->indexes[slot].fixture) {
       location = test_repo_path(mem, sp_test_format(t, "test/core/index/indexes/{}", sp_fmt_cstr(it->indexes[slot].fixture)));
@@ -105,10 +122,13 @@ sp_test_each(index_cache, get_package, cache_test_t, tests, .setup = spn_test_ct
 
   spn_index_pkg_t* pkg = SP_NULLPTR;
   spn_err_union_t diag = sp_zero;
-  spn_err_t err = spn_index_cache_get_package(&cache, request, &pkg, &diag);
+  spn_err_t err = si_index_cache_get_package(&cache, request, &pkg, &diag);
 
   sp_expect_eq(t, it->expect.err, err);
   sp_must_eq(t, it->expect.exists, pkg != SP_NULLPTR);
+  if (it->expect.consulted) {
+    sp_expect_eq(t, it->expect.consulted, cache.consulted);
+  }
 
   if (pkg) {
     sp_must_eq(t, 1, sp_da_size(pkg->releases));
@@ -117,7 +137,7 @@ sp_test_each(index_cache, get_package, cache_test_t, tests, .setup = spn_test_ct
 
   if (it->memoized) {
     spn_index_pkg_t* again = SP_NULLPTR;
-    spn_index_cache_get_package(&cache, request, &again, &diag);
+    si_index_cache_get_package(&cache, request, &again, &diag);
     sp_must(t, again == pkg);
   }
   return SP_OK;

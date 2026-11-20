@@ -14,6 +14,7 @@
 #include "git/cache.h"
 #include "git/patch.h"
 #include "hash/digest/digest.h"
+#include "index/index.h"
 #include "lazy/lazy.h"
 #include "lock/lock.h"
 #include "model/resolve.h"
@@ -668,12 +669,15 @@ spn_err_t si_resolve_and_sync_pins(spn_op_t* op, const spn_lock_t* held, const s
   }
 
   si_da(si_index_place_t) placed = sp_zero;
-  spn_try(si_place_indexes(op, session->mem, kept, &placed));
-  si_da_for(placed, it) {
+  sp_da_for(ctx->indexes, it) {
     const spn_index_info_t* index = &ctx->indexes[it];
-    si_index_place_t place = placed[it];
-    if (!sp_str_empty(place.git.rev) && sp_str_empty(index->git.rev)) {
-      spn_lock_pin_index(lock, (spn_lock_index_t) { .name = index->name, .url = place.git.url, .rev = place.git.rev });
+    si_da_push(session->mem, placed, sp_zero_s(si_index_place_t));
+    if (index->protocol != SPN_INDEX_PROTOCOL_GIT || !sp_str_empty(index->git.rev)) {
+      continue;
+    }
+    sp_str_t rev = si_index_pin(index, kept);
+    if (!sp_str_empty(rev)) {
+      spn_lock_pin_index(lock, (spn_lock_index_t) { .name = index->name, .url = index->git.url, .rev = rev });
     }
   }
 
@@ -681,6 +685,13 @@ spn_err_t si_resolve_and_sync_pins(spn_op_t* op, const spn_lock_t* held, const s
   bool reresolve = sp_zero;
   do {
     spn_try(si_resolve(op, lock, placed));
+    si_da_for(placed, it) {
+      const spn_index_info_t* index = &ctx->indexes[it];
+      si_index_place_t place = placed[it];
+      if (!sp_str_empty(place.git.rev) && sp_str_empty(index->git.rev)) {
+        spn_lock_pin_index(lock, (spn_lock_index_t) { .name = index->name, .url = place.git.url, .rev = place.git.rev });
+      }
+    }
 
     sp_mem_arena_marker_t picking = sp_mem_begin_scratch();
     spn_err_t relocked = relock(picking.mem, ctx, session->resolve, session->locked, held, kept, lock, &changed);

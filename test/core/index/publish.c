@@ -3,7 +3,6 @@
 typedef struct {
   const c8* name;
   spn_index_protocol_t protocol;
-  spn_index_format_t format;
 } test_t;
 
 static const test_t tests [] = {
@@ -14,10 +13,6 @@ static const test_t tests [] = {
   {
     .name = "dir",
     .protocol = SPN_INDEX_PROTOCOL_DIR,
-  },
-  {
-    .name = "manifests",
-    .format = SPN_INDEX_FORMAT_MANIFESTS,
   },
 };
 
@@ -30,7 +25,6 @@ sp_test_each(index_publish, refused, test_t, tests, .setup = spn_test_ctx_setup)
   spn_index_info_t index = {
     .location = { .at = sp_path_from_str(location), .dir = location },
     .protocol = it->protocol,
-    .format = it->format,
   };
 
   spn_index_release_t rel = {
@@ -39,7 +33,7 @@ sp_test_each(index_publish, refused, test_t, tests, .setup = spn_test_ctx_setup)
   };
 
   sp_atomic_s32_t cancelled = sp_zero;
-  sp_expect_eq(t, SPN_ERR_INDEX_PUBLISH_PROTOCOL, spn_index_publish(&index, &rel, &cancelled));
+  sp_expect_eq(t, SPN_ERR_INDEX_PUBLISH_PROTOCOL, si_index_publish(&index, &rel, &cancelled));
 
   return SP_OK;
 }

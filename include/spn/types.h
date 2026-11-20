@@ -172,7 +172,6 @@ typedef struct {
 } spn_add_request_t;
 
 typedef struct {
-  bool force;
   sp_str_t only;
 } spn_sync_request_t;
 

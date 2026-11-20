@@ -82,7 +82,6 @@ static spn_err_t resolve(sp_mem_t scratch, spn_op_t* op, const spn_lock_t* lock,
     sp_da_push(pins, ((spn_pin_t) { .name = lock->entries[it].name.id, .version = lock->entries[it].version }));
   }
 
-  bool* synced = sp_alloc_n(session->mem, bool, sp_da_size(ctx->indexes));
   spn_resolve_query_t query = sp_zero_initialize();
   while (true) {
     spn_index_cache_t index = sp_zero;
@@ -106,15 +105,9 @@ static spn_err_t resolve(sp_mem_t scratch, spn_op_t* op, const spn_lock_t* lock,
     });
     spn_err_t err = spn_resolve_from_solver(&resolver, &query);
 
-    sp_da(spn_index_info_t*) read = sp_da_new(session->mem, spn_index_info_t*);
-    sp_for(it, index.consulted) {
-      if (!synced[it]) {
-        synced[it] = true;
-        sp_da_push(read, &ctx->indexes[it]);
-      }
-    }
-    if (!sp_da_empty(read)) {
-      spn_try(si_sync_index_list(op, read, false));
+    bool grew = false;
+    spn_try(si_place_indexes(op, session->mem, lock, placed, index.consulted, &grew));
+    if (grew) {
       continue;
     }
     if (!err) {

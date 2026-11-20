@@ -61,7 +61,6 @@ struct spn_index_info {
   sp_intern_str_t name;
   spn_index_kind_t kind;
   spn_index_protocol_t protocol;
-  spn_index_format_t format;
   union {
     struct {
       sp_str_t url;
@@ -78,7 +77,6 @@ struct spn_index_info {
   struct {
     sp_path_t at;
     sp_str_t dir;
-    sp_path_t lock;
   } location;
   u32 refresh;
   spn_git_remote_t remote;
@@ -94,6 +92,7 @@ typedef struct {
   struct {
     sp_str_t url;
     sp_str_t rev;
+    sp_str_t dir;
   } git;
 } si_index_place_t;
 
