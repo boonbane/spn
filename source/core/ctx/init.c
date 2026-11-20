@@ -228,12 +228,6 @@ static spn_err_t require_project(spn_ctx_t* ctx) {
   return SPN_OK;
 }
 
-static spn_err_t open_session(spn_ctx_t* ctx, spn_session_config_t config) {
-  spn_project_t* project = ctx->project ? ctx->project : sp_alloc_type(ctx->heap, spn_project_t);
-  ctx->session = sp_alloc_type(ctx->heap, spn_session_t);
-  return spn_session_init(ctx->session, ctx, ctx->heap, project, config);
-}
-
 spn_err_t spn_ctx_open(spn_ctx_t* ctx, spn_open_request_t request) {
   sp_assert(!ctx->config.indexes);
 
@@ -342,7 +336,9 @@ spn_err_t spn_ctx_open(spn_ctx_t* ctx, spn_open_request_t request) {
 }
 
 spn_err_t spn_ctx_open_session(spn_ctx_t* ctx, const spn_session_config_t* config, spn_session_t** session) {
-  spn_err_t err = open_session(ctx, *config);
+  spn_project_t* project = ctx->project ? ctx->project : sp_alloc_type(ctx->heap, spn_project_t);
+  ctx->session = sp_alloc_type(ctx->heap, spn_session_t);
+  spn_err_t err = spn_session_init(ctx->session, ctx, ctx->heap, project, *config);
   *session = err ? SP_NULLPTR : ctx->session;
   return err;
 }
