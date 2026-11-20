@@ -14,6 +14,7 @@ void              spn_lock_pin_index(spn_lock_t* lock, spn_lock_index_t index);
 spn_lock_diff_t   spn_lock_diff(const spn_lock_t* held, const spn_lock_t* next);
 bool              spn_lock_diff_next(spn_lock_diff_t* diff);
 spn_err_union_t   spn_lock_mismatch(const spn_lock_entry_t* was, const spn_lock_entry_t* now);
-si_lock_next_t    si_lock_next(sp_mem_t mem, si_lock_request_t request);
+si_da(si_lock_move_t) si_lock_merge(sp_mem_t mem, spn_lock_t* lock, si_da(si_lock_pick_t) picks);
+bool              si_lock_changed(const spn_lock_t* held, const spn_lock_t* next, sp_str_t* what);
 
 #endif

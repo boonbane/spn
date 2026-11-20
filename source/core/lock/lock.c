@@ -282,45 +282,44 @@ static s32 order_moves(const void* a, const void* b) {
   return order(&((const si_lock_move_t*)a)->was, &((const si_lock_move_t*)b)->was);
 }
 
-si_lock_next_t si_lock_next(sp_mem_t mem, si_lock_request_t request) {
-  si_lock_next_t next = { .lock = spn_lock_new(mem) };
-  sp_da_for(request.kept->indexes, it) {
-    spn_lock_pin_index(&next.lock, request.kept->indexes[it]);
+si_da(si_lock_move_t) si_lock_merge(sp_mem_t mem, spn_lock_t* lock, si_da(si_lock_pick_t) picks) {
+  si_da(si_lock_move_t) moved = sp_zero;
+  si_da_for(picks, it) {
+    si_lock_pick_t pick = picks[it];
+    spn_lock_entry_t* was = find_entry(lock, pick.entry.name.id, pick.entry.version);
+    if (!was) {
+      spn_lock_insert(lock, pick.entry);
+    }
+    else if (pick.follows) {
+      *was = pick.entry;
+    }
+    else if (!root_eq(was->source, pick.entry.source) || !root_eq(was->manifest, pick.entry.manifest)) {
+      si_da_push(mem, moved, ((si_lock_move_t) { .was = *was, .now = pick.entry }));
+    }
   }
-  sp_da_for(request.kept->entries, it) {
-    spn_lock_insert(&next.lock, request.kept->entries[it]);
+  si_da_sort(moved, order_moves);
+  return moved;
+}
+
+bool si_lock_changed(const spn_lock_t* held, const spn_lock_t* next, sp_str_t* what) {
+  *what = sp_str_lit("");
+  if (held->version != next->version) {
+    return true;
   }
 
-  si_da_for(request.picks, it) {
-    si_lock_pick_t pick = request.picks[it];
-    spn_lock_entry_t* kept = find_entry(&next.lock, pick.entry.name.id, pick.entry.version);
-    if (!kept) {
-      spn_lock_insert(&next.lock, pick.entry);
-    }
-    else if (pick.pinned) {
-      *kept = pick.entry;
-    }
-    else if (!root_eq(kept->source, pick.entry.source) || !root_eq(kept->manifest, pick.entry.manifest)) {
-      si_da_push(mem, next.moved, ((si_lock_move_t) { .was = *kept, .now = pick.entry }));
-    }
-  }
-  si_da_sort(next.moved, order_moves);
-
-  const spn_lock_index_t* repinned = unpinned_in(&next.lock, request.held);
+  const spn_lock_index_t* repinned = unpinned_in(next, held);
   if (!repinned) {
-    repinned = unpinned_in(request.held, &next.lock);
+    repinned = unpinned_in(held, next);
   }
-  spn_lock_diff_t diff = spn_lock_diff(request.held, &next.lock);
-  if (request.held->version != next.lock.version) {
-    next.changed = true;
+  if (repinned) {
+    *what = repinned->name.str;
+    return true;
   }
-  else if (repinned) {
-    next.changed = true;
-    next.stale = repinned->name.str;
+
+  spn_lock_diff_t diff = spn_lock_diff(held, next);
+  if (spn_lock_diff_next(&diff)) {
+    *what = (diff.was ? diff.was : diff.now)->name.str;
+    return true;
   }
-  else if (spn_lock_diff_next(&diff)) {
-    next.changed = true;
-    next.stale = (diff.was ? diff.was : diff.now)->name.str;
-  }
-  return next;
+  return false;
 }

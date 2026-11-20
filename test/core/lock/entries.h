@@ -80,13 +80,17 @@ static inline void expect_root(sp_test_t* t, spn_lock_root_t actual, root_t expe
   sp_expect_str_eq(t, actual.dir, text(expected.dir));
 }
 
+static inline void expect_entry(sp_test_t* t, spn_lock_entry_t actual, entry_t expected) {
+  sp_expect_str_eq_c(t, actual.name.str, expected.name);
+  sp_expect(t, spn_semver_eq(actual.version, expected.version));
+  expect_root(t, actual.source, expected.source);
+  expect_root(t, actual.manifest, expected.manifest);
+}
+
 static inline sp_err_t expect_entries(sp_test_t* t, const spn_lock_t* lock, const entry_t* expected, u32 len) {
   sp_must_eq(t, len, sp_da_size(lock->entries));
   sp_for(it, len) {
-    sp_expect_str_eq_c(t, lock->entries[it].name.str, expected[it].name);
-    sp_expect(t, spn_semver_eq(lock->entries[it].version, expected[it].version));
-    expect_root(t, lock->entries[it].source, expected[it].source);
-    expect_root(t, lock->entries[it].manifest, expected[it].manifest);
+    expect_entry(t, lock->entries[it], expected[it]);
   }
   return SP_OK;
 }

@@ -619,7 +619,7 @@ spn_err_t si_sync_index_pins(spn_ctx_t* ctx, sp_atomic_s32_t* cancelled, const s
   return SPN_OK;
 }
 
-static spn_err_t relock(sp_mem_t scratch, spn_session_t* session, const spn_lock_t* held, spn_lock_t* lock, bool* changed) {
+static spn_err_t relock(sp_mem_t scratch, spn_session_t* session, const spn_lock_t* held, const spn_lock_t* kept, spn_lock_t* lock, bool* changed) {
   spn_ctx_t* ctx = session->ctx;
 
   si_da(si_lock_pick_t) picks = sp_zero;
@@ -635,35 +635,35 @@ static spn_err_t relock(sp_mem_t scratch, spn_session_t* session, const spn_lock
         .source = pinned_root(pkg->origin.release->source),
         .manifest = pinned_root(pkg->origin.release->manifest),
       },
-      .pinned = spn_index_is_snapshot(spn_index_find(&ctx->indexes, pkg->origin.release->index)),
+      .follows = spn_index_is_snapshot(spn_index_find(&ctx->indexes, pkg->origin.release->index)),
     }));
   }
 
-  si_lock_next_t next = si_lock_next(session->mem, (si_lock_request_t) { .held = held, .kept = lock, .picks = picks });
-  if (!si_da_empty(next.moved)) {
+  si_da(si_lock_move_t) moved = si_lock_merge(scratch, lock, picks);
+  if (!si_da_empty(moved)) {
     sp_da(sp_str_t) accept = sp_da_new(ctx->events->mem, sp_str_t);
-    spn_lock_diff_t unpinned = spn_lock_diff(held, lock);
-    while (spn_lock_diff_next(&unpinned)) {
-      if (unpinned.was) {
-        add_name(&accept, unpinned.was->name.str);
+    spn_lock_diff_t updating = spn_lock_diff(held, kept);
+    while (spn_lock_diff_next(&updating)) {
+      if (updating.was) {
+        add_name(&accept, updating.was->name.str);
       }
     }
-    si_da_for(next.moved, it) {
-      add_name(&accept, next.moved[it].was.name.str);
+    si_da_for(moved, it) {
+      add_name(&accept, moved[it].was.name.str);
     }
-    si_da_for(next.moved, it) {
-      spn_err_union_t moved = spn_lock_mismatch(&next.moved[it].was, &next.moved[it].now);
-      moved.lock_mismatch.update = accept;
-      spn_err_emit(ctx, moved);
+    si_da_for(moved, it) {
+      spn_err_union_t mismatch = spn_lock_mismatch(&moved[it].was, &moved[it].now);
+      mismatch.lock_mismatch.update = accept;
+      spn_err_emit(ctx, mismatch);
     }
     return SPN_ERR_LOCK_MISMATCH;
   }
-  if (session->locked && next.changed) {
-    return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_LOCK_STALE, .subject = next.stale });
-  }
 
-  *lock = next.lock;
-  *changed = next.changed;
+  sp_str_t stale = sp_zero;
+  *changed = si_lock_changed(held, lock, &stale);
+  if (session->locked && *changed) {
+    return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_LOCK_STALE, .subject = stale });
+  }
   return SPN_OK;
 }
 
@@ -707,7 +707,7 @@ spn_err_t spn_resolve_and_sync_pins(spn_op_t* op, const spn_lock_t* held, const 
     spn_try(spn_resolve(op, lock));
 
     sp_mem_arena_marker_t picking = sp_mem_begin_scratch();
-    spn_err_t relocked = relock(picking.mem, session, held, lock, &changed);
+    spn_err_t relocked = relock(picking.mem, session, held, kept, lock, &changed);
     sp_mem_end_scratch(picking);
     spn_try(relocked);
 
