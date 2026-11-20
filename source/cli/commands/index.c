@@ -87,7 +87,6 @@ static sp_cli_result_t refresh(sp_cli_t* cli) {
   try(spn_cli_open(true));
 
   return spn_cli_op(spn_sync_indexes(host.ctx, (spn_sync_request_t) {
-    .force = true,
     .only = args.name,
   }));
 }

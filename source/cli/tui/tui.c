@@ -1351,6 +1351,15 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           );
           break;
         }
+        case SPN_ERR_INDEX_UNPINNED: {
+          sp_tty_fmt(
+            &w,
+            "Index {.cyan} holds manifests and is declared in the user config, so it needs a {.cyan}",
+            sp_fmt_str(event->err.index.name),
+            sp_fmt_cstr("rev")
+          );
+          break;
+        }
         case SPN_ERR_INDEX_MARKER_INVALID: {
           sp_tty_fmt(
             &w,

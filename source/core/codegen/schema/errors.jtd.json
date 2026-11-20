@@ -83,6 +83,7 @@
     "index_pinned": { "ref": "index" },
     "index_exists": { "ref": "index" },
     "index_unmarked": { "ref": "index" },
+    "index_unpinned": { "ref": "index" },
     "index_marker_invalid": { "ref": "manifest" },
     "index_version": { "ref": "index_version" },
     "index_format": { "ref": "index_format" },

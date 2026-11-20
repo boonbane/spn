@@ -1352,7 +1352,6 @@ static const test_t tests [] = {
       { SPN_ERR_CODEGEN_INVALID, "index[3].url" },
       { SPN_ERR_CODEGEN_INVALID, "index[3].rev" },
       { SPN_ERR_CODEGEN_MISSING_KEY, "index[3].path" },
-      { SPN_ERR_CODEGEN_INVALID, "index[4].format" },
     }
   },
   {

@@ -96,7 +96,7 @@ static const rebuild_test_t rebuilds [] = {
     .rebuilds = {
       {
         .change = {
-          .remove_files = { index_file(".git/spn-synced") },
+          .age_files = { index_file("spn-tip") },
           .remove_dirs = { ".st/spn/packages" },
         },
         .command = {
@@ -107,12 +107,12 @@ static const rebuild_test_t rebuilds [] = {
     },
   },
   {
-    .name = "stale_index_missing_package",
+    .name = "aged_tip_is_read",
     .project = "test/integration/fixtures/deps/index/binary_static",
     .first.args = { "build" },
     .rebuilds = {
       {
-        .change.remove_files = { index_file(".git/spn-synced"), index_file(".spn/index/spum.jsonl") },
+        .change.age_files = { index_file("spn-tip") },
         .command = {
           .args = { "build" },
           .expect.events = { { .event = SPN_EVENT_SYNC, .key = "name", .value = "core" } },
@@ -127,7 +127,7 @@ static const rebuild_test_t rebuilds [] = {
     .rebuilds = {
       {
         .change = {
-          .remove_files = { index_file(".git/spn-synced") },
+          .age_files = { index_file("spn-tip") },
           .remove_dirs = { ".st/spn/packages" },
         },
         .command = {

@@ -49,18 +49,10 @@ static site_t find_site(spn_toml_edit_t* edit, sp_mem_t mem, sp_str_t table, sp_
   };
 }
 
-static spn_err_t add(spn_ctx_t* ctx, spn_add_request_t request, spn_semver_range_t range, si_da(si_index_place_t) placed) {
+static spn_err_t add(spn_ctx_t* ctx, spn_add_request_t request, spn_semver_range_t range, spn_index_pkg_t* pkg) {
 
   sp_intern_str_t name = sp_intern(ctx->intern, request.name);
 
-  spn_index_cache_t cache = sp_zero;
-  si_index_cache_init(&cache, ctx->heap, ctx->intern, &ctx->roots, placed);
-
-  spn_index_pkg_t* pkg = SP_NULLPTR;
-  spn_err_union_t err = sp_zero;
-  if (spn_index_cache_get_package(&cache, name, &pkg, &err)) {
-    return spn_err_emit(ctx, err);
-  }
   if (!pkg || sp_da_empty(pkg->releases)) {
     return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_PKG_UNKNOWN, .subject = name.str });
   }
@@ -159,9 +151,24 @@ spn_err_t si_op_add(spn_op_t* op) {
     return spn_err_emit(ctx, unreadable);
   }
   si_da(si_index_place_t) placed = sp_zero;
-  spn_try(si_place_indexes(op, op->mem, &held, &placed));
+  sp_da_for(ctx->indexes, it) {
+    si_da_push(op->mem, placed, sp_zero_s(si_index_place_t));
+  }
 
-  return add(ctx, request, range, placed);
+  spn_index_pkg_t* pkg = SP_NULLPTR;
+  bool grew = true;
+  while (grew) {
+    spn_index_cache_t cache = sp_zero;
+    si_index_cache_init(&cache, ctx->heap, ctx->intern, &ctx->roots, placed);
+
+    spn_err_union_t err = sp_zero;
+    if (spn_index_cache_get_package(&cache, sp_intern(ctx->intern, request.name), &pkg, &err)) {
+      return spn_err_emit(ctx, err);
+    }
+    spn_try(si_place_indexes(op, op->mem, &held, placed, cache.consulted, &grew));
+  }
+
+  return add(ctx, request, range, pkg);
 }
 
 spn_op_t* spn_add_dependency(spn_ctx_t* ctx, spn_add_request_t request) {

@@ -23,6 +23,9 @@ spn_err_t spn_index_cache_get_package(spn_index_cache_t* cache, sp_intern_str_t 
   spn_index_pkg_t* package = SP_NULLPTR;
   si_da_for(cache->indexes, it) {
     cache->consulted = sp_max(cache->consulted, (u32)it + 1);
+    if (sp_str_empty(cache->indexes[it].dir)) {
+      break;
+    }
     spn_try(si_index_get_package(&cache->indexes[it], cache->mem, cache->intern, cache->roots, name, &package, err));
     if (package) {
       break;

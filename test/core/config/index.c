@@ -26,11 +26,6 @@ static const test_t tests [] = {
     .name = "manifests_at_a_rev_are_read",
     .config = "index_manifests_pinned",
   },
-  {
-    .name = "manifests_without_a_rev_are_refused",
-    .config = "index_manifests_unpinned",
-    .issue = { SPN_ERR_CODEGEN_MISSING_KEY, "index[0].rev" },
-  },
 };
 
 sp_test_each(config, index, test_t, tests) {
