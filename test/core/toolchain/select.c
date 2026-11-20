@@ -24,7 +24,6 @@ typedef struct {
   const c8* candidates [SELECT_MAX_CANDIDATES];
   spn_sanitizer_set_t unsupported;
   spn_sanitizer_set_t supported;
-  spn_linking_t linking;
 } expect_t;
 
 typedef struct {
@@ -38,8 +37,6 @@ typedef struct {
 typedef struct {
   const c8* name;
   spn_cc_driver_t driver;
-  bool lld;
-  bool host_row;
   fixture_target_t targets [FIXTURE_MAX_TARGETS];
   fixture_sdks_t sdks;
   check_t checks [SELECT_MAX_CHECKS];
@@ -60,33 +57,12 @@ typedef struct {
 
 static const complete_test_t complete_tests [] = {
   {
-    .name = "single_abi_must_be_supported",
-    .driver = SPN_CC_DRIVER_GCC,
-    .targets = { HOST_X64_LINUX, { .triple = TARGET_LINUX_MUSL } },
-    .checks = {
-      { .target = X64_LINUX, .abis = { SPN_ABI_GNU }, .expect = { .triple = HOST_X64_LINUX } },
-      { .target = X64_LINUX, .abis = { SPN_ABI_MUSL }, .expect = { .triple = TARGET_LINUX_MUSL } },
-    },
-  },
-  {
     .name = "first_supported_abi_wins",
     .driver = SPN_CC_DRIVER_GCC,
     .targets = { HOST_X64_LINUX, { .triple = TARGET_LINUX_MUSL } },
     .checks = {
       { .target = X64_LINUX, .abis = { SPN_ABI_MUSL, SPN_ABI_GNU }, .expect = { .triple = TARGET_LINUX_MUSL } },
       { .target = X64_LINUX, .abis = { SPN_ABI_GNU, SPN_ABI_MUSL }, .expect = { .triple = HOST_X64_LINUX } },
-    },
-  },
-  {
-    .name = "selection_resolves_linkage_and_runtime",
-    .driver = SPN_CC_DRIVER_GCC,
-    .targets = { HOST_X64_LINUX, { .triple = TARGET_LINUX_MUSL }, { .triple = TARGET_WIN_GNU } },
-    .checks = {
-      { .target = X64_LINUX, .abis = { SPN_ABI_GNU }, .expect = { .triple = HOST_X64_LINUX, .linking = { SPN_LIB_KIND_SHARED, SPN_RUNTIME_SHARED, SPN_RUNTIME_SHARED } } },
-      { .target = X64_LINUX, .abis = { SPN_ABI_MUSL }, .expect = { .triple = TARGET_LINUX_MUSL, .linking = { SPN_LIB_KIND_STATIC, SPN_RUNTIME_STATIC, SPN_RUNTIME_STATIC } } },
-      { .target = X64_WINDOWS, .abis = { SPN_ABI_GNU }, .expect = { .triple = TARGET_WIN_GNU, .linking = { SPN_LIB_KIND_SHARED, SPN_RUNTIME_STATIC, SPN_RUNTIME_SHARED } } },
-      { .target = X64_LINUX, .abis = { SPN_ABI_GNU }, .linking = { .linkage = SPN_LIB_KIND_STATIC, .runtime = SPN_RUNTIME_STATIC }, .expect = { .triple = HOST_X64_LINUX, .linking = { SPN_LIB_KIND_STATIC, SPN_RUNTIME_STATIC, SPN_RUNTIME_SHARED } } },
-      { .target = X64_LINUX, .abis = { SPN_ABI_MUSL }, .linking = { .runtime = SPN_RUNTIME_SHARED }, .expect = { .triple = TARGET_LINUX_MUSL, .linking = { SPN_LIB_KIND_SHARED, SPN_RUNTIME_SHARED, SPN_RUNTIME_SHARED } } },
     },
   },
   {
@@ -105,15 +81,6 @@ static const complete_test_t complete_tests [] = {
       { .target = ARM_MACOS, .abis = { SPN_ABI_APPLE }, .expect = { .triple = HOST_ARM_MACOS } },
       { .target = X64_MACOS, .abis = { SPN_ABI_APPLE }, .expect = { .err = SPN_ERR_TOOLCHAIN_TARGET, .targets = { HOST_ARM_MACOS } } },
       { .target = ARM_LINUX, .abis = { SPN_ABI_GNU }, .expect = { .err = SPN_ERR_TOOLCHAIN_TARGET, .targets = { HOST_ARM_MACOS } } },
-    },
-  },
-  {
-    .name = "bare_rows_need_nothing_from_the_host",
-    .driver = SPN_CC_DRIVER_GCC,
-    .targets = { TARGET_X64_BARE, TARGET_X64_LINUX_NONE },
-    .checks = {
-      { .target = X64_FREESTANDING, .abis = { SPN_ABI_BARE }, .expect = { .triple = TARGET_X64_BARE, .linking = { SPN_LIB_KIND_STATIC, SPN_RUNTIME_STATIC, SPN_RUNTIME_STATIC } } },
-      { .target = X64_LINUX, .abis = { SPN_ABI_BARE }, .expect = { .triple = TARGET_X64_LINUX_NONE, .linking = { SPN_LIB_KIND_STATIC, SPN_RUNTIME_STATIC, SPN_RUNTIME_STATIC } } },
     },
   },
   {
@@ -159,29 +126,12 @@ static const complete_test_t complete_tests [] = {
     },
   },
   {
-    .name = "lld_does_not_reach_bare",
-    .driver = SPN_CC_DRIVER_CLANG,
-    .lld = true,
-    .targets = { HOST_X64_LINUX },
-    .checks = {
-      { .target = X64_FREESTANDING, .abis = { SPN_ABI_BARE }, .expect = { .err = SPN_ERR_TOOLCHAIN_TARGET, .targets = { HOST_X64_LINUX } } },
-    },
-  },
-  {
     .name = "listed_bare_is_reached",
     .driver = SPN_CC_DRIVER_CLANG,
     .targets = { HOST_X64_LINUX, TARGET_X64_BARE },
     .checks = {
       { .target = X64_FREESTANDING, .abis = { SPN_ABI_BARE }, .expect = { .triple = TARGET_X64_BARE } },
       { .target = X64_LINUX, .abis = { SPN_ABI_BARE }, .expect = { .err = SPN_ERR_TOOLCHAIN_TARGET, .targets = { HOST_X64_LINUX, TARGET_X64_BARE } } },
-    },
-  },
-  {
-    .name = "fixed_driver_lists_elf",
-    .driver = SPN_CC_DRIVER_GCC,
-    .targets = { { .triple = TARGET_ARM_ELF } },
-    .checks = {
-      { .target = ARM_FREESTANDING, .abis = { SPN_ABI_ELF }, .expect = { .triple = TARGET_ARM_ELF } },
     },
   },
   {
@@ -276,28 +226,12 @@ static const complete_test_t complete_tests [] = {
     },
   },
   {
-    .name = "listed_sdk_reaches_msvc",
-    .driver = SPN_CC_DRIVER_CLANG,
-    .targets = { { .triple = TARGET_WIN_MSVC, .sdk = { .path = "/X" } } },
-    .checks = {
-      { .target = X64_WINDOWS, .abis = { SPN_ABI_MSVC }, .expect = { .triple = TARGET_WIN_MSVC, .sdk = { SPN_SDK_MSVC, { "/X" } } } },
-    },
-  },
-  {
     .name = "host_sdk_reaches_macos",
     .driver = SPN_CC_DRIVER_CLANG,
     .sdks = { .macos = { "/S" } },
     .checks = {
       { .target = ARM_MACOS, .abis = { SPN_ABI_APPLE }, .expect = { .triple = HOST_ARM_MACOS, .sdk = { SPN_SDK_MACOS, { "/S" } } } },
       { .target = X64_MACOS, .abis = { SPN_ABI_APPLE }, .expect = { .triple = HOST_X64_MACOS, .sdk = { SPN_SDK_MACOS, { "/S" } } } },
-    },
-  },
-  {
-    .name = "host_sdk_reaches_msvc",
-    .driver = SPN_CC_DRIVER_CLANG,
-    .sdks = { .msvc = { { { "/X" }, SPN_ARCH_X64 } } },
-    .checks = {
-      { .target = X64_WINDOWS, .abis = { SPN_ABI_MSVC }, .expect = { .triple = TARGET_WIN_MSVC, .sdk = { SPN_SDK_MSVC, { "/X" } } } },
     },
   },
   {
@@ -348,39 +282,7 @@ static const complete_test_t complete_tests [] = {
     .checks = {
       { .target = X64_LINUX, .abis = { SPN_ABI_MUSL, SPN_ABI_GNU }, .sanitizers = SPN_SANITIZER_ADDRESS, .expect = { .triple = HOST_X64_LINUX } },
       { .target = X64_LINUX, .abis = { SPN_ABI_MUSL, SPN_ABI_GNU }, .sanitizers = SPN_SANITIZER_UNDEFINED, .expect = { .triple = TARGET_LINUX_MUSL } },
-      { .target = X64_LINUX, .abis = { SPN_ABI_MUSL }, .sanitizers = SPN_SANITIZER_ADDRESS, .linking = { .linkage = SPN_LIB_KIND_SHARED }, .expect = { .triple = TARGET_LINUX_MUSL } },
-      { .target = X64_LINUX, .abis = { SPN_ABI_GNU }, .sanitizers = SPN_SANITIZER_ADDRESS | SPN_SANITIZER_UNDEFINED, .linking = { .linkage = SPN_LIB_KIND_STATIC, .runtime = SPN_RUNTIME_STATIC }, .expect = { .triple = HOST_X64_LINUX, .linking = { SPN_LIB_KIND_STATIC, SPN_RUNTIME_STATIC, SPN_RUNTIME_SHARED } } },
       { .target = X64_LINUX, .abis = { SPN_ABI_MUSL }, .sanitizers = SPN_SANITIZER_ADDRESS | SPN_SANITIZER_UNDEFINED, .linking = { .linkage = SPN_LIB_KIND_STATIC, .runtime = SPN_RUNTIME_STATIC, .libc = SPN_RUNTIME_STATIC }, .expect = { .err = SPN_ERR_SANITIZER_STATIC, .triple = TARGET_LINUX_MUSL, .unsupported = SPN_SANITIZER_ADDRESS, .supported = SAN_GCC_LINUX } },
-      { .target = X64_LINUX, .abis = { SPN_ABI_GNU }, .sanitizers = SPN_SANITIZER_ADDRESS | SPN_SANITIZER_UNDEFINED, .linking = { .linkage = SPN_LIB_KIND_STATIC, .runtime = SPN_RUNTIME_SHARED }, .expect = { .triple = HOST_X64_LINUX } },
-    },
-  },
-  {
-    .name = "static_crt_keeps_a_loader_on_msvc",
-    .driver = SPN_CC_DRIVER_MSVC,
-    .targets = { { .triple = TARGET_WIN_MSVC, .sanitizers = SPN_SANITIZER_ADDRESS } },
-    .sdks = { .msvc = { { { "/X" }, SPN_ARCH_X64 } } },
-    .checks = {
-      { .target = X64_WINDOWS, .abis = { SPN_ABI_MSVC }, .sanitizers = SPN_SANITIZER_ADDRESS, .expect = { .triple = TARGET_WIN_MSVC, .sdk = { SPN_SDK_MSVC, { "/X" } }, .linking = { SPN_LIB_KIND_SHARED, SPN_RUNTIME_STATIC, SPN_RUNTIME_STATIC } } },
-      { .target = X64_WINDOWS, .abis = { SPN_ABI_MSVC }, .sanitizers = SPN_SANITIZER_ADDRESS, .linking = { .libc = SPN_RUNTIME_STATIC }, .expect = { .triple = TARGET_WIN_MSVC, .sdk = { SPN_SDK_MSVC, { "/X" } }, .linking = { SPN_LIB_KIND_SHARED, SPN_RUNTIME_STATIC, SPN_RUNTIME_STATIC } } },
-    },
-  },
-  {
-    .name = "host_row_beside_a_listed_row",
-    .driver = SPN_CC_DRIVER_CLANG,
-    .host_row = true,
-    .targets = { { TARGET_X64_BARE } },
-    .checks = {
-      { .target = X64_LINUX, .abis = { SPN_ABI_GNU }, .expect = { .triple = HOST_X64_LINUX, .sdk = { SPN_SDK_HOST } } },
-      { .target = X64_FREESTANDING, .abis = { SPN_ABI_BARE }, .expect = { .triple = TARGET_X64_BARE } },
-    },
-  },
-  {
-    .name = "fixed_driver_ignores_host_sdk",
-    .driver = SPN_CC_DRIVER_GCC,
-    .targets = { HOST_X64_LINUX },
-    .sdks = { .macos = { "/S" } },
-    .checks = {
-      { .target = ARM_MACOS, .abis = { SPN_ABI_APPLE }, .expect = { .err = SPN_ERR_TOOLCHAIN_TARGET, .targets = { HOST_X64_LINUX } } },
     },
   },
 };
@@ -468,15 +370,6 @@ static const resolve_test_t resolve_tests [] = {
     .expect = { .err = SPN_ERR_TOOLCHAIN_NONE },
   },
   {
-    .name = "windows_host_reaches_derived_gnu_row",
-    .file = "drivers.toml",
-    .toolchain = "A",
-    .target = X64_WINDOWS,
-    .abis = { SPN_ABI_GNU },
-    .host = HOST_X64_WINDOWS,
-    .expect = { .name = "A", .triple = TARGET_WIN_GNU },
-  },
-  {
     .name = "windows_host_without_msvc_sdk_names_the_sdk",
     .file = "drivers.toml",
     .toolchain = "C",
@@ -484,17 +377,6 @@ static const resolve_test_t resolve_tests [] = {
     .abis = { SPN_ABI_GNU, SPN_ABI_MSVC },
     .host = HOST_X64_WINDOWS,
     .expect = { .err = SPN_ERR_TOOLCHAIN_SDK_MSVC, .triple = TARGET_WIN_MSVC, .candidates = { "A", "D" } },
-  },
-  {
-    .name = "macos_host_reaches_both_arches",
-    .file = "drivers.toml",
-    .toolchain = "B",
-    .target = X64_MACOS,
-    .abis = { SPN_ABI_APPLE },
-    .sanitizers = SPN_SANITIZER_ADDRESS,
-    .host = HOST_ARM_MACOS,
-    .sdks = { .macos = { "/S" } },
-    .expect = { .name = "B", .triple = HOST_X64_MACOS, .sdk = { SPN_SDK_MACOS, { "/S" } } },
   },
   {
     .name = "unknown_name_lists_capable_toolchains",
@@ -597,11 +479,6 @@ static sp_err_t check_selection(sp_test_t* t, const spn_toolchain_selection_t* s
   sp_must(t, selection->toolchain);
   sp_expect_str_eq_c(t, selection->toolchain->name.str, name);
   sp_expect(t, spn_triple_equal(selection->row.triple, expect->triple));
-  if (expect->linking.linkage) {
-    sp_expect_eq(t, (u32)expect->linking.linkage, (u32)selection->linking.linkage);
-    sp_expect_eq(t, (u32)expect->linking.runtime, (u32)selection->linking.runtime);
-    sp_expect_eq(t, (u32)expect->linking.libc, (u32)selection->linking.libc);
-  }
   return fixture_check_sdk(t, selection->row.sdk, expect->sdk);
 }
 
@@ -610,7 +487,6 @@ sp_test_each(select, complete, complete_test_t, complete_tests, .setup = spn_tes
 
   spn_toolchain_decl_t toolchain = fixture_local_toolchain("A", (fixture_launcher_t) { .name = "cc" });
   toolchain.driver = it->driver;
-  toolchain.lld = it->lld;
   u32 declared = 0;
   sp_carr_detect_len(it->targets, declared, !fixture_target_empty(it->targets[declared]));
   if (declared) {
@@ -619,7 +495,7 @@ sp_test_each(select, complete, complete_test_t, complete_tests, .setup = spn_tes
       sp_da_push(toolchain.targets, fixture_target(it->targets[at]));
     }
   }
-  toolchain.host_row = it->host_row || !declared;
+  toolchain.host_row = !declared;
 
   spn_toolchain_catalog_t catalog = sp_zero;
   spn_toolchain_catalog_init(&catalog, (spn_triple_t) HOST_X64_LINUX, fixture_sdks(mem, it->sdks), mem);

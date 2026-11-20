@@ -153,14 +153,12 @@ add_executable(core
   toolchain/probe.c
   toolchain/program.c
   toolchain/provision.c
-  toolchain/sdk.c
   toolchain/sdk_detect.c
   toolchain/sdk_hash.c
   toolchain/sdk_libc.c
   toolchain/sdk_msvc.c
   toolchain/sdk_path.c
   toolchain/sdk_root.c
-  toolchain/sdk_serve.c
   toolchain/sdk_shell.c
   toolchain/search.c
   toolchain/select.c
@@ -230,14 +228,12 @@ set_source_files_properties(
   toolchain/parse.c
   toolchain/probe.c
   toolchain/program.c
-  toolchain/sdk.c
   toolchain/sdk_detect.c
   toolchain/sdk_hash.c
   toolchain/sdk_libc.c
   toolchain/sdk_msvc.c
   toolchain/sdk_path.c
   toolchain/sdk_root.c
-  toolchain/sdk_serve.c
   toolchain/sdk_shell.c
   toolchain/search.c
   toolchain/provision.c

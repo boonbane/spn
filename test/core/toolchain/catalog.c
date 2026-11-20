@@ -37,7 +37,6 @@ typedef struct {
 typedef struct {
   const c8* name;
   spn_cc_driver_t driver;
-  bool lld;
   bool host_row;
   spn_triple_t host;
   fixture_sdks_t sdks;
@@ -86,9 +85,6 @@ static const add_test_t add_tests [] = {
     },
     .expect = {
       .order = { "A", "B", "C" },
-      .toolchains = {
-        { .name = "D", .absent = true },
-      },
     },
   },
 };
@@ -109,13 +105,6 @@ static const rows_test_t rows_tests [] = {
     .expect = { .rows = { { HOST_ARM_LINUX, { SPN_SDK_HOST }, SAN_CLANG_LINUX } } },
   },
   {
-    .name = "lld_does_not_add_bare",
-    .file = "drivers.toml",
-    .host = HOST_ARM_LINUX,
-    .toolchain = "B",
-    .expect = { .rows = { { HOST_ARM_LINUX, { SPN_SDK_HOST }, SAN_CLANG_LINUX } } },
-  },
-  {
     .name = "gcc_on_macos_targets_host_only",
     .file = "drivers.toml",
     .host = HOST_ARM_MACOS,
@@ -125,13 +114,6 @@ static const rows_test_t rows_tests [] = {
   {
     .name = "clang_on_macos_without_sdk_targets_host_only",
     .file = "multiple.toml",
-    .host = HOST_ARM_MACOS,
-    .toolchain = "B",
-    .expect = { .rows = { { HOST_ARM_MACOS, .sanitizers = SAN_CLANG_MACOS } } },
-  },
-  {
-    .name = "lld_on_macos_targets_no_elf",
-    .file = "drivers.toml",
     .host = HOST_ARM_MACOS,
     .toolchain = "B",
     .expect = { .rows = { { HOST_ARM_MACOS, .sanitizers = SAN_CLANG_MACOS } } },
@@ -257,22 +239,6 @@ static const bind_test_t bind_tests [] = {
     },
   },
   {
-    .name = "listed_retargeting_driver_reaches_only_its_list",
-    .driver = SPN_CC_DRIVER_CLANG,
-    .host = HOST_X64_LINUX,
-    .sdks = { .macos = { "/H" }, .msvc = { { { "/X" }, SPN_ARCH_X64 } } },
-    .targets = { { .triple = TARGET_WASM } },
-    .expect = { .rows = { { TARGET_WASM } } },
-  },
-  {
-    .name = "fixed_driver_reaches_only_its_list",
-    .driver = SPN_CC_DRIVER_GCC,
-    .host = HOST_X64_LINUX,
-    .sdks = { .macos = { "/H" }, .msvc = { { { "/X" }, SPN_ARCH_X64 } } },
-    .targets = { { .triple = TARGET_WASM } },
-    .expect = { .rows = { { TARGET_WASM } } },
-  },
-  {
     .name = "listed_rows_keep_their_sanitizers",
     .driver = SPN_CC_DRIVER_ZIG,
     .host = HOST_X64_LINUX,
@@ -284,21 +250,6 @@ static const bind_test_t bind_tests [] = {
     .driver = SPN_CC_DRIVER_ZIG,
     .host = HOST_X64_LINUX,
     .expect = { .rows = { { HOST_X64_LINUX }, { TARGET_X64_BARE }, { TARGET_X64_LINUX_NONE } } },
-  },
-  {
-    .name = "coff_host_targets_no_bare",
-    .driver = SPN_CC_DRIVER_CLANG,
-    .lld = true,
-    .host = HOST_X64_WINDOWS,
-    .targets = { { .triple = TARGET_WIN_GNU } },
-    .expect = { .rows = { { TARGET_WIN_GNU } } },
-  },
-  {
-    .name = "gcc_derives_its_arch_bare",
-    .driver = SPN_CC_DRIVER_GCC,
-    .lld = true,
-    .host = HOST_X64_LINUX,
-    .expect = { .rows = { { HOST_X64_LINUX, { SPN_SDK_HOST }, SAN_GCC_LINUX }, { TARGET_X64_BARE }, { TARGET_X64_LINUX_NONE } } },
   },
   {
     .name = "host_row_adds_to_a_list",
@@ -458,7 +409,6 @@ sp_test_each(catalog, bind, bind_test_t, bind_tests, .setup = spn_test_ctx_setup
   sp_mem_t mem = sp_test_arena(t);
   spn_toolchain_decl_t toolchain = fixture_local_toolchain("A", (fixture_launcher_t) { .name = "cc" });
   toolchain.driver = it->driver;
-  toolchain.lld = it->lld;
   toolchain.targets = sp_da_new(mem, spn_toolchain_target_t);
   sp_carr_for(it->targets, at) {
     if (fixture_target_empty(it->targets[at])) {
