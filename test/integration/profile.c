@@ -157,6 +157,40 @@ static const test_t tests [] = {
     },
   },
   {
+    .name = "listed_sanitizer_files_staged_beside_the_exe",
+    .project = "test/integration/fixtures/profile/runtime",
+    .when = { .sanitize = SPN_SANITIZER_ADDRESS, .lanes = { "clang64" } },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build", .args = { "-p", "asan" } } },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = profile_staged_file("asan", "libclang_rt.asan_dynamic-x86_64.dll") },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = profile_staged_file("asan", "libc++.dll") },
+      { .kind = ACTION_STAGE_BARE_RUN, .bare = { .file = profile_exe("asan", "main"), .expect = BARE_EXPECT_RUNS } },
+    },
+  },
+  {
+    .name = "listed_sanitizer_files_bring_the_redist_of_the_install",
+    .project = "test/integration/fixtures/profile/runtime",
+    .when = { .sanitize = SPN_SANITIZER_ADDRESS, .lanes = { "clang-msvc" } },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build", .args = { "-p", "asan" } } },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = profile_staged_file("asan", "clang_rt.asan_dynamic-x86_64.dll") },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = profile_staged_file("asan", "vcruntime140.dll") },
+      { .kind = ACTION_STAGE_BARE_RUN, .bare = { .file = profile_exe("asan", "main"), .expect = BARE_EXPECT_RUNS } },
+    },
+  },
+  {
+    .name = "listed_file_missing",
+    .project = "test/integration/fixtures/profile/runtime_missing",
+    .toolchain = "T",
+    .when.programs = { "cc", "ar" },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build", .args = { "--target", "x86_64-windows-gnu" }, .rc = 1 } },
+      { .kind = ACTION_VERIFY_RESULT, .verify_result.err = SPN_ERR_TOOLCHAIN_FILE_MISSING },
+      { .kind = ACTION_VERIFY_EVENT, .verify_event = { .event = SPN_EVENT_ERR, .key = "toolchain", .value = "T" } },
+      { .kind = ACTION_VERIFY_EVENT, .verify_event = { .event = SPN_EVENT_ERR, .key = "target", .value = "x86_64-windows-gnu" } },
+    },
+  },
+  {
     .name = "shared_runtime_staged_beside_the_exe",
     .project = "test/integration/fixtures/profile/runtime",
     .when.lanes = { "msvc" },

@@ -110,7 +110,7 @@ static const test_t tests [] = {
     .name = "runtime_shared",
     .project = "test/integration/fixtures/cxx/runtime_shared",
     .copy = { "main.cpp" },
-    .when = { .cxx = true, .lanes = { "msvc", "clang-msvc" } },
+    .when = { .cxx = true, .lanes = { "msvc", "clang-msvc", "clang64", "mingw64", "ucrt64" } },
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
       { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
@@ -118,14 +118,14 @@ static const test_t tests [] = {
     },
   },
   {
-    .name = "runtime_shared_unstaged",
+    .name = "runtime_shared_cross_mingw",
     .project = "test/integration/fixtures/cxx/runtime_shared",
     .copy = { "main.cpp" },
-    .when = { .cxx = true, .lanes = { "clang64", "mingw64", "ucrt64" } },
+    .when = { .cxx = true, .target = "x86_64-windows-gnu", .lanes = { "mingw-gnu", "clang-mingw", "clang-mingw-lld" } },
     .actions = {
-      { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
-      { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
-      { .kind = ACTION_STAGE_BARE_RUN, .bare = { .file = exe("main"), .expect = BARE_EXPECT_NOT_LOADABLE } },
+      { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build", .args = { "--target", "x86_64-windows-gnu" } } },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = target_staged_file("libstdc++-6.dll", "x86_64-windows-gnu") },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = target_staged_file("libgcc_s_seh-1.dll", "x86_64-windows-gnu") },
     },
   },
   {

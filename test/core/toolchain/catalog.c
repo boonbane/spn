@@ -119,6 +119,19 @@ static const artifact_test_t artifact_tests [] = {
     .file = "sdk_absolute.toml",
     .expect = { .rows = { { HOST_ARM_LINUX, { SPN_SDK_SYSROOT, { "/S" } } } } },
   },
+  {
+    .name = "relative_files_root_under_the_artifact",
+    .file = "files.toml",
+    .expect = {
+      .rows = {
+        {
+          TARGET_WIN_GNU,
+          .sanitizers = SPN_SANITIZER_ADDRESS,
+          .files = { .c = { "store/aa/S/C" }, .cxx = { "/X" }, .sanitizers = { { SPN_SANITIZER_ADDRESS, { "store/aa/S/D" } } } },
+        },
+      },
+    },
+  },
 };
 
 static const bind_test_t bind_tests [] = {

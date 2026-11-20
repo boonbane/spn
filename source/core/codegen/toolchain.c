@@ -242,6 +242,18 @@ static void lower_toolchain_targets(spn_toml_loader_t* ctx, spn_path_root_t base
         spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "sdk");
       }
     }
+    bool derived = spn_sdk_need(target.triple) == SPN_SDK_NEED_MSVC && spn_arg_empty(target.sdk);
+    if (shared && !own && target.triple.os == SPN_OS_WINDOWS && !derived && sp_da_empty(target.runtime.c) && sp_da_empty(target.runtime.cxx)) {
+      sp_da(sp_str_t) others = sp_da_new(ctx->mem, sp_str_t);
+      sp_da_push(others, sp_str_lit("cxx"));
+      spn_toml_loader_push_key(ctx, "runtime");
+      spn_toml_loader_issue_with(ctx, "c", (spn_toml_issue_t) {
+        .code = SPN_ERR_CODEGEN_MISSING_KEY,
+        .detail = sp_str_lit("c"),
+        .choices = others,
+      });
+      spn_toml_loader_pop(ctx);
+    }
     if (!sp_str_empty(row->spelling)) {
       if (spn_toolchain_driver_retargets(driver)) {
         target.spelling = spn_toml_loader_intern(ctx, row->spelling);

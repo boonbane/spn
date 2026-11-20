@@ -1,0 +1,22 @@
+[package]
+name = "A"
+version = "0.1.0"
+
+[[toolchain]]
+name = "T"
+driver = "gcc"
+compiler = "cc"
+archiver = "ar"
+
+[[toolchain.target]]
+arch = "x86_64"
+os = "windows"
+abi = "gnu"
+runtime = { supported = ["static", "shared"], c = ["B"] }
+
+[profile.default]
+runtime = "shared"
+
+[[bin]]
+name = "A"
+source = ["main.c"]

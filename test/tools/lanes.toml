@@ -34,7 +34,6 @@ supported = ["static", "shared"]
 cxx = [
   "/usr/lib/gcc/x86_64-w64-mingw32/12-win32/libstdc++-6.dll",
   "/usr/lib/gcc/x86_64-w64-mingw32/12-win32/libgcc_s_seh-1.dll",
-  "/usr/x86_64-w64-mingw32/lib/libwinpthread-1.dll",
 ]
 
 [[toolchain]]
@@ -50,7 +49,7 @@ name = "clang-mingw"
 driver = "clang"
 compiler = "clang"
 archiver = "x86_64-w64-mingw32-ar"
-cxx = "clang++"
+cxx = "clang++ -stdlib++-isystem /usr/lib/gcc/x86_64-w64-mingw32/12-win32/include/c++ -stdlib++-isystem /usr/lib/gcc/x86_64-w64-mingw32/12-win32/include/c++/x86_64-w64-mingw32"
 link_args = ["--ld-path=x86_64-w64-mingw32-ld", "-L/usr/lib/gcc/x86_64-w64-mingw32/12-win32"]
 host = { x86_64-linux = {}, aarch64-linux = {} }
 
@@ -64,7 +63,6 @@ supported = ["static", "shared"]
 cxx = [
   "/usr/lib/gcc/x86_64-w64-mingw32/12-win32/libstdc++-6.dll",
   "/usr/lib/gcc/x86_64-w64-mingw32/12-win32/libgcc_s_seh-1.dll",
-  "/usr/x86_64-w64-mingw32/lib/libwinpthread-1.dll",
 ]
 
 [[toolchain]]
@@ -72,7 +70,7 @@ name = "clang-mingw-lld"
 driver = "clang"
 compiler = "clang"
 archiver = "x86_64-w64-mingw32-ar"
-cxx = "clang++"
+cxx = "clang++ -stdlib++-isystem /usr/lib/gcc/x86_64-w64-mingw32/12-win32/include/c++ -stdlib++-isystem /usr/lib/gcc/x86_64-w64-mingw32/12-win32/include/c++/x86_64-w64-mingw32"
 linker = "lld"
 link_args = ["-fuse-ld=lld", "-L/usr/lib/gcc/x86_64-w64-mingw32/12-win32"]
 host = { x86_64-linux = {}, aarch64-linux = {} }
@@ -87,7 +85,6 @@ supported = ["static", "shared"]
 cxx = [
   "/usr/lib/gcc/x86_64-w64-mingw32/12-win32/libstdc++-6.dll",
   "/usr/lib/gcc/x86_64-w64-mingw32/12-win32/libgcc_s_seh-1.dll",
-  "/usr/x86_64-w64-mingw32/lib/libwinpthread-1.dll",
 ]
 
 [[toolchain]]

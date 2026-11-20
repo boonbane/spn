@@ -101,7 +101,11 @@ a target with no sysroot and lean on the wrapper or on clang's gcc-cross
 discovery instead.
 clang hands an `x86_64-none-elf` link to `gcc`, so `clang-bare` lives where
 both are installed. Debian names its mingw libgcc directory `12-win32`, which clang 14 does not
-parse as a version, so both clang mingw lanes name it with `-L`.
+parse as a version, so both clang mingw lanes name it with `-L` and name the
+libstdc++ headers under it with `-stdlib++-isystem` on `cxx`. That directory is
+the win32 thread model, whose `libstdc++-6.dll` and `libgcc_s_seh-1.dll` import
+no `libwinpthread-1.dll`, so the Debian mingw lanes list those two and the MSYS2
+lanes list all three.
 
 ## host libraries
 

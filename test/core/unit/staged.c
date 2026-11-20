@@ -147,6 +147,16 @@ static const test_t tests [] = {
     },
   },
   {
+    .name = "no_listed_files_stage_nothing",
+    .graph = {
+      .runtime = SPN_RUNTIME_SHARED,
+      .sanitize = SPN_SANITIZER_ADDRESS,
+      .pkgs = { { .name = "P", .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "a.cpp" } } } } },
+    },
+    .roots = { { "A", SPN_TARGET_KIND_EXE } },
+    .expect = { { "build/debug/A" } },
+  },
+  {
     .name = "static_runtime_stages_no_runtime",
     .graph = {
       .runtime = SPN_RUNTIME_STATIC,

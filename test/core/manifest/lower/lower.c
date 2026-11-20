@@ -1012,6 +1012,14 @@ static const test_t tests [] = {
     },
   },
   {
+    .name = "validate_toolchain_shared_runtime_without_files",
+    .manifest = "toolchain_runtime_shared_no_files",
+    .issues = {
+      { SPN_ERR_CODEGEN_MISSING_KEY, "target[0].runtime.c", "cxx" },
+      { SPN_ERR_CODEGEN_MISSING_KEY, "target[1].runtime.c", "cxx" },
+    },
+  },
+  {
     .name = "validate_toolchain_detected_with_files",
     .manifest = "toolchain_detected_files",
     .issues = {
@@ -1025,6 +1033,7 @@ static const test_t tests [] = {
     .manifest = "toolchain_runtime_zig_shared",
     .issues = {
       { SPN_ERR_CODEGEN_INVALID, "target[0].runtime.supported" },
+      { SPN_ERR_CODEGEN_INVALID, "target[2].runtime.supported" },
     },
   },
   {

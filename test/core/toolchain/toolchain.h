@@ -54,18 +54,20 @@ typedef struct {
 } fixture_sdk_expect_t;
 
 typedef struct {
-  spn_triple_t triple;
-  fixture_sdk_expect_t sdk;
-  spn_sanitizer_set_t sanitizers;
-} fixture_row_t;
-
-typedef struct {
   const c8* c [FIXTURE_MAX_ARGS];
+  const c8* cxx [FIXTURE_MAX_ARGS];
   struct {
     spn_sanitizer_t sanitizer;
     const c8* files [FIXTURE_MAX_ARGS];
   } sanitizers [si_sanitizer_count];
 } fixture_files_t;
+
+typedef struct {
+  spn_triple_t triple;
+  fixture_sdk_expect_t sdk;
+  spn_sanitizer_set_t sanitizers;
+  fixture_files_t files;
+} fixture_row_t;
 
 typedef struct {
   test_path_t root;
@@ -200,23 +202,6 @@ static sp_err_t fixture_check_triples(sp_test_t* t, sp_da(spn_triple_t) triples,
   return SP_OK;
 }
 
-static sp_err_t fixture_check_rows(sp_test_t* t, sp_da(spn_toolchain_row_t) rows, const fixture_row_t* expect) {
-  sp_mem_t mem = sp_test_arena(t);
-  u32 count = 0;
-  while (count < FIXTURE_MAX_TARGETS && !fixture_triple_empty(expect[count].triple)) {
-    count++;
-  }
-  sp_must_eq(t, count, (u32)sp_da_size(rows));
-  sp_for(it, count) {
-    sp_expect_str_eq(t, spn_triple_to_str(mem, rows[it].triple), spn_triple_to_str(mem, expect[it].triple));
-    sp_expect_eq(t, expect[it].sanitizers, rows[it].sanitizers);
-    if (fixture_check_sdk(t, rows[it].sdk, expect[it].sdk)) {
-      return SP_ERR;
-    }
-  }
-  return SP_OK;
-}
-
 static sp_err_t fixture_check_paths(sp_test_t* t, si_da(spn_path_t) paths, const c8* const* expect) {
   u32 count = 0;
   while (count < FIXTURE_MAX_ARGS && expect[count]) {
@@ -232,6 +217,7 @@ static sp_err_t fixture_check_paths(sp_test_t* t, si_da(spn_path_t) paths, const
 static sp_err_t fixture_check_files(sp_test_t* t, const spn_toolchain_files_t* files, const fixture_files_t* expect) {
   static const c8* const none [FIXTURE_MAX_ARGS] = sp_zero;
   sp_try(fixture_check_paths(t, files->c, expect->c));
+  sp_try(fixture_check_paths(t, files->cxx, expect->cxx));
   sp_for(slot, si_sanitizer_count) {
     const c8* const* listed = none;
     sp_carr_for(expect->sanitizers, at) {
@@ -240,6 +226,24 @@ static sp_err_t fixture_check_files(sp_test_t* t, const spn_toolchain_files_t* f
       }
     }
     sp_try(fixture_check_paths(t, files->sanitizers[slot], listed));
+  }
+  return SP_OK;
+}
+
+static sp_err_t fixture_check_rows(sp_test_t* t, sp_da(spn_toolchain_row_t) rows, const fixture_row_t* expect) {
+  sp_mem_t mem = sp_test_arena(t);
+  u32 count = 0;
+  while (count < FIXTURE_MAX_TARGETS && !fixture_triple_empty(expect[count].triple)) {
+    count++;
+  }
+  sp_must_eq(t, count, (u32)sp_da_size(rows));
+  sp_for(it, count) {
+    sp_expect_str_eq(t, spn_triple_to_str(mem, rows[it].triple), spn_triple_to_str(mem, expect[it].triple));
+    sp_expect_eq(t, expect[it].sanitizers, rows[it].sanitizers);
+    if (fixture_check_sdk(t, rows[it].sdk, expect[it].sdk)) {
+      return SP_ERR;
+    }
+    sp_try(fixture_check_files(t, &rows[it].files, &expect[it].files));
   }
   return SP_OK;
 }

@@ -160,7 +160,7 @@ const variant_t variants [] = {
   {
     .name = "debian-mingw",
     .distro = DISTRO_DEBIAN,
-    .extra = { "gcc-mingw-w64-x86-64" },
+    .extra = { "gcc-mingw-w64-x86-64", "g++-mingw-w64-x86-64" },
     .lanes = { LANE_MINGW_GNU },
   },
   {
@@ -168,7 +168,7 @@ const variant_t variants [] = {
     .distro = DISTRO_DEBIAN,
     .compilers = COMPILER_CLANG,
     .check = LANE_CLANG,
-    .extra = { "gcc-mingw-w64-x86-64", "lld" },
+    .extra = { "gcc-mingw-w64-x86-64", "g++-mingw-w64-x86-64", "lld" },
     .lanes = { LANE_CLANG_MINGW, LANE_CLANG_MINGW_LLD },
   },
   {

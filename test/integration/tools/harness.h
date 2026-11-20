@@ -56,6 +56,8 @@ typedef struct {
 #define staged_lib(name_)                             { PATH_STAGED_LIB, .name = name_ }
 #define target_staged_lib(name_, triple_)             { PATH_STAGED_LIB, .name = name_, .triple = triple_ }
 #define staged_file(name_)                            { PATH_STAGED_FILE, .name = name_ }
+#define profile_staged_file(profile_, name_)          { PATH_STAGED_FILE, .name = name_, .profile = profile_ }
+#define target_staged_file(name_, triple_)            { PATH_STAGED_FILE, .name = name_, .triple = triple_ }
 #define test_lib(name_)                               { PATH_TEST_LIB, .name = name_ }
 #define pkg_store_file(pkg_, rest)                    { PATH_STORE, .pkg = pkg_, .name = rest }
 #define pkg_store_exe(pkg_, name_)                    { PATH_STORE, .pkg = pkg_, .name = name_, .exe = true }
