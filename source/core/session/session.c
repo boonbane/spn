@@ -95,7 +95,7 @@ spn_err_t spn_session_init(spn_session_t* s, spn_ctx_t* ctx, sp_mem_t mem, spn_p
   spn_try(si_profile_query(&profile, ctx->host, &query));
   spn_toolchain_selection_t target = sp_zero;
   spn_try(si_toolchain_select(&ctx->catalog, query, &target));
-  spn_profile_finalize(&profile, &target);
+  si_profile_finalize(&profile, &target);
 
   spn_path_t root = spn_path_join(s->mem, s->paths.build, spn_profile_build_dir(s->mem, &profile));
   s->builds.program = add_build(s, profile, root, target.toolchain);
@@ -115,7 +115,7 @@ spn_err_t spn_session_add_metaprogram(spn_session_t* s) {
   spn_try(si_profile_query(&profile, s->ctx->host, &query));
   spn_toolchain_selection_t selection = sp_zero;
   spn_try(si_toolchain_select(&s->ctx->catalog, query, &selection));
-  spn_profile_finalize(&profile, &selection);
+  si_profile_finalize(&profile, &selection);
 
   spn_path_t root = spn_path_join(s->mem, s->paths.build, spn_triple_to_str(s->mem, profile.target));
   s->builds.metaprogram = add_build(s, profile, root, selection.toolchain);

@@ -143,6 +143,9 @@
     "stage_overlap": { "ref": "dag" },
     "stage_observed": { "ref": "dag" },
     "stage_collision": { "ref": "fs" },
+    "toolchain_file_missing": { "ref": "toolchain_file" },
+    "toolchain_file_duplicate": { "ref": "toolchain_file_dup" },
+    "toolchain_file_collision": { "ref": "toolchain_file_collision" },
     "target_source_glob": { "ref": "target_source" },
     "target_prebuilts": { "ref": "target_source" },
     "target_stub_required": { "ref": "target_source" },
@@ -480,6 +483,29 @@
         "pkg": { "type": "string" },
         "other": { "type": "string" },
         "name": { "type": "string" }
+      }
+    },
+    "toolchain_file": {
+      "properties": {
+        "toolchain": { "type": "string" },
+        "target": { "metadata": { "extern": "triple" } },
+        "path": { "metadata": { "extern": "path" } }
+      }
+    },
+    "toolchain_file_dup": {
+      "properties": {
+        "toolchain": { "type": "string" },
+        "exe": { "type": "string" },
+        "path": { "metadata": { "extern": "path" } },
+        "other": { "metadata": { "extern": "path" } }
+      }
+    },
+    "toolchain_file_collision": {
+      "properties": {
+        "toolchain": { "type": "string" },
+        "exe": { "type": "string" },
+        "pkg": { "type": "string" },
+        "path": { "metadata": { "extern": "path" } }
       }
     },
     "target": {

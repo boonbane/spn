@@ -3,6 +3,7 @@
 
 #include "sp.h"
 #include "sp/sp_msvc.h"
+#include "array/array.h"
 #include "fs/fs.h"
 #include "spn/core.h"
 
@@ -90,6 +91,9 @@ typedef struct {
       sp_str_t version;
     } kit;
   } install;
+  struct {
+    spn_path_t asan;
+  } runtime;
 } spn_sdk_msvc_t;
 
 typedef struct {
@@ -180,11 +184,18 @@ typedef struct {
 } spn_toolchain_target_t;
 
 typedef struct {
+  si_da(spn_path_t) c;
+  si_da(spn_path_t) cxx;
+  si_da(spn_path_t) sanitizers [si_sanitizer_count];
+} spn_toolchain_files_t;
+
+typedef struct {
   spn_triple_t triple;
   spn_sdk_t sdk;
   sp_str_t spelling;
   spn_toolchain_exceptions_t exceptions;
   spn_sanitizer_set_t sanitizers;
+  spn_toolchain_files_t files;
 } spn_toolchain_row_t;
 
 typedef enum {

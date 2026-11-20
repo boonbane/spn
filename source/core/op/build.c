@@ -223,7 +223,7 @@ spn_err_t spn_op_build(spn_op_t* op) {
   spn_try(spn_plan_new(&configure, SP_NULLPTR, SP_NULLPTR, &plan));
   claim_spn_files(mem, project, &plan);
   spn_dag_build_t* reactors = spn_dag_build_new(op);
-  spn_try(spn_dag_build_lower(reactors, &plan));
+  spn_try(si_dag_build_lower(reactors, &plan));
   spn_try(spn_dag_build_run(reactors, spn_cpu_count()));
   sp_om_for(units.packages, it) {
     spn_pkg_unit_t* pkg = sp_om_at(units.packages, it);
@@ -239,7 +239,7 @@ spn_err_t spn_op_build(spn_op_t* op) {
   claim_spn_files(mem, project, &session->plan);
 
   spn_dag_build_t* b = spn_dag_build_new(op);
-  spn_try(spn_dag_build_lower(b, &session->plan));
+  spn_try(si_dag_build_lower(b, &session->plan));
 
   spn_event_buffer_push(ctx->events, (spn_event_t) {
     .kind = SPN_EVENT_INIT_BUILD_GRAPH,

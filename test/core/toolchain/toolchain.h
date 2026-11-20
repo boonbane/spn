@@ -55,6 +55,13 @@ typedef struct {
 } fixture_row_t;
 
 typedef struct {
+  struct {
+    spn_sanitizer_t sanitizer;
+    const c8* files [FIXTURE_MAX_ARGS];
+  } sanitizers [si_sanitizer_count];
+} fixture_files_t;
+
+typedef struct {
   test_path_t root;
   spn_arch_t arch;
   const c8* version;
@@ -190,6 +197,24 @@ static sp_err_t fixture_check_rows(sp_test_t* t, sp_da(spn_toolchain_row_t) rows
     sp_expect_eq(t, expect[it].sanitizers, rows[it].sanitizers);
     if (fixture_check_sdk(t, rows[it].sdk, expect[it].sdk)) {
       return SP_ERR;
+    }
+  }
+  return SP_OK;
+}
+
+static sp_err_t fixture_check_files(sp_test_t* t, const spn_toolchain_files_t* files, const fixture_files_t* expect) {
+  sp_for(slot, si_sanitizer_count) {
+    u32 at = 0;
+    while (at < si_sanitizer_count && (u32)expect->sanitizers[at].sanitizer != 1u << slot) {
+      at++;
+    }
+    u32 count = 0;
+    if (at < si_sanitizer_count) {
+      sp_carr_detect_len(expect->sanitizers[at].files, count, expect->sanitizers[at].files[count]);
+    }
+    sp_must_eq(t, count, (u32)si_da_size(files->sanitizers[slot]));
+    sp_for(ft, count) {
+      sp_expect_str_eq_c(t, files->sanitizers[slot][ft].sub, expect->sanitizers[at].files[ft]);
     }
   }
   return SP_OK;

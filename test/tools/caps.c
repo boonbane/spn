@@ -317,7 +317,7 @@ static spn_err_t lane_selects(sp_mem_t mem, const test_when_t* when, spn_triple_
   }
   spn_event_buffer_drain(mem, spn.events);
   if (!err) {
-    spn_profile_finalize(profile, selection);
+    si_profile_finalize(profile, selection);
   }
   return err;
 }

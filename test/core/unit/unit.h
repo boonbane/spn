@@ -20,6 +20,7 @@
 #define UNIT_TEST_MAX_OPTIONS 2
 #define UNIT_TEST_MAX_TOOLCHAINS 3
 #define UNIT_TEST_MAX_PREBUILT 2
+#define UNIT_TEST_MAX_FILES 2
 
 #define static_only { .static_lib = true }
 #define shared_only { .shared = true }
@@ -100,6 +101,15 @@ typedef struct {
 } graph_toolchain_t;
 
 typedef struct {
+  const c8* c [UNIT_TEST_MAX_FILES];
+  const c8* cxx [UNIT_TEST_MAX_FILES];
+  struct {
+    spn_sanitizer_t sanitizer;
+    const c8* files [UNIT_TEST_MAX_FILES];
+  } sanitizers [si_sanitizer_count];
+} graph_files_t;
+
+typedef struct {
   spn_arch_t arch;
   spn_os_t os;
   spn_abi_t abi;
@@ -109,7 +119,8 @@ typedef struct {
   spn_opt_level_t opt;
   spn_strip_t strip;
   spn_c_standard_t standard;
-  spn_sanitizer_t sanitize;
+  spn_sanitizer_set_t sanitize;
+  graph_files_t files;
   const c8* cc;
   const c8* link_args [UNIT_TEST_MAX_STRS];
   const c8* sdk;
@@ -153,5 +164,7 @@ spn_err_t           units_add_package(units_t* u, const c8* pkg, spn_pkg_unit_t*
 spn_err_t           units_add_target(units_t* u, spn_pkg_unit_t* pkg, graph_root_t root, spn_target_unit_t** unit);
 spn_err_t           units_add_roots(units_t* u, const graph_root_t* roots, u32 count, si_da(spn_target_unit_t*)* targets);
 spn_err_t           units_plan(units_t* u, si_da(spn_target_unit_t*) targets);
+spn_path_t          units_toolchain_file(units_t* u, const c8* file);
+sp_err_t            units_write_files(sp_test_t* t, units_t* u, const c8* const* files, u32 max);
 spn_target_unit_t*  units_find_target(units_t* u, const c8* name, spn_target_kind_t kind);
 sp_da(spn_event_t)  units_errs(units_t* u);

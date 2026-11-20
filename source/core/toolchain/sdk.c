@@ -78,7 +78,7 @@ static sp_str_t dia_arch_name(spn_arch_t arch) {
   sp_unreachable_return(sp_str_lit(""));
 }
 
-spn_sdk_msvc_t spn_sdk_from_msvc(sp_mem_t mem, const sp_msvc_sdk_t* kits, const sp_msvc_vs_t* vs, spn_arch_t arch) {
+spn_sdk_msvc_t si_sdk_from_msvc(sp_mem_t mem, const sp_msvc_sdk_t* kits, const sp_msvc_vs_t* vs, spn_arch_t arch) {
   sp_msvc_sdk_paths_t kit = sp_msvc_sdk_render(mem, kits);
   sp_msvc_vs_paths_t tools = sp_msvc_vs_render(mem, vs);
   spn_arch_t host = SPN_ARCH_NONE;
@@ -131,6 +131,9 @@ spn_sdk_msvc_t spn_sdk_from_msvc(sp_mem_t mem, const sp_msvc_sdk_t* kits, const 
   };
   if (host != arch) {
     msvc.tools.host = spn_path_join(mem, toolset, sp_fmt(mem, "bin/Host{}/{}", sp_fmt_str(host_name), sp_fmt_str(host_name)).value);
+  }
+  if (arch == SPN_ARCH_X64) {
+    msvc.runtime.asan = spn_path_join(mem, msvc.bin, sp_str_lit("clang_rt.asan_dynamic-x86_64.dll"));
   }
   return msvc;
 }
@@ -274,7 +277,7 @@ static spn_sdk_t from_host(sp_mem_t mem, const spn_sdk_host_t* host, spn_triple_
       if (si_msvc_match(&host->msvc, target.arch, sp_zero_s(spn_msvc_request_t), false, &pick)) {
         return none;
       }
-      return (spn_sdk_t) { .kind = SPN_SDK_MSVC, .msvc = spn_sdk_from_msvc(mem, pick.kit, pick.toolset, target.arch) };
+      return (spn_sdk_t) { .kind = SPN_SDK_MSVC, .msvc = si_sdk_from_msvc(mem, pick.kit, pick.toolset, target.arch) };
     }
   }
   sp_unreachable_return(none);

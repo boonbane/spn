@@ -482,7 +482,7 @@ sp_test_each(unit_lower, graph, test_t, tests, .setup = spn_test_ctx_setup, .tea
 
   spn_op_t op = { .ctx = &u->ctx, .session = &u->session };
   spn_dag_build_t* b = spn_dag_build_new(&op);
-  sp_must_eq(t, SPN_OK, spn_dag_build_lower(b, &u->plan));
+  sp_must_eq(t, SPN_OK, si_dag_build_lower(b, &u->plan));
   sp_must_eq(t, SPN_OK, spn_dag_validate(b->graph).err);
 
   sp_da(lowered_t) lowered = lower_graph(mem, b->graph);

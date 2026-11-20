@@ -245,7 +245,16 @@ spn_err_t si_toolchain_select(spn_toolchain_catalog_t* catalog, spn_toolchain_qu
   spn_msvc_pick_t pick = sp_zero;
   switch (si_msvc_match(installs, target.arch, query.msvc, compiler, &pick)) {
     case SPN_MSVC_MATCH_OK: {
-      sdk->msvc = spn_sdk_from_msvc(catalog->mem, pick.kit, pick.toolset, target.arch);
+      sdk->msvc = si_sdk_from_msvc(catalog->mem, pick.kit, pick.toolset, target.arch);
+      if (compiler && !spn_path_empty(sdk->msvc.runtime.asan)) {
+        sp_for(st, si_sanitizer_count) {
+          if (SPN_SANITIZER_ADDRESS == 1u << st) {
+            si_da(spn_path_t)* files = &selection->row.files.sanitizers[st];
+            si_da_copy(catalog->mem, *files, *files);
+            si_da_push(catalog->mem, *files, sdk->msvc.runtime.asan);
+          }
+        }
+      }
       return SPN_OK;
     }
     case SPN_MSVC_MATCH_ABSENT: {

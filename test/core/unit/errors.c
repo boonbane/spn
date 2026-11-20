@@ -1,5 +1,6 @@
 #include "unit.h"
 
+#include "paths/paths.h"
 #include "triple/triple.h"
 
 typedef struct {
@@ -10,12 +11,16 @@ typedef struct {
   const c8* frameworks [UNIT_TEST_MAX_STRS];
   const c8* candidates [UNIT_TEST_MAX_TOOLCHAINS + 1];
   const c8* source;
+  const c8* file;
+  const c8* other;
+  const c8* pkg;
 } expect_t;
 
 typedef struct {
   const c8* name;
   graph_t graph;
   graph_root_t root;
+  const c8* present [UNIT_TEST_MAX_FILES];
   expect_t expect;
 } test_t;
 
@@ -240,6 +245,40 @@ static const test_t tests [] = {
     .expect = { .err = SPN_ERR_TARGET_COLLISION },
   },
   {
+    .name = "toolchain_file_missing",
+    .graph = {
+      .sanitize = SPN_SANITIZER_ADDRESS,
+      .files.sanitizers = { { SPN_SANITIZER_ADDRESS, { "T/D" } } },
+      .pkgs = { { .name = "P", .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "a.c" } } } } },
+    },
+    .root = { "A", SPN_TARGET_KIND_EXE },
+    .expect = { .err = SPN_ERR_TOOLCHAIN_FILE_MISSING, .file = "T/D" },
+  },
+  {
+    .name = "toolchain_file_collides_with_a_staged_lib",
+    .graph = {
+      .sanitize = SPN_SANITIZER_ADDRESS,
+      .files.sanitizers = { { SPN_SANITIZER_ADDRESS, { "T/libB.so" } } },
+      .pkgs = {
+        { .name = "P", .deps = { { "B" } }, .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "a.c" } } } },
+        { .name = "B", .targets = { { "B", shared_only, .source = { "b.c" } } } },
+      },
+    },
+    .root = { "A", SPN_TARGET_KIND_EXE },
+    .expect = { .err = SPN_ERR_TOOLCHAIN_FILE_COLLISION, .file = "T/libB.so", .pkg = "B" },
+  },
+  {
+    .name = "two_toolchain_files_share_a_name",
+    .graph = {
+      .sanitize = SPN_SANITIZER_ADDRESS,
+      .files.sanitizers = { { SPN_SANITIZER_ADDRESS, { "T/D", "U/D" } } },
+      .pkgs = { { .name = "P", .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "a.c" } } } } },
+    },
+    .root = { "A", SPN_TARGET_KIND_EXE },
+    .present = { "T/D" },
+    .expect = { .err = SPN_ERR_TOOLCHAIN_FILE_DUPLICATE, .file = "U/D", .other = "T/D" },
+  },
+  {
     .name = "two_shared_entries_survive",
     .graph.pkgs = {
       { .name = "P", .deps = { { "B" } }, .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "a.c" } } } },
@@ -290,6 +329,7 @@ static const test_t tests [] = {
 sp_test_each(unit_errors, plan, test_t, tests, .setup = spn_test_ctx_setup, .teardown = units_teardown) {
   units_t* u = units_new(t, &it->graph);
   si_da(spn_target_unit_t*) targets = sp_zero;
+  sp_try(units_write_files(t, u, it->present, UNIT_TEST_MAX_FILES));
   spn_err_t err = units_add_roots(u, &it->root, 1, &targets);
   if (!err) {
     err = units_plan(u, targets);
@@ -326,6 +366,29 @@ sp_test_each(unit_errors, plan, test_t, tests, .setup = spn_test_ctx_setup, .tea
       sp_expect_str_eq_c(t, prebuilts->pkg, "B");
       sp_expect_str_eq_c(t, prebuilts->name, "B");
       sp_expect(t, sp_str_ends_with(prebuilts->source, sp_cstr_as_str(it->expect.source)));
+      break;
+    }
+    case SPN_ERR_TOOLCHAIN_FILE_MISSING: {
+      spn_err_toolchain_file_t* missing = &errs[0].err.toolchain_file;
+      sp_expect_str_eq_c(t, missing->toolchain, "T");
+      sp_expect(t, spn_triple_equal(missing->target, u->session.builds.program->profile.target));
+      sp_expect(t, spn_path_equal(missing->path, units_toolchain_file(u, it->expect.file)));
+      break;
+    }
+    case SPN_ERR_TOOLCHAIN_FILE_DUPLICATE: {
+      spn_err_toolchain_file_dup_t* duplicate = &errs[0].err.toolchain_file_dup;
+      sp_expect_str_eq_c(t, duplicate->toolchain, "T");
+      sp_expect_str_eq_c(t, duplicate->exe, "A");
+      sp_expect(t, spn_path_equal(duplicate->path, units_toolchain_file(u, it->expect.file)));
+      sp_expect(t, spn_path_equal(duplicate->other, units_toolchain_file(u, it->expect.other)));
+      break;
+    }
+    case SPN_ERR_TOOLCHAIN_FILE_COLLISION: {
+      spn_err_toolchain_file_collision_t* collision = &errs[0].err.toolchain_file_collision;
+      sp_expect_str_eq_c(t, collision->toolchain, "T");
+      sp_expect_str_eq_c(t, collision->exe, "A");
+      sp_expect_str_eq_c(t, collision->pkg, it->expect.pkg);
+      sp_expect(t, spn_path_equal(collision->path, units_toolchain_file(u, it->expect.file)));
       break;
     }
     default: {

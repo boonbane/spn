@@ -9,7 +9,7 @@ static const test_t tests [] = {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
       { .kind = ACTION_VERIFY_EXISTS, .exists = staged_lib("spum") },
       { .kind = ACTION_RUN_BIN, .bin.file = exe("main") },
-      { .kind = ACTION_STAGE_BARE_RUN, .bare = { .file = exe("main"), .with = { staged_lib("spum") }, .expect = BARE_EXPECT_RUNS } },
+      { .kind = ACTION_STAGE_BARE_RUN, .bare = { .file = exe("main"), .expect = BARE_EXPECT_RUNS } },
     },
   },
   {
@@ -20,7 +20,7 @@ static const test_t tests [] = {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
       { .kind = ACTION_VERIFY_EXISTS, .exists = test_lib("spum") },
       { .kind = ACTION_RUN_BIN, .bin.file = test_exe("check") },
-      { .kind = ACTION_STAGE_BARE_RUN, .bare = { .file = test_exe("check"), .with = { test_lib("spum") }, .expect = BARE_EXPECT_RUNS } },
+      { .kind = ACTION_STAGE_BARE_RUN, .bare = { .file = test_exe("check"), .expect = BARE_EXPECT_RUNS } },
     },
   },
 };

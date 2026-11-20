@@ -158,6 +158,7 @@ add_executable(core
   toolchain/sdk_shell.c
   toolchain/search.c
   toolchain/select.c
+  toolchain/select_files.c
   toolchain/select_msvc.c
   toolchain/toolchain.c
   toolchain/unpack.c
@@ -173,6 +174,7 @@ add_executable(core
   unit/includes.c
   unit/link.c
   unit/lower.c
+  unit/lower_stage_rows.c
   unit/objects.c
   unit/paths.c
   unit/staged.c
@@ -232,6 +234,7 @@ set_source_files_properties(
   toolchain/search.c
   toolchain/provision.c
   toolchain/select.c
+  toolchain/select_files.c
   toolchain/select_msvc.c
   toolchain/toolchain.c
   toolchain/zig.c

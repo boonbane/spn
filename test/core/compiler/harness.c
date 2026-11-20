@@ -75,7 +75,7 @@ sp_err_t test_profile(sp_test_t* t, spn_cc_driver_t driver, test_profile_t desc,
     .strip = desc.strip,
     .sanitizers = desc.sanitizers,
   };
-  spn_profile_finalize(profile, &selection);
+  si_profile_finalize(profile, &selection);
   return SP_OK;
 }
 

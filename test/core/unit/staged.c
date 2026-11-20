@@ -2,15 +2,29 @@
 
 #define STAGED_TEST_MAX_LIBS 4
 
+#define every_purpose { \
+  .c = { "T/C" }, \
+  .cxx = { "T/X" }, \
+  .sanitizers = { \
+    { SPN_SANITIZER_ADDRESS, { "T/D" } }, \
+    { SPN_SANITIZER_THREAD, { "T/H" } }, \
+    { SPN_SANITIZER_UNDEFINED, { "T/U" } }, \
+    { SPN_SANITIZER_MEMORY, { "T/M" } }, \
+    { SPN_SANITIZER_LEAK, { "T/K" } }, \
+  }, \
+}
+
 typedef struct {
   const c8* exe;
   const c8* libs [STAGED_TEST_MAX_LIBS];
+  const c8* files [UNIT_TEST_MAX_FILES];
 } closure_t;
 
 typedef struct {
   const c8* name;
   graph_t graph;
   graph_root_t roots [UNIT_TEST_MAX_ROOTS];
+  const c8* present [UNIT_TEST_MAX_FILES];
   closure_t expect [UNIT_TEST_MAX_ROOTS];
 } test_t;
 
@@ -132,6 +146,128 @@ static const test_t tests [] = {
       { "build/debug/C", { "build/debug/libB.so" } },
     },
   },
+  {
+    .name = "static_runtime_stages_no_runtime",
+    .graph = {
+      .runtime = SPN_RUNTIME_STATIC,
+      .files = every_purpose,
+      .pkgs = { { .name = "P", .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "a.cpp" } } } } },
+    },
+    .roots = { { "A", SPN_TARGET_KIND_EXE } },
+    .expect = { { "build/debug/A" } },
+  },
+  {
+    .name = "shared_runtime_stages_the_c_runtime",
+    .graph = {
+      .runtime = SPN_RUNTIME_SHARED,
+      .files = every_purpose,
+      .pkgs = { { .name = "P", .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "a.c" } } } } },
+    },
+    .roots = { { "A", SPN_TARGET_KIND_EXE } },
+    .present = { "T/C" },
+    .expect = { { "build/debug/A", .files = { "build/debug/C" } } },
+  },
+  {
+    .name = "cxx_exe_stages_the_cxx_runtime_too",
+    .graph = {
+      .runtime = SPN_RUNTIME_SHARED,
+      .files = every_purpose,
+      .pkgs = { { .name = "P", .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "a.cpp" } } } } },
+    },
+    .roots = { { "A", SPN_TARGET_KIND_EXE } },
+    .present = { "T/C", "T/X" },
+    .expect = { { "build/debug/A", .files = { "build/debug/C", "build/debug/X" } } },
+  },
+  // C++ reached only through a shared lib the exe loads still needs the C++
+  // runtime beside the exe
+  {
+    .name = "cxx_behind_a_shared_lib_stages_the_cxx_runtime",
+    .graph = {
+      .runtime = SPN_RUNTIME_SHARED,
+      .files = every_purpose,
+      .pkgs = {
+        { .name = "P", .deps = { { "B" } }, .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "a.c" } } } },
+        { .name = "B", .deps = { { "E" } }, .targets = { { "B", shared_only, .source = { "b.c" } } } },
+        { .name = "E", .targets = { { "E", static_only, .source = { "e.cpp" } } } },
+      },
+    },
+    .roots = { { "A", SPN_TARGET_KIND_EXE } },
+    .present = { "T/C", "T/X" },
+    .expect = { { "build/debug/A", { "build/debug/libB.so" }, { "build/debug/C", "build/debug/X" } } },
+  },
+  {
+    .name = "sanitizer_stages_its_runtime",
+    .graph = {
+      .sanitize = SPN_SANITIZER_THREAD,
+      .files = every_purpose,
+      .pkgs = { { .name = "P", .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "a.c" } } } } },
+    },
+    .roots = { { "A", SPN_TARGET_KIND_EXE } },
+    .present = { "T/H" },
+    .expect = { { "build/debug/A", .files = { "build/debug/H" } } },
+  },
+  {
+    .name = "two_sanitizers_stage_both_runtimes",
+    .graph = {
+      .sanitize = SPN_SANITIZER_ADDRESS | SPN_SANITIZER_UNDEFINED,
+      .files = every_purpose,
+      .pkgs = { { .name = "P", .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "a.c" } } } } },
+    },
+    .roots = { { "A", SPN_TARGET_KIND_EXE } },
+    .present = { "T/D", "T/U" },
+    .expect = { { "build/debug/A", .files = { "build/debug/D", "build/debug/U" } } },
+  },
+  {
+    .name = "file_listed_for_two_purposes_is_staged_once",
+    .graph = {
+      .runtime = SPN_RUNTIME_SHARED,
+      .sanitize = SPN_SANITIZER_ADDRESS,
+      .files = { .c = { "T/C" }, .sanitizers = { { SPN_SANITIZER_ADDRESS, { "T/D", "T/C" } } } },
+      .pkgs = { { .name = "P", .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "a.c" } } } } },
+    },
+    .roots = { { "A", SPN_TARGET_KIND_EXE } },
+    .present = { "T/C", "T/D" },
+    .expect = { { "build/debug/A", .files = { "build/debug/C", "build/debug/D" } } },
+  },
+  {
+    .name = "test_stages_toolchain_files_under_test_dir",
+    .graph = {
+      .sanitize = SPN_SANITIZER_ADDRESS,
+      .files.sanitizers = { { SPN_SANITIZER_ADDRESS, { "T/D" } } },
+      .pkgs = { { .name = "P", .targets = { { "T", .kind = SPN_TARGET_KIND_TEST, .source = { "t.c" } } } } },
+    },
+    .roots = { { "T", SPN_TARGET_KIND_TEST } },
+    .present = { "T/D" },
+    .expect = { { "build/debug/test/T", .files = { "build/debug/test/D" } } },
+  },
+  {
+    .name = "two_bins_each_list_a_toolchain_file",
+    .graph = {
+      .sanitize = SPN_SANITIZER_ADDRESS,
+      .files.sanitizers = { { SPN_SANITIZER_ADDRESS, { "T/D" } } },
+      .pkgs = {
+        { .name = "P", .targets = {
+          { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "a.c" } },
+          { "C", .kind = SPN_TARGET_KIND_EXE, .source = { "c.c" } },
+        } },
+      },
+    },
+    .roots = { { "A", SPN_TARGET_KIND_EXE }, { "C", SPN_TARGET_KIND_EXE } },
+    .present = { "T/D" },
+    .expect = {
+      { "build/debug/A", .files = { "build/debug/D" } },
+      { "build/debug/C", .files = { "build/debug/D" } },
+    },
+  },
+  {
+    .name = "shared_lib_root_stages_no_toolchain_file",
+    .graph = {
+      .sanitize = SPN_SANITIZER_ADDRESS,
+      .files.sanitizers = { { SPN_SANITIZER_ADDRESS, { "T/D" } } },
+      .pkgs = { { .name = "P", .targets = { { "L", shared_only, .source = { "l.c" } } } } },
+    },
+    .roots = { { "L", SPN_TARGET_KIND_LIB } },
+  },
 };
 
 sp_test_each(unit_staged, closure, test_t, tests, .setup = spn_test_ctx_setup, .teardown = units_teardown) {
@@ -140,6 +276,7 @@ sp_test_each(unit_staged, closure, test_t, tests, .setup = spn_test_ctx_setup, .
   sp_carr_detect_len(it->roots, roots, it->roots[roots].name);
   si_da(spn_target_unit_t*) targets = sp_zero;
   sp_must_eq(t, SPN_OK, units_add_roots(u, it->roots, roots, &targets));
+  sp_try(units_write_files(t, u, it->present, UNIT_TEST_MAX_FILES));
   sp_must_eq(t, SPN_OK, units_plan(u, targets));
 
   u32 expected = 0;
@@ -156,6 +293,13 @@ sp_test_each(unit_staged, closure, test_t, tests, .setup = spn_test_ctx_setup, .
     sp_must_eq(t, libs, (u32)si_da_size(staged->libs));
     sp_for(lt, libs) {
       sp_expect_str_eq_c(t, staged->libs[lt].path.sub, expect->libs[lt]);
+    }
+
+    u32 files = 0;
+    sp_carr_detect_len(expect->files, files, expect->files[files]);
+    sp_must_eq(t, files, (u32)si_da_size(staged->files));
+    sp_for(ft, files) {
+      sp_expect_str_eq_c(t, staged->files[ft].path.sub, expect->files[ft]);
     }
   }
   return SP_OK;

@@ -129,6 +129,25 @@ static const test_t tests [] = {
     },
   },
   {
+    .name = "sanitizer_runtime_staged_beside_the_exe",
+    .project = "test/integration/fixtures/profile/sanitize",
+    .when = { .sanitize = SPN_SANITIZER_ADDRESS, .lanes = { "msvc" } },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build", .args = { "--sanitize", "address" } } },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = staged_file("clang_rt.asan_dynamic-x86_64.dll") },
+    },
+  },
+  {
+    .name = "sanitizer_runtime_removed_with_the_sanitizer",
+    .project = "test/integration/fixtures/profile/sanitize",
+    .when = { .sanitize = SPN_SANITIZER_ADDRESS, .lanes = { "msvc" } },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build", .args = { "--sanitize", "address" } } },
+      { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build" } },
+      { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = staged_file("clang_rt.asan_dynamic-x86_64.dll") },
+    },
+  },
+  {
     .name = "flags",
     .project = "test/integration/fixtures/profile/sanitize",
     .actions = {
@@ -146,6 +165,13 @@ sp_test_each(profile, cases, test_t, tests) {
 }
 
 static const command_test_t commands [] = {
+  {
+    .name = "host_toolchain_stages_no_sanitizer_runtime",
+    .project = "test/integration/fixtures/profile/sanitize",
+    .when = { .sanitize = SPN_SANITIZER_ADDRESS, .host = SPN_OS_LINUX, .lanes = { "gcc" } },
+    .args = { "build", "--sanitize", "address" },
+    .expect.files = { { work_file("staged"), .content = "main\tbuild/debug/main\n" } },
+  },
   {
     .name = "env_outside_a_dev_shell_clears_nothing",
     .project = "test/integration/fixtures/profile/override",

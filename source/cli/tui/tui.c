@@ -1957,6 +1957,38 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           sp_tty_fmt(&w, "{.cyan} already exists and was not staged by spn; remove it or change its [stage] destination", sp_fmt_str(contextual_path(mem, event->err.fs.path)));
           break;
         }
+        case SPN_ERR_TOOLCHAIN_FILE_MISSING: {
+          sp_tty_fmt(
+            &w,
+            "Toolchain {} stages {.cyan} beside executables for {.yellow}, but it is not a file",
+            sp_fmt_str(colored_name(w.color, mem, event->err.toolchain_file.toolchain)),
+            sp_fmt_str(contextual_path(mem, event->err.toolchain_file.path)),
+            sp_fmt_str(spn_triple_to_str(mem, event->err.toolchain_file.target))
+          );
+          break;
+        }
+        case SPN_ERR_TOOLCHAIN_FILE_DUPLICATE: {
+          sp_tty_fmt(
+            &w,
+            "Toolchain {} stages {.cyan} and {.cyan} beside {.cyan}, but they have the same name",
+            sp_fmt_str(colored_name(w.color, mem, event->err.toolchain_file_dup.toolchain)),
+            sp_fmt_str(contextual_path(mem, event->err.toolchain_file_dup.other)),
+            sp_fmt_str(contextual_path(mem, event->err.toolchain_file_dup.path)),
+            sp_fmt_str(event->err.toolchain_file_dup.exe)
+          );
+          break;
+        }
+        case SPN_ERR_TOOLCHAIN_FILE_COLLISION: {
+          sp_tty_fmt(
+            &w,
+            "Toolchain {} stages {.cyan} beside {.cyan}, where {.cyan} stages a library of the same name",
+            sp_fmt_str(colored_name(w.color, mem, event->err.toolchain_file_collision.toolchain)),
+            sp_fmt_str(contextual_path(mem, event->err.toolchain_file_collision.path)),
+            sp_fmt_str(event->err.toolchain_file_collision.exe),
+            sp_fmt_str(event->err.toolchain_file_collision.pkg)
+          );
+          break;
+        }
         case SPN_ERR_DAG_MISSING_OUTPUT: {
           sp_tty_fmt(&w, "{.cyan} was not produced by the action that declares it as an output", sp_fmt_str(get_contextual_path(ctx, mem, event->err.dag.path)));
           break;

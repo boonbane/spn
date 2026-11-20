@@ -42,6 +42,17 @@ static spn_gated_path_list_t gated_paths(sp_mem_t mem, const c8* const* items, u
   return list;
 }
 
+static si_da(spn_path_t) toolchain_files(units_t* u, const c8* const* items, u32 max) {
+  si_da(spn_path_t) list = SP_NULLPTR;
+  sp_for(it, max) {
+    if (!items[it]) {
+      break;
+    }
+    si_da_push(u->mem, list, units_toolchain_file(u, items[it]));
+  }
+  return list;
+}
+
 static si_da(spn_gated_prebuilt_t) gated_prebuilt(sp_mem_t mem, const graph_prebuilt_t* items, u32 max) {
   si_da(spn_gated_prebuilt_t) list = SP_NULLPTR;
   sp_for(it, max) {
@@ -197,7 +208,7 @@ static spn_profile_info_t program_profile(units_t* u, const graph_t* g, const sp
     .mode = g->mode ? g->mode : SPN_MODE_DEBUG,
     .opt = g->opt,
     .strip = g->strip,
-    .sanitizers = g->sanitize ? 1u << g->sanitize : 0,
+    .sanitizers = g->sanitize,
     .target = {
       .arch = g->arch ? g->arch : SPN_ARCH_X64,
       .os = g->os ? g->os : SPN_OS_LINUX,
@@ -212,7 +223,18 @@ static spn_profile_info_t program_profile(units_t* u, const graph_t* g, const sp
       .declared = g->exceptions[0],
       .flags = strs(u->mem, g->exceptions, UNIT_TEST_MAX_STRS),
     },
+    .files = {
+      .c = toolchain_files(u, g->files.c, UNIT_TEST_MAX_FILES),
+      .cxx = toolchain_files(u, g->files.cxx, UNIT_TEST_MAX_FILES),
+    },
   };
+  sp_for(slot, si_sanitizer_count) {
+    sp_carr_for(g->files.sanitizers, at) {
+      if ((u32)g->files.sanitizers[at].sanitizer == 1u << slot) {
+        profile.files.sanitizers[slot] = toolchain_files(u, g->files.sanitizers[at].files, UNIT_TEST_MAX_FILES);
+      }
+    }
+  }
   spn_triple_t triple = profile.target;
   profile.linker = spn_ld_native(profile.driver, triple);
   if (g->sdk) {
@@ -479,6 +501,23 @@ spn_err_t units_plan(units_t* u, si_da(spn_target_unit_t*) targets) {
   spn_try(units_add_package(u, u->graph->pkgs[0].name, &root));
   spn_try(spn_plan_new(&u->configure, SP_NULLPTR, SP_NULLPTR, &u->configured));
   return spn_plan_new(&u->units, root, targets, &u->plan);
+}
+
+spn_path_t units_toolchain_file(units_t* u, const c8* file) {
+  spn_path_t path = spn_path_join(u->mem, spn_path_from_root(SPN_PATH_ROOT_PROJECT), sp_cstr_as_str(file));
+  return (spn_path_t) { .sub = spn_path_str(&u->ctx.roots, u->mem, path) };
+}
+
+sp_err_t units_write_files(sp_test_t* t, units_t* u, const c8* const* files, u32 max) {
+  sp_for(it, max) {
+    if (!files[it]) {
+      break;
+    }
+    sp_path_t at = spn_path_at(&u->ctx.roots, units_toolchain_file(u, files[it]));
+    sp_must_ok(t, sp_fs_create_parent_at(at));
+    sp_must_ok(t, sp_fs_write_at(at, sp_str_lit(""), SP_FS_WRITE_REPLACE, sp_sys_default_file_perms));
+  }
+  return SP_OK;
 }
 
 spn_target_unit_t* units_find_target(units_t* u, const c8* name, spn_target_kind_t kind) {

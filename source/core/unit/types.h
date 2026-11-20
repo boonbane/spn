@@ -64,8 +64,14 @@ typedef struct {
 } spn_stage_entry_t;
 
 typedef struct {
+  spn_path_t source;
+  spn_path_t path;
+} spn_stage_file_t;
+
+typedef struct {
   spn_stage_entry_t exe;
   si_da(spn_stage_entry_t) libs;
+  si_da(spn_stage_file_t) files;
 } spn_stage_closure_t;
 
 typedef struct {

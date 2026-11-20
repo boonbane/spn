@@ -8,7 +8,7 @@
 
 spn_sdk_need_t spn_sdk_need(spn_triple_t target);
 sp_str_t       spn_msvc_arch_name(spn_arch_t arch);
-spn_sdk_msvc_t spn_sdk_from_msvc(sp_mem_t mem, const sp_msvc_sdk_t* kits, const sp_msvc_vs_t* vs, spn_arch_t arch);
+spn_sdk_msvc_t si_sdk_from_msvc(sp_mem_t mem, const sp_msvc_sdk_t* kits, const sp_msvc_vs_t* vs, spn_arch_t arch);
 spn_sdk_host_t si_sdk_detect(sp_mem_t mem, const spn_path_roots_t* roots, sp_env_t* env, spn_triple_t host);
 spn_sdk_t      spn_sdk_at(sp_mem_t mem, spn_triple_t target, spn_path_t root);
 bool           si_sdk_served(sp_mem_t mem, const spn_sdk_host_t* sdks, spn_triple_t host, spn_triple_t target, spn_sdk_t* sdk);
