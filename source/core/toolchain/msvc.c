@@ -135,15 +135,6 @@ static bool preferable(pin_t pin, const sp_msvc_vs_t* candidate, const sp_msvc_v
   return newer(version_of(sp_msvc_version_str(&candidate->version.tools)), version_of(sp_msvc_version_str(&best->version.tools)));
 }
 
-void spn_msvc_installs_add(spn_msvc_installs_t* installs, const sp_msvc_t* found) {
-  sp_for(it, found->num_installations) {
-    sp_da_push(installs->toolsets, found->installations[it]);
-  }
-  sp_for(it, found->num_sdks) {
-    sp_da_push(installs->kits, found->sdks[it]);
-  }
-}
-
 static void push_unique(sp_da(sp_str_t)* list, sp_str_t item) {
   sp_da_for(*list, it) {
     if (sp_str_equal((*list)[it], item)) {

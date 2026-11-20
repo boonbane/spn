@@ -18,7 +18,6 @@ typedef struct {
 } spn_msvc_pick_t;
 
 sp_msvc_arch_t   si_msvc_arch(spn_arch_t arch);
-void             spn_msvc_installs_add(spn_msvc_installs_t* installs, const sp_msvc_t* found);
 sp_da(sp_str_t)  si_msvc_installed_toolsets(sp_mem_t mem, const spn_msvc_installs_t* installs, spn_arch_t arch, bool compiler);
 sp_da(sp_str_t)  si_msvc_installed_sdks(sp_mem_t mem, const spn_msvc_installs_t* installs, spn_arch_t arch);
 bool             si_msvc_toolset_valid(sp_str_t toolset);

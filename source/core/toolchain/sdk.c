@@ -320,20 +320,6 @@ static sp_str_t xcrun_sdk(sp_mem_t mem) {
   return result.status.exit_code ? sp_str_lit("") : sp_str_trim(result.out);
 }
 
-static void detect_msvc(sp_mem_t mem, spn_msvc_installs_t* msvc) {
-  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch_for(mem);
-  sp_msvc_t* found = sp_alloc_type(scratch.mem, sp_msvc_t);
-  const spn_arch_t* arches = SP_NULLPTR;
-  u32 count = spn_os_archs(SPN_OS_WINDOWS, &arches);
-  sp_for(it, count) {
-    if (sp_msvc_find_ex(si_msvc_arch(arches[it]), found) != SP_MSVC_OK) {
-      continue;
-    }
-    spn_msvc_installs_add(msvc, found);
-  }
-  sp_mem_end_scratch(scratch);
-}
-
 spn_sdk_host_t si_sdk_detect(sp_mem_t mem, const spn_path_roots_t* roots, sp_env_t* env, spn_triple_t host) {
   spn_sdk_host_t sdks = { .msvc = { .toolsets = sp_da_new(mem, sp_msvc_vs_t), .kits = sp_da_new(mem, sp_msvc_sdk_t) } };
   sp_str_t macos = sp_env_get(env, sp_str_lit("SPN_MACOS_SDK"));
@@ -344,7 +330,22 @@ spn_sdk_host_t si_sdk_detect(sp_mem_t mem, const spn_path_roots_t* roots, sp_env
     sdks.macos = macos_layout(mem, spn_path_from_cwd(mem, roots, macos));
   }
   if (host.os == SPN_OS_WINDOWS) {
-    detect_msvc(mem, &sdks.msvc);
+    sp_mem_arena_marker_t scratch = sp_mem_begin_scratch_for(mem);
+    sp_msvc_t* found = sp_alloc_type(scratch.mem, sp_msvc_t);
+    const spn_arch_t* arches = SP_NULLPTR;
+    u32 count = spn_os_archs(SPN_OS_WINDOWS, &arches);
+    sp_for(it, count) {
+      if (sp_msvc_find_ex(si_msvc_arch(arches[it]), found) != SP_MSVC_OK) {
+        continue;
+      }
+      sp_for(at, found->num_installations) {
+        sp_da_push(sdks.msvc.toolsets, found->installations[at]);
+      }
+      sp_for(at, found->num_sdks) {
+        sp_da_push(sdks.msvc.kits, found->sdks[at]);
+      }
+    }
+    sp_mem_end_scratch(scratch);
   }
   return sdks;
 }
