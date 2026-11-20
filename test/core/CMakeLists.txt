@@ -74,6 +74,7 @@ add_executable(core
   index/marker_save.c
   index/package.c
   index/pin.c
+  index/place.c
   index/query.c
   index/publish.c
   index/release.c
