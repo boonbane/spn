@@ -1,7 +1,7 @@
 #include "index/cache.h"
 #include "index/index.h"
 
-void spn_index_cache_init(spn_index_cache_t* cache, sp_mem_t mem, sp_intern_t* intern, const spn_path_roots_t* roots, sp_da(spn_index_info_t)* indexes) {
+void si_index_cache_init(spn_index_cache_t* cache, sp_mem_t mem, sp_intern_t* intern, const spn_path_roots_t* roots, si_da(si_index_place_t) indexes) {
   *cache = (spn_index_cache_t) {
     .mem = mem,
     .intern = intern,
@@ -21,10 +21,9 @@ spn_err_t spn_index_cache_get_package(spn_index_cache_t* cache, sp_intern_str_t 
   }
 
   spn_index_pkg_t* package = SP_NULLPTR;
-  sp_da_for(*cache->indexes, it) {
-    spn_index_info_t* index = &(*cache->indexes)[it];
+  si_da_for(cache->indexes, it) {
     cache->consulted = sp_max(cache->consulted, (u32)it + 1);
-    spn_try(si_index_get_package(index, cache->mem, cache->intern, cache->roots, name, &package, err));
+    spn_try(si_index_get_package(&cache->indexes[it], cache->mem, cache->intern, cache->roots, name, &package, err));
     if (package) {
       break;
     }

@@ -170,15 +170,14 @@ sp_test_each(index_dir, get_package, dir_test_t, tests, .setup = spn_test_ctx_se
     }
   }
 
-  spn_index_info_t index = {
-    .protocol = SPN_INDEX_PROTOCOL_DIR,
+  si_index_place_t index = {
     .format = SPN_INDEX_FORMAT_MANIFESTS,
-    .location = { .at = sp_path_from_str(location), .dir = location },
+    .at = sp_path_from_str(location),
+    .dir = location,
   };
   if (it->git.url) {
-    index.protocol = SPN_INDEX_PROTOCOL_GIT;
     index.git.url = sp_cstr_as_str(it->git.url);
-    index.location.rev = sp_cstr_as_str(it->git.rev);
+    index.git.rev = sp_cstr_as_str(it->git.rev);
   }
 
   sp_intern_str_t request = spn_intern_lit("A");
@@ -385,10 +384,10 @@ sp_test_each(index_dir, versioned, versioned_test_t, versioned_tests, .setup = s
     }
   }
 
-  spn_index_info_t index = {
-    .protocol = SPN_INDEX_PROTOCOL_DIR,
+  si_index_place_t index = {
     .format = SPN_INDEX_FORMAT_MANIFESTS,
-    .location = { .at = sp_path_from_str(location), .dir = location },
+    .at = sp_path_from_str(location),
+    .dir = location,
   };
 
   spn_index_pkg_t* pkg = SP_NULLPTR;

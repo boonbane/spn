@@ -41,24 +41,8 @@ bool spn_index_dir_has_packages(sp_mem_t mem, spn_index_info_t* index) {
   return holds_manifest(mem, index->location.at, 1);
 }
 
-static spn_pkg_root_t published_root(spn_index_info_t* index, spn_path_t dir, sp_str_t sub) {
-  switch (index->protocol) {
-    case SPN_INDEX_PROTOCOL_GIT: {
-      return (spn_pkg_root_t) {
-        .kind = SPN_PKG_ROOT_GIT,
-        .git = { .url = index->git.url, .rev = index->location.rev, .dir = sub },
-      };
-    }
-    case SPN_INDEX_PROTOCOL_HTTP:
-    case SPN_INDEX_PROTOCOL_DIR: {
-      return (spn_pkg_root_t) { .kind = SPN_PKG_ROOT_LOCAL, .local = dir };
-    }
-  }
-  sp_unreachable_return(sp_zero_s(spn_pkg_root_t));
-}
-
-static spn_err_t add_release(spn_index_info_t* index, sp_mem_t mem, sp_intern_t* intern, const spn_path_roots_t* roots, sp_intern_str_t name, sp_str_t sub, spn_index_pkg_t* package, spn_err_union_t* err) {
-  spn_path_t dir = spn_path_join(mem, (spn_path_t) { .sub = index->location.dir }, sub);
+static spn_err_t add_release(const si_index_place_t* index, sp_mem_t mem, sp_intern_t* intern, const spn_path_roots_t* roots, sp_intern_str_t name, sp_str_t sub, spn_index_pkg_t* package, spn_err_union_t* err) {
+  spn_path_t dir = spn_path_join(mem, (spn_path_t) { .sub = index->dir }, sub);
   spn_path_t path = spn_path_join(mem, dir, sp_str_lit("spn.toml"));
   si_pkg_info_t* manifest = sp_alloc_type(mem, si_pkg_info_t);
   if (spn_pkg_load(mem, intern, roots, path, manifest, err)) {
@@ -74,16 +58,24 @@ static spn_err_t add_release(spn_index_info_t* index, sp_mem_t mem, sp_intern_t*
     return err->kind;
   }
 
+  spn_pkg_root_t published = { .kind = SPN_PKG_ROOT_LOCAL, .local = dir };
+  if (!sp_str_empty(index->git.url)) {
+    published = (spn_pkg_root_t) {
+      .kind = SPN_PKG_ROOT_GIT,
+      .git = { .url = index->git.url, .rev = index->git.rev, .dir = sub },
+    };
+  }
+
   spn_index_release_t release = sp_zero;
-  spn_try(spn_index_release_from_manifest(mem, manifest, published_root(index, dir, sub), &release, err));
+  spn_try(spn_index_release_from_manifest(mem, manifest, published, &release, err));
   sp_da_push(package->releases, release);
   return SPN_OK;
 }
 
-spn_err_t spn_index_dir_get_package(spn_index_info_t* index, sp_mem_t mem, sp_intern_t* intern, const spn_path_roots_t* roots, sp_intern_str_t name, spn_index_pkg_t** pkg, spn_err_union_t* err) {
+spn_err_t si_index_dir_get_package(const si_index_place_t* index, sp_mem_t mem, sp_intern_t* intern, const spn_path_roots_t* roots, sp_intern_str_t name, spn_index_pkg_t** pkg, spn_err_union_t* err) {
   *pkg = SP_NULLPTR;
 
-  spn_path_t dir = spn_path_join(mem, (spn_path_t) { .sub = index->location.dir }, name.str);
+  spn_path_t dir = spn_path_join(mem, (spn_path_t) { .sub = index->dir }, name.str);
   spn_path_t flat = spn_path_join(mem, dir, sp_str_lit("spn.toml"));
   if (has_manifest(roots, flat)) {
     spn_index_pkg_t* package = sp_alloc_type(mem, spn_index_pkg_t);

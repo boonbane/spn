@@ -66,9 +66,7 @@ sp_test_each(index_query, get_package, query_test_t, tests, .setup = spn_test_ct
     sp_fs_write(file, blob, SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms);
   }
 
-  spn_index_info_t index = {
-    .location = { .at = sp_path_from_str(location), .dir = location },
-  };
+  si_index_place_t index = { .at = sp_path_from_str(location), .dir = location };
 
   spn_index_pkg_t* pkg = SP_NULLPTR;
   spn_err_union_t diag = sp_zero;

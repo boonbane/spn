@@ -38,26 +38,23 @@ static resolve_result_t execute_fixture(const fx_config_t* config, const spn_pro
   const si_pkg_info_t* root = &project->package;
   sp_mem_t mem = sp_mem_arena_as_allocator(arena);
 
-  sp_da(spn_index_info_t) indexes = sp_da_new(mem, spn_index_info_t);
+  si_da(si_index_place_t) indexes = sp_zero;
 
   sp_str_t dir_index_location = sp_fs_join_path(mem, dir, sp_str_lit("index"));
   sp_sys_file_meta_t meta = sp_zero;
   if (!sp_fs_get_link_metadata(dir_index_location, &meta) && meta.kind == SP_FS_KIND_DIR) {
-    sp_da_push(indexes, ((spn_index_info_t) {
-      .protocol = SPN_INDEX_PROTOCOL_DIR,
+    si_da_push(mem, indexes, ((si_index_place_t) {
       .format = SPN_INDEX_FORMAT_MANIFESTS,
-      .dir = { .path = { .sub = dir_index_location } },
-      .location = { .at = sp_path_from_str(dir_index_location), .dir = dir_index_location },
+      .at = sp_path_from_str(dir_index_location),
+      .dir = dir_index_location,
     }));
   }
 
-  sp_da_push(indexes, ((spn_index_info_t) {
-    .location = { .at = sp_path_from_str(dir), .dir = dir },
-  }));
+  si_da_push(mem, indexes, ((si_index_place_t) { .at = sp_path_from_str(dir), .dir = dir }));
 
   spn_path_roots_t roots = sp_zero;
   spn_index_cache_t cache = sp_zero;
-  spn_index_cache_init(&cache, mem, intern, &roots, &indexes);
+  si_index_cache_init(&cache, mem, intern, &roots, indexes);
 
   spn_pkg_registry_t registry = sp_zero;
   sp_ht_init(mem, registry);

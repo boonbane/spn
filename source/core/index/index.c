@@ -220,14 +220,14 @@ spn_index_format_t spn_index_detect_format(spn_index_info_t* index) {
   return manifests ? SPN_INDEX_FORMAT_MANIFESTS : SPN_INDEX_FORMAT_RELEASES;
 }
 
-spn_err_t si_index_get_package(spn_index_info_t* index, sp_mem_t mem, sp_intern_t* intern, const spn_path_roots_t* roots, sp_intern_str_t name, spn_index_pkg_t** pkg, spn_err_union_t* err) {
+spn_err_t si_index_get_package(const si_index_place_t* index, sp_mem_t mem, sp_intern_t* intern, const spn_path_roots_t* roots, sp_intern_str_t name, spn_index_pkg_t** pkg, spn_err_union_t* err) {
   switch (index->format) {
     case SPN_INDEX_FORMAT_RELEASES: {
-      spn_try(spn_index_jsonl_get_package(index, mem, intern, name, pkg, err));
+      spn_try(si_index_jsonl_get_package(index, mem, intern, name, pkg, err));
       break;
     }
     case SPN_INDEX_FORMAT_MANIFESTS: {
-      spn_try(spn_index_dir_get_package(index, mem, intern, roots, name, pkg, err));
+      spn_try(si_index_dir_get_package(index, mem, intern, roots, name, pkg, err));
       break;
     }
   }
