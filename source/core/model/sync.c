@@ -583,11 +583,9 @@ static spn_lock_root_t pinned_root(spn_pkg_root_t root) {
   return (spn_lock_root_t) { .url = root.git.url, .rev = root.git.rev, .dir = root.git.dir };
 }
 
-static spn_err_t relock(sp_mem_t scratch, spn_session_t* session, const spn_lock_t* held, const spn_lock_t* kept, spn_lock_t* lock, bool* changed) {
-  spn_ctx_t* ctx = session->ctx;
-
+static spn_err_t relock(sp_mem_t scratch, spn_ctx_t* ctx, spn_resolve_t resolve, bool locked, const spn_lock_t* held, const spn_lock_t* kept, spn_lock_t* lock, bool* changed) {
   si_da(si_lock_pick_t) picks = sp_zero;
-  sp_ht_for_kv(session->resolve, it) {
+  sp_ht_for_kv(resolve, it) {
     const spn_resolved_pkg_t* pkg = it.val;
     if (pkg->source != SPN_PKG_SOURCE_INDEX) {
       continue;
@@ -626,7 +624,7 @@ static spn_err_t relock(sp_mem_t scratch, spn_session_t* session, const spn_lock
   bool missing = !held->version;
   sp_str_t stale = sp_zero;
   *changed = missing || si_lock_changed(held, lock, &stale);
-  if (session->locked && *changed) {
+  if (locked && *changed) {
     return spn_err_emit(ctx, (spn_err_union_t) {
       .kind = SPN_ERR_LOCK_STALE,
       .subject = stale,
@@ -685,7 +683,7 @@ spn_err_t si_resolve_and_sync_pins(spn_op_t* op, const spn_lock_t* held, const s
     spn_try(si_resolve(op, lock, placed));
 
     sp_mem_arena_marker_t picking = sp_mem_begin_scratch();
-    spn_err_t relocked = relock(picking.mem, session, held, kept, lock, &changed);
+    spn_err_t relocked = relock(picking.mem, ctx, session->resolve, session->locked, held, kept, lock, &changed);
     sp_mem_end_scratch(picking);
     spn_try(relocked);
 
