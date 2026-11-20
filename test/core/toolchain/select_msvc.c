@@ -104,7 +104,7 @@ sp_test_each(select_msvc, pin, test_t, tests, .setup = spn_test_ctx_setup) {
     .msvc = { .toolset = sp_cstr_as_str(it->toolset), .sdk = sp_cstr_as_str(it->kit) },
   };
   spn_toolchain_selection_t selection = sp_zero;
-  sp_must_eq(t, (u32)it->expect.err, (u32)spn_toolchain_select(&catalog, query, &selection));
+  sp_must_eq(t, (u32)it->expect.err, (u32)si_toolchain_select(&catalog, query, &selection));
   if (!it->expect.err) {
     return fixture_check_sdk(t, selection.row.sdk, it->expect.sdk);
   }

@@ -51,7 +51,7 @@ static reach_kind_t absence(const spn_toolchain_catalog_t* catalog, const spn_to
     return REACH_DROPPED;
   }
   spn_sdk_t sdk = sp_zero;
-  if (spn_toolchain_driver_retargets(toolchain->driver) && !spn_sdk_served(catalog->mem, &catalog->sdks, catalog->host, triple, &sdk)) {
+  if (spn_toolchain_driver_retargets(toolchain->driver) && !si_sdk_served(catalog->mem, &catalog->sdks, catalog->host, triple, &sdk)) {
     return REACH_UNSERVED;
   }
   return REACH_UNLISTED;
@@ -237,16 +237,16 @@ static spn_err_t pin_sdk(spn_toolchain_catalog_t* catalog, spn_toolchain_query_t
       return emit(SPN_ERR_TOOLCHAIN_SDK_MSVC, catalog, query, target, SP_NULLPTR, SP_NULLPTR);
     }
     case SPN_MSVC_MATCH_TOOLSET: {
-      return emit_msvc(SPN_ERR_MSVC_TOOLSET, target, query.msvc.toolset, spn_msvc_installed_toolsets(mem, &catalog->sdks.msvc, target.arch, compiler));
+      return emit_msvc(SPN_ERR_MSVC_TOOLSET, target, query.msvc.toolset, si_msvc_installed_toolsets(mem, &catalog->sdks.msvc, target.arch, compiler));
     }
     case SPN_MSVC_MATCH_SDK: {
-      return emit_msvc(SPN_ERR_MSVC_SDK, target, query.msvc.sdk, spn_msvc_installed_sdks(mem, &catalog->sdks.msvc, target.arch));
+      return emit_msvc(SPN_ERR_MSVC_SDK, target, query.msvc.sdk, si_msvc_installed_sdks(mem, &catalog->sdks.msvc, target.arch));
     }
   }
   sp_unreachable_return(SPN_ERROR);
 }
 
-spn_err_t spn_toolchain_select(spn_toolchain_catalog_t* catalog, spn_toolchain_query_t query, spn_toolchain_selection_t* selection) {
+spn_err_t si_toolchain_select(spn_toolchain_catalog_t* catalog, spn_toolchain_query_t query, spn_toolchain_selection_t* selection) {
   sp_assert(query.candidates.count);
   *selection = sp_zero_s(spn_toolchain_selection_t);
   switch (query.toolchain.kind) {

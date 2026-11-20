@@ -271,7 +271,7 @@ static spn_sdk_t from_host(sp_mem_t mem, const spn_sdk_host_t* host, spn_triple_
     }
     case SPN_SDK_NEED_MSVC: {
       spn_msvc_pick_t pick = sp_zero;
-      if (spn_msvc_match(&host->msvc, target.arch, sp_zero_s(spn_msvc_request_t), false, &pick)) {
+      if (si_msvc_match(&host->msvc, target.arch, sp_zero_s(spn_msvc_request_t), false, &pick)) {
         return none;
       }
       return (spn_sdk_t) { .kind = SPN_SDK_MSVC, .msvc = spn_sdk_from_msvc(mem, pick.kit, pick.toolset, target.arch) };
@@ -280,7 +280,7 @@ static spn_sdk_t from_host(sp_mem_t mem, const spn_sdk_host_t* host, spn_triple_
   sp_unreachable_return(none);
 }
 
-bool spn_sdk_default(sp_mem_t mem, const spn_sdk_host_t* sdks, spn_triple_t target, spn_sdk_t* sdk) {
+bool si_sdk_default(sp_mem_t mem, const spn_sdk_host_t* sdks, spn_triple_t target, spn_sdk_t* sdk) {
   *sdk = from_host(mem, sdks, target);
   switch (spn_sdk_need(target)) {
     case SPN_SDK_NEED_NONE:
@@ -291,7 +291,7 @@ bool spn_sdk_default(sp_mem_t mem, const spn_sdk_host_t* sdks, spn_triple_t targ
   sp_unreachable_return(false);
 }
 
-bool spn_sdk_served(sp_mem_t mem, const spn_sdk_host_t* sdks, spn_triple_t host, spn_triple_t target, spn_sdk_t* sdk) {
+bool si_sdk_served(sp_mem_t mem, const spn_sdk_host_t* sdks, spn_triple_t host, spn_triple_t target, spn_sdk_t* sdk) {
   *sdk = from_host(mem, sdks, target);
   switch (spn_sdk_need(target)) {
     case SPN_SDK_NEED_NONE: return true;
@@ -313,7 +313,7 @@ spn_msvc_match_t spn_sdk_pin(sp_mem_t mem, const spn_sdk_host_t* sdks, spn_msvc_
     return SPN_MSVC_MATCH_OK;
   }
   spn_msvc_pick_t pick = sp_zero;
-  spn_msvc_match_t match = spn_msvc_match(&sdks->msvc, sdk->msvc.arch, request, compiler, &pick);
+  spn_msvc_match_t match = si_msvc_match(&sdks->msvc, sdk->msvc.arch, request, compiler, &pick);
   if (match == SPN_MSVC_MATCH_OK) {
     sdk->msvc = spn_sdk_from_msvc(mem, pick.kit, pick.toolset, sdk->msvc.arch);
   }
@@ -338,7 +338,7 @@ static void detect_msvc(sp_mem_t mem, spn_msvc_installs_t* msvc) {
   const spn_arch_t* arches = SP_NULLPTR;
   u32 count = spn_os_archs(SPN_OS_WINDOWS, &arches);
   sp_for(it, count) {
-    if (sp_msvc_find_ex(spn_msvc_arch(arches[it]), found) != SP_MSVC_OK) {
+    if (sp_msvc_find_ex(si_msvc_arch(arches[it]), found) != SP_MSVC_OK) {
       continue;
     }
     spn_msvc_installs_add(msvc, found);
@@ -346,7 +346,7 @@ static void detect_msvc(sp_mem_t mem, spn_msvc_installs_t* msvc) {
   sp_mem_end_scratch(scratch);
 }
 
-spn_sdk_host_t spn_sdk_detect(sp_mem_t mem, const spn_path_roots_t* roots, sp_env_t* env, spn_triple_t host) {
+spn_sdk_host_t si_sdk_detect(sp_mem_t mem, const spn_path_roots_t* roots, sp_env_t* env, spn_triple_t host) {
   spn_sdk_host_t sdks = { .msvc = { .toolsets = sp_da_new(mem, sp_msvc_vs_t), .kits = sp_da_new(mem, sp_msvc_sdk_t) } };
   sp_str_t macos = sp_env_get(env, sp_str_lit("SPN_MACOS_SDK"));
   if (sp_str_empty(macos) && host.os == SPN_OS_MACOS) {

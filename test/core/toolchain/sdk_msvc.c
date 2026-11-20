@@ -102,8 +102,8 @@ static sp_err_t check_dirs(sp_test_t* t, spn_dir_list_t dirs, const c8* const* e
 }
 
 sp_test_each(sdk_msvc, from_install, test_t, tests) {
-  sp_msvc_sdk_t kits = { .version = fixture_msvc_version(it->kits_version), .root = fixture_msvc_path(it->kits), .arch = spn_msvc_arch(it->arch) };
-  sp_msvc_vs_t vs = { .version.tools = fixture_msvc_version(it->tools_version), .install_path = fixture_msvc_path(it->vs), .host = SP_MSVC_ARCH_X64, .target = spn_msvc_arch(it->arch) };
+  sp_msvc_sdk_t kits = { .version = fixture_msvc_version(it->kits_version), .root = fixture_msvc_path(it->kits), .arch = si_msvc_arch(it->arch) };
+  sp_msvc_vs_t vs = { .version.tools = fixture_msvc_version(it->tools_version), .install_path = fixture_msvc_path(it->vs), .host = SP_MSVC_ARCH_X64, .target = si_msvc_arch(it->arch) };
   spn_sdk_t sdk = { .kind = SPN_SDK_MSVC, .msvc = spn_sdk_from_msvc(sp_test_arena(t), &kits, &vs, it->arch) };
   const spn_sdk_msvc_t* msvc = &sdk.msvc;
   sp_expect_eq(t, (u32)it->arch, (u32)msvc->arch);

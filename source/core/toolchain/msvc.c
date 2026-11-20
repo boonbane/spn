@@ -35,7 +35,7 @@ static const generation_t generations [] = {
   { "v145", "2026", 50, SP_LIMIT_U32_MAX },
 };
 
-sp_msvc_arch_t spn_msvc_arch(spn_arch_t arch) {
+sp_msvc_arch_t si_msvc_arch(spn_arch_t arch) {
   switch (arch) {
     case SPN_ARCH_X64: return SP_MSVC_ARCH_X64;
     case SPN_ARCH_ARM64: return SP_MSVC_ARCH_ARM64;
@@ -153,11 +153,11 @@ static void push_unique(sp_da(sp_str_t)* list, sp_str_t item) {
   sp_da_push(*list, item);
 }
 
-sp_da(sp_str_t) spn_msvc_installed_toolsets(sp_mem_t mem, const spn_msvc_installs_t* installs, spn_arch_t arch, bool compiler) {
+sp_da(sp_str_t) si_msvc_installed_toolsets(sp_mem_t mem, const spn_msvc_installs_t* installs, spn_arch_t arch, bool compiler) {
   sp_da(sp_str_t) list = sp_da_new(mem, sp_str_t);
   sp_da_for(installs->toolsets, it) {
     const sp_msvc_vs_t* toolset = &installs->toolsets[it];
-    if (toolset->target != spn_msvc_arch(arch) || (compiler && !toolset->compiler)) {
+    if (toolset->target != si_msvc_arch(arch) || (compiler && !toolset->compiler)) {
       continue;
     }
     sp_str_t text = sp_msvc_version_str(&toolset->version.tools);
@@ -173,28 +173,28 @@ sp_da(sp_str_t) spn_msvc_installed_toolsets(sp_mem_t mem, const spn_msvc_install
   return list;
 }
 
-sp_da(sp_str_t) spn_msvc_installed_sdks(sp_mem_t mem, const spn_msvc_installs_t* installs, spn_arch_t arch) {
+sp_da(sp_str_t) si_msvc_installed_sdks(sp_mem_t mem, const spn_msvc_installs_t* installs, spn_arch_t arch) {
   sp_da(sp_str_t) list = sp_da_new(mem, sp_str_t);
   sp_da_for(installs->kits, it) {
     const sp_msvc_sdk_t* kit = &installs->kits[it];
-    if (kit->arch == spn_msvc_arch(arch)) {
+    if (kit->arch == si_msvc_arch(arch)) {
       push_unique(&list, sp_str_copy(mem, sp_msvc_version_str(&kit->version)));
     }
   }
   return list;
 }
 
-bool spn_msvc_toolset_valid(sp_str_t toolset) {
+bool si_msvc_toolset_valid(sp_str_t toolset) {
   return parse_toolset(toolset).kind != PIN_INVALID;
 }
 
-bool spn_msvc_sdk_valid(sp_str_t sdk) {
+bool si_msvc_sdk_valid(sp_str_t sdk) {
   return parse_sdk(sdk).kind != PIN_INVALID;
 }
 
-spn_msvc_match_t spn_msvc_match(const spn_msvc_installs_t* installs, spn_arch_t arch, spn_msvc_request_t request, bool compiler, spn_msvc_pick_t* pick) {
+spn_msvc_match_t si_msvc_match(const spn_msvc_installs_t* installs, spn_arch_t arch, spn_msvc_request_t request, bool compiler, spn_msvc_pick_t* pick) {
   *pick = sp_zero_s(spn_msvc_pick_t);
-  sp_msvc_arch_t target = spn_msvc_arch(arch);
+  sp_msvc_arch_t target = si_msvc_arch(arch);
   pin_t toolset = parse_toolset(request.toolset);
   pin_t sdk = parse_sdk(request.sdk);
 

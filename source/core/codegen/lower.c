@@ -1082,10 +1082,10 @@ static void validate_profiles(spn_toml_loader_t* ctx, const spn_cg_manifest_t* c
       }
     }
     spn_toml_loader_push_key(ctx, "msvc");
-    if (!spn_msvc_toolset_valid(p->msvc.toolset)) {
+    if (!si_msvc_toolset_valid(p->msvc.toolset)) {
       spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "toolset");
     }
-    if (!spn_msvc_sdk_valid(p->msvc.sdk)) {
+    if (!si_msvc_sdk_valid(p->msvc.sdk)) {
       spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "sdk");
     }
     spn_toml_loader_pop(ctx);

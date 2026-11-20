@@ -165,7 +165,7 @@ static spn_sdk_host_t fixture_sdks(sp_mem_t mem, fixture_sdks_t sdks) {
     if (!sdks.msvc[it].root.path) {
       break;
     }
-    sp_msvc_arch_t arch = spn_msvc_arch(sdks.msvc[it].arch);
+    sp_msvc_arch_t arch = si_msvc_arch(sdks.msvc[it].arch);
     sp_msvc_path_t root = fixture_msvc_path(sdks.msvc[it].root.path);
     sp_da_push(host.msvc.toolsets, ((sp_msvc_vs_t) { .version.tools = fixture_msvc_version(sdks.msvc[it].version ? sdks.msvc[it].version : "14.0"), .install_path = root, .target = arch, .preferred = true, .compiler = !sdks.msvc[it].bare }));
     sp_da_push(host.msvc.kits, ((sp_msvc_sdk_t) { .version = fixture_msvc_version("10.0"), .root = root, .arch = arch }));

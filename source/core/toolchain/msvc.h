@@ -17,12 +17,12 @@ typedef struct {
   const sp_msvc_sdk_t* kit;
 } spn_msvc_pick_t;
 
-sp_msvc_arch_t   spn_msvc_arch(spn_arch_t arch);
+sp_msvc_arch_t   si_msvc_arch(spn_arch_t arch);
 void             spn_msvc_installs_add(spn_msvc_installs_t* installs, const sp_msvc_t* found);
-sp_da(sp_str_t)  spn_msvc_installed_toolsets(sp_mem_t mem, const spn_msvc_installs_t* installs, spn_arch_t arch, bool compiler);
-sp_da(sp_str_t)  spn_msvc_installed_sdks(sp_mem_t mem, const spn_msvc_installs_t* installs, spn_arch_t arch);
-bool             spn_msvc_toolset_valid(sp_str_t toolset);
-bool             spn_msvc_sdk_valid(sp_str_t sdk);
-spn_msvc_match_t spn_msvc_match(const spn_msvc_installs_t* installs, spn_arch_t arch, spn_msvc_request_t request, bool compiler, spn_msvc_pick_t* pick);
+sp_da(sp_str_t)  si_msvc_installed_toolsets(sp_mem_t mem, const spn_msvc_installs_t* installs, spn_arch_t arch, bool compiler);
+sp_da(sp_str_t)  si_msvc_installed_sdks(sp_mem_t mem, const spn_msvc_installs_t* installs, spn_arch_t arch);
+bool             si_msvc_toolset_valid(sp_str_t toolset);
+bool             si_msvc_sdk_valid(sp_str_t sdk);
+spn_msvc_match_t si_msvc_match(const spn_msvc_installs_t* installs, spn_arch_t arch, spn_msvc_request_t request, bool compiler, spn_msvc_pick_t* pick);
 
 #endif

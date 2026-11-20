@@ -241,7 +241,7 @@ spn_err_t spn_ctx_open(spn_ctx_t* ctx, spn_open_request_t request) {
   if (spn_wasm_init()) {
     return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_WASM_INIT_FAILED });
   }
-  spn_toolchain_catalog_init(&ctx->catalog, ctx->host, spn_sdk_detect(ctx->heap, &ctx->roots, ctx->env, ctx->host), ctx->heap);
+  spn_toolchain_catalog_init(&ctx->catalog, ctx->host, si_sdk_detect(ctx->heap, &ctx->roots, ctx->env, ctx->host), ctx->heap);
   load_builtins(ctx);
 
   spn_git_cache_init(&ctx->caches.git, ctx->mem, ctx->intern, &ctx->roots, spn_path_from_id(SPN_DIR_ID_GIT_DB), spn_path_from_id(SPN_DIR_ID_CHECKOUTS), spn_path_lock(ctx->heap, spn_path_from_id(SPN_DIR_ID_GIT_DB)));

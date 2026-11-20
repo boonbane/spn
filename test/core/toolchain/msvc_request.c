@@ -29,7 +29,7 @@ static const test_t tests [] = {
 };
 
 sp_test_each(msvc_request, valid, test_t, tests) {
-  bool valid = spn_msvc_toolset_valid(sp_cstr_as_str(it->toolset)) && spn_msvc_sdk_valid(sp_cstr_as_str(it->sdk));
+  bool valid = si_msvc_toolset_valid(sp_cstr_as_str(it->toolset)) && si_msvc_sdk_valid(sp_cstr_as_str(it->sdk));
   sp_expect_eq(t, !it->expect.invalid, valid);
   return SP_OK;
 }

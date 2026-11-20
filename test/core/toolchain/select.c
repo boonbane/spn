@@ -636,7 +636,7 @@ sp_test_each(select, complete, complete_test_t, complete_tests, .setup = spn_tes
       .sanitizers = check->sanitizers,
     };
     spn_toolchain_selection_t selection = sp_zero;
-    spn_err_t err = spn_toolchain_select(&catalog, query, &selection);
+    spn_err_t err = si_toolchain_select(&catalog, query, &selection);
     sp_must_eq(t, (u32)check->expect.err, (u32)err);
 
     if (err) {
@@ -672,7 +672,7 @@ sp_test_each(select, resolve, resolve_test_t, resolve_tests, .setup = spn_test_c
     query.toolchain = spn_toolchain_ref_from_str(sp_cstr_as_str(it->toolchain));
   }
   spn_toolchain_selection_t selection = sp_zero;
-  spn_err_t err = spn_toolchain_select(&catalog, query, &selection);
+  spn_err_t err = si_toolchain_select(&catalog, query, &selection);
   sp_must_eq(t, (u32)it->expect.err, (u32)err);
 
   if (err) {

@@ -21,6 +21,6 @@ sp_test_each(sdk_serve, host_sdk, test_t, tests) {
   sp_mem_t mem = sp_test_arena(t);
   spn_sdk_host_t host = fixture_sdks(mem, it->sdks);
   spn_sdk_t sdk = sp_zero;
-  spn_sdk_default(mem, &host, it->target, &sdk);
+  si_sdk_default(mem, &host, it->target, &sdk);
   return fixture_check_sdk(t, sdk, it->expect);
 }

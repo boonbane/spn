@@ -249,7 +249,7 @@ static sp_err_t load_lanes(void* user) {
   read_lanes(mem, SPN_LANES_TEST, &lanes);
   sp_env_t env = sp_env_capture(mem);
   spn_path_roots_t roots = sp_zero;
-  spn_toolchain_catalog_init(&catalog, spn_host_detect(), spn_sdk_detect(mem, &roots, &env, spn_host_detect()), mem);
+  spn_toolchain_catalog_init(&catalog, spn_host_detect(), si_sdk_detect(mem, &roots, &env, spn_host_detect()), mem);
 
   sp_da_for(builtin.config.toolchain, it) {
     spn_toolchain_decl_t decl = sp_zero;
@@ -311,9 +311,9 @@ static spn_err_t lane_selects(sp_mem_t mem, const test_when_t* when, spn_triple_
     .sanitizers = when->sanitize,
   };
   spn_toolchain_query_t query = sp_zero;
-  spn_err_t err = spn_profile_query(profile, spn_host_detect(), &query);
+  spn_err_t err = si_profile_query(profile, spn_host_detect(), &query);
   if (!err) {
-    err = spn_toolchain_select(&catalog, query, selection);
+    err = si_toolchain_select(&catalog, query, selection);
   }
   spn_event_buffer_drain(mem, spn.events);
   if (!err) {

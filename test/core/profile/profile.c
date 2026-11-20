@@ -1057,7 +1057,7 @@ sp_test_each(profile, resolve, test_t, tests, .setup = spn_test_ctx_setup) {
   }
 
   spn_profile_info_t result = sp_zero;
-  spn_err_t err = spn_profile_resolve(&overrides, it->host, &project, &result);
+  spn_err_t err = si_profile_resolve(&overrides, it->host, &project, &result);
   sp_must_eq(t, (u32)it->expect.err, (u32)err);
   if (err) {
     sp_da(spn_event_t) errs = spn_test_drain_errs(mem);
@@ -1101,7 +1101,7 @@ sp_test_each(profile, resolve, test_t, tests, .setup = spn_test_ctx_setup) {
   spn_profile_info_t pinned = result;
   pinned.target = selected;
   spn_toolchain_query_t query = sp_zero;
-  sp_must_eq(t, SPN_OK, spn_profile_query(&pinned, it->host, &query));
+  sp_must_eq(t, SPN_OK, si_profile_query(&pinned, it->host, &query));
   sp_must_eq(t, 1, query.candidates.count);
   selection.linking = query.candidates.items[0].linking;
   spn_profile_finalize(&result, &selection);
@@ -1133,7 +1133,7 @@ sp_test_each(profile, query, query_test_t, query_tests, .setup = spn_test_ctx_se
   };
 
   spn_toolchain_query_t query = sp_zero;
-  spn_err_t err = spn_profile_query(&profile, it->host, &query);
+  spn_err_t err = si_profile_query(&profile, it->host, &query);
   sp_must_eq(t, (u32)it->expect.err, (u32)err);
   if (err) {
     sp_da(spn_event_t) errs = spn_test_drain_errs(mem);

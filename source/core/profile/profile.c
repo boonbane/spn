@@ -151,7 +151,7 @@ static void push_abi(spn_abi_list_t* list, spn_abi_t abi) {
   list->items[list->count++] = abi;
 }
 
-spn_err_t spn_profile_query(const spn_profile_info_t* profile, spn_triple_t host, spn_toolchain_query_t* query) {
+spn_err_t si_profile_query(const spn_profile_info_t* profile, spn_triple_t host, spn_toolchain_query_t* query) {
   *query = (spn_toolchain_query_t) {
     .toolchain = profile->toolchain,
     .target = profile->target,
@@ -267,7 +267,7 @@ static void push_os_triples(sp_da(spn_triple_t)* triples, spn_arch_t arch, spn_o
   }
 }
 
-spn_err_t spn_profile_resolve(const spn_profile_override_t* override, spn_triple_t host, const spn_project_t* project, spn_profile_info_t* result) {
+spn_err_t si_profile_resolve(const spn_profile_override_t* override, spn_triple_t host, const spn_project_t* project, spn_profile_info_t* result) {
   spn_triple_t requested = override->triple;
   if (!sp_str_empty(override->target)) {
     spn_triple_scan_t scan = spn_triple_scan(override->target);
