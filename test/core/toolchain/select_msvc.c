@@ -3,9 +3,14 @@
 #define max_installed 2
 
 typedef struct {
+  const c8* version;
+  const c8* generation;
+} install_t;
+
+typedef struct {
   spn_err_t err;
   fixture_sdk_expect_t sdk;
-  const c8* installed [max_installed];
+  install_t installed [max_installed];
 } expect_t;
 
 typedef struct {
@@ -40,14 +45,14 @@ static const test_t tests [] = {
     .driver = SPN_CC_DRIVER_CLANG,
     .sdks = { .msvc = { { { "/X" }, SPN_ARCH_X64, "14.44" } } },
     .toolset = "v141",
-    .expect = { .err = SPN_ERR_MSVC_TOOLSET, .installed = { "14.44 (v143)" } },
+    .expect = { .err = SPN_ERR_MSVC_TOOLSET, .installed = { { "14.44", "v143" } } },
   },
   {
     .name = "unmatched_sdk_lists_the_installed",
     .driver = SPN_CC_DRIVER_CLANG,
     .sdks = { .msvc = { { { "/X" }, SPN_ARCH_X64 } } },
     .kit = "11",
-    .expect = { .err = SPN_ERR_MSVC_SDK, .installed = { "10.0" } },
+    .expect = { .err = SPN_ERR_MSVC_SDK, .installed = { { "10.0" } } },
   },
   {
     .name = "msvc_driver_takes_a_toolset_with_a_compiler",
@@ -73,7 +78,7 @@ static const test_t tests [] = {
     .fallback = { .path = "/S" },
     .sdks = { .msvc = { { { "/X" }, SPN_ARCH_X64, "14.44" } } },
     .toolset = "v141",
-    .expect = { .err = SPN_ERR_MSVC_TOOLSET, .installed = { "14.44 (v143)" } },
+    .expect = { .err = SPN_ERR_MSVC_TOOLSET, .installed = { { "14.44", "v143" } } },
   },
 };
 
@@ -111,9 +116,16 @@ sp_test_each(select_msvc, pin, test_t, tests, .setup = spn_test_ctx_setup) {
 
   sp_da(spn_event_t) errs = spn_test_drain_errs(mem);
   sp_must_eq(t, 1, sp_da_size(errs));
-  if (it->expect.err == SPN_ERR_TOOLCHAIN_SDK_MSVC) {
+  u32 count = 0;
+  sp_carr_detect_len(it->expect.installed, count, it->expect.installed[count].version);
+  if (!count) {
     return SP_OK;
   }
-  sp_must_strs_eq(t, errs[0].err.msvc.installed, sp_da_size(errs[0].err.msvc.installed), it->expect.installed);
+  sp_da(spn_err_msvc_install_t) installed = errs[0].err.msvc.installed;
+  sp_must_eq(t, count, (u32)sp_da_size(installed));
+  sp_for(at, count) {
+    sp_expect_str_eq_c(t, installed[at].version, it->expect.installed[at].version);
+    sp_expect_str_eq_c(t, installed[at].generation, it->expect.installed[at].generation);
+  }
   return SP_OK;
 }

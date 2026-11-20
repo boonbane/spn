@@ -235,7 +235,13 @@
       "properties": {
         "target": { "metadata": { "extern": "triple" } },
         "request": { "type": "string" },
-        "installed": { "elements": { "type": "string" } }
+        "installed": { "elements": { "ref": "msvc_install" } }
+      }
+    },
+    "msvc_install": {
+      "properties": {
+        "version": { "type": "string" },
+        "generation": { "type": "string" }
       }
     },
     "program": {

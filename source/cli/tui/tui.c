@@ -2305,11 +2305,14 @@ static void render_event_extra(sp_tty_t* w, spn_event_t* event) {
         }
         case SPN_ERR_MSVC_TOOLSET:
         case SPN_ERR_MSVC_SDK: {
+          sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
           list_t list = { .w = w, .label = sp_str_lit("installed"), .style = sp_fmt_style_green };
           sp_da_for(event->err.msvc.installed, it) {
-            list_item(&list, event->err.msvc.installed[it]);
+            spn_err_msvc_install_t install = event->err.msvc.installed[it];
+            list_item(&list, sp_str_empty(install.generation) ? install.version : sp_fmt(scratch.mem, "{} ({})", sp_fmt_str(install.version), sp_fmt_str(install.generation)).value);
           }
           list_end(&list);
+          sp_mem_end_scratch(scratch);
           break;
         }
         case SPN_ERR_SANITIZER_UNSUPPORTED: {
