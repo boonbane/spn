@@ -30,6 +30,44 @@ typedef struct {
   spn_git_failure_t failure;
 } job_t;
 
+static spn_err_t report(spn_ctx_t* ctx, spn_index_info_t* index, const spn_git_failure_t* failure) {
+  if (failure->kind == SPN_GIT_CANCELLED) {
+    return SPN_ERR_CANCELLED;
+  }
+
+  sp_str_t cause = sp_str_copy(ctx->events->mem, sp_cstr_as_str(failure->message));
+  if (failure->kind == SPN_GIT_UNTRUSTED) {
+    return spn_err_emit(ctx, (spn_err_union_t) {
+      .kind = SPN_ERR_CERT_UNTRUSTED,
+      .subject = index->name.str,
+      .cert = {
+        .url = spn_index_source(index),
+        .trust = ctx->trust,
+        .config = spn_path_str(&ctx->roots, ctx->events->mem, ctx->paths.config),
+        .cause = cause,
+        .git = true,
+      }});
+  }
+  if (failure->remote) {
+    return spn_err_emit(ctx, (spn_err_union_t) {
+      .kind = SPN_ERR_GIT_FETCH,
+      .subject = index->name.str,
+      .git_fetch = {
+        .url = spn_index_source(index),
+        .config = spn_path_str(&ctx->roots, ctx->events->mem, ctx->paths.config),
+        .cause = cause,
+        .route = failure->route,
+      }});
+  }
+  return spn_err_emit(ctx, (spn_err_union_t) {
+    .kind = SPN_ERR_INDEX_SYNC,
+    .index = {
+      .name = index->name.str,
+      .url = spn_index_source(index),
+      .cause = cause,
+    }});
+}
+
 static void sync_index_node(void* data) {
   job_t* job = (job_t*)data;
   if (spn_op_cancelled(job->op)) {
@@ -99,38 +137,7 @@ spn_err_t si_sync_index_list(spn_op_t* op, sp_da(spn_index_info_t*) indexes, boo
       continue;
     }
 
-    if (job->failure.kind == SPN_GIT_UNTRUSTED) {
-      return spn_err_emit(ctx, (spn_err_union_t) {
-        .kind = SPN_ERR_CERT_UNTRUSTED,
-        .subject = job->index->name.str,
-        .cert = {
-          .url = spn_index_source(job->index),
-          .trust = ctx->trust,
-          .config = spn_path_str(&ctx->roots, ctx->events->mem, ctx->paths.config),
-          .cause = sp_str_copy(ctx->events->mem, sp_cstr_as_str(job->failure.message)),
-          .git = true,
-        }});
-    }
-
-    if (job->failure.remote) {
-      return spn_err_emit(ctx, (spn_err_union_t) {
-        .kind = SPN_ERR_GIT_FETCH,
-        .subject = job->index->name.str,
-        .git_fetch = {
-          .url = spn_index_source(job->index),
-          .config = spn_path_str(&ctx->roots, ctx->events->mem, ctx->paths.config),
-          .cause = sp_str_copy(ctx->events->mem, sp_cstr_as_str(job->failure.message)),
-          .route = job->failure.route,
-        }});
-    }
-
-    return spn_err_emit(ctx, (spn_err_union_t) {
-      .kind = SPN_ERR_INDEX_SYNC,
-      .index = {
-        .name = job->index->name.str,
-        .url = spn_index_source(job->index),
-        .cause = sp_str_copy(ctx->events->mem, sp_cstr_as_str(job->failure.message)),
-      }});
+    return report(ctx, job->index, &job->failure);
   }
 
   return SPN_OK;
