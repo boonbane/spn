@@ -254,55 +254,6 @@ spn_err_t spn_sync_toolchain(spn_toolchain_store_t* store, spn_toolchain_unit_t*
   return SPN_OK;
 }
 
-static spn_err_t report_git(spn_ctx_t* ctx, sp_intern_str_t name, sp_str_t url, const spn_git_failure_t* failure) {
-  sp_str_t cause = sp_str_copy(ctx->events->mem, sp_cstr_as_str(failure->message));
-  switch (failure->kind) {
-    case SPN_GIT_CANCELLED: {
-      return SPN_ERR_CANCELLED;
-    }
-    case SPN_GIT_UNTRUSTED: {
-      return spn_err_emit(ctx, (spn_err_union_t) {
-        .kind = SPN_ERR_CERT_UNTRUSTED,
-        .subject = name.str,
-        .cert = {
-          .url = url,
-          .trust = ctx->trust,
-          .config = spn_path_str(&ctx->roots, ctx->events->mem, ctx->paths.config),
-          .cause = cause,
-          .git = true,
-        },
-      });
-    }
-    case SPN_GIT_FAILED:
-    case SPN_GIT_DROPPED:
-    case SPN_GIT_UNAUTHORIZED:
-    case SPN_GIT_CORRUPT: {
-      if (failure->remote) {
-        return spn_err_emit(ctx, (spn_err_union_t) {
-          .kind = SPN_ERR_GIT_FETCH,
-          .subject = name.str,
-          .git_fetch = {
-            .url = url,
-            .config = spn_path_str(&ctx->roots, ctx->events->mem, ctx->paths.config),
-            .cause = cause,
-            .route = failure->route,
-          },
-        });
-      }
-      spn_event_buffer_push(ctx->events, (spn_event_t) {
-        .kind = SPN_EVENT_SYNC_FAILED,
-        .sync_failed = {
-            .name = name.str,
-            .url = url,
-            .error = sp_str_empty(cause) ? sp_str_lit("failed to fetch repository") : cause,
-        }
-      });
-      return SPN_ERROR;
-    }
-  }
-  sp_unreachable_return(SPN_ERROR);
-}
-
 static spn_err_t materialize_tree(spn_ctx_t* ctx, sp_intern_str_t name, spn_pkg_root_t tree, sp_atomic_s32_t* cancelled, spn_path_t* root, bool* fetched) {
   switch (tree.kind) {
     case SPN_PKG_ROOT_LOCAL: {
@@ -331,7 +282,51 @@ static spn_err_t materialize_tree(spn_ctx_t* ctx, sp_intern_str_t name, spn_pkg_
       }
 
       if (spn_git_checkout_ensure(&ctx->caches.git, checkout, cancelled)) {
-        return report_git(ctx, name, tree.git.url, &checkout->failure);
+        sp_str_t cause = sp_str_copy(ctx->events->mem, sp_cstr_as_str(checkout->failure.message));
+        switch (checkout->failure.kind) {
+          case SPN_GIT_CANCELLED: {
+            return SPN_ERR_CANCELLED;
+          }
+          case SPN_GIT_UNTRUSTED: {
+            return spn_err_emit(ctx, (spn_err_union_t) {
+              .kind = SPN_ERR_CERT_UNTRUSTED,
+              .subject = name.str,
+              .cert = {
+                .url = tree.git.url,
+                .trust = ctx->trust,
+                .config = spn_path_str(&ctx->roots, ctx->events->mem, ctx->paths.config),
+                .cause = cause,
+                .git = true,
+              },
+            });
+          }
+          case SPN_GIT_FAILED:
+          case SPN_GIT_DROPPED:
+          case SPN_GIT_UNAUTHORIZED:
+          case SPN_GIT_CORRUPT: {
+            if (checkout->failure.remote) {
+              return spn_err_emit(ctx, (spn_err_union_t) {
+                .kind = SPN_ERR_GIT_FETCH,
+                .subject = name.str,
+                .git_fetch = {
+                  .url = tree.git.url,
+                  .config = spn_path_str(&ctx->roots, ctx->events->mem, ctx->paths.config),
+                  .cause = cause,
+                  .route = checkout->failure.route,
+                },
+              });
+            }
+            spn_event_buffer_push(ctx->events, (spn_event_t) {
+              .kind = SPN_EVENT_SYNC_FAILED,
+              .sync_failed = {
+                  .name = name.str,
+                  .url = tree.git.url,
+                  .error = sp_str_empty(cause) ? sp_str_lit("failed to fetch repository") : cause,
+              }
+            });
+            return SPN_ERROR;
+          }
+        }
       }
 
       *root = checkout->path;
