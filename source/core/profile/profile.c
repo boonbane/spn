@@ -135,10 +135,7 @@ static spn_profile_info_t override_to_info(const spn_profile_override_t* overrid
     .sanitizers = override->sanitizers,
     .sanitizers_set = override->sanitizers_set,
     .target = target,
-    .msvc = {
-      .toolset = override->msvc.toolset,
-      .sdk = override->msvc.sdk,
-    },
+    .msvc = override->msvc,
   };
 }
 

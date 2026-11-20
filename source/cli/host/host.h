@@ -87,10 +87,7 @@ typedef struct {
   sp_cli_choice_t os;
   sp_cli_choice_t arch;
   sp_cli_choice_t abi;
-  struct {
-    sp_str_t toolset;
-    sp_str_t sdk;
-  } msvc;
+  spn_msvc_request_t msvc;
 } spn_cli_profile_t;
 
 typedef struct {

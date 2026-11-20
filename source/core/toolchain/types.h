@@ -122,11 +122,6 @@ typedef struct {
 } spn_sdk_t;
 
 typedef struct {
-  sp_str_t toolset;
-  sp_str_t sdk;
-} spn_msvc_request_t;
-
-typedef struct {
   sp_da(sp_msvc_vs_t) toolsets;
   sp_da(sp_msvc_sdk_t) kits;
 } spn_msvc_installs_t;
