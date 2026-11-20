@@ -19,8 +19,7 @@ typedef struct {
 
 spn_index_plan_t spn_index_plan(spn_index_info_t* index, bool force);
 spn_err_t        spn_index_sync(spn_index_info_t* index, spn_index_plan_t plan, sp_atomic_s32_t* cancelled, spn_git_failure_t* failure);
-spn_index_location_t spn_index_location(spn_index_info_t* index, sp_mem_t mem, const spn_path_roots_t* roots, spn_path_t store);
-void             spn_index_locate(spn_index_info_t* index, sp_mem_t mem, const spn_path_roots_t* roots, spn_path_t store);
+void             si_index_locate(spn_index_info_t* index, sp_mem_t mem, const spn_path_roots_t* roots, spn_path_t store);
 bool             spn_index_is_snapshot(const spn_index_info_t* index);
 sp_str_t         si_index_pin(const spn_index_info_t* index, const spn_lock_t* lock);
 spn_index_format_t spn_index_detect_format(spn_index_info_t* index);

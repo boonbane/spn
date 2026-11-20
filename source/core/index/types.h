@@ -85,11 +85,6 @@ struct spn_index_info {
   spn_net_backoff_t backoff;
 };
 
-typedef struct {
-  spn_path_t dir;
-  spn_path_t lock;
-} spn_index_location_t;
-
 typedef si_om(spn_index_id_t, spn_index_info_t) spn_index_map_t;
 
 typedef struct {

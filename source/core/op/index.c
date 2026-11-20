@@ -221,7 +221,7 @@ spn_err_t spn_op_add_index(spn_op_t* op) {
     .remote = ctx->caches.git.remote,
     .backoff = spn_net_default_backoff,
   };
-  spn_index_locate(&index, ctx->heap, &ctx->roots, spn_path_from_id(SPN_DIR_ID_INDEX));
+  si_index_locate(&index, ctx->heap, &ctx->roots, spn_path_from_id(SPN_DIR_ID_INDEX));
 
   sp_da(spn_index_info_t*) fetched = sp_da_new(ctx->mem, spn_index_info_t*);
   sp_da_push(fetched, &index);

@@ -71,7 +71,6 @@ add_executable(core
   git/url/web.c
   index/cache.c
   index/dir.c
-  index/location.c
   index/package.c
   index/pin.c
   index/pins.c
