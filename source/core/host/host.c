@@ -64,7 +64,9 @@ bool spn_get_index(sp_mem_t mem, spn_ctx_t* ctx, sp_str_t name, spn_index_desc_t
   if (!sp_str_empty(rev)) {
     bool fetching = false;
     spn_git_checkout_t* checkout = spn_git_cache_checkout(&ctx->caches.git, (spn_git_checkout_id_t) { .url = info->git.url, .rev = rev }, &fetching);
-    index->location = spn_path_str(&ctx->roots, mem, checkout->path);
+    if (!fetching) {
+      index->location = spn_path_str(&ctx->roots, mem, checkout->path);
+    }
   }
   return true;
 }
