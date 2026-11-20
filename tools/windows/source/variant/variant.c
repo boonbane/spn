@@ -80,6 +80,15 @@ const winvm_variant_t winvm_variants[] = {
     .steps = { { "vs", "2022" }, { "llvm" } },
     .lanes = { "clang-msvc" },
   },
+  {
+    .name = "vs2022-zig",
+    .summary = "zig as a toolchain on the Visual Studio 2022 SDK",
+    .memory_mb = 8192,
+    .vcpus = 6,
+    .octet = 210,
+    .steps = { { "vs", "2022" }, { "zig" } },
+    .lanes = { "zig" },
+  },
 };
 
 const u32 winvm_num_variants = sp_carr_len(winvm_variants);
