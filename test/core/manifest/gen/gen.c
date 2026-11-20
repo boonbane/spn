@@ -50,6 +50,8 @@ static const test_t tests [] = {
   { "profile_single" },
   { "required_empty_string_kept" },
   { "semver_normalize" },
+  { "string_array_wrong_type" },
+  { "table_wrong_type" },
   { "target_all_fields" },
   { "target_link_false" },
   { "target_multiple" },

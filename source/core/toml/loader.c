@@ -179,9 +179,12 @@ void spn_toml_loader_check_keys(spn_toml_loader_t* ctx, toml_table_t* table, con
   }
 }
 
-sp_da(sp_str_t) spn_toml_loader_read_str_array(spn_toml_loader_t* ctx, toml_table_t* table, const c8* key) {
+sp_da(sp_str_t) si_toml_loader_read_str_array(spn_toml_loader_t* ctx, toml_table_t* table, const c8* key) {
   toml_array_t* array = toml_table_array(table, key);
   if (!array) {
+    if (spn_toml_loader_field_present(table, key)) {
+      spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, key);
+    }
     return SP_NULLPTR;
   }
 

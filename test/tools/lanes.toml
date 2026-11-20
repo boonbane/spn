@@ -23,7 +23,19 @@ compiler = "x86_64-w64-mingw32-gcc"
 archiver = "x86_64-w64-mingw32-ar"
 cxx = "x86_64-w64-mingw32-g++"
 host = { x86_64-linux = {}, aarch64-linux = {} }
-target = [{ arch = "x86_64", os = "windows", abi = "gnu" }]
+
+[[toolchain.target]]
+arch = "x86_64"
+os = "windows"
+abi = "gnu"
+
+[toolchain.target.runtime]
+supported = ["static", "shared"]
+cxx = [
+  "/usr/lib/gcc/x86_64-w64-mingw32/12-win32/libstdc++-6.dll",
+  "/usr/lib/gcc/x86_64-w64-mingw32/12-win32/libgcc_s_seh-1.dll",
+  "/usr/x86_64-w64-mingw32/lib/libwinpthread-1.dll",
+]
 
 [[toolchain]]
 name = "musl-gcc"
@@ -41,7 +53,19 @@ archiver = "x86_64-w64-mingw32-ar"
 cxx = "clang++"
 link_args = ["--ld-path=x86_64-w64-mingw32-ld", "-L/usr/lib/gcc/x86_64-w64-mingw32/12-win32"]
 host = { x86_64-linux = {}, aarch64-linux = {} }
-target = [{ arch = "x86_64", os = "windows", abi = "gnu" }]
+
+[[toolchain.target]]
+arch = "x86_64"
+os = "windows"
+abi = "gnu"
+
+[toolchain.target.runtime]
+supported = ["static", "shared"]
+cxx = [
+  "/usr/lib/gcc/x86_64-w64-mingw32/12-win32/libstdc++-6.dll",
+  "/usr/lib/gcc/x86_64-w64-mingw32/12-win32/libgcc_s_seh-1.dll",
+  "/usr/x86_64-w64-mingw32/lib/libwinpthread-1.dll",
+]
 
 [[toolchain]]
 name = "clang-mingw-lld"
@@ -52,7 +76,19 @@ cxx = "clang++"
 linker = "lld"
 link_args = ["-fuse-ld=lld", "-L/usr/lib/gcc/x86_64-w64-mingw32/12-win32"]
 host = { x86_64-linux = {}, aarch64-linux = {} }
-target = [{ arch = "x86_64", os = "windows", abi = "gnu" }]
+
+[[toolchain.target]]
+arch = "x86_64"
+os = "windows"
+abi = "gnu"
+
+[toolchain.target.runtime]
+supported = ["static", "shared"]
+cxx = [
+  "/usr/lib/gcc/x86_64-w64-mingw32/12-win32/libstdc++-6.dll",
+  "/usr/lib/gcc/x86_64-w64-mingw32/12-win32/libgcc_s_seh-1.dll",
+  "/usr/x86_64-w64-mingw32/lib/libwinpthread-1.dll",
+]
 
 [[toolchain]]
 name = "clang-cross"
@@ -60,7 +96,7 @@ driver = "clang"
 compiler = "clang"
 archiver = "aarch64-linux-gnu-ar"
 host = { x86_64-linux = {} }
-target = [{ arch = "aarch64", os = "linux", abi = "gnu" }]
+target = [{ arch = "aarch64", os = "linux", abi = "gnu", runtime = { supported = ["static", "shared"] } }]
 
 [[toolchain]]
 name = "clang-bare"
@@ -90,7 +126,7 @@ archiver = "llvm-ar"
 linker = "lld"
 link_args = ["-fuse-ld=lld"]
 host = { x86_64-linux = {} }
-target = ["host", { arch = "aarch64", os = "linux", abi = "gnu", sdk = "/sysroot/arm64" }]
+target = ["host", { arch = "aarch64", os = "linux", abi = "gnu", sdk = "/sysroot/arm64", runtime = { supported = ["static", "shared"] } }]
 
 [[toolchain]]
 name = "clang-wasi"
@@ -109,10 +145,22 @@ cxx = "clang++"
 linker = "lld"
 link_args = ["-fuse-ld=lld"]
 host = { x86_64-windows = {}, aarch64-windows = {} }
-target = [
-  { arch = "x86_64",  os = "windows", abi = "msvc", sanitizers = ["address"] },
-  { arch = "aarch64", os = "windows", abi = "msvc" },
-]
+
+[[toolchain.target]]
+arch = "x86_64"
+os = "windows"
+abi = "msvc"
+runtime = { supported = ["static", "shared"] }
+
+[toolchain.target.sanitizers]
+supported = ["address"]
+address = ["C:/Program Files/LLVM/lib/clang/22/lib/windows/clang_rt.asan_dynamic-x86_64.dll"]
+
+[[toolchain.target]]
+arch = "aarch64"
+os = "windows"
+abi = "msvc"
+runtime = { supported = ["static", "shared"] }
 
 [[toolchain]]
 name = "clang-xwin"
@@ -134,16 +182,16 @@ cxx = "/opt/zig/zig c++"
 host = { x86_64-linux = {} }
 target = [
   { arch = "wasm32",  os = "wasi",         abi = "musl" },
-  { arch = "x86_64",  os = "linux",        abi = "gnu",   sanitizers = ["undefined", "thread"] },
-  { arch = "x86_64",  os = "linux",        abi = "musl",  sanitizers = ["undefined", "thread"] },
-  { arch = "aarch64", os = "linux",        abi = "gnu",   sanitizers = ["undefined", "thread"] },
-  { arch = "aarch64", os = "linux",        abi = "musl",  sanitizers = ["undefined", "thread"] },
-  { arch = "x86_64",  os = "macos",        abi = "apple", sanitizers = ["undefined", "thread"] },
-  { arch = "aarch64", os = "macos",        abi = "apple", sanitizers = ["undefined", "thread"] },
-  { arch = "x86_64",  os = "windows",      abi = "gnu",   sanitizers = ["undefined"] },
-  { arch = "aarch64", os = "windows",      abi = "gnu",   sanitizers = ["undefined"] },
-  { arch = "x86_64",  os = "windows",      abi = "msvc",  sanitizers = ["undefined"] },
-  { arch = "aarch64", os = "windows",      abi = "msvc",  sanitizers = ["undefined"] },
+  { arch = "x86_64",  os = "linux",        abi = "gnu",   sanitizers = { supported = ["undefined", "thread"] } },
+  { arch = "x86_64",  os = "linux",        abi = "musl",  sanitizers = { supported = ["undefined", "thread"] } },
+  { arch = "aarch64", os = "linux",        abi = "gnu",   sanitizers = { supported = ["undefined", "thread"] } },
+  { arch = "aarch64", os = "linux",        abi = "musl",  sanitizers = { supported = ["undefined", "thread"] } },
+  { arch = "x86_64",  os = "macos",        abi = "apple", sanitizers = { supported = ["undefined", "thread"] } },
+  { arch = "aarch64", os = "macos",        abi = "apple", sanitizers = { supported = ["undefined", "thread"] } },
+  { arch = "x86_64",  os = "windows",      abi = "gnu",   sanitizers = { supported = ["undefined"] } },
+  { arch = "aarch64", os = "windows",      abi = "gnu",   sanitizers = { supported = ["undefined"] } },
+  { arch = "x86_64",  os = "windows",      abi = "msvc",  sanitizers = { supported = ["undefined"] } },
+  { arch = "aarch64", os = "windows",      abi = "msvc",  sanitizers = { supported = ["undefined"] } },
   { arch = "x86_64",  os = "freestanding", abi = "none" },
   { arch = "aarch64", os = "freestanding", abi = "none" },
   { arch = "x86_64",  os = "linux",        abi = "none" },
@@ -158,7 +206,7 @@ compiler = "zig cc"
 archiver = "zig ar"
 cxx = "zig c++"
 mirrors = "https://ziglang.org/download/community-mirrors.txt"
-target = [{ arch = "x86_64", os = "windows", abi = "msvc", sdk = "/opt/xwin", sanitizers = ["undefined"] }]
+target = [{ arch = "x86_64", os = "windows", abi = "msvc", sdk = "/opt/xwin", sanitizers = { supported = ["undefined"] } }]
 
 [toolchain.host]
 x86_64-linux = { url = "https://ziglang.org/download/0.16.0/zig-x86_64-linux-0.16.0.tar.xz", sha256 = "70e49664a74374b48b51e6f3fdfbf437f6395d42509050588bd49abe52ba3d00" }
@@ -208,7 +256,7 @@ driver = "gcc"
 compiler = "bin/aarch64-none-linux-gnu-gcc"
 archiver = "bin/aarch64-none-linux-gnu-ar"
 cxx = "bin/aarch64-none-linux-gnu-g++"
-target = [{ arch = "aarch64", os = "linux", abi = "gnu" }]
+target = [{ arch = "aarch64", os = "linux", abi = "gnu", runtime = { supported = ["static", "shared"] } }]
 
 [toolchain.host]
 x86_64-linux = { url = "https://developer.arm.com/-/media/Files/downloads/gnu/14.2.rel1/binrel/arm-gnu-toolchain-14.2.rel1-x86_64-aarch64-none-linux-gnu.tar.xz", sha256 = "47aeefc02b0ee39f6d4d1812110952975542d365872a7474b5306924bca4faa1" }
@@ -238,7 +286,7 @@ driver = "gcc"
 compiler = "bin/aarch64-none-linux-gnu-gcc"
 archiver = "bin/aarch64-none-linux-gnu-ar"
 cxx = "bin/aarch64-none-linux-gnu-g++"
-target = [{ arch = "aarch64", os = "linux", abi = "gnu", sdk = "/sysroot/arm-gnu" }]
+target = [{ arch = "aarch64", os = "linux", abi = "gnu", sdk = "/sysroot/arm-gnu", runtime = { supported = ["static", "shared"] } }]
 
 [toolchain.host]
 x86_64-linux = { url = "https://developer.arm.com/-/media/Files/downloads/gnu/14.2.rel1/binrel/arm-gnu-toolchain-14.2.rel1-x86_64-aarch64-none-linux-gnu.tar.xz", sha256 = "47aeefc02b0ee39f6d4d1812110952975542d365872a7474b5306924bca4faa1" }
@@ -261,7 +309,22 @@ cxx = "C:/tools/msys64/clang64/bin/clang++.exe"
 linker = "lld"
 link_args = ["-fuse-ld=lld"]
 host = { x86_64-windows = {} }
-target = [{ arch = "x86_64", os = "windows", abi = "gnu", sanitizers = ["address"] }]
+
+[[toolchain.target]]
+arch = "x86_64"
+os = "windows"
+abi = "gnu"
+
+[toolchain.target.runtime]
+supported = ["static", "shared"]
+cxx = ["C:/tools/msys64/clang64/bin/libc++.dll"]
+
+[toolchain.target.sanitizers]
+supported = ["address"]
+address = [
+  "C:/tools/msys64/clang64/bin/libclang_rt.asan_dynamic-x86_64.dll",
+  "C:/tools/msys64/clang64/bin/libc++.dll",
+]
 
 [[toolchain]]
 name = "mingw64"
@@ -270,7 +333,19 @@ compiler = "C:/tools/msys64/mingw64/bin/gcc.exe"
 archiver = "C:/tools/msys64/mingw64/bin/ar.exe"
 cxx = "C:/tools/msys64/mingw64/bin/g++.exe"
 host = { x86_64-windows = {} }
-target = [{ arch = "x86_64", os = "windows", abi = "gnu" }]
+
+[[toolchain.target]]
+arch = "x86_64"
+os = "windows"
+abi = "gnu"
+
+[toolchain.target.runtime]
+supported = ["static", "shared"]
+cxx = [
+  "C:/tools/msys64/mingw64/bin/libstdc++-6.dll",
+  "C:/tools/msys64/mingw64/bin/libgcc_s_seh-1.dll",
+  "C:/tools/msys64/mingw64/bin/libwinpthread-1.dll",
+]
 
 [[toolchain]]
 name = "ucrt64"
@@ -279,7 +354,19 @@ compiler = "C:/tools/msys64/ucrt64/bin/gcc.exe"
 archiver = "C:/tools/msys64/ucrt64/bin/ar.exe"
 cxx = "C:/tools/msys64/ucrt64/bin/g++.exe"
 host = { x86_64-windows = {} }
-target = [{ arch = "x86_64", os = "windows", abi = "gnu" }]
+
+[[toolchain.target]]
+arch = "x86_64"
+os = "windows"
+abi = "gnu"
+
+[toolchain.target.runtime]
+supported = ["static", "shared"]
+cxx = [
+  "C:/tools/msys64/ucrt64/bin/libstdc++-6.dll",
+  "C:/tools/msys64/ucrt64/bin/libgcc_s_seh-1.dll",
+  "C:/tools/msys64/ucrt64/bin/libwinpthread-1.dll",
+]
 
 [[toolchain]]
 name = "osxcross"

@@ -8,16 +8,16 @@ cxx = "zig c++"
 mirrors = "https://ziglang.org/download/community-mirrors.txt"
 target = [
   { arch = "wasm32",  os = "wasi",         abi = "musl" },
-  { arch = "x86_64",  os = "linux",        abi = "gnu",   sanitizers = ["undefined", "thread"] },
-  { arch = "x86_64",  os = "linux",        abi = "musl",  sanitizers = ["undefined", "thread"] },
-  { arch = "aarch64", os = "linux",        abi = "gnu",   sanitizers = ["undefined", "thread"] },
-  { arch = "aarch64", os = "linux",        abi = "musl",  sanitizers = ["undefined", "thread"] },
-  { arch = "x86_64",  os = "macos",        abi = "apple", sanitizers = ["undefined", "thread"] },
-  { arch = "aarch64", os = "macos",        abi = "apple", sanitizers = ["undefined", "thread"] },
-  { arch = "x86_64",  os = "windows",      abi = "gnu",   sanitizers = ["undefined"] },
-  { arch = "aarch64", os = "windows",      abi = "gnu",   sanitizers = ["undefined"] },
-  { arch = "x86_64",  os = "windows",      abi = "msvc",  sanitizers = ["undefined"] },
-  { arch = "aarch64", os = "windows",      abi = "msvc",  sanitizers = ["undefined"] },
+  { arch = "x86_64",  os = "linux",        abi = "gnu",   sanitizers = { supported = ["undefined", "thread"] } },
+  { arch = "x86_64",  os = "linux",        abi = "musl",  sanitizers = { supported = ["undefined", "thread"] } },
+  { arch = "aarch64", os = "linux",        abi = "gnu",   sanitizers = { supported = ["undefined", "thread"] } },
+  { arch = "aarch64", os = "linux",        abi = "musl",  sanitizers = { supported = ["undefined", "thread"] } },
+  { arch = "x86_64",  os = "macos",        abi = "apple", sanitizers = { supported = ["undefined", "thread"] } },
+  { arch = "aarch64", os = "macos",        abi = "apple", sanitizers = { supported = ["undefined", "thread"] } },
+  { arch = "x86_64",  os = "windows",      abi = "gnu",   sanitizers = { supported = ["undefined"] } },
+  { arch = "aarch64", os = "windows",      abi = "gnu",   sanitizers = { supported = ["undefined"] } },
+  { arch = "x86_64",  os = "windows",      abi = "msvc",  sanitizers = { supported = ["undefined"] } },
+  { arch = "aarch64", os = "windows",      abi = "msvc",  sanitizers = { supported = ["undefined"] } },
   { arch = "x86_64",  os = "freestanding", abi = "none" },
   { arch = "aarch64", os = "freestanding", abi = "none" },
   { arch = "wasm32",  os = "freestanding", abi = "none" },
@@ -41,7 +41,7 @@ archiver = "lib"
 cxx = "cl"
 detect = "msvc"
 target = [
-  { arch = "x86_64",  os = "windows", abi = "msvc", sanitizers = ["address"] },
+  { arch = "x86_64",  os = "windows", abi = "msvc", sanitizers = { supported = ["address"] } },
   { arch = "aarch64", os = "windows", abi = "msvc" },
 ]
 
@@ -64,7 +64,7 @@ link_args = ["-fuse-ld=lld"]
 host = { x86_64-linux = {}, aarch64-linux = {}, x86_64-macos = {}, aarch64-macos = {}, x86_64-windows = {}, aarch64-windows = {} }
 target = [
   "host",
-  { arch = "x86_64",  os = "windows", abi = "msvc", sanitizers = ["address"] },
+  { arch = "x86_64",  os = "windows", abi = "msvc" },
   { arch = "aarch64", os = "windows", abi = "msvc" },
 ]
 

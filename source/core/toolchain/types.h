@@ -154,12 +154,29 @@ typedef struct {
   sp_da(sp_str_t) link_flags;
 } spn_toolchain_exceptions_t;
 
+#define si_runtime_bit(runtime) (1u << (runtime))
+#define si_sanitizer_count 5
+
+typedef u32 spn_runtime_set_t;
+
+typedef struct {
+  spn_runtime_set_t supported;
+  sp_da(spn_arg_t) c;
+  sp_da(spn_arg_t) cxx;
+} spn_toolchain_runtime_t;
+
+typedef struct {
+  spn_sanitizer_set_t supported;
+  sp_da(spn_arg_t) files [si_sanitizer_count];
+} spn_toolchain_sanitizers_t;
+
 typedef struct {
   spn_triple_t triple;
   spn_arg_t sdk;
   sp_str_t spelling;
   spn_toolchain_exceptions_t exceptions;
-  spn_sanitizer_set_t sanitizers;
+  spn_toolchain_runtime_t runtime;
+  spn_toolchain_sanitizers_t sanitizers;
 } spn_toolchain_target_t;
 
 typedef struct {

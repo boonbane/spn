@@ -167,7 +167,7 @@ static spn_arg_t fixture_sdk_arg(test_arg_t sdk) {
 }
 
 static spn_toolchain_target_t fixture_target(fixture_target_t target) {
-  return (spn_toolchain_target_t) { .triple = target.triple, .sdk = fixture_sdk_arg(target.sdk), .sanitizers = target.sanitizers };
+  return (spn_toolchain_target_t) { .triple = target.triple, .sdk = fixture_sdk_arg(target.sdk), .sanitizers.supported = target.sanitizers };
 }
 
 static sp_err_t fixture_check_triples(sp_test_t* t, sp_da(spn_triple_t) triples, const spn_triple_t* expect, u32 count) {

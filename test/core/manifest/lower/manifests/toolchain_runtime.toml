@@ -1,0 +1,10 @@
+[package]
+name = "p"
+version = "1.0.0"
+
+[[toolchain]]
+name = "T"
+compiler = "cc"
+archiver = "ar"
+driver = "gcc"
+target = [{ arch = "x86_64", os = "windows", abi = "gnu", runtime = { supported = ["static", "shared"], c = ["/A"], cxx = ["/B", "/C"] } }]

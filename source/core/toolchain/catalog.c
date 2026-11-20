@@ -21,7 +21,7 @@ static spn_path_t sdk_root(spn_toolchain_catalog_t* catalog, spn_toolchain_suppo
 }
 
 static void bind_target(spn_toolchain_catalog_t* catalog, spn_toolchain_info_t* info, spn_toolchain_support_t support, spn_toolchain_target_t target) {
-  spn_toolchain_row_t row = { .triple = target.triple, .spelling = target.spelling, .exceptions = target.exceptions, .sanitizers = target.sanitizers };
+  spn_toolchain_row_t row = { .triple = target.triple, .spelling = target.spelling, .exceptions = target.exceptions, .sanitizers = target.sanitizers.supported };
   if (!spn_arg_empty(target.sdk)) {
     row.sdk = spn_sdk_at(catalog->mem, target.triple, sdk_root(catalog, support, target.sdk));
     sp_da_push(info->rows, row);
@@ -75,10 +75,10 @@ static void push_stock(spn_toolchain_catalog_t* catalog, spn_toolchain_info_t* i
   if (!host.abi || !spn_toolchain_driver_composes(decl->driver, host) || spn_toolchain_row(info, host) || spn_toolchain_unserved(info, host)) {
     return;
   }
-  spn_toolchain_target_t stock = { .triple = host, .sanitizers = stock_sanitizers(decl->driver, host) };
+  spn_toolchain_target_t stock = { .triple = host, .sanitizers.supported = stock_sanitizers(decl->driver, host) };
   spn_sdk_t sdk = sp_zero;
   if ((spn_toolchain_driver_caps(decl->driver) & SPN_CC_CAP_HOST_SYSROOT) && si_sdk_served(catalog->mem, &catalog->sdks, catalog->host, host, &sdk)) {
-    sp_da_push(info->rows, ((spn_toolchain_row_t) { .triple = host, .sdk = sdk, .sanitizers = stock.sanitizers }));
+    sp_da_push(info->rows, ((spn_toolchain_row_t) { .triple = host, .sdk = sdk, .sanitizers = stock.sanitizers.supported }));
     return;
   }
   bind_target(catalog, info, sp_zero_struct(spn_toolchain_support_t), stock);

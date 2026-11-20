@@ -136,17 +136,17 @@ static spn_err_t local_arg(spn_path_root_t base, sp_str_t str, spn_arg_t* arg) {
   return SPN_OK;
 }
 
-spn_err_t spn_toolchain_sdk_path(spn_toolchain_source_t source, spn_path_root_t base, sp_str_t str, spn_arg_t* sdk) {
-  if (!spn_path_normal(str)) {
+spn_err_t si_toolchain_path(spn_toolchain_source_t source, spn_path_root_t base, sp_str_t str, spn_arg_t* arg) {
+  if (sp_str_empty(str) || !spn_path_normal(str)) {
     return SPN_ERR_CODEGEN_PATH;
   }
   switch (source) {
     case SPN_TOOLCHAIN_SOURCE_LOCAL: {
-      return local_arg(base, str, sdk);
+      return local_arg(base, str, arg);
     }
     case SPN_TOOLCHAIN_SOURCE_DISTRIBUTION:
     case SPN_TOOLCHAIN_SOURCE_DETECTED: {
-      *sdk = sp_fs_is_absolute(str) ? spn_arg_path((spn_path_t) { .sub = str }) : spn_arg_lit(str);
+      *arg = sp_fs_is_absolute(str) ? spn_arg_path((spn_path_t) { .sub = str }) : spn_arg_lit(str);
       return SPN_OK;
     }
   }

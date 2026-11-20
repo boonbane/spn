@@ -296,7 +296,8 @@ A prebuilt shared library. At most one entry may match a build.
 | `sdk` | `string` | Path to the SDK or sysroot for this target |
 | `spelling` | `string` | The triple to pass to the compiler, when it isn't `spn`'s spelling |
 | `exceptions` | [`toolchain_exceptions`](#toolchain_exceptions) | Flags that turn C++ exceptions on, for a target that has them off by default |
-| `sanitizers` | (`address` \| `thread` \| `undefined` \| `memory` \| `leak`)`[]` | The sanitizers the toolchain has for this target |
+| `runtime` | [`toolchain_runtime`](#toolchain_runtime) | |
+| `sanitizers` | [`toolchain_sanitizers`](#toolchain_sanitizers) | The sanitizers the toolchain has for this target |
 
 ## msvc_request
 
@@ -337,6 +338,25 @@ A prebuilt shared library. At most one entry may match a build.
 |---|---|
 | `flags` | `string[]` |
 | `link_flags` | `string[]` |
+
+## toolchain_runtime
+
+| Field | Type |
+|---|---|
+| `supported` | (`static` \| `shared`)`[]` |
+| `c` | `string[]` |
+| `cxx` | `string[]` |
+
+## toolchain_sanitizers
+
+| Field | Type |
+|---|---|
+| `supported` | (`address` \| `thread` \| `undefined` \| `memory` \| `leak`)`[]` |
+| `address` | `string[]` |
+| `thread` | `string[]` |
+| `undefined` | `string[]` |
+| `memory` | `string[]` |
+| `leak` | `string[]` |
 
 ## Extern types
 
