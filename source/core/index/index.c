@@ -199,25 +199,16 @@ bool spn_index_is_snapshot(const spn_index_info_t* index) {
   return index->protocol == SPN_INDEX_PROTOCOL_GIT && index->format == SPN_INDEX_FORMAT_MANIFESTS;
 }
 
-si_index_pin_t si_index_pin(const spn_index_info_t* index, const spn_lock_t* kept) {
-  if (!spn_index_is_snapshot(index)) {
-    return (si_index_pin_t) { .kind = SI_INDEX_PIN_NONE };
-  }
+sp_str_t si_index_pin(const spn_index_info_t* index, const spn_lock_t* lock) {
   if (!sp_str_empty(index->git.rev)) {
-    return (si_index_pin_t) { .kind = SI_INDEX_PIN_FROZEN, .rev = index->git.rev };
+    return index->git.rev;
   }
 
-  const spn_lock_index_t* held = spn_lock_find_index(kept, index->id);
+  const spn_lock_index_t* held = spn_lock_find_index(lock, index->id);
   if (held && sp_str_equal(held->url, index->git.url)) {
-    return (si_index_pin_t) { .kind = SI_INDEX_PIN_HELD, .rev = held->rev };
+    return held->rev;
   }
-  return (si_index_pin_t) { .kind = SI_INDEX_PIN_TIP };
-}
-
-void si_index_place(spn_index_info_t* index, sp_mem_t mem, const spn_path_roots_t* roots, spn_path_t dir, sp_str_t rev) {
-  index->location.at = spn_path_at(roots, dir);
-  index->location.dir = spn_path_str(roots, mem, dir);
-  index->location.rev = rev;
+  return sp_str_lit("");
 }
 
 spn_index_format_t spn_index_detect_format(spn_index_info_t* index) {

@@ -14,7 +14,6 @@
 #include "index/index.h"
 #include "intern/intern.h"
 #include "lazy/lazy.h"
-#include "lock/lock.h"
 #include "op/op.h"
 #include "paths/paths.h"
 #include "project/project.h"
@@ -329,30 +328,10 @@ spn_err_t spn_ctx_open(spn_ctx_t* ctx, spn_open_request_t request) {
 
   spn_index_assemble(ctx->heap, ctx->project ? &ctx->project->indexes : SP_NULLPTR, ctx->config.indexes, &ctx->indexes);
 
-  spn_lock_t lock = spn_lock_new(ctx->heap);
-  if (ctx->project) {
-    spn_err_union_t unreadable = sp_zero;
-    spn_lock_load(ctx->heap, ctx->intern, &ctx->roots, ctx->project->paths.lock, &lock, &unreadable);
-  }
-
   sp_da_for(ctx->indexes, it) {
     spn_index_info_t* index = &ctx->indexes[it];
-    si_index_pin_t pin = si_index_pin(index, &lock);
-    switch (pin.kind) {
-      case SI_INDEX_PIN_NONE: {
-        spn_index_locate(index, ctx->heap, &ctx->roots, spn_path_from_id(SPN_DIR_ID_INDEX));
-        break;
-      }
-      case SI_INDEX_PIN_FROZEN:
-      case SI_INDEX_PIN_HELD: {
-        bool fetching = false;
-        spn_git_checkout_t* checkout = spn_git_cache_checkout(&ctx->caches.git, (spn_git_checkout_id_t) { .url = index->git.url, .rev = pin.rev }, &fetching);
-        si_index_place(index, ctx->heap, &ctx->roots, checkout->path, pin.rev);
-        break;
-      }
-      case SI_INDEX_PIN_TIP: {
-        break;
-      }
+    if (!spn_index_is_snapshot(index)) {
+      spn_index_locate(index, ctx->heap, &ctx->roots, spn_path_from_id(SPN_DIR_ID_INDEX));
     }
     index->remote = remote;
     index->backoff = spn_net_default_backoff;

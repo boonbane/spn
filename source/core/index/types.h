@@ -85,18 +85,6 @@ struct spn_index_info {
   spn_net_backoff_t backoff;
 };
 
-typedef enum {
-  SI_INDEX_PIN_NONE,
-  SI_INDEX_PIN_FROZEN,
-  SI_INDEX_PIN_HELD,
-  SI_INDEX_PIN_TIP,
-} si_index_pin_kind_t;
-
-typedef struct {
-  si_index_pin_kind_t kind;
-  sp_str_t rev;
-} si_index_pin_t;
-
 typedef struct {
   spn_path_t dir;
   spn_path_t lock;

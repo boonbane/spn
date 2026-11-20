@@ -593,33 +593,28 @@ static spn_lock_root_t pinned_root(spn_pkg_root_t root) {
 spn_err_t si_sync_index_pins(spn_ctx_t* ctx, sp_atomic_s32_t* cancelled, const spn_lock_t* kept, spn_lock_t* lock) {
   sp_da_for(ctx->indexes, it) {
     spn_index_info_t* index = &ctx->indexes[it];
-    si_index_pin_t pin = si_index_pin(index, kept);
-    switch (pin.kind) {
-      case SI_INDEX_PIN_NONE: {
-        continue;
-      }
-      case SI_INDEX_PIN_FROZEN: {
-        break;
-      }
-      case SI_INDEX_PIN_HELD: {
-        spn_lock_pin_index(lock, (spn_lock_index_t) { .name = index->name, .url = index->git.url, .rev = pin.rev });
-        break;
-      }
-      case SI_INDEX_PIN_TIP: {
-        spn_git_failure_t failure = sp_zero;
-        if (si_git_tip(index->remote, ctx->heap, index->git.url, index->backoff, cancelled, &pin.rev, &failure)) {
-          return report_git(ctx, index->name, index->git.url, &failure);
-        }
-        spn_lock_pin_index(lock, (spn_lock_index_t) { .name = index->name, .url = index->git.url, .rev = pin.rev });
-        break;
-      }
+    if (!spn_index_is_snapshot(index)) {
+      continue;
     }
 
-    spn_pkg_root_t tree = { .kind = SPN_PKG_ROOT_GIT, .git = { .url = index->git.url, .rev = pin.rev } };
+    sp_str_t rev = si_index_pin(index, kept);
+    if (sp_str_empty(rev)) {
+      spn_git_failure_t failure = sp_zero;
+      if (si_git_tip(index->remote, ctx->heap, index->git.url, index->backoff, cancelled, &rev, &failure)) {
+        return report_git(ctx, index->name, index->git.url, &failure);
+      }
+    }
+    if (sp_str_empty(index->git.rev)) {
+      spn_lock_pin_index(lock, (spn_lock_index_t) { .name = index->name, .url = index->git.url, .rev = rev });
+    }
+
+    spn_pkg_root_t tree = { .kind = SPN_PKG_ROOT_GIT, .git = { .url = index->git.url, .rev = rev } };
     spn_path_t dir = sp_zero;
     bool fetched = false;
     spn_try(materialize_tree(ctx, index->name, tree, cancelled, &dir, &fetched));
-    si_index_place(index, ctx->heap, &ctx->roots, dir, pin.rev);
+    index->location.at = spn_path_at(&ctx->roots, dir);
+    index->location.dir = spn_path_str(&ctx->roots, ctx->heap, dir);
+    index->location.rev = rev;
   }
   return SPN_OK;
 }

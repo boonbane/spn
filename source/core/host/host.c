@@ -2,9 +2,12 @@
 
 #include "ctx/ctx.h"
 #include "ctx/types.h"
+#include "git/cache.h"
 #include "index/index.h"
 #include "index/types.h"
+#include "lock/lock.h"
 #include "paths/paths.h"
+#include "project/types.h"
 
 static spn_index_desc_t describe_index(sp_mem_t mem, spn_index_info_t* index) {
   return (spn_index_desc_t) {
@@ -48,5 +51,20 @@ bool spn_get_index(sp_mem_t mem, spn_ctx_t* ctx, sp_str_t name, spn_index_desc_t
     return false;
   }
   *index = describe_index(mem, info);
+  if (!spn_index_is_snapshot(info)) {
+    return true;
+  }
+
+  spn_lock_t held = spn_lock_new(mem);
+  if (ctx->project) {
+    spn_err_union_t unreadable = sp_zero;
+    spn_lock_load(mem, ctx->intern, &ctx->roots, ctx->project->paths.lock, &held, &unreadable);
+  }
+  sp_str_t rev = si_index_pin(info, &held);
+  if (!sp_str_empty(rev)) {
+    bool fetching = false;
+    spn_git_checkout_t* checkout = spn_git_cache_checkout(&ctx->caches.git, (spn_git_checkout_id_t) { .url = info->git.url, .rev = rev }, &fetching);
+    index->location = spn_path_str(&ctx->roots, mem, checkout->path);
+  }
   return true;
 }
