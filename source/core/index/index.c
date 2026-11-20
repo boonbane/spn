@@ -256,7 +256,8 @@ static spn_err_t publish_from(sp_mem_t mem, spn_index_info_t* index, sp_str_t di
     });
   }
 
-  si_index_place_t work = { .at = sp_path_from_str(dir), .dir = dir };
+  sp_str_t root = sp_fs_join_path(mem, dir, sp_str_lit(".spn/index"));
+  si_index_place_t work = { .at = sp_path_from_str(root), .dir = root };
   spn_index_pkg_t* existing = SP_NULLPTR;
   spn_err_union_t err = sp_zero;
   if (si_index_jsonl_get_package(&work, spn.mem, spn.intern, rel->name, &existing, &err)) {
@@ -276,7 +277,7 @@ static spn_err_t publish_from(sp_mem_t mem, spn_index_info_t* index, sp_str_t di
     }
   }
 
-  sp_str_t records = sp_fs_join_path(mem, dir, spn_index_jsonl_path(mem, rel->name));
+  sp_str_t records = sp_fs_join_path(mem, root, si_index_jsonl_path(mem, rel->name));
   sp_fs_create_parent_at(sp_path_from_str(records));
   sp_fs_append_at(sp_path_from_str(records), sp_fmt(mem, "{}\n", sp_fmt_str(spn_index_release_to_json(mem, rel))).value, sp_sys_default_file_perms);
 

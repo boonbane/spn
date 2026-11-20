@@ -29,7 +29,7 @@ typedef struct {
   const c8* name;
   const c8* package;
   const c8* toml;
-  struct { const c8* url; const c8* rev; } git;
+  struct { const c8* url; const c8* rev; const c8* dir; } git;
   dir_expect_t expect;
 } dir_test_t;
 
@@ -117,6 +117,17 @@ static const dir_test_t tests [] = {
     },
   },
   {
+    .name = "git_release_under_a_path",
+    .package = "A",
+    .toml = "minimal",
+    .git = { .url = "U", .rev = "R", .dir = "D" },
+    .expect = {
+      .exists = true,
+      .version = { 1, 2, 3 },
+      .root = { .url = "U", .rev = "R", .dir = "D/A" },
+    },
+  },
+  {
     .name = "missing",
   },
   {
@@ -178,6 +189,7 @@ sp_test_each(index_dir, get_package, dir_test_t, tests, .setup = spn_test_ctx_se
   if (it->git.url) {
     index.git.url = sp_cstr_as_str(it->git.url);
     index.git.rev = sp_cstr_as_str(it->git.rev);
+    index.git.dir = sp_cstr_as_str(it->git.dir ? it->git.dir : "");
   }
 
   sp_intern_str_t request = spn_intern_lit("A");

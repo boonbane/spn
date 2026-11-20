@@ -3,8 +3,8 @@
 #include "index/json.h"
 #include "io/io.h"
 
-sp_str_t spn_index_jsonl_path(sp_mem_t mem, sp_intern_str_t name) {
-  return sp_fmt(mem, ".spn/index/{}.jsonl", sp_fmt_str(name.str)).value;
+sp_str_t si_index_jsonl_path(sp_mem_t mem, sp_intern_str_t name) {
+  return sp_fmt(mem, "{}.jsonl", sp_fmt_str(name.str)).value;
 }
 
 spn_err_t si_index_jsonl_get_package(const si_index_place_t* index, sp_mem_t mem, sp_intern_t* intern, sp_intern_str_t name, spn_index_pkg_t** pkg, spn_err_union_t* err) {
@@ -13,7 +13,7 @@ spn_err_t si_index_jsonl_get_package(const si_index_place_t* index, sp_mem_t mem
   spn_err_t result = SPN_OK;
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch_for(mem);
 
-  sp_str_t path = spn_index_jsonl_path(scratch.mem, name);
+  sp_str_t path = si_index_jsonl_path(scratch.mem, name);
   sp_path_t at = sp_path_join(scratch.mem, index->at, path);
   sp_sys_file_meta_t meta = sp_zero;
   if (sp_fs_get_path_metadata_at(at, &meta) || meta.kind == SP_FS_KIND_UNKNOWN) {

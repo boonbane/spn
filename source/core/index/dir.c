@@ -62,7 +62,7 @@ static spn_err_t add_release(const si_index_place_t* index, sp_mem_t mem, sp_int
   if (!sp_str_empty(index->git.url)) {
     published = (spn_pkg_root_t) {
       .kind = SPN_PKG_ROOT_GIT,
-      .git = { .url = index->git.url, .rev = index->git.rev, .dir = sub },
+      .git = { .url = index->git.url, .rev = index->git.rev, .dir = sp_fs_join_path(mem, index->git.dir, sub) },
     };
   }
 

@@ -94,6 +94,7 @@ typedef struct {
   struct {
     sp_str_t url;
     sp_str_t rev;
+    sp_str_t dir;
   } git;
 } si_index_place_t;
 

@@ -150,7 +150,12 @@ spn_err_t si_place_indexes(spn_op_t* op, sp_mem_t mem, const spn_lock_t* held, s
   sp_da_for(ctx->indexes, it) {
     spn_index_info_t* index = &ctx->indexes[it];
     if (!spn_index_is_snapshot(index)) {
-      si_da_push(mem, *placed, ((si_index_place_t) { .format = index->format, .at = index->location.at, .dir = index->location.dir }));
+      si_index_place_t place = { .format = index->format, .at = index->location.at, .dir = index->location.dir };
+      if (index->format == SPN_INDEX_FORMAT_RELEASES) {
+        place.at = sp_path_join(mem, place.at, sp_str_lit(".spn/index"));
+        place.dir = sp_fs_join_path(mem, place.dir, sp_str_lit(".spn/index"));
+      }
+      si_da_push(mem, *placed, place);
       continue;
     }
 

@@ -418,7 +418,8 @@ sp_test_each(cmd_publish, publish, case_t, cases, .setup = spn_test_ctx_setup) {
   if (c.expect.name && result == SPN_OK) {
     spn_index_pkg_t* pkg = SP_NULLPTR;
     spn_err_union_t diag = sp_zero;
-    si_index_place_t cloned = { .at = index.location.at, .dir = index.location.dir };
+    sp_str_t records = sp_fs_join_path(mem, index.location.dir, sp_str_lit(".spn/index"));
+    si_index_place_t cloned = { .at = sp_path_from_str(records), .dir = records };
     si_index_get_package(&cloned, mem, spn.intern, &spn.roots, spn_intern_cstr(c.expect.name), &pkg, &diag);
 
     sp_must(t, pkg);
