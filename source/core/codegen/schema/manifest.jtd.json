@@ -244,7 +244,15 @@
         "os": { "ref": "os" },
         "arch": { "ref": "arch" },
         "abi": { "elements": { "ref": "value_entry" }, "metadata": { "shorthand": "value" } },
+        "msvc": { "ref": "msvc_request" },
         "options": { "metadata": { "extern": "when", "include": "when/types.h" } }
+      }
+    },
+
+    "msvc_request": {
+      "optionalProperties": {
+        "toolset": { "type": "string" },
+        "sdk": { "type": "string" }
       }
     },
 

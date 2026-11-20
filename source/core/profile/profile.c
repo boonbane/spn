@@ -63,6 +63,12 @@ static void overlay_profile(spn_profile_info_t* to, const spn_profile_info_t* fr
   if (from->target.arch) {
     to->target.arch = from->target.arch;
   }
+  if (!sp_str_empty(from->msvc.toolset)) {
+    to->msvc.toolset = from->msvc.toolset;
+  }
+  if (!sp_str_empty(from->msvc.sdk)) {
+    to->msvc.sdk = from->msvc.sdk;
+  }
   if (!si_da_empty(from->options.clauses)) to->options = from->options;
 }
 
@@ -117,6 +123,7 @@ static spn_profile_info_t evaluate(const spn_profile_decl_t* decl, spn_when_env_
     .static_deps = decl->static_deps,
     .static_deps_set = decl->static_deps_set,
     .options = decl->options,
+    .msvc = decl->msvc,
   };
 }
 
@@ -128,6 +135,10 @@ static spn_profile_info_t override_to_info(const spn_profile_override_t* overrid
     .sanitizers = override->sanitizers,
     .sanitizers_set = override->sanitizers_set,
     .target = target,
+    .msvc = {
+      .toolset = override->msvc.toolset,
+      .sdk = override->msvc.sdk,
+    },
   };
 }
 
@@ -145,6 +156,7 @@ spn_err_t spn_profile_query(const spn_profile_info_t* profile, spn_triple_t host
     .toolchain = profile->toolchain,
     .target = profile->target,
     .sanitizers = profile->sanitizers,
+    .msvc = profile->msvc,
   };
 
   spn_abi_list_t abis = sp_zero;
@@ -464,6 +476,7 @@ spn_err_t spn_profile_resolve(const spn_profile_override_t* override, spn_triple
     .emit        = merged.emit,
     .options     = merged.options,
     .targeted    = targeted,
+    .msvc        = merged.msvc,
   };
   return SPN_OK;
 }

@@ -47,6 +47,10 @@ typedef struct {
   bool static_deps;
   bool static_deps_set;
   candidate_t strip [2];
+  struct {
+    const c8* toolset;
+    const c8* sdk;
+  } msvc;
 } decl_t;
 
 typedef struct {
@@ -57,6 +61,10 @@ typedef struct {
   spn_os_t os;
   spn_arch_t arch;
   spn_abi_t abi;
+  struct {
+    const c8* toolset;
+    const c8* sdk;
+  } msvc;
 } override_t;
 
 typedef struct {
@@ -72,6 +80,10 @@ typedef struct {
   bool targeted;
   spn_linkage_t demand;
   spn_linkage_set_t emit;
+  struct {
+    const c8* toolset;
+    const c8* sdk;
+  } msvc;
 } expect_t;
 
 typedef struct {
@@ -658,6 +670,32 @@ static const test_t tests [] = {
     },
   },
   {
+    .name = "msvc_merges_per_field",
+    .profile = { .name = "default", .msvc = { .toolset = "v142" } },
+    .derived = { .name = "fast", .msvc = { .sdk = "10.0.22621" } },
+    .overrides = { .name = "fast" },
+    .host = PROFILE_HOST_WIN_MSVC,
+    .abi = SPN_ABI_MSVC,
+    .expect = {
+      .name = "fast",
+      .target = { SPN_ARCH_X64, SPN_OS_WINDOWS },
+      .linking.linkage = SPN_LIB_KIND_SHARED,
+      .msvc = { .toolset = "v142", .sdk = "10.0.22621" },
+    },
+  },
+  {
+    .name = "msvc_override_beats_profile_per_field",
+    .profile = { .name = "default", .msvc = { .toolset = "v142", .sdk = "10.0.22621" } },
+    .overrides = { .msvc = { .toolset = "2022" } },
+    .host = PROFILE_HOST_WIN_MSVC,
+    .abi = SPN_ABI_MSVC,
+    .expect = {
+      .target = { SPN_ARCH_X64, SPN_OS_WINDOWS },
+      .linking.linkage = SPN_LIB_KIND_SHARED,
+      .msvc = { .toolset = "2022", .sdk = "10.0.22621" },
+    },
+  },
+  {
     .name = "undefined_profile",
     .overrides = { .name = "missing" },
     .host = PROFILE_HOST_LINUX_GNU,
@@ -722,6 +760,10 @@ typedef struct {
   spn_linking_t linking;
   spn_linkage_t demand;
   spn_sanitizer_set_t sanitizers;
+  struct {
+    const c8* toolset;
+    const c8* sdk;
+  } msvc;
   spn_triple_t host;
   query_expect_t expect;
 } query_test_t;
@@ -800,6 +842,13 @@ static const query_test_t query_tests [] = {
     .sanitizers = SPN_SANITIZER_ADDRESS | SPN_SANITIZER_UNDEFINED,
     .host = PROFILE_HOST_LINUX_GNU,
     .expect = { .abis = { SPN_ABI_GNU }, .linking = { { SPN_LIB_KIND_STATIC, SPN_RUNTIME_SHARED, SPN_RUNTIME_SHARED } } },
+  },
+  {
+    .name = "request_carries_msvc",
+    .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC },
+    .msvc = { .toolset = "v142", .sdk = "10.0.22621" },
+    .host = PROFILE_HOST_WIN_MSVC,
+    .expect = { .abis = { SPN_ABI_MSVC }, .linking = { { SPN_LIB_KIND_SHARED, SPN_RUNTIME_STATIC, SPN_RUNTIME_STATIC } } },
   },
   {
     .name = "shared_demand_on_musl_host_prefers_musl",
@@ -967,6 +1016,10 @@ static spn_profile_decl_t desc_to_decl(sp_mem_t mem, const decl_t* d) {
     .static_deps = d->static_deps,
     .static_deps_set = d->static_deps_set,
     .strip = candidates(mem, d->strip),
+    .msvc = {
+      .toolset = sp_cstr_as_str(d->msvc.toolset),
+      .sdk = sp_cstr_as_str(d->msvc.sdk),
+    },
   };
 }
 
@@ -977,6 +1030,10 @@ static spn_profile_override_t desc_to_override(const override_t* d) {
     .mode = d->mode,
     .target = sp_cstr_as_str(d->target),
     .triple = { .arch = d->arch, .os = d->os, .abi = d->abi },
+    .msvc = {
+      .toolset = sp_cstr_as_str(d->msvc.toolset),
+      .sdk = sp_cstr_as_str(d->msvc.sdk),
+    },
   };
 }
 
@@ -1035,6 +1092,8 @@ sp_test_each(profile, resolve, test_t, tests, .setup = spn_test_ctx_setup) {
   sp_expect_eq(t, (u32)it->expect.demand, (u32)result.demand);
   sp_expect_eq(t, it->expect.emit.shared, result.emit.shared);
   sp_expect_eq(t, it->expect.emit.static_lib, result.emit.static_lib);
+  sp_expect_str_eq_c(t, result.msvc.toolset, it->expect.msvc.toolset);
+  sp_expect_str_eq_c(t, result.msvc.sdk, it->expect.msvc.sdk);
 
   spn_toolchain_info_t info = { .driver = SPN_CC_DRIVER_ZIG };
   spn_triple_t selected = { result.target.arch, result.target.os, it->abi ? it->abi : result.target.abi };
@@ -1067,6 +1126,10 @@ sp_test_each(profile, query, query_test_t, query_tests, .setup = spn_test_ctx_se
     .request = it->linking,
     .demand = it->demand,
     .sanitizers = it->sanitizers,
+    .msvc = {
+      .toolset = sp_cstr_as_str(it->msvc.toolset),
+      .sdk = sp_cstr_as_str(it->msvc.sdk),
+    },
   };
 
   spn_toolchain_query_t query = sp_zero;
@@ -1093,6 +1156,8 @@ sp_test_each(profile, query, query_test_t, query_tests, .setup = spn_test_ctx_se
   sp_expect_eq(t, query.toolchain.id, profile.toolchain.id);
   sp_expect(t, spn_triple_equal(query.target, it->target));
   sp_expect_eq(t, query.sanitizers, it->sanitizers);
+  sp_expect_str_eq_c(t, query.msvc.toolset, it->msvc.toolset);
+  sp_expect_str_eq_c(t, query.msvc.sdk, it->msvc.sdk);
 
   u32 abis = 0;
   sp_carr_detect_len(it->expect.abis, abis, it->expect.abis[abis]);

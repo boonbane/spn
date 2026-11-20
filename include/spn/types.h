@@ -124,6 +124,10 @@ typedef struct {
   bool sanitizers_set;
   sp_str_t target;
   spn_triple_t triple;
+  struct {
+    sp_str_t toolset;
+    sp_str_t sdk;
+  } msvc;
 } spn_profile_override_t;
 
 typedef struct spn_session_config_t {

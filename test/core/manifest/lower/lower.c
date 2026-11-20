@@ -153,6 +153,10 @@ typedef struct {
   spn_os_t os;
   spn_arch_t arch;
   const c8* options;
+  struct {
+    const c8* toolset;
+    const c8* sdk;
+  } msvc;
 } profile_t;
 
 typedef struct {
@@ -1255,6 +1259,29 @@ static const test_t tests [] = {
     },
   },
   {
+    .name = "profile_msvc",
+    .manifest = "profile_msvc",
+    .profiles = {
+      { .name = "A", .msvc = { .toolset = "v142", .sdk = "10.0.22621" } },
+      { .name = "B", .msvc = { .toolset = "v142" } },
+      { .name = "C", .msvc = { .sdk = "10.0.22621" } },
+    },
+  },
+  {
+    .name = "validate_profile_msvc_toolset",
+    .manifest = "validate_profile_msvc_toolset",
+    .issues = {
+      { SPN_ERR_CODEGEN_INVALID, "profile[0].msvc.toolset" },
+    },
+  },
+  {
+    .name = "validate_profile_msvc_sdk",
+    .manifest = "validate_profile_msvc_sdk",
+    .issues = {
+      { SPN_ERR_CODEGEN_INVALID, "profile[0].msvc.sdk" },
+    },
+  },
+  {
     .name = "validate_profile_candidate_value",
     .manifest = "validate_profile_candidate_value",
     .issues = {
@@ -2238,6 +2265,8 @@ sp_test_each(lower, cases, test_t, tests, .setup = spn_test_ctx_setup) {
     sp_expect_eq(t, expected.static_deps_set, p->static_deps_set);
     sp_expect_eq(t, (u32)expected.os, (u32)p->os);
     sp_expect_eq(t, (u32)expected.arch, (u32)p->arch);
+    sp_expect_str_eq_c(t, p->msvc.toolset, expected.msvc.toolset);
+    sp_expect_str_eq_c(t, p->msvc.sdk, expected.msvc.sdk);
     if (expected.options) sp_expect_str_eq_c(t, spn_when_to_str(mem, &p->options), expected.options);
   }
 
