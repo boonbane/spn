@@ -13,6 +13,7 @@
 #include "core/types.h"
 #include "git/cache.h"
 #include "git/patch.h"
+#include "git/remote.h"
 #include "hash/digest/digest.h"
 #include "index/index.h"
 #include "lazy/lazy.h"
@@ -255,15 +256,64 @@ spn_err_t spn_sync_toolchain(spn_toolchain_store_t* store, spn_toolchain_unit_t*
   return SPN_OK;
 }
 
-static spn_err_t materialize_tree(spn_session_t* session, sp_intern_str_t name, spn_pkg_root_t tree, sp_atomic_s32_t* cancelled, spn_path_t* root, bool* fetched) {
+static spn_err_t report_git(spn_ctx_t* ctx, sp_intern_str_t name, sp_str_t url, const spn_git_failure_t* failure) {
+  sp_str_t cause = sp_str_copy(ctx->events->mem, sp_cstr_as_str(failure->message));
+  switch (failure->kind) {
+    case SPN_GIT_CANCELLED: {
+      return SPN_ERR_CANCELLED;
+    }
+    case SPN_GIT_UNTRUSTED: {
+      return spn_err_emit(ctx, (spn_err_union_t) {
+        .kind = SPN_ERR_CERT_UNTRUSTED,
+        .subject = name.str,
+        .cert = {
+          .url = url,
+          .trust = ctx->trust,
+          .config = spn_path_str(&ctx->roots, ctx->events->mem, ctx->paths.config),
+          .cause = cause,
+          .git = true,
+        },
+      });
+    }
+    case SPN_GIT_FAILED:
+    case SPN_GIT_DROPPED:
+    case SPN_GIT_UNAUTHORIZED:
+    case SPN_GIT_CORRUPT: {
+      if (failure->remote) {
+        return spn_err_emit(ctx, (spn_err_union_t) {
+          .kind = SPN_ERR_GIT_FETCH,
+          .subject = name.str,
+          .git_fetch = {
+            .url = url,
+            .config = spn_path_str(&ctx->roots, ctx->events->mem, ctx->paths.config),
+            .cause = cause,
+            .route = failure->route,
+          },
+        });
+      }
+      spn_event_buffer_push(ctx->events, (spn_event_t) {
+        .kind = SPN_EVENT_SYNC_FAILED,
+        .sync_failed = {
+            .name = name.str,
+            .url = url,
+            .error = sp_str_empty(cause) ? sp_str_lit("failed to fetch repository") : cause,
+        }
+      });
+      return SPN_ERROR;
+    }
+  }
+  sp_unreachable_return(SPN_ERROR);
+}
+
+static spn_err_t materialize_tree(spn_ctx_t* ctx, sp_intern_str_t name, spn_pkg_root_t tree, sp_atomic_s32_t* cancelled, spn_path_t* root, bool* fetched) {
   switch (tree.kind) {
     case SPN_PKG_ROOT_LOCAL: {
-      spn_path_t canonical = spn_path_canonicalize(spn.mem, &session->ctx->roots, tree.local);
+      spn_path_t canonical = spn_path_canonicalize(ctx->mem, &ctx->roots, tree.local);
       sp_sys_file_meta_t meta = sp_zero;
-      if (sp_fs_get_path_metadata_at(spn_path_at(&session->ctx->roots, canonical), &meta)) {
-        return spn_err_emit(session->ctx, (spn_err_union_t) {
+      if (sp_fs_get_path_metadata_at(spn_path_at(&ctx->roots, canonical), &meta)) {
+        return spn_err_emit(ctx, (spn_err_union_t) {
           .kind = SPN_ERR_NO_MANIFEST,
-          .no_manifest = { .path = spn_path_str(&session->ctx->roots, spn.events->mem, tree.local) },
+          .no_manifest = { .path = spn_path_str(&ctx->roots, ctx->events->mem, tree.local) },
         });
       }
       *root = canonical;
@@ -271,9 +321,9 @@ static spn_err_t materialize_tree(spn_session_t* session, sp_intern_str_t name, 
     }
     case SPN_PKG_ROOT_GIT: {
       bool fetching = false;
-      spn_git_checkout_t* checkout = spn_git_cache_checkout(&session->ctx->caches.git, tree.git, &fetching);
+      spn_git_checkout_t* checkout = spn_git_cache_checkout(&ctx->caches.git, tree.git, &fetching);
       if (fetching) {
-        spn_event_buffer_push(spn.events, (spn_event_t){
+        spn_event_buffer_push(ctx->events, (spn_event_t){
           .kind = SPN_EVENT_SYNC,
           .sync = {
             .name = name.str,
@@ -282,52 +332,8 @@ static spn_err_t materialize_tree(spn_session_t* session, sp_intern_str_t name, 
         });
       }
 
-      if (spn_git_checkout_ensure(&session->ctx->caches.git, checkout, cancelled)) {
-        sp_str_t cause = sp_str_copy(spn.events->mem, sp_cstr_as_str(checkout->failure.message));
-        switch (checkout->failure.kind) {
-          case SPN_GIT_CANCELLED: {
-            return SPN_ERR_CANCELLED;
-          }
-          case SPN_GIT_UNTRUSTED: {
-            return spn_err_emit(session->ctx, (spn_err_union_t) {
-              .kind = SPN_ERR_CERT_UNTRUSTED,
-              .subject = name.str,
-              .cert = {
-                .url = tree.git.url,
-                .trust = session->ctx->trust,
-                .config = spn_path_str(&session->ctx->roots, spn.events->mem, session->ctx->paths.config),
-                .cause = cause,
-                .git = true,
-              },
-            });
-          }
-          case SPN_GIT_FAILED:
-          case SPN_GIT_DROPPED:
-          case SPN_GIT_UNAUTHORIZED:
-          case SPN_GIT_CORRUPT: {
-            if (checkout->failure.remote) {
-              return spn_err_emit(session->ctx, (spn_err_union_t) {
-                .kind = SPN_ERR_GIT_FETCH,
-                .subject = name.str,
-                .git_fetch = {
-                  .url = tree.git.url,
-                  .config = spn_path_str(&session->ctx->roots, spn.events->mem, session->ctx->paths.config),
-                  .cause = cause,
-                  .route = checkout->failure.route,
-                },
-              });
-            }
-            spn_event_buffer_push(spn.events, (spn_event_t) {
-              .kind = SPN_EVENT_SYNC_FAILED,
-              .sync_failed = {
-                  .name = name.str,
-                  .url = tree.git.url,
-                  .error = sp_str_empty(cause) ? sp_str_lit("failed to fetch repository") : cause,
-              }
-            });
-            return SPN_ERROR;
-          }
-        }
+      if (spn_git_checkout_ensure(&ctx->caches.git, checkout, cancelled)) {
+        return report_git(ctx, name, tree.git.url, &checkout->failure);
       }
 
       *root = checkout->path;
@@ -361,12 +367,12 @@ static spn_err_t fetch_package(pkg_job_t* job) {
     }
   }
 
-  spn_try(materialize_tree(session, pkg->name, pkg->origin.recipe, &job->op->cancelled, &pkg->roots.recipe, fetched));
+  spn_try(materialize_tree(session->ctx, pkg->name, pkg->origin.recipe, &job->op->cancelled, &pkg->roots.recipe, fetched));
 
   if (pkg->origin.source.kind == SPN_PKG_ROOT_NONE) {
     pkg->roots.source = pkg->roots.recipe;
   } else {
-    spn_try(materialize_tree(session, pkg->name, pkg->origin.source, &job->op->cancelled, &pkg->roots.source, fetched));
+    spn_try(materialize_tree(session->ctx, pkg->name, pkg->origin.source, &job->op->cancelled, &pkg->roots.source, fetched));
   }
 
   return SPN_OK;
@@ -584,69 +590,62 @@ static spn_lock_root_t pinned_root(spn_pkg_root_t root) {
   return (spn_lock_root_t) { .url = root.git.url, .rev = root.git.rev, .dir = root.git.dir };
 }
 
-static void record_pins(spn_ctx_t* ctx, spn_lock_t* lock) {
+spn_err_t si_sync_index_pins(spn_ctx_t* ctx, sp_atomic_s32_t* cancelled, const spn_lock_t* kept, spn_lock_t* lock) {
   sp_da_for(ctx->indexes, it) {
     spn_index_info_t* index = &ctx->indexes[it];
-    if (spn_index_follows_lock(index) && !sp_str_empty(index->git.rev)) {
-      spn_lock_pin_index(lock, (spn_lock_index_t) { .name = index->name, .url = index->git.url, .rev = index->git.rev });
+    si_index_pin_t pin = si_index_pin(index, kept);
+    switch (pin.kind) {
+      case SI_INDEX_PIN_NONE: {
+        continue;
+      }
+      case SI_INDEX_PIN_FROZEN: {
+        break;
+      }
+      case SI_INDEX_PIN_HELD: {
+        spn_lock_pin_index(lock, (spn_lock_index_t) { .name = index->name, .url = index->git.url, .rev = pin.rev });
+        break;
+      }
+      case SI_INDEX_PIN_TIP: {
+        spn_git_failure_t failure = sp_zero;
+        if (si_git_tip(index->remote, ctx->heap, index->git.url, index->backoff, cancelled, &pin.rev, &failure)) {
+          return report_git(ctx, index->name, index->git.url, &failure);
+        }
+        spn_lock_pin_index(lock, (spn_lock_index_t) { .name = index->name, .url = index->git.url, .rev = pin.rev });
+        break;
+      }
     }
-  }
-}
 
-spn_err_t spn_save_index_pins(spn_ctx_t* ctx) {
-  spn_path_t path = ctx->project->paths.lock;
-
-  spn_lock_t held = sp_zero;
-  spn_err_union_t failed = sp_zero;
-  if (spn_lock_load(ctx->heap, ctx->intern, &ctx->roots, path, &held, &failed)) {
-    return spn_err_emit(ctx, failed);
-  }
-
-  spn_lock_t lock = spn_lock_new(ctx->heap);
-  sp_da_for(held.entries, it) {
-    spn_lock_insert(&lock, held.entries[it]);
-  }
-  record_pins(ctx, &lock);
-
-  if (spn_lock_index_drift(&held, &lock) && spn_lock_save(&ctx->roots, path, &lock, &failed)) {
-    return spn_err_emit(ctx, failed);
+    spn_pkg_root_t tree = { .kind = SPN_PKG_ROOT_GIT, .git = { .url = index->git.url, .rev = pin.rev } };
+    spn_path_t dir = sp_zero;
+    bool fetched = false;
+    spn_try(materialize_tree(ctx, index->name, tree, cancelled, &dir, &fetched));
+    si_index_place(index, ctx->heap, &ctx->roots, dir, pin.rev);
   }
   return SPN_OK;
 }
 
-static bool follows_pin(spn_ctx_t* ctx, const spn_resolved_pkg_t* pkg) {
-  spn_index_info_t* index = spn_index_find(&ctx->indexes, pkg->origin.release->index);
-  return index && spn_index_is_snapshot(index);
-}
+static spn_err_t relock(sp_mem_t scratch, spn_session_t* session, const spn_lock_t* held, spn_lock_t* lock, bool* changed) {
+  spn_ctx_t* ctx = session->ctx;
 
-static spn_err_t pin(sp_mem_t scratch, spn_ctx_t* ctx, spn_resolve_t resolve, bool locked, const spn_lock_t* held, spn_lock_t* lock) {
-  spn_lock_t selected = spn_lock_new(scratch);
-  sp_ht_for_kv(resolve, it) {
+  si_da(si_lock_pick_t) picks = sp_zero;
+  sp_ht_for_kv(session->resolve, it) {
     const spn_resolved_pkg_t* pkg = it.val;
     if (pkg->source != SPN_PKG_SOURCE_INDEX) {
       continue;
     }
-    spn_lock_entry_t entry = {
-      .name = pkg->name,
-      .version = pkg->id.version,
-      .source = pinned_root(pkg->origin.release->source),
-      .manifest = pinned_root(pkg->origin.release->manifest),
-    };
-    spn_lock_entry_t* was = spn_lock_find(lock, pkg->name.id, pkg->id.version);
-    if (was && follows_pin(ctx, pkg)) {
-      *was = entry;
-    }
-    spn_lock_insert(&selected, entry);
+    si_da_push(scratch, picks, ((si_lock_pick_t) {
+      .entry = {
+        .name = pkg->name,
+        .version = pkg->id.version,
+        .source = pinned_root(pkg->origin.release->source),
+        .manifest = pinned_root(pkg->origin.release->manifest),
+      },
+      .pinned = spn_index_is_snapshot(spn_index_find(&ctx->indexes, pkg->origin.release->index)),
+    }));
   }
 
-  sp_da(spn_err_union_t) moved = sp_da_new(scratch, spn_err_union_t);
-  spn_lock_diff_t drift = spn_lock_diff(lock, &selected);
-  while (spn_lock_diff_next(&drift)) {
-    if (drift.was && drift.now) {
-      sp_da_push(moved, spn_lock_mismatch(drift.was, drift.now));
-    }
-  }
-  if (!sp_da_empty(moved)) {
+  si_lock_next_t next = si_lock_next(session->mem, (si_lock_request_t) { .held = held, .kept = lock, .picks = picks });
+  if (!si_da_empty(next.moved)) {
     sp_da(sp_str_t) accept = sp_da_new(ctx->events->mem, sp_str_t);
     spn_lock_diff_t unpinned = spn_lock_diff(held, lock);
     while (spn_lock_diff_next(&unpinned)) {
@@ -654,42 +653,26 @@ static spn_err_t pin(sp_mem_t scratch, spn_ctx_t* ctx, spn_resolve_t resolve, bo
         add_name(&accept, unpinned.was->name.str);
       }
     }
-    sp_da_for(moved, it) {
-      add_name(&accept, moved[it].subject);
+    si_da_for(next.moved, it) {
+      add_name(&accept, next.moved[it].was.name.str);
     }
-    sp_da_for(moved, it) {
-      moved[it].lock_mismatch.update = accept;
-      spn_err_emit(ctx, moved[it]);
+    si_da_for(next.moved, it) {
+      spn_err_union_t moved = spn_lock_mismatch(&next.moved[it].was, &next.moved[it].now);
+      moved.lock_mismatch.update = accept;
+      spn_err_emit(ctx, moved);
     }
     return SPN_ERR_LOCK_MISMATCH;
   }
+  if (session->locked && next.changed) {
+    return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_LOCK_STALE, .subject = next.stale });
+  }
 
-  sp_da_for(selected.entries, it) {
-    spn_lock_insert(lock, selected.entries[it]);
-  }
-  record_pins(ctx, lock);
-
-  if (locked && held->version != lock->version) {
-    return spn_err_emit(ctx, (spn_err_union_t) { .kind = SPN_ERR_LOCK_STALE });
-  }
-  const spn_lock_index_t* repinned = spn_lock_index_drift(held, lock);
-  if (locked && repinned) {
-    return spn_err_emit(ctx, (spn_err_union_t) {
-      .kind = SPN_ERR_LOCK_STALE,
-      .subject = repinned->name.str,
-    });
-  }
-  spn_lock_diff_t stale = spn_lock_diff(held, lock);
-  if (locked && spn_lock_diff_next(&stale)) {
-    return spn_err_emit(ctx, (spn_err_union_t) {
-      .kind = SPN_ERR_LOCK_STALE,
-      .subject = (stale.was ? stale.was : stale.now)->name.str,
-    });
-  }
+  *lock = next.lock;
+  *changed = next.changed;
   return SPN_OK;
 }
 
-spn_err_t spn_resolve_and_sync_pins(spn_op_t* op, const spn_lock_t* held, const spn_lock_t* pins, spn_lock_t* lock) {
+spn_err_t spn_resolve_and_sync_pins(spn_op_t* op, const spn_lock_t* held, const spn_lock_t* kept, spn_lock_t* lock) {
   spn_session_t* session = op->session;
   spn_ctx_t* ctx = session->ctx;
   const spn_path_roots_t* roots = &ctx->roots;
@@ -718,18 +701,20 @@ spn_err_t spn_resolve_and_sync_pins(spn_op_t* op, const spn_lock_t* held, const 
   spn_try(hashed);
 
   *lock = spn_lock_new(session->mem);
-  sp_da_for(pins->entries, it) {
-    spn_lock_insert(lock, pins->entries[it]);
+  sp_da_for(kept->entries, it) {
+    spn_lock_insert(lock, kept->entries[it]);
   }
+  spn_try(si_sync_index_pins(ctx, &op->cancelled, kept, lock));
 
+  bool changed = false;
   bool reresolve = sp_zero;
   do {
     spn_try(spn_resolve(op, lock));
 
-    sp_mem_arena_marker_t pinning = sp_mem_begin_scratch();
-    spn_err_t pinned = pin(pinning.mem, ctx, session->resolve, session->locked, held, lock);
-    sp_mem_end_scratch(pinning);
-    spn_try(pinned);
+    sp_mem_arena_marker_t picking = sp_mem_begin_scratch();
+    spn_err_t relocked = relock(picking.mem, session, held, lock, &changed);
+    sp_mem_end_scratch(picking);
+    spn_try(relocked);
 
     sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
     spn_err_t synced = sync_jobs(op, scratch.mem, &reresolve);
@@ -737,8 +722,6 @@ spn_err_t spn_resolve_and_sync_pins(spn_op_t* op, const spn_lock_t* held, const 
     spn_try(synced);
   } while (reresolve);
 
-  spn_lock_diff_t diff = spn_lock_diff(held, lock);
-  bool changed = held->version != lock->version || spn_lock_diff_next(&diff) || spn_lock_index_drift(held, lock);
   spn_err_union_t unwritten = sp_zero;
   if (changed && spn_lock_save(roots, session->project->paths.lock, lock, &unwritten)) {
     return spn_err_emit(ctx, unwritten);

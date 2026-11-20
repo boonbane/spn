@@ -10,7 +10,6 @@
 #include "core/types.h"
 #include "index/types.h"
 #include "intern/intern.h"
-#include "model/sync.h"
 #include "spn/host.h"
 
 #include "event/event.h"
@@ -39,47 +38,14 @@ static void sync_index_node(void* data) {
   job->err = spn_index_sync(job->index, job->plan, &job->op->cancelled, &job->failure);
 }
 
-static spn_err_t repin(spn_op_t* op, spn_index_info_t* index) {
-  spn_ctx_t* ctx = op->ctx;
-  spn_path_t store = spn_path_from_id(SPN_DIR_ID_INDEX);
-
-  sp_str_t rev = sp_zero;
-  spn_git_failure_t failure = sp_zero;
-  if (spn_index_tip(index, ctx->heap, &ctx->roots, store, &op->cancelled, &rev, &failure)) {
-    if (failure.kind == SPN_GIT_CANCELLED) {
-      return SPN_ERR_CANCELLED;
-    }
-    return spn_err_emit(ctx, (spn_err_union_t) {
-      .kind = SPN_ERR_INDEX_SYNC,
-      .index = {
-        .name = index->name.str,
-        .url = index->git.url,
-        .cause = sp_str_copy(ctx->events->mem, sp_cstr_as_str(failure.message)),
-      }});
-  }
-
-  index->git.rev = rev;
-  spn_index_locate(index, ctx->heap, &ctx->roots, store);
-  return SPN_OK;
-}
-
-spn_err_t spn_repin_index_list(spn_op_t* op, sp_da(spn_index_info_t*) indexes) {
-  sp_da_for(indexes, it) {
-    if (spn_index_follows_lock(indexes[it])) {
-      spn_try(repin(op, indexes[it]));
-    }
-  }
-  return SPN_OK;
-}
-
 spn_err_t spn_sync_index_list(spn_op_t* op, sp_da(spn_index_info_t*) indexes, bool force) {
   spn_ctx_t* ctx = op->ctx;
   sp_da(job_t*) jobs = sp_da_new(ctx->mem, job_t*);
 
   sp_da_for(indexes, it) {
     spn_index_info_t* index = indexes[it];
-    if (spn_index_follows_lock(index) && sp_str_empty(index->git.rev)) {
-      spn_try(repin(op, index));
+    if (spn_index_is_snapshot(index)) {
+      continue;
     }
     spn_index_plan_t plan = spn_index_plan(index, force);
     if (plan.fetch) {
@@ -305,11 +271,7 @@ spn_err_t spn_op_sync_indexes(spn_op_t* op) {
     }
     sp_da_push(indexes, &ctx->indexes[it]);
   }
-  spn_try(spn_sync_index_list(op, indexes, request.force));
-  if (ctx->project) {
-    spn_try(spn_save_index_pins(ctx));
-  }
-  return SPN_OK;
+  return spn_sync_index_list(op, indexes, request.force);
 }
 
 spn_op_t* spn_sync_indexes(spn_ctx_t* ctx, spn_sync_request_t request) {

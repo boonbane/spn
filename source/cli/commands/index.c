@@ -71,12 +71,16 @@ static sp_cli_result_t path(sp_cli_t* cli) {
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   spn_index_desc_t index = sp_zero;
   bool found = spn_get_index(scratch.mem, host.ctx, args.name, &index);
-  if (found) {
+  bool placed = found && !sp_str_empty(index.location);
+  if (placed) {
     spn_tui_handoff(&tui);
     spn_print(&tui, "{}", sp_fmt_str(index.location));
   }
   sp_mem_end_scratch(scratch);
-  return found ? SP_CLI_OK : spn_cli_usage("unknown index: {.cyan}", sp_fmt_str(args.name));
+  if (!found) {
+    return spn_cli_usage("unknown index: {.cyan}", sp_fmt_str(args.name));
+  }
+  return placed ? SP_CLI_OK : spn_cli_usage("index {.cyan} has no checkout until the first build", sp_fmt_str(args.name));
 }
 
 static sp_cli_result_t refresh(sp_cli_t* cli) {

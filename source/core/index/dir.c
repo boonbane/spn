@@ -46,7 +46,7 @@ static spn_pkg_root_t published_root(spn_index_info_t* index, spn_path_t dir, sp
     case SPN_INDEX_PROTOCOL_GIT: {
       return (spn_pkg_root_t) {
         .kind = SPN_PKG_ROOT_GIT,
-        .git = { .url = index->git.url, .rev = index->git.rev, .dir = sub },
+        .git = { .url = index->git.url, .rev = index->location.rev, .dir = sub },
       };
     }
     case SPN_INDEX_PROTOCOL_HTTP:

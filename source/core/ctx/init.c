@@ -337,11 +337,23 @@ spn_err_t spn_ctx_open(spn_ctx_t* ctx, spn_open_request_t request) {
 
   sp_da_for(ctx->indexes, it) {
     spn_index_info_t* index = &ctx->indexes[it];
-    spn_lock_index_t* pinned = spn_lock_find_index(&lock, index->id);
-    if (pinned && spn_index_follows_lock(index) && sp_str_equal(pinned->url, index->git.url)) {
-      index->git.rev = pinned->rev;
+    si_index_pin_t pin = si_index_pin(index, &lock);
+    switch (pin.kind) {
+      case SI_INDEX_PIN_NONE: {
+        spn_index_locate(index, ctx->heap, &ctx->roots, spn_path_from_id(SPN_DIR_ID_INDEX));
+        break;
+      }
+      case SI_INDEX_PIN_FROZEN:
+      case SI_INDEX_PIN_HELD: {
+        bool fetching = false;
+        spn_git_checkout_t* checkout = spn_git_cache_checkout(&ctx->caches.git, (spn_git_checkout_id_t) { .url = index->git.url, .rev = pin.rev }, &fetching);
+        si_index_place(index, ctx->heap, &ctx->roots, checkout->path, pin.rev);
+        break;
+      }
+      case SI_INDEX_PIN_TIP: {
+        break;
+      }
     }
-    spn_index_locate(index, ctx->heap, &ctx->roots, spn_path_from_id(SPN_DIR_ID_INDEX));
     index->remote = remote;
     index->backoff = spn_net_default_backoff;
     if (!index->refresh) {

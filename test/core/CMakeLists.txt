@@ -73,6 +73,8 @@ add_executable(core
   index/dir.c
   index/location.c
   index/package.c
+  index/pin.c
+  index/pins.c
   index/query.c
   index/publish.c
   index/release.c
@@ -100,7 +102,7 @@ add_executable(core
   lock/diff.c
   lock/load.c
   lock/mismatch.c
-  lock/pins.c
+  lock/next.c
   lock/save.c
   manifest/gen/gen.c
   manifest/lower/lower.c

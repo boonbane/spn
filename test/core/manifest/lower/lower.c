@@ -162,7 +162,6 @@ typedef struct {
   spn_index_protocol_t protocol;
   spn_index_format_t format;
   spn_index_kind_t kind;
-  bool frozen;
 } index_t;
 
 typedef struct {
@@ -218,7 +217,7 @@ typedef struct {
   dep_t deps [8];
   toolchain_t toolchains [4];
   profile_t profiles [4];
-  index_t indexes [8];
+  index_t indexes [4];
   config_t config [8];
   option_t options [4];
   patch_t patches [4];
@@ -1332,12 +1331,6 @@ static const test_t tests [] = {
         .format = SPN_INDEX_FORMAT_MANIFESTS,
         .kind = SPN_INDEX_KIND_WORKSPACE,
       },
-      {
-        .name = "pinned",
-        .url = "https://w",
-        .kind = SPN_INDEX_KIND_WORKSPACE,
-        .frozen = true,
-      },
     },
   },
   {
@@ -2268,9 +2261,6 @@ sp_test_each(lower, cases, test_t, tests, .setup = spn_test_ctx_setup) {
     sp_expect_eq(t, (u32)expected.protocol, (u32)idx->protocol);
     sp_expect_eq(t, (u32)expected.format, (u32)idx->format);
     sp_expect_eq(t, (u32)expected.kind, (u32)idx->kind);
-    if (idx->protocol == SPN_INDEX_PROTOCOL_GIT) {
-      sp_expect_eq(t, expected.frozen, idx->git.frozen);
-    }
   }
 
   // Patches

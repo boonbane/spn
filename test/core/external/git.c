@@ -7,11 +7,14 @@ typedef enum {
   OP_FETCH,
   OP_CLONE,
   OP_SYSTEM_CLONE,
+  OP_TIP,
+  OP_SYSTEM_TIP,
 } op_t;
 
 typedef enum {
   DAMAGE_NONE,
   DAMAGE_REMOTE_REMOVED,
+  DAMAGE_REMOTE_EMPTIED,
   DAMAGE_REPO_REMOVED,
   DAMAGE_ORIGIN_REMOVED,
   DAMAGE_REF_LOCKED,
@@ -22,6 +25,7 @@ typedef struct {
   spn_err_t err;
   spn_git_failure_kind_t kind;
   bool remote;
+  bool tip;
 } expect_t;
 
 typedef struct {
@@ -72,6 +76,40 @@ static const test_t tests [] = {
     .damage = DAMAGE_REMOTE_REMOVED,
     .expect = { .err = SPN_ERROR, .remote = true },
   },
+  {
+    .name = "tip_is_the_remote_head",
+    .op = OP_TIP,
+    .expect = { .tip = true },
+  },
+  {
+    .name = "tip_of_missing_path_fails",
+    .op = OP_TIP,
+    .damage = DAMAGE_REMOTE_REMOVED,
+    .expect = { .err = SPN_ERROR },
+  },
+  {
+    .name = "tip_of_empty_repo_is_remote",
+    .op = OP_TIP,
+    .damage = DAMAGE_REMOTE_EMPTIED,
+    .expect = { .err = SPN_ERROR, .remote = true },
+  },
+  {
+    .name = "system_tip_is_the_remote_head",
+    .op = OP_SYSTEM_TIP,
+    .expect = { .tip = true },
+  },
+  {
+    .name = "system_tip_of_missing_path_is_remote",
+    .op = OP_SYSTEM_TIP,
+    .damage = DAMAGE_REMOTE_REMOVED,
+    .expect = { .err = SPN_ERROR, .remote = true },
+  },
+  {
+    .name = "system_tip_of_empty_repo_is_remote",
+    .op = OP_SYSTEM_TIP,
+    .damage = DAMAGE_REMOTE_EMPTIED,
+    .expect = { .err = SPN_ERROR, .remote = true },
+  },
 };
 
 sp_test_each(git, failure, test_t, tests, .setup = spn_test_ctx_setup) {
@@ -86,6 +124,7 @@ sp_test_each(git, failure, test_t, tests, .setup = spn_test_ctx_setup) {
   sp_str_t branch = sp_zero;
   sp_must_eq(t, (u32)spn_git_current_branch(mem, remote, &branch), (u32)SPN_OK);
   sp_str_t ref = sp_fs_join_path(mem, local, sp_fmt(mem, ".git/refs/remotes/origin/{}", sp_fmt_str(branch)).value);
+  sp_str_t head = git_repo_head(remote);
   if (it->op == OP_FETCH) {
     sp_must_eq(t, (u32)spn_git_builtin_clone(remote, local, &cancelled, &failure), (u32)SPN_OK);
   }
@@ -96,6 +135,11 @@ sp_test_each(git, failure, test_t, tests, .setup = spn_test_ctx_setup) {
     }
     case DAMAGE_REMOTE_REMOVED: {
       sp_must_ok(t, sp_fs_remove_dir(remote));
+      break;
+    }
+    case DAMAGE_REMOTE_EMPTIED: {
+      sp_must_ok(t, sp_fs_remove_dir(remote));
+      git_repo_init(remote);
       break;
     }
     case DAMAGE_REPO_REMOVED: {
@@ -118,6 +162,7 @@ sp_test_each(git, failure, test_t, tests, .setup = spn_test_ctx_setup) {
   }
 
   failure = (spn_git_failure_t) { .kind = SPN_GIT_DROPPED, .message = "A" };
+  sp_str_t tip = sp_zero;
   spn_err_t err = SPN_OK;
   switch (it->op) {
     case OP_FETCH: {
@@ -132,6 +177,14 @@ sp_test_each(git, failure, test_t, tests, .setup = spn_test_ctx_setup) {
       err = spn_git_cli_clone(remote, local, &failure);
       break;
     }
+    case OP_TIP: {
+      err = si_git_builtin_tip(mem, remote, &cancelled, &tip, &failure);
+      break;
+    }
+    case OP_SYSTEM_TIP: {
+      err = si_git_cli_tip(mem, remote, &tip, &failure);
+      break;
+    }
   }
 
   sp_test_kv_c(t, "message", failure.message);
@@ -139,6 +192,7 @@ sp_test_each(git, failure, test_t, tests, .setup = spn_test_ctx_setup) {
   sp_expect_eq(t, (u32)failure.kind, (u32)it->expect.kind);
   sp_expect_eq(t, failure.remote, it->expect.remote);
   sp_expect_eq(t, failure.message[0] != 0, it->expect.err != SPN_OK);
+  sp_expect_str_eq(t, tip, it->expect.tip ? head : sp_str_lit(""));
   return SP_OK;
 }
 

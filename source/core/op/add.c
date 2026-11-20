@@ -6,6 +6,8 @@
 #include "index/cache.h"
 #include "index/types.h"
 #include "intern/intern.h"
+#include "lock/lock.h"
+#include "model/sync.h"
 #include "op/op.h"
 #include "paths/paths.h"
 #include "spn/host.h"
@@ -151,6 +153,14 @@ spn_err_t spn_op_add(spn_op_t* op) {
       .version_invalid = { .requested = request.version },
     });
   }
+
+  spn_lock_t held = sp_zero;
+  spn_err_union_t unreadable = sp_zero;
+  if (spn_lock_load(op->mem, ctx->intern, &ctx->roots, ctx->project->paths.lock, &held, &unreadable)) {
+    return spn_err_emit(ctx, unreadable);
+  }
+  spn_lock_t pinned = spn_lock_new(op->mem);
+  spn_try(si_sync_index_pins(ctx, &op->cancelled, &held, &pinned));
 
   return add(ctx, request, range);
 }

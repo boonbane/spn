@@ -22,14 +22,12 @@ typedef struct {
   struct { const c8* name; spn_linkage_t linkages [DIR_TEST_MAX_LINKAGES]; } targets [DIR_TEST_MAX_TARGETS];
   struct { const c8* name; spn_option_type_t type; u32 defaults; } options [DIR_TEST_MAX_OPTIONS];
   const c8* dep;
-  struct { const c8* url; const c8* rev; const c8* dir; } root;
 } dir_expect_t;
 
 typedef struct {
   const c8* name;
   const c8* package;
   const c8* toml;
-  struct { const c8* url; const c8* rev; } git;
   dir_expect_t expect;
 } dir_test_t;
 
@@ -106,26 +104,6 @@ static const dir_test_t tests [] = {
     },
   },
   {
-    .name = "git_release",
-    .package = "A",
-    .toml = "minimal",
-    .git = { .url = "U", .rev = "R" },
-    .expect = {
-      .exists = true,
-      .version = { 1, 2, 3 },
-      .root = { .url = "U", .rev = "R", .dir = "A" },
-    },
-  },
-  {
-    .name = "git_unpinned",
-    .package = "A",
-    .toml = "minimal",
-    .git = { .url = "U" },
-    .expect = {
-      .err = SPN_ERR_INDEX_UNPINNED,
-    },
-  },
-  {
     .name = "missing",
   },
   {
@@ -184,11 +162,6 @@ sp_test_each(index_dir, get_package, dir_test_t, tests, .setup = spn_test_ctx_se
     .format = SPN_INDEX_FORMAT_MANIFESTS,
     .location = { .at = sp_path_from_str(location), .dir = location },
   };
-  if (it->git.url) {
-    index.protocol = SPN_INDEX_PROTOCOL_GIT;
-    index.git.url = sp_cstr_as_str(it->git.url);
-    index.git.rev = sp_cstr_as_str(it->git.rev ? it->git.rev : "");
-  }
 
   sp_intern_str_t request = spn_intern_lit("A");
 
@@ -225,16 +198,8 @@ sp_test_each(index_dir, get_package, dir_test_t, tests, .setup = spn_test_ctx_se
     sp_expect_str_eq(t, release->name.str, request.str);
     sp_expect_str_eq_c(t, release->paths.manifest, "spn.toml");
 
-    if (it->expect.root.url) {
-      sp_must_eq(t, SPN_PKG_ROOT_GIT, release->source.kind);
-      sp_expect_str_eq_c(t, release->source.git.url, it->expect.root.url);
-      sp_expect_str_eq_c(t, release->source.git.rev, it->expect.root.rev);
-      sp_expect_str_eq_c(t, release->source.git.dir, it->expect.root.dir);
-    }
-    else {
-      sp_must_eq(t, SPN_PKG_ROOT_LOCAL, release->source.kind);
-      sp_expect_str_eq(t, release->source.local.sub, package);
-    }
+    sp_must_eq(t, SPN_PKG_ROOT_LOCAL, release->source.kind);
+    sp_expect_str_eq(t, release->source.local.sub, package);
 
     u32 deps = 0;
     sp_carr_detect_len(it->expect.deps, deps, it->expect.deps[deps].name);

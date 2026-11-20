@@ -18,6 +18,7 @@
 #include "fs/fs.h"
 #include "index/json.h"
 #include "index/jsonl.h"
+#include "lock/lock.h"
 #include "semver/compare.h"
 #include "semver/convert.h"
 #include "io/io.h"
@@ -198,8 +199,25 @@ bool spn_index_is_snapshot(const spn_index_info_t* index) {
   return index->protocol == SPN_INDEX_PROTOCOL_GIT && index->format == SPN_INDEX_FORMAT_MANIFESTS;
 }
 
-bool spn_index_follows_lock(const spn_index_info_t* index) {
-  return spn_index_is_snapshot(index) && !index->git.frozen;
+si_index_pin_t si_index_pin(const spn_index_info_t* index, const spn_lock_t* kept) {
+  if (!spn_index_is_snapshot(index)) {
+    return (si_index_pin_t) { .kind = SI_INDEX_PIN_NONE };
+  }
+  if (!sp_str_empty(index->git.rev)) {
+    return (si_index_pin_t) { .kind = SI_INDEX_PIN_FROZEN, .rev = index->git.rev };
+  }
+
+  const spn_lock_index_t* held = spn_lock_find_index(kept, index->id);
+  if (held && sp_str_equal(held->url, index->git.url)) {
+    return (si_index_pin_t) { .kind = SI_INDEX_PIN_HELD, .rev = held->rev };
+  }
+  return (si_index_pin_t) { .kind = SI_INDEX_PIN_TIP };
+}
+
+void si_index_place(spn_index_info_t* index, sp_mem_t mem, const spn_path_roots_t* roots, spn_path_t dir, sp_str_t rev) {
+  index->location.at = spn_path_at(roots, dir);
+  index->location.dir = spn_path_str(roots, mem, dir);
+  index->location.rev = rev;
 }
 
 spn_index_format_t spn_index_detect_format(spn_index_info_t* index) {
@@ -212,14 +230,6 @@ spn_index_format_t spn_index_detect_format(spn_index_info_t* index) {
 }
 
 spn_err_t spn_index_get_package(spn_index_info_t* index, sp_mem_t mem, sp_intern_t* intern, const spn_path_roots_t* roots, sp_intern_str_t name, spn_index_pkg_t** pkg, spn_err_union_t* err) {
-  if (spn_index_is_snapshot(index) && sp_str_empty(index->git.rev)) {
-    *err = (spn_err_union_t) {
-      .kind = SPN_ERR_INDEX_UNPINNED,
-      .index = { .name = index->name.str, .url = index->git.url },
-    };
-    return err->kind;
-  }
-
   switch (index->format) {
     case SPN_INDEX_FORMAT_RELEASES: {
       spn_try(spn_index_jsonl_get_package(index, mem, intern, name, pkg, err));
@@ -238,14 +248,6 @@ spn_err_t spn_index_get_package(spn_index_info_t* index, sp_mem_t mem, sp_intern
     sp_da_sort((*pkg)->releases, sort_release_by_version);
   }
   return SPN_OK;
-}
-
-spn_err_t spn_index_tip(spn_index_info_t* index, sp_mem_t mem, const spn_path_roots_t* roots, spn_path_t store, sp_atomic_s32_t* cancelled, sp_str_t* rev, spn_git_failure_t* failure) {
-  spn_index_info_t tracked = *index;
-  tracked.git.rev = sp_zero_s(sp_str_t);
-  spn_index_locate(&tracked, mem, roots, store);
-  spn_try(spn_index_sync(&tracked, spn_index_plan(&tracked, true), cancelled, failure));
-  return spn_git_get_commit_full(mem, tracked.location.dir, sp_str_lit("HEAD"), rev);
 }
 
 static void index_append_release(spn_index_info_t* index, spn_index_release_t* rel) {
@@ -425,11 +427,7 @@ spn_err_t spn_index_publish(spn_index_info_t* index, spn_index_release_t* rel, s
 spn_index_location_t spn_index_location(spn_index_info_t* index, sp_mem_t mem, const spn_path_roots_t* roots, spn_path_t store) {
   switch (index->protocol) {
     case SPN_INDEX_PROTOCOL_GIT: {
-      sp_str_t key = spn_git_db_key(mem, index->git.url);
-      if (!sp_str_empty(index->git.rev)) {
-        key = spn_git_checkout_key(mem, (spn_git_checkout_id_t) { .url = index->git.url, .rev = index->git.rev });
-      }
-      spn_path_t dir = spn_path_join(mem, store, key);
+      spn_path_t dir = spn_path_join(mem, store, spn_git_db_key(mem, index->git.url));
       return (spn_index_location_t) { .dir = dir, .lock = spn_path_lock(mem, dir) };
     }
     case SPN_INDEX_PROTOCOL_HTTP: {

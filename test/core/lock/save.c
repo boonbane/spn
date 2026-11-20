@@ -67,7 +67,9 @@ sp_test_each(lock, save, test_t, tests, .setup = spn_test_ctx_setup) {
   u32 len = 0;
   sp_carr_detect_len(it->entries, len, it->entries[len].name);
   spn_lock_t lock = lock_of(mem, it->entries, len);
-  pin_all(&lock, it->indexes);
+  u32 pins = 0;
+  sp_carr_detect_len(it->indexes, pins, it->indexes[pins].name);
+  pin_all(&lock, it->indexes, pins);
 
   spn_err_union_t err = sp_zero;
   sp_must_eq(t, SPN_OK, spn_lock_save(&spn.roots, path, &lock, &err));

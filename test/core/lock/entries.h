@@ -54,16 +54,8 @@ static inline spn_lock_t lock_of(sp_mem_t mem, const entry_t* entries, u32 len) 
   return lock;
 }
 
-static inline u32 count_pins(const pin_t* pins) {
-  u32 len = 0;
-  while (len < LOCK_TEST_MAX_INDEXES && pins[len].name) {
-    len++;
-  }
-  return len;
-}
-
-static inline void pin_all(spn_lock_t* lock, const pin_t* pins) {
-  sp_for(it, count_pins(pins)) {
+static inline void pin_all(spn_lock_t* lock, const pin_t* pins, u32 len) {
+  sp_for(it, len) {
     spn_lock_pin_index(lock, (spn_lock_index_t) {
       .name = spn_intern(sp_cstr_as_str(pins[it].name)),
       .url = text(pins[it].url),
@@ -72,8 +64,7 @@ static inline void pin_all(spn_lock_t* lock, const pin_t* pins) {
   }
 }
 
-static inline sp_err_t expect_pins(sp_test_t* t, const spn_lock_t* lock, const pin_t* expected) {
-  u32 len = count_pins(expected);
+static inline sp_err_t expect_pins(sp_test_t* t, const spn_lock_t* lock, const pin_t* expected, u32 len) {
   sp_must_eq(t, len, sp_da_size(lock->indexes));
   sp_for(it, len) {
     sp_expect_str_eq_c(t, lock->indexes[it].name.str, expected[it].name);

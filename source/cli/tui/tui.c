@@ -1332,15 +1332,6 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           );
           break;
         }
-        case SPN_ERR_INDEX_UNPINNED: {
-          sp_tty_fmt(
-            &w,
-            "Index {.cyan} isn't pinned to a commit yet; run {.cyan}",
-            sp_fmt_str(event->err.index.name),
-            sp_fmt_cstr("spn index sync")
-          );
-          break;
-        }
         case SPN_ERR_INDEX_EXISTS: {
           sp_tty_fmt(
             &w,

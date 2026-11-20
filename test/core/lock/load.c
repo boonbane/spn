@@ -126,6 +126,8 @@ sp_test_each(lock, load, test_t, tests, .setup = spn_test_ctx_setup) {
   u32 len = 0;
   sp_carr_detect_len(it->expect.entries, len, it->expect.entries[len].name);
   sp_expect_eq(t, it->expect.version, lock.version);
-  sp_try(expect_pins(t, &lock, it->expect.indexes));
+  u32 pins = 0;
+  sp_carr_detect_len(it->expect.indexes, pins, it->expect.indexes[pins].name);
+  sp_try(expect_pins(t, &lock, it->expect.indexes, pins));
   return expect_entries(t, &lock, it->expect.entries, len);
 }

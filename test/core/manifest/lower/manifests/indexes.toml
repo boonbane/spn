@@ -19,8 +19,3 @@ path = "index"
 name = "tree"
 url = "https://z"
 format = "manifests"
-
-[[index]]
-name = "pinned"
-url = "https://w"
-rev = "R"
