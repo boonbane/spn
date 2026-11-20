@@ -249,7 +249,15 @@ spn_err_t si_toolchain_select(spn_toolchain_catalog_t* catalog, spn_toolchain_qu
       return SPN_OK;
     }
     case SPN_MSVC_MATCH_ABSENT: {
-      return emit(SPN_ERR_TOOLCHAIN_SDK_MSVC, catalog, query, target, SP_NULLPTR, SP_NULLPTR);
+      return spn_err_emit(&spn, (spn_err_union_t) {
+        .kind = SPN_ERR_TOOLCHAIN_SDK_MSVC,
+        .toolchain = {
+          .name = selection->toolchain->name.str,
+          .target = target,
+          .query = query.target,
+          .host = catalog->host,
+        },
+      });
     }
     case SPN_MSVC_MATCH_TOOLSET: {
       return spn_err_emit(&spn, (spn_err_union_t) {
