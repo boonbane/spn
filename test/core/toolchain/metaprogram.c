@@ -130,7 +130,7 @@ sp_test_each(metaprogram, toolchain, test_t, tests, .setup = spn_test_ctx_setup,
   test_manifest_target(mem, &project.package, sp_cstr_as_str(it->target.name), it->target.kind);
 
   spn_session_t session = sp_zero;
-  sp_must_ok(t, spn_session_init(&session, &spn, mem, &project, (spn_session_config_t) { .profile.triple = target }));
+  sp_must_eq(t, spn_session_init(&session, &spn, mem, &project, (spn_session_config_t) { .profile.triple = target }), SPN_OK);
   spn_op_t op = { .ctx = &spn, .session = &session, .mem = mem };
   sp_expect_eq(t, (u32)spn_resolve_and_sync(&op), (u32)it->expect.err);
   sp_expect_str_eq_c(t, sp_cstr_as_str(remote.requests), it->expect.requests);
