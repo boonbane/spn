@@ -63,6 +63,12 @@ static void overlay_profile(spn_profile_info_t* to, const spn_profile_info_t* fr
   if (from->target.arch) {
     to->target.arch = from->target.arch;
   }
+  if (!sp_str_empty(from->msvc.toolset)) {
+    to->msvc.toolset = from->msvc.toolset;
+  }
+  if (!sp_str_empty(from->msvc.sdk)) {
+    to->msvc.sdk = from->msvc.sdk;
+  }
   if (!si_da_empty(from->options.clauses)) to->options = from->options;
 }
 
@@ -117,6 +123,7 @@ static spn_profile_info_t evaluate(const spn_profile_decl_t* decl, spn_when_env_
     .static_deps = decl->static_deps,
     .static_deps_set = decl->static_deps_set,
     .options = decl->options,
+    .msvc = decl->msvc,
   };
 }
 
@@ -128,6 +135,7 @@ static spn_profile_info_t override_to_info(const spn_profile_override_t* overrid
     .sanitizers = override->sanitizers,
     .sanitizers_set = override->sanitizers_set,
     .target = target,
+    .msvc = override->msvc,
   };
 }
 
@@ -140,11 +148,12 @@ static void push_abi(spn_abi_list_t* list, spn_abi_t abi) {
   list->items[list->count++] = abi;
 }
 
-spn_err_t spn_profile_query(const spn_profile_info_t* profile, spn_triple_t host, spn_toolchain_query_t* query) {
+spn_err_t si_profile_query(const spn_profile_info_t* profile, spn_triple_t host, spn_toolchain_query_t* query) {
   *query = (spn_toolchain_query_t) {
     .toolchain = profile->toolchain,
     .target = profile->target,
     .sanitizers = profile->sanitizers,
+    .msvc = profile->msvc,
   };
 
   spn_abi_list_t abis = sp_zero;
@@ -255,7 +264,7 @@ static void push_os_triples(sp_da(spn_triple_t)* triples, spn_arch_t arch, spn_o
   }
 }
 
-spn_err_t spn_profile_resolve(const spn_profile_override_t* override, spn_triple_t host, const spn_project_t* project, spn_profile_info_t* result) {
+spn_err_t si_profile_resolve(const spn_profile_override_t* override, spn_triple_t host, const spn_project_t* project, spn_profile_info_t* result) {
   spn_triple_t requested = override->triple;
   if (!sp_str_empty(override->target)) {
     spn_triple_scan_t scan = spn_triple_scan(override->target);
@@ -464,6 +473,7 @@ spn_err_t spn_profile_resolve(const spn_profile_override_t* override, spn_triple
     .emit        = merged.emit,
     .options     = merged.options,
     .targeted    = targeted,
+    .msvc        = merged.msvc,
   };
   return SPN_OK;
 }

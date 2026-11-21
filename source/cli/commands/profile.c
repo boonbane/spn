@@ -45,6 +45,7 @@ sp_cli_result_t spn_cli_parse_profile(spn_profile_override_t* profile) {
       .os = (spn_os_t)cmd->os.value,
       .abi = (spn_abi_t)cmd->abi.value,
     },
+    .msvc = cmd->msvc,
   };
   return SP_CLI_OK;
 }

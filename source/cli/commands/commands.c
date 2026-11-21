@@ -9,6 +9,7 @@ extern sp_cli_cmd_t spn_cmd_build;
 extern sp_cli_cmd_t spn_cmd_test;
 extern sp_cli_cmd_t spn_cmd_env;
 extern sp_cli_cmd_t spn_cmd_run;
+extern sp_cli_cmd_t spn_cmd_msvc;
 extern sp_cli_cmd_t spn_cmd_path;
 extern sp_cli_cmd_t spn_cmd_update;
 extern sp_cli_cmd_t spn_cmd_publish;
@@ -99,6 +100,7 @@ static sp_cli_cmd_t root = {
     &spn_cmd_test,
     &spn_cmd_env,
     &spn_cmd_run,
+    &spn_cmd_msvc,
     &spn_cmd_path,
     &spn_cmd_publish,
     &spn_cmd_index,

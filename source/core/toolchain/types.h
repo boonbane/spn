@@ -2,6 +2,7 @@
 #define SPN_TOOLCHAIN_TYPES_H
 
 #include "sp.h"
+#include "sp/sp_msvc.h"
 #include "fs/fs.h"
 #include "spn/core.h"
 
@@ -121,8 +122,13 @@ typedef struct {
 } spn_sdk_t;
 
 typedef struct {
+  si_da(sp_msvc_vs_t) toolsets;
+  si_da(sp_msvc_sdk_t) kits;
+} spn_msvc_installs_t;
+
+typedef struct {
   spn_sdk_macos_t macos;
-  sp_da(spn_sdk_msvc_t) msvc;
+  spn_msvc_installs_t msvc;
 } spn_sdk_host_t;
 
 typedef struct {
@@ -263,6 +269,7 @@ typedef struct {
   spn_triple_t target;
   spn_toolchain_candidates_t candidates;
   spn_sanitizer_set_t sanitizers;
+  spn_msvc_request_t msvc;
 } spn_toolchain_query_t;
 
 typedef struct {

@@ -163,6 +163,10 @@ static const command_test_t commands [] = {
     .expect.contains = { "unset ", "EXTERNAL_INCLUDE" },
   },
   {
+    .name = "env_without_a_manifest",
+    .args = { "env", "-C", "." },
+  },
+  {
     .name = "run_batch_plain",
     .project = "test/integration/fixtures/profile/batch",
     .copy = { "echo.cmd" },

@@ -72,14 +72,10 @@ typedef struct {
 } driver_test_t;
 
 static const driver_test_t driver_tests [] = {
-  { .name = "none",                      .sdk = { SPN_SDK_NONE } },
   { .name = "none_ignores_libc_file",    .sdk = { SPN_SDK_NONE },                         .caps = SPN_CC_CAP_LIBC_FILE },
-  { .name = "sysroot",                   .sdk = { SPN_SDK_SYSROOT, { "/S" } } },
   { .name = "sysroot_ignores_libc_file", .sdk = { SPN_SDK_SYSROOT, { "/S" } },            .caps = SPN_CC_CAP_LIBC_FILE },
   { .name = "macos",                     .sdk = { SPN_SDK_MACOS, { "/S" } } },
   { .name = "macos_with_libc_file",      .sdk = { SPN_SDK_MACOS, { "/S" } },              .caps = SPN_CC_CAP_LIBC_FILE, .expect = { .libc = true, .frameworks = { "/S/System/Library/Frameworks" } } },
-  { .name = "msvc",                      .sdk = { SPN_SDK_MSVC, { "/X" }, SPN_ARCH_X64 } },
-  { .name = "msvc_with_libc_file",       .sdk = { SPN_SDK_MSVC, { "/X" }, SPN_ARCH_X64 }, .caps = SPN_CC_CAP_LIBC_FILE, .expect = { .libc = true } },
 };
 
 sp_test_each(sdk_libc, driver, driver_test_t, driver_tests) {

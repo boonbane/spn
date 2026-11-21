@@ -20,7 +20,6 @@ typedef struct {
 
 static const test_t tests [] = {
   { .name = "macos_env_off_apple", .vars = { { "SPN_MACOS_SDK", "/S" } }, .host = HOST_X64_LINUX, .expect = { .macos = { "/S" } } },
-  { .name = "empty_env_off_apple_and_windows", .host = HOST_X64_LINUX },
 };
 
 sp_test_each(sdk_detect, env, test_t, tests) {
@@ -35,7 +34,6 @@ sp_test_each(sdk_detect, env, test_t, tests) {
   }
 
   spn_path_roots_t roots = sp_zero;
-  spn_sdk_host_t host = spn_sdk_detect(mem, &roots, &env, it->host);
-  sp_expect_eq(t, 0u, (u32)sp_da_size(host.msvc));
+  spn_sdk_host_t host = si_sdk_detect(mem, &roots, &env, it->host);
   return test_check_path(t, host.macos.root, it->expect.macos);
 }

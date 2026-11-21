@@ -1,0 +1,6 @@
+[package]
+name = "P"
+version = "1.0.0"
+
+[profile.A]
+msvc = { toolset = "v142", sdk = "A" }

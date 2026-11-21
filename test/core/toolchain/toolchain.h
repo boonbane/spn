@@ -8,6 +8,7 @@
 #include "paths/paths.h"
 #include "enum/enum.h"
 #include "intern/intern.h"
+#include "toolchain/msvc.h"
 #include "toolchain/toolchain.h"
 #include "triple/triple.h"
 
@@ -64,7 +65,6 @@ typedef struct {
 typedef struct {
   spn_sdk_kind_t kind;
   test_path_t root;
-  test_path_t vc;
 } fixture_sdk_expect_t;
 
 typedef struct {
@@ -76,6 +76,8 @@ typedef struct {
 typedef struct {
   test_path_t root;
   spn_arch_t arch;
+  const c8* version;
+  bool bare;
 } fixture_msvc_t;
 
 typedef struct {
@@ -139,8 +141,22 @@ static spn_sdk_t fixture_sdk(sp_mem_t mem, fixture_sdk_t sdk) {
   sp_unreachable_return(sp_zero_struct(spn_sdk_t));
 }
 
+static sp_msvc_path_t fixture_msvc_path(const c8* str) {
+  sp_msvc_path_t path = sp_zero;
+  sp_str_copy_to(sp_cstr_as_str(str), path.data, SP_MSVC_PATH_MAX);
+  path.len = (u32)sp_cstr_len(str);
+  return path;
+}
+
+static sp_msvc_version_t fixture_msvc_version(const c8* str) {
+  sp_msvc_version_t version = sp_zero;
+  sp_str_copy_to(sp_cstr_as_str(str), version.str, SP_MSVC_VERSION_MAX);
+  version.str_len = (u32)sp_cstr_len(str);
+  return version;
+}
+
 static spn_sdk_host_t fixture_sdks(sp_mem_t mem, fixture_sdks_t sdks) {
-  spn_sdk_host_t host = { .msvc = sp_da_new(mem, spn_sdk_msvc_t) };
+  spn_sdk_host_t host = sp_zero;
   if (sdks.macos.path) {
     host.macos = spn_sdk_at(mem, (spn_triple_t) HOST_ARM_MACOS, fixture_path(sdks.macos)).macos;
   }
@@ -148,7 +164,10 @@ static spn_sdk_host_t fixture_sdks(sp_mem_t mem, fixture_sdks_t sdks) {
     if (!sdks.msvc[it].root.path) {
       break;
     }
-    sp_da_push(host.msvc, spn_sdk_at(mem, (spn_triple_t) { sdks.msvc[it].arch, SPN_OS_WINDOWS, SPN_ABI_MSVC }, fixture_path(sdks.msvc[it].root)).msvc);
+    sp_msvc_arch_t arch = si_msvc_arch(sdks.msvc[it].arch);
+    sp_msvc_path_t root = fixture_msvc_path(sdks.msvc[it].root.path);
+    si_da_push(mem, host.msvc.toolsets, ((sp_msvc_vs_t) { .version.tools = fixture_msvc_version(sdks.msvc[it].version ? sdks.msvc[it].version : "14.0"), .install_path = root, .target = arch, .preferred = true, .compiler = !sdks.msvc[it].bare }));
+    si_da_push(mem, host.msvc.kits, ((sp_msvc_sdk_t) { .version = fixture_msvc_version("10.0"), .root = root, .arch = arch }));
   }
   return host;
 }
@@ -167,7 +186,10 @@ static sp_err_t fixture_check_sdk(sp_test_t* t, spn_sdk_t sdk, fixture_sdk_expec
       return test_check_path(t, sdk.macos.root, expect.root);
     }
     case SPN_SDK_MSVC: {
-      return test_check_path(t, sdk.msvc.lib.vc, expect.vc);
+      sp_test_kv(t, "lib", sdk.msvc.lib.vc.sub);
+      sp_expect_eq(t, (u32)expect.root.root, (u32)sdk.msvc.lib.vc.root);
+      sp_expect(t, sp_str_starts_with(sdk.msvc.lib.vc.sub, sp_cstr_as_str(expect.root.path)));
+      return SP_OK;
     }
   }
   sp_unreachable_return(SP_ERR);

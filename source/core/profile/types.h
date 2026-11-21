@@ -35,6 +35,7 @@ struct spn_profile_info {
   sp_str_t spelling;
   spn_toolchain_exceptions_t exceptions;
   sp_opt(spn_libc_t) libc;
+  spn_msvc_request_t msvc;
 };
 
 typedef struct {
@@ -57,6 +58,7 @@ typedef struct {
   bool static_deps;
   bool static_deps_set;
   spn_when_t options;
+  spn_msvc_request_t msvc;
 } spn_profile_decl_t;
 
 typedef si_om(spn_profile_id_t, spn_profile_decl_t) spn_profile_map_t;

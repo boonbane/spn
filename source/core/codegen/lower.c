@@ -13,6 +13,7 @@
 #include "target/mutate.h"
 #include "intern/intern.h"
 #include "toolchain/catalog.h"
+#include "toolchain/msvc.h"
 #include "toolchain/toolchain.h"
 #include "triple/triple.h"
 #include "profile/types.h"
@@ -468,6 +469,10 @@ static spn_profile_decl_t lower_profile(spn_toml_loader_t* ctx, sp_str_t name, c
     .static_deps = !sp_opt_is_null(p->static_deps) && sp_opt_get(p->static_deps),
     .static_deps_set = !sp_opt_is_null(p->static_deps),
     .options = p->options,
+    .msvc = {
+      .toolset = p->msvc.toolset,
+      .sdk = p->msvc.sdk,
+    },
   };
 }
 
@@ -1076,6 +1081,14 @@ static void validate_profiles(spn_toml_loader_t* ctx, const spn_cg_manifest_t* c
         issue_candidate_value(ctx, "abi", ct);
       }
     }
+    spn_toml_loader_push_key(ctx, "msvc");
+    if (!si_msvc_toolset_valid(p->msvc.toolset)) {
+      spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "toolset");
+    }
+    if (!si_msvc_sdk_valid(p->msvc.sdk)) {
+      spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "sdk");
+    }
+    spn_toml_loader_pop(ctx);
     if (spn_sanitizer_set_has_conflict(spn_sanitizer_set_from_list(p->sanitize))) {
       spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "sanitize");
     }

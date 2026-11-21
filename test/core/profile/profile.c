@@ -47,6 +47,10 @@ typedef struct {
   bool static_deps;
   bool static_deps_set;
   candidate_t strip [2];
+  struct {
+    const c8* toolset;
+    const c8* sdk;
+  } msvc;
 } decl_t;
 
 typedef struct {
@@ -57,6 +61,10 @@ typedef struct {
   spn_os_t os;
   spn_arch_t arch;
   spn_abi_t abi;
+  struct {
+    const c8* toolset;
+    const c8* sdk;
+  } msvc;
 } override_t;
 
 typedef struct {
@@ -72,6 +80,10 @@ typedef struct {
   bool targeted;
   spn_linkage_t demand;
   spn_linkage_set_t emit;
+  struct {
+    const c8* toolset;
+    const c8* sdk;
+  } msvc;
 } expect_t;
 
 typedef struct {
@@ -658,6 +670,32 @@ static const test_t tests [] = {
     },
   },
   {
+    .name = "msvc_merges_per_field",
+    .profile = { .name = "default", .msvc = { .toolset = "v142" } },
+    .derived = { .name = "fast", .msvc = { .sdk = "10.0.22621" } },
+    .overrides = { .name = "fast" },
+    .host = PROFILE_HOST_WIN_MSVC,
+    .abi = SPN_ABI_MSVC,
+    .expect = {
+      .name = "fast",
+      .target = { SPN_ARCH_X64, SPN_OS_WINDOWS },
+      .linking.linkage = SPN_LIB_KIND_SHARED,
+      .msvc = { .toolset = "v142", .sdk = "10.0.22621" },
+    },
+  },
+  {
+    .name = "msvc_override_beats_profile_per_field",
+    .profile = { .name = "default", .msvc = { .toolset = "v142", .sdk = "10.0.22621" } },
+    .overrides = { .msvc = { .toolset = "2022" } },
+    .host = PROFILE_HOST_WIN_MSVC,
+    .abi = SPN_ABI_MSVC,
+    .expect = {
+      .target = { SPN_ARCH_X64, SPN_OS_WINDOWS },
+      .linking.linkage = SPN_LIB_KIND_SHARED,
+      .msvc = { .toolset = "2022", .sdk = "10.0.22621" },
+    },
+  },
+  {
     .name = "undefined_profile",
     .overrides = { .name = "missing" },
     .host = PROFILE_HOST_LINUX_GNU,
@@ -967,6 +1005,10 @@ static spn_profile_decl_t desc_to_decl(sp_mem_t mem, const decl_t* d) {
     .static_deps = d->static_deps,
     .static_deps_set = d->static_deps_set,
     .strip = candidates(mem, d->strip),
+    .msvc = {
+      .toolset = sp_cstr_as_str(d->msvc.toolset),
+      .sdk = sp_cstr_as_str(d->msvc.sdk),
+    },
   };
 }
 
@@ -977,6 +1019,10 @@ static spn_profile_override_t desc_to_override(const override_t* d) {
     .mode = d->mode,
     .target = sp_cstr_as_str(d->target),
     .triple = { .arch = d->arch, .os = d->os, .abi = d->abi },
+    .msvc = {
+      .toolset = sp_cstr_as_str(d->msvc.toolset),
+      .sdk = sp_cstr_as_str(d->msvc.sdk),
+    },
   };
 }
 
@@ -1000,7 +1046,7 @@ sp_test_each(profile, resolve, test_t, tests, .setup = spn_test_ctx_setup) {
   }
 
   spn_profile_info_t result = sp_zero;
-  spn_err_t err = spn_profile_resolve(&overrides, it->host, &project, &result);
+  spn_err_t err = si_profile_resolve(&overrides, it->host, &project, &result);
   sp_must_eq(t, (u32)it->expect.err, (u32)err);
   if (err) {
     sp_da(spn_event_t) errs = spn_test_drain_errs(mem);
@@ -1035,6 +1081,8 @@ sp_test_each(profile, resolve, test_t, tests, .setup = spn_test_ctx_setup) {
   sp_expect_eq(t, (u32)it->expect.demand, (u32)result.demand);
   sp_expect_eq(t, it->expect.emit.shared, result.emit.shared);
   sp_expect_eq(t, it->expect.emit.static_lib, result.emit.static_lib);
+  sp_expect_str_eq_c(t, result.msvc.toolset, it->expect.msvc.toolset);
+  sp_expect_str_eq_c(t, result.msvc.sdk, it->expect.msvc.sdk);
 
   spn_toolchain_info_t info = { .driver = SPN_CC_DRIVER_ZIG };
   spn_triple_t selected = { result.target.arch, result.target.os, it->abi ? it->abi : result.target.abi };
@@ -1042,7 +1090,7 @@ sp_test_each(profile, resolve, test_t, tests, .setup = spn_test_ctx_setup) {
   spn_profile_info_t pinned = result;
   pinned.target = selected;
   spn_toolchain_query_t query = sp_zero;
-  sp_must_eq(t, SPN_OK, spn_profile_query(&pinned, it->host, &query));
+  sp_must_eq(t, SPN_OK, si_profile_query(&pinned, it->host, &query));
   sp_must_eq(t, 1, query.candidates.count);
   selection.linking = query.candidates.items[0].linking;
   spn_profile_finalize(&result, &selection);
@@ -1070,7 +1118,7 @@ sp_test_each(profile, query, query_test_t, query_tests, .setup = spn_test_ctx_se
   };
 
   spn_toolchain_query_t query = sp_zero;
-  spn_err_t err = spn_profile_query(&profile, it->host, &query);
+  spn_err_t err = si_profile_query(&profile, it->host, &query);
   sp_must_eq(t, (u32)it->expect.err, (u32)err);
   if (err) {
     sp_da(spn_event_t) errs = spn_test_drain_errs(mem);
