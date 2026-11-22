@@ -30,7 +30,6 @@ add_executable(core
   compiler/echo.c
   compiler/env.c
   compiler/exports/render.c
-  compiler/exports/wasm.c
   compiler/link.c
   compiler/rsp/gnu.c
   compiler/rsp/style.c
