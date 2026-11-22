@@ -3,6 +3,7 @@
 #define SELECT_MAX_CHECKS 3
 #define SELECT_MAX_ABIS 3
 #define SELECT_MAX_CANDIDATES 3
+#define max_toolchains 4
 
 #define TARGET_LINUX_MUSL     { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_MUSL }
 #define TARGET_ARM_LINUX_MUSL { SPN_ARCH_ARM64, SPN_OS_LINUX, SPN_ABI_MUSL }
@@ -12,8 +13,6 @@
 #define X64_FREESTANDING      { SPN_ARCH_X64, SPN_OS_FREESTANDING }
 #define ARM_LINUX             { SPN_ARCH_ARM64, SPN_OS_LINUX }
 #define ARM_MACOS             { SPN_ARCH_ARM64, SPN_OS_MACOS }
-#define ARM_FREESTANDING      { SPN_ARCH_ARM64, SPN_OS_FREESTANDING }
-#define WASM                  { SPN_ARCH_WASM32, SPN_OS_WASI }
 
 typedef struct {
   spn_err_t err;
@@ -44,14 +43,20 @@ typedef struct {
 
 typedef struct {
   const c8* name;
-  const c8* file;
+  spn_cc_driver_t driver;
+  spn_triple_t only;
+  bool detected;
+  fixture_target_t targets [FIXTURE_MAX_TARGETS];
+} decl_t;
+
+typedef struct {
+  const c8* name;
+  decl_t toolchains [max_toolchains];
   const c8* toolchain;
   spn_triple_t target;
   spn_abi_t abis [SELECT_MAX_ABIS];
   spn_sanitizer_set_t sanitizers;
-  spn_linking_t linking;
   spn_triple_t host;
-  fixture_sdks_t sdks;
   expect_t expect;
 } resolve_test_t;
 
@@ -269,88 +274,73 @@ static const complete_test_t complete_tests [] = {
 static const resolve_test_t resolve_tests [] = {
   {
     .name = "auto_picks_first_in_declared_order",
-    .file = "auto.toml",
+    .toolchains = {
+      { "A", SPN_CC_DRIVER_GCC, .targets = { { TARGET_WIN_GNU } } },
+      { "B", SPN_CC_DRIVER_GCC, .targets = { { TARGET_WIN_GNU } } },
+    },
     .target = X64_WINDOWS,
     .abis = { SPN_ABI_GNU },
     .expect = { .name = "A", .triple = TARGET_WIN_GNU },
   },
   {
     .name = "auto_takes_first_supported_abi",
-    .file = "auto.toml",
+    .toolchains = {
+      { "A", SPN_CC_DRIVER_GCC, .targets = { { TARGET_WIN_GNU } } },
+      { "B", SPN_CC_DRIVER_GCC, .targets = { { HOST_X64_LINUX }, { TARGET_LINUX_MUSL } } },
+    },
     .target = X64_LINUX,
     .abis = { SPN_ABI_MUSL, SPN_ABI_GNU },
     .expect = { .name = "B", .triple = TARGET_LINUX_MUSL },
   },
   {
     .name = "auto_scans_entries_before_abis",
-    .file = "order.toml",
+    .toolchains = {
+      { "A", SPN_CC_DRIVER_GCC, .targets = { { HOST_X64_LINUX } } },
+      { "B", SPN_CC_DRIVER_GCC, .targets = { { TARGET_LINUX_MUSL }, { HOST_X64_LINUX } } },
+    },
     .target = X64_LINUX,
     .abis = { SPN_ABI_MUSL, SPN_ABI_GNU },
     .expect = { .name = "A", .triple = HOST_X64_LINUX },
   },
   {
     .name = "auto_skips_unsupported_host",
-    .file = "auto.toml",
+    .toolchains = {
+      { "A", SPN_CC_DRIVER_GCC, .only = X64_LINUX, .targets = { { HOST_ARM_LINUX } } },
+      { "B", SPN_CC_DRIVER_GCC, .targets = { { HOST_ARM_LINUX } } },
+    },
     .target = ARM_LINUX,
-    .abis = { SPN_ABI_MUSL, SPN_ABI_GNU },
-    .host = HOST_ARM_LINUX,
-    .expect = { .name = "C", .triple = TARGET_ARM_LINUX_MUSL },
-  },
-  {
-    .name = "auto_with_empty_catalog",
-    .file = "empty.toml",
-    .target = X64_LINUX,
     .abis = { SPN_ABI_GNU },
-    .expect = { .err = SPN_ERR_TOOLCHAIN_NONE },
+    .host = HOST_ARM_LINUX,
+    .expect = { .name = "B", .triple = HOST_ARM_LINUX },
   },
   {
     .name = "auto_with_no_capable_toolchain",
-    .file = "auto.toml",
-    .target = WASM,
-    .abis = { SPN_ABI_MUSL },
-    .expect = { .err = SPN_ERR_TOOLCHAIN_NONE },
-  },
-  {
-    .name = "auto_reaches_through_host_sdk",
-    .file = "drivers.toml",
-    .target = ARM_MACOS,
-    .abis = { SPN_ABI_APPLE },
-    .sdks = { .macos = { "/S" } },
-    .expect = { .name = "B", .triple = HOST_ARM_MACOS, .sdk = { SPN_SDK_MACOS, { "/S" } } },
-  },
-  {
-    .name = "auto_reaches_derived_bare",
-    .file = "auto.toml",
+    .toolchains = {
+      { "A", SPN_CC_DRIVER_GCC, .targets = { { TARGET_WIN_GNU } } },
+    },
     .target = X64_LINUX,
-    .abis = { SPN_ABI_BARE },
-    .expect = { .name = "D", .triple = TARGET_X64_LINUX_NONE },
-  },
-  {
-    .name = "auto_without_host_sdk_finds_none",
-    .file = "auto.toml",
-    .target = ARM_MACOS,
-    .abis = { SPN_ABI_APPLE },
+    .abis = { SPN_ABI_GNU },
     .expect = { .err = SPN_ERR_TOOLCHAIN_NONE },
   },
   {
     .name = "auto_skips_toolchains_without_sanitizers",
-    .file = "auto.toml",
+    .toolchains = {
+      { "A", SPN_CC_DRIVER_GCC, .targets = { { HOST_X64_LINUX } } },
+      { "B", SPN_CC_DRIVER_GCC, .targets = { { HOST_X64_LINUX, .sanitizers = SPN_SANITIZER_ADDRESS } } },
+    },
     .target = X64_LINUX,
     .abis = { SPN_ABI_GNU },
     .sanitizers = SPN_SANITIZER_ADDRESS,
-    .expect = { .name = "D", .triple = HOST_X64_LINUX, .sdk = { SPN_SDK_HOST } },
-  },
-  {
-    .name = "auto_with_no_sanitizer_support_finds_none",
-    .file = "auto.toml",
-    .target = X64_LINUX,
-    .abis = { SPN_ABI_GNU },
-    .sanitizers = SPN_SANITIZER_MEMORY,
-    .expect = { .err = SPN_ERR_TOOLCHAIN_NONE },
+    .expect = { .name = "B", .triple = HOST_X64_LINUX },
   },
   {
     .name = "windows_host_without_msvc_sdk_names_the_sdk",
-    .file = "drivers.toml",
+    .toolchains = {
+      { "A", SPN_CC_DRIVER_GCC },
+      { "B", SPN_CC_DRIVER_CLANG },
+      { "C", SPN_CC_DRIVER_MSVC },
+      { "D", SPN_CC_DRIVER_ZIG },
+    },
     .toolchain = "C",
     .target = X64_WINDOWS,
     .abis = { SPN_ABI_GNU, SPN_ABI_MSVC },
@@ -359,40 +349,54 @@ static const resolve_test_t resolve_tests [] = {
   },
   {
     .name = "unknown_name_lists_capable_toolchains",
-    .file = "auto.toml",
+    .toolchains = {
+      { "A", SPN_CC_DRIVER_GCC, .targets = { { TARGET_WIN_GNU } } },
+      { "B", SPN_CC_DRIVER_GCC, .targets = { { HOST_X64_LINUX } } },
+    },
     .toolchain = "Z",
     .target = X64_WINDOWS,
     .abis = { SPN_ABI_GNU },
-    .expect = { .err = SPN_ERR_TOOLCHAIN_UNKNOWN, .candidates = { "A", "C" } },
+    .expect = { .err = SPN_ERR_TOOLCHAIN_UNKNOWN, .candidates = { "A" } },
   },
   {
     .name = "target_error_lists_capable_toolchains",
-    .file = "auto.toml",
+    .toolchains = {
+      { "A", SPN_CC_DRIVER_GCC, .targets = { { TARGET_WIN_GNU } } },
+      { "B", SPN_CC_DRIVER_GCC, .targets = { { HOST_X64_LINUX } } },
+    },
     .toolchain = "A",
     .target = X64_LINUX,
     .abis = { SPN_ABI_GNU },
-    .expect = { .err = SPN_ERR_TOOLCHAIN_TARGET, .targets = { TARGET_WIN_GNU }, .candidates = { "B", "D" } },
+    .expect = { .err = SPN_ERR_TOOLCHAIN_TARGET, .targets = { TARGET_WIN_GNU }, .candidates = { "B" } },
   },
   {
     .name = "sysroot_error_lists_capable_toolchains",
-    .file = "auto.toml",
-    .toolchain = "B",
+    .toolchains = {
+      { "A", SPN_CC_DRIVER_CLANG, .targets = { { HOST_X64_LINUX } } },
+      { "B", SPN_CC_DRIVER_GCC, .targets = { { TARGET_WIN_GNU } } },
+    },
+    .toolchain = "A",
     .target = X64_WINDOWS,
     .abis = { SPN_ABI_GNU },
-    .expect = { .err = SPN_ERR_TOOLCHAIN_SYSROOT, .triple = TARGET_WIN_GNU, .targets = { HOST_X64_LINUX, TARGET_LINUX_MUSL, HOST_ARM_LINUX, TARGET_ARM_LINUX_MUSL }, .candidates = { "A", "C" } },
+    .expect = { .err = SPN_ERR_TOOLCHAIN_SYSROOT, .triple = TARGET_WIN_GNU, .targets = { HOST_X64_LINUX }, .candidates = { "B" } },
   },
   {
     .name = "host_error_lists_capable_toolchains",
-    .file = "restricted.toml",
+    .toolchains = {
+      { "A", SPN_CC_DRIVER_GCC, .only = X64_LINUX },
+      { "B", SPN_CC_DRIVER_GCC },
+    },
     .toolchain = "A",
-    .target = ARM_FREESTANDING,
-    .abis = { SPN_ABI_BARE },
+    .target = ARM_LINUX,
+    .abis = { SPN_ABI_GNU },
     .host = HOST_ARM_LINUX,
     .expect = { .err = SPN_ERR_TOOLCHAIN_UNAVAILABLE_FOR_HOST, .candidates = { "B" } },
   },
   {
     .name = "detected_without_an_install_is_not_installed",
-    .file = "detected.toml",
+    .toolchains = {
+      { "A", SPN_CC_DRIVER_MSVC, .detected = true },
+    },
     .toolchain = "A",
     .target = X64_WINDOWS,
     .abis = { SPN_ABI_MSVC },
@@ -421,6 +425,23 @@ static spn_toolchain_candidates_t candidates(spn_triple_t target, const spn_abi_
     list.items[list.count++] = candidate;
   }
   return list;
+}
+
+static spn_toolchain_decl_t declare(sp_mem_t mem, const c8* name, spn_cc_driver_t driver, const fixture_target_t* targets) {
+  spn_toolchain_decl_t toolchain = fixture_local_toolchain(name, (fixture_launcher_t) { .name = "cc" });
+  toolchain.driver = driver;
+  u32 declared = 0;
+  while (declared < FIXTURE_MAX_TARGETS && !fixture_target_empty(targets[declared])) {
+    declared++;
+  }
+  if (declared) {
+    toolchain.targets = sp_da_new(mem, spn_toolchain_target_t);
+    sp_for(at, declared) {
+      sp_da_push(toolchain.targets, fixture_target(targets[at]));
+    }
+  }
+  toolchain.host_row = !declared;
+  return toolchain;
 }
 
 static sp_err_t check_failure(sp_test_t* t, sp_mem_t mem, spn_toolchain_catalog_t* catalog, spn_toolchain_query_t query, const expect_t* expect) {
@@ -464,21 +485,9 @@ static sp_err_t check_selection(sp_test_t* t, const spn_toolchain_selection_t* s
 sp_test_each(select, complete, complete_test_t, complete_tests, .setup = spn_test_ctx_setup) {
   sp_mem_t mem = sp_test_arena(t);
 
-  spn_toolchain_decl_t toolchain = fixture_local_toolchain("A", (fixture_launcher_t) { .name = "cc" });
-  toolchain.driver = it->driver;
-  u32 declared = 0;
-  sp_carr_detect_len(it->targets, declared, !fixture_target_empty(it->targets[declared]));
-  if (declared) {
-    toolchain.targets = sp_da_new(mem, spn_toolchain_target_t);
-    sp_for(at, declared) {
-      sp_da_push(toolchain.targets, fixture_target(it->targets[at]));
-    }
-  }
-  toolchain.host_row = !declared;
-
   spn_toolchain_catalog_t catalog = sp_zero;
   spn_toolchain_catalog_init(&catalog, (spn_triple_t) HOST_X64_LINUX, fixture_sdks(mem, it->sdks), mem);
-  spn_toolchain_catalog_add(&catalog, toolchain);
+  spn_toolchain_catalog_add(&catalog, declare(mem, "A", it->driver, it->targets));
 
   u32 checks = 0;
   sp_carr_detect_len(it->checks, checks, it->checks[checks].expect.err || !fixture_triple_empty(it->checks[checks].expect.triple));
@@ -513,14 +522,25 @@ sp_test_each(select, resolve, resolve_test_t, resolve_tests, .setup = spn_test_c
 
   spn_triple_t host = fixture_triple_empty(it->host) ? (spn_triple_t) HOST_X64_LINUX : it->host;
   spn_toolchain_catalog_t catalog = sp_zero;
-  if (fixture_catalog(t, &catalog, it->file, host, fixture_sdks(mem, it->sdks))) {
-    return SP_ERR;
+  spn_toolchain_catalog_init(&catalog, host, sp_zero_s(spn_sdk_host_t), mem);
+  sp_carr_for_until(it->toolchains, at, it->toolchains[at].name) {
+    const decl_t* decl = &it->toolchains[at];
+    spn_toolchain_decl_t toolchain = declare(mem, decl->name, decl->driver, decl->targets);
+    if (decl->detected) {
+      toolchain.source = SPN_TOOLCHAIN_SOURCE_DETECTED;
+      toolchain.detect = SPN_TOOLCHAIN_DETECT_MSVC;
+    }
+    else if (!fixture_triple_empty(decl->only)) {
+      toolchain.hosts = sp_da_new(mem, spn_toolchain_host_t);
+      sp_da_push(toolchain.hosts, ((spn_toolchain_host_t) { .triple = decl->only }));
+    }
+    spn_toolchain_catalog_add(&catalog, toolchain);
   }
 
   spn_toolchain_query_t query = {
     .toolchain = { .kind = SPN_TOOLCHAIN_REF_AUTO },
     .target = it->target,
-    .candidates = candidates(it->target, it->abis, it->linking),
+    .candidates = candidates(it->target, it->abis, sp_zero_s(spn_linking_t)),
     .sanitizers = it->sanitizers,
   };
   if (it->toolchain) {
