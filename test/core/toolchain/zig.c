@@ -59,8 +59,9 @@ sp_test(toolchain_zig, generation_unreadable_is_an_error, .setup = spn_test_ctx_
   sp_must_ok(t, sp_fs_write(file, sp_str_lit("not a number\n"), SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms));
 
   sp_hash_t generation = 0;
-  sp_expect(t, spn_toolchain_generation(&roots, cache, &generation) != SPN_OK);
+  sp_expect_eq(t, (u32)spn_toolchain_generation(&roots, cache, &generation), (u32)SPN_ERR_FS_READ);
   sp_da(spn_event_t) errs = spn_test_drain_errs(mem);
-  sp_expect_eq(t, sp_da_size(errs), 1);
+  sp_must_eq(t, 1, sp_da_size(errs));
+  sp_expect_eq(t, errs[0].err.kind, SPN_ERR_FS_READ);
   return SP_OK;
 }
