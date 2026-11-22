@@ -11,7 +11,7 @@ spn_cc_link_plan_t si_cc_render_link(sp_mem_t mem, const spn_cc_t* toolchain, co
 
 
 spn_toolchain_launcher_t spn_cc_launcher(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, spn_lang_t lang);
-spn_cc_link_refusal_t spn_cc_validate_link(const spn_cc_t* toolchain, spn_triple_t host, const spn_profile_info_t* profile, const spn_cc_link_t* link);
+spn_cc_link_refusal_t spn_cc_validate_link(spn_triple_t host, const spn_profile_info_t* profile, const spn_cc_link_t* link);
 spn_invocation_t spn_cc_render_compile_source(sp_mem_t mem, const spn_cc_compile_plan_t* plan, const spn_cc_compile_files_t* files);
 spn_invocation_t spn_cc_render_compile_command(sp_mem_t mem, const spn_cc_compile_plan_t* plan, const spn_cc_compile_files_t* files);
 spn_invocation_t spn_cc_render_link_command(sp_mem_t mem, const spn_cc_link_plan_t* plan, const spn_cc_link_files_t* files);
