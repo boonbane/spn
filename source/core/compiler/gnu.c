@@ -109,7 +109,7 @@ static sp_str_t ms_runtime_flag(spn_runtime_t runtime) {
   SP_UNREACHABLE_RETURN(sp_str_lit(""));
 }
 
-void spn_gnu_render_flags(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, spn_cc_flags_t* flags) {
+static void render_flags(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, spn_cc_flags_t* flags) {
   if (profile->target.abi == SPN_ABI_MSVC && spn_cc_has(toolchain, SPN_CC_CAP_CLANG_FRONTEND)) {
     sp_str_t crt = ms_runtime_flag(profile->linking.runtime);
     sp_da_push(flags->compile, crt);
@@ -252,7 +252,7 @@ spn_cc_compile_plan_t spn_gnu_render_compile(sp_mem_t mem, const spn_cc_t* toolc
   spn_cc_flags_t flags = sp_zero;
   sp_da_init(mem, flags.compile);
   sp_da_init(mem, flags.link);
-  spn_gnu_render_flags(mem, toolchain, profile, &flags);
+  render_flags(mem, toolchain, profile, &flags);
   if (lang == SPN_LANG_C) {
     spn_cc_push_str(mem, invocation, c_standard_to_flag(profile->standard));
   } else if (lang == SPN_LANG_CXX) {
@@ -479,7 +479,7 @@ spn_cc_link_plan_t spn_gnu_render_link(sp_mem_t mem, const spn_cc_t* toolchain, 
   spn_cc_flags_t flags = sp_zero;
   sp_da_init(mem, flags.compile);
   sp_da_init(mem, flags.link);
-  spn_gnu_render_flags(mem, toolchain, profile, &flags);
+  render_flags(mem, toolchain, profile, &flags);
   spn_cc_push_strs(mem, base, flags.link);
   if (link->exceptions) {
     spn_cc_push_strs(mem, base, profile->exceptions.link_flags);

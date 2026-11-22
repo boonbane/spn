@@ -4,12 +4,12 @@ typedef struct {
   const c8* name;
   spn_cc_driver_t driver;
   const c8* compiler;
+  const c8* cache;
   test_profile_t profile;
   spn_lang_t lang;
   spn_cxx_options_t cxx;
   bool pic;
   const c8* arg;
-  const c8* link_arg;
   const c8* include;
   const c8* define;
   const c8* depfile;
@@ -18,15 +18,14 @@ typedef struct {
   const c8* cwd;
   spn_os_version_t min_os;
   render_expect_t expect;
-} compile_test_t;
+} test_t;
 
-static const compile_test_t tests [] = {
+static const test_t tests [] = {
   {
     .name = "gcc_linux",
     .driver = SPN_CC_DRIVER_GCC,
     .profile = {
       .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU },
-      .standard = SPN_C99,
     },
     .pic = true,
     .arg = "-fno-common",
@@ -40,7 +39,6 @@ static const compile_test_t tests [] = {
     .driver = SPN_CC_DRIVER_GCC,
     .profile = {
       .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU },
-      .standard = SPN_C99,
     },
     .include = "inc",
     .embed_include = "E",
@@ -54,7 +52,6 @@ static const compile_test_t tests [] = {
     .driver = SPN_CC_DRIVER_GCC,
     .profile = {
       .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU },
-      .standard = SPN_C99,
       .mode = SPN_MODE_DEBUG,
       .opt = SPN_OPT_LEVEL_0,
     },
@@ -65,28 +62,29 @@ static const compile_test_t tests [] = {
     },
   },
   {
-    .name = "toolchain_link_args_never_compile",
-    .driver = SPN_CC_DRIVER_GCC,
+    .name = "clang_debug_needs_no_prefix_map",
+    .driver = SPN_CC_DRIVER_CLANG,
     .profile = {
       .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU },
-      .standard = SPN_C99,
+      .mode = SPN_MODE_DEBUG,
     },
-    .link_arg = "-fuse-ld=lld",
+    .cwd = "/W",
     .expect = {
       .command = "cc",
-      .args = { "-std=c99", "-c", "-Werror=return-type", "main.c", "-o", "main.o" },
+      .args = { "--target=x86_64-linux-gnu", "-std=c99", "-g", "-ffile-compilation-dir=.", "-c", "-Werror=return-type", "main.c", "-o", "main.o" },
     },
   },
   {
-    .name = "gcc_gnu_dialect",
+    .name = "gcc_release_defines_ndebug",
     .driver = SPN_CC_DRIVER_GCC,
     .profile = {
       .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU },
-      .standard = SPN_GNU11,
+      .mode = SPN_MODE_RELEASE,
+      .opt = SPN_OPT_LEVEL_2,
     },
     .expect = {
       .command = "cc",
-      .args = { "-std=gnu11", "-c", "-Werror=return-type", "main.c", "-o", "main.o" },
+      .args = { "-std=c99", "-O2", "-DNDEBUG", "-c", "-Werror=return-type", "main.c", "-o", "main.o" },
     },
   },
   {
@@ -94,7 +92,6 @@ static const compile_test_t tests [] = {
     .driver = SPN_CC_DRIVER_GCC,
     .profile = {
       .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU },
-      .standard = SPN_C99,
     },
     .depfile = "main.o.d",
     .expect = {
@@ -107,12 +104,10 @@ static const compile_test_t tests [] = {
     .driver = SPN_CC_DRIVER_CLANG,
     .profile = {
       .target = { SPN_ARCH_WASM32, SPN_OS_WASI },
-      .standard = SPN_C99,
-      .opt = SPN_OPT_LEVEL_2,
     },
     .expect = {
       .command = "cc",
-      .args = { "--target=wasm32-wasi", "-std=c99", "-O2", "-c", "-Werror=return-type", "main.c", "-o", "main.o" },
+      .args = { "--target=wasm32-wasi", "-std=c99", "-c", "-Werror=return-type", "main.c", "-o", "main.o" },
     },
   },
   {
@@ -121,24 +116,10 @@ static const compile_test_t tests [] = {
     .profile = {
       .target = { SPN_ARCH_WASM32, SPN_OS_WASI },
       .spelling = "wasm32-wasip1",
-      .standard = SPN_C99,
-      .opt = SPN_OPT_LEVEL_2,
     },
     .expect = {
       .command = "cc",
-      .args = { "--target=wasm32-wasip1", "-std=c99", "-O2", "-c", "-Werror=return-type", "main.c", "-o", "main.o" },
-    },
-  },
-  {
-    .name = "zig_linux_target",
-    .driver = SPN_CC_DRIVER_ZIG,
-    .profile = {
-      .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_MUSL },
-      .standard = SPN_C99,
-    },
-    .expect = {
-      .command = "cc",
-      .args = { "--target=x86_64-linux-musl", "-std=c99", "-c", "-Werror=return-type", "main.c", "-o", "main.o" },
+      .args = { "--target=wasm32-wasip1", "-std=c99", "-c", "-Werror=return-type", "main.c", "-o", "main.o" },
     },
   },
   {
@@ -146,8 +127,6 @@ static const compile_test_t tests [] = {
     .driver = SPN_CC_DRIVER_CLANG,
     .profile = {
       .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC },
-      .linking.runtime = SPN_RUNTIME_STATIC,
-      .standard = SPN_C99,
     },
     .expect = {
       .command = "cc",
@@ -159,7 +138,6 @@ static const compile_test_t tests [] = {
     .driver = SPN_CC_DRIVER_ZIG,
     .profile = {
       .target = { SPN_ARCH_ARM64, SPN_OS_FREESTANDING, SPN_ABI_BARE },
-      .standard = SPN_C99,
     },
     .expect = {
       .command = "cc",
@@ -171,7 +149,6 @@ static const compile_test_t tests [] = {
     .driver = SPN_CC_DRIVER_CLANG,
     .profile = {
       .target = { SPN_ARCH_WASM32, SPN_OS_FREESTANDING, SPN_ABI_BARE },
-      .standard = SPN_C99,
     },
     .expect = {
       .command = "cc",
@@ -183,7 +160,6 @@ static const compile_test_t tests [] = {
     .driver = SPN_CC_DRIVER_CLANG,
     .profile = {
       .target = { SPN_ARCH_ARM64, SPN_OS_FREESTANDING, SPN_ABI_BARE },
-      .standard = SPN_C99,
     },
     .expect = {
       .command = "cc",
@@ -191,35 +167,10 @@ static const compile_test_t tests [] = {
     },
   },
   {
-    .name = "zig_linux_none_target",
-    .driver = SPN_CC_DRIVER_ZIG,
-    .profile = {
-      .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_BARE },
-      .standard = SPN_C99,
-    },
-    .expect = {
-      .command = "cc",
-      .args = { "--target=x86_64-linux-none", "-std=c99", "-ffreestanding", "-fno-stack-protector", "-fno-sanitize=undefined", "-c", "-Werror=return-type", "main.c", "-o", "main.o" },
-    },
-  },
-  {
-    .name = "clang_linux_none_target",
-    .driver = SPN_CC_DRIVER_CLANG,
-    .profile = {
-      .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_BARE },
-      .standard = SPN_C99,
-    },
-    .expect = {
-      .command = "cc",
-      .args = { "--target=x86_64-linux-none", "-std=c99", "-ffreestanding", "-fno-stack-protector", "-c", "-Werror=return-type", "main.c", "-o", "main.o" },
-    },
-  },
-  {
     .name = "clang_freestanding_elf_sysroot",
     .driver = SPN_CC_DRIVER_CLANG,
     .profile = {
       .target = { SPN_ARCH_ARM64, SPN_OS_FREESTANDING, SPN_ABI_ELF },
-      .standard = SPN_C99,
       .sdk = "/S",
     },
     .expect = {
@@ -256,7 +207,6 @@ static const compile_test_t tests [] = {
     .driver = SPN_CC_DRIVER_MSVC,
     .profile = {
       .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC },
-      .linking.runtime = SPN_RUNTIME_STATIC,
       .standard = SPN_C11,
     },
     .include = "inc",
@@ -264,6 +214,7 @@ static const compile_test_t tests [] = {
     .expect = {
       .command = "cc",
       .args = { "/nologo", "/utf-8", "/Brepro", "/std:c11", "/MT", "/c", "/Iinc", "/DSPUM=1", "/we4715", "/Fomain.o", "main.c" },
+      .echo = "",
     },
   },
   {
@@ -271,7 +222,6 @@ static const compile_test_t tests [] = {
     .driver = SPN_CC_DRIVER_MSVC,
     .profile = {
       .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC },
-      .linking.runtime = SPN_RUNTIME_STATIC,
       .standard = SPN_C11,
     },
     .include = "inc",
@@ -279,6 +229,20 @@ static const compile_test_t tests [] = {
     .expect = {
       .command = "cc",
       .args = { "/nologo", "/utf-8", "/Brepro", "/std:c11", "/MT", "/c", "/Iinc", "/we4715", "/IE", "/Fomain.o", "main.c" },
+      .echo = "",
+    },
+  },
+  {
+    .name = "msvc_depfile",
+    .driver = SPN_CC_DRIVER_MSVC,
+    .profile = {
+      .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC },
+    },
+    .depfile = "main.o.d",
+    .expect = {
+      .command = "cc",
+      .args = { "/nologo", "/utf-8", "/Brepro", "/MT", "/c", "/we4715", "/sourceDependencies", "main.o.d", "/Fomain.o", "main.c" },
+      .echo = "",
     },
   },
   {
@@ -288,7 +252,6 @@ static const compile_test_t tests [] = {
     .lang = SPN_LANG_ASM,
     .profile = {
       .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC },
-      .linking.runtime = SPN_RUNTIME_STATIC,
       .standard = SPN_C11,
       .mode = SPN_MODE_DEBUG,
     },
@@ -297,6 +260,7 @@ static const compile_test_t tests [] = {
     .expect = {
       .command = "vc/bin/ml64.exe",
       .args = { "/nologo", "/c", "/Fomain.o", "main.c" },
+      .echo = " Assembling: ",
     },
   },
   {
@@ -306,15 +270,15 @@ static const compile_test_t tests [] = {
     .lang = SPN_LANG_ASM,
     .profile = {
       .target = { SPN_ARCH_ARM64, SPN_OS_WINDOWS, SPN_ABI_MSVC },
-      .linking.runtime = SPN_RUNTIME_STATIC,
       .standard = SPN_C11,
       .mode = SPN_MODE_DEBUG,
       .sdk = "/X",
-      .bin = "/X/bin/arm64",
+      .msvc.bin = "/X/bin/arm64",
     },
     .expect = {
       .command = "/X/bin/arm64/armasm64.exe",
       .args = { "/nologo", "/c", "/Fomain.o", "main.c" },
+      .echo = " Assembling: ",
     },
   },
   {
@@ -323,27 +287,30 @@ static const compile_test_t tests [] = {
     .compiler = "vc/bin/cl.exe",
     .profile = {
       .target = { SPN_ARCH_ARM64, SPN_OS_WINDOWS, SPN_ABI_MSVC },
-      .linking.runtime = SPN_RUNTIME_STATIC,
       .sdk = "/X",
-      .bin = "/X/bin/arm64",
+      .msvc.bin = "/X/bin/arm64",
     },
     .expect = {
       .command = "/X/bin/arm64/cl.exe",
       .args = { "/nologo", "/utf-8", "/Brepro", "/MT", "/c", "/I/X/crt/include", "/I/X/sdk/include/ucrt", "/I/X/sdk/include/um", "/I/X/sdk/include/shared", "/I/X/sdk/include/winrt", "/I/X/sdk/include/cppwinrt", "/we4715", "/Fomain.o", "main.c" },
       .env = { "INCLUDE=/X/crt/include;/X/sdk/include/ucrt;/X/sdk/include/um;/X/sdk/include/shared;/X/sdk/include/winrt;/X/sdk/include/cppwinrt" },
+      .echo = "",
     },
   },
   {
-    .name = "msvc_gnu11_takes_c11_switch",
+    .name = "msvc_sdk_tools_join_path",
     .driver = SPN_CC_DRIVER_MSVC,
     .profile = {
       .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC },
-      .linking.runtime = SPN_RUNTIME_STATIC,
-      .standard = SPN_GNU11,
+      .sdk = "/X",
+      .msvc.tools = "/T",
     },
     .expect = {
       .command = "cc",
-      .args = { "/nologo", "/utf-8", "/Brepro", "/std:c11", "/MT", "/c", "/we4715", "/Fomain.o", "main.c" },
+      .args = { "/nologo", "/utf-8", "/Brepro", "/MT", "/c", "/I/X/crt/include", "/I/X/sdk/include/ucrt", "/I/X/sdk/include/um", "/I/X/sdk/include/shared", "/I/X/sdk/include/winrt", "/I/X/sdk/include/cppwinrt", "/we4715", "/Fomain.o", "main.c" },
+      .env = { "INCLUDE=/X/crt/include;/X/sdk/include/ucrt;/X/sdk/include/um;/X/sdk/include/shared;/X/sdk/include/winrt;/X/sdk/include/cppwinrt" },
+      .path = { "/T" },
+      .echo = "",
     },
   },
   {
@@ -351,25 +318,12 @@ static const compile_test_t tests [] = {
     .driver = SPN_CC_DRIVER_MSVC,
     .profile = {
       .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC },
-      .linking.runtime = SPN_RUNTIME_STATIC,
       .standard = SPN_C99,
     },
     .expect = {
       .command = "cc",
       .args = { "/nologo", "/utf-8", "/Brepro", "/MT", "/c", "/we4715", "/Fomain.o", "main.c" },
-    },
-  },
-  {
-    .name = "msvc_shared_runtime_uses_md",
-    .driver = SPN_CC_DRIVER_MSVC,
-    .profile = {
-      .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC },
-      .linking.runtime = SPN_RUNTIME_SHARED,
-      .standard = SPN_C11,
-    },
-    .expect = {
-      .command = "cc",
-      .args = { "/nologo", "/utf-8", "/Brepro", "/std:c11", "/MD", "/c", "/we4715", "/Fomain.o", "main.c" },
+      .echo = "",
     },
   },
   {
@@ -377,7 +331,6 @@ static const compile_test_t tests [] = {
     .driver = SPN_CC_DRIVER_MSVC,
     .profile = {
       .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC },
-      .linking.runtime = SPN_RUNTIME_STATIC,
       .standard = SPN_C11,
       .mode = SPN_MODE_DEBUG,
       .opt = SPN_OPT_LEVEL_0,
@@ -385,6 +338,22 @@ static const compile_test_t tests [] = {
     .expect = {
       .command = "cc",
       .args = { "/nologo", "/utf-8", "/Brepro", "/std:c11", "/MT", "/Z7", "/Od", "/c", "/we4715", "/Fomain.o", "main.c" },
+      .echo = "",
+    },
+  },
+  {
+    .name = "msvc_release_defines_ndebug",
+    .driver = SPN_CC_DRIVER_MSVC,
+    .profile = {
+      .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC },
+      .standard = SPN_C11,
+      .mode = SPN_MODE_RELEASE,
+      .opt = SPN_OPT_LEVEL_2,
+    },
+    .expect = {
+      .command = "cc",
+      .args = { "/nologo", "/utf-8", "/Brepro", "/std:c11", "/MT", "/O2", "/DNDEBUG", "/c", "/we4715", "/Fomain.o", "main.c" },
+      .echo = "",
     },
   },
   {
@@ -392,13 +361,13 @@ static const compile_test_t tests [] = {
     .driver = SPN_CC_DRIVER_MSVC,
     .profile = {
       .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC },
-      .linking.runtime = SPN_RUNTIME_STATIC,
     },
     .lang = SPN_LANG_CXX,
     .cxx = { .exceptions = true },
     .expect = {
       .command = "c++",
       .args = { "/nologo", "/utf-8", "/Brepro", "/std:c++17", "/MT", "/c", "/EHsc", "/we4715", "/Fomain.o", "main.c" },
+      .echo = "",
     },
   },
   {
@@ -406,13 +375,13 @@ static const compile_test_t tests [] = {
     .driver = SPN_CC_DRIVER_MSVC,
     .profile = {
       .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC },
-      .linking.runtime = SPN_RUNTIME_STATIC,
     },
     .lang = SPN_LANG_CXX,
     .cxx = { .standard = SPN_CXX20, .no_rtti = true },
     .expect = {
       .command = "c++",
       .args = { "/nologo", "/utf-8", "/Brepro", "/std:c++20", "/MT", "/c", "/GR-", "/we4715", "/Fomain.o", "main.c" },
+      .echo = "",
     },
   },
   {
@@ -420,13 +389,11 @@ static const compile_test_t tests [] = {
     .driver = SPN_CC_DRIVER_CLANG,
     .profile = {
       .target = { SPN_ARCH_ARM64, SPN_OS_MACOS, SPN_ABI_APPLE },
-      .standard = SPN_C99,
       .sdk = "/sdk",
     },
-    .min_os = { 13 },
     .expect = {
       .command = "cc",
-      .args = { "--target=aarch64-macos", "-std=c99", "-c", "-isysroot", "/sdk", "-mmacosx-version-min=13.0", "-Werror=return-type", "main.c", "-o", "main.o" },
+      .args = { "--target=aarch64-macos", "-std=c99", "-c", "-isysroot", "/sdk", "-Werror=return-type", "main.c", "-o", "main.o" },
     },
   },
   {
@@ -434,7 +401,6 @@ static const compile_test_t tests [] = {
     .driver = SPN_CC_DRIVER_ZIG,
     .profile = {
       .target = { SPN_ARCH_ARM64, SPN_OS_MACOS, SPN_ABI_APPLE },
-      .standard = SPN_C99,
       .sdk = "/sdk",
     },
     .libc = "/L",
@@ -449,8 +415,6 @@ static const compile_test_t tests [] = {
     .driver = SPN_CC_DRIVER_CLANG,
     .profile = {
       .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC },
-      .linking.runtime = SPN_RUNTIME_STATIC,
-      .standard = SPN_C99,
       .sdk = "/X",
     },
     .expect = {
@@ -473,41 +437,12 @@ static const compile_test_t tests [] = {
     .driver = SPN_CC_DRIVER_ZIG,
     .profile = {
       .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC },
-      .linking.runtime = SPN_RUNTIME_STATIC,
-      .standard = SPN_C99,
       .sdk = "/X",
     },
     .libc = "/L",
     .expect = {
       .command = "cc",
       .args = { "--target=x86_64-windows-msvc", "-std=c99", "-fms-runtime-lib=static", "-mno-incremental-linker-compatible", "-c", "-isystem/X/sdk/include/winrt", "-isystem/X/sdk/include/cppwinrt", "-gno-codeview-command-line", "-Werror=return-type", "main.c", "-Xclang", "-object-file-name=main.o", "-o", "main.o" },
-      .env = { "ZIG_LIBC=/L" },
-    },
-  },
-  {
-    .name = "zig_libc_sdk_without_libc_file",
-    .driver = SPN_CC_DRIVER_ZIG,
-    .profile = {
-      .target = { SPN_ARCH_ARM64, SPN_OS_MACOS, SPN_ABI_APPLE },
-      .standard = SPN_C99,
-      .sdk = "/sdk",
-    },
-    .expect = {
-      .command = "cc",
-      .args = { "--target=aarch64-macos", "-std=c99", "-c", "-Werror=return-type", "main.c", "-o", "main.o" },
-    },
-  },
-  {
-    .name = "zig_libc_file_without_sdk",
-    .driver = SPN_CC_DRIVER_ZIG,
-    .profile = {
-      .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_MUSL },
-      .standard = SPN_C99,
-    },
-    .libc = "/L",
-    .expect = {
-      .command = "cc",
-      .args = { "--target=x86_64-linux-musl", "-std=c99", "-c", "-Werror=return-type", "main.c", "-o", "main.o" },
       .env = { "ZIG_LIBC=/L" },
     },
   },
@@ -522,19 +457,6 @@ static const compile_test_t tests [] = {
     .expect = {
       .command = "c++",
       .args = { "-std=c++17", "-c", "-fno-exceptions", "-fno-rtti", "-Werror=return-type", "main.c", "-o", "main.o" },
-    },
-  },
-  {
-    .name = "cxx_standard",
-    .driver = SPN_CC_DRIVER_GCC,
-    .profile = {
-      .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU },
-    },
-    .lang = SPN_LANG_CXX,
-    .cxx = { .standard = SPN_CXX20, .exceptions = true },
-    .expect = {
-      .command = "c++",
-      .args = { "-std=c++20", "-c", "-Werror=return-type", "main.c", "-o", "main.o" },
     },
   },
   {
@@ -556,7 +478,6 @@ static const compile_test_t tests [] = {
     .driver = SPN_CC_DRIVER_GCC,
     .profile = {
       .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU },
-      .standard = SPN_C99,
     },
     .include = "inc",
     .define = "SPUM=1",
@@ -570,7 +491,6 @@ static const compile_test_t tests [] = {
     .driver = SPN_CC_DRIVER_GCC,
     .profile = {
       .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU },
-      .standard = SPN_C99,
       .sanitizers = SPN_SANITIZER_ADDRESS,
     },
     .expect = {
@@ -579,11 +499,24 @@ static const compile_test_t tests [] = {
     },
   },
   {
+    .name = "msvc_sanitizers_on_compile_line",
+    .driver = SPN_CC_DRIVER_MSVC,
+    .profile = {
+      .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC },
+      .standard = SPN_C11,
+      .sanitizers = SPN_SANITIZER_ADDRESS,
+    },
+    .expect = {
+      .command = "cc",
+      .args = { "/nologo", "/utf-8", "/Brepro", "/std:c11", "/MT", "/fsanitize=address", "/c", "/we4715", "/Fomain.o", "main.c" },
+      .echo = "",
+    },
+  },
+  {
     .name = "macos_min_os_minor",
     .driver = SPN_CC_DRIVER_CLANG,
     .profile = {
       .target = { SPN_ARCH_ARM64, SPN_OS_MACOS, SPN_ABI_APPLE },
-      .standard = SPN_C99,
     },
     .min_os = { 13, 1 },
     .expect = {
@@ -596,7 +529,6 @@ static const compile_test_t tests [] = {
     .driver = SPN_CC_DRIVER_ZIG,
     .profile = {
       .target = { SPN_ARCH_ARM64, SPN_OS_MACOS, SPN_ABI_APPLE },
-      .standard = SPN_C99,
     },
     .min_os = { 13, 1 },
     .expect = {
@@ -609,7 +541,6 @@ static const compile_test_t tests [] = {
     .driver = SPN_CC_DRIVER_GCC,
     .profile = {
       .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU },
-      .standard = SPN_C99,
     },
     .min_os = { 13 },
     .expect = {
@@ -622,7 +553,6 @@ static const compile_test_t tests [] = {
     .driver = SPN_CC_DRIVER_ZIG,
     .profile = {
       .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_MUSL },
-      .standard = SPN_C99,
       .sdk = "/S",
     },
     .expect = {
@@ -631,80 +561,63 @@ static const compile_test_t tests [] = {
     },
   },
   {
-    .name = "gcc_linux_sysroot",
-    .driver = SPN_CC_DRIVER_GCC,
+    .name = "zig_cache_env",
+    .driver = SPN_CC_DRIVER_ZIG,
+    .cache = "/C",
     .profile = {
-      .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU },
-      .standard = SPN_C99,
-      .sdk = "/S",
+      .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_MUSL },
     },
     .expect = {
       .command = "cc",
-      .args = { "-std=c99", "-c", "--sysroot=/S", "-Werror=return-type", "main.c", "-o", "main.o" },
+      .args = { "--target=x86_64-linux-musl", "-std=c99", "-c", "-Werror=return-type", "main.c", "-o", "main.o" },
+      .env = { "ZIG_GLOBAL_CACHE_DIR=/C", "ZIG_LOCAL_CACHE_DIR=/C" },
     },
   },
 };
 
-sp_test_each(render_compile, render, compile_test_t, tests, .setup = spn_test_ctx_setup) {
+sp_test_each(render_compile, render, test_t, tests) {
   sp_mem_t mem = sp_test_arena(t);
   spn_cc_t toolchain = test_toolchain(it->driver);
+  toolchain.cache = test_arg_path(it->cache);
   if (it->compiler) {
     toolchain.compiler.program = spn_arg_path(test_arg_path(it->compiler));
   }
+  spn_profile_info_t profile = sp_zero;
+  sp_try(test_profile(t, it->driver, it->profile, &profile));
+
   spn_cc_compile_t compile = {
     .cxx = it->cxx,
     .pic = it->pic,
     .min_os = it->min_os,
   };
-  sp_da_init(mem, toolchain.link_args);
-  if (it->arg) {
-    si_da_push(mem, compile.args, sp_str_from_cstr(mem, it->arg));
-  }
-  if (it->link_arg) {
-    sp_da_push(toolchain.link_args, sp_str_from_cstr(mem, it->link_arg));
-  }
-  if (it->include) {
-    si_da_push(mem, compile.include, test_arg_path(it->include));
-  }
-  if (it->define) {
-    si_da_push(mem, compile.define, sp_str_from_cstr(mem, it->define));
-  }
-
-  spn_profile_info_t profile = test_profile(it->profile);
-  profile.libc.some = spn_sdk_libc(spn_toolchain_driver_caps(it->driver), &profile.sdk, &profile.libc.value);
-  spn_cc_compile_plan_t plan = si_cc_render_compile(mem, &toolchain, &profile, it->lang, &compile);
+  test_push_str(mem, &compile.args, it->arg);
+  test_push_path(mem, &compile.include, it->include);
+  test_push_str(mem, &compile.define, it->define);
 
   spn_cc_compile_files_t files = {
-    .cwd = it->cwd ? test_arg_path(it->cwd) : sp_zero_s(spn_path_t),
+    .cwd = test_arg_path(it->cwd),
     .source = test_arg_path("main.c"),
     .output = test_arg_path("main.o"),
-    .depfile = it->depfile ? test_arg_path(it->depfile) : sp_zero_s(spn_path_t),
-    .libc = it->libc ? test_arg_path(it->libc) : sp_zero_s(spn_path_t),
-    .include = it->embed_include ? test_arg_path(it->embed_include) : sp_zero_s(spn_path_t),
+    .depfile = test_arg_path(it->depfile),
+    .libc = test_arg_path(it->libc),
+    .include = test_arg_path(it->embed_include),
   };
+  spn_cc_compile_plan_t plan = si_cc_render_compile(mem, &toolchain, &profile, it->lang, &compile);
   spn_invocation_t invocation = spn_cc_render_compile_command(mem, &plan, &files);
-  return expect_args(t, &invocation, it->expect);
+  return expect_invocation(t, &invocation, it->expect);
 }
 
-sp_test(render_compile, base_shared_across_commands, .setup = spn_test_ctx_setup) {
+sp_test(render_compile, base_shared_across_commands) {
   sp_mem_t mem = sp_test_arena(t);
   spn_cc_t toolchain = test_toolchain(SPN_CC_DRIVER_ZIG);
-  toolchain.cache = test_arg_path("/C");
   spn_cc_compile_t compile = sp_zero;
-  spn_profile_info_t profile = test_profile((test_profile_t) {
-    .target = { SPN_ARCH_ARM64, SPN_OS_MACOS, SPN_ABI_APPLE },
-    .standard = SPN_C99,
-    .sdk = "/sdk",
-  });
-  profile.libc.some = spn_sdk_libc(spn_toolchain_driver_caps(SPN_CC_DRIVER_ZIG), &profile.sdk, &profile.libc.value);
-  sp_must(t, profile.libc.some);
-
+  spn_profile_info_t profile = sp_zero;
+  sp_try(test_profile(t, SPN_CC_DRIVER_ZIG, (test_profile_t) {
+    .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_MUSL },
+  }, &profile));
   spn_cc_compile_plan_t plan = si_cc_render_compile(mem, &toolchain, &profile, SPN_LANG_C, &compile);
-  u64 args = sp_da_size(plan.base.args);
-  u64 env = sp_da_size(plan.base.env);
 
   spn_cc_compile_files_t first = {
-    .cwd = test_arg_path("/W"),
     .source = test_arg_path("main.c"),
     .output = test_arg_path("a.o"),
     .libc = test_arg_path("/L"),
@@ -712,55 +625,21 @@ sp_test(render_compile, base_shared_across_commands, .setup = spn_test_ctx_setup
   spn_cc_compile_files_t second = {
     .source = test_arg_path("main.c"),
     .output = test_arg_path("b.o"),
-    .depfile = test_arg_path("b.o.d"),
     .libc = test_arg_path("/L"),
   };
   spn_invocation_t a = spn_cc_render_compile_command(mem, &plan, &first);
   spn_invocation_t b = spn_cc_render_compile_command(mem, &plan, &second);
 
-  sp_expect_eq(t, sp_da_size(plan.base.args), args);
-  sp_expect_eq(t, sp_da_size(plan.base.env), env);
-  sp_expect_str_eq_c(t, a.cwd.sub, "/W");
-  sp_expect(t, spn_path_empty(b.cwd));
-  sp_expect(t, spn_path_empty(plan.base.cwd));
-  if (expect_args(t, &a, (render_expect_t) {
+  if (expect_invocation(t, &a, (render_expect_t) {
     .command = "cc",
-    .args = { "--target=aarch64-macos", "-std=c99", "-c", "-Werror=return-type", "main.c", "-o", "a.o" },
-    .env = { "ZIG_GLOBAL_CACHE_DIR=/C", "ZIG_LOCAL_CACHE_DIR=/C", "ZIG_LIBC=/L" },
+    .args = { "--target=x86_64-linux-musl", "-std=c99", "-c", "-Werror=return-type", "main.c", "-o", "a.o" },
+    .env = { "ZIG_LIBC=/L" },
   })) {
     return SP_ERR;
   }
-  return expect_args(t, &b, (render_expect_t) {
+  return expect_invocation(t, &b, (render_expect_t) {
     .command = "cc",
-    .args = { "--target=aarch64-macos", "-std=c99", "-c", "-Werror=return-type", "main.c", "-MD", "-MF", "b.o.d", "-o", "b.o" },
-    .env = { "ZIG_GLOBAL_CACHE_DIR=/C", "ZIG_LOCAL_CACHE_DIR=/C", "ZIG_LIBC=/L" },
+    .args = { "--target=x86_64-linux-musl", "-std=c99", "-c", "-Werror=return-type", "main.c", "-o", "b.o" },
+    .env = { "ZIG_LIBC=/L" },
   });
-}
-
-typedef struct {
-  const c8* name;
-  spn_cc_driver_t driver;
-  spn_mode_t mode;
-  bool expect;
-} prefix_map_test_t;
-
-static const prefix_map_test_t prefix_map_tests [] = {
-  { .name = "gcc_debug", .driver = SPN_CC_DRIVER_GCC, .mode = SPN_MODE_DEBUG, .expect = true },
-  { .name = "gcc_release", .driver = SPN_CC_DRIVER_GCC, .mode = SPN_MODE_RELEASE },
-  { .name = "clang_debug", .driver = SPN_CC_DRIVER_CLANG, .mode = SPN_MODE_DEBUG },
-  { .name = "zig_debug", .driver = SPN_CC_DRIVER_ZIG, .mode = SPN_MODE_DEBUG },
-};
-
-sp_test_each(render_compile, prefix_map, prefix_map_test_t, prefix_map_tests, .setup = spn_test_ctx_setup) {
-  sp_mem_t mem = sp_test_arena(t);
-  spn_cc_t toolchain = test_toolchain(it->driver);
-  spn_profile_info_t profile = test_profile((test_profile_t) {
-    .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU },
-    .standard = SPN_C99,
-    .mode = it->mode,
-  });
-  spn_cc_compile_t compile = sp_zero;
-  spn_cc_compile_plan_t plan = si_cc_render_compile(mem, &toolchain, &profile, SPN_LANG_C, &compile);
-  sp_expect_eq(t, (u32)plan.prefix_map, (u32)it->expect);
-  return SP_OK;
 }

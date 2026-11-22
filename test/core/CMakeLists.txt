@@ -24,23 +24,18 @@ add_executable(core
   closure.c
   sha256.c
   compiler/harness.c
-  compiler/invocation.c
+  compiler/archive.c
   compiler/coff.c
   compiler/compile.c
   compiler/depfile.c
   compiler/echo.c
-  compiler/env.c
   compiler/exports/render.c
-  compiler/exports/wasm.c
-  compiler/flags.c
   compiler/link.c
-  compiler/rsp/gnu.c
-  compiler/rsp/style.c
-  compiler/rsp/windows.c
   compiler/path.c
+  compiler/rsp.c
   compiler/run.c
   compiler/toc.c
-  compiler/tools.c
+  compiler/validate.c
   config/cache.c
   config/config.c
   config/net.c

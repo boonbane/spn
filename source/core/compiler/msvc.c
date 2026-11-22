@@ -56,7 +56,7 @@ static sp_str_t crt_switch(spn_runtime_t runtime) {
   SP_UNREACHABLE_RETURN(sp_str_lit(""));
 }
 
-void spn_msvc_render_flags(sp_mem_t mem, const spn_profile_info_t* profile, spn_cc_flags_t* flags) {
+static void render_flags(sp_mem_t mem, const spn_profile_info_t* profile, spn_cc_flags_t* flags) {
   sp_da_push(flags->compile, crt_switch(profile->linking.runtime));
   if (profile->mode == SPN_MODE_DEBUG) {
     // /Z7 embeds debug info in the object; /Zi would funnel every parallel
@@ -136,7 +136,7 @@ spn_cc_compile_plan_t spn_msvc_render_compile(sp_mem_t mem, const spn_cc_t* tool
   spn_cc_flags_t flags = sp_zero;
   sp_da_init(mem, flags.compile);
   sp_da_init(mem, flags.link);
-  spn_msvc_render_flags(mem, profile, &flags);
+  render_flags(mem, profile, &flags);
   sp_str_t standard = lang == SPN_LANG_CXX ?
     cxx_standard_switch(compile->cxx.standard) :
     c_standard_switch(profile->standard);
@@ -215,7 +215,7 @@ spn_cc_link_plan_t spn_msvc_render_link(sp_mem_t mem, const spn_cc_t* toolchain,
   spn_cc_flags_t flags = sp_zero;
   sp_da_init(mem, flags.compile);
   sp_da_init(mem, flags.link);
-  spn_msvc_render_flags(mem, profile, &flags);
+  render_flags(mem, profile, &flags);
   spn_cc_push_strs(mem, base, flags.link);
   switch (link->kind) {
     case SPN_CC_OUTPUT_SHARED_LIB: {

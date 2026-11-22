@@ -4,7 +4,6 @@
 
 typedef enum {
   EXPORTS_RENDER_VERSION_SCRIPT,
-  EXPORTS_RENDER_SYMBOL_LIST,
   EXPORTS_RENDER_DEF,
 } exports_render_t;
 
@@ -35,14 +34,6 @@ static const render_exports_test_t tests [] = {
     .render = EXPORTS_RENDER_VERSION_SCRIPT,
     .expect = {
       .rendered = "{\nlocal:\n  *;\n};\n",
-    },
-  },
-  {
-    .name = "symbol_list",
-    .render = EXPORTS_RENDER_SYMBOL_LIST,
-    .symbols = { "_A", "_B" },
-    .expect = {
-      .rendered = "_A\n_B\n",
     },
   },
   {
@@ -84,10 +75,6 @@ sp_test_each(exports_render, render, render_exports_test_t, tests) {
   switch (it->render) {
     case EXPORTS_RENDER_VERSION_SCRIPT: {
       spn_exports_render_version_script(&buf.base, symbols);
-      break;
-    }
-    case EXPORTS_RENDER_SYMBOL_LIST: {
-      spn_exports_render_symbol_list(&buf.base, symbols);
       break;
     }
     case EXPORTS_RENDER_DEF: {
