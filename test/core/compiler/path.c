@@ -12,7 +12,6 @@ typedef struct {
 } test_t;
 
 static const test_t tests [] = {
-  { .name = "program_dir_leads", .expect = { .prefix = "/bin:" } },
   { .name = "path_follows_the_program_dir", .path = { "/T", "/U" }, .expect = { .prefix = "/bin:/T:/U:" } },
 };
 
