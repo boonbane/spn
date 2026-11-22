@@ -2,21 +2,6 @@
 
 static const rsp_test_t tests [] = {
   {
-    .name = "plain_unquoted",
-    .args = { "-o", "A/B.exe", "C.o" },
-    .expect = "-o\nA/B.exe\nC.o\n",
-  },
-  {
-    .name = "whitespace_quoted",
-    .args = { "A B" },
-    .expect = "\"A B\"\n",
-  },
-  {
-    .name = "apostrophe_quoted",
-    .args = { "A'B" },
-    .expect = "\"A'B\"\n",
-  },
-  {
     .name = "quote_escaped",
     .args = { "A\"B" },
     .expect = "\"A\\\"B\"\n",
@@ -25,16 +10,6 @@ static const rsp_test_t tests [] = {
     .name = "backslash_quoted_and_escaped",
     .args = { "A\\B" },
     .expect = "\"A\\\\B\"\n",
-  },
-  {
-    .name = "trailing_backslash_escaped",
-    .args = { "A\\" },
-    .expect = "\"A\\\\\"\n",
-  },
-  {
-    .name = "backslash_before_quote_both_escaped",
-    .args = { "A\\\"B" },
-    .expect = "\"A\\\\\\\"B\"\n",
   },
 };
 

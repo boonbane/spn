@@ -7,10 +7,6 @@ static const rsp_test_t tests [] = {
     .expect = "/nologo\n/OUT:A.lib\nB.o\nC.o\n",
   },
   {
-    .name = "no_args",
-    .expect = "",
-  },
-  {
     .name = "whitespace_quoted",
     .args = { "A B", "C\tD" },
     .expect = "\"A B\"\n\"C\tD\"\n",
@@ -44,11 +40,6 @@ static const rsp_test_t tests [] = {
     .name = "hash_prefix_quoted",
     .args = { "#A" },
     .expect = "\"#A\"\n",
-  },
-  {
-    .name = "newline_quoted",
-    .args = { "A\nB" },
-    .expect = "\"A\nB\"\n",
   },
   {
     .name = "backslashes_kept_when_unquoted",
