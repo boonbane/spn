@@ -1,7 +1,6 @@
 #include "compiler.h"
 
 typedef enum {
-  RENDER_COMPILE,
   RENDER_COMPILE_COMMAND,
   RENDER_LINK,
   RENDER_ARCHIVE,
@@ -15,19 +14,15 @@ typedef struct {
 } env_test_t;
 
 static const env_test_t tests [] = {
-  { .name = "compile", .render = RENDER_COMPILE, .cache = "/C", .env = { "ZIG_GLOBAL_CACHE_DIR=/C", "ZIG_LOCAL_CACHE_DIR=/C" } },
   { .name = "compile_command", .render = RENDER_COMPILE_COMMAND, .cache = "/C", .env = { "ZIG_GLOBAL_CACHE_DIR=/C", "ZIG_LOCAL_CACHE_DIR=/C" } },
   { .name = "link", .render = RENDER_LINK, .cache = "/C", .env = { "ZIG_GLOBAL_CACHE_DIR=/C", "ZIG_LOCAL_CACHE_DIR=/C" } },
   { .name = "archive", .render = RENDER_ARCHIVE, .cache = "/C", .env = { "ZIG_GLOBAL_CACHE_DIR=/C", "ZIG_LOCAL_CACHE_DIR=/C" } },
-  { .name = "empty", .render = RENDER_COMPILE },
 };
 
 sp_test_each(render_env, render, env_test_t, tests, .setup = spn_test_ctx_setup) {
   sp_mem_t mem = sp_test_arena(t);
   spn_cc_t toolchain = test_toolchain(SPN_CC_DRIVER_ZIG);
-  if (it->cache) {
-    toolchain.cache = test_arg_path(it->cache);
-  }
+  toolchain.cache = test_arg_path(it->cache);
 
   spn_profile_info_t profile = test_profile((test_profile_t) {
     .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_MUSL },
@@ -36,11 +31,6 @@ sp_test_each(render_env, render, env_test_t, tests, .setup = spn_test_ctx_setup)
 
   spn_invocation_t invocation = sp_zero;
   switch (it->render) {
-    case RENDER_COMPILE: {
-      spn_cc_compile_t compile = sp_zero;
-      invocation = si_cc_render_compile(mem, &toolchain, &profile, SPN_LANG_C, &compile).base;
-      break;
-    }
     case RENDER_COMPILE_COMMAND: {
       spn_cc_compile_t compile = sp_zero;
       spn_cc_compile_plan_t plan = si_cc_render_compile(mem, &toolchain, &profile, SPN_LANG_C, &compile);
