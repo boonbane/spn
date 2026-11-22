@@ -1,38 +1,31 @@
 #include "compiler.h"
-#include "compiler/push.h"
 
 typedef struct {
-  const c8* prefix;
+  const c8* path;
 } expect_t;
 
 typedef struct {
   const c8* name;
-  const c8* path [SPN_DIR_LIST_MAX];
+  const c8* program;
+  const c8* dirs [SPN_DIR_LIST_MAX];
+  const c8* path;
   expect_t expect;
 } test_t;
 
 static const test_t tests [] = {
-  { .name = "path_follows_the_program_dir", .path = { "/T", "/U" }, .expect = { .prefix = "/bin:/T:/U:" } },
+  { .name = "path_follows_the_program_dir", .program = "/X/A", .dirs = { "/T", "/U" }, .path = "/P", .expect = { .path = "/X:/T:/U:/P" } },
 };
 
-sp_test_each(invocation, path, test_t, tests, .setup = spn_test_ctx_setup) {
-  sp_test_skip_on_win32();
+sp_test_each(invocation, path, test_t, tests) {
   sp_mem_t mem = sp_test_arena(t);
+  spn_path_roots_t roots = sp_zero;
 
-  spn_invocation_t invocation = {
-    .program = spn_arg_path((spn_path_t) { .sub = sp_str_lit("/bin/sh") }),
-    .cwd = { .sub = test_dir_str(t) },
-  };
-  spn_cc_push_c(mem, &invocation, "-c");
-  spn_cc_push_c(mem, &invocation, "printf %s \"$PATH\"");
-  sp_carr_for_until(it->path, at, it->path[at]) {
-    invocation.path.items[invocation.path.count++] = test_arg_path(it->path[at]);
+  spn_invocation_t invocation = { .program = spn_arg_path(test_arg_path(it->program)) };
+  sp_carr_for_until(it->dirs, at, it->dirs[at]) {
+    invocation.path.items[invocation.path.count++] = test_arg_path(it->dirs[at]);
   }
 
-  spn_children_t children = sp_zero;
-  spn_invocation_result_t run = spn_invocation_run(&spn.roots, &children, &invocation);
-  sp_expect_eq(t, run.result.status.exit_code, 0);
-  sp_str_t prefix = sp_cstr_as_str(it->expect.prefix);
-  sp_expect_str_eq(t, sp_str_prefix(run.result.out, sp_min(run.result.out.len, prefix.len)), prefix);
+  sp_str_t path = spn_invocation_path(&roots, mem, &invocation, spn_search_rules(SPN_OS_LINUX), sp_cstr_as_str(it->path));
+  sp_expect_str_eq_c(t, path, it->expect.path);
   return SP_OK;
 }
