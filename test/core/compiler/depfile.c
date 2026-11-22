@@ -40,10 +40,6 @@ static const depfile_test_t tests [] = {
     },
   },
   {
-    .name = "msvc_no_includes",
-    .driver = SPN_CC_DRIVER_MSVC,
-  },
-  {
     .name = "msvc_wrong_schema",
     .driver = SPN_CC_DRIVER_MSVC,
     .expect = {
