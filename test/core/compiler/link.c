@@ -661,15 +661,13 @@ static const link_test_t tests [] = {
   {
     .name = "clang_msvc_sdk_libs",
     .driver = SPN_CC_DRIVER_CLANG,
-    .lld = true,
-    .link_args = { "-fuse-ld=lld" },
-    .host = HOST_X64_LINUX,
+    .host = HOST_X64_WINDOWS,
     .profile = { .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC }, .sdk = "/X", .linking.runtime = SPN_RUNTIME_STATIC },
     .kind = SPN_CC_OUTPUT_EXE,
     .system_lib = "user32",
     .expect = {
       .command = "cc",
-      .args = { "--target=x86_64-windows-msvc", "-fuse-ld=lld", "-fms-runtime-lib=static", "main.o", "-luser32", "-o", "main" },
+      .args = { "--target=x86_64-windows-msvc", "-fms-runtime-lib=static", "main.o", "-luser32", "-o", "main" },
       .env = { "LIB=/X/crt/lib/x86_64;/X/sdk/lib/ucrt/x86_64;/X/sdk/lib/um/x86_64" },
     },
   },
