@@ -16,8 +16,6 @@
 #define render_env_max 4
 
 typedef struct {
-  spn_err_t err;
-  spn_cc_feature_t feature;
   const c8* command;
   const c8* args [render_args_max];
   const c8* env [render_env_max];

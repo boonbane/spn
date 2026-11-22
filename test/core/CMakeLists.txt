@@ -35,6 +35,7 @@ add_executable(core
   compiler/run.c
   compiler/toc.c
   compiler/tools.c
+  compiler/validate.c
   config/cache.c
   config/config.c
   config/net.c
