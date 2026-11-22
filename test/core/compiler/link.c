@@ -168,7 +168,7 @@ static const link_test_t tests [] = {
     },
   },
   {
-    .name = "msvc_exe_libs",
+    .name = "msvc_shared_lib",
     .driver = SPN_CC_DRIVER_MSVC,
     .host = HOST_X64_WINDOWS,
     .profile = {
