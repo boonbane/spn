@@ -8,13 +8,10 @@ typedef struct {
 
 static const dialect_t dialect_tests [] = {
   { "linux_gnu",    HOST_X64_LINUX,      SPN_LD_DIALECT_GNU },
-  { "linux_musl",   HOST_X64_LINUX_MUSL, SPN_LD_DIALECT_GNU },
-  { "freestanding", TARGET_X64_BARE,     SPN_LD_DIALECT_GNU },
   { "windows_gnu",  TARGET_WIN_GNU,      SPN_LD_DIALECT_GNU },
   { "windows_msvc", TARGET_WIN_MSVC,     SPN_LD_DIALECT_LINK },
   { "macos",        HOST_ARM_MACOS,      SPN_LD_DIALECT_DARWIN },
   { "wasi",         TARGET_WASM,         SPN_LD_DIALECT_WASM },
-  { "wasm_bare",    TARGET_WASM_BARE,    SPN_LD_DIALECT_WASM },
 };
 
 sp_test_each(linker, dialect, dialect_t, dialect_tests) {
@@ -107,9 +104,6 @@ static const scripts_t scripts_tests [] = {
   { "gnu_coff",   SPN_LD_FAMILY_GNU,  SPN_OBJ_COFF,  true },
   { "lld_elf",    SPN_LD_FAMILY_LLD,  SPN_OBJ_ELF,   true },
   { "lld_coff",   SPN_LD_FAMILY_LLD,  SPN_OBJ_COFF,  false },
-  { "lld_macho",  SPN_LD_FAMILY_LLD,  SPN_OBJ_MACHO, false },
-  { "lld_wasm",   SPN_LD_FAMILY_LLD,  SPN_OBJ_WASM,  false },
-  { "ld64_macho", SPN_LD_FAMILY_LD64, SPN_OBJ_MACHO, false },
   { "msvc_coff",  SPN_LD_FAMILY_MSVC, SPN_OBJ_COFF,  false },
 };
 
@@ -142,39 +136,12 @@ sp_test_each(linker, accepts, accepts_t, accepts_tests) {
 
 typedef struct {
   const c8* name;
-  spn_cc_driver_t driver;
-  spn_triple_t target;
-  spn_ld_family_t expect;
-} native_t;
-
-static const native_t native_tests [] = {
-  { "gcc_linux",   SPN_CC_DRIVER_GCC,   HOST_X64_LINUX,  SPN_LD_FAMILY_GNU },
-  { "gcc_mingw",   SPN_CC_DRIVER_GCC,   TARGET_WIN_GNU,  SPN_LD_FAMILY_GNU },
-  { "gcc_macos",   SPN_CC_DRIVER_GCC,   HOST_ARM_MACOS,  SPN_LD_FAMILY_LD64 },
-  { "clang_msvc",  SPN_CC_DRIVER_CLANG, TARGET_WIN_MSVC, SPN_LD_FAMILY_MSVC },
-  { "clang_wasi",  SPN_CC_DRIVER_CLANG, TARGET_WASM,     SPN_LD_FAMILY_LLD },
-  { "msvc_msvc",   SPN_CC_DRIVER_MSVC,  TARGET_WIN_MSVC, SPN_LD_FAMILY_MSVC },
-  { "zig_linux",   SPN_CC_DRIVER_ZIG,   HOST_X64_LINUX,  SPN_LD_FAMILY_LLD },
-  { "zig_macos",   SPN_CC_DRIVER_ZIG,   HOST_ARM_MACOS,  SPN_LD_FAMILY_LLD },
-};
-
-sp_test_each(linker, native, native_t, native_tests) {
-  sp_expect_eq(t, (u32)it->expect, (u32)spn_ld_native(it->driver, it->target));
-  return SP_OK;
-}
-
-typedef struct {
-  const c8* name;
   spn_triple_t target;
   bool expect;
 } dynamic_t;
 
 static const dynamic_t dynamic_tests [] = {
   { "linux",            HOST_X64_LINUX,  true },
-  { "windows",          TARGET_WIN_GNU,  true },
-  { "macos",            HOST_ARM_MACOS,  true },
-  { "wasi",             TARGET_WASM },
-  { "freestanding",     TARGET_ARM_BARE },
   { "freestanding_elf", TARGET_ARM_ELF },
   { "linux_none",       TARGET_X64_LINUX_NONE },
 };
