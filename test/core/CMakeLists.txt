@@ -166,7 +166,6 @@ add_executable(core
   toolchain/select_msvc.c
   toolchain/toolchain.c
   toolchain/unpack.c
-  toolchain/verify.c
   toolchain/zig.c
   unit/harness.c
   unit/compile.c
