@@ -25,7 +25,6 @@ static const test_t tests [] = {
     .driver = SPN_CC_DRIVER_GCC,
     .profile = {
       .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU },
-      .standard = SPN_C99,
     },
     .pic = true,
     .arg = "-fno-common",
@@ -39,7 +38,6 @@ static const test_t tests [] = {
     .driver = SPN_CC_DRIVER_GCC,
     .profile = {
       .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU },
-      .standard = SPN_C99,
     },
     .include = "inc",
     .embed_include = "E",
@@ -53,7 +51,6 @@ static const test_t tests [] = {
     .driver = SPN_CC_DRIVER_GCC,
     .profile = {
       .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU },
-      .standard = SPN_C99,
       .mode = SPN_MODE_DEBUG,
       .opt = SPN_OPT_LEVEL_0,
     },
@@ -68,7 +65,6 @@ static const test_t tests [] = {
     .driver = SPN_CC_DRIVER_CLANG,
     .profile = {
       .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU },
-      .standard = SPN_C99,
       .mode = SPN_MODE_DEBUG,
     },
     .cwd = "/W",
@@ -82,7 +78,6 @@ static const test_t tests [] = {
     .driver = SPN_CC_DRIVER_GCC,
     .profile = {
       .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU },
-      .standard = SPN_C99,
       .mode = SPN_MODE_RELEASE,
       .opt = SPN_OPT_LEVEL_2,
     },
@@ -96,7 +91,6 @@ static const test_t tests [] = {
     .driver = SPN_CC_DRIVER_GCC,
     .profile = {
       .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU },
-      .standard = SPN_C99,
     },
     .depfile = "main.o.d",
     .expect = {
@@ -109,7 +103,6 @@ static const test_t tests [] = {
     .driver = SPN_CC_DRIVER_CLANG,
     .profile = {
       .target = { SPN_ARCH_WASM32, SPN_OS_WASI },
-      .standard = SPN_C99,
     },
     .expect = {
       .command = "cc",
@@ -122,7 +115,6 @@ static const test_t tests [] = {
     .profile = {
       .target = { SPN_ARCH_WASM32, SPN_OS_WASI },
       .spelling = "wasm32-wasip1",
-      .standard = SPN_C99,
     },
     .expect = {
       .command = "cc",
@@ -134,7 +126,6 @@ static const test_t tests [] = {
     .driver = SPN_CC_DRIVER_CLANG,
     .profile = {
       .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC },
-      .standard = SPN_C99,
     },
     .expect = {
       .command = "cc",
@@ -146,7 +137,6 @@ static const test_t tests [] = {
     .driver = SPN_CC_DRIVER_ZIG,
     .profile = {
       .target = { SPN_ARCH_ARM64, SPN_OS_FREESTANDING, SPN_ABI_BARE },
-      .standard = SPN_C99,
     },
     .expect = {
       .command = "cc",
@@ -158,7 +148,6 @@ static const test_t tests [] = {
     .driver = SPN_CC_DRIVER_CLANG,
     .profile = {
       .target = { SPN_ARCH_WASM32, SPN_OS_FREESTANDING, SPN_ABI_BARE },
-      .standard = SPN_C99,
     },
     .expect = {
       .command = "cc",
@@ -170,7 +159,6 @@ static const test_t tests [] = {
     .driver = SPN_CC_DRIVER_CLANG,
     .profile = {
       .target = { SPN_ARCH_ARM64, SPN_OS_FREESTANDING, SPN_ABI_BARE },
-      .standard = SPN_C99,
     },
     .expect = {
       .command = "cc",
@@ -182,7 +170,6 @@ static const test_t tests [] = {
     .driver = SPN_CC_DRIVER_CLANG,
     .profile = {
       .target = { SPN_ARCH_ARM64, SPN_OS_FREESTANDING, SPN_ABI_ELF },
-      .standard = SPN_C99,
       .sdk = "/S",
     },
     .expect = {
@@ -362,7 +349,6 @@ static const test_t tests [] = {
     .driver = SPN_CC_DRIVER_CLANG,
     .profile = {
       .target = { SPN_ARCH_ARM64, SPN_OS_MACOS, SPN_ABI_APPLE },
-      .standard = SPN_C99,
       .sdk = "/sdk",
     },
     .expect = {
@@ -375,7 +361,6 @@ static const test_t tests [] = {
     .driver = SPN_CC_DRIVER_ZIG,
     .profile = {
       .target = { SPN_ARCH_ARM64, SPN_OS_MACOS, SPN_ABI_APPLE },
-      .standard = SPN_C99,
       .sdk = "/sdk",
     },
     .libc = "/L",
@@ -390,7 +375,6 @@ static const test_t tests [] = {
     .driver = SPN_CC_DRIVER_CLANG,
     .profile = {
       .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC },
-      .standard = SPN_C99,
       .sdk = "/X",
     },
     .expect = {
@@ -413,7 +397,6 @@ static const test_t tests [] = {
     .driver = SPN_CC_DRIVER_ZIG,
     .profile = {
       .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC },
-      .standard = SPN_C99,
       .sdk = "/X",
     },
     .libc = "/L",
@@ -455,7 +438,6 @@ static const test_t tests [] = {
     .driver = SPN_CC_DRIVER_GCC,
     .profile = {
       .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU },
-      .standard = SPN_C99,
     },
     .include = "inc",
     .define = "SPUM=1",
@@ -469,7 +451,6 @@ static const test_t tests [] = {
     .driver = SPN_CC_DRIVER_GCC,
     .profile = {
       .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU },
-      .standard = SPN_C99,
       .sanitizers = SPN_SANITIZER_ADDRESS,
     },
     .expect = {
@@ -495,7 +476,6 @@ static const test_t tests [] = {
     .driver = SPN_CC_DRIVER_CLANG,
     .profile = {
       .target = { SPN_ARCH_ARM64, SPN_OS_MACOS, SPN_ABI_APPLE },
-      .standard = SPN_C99,
     },
     .min_os = { 13, 1 },
     .expect = {
@@ -508,7 +488,6 @@ static const test_t tests [] = {
     .driver = SPN_CC_DRIVER_ZIG,
     .profile = {
       .target = { SPN_ARCH_ARM64, SPN_OS_MACOS, SPN_ABI_APPLE },
-      .standard = SPN_C99,
     },
     .min_os = { 13, 1 },
     .expect = {
@@ -521,7 +500,6 @@ static const test_t tests [] = {
     .driver = SPN_CC_DRIVER_GCC,
     .profile = {
       .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU },
-      .standard = SPN_C99,
     },
     .min_os = { 13 },
     .expect = {
@@ -534,7 +512,6 @@ static const test_t tests [] = {
     .driver = SPN_CC_DRIVER_ZIG,
     .profile = {
       .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_MUSL },
-      .standard = SPN_C99,
       .sdk = "/S",
     },
     .expect = {
@@ -582,7 +559,6 @@ sp_test(render_compile, base_shared_across_commands) {
   spn_profile_info_t profile = sp_zero;
   sp_try(test_profile(t, SPN_CC_DRIVER_ZIG, (test_profile_t) {
     .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_MUSL },
-    .standard = SPN_C99,
   }, &profile));
   spn_cc_compile_plan_t plan = si_cc_render_compile(mem, &toolchain, &profile, SPN_LANG_C, &compile);
 
