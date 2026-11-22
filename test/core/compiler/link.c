@@ -151,6 +151,7 @@ static const test_t tests [] = {
     .expect = {
       .command = "cc",
       .args = { "/nologo", "/LD", "main.o", "/Femain", "/link", "/DEF:S.def", "/IMPLIB:main.lib" },
+      .echo = "   Creating library ",
     },
   },
   {

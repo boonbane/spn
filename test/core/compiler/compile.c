@@ -213,6 +213,7 @@ static const test_t tests [] = {
     .expect = {
       .command = "cc",
       .args = { "/nologo", "/utf-8", "/Brepro", "/std:c11", "/MT", "/c", "/Iinc", "/DSPUM=1", "/we4715", "/Fomain.o", "main.c" },
+      .echo = "",
     },
   },
   {
@@ -227,6 +228,7 @@ static const test_t tests [] = {
     .expect = {
       .command = "cc",
       .args = { "/nologo", "/utf-8", "/Brepro", "/std:c11", "/MT", "/c", "/Iinc", "/we4715", "/IE", "/Fomain.o", "main.c" },
+      .echo = "",
     },
   },
   {
@@ -239,6 +241,7 @@ static const test_t tests [] = {
     .expect = {
       .command = "cc",
       .args = { "/nologo", "/utf-8", "/Brepro", "/MT", "/c", "/we4715", "/sourceDependencies", "main.o.d", "/Fomain.o", "main.c" },
+      .echo = "",
     },
   },
   {
@@ -256,6 +259,7 @@ static const test_t tests [] = {
     .expect = {
       .command = "vc/bin/ml64.exe",
       .args = { "/nologo", "/c", "/Fomain.o", "main.c" },
+      .echo = " Assembling: ",
     },
   },
   {
@@ -273,6 +277,7 @@ static const test_t tests [] = {
     .expect = {
       .command = "/X/bin/arm64/armasm64.exe",
       .args = { "/nologo", "/c", "/Fomain.o", "main.c" },
+      .echo = " Assembling: ",
     },
   },
   {
@@ -288,6 +293,7 @@ static const test_t tests [] = {
       .command = "/X/bin/arm64/cl.exe",
       .args = { "/nologo", "/utf-8", "/Brepro", "/MT", "/c", "/I/X/crt/include", "/I/X/sdk/include/ucrt", "/I/X/sdk/include/um", "/I/X/sdk/include/shared", "/I/X/sdk/include/winrt", "/I/X/sdk/include/cppwinrt", "/we4715", "/Fomain.o", "main.c" },
       .env = { "INCLUDE=/X/crt/include;/X/sdk/include/ucrt;/X/sdk/include/um;/X/sdk/include/shared;/X/sdk/include/winrt;/X/sdk/include/cppwinrt" },
+      .echo = "",
     },
   },
   {
@@ -300,6 +306,7 @@ static const test_t tests [] = {
     .expect = {
       .command = "cc",
       .args = { "/nologo", "/utf-8", "/Brepro", "/MT", "/c", "/we4715", "/Fomain.o", "main.c" },
+      .echo = "",
     },
   },
   {
@@ -314,6 +321,7 @@ static const test_t tests [] = {
     .expect = {
       .command = "cc",
       .args = { "/nologo", "/utf-8", "/Brepro", "/std:c11", "/MT", "/Z7", "/Od", "/c", "/we4715", "/Fomain.o", "main.c" },
+      .echo = "",
     },
   },
   {
@@ -328,6 +336,7 @@ static const test_t tests [] = {
     .expect = {
       .command = "cc",
       .args = { "/nologo", "/utf-8", "/Brepro", "/std:c11", "/MT", "/O2", "/DNDEBUG", "/c", "/we4715", "/Fomain.o", "main.c" },
+      .echo = "",
     },
   },
   {
@@ -341,6 +350,7 @@ static const test_t tests [] = {
     .expect = {
       .command = "c++",
       .args = { "/nologo", "/utf-8", "/Brepro", "/std:c++17", "/MT", "/c", "/EHsc", "/we4715", "/Fomain.o", "main.c" },
+      .echo = "",
     },
   },
   {
@@ -354,6 +364,7 @@ static const test_t tests [] = {
     .expect = {
       .command = "c++",
       .args = { "/nologo", "/utf-8", "/Brepro", "/std:c++20", "/MT", "/c", "/GR-", "/we4715", "/Fomain.o", "main.c" },
+      .echo = "",
     },
   },
   {
@@ -481,6 +492,7 @@ static const test_t tests [] = {
     .expect = {
       .command = "cc",
       .args = { "/nologo", "/utf-8", "/Brepro", "/std:c11", "/MT", "/fsanitize=address", "/c", "/we4715", "/Fomain.o", "main.c" },
+      .echo = "",
     },
   },
   {

@@ -91,5 +91,12 @@ sp_err_t expect_invocation(sp_test_t* t, const spn_invocation_t* invocation, ren
     sp_da_push(env, sp_fmt(mem, "{}={}", sp_fmt_str(var.key), sp_fmt_str(var.value)).value);
   }
   sp_must_strs_eq(t, env, sp_da_size(env), expect.env);
+  sp_da(sp_str_t) path = sp_da_new(mem, sp_str_t);
+  sp_for(it, invocation->path.count) {
+    sp_da_push(path, spn_path_str(&roots, mem, invocation->path.items[it]));
+  }
+  sp_must_strs_eq(t, path, sp_da_size(path), expect.path);
+  sp_expect_eq(t, invocation->echo.some, expect.echo != SP_NULLPTR);
+  sp_expect_str_eq_c(t, invocation->echo.value, expect.echo);
   return SP_OK;
 }

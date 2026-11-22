@@ -14,11 +14,14 @@
 
 #define render_args_max 20
 #define render_env_max 4
+#define render_path_max 4
 
 typedef struct {
   const c8* command;
   const c8* args [render_args_max];
   const c8* env [render_env_max];
+  const c8* path [render_path_max];
+  const c8* echo;
 } render_expect_t;
 
 typedef struct {
