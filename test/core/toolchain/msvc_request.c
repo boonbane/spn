@@ -2,22 +2,35 @@
 
 typedef struct {
   const c8* name;
-  const c8* toolset;
-  const c8* sdk;
+  const c8* str;
+  bool expect;
 } test_t;
 
-static const test_t tests [] = {
-  { .name = "unknown_generation", .toolset = "v140" },
-  { .name = "unknown_year", .toolset = "2015" },
-  { .name = "vs_major_is_not_a_toolset", .toolset = "17" },
-  { .name = "trailing_dot", .toolset = "14." },
-  { .name = "sdk_is_numeric", .sdk = "A" },
-  { .name = "sdk_has_no_generations", .sdk = "v142" },
-  { .name = "empty_component", .sdk = "10..0" },
-  { .name = "five_components", .sdk = "1.2.3.4.5" },
+static const test_t toolset_tests [] = {
+  { "generation", "v143", true },
+  { "year", "2022", true },
+  { "prefix", "14.29", true },
+  { "unknown_generation", "v140" },
+  { "unknown_year", "2015" },
+  { "vs_major_is_not_a_toolset", "17" },
+  { "trailing_dot", "14." },
 };
 
-sp_test_each(msvc_request, invalid, test_t, tests) {
-  sp_expect(t, !si_msvc_toolset_valid(sp_cstr_as_str(it->toolset)) || !si_msvc_sdk_valid(sp_cstr_as_str(it->sdk)));
+static const test_t sdk_tests [] = {
+  { "prefix", "10.0", true },
+  { "four_components", "10.0.22621.0", true },
+  { "not_numeric", "A" },
+  { "generation_name", "v142" },
+  { "empty_component", "10..0" },
+  { "five_components", "1.2.3.4.5" },
+};
+
+sp_test_each(msvc_request, toolset, test_t, toolset_tests) {
+  sp_expect_eq(t, it->expect, si_msvc_toolset_valid(sp_cstr_as_str(it->str)));
+  return SP_OK;
+}
+
+sp_test_each(msvc_request, sdk, test_t, sdk_tests) {
+  sp_expect_eq(t, it->expect, si_msvc_sdk_valid(sp_cstr_as_str(it->str)));
   return SP_OK;
 }
