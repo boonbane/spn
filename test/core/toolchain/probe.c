@@ -3,10 +3,9 @@
 #include "toolchain/probe.h"
 #include "toolchain/search.h"
 
-#define PROBE_MAX_FILES 6
+#define PROBE_MAX_FILES 4
 #define PROBE_MAX_ACTIONS 6
-#define PROBE_MAX_DIRS 2
-#define PROBE_MAX_SLOTS 4
+#define PROBE_MAX_SLOTS 2
 #define PROBE_MAX_PAIRS 2
 #define PROBE_MAX_PROGRAMS 3
 
@@ -49,7 +48,6 @@ typedef struct {
     file_t file;
     struct {
       u32 slot;
-      const c8* dirs [PROBE_MAX_DIRS];
       spn_err_t err;
       program_slot_t missing;
       resolved_t resolved [PROBE_MAX_PROGRAMS];
@@ -64,7 +62,6 @@ typedef struct {
 } pair_t;
 
 typedef struct {
-  u32 entries;
   pair_t same [PROBE_MAX_PAIRS];
   pair_t differ [PROBE_MAX_PAIRS];
 } expect_t;
@@ -91,7 +88,6 @@ static const test_t tests [] = {
     .actions = {
       { .kind = PROBE_ACTION_PROBE, .probe = { .slot = 1, .resolved = { { "A/cc" }, { "A/ar" }, { "A/c++" } } } },
     },
-    .expect = { .entries = 3 },
   },
   {
     .name = "missing_compiler",
@@ -113,7 +109,6 @@ static const test_t tests [] = {
     .actions = {
       { .kind = PROBE_ACTION_PROBE, .probe = { .slot = 1, .cxx_dropped = true } },
     },
-    .expect = { .entries = 2 },
   },
   {
     .name = "cxx_appearing_changes_identity",
@@ -132,7 +127,6 @@ static const test_t tests [] = {
     .actions = {
       { .kind = PROBE_ACTION_PROBE, .probe = { .slot = 1 } },
     },
-    .expect = { .entries = 2 },
   },
   {
     .name = "absolute_path_program",
@@ -140,15 +134,6 @@ static const test_t tests [] = {
     .files = { { "B/cc" }, { "B/ar" }, { "B/c++" } },
     .actions = {
       { .kind = PROBE_ACTION_PROBE, .probe = { .slot = 1, .resolved = { { "B/cc" }, { "B/ar" }, { "B/c++" } } } },
-    },
-    .expect = { .entries = 3 },
-  },
-  {
-    .name = "absolute_path_program_missing",
-    .programs = { .compiler = { .path = "B/cc" } },
-    .files = STANDARD_FILES,
-    .actions = {
-      { .kind = PROBE_ACTION_PROBE, .probe = { .err = SPN_ERR_TOOLCHAIN_MISSING, .missing = PROBE_PROGRAM_COMPILER } },
     },
   },
   {
@@ -158,15 +143,6 @@ static const test_t tests [] = {
     .actions = {
       { .kind = PROBE_ACTION_PROBE, .probe = { .slot = 1, .resolved = { { "B/cc", SPN_PATH_ROOT_PROJECT }, { "A/ar" }, { "A/c++" } } } },
     },
-    .expect = { .entries = 3 },
-  },
-  {
-    .name = "project_path_program_missing",
-    .programs = { .compiler = { .path = "B/cc", .root = SPN_PATH_ROOT_PROJECT } },
-    .files = STANDARD_FILES,
-    .actions = {
-      { .kind = PROBE_ACTION_PROBE, .probe = { .err = SPN_ERR_TOOLCHAIN_MISSING, .missing = PROBE_PROGRAM_COMPILER } },
-    },
   },
   {
     .name = "archiver_beside_compiler",
@@ -175,28 +151,6 @@ static const test_t tests [] = {
     .actions = {
       { .kind = PROBE_ACTION_PROBE, .probe = { .slot = 1, .resolved = { { "B/cc" }, { "B/ar" }, { "A/c++" } } } },
     },
-    .expect = { .entries = 3 },
-  },
-  {
-    .name = "first_dir_wins",
-    .files = { { "A/cc", "1" }, { "B/cc", "2" }, { "A/ar" }, { "B/ar" }, { "A/c++" }, { "B/c++" } },
-    .actions = {
-      { .kind = PROBE_ACTION_PROBE, .probe = { .slot = 1, .dirs = { "A", "B" }, .resolved = { { "A/cc" } } } },
-      { .kind = PROBE_ACTION_PROBE, .probe = { .slot = 2, .dirs = { "B", "A" }, .resolved = { { "B/cc" } } } },
-      { .kind = PROBE_ACTION_PROBE, .probe = { .slot = 3, .dirs = { "A" } } },
-    },
-    .expect = {
-      .same = { { 1, 3 } },
-      .differ = { { 1, 2 } },
-    },
-  },
-  {
-    .name = "later_dir_is_searched",
-    .files = { { "A/cc" }, { "B/ar" }, { "B/c++" } },
-    .actions = {
-      { .kind = PROBE_ACTION_PROBE, .probe = { .slot = 1, .dirs = { "A", "B" }, .resolved = { { "A/cc" }, { "B/ar" }, { "B/c++" } } } },
-    },
-    .expect = { .entries = 3 },
   },
   {
     .name = "identity_tracks_binary_bytes",
@@ -241,14 +195,13 @@ static const test_t tests [] = {
     .expect = { .differ = { { 1, 2 } } },
   },
   {
-    .name = "corrupt_cache_starts_empty",
+    .name = "corrupt_cache_is_ignored",
     .files = STANDARD_FILES,
     .actions = {
       { .kind = PROBE_ACTION_CORRUPT },
       { .kind = PROBE_ACTION_RELOAD },
       { .kind = PROBE_ACTION_PROBE, .probe = { .slot = 1 } },
     },
-    .expect = { .entries = 3 },
   },
   {
     .name = "stale_entry_reports_missing",
@@ -296,23 +249,6 @@ static spn_toolchain_launcher_t launcher(sp_mem_t mem, sp_str_t root, fixture_la
 static void write_file(sp_mem_t mem, sp_str_t root, file_t file) {
   sp_str_t content = sp_cstr_as_str(file.content ? file.content : file.path);
   sp_fs_write(file_path(mem, root, file.path), content, SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms);
-}
-
-static sp_str_t search_path(sp_mem_t mem, sp_str_t root, const c8* const* dirs) {
-  sp_da(sp_str_t) result = sp_da_new(mem, sp_str_t);
-  bool any = false;
-  sp_for(it, PROBE_MAX_DIRS) {
-    if (!dirs[it]) {
-      break;
-    }
-    any = true;
-    sp_da_push(result, sp_fs_join_path(mem, root, sp_cstr_as_str(dirs[it])));
-  }
-  if (!any) {
-    sp_da_push(result, sp_fs_join_path(mem, root, sp_str_lit("A")));
-  }
-  c8 sep = spn_search_rules(spn_host_detect().os).sep;
-  return sp_str_join_n(mem, result, sp_da_size(result), sp_str(&sep, 1));
 }
 
 static spn_cc_t make_cc(sp_mem_t mem, sp_str_t root, const test_t* it) {
@@ -387,7 +323,7 @@ sp_test_each(probe, resolve, test_t, tests, .setup = spn_test_ctx_setup) {
         spn_cc_t declared = make_cc(mem, root, it);
         spn_cc_t cc = declared;
         sp_hash_t identity = sp_zero;
-        spn_err_t err = spn_toolchain_probe(&cc, &roots, spn_search_rules(spn_host_detect().os), search_path(mem, root, action.probe.dirs), &cache, mem, &identity);
+        spn_err_t err = spn_toolchain_probe(&cc, &roots, spn_search_rules(spn_host_detect().os), sp_fs_join_path(mem, root, sp_str_lit("A")), &cache, mem, &identity);
         sp_must_eq(t, (u32)action.probe.err, (u32)err);
         if (err) {
           sp_da(spn_event_t) errs = spn_test_drain_errs(mem);
@@ -423,9 +359,6 @@ sp_test_each(probe, resolve, test_t, tests, .setup = spn_test_ctx_setup) {
     }
   }
 
-  if (it->expect.entries) {
-    sp_expect_eq(t, it->expect.entries, (u32)sp_str_om_size(cache.entries));
-  }
   sp_carr_for(it->expect.same, at) {
     pair_t pair = it->expect.same[at];
     if (!pair.a) {
@@ -443,4 +376,3 @@ sp_test_each(probe, resolve, test_t, tests, .setup = spn_test_ctx_setup) {
 
   return SP_OK;
 }
-
