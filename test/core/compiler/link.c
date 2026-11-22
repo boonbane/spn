@@ -146,19 +146,24 @@ static const test_t tests [] = {
     .kind = SPN_CC_OUTPUT_SHARED_LIB,
     .exports = "S.def",
     .implib = "main.lib",
-    .archive = "spum.lib",
-    .system_lib = "ws2_32",
     .expect = {
       .command = "cc",
-      .args = {
-        "/nologo",
-        "/LD",
-        "main.o",
-        "spum.lib",
-        "/Femain",
-        "ws2_32.lib",
-        "/link", "/DEF:S.def", "/IMPLIB:main.lib"
-      },
+      .args = { "/nologo", "/LD", "main.o", "/Femain", "/link", "/DEF:S.def", "/IMPLIB:main.lib" },
+    },
+  },
+  {
+    .name = "msvc_libs_precede_system_libs",
+    .driver = SPN_CC_DRIVER_MSVC,
+    .profile = {
+      .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC },
+    },
+    .kind = SPN_CC_OUTPUT_EXE,
+    .archive = "A.lib",
+    .shared = "S.lib",
+    .system_lib = "B",
+    .expect = {
+      .command = "cc",
+      .args = { "/nologo", "main.o", "A.lib", "S.lib", "/Femain", "B.lib", "/link", "/NOIMPLIB", "/NOEXP" },
     },
   },
   {
@@ -196,17 +201,22 @@ static const test_t tests [] = {
     },
     .kind = SPN_CC_OUTPUT_EXE,
     .framework = "Cocoa",
+    .expect = {
+      .command = "cc",
+      .args = { "--target=aarch64-macos", "main.o", "-isysroot", "/sdk", "-framework", "Cocoa", "-Wl,-rpath,@loader_path", "-o", "main" },
+    },
+  },
+  {
+    .name = "clang_macos_min_os",
+    .driver = SPN_CC_DRIVER_CLANG,
+    .profile = {
+      .target = { SPN_ARCH_ARM64, SPN_OS_MACOS },
+    },
+    .kind = SPN_CC_OUTPUT_EXE,
     .min_os = { 13 },
     .expect = {
       .command = "cc",
-      .args = {
-        "--target=aarch64-macos",
-        "main.o",
-        "-isysroot", "/sdk",
-        "-mmacosx-version-min=13.0",
-        "-framework", "Cocoa",
-        "-Wl,-rpath,@loader_path", "-o", "main"
-      },
+      .args = { "--target=aarch64-macos", "main.o", "-mmacosx-version-min=13.0", "-Wl,-rpath,@loader_path", "-o", "main" },
     },
   },
   {
@@ -276,16 +286,16 @@ static const test_t tests [] = {
     },
   },
   {
-    .name = "gcc_linux_musl_shared_lib_static_libc",
+    .name = "gcc_shared_lib_static_runtime",
     .driver = SPN_CC_DRIVER_GCC,
     .profile = {
-      .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_MUSL },
+      .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU },
+      .request.runtime = SPN_RUNTIME_STATIC,
     },
     .kind = SPN_CC_OUTPUT_SHARED_LIB,
-    .exports = "S.map",
     .expect = {
       .command = "cc",
-      .args = { "-shared", "-static-libstdc++", "-static-libgcc", "-Wl,--version-script,S.map", "-Wl,-soname,main", "main.o", "-Wl,-rpath,$ORIGIN", "-o", "main" },
+      .args = { "-shared", "-static-libstdc++", "-static-libgcc", "-Wl,-soname,main", "main.o", "-Wl,-rpath,$ORIGIN", "-o", "main" },
     },
   },
   {
@@ -317,12 +327,11 @@ static const test_t tests [] = {
     .driver = SPN_CC_DRIVER_CLANG,
     .profile = {
       .target = { SPN_ARCH_ARM64, SPN_OS_FREESTANDING, SPN_ABI_ELF },
-      .sdk = "/S",
     },
     .kind = SPN_CC_OUTPUT_EXE,
     .expect = {
       .command = "cc",
-      .args = { "--target=aarch64-none-elf", "-static", "main.o", "--sysroot=/S", "-o", "main" },
+      .args = { "--target=aarch64-none-elf", "-static", "main.o", "-o", "main" },
     },
   },
   {
@@ -462,14 +471,24 @@ static const test_t tests [] = {
   {
     .name = "toolchain_link_args_precede_target_args",
     .driver = SPN_CC_DRIVER_GCC,
-    .link_args = { "-fuse-ld=lld", "-B" },
+    .link_args = { "-B" },
     .profile = { .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU } },
     .kind = SPN_CC_OUTPUT_EXE,
     .arg = "-A",
+    .expect = {
+      .command = "cc",
+      .args = { "-B", "-A", "main.o", "-Wl,-rpath,$ORIGIN", "-o", "main" },
+    },
+  },
+  {
+    .name = "gcc_linker_script",
+    .driver = SPN_CC_DRIVER_GCC,
+    .profile = { .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU } },
+    .kind = SPN_CC_OUTPUT_EXE,
     .script = "A.ld",
     .expect = {
       .command = "cc",
-      .args = { "-fuse-ld=lld", "-B", "-A", "-Wl,-T,A.ld", "main.o", "-Wl,-rpath,$ORIGIN", "-o", "main" },
+      .args = { "-Wl,-T,A.ld", "main.o", "-Wl,-rpath,$ORIGIN", "-o", "main" },
     },
   },
   {
@@ -532,10 +551,9 @@ static const test_t tests [] = {
     .driver = SPN_CC_DRIVER_CLANG,
     .profile = { .target = { SPN_ARCH_X64, SPN_OS_FREESTANDING, SPN_ABI_BARE } },
     .kind = SPN_CC_OUTPUT_EXE,
-    .script = "A.ld",
     .expect = {
       .command = "cc",
-      .args = { "--target=x86_64-none-elf", "-nostartfiles", "-nolibc", "-static", "-Wl,-T,A.ld", "main.o", "-o", "main" },
+      .args = { "--target=x86_64-none-elf", "-nostartfiles", "-nolibc", "-static", "main.o", "-o", "main" },
     },
   },
   {
@@ -558,27 +576,25 @@ static const test_t tests [] = {
     },
   },
   {
-    .name = "clang_msvc_sdk_libs",
+    .name = "clang_msvc_sdk_lib_env",
     .driver = SPN_CC_DRIVER_CLANG,
     .profile = { .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC }, .sdk = "/X" },
     .kind = SPN_CC_OUTPUT_EXE,
-    .system_lib = "user32",
     .expect = {
       .command = "cc",
-      .args = { "--target=x86_64-windows-msvc", "-fms-runtime-lib=static", "main.o", "-luser32", "-o", "main" },
+      .args = { "--target=x86_64-windows-msvc", "-fms-runtime-lib=static", "main.o", "-o", "main" },
       .env = { "LIB=/X/crt/lib/x86_64;/X/sdk/lib/ucrt/x86_64;/X/sdk/lib/um/x86_64" },
     },
   },
   {
-    .name = "zig_msvc_libc_links_off_windows",
+    .name = "zig_msvc_libc_has_no_lib_env",
     .driver = SPN_CC_DRIVER_ZIG,
     .profile = { .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC }, .sdk = "/X" },
     .kind = SPN_CC_OUTPUT_EXE,
-    .system_lib = "user32",
     .libc = "/L",
     .expect = {
       .command = "cc",
-      .args = { "--target=x86_64-windows-msvc", "-fms-runtime-lib=static", "main.o", "-luser32", "-o", "main" },
+      .args = { "--target=x86_64-windows-msvc", "-fms-runtime-lib=static", "main.o", "-o", "main" },
       .env = { "ZIG_LIBC=/L" },
     },
   },
@@ -595,14 +611,13 @@ static const test_t tests [] = {
     },
   },
   {
-    .name = "msvc_sdk_libs",
+    .name = "msvc_sdk_lib_env",
     .driver = SPN_CC_DRIVER_MSVC,
     .profile = { .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC }, .sdk = "/X" },
     .kind = SPN_CC_OUTPUT_EXE,
-    .system_lib = "user32",
     .expect = {
       .command = "cc",
-      .args = { "/nologo", "main.o", "/Femain", "user32.lib", "/link", "/NOIMPLIB", "/NOEXP" },
+      .args = { "/nologo", "main.o", "/Femain", "/link", "/NOIMPLIB", "/NOEXP" },
       .env = { "LIB=/X/crt/lib/x86_64;/X/sdk/lib/ucrt/x86_64;/X/sdk/lib/um/x86_64" },
     },
   },
