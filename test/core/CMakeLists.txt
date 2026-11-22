@@ -23,7 +23,6 @@ add_executable(core
   when.c
   closure.c
   compiler/harness.c
-  compiler/invocation.c
   compiler/coff.c
   compiler/compile.c
   compiler/depfile.c
