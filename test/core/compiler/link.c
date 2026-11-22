@@ -638,6 +638,21 @@ static const link_test_t tests [] = {
     },
   },
   {
+    .name = "msvc_sanitizers_on_link_line",
+    .driver = SPN_CC_DRIVER_MSVC,
+    .host = HOST_X64_WINDOWS,
+    .profile = {
+      .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC },
+      .linking.runtime = SPN_RUNTIME_STATIC,
+      .sanitizers = SPN_SANITIZER_ADDRESS,
+    },
+    .kind = SPN_CC_OUTPUT_EXE,
+    .expect = {
+      .command = "cc",
+      .args = { "/nologo", "/fsanitize=address", "main.o", "/Femain", "/link", "/NOIMPLIB", "/NOEXP" },
+    },
+  },
+  {
     .name = "linux_shared_exports",
     .driver = SPN_CC_DRIVER_GCC,
     .profile = {

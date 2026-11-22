@@ -31,7 +31,6 @@ add_executable(core
   compiler/env.c
   compiler/exports/render.c
   compiler/exports/wasm.c
-  compiler/flags.c
   compiler/link.c
   compiler/rsp/gnu.c
   compiler/rsp/style.c

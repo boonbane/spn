@@ -90,6 +90,20 @@ static const compile_test_t tests [] = {
     },
   },
   {
+    .name = "gcc_release_defines_ndebug",
+    .driver = SPN_CC_DRIVER_GCC,
+    .profile = {
+      .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU },
+      .standard = SPN_C99,
+      .mode = SPN_MODE_RELEASE,
+      .opt = SPN_OPT_LEVEL_2,
+    },
+    .expect = {
+      .command = "cc",
+      .args = { "-std=c99", "-O2", "-DNDEBUG", "-c", "-Werror=return-type", "main.c", "-o", "main.o" },
+    },
+  },
+  {
     .name = "gcc_depfile",
     .driver = SPN_CC_DRIVER_GCC,
     .profile = {
@@ -388,6 +402,21 @@ static const compile_test_t tests [] = {
     },
   },
   {
+    .name = "msvc_release_defines_ndebug",
+    .driver = SPN_CC_DRIVER_MSVC,
+    .profile = {
+      .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC },
+      .linking.runtime = SPN_RUNTIME_STATIC,
+      .standard = SPN_C11,
+      .mode = SPN_MODE_RELEASE,
+      .opt = SPN_OPT_LEVEL_2,
+    },
+    .expect = {
+      .command = "cc",
+      .args = { "/nologo", "/utf-8", "/Brepro", "/std:c11", "/MT", "/O2", "/DNDEBUG", "/c", "/we4715", "/Fomain.o", "main.c" },
+    },
+  },
+  {
     .name = "msvc_cxx_defaults",
     .driver = SPN_CC_DRIVER_MSVC,
     .profile = {
@@ -576,6 +605,20 @@ static const compile_test_t tests [] = {
     .expect = {
       .command = "cc",
       .args = { "-std=c99", "-fsanitize=address", "-fno-sanitize-recover=all", "-fno-omit-frame-pointer", "-c", "-Werror=return-type", "main.c", "-o", "main.o" },
+    },
+  },
+  {
+    .name = "msvc_sanitizers_on_compile_line",
+    .driver = SPN_CC_DRIVER_MSVC,
+    .profile = {
+      .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC },
+      .linking.runtime = SPN_RUNTIME_STATIC,
+      .standard = SPN_C11,
+      .sanitizers = SPN_SANITIZER_ADDRESS,
+    },
+    .expect = {
+      .command = "cc",
+      .args = { "/nologo", "/utf-8", "/Brepro", "/std:c11", "/MT", "/fsanitize=address", "/c", "/we4715", "/Fomain.o", "main.c" },
     },
   },
   {
