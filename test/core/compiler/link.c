@@ -5,11 +5,13 @@ typedef struct {
   spn_cc_driver_t driver;
   const c8* link_args [2];
   test_profile_t profile;
+  spn_lang_t lang;
   spn_cc_output_kind_t kind;
   bool exceptions;
   bool import_undefined;
   const c8* exports;
   const c8* implib;
+  const c8* rsp;
   const c8* archive;
   const c8* shared;
   const c8* whole_archive;
@@ -622,6 +624,39 @@ static const test_t tests [] = {
     },
   },
   {
+    .name = "cxx_links_with_the_cxx_launcher",
+    .driver = SPN_CC_DRIVER_GCC,
+    .profile = { .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU } },
+    .lang = SPN_LANG_CXX,
+    .kind = SPN_CC_OUTPUT_EXE,
+    .expect = {
+      .command = "c++",
+      .args = { "main.o", "-Wl,-rpath,$ORIGIN", "-o", "main" },
+    },
+  },
+  {
+    .name = "objects_from_rsp",
+    .driver = SPN_CC_DRIVER_GCC,
+    .profile = { .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU } },
+    .kind = SPN_CC_OUTPUT_EXE,
+    .rsp = "A.rsp",
+    .expect = {
+      .command = "cc",
+      .args = { "@A.rsp", "-Wl,-rpath,$ORIGIN", "-o", "main" },
+    },
+  },
+  {
+    .name = "msvc_objects_from_rsp",
+    .driver = SPN_CC_DRIVER_MSVC,
+    .profile = { .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC } },
+    .kind = SPN_CC_OUTPUT_EXE,
+    .rsp = "A.rsp",
+    .expect = {
+      .command = "cc",
+      .args = { "/nologo", "@A.rsp", "/Femain", "/link", "/NOIMPLIB", "/NOEXP" },
+    },
+  },
+  {
     .name = "strip_none_renders_nothing",
     .driver = SPN_CC_DRIVER_GCC,
     .profile = { .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU }, .strip = SPN_STRIP_NONE },
@@ -701,7 +736,7 @@ sp_test_each(render_link, render, test_t, tests) {
   sp_try(test_profile(t, it->driver, it->profile, &profile));
 
   spn_cc_link_t link = {
-    .lang = SPN_LANG_C,
+    .lang = it->lang,
     .kind = it->kind,
     .exceptions = it->exceptions,
     .import_undefined = it->import_undefined,
@@ -717,8 +752,11 @@ sp_test_each(render_link, render, test_t, tests) {
     .exports = test_arg_path(it->exports),
     .implib = test_arg_path(it->implib),
     .libc = test_arg_path(it->libc),
+    .rsp = test_arg_path(it->rsp),
   };
-  test_push_path(mem, &files.objects, "main.o");
+  if (!it->rsp) {
+    test_push_path(mem, &files.objects, "main.o");
+  }
   test_push_path(mem, &files.scripts, it->script);
   test_push_path(mem, &files.archives, it->archive);
   test_push_path(mem, &files.shared, it->shared);

@@ -230,6 +230,18 @@ static const test_t tests [] = {
     },
   },
   {
+    .name = "msvc_depfile",
+    .driver = SPN_CC_DRIVER_MSVC,
+    .profile = {
+      .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC },
+    },
+    .depfile = "main.o.d",
+    .expect = {
+      .command = "cc",
+      .args = { "/nologo", "/utf-8", "/Brepro", "/MT", "/c", "/we4715", "/sourceDependencies", "main.o.d", "/Fomain.o", "main.c" },
+    },
+  },
+  {
     .name = "msvc_asm_uses_masm_beside_cl",
     .driver = SPN_CC_DRIVER_MSVC,
     .compiler = "vc/bin/cl.exe",
