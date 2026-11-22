@@ -13,7 +13,6 @@
 #include "triple/triple.h"
 
 #define FIXTURE_MAX_ARGS 2
-#define FIXTURE_MAX_HOSTS 6
 #define FIXTURE_MAX_TARGETS 16
 #define FIXTURE_MAX_SDKS 2
 
@@ -22,7 +21,6 @@
 #define SAN_GCC_MACOS   (SPN_SANITIZER_ADDRESS | SPN_SANITIZER_THREAD | SPN_SANITIZER_UNDEFINED)
 #define SAN_CLANG_MACOS (SPN_SANITIZER_ADDRESS | SPN_SANITIZER_THREAD | SPN_SANITIZER_UNDEFINED | SPN_SANITIZER_LEAK)
 #define SAN_ZIG_UT      (SPN_SANITIZER_UNDEFINED | SPN_SANITIZER_THREAD)
-#define SAN_ZIG_U       (SPN_SANITIZER_UNDEFINED)
 
 typedef struct {
   const c8* name;
@@ -33,25 +31,8 @@ typedef struct {
 
 typedef struct {
   spn_triple_t triple;
-  const c8* url;
-  const c8* sha256;
-  const c8* mirrors;
-  const c8* snapshot;
-} fixture_host_t;
-
-#define FIXTURE_MAX_FLAGS 3
-
-typedef struct {
-  const c8* flags [FIXTURE_MAX_FLAGS];
-  const c8* link_flags [FIXTURE_MAX_FLAGS];
-} fixture_exceptions_t;
-
-typedef struct {
-  spn_triple_t triple;
   test_arg_t sdk;
   spn_sanitizer_set_t sanitizers;
-  const c8* spelling;
-  fixture_exceptions_t exceptions;
 } fixture_target_t;
 
 typedef struct {
@@ -84,24 +65,6 @@ typedef struct {
   test_path_t macos;
   fixture_msvc_t msvc [FIXTURE_MAX_SDKS];
 } fixture_sdks_t;
-
-typedef struct {
-  const c8* name;
-  bool absent;
-  bool host;
-  const c8* version;
-  spn_cc_driver_t driver;
-  spn_toolchain_source_t source;
-  spn_toolchain_detect_t detect;
-  fixture_launcher_t compiler;
-  fixture_launcher_t cxx;
-  fixture_launcher_t archiver;
-  bool lld;
-  const c8* link_args [FIXTURE_MAX_ARGS];
-  fixture_host_t hosts [FIXTURE_MAX_HOSTS];
-  fixture_target_t targets [FIXTURE_MAX_TARGETS];
-  fixture_row_t rows [FIXTURE_MAX_TARGETS];
-} fixture_toolchain_t;
 
 static bool fixture_triple_empty(spn_triple_t triple) {
   return !triple.arch && !triple.os && !triple.abi;
@@ -207,66 +170,10 @@ static spn_toolchain_target_t fixture_target(fixture_target_t target) {
   return (spn_toolchain_target_t) { .triple = target.triple, .sdk = fixture_sdk_arg(target.sdk), .sanitizers = target.sanitizers };
 }
 
-static sp_err_t fixture_check_exceptions(sp_test_t* t, spn_toolchain_exceptions_t exceptions, fixture_exceptions_t expect) {
-  sp_expect_eq(t, expect.flags[0] || expect.link_flags[0], exceptions.declared);
-  sp_must_strs_eq(t, exceptions.flags, sp_da_size(exceptions.flags), expect.flags);
-  sp_must_strs_eq(t, exceptions.link_flags, sp_da_size(exceptions.link_flags), expect.link_flags);
-  return SP_OK;
-}
-
-static sp_err_t fixture_check_launcher(sp_test_t* t, spn_toolchain_launcher_t launcher, fixture_launcher_t expect) {
-  if (!expect.name && !expect.path) {
-    return SP_OK;
-  }
-  if (test_check_arg(t, launcher.program, (test_arg_t) { .name = expect.name, .path = expect.path, .root = expect.root })) {
-    return SP_ERR;
-  }
-  sp_must_strs_eq(t, launcher.args, sp_da_size(launcher.args), expect.args);
-  return SP_OK;
-}
-
-static sp_err_t fixture_check_host(sp_test_t* t, spn_toolchain_host_t host, fixture_host_t expect) {
-  sp_expect(t, spn_triple_equal(host.triple, expect.triple));
-
-  if (expect.url) {
-    sp_expect_str_eq_c(t, host.artifact.url, expect.url);
-  }
-  if (expect.sha256) {
-    sp_expect_str_eq_c(t, host.artifact.sha256, expect.sha256);
-  }
-  if (expect.mirrors) {
-    sp_expect_str_eq_c(t, host.artifact.mirror_list, expect.mirrors);
-  }
-  if (expect.snapshot) {
-    sp_expect_str_eq_c(t, host.artifact.mirror_snapshot, expect.snapshot);
-  }
-
-  return SP_OK;
-}
-
 static sp_err_t fixture_check_triples(sp_test_t* t, sp_da(spn_triple_t) triples, const spn_triple_t* expect, u32 count) {
   sp_must_eq(t, count, (u32)sp_da_size(triples));
   sp_for(it, count) {
     sp_expect(t, spn_triple_equal(expect[it], triples[it]));
-  }
-  return SP_OK;
-}
-
-static sp_err_t fixture_check_targets(sp_test_t* t, sp_da(spn_toolchain_target_t) targets, const fixture_target_t* expect, u32 count) {
-  sp_must_eq(t, count, (u32)sp_da_size(targets));
-  sp_for(it, count) {
-    sp_expect(t, spn_triple_equal(expect[it].triple, targets[it].triple));
-    sp_expect_eq(t, expect[it].sanitizers, targets[it].sanitizers);
-    sp_expect_str_eq_c(t, targets[it].spelling, expect[it].spelling);
-    if (fixture_check_exceptions(t, targets[it].exceptions, expect[it].exceptions)) {
-      return SP_ERR;
-    }
-    if (!expect[it].sdk.name && !expect[it].sdk.path) {
-      sp_expect(t, spn_arg_empty(targets[it].sdk));
-    }
-    if (test_check_arg(t, targets[it].sdk, expect[it].sdk)) {
-      return SP_ERR;
-    }
   }
   return SP_OK;
 }
@@ -288,96 +195,13 @@ static sp_err_t fixture_check_rows(sp_test_t* t, sp_da(spn_toolchain_row_t) rows
   return SP_OK;
 }
 
-static sp_err_t fixture_check_link_args(sp_test_t* t, sp_da(sp_str_t) link_args, const c8* const* expect) {
-  sp_must_strs_eq(t, link_args, sp_da_size(link_args), expect);
-  return SP_OK;
-}
-
-static sp_err_t fixture_check_launchers(sp_test_t* t, spn_toolchain_launcher_t compiler, spn_toolchain_launcher_t cxx, spn_toolchain_launcher_t archiver, fixture_toolchain_t expect) {
-  if (fixture_check_launcher(t, compiler, expect.compiler)) {
-    return SP_ERR;
-  }
-  if (fixture_check_launcher(t, cxx, expect.cxx)) {
-    return SP_ERR;
-  }
-  if (fixture_check_launcher(t, archiver, expect.archiver)) {
-    return SP_ERR;
-  }
-  return SP_OK;
-}
-
-static sp_err_t fixture_check_declared_targets(sp_test_t* t, sp_da(spn_toolchain_target_t) targets, fixture_toolchain_t expect) {
-  u32 count = 0;
-  sp_carr_detect_len(expect.targets, count, !fixture_target_empty(expect.targets[count]));
-  return fixture_check_targets(t, targets, expect.targets, count);
-}
-
-static sp_err_t fixture_check_decl(sp_test_t* t, const spn_toolchain_decl_t* decl, fixture_toolchain_t expect) {
-  if (expect.absent) {
-    sp_expect(t, !decl);
-    return SP_OK;
-  }
-  sp_must(t, decl);
-
-  if (expect.version) {
-    sp_expect_str_eq_c(t, decl->version, expect.version);
-  }
-  sp_expect_eq(t, (u32)expect.driver, (u32)decl->driver);
-  sp_must_eq(t, (u32)expect.source, (u32)decl->source);
-  sp_expect_eq(t, expect.lld, decl->lld);
-  sp_expect_eq(t, expect.host, decl->host_row);
-  if (fixture_check_launchers(t, decl->compiler, decl->cxx, decl->archiver, expect)) {
-    return SP_ERR;
-  }
-  if (fixture_check_link_args(t, decl->link_args, expect.link_args)) {
-    return SP_ERR;
-  }
-
-  switch (decl->source) {
-    case SPN_TOOLCHAIN_SOURCE_DETECTED: {
-      sp_expect_eq(t, (u32)expect.detect, (u32)decl->detect);
-      break;
-    }
-    case SPN_TOOLCHAIN_SOURCE_LOCAL:
-    case SPN_TOOLCHAIN_SOURCE_DISTRIBUTION: {
-      u32 hosts = 0;
-      sp_carr_detect_len(expect.hosts, hosts, !fixture_triple_empty(expect.hosts[hosts].triple));
-      sp_must_eq(t, hosts, (u32)sp_da_size(decl->hosts));
-      sp_for(it, hosts) {
-        if (fixture_check_host(t, decl->hosts[it], expect.hosts[it])) {
-          return SP_ERR;
-        }
-      }
-      break;
-    }
-  }
-
-  return fixture_check_declared_targets(t, decl->targets, expect);
-}
-
-static sp_err_t fixture_read_toml(sp_test_t* t, const c8* file, sp_str_t* toml) {
+static sp_err_t fixture_decls(sp_test_t* t, const c8* file, sp_da(spn_toolchain_decl_t)* decls, sp_da(spn_toml_issue_t)* issues) {
   sp_mem_t mem = sp_test_arena(t);
   sp_str_t path = sp_fs_join_path(mem, test_repo_path(mem, sp_str_lit(TOOLCHAINS_DIR)), sp_cstr_as_str(file));
-  sp_must_ok(t, sp_fs_read(mem, path, toml));
-  return SP_OK;
-}
-
-static sp_err_t fixture_decls(sp_test_t* t, const c8* file, sp_da(spn_toolchain_decl_t)* decls, sp_da(spn_toml_issue_t)* issues) {
   sp_str_t toml = sp_zero;
-  if (fixture_read_toml(t, file, &toml)) {
-    return SP_ERR;
-  }
+  sp_must_ok(t, sp_fs_read(mem, path, &toml));
   spn_test_lower_toolchains(t, toml, SPN_PATH_ROOT_NONE, decls, issues);
   return SP_OK;
-}
-
-static const spn_toolchain_decl_t* fixture_decl(sp_da(spn_toolchain_decl_t) decls, const c8* name) {
-  sp_da_for(decls, it) {
-    if (sp_str_equal_cstr(decls[it].name.str, name)) {
-      return &decls[it];
-    }
-  }
-  return SP_NULLPTR;
 }
 
 static sp_err_t fixture_catalog(sp_test_t* t, spn_toolchain_catalog_t* catalog, const c8* file, spn_triple_t host, spn_sdk_host_t sdks) {
