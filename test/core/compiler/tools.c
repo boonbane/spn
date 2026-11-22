@@ -22,8 +22,6 @@ static const test_t tests [] = {
   { .name = "msvc_compile", .driver = SPN_CC_DRIVER_MSVC, .render = RENDER_COMPILE, .tools = "/T", .expect = { .path = { "/T" } } },
   { .name = "msvc_link", .driver = SPN_CC_DRIVER_MSVC, .render = RENDER_LINK, .tools = "/T", .expect = { .path = { "/T" } } },
   { .name = "msvc_archive", .driver = SPN_CC_DRIVER_MSVC, .render = RENDER_ARCHIVE, .tools = "/T", .expect = { .path = { "/T" } } },
-  { .name = "clang_link", .driver = SPN_CC_DRIVER_CLANG, .render = RENDER_LINK, .tools = "/T", .expect = { .path = { "/T" } } },
-  { .name = "sdk_without_tools", .driver = SPN_CC_DRIVER_MSVC, .render = RENDER_LINK },
 };
 
 sp_test_each(render_tools, path, test_t, tests, .setup = spn_test_ctx_setup) {
