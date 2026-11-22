@@ -6,7 +6,6 @@
 #include "compiler/driver.h"
 #include "toolchain/toolchain.h"
 #include "compiler/exports.h"
-#include "compiler/rsp.h"
 #include "compiler/toc.h"
 #include "ctx/types.h"
 #include "paths/paths.h"
@@ -15,7 +14,6 @@
 
 #define render_args_max 20
 #define render_env_max 4
-#define rsp_args_max 8
 
 typedef struct {
   spn_err_t err;
@@ -24,12 +22,6 @@ typedef struct {
   const c8* args [render_args_max];
   const c8* env [render_env_max];
 } render_expect_t;
-
-typedef struct {
-  const c8* name;
-  const c8* args [rsp_args_max];
-  const c8* expect;
-} rsp_test_t;
 
 typedef struct {
   spn_triple_t target;
@@ -52,6 +44,5 @@ typedef struct {
 
 spn_path_t         test_arg_path(const c8* value);
 sp_err_t           expect_args(sp_test_t* t, spn_invocation_t* invocation, render_expect_t expect);
-sp_err_t           expect_rsp(sp_test_t* t, const rsp_test_t* it, spn_rsp_style_t style);
 spn_cc_t test_toolchain(spn_cc_driver_t driver);
 spn_profile_info_t test_profile(test_profile_t desc);

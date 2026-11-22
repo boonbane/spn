@@ -30,9 +30,8 @@ add_executable(core
   compiler/env.c
   compiler/exports/render.c
   compiler/link.c
-  compiler/rsp/gnu.c
-  compiler/rsp/windows.c
   compiler/path.c
+  compiler/rsp.c
   compiler/run.c
   compiler/toc.c
   compiler/tools.c

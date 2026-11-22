@@ -74,20 +74,3 @@ spn_cc_t test_toolchain(spn_cc_driver_t driver) {
     .archiver_driver = driver == SPN_CC_DRIVER_MSVC ? SPN_AR_DRIVER_MSVC : SPN_AR_DRIVER_GNU,
   };
 }
-
-sp_err_t expect_rsp(sp_test_t* t, const rsp_test_t* it, spn_rsp_style_t style) {
-  sp_mem_t mem = sp_test_arena(t);
-
-  sp_da(spn_arg_t) args = sp_da_new(mem, spn_arg_t);
-  u32 len = 0;
-  sp_carr_detect_len(it->args, len, it->args[len]);
-  sp_for(at, len) {
-    sp_da_push(args, spn_arg_lit(sp_cstr_as_str(it->args[at])));
-  }
-
-  sp_io_dyn_mem_writer_t buf;
-  sp_io_dyn_mem_writer_init(mem, &buf);
-  spn_rsp_render(&buf.base, &spn.roots, style, args);
-  sp_expect_str_eq_c(t, sp_io_dyn_mem_writer_as_str(&buf), it->expect);
-  return SP_OK;
-}
