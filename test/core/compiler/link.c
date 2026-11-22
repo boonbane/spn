@@ -4,6 +4,7 @@ typedef struct {
   const c8* name;
   spn_cc_driver_t driver;
   const c8* link_args [2];
+  const c8* cache;
   test_profile_t profile;
   spn_lang_t lang;
   spn_cc_output_kind_t kind;
@@ -625,6 +626,30 @@ static const test_t tests [] = {
     },
   },
   {
+    .name = "msvc_sdk_tools_join_path",
+    .driver = SPN_CC_DRIVER_MSVC,
+    .profile = { .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC }, .sdk = "/X", .msvc.tools = "/T" },
+    .kind = SPN_CC_OUTPUT_EXE,
+    .expect = {
+      .command = "cc",
+      .args = { "/nologo", "main.o", "/Femain", "/link", "/NOIMPLIB", "/NOEXP" },
+      .env = { "LIB=/X/crt/lib/x86_64;/X/sdk/lib/ucrt/x86_64;/X/sdk/lib/um/x86_64" },
+      .path = { "/T" },
+    },
+  },
+  {
+    .name = "zig_cache_env",
+    .driver = SPN_CC_DRIVER_ZIG,
+    .cache = "/C",
+    .profile = { .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU } },
+    .kind = SPN_CC_OUTPUT_EXE,
+    .expect = {
+      .command = "cc",
+      .args = { "--target=x86_64-linux-gnu", "main.o", "-Wl,-rpath,$ORIGIN", "-o", "main" },
+      .env = { "ZIG_GLOBAL_CACHE_DIR=/C", "ZIG_LOCAL_CACHE_DIR=/C" },
+    },
+  },
+  {
     .name = "cxx_links_with_the_cxx_launcher",
     .driver = SPN_CC_DRIVER_GCC,
     .profile = { .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU } },
@@ -733,6 +758,7 @@ sp_test_each(render_link, render, test_t, tests) {
   sp_mem_t mem = sp_test_arena(t);
   spn_cc_t toolchain = test_toolchain(it->driver);
   toolchain.link_args = test_strs(mem, it->link_args, sp_carr_len(it->link_args));
+  toolchain.cache = test_arg_path(it->cache);
   spn_profile_info_t profile = sp_zero;
   sp_try(test_profile(t, it->driver, it->profile, &profile));
 

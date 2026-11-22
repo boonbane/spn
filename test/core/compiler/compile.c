@@ -4,6 +4,7 @@ typedef struct {
   const c8* name;
   spn_cc_driver_t driver;
   const c8* compiler;
+  const c8* cache;
   test_profile_t profile;
   spn_lang_t lang;
   spn_cxx_options_t cxx;
@@ -297,6 +298,22 @@ static const test_t tests [] = {
     },
   },
   {
+    .name = "msvc_sdk_tools_join_path",
+    .driver = SPN_CC_DRIVER_MSVC,
+    .profile = {
+      .target = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC },
+      .sdk = "/X",
+      .msvc.tools = "/T",
+    },
+    .expect = {
+      .command = "cc",
+      .args = { "/nologo", "/utf-8", "/Brepro", "/MT", "/c", "/I/X/crt/include", "/I/X/sdk/include/ucrt", "/I/X/sdk/include/um", "/I/X/sdk/include/shared", "/I/X/sdk/include/winrt", "/I/X/sdk/include/cppwinrt", "/we4715", "/Fomain.o", "main.c" },
+      .env = { "INCLUDE=/X/crt/include;/X/sdk/include/ucrt;/X/sdk/include/um;/X/sdk/include/shared;/X/sdk/include/winrt;/X/sdk/include/cppwinrt" },
+      .path = { "/T" },
+      .echo = "",
+    },
+  },
+  {
     .name = "msvc_c99_has_no_switch",
     .driver = SPN_CC_DRIVER_MSVC,
     .profile = {
@@ -543,11 +560,25 @@ static const test_t tests [] = {
       .args = { "--target=x86_64-linux-musl", "-std=c99", "-c", "--sysroot=/S", "-Werror=return-type", "main.c", "-o", "main.o" },
     },
   },
+  {
+    .name = "zig_cache_env",
+    .driver = SPN_CC_DRIVER_ZIG,
+    .cache = "/C",
+    .profile = {
+      .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_MUSL },
+    },
+    .expect = {
+      .command = "cc",
+      .args = { "--target=x86_64-linux-musl", "-std=c99", "-c", "-Werror=return-type", "main.c", "-o", "main.o" },
+      .env = { "ZIG_GLOBAL_CACHE_DIR=/C", "ZIG_LOCAL_CACHE_DIR=/C" },
+    },
+  },
 };
 
 sp_test_each(render_compile, render, test_t, tests) {
   sp_mem_t mem = sp_test_arena(t);
   spn_cc_t toolchain = test_toolchain(it->driver);
+  toolchain.cache = test_arg_path(it->cache);
   if (it->compiler) {
     toolchain.compiler.program = spn_arg_path(test_arg_path(it->compiler));
   }

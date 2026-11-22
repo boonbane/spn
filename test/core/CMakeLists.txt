@@ -23,18 +23,17 @@ add_executable(core
   when.c
   closure.c
   compiler/harness.c
+  compiler/archive.c
   compiler/coff.c
   compiler/compile.c
   compiler/depfile.c
   compiler/echo.c
-  compiler/env.c
   compiler/exports/render.c
   compiler/link.c
   compiler/path.c
   compiler/rsp.c
   compiler/run.c
   compiler/toc.c
-  compiler/tools.c
   compiler/validate.c
   config/cache.c
   config/config.c
