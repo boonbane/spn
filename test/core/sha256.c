@@ -1,4 +1,4 @@
-#include "toolchain.h"
+#include "spn_test.h"
 
 #define SHA256_MAX_CASES 4
 
