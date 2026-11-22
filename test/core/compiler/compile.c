@@ -65,6 +65,20 @@ static const compile_test_t tests [] = {
     },
   },
   {
+    .name = "clang_debug_needs_no_prefix_map",
+    .driver = SPN_CC_DRIVER_CLANG,
+    .profile = {
+      .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU },
+      .standard = SPN_C99,
+      .mode = SPN_MODE_DEBUG,
+    },
+    .cwd = "/W",
+    .expect = {
+      .command = "cc",
+      .args = { "--target=x86_64-linux-gnu", "-std=c99", "-g", "-ffile-compilation-dir=.", "-c", "-Werror=return-type", "main.c", "-o", "main.o" },
+    },
+  },
+  {
     .name = "toolchain_link_args_never_compile",
     .driver = SPN_CC_DRIVER_GCC,
     .profile = {
@@ -778,32 +792,4 @@ sp_test(render_compile, base_shared_across_commands, .setup = spn_test_ctx_setup
     .args = { "--target=aarch64-macos", "-std=c99", "-c", "-Werror=return-type", "main.c", "-MD", "-MF", "b.o.d", "-o", "b.o" },
     .env = { "ZIG_GLOBAL_CACHE_DIR=/C", "ZIG_LOCAL_CACHE_DIR=/C", "ZIG_LIBC=/L" },
   });
-}
-
-typedef struct {
-  const c8* name;
-  spn_cc_driver_t driver;
-  spn_mode_t mode;
-  bool expect;
-} prefix_map_test_t;
-
-static const prefix_map_test_t prefix_map_tests [] = {
-  { .name = "gcc_debug", .driver = SPN_CC_DRIVER_GCC, .mode = SPN_MODE_DEBUG, .expect = true },
-  { .name = "gcc_release", .driver = SPN_CC_DRIVER_GCC, .mode = SPN_MODE_RELEASE },
-  { .name = "clang_debug", .driver = SPN_CC_DRIVER_CLANG, .mode = SPN_MODE_DEBUG },
-  { .name = "zig_debug", .driver = SPN_CC_DRIVER_ZIG, .mode = SPN_MODE_DEBUG },
-};
-
-sp_test_each(render_compile, prefix_map, prefix_map_test_t, prefix_map_tests, .setup = spn_test_ctx_setup) {
-  sp_mem_t mem = sp_test_arena(t);
-  spn_cc_t toolchain = test_toolchain(it->driver);
-  spn_profile_info_t profile = test_profile((test_profile_t) {
-    .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU },
-    .standard = SPN_C99,
-    .mode = it->mode,
-  });
-  spn_cc_compile_t compile = sp_zero;
-  spn_cc_compile_plan_t plan = si_cc_render_compile(mem, &toolchain, &profile, SPN_LANG_C, &compile);
-  sp_expect_eq(t, (u32)plan.prefix_map, (u32)it->expect);
-  return SP_OK;
 }
