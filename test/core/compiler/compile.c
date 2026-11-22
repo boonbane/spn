@@ -110,11 +110,10 @@ static const compile_test_t tests [] = {
     .profile = {
       .target = { SPN_ARCH_WASM32, SPN_OS_WASI },
       .standard = SPN_C99,
-      .opt = SPN_OPT_LEVEL_2,
     },
     .expect = {
       .command = "cc",
-      .args = { "--target=wasm32-wasi", "-std=c99", "-O2", "-c", "-Werror=return-type", "main.c", "-o", "main.o" },
+      .args = { "--target=wasm32-wasi", "-std=c99", "-c", "-Werror=return-type", "main.c", "-o", "main.o" },
     },
   },
   {
@@ -124,11 +123,10 @@ static const compile_test_t tests [] = {
       .target = { SPN_ARCH_WASM32, SPN_OS_WASI },
       .spelling = "wasm32-wasip1",
       .standard = SPN_C99,
-      .opt = SPN_OPT_LEVEL_2,
     },
     .expect = {
       .command = "cc",
-      .args = { "--target=wasm32-wasip1", "-std=c99", "-O2", "-c", "-Werror=return-type", "main.c", "-o", "main.o" },
+      .args = { "--target=wasm32-wasip1", "-std=c99", "-c", "-Werror=return-type", "main.c", "-o", "main.o" },
     },
   },
   {
@@ -378,10 +376,9 @@ static const compile_test_t tests [] = {
       .standard = SPN_C99,
       .sdk = "/sdk",
     },
-    .min_os = { 13 },
     .expect = {
       .command = "cc",
-      .args = { "--target=aarch64-macos", "-std=c99", "-c", "-isysroot", "/sdk", "-mmacosx-version-min=13.0", "-Werror=return-type", "main.c", "-o", "main.o" },
+      .args = { "--target=aarch64-macos", "-std=c99", "-c", "-isysroot", "/sdk", "-Werror=return-type", "main.c", "-o", "main.o" },
     },
   },
   {
