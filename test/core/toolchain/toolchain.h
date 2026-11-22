@@ -271,8 +271,12 @@ static sp_err_t fixture_check_targets(sp_test_t* t, sp_da(spn_toolchain_target_t
   return SP_OK;
 }
 
-static sp_err_t fixture_check_rows(sp_test_t* t, sp_da(spn_toolchain_row_t) rows, const fixture_row_t* expect, u32 count) {
+static sp_err_t fixture_check_rows(sp_test_t* t, sp_da(spn_toolchain_row_t) rows, const fixture_row_t* expect) {
   sp_mem_t mem = sp_test_arena(t);
+  u32 count = 0;
+  while (count < FIXTURE_MAX_TARGETS && !fixture_triple_empty(expect[count].triple)) {
+    count++;
+  }
   sp_must_eq(t, count, (u32)sp_da_size(rows));
   sp_for(it, count) {
     sp_expect_str_eq(t, spn_triple_to_str(mem, rows[it].triple), spn_triple_to_str(mem, expect[it].triple));
@@ -282,14 +286,6 @@ static sp_err_t fixture_check_rows(sp_test_t* t, sp_da(spn_toolchain_row_t) rows
     }
   }
   return SP_OK;
-}
-
-static sp_err_t fixture_check_expected_rows(sp_test_t* t, sp_da(spn_toolchain_row_t) rows, const fixture_row_t* expect) {
-  u32 count = 0;
-  while (count < FIXTURE_MAX_TARGETS && !fixture_triple_empty(expect[count].triple)) {
-    count++;
-  }
-  return fixture_check_rows(t, rows, expect, count);
 }
 
 static sp_err_t fixture_check_link_args(sp_test_t* t, sp_da(sp_str_t) link_args, const c8* const* expect) {
@@ -359,28 +355,6 @@ static sp_err_t fixture_check_decl(sp_test_t* t, const spn_toolchain_decl_t* dec
   return fixture_check_declared_targets(t, decl->targets, expect);
 }
 
-static sp_err_t fixture_check_entry(sp_test_t* t, spn_toolchain_info_t* info, fixture_toolchain_t expect) {
-  if (expect.absent) {
-    sp_expect(t, !info);
-    return SP_OK;
-  }
-  sp_must(t, info);
-
-  if (expect.version) {
-    sp_expect_str_eq_c(t, info->version, expect.version);
-  }
-  sp_expect_eq(t, (u32)expect.driver, (u32)info->driver);
-  sp_expect_eq(t, expect.lld, info->lld);
-  if (fixture_check_launchers(t, info->compiler, info->cxx, info->archiver, expect)) {
-    return SP_ERR;
-  }
-  if (fixture_check_link_args(t, info->link_args, expect.link_args)) {
-    return SP_ERR;
-  }
-
-  return fixture_check_expected_rows(t, info->rows, expect.rows);
-}
-
 static sp_err_t fixture_read_toml(sp_test_t* t, const c8* file, sp_str_t* toml) {
   sp_mem_t mem = sp_test_arena(t);
   sp_str_t path = sp_fs_join_path(mem, test_repo_path(mem, sp_str_lit(TOOLCHAINS_DIR)), sp_cstr_as_str(file));
@@ -418,14 +392,6 @@ static sp_err_t fixture_catalog(sp_test_t* t, spn_toolchain_catalog_t* catalog, 
     spn_toolchain_catalog_add(catalog, decls[it]);
   }
   return SP_OK;
-}
-
-static u32 fixture_catalog_size(spn_toolchain_catalog_t* catalog) {
-  return (u32)si_om_size(catalog->entries);
-}
-
-static spn_toolchain_info_t* fixture_catalog_at(spn_toolchain_catalog_t* catalog, u32 index) {
-  return si_om_at(catalog->entries, index);
 }
 
 static spn_toolchain_decl_t fixture_local_toolchain(const c8* name, fixture_launcher_t compiler) {
