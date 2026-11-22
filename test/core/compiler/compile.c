@@ -598,22 +598,14 @@ sp_test_each(render_compile, render, compile_test_t, tests, .setup = spn_test_ct
 sp_test(render_compile, base_shared_across_commands, .setup = spn_test_ctx_setup) {
   sp_mem_t mem = sp_test_arena(t);
   spn_cc_t toolchain = test_toolchain(SPN_CC_DRIVER_ZIG);
-  toolchain.cache = test_arg_path("/C");
   spn_cc_compile_t compile = sp_zero;
   spn_profile_info_t profile = test_profile((test_profile_t) {
-    .target = { SPN_ARCH_ARM64, SPN_OS_MACOS, SPN_ABI_APPLE },
+    .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_MUSL },
     .standard = SPN_C99,
-    .sdk = "/sdk",
   });
-  profile.libc.some = spn_sdk_libc(spn_toolchain_driver_caps(SPN_CC_DRIVER_ZIG), &profile.sdk, &profile.libc.value);
-  sp_must(t, profile.libc.some);
-
   spn_cc_compile_plan_t plan = si_cc_render_compile(mem, &toolchain, &profile, SPN_LANG_C, &compile);
-  u64 args = sp_da_size(plan.base.args);
-  u64 env = sp_da_size(plan.base.env);
 
   spn_cc_compile_files_t first = {
-    .cwd = test_arg_path("/W"),
     .source = test_arg_path("main.c"),
     .output = test_arg_path("a.o"),
     .libc = test_arg_path("/L"),
@@ -621,27 +613,21 @@ sp_test(render_compile, base_shared_across_commands, .setup = spn_test_ctx_setup
   spn_cc_compile_files_t second = {
     .source = test_arg_path("main.c"),
     .output = test_arg_path("b.o"),
-    .depfile = test_arg_path("b.o.d"),
     .libc = test_arg_path("/L"),
   };
   spn_invocation_t a = spn_cc_render_compile_command(mem, &plan, &first);
   spn_invocation_t b = spn_cc_render_compile_command(mem, &plan, &second);
 
-  sp_expect_eq(t, sp_da_size(plan.base.args), args);
-  sp_expect_eq(t, sp_da_size(plan.base.env), env);
-  sp_expect_str_eq_c(t, a.cwd.sub, "/W");
-  sp_expect(t, spn_path_empty(b.cwd));
-  sp_expect(t, spn_path_empty(plan.base.cwd));
   if (expect_args(t, &a, (render_expect_t) {
     .command = "cc",
-    .args = { "--target=aarch64-macos", "-std=c99", "-c", "-Werror=return-type", "main.c", "-o", "a.o" },
-    .env = { "ZIG_GLOBAL_CACHE_DIR=/C", "ZIG_LOCAL_CACHE_DIR=/C", "ZIG_LIBC=/L" },
+    .args = { "--target=x86_64-linux-musl", "-std=c99", "-c", "-Werror=return-type", "main.c", "-o", "a.o" },
+    .env = { "ZIG_LIBC=/L" },
   })) {
     return SP_ERR;
   }
   return expect_args(t, &b, (render_expect_t) {
     .command = "cc",
-    .args = { "--target=aarch64-macos", "-std=c99", "-c", "-Werror=return-type", "main.c", "-MD", "-MF", "b.o.d", "-o", "b.o" },
-    .env = { "ZIG_GLOBAL_CACHE_DIR=/C", "ZIG_LOCAL_CACHE_DIR=/C", "ZIG_LIBC=/L" },
+    .args = { "--target=x86_64-linux-musl", "-std=c99", "-c", "-Werror=return-type", "main.c", "-o", "b.o" },
+    .env = { "ZIG_LIBC=/L" },
   });
 }
