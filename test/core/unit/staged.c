@@ -2,17 +2,7 @@
 
 #define STAGED_TEST_MAX_LIBS 4
 
-#define every_purpose { \
-  .c = { "T/C" }, \
-  .cxx = { "T/X" }, \
-  .sanitizers = { \
-    { SPN_SANITIZER_ADDRESS, { "T/D" } }, \
-    { SPN_SANITIZER_THREAD, { "T/H" } }, \
-    { SPN_SANITIZER_UNDEFINED, { "T/U" } }, \
-    { SPN_SANITIZER_MEMORY, { "T/M" } }, \
-    { SPN_SANITIZER_LEAK, { "T/K" } }, \
-  }, \
-}
+#define c_and_cxx { .c = { "T/C" }, .cxx = { "T/C", "T/X" } }
 
 typedef struct {
   const c8* exe;
@@ -147,30 +137,9 @@ static const test_t tests [] = {
     },
   },
   {
-    .name = "no_listed_files_stage_nothing",
+    .name = "c_exe_stages_the_c_files",
     .graph = {
-      .runtime = SPN_RUNTIME_SHARED,
-      .sanitize = SPN_SANITIZER_ADDRESS,
-      .pkgs = { { .name = "P", .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "a.cpp" } } } } },
-    },
-    .roots = { { "A", SPN_TARGET_KIND_EXE } },
-    .expect = { { "build/debug/A" } },
-  },
-  {
-    .name = "static_runtime_stages_no_runtime",
-    .graph = {
-      .runtime = SPN_RUNTIME_STATIC,
-      .files = every_purpose,
-      .pkgs = { { .name = "P", .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "a.cpp" } } } } },
-    },
-    .roots = { { "A", SPN_TARGET_KIND_EXE } },
-    .expect = { { "build/debug/A" } },
-  },
-  {
-    .name = "shared_runtime_stages_the_c_runtime",
-    .graph = {
-      .runtime = SPN_RUNTIME_SHARED,
-      .files = every_purpose,
+      .staged = c_and_cxx,
       .pkgs = { { .name = "P", .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "a.c" } } } } },
     },
     .roots = { { "A", SPN_TARGET_KIND_EXE } },
@@ -178,10 +147,9 @@ static const test_t tests [] = {
     .expect = { { "build/debug/A", .files = { "build/debug/C" } } },
   },
   {
-    .name = "cxx_exe_stages_the_cxx_runtime_too",
+    .name = "cxx_exe_stages_the_cxx_files",
     .graph = {
-      .runtime = SPN_RUNTIME_SHARED,
-      .files = every_purpose,
+      .staged = c_and_cxx,
       .pkgs = { { .name = "P", .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "a.cpp" } } } } },
     },
     .roots = { { "A", SPN_TARGET_KIND_EXE } },
@@ -191,10 +159,9 @@ static const test_t tests [] = {
   // C++ reached only through a shared lib the exe loads still needs the C++
   // runtime beside the exe
   {
-    .name = "cxx_behind_a_shared_lib_stages_the_cxx_runtime",
+    .name = "cxx_behind_a_shared_lib_stages_the_cxx_files",
     .graph = {
-      .runtime = SPN_RUNTIME_SHARED,
-      .files = every_purpose,
+      .staged = c_and_cxx,
       .pkgs = {
         { .name = "P", .deps = { { "B" } }, .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "a.c" } } } },
         { .name = "B", .deps = { { "E" } }, .targets = { { "B", shared_only, .source = { "b.c" } } } },
@@ -206,44 +173,9 @@ static const test_t tests [] = {
     .expect = { { "build/debug/A", { "build/debug/libB.so" }, { "build/debug/C", "build/debug/X" } } },
   },
   {
-    .name = "sanitizer_stages_its_runtime",
-    .graph = {
-      .sanitize = SPN_SANITIZER_THREAD,
-      .files = every_purpose,
-      .pkgs = { { .name = "P", .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "a.c" } } } } },
-    },
-    .roots = { { "A", SPN_TARGET_KIND_EXE } },
-    .present = { "T/H" },
-    .expect = { { "build/debug/A", .files = { "build/debug/H" } } },
-  },
-  {
-    .name = "two_sanitizers_stage_both_runtimes",
-    .graph = {
-      .sanitize = SPN_SANITIZER_ADDRESS | SPN_SANITIZER_UNDEFINED,
-      .files = every_purpose,
-      .pkgs = { { .name = "P", .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "a.c" } } } } },
-    },
-    .roots = { { "A", SPN_TARGET_KIND_EXE } },
-    .present = { "T/D", "T/U" },
-    .expect = { { "build/debug/A", .files = { "build/debug/D", "build/debug/U" } } },
-  },
-  {
-    .name = "file_listed_for_two_purposes_is_staged_once",
-    .graph = {
-      .runtime = SPN_RUNTIME_SHARED,
-      .sanitize = SPN_SANITIZER_ADDRESS,
-      .files = { .c = { "T/C" }, .sanitizers = { { SPN_SANITIZER_ADDRESS, { "T/D", "T/C" } } } },
-      .pkgs = { { .name = "P", .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "a.c" } } } } },
-    },
-    .roots = { { "A", SPN_TARGET_KIND_EXE } },
-    .present = { "T/C", "T/D" },
-    .expect = { { "build/debug/A", .files = { "build/debug/C", "build/debug/D" } } },
-  },
-  {
     .name = "test_stages_toolchain_files_under_test_dir",
     .graph = {
-      .sanitize = SPN_SANITIZER_ADDRESS,
-      .files.sanitizers = { { SPN_SANITIZER_ADDRESS, { "T/D" } } },
+      .staged.c = { "T/D" },
       .pkgs = { { .name = "P", .targets = { { "T", .kind = SPN_TARGET_KIND_TEST, .source = { "t.c" } } } } },
     },
     .roots = { { "T", SPN_TARGET_KIND_TEST } },
@@ -253,8 +185,7 @@ static const test_t tests [] = {
   {
     .name = "two_bins_each_list_a_toolchain_file",
     .graph = {
-      .sanitize = SPN_SANITIZER_ADDRESS,
-      .files.sanitizers = { { SPN_SANITIZER_ADDRESS, { "T/D" } } },
+      .staged.c = { "T/D" },
       .pkgs = {
         { .name = "P", .targets = {
           { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "a.c" } },
@@ -272,8 +203,7 @@ static const test_t tests [] = {
   {
     .name = "shared_lib_root_stages_no_toolchain_file",
     .graph = {
-      .sanitize = SPN_SANITIZER_ADDRESS,
-      .files.sanitizers = { { SPN_SANITIZER_ADDRESS, { "T/D" } } },
+      .staged.c = { "T/D" },
       .pkgs = { { .name = "P", .targets = { { "L", shared_only, .source = { "l.c" } } } } },
     },
     .roots = { { "L", SPN_TARGET_KIND_LIB } },

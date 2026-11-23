@@ -221,7 +221,7 @@ void si_profile_finalize(spn_profile_info_t* profile, const spn_toolchain_select
   profile->sdk = selection->row.sdk;
   profile->spelling = selection->row.spelling;
   profile->exceptions = selection->row.exceptions;
-  profile->files = selection->row.files;
+  profile->staged = selection->staged;
   profile->libc.some = spn_sdk_libc(si_toolchain_driver_caps(profile->driver), &profile->sdk, &profile->libc.value);
   profile->linking = selection->linking;
 }

@@ -206,6 +206,18 @@ static spn_err_t emit_reach(spn_toolchain_catalog_t* catalog, spn_toolchain_quer
   sp_unreachable_return(SPN_ERROR);
 }
 
+static void stage(sp_mem_t mem, si_da(spn_path_t)* staged, const spn_path_t* files, u64 count) {
+  sp_for(it, count) {
+    bool listed = false;
+    si_da_for_value(*staged, file) {
+      listed = listed || spn_path_equal(file, files[it]);
+    }
+    if (!listed) {
+      si_da_push(mem, *staged, files[it]);
+    }
+  }
+}
+
 static spn_err_t select_auto(spn_toolchain_catalog_t* catalog, spn_toolchain_query_t query, spn_toolchain_selection_t* selection) {
   reach_t closest = sp_zero;
   si_om_for(catalog->entries, it) {
@@ -258,70 +270,81 @@ spn_err_t si_toolchain_select(spn_toolchain_catalog_t* catalog, spn_toolchain_qu
     }
   }
 
+  si_da(spn_path_t) redist = sp_zero;
+  spn_path_t asan = sp_zero;
   spn_sdk_t* sdk = &selection->row.sdk;
-  if (sdk->kind != SPN_SDK_MSVC || spn_path_empty(sdk->msvc.install.vs)) {
-    return SPN_OK;
+  if (sdk->kind == SPN_SDK_MSVC && !spn_path_empty(sdk->msvc.install.vs)) {
+    sp_mem_t mem = spn.events->mem;
+    const spn_msvc_installs_t* installs = &catalog->sdks.msvc;
+    spn_triple_t target = selection->row.triple;
+    bool compiler = selection->toolchain->driver == SPN_CC_DRIVER_MSVC;
+    spn_msvc_pick_t pick = sp_zero;
+    switch (si_msvc_match(installs, target.arch, query.msvc, compiler, &pick)) {
+      case SPN_MSVC_MATCH_OK: {
+        sdk->msvc = si_sdk_from_msvc(catalog->mem, pick.kit, pick.toolset, target.arch);
+        redist = installs->redist[pick.toolset - installs->toolsets];
+        if (compiler) {
+          asan = sdk->msvc.runtime.asan;
+        }
+        break;
+      }
+      case SPN_MSVC_MATCH_ABSENT: {
+        return spn_err_emit(&spn, (spn_err_union_t) {
+          .kind = SPN_ERR_TOOLCHAIN_SDK_MSVC,
+          .toolchain = {
+            .name = selection->toolchain->name.str,
+            .target = target,
+            .query = query.target,
+            .host = catalog->host,
+          },
+        });
+      }
+      case SPN_MSVC_MATCH_TOOLSET: {
+        return spn_err_emit(&spn, (spn_err_union_t) {
+          .kind = SPN_ERR_MSVC_TOOLSET,
+          .msvc = {
+            .target = target,
+            .request = sp_str_copy(mem, query.msvc.toolset),
+            .installed = si_msvc_installed_toolsets(mem, installs, target.arch, compiler),
+          },
+        });
+      }
+      case SPN_MSVC_MATCH_SDK: {
+        return spn_err_emit(&spn, (spn_err_union_t) {
+          .kind = SPN_ERR_MSVC_SDK,
+          .msvc = {
+            .target = target,
+            .request = sp_str_copy(mem, query.msvc.sdk),
+            .installed = si_msvc_installed_sdks(mem, installs, target.arch),
+          },
+        });
+      }
+    }
   }
 
-  sp_mem_t mem = spn.events->mem;
-  const spn_msvc_installs_t* installs = &catalog->sdks.msvc;
-  spn_triple_t target = selection->row.triple;
-  bool compiler = selection->toolchain->driver == SPN_CC_DRIVER_MSVC;
-  spn_msvc_pick_t pick = sp_zero;
-  switch (si_msvc_match(installs, target.arch, query.msvc, compiler, &pick)) {
-    case SPN_MSVC_MATCH_OK: {
-      sdk->msvc = si_sdk_from_msvc(catalog->mem, pick.kit, pick.toolset, target.arch);
-      si_da(spn_path_t) redist = installs->redist[pick.toolset - installs->toolsets];
-      spn_toolchain_files_t* files = &selection->row.files;
-      si_da_copy(catalog->mem, files->c, files->c);
-      si_da_for_value(redist, file) {
-        si_da_push(catalog->mem, files->c, file);
-      }
-      sp_for(st, si_sanitizer_count) {
-        si_da_copy(catalog->mem, files->sanitizers[st], files->sanitizers[st]);
-        if (compiler && SPN_SANITIZER_ADDRESS == 1u << st && !spn_path_empty(sdk->msvc.runtime.asan)) {
-          si_da_push(catalog->mem, files->sanitizers[st], sdk->msvc.runtime.asan);
-        }
-        if (si_da_empty(files->sanitizers[st])) {
-          continue;
-        }
-        si_da_for_value(redist, file) {
-          si_da_push(catalog->mem, files->sanitizers[st], file);
-        }
-      }
-      return SPN_OK;
-    }
-    case SPN_MSVC_MATCH_ABSENT: {
-      return spn_err_emit(&spn, (spn_err_union_t) {
-        .kind = SPN_ERR_TOOLCHAIN_SDK_MSVC,
-        .toolchain = {
-          .name = selection->toolchain->name.str,
-          .target = target,
-          .query = query.target,
-          .host = catalog->host,
-        },
-      });
-    }
-    case SPN_MSVC_MATCH_TOOLSET: {
-      return spn_err_emit(&spn, (spn_err_union_t) {
-        .kind = SPN_ERR_MSVC_TOOLSET,
-        .msvc = {
-          .target = target,
-          .request = sp_str_copy(mem, query.msvc.toolset),
-          .installed = si_msvc_installed_toolsets(mem, installs, target.arch, compiler),
-        },
-      });
-    }
-    case SPN_MSVC_MATCH_SDK: {
-      return spn_err_emit(&spn, (spn_err_union_t) {
-        .kind = SPN_ERR_MSVC_SDK,
-        .msvc = {
-          .target = target,
-          .request = sp_str_copy(mem, query.msvc.sdk),
-          .installed = si_msvc_installed_sdks(mem, installs, target.arch),
-        },
-      });
+  const spn_toolchain_files_t* files = &selection->row.files;
+  spn_toolchain_staged_t* staged = &selection->staged;
+  bool shared = selection->linking.runtime == SPN_RUNTIME_SHARED;
+  bool sanitized = false;
+  if (shared) {
+    stage(catalog->mem, &staged->c, files->c, si_da_size(files->c));
+  }
+  sp_for(st, si_sanitizer_count) {
+    if ((query.sanitizers & (1u << st)) && !si_da_empty(files->sanitizers[st])) {
+      stage(catalog->mem, &staged->c, files->sanitizers[st], si_da_size(files->sanitizers[st]));
+      sanitized = true;
     }
   }
-  sp_unreachable_return(SPN_ERROR);
+  if ((query.sanitizers & SPN_SANITIZER_ADDRESS) && !spn_path_empty(asan)) {
+    stage(catalog->mem, &staged->c, &asan, 1);
+    sanitized = true;
+  }
+  if (shared || sanitized) {
+    stage(catalog->mem, &staged->c, redist, si_da_size(redist));
+  }
+  stage(catalog->mem, &staged->cxx, staged->c, si_da_size(staged->c));
+  if (shared) {
+    stage(catalog->mem, &staged->cxx, files->cxx, si_da_size(files->cxx));
+  }
+  return SPN_OK;
 }

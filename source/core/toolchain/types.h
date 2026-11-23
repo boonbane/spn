@@ -193,6 +193,11 @@ typedef struct {
 } spn_toolchain_files_t;
 
 typedef struct {
+  si_da(spn_path_t) c;
+  si_da(spn_path_t) cxx;
+} spn_toolchain_staged_t;
+
+typedef struct {
   spn_triple_t triple;
   spn_sdk_t sdk;
   sp_str_t spelling;
@@ -315,6 +320,7 @@ typedef struct {
   spn_toolchain_info_t* toolchain;
   spn_toolchain_row_t row;
   spn_linking_t linking;
+  spn_toolchain_staged_t staged;
 } spn_toolchain_selection_t;
 
 typedef struct spn_toolchain_store spn_toolchain_store_t;

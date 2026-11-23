@@ -247,8 +247,7 @@ static const test_t tests [] = {
   {
     .name = "toolchain_file_missing",
     .graph = {
-      .sanitize = SPN_SANITIZER_ADDRESS,
-      .files.sanitizers = { { SPN_SANITIZER_ADDRESS, { "T/D" } } },
+      .staged.c = { "T/D" },
       .pkgs = { { .name = "P", .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "a.c" } } } } },
     },
     .root = { "A", SPN_TARGET_KIND_EXE },
@@ -257,8 +256,7 @@ static const test_t tests [] = {
   {
     .name = "toolchain_file_collides_with_a_staged_lib",
     .graph = {
-      .sanitize = SPN_SANITIZER_ADDRESS,
-      .files.sanitizers = { { SPN_SANITIZER_ADDRESS, { "T/libB.so" } } },
+      .staged.c = { "T/libB.so" },
       .pkgs = {
         { .name = "P", .deps = { { "B" } }, .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "a.c" } } } },
         { .name = "B", .targets = { { "B", shared_only, .source = { "b.c" } } } },
@@ -270,8 +268,7 @@ static const test_t tests [] = {
   {
     .name = "two_toolchain_files_share_a_name",
     .graph = {
-      .sanitize = SPN_SANITIZER_ADDRESS,
-      .files.sanitizers = { { SPN_SANITIZER_ADDRESS, { "T/D", "U/D" } } },
+      .staged.c = { "T/D", "U/D" },
       .pkgs = { { .name = "P", .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "a.c" } } } } },
     },
     .root = { "A", SPN_TARGET_KIND_EXE },

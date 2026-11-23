@@ -103,11 +103,7 @@ typedef struct {
 typedef struct {
   const c8* c [UNIT_TEST_MAX_FILES];
   const c8* cxx [UNIT_TEST_MAX_FILES];
-  struct {
-    spn_sanitizer_t sanitizer;
-    const c8* files [UNIT_TEST_MAX_FILES];
-  } sanitizers [si_sanitizer_count];
-} graph_files_t;
+} graph_staged_t;
 
 typedef struct {
   spn_arch_t arch;
@@ -120,7 +116,7 @@ typedef struct {
   spn_strip_t strip;
   spn_c_standard_t standard;
   spn_sanitizer_set_t sanitize;
-  graph_files_t files;
+  graph_staged_t staged;
   const c8* cc;
   const c8* link_args [UNIT_TEST_MAX_STRS];
   const c8* sdk;

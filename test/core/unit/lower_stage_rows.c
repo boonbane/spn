@@ -26,8 +26,7 @@ static const test_t tests [] = {
   {
     .name = "toolchain_file_is_a_source_staged_under_the_exe_key",
     .graph = {
-      .sanitize = SPN_SANITIZER_ADDRESS,
-      .files.sanitizers = { { SPN_SANITIZER_ADDRESS, { "T/D" } } },
+      .staged.c = { "T/D" },
       .pkgs = { { .name = "P", .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "a.c" } } } } },
     },
     .roots = { { "A", SPN_TARGET_KIND_EXE } },

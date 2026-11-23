@@ -223,18 +223,11 @@ static spn_profile_info_t program_profile(units_t* u, const graph_t* g, const sp
       .declared = g->exceptions[0],
       .flags = strs(u->mem, g->exceptions, UNIT_TEST_MAX_STRS),
     },
-    .files = {
-      .c = toolchain_files(u, g->files.c, UNIT_TEST_MAX_FILES),
-      .cxx = toolchain_files(u, g->files.cxx, UNIT_TEST_MAX_FILES),
+    .staged = {
+      .c = toolchain_files(u, g->staged.c, UNIT_TEST_MAX_FILES),
+      .cxx = toolchain_files(u, g->staged.cxx, UNIT_TEST_MAX_FILES),
     },
   };
-  sp_for(slot, si_sanitizer_count) {
-    sp_carr_for(g->files.sanitizers, at) {
-      if ((u32)g->files.sanitizers[at].sanitizer == 1u << slot) {
-        profile.files.sanitizers[slot] = toolchain_files(u, g->files.sanitizers[at].files, UNIT_TEST_MAX_FILES);
-      }
-    }
-  }
   spn_triple_t triple = profile.target;
   profile.linker = spn_ld_native(profile.driver, triple);
   if (g->sdk) {

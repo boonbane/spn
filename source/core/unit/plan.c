@@ -688,76 +688,55 @@ static spn_err_t plan_new(spn_units_t* u, sp_mem_t scratch, spn_pkg_unit_t* root
     spn_target_unit_t* exe = closure->exe.target;
     spn_build_unit_t* build = exe->pkg->build;
     const spn_profile_info_t* profile = &build->profile;
-    bool shared = profile->linking.runtime == SPN_RUNTIME_SHARED;
     bool cxx = exe->link.cc.lang == SPN_LANG_CXX;
     si_da_for_value(closure->libs, lib) {
       cxx = cxx || lib.target->link.cc.lang == SPN_LANG_CXX;
     }
-    si_da(spn_path_t) purposes [2 + si_sanitizer_count] = sp_zero;
-    u32 num_purposes = 0;
-    if (shared) {
-      purposes[num_purposes++] = profile->files.c;
-    }
-    if (shared && cxx) {
-      purposes[num_purposes++] = profile->files.cxx;
-    }
-    sp_for(it, si_sanitizer_count) {
-      if (profile->sanitizers & (1u << it)) {
-        purposes[num_purposes++] = profile->files.sanitizers[it];
-      }
-    }
+    si_da(spn_path_t) files = cxx ? profile->staged.cxx : profile->staged.c;
     spn_path_t dir = spn_path_parent(closure->exe.path);
-    sp_for(pt, num_purposes) {
-      si_da_for_value(purposes[pt], file) {
-        spn_path_t path = spn_path_join(u->mem, dir, sp_fs_get_name(file.sub));
-        spn_target_unit_t** owner = si_ht_getp(claimed.libs, path);
-        if (owner) {
-          return spn_err_emit(u->ctx, (spn_err_union_t) {
-            .kind = SPN_ERR_TOOLCHAIN_FILE_COLLISION,
-            .toolchain_file_collision = {
-              .toolchain = build->toolchain->info->name.str,
-              .exe = exe->target->info->name.str,
-              .pkg = (*owner)->pkg->pkg.manifest->name.str,
-              .path = file,
-            },
-          });
-        }
-        spn_path_t* other = si_ht_getp(claimed.files, path);
-        if (other && !spn_path_equal(*other, file)) {
-          return spn_err_emit(u->ctx, (spn_err_union_t) {
-            .kind = SPN_ERR_TOOLCHAIN_FILE_DUPLICATE,
-            .toolchain_file_dup = {
-              .toolchain = build->toolchain->info->name.str,
-              .exe = exe->target->info->name.str,
-              .path = file,
-              .other = *other,
-            },
-          });
-        }
-        if (!other) {
-          sp_path_t at = spn_path_at(&u->ctx->roots, file);
-          sp_sys_file_meta_t meta = sp_zero;
-          if (sp_sys_get_path_metadata_s(at.dir, at.sub, &meta) || meta.kind != SP_FS_KIND_FILE) {
-            return spn_err_emit(u->ctx, (spn_err_union_t) {
-              .kind = SPN_ERR_TOOLCHAIN_FILE_MISSING,
-              .toolchain_file = {
-                .toolchain = build->toolchain->info->name.str,
-                .target = profile->target,
-                .path = file,
-              },
-            });
-          }
-          si_ht_insert(scratch, claimed.files, path, file);
-          si_da_push(u->mem, plan->claims, ((spn_dag_claim_t) { .path = path, .kind = SPN_DAG_ARTIFACT_KIND_FILE }));
-        }
-        bool listed = false;
-        si_da_for_value(closure->files, staged) {
-          listed = listed || spn_path_equal(staged.path, path);
-        }
-        if (!listed) {
-          si_da_push(u->mem, closure->files, ((spn_stage_file_t) { .source = file, .path = path }));
-        }
+    si_da_for_value(files, file) {
+      spn_path_t path = spn_path_join(u->mem, dir, sp_fs_get_name(file.sub));
+      spn_target_unit_t** owner = si_ht_getp(claimed.libs, path);
+      if (owner) {
+        return spn_err_emit(u->ctx, (spn_err_union_t) {
+          .kind = SPN_ERR_TOOLCHAIN_FILE_COLLISION,
+          .toolchain_file_collision = {
+            .toolchain = build->toolchain->info->name.str,
+            .exe = exe->target->info->name.str,
+            .pkg = (*owner)->pkg->pkg.manifest->name.str,
+            .path = file,
+          },
+        });
       }
+      spn_path_t* other = si_ht_getp(claimed.files, path);
+      if (other && !spn_path_equal(*other, file)) {
+        return spn_err_emit(u->ctx, (spn_err_union_t) {
+          .kind = SPN_ERR_TOOLCHAIN_FILE_DUPLICATE,
+          .toolchain_file_dup = {
+            .toolchain = build->toolchain->info->name.str,
+            .exe = exe->target->info->name.str,
+            .path = file,
+            .other = *other,
+          },
+        });
+      }
+      if (!other) {
+        sp_path_t at = spn_path_at(&u->ctx->roots, file);
+        sp_sys_file_meta_t meta = sp_zero;
+        if (sp_sys_get_path_metadata_s(at.dir, at.sub, &meta) || meta.kind != SP_FS_KIND_FILE) {
+          return spn_err_emit(u->ctx, (spn_err_union_t) {
+            .kind = SPN_ERR_TOOLCHAIN_FILE_MISSING,
+            .toolchain_file = {
+              .toolchain = build->toolchain->info->name.str,
+              .target = profile->target,
+              .path = file,
+            },
+          });
+        }
+        si_ht_insert(scratch, claimed.files, path, file);
+        si_da_push(u->mem, plan->claims, ((spn_dag_claim_t) { .path = path, .kind = SPN_DAG_ARTIFACT_KIND_FILE }));
+      }
+      si_da_push(u->mem, closure->files, ((spn_stage_file_t) { .source = file, .path = path }));
     }
   }
 
