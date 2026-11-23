@@ -125,157 +125,6 @@ static bool targeted(sp_da(spn_toolchain_target_t) targets, spn_triple_t triple)
   return false;
 }
 
-static void lower_toolchain_targets(spn_toml_loader_t* ctx, spn_path_root_t base, sp_da(spn_cg_toolchain_target_t) cg, spn_toolchain_decl_t* toolchain) {
-  sp_da(spn_toolchain_target_t) targets = sp_da_new(ctx->mem, spn_toolchain_target_t);
-  spn_cc_driver_t driver = toolchain->driver;
-  spn_toolchain_source_t source = toolchain->source;
-  bool detected = source == SPN_TOOLCHAIN_SOURCE_DETECTED;
-  spn_toml_loader_push_key(ctx, "target");
-  sp_da_for(cg, it) {
-    const spn_cg_toolchain_target_t* row = &cg[it];
-    const struct {
-      const c8* key;
-      sp_da(sp_str_t) files;
-    } sanitizers [si_sanitizer_count] = {
-      { "address",   row->sanitizers.address },
-      { "thread",    row->sanitizers.thread },
-      { "undefined", row->sanitizers.undefined },
-      { "memory",    row->sanitizers.memory },
-      { "leak",      row->sanitizers.leak },
-    };
-
-    if (!sp_str_empty(row->kind)) {
-      bool fields = !sp_opt_is_null(row->arch) || !sp_opt_is_null(row->os) || !sp_opt_is_null(row->abi) || !sp_str_empty(row->sdk) || !sp_str_empty(row->spelling)
-        || !sp_da_empty(row->exceptions.flags) || !sp_da_empty(row->exceptions.link_flags)
-        || row->runtime.supported || row->runtime.c || row->runtime.cxx || row->sanitizers.supported;
-      sp_for(st, si_sanitizer_count) {
-        fields = fields || sanitizers[st].files;
-      }
-      spn_toml_loader_push_index(ctx, it);
-      if (!sp_str_equal_cstr(row->kind, "host")) {
-        spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "kind");
-      }
-      else if (fields) {
-        spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "kind");
-      }
-      else if (toolchain->host_row) {
-        spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_DUPLICATE_KEY, "kind");
-      }
-      else {
-        toolchain->host_row = true;
-      }
-      spn_toml_loader_pop(ctx);
-      continue;
-    }
-    spn_triple_t partial = lower_triple(row);
-    spn_toolchain_target_t target = sp_zero;
-    spn_triple_entry_t entry = spn_triple_entry(partial, &target.triple);
-    if (entry != SPN_TRIPLE_ENTRY_OK) {
-      spn_toml_loader_push_index(ctx, it);
-      issue_triple_entry(ctx, entry);
-      spn_toml_loader_pop(ctx);
-      continue;
-    }
-    if (!si_toolchain_driver_composes(driver, target.triple)) {
-      spn_toml_loader_push_index(ctx, it);
-      spn_toml_loader_issue_at(ctx, SPN_ERR_CODEGEN_INVALID, spn_triple_to_str(ctx->mem, target.triple));
-      spn_toml_loader_pop(ctx);
-      continue;
-    }
-    spn_toml_loader_push_index(ctx, it);
-    if (targeted(targets, target.triple)) {
-      spn_toml_loader_issue_at(ctx, SPN_ERR_CODEGEN_DUPLICATE_KEY, spn_triple_to_str(ctx->mem, target.triple));
-    }
-
-    target.sanitizers.supported = spn_sanitizer_set_from_list(row->sanitizers.supported);
-    if (target.sanitizers.supported && (target.triple.abi == SPN_ABI_BARE || target.triple.abi == SPN_ABI_ELF)) {
-      spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "sanitizers");
-    }
-    spn_toml_loader_push_key(ctx, "sanitizers");
-    sp_for(st, si_sanitizer_count) {
-      if (!sanitizers[st].files) {
-        continue;
-      }
-      if (!detected && (target.sanitizers.supported & si_sanitizer_at(st))) {
-        target.sanitizers.files[st] = lower_files(ctx, sanitizers[st].key, source, base, sanitizers[st].files);
-      }
-      else {
-        spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, sanitizers[st].key);
-      }
-    }
-    spn_toml_loader_pop(ctx);
-
-    sp_da_for(row->runtime.supported, rt) {
-      target.runtime.supported |= si_runtime_bit(row->runtime.supported[rt]);
-    }
-    bool shared = target.runtime.supported & si_runtime_bit(SPN_RUNTIME_SHARED);
-    spn_runtime_set_t own = si_toolchain_driver_runtimes(driver, target.triple);
-    spn_toml_loader_push_key(ctx, "runtime");
-    if (own && (target.runtime.supported & ~own)) {
-      spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "supported");
-    }
-    if (row->runtime.c) {
-      if (!detected && shared) {
-        target.runtime.c = lower_files(ctx, "c", source, base, row->runtime.c);
-      }
-      else {
-        spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "c");
-      }
-    }
-    if (row->runtime.cxx) {
-      if (!detected && shared) {
-        target.runtime.cxx = lower_files(ctx, "cxx", source, base, row->runtime.cxx);
-      }
-      else {
-        spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "cxx");
-      }
-    }
-    spn_toml_loader_pop(ctx);
-
-    if (!sp_str_empty(row->sdk)) {
-      if (!detected && spn_sdk_need(target.triple) != SPN_SDK_NEED_NONE) {
-        spn_toml_loader_push_key(ctx, "sdk");
-        target.sdk = lower_path(ctx, source, base, row->sdk);
-        spn_toml_loader_pop(ctx);
-      }
-      else {
-        spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "sdk");
-      }
-    }
-    bool derived = spn_sdk_need(target.triple) == SPN_SDK_NEED_MSVC && spn_arg_empty(target.sdk);
-    if (shared && !own && target.triple.os == SPN_OS_WINDOWS && !derived && sp_da_empty(target.runtime.c) && sp_da_empty(target.runtime.cxx)) {
-      sp_da(sp_str_t) others = sp_da_new(ctx->mem, sp_str_t);
-      sp_da_push(others, sp_str_lit("cxx"));
-      spn_toml_loader_push_key(ctx, "runtime");
-      spn_toml_loader_issue_with(ctx, "c", (spn_toml_issue_t) {
-        .code = SPN_ERR_CODEGEN_MISSING_KEY,
-        .detail = sp_str_lit("c"),
-        .choices = others,
-      });
-      spn_toml_loader_pop(ctx);
-    }
-    if (!sp_str_empty(row->spelling)) {
-      if (spn_toolchain_driver_retargets(driver)) {
-        target.spelling = spn_toml_loader_intern(ctx, row->spelling);
-      }
-      else {
-        spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "spelling");
-      }
-    }
-    if (!sp_da_empty(row->exceptions.flags) || !sp_da_empty(row->exceptions.link_flags)) {
-      target.exceptions = (spn_toolchain_exceptions_t) {
-        .declared = true,
-        .flags = lower_strs(ctx, row->exceptions.flags),
-        .link_flags = lower_strs(ctx, row->exceptions.link_flags),
-      };
-    }
-    spn_toml_loader_pop(ctx);
-    sp_da_push(targets, target);
-  }
-  spn_toml_loader_pop(ctx);
-  toolchain->targets = targets;
-}
-
 static void lower_hosts(spn_toml_loader_t* ctx, const spn_cg_toolchain_decl_t* decl, spn_toolchain_decl_t* toolchain) {
   bool distributed = false;
   sp_da_for(decl->host, it) {
@@ -359,7 +208,154 @@ spn_toolchain_decl_t spn_toolchain_lower(spn_toml_loader_t* ctx, u32 at, spn_pat
   toolchain.host_row = sp_da_empty(decl->target);
   if (toolchain.driver) {
     toolchain.lld = lower_linker(ctx, sp_opt_is_null(decl->linker) ? SPN_LD_FAMILY_NONE : sp_opt_get(decl->linker), toolchain.driver);
-    lower_toolchain_targets(ctx, base, decl->target, &toolchain);
+    sp_da(spn_toolchain_target_t) targets = sp_da_new(ctx->mem, spn_toolchain_target_t);
+    spn_cc_driver_t driver = toolchain.driver;
+    spn_toolchain_source_t source = toolchain.source;
+    bool detected = source == SPN_TOOLCHAIN_SOURCE_DETECTED;
+    spn_toml_loader_push_key(ctx, "target");
+    sp_da_for(decl->target, it) {
+      const spn_cg_toolchain_target_t* row = &decl->target[it];
+      const struct {
+        const c8* key;
+        sp_da(sp_str_t) files;
+      } sanitizers [si_sanitizer_count] = {
+        { "address",   row->sanitizers.address },
+        { "thread",    row->sanitizers.thread },
+        { "undefined", row->sanitizers.undefined },
+        { "memory",    row->sanitizers.memory },
+        { "leak",      row->sanitizers.leak },
+      };
+
+      if (!sp_str_empty(row->kind)) {
+        bool fields = !sp_opt_is_null(row->arch) || !sp_opt_is_null(row->os) || !sp_opt_is_null(row->abi) || !sp_str_empty(row->sdk) || !sp_str_empty(row->spelling)
+          || !sp_da_empty(row->exceptions.flags) || !sp_da_empty(row->exceptions.link_flags)
+          || row->runtime.supported || row->runtime.c || row->runtime.cxx || row->sanitizers.supported;
+        sp_for(st, si_sanitizer_count) {
+          fields = fields || sanitizers[st].files;
+        }
+        spn_toml_loader_push_index(ctx, it);
+        if (!sp_str_equal_cstr(row->kind, "host")) {
+          spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "kind");
+        }
+        else if (fields) {
+          spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "kind");
+        }
+        else if (toolchain.host_row) {
+          spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_DUPLICATE_KEY, "kind");
+        }
+        else {
+          toolchain.host_row = true;
+        }
+        spn_toml_loader_pop(ctx);
+        continue;
+      }
+      spn_triple_t partial = lower_triple(row);
+      spn_toolchain_target_t target = sp_zero;
+      spn_triple_entry_t entry = spn_triple_entry(partial, &target.triple);
+      if (entry != SPN_TRIPLE_ENTRY_OK) {
+        spn_toml_loader_push_index(ctx, it);
+        issue_triple_entry(ctx, entry);
+        spn_toml_loader_pop(ctx);
+        continue;
+      }
+      if (!si_toolchain_driver_composes(driver, target.triple)) {
+        spn_toml_loader_push_index(ctx, it);
+        spn_toml_loader_issue_at(ctx, SPN_ERR_CODEGEN_INVALID, spn_triple_to_str(ctx->mem, target.triple));
+        spn_toml_loader_pop(ctx);
+        continue;
+      }
+      spn_toml_loader_push_index(ctx, it);
+      if (targeted(targets, target.triple)) {
+        spn_toml_loader_issue_at(ctx, SPN_ERR_CODEGEN_DUPLICATE_KEY, spn_triple_to_str(ctx->mem, target.triple));
+      }
+
+      target.sanitizers.supported = spn_sanitizer_set_from_list(row->sanitizers.supported);
+      if (target.sanitizers.supported && (target.triple.abi == SPN_ABI_BARE || target.triple.abi == SPN_ABI_ELF)) {
+        spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "sanitizers");
+      }
+      spn_toml_loader_push_key(ctx, "sanitizers");
+      sp_for(st, si_sanitizer_count) {
+        if (!sanitizers[st].files) {
+          continue;
+        }
+        if (!detected && (target.sanitizers.supported & si_sanitizer_at(st))) {
+          target.sanitizers.files[st] = lower_files(ctx, sanitizers[st].key, source, base, sanitizers[st].files);
+        }
+        else {
+          spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, sanitizers[st].key);
+        }
+      }
+      spn_toml_loader_pop(ctx);
+
+      sp_da_for(row->runtime.supported, rt) {
+        target.runtime.supported |= si_runtime_bit(row->runtime.supported[rt]);
+      }
+      bool shared = target.runtime.supported & si_runtime_bit(SPN_RUNTIME_SHARED);
+      spn_runtime_set_t own = si_toolchain_driver_runtimes(driver, target.triple);
+      spn_toml_loader_push_key(ctx, "runtime");
+      if (own && (target.runtime.supported & ~own)) {
+        spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "supported");
+      }
+      if (row->runtime.c) {
+        if (!detected && shared) {
+          target.runtime.c = lower_files(ctx, "c", source, base, row->runtime.c);
+        }
+        else {
+          spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "c");
+        }
+      }
+      if (row->runtime.cxx) {
+        if (!detected && shared) {
+          target.runtime.cxx = lower_files(ctx, "cxx", source, base, row->runtime.cxx);
+        }
+        else {
+          spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "cxx");
+        }
+      }
+      spn_toml_loader_pop(ctx);
+
+      if (!sp_str_empty(row->sdk)) {
+        if (!detected && spn_sdk_need(target.triple) != SPN_SDK_NEED_NONE) {
+          spn_toml_loader_push_key(ctx, "sdk");
+          target.sdk = lower_path(ctx, source, base, row->sdk);
+          spn_toml_loader_pop(ctx);
+        }
+        else {
+          spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "sdk");
+        }
+      }
+      bool derived = spn_sdk_need(target.triple) == SPN_SDK_NEED_MSVC && spn_arg_empty(target.sdk);
+      if (shared && !own && target.triple.os == SPN_OS_WINDOWS && !derived && sp_da_empty(target.runtime.c) && sp_da_empty(target.runtime.cxx)) {
+        sp_da(sp_str_t) others = sp_da_new(ctx->mem, sp_str_t);
+        sp_da_push(others, sp_str_lit("cxx"));
+        spn_toml_loader_push_key(ctx, "runtime");
+        spn_toml_loader_issue_with(ctx, "c", (spn_toml_issue_t) {
+          .code = SPN_ERR_CODEGEN_MISSING_KEY,
+          .detail = sp_str_lit("c"),
+          .choices = others,
+        });
+        spn_toml_loader_pop(ctx);
+      }
+      if (!sp_str_empty(row->spelling)) {
+        if (spn_toolchain_driver_retargets(driver)) {
+          target.spelling = spn_toml_loader_intern(ctx, row->spelling);
+        }
+        else {
+          spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "spelling");
+        }
+      }
+      if (!sp_da_empty(row->exceptions.flags) || !sp_da_empty(row->exceptions.link_flags)) {
+        target.exceptions = (spn_toolchain_exceptions_t) {
+          .declared = true,
+          .flags = lower_strs(ctx, row->exceptions.flags),
+          .link_flags = lower_strs(ctx, row->exceptions.link_flags),
+        };
+      }
+      spn_toml_loader_pop(ctx);
+      sp_da_push(targets, target);
+    }
+    spn_toml_loader_pop(ctx);
+    toolchain.targets = targets;
   }
 
   spn_toml_loader_pop_scope(ctx);
