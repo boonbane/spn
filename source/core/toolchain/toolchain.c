@@ -144,10 +144,12 @@ spn_err_t si_toolchain_path(spn_toolchain_source_t source, spn_path_root_t base,
     case SPN_TOOLCHAIN_SOURCE_LOCAL: {
       return local_arg(base, str, arg);
     }
-    case SPN_TOOLCHAIN_SOURCE_DISTRIBUTION:
-    case SPN_TOOLCHAIN_SOURCE_DETECTED: {
+    case SPN_TOOLCHAIN_SOURCE_DISTRIBUTION: {
       *arg = sp_fs_is_absolute(str) ? spn_arg_path((spn_path_t) { .sub = str }) : spn_arg_lit(str);
       return SPN_OK;
+    }
+    case SPN_TOOLCHAIN_SOURCE_DETECTED: {
+      sp_unreachable_case();
     }
   }
   SP_UNREACHABLE_RETURN(SPN_ERROR);
