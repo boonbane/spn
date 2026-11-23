@@ -35,16 +35,25 @@ static void bind_target(spn_toolchain_catalog_t* catalog, spn_toolchain_info_t* 
   sp_for(st, si_sanitizer_count) {
     row.files.sanitizers[st] = bind_files(catalog, support, target.sanitizers.files[st]);
   }
-  if (!spn_arg_empty(target.sdk)) {
-    row.sdk = spn_sdk_at(catalog->mem, target.triple, bind_path(catalog, support, target.sdk));
-    sp_da_push(info->rows, row);
-    return;
+  switch (target.sdk.source) {
+    case SPN_SDK_SOURCE_PATH: {
+      row.sdk = spn_sdk_at(catalog->mem, target.triple, bind_path(catalog, support, target.sdk.path));
+      break;
+    }
+    case SPN_SDK_SOURCE_HOST: {
+      row.sdk = si_sdk_host(catalog->mem, &catalog->sdks, target.triple);
+      break;
+    }
+    case SPN_SDK_SOURCE_INSTALL: {
+      row.sdk = si_sdk_host(catalog->mem, &catalog->sdks, target.triple);
+      if (row.sdk.kind == SPN_SDK_NONE) {
+        sp_da_push(info->unserved, target.triple);
+        return;
+      }
+      break;
+    }
   }
-  if (si_sdk_default(catalog->mem, &catalog->sdks, target.triple, &row.sdk)) {
-    sp_da_push(info->rows, row);
-    return;
-  }
-  sp_da_push(info->unserved, target.triple);
+  sp_da_push(info->rows, row);
 }
 
 static spn_sanitizer_set_t gcc_stock_sanitizers(spn_triple_t host) {
@@ -105,7 +114,7 @@ static void push_stock(spn_toolchain_catalog_t* catalog, spn_toolchain_info_t* i
   if (!host.abi || !si_toolchain_driver_composes(decl->driver, host) || spn_toolchain_row(info, host) || spn_toolchain_unserved(info, host)) {
     return;
   }
-  spn_toolchain_target_t stock = { .triple = host, .runtime.supported = stock_runtimes(decl->driver, host), .sanitizers.supported = stock_sanitizers(decl->driver, host) };
+  spn_toolchain_target_t stock = { .triple = host, .sdk.source = si_sdk_undeclared(host), .runtime.supported = stock_runtimes(decl->driver, host), .sanitizers.supported = stock_sanitizers(decl->driver, host) };
   spn_sdk_t sdk = sp_zero;
   if ((si_toolchain_driver_caps(decl->driver) & SPN_CC_CAP_HOST_SYSROOT) && si_sdk_served(catalog->mem, &catalog->sdks, catalog->host, host, &sdk)) {
     sp_da_push(info->rows, ((spn_toolchain_row_t) { .triple = host, .sdk = sdk, .runtimes = stock.runtime.supported, .sanitizers = stock.sanitizers.supported }));

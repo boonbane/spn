@@ -51,6 +51,12 @@ typedef enum {
 } spn_sdk_need_t;
 
 typedef enum {
+  SPN_SDK_SOURCE_HOST,
+  SPN_SDK_SOURCE_PATH,
+  SPN_SDK_SOURCE_INSTALL,
+} spn_sdk_source_t;
+
+typedef enum {
   SPN_SDK_NONE,
   SPN_SDK_SYSROOT,
   SPN_SDK_MACOS,
@@ -189,7 +195,10 @@ typedef struct {
 
 typedef struct {
   spn_triple_t triple;
-  spn_arg_t sdk;
+  struct {
+    spn_sdk_source_t source;
+    spn_arg_t path;
+  } sdk;
   sp_str_t spelling;
   spn_toolchain_exceptions_t exceptions;
   spn_toolchain_runtime_t runtime;

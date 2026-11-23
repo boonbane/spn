@@ -324,18 +324,19 @@ spn_toolchain_decl_t si_toolchain_lower(spn_toml_loader_t* ctx, u32 at, spn_path
       }
       spn_toml_loader_pop(ctx);
 
+      target.sdk.source = si_sdk_undeclared(target.triple);
       if (!sp_str_empty(row->sdk)) {
         if (!detected && spn_sdk_need(target.triple) != SPN_SDK_NEED_NONE) {
+          target.sdk.source = SPN_SDK_SOURCE_PATH;
           spn_toml_loader_push_key(ctx, "sdk");
-          target.sdk = lower_path(ctx, source, base, row->sdk);
+          target.sdk.path = lower_path(ctx, source, base, row->sdk);
           spn_toml_loader_pop(ctx);
         }
         else {
           spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "sdk");
         }
       }
-      bool derived = spn_sdk_need(target.triple) == SPN_SDK_NEED_MSVC && spn_arg_empty(target.sdk);
-      if (shared && target.triple.os == SPN_OS_WINDOWS && !derived && sp_da_empty(target.runtime.c) && sp_da_empty(target.runtime.cxx)) {
+      if (shared && target.triple.os == SPN_OS_WINDOWS && target.sdk.source != SPN_SDK_SOURCE_INSTALL && sp_da_empty(target.runtime.c) && sp_da_empty(target.runtime.cxx)) {
         sp_da(sp_str_t) others = sp_da_new(ctx->mem, sp_str_t);
         sp_da_push(others, sp_str_lit("cxx"));
         spn_toml_loader_push_key(ctx, "runtime");

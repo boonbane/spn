@@ -114,6 +114,7 @@ typedef struct {
 
 typedef struct {
   spn_triple_t triple;
+  spn_sdk_source_t source;
   test_arg_t sdk;
   struct {
     spn_runtime_set_t supported;
@@ -778,7 +779,7 @@ static const test_t tests [] = {
         .targets = {
           { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU },
           { .triple = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_GNU } },
-          { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC },
+          { .triple = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC }, .source = SPN_SDK_SOURCE_INSTALL },
           { SPN_ARCH_ARM64, SPN_OS_MACOS, SPN_ABI_APPLE },
           { .triple = { SPN_ARCH_WASM32, SPN_OS_WASI, SPN_ABI_MUSL } },
         },
@@ -833,7 +834,7 @@ static const test_t tests [] = {
         .compiler = { .name = "cc" },
         .archiver = { .name = "ar" },
         .driver = SPN_CC_DRIVER_GCC,
-        .targets = { { .triple = { SPN_ARCH_ARM64, SPN_OS_LINUX, SPN_ABI_GNU }, .sdk = { .path = "S", .root = SPN_PATH_ROOT_PROJECT } } },
+        .targets = { { .triple = { SPN_ARCH_ARM64, SPN_OS_LINUX, SPN_ABI_GNU }, .source = SPN_SDK_SOURCE_PATH, .sdk = { .path = "S", .root = SPN_PATH_ROOT_PROJECT } } },
       },
       {
         .name = "D",
@@ -843,8 +844,8 @@ static const test_t tests [] = {
         .url = "https://tc",
         .sha256 = "deadbeef",
         .targets = {
-          { .triple = { SPN_ARCH_ARM64, SPN_OS_LINUX, SPN_ABI_GNU }, .sdk = { "S" } },
-          { .triple = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC }, .sdk = { "X" } },
+          { .triple = { SPN_ARCH_ARM64, SPN_OS_LINUX, SPN_ABI_GNU }, .source = SPN_SDK_SOURCE_PATH, .sdk = { "S" } },
+          { .triple = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC }, .source = SPN_SDK_SOURCE_PATH, .sdk = { "X" } },
         },
       },
     },
@@ -858,7 +859,7 @@ static const test_t tests [] = {
         .compiler = { .name = "clang" },
         .archiver = { .name = "ar" },
         .driver = SPN_CC_DRIVER_CLANG,
-        .targets = { { .triple = { SPN_ARCH_X64, SPN_OS_FREESTANDING, SPN_ABI_ELF }, .sdk = { .path = "/S" } } },
+        .targets = { { .triple = { SPN_ARCH_X64, SPN_OS_FREESTANDING, SPN_ABI_ELF }, .source = SPN_SDK_SOURCE_PATH, .sdk = { .path = "/S" } } },
       },
     },
   },
@@ -955,8 +956,8 @@ static const test_t tests [] = {
         .driver = SPN_CC_DRIVER_ZIG,
         .targets = {
           { .triple = { SPN_ARCH_ARM64, SPN_OS_MACOS, SPN_ABI_APPLE }, .runtime.supported = si_runtime_bit(SPN_RUNTIME_STATIC) },
-          { .triple = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC }, .runtime.supported = si_runtime_bit(SPN_RUNTIME_STATIC) },
-          { .triple = { SPN_ARCH_ARM64, SPN_OS_WINDOWS, SPN_ABI_MSVC }, .runtime.supported = si_runtime_bit(SPN_RUNTIME_STATIC) | si_runtime_bit(SPN_RUNTIME_SHARED) },
+          { .triple = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC }, .source = SPN_SDK_SOURCE_INSTALL, .runtime.supported = si_runtime_bit(SPN_RUNTIME_STATIC) },
+          { .triple = { SPN_ARCH_ARM64, SPN_OS_WINDOWS, SPN_ABI_MSVC }, .source = SPN_SDK_SOURCE_INSTALL, .runtime.supported = si_runtime_bit(SPN_RUNTIME_STATIC) | si_runtime_bit(SPN_RUNTIME_SHARED) },
         },
       },
     },
@@ -2422,8 +2423,9 @@ sp_test_each(lower, cases, test_t, tests, .setup = spn_test_ctx_setup) {
         }
         check_args(t, tc->targets[r].sanitizers.files[slot], target.sanitizers.files[at].files);
       }
-      if (!target.sdk.name && !target.sdk.path) sp_expect(t, spn_arg_empty(tc->targets[r].sdk));
-      if (test_check_arg(t, tc->targets[r].sdk, target.sdk)) return SP_ERR;
+      sp_expect_eq(t, (u32)target.source, (u32)tc->targets[r].sdk.source);
+      if (!target.sdk.name && !target.sdk.path) sp_expect(t, spn_arg_empty(tc->targets[r].sdk.path));
+      if (test_check_arg(t, tc->targets[r].sdk.path, target.sdk)) return SP_ERR;
     }
 
     sp_carr_for(expected.hosts, r) {

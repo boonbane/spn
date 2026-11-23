@@ -263,7 +263,17 @@ spn_sdk_t spn_sdk_at(sp_mem_t mem, spn_triple_t target, spn_path_t root) {
   sp_unreachable_return(sp_zero_struct(spn_sdk_t));
 }
 
-static spn_sdk_t from_host(sp_mem_t mem, const spn_sdk_host_t* host, spn_triple_t target) {
+spn_sdk_source_t si_sdk_undeclared(spn_triple_t target) {
+  switch (spn_sdk_need(target)) {
+    case SPN_SDK_NEED_NONE:
+    case SPN_SDK_NEED_SYSROOT:
+    case SPN_SDK_NEED_MACOS: return SPN_SDK_SOURCE_HOST;
+    case SPN_SDK_NEED_MSVC: return SPN_SDK_SOURCE_INSTALL;
+  }
+  sp_unreachable_return(SPN_SDK_SOURCE_HOST);
+}
+
+spn_sdk_t si_sdk_host(sp_mem_t mem, const spn_sdk_host_t* host, spn_triple_t target) {
   spn_sdk_t none = sp_zero;
   switch (spn_sdk_need(target)) {
     case SPN_SDK_NEED_NONE:
@@ -284,19 +294,8 @@ static spn_sdk_t from_host(sp_mem_t mem, const spn_sdk_host_t* host, spn_triple_
   sp_unreachable_return(none);
 }
 
-bool si_sdk_default(sp_mem_t mem, const spn_sdk_host_t* sdks, spn_triple_t target, spn_sdk_t* sdk) {
-  *sdk = from_host(mem, sdks, target);
-  switch (spn_sdk_need(target)) {
-    case SPN_SDK_NEED_NONE:
-    case SPN_SDK_NEED_SYSROOT:
-    case SPN_SDK_NEED_MACOS: return true;
-    case SPN_SDK_NEED_MSVC: return sdk->kind != SPN_SDK_NONE;
-  }
-  sp_unreachable_return(false);
-}
-
 bool si_sdk_served(sp_mem_t mem, const spn_sdk_host_t* sdks, spn_triple_t host, spn_triple_t target, spn_sdk_t* sdk) {
-  *sdk = from_host(mem, sdks, target);
+  *sdk = si_sdk_host(mem, sdks, target);
   switch (spn_sdk_need(target)) {
     case SPN_SDK_NEED_NONE: return true;
     case SPN_SDK_NEED_SYSROOT: {

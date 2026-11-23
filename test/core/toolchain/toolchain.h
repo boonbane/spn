@@ -193,7 +193,8 @@ static spn_arg_t fixture_sdk_arg(test_arg_t sdk) {
 }
 
 static spn_toolchain_target_t fixture_target(fixture_target_t target) {
-  return (spn_toolchain_target_t) { .triple = target.triple, .sdk = fixture_sdk_arg(target.sdk), .runtime.supported = target.runtimes ? target.runtimes : rt_static, .sanitizers.supported = target.sanitizers };
+  spn_arg_t sdk = fixture_sdk_arg(target.sdk);
+  return (spn_toolchain_target_t) { .triple = target.triple, .sdk = { spn_arg_empty(sdk) ? si_sdk_undeclared(target.triple) : SPN_SDK_SOURCE_PATH, sdk }, .runtime.supported = target.runtimes ? target.runtimes : rt_static, .sanitizers.supported = target.sanitizers };
 }
 
 static sp_err_t fixture_check_triples(sp_test_t* t, sp_da(spn_triple_t) triples, const spn_triple_t* expect, u32 count) {
