@@ -226,6 +226,7 @@ spn_toolchain_decl_t si_toolchain_lower(spn_toml_loader_t* ctx, u32 at, spn_path
         { "leak",      row->sanitizers.leak },
       };
 
+      spn_toml_loader_push_index(ctx, it);
       if (!sp_str_empty(row->kind)) {
         bool fields = !sp_opt_is_null(row->arch) || !sp_opt_is_null(row->os) || !sp_opt_is_null(row->abi) || !sp_str_empty(row->sdk) || !sp_str_empty(row->spelling)
           || !sp_da_empty(row->exceptions.flags) || !sp_da_empty(row->exceptions.link_flags)
@@ -233,7 +234,6 @@ spn_toolchain_decl_t si_toolchain_lower(spn_toml_loader_t* ctx, u32 at, spn_path
         sp_for(st, si_sanitizer_count) {
           fields = fields || sanitizers[st].files;
         }
-        spn_toml_loader_push_index(ctx, it);
         if (!sp_str_equal_cstr(row->kind, "host")) {
           spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "kind");
         }
@@ -253,18 +253,15 @@ spn_toolchain_decl_t si_toolchain_lower(spn_toml_loader_t* ctx, u32 at, spn_path
       spn_toolchain_target_t target = sp_zero;
       spn_triple_entry_t entry = spn_triple_entry(partial, &target.triple);
       if (entry != SPN_TRIPLE_ENTRY_OK) {
-        spn_toml_loader_push_index(ctx, it);
         issue_triple_entry(ctx, entry);
         spn_toml_loader_pop(ctx);
         continue;
       }
       if (!si_toolchain_driver_composes(driver, target.triple)) {
-        spn_toml_loader_push_index(ctx, it);
         spn_toml_loader_issue_at(ctx, SPN_ERR_CODEGEN_INVALID, spn_triple_to_str(ctx->mem, target.triple));
         spn_toml_loader_pop(ctx);
         continue;
       }
-      spn_toml_loader_push_index(ctx, it);
       if (targeted(targets, target.triple)) {
         spn_toml_loader_issue_at(ctx, SPN_ERR_CODEGEN_DUPLICATE_KEY, spn_triple_to_str(ctx->mem, target.triple));
       }
