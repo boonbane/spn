@@ -14,7 +14,7 @@ typedef enum {
 } spn_msvc_match_t;
 
 typedef struct {
-  const sp_msvc_vs_t* toolset;
+  const spn_msvc_toolset_t* toolset;
   const sp_msvc_sdk_t* kit;
 } spn_msvc_pick_t;
 

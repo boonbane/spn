@@ -263,8 +263,8 @@ spn_err_t si_toolchain_select(spn_toolchain_catalog_t* catalog, spn_toolchain_qu
     spn_msvc_pick_t pick = sp_zero;
     switch (si_msvc_match(installs, target.arch, query.msvc, compiler, &pick)) {
       case SPN_MSVC_MATCH_OK: {
-        sdk->msvc = si_sdk_from_msvc(catalog->mem, pick.kit, pick.toolset, target.arch);
-        redist = &installs->redist[pick.toolset - installs->toolsets];
+        sdk->msvc = si_sdk_from_msvc(catalog->mem, pick.kit, &pick.toolset->vs, target.arch);
+        redist = &pick.toolset->redist;
         if (compiler) {
           asan = sdk->msvc.runtime.asan;
         }

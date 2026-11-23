@@ -278,7 +278,7 @@ static spn_sdk_t from_host(sp_mem_t mem, const spn_sdk_host_t* host, spn_triple_
       if (si_msvc_match(&host->msvc, target.arch, sp_zero_s(spn_msvc_request_t), false, &pick)) {
         return none;
       }
-      return (spn_sdk_t) { .kind = SPN_SDK_MSVC, .msvc = si_sdk_from_msvc(mem, pick.kit, pick.toolset, target.arch) };
+      return (spn_sdk_t) { .kind = SPN_SDK_MSVC, .msvc = si_sdk_from_msvc(mem, pick.kit, &pick.toolset->vs, target.arch) };
     }
   }
   sp_unreachable_return(none);
@@ -370,8 +370,7 @@ spn_sdk_host_t si_sdk_detect(sp_mem_t mem, const spn_path_roots_t* roots, sp_env
         sp_fs_it_deinit(&walk);
         sp_fs_close_dir(dir);
       }
-      si_da_push(mem, sdks.msvc.toolsets, *vs);
-      si_da_push(mem, sdks.msvc.redist, redist);
+      si_da_push(mem, sdks.msvc.toolsets, ((spn_msvc_toolset_t) { .vs = *vs, .redist = redist }));
     }
     sp_for(at, found->num_sdks) {
       si_da_push(mem, sdks.msvc.kits, found->sdks[at]);

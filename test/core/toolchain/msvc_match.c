@@ -149,12 +149,14 @@ sp_test_each(msvc_match, pick, test_t, tests) {
     if (!toolset->install) {
       break;
     }
-    si_da_push(mem, installs.toolsets, ((sp_msvc_vs_t) {
-      .version.tools = fixture_msvc_version(toolset->version),
-      .install_path = fixture_msvc_path(toolset->install),
-      .target = si_msvc_arch(arch_of(toolset->arm64)),
-      .preferred = toolset->preferred,
-      .compiler = !toolset->bare,
+    si_da_push(mem, installs.toolsets, ((spn_msvc_toolset_t) {
+      .vs = {
+        .version.tools = fixture_msvc_version(toolset->version),
+        .install_path = fixture_msvc_path(toolset->install),
+        .target = si_msvc_arch(arch_of(toolset->arm64)),
+        .preferred = toolset->preferred,
+        .compiler = !toolset->bare,
+      },
     }));
   }
   sp_carr_for(it->kits, at) {
@@ -170,8 +172,8 @@ sp_test_each(msvc_match, pick, test_t, tests) {
   if (it->expect.match) {
     return SP_OK;
   }
-  sp_expect_str_eq_c(t, sp_msvc_path_str(&pick.toolset->install_path), it->expect.install);
-  sp_expect_str_eq_c(t, sp_msvc_version_str(&pick.toolset->version.tools), it->expect.toolset);
+  sp_expect_str_eq_c(t, sp_msvc_path_str(&pick.toolset->vs.install_path), it->expect.install);
+  sp_expect_str_eq_c(t, sp_msvc_version_str(&pick.toolset->vs.version.tools), it->expect.toolset);
   sp_expect_str_eq_c(t, sp_msvc_version_str(&pick.kit->version), it->expect.kit);
   return SP_OK;
 }

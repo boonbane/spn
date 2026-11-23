@@ -147,7 +147,7 @@ static void push_install(sp_mem_t mem, si_da(spn_err_msvc_install_t)* list, spn_
 si_da(spn_err_msvc_install_t) si_msvc_installed_toolsets(sp_mem_t mem, const spn_msvc_installs_t* installs, spn_arch_t arch, bool compiler) {
   si_da(spn_err_msvc_install_t) list = sp_zero;
   si_da_for(installs->toolsets, it) {
-    const sp_msvc_vs_t* toolset = &installs->toolsets[it];
+    const sp_msvc_vs_t* toolset = &installs->toolsets[it].vs;
     if (toolset->target != si_msvc_arch(arch) || (compiler && !toolset->compiler)) {
       continue;
     }
@@ -191,15 +191,15 @@ spn_msvc_match_t si_msvc_match(const spn_msvc_installs_t* installs, spn_arch_t a
 
   bool any_toolset = false;
   si_da_for(installs->toolsets, it) {
-    const sp_msvc_vs_t* candidate = &installs->toolsets[it];
-    if (candidate->target != target || (compiler && !candidate->compiler)) {
+    const spn_msvc_toolset_t* candidate = &installs->toolsets[it];
+    if (candidate->vs.target != target || (compiler && !candidate->vs.compiler)) {
       continue;
     }
     any_toolset = true;
-    if (!pinned(toolset, version_of(sp_msvc_version_str(&candidate->version.tools)))) {
+    if (!pinned(toolset, version_of(sp_msvc_version_str(&candidate->vs.version.tools)))) {
       continue;
     }
-    if (!pick->toolset || preferable(toolset, candidate, pick->toolset)) {
+    if (!pick->toolset || preferable(toolset, &candidate->vs, &pick->toolset->vs)) {
       pick->toolset = candidate;
     }
   }

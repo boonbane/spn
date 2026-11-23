@@ -145,16 +145,18 @@ static spn_sdk_host_t fixture_sdks(sp_mem_t mem, fixture_sdks_t sdks) {
     }
     sp_msvc_arch_t arch = si_msvc_arch(sdks.msvc[it].arch);
     sp_msvc_path_t root = fixture_msvc_path(sdks.msvc[it].root.path);
-    si_da_push(mem, host.msvc.toolsets, ((sp_msvc_vs_t) { .version.tools = fixture_msvc_version(sdks.msvc[it].version ? sdks.msvc[it].version : "14.0"), .install_path = root, .target = arch, .preferred = true, .compiler = !sdks.msvc[it].bare }));
-    si_da_push(mem, host.msvc.kits, ((sp_msvc_sdk_t) { .version = fixture_msvc_version("10.0"), .root = root, .arch = arch }));
-    spn_msvc_redist_t redist = { .dir = spn_path_join(mem, fixture_path(sdks.msvc[it].root), sp_str_lit("R")) };
+    spn_msvc_toolset_t toolset = {
+      .vs = { .version.tools = fixture_msvc_version(sdks.msvc[it].version ? sdks.msvc[it].version : "14.0"), .install_path = root, .target = arch, .preferred = true, .compiler = !sdks.msvc[it].bare },
+      .redist.dir = spn_path_join(mem, fixture_path(sdks.msvc[it].root), sp_str_lit("R")),
+    };
     sp_carr_for(sdks.msvc[it].redist, at) {
       if (!sdks.msvc[it].redist[at]) {
         break;
       }
-      si_da_push(mem, redist.files, ((spn_path_t) { .sub = sp_cstr_as_str(sdks.msvc[it].redist[at]) }));
+      si_da_push(mem, toolset.redist.files, ((spn_path_t) { .sub = sp_cstr_as_str(sdks.msvc[it].redist[at]) }));
     }
-    si_da_push(mem, host.msvc.redist, redist);
+    si_da_push(mem, host.msvc.toolsets, toolset);
+    si_da_push(mem, host.msvc.kits, ((sp_msvc_sdk_t) { .version = fixture_msvc_version("10.0"), .root = root, .arch = arch }));
   }
   return host;
 }

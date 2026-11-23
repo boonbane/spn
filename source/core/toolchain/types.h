@@ -133,8 +133,12 @@ typedef struct {
 } spn_msvc_redist_t;
 
 typedef struct {
-  si_da(sp_msvc_vs_t) toolsets;
-  si_da(spn_msvc_redist_t) redist;
+  sp_msvc_vs_t vs;
+  spn_msvc_redist_t redist;
+} spn_msvc_toolset_t;
+
+typedef struct {
+  si_da(spn_msvc_toolset_t) toolsets;
   si_da(sp_msvc_sdk_t) kits;
 } spn_msvc_installs_t;
 
