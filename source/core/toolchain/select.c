@@ -22,6 +22,7 @@ typedef struct {
   spn_err_t err;
   spn_toolchain_row_t row;
   spn_sanitizer_set_t unsupported;
+  spn_runtime_t runtime;
   spn_linking_t linking;
 } reach_t;
 
@@ -43,7 +44,7 @@ static reach_t supports(spn_toolchain_row_t row, spn_toolchain_query_t query, sp
     pick++;
   }
   if (pick == linkings.count) {
-    return (reach_t) { .kind = REACH_RUNTIME, .row = row, .linking = linkings.items[0] };
+    return (reach_t) { .kind = REACH_RUNTIME, .row = row, .runtime = linkings.items[0].runtime };
   }
   spn_linking_t linking = linkings.items[pick];
   spn_sanitizer_set_t missing = query.sanitizers & ~row.sanitizers;
@@ -182,7 +183,7 @@ static spn_err_t emit_reach(spn_toolchain_catalog_t* catalog, spn_toolchain_quer
         .runtime = {
           .toolchain = toolchain->name.str,
           .target = reach.row.triple,
-          .requested = reach.linking.runtime,
+          .requested = reach.runtime,
           .supported = supported,
         },
       });
@@ -234,7 +235,7 @@ static spn_err_t select_auto(spn_toolchain_catalog_t* catalog, spn_toolchain_que
       .query = query.target,
       .host = catalog->host,
       .sanitizers = query.sanitizers,
-      .runtime = closest.kind == REACH_RUNTIME ? closest.linking.runtime : SPN_RUNTIME_NONE,
+      .runtime = closest.runtime,
     },
   });
 }
