@@ -164,7 +164,7 @@ static void lower_hosts(spn_toml_loader_t* ctx, const spn_cg_toolchain_decl_t* d
   spn_toml_loader_pop(ctx);
 }
 
-spn_toolchain_decl_t spn_toolchain_lower(spn_toml_loader_t* ctx, u32 at, spn_path_root_t base, const spn_cg_toolchain_decl_t* decl) {
+spn_toolchain_decl_t si_toolchain_lower(spn_toml_loader_t* ctx, u32 at, spn_path_root_t base, const spn_cg_toolchain_decl_t* decl) {
   spn_toml_loader_push_key(ctx, "toolchain");
   spn_toml_loader_push_index(ctx, at);
 
@@ -377,7 +377,7 @@ bool spn_toolchains_parse(spn_toml_loader_t* ctx, sp_str_t toml, spn_cg_config_t
 sp_da(spn_toolchain_decl_t) spn_toolchains_lower_list(spn_toml_loader_t* ctx, spn_path_root_t base, sp_da(spn_cg_toolchain_decl_t) toml) {
   sp_da(spn_toolchain_decl_t) toolchains = sp_da_new(ctx->mem, spn_toolchain_decl_t);
   sp_da_for(toml, i) {
-    spn_toolchain_decl_t toolchain = spn_toolchain_lower(ctx, i, base, &toml[i]);
+    spn_toolchain_decl_t toolchain = si_toolchain_lower(ctx, i, base, &toml[i]);
 
     sp_da_for(toolchains, j) {
       if (toolchains[j].id == toolchain.id) {

@@ -37,7 +37,7 @@ sp_da(spn_toml_issue_t) lanes_lower(const lanes_t* lanes, u32 at, spn_path_root_
       sp_da_push(loader.issues, lanes->issues[it]);
     }
   }
-  *decl = spn_toolchain_lower(&loader, at, base, &lanes->config.toolchain[at]);
+  *decl = si_toolchain_lower(&loader, at, base, &lanes->config.toolchain[at]);
   return loader.issues;
 }
 
