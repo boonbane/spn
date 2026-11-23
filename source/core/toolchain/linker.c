@@ -182,7 +182,7 @@ bool spn_ld_accepts(spn_cc_driver_t driver, spn_ld_family_t declared) {
   SP_UNREACHABLE_RETURN(false);
 }
 
-spn_ld_family_t spn_ld_native(spn_cc_driver_t driver, spn_triple_t target) {
+spn_ld_family_t si_ld_native(spn_cc_driver_t driver, spn_triple_t target) {
   switch (driver) {
     case SPN_CC_DRIVER_ZIG: return SPN_LD_FAMILY_LLD;
     case SPN_CC_DRIVER_GCC:

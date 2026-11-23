@@ -217,7 +217,7 @@ spn_err_t si_profile_query(const spn_profile_info_t* profile, spn_triple_t host,
 void si_profile_finalize(spn_profile_info_t* profile, const spn_toolchain_selection_t* selection) {
   profile->target.abi = selection->row.triple.abi;
   profile->driver = selection->toolchain->driver;
-  profile->linker = selection->toolchain->lld ? SPN_LD_FAMILY_LLD : spn_ld_native(selection->toolchain->driver, selection->row.triple);
+  profile->linker = selection->toolchain->lld ? SPN_LD_FAMILY_LLD : si_ld_native(selection->toolchain->driver, selection->row.triple);
   profile->sdk = selection->row.sdk;
   profile->spelling = selection->row.spelling;
   profile->exceptions = selection->row.exceptions;

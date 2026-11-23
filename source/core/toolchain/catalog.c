@@ -109,7 +109,7 @@ static spn_runtime_set_t stock_runtimes(spn_triple_t target) {
 static void push_stock(spn_toolchain_catalog_t* catalog, spn_toolchain_info_t* info, const spn_toolchain_decl_t* decl) {
   spn_triple_t host = catalog->host;
   host.abi = host.abi ? host.abi : spn_default_abi(decl->driver, host.os);
-  if (!host.abi || !spn_toolchain_driver_composes(decl->driver, host) || spn_toolchain_row(info, host) || spn_toolchain_unserved(info, host)) {
+  if (!host.abi || !si_toolchain_driver_composes(decl->driver, host) || spn_toolchain_row(info, host) || spn_toolchain_unserved(info, host)) {
     return;
   }
   spn_toolchain_target_t stock = { .triple = host, .runtime.supported = stock_runtimes(host), .sanitizers.supported = stock_sanitizers(decl->driver, host) };

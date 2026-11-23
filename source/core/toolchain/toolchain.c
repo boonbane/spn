@@ -243,7 +243,7 @@ spn_abi_t spn_default_abi(spn_cc_driver_t driver, spn_os_t os) {
   SP_UNREACHABLE_RETURN(SPN_ABI_NONE);
 }
 
-bool spn_toolchain_driver_composes(spn_cc_driver_t driver, spn_triple_t target) {
+bool si_toolchain_driver_composes(spn_cc_driver_t driver, spn_triple_t target) {
   spn_ld_dialect_t dialect = si_ld_dialect(target);
   switch (driver) {
     case SPN_CC_DRIVER_GCC: return dialect == SPN_LD_DIALECT_GNU || dialect == SPN_LD_DIALECT_DARWIN;

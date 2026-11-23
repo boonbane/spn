@@ -229,7 +229,7 @@ static spn_profile_info_t program_profile(units_t* u, const graph_t* g, const sp
     },
   };
   spn_triple_t triple = profile.target;
-  profile.linker = spn_ld_native(profile.driver, triple);
+  profile.linker = si_ld_native(profile.driver, triple);
   if (g->sdk) {
     profile.sdk = spn_sdk_at(u->mem, triple, (spn_path_t) { .sub = sp_cstr_as_str(g->sdk) });
   }
@@ -316,7 +316,7 @@ units_t* units_new(sp_test_t* t, const graph_t* g) {
   spn_profile_info_t profile = program_profile(u, g, info);
   spn_profile_info_t metaprogram = spn_profile_metaprogram();
   metaprogram.driver = profile.driver;
-  metaprogram.linker = spn_ld_native(metaprogram.driver, metaprogram.target);
+  metaprogram.linker = si_ld_native(metaprogram.driver, metaprogram.target);
 
   spn_toolchain_catalog_init(&u->ctx.catalog, profile.target, sp_zero_s(spn_sdk_host_t), mem);
   sp_carr_for(g->catalog, it) {
