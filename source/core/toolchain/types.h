@@ -128,8 +128,13 @@ typedef struct {
 } spn_sdk_t;
 
 typedef struct {
+  spn_path_t dir;
+  si_da(spn_path_t) files;
+} spn_msvc_redist_t;
+
+typedef struct {
   si_da(sp_msvc_vs_t) toolsets;
-  si_da(si_da(spn_path_t)) redist;
+  si_da(spn_msvc_redist_t) redist;
   si_da(sp_msvc_sdk_t) kits;
 } spn_msvc_installs_t;
 

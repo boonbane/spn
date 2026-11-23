@@ -12,6 +12,8 @@ typedef struct {
   struct {
     const c8* c [FIXTURE_MAX_ARGS];
     const c8* cxx [FIXTURE_MAX_ARGS];
+    spn_err_t err;
+    const c8* missing;
   } expect;
 } test_t;
 
@@ -65,12 +67,12 @@ static const test_t tests [] = {
     .expect.c = { "/Y/A" },
   },
   {
-    .name = "msvc_driver_stages_the_asan_runtime_of_the_selected_toolset",
+    .name = "msvc_driver_stages_the_asan_runtime_of_the_selected_toolset_with_its_redist",
     .driver = SPN_CC_DRIVER_MSVC,
-    .sdks = { .msvc = { { { "/X" }, SPN_ARCH_X64, "14.44" }, { { "/Y" }, SPN_ARCH_X64, "14.29" } } },
+    .sdks = { .msvc = { { { "/X" }, SPN_ARCH_X64, "14.44", .redist = { "/X/A" } }, { { "/Y" }, SPN_ARCH_X64, "14.29", .redist = { "/Y/A" } } } },
     .toolset = "v142",
     .sanitize = SPN_SANITIZER_ADDRESS,
-    .expect.c = { "/Y/VC/Tools/MSVC/14.29/bin/Hostx64/x64/clang_rt.asan_dynamic-x86_64.dll" },
+    .expect.c = { "/Y/VC/Tools/MSVC/14.29/bin/Hostx64/x64/clang_rt.asan_dynamic-x86_64.dll", "/Y/A" },
   },
   {
     .name = "another_driver_on_that_install_stages_no_asan_runtime",
@@ -79,19 +81,26 @@ static const test_t tests [] = {
     .sanitize = SPN_SANITIZER_ADDRESS,
   },
   {
-    .name = "sanitizer_runtime_brings_the_redist_of_the_install",
-    .driver = SPN_CC_DRIVER_MSVC,
-    .sdks = { .msvc = { { { "/X" }, SPN_ARCH_X64, "14.44", .redist = { "/X/A" } } } },
-    .sanitize = SPN_SANITIZER_ADDRESS,
-    .expect.c = { "/X/VC/Tools/MSVC/14.44/bin/Hostx64/x64/clang_rt.asan_dynamic-x86_64.dll", "/X/A" },
-  },
-  {
     .name = "declared_sanitizer_runtime_brings_the_redist_of_a_detected_install",
     .driver = SPN_CC_DRIVER_CLANG,
     .sdks = { .msvc = { { { "/X" }, SPN_ARCH_X64, "14.44", .redist = { "/X/A" } } } },
     .declared.sanitizers = { { SPN_SANITIZER_ADDRESS, { "/B" } } },
     .sanitize = SPN_SANITIZER_ADDRESS,
     .expect.c = { "/B", "/X/A" },
+  },
+  {
+    .name = "install_without_a_redist_refuses_a_shared_runtime",
+    .driver = SPN_CC_DRIVER_CLANG,
+    .sdks = { .msvc = { { { "/X" }, SPN_ARCH_X64, "14.44" } } },
+    .runtime = SPN_RUNTIME_SHARED,
+    .expect = { .err = SPN_ERR_TOOLCHAIN_FILE_MISSING, .missing = "/X/R" },
+  },
+  {
+    .name = "install_without_a_redist_refuses_a_sanitizer_runtime",
+    .driver = SPN_CC_DRIVER_MSVC,
+    .sdks = { .msvc = { { { "/X" }, SPN_ARCH_X64, "14.44" } } },
+    .sanitize = SPN_SANITIZER_ADDRESS,
+    .expect = { .err = SPN_ERR_TOOLCHAIN_FILE_MISSING, .missing = "/X/R" },
   },
   {
     .name = "explicit_sdk_stages_no_runtime_of_an_install",
@@ -146,7 +155,15 @@ sp_test_each(select_files, staged, test_t, tests, .setup = spn_test_ctx_setup) {
     .msvc.toolset = sp_cstr_as_str(it->toolset),
   };
   spn_toolchain_selection_t selection = sp_zero;
-  sp_must_eq(t, (u32)SPN_OK, (u32)si_toolchain_select(&catalog, query, &selection));
+  sp_must_eq(t, (u32)it->expect.err, (u32)si_toolchain_select(&catalog, query, &selection));
+  if (it->expect.err) {
+    sp_da(spn_event_t) errs = spn_test_drain_errs(mem);
+    sp_must_eq(t, 1, sp_da_size(errs));
+    sp_expect_str_eq_c(t, errs[0].err.toolchain_file.toolchain, "A");
+    sp_expect(t, spn_triple_equal(errs[0].err.toolchain_file.target, (spn_triple_t) TARGET_WIN_MSVC));
+    sp_expect_str_eq_c(t, errs[0].err.toolchain_file.path.sub, it->expect.missing);
+    return SP_OK;
+  }
 
   u32 c = 0;
   sp_carr_detect_len(it->expect.c, c, it->expect.c[c]);

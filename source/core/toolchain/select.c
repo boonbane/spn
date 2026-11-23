@@ -270,7 +270,7 @@ spn_err_t si_toolchain_select(spn_toolchain_catalog_t* catalog, spn_toolchain_qu
     }
   }
 
-  si_da(spn_path_t) redist = sp_zero;
+  const spn_msvc_redist_t* redist = SP_NULLPTR;
   spn_path_t asan = sp_zero;
   spn_sdk_t* sdk = &selection->row.sdk;
   if (sdk->kind == SPN_SDK_MSVC && !spn_path_empty(sdk->msvc.install.vs)) {
@@ -282,7 +282,7 @@ spn_err_t si_toolchain_select(spn_toolchain_catalog_t* catalog, spn_toolchain_qu
     switch (si_msvc_match(installs, target.arch, query.msvc, compiler, &pick)) {
       case SPN_MSVC_MATCH_OK: {
         sdk->msvc = si_sdk_from_msvc(catalog->mem, pick.kit, pick.toolset, target.arch);
-        redist = installs->redist[pick.toolset - installs->toolsets];
+        redist = &installs->redist[pick.toolset - installs->toolsets];
         if (compiler) {
           asan = sdk->msvc.runtime.asan;
         }
@@ -339,8 +339,18 @@ spn_err_t si_toolchain_select(spn_toolchain_catalog_t* catalog, spn_toolchain_qu
     stage(catalog->mem, &staged->c, &asan, 1);
     sanitized = true;
   }
-  if (shared || sanitized) {
-    stage(catalog->mem, &staged->c, redist, si_da_size(redist));
+  if (redist && (shared || sanitized)) {
+    if (si_da_empty(redist->files)) {
+      return spn_err_emit(&spn, (spn_err_union_t) {
+        .kind = SPN_ERR_TOOLCHAIN_FILE_MISSING,
+        .toolchain_file = {
+          .toolchain = selection->toolchain->name.str,
+          .target = selection->row.triple,
+          .path = redist->dir,
+        },
+      });
+    }
+    stage(catalog->mem, &staged->c, redist->files, si_da_size(redist->files));
   }
   stage(catalog->mem, &staged->cxx, staged->c, si_da_size(staged->c));
   if (shared) {

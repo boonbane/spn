@@ -347,13 +347,13 @@ spn_sdk_host_t si_sdk_detect(sp_mem_t mem, const spn_path_roots_t* roots, sp_env
     }
     sp_for(at, found->num_installations) {
       const sp_msvc_vs_t* vs = &found->installations[at];
-      si_da(spn_path_t) redist = sp_zero;
       sp_str_t vc = sp_fs_join_path(scratch.mem, sp_msvc_path_str(&vs->install_path), sp_str_lit("VC"));
       sp_str_t version = sp_zero;
       sp_fs_read(scratch.mem, sp_fs_join_path(scratch.mem, vc, sp_str_lit("Auxiliary/Build/Microsoft.VCRedistVersion.default.txt")), &version);
       sp_str_t root = sp_fs_join_path(scratch.mem, vc, sp_str_lit("Redist/MSVC"));
       root = sp_fs_join_path(scratch.mem, root, sp_str_trim(version));
       root = sp_fs_join_path(scratch.mem, root, spn_msvc_arch_name(arches[it]));
+      spn_msvc_redist_t redist = { .dir = absolute(sp_str_copy(mem, root)) };
       sp_sys_dir_t dir = sp_zero;
       if (!sp_fs_open_dir_at(sp_path_from_str(root), &dir)) {
         sp_glob_t* dll = sp_glob_new(scratch.mem, "Microsoft.VC*.CRT/*.dll");
@@ -361,17 +361,14 @@ spn_sdk_host_t si_sdk_detect(sp_mem_t mem, const spn_path_roots_t* roots, sp_env
         sp_fs_it_entry_t entry = sp_zero;
         while (sp_fs_it_next(&walk, &entry)) {
           if (sp_glob_match(dll, entry.path)) {
-            si_da_push(mem, redist, absolute(sp_fs_join_path(mem, root, entry.path)));
+            si_da_push(mem, redist.files, absolute(sp_fs_join_path(mem, root, entry.path)));
           }
         }
         if (walk.err) {
-          si_da_clear(redist);
+          si_da_clear(redist.files);
         }
         sp_fs_it_deinit(&walk);
         sp_fs_close_dir(dir);
-      }
-      if (si_da_empty(redist)) {
-        si_da_push(mem, redist, absolute(sp_str_copy(mem, root)));
       }
       si_da_push(mem, sdks.msvc.toolsets, *vs);
       si_da_push(mem, sdks.msvc.redist, redist);
