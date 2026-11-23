@@ -42,8 +42,8 @@ static reach_kind_t absence(const spn_toolchain_catalog_t* catalog, const spn_to
   if (spn_toolchain_unserved(toolchain, triple)) {
     return REACH_DROPPED;
   }
-  spn_sdk_t sdk = sp_zero;
-  if (spn_toolchain_driver_retargets(toolchain->driver) && !si_sdk_served(catalog->mem, &catalog->sdks, catalog->host, triple, &sdk)) {
+  spn_toolchain_sdk_t sdk = sp_zero;
+  if (spn_toolchain_driver_retargets(toolchain->driver) && !si_sdk_served(&catalog->sdks, catalog->host, triple, &sdk)) {
     return REACH_UNSERVED;
   }
   return REACH_UNLISTED;
@@ -132,7 +132,7 @@ sp_da(sp_str_t) spn_toolchain_host_candidates(sp_mem_t mem, spn_toolchain_catalo
   si_om_for(catalog->entries, it) {
     spn_toolchain_info_t* entry = si_om_at(catalog->entries, it);
     const spn_toolchain_row_t* row = spn_toolchain_row(entry, catalog->host);
-    if (usable(entry) && row && row->sdk.kind == SPN_SDK_HOST) {
+    if (usable(entry) && row && row->sdk.bound.kind == SPN_SDK_HOST) {
       sp_da_push(names, entry->name.str);
     }
   }
@@ -254,8 +254,8 @@ spn_err_t si_toolchain_select(spn_toolchain_catalog_t* catalog, spn_toolchain_qu
 
   const spn_msvc_redist_t* redist = SP_NULLPTR;
   spn_path_t asan = sp_zero;
-  spn_sdk_t* sdk = &selection->row.sdk;
-  if (sdk->kind == SPN_SDK_MSVC && !spn_path_empty(sdk->msvc.install.vs)) {
+  selection->sdk = selection->row.sdk.bound;
+  if (selection->row.sdk.install) {
     sp_mem_t mem = spn.events->mem;
     const spn_msvc_installs_t* installs = &catalog->sdks.msvc;
     spn_triple_t target = selection->row.triple;
@@ -263,10 +263,10 @@ spn_err_t si_toolchain_select(spn_toolchain_catalog_t* catalog, spn_toolchain_qu
     spn_msvc_pick_t pick = sp_zero;
     switch (si_msvc_match(installs, target.arch, query.msvc, compiler, &pick)) {
       case SPN_MSVC_MATCH_OK: {
-        sdk->msvc = si_sdk_from_msvc(catalog->mem, pick.kit, &pick.toolset->vs, target.arch);
+        selection->sdk = (spn_sdk_t) { .kind = SPN_SDK_MSVC, .msvc = si_sdk_from_msvc(catalog->mem, pick.kit, &pick.toolset->vs, target.arch) };
         redist = &pick.toolset->redist;
         if (compiler) {
-          asan = sdk->msvc.runtime.asan;
+          asan = selection->sdk.msvc.runtime.asan;
         }
         break;
       }

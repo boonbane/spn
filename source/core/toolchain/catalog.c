@@ -1,6 +1,7 @@
 #include "toolchain/catalog.h"
 
 #include "paths/paths.h"
+#include "toolchain/msvc.h"
 #include "toolchain/toolchain.h"
 #include "triple/triple.h"
 
@@ -37,19 +38,20 @@ static void bind_target(spn_toolchain_catalog_t* catalog, spn_toolchain_info_t* 
   }
   switch (target.sdk.source) {
     case SPN_SDK_SOURCE_PATH: {
-      row.sdk = spn_sdk_at(catalog->mem, target.triple, bind_path(catalog, support, target.sdk.path));
+      row.sdk.bound = spn_sdk_at(catalog->mem, target.triple, bind_path(catalog, support, target.sdk.path));
       break;
     }
     case SPN_SDK_SOURCE_HOST: {
-      row.sdk = si_sdk_host(catalog->mem, &catalog->sdks, target.triple);
+      row.sdk.bound = si_sdk_host(&catalog->sdks, target.triple);
       break;
     }
     case SPN_SDK_SOURCE_INSTALL: {
-      row.sdk = si_sdk_host(catalog->mem, &catalog->sdks, target.triple);
-      if (row.sdk.kind == SPN_SDK_NONE) {
+      spn_msvc_pick_t pick = sp_zero;
+      if (si_msvc_match(&catalog->sdks.msvc, target.triple.arch, sp_zero_s(spn_msvc_request_t), false, &pick)) {
         sp_da_push(info->unserved, target.triple);
         return;
       }
+      row.sdk.install = true;
       break;
     }
   }
@@ -115,8 +117,8 @@ static void push_stock(spn_toolchain_catalog_t* catalog, spn_toolchain_info_t* i
     return;
   }
   spn_toolchain_target_t stock = { .triple = host, .sdk.source = si_sdk_undeclared(host), .runtime.supported = stock_runtimes(decl->driver, host), .sanitizers.supported = stock_sanitizers(decl->driver, host) };
-  spn_sdk_t sdk = sp_zero;
-  if ((si_toolchain_driver_caps(decl->driver) & SPN_CC_CAP_HOST_SYSROOT) && si_sdk_served(catalog->mem, &catalog->sdks, catalog->host, host, &sdk)) {
+  spn_toolchain_sdk_t sdk = sp_zero;
+  if ((si_toolchain_driver_caps(decl->driver) & SPN_CC_CAP_HOST_SYSROOT) && si_sdk_served(&catalog->sdks, catalog->host, host, &sdk)) {
     sp_da_push(info->rows, ((spn_toolchain_row_t) { .triple = host, .sdk = sdk, .runtimes = stock.runtime.supported, .sanitizers = stock.sanitizers.supported }));
     return;
   }
@@ -138,7 +140,7 @@ static void push_hosted(spn_toolchain_info_t* info, spn_toolchain_catalog_t* cat
         if (own) {
           row.sanitizers = stock_sanitizers(driver, row.triple);
         }
-        if (si_sdk_served(catalog->mem, &catalog->sdks, catalog->host, row.triple, &row.sdk)) {
+        if (si_sdk_served(&catalog->sdks, catalog->host, row.triple, &row.sdk)) {
           push_row(info, row);
         }
       }

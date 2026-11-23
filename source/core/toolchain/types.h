@@ -134,6 +134,11 @@ typedef struct {
 } spn_sdk_t;
 
 typedef struct {
+  bool install;
+  spn_sdk_t bound;
+} spn_toolchain_sdk_t;
+
+typedef struct {
   spn_path_t dir;
   si_da(spn_path_t) files;
 } spn_msvc_redist_t;
@@ -218,7 +223,7 @@ typedef struct {
 
 typedef struct {
   spn_triple_t triple;
-  spn_sdk_t sdk;
+  spn_toolchain_sdk_t sdk;
   sp_str_t spelling;
   spn_toolchain_exceptions_t exceptions;
   spn_runtime_set_t runtimes;
@@ -338,6 +343,7 @@ typedef struct {
 typedef struct {
   spn_toolchain_info_t* toolchain;
   spn_toolchain_row_t row;
+  spn_sdk_t sdk;
   spn_linking_t linking;
   spn_toolchain_staged_t staged;
 } spn_toolchain_selection_t;

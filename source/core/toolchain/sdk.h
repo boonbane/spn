@@ -12,8 +12,8 @@ spn_sdk_msvc_t   si_sdk_from_msvc(sp_mem_t mem, const sp_msvc_sdk_t* kits, const
 spn_sdk_host_t   si_sdk_detect(sp_mem_t mem, const spn_path_roots_t* roots, sp_env_t* env, spn_triple_t host);
 spn_sdk_t        spn_sdk_at(sp_mem_t mem, spn_triple_t target, spn_path_t root);
 spn_sdk_source_t si_sdk_undeclared(spn_triple_t target);
-spn_sdk_t        si_sdk_host(sp_mem_t mem, const spn_sdk_host_t* host, spn_triple_t target);
-bool             si_sdk_served(sp_mem_t mem, const spn_sdk_host_t* sdks, spn_triple_t host, spn_triple_t target, spn_sdk_t* sdk);
+spn_sdk_t        si_sdk_host(const spn_sdk_host_t* host, spn_triple_t target);
+bool             si_sdk_served(const spn_sdk_host_t* sdks, spn_triple_t host, spn_triple_t target, spn_toolchain_sdk_t* sdk);
 sp_hash_t        spn_sdk_hash(const spn_sdk_t* sdk);
 bool             spn_sdk_libc(spn_cc_cap_set_t caps, const spn_sdk_t* sdk, spn_libc_t* libc);
 spn_dir_list_t   spn_sdk_tool_dirs(const spn_sdk_t* sdk);

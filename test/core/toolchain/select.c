@@ -581,7 +581,7 @@ static sp_err_t check_selection(sp_test_t* t, const spn_toolchain_selection_t* s
     sp_expect_eq(t, (u32)expect->linking.runtime, (u32)selection->linking.runtime);
     sp_expect_eq(t, (u32)expect->linking.libc, (u32)selection->linking.libc);
   }
-  return fixture_check_sdk(t, selection->row.sdk, expect->sdk);
+  return fixture_check_sdk(t, selection->sdk, expect->sdk);
 }
 
 sp_test_each(select, complete, complete_test_t, complete_tests, .setup = spn_test_ctx_setup) {

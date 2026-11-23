@@ -111,7 +111,7 @@ sp_test_each(select_msvc, pin, test_t, tests, .setup = spn_test_ctx_setup) {
   spn_toolchain_selection_t selection = sp_zero;
   sp_must_eq(t, (u32)it->expect.err, (u32)si_toolchain_select(&catalog, query, &selection));
   if (!it->expect.err) {
-    return fixture_check_sdk(t, selection.row.sdk, it->expect.sdk);
+    return fixture_check_sdk(t, selection.sdk, it->expect.sdk);
   }
 
   sp_da(spn_event_t) errs = spn_test_drain_errs(mem);

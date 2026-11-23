@@ -273,40 +273,30 @@ spn_sdk_source_t si_sdk_undeclared(spn_triple_t target) {
   sp_unreachable_return(SPN_SDK_SOURCE_HOST);
 }
 
-spn_sdk_t si_sdk_host(sp_mem_t mem, const spn_sdk_host_t* host, spn_triple_t target) {
-  spn_sdk_t none = sp_zero;
-  switch (spn_sdk_need(target)) {
-    case SPN_SDK_NEED_NONE:
-    case SPN_SDK_NEED_SYSROOT: {
-      return none;
-    }
-    case SPN_SDK_NEED_MACOS: {
-      return spn_path_empty(host->macos.root) ? none : (spn_sdk_t) { .kind = SPN_SDK_MACOS, .macos = host->macos };
-    }
-    case SPN_SDK_NEED_MSVC: {
-      spn_msvc_pick_t pick = sp_zero;
-      if (si_msvc_match(&host->msvc, target.arch, sp_zero_s(spn_msvc_request_t), false, &pick)) {
-        return none;
-      }
-      return (spn_sdk_t) { .kind = SPN_SDK_MSVC, .msvc = si_sdk_from_msvc(mem, pick.kit, &pick.toolset->vs, target.arch) };
-    }
+spn_sdk_t si_sdk_host(const spn_sdk_host_t* host, spn_triple_t target) {
+  if (spn_sdk_need(target) == SPN_SDK_NEED_MACOS && !spn_path_empty(host->macos.root)) {
+    return (spn_sdk_t) { .kind = SPN_SDK_MACOS, .macos = host->macos };
   }
-  sp_unreachable_return(none);
+  return sp_zero_struct(spn_sdk_t);
 }
 
-bool si_sdk_served(sp_mem_t mem, const spn_sdk_host_t* sdks, spn_triple_t host, spn_triple_t target, spn_sdk_t* sdk) {
-  *sdk = si_sdk_host(mem, sdks, target);
+bool si_sdk_served(const spn_sdk_host_t* sdks, spn_triple_t host, spn_triple_t target, spn_toolchain_sdk_t* sdk) {
+  *sdk = (spn_toolchain_sdk_t) { .bound = si_sdk_host(sdks, target) };
   switch (spn_sdk_need(target)) {
     case SPN_SDK_NEED_NONE: return true;
     case SPN_SDK_NEED_SYSROOT: {
       if (!spn_triple_equal(target, host)) {
         return false;
       }
-      *sdk = (spn_sdk_t) { .kind = SPN_SDK_HOST };
+      sdk->bound = (spn_sdk_t) { .kind = SPN_SDK_HOST };
       return true;
     }
-    case SPN_SDK_NEED_MACOS:
-    case SPN_SDK_NEED_MSVC: return sdk->kind != SPN_SDK_NONE;
+    case SPN_SDK_NEED_MACOS: return sdk->bound.kind != SPN_SDK_NONE;
+    case SPN_SDK_NEED_MSVC: {
+      spn_msvc_pick_t pick = sp_zero;
+      sdk->install = si_msvc_match(&sdks->msvc, target.arch, sp_zero_s(spn_msvc_request_t), false, &pick) == SPN_MSVC_MATCH_OK;
+      return sdk->install;
+    }
   }
   sp_unreachable_return(false);
 }
