@@ -164,7 +164,7 @@ static const lane_program_t lane_programs [] = {
 
 static bool links_dialect(const spn_toolchain_info_t* info, spn_ld_dialect_t dialect) {
   sp_da_for(info->rows, it) {
-    if (si_ld_dialect(info->driver, info->rows[it].triple) == dialect) {
+    if (si_ld_dialect(info->rows[it].triple) == dialect) {
       return true;
     }
   }

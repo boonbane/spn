@@ -3,7 +3,7 @@
 
 #include "toolchain/types.h"
 
-spn_ld_dialect_t      si_ld_dialect(spn_cc_driver_t driver, spn_triple_t target);
+spn_ld_dialect_t      si_ld_dialect(spn_triple_t target);
 bool                  spn_ld_dynamic(spn_triple_t target);
 bool                  spn_ld_loader(spn_triple_t target, spn_linking_t linking);
 spn_linking_refusal_t si_ld_linkings(spn_triple_t target, spn_linking_t request, spn_linkage_t demand, spn_linkings_t* linkings);

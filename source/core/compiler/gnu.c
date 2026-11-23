@@ -390,8 +390,11 @@ spn_cc_link_plan_t si_gnu_render_link(sp_mem_t mem, const spn_cc_t* toolchain, c
 
   spn_cc_link_plan_t plan = {
     .driver = toolchain->driver,
-    .dialect = si_ld_dialect(toolchain->driver, triple),
+    .dialect = si_ld_dialect(triple),
   };
+  if (plan.dialect == SPN_LD_DIALECT_LINK && spn_cc_has(toolchain, SPN_CC_CAP_GNU_LINK_ARGS)) {
+    plan.dialect = SPN_LD_DIALECT_GNU;
+  }
   spn_invocation_t* base = &plan.base;
   spn_invocation_t tail = sp_zero;
 
@@ -477,10 +480,14 @@ spn_cc_link_plan_t si_gnu_render_link(sp_mem_t mem, const spn_cc_t* toolchain, c
         switch (plan.dialect) {
           case SPN_LD_DIALECT_GNU: {
             spn_cc_push_c(mem, base, "-Wl,--subsystem,windows");
+            if (triple.abi == SPN_ABI_MSVC) {
+              spn_cc_push_c(mem, base, "-Wl,-e,mainCRTStartup");
+            }
             break;
           }
           case SPN_LD_DIALECT_LINK: {
             spn_cc_push_c(mem, base, "-Wl,/SUBSYSTEM:WINDOWS");
+            spn_cc_push_c(mem, base, "-Wl,/ENTRY:mainCRTStartup");
             break;
           }
           case SPN_LD_DIALECT_DARWIN:
@@ -488,9 +495,6 @@ spn_cc_link_plan_t si_gnu_render_link(sp_mem_t mem, const spn_cc_t* toolchain, c
           case SPN_LD_DIALECT_COUNT: {
             sp_unreachable_case();
           }
-        }
-        if (triple.abi == SPN_ABI_MSVC) {
-          spn_cc_push_c(mem, base, plan.dialect == SPN_LD_DIALECT_LINK ? "-Wl,/ENTRY:mainCRTStartup" : "-Wl,-e,mainCRTStartup");
         }
       }
       break;
