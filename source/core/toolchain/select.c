@@ -330,7 +330,7 @@ spn_err_t si_toolchain_select(spn_toolchain_catalog_t* catalog, spn_toolchain_qu
     stage(catalog->mem, &staged->c, files->c, si_da_size(files->c));
   }
   sp_for(st, si_sanitizer_count) {
-    if ((query.sanitizers & (1u << st)) && !si_da_empty(files->sanitizers[st])) {
+    if ((query.sanitizers & si_sanitizer_at(st)) && !si_da_empty(files->sanitizers[st])) {
       stage(catalog->mem, &staged->c, files->sanitizers[st], si_da_size(files->sanitizers[st]));
       sanitized = true;
     }

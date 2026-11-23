@@ -196,7 +196,7 @@ static void lower_toolchain_targets(spn_toml_loader_t* ctx, spn_path_root_t base
       if (!sanitizers[st].files) {
         continue;
       }
-      if (!detected && (target.sanitizers.supported & (1u << st))) {
+      if (!detected && (target.sanitizers.supported & si_sanitizer_at(st))) {
         target.sanitizers.files[st] = lower_files(ctx, sanitizers[st].key, source, base, sanitizers[st].files);
       }
       else {

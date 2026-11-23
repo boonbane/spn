@@ -2366,7 +2366,7 @@ sp_test_each(lower, cases, test_t, tests, .setup = spn_test_ctx_setup) {
       sp_expect_eq(t, target.sanitizers.supported, tc->targets[r].sanitizers.supported);
       sp_for(slot, si_sanitizer_count) {
         u32 at = 0;
-        while (at < si_sanitizer_count && (u32)target.sanitizers.files[at].sanitizer != 1u << slot) {
+        while (at < si_sanitizer_count && target.sanitizers.files[at].sanitizer != si_sanitizer_at(slot)) {
           at++;
         }
         if (at == si_sanitizer_count) {

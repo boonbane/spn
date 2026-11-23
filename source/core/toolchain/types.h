@@ -168,6 +168,7 @@ typedef struct {
 
 #define si_runtime_bit(runtime) (1u << (runtime))
 #define si_sanitizer_count 5
+#define si_sanitizer_at(slot) ((spn_sanitizer_t)(1u << (slot)))
 
 typedef u32 spn_runtime_set_t;
 

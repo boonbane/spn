@@ -221,7 +221,7 @@ static sp_err_t fixture_check_files(sp_test_t* t, const spn_toolchain_files_t* f
   sp_for(slot, si_sanitizer_count) {
     const c8* const* listed = none;
     sp_carr_for(expect->sanitizers, at) {
-      if ((u32)expect->sanitizers[at].sanitizer == 1u << slot) {
+      if (expect->sanitizers[at].sanitizer == si_sanitizer_at(slot)) {
         listed = expect->sanitizers[at].files;
       }
     }

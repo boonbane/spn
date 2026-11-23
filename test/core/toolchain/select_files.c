@@ -133,7 +133,7 @@ sp_test_each(select_files, staged, test_t, tests, .setup = spn_test_ctx_setup) {
   target.runtime.cxx = declare(mem, it->declared.cxx);
   sp_for(slot, si_sanitizer_count) {
     sp_carr_for(it->declared.sanitizers, at) {
-      if ((u32)it->declared.sanitizers[at].sanitizer == 1u << slot) {
+      if (it->declared.sanitizers[at].sanitizer == si_sanitizer_at(slot)) {
         target.sanitizers.files[slot] = declare(mem, it->declared.sanitizers[at].files);
       }
     }
