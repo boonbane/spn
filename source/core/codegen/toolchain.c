@@ -287,15 +287,25 @@ spn_toolchain_decl_t si_toolchain_lower(spn_toml_loader_t* ctx, u32 at, spn_path
       }
       spn_toml_loader_pop(ctx);
 
+      spn_runtime_set_t declared = 0;
       sp_da_for(row->runtime.supported, rt) {
-        target.runtime.supported |= si_runtime_bit(row->runtime.supported[rt]);
+        declared |= si_runtime_bit(row->runtime.supported[rt]);
       }
-      bool shared = target.runtime.supported & si_runtime_bit(SPN_RUNTIME_SHARED);
       spn_runtime_set_t own = si_toolchain_driver_runtimes(driver, target.triple);
       spn_toml_loader_push_key(ctx, "runtime");
-      if (own && (target.runtime.supported & ~own)) {
+      if (own && (declared & ~own)) {
         spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "supported");
       }
+      if (own) {
+        target.runtime.supported = own;
+      }
+      else if (declared) {
+        target.runtime.supported = declared;
+      }
+      else {
+        target.runtime.supported = si_runtime_bit(target.triple.os == SPN_OS_MACOS ? SPN_RUNTIME_SHARED : SPN_RUNTIME_STATIC);
+      }
+      bool shared = target.runtime.supported & si_runtime_bit(SPN_RUNTIME_SHARED);
       if (row->runtime.c) {
         if (!detected && shared) {
           target.runtime.c = lower_files(ctx, "c", source, base, row->runtime.c);
@@ -325,7 +335,7 @@ spn_toolchain_decl_t si_toolchain_lower(spn_toml_loader_t* ctx, u32 at, spn_path
         }
       }
       bool derived = spn_sdk_need(target.triple) == SPN_SDK_NEED_MSVC && spn_arg_empty(target.sdk);
-      if (shared && !own && target.triple.os == SPN_OS_WINDOWS && !derived && sp_da_empty(target.runtime.c) && sp_da_empty(target.runtime.cxx)) {
+      if (shared && target.triple.os == SPN_OS_WINDOWS && !derived && sp_da_empty(target.runtime.c) && sp_da_empty(target.runtime.cxx)) {
         sp_da(sp_str_t) others = sp_da_new(ctx->mem, sp_str_t);
         sp_da_push(others, sp_str_lit("cxx"));
         spn_toml_loader_push_key(ctx, "runtime");

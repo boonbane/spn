@@ -364,33 +364,11 @@ static const support_test_t support_tests [] = {
 
 static const runtime_test_t runtime_tests [] = {
   {
-    .name = "written_row_has_what_it_declares",
+    .name = "written_row_has_what_its_target_carries",
     .driver = SPN_CC_DRIVER_GCC,
     .host = HOST_X64_LINUX,
     .targets = { { .triple = HOST_X64_LINUX, .runtimes = rt_shared }, { .triple = HOST_X64_LINUX_MUSL, .runtimes = rt_both } },
     .expect = { .rows = { { HOST_X64_LINUX, rt_shared }, { HOST_X64_LINUX_MUSL, rt_both } } },
-  },
-  {
-    .name = "written_row_gets_the_static_floor",
-    .driver = SPN_CC_DRIVER_CLANG,
-    .host = HOST_X64_LINUX,
-    .targets = { { HOST_X64_LINUX }, { HOST_X64_LINUX_MUSL }, { TARGET_WIN_GNU }, { TARGET_WIN_MSVC, { .path = "/X" } }, { TARGET_WASM }, { TARGET_X64_BARE } },
-    .expect = { .rows = { { HOST_X64_LINUX, rt_static }, { HOST_X64_LINUX_MUSL, rt_static }, { TARGET_WIN_GNU, rt_static }, { TARGET_WIN_MSVC, rt_static }, { TARGET_WASM, rt_static }, { TARGET_X64_BARE, rt_static } } },
-  },
-  {
-    .name = "written_macos_row_gets_the_shared_floor",
-    .driver = SPN_CC_DRIVER_CLANG,
-    .host = HOST_X64_LINUX,
-    .targets = { { HOST_ARM_MACOS, { .path = "/S" } } },
-    .expect = { .rows = { { HOST_ARM_MACOS, rt_shared } } },
-  },
-  {
-    .name = "written_row_on_a_detected_msvc_sdk_gets_the_static_floor",
-    .driver = SPN_CC_DRIVER_CLANG,
-    .host = HOST_X64_WINDOWS,
-    .sdks = { .msvc = { { { "/X" }, SPN_ARCH_X64 } } },
-    .targets = { { TARGET_WIN_MSVC } },
-    .expect = { .rows = { { TARGET_WIN_MSVC, rt_static } } },
   },
   {
     .name = "host_row_on_linux_has_both",
@@ -426,20 +404,6 @@ static const runtime_test_t runtime_tests [] = {
     .expect = { .rows = { { TARGET_WIN_MSVC, rt_both } } },
   },
   {
-    .name = "zig_is_static_off_msvc",
-    .driver = SPN_CC_DRIVER_ZIG,
-    .host = HOST_X64_LINUX,
-    .targets = { { HOST_X64_LINUX }, { HOST_X64_LINUX_MUSL }, { HOST_ARM_MACOS }, { TARGET_WIN_GNU }, { TARGET_WASM } },
-    .expect = { .rows = { { HOST_X64_LINUX, rt_static }, { HOST_X64_LINUX_MUSL, rt_static }, { HOST_ARM_MACOS, rt_static }, { TARGET_WIN_GNU, rt_static }, { TARGET_WASM, rt_static } } },
-  },
-  {
-    .name = "zig_is_static_whatever_a_row_says",
-    .driver = SPN_CC_DRIVER_ZIG,
-    .host = HOST_X64_LINUX,
-    .targets = { { .triple = HOST_X64_LINUX, .runtimes = rt_both } },
-    .expect = { .rows = { { HOST_X64_LINUX, rt_static } } },
-  },
-  {
     .name = "zig_host_rows_are_static_off_msvc",
     .driver = SPN_CC_DRIVER_ZIG,
     .host = HOST_ARM_MACOS,
@@ -452,13 +416,6 @@ static const runtime_test_t runtime_tests [] = {
     .host = HOST_X64_WINDOWS,
     .sdks = { .msvc = { { { "/X" }, SPN_ARCH_X64 } } },
     .expect = { .rows = { { TARGET_WIN_GNU, rt_static }, { TARGET_WIN_MSVC, rt_both } } },
-  },
-  {
-    .name = "zig_msvc_row_has_what_it_declares",
-    .driver = SPN_CC_DRIVER_ZIG,
-    .host = HOST_X64_LINUX,
-    .targets = { { .triple = TARGET_WIN_MSVC, .sdk = { .path = "/X" } }, { .triple = TARGET_ARM_WIN_MSVC, .sdk = { .path = "/X" }, .runtimes = rt_both } },
-    .expect = { .rows = { { TARGET_WIN_MSVC, rt_static }, { TARGET_ARM_WIN_MSVC, rt_both } } },
   },
 };
 

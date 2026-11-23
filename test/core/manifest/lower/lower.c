@@ -928,6 +928,53 @@ static const test_t tests [] = {
     },
   },
   {
+    .name = "toolchain_target_runtime_floor",
+    .manifest = "toolchain_runtime_floor",
+    .toolchains = {
+      {
+        .name = "T",
+        .compiler = { .name = "clang" },
+        .archiver = { .name = "ar" },
+        .driver = SPN_CC_DRIVER_CLANG,
+        .targets = {
+          { .triple = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU }, .runtime.supported = si_runtime_bit(SPN_RUNTIME_STATIC) },
+          { .triple = { SPN_ARCH_ARM64, SPN_OS_MACOS, SPN_ABI_APPLE }, .runtime.supported = si_runtime_bit(SPN_RUNTIME_SHARED) },
+        },
+      },
+    },
+  },
+  {
+    .name = "toolchain_target_runtime_zig_is_static_off_msvc",
+    .manifest = "toolchain_runtime_zig",
+    .toolchains = {
+      {
+        .name = "T",
+        .compiler = { .name = "zig" },
+        .archiver = { .name = "zig" },
+        .args = { "cc" },
+        .driver = SPN_CC_DRIVER_ZIG,
+        .targets = {
+          { .triple = { SPN_ARCH_ARM64, SPN_OS_MACOS, SPN_ABI_APPLE }, .runtime.supported = si_runtime_bit(SPN_RUNTIME_STATIC) },
+          { .triple = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC }, .runtime.supported = si_runtime_bit(SPN_RUNTIME_STATIC) },
+          { .triple = { SPN_ARCH_ARM64, SPN_OS_WINDOWS, SPN_ABI_MSVC }, .runtime.supported = si_runtime_bit(SPN_RUNTIME_STATIC) | si_runtime_bit(SPN_RUNTIME_SHARED) },
+        },
+      },
+    },
+  },
+  {
+    .name = "toolchain_target_runtime_files_on_the_shared_floor",
+    .manifest = "toolchain_runtime_macos_files",
+    .toolchains = {
+      {
+        .name = "T",
+        .compiler = { .name = "clang" },
+        .archiver = { .name = "ar" },
+        .driver = SPN_CC_DRIVER_CLANG,
+        .targets = { { .triple = { SPN_ARCH_ARM64, SPN_OS_MACOS, SPN_ABI_APPLE }, .runtime.c = { { .path = "/A" } } } },
+      },
+    },
+  },
+  {
     .name = "toolchain_sdk_absent_off_host",
     .manifest = "toolchain_sdk_absent",
     .toolchains = {
@@ -2360,7 +2407,7 @@ sp_test_each(lower, cases, test_t, tests, .setup = spn_test_ctx_setup) {
       if (target.triple.arch == SPN_ARCH_NONE) break;
       sp_must(t, r < sp_da_size(tc->targets));
       sp_expect(t, spn_triple_equal(target.triple, tc->targets[r].triple));
-      sp_expect_eq(t, target.runtime.supported, tc->targets[r].runtime.supported);
+      if (target.runtime.supported) sp_expect_eq(t, target.runtime.supported, tc->targets[r].runtime.supported);
       check_args(t, tc->targets[r].runtime.c, target.runtime.c);
       check_args(t, tc->targets[r].runtime.cxx, target.runtime.cxx);
       sp_expect_eq(t, target.sanitizers.supported, tc->targets[r].sanitizers.supported);

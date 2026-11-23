@@ -20,17 +20,6 @@ static spn_path_t bind_path(spn_toolchain_catalog_t* catalog, spn_toolchain_supp
   sp_unreachable_return(sdk.path);
 }
 
-static spn_runtime_set_t runtimes(spn_cc_driver_t driver, spn_triple_t target, spn_runtime_set_t declared) {
-  spn_runtime_set_t own = si_toolchain_driver_runtimes(driver, target);
-  if (own) {
-    return own;
-  }
-  if (declared) {
-    return declared;
-  }
-  return si_runtime_bit(target.os == SPN_OS_MACOS ? SPN_RUNTIME_SHARED : SPN_RUNTIME_STATIC);
-}
-
 static si_da(spn_path_t) bind_files(spn_toolchain_catalog_t* catalog, spn_toolchain_support_t support, sp_da(spn_arg_t) declared) {
   si_da(spn_path_t) files = SP_NULLPTR;
   sp_da_for(declared, it) {
@@ -40,7 +29,7 @@ static si_da(spn_path_t) bind_files(spn_toolchain_catalog_t* catalog, spn_toolch
 }
 
 static void bind_target(spn_toolchain_catalog_t* catalog, spn_toolchain_info_t* info, spn_toolchain_support_t support, spn_toolchain_target_t target) {
-  spn_toolchain_row_t row = { .triple = target.triple, .spelling = target.spelling, .exceptions = target.exceptions, .runtimes = runtimes(info->driver, target.triple, target.runtime.supported), .sanitizers = target.sanitizers.supported };
+  spn_toolchain_row_t row = { .triple = target.triple, .spelling = target.spelling, .exceptions = target.exceptions, .runtimes = target.runtime.supported, .sanitizers = target.sanitizers.supported };
   row.files.c = bind_files(catalog, support, target.runtime.c);
   row.files.cxx = bind_files(catalog, support, target.runtime.cxx);
   sp_for(st, si_sanitizer_count) {
@@ -93,7 +82,11 @@ static spn_sanitizer_set_t stock_sanitizers(spn_cc_driver_t driver, spn_triple_t
   SP_UNREACHABLE_RETURN(0);
 }
 
-static spn_runtime_set_t stock_runtimes(spn_triple_t target) {
+static spn_runtime_set_t stock_runtimes(spn_cc_driver_t driver, spn_triple_t target) {
+  spn_runtime_set_t own = si_toolchain_driver_runtimes(driver, target);
+  if (own) {
+    return own;
+  }
   spn_runtime_set_t both = si_runtime_bit(SPN_RUNTIME_STATIC) | si_runtime_bit(SPN_RUNTIME_SHARED);
   switch (target.os) {
     case SPN_OS_LINUX: return both;
@@ -112,10 +105,10 @@ static void push_stock(spn_toolchain_catalog_t* catalog, spn_toolchain_info_t* i
   if (!host.abi || !si_toolchain_driver_composes(decl->driver, host) || spn_toolchain_row(info, host) || spn_toolchain_unserved(info, host)) {
     return;
   }
-  spn_toolchain_target_t stock = { .triple = host, .runtime.supported = stock_runtimes(host), .sanitizers.supported = stock_sanitizers(decl->driver, host) };
+  spn_toolchain_target_t stock = { .triple = host, .runtime.supported = stock_runtimes(decl->driver, host), .sanitizers.supported = stock_sanitizers(decl->driver, host) };
   spn_sdk_t sdk = sp_zero;
   if ((si_toolchain_driver_caps(decl->driver) & SPN_CC_CAP_HOST_SYSROOT) && si_sdk_served(catalog->mem, &catalog->sdks, catalog->host, host, &sdk)) {
-    sp_da_push(info->rows, ((spn_toolchain_row_t) { .triple = host, .sdk = sdk, .runtimes = runtimes(decl->driver, host, stock.runtime.supported), .sanitizers = stock.sanitizers.supported }));
+    sp_da_push(info->rows, ((spn_toolchain_row_t) { .triple = host, .sdk = sdk, .runtimes = stock.runtime.supported, .sanitizers = stock.sanitizers.supported }));
     return;
   }
   bind_target(catalog, info, sp_zero_struct(spn_toolchain_support_t), stock);
@@ -132,7 +125,7 @@ static void push_hosted(spn_toolchain_info_t* info, spn_toolchain_catalog_t* cat
       u32 num_abis = spn_os_completions(arches[arch], hosted[os], &abis);
       sp_for(abi, num_abis) {
         spn_triple_t triple = { arches[arch], hosted[os], abis[abi] };
-        spn_toolchain_row_t row = { .triple = triple, .runtimes = runtimes(driver, triple, stock_runtimes(triple)) };
+        spn_toolchain_row_t row = { .triple = triple, .runtimes = stock_runtimes(driver, triple) };
         if (own) {
           row.sanitizers = stock_sanitizers(driver, row.triple);
         }
