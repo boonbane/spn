@@ -153,19 +153,12 @@ sp_da(sp_str_t) spn_toolchain_exceptions_candidates(sp_mem_t mem, spn_toolchain_
   return names;
 }
 
-static spn_err_t emit(spn_err_t kind, spn_toolchain_catalog_t* catalog, spn_toolchain_query_t query, spn_triple_t target, sp_da(sp_str_t) candidates, sp_da(spn_triple_t) targets) {
-  return spn_err_emit(&spn, (spn_err_union_t) {
-    .kind = kind,
-    .toolchain = {
-      .name = query.toolchain.name.str,
-      .target = target,
-      .query = query.target,
-      .host = catalog->host,
-      .sanitizers = query.sanitizers,
-      .candidates = candidates,
-      .targets = targets,
-    },
-  });
+static spn_err_t emit(spn_err_t kind, spn_toolchain_catalog_t* catalog, spn_toolchain_query_t query, spn_err_toolchain_t err) {
+  err.name = query.toolchain.name.str;
+  err.query = query.target;
+  err.host = catalog->host;
+  err.sanitizers = query.sanitizers;
+  return spn_err_emit(&spn, (spn_err_union_t) { .kind = kind, .toolchain = err });
 }
 
 static spn_err_t emit_reach(spn_toolchain_catalog_t* catalog, spn_toolchain_query_t query, const spn_toolchain_info_t* toolchain, reach_t reach, sp_da(sp_str_t) candidates) {
@@ -201,10 +194,10 @@ static spn_err_t emit_reach(spn_toolchain_catalog_t* catalog, spn_toolchain_quer
     }
     case REACH_DROPPED:
     case REACH_UNSERVED: {
-      return emit(sdk_refusal(reach.row.triple), catalog, query, reach.row.triple, candidates, triples(spn.events->mem, toolchain->rows));
+      return emit(sdk_refusal(reach.row.triple), catalog, query, (spn_err_toolchain_t) { .target = reach.row.triple, .candidates = candidates, .targets = triples(spn.events->mem, toolchain->rows) });
     }
     case REACH_UNLISTED: {
-      return emit(SPN_ERR_TOOLCHAIN_TARGET, catalog, query, query.target, candidates, triples(spn.events->mem, toolchain->rows));
+      return emit(SPN_ERR_TOOLCHAIN_TARGET, catalog, query, (spn_err_toolchain_t) { .target = query.target, .candidates = candidates, .targets = triples(spn.events->mem, toolchain->rows) });
     }
     case REACH_OK: {
       sp_unreachable_case();
@@ -227,26 +220,16 @@ static spn_err_t select_auto(spn_toolchain_catalog_t* catalog, spn_toolchain_que
     }
   }
 
-  return spn_err_emit(&spn, (spn_err_union_t) {
-    .kind = SPN_ERR_TOOLCHAIN_NONE,
-    .toolchain = {
-      .name = query.toolchain.name.str,
-      .target = query.target,
-      .query = query.target,
-      .host = catalog->host,
-      .sanitizers = query.sanitizers,
-      .runtime = closest.runtime,
-    },
-  });
+  return emit(SPN_ERR_TOOLCHAIN_NONE, catalog, query, (spn_err_toolchain_t) { .target = query.target, .runtime = closest.runtime });
 }
 
 static spn_err_t select_named(spn_toolchain_catalog_t* catalog, spn_toolchain_query_t query, spn_toolchain_selection_t* selection) {
   spn_toolchain_info_t* toolchain = spn_toolchain_catalog_get(catalog, query.toolchain.id);
   if (!toolchain) {
-    return emit(SPN_ERR_TOOLCHAIN_UNKNOWN, catalog, query, query.target, satisfying(catalog, query), SP_NULLPTR);
+    return emit(SPN_ERR_TOOLCHAIN_UNKNOWN, catalog, query, (spn_err_toolchain_t) { .target = query.target, .candidates = satisfying(catalog, query) });
   }
   if (!usable(toolchain)) {
-    return emit(toolchain->support.err, catalog, query, query.target, satisfying(catalog, query), SP_NULLPTR);
+    return emit(toolchain->support.err, catalog, query, (spn_err_toolchain_t) { .target = query.target, .candidates = satisfying(catalog, query) });
   }
 
   reach_t reach = reach_best(catalog, toolchain, query, query.candidates);
