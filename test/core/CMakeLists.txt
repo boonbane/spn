@@ -22,24 +22,20 @@ add_executable(core
   version.c
   when.c
   closure.c
+  sha256.c
   compiler/harness.c
-  compiler/invocation.c
+  compiler/archive.c
   compiler/coff.c
   compiler/compile.c
   compiler/depfile.c
   compiler/echo.c
-  compiler/env.c
   compiler/exports/render.c
-  compiler/exports/wasm.c
-  compiler/flags.c
   compiler/link.c
-  compiler/rsp/gnu.c
-  compiler/rsp/style.c
-  compiler/rsp/windows.c
   compiler/path.c
+  compiler/rsp.c
   compiler/run.c
   compiler/toc.c
-  compiler/tools.c
+  compiler/validate.c
   config/cache.c
   config/config.c
   config/net.c
@@ -163,10 +159,8 @@ add_executable(core
   toolchain/search.c
   toolchain/select.c
   toolchain/select_msvc.c
-  toolchain/sha256.c
   toolchain/toolchain.c
   toolchain/unpack.c
-  toolchain/verify.c
   toolchain/zig.c
   unit/harness.c
   unit/compile.c
@@ -239,7 +233,6 @@ set_source_files_properties(
   toolchain/provision.c
   toolchain/select.c
   toolchain/select_msvc.c
-  toolchain/sha256.c
   toolchain/toolchain.c
   toolchain/zig.c
   PROPERTIES COMPILE_DEFINITIONS "TOOLCHAINS_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/toolchain/toolchains\"")

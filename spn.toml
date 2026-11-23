@@ -203,7 +203,6 @@ source = [
   "test/core/*.c",
   "test/core/compiler/*.c",
   "test/core/compiler/exports/*.c",
-  "test/core/compiler/rsp/*.c",
   "test/core/config/*.c",
   "test/core/external/*.c",
   "test/core/gen/*.c",

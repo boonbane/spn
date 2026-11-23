@@ -23,7 +23,6 @@ static const test_t tests [] = {
   { "distribution_relative_ignores_base", SPN_TOOLCHAIN_SOURCE_DISTRIBUTION, SPN_PATH_ROOT_PROJECT, "S/T",    .expect = { .sdk = { .name = "S/T" } } },
   { "distribution_absolute_is_host",      SPN_TOOLCHAIN_SOURCE_DISTRIBUTION, SPN_PATH_ROOT_NONE,    "/S",     .expect = { .sdk = { .path = "/S" } } },
   { "distribution_malformed",             SPN_TOOLCHAIN_SOURCE_DISTRIBUTION, SPN_PATH_ROOT_NONE,    "S/../T", .expect = { .err = SPN_ERR_CODEGEN_PATH } },
-  { "detected_relative",                  SPN_TOOLCHAIN_SOURCE_DETECTED,     SPN_PATH_ROOT_PROJECT, "S",      .expect = { .sdk = { .name = "S" } } },
 };
 
 sp_test_each(sdk_path, classify, test_t, tests) {

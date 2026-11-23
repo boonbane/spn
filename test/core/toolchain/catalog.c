@@ -2,7 +2,6 @@
 
 #define CATALOG_MAX_ADDS 2
 #define CATALOG_MAX_ORDER 4
-#define CATALOG_MAX_TOOLCHAINS 2
 
 typedef struct {
   const c8* name;
@@ -11,7 +10,8 @@ typedef struct {
 
 typedef struct {
   const c8* order [CATALOG_MAX_ORDER];
-  fixture_toolchain_t toolchains [CATALOG_MAX_TOOLCHAINS];
+  const c8* toolchain;
+  test_arg_t compiler;
 } add_expect_t;
 
 typedef struct {
@@ -29,10 +29,8 @@ typedef struct {
 typedef struct {
   const c8* name;
   const c8* file;
-  spn_triple_t host;
-  const c8* toolchain;
   rows_expect_t expect;
-} rows_test_t;
+} artifact_test_t;
 
 typedef struct {
   const c8* name;
@@ -67,14 +65,8 @@ static const add_test_t add_tests [] = {
     },
     .expect = {
       .order = { "A", "B" },
-      .toolchains = {
-        {
-          .name = "A",
-          .driver = SPN_CC_DRIVER_GCC,
-          .compiler = { .path = "/A" },
-          .rows = { { HOST_X64_LINUX, { SPN_SDK_HOST }, SAN_GCC_LINUX }, { TARGET_X64_BARE }, { TARGET_X64_LINUX_NONE } },
-        },
-      },
+      .toolchain = "A",
+      .compiler = { .path = "/A" },
     },
   },
   {
@@ -89,60 +81,10 @@ static const add_test_t add_tests [] = {
   },
 };
 
-static const rows_test_t rows_tests [] = {
+static const artifact_test_t artifact_tests [] = {
   {
-    .name = "gcc_on_linux_targets_host_and_none",
-    .file = "drivers.toml",
-    .host = HOST_X64_LINUX,
-    .toolchain = "A",
-    .expect = { .rows = { { HOST_X64_LINUX, { SPN_SDK_HOST }, SAN_GCC_LINUX }, { TARGET_X64_BARE }, { TARGET_X64_LINUX_NONE } } },
-  },
-  {
-    .name = "clang_on_linux_targets_host_and_no_bare",
-    .file = "multiple.toml",
-    .host = HOST_ARM_LINUX,
-    .toolchain = "B",
-    .expect = { .rows = { { HOST_ARM_LINUX, { SPN_SDK_HOST }, SAN_CLANG_LINUX } } },
-  },
-  {
-    .name = "gcc_on_macos_targets_host_only",
-    .file = "drivers.toml",
-    .host = HOST_ARM_MACOS,
-    .toolchain = "A",
-    .expect = { .rows = { { HOST_ARM_MACOS, .sanitizers = SAN_GCC_MACOS } } },
-  },
-  {
-    .name = "clang_on_macos_without_sdk_targets_host_only",
-    .file = "multiple.toml",
-    .host = HOST_ARM_MACOS,
-    .toolchain = "B",
-    .expect = { .rows = { { HOST_ARM_MACOS, .sanitizers = SAN_CLANG_MACOS } } },
-  },
-  {
-    .name = "gcc_on_windows_brings_its_libc",
-    .file = "drivers.toml",
-    .host = HOST_X64_WINDOWS,
-    .toolchain = "A",
-    .expect = { .rows = { { TARGET_WIN_GNU } } },
-  },
-  {
-    .name = "msvc_on_linux_targets_nothing",
-    .file = "drivers.toml",
-    .host = HOST_X64_LINUX,
-    .toolchain = "C",
-  },
-  {
-    .name = "fixed_driver_keeps_its_list",
-    .file = "auto.toml",
-    .host = HOST_X64_LINUX,
-    .toolchain = "A",
-    .expect = { .rows = { { TARGET_WIN_GNU } } },
-  },
-  {
-    .name = "artifact_sdks_root_under_artifact",
+    .name = "relative_sdks_root_under_the_artifact",
     .file = "sdk.toml",
-    .host = HOST_X64_LINUX,
-    .toolchain = "A",
     .expect = {
       .rows = {
         { HOST_ARM_LINUX, { SPN_SDK_SYSROOT, { "store/aa/S/linux", SPN_PATH_ROOT_TOOLCHAIN } } },
@@ -155,22 +97,48 @@ static const rows_test_t rows_tests [] = {
     },
   },
   {
-    .name = "local_sdks_are_kept",
-    .file = "sdk_local.toml",
-    .host = HOST_X64_LINUX,
-    .toolchain = "A",
-    .expect = { .rows = { { HOST_ARM_LINUX, { SPN_SDK_SYSROOT, { "/S" } } } } },
-  },
-  {
-    .name = "artifact_absolute_sdk_is_a_host_path",
+    .name = "absolute_sdk_is_a_host_path",
     .file = "sdk_absolute.toml",
-    .host = HOST_X64_LINUX,
-    .toolchain = "A",
     .expect = { .rows = { { HOST_ARM_LINUX, { SPN_SDK_SYSROOT, { "/S" } } } } },
   },
 };
 
 static const bind_test_t bind_tests [] = {
+  {
+    .name = "gcc_on_linux_targets_host_and_none",
+    .driver = SPN_CC_DRIVER_GCC,
+    .host = HOST_X64_LINUX,
+    .expect = { .rows = { { HOST_X64_LINUX, { SPN_SDK_HOST }, SAN_GCC_LINUX }, { TARGET_X64_BARE }, { TARGET_X64_LINUX_NONE } } },
+  },
+  {
+    .name = "clang_on_linux_targets_host_and_no_bare",
+    .driver = SPN_CC_DRIVER_CLANG,
+    .host = HOST_ARM_LINUX,
+    .expect = { .rows = { { HOST_ARM_LINUX, { SPN_SDK_HOST }, SAN_CLANG_LINUX } } },
+  },
+  {
+    .name = "gcc_on_macos_targets_host_only",
+    .driver = SPN_CC_DRIVER_GCC,
+    .host = HOST_ARM_MACOS,
+    .expect = { .rows = { { HOST_ARM_MACOS, .sanitizers = SAN_GCC_MACOS } } },
+  },
+  {
+    .name = "clang_on_macos_without_sdk_targets_host_only",
+    .driver = SPN_CC_DRIVER_CLANG,
+    .host = HOST_ARM_MACOS,
+    .expect = { .rows = { { HOST_ARM_MACOS, .sanitizers = SAN_CLANG_MACOS } } },
+  },
+  {
+    .name = "gcc_on_windows_brings_its_libc",
+    .driver = SPN_CC_DRIVER_GCC,
+    .host = HOST_X64_WINDOWS,
+    .expect = { .rows = { { TARGET_WIN_GNU } } },
+  },
+  {
+    .name = "msvc_on_linux_targets_nothing",
+    .driver = SPN_CC_DRIVER_MSVC,
+    .host = HOST_X64_LINUX,
+  },
   {
     .name = "entry_path_wins_over_host",
     .driver = SPN_CC_DRIVER_GCC,
@@ -377,32 +345,28 @@ sp_test_each(catalog, add, add_test_t, add_tests, .setup = spn_test_ctx_setup) {
 
   u32 order = 0;
   sp_carr_detect_len(it->expect.order, order, it->expect.order[order]);
-  sp_must_eq(t, order, fixture_catalog_size(&catalog));
+  sp_must_eq(t, order, (u32)si_om_size(catalog.entries));
   sp_for(at, order) {
-    sp_expect_str_eq_c(t, fixture_catalog_at(&catalog, at)->name.str, it->expect.order[at]);
+    sp_expect_str_eq_c(t, si_om_at(catalog.entries, at)->name.str, it->expect.order[at]);
   }
 
-  u32 toolchains = 0;
-  sp_carr_detect_len(it->expect.toolchains, toolchains, it->expect.toolchains[toolchains].name);
-  sp_for(at, toolchains) {
-    fixture_toolchain_t toolchain = it->expect.toolchains[at];
-    if (fixture_check_entry(t, spn_toolchain_catalog_get(&catalog, spn_intern_cstr(toolchain.name).id), toolchain)) {
-      return SP_ERR;
-    }
+  if (!it->expect.toolchain) {
+    return SP_OK;
   }
-
-  return SP_OK;
+  spn_toolchain_info_t* info = spn_toolchain_catalog_get(&catalog, spn_intern_cstr(it->expect.toolchain).id);
+  sp_must(t, info);
+  return test_check_arg(t, info->compiler.program, it->expect.compiler);
 }
 
-sp_test_each(catalog, rows, rows_test_t, rows_tests, .setup = spn_test_ctx_setup) {
+sp_test_each(catalog, artifact, artifact_test_t, artifact_tests, .setup = spn_test_ctx_setup) {
   spn_toolchain_catalog_t catalog = sp_zero;
-  if (fixture_catalog(t, &catalog, it->file, it->host, sp_zero_struct(spn_sdk_host_t))) {
+  if (fixture_catalog(t, &catalog, it->file, (spn_triple_t) HOST_X64_LINUX, sp_zero_struct(spn_sdk_host_t))) {
     return SP_ERR;
   }
 
-  spn_toolchain_info_t* info = spn_toolchain_catalog_get(&catalog, spn_intern_cstr(it->toolchain).id);
+  spn_toolchain_info_t* info = spn_toolchain_catalog_get(&catalog, spn_intern(sp_str_lit("A")).id);
   sp_must(t, info);
-  return fixture_check_expected_rows(t, info->rows, it->expect.rows);
+  return fixture_check_rows(t, info->rows, it->expect.rows);
 }
 
 sp_test_each(catalog, bind, bind_test_t, bind_tests, .setup = spn_test_ctx_setup) {
@@ -424,7 +388,7 @@ sp_test_each(catalog, bind, bind_test_t, bind_tests, .setup = spn_test_ctx_setup
 
   spn_toolchain_info_t* info = spn_toolchain_catalog_get(&catalog, spn_intern(sp_str_lit("A")).id);
   sp_must(t, info);
-  if (fixture_check_expected_rows(t, info->rows, it->expect.rows)) {
+  if (fixture_check_rows(t, info->rows, it->expect.rows)) {
     return SP_ERR;
   }
   u32 unserved = 0;

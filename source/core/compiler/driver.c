@@ -303,7 +303,7 @@ spn_invocation_t spn_cc_render_link_command(sp_mem_t mem, const spn_cc_link_plan
   return invocation;
 }
 
-spn_cc_link_refusal_t spn_cc_validate_link(const spn_cc_t* toolchain, spn_triple_t host, const spn_profile_info_t* profile, const spn_cc_link_t* link) {
+spn_cc_link_refusal_t spn_cc_validate_link(spn_triple_t host, const spn_profile_info_t* profile, const spn_cc_link_t* link) {
   spn_cc_feature_t feature = link_feature(link->kind);
   spn_triple_t target = profile->target;
 

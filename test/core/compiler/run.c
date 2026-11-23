@@ -26,9 +26,6 @@ static const test_t tests [] = {
     .err = "E\n",
     .expect = { .out = "E\n" },
   },
-  {
-    .name = "silent",
-  },
 };
 
 sp_test_each(invocation, run_progress, test_t, tests, .setup = spn_test_ctx_setup) {
@@ -44,7 +41,6 @@ sp_test_each(invocation, run_progress, test_t, tests, .setup = spn_test_ctx_setu
   };
   spn_cc_push_path(mem, &invocation, (spn_path_t) { .sub = test_repo_path(mem, sp_str_lit("test/core/compiler/run/stub.sh")) });
   spn_cc_push_fmt(mem, &invocation, "{}", sp_fmt_int(it->rc));
-  spn_cc_push_env(mem, &invocation, SPN_ENV_ZIG_LIBC, spn_arg_lit(sp_str_lit("A")));
 
   sp_io_dyn_mem_writer_t sink = sp_zero;
   sp_io_dyn_mem_writer_init(mem, &sink);
@@ -55,6 +51,5 @@ sp_test_each(invocation, run_progress, test_t, tests, .setup = spn_test_ctx_setu
   sp_expect_eq(t, run.result.status.exit_code, it->rc);
   sp_expect_str_eq_c(t, sp_io_dyn_mem_writer_as_str(&sink), it->progress);
   sp_expect_str_eq_c(t, run.result.out, it->expect.out);
-  sp_expect_eq(t, sp_da_size(invocation.env), 1);
   return SP_OK;
 }

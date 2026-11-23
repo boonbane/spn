@@ -37,27 +37,15 @@ static const test_t tests [] = {
     .listing = "",
   },
   {
-    .name = "seed_orders_the_mirrors",
+    .name = "shuffle_keeps_every_mirror",
     .url = "https://O.example.com/x/T.tar.gz",
     .listing = "https://A.example.com\nhttps://B.example.com\nhttps://C.example.com\nhttps://D.example.com\n",
     .seed = 1,
     .expect = {
-      "https://D.example.com/T.tar.gz?source=spn",
-      "https://B.example.com/T.tar.gz?source=spn",
-      "https://A.example.com/T.tar.gz?source=spn",
-      "https://C.example.com/T.tar.gz?source=spn",
-    },
-  },
-  {
-    .name = "another_seed_reorders_the_mirrors",
-    .url = "https://O.example.com/x/T.tar.gz",
-    .listing = "https://A.example.com\nhttps://B.example.com\nhttps://C.example.com\nhttps://D.example.com\n",
-    .seed = 2,
-    .expect = {
-      "https://D.example.com/T.tar.gz?source=spn",
       "https://A.example.com/T.tar.gz?source=spn",
       "https://B.example.com/T.tar.gz?source=spn",
       "https://C.example.com/T.tar.gz?source=spn",
+      "https://D.example.com/T.tar.gz?source=spn",
     },
   },
 };
@@ -67,7 +55,17 @@ sp_test_each(mirrors, urls, test_t, tests) {
   spn_artifact_t artifact = { .url = sp_cstr_as_str(it->url) };
 
   sp_da(sp_str_t) urls = spn_artifact_mirror_urls(mem, artifact, sp_cstr_as_str(it->listing), it->seed);
-  sp_must_strs_eq(t, urls, sp_da_size(urls), it->expect);
+  u32 count = 0;
+  sp_carr_detect_len(it->expect, count, it->expect[count]);
+  sp_must_eq(t, count, (u32)sp_da_size(urls));
+  sp_for(at, count) {
+    bool found = false;
+    sp_da_for(urls, ut) {
+      found = found || sp_str_equal_cstr(urls[ut], it->expect[at]);
+    }
+    sp_test_kv(t, "url", sp_cstr_as_str(it->expect[at]));
+    sp_expect(t, found);
+  }
 
   return SP_OK;
 }

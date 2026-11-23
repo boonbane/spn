@@ -1,27 +1,6 @@
 #include "toolchain.h"
 
 typedef struct {
-  const c8* program;
-  const c8* program_win;
-} launcher_expect_t;
-
-typedef struct {
-  const c8* name;
-  fixture_launcher_t launcher;
-  const c8* root;
-  launcher_expect_t expect;
-} launcher_test_t;
-
-static const launcher_test_t tests [] = {
-  {
-    .name = "root_prefixes_program",
-    .launcher = { .name = "B/A", .args = { "C" } },
-    .root = "/R",
-    .expect = { .program = "/R/B/A", .program_win = "/R/B/A.exe" },
-  },
-};
-
-typedef struct {
   spn_toolchain_ref_kind_t kind;
   const c8* name;
 } ref_expect_t;
@@ -45,30 +24,15 @@ sp_test_each(launcher, ref, ref_test_t, ref_tests, .setup = spn_test_ctx_setup) 
   return SP_OK;
 }
 
-sp_test_each(launcher, resolve, launcher_test_t, tests) {
+sp_test(launcher, root_prefixes_program) {
   sp_mem_t mem = sp_test_arena(t);
   spn_path_roots_t roots = sp_zero;
-
-  spn_toolchain_launcher_t launcher = { .program = fixture_arg(it->launcher) };
-  launcher.args = sp_da_new(mem, sp_str_t);
-  sp_carr_for(it->launcher.args, at) {
-    if (!it->launcher.args[at]) {
-      break;
-    }
-    sp_da_push(launcher.args, sp_cstr_as_str(it->launcher.args[at]));
-  }
-
-  if (it->expect.program) {
-    const c8* program = it->expect.program;
+  spn_toolchain_launcher_t launcher = { .program = spn_arg_lit(sp_str_lit("B/A")) };
+  spn_toolchain_launcher_t rooted = spn_toolchain_launcher_with_root(mem, launcher, (spn_path_t) { .sub = sp_str_lit("/R") });
 #if defined(SP_WIN32)
-    if (it->expect.program_win) {
-      program = it->expect.program_win;
-    }
+  sp_expect_str_eq_c(t, spn_arg_str(&roots, mem, rooted.program), "/R/B/A.exe");
+#else
+  sp_expect_str_eq_c(t, spn_arg_str(&roots, mem, rooted.program), "/R/B/A");
 #endif
-    spn_path_t root = { .sub = sp_cstr_as_str(it->root) };
-    spn_toolchain_launcher_t rooted = spn_toolchain_launcher_with_root(mem, launcher, root);
-    sp_expect_str_eq_c(t, spn_arg_str(&roots, mem, rooted.program), program);
-  }
-
   return SP_OK;
 }

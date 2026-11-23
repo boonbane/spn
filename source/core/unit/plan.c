@@ -122,7 +122,7 @@ static spn_err_t lower_link(spn_units_t* u, spn_target_unit_t* unit) {
   cc->args = unit->target->link_flags;
   cc->scripts = unit->target->linker_script;
 
-  spn_cc_link_refusal_t refusal = spn_cc_validate_link(toolchain, spn.host, profile, cc);
+  spn_cc_link_refusal_t refusal = spn_cc_validate_link(spn.host, profile, cc);
   switch (refusal.err) {
     case SPN_OK: {
       break;

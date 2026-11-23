@@ -27,6 +27,18 @@ typedef struct {
   expect_t expect;
 } test_t;
 
+#define install_include { \
+  "C:/V/VC/Tools/MSVC/14.1/include", \
+  "C:/V/VC/Tools/MSVC/14.1/atlmfc/include", \
+  "C:/V/VC/Auxiliary/VS/include", \
+  "C:/K/10/Include/10.0.1.0/ucrt", \
+  "C:/K/10/Include/10.0.1.0/um", \
+  "C:/K/10/Include/10.0.1.0/shared", \
+  "C:/K/10/Include/10.0.1.0/winrt", \
+  "C:/K/10/Include/10.0.1.0/cppwinrt", \
+  "C:/V/DIA SDK/include", \
+}
+
 static const test_t tests [] = {
   {
     .name = "roles_map_to_install_dirs",
@@ -37,17 +49,7 @@ static const test_t tests [] = {
       .tools = {
         "C:/K/10/bin/10.0.1.0/x64",
       },
-      .include = {
-        "C:/V/VC/Tools/MSVC/14.1/include",
-        "C:/V/VC/Tools/MSVC/14.1/atlmfc/include",
-        "C:/V/VC/Auxiliary/VS/include",
-        "C:/K/10/Include/10.0.1.0/ucrt",
-        "C:/K/10/Include/10.0.1.0/um",
-        "C:/K/10/Include/10.0.1.0/shared",
-        "C:/K/10/Include/10.0.1.0/winrt",
-        "C:/K/10/Include/10.0.1.0/cppwinrt",
-        "C:/V/DIA SDK/include",
-      },
+      .include = install_include,
       .lib = {
         "C:/V/VC/Tools/MSVC/14.1/Lib/x64",
         "C:/V/VC/Tools/MSVC/14.1/atlmfc/lib/x64",
@@ -68,17 +70,7 @@ static const test_t tests [] = {
         "C:/V/VC/Tools/MSVC/14.1/bin/Hostx64/x64",
         "C:/K/10/bin/10.0.1.0/x64",
       },
-      .include = {
-        "C:/V/VC/Tools/MSVC/14.1/include",
-        "C:/V/VC/Tools/MSVC/14.1/atlmfc/include",
-        "C:/V/VC/Auxiliary/VS/include",
-        "C:/K/10/Include/10.0.1.0/ucrt",
-        "C:/K/10/Include/10.0.1.0/um",
-        "C:/K/10/Include/10.0.1.0/shared",
-        "C:/K/10/Include/10.0.1.0/winrt",
-        "C:/K/10/Include/10.0.1.0/cppwinrt",
-        "C:/V/DIA SDK/include",
-      },
+      .include = install_include,
       .lib = {
         "C:/V/VC/Tools/MSVC/14.1/Lib/arm64",
         "C:/V/VC/Tools/MSVC/14.1/atlmfc/lib/arm64",

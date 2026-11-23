@@ -11,7 +11,7 @@ spn_cc_link_plan_t si_cc_render_link(sp_mem_t mem, const spn_cc_t* toolchain, co
 
 
 spn_toolchain_launcher_t spn_cc_launcher(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, spn_lang_t lang);
-spn_cc_link_refusal_t spn_cc_validate_link(const spn_cc_t* toolchain, spn_triple_t host, const spn_profile_info_t* profile, const spn_cc_link_t* link);
+spn_cc_link_refusal_t spn_cc_validate_link(spn_triple_t host, const spn_profile_info_t* profile, const spn_cc_link_t* link);
 spn_invocation_t spn_cc_render_compile_source(sp_mem_t mem, const spn_cc_compile_plan_t* plan, const spn_cc_compile_files_t* files);
 spn_invocation_t spn_cc_render_compile_command(sp_mem_t mem, const spn_cc_compile_plan_t* plan, const spn_cc_compile_files_t* files);
 spn_invocation_t spn_cc_render_link_command(sp_mem_t mem, const spn_cc_link_plan_t* plan, const spn_cc_link_files_t* files);
@@ -32,7 +32,6 @@ void spn_gnu_render_link_locations(sp_mem_t mem, const spn_cc_link_plan_t* plan,
 sp_da(spn_arg_t) spn_gnu_render_exports(sp_mem_t mem, si_da(spn_cc_export_t) symbols);
 spn_cc_archive_plan_t spn_gnu_render_archive(sp_mem_t mem, const spn_cc_t* toolchain);
 void spn_gnu_render_archive_locations(sp_mem_t mem, const spn_cc_archive_plan_t* plan, const spn_cc_archive_files_t* files, spn_invocation_t* invocation);
-void spn_gnu_render_flags(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, spn_cc_flags_t* flags);
 bool spn_gnu_link_static(const spn_profile_info_t* profile, spn_cc_output_kind_t kind);
 spn_err_t spn_gnu_parse_depfile(sp_mem_t mem, sp_str_t content, sp_da(sp_str_t)* prereqs);
 
@@ -44,7 +43,6 @@ spn_cc_link_plan_t spn_msvc_render_link(sp_mem_t mem, const spn_cc_t* toolchain,
 void spn_msvc_render_link_locations(sp_mem_t mem, const spn_cc_link_plan_t* plan, const spn_cc_link_files_t* files, spn_invocation_t* invocation);
 spn_cc_archive_plan_t spn_msvc_render_archive(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile);
 void spn_msvc_render_archive_locations(sp_mem_t mem, const spn_cc_archive_plan_t* plan, const spn_cc_archive_files_t* files, spn_invocation_t* invocation);
-void spn_msvc_render_flags(sp_mem_t mem, const spn_profile_info_t* profile, spn_cc_flags_t* flags);
 spn_err_t spn_msvc_parse_depfile(sp_mem_t mem, sp_str_t content, sp_da(sp_str_t)* prereqs);
 
 #endif

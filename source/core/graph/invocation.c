@@ -59,18 +59,31 @@ sp_str_t spn_invocation_to_str(const spn_path_roots_t* roots, sp_mem_t mem, cons
   return command;
 }
 
-static sp_env_var_t path_var(const spn_path_roots_t* roots, sp_mem_t mem, const spn_invocation_t* invocation, sp_str_t program) {
-  sp_assert(sp_fs_is_absolute(program));
-  spn_search_rules_t rules = spn_search_rules(spn.host.os);
-  sp_str_t path = sp_env_get(spn.env, sp_str_lit("PATH"));
+sp_str_t spn_invocation_path(const spn_path_roots_t* roots, sp_mem_t mem, const spn_invocation_t* invocation, spn_search_rules_t rules, sp_str_t path) {
+  sp_str_t program = spn_arg_str(roots, mem, invocation->program);
+  sp_assert(sp_fs_is_absolute_for(program, rules.kind));
   sp_for(it, invocation->path.count) {
     spn_path_t dir = invocation->path.items[invocation->path.count - it - 1];
     path = spn_search_prepend(rules, mem, spn_path_str(roots, mem, dir), path);
   }
-  return (sp_env_var_t) {
-    .key = sp_str_lit("PATH"),
-    .value = spn_search_prepend(rules, mem, sp_fs_parent_path(program), path),
-  };
+  return spn_search_prepend(rules, mem, sp_fs_parent_path_for(program, rules.kind), path);
+}
+
+sp_str_t spn_invocation_drop_echo(sp_mem_t mem, sp_str_t echo, sp_str_t std_out, sp_str_t std_err) {
+  u32 at = 0;
+  while (at < std_out.len && !sp_str_starts_with(sp_str_skip(std_out, at), echo)) {
+    s32 end = sp_str_find_c8(sp_str_skip(std_out, at), '\n');
+    at = end == SP_STR_NO_MATCH ? std_out.len : at + end + 1;
+  }
+  sp_str_t head = sp_str_prefix(std_out, at);
+  sp_str_t tail = sp_str_cleave_c8(sp_str_skip(std_out, at), '\n').second;
+  if (sp_str_empty(head) && sp_str_empty(tail)) {
+    return std_err;
+  }
+  if (sp_str_empty(std_err) && sp_str_empty(head)) {
+    return tail;
+  }
+  return sp_fmt(mem, "{}{}{}", sp_fmt_str(std_err), sp_fmt_str(head), sp_fmt_str(tail)).value;
 }
 
 static void ps_env_push(sp_ps_config_t* ps, sp_env_var_t var) {
@@ -97,7 +110,10 @@ static sp_ps_config_t invocation_ps(const spn_path_roots_t* roots, const spn_inv
   sp_da_for(invocation->env, it) {
     ps_env_push(&ps, spn_invocation_env_var(roots, mem, invocation->env[it]));
   }
-  ps_env_push(&ps, path_var(roots, mem, invocation, ps.command));
+  ps_env_push(&ps, (sp_env_var_t) {
+    .key = sp_str_lit("PATH"),
+    .value = spn_invocation_path(roots, mem, invocation, spn_search_rules(spn.host.os), sp_env_get(spn.env, sp_str_lit("PATH"))),
+  });
   return ps;
 }
 
@@ -111,22 +127,7 @@ spn_invocation_result_t spn_invocation_run(const spn_path_roots_t* roots, spn_ch
   sp_mem_end_scratch(scratch);
 
   if (!sp_opt_is_null(invocation->echo)) {
-    u32 at = 0;
-    while (at < result.out.len && !sp_str_starts_with(sp_str_skip(result.out, at), invocation->echo.value)) {
-      s32 end = sp_str_find_c8(sp_str_skip(result.out, at), '\n');
-      at = end == SP_STR_NO_MATCH ? result.out.len : at + end + 1;
-    }
-    sp_str_t head = sp_str_prefix(result.out, at);
-    sp_str_t tail = sp_str_cleave_c8(sp_str_skip(result.out, at), '\n').second;
-    if (sp_str_empty(head) && sp_str_empty(tail)) {
-      result.out = result.err;
-    }
-    else if (sp_str_empty(result.err) && sp_str_empty(head)) {
-      result.out = tail;
-    }
-    else {
-      result.out = sp_fmt(spn.mem, "{}{}{}", sp_fmt_str(result.err), sp_fmt_str(head), sp_fmt_str(tail)).value;
-    }
+    result.out = spn_invocation_drop_echo(spn.mem, invocation->echo.value, result.out, result.err);
     result.err = sp_zero_s(sp_str_t);
   }
 
