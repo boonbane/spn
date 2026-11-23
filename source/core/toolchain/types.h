@@ -133,8 +133,14 @@ typedef struct {
   };
 } spn_sdk_t;
 
+typedef enum {
+  SPN_SDK_INSTALL_NONE,
+  SPN_SDK_INSTALL_LIBS,
+  SPN_SDK_INSTALL_COMPILER,
+} spn_sdk_install_t;
+
 typedef struct {
-  bool install;
+  spn_sdk_install_t install;
   spn_sdk_t bound;
 } spn_toolchain_sdk_t;
 

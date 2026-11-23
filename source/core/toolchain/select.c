@@ -259,7 +259,7 @@ spn_err_t si_toolchain_select(spn_toolchain_catalog_t* catalog, spn_toolchain_qu
     sp_mem_t mem = spn.events->mem;
     const spn_msvc_installs_t* installs = &catalog->sdks.msvc;
     spn_triple_t target = selection->row.triple;
-    bool compiler = selection->toolchain->driver == SPN_CC_DRIVER_MSVC;
+    bool compiler = selection->row.sdk.install == SPN_SDK_INSTALL_COMPILER;
     spn_msvc_pick_t pick = sp_zero;
     switch (si_msvc_match(installs, target.arch, query.msvc, compiler, &pick)) {
       case SPN_MSVC_MATCH_OK: {
@@ -271,15 +271,7 @@ spn_err_t si_toolchain_select(spn_toolchain_catalog_t* catalog, spn_toolchain_qu
         break;
       }
       case SPN_MSVC_MATCH_ABSENT: {
-        return spn_err_emit(&spn, (spn_err_union_t) {
-          .kind = SPN_ERR_TOOLCHAIN_SDK_MSVC,
-          .toolchain = {
-            .name = selection->toolchain->name.str,
-            .target = target,
-            .query = query.target,
-            .host = catalog->host,
-          },
-        });
+        sp_unreachable_case();
       }
       case SPN_MSVC_MATCH_TOOLSET: {
         return spn_err_emit(&spn, (spn_err_union_t) {

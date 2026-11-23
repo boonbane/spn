@@ -73,6 +73,13 @@ static const test_t tests [] = {
     .expect = { .err = SPN_ERR_TOOLCHAIN_SDK_MSVC },
   },
   {
+    .name = "auto_falls_back_past_an_msvc_driver_without_a_compiler",
+    .driver = SPN_CC_DRIVER_MSVC,
+    .fallback = { .path = "/S" },
+    .sdks = { .msvc = { { { "/X" }, SPN_ARCH_X64, "14.44", .bare = true } } },
+    .expect = { .sdk = { SPN_SDK_MSVC, { "/S" } } },
+  },
+  {
     .name = "auto_does_not_fall_back_past_an_unmatched_request",
     .driver = SPN_CC_DRIVER_CLANG,
     .fallback = { .path = "/S" },

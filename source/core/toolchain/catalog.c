@@ -46,12 +46,12 @@ static void bind_target(spn_toolchain_catalog_t* catalog, spn_toolchain_info_t* 
       break;
     }
     case SPN_SDK_SOURCE_INSTALL: {
+      row.sdk.install = info->driver == SPN_CC_DRIVER_MSVC ? SPN_SDK_INSTALL_COMPILER : SPN_SDK_INSTALL_LIBS;
       spn_msvc_pick_t pick = sp_zero;
-      if (si_msvc_match(&catalog->sdks.msvc, target.triple.arch, sp_zero_s(spn_msvc_request_t), false, &pick)) {
+      if (si_msvc_match(&catalog->sdks.msvc, target.triple.arch, sp_zero_s(spn_msvc_request_t), row.sdk.install == SPN_SDK_INSTALL_COMPILER, &pick)) {
         sp_da_push(info->unserved, target.triple);
         return;
       }
-      row.sdk.install = true;
       break;
     }
   }

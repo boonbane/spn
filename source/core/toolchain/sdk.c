@@ -294,8 +294,11 @@ bool si_sdk_served(const spn_sdk_host_t* sdks, spn_triple_t host, spn_triple_t t
     case SPN_SDK_NEED_MACOS: return sdk->bound.kind != SPN_SDK_NONE;
     case SPN_SDK_NEED_MSVC: {
       spn_msvc_pick_t pick = sp_zero;
-      sdk->install = si_msvc_match(&sdks->msvc, target.arch, sp_zero_s(spn_msvc_request_t), false, &pick) == SPN_MSVC_MATCH_OK;
-      return sdk->install;
+      if (si_msvc_match(&sdks->msvc, target.arch, sp_zero_s(spn_msvc_request_t), false, &pick)) {
+        return false;
+      }
+      sdk->install = SPN_SDK_INSTALL_LIBS;
+      return true;
     }
   }
   sp_unreachable_return(false);

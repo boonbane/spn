@@ -51,7 +51,7 @@ typedef struct {
 typedef struct {
   spn_sdk_kind_t kind;
   test_path_t root;
-  bool install;
+  spn_sdk_install_t install;
 } fixture_sdk_expect_t;
 
 typedef struct {
@@ -244,7 +244,7 @@ static sp_err_t fixture_check_rows(sp_test_t* t, sp_da(spn_toolchain_row_t) rows
   sp_for(it, count) {
     sp_expect_str_eq(t, spn_triple_to_str(mem, rows[it].triple), spn_triple_to_str(mem, expect[it].triple));
     sp_expect_eq(t, expect[it].sanitizers, rows[it].sanitizers);
-    sp_expect_eq(t, expect[it].sdk.install, rows[it].sdk.install);
+    sp_expect_eq(t, (u32)expect[it].sdk.install, (u32)rows[it].sdk.install);
     if (fixture_check_sdk(t, rows[it].sdk.bound, expect[it].sdk)) {
       return SP_ERR;
     }
