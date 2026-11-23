@@ -58,6 +58,11 @@ spn_linking_refusal_t si_ld_linkings(spn_triple_t target, spn_linking_t request,
   static const spn_linking_t loaderless [] = {
     { .runtime = SPN_RUNTIME_STATIC, .libc = SPN_RUNTIME_STATIC },
   };
+  sp_static_assert(
+    sp_carr_len(linux_gnu) <= si_linkings_max && sp_carr_len(linux_musl) <= si_linkings_max && sp_carr_len(windows_msvc) <= si_linkings_max &&
+    sp_carr_len(windows_gnu) <= si_linkings_max && sp_carr_len(macos) <= si_linkings_max && sp_carr_len(loaderless) <= si_linkings_max,
+    linking_tables_fit_spn_linkings_t
+  );
 
   rows_t table = sp_zero;
   switch (target.os) {
@@ -92,8 +97,6 @@ spn_linking_refusal_t si_ld_linkings(spn_triple_t target, spn_linking_t request,
     case SPN_OS_FREESTANDING: table = (rows_t) { loaderless, sp_carr_len(loaderless) }; break;
     case SPN_OS_NONE: sp_unreachable_case();
   }
-
-  sp_assert(table.count <= si_linkings_max);
 
   spn_linkings_t preferred = sp_zero;
   spn_linkings_t unloadable = sp_zero;
