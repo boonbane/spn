@@ -8,8 +8,6 @@ import Stub from '@spn/docs/components/Stub.astro'
 
 <Offline />
 
-When you run `spn add lua`, a version appears from the mist. Where does it come from? And what happens when I want to maintain my own versions of Lua, or some private package?
-
 ## Directory indexes
 
 A *package index* is just metadata about what packages exist, and what versions are available. The simplest possible index is just a directory of packages:
@@ -35,17 +33,57 @@ Point your build at it like this, or enable it globally in `~/.config/spn/spn.to
 
 ```toml
 [[index]]
-name = "randy"
+name = "whatever"
 path = "./packages"
 ```
 
-If you only care about one version existing at a time, this is all you need. If you just want to build your personal libraries, or use some common packages in different projects, you're done.
+Each folder has to be named after the package inside it, so `flecs/spn.toml` is the manifest that says `name = "flecs"`.
+
+That directory doesn't have to live on your disk. Push it to a Git repository and it works the same way; that's all that [spam](https://github.com/boonbane/spam) is. When it lives on a remote like this, you'll need a simple `spn.index.toml` at the root of the repository, which tells `spn` what it's looking at:
+
+```toml
+version = 1
+format = "manifests"
+```
+
+With your repository in hand, you can add it as an index by URL:
+
+```sh
+spn index add https://github.com/boonbane/spam.git
+```
+
+This clones the repository, checks that it's an index, and writes an entry to your manifest, named after the repository:
+
+```toml
+[[index]]
+name = "spam"
+url = "https://github.com/boonbane/spam.git"
+```
+
+Pass `--name` to call it something else, or `--global` to write it to your [user config file](/docs/configuration) instead of the project's manifest.
+
+If you need multiple versions to exist at the same time, each subdirectory of a top level package directory is treated as a separate version of the package:
+
+```
+packages
+├── imgui
+│   └── 1.93.0
+│       └── spn.toml
+│   └── 1.94.0
+│       └── spn.toml
+```
+
+The subfolder's name is up to you; the version is read from `version` in the manifest, not the directory name. Versions must be unique, and if e.g. `imgui/spn.toml` exists, the versions are ignored.
+
+This is convenient when different versions of a package use very different manifests. But when `1.94.0` is the same as `1.93.0`, except pointed at a different commit upstream, this becomes unmaintainable.
 
 ## Git indexes
 
-Let's say you have a project that uses `sqlite==3.51.0`. You like it. But then, Richard Hipp returns from an ayahuasca retreat having had a vision: `4.0`. You can prompt an LLM from *inside* a query, to say the least.
+Let's say you have a project that uses `sqlite` at `3.51.0`. You like it. But then, Richard Hipp returns from an ayahuasca retreat having had a vision: `4.0`. You can prompt an LLM from *inside* a SQL query, to say the least.
 
-You want to start a new project and use it, but you still need `3.51.0`. You've graduated to a second directory. This time, it's a directory of JSONL metadata:
+You want to start a new project and use it, but you still need `3.51.0`. This is where *releases* come in. The simple, flat list of directories style index is great when you don't want to maintain a bunch of versions of a package. But when you're tracking a package's releases, you'd much prefer to keep small manifest changes in version control and use metadata rather than directory structure to list which versions exist.
+
+In `spn`, an index of releases is an `spn.index.toml` file, with metadata about the index itself, and a list of `$pkg.jsonl` files.
 
 ```
 index
@@ -60,72 +98,67 @@ Each JSONL entry is a release specifying the version, where the source code is, 
   "name": "sqlite",
   "version": "4.0.0",
   "yanked": false,
+  "v": 1,
   "source": {
     "url": "https://github.com/sqlite/sqllm.git",
     "rev": "a1de0694c693a5d741b2b424e5dfea45eaa30e69"
   },
   "manifest": {
     "url": "https://github.com/you/manifests.git",
-    "rev": "c7faa527fd",
+    "rev": "c7faa527fd3e91b04a6d2c8f5e7a1b9d0c4f6e82",
     "dir": "sqlite"
   },
   "paths": {
     "manifest": "spn.toml"
+  },
+  "deps": [
+    { "name": "zlib", "version": "^1.3.0", "kind": "normal" },
+    { "name": "curl", "version": "^8.0.0", "kind": "normal", "when": { "llm": true } }
+  ],
+  "targets": [
+    { "name": "sqlite", "linkages": ["static", "shared"] }
+  ],
+  "options": {
+    "llm": { "type": "bool", "default": [{ "value": true }] }
   }
 }
 ```
 
-Note the `manifest` field. If `sqllm` decided that `spn` is the tool of the future, and decided to have a *first party* manifest that lives in their repo, this field would point to `sqlite/sqllm.git`. But since we're writing a package for a third party library that doesn't know we exist, we point it at a repository that *we* own. These entries are created with `spn publish`, not by hand.
+Note the `manifest` field. If `sqlite` decided that `spn` is the tool of the future, and decided to have a *first party* manifest that lives in their repo, this field would point to the real `sqlite/sqlite.git`. But since we're writing a package for a third party library that doesn't know we exist, we point it at a repository that *we* own. These entries are created with `spn publish`, not by hand.
 
-Use the index the same way as the simpler one:
-
-```toml
-[[index]]
-name = "randy"
-url = "git@github.com:you/index.git"
-```
-
-Let's dig into that a little more, because it's important: **Package indexes are just Git repositories**. You're going to *really* like this:
-  - Commits are transactional, reversible, and everything else Git does for your source code
-  - It comes with provenance and auth that you already have set up
-  - Every god damn developer on the planet knows how to use it
-
-If you've ever used Homebrew and waited multiple tens of seconds for kegs to be sterilized, you may balk at this. "Spader," you might say, "Git doesn't scale for package indexes". And you'd be right! But you'd also be wrong:
-- `spn` isn't tied to Git. Index backends are just interfaces; there's a stubbed out HTTP backend in there already if you want to host it on Cloudflare or whatever
-- C is not JS. It's not a distro, it's not Rust. Nobody uses packages in C because there are no good package managers for all its special little quirks. We're talking orders (plural) of magnitude less scale.
-
-## Manifests in a repository
-
-Those two indexes differ in two ways that have nothing to do with each other: where the files come from, and what the files are. A directory of manifests can live in a Git repository just as well as on your disk:
-
-```sh
-spn index add https://github.com/boonbane/spam.git
-```
-
-`spn index add` clones the repository, names the index after it, checks that it's an index, and writes the entry to your manifest. `--global` writes it to the [user config file](/docs/configuration) instead, and `--name` picks a different name. For `spam`, it writes:
+Use the index the same way as the simpler one, with `spn index add $url`, which produces the following:
 
 ```toml
 [[index]]
-name = "spam"
-url = "https://github.com/boonbane/spam.git"
+name = "whatever"
+url = "git@github.com:you/whatever.git"
 ```
 
-Nothing in that entry says which kind of index `spam` is. The index says so itself, in `spn.index.toml` at its root:
+## spn.index.toml
+
+An index describes itself with an `spn.index.toml` at its root:
 
 ```toml
 version = 1
-format = "manifests"
+format = "releases"
+path = "index"
 ```
 
 | Key | Meaning |
 |---|---|
-| `version` | The version of the layout. A value `spn` doesn't know is an error asking for a newer `spn` |
-| `format` | `manifests` for a repository of `<name>/spn.toml`, held at one commit. `releases` for `<name>.jsonl` release records, written by `spn publish` |
-| `path` | The directory holding the packages or records. Optional, and defaults to the root |
+| `version` | The version of the index layout, which is `1` today |
+| `format` | `manifests` for a directory of `<name>/spn.toml` packages, or `releases` for `<name>.jsonl` files |
+| `path` | Optional. The folder inside the index that holds the packages or releases, if that isn't the root |
 
-A Git repository without the file is refused. A local directory without it is read as a directory of manifests.
+If `version` is newer than your `spn` knows, or `format` is one it doesn't, you get an error telling you to update `spn`.
 
-A repository of manifests has no record of its releases. The commit *is* the version of every package in it, so `spn` always resolves against exactly one. The first build takes the tip of the repository's default branch and records it in `spn.lock`:
+A Git index has to have this file, and `spn` refuses a repository without it. A directory index can skip it, in which case it's read as `manifests`.
+
+`spn publish`, which writes JSONL release entries to an index of releases, writes this file if it's not present. You only need to handwrite it when you're using a simple, flat directory of manifests.
+
+## Pinning and updating
+
+When a directory of manifests lives in a Git repository, there's no list of releases; what's in the tree at a commit is what exists. So `spn` reads the whole repository at exactly one commit. The first build takes the tip of the default branch and writes it to `spn.lock`:
 
 ```toml
 [[index]]
@@ -134,86 +167,132 @@ url = "https://github.com/boonbane/spam.git"
 rev = "9b3cd3ebd05f5b39df7652d8f9372eeac08471b3"
 ```
 
-The index stays at that commit until `spn update` moves it to the tip. Every package you've locked from it moves with it. Each keeps its version if the repository still has it, and takes the newest one your manifest allows if not. If the new commit has nothing your manifest allows for some package, the update fails and `spn.lock` is left alone.
+Every build after that reads the index at that commit, so nothing you get from it changes until you move it.
 
-Only `spn update` with no names moves the index. `spn update lua` leaves it where it is, so a package from a repository of manifests doesn't change until the whole index does.
+An index of releases isn't held at a commit like this. Each release already names the exact commits of its source and manifest, and those are [what `spn.lock` records](/docs/dependencies#the-lockfile).
 
-To hold an index at a commit no matter what the lockfile says, put `rev` in its `[[index]]` entry. Nothing moves an index pinned that way but you. Change `rev` and the next build re-locks its packages at the new commit; with `--locked`, that's an error instead.
+### Moving to a newer commit
+
+`spn update`, with no package names, moves the index to the tip of the repository. Every package you use from it moves too, each to the newest version your manifest allows. If the new commit has no version of some package that your manifest allows, the update fails and `spn.lock` is left alone.
+
+Updating a single package (e.g. `spn update lua`), leaves the index itself where it is. It chooses among the versions of `lua` already in the pinned commit of the index. If you want to update the index itself, use `spn update`, or just copy the commit SHA into your configuration.
+
+### Pinning with rev
+
+To pin an index yourself, put a commit in `rev` in its `[[index]]` entry:
+
+```toml
+[[index]]
+name = "spam"
+url = "https://github.com/boonbane/spam.git"
+rev = "9b3cd3ebd05f5b39df7652d8f9372eeac08471b3"
+```
+
+This wins over whatever `spn.lock` says, and `spn update` won't move it. The only way to move the index is to change `rev`. When you do, the next build re-locks the packages you use from it at the new commit. With `--locked`, that build fails instead.
+
+`rev` works on an index of releases too. `spn` won't see any release newer than that commit, and `spn publish` refuses to publish to the index.
 
 ## Global configuration
 
-`[[index]]` entries in the [user config file](/docs/configuration) apply to every project on the machine. They take the same fields as `[[index]]` in a manifest, with one difference: a repository of manifests needs a `rev` here, because the user config has no lockfile to record a commit in. `spn index add --global` writes the commit it cloned.
+`[[index]]` entries in your [user config file](/docs/configuration) work in every project on the machine. They take the same keys as in a manifest, and a `path` is relative to the config file.
 
-To find a package, `spn` checks each index in turn and takes every version of it from the first index that has it. The order is:
-1. The project manifest's indexes, in the order they're declared
-2. The user config's indexes, in the order they're declared
+The one difference is a directory of manifests in a Git repository. The user config has no lockfile to record a commit in, so the entry has to carry a `rev` itself; without one, any build that uses the index fails. `spn index add --global` writes the commit it cloned as `rev` for you.
 
-There is no default index; `spn` only looks where you've told it to. A user config index with the same name as one of the project's is ignored. `spn index list` prints the indexes in this order.
+Because the index is pinned with `rev`, `spn update` and `spn index sync` leave it alone. To move it, edit `rev` by hand. Running `spn index add --global` again won't do it, because it refuses a name that's already declared.
+
+## Search order
+
+<Stub />
+
+- There is no default index; `spn` only looks in the indexes you declare.
+- `spn` searches the project manifest's indexes in the order they're declared, then the user config's.
+- The first index that has a package supplies every version of it, so the same name in a later index is never seen.
+- A user config index with the same name as one of the project's is ignored.
+- Only the root project's and the user config's `[[index]]` entries are used; a dependency's are [ignored](/docs/dependencies#root-only-tables).
+- `spn index list` prints the indexes in search order. Its `kind` column says `workspace` for the project manifest and `user` for the user config.
 
 ## Refreshing
 
 <Stub />
 
-- A Git index is cloned into `spn`'s storage directory and refreshed at most every ten minutes.
-- So a version someone just published can be invisible until then.
-- `spn index sync` refreshes every index now, and `spn index sync NAME` refreshes one.
-- `spn update` refreshes every index too.
-- `SPN_INDEX_REFRESH_SECONDS` changes the window.
-- An index pinned with `rev` is never refreshed.
-- A directory index is read in place and needs no refresh.
+- A Git index is cloned into `spn`'s [storage directory](/docs/configuration#storage) the first time a build or `spn add` searches it.
+- `spn` remembers the tip it fetched, and fetches again when it searches the index and that tip is more than ten minutes old.
+- So a release someone just published can be invisible for up to ten minutes.
+- `SPN_INDEX_REFRESH_SECONDS` changes the window; `0` means the default.
+- `spn index sync` fetches every index now, and `spn index sync NAME` fetches one.
+- `spn update` fetches every index first.
+- An index pinned with `rev` is never fetched again, and `spn index sync` skips it without saying so.
+- A repository of manifests held by `spn.lock` isn't fetched by a build, and `spn index sync` doesn't move it; only `spn update` does.
+- A directory index is read in place on every build.
 
 ## Working offline
 
 <Stub />
 
 - There is no offline flag.
-- A project with only path dependencies never uses the network.
-- Anything already fetched builds without it.
-- A failed refresh falls back to the cached copy with a warning, and isn't retried until the window passes.
-- Only the first fetch of an index or of a dependency's source, and `spn update`, need a connection.
-- The first build also downloads [Zig](/docs/toolchains#zig).
+- A build with no index dependencies never fetches an index.
+- A dependency's source is fetched once; after that it builds from the storage directory.
+- When a refresh fails, `spn` uses its cached copy of the index, prints a warning, and doesn't retry until the window passes.
+- An index pinned by `rev` or by `spn.lock` needs no network once its commit is checked out.
+- An index that has never been fetched fails the build.
+- `spn update` and `spn index sync` fetch every unpinned Git index, and fail if one can't be reached.
 
 ## Finding packages
 
 <Stub />
 
 - There is no search command.
-- `spn index list` prints your indexes in search order.
-- `spn index path NAME` prints an index's local checkout, which you can browse.
-- A repository of manifests has one folder per package, and an index of releases has one `.jsonl` file per package.
-- `spn add` reports an unknown package only when you ask for it.
+- `spn index path NAME` prints an index's local checkout, which you can browse; it fails until the index has been fetched once.
+- A repository of manifests has a folder per package, and an index of releases has a `.jsonl` file per package.
+- A package's options are in the `[options.*]` tables of its manifest, or the `options` field of its release records.
+- `spn add NAME` fails with `NAME could not be located` when no declared index has the package.
 
 ## Publishing
+
+### A repository of manifests
+
+<Stub />
+
+- Publishing to a repository of manifests is a `git push`; `spn publish` refuses one.
+- To start one, commit an `spn.index.toml` with `format = "manifests"` at the root, beside the package folders.
+- A package in an index has to depend on other packages by version, never by path.
+- Declare your checkout as a [directory index](/docs/indexes#directory-indexes) with `path` to try a package before you push.
+- People using the repository see a push on their next `spn update`.
+
+### An index of releases
+
+<Stub />
+
+- To start one, create an empty Git repository and write its `[[index]]` entry by hand; `spn index add` can't clone a repository with no commits.
+- The first `spn publish --index NAME` writes `spn.index.toml` and the first release.
+- A repository that has commits but no `spn.index.toml` is refused.
+- `publish_url` in the `[[index]]` entry is where `spn publish` pushes when that isn't `url`, such as an SSH URL.
+- Everyone who uses a package from your index has to declare the index too.
 
 ### spn publish
 
 <Stub />
 
-- `spn publish --index NAME` records a release of the package in the current directory; `--index` is required.
-- It uploads no code: the release points at your `origin` remote, the `HEAD` commit, and the package's folder.
+- `spn publish --index NAME`, run in a package's folder, appends a release to the index and pushes it; `--index` is required.
+- It uploads no code: the release points at your `origin` remote, the `HEAD` commit, and the package's folder in that repository.
 - So commit and push first, and bump `version` for every release.
-- It refuses uncommitted changes, an unpushed commit, a version that already exists, a path dependency, and a `[package.upstream]` commit shorter than 40 characters.
-- `--dry` prints the release without publishing it.
+- With `[package.upstream]`, the release's `source` is upstream and its `manifest` is your repository; without it, `source` is your repository and there is no `manifest`.
+- It refuses a folder outside a Git repository, uncommitted changes, a commit that isn't on the remote, a version the index already has, a path dependency, and a `[package.upstream]` commit shorter than 40 characters.
+- `--allow-dirty` publishes with uncommitted changes.
+- `--source-url` and `--source-rev` record a different repository and commit than `origin` and `HEAD`.
+- `--dry` prints the release and publishes nothing; it never looks at the index, so it passes against one that a real publish would refuse.
 - It pushes with the `git` on your `PATH`, using [your credentials](/docs/configuration#system_git).
 - Releases record HTTPS URLs even when your remote is SSH, so people using a private package need credentials that work over HTTPS.
 - Only a Git index of releases accepts a publish: a directory, a repository of manifests, and an index pinned with `rev` refuse.
 - The repository a release points at has to stay reachable, because that's where dependents fetch from.
-
-### Starting an index
-
-<Stub />
-
-- Create an empty Git repository and declare it with `[[index]]` and a `url`.
-- The first `spn publish --index NAME` sets it up as an index of releases.
-- What kind an index is lives in `spn.index.toml` at its root, which that first publish writes.
-- A repository that isn't empty and has no `spn.index.toml` is refused.
-- `publish_url` gives a different URL for pushing, such as SSH, than for reading.
-- Only the root project's and the user config's `[[index]]` entries are used, so everyone who consumes a package from your index has to declare it.
-- A package in an index has to depend on other packages by version, never by path.
+- Changing a release's `source` or `manifest` after it's published fails the build of every project that locked it, until they run `spn update NAME`.
+- To withdraw a release, set its `yanked` to `true` by hand; projects that locked it keep it, and nothing else resolves to it.
 
 ### Adding a package to spam
 
 <Stub />
+
+- spam is a repository of manifests, so a package is a folder with an `spn.toml`; see [packaging](/docs/packaging) for writing one.
 
 ## The ecosystem
 

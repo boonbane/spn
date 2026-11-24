@@ -52,7 +52,7 @@ SPN_EXPORT spn_err_t configure(spn_t* spn, spn_config_t* config) {
 
 `SPN_EXPORT` is a preprocessor definition which ensures `configure` is exported in the binary. You'll also use this to export functions from your build metaprogram. Let's write a build metaprogram that generates a header, and then we'll fill in `configure` to tell the build to call it.
 
-## Build time
+### Build time
 
 A *build* metaprogram runs inside your build, alongside things like compilation and linking. You might generate some C code from JSON schemas, or seed a database for your tests. Build metaprograms may be complex or perform a lot of compute (but are usually still simple).
 
@@ -86,7 +86,7 @@ Take note of the paths. Metaprograms are sandboxed, and are given access to the 
 
 Every call to an exported function is run in its own sandbox. `static` data isn't shared. There's no need to free memory, either.
 
-## Configure time
+### Configure time
 
 Now that we have `generate_config`, we need to tell `spn` to call it. A *node* is one step in your build: a function to call, and the files it writes. Add a node, give it the function by name, and declare its output.
 
@@ -133,16 +133,6 @@ Metaprograms are cross compiled to WebAssembly modules using the builtin `zig` t
 - There are no threads, sockets, subprocesses, environment variables, or command line arguments.
 - Metaprograms are C, not C++.
 
-## When to use a metaprogram
-
-<Stub />
-
-- Use a metaprogram to generate files inside every build, including when your package is built as someone's dependency.
-- Use a [tool](/docs/task#vendoring) whose output you commit for anything that needs Python, subprocesses, or the network.
-- Use [`embed`](/docs/packages#embedding-files-in-binaries) when all you need is a file's bytes in a binary.
-- Generated files can't be published: `[package.publish]` rejects `tree = "work"`.
-- So a generated public header has to be committed and published with `tree = "manifest"`.
-
 ## Nodes
 
 Functions that run in your build graph are called *nodes*:
@@ -161,7 +151,11 @@ spn_try(spn_node_set_fn(a, "your_fn_here"));
 - A node whose metaprogram and [inputs](#inputs) haven't changed doesn't run. Its outputs come from the cache.
 - `configure` isn't cached. It runs on every build.
 
-To order two nodes, link them:
+### Ordering
+
+Nodes don't declare inputs. The sandbox records every path a node opens, stats, or lists under `/source` and `/manifest`, including paths that don't exist, and reruns the node when any of them changes.
+
+When you need to force an ordering between nodes, link them with `spn_node_link()`:
 
 ```c
 spn_node_t* a = spn_add_node(config, "a");
@@ -177,24 +171,50 @@ spn_try(spn_node_link(a, b));
 
 `b` runs after `a`, can read `/work/a.txt`, and reruns when it changes.
 
-## Inputs
+## Code generation
 
-Nodes don't declare inputs. The sandbox records every path a node opens, stats, or lists under `/source` and `/manifest`, including paths that don't exist, and reruns the node when any of them changes. To read another node's output, [link](#nodes) the two.
+The most common use for metaprograms is code generation. `spn` itself uses a metaprogram to parse the JTD schemas for manifests and config files and generate:
+- Code, for serialization and deserialization
+- Reference docs (i.e. [manifest](/docs/manifest) and [configuration](/docs/configuration))
 
-## Using generated files
+Notably, it generates code that must be compiled in the very same build. Let's see how to reference files generated in these two cases.
 
-Manifest entries take `tree = "work"` to point at node outputs:
+### Compilation
+
+Code generated in a metaprogram is first class. There are no restrictions on which targets such code can link to, or mixing and matching checked in and generated sources.
+
+To refer to paths created by a metaprogram, use [the table form](/docs/packages#trees) of a path reference:
 
 ```toml
 [[bin]]
 name = "foo"
-source = ["foo.c", { path = "gen/table.c", tree = "work" }]
+source = [
+  "foo.c",
+  { path = "table.c", tree = "work" }
+]
 include = [{ path = "gen", tree = "work" }]
-embed = [{ path = "gen/table.bin", tree = "work" }]
+embed = [{ path = "table.bin", tree = "work" }]
 ```
+
+`work` is the name of the writeable root a program gets when it builds, and setting `tree` to it says "this path is relative to that root".
 
 - A `source` entry in `work` must be a literal path, not a glob.
 - `publish` and `linker_script` can't use `work`.
+
+## Staging
+
+`[stage]` copies node outputs out of `/work` and into your project after a successful build:
+
+```toml
+[stage]
+copy = [{ from = "config.h", to = "generated/config.h" }]
+```
+
+- `from` is a node output, either a file or a directory. `to` is relative to the project.
+- Only the root package's `[stage]` runs.
+- Staged files are outputs only. A build that reads one fails.
+- `spn` won't overwrite a file it didn't stage. It removes staged files when the entry goes away, and on `spn clean`.
+
 
 ## Paths
 
@@ -237,19 +257,16 @@ spn_log(spn, spn_fmt("wrote {} from {}", "config.h", "config.json"));
 - `spn_fmt` substitutes up to four strings into `{}` and returns `NULL` if a placeholder has no argument.
 - Returning anything but `SPN_OK` from `configure` or a node fails the build. `spn_try(expr)` returns early on an error.
 
-## Staging
+## When to use a metaprogram
 
-`[stage]` copies node outputs out of `/work` and into your project after a successful build:
+<Stub />
 
-```toml
-[stage]
-copy = [{ from = "config.h", to = "generated/config.h" }]
-```
+- Use a metaprogram to generate files inside every build, including when your package is built as someone's dependency.
+- Use a [tool](/docs/task#vendoring) whose output you commit for anything that needs Python, subprocesses, or the network.
+- Use [`embed`](/docs/packages#embedding-files-in-binaries) when all you need is a file's bytes in a binary.
+- Generated files can't be published: `[package.publish]` rejects `tree = "work"`.
+- So a generated public header has to be committed and published with `tree = "manifest"`.
 
-- `from` is a node output, either a file or a directory. `to` is relative to the project.
-- Only the root package's `[stage]` runs.
-- Staged files are outputs only. A build that reads one fails.
-- `spn` won't overwrite a file it didn't stage. It removes staged files when the entry goes away, and on `spn clean`.
 
 ## API reference
 

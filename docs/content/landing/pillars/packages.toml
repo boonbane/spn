@@ -1,0 +1,9 @@
+[deps.package.imgui]
+version = "1.92.8"
+options = { sdl3 = true, sdlgpu3 = true, freetype = false }
+
+[patch.imgui]
+files = ["patches/oopsie-daisy.patch"]
+
+[deps.build]
+yyjson = "0.14.0"

@@ -8,6 +8,70 @@ import Stub from '@spn/docs/components/Stub.astro'
 
 <Offline />
 
+This page is intended to document not just the roadmap for new features, but to be clear about what is very much alpha quality.
+
+## Caching
+
+Right now, the cache has some fundamental flaws which cause it to grow more than it ought to and miss when it should hit. For the alpha, absolute paths are a part of cache keys. That means that compiling the same code, say, in another worktree, costs a one time cache miss. *Switching* between worktrees, or switching between branches, is *not* a cache miss. One time means one time, ever.
+
+The reason we do this is pretty basic: Producing a *wrong* result is unacceptable, point blank. But getting a cache miss when you could have hit -- well, it's not ideal, but it's OK. I don't mean to paint the picture that the cache is broken or useless:
+- Caching works on CI; just point the cache at the same directory across runs
+- Dependencies are compiled from a global cache of checkouts, and so are always hits
+- Build `main`, check out a branch, build, check out `main` again, build. That's a cache hit. This is *the* place where simple traditional local caches fall flat.
+
+
+## WAMR
+
+`spn` uses [WebAssembly Micro Runtime](https://github.com/wasm-micro-runtime/wasm-micro-runtime) as its WASM host. It's the only runtime I found that was capable of being compiled straightforwardly, built to be embedded, and had enough cross platform WASI P1 support.
+
+*HOWEVER*, their WASI implementation is functionally abandoned. We use a proper `wasi-libc`, based on musl, which means that C standard library functions like `fopen` or `readdir` are extremely high quality. But the WASI syscalls those functions end up in are not.
+
+This isn't a knock on Mozilla or the WAMR authors; these syscalls are clearly a fork of wasmtime's original C implementation, vendored around 2019 and more or less untouched since. They promise nothing and nonetheless graciously provide *something*. This code is not junk, it's just not at the level of quality I'd like, especially on Windows.
+
+There aren't really any better alternatives. WAMR itself provides an option to use `libuv` as a backend, but it does not do filesystem sandboxing. And although the surface is fairly small, it's important, security conscious code. [sp.h](https://github.com/tspader/sp), my alternative to libc, is a perfect candidate for such an alternative. Until then, we maintain several patches for WAMR.
+
+Finally, if it isn't clear, `spn` is an alpha. Please don't point it at arbitrary, untrusted dependencies in sensitive environments.
+
+
+## Determinism
+
+As it turns out, it is *extremely* hard to get every compiler to produce deterministic outputs for a given input. The bad news is that Bazel and Nix have spent literally a decade on this problem; there is fundamental complexity.
+
+The good news is that Bazel and Nix have spent literally a decade on this problem. There's a massive amount of prior art, and in general the problems are extremely broad but tractable. I've done *extensive* research on what needs to happen to make arbitrary toolchains deterministic, and it mostly comes down to perhaps 40 or 50 different flags, definitions, or other let's call them *tricks* across the common toolchains.
+
+However, the prior art leaves you with bad ergonomics. To make caches relocatable, you need to lie to the compiler about file paths (roughly). But when you lie, debuggers, `clangd`, and other diagnostics get confused. There's work to be done here.
+
+PDBs are also a problem -- from my research, short of writing our own PDB linker it is not possible to get the same PDB from a given set of inputs. There is no magical incantation. There are some fixups, but that's a last resort, the kind of patch that usually makes things worse instead of better. If you know more about this, [get in touch](link:email)!
+
+
+## Offline builds
+
+There isn't a way to say "I'd like to use `spn`, but instead of managing my dependencies' source code in a global cache, vendor them as submodules or true copies so I can build fully offline". This isn't intentional; `spn` aims to serve, and if it can serve you by replacing `FetchContent` or some brittle, handwritten code, then I want it to do that. Even if you really *do* want to use it end to end, but don't want to go through the network for any one of many good reasons, you ought to be able to do that.
+
+
+## Public and private dependencies
+
+A package can declare a dependency with `public = true`, but there isn't a great way to control what symbols get exported from your dependencies or yourself. At the very least, we need to integrate with the common idiom of using a macro (`SOKOL_DLL`), but the real answer is more complex.
+
+This also relates to when multiple copies of a library can exist in a program closure and ABI compatibility.
+
+
+## Resolver
+
+The resolver sucks, and I know why it sucks, but to make it not suck would take more work than I’m willing to put in for a world where most companies I’ve worked at throw their hands up at any kind of version solves, even for internal packages.
+
+Part of why companies give up is because, to be frank, the existing offerings are not very good. I don’t want to name names, but I’ve worked companies that earnestly adopted tools that treat C and C++ packages as first class, and they're clunky at best.
+
+I would love to rewrite the resolver and provide the gaps that a real package manager is missing -- peer dependencies, more nuanced feature enablement, to name a few -- but the core of the product is about rock solid builds and that must take priority.
+
+## CMake / autoconf / whatever integration
+
+I am pretty sure that spn can run, verbatim, at worst simple autoconf builds and at best entire cmake builds, inside a WASM module. I have a demo which does exactly that for autoconf, by compiling a shell to WASM and providing a ~busybox, all of which of course we hook into and use to produce data to bootstrap an spn manifest rather than actually execute a build.
+
+I suspect that it's possible to do something similar for CMake, either by compiling the actual source or by handwriting an interpreter for some subset. If this sounds insane, it's probably because it is. What am I getting at here? Well, it's not that you should sit on your hands and expect `spn` to speak CMake natively any time soon.
+
+Instead, what I'm getting at is: Tell me what you need! If you're interested in `spn`, but it's missing some feature or interop, telling me is the best way to see that it gets built. The base of this system, arbitrary C programs executed in a sandbox, is extremely powerful, and WASM is mature enough that there's very little that *can't* run inside it. There's simply too much work to be done to explore these avenues without a prior that folks want it.
+
 ## Linking
 
 <Stub />
