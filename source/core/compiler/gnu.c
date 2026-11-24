@@ -231,11 +231,15 @@ static void add_launcher(sp_mem_t mem, const spn_cc_t* toolchain, const spn_prof
   spn_toolchain_launcher_t launcher = spn_cc_launcher(mem, toolchain, profile, lang);
   invocation->program = launcher.program;
   spn_cc_push_strs(mem, invocation, launcher.args);
-  if (spn_cc_has(toolchain, SPN_CC_CAP_TARGET_TRIPLE)) {
-    sp_str_t target = sp_str_empty(profile->spelling) ? render_target(mem, toolchain, profile->target, min_os) : profile->spelling;
-    if (!sp_str_empty(target)) {
-      spn_cc_push_fmt(mem, invocation, "--target={}", sp_fmt_str(target));
-    }
+  if (!spn_cc_has(toolchain, SPN_CC_CAP_TARGET_TRIPLE)) {
+    return;
+  }
+  if (profile->sdk.kind == SPN_SDK_HOST && sp_str_empty(profile->spelling)) {
+    return;
+  }
+  sp_str_t target = sp_str_empty(profile->spelling) ? render_target(mem, toolchain, profile->target, min_os) : profile->spelling;
+  if (!sp_str_empty(target)) {
+    spn_cc_push_fmt(mem, invocation, "--target={}", sp_fmt_str(target));
   }
 }
 

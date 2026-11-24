@@ -61,6 +61,9 @@ sp_err_t test_profile(sp_test_t* t, spn_cc_driver_t driver, test_profile_t desc,
   if (desc.sdk) {
     selection.sdk = spn_sdk_at(mem, desc.target, test_arg_path(desc.sdk));
   }
+  if (desc.host) {
+    selection.sdk = (spn_sdk_t) { .kind = SPN_SDK_HOST };
+  }
   if (desc.msvc.bin || desc.msvc.tools || desc.msvc.atl) {
     sp_must_eq(t, (u32)selection.sdk.kind, (u32)SPN_SDK_MSVC);
     spn_sdk_msvc_t* msvc = &selection.sdk.msvc;

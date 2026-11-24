@@ -33,6 +33,7 @@ typedef struct {
   spn_strip_t strip;
   spn_sanitizer_set_t sanitizers;
   const c8* sdk;
+  bool host;
   const c8* spelling;
   struct {
     const c8* flags [4];
