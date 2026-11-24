@@ -40,6 +40,7 @@ main h2 {
   h1 {
     font-size: var(--text-4xl);
     letter-spacing: var(--tracking-tighter);
+    color: var(--text);
 
     @media (max-width: 56.25rem) {
       font-size: var(--text-3xl);
@@ -49,23 +50,16 @@ main h2 {
       font-size: var(--text-2xl);
     }
 
-    b {
+    strong {
       font-weight: inherit;
       color: var(--accent);
     }
   }
 
-  .prose {
-    display: flex;
-    flex-direction: column;
-    gap: var(--s-7);
+  .prose p {
     max-width: 60ch;
+    margin: 0;
     line-height: var(--leading-normal);
-    color: var(--text-dim);
-
-    p {
-      margin: 0;
-    }
   }
 
   .actions {

@@ -42,7 +42,7 @@ spn build
 ./build/debug/hello
 ```
 
-By default, builds go in `build/$profile`, uses the `debug`, and compiles all libraries, executables, tests, and examples. Pass the name of a target to just build that target, or e.g. `--test` for just tests. Next, we'll look at how to use a dependency.
+By default, builds go in `build/$profile`, uses the `debug` profile, and compiles all libraries, executables, tests, and examples. Pass the name of a target to just build that target, or e.g. `--test` for just tests. Next, we'll look at how to use a dependency.
 
 ## Dependencies
 
@@ -56,10 +56,7 @@ Let's use the following program, which needs to link to Lua, as an example:
 int main(void) {
   lua_State *L = luaL_newstate();
   luaL_openlibs(L);
-  if (luaL_dofile(L, NULL) != LUA_OK) {
-    fprintf(stderr, "%s\n", lua_tostring(L, -1));
-    return 1;
-  }
+  luaL_dostring(L, "print('hello, world!')");
   lua_close(L);
   return 0;
 }
@@ -92,16 +89,16 @@ spn build --target x86_64-linux-gnu
 ```
 
 When you explicitly pass a target, the build goes in `build/$target/$profile`. The above commands produce:
-- `build/x86_64-windows-gnu/debug/demo.exe`
-- `build/aarch64-macos-apple/debug/demo`
-- `build/x86_64-linux-gnu/debug/demo`
+- `build/x86_64-windows-gnu/debug/hello.exe`
+- `build/aarch64-macos-apple/debug/hello`
+- `build/x86_64-linux-gnu/debug/hello`
 
 ## Build directory
 
 In addition to executables, the build directory for a given profile (e.g. `build/x86_64-windows-gnu/debug`) also contains:
 
 - `test/`, your test executables
-- `store/$pkg`, an insall prefix for every package in your workspace
+- `store/$pkg`, an install prefix for every package in your workspace
 - `.spn/`, build metadata and work directories for metaprograms
 - `.spn/build.jsonl`, a rich, structured JSONL event stream from your build (equivalent to `--json` output)
 
@@ -111,15 +108,21 @@ In addition to executables, the build directory for a given profile (e.g. `build
 `spn` generates `compile_commands.json` out of the box, no configuration needed.
 
 
-## What's next?
-
-[](https://github.com/boonbane/spn/tree/main/example)
-
-
 ## Installer
 
 The installer comes as either a [shell script](https://github.com/boonbane/spn/blob/main/tools/install/install.sh) or a [PowerShell script](https://github.com/boonbane/spn/blob/main/tools/install/install.ps1). Both of these scripts are extremely thin programs which mostly just download and verify the appropriate `spn` executable. Any logic is implemented in `spn` itself, and exposed via `spn self`.
 
 The entry point for that code is [here](https://github.com/boonbane/spn/blob/main/source/cli/commands/self.c), roughly. I encourage you (or your helpful digital assistant) to read these sources. If you find anything in the installer difficult, insecure, or in any way wrong, I'd be happy to hear from you on [our Discord](link:discord.public) or personally over [email](link:email).
+
+
+## What's next?
+
+If you'd like to get a feel for the tool, clone the repository and experiment with [the many examples](https://github.com/boonbane/spn/tree/main/example) we have. You can also read packages for [existing libraries](https://github.com/boonbane/spam) to understand what real world usage looks like
+
+If you'd rather work through more documentation and see what `spn` is capable of, you might want to read about:
+- [All the options available for your build](/docs/building)
+- [Using your preferred toolchain](/docs/toolchains)
+- [How simple it is to write and publish your own packages](/docs/indexes)
+
 
 [^1]: spn's package manifests

@@ -1,0 +1,6 @@
+[package]
+name = "hello"
+
+[[bin]]
+name   = "hello"
+source = ["main.c"]

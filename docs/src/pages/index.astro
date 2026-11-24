@@ -1,0 +1,51 @@
+---
+import { getCollection, getEntry, render } from 'astro:content'
+import Discord from '@spn/docs/components/Discord.astro'
+import Footer from '@spn/docs/components/Footer.astro'
+import Install from '@spn/docs/components/Install.astro'
+import Nav from '@spn/docs/components/Nav.astro'
+import Pillar from '@spn/docs/components/Pillar.astro'
+import Reel from '@spn/docs/components/Reel.astro'
+import Showcase from '@spn/docs/components/Showcase.astro'
+import Subscribe from '@spn/docs/components/Subscribe.astro'
+import Shell from '@spn/docs/layouts/Shell.astro'
+import '@spn/docs/styles/landing.css'
+
+const hero = (await getEntry('landing', 'hero'))!
+const { Content: Hero } = await render(hero)
+
+const entries = (await getCollection('pillars')).sort((a, b) => a.data.order - b.data.order)
+const pillars = await Promise.all(entries.map(async (entry) => ({ ...entry.data, Content: (await render(entry)).Content })))
+---
+
+<Shell title={hero.data.title}>
+  <meta slot="head" name="description" content={hero.data.description} />
+
+  <header class="container"><Nav /></header>
+
+  <section class="hero container">
+    <div class="hero-copy prose"><Hero /></div>
+    <div class="actions">
+      <Install />
+    </div>
+    <Reel />
+  </section>
+
+  <main class="container">
+    {pillars.map(({ title, head, code, Content }) => (
+      <Pillar title={title} head={head} code={code}><Content /></Pillar>
+    ))}
+
+    <Showcase />
+  </main>
+
+  <section class="cta container">
+    <div class="actions">
+      <Install />
+      <Subscribe />
+      <Discord invite="public" />
+    </div>
+  </section>
+
+  <Footer />
+</Shell>
