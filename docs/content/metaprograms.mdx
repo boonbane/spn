@@ -3,7 +3,10 @@ title: Metaprograms
 readme: false
 ---
 
+import Offline from '@spn/docs/components/Offline.astro'
 import Stub from '@spn/docs/components/Stub.astro'
+
+<Offline />
 
 You need to run code in your build. Most people solve this by writing brittle scripts in Bash or Powershell, or, at best, a language like Python. In `spn`, these scripts (*metaprograms*) are regular C programs. They come in two forms:
 - *Configure*, which add steps to your build before any compilation happens
@@ -129,7 +132,6 @@ Metaprograms are cross compiled to WebAssembly modules using the builtin `zig` t
 - Ordinary C file I/O works.
 - There are no threads, sockets, subprocesses, environment variables, or command line arguments.
 - Metaprograms are C, not C++.
-- Only declared outputs are cached, so an undeclared file in `/work` exists after a fresh run and is gone when the node is restored from the cache.
 
 ## When to use a metaprogram
 
@@ -279,7 +281,5 @@ These are regular C programs, not a DSL or some subset of C. Metaprograms are re
 > But releasing software is also just code, which you can write in your primarly language. The right tool for the job is often the tool you are already using. It pays off to explicitly attack the problem of glue from the start, and to pick/write a library that makes writing subprocess wrangling logic easy.
 
 Writing build scripts in C has traditionally been painful almost entirely because libc is not a suitable interface for any program, let alone high level programs like build scripts. Even if you spurn [modern, portable, ergonomic alternatives to the C standard library](https://github.com/tspader/sp) in favor of this self-flagellation, I urge the thoughtful reader to consider the benefits of throwing away the quirks of Bash, the nonportability of Powershell, the deployment nightmare of Python, and the fuzzy type systems of all of the above in favor of something simple, close to the OS, and statically typed!
-
-[^1]: WebAssembly is a platform agnostic binary target; instead of compiling code for x86_64 or ARM64 machine code and running it with your CPU, you compile it to WASM bytecode and run it inside another program.
 
 [^2]: If you'd like to link to `libspn` and drive the core yourself, that's a [separate *host* API](/docs/embedding).

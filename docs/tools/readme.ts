@@ -26,6 +26,7 @@ const mdx = unified().use(remarkParse).use(remarkMdx)
 const components: Record<string, () => string> = {
   Install: () => targets.map((target) => `### ${target.label}\n\n\`\`\`${target.lang}\n${target.command}\n\`\`\``).join('\n\n'),
   Stub: () => '> This section is a stub.',
+  Offline: () => '',
 }
 
 interface Section {

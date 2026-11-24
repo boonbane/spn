@@ -1,0 +1,13 @@
+[package]
+name = "unpack"
+version = "0.1.0"
+
+[[bin]]
+name = "main"
+source = ["main.c"]
+
+[deps.package]
+zstd = "1.6.0"
+
+[config.zstd]
+options = { compression = false }

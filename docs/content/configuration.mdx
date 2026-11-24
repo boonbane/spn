@@ -3,7 +3,10 @@ title: Configuration
 readme: false
 ---
 
+import Offline from '@spn/docs/components/Offline.astro'
 import Stub from '@spn/docs/components/Stub.astro'
+
+<Offline />
 
 Global machine configuration lives in `$config/spn/spn.toml`, where `$config` is:
 - `$XDG_CONFIG_HOME` (or `~/.config` if it isn't set) on Linux and macOS

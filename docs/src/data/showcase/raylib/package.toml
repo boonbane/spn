@@ -17,6 +17,17 @@ system_deps = [
 url = "https://github.com/raysan5/raylib.git"
 commit = "a4680fc67734754138650138f11c54dc798ede56"
 
+[deps.package]
+xorgproto = { version = "2025.1.0", when = { os = "linux" } }
+libx11 = { version = "1.8.13", when = { os = "linux" } }
+libxext = { version = "1.3.7", when = { os = "linux" } }
+libxcursor = { version = "1.2.3", when = { os = "linux" } }
+libxfixes = { version = "6.0.2", when = { os = "linux" } }
+libxi = { version = "1.8.3", when = { os = "linux" } }
+libxrandr = { version = "1.5.5", when = { os = "linux" } }
+libxrender = { version = "0.9.12", when = { os = "linux" } }
+libxinerama = { version = "1.1.6", when = { os = "linux" } }
+
 [[lib]]
 name = "raylib"
 kinds = ["static"]
@@ -42,9 +53,14 @@ define = [
   { value = "_CRT_SECURE_NO_WARNINGS", when = { os = "windows" } },
   { value = "GL_SILENCE_DEPRECATION", when = { os = "macos" } },
 ]
-
-[lib.macos]
-frameworks = ["Cocoa", "IOKit", "CoreFoundation", "CoreAudio", "CoreVideo", "OpenGL"]
+system_deps = [
+  { framework = "Cocoa" },
+  { framework = "IOKit" },
+  { framework = "CoreFoundation" },
+  { framework = "CoreAudio" },
+  { framework = "CoreVideo" },
+  { framework = "OpenGL" },
+]
 
 [[example]]
 name = "core_basic_window"
@@ -71,10 +87,10 @@ name = "text_format_text"
 source = ["examples/text/text_format_text.c"]
 deps = ["raylib"]
 
-[publish]
-copy = [
-  { from = "source/src/raylib.h", to = "include" },
-  { from = "source/src/raymath.h", to = "include" },
-  { from = "source/src/rlgl.h", to = "include" },
-  { from = "source/src/rcamera.h", to = "include" },
+[package.publish]
+include = [
+  { from = "src/raylib.h" },
+  { from = "src/raymath.h" },
+  { from = "src/rlgl.h" },
+  { from = "src/rcamera.h" },
 ]

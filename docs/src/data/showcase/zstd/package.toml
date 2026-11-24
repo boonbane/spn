@@ -1,0 +1,191 @@
+[package]
+name = "zstd"
+version = "1.6.0"
+author = "facebook"
+maintainer = "tspader"
+define = [
+  { value = "ZSTD_LEGACY_SUPPORT=1", when = { legacy = "v1" } },
+  { value = "ZSTD_LEGACY_SUPPORT=2", when = { legacy = "v2" } },
+  { value = "ZSTD_LEGACY_SUPPORT=3", when = { legacy = "v3" } },
+  { value = "ZSTD_LEGACY_SUPPORT=4", when = { legacy = "v4" } },
+  { value = "ZSTD_LEGACY_SUPPORT=5", when = { legacy = "v5" } },
+  { value = "ZSTD_LEGACY_SUPPORT=6", when = { legacy = "v6" } },
+  { value = "ZSTD_LEGACY_SUPPORT=7", when = { legacy = "v7" } },
+]
+system_deps = [
+  { lib = "pthread", when = { os = { not = "windows" }, multithread = true } },
+]
+
+[package.upstream]
+url = "https://github.com/facebook/zstd.git"
+commit = "d9c0c7e2cf8a8bf9fb98d3bee546dcf8dc9ac59a"
+
+[options.compression]
+type = "bool"
+default = true
+
+[options.decompression]
+type = "bool"
+default = true
+
+[options.dictbuilder]
+type = "bool"
+default = [{ value = false, when = { compression = false } }, { value = true }]
+
+[options.deprecated]
+type = "bool"
+default = false
+
+[options.legacy]
+type = "enum"
+values = ["none", "v1", "v2", "v3", "v4", "v5", "v6", "v7"]
+default = "none"
+
+[options.multithread]
+type = "bool"
+default = [{ value = false, when = { os = "wasi" } }, { value = true }]
+define = "ZSTD_MULTITHREAD"
+
+[options.asm]
+type = "bool"
+default = [{ value = false, when = { abi = "msvc" } }, { value = true }]
+
+[options.minify]
+type = "bool"
+default = false
+
+[options.bench]
+type = "bool"
+default = [
+  { value = false, when = { compression = false } },
+  { value = false, when = { decompression = false } },
+  { value = true },
+]
+
+[options.trace]
+type = "bool"
+default = [
+  { value = false, when = { compression = false } },
+  { value = false, when = { decompression = false } },
+  { value = true },
+]
+
+[[lib]]
+name = "zstd"
+kinds = ["static", "shared"]
+source = [
+  "lib/common/*.c",
+  { path = "lib/compress/*.c", when = { compression = true } },
+  { path = "lib/decompress/*.c", when = { decompression = true } },
+  { path = "lib/decompress/huf_decompress_amd64.S", when = { decompression = true, arch = "x86_64", asm = true } },
+  { path = "lib/dictBuilder/*.c", when = { dictbuilder = true } },
+  { path = "lib/deprecated/zbuff_common.c", when = { deprecated = true } },
+  { path = "lib/deprecated/zbuff_compress.c", when = { deprecated = true, compression = true } },
+  { path = "lib/deprecated/zbuff_decompress.c", when = { deprecated = true, decompression = true } },
+  { path = "lib/legacy/*.c", when = { legacy = { not = "none" } } },
+]
+define = [
+  { value = "ZSTD_DISABLE_ASM", when = { asm = false } },
+  { value = "HUF_FORCE_DECOMPRESS_X1", when = { minify = true } },
+  { value = "ZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT", when = { minify = true } },
+  { value = "ZSTD_NO_INLINE", when = { minify = true } },
+  { value = "ZSTD_STRIP_ERROR_STRINGS", when = { minify = true } },
+  { value = "DYNAMIC_BMI2=0", when = { minify = true } },
+  { value = "_CRT_SECURE_NO_WARNINGS", when = { abi = "msvc" } },
+]
+flags = [
+  { value = "-fno-stack-protector", when = { minify = true, abi = { not = "msvc" } } },
+  { value = "-fomit-frame-pointer", when = { minify = true, abi = { not = "msvc" } } },
+  { value = "-fno-ident", when = { minify = true, abi = { not = "msvc" } } },
+]
+
+[[bin]]
+name = "zstd"
+source = [
+  "programs/zstdcli.c",
+  "programs/util.c",
+  "programs/timefn.c",
+  "programs/fileio.c",
+  "programs/fileio_asyncio.c",
+  { path = "programs/benchfn.c", when = { bench = true } },
+  { path = "programs/benchzstd.c", when = { bench = true } },
+  { path = "programs/datagen.c", when = { bench = true } },
+  { path = "programs/lorem.c", when = { bench = true } },
+  { path = "programs/zstdcli_trace.c", when = { trace = true } },
+  { path = "programs/dibio.c", when = { dictbuilder = true } },
+]
+define = [
+  { value = "ZSTD_NOCOMPRESS", when = { compression = false } },
+  { value = "ZSTD_NODECOMPRESS", when = { decompression = false } },
+  { value = "ZSTD_NOBENCH", when = { bench = false } },
+  { value = "ZSTD_NOTRACE", when = { trace = false } },
+  { value = "ZSTD_NODICT", when = { dictbuilder = false } },
+]
+deps = ["zstd"]
+
+[[example]]
+name = "roundtrip"
+source = [{ path = "example/roundtrip.c", tree = "manifest" }]
+deps = ["zstd"]
+
+[[example]]
+name = "simple_compression"
+source = ["examples/simple_compression.c"]
+define = [{ value = "_DEFAULT_SOURCE", when = { os = "linux" } }]
+deps = ["zstd"]
+
+[[example]]
+name = "simple_decompression"
+source = ["examples/simple_decompression.c"]
+define = [{ value = "_DEFAULT_SOURCE", when = { os = "linux" } }]
+deps = ["zstd"]
+
+[[example]]
+name = "multiple_simple_compression"
+source = ["examples/multiple_simple_compression.c"]
+define = [{ value = "_DEFAULT_SOURCE", when = { os = "linux" } }]
+deps = ["zstd"]
+
+[[example]]
+name = "dictionary_compression"
+source = ["examples/dictionary_compression.c"]
+define = [{ value = "_DEFAULT_SOURCE", when = { os = "linux" } }]
+deps = ["zstd"]
+
+[[example]]
+name = "dictionary_decompression"
+source = ["examples/dictionary_decompression.c"]
+define = [{ value = "_DEFAULT_SOURCE", when = { os = "linux" } }]
+deps = ["zstd"]
+
+[[example]]
+name = "streaming_compression"
+source = ["examples/streaming_compression.c"]
+define = [{ value = "_DEFAULT_SOURCE", when = { os = "linux" } }]
+deps = ["zstd"]
+
+[[example]]
+name = "streaming_decompression"
+source = ["examples/streaming_decompression.c"]
+define = [{ value = "_DEFAULT_SOURCE", when = { os = "linux" } }]
+deps = ["zstd"]
+
+[[example]]
+name = "multiple_streaming_compression"
+source = ["examples/multiple_streaming_compression.c"]
+define = [{ value = "_DEFAULT_SOURCE", when = { os = "linux" } }]
+deps = ["zstd"]
+
+[[example]]
+name = "streaming_memory_usage"
+source = ["examples/streaming_memory_usage.c"]
+define = [{ value = "_DEFAULT_SOURCE", when = { os = "linux" } }]
+deps = ["zstd"]
+
+[package.publish]
+include = [
+  { from = "lib/zstd.h" },
+  { from = "lib/zdict.h" },
+  { from = "lib/zstd_errors.h" },
+  { from = "lib/deprecated/zbuff.h", to = "deprecated" },
+]

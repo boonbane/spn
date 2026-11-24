@@ -8,7 +8,7 @@ maintainer = "tspader"
 url = "https://github.com/nothings/stb.git"
 commit = "2c980bb59875b0d32144a71867fbdebb2f77cd20"
 
-[publish]
-copy = [
-  { from = "source/*.h", to = "include" },
+[package.publish]
+include = [
+  { from = "*.h" },
 ]

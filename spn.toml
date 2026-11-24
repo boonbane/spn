@@ -1,6 +1,6 @@
 [package]
 name = "spn"
-version = "0.13.1"
+version = "0.14.0"
 repo = "boonbane/spn"
 include = ["include", { path = "gen/include", tree = "work" }]
 system_deps = [

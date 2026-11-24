@@ -1,8 +1,6 @@
 [package]
 name = "sdl3"
-version = "3.4.16"
-upstream.url = "https://github.com/libsdl-org/SDL.git"
-upstream.commit = "147a8ee32dbf9ac02f3794964490687b6bbda1bc"
+version = "3.4.14"
 system_deps = [
   { lib = "m", when = { os = "linux" } },
   { lib = "dl", when = { os = "linux" } },
@@ -20,6 +18,29 @@ system_deps = [
   { lib = "shell32", when = { os = "windows" } },
   { lib = "dinput8", when = { os = "windows" } },
 ]
+
+[package.upstream]
+url = "https://github.com/libsdl-org/SDL.git"
+commit = "147a8ee32dbf9ac02f3794964490687b6bbda1bc"
+
+[deps.package]
+xorgproto = { version = "2025.1.0", when = { os = "linux", x11 = true } }
+libx11 = { version = "1.8.13", when = { os = "linux", x11 = true } }
+libxext = { version = "1.3.7", when = { os = "linux", x11 = true } }
+libxcursor = { version = "1.2.3", when = { os = "linux", x11 = true } }
+libxfixes = { version = "6.0.2", when = { os = "linux", x11 = true } }
+libxi = { version = "1.8.3", when = { os = "linux", x11 = true } }
+libxrandr = { version = "1.5.5", when = { os = "linux", x11 = true } }
+libxrender = { version = "0.9.12", when = { os = "linux", x11 = true } }
+libxscrnsaver = { version = "1.2.5", when = { os = "linux", x11 = true } }
+libxtst = { version = "1.2.5", when = { os = "linux", x11 = true } }
+libglvnd = { version = "1.7.0", when = { os = "linux", x11 = true } }
+libxcb = { version = "1.17.0", when = { os = "linux", x11 = true } }
+alsa-lib = { version = "1.2.15", when = { os = "linux", alsa = true } }
+pulseaudio = { version = "17.0.0", when = { os = "linux", pulseaudio = true } }
+pipewire = { version = "1.6.8", when = { os = "linux", pipewire = true } }
+dbus = { version = "1.16.99", when = { os = "linux", dbus = true } }
+systemd = { version = "261.3.0", when = { os = "linux", udev = true } }
 
 [options.x11]
 type = "bool"
@@ -66,6 +87,13 @@ define = "SPN_SDL3_UDEV"
 [[lib]]
 name = "SDL3"
 kinds = ["static"]
+include = [
+  { path = "config", tree = "manifest" },
+  "include/build_config",
+  "include",
+  "src",
+  "src/video/khronos",
+]
 source = [
   "src/*.c",
   "src/atomic/*.c",
@@ -211,31 +239,34 @@ define = [
   { value = "_THREAD_SAFE", when = { os = "macos" } },
 ]
 flags = [
-  "-fno-strict-aliasing",
-  "-fvisibility=hidden",
-  { value = "-msse", when = { arch = "x86_64" } },
-  { value = "-msse2", when = { arch = "x86_64" } },
-  { value = "-msse3", when = { arch = "x86_64" } },
+  { value = "-fno-strict-aliasing", when = { driver = { not = "msvc" } } },
+  { value = "-fvisibility=hidden", when = { driver = { not = "msvc" } } },
+  { value = "-msse", when = { arch = "x86_64", driver = { not = "msvc" } } },
+  { value = "-msse2", when = { arch = "x86_64", driver = { not = "msvc" } } },
+  { value = "-msse3", when = { arch = "x86_64", driver = { not = "msvc" } } },
   { value = "-fobjc-arc", when = { os = "macos" } },
 ]
+system_deps = [
+  { framework = "AVFoundation" },
+  { framework = "AudioToolbox" },
+  { framework = "Carbon" },
+  { framework = "Cocoa" },
+  { framework = "CoreAudio" },
+  { framework = "CoreFoundation" },
+  { framework = "CoreHaptics" },
+  { framework = "CoreMedia" },
+  { framework = "CoreVideo" },
+  { framework = "ForceFeedback" },
+  { framework = "GameController" },
+  { framework = "IOKit" },
+  { framework = "Metal" },
+  { framework = "QuartzCore" },
+  { framework = "UniformTypeIdentifiers" },
+]
 
-[lib.macos]
-frameworks = [
-  "AVFoundation",
-  "AudioToolbox",
-  "Carbon",
-  "Cocoa",
-  "CoreAudio",
-  "CoreFoundation",
-  "CoreHaptics",
-  "CoreMedia",
-  "CoreVideo",
-  "ForceFeedback",
-  "GameController",
-  "IOKit",
-  "Metal",
-  "QuartzCore",
-  "UniformTypeIdentifiers",
+[package.publish]
+include = [
+  { from = "include/SDL3/*.h", to = "SDL3" },
 ]
 
 [[example]]

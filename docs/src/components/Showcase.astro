@@ -21,8 +21,9 @@ const packages = [
   { id: 'imgui', label: 'ImGui' },
   { id: 'lua', label: 'Lua' },
   { id: 'stb', label: 'stb' },
-  { id: 'sqlite', label: 'SQLite' },
+  { id: 'zstd', label: 'zstd' },
   { id: 'curl', label: 'curl' },
+  { id: 'mbedtls', label: 'mbedTLS' },
 ].map(({ id, label }) => {
   const project = read(id, 'project')
   const manifest = read(id, 'package')
@@ -44,7 +45,7 @@ const packages = [
           <figcaption class="code-head">
             <b>{pkg.label}</b>
             {pkg.version}
-            <a class="link" href={`https://github.com/tspader/spam/blob/main/${pkg.id}/spn.toml`}>view on github</a>
+            <a class="link" href={`https://github.com/boonbane/spam/blob/main/${pkg.id}/spn.toml`}>view on github</a>
           </figcaption>
           <Code code={pkg.manifest} lang="toml" theme={theme} />
         </figure>

@@ -3,7 +3,10 @@ title: Dependencies
 readme: false
 ---
 
+import Offline from '@spn/docs/components/Offline.astro'
 import Stub from '@spn/docs/components/Stub.astro'
+
+<Offline />
 
 `spn` is a real package manager, built specifically for C and C++.
 
@@ -102,8 +105,7 @@ Packages can [provide options](/docs/conditions#options), either as an enumerati
 
 ```toml
 [config.foo]
-tls = "openssl"
-zstd = true
+options = { tls = "openssl", zstd = true }
 ```
 
 ### Linkage
