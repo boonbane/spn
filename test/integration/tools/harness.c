@@ -1044,7 +1044,8 @@ sp_err_t run_actions(sp_test_t* t, fixture_t* fixture, const action_t* actions) 
       }
       case ACTION_VERIFY_EVENT:
       case ACTION_VERIFY_NO_EVENT: {
-        expect_event(t, fixture, action.verify_event.event, action.verify_event.key, action.verify_event.value, action.verify_event.lane, action.kind == ACTION_VERIFY_EVENT, __FILE__, __LINE__);
+        const c8* value = action.verify_event.host ? test_host_triple() : action.verify_event.value;
+        expect_event(t, fixture, action.verify_event.event, action.verify_event.key, value, action.verify_event.lane, action.kind == ACTION_VERIFY_EVENT, __FILE__, __LINE__);
         break;
       }
       case ACTION_VERIFY_RESULT: {

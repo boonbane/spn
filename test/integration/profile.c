@@ -23,23 +23,23 @@ static const test_t tests [] = {
     },
   },
   {
-    .name = "config_shared_demand_defaults_to_gnu",
+    .name = "config_shared_demand_defaults_to_the_host_abi",
     .project = "test/integration/fixtures/consume/multi_kind/shared",
     .copy = { "packages/*" },
-    .when = { .host = SPN_OS_LINUX, .target = SPN_TEST_ARCH "-linux-gnu" },
+    .when.host = SPN_OS_LINUX,
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build" } },
-      { .kind = ACTION_VERIFY_EVENT, .verify_event = { .event = SPN_EVENT_INIT_BUILD_GRAPH, .key = "target", .value = SPN_TEST_ARCH "-linux-gnu" } },
+      { .kind = ACTION_VERIFY_EVENT, .verify_event = { .event = SPN_EVENT_INIT_BUILD_GRAPH, .key = "target", .host = true } },
     },
   },
   {
-    .name = "root_shared_lib_demand_defaults_to_gnu",
+    .name = "root_shared_lib_demand_defaults_to_the_host_abi",
     .project = "test/integration/fixtures/target/shared_lib",
     .copy = { "spum.c" },
-    .when = { .host = SPN_OS_LINUX, .target = SPN_TEST_ARCH "-linux-gnu" },
+    .when.host = SPN_OS_LINUX,
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build" } },
-      { .kind = ACTION_VERIFY_EVENT, .verify_event = { .event = SPN_EVENT_INIT_BUILD_GRAPH, .key = "target", .value = SPN_TEST_ARCH "-linux-gnu" } },
+      { .kind = ACTION_VERIFY_EVENT, .verify_event = { .event = SPN_EVENT_INIT_BUILD_GRAPH, .key = "target", .host = true } },
     },
   },
   {

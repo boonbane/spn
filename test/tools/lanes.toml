@@ -216,7 +216,7 @@ driver = "clang"
 compiler = "bin/clang"
 archiver = "bin/llvm-ar"
 cxx = "bin/clang++"
-target = [{ arch = "wasm32", os = "wasi", abi = "musl", sdk = "share/wasi-sysroot" }]
+target = [{ arch = "wasm32", os = "wasi", abi = "musl", sdk = "share/wasi-sysroot", spelling = "wasm32-wasip1" }]
 
 [toolchain.host]
 x86_64-linux = { url = "https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-34/wasi-sdk-34.0-x86_64-linux.tar.gz", sha256 = "b761e3a0721dbae9c09a0059e5fdb2bf917d1b4a8a7b430fb3b5aafb0984b2c4" }
@@ -232,7 +232,7 @@ compiler = "/opt/wasi-sdk/bin/clang"
 archiver = "/opt/wasi-sdk/bin/llvm-ar"
 cxx = "/opt/wasi-sdk/bin/clang++"
 host = { x86_64-linux = {} }
-target = [{ arch = "wasm32", os = "wasi", abi = "musl", sdk = "/opt/wasi-sdk/share/wasi-sysroot" }]
+target = [{ arch = "wasm32", os = "wasi", abi = "musl", sdk = "/opt/wasi-sdk/share/wasi-sysroot", spelling = "wasm32-wasip1" }]
 
 [[toolchain]]
 name = "wasi-sdk-abs"
@@ -241,7 +241,7 @@ driver = "clang"
 compiler = "bin/clang"
 archiver = "bin/llvm-ar"
 cxx = "bin/clang++"
-target = [{ arch = "wasm32", os = "wasi", abi = "musl", sdk = "/opt/wasi-sdk/share/wasi-sysroot" }]
+target = [{ arch = "wasm32", os = "wasi", abi = "musl", sdk = "/opt/wasi-sdk/share/wasi-sysroot", spelling = "wasm32-wasip1" }]
 
 [toolchain.host]
 x86_64-linux = { url = "https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-34/wasi-sdk-34.0-x86_64-linux.tar.gz", sha256 = "b761e3a0721dbae9c09a0059e5fdb2bf917d1b4a8a7b430fb3b5aafb0984b2c4" }

@@ -119,7 +119,7 @@ typedef struct {
     struct { const c8* file; const c8* needle; } verify_file_contains;
     const c8* verify_cc_arg [4];
     struct { const c8* pkg; u32 count; } verify_store;
-    struct { spn_event_kind_t event; const c8* key; const c8* value; bool lane; } verify_event;
+    struct { spn_event_kind_t event; const c8* key; const c8* value; bool lane; bool host; } verify_event;
     struct { spn_err_t err; } verify_result;
   };
 } action_t;
