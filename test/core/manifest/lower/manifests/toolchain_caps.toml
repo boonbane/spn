@@ -8,6 +8,6 @@ compiler = "clang"
 archiver = "ar"
 driver = "clang"
 target = [
-  { arch = "x86_64", os = "linux", abi = "gnu", sanitizers = ["address", "undefined"] },
+  { arch = "x86_64", os = "linux", abi = "gnu", sanitizers = { supported = ["address", "undefined"] } },
   { arch = "wasm32", os = "wasi", abi = "musl" },
 ]

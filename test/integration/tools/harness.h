@@ -20,7 +20,6 @@
 #define SPN_TEST_MAX_WATCHES 4
 #define SPN_TEST_MAX_BUILDS 3
 #define SPN_TEST_MAX_CONTAINS 4
-#define SPN_TEST_MAX_WITH 4
 
 typedef enum {
   PATH_NONE,
@@ -29,6 +28,7 @@ typedef enum {
   PATH_TEST_EXE,
   PATH_EXAMPLE_EXE,
   PATH_STAGED_LIB,
+  PATH_STAGED_FILE,
   PATH_TEST_LIB,
   PATH_STORE,
   PATH_STATIC_LIB,
@@ -55,6 +55,9 @@ typedef struct {
 #define example_exe(name_)                            { PATH_EXAMPLE_EXE, .name = name_ }
 #define staged_lib(name_)                             { PATH_STAGED_LIB, .name = name_ }
 #define target_staged_lib(name_, triple_)             { PATH_STAGED_LIB, .name = name_, .triple = triple_ }
+#define staged_file(name_)                            { PATH_STAGED_FILE, .name = name_ }
+#define profile_staged_file(profile_, name_)          { PATH_STAGED_FILE, .name = name_, .profile = profile_ }
+#define target_staged_file(name_, triple_)            { PATH_STAGED_FILE, .name = name_, .triple = triple_ }
 #define test_lib(name_)                               { PATH_TEST_LIB, .name = name_ }
 #define pkg_store_file(pkg_, rest)                    { PATH_STORE, .pkg = pkg_, .name = rest }
 #define pkg_store_exe(pkg_, name_)                    { PATH_STORE, .pkg = pkg_, .name = name_, .exe = true }
@@ -106,7 +109,7 @@ typedef struct {
     struct { u64 seconds; } age;
     struct { const c8* cmd; const c8* args [8]; const c8* env [4]; const c8* path; const c8* cwd; s32 rc; } cli;
     struct { path_t file; s32 rc; } bin;
-    struct { path_t file; path_t with [SPN_TEST_MAX_WITH]; bare_expect_t expect; } bare;
+    struct { path_t file; bare_expect_t expect; } bare;
     path_t exists;
     path_t verify_no_interp;
     struct { path_t file; u64 entry; } verify_elf_entry;
@@ -116,7 +119,7 @@ typedef struct {
     struct { const c8* file; const c8* needle; } verify_file_contains;
     const c8* verify_cc_arg [4];
     struct { const c8* pkg; u32 count; } verify_store;
-    struct { spn_event_kind_t event; const c8* key; const c8* value; bool lane; } verify_event;
+    struct { spn_event_kind_t event; const c8* key; const c8* value; bool lane; bool host; } verify_event;
     struct { spn_err_t err; } verify_result;
   };
 } action_t;

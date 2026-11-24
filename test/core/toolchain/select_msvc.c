@@ -73,6 +73,13 @@ static const test_t tests [] = {
     .expect = { .err = SPN_ERR_TOOLCHAIN_SDK_MSVC },
   },
   {
+    .name = "auto_falls_back_past_an_msvc_driver_without_a_compiler",
+    .driver = SPN_CC_DRIVER_MSVC,
+    .fallback = { .path = "/S" },
+    .sdks = { .msvc = { { { "/X" }, SPN_ARCH_X64, "14.44", .bare = true } } },
+    .expect = { .sdk = { SPN_SDK_MSVC, { "/S" } } },
+  },
+  {
     .name = "auto_does_not_fall_back_past_an_unmatched_request",
     .driver = SPN_CC_DRIVER_CLANG,
     .fallback = { .path = "/S" },
@@ -101,7 +108,7 @@ sp_test_each(select_msvc, pin, test_t, tests, .setup = spn_test_ctx_setup) {
   }
 
   spn_toolchain_candidate_t candidate = { .triple = TARGET_WIN_MSVC };
-  sp_must_eq(t, (u32)SPN_LINKING_REFUSAL_NONE, (u32)spn_ld_linking(candidate.triple, sp_zero_s(spn_linking_t), &candidate.linking));
+  sp_must_eq(t, (u32)SPN_LINKING_REFUSAL_NONE, (u32)si_ld_linkings(candidate.triple, sp_zero_s(spn_linking_t), SPN_LIB_KIND_NONE, &candidate.linkings));
   spn_toolchain_query_t query = {
     .toolchain = it->fallback.path ? (spn_toolchain_ref_t) { .kind = SPN_TOOLCHAIN_REF_AUTO } : spn_toolchain_ref_from_str(sp_str_lit("A")),
     .target = TARGET_WIN_MSVC,
@@ -111,7 +118,7 @@ sp_test_each(select_msvc, pin, test_t, tests, .setup = spn_test_ctx_setup) {
   spn_toolchain_selection_t selection = sp_zero;
   sp_must_eq(t, (u32)it->expect.err, (u32)si_toolchain_select(&catalog, query, &selection));
   if (!it->expect.err) {
-    return fixture_check_sdk(t, selection.row.sdk, it->expect.sdk);
+    return fixture_check_sdk(t, selection.sdk, it->expect.sdk);
   }
 
   sp_da(spn_event_t) errs = spn_test_drain_errs(mem);

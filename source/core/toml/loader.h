@@ -30,6 +30,6 @@ bool              spn_toml_loader_str_optional(spn_toml_loader_t* t, toml_table_
 bool              spn_toml_loader_read_bool(spn_toml_loader_t* t, toml_table_t* table, const c8* k, bool* v);
 bool              spn_toml_loader_read_u64(spn_toml_loader_t* t, toml_table_t* table, const c8* k, u64* v);
 void              spn_toml_loader_check_keys(spn_toml_loader_t* t, toml_table_t* table, const c8** keys, u32 count);
-sp_da(sp_str_t)   spn_toml_loader_read_str_array(spn_toml_loader_t* t, toml_table_t* table, const c8* key);
+sp_da(sp_str_t)   si_toml_loader_read_str_array(spn_toml_loader_t* t, toml_table_t* table, const c8* key);
 
 #endif

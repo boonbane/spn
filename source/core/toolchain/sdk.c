@@ -4,6 +4,7 @@
 #include "enum/enum.h"
 #include "error/error.h"
 #include "paths/paths.h"
+#include "sp/sp_glob.h"
 #include "toolchain/msvc.h"
 #include "triple/triple.h"
 
@@ -78,7 +79,7 @@ static sp_str_t dia_arch_name(spn_arch_t arch) {
   sp_unreachable_return(sp_str_lit(""));
 }
 
-spn_sdk_msvc_t spn_sdk_from_msvc(sp_mem_t mem, const sp_msvc_sdk_t* kits, const sp_msvc_vs_t* vs, spn_arch_t arch) {
+spn_sdk_msvc_t si_sdk_from_msvc(sp_mem_t mem, const sp_msvc_sdk_t* kits, const sp_msvc_vs_t* vs, spn_arch_t arch) {
   sp_msvc_sdk_paths_t kit = sp_msvc_sdk_render(mem, kits);
   sp_msvc_vs_paths_t tools = sp_msvc_vs_render(mem, vs);
   spn_arch_t host = SPN_ARCH_NONE;
@@ -131,6 +132,9 @@ spn_sdk_msvc_t spn_sdk_from_msvc(sp_mem_t mem, const sp_msvc_sdk_t* kits, const 
   };
   if (host != arch) {
     msvc.tools.host = spn_path_join(mem, toolset, sp_fmt(mem, "bin/Host{}/{}", sp_fmt_str(host_name), sp_fmt_str(host_name)).value);
+  }
+  if (arch == SPN_ARCH_X64) {
+    msvc.runtime.asan = spn_path_join(mem, msvc.bin, sp_str_lit("clang_rt.asan_dynamic-x86_64.dll"));
   }
   return msvc;
 }
@@ -259,51 +263,43 @@ spn_sdk_t spn_sdk_at(sp_mem_t mem, spn_triple_t target, spn_path_t root) {
   sp_unreachable_return(sp_zero_struct(spn_sdk_t));
 }
 
-static spn_sdk_t from_host(sp_mem_t mem, const spn_sdk_host_t* host, spn_triple_t target) {
-  spn_sdk_t none = sp_zero;
-  switch (spn_sdk_need(target)) {
-    case SPN_SDK_NEED_NONE:
-    case SPN_SDK_NEED_SYSROOT: {
-      return none;
-    }
-    case SPN_SDK_NEED_MACOS: {
-      return spn_path_empty(host->macos.root) ? none : (spn_sdk_t) { .kind = SPN_SDK_MACOS, .macos = host->macos };
-    }
-    case SPN_SDK_NEED_MSVC: {
-      spn_msvc_pick_t pick = sp_zero;
-      if (si_msvc_match(&host->msvc, target.arch, sp_zero_s(spn_msvc_request_t), false, &pick)) {
-        return none;
-      }
-      return (spn_sdk_t) { .kind = SPN_SDK_MSVC, .msvc = spn_sdk_from_msvc(mem, pick.kit, pick.toolset, target.arch) };
-    }
-  }
-  sp_unreachable_return(none);
-}
-
-bool si_sdk_default(sp_mem_t mem, const spn_sdk_host_t* sdks, spn_triple_t target, spn_sdk_t* sdk) {
-  *sdk = from_host(mem, sdks, target);
+spn_sdk_source_t si_sdk_undeclared(spn_triple_t target) {
   switch (spn_sdk_need(target)) {
     case SPN_SDK_NEED_NONE:
     case SPN_SDK_NEED_SYSROOT:
-    case SPN_SDK_NEED_MACOS: return true;
-    case SPN_SDK_NEED_MSVC: return sdk->kind != SPN_SDK_NONE;
+    case SPN_SDK_NEED_MACOS: return SPN_SDK_SOURCE_HOST;
+    case SPN_SDK_NEED_MSVC: return SPN_SDK_SOURCE_INSTALL;
   }
-  sp_unreachable_return(false);
+  sp_unreachable_return(SPN_SDK_SOURCE_HOST);
 }
 
-bool si_sdk_served(sp_mem_t mem, const spn_sdk_host_t* sdks, spn_triple_t host, spn_triple_t target, spn_sdk_t* sdk) {
-  *sdk = from_host(mem, sdks, target);
+spn_sdk_t si_sdk_host(const spn_sdk_host_t* host, spn_triple_t target) {
+  if (spn_sdk_need(target) == SPN_SDK_NEED_MACOS && !spn_path_empty(host->macos.root)) {
+    return (spn_sdk_t) { .kind = SPN_SDK_MACOS, .macos = host->macos };
+  }
+  return sp_zero_struct(spn_sdk_t);
+}
+
+bool si_sdk_served(const spn_sdk_host_t* sdks, spn_triple_t host, spn_triple_t target, spn_toolchain_sdk_t* sdk) {
+  *sdk = (spn_toolchain_sdk_t) { .bound = si_sdk_host(sdks, target) };
   switch (spn_sdk_need(target)) {
     case SPN_SDK_NEED_NONE: return true;
     case SPN_SDK_NEED_SYSROOT: {
       if (!spn_triple_equal(target, host)) {
         return false;
       }
-      *sdk = (spn_sdk_t) { .kind = SPN_SDK_HOST };
+      sdk->bound = (spn_sdk_t) { .kind = SPN_SDK_HOST };
       return true;
     }
-    case SPN_SDK_NEED_MACOS:
-    case SPN_SDK_NEED_MSVC: return sdk->kind != SPN_SDK_NONE;
+    case SPN_SDK_NEED_MACOS: return sdk->bound.kind != SPN_SDK_NONE;
+    case SPN_SDK_NEED_MSVC: {
+      spn_msvc_pick_t pick = sp_zero;
+      if (si_msvc_match(&sdks->msvc, target.arch, sp_zero_s(spn_msvc_request_t), false, &pick)) {
+        return false;
+      }
+      sdk->install = SPN_SDK_INSTALL_LIBS;
+      return true;
+    }
   }
   sp_unreachable_return(false);
 }
@@ -329,24 +325,50 @@ spn_sdk_host_t si_sdk_detect(sp_mem_t mem, const spn_path_roots_t* roots, sp_env
   if (!sp_str_empty(macos)) {
     sdks.macos = macos_layout(mem, spn_path_from_cwd(mem, roots, macos));
   }
-  if (host.os == SPN_OS_WINDOWS) {
-    sp_mem_arena_marker_t scratch = sp_mem_begin_scratch_for(mem);
-    sp_msvc_t* found = sp_alloc_type(scratch.mem, sp_msvc_t);
-    const spn_arch_t* arches = SP_NULLPTR;
-    u32 count = spn_os_archs(SPN_OS_WINDOWS, &arches);
-    sp_for(it, count) {
-      if (sp_msvc_find_ex(si_msvc_arch(arches[it]), found) != SP_MSVC_OK) {
-        continue;
-      }
-      sp_for(at, found->num_installations) {
-        si_da_push(mem, sdks.msvc.toolsets, found->installations[at]);
-      }
-      sp_for(at, found->num_sdks) {
-        si_da_push(mem, sdks.msvc.kits, found->sdks[at]);
-      }
-    }
-    sp_mem_end_scratch(scratch);
+  if (host.os != SPN_OS_WINDOWS) {
+    return sdks;
   }
+
+  sp_mem_arena_marker_t scratch = sp_mem_begin_scratch_for(mem);
+  sp_msvc_t* found = sp_alloc_type(scratch.mem, sp_msvc_t);
+  const spn_arch_t* arches = SP_NULLPTR;
+  u32 count = spn_os_archs(SPN_OS_WINDOWS, &arches);
+  sp_for(it, count) {
+    if (sp_msvc_find_ex(si_msvc_arch(arches[it]), found) != SP_MSVC_OK) {
+      continue;
+    }
+    sp_for(at, found->num_installations) {
+      const sp_msvc_vs_t* vs = &found->installations[at];
+      sp_str_t vc = sp_fs_join_path(scratch.mem, sp_msvc_path_str(&vs->install_path), sp_str_lit("VC"));
+      sp_str_t version = sp_zero;
+      sp_fs_read(scratch.mem, sp_fs_join_path(scratch.mem, vc, sp_str_lit("Auxiliary/Build/Microsoft.VCRedistVersion.default.txt")), &version);
+      sp_str_t root = sp_fs_join_path(scratch.mem, vc, sp_str_lit("Redist/MSVC"));
+      root = sp_fs_join_path(scratch.mem, root, sp_str_trim(version));
+      root = sp_fs_join_path(scratch.mem, root, spn_msvc_arch_name(arches[it]));
+      spn_msvc_redist_t redist = { .dir = absolute(sp_str_copy(mem, root)) };
+      sp_sys_dir_t dir = sp_zero;
+      if (!sp_fs_open_dir_at(sp_path_from_str(root), &dir)) {
+        sp_glob_t* dll = sp_glob_new(scratch.mem, "Microsoft.VC*.CRT/*.dll");
+        sp_fs_it_t walk = sp_fs_it(scratch.mem, dir);
+        sp_fs_it_entry_t entry = sp_zero;
+        while (sp_fs_it_next(&walk, &entry)) {
+          if (sp_glob_match(dll, entry.path)) {
+            si_da_push(mem, redist.files, absolute(sp_fs_join_path(mem, root, entry.path)));
+          }
+        }
+        if (walk.err) {
+          si_da_clear(redist.files);
+        }
+        sp_fs_it_deinit(&walk);
+        sp_fs_close_dir(dir);
+      }
+      si_da_push(mem, sdks.msvc.toolsets, ((spn_msvc_toolset_t) { .vs = *vs, .redist = redist }));
+    }
+    sp_for(at, found->num_sdks) {
+      si_da_push(mem, sdks.msvc.kits, found->sdks[at]);
+    }
+  }
+  sp_mem_end_scratch(scratch);
   return sdks;
 }
 

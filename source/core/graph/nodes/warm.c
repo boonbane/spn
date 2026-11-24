@@ -67,7 +67,7 @@ static spn_err_t zig_warmup(sp_mem_t mem, const si_dag_ctx_t* c, si_zig_warmup_t
       sp_io_writer_set_buffer(&writer.base, buffer, sizeof(buffer));
       spn_cc_render_exports(&writer.base, roots, format, spn_rsp_style(cc->driver), sp_str_lit("stub"), SP_NULLPTR);
       sp_io_file_writer_close(&writer);
-      if (spn_cc_link_implib(profile, warm->link.kind)) {
+      if (si_cc_link_implib(profile, warm->link.kind)) {
         files.implib = spn_path_join(mem, staging, sp_str_lit("stub.lib"));
       }
       break;
@@ -78,7 +78,7 @@ static spn_err_t zig_warmup(sp_mem_t mem, const si_dag_ctx_t* c, si_zig_warmup_t
   }
   si_da_push(mem, files.objects, spn_path(mem, SPN_DIR_ID_RUNTIME, "zig/stub.c"));
 
-  spn_cc_link_plan_t plan = spn_gnu_render_link(mem, cc, profile, &warm->link);
+  spn_cc_link_plan_t plan = si_gnu_render_link(mem, cc, profile, &warm->link);
   spn_invocation_t invocation = spn_cc_render_link_command(mem, &plan, &files);
 
   progress_writer_t progress = { .base = { .write = progress_write }, .c = c };

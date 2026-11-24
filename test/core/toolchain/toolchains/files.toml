@@ -1,0 +1,13 @@
+[[toolchain]]
+name = "A"
+driver = "clang"
+compiler = "A"
+archiver = "A"
+host = { x86_64-linux = { url = "https://example.com/linux.tar.xz", sha256 = "aa" } }
+
+[[toolchain.target]]
+arch = "x86_64"
+os = "windows"
+abi = "gnu"
+runtime = { supported = ["static", "shared"], c = ["S/C"], cxx = ["/X"] }
+sanitizers = { supported = ["address"], address = ["S/D"] }

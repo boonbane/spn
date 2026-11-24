@@ -192,7 +192,7 @@ Different platforms have different stances on some or all of these knobs, but by
 | OS | ABI | `runtime` | `libc` | Notes |
 |---|---|---|---|---|
 | `linux` | `musl` | `static` | `static` | The default on any Linux box |
-| `linux` | `gnu` | `shared` | `shared` | `spn` will implicitly switch to `gnu` when shared libraries are allowed and some dependency or sanitizer runtime cannot be statically linked |
+| `linux` | `gnu` | `shared` | `shared` | `spn` will implicitly switch to the host's libc when shared libraries are allowed, some dependency or sanitizer runtime cannot be statically linked, and a target wasn't specified |
 | `macos` | `apple` | `shared` | `shared` | macOS forces programs to link dynamically to `libSystem.dylib` (i.e. libc) |
 | `windows` | `gnu` | `static` | `shared` | MinGW does not provide a `libc` to statically link, and regardless `ucrtbase.dll` ships with Windows |
 | `windows` | `msvc` | `static` | `static` | Avoid requiring Visual C++ Redistributables, by default[^9] |

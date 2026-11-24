@@ -11,7 +11,7 @@ spn_cc_link_plan_t si_cc_render_link(sp_mem_t mem, const spn_cc_t* toolchain, co
 
 
 spn_toolchain_launcher_t spn_cc_launcher(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, spn_lang_t lang);
-spn_cc_link_refusal_t spn_cc_validate_link(spn_triple_t host, const spn_profile_info_t* profile, const spn_cc_link_t* link);
+spn_cc_link_refusal_t si_cc_validate_link(const spn_cc_t* toolchain, spn_triple_t host, const spn_profile_info_t* profile, const spn_cc_link_t* link);
 spn_invocation_t spn_cc_render_compile_source(sp_mem_t mem, const spn_cc_compile_plan_t* plan, const spn_cc_compile_files_t* files);
 spn_invocation_t spn_cc_render_compile_command(sp_mem_t mem, const spn_cc_compile_plan_t* plan, const spn_cc_compile_files_t* files);
 spn_invocation_t spn_cc_render_link_command(sp_mem_t mem, const spn_cc_link_plan_t* plan, const spn_cc_link_files_t* files);
@@ -22,13 +22,13 @@ spn_cc_exports_format_t spn_cc_exports_format(spn_cc_output_kind_t kind, spn_obj
 sp_str_t spn_cc_object_extension(spn_cc_driver_t driver);
 sp_str_t spn_cc_exports_extension(spn_cc_exports_format_t format);
 void spn_cc_render_exports(sp_io_writer_t* io, const spn_path_roots_t* roots, spn_cc_exports_format_t format, spn_rsp_style_t rsp, sp_str_t library, si_da(spn_cc_export_t) symbols);
-bool spn_cc_link_implib(const spn_profile_info_t* profile, spn_cc_output_kind_t kind);
+bool si_cc_link_implib(const spn_profile_info_t* profile, spn_cc_output_kind_t kind);
 
 spn_cc_compile_plan_t spn_gnu_render_compile(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, spn_lang_t lang, const spn_cc_compile_t* compile);
 void spn_gnu_render_compile_include(sp_mem_t mem, const spn_cc_compile_files_t* files, spn_invocation_t* invocation);
 void spn_gnu_render_compile_locations(sp_mem_t mem, const spn_cc_compile_plan_t* plan, const spn_cc_compile_files_t* files, spn_invocation_t* invocation);
-spn_cc_link_plan_t spn_gnu_render_link(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, const spn_cc_link_t* link);
-void spn_gnu_render_link_locations(sp_mem_t mem, const spn_cc_link_plan_t* plan, const spn_cc_link_files_t* files, spn_invocation_t* invocation);
+spn_cc_link_plan_t si_gnu_render_link(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, const spn_cc_link_t* link);
+void si_gnu_render_link_locations(sp_mem_t mem, const spn_cc_link_plan_t* plan, const spn_cc_link_files_t* files, spn_invocation_t* invocation);
 sp_da(spn_arg_t) spn_gnu_render_exports(sp_mem_t mem, si_da(spn_cc_export_t) symbols);
 spn_cc_archive_plan_t spn_gnu_render_archive(sp_mem_t mem, const spn_cc_t* toolchain);
 void spn_gnu_render_archive_locations(sp_mem_t mem, const spn_cc_archive_plan_t* plan, const spn_cc_archive_files_t* files, spn_invocation_t* invocation);

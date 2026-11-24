@@ -1,0 +1,14 @@
+[package]
+name = "profile_runtime"
+version = "0.1.0"
+
+[profile.default]
+runtime = "shared"
+
+[profile.asan]
+runtime = "static"
+sanitize = ["address"]
+
+[[bin]]
+name = "main"
+source = ["main.c"]

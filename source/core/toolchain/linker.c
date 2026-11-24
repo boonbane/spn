@@ -33,24 +33,7 @@ bool spn_ld_loader(spn_triple_t target, spn_linking_t linking) {
   return spn_ld_dynamic(target) && !(spn_triple_object_format(target) == SPN_OBJ_ELF && linking.libc == SPN_RUNTIME_STATIC);
 }
 
-static u32 first(spn_triple_t target, rows_t table, spn_linking_t request) {
-  sp_for(it, table.count) {
-    spn_linking_t row = table.items[it];
-    if (request.runtime && row.runtime != request.runtime) {
-      continue;
-    }
-    if (request.libc && row.libc != request.libc) {
-      continue;
-    }
-    if (request.linkage == SPN_LIB_KIND_SHARED && !spn_ld_loader(target, row)) {
-      continue;
-    }
-    return it;
-  }
-  return table.count;
-}
-
-spn_linking_refusal_t spn_ld_linking(spn_triple_t target, spn_linking_t request, spn_linking_t* linking) {
+spn_linking_refusal_t si_ld_linkings(spn_triple_t target, spn_linking_t request, spn_linkage_t demand, spn_linkings_t* linkings) {
   static const spn_linking_t linux_gnu [] = {
     { .runtime = SPN_RUNTIME_SHARED, .libc = SPN_RUNTIME_SHARED },
     { .runtime = SPN_RUNTIME_STATIC, .libc = SPN_RUNTIME_SHARED },
@@ -70,10 +53,16 @@ spn_linking_refusal_t spn_ld_linking(spn_triple_t target, spn_linking_t request,
   };
   static const spn_linking_t macos [] = {
     { .runtime = SPN_RUNTIME_SHARED, .libc = SPN_RUNTIME_SHARED },
+    { .runtime = SPN_RUNTIME_STATIC, .libc = SPN_RUNTIME_SHARED },
   };
   static const spn_linking_t loaderless [] = {
     { .runtime = SPN_RUNTIME_STATIC, .libc = SPN_RUNTIME_STATIC },
   };
+  sp_static_assert(
+    sp_carr_len(linux_gnu) <= si_linkings_max && sp_carr_len(linux_musl) <= si_linkings_max && sp_carr_len(windows_msvc) <= si_linkings_max &&
+    sp_carr_len(windows_gnu) <= si_linkings_max && sp_carr_len(macos) <= si_linkings_max && sp_carr_len(loaderless) <= si_linkings_max,
+    linking_tables_fit_spn_linkings_t
+  );
 
   rows_t table = sp_zero;
   switch (target.os) {
@@ -109,35 +98,48 @@ spn_linking_refusal_t spn_ld_linking(spn_triple_t target, spn_linking_t request,
     case SPN_OS_NONE: sp_unreachable_case();
   }
 
-  u32 index = first(target, table, request);
-  if (index == table.count) {
-    if (first(target, table, (spn_linking_t) { .linkage = SPN_LIB_KIND_SHARED }) == table.count) {
+  spn_linkings_t preferred = sp_zero;
+  spn_linkings_t unloadable = sp_zero;
+  bool static_libc = false;
+  sp_for(it, table.count) {
+    spn_linking_t entry = table.items[it];
+    static_libc |= entry.libc == SPN_RUNTIME_STATIC;
+    if (request.runtime && entry.runtime != request.runtime) {
+      continue;
+    }
+    if (request.libc && entry.libc != request.libc) {
+      continue;
+    }
+    bool loader = spn_ld_loader(target, entry);
+    entry.linkage = request.linkage;
+    if (!entry.linkage) {
+      entry.linkage = loader ? SPN_LIB_KIND_SHARED : SPN_LIB_KIND_STATIC;
+    }
+    spn_linkings_t* group = demand == SPN_LIB_KIND_SHARED && !loader ? &unloadable : &preferred;
+    group->items[group->count++] = entry;
+  }
+
+  if (!preferred.count && !unloadable.count) {
+    if (!spn_ld_dynamic(target)) {
       return SPN_LINKING_REFUSAL_NO_LOADER;
     }
-    if (request.libc == SPN_RUNTIME_STATIC && first(target, table, (spn_linking_t) { .libc = SPN_RUNTIME_STATIC }) == table.count) {
+    if (request.libc == SPN_RUNTIME_STATIC && !static_libc) {
       return SPN_LINKING_REFUSAL_OS_LIBC;
-    }
-    if (request.runtime == SPN_RUNTIME_STATIC && first(target, table, (spn_linking_t) { .runtime = SPN_RUNTIME_STATIC }) == table.count) {
-      return SPN_LINKING_REFUSAL_OS_RUNTIME;
     }
     if (request.libc == SPN_RUNTIME_STATIC && request.runtime == SPN_RUNTIME_SHARED) {
       return SPN_LINKING_REFUSAL_SHARED_RUNTIME;
     }
-    if (request.runtime && request.libc && request.runtime != request.libc) {
-      return SPN_LINKING_REFUSAL_HYBRID_CRT;
-    }
-    return SPN_LINKING_REFUSAL_SHARED_DEPS;
+    return SPN_LINKING_REFUSAL_HYBRID_CRT;
   }
-  spn_linking_t resolved = table.items[index];
-  resolved.linkage = request.linkage;
-  if (!resolved.linkage) {
-    resolved.linkage = spn_ld_loader(target, resolved) ? SPN_LIB_KIND_SHARED : SPN_LIB_KIND_STATIC;
+
+  *linkings = preferred;
+  sp_for(it, unloadable.count) {
+    linkings->items[linkings->count++] = unloadable.items[it];
   }
-  *linking = resolved;
   return SPN_LINKING_REFUSAL_NONE;
 }
 
-spn_ld_dialect_t spn_ld_dialect(spn_triple_t target) {
+spn_ld_dialect_t si_ld_dialect(spn_triple_t target) {
   switch (spn_triple_object_format(target)) {
     case SPN_OBJ_ELF: return SPN_LD_DIALECT_GNU;
     case SPN_OBJ_MACHO: return SPN_LD_DIALECT_DARWIN;
@@ -172,7 +174,7 @@ static spn_ld_family_t native(spn_ld_dialect_t dialect) {
 bool spn_ld_accepts(spn_cc_driver_t driver, spn_ld_family_t declared) {
   switch (declared) {
     case SPN_LD_FAMILY_NONE: return true;
-    case SPN_LD_FAMILY_LLD: return spn_toolchain_driver_caps(driver) & SPN_CC_CAP_FUSE_LD;
+    case SPN_LD_FAMILY_LLD: return si_toolchain_driver_caps(driver) & SPN_CC_CAP_FUSE_LD;
     case SPN_LD_FAMILY_GNU:
     case SPN_LD_FAMILY_LD64:
     case SPN_LD_FAMILY_MSVC: return false;
@@ -180,12 +182,12 @@ bool spn_ld_accepts(spn_cc_driver_t driver, spn_ld_family_t declared) {
   SP_UNREACHABLE_RETURN(false);
 }
 
-spn_ld_family_t spn_ld_native(spn_cc_driver_t driver, spn_triple_t target) {
+spn_ld_family_t si_ld_native(spn_cc_driver_t driver, spn_triple_t target) {
   switch (driver) {
     case SPN_CC_DRIVER_ZIG: return SPN_LD_FAMILY_LLD;
     case SPN_CC_DRIVER_GCC:
     case SPN_CC_DRIVER_CLANG:
-    case SPN_CC_DRIVER_MSVC: return native(spn_ld_dialect(target));
+    case SPN_CC_DRIVER_MSVC: return native(si_ld_dialect(target));
     case SPN_CC_DRIVER_NONE: sp_unreachable_case();
   }
   SP_UNREACHABLE_RETURN(SPN_LD_FAMILY_NONE);

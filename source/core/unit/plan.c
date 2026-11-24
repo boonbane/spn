@@ -122,7 +122,7 @@ static spn_err_t lower_link(spn_units_t* u, spn_target_unit_t* unit) {
   cc->args = unit->target->link_flags;
   cc->scripts = unit->target->linker_script;
 
-  spn_cc_link_refusal_t refusal = spn_cc_validate_link(spn.host, profile, cc);
+  spn_cc_link_refusal_t refusal = si_cc_validate_link(toolchain, spn.host, profile, cc);
   switch (refusal.err) {
     case SPN_OK: {
       break;
@@ -386,7 +386,7 @@ static spn_err_t lower_target(spn_units_t* u, spn_target_unit_t* unit) {
         case SPN_OS_FREESTANDING:
         case SPN_OS_NONE:    sp_unreachable_case();
       }
-      if (spn_cc_link_implib(profile, kind)) {
+      if (si_cc_link_implib(profile, kind)) {
         emit->link.implib = sp_fmt(mem, "{}.dll.lib", sp_fmt_str(name)).value;
       }
       sp_opt_set(emit->link.exports, render_exports(mem, toolchain, profile, &emit->link.plan.value, name));
@@ -633,8 +633,12 @@ static spn_err_t plan_new(spn_units_t* u, sp_mem_t scratch, spn_pkg_unit_t* root
     spn_try(lower_target(u, target));
   }
 
-  si_ht(spn_path_t, spn_target_unit_t*) claimed = sp_zero;
-  si_ht_init_ex(scratch, claimed, spn_path_on_hash, spn_path_on_compare);
+  struct {
+    si_ht(spn_path_t, spn_target_unit_t*) libs;
+    si_ht(spn_path_t, spn_path_t) files;
+  } claimed = sp_zero;
+  si_ht_init_ex(scratch, claimed.libs, spn_path_on_hash, spn_path_on_compare);
+  si_ht_init_ex(scratch, claimed.files, spn_path_on_hash, spn_path_on_compare);
   si_da_for_value(roots, exe) {
     spn_path_t staged = staged_path(u->mem, exe);
     if (spn_path_empty(staged)) {
@@ -659,7 +663,7 @@ static spn_err_t plan_new(spn_units_t* u, sp_mem_t scratch, spn_pkg_unit_t* root
         continue;
       }
       spn_path_t path = spn_path_join(u->mem, dir, lib->emit.link.output);
-      spn_target_unit_t** owner = si_ht_getp(claimed, path);
+      spn_target_unit_t** owner = si_ht_getp(claimed.libs, path);
       if (owner && *owner != lib) {
         return spn_err_emit(u->ctx, (spn_err_union_t) {
           .kind = SPN_ERR_TARGET_COLLISION,
@@ -672,12 +676,68 @@ static spn_err_t plan_new(spn_units_t* u, sp_mem_t scratch, spn_pkg_unit_t* root
         });
       }
       if (!owner) {
-        si_ht_insert(scratch, claimed, path, lib);
+        si_ht_insert(scratch, claimed.libs, path, lib);
         si_da_push(u->mem, plan->claims, ((spn_dag_claim_t) { .path = path, .kind = SPN_DAG_ARTIFACT_KIND_FILE }));
       }
       si_da_push(u->mem, closure.libs, ((spn_stage_entry_t) { .target = lib, .path = path }));
     }
     si_da_push(u->mem, plan->closures, closure);
+  }
+
+  si_da_for_ptr(plan->closures, closure) {
+    spn_target_unit_t* exe = closure->exe.target;
+    spn_build_unit_t* build = exe->pkg->build;
+    const spn_profile_info_t* profile = &build->profile;
+    bool cxx = exe->link.cc.lang == SPN_LANG_CXX;
+    si_da_for_value(closure->libs, lib) {
+      cxx = cxx || lib.target->link.cc.lang == SPN_LANG_CXX;
+    }
+    si_da(spn_path_t) files = cxx ? profile->staged.cxx : profile->staged.c;
+    spn_path_t dir = spn_path_parent(closure->exe.path);
+    si_da_for_value(files, file) {
+      spn_path_t path = spn_path_join(u->mem, dir, sp_fs_get_name(file.sub));
+      spn_target_unit_t** owner = si_ht_getp(claimed.libs, path);
+      if (owner) {
+        return spn_err_emit(u->ctx, (spn_err_union_t) {
+          .kind = SPN_ERR_TOOLCHAIN_FILE_COLLISION,
+          .toolchain_file_collision = {
+            .toolchain = build->toolchain->info->name.str,
+            .exe = exe->target->info->name.str,
+            .pkg = (*owner)->pkg->pkg.manifest->name.str,
+            .path = file,
+          },
+        });
+      }
+      spn_path_t* other = si_ht_getp(claimed.files, path);
+      if (other && !spn_path_equal(*other, file)) {
+        return spn_err_emit(u->ctx, (spn_err_union_t) {
+          .kind = SPN_ERR_TOOLCHAIN_FILE_DUPLICATE,
+          .toolchain_file_dup = {
+            .toolchain = build->toolchain->info->name.str,
+            .exe = exe->target->info->name.str,
+            .path = file,
+            .other = *other,
+          },
+        });
+      }
+      if (!other) {
+        sp_path_t at = spn_path_at(&u->ctx->roots, file);
+        sp_sys_file_meta_t meta = sp_zero;
+        if (sp_sys_get_path_metadata_s(at.dir, at.sub, &meta) || meta.kind != SP_FS_KIND_FILE) {
+          return spn_err_emit(u->ctx, (spn_err_union_t) {
+            .kind = SPN_ERR_TOOLCHAIN_FILE_MISSING,
+            .toolchain_file = {
+              .toolchain = build->toolchain->info->name.str,
+              .target = profile->target,
+              .path = file,
+            },
+          });
+        }
+        si_ht_insert(scratch, claimed.files, path, file);
+        si_da_push(u->mem, plan->claims, ((spn_dag_claim_t) { .path = path, .kind = SPN_DAG_ARTIFACT_KIND_FILE }));
+      }
+      si_da_push(u->mem, closure->files, ((spn_stage_file_t) { .source = file, .path = path }));
+    }
   }
 
   if (root) {

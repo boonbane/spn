@@ -49,7 +49,8 @@ and skips with a reason otherwise.
   `["host"]`. `clang-bare` and `clang-sysroot` list `"host"` beside their one
   cross row. `clang-musl` lists its host row by hand instead: `link_args` apply
   to every row, and its `-unwindlib=none` is the musl row's, so the host row
-  must not claim the sanitizers a bare `host` would.
+  must not claim the sanitizers a bare `host` would. It does declare the
+  runtimes a bare `host` has, so its default runtime stays shared.
 - `.linker = SPN_LD_FAMILY_LLD`: only where the lane's linker family for the
   target is that one. Cases about what a family accepts gate on this, never on
   a lane or driver name.
@@ -100,7 +101,11 @@ a target with no sysroot and lean on the wrapper or on clang's gcc-cross
 discovery instead.
 clang hands an `x86_64-none-elf` link to `gcc`, so `clang-bare` lives where
 both are installed. Debian names its mingw libgcc directory `12-win32`, which clang 14 does not
-parse as a version, so both clang mingw lanes name it with `-L`.
+parse as a version, so both clang mingw lanes name it with `-L` and name the
+libstdc++ headers under it with `-stdlib++-isystem` on `cxx`. That directory is
+the win32 thread model, whose `libstdc++-6.dll` and `libgcc_s_seh-1.dll` import
+no `libwinpthread-1.dll`, so the Debian mingw lanes list those two and the MSYS2
+lanes list all three.
 
 ## host libraries
 

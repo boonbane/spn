@@ -217,7 +217,7 @@ spn_err_t si_add_target_unit(spn_units_t* u, spn_pkg_unit_t* pkg, si_target_t* t
           break;
         }
         const spn_prebuilt_t* prebuilt = &target->prebuilt[0];
-        if (spn_path_empty(prebuilt->stub) && spn_cc_link_implib(profile, SPN_CC_OUTPUT_SHARED_LIB)) {
+        if (spn_path_empty(prebuilt->stub) && si_cc_link_implib(profile, SPN_CC_OUTPUT_SHARED_LIB)) {
           return spn_err_emit(u->ctx, (spn_err_union_t) {
             .kind = SPN_ERR_TARGET_STUB_REQUIRED,
             .target_source = {

@@ -2,6 +2,7 @@
 
 #include "core/core.h"
 #include "ctx/types.h"
+#include "os/os.h"
 #include "paths/paths.h"
 #include "toolchain/search.h"
 
@@ -96,23 +97,32 @@ static void ps_env_push(sp_ps_config_t* ps, sp_env_var_t var) {
 }
 
 static sp_ps_config_t invocation_ps(const spn_path_roots_t* roots, const spn_invocation_t* invocation, sp_mem_t mem) {
+  static const c8* temps [] = { "TMPDIR", "TEMP", "TMP" };
+
   sp_ps_config_t ps = {
     .command = spn_arg_str(roots, mem, invocation->program),
     .dyn_args = spn_invocation_args(roots, mem, invocation),
     .cwd = spn_path_str(roots, mem, invocation->cwd),
-    .env = { .env = *spn.env, .mode = SP_PS_ENV_EXISTING },
+    .env = { .mode = SP_PS_ENV_CLEAN },
     .io = {
       .in.mode = SP_PS_IO_MODE_NULL,
       .out.mode = SP_PS_IO_MODE_CREATE,
       .err.mode = sp_opt_is_null(invocation->echo) ? SP_PS_IO_MODE_REDIRECT : SP_PS_IO_MODE_CREATE,
     }
   };
+  sp_carr_for(temps, it) {
+    ps_env_push(&ps, (sp_env_var_t) { .key = sp_cstr_as_str(temps[it]), .value = ps.cwd });
+  }
+  sp_str_t system = si_env_get(spn.env, sp_str_lit("SystemRoot"));
+  if (!sp_str_empty(system)) {
+    ps_env_push(&ps, (sp_env_var_t) { .key = sp_str_lit("SystemRoot"), .value = system });
+  }
   sp_da_for(invocation->env, it) {
     ps_env_push(&ps, spn_invocation_env_var(roots, mem, invocation->env[it]));
   }
   ps_env_push(&ps, (sp_env_var_t) {
     .key = sp_str_lit("PATH"),
-    .value = spn_invocation_path(roots, mem, invocation, spn_search_rules(spn.host.os), sp_env_get(spn.env, sp_str_lit("PATH"))),
+    .value = spn_invocation_path(roots, mem, invocation, spn_search_rules(spn.host.os), si_env_get(spn.env, sp_str_lit("PATH"))),
   });
   return ps;
 }

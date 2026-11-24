@@ -3,6 +3,7 @@
 
 #include "sp.h"
 #include "sp/sp_msvc.h"
+#include "array/array.h"
 #include "fs/fs.h"
 #include "spn/core.h"
 
@@ -28,6 +29,8 @@ typedef enum {
   SPN_CC_CAP_HOST_SYSROOT   = 1 << 10,
   SPN_CC_CAP_IMPORT_SYMBOLS = 1 << 11,
   SPN_CC_CAP_STRIP_ALL      = 1 << 12,
+  SPN_CC_CAP_LINK_MODE_CRT  = 1 << 13,
+  SPN_CC_CAP_GNU_LINK_ARGS  = 1 << 14,
 } spn_cc_cap_t;
 
 typedef u32 spn_cc_cap_set_t;
@@ -46,6 +49,12 @@ typedef enum {
   SPN_SDK_NEED_MACOS,
   SPN_SDK_NEED_MSVC,
 } spn_sdk_need_t;
+
+typedef enum {
+  SPN_SDK_SOURCE_HOST,
+  SPN_SDK_SOURCE_PATH,
+  SPN_SDK_SOURCE_INSTALL,
+} spn_sdk_source_t;
 
 typedef enum {
   SPN_SDK_NONE,
@@ -90,6 +99,9 @@ typedef struct {
       sp_str_t version;
     } kit;
   } install;
+  struct {
+    spn_path_t asan;
+  } runtime;
 } spn_sdk_msvc_t;
 
 typedef struct {
@@ -121,8 +133,29 @@ typedef struct {
   };
 } spn_sdk_t;
 
+typedef enum {
+  SPN_SDK_INSTALL_NONE,
+  SPN_SDK_INSTALL_LIBS,
+  SPN_SDK_INSTALL_COMPILER,
+} spn_sdk_install_t;
+
 typedef struct {
-  si_da(sp_msvc_vs_t) toolsets;
+  spn_sdk_install_t install;
+  spn_sdk_t bound;
+} spn_toolchain_sdk_t;
+
+typedef struct {
+  spn_path_t dir;
+  si_da(spn_path_t) files;
+} spn_msvc_redist_t;
+
+typedef struct {
+  sp_msvc_vs_t vs;
+  spn_msvc_redist_t redist;
+} spn_msvc_toolset_t;
+
+typedef struct {
+  si_da(spn_msvc_toolset_t) toolsets;
   si_da(sp_msvc_sdk_t) kits;
 } spn_msvc_installs_t;
 
@@ -154,20 +187,54 @@ typedef struct {
   sp_da(sp_str_t) link_flags;
 } spn_toolchain_exceptions_t;
 
+#define si_runtime_bit(runtime) (1u << (runtime))
+#define si_sanitizer_count 5
+#define si_sanitizer_at(slot) ((spn_sanitizer_t)(1u << (slot)))
+
+typedef u32 spn_runtime_set_t;
+
 typedef struct {
-  spn_triple_t triple;
-  spn_arg_t sdk;
-  sp_str_t spelling;
-  spn_toolchain_exceptions_t exceptions;
-  spn_sanitizer_set_t sanitizers;
-} spn_toolchain_target_t;
+  spn_runtime_set_t supported;
+  sp_da(spn_arg_t) c;
+  sp_da(spn_arg_t) cxx;
+} spn_toolchain_runtime_t;
+
+typedef struct {
+  spn_sanitizer_set_t supported;
+  sp_da(spn_arg_t) files [si_sanitizer_count];
+} spn_toolchain_sanitizers_t;
 
 typedef struct {
   spn_triple_t triple;
-  spn_sdk_t sdk;
+  struct {
+    spn_sdk_source_t source;
+    spn_arg_t path;
+  } sdk;
   sp_str_t spelling;
   spn_toolchain_exceptions_t exceptions;
+  spn_toolchain_runtime_t runtime;
+  spn_toolchain_sanitizers_t sanitizers;
+} spn_toolchain_target_t;
+
+typedef struct {
+  si_da(spn_path_t) c;
+  si_da(spn_path_t) cxx;
+  si_da(spn_path_t) sanitizers [si_sanitizer_count];
+} spn_toolchain_files_t;
+
+typedef struct {
+  si_da(spn_path_t) c;
+  si_da(spn_path_t) cxx;
+} spn_toolchain_staged_t;
+
+typedef struct {
+  spn_triple_t triple;
+  spn_toolchain_sdk_t sdk;
+  sp_str_t spelling;
+  spn_toolchain_exceptions_t exceptions;
+  spn_runtime_set_t runtimes;
   spn_sanitizer_set_t sanitizers;
+  spn_toolchain_files_t files;
 } spn_toolchain_row_t;
 
 typedef enum {
@@ -254,9 +321,16 @@ typedef struct {
   sp_intern_str_t name;
 } spn_toolchain_ref_t;
 
+#define si_linkings_max 3
+
+typedef struct {
+  spn_linking_t items [si_linkings_max];
+  u32 count;
+} spn_linkings_t;
+
 typedef struct {
   spn_triple_t triple;
-  spn_linking_t linking;
+  spn_linkings_t linkings;
 } spn_toolchain_candidate_t;
 
 typedef struct {
@@ -275,7 +349,9 @@ typedef struct {
 typedef struct {
   spn_toolchain_info_t* toolchain;
   spn_toolchain_row_t row;
+  spn_sdk_t sdk;
   spn_linking_t linking;
+  spn_toolchain_staged_t staged;
 } spn_toolchain_selection_t;
 
 typedef struct spn_toolchain_store spn_toolchain_store_t;

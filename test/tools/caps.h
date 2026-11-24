@@ -20,7 +20,7 @@
 #endif
 
 #define SPN_TEST_MAX_PROGRAMS 4
-#define SPN_TEST_MAX_LANES 4
+#define SPN_TEST_MAX_LANES 5
 #define SPN_TEST_MAX_HOST_LIBS 2
 
 typedef struct {

@@ -175,7 +175,7 @@ static const test_t tests [] = {
       .os = SPN_OS_WINDOWS,
       .abi = SPN_ABI_MSVC,
       .driver = SPN_CC_DRIVER_ZIG,
-      .runtime = SPN_RUNTIME_STATIC,
+      .runtime = SPN_RUNTIME_SHARED,
       .pkgs = {
         { .name = "P", .deps = { { "B" } }, .targets = { { "A", .kind = SPN_TARGET_KIND_EXE, .source = { "main.c" } } } },
         { .name = "B", .targets = { { "B", shared_only, .source = { "b.c" } } } },
@@ -482,7 +482,7 @@ sp_test_each(unit_lower, graph, test_t, tests, .setup = spn_test_ctx_setup, .tea
 
   spn_op_t op = { .ctx = &u->ctx, .session = &u->session };
   spn_dag_build_t* b = spn_dag_build_new(&op);
-  sp_must_eq(t, SPN_OK, spn_dag_build_lower(b, &u->plan));
+  sp_must_eq(t, SPN_OK, si_dag_build_lower(b, &u->plan));
   sp_must_eq(t, SPN_OK, spn_dag_validate(b->graph).err);
 
   sp_da(lowered_t) lowered = lower_graph(mem, b->graph);

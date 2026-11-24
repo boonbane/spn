@@ -71,6 +71,7 @@
     "profile_linking": { "ref": "profile" },
     "sanitizer_unsupported": { "ref": "sanitizer" },
     "sanitizer_static": { "ref": "sanitizer" },
+    "runtime_unsupported": { "ref": "runtime" },
     "compiler_feature_unsupported": { "ref": "compiler" },
     "toc_magic": { "ref": "fs" },
     "toc_truncated": { "ref": "fs" },
@@ -143,6 +144,9 @@
     "stage_overlap": { "ref": "dag" },
     "stage_observed": { "ref": "dag" },
     "stage_collision": { "ref": "fs" },
+    "toolchain_file_missing": { "ref": "toolchain_file" },
+    "toolchain_file_duplicate": { "ref": "toolchain_file_dup" },
+    "toolchain_file_collision": { "ref": "toolchain_file_collision" },
     "target_source_glob": { "ref": "target_source" },
     "target_prebuilts": { "ref": "target_source" },
     "target_stub_required": { "ref": "target_source" },
@@ -229,6 +233,9 @@
         "candidates": { "elements": { "type": "string" } },
         "targets": { "elements": { "metadata": { "extern": "triple" } } },
         "query": { "metadata": { "extern": "triple" } }
+      },
+      "optionalProperties": {
+        "runtime": { "metadata": { "extern": "runtime" } }
       }
     },
     "msvc": {
@@ -250,9 +257,9 @@
         "program": { "type": "string" }
       }
     },
-    "cc_feature": { "enum": ["link_exe", "link_shared", "link_reactor", "archive", "frameworks", "linker_script", "exceptions"] },
+    "cc_feature": { "enum": ["link_exe", "link_shared", "link_reactor", "archive", "frameworks", "linker_script", "exceptions", "static_runtime"] },
     "linkage_requester": { "enum": ["profile", "root_manifest", "libc", "target", "no_loader"] },
-    "linking_refusal": { "enum": ["none", "no_loader", "os_libc", "os_runtime", "shared_runtime", "hybrid_crt", "shared_deps"] },
+    "linking_refusal": { "enum": ["none", "no_loader", "os_libc", "shared_runtime", "hybrid_crt"] },
     "refusal": {
       "properties": {
         "triple": { "metadata": { "extern": "triple" } },
@@ -325,6 +332,14 @@
         "target": { "metadata": { "extern": "triple" } },
         "unsupported": { "metadata": { "extern": "sanitizer_set" } },
         "supported": { "metadata": { "extern": "sanitizer_set" } }
+      }
+    },
+    "runtime": {
+      "properties": {
+        "toolchain": { "type": "string" },
+        "target": { "metadata": { "extern": "triple" } },
+        "requested": { "metadata": { "extern": "runtime" } },
+        "supported": { "elements": { "metadata": { "extern": "runtime" } } }
       }
     },
     "compiler": {
@@ -480,6 +495,29 @@
         "pkg": { "type": "string" },
         "other": { "type": "string" },
         "name": { "type": "string" }
+      }
+    },
+    "toolchain_file": {
+      "properties": {
+        "toolchain": { "type": "string" },
+        "target": { "metadata": { "extern": "triple" } },
+        "path": { "metadata": { "extern": "path" } }
+      }
+    },
+    "toolchain_file_dup": {
+      "properties": {
+        "toolchain": { "type": "string" },
+        "exe": { "type": "string" },
+        "path": { "metadata": { "extern": "path" } },
+        "other": { "metadata": { "extern": "path" } }
+      }
+    },
+    "toolchain_file_collision": {
+      "properties": {
+        "toolchain": { "type": "string" },
+        "exe": { "type": "string" },
+        "pkg": { "type": "string" },
+        "path": { "metadata": { "extern": "path" } }
       }
     },
     "target": {

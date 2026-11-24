@@ -29,6 +29,25 @@
       }
     },
 
+    "toolchain_runtime": {
+      "optionalProperties": {
+        "supported": { "elements": { "ref": "runtime" } },
+        "c": { "elements": { "type": "string" } },
+        "cxx": { "elements": { "type": "string" } }
+      }
+    },
+
+    "toolchain_sanitizers": {
+      "optionalProperties": {
+        "supported": { "elements": { "ref": "sanitizer" } },
+        "address": { "elements": { "type": "string" } },
+        "thread": { "elements": { "type": "string" } },
+        "undefined": { "elements": { "type": "string" } },
+        "memory": { "elements": { "type": "string" } },
+        "leak": { "elements": { "type": "string" } }
+      }
+    },
+
     "toolchain_target": {
       "optionalProperties": {
         "kind": {
@@ -58,8 +77,9 @@
             "doc": "Flags that turn C++ exceptions on, for a target that has them off by default"
           }
         },
+        "runtime": { "ref": "toolchain_runtime" },
         "sanitizers": {
-          "elements": { "ref": "sanitizer" },
+          "ref": "toolchain_sanitizers",
           "metadata": {
             "doc": "The sanitizers the toolchain has for this target"
           }

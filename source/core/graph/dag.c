@@ -562,7 +562,7 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
   return SPN_OK;
 }
 
-spn_err_t spn_dag_build_lower(spn_dag_build_t* b, const spn_build_plan_t* plan) {
+spn_err_t si_dag_build_lower(spn_dag_build_t* b, const spn_build_plan_t* plan) {
   spn_dag_t* g = b->graph;
 
   si_da_for_value(plan->pkgs, pkg) {
@@ -762,6 +762,13 @@ spn_err_t spn_dag_build_lower(spn_dag_build_t* b, const spn_build_plan_t* plan) 
         .key = key,
         .to = lib.path,
         .artifact = sp_ht_getp(b->ids.targets, lib.target)->link,
+      }));
+    }
+    si_da_for_value(closure.files, file) {
+      si_da_push(b->mem, b->stages.profile, ((spn_dag_stage_t) {
+        .key = key,
+        .to = file.path,
+        .artifact = spn_dag_add_file(g, file.source),
       }));
     }
   }

@@ -164,7 +164,7 @@ static const lane_program_t lane_programs [] = {
 
 static bool links_dialect(const spn_toolchain_info_t* info, spn_ld_dialect_t dialect) {
   sp_da_for(info->rows, it) {
-    if (spn_ld_dialect(info->rows[it].triple) == dialect) {
+    if (si_ld_dialect(info->rows[it].triple) == dialect) {
       return true;
     }
   }
@@ -195,6 +195,13 @@ static sp_str_t missing_toolchain_program(sp_mem_t mem, const spn_toolchain_info
     }
   }
   return missing_lane_program(mem, info);
+}
+
+static bool lane_cxx(const spn_toolchain_info_t* info) {
+  if (spn_arg_empty(info->cxx.program)) {
+    return false;
+  }
+  return info->support.kind != SPN_TOOLCHAIN_SUPPORT_LOCAL || present(info->cxx.program);
 }
 
 static const c8* select_reason(spn_err_t err) {
@@ -317,7 +324,7 @@ static spn_err_t lane_selects(sp_mem_t mem, const test_when_t* when, spn_triple_
   }
   spn_event_buffer_drain(mem, spn.events);
   if (!err) {
-    spn_profile_finalize(profile, selection);
+    si_profile_finalize(profile, selection);
   }
   return err;
 }
@@ -425,7 +432,7 @@ sp_str_t test_when_blocked(test_when_t when) {
     return sp_fmt(mem, "{} {}", sp_fmt_str(selection.toolchain->name.str), sp_fmt_str(broken)).value;
   }
 
-  if (when.cxx && spn_arg_empty(toolchain->info->cxx.program)) {
+  if (when.cxx && !lane_cxx(toolchain->info)) {
     return sp_fmt(mem, "{} has no C++ compiler", sp_fmt_cstr(toolchain->name)).value;
   }
 

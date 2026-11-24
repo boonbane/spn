@@ -354,20 +354,12 @@ static void write_refusal(sp_tty_t* w, sp_mem_t mem, spn_triple_t target, spn_li
       sp_tty_fmt(w, "Target {.yellow} can't use {.red}; its libc is only shared", sp_fmt_str(triple), sp_fmt_str(sp_str_lit("libc = \"static\"")));
       break;
     }
-    case SPN_LINKING_REFUSAL_OS_RUNTIME: {
-      sp_tty_fmt(w, "Target {.yellow} can't use {.red}; its runtime is only shared", sp_fmt_str(triple), sp_fmt_str(sp_str_lit("runtime = \"static\"")));
-      break;
-    }
     case SPN_LINKING_REFUSAL_SHARED_RUNTIME: {
       sp_tty_fmt(w, "Target {.yellow} can't use {.red} with {.red}; a static libc needs a static runtime", sp_fmt_str(triple), sp_fmt_str(sp_str_lit("libc = \"static\"")), sp_fmt_str(sp_str_lit("runtime = \"shared\"")));
       break;
     }
     case SPN_LINKING_REFUSAL_HYBRID_CRT: {
       sp_tty_fmt(w, "Target {.yellow} can't split {.red} from {.red}; the msvc C library is part of the runtime", sp_fmt_str(triple), sp_fmt_str(sp_str_lit("libc")), sp_fmt_str(sp_str_lit("runtime")));
-      break;
-    }
-    case SPN_LINKING_REFUSAL_SHARED_DEPS: {
-      sp_tty_fmt(w, "Target {.yellow} can't load shared libraries with {.red}; a static libc removes the dynamic loader", sp_fmt_str(triple), sp_fmt_str(sp_str_lit("libc = \"static\"")));
       break;
     }
     case SPN_LINKING_REFUSAL_NONE: {
@@ -1109,6 +1101,16 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           );
           break;
         }
+        case SPN_ERR_RUNTIME_UNSUPPORTED: {
+          sp_tty_fmt(
+            &w,
+            "Toolchain {} has no {.red} runtime for {.yellow}",
+            sp_fmt_str(colored_name(w.color, mem, event->err.runtime.toolchain)),
+            sp_fmt_str(spn_runtime_to_str(event->err.runtime.requested)),
+            sp_fmt_str(spn_triple_to_str(mem, event->err.runtime.target))
+          );
+          break;
+        }
         case SPN_ERR_COMPILER_FEATURE_UNSUPPORTED: {
           spn_err_compiler_t* err = &event->err.compiler;
           sp_str_t subject = subject_name(mem, err->pkg, err->name);
@@ -1146,6 +1148,10 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
             }
             case SPN_CC_FEATURE_EXCEPTIONS: {
               sp_tty_fmt(&w, "{.cyan} enables C++ exceptions, but toolchain {} doesn't support them for {.yellow}", sp_fmt_str(subject), sp_fmt_str(toolchain), sp_fmt_str(target));
+              break;
+            }
+            case SPN_CC_FEATURE_STATIC_RUNTIME: {
+              sp_tty_fmt(&w, "Library {.cyan} is linked dynamically, but toolchain {} can't link a shared library against a static runtime for {.yellow}. Use {.cyan}", sp_fmt_str(subject), sp_fmt_str(toolchain), sp_fmt_str(target), sp_fmt_str(sp_str_lit("runtime = \"shared\"")));
               break;
             }
           }
@@ -1574,7 +1580,14 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
         }
         case SPN_ERR_TOOLCHAIN_NONE: {
           sp_str_t target = spn_triple_to_str(mem, event->err.toolchain.target);
-          if (event->err.toolchain.sanitizers) {
+          if (event->err.toolchain.runtime) {
+            sp_tty_fmt(
+              &w,
+              "No toolchain has a {.red} runtime for {.yellow}",
+              sp_fmt_str(spn_runtime_to_str(event->err.toolchain.runtime)),
+              sp_fmt_str(target)
+            );
+          } else if (event->err.toolchain.sanitizers) {
             sp_tty_fmt(
               &w,
               "No toolchain supports sanitizer(s) {} for {.yellow}",
@@ -1957,6 +1970,38 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           sp_tty_fmt(&w, "{.cyan} already exists and was not staged by spn; remove it or change its [stage] destination", sp_fmt_str(contextual_path(mem, event->err.fs.path)));
           break;
         }
+        case SPN_ERR_TOOLCHAIN_FILE_MISSING: {
+          sp_tty_fmt(
+            &w,
+            "Toolchain {} stages {.cyan} beside executables for {.yellow}, but it is not a file",
+            sp_fmt_str(colored_name(w.color, mem, event->err.toolchain_file.toolchain)),
+            sp_fmt_str(contextual_path(mem, event->err.toolchain_file.path)),
+            sp_fmt_str(spn_triple_to_str(mem, event->err.toolchain_file.target))
+          );
+          break;
+        }
+        case SPN_ERR_TOOLCHAIN_FILE_DUPLICATE: {
+          sp_tty_fmt(
+            &w,
+            "Toolchain {} stages {.cyan} and {.cyan} beside {.cyan}, but they have the same name",
+            sp_fmt_str(colored_name(w.color, mem, event->err.toolchain_file_dup.toolchain)),
+            sp_fmt_str(contextual_path(mem, event->err.toolchain_file_dup.other)),
+            sp_fmt_str(contextual_path(mem, event->err.toolchain_file_dup.path)),
+            sp_fmt_str(event->err.toolchain_file_dup.exe)
+          );
+          break;
+        }
+        case SPN_ERR_TOOLCHAIN_FILE_COLLISION: {
+          sp_tty_fmt(
+            &w,
+            "Toolchain {} stages {.cyan} beside {.cyan}, where {.cyan} stages a library of the same name",
+            sp_fmt_str(colored_name(w.color, mem, event->err.toolchain_file_collision.toolchain)),
+            sp_fmt_str(contextual_path(mem, event->err.toolchain_file_collision.path)),
+            sp_fmt_str(event->err.toolchain_file_collision.exe),
+            sp_fmt_str(event->err.toolchain_file_collision.pkg)
+          );
+          break;
+        }
         case SPN_ERR_DAG_MISSING_OUTPUT: {
           sp_tty_fmt(&w, "{.cyan} was not produced by the action that declares it as an output", sp_fmt_str(get_contextual_path(ctx, mem, event->err.dag.path)));
           break;
@@ -2321,6 +2366,14 @@ static void render_event_extra(sp_tty_t* w, spn_event_t* event) {
             if (event->err.sanitizer.supported & bit) {
               list_item(&list, spn_sanitizer_to_str((spn_sanitizer_t)bit));
             }
+          }
+          list_end(&list);
+          break;
+        }
+        case SPN_ERR_RUNTIME_UNSUPPORTED: {
+          list_t list = { .w = w, .label = sp_str_lit("supported runtimes"), .style = sp_fmt_style_green };
+          sp_da_for(event->err.runtime.supported, it) {
+            list_item(&list, spn_runtime_to_str(event->err.runtime.supported[it]));
           }
           list_end(&list);
           break;

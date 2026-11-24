@@ -7,4 +7,4 @@ name = "T"
 compiler = "clang"
 archiver = "ar"
 driver = "clang"
-target = [{ arch = "x86_64", os = "freestanding", abi = "none", sdk = "/S", sanitizers = ["undefined"] }]
+target = [{ arch = "x86_64", os = "freestanding", abi = "none", sdk = "/S", sanitizers = { supported = ["undefined"] } }]

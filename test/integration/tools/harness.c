@@ -65,6 +65,10 @@ sp_str_t path_render(fixture_t* fixture, path_t path) {
       rendered = layout_path(mem, path.triple, profile, test_shared_lib_name(mem, target, name));
       break;
     }
+    case PATH_STAGED_FILE: {
+      rendered = layout_path(mem, path.triple, profile, name);
+      break;
+    }
     case PATH_TEST_LIB: {
       rendered = layout_path(mem, path.triple, profile, sp_fs_join_path(mem, sp_str_lit("test"), test_shared_lib_name(mem, target, name)));
       break;
@@ -865,16 +869,25 @@ static sp_err_t stage_bare_run(sp_test_t* t, fixture_t* fixture, action_t action
   sp_str_t dir = sp_fs_join_path(mem, lane, sp_test_get_name(t));
   sp_try(sp_fs_create_dir(dir));
 
-  sp_str_t exe_name = sp_fs_get_name(path_render(fixture, action.bare.file));
-  sp_try(sp_fs_copy_file_at(sp_path_cwd(at(fixture, action.bare.file)), sp_path_cwd(sp_fs_join_path(mem, dir, exe_name)), SP_FS_WRITE_REPLACE));
-  sp_carr_for(action.bare.with, it) {
-    if (action.bare.with[it].kind == PATH_NONE) {
-      break;
+  path_t exe = action.bare.file;
+  path_t manifest = exe;
+  manifest.kind = PATH_WORK;
+  manifest.name = "staged";
+  path_t staged = exe;
+  staged.dir = SP_NULLPTR;
+  sp_str_t beside = sp_fs_parent_path(path_render(fixture, staged));
+  sp_str_t project = exe.dir ? fixture_path(fixture, sp_cstr_as_str(exe.dir)) : fixture->root;
+  sp_da(sp_str_t) rows = sp_str_split_c8(mem, test_read_file(mem, at(fixture, manifest)), '\n');
+  sp_da_for(rows, it) {
+    sp_str_pair_t row = sp_str_cleave_c8(rows[it], '\t');
+    if (!sp_str_equal_cstr(row.first, exe.name) || !sp_str_equal(sp_fs_parent_path(row.second), beside)) {
+      continue;
     }
-    sp_str_t name = sp_fs_get_name(path_render(fixture, action.bare.with[it]));
-    sp_try(sp_fs_copy_file_at(sp_path_cwd(at(fixture, action.bare.with[it])), sp_path_cwd(sp_fs_join_path(mem, dir, name)), SP_FS_WRITE_REPLACE));
+    sp_try(sp_fs_copy_file_at(sp_path_cwd(sp_fs_join_path(mem, project, row.second)), sp_path_cwd(sp_fs_join_path(mem, dir, sp_fs_get_name(row.second))), SP_FS_WRITE_REPLACE));
   }
 
+  sp_str_t exe_name = sp_fs_get_name(path_render(fixture, exe));
+  sp_try(expect_path(t, fixture, sp_fs_join_path(mem, dir, exe_name)));
   spn_cg_probe_t probe = { .exe = exe_name, .expect = bare_expect_token(action.bare.expect) };
   return sp_fs_write(sp_fs_join_path(mem, dir, sp_str_lit("probe.json")), spn_probe_write(mem, &probe), SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms);
 }
@@ -1031,7 +1044,8 @@ sp_err_t run_actions(sp_test_t* t, fixture_t* fixture, const action_t* actions) 
       }
       case ACTION_VERIFY_EVENT:
       case ACTION_VERIFY_NO_EVENT: {
-        expect_event(t, fixture, action.verify_event.event, action.verify_event.key, action.verify_event.value, action.verify_event.lane, action.kind == ACTION_VERIFY_EVENT, __FILE__, __LINE__);
+        const c8* value = action.verify_event.host ? test_host_triple() : action.verify_event.value;
+        expect_event(t, fixture, action.verify_event.event, action.verify_event.key, value, action.verify_event.lane, action.kind == ACTION_VERIFY_EVENT, __FILE__, __LINE__);
         break;
       }
       case ACTION_VERIFY_RESULT: {

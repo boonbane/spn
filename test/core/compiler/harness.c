@@ -55,13 +55,18 @@ sp_err_t test_profile(sp_test_t* t, spn_cc_driver_t driver, test_profile_t desc,
       },
     },
   };
-  sp_must_eq(t, (u32)spn_ld_linking(desc.target, desc.request, &selection.linking), (u32)SPN_LINKING_REFUSAL_NONE);
+  spn_linkings_t linkings = sp_zero;
+  sp_must_eq(t, (u32)si_ld_linkings(desc.target, desc.request, SPN_LIB_KIND_NONE, &linkings), (u32)SPN_LINKING_REFUSAL_NONE);
+  selection.linking = linkings.items[0];
   if (desc.sdk) {
-    selection.row.sdk = spn_sdk_at(mem, desc.target, test_arg_path(desc.sdk));
+    selection.sdk = spn_sdk_at(mem, desc.target, test_arg_path(desc.sdk));
+  }
+  if (desc.host) {
+    selection.sdk = (spn_sdk_t) { .kind = SPN_SDK_HOST };
   }
   if (desc.msvc.bin || desc.msvc.tools || desc.msvc.atl) {
-    sp_must_eq(t, (u32)selection.row.sdk.kind, (u32)SPN_SDK_MSVC);
-    spn_sdk_msvc_t* msvc = &selection.row.sdk.msvc;
+    sp_must_eq(t, (u32)selection.sdk.kind, (u32)SPN_SDK_MSVC);
+    spn_sdk_msvc_t* msvc = &selection.sdk.msvc;
     msvc->bin = test_arg_path(desc.msvc.bin);
     msvc->tools.sdk = test_arg_path(desc.msvc.tools);
     msvc->lib.atlmfc = test_arg_path(desc.msvc.atl);
@@ -75,7 +80,7 @@ sp_err_t test_profile(sp_test_t* t, spn_cc_driver_t driver, test_profile_t desc,
     .strip = desc.strip,
     .sanitizers = desc.sanitizers,
   };
-  spn_profile_finalize(profile, &selection);
+  si_profile_finalize(profile, &selection);
   return SP_OK;
 }
 

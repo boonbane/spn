@@ -22,6 +22,10 @@
 #define SAN_CLANG_MACOS (SPN_SANITIZER_ADDRESS | SPN_SANITIZER_THREAD | SPN_SANITIZER_UNDEFINED | SPN_SANITIZER_LEAK)
 #define SAN_ZIG_UT      (SPN_SANITIZER_UNDEFINED | SPN_SANITIZER_THREAD)
 
+#define rt_static (si_runtime_bit(SPN_RUNTIME_STATIC))
+#define rt_shared (si_runtime_bit(SPN_RUNTIME_SHARED))
+#define rt_both   (rt_static | rt_shared)
+
 typedef struct {
   const c8* name;
   const c8* path;
@@ -33,6 +37,7 @@ typedef struct {
   spn_triple_t triple;
   test_arg_t sdk;
   spn_sanitizer_set_t sanitizers;
+  spn_runtime_set_t runtimes;
 } fixture_target_t;
 
 typedef struct {
@@ -46,12 +51,23 @@ typedef struct {
 typedef struct {
   spn_sdk_kind_t kind;
   test_path_t root;
+  spn_sdk_install_t install;
 } fixture_sdk_expect_t;
+
+typedef struct {
+  const c8* c [FIXTURE_MAX_ARGS];
+  const c8* cxx [FIXTURE_MAX_ARGS];
+  struct {
+    spn_sanitizer_t sanitizer;
+    const c8* files [FIXTURE_MAX_ARGS];
+  } sanitizers [si_sanitizer_count];
+} fixture_files_t;
 
 typedef struct {
   spn_triple_t triple;
   fixture_sdk_expect_t sdk;
   spn_sanitizer_set_t sanitizers;
+  fixture_files_t files;
 } fixture_row_t;
 
 typedef struct {
@@ -59,6 +75,7 @@ typedef struct {
   spn_arch_t arch;
   const c8* version;
   bool bare;
+  const c8* redist [FIXTURE_MAX_ARGS];
 } fixture_msvc_t;
 
 typedef struct {
@@ -129,7 +146,17 @@ static spn_sdk_host_t fixture_sdks(sp_mem_t mem, fixture_sdks_t sdks) {
     }
     sp_msvc_arch_t arch = si_msvc_arch(sdks.msvc[it].arch);
     sp_msvc_path_t root = fixture_msvc_path(sdks.msvc[it].root.path);
-    si_da_push(mem, host.msvc.toolsets, ((sp_msvc_vs_t) { .version.tools = fixture_msvc_version(sdks.msvc[it].version ? sdks.msvc[it].version : "14.0"), .install_path = root, .target = arch, .preferred = true, .compiler = !sdks.msvc[it].bare }));
+    spn_msvc_toolset_t toolset = {
+      .vs = { .version.tools = fixture_msvc_version(sdks.msvc[it].version ? sdks.msvc[it].version : "14.0"), .install_path = root, .target = arch, .preferred = true, .compiler = !sdks.msvc[it].bare },
+      .redist.dir = spn_path_join(mem, fixture_path(sdks.msvc[it].root), sp_str_lit("R")),
+    };
+    sp_carr_for(sdks.msvc[it].redist, at) {
+      if (!sdks.msvc[it].redist[at]) {
+        break;
+      }
+      si_da_push(mem, toolset.redist.files, ((spn_path_t) { .sub = sp_cstr_as_str(sdks.msvc[it].redist[at]) }));
+    }
+    si_da_push(mem, host.msvc.toolsets, toolset);
     si_da_push(mem, host.msvc.kits, ((sp_msvc_sdk_t) { .version = fixture_msvc_version("10.0"), .root = root, .arch = arch }));
   }
   return host;
@@ -167,13 +194,42 @@ static spn_arg_t fixture_sdk_arg(test_arg_t sdk) {
 }
 
 static spn_toolchain_target_t fixture_target(fixture_target_t target) {
-  return (spn_toolchain_target_t) { .triple = target.triple, .sdk = fixture_sdk_arg(target.sdk), .sanitizers = target.sanitizers };
+  spn_arg_t sdk = fixture_sdk_arg(target.sdk);
+  return (spn_toolchain_target_t) { .triple = target.triple, .sdk = { spn_arg_empty(sdk) ? si_sdk_undeclared(target.triple) : SPN_SDK_SOURCE_PATH, sdk }, .runtime.supported = target.runtimes ? target.runtimes : rt_static, .sanitizers.supported = target.sanitizers };
 }
 
 static sp_err_t fixture_check_triples(sp_test_t* t, sp_da(spn_triple_t) triples, const spn_triple_t* expect, u32 count) {
   sp_must_eq(t, count, (u32)sp_da_size(triples));
   sp_for(it, count) {
     sp_expect(t, spn_triple_equal(expect[it], triples[it]));
+  }
+  return SP_OK;
+}
+
+static sp_err_t fixture_check_paths(sp_test_t* t, si_da(spn_path_t) paths, const c8* const* expect) {
+  u32 count = 0;
+  while (count < FIXTURE_MAX_ARGS && expect[count]) {
+    count++;
+  }
+  sp_must_eq(t, count, (u32)si_da_size(paths));
+  sp_for(it, count) {
+    sp_expect_str_eq_c(t, paths[it].sub, expect[it]);
+  }
+  return SP_OK;
+}
+
+static sp_err_t fixture_check_files(sp_test_t* t, const spn_toolchain_files_t* files, const fixture_files_t* expect) {
+  static const c8* const none [FIXTURE_MAX_ARGS] = sp_zero;
+  sp_try(fixture_check_paths(t, files->c, expect->c));
+  sp_try(fixture_check_paths(t, files->cxx, expect->cxx));
+  sp_for(slot, si_sanitizer_count) {
+    const c8* const* listed = none;
+    sp_carr_for(expect->sanitizers, at) {
+      if (expect->sanitizers[at].sanitizer == si_sanitizer_at(slot)) {
+        listed = expect->sanitizers[at].files;
+      }
+    }
+    sp_try(fixture_check_paths(t, files->sanitizers[slot], listed));
   }
   return SP_OK;
 }
@@ -188,9 +244,11 @@ static sp_err_t fixture_check_rows(sp_test_t* t, sp_da(spn_toolchain_row_t) rows
   sp_for(it, count) {
     sp_expect_str_eq(t, spn_triple_to_str(mem, rows[it].triple), spn_triple_to_str(mem, expect[it].triple));
     sp_expect_eq(t, expect[it].sanitizers, rows[it].sanitizers);
-    if (fixture_check_sdk(t, rows[it].sdk, expect[it].sdk)) {
+    sp_expect_eq(t, (u32)expect[it].sdk.install, (u32)rows[it].sdk.install);
+    if (fixture_check_sdk(t, rows[it].sdk.bound, expect[it].sdk)) {
       return SP_ERR;
     }
+    sp_try(fixture_check_files(t, &rows[it].files, &expect[it].files));
   }
   return SP_OK;
 }

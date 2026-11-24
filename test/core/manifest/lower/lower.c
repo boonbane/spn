@@ -114,8 +114,20 @@ typedef struct {
 
 typedef struct {
   spn_triple_t triple;
+  spn_sdk_source_t source;
   test_arg_t sdk;
-  spn_sanitizer_set_t sanitizers;
+  struct {
+    spn_runtime_set_t supported;
+    test_arg_t c [2];
+    test_arg_t cxx [2];
+  } runtime;
+  struct {
+    spn_sanitizer_set_t supported;
+    struct {
+      spn_sanitizer_t sanitizer;
+      test_arg_t files [2];
+    } files [si_sanitizer_count];
+  } sanitizers;
 } toolchain_target_t;
 
 typedef struct {
@@ -767,7 +779,7 @@ static const test_t tests [] = {
         .targets = {
           { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU },
           { .triple = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_GNU } },
-          { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC },
+          { .triple = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC }, .source = SPN_SDK_SOURCE_INSTALL },
           { SPN_ARCH_ARM64, SPN_OS_MACOS, SPN_ABI_APPLE },
           { .triple = { SPN_ARCH_WASM32, SPN_OS_WASI, SPN_ABI_MUSL } },
         },
@@ -822,7 +834,7 @@ static const test_t tests [] = {
         .compiler = { .name = "cc" },
         .archiver = { .name = "ar" },
         .driver = SPN_CC_DRIVER_GCC,
-        .targets = { { .triple = { SPN_ARCH_ARM64, SPN_OS_LINUX, SPN_ABI_GNU }, .sdk = { .path = "S", .root = SPN_PATH_ROOT_PROJECT } } },
+        .targets = { { .triple = { SPN_ARCH_ARM64, SPN_OS_LINUX, SPN_ABI_GNU }, .source = SPN_SDK_SOURCE_PATH, .sdk = { .path = "S", .root = SPN_PATH_ROOT_PROJECT } } },
       },
       {
         .name = "D",
@@ -832,8 +844,8 @@ static const test_t tests [] = {
         .url = "https://tc",
         .sha256 = "deadbeef",
         .targets = {
-          { .triple = { SPN_ARCH_ARM64, SPN_OS_LINUX, SPN_ABI_GNU }, .sdk = { "S" } },
-          { .triple = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC }, .sdk = { "X" } },
+          { .triple = { SPN_ARCH_ARM64, SPN_OS_LINUX, SPN_ABI_GNU }, .source = SPN_SDK_SOURCE_PATH, .sdk = { "S" } },
+          { .triple = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC }, .source = SPN_SDK_SOURCE_PATH, .sdk = { "X" } },
         },
       },
     },
@@ -847,7 +859,7 @@ static const test_t tests [] = {
         .compiler = { .name = "clang" },
         .archiver = { .name = "ar" },
         .driver = SPN_CC_DRIVER_CLANG,
-        .targets = { { .triple = { SPN_ARCH_X64, SPN_OS_FREESTANDING, SPN_ABI_ELF }, .sdk = { .path = "/S" } } },
+        .targets = { { .triple = { SPN_ARCH_X64, SPN_OS_FREESTANDING, SPN_ABI_ELF }, .source = SPN_SDK_SOURCE_PATH, .sdk = { .path = "/S" } } },
       },
     },
   },
@@ -861,9 +873,105 @@ static const test_t tests [] = {
         .archiver = { .name = "ar" },
         .driver = SPN_CC_DRIVER_CLANG,
         .targets = {
-          { .triple = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU }, .sanitizers = SPN_SANITIZER_ADDRESS | SPN_SANITIZER_UNDEFINED },
+          { .triple = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU }, .sanitizers.supported = SPN_SANITIZER_ADDRESS | SPN_SANITIZER_UNDEFINED },
           { .triple = { SPN_ARCH_WASM32, SPN_OS_WASI, SPN_ABI_MUSL } },
         },
+      },
+    },
+  },
+  {
+    .name = "toolchain_target_sanitizer_files",
+    .manifest = "toolchain_sanitizer_files",
+    .toolchains = {
+      {
+        .name = "T",
+        .compiler = { .name = "clang" },
+        .archiver = { .name = "ar" },
+        .driver = SPN_CC_DRIVER_CLANG,
+        .targets = {
+          {
+            .triple = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU },
+            .sanitizers = {
+              .supported = SPN_SANITIZER_ADDRESS | SPN_SANITIZER_THREAD | SPN_SANITIZER_UNDEFINED | SPN_SANITIZER_MEMORY | SPN_SANITIZER_LEAK,
+              .files = {
+                { SPN_SANITIZER_ADDRESS,   { { .path = "/A" }, { .path = "/B" } } },
+                { SPN_SANITIZER_THREAD,    { { .path = "/C" } } },
+                { SPN_SANITIZER_UNDEFINED, { { .path = "/D" } } },
+                { SPN_SANITIZER_MEMORY,    { { .path = "/E" } } },
+                { SPN_SANITIZER_LEAK,      { { .path = "/F" } } },
+              },
+            },
+          },
+        },
+      },
+    },
+  },
+  {
+    .name = "toolchain_target_runtime",
+    .manifest = "toolchain_runtime",
+    .toolchains = {
+      {
+        .name = "T",
+        .compiler = { .name = "cc" },
+        .archiver = { .name = "ar" },
+        .driver = SPN_CC_DRIVER_GCC,
+        .targets = {
+          {
+            .triple = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_GNU },
+            .runtime = {
+              .supported = si_runtime_bit(SPN_RUNTIME_STATIC) | si_runtime_bit(SPN_RUNTIME_SHARED),
+              .c = { { .path = "/A" } },
+              .cxx = { { .path = "/B" }, { .path = "/C" } },
+            },
+          },
+        },
+      },
+    },
+  },
+  {
+    .name = "toolchain_target_runtime_floor",
+    .manifest = "toolchain_runtime_floor",
+    .toolchains = {
+      {
+        .name = "T",
+        .compiler = { .name = "clang" },
+        .archiver = { .name = "ar" },
+        .driver = SPN_CC_DRIVER_CLANG,
+        .targets = {
+          { .triple = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU }, .runtime.supported = si_runtime_bit(SPN_RUNTIME_STATIC) },
+          { .triple = { SPN_ARCH_ARM64, SPN_OS_MACOS, SPN_ABI_APPLE }, .runtime.supported = si_runtime_bit(SPN_RUNTIME_SHARED) },
+        },
+      },
+    },
+  },
+  {
+    .name = "toolchain_target_runtime_zig_is_static_off_msvc",
+    .manifest = "toolchain_runtime_zig",
+    .toolchains = {
+      {
+        .name = "T",
+        .compiler = { .name = "zig" },
+        .archiver = { .name = "zig" },
+        .args = { "cc" },
+        .driver = SPN_CC_DRIVER_ZIG,
+        .targets = {
+          { .triple = { SPN_ARCH_ARM64, SPN_OS_MACOS, SPN_ABI_APPLE }, .runtime.supported = si_runtime_bit(SPN_RUNTIME_STATIC) },
+          { .triple = { SPN_ARCH_X64, SPN_OS_WINDOWS, SPN_ABI_MSVC }, .source = SPN_SDK_SOURCE_INSTALL, .runtime.supported = si_runtime_bit(SPN_RUNTIME_STATIC) },
+          { .triple = { SPN_ARCH_ARM64, SPN_OS_WINDOWS, SPN_ABI_MSVC }, .source = SPN_SDK_SOURCE_INSTALL, .runtime.supported = si_runtime_bit(SPN_RUNTIME_STATIC) | si_runtime_bit(SPN_RUNTIME_SHARED) },
+        },
+      },
+    },
+  },
+  {
+    .name = "toolchain_target_runtime_files_on_the_shared_floor",
+    .manifest = "toolchain_runtime_macos_files",
+    .toolchains = {
+      {
+        .name = "T",
+        .compiler = { .name = "clang" },
+        .archiver = { .name = "ar" },
+        .driver = SPN_CC_DRIVER_CLANG,
+        .targets = { { .triple = { SPN_ARCH_ARM64, SPN_OS_MACOS, SPN_ABI_APPLE }, .runtime.c = { { .path = "/A" } } } },
       },
     },
   },
@@ -934,6 +1042,67 @@ static const test_t tests [] = {
     .issues = {
       { SPN_ERR_CODEGEN_INVALID, "target[0].sanitizers" },
       { SPN_ERR_CODEGEN_INVALID, "target[0].sdk" },
+    },
+  },
+  {
+    .name = "validate_toolchain_host_with_tables",
+    .manifest = "toolchain_host_tables",
+    .issues = {
+      { SPN_ERR_CODEGEN_INVALID, "target[0].kind" }
+    },
+  },
+  {
+    .name = "validate_toolchain_runtime_files_without_shared",
+    .manifest = "toolchain_runtime_static_files",
+    .issues = {
+      { SPN_ERR_CODEGEN_INVALID, "target[0].runtime.c" },
+      { SPN_ERR_CODEGEN_INVALID, "target[0].runtime.cxx" },
+    },
+  },
+  {
+    .name = "validate_toolchain_shared_runtime_without_files",
+    .manifest = "toolchain_runtime_shared_no_files",
+    .issues = {
+      { SPN_ERR_CODEGEN_MISSING_KEY, "target[0].runtime.c", "cxx" },
+      { SPN_ERR_CODEGEN_MISSING_KEY, "target[1].runtime.c", "cxx" },
+    },
+  },
+  {
+    .name = "validate_toolchain_detected_with_files",
+    .manifest = "toolchain_detected_files",
+    .issues = {
+      { SPN_ERR_CODEGEN_INVALID, "target[0].sanitizers.address" },
+      { SPN_ERR_CODEGEN_INVALID, "target[0].runtime.c" },
+      { SPN_ERR_CODEGEN_INVALID, "target[0].runtime.cxx" },
+    },
+  },
+  {
+    .name = "validate_toolchain_zig_runtime_shared_off_msvc",
+    .manifest = "toolchain_runtime_zig_shared",
+    .issues = {
+      { SPN_ERR_CODEGEN_INVALID, "target[0].runtime.supported" },
+      { SPN_ERR_CODEGEN_INVALID, "target[2].runtime.supported" },
+    },
+  },
+  {
+    .name = "validate_toolchain_runtime_file_malformed",
+    .manifest = "toolchain_runtime_malformed",
+    .issues = {
+      { SPN_ERR_CODEGEN_PATH, "target[0].runtime.cxx[1]" }
+    },
+  },
+  {
+    .name = "validate_toolchain_sanitizer_key_unsupported",
+    .manifest = "toolchain_sanitizer_unsupported",
+    .issues = {
+      { SPN_ERR_CODEGEN_INVALID, "target[0].sanitizers.address" }
+    },
+  },
+  {
+    .name = "validate_toolchain_sanitizers_list",
+    .manifest = "toolchain_sanitizers_list",
+    .issues = {
+      { SPN_ERR_CODEGEN_EXPECTED_OBJECT, "toolchain[0].target[0].sanitizers" }
     },
   },
   {
@@ -1965,6 +2134,20 @@ static sp_err_t check_gated_path_list(sp_test_t* t, spn_gated_path_list_t actual
   return SP_OK;
 }
 
+static sp_err_t check_arg_list(sp_test_t* t, sp_da(spn_arg_t) actual, const test_arg_t* expected, u32 n) {
+  sp_must_eq(t, n, (u32)sp_da_size(actual));
+  sp_for(it, n) {
+    sp_try(test_check_arg(t, actual[it], expected[it]));
+  }
+  return SP_OK;
+}
+
+#define check_args(t, actual, expected) do { \
+  u32 num_args = 0; \
+  sp_carr_detect_len(expected, num_args, (expected)[num_args].name || (expected)[num_args].path); \
+  sp_try(check_arg_list(t, actual, expected, num_args)); \
+} while (0)
+
 #define check_gated(t, actual, expected) do { \
   u32 num_gated = 0; \
   sp_carr_detect_len(expected, num_gated, (expected)[num_gated].value); \
@@ -2225,9 +2408,24 @@ sp_test_each(lower, cases, test_t, tests, .setup = spn_test_ctx_setup) {
       if (target.triple.arch == SPN_ARCH_NONE) break;
       sp_must(t, r < sp_da_size(tc->targets));
       sp_expect(t, spn_triple_equal(target.triple, tc->targets[r].triple));
-      sp_expect_eq(t, target.sanitizers, tc->targets[r].sanitizers);
-      if (!target.sdk.name && !target.sdk.path) sp_expect(t, spn_arg_empty(tc->targets[r].sdk));
-      if (test_check_arg(t, tc->targets[r].sdk, target.sdk)) return SP_ERR;
+      if (target.runtime.supported) sp_expect_eq(t, target.runtime.supported, tc->targets[r].runtime.supported);
+      check_args(t, tc->targets[r].runtime.c, target.runtime.c);
+      check_args(t, tc->targets[r].runtime.cxx, target.runtime.cxx);
+      sp_expect_eq(t, target.sanitizers.supported, tc->targets[r].sanitizers.supported);
+      sp_for(slot, si_sanitizer_count) {
+        u32 at = 0;
+        while (at < si_sanitizer_count && target.sanitizers.files[at].sanitizer != si_sanitizer_at(slot)) {
+          at++;
+        }
+        if (at == si_sanitizer_count) {
+          sp_expect(t, sp_da_empty(tc->targets[r].sanitizers.files[slot]));
+          continue;
+        }
+        check_args(t, tc->targets[r].sanitizers.files[slot], target.sanitizers.files[at].files);
+      }
+      sp_expect_eq(t, (u32)target.source, (u32)tc->targets[r].sdk.source);
+      if (!target.sdk.name && !target.sdk.path) sp_expect(t, spn_arg_empty(tc->targets[r].sdk.path));
+      if (test_check_arg(t, tc->targets[r].sdk.path, target.sdk)) return SP_ERR;
     }
 
     sp_carr_for(expected.hosts, r) {

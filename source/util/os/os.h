@@ -5,5 +5,6 @@
 
 sp_str_t sp_fs_get_home_path(sp_mem_t mem);
 sp_err_t sp_fs_remove(sp_path_t path);
+sp_str_t si_env_get(sp_env_t* env, sp_str_t name);
 
 #endif

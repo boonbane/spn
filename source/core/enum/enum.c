@@ -3,6 +3,7 @@
 
 #include "macro/macro.h"
 #include "spn/core.h"
+#include "toolchain/types.h"
 
 spn_cc_driver_t spn_cc_driver_from_str(sp_str_t str) {
   if (sp_str_equal_cstr(str, "gcc")) {
@@ -313,12 +314,12 @@ sp_str_t spn_sanitizer_set_to_str(sp_mem_t mem, spn_sanitizer_set_t set) {
   sp_io_dyn_mem_writer_t out;
   sp_io_dyn_mem_writer_init(mem, &out);
   bool first = true;
-  sp_for(it, 5) {
-    spn_sanitizer_set_t bit = (spn_sanitizer_set_t)1 << it;
-    if (!(set & bit)) {
+  sp_for(it, si_sanitizer_count) {
+    spn_sanitizer_t sanitizer = si_sanitizer_at(it);
+    if (!(set & sanitizer)) {
       continue;
     }
-    sp_fmt_io(&out.base, first ? "{}" : ",{}", sp_fmt_str(spn_sanitizer_to_str((spn_sanitizer_t)bit)));
+    sp_fmt_io(&out.base, first ? "{}" : ",{}", sp_fmt_str(spn_sanitizer_to_str(sanitizer)));
     first = false;
   }
   return sp_io_dyn_mem_writer_as_str(&out);
@@ -458,17 +459,11 @@ sp_str_t spn_linking_refusal_to_str(spn_linking_refusal_t refusal) {
     case SPN_LINKING_REFUSAL_OS_LIBC: {
       return sp_str_lit("os_libc");
     }
-    case SPN_LINKING_REFUSAL_OS_RUNTIME: {
-      return sp_str_lit("os_runtime");
-    }
     case SPN_LINKING_REFUSAL_SHARED_RUNTIME: {
       return sp_str_lit("shared_runtime");
     }
     case SPN_LINKING_REFUSAL_HYBRID_CRT: {
       return sp_str_lit("hybrid_crt");
-    }
-    case SPN_LINKING_REFUSAL_SHARED_DEPS: {
-      return sp_str_lit("shared_deps");
     }
   }
   SP_UNREACHABLE_RETURN(sp_str_lit(""));
@@ -547,6 +542,9 @@ sp_str_t spn_cc_feature_to_str(spn_cc_feature_t feature) {
     }
     case SPN_CC_FEATURE_EXCEPTIONS: {
       return sp_str_lit("exceptions");
+    }
+    case SPN_CC_FEATURE_STATIC_RUNTIME: {
+      return sp_str_lit("static_runtime");
     }
   }
   SP_UNREACHABLE_RETURN(sp_str_lit(""));

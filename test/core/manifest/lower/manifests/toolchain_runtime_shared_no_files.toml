@@ -1,0 +1,15 @@
+[package]
+name = "p"
+version = "1.0.0"
+
+[[toolchain]]
+name = "T"
+compiler = "clang"
+archiver = "ar"
+driver = "clang"
+target = [
+  { arch = "x86_64",  os = "windows", abi = "gnu",  runtime = { supported = ["static", "shared"] } },
+  { arch = "x86_64",  os = "windows", abi = "msvc", runtime = { supported = ["static", "shared"] }, sdk = "/A" },
+  { arch = "aarch64", os = "windows", abi = "msvc", runtime = { supported = ["static", "shared"] } },
+  { arch = "x86_64",  os = "linux",   abi = "gnu",  runtime = { supported = ["static", "shared"] } },
+]

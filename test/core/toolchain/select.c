@@ -23,6 +23,11 @@ typedef struct {
   const c8* candidates [SELECT_MAX_CANDIDATES];
   spn_sanitizer_set_t unsupported;
   spn_sanitizer_set_t supported;
+  spn_linking_t linking;
+  struct {
+    spn_runtime_t requested;
+    spn_runtime_set_t supported;
+  } runtime;
 } expect_t;
 
 typedef struct {
@@ -56,6 +61,7 @@ typedef struct {
   spn_triple_t target;
   spn_abi_t abis [SELECT_MAX_ABIS];
   spn_sanitizer_set_t sanitizers;
+  spn_linking_t linking;
   spn_triple_t host;
   expect_t expect;
 } resolve_test_t;
@@ -269,6 +275,50 @@ static const complete_test_t complete_tests [] = {
       { .target = X64_LINUX, .abis = { SPN_ABI_MUSL }, .sanitizers = SPN_SANITIZER_ADDRESS | SPN_SANITIZER_UNDEFINED, .linking = { .linkage = SPN_LIB_KIND_STATIC, .runtime = SPN_RUNTIME_STATIC, .libc = SPN_RUNTIME_STATIC }, .expect = { .err = SPN_ERR_SANITIZER_STATIC, .triple = TARGET_LINUX_MUSL, .unsupported = SPN_SANITIZER_ADDRESS, .supported = SAN_GCC_LINUX } },
     },
   },
+  {
+    .name = "named_needs_the_requested_runtime",
+    .driver = SPN_CC_DRIVER_GCC,
+    .targets = { { .triple = HOST_X64_LINUX } },
+    .checks = {
+      { .target = X64_LINUX, .abis = { SPN_ABI_GNU }, .linking = { .runtime = SPN_RUNTIME_STATIC }, .expect = { .triple = HOST_X64_LINUX, .linking = { SPN_LIB_KIND_SHARED, SPN_RUNTIME_STATIC, SPN_RUNTIME_SHARED } } },
+      { .target = X64_LINUX, .abis = { SPN_ABI_GNU }, .linking = { .runtime = SPN_RUNTIME_SHARED }, .expect = { .err = SPN_ERR_RUNTIME_UNSUPPORTED, .triple = HOST_X64_LINUX, .runtime = { SPN_RUNTIME_SHARED, rt_static } } },
+    },
+  },
+  {
+    .name = "linking_takes_the_first_runtime_the_row_has",
+    .driver = SPN_CC_DRIVER_GCC,
+    .targets = { { .triple = HOST_X64_LINUX }, { .triple = TARGET_LINUX_MUSL, .runtimes = rt_shared } },
+    .checks = {
+      { .target = X64_LINUX, .abis = { SPN_ABI_GNU }, .expect = { .triple = HOST_X64_LINUX, .linking = { SPN_LIB_KIND_SHARED, SPN_RUNTIME_STATIC, SPN_RUNTIME_SHARED } } },
+      { .target = X64_LINUX, .abis = { SPN_ABI_MUSL }, .expect = { .triple = TARGET_LINUX_MUSL, .linking = { SPN_LIB_KIND_SHARED, SPN_RUNTIME_SHARED, SPN_RUNTIME_SHARED } } },
+    },
+  },
+  {
+    .name = "msvc_libc_follows_the_runtime_the_row_has",
+    .driver = SPN_CC_DRIVER_CLANG,
+    .targets = { { .triple = TARGET_WIN_MSVC, .sdk = { .path = "/X" }, .runtimes = rt_shared } },
+    .checks = {
+      { .target = X64_WINDOWS, .abis = { SPN_ABI_MSVC }, .expect = { .triple = TARGET_WIN_MSVC, .sdk = { SPN_SDK_MSVC, { "/X" } }, .linking = { SPN_LIB_KIND_SHARED, SPN_RUNTIME_SHARED, SPN_RUNTIME_SHARED } } },
+      { .target = X64_WINDOWS, .abis = { SPN_ABI_MSVC }, .linking = { .libc = SPN_RUNTIME_STATIC }, .expect = { .err = SPN_ERR_RUNTIME_UNSUPPORTED, .triple = TARGET_WIN_MSVC, .runtime = { SPN_RUNTIME_STATIC, rt_shared } } },
+    },
+  },
+  {
+    .name = "runtime_picks_the_abi",
+    .driver = SPN_CC_DRIVER_GCC,
+    .targets = { { .triple = TARGET_LINUX_MUSL }, { .triple = HOST_X64_LINUX, .runtimes = rt_both } },
+    .checks = {
+      { .target = X64_LINUX, .abis = { SPN_ABI_MUSL, SPN_ABI_GNU }, .linking = { .runtime = SPN_RUNTIME_SHARED }, .expect = { .triple = HOST_X64_LINUX } },
+    },
+  },
+  {
+    .name = "missing_runtime_beats_an_unlisted_abi",
+    .driver = SPN_CC_DRIVER_GCC,
+    .targets = { { .triple = HOST_X64_LINUX } },
+    .checks = {
+      { .target = X64_LINUX, .abis = { SPN_ABI_MUSL, SPN_ABI_GNU }, .linking = { .runtime = SPN_RUNTIME_SHARED }, .expect = { .err = SPN_ERR_RUNTIME_UNSUPPORTED, .triple = HOST_X64_LINUX, .runtime = { SPN_RUNTIME_SHARED, rt_static } } },
+      { .target = X64_LINUX, .abis = { SPN_ABI_GNU, SPN_ABI_MUSL }, .linking = { .runtime = SPN_RUNTIME_SHARED }, .expect = { .err = SPN_ERR_RUNTIME_UNSUPPORTED, .triple = HOST_X64_LINUX, .runtime = { SPN_RUNTIME_SHARED, rt_static } } },
+    },
+  },
 };
 
 static const resolve_test_t resolve_tests [] = {
@@ -332,6 +382,39 @@ static const resolve_test_t resolve_tests [] = {
     .abis = { SPN_ABI_GNU },
     .sanitizers = SPN_SANITIZER_ADDRESS,
     .expect = { .name = "B", .triple = HOST_X64_LINUX },
+  },
+  {
+    .name = "auto_skips_toolchains_without_the_runtime",
+    .toolchains = {
+      { "A", SPN_CC_DRIVER_GCC, .targets = { { HOST_X64_LINUX } } },
+      { "B", SPN_CC_DRIVER_GCC, .targets = { { HOST_X64_LINUX, .runtimes = rt_both } } },
+    },
+    .target = X64_LINUX,
+    .abis = { SPN_ABI_GNU },
+    .linking = { .runtime = SPN_RUNTIME_SHARED },
+    .expect = { .name = "B", .triple = HOST_X64_LINUX },
+  },
+  {
+    .name = "auto_with_no_runtime_support_finds_none",
+    .toolchains = {
+      { "A", SPN_CC_DRIVER_GCC, .targets = { { HOST_X64_LINUX } } },
+    },
+    .target = X64_LINUX,
+    .abis = { SPN_ABI_GNU },
+    .linking = { .runtime = SPN_RUNTIME_SHARED },
+    .expect = { .err = SPN_ERR_TOOLCHAIN_NONE, .runtime = { SPN_RUNTIME_SHARED } },
+  },
+  {
+    .name = "auto_sanitizer_refusal_outranks_the_runtime",
+    .toolchains = {
+      { "A", SPN_CC_DRIVER_GCC, .targets = { { HOST_X64_LINUX } } },
+      { "B", SPN_CC_DRIVER_GCC, .targets = { { HOST_X64_LINUX, .runtimes = rt_both } } },
+    },
+    .target = X64_LINUX,
+    .abis = { SPN_ABI_GNU },
+    .sanitizers = SPN_SANITIZER_MEMORY,
+    .linking = { .runtime = SPN_RUNTIME_SHARED },
+    .expect = { .err = SPN_ERR_TOOLCHAIN_NONE },
   },
   {
     .name = "windows_host_without_msvc_sdk_names_the_sdk",
@@ -421,7 +504,7 @@ static spn_toolchain_candidates_t candidates(spn_triple_t target, const spn_abi_
   spn_abi_list_t order = abi_list(abis);
   sp_for(it, order.count) {
     spn_toolchain_candidate_t candidate = { .triple = { target.arch, target.os, order.items[it] } };
-    sp_assert(spn_ld_linking(candidate.triple, request, &candidate.linking) == SPN_LINKING_REFUSAL_NONE);
+    sp_assert(si_ld_linkings(candidate.triple, request, SPN_LIB_KIND_NONE, &candidate.linkings) == SPN_LINKING_REFUSAL_NONE);
     list.items[list.count++] = candidate;
   }
   return list;
@@ -458,12 +541,26 @@ static sp_err_t check_failure(sp_test_t* t, sp_mem_t mem, spn_toolchain_catalog_
     return SP_OK;
   }
 
+  if (expect->err == SPN_ERR_RUNTIME_UNSUPPORTED) {
+    spn_err_runtime_t* runtime = &errs[0].err.runtime;
+    sp_expect_str_eq(t, runtime->toolchain, query.toolchain.name.str);
+    sp_expect(t, spn_triple_equal(runtime->target, expect->triple));
+    sp_expect_eq(t, (u32)runtime->requested, (u32)expect->runtime.requested);
+    spn_runtime_set_t supported = 0;
+    sp_da_for(runtime->supported, it) {
+      supported |= si_runtime_bit(runtime->supported[it]);
+    }
+    sp_expect_eq(t, supported, expect->runtime.supported);
+    return SP_OK;
+  }
+
   spn_err_toolchain_t* err = &errs[0].err.toolchain;
   spn_triple_t target = fixture_triple_empty(expect->triple) ? query.target : expect->triple;
   sp_expect_str_eq(t, err->name, query.toolchain.name.str);
   sp_expect(t, spn_triple_equal(err->target, target));
   sp_expect(t, spn_triple_equal(err->host, catalog->host));
   sp_expect_eq(t, err->sanitizers, query.sanitizers);
+  sp_expect_eq(t, (u32)err->runtime, (u32)expect->runtime.requested);
 
   u32 targets = 0;
   sp_carr_detect_len(expect->targets, targets, !fixture_triple_empty(expect->targets[targets]));
@@ -479,7 +576,12 @@ static sp_err_t check_selection(sp_test_t* t, const spn_toolchain_selection_t* s
   sp_must(t, selection->toolchain);
   sp_expect_str_eq_c(t, selection->toolchain->name.str, name);
   sp_expect(t, spn_triple_equal(selection->row.triple, expect->triple));
-  return fixture_check_sdk(t, selection->row.sdk, expect->sdk);
+  if (expect->linking.linkage) {
+    sp_expect_eq(t, (u32)expect->linking.linkage, (u32)selection->linking.linkage);
+    sp_expect_eq(t, (u32)expect->linking.runtime, (u32)selection->linking.runtime);
+    sp_expect_eq(t, (u32)expect->linking.libc, (u32)selection->linking.libc);
+  }
+  return fixture_check_sdk(t, selection->sdk, expect->sdk);
 }
 
 sp_test_each(select, complete, complete_test_t, complete_tests, .setup = spn_test_ctx_setup) {
@@ -540,7 +642,7 @@ sp_test_each(select, resolve, resolve_test_t, resolve_tests, .setup = spn_test_c
   spn_toolchain_query_t query = {
     .toolchain = { .kind = SPN_TOOLCHAIN_REF_AUTO },
     .target = it->target,
-    .candidates = candidates(it->target, it->abis, sp_zero_s(spn_linking_t)),
+    .candidates = candidates(it->target, it->abis, it->linking),
     .sanitizers = it->sanitizers,
   };
   if (it->toolchain) {

@@ -1,0 +1,11 @@
+[package]
+name = "p"
+version = "1.0.0"
+
+[[toolchain]]
+name = "T"
+compiler = "cl"
+archiver = "lib"
+driver = "msvc"
+detect = "msvc"
+target = [{ arch = "x86_64", os = "windows", abi = "msvc", runtime = { supported = ["shared"], c = ["/A"], cxx = ["/B"] }, sanitizers = { supported = ["address"], address = ["/C"] } }]

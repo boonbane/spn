@@ -19,17 +19,26 @@ static spn_arg_t lower_program(spn_toml_loader_t* ctx, const c8* key, spn_toolch
   return sp_zero_struct(spn_arg_t);
 }
 
-static spn_arg_t lower_sdk_path(spn_toml_loader_t* ctx, spn_toolchain_source_t source, spn_path_root_t base, sp_str_t sdk) {
+static spn_arg_t lower_path(spn_toml_loader_t* ctx, spn_toolchain_source_t source, spn_path_root_t base, sp_str_t str) {
   spn_arg_t arg = sp_zero;
-  sdk = spn_toml_loader_intern(ctx, sp_fs_normalize_path(ctx->mem, sdk));
-  spn_err_t err = spn_toolchain_sdk_path(source, base, sdk, &arg);
-  if (!err) {
-    return arg;
+  str = spn_toml_loader_intern(ctx, sp_fs_normalize_path(ctx->mem, str));
+  spn_err_t err = si_toolchain_path(source, base, str, &arg);
+  if (err) {
+    spn_toml_loader_issue_at(ctx, err, str);
   }
-  spn_toml_loader_push_key(ctx, "sdk");
-  spn_toml_loader_issue_at(ctx, err, sdk);
+  return arg;
+}
+
+static sp_da(spn_arg_t) lower_files(spn_toml_loader_t* ctx, const c8* key, spn_toolchain_source_t source, spn_path_root_t base, sp_da(sp_str_t) files) {
+  sp_da(spn_arg_t) lowered = sp_da_new(ctx->mem, spn_arg_t);
+  spn_toml_loader_push_key(ctx, key);
+  sp_da_for(files, it) {
+    spn_toml_loader_push_index(ctx, (u32)it);
+    sp_da_push(lowered, lower_path(ctx, source, base, files[it]));
+    spn_toml_loader_pop(ctx);
+  }
   spn_toml_loader_pop(ctx);
-  return sp_zero_struct(spn_arg_t);
+  return lowered;
 }
 
 static sp_da(sp_str_t) lower_strs(spn_toml_loader_t* ctx, sp_da(sp_str_t) values) {
@@ -38,44 +47,6 @@ static sp_da(sp_str_t) lower_strs(spn_toml_loader_t* ctx, sp_da(sp_str_t) values
     sp_da_push(out, spn_toml_loader_intern(ctx, values[it]));
   }
   return out;
-}
-
-static bool sanitizable(spn_triple_t triple) {
-  return triple.abi != SPN_ABI_BARE && triple.abi != SPN_ABI_ELF;
-}
-
-static void lower_target_fields(spn_toml_loader_t* ctx, spn_toolchain_source_t source, spn_cc_driver_t driver, spn_path_root_t base, const spn_cg_toolchain_target_t* cg, spn_toolchain_target_t* target) {
-  if (!sp_da_empty(cg->sanitizers)) {
-    if (sanitizable(target->triple)) {
-      target->sanitizers = spn_sanitizer_set_from_list(cg->sanitizers);
-    }
-    else {
-      spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "sanitizers");
-    }
-  }
-  if (!sp_str_empty(cg->sdk)) {
-    if (source != SPN_TOOLCHAIN_SOURCE_DETECTED && spn_sdk_need(target->triple) != SPN_SDK_NEED_NONE) {
-      target->sdk = lower_sdk_path(ctx, source, base, cg->sdk);
-    }
-    else {
-      spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "sdk");
-    }
-  }
-  if (!sp_str_empty(cg->spelling)) {
-    if (spn_toolchain_driver_retargets(driver)) {
-      target->spelling = spn_toml_loader_intern(ctx, cg->spelling);
-    }
-    else {
-      spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "spelling");
-    }
-  }
-  if (!sp_da_empty(cg->exceptions.flags) || !sp_da_empty(cg->exceptions.link_flags)) {
-    target->exceptions = (spn_toolchain_exceptions_t) {
-      .declared = true,
-      .flags = lower_strs(ctx, cg->exceptions.flags),
-      .link_flags = lower_strs(ctx, cg->exceptions.link_flags),
-    };
-  }
 }
 
 static spn_toolchain_launcher_t lower_launcher(spn_toml_loader_t* ctx, const c8* key, spn_toolchain_source_t source, spn_path_root_t base, sp_str_t str) {
@@ -145,10 +116,6 @@ static bool lower_linker(spn_toml_loader_t* ctx, spn_ld_family_t declared, spn_c
   return declared == SPN_LD_FAMILY_LLD;
 }
 
-static bool target_has_fields(const spn_cg_toolchain_target_t* cg) {
-  return !sp_opt_is_null(cg->arch) || !sp_opt_is_null(cg->os) || !sp_opt_is_null(cg->abi) || !sp_str_empty(cg->sdk) || !sp_str_empty(cg->spelling) || !sp_da_empty(cg->exceptions.flags) || !sp_da_empty(cg->exceptions.link_flags) || !sp_da_empty(cg->sanitizers);
-}
-
 static bool targeted(sp_da(spn_toolchain_target_t) targets, spn_triple_t triple) {
   sp_da_for(targets, it) {
     if (spn_triple_equal(targets[it].triple, triple)) {
@@ -156,55 +123,6 @@ static bool targeted(sp_da(spn_toolchain_target_t) targets, spn_triple_t triple)
     }
   }
   return false;
-}
-
-static void lower_toolchain_targets(spn_toml_loader_t* ctx, spn_path_root_t base, sp_da(spn_cg_toolchain_target_t) cg, spn_toolchain_decl_t* toolchain) {
-  sp_da(spn_toolchain_target_t) targets = sp_da_new(ctx->mem, spn_toolchain_target_t);
-  spn_cc_driver_t driver = toolchain->driver;
-  spn_toml_loader_push_key(ctx, "target");
-  sp_da_for(cg, it) {
-    if (!sp_str_empty(cg[it].kind)) {
-      spn_toml_loader_push_index(ctx, it);
-      if (!sp_str_equal_cstr(cg[it].kind, "host")) {
-        spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "kind");
-      }
-      else if (target_has_fields(&cg[it])) {
-        spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "kind");
-      }
-      else if (toolchain->host_row) {
-        spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_DUPLICATE_KEY, "kind");
-      }
-      else {
-        toolchain->host_row = true;
-      }
-      spn_toml_loader_pop(ctx);
-      continue;
-    }
-    spn_triple_t partial = lower_triple(&cg[it]);
-    spn_toolchain_target_t target = sp_zero;
-    spn_triple_entry_t entry = spn_triple_entry(partial, &target.triple);
-    if (entry != SPN_TRIPLE_ENTRY_OK) {
-      spn_toml_loader_push_index(ctx, it);
-      issue_triple_entry(ctx, entry);
-      spn_toml_loader_pop(ctx);
-      continue;
-    }
-    if (!spn_toolchain_driver_composes(driver, target.triple)) {
-      spn_toml_loader_push_index(ctx, it);
-      spn_toml_loader_issue_at(ctx, SPN_ERR_CODEGEN_INVALID, spn_triple_to_str(ctx->mem, target.triple));
-      spn_toml_loader_pop(ctx);
-      continue;
-    }
-    spn_toml_loader_push_index(ctx, it);
-    if (targeted(targets, target.triple)) {
-      spn_toml_loader_issue_at(ctx, SPN_ERR_CODEGEN_DUPLICATE_KEY, spn_triple_to_str(ctx->mem, target.triple));
-    }
-    lower_target_fields(ctx, toolchain->source, driver, base, &cg[it], &target);
-    spn_toml_loader_pop(ctx);
-    sp_da_push(targets, target);
-  }
-  spn_toml_loader_pop(ctx);
-  toolchain->targets = targets;
 }
 
 static void lower_hosts(spn_toml_loader_t* ctx, const spn_cg_toolchain_decl_t* decl, spn_toolchain_decl_t* toolchain) {
@@ -246,7 +164,7 @@ static void lower_hosts(spn_toml_loader_t* ctx, const spn_cg_toolchain_decl_t* d
   spn_toml_loader_pop(ctx);
 }
 
-spn_toolchain_decl_t spn_toolchain_lower(spn_toml_loader_t* ctx, u32 at, spn_path_root_t base, const spn_cg_toolchain_decl_t* decl) {
+spn_toolchain_decl_t si_toolchain_lower(spn_toml_loader_t* ctx, u32 at, spn_path_root_t base, const spn_cg_toolchain_decl_t* decl) {
   spn_toml_loader_push_key(ctx, "toolchain");
   spn_toml_loader_push_index(ctx, at);
 
@@ -290,7 +208,162 @@ spn_toolchain_decl_t spn_toolchain_lower(spn_toml_loader_t* ctx, u32 at, spn_pat
   toolchain.host_row = sp_da_empty(decl->target);
   if (toolchain.driver) {
     toolchain.lld = lower_linker(ctx, sp_opt_is_null(decl->linker) ? SPN_LD_FAMILY_NONE : sp_opt_get(decl->linker), toolchain.driver);
-    lower_toolchain_targets(ctx, base, decl->target, &toolchain);
+    sp_da(spn_toolchain_target_t) targets = sp_da_new(ctx->mem, spn_toolchain_target_t);
+    spn_cc_driver_t driver = toolchain.driver;
+    spn_toolchain_source_t source = toolchain.source;
+    bool detected = source == SPN_TOOLCHAIN_SOURCE_DETECTED;
+    spn_toml_loader_push_key(ctx, "target");
+    sp_da_for(decl->target, it) {
+      const spn_cg_toolchain_target_t* row = &decl->target[it];
+      const struct {
+        const c8* key;
+        sp_da(sp_str_t) files;
+      } sanitizers [si_sanitizer_count] = {
+        { "address",   row->sanitizers.address },
+        { "thread",    row->sanitizers.thread },
+        { "undefined", row->sanitizers.undefined },
+        { "memory",    row->sanitizers.memory },
+        { "leak",      row->sanitizers.leak },
+      };
+
+      spn_toml_loader_push_index(ctx, it);
+      if (!sp_str_empty(row->kind)) {
+        bool fields = !sp_opt_is_null(row->arch) || !sp_opt_is_null(row->os) || !sp_opt_is_null(row->abi) || !sp_str_empty(row->sdk) || !sp_str_empty(row->spelling)
+          || !sp_da_empty(row->exceptions.flags) || !sp_da_empty(row->exceptions.link_flags)
+          || row->runtime.supported || row->runtime.c || row->runtime.cxx || row->sanitizers.supported;
+        sp_for(st, si_sanitizer_count) {
+          fields = fields || sanitizers[st].files;
+        }
+        if (!sp_str_equal_cstr(row->kind, "host")) {
+          spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "kind");
+        }
+        else if (fields) {
+          spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "kind");
+        }
+        else if (toolchain.host_row) {
+          spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_DUPLICATE_KEY, "kind");
+        }
+        else {
+          toolchain.host_row = true;
+        }
+        spn_toml_loader_pop(ctx);
+        continue;
+      }
+      spn_triple_t partial = lower_triple(row);
+      spn_toolchain_target_t target = sp_zero;
+      spn_triple_entry_t entry = spn_triple_entry(partial, &target.triple);
+      if (entry != SPN_TRIPLE_ENTRY_OK) {
+        issue_triple_entry(ctx, entry);
+        spn_toml_loader_pop(ctx);
+        continue;
+      }
+      if (!si_toolchain_driver_composes(driver, target.triple)) {
+        spn_toml_loader_issue_at(ctx, SPN_ERR_CODEGEN_INVALID, spn_triple_to_str(ctx->mem, target.triple));
+        spn_toml_loader_pop(ctx);
+        continue;
+      }
+      if (targeted(targets, target.triple)) {
+        spn_toml_loader_issue_at(ctx, SPN_ERR_CODEGEN_DUPLICATE_KEY, spn_triple_to_str(ctx->mem, target.triple));
+      }
+
+      target.sanitizers.supported = spn_sanitizer_set_from_list(row->sanitizers.supported);
+      if (target.sanitizers.supported && (target.triple.abi == SPN_ABI_BARE || target.triple.abi == SPN_ABI_ELF)) {
+        spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "sanitizers");
+      }
+      spn_toml_loader_push_key(ctx, "sanitizers");
+      sp_for(st, si_sanitizer_count) {
+        if (!sanitizers[st].files) {
+          continue;
+        }
+        if (!detected && (target.sanitizers.supported & si_sanitizer_at(st))) {
+          target.sanitizers.files[st] = lower_files(ctx, sanitizers[st].key, source, base, sanitizers[st].files);
+        }
+        else {
+          spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, sanitizers[st].key);
+        }
+      }
+      spn_toml_loader_pop(ctx);
+
+      spn_runtime_set_t declared = 0;
+      sp_da_for(row->runtime.supported, rt) {
+        declared |= si_runtime_bit(row->runtime.supported[rt]);
+      }
+      spn_runtime_set_t own = si_toolchain_driver_runtimes(driver, target.triple);
+      spn_toml_loader_push_key(ctx, "runtime");
+      if (own && (declared & ~own)) {
+        spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "supported");
+      }
+      if (own) {
+        target.runtime.supported = own;
+      }
+      else if (declared) {
+        target.runtime.supported = declared;
+      }
+      else {
+        target.runtime.supported = si_runtime_bit(target.triple.os == SPN_OS_MACOS ? SPN_RUNTIME_SHARED : SPN_RUNTIME_STATIC);
+      }
+      bool shared = target.runtime.supported & si_runtime_bit(SPN_RUNTIME_SHARED);
+      if (row->runtime.c) {
+        if (!detected && shared) {
+          target.runtime.c = lower_files(ctx, "c", source, base, row->runtime.c);
+        }
+        else {
+          spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "c");
+        }
+      }
+      if (row->runtime.cxx) {
+        if (!detected && shared) {
+          target.runtime.cxx = lower_files(ctx, "cxx", source, base, row->runtime.cxx);
+        }
+        else {
+          spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "cxx");
+        }
+      }
+      spn_toml_loader_pop(ctx);
+
+      target.sdk.source = si_sdk_undeclared(target.triple);
+      if (!sp_str_empty(row->sdk)) {
+        if (!detected && spn_sdk_need(target.triple) != SPN_SDK_NEED_NONE) {
+          target.sdk.source = SPN_SDK_SOURCE_PATH;
+          spn_toml_loader_push_key(ctx, "sdk");
+          target.sdk.path = lower_path(ctx, source, base, row->sdk);
+          spn_toml_loader_pop(ctx);
+        }
+        else {
+          spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "sdk");
+        }
+      }
+      if (shared && target.triple.os == SPN_OS_WINDOWS && target.sdk.source != SPN_SDK_SOURCE_INSTALL && sp_da_empty(target.runtime.c) && sp_da_empty(target.runtime.cxx)) {
+        sp_da(sp_str_t) others = sp_da_new(ctx->mem, sp_str_t);
+        sp_da_push(others, sp_str_lit("cxx"));
+        spn_toml_loader_push_key(ctx, "runtime");
+        spn_toml_loader_issue_with(ctx, "c", (spn_toml_issue_t) {
+          .code = SPN_ERR_CODEGEN_MISSING_KEY,
+          .detail = sp_str_lit("c"),
+          .choices = others,
+        });
+        spn_toml_loader_pop(ctx);
+      }
+      if (!sp_str_empty(row->spelling)) {
+        if (spn_toolchain_driver_retargets(driver)) {
+          target.spelling = spn_toml_loader_intern(ctx, row->spelling);
+        }
+        else {
+          spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "spelling");
+        }
+      }
+      if (!sp_da_empty(row->exceptions.flags) || !sp_da_empty(row->exceptions.link_flags)) {
+        target.exceptions = (spn_toolchain_exceptions_t) {
+          .declared = true,
+          .flags = lower_strs(ctx, row->exceptions.flags),
+          .link_flags = lower_strs(ctx, row->exceptions.link_flags),
+        };
+      }
+      spn_toml_loader_pop(ctx);
+      sp_da_push(targets, target);
+    }
+    spn_toml_loader_pop(ctx);
+    toolchain.targets = targets;
   }
 
   spn_toml_loader_pop_scope(ctx);
@@ -312,7 +385,7 @@ bool spn_toolchains_parse(spn_toml_loader_t* ctx, sp_str_t toml, spn_cg_config_t
 sp_da(spn_toolchain_decl_t) spn_toolchains_lower_list(spn_toml_loader_t* ctx, spn_path_root_t base, sp_da(spn_cg_toolchain_decl_t) toml) {
   sp_da(spn_toolchain_decl_t) toolchains = sp_da_new(ctx->mem, spn_toolchain_decl_t);
   sp_da_for(toml, i) {
-    spn_toolchain_decl_t toolchain = spn_toolchain_lower(ctx, i, base, &toml[i]);
+    spn_toolchain_decl_t toolchain = si_toolchain_lower(ctx, i, base, &toml[i]);
 
     sp_da_for(toolchains, j) {
       if (toolchains[j].id == toolchain.id) {

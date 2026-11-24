@@ -1,0 +1,10 @@
+[package]
+name = "p"
+version = "1.0.0"
+
+[[toolchain]]
+name = "T"
+compiler = "clang"
+archiver = "ar"
+driver = "clang"
+target = [{ arch = "aarch64", os = "macos", abi = "apple", runtime = { c = ["/A"] } }]

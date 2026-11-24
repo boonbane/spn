@@ -6,19 +6,20 @@
 #include "paths/types.h"
 #include "toolchain/types.h"
 
-spn_sdk_need_t spn_sdk_need(spn_triple_t target);
-sp_str_t       spn_msvc_arch_name(spn_arch_t arch);
-spn_sdk_msvc_t spn_sdk_from_msvc(sp_mem_t mem, const sp_msvc_sdk_t* kits, const sp_msvc_vs_t* vs, spn_arch_t arch);
-spn_sdk_host_t si_sdk_detect(sp_mem_t mem, const spn_path_roots_t* roots, sp_env_t* env, spn_triple_t host);
-spn_sdk_t      spn_sdk_at(sp_mem_t mem, spn_triple_t target, spn_path_t root);
-bool           si_sdk_served(sp_mem_t mem, const spn_sdk_host_t* sdks, spn_triple_t host, spn_triple_t target, spn_sdk_t* sdk);
-bool           si_sdk_default(sp_mem_t mem, const spn_sdk_host_t* sdks, spn_triple_t target, spn_sdk_t* sdk);
-sp_hash_t      spn_sdk_hash(const spn_sdk_t* sdk);
-bool           spn_sdk_libc(spn_cc_cap_set_t caps, const spn_sdk_t* sdk, spn_libc_t* libc);
-spn_dir_list_t spn_sdk_tool_dirs(const spn_sdk_t* sdk);
-spn_dir_list_t spn_msvc_include_dirs(const spn_sdk_msvc_t* msvc);
-spn_dir_list_t spn_msvc_lib_dirs(const spn_sdk_msvc_t* msvc);
-u32            spn_msvc_shell_vars(const c8* const** vars);
-bool           spn_msvc_leave_shell(sp_env_t* env);
+spn_sdk_need_t   spn_sdk_need(spn_triple_t target);
+sp_str_t         spn_msvc_arch_name(spn_arch_t arch);
+spn_sdk_msvc_t   si_sdk_from_msvc(sp_mem_t mem, const sp_msvc_sdk_t* kits, const sp_msvc_vs_t* vs, spn_arch_t arch);
+spn_sdk_host_t   si_sdk_detect(sp_mem_t mem, const spn_path_roots_t* roots, sp_env_t* env, spn_triple_t host);
+spn_sdk_t        spn_sdk_at(sp_mem_t mem, spn_triple_t target, spn_path_t root);
+spn_sdk_source_t si_sdk_undeclared(spn_triple_t target);
+spn_sdk_t        si_sdk_host(const spn_sdk_host_t* host, spn_triple_t target);
+bool             si_sdk_served(const spn_sdk_host_t* sdks, spn_triple_t host, spn_triple_t target, spn_toolchain_sdk_t* sdk);
+sp_hash_t        spn_sdk_hash(const spn_sdk_t* sdk);
+bool             spn_sdk_libc(spn_cc_cap_set_t caps, const spn_sdk_t* sdk, spn_libc_t* libc);
+spn_dir_list_t   spn_sdk_tool_dirs(const spn_sdk_t* sdk);
+spn_dir_list_t   spn_msvc_include_dirs(const spn_sdk_msvc_t* msvc);
+spn_dir_list_t   spn_msvc_lib_dirs(const spn_sdk_msvc_t* msvc);
+u32              spn_msvc_shell_vars(const c8* const** vars);
+bool             spn_msvc_leave_shell(sp_env_t* env);
 
 #endif

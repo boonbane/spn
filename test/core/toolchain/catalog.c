@@ -56,6 +56,24 @@ typedef struct {
   support_expect_t expect;
 } support_test_t;
 
+typedef struct {
+  spn_triple_t triple;
+  spn_runtime_set_t runtimes;
+} runtime_row_t;
+
+typedef struct {
+  runtime_row_t rows [FIXTURE_MAX_TARGETS];
+} runtime_expect_t;
+
+typedef struct {
+  const c8* name;
+  spn_cc_driver_t driver;
+  spn_triple_t host;
+  fixture_sdks_t sdks;
+  fixture_target_t targets [FIXTURE_MAX_TARGETS];
+  runtime_expect_t expect;
+} runtime_test_t;
+
 static const add_test_t add_tests [] = {
   {
     .name = "overrides_by_name",
@@ -100,6 +118,19 @@ static const artifact_test_t artifact_tests [] = {
     .name = "absolute_sdk_is_a_host_path",
     .file = "sdk_absolute.toml",
     .expect = { .rows = { { HOST_ARM_LINUX, { SPN_SDK_SYSROOT, { "/S" } } } } },
+  },
+  {
+    .name = "relative_files_root_under_the_artifact",
+    .file = "files.toml",
+    .expect = {
+      .rows = {
+        {
+          TARGET_WIN_GNU,
+          .sanitizers = SPN_SANITIZER_ADDRESS,
+          .files = { .c = { "store/aa/S/C" }, .cxx = { "/X" }, .sanitizers = { { SPN_SANITIZER_ADDRESS, { "store/aa/S/D" } } } },
+        },
+      },
+    },
   },
 };
 
@@ -169,7 +200,23 @@ static const bind_test_t bind_tests [] = {
     .host = HOST_X64_WINDOWS,
     .sdks = { .msvc = { { { "/X" }, SPN_ARCH_X64 } } },
     .targets = { { TARGET_WIN_MSVC } },
-    .expect = { .rows = { { TARGET_WIN_MSVC, { SPN_SDK_MSVC, { "/X" } } } } },
+    .expect = { .rows = { { TARGET_WIN_MSVC, { .install = SPN_SDK_INSTALL_LIBS } } } },
+  },
+  {
+    .name = "absent_msvc_under_the_msvc_driver_asks_for_a_compiler",
+    .driver = SPN_CC_DRIVER_MSVC,
+    .host = HOST_X64_WINDOWS,
+    .sdks = { .msvc = { { { "/X" }, SPN_ARCH_X64 } } },
+    .targets = { { TARGET_WIN_MSVC } },
+    .expect = { .rows = { { TARGET_WIN_MSVC, { .install = SPN_SDK_INSTALL_COMPILER } } } },
+  },
+  {
+    .name = "absent_msvc_under_the_msvc_driver_is_unserved_by_a_bare_install",
+    .driver = SPN_CC_DRIVER_MSVC,
+    .host = HOST_X64_WINDOWS,
+    .sdks = { .msvc = { { { "/X" }, SPN_ARCH_X64, .bare = true } } },
+    .targets = { { TARGET_WIN_MSVC } },
+    .expect = { .unserved = { TARGET_WIN_MSVC } },
   },
   {
     .name = "absent_msvc_without_a_host_sdk_is_unserved",
@@ -202,7 +249,7 @@ static const bind_test_t bind_tests [] = {
         { HOST_X64_LINUX, { SPN_SDK_HOST }, SAN_CLANG_LINUX },
         { HOST_X64_MACOS, { SPN_SDK_MACOS, { "/H" } } },
         { HOST_ARM_MACOS, { SPN_SDK_MACOS, { "/H" } } },
-        { TARGET_WIN_MSVC, { SPN_SDK_MSVC, { "/X" } } },
+        { TARGET_WIN_MSVC, { .install = SPN_SDK_INSTALL_LIBS } },
       },
     },
   },
@@ -245,7 +292,7 @@ static const bind_test_t bind_tests [] = {
     .driver = SPN_CC_DRIVER_CLANG,
     .host = HOST_X64_WINDOWS,
     .sdks = { .msvc = { { { "/X" }, SPN_ARCH_X64 } } },
-    .expect = { .rows = { { TARGET_WIN_MSVC, { SPN_SDK_MSVC, { "/X" } } } } },
+    .expect = { .rows = { { TARGET_WIN_MSVC, { .install = SPN_SDK_INSTALL_LIBS } } } },
   },
   {
     .name = "macos_host_with_sdk_reaches_both_arches_with_sanitizers",
@@ -331,6 +378,63 @@ static const support_test_t support_tests [] = {
   },
 };
 
+static const runtime_test_t runtime_tests [] = {
+  {
+    .name = "written_row_has_what_its_target_carries",
+    .driver = SPN_CC_DRIVER_GCC,
+    .host = HOST_X64_LINUX,
+    .targets = { { .triple = HOST_X64_LINUX, .runtimes = rt_shared }, { .triple = HOST_X64_LINUX_MUSL, .runtimes = rt_both } },
+    .expect = { .rows = { { HOST_X64_LINUX, rt_shared }, { HOST_X64_LINUX_MUSL, rt_both } } },
+  },
+  {
+    .name = "host_row_on_linux_has_both",
+    .driver = SPN_CC_DRIVER_GCC,
+    .host = HOST_X64_LINUX,
+    .expect = { .rows = { { HOST_X64_LINUX, rt_both }, { TARGET_X64_BARE, rt_static }, { TARGET_X64_LINUX_NONE, rt_static } } },
+  },
+  {
+    .name = "host_row_on_macos_is_shared",
+    .driver = SPN_CC_DRIVER_CLANG,
+    .host = HOST_ARM_MACOS,
+    .sdks = { .macos = { "/H" } },
+    .expect = { .rows = { { HOST_ARM_MACOS, rt_shared }, { HOST_X64_MACOS, rt_shared } } },
+  },
+  {
+    .name = "gcc_host_row_on_windows_is_static",
+    .driver = SPN_CC_DRIVER_GCC,
+    .host = HOST_X64_WINDOWS,
+    .expect = { .rows = { { TARGET_WIN_GNU, rt_static } } },
+  },
+  {
+    .name = "clang_host_row_on_a_detected_msvc_sdk_has_both",
+    .driver = SPN_CC_DRIVER_CLANG,
+    .host = HOST_X64_WINDOWS,
+    .sdks = { .msvc = { { { "/X" }, SPN_ARCH_X64 } } },
+    .expect = { .rows = { { TARGET_WIN_MSVC, rt_both } } },
+  },
+  {
+    .name = "msvc_host_row_has_both",
+    .driver = SPN_CC_DRIVER_MSVC,
+    .host = HOST_X64_WINDOWS,
+    .sdks = { .msvc = { { { "/X" }, SPN_ARCH_X64 } } },
+    .expect = { .rows = { { TARGET_WIN_MSVC, rt_both } } },
+  },
+  {
+    .name = "zig_host_rows_are_static_off_msvc",
+    .driver = SPN_CC_DRIVER_ZIG,
+    .host = HOST_ARM_MACOS,
+    .sdks = { .macos = { "/H" } },
+    .expect = { .rows = { { HOST_ARM_MACOS, rt_static }, { HOST_X64_MACOS, rt_static } } },
+  },
+  {
+    .name = "zig_host_row_on_a_detected_msvc_sdk_has_both",
+    .driver = SPN_CC_DRIVER_ZIG,
+    .host = HOST_X64_WINDOWS,
+    .sdks = { .msvc = { { { "/X" }, SPN_ARCH_X64 } } },
+    .expect = { .rows = { { TARGET_WIN_GNU, rt_static }, { TARGET_WIN_MSVC, rt_both } } },
+  },
+};
+
 sp_test_each(catalog, add, add_test_t, add_tests, .setup = spn_test_ctx_setup) {
   spn_toolchain_catalog_t catalog = sp_zero;
   if (fixture_catalog(t, &catalog, it->file, (spn_triple_t) HOST_X64_LINUX, sp_zero_struct(spn_sdk_host_t))) {
@@ -394,6 +498,35 @@ sp_test_each(catalog, bind, bind_test_t, bind_tests, .setup = spn_test_ctx_setup
   u32 unserved = 0;
   sp_carr_detect_len(it->expect.unserved, unserved, !fixture_triple_empty(it->expect.unserved[unserved]));
   return fixture_check_triples(t, info->unserved, it->expect.unserved, unserved);
+}
+
+sp_test_each(catalog, runtimes, runtime_test_t, runtime_tests, .setup = spn_test_ctx_setup) {
+  sp_mem_t mem = sp_test_arena(t);
+  spn_toolchain_decl_t toolchain = fixture_local_toolchain("A", (fixture_launcher_t) { .name = "cc" });
+  toolchain.driver = it->driver;
+  toolchain.targets = sp_da_new(mem, spn_toolchain_target_t);
+  u32 declared = 0;
+  sp_carr_detect_len(it->targets, declared, !fixture_target_empty(it->targets[declared]));
+  sp_for(at, declared) {
+    sp_da_push(toolchain.targets, fixture_target(it->targets[at]));
+  }
+  toolchain.host_row = !declared;
+
+  spn_toolchain_catalog_t catalog = sp_zero;
+  spn_toolchain_catalog_init(&catalog, it->host, fixture_sdks(mem, it->sdks), mem);
+  spn_toolchain_catalog_add(&catalog, toolchain);
+
+  spn_toolchain_info_t* info = spn_toolchain_catalog_get(&catalog, toolchain.id);
+  sp_must(t, info);
+  u32 rows = 0;
+  sp_carr_detect_len(it->expect.rows, rows, !fixture_triple_empty(it->expect.rows[rows].triple));
+  sp_must_eq(t, rows, (u32)sp_da_size(info->rows));
+  sp_for(at, rows) {
+    const spn_toolchain_row_t* row = spn_toolchain_row(info, it->expect.rows[at].triple);
+    sp_must(t, row);
+    sp_expect_eq(t, it->expect.rows[at].runtimes, row->runtimes);
+  }
+  return SP_OK;
 }
 
 sp_test_each(catalog, support, support_test_t, support_tests, .setup = spn_test_ctx_setup) {

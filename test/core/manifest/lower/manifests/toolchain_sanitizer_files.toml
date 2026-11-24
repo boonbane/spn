@@ -1,0 +1,22 @@
+[package]
+name = "p"
+version = "1.0.0"
+
+[[toolchain]]
+name = "T"
+compiler = "clang"
+archiver = "ar"
+driver = "clang"
+
+[[toolchain.target]]
+arch = "x86_64"
+os = "linux"
+abi = "gnu"
+
+[toolchain.target.sanitizers]
+supported = ["address", "thread", "undefined", "memory", "leak"]
+address = ["/A", "/B"]
+thread = ["/C"]
+undefined = ["/D"]
+memory = ["/E"]
+leak = ["/F"]

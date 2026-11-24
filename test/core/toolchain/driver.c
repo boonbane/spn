@@ -18,6 +18,6 @@ static const composes_t composes_tests [] = {
 };
 
 sp_test_each(driver, composes, composes_t, composes_tests) {
-  sp_expect_eq(t, it->expect, spn_toolchain_driver_composes(it->driver, it->target));
+  sp_expect_eq(t, it->expect, si_toolchain_driver_composes(it->driver, it->target));
   return SP_OK;
 }

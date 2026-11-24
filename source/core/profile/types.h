@@ -34,6 +34,7 @@ struct spn_profile_info {
   spn_sdk_t sdk;
   sp_str_t spelling;
   spn_toolchain_exceptions_t exceptions;
+  spn_toolchain_staged_t staged;
   sp_opt(spn_libc_t) libc;
   spn_msvc_request_t msvc;
 };

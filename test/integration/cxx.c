@@ -110,11 +110,72 @@ static const test_t tests [] = {
     .name = "runtime_shared",
     .project = "test/integration/fixtures/cxx/runtime_shared",
     .copy = { "main.cpp" },
-    .when = { .cxx = true, .lanes = { "clang64", "mingw64", "ucrt64", "msvc" } },
+    .when = { .cxx = true, .lanes = { "msvc", "clang-msvc", "clang64", "mingw64", "ucrt64" } },
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
       { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
-      { .kind = ACTION_STAGE_BARE_RUN, .bare = { .file = exe("main"), .expect = BARE_EXPECT_NOT_LOADABLE } },
+      { .kind = ACTION_STAGE_BARE_RUN, .bare = { .file = exe("main"), .expect = BARE_EXPECT_RUNS } },
+    },
+  },
+  {
+    .name = "runtime_shared_cross_mingw",
+    .project = "test/integration/fixtures/cxx/runtime_shared",
+    .copy = { "main.cpp" },
+    .when = { .cxx = true, .target = "x86_64-windows-gnu", .lanes = { "mingw-gnu", "clang-mingw", "clang-mingw-lld" } },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build", .args = { "--target", "x86_64-windows-gnu" } } },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = target_staged_file("libstdc++-6.dll", "x86_64-windows-gnu") },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = target_staged_file("libgcc_s_seh-1.dll", "x86_64-windows-gnu") },
+    },
+  },
+  {
+    .name = "zig_refuses_runtime_shared",
+    .project = "test/integration/fixtures/cxx/runtime_shared",
+    .copy = { "main.cpp" },
+    .when = { .cxx = true, .driver = SPN_CC_DRIVER_ZIG, .target = SPN_TEST_TRIPLE },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build", .args = { "-p", "A", "--target", SPN_TEST_TRIPLE }, .rc = 1 } },
+      { .kind = ACTION_VERIFY_RESULT, .verify_result.err = SPN_ERR_RUNTIME_UNSUPPORTED },
+    },
+  },
+  {
+    .name = "w64devkit_refuses_runtime_shared",
+    .project = "test/integration/fixtures/cxx/runtime_shared",
+    .copy = { "main.cpp" },
+    .when = { .cxx = true, .lanes = { "w64devkit" } },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build", .rc = 1 } },
+      { .kind = ACTION_VERIFY_RESULT, .verify_result.err = SPN_ERR_RUNTIME_UNSUPPORTED },
+    },
+  },
+  {
+    .name = "msvc_sysroot_refuses_runtime_shared",
+    .project = "test/integration/fixtures/cxx/runtime_shared",
+    .copy = { "main.cpp" },
+    .when = { .cxx = true, .lanes = { "clang-xwin", "zig-xwin" }, .target = "x86_64-windows-msvc" },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build", .args = { "--target", "x86_64-windows-msvc" }, .rc = 1 } },
+      { .kind = ACTION_VERIFY_RESULT, .verify_result.err = SPN_ERR_RUNTIME_UNSUPPORTED },
+    },
+  },
+  {
+    .name = "zig_builds_runtime_static_on_macos",
+    .project = "test/integration/fixtures/cxx/runtime_static",
+    .copy = { "main.cpp" },
+    .when = { .cxx = true, .os = SPN_OS_MACOS, .driver = SPN_CC_DRIVER_ZIG },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli.cmd = "build" },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = exe("main") },
+    },
+  },
+  {
+    .name = "apple_clang_refuses_runtime_static",
+    .project = "test/integration/fixtures/cxx/runtime_static",
+    .copy = { "main.cpp" },
+    .when = { .cxx = true, .os = SPN_OS_MACOS, .driver = SPN_CC_DRIVER_CLANG },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build", .rc = 1 } },
+      { .kind = ACTION_VERIFY_RESULT, .verify_result.err = SPN_ERR_RUNTIME_UNSUPPORTED },
     },
   },
   {

@@ -10,6 +10,10 @@ typedef enum {
   DISTRO_UBUNTU19,
   DISTRO_CENTOS7,
   DISTRO_ALPINE,
+  DISTRO_FEDORA,
+  DISTRO_ARCH,
+  DISTRO_OPENSUSE,
+  DISTRO_CHIMERA,
 } distro_t;
 
 typedef enum {

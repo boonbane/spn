@@ -3,6 +3,7 @@
 typedef struct {
   const c8* version;
   const c8* bin;
+  const c8* asan;
   const c8* tools [SPN_DIR_LIST_MAX];
   const c8* include [SPN_DIR_LIST_MAX];
   const c8* lib [SPN_DIR_LIST_MAX];
@@ -46,6 +47,7 @@ static const test_t tests [] = {
     .expect = {
       .version = "14.1",
       .bin = "C:/V/VC/Tools/MSVC/14.1/bin/Hostx64/x64",
+      .asan = "C:/V/VC/Tools/MSVC/14.1/bin/Hostx64/x64/clang_rt.asan_dynamic-x86_64.dll",
       .tools = {
         "C:/K/10/bin/10.0.1.0/x64",
       },
@@ -96,11 +98,11 @@ static sp_err_t check_dirs(sp_test_t* t, spn_dir_list_t dirs, const c8* const* e
 sp_test_each(sdk_msvc, from_install, test_t, tests) {
   sp_msvc_sdk_t kits = { .version = fixture_msvc_version(it->kits_version), .root = fixture_msvc_path(it->kits), .arch = si_msvc_arch(it->arch) };
   sp_msvc_vs_t vs = { .version.tools = fixture_msvc_version(it->tools_version), .install_path = fixture_msvc_path(it->vs), .host = SP_MSVC_ARCH_X64, .target = si_msvc_arch(it->arch) };
-  spn_sdk_t sdk = { .kind = SPN_SDK_MSVC, .msvc = spn_sdk_from_msvc(sp_test_arena(t), &kits, &vs, it->arch) };
+  spn_sdk_t sdk = { .kind = SPN_SDK_MSVC, .msvc = si_sdk_from_msvc(sp_test_arena(t), &kits, &vs, it->arch) };
   const spn_sdk_msvc_t* msvc = &sdk.msvc;
   sp_expect_eq(t, (u32)it->arch, (u32)msvc->arch);
   sp_expect_str_eq_c(t, msvc->version, it->expect.version);
-  if (test_check_path(t, msvc->bin, (test_path_t) { it->expect.bin })) {
+  if (test_check_path(t, msvc->bin, (test_path_t) { it->expect.bin }) || test_check_path(t, msvc->runtime.asan, (test_path_t) { it->expect.asan })) {
     return SP_ERR;
   }
   u32 tools = 0;

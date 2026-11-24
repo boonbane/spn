@@ -1,0 +1,14 @@
+[package]
+name = "A"
+version = "0.1.0"
+
+[profile.default]
+runtime = "shared"
+
+[deps.package]
+B = { path = "B", public = true }
+
+[[lib]]
+name = "A"
+kinds = ["shared"]
+source = ["a.c"]

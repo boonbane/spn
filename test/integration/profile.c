@@ -23,23 +23,23 @@ static const test_t tests [] = {
     },
   },
   {
-    .name = "config_shared_demand_defaults_to_gnu",
+    .name = "config_shared_demand_defaults_to_the_host_abi",
     .project = "test/integration/fixtures/consume/multi_kind/shared",
     .copy = { "packages/*" },
-    .when = { .host = SPN_OS_LINUX, .target = SPN_TEST_ARCH "-linux-gnu" },
+    .when.host = SPN_OS_LINUX,
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build" } },
-      { .kind = ACTION_VERIFY_EVENT, .verify_event = { .event = SPN_EVENT_INIT_BUILD_GRAPH, .key = "target", .value = SPN_TEST_ARCH "-linux-gnu" } },
+      { .kind = ACTION_VERIFY_EVENT, .verify_event = { .event = SPN_EVENT_INIT_BUILD_GRAPH, .key = "target", .host = true } },
     },
   },
   {
-    .name = "root_shared_lib_demand_defaults_to_gnu",
+    .name = "root_shared_lib_demand_defaults_to_the_host_abi",
     .project = "test/integration/fixtures/target/shared_lib",
     .copy = { "spum.c" },
-    .when = { .host = SPN_OS_LINUX, .target = SPN_TEST_ARCH "-linux-gnu" },
+    .when.host = SPN_OS_LINUX,
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build" } },
-      { .kind = ACTION_VERIFY_EVENT, .verify_event = { .event = SPN_EVENT_INIT_BUILD_GRAPH, .key = "target", .value = SPN_TEST_ARCH "-linux-gnu" } },
+      { .kind = ACTION_VERIFY_EVENT, .verify_event = { .event = SPN_EVENT_INIT_BUILD_GRAPH, .key = "target", .host = true } },
     },
   },
   {
@@ -129,6 +129,79 @@ static const test_t tests [] = {
     },
   },
   {
+    .name = "sanitizer_runtime_staged_beside_the_exe",
+    .project = "test/integration/fixtures/profile/sanitize",
+    .when = { .sanitize = SPN_SANITIZER_ADDRESS, .lanes = { "msvc" } },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build", .args = { "--sanitize", "address" } } },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = staged_file("clang_rt.asan_dynamic-x86_64.dll") },
+    },
+  },
+  {
+    .name = "sanitizer_runtime_removed_with_the_sanitizer",
+    .project = "test/integration/fixtures/profile/sanitize",
+    .when = { .sanitize = SPN_SANITIZER_ADDRESS, .lanes = { "msvc" } },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build", .args = { "--sanitize", "address" } } },
+      { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build" } },
+      { .kind = ACTION_VERIFY_NOT_EXISTS, .exists = staged_file("clang_rt.asan_dynamic-x86_64.dll") },
+    },
+  },
+  {
+    .name = "sanitizer_runtime_runs_on_a_bare_machine",
+    .project = "test/integration/fixtures/profile/runtime",
+    .when = { .sanitize = SPN_SANITIZER_ADDRESS, .lanes = { "msvc" } },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build", .args = { "-p", "asan" } } },
+      { .kind = ACTION_STAGE_BARE_RUN, .bare = { .file = profile_exe("asan", "main"), .expect = BARE_EXPECT_RUNS } },
+    },
+  },
+  {
+    .name = "listed_sanitizer_files_staged_beside_the_exe",
+    .project = "test/integration/fixtures/profile/runtime",
+    .when = { .sanitize = SPN_SANITIZER_ADDRESS, .lanes = { "clang64" } },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build", .args = { "-p", "asan" } } },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = profile_staged_file("asan", "libclang_rt.asan_dynamic-x86_64.dll") },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = profile_staged_file("asan", "libc++.dll") },
+      { .kind = ACTION_STAGE_BARE_RUN, .bare = { .file = profile_exe("asan", "main"), .expect = BARE_EXPECT_RUNS } },
+    },
+  },
+  {
+    .name = "listed_sanitizer_files_bring_the_redist_of_the_install",
+    .project = "test/integration/fixtures/profile/runtime",
+    .when = { .sanitize = SPN_SANITIZER_ADDRESS, .lanes = { "clang-msvc" } },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build", .args = { "-p", "asan" } } },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = profile_staged_file("asan", "clang_rt.asan_dynamic-x86_64.dll") },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = profile_staged_file("asan", "vcruntime140.dll") },
+      { .kind = ACTION_STAGE_BARE_RUN, .bare = { .file = profile_exe("asan", "main"), .expect = BARE_EXPECT_RUNS } },
+    },
+  },
+  {
+    .name = "listed_file_missing",
+    .project = "test/integration/fixtures/profile/runtime_missing",
+    .toolchain = "T",
+    .when.programs = { "cc", "ar" },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build", .args = { "--target", "x86_64-windows-gnu" }, .rc = 1 } },
+      { .kind = ACTION_VERIFY_RESULT, .verify_result.err = SPN_ERR_TOOLCHAIN_FILE_MISSING },
+      { .kind = ACTION_VERIFY_EVENT, .verify_event = { .event = SPN_EVENT_ERR, .key = "toolchain", .value = "T" } },
+      { .kind = ACTION_VERIFY_EVENT, .verify_event = { .event = SPN_EVENT_ERR, .key = "target", .value = "x86_64-windows-gnu" } },
+    },
+  },
+  {
+    .name = "shared_runtime_staged_beside_the_exe",
+    .project = "test/integration/fixtures/profile/runtime",
+    .when.lanes = { "msvc" },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build" } },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = staged_file("vcruntime140.dll") },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = staged_file("msvcp140.dll") },
+      { .kind = ACTION_STAGE_BARE_RUN, .bare = { .file = exe("main"), .expect = BARE_EXPECT_RUNS } },
+    },
+  },
+  {
     .name = "flags",
     .project = "test/integration/fixtures/profile/sanitize",
     .actions = {
@@ -146,6 +219,13 @@ sp_test_each(profile, cases, test_t, tests) {
 }
 
 static const command_test_t commands [] = {
+  {
+    .name = "host_toolchain_stages_no_sanitizer_runtime",
+    .project = "test/integration/fixtures/profile/sanitize",
+    .when = { .sanitize = SPN_SANITIZER_ADDRESS, .host = SPN_OS_LINUX, .lanes = { "gcc" } },
+    .args = { "build", "--sanitize", "address" },
+    .expect.files = { { work_file("staged"), .content = "main\tbuild/debug/main\n" } },
+  },
   {
     .name = "env_outside_a_dev_shell_clears_nothing",
     .project = "test/integration/fixtures/profile/override",

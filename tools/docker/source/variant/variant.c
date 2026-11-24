@@ -32,6 +32,26 @@ static const distro_info_t distros [] = {
     .packages = "ca-certificates git",
     .label = "musl, busybox /bin/sh",
   },
+  [DISTRO_FEDORA] = {
+    .template = "fedora",
+    .packages = "ca-certificates git",
+    .label = "glibc, x86_64-redhat-linux, per-target compiler-rt",
+  },
+  [DISTRO_ARCH] = {
+    .template = "arch",
+    .packages = "ca-certificates git",
+    .label = "glibc, x86_64-pc-linux-gnu",
+  },
+  [DISTRO_OPENSUSE] = {
+    .template = "opensuse",
+    .packages = "ca-certificates git",
+    .label = "glibc, x86_64-suse-linux, lib64",
+  },
+  [DISTRO_CHIMERA] = {
+    .template = "chimera",
+    .packages = "ca-certificates git",
+    .label = "musl, llvm runtimes, no gcc",
+  },
 };
 
 const sysroot_t sysroots [] = {
@@ -160,7 +180,7 @@ const variant_t variants [] = {
   {
     .name = "debian-mingw",
     .distro = DISTRO_DEBIAN,
-    .extra = { "gcc-mingw-w64-x86-64" },
+    .extra = { "gcc-mingw-w64-x86-64", "g++-mingw-w64-x86-64" },
     .lanes = { LANE_MINGW_GNU },
   },
   {
@@ -168,7 +188,7 @@ const variant_t variants [] = {
     .distro = DISTRO_DEBIAN,
     .compilers = COMPILER_CLANG,
     .check = LANE_CLANG,
-    .extra = { "gcc-mingw-w64-x86-64", "lld" },
+    .extra = { "gcc-mingw-w64-x86-64", "g++-mingw-w64-x86-64", "lld" },
     .lanes = { LANE_CLANG_MINGW, LANE_CLANG_MINGW_LLD },
   },
   {
@@ -287,6 +307,43 @@ const variant_t variants [] = {
     .check = LANE_ZIG,
     .lanes = { LANE_ZIG },
   },
+  {
+    .name = "fedora",
+    .distro = DISTRO_FEDORA,
+    .compilers = COMPILER_GCC | COMPILER_GXX | COMPILER_CLANG,
+    .check = LANE_CLANG,
+    .spn = SPN_GNU,
+    .extra = { "lld", "llvm", "zlib-devel" },
+    .host_libs = { "z" },
+    .lanes = { LANE_GCC, LANE_GCC_LLD, LANE_CLANG, LANE_LLVM },
+  },
+  {
+    .name = "arch",
+    .distro = DISTRO_ARCH,
+    .compilers = COMPILER_GCC | COMPILER_GXX | COMPILER_CLANG,
+    .check = LANE_GCC,
+    .extra = { "lld", "llvm", "zlib" },
+    .host_libs = { "z" },
+    .lanes = { LANE_GCC, LANE_GCC_LLD, LANE_CLANG, LANE_LLVM },
+  },
+  {
+    .name = "opensuse",
+    .distro = DISTRO_OPENSUSE,
+    .compilers = COMPILER_GCC | COMPILER_GXX | COMPILER_CLANG,
+    .check = LANE_CLANG,
+    .extra = { "lld", "llvm", "zlib-devel" },
+    .host_libs = { "z" },
+    .lanes = { LANE_GCC, LANE_GCC_LLD, LANE_CLANG, LANE_LLVM },
+  },
+  {
+    .name = "chimera",
+    .distro = DISTRO_CHIMERA,
+    .compilers = COMPILER_CLANG,
+    .check = LANE_CLANG,
+    .extra = { "lld", "llvm", "zlib-ng-compat-devel", "zlib-ng-compat-devel-static" },
+    .host_libs = { "z" },
+    .lanes = { LANE_CLANG, LANE_LLVM },
+  },
 };
 
 const u32 num_variants = sp_carr_len(variants);
@@ -323,6 +380,38 @@ static const c8* packages(distro_t distro, compiler_t compiler) {
         case COMPILER_GCC:   return "gcc musl-dev binutils";
         case COMPILER_GXX:   return "g++";
         case COMPILER_CLANG: return "clang musl-dev gcc binutils";
+      }
+      break;
+    }
+    case DISTRO_FEDORA: {
+      switch (compiler) {
+        case COMPILER_GCC:   return "gcc binutils glibc-devel glibc-static libasan libubsan";
+        case COMPILER_GXX:   return "gcc-c++ libstdc++-static";
+        case COMPILER_CLANG: return "clang compiler-rt binutils";
+      }
+      break;
+    }
+    case DISTRO_ARCH: {
+      switch (compiler) {
+        case COMPILER_GCC:   return "gcc binutils";
+        case COMPILER_GXX:   return "gcc";
+        case COMPILER_CLANG: return "clang compiler-rt binutils";
+      }
+      break;
+    }
+    case DISTRO_OPENSUSE: {
+      switch (compiler) {
+        case COMPILER_GCC:   return "gcc binutils glibc-devel glibc-devel-static";
+        case COMPILER_GXX:   return "gcc-c++";
+        case COMPILER_CLANG: return "clang binutils";
+      }
+      break;
+    }
+    case DISTRO_CHIMERA: {
+      switch (compiler) {
+        case COMPILER_GCC:
+        case COMPILER_GXX:   break;
+        case COMPILER_CLANG: return "clang musl-devel musl-devel-static libunwind-devel-static libatomic-chimera-devel-static libcxx-devel-static libcxxabi-devel-static";
       }
       break;
     }

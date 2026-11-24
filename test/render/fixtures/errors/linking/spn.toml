@@ -12,8 +12,8 @@ runtime = "shared"
 [profile.os_libc]
 libc = "static"
 
-[profile.os_runtime]
-runtime = "static"
+[profile.runtime_unsupported]
+runtime = "shared"
 
 [profile.shared_runtime]
 runtime = "shared"

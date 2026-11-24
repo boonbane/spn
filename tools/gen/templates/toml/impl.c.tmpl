@@ -106,6 +106,8 @@ static void spn_cg_{{ .object }}_read_object(spn_toml_loader_t* ctx, toml_table_
     spn_toml_loader_push_key(ctx, key);
     spn_cg_{{ .object }}_read(ctx, child, out);
     spn_toml_loader_pop(ctx);
+  } else if (spn_toml_loader_field_present(table, key)) {
+    spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_EXPECTED_OBJECT, key);
   } else if (required) {
     spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_MISSING_KEY, key);
   }
@@ -201,7 +203,7 @@ static void spn_cg_{{ .name }}_read(spn_toml_loader_t* ctx, toml_table_t* table,
   spn_toml_loader_read_{{ .extern }}(ctx, table, "{{ .key }}", &out->{{ .name }});
 {{ end }}
 {{ if .k_str_array }}
-  out->{{ .name }} = spn_toml_loader_read_str_array(ctx, table, "{{ .key }}");
+  out->{{ .name }} = si_toml_loader_read_str_array(ctx, table, "{{ .key }}");
 {{ end }}
 {{ if .k_enum_array }}
   {

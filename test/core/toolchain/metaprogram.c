@@ -58,7 +58,7 @@ static spn_toolchain_decl_t distribution(sp_mem_t mem, const c8* name, spn_artif
   sp_da_init(mem, decl.hosts);
   sp_da_push(decl.hosts, ((spn_toolchain_host_t) { .triple = spn.host, .artifact = artifact }));
   sp_da_init(mem, decl.targets);
-  sp_da_push(decl.targets, ((spn_toolchain_target_t) { .triple = target }));
+  sp_da_push(decl.targets, ((spn_toolchain_target_t) { .triple = target, .runtime.supported = si_runtime_bit(SPN_RUNTIME_STATIC) }));
   return decl;
 }
 

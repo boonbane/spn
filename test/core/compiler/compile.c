@@ -549,6 +549,33 @@ static const test_t tests [] = {
     },
   },
   {
+    .name = "clang_host_keeps_its_own_target",
+    .driver = SPN_CC_DRIVER_CLANG,
+    .profile = {
+      .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_MUSL },
+      .standard = SPN_C99,
+      .host = true,
+    },
+    .expect = {
+      .command = "cc",
+      .args = { "-std=c99", "-c", "-Werror=return-type", "main.c", "-o", "main.o" },
+    },
+  },
+  {
+    .name = "clang_host_spelling_is_passed",
+    .driver = SPN_CC_DRIVER_CLANG,
+    .profile = {
+      .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_MUSL },
+      .standard = SPN_C99,
+      .host = true,
+      .spelling = "A",
+    },
+    .expect = {
+      .command = "cc",
+      .args = { "--target=A", "-std=c99", "-c", "-Werror=return-type", "main.c", "-o", "main.o" },
+    },
+  },
+  {
     .name = "zig_linux_sysroot",
     .driver = SPN_CC_DRIVER_ZIG,
     .profile = {
