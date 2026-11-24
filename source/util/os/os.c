@@ -28,3 +28,9 @@ sp_err_t sp_fs_remove(sp_path_t path) {
     default:                   return err;
   }
 }
+
+sp_str_t si_env_get(sp_env_t* env, sp_str_t name) {
+  u64 index = 0;
+  sp_str_t* value = sp_ht_get_ex(env->vars, name, index);
+  return value ? *value : sp_zero_s(sp_str_t);
+}

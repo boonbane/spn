@@ -25,6 +25,7 @@ add_executable(core
   sha256.c
   compiler/harness.c
   compiler/archive.c
+  compiler/clean.c
   compiler/coff.c
   compiler/compile.c
   compiler/depfile.c
