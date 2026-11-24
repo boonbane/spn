@@ -409,6 +409,9 @@ spn_cc_link_plan_t si_gnu_render_link(sp_mem_t mem, const spn_cc_t* toolchain, c
   sp_da_init(mem, flags.link);
   render_flags(mem, toolchain, profile, &flags);
   spn_cc_push_strs(mem, base, flags.link);
+  if (link->lang == SPN_LANG_CXX && triple.os == SPN_OS_LINUX && spn_ld_dynamic(triple) && spn_cc_has(toolchain, SPN_CC_CAP_GNU_RUNTIME)) {
+    spn_cc_push_c(mem, base, "-pthread");
+  }
   if (link->exceptions) {
     spn_cc_push_strs(mem, base, profile->exceptions.link_flags);
   }

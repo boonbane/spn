@@ -288,7 +288,20 @@ static const test_t tests [] = {
     .kind = SPN_CC_OUTPUT_EXE,
     .expect = {
       .command = "c++",
-      .args = { "--target=x86_64-linux-gnu", "-static-libstdc++", "-static-libgcc", "main.o", "-Wl,-rpath,$ORIGIN", "-o", "main" },
+      .args = { "--target=x86_64-linux-gnu", "-pthread", "-static-libstdc++", "-static-libgcc", "main.o", "-Wl,-rpath,$ORIGIN", "-o", "main" },
+    },
+  },
+  {
+    .name = "zig_linux_cxx_exe_links_its_own_threads",
+    .driver = SPN_CC_DRIVER_ZIG,
+    .lang = SPN_LANG_CXX,
+    .profile = {
+      .target = { SPN_ARCH_X64, SPN_OS_LINUX, SPN_ABI_GNU },
+    },
+    .kind = SPN_CC_OUTPUT_EXE,
+    .expect = {
+      .command = "c++",
+      .args = { "--target=x86_64-linux-gnu", "main.o", "-Wl,-rpath,$ORIGIN", "-o", "main" },
     },
   },
   {
@@ -702,7 +715,7 @@ static const test_t tests [] = {
     .kind = SPN_CC_OUTPUT_EXE,
     .expect = {
       .command = "c++",
-      .args = { "main.o", "-Wl,-rpath,$ORIGIN", "-o", "main" },
+      .args = { "-pthread", "main.o", "-Wl,-rpath,$ORIGIN", "-o", "main" },
     },
   },
   {
