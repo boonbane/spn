@@ -74,6 +74,13 @@ static spn_err_t run(sp_mem_t mem, sp_da(sp_str_t) args, spn_git_failure_t* fail
   return settle(mem, spawn(mem, args), failure);
 }
 
+static sp_str_t git_dir(sp_mem_t mem, sp_str_t repo) {
+  sp_str_t dotgit = sp_fs_join_path(mem, repo, sp_str_lit(".git"));
+  sp_sys_file_meta_t meta = sp_zero;
+  bool worktree = !sp_fs_get_link_metadata(dotgit, &meta) && meta.kind == SP_FS_KIND_DIR;
+  return worktree ? dotgit : repo;
+}
+
 spn_err_t spn_git_cli_clone(sp_str_t url, sp_str_t path, spn_git_failure_t* failure) {
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
   sp_da(sp_str_t) args = command(scratch.mem);
@@ -93,12 +100,9 @@ spn_err_t spn_git_cli_clone(sp_str_t url, sp_str_t path, spn_git_failure_t* fail
 
 spn_err_t spn_git_cli_fetch(sp_str_t repo, spn_git_fetch_t fetch, spn_git_failure_t* failure) {
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
-  sp_str_t dotgit = sp_fs_join_path(scratch.mem, repo, sp_str_lit(".git"));
-  sp_sys_file_meta_t meta = sp_zero;
-  bool worktree = !sp_fs_get_link_metadata(dotgit, &meta) && meta.kind == SP_FS_KIND_DIR;
   sp_da(sp_str_t) args = command(scratch.mem);
   sp_da_push(args, sp_str_lit("--git-dir"));
-  sp_da_push(args, worktree ? dotgit : repo);
+  sp_da_push(args, git_dir(scratch.mem, repo));
   sp_da_push(args, sp_str_lit("fetch"));
   sp_da_push(args, sp_str_lit("--quiet"));
   switch (fetch.depth) {
@@ -131,10 +135,15 @@ spn_err_t spn_git_cli_fetch(sp_str_t repo, spn_git_fetch_t fetch, spn_git_failur
 
 spn_err_t si_git_cli_tip(sp_mem_t mem, sp_str_t url, sp_str_t* rev, spn_git_failure_t* failure) {
   sp_mem_arena_marker_t scratch = sp_mem_begin_scratch();
+  if (sp_str_starts_with(url, sp_str_lit("-"))) {
+    *failure = (spn_git_failure_t) { .remote = true };
+    sp_str_copy_to(sp_fmt(scratch.mem, "{} is not a repository", sp_fmt_str(url)).value, failure->message, spn_git_message_max - 1);
+    sp_mem_end_scratch(scratch);
+    return SPN_ERROR;
+  }
   sp_da(sp_str_t) args = command(scratch.mem);
   sp_da_push(args, sp_str_lit("ls-remote"));
   sp_da_push(args, sp_str_lit("--quiet"));
-  sp_da_push(args, sp_str_lit("--"));
   sp_da_push(args, url);
   sp_da_push(args, sp_str_lit("HEAD"));
   sp_ps_output_t result = spawn(scratch.mem, args);
@@ -155,8 +164,8 @@ spn_err_t si_git_cli_tip(sp_mem_t mem, sp_str_t url, sp_str_t* rev, spn_git_fail
 
 spn_err_t spn_git_cli_push(sp_mem_t mem, sp_str_t repo, sp_str_t url, sp_str_t refspec, sp_str_t* output) {
   sp_da(sp_str_t) args = command(mem);
-  sp_da_push(args, sp_str_lit("-C"));
-  sp_da_push(args, repo);
+  sp_da_push(args, sp_str_lit("--git-dir"));
+  sp_da_push(args, git_dir(mem, repo));
   sp_da_push(args, sp_str_lit("push"));
   sp_da_push(args, sp_str_lit("--quiet"));
   sp_da_push(args, sp_str_lit("--"));

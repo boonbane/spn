@@ -51,11 +51,11 @@ sp_str_t test_repo_path(sp_mem_t mem, sp_str_t rel) {
 sp_ps_output_t git_repo_run(sp_str_t repo, const sp_str_t* args, u32 count) {
   sp_ps_config_t config = {
     .command = sp_str_lit("git"),
-    .args = { sp_str_lit("-C"), repo },
+    .cwd = repo,
   };
-  SP_ASSERT(count <= SP_PS_MAX_ARGS - 2);
+  SP_ASSERT(count <= SP_PS_MAX_ARGS);
   sp_for(it, count) {
-    config.args[2 + it] = args[it];
+    config.args[it] = args[it];
   }
 
   sp_ps_output_t output = sp_ps_run(sp_mem_os_new(), config);
@@ -65,7 +65,7 @@ sp_ps_output_t git_repo_run(sp_str_t repo, const sp_str_t* args, u32 count) {
 
 sp_ps_output_t git_repo_run_cstr(sp_str_t repo, const c8** args, u32 count) {
   sp_str_t strs [SP_PS_MAX_ARGS];
-  SP_ASSERT(count <= SP_PS_MAX_ARGS - 2);
+  SP_ASSERT(count <= SP_PS_MAX_ARGS);
   sp_for(it, count) {
     strs[it] = sp_cstr_as_str(args[it]);
   }
