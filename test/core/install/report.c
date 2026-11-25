@@ -1,6 +1,7 @@
 #include "harness.h"
 
 #define RC_LINE ". \"$HOME/.spn/env\""
+#define FISH_LINE "set --export PATH \"$HOME/.spn/bin\" $PATH"
 
 typedef struct {
   spn_install_msg_kind_t kind;
@@ -146,6 +147,17 @@ static const test_t tests [] = {
     },
   },
   {
+    .name = "login_fish",
+    .world = {
+      .vars = { { "HOME", "/h" }, { "PATH", "/p" }, { "SHELL", "/usr/bin/fish" } },
+      .exe = "/s/spn",
+      .rc = { [INSTALL_RC_BASHRC] = { .exists = true } },
+    },
+    .expect = {
+      { SPN_INSTALL_MSG_RESTART_SHELL, FISH_LINE },
+    },
+  },
+  {
     // nothing a posix shell reads was hooked, so there is no line to offer
     .name = "fish_only",
     .world = { INSTALL_WORLD_UNIX, .fish = true },
@@ -239,7 +251,7 @@ sp_test_each(install_report, messages, test_t, tests) {
     result.stuck[result.num_stuck++] = it->stuck[at];
   }
 
-  spn_install_msgs_t msgs = spn_install_report(&layout, &facts, &plan, &result);
+  spn_install_msgs_t msgs = si_install_report(&layout, &facts, &plan, &result);
 
   u32 num_expect = 0;
   sp_carr_detect_len(it->expect, num_expect, it->expect[num_expect].kind);

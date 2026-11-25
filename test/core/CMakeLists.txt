@@ -83,6 +83,7 @@ add_executable(core
   install/report.c
   install/resolve.c
   install/shim.c
+  install/uninstall.c
   jtd/harness.c
   jtd/conformance.c
   jtd/discriminator.c

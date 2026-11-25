@@ -17,9 +17,11 @@
   "  *) export PATH=\"" SPN_INSTALL_ROOT_EXPR "/bin:${PATH}\" ;;\n" \
   "esac\n"
 
+#define SPN_INSTALL_FISH_LINE "set --export PATH \"" SPN_INSTALL_ROOT_EXPR "/bin\" $PATH"
+
 #define SPN_INSTALL_FISH_SH \
   "if not contains \"" SPN_INSTALL_ROOT_EXPR "/bin\" $PATH\n" \
-  "  set --export PATH \"" SPN_INSTALL_ROOT_EXPR "/bin\" $PATH\n" \
+  "  " SPN_INSTALL_FISH_LINE "\n" \
   "end\n"
 
 typedef enum {
@@ -75,6 +77,8 @@ typedef struct {
   sp_str_t env_file;
   sp_str_t fish_dir;
   sp_str_t fish_conf;
+  sp_str_t storage;
+  sp_str_t trash;
   // the login shell from $SHELL; evidence a shell is in use even when it has
   // no config files yet, which is exactly a fresh macos account
   spn_install_shell_t login;
@@ -98,6 +102,15 @@ typedef struct {
 } spn_install_path_choice_t;
 
 typedef struct {
+  bool exe;
+  bool env;
+  bool fish_conf;
+  bool bin;
+  bool root;
+  bool storage;
+} spn_install_owned_t;
+
+typedef struct {
   spn_install_path_choice_t path [SPN_INSTALL_MAX_PATH_CHOICES];
   u32 num_path;
   bool registry;
@@ -117,6 +130,7 @@ typedef struct {
     sp_str_t path;
     spn_install_reg_t kind;
   } registry;
+  spn_install_owned_t owned;
 } spn_install_facts_t;
 
 typedef struct {
@@ -130,6 +144,11 @@ typedef enum {
   SPN_INSTALL_ACTION_WRITE_FILE,
   SPN_INSTALL_ACTION_APPEND_LINE,
   SPN_INSTALL_ACTION_SET_USER_PATH,
+  SPN_INSTALL_ACTION_MOVE_FILE,
+  SPN_INSTALL_ACTION_REMOVE_FILE,
+  SPN_INSTALL_ACTION_REMOVE_LINE,
+  SPN_INSTALL_ACTION_REMOVE_DIR,
+  SPN_INSTALL_ACTION_REMOVE_TREE,
 } spn_install_action_kind_t;
 
 typedef enum {
@@ -137,6 +156,7 @@ typedef enum {
   SPN_INSTALL_ROLE_EXE,
   SPN_INSTALL_ROLE_ENV,
   SPN_INSTALL_ROLE_HOOK,
+  SPN_INSTALL_ROLE_DIR,
 } spn_install_role_t;
 
 typedef struct {
@@ -164,6 +184,7 @@ typedef struct {
   u32 live;
   // at least one hook, planned or live, is read by a posix shell
   bool posix;
+  bool fish;
 } spn_install_plan_t;
 
 typedef struct {
@@ -178,10 +199,13 @@ typedef enum {
   SPN_INSTALL_MSG_STUCK_WRITE,
   SPN_INSTALL_MSG_STUCK_APPEND,
   SPN_INSTALL_MSG_STUCK_REGISTRY,
+  SPN_INSTALL_MSG_STUCK_REMOVE,
+  SPN_INSTALL_MSG_STUCK_REMOVE_LINE,
   SPN_INSTALL_MSG_RESTART_SHELL,
   SPN_INSTALL_MSG_RESTART_TERMINAL,
   SPN_INSTALL_MSG_MANUAL,
   SPN_INSTALL_MSG_SHADOW,
+  SPN_INSTALL_MSG_STORAGE_KEPT,
 } spn_install_msg_kind_t;
 
 typedef struct {

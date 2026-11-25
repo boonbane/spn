@@ -11,44 +11,57 @@
 
 static struct {
   bool unattended;
+  bool purge;
 } args;
 
-static void print_msg(spn_install_msg_t* msg) {
+static void print_msg(const c8* verb, spn_install_msg_t* msg) {
   switch (msg->kind) {
     case SPN_INSTALL_MSG_NONE: {
       break;
     }
     case SPN_INSTALL_MSG_STUCK_WRITE: {
-      spn_print_err(&tui, "install: could not write {}", sp_fmt_str(msg->subject));
+      spn_print_err(&tui, "{}: could not write {}", sp_fmt_cstr(verb), sp_fmt_str(msg->subject));
       break;
     }
     case SPN_INSTALL_MSG_STUCK_APPEND: {
-      spn_print_err(&tui, "install: could not add {} to {}", sp_fmt_str(msg->detail), sp_fmt_str(msg->subject));
+      spn_print_err(&tui, "{}: could not add {} to {}", sp_fmt_cstr(verb), sp_fmt_str(msg->detail), sp_fmt_str(msg->subject));
       break;
     }
     case SPN_INSTALL_MSG_STUCK_REGISTRY: {
-      spn_print_err(&tui, "install: could not update the user PATH in the registry");
+      spn_print_err(&tui, "{}: could not update the user PATH in the registry", sp_fmt_cstr(verb));
+      break;
+    }
+    case SPN_INSTALL_MSG_STUCK_REMOVE: {
+      spn_print_err(&tui, "{}: could not remove {}", sp_fmt_cstr(verb), sp_fmt_str(msg->subject));
+      break;
+    }
+    case SPN_INSTALL_MSG_STUCK_REMOVE_LINE: {
+      spn_print_err(&tui, "{}: could not remove {} from {}", sp_fmt_cstr(verb), sp_fmt_str(msg->detail), sp_fmt_str(msg->subject));
       break;
     }
     case SPN_INSTALL_MSG_RESTART_SHELL: {
       if (sp_str_empty(msg->subject)) {
-        spn_print(&tui, "install: restart your shell to use spn");
+        spn_print(&tui, "{}: restart your shell to use spn", sp_fmt_cstr(verb));
         break;
       }
-      spn_print(&tui, "install: restart your shell, or run:");
-      spn_print(&tui, "install:   {}", sp_fmt_str(msg->subject));
+      spn_print(&tui, "{}: restart your shell, or run:", sp_fmt_cstr(verb));
+      spn_print(&tui, "{}:   {}", sp_fmt_cstr(verb), sp_fmt_str(msg->subject));
       break;
     }
     case SPN_INSTALL_MSG_RESTART_TERMINAL: {
-      spn_print(&tui, "install: restart your terminal to use spn");
+      spn_print(&tui, "{}: restart your terminal to use spn", sp_fmt_cstr(verb));
       break;
     }
     case SPN_INSTALL_MSG_MANUAL: {
-      spn_print(&tui, "install: add {} to your PATH", sp_fmt_str(msg->subject));
+      spn_print(&tui, "{}: add {} to your PATH", sp_fmt_cstr(verb), sp_fmt_str(msg->subject));
       break;
     }
     case SPN_INSTALL_MSG_SHADOW: {
-      spn_print_err(&tui, "install: another spn at {} shadows {}", sp_fmt_str(msg->subject), sp_fmt_str(msg->detail));
+      spn_print_err(&tui, "{}: another spn at {} shadows {}", sp_fmt_cstr(verb), sp_fmt_str(msg->subject), sp_fmt_str(msg->detail));
+      break;
+    }
+    case SPN_INSTALL_MSG_STORAGE_KEPT: {
+      spn_print(&tui, "{}: kept toolchains and caches in {}", sp_fmt_cstr(verb), sp_fmt_str(msg->subject));
       break;
     }
   }
@@ -63,7 +76,17 @@ static sp_cli_result_t install_error(spn_install_t* result) {
       return spn_cli_usage("HOME is not set");
     }
     case SPN_INSTALL_ERR_EXE: {
-      return spn_cli_usage("failed to write {}; close any running spn and retry", sp_fmt_str(result->failed.path));
+      switch (result->failed.kind) {
+        case SPN_INSTALL_ACTION_MOVE_FILE: {
+          return spn_cli_usage("failed to remove {}; close any running spn and retry", sp_fmt_str(result->failed.src));
+        }
+        case SPN_INSTALL_ACTION_REMOVE_FILE: {
+          return spn_cli_usage("failed to remove {}; close any running spn and retry", sp_fmt_str(result->failed.path));
+        }
+        default: {
+          return spn_cli_usage("failed to write {}; close any running spn and retry", sp_fmt_str(result->failed.path));
+        }
+      }
     }
     case SPN_INSTALL_ERR_STUCK: {
       return SP_CLI_ERR;
@@ -172,6 +195,14 @@ static void prompt_msg(sp_prompt_ctx_t* prompt, spn_install_msg_t* msg) {
       prose_error(prompt, "could not update the user PATH in the registry");
       break;
     }
+    case SPN_INSTALL_MSG_STUCK_REMOVE: {
+      prose_error(prompt, "could not remove {.yellow}", sp_fmt_str(msg->subject));
+      break;
+    }
+    case SPN_INSTALL_MSG_STUCK_REMOVE_LINE: {
+      prose_error(prompt, "could not remove {.cyan} from {.yellow}", sp_fmt_str(msg->detail), sp_fmt_str(msg->subject));
+      break;
+    }
     case SPN_INSTALL_MSG_RESTART_SHELL: {
       if (sp_str_empty(msg->subject)) {
         prose_info(prompt, "restart your shell to use {.cyan}", sp_fmt_cstr("spn"));
@@ -186,6 +217,10 @@ static void prompt_msg(sp_prompt_ctx_t* prompt, spn_install_msg_t* msg) {
     }
     case SPN_INSTALL_MSG_MANUAL: {
       prose_warn(prompt, "add {.yellow} to your PATH", sp_fmt_str(msg->subject));
+      break;
+    }
+    case SPN_INSTALL_MSG_STORAGE_KEPT: {
+      prose_info(prompt, "kept toolchains and caches in {.yellow}", sp_fmt_str(msg->subject));
       break;
     }
   }
@@ -348,31 +383,44 @@ static void prompt_path(sp_prompt_ctx_t* prompt, sp_mem_t mem, spn_install_probe
   }
 }
 
-static sp_str_t action_label(spn_install_action_t* action) {
-  switch (action->kind) {
-    case SPN_INSTALL_ACTION_SET_USER_PATH: {
-      return sp_str_lit("user PATH");
-    }
-    default: {
-      return action->path;
-    }
-  }
-}
-
-static bool action_creates(spn_install_action_t* action) {
-  sp_sys_file_meta_t meta = sp_zero;
-  return !sp_str_empty(action->path) && sp_fs_get_path_metadata(action->path, &meta);
-}
-
 static void prompt_plan(sp_prompt_ctx_t* prompt, sp_mem_t mem, spn_install_plan_t* plan) {
   sp_prompt_note_t note = sp_prompt_note_new(mem, "Changes");
   sp_for(it, plan->count) {
     spn_install_action_t* action = &plan->actions[it];
-    if (action_creates(action)) {
-      sp_prompt_note_line_fmt(&note, "{.green} {}", sp_fmt_cstr("+"), sp_fmt_str(action_label(action)));
-    }
-    else {
-      sp_prompt_note_line_fmt(&note, "{.yellow} {}", sp_fmt_cstr("~"), sp_fmt_str(action_label(action)));
+    sp_sys_file_meta_t meta = sp_zero;
+    switch (action->kind) {
+      case SPN_INSTALL_ACTION_NONE: {
+        break;
+      }
+      case SPN_INSTALL_ACTION_INSTALL_EXE:
+      case SPN_INSTALL_ACTION_WRITE_FILE:
+      case SPN_INSTALL_ACTION_APPEND_LINE: {
+        if (sp_fs_get_path_metadata(action->path, &meta)) {
+          sp_prompt_note_line_fmt(&note, "{.green} {}", sp_fmt_cstr("+"), sp_fmt_str(action->path));
+        }
+        else {
+          sp_prompt_note_line_fmt(&note, "{.yellow} {}", sp_fmt_cstr("~"), sp_fmt_str(action->path));
+        }
+        break;
+      }
+      case SPN_INSTALL_ACTION_SET_USER_PATH: {
+        sp_prompt_note_line_fmt(&note, "{.yellow} {}", sp_fmt_cstr("~"), sp_fmt_cstr("user PATH"));
+        break;
+      }
+      case SPN_INSTALL_ACTION_REMOVE_LINE: {
+        sp_prompt_note_line_fmt(&note, "{.yellow} {}", sp_fmt_cstr("~"), sp_fmt_str(action->path));
+        break;
+      }
+      case SPN_INSTALL_ACTION_MOVE_FILE: {
+        sp_prompt_note_line_fmt(&note, "{.red} {}", sp_fmt_cstr("-"), sp_fmt_str(action->src));
+        break;
+      }
+      case SPN_INSTALL_ACTION_REMOVE_FILE:
+      case SPN_INSTALL_ACTION_REMOVE_DIR:
+      case SPN_INSTALL_ACTION_REMOVE_TREE: {
+        sp_prompt_note_line_fmt(&note, "{.red} {}", sp_fmt_cstr("-"), sp_fmt_str(action->path));
+        break;
+      }
     }
   }
   sp_prompt_note_ex(prompt, note);
@@ -481,7 +529,7 @@ static sp_cli_result_t run_unattended() {
     }
   }
   sp_for(it, result.msgs.count) {
-    print_msg(&result.msgs.items[it]);
+    print_msg("install", &result.msgs.items[it]);
   }
   return install_error(&result);
 }
@@ -507,6 +555,92 @@ static sp_cli_result_t install(sp_cli_t* cli) {
   return run_unattended();
 }
 
+static sp_cli_result_t run_uninstall_prompt(sp_prompt_ctx_t* prompt, spn_install_probe_t* probe) {
+  sp_mem_arena_marker_t s = sp_mem_begin_scratch_for(host.mem);
+  sp_cli_result_t status = SP_CLI_OK;
+
+  sp_prompt_intro(prompt, "spn");
+
+  bool purge = args.purge;
+  if (probe->facts.owned.storage) {
+    purge = sp_prompt_confirm(prompt, cfmt(s.mem, "Also remove toolchains and caches in {}?", sp_fmt_str(probe->layout.storage)), purge);
+  }
+  if (sp_prompt_cancelled(prompt)) {
+    sp_prompt_cancel(prompt, "cancelled");
+    status = SP_CLI_ERR;
+    goto cleanup;
+  }
+
+  spn_install_plan_t plan = si_uninstall_plan(s.mem, &probe->layout, &probe->facts, purge);
+  if (!plan.count) {
+    sp_prompt_outro(prompt, "spn is not installed");
+    goto cleanup;
+  }
+
+  prompt_plan(prompt, s.mem, &plan);
+  if (!sp_prompt_confirm(prompt, "Proceed?", true) || sp_prompt_cancelled(prompt)) {
+    sp_prompt_cancel(prompt, "cancelled");
+    status = SP_CLI_ERR;
+    goto cleanup;
+  }
+
+  spn_install_t result = si_uninstall_execute(probe, &plan);
+  if (result.err == SPN_INSTALL_ERR_EXE) {
+    sp_prompt_cancel(prompt, "uninstall failed");
+    status = install_error(&result);
+    goto cleanup;
+  }
+
+  sp_for(it, result.msgs.count) {
+    prompt_msg(prompt, &result.msgs.items[it]);
+  }
+
+  if (result.stuck) {
+    sp_prompt_outro(prompt, cfmt(s.mem, "{} of {} changes failed", sp_fmt_uint(result.stuck), sp_fmt_uint(result.changes)));
+    status = install_error(&result);
+    goto cleanup;
+  }
+  sp_prompt_outro(prompt, "spn uninstalled");
+
+cleanup:
+  sp_mem_end_scratch(s);
+  return status;
+}
+
+static sp_cli_result_t uninstall(sp_cli_t* cli) {
+  spn_tui_handoff(&tui);
+
+  spn_install_probe_t probe = spn_install_probe(host.mem);
+  if (probe.layout.err) {
+    spn_install_t result = { .err = probe.layout.err };
+    return install_error(&result);
+  }
+
+  if (!args.unattended && tui.interactive) {
+    sp_prompt_ctx_t* prompt = sp_prompt_begin(host.mem);
+    if (prompt) {
+      sp_cli_result_t result = run_uninstall_prompt(prompt, &probe);
+      sp_prompt_end(prompt);
+      return result;
+    }
+  }
+
+  spn_install_plan_t plan = si_uninstall_plan(host.mem, &probe.layout, &probe.facts, args.purge);
+  spn_install_t result = si_uninstall_execute(&probe, &plan);
+  if (result.err != SPN_INSTALL_ERR_EXE) {
+    if (result.changes) {
+      spn_print(&tui, "uninstall: spn uninstalled");
+    }
+    else {
+      spn_print(&tui, "uninstall: spn is not installed");
+    }
+  }
+  sp_for(it, result.msgs.count) {
+    print_msg("uninstall", &result.msgs.items[it]);
+  }
+  return install_error(&result);
+}
+
 static sp_cli_cmd_t spn_cmd_self_install = {
   .name = "install",
   .summary = "Install this binary and set up your PATH",
@@ -521,10 +655,31 @@ static sp_cli_cmd_t spn_cmd_self_install = {
   .handler = install,
 };
 
+static sp_cli_cmd_t spn_cmd_self_uninstall = {
+  .name = "uninstall",
+  .summary = "Remove spn and undo its PATH setup",
+  .opts = {
+    {
+      .name = "auto",
+      .summary = "Uninstall unattended, without asking for confirmation",
+      .kind = SP_CLI_OPT_BOOLEAN,
+      .ptr = &args.unattended,
+    },
+    {
+      .name = "purge",
+      .summary = "Also remove downloaded toolchains, caches and index checkouts",
+      .kind = SP_CLI_OPT_BOOLEAN,
+      .ptr = &args.purge,
+    },
+  },
+  .handler = uninstall,
+};
+
 sp_cli_cmd_t spn_cmd_self = {
   .name = "self",
   .summary = "Manage this spn installation",
   .commands = {
     &spn_cmd_self_install,
+    &spn_cmd_self_uninstall,
   },
 };

@@ -102,9 +102,11 @@ tar -xzf "${TMP}/${ASSET}" -C "$TMP" || fail "failed to extract ${ASSET}"
 
 # piped into sh, stdin is this script; hand the installer the terminal so it
 # can prompt, exactly the way rustup does
-if [ -t 0 ]; then
+if [ -n "${SPN_INSTALL_AUTO:-}" ]; then
+  "${TMP}/${EXE}" self install --auto
+elif [ -t 0 ]; then
   "${TMP}/${EXE}" self install
-elif [ -t 1 ] && TTY=$(tty <&2 2>/dev/null) && [ -n "$TTY" ]; then
+elif [ -t 1 ] && TTY=$(tty <&2 2>/dev/null) && (: < "$TTY") 2>/dev/null; then
   "${TMP}/${EXE}" self install < "$TTY"
 else
   "${TMP}/${EXE}" self install --auto

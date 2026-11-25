@@ -52,6 +52,7 @@ typedef struct {
     const c8* path;
     spn_install_reg_t kind;
   } registry;
+  spn_install_owned_t owned;
 } install_world_t;
 
 sp_env_t install_env(sp_mem_t mem, const install_var_t* vars);

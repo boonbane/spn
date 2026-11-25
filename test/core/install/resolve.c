@@ -66,7 +66,7 @@ static const root_test_t root_tests [] = {
 sp_test_each(install_resolve, root, root_test_t, root_tests) {
   sp_mem_t mem = sp_test_arena(t);
   sp_env_t env = install_env(mem, it->vars);
-  spn_install_layout_t layout = spn_install_resolve(mem, it->os, &env);
+  spn_install_layout_t layout = si_install_resolve(mem, it->os, &env);
 
   sp_must_eq(t, (u32)it->expect.err, (u32)layout.err);
   if (it->expect.err) {
@@ -154,7 +154,7 @@ static const rc_test_t rc_tests [] = {
 sp_test_each(install_resolve, rc, rc_test_t, rc_tests) {
   sp_mem_t mem = sp_test_arena(t);
   sp_env_t env = install_env(mem, it->vars);
-  spn_install_layout_t layout = spn_install_resolve(mem, it->os, &env);
+  spn_install_layout_t layout = si_install_resolve(mem, it->os, &env);
   sp_must_eq(t, (u32)SPN_INSTALL_OK, (u32)layout.err);
 
   u32 num_expect = 0;
@@ -190,7 +190,7 @@ static const login_test_t login_tests [] = {
 sp_test_each(install_resolve, login, login_test_t, login_tests) {
   sp_mem_t mem = sp_test_arena(t);
   sp_env_t env = install_env(mem, it->vars);
-  spn_install_layout_t layout = spn_install_resolve(mem, SPN_INSTALL_OS_UNIX, &env);
+  spn_install_layout_t layout = si_install_resolve(mem, SPN_INSTALL_OS_UNIX, &env);
   sp_must_eq(t, (u32)SPN_INSTALL_OK, (u32)layout.err);
   sp_expect_eq(t, (u32)it->expect, (u32)layout.login);
   return SP_OK;
@@ -255,7 +255,7 @@ static const path_test_t path_tests [] = {
 sp_test_each(install_resolve, path, path_test_t, path_tests) {
   sp_mem_t mem = sp_test_arena(t);
   sp_env_t env = install_env(mem, it->vars);
-  spn_install_layout_t layout = spn_install_resolve(mem, it->os, &env);
+  spn_install_layout_t layout = si_install_resolve(mem, it->os, &env);
   sp_must_eq(t, (u32)SPN_INSTALL_OK, (u32)layout.err);
 
   sp_expect_eq(t, it->expect.on_path, layout.on_path);
@@ -302,7 +302,7 @@ static const flags_test_t flags_tests [] = {
 sp_test_each(install_resolve, flags, flags_test_t, flags_tests) {
   sp_mem_t mem = sp_test_arena(t);
   sp_env_t env = install_env(mem, it->vars);
-  spn_install_layout_t layout = spn_install_resolve(mem, SPN_INSTALL_OS_UNIX, &env);
+  spn_install_layout_t layout = si_install_resolve(mem, SPN_INSTALL_OS_UNIX, &env);
   sp_must_eq(t, (u32)SPN_INSTALL_OK, (u32)layout.err);
 
   sp_expect_str_eq_c(t, layout.github_path, it->expect.github_path ? it->expect.github_path : "");

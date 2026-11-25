@@ -19,7 +19,7 @@ sp_err_t install_build(sp_test_t* t, install_world_t* world, spn_install_layout_
   sp_mem_t mem = sp_test_arena(t);
   sp_env_t env = install_env(mem, world->vars);
 
-  *layout = spn_install_resolve(mem, world->os, &env);
+  *layout = si_install_resolve(mem, world->os, &env);
   sp_must_eq(t, (u32)SPN_INSTALL_OK, (u32)layout->err);
 
   *facts = sp_zero_s(spn_install_facts_t);
@@ -33,6 +33,7 @@ sp_err_t install_build(sp_test_t* t, install_world_t* world, spn_install_layout_
   }
   facts->registry.path = world->registry.path ? sp_cstr_as_str(world->registry.path) : sp_zero_s(sp_str_t);
   facts->registry.kind = world->registry.kind;
+  facts->owned = world->owned;
   return SP_OK;
 }
 
