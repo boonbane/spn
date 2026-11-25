@@ -57,23 +57,23 @@ static sp_str_t crt_switch(spn_runtime_t runtime) {
 }
 
 static void render_flags(sp_mem_t mem, const spn_profile_info_t* profile, spn_cc_flags_t* flags) {
-  sp_da_push(flags->compile, crt_switch(profile->linking.runtime));
+  si_da_push(mem, flags->compile, crt_switch(profile->linking.runtime));
   if (profile->mode == SPN_MODE_DEBUG) {
     // /Z7 embeds debug info in the object; /Zi would funnel every parallel
     // cl in a package's work directory into one vc140.pdb (C1041)
-    sp_da_push(flags->compile, sp_str_lit("/Z7"));
+    si_da_push(mem, flags->compile, sp_str_lit("/Z7"));
   }
   sp_str_t opt = opt_switch(profile->opt);
   if (!sp_str_empty(opt)) {
-    sp_da_push(flags->compile, opt);
+    si_da_push(mem, flags->compile, opt);
   }
   if (profile->mode == SPN_MODE_RELEASE) {
-    sp_da_push(flags->compile, sp_str_lit("/DNDEBUG"));
+    si_da_push(mem, flags->compile, sp_str_lit("/DNDEBUG"));
   }
   if (profile->sanitizers) {
     sp_str_t sanitizer = sp_fmt(mem, "/fsanitize={}", sp_fmt_str(spn_sanitizer_set_to_str(mem, profile->sanitizers))).value;
-    sp_da_push(flags->compile, sanitizer);
-    sp_da_push(flags->link, sanitizer);
+    si_da_push(mem, flags->compile, sanitizer);
+    si_da_push(mem, flags->link, sanitizer);
   }
 }
 
@@ -134,8 +134,6 @@ spn_cc_compile_plan_t spn_msvc_render_compile(sp_mem_t mem, const spn_cc_t* tool
   spn_cc_push_c(mem, invocation, "/utf-8");
   spn_cc_push_c(mem, invocation, "/Brepro");
   spn_cc_flags_t flags = sp_zero;
-  sp_da_init(mem, flags.compile);
-  sp_da_init(mem, flags.link);
   render_flags(mem, profile, &flags);
   sp_str_t standard = lang == SPN_LANG_CXX ?
     cxx_standard_switch(compile->cxx.standard) :
@@ -143,7 +141,9 @@ spn_cc_compile_plan_t spn_msvc_render_compile(sp_mem_t mem, const spn_cc_t* tool
   if (!sp_str_empty(standard)) {
     spn_cc_push_str(mem, invocation, standard);
   }
-  spn_cc_push_strs(mem, invocation, flags.compile);
+  si_da_for(flags.compile, it) {
+    spn_cc_push_str(mem, invocation, flags.compile[it]);
+  }
   spn_cc_push_c(mem, invocation, "/c");
   si_da_for(compile->include, it) {
     spn_cc_push_glued(mem, invocation, "/I", compile->include[it]);
@@ -213,10 +213,10 @@ spn_cc_link_plan_t si_msvc_render_link(sp_mem_t mem, const spn_cc_t* toolchain, 
 
   add_launcher(mem, toolchain, profile, link->lang, base);
   spn_cc_flags_t flags = sp_zero;
-  sp_da_init(mem, flags.compile);
-  sp_da_init(mem, flags.link);
   render_flags(mem, profile, &flags);
-  spn_cc_push_strs(mem, base, flags.link);
+  si_da_for(flags.link, it) {
+    spn_cc_push_str(mem, base, flags.link[it]);
+  }
   switch (link->kind) {
     case SPN_CC_OUTPUT_SHARED_LIB: {
       spn_cc_push_c(mem, base, "/LD");

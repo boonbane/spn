@@ -12,9 +12,9 @@
 #include "profile/types.h"
 #include "triple/triple.h"
 
-static void push_flag(sp_da(sp_str_t)* flags, sp_str_t flag) {
+static void push_flag(sp_mem_t mem, si_da(sp_str_t)* flags, sp_str_t flag) {
   if (!sp_str_empty(flag)) {
-    sp_da_push(*flags, flag);
+    si_da_push(mem, *flags, flag);
   }
 }
 
@@ -104,59 +104,59 @@ static void render_flags(sp_mem_t mem, const spn_cc_t* toolchain, const spn_prof
   if (profile->target.abi == SPN_ABI_MSVC && spn_cc_has(toolchain, SPN_CC_CAP_CLANG_FRONTEND)) {
     switch (profile->linking.runtime) {
       case SPN_RUNTIME_SHARED: {
-        sp_da_push(flags->compile, sp_str_lit("-fms-runtime-lib=dll"));
-        sp_da_push(flags->link, sp_str_lit("-fms-runtime-lib=dll"));
+        si_da_push(mem, flags->compile, sp_str_lit("-fms-runtime-lib=dll"));
+        si_da_push(mem, flags->link, sp_str_lit("-fms-runtime-lib=dll"));
         if (spn_cc_has(toolchain, SPN_CC_CAP_LINK_MODE_CRT)) {
-          sp_da_push(flags->link, sp_str_lit("-dynamic"));
+          si_da_push(mem, flags->link, sp_str_lit("-dynamic"));
         }
         break;
       }
       case SPN_RUNTIME_STATIC: {
-        sp_da_push(flags->compile, sp_str_lit("-fms-runtime-lib=static"));
-        sp_da_push(flags->link, sp_str_lit("-fms-runtime-lib=static"));
+        si_da_push(mem, flags->compile, sp_str_lit("-fms-runtime-lib=static"));
+        si_da_push(mem, flags->link, sp_str_lit("-fms-runtime-lib=static"));
         break;
       }
       case SPN_RUNTIME_NONE: {
         sp_unreachable_case();
       }
     }
-    sp_da_push(flags->compile, sp_str_lit("-mno-incremental-linker-compatible"));
+    si_da_push(mem, flags->compile, sp_str_lit("-mno-incremental-linker-compatible"));
   }
   if (profile->mode == SPN_MODE_DEBUG) {
-    sp_da_push(flags->compile, sp_str_lit("-g"));
+    si_da_push(mem, flags->compile, sp_str_lit("-g"));
     if (spn_cc_has(toolchain, SPN_CC_CAP_CLANG_FRONTEND)) {
-      sp_da_push(flags->compile, sp_str_lit("-ffile-compilation-dir=."));
+      si_da_push(mem, flags->compile, sp_str_lit("-ffile-compilation-dir=."));
     } else {
-      sp_da_push(flags->compile, sp_str_lit("-gno-record-gcc-switches"));
+      si_da_push(mem, flags->compile, sp_str_lit("-gno-record-gcc-switches"));
     }
   }
-  push_flag(&flags->compile, opt_switch(profile->opt));
+  push_flag(mem, &flags->compile, opt_switch(profile->opt));
   if (profile->mode == SPN_MODE_RELEASE) {
-    sp_da_push(flags->compile, render_define_c(mem, "NDEBUG"));
+    si_da_push(mem, flags->compile, render_define_c(mem, "NDEBUG"));
   }
   if (profile->sanitizers) {
     sp_str_t sanitizer = sp_fmt(mem, "-fsanitize={}", sp_fmt_str(spn_sanitizer_set_to_str(mem, profile->sanitizers))).value;
-    sp_da_push(flags->compile, sanitizer);
-    sp_da_push(flags->link, sanitizer);
-    sp_da_push(flags->compile, sp_str_lit("-fno-sanitize-recover=all"));
-    sp_da_push(flags->compile, sp_str_lit("-fno-omit-frame-pointer"));
+    si_da_push(mem, flags->compile, sanitizer);
+    si_da_push(mem, flags->link, sanitizer);
+    si_da_push(mem, flags->compile, sp_str_lit("-fno-sanitize-recover=all"));
+    si_da_push(mem, flags->compile, sp_str_lit("-fno-omit-frame-pointer"));
   }
   if (profile->target.abi == SPN_ABI_BARE) {
-    sp_da_push(flags->compile, sp_str_lit("-ffreestanding"));
-    sp_da_push(flags->compile, sp_str_lit("-fno-stack-protector"));
+    si_da_push(mem, flags->compile, sp_str_lit("-ffreestanding"));
+    si_da_push(mem, flags->compile, sp_str_lit("-fno-stack-protector"));
     if (spn_cc_has(toolchain, SPN_CC_CAP_DEFAULT_UBSAN)) {
-      sp_da_push(flags->compile, sp_str_lit("-fno-sanitize=undefined"));
+      si_da_push(mem, flags->compile, sp_str_lit("-fno-sanitize=undefined"));
     }
     if (spn_triple_object_format(profile->target) == SPN_OBJ_WASM) {
-      sp_da_push(flags->link, sp_str_lit("-nostdlib"));
+      si_da_push(mem, flags->link, sp_str_lit("-nostdlib"));
     }
     else if (spn_cc_has(toolchain, SPN_CC_CAP_CLANG_FRONTEND)) {
-      sp_da_push(flags->link, sp_str_lit("-nostartfiles"));
-      sp_da_push(flags->link, sp_str_lit("-nolibc"));
+      si_da_push(mem, flags->link, sp_str_lit("-nostartfiles"));
+      si_da_push(mem, flags->link, sp_str_lit("-nolibc"));
     }
     else {
-      sp_da_push(flags->link, sp_str_lit("-nostdlib"));
-      sp_da_push(flags->libs, sp_str_lit("-lgcc"));
+      si_da_push(mem, flags->link, sp_str_lit("-nostdlib"));
+      si_da_push(mem, flags->libs, sp_str_lit("-lgcc"));
     }
   }
 }
@@ -268,16 +268,15 @@ spn_cc_compile_plan_t si_gnu_render_compile(sp_mem_t mem, const spn_cc_t* toolch
   spn_invocation_t* invocation = &plan.base;
   add_launcher(mem, toolchain, profile, lang, compile->min_os, invocation);
   spn_cc_flags_t flags = sp_zero;
-  sp_da_init(mem, flags.compile);
-  sp_da_init(mem, flags.link);
-  sp_da_init(mem, flags.libs);
   render_flags(mem, toolchain, profile, &flags);
   if (lang == SPN_LANG_C) {
     spn_cc_push_str(mem, invocation, c_standard_to_flag(profile->standard));
   } else if (lang == SPN_LANG_CXX) {
     spn_cc_push_str(mem, invocation, cxx_standard_to_flag(compile->cxx.standard));
   }
-  spn_cc_push_strs(mem, invocation, flags.compile);
+  si_da_for(flags.compile, it) {
+    spn_cc_push_str(mem, invocation, flags.compile[it]);
+  }
   spn_cc_push_c(mem, invocation, "-c");
   si_da_for(compile->include, it) {
     spn_cc_push_glued(mem, invocation, "-I", compile->include[it]);
@@ -415,11 +414,10 @@ spn_cc_link_plan_t si_gnu_render_link(sp_mem_t mem, const spn_cc_t* toolchain, c
   add_launcher(mem, toolchain, profile, link->lang, link->min_os, base);
   spn_cc_push_strs(mem, base, toolchain->link_args);
   spn_cc_flags_t flags = sp_zero;
-  sp_da_init(mem, flags.compile);
-  sp_da_init(mem, flags.link);
-  sp_da_init(mem, flags.libs);
   render_flags(mem, toolchain, profile, &flags);
-  spn_cc_push_strs(mem, base, flags.link);
+  si_da_for(flags.link, it) {
+    spn_cc_push_str(mem, base, flags.link[it]);
+  }
   if (link->lang == SPN_LANG_CXX && triple.os == SPN_OS_LINUX && spn_ld_dynamic(triple) && spn_cc_has(toolchain, SPN_CC_CAP_GNU_RUNTIME)) {
     spn_cc_push_c(mem, base, "-pthread");
   }
@@ -543,7 +541,9 @@ spn_cc_link_plan_t si_gnu_render_link(sp_mem_t mem, const spn_cc_t* toolchain, c
   si_da_for(link->system_libs, it) {
     spn_cc_push_fmt(mem, &tail, "-l{}", sp_fmt_str(link->system_libs[it]));
   }
-  spn_cc_push_strs(mem, &tail, flags.libs);
+  si_da_for(flags.libs, it) {
+    spn_cc_push_str(mem, &tail, flags.libs[it]);
+  }
   add_sdk_link(mem, profile, base, &tail);
   if (profile->target.os == SPN_OS_MACOS) {
     add_min_os(mem, toolchain, link->min_os, &tail);
