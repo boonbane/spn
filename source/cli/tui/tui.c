@@ -1263,6 +1263,15 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
           );
           break;
         }
+        case SPN_ERR_INDEX_NONE: {
+          sp_tty_fmt(
+            &w,
+            "No index is configured to find {}; add one with {.cyan}",
+            sp_fmt_str(colored_name(w.color, mem, event->err.subject)),
+            sp_fmt_cstr("spn index add")
+          );
+          break;
+        }
         case SPN_ERR_INDEX_SYNC: {
           sp_tty_fmt(
             &w,

@@ -14,6 +14,11 @@ void si_index_cache_init(spn_index_cache_t* cache, sp_mem_t mem, sp_intern_t* in
 spn_err_t si_index_cache_get_package(spn_index_cache_t* cache, sp_intern_str_t name, spn_index_pkg_t** pkg, spn_err_union_t* err) {
   *pkg = SP_NULLPTR;
 
+  if (si_da_empty(cache->indexes)) {
+    *err = (spn_err_union_t) { .kind = SPN_ERR_INDEX_NONE, .subject = name.str };
+    return err->kind;
+  }
+
   spn_index_pkg_t** cached = sp_ht_getp(cache->packages, name.id);
   if (cached) {
     *pkg = *cached;

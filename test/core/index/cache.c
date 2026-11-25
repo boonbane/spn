@@ -21,6 +21,12 @@ typedef struct {
 
 static const cache_test_t tests [] = {
   {
+    .name = "no_indexes",
+    .expect = {
+      .err = SPN_ERR_INDEX_NONE,
+    },
+  },
+  {
     .name = "first_wins_dir_first",
     .indexes = {
       { .format = SPN_INDEX_FORMAT_MANIFESTS, .fixture = "dir" },
