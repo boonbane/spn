@@ -116,7 +116,7 @@ static void resolve_path(sp_mem_t mem, spn_install_os_t os, sp_env_t* env, spn_i
   }
 }
 
-spn_install_layout_t spn_install_resolve(sp_mem_t mem, spn_install_os_t os, sp_env_t* env) {
+spn_install_layout_t si_install_resolve(sp_mem_t mem, spn_install_os_t os, sp_env_t* env) {
   spn_install_layout_t layout = { .os = os };
 
   layout.home = get_home_path(mem, os, env);
@@ -130,10 +130,25 @@ spn_install_layout_t spn_install_resolve(sp_mem_t mem, spn_install_os_t os, sp_e
   layout.bin_native = to_native(mem, os, layout.bin);
   layout.exe = sp_fs_join_path(mem, layout.bin, os == SPN_INSTALL_OS_WINDOWS ? sp_str_lit("spn.exe") : sp_str_lit("spn"));
 
-  if (os == SPN_INSTALL_OS_UNIX) {
-    layout.env_file = sp_fs_join_path(mem, layout.root, sp_str_lit("env"));
-    resolve_shells(mem, env, layout.home, &layout);
+  switch (os) {
+    case SPN_INSTALL_OS_UNIX: {
+      layout.env_file = sp_fs_join_path(mem, layout.root, sp_str_lit("env"));
+      sp_str_t data = sp_env_get(env, sp_str_lit("XDG_DATA_HOME"));
+      data = sp_str_empty(data) ? sp_fs_join_path(mem, layout.home, sp_str_lit(".local/share")) : normalize_path(mem, os, data);
+      layout.storage = sp_fs_join_path(mem, data, sp_str_lit("spn"));
+      resolve_shells(mem, env, layout.home, &layout);
+      break;
+    }
+    case SPN_INSTALL_OS_WINDOWS: {
+      sp_str_t data = sp_env_get(env, sp_str_lit("LOCALAPPDATA"));
+      layout.storage = sp_str_empty(data) ? data : sp_fs_join_path(mem, normalize_path(mem, os, data), sp_str_lit("spn"));
+      sp_str_t temp = sp_env_get(env, sp_str_lit("TEMP"));
+      layout.trash = sp_str_empty(temp) ? temp : sp_fs_join_path(mem, normalize_path(mem, os, temp), sp_str_lit("spn-uninstall.exe"));
+      break;
+    }
   }
+  sp_str_t storage = sp_env_get(env, sp_str_lit("SPN_STORAGE_DIR"));
+  layout.storage = sp_str_empty(storage) ? layout.storage : normalize_path(mem, os, storage);
 
   resolve_path(mem, os, env, &layout);
 
@@ -361,6 +376,7 @@ static void plan_unix_hooks(spn_install_layout_t* layout, spn_install_facts_t* f
         break;
       }
       case SPN_INSTALL_SHELL_FISH: {
+        plan->fish = true;
         if (facts->fish_current) {
           plan->live++;
         }
@@ -449,7 +465,8 @@ static bool path_broken(spn_install_plan_t* plan, spn_install_result_t* result) 
   sp_for(it, result->num_stuck) {
     switch (plan->actions[result->stuck[it]].role) {
       case SPN_INSTALL_ROLE_NONE:
-      case SPN_INSTALL_ROLE_EXE: break;
+      case SPN_INSTALL_ROLE_EXE:
+      case SPN_INSTALL_ROLE_DIR: break;
       case SPN_INSTALL_ROLE_ENV: return true;
       case SPN_INSTALL_ROLE_HOOK: hooks--; break;
     }
@@ -472,7 +489,8 @@ static void push_msg(spn_install_msgs_t* msgs, spn_install_msg_t msg) {
 static void push_stuck(spn_install_msgs_t* msgs, spn_install_action_t* action) {
   switch (action->kind) {
     case SPN_INSTALL_ACTION_NONE:
-    case SPN_INSTALL_ACTION_INSTALL_EXE: {
+    case SPN_INSTALL_ACTION_INSTALL_EXE:
+    case SPN_INSTALL_ACTION_MOVE_FILE: {
       break;
     }
     case SPN_INSTALL_ACTION_WRITE_FILE: {
@@ -487,10 +505,20 @@ static void push_stuck(spn_install_msgs_t* msgs, spn_install_action_t* action) {
       push_msg(msgs, (spn_install_msg_t) { .kind = SPN_INSTALL_MSG_STUCK_REGISTRY });
       break;
     }
+    case SPN_INSTALL_ACTION_REMOVE_FILE:
+    case SPN_INSTALL_ACTION_REMOVE_DIR:
+    case SPN_INSTALL_ACTION_REMOVE_TREE: {
+      push_msg(msgs, (spn_install_msg_t) { .kind = SPN_INSTALL_MSG_STUCK_REMOVE, .subject = action->path });
+      break;
+    }
+    case SPN_INSTALL_ACTION_REMOVE_LINE: {
+      push_msg(msgs, (spn_install_msg_t) { .kind = SPN_INSTALL_MSG_STUCK_REMOVE_LINE, .subject = action->path, .detail = action->line });
+      break;
+    }
   }
 }
 
-spn_install_msgs_t spn_install_report(spn_install_layout_t* layout, spn_install_facts_t* facts, spn_install_plan_t* plan, spn_install_result_t* result) {
+spn_install_msgs_t si_install_report(spn_install_layout_t* layout, spn_install_facts_t* facts, spn_install_plan_t* plan, spn_install_result_t* result) {
   spn_install_msgs_t msgs = sp_zero;
 
   sp_for(it, result->num_stuck) {
@@ -521,10 +549,14 @@ spn_install_msgs_t spn_install_report(spn_install_layout_t* layout, spn_install_
       }
       switch (layout->os) {
         case SPN_INSTALL_OS_UNIX: {
-          push_msg(&msgs, (spn_install_msg_t) {
-            .kind = SPN_INSTALL_MSG_RESTART_SHELL,
-            .subject = plan->posix ? sp_str_lit(SPN_INSTALL_RC_LINE) : sp_zero_s(sp_str_t),
-          });
+          spn_install_msg_t restart = { .kind = SPN_INSTALL_MSG_RESTART_SHELL };
+          if (layout->login == SPN_INSTALL_SHELL_FISH) {
+            restart.subject = plan->fish ? sp_str_lit(SPN_INSTALL_FISH_LINE) : restart.subject;
+          }
+          else {
+            restart.subject = plan->posix ? sp_str_lit(SPN_INSTALL_RC_LINE) : restart.subject;
+          }
+          push_msg(&msgs, restart);
           break;
         }
         case SPN_INSTALL_OS_WINDOWS: {
@@ -538,6 +570,85 @@ spn_install_msgs_t spn_install_report(spn_install_layout_t* layout, spn_install_
 
   if (spn_install_shadowed(layout, facts)) {
     push_msg(&msgs, (spn_install_msg_t) { .kind = SPN_INSTALL_MSG_SHADOW, .subject = facts->shadow, .detail = layout->exe });
+  }
+  return msgs;
+}
+
+spn_install_plan_t si_uninstall_plan(sp_mem_t mem, spn_install_layout_t* layout, spn_install_facts_t* facts, bool purge) {
+  spn_install_plan_t plan = sp_zero;
+
+  if (facts->owned.exe) {
+    if (layout->os == SPN_INSTALL_OS_WINDOWS && path_equal(layout->os, facts->exe, layout->exe)) {
+      push_action(&plan, (spn_install_action_t) { .kind = SPN_INSTALL_ACTION_MOVE_FILE, .role = SPN_INSTALL_ROLE_EXE, .path = layout->trash, .src = layout->exe });
+    }
+    else {
+      push_action(&plan, (spn_install_action_t) { .kind = SPN_INSTALL_ACTION_REMOVE_FILE, .role = SPN_INSTALL_ROLE_EXE, .path = layout->exe });
+    }
+  }
+
+  if (facts->owned.env) {
+    push_action(&plan, (spn_install_action_t) { .kind = SPN_INSTALL_ACTION_REMOVE_FILE, .role = SPN_INSTALL_ROLE_ENV, .path = layout->env_file });
+  }
+
+  sp_for(it, layout->num_rc) {
+    if (facts->rc[it].has_line) {
+      push_action(&plan, (spn_install_action_t) {
+        .kind = SPN_INSTALL_ACTION_REMOVE_LINE,
+        .role = SPN_INSTALL_ROLE_HOOK,
+        .path = layout->rc[it].path,
+        .line = sp_str_lit(SPN_INSTALL_RC_LINE),
+      });
+    }
+  }
+
+  if (facts->owned.fish_conf) {
+    push_action(&plan, (spn_install_action_t) { .kind = SPN_INSTALL_ACTION_REMOVE_FILE, .role = SPN_INSTALL_ROLE_HOOK, .path = layout->fish_conf });
+  }
+
+  if (registry_contains(facts->registry.path, layout->bin_native)) {
+    c8* kept = sp_alloc_n(mem, c8, facts->registry.path.len);
+    u32 len = 0;
+    bool first = true;
+    sp_str_for_split(facts->registry.path, ';', entry) {
+      if (sp_str_iequal(entry.value, layout->bin_native)) {
+        continue;
+      }
+      if (!first) {
+        kept[len++] = ';';
+      }
+      sp_mem_copy(kept + len, entry.value.data, entry.value.len);
+      len += entry.value.len;
+      first = false;
+    }
+    push_action(&plan, (spn_install_action_t) {
+      .kind = SPN_INSTALL_ACTION_SET_USER_PATH,
+      .role = SPN_INSTALL_ROLE_HOOK,
+      .text = sp_str(kept, len),
+      .reg = facts->registry.kind,
+    });
+  }
+
+  if (facts->owned.bin) {
+    push_action(&plan, (spn_install_action_t) { .kind = SPN_INSTALL_ACTION_REMOVE_DIR, .role = SPN_INSTALL_ROLE_DIR, .path = layout->bin });
+  }
+  if (facts->owned.root) {
+    push_action(&plan, (spn_install_action_t) { .kind = SPN_INSTALL_ACTION_REMOVE_DIR, .role = SPN_INSTALL_ROLE_DIR, .path = layout->root });
+  }
+  if (purge && facts->owned.storage) {
+    push_action(&plan, (spn_install_action_t) { .kind = SPN_INSTALL_ACTION_REMOVE_TREE, .role = SPN_INSTALL_ROLE_DIR, .path = layout->storage });
+  }
+  return plan;
+}
+
+spn_install_msgs_t si_uninstall_report(spn_install_layout_t* layout, spn_install_facts_t* facts, spn_install_plan_t* plan, spn_install_result_t* result) {
+  spn_install_msgs_t msgs = sp_zero;
+
+  sp_for(it, result->num_stuck) {
+    push_stuck(&msgs, &plan->actions[result->stuck[it]]);
+  }
+
+  if (facts->owned.storage && !planned(plan, layout->storage)) {
+    push_msg(&msgs, (spn_install_msg_t) { .kind = SPN_INSTALL_MSG_STORAGE_KEPT, .subject = layout->storage });
   }
   return msgs;
 }
