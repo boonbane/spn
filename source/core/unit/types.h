@@ -61,6 +61,7 @@ _Static_assert(
 typedef struct {
   spn_target_unit_t* target;
   spn_path_t path;
+  spn_path_t pdb;
 } spn_stage_entry_t;
 
 typedef struct {
@@ -159,6 +160,7 @@ typedef struct {
   struct {
     sp_str_t output;
     sp_str_t implib;
+    sp_str_t pdb;
     sp_opt(spn_cc_link_plan_t) plan;
     sp_opt(spn_exports_plan_t) exports;
   } link;

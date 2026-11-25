@@ -203,7 +203,7 @@ spn_err_t spn_msvc_parse_depfile(sp_mem_t mem, sp_str_t content, sp_da(sp_str_t)
   return SPN_OK;
 }
 
-spn_cc_link_plan_t spn_msvc_render_link(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, const spn_cc_link_t* link) {
+spn_cc_link_plan_t si_msvc_render_link(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, const spn_cc_link_t* link) {
   spn_cc_link_plan_t plan = {
     .driver = toolchain->driver,
     .dialect = SPN_LD_DIALECT_LINK,
@@ -240,8 +240,11 @@ spn_cc_link_plan_t spn_msvc_render_link(sp_mem_t mem, const spn_cc_t* toolchain,
     spn_cc_push_fmt(mem, &tail, "{}.lib", sp_fmt_str(link->system_libs[it]));
   }
   spn_cc_push_c(mem, &tail, "/link");
-  if (profile->mode == SPN_MODE_DEBUG) {
+  plan.pdb = profile->mode == SPN_MODE_DEBUG;
+  if (plan.pdb) {
     spn_cc_push_c(mem, &tail, "/DEBUG");
+    spn_cc_push_c(mem, &tail, "/PDBALTPATH:%_PDB%");
+    spn_cc_push_c(mem, &tail, "/INCREMENTAL:NO");
   }
   if (link->kind == SPN_CC_OUTPUT_EXE && link->subsystem == SPN_WIN_SUBSYSTEM_WINDOWS) {
     spn_cc_push_c(mem, &tail, "/SUBSYSTEM:WINDOWS");
@@ -259,7 +262,7 @@ spn_cc_link_plan_t spn_msvc_render_link(sp_mem_t mem, const spn_cc_t* toolchain,
   return plan;
 }
 
-void spn_msvc_render_link_locations(sp_mem_t mem, const spn_cc_link_plan_t* plan, const spn_cc_link_files_t* files, spn_invocation_t* invocation) {
+void si_msvc_render_link_locations(sp_mem_t mem, const spn_cc_link_plan_t* plan, const spn_cc_link_files_t* files, spn_invocation_t* invocation) {
   if (!spn_path_empty(files->rsp)) {
     spn_cc_push_glued(mem, invocation, "@", files->rsp);
   }
@@ -279,6 +282,9 @@ void spn_msvc_render_link_locations(sp_mem_t mem, const spn_cc_link_plan_t* plan
   }
   if (!spn_path_empty(files->implib)) {
     spn_cc_push_glued(mem, invocation, "/IMPLIB:", files->implib);
+  }
+  if (!spn_path_empty(files->pdb)) {
+    spn_cc_push_glued(mem, invocation, "/PDB:", files->pdb);
   }
   si_da_for(files->whole_archives, it) {
     spn_cc_push_glued(mem, invocation, "/WHOLEARCHIVE:", files->whole_archives[it]);

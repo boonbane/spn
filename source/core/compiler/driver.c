@@ -135,7 +135,7 @@ spn_cc_compile_plan_t si_cc_render_compile(sp_mem_t mem, const spn_cc_t* toolcha
     case SPN_CC_DRIVER_GCC:
     case SPN_CC_DRIVER_CLANG:
     case SPN_CC_DRIVER_ZIG: {
-      plan = spn_gnu_render_compile(mem, toolchain, profile, lang, compile);
+      plan = si_gnu_render_compile(mem, toolchain, profile, lang, compile);
       break;
     }
     case SPN_CC_DRIVER_MSVC: {
@@ -260,7 +260,7 @@ spn_cc_link_plan_t si_cc_render_link(sp_mem_t mem, const spn_cc_t* toolchain, co
       break;
     }
     case SPN_CC_DRIVER_MSVC: {
-      plan = spn_msvc_render_link(mem, toolchain, profile, link);
+      plan = si_msvc_render_link(mem, toolchain, profile, link);
       break;
     }
     case SPN_CC_DRIVER_NONE: {
@@ -284,7 +284,7 @@ spn_invocation_t spn_cc_render_link_command(sp_mem_t mem, const spn_cc_link_plan
       break;
     }
     case SPN_CC_DRIVER_MSVC: {
-      spn_msvc_render_link_locations(mem, plan, files, &invocation);
+      si_msvc_render_link_locations(mem, plan, files, &invocation);
       break;
     }
     case SPN_CC_DRIVER_NONE: {

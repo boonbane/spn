@@ -250,11 +250,15 @@ static void add_min_os(sp_mem_t mem, const spn_cc_t* toolchain, spn_os_version_t
   spn_cc_push_fmt(mem, invocation, "-mmacosx-version-min={}.{}", sp_fmt_uint(min_os.major), sp_fmt_uint(min_os.minor));
 }
 
-spn_cc_compile_plan_t spn_gnu_render_compile(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, spn_lang_t lang, const spn_cc_compile_t* compile) {
+static bool is_codeview(const spn_cc_t* toolchain, spn_triple_t target) {
+  return target.os == SPN_OS_WINDOWS && spn_cc_has(toolchain, SPN_CC_CAP_CLANG_FRONTEND) && (target.abi == SPN_ABI_MSVC || spn_cc_has(toolchain, SPN_CC_CAP_CODEVIEW));
+}
+
+spn_cc_compile_plan_t si_gnu_render_compile(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, spn_lang_t lang, const spn_cc_compile_t* compile) {
   spn_cc_compile_plan_t plan = {
     .driver = toolchain->driver,
     .depfile = lang == SPN_LANG_ASM ? SPN_CC_DEPFILE_OPTIONAL : SPN_CC_DEPFILE_REQUIRED,
-    .codeview = profile->target.os == SPN_OS_WINDOWS && spn_cc_has(toolchain, SPN_CC_CAP_CLANG_FRONTEND) && (profile->target.abi == SPN_ABI_MSVC || spn_cc_has(toolchain, SPN_CC_CAP_CODEVIEW)),
+    .codeview = is_codeview(toolchain, profile->target),
     .prefix_map = profile->mode == SPN_MODE_DEBUG && !spn_cc_has(toolchain, SPN_CC_CAP_CLANG_FRONTEND),
   };
   spn_invocation_t* invocation = &plan.base;
@@ -395,6 +399,7 @@ spn_cc_link_plan_t si_gnu_render_link(sp_mem_t mem, const spn_cc_t* toolchain, c
   spn_cc_link_plan_t plan = {
     .driver = toolchain->driver,
     .dialect = si_ld_dialect(triple),
+    .pdb = is_codeview(toolchain, triple) && profile->strip == SPN_STRIP_NONE,
   };
   if (plan.dialect == SPN_LD_DIALECT_LINK && spn_cc_has(toolchain, SPN_CC_CAP_GNU_LINK_ARGS)) {
     plan.dialect = SPN_LD_DIALECT_GNU;
@@ -437,6 +442,24 @@ spn_cc_link_plan_t si_gnu_render_link(sp_mem_t mem, const spn_cc_t* toolchain, c
         case SPN_LD_DIALECT_COUNT: {
           sp_unreachable_case();
         }
+      }
+    }
+  }
+  if (plan.pdb) {
+    switch (plan.dialect) {
+      case SPN_LD_DIALECT_LINK: {
+        spn_cc_push_c(mem, base, "-g");
+        spn_cc_push_c(mem, base, "-Wl,/pdbaltpath:%_PDB%");
+        spn_cc_push_c(mem, base, "-Wl,/incremental:no");
+        break;
+      }
+      case SPN_LD_DIALECT_GNU: {
+        break;
+      }
+      case SPN_LD_DIALECT_DARWIN:
+      case SPN_LD_DIALECT_WASM:
+      case SPN_LD_DIALECT_COUNT: {
+        sp_unreachable_case();
       }
     }
   }
@@ -580,6 +603,9 @@ void si_gnu_render_link_locations(sp_mem_t mem, const spn_cc_link_plan_t* plan, 
         sp_unreachable_case();
       }
     }
+  }
+  if (!spn_path_empty(files->pdb)) {
+    spn_cc_push_glued(mem, invocation, "-Wl,/pdb:", files->pdb);
   }
   switch (plan->soname) {
     case SPN_CC_SONAME_NONE: {

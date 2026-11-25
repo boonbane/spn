@@ -38,6 +38,9 @@ static spn_err_t run_linker(sp_mem_t mem, const si_dag_ctx_t* c, si_link_t* link
   if (link->implib.occupied) {
     files.implib = si_dag_resolve_output(c, link->implib);
   }
+  if (link->pdb.occupied) {
+    files.pdb = si_dag_resolve_output(c, link->pdb);
+  }
 
   spn_invocation_t invocation = spn_cc_render_link_command(mem, link->plan, &files);
 
