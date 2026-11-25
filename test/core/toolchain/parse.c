@@ -127,7 +127,7 @@ static const target_test_t target_tests [] = {
 static const issue_test_t issue_tests [] = {
   { .name = "malformed_toml",                      .file = "malformed.toml",      .expect = { SPN_ERR_CODEGEN_PARSE } },
   { .name = "detected_rejects_hosts",              .file = "detected_hosts.toml", .expect = { SPN_ERR_CODEGEN_INVALID, "host" } },
-  { .name = "detect_unknown",                      .file = "detect_unknown.toml", .expect = { SPN_ERR_CODEGEN_INVALID, "detect" } },
+  { .name = "detect_unknown",                      .file = "detect_unknown.toml", .expect = { SPN_ERR_CODEGEN_INVALID, "toolchain[0].detect" } },
   { .name = "detected_rejects_sdk",                .file = "detected_sdk.toml",   .expect = { SPN_ERR_CODEGEN_INVALID, "target[0].sdk" } },
   { .name = "host_row_named_twice",                .file = "host_twice.toml",     .expect = { SPN_ERR_CODEGEN_DUPLICATE_KEY, "target[1].kind" } },
   { .name = "spelling_on_a_driver_without_target", .file = "spelling_fixed.toml", .expect = { SPN_ERR_CODEGEN_INVALID, "target[0].spelling" } },

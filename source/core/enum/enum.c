@@ -78,7 +78,7 @@ spn_toolchain_detect_t spn_toolchain_detect_from_str(sp_str_t str) {
     return SPN_TOOLCHAIN_DETECT_MSVC;
   }
 
-  return SPN_TOOLCHAIN_DETECT_NONE;
+  sp_unreachable_return(SPN_TOOLCHAIN_DETECT_NONE);
 }
 
 sp_str_t spn_toolchain_detect_to_str(spn_toolchain_detect_t detect) {
@@ -201,7 +201,7 @@ spn_win_subsystem_t spn_win_subsystem_from_str(sp_str_t str) {
     return SPN_WIN_SUBSYSTEM_WINDOWS;
   }
 
-  return SPN_WIN_SUBSYSTEM_NONE;
+  sp_unreachable_return(SPN_WIN_SUBSYSTEM_NONE);
 }
 
 sp_str_t spn_win_subsystem_to_str(spn_win_subsystem_t subsystem) {
@@ -224,7 +224,7 @@ spn_tree_t spn_tree_from_str(sp_str_t str) {
     return SPN_TREE_WORK;
   }
 
-  return SPN_TREE_NONE;
+  sp_unreachable_return(SPN_TREE_NONE);
 }
 
 sp_str_t spn_tree_to_str(spn_tree_t tree) {
@@ -366,7 +366,7 @@ spn_option_type_t spn_option_type_from_str(sp_str_t str) {
     return SPN_OPTION_TYPE_ENUM;
   }
 
-  return SPN_OPTION_TYPE_NONE;
+  sp_unreachable_return(SPN_OPTION_TYPE_NONE);
 }
 
 sp_str_t spn_option_type_to_str(spn_option_type_t type) {
@@ -589,35 +589,6 @@ sp_str_t spn_runtime_to_str(spn_runtime_t runtime) {
   SP_UNREACHABLE_RETURN(sp_str_lit(""));
 }
 
-spn_cc_kind_t spn_cc_kind_from_str(sp_str_t str) {
-  if (sp_str_equal_cstr(str, "")) {
-    return SPN_CC_NONE;
-  }
-  if (sp_str_equal_cstr(str, "tcc")) {
-    return SPN_CC_TCC;
-  }
-  if (sp_str_equal_cstr(str, "gcc")) {
-    return SPN_CC_GCC;
-  }
-  if (sp_str_equal_cstr(str, "clang")) {
-    return SPN_CC_CLANG;
-  }
-  if (sp_str_equal_cstr(str, "musl-gcc")) {
-    return SPN_CC_MUSL_GCC;
-  }
-  if (sp_str_equal_cstr(str, "zcc")) {
-    return SPN_CC_ZIG;
-  }
-  if (sp_str_equal_cstr(str, "zig cc")) {
-    return SPN_CC_ZIG;
-  }
-  if (sp_str_equal_cstr(str, "cosmocc")) {
-    return SPN_CC_COSMOCC;
-  }
-
-  return SPN_CC_CUSTOM;
-}
-
 sp_str_t spn_c_standard_to_str(spn_c_standard_t standard) {
   switch (standard) {
     case SPN_C11: {
@@ -688,7 +659,7 @@ spn_cxx_standard_t spn_cxx_standard_from_str(sp_str_t str) {
     return SPN_CXX23;
   }
 
-  return SPN_CXX_STANDARD_NONE;
+  sp_unreachable_return(SPN_CXX_STANDARD_NONE);
 }
 
 spn_lang_t spn_lang_from_path(sp_str_t path) {
@@ -824,7 +795,7 @@ spn_dep_kind_t spn_dep_kind_from_str(sp_str_t str) {
     return SPN_DEP_KIND_TOOL;
   }
 
-  return SPN_DEP_KIND_PACKAGE;
+  sp_unreachable_return(SPN_DEP_KIND_PACKAGE);
 }
 
 sp_str_t spn_dep_edge_to_str(spn_dep_edge_t edge) {
@@ -854,7 +825,7 @@ spn_dep_edge_t spn_dep_edge_from_str(sp_str_t str) {
     return SPN_DEP_EDGE_PRIVATE;
   }
 
-  return SPN_DEP_EDGE_SCOPE;
+  sp_unreachable_return(SPN_DEP_EDGE_SCOPE);
 }
 
 sp_str_t spn_index_kind_to_str(spn_index_kind_t kind) {
@@ -902,7 +873,7 @@ spn_index_dep_kind_t spn_index_dep_kind_from_str(sp_str_t str) {
     return SPN_INDEX_DEP_BUILD;
   }
 
-  return SPN_INDEX_DEP_NORMAL;
+  sp_unreachable_return(SPN_INDEX_DEP_NORMAL);
 }
 
 sp_str_t spn_index_protocol_to_str(spn_index_protocol_t protocol) {

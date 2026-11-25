@@ -1,3 +1,3 @@
 {"name":"spum","version":"1.0.0","yanked":false,"v":1}
-{"name":"spum","version":69,"yanked":false,"v":2}
+{"name":"spum","version":69,"yanked":false,"v":2,"deps":[{"name":"A","version":"1.0.0","kind":"B"}]}
 {"name":"spum","version":"2.0.0","yanked":false,"v":1}

@@ -176,7 +176,7 @@ spn_toolchain_decl_t si_toolchain_lower(spn_toml_loader_t* ctx, u32 at, spn_path
   if (spn_toolchain_ref_kind(decl->name) == SPN_TOOLCHAIN_REF_AUTO) { spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "name"); }
   if (sp_str_empty(decl->compiler)) { spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_MISSING_KEY, "compiler"); }
   if (sp_str_empty(decl->archiver)) { spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_MISSING_KEY, "archiver"); }
-  if (sp_opt_is_null(decl->driver) || sp_opt_get(decl->driver) == SPN_CC_DRIVER_NONE) {
+  if (sp_opt_is_null(decl->driver)) {
     spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_MISSING_KEY, "driver");
   }
 
@@ -194,9 +194,6 @@ spn_toolchain_decl_t si_toolchain_lower(spn_toml_loader_t* ctx, u32 at, spn_path
   else {
     toolchain.source = SPN_TOOLCHAIN_SOURCE_DETECTED;
     toolchain.detect = sp_opt_get(decl->detect);
-    if (!toolchain.detect) {
-      spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "detect");
-    }
     if (!sp_da_empty(decl->host)) {
       spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "host");
     }

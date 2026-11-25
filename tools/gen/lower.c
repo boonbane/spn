@@ -29,6 +29,7 @@ gen_t* gen_new(sp_mem_t mem) {
   g->containers.keyed = sp_da_new(mem, gen_keyed_t);
   g->containers.object = sp_da_new(mem, gen_type_t*);
   g->entries = sp_da_new(mem, gen_entry_t*);
+  g->enums = sp_da_new(mem, gen_enum_t);
   g->includes = sp_da_new(mem, sp_str_t);
   g->kinds = sp_da_new(mem, gen_kind_t);
   g->arms = sp_da_new(mem, gen_type_t*);
@@ -76,6 +77,16 @@ static void add_include(gen_t* g, jtd_schema_t* schema) {
     }
   }
   sp_da_push(g->includes, include);
+}
+
+static void add_enum(gen_t* g, sp_str_t name, jtd_schema_t* schema) {
+  sp_da_for(g->enums, it) {
+    if (sp_str_equal(g->enums[it].name, name)) {
+      return;
+    }
+  }
+  gen_enum_t enumeration = { .name = name, .values = schema->as.enumeration.values };
+  sp_da_push(g->enums, enumeration);
 }
 
 static void add_array(gen_t* g, gen_type_t* object) {
@@ -179,6 +190,7 @@ static bool lower_field(gen_t* g, gen_type_t* type, jtd_property_t property) {
   if (target->form == JTD_FORM_ENUM) {
     val.kind = VAL_ENUM;
     add_include(g, target);
+    add_enum(g, name, target);
   }
   else if (target->form == JTD_FORM_TYPE && target->as.type == JTD_TYPE_STRING) {
     val.kind = VAL_STR;

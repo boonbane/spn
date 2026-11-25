@@ -8,6 +8,21 @@ static void spn_cg_{{ .name }}_read(spn_toml_loader_t* ctx, toml_table_t* table,
 static void {{ .self }}_write(const {{ .type }}* in, sp_io_writer_t* out);
 {{ end }}
 
+{{ for .enums }}
+static bool spn_cg_{{ .enum }}_known(sp_str_t str) {
+  static const c8* values [] = {
+{{ for .values }}
+    "{{ .value }}",
+{{ end }}
+  };
+  sp_carr_for(values, it) {
+    if (sp_str_equal_cstr(str, values[it])) {
+      return true;
+    }
+  }
+  return false;
+}
+{{ end }}
 {{ for .arrays }}
 static void spn_cg_{{ .object }}_read_array(spn_toml_loader_t* ctx, toml_table_t* table, const c8* key, sp_da({{ .type }})* out) {
   toml_array_t* array = toml_table_array(table, key);
@@ -183,12 +198,25 @@ static void spn_cg_{{ .name }}_read(spn_toml_loader_t* ctx, toml_table_t* table,
 {{ end }}
 {{ if .k_enum }}
 {{ if .req }}
-  out->{{ .name }} = {{ .from }}(spn_toml_loader_str_required(ctx, table, "{{ .key }}"));
+  {
+    sp_str_t raw = spn_toml_loader_str_required(ctx, table, "{{ .key }}");
+    if (spn_cg_{{ .enum }}_known(raw)) {
+      out->{{ .name }} = {{ .from }}(raw);
+    }
+    else if (spn_toml_loader_str_present(table, "{{ .key }}")) {
+      spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "{{ .key }}");
+    }
+  }
 {{ else }}
   {
     sp_str_t raw = sp_zero;
     if (spn_toml_loader_str_optional(ctx, table, "{{ .key }}", &raw)) {
-      sp_opt_set(out->{{ .name }}, {{ .from }}(raw));
+      if (spn_cg_{{ .enum }}_known(raw)) {
+        sp_opt_set(out->{{ .name }}, {{ .from }}(raw));
+      }
+      else {
+        spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_INVALID, "{{ .key }}");
+      }
     }
     else if (spn_toml_loader_field_present(table, "{{ .key }}")) {
       spn_toml_loader_issue(ctx, SPN_ERR_CODEGEN_EXPECTED_STR, "{{ .key }}");
@@ -214,9 +242,9 @@ static void spn_cg_{{ .name }}_read(spn_toml_loader_t* ctx, toml_table_t* table,
       sp_for(it, (u32)toml_array_len(array)) {
         spn_toml_loader_push_index(ctx, it);
         toml_value_t element = toml_array_string(array, (s32)it);
-        {{ .type }} value = element.ok ? {{ .from }}(spn_toml_loader_intern_value(ctx, element)) : ({{ .type }})0;
-        if (value) {
-          sp_da_push(out->{{ .name }}, value);
+        sp_str_t raw = element.ok ? spn_toml_loader_intern_value(ctx, element) : sp_str_lit("");
+        if (spn_cg_{{ .enum }}_known(raw)) {
+          sp_da_push(out->{{ .name }}, {{ .from }}(raw));
         }
         else {
           spn_toml_loader_issue_at(ctx, element.ok ? SPN_ERR_CODEGEN_INVALID : SPN_ERR_CODEGEN_EXPECTED_STR, sp_str_lit("{{ .key }}"));

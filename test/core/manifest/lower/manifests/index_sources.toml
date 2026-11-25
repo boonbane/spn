@@ -20,3 +20,8 @@ name = "D"
 protocol = "dir"
 url = "https://x"
 rev = "abc"
+
+[[index]]
+name = "E"
+protocol = "F"
+url = "https://x"
