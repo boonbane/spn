@@ -82,6 +82,7 @@
     "fs_write": { "ref": "fs" },
     "fs_create_dir": { "ref": "fs" },
     "index_unknown": { "ref": "index" },
+    "index_none": { "properties": {} },
     "index_sync": { "ref": "index" },
     "index_pinned": { "ref": "index" },
     "index_exists": { "ref": "index" },
