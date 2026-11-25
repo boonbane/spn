@@ -392,6 +392,10 @@ sp_str_t test_when_blocked(test_when_t when) {
     }
   }
 
+  if (when.not_gcc_4_8 && !sp_str_empty(sp_os_env_get(sp_str_lit("SPN_TEST_GCC_4_8")))) {
+    return sp_str_lit("SPN_TEST_GCC_4_8 says the system gcc is 4.8");
+  }
+
   if (when.driver && when.driver != toolchain->info->driver) {
     return sp_fmt(mem, "{} isn't a {} driver",
       sp_fmt_cstr(toolchain->name),

@@ -4,6 +4,7 @@ typedef struct {
   const c8* template;
   const c8* packages;
   const c8* label;
+  bool gcc_4_8;
 } distro_info_t;
 
 static const distro_info_t distros [] = {
@@ -25,7 +26,8 @@ static const distro_info_t distros [] = {
   [DISTRO_CENTOS7] = {
     .template = "centos7",
     .packages = "ca-certificates git",
-    .label = "glibc 2.17",
+    .label = "glibc 2.17, gcc 4.8",
+    .gcc_4_8 = true,
   },
   [DISTRO_ALPINE] = {
     .template = "alpine",
@@ -282,7 +284,7 @@ const variant_t variants [] = {
   {
     .name = "centos7",
     .distro = DISTRO_CENTOS7,
-    .compilers = COMPILER_GCC | COMPILER_GXX,
+    .compilers = COMPILER_GCC,
     .check = LANE_GCC,
     .spn = SPN_GNU,
     .lanes = { LANE_GCC },
@@ -504,6 +506,10 @@ lane_t variant_seed(const variant_t* variant) {
 
 sp_str_t variant_template(const variant_t* variant) {
   return sp_cstr_as_str(distros[variant->distro].template);
+}
+
+bool variant_gcc_4_8(const variant_t* variant) {
+  return distros[variant->distro].gcc_4_8;
 }
 
 sp_str_t variant_packages(sp_mem_t mem, const variant_t* variant) {

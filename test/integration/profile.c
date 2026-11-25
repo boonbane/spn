@@ -4,7 +4,7 @@ static const test_t tests [] = {
   {
     .name = "sanitize_clear",
     .project = "test/integration/fixtures/profile/clear",
-    .when.sanitize = SPN_SANITIZER_ADDRESS,
+    .when = { .sanitize = SPN_SANITIZER_ADDRESS, .not_gcc_4_8 = true },
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build" } },
       { .kind = ACTION_VERIFY_CC_ARG, .verify_cc_arg = { "-fsanitize=address", "/fsanitize=address" } },
@@ -96,6 +96,16 @@ static const test_t tests [] = {
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build", .args = { "--target", SPN_TEST_ARCH "-freestanding-none" } } },
       { .kind = ACTION_VERIFY_NO_CC_ARG, .verify_cc_arg = { "-fPIC" } },
+    },
+  },
+  {
+    .name = "freestanding_links_compiler_builtins",
+    .project = "test/integration/fixtures/profile/builtins",
+    .copy = { "a.c" },
+    .when = { .driver = SPN_CC_DRIVER_GCC, .target = SPN_TEST_ARCH "-freestanding-none" },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build", .args = { "--target", SPN_TEST_ARCH "-freestanding-none" } } },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = target_exe("main", SPN_TEST_ARCH "-freestanding-none") },
     },
   },
   {
@@ -222,7 +232,7 @@ static const command_test_t commands [] = {
   {
     .name = "host_toolchain_stages_no_sanitizer_runtime",
     .project = "test/integration/fixtures/profile/sanitize",
-    .when = { .sanitize = SPN_SANITIZER_ADDRESS, .host = SPN_OS_LINUX, .lanes = { "gcc" } },
+    .when = { .sanitize = SPN_SANITIZER_ADDRESS, .host = SPN_OS_LINUX, .lanes = { "gcc" }, .not_gcc_4_8 = true },
     .args = { "build", "--sanitize", "address" },
     .expect.files = { { work_file("staged"), .content = "main\tbuild/debug/main\n" } },
   },

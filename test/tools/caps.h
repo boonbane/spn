@@ -38,6 +38,7 @@ typedef struct {
   bool cxx;
   bool deterministic;
   bool atl;
+  bool not_gcc_4_8;
 } test_when_t;
 
 typedef struct {

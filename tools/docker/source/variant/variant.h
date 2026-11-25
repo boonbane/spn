@@ -165,6 +165,7 @@ const variant_t*          variant_hosting(lane_t lane);
 bool                      variant_hosts(const variant_t* variant, lane_t lane);
 lane_t                    variant_seed(const variant_t* variant);
 sp_str_t                  variant_template(const variant_t* variant);
+bool                      variant_gcc_4_8(const variant_t* variant);
 sp_str_t                  variant_packages(sp_mem_t mem, const variant_t* variant);
 sp_str_t                  variant_host_libs(sp_mem_t mem, const variant_t* variant);
 sp_str_t                  variant_summary(sp_mem_t mem, const variant_t* variant);

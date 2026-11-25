@@ -621,6 +621,18 @@ static const test_t tests [] = {
     },
   },
   {
+    .name = "gcc_freestanding_exe_links_libgcc_last",
+    .driver = SPN_CC_DRIVER_GCC,
+    .profile = { .target = { SPN_ARCH_X64, SPN_OS_FREESTANDING, SPN_ABI_BARE } },
+    .kind = SPN_CC_OUTPUT_EXE,
+    .archive = "libA.a",
+    .system_lib = "B",
+    .expect = {
+      .command = "cc",
+      .args = { "-nostdlib", "-static", "main.o", "libA.a", "-lB", "-lgcc", "-o", "main" },
+    },
+  },
+  {
     .name = "wasi_whole_archive",
     .driver = SPN_CC_DRIVER_CLANG,
     .profile = { .target = { SPN_ARCH_WASM32, SPN_OS_WASI } },
