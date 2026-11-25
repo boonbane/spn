@@ -138,6 +138,7 @@ sp_err_t sp_fs_copy_file_buffered_at(sp_path_t from, sp_path_t to) {
   if (!err && meta.kind != SP_FS_KIND_FILE) {
     err = meta.kind == SP_FS_KIND_DIR ? SP_ERR_SYS_IS_DIR : SP_ERR_SYS_UNSUPPORTED;
   }
+  sp_sys_set_read_only(&meta.perms, false);
 
   sp_fs_atomic_t af = sp_zero;
   if (!err) {
