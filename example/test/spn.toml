@@ -5,8 +5,8 @@ version = "0.1.0"
 [[lib]]
 name = "calc"
 kinds = ["static"]
-source = ["calc.c"]
-publish.include = [{ from = "calc.h" }]
+source = ["source/calc.c"]
+publish.include = [{ from = "source/calc.h" }]
 
 [[bin]]
 name = "main"
