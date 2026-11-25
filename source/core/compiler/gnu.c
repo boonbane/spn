@@ -150,7 +150,7 @@ static void render_flags(sp_mem_t mem, const spn_cc_t* toolchain, const spn_prof
     if (spn_triple_object_format(profile->target) == SPN_OBJ_WASM) {
       si_da_push(mem, flags->link, sp_str_lit("-nostdlib"));
     }
-    else if (spn_cc_has(toolchain, SPN_CC_CAP_CLANG_FRONTEND)) {
+    else if (spn_cc_has(toolchain, SPN_CC_CAP_NOLIBC)) {
       si_da_push(mem, flags->link, sp_str_lit("-nostartfiles"));
       si_da_push(mem, flags->link, sp_str_lit("-nolibc"));
     }

@@ -633,6 +633,16 @@ static const test_t tests [] = {
     },
   },
   {
+    .name = "zig_freestanding_exe_links_compiler_rt",
+    .driver = SPN_CC_DRIVER_ZIG,
+    .profile = { .target = { SPN_ARCH_X64, SPN_OS_FREESTANDING, SPN_ABI_BARE } },
+    .kind = SPN_CC_OUTPUT_EXE,
+    .expect = {
+      .command = "cc",
+      .args = { "--target=x86_64-freestanding-none", "-nostdlib", "-static", "main.o", "-lgcc", "-o", "main" },
+    },
+  },
+  {
     .name = "wasi_whole_archive",
     .driver = SPN_CC_DRIVER_CLANG,
     .profile = { .target = { SPN_ARCH_WASM32, SPN_OS_WASI } },
