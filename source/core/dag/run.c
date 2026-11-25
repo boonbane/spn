@@ -1019,13 +1019,13 @@ spn_err_t spn_dag_run_begin(spn_dag_run_t* run, sp_mem_t mem) {
   sp_assert(!spn_path_empty(run->scratch));
   sp_assert(sp_da_size(g->actions) < (1u << 30));
 
+  u64 artifacts = sp_da_size(g->artifacts);
+  run->artifacts = sp_alloc_n(run->mem, spn_dag_artifact_state_t, artifacts ? artifacts : 1);
+
   run->diag = spn_dag_validate(g);
   if (run->diag.err) {
     return run->diag.err;
   }
-
-  u64 artifacts = sp_da_size(g->artifacts);
-  run->artifacts = sp_alloc_n(run->mem, spn_dag_artifact_state_t, artifacts ? artifacts : 1);
 
   sp_mem_arena_marker_t s = sp_mem_begin_scratch();
   spn_path_t base = spn_path_join(s.mem, run->scratch, sp_str_lit("run"));
