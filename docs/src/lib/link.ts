@@ -1,7 +1,7 @@
 import type { Root } from 'mdast'
 import { visit } from 'unist-util-visit'
 // loaded by astro.config.ts, where the @spn/docs alias doesn't resolve
-import { links } from '../data/links'
+import links from '../../content/links.json'
 
 const SCHEME = 'link:'
 
@@ -9,7 +9,7 @@ export function named(url: string): boolean {
   return url.startsWith(SCHEME)
 }
 
-// `link:discord.public` names an entry of src/data/links.ts by its path
+// `link:discord.public` names an entry of content/links.json by its path
 export function resolve(url: string): string {
   const path = url.slice(SCHEME.length).split('.')
   const found = path.reduce<unknown>((node, key) => (node as Record<string, unknown> | undefined)?.[key], links)
