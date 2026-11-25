@@ -26,6 +26,11 @@ typedef struct {
 } si_dag_pkg_ids_t;
 
 typedef struct {
+  spn_dag_id_t libc;
+  spn_dag_id_t stdinc [SPN_LANG_COUNT];
+} si_dag_build_ids_t;
+
+typedef struct {
   spn_pkg_unit_t* pkg;
   sp_atomic_s32_t announced;
 } spn_dag_announce_t;
@@ -65,8 +70,9 @@ struct spn_dag_build_t {
     sp_ht(spn_target_unit_t*, spn_dag_target_ids_t) targets;
     sp_ht(spn_target_unit_t*, spn_dag_embed_ids_t) embeds;
     si_om(spn_pkg_unit_t*, si_dag_pkg_ids_t) packages;
-    sp_ht(spn_build_unit_t*, spn_dag_id_t) builds;
+    si_ht(spn_build_unit_t*, si_dag_build_ids_t) builds;
     sp_ht(spn_dag_digest_t, spn_dag_id_t) warm;
+    si_ht(spn_dag_digest_t, spn_dag_id_t) stdinc;
   } ids;
   struct {
     si_om(spn_pkg_unit_t*, spn_dag_announce_t) pkgs;

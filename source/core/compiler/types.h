@@ -140,10 +140,29 @@ typedef struct {
 typedef struct {
   spn_cc_driver_t driver;
   spn_invocation_t base;
+  u32 launcher_argc;
   spn_cc_depfile_t depfile;
   bool codeview;
   bool prefix_map;
 } spn_cc_compile_plan_t;
+
+typedef enum {
+  SPN_CC_STDINC_NONE,
+  SPN_CC_STDINC_FRAGMENT,
+  SPN_CC_STDINC_SEARCH_LIST,
+} spn_cc_stdinc_kind_t;
+
+typedef struct {
+  spn_cc_stdinc_kind_t kind;
+  spn_invocation_t query;
+  spn_invocation_t builtin;
+} spn_cc_stdinc_plan_t;
+
+typedef struct {
+  spn_path_t cwd;
+  spn_path_t libc;
+  spn_path_t fragment;
+} spn_cc_stdinc_files_t;
 
 typedef enum {
   SPN_CC_SONAME_NONE,

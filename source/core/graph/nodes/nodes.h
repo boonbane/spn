@@ -95,6 +95,13 @@ typedef struct {
 } si_publish_file_t;
 
 typedef struct {
+  spn_cc_stdinc_plan_t plan;
+  sp_str_t toolchain;
+  spn_dag_id_t libc;
+  spn_dag_id_t output;
+} si_stdinc_t;
+
+typedef struct {
   const spn_cc_t* cc;
   const spn_profile_info_t* profile;
   spn_dag_id_t libc;
@@ -111,6 +118,8 @@ spn_err_t si_on_link(const si_dag_ctx_t* c, void* user_data);
 spn_err_t si_on_write_exports(const si_dag_ctx_t* c, void* user_data);
 spn_err_t si_on_write_rsp(const si_dag_ctx_t* c, void* user_data);
 spn_err_t si_on_write_libc(const si_dag_ctx_t* c, void* user_data);
+spn_err_t si_on_stdinc_fragment(const si_dag_ctx_t* c, void* user_data);
+spn_err_t si_on_stdinc_search_list(const si_dag_ctx_t* c, void* user_data);
 spn_err_t si_on_embed(const si_dag_ctx_t* c, void* user_data);
 spn_err_t si_on_user_node(const si_dag_ctx_t* c, void* user_data);
 spn_err_t si_on_publish(const si_dag_ctx_t* c, void* user_data);

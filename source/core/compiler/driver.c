@@ -170,9 +170,20 @@ static spn_invocation_t invocation_from_base(sp_mem_t mem, const spn_invocation_
   return invocation;
 }
 
-spn_invocation_t spn_cc_render_compile_source(sp_mem_t mem, const spn_cc_compile_plan_t* plan, const spn_cc_compile_files_t* files) {
+spn_invocation_t si_cc_render_compile_source(sp_mem_t mem, const spn_cc_compile_plan_t* plan, const spn_cc_compile_files_t* files, si_da(sp_str_t) stdinc) {
   sp_assert(!spn_path_empty(files->source));
-  spn_invocation_t invocation = invocation_from_base(mem, &plan->base);
+  sp_assert(!spn_arg_empty(plan->base.program));
+
+  spn_invocation_t invocation = { .program = plan->base.program };
+  sp_for(it, plan->launcher_argc) {
+    spn_cc_push(mem, &invocation, plan->base.args[it]);
+  }
+  si_da_for(stdinc, it) {
+    spn_cc_push_str(mem, &invocation, stdinc[it]);
+  }
+  sp_for_range(it, plan->launcher_argc, sp_da_size(plan->base.args)) {
+    spn_cc_push(mem, &invocation, plan->base.args[it]);
+  }
   switch (plan->driver) {
     case SPN_CC_DRIVER_GCC:
     case SPN_CC_DRIVER_CLANG:
@@ -213,6 +224,27 @@ spn_invocation_t spn_cc_render_compile_command(sp_mem_t mem, const spn_cc_compil
       sp_unreachable_case();
     }
   }
+  return invocation;
+}
+
+spn_cc_stdinc_plan_t si_cc_render_stdinc(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, spn_lang_t lang) {
+  spn_cc_stdinc_plan_t plan = sp_zero;
+  if (toolchain->driver == SPN_CC_DRIVER_ZIG) {
+    plan.kind = SPN_CC_STDINC_FRAGMENT;
+    plan.query = si_gnu_render_stdinc_query(mem, toolchain, profile, lang);
+  }
+  else if (toolchain->driver == SPN_CC_DRIVER_GCC) {
+    plan.kind = SPN_CC_STDINC_SEARCH_LIST;
+    plan.query = si_gnu_render_stdinc_query(mem, toolchain, profile, lang);
+    plan.builtin = si_gnu_render_builtin_query(mem, toolchain, profile, lang);
+  }
+  return plan;
+}
+
+spn_invocation_t si_cc_render_stdinc_command(sp_mem_t mem, const spn_invocation_t* query, const spn_cc_stdinc_files_t* files) {
+  spn_invocation_t invocation = invocation_from_base(mem, query);
+  invocation.cwd = files->cwd;
+  si_gnu_render_stdinc_locations(mem, files, &invocation);
   return invocation;
 }
 

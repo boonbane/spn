@@ -1,0 +1,6 @@
+{
+  "metadata": { "format": "data" },
+  "properties": {
+    "arguments": { "elements": { "type": "string" } }
+  }
+}

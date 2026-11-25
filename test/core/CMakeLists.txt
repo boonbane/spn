@@ -35,6 +35,9 @@ add_executable(core
   compiler/path.c
   compiler/rsp.c
   compiler/run.c
+  compiler/search_list.c
+  compiler/source.c
+  compiler/stdinc.c
   compiler/toc.c
   compiler/validate.c
   config/cache.c
@@ -177,6 +180,7 @@ add_executable(core
   unit/link.c
   unit/lower.c
   unit/lower_stage_rows.c
+  unit/lower_stdinc.c
   unit/objects.c
   unit/paths.c
   unit/staged.c

@@ -1,0 +1,7 @@
+ignoring nonexistent directory "/X"
+#include "..." search starts here:
+#include <...> search starts here:
+ /A
+ /B
+ /C
+End of search list.

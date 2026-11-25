@@ -126,6 +126,7 @@ source = [
   "source/core/**/*.c",
   "source/util/**/*.c",
   { path = "gen/codegen/gen/abi.gen.c", tree = "work" },
+  { path = "gen/codegen/gen/cdb_fragment.gen.c", tree = "work" },
   { path = "gen/codegen/gen/config.gen.c", tree = "work" },
   { path = "gen/codegen/gen/errors.gen.c", tree = "work" },
   { path = "gen/codegen/gen/events.gen.c", tree = "work" },

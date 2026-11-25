@@ -71,6 +71,9 @@ add_dependencies(toolchain headers)
 set(SCHEMA_DIR ${CMAKE_SOURCE_DIR}/source/core/codegen/schema)
 set(INCLUDE_DIR ${GEN_INCLUDE}/spn)
 set(GEN_FILES
+  ${GEN_DIR}/cdb_fragment.gen.h
+  ${GEN_DIR}/cdb_fragment.gen.c
+  ${GEN_DIR}/cdb_fragment.jtd.json
   ${GEN_DIR}/common.gen.h
   ${GEN_DIR}/config.gen.h
   ${GEN_DIR}/config.gen.c

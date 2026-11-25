@@ -1,0 +1,6 @@
+#include "..." search starts here:
+#include <...> search starts here:
+ /A
+ /B
+ /F (framework directory)
+End of search list.

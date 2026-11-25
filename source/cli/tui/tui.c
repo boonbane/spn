@@ -638,6 +638,10 @@ static sp_str_t render_event_detail(spn_tui_t* tui, sp_mem_t mem, spn_event_t* e
       sp_tty_fmt(&w, "could not warm libc for {.yellow}", sp_fmt_str(event->warm_failed.triple));
       break;
     }
+    case SPN_EVENT_STDINC_FAILED: {
+      sp_tty_fmt(&w, "could not ask {.yellow} for its include paths", sp_fmt_str(event->stdinc_failed.toolchain));
+      break;
+    }
     case SPN_EVENT_NODE_FAILED: {
       sp_str_t path = contextual_path(mem, event->node_failed.path);
       sp_str_t tag = event->node_failed.tag;
@@ -2159,6 +2163,10 @@ static void render_event_extra(sp_tty_t* w, spn_event_t* event) {
     }
     case SPN_EVENT_WARM_FAILED: {
       write_run_output(w, &event->warm_failed.run);
+      break;
+    }
+    case SPN_EVENT_STDINC_FAILED: {
+      write_run_output(w, &event->stdinc_failed.run);
       break;
     }
     case SPN_EVENT_LINK_FAILED: {

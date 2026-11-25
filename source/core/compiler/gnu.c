@@ -161,15 +161,11 @@ static void render_flags(sp_mem_t mem, const spn_cc_t* toolchain, const spn_prof
   }
 }
 
-static void add_sdk_compile(sp_mem_t mem, const spn_profile_info_t* profile, spn_invocation_t* invocation) {
-  if (profile->libc.some) {
-    spn_cc_push_search(mem, invocation, "-isystem", profile->libc.value.search.include);
-    return;
-  }
-  const spn_sdk_t* sdk = &profile->sdk;
+static void add_sdk_root(sp_mem_t mem, const spn_sdk_t* sdk, spn_invocation_t* invocation) {
   switch (sdk->kind) {
     case SPN_SDK_NONE:
-    case SPN_SDK_HOST: {
+    case SPN_SDK_HOST:
+    case SPN_SDK_MSVC: {
       break;
     }
     case SPN_SDK_SYSROOT: {
@@ -181,11 +177,19 @@ static void add_sdk_compile(sp_mem_t mem, const spn_profile_info_t* profile, spn
       spn_cc_push_path(mem, invocation, sdk->macos.root);
       break;
     }
-    case SPN_SDK_MSVC: {
-      spn_cc_push_c(mem, invocation, "-nostdlibinc");
-      spn_cc_push_search(mem, invocation, "-isystem", spn_msvc_include_dirs(&sdk->msvc));
-      break;
-    }
+  }
+}
+
+static void add_sdk_compile(sp_mem_t mem, const spn_profile_info_t* profile, spn_invocation_t* invocation) {
+  if (profile->libc.some) {
+    spn_cc_push_search(mem, invocation, "-isystem", profile->libc.value.search.include);
+    return;
+  }
+  const spn_sdk_t* sdk = &profile->sdk;
+  add_sdk_root(mem, sdk, invocation);
+  if (sdk->kind == SPN_SDK_MSVC) {
+    spn_cc_push_c(mem, invocation, "-nostdlibinc");
+    spn_cc_push_search(mem, invocation, "-isystem", spn_msvc_include_dirs(&sdk->msvc));
   }
 }
 
@@ -200,25 +204,10 @@ static void add_sdk_link(sp_mem_t mem, const spn_profile_info_t* profile, spn_in
     return;
   }
   const spn_sdk_t* sdk = &profile->sdk;
-  switch (sdk->kind) {
-    case SPN_SDK_NONE:
-    case SPN_SDK_HOST: {
-      break;
-    }
-    case SPN_SDK_SYSROOT: {
-      spn_cc_push_glued(mem, tail, "--sysroot=", sdk->root);
-      break;
-    }
-    case SPN_SDK_MACOS: {
-      spn_cc_push_c(mem, tail, "-isysroot");
-      spn_cc_push_path(mem, tail, sdk->macos.root);
-      break;
-    }
-    case SPN_SDK_MSVC: {
-      spn_dir_list_t lib = spn_msvc_lib_dirs(&sdk->msvc);
-      spn_cc_push_env_paths(mem, base, SPN_ENV_LIB, lib.items, lib.count);
-      break;
-    }
+  add_sdk_root(mem, sdk, tail);
+  if (sdk->kind == SPN_SDK_MSVC) {
+    spn_dir_list_t lib = spn_msvc_lib_dirs(&sdk->msvc);
+    spn_cc_push_env_paths(mem, base, SPN_ENV_LIB, lib.items, lib.count);
   }
 }
 
@@ -267,6 +256,7 @@ spn_cc_compile_plan_t si_gnu_render_compile(sp_mem_t mem, const spn_cc_t* toolch
   };
   spn_invocation_t* invocation = &plan.base;
   add_launcher(mem, toolchain, profile, lang, compile->min_os, invocation);
+  plan.launcher_argc = (u32)sp_da_size(invocation->args);
   spn_cc_flags_t flags = sp_zero;
   render_flags(mem, toolchain, profile, &flags);
   if (lang == SPN_LANG_C) {
@@ -310,6 +300,37 @@ spn_cc_compile_plan_t si_gnu_render_compile(sp_mem_t mem, const spn_cc_t* toolch
   }
   spn_cc_push_c(mem, invocation, "-Werror=return-type");
   return plan;
+}
+
+spn_invocation_t si_gnu_render_stdinc_query(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, spn_lang_t lang) {
+  spn_invocation_t invocation = sp_zero;
+  add_launcher(mem, toolchain, profile, lang, sp_zero_s(spn_os_version_t), &invocation);
+  if (!profile->libc.some) {
+    add_sdk_root(mem, &profile->sdk, &invocation);
+  }
+  spn_cc_push_c(mem, &invocation, "-E");
+  spn_cc_push_c(mem, &invocation, "-v");
+  spn_cc_push_c(mem, &invocation, "-x");
+  spn_cc_push_c(mem, &invocation, lang == SPN_LANG_CXX ? "c++" : "c");
+  spn_cc_push_c(mem, &invocation, "-");
+  return invocation;
+}
+
+spn_invocation_t si_gnu_render_builtin_query(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, spn_lang_t lang) {
+  spn_invocation_t invocation = sp_zero;
+  add_launcher(mem, toolchain, profile, lang, sp_zero_s(spn_os_version_t), &invocation);
+  spn_cc_push_c(mem, &invocation, "-print-file-name=include");
+  return invocation;
+}
+
+void si_gnu_render_stdinc_locations(sp_mem_t mem, const spn_cc_stdinc_files_t* files, spn_invocation_t* invocation) {
+  if (!spn_path_empty(files->fragment)) {
+    spn_cc_push_c(mem, invocation, "-MJ");
+    spn_cc_push_path(mem, invocation, files->fragment);
+  }
+  if (!spn_path_empty(files->libc)) {
+    spn_cc_push_env(mem, invocation, SPN_ENV_ZIG_LIBC, spn_arg_path(files->libc));
+  }
 }
 
 static void add_output(sp_mem_t mem, spn_path_t output, spn_invocation_t* invocation) {

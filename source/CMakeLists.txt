@@ -19,6 +19,7 @@ set(SPN_CORE_SOURCES
   core/compiler/msvc.c
   core/compiler/occ.c
   core/compiler/rsp.c
+  core/compiler/stdinc.c
   core/compiler/toc.c
   core/ctx/ctx.c
   core/ctx/init.c
@@ -76,6 +77,7 @@ set(SPN_CORE_SOURCES
   core/graph/nodes/link.c
   core/graph/nodes/object.c
   core/graph/nodes/rsp.c
+  core/graph/nodes/stdinc.c
   core/graph/nodes/publish.c
   core/graph/nodes/user.c
   core/graph/nodes/warm.c
@@ -185,6 +187,7 @@ endif()
 # Everything but the CLI. Test binaries link this instead of recompiling the
 # sources they need; the archive only pulls in the objects they reference.
 add_library(spn_core STATIC ${SPN_CORE_SOURCES}
+  ${GEN_DIR}/cdb_fragment.gen.c
   ${GEN_DIR}/config.gen.c
   ${GEN_DIR}/errors.gen.c
   ${GEN_DIR}/events.gen.c

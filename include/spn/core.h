@@ -226,6 +226,7 @@ typedef enum {
   SPN_LANG_C,
   SPN_LANG_CXX,
   SPN_LANG_ASM,
+  SPN_LANG_COUNT,
 } spn_lang_t;
 
 typedef enum {
