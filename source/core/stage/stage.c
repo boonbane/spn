@@ -1,5 +1,6 @@
 #include "stage/stage.h"
 #include "dag/dag.h"
+#include "fs/fs.h"
 #include "paths/paths.h"
 #include "str/str.h"
 
@@ -100,7 +101,7 @@ spn_stage_diag_t spn_stage_apply(sp_mem_t scratch, const spn_path_roots_t* roots
       continue;
     }
     sp_fs_create_parent_at(spn_path_at(roots, row->to));
-    sp_err_t copied = sp_fs_copy_file_at(spn_path_at(roots, row->location), spn_path_at(roots, row->to), SP_FS_WRITE_REPLACE);
+    sp_err_t copied = sp_fs_copy_file_buffered_at(spn_path_at(roots, row->location), spn_path_at(roots, row->to));
     if (copied || spn_dag_file_cache_seed(files, row->to, row->digest)) {
       spn_dag_file_cache_invalidate(files, row->to);
       return (spn_stage_diag_t) { .err = SPN_ERR_FS_WRITE, .path = row->to };

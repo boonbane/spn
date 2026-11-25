@@ -155,10 +155,6 @@ sp_test_each(dag_tree, exec, test_t, tests) {
     }
     if (run->overwrite.path) {
       sp_path_t path = sp_path_join(mem, target, sp_cstr_as_str(run->overwrite.path));
-      sp_sys_file_meta_t meta = sp_zero;
-      sp_must_ok(t, sp_sys_get_path_metadata_s(path.dir, path.sub, &meta));
-      sp_sys_set_read_only(&meta.perms, false);
-      sp_must_ok(t, sp_sys_set_file_perms_s(path.dir, path.sub, meta.perms));
       sp_must_ok(t, sp_fs_write_at(path, sp_cstr_as_str(run->overwrite.content), SP_FS_WRITE_TRUNCATE, sp_sys_default_file_perms));
     }
 
