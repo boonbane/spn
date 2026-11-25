@@ -38,6 +38,8 @@
 
 void start() {
   const char* line = "hello from nolibc\n";
-  syscall3(SYS_WRITE, 1, (long)line, 18);
+  volatile unsigned __int128 total = 36;
+  volatile unsigned __int128 parts = 2;
+  syscall3(SYS_WRITE, 1, (long)line, (long)(total / parts));
   syscall3(SYS_EXIT, 0, 0, 0);
 }

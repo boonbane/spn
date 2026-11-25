@@ -102,7 +102,7 @@ static const test_t tests [] = {
     .name = "freestanding_links_compiler_builtins",
     .project = "test/integration/fixtures/profile/builtins",
     .copy = { "a.c" },
-    .when = { .driver = SPN_CC_DRIVER_GCC, .target = SPN_TEST_ARCH "-freestanding-none" },
+    .when.target = SPN_TEST_ARCH "-freestanding-none",
     .actions = {
       { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build", .args = { "--target", SPN_TEST_ARCH "-freestanding-none" } } },
       { .kind = ACTION_VERIFY_EXISTS, .exists = target_exe("main", SPN_TEST_ARCH "-freestanding-none") },

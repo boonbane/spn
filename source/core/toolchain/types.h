@@ -31,6 +31,7 @@ typedef enum {
   SPN_CC_CAP_STRIP_ALL      = 1 << 12,
   SPN_CC_CAP_LINK_MODE_CRT  = 1 << 13,
   SPN_CC_CAP_GNU_LINK_ARGS  = 1 << 14,
+  SPN_CC_CAP_NOLIBC         = 1 << 15,
 } spn_cc_cap_t;
 
 typedef u32 spn_cc_cap_set_t;
