@@ -6,9 +6,9 @@
 #include "array/array.h"
 
 typedef struct {
-  sp_da(sp_str_t) compile;
-  sp_da(sp_str_t) link;
-  sp_da(sp_str_t) libs;
+  si_da(sp_str_t) compile;
+  si_da(sp_str_t) link;
+  si_da(sp_str_t) libs;
 } spn_cc_flags_t;
 
 typedef enum {
