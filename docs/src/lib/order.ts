@@ -1,7 +1,6 @@
 // sidebar and README order, by page id
 export const order = [
   'quickstart',
-  'overview',
   'packages',
   'conditions',
   'dependencies',
@@ -12,17 +11,12 @@ export const order = [
   'toolchains',
   'cache',
   'configuration',
-  'packaging',
   'ci',
   'manifest',
   'config',
   'embedding',
-  'workspaces',
-  'why',
   'faq',
   'roadmap',
-  'replace',
-  'development',
 ]
 
 export function position(id: string): number {

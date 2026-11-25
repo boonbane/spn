@@ -41,8 +41,11 @@ const pillars = await Promise.all(entries.map(async (entry) => ({ ...entry.data,
 
   <section class="cta container">
     <div class="actions">
+      <h2>Install</h2>
       <Install />
-      <Subscribe />
+      <h2>Sign up for the mailing list</h2>
+      <Subscribe title={false} />
+      <h2>Join the Discord</h2>
       <Discord invite="public" />
     </div>
   </section>

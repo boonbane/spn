@@ -1,6 +1,5 @@
 ---
 title: CI and releases
-group: Guides
 readme: false
 ---
 
@@ -14,7 +13,7 @@ import Stub from '@spn/docs/components/Stub.astro'
 <Stub />
 
 - Install with the same one-line [installer](/docs/quickstart#install); with no terminal it never prompts.
-- On GitHub Actions, `spn` is on `PATH` from the next step.
+- I'm working on [a GitHub Action](https://github.com/boonbane/spn-action)
 - Cache `spn`'s [storage directory](/docs/configuration#storage) between runs; it holds the toolchain, fetched dependencies, and the build cache.
 - Setting `SPN_STORAGE_DIR` to a path inside the workspace makes that easy.
 - Commit `spn.lock`, and run `spn build --locked` and `spn test --locked`.

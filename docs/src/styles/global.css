@@ -268,6 +268,14 @@ ul {
   margin-block: 0;
 }
 
+.prose p:has(+ :is(ul, ol)) {
+  margin-bottom: var(--s-2);
+}
+
+.prose p + :is(ul, ol) {
+  margin-top: 0;
+}
+
 .prose :is(h2, h3, strong, th) {
   font-weight: inherit;
   color: var(--text);

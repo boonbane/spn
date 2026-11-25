@@ -1,9 +1,10 @@
 ---
 interface Props {
   tag?: string
+  title?: boolean
 }
 
-const { tag } = Astro.props
+const { tag, title = true } = Astro.props
 const source = `spn${Astro.url.pathname.replace(/\/$/, '')}`
 ---
 
@@ -11,7 +12,7 @@ const source = `spn${Astro.url.pathname.replace(/\/$/, '')}`
   <input type="hidden" name="tag" value="spn" />
   {tag && <input type="hidden" name="tag" value={tag} />}
   <input type="hidden" name="metadata__source" value={source} />
-  <span class="title">Sign up for our mailing list</span>
+  {title && <span class="title">Sign up for our mailing list</span>}
   <input type="email" name="email" placeholder="your@email.com" required />
   <button type="submit">subscribe</button>
 </form>

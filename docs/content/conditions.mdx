@@ -8,7 +8,7 @@ import Stub from '@spn/docs/components/Stub.astro'
 
 <Offline />
 
-Any field in your package can be keyed on any fact of the build (target OS, architecture, ABI, build mode, optimization level, sanitizer settings). Clauses are structured data, not a DSL, and an entry with multiple clauses gets them ANDed together. Here's some common examples:
+Any field in your package can be keyed on any fact of the build (target OS, architecture, ABI, build mode, optimization level, sanitizer settings) by using a `when` clause in TOML. Clauses are structured data, not a DSL[^1], and an entry with multiple clauses gets them ANDed together. Here's some common examples:
 
 ```toml
 source = [
@@ -29,34 +29,39 @@ deps = [
 ]
 ```
 
-## when clauses
+## `when` clauses
 
-<Stub />
+A `when` is a table on an entry. Each key is either a [build fact](/docs/conditions#fact-keys) or one of the package's own [options](/docs/conditions#options), and each value is a string, a bool, or `{ not = value }`. Anything else is an error, so a typo can't quietly never match.
 
-- `when` is a table on an entry, and the entry applies only when every key in it matches.
-- A value is a string, a bool, or `{ not = value }`.
-- There is no "or": repeat the entry once per condition.
-- A source that matches twice that way compiles once.
-- Keys are [build facts](/docs/conditions#fact-keys) or this package's own options; a dependency's options aren't visible.
-- It works on entries in `source`, `include`, `define`, `flags`, `link_flags`, `system_deps`, `host_deps`, `embed`, target `deps`, `[package.publish]`, and `[deps.*]`.
-- A target has no `when`; gate each of its sources.
-- In a profile, a `when` accepts only `os` and `arch`.
-- In `[package.configure]` and `[package.build]`, a `when` accepts facts but not options.
+There's no "or". Every key in a `when` has to match, so the way to say "x86 or ARM" is to repeat the entry:
+
+```toml
+define = [
+  { value = "USE_SIMD", when = { arch = "x86_64" } },
+  { value = "USE_SIMD", when = { arch = "aarch64" } },
+]
+```
+
+There's no `when` on a target itself, either; gate its sources instead.
+
+Two places see fewer keys. A [profile](/docs/building#profiles) is what decides most of the facts, so a `when` inside one can only use `os` and `arch`. A [metaprogram](/docs/metaprograms) can use any fact, but not options.
 
 ## Fact keys
 
-<Stub />
+Facts always describe the target you're building for, never the machine doing the build.
 
-- `os`: `linux`, `macos`, `windows`, `wasi`, `freestanding`
-- `arch`: `x86_64`, `aarch64`, `wasm32`
-- `abi`: `gnu`, `musl`, `msvc`, `apple`, `none`, `elf`
-- `driver`: `gcc`, `clang`, `msvc`, `zig`
-- `linker`: `gnu`, `lld`, `ld64`, `msvc`
-- `mode`: `debug`, `release`
-- `opt`: `0`, `1`, `2`, `3`, `s`, `z`
-- `sanitize_address`, `sanitize_thread`, `sanitize_undefined`, `sanitize_memory`, `sanitize_leak`: `true` or `false`
-- Facts describe the target being built, not the machine doing the build.
-- The bundled zig is `driver = "zig"`, so `driver = "clang"` doesn't match it.
+| Key | Values |
+|---|---|
+| `os` | `linux`, `macos`, `windows`, `wasi`, `freestanding` |
+| `arch` | `x86_64`, `aarch64`, `wasm32` |
+| `abi` | `gnu`, `musl`, `msvc`, `apple`, `none`, `elf` |
+| `driver` | `gcc`, `clang`, `msvc`, `zig` |
+| `linker` | `gnu`, `lld`, `ld64`, `msvc` |
+| `mode` | `debug`, `release` |
+| `opt` | `0`, `1`, `2`, `3`, `s`, `z` |
+| `sanitize_$name` | `true` or `false`, one key each for `address`, `thread`, `undefined`, `memory`, and `leak` |
+
+The bundled Zig toolchain is `driver = "zig"`, so `driver = "clang"` won't match it.
 
 ## Options
 
@@ -118,3 +123,5 @@ options = { tls = "openssl" }
 [deps.package]
 foo = { version = "6.9.0", options = { zstd = true } }
 ```
+
+[^1]: I'm just gonna preempt any "ACKSHUALLY THIS IS JUST A DSL TOO"

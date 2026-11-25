@@ -13,7 +13,8 @@ header {
 }
 
 .hero h1,
-main h2 {
+main h2,
+.cta h2 {
   font-weight: var(--weight-heavy);
   line-height: var(--leading-tight);
   letter-spacing: var(--tracking-tight);
@@ -92,7 +93,8 @@ main > section {
   border-bottom: var(--border);
 }
 
-main h2 {
+main h2,
+.cta h2 {
   font-size: var(--text-2xl);
 }
 
@@ -106,4 +108,8 @@ main .code-block pre {
   display: flex;
   justify-content: center;
   padding-block: var(--s-11) var(--s-12);
+
+  h2:not(:first-child) {
+    margin-top: var(--s-7);
+  }
 }

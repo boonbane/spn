@@ -4,6 +4,9 @@ head: spn.toml
 code: packages.toml
 order: 4
 ---
-`spn` includes a sophisticated package manager with first class Git integration. Pick from [existing package versions](https://github.com/boonbane/spam), write your own, or just pin to a commit.
+C does not have a package culture. Instead of forcing a central registry, `spn` provides simple primitives you can use to publish and consume code.
 
-C/C++ are not JS. There isn't a package culture. `spn` takes great care to provide a package manager that can handle anything from complex dependency structures to hardcoded versions to hobby projects with an excellent developer experience.
+
+A package index is just a Git repository of manifests. Use [the one we maintain](https://github.com/boonbane/spam), host your own, or skip the index and point a manifest at a commit.
+
+Dependencies are built from source with the options you choose, pinned in a lockfile, and patched without forking.

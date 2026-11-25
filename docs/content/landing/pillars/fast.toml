@@ -1,6 +1,10 @@
 [package]
 name = "hello"
+version = "0.1.0"
 
 [[bin]]
 name   = "hello"
-source = ["main.c"]
+source = ["main.c", "util/*.c"]
+
+[deps.package]
+sqlite = "3.51.0"

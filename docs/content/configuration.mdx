@@ -16,7 +16,7 @@ The file is optional. It holds:
 
 | Key | Description |
 |---|---|
-| [`[[index]]`](/docs/indexes#global-configuration) | Package indexes for every project on the machine |
+| [`[[index]]`](/docs/indexes#hosting-on-git) | Package indexes for every project on the machine |
 | `[[toolchain]]` | Toolchains for every project on the machine |
 | `[net]` | Network settings: timeout, certificates, and system `git` |
 | `[cache]` | Limits for the shared build cache |
@@ -100,7 +100,7 @@ sweep_interval = 600
 - The build cache is trimmed at 10 GiB; see [`[cache]`](/docs/configuration#cache).
 - This is the directory to cache in [CI](/docs/ci#ci).
 - Builds treat fetched dependency sources as read-only, so an edit there is ignored.
-- To work on a dependency, clone it and use it as a [path dependency](/docs/dependencies#local-dependencies).
+- To work on a dependency, clone it and use it as a [path dependency](/docs/dependencies#vendor-everything).
 
 ## Environment variables
 

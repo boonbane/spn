@@ -4,8 +4,9 @@ head: spn.toml
 code: fast.toml
 order: 1
 ---
-Write project manifests in TOML, and `spn` turns them into a build graph and executes it in parallel. You don't have to envy Rust programmers any more.
 
-`spn`'s build executor is as fast as Ninja, but since it owns your entire build, it can aggressively parallelize and cache in ways that other tools simply aren't able to.
+`spn` turns familiar TOML package manifests into a build graph that it schedules and runs in parallel.
 
-It's really, *really* fast.
+It *never* wraps another build system; it runs every compile and link in your build, including those of your dependencies.
+
+Even better, it comes with a sophisticated, CI-friendly build cache out of the box. Switching branches, worktrees, or even cross compilation targets no longer means a rebuild!

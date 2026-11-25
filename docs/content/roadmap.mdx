@@ -10,6 +10,21 @@ import Stub from '@spn/docs/components/Stub.astro'
 
 This page is intended to document not just the roadmap for new features, but to be clear about what is very much alpha quality.
 
+## An ARM + Linux build
+
+Yeah...that one's on me. If this is your platform, I'm sorry. `spn` can absolutely build a static ARM binary, no problem. But I didn't have enough time to test it to an acceptable standard. I promise it's coming soon!
+
+## Supported targets
+
+`spn` currently only supports:
+- 64 bit
+- x86_64 and aarch64
+- Windows, macOS, Linux, ELF binaries, or freestanding
+
+That's not because I think embedded or any other platform is less important to the success of the mission. It's because this is a gigantic project, and I'm much more comfortable with building for the platforms I use.
+
+`spn` is built, to the extent of my skill as a programmer, in a way that new platforms and toolchains and SDKs can slot in without too much heartache. I would, in fact, *love* to add support for your weird corner of the world. If you'd like that, then please get in touch on [Discord](link:discord.public) or send me an [email](/mail)
+
 ## Caching
 
 Right now, the cache has some fundamental flaws which cause it to grow more than it ought to and miss when it should hit. For the alpha, absolute paths are a part of cache keys. That means that compiling the same code, say, in another worktree, costs a one time cache miss. *Switching* between worktrees, or switching between branches, is *not* a cache miss. One time means one time, ever.

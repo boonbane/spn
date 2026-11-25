@@ -1,5 +1,5 @@
 ---
-title: spn — a package manager and build tool for C
+title: spn — a package manager and build tool for C and C++
 description: TOML manifests, build scripts written in C, dependencies pinned to exact commits. One static binary replaces make, cmake, conan, and the glue between them.
 ---
 # The missing everything tool for **C** and **C++**

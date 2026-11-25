@@ -2,8 +2,8 @@
 title: Reproducible, sandboxed builds
 head: build.c
 code: sandbox.c
-order: 2
+order: 3
 ---
-Build scripts are written in the same language as your project. `spn` sandboxes them by compiling them to WASM modules. Or, if you prefer, write your build scripts in any language that compiles to WASM.
+Build scripts are plain C, not a DSL, and use the same packages your project already uses. `spn` compiles them to WebAssembly and runs them in a sandbox inside your build.
 
-Build scripts are first class programs. They can have their own dependencies, and are only rerun when the files they read change.
+The sandbox sees every file a script reads, so build scripts are cached just like compiles. And when you just need to run a Python script so you can build your damn code, it helps with that, too!
