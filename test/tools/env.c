@@ -475,7 +475,7 @@ sp_err_t prepare_test(sp_test_t* t, fixture_t* fixture, const c8* project, const
   sp_fs_create_dir(fixture->paths.index);
   git_repo_init(fixture->paths.index);
   git(fixture->paths.index, "symbolic-ref", "HEAD", "refs/heads/main");
-  git(fixture->paths.index, "config", "receive.denyCurrentBranch", "updateInstead");
+  git(fixture->paths.index, "config", "receive.denyCurrentBranch", "ignore");
   spn_path_roots_t roots = sp_zero;
   si_index_marker_t marker = {
     .version = si_index_marker_version,
