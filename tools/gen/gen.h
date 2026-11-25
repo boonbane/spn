@@ -81,6 +81,11 @@ typedef struct {
   sp_str_t key_field;
 } gen_keyed_t;
 
+typedef struct {
+  sp_str_t name;
+  sp_da(sp_str_t) values;
+} gen_enum_t;
+
 typedef enum {
   GEN_FORMAT_TOML,
   GEN_FORMAT_JSON,
@@ -109,6 +114,7 @@ typedef struct {
     sp_da(gen_type_t*) object;
   } containers;
   sp_da(gen_entry_t*) entries;
+  sp_da(gen_enum_t) enums;
   sp_da(sp_str_t) includes;
   sp_da(gen_kind_t) kinds;
   sp_da(gen_type_t*) arms;

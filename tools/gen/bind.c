@@ -238,6 +238,7 @@ static void bind_field(gen_t* g, sp_template_scope_t* scope, gen_field_t* f) {
     }
     case FIELD_ENUM: {
       sp_template_set(scope, sp_str_lit("k_enum"), sp_str_lit("1"));
+      sp_template_set(scope, sp_str_lit("enum"), f->as.enumeration);
       sp_template_set(scope, sp_str_lit("from"), sp_fmt(g->mem, "spn_{}_from_str", sp_fmt_str(f->as.enumeration)).value);
       sp_template_set(scope, sp_str_lit("jwrite"), sp_str_lit("spn_codegen_json_str"));
       sp_template_set(scope, sp_str_lit("warg"), write_value(g, f));
@@ -266,6 +267,7 @@ static void bind_field(gen_t* g, sp_template_scope_t* scope, gen_field_t* f) {
     }
     case FIELD_ENUM_ARRAY: {
       sp_template_set(scope, sp_str_lit("k_enum_array"), sp_str_lit("1"));
+      sp_template_set(scope, sp_str_lit("enum"), f->as.enumeration);
       sp_template_set(scope, sp_str_lit("type"), enum_type(g, f->as.enumeration));
       sp_template_set(scope, sp_str_lit("from"), sp_fmt(g->mem, "spn_{}_from_str", sp_fmt_str(f->as.enumeration)).value);
       sp_template_set(scope, sp_str_lit("to"), sp_fmt(g->mem, "spn_{}_to_str", sp_fmt_str(f->as.enumeration)).value);
@@ -426,6 +428,16 @@ gen_render_t gen_render_impl(gen_t* g) {
   sp_template_scope_t* scope = gen_root_scope(g);
   gen_bind_type_impls(g, scope);
   sp_template_set(scope, sp_str_lit("root_write"), sp_str_lit("root_write"));
+
+  sp_template_list(scope, sp_str_lit("enums"));
+  sp_da_for(g->enums, it) {
+    sp_template_scope_t* child = sp_template_push(scope, sp_str_lit("enums"));
+    sp_template_set(child, sp_str_lit("enum"), g->enums[it].name);
+    sp_template_list(child, sp_str_lit("values"));
+    sp_da_for(g->enums[it].values, value) {
+      sp_template_set(sp_template_push(child, sp_str_lit("values")), sp_str_lit("value"), g->enums[it].values[value]);
+    }
+  }
 
   sp_template_list(scope, sp_str_lit("arrays"));
   sp_da_for(g->containers.array, it) {

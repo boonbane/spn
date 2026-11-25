@@ -109,63 +109,7 @@ static const release_test_t tests [] = {
     },
   },
   {
-    .name = "unknown_linkage",
-    .expect = {
-      .releases = {
-        {
-          .name = "spum",
-          .version = "1.0.0",
-          .targets = {
-            { .name = "spum", .linkages = { SPN_LIB_KIND_STATIC } },
-          },
-        },
-      },
-    },
-  },
-  {
-    .name = "linkage_non_string",
-    .expect = {
-      .releases = {
-        {
-          .name = "spum",
-          .version = "1.0.0",
-          .targets = {
-            { .name = "spum", .linkages = { SPN_LIB_KIND_STATIC } },
-          },
-        },
-      },
-    },
-  },
-  {
-    .name = "unknown_dep_kind",
-    .expect = {
-      .releases = {
-        {
-          .name = "spum",
-          .version = "1.0.0",
-          .deps = {
-            { .name = "curl", .version = "^1.0.0", .kind = SPN_INDEX_DEP_NORMAL },
-          },
-        },
-      },
-    },
-  },
-  {
     .name = "deps_non_object",
-    .expect = {
-      .releases = {
-        {
-          .name = "spum",
-          .version = "1.0.0",
-          .deps = {
-            { .name = "curl", .version = "^1.0.0", .kind = SPN_INDEX_DEP_NORMAL },
-          },
-        },
-      },
-    },
-  },
-  {
-    .name = "dep_kind_missing",
     .expect = {
       .releases = {
         {
@@ -218,6 +162,22 @@ static const release_test_t tests [] = {
   },
   {
     .name = "dep_range_invalid",
+    .expect = { .err = SPN_ERROR },
+  },
+  {
+    .name = "dep_kind_missing",
+    .expect = { .err = SPN_ERROR },
+  },
+  {
+    .name = "unknown_dep_kind",
+    .expect = { .err = SPN_ERROR },
+  },
+  {
+    .name = "unknown_linkage",
+    .expect = { .err = SPN_ERROR },
+  },
+  {
+    .name = "linkage_non_string",
     .expect = { .err = SPN_ERROR },
   },
   {

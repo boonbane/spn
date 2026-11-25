@@ -23,11 +23,12 @@ spn_err_t si_index_parse_pkg(sp_mem_t mem, sp_intern_t* intern, sp_intern_str_t 
     empty = false;
 
     spn_cg_release_t rel = sp_zero;
-    if (!spn_release_read(line, &rel, mem)) {
-      return SPN_ERROR;
-    }
+    bool read = spn_release_read(line, &rel, mem);
     if (!sp_opt_is_null(rel.v) && sp_opt_get(rel.v) > si_release_schema_version) {
       continue;
+    }
+    if (!read) {
+      return SPN_ERROR;
     }
 
     if (!sp_str_equal(rel.name, name.str)) {
@@ -78,9 +79,7 @@ spn_err_t si_index_parse_pkg(sp_mem_t mem, sp_intern_t* intern, sp_intern_str_t 
       spn_index_target_t target = { .name = rel.targets[it].name };
       sp_da_init(mem, target.linkages);
       sp_da_for(rel.targets[it].linkages, n) {
-        if (rel.targets[it].linkages[n] != SPN_LIB_KIND_NONE) {
-          sp_da_push(target.linkages, rel.targets[it].linkages[n]);
-        }
+        sp_da_push(target.linkages, rel.targets[it].linkages[n]);
       }
       sp_da_push(release.targets, target);
     }

@@ -6,19 +6,23 @@
 #include "triple/triple.h"
 
 #define SCHEMA_ENUMS \
-  X(arch,           manifest) \
-  X(os,             manifest) \
-  X(abi,            manifest) \
-  X(cc_driver,      config) \
-  X(linkage,        manifest) \
-  X(runtime,        manifest) \
-  X(c_standard,     manifest) \
-  X(cxx_standard,   manifest) \
-  X(mode,           manifest) \
-  X(option_type,    manifest) \
-  X(tree,           manifest) \
-  X(index_protocol, manifest) \
-  X(index_dep_kind, release)
+  X(arch,             manifest) \
+  X(os,               manifest) \
+  X(abi,              manifest) \
+  X(cc_driver,        config) \
+  X(ld_family,        config) \
+  X(toolchain_detect, config) \
+  X(linkage,          manifest) \
+  X(runtime,          manifest) \
+  X(sanitizer,        manifest) \
+  X(c_standard,       manifest) \
+  X(cxx_standard,     manifest) \
+  X(mode,             manifest) \
+  X(option_type,      manifest) \
+  X(tree,             manifest) \
+  X(win_subsystem,    manifest) \
+  X(index_protocol,   manifest) \
+  X(index_dep_kind,   release)
 
 #define X(ID, SCHEMA) \
   static u32 schema_##ID##_from(sp_str_t str) { return spn_##ID##_from_str(str); } \

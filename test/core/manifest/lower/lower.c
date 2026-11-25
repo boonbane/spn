@@ -22,14 +22,12 @@ typedef struct {
   const c8* value;
   const c8* when;
   spn_tree_t tree;
-  bool tree_none;
 } gated_t;
 
 typedef struct {
   const c8* value;
   const c8* when;
   spn_tree_t tree;
-  bool tree_none;
   spn_source_kind_t kind;
 } source_t;
 
@@ -38,7 +36,6 @@ typedef struct {
   const c8* dest;
   const c8* when;
   spn_tree_t tree;
-  bool tree_none;
   spn_publish_root_t root;
   spn_source_kind_t kind;
 } publish_t;
@@ -1245,15 +1242,15 @@ static const test_t tests [] = {
   {
     .name = "validate_tree_invalid",
     .manifest = "validate_tree_invalid",
-    .include = { { "inc", .tree_none = true } },
-    .build_source = { { "b.c", .tree_none = true } },
+    .include = { { "inc" } },
+    .build_source = { { "b.c" } },
     .issues = {
-      { SPN_ERR_CODEGEN_INVALID, "lib[0].source[0].tree" },
-      { SPN_ERR_CODEGEN_INVALID, "lib[0].linker_script[0].tree" },
-      { SPN_ERR_CODEGEN_INVALID, "lib[0].embed[0].tree" },
       { SPN_ERR_CODEGEN_INVALID, "package.include[0].tree" },
       { SPN_ERR_CODEGEN_INVALID, "package.build.source[0].tree" },
       { SPN_ERR_CODEGEN_INVALID, "package.configure.include[0].tree" },
+      { SPN_ERR_CODEGEN_INVALID, "lib[0].source[0].tree" },
+      { SPN_ERR_CODEGEN_INVALID, "lib[0].linker_script[0].tree" },
+      { SPN_ERR_CODEGEN_INVALID, "lib[0].embed[0].tree" },
     }
   },
   {
@@ -1493,8 +1490,8 @@ static const test_t tests [] = {
     .name = "validate_profile_platform",
     .manifest = "validate_profile_platform",
     .issues = {
-      { SPN_ERR_CODEGEN_INVALID, "profile[0].os" },
-      { SPN_ERR_CODEGEN_INVALID, "profile[0].arch" },
+      { SPN_ERR_CODEGEN_INVALID, "profile.a.os" },
+      { SPN_ERR_CODEGEN_INVALID, "profile.a.arch" },
     },
   },
   {
@@ -1532,6 +1529,7 @@ static const test_t tests [] = {
     .name = "validate_index_sources",
     .manifest = "index_sources",
     .issues = {
+      { SPN_ERR_CODEGEN_INVALID, "index[4].protocol" },
       { SPN_ERR_CODEGEN_INVALID, "index[0].url" },
       { SPN_ERR_CODEGEN_MISSING_KEY, "index[1].url" },
       { SPN_ERR_CODEGEN_INVALID, "index[2].path" },
@@ -1886,7 +1884,7 @@ static const test_t tests [] = {
   {
     .name = "validate_publish_tree_invalid",
     .manifest = "validate_publish_tree_invalid",
-    .publish.entries = { { "a.h", "", .tree_none = true } },
+    .publish.entries = { { "a.h", "" } },
     .issues = {
       { SPN_ERR_CODEGEN_INVALID, "package.publish.include[0].tree" },
     },
@@ -2008,7 +2006,14 @@ static const test_t tests [] = {
     .name = "validate_option_bad_type",
     .manifest = "validate_option_bad_type",
     .issues = {
-      { SPN_ERR_CODEGEN_INVALID, "options[0].type" }
+      { SPN_ERR_CODEGEN_INVALID, "options.tls.type" }
+    },
+  },
+  {
+    .name = "validate_option_missing_type",
+    .manifest = "validate_option_missing_type",
+    .issues = {
+      { SPN_ERR_CODEGEN_MISSING_KEY, "options.tls.type" }
     },
   },
   {
@@ -2091,7 +2096,7 @@ static sp_err_t check_gated_list(sp_test_t* t, spn_gated_list_t actual, const ga
 static sp_err_t check_publish_list(sp_test_t* t, sp_da(spn_gated_publish_t) actual, const publish_t* expected, u32 n) {
   sp_must_eq(t, n, (u32)sp_da_size(actual));
   sp_for(it, n) {
-    spn_tree_t tree = expected[it].tree_none ? SPN_TREE_NONE : expected[it].tree ? expected[it].tree : SPN_TREE_SOURCE;
+    spn_tree_t tree = expected[it].tree ? expected[it].tree : SPN_TREE_SOURCE;
     sp_expect_eq(t, (u32)expected[it].root, (u32)actual[it].root);
     sp_expect_eq(t, (u32)expected[it].kind, (u32)actual[it].source.kind);
     sp_expect_eq(t, (u32)tree, (u32)actual[it].source.tree);
@@ -2126,7 +2131,7 @@ static sp_err_t check_stage_list(sp_test_t* t, si_da(spn_stage_copy_t) actual, c
 static sp_err_t check_gated_path_list(sp_test_t* t, spn_gated_path_list_t actual, const gated_t* expected, u32 n) {
   sp_must_eq(t, n, (u32)sp_da_size(actual));
   sp_for(it, n) {
-    spn_tree_t tree = expected[it].tree_none ? SPN_TREE_NONE : expected[it].tree ? expected[it].tree : SPN_TREE_SOURCE;
+    spn_tree_t tree = expected[it].tree ? expected[it].tree : SPN_TREE_SOURCE;
     sp_expect_str_eq_c(t, actual[it].path, expected[it].value);
     sp_expect_eq(t, (u32)tree, (u32)actual[it].tree);
     sp_expect_str_eq_c(t, spn_when_to_str(sp_test_arena(t), &actual[it].when), expected[it].when ? expected[it].when : "always");
@@ -2178,7 +2183,7 @@ static sp_err_t check_requires_list(sp_test_t* t, si_da(spn_gated_requirement_t)
 static sp_err_t check_gated_source_list(sp_test_t* t, sp_da(spn_gated_source_t) actual, const source_t* expected, u32 n) {
   sp_must_eq(t, n, (u32)sp_da_size(actual));
   sp_for(it, n) {
-    spn_tree_t tree = expected[it].tree_none ? SPN_TREE_NONE : expected[it].tree ? expected[it].tree : SPN_TREE_SOURCE;
+    spn_tree_t tree = expected[it].tree ? expected[it].tree : SPN_TREE_SOURCE;
     sp_expect_eq(t, (u32)expected[it].kind, (u32)actual[it].kind);
     sp_expect_str_eq_c(t, actual[it].path, expected[it].value);
     sp_expect_eq(t, (u32)tree, (u32)actual[it].tree);

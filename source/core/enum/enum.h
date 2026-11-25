@@ -53,7 +53,6 @@ sp_str_t spn_unpack_reason_to_str(spn_unpack_reason_t reason);
 sp_str_t spn_triple_segment_to_str(spn_triple_segment_t segment);
 sp_str_t spn_cc_feature_to_str(spn_cc_feature_t feature);
 
-spn_cc_kind_t spn_cc_kind_from_str(sp_str_t str);
 spn_c_standard_t spn_c_standard_from_str(sp_str_t str);
 sp_str_t spn_c_standard_to_str(spn_c_standard_t standard);
 spn_cxx_standard_t spn_cxx_standard_from_str(sp_str_t str);
