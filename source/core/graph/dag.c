@@ -173,9 +173,9 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
   const spn_target_emit_t* emit = &unit->emit;
   bool root = unit->pkg->resolved->source == SPN_PKG_SOURCE_ROOT;
 
-  spn_dag_id_t* found_libc = sp_ht_getp(b->ids.builds, build);
-  sp_assert(found_libc);
-  spn_dag_id_t libc = *found_libc;
+  si_dag_build_ids_t* build_ids = si_ht_getp(b->ids.builds, build);
+  sp_assert(build_ids);
+  spn_dag_id_t libc = build_ids->libc;
 
   si_da(spn_dag_id_t) needs = sp_zero;
   si_dag_pkg_ids_t* pkg_ids = si_om_get(b->ids.packages, unit->pkg);
@@ -578,8 +578,8 @@ spn_err_t si_dag_build_lower(spn_dag_build_t* b, const spn_build_plan_t* plan) {
 
   si_da_for_value(plan->targets, target) {
     spn_build_unit_t* build = target->pkg->build;
-    if (!sp_ht_getp(b->ids.builds, build)) {
-      spn_dag_id_t libc = sp_zero;
+    if (!si_ht_getp(b->ids.builds, build)) {
+      si_dag_build_ids_t ids = sp_zero;
       if (build->profile.libc.some) {
         spn_libc_t* paths = &build->profile.libc.value;
 
@@ -599,11 +599,65 @@ spn_err_t si_dag_build_lower(spn_dag_build_t* b, const spn_build_plan_t* plan) {
           .execute = si_on_write_libc,
           .user_data = ctx,
         });
-        libc = spn_dag_add_output(g, sp_str_lit("libc.txt"));
-        ctx->output = libc;
-        spn_try(spn_dag_action_add_output(g, action, libc));
+        ids.libc = spn_dag_add_output(g, sp_str_lit("libc.txt"));
+        ctx->output = ids.libc;
+        spn_try(spn_dag_action_add_output(g, action, ids.libc));
       }
-      sp_ht_insert(b->ids.builds, build, libc);
+      si_ht_insert(b->mem, b->ids.builds, build, ids);
+    }
+    spn_toolchain_unit_t* toolchain = build->toolchain;
+    si_dag_build_ids_t* build_ids = si_ht_getp(b->ids.builds, build);
+    sp_da_for_value(target->objects, object) {
+      if (build_ids->stdinc[object->lang].occupied) {
+        continue;
+      }
+
+      spn_cc_stdinc_plan_t stdinc = si_cc_render_stdinc(b->mem, &toolchain->cc, &build->profile, object->lang);
+      spn_dag_action_config_t config = sp_zero;
+      switch (stdinc.kind) {
+        case SPN_CC_STDINC_NONE: {
+          continue;
+        }
+        case SPN_CC_STDINC_FRAGMENT: {
+          config.execute = si_on_stdinc_fragment;
+          break;
+        }
+        case SPN_CC_STDINC_SEARCH_LIST: {
+          config.execute = si_on_stdinc_search_list;
+          break;
+        }
+      }
+
+      spn_digest_ctx_t digest = sp_zero;
+      spn_digest_init(&digest);
+      spn_dag_hash_str(&digest, sp_str_lit("spn.build.stdinc.v1"));
+      spn_dag_hash_u64(&digest, toolchain->identity);
+      spn_dag_hash_u8(&digest, (u8)stdinc.kind);
+      hash_invocation(&digest, g->roots, &stdinc.query);
+      hash_invocation(&digest, g->roots, &stdinc.builtin);
+      config.identity = spn_dag_hash_final(&digest);
+
+      spn_dag_id_t* existing = si_ht_getp(b->ids.stdinc, config.identity);
+      if (existing) {
+        build_ids->stdinc[object->lang] = *existing;
+        continue;
+      }
+
+      si_stdinc_t* ctx = sp_alloc_type(b->mem, si_stdinc_t);
+      *ctx = (si_stdinc_t) {
+        .plan = stdinc,
+        .toolchain = toolchain->cc.name.str,
+        .libc = build_ids->libc,
+        .output = spn_dag_add_output(g, sp_str_lit("stdinc.txt")),
+      };
+      config.user_data = ctx;
+      spn_dag_id_t action = spn_dag_add_action(g, config);
+      if (build_ids->libc.occupied) {
+        spn_dag_action_add_input(g, action, build_ids->libc);
+      }
+      spn_try(spn_dag_action_add_output(g, action, ctx->output));
+      si_ht_insert(b->mem, b->ids.stdinc, config.identity, ctx->output);
+      build_ids->stdinc[object->lang] = ctx->output;
     }
 
     if (!sp_opt_is_null(target->prebuilt)) {
@@ -815,7 +869,6 @@ spn_dag_build_t* spn_dag_build_new(spn_op_t* op) {
   b->graph = spn_dag_new(spn.mem, roots);
   sp_ht_init(b->mem, b->ids.targets);
   sp_ht_init(b->mem, b->ids.embeds);
-  sp_ht_init(b->mem, b->ids.builds);
   sp_ht_init(b->mem, b->ids.warm);
 
   b->run = (spn_dag_run_t) {

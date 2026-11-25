@@ -19,6 +19,33 @@ static const command_test_t commands [] = {
       { .include = ".st/pkg/beta/" },
     },
   },
+  {
+    .name = "zig_search_is_explicit",
+    .project = "test/integration/fixtures/compile_commands/simple",
+    .when = { .driver = SPN_CC_DRIVER_ZIG },
+    .args = { "build" },
+    .expect.cc = {
+      { .args = { "-nostdinc" } },
+    },
+  },
+  {
+    .name = "gcc_search_is_explicit",
+    .project = "test/integration/fixtures/compile_commands/simple",
+    .when = { .driver = SPN_CC_DRIVER_GCC },
+    .args = { "build" },
+    .expect.cc = {
+      { .args = { "-nostdlibinc" } },
+    },
+  },
+  {
+    .name = "cross_gcc_search_is_explicit",
+    .project = "test/integration/fixtures/compile_commands/simple",
+    .when = { .driver = SPN_CC_DRIVER_GCC, .target = "aarch64-linux-gnu" },
+    .args = { "build", "--target", "aarch64-linux-gnu" },
+    .expect.cc = {
+      { .args = { "-nostdlibinc" } },
+    },
+  },
 };
 
 sp_test_each(compile_commands, cases, command_test_t, commands) {

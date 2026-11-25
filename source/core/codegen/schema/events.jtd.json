@@ -81,6 +81,7 @@
     },
     "warm_start": { "metadata": { "verb": "Building" }, "ref": "warm" },
     "warm_failed": { "metadata": { "verb": "Failed", "severity": "error" }, "ref": "warm_failed" },
+    "stdinc_failed": { "metadata": { "verb": "Failed", "severity": "error" }, "ref": "stdinc_failed" },
     "target_build_passed": { "metadata": { "verb": "Compiled", "verbosity": "debug" }, "ref": "target_passed" },
     "target_build_failed": { "metadata": { "verb": "Failed", "severity": "error" }, "ref": "target_failed" },
     "target_build_warned": { "metadata": { "verb": "Warning", "severity": "warning" }, "ref": "target_warned" },
@@ -352,6 +353,12 @@
         "toolchain": { "type": "string" },
         "triple": { "type": "string" },
         "stub": { "type": "string" },
+        "run": { "ref": "run" }
+      }
+    },
+    "stdinc_failed": {
+      "properties": {
+        "toolchain": { "type": "string" },
         "run": { "ref": "run" }
       }
     },

@@ -8,14 +8,16 @@
 spn_cc_compile_plan_t si_cc_render_compile(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, spn_lang_t lang, const spn_cc_compile_t* compile);
 spn_cc_archive_plan_t si_cc_render_archive(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile);
 spn_cc_link_plan_t si_cc_render_link(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, const spn_cc_link_t* link);
+spn_cc_stdinc_plan_t si_cc_render_stdinc(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, spn_lang_t lang);
 
 
 spn_toolchain_launcher_t spn_cc_launcher(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, spn_lang_t lang);
 spn_cc_link_refusal_t si_cc_validate_link(const spn_cc_t* toolchain, spn_triple_t host, const spn_profile_info_t* profile, const spn_cc_link_t* link);
-spn_invocation_t spn_cc_render_compile_source(sp_mem_t mem, const spn_cc_compile_plan_t* plan, const spn_cc_compile_files_t* files);
+spn_invocation_t si_cc_render_compile_source(sp_mem_t mem, const spn_cc_compile_plan_t* plan, const spn_cc_compile_files_t* files, si_da(sp_str_t) stdinc);
 spn_invocation_t spn_cc_render_compile_command(sp_mem_t mem, const spn_cc_compile_plan_t* plan, const spn_cc_compile_files_t* files);
 spn_invocation_t spn_cc_render_link_command(sp_mem_t mem, const spn_cc_link_plan_t* plan, const spn_cc_link_files_t* files);
 spn_invocation_t spn_cc_render_archive_command(sp_mem_t mem, const spn_cc_archive_plan_t* plan, const spn_cc_archive_files_t* files);
+spn_invocation_t si_cc_render_stdinc_command(sp_mem_t mem, const spn_invocation_t* query, const spn_cc_stdinc_files_t* files);
 bool spn_cc_has(const spn_cc_t* toolchain, spn_cc_cap_t cap);
 spn_err_t spn_cc_parse_depfile(sp_mem_t mem, spn_cc_driver_t driver, sp_str_t content, sp_da(sp_str_t)* prereqs);
 spn_cc_exports_format_t spn_cc_exports_format(spn_cc_output_kind_t kind, spn_obj_format_t format);
@@ -27,6 +29,9 @@ bool si_cc_link_implib(const spn_profile_info_t* profile, spn_cc_output_kind_t k
 spn_cc_compile_plan_t si_gnu_render_compile(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, spn_lang_t lang, const spn_cc_compile_t* compile);
 void spn_gnu_render_compile_include(sp_mem_t mem, const spn_cc_compile_files_t* files, spn_invocation_t* invocation);
 void spn_gnu_render_compile_locations(sp_mem_t mem, const spn_cc_compile_plan_t* plan, const spn_cc_compile_files_t* files, spn_invocation_t* invocation);
+spn_invocation_t si_gnu_render_stdinc_query(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, spn_lang_t lang);
+spn_invocation_t si_gnu_render_builtin_query(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, spn_lang_t lang);
+void si_gnu_render_stdinc_locations(sp_mem_t mem, const spn_cc_stdinc_files_t* files, spn_invocation_t* invocation);
 spn_cc_link_plan_t si_gnu_render_link(sp_mem_t mem, const spn_cc_t* toolchain, const spn_profile_info_t* profile, const spn_cc_link_t* link);
 void si_gnu_render_link_locations(sp_mem_t mem, const spn_cc_link_plan_t* plan, const spn_cc_link_files_t* files, spn_invocation_t* invocation);
 sp_da(spn_arg_t) spn_gnu_render_exports(sp_mem_t mem, si_da(spn_cc_export_t) symbols);

@@ -14,6 +14,9 @@ static const codegen_t codegens [] = {
     .tag = "codegen",
     .outputs = {
       "gen/codegen/gen/abi.gen.c",
+      "gen/codegen/gen/cdb_fragment.gen.c",
+      "gen/codegen/gen/cdb_fragment.gen.h",
+      "gen/codegen/gen/cdb_fragment.jtd.json",
       "gen/codegen/gen/common.gen.h",
       "gen/codegen/gen/config.gen.c",
       "gen/codegen/gen/config.gen.h",

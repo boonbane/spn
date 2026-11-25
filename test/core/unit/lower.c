@@ -22,6 +22,7 @@ typedef enum {
   NODE_WARM,
   NODE_LIBC,
   NODE_RSP,
+  NODE_STDINC,
 } node_t;
 
 typedef struct {
@@ -313,6 +314,8 @@ static const classified_t classified [] = {
   { si_on_zig_warmup, NODE_WARM },
   { si_on_write_libc, NODE_LIBC },
   { si_on_write_rsp, NODE_RSP },
+  { si_on_stdinc_fragment, NODE_STDINC },
+  { si_on_stdinc_search_list, NODE_STDINC },
 };
 
 static node_t classify(si_dag_fn_t execute) {
@@ -338,6 +341,7 @@ static const c8* node_name(node_t kind) {
     case NODE_WARM: return "warm";
     case NODE_LIBC: return "libc";
     case NODE_RSP: return "rsp";
+    case NODE_STDINC: return "stdinc";
   }
   return "none";
 }
@@ -368,7 +372,7 @@ static sp_da(lowered_t) lower_graph(sp_mem_t mem, const spn_dag_t* g) {
   sp_da_for(g->actions, it) {
     const spn_dag_action_t* action = &g->actions[it];
     node_t kind = classify(action->execute);
-    if (kind == NODE_RSP) {
+    if (kind == NODE_RSP || kind == NODE_STDINC) {
       continue;
     }
     lowered_t row = { .kind = kind };
