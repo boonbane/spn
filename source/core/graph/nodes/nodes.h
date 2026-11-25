@@ -26,6 +26,7 @@ typedef struct {
   spn_dag_id_t libc;
   spn_dag_id_t output;
   spn_dag_id_t implib;
+  spn_dag_id_t pdb;
   spn_dag_id_t log;
 } si_link_t;
 

@@ -66,6 +66,7 @@ typedef struct {
   spn_path_t cwd;
   spn_path_t output;
   spn_path_t implib;
+  spn_path_t pdb;
   spn_path_t exports;
   spn_path_t libc;
   spn_path_t rsp;
@@ -156,6 +157,7 @@ typedef struct {
   spn_ld_dialect_t dialect;
   spn_cc_exports_format_t exports;
   spn_cc_soname_t soname;
+  bool pdb;
 } spn_cc_link_plan_t;
 
 typedef struct {

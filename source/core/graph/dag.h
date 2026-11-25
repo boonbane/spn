@@ -11,6 +11,7 @@ typedef struct {
   spn_dag_id_t archive;
   spn_dag_id_t link;
   spn_dag_id_t implib;
+  spn_dag_id_t pdb;
 } spn_dag_target_ids_t;
 
 typedef struct {

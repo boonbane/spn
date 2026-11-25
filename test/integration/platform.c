@@ -70,6 +70,16 @@ static const test_t tests [] = {
     },
   },
   {
+    .name = "pdb",
+    .project = "test/integration/fixtures/platform/inert",
+    .copy = { "main.c" },
+    .when = { .driver = SPN_CC_DRIVER_ZIG, .target = "x86_64-windows-gnu" },
+    .actions = {
+      { .kind = ACTION_RUN_CLI, .cli = { .cmd = "build", .args = { "--target", "x86_64-windows-gnu" } } },
+      { .kind = ACTION_VERIFY_EXISTS, .exists = target_staged_file("main.pdb", "x86_64-windows-gnu") },
+    },
+  },
+  {
     .name = "masm",
     .project = "test/integration/fixtures/platform/masm",
     .copy = { "main.c", "answer.asm" },

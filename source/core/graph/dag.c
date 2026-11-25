@@ -374,6 +374,7 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
       .libc = libc,
       .output = ids->link,
       .implib = ids->implib,
+      .pdb = ids->pdb,
       .log = add_log(g),
     };
     si_da_for(link->deps, it) {
@@ -472,6 +473,9 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
     if (ids->implib.occupied) {
       spn_try(spn_dag_action_add_output(g, action, ids->implib));
     }
+    if (ids->pdb.occupied) {
+      spn_try(spn_dag_action_add_output(g, action, ids->pdb));
+    }
     spn_try(spn_dag_action_add_output(g, action, ctx->log));
     if (root) {
       si_da_push(b->mem, b->logs, ((spn_dag_log_t) {
@@ -557,6 +561,9 @@ static spn_err_t add_target(spn_dag_build_t* b, sp_mem_t mem, spn_target_unit_t*
     if (ids->implib.occupied) {
       spn_try(add_publish_file(b, ids->implib, spn_path_join(b->mem, unit->install, emit->link.implib)));
     }
+    if (ids->pdb.occupied) {
+      spn_try(add_publish_file(b, ids->pdb, spn_path_join(b->mem, unit->install, emit->link.pdb)));
+    }
   }
 
   return SPN_OK;
@@ -619,6 +626,9 @@ spn_err_t si_dag_build_lower(spn_dag_build_t* b, const spn_build_plan_t* plan) {
     }
     if (!sp_str_empty(target->emit.link.implib)) {
       ids.implib = spn_dag_add_output(g, target->emit.link.implib);
+    }
+    if (!sp_str_empty(target->emit.link.pdb)) {
+      ids.pdb = spn_dag_add_output(g, target->emit.link.pdb);
     }
     sp_ht_insert(b->ids.targets, target, ids);
   }
@@ -752,17 +762,33 @@ spn_err_t si_dag_build_lower(spn_dag_build_t* b, const spn_build_plan_t* plan) {
   }
   si_da_for_value(plan->closures, closure) {
     sp_str_t key = closure.exe.target->target->info->name.str;
+    spn_dag_target_ids_t* exe = sp_ht_getp(b->ids.targets, closure.exe.target);
     si_da_push(b->mem, b->stages.profile, ((spn_dag_stage_t) {
       .key = key,
       .to = closure.exe.path,
-      .artifact = sp_ht_getp(b->ids.targets, closure.exe.target)->link,
+      .artifact = exe->link,
     }));
+    if (!spn_path_empty(closure.exe.pdb)) {
+      si_da_push(b->mem, b->stages.profile, ((spn_dag_stage_t) {
+        .key = key,
+        .to = closure.exe.pdb,
+        .artifact = exe->pdb,
+      }));
+    }
     si_da_for_value(closure.libs, lib) {
+      spn_dag_target_ids_t* ids = sp_ht_getp(b->ids.targets, lib.target);
       si_da_push(b->mem, b->stages.profile, ((spn_dag_stage_t) {
         .key = key,
         .to = lib.path,
-        .artifact = sp_ht_getp(b->ids.targets, lib.target)->link,
+        .artifact = ids->link,
       }));
+      if (!spn_path_empty(lib.pdb)) {
+        si_da_push(b->mem, b->stages.profile, ((spn_dag_stage_t) {
+          .key = key,
+          .to = lib.pdb,
+          .artifact = ids->pdb,
+        }));
+      }
     }
     si_da_for_value(closure.files, file) {
       si_da_push(b->mem, b->stages.profile, ((spn_dag_stage_t) {

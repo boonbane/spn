@@ -12,6 +12,7 @@ typedef struct {
   bool import_undefined;
   const c8* exports;
   const c8* implib;
+  const c8* pdb;
   const c8* rsp;
   const c8* archive;
   const c8* shared;
@@ -178,9 +179,10 @@ static const test_t tests [] = {
       .mode = SPN_MODE_DEBUG,
     },
     .kind = SPN_CC_OUTPUT_EXE,
+    .pdb = "main.pdb",
     .expect = {
       .command = "cc",
-      .args = { "/nologo", "main.o", "/Femain", "/link", "/DEBUG", "/NOIMPLIB", "/NOEXP" },
+      .args = { "/nologo", "main.o", "/Femain", "/link", "/DEBUG", "/PDBALTPATH:%_PDB%", "/INCREMENTAL:NO", "/NOIMPLIB", "/NOEXP", "/PDB:main.pdb" },
     },
   },
   {
@@ -836,6 +838,7 @@ sp_test_each(render_link, render, test_t, tests) {
     .output = test_arg_path("main"),
     .exports = test_arg_path(it->exports),
     .implib = test_arg_path(it->implib),
+    .pdb = test_arg_path(it->pdb),
     .libc = test_arg_path(it->libc),
     .rsp = test_arg_path(it->rsp),
   };
