@@ -150,9 +150,13 @@ static void render_flags(sp_mem_t mem, const spn_cc_t* toolchain, const spn_prof
     if (spn_triple_object_format(profile->target) == SPN_OBJ_WASM) {
       sp_da_push(flags->link, sp_str_lit("-nostdlib"));
     }
-    else {
+    else if (spn_cc_has(toolchain, SPN_CC_CAP_CLANG_FRONTEND)) {
       sp_da_push(flags->link, sp_str_lit("-nostartfiles"));
       sp_da_push(flags->link, sp_str_lit("-nolibc"));
+    }
+    else {
+      sp_da_push(flags->link, sp_str_lit("-nostdlib"));
+      sp_da_push(flags->libs, sp_str_lit("-lgcc"));
     }
   }
 }
@@ -266,6 +270,7 @@ spn_cc_compile_plan_t si_gnu_render_compile(sp_mem_t mem, const spn_cc_t* toolch
   spn_cc_flags_t flags = sp_zero;
   sp_da_init(mem, flags.compile);
   sp_da_init(mem, flags.link);
+  sp_da_init(mem, flags.libs);
   render_flags(mem, toolchain, profile, &flags);
   if (lang == SPN_LANG_C) {
     spn_cc_push_str(mem, invocation, c_standard_to_flag(profile->standard));
@@ -412,6 +417,7 @@ spn_cc_link_plan_t si_gnu_render_link(sp_mem_t mem, const spn_cc_t* toolchain, c
   spn_cc_flags_t flags = sp_zero;
   sp_da_init(mem, flags.compile);
   sp_da_init(mem, flags.link);
+  sp_da_init(mem, flags.libs);
   render_flags(mem, toolchain, profile, &flags);
   spn_cc_push_strs(mem, base, flags.link);
   if (link->lang == SPN_LANG_CXX && triple.os == SPN_OS_LINUX && spn_ld_dynamic(triple) && spn_cc_has(toolchain, SPN_CC_CAP_GNU_RUNTIME)) {
@@ -537,6 +543,7 @@ spn_cc_link_plan_t si_gnu_render_link(sp_mem_t mem, const spn_cc_t* toolchain, c
   si_da_for(link->system_libs, it) {
     spn_cc_push_fmt(mem, &tail, "-l{}", sp_fmt_str(link->system_libs[it]));
   }
+  spn_cc_push_strs(mem, &tail, flags.libs);
   add_sdk_link(mem, profile, base, &tail);
   if (profile->target.os == SPN_OS_MACOS) {
     add_min_os(mem, toolchain, link->min_os, &tail);

@@ -524,6 +524,10 @@ sp_ps_config_t docker_test(docker_t* docker, const variant_t* variant, lane_t la
   arg(docker, &config, sp_fmt(mem, "SPN_TEST_TOOLCHAIN={}", sp_fmt_cstr(lane_name(lane))).value);
   arg_c(docker, &config, "-e");
   arg(docker, &config, sp_fmt(mem, "SPN_TEST_HOST_LIBS={}", sp_fmt_str(variant_host_libs(mem, variant))).value);
+  if (variant_gcc_4_8(variant)) {
+    arg_c(docker, &config, "-e");
+    arg_c(docker, &config, "SPN_TEST_GCC_4_8=1");
+  }
   arg_c(docker, &config, "-v");
   arg(docker, &config, mirror(docker, docker->paths.repo));
   arg_c(docker, &config, "-v");
