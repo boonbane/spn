@@ -109,8 +109,8 @@ fuzz: build
 	@ctest --test-dir $(WORK) -C $(CONFIG) --output-on-failure -R "^fuzz"
 
 CI_TRIPLES ?= $(HOST_TRIPLE)
-ifeq ($(HOST_TRIPLE),x86_64-linux-gnu)
-  CI_TRIPLES := x86_64-linux-gnu x86_64-linux-musl
+ifeq ($(findstring linux,$(HOST_TRIPLE)),linux)
+  CI_TRIPLES := $(UNAME_M)-linux-gnu $(UNAME_M)-linux-musl
 endif
 
 .PHONY: ci
